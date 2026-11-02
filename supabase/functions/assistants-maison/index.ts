@@ -781,7 +781,7 @@ var PROFESSIONNELS = [
     tourne: "machine",
     ouDit: "la machine de la Maison, Chrome",
     statut: "maquette",
-    chaqueJour: "Instagram, Facebook, TikTok, LinkedIn, le Journal du site : plan du mardi, publications, réponses aux commentaires, bilan du lundi.",
+    chaqueJour: "Instagram, Facebook, TikTok, LinkedIn, le Journal du site, le référencement du site dans Google et les IA : plan du mardi, publications, réponses aux commentaires, bilan du lundi.",
     seul: "Publier dans le plan validé, répondre aux commentaires.",
     enCarte: "Le plan de la semaine, toute cliente ou enfant, tout argent.",
     quinzaine: "semaines 3 et 4"

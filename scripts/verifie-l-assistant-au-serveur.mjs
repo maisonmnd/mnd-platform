@@ -41,6 +41,8 @@ const PASSAGE = 'src/shared/assistant-passage-pur.ts';
 const LECTURE = 'src/shared/assistant-lecture-pur.ts';
 const PUR = 'src/shared/gerard-pur.ts';
 const PANNES = [
+  ['garder ecarte encore la cliente de passage', PUR, '  const r = f.archivee ? undefined : prochainRdv(f, A);', '  const r = sollicitable ? prochainRdv(f, A) : undefined;'],
+  ['garder de l enfant sans le numero du payeur', LECTURE, '      return payeur?.telephone ? { telephone: true, appel: payeur.appel, pourId: payeur.id } : undefined;', '      return payeur?.telephone ? { telephone: true, appel: payeur.appel } : undefined;'],
   ['le GET lit la base', SERVEUR, "  if (req.method === 'GET') return json({ fonction: 'assistant-maison', version: VERSION });\n", ''],
   ['une cle quelconque acceptee', SERVEUR, 'if (!service || cleRecue !== service) return json(', 'if (!service) return json('],
   ['deux passages le meme jour', SERVEUR, "r.mode !== 'eteint' && avant.passageLe !== aujourdhui && h >= HEURE_DU_PASSAGE_DE", "r.mode !== 'eteint' && h >= HEURE_DU_PASSAGE_DE"],

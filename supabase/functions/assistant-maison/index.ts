@@ -629,6 +629,21 @@ var GESTE_DU_LIBELLE = {
 var PREFIXE_DU_BOUTON = "GERARD";
 var charge = (ligneId, libelle) => `${PREFIXE_DU_BOUTON}:${ligneId}:${GESTE_DU_LIBELLE[libelle] ?? "OUI"}`.slice(0, 128);
 
+// src/shared/accord-whatsapp-pur.ts
+var PLAFOND_DES_NOUVELLES_PAR_MOIS = 2;
+var FENETRE_DU_PLAFOND_JOURS = 30;
+var GENRES_QUI_COMPTENT = ["avant", "envie", "place", "anniversaire", "carte", "carte-foyer", "fetes", "endormie", "nouvelles", "campagne", "relance"];
+function nouvellesDuMois(envois, maintenantMs) {
+  const depuis = maintenantMs - FENETRE_DU_PLAFOND_JOURS * 24 * 60 * 6e4;
+  return envois.filter((e) => {
+    if (!e.genre || !GENRES_QUI_COMPTENT.includes(e.genre)) return false;
+    if (e.statut && /annul|ecart|refus|echec/i.test(e.statut)) return false;
+    const t = Date.parse(e.quand ?? "");
+    return Number.isFinite(t) && t >= depuis && t <= maintenantMs;
+  }).length;
+}
+var promesseTenue = (dejaCeMois) => dejaCeMois < PLAFOND_DES_NOUVELLES_PAR_MOIS;
+
 // src/shared/gerard-pur.ts
 var ENVIE_TOUS_LES_JOURS = 30;
 var PREMIERE_ENVIE_APRES = 30;
@@ -637,7 +652,7 @@ var COMBINER_AVANT = 7;
 var COMBINER_JUSQUA = 4;
 var ANNIV_GRACE_JOURS = 1;
 var GARDER_AVANT = 2;
-var GARDER_SI_POSE_DEPUIS = 7;
+var GARDER_SI_PRIS_DES_J = 3;
 var RELANCE_TOUS_LES_JOURS = 28;
 var RELANCE_APRES_CADENCE = 10;
 var ENDORMIE_DES_JOURS = 150;
@@ -882,6 +897,25 @@ function canalDe(f, genre) {
 }
 var RELANCES_A_LA_MAIN = ["combiner", "retard", "une-venue"];
 var aLaMainSeulement = (f, genre) => !EST_UN_SERVICE[genre] && !f.stop && !f.couronne && !f.accord && RELANCES_A_LA_MAIN.includes(genre);
+var MODELE_DU_GENRE = {
+  garder: "garder",
+  anniversaire: "anniversaire",
+  combiner: "avant",
+  envie: "envie",
+  creux: "nouvelles",
+  noel: "fetes",
+  retard: "place",
+  "une-venue": "place",
+  endormie: "endormie"
+};
+function promesseDe(f, aujourdhui) {
+  const finDuJour = Date.parse(`${aujourdhui}T23:59:59+01:00`);
+  const deja = nouvellesDuMois(
+    f.traces.filter((t) => !t.nonPartie && !EST_UN_SERVICE[t.genre]).map((t) => ({ genre: t.modele ?? MODELE_DU_GENRE[t.genre], quand: t.quand })),
+    finDuJour
+  );
+  return { deja, tenue: promesseTenue(deja), plafond: PLAFOND_DES_NOUVELLES_PAR_MOIS };
+}
 function anniversaireDuJour(f, ctx) {
   const A = ctx.aujourdhui;
   if (f.archivee) return null;
@@ -897,6 +931,7 @@ function anniversaireDuJour(f, ctx) {
   if (f.stop || dest.stop) return vu("stop");
   const canal = dest.telephone ? "whatsapp" : dest.couronne ? "couronne" : null;
   if (!canal) return vu("sans-numero");
+  if (!promesseDe(f, A).tenue) return vu("promesse");
   const quand = [["Anniversaire", jourDit(anniv)], ...anniv < A ? [["Rattrapage", "pas écrit le jour même"]] : []];
   const pose = (modele, variables, pourquoi, code) => ({
     ...vu("carte"),
@@ -948,19 +983,35 @@ function situationDuJour(f, ctx) {
       ...extra
     };
   };
-  const r = sollicitable ? prochainRdv(f, A) : void 0;
-  if (r && ecartJours(A, r.date) === GARDER_AVANT && (!r.creeLe || ecartJours(r.creeLe.slice(0, 10), A) >= GARDER_SI_POSE_DEPUIS) && !traceDe(f, ["garder"]).some((t) => t.quand.slice(0, 10) >= plusJours(r.date, -GARDER_AVANT - 1))) {
-    const s = fait(
-      "garder",
-      "garder",
-      [f.appel, f.soinDit, placeDite({ iso: r.date, heure: r.time })],
-      [["Son RDV", placeDite({ iso: r.date, heure: r.time })], ["Pris le", r.creeLe ? jourDit(r.creeLe.slice(0, 10)) : "avant le 5 sept. 2026"]]
-    );
-    if (s) return s;
+  const r = f.archivee ? void 0 : prochainRdv(f, A);
+  if (r && ecartJours(A, r.date) === GARDER_AVANT && (!r.creeLe || ecartJours(r.creeLe.slice(0, 10), r.date) >= GARDER_SI_PRIS_DES_J) && !traceDe(f, ["garder"]).some((t) => t.quand.slice(0, 10) >= plusJours(r.date, -GARDER_AVANT - 1))) {
+    const place = placeDite({ iso: r.date, heure: r.time });
+    const pourquoi = [["Son RDV", place], ["Pris le", r.creeLe ? jourDit(r.creeLe.slice(0, 10)) : "avant le 5 sept. 2026"]];
+    if (f.enfantDuFoyer) {
+      const p = r.parent;
+      if (p?.telephone && !ctx.eteintes?.includes("garder") && !f.jamais?.includes("garder")) {
+        const variables = [p.appel || "à vous", `${f.soinDit} pour ${f.appel}`, place];
+        return {
+          clientId: f.id,
+          genre: "garder",
+          canal: "whatsapp",
+          modele: "garder",
+          variables,
+          texte: remplis(MODELES_DE_GERARD.garder.corps, variables),
+          pourquoi: [...pourquoi, ["Prévenu", p.appel ? `${p.appel}, son parent` : "le parent qui a pris le RDV"]],
+          priorite: PRIORITE.garder,
+          ...p.pourId ? { pourId: p.pourId } : {}
+        };
+      }
+    } else {
+      const s = fait("garder", "garder", [f.appel, f.soinDit, place], pourquoi);
+      if (s) return s;
+    }
   }
   const carte = anniversaireDuJour(f, ctx)?.situation;
   if (carte) return carte;
   if (!sollicitable) return null;
+  if (!promesseDe(f, A).tenue) return null;
   if (f.souciOuvert) return null;
   if (f.attendUneReponse) return null;
   if ((f.resteDu ?? 0) > 0) return null;
@@ -1148,7 +1199,15 @@ function tracesDesEnvois(envois) {
     const pasMaintenant = e.statut === "écarté" && e.reponse === "non";
     if (!pasMaintenant && (e.statut === "écarté" || e.statut === "périmé" || e.statut === "échec" || e.statut === "sans-abonnement")) continue;
     const reponse = e.reponse === "oui" || e.reponse === "non" || e.reponse === "jamais" ? e.reponse : void 0;
-    const t = { quand: e.deposeLe ?? e.quand ?? "", genre: e.genre, ...e.envie ? { envie: e.envie } : {}, ...reponse ? { reponse } : {} };
+    const modele = e.modele && e.modele in MODELES_DE_GERARD ? e.modele : void 0;
+    const t = {
+      quand: e.deposeLe ?? e.quand ?? "",
+      genre: e.genre,
+      ...e.envie ? { envie: e.envie } : {},
+      ...reponse ? { reponse } : {},
+      ...modele ? { modele } : {},
+      ...pasMaintenant ? { nonPartie: true } : {}
+    };
     const l = m.get(e.clientId);
     if (l) l.push(t);
     else m.set(e.clientId, [t]);
@@ -1214,17 +1273,35 @@ function lisLAssistant(e) {
     if (l) l.push(s);
     else signalementsDe.set(s.clientId, [s]);
   }
+  const huitChiffres = (t) => (t ?? "").replace(/\D/g, "").slice(-8);
   const fiches = clients.map((c) => {
     const siens = parCliente.get(c.id) ?? [];
-    const rdvs = siens.map((a2) => ({
-      id: a2.id,
-      date: a2.date,
-      time: a2.time,
-      status: a2.status,
-      creeLe: a2.creeLe,
-      familles: (a2.serviceIds ?? []).map((id) => familleDuNom(nomDuService(id))),
-      venu: estUneVenue({ date: a2.date, status: a2.status, encaisse: apptPaidXof(a2) > 0, facture: !!a2.invoiceId || factures.has(a2.id) }, today)
-    }));
+    const enfantDuFoyer = (() => {
+      const payeur2 = c.familyId ? payeurDe.get(c.familyId) : void 0;
+      return !!payeur2 && payeur2 !== c.id && !(c.birthday && !estMineur(c, today));
+    })();
+    const payeur = payeurDeLaFiche(c);
+    const parentDuRdv = (a2) => {
+      const num = (a2.numeroAPrevenir ?? "").trim();
+      if (num.replace(/\D/g, "").length >= 8) {
+        const telDuPayeur = payeur ? huitChiffres(ficheDe.get(payeur.id)?.phone) : "";
+        return { telephone: true, ...payeur && telDuPayeur && telDuPayeur === huitChiffres(num) ? { appel: payeur.appel } : {} };
+      }
+      return payeur?.telephone ? { telephone: true, appel: payeur.appel, pourId: payeur.id } : void 0;
+    };
+    const rdvs = siens.map((a2) => {
+      const parent = enfantDuFoyer ? parentDuRdv(a2) : void 0;
+      return {
+        id: a2.id,
+        date: a2.date,
+        time: a2.time,
+        status: a2.status,
+        creeLe: a2.creeLe,
+        familles: (a2.serviceIds ?? []).map((id) => familleDuNom(nomDuService(id))),
+        venu: estUneVenue({ date: a2.date, status: a2.status, encaisse: apptPaidXof(a2) > 0, facture: !!a2.invoiceId || factures.has(a2.id) }, today),
+        ...parent ? { parent } : {}
+      };
+    });
     const cad = siens.length ? predictNextVisitSelon(siens, c, c.id, today, estFerme) : null;
     const derniere = siens.filter((a2) => a2.status === "honoré").sort((x, y) => x.date.localeCompare(y.date)).pop();
     const premierNom = derniere ? nomDuService(derniere.serviceIds?.[0] ?? "") : "";
@@ -1243,19 +1320,14 @@ function lisLAssistant(e) {
       telephone: aUnNumero(c),
       ecartee: estDePassage(c) || estDiaspora(c) || aDefaitSesLocks(c) || !!c.archived,
       archivee: !!c.archived,
-      payeur: payeurDeLaFiche(c),
+      payeur,
       soucis: sesSignalements.filter((s) => (s.quand ?? "") >= ilYA60).flatMap((s) => s.soucis ?? []),
       souciOuvert: souciOuvertDe(sesSignalements),
       resteDu: resteDu.get(c.id) ?? 0,
       derniereRelanceLe: derniereRelance.get(c.id),
       dernierMessageHorsService: dernierHorsService.get(c.id),
       attendUneReponse: attend.has(c.id),
-      /* Enfant d'un foyer : un autre paie pour elle, et rien ne dit qu'elle
-         est majeure. Dans le doute, on n'écrit pas : le parent reçoit. */
-      enfantDuFoyer: (() => {
-        const payeur = c.familyId ? payeurDe.get(c.familyId) : void 0;
-        return !!payeur && payeur !== c.id && !(c.birthday && !estMineur(c, today));
-      })(),
+      enfantDuFoyer,
       carteVivante: carteSurSaFiche.has(c.id),
       codesVivants: codesVivantsDe(codes, c.id, maintenantIso).length,
       jamais: rg.jamais[c.id] ?? [],
@@ -1406,7 +1478,7 @@ function remisesAFabriquer(envois) {
 }
 
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-11-02-a";
+var VERSION = "2026-11-02-b";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {

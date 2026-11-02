@@ -34,7 +34,7 @@ import { telDuRdv } from './numero-a-prevenir-pur';
 import { attendUneReponse, derniersMessagesHorsService, dernieresRelancesDeFacture } from './dernier-message-pur';
 import {
   GENRE_DIT, familleDuNom, joursCreux, plafondDeLaSemaine, reglagesLus, tracesDesEnvois,
-  type ContexteDeGerard, type FamilleDeSoin, type FicheDeGerard, type Place, type Situation,
+  type ContexteDeGerard, type FamilleDeSoin, type FicheDeGerard, type Place, type RdvDeGerard, type Situation,
 } from './gerard-pur';
 
 const NOM_DE_LA_FAMILLE: Record<FamilleDeSoin, string> = {
@@ -131,13 +131,37 @@ export function lisLAssistant(e: EntreesDeLAssistant): CerveauDeGerard {
   const signalementsDe = new Map<string, Signalement[]>();
   for (const s of e.signalements) { const l = signalementsDe.get(s.clientId); if (l) l.push(s); else signalementsDe.set(s.clientId, [s]); }
 
+  /* Les huit derniers chiffres d'un numéro : « +229 01 97… » et « 97… » sont le même. */
+  const huitChiffres = (t?: string) => (t ?? '').replace(/\D/g, '').slice(-8);
   const fiches: FicheDeGerard[] = clients.map((c) => {
     const siens = parCliente.get(c.id) ?? [];
-    const rdvs = siens.map((a) => ({
-      id: a.id, date: a.date, time: a.time, status: a.status, creeLe: a.creeLe,
-      familles: (a.serviceIds ?? []).map((id) => familleDuNom(nomDuService(id))),
-      venu: estUneVenue({ date: a.date, status: a.status, encaisse: apptPaidXof(a) > 0, facture: !!a.invoiceId || factures.has(a.id) }, today),
-    }));
+    /* Enfant d'un foyer : un autre paie pour elle, et rien ne dit qu'elle
+       est majeure. Dans le doute, on n'écrit pas : le parent reçoit. */
+    const enfantDuFoyer = (() => {
+      const payeur = c.familyId ? payeurDe.get(c.familyId) : undefined;
+      return !!payeur && payeur !== c.id && !(c.birthday && !estMineur(c, today));
+    })();
+    const payeur = payeurDeLaFiche(c);
+    /* « GARDER » D'UN ENFANT (2 novembre 2026) : le parent qui a pris le RDV
+       (`numeroAPrevenir`), salué par son nom s'il a le numéro du payeur ;
+       sinon le parent payeur, à son numéro (`pourId`). */
+    const parentDuRdv = (a: Appointment): RdvDeGerard['parent'] => {
+      const num = (a.numeroAPrevenir ?? '').trim();
+      if (num.replace(/\D/g, '').length >= 8) {
+        const telDuPayeur = payeur ? huitChiffres(ficheDe.get(payeur.id)?.phone) : '';
+        return { telephone: true, ...(payeur && telDuPayeur && telDuPayeur === huitChiffres(num) ? { appel: payeur.appel } : {}) };
+      }
+      return payeur?.telephone ? { telephone: true, appel: payeur.appel, pourId: payeur.id } : undefined;
+    };
+    const rdvs = siens.map((a) => {
+      const parent = enfantDuFoyer ? parentDuRdv(a) : undefined;
+      return {
+        id: a.id, date: a.date, time: a.time, status: a.status, creeLe: a.creeLe,
+        familles: (a.serviceIds ?? []).map((id) => familleDuNom(nomDuService(id))),
+        venu: estUneVenue({ date: a.date, status: a.status, encaisse: apptPaidXof(a) > 0, facture: !!a.invoiceId || factures.has(a.id) }, today),
+        ...(parent ? { parent } : {}),
+      };
+    });
     const cad = siens.length ? predictNextVisitSelon(siens, c, c.id, today, estFerme) : null;
     /* Le nom de son soin habituel : celui de sa dernière venue, en français. */
     const derniere = siens.filter((a) => a.status === 'honoré').sort((x, y) => x.date.localeCompare(y.date)).pop();
@@ -157,19 +181,14 @@ export function lisLAssistant(e: EntreesDeLAssistant): CerveauDeGerard {
       telephone: aUnNumero(c),
       ecartee: estDePassage(c) || estDiaspora(c) || aDefaitSesLocks(c) || !!c.archived,
       archivee: !!c.archived,
-      payeur: payeurDeLaFiche(c),
+      payeur,
       soucis: sesSignalements.filter((s) => (s.quand ?? '') >= ilYA60).flatMap((s) => s.soucis ?? []),
       souciOuvert: souciOuvertDe(sesSignalements),
       resteDu: resteDu.get(c.id) ?? 0,
       derniereRelanceLe: derniereRelance.get(c.id),
       dernierMessageHorsService: dernierHorsService.get(c.id),
       attendUneReponse: attend.has(c.id),
-      /* Enfant d'un foyer : un autre paie pour elle, et rien ne dit qu'elle
-         est majeure. Dans le doute, on n'écrit pas : le parent reçoit. */
-      enfantDuFoyer: (() => {
-        const payeur = c.familyId ? payeurDe.get(c.familyId) : undefined;
-        return !!payeur && payeur !== c.id && !(c.birthday && !estMineur(c, today));
-      })(),
+      enfantDuFoyer,
       carteVivante: carteSurSaFiche.has(c.id),
       codesVivants: codesVivantsDe(codes, c.id, maintenantIso).length,
       jamais: rg.jamais[c.id] ?? [],

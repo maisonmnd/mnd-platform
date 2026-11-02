@@ -13,15 +13,17 @@ import {
   EST_UN_SERVICE, PLAFOND_FRANCS_PAR_DEFAUT, plafondDeLaSemaine,
   reglagesLus, estSaisonDesFetes, ligneALaMain, ligneDeNotification, passageDu, servie, texteSansSignature, tracesDesEnvois,
   anniversaireDuJour, anniversairesDuJour, moisEtJourDe, partSeule, ligneWhatsApp, IMAGE_DE_LA_CARTE,
-  type ContexteDeGerard, type FicheDeGerard, type RdvDeGerard,
+  promesseDe, MOTIF_DE_LA_PROMESSE, ETAT_DE_L_ANNIVERSAIRE_DIT,
+  type ContexteDeGerard, type FicheDeGerard, type RdvDeGerard, type TraceDeGerard, type GenreDeMessage, type CleDeModele,
 } from '../src/shared/gerard-pur';
 import { attendUneReponse, derniersMessagesHorsService, dernieresRelancesDeFacture, jourACotonou } from '../src/shared/dernier-message-pur';
 import { estEnvoiAutomatique } from '../src/shared/envois';
 import { codeDeLaSituation, lisLAssistant, lundiDe, type EntreesDeLAssistant } from '../src/shared/assistant-lecture-pur';
 import { departDeLaCarte, lignesDuPassage, lignesNeuves, remisesAFabriquer, serveurVivant } from '../src/shared/assistant-passage-pur';
 import { REGLES_PAR_DEFAUT } from '../src/shared/salle-des-envois';
-import { ACCUSE_DU_STOP, charge, estUnStop, GESTE_DU_LIBELLE, lisLeBoutonDeLAssistant, retourDuBouton, reponseDuGeste } from '../src/shared/assistant-reponses-pur';
+import { ACCUSE_DU_STOP, charge, estUnStop, GESTE_DU_LIBELLE, lisLeBoutonDeLAssistant, retourDuBouton, reponseDuGeste, suiteDuGarder, mainPourLEquipe, MOTIF_NE_PEUT_PLUS } from '../src/shared/assistant-reponses-pur';
 import { copiesAJour } from './copie-dans-le-centre.mjs';
+import { QUESTION_DE_L_ACCORD, BOUTONS_DE_L_ACCORD, BOUTON_ACCORD_OUI, BOUTON_ACCORD_NON, MERCI_DE_L_ACCORD, MERCI_DU_REFUS, doitDemanderLAccord, accordDuBouton } from '../src/shared/accord-whatsapp-pur';
 import { gerardSeTait } from '../src/shared/gerard-entre-deux-pur';
 
 let ko = 0;
@@ -74,8 +76,56 @@ const rdvDans2 = (creeLe?: string): RdvDeGerard => ({ id: 'g', date: plusJours(A
 const g = sit(fiche({ rdvs: [venue(plusJours(A, -40)), rdvDans2(`${plusJours(A, -10)}T09:00:00.000Z`)] }));
 dit('garder : deux jours avant un RDV pris depuis plus d’une semaine, sur WhatsApp, modèle utilitaire', ['garder', 'whatsapp', 'garder', true],
   [g?.genre, g?.canal, g?.modele, /est prévu mercredi 28 octobre 2026 à 10 h\. Pouvez-vous nous confirmer votre venue \?\n\nMaison MND$/.test(g?.texte ?? '')]);
-dit('... pris il y a trois jours : on ne le garde pas', true, sit(fiche({ rdvs: [venue(plusJours(A, -40)), rdvDans2(`${plusJours(A, -3)}T09:00:00.000Z`)] }))?.genre !== 'garder');
+/* « GARDER » DÈS J-3, POUR TOUTES (2 novembre 2026, choix de Yéman au sélecteur). */
+dit('garder dès J-3 : pris trois jours avant sa date, il se garde ; pris à J-2, le jour du rappel, non', ['garder', false],
+  [sit(fiche({ rdvs: [venue(plusJours(A, -40)), rdvDans2(`${plusJours(A, -1)}T09:00:00.000Z`)] }))?.genre,
+    sit(fiche({ rdvs: [venue(plusJours(A, -40)), rdvDans2(`${A}T09:00:00.000Z`)] }))?.genre === 'garder']);
+dit('... de passage, de la diaspora ou locks défaits (écartée) : son RDV se garde quand même, c’est un service', ['garder', 'whatsapp'],
+  [sit(fiche({ ecartee: true, accord: false, rdvs: [venue(plusJours(A, -40)), rdvDans2()] }))?.genre, sit(fiche({ ecartee: true, rdvs: [venue(plusJours(A, -40)), rdvDans2()] }))?.canal]);
+dit('... une fiche archivée : plus rien, pas même garder', null, sit(fiche({ ecartee: true, archivee: true, rdvs: [venue(plusJours(A, -40)), rdvDans2()] })));
+dit('... les autres genres gardent leurs écarts : écartée ou enfant du foyer, ni envie ni relance', [null, null],
+  [sit(fiche({ ecartee: true })), sit(fiche({ enfantDuFoyer: true }))]);
+{
+  const rdvEnfant = (parent?: RdvDeGerard['parent']): RdvDeGerard => ({ ...rdvDans2(), ...(parent ? { parent } : {}) });
+  const gp = sit(fiche({ appel: 'A.', enfantDuFoyer: true, rdvs: [venue(plusJours(A, -40)), rdvEnfant({ telephone: true, appel: 'Madame P.', pourId: 'p1' })] }));
+  dit('... l’enfant du foyer : garder part au parent payeur, à son nom, sur WhatsApp, le RDV dit pour qui', ['garder', 'whatsapp', 'p1', true],
+    [gp?.genre, gp?.canal, gp?.pourId, /^Bonjour Madame P\., petit rappel de la Maison : votre rendez-vous de resserrage des racines pour A\. est prévu mercredi 28 octobre 2026 à 10 h\./.test(gp?.texte ?? '')]);
+  const gn = sit(fiche({ appel: 'A.', enfantDuFoyer: true, rdvs: [venue(plusJours(A, -40)), rdvEnfant({ telephone: true })] }));
+  dit('... au parent qui a pris le RDV, dont on ne sait pas le nom : « Bonjour à vous », sans fiche de payeur (son numéro est celui du RDV)', ['garder', undefined, true],
+    [gn?.genre, gn?.pourId, /^Bonjour à vous, petit rappel/.test(gn?.texte ?? '')]);
+  dit('... sans parent à prévenir, ou « garder » éteint, ou « jamais pour elle » : rien', [null, null, null],
+    [sit(fiche({ enfantDuFoyer: true, rdvs: [venue(plusJours(A, -40)), rdvEnfant()] })),
+      sit(fiche({ enfantDuFoyer: true, rdvs: [venue(plusJours(A, -40)), rdvEnfant({ telephone: true, appel: 'Madame P.', pourId: 'p1' })] }), ctx({ eteintes: ['garder'] })),
+      sit(fiche({ enfantDuFoyer: true, jamais: ['garder'], rdvs: [venue(plusJours(A, -40)), rdvEnfant({ telephone: true, appel: 'Madame P.', pourId: 'p1' })] }))]);
+}
 dit('... même « stop », un RDV se garde (c’est un service)', 'garder', sit(fiche({ stop: true, accord: false, rdvs: [venue(plusJours(A, -40)), rdvDans2()] }))?.genre);
+
+/* ── 3 bis. La promesse de l'accord (2 novembre 2026) : deux nouvelles en trente jours au plus ── */
+{
+  const nouvelle = (jours: number, genre: GenreDeMessage = 'retard', o: Partial<TraceDeGerard> = {}): TraceDeGerard =>
+    ({ quand: `${plusJours(A, -jours)}T09:00:00Z`, genre, ...o });
+  dit('la promesse : une nouvelle ce mois, la suivante part ; deux, la troisième est écartée', ['envie', null],
+    [sit(fiche({ traces: [nouvelle(20)] }))?.genre ?? null, sit(fiche({ traces: [nouvelle(28), nouvelle(20)] }))]);
+  dit('... le motif lisible, et le compte', [MOTIF_DE_LA_PROMESSE, 'deux nouvelles ce mois', { deja: 2, tenue: false, plafond: 2 }],
+    [ETAT_DE_L_ANNIVERSAIRE_DIT.promesse, MOTIF_DE_LA_PROMESSE, promesseDe(fiche({ traces: [nouvelle(28), nouvelle(20)] }), A)]);
+  dit('... une nouvelle d’il y a 31 jours ne compte plus', ['envie', 1],
+    [sit(fiche({ traces: [nouvelle(31), nouvelle(20)] }))?.genre ?? null, promesseDe(fiche({ traces: [nouvelle(31), nouvelle(20)] }), A).deja]);
+  dit('... un « garder » passe toujours, et ne compte jamais', ['garder', 1],
+    [sit(fiche({ traces: [nouvelle(28), nouvelle(20)], rdvs: [venue(plusJours(A, -40)), rdvDans2()] }))?.genre,
+      promesseDe(fiche({ traces: [nouvelle(25, 'garder'), nouvelle(20)] }), A).deja]);
+  dit('... un « pas maintenant » écarté à la main n’est pas parti : il ne compte pas', 'envie',
+    sit(fiche({ traces: [nouvelle(28), nouvelle(20, 'endormie', { nonPartie: true, reponse: 'non' })] }))?.genre);
+  dit('... la carte d’anniversaire aussi attend : son état dit la promesse', ['promesse', null],
+    [anniversaireDuJour(fiche({ birthday: `1990-${A.slice(5)}`, traces: [nouvelle(28), nouvelle(20)] }), ctx())?.etat,
+      sit(fiche({ birthday: `1990-${A.slice(5)}`, traces: [nouvelle(28), nouvelle(20)] }))]);
+  const lues = tracesDesEnvois([
+    { type: 'gerard', clientId: 'c', statut: 'envoyé', deposeLe: '2026-10-20T09:00:00Z', genre: 'retard', modele: 'place' },
+    { type: 'gerard', clientId: 'c', statut: 'écarté', deposeLe: '2026-10-21T09:00:00Z', genre: 'envie', reponse: 'non' },
+    { type: 'gerard', clientId: 'c', statut: 'envoyé', deposeLe: '2026-10-22T09:00:00Z', genre: 'creux', modele: 'pas-un-modele' },
+  ]).get('c');
+  dit('... la lecture des envois : le modèle de l’envoi, le « pas maintenant » non parti, un modèle inconnu ignoré', [['place', undefined], [undefined, true], [undefined, undefined]],
+    (lues ?? []).map((t) => [t.modele as CleDeModele | undefined, t.nonPartie]));
+}
 
 /* ── 4. L'anniversaire ── */
 const an = sit(fiche({ birthday: '1990-10-26' }));
@@ -298,7 +348,7 @@ dit('une relance de facture il y a trois jours : silence ; il y a huit jours : l
   [sit(fiche({ derniereRelanceLe: plusJours(A, -3) })), sit(fiche({ derniereRelanceLe: plusJours(A, -8) }))?.genre]);
 dit('elle a écrit il y a moins de 48 heures sans réponse : on lui répond d’abord ; son RDV se garde', [null, 'garder'],
   [sit(fiche({ attendUneReponse: true })), sit(avecGarder({ attendUneReponse: true }))?.genre]);
-dit('enfant d’un foyer : jamais écrite, pas même pour garder un RDV (le parent reçoit)', [null, null],
+dit('enfant d’un foyer : jamais écrite elle-même ; sans parent à prévenir sur le RDV, il ne se garde pas', [null, null],
   [sit(fiche({ enfantDuFoyer: true })), sit(avecGarder({ enfantDuFoyer: true }))]);
 dit('quatorze jours sur toutes les voix : un message de la Maison il y a dix jours fait taire, il y a quinze jours non', [null, 'envie'],
   [sit(fiche({ dernierMessageHorsService: plusJours(A, -10) })), sit(fiche({ dernierMessageHorsService: plusJours(A, -15) }))?.genre]);
@@ -425,6 +475,30 @@ dit('la lecture : la dette (20 000 F moins 15 000 F réglés), l’enfant du foy
     [lw?.canal, lw?.colis?.genre === 'whatsapp' ? lw.colis.numero : '', lw?.colis?.genre === 'whatsapp' && lw.colis.composants[0]?.type === 'header',
       lignesDuPassage({ cerveau: foyer, plan, reglagesGerard: { mode: 'ouvert' }, maintenantMs: maintenantLu, branchId: 'b', regles: REGLES_PAR_DEFAUT }).filter((l) => l.clientId === 'enfant').length]);
 }
+{
+  /* « GARDER » DÈS J-3, POUR TOUTES, lu sur de vraies fiches (2 novembre 2026). */
+  const rdvJ2 = (id: string, clientId: string, o: Record<string, unknown> = {}) => rituel(id, clientId, '2026-10-28', { status: 'confirmé', creeLe: '2026-10-20T09:00:00Z', ...o });
+  const g = lisLAssistant(entrees({
+    clients: [tete('passage', { dePassage: true }), tete('loin', { diaspora: true }), tete('defaits', { locksDefaits: true }), tete('arch', { archived: true }),
+      tete('enf', { familyId: 'f1', birthday: '2016-03-01', phone: '' }), tete('parent', { familyId: 'f1', phone: '+229 01 51 22 33 44' }),
+      tete('enf2', { familyId: 'f2', birthday: '2017-03-01', phone: '' }), tete('payeur2', { familyId: 'f2', phone: '+229 01 51 55 66 77' }),
+      tete('enf3', { familyId: 'f3', birthday: '2018-03-01', phone: '' }), tete('payeur3', { familyId: 'f3', phone: '+229 01 51 88 99 00' })] as never,
+    familles: [{ id: 'f1', payerClientId: 'parent' }, { id: 'f2', payerClientId: 'payeur2' }, { id: 'f3', payerClientId: 'payeur3' }],
+    rdvs: [rdvJ2('a', 'passage'), rdvJ2('b', 'loin'), rdvJ2('c', 'defaits'), rdvJ2('d', 'arch'), rdvJ2('e', 'enf'),
+      rdvJ2('f', 'enf2', { numeroAPrevenir: '+229 01 97 00 00 32' }), rdvJ2('h', 'enf3', { numeroAPrevenir: '0151889900' })] as never,
+  }));
+  const pl = planDuJour(g.fiches, g.ctx);
+  const de = (id: string) => pl.find((s) => s.clientId === id);
+  dit('la lecture : de passage, diaspora, locks défaits gardés à J-2 ; l’archivée non', [['garder', 'garder', 'garder'], undefined],
+    [[de('passage')?.genre, de('loin')?.genre, de('defaits')?.genre], de('arch')]);
+  const e1 = de('enf'); const e2 = de('enf2'); const e3 = de('enf3');
+  dit('... l’enfant sans numéro retenu : garder au parent payeur, à son nom et à son numéro, jamais au numéro (vide) de l’enfant', ['garder', 'parent', '+229 01 51 22 33 44', true],
+    [e1?.genre, e1?.pourId, e1 ? g.telDe(e1) : '', /^Bonjour PARENT, /.test(e1?.texte ?? '')]);
+  dit('... l’enfant dont le RDV a été pris par un autre parent : garder à ce numéro-là, « Bonjour à vous »', ['garder', undefined, '+229 01 97 00 00 32', true],
+    [e2?.genre, e2?.pourId, e2 ? g.telDe(e2) : '', /^Bonjour à vous, /.test(e2?.texte ?? '')]);
+  dit('... pris par le payeur lui-même, son numéro écrit autrement : salué par son nom', ['garder', '0151889900', true],
+    [e3?.genre, e3 ? g.telDe(e3) : '', /^Bonjour PAYEUR3, /.test(e3?.texte ?? '')]);
+}
 dit('... ce qu’elle a écrit (moins de 48 heures), la relance de facture, la demande d’avis comptée, l’ailleurs écarté, « jamais pour elle »', [true, '2026-10-23', '2026-10-20', true, ['envie']],
   [f('ecrit').attendUneReponse, f('relancee').derniereRelanceLe, f('ecrit').dernierMessageHorsService, f('ailleurs').ecartee, f('jamais').jamais]);
 dit('... le souci ouvert (chute = santé), sa réponse « non » relue, Ma Couronne par son compte', ['sante', 'non', true],
@@ -493,8 +567,8 @@ dit('la ligne WhatsApp : un bouton de réponse rapide par libellé du modèle, c
 dit('STOP se reconnaît seul dans le message, jamais au milieu d’une phrase', [true, true, true, true, false, false],
   ['STOP', ' stop.', 'Arrêtez', 'désabonnez-moi', 'je stoppe le resserrage', 'stop ou encore ?'].map(estUnStop));
 const ret = (g: Parameters<typeof retourDuBouton>[0]['geste'], garder = false, quand?: string) => retourDuBouton({ geste: g, garder, appel: 'Madame K.', quand, couronneUrl: 'C/', offrirUrl: 'O/' });
-dit('le retour d’une phrase : garder confirmé avec sa date ; un autre moment par Ma Couronne ; non sans insister ; la carte cadeau ; rien pour un merci',
-  ['C’est noté, Madame K. : la Maison vous attend mardi 3 novembre 2026 à 10 h.', 'assistant-autre', 'C’est noté, Madame K.. La Maison reste là quand l’envie vous prend.', true, null, true],
+dit('le retour d’une phrase : garder confirmé avec sa date ; « je ne peux plus » a sa phrase ; non sans insister ; la carte cadeau ; rien pour un merci',
+  ['C’est noté, Madame K. : la Maison vous attend mardi 3 novembre 2026 à 10 h.', 'assistant-empechee', 'C’est noté, Madame K.. La Maison reste là quand l’envie vous prend.', true, null, true],
   [ret('OUI', true, 'mardi 3 novembre 2026 à 10 h')?.texte, ret('NON', true)?.auto, ret('NON')?.texte, /O\/$/.test(ret('CARTE')?.texte ?? ''), ret('MERCI'), /nous notons le soin/.test(ret('SOIN')?.texte ?? '')]);
 dit('... aucun retour ne dit « salon », ni un tiret cadratin', true,
   (['OUI', 'SOIN', 'AUTRE', 'NON', 'CARTE'] as const).flatMap((g) => [ret(g), ret(g, true, 'x')]).every((x) => !x || !/salon|—/i.test(x.texte)) && !/salon|—/i.test(ACCUSE_DU_STOP));
@@ -505,6 +579,108 @@ dit('le webhook porte la copie à jour de ce que l’Assistant entend, et ses tr
     /if \(!e\.bouton && \(estUnStop\(e\.texte\) \|\| estUneQuestionFranche\(e\.texte\)\)\) continue;/.test(webhook)]);
 dit('... STOP pose « non, par stop » sur ses fiches ; la question franche ne répond que si le dernier message est parti seul', [true, true],
   [webhook.includes("nouvelles: { oui: false, le: aujourdhui, par: 'stop' }"), /if \(!partiSeul \|\| !jetonMeta \|\| !phoneIdMeta\) continue;/.test(webhook)]);
+
+/* ── 14 octies. Les boutons de « garder » (2 novembre 2026, lot 3 de Perle) ── */
+const quandG = 'mardi 3 novembre 2026 à 10 h';
+dit('« Je ne peux plus » : sa propre phrase, sobre, avec la date et l’année ; rien n’est dit annulé',
+  ['assistant-empechee', 'C’est noté, Madame K. : nous prévenons la Maison, qui vous écrit ici au sujet de votre rendez-vous mardi 3 novembre 2026 à 10 h.', false],
+  [ret('NON', true, quandG)?.auto, ret('NON', true, quandG)?.texte, /!|annul|salon|—/i.test(ret('NON', true, quandG)?.texte ?? '')]);
+dit('« Changer l’heure » garde la phrase de Ma Couronne, en secours seulement', ['assistant-autre', true],
+  [ret('AUTRE', true, quandG)?.auto, (ret('AUTRE', true, quandG)?.texte ?? '').split('\n')[0].endsWith('C/')]);
+const sOui = suiteDuGarder('OUI', { quandIso: 'Q', prenom: 'Kemi', quand: quandG });
+const sNon = suiteDuGarder('NON', { quandIso: 'Q', prenom: 'Kemi', quand: quandG });
+const sAutre = suiteDuGarder('AUTRE', { quandIso: 'Q', prenom: 'Kemi', quand: quandG });
+dit('« Oui, je viens » : gardé, les autres marques effacées, ni main ni alerte ni automate', [{ confirmeeParLaClienteLe: 'Q' }, ['autreMomentDemandeLe', 'confirmeeParLaClienteLe', 'empecheeDitLe'], false, false, false],
+  [JSON.parse(JSON.stringify(sOui?.marques)), Object.keys(sOui?.marques ?? {}).sort(), !!sOui?.main, !!sOui?.alerte, !!sOui?.deplacer]);
+dit('« Je ne peux plus » : une marque datée, la main à l’équipe 24 h, l’équipe prévenue ; jamais un statut, jamais l’automate',
+  [{ empecheeDitLe: 'Q' }, { motif: MOTIF_NE_PEUT_PLUS, heures: 24 }, 'Kemi ne peut plus venir', false, false],
+  [JSON.parse(JSON.stringify(sNon?.marques)), sNon?.main, sNon?.alerte?.titre, 'status' in (sNon?.marques ?? {}), !!sNon?.deplacer]);
+dit('... son alerte dit le rendez-vous et que rien n’est annulé, sans tiret ni « salon »', [true, true, false],
+  [!!sNon?.alerte?.corps.startsWith(`Rendez-vous ${quandG}`), /rien n’est annulé/.test(sNon?.alerte?.corps ?? ''), /—|salon/i.test(`${sNon?.alerte?.titre} ${sNon?.alerte?.corps}`)]);
+dit('« Changer l’heure » : un autre moment demandé, l’automate appelé, l’équipe prévenue en secours, la main gardée', [{ autreMomentDemandeLe: 'Q' }, true, 'Kemi veut changer l’heure', false],
+  [JSON.parse(JSON.stringify(sAutre?.marques)), sAutre?.deplacer, sAutre?.alerte?.titre, !!sAutre?.main]);
+dit('... un merci ne touche pas au rendez-vous', [null, null], [suiteDuGarder('MERCI', { quandIso: 'Q', prenom: 'K' }), suiteDuGarder('CARTE', { quandIso: 'Q', prenom: 'K' })]);
+const T0 = Date.parse('2026-11-02T10:00:00Z');
+const H = 3_600_000;
+const neuve = mainPourLEquipe(null, '22990000000', MOTIF_NE_PEUT_PLUS, 24, T0);
+dit('la main à l’équipe, neuve : la ligne main-<numéro>, posée maintenant pour 24 h, par l’Assistant Maison',
+  ['main-22990000000', '22990000000', new Date(T0).toISOString(), new Date(T0 + 24 * H).toISOString(), 'ne-peut-plus', 'Assistant Maison'],
+  [neuve.id, neuve.numero, neuve.pauseLe, neuve.jusqua, neuve.motif, neuve.par]);
+const apresRendue = mainPourLEquipe({ rendueLe: new Date(T0 + 5_000).toISOString(), numero: '22990000000' }, '22990000000', MOTIF_NE_PEUT_PLUS, 24, T0);
+dit('... jamais avant la dernière main rendue (horloges décalées)', new Date(T0 + 5_001).toISOString(), apresRendue.pauseLe);
+const personne = { id: 'main-22990000000', numero: '22990000000', pauseLe: new Date(T0 - H).toISOString(), jusqua: new Date(T0 + 30 * H).toISOString(), motif: 'envoi-equipe', par: 'Yéman Boya' };
+const gardee = mainPourLEquipe(personne, '22990000000', MOTIF_NE_PEUT_PLUS, 24, T0);
+dit('... la pause d’une personne encore en cours est gardée, jamais raccourcie', ['Yéman Boya', 'envoi-equipe', personne.pauseLe, personne.jusqua],
+  [gardee.par, gardee.motif, gardee.pauseLe, gardee.jusqua]);
+const courte = mainPourLEquipe({ ...personne, jusqua: new Date(T0 + H).toISOString() }, '22990000000', MOTIF_NE_PEUT_PLUS, 24, T0);
+dit('... et prolongée jusqu’à 24 h si elle finissait avant', new Date(T0 + 24 * H).toISOString(), courte.jusqua);
+const wh = webhook;
+dit('le webhook : les boutons de Perle (ses modèles et l’accord) ne vont ni au tour de l’automate ni à l’alerte générique', [true, true, true],
+  [/if \(estUnBoutonDePerle\(e\.bouton\?\.id\)\) continue;/.test(wh), /\.filter\(\(e\) => estNeuf\(e\) && !confies\.has\(e\.numero\) && !estUnBoutonDePerle\(e\.bouton\?\.id\)\)/.test(wh),
+    wh.includes("const estUnBoutonDePerle = (id: string | undefined): boolean => !!lisLeBoutonDeLAssistant(id) || !!accordDuBouton(String(id ?? ''), '');")]);
+dit('... « garder » : la suite pure, la marque sur le rendez-vous, la main dans fils_automate', [true, true, true],
+  [wh.includes('suite = suiteDuGarder(b.geste, { quandIso: e.quand,'), wh.includes('.update({ data: { ...rdv, ...suite.marques } })'),
+    /from\('fils_automate'\)\.upsert\(\s*\{ id: idMain, branch_id: fiche\.branchId \?\? null, data: mainPourLEquipe\(/.test(wh)]);
+const brancheAutre = wh.slice(wh.indexOf('if (suite?.deplacer && rdvAGarder'), wh.indexOf('if (alerteDuGarder) await previensLesTelephones'));
+dit('... « Changer l’heure » : l’automate reçoit deplacer { rdvId } ; la phrase de Ma Couronne et l’alerte seulement s’il ne prend pas le fil',
+  [true, true, true, true],
+  [brancheAutre.includes('deplacer: { rdvId: rdvAGarder }'), /if \(rep\.pris\) \{[\s\S]*?return;\s*\}\s*await previensLesTelephones\(sb, alerteDuGarder/.test(brancheAutre),
+    brancheAutre.indexOf('ditDepuisLeTrone') > brancheAutre.indexOf('if (rep.pris)'), /continue;\s*\}\s*$/.test(brancheAutre)]);
+dit('... l’auteur de la phrase « je ne peux plus » est connu du webhook', true, wh.includes("'assistant-empechee'"));
+const ecranAFaire = readFileSync('src/apps/trone/routes/pilotage/AFaire.tsx', 'utf8');
+const agendaT = readFileSync('src/shared/agenda.ts', 'utf8');
+const repriseNue = readFileSync('src/shared/reprise-nue.ts', 'utf8');
+dit('À faire dit « ne peut plus venir » ; la marque est au rendez-vous et ne passe pas à la visite suivante', [true, true, true],
+  [/a\.empecheeDitLe && !attente \? \(\s*<span className="trp-af-tag trp-af-tag--attente">ne peut plus venir<\/span>/.test(ecranAFaire),
+    /empecheeDitLe\?: string;/.test(agendaT), repriseNue.includes("'empecheeDitLe'")]);
+
+/* ── 14 nonies. Les nouvelles par WhatsApp (maquette Q6aGAyTUKKJc6c2roJgHhN, 2 novembre 2026) ── */
+const blocDeLAccord = (s: string): string => {
+  const d = s.indexOf('/* ⟨accord-whatsapp⟩ */');
+  const f = s.indexOf('/* ⟨/accord-whatsapp⟩ */');
+  return d >= 0 && f > d ? s.slice(d, f).replace(/\r\n/g, '\n') : '';
+};
+const accordPur = readFileSync('src/shared/accord-whatsapp-pur.ts', 'utf8');
+dit('le webhook porte le bloc ⟨accord-whatsapp⟩ à l’identique', [true, true], [blocDeLAccord(accordPur).length > 1000, blocDeLAccord(accordPur) === blocDeLAccord(wh)]);
+const neuveA = {};
+const jugeA = (f: Parameters<typeof doitDemanderLAccord>[0], estEnfant = false, fenetreOuverte = true) => doitDemanderLAccord(f, { moment: 'oui-je-viens', fenetreOuverte, estEnfant });
+dit('la question suit « Oui, je viens » une fiche neuve ; jamais déjà répondu, STOP, enfant, archivée, déjà demandé, hors fenêtre',
+  [{ oui: true }, { oui: false, pourquoi: 'deja-repondu' }, { oui: false, pourquoi: 'deja-repondu' }, { oui: false, pourquoi: 'stop' }, { oui: false, pourquoi: 'enfant' },
+    { oui: false, pourquoi: 'enfant' }, { oui: false, pourquoi: 'archivee' }, { oui: false, pourquoi: 'deja-demande' }, { oui: false, pourquoi: 'fenetre' }],
+  [jugeA(neuveA), jugeA({ nouvelles: { oui: true, le: '2026-10-21', par: 'comptoir' } }), jugeA({ nouvelles: { oui: false, le: '2026-10-21', par: 'couronne' } }),
+    jugeA({ nouvelles: { oui: false, le: '2026-10-30', par: 'stop' } }), jugeA(neuveA, true), jugeA({ segments: ['Enfant'] }),
+    jugeA({ archived: true }), jugeA({ nouvellesDemandeesLe: '2026-11-01T10:00:00.000Z' }), jugeA(neuveA, false, false)]);
+dit('les deux boutons : leur identifiant, un titre de vingt signes au plus ; la réponse datée, de source WhatsApp',
+  [[BOUTON_ACCORD_OUI, BOUTON_ACCORD_NON], true, { oui: true, le: '2026-11-02', par: 'whatsapp' }, { oui: false, le: '2026-11-02', par: 'whatsapp' }, null],
+  [BOUTONS_DE_L_ACCORD.map((b) => b.id), BOUTONS_DE_L_ACCORD.every((b) => b.titre.length > 0 && b.titre.length <= 20),
+    accordDuBouton(BOUTON_ACCORD_OUI, '2026-11-02T13:00:00Z'), accordDuBouton(BOUTON_ACCORD_NON, '2026-11-02T13:00:00Z'), accordDuBouton('GERARD:x:OUI', '2026-11-02')]);
+dit('... la question et les mercis, sans « ! », sans « salon », sans tiret cadratin', false,
+  [QUESTION_DE_L_ACCORD, MERCI_DE_L_ACCORD, MERCI_DU_REFUS].some((x) => /!|salon|—/i.test(x)));
+const brancheOui = wh.slice(wh.indexOf("if (retour) await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, { numero: e.numero, branchId: fiche.branchId"), wh.indexOf('LA RÉPONSE À LA QUESTION DE L\'ACCORD'));
+dit('le webhook : après le merci de « Oui, je viens » (garder seulement), la question ; jamais après un autre bouton', [true, true],
+  [brancheOui.indexOf('if (retour) await ditDepuisLeTrone') < brancheOui.indexOf('demandeLAccordDesNouvelles('),
+    /if \(garder && b\.geste === 'OUI' && suite\) \{\s*await demandeLAccordDesNouvelles\(sb, jetonMeta, phoneIdMeta, \{ numero: e\.numero, clientId: fiche\.id, branchId: fiche\.branchId \}\);/.test(brancheOui)]);
+const fDemande = wh.slice(wh.indexOf('async function demandeLAccordDesNouvelles('), wh.indexOf('const estUnBoutonDePerle'));
+dit('... la marque s’écrit d’abord, sous verrou, dans l’écriture qui juge ; seule celle qui l’a écrite pose la question, avec ses deux boutons',
+  [true, true, true, true, true],
+  [/doitDemanderLAccord\(d as FichePourLAccord, \{ moment: 'oui-je-viens', fenetreOuverte: true, estEnfant: estMineurLe\(d\.birthday,/.test(fDemande),
+    fDemande.includes('return { ...d, nouvellesDemandeesLe: maintenant };'), /if \(!r\.ecrite\) \{ dis\('accord · pas demandé'/.test(fDemande),
+    fDemande.indexOf('if (!r.ecrite)') < fDemande.indexOf('ditDepuisLeTrone('),
+    /action: \{ buttons: BOUTONS_DE_L_ACCORD\.map\(\(x\) => \(\{ type: 'reply', reply: \{ id: x\.id, title: x\.titre \} \}\)\) \}/.test(fDemande)]);
+const fVerrou = wh.slice(wh.indexOf('async function ecrisLaFicheSousVerrou('), wh.indexOf('function estMineurLe('));
+dit('... la fiche s’écrit sous verrou : l’instant lu, une écriture perdue relit et rejuge', [true, true],
+  [fVerrou.includes(".eq('id', id).eq('updated_at', l.updated_at).select('id')"), /for \(let essai = 0; essai < 2; essai \+= 1\)/.test(fVerrou)]);
+const brancheAccord = wh.slice(wh.indexOf('LA RÉPONSE À LA QUESTION DE L\'ACCORD'), wh.indexOf('if (!estNeuf(e) || e.bouton || !estUnStop(e.texte)'));
+dit('les deux boutons : l’accord daté de source WhatsApp sur la fiche interrogée, sous verrou, au journal sans texte, puis le merci',
+  [true, true, true, true, true],
+  [brancheAccord.includes("const accord = accordDuBouton(String(e.bouton?.id ?? ''), e.quand);"),
+    brancheAccord.includes('!!l.data?.nouvellesDemandeesLe') && brancheAccord.includes('ecrisLaFicheSousVerrou(sb, id, (d) => ({ ...d, nouvelles: accord }))'),
+    brancheAccord.includes('await journaliseLAccord(sb, {'), brancheAccord.includes('texte: accord.oui ? MERCI_DE_L_ACCORD : MERCI_DU_REFUS'),
+    brancheAccord.indexOf('journaliseLAccord') < brancheAccord.indexOf('MERCI_DE_L_ACCORD')]);
+const fJournal = wh.slice(wh.indexOf('async function journaliseLAccord('), wh.indexOf('async function demandeLAccordDesNouvelles('));
+dit('... le journal : la porte de l’assistant, la fiche, un fait, jamais un texte de message', [true, false],
+  [fJournal.includes("porte: 'assistant', verbe: 'modifie', table: 'clients'"), /e\.texte|texte:/.test(fJournal)]);
+dit('... les trois auteurs automatiques de l’accord sont connus du webhook', true, wh.includes("| 'accord-demande' | 'accord-oui' | 'accord-non';"));
 
 /* ── 15. L'écran et la barre ── */
 const ecran = sansCommentaires(readFileSync('src/apps/trone/routes/clients/Gerard.tsx', 'utf8'));

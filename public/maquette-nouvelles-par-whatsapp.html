@@ -1,0 +1,291 @@
+<title>Nouvelles par WhatsApp</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@400;500&display=swap">
+<style>
+/* Mise en page : une colonne de lecture ; deux scènes qui se manipulent (le téléphone et le Trône pour Opale, l'écran d'achat pour Stock et Achats), puis les arbitrages. */
+:root {
+  --fond: #efe4d3;
+  --papier: #fbf7f0;
+  --encre: #1f2350;
+  --encre-douce: #4b4f72;
+  --cuivre: #a8622f;
+  --trait: #d9cbb5;
+  --vieux: #8a8270;
+  --vert: #3b8f5a;
+  --rouge: #a8433a;
+  --ecran: #1f2350;
+  --ecran-texte: #f3ece0;
+  --ecran-doux: #b9b6cf;
+  --ecran-trait: #3a3e6e;
+  --bulle-eux: #2b2f62;
+  --bulle-nous: #3b6b4f;
+  --vignette: #e7dccb;
+  --display: 'Cormorant Garamond', 'Times New Roman', serif;
+  --texte: 'Jost', 'Segoe UI', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond: #15173a; --papier: #1f2250; --encre: #f3ece0; --encre-douce: #c9c4d8; --cuivre: #d38a52; --trait: #34386a; --vieux: #9d97b0; --vert: #5fb57f; --rouge: #d9776c;
+  --ecran: #0f1130; --ecran-texte: #f3ece0; --ecran-doux: #a9a6c4; --ecran-trait: #2c3060; --bulle-eux: #23264f; --bulle-nous: #2f5a42; --vignette: #2a2e5e; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --fond: #15173a; --papier: #1f2250; --encre: #f3ece0; --encre-douce: #c9c4d8; --cuivre: #d38a52; --trait: #34386a; --vieux: #9d97b0; --vert: #5fb57f; --rouge: #d9776c;
+  --ecran: #0f1130; --ecran-texte: #f3ece0; --ecran-doux: #a9a6c4; --ecran-trait: #2c3060; --bulle-eux: #23264f; --bulle-nous: #2f5a42; --vignette: #2a2e5e; color-scheme: dark }
+body { background: var(--fond); color: var(--encre); font-family: var(--texte); font-size: 15px; line-height: 1.6; }
+.page { max-width: 1000px; margin: 0 auto; padding-block: 40px 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 500; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.05; }
+h2 { font-size: clamp(26px, 4.5vw, 34px); line-height: 1.1; }
+h3 { font-size: 21px; line-height: 1.2; }
+p { margin: 0; }
+.sur { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); }
+.chapo { color: var(--encre-douce); max-width: 66ch; }
+.citation { font-family: var(--display); font-style: italic; font-size: 21px; line-height: 1.35; max-width: 60ch; }
+.bandeau { background: var(--encre); color: var(--fond); padding: 10px 14px; border-radius: 4px; font-size: 13px; }
+.entete { display: grid; gap: 16px; }
+.section { display: grid; gap: 18px; }
+.constat { border-left: 2px solid var(--cuivre); padding: 4px 0 4px 14px; color: var(--encre-douce); max-width: 70ch; display: grid; gap: 8px; }
+.constat b { color: var(--encre); font-weight: 500; }
+.etiquette { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--vieux); }
+ul.net { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--encre-douce); max-width: 72ch; }
+ul.net b { color: var(--encre); font-weight: 500; }
+.deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px; }
+.carte { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; }
+.carte h3 { font-size: 19px; }
+.carte p, .carte li { color: var(--encre-douce); font-size: 14px; }
+.carte b { color: var(--encre); font-weight: 500; }
+button { font: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ── La scène d'Opale ── */
+.scene { display: grid; gap: 14px; }
+.pas-barre { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.pas-barre .heure { font-family: var(--display); font-size: 26px; min-width: 84px; }
+.pas-barre .titre { color: var(--encre-douce); flex: 1 1 260px; min-width: 0; }
+.commandes { display: flex; gap: 8px; }
+.cmd { border: 1px solid var(--trait); background: var(--papier); color: var(--encre); border-radius: 99px; padding: 6px 16px; font-size: 13px; cursor: pointer; }
+.cmd.plein { background: var(--cuivre); border-color: var(--cuivre); color: #fff; }
+.cmd:disabled { opacity: .4; cursor: default; }
+.points { display: flex; gap: 6px; }
+.points i { width: 8px; height: 8px; border-radius: 99px; background: var(--trait); }
+.points i.ici { background: var(--cuivre); }
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 16px; align-items: start; }
+@media (max-width: 760px) { .duo { grid-template-columns: 1fr; } }
+.tel { background: var(--ecran); color: var(--ecran-texte); border-radius: 26px; border: 5px solid #0b0c22; padding: 16px 14px 14px; display: grid; gap: 10px; min-height: 470px; align-content: start; }
+.tel .qui { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; border-bottom: 1px solid var(--ecran-trait); padding-bottom: 8px; }
+.tel .qui b { font-family: var(--display); font-size: 19px; font-weight: 500; }
+.tel .qui small { color: var(--ecran-doux); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; text-align: right; }
+.bulle { max-width: 92%; border-radius: 12px; padding: 7px 10px; font-size: 13.5px; line-height: 1.45; }
+.bulle.eux { background: var(--bulle-eux); justify-self: start; border-bottom-left-radius: 3px; }
+.bulle.nous { background: var(--bulle-nous); justify-self: end; border-bottom-right-radius: 3px; }
+.bulle small { display: block; color: var(--ecran-doux); font-size: 10.5px; margin-top: 2px; }
+.bulle .recu { display: block; margin-top: 6px; border: 1px dashed var(--ecran-trait); border-radius: 6px; padding: 10px; color: var(--ecran-doux); font-size: 11.5px; text-align: center; }
+.assist { border: 1px dashed var(--cuivre); border-radius: 10px; padding: 9px 11px; display: grid; gap: 7px; font-size: 13px; }
+.assist .nom { color: var(--cuivre); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+.assist .resume { color: var(--ecran-doux); }
+.assist .lu { background: rgba(255,255,255,.06); border-radius: 8px; padding: 6px 9px; display: grid; gap: 2px; }
+.assist .lu b { font-weight: 500; }
+.choix { display: flex; flex-wrap: wrap; gap: 5px; }
+.choix span { border: 1px solid var(--ecran-trait); border-radius: 99px; padding: 2px 10px; font-size: 11.5px; color: var(--ecran-doux); }
+.choix span.oui { border-color: var(--cuivre); color: var(--ecran-texte); background: rgba(211,138,82,.18); }
+.trone { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; display: grid; min-height: 470px; align-content: start; }
+.trone .barre { background: var(--encre); color: var(--fond); padding: 9px 14px; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; display: flex; gap: 16px; flex-wrap: wrap; border-radius: 4px 4px 0 0; }
+.trone .barre .ici { color: #e9b58d; }
+.trone .corps { padding: 14px; display: grid; gap: 12px; }
+.tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tuile { border: 1px solid var(--trait); border-radius: 4px; padding: 10px 12px; display: grid; gap: 2px; font-size: 12.5px; color: var(--encre-douce); }
+.tuile b { color: var(--encre); font-weight: 500; font-family: var(--display); font-size: 22px; }
+.tuile.vive { border-color: var(--cuivre); }
+.liste { display: grid; gap: 0; font-size: 13px; }
+.liste .r { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 8px 0; border-bottom: 1px solid var(--trait); color: var(--encre-douce); }
+.liste .r:last-child { border-bottom: 0; }
+.liste .r b { color: var(--encre); font-weight: 500; }
+.liste .r .montant { color: var(--encre); font-weight: 500; text-align: right; }
+.liste .r .trace { grid-column: 1 / -1; font-size: 11.5px; color: var(--vieux); }
+.liste .r .gestes { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
+.liste .r .gestes span { border: 1px solid var(--trait); border-radius: 99px; padding: 1px 10px; font-size: 11.5px; }
+.liste .r .gestes span.oui { border-color: var(--cuivre); color: var(--cuivre); }
+.liste .r.attente { background: color-mix(in srgb, var(--cuivre) 8%, var(--papier)); padding-inline: 8px; border-radius: 4px; border-bottom: 0; margin-bottom: 6px; }
+.liste .vide { color: var(--vieux); font-size: 12.5px; padding: 6px 0; }
+.legende { color: var(--encre-douce); font-size: 14px; max-width: 72ch; }
+
+/* ── L'écran d'achat ── */
+.achat { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; display: grid; }
+.achat .barre { background: var(--encre); color: var(--fond); padding: 9px 14px; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; display: flex; gap: 16px; flex-wrap: wrap; border-radius: 4px 4px 0 0; }
+.achat .barre .ici { color: #e9b58d; }
+.achat .corps { padding: 16px; display: grid; gap: 16px; }
+.champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 14px; }
+.champ { display: grid; gap: 3px; min-width: 0; }
+.champ label { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--vieux); }
+.champ input, .champ select { border: 1px solid var(--trait); background: var(--fond); color: var(--encre); border-radius: 3px; padding: 6px 8px; font: inherit; font-size: 14px; min-width: 0; width: 100%; box-sizing: border-box; }
+.photos { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.photo { width: 92px; height: 70px; border-radius: 4px; background: var(--vignette); border: 1px solid var(--trait); display: grid; place-items: center; font-size: 11px; color: var(--vieux); position: relative; overflow: hidden; }
+.photo svg { width: 70%; height: 70%; }
+.photo.ajout { border-style: dashed; background: transparent; }
+.lecture { font-size: 12.5px; color: var(--encre-douce); border-left: 2px solid var(--cuivre); padding-left: 10px; }
+.tab { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 680px; font-size: 13.5px; }
+th { text-align: left; font-weight: 500; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--vieux); padding: 6px 8px; border-bottom: 1px solid var(--trait); }
+td { padding: 6px 8px; border-bottom: 1px solid var(--trait); vertical-align: middle; color: var(--encre-douce); }
+td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--encre); }
+td input { border: 1px solid var(--trait); background: var(--fond); color: var(--encre); border-radius: 3px; padding: 4px 6px; font: inherit; font-size: 13.5px; width: 100%; box-sizing: border-box; min-width: 0; }
+td input.q { width: 56px; text-align: right; }
+td input.p { width: 84px; text-align: right; }
+.vig { width: 44px; height: 44px; border-radius: 4px; background: var(--vignette); display: grid; place-items: center; }
+.vig svg { width: 30px; height: 30px; }
+.fiche { font-size: 11.5px; border-radius: 99px; padding: 1px 9px; border: 1px solid var(--trait); white-space: nowrap; }
+.fiche.neuve { border-color: var(--cuivre); color: var(--cuivre); }
+.compteur { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline; padding: 10px 14px; border-radius: 4px; background: color-mix(in srgb, var(--vert) 12%, var(--papier)); border: 1px solid color-mix(in srgb, var(--vert) 40%, var(--trait)); font-size: 14px; }
+.compteur.ecart { background: color-mix(in srgb, var(--rouge) 10%, var(--papier)); border-color: color-mix(in srgb, var(--rouge) 45%, var(--trait)); }
+.compteur b { font-family: var(--display); font-size: 22px; font-weight: 500; }
+.compteur .dit { flex: 1 1 220px; color: var(--encre-douce); min-width: 0; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.bouton { border: 0; background: var(--cuivre); color: #fff; padding: 10px 22px; border-radius: 3px; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }
+.bouton:disabled { opacity: .45; cursor: default; }
+.bouton.doux { background: transparent; color: var(--encre); border: 1px solid var(--trait); }
+.resultat { border: 1px solid var(--vert); border-radius: 4px; padding: 14px 16px; display: grid; gap: 8px; background: color-mix(in srgb, var(--vert) 8%, var(--papier)); }
+.resultat ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--encre-douce); font-size: 14px; }
+.resultat b { color: var(--encre); font-weight: 500; }
+
+/* ── Arbitrages ── */
+.arbitrages { display: grid; gap: 14px; }
+.arbitrage { display: grid; gap: 8px; padding: 16px 18px; border-radius: 4px; background: var(--papier); border: 1px solid var(--trait); }
+.arbitrage h3 { font-size: 20px; }
+.arbitrage .q { color: var(--encre-douce); max-width: 72ch; }
+.options { display: grid; gap: 6px; }
+.option { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 6px; font-size: 14px; color: var(--encre-douce); }
+.option i { font-style: normal; color: var(--vieux); }
+.option.propose { color: var(--encre); }
+.option.propose i { color: var(--cuivre); }
+.option b { font-weight: 500; }
+.etapes { display: grid; gap: 12px; }
+.etape { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; align-items: start; }
+.etape .quand { font-family: var(--display); font-size: 20px; color: var(--cuivre); }
+.etape p { color: var(--encre-douce); }
+.etape b { color: var(--encre); font-weight: 500; }
+@media (max-width: 560px) { .etape { grid-template-columns: 1fr; gap: 4px; } }
+@media (prefers-reduced-motion: no-preference) { .tel, .trone, .resultat { transition: opacity .2s; } }
+</style>
+<style>
+/* Ajouts propres à cette maquette : un téléphone, la fiche du Trône, les règles en deux colonnes. */
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 820px) { .duo { grid-template-columns: 1fr; } }
+.choix-wa { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.choix-wa span { border: 1px solid var(--ecran-trait); border-radius: 99px; padding: 3px 12px; font-size: 12px; color: var(--ecran-texte); }
+.choix-wa span.touche { background: var(--cuivre); border-color: var(--cuivre); color: #fff; }
+.neuf { outline: 1px dashed var(--cuivre); outline-offset: 3px; }
+.fiche { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; padding: 16px 18px; display: grid; gap: 12px; }
+.fiche .ligne { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; font-size: 14px; }
+.fiche .ligne u { text-decoration: none; color: var(--vieux); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding-top: 2px; }
+.fiche .puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.fiche .puces span { border: 1px solid var(--trait); border-radius: 99px; padding: 2px 10px; font-size: 12px; }
+.fiche .puces span.oui { background: var(--cuivre); border-color: var(--cuivre); color: #fff; }
+.compte { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.compte div { border: 1px solid var(--trait); border-radius: 4px; padding: 10px 12px; display: grid; gap: 2px; }
+.compte b { font-family: var(--display); font-size: 26px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.compte small { color: var(--vieux); font-size: 11.5px; }
+.regles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.regles ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--encre-douce); }
+.regles h3 { font-size: 19px; }
+</style>
+
+<div class="page">
+
+  <header class="entete">
+    <p class="sur">Maquette v0 · 2 novembre 2026 · à valider</p>
+    <h1>Les nouvelles de la Maison, demandées sur WhatsApp.</h1>
+    <p class="citation">Ton choix au sélecteur, le 2 novembre 2026 : demander l'accord des nouvelles « au comptoir et sur WhatsApp ».</p>
+    <p class="chapo">Une fiche sur 308 a dit oui aux nouvelles de la Maison. Sans ce oui, aucune envie, aucune offre, aucune relance de Perle ne peut partir par WhatsApp. Le comptoir pose déjà la question à chaque nouvelle fiche, d'un toucher. Sur WhatsApp, Perle la pose une seule fois, au moment où la cliente vient de dire qu'elle vient.</p>
+  </header>
+
+  <section class="section">
+    <p class="etiquette">La scène · le WhatsApp de la Maison</p>
+    <div class="duo">
+      <div class="tel">
+        <div class="qui"><b>Maison MND</b><small>mardi 3 novembre 2026<br>message « garder », J-2</small></div>
+        <div class="bulle nous">Bonjour Mme A., petit rappel de la Maison : votre rendez-vous de retwist est prévu jeudi 5 novembre 2026 à 10 h. Pouvez-vous nous confirmer votre venue ?
+          <div class="choix-wa"><span class="touche">Oui, je viens</span><span>Changer l'heure</span><span>Je ne peux plus</span></div>
+          <small>10:02 · le modèle approuvé, inchangé</small></div>
+        <div class="bulle eux">Oui, je viens<small>10:14</small></div>
+        <div class="bulle nous">Merci, nous vous attendons jeudi à 10 h.<small>10:14 · comme aujourd'hui</small></div>
+        <div class="bulle nous neuf">Souhaitez-vous aussi recevoir les nouvelles de la Maison : les envies de saison, les offres et les places qui se libèrent ? Deux messages par mois au plus, et STOP à tout moment.
+          <div class="choix-wa"><span class="touche">Oui, volontiers</span><span>Non merci</span></div>
+          <small>10:14 · nouveau, une seule fois dans sa vie de cliente</small></div>
+        <div class="bulle eux">Oui, volontiers<small>10:15</small></div>
+        <div class="bulle nous neuf">Merci. Vous recevrez nos nouvelles ; un STOP suffit pour les arrêter.<small>10:15 · nouveau</small></div>
+      </div>
+
+      <div class="scene">
+        <div class="fiche">
+          <p class="etiquette">Au Trône · sa fiche</p>
+          <div class="ligne"><u>Nouvelles</u><div class="puces"><span class="oui">Accepte</span><span>Refuse</span></div></div>
+          <div class="ligne"><u>Depuis</u><span>3 novembre 2026, sur WhatsApp, après « Oui, je viens »</span></div>
+          <div class="ligne"><u>Demandé</u><span>Une fois. WhatsApp ne le redemandera jamais ; le comptoir peut le changer d'un toucher.</span></div>
+        </div>
+        <div class="fiche">
+          <p class="etiquette">Chez Perle · les accords du mois</p>
+          <div class="compte">
+            <div><b>12</b><small>au comptoir</small></div>
+            <div><b>18</b><small>sur WhatsApp</small></div>
+            <div><b>4</b><small>non merci</small></div>
+          </div>
+          <p class="legende">Chiffres d'exemple. Le Conseil du matin les lit chaque lundi avec les nouvelles clientes.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Les règles</p>
+    <div class="regles">
+      <div>
+        <h3>Quand Perle demande</h3>
+        <ul>
+          <li>Juste après un « Oui, je viens », touché ou écrit, dans la conversation qu'elle vient d'ouvrir : c'est un message libre, gratuit, sans modèle Meta.</li>
+          <li>Une seule fois par personne, pour toujours. Sans réponse, rien ne suit.</li>
+          <li>La nuit, jamais de lui-même : il suit sa propre réponse.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Quand Perle ne demande pas</h3>
+        <ul>
+          <li>Elle a déjà dit oui ou non, au comptoir ou ailleurs.</li>
+          <li>Elle a écrit STOP un jour.</li>
+          <li>Le rendez-vous est celui d'un enfant : l'accord se donne au comptoir, par le parent.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Ce qui est gardé</h3>
+        <ul>
+          <li>Oui ou non, daté, avec sa source : WhatsApp.</li>
+          <li>Un STOP plus tard retire l'accord, comme aujourd'hui.</li>
+          <li>Les rappels, les confirmations et les reçus partent dans tous les cas.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">À trancher au sélecteur</p>
+    <div class="arbitrages">
+      <div class="arbitrage">
+        <h3>1. La promesse du rythme</h3>
+        <p class="q">La question promet « deux messages par mois au plus ». Perle tiendrait la promesse : un plafond par cliente pour tout ce qui n'est pas un service.</p>
+        <div class="options">
+          <div class="option propose"><i>●</i><span><b>Deux par mois au plus</b>, et Perle les compte par cliente.</span></div>
+          <div class="option"><i>○</i><span>Trois par mois au plus.</span></div>
+          <div class="option"><i>○</i><span>Aucun chiffre dans la question.</span></div>
+        </div>
+      </div>
+      <div class="arbitrage">
+        <h3>2. Les autres moments</h3>
+        <p class="q">Le « Oui, je viens » est le moment le plus chaleureux. D'autres existent.</p>
+        <div class="options">
+          <div class="option propose"><i>●</i><span><b>Seulement après « Oui, je viens »</b>.</span></div>
+          <div class="option"><i>○</i><span>Aussi après un rendez-vous pris sur WhatsApp, une fois confirmé.</span></div>
+          <div class="option"><i>○</i><span>Aussi après un reçu de paiement.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>

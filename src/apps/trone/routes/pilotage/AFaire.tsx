@@ -241,7 +241,9 @@ export default function AFaire() {
           <span className={`trp-af-tag${attente ? ' trp-af-tag--attente' : a.repriseDe ? ' trp-af-tag--cad' : ''}`}>
             {attente ? `en attente${a.source === 'couronne' ? ' · Ma Couronne' : ''}` : origine}
           </span>
-          {a.autreMomentDemandeLe && !attente ? (
+          {a.empecheeDitLe && !attente ? (
+            <span className="trp-af-tag trp-af-tag--attente">ne peut plus venir</span>
+          ) : a.autreMomentDemandeLe && !attente ? (
             <span className="trp-af-tag trp-af-tag--attente">veut un autre moment</span>
           ) : a.repriseProposeeLe && !a.confirmeeParLaClienteLe && !attente ? (
             <span className="trp-af-tag">proposée sur WhatsApp · sans réponse</span>

@@ -47,6 +47,9 @@ export type Client = {
       jamais (règle de WhatsApp, choix de Yéman). Les rappels, confirmations
       et reçus ne dépendent pas de cet accord. Voir `shared/audiences-pur`. */
   nouvelles?: AccordDesNouvelles;
+  /** Quand la question des nouvelles a été posée sur WhatsApp : une seule fois,
+      pour toujours (shared/accord-whatsapp-pur, 2 novembre 2026). */
+  nouvellesDemandeesLe?: string;
   /** LE COMPTE MA COURONNE RATTACHÉ À CETTE FICHE.
 
       Ma Couronne reliait une cliente à son dossier par l'IDENTIFIANT : la

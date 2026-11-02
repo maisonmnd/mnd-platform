@@ -10,6 +10,8 @@ import {
   conseilDeLaMaison, fautesDeLaReponse, texteDeLaReponse, type ConseilDeLaMaison,
   jugeLaParole, reglageDeLaReception, laReceptionPeutParler, reponseDeLaReception, tourPourLeParcours, prefaceDeLaReception, secoursDeLaReception,
   demandeLeCheminWa, prestationsDitesWa, estUnMerci, unMerciSansSuite,
+  suiteDuDeplacement, tourPourDeplacer, tourDuBoutonDeDeplacer, INTENTION_DE_DEPLACER, SUITES_DU_PARCOURS, CE_QUE_L_AUTOMATE_SAIT,
+  type RdvADeplacer, type VerdictDuDeplacement,
   type AgendaDuTour, type ContexteDuTour, type EtatDuFil, type FicheDuNumero, type MessageSortant,
   type PrestationDuTour, type ReglageDeLAutomate, type SortieDuTour, type MainDuFil, type VerdictDeLaPose,
   type TiroirDuNumero, type EcritureDuTour,
@@ -653,7 +655,7 @@ class Requete {
   nom: string; filtres: ((l: Any) => boolean)[] = []; ordre: { c: string; asc: boolean } | null = null; borne: number | null = null;
   mode = 'select'; unique = false; cols = '*'; lignes: Any[] = []; ignore = false; patch: Any = null; rendLesEcrites = false;
   constructor(nom: string) { this.nom = nom; }
-  select(cols = '*') { if (this.mode === 'upsert') { this.rendLesEcrites = true; return this; } this.cols = cols; return this; }
+  select(cols = '*') { if (this.mode === 'upsert' || this.mode === 'update') { this.rendLesEcrites = true; return this; } this.cols = cols; return this; }
   eq(c: string, v: unknown) { this.filtres.push((l) => valeur(l, c) !== null && String(valeur(l, c)) === String(v)); return this; }
   neq(c: string, v: unknown) { this.filtres.push((l) => String(valeur(l, c)) !== String(v)); return this; }
   gt(c: string, v: unknown) { this.filtres.push((l) => valeur(l, c) !== null && String(valeur(l, c)) > String(v)); return this; }
@@ -704,7 +706,7 @@ class Requete {
     if (this.mode === 'update') {
       b.misesAJour.push({ table: this.nom, patch: structuredClone(this.patch) });
       for (const l of lignes) { Object.assign(l, structuredClone(this.patch)); l.updated_at = maintenant; }
-      return { data: null, error: null };
+      return { data: this.rendLesEcrites ? lignes.map((l) => ({ id: l[cle], updated_at: l.updated_at })) : null, error: null };
     }
     if (this.mode === 'delete') {
       for (const l of lignes) t.delete(l[cle]);
@@ -773,7 +775,7 @@ const RPC: Record<string, (a: Any, client: Any) => Any> = {
         return f;
       });
   },
-  creneaux_occupes: ({ p_branch, p_du, p_au }) => [...table('appointments').values()]
+  creneaux_occupes: ({ p_branch, p_du, p_au }) => (B().surCreneaux?.({ p_branch, p_du, p_au }), [...table('appointments').values()])
     .filter((a) => a.data?.branchId === p_branch && a.data?.date >= p_du && a.data?.date <= p_au
       && (a.data?.status ?? '') !== 'annulé' && (a.data?.time ?? '') !== '')
     .map((a) => ({ jour: a.data.date, maitre: a.data.master ?? '', debut: a.data.time, duree: dureeDuRdvF(a.data) })),
@@ -1353,7 +1355,13 @@ const regles: Regle[] = [
       vaut('toute ecriture de tous les parcours est une pose confirmee', [], ecritures.filter((e) => e.genre !== 'pose' || e.rdv.status !== 'confirmé').map((e) => e.genre));
       /* La fonction et la base : aucune annulation, aucun rendez-vous retouché. */
       const fonction = sansCommentaires(lf(lit(F_AUTO)));
-      vrai('whatsapp-automate ne touche jamais la table appointments', !/\.from\(\s*'appointments'\s*\)/.test(fonction));
+      /* DEPUIS LE 2 NOVEMBRE 2026 (lot 3 de Perle, « Seule, sous verrou ») :
+         la fonction touche un rendez-vous pour le DÉPLACER, et rien d'autre ;
+         une seule écriture, sous condition `updated_at`, jamais un statut. */
+      const ecrituresDesRdv = fonction.match(/\.from\(\s*'appointments'\s*\)\s*\.(?:update|insert|upsert|delete)\(/g) ?? [];
+      vrai('whatsapp-automate n ecrit un rendez-vous que pour le deplacer, une fois, sous condition updated_at',
+        ecrituresDesRdv.length === 1 && /\.from\('appointments'\)\.update\(\{ data: apres \}\)\s*\.eq\('id', d\.rdvId\)\.eq\('updated_at', String\(ligne\.updated_at\)\)/.test(fonction), ecrituresDesRdv);
+      vrai('... et le deplacement ne change jamais le statut', /const apres = \{ \.\.\.reste, date: d\.date, time: d\.time, deplaceLe: maintenant, deplacePar: 'whatsapp'/.test(fonction));
       vrai('... et n ecrit jamais « annule »', !fonction.includes("'annulé'") && !fonction.includes('"annulé"'));
       const bloc = entre(lf(lit(AUTO)), 'automate-wa') ?? '';
       vrai('le dialogue ne nomme aucun statut annule', bloc.length > 1000 && !/annulé/.test(sansCommentaires(bloc)));
@@ -1886,7 +1894,7 @@ const regles: Regle[] = [
       { nom: 'l en-tete oublie que Pas de robot a change', mute: [P(F_HOOK, '   « PAS DE ROBOT » A VALU JUSQU\'À CE JOUR. Depuis, pour les CLIENTES', '   Depuis, pour les CLIENTES')] },
       { nom: 'l en-tete ne dit plus que l annulation n est jamais automatique', mute: [P(F_HOOK, "     · L'ANNULATION N'EST JAMAIS AUTOMATIQUE : elle se transmet à l'équipe ;\n", '')] },
       /* Le webhook dit sa version du jour (2026-10-27-a, l'Assistant Maison entend) : la panne la recule avant le 9 octobre. */
-      { nom: 'la version du webhook n est pas celle du 9 octobre', mute: [P(F_HOOK, "const VERSION = '2026-10-28-", "const VERSION = '2026-10-08-")] },
+      { nom: 'la version du webhook n est pas celle du 9 octobre', mute: [P(F_HOOK, "const VERSION = '2026-1", "const VERSION = '2026-0")] },
     ],
   },
 
@@ -2356,7 +2364,7 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
-      { nom: 'un tour rejoue apres une pose (la pose se perd)', mute: [P(F_AUTO, '    if (!tient && essai === 0 && !posee) {', '    if (!tient && essai === 0) {')] },
+      { nom: 'un tour rejoue apres une pose (la pose se perd)', mute: [P(F_AUTO, '    if (!tient && essai === 0 && !posee && !deplace) {', '    if (!tient && essai === 0 && !deplace) {')] },
       { nom: 'Meta sans delai', mute: [P(F_AUTO, '      body: JSON.stringify(charge),\n      signal: AbortSignal.timeout(DELAI_DE_META_MS),\n', '      body: JSON.stringify(charge),\n')] },
       { nom: 'une ligne en cours verrouille pour toujours', mute: [P(F_CONF, '      .filter((r) => !enCoursPerime(r.data as { statut?: string; quand?: string } | null, Date.now()))\n', '')] },
       { nom: 'le rendez-vous pose ne rejoint pas le fil', mute: [P(F_AUTO, '      if (!tient) await rattacheLaPose(sb, o.numero, posee, branchId);\n', '')] },
@@ -3152,7 +3160,7 @@ const regles: Regle[] = [
       const sans = reponseDeLaReception(null, dit('Comment venir chez vous?'), ctxDe({ ...p, carte: '' }, t0), { texte: mot, suite: 'venir' });
       vaut('sans lien Google Maps de la Maison : le plan seul, comme la confirmation', ['texte', 'image'], sans.messages.map((m) => m.forme));
       const fn = lf(lit(F_AUTO));
-      vrai('la fonction connait la suite venir', fn.includes("const SUITES_CONNUES = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe', 'venir'];"));
+      vrai('la fonction connait la suite venir', fn.includes("const SUITES_CONNUES = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe', 'venir', 'deplacer'];"));
       return ecarts;
     },
     pannes: [
@@ -3162,7 +3170,7 @@ const regles: Regle[] = [
       { nom: 'le plan n est plus un accessoire', mute: [P(AUTO, "      habille({ forme: 'image', etape, corps: '', image: PLAN_POUR_VENIR, accessoire: true }),", "      habille({ forme: 'image', etape, corps: '', image: PLAN_POUR_VENIR }),")] },
       { nom: 'une adresse e-mail se lit comme un chemin', mute: [P(AUTO, "(?!\\p{L})(?! ?(?:e-?mail|mail|courriel|[ée]lectronique))/u,", '(?!\\p{L})/u,')] },
       { nom: 'ou se lit avec un bord d ASCII et rate', mute: [P(AUTO, "    /(?<!\\p{L})(?:vous [êe]tes|c'est|la maison est|se trouve)(?: situ[ée]e?s?)? o[uù](?!\\p{L})/u,", "    /\\b(?:vous [êe]tes|c'est|la maison est|se trouve)(?: situ[ée]e?s?)? o[uù]\\b/,")] },
-      { nom: 'la fonction ignore la suite venir', mute: [P(F_AUTO, "const SUITES_CONNUES = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe', 'venir'];", "const SUITES_CONNUES = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe'];")] },
+      { nom: 'la fonction ignore la suite venir', mute: [P(F_AUTO, "const SUITES_CONNUES = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe', 'venir', 'deplacer'];", "const SUITES_CONNUES = ['rien', 'reserver', 'creation', 'reparation', 'calibre', 'equipe', 'deplacer'];")] },
     ],
   },
 
@@ -3759,6 +3767,233 @@ const regles: Regle[] = [
       { nom: 'en plein parcours, le prix d une famille passe la main', mute: [P(AUTO, '      if (ditsDuTexte(t.texte).length > 0 && !lisLeConseil(t.texte, ctx.conseil).sante) return accueil(mots);\n', '')] },
       { nom: 'la longueur ne compare que le court et le long', mute: [P(F_AUTO, "    const lon = new Set((['court', 'mi-long', 'long'] as const).map((longueur) => prixDe(id, { locks: premier, longueur }))).size > 1;", "    const lon = prixDe(id, { locks: premier, longueur: 'court' }) !== prixDe(id, { locks: premier, longueur: 'long' });")] },
       { nom: 'le long emprunte le prix du court', mute: [P(F_AUTO, '  if (tete.longueur && grille && Object.keys(grille).length > 0 && !(Number(grille[tete.longueur]) > 0)) return undefined;\n', '')] },
+    ],
+  },
+  /* ══ R54 · le rendez-vous se déplace seul, sous verrou, 2 novembre 2026 ══
+     Lot 3 de Perle, choix de Yéman au sélecteur : « Seule, sous verrou ».
+     Les places de SON maître, ses soins à lui ; la place touchée DÉPLACE le
+     rendez-vous (jamais un nouveau, jamais un statut changé), sous condition
+     `updated_at` ; la place prise entre-temps se repropose ; le rendez-vous
+     modifié entre-temps passe la main. Le bouton « Changer l'heure » de Perle
+     (le webhook confie `deplacer`) et la réception (`deplacer`, `rdvId`)
+     l'ouvrent ; la réception rend aussi la question de l'accord des
+     nouvelles (`ensuite`), envoyée après son mot. */
+  {
+    id: 'R54', nom: 'R54 le rendez-vous se deplace seul sous verrou : les places de son maitre, ses soins, la place touchee le deplace, prise ou modifie entre-temps rien ne s ecrit ; le bouton de Perle et la reception l ouvrent ; l accord des nouvelles suit le mot',
+    eprouve: async () => {
+      const { ecarts, vaut, vrai } = juge();
+      const t0 = cotonou('2026-10-27', '10:00');
+      const dit = (texte: string, ms = t0, n = 1) => tourDeLaCliente([{ waId: `wamid.r54.${n}`, quand: isoDe(ms), texte, type: 'text', sens: 'entrant' }], []);
+      const RDV: RdvADeplacer = { id: 'rdv-a', updatedAt: '2026-10-25T08:00:00.000Z', clientId: 'c-naffi', date: '2026-10-31', time: '10:00', maitre: 'Expert', serviceIds: ['plt-05'], dureeMin: 60, status: 'confirmé' };
+      /* ═ Le dialogue (le module pur). ═ */
+      const p = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      const appels: Any[] = [];
+      p.agenda = { placesDuMaitre: (ids, maitre, sauf) => { appels.push({ ids: [...ids], maitre, sauf }); return placesDe(p, t0)(ids); } };
+      const s1 = etapeSuivante(null, dit('Bonjour, je voudrais décaler mon rendez-vous de samedi'), { ...ctxDe(p, t0), deplacement: RDV });
+      vaut('ecrit : les places, avec le jour et l heure du rendez-vous, l annee, et la promesse', ['places', true],
+        [s1.etat.etape, corps(s1) === 'Pour déplacer votre rendez-vous du samedi 31 octobre 2026 à 10 h, voici les prochaines places, Mme Naffi. Touchez celle qui vous convient : le rendez-vous y est déplacé aussitôt, avec les mêmes soins.']);
+      vaut('... les places de SON maitre, pour SES soins (pas ceux de sa derniere venue), sa propre place rendue libre', [{ ids: ['plt-05'], maitre: 'Expert', sauf: { date: '2026-10-31', time: '10:00', dureeMin: 60 } }], appels.slice(0, 1));
+      const lignes1 = s1.messages[0]?.lignes ?? [];
+      vrai('... sa place d avant n est jamais proposee, et samedi (son jour) n est pas pris pour un jour voulu', !lignes1.some((l) => l.id.endsWith(':20261031-1000')) && !/^Sam\./.test(lignes1[0]?.titre ?? ''), lignes1.map((l) => l.titre));
+      vaut('... le fil garde le rendez-vous, ses soins, son verrou', [['plt-05'], 'rdv-a', '2026-10-25T08:00:00.000Z', 'Expert'],
+        [s1.etat.panier.serviceIds, s1.etat.panier.deplacement?.rdvId, s1.etat.panier.deplacement?.updatedAt, s1.etat.panier.deplacement?.maitre]);
+      const ligne = lignes1[0];
+      const t1 = t0 + 30000;
+      const ctx1 = ctxDe(p, t1);
+      const touche1 = tourDeLaCliente([{ waId: 'wamid.r54.touche', quand: isoDe(t1), texte: ligne?.titre ?? '', type: 'interactive', sens: 'entrant', bouton: { id: ligne?.id ?? '', texte: ligne?.titre ?? '' } }], s1.etat.traites);
+      const s2 = etapeSuivante(s1.etat, touche1, ctx1);
+      const arg = (ligne?.id ?? '').split(':')[3] ?? '';
+      const voulu = { date: `${arg.slice(0, 4)}-${arg.slice(4, 6)}-${arg.slice(6, 8)}`, time: `${arg.slice(9, 11)}:${arg.slice(11, 13)}` };
+      vaut('la place touchee : un deplacement a ecrire, sans un mot ni une pose', [true, 0, 0, 'rdv-a', '2026-10-25T08:00:00.000Z', 'Expert', ['plt-05'], 60, { date: '2026-10-31', time: '10:00' }, voulu.date, voulu.time],
+        [s2.pris, s2.messages.length, s2.ecritures.length, s2.deplacement?.rdvId, s2.deplacement?.updatedAt, s2.deplacement?.maitre, s2.deplacement?.serviceIds, s2.deplacement?.dureeMin, s2.deplacement?.avant, s2.deplacement?.date, s2.deplacement?.time]);
+      const ok = suiteDuDeplacement(s2.etat, { ok: true, verdict: 'deplace' }, ctx1);
+      vrai('deplace : « C est fait », le jour avec son annee, la devise ; l etape confirme ; l equipe prevenue',
+        /^C'est fait, Mme Naffi : votre rendez-vous est déplacé au .+ 2026 à .+\. Nous vous attendons\./.test(corps(ok)) && corps(ok).endsWith(DEVISE)
+        && ok.etat.etape === 'confirme' && ok.etat.rdvId === 'rdv-a' && ok.alerte?.titre === 'Rendez-vous déplacé par WhatsApp' && /^Naffi, /.test(ok.alerte?.corps ?? ''), [corps(ok), ok.alerte]);
+      const prise = suiteDuDeplacement(s2.etat, { ok: false, raison: 'creneau_pris' }, ctx1);
+      vrai('la place prise entre-temps : les plus proches, sans elle, le deplacement garde', /^Cette heure vient d'être prise, Mme Naffi\./.test(corps(prise))
+        && !(prise.messages[0]?.lignes ?? []).some((l) => l.id.endsWith(`:${arg}`)) && prise.etat.panier.deplacement?.rdvId === 'rdv-a', corps(prise));
+      const modifie = suiteDuDeplacement(s2.etat, { ok: false, raison: 'modifie-entre-temps' } as VerdictDuDeplacement, ctx1);
+      vaut('le rendez-vous modifie entre-temps : la main passe, dite', ['main', 'annulation', "Votre rendez-vous vient d'être modifié de notre côté, Mme Naffi. Une personne de la Maison vous répond ici."],
+        [modifie.etat.etape, modifie.etat.motifMain, corps(modifie)]);
+      /* Le rendez-vous d'une autre fiche : jamais déplacé seul, le repli d'avant. */
+      const pA = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      const appelsA: Any[] = [];
+      pA.agenda = { placesDuMaitre: (ids, maitre, sauf) => { appelsA.push(maitre); return placesDe(pA, t0)(ids); } };
+      const sA = etapeSuivante(null, dit('Je voudrais décaler mon rendez-vous'), { ...ctxDe(pA, t0), deplacement: { ...RDV, clientId: 'c-autre' } });
+      vrai('le rendez-vous d une autre fiche : le repli (places de sa venue, la place touchee a l equipe), jamais seul', appelsA.length === 0 && corps(sA).startsWith('Pour déplacer votre rendez-vous, voici les prochaines places, Mme Naffi.') && !sA.etat.panier.deplacement, corps(sA));
+      /* Demandé (le bouton, la réception) : il s'ouvre même en plein parcours. */
+      const pB = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      pB.agenda = { placesDuMaitre: (ids) => placesDe(pB, t0)(ids) };
+      elle(pB, t0, { texte: 'Je voudrais un rendez-vous' });
+      const enCours = pB.etat;
+      const demande = etapeSuivante(enCours, tourPourDeplacer(dit("Changer l'heure", t0 + 20000, 2)), { ...ctxDe(pB, t0 + 20000), deplacement: RDV, deplacerDemande: true });
+      const nonDemande = etapeSuivante(enCours, dit('en fait je voudrais décaler mon rdv', t0 + 20000, 3), { ...ctxDe(pB, t0 + 20000), deplacement: RDV });
+      vaut('demande en plein parcours : les places du deplacement ; ecrit sans demande, transmis comme avant', ['places', 'rdv-a', true],
+        [demande.etat.etape, demande.etat.panier.deplacement?.rdvId, corps(nonDemande).startsWith('Nous transmettons votre demande')]);
+      /* Le bouton de Perle : écarté du tour ordinaire, son propre tour. */
+      const bouton = [{ waId: 'wamid.perle', quand: isoDe(t0), texte: "Changer l'heure", type: 'button', sens: 'entrant', bouton: { id: 'GERARD:l1:autre', texte: "Changer l'heure" } }];
+      const tb = tourDuBoutonDeDeplacer(bouton, ['wamid.perle']);
+      vaut('le bouton de Perle : le tour ordinaire l ecarte, le sien le lit comme une demande de deplacer ; deja traite, rien', [0, ['wamid.perle'], INTENTION_DE_DEPLACER, null],
+        [tourDeLaCliente(bouton).waIds.length, tb?.waIds, tb?.texte, tourDuBoutonDeDeplacer(bouton, ['wamid.perle'], ['wamid.perle'])]);
+      vrai('la reception peut ouvrir le deplacement', SUITES_DU_PARCOURS.includes('deplacer'));
+      /* L'accord des nouvelles, après le mot de la réception. */
+      const pR = parcours(ORIGINAL, NUM_NAFFI, [NAFFI]);
+      const ensuite = { texte: 'Souhaitez-vous aussi recevoir les nouvelles de la Maison ? Deux messages par mois au plus, et STOP à tout moment.', boutons: [{ id: 'NOUVELLES:oui', titre: 'Oui, volontiers' }, { id: 'NOUVELLES:non', titre: 'Non merci' }] };
+      const avecAccord = reponseDeLaReception(null, dit('oui je viens samedi'), ctxDe(pR, t0), { texte: 'Parfait, Mme Naffi, nous vous attendons samedi.', suite: 'rien', ensuite });
+      const ids = (avecAccord.messages[1]?.boutons ?? []).map((b) => b.id);
+      vrai('l accord suit le mot : un second message a boutons, les deux de l accord et la sortie de la Maison, accessoire, juge sain',
+        avecAccord.messages.length === 2 && avecAccord.messages[0].forme === 'texte' && avecAccord.messages[1].forme === 'boutons'
+        && ids[0] === 'NOUVELLES:oui' && ids[1] === 'NOUVELLES:non' && /^MND:\d+:maison$/.test(ids[2] ?? '') && avecAccord.messages[1].accessoire === true
+        && avecAccord.messages.every((m) => respecteMeta(m).length === 0 && texteSain(m.corps).length === 0), avecAccord.messages);
+      const sansAccord = reponseDeLaReception(null, dit('oui je viens samedi'), ctxDe(pR, t0), { texte: 'Parfait, Mme Naffi.', suite: 'rien' });
+      const intrus = reponseDeLaReception(null, dit('oui je viens samedi'), ctxDe(pR, t0), { texte: 'Parfait, Mme Naffi.', suite: 'rien', ensuite: { texte: 'Payez ici', boutons: [{ id: 'PAYER:1', titre: 'Payer' }, { id: 'PAYER:2', titre: 'Plus tard' }] } });
+      const equipe = reponseDeLaReception(null, dit('je ne pourrai pas venir'), ctxDe(pR, t0), { texte: 'Nous prévenons la Maison, Mme Naffi.', suite: 'equipe' });
+      vaut('sans accord, un mot seul ; des boutons qui ne sont pas l accord ne partent pas ; equipe passe la main', [1, 1, 'main'],
+        [sansAccord.messages.length, intrus.messages.length, equipe.etat.etape]);
+      vaut('l automate dit savoir poser l accord', ['accord'], [...CE_QUE_L_AUTOMATE_SAIT]);
+      /* ═ La fonction (lecture). ═ */
+      const fn = sansCommentaires(lf(lit(F_AUTO)));
+      vrai('la fonction dit a la reception ce qu elle sait, et lit ensuite et rdvId', fn.includes('sait: [...CE_QUE_L_AUTOMATE_SAIT],') && fn.includes('...(ensuite ? { ensuite } : {})') && fn.includes("suite === 'deplacer' && typeof r.rdvId === 'string'"));
+      vrai('la place est rejugee pour SON maitre sur un instantane frais, avant l ecriture', /const place = laPlaceTientPourLeMaitreWa\(neuf, d\.maitre,/.test(fn) && /if \(!place\.ok\) return \{ ok: false, raison: place\.erreur \};/.test(fn));
+      vrai('le bouton de Perle a son tour avant le garde du tour vide', /if \(lu === 'pas-a-lui' && o\.deplacer\) \{/.test(fn) && fn.indexOf("if (lu === 'pas-a-lui' && o.deplacer) {") < fn.indexOf("if (lu === null || lu === 'pas-a-lui') return { pris: false };"));
+      /* ═ La fonction (au banc) : la conversation entière, sur un faux Supabase. ═ */
+      const RDV_E = { id: 'rdv-exp', branch_id: 'maison', updated_at: '2026-10-14T08:00:00.000Z', data: { id: 'rdv-exp', clientId: 'cli-naffi', branchId: 'maison', date: '2026-10-17', time: '10:00', status: 'confirmé', master: 'Expert', serviceIds: ['sv-klk-ess'], dureeMin: 60, autreMomentDemandeLe: '2026-10-14T09:00:00.000Z' } };
+      const MUR = { id: 'mur-exp', data: { branchId: 'maison', date: '2026-10-16', master: 'Expert', debut: '09h00', fin: '13h00' } };
+      const base = () => { remetsLaBase({ mode: 'ouvert', numerosEssai: [] }, { rdvs: [structuredClone(RDV_E)] }); T('blocages').set(MUR.id, structuredClone(MUR)); };
+      const places = () => choixDe(dernierA(NAFFI_E)).filter((x) => /:place:/.test(x.id));
+      await auBanc(ecarts, async () => {
+        avecTacheDeFond(true);
+        /* S1 : écrit, la place touchée le déplace. */
+        base();
+        const p0 = B().pushs.length;
+        await ecrit(NAFFI_E, 'Bonjour, je voudrais décaler mon rendez-vous de samedi');
+        const b1 = dernierA(NAFFI_E);
+        const pl = places();
+        vrai('banc : les places du deplacement, le jour et l heure du rendez-vous dits', corpsDe(b1).startsWith('Pour déplacer votre rendez-vous du samedi 17 octobre 2026 à 10 h, voici les prochaines places, Mme Naffi.'), corpsDe(b1));
+        vrai('banc : ... jamais une heure ou son maitre a un mur (le 16 avant 13 h), jamais sa place d avant, le 16 d abord', pl.length > 0
+          && !pl.some((x) => /:20261016-(09|10|11|12)\d\d$/.test(x.id)) && !pl.some((x) => x.id.endsWith(':20261017-1000')) && /:20261016-/.test(pl[0]?.id ?? ''), pl.map((x) => x.titre));
+        await touche(NAFFI_E, pl[0]);
+        const a = T('appointments').get('rdv-exp');
+        const arg1 = pl[0].id.split(':')[3];
+        const d1 = `${arg1.slice(0, 4)}-${arg1.slice(4, 6)}-${arg1.slice(6, 8)}`;
+        const h1 = `${arg1.slice(9, 11)}:${arg1.slice(11, 13)}`;
+        vaut('banc : le rendez-vous deplace : sa nouvelle place, son maitre, son statut, ses soins, signe, la marque du bouton effacee',
+          { date: d1, time: h1, master: 'Expert', status: 'confirmé', serviceIds: ['sv-klk-ess'], deplacePar: 'whatsapp', deplaceDe: { date: '2026-10-17', time: '10:00' }, marque: false },
+          { date: a?.data.date, time: a?.data.time, master: a?.data.master, status: a?.data.status, serviceIds: a?.data.serviceIds, deplacePar: a?.data.deplacePar, deplaceDe: a?.data.deplaceDe, marque: 'autreMomentDemandeLe' in (a?.data ?? {}) });
+        vaut('banc : ... aucun nouveau rendez-vous, aucune pose, une seule ecriture de rendez-vous, aucune annulation', [false, 0, 1, []],
+          [[...T('appointments').keys()].some((k) => k.startsWith('rdv-wa-')), B().poses.length, B().misesAJour.filter((x: Any) => x.table === 'appointments').length, B().misesAJour.filter((x: Any) => j(x.patch).includes('annulé'))]);
+        const fait = dernierA(NAFFI_E);
+        vrai('banc : C est fait, l annee, la devise', /^C'est fait, Mme Naffi : votre rendez-vous est déplacé au .+ 2026 à /.test(corpsDe(fait)) && corpsDe(fait).endsWith(DEVISE), corpsDe(fait));
+        const env = T('envois').get(`depl-rdv-exp-${d1.replace(/-/g, '')}${h1.replace(':', '')}-whatsapp`)?.data;
+        vrai('banc : la ligne du deplacement aux envois, envoyee, avec l identifiant de Meta', env?.statut === 'envoyé' && /^wamid\.out-/.test(env?.waMessageId ?? '') && env?.apptId === 'rdv-exp', env);
+        const geste = [...T('journal_gestes').values()].find((g: Any) => g.data?.pieceId === 'rdv-exp')?.data;
+        vrai('banc : au journal, Perle, sans nom ni numero', geste?.parNom === 'Perle' && geste?.porte === 'assistant' && geste?.verbe === 'modifie' && !/Naffi|01 97|2290197/.test(j(geste)), geste);
+        vrai('banc : l alerte : rendez-vous deplace, au prenom seul', pushsDepuis(p0).some((x: Any) => x.title === 'Rendez-vous déplacé par WhatsApp' && /^Naffi, /.test(x.body)), pushsDepuis(p0));
+        vaut('banc : les juges de la Maison, sur chaque message', [], fautesDuBanc(NAFFI_E));
+        /* S2 : la place prise entre-temps. */
+        base();
+        await ecrit(NAFFI_E, 'Je voudrais décaler mon rendez-vous');
+        const p2 = places()[0];
+        const a2 = p2.id.split(':')[3];
+        T('appointments').set('rdv-y', { id: 'rdv-y', branch_id: 'maison', updated_at: '2026-10-15T08:00:00.000Z', data: { id: 'rdv-y', branchId: 'maison', clientId: 'cli-x', date: `${a2.slice(0, 4)}-${a2.slice(4, 6)}-${a2.slice(6, 8)}`, time: `${a2.slice(9, 11)}:${a2.slice(11, 13)}`, status: 'confirmé', master: 'Team', dureeMin: 60 } });
+        await touche(NAFFI_E, p2);
+        vrai('banc : la place prise entre-temps : rien ne bouge, les places les plus proches sans elle', T('appointments').get('rdv-exp')?.data.date === '2026-10-17'
+          && /^Cette heure vient d'être prise, Mme Naffi/.test(corpsDe(dernierA(NAFFI_E))) && !places().some((x) => x.id.endsWith(a2)), corpsDe(dernierA(NAFFI_E)));
+        /* S3 : le verrou : le rendez-vous a bougé au Trône entre la liste et le toucher. */
+        base();
+        await ecrit(NAFFI_E, 'Je voudrais décaler mon rendez-vous');
+        const p3 = places()[0];
+        T('appointments').get('rdv-exp').updated_at = '2026-10-15T08:59:00.000Z';
+        await touche(NAFFI_E, p3);
+        vrai('banc : modifie entre-temps : rien ne s ecrit, la main passe, dite', T('appointments').get('rdv-exp')?.data.date === '2026-10-17' && T('appointments').get('rdv-exp')?.data.time === '10:00'
+          && fil(NAFFI_E)?.etape === 'main' && /vient d'être modifié de notre côté/.test(corpsDe(dernierA(NAFFI_E)))
+          && ![...T('envois').keys()].some((k) => String(k).startsWith('depl-')), corpsDe(dernierA(NAFFI_E)));
+        /* S4 : une place libre pour un autre maître seulement (le mur de son maître). */
+        base();
+        await ecrit(NAFFI_E, 'Je voudrais décaler mon rendez-vous');
+        const p4 = places()[0];
+        const forge = { ...p4, id: p4.id.replace(/:\d{8}-\d{4}$/, ':20261016-1000'), titre: 'Ven. 16 oct. 2026 · 10 h' };
+        await touche(NAFFI_E, forge);
+        vrai('banc : une heure libre pour un autre maitre seulement : rien ne bouge', T('appointments').get('rdv-exp')?.data.date === '2026-10-17' && B().misesAJour.filter((x: Any) => x.table === 'appointments').length === 0,
+          corpsDe(dernierA(NAFFI_E)));
+        /* S5 : le bouton « Changer l'heure » de Perle, confié avec `deplacer`. */
+        base();
+        const automate = await chargeLaFonction('whatsapp-automate');
+        const confie = async (waId: string, rdvId: string) => {
+          T('messages_wa').set(`wa-${waId}`, { id: `wa-${waId}`, data: { waId, numero: NAFFI_E, sens: 'entrant', quand: new Date().toISOString(), type: 'button', texte: "Changer l'heure", bouton: { id: `GERARD:${rdvId}:autre`, texte: "Changer l'heure" } } });
+          const r = await automate(new Request(`${ENV.SUPABASE_URL}/functions/v1/whatsapp-automate`, {
+            method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${ENV.CLE_SERVICE}` },
+            body: JSON.stringify({ numero: NAFFI_E, tiroir: 'clientes', waIds: [waId], deplacer: { rdvId } }),
+          }));
+          return r.json();
+        };
+        const r5 = await confie('wamid.perle-1', 'rdv-exp');
+        const n5 = ecritsA(NAFFI_E).length;
+        vrai('banc : le bouton de Perle ouvre les places du deplacement', r5?.pris === true && corpsDe(dernierA(NAFFI_E)).startsWith('Pour déplacer votre rendez-vous du samedi 17 octobre 2026 à 10 h'), [r5, corpsDe(dernierA(NAFFI_E))]);
+        await automate(new Request(`${ENV.SUPABASE_URL}/functions/v1/whatsapp-automate`, {
+          method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${ENV.CLE_SERVICE}` },
+          body: JSON.stringify({ numero: NAFFI_E, tiroir: 'clientes', waIds: ['wamid.perle-1'], deplacer: { rdvId: 'rdv-exp' } }),
+        }));
+        vaut('banc : ... confie deux fois, un seul message', n5, ecritsA(NAFFI_E).length);
+        base();
+        T('appointments').set('rdv-autre', { id: 'rdv-autre', branch_id: 'maison', updated_at: '2026-10-14T08:00:00.000Z', data: { id: 'rdv-autre', clientId: 'cli-x', branchId: 'maison', date: '2026-10-18', time: '11:00', status: 'confirmé', master: 'Team', serviceIds: ['sv-klk-ess'] } });
+        await confie('wamid.perle-2', 'rdv-autre');
+        const pAutre = places()[0];
+        if (pAutre) await touche(NAFFI_E, pAutre);
+        vrai('banc : le rendez-vous d une autre fiche n est jamais deplace seul', T('appointments').get('rdv-autre')?.data.date === '2026-10-18' && T('appointments').get('rdv-exp')?.data.date === '2026-10-17', corpsDe(dernierA(NAFFI_E)));
+        /* S6 : le verrou rejuge la place : prise juste avant l'écriture. */
+        base();
+        await ecrit(NAFFI_E, 'Je voudrais décaler mon rendez-vous');
+        const p6 = places()[0];
+        const a6 = p6.id.split(':')[3];
+        let appelsCreneaux = 0;
+        const jour6 = `${a6.slice(0, 4)}-${a6.slice(4, 6)}-${a6.slice(6, 8)}`;
+        B().surCreneaux = (q: Any) => {
+          if (q.p_du !== jour6 || q.p_au !== jour6) return;
+          appelsCreneaux += 1;
+          if (appelsCreneaux === 1) T('appointments').set('rdv-z', { id: 'rdv-z', branch_id: 'maison', updated_at: '2026-10-15T08:00:00.000Z', data: { id: 'rdv-z', branchId: 'maison', clientId: 'cli-x', date: `${a6.slice(0, 4)}-${a6.slice(4, 6)}-${a6.slice(6, 8)}`, time: `${a6.slice(9, 11)}:${a6.slice(11, 13)}`, status: 'confirmé', master: 'Expert', dureeMin: 60 } });
+        };
+        await touche(NAFFI_E, p6);
+        B().surCreneaux = null;
+        vrai('banc : prise juste avant l ecriture : le verrou la voit, rien ne bouge, les places les plus proches', appelsCreneaux === 1 && T('appointments').get('rdv-exp')?.data.date === '2026-10-17'
+          && /^Cette heure vient d'être prise, Mme Naffi/.test(corpsDe(dernierA(NAFFI_E))), [appelsCreneaux, corpsDe(dernierA(NAFFI_E))]);
+        /* S7 : la course : le rendez-vous bouge au Trône APRÈS la relecture,
+           avant l'écriture ; seule la condition `updated_at` le voit. */
+        base();
+        await ecrit(NAFFI_E, 'Je voudrais décaler mon rendez-vous');
+        const p7 = places()[0];
+        const a7 = p7.id.split(':')[3];
+        const jour7 = `${a7.slice(0, 4)}-${a7.slice(4, 6)}-${a7.slice(6, 8)}`;
+        let course = 0;
+        B().surCreneaux = (q: Any) => {
+          if (q.p_du !== jour7 || q.p_au !== jour7) return;
+          course += 1;
+          T('appointments').get('rdv-exp').updated_at = '2026-10-15T09:30:00.000Z';
+        };
+        await touche(NAFFI_E, p7);
+        B().surCreneaux = null;
+        vrai('banc : la course entre la relecture et l ecriture : la condition updated_at la voit, rien ne bouge, la main passe', course === 1
+          && T('appointments').get('rdv-exp')?.data.date === '2026-10-17' && fil(NAFFI_E)?.etape === 'main' && /vient d'être modifié de notre côté/.test(corpsDe(dernierA(NAFFI_E))),
+          [course, T('appointments').get('rdv-exp')?.data.date, corpsDe(dernierA(NAFFI_E))]);
+      });
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'le deplacement s ecrit sans verrou', mute: [P(F_AUTO, ".eq('id', d.rdvId).eq('updated_at', String(ligne.updated_at)).select('id, updated_at');", ".eq('id', d.rdvId).select('id, updated_at');")] },
+      { nom: 'les places du deplacement oublient le maitre', mute: [P(AUTO, '    if (d && agenda.placesDuMaitre) {', '    if (false) {')] },
+      { nom: 'le verrou ne rejuge plus la place', mute: [P(F_AUTO, '  if (!place.ok) return { ok: false, raison: place.erreur };\n  const maintenant = new Date(ms).toISOString();', '  const maintenant = new Date(ms).toISOString();')] },
+      { nom: 'la marque du bouton reste', mute: [P(F_AUTO, '  const { autreMomentDemandeLe: _marque, ...reste } = a;', '  const reste = a;')] },
+      { nom: 'le bouton de Perle n a pas de tour', mute: [P(F_AUTO, "  if (lu === 'pas-a-lui' && o.deplacer) {", '  if (false) {')] },
+      { nom: 'le deplacement reprend la derniere venue', mute: [P(AUTO, "        clientId: sienne.id, besoin: 'entretien', serviceIds: [...r.serviceIds],", "        clientId: sienne.id, besoin: 'entretien', serviceIds: [...(sienne.derniereVenue?.serviceIds ?? r.serviceIds)],")] },
+      { nom: 'le jour du rendez-vous devient le jour voulu', mute: [P(AUTO, '        ...(lu.jourVoulu && !leSien(lu.jourVoulu) ? { jourVoulu: lu.jourVoulu } : {}),', '        ...(lu.jourVoulu ? { jourVoulu: lu.jourVoulu } : {}),')] },
+      { nom: 'le rendez-vous d une autre fiche se deplace seul', mute: [P(AUTO, '    if (r && sienne && agenda?.placesDuMaitre &&', '    if (r && agenda?.placesDuMaitre &&'), P(AUTO, '        clientId: sienne.id, besoin', '        clientId: r.clientId, besoin'), P(AUTO, "      const pourQui = sienne.id !== titulaire?.id ? prenomDuNomWa(sienne.nom) : undefined;", '      const pourQui = undefined;')] },
+      { nom: 'la place d un deplacement passe a l equipe', mute: [P(AUTO, '    const d = base.panier.deplacement;\n    if (d) {\n      base.panier.date = p.iso;', '    const d = base.panier.deplacement;\n    if (false) {\n      base.panier.date = p.iso;')] },
+      { nom: 'le modifie entre-temps se tait', mute: [P(AUTO, "    if (!verdict.ok && verdict.raison === 'modifie-entre-temps') {", '    if (false) {')] },
+      { nom: 'l accord ne suit plus le mot', mute: [P(AUTO, '    return sortie([signe({ forme: \'texte\', etape: \'clos\', corps: r.texte }), ...ensuite]);', '    return sortie([signe({ forme: \'texte\', etape: \'clos\', corps: r.texte })]);')] },
+      { nom: 'l accord laisse passer d autres boutons', mute: [P(AUTO, '/^NOUVELLES:(oui|non)$/.test(b.id) && ', '')] },
+      { nom: 'la reception ne sait plus l accord', mute: [P(F_AUTO, '    sait: [...CE_QUE_L_AUTOMATE_SAIT],\n', '')] },
+      { nom: 'le deplacement demande attend la fin du parcours', mute: [P(AUTO, '(!enCours || ctx.deplacerDemande)', '!enCours')] },
     ],
   },
 ];

@@ -9,11 +9,18 @@
       tourne contre une base et un Claude simulés : la porte, le plafond du
       numéro, les prix de chaque calibre, le calibre touché, les juges, le
       repli sur Sonnet, Claude absent, le compte du mois. Les clientes sont
-      des initiales ; aucun numéro ne part chez Claude. */
+      des initiales ; aucun numéro ne part chez Claude.
+   ① bis et ② bis, LA PAROLE EN CONTEXTE (2 novembre 2026, lot 3 de Perle) :
+      les gestes après un message de Perle (garder-oui, deplacer, garder-non,
+      locks-defaits, envie), offerts seulement quand le contexte le permet,
+      écrits sous verrou, et jamais quand ils ne le doivent pas. */
 import { readFileSync } from 'node:fs';
 import {
-  FENETRE_DU_FIL_MS, REPERES_DE_LA_CONSIGNE, calibreDuChoix, consigneDeLaReception, contexteDeLaReception, filDeLaFenetre, lectureDeLaReception, listeDesCalibres, montantsDe, connaitLeLieuDe, reponseSelonLeLieu
+  FENETRE_DU_FIL_MS, REPERES_DE_LA_CONSIGNE, calibreDuChoix, consigneDeLaReception, contexteDeLaReception, filDeLaFenetre, lectureDeLaReception, listeDesCalibres, montantsDe, connaitLeLieuDe, reponseSelonLeLieu,
+  GESTES_DE_LA_PAROLE, contexteDeLaParole, dernierMotDePerle, ecrituresDuGeste, genreDuModele, gestesPermis, lectureDeLaParole, pieceDuGeste, schemaDeLaParole,
+  accordApresLeOui,
 } from '../src/shared/reception-wa-pur';
+import { QUESTION_DE_L_ACCORD } from '../src/shared/accord-whatsapp-pur';
 import { consigneDeLaReponse, contextePourClaude } from '../src/shared/ia-reponse-wa-pur';
 
 let ko = 0; let n = 0;
@@ -111,6 +118,86 @@ const automate = readFileSync('src/shared/automate-wa.ts', 'utf8');
 dit('l automate : jamais le plan a une cliente deja venue sauf si elle demande le chemin, et un mot bref quand le plan ne part pas', [true, true],
   [automate.includes('if (titulaire?.derniereVenue && !(tour && demandeLeCheminWa(tour.texte))) return [];'), automate.includes("corps: plan.length > 0 ? r.texte : sansLAnnonce || 'Bien noté, nous vous attendons.'")]);
 
+/* ── ① bis LA PAROLE EN CONTEXTE (2 novembre 2026, lot 3 de Perle) ── */
+{
+  const T0 = Date.parse('2026-11-02T10:00:00.000Z');
+  const ilY = (h: number) => new Date(T0 - h * 3_600_000).toISOString();
+  const AUJ = '2026-11-02';
+  dit('P1 le genre d un modele de Perle : garder, l ancien gerard, la carte d anniversaire ; un autre modele : rien',
+    ['garder', 'endormie', 'anniversaire', null, null],
+    [genreDuModele('assistant_maison_garder'), genreDuModele('gerard_endormie'), genreDuModele('assistant_maison_carte_anniversaire'), genreDuModele('confirmation_rdv'), genreDuModele('assistant_maison_nouvelles_de_la_maison')]);
+  const filGarder = [
+    { sens: 'sortant', modele: 'assistant_maison_garder', quand: ilY(5), waId: 'w1' },
+    { sens: 'entrant', quand: ilY(1) },
+  ];
+  dit('P2 le dernier mot de Perle : moins de 48 h, la cliente a ecrit apres', { genre: 'garder', quand: ilY(5), waId: 'w1' }, dernierMotDePerle(filGarder, T0));
+  dit('P3 plus de 48 h : rien', null, dernierMotDePerle([{ sens: 'sortant', modele: 'assistant_maison_garder', quand: ilY(49) }, { sens: 'entrant', quand: ilY(1) }], T0));
+  dit('P4 la cliente n a pas ecrit apres : rien', null, dernierMotDePerle([{ sens: 'entrant', quand: ilY(6) }, { sens: 'sortant', modele: 'assistant_maison_garder', quand: ilY(5) }], T0));
+  dit('P5 un message d une personne de l equipe n est pas un mot de Perle', null, dernierMotDePerle([{ sens: 'sortant', parQui: 'Yéman', quand: ilY(5) }, { sens: 'entrant', quand: ilY(1) }], T0));
+  const vise = { id: 'rdv-1', date: '2026-11-05', time: '10:00', status: 'confirmé' };
+  const mot = { genre: 'garder' as const, quand: ilY(5) };
+  dit('P6 apres « garder », sur un rendez-vous vivant : garder, deplacer, envie, locks', ['garder-oui', 'garder-non', 'deplacer', 'envie', 'locks-defaits'],
+    gestesPermis({ mot, rdvVise: vise, clientId: 'c-n' }, AUJ));
+  dit('P7 un rendez-vous annule ou honore : plus de garder ni de deplacer', [['locks-defaits'], ['locks-defaits']],
+    [gestesPermis({ mot, rdvVise: { ...vise, status: 'annulé' }, clientId: 'c-n' }, AUJ), gestesPermis({ mot, rdvVise: { ...vise, status: 'honoré' }, clientId: 'c-n' }, AUJ)]);
+  dit('P8 un rendez-vous passe : plus de garder', ['locks-defaits'], gestesPermis({ mot, rdvVise: { ...vise, date: '2026-11-01' }, clientId: 'c-n' }, AUJ));
+  dit('P9 apres une carte d anniversaire, son rendez-vous a venir : deplacer et envie, jamais garder',
+    ['deplacer', 'envie', 'locks-defaits'], gestesPermis({ mot: { genre: 'anniversaire', quand: ilY(5) }, rdvVise: vise, prochainRdv: vise, clientId: 'c-n' }, AUJ));
+  dit('P10 sans mot de Perle, son prochain rendez-vous : deplacer seul', ['deplacer'], gestesPermis({ mot: null, prochainRdv: vise, clientId: 'c-n' }, AUJ));
+  dit('P11 sans mot de Perle ni rendez-vous : rien', [], gestesPermis({ mot: null, clientId: 'c-n' }, AUJ));
+  dit('P12 apres « endormie », sans rendez-vous : les locks seuls', ['locks-defaits'], gestesPermis({ mot: { genre: 'endormie', quand: ilY(5) }, clientId: 'c-n' }, AUJ));
+
+  const permisGarder = gestesPermis({ mot, rdvVise: vise, clientId: 'c-n' }, AUJ);
+  const montants = new Set([35000]);
+  dit('P13 garder-oui permis : le texte passe les juges, l automate recoit « rien »', { texte: 'C’est noté, Madame. À jeudi.', suite: 'rien', geste: 'garder-oui' },
+    lectureDeLaParole({ texte: 'C’est noté, Madame. À jeudi.', suite: 'garder-oui' }, montants, permisGarder));
+  dit('P14 deplacer : la suite « deplacer » pour l automate', 'deplacer', lectureDeLaParole({ texte: 'Bien sûr, Madame. Voici d’autres places.', suite: 'deplacer' }, montants, permisGarder)?.suite);
+  dit('P15 garder-non : la main a l equipe', 'equipe', lectureDeLaParole({ texte: 'C’est noté, Madame. Une personne de la Maison revient vers vous.', suite: 'garder-non' }, montants, permisGarder)?.suite);
+  dit('P16 un geste hors de ce qui etait permis : rien ne part', null, lectureDeLaParole({ texte: 'C’est noté.', suite: 'garder-oui' }, montants, ['deplacer']));
+  dit('P17 un geste avec un montant hors catalogue : rien ne part', null, lectureDeLaParole({ texte: 'C’est noté, ce sera 99 000 F.', suite: 'garder-oui' }, montants, permisGarder));
+  dit('P18 l envie : sa cle et quelques mots', { envie: 'coloration', precision: 'une couleur cuivrée' },
+    lectureDeLaParole({ texte: 'C’est noté pour la couleur.', suite: 'envie', envie: 'coloration', precision: 'une couleur cuivrée' }, montants, permisGarder)?.envie);
+  dit('P19 une precision qui cite, ou trop longue, ou un numero : ecartee ; une cle inconnue : autre',
+    [{ envie: 'autre' }, { envie: 'soin' }, { envie: 'soin' }],
+    [lectureDeLaParole({ texte: 'Noté.', suite: 'envie', envie: 'tatouage', precision: '« comme ma sœur »' }, montants, permisGarder)?.envie,
+      lectureDeLaParole({ texte: 'Noté.', suite: 'envie', envie: 'soin', precision: 'x'.repeat(61) }, montants, permisGarder)?.envie,
+      lectureDeLaParole({ texte: 'Noté.', suite: 'envie', envie: 'soin', precision: 'appelez le 0197123456' }, montants, permisGarder)?.envie]);
+  dit('P20 sans geste, la lecture de la reception, inchangee', lectureDeLaReception({ texte: 'Bonjour Madame.', suite: 'reserver' }, montants),
+    lectureDeLaParole({ texte: 'Bonjour Madame.', suite: 'reserver' }, montants, permisGarder));
+
+  const tous = GESTES_DE_LA_PAROLE.map((g) => ecrituresDuGeste(g, ilY(0), { envie: 'soin', precision: 'un soin hydratant' }));
+  dit('P21 aucun geste n annule ni ne change un statut', false, tous.some((e) => e.rdv && ('status' in e.rdv)));
+  dit('P22 garder-oui confirme, deplacer demande une autre heure, garder-non le dit sans annuler',
+    [ilY(0), ilY(0), ilY(0)], [tous[0].rdv?.confirmeeParLaClienteLe, tous[1].rdv?.autreMomentDemandeLe, tous[2].rdv?.empecheeDitLe]);
+  dit('P23 locks defaits : la fiche, datee, par Perle ; l envie : sur le rendez-vous, par Perle',
+    [{ locksDefaits: true, locksDefaitsLe: ilY(0), locksDefaitsPar: 'Perle' }, { envie: 'soin', quand: ilY(0), precision: 'un soin hydratant', par: 'Perle' }],
+    [tous[3].fiche, tous[4].rdv?.envieAvantSeance]);
+  dit('P24 la ligne d envoi : oui, non, ou rien pour une envie', ['oui', 'oui', 'non', undefined, undefined], tous.map((e) => e.envoi?.reponse));
+  dit('P25 le journal dit un fait daté, sans nom', 'Rendez-vous gardé par la cliente, sur WhatsApp, rendez-vous du jeudi 5 novembre 2026 à 10 h', pieceDuGeste('garder-oui', vise));
+  const ctxG = contexteDeLaParole({ mot, rdvVise: vise, clientId: 'c-n' }, permisGarder, T0, AUJ);
+  dit('P26 Claude lit le message de Perle, le rendez-vous avec l annee, et les seuls gestes permis', [true, true, true, false],
+    [ctxG.includes('lui demander si elle le garde'), ctxG.includes('jeudi 5 novembre 2026 à 10 h'), ctxG.includes('"garder-oui"'), contexteDeLaParole({ mot: null, prochainRdv: vise }, ['deplacer'], T0, AUJ).includes('"garder-oui"')]);
+  dit('P27 rien de permis : rien de plus a lire, le schema d avant', ['', false],
+    [contexteDeLaParole({ mot: null }, [], T0, AUJ), JSON.stringify(schemaDeLaParole([])).includes('garder-oui')]);
+  /* L'accord des nouvelles après un « oui je viens » écrit (maquette « Nouvelles par WhatsApp »). */
+  const fiche0 = { nouvelles: null, nouvellesDemandeesLe: null };
+  dit('A1 apres garder-oui, l automate qui sait : la question des nouvelles et ses deux boutons',
+    [QUESTION_DE_L_ACCORD, ['NOUVELLES:oui', 'NOUVELLES:non']],
+    [accordApresLeOui({ geste: 'garder-oui', sait: ['accord'], fiche: fiche0, aujourdhui: AUJ })?.texte,
+      accordApresLeOui({ geste: 'garder-oui', sait: ['accord'], fiche: fiche0, aujourdhui: AUJ })?.boutons.map((b) => b.id)]);
+  dit('A2 jamais : autre geste, automate qui ne sait pas, deja repondu, deja demandee, STOP, enfant par sa date ou son segment',
+    [null, null, null, null, null, null, null],
+    [accordApresLeOui({ geste: 'deplacer', sait: ['accord'], fiche: fiche0, aujourdhui: AUJ }),
+      accordApresLeOui({ geste: 'garder-oui', sait: [], fiche: fiche0, aujourdhui: AUJ }),
+      accordApresLeOui({ geste: 'garder-oui', sait: ['accord'], fiche: { nouvelles: { oui: false, le: '2026-10-21', par: 'comptoir' } }, aujourdhui: AUJ }),
+      accordApresLeOui({ geste: 'garder-oui', sait: ['accord'], fiche: { nouvellesDemandeesLe: '2026-10-30T10:00:00.000Z' }, aujourdhui: AUJ }),
+      accordApresLeOui({ geste: 'garder-oui', sait: ['accord'], fiche: { nouvelles: { oui: false, le: '2026-10-21', par: 'stop' } }, aujourdhui: AUJ }),
+      accordApresLeOui({ geste: 'garder-oui', sait: ['accord'], fiche: { birthday: '2016-04-02' }, aujourdhui: AUJ }),
+      accordApresLeOui({ geste: 'garder-oui', sait: ['accord'], fiche: { segments: ['Enfant'] }, aujourdhui: AUJ })]);
+  dit('P28 le schema n offre que les gestes permis, et l envie avec ses champs', [true, false, true],
+    [JSON.stringify(schemaDeLaParole(['deplacer'])).includes('"deplacer"'), JSON.stringify(schemaDeLaParole(['deplacer'])).includes('garder-oui'), JSON.stringify(schemaDeLaParole(['envie'])).includes('"precision"')]);
+}
+
 /* ── ② LE VRAI FICHIER, CONTRE UNE BASE ET UN CLAUDE SIMULÉS ── */
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 const db: Record<string, Row[]> = {};
@@ -119,11 +206,19 @@ const lit = (r: Row, col: string): unknown => {
   if (m) { const v = r.data?.[m[1]]; return v === undefined || v === null ? null : typeof v === 'object' ? JSON.stringify(v) : String(v); }
   return r[col];
 };
+/* Une ligne modifiée par quelqu'un d'autre entre la lecture et l'écriture (le verrou doit refuser). */
+let bougeAvantLEcriture: string | null = null;
+let estampille = 0;
 class Requete {
-  filtres: ((r: Row) => boolean)[] = []; mode: 'select' | 'upsert' = 'select'; valeur: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
+  filtres: ((r: Row) => boolean)[] = []; mode: 'select' | 'upsert' | 'update' | 'insert' = 'select'; valeur: any = null; retour = false; // eslint-disable-line @typescript-eslint/no-explicit-any
   compte = false; tete = false; de = 0; a = Infinity; lim = Infinity; seul = false; ordre: string | null = null; desc = false; cols = '';
   constructor(public table: string) {}
-  select(cols = '', o: { count?: string; head?: boolean } = {}) { this.cols = cols; this.compte = !!o.count; this.tete = !!o.head; return this; }
+  select(cols = '', o: { count?: string; head?: boolean } = {}) {
+    if (this.mode === 'update') { this.retour = true; return this; }
+    this.cols = cols; this.compte = !!o.count; this.tete = !!o.head; return this;
+  }
+  update(o: any) { this.mode = 'update'; this.valeur = o; return this; } // eslint-disable-line @typescript-eslint/no-explicit-any
+  insert(o: any) { this.mode = 'insert'; this.valeur = o; return this; } // eslint-disable-line @typescript-eslint/no-explicit-any
   eq(c: string, v: unknown) { this.filtres.push((r) => String(lit(r, c) ?? '') === String(v)); return this; }
   gte(c: string, v: unknown) { this.filtres.push((r) => String(lit(r, c) ?? '') >= String(v)); return this; }
   in(c: string, vs: unknown[]) { this.filtres.push((r) => vs.map(String).includes(String(lit(r, c)))); return this; }
@@ -136,6 +231,16 @@ class Requete {
   fais(): any { // eslint-disable-line @typescript-eslint/no-explicit-any
     const t = (db[this.table] ??= []);
     const cle = this.table === 'documents' ? 'key' : 'id';
+    if (this.mode === 'insert') {
+      for (const row of Array.isArray(this.valeur) ? this.valeur : [this.valeur]) t.push(structuredClone(row));
+      return { error: null };
+    }
+    if (this.mode === 'update') {
+      if (bougeAvantLEcriture === this.table) for (const r of t) r.updated_at = `${r.updated_at}-bouge`;
+      const touches = t.filter((r) => this.filtres.every((f) => f(r)));
+      for (const r of touches) { Object.assign(r, JSON.parse(JSON.stringify(this.valeur))); r.updated_at = `u-${++estampille}`; }
+      return { data: this.retour ? touches.map((r) => ({ id: r.id })) : null, error: null };
+    }
     if (this.mode === 'upsert') {
       for (const row of Array.isArray(this.valeur) ? this.valeur : [this.valeur]) {
         const i = t.findIndex((r) => r[cle] === row[cle]);
@@ -282,6 +387,128 @@ for (let k = 0; k < 20; k++) db.messages_wa.push({ id: `r${k}`, data: { numero: 
 const avantPlafond = recus.length;
 const r4 = await appelle({ corps: demande });
 dit('vingt reponses en vingt-quatre heures : le plafond, Claude n est pas appele', [false, 'plafond', avantPlafond], [r4.corps.ok, r4.corps.motif, recus.length]);
+
+/* ── ② bis LA PAROLE EN CONTEXTE, AU SERVEUR (2 novembre 2026) ──
+   Une cliente répond en mots au « garder » de Perle, à une endormie, à une
+   envie ; ou demande une autre heure pour son prochain rendez-vous. */
+const demainCotonou = new Date(maintenant + 3_600_000 + 3 * 86_400_000).toISOString().slice(0, 10);
+const scene = (o: { genre?: string; ilYa?: number; rdvStatus?: string; sansPerle?: boolean; texte: string }) => {
+  remplis();
+  db.clients = [{ id: 'c-n', updated_at: 'u-fiche', data: { id: 'c-n', name: 'N. M.' } }];
+  db.appointments = [{ id: 'rdv-1', updated_at: 'u-rdv', data: { id: 'rdv-1', clientId: 'c-n', date: demainCotonou, time: '10:00', status: o.rdvStatus ?? 'confirmé' } }];
+  db.journal_gestes = [];
+  const genre = o.genre ?? 'garder';
+  const modele = genre === 'anniversaire' ? 'assistant_maison_carte_anniversaire' : `assistant_maison_${genre}`;
+  db.messages_wa = [
+    ...(o.sansPerle ? [] : [{ id: 'p1', data: { numero: NUM, sens: 'sortant', type: 'text', modele, parQui: 'Assistant Maison', waId: 'w-perle', texte: 'Bonjour Madame N., votre rendez-vous approche.', quand: il(o.ilYa ?? 300) } }]),
+    { id: 'm2', data: { numero: NUM, sens: 'entrant', type: 'text', texte: o.texte, quand: il(1) } },
+  ];
+  db.envois = o.sansPerle ? [] : [{ id: 'gerard-2026-11-02-c-n-whatsapp', updated_at: 'u-envoi', data: { type: 'gerard', genre, clientId: 'c-n', apptId: genre === 'garder' ? 'rdv-1' : '', waMessageId: 'w-perle' } }];
+};
+const schemaRecu = () => JSON.stringify((recus[recus.length - 1] as unknown as { tools?: { input_schema?: unknown }[] })?.tools?.[0]?.input_schema ?? {});
+const rdv1 = () => db.appointments.find((r) => r.id === 'rdv-1');
+const outilAvec = (input: Record<string, unknown>) => ({ status: 200, corps: { content: [{ type: 'tool_use', name: 'reponds', input }], usage: { input_tokens: 2000, output_tokens: 80 } } });
+
+scene({ texte: 'Oui je viens, à jeudi' });
+reponseDeClaude = () => outil('C’est noté, Madame. La Maison vous attend jeudi.', 'garder-oui');
+const g1 = await appelle({ corps: demande });
+dit('D1 « oui je viens » apres garder : confirme sur le rendez-vous, la ligne de Perle dit oui, l automate recoit « rien »',
+  [true, 'rien', 'garder-oui', 'rdv-1', true, 'confirmé', 'oui', 'garder-oui'],
+  [g1.corps.ok, g1.corps.suite, g1.corps.geste, g1.corps.rdvId, !!rdv1()?.data.confirmeeParLaClienteLe, rdv1()?.data.status, db.envois[0].data.reponse, db.envois[0].data.parole]);
+dit('D2 Claude a lu le message de Perle, le rendez-vous avec l annee, et le geste offert', [true, true, true],
+  [(recus[recus.length - 1]?.messages[0]?.content ?? '').includes('lui demander si elle le garde'),
+    (recus[recus.length - 1]?.messages[0]?.content ?? '').includes(' 2026 à 10 h'), schemaRecu().includes('"garder-oui"')]);
+dit('D3 le journal : porte assistant, par Perle, un fait sans nom', [1, 'assistant', 'Perle', 'appointments', false],
+  [db.journal_gestes.length, db.journal_gestes[0]?.data.porte, db.journal_gestes[0]?.data.parNom, db.journal_gestes[0]?.data.table, JSON.stringify(db.journal_gestes).includes('N. M.')]);
+
+/* L'accord des nouvelles, au serveur : la question part, la fiche marquée une fois pour toutes. */
+scene({ texte: 'Oui je viens' });
+reponseDeClaude = () => outil('C’est noté, Madame. La Maison vous attend jeudi.', 'garder-oui');
+const a1 = await appelle({ corps: { ...demande, sait: ['accord'] } });
+dit('A3 un oui je viens ecrit, l automate qui sait : la question suit avec ses deux boutons, la fiche est marquee et journalisee',
+  [true, QUESTION_DE_L_ACCORD, 2, true, true],
+  [a1.corps.ok, a1.corps.ensuite?.texte, a1.corps.ensuite?.boutons?.length, !!db.clients[0].data.nouvellesDemandeesLe,
+    db.journal_gestes.some((j) => j.data.table === 'clients' && /Accord des nouvelles/.test(j.data.piece))]);
+const a2 = await appelle({ corps: { ...demande, sait: ['accord'] } });
+dit('A4 une seconde fois : plus de question (une seule fois pour toujours)', [true, false], [a2.corps.ok, 'ensuite' in a2.corps]);
+scene({ texte: 'Oui je viens' });
+db.clients[0].data.nouvelles = { oui: false, le: '2026-10-21', par: 'comptoir' };
+reponseDeClaude = () => outil('C’est noté, Madame.', 'garder-oui');
+const a3 = await appelle({ corps: { ...demande, sait: ['accord'] } });
+dit('A5 elle a deja repondu au comptoir : ni question ni marque', [true, false, undefined], [a3.corps.ok, 'ensuite' in a3.corps, db.clients[0].data.nouvellesDemandeesLe]);
+scene({ texte: 'Oui je viens' });
+db.clients[0].data.birthday = '2015-06-01';
+const a4 = await appelle({ corps: { ...demande, sait: ['accord'] } });
+dit('A6 la fiche d un enfant : ni question ni marque (l accord se donne au comptoir, par le parent)', [true, false, undefined], [a4.corps.ok, 'ensuite' in a4.corps, db.clients[0].data.nouvellesDemandeesLe]);
+scene({ texte: 'Oui je viens' });
+const a5 = await appelle({ corps: demande });
+dit('A7 un automate qui ne sait pas envoyer la question : ni question ni marque', [true, false, undefined], [a5.corps.ok, 'ensuite' in a5.corps, db.clients[0].data.nouvellesDemandeesLe]);
+
+scene({ texte: 'Je préfère vendredi si possible' });
+reponseDeClaude = () => outil('Bien sûr, Madame. Voici d’autres places.', 'deplacer');
+const g2 = await appelle({ corps: demande });
+dit('D4 une autre heure : la demande sur le rendez-vous, rien d annule, l automate recoit « deplacer » et le rendez-vous',
+  [true, 'deplacer', 'rdv-1', true, 'confirmé'], [g2.corps.ok, g2.corps.suite, g2.corps.rdvId, !!rdv1()?.data.autreMomentDemandeLe, rdv1()?.data.status]);
+
+scene({ texte: 'Désolée je ne pourrai pas venir finalement' });
+reponseDeClaude = () => outil('C’est noté, Madame. Une personne de la Maison revient vers vous.', 'garder-non');
+const g3 = await appelle({ corps: demande });
+dit('D5 elle ne peut plus : dit sur le rendez-vous, JAMAIS annule, la main a l equipe, la ligne de Perle dit non',
+  [true, 'equipe', true, 'confirmé', 'non'], [g3.corps.ok, g3.corps.suite, !!rdv1()?.data.empecheeDitLe, rdv1()?.data.status, db.envois[0].data.reponse]);
+
+scene({ genre: 'endormie', texte: 'J’ai défait mes locks l’an dernier' });
+reponseDeClaude = () => outil('C’est noté, Madame. Merci de nous l’avoir dit.', 'locks-defaits');
+const g4 = await appelle({ corps: demande });
+dit('D6 apres une endormie, locks defaits : la fiche le dit, datee, par Perle', [true, 'rien', true, true, 'Perle'],
+  [g4.corps.ok, g4.corps.suite, db.clients[0].data.locksDefaits, !!db.clients[0].data.locksDefaitsLe, db.clients[0].data.locksDefaitsPar]);
+
+scene({ genre: 'anniversaire', texte: 'Merci ! Pour jeudi je voudrais une couleur cuivrée' });
+reponseDeClaude = () => outilAvec({ texte: 'Avec plaisir, Madame. C’est noté pour la couleur.', suite: 'envie', envie: 'coloration', precision: 'une couleur cuivrée' });
+const g5 = await appelle({ corps: demande });
+dit('D7 une envie apres une carte d anniversaire : notee sur le prochain rendez-vous, cle et quelques mots, par Perle',
+  [true, 'rien', 'coloration', 'une couleur cuivrée', 'Perle', 'rdv-1'],
+  [g5.corps.ok, g5.corps.suite, rdv1()?.data.envieAvantSeance?.envie, rdv1()?.data.envieAvantSeance?.precision, rdv1()?.data.envieAvantSeance?.par, g5.corps.rdvId]);
+dit('D8 apres une carte d anniversaire, garder n est jamais offert', false, schemaRecu().includes('garder-oui'));
+
+/* L'autre sens : ce qui ne doit jamais s'écrire. */
+scene({ texte: 'oui', ilYa: 49 * 60 });
+reponseDeClaude = () => outil('C’est noté, Madame.', 'garder-oui');
+const k1 = await appelle({ corps: demande });
+dit('K1 un garder de plus de 48 h : le geste n est pas offert, et rendu quand meme rien ne part ni ne s ecrit',
+  [false, false, 'juges', false, 0], [schemaRecu().includes('garder-oui'), k1.corps.ok, k1.corps.motif, !!rdv1()?.data.confirmeeParLaClienteLe, db.journal_gestes.length]);
+
+scene({ texte: 'oui je viens', rdvStatus: 'annulé' });
+reponseDeClaude = () => outil('C’est noté, Madame.', 'garder-oui');
+const k2 = await appelle({ corps: demande });
+dit('K2 un rendez-vous deja annule : ni garder ni deplacer, rien ne s ecrit', [false, false, false, false],
+  [schemaRecu().includes('garder-oui'), schemaRecu().includes('"deplacer"'), k2.corps.ok, !!rdv1()?.data.confirmeeParLaClienteLe]);
+
+scene({ texte: 'oui je viens' });
+reponseDeClaude = () => outil('C’est noté, Madame.', 'garder-oui');
+bougeAvantLEcriture = 'appointments';
+const k3 = await appelle({ corps: demande });
+bougeAvantLEcriture = null;
+dit('K3 le rendez-vous modifie entre la lecture et l ecriture : refuse, rien ne dit « c est note », ni journal ni ligne de Perle',
+  [false, 'geste', false, 0, undefined], [k3.corps.ok, k3.corps.motif, !!rdv1()?.data.confirmeeParLaClienteLe, db.journal_gestes.length, db.envois[0].data.reponse]);
+
+scene({ texte: 'Je voudrais décaler mon rendez-vous de jeudi', sansPerle: true });
+reponseDeClaude = () => outil('Bien sûr, Madame. Voici d’autres places.', 'deplacer');
+const k4 = await appelle({ corps: demande });
+dit('K4 sans mot de Perle, son prochain rendez-vous : deplacer offert et ecrit, ni garder ni envie ni locks',
+  [true, false, false, false, true, 'deplacer', 'rdv-1'],
+  [schemaRecu().includes('"deplacer"'), schemaRecu().includes('garder-oui'), schemaRecu().includes('"envie"'), schemaRecu().includes('locks-defaits'), !!rdv1()?.data.autreMomentDemandeLe, k4.corps.suite, k4.corps.rdvId]);
+
+scene({ texte: 'J’ai coupé mes locks', sansPerle: true });
+db.appointments = [];
+reponseDeClaude = () => outil('C’est noté, Madame.', 'locks-defaits');
+const k5 = await appelle({ corps: demande });
+dit('K5 sans mot de Perle ni rendez-vous : aucun geste offert, et rendu quand meme la fiche ne bouge pas', [false, false, undefined],
+  [schemaRecu().includes('locks-defaits'), k5.corps.ok, db.clients[0].data.locksDefaits]);
+
+scene({ texte: 'Oui à jeudi, et ce sera combien ?' });
+reponseDeClaude = () => outil('C’est noté, Madame. Ce sera 99 000 F.', 'garder-oui');
+const k6 = await appelle({ corps: demande });
+dit('K6 un geste dont le texte porte un montant hors catalogue : rien ne part ni ne s ecrit', [false, false], [k6.corps.ok, !!rdv1()?.data.confirmeeParLaClienteLe]);
 
 delete env.ANTHROPIC_API_KEY;
 remplis();

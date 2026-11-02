@@ -127,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-02-b · c est la Maison qui repond, jamais votre maitresse';
+const VERSION = '2026-11-02-c · les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -400,7 +400,8 @@ const heureDeLaReprise = (hhmm: string | undefined): string => {
    même motif : un prestataire qui envoie trois photos reçoit un seul merci. */
 /** Les messages qui partent seuls, chacun une fois par jour et par numéro. */
 type AutoDuTrone = 'accuse' | 'formulaire' | 'transmis' | 'reprise-ok' | 'reprise-autre' | 'point-bien' | 'point-souci' | 'point-recu' | 'point-avant'
-  | 'assistant-oui' | 'assistant-autre' | 'assistant-non' | 'assistant-carte' | 'stop' | 'franche';
+  | 'assistant-oui' | 'assistant-autre' | 'assistant-non' | 'assistant-empechee' | 'assistant-carte' | 'stop' | 'franche'
+  | 'accord-demande' | 'accord-oui' | 'accord-non';
 
 async function ditDepuisLeTrone(
   sb: ReturnType<typeof createClient>, jeton: string, phoneId: string,
@@ -870,6 +871,11 @@ export function retourDuBouton(o: {
   if (o.geste === 'MERCI') return null;
   if (o.garder) {
     if (o.geste === 'OUI' && o.quand) return { auto: 'assistant-oui', texte: `C’est noté, ${appel} : la Maison vous attend ${o.quand}.` };
+    /* « Je ne peux plus » (2 novembre 2026, lot 3 de Perle) : rien n'est
+       annulé, la Maison est prévenue et reprend la conversation. */
+    if (o.geste === 'NON') return { auto: 'assistant-empechee', texte: `C’est noté, ${appel} : nous prévenons la Maison, qui vous écrit ici au sujet de votre rendez-vous${o.quand ? ` ${o.quand}` : ''}.` };
+    /* « Changer l'heure » : l'automate propose ses places et déplace ; cette
+       phrase n'est plus que son SECOURS, quand il ne répond pas. */
     return { auto: 'assistant-autre', texte: `Bien sûr, ${appel}. Choisissez votre nouveau moment dans Ma Couronne : ${o.couronneUrl}\nOu répondez ici avec le jour qui vous va, la Maison vous propose une heure.` };
   }
   if (o.geste === 'NON') return { auto: 'assistant-non', texte: `C’est noté, ${appel}. La Maison reste là quand l’envie vous prend.` };
@@ -877,7 +883,252 @@ export function retourDuBouton(o: {
   const soin = o.geste === 'SOIN' ? ', nous notons le soin' : '';
   return { auto: 'assistant-oui', texte: `Avec plaisir, ${appel}${soin} ! Choisissez votre place dans Ma Couronne : ${o.couronneUrl}\nOu répondez ici avec le jour et l’heure qui vous vont, la Maison vous confirme.` };
 }
+
+/* ══ LES BOUTONS DE « GARDER » — 2 novembre 2026, lot 3 de Perle ══════════
+   Spec v4 (docs/spec-assistant-maison.md, l. 391 et 400) et choix de Yéman
+   du 2 novembre 2026 (le déplacement se fait seul, sous verrou) :
+     · « Oui, je viens » : le rendez-vous est gardé, rien d'autre ne part ;
+     · « Changer l'heure » : un autre moment demandé (À faire allume la
+       ligne), et le webhook transmet le bouton à l'automate avec
+       `deplacer: { rdvId }` : il propose ses places et déplace le rendez-vous
+       sous verrou. S'il ne répond pas, la phrase de Ma Couronne en secours et
+       l'équipe prévenue ;
+     · « Je ne peux plus » : RIEN N'EST ANNULÉ. Une marque datée sur le
+       rendez-vous (`empecheeDitLe` : À faire dit « ne peut plus venir »), la
+       main passe à l'équipe sur ce fil (l'automate se tait : la ligne
+       `main-<numéro>` de `fils_automate`, celle que pose le Trône quand une
+       personne écrit), le téléphone de l'équipe sonne (le prénom, jamais un
+       texte) et la cliente reçoit une phrase sobre. */
+export const MOTIF_NE_PEUT_PLUS = 'ne-peut-plus';
+/** La main passée à l'équipe tient vingt-quatre heures, la pause livrée de l'automate. */
+export const PAUSE_NE_PEUT_PLUS_H = 24;
+
+export type MarquesDuGarder = { confirmeeParLaClienteLe?: string; autreMomentDemandeLe?: string; empecheeDitLe?: string };
+export type SuiteDuGarder = {
+  /** Ce que le rendez-vous reçoit : une marque datée, jamais un statut. Une
+      clé à `undefined` efface la marque d'une réponse précédente. */
+  marques: MarquesDuGarder;
+  /** La main passe à l'équipe sur ce fil (pause de l'automate). */
+  main?: { motif: string; heures: number };
+  /** Ce qui sonne chez l'équipe : le prénom et le rendez-vous, jamais le texte. */
+  alerte?: { titre: string; corps: string };
+  /** « Changer l'heure » : l'automate ouvre ses places en mode déplacement. */
+  deplacer?: boolean;
+};
+
+/** La suite d'un bouton touché sous un message « garder ». `null` : rien sur
+    le rendez-vous (un merci). */
+export function suiteDuGarder(geste: GesteDuBouton, o: { quandIso: string; prenom: string; quand?: string }): SuiteDuGarder | null {
+  const rdv = o.quand ? `Rendez-vous ${o.quand}` : 'Son rendez-vous';
+  if (geste === 'OUI' || geste === 'SOIN') {
+    return { marques: { confirmeeParLaClienteLe: o.quandIso, autreMomentDemandeLe: undefined, empecheeDitLe: undefined } };
+  }
+  if (geste === 'NON') {
+    return {
+      marques: { empecheeDitLe: o.quandIso, confirmeeParLaClienteLe: undefined, autreMomentDemandeLe: undefined },
+      main: { motif: MOTIF_NE_PEUT_PLUS, heures: PAUSE_NE_PEUT_PLUS_H },
+      alerte: { titre: `${o.prenom} ne peut plus venir`, corps: `${rdv} : rien n’est annulé. Écrivez-lui pour le déplacer ou l’annuler.` },
+    };
+  }
+  if (geste === 'AUTRE') {
+    return {
+      marques: { autreMomentDemandeLe: o.quandIso, confirmeeParLaClienteLe: undefined, empecheeDitLe: undefined },
+      alerte: { titre: `${o.prenom} veut changer l’heure`, corps: `${rdv} : proposez-lui une autre place.` },
+      deplacer: true,
+    };
+  }
+  return null;
+}
+
+/** LA MAIN À L'ÉQUIPE sur ce fil : la ligne `main-<numéro>` de
+    `fils_automate`, telle que le Trône la pose (`poseLaMain`). La pause ne
+    part jamais avant la dernière main rendue ; une pause d'une personne
+    encore en cours est gardée telle quelle, seulement prolongée. */
+export function mainPourLEquipe(
+  avant: Record<string, unknown> | null | undefined, numero: string, motif: string, heures: number, maintenantMs: number,
+): Record<string, unknown> {
+  const ms = (v: unknown): number => { const x = typeof v === 'string' ? Date.parse(v) : NaN; return Number.isFinite(x) ? x : 0; };
+  const id = `main-${numero}`;
+  const fin = (debut: number): string => new Date(Math.max(debut + heures * 3_600_000, ms(avant?.jusqua))).toISOString();
+  if (avant && ms(avant.jusqua) > maintenantMs && ms(avant.pauseLe) > ms(avant.rendueLe)) {
+    return { ...avant, id, numero, jusqua: fin(maintenantMs) };
+  }
+  const pose = Math.max(maintenantMs, ms(avant?.rendueLe) + 1);
+  return { ...(avant ?? {}), id, numero, pauseLe: new Date(pose).toISOString(), jusqua: fin(pose), motif: motif.slice(0, 40), par: 'Assistant Maison' };
+}
 // ── FIN DE LA COPIE ──
+
+/* ══ LES NOUVELLES PAR WHATSAPP — 2 novembre 2026 ═══════════════════════
+   Maquette Q6aGAyTUKKJc6c2roJgHhN, choix de Yéman (« construis ») : l'accord
+   des nouvelles est demandé une seule fois, juste après « Oui, je viens »,
+   et ses deux boutons le donnent, daté, de source « whatsapp ». Le bloc
+   ci-dessous est la COPIE de src/shared/accord-whatsapp-pur.ts entre ses
+   bornes, à l'identique : verifie-gerard compare les deux textes. */
+/* ⟨accord-whatsapp⟩ */
+/** La question, dans la voix de la Maison (vouvoiement, sans « ! » ni emoji). */
+export const QUESTION_DE_L_ACCORD =
+  'Souhaitez-vous aussi recevoir les nouvelles de la Maison : les envies de saison, les offres et les places qui se libèrent ? Deux messages par mois au plus, et STOP à tout moment.';
+
+/** Les deux boutons de réponse rapide (session de 24 h : pas de modèle Meta). */
+export const BOUTON_ACCORD_OUI = 'NOUVELLES:oui';
+export const BOUTON_ACCORD_NON = 'NOUVELLES:non';
+export const BOUTONS_DE_L_ACCORD = [
+  { id: BOUTON_ACCORD_OUI, titre: 'Oui, volontiers' },
+  { id: BOUTON_ACCORD_NON, titre: 'Non merci' },
+] as const;
+
+/** Ce que la Maison répond à chaque bouton. */
+export const MERCI_DE_L_ACCORD = 'Merci. Vous recevrez nos nouvelles ; un STOP suffit pour les arrêter.';
+export const MERCI_DU_REFUS = 'Bien entendu. Vous continuerez de recevoir vos rappels et vos confirmations, rien d\'autre.';
+
+/** La promesse tenue : au plus deux messages par mois et par personne pour
+    tout ce qui n'est pas un service (envies, offres, relances, fêtes, place
+    libérée). Les rappels, les confirmations, « garder », les reçus, les
+    factures n'y comptent pas. */
+export const PLAFOND_DES_NOUVELLES_PAR_MOIS = 2;
+export const FENETRE_DU_PLAFOND_JOURS = 30;
+
+/** Le moment où la question peut suivre. */
+export type MomentDeLAccord = 'oui-je-viens' | 'recu';
+export const MOMENTS_DE_L_ACCORD: readonly MomentDeLAccord[] = ['oui-je-viens', 'recu'];
+
+/** Ce que la règle lit d'une fiche. */
+export type FichePourLAccord = {
+  nouvelles?: { oui: boolean; le: string; par: string } | null;
+  /** Quand la question a été posée sur WhatsApp (une seule fois, pour toujours). */
+  nouvellesDemandeesLe?: string | null;
+  archived?: boolean | null;
+  segments?: readonly string[] | null;
+  birthday?: string | null;
+};
+
+/** La question peut-elle suivre maintenant ? Jamais si elle a déjà répondu
+    (oui, non ou STOP), jamais si elle a déjà été demandée sur WhatsApp,
+    jamais pour une fiche archivée ou un enfant (l'accord se donne au
+    comptoir, par le parent), jamais hors de la fenêtre de 24 heures (un
+    message libre n'y passe pas). */
+export function doitDemanderLAccord(
+  f: FichePourLAccord,
+  o: { moment: MomentDeLAccord; fenetreOuverte: boolean; estEnfant: boolean },
+): { oui: true } | { oui: false; pourquoi: string } {
+  if (!(MOMENTS_DE_L_ACCORD as readonly string[]).includes(o.moment)) return { oui: false, pourquoi: 'moment' };
+  if (f.nouvelles) return { oui: false, pourquoi: f.nouvelles.par === 'stop' ? 'stop' : 'deja-repondu' };
+  if (f.nouvellesDemandeesLe) return { oui: false, pourquoi: 'deja-demande' };
+  if (f.archived) return { oui: false, pourquoi: 'archivee' };
+  if (o.estEnfant || (f.segments ?? []).includes('Enfant')) return { oui: false, pourquoi: 'enfant' };
+  if (!o.fenetreOuverte) return { oui: false, pourquoi: 'fenetre' };
+  return { oui: true };
+}
+
+/** La réponse à un bouton : l'accord daté, de source WhatsApp, ou null. */
+export function accordDuBouton(idDuBouton: string, maintenantISO: string): { oui: boolean; le: string; par: 'whatsapp' } | null {
+  const le = String(maintenantISO).slice(0, 10);
+  if (idDuBouton === BOUTON_ACCORD_OUI) return { oui: true, le, par: 'whatsapp' };
+  if (idDuBouton === BOUTON_ACCORD_NON) return { oui: false, le, par: 'whatsapp' };
+  return null;
+}
+
+/** Les genres d'envoi qui comptent dans la promesse (tout sauf un service).
+    La carte d'anniversaire compte aussi : la question promet deux messages,
+    pas deux nouvelles et un voeu (tranché le 2 novembre 2026). */
+export const GENRES_QUI_COMPTENT = ['avant', 'envie', 'place', 'anniversaire', 'carte', 'carte-foyer', 'fetes', 'endormie', 'nouvelles', 'campagne', 'relance'] as const;
+
+/** Combien de nouvelles lui sont parties dans les trente derniers jours. */
+export function nouvellesDuMois(envois: readonly { genre?: string | null; quand?: string | null; statut?: string | null }[], maintenantMs: number): number {
+  const depuis = maintenantMs - FENETRE_DU_PLAFOND_JOURS * 24 * 60 * 60_000;
+  return envois.filter((e) => {
+    if (!e.genre || !(GENRES_QUI_COMPTENT as readonly string[]).includes(e.genre)) return false;
+    if (e.statut && /annul|ecart|refus|echec/i.test(e.statut)) return false;
+    const t = Date.parse(e.quand ?? '');
+    return Number.isFinite(t) && t >= depuis && t <= maintenantMs;
+  }).length;
+}
+
+/** La promesse permet-elle une nouvelle de plus ? */
+export const promesseTenue = (dejaCeMois: number): boolean => dejaCeMois < PLAFOND_DES_NOUVELLES_PAR_MOIS;
+/* ⟨/accord-whatsapp⟩ */
+
+/** Ce qui signe au journal ce que l'Assistant fait sur une fiche. */
+const PAR_L_ASSISTANT = 'Assistant Maison';
+
+/** Une fiche lue avec son instant d'écriture, pour l'écrire sous verrou. */
+type LigneDeFiche = { id: string; branch_id?: string | null; data: Record<string, any>; updated_at: string };
+
+async function lisLaFiche(sb: SupabaseClient, id: string): Promise<LigneDeFiche | null> {
+  const { data } = await sb.from('clients').select('id, branch_id, data, updated_at').eq('id', id).limit(1);
+  return ((data ?? [])[0] as LigneDeFiche | undefined) ?? null;
+}
+
+/** LA FICHE ÉCRITE SOUS VERROU (l'instant lu, que `clients_touch` avance à
+    chaque écriture) : une écriture perdue relit et rejuge, deux fois au plus.
+    `change` rend la fiche d'après, ou `null` pour ne rien écrire. */
+async function ecrisLaFicheSousVerrou(
+  sb: SupabaseClient, id: string, change: (d: Record<string, any>) => Record<string, any> | null,
+): Promise<{ ecrite: boolean; avant?: LigneDeFiche }> {
+  for (let essai = 0; essai < 2; essai += 1) {
+    const l = await lisLaFiche(sb, id);
+    if (!l) return { ecrite: false };
+    const apres = change(l.data ?? {});
+    if (!apres) return { ecrite: false, avant: l };
+    const { data, error } = await sb.from('clients').update({ data: apres }).eq('id', id).eq('updated_at', l.updated_at).select('id');
+    if (error) { dis('fiche · écriture refusée', { motif: error.message.slice(0, 120) }); return { ecrite: false, avant: l }; }
+    if ((data ?? []).length > 0) return { ecrite: true, avant: l };
+  }
+  return { ecrite: false };
+}
+
+/** Mineure ce jour-là, d'après sa date de naissance (AAAA-MM-JJ) ; sans date, non. */
+function estMineurLe(naissance: unknown, jourIso: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(naissance ?? ''));
+  const j = /^(\d{4})-(\d{2})-(\d{2})$/.exec(jourIso);
+  if (!m || !j) return false;
+  let age = Number(j[1]) - Number(m[1]);
+  if (Number(j[2]) * 100 + Number(j[3]) < Number(m[2]) * 100 + Number(m[3])) age -= 1;
+  return age < 18;
+}
+
+/** Un geste de l'Assistant sur une fiche, au journal : le fait, jamais le texte d'un message. */
+async function journaliseLAccord(
+  sb: SupabaseClient, g: { branchId?: string; pieceId: string; piece: string; champs: { champ: string; avant: string; apres: string }[] },
+): Promise<void> {
+  const id = `geste-${globalThis.crypto.randomUUID()}`;
+  const geste = {
+    id, ...(g.branchId ? { branchId: g.branchId } : {}), quand: new Date().toISOString(), parNom: PAR_L_ASSISTANT,
+    porte: 'assistant', verbe: 'modifie', table: 'clients', ecran: 'WhatsApp de la Maison', pieceId: g.pieceId, piece: g.piece, champs: g.champs,
+  };
+  try { await sb.from('journal_gestes').insert({ id, branch_id: g.branchId ?? null, data: geste }); } catch { /* le journal ne fait jamais tomber le webhook */ }
+}
+
+/** LA QUESTION DE L'ACCORD, après « Oui, je viens » : une seule fois pour
+    toujours. La marque `nouvellesDemandeesLe` s'écrit d'abord, sous verrou,
+    dans l'écriture qui juge : seule la livraison qui l'a écrite pose la
+    question, avec ses deux boutons. */
+async function demandeLAccordDesNouvelles(
+  sb: SupabaseClient, jeton: string, phoneId: string, o: { numero: string; clientId: string; branchId?: string },
+): Promise<void> {
+  const maintenant = new Date().toISOString();
+  let pourquoi = 'non-ecrite';
+  const r = await ecrisLaFicheSousVerrou(sb, o.clientId, (d) => {
+    const juge = doitDemanderLAccord(d as FichePourLAccord, { moment: 'oui-je-viens', fenetreOuverte: true, estEnfant: estMineurLe(d.birthday, maintenant.slice(0, 10)) });
+    if (!juge.oui) { pourquoi = 'pourquoi' in juge ? juge.pourquoi : 'non'; return null; }
+    return { ...d, nouvellesDemandeesLe: maintenant };
+  });
+  if (!r.ecrite) { dis('accord · pas demandé', { pourquoi }); return; }
+  await journaliseLAccord(sb, { branchId: o.branchId, pieceId: o.clientId, piece: 'Accord des nouvelles demandé sur WhatsApp', champs: [{ champ: 'Nouvelles demandées', avant: '', apres: maintenant.slice(0, 10) }] });
+  await ditDepuisLeTrone(sb, jeton, phoneId, {
+    numero: o.numero, branchId: o.branchId, auto: 'accord-demande', texte: QUESTION_DE_L_ACCORD,
+    interactive: {
+      type: 'button',
+      body: { text: QUESTION_DE_L_ACCORD },
+      action: { buttons: BOUTONS_DE_L_ACCORD.map((x) => ({ type: 'reply', reply: { id: x.id, title: x.titre } })) },
+    },
+  });
+  dis('accord · demandé');
+}
+
+/** Un bouton de Perle : ceux de ses modèles, et les deux de l'accord. Ni
+    l'automate ni l'alerte générique ne les prennent : ⑤ bis·4 les traite. */
+const estUnBoutonDePerle = (id: string | undefined): boolean => !!lisLeBoutonDeLAssistant(id) || !!accordDuBouton(String(id ?? ''), '');
 
 /** UN LECTEUR DE FICHES POUR UN APPEL : une RPC par numéro, gardée ; la
     table par pages une seule fois, si la RPC manque. Ne lève jamais : une
@@ -1606,6 +1857,11 @@ Deno.serve(async (req) => {
         /* STOP et la question franche ne vont pas à l'automate (27 octobre 2026) :
            la Maison y répond elle-même (⑤ bis·4), et le personnel est prévenu. */
         if (!e.bouton && (estUnStop(e.texte) || estUneQuestionFranche(e.texte))) continue;
+        /* LES BOUTONS DE PERLE (2 novembre 2026, lot 3) : ceux de ses modèles et
+           les deux de l'accord des nouvelles. L'automate ne les lit pas dans son
+           tour ; ⑤ bis·4 les traite, et lui transmet « Changer l'heure » avec le
+           rendez-vous à déplacer. */
+        if (estUnBoutonDePerle(e.bouton?.id)) continue;
         const tiroir = tiroirDe(e.numero);
         if (tiroir !== 'clientes' && tiroir !== 'equipe') continue;
         const c = confies.get(e.numero) ?? { numero: e.numero, tiroir, waIds: [], nom: nomDe(e) };
@@ -1622,7 +1878,7 @@ Deno.serve(async (req) => {
       }
 
       const arrivees: Arrivee[] = entrants
-        .filter((e) => estNeuf(e) && !confies.has(e.numero))
+        .filter((e) => estNeuf(e) && !confies.has(e.numero) && !estUnBoutonDePerle(e.bouton?.id))
         .map((e) => ({
           numero: e.numero,
           tiroir: tiroirDe(e.numero),
@@ -1910,23 +2166,107 @@ Deno.serve(async (req) => {
     dis('assistant · réponse', { geste: b.geste, genre: ligne.data.genre });
     const garder = ligne.data.genre === 'garder' && !!ligne.data.apptId;
     let quand: string | undefined;
+    /* LES BOUTONS DE « GARDER » (2 novembre 2026, lot 3 de Perle) : la suite
+       vient de `suiteDuGarder` (copie ci-dessus). Une marque datée sur le
+       rendez-vous, jamais un statut ; « Je ne peux plus » passe la main à
+       l'équipe ; « Changer l'heure » va à l'automate. */
+    let suite: SuiteDuGarder | null = null;
+    let rdvAGarder: string | undefined;
     if (garder) {
       const { data: r } = await sb.from('appointments').select('id, data').eq('id', ligne.data.apptId).limit(1);
       const rdvLigne = (r ?? [])[0] as { id: string; data: Record<string, any> } | undefined;
       const rdv = rdvLigne?.data;
       if (rdvLigne && rdv && rdv.status !== 'annulé' && rdv.status !== 'honoré') {
-        const patch = b.geste === 'OUI'
-          ? { confirmeeParLaClienteLe: e.quand, autreMomentDemandeLe: undefined }
-          : { autreMomentDemandeLe: e.quand, confirmeeParLaClienteLe: undefined };
-        const { error: errRdv } = await sb.from('appointments').update({ data: { ...rdv, ...patch } }).eq('id', rdvLigne.id);
-        if (errRdv) dis('assistant · rendez-vous refusé', { motif: errRdv.message.slice(0, 120) });
         quand = `${jourDeLaReprise(rdv.date ?? '')} à ${heureDeLaReprise(rdv.time)}`;
+        rdvAGarder = rdvLigne.id;
+        suite = suiteDuGarder(b.geste, { quandIso: e.quand, prenom: prenomDe(String(fiche.nom ?? '')), quand });
+        if (suite) {
+          const { error: errRdv } = await sb.from('appointments').update({ data: { ...rdv, ...suite.marques } }).eq('id', rdvLigne.id);
+          if (errRdv) dis('assistant · rendez-vous refusé', { motif: errRdv.message.slice(0, 120) });
+        }
+        if (suite?.main) {
+          /* LA MAIN À L'ÉQUIPE : la ligne que pose le Trône quand une personne
+             écrit ; l'automate se tait sur ce fil le temps de la pause. */
+          const idMain = `main-${e.numero}`;
+          const { data: m } = await sb.from('fils_automate').select('id, data').eq('id', idMain).limit(1);
+          const avant = (((m ?? [])[0] as { data?: Record<string, unknown> } | undefined)?.data) ?? null;
+          const { error: errMain } = await sb.from('fils_automate').upsert(
+            { id: idMain, branch_id: fiche.branchId ?? null, data: mainPourLEquipe(avant, e.numero, suite.main.motif, suite.main.heures, Date.now()) },
+            { onConflict: 'id' });
+          if (errMain) dis('assistant · main refusée', { motif: errMain.message.slice(0, 120) });
+        }
       }
     }
-    if (!jetonMeta || !phoneIdMeta) continue;
+    const alerteDuGarder: Alerte | null = suite?.alerte
+      ? { titre: suite.alerte.titre, corps: suite.alerte.corps, url: `/trone/#/conversations?n=${e.numero}` }
+      : null;
     const appel = appelDe({ name: fiche.nom, civilite: fiche.civilite, auMasculin: fiche.auMasculin });
     const retour = retourDuBouton({ geste: b.geste, garder, appel, quand, couronneUrl, offrirUrl });
+    if (suite?.deplacer && rdvAGarder && service && urlBase) {
+      /* « CHANGER L'HEURE » VA À L'AUTOMATE (choix de Yéman, 2 novembre 2026) :
+         il ouvre ses places en mode déplacement et déplace le rendez-vous sous
+         verrou (morceau C, `deplacer: { rdvId }`). S'il ne prend pas le fil,
+         la phrase de Ma Couronne en secours et l'équipe prévenue. En tâche
+         de fond, comme les autres tours confiés. */
+      const enFond = tacheDeFond();
+      const numero = e.numero;
+      const branchId = fiche.branchId;
+      const tache = (async () => {
+        const rep = await demandeALAutomate(urlBase, service, { numero, tiroir: tiroirDe(numero), waIds: [e.waId], deplacer: { rdvId: rdvAGarder } },
+          enFond ? AUTOMATE_EN_FOND_MS : AUTOMATE_SANS_FOND_MS);
+        dis('assistant · changer l heure confié', { pris: rep.pris });
+        if (rep.pris) {
+          if (rep.alerte) await previensLesTelephones(sb, rep.alerte, rep.alerte, 1);
+          return;
+        }
+        await previensLesTelephones(sb, alerteDuGarder, alerteDuGarder, 1);
+        if (retour && jetonMeta && phoneIdMeta) {
+          await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, { numero, branchId, auto: retour.auto as AutoDuTrone, texte: retour.texte });
+        }
+      })();
+      if (enFond) enFond(tache);
+      else automateEnCours.push(tache);
+      continue;
+    }
+    if (alerteDuGarder) await previensLesTelephones(sb, alerteDuGarder, alerteDuGarder, 1);
+    if (!jetonMeta || !phoneIdMeta) continue;
     if (retour) await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, { numero: e.numero, branchId: fiche.branchId, auto: retour.auto as AutoDuTrone, texte: retour.texte });
+    /* L'ACCORD DES NOUVELLES (maquette « Nouvelles par WhatsApp ») : après le
+       merci de « Oui, je viens », la question, une fois pour toujours. */
+    if (garder && b.geste === 'OUI' && suite) {
+      await demandeLAccordDesNouvelles(sb, jetonMeta, phoneIdMeta, { numero: e.numero, clientId: fiche.id, branchId: fiche.branchId });
+    }
+  }
+  /* LA RÉPONSE À LA QUESTION DE L'ACCORD : « Oui, volontiers » ou « Non merci ».
+     L'accord, daté, de source « whatsapp », va à la fiche à qui la question
+     a été posée (à défaut, la tête du numéro), sous verrou ; le journal porte
+     le geste sans texte ; la cliente reçoit le merci. */
+  for (const e of entrants) {
+    if (!estNeuf(e)) continue;
+    const accord = accordDuBouton(String(e.bouton?.id ?? ''), e.quand);
+    if (!accord || tiroirDe(e.numero) !== 'clientes') continue;
+    const siennes = fichesParNumero.get(e.numero) ?? [];
+    const lues = await Promise.all(siennes.map((f) => lisLaFiche(sb, f.id)));
+    const demandees = lues.filter((l): l is LigneDeFiche => !!l && !!l.data?.nouvellesDemandeesLe).map((l) => l.id);
+    const tete = teteDuNumero(e.numero);
+    const cibles = demandees.length > 0 ? demandees : tete ? [tete.id] : [];
+    let ecrites = 0;
+    for (const id of cibles) {
+      const r = await ecrisLaFicheSousVerrou(sb, id, (d) => ({ ...d, nouvelles: accord }));
+      if (!r.ecrite) continue;
+      ecrites += 1;
+      const avant = r.avant?.data?.nouvelles as { oui?: boolean } | undefined;
+      await journaliseLAccord(sb, {
+        branchId: r.avant?.data?.branchId, pieceId: id, piece: `Accord des nouvelles : ${accord.oui ? 'oui' : 'non'}, sur WhatsApp`,
+        champs: [{ champ: 'Nouvelles', avant: avant ? (avant.oui ? 'oui' : 'non') : 'pas encore', apres: accord.oui ? 'oui' : 'non' }],
+      });
+    }
+    dis('accord · réponse', { oui: accord.oui, fiches: ecrites });
+    if (ecrites > 0 && jetonMeta && phoneIdMeta) {
+      await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, {
+        numero: e.numero, branchId: tete?.branchId, auto: accord.oui ? 'accord-oui' : 'accord-non', texte: accord.oui ? MERCI_DE_L_ACCORD : MERCI_DU_REFUS,
+      });
+    }
   }
   for (const e of entrants) {
     if (!estNeuf(e) || e.bouton || !estUnStop(e.texte) || tiroirDe(e.numero) !== 'clientes') continue;

@@ -34,7 +34,8 @@ declare const Deno: {
 
 /* 30-a (30 octobre 2026) : le SÍNSIN™ se dit « Reprise des racines »
    (shared/gestes-en-francais), rien d'autre. */
-const VERSION = '2026-11-02-a';
+/* 2026-11-02-b : « garder » dès J-3 pour toutes (de passage, diaspora, locks défaits ; l'enfant par son parent), choix de Yéman au sélecteur. */
+const VERSION = '2026-11-02-b';
 
 type Ligne = { id: string; branch_id?: string | null; data: Record<string, unknown> };
 // deno-lint-ignore no-explicit-any

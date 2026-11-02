@@ -444,6 +444,41 @@ function heuresPourClaude(semaine) {
   return groupes.map((g) => `${g.de === g.a ? NOMS_DES_JOURS[g.de] : `du ${NOMS_DES_JOURS[g.de]} au ${NOMS_DES_JOURS[g.a]}`} : ${g.texte}`);
 }
 
+// src/shared/accord-whatsapp-pur.ts
+var QUESTION_DE_L_ACCORD = "Souhaitez-vous aussi recevoir les nouvelles de la Maison : les envies de saison, les offres et les places qui se libèrent ? Deux messages par mois au plus, et STOP à tout moment.";
+var BOUTON_ACCORD_OUI = "NOUVELLES:oui";
+var BOUTON_ACCORD_NON = "NOUVELLES:non";
+var BOUTONS_DE_L_ACCORD = [
+  { id: BOUTON_ACCORD_OUI, titre: "Oui, volontiers" },
+  { id: BOUTON_ACCORD_NON, titre: "Non merci" }
+];
+var MOMENTS_DE_L_ACCORD = ["oui-je-viens", "recu"];
+function doitDemanderLAccord(f, o) {
+  if (!MOMENTS_DE_L_ACCORD.includes(o.moment)) return { oui: false, pourquoi: "moment" };
+  if (f.nouvelles) return { oui: false, pourquoi: f.nouvelles.par === "stop" ? "stop" : "deja-repondu" };
+  if (f.nouvellesDemandeesLe) return { oui: false, pourquoi: "deja-demande" };
+  if (f.archived) return { oui: false, pourquoi: "archivee" };
+  if (o.estEnfant || (f.segments ?? []).includes("Enfant")) return { oui: false, pourquoi: "enfant" };
+  if (!o.fenetreOuverte) return { oui: false, pourquoi: "fenetre" };
+  return { oui: true };
+}
+
+// src/shared/clients-pur.ts
+function ageDe(birthday, aujourdhui) {
+  if (!birthday) return void 0;
+  const n = /* @__PURE__ */ new Date(`${birthday}T00:00:00`);
+  const j = /* @__PURE__ */ new Date(`${aujourdhui}T00:00:00`);
+  if (Number.isNaN(n.getTime()) || Number.isNaN(j.getTime())) return void 0;
+  let a = j.getFullYear() - n.getFullYear();
+  const m = j.getMonth() - n.getMonth();
+  if (m < 0 || m === 0 && j.getDate() < n.getDate()) a -= 1;
+  return a;
+}
+var estMineur = (client, aujourdhui) => {
+  const a = ageDe(client.birthday, aujourdhui);
+  return a !== void 0 && a < 18;
+};
+
 // src/shared/reception-wa-pur.ts
 var SUITES = ["rien", "reserver", "creation", "reparation", "calibre", "equipe", "venir"];
 var REPERES_DE_LA_CONSIGNE = [
@@ -589,6 +624,168 @@ function filDeLaFenetre(fil, maintenantMs) {
     return Number.isFinite(q) && q >= depuis;
   });
 }
+var GESTES_DE_LA_PAROLE = ["garder-oui", "deplacer", "garder-non", "locks-defaits", "envie"];
+var SUITE_DU_GESTE = {
+  "garder-oui": "rien",
+  deplacer: "deplacer",
+  "garder-non": "equipe",
+  "locks-defaits": "rien",
+  envie: "rien"
+};
+var GENRES_DE_PERLE = ["garder", "avant", "envie", "place", "anniversaire", "fetes", "endormie"];
+function genreDuModele(modele) {
+  const m = /^(?:assistant_maison|gerard)_(.+)$/.exec(String(modele ?? ""));
+  if (!m) return null;
+  const g = m[1] === "carte_anniversaire" ? "anniversaire" : m[1];
+  return GENRES_DE_PERLE.includes(g) ? g : null;
+}
+function dernierMotDePerle(fil, maintenantMs) {
+  const dates = (m) => Date.parse(String(m.quand ?? ""));
+  const siens = fil.filter((m) => m.sens === "sortant" && genreDuModele(m.modele) && Number.isFinite(dates(m))).sort((a, b) => dates(b) - dates(a));
+  const dernier = siens[0];
+  if (!dernier) return null;
+  const q = dates(dernier);
+  if (maintenantMs - q > FENETRE_DU_FIL_MS || q > maintenantMs) return null;
+  if (!fil.some((m) => m.sens === "entrant" && dates(m) > q)) return null;
+  const waId = typeof dernier.waId === "string" && dernier.waId ? dernier.waId : void 0;
+  return { genre: genreDuModele(dernier.modele), quand: new Date(q).toISOString(), ...waId ? { waId } : {} };
+}
+var rdvVivant = (r, aujourdhui) => !!r && !!r.date && r.date >= aujourdhui && r.status !== "annulé" && r.status !== "honoré";
+function gestesPermis(c, aujourdhui) {
+  if (!c) return [];
+  const g = [];
+  const vise = c.mot && rdvVivant(c.rdvVise, aujourdhui) ? c.rdvVise : null;
+  const prochain = rdvVivant(c.prochainRdv, aujourdhui) ? c.prochainRdv : null;
+  if (c.mot?.genre === "garder" && vise) g.push("garder-oui", "garder-non");
+  if (vise || prochain) g.push("deplacer");
+  if (c.mot && (vise || prochain)) g.push("envie");
+  if (c.mot && c.clientId) g.push("locks-defaits");
+  return g;
+}
+var rdvDuGeste = (c, aujourdhui) => c.mot && rdvVivant(c.rdvVise, aujourdhui) ? c.rdvVise : rdvVivant(c.prochainRdv, aujourdhui) ? c.prochainRdv : null;
+var MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+var JOURS2 = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+function rdvDit(r) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(r.date);
+  if (!m) return "son rendez-vous";
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  const jour = `${JOURS2[d.getUTCDay()]} ${Number(m[3]) === 1 ? "1er" : Number(m[3])} ${MOIS[+m[2] - 1]} ${m[1]}`;
+  const h = /^(\d{1,2}):(\d{2})/.exec(String(r.time ?? ""));
+  return h ? `${jour} à ${Number(h[1])} h${h[2] === "00" ? "" : ` ${h[2]}`}` : jour;
+}
+var CE_QUE_PERLE_A_DIT = {
+  garder: "pour lui rappeler son rendez-vous et lui demander si elle le garde",
+  avant: "parce que sa prochaine venue approche et qu’elle n’a pas encore de rendez-vous",
+  envie: "pour lui proposer une envie entre deux séances",
+  place: "pour lui proposer une place qui s’est libérée",
+  anniversaire: "pour son anniversaire",
+  fetes: "pour les fêtes",
+  endormie: "parce qu’elle n’est pas venue depuis longtemps"
+};
+var CE_QUE_DIT_LE_GESTE = {
+  "garder-oui": '- "garder-oui" : elle répond qu’elle vient à ce rendez-vous ; ton message le note en une phrase brève, sans redire l’adresse.',
+  deplacer: '- "deplacer" : elle voudrait une autre heure ou un autre jour pour ce rendez-vous ; ton message, bref, dit que la Maison lui propose d’autres places, sans promettre aucune heure ; les places partent juste après ton message.',
+  "garder-non": '- "garder-non" : elle ne pourra pas venir à ce rendez-vous ; ton message le note avec égards, sans rien annuler, et dit qu’une personne de la Maison reviendra vers elle.',
+  "locks-defaits": '- "locks-defaits" : elle dit avoir défait ou coupé ses locks ; ton message le note avec délicatesse, sans insister ni rien proposer.',
+  envie: '- "envie" : elle dit ce qu’elle souhaite pour sa prochaine séance (un soin, une coloration, une coiffure, autre chose) ; ton message le note, et tu donnes aussi "envie" (soin, coloration, coiffure ou autre) et "precision" (quelques mots, sans citation).'
+};
+function contexteDeLaParole(c, permis, maintenantMs, aujourdhui) {
+  if (permis.length === 0) return "";
+  const rdv = rdvDuGeste(c, aujourdhui);
+  const lignes = [""];
+  if (c.mot) {
+    const heures = Math.max(1, Math.round((maintenantMs - Date.parse(c.mot.quand)) / 36e5));
+    lignes.push(
+      "LE DERNIER MESSAGE DE L’ASSISTANT DE LA MAISON :",
+      `- Il y a ${heures === 1 ? "une heure" : `${heures} heures`}, l’assistant de la Maison lui a écrit ${CE_QUE_PERLE_A_DIT[c.mot.genre]}.`
+    );
+  } else {
+    lignes.push("SON RENDEZ-VOUS :");
+  }
+  if (rdv) lignes.push(`- Le rendez-vous concerné : ${rdvDit(rdv)}.`);
+  lignes.push(
+    c.mot ? "- Si son message répond à celui-là, ta suite peut aussi être l’une de celles-ci (sinon, les suites habituelles) :" : "- Si elle parle de ce rendez-vous, ta suite peut aussi être celle-ci (sinon, les suites habituelles) :",
+    ...permis.map((g) => CE_QUE_DIT_LE_GESTE[g])
+  );
+  return lignes.join("\n");
+}
+function schemaDeLaParole(permis) {
+  if (permis.length === 0) return SCHEMA_DE_LA_RECEPTION;
+  return {
+    type: "object",
+    properties: {
+      texte: { type: "string", description: "Le message WhatsApp, au nom de la Maison, sans émoji." },
+      suite: { type: "string", enum: [...SUITES, ...permis], description: "Ce qui suit le message." },
+      ...permis.includes("envie") ? {
+        envie: { type: "string", enum: ["soin", "coloration", "coiffure", "autre"], description: 'Avec la suite "envie" : ce qu’elle souhaite.' },
+        precision: { type: "string", description: 'Avec la suite "envie" : quelques mots, sans citation (une couleur cuivrée).' }
+      } : {}
+    },
+    required: ["texte", "suite"],
+    additionalProperties: false
+  };
+}
+var PRECISION_AU_PLUS = 60;
+function precisionPropre(p) {
+  const t = String(p ?? "").replace(/\s+/g, " ").trim();
+  if (!t || t.length > PRECISION_AU_PLUS || /[«»"“”„]/.test(t) || /\d{6,}/.test(t.replace(/[\s.-]/g, ""))) return void 0;
+  return t;
+}
+function lectureDeLaParole(brut, montantsPermis, permis) {
+  if (!brut || typeof brut !== "object") return null;
+  const b = brut;
+  const geste = GESTES_DE_LA_PAROLE.includes(String(b.suite)) ? b.suite : null;
+  if (!geste) return lectureDeLaReception(brut, montantsPermis);
+  if (!permis.includes(geste)) return null;
+  const lue = lectureDeLaReception({ texte: b.texte, suite: "rien" }, montantsPermis);
+  if (!lue) return null;
+  const suite = SUITE_DU_GESTE[geste];
+  if (geste !== "envie") return { texte: lue.texte, suite, geste };
+  const cle = ["soin", "coloration", "coiffure", "autre"].includes(String(b.envie)) ? b.envie : "autre";
+  const precision = precisionPropre(b.precision);
+  return { texte: lue.texte, suite, geste, envie: { envie: cle, ...precision ? { precision } : {} } };
+}
+var PAR_LA_PAROLE = "Perle";
+function ecrituresDuGeste(geste, quand, envie) {
+  const envoi = (reponse) => ({ ...reponse ? { reponse } : {}, reponduLe: quand, parole: geste });
+  switch (geste) {
+    case "garder-oui":
+      return { rdv: { confirmeeParLaClienteLe: quand, autreMomentDemandeLe: void 0, empecheeDitLe: void 0 }, envoi: envoi("oui") };
+    case "deplacer":
+      return { rdv: { autreMomentDemandeLe: quand, confirmeeParLaClienteLe: void 0, empecheeDitLe: void 0 }, envoi: envoi("oui") };
+    case "garder-non":
+      return { rdv: { empecheeDitLe: quand, confirmeeParLaClienteLe: void 0 }, envoi: envoi("non") };
+    case "locks-defaits":
+      return { fiche: { locksDefaits: true, locksDefaitsLe: quand, locksDefaitsPar: PAR_LA_PAROLE }, envoi: envoi() };
+    case "envie":
+      return {
+        rdv: { envieAvantSeance: { envie: envie?.envie ?? "autre", quand, ...envie?.precision ? { precision: envie.precision } : {}, par: PAR_LA_PAROLE } },
+        envoi: envoi()
+      };
+  }
+}
+function pieceDuGeste(geste, rdv) {
+  const quand = rdv ? `, rendez-vous du ${rdvDit(rdv)}` : "";
+  switch (geste) {
+    case "garder-oui":
+      return `Rendez-vous gardé par la cliente, sur WhatsApp${quand}`;
+    case "deplacer":
+      return `Une autre heure demandée par la cliente, sur WhatsApp${quand}`;
+    case "garder-non":
+      return `La cliente ne pourra pas venir, dit sur WhatsApp${quand} ; rien n’est annulé`;
+    case "locks-defaits":
+      return "Locks défaits, dit par la cliente sur WhatsApp";
+    case "envie":
+      return `Une envie pour la séance, dite sur WhatsApp${quand}`;
+  }
+}
+function accordApresLeOui(o) {
+  if (o.geste !== "garder-oui" || !o.sait.includes("accord") || !o.fiche) return null;
+  const estEnfant = estMineur({ birthday: o.fiche.birthday ?? void 0 }, o.aujourdhui);
+  const juge = doitDemanderLAccord(o.fiche, { moment: "oui-je-viens", fenetreOuverte: true, estEnfant });
+  if (!juge.oui) return null;
+  return { texte: QUESTION_DE_L_ACCORD, boutons: BOUTONS_DE_L_ACCORD.map((b) => ({ id: b.id, titre: b.titre })) };
+}
 
 // src/apps/revelateur/prix-calibre.ts
 var PRIX_FIXES = /* @__PURE__ */ new Set(["sv-gbigbi-essentiel", "sv-rituel-mq6wbusw", "sv-rituel-mq6zu12s", "sv-rituel-mp2qnjwa"]);
@@ -644,7 +841,7 @@ function prixSelonLeCalibre(s, ctx) {
 }
 
 // scripts/serveur/reception-wa.ts
-var VERSION = "2026-11-01-a";
+var VERSION = "2026-11-02-a";
 var MODELES = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 var TARIFS = {
   "claude-haiku-5-5": { entree: 1, sortie: 5 },
@@ -724,6 +921,39 @@ async function compteLAppel(sb, modele, usage, maintenantMs) {
     dis("compte non ecrit", { motif: String(e?.message ?? e).slice(0, 120) });
   }
 }
+var rdvDeLaLigne = (l) => {
+  if (!l) return null;
+  const d = l.data;
+  return { id: l.id, date: String(d.date ?? ""), ...typeof d.time === "string" ? { time: d.time } : {}, ...typeof d.status === "string" ? { status: d.status } : {} };
+};
+async function ecrisSousVerrou(sb, table, l, patch) {
+  const { data, error } = await sb.from(table).update({ data: { ...l.data, ...patch } }).eq("id", l.id).eq("updated_at", l.updated_at).select("id");
+  if (error) {
+    dis("ecriture refusee", { table, motif: String(error.message ?? "").slice(0, 100) });
+    return false;
+  }
+  return Array.isArray(data) && data.length > 0;
+}
+async function journalise(sb, g) {
+  const id = `geste-${globalThis.crypto.randomUUID()}`;
+  const geste = {
+    id,
+    ...g.branchId ? { branchId: g.branchId } : {},
+    quand: (/* @__PURE__ */ new Date()).toISOString(),
+    parNom: PAR_LA_PAROLE,
+    porte: "assistant",
+    verbe: "modifie",
+    table: g.table,
+    ecran: "WhatsApp de la Maison",
+    pieceId: g.pieceId,
+    piece: g.piece,
+    champs: g.champs
+  };
+  try {
+    await sb.from("journal_gestes").insert({ id, branch_id: g.branchId ?? null, data: geste });
+  } catch {
+  }
+}
 Deno.serve(async (req) => {
   const cleClaude = (Deno.env.get("ANTHROPIC_API_KEY") ?? "").trim();
   if (req.method === "GET") return json({ fonction: "reception-wa", version: VERSION, claude: cleClaude ? "oui" : "non" });
@@ -762,7 +992,8 @@ Deno.serve(async (req) => {
     const bandes = Array.isArray(doc("mnd_model_bands")) ? doc("mnd_model_bands") : [];
     const sets = doc("mnd_model_band_sets") ?? {};
     const cats = categories.map((c) => ({ ...c.data, id: c.id }));
-    const tout = (msgs.data ?? []).map((m) => m.data).reverse().filter((m) => m && (m.sens === "entrant" || m.sens === "sortant")).map((m) => ({
+    const bruts = (msgs.data ?? []).map((m) => m.data).filter(Boolean);
+    const tout = [...bruts].reverse().filter((m) => m && (m.sens === "entrant" || m.sens === "sortant")).map((m) => ({
       sens: m.sens,
       texte: String(m.texte ?? ""),
       ...typeof m.type === "string" ? { type: m.type } : {},
@@ -771,19 +1002,47 @@ Deno.serve(async (req) => {
     }));
     const fil = filDeLaFenetre(tout, maintenantMs).map(({ quand: _q, ...m }) => m);
     const connaitLeLieu = connaitLeLieuDe({ derniereVenue: d.derniereVenue, fil: tout });
+    const aujourdhui = jourDeLaMaison(maintenantMs);
+    const mot = dernierMotDePerle(bruts, maintenantMs);
+    let envoiDePerle = null;
+    if (mot?.waId) {
+      const { data: e } = await sb.from("envois").select("id, branch_id, data, updated_at").eq("data->>waMessageId", mot.waId).limit(1);
+      const l = (e ?? [])[0];
+      if (l && l.data.type === "gerard") envoiDePerle = l;
+    }
+    const clientDuGeste = String(envoiDePerle?.data?.clientId ?? "") || d.clientId || "";
+    const apptVise = String(envoiDePerle?.data?.apptId ?? "");
+    let rdvViseLigne = null;
+    if (mot && apptVise) {
+      const { data: a } = await sb.from("appointments").select("id, branch_id, data, updated_at").eq("id", apptVise).limit(1);
+      rdvViseLigne = (a ?? [])[0] ?? null;
+    }
+    let prochainLigne = null;
+    if (clientDuGeste) {
+      const { data: a } = await sb.from("appointments").select("id, branch_id, data, updated_at").eq("data->>clientId", clientDuGeste).gte("data->>date", aujourdhui).order("data->>date", { ascending: true }).limit(20);
+      const vivants = (a ?? []).filter((l) => rdvVivant(rdvDeLaLigne(l), aujourdhui)).sort((x, y) => `${String(x.data.date)} ${String(x.data.time ?? "")}`.localeCompare(`${String(y.data.date)} ${String(y.data.time ?? "")}`));
+      prochainLigne = vivants[0] ?? null;
+    }
+    const parole = {
+      mot,
+      rdvVise: rdvDeLaLigne(rdvViseLigne),
+      prochainRdv: rdvDeLaLigne(prochainLigne),
+      clientId: mot && clientDuGeste ? clientDuGeste : null
+    };
+    const permis = gestesPermis(parole, aujourdhui);
     const f = fiche.data?.data ?? {};
     const touche = calibreDuChoix(d.choixId, bandes);
     const declare = touche && touche !== "inconnu" ? touche.locks : Number(f.lockCountDeclare ?? 0) || 0;
     const compte = Number(f.lockCount ?? 0) || 0;
     const prestations = prestationsAvecLeursPaliers(services, cats, bandes, sets, reglages.baremeSuspendu === true, compte || declare);
     const catalogue = lignesDuCataloguePourClaude(prestations, cats);
-    const permis = /* @__PURE__ */ new Set();
+    const permisMontants = /* @__PURE__ */ new Set();
     for (const p of prestations) {
-      for (const x of p.prixParPalier ?? []) permis.add(x.prixXof);
-      if (p.prixPourElle) permis.add(p.prixPourElle);
+      for (const x of p.prixParPalier ?? []) permisMontants.add(x.prixXof);
+      if (p.prixPourElle) permisMontants.add(p.prixPourElle);
     }
-    for (const v of Object.values(prixDuCatalogue(services.map((s) => ({ id: s.id, data: s.data }))))) if (v > 0) permis.add(v);
-    const contexte = contexteDeLaReception({
+    for (const v of Object.values(prixDuCatalogue(services.map((s) => ({ id: s.id, data: s.data }))))) if (v > 0) permisMontants.add(v);
+    const contexteDeBase = contexteDeLaReception({
       fil,
       fiche: d.fiche ?? null,
       ...d.nomProfil ? { nomProfil: d.nomProfil } : {},
@@ -800,11 +1059,12 @@ Deno.serve(async (req) => {
       paiementEnLigne: reglages.mndPay?.actif === true,
       connaitLeLieu
     });
+    const contexte = `${contexteDeBase}${contexteDeLaParole(parole, permis, maintenantMs, aujourdhui)}`;
     const corps = {
       max_tokens: 700,
       system: consigneDeLaReception(),
       messages: [{ role: "user", content: contexte }],
-      tools: [{ name: "reponds", description: "Le message de la Maison, et la suite.", input_schema: SCHEMA_DE_LA_RECEPTION }],
+      tools: [{ name: "reponds", description: "Le message de la Maison, et la suite.", input_schema: schemaDeLaParole(permis) }],
       tool_choice: { type: "tool", name: "reponds" }
     };
     let lu = null;
@@ -821,16 +1081,86 @@ Deno.serve(async (req) => {
     if (!lu) return json({ ok: false, motif: "modele", version: VERSION });
     await compteLAppel(sb, lu.modele, lu.corps.usage, maintenantMs);
     const entree = lu.corps.content?.find((c) => c.type === "tool_use" && c.name === "reponds")?.input;
-    const lue = lectureDeLaReception(entree, permis);
+    const lue = lectureDeLaParole(entree, permisMontants, permis);
     if (!lue) {
       dis("reponse ecartee par les juges");
       return json({ ok: false, motif: "juges", version: VERSION });
     }
-    const reponse = reponseSelonLeLieu(lue, connaitLeLieu);
-    const lignes = reponse.suite === "calibre" ? listeDesCalibres(bandes) : [];
-    const suite = reponse.suite === "calibre" && lignes.length <= 1 ? "rien" : reponse.suite;
-    dis("reponse", { suite, modele: lu.modele, lignes: lignes.length, connaitLeLieu, adresseOtee: reponse.texte !== lue.texte });
-    return json({ ok: true, texte: reponse.texte, suite, ...suite === "calibre" ? { lignes } : {}, version: VERSION });
+    const texte = reponseSelonLeLieu({ texte: lue.texte, suite: "rien" }, connaitLeLieu).texte;
+    let rdvId = null;
+    if (lue.geste) {
+      const quand = new Date(maintenantMs).toISOString();
+      const e = ecrituresDuGeste(lue.geste, quand, lue.envie);
+      const rdv = rdvDuGeste(parole, aujourdhui);
+      const ligneRdv = rdv ? rdvViseLigne?.id === rdv.id ? rdvViseLigne : prochainLigne?.id === rdv.id ? prochainLigne : null : null;
+      if (e.rdv) {
+        if (!ligneRdv || !await ecrisSousVerrou(sb, "appointments", ligneRdv, e.rdv)) {
+          dis("geste refuse", { geste: lue.geste, pourquoi: ligneRdv ? "modifie-entre-temps" : "rdv-introuvable" });
+          return json({ ok: false, motif: "geste", version: VERSION });
+        }
+        rdvId = ligneRdv.id;
+        await journalise(sb, {
+          table: "appointments",
+          pieceId: ligneRdv.id,
+          branchId: ligneRdv.branch_id ?? null,
+          piece: pieceDuGeste(lue.geste, rdv),
+          champs: Object.keys(e.rdv).filter((k) => e.rdv[k] !== void 0).map((k) => ({ champ: k, apres: quand.slice(0, 16) }))
+        });
+      }
+      if (e.fiche) {
+        const { data: f2 } = clientDuGeste ? await sb.from("clients").select("id, branch_id, data, updated_at").eq("id", clientDuGeste).limit(1) : { data: [] };
+        const ligneFiche = (f2 ?? [])[0] ?? null;
+        if (!ligneFiche || !await ecrisSousVerrou(sb, "clients", ligneFiche, e.fiche)) {
+          dis("geste refuse", { geste: lue.geste, pourquoi: ligneFiche ? "modifie-entre-temps" : "fiche-introuvable" });
+          return json({ ok: false, motif: "geste", version: VERSION });
+        }
+        await journalise(sb, {
+          table: "clients",
+          pieceId: ligneFiche.id,
+          branchId: ligneFiche.branch_id ?? null,
+          piece: pieceDuGeste(lue.geste),
+          champs: [{ champ: "locksDefaits", apres: "oui" }]
+        });
+      }
+      if (e.envoi && envoiDePerle) {
+        const { error } = await sb.from("envois").update({ data: { ...envoiDePerle.data, ...e.envoi } }).eq("id", envoiDePerle.id);
+        if (error) dis("ligne d envoi non ecrite", { motif: String(error.message ?? "").slice(0, 100) });
+      }
+    }
+    let ensuite = null;
+    if (lue.geste === "garder-oui" && clientDuGeste) {
+      const { data: f3 } = await sb.from("clients").select("id, branch_id, data, updated_at").eq("id", clientDuGeste).limit(1);
+      const ligneFiche = (f3 ?? [])[0] ?? null;
+      const question = accordApresLeOui({
+        geste: lue.geste,
+        sait: Array.isArray(d.sait) ? d.sait.map(String) : [],
+        aujourdhui,
+        fiche: ligneFiche ? ligneFiche.data : null
+      });
+      if (question && ligneFiche && await ecrisSousVerrou(sb, "clients", ligneFiche, { nouvellesDemandeesLe: new Date(maintenantMs).toISOString() })) {
+        ensuite = question;
+        await journalise(sb, {
+          table: "clients",
+          pieceId: ligneFiche.id,
+          branchId: ligneFiche.branch_id ?? null,
+          piece: "Accord des nouvelles demandé sur WhatsApp, après un oui je viens",
+          champs: [{ champ: "nouvellesDemandeesLe", apres: aujourdhui }]
+        });
+      }
+    }
+    const lignes = lue.suite === "calibre" ? listeDesCalibres(bandes) : [];
+    const suite = lue.suite === "calibre" && lignes.length <= 1 ? "rien" : lue.suite;
+    dis("reponse", { suite, modele: lu.modele, lignes: lignes.length, connaitLeLieu, adresseOtee: texte !== lue.texte, geste: lue.geste ?? null, permis });
+    return json({
+      ok: true,
+      texte,
+      suite,
+      ...suite === "calibre" ? { lignes } : {},
+      ...lue.geste ? { geste: lue.geste } : {},
+      ...rdvId ? { rdvId } : {},
+      ...ensuite ? { ensuite } : {},
+      version: VERSION
+    });
   } catch (e) {
     dis("erreur", { motif: String(e?.message ?? e).slice(0, 160) });
     return json({ ok: false, motif: "erreur", version: VERSION });

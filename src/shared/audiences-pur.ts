@@ -20,8 +20,10 @@
    allumées sur leur téléphone. Pur, éprouvé par `verifie-le-marketing-branche`. */
 
 /** « Nouvelles de la Maison : oui / non », daté, et d'où vient la réponse.
-    `stop` : la tête a répondu STOP à une campagne. */
-export type AccordDesNouvelles = { oui: boolean; le: string; par: 'comptoir' | 'site' | 'couronne' | 'stop' };
+    `stop` : la tête a répondu STOP à une campagne. `whatsapp` (2 novembre
+    2026) : demandé une fois sur WhatsApp après « Oui, je viens » ou un reçu
+    (shared/accord-whatsapp-pur). */
+export type AccordDesNouvelles = { oui: boolean; le: string; par: 'comptoir' | 'site' | 'couronne' | 'stop' | 'whatsapp' };
 
 export const aAccepteLesNouvelles = (c: { nouvelles?: AccordDesNouvelles }): boolean => c.nouvelles?.oui === true;
 

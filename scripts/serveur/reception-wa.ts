@@ -24,8 +24,20 @@
         création ou de réparation ;
      ⑤ rend `{ ok, texte, suite, lignes? }` ; `ok: false` : l'automate envoie
         son mot de secours et passe la main.
-   Elle n'écrit rien d'autre que son compte (`mnd_assistant_wa_compte`) :
-   les messages partent par l'automate, qui les trace.
+   Elle écrit son compte (`mnd_assistant_wa_compte`) ; les messages partent
+   par l'automate, qui les trace.
+
+   LA PAROLE EN CONTEXTE (2 novembre 2026, lot 3 de Perle) : quand la
+   cliente répond en mots à un message de Perle de moins de 48 heures, ou
+   parle d'un rendez-vous qui vit, la réception offre à Claude les gestes que
+   ce contexte permet (garder-oui, deplacer, garder-non, locks-defaits,
+   envie : shared/reception-wa-pur). Un geste jugé bon s'écrit ICI, au
+   Trône, sous verrou (`updated_at`) : le rendez-vous ou la fiche, puis la
+   ligne d'envoi de Perle, puis le journal (porte « assistant », par Perle).
+   Une écriture refusée (modifié entre temps) : `ok: false`, le secours part,
+   et rien ne dit « c'est noté ». La réponse porte `geste` et, pour un
+   rendez-vous, `rdvId` ; `deplacer` est la suite que l'automate ouvre en
+   déplacement (morceau C).
 
    AUCUN SECRET ICI : CLE_SERVICE (ou SUPABASE_SERVICE_ROLE_KEY),
    SUPABASE_URL et ANTHROPIC_API_KEY viennent de l'environnement.
@@ -33,8 +45,10 @@
    GET sans clé : la version, et si la clé de Claude est posée (oui ou non). */
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
-  RECEPTIONS_PAR_JOUR, SCHEMA_DE_LA_RECEPTION, calibreDuChoix, connaitLeLieuDe, consigneDeLaReception, contexteDeLaReception,
-  filDeLaFenetre, lectureDeLaReception, listeDesCalibres, reponseSelonLeLieu, type Calibre,
+  RECEPTIONS_PAR_JOUR, calibreDuChoix, connaitLeLieuDe, consigneDeLaReception, contexteDeLaParole, contexteDeLaReception,
+  dernierMotDePerle, ecrituresDuGeste, filDeLaFenetre, gestesPermis, lectureDeLaParole, listeDesCalibres, pieceDuGeste,
+  accordApresLeOui, rdvDuGeste, rdvVivant, reponseSelonLeLieu, schemaDeLaParole, PAR_LA_PAROLE, type EnsuiteDeLaReception,
+  type Calibre, type ContexteDeLaParole, type MessageDuFilBrut, type RdvDeLaParole,
 } from '../../src/shared/reception-wa-pur';
 import {
   lignesDuCataloguePourClaude, paliersDeLocks, type MessageDuFilPourClaude, type PrestationPourClaude, type PrixDuPalier,
@@ -48,7 +62,7 @@ declare const Deno: {
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-const VERSION = '2026-11-01-a';
+const VERSION = '2026-11-02-a';
 /** Haïku d'abord (rapide, sur les crédits inclus) ; Sonnet si l'identifiant n'est pas reconnu. */
 const MODELES = ['claude-haiku-5-5', 'claude-sonnet-5-5'];
 /** Le prix d'un million de jetons, en dollars, pour le compte du mois. */
@@ -60,6 +74,8 @@ const CLE_DU_COMPTE = 'mnd_assistant_wa_compte';
 const DELAI_CLAUDE_MS = 20_000;
 
 type Ligne = { id: string; data: Record<string, unknown> };
+/** Une ligne avec sa garde : le verrou d'une écriture est son `updated_at`. */
+type LigneGardee = { id: string; branch_id?: string | null; data: Record<string, unknown>; updated_at: string };
 // deno-lint-ignore no-explicit-any
 type Base = any;
 
@@ -87,6 +103,9 @@ type Demande = {
   prochainRdv?: { date: string; time?: string } | null;
   derniereVenue?: { date: string } | null;
   choixId?: string;
+  /** Ce que l'automate qui appelle sait faire en plus (2 novembre 2026) :
+      'accord' = il envoie `ensuite` (la question des nouvelles) après le mot. */
+  sait?: string[];
 };
 
 type CorpsAnthropic = {
@@ -155,6 +174,30 @@ async function compteLAppel(sb: Base, modele: string, usage: CorpsAnthropic['usa
   }
 }
 
+/** Le rendez-vous lu comme la parole le juge. */
+const rdvDeLaLigne = (l: LigneGardee | null): RdvDeLaParole | null => {
+  if (!l) return null;
+  const d = l.data as { date?: unknown; time?: unknown; status?: unknown };
+  return { id: l.id, date: String(d.date ?? ''), ...(typeof d.time === 'string' ? { time: d.time } : {}), ...(typeof d.status === 'string' ? { status: d.status } : {}) };
+};
+
+/** UNE ÉCRITURE SOUS VERROU : la ligne n'a pas bougé depuis sa lecture, sinon rien. */
+async function ecrisSousVerrou(sb: Base, table: string, l: LigneGardee, patch: Record<string, unknown>): Promise<boolean> {
+  const { data, error } = await sb.from(table).update({ data: { ...l.data, ...patch } }).eq('id', l.id).eq('updated_at', l.updated_at).select('id');
+  if (error) { dis('ecriture refusee', { table, motif: String(error.message ?? '').slice(0, 100) }); return false; }
+  return Array.isArray(data) && data.length > 0;
+}
+
+/** Le journal des gestes : porte « assistant », par Perle, un fait sans nom. */
+async function journalise(sb: Base, g: { table: string; pieceId: string; piece: string; branchId?: string | null; champs: { champ: string; apres: string }[] }): Promise<void> {
+  const id = `geste-${globalThis.crypto.randomUUID()}`;
+  const geste = {
+    id, ...(g.branchId ? { branchId: g.branchId } : {}), quand: new Date().toISOString(), parNom: PAR_LA_PAROLE, porte: 'assistant',
+    verbe: 'modifie', table: g.table, ecran: 'WhatsApp de la Maison', pieceId: g.pieceId, piece: g.piece, champs: g.champs,
+  };
+  try { await sb.from('journal_gestes').insert({ id, branch_id: g.branchId ?? null, data: geste }); } catch { /* une trace manquée n'arrête pas le geste */ }
+}
+
 Deno.serve(async (req) => {
   const cleClaude = (Deno.env.get('ANTHROPIC_API_KEY') ?? '').trim();
   if (req.method === 'GET') return json({ fonction: 'reception-wa', version: VERSION, claude: cleClaude ? 'oui' : 'non' });
@@ -191,7 +234,8 @@ Deno.serve(async (req) => {
     const bandes = (Array.isArray(doc('mnd_model_bands')) ? doc('mnd_model_bands') : []) as Bande[];
     const sets = (doc('mnd_model_band_sets') ?? {}) as Record<string, Bande[]>;
     const cats = categories.map((c) => ({ ...(c.data as { parentId?: string }), id: c.id }));
-    const tout: (MessageDuFilPourClaude & { quand?: string })[] = ((msgs.data ?? []) as { data: Record<string, unknown> }[]).map((m) => m.data).reverse()
+    const bruts = ((msgs.data ?? []) as { data: Record<string, unknown> }[]).map((m) => m.data).filter(Boolean);
+    const tout: (MessageDuFilPourClaude & { quand?: string })[] = [...bruts].reverse()
       .filter((m) => m && (m.sens === 'entrant' || m.sens === 'sortant'))
       .map((m) => ({
         sens: m.sens as 'entrant' | 'sortant', texte: String(m.texte ?? ''),
@@ -206,6 +250,37 @@ Deno.serve(async (req) => {
        la porterait quand même tombe (reception-wa-pur). */
     const connaitLeLieu = connaitLeLieuDe({ derniereVenue: d.derniereVenue, fil: tout });
 
+    /* LA PAROLE EN CONTEXTE (2 novembre 2026) : le dernier mot de Perle, sa
+       ligne d'envoi (par l'identifiant WhatsApp), le rendez-vous qu'il visait,
+       le prochain rendez-vous vivant de la fiche. */
+    const aujourdhui = jourDeLaMaison(maintenantMs);
+    const mot = dernierMotDePerle(bruts as MessageDuFilBrut[], maintenantMs);
+    let envoiDePerle: LigneGardee | null = null;
+    if (mot?.waId) {
+      const { data: e } = await sb.from('envois').select('id, branch_id, data, updated_at').eq('data->>waMessageId', mot.waId).limit(1);
+      const l = ((e ?? []) as LigneGardee[])[0];
+      if (l && (l.data as { type?: unknown }).type === 'gerard') envoiDePerle = l;
+    }
+    const clientDuGeste = String((envoiDePerle?.data as { clientId?: unknown } | undefined)?.clientId ?? '') || d.clientId || '';
+    const apptVise = String((envoiDePerle?.data as { apptId?: unknown } | undefined)?.apptId ?? '');
+    let rdvViseLigne: LigneGardee | null = null;
+    if (mot && apptVise) {
+      const { data: a } = await sb.from('appointments').select('id, branch_id, data, updated_at').eq('id', apptVise).limit(1);
+      rdvViseLigne = ((a ?? []) as LigneGardee[])[0] ?? null;
+    }
+    let prochainLigne: LigneGardee | null = null;
+    if (clientDuGeste) {
+      const { data: a } = await sb.from('appointments').select('id, branch_id, data, updated_at')
+        .eq('data->>clientId', clientDuGeste).gte('data->>date', aujourdhui).order('data->>date', { ascending: true }).limit(20);
+      const vivants = ((a ?? []) as LigneGardee[]).filter((l) => rdvVivant(rdvDeLaLigne(l), aujourdhui))
+        .sort((x, y) => `${String(x.data.date)} ${String(x.data.time ?? '')}`.localeCompare(`${String(y.data.date)} ${String(y.data.time ?? '')}`));
+      prochainLigne = vivants[0] ?? null;
+    }
+    const parole: ContexteDeLaParole = {
+      mot, rdvVise: rdvDeLaLigne(rdvViseLigne), prochainRdv: rdvDeLaLigne(prochainLigne), clientId: mot && clientDuGeste ? clientDuGeste : null,
+    };
+    const permis = gestesPermis(parole, aujourdhui);
+
     /* Son nombre de locks : compté à la Maison, annoncé par elle, ou le calibre qu'elle vient de toucher. */
     const f = ((fiche as { data?: { data?: Record<string, unknown> } | null }).data?.data ?? {}) as { lockCount?: number; lockCountDeclare?: number };
     const touche = calibreDuChoix(d.choixId, bandes as Calibre[]);
@@ -213,14 +288,14 @@ Deno.serve(async (req) => {
     const compte = Number(f.lockCount ?? 0) || 0;
     const prestations = prestationsAvecLeursPaliers(services, cats, bandes, sets, reglages.baremeSuspendu === true, compte || declare);
     const catalogue = lignesDuCataloguePourClaude(prestations, cats);
-    const permis = new Set<number>();
+    const permisMontants = new Set<number>();
     for (const p of prestations) {
-      for (const x of p.prixParPalier ?? []) permis.add(x.prixXof);
-      if (p.prixPourElle) permis.add(p.prixPourElle);
+      for (const x of p.prixParPalier ?? []) permisMontants.add(x.prixXof);
+      if (p.prixPourElle) permisMontants.add(p.prixPourElle);
     }
-    for (const v of Object.values(prixDuCatalogue(services.map((s) => ({ id: s.id, data: s.data }))))) if (v > 0) permis.add(v);
+    for (const v of Object.values(prixDuCatalogue(services.map((s) => ({ id: s.id, data: s.data }))))) if (v > 0) permisMontants.add(v);
 
-    const contexte = contexteDeLaReception({
+    const contexteDeBase = contexteDeLaReception({
       fil, fiche: d.fiche ?? null, ...(d.nomProfil ? { nomProfil: d.nomProfil } : {}),
       prochainRdv: d.prochainRdv ?? null, derniereVenue: d.derniereVenue ?? null,
       catalogue, locks: { compte, declare }, aujourdhui: jourDeLaMaison(maintenantMs),
@@ -229,13 +304,14 @@ Deno.serve(async (req) => {
       paiements, paiementEnLigne: reglages.mndPay?.actif === true,
       connaitLeLieu,
     });
+    const contexte = `${contexteDeBase}${contexteDeLaParole(parole, permis, maintenantMs, aujourdhui)}`;
 
     /* ③ CLAUDE. */
     const corps = {
       max_tokens: 700,
       system: consigneDeLaReception(),
       messages: [{ role: 'user', content: contexte }],
-      tools: [{ name: 'reponds', description: 'Le message de la Maison, et la suite.', input_schema: SCHEMA_DE_LA_RECEPTION }],
+      tools: [{ name: 'reponds', description: 'Le message de la Maison, et la suite.', input_schema: schemaDeLaParole(permis) }],
       tool_choice: { type: 'tool', name: 'reponds' },
     };
     let lu: { modele: string; corps: CorpsAnthropic } | null = null;
@@ -251,15 +327,78 @@ Deno.serve(async (req) => {
 
     /* ④ LE JUGEMENT. */
     const entree = lu.corps.content?.find((c) => c.type === 'tool_use' && c.name === 'reponds')?.input;
-    const lue = lectureDeLaReception(entree, permis);
+    const lue = lectureDeLaParole(entree, permisMontants, permis);
     if (!lue) { dis('reponse ecartee par les juges'); return json({ ok: false, motif: 'juges', version: VERSION }); }
-    const reponse = reponseSelonLeLieu(lue, connaitLeLieu);
+    const texte = reponseSelonLeLieu({ texte: lue.texte, suite: 'rien' }, connaitLeLieu).texte;
+
+    /* ④ bis LE GESTE, ÉCRIT AU TRÔNE AVANT TOUT MOT (2 novembre 2026) : le
+       rendez-vous ou la fiche sous verrou ; refusé, rien ne part qui dirait
+       « c'est noté ». Puis la ligne d'envoi de Perle et le journal. */
+    let rdvId: string | null = null;
+    if (lue.geste) {
+      const quand = new Date(maintenantMs).toISOString();
+      const e = ecrituresDuGeste(lue.geste, quand, lue.envie);
+      const rdv = rdvDuGeste(parole, aujourdhui);
+      const ligneRdv = rdv ? (rdvViseLigne?.id === rdv.id ? rdvViseLigne : prochainLigne?.id === rdv.id ? prochainLigne : null) : null;
+      if (e.rdv) {
+        if (!ligneRdv || !(await ecrisSousVerrou(sb, 'appointments', ligneRdv, e.rdv))) {
+          dis('geste refuse', { geste: lue.geste, pourquoi: ligneRdv ? 'modifie-entre-temps' : 'rdv-introuvable' });
+          return json({ ok: false, motif: 'geste', version: VERSION });
+        }
+        rdvId = ligneRdv.id;
+        await journalise(sb, {
+          table: 'appointments', pieceId: ligneRdv.id, branchId: ligneRdv.branch_id ?? null, piece: pieceDuGeste(lue.geste, rdv),
+          champs: Object.keys(e.rdv).filter((k) => e.rdv![k] !== undefined).map((k) => ({ champ: k, apres: quand.slice(0, 16) })),
+        });
+      }
+      if (e.fiche) {
+        const { data: f2 } = clientDuGeste
+          ? await sb.from('clients').select('id, branch_id, data, updated_at').eq('id', clientDuGeste).limit(1)
+          : { data: [] };
+        const ligneFiche = ((f2 ?? []) as LigneGardee[])[0] ?? null;
+        if (!ligneFiche || !(await ecrisSousVerrou(sb, 'clients', ligneFiche, e.fiche))) {
+          dis('geste refuse', { geste: lue.geste, pourquoi: ligneFiche ? 'modifie-entre-temps' : 'fiche-introuvable' });
+          return json({ ok: false, motif: 'geste', version: VERSION });
+        }
+        await journalise(sb, {
+          table: 'clients', pieceId: ligneFiche.id, branchId: ligneFiche.branch_id ?? null, piece: pieceDuGeste(lue.geste),
+          champs: [{ champ: 'locksDefaits', apres: 'oui' }],
+        });
+      }
+      if (e.envoi && envoiDePerle) {
+        const { error } = await sb.from('envois').update({ data: { ...envoiDePerle.data, ...e.envoi } }).eq('id', envoiDePerle.id);
+        if (error) dis('ligne d envoi non ecrite', { motif: String(error.message ?? '').slice(0, 100) });
+      }
+    }
+
+    /* ④ ter L'ACCORD DES NOUVELLES, après un « oui je viens » écrit
+       (maquette « Nouvelles par WhatsApp ») : la fiche marquée sous verrou
+       d'abord ; la marque refusée, la question ne part pas. */
+    let ensuite: EnsuiteDeLaReception | null = null;
+    if (lue.geste === 'garder-oui' && clientDuGeste) {
+      const { data: f3 } = await sb.from('clients').select('id, branch_id, data, updated_at').eq('id', clientDuGeste).limit(1);
+      const ligneFiche = ((f3 ?? []) as LigneGardee[])[0] ?? null;
+      const question = accordApresLeOui({
+        geste: lue.geste, sait: Array.isArray(d.sait) ? d.sait.map(String) : [], aujourdhui,
+        fiche: ligneFiche ? (ligneFiche.data as Parameters<typeof accordApresLeOui>[0]['fiche']) : null,
+      });
+      if (question && ligneFiche && await ecrisSousVerrou(sb, 'clients', ligneFiche, { nouvellesDemandeesLe: new Date(maintenantMs).toISOString() })) {
+        ensuite = question;
+        await journalise(sb, {
+          table: 'clients', pieceId: ligneFiche.id, branchId: ligneFiche.branch_id ?? null,
+          piece: 'Accord des nouvelles demandé sur WhatsApp, après un oui je viens', champs: [{ champ: 'nouvellesDemandeesLe', apres: aujourdhui }],
+        });
+      }
+    }
 
     /* ⑤ LA SUITE : les calibres de la grille, à toucher. Sans grille, la question reste écrite. */
-    const lignes = reponse.suite === 'calibre' ? listeDesCalibres(bandes as Calibre[]) : [];
-    const suite = reponse.suite === 'calibre' && lignes.length <= 1 ? 'rien' : reponse.suite;
-    dis('reponse', { suite, modele: lu.modele, lignes: lignes.length, connaitLeLieu, adresseOtee: reponse.texte !== lue.texte });
-    return json({ ok: true, texte: reponse.texte, suite, ...(suite === 'calibre' ? { lignes } : {}), version: VERSION });
+    const lignes = lue.suite === 'calibre' ? listeDesCalibres(bandes as Calibre[]) : [];
+    const suite = lue.suite === 'calibre' && lignes.length <= 1 ? 'rien' : lue.suite;
+    dis('reponse', { suite, modele: lu.modele, lignes: lignes.length, connaitLeLieu, adresseOtee: texte !== lue.texte, geste: lue.geste ?? null, permis });
+    return json({
+      ok: true, texte, suite, ...(suite === 'calibre' ? { lignes } : {}),
+      ...(lue.geste ? { geste: lue.geste } : {}), ...(rdvId ? { rdvId } : {}), ...(ensuite ? { ensuite } : {}), version: VERSION,
+    });
   } catch (e) {
     dis('erreur', { motif: String((e as Error)?.message ?? e).slice(0, 160) });
     return json({ ok: false, motif: 'erreur', version: VERSION });

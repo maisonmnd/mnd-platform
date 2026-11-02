@@ -38,6 +38,7 @@
 
    Pur : `scripts/verifie-gerard.mjs` le prouve. */
 import { charge, estUneQuestionFranche, REPONSE_FRANCHE } from './assistant-reponses-pur';
+import { nouvellesDuMois, PLAFOND_DES_NOUVELLES_PAR_MOIS, promesseTenue } from './accord-whatsapp-pur';
 
 export { estUneQuestionFranche, REPONSE_FRANCHE };
 
@@ -55,8 +56,12 @@ export const COMBINER_AVANT = 7;
 export const COMBINER_JUSQUA = 4;
 export const ANNIV_GRACE_JOURS = 1;
 export const GARDER_AVANT = 2;
-/** Un RDV pris depuis moins de tant de jours n'a pas besoin d'être gardé. */
-export const GARDER_SI_POSE_DEPUIS = 7;
+/** « GARDER » DÈS J-3 (2 novembre 2026, choix de Yéman au sélecteur, « Pris
+    dès J-3 ») : un RDV pris au moins tant de jours avant sa date reçoit
+    « garder » à J-2. Pris plus tard (à J-2 ou la veille), la confirmation de
+    la pose vient de partir : le rappel de la veille suffit. Avant : sept
+    jours depuis la pose, et 2 RDV sur 8 seulement étaient gardés. */
+export const GARDER_SI_PRIS_DES_J = 3;
 export const RELANCE_TOUS_LES_JOURS = 28;
 export const RELANCE_APRES_CADENCE = 10;
 export const ENDORMIE_DES_JOURS = 150;
@@ -280,11 +285,25 @@ export const placeDite = (p: { iso: string; heure: string }): string => `${jourD
 const moisDit = (j: string): string => `${MOIS[Number(j.slice(5, 7)) - 1]} ${j.slice(0, 4)}`;
 
 /* ── CE QUE GÉRARD LIT ───────────────────────────────────────────────── */
-export type RdvDeGerard = { id: string; date: string; time: string; status: string; creeLe?: string; familles: FamilleDeSoin[]; venu: boolean };
+export type RdvDeGerard = {
+  id: string; date: string; time: string; status: string; creeLe?: string; familles: FamilleDeSoin[]; venu: boolean;
+  /** POUR UN ENFANT DU FOYER (2 novembre 2026) : qui prévenir pour CE RDV.
+      Le parent qui l'a pris (`numeroAPrevenir`), sinon le parent payeur.
+      `appel` : comment le saluer, quand on le sait (le payeur, ou le parent
+      qui a pris le RDV s'il a le même numéro) ; `pourId` : la fiche du
+      payeur, quand c'est à son numéro que le message part. */
+  parent?: { telephone: boolean; appel?: string; pourId?: string };
+};
 /** Ce que Gérard a déjà écrit (le journal du lot 2) ; `reponse` : ce qu'elle a
     fait (« oui », « non » = pas maintenant, « jamais » = jamais pour elle). */
 export type ReponseDeLaCliente = 'oui' | 'non' | 'jamais';
-export type TraceDeGerard = { quand: string; genre: GenreDeMessage; envie?: EnvieDeGerard; reponse?: ReponseDeLaCliente };
+export type TraceDeGerard = {
+  quand: string; genre: GenreDeMessage; envie?: EnvieDeGerard; reponse?: ReponseDeLaCliente;
+  /** Le modèle de l'envoi (« avant », « place », « carte »…), quand l'envoi le porte. */
+  modele?: CleDeModele;
+  /** « Pas maintenant » écarté à la main : la décision pèse, mais rien n'est parti. */
+  nonPartie?: true;
+};
 export type FicheDeGerard = {
   id: string;
   /** Comment on s'adresse à elle (`appelDe`) : la civilité notée, sinon le prénom. */
@@ -563,10 +582,34 @@ export const aLaMainSeulement = (f: Pick<FicheDeGerard, 'couronne' | 'accord' | 
    vivante, aucune séance anniversaire offerte cette année, rien de dû, et
    aucun silence (un souci ouvert, une réponse due, une relance de facture
    de moins de sept jours). Sinon : la carte seule. */
-export type EtatDeLAnniversaire = 'carte' | 'deja' | 'stop' | 'jamais' | 'eteinte' | 'sans-numero' | 'sans-payeur';
+/* ══ LA PROMESSE DE L'ACCORD — 2 novembre 2026 ══════════════════════════
+   La question d'accord (maquette « Nouvelles par WhatsApp », choix de Yéman
+   au sélecteur) promet « deux messages par mois au plus » : Perle la tient.
+   Avant tout genre qui n'est pas un service (tout sauf « garder »), elle
+   compte ses nouvelles parties ces trente derniers jours
+   (`nouvellesDuMois`, shared/accord-whatsapp-pur) ; à deux, la ligne est
+   écartée, motif « deux nouvelles ce mois ». Ce qui compte : le modèle de
+   l'envoi (sinon celui de son genre), jamais un « pas maintenant » qui n'est
+   pas parti. */
+export const MOTIF_DE_LA_PROMESSE = 'deux nouvelles ce mois';
+const MODELE_DU_GENRE: Record<GenreDeMessage, CleDeModele> = {
+  garder: 'garder', anniversaire: 'anniversaire', combiner: 'avant', envie: 'envie', creux: 'nouvelles',
+  noel: 'fetes', retard: 'place', 'une-venue': 'place', endormie: 'endormie',
+};
+export function promesseDe(f: Pick<FicheDeGerard, 'traces'>, aujourdhui: string): { deja: number; tenue: boolean; plafond: number } {
+  const finDuJour = Date.parse(`${aujourdhui}T23:59:59+01:00`);
+  const deja = nouvellesDuMois(
+    f.traces.filter((t) => !t.nonPartie && !EST_UN_SERVICE[t.genre]).map((t) => ({ genre: t.modele ?? MODELE_DU_GENRE[t.genre], quand: t.quand })),
+    finDuJour,
+  );
+  return { deja, tenue: promesseTenue(deja), plafond: PLAFOND_DES_NOUVELLES_PAR_MOIS };
+}
+
+export type EtatDeLAnniversaire = 'carte' | 'deja' | 'stop' | 'jamais' | 'eteinte' | 'sans-numero' | 'sans-payeur' | 'promesse';
 export const ETAT_DE_L_ANNIVERSAIRE_DIT: Record<EtatDeLAnniversaire, string> = {
   carte: 'sa carte part', deja: 'déjà fêtée cette année', stop: 'a dit « stop »', jamais: '« jamais pour elle »',
   eteinte: 'anniversaires éteints', 'sans-numero': 'ni numéro ni Ma Couronne', 'sans-payeur': 'enfant sans parent payeur noté',
+  promesse: MOTIF_DE_LA_PROMESSE,
 };
 export type AnniversaireDuJour = { clientId: string; jour: string; etat: EtatDeLAnniversaire; situation?: Situation };
 
@@ -586,6 +629,7 @@ export function anniversaireDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Ann
   /* WhatsApp d'abord (« directement par WhatsApp »), Ma Couronne pour qui n'a pas de numéro. */
   const canal: 'whatsapp' | 'couronne' | null = dest.telephone ? 'whatsapp' : dest.couronne ? 'couronne' : null;
   if (!canal) return vu('sans-numero');
+  if (!promesseDe(f, A).tenue) return vu('promesse');
 
   const quand: [string, string][] = [['Anniversaire', jourDit(anniv)], ...(anniv < A ? [['Rattrapage', 'pas écrit le jour même'] as [string, string]] : [])];
   const pose = (modele: CleDeModele, variables: string[], pourquoi: [string, string][], code?: CodeAFaire): AnniversaireDuJour => ({
@@ -637,13 +681,35 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
     };
   };
 
-  /* ① Garder un RDV de dans deux jours, pris depuis plus d'une semaine. */
-  const r = sollicitable ? prochainRdv(f, A) : undefined;
-  if (r && ecartJours(A, r.date) === GARDER_AVANT && (!r.creeLe || ecartJours(r.creeLe.slice(0, 10), A) >= GARDER_SI_POSE_DEPUIS)
+  /* ① GARDER UN RDV DE DANS DEUX JOURS, pris au moins trois jours avant sa
+     date (2 novembre 2026, choix de Yéman « Pris dès J-3 »). C'est un
+     service, pas une sollicitation : de passage, de la diaspora, locks
+     défaits, sans accord des nouvelles, tous le reçoivent. L'enfant d'un
+     foyer le reçoit par le parent qui a pris le RDV, sinon par le parent
+     payeur, jamais à son propre numéro. Seule une fiche archivée n'est plus
+     jamais écrite. */
+  const r = f.archivee ? undefined : prochainRdv(f, A);
+  if (r && ecartJours(A, r.date) === GARDER_AVANT && (!r.creeLe || ecartJours(r.creeLe.slice(0, 10), r.date) >= GARDER_SI_PRIS_DES_J)
     && !traceDe(f, ['garder']).some((t) => t.quand.slice(0, 10) >= plusJours(r.date, -GARDER_AVANT - 1))) {
-    const s = fait('garder', 'garder', [f.appel, f.soinDit, placeDite({ iso: r.date, heure: r.time })],
-      [['Son RDV', placeDite({ iso: r.date, heure: r.time })], ['Pris le', r.creeLe ? jourDit(r.creeLe.slice(0, 10)) : 'avant le 5 sept. 2026']]);
-    if (s) return s;
+    const place = placeDite({ iso: r.date, heure: r.time });
+    const pourquoi: [string, string][] = [['Son RDV', place], ['Pris le', r.creeLe ? jourDit(r.creeLe.slice(0, 10)) : 'avant le 5 sept. 2026']];
+    if (f.enfantDuFoyer) {
+      const p = r.parent;
+      if (p?.telephone && !ctx.eteintes?.includes('garder') && !f.jamais?.includes('garder')) {
+        /* Le modèle approuvé, tel quel : « Bonjour {{1}}, … votre rendez-vous
+           de {{2}} est prévu {{3}} » ; {{2}} dit pour qui. Un parent dont on
+           ne sait pas le nom est salué « à vous ». */
+        const variables = [p.appel || 'à vous', `${f.soinDit} pour ${f.appel}`, place];
+        return {
+          clientId: f.id, genre: 'garder', canal: 'whatsapp', modele: 'garder', variables, texte: remplis(MODELES_DE_GERARD.garder.corps, variables),
+          pourquoi: [...pourquoi, ['Prévenu', p.appel ? `${p.appel}, son parent` : 'le parent qui a pris le RDV']], priorite: PRIORITE.garder,
+          ...(p.pourId ? { pourId: p.pourId } : {}),
+        };
+      }
+    } else {
+      const s = fait('garder', 'garder', [f.appel, f.soinDit, place], pourquoi);
+      if (s) return s;
+    }
   }
 
   /* ② SA CARTE D'ANNIVERSAIRE, le jour même ou le lendemain, une fois l'an,
@@ -652,6 +718,10 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
   const carte = anniversaireDuJour(f, ctx)?.situation;
   if (carte) return carte;
   if (!sollicitable) return null;
+
+  /* LA PROMESSE DE L'ACCORD (2 novembre 2026) : deux nouvelles en trente
+     jours, la troisième est écartée (`promesseDe`, MOTIF_DE_LA_PROMESSE). */
+  if (!promesseDe(f, A).tenue) return null;
 
   /* Un souci À voir ou Santé encore ouvert : Gérard se tait. Le RDV
      ci-dessus se garde quand même, la carte d'anniversaire aussi (sans son
@@ -875,7 +945,7 @@ export const ligneALaMain = (s: Situation, o: OutilsDeLaLigne): LigneDeGerard =>
 
 /** CE QUE GÉRARD A DÉJÀ ÉCRIT, relu dans les envois : ce qu'une main a
     écarté, ce que le facteur a périmé ou n'a pas pu porter ne compte pas. */
-export function tracesDesEnvois(envois: readonly { type?: string; clientId?: string; statut?: string; quand?: string; deposeLe?: string; genre?: string; envie?: string; reponse?: string }[]): Map<string, TraceDeGerard[]> {
+export function tracesDesEnvois(envois: readonly { type?: string; clientId?: string; statut?: string; quand?: string; deposeLe?: string; genre?: string; envie?: string; reponse?: string; modele?: string }[]): Map<string, TraceDeGerard[]> {
   const m = new Map<string, TraceDeGerard[]>();
   for (const e of envois) {
     if (e.type !== 'gerard' || !e.clientId || !e.genre) continue;
@@ -888,7 +958,11 @@ export function tracesDesEnvois(envois: readonly { type?: string; clientId?: str
     const pasMaintenant = e.statut === 'écarté' && e.reponse === 'non';
     if (!pasMaintenant && (e.statut === 'écarté' || e.statut === 'périmé' || e.statut === 'échec' || e.statut === 'sans-abonnement')) continue;
     const reponse = e.reponse === 'oui' || e.reponse === 'non' || e.reponse === 'jamais' ? e.reponse : undefined;
-    const t: TraceDeGerard = { quand: e.deposeLe ?? e.quand ?? '', genre: e.genre as GenreDeMessage, ...(e.envie ? { envie: e.envie as EnvieDeGerard } : {}), ...(reponse ? { reponse } : {}) };
+    const modele = e.modele && e.modele in MODELES_DE_GERARD ? (e.modele as CleDeModele) : undefined;
+    const t: TraceDeGerard = {
+      quand: e.deposeLe ?? e.quand ?? '', genre: e.genre as GenreDeMessage, ...(e.envie ? { envie: e.envie as EnvieDeGerard } : {}), ...(reponse ? { reponse } : {}),
+      ...(modele ? { modele } : {}), ...(pasMaintenant ? { nonPartie: true as const } : {}),
+    };
     const l = m.get(e.clientId);
     if (l) l.push(t); else m.set(e.clientId, [t]);
   }

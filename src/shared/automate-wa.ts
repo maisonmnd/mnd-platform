@@ -165,6 +165,11 @@ type CiviliteDuFil = 'madame' | 'mademoiselle' | 'monsieur';
 
 type PlaceLibre = { iso: string; heure: string };
 
+/** Ce que le fil garde du rendez-vous qu'elle déplace : son identifiant, son
+    `updated_at` lu (le verrou optimiste), sa place d'avant, son maître et sa
+    durée. Jamais un nom. */
+type DeplacementDuFil = { rdvId: string; updatedAt: string; date: string; time: string; maitre: string; dureeMin: number };
+
 type PanierDuFil = {
   /** La fiche pour qui l'on réserve. Absente : une inconnue. */
   clientId?: string;
@@ -185,8 +190,15 @@ type PanierDuFil = {
       (« un shampoing ») : ils passent avant « la même chose ». */
   dits?: string[][];
   /** Elle déplace un rendez-vous (30 octobre 2026) : la date de celui-ci,
-      vide si on ne la sait pas. La place touchée passe à l'équipe. */
+      vide si on ne la sait pas. La place touchée passe à l'équipe. C'est le
+      repli quand la fonction n'a pas lu le rendez-vous (`deplacement`). */
   deplace?: string;
+  /** LE DÉPLACEMENT SOUS VERROU (2 novembre 2026, lot 3 de Perle, choix de
+      Yéman au sélecteur : « Seule, sous verrou ») : le rendez-vous qu'elle
+      déplace, tel que la fonction l'a lu. Les places sont celles de son
+      maître, pour la même durée ; la place touchée le déplace (la sortie
+      porte `deplacement`), rien de neuf n'est posé. */
+  deplacement?: DeplacementDuFil;
   /** Le jour touché dans « Un autre jour ». */
   jourChoisi?: string;
   /** Les rituels ou consultations proposés, dans l'ordre de la liste. */
@@ -1162,6 +1174,19 @@ type AgendaDuTour = {
   prixDe?: (serviceId: string, tete: TeteDuPrix) => number | undefined;
   /** Les paliers de locks de la Maison, du plus petit au plus grand. */
   paliers?: readonly PalierDuTour[];
+  /** LES PLACES D'UN SEUL MAÎTRE, son propre créneau rendu libre (le
+      déplacement, 2 novembre 2026) : calculées par le serveur comme `places`,
+      pour ce maître seul et la durée du rendez-vous. Absent : pas de
+      déplacement seul, la place touchée passe à l'équipe comme avant. */
+  placesDuMaitre?: (serviceIds: readonly string[], maitre: string, sauf: { date: string; time: string; dureeMin: number }) => readonly PlaceLibre[];
+};
+
+/** LE RENDEZ-VOUS QU'ELLE PEUT DÉPLACER (2 novembre 2026), lu frais par la
+    fonction pour ce tour : celui que désigne le bouton « Changer l'heure » ou
+    la réception (`deplacerDemande`), sinon le prochain de sa fiche. */
+type RdvADeplacer = {
+  id: string; updatedAt: string; clientId: string; date: string; time: string;
+  maitre: string; serviceIds: string[]; dureeMin: number; status: string;
 };
 
 type ContexteLeger = {
@@ -1185,6 +1210,12 @@ type ContexteDuTour = ContexteLeger & {
   /** `carte` : le lien Google Maps de la branche ou des Paramètres. */
   maison: { nom: string; itineraire?: string; carte?: string };
   agenda?: AgendaDuTour;
+  /** Le rendez-vous qu'elle peut déplacer seule (2 novembre 2026). */
+  deplacement?: RdvADeplacer;
+  /** Le déplacement est DEMANDÉ (le bouton « Changer l'heure » d'un message de
+      Perle, ou la réception qui a compris « une autre heure ») : il s'ouvre
+      même en plein parcours. */
+  deplacerDemande?: boolean;
   /** Les prix du catalogue du jour (`prixDuCatalogue`), pour les jetons du conseil. */
   prix?: Readonly<Record<string, number>>;
 };
@@ -1420,6 +1451,23 @@ type EcritureDuTour = { genre: 'pose'; rdv: RdvAPoser; demande?: DemandeAPoser; 
 
 type AlerteDeLAutomate = { titre: string; corps: string; url: string };
 
+/** LE DÉPLACEMENT À ÉCRIRE (2 novembre 2026) : la fonction relit le
+    rendez-vous, vérifie qu'il n'a pas bougé (`updatedAt`), que la place est
+    libre pour SON maître sur un instantané frais, puis le déplace sous
+    condition. Jamais un statut changé, jamais un nouveau rendez-vous. */
+type DeplacementAPoser = {
+  rdvId: string; updatedAt: string; branchId: string; clientId: string; maitre: string;
+  serviceIds: string[]; dureeMin: number; avant: { date: string; time: string };
+  date: string; time: string; prenom: string; numero: string;
+};
+
+/** Le verdict du déplacement : `deplace` (ou `deja`, rejoué), sinon une
+    raison : la place prise (`creneau_*`), `modifie-entre-temps` (le verrou),
+    `rdv-inconnu`, `rdv-clos` (annulé ou honoré entre-temps), `erreur`. */
+type VerdictDuDeplacement =
+  | { ok: true; verdict: 'deplace' | 'deja' }
+  | { ok: false; raison: string };
+
 type SortieDuTour = {
   messages: MessageSortant[];
   etat: EtatDuFil;
@@ -1428,6 +1476,8 @@ type SortieDuTour = {
       habituelle (l'automate rend la sienne, `alerte`). */
   pris: boolean;
   alerte?: AlerteDeLAutomate;
+  /** Un déplacement à écrire sous verrou (la place touchée, 2 novembre 2026). */
+  deplacement?: DeplacementAPoser;
 };
 
 /** Le verdict de `pose_si_libre` (0125). */
@@ -1437,9 +1487,16 @@ type VerdictDeLaPose =
 
 /** L'ALERTE AU PERSONNEL : le prénom seul, jamais le texte qu'elle a écrit. */
 function alerteDeLAutomate(o: {
-  genre: 'pose' | 'main'; prenom: string; numero: string; date?: string; time?: string; motif?: MotifDeLaMain;
+  genre: 'pose' | 'main' | 'deplace'; prenom: string; numero: string; date?: string; time?: string; motif?: MotifDeLaMain;
 }): AlerteDeLAutomate {
   const qui = o.prenom || 'Une cliente';
+  if (o.genre === 'deplace') {
+    return {
+      titre: 'Rendez-vous déplacé par WhatsApp',
+      corps: `${qui}, ${jourDitAvecAnnee(o.date ?? '')} à ${heureDite(o.time ?? '')}`,
+      url: '/trone/#/calendrier',
+    };
+  }
   if (o.genre === 'pose') {
     return {
       titre: 'Nouveau rendez-vous par WhatsApp',
@@ -1924,6 +1981,13 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   const placesLibresDuPanier = (): PlaceLibre[] => {
     const ids = base.panier.serviceIds ?? [];
     if (!agenda || ids.length === 0) return [];
+    /* UN DÉPLACEMENT (2 novembre 2026) : les places de son maître seul, sa
+       propre place rendue libre, et sa place d'avant jamais reproposée. */
+    const d = base.panier.deplacement;
+    if (d && agenda.placesDuMaitre) {
+      return [...agenda.placesDuMaitre(ids, d.maitre, { date: d.date, time: d.time, dureeMin: d.dureeMin })]
+        .filter((p) => p.iso > aujourdhui && !(p.iso === d.date && p.heure === d.time)).sort(chrono);
+    }
     return [...agenda.places(ids)].filter((p) => p.iso > aujourdhui).sort(chrono);
   };
   /** LE JOUR VOULU OÙ LA MAISON EST FERMÉE (30 octobre 2026, « lundi
@@ -2626,6 +2690,39 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       déplace jamais seul. Sans titulaire, sans venue ou sans place : rien
       ici, la main passe comme avant. */
   const deplaceLeRendezVous = (mots: MotsDuTour): SortieDuTour | null => {
+    /* SEULE, SOUS VERROU (2 novembre 2026, choix de Yéman) : le rendez-vous
+       lu par la fonction, les places de son maître ; la place touchée le
+       déplace. Sans lui, le repli d'avant : la place touchée passe à
+       l'équipe. */
+    const r = ctx.deplacement;
+    const sienne = r ? fiches.find((f) => f.id === r.clientId) : undefined;
+    if (r && sienne && agenda?.placesDuMaitre && ['confirmé', 'en attente'].includes(r.status) && r.date >= aujourdhui) {
+      const pourQui = sienne.id !== titulaire?.id ? prenomDuNomWa(sienne.nom) : undefined;
+      /* « Décaler mon rendez-vous de samedi 10 h » : ce jour et cette heure
+         nomment le rendez-vous, pas la place voulue. */
+      const leSien = (j: string): boolean => j === r.date || (!/^\d{4}-\d{2}-\d{2}$/.test(j) && JOURS_LONGS_WA[dowDeIsoWa(r.date)] === j);
+      const lu = tour?.texteDOrigine ? motsReconnus(tour.texteDOrigine, ms) : mots;
+      base.panier = {
+        clientId: sienne.id, besoin: 'entretien', serviceIds: [...r.serviceIds],
+        deplacement: { rdvId: r.id, updatedAt: r.updatedAt, date: r.date, time: r.time, maitre: r.maitre, dureeMin: r.dureeMin },
+        ...(pourQui ? { pourQui } : {}),
+        ...(lu.jourVoulu && !leSien(lu.jourVoulu) ? { jourVoulu: lu.jourVoulu } : {}),
+        ...(lu.jourEvite ? { jourEvite: lu.jourEvite } : {}),
+        ...(lu.moment ? { moment: lu.moment } : {}),
+        ...(lu.heure && lu.heure !== r.time ? { heureVoulue: lu.heure } : {}),
+      };
+      const de = pourQui ? `le rendez-vous de ${pourQui}` : 'votre rendez-vous';
+      const m = msgPlaces({ intro: `Pour déplacer ${de} du ${jourDitAvecAnnee(r.date)} à ${heureDite(r.time)}${cotonou}, voici les prochaines places, ${appel()}. Touchez celle qui vous convient : le rendez-vous y est déplacé aussitôt, avec les mêmes soins.` });
+      if (!m) { base.panier = {}; return null; }
+      base.prisLe = maintenant;
+      base.rdvId = undefined;
+      base.mainPasseeLe = undefined;
+      base.motifMain = undefined;
+      base.mainDeLaReception = undefined;
+      base.etapeAvantLaMain = undefined;
+      base.versionAvantLaMain = undefined;
+      return dire(m);
+    }
     const f = titulaire;
     const v = venueReprenable(f);
     if (!f || !v || !agenda) return null;
@@ -2716,6 +2813,22 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
   const choisisLaPlace = (p: PlaceLibre): SortieDuTour => {
     const libre = p.iso > aujourdhui && placesLibresDuPanier().some((x) => x.iso === p.iso && x.heure === p.heure);
     if (!libre) return placePrise(p);
+    /* UN DÉPLACEMENT SOUS VERROU (2 novembre 2026) : la place touchée le
+       déplace. Aucun message ici : la confirmation, ou la place prise, vient
+       avec le verdict (`suiteDuDeplacement`). */
+    const d = base.panier.deplacement;
+    if (d) {
+      base.panier.date = p.iso;
+      base.panier.time = p.heure;
+      return {
+        messages: [], etat: base, ecritures: [], pris: true,
+        deplacement: {
+          rdvId: d.rdvId, updatedAt: d.updatedAt, branchId: agenda?.branchId ?? '', clientId: base.panier.clientId ?? '',
+          maitre: d.maitre, serviceIds: [...(base.panier.serviceIds ?? [])], dureeMin: d.dureeMin,
+          avant: { date: d.date, time: d.time }, date: p.iso, time: p.heure, prenom: prenomPourAlerte(), numero: ctx.numero,
+        },
+      };
+    }
     /* Un déplacement : la place touchée passe à l'équipe, rien n'est posé. */
     if (base.panier.deplace !== undefined) {
       return laMain('annulation', true, `Bien noté, ${appel()} : vous souhaitez venir le ${jourDitAvecAnnee(p.iso)} à ${heureDite(p.heure)}${cotonou}. Une personne de la Maison déplace votre rendez-vous et vous le confirme ici.`);
@@ -2852,6 +2965,32 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     return laMain('erreur', true);
   };
 
+  /** LE VERDICT DU DÉPLACEMENT (2 novembre 2026). Déplacé : « C'est fait »,
+      le jour avec son année, la devise ; l'équipe est prévenue. La place prise
+      entre-temps : les places les plus proches, sans elle. Le rendez-vous
+      modifié entre-temps (le verrou) : la main passe, rien n'est écrit. */
+  const ditLeDeplacement = (verdict: VerdictDuDeplacement): SortieDuTour => {
+    const p = base.panier;
+    const d = p.deplacement;
+    if (verdict.ok && d && p.date && p.time) {
+      base.rdvId = d.rdvId;
+      passe('confirme');
+      const de = p.pourQui ? `le rendez-vous de ${p.pourQui}` : 'votre rendez-vous';
+      const corps = [
+        `C'est fait, ${appel()} : ${de} est déplacé au ${jourDitAvecAnnee(p.date)} à ${heureDite(p.time)}${cotonou}. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.`,
+        DEVISE,
+      ].join('\n\n');
+      return sortie([texte('confirme', corps)], alerteDeLAutomate({ genre: 'deplace', prenom: prenomPourAlerte(), numero: ctx.numero, date: p.date, time: p.time }));
+    }
+    if (!verdict.ok && /^creneau_/.test(verdict.raison) && d && p.date && p.time) {
+      return placePrise({ iso: p.date, heure: p.time });
+    }
+    if (!verdict.ok && verdict.raison === 'modifie-entre-temps') {
+      return laMain('annulation', true, `Votre rendez-vous vient d'être modifié de notre côté, ${appel()}. Une personne de la Maison vous répond ici.`);
+    }
+    return laMain('erreur', true);
+  };
+
   /* ── LE TOUR ── */
   const joue = (t: TourDeLaCliente): SortieDuTour => {
     const mots = motsReconnus(t.texte, ms);
@@ -2882,7 +3021,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
         ? `Pour aujourd'hui, une personne de la Maison vous répond ici, ${appel()}.`
         : laMainDite());
     }
-    if (mots.deplacer && !mots.annuler && !enCours) {
+    if (mots.deplacer && !mots.annuler && (!enCours || ctx.deplacerDemande)) {
       const d = deplaceLeRendezVous(mots);
       if (d) return d;
     }
@@ -3215,10 +3354,18 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       const lignes = r.lignes.slice(0, 9).map((l) => ({ ...l, id: l.id.startsWith('calibre:') ? choix('calibre', l.id.slice('calibre:'.length)) : l.id }));
       return sortie([signe({ forme: 'liste', etape: 'clos', corps: r.texte, pied: PIED, bouton: 'Choisir mon calibre', lignes: [...lignes, sortieMaison] })]);
     }
-    return sortie([signe({ forme: 'texte', etape: 'clos', corps: r.texte })]);
+    /* L'ACCORD DES NOUVELLES (2 novembre 2026) : la question suit son mot,
+       en second message, avec ses deux boutons (lus par le webhook) et la
+       sortie de la Maison. Seulement les boutons de l'accord ; refusée par
+       Meta, elle n'empêche rien (accessoire). */
+    const lesBoutons = (r.ensuite?.boutons ?? []).filter((b) => /^NOUVELLES:(oui|non)$/.test(b.id) && !!b.titre && b.titre.length <= 20).slice(0, 2);
+    const ensuite: MessageSortant[] = r.ensuite && r.ensuite.texte.trim() && lesBoutons.length === 2
+      ? [signe({ forme: 'boutons', etape: 'clos', corps: r.ensuite.texte.trim(), pied: PIED, boutons: [...lesBoutons, sortieMaison], accessoire: true })]
+      : [];
+    return sortie([signe({ forme: 'texte', etape: 'clos', corps: r.texte }), ...ensuite]);
   };
 
-  return { base, joue, laMain, ditLeVerdict, reprend, laReception };
+  return { base, joue, laMain, ditLeVerdict, ditLeDeplacement, reprend, laReception };
 }
 
 /** LE PRÉNOM QU'ELLE ÉCRIT : « Awa », « je m'appelle Awa », « moi c'est
@@ -3308,10 +3455,24 @@ function laReceptionSert(r: ReglageDeLaReception, numero: string, numerosEssai: 
   return false;
 }
 
-type SuiteDeLaReception = 'rien' | 'reserver' | 'creation' | 'reparation' | 'calibre' | 'equipe' | 'venir';
-type ReponseDeLaReception = { texte: string; suite: SuiteDeLaReception; lignes?: { id: string; titre: string; description?: string }[] };
-/** Les suites qui ouvrent le parcours de l'automate : sa liste des prestations. */
-const SUITES_DU_PARCOURS: readonly SuiteDeLaReception[] = ['reserver', 'creation', 'reparation'];
+/* « deplacer » (2 novembre 2026, lot 3 de Perle) : elle demande une autre
+   heure pour un rendez-vous qu'elle a ; la réception rend son `rdvId`, et le
+   déplacement s'ouvre (`tourPourDeplacer`). */
+type SuiteDeLaReception = 'rien' | 'reserver' | 'creation' | 'reparation' | 'calibre' | 'equipe' | 'venir' | 'deplacer';
+/** `ensuite` (2 novembre 2026, maquette « Nouvelles par WhatsApp ») : la
+    question de l'accord des nouvelles, après un « oui je viens » écrit ; la
+    réception a déjà marqué la fiche, l'automate l'envoie après son mot. */
+type EnsuiteDeLaReceptionWa = { texte: string; boutons: { id: string; titre: string }[] };
+type ReponseDeLaReception = {
+  texte: string; suite: SuiteDeLaReception; lignes?: { id: string; titre: string; description?: string }[]; rdvId?: string;
+  ensuite?: EnsuiteDeLaReceptionWa;
+};
+/** Ce que l'automate dit savoir faire à la réception (`sait`) : envoyer la
+    question de l'accord après son mot. Sans cela, elle ne la pose pas. */
+const CE_QUE_L_AUTOMATE_SAIT: readonly string[] = ['accord'];
+/** Les suites qui ouvrent le parcours de l'automate : sa liste des
+    prestations, ou les places d'un déplacement. */
+const SUITES_DU_PARCOURS: readonly SuiteDeLaReception[] = ['reserver', 'creation', 'reparation', 'deplacer'];
 
 /** PEUT-ELLE PARLER ? Le juge s'est tu, et ce n'est pas un silence voulu :
     le numéro servi par l'automate ET par la réception, aucune main de
@@ -3375,6 +3536,27 @@ function unMerciSansSuite(tour: TourDeLaCliente, dernier: DernierMotDeLaMaison):
     tu), sans le choix d'une ancienne liste. */
 const INTENTION_DE_LA_RECEPTION = 'Je voudrais prendre rendez-vous.';
 const tourPourLeParcours = (tour: TourDeLaCliente): TourDeLaCliente => ({ waIds: tour.waIds, quand: tour.quand, texte: INTENTION_DE_LA_RECEPTION, texteDOrigine: tour.texte, media: false, deLaReception: true });
+/** LE DÉPLACEMENT DEMANDÉ (2 novembre 2026) : le bouton « Changer l'heure »
+    d'un message de Perle, ou la réception qui rend « deplacer ». Le tour se
+    lit comme une demande de déplacer ; le jour et l'heure qu'elle a écrits
+    restent dans `texteDOrigine`. */
+const INTENTION_DE_DEPLACER = 'Je voudrais déplacer mon rendez-vous.';
+const tourPourDeplacer = (tour: TourDeLaCliente, deLaReception = false): TourDeLaCliente =>
+  ({ waIds: tour.waIds, quand: tour.quand, texte: INTENTION_DE_DEPLACER, texteDOrigine: tour.texte, media: false, ...(deLaReception ? { deLaReception: true } : {}) });
+
+/** LE TOUR D'UN BOUTON « CHANGER L'HEURE » DE PERLE (2 novembre 2026) : ce
+    bouton n'est pas un choix de l'automate (`tourDeLaCliente` l'écarte), le
+    webhook le confie avec `deplacer`. Le tour est ce toucher seul, lu comme
+    une demande de déplacer. Déjà traité : `null`, rien de plus. */
+function tourDuBoutonDeDeplacer(messages: readonly MessageEntrantDuTour[], waIds: readonly string[], traites: readonly string[] = []): TourDeLaCliente | null {
+  const deja = new Set(traites);
+  const siens = messages
+    .filter((m) => (m.sens ?? 'entrant') === 'entrant' && !!m.waId && waIds.includes(String(m.waId)) && !deja.has(String(m.waId)))
+    .sort((a, b) => msWa(a.quand) - msWa(b.quand));
+  if (siens.length === 0) return null;
+  const dernier = siens[siens.length - 1];
+  return { waIds: siens.map((m) => String(m.waId)), quand: dernier.quand, texte: INTENTION_DE_DEPLACER, texteDOrigine: String(dernier.texte ?? dernier.bouton?.texte ?? ''), media: false };
+}
 
 /** Le mot de la réception qui précède la liste du parcours. */
 const prefaceDeLaReception = (texte: string, etape: EtapeDuFil): MessageSortant =>
@@ -3401,6 +3583,12 @@ function suiteDeLaPose(etat: EtatDuFil, verdict: VerdictDeLaPose, ctx: ContexteD
   return atelierDuTour(etat, null, ctx, true).ditLeVerdict(verdict);
 }
 
+/** APRÈS LE DÉPLACEMENT SOUS VERROU (2 novembre 2026) : comme la pose, une
+    seule écriture par tour, la version ne monte pas. */
+function suiteDuDeplacement(etat: EtatDuFil, verdict: VerdictDuDeplacement, ctx: ContexteDuTour): SortieDuTour {
+  return atelierDuTour(etat, null, ctx, true).ditLeDeplacement(verdict);
+}
+
 /** APRÈS COUP : META A REFUSÉ LE MESSAGE DU TOUR (fenêtre fermée, compte
     sans moyen de paiement, numéro injoignable), ou le message ne passait
     pas les juges de la Maison. `etat` est celui que le tour vient d'écrire.
@@ -3422,9 +3610,9 @@ export {
   motsReconnus, intentionDeReserver, tourDeLaCliente, lisLeChoix, idDeChoix, instantACotonou,
   heureDite, jourDitAvecAnnee, titreDePlace, titreDuJour, prochaineOuvertureDite,
   choixDuMessage, chargeGraph, respecteMeta, texteSain, alerteDeLAutomate, cleCourte, prenomLu,
-  quiParle, jugeLaParole, etapeSuivante, suiteDeLaPose, mainApresCoup, repriseDuFil,
+  quiParle, jugeLaParole, etapeSuivante, suiteDeLaPose, suiteDuDeplacement, mainApresCoup, repriseDuFil,
   CLE_DE_LA_RECEPTION, RECEPTION_LIVREE, SUITES_DU_PARCOURS, INTENTION_DE_LA_RECEPTION, reglageDeLaReception, laReceptionSert, laReceptionPeutParler,
-  estUnMerci, unMerciSansSuite, tourPourLeParcours, prefaceDeLaReception, secoursDeLaReception, reponseDeLaReception,
+  estUnMerci, unMerciSansSuite, tourPourLeParcours, INTENTION_DE_DEPLACER, tourPourDeplacer, tourDuBoutonDeDeplacer, CE_QUE_L_AUTOMATE_SAIT, prefaceDeLaReception, secoursDeLaReception, reponseDeLaReception,
   MOTS_SANTE_LIVRES, TEXTE_DE_REPONSE_MAX, conseilDeLaMaison, conseilActif, prixDuCatalogue, prixDitWa,
   fautesDeLaReponse, texteDeLaReponse, reponsesEnvoyables, lisLeConseil, leConseilParle,
 };
@@ -3435,4 +3623,5 @@ export type {
   ContexteDuTour, ParoleDuTour, RdvAPoser, DemandeAPoser, EnvoiAPoser, EcritureDuTour, AlerteDeLAutomate,
   SortieDuTour, VerdictDeLaPose, ReponseDeLaMaison, ConseilDeLaMaison, EtatDeLaReponse,
   ModeDeLaReception, ReglageDeLaReception, SuiteDeLaReception, ReponseDeLaReception, DernierMotDeLaMaison,
+  DeplacementDuFil, RdvADeplacer, DeplacementAPoser, VerdictDuDeplacement, EnsuiteDeLaReceptionWa,
 };

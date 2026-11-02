@@ -212,6 +212,20 @@ foyer([]);
 await appelle();
 dit('... sans approbation de Meta, aucune carte ne part seule : elle attend un toucher au Trône', [0, 0], [par('enf').length, par('adu').length]);
 
+/* 10. « GARDER » DÈS J-3, POUR TOUTES (2 novembre 2026, choix de Yéman) :
+   la cliente de passage est gardée à son numéro ; l'enfant d'un foyer, au
+   numéro du parent payeur quand personne d'autre n'a pris le RDV. */
+remplis({ mode: 'ouvert', approuves: ['assistant_maison_garder'] });
+maintenant = Date.parse('2026-10-28T08:00:00Z');
+db.families = [{ id: 'f2', data: { id: 'f2', branchId: 'b', name: 'Famille Q.', payerClientId: 'pa2' } }];
+db.clients.push(tete('dp', { dePassage: true, phone: '+229 01 51 00 00 66' }), tete('pa2', { familyId: 'f2', phone: '+229 01 51 00 00 77' }), tete('en2', { familyId: 'f2', birthday: '2016-03-01', phone: '' }));
+for (const c of ['dp', 'en2']) {
+  db.appointments.push({ id: `${c}-g`, branch_id: 'b', data: { id: `${c}-g`, branchId: 'b', clientId: c, serviceIds: ['s1'], date: J(2), time: '10:00', status: 'confirmé', master: 'Aimée', creeLe: '2026-10-20T09:00:00Z' } });
+}
+await appelle();
+dit('garder dès J-3 : la cliente de passage à son numéro ; l enfant au numéro du parent payeur, la ligne reste la sienne', [['garder', '2290151000066'], ['garder', '2290151000077', 'pa2']],
+  [[par('dp')[0]?.genre, par('dp')[0]?.colis?.numero], [par('en2')[0]?.genre, par('en2')[0]?.colis?.numero, par('en2')[0]?.pourId]]);
+
 Date.now = vraiNow;
 console.log(ko ? `\n${ko} echec(s) sur ${n}.` : `\nL'Assistant tient au serveur (${n} controles).`);
 if (ko) process.exitCode = 1;

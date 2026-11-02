@@ -57,10 +57,88 @@ export function retourDuBouton(o: {
   if (o.geste === 'MERCI') return null;
   if (o.garder) {
     if (o.geste === 'OUI' && o.quand) return { auto: 'assistant-oui', texte: `C’est noté, ${appel} : la Maison vous attend ${o.quand}.` };
+    /* « Je ne peux plus » (2 novembre 2026, lot 3 de Perle) : rien n'est
+       annulé, la Maison est prévenue et reprend la conversation. */
+    if (o.geste === 'NON') return { auto: 'assistant-empechee', texte: `C’est noté, ${appel} : nous prévenons la Maison, qui vous écrit ici au sujet de votre rendez-vous${o.quand ? ` ${o.quand}` : ''}.` };
+    /* « Changer l'heure » : l'automate propose ses places et déplace ; cette
+       phrase n'est plus que son SECOURS, quand il ne répond pas. */
     return { auto: 'assistant-autre', texte: `Bien sûr, ${appel}. Choisissez votre nouveau moment dans Ma Couronne : ${o.couronneUrl}\nOu répondez ici avec le jour qui vous va, la Maison vous propose une heure.` };
   }
   if (o.geste === 'NON') return { auto: 'assistant-non', texte: `C’est noté, ${appel}. La Maison reste là quand l’envie vous prend.` };
   if (o.geste === 'CARTE') return { auto: 'assistant-carte', texte: `Avec plaisir, ${appel} ! La carte cadeau de la Maison se commande ici : ${o.offrirUrl}` };
   const soin = o.geste === 'SOIN' ? ', nous notons le soin' : '';
   return { auto: 'assistant-oui', texte: `Avec plaisir, ${appel}${soin} ! Choisissez votre place dans Ma Couronne : ${o.couronneUrl}\nOu répondez ici avec le jour et l’heure qui vous vont, la Maison vous confirme.` };
+}
+
+/* ══ LES BOUTONS DE « GARDER » — 2 novembre 2026, lot 3 de Perle ══════════
+   Spec v4 (docs/spec-assistant-maison.md, l. 391 et 400) et choix de Yéman
+   du 2 novembre 2026 (le déplacement se fait seul, sous verrou) :
+     · « Oui, je viens » : le rendez-vous est gardé, rien d'autre ne part ;
+     · « Changer l'heure » : un autre moment demandé (À faire allume la
+       ligne), et le webhook transmet le bouton à l'automate avec
+       `deplacer: { rdvId }` : il propose ses places et déplace le rendez-vous
+       sous verrou. S'il ne répond pas, la phrase de Ma Couronne en secours et
+       l'équipe prévenue ;
+     · « Je ne peux plus » : RIEN N'EST ANNULÉ. Une marque datée sur le
+       rendez-vous (`empecheeDitLe` : À faire dit « ne peut plus venir »), la
+       main passe à l'équipe sur ce fil (l'automate se tait : la ligne
+       `main-<numéro>` de `fils_automate`, celle que pose le Trône quand une
+       personne écrit), le téléphone de l'équipe sonne (le prénom, jamais un
+       texte) et la cliente reçoit une phrase sobre. */
+export const MOTIF_NE_PEUT_PLUS = 'ne-peut-plus';
+/** La main passée à l'équipe tient vingt-quatre heures, la pause livrée de l'automate. */
+export const PAUSE_NE_PEUT_PLUS_H = 24;
+
+export type MarquesDuGarder = { confirmeeParLaClienteLe?: string; autreMomentDemandeLe?: string; empecheeDitLe?: string };
+export type SuiteDuGarder = {
+  /** Ce que le rendez-vous reçoit : une marque datée, jamais un statut. Une
+      clé à `undefined` efface la marque d'une réponse précédente. */
+  marques: MarquesDuGarder;
+  /** La main passe à l'équipe sur ce fil (pause de l'automate). */
+  main?: { motif: string; heures: number };
+  /** Ce qui sonne chez l'équipe : le prénom et le rendez-vous, jamais le texte. */
+  alerte?: { titre: string; corps: string };
+  /** « Changer l'heure » : l'automate ouvre ses places en mode déplacement. */
+  deplacer?: boolean;
+};
+
+/** La suite d'un bouton touché sous un message « garder ». `null` : rien sur
+    le rendez-vous (un merci). */
+export function suiteDuGarder(geste: GesteDuBouton, o: { quandIso: string; prenom: string; quand?: string }): SuiteDuGarder | null {
+  const rdv = o.quand ? `Rendez-vous ${o.quand}` : 'Son rendez-vous';
+  if (geste === 'OUI' || geste === 'SOIN') {
+    return { marques: { confirmeeParLaClienteLe: o.quandIso, autreMomentDemandeLe: undefined, empecheeDitLe: undefined } };
+  }
+  if (geste === 'NON') {
+    return {
+      marques: { empecheeDitLe: o.quandIso, confirmeeParLaClienteLe: undefined, autreMomentDemandeLe: undefined },
+      main: { motif: MOTIF_NE_PEUT_PLUS, heures: PAUSE_NE_PEUT_PLUS_H },
+      alerte: { titre: `${o.prenom} ne peut plus venir`, corps: `${rdv} : rien n’est annulé. Écrivez-lui pour le déplacer ou l’annuler.` },
+    };
+  }
+  if (geste === 'AUTRE') {
+    return {
+      marques: { autreMomentDemandeLe: o.quandIso, confirmeeParLaClienteLe: undefined, empecheeDitLe: undefined },
+      alerte: { titre: `${o.prenom} veut changer l’heure`, corps: `${rdv} : proposez-lui une autre place.` },
+      deplacer: true,
+    };
+  }
+  return null;
+}
+
+/** LA MAIN À L'ÉQUIPE sur ce fil : la ligne `main-<numéro>` de
+    `fils_automate`, telle que le Trône la pose (`poseLaMain`). La pause ne
+    part jamais avant la dernière main rendue ; une pause d'une personne
+    encore en cours est gardée telle quelle, seulement prolongée. */
+export function mainPourLEquipe(
+  avant: Record<string, unknown> | null | undefined, numero: string, motif: string, heures: number, maintenantMs: number,
+): Record<string, unknown> {
+  const ms = (v: unknown): number => { const x = typeof v === 'string' ? Date.parse(v) : NaN; return Number.isFinite(x) ? x : 0; };
+  const id = `main-${numero}`;
+  const fin = (debut: number): string => new Date(Math.max(debut + heures * 3_600_000, ms(avant?.jusqua))).toISOString();
+  if (avant && ms(avant.jusqua) > maintenantMs && ms(avant.pauseLe) > ms(avant.rendueLe)) {
+    return { ...avant, id, numero, jusqua: fin(maintenantMs) };
+  }
+  const pose = Math.max(maintenantMs, ms(avant?.rendueLe) + 1);
+  return { ...(avant ?? {}), id, numero, pauseLe: new Date(pose).toISOString(), jusqua: fin(pose), motif: motif.slice(0, 40), par: 'Assistant Maison' };
 }

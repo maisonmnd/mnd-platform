@@ -24,7 +24,7 @@ export const CHAMPS_DE_LA_VISITE = [
   'depositXof', 'depositConfirmed', 'depositConfirmedAt', 'depositServiceIds',
   'discountXof', 'remiseDuComptoirXof', 'remisesLignes', 'gamme', 'forfait', 'priceXof', 'prixFigeParLArgent', 'offertPar',
   'coveredBySub', 'coverKind', 'subId', 'foyerId', 'seriesId', 'seriesIndex', 'seriesTotal',
-  'confirmeeParLaClienteLe', 'autreMomentDemandeLe', 'repriseProposeeLe', 'relanceFaite',
+  'confirmeeParLaClienteLe', 'autreMomentDemandeLe', 'empecheeDitLe', 'repriseProposeeLe', 'relanceFaite',
   'creeLe', 'note', 'repriseRetiree',
   /* La genèse des prix (10 octobre 2026) : la Retouche comprise et sa
      promesse, le Regard déduit, appartiennent à CETTE visite. La suite

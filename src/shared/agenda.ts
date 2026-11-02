@@ -313,6 +313,10 @@ export type Appointment = {
       la Maison lui propose une autre heure. Écrits par le webhook WhatsApp. */
   confirmeeParLaClienteLe?: string;
   autreMomentDemandeLe?: string;
+  /** « JE NE PEUX PLUS » sous le message « garder » — 2 novembre 2026 (lot 3
+      de Perle) : rien n'est annulé, la Maison reprend la conversation ; À
+      faire dit « ne peut plus venir ». Écrit par le webhook WhatsApp. */
+  empecheeDitLe?: string;
   /** Le message J-3 est parti (rappels-j1) : À faire le dit, et garde la
       ligne tant qu'elle n'a pas répondu. */
   repriseProposeeLe?: string;

@@ -4735,8 +4735,8 @@ function Customer360({
               {!client.nouvelles
                 ? 'Pas encore demandé : aucune campagne WhatsApp ne lui part.'
                 : client.nouvelles.oui
-                  ? `Elle accepte les nouvelles de la Maison depuis le ${frShortAn(client.nouvelles.le)}.`
-                  : `Elle a dit non le ${frShortAn(client.nouvelles.le)}${client.nouvelles.par === 'stop' ? ', en répondant STOP' : ''} : aucune campagne WhatsApp.`}
+                  ? `Accepte les nouvelles de la Maison depuis le ${frShortAn(client.nouvelles.le)}${client.nouvelles.par === 'whatsapp' ? ', sur WhatsApp' : ''}.`
+                  : `A dit non le ${frShortAn(client.nouvelles.le)}${client.nouvelles.par === 'stop' ? ', en répondant STOP' : client.nouvelles.par === 'whatsapp' ? ', sur WhatsApp' : ''} : aucune campagne WhatsApp.`}
             </div>
           </div>
 
@@ -5763,6 +5763,10 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
   /* « Comment nous avez-vous connus ? » (2 novembre 2026, le socle de la
      Maison intelligente) : un toucher, demandé à chaque nouvelle fiche. */
   const [connuePar, setConnuePar] = useState<ConnuePar | null>(null);
+  /* L'ACCORD DES NOUVELLES AU COMPTOIR (2 novembre 2026, choix de Yéman au
+     sélecteur) : 1 fiche sur 308 l'avait. Sans « oui », aucune envie ni
+     relance de Perle ne part par Meta ; les rappels et confirmations, si. */
+  const [accordNouvelles, setAccordNouvelles] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [thinking, setThinking] = useState(false);
   const [why, setWhy] = useState<string | null>(null);
@@ -5819,6 +5823,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
     if (!prenom.trim()) { setError('Indiquez son prénom.'); return; }
     if (!nomFamille.trim()) { setError('Indiquez son nom de famille.'); return; }
     if (!connuePar) { setError('Demandez comment la Maison a été connue : un toucher suffit, « Ne sait plus » compte aussi.'); return; }
+    if (accordNouvelles === null) { setError('Demandez si la personne veut les nouvelles de la Maison sur WhatsApp : oui ou non, d’un toucher.'); return; }
     const client: Client = {
       id: uid(),
       branchId: branch.id,
@@ -5847,6 +5852,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
       dePassage: true,
       connuePar,
       connueParLe: todayISO(),
+      nouvelles: { oui: accordNouvelles, le: todayISO(), par: 'comptoir' },
     };
     clientsStore.set((prev) => [...prev, client]);
     onClose();
@@ -5902,6 +5908,14 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
               <button key={k} type="button" className={`trc-chip ${connuePar === k ? 'is-active' : ''}`} onClick={() => setConnuePar(k)}>{CONNUE_PAR_DIT[k]}</button>
             ))}
           </div>
+        </Field>
+
+        <Field label="Les nouvelles de la Maison sur WhatsApp ?">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <button type="button" className={`trc-chip ${accordNouvelles === true ? 'is-active' : ''}`} aria-pressed={accordNouvelles === true} onClick={() => setAccordNouvelles(true)}>Oui, volontiers</button>
+            <button type="button" className={`trc-chip ${accordNouvelles === false ? 'is-active' : ''}`} aria-pressed={accordNouvelles === false} onClick={() => setAccordNouvelles(false)}>Non merci</button>
+          </div>
+          <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5 }}>Les envies, les offres et les relances. Les rappels et les confirmations partent dans tous les cas.</div>
         </Field>
 
         <div className="tr-grid tr-grid--2">

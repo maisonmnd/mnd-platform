@@ -28,7 +28,7 @@ import { heureDuSalonDite } from '../../../../shared/assistant-aujourdhui-pur';
 import {
   ANNIV_VALABLE_JOURS, COMBINER_AVANT, CREUX_A, CREUX_DE, ECART_MIN, ENDORMIE_DES_JOURS, ENDORMIE_ECART, ENDORMIE_FOIS_MAX,
   ENVIE_AVANT_CADENCE_MIN, ENVIE_REFUSEE_ATTEND, ENVIE_TOUS_LES_JOURS, ENVIE_TOUS_LES_JOURS_EN_FETES, FETES_AU, FETES_DU,
-  GARDER_AVANT, GARDER_SI_POSE_DEPUIS, GENRE_DIT, MODELES_DE_GERARD, NOEL_AU, NOEL_DU, PREMIERE_ENVIE_APRES,
+  GARDER_AVANT, GARDER_SI_PRIS_DES_J, GENRE_DIT, MODELES_DE_GERARD, NOEL_AU, NOEL_DU, PREMIERE_ENVIE_APRES,
   RELANCE_APRES_CADENCE, RELANCE_TOUS_LES_JOURS, RELANCE_TOUS_LES_JOURS_EN_FETES, REMISE_ANNIV_PCT, REMISE_CREUX_PCT, SIGNATURE, UNE_VENUE_APRES,
   IMAGE_DE_LA_CARTE, type GenreDeMessage,
 } from '../../../../shared/gerard-pur';
@@ -526,7 +526,7 @@ export default function CeQueCaRapporte({ cerveau, reglages, moi }: PropsDUneVue
             <table>
               <tbody>
                 <tr><td>Entre deux messages hors service</td><td className="d"><b>{ECART_MIN}</b> jours</td><td>toutes voix comptées ; garder son RDV et les services passent toujours</td></tr>
-                <tr><td>Garder son RDV</td><td className="d"><b>J-{GARDER_AVANT}</b></td><td>pour un RDV pris depuis plus de {GARDER_SI_POSE_DEPUIS} jours ; la veille, le rappel habituel</td></tr>
+                <tr><td>Garder son RDV</td><td className="d"><b>J-{GARDER_AVANT}</b></td><td>pour tout RDV pris au moins {GARDER_SI_PRIS_DES_J} jours avant sa date, de passage et diaspora compris, l’enfant par son parent ; la veille, le rappel habituel</td></tr>
                 <tr><td>Tout combiner</td><td className="d"><b>J-{COMBINER_AVANT}</b></td><td>avant sa date de cadence ; une envie se tait à moins de {ENVIE_AVANT_CADENCE_MIN} jours</td></tr>
                 <tr><td>Première envie</td><td className="d"><b>J+{PREMIERE_ENVIE_APRES}</b></td><td>puis tous les {ENVIE_TOUS_LES_JOURS} jours ({ENVIE_TOUS_LES_JOURS_EN_FETES} en fêtes) ; refusée, elle attend {ENVIE_REFUSEE_ATTEND} jours</td></tr>
                 <tr><td>Retard</td><td className="d">cadence + <b>{RELANCE_APRES_CADENCE}</b> jours</td><td>relance toutes les {RELANCE_TOUS_LES_JOURS / 7} semaines ({RELANCE_TOUS_LES_JOURS_EN_FETES / 7} en fêtes)</td></tr>

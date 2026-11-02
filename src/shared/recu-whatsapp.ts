@@ -3,6 +3,7 @@ import { dateDite } from './bilan-document';
 import { maisonNom, signeLeMessage } from './identite';
 import { envoieSurWhatsApp, type ResultatDEnvoi } from './whatsapp';
 import type { InvoicePdfData } from './pdf';
+import { BOUTONS_DE_L_ACCORD, QUESTION_DE_L_ACCORD, doitDemanderLAccord } from './accord-whatsapp-pur';
 
 /* ══ JAMAIS DE REÇU POUR UN RATTRAPAGE — 18 octobre 2026 ═══════════════
    « Toutes les régularisations de versement des RDV du passé ne doivent en
@@ -70,10 +71,41 @@ export async function envoieLeRecu(o: {
   const base = { numero: tel, piece, clientId: o.client.id, branchId: o.client.branchId, parQui: o.parQui };
   const cle = o.cleUnique ? { cleUnique: o.cleUnique } : {};
   let r = await envoieSurWhatsApp({ ...base, texte: motDuRecu(o.client, o.montant, o.jourIso), ...cle });
+  /* Le mot est passé : la fenêtre de 24 heures est ouverte, la question des
+     nouvelles peut suivre (2 novembre 2026, une seule fois pour toujours). */
+  if (r.ok) void demandeLAccordApresLeRecu(o.client, o.parQui);
   if (!r.ok && /fenêtre/i.test(r.erreur)) {
     r = await envoieSurWhatsApp({
       ...base, modele: MODELE_RECU, variables: variablesDuRecu(o.client, o.montant, o.jourIso), enTete: 'document', ...cle,
     });
   }
   return r;
+}
+
+/** L'ACCORD DES NOUVELLES APRÈS UN REÇU — 2 novembre 2026, maquette
+    « Nouvelles par WhatsApp » (Q6aGAyTUKKJc6c2roJgHhN), choix de Yéman au
+    sélecteur : la question suit un reçu parti DANS la fenêtre de 24 heures
+    (message libre, deux boutons), une seule fois par personne pour toujours,
+    jamais pour un enfant ni une fiche qui a déjà répondu. La réponse est lue
+    par le webhook (boutons NOUVELLES:oui / NOUVELLES:non). Jamais
+    d'exception : le reçu est parti, la question n'est qu'un plus. */
+export async function demandeLAccordApresLeRecu(client: Porteuse, parQui?: string): Promise<boolean> {
+  try {
+    const [{ clientsStore }, { estMineur }, { jourDuSalon }] = await Promise.all([import('./clients'), import('./clients-pur'), import('./envois')]);
+    const fiche = clientsStore.get().find((c) => c.id === client.id);
+    const tel = (fiche?.phone ?? client.phone ?? '').trim();
+    if (!fiche || !tel) return false;
+    const aujourdhui = jourDuSalon(new Date().toISOString());
+    const juge = doitDemanderLAccord(fiche, { moment: 'recu', fenetreOuverte: true, estEnfant: estMineur(fiche, aujourdhui) });
+    if (!juge.oui) return false;
+    const r = await envoieSurWhatsApp({
+      numero: tel, texte: QUESTION_DE_L_ACCORD, boutons: BOUTONS_DE_L_ACCORD.map((b) => ({ id: b.id, titre: b.titre })),
+      clientId: fiche.id, branchId: fiche.branchId, parQui, cleUnique: `accord-nouvelles-${fiche.id}`,
+    });
+    if (!r.ok) return false;
+    clientsStore.set((prev) => prev.map((c) => (c.id === fiche.id ? { ...c, nouvellesDemandeesLe: aujourdhui } : c)));
+    return true;
+  } catch {
+    return false;
+  }
 }
