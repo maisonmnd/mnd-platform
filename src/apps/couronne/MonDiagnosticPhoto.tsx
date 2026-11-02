@@ -112,13 +112,13 @@ export function MonDiagnosticPhoto() {
         <div className="mc-ed-carte">
           <div className="mc-micro-eyebrow">{t('La lecture de vos photos')}</div>
           <LaLecture lecture={rendu.lecture} recommandation={rendu.recommandation} texte={rendu.texte} mot={rendu.mot} />
-          <p className="mc-ed-doux">{t('Un maître de la Maison relit cette lecture dans la journée.')}</p>
+          <p className="mc-ed-doux">{t('La Maison relit cette lecture dans la journée.')}</p>
           <button type="button" className="mc-cta mc-cta--outline" onClick={() => setRendu(null)}>{t('Fermer')}</button>
         </div>
       ) : saisie ? (
         <div className="mc-ed-carte">
           <div className="mc-micro-eyebrow">{t('Le diagnostic photo')}</div>
-          <p className="mc-ed-doux">{t('Une à quatre photos, à la lumière du jour : le dessus, un profil, la nuque. Une première lecture, automatique, s’affiche aussitôt ; un maître de la Maison la relit dans la journée. Ce n’est pas un examen médical.')}</p>
+          <p className="mc-ed-doux">{t('Une à quatre photos, à la lumière du jour : le dessus, un profil, la nuque. Une première lecture, automatique, s’affiche aussitôt ; la Maison la relit dans la journée. Ce n’est pas un examen médical.')}</p>
           <label className="mc-ed-champ"><span>{t('Vos photos ({n} sur {max})', { n: fichiers.length, max: PHOTOS_MAX })}</span>
             <input type="file" accept="image/*" multiple disabled={fichiers.length >= PHOTOS_MAX} onChange={(e) => { ajoute(e.target.files); e.target.value = ''; }} />
           </label>

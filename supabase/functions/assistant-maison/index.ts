@@ -276,7 +276,7 @@ var SOUCIS = [
     dit: "Cassantes, qui s’amincissent",
     niveau: "voir",
     mots: ["cass*", "aminci*", "fines", "fragile*", "coupent"],
-    brouillon: "Votre maîtresse vous rappelle. En attendant : pas d’attache serrée, et un foulard en satin la nuit.",
+    brouillon: "La Maison vous rappelle. En attendant : pas d’attache serrée, et un foulard en satin la nuit.",
     suite: "Un diagnostic KÒKÒ, une reconstruction GBÌGBÌ",
     avancer: true
   },
@@ -285,7 +285,7 @@ var SOUCIS = [
     dit: "Inégales, racines qui s’emmêlent",
     niveau: "voir",
     mots: ["inegal*", "emmel*", "colle", "collent", "fusion*"],
-    brouillon: "Votre maîtresse regarde et vous rappelle. Ne séparez pas les racines vous-même.",
+    brouillon: "La Maison regarde et vous rappelle. Ne séparez pas les racines vous-même.",
     suite: "Avancer la reprise, une reprise frontale",
     avancer: true
   },
@@ -311,7 +311,7 @@ var SOUCIS = [
     dit: "Ça gratte, plaques, rougeurs",
     niveau: "sante",
     mots: ["gratt*", "demang*", "plaque*", "rougeur*", "irrit*", "croute*", "pellicule*"],
-    brouillon: "Merci de nous l’avoir dit. Votre maîtresse vous rappelle. En attendant, ne grattez pas et ne mettez aucun produit nouveau.",
+    brouillon: "Merci de nous l’avoir dit. La Maison vous rappelle très vite. En attendant, ne grattez pas et ne mettez aucun produit nouveau.",
     suite: "Un médecin si besoin ; aucun conseil écrit"
   },
   {
@@ -327,7 +327,7 @@ var SOUCIS = [
     dit: "Autre chose",
     niveau: "voir",
     mots: [],
-    brouillon: "Merci de nous l’avoir dit. Votre maîtresse vous répond.",
+    brouillon: "Merci de nous l’avoir dit. La Maison vous répond très vite.",
     suite: "Selon ce qu’elle dit"
   }
 ];
@@ -1406,7 +1406,7 @@ function remisesAFabriquer(envois) {
 }
 
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-10-30-a";
+var VERSION = "2026-11-02-a";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {

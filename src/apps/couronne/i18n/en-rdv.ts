@@ -5,6 +5,7 @@ export const EN_RDV: Record<string, string> = {
   'Réserver · en trente secondes': 'Book · in thirty seconds',
   'Que fait-on ?': 'What are we doing?',
   'Comme la dernière fois': 'Same as last time',
+  'Comme le {date}': 'As on {date}',
   'La plus réservée à la Maison': 'The most booked at the Maison',
   'Souvent réservée à la Maison': 'Often booked at the Maison',
   'Composer moi-même →': 'Build it myself →',

@@ -370,7 +370,7 @@ export type RoadStep = { when: string; tag: 'Salon' | 'Maison' | 'Rituel'; t: st
 export function roadmapOf(d: Diag, parcours: Parcours): RoadStep[] {
   if (parcours === 'sos') {
     return [
-      { when: 'Séance 1 · J0', tag: 'Salon', t: 'Sauvetage & diagnostic main', s: d.service.name + '. Le Maître stoppe la casse et refonde les racines fragiles.' },
+      { when: 'Séance 1 · J0', tag: 'Salon', t: 'Sauvetage & diagnostic main', s: d.service.name + '. Nous stoppons la casse et refondons les racines fragiles.' },
       { when: 'Semaines 1–6', tag: 'Maison', t: 'Cure de fortification', s: 'Le rituel 4 temps à domicile, 2× / semaine. La fibre reprend du corps.' },
       { when: 'Séance 2 · M2', tag: 'Salon', t: 'Resserrage & contrôle', s: 'Resserrage intégral, vérification de l’intégrité, ajustement du protocole.' },
       { when: 'Trimestriel', tag: 'Rituel', t: 'Entretien de maîtrise', s: 'Un rendez-vous tous les 3 mois suffit à tenir la couronne restaurée.' },

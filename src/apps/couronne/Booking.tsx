@@ -7,6 +7,9 @@ import { useBlocages } from '../../shared/blocages';
 import { prochainesPlaces } from '../../shared/reservation-express';
 import { appointmentsStore, useAppointments, venuesHonorees, type Appointment, estampilleLesPoses } from '../../shared/agenda';
 import { estUnSinsin, MAITRE_DES_SINSIN } from '../../shared/agenda-pur';
+import { sesRituelsPasses, longueurDeSaDerniereVenue } from '../../shared/ses-rituels-pur';
+import { SUCCESSEURS } from '../../shared/bascule-de-janvier-pur';
+import { fondeLaCouronne } from '../../shared/catalogue-pur';
 import { litLaPhrase, departage } from '../../shared/phrase-de-rendez-vous-pur';
 import { useSubscribers } from '../../shared/abonnements';
 import { REGLES_DE_LA_MAISON } from '../../shared/abonnee-pur';
@@ -56,6 +59,10 @@ const jourDit = (iso: string): string =>
   langue() === 'en'
     ? dateOfIso(iso).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
     : dayLabelIso(iso);
+
+/* Le jour d'un de ses rituels passés : « 10 octobre 2026 », l'année toujours. */
+const jourDuRituel = (iso: string): string =>
+  dateOfIso(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' });
 
 /* Le mois du calendrier : « Octobre 2026 » / « October 2026 ». */
 const moisDit = (y: number, m: number): string =>
@@ -307,7 +314,10 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   /* Les barèmes par atelier : VÈKPÈ™ a les siens, la création ne progresse pas
      comme le resserrage. */
   const [sets] = useBandSets();
-  const pricing = pricingOf(cible ?? undefined, bands, sets, tousCats);
+  /* Sa fiche sans longueur : celle de sa dernière venue (`ses-rituels-pur`). */
+  const longueurVue = cible && !cible.longueur ? longueurDeSaDerniereVenue(appts, cible.id, todayIso()) : undefined;
+  const cibleTarifee = cible && longueurVue ? { ...cible, longueur: longueurVue } : cible;
+  const pricing = pricingOf(cibleTarifee ?? undefined, bands, sets, tousCats);
   const personalized = isPersonalized(pricing);
   /* LA DURÉE PEUT CROIRE LA CLIENTE, LE PRIX JAMAIS. Tant que la Maison n'a
      pas compté ses locks, la densité qu'elle déclare au tunnel (chips
@@ -315,8 +325,8 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
      heures qu'une Jumbo ne demande pas, et sans elles le calendrier promettait
      un créneau intenable. Le PRIX, lui, reste sur `pricing` : une cliente ne
      peut pas s'auto-tarifer, et le comptage de la Maison l'emportera. */
-  const pricingDuree = cible && !cible.lockCount && cible.lockCountDeclare
-    ? pricingOf({ ...cible, lockCount: cible.lockCountDeclare }, bands, sets, tousCats)
+  const pricingDuree = cibleTarifee && !cibleTarifee.lockCount && cibleTarifee.lockCountDeclare
+    ? pricingOf({ ...cibleTarifee, lockCount: cibleTarifee.lockCountDeclare }, bands, sets, tousCats)
     : pricing;
   /* LE CHIFFRE D'UN PANIER — 7 octobre 2026. Une seule fonction pour la barre
      du bas ET pour chaque carte de « Que fait-on ? » : une carte qui annonce
@@ -494,23 +504,25 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   /* L'écran qu'on REGARDE. Le quiz s'efface s'il n'a rien à dire — l'objectif
      prend alors sa place, sans qu'aucune navigation n'ait à le savoir (le
      catalogue peut arriver du serveur après le premier rendu). */
-  /* ── LES CHOIX DU PREMIER ÉCRAN ── SA dernière venue, si tous ses gestes
-     sont encore à sa portée ; puis les formules de la Maison qui le sont. */
-  const derniereVenue = useMemo(() => {
-    if (!cible) return null;
-    const honores = appts
-      .filter((a) => a.clientId === cible.id && a.status === 'honoré' && a.serviceIds.length > 0)
-      .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
-    const d = honores[honores.length - 1];
-    if (!d) return null;
-    const ids = [...new Set(d.serviceIds)];
-    return ids.every((id) => offre.some((x) => x.id === id)) ? ids : null;
-  }, [cible, appts, offre]);
+  /* ── LES CHOIX DU PREMIER ÉCRAN ── SES derniers rituels différents (honorés,
+     ou passés et restés confirmés), un geste fermé lu sous son successeur
+     (`ses-rituels-pur`, 2 novembre 2026) ; puis les formules de la Maison. */
+  const sesRituels = useMemo(() => {
+    if (!cible) return [];
+    const parId = new Map(tousServices.map((s) => [s.id, s]));
+    return sesRituelsPasses({
+      rdvs: appts, clientId: cible.id, aujourdhui: todayIso(),
+      proposable: (id) => offre.some((x) => x.id === id),
+      successeur: (id) => SUCCESSEURS[id],
+      estCreation: (id) => { const sv = parId.get(id); return !!sv && fondeLaCouronne(sv); },
+    });
+  }, [cible, appts, offre, tousServices]);
+  const derniereVenue = sesRituels[0]?.ids ?? null;
   const formulesExpress = useMemo(() => (cfg.formulesRapides ?? [])
     .map((f) => [...new Set(f.serviceIds)])
     .filter((ids) => ids.length > 0 && ids.every((id) => offre.some((x) => x.id === id)))
-    .filter((ids) => !derniereVenue || cleDesGestes(ids) !== cleDesGestes(derniereVenue))
-    .slice(0, derniereVenue ? 3 : 4), [cfg.formulesRapides, offre, derniereVenue]);
+    .filter((ids) => !sesRituels.some((r) => cleDesGestes(r.ids) === cleDesGestes(ids)))
+    .slice(0, Math.max(1, 4 - sesRituels.length)), [cfg.formulesRapides, offre, sesRituels]);
   const expressDispo = !prefService && (!!derniereVenue || formulesExpress.length > 0);
   const vue = step === EXPRESS
     ? (expressDispo ? EXPRESS : quizActif ? QUIZ : 0)
@@ -1372,7 +1384,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
         {vue === EXPRESS && (
           <div className="mc-fade mc-express">
             <div className="mc-stack" style={{ gap: 8 }} role="group" aria-label={t('Que fait-on ?')}>
-              {derniereVenue && laFormule(derniereVenue, t('Comme la dernière fois'))}
+              {sesRituels.map((r, i) => laFormule(r.ids, i === 0 ? t('Comme la dernière fois') : t('Comme le {date}', { date: jourDuRituel(r.date) })))}
               {formulesExpress.map((ids, i) => (
                 laFormule(ids, undefined, i === 0 ? t('La plus réservée à la Maison') : undefined)
               ))}
@@ -1472,7 +1484,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                      pas d'inventer une recommandation. */
                   <>
                     <div className="mc-quizreco__line">
-                      {t('Votre envie est notée, la maison la lira avant votre venue. Parcourez ses rituels : la maîtresse fera le reste au fauteuil.')}
+                      {t('Votre envie est notée, la maison la lira avant votre venue. Parcourez ses rituels : nous ferons le reste au fauteuil.')}
                     </div>
                     <button className="mc-cta mc-cta--indigo" onClick={() => setStep(0)}>{t('Voir les rituels')}</button>
                   </>

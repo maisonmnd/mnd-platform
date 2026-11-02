@@ -49,10 +49,10 @@ export const SOUCIS: readonly Souci[] = [
     brouillon: 'Nourrir : quelques gouttes d’huile légère sur le cuir chevelu, deux fois par semaine, en massage lent. Sécher entièrement après chaque lavage.',
     suite: 'Le Soin Hydratant DÀNDÀN à la prochaine séance' },
   { cle: 'cassantes', dit: 'Cassantes, qui s’amincissent', niveau: 'voir', mots: ['cass*', 'aminci*', 'fines', 'fragile*', 'coupent'],
-    brouillon: 'Votre maîtresse vous rappelle. En attendant : pas d’attache serrée, et un foulard en satin la nuit.',
+    brouillon: 'La Maison vous rappelle. En attendant : pas d’attache serrée, et un foulard en satin la nuit.',
     suite: 'Un diagnostic KÒKÒ, une reconstruction GBÌGBÌ', avancer: true },
   { cle: 'inegales', dit: 'Inégales, racines qui s’emmêlent', niveau: 'voir', mots: ['inegal*', 'emmel*', 'colle', 'collent', 'fusion*'],
-    brouillon: 'Votre maîtresse regarde et vous rappelle. Ne séparez pas les racines vous-même.',
+    brouillon: 'La Maison regarde et vous rappelle. Ne séparez pas les racines vous-même.',
     suite: 'Avancer la reprise, une reprise frontale', avancer: true },
   { cle: 'pousse', dit: 'Racines qui ont trop poussé', niveau: 'conseil', mots: ['pousse', 'poussent', 'repousse', 'defait*', 'defont'],
     brouillon: 'C’est le signe que la reprise approche. La Maison peut avancer votre rendez-vous : choisissez l’heure qui vous va.',
@@ -61,13 +61,13 @@ export const SOUCIS: readonly Souci[] = [
     brouillon: 'Sceller : séchez entièrement avant de nouer, et jamais de couronne humide sous le foulard.',
     suite: 'La Purification WÈWÈ si cela dure' },
   { cle: 'gratte', dit: 'Ça gratte, plaques, rougeurs', niveau: 'sante', mots: ['gratt*', 'demang*', 'plaque*', 'rougeur*', 'irrit*', 'croute*', 'pellicule*'],
-    brouillon: 'Merci de nous l’avoir dit. Votre maîtresse vous rappelle. En attendant, ne grattez pas et ne mettez aucun produit nouveau.',
+    brouillon: 'Merci de nous l’avoir dit. La Maison vous rappelle très vite. En attendant, ne grattez pas et ne mettez aucun produit nouveau.',
     suite: 'Un médecin si besoin ; aucun conseil écrit' },
   { cle: 'chute', dit: 'Chute, trous, douleur', niveau: 'sante', mots: ['chute', 'tombent', 'perds', 'trou', 'trous', 'douleur*', 'doulour*', 'saign*', 'brule*', 'infection*'],
     brouillon: 'Merci de nous l’avoir dit. La Maison vous rappelle très vite.',
     suite: 'Un médecin si besoin ; aucun conseil écrit' },
   { cle: 'autre', dit: 'Autre chose', niveau: 'voir', mots: [],
-    brouillon: 'Merci de nous l’avoir dit. Votre maîtresse vous répond.',
+    brouillon: 'Merci de nous l’avoir dit. La Maison vous répond très vite.',
     suite: 'Selon ce qu’elle dit' },
 ];
 export const souciDe = (cle: string): Souci | undefined => SOUCIS.find((s) => s.cle === cle);
@@ -86,8 +86,8 @@ export const enRetard = (s: { etat: EtatDuSignalement; soucis: readonly string[]
 
 /** La réponse que la cliente reçoit : en Santé, jamais un conseil ; sinon la
     réponse VALIDÉE de chaque souci, ou, à défaut, un simple accusé. */
-export const ACCUSE = 'Merci de nous l’avoir dit. Votre maîtresse vous répond.';
-export const ACCUSE_SANTE = 'Merci de nous l’avoir dit. Votre maîtresse vous rappelle. En attendant, ne mettez aucun produit nouveau.';
+export const ACCUSE = 'Merci de nous l’avoir dit. La Maison vous répond très vite.';
+export const ACCUSE_SANTE = 'Merci de nous l’avoir dit. La Maison vous rappelle très vite. En attendant, ne mettez aucun produit nouveau.';
 export function reponseAuSignalement(cles: readonly string[], validees: Partial<Record<string, string>>): string[] {
   if (niveauDe(cles) === 'sante') return [ACCUSE_SANTE];
   const textes = [...new Set(cles.map((c) => (validees[c] ?? '').trim()).filter(Boolean))];

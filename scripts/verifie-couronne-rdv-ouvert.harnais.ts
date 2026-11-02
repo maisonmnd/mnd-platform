@@ -76,7 +76,7 @@ dit('les murs disent quand ils sont connus, et une erreur ne vaut pas « libre �
 /* ── 4. LE PREMIER ÉCRAN DES TRENTE SECONDES ─────────────────────────── */
 dit('la réservation s\'ouvre sur l\'écran express', true, /useState\(prefService \? 3 : EXPRESS\)/.test(resa));
 dit('… sa dernière venue, les formules de la Maison, les six places', [true, true, true], [
-  /a\.clientId === cible\.id && a\.status === 'honoré'/.test(resa),
+  /sesRituelsPasses\(\{\s*rdvs: appts, clientId: cible\.id/.test(resa),
   /cfg\.formulesRapides \?\? \[\]/.test(resa),
   /prochainesPlaces\(jours, 6\)/.test(resa),
 ]);

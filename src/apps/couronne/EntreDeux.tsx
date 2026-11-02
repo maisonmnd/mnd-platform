@@ -52,7 +52,7 @@ export function EntreDeux({ client, appts, onAvancer }: { client: Client; appts:
     try {
       if (localStorage.getItem(CLE_NOTIF) === point.cle) return;
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
-      new Notification(t('Comment vont vos locks ?'), { body: t('Une touche pour le dire à votre maîtresse.') });
+      new Notification(t('Comment vont vos locks ?'), { body: t('Une touche pour nous le dire.') });
       localStorage.setItem(CLE_NOTIF, point.cle);
     } catch { /* sans notification, la carte suffit */ }
   }, [point?.cle]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -80,7 +80,7 @@ export function EntreDeux({ client, appts, onAvancer }: { client: Client; appts:
     <div className="mc-ed">
       {etat === 'envoye' ? (
         <div className="mc-ed-carte">
-          <div className="mc-micro-eyebrow">{t('Votre maîtresse l’a reçu')}</div>
+          <div className="mc-micro-eyebrow">{t('La Maison l’a reçu')}</div>
           {recu.map((p) => <p key={p} className="mc-ed-texte">{t(p)}</p>)}
           {avancer && <button type="button" className="mc-cta mc-cta--copper" onClick={onAvancer}>{t('Avancer mon rendez-vous')}</button>}
           <button type="button" className="mc-cta mc-cta--outline" onClick={() => setEtat('saisie')}>{t('Fermer')}</button>
@@ -102,7 +102,7 @@ export function EntreDeux({ client, appts, onAvancer }: { client: Client; appts:
           </label>
           {etat === 'refus' && <p className="mc-ed-erreur" role="alert">{t('Votre message n’est pas parti. Réessayez dans un moment.')}</p>}
           <button type="button" className="mc-cta mc-cta--copper" disabled={etat === 'envoi' || (pris.length === 0 && !mot.trim())} onClick={() => void envoie(false)}>
-            {etat === 'envoi' ? t('Envoi en cours') : t('Envoyer à ma maîtresse')}
+            {etat === 'envoi' ? t('Envoi en cours') : t('Envoyer à la Maison')}
           </button>
           <button type="button" className="mc-cta mc-cta--outline" onClick={() => setOuvert(false)}>{t('Plus tard')}</button>
         </div>
@@ -118,7 +118,7 @@ export function EntreDeux({ client, appts, onAvancer }: { client: Client; appts:
           </div>
         </div>
       ) : (
-        <button type="button" className="mc-ed-lien" onClick={() => setOuvert(true)}>{t('Un souci avec vos locks ? Dites-le à votre maîtresse.')}</button>
+        <button type="button" className="mc-ed-lien" onClick={() => setOuvert(true)}>{t('Un souci avec vos locks ? Dites-le-nous.')}</button>
       )}
 
       {miens.filter((s) => !s.bien).length > 0 && (
@@ -128,7 +128,7 @@ export function EntreDeux({ client, appts, onAvancer }: { client: Client; appts:
             <div key={s.id} className="mc-ed-ligne">
               <span className="mc-ed-date">{dateLisible(s.quand.slice(0, 10))}</span>
               <span>{s.soucis.map((c) => t(souciDe(c)?.dit ?? c)).join(', ')}</span>
-              <span className={`mc-ed-etat${s.etat === 'traite' ? ' est-traite' : ''}`}>{s.etat === 'traite' ? t('La Maison vous a répondu') : t('Votre maîtresse vous répond')}</span>
+              <span className={`mc-ed-etat${s.etat === 'traite' ? ' est-traite' : ''}`}>{s.etat === 'traite' ? t('La Maison vous a répondu') : t('La Maison vous répond')}</span>
             </div>
           ))}
         </div>

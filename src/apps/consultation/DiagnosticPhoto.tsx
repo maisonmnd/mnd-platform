@@ -132,7 +132,7 @@ export function DiagnosticPhoto({ consultationId, transactionId, photos, devise 
           </>
         )}
         <div className="lc-note" style={{ marginTop: 14 }}>
-          <span>{rendu.mot || 'À confirmer en consultation.'} Un maître de la Maison relit cette lecture dans la journée.</span>
+          <span>{rendu.mot || 'À confirmer en consultation.'} La Maison relit cette lecture dans la journée.</span>
         </div>
       </div>
     );
@@ -143,7 +143,7 @@ export function DiagnosticPhoto({ consultationId, transactionId, photos, devise 
       <div className="lc-label lc-label--copper">Le diagnostic photo</div>
       <p className="lc-intro" style={{ marginTop: 10, maxWidth: 640 }}>
         Si vous le voulez, vos photos partent à la Maison. Une première lecture, automatique, s’affiche
-        aussitôt ; un maître de la Maison la relit dans la journée. Elle ne remplace pas la consultation,
+        aussitôt ; la Maison la relit dans la journée. Elle ne remplace pas la consultation,
         une photo ne dit pas tout de votre couronne, et ce n’est pas un examen médical.
       </p>
 

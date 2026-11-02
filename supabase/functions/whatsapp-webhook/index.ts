@@ -127,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-02-a · l assistant ne nomme plus Gérard a une question franche';
+const VERSION = '2026-11-02-b · c est la Maison qui repond, jamais votre maitresse';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -517,8 +517,8 @@ const TITRE_COURT: Record<CleDeSouciWa, string> = {
 const MOT_DE_LA_LISTE = 'Qu’est-ce qui se passe ? Choisissez ce qui ressemble le plus à ce que vous voyez.';
 const BOUTON_DE_LA_LISTE = 'Voir les soucis';
 const MERCI_BIEN = 'Merci ! Bonne nouvelle. À votre prochaine séance.';
-const ACCUSE_POINT = 'Merci de nous l’avoir dit. Votre maîtresse vous répond.';
-const ACCUSE_SANTE_POINT = 'Merci de nous l’avoir dit. Votre maîtresse vous rappelle. En attendant, ne mettez aucun produit nouveau.';
+const ACCUSE_POINT = 'Merci de nous l’avoir dit. La Maison vous répond très vite.';
+const ACCUSE_SANTE_POINT = 'Merci de nous l’avoir dit. La Maison vous rappelle très vite. En attendant, ne mettez aucun produit nouveau.';
 type ReponseAuPointWa =
   | { geste: 'bien' | 'souci'; apptId: string }
   | { geste: 'liste'; apptId: string; cle: CleDeSouciWa }

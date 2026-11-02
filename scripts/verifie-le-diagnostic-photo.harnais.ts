@@ -698,9 +698,9 @@ const structure = () => {
     const montres = `${cons}\n${mc}`;
     dit('ce que lisent les clientes : jamais « salon », jamais de tiret long, jamais « intelligence », toujours « à confirmer en consultation »', [false, false, false, true],
       [/\bsalons?\b/i.test(montres), /—/.test(montres), /intelligence/i.test(montres), /MOT_A_CONFIRMER|À confirmer en consultation\./.test(montres) || /rendu\.mot/.test(cons)]);
-    dit('... avant d envoyer, elles lisent que la lecture est automatique, relue par un maître, et pas un examen médical', [true, true, true, true],
-      [/lecture, automatique/.test(cons) && /un maître de la Maison la relit/.test(cons), /pas un examen médical/.test(cons),
-        /lecture, automatique/.test(mc) && /un maître de la Maison la relit/.test(mc), /pas un examen médical/.test(mc)]);
+    dit('... avant d envoyer, elles lisent que la lecture est automatique, relue par la Maison, et pas un examen médical', [true, true, true, true],
+      [/lecture, automatique/.test(cons) && /la Maison la relit dans la journée/.test(cons), /pas un examen médical/.test(cons),
+        /lecture, automatique/.test(mc) && /la Maison la relit dans la journée/.test(mc), /pas un examen médical/.test(mc)]);
   }
 
   /* Le Trône. */

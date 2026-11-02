@@ -568,7 +568,7 @@ export default function App() {
               <p className="lc-lead">
                 La première rencontre avec la Maison se fait ici, où que vous soyez dans le monde.
                 Vos habitudes, votre vision, l’état de votre couronne tel que vous le décrivez : la Maison en tire
-                un premier diagnostic, projette son avenir et compose votre protocole. Le Maître le confirme en
+                un premier diagnostic, projette son avenir et compose votre protocole. La Maison le confirme en
                 vous voyant.{' '}
                 <span className="lc-strong">Puis vous franchissez la porte de la Maison, déjà attendue.</span>
               </p>
@@ -831,7 +831,7 @@ export default function App() {
             <div className="lc-eyebrow">{pathLabel} · Étape 2 sur 8</div>
             <h2 className="lc-h2">Montrez votre couronne.</h2>
             <p className="lc-intro" style={{ maxWidth: 560 }}>
-              Trois angles pour montrer votre couronne au Maître : la densité, le cuir chevelu, les pointes.
+              Trois angles pour montrer votre couronne à la Maison : la densité, le cuir chevelu, les pointes.
               Vos photos restent sur votre téléphone, rien n’est envoyé ; le premier diagnostic se calcule à
               partir de vos réponses. Gardez-les pour votre rendez-vous, ou envoyez-les à la Maison sur WhatsApp.
             </p>
@@ -868,7 +868,7 @@ export default function App() {
 
             <div className="lc-note">
               <Seal color="indigo" size={22} style={{ opacity: 0.6 }} />
-              <span>Pas de photo sous la main ? Vous pourrez les présenter au Maître le jour du rendez-vous, le diagnostic s’affine alors à la Maison.</span>
+              <span>Pas de photo sous la main ? Vous pourrez les présenter le jour du rendez-vous, le diagnostic s’affine alors à la Maison.</span>
             </div>
 
             <Nav onBack={() => go('portrait')} onNext={() => go('habitudes')} />
@@ -1218,7 +1218,7 @@ export default function App() {
               <div className="lc-panel lc-panel--obsidian lc-prescription">
                 <div className="lc-label lc-label--copperlight">La prescription de la Maison</div>
                 <div className="lc-prescription__n">{diag.service.name}</div>
-                <div className="lc-prescription__c">{diag.cadence} · Maître {diag.service.master}</div>
+                <div className="lc-prescription__c">{diag.cadence}</div>
 
                 <div className="lc-prescription__kit">
                   <div className="lc-label lc-label--copperlight">Votre trousse maison</div>
@@ -1256,7 +1256,7 @@ export default function App() {
             <h2 className="lc-h2">Réservez. Entrez.</h2>
             <p className="lc-intro" style={{ maxWidth: 600 }}>
               {access.paid && <>Les frais de consultation sont <span className="lc-strong">intégralement crédités</span> sur votre première séance. </>}
-              Vous arrivez attendue, votre protocole déjà entre les mains du Maître.
+              Vous arrivez attendue, votre protocole déjà entre nos mains.
             </p>
 
             <div className="lc-resa">
@@ -1417,14 +1417,14 @@ export default function App() {
               <div className="lc-eyebrow lc-fin__eyebrow">Le dossier est scellé</div>
               <h1 className="lc-display lc-fin__title">Bienvenue à la<br />Maison, {prenom || 'chère couronne'}.</h1>
               <p className="lc-lead lc-fin__lead">
-                Votre consultation est transmise au Trône : le Maître la reçoit avec votre diagnostic, votre
+                Votre consultation est transmise au Trône : la Maison la reçoit avec votre diagnostic, votre
                 projection et votre protocole.{(scelle ?? access).paid && <> Vos frais de consultation ({fee}) sont réglés et crédités sur votre première séance.</>}
               </p>
               <p className="lc-fin__devise">Transmise au Trône. La maison vous attend.</p>
 
               <div className="lc-fin__steps">
                 {[
-                  { no: '1', t: 'Votre dossier arrive', s: 'Diagnostic, projection et protocole, sur le Trône du Maître.' },
+                  { no: '1', t: 'Votre dossier arrive', s: 'Diagnostic, projection et protocole, sur le Trône de la Maison.' },
                   { no: '2', t: 'La Maison vous rappelle', s: 'Sur WhatsApp, pour confirmer votre créneau. Vous pouvez y envoyer vos photos.' },
                   { no: '3', t: 'Vous entrez', s: `${mode === 'visio' ? 'En visio' : 'Cotonou · Flagship'} · déjà attendue, déjà lue.` },
                 ].map((n) => (

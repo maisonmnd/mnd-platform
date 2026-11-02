@@ -34,7 +34,7 @@ declare const Deno: {
 
 /* 30-a (30 octobre 2026) : le SÍNSIN™ se dit « Reprise des racines »
    (shared/gestes-en-francais), rien d'autre. */
-const VERSION = '2026-10-30-a';
+const VERSION = '2026-11-02-a';
 
 type Ligne = { id: string; branch_id?: string | null; data: Record<string, unknown> };
 // deno-lint-ignore no-explicit-any

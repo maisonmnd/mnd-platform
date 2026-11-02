@@ -199,7 +199,7 @@ export function consigneEntreDeux(sait: CeQueGerardSait): string {
   const lignes = sait.rubriques.map((r) => {
     if (r.niveau === 'sante') return `- ${r.dit} (Santé) : jamais de conseil écrit. Réponds exactement : « ${ACCUSE_SANTE} » et préviens l'équipe.`;
     const quoi = r.reponse ? `réponds : « ${r.reponse} »` : `pas encore de réponse validée, réponds seulement : « ${ACCUSE} »`;
-    const voir = r.niveau === 'voir' ? `, sa maîtresse rappelle sous ${r.delaiHeures} h` : '';
+    const voir = r.niveau === 'voir' ? `, la Maison rappelle sous ${r.delaiHeures} h` : '';
     const avancer = r.avancer ? ' Propose d’avancer son rendez-vous, elle choisit l’heure.' : '';
     return `- ${r.dit} (${r.niveauDit}${voir}) : ${quoi}${avancer} Pour la prochaine séance, sans prix : ${r.suite}.`;
   });

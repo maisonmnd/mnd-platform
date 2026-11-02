@@ -109,8 +109,14 @@ export function figeLesRendezVous<T extends Rdv>(
 /* ── ② Une visite qui monte de plus de 10 % garde son prix trois mois ──── */
 export const HAUSSE_TENUE = 0.10;
 export const PRIX_TENUS_JUSQUAU = '2027-03-31';
-/** Une prestation archivée en janvier : la tête la retrouvera sous ce nom-ci. */
-export const SUCCESSEURS: Readonly<Record<string, string>> = { 'sv-atl-iii-cou-l': 'sv-atl-iii-cou-c' };
+/** Une prestation archivée : la tête la retrouvera sous ce nom-ci, en janvier
+    comme dans Ma Couronne (`ses-rituels-pur`). AQUA LOCKS RITUAL™ devient
+    DÀNDÀN™ · L'hydratation aux sept huiles, même prix (Yéman, au sélecteur,
+    le 2 novembre 2026). */
+export const SUCCESSEURS: Readonly<Record<string, string>> = {
+  'sv-atl-iii-cou-l': 'sv-atl-iii-cou-c',
+  'aqua-locks-ritual': 'sv-plt-10-m',
+};
 
 export type PrixTenus = { jusquau: string; services: Record<string, number>; poseLe?: string };
 

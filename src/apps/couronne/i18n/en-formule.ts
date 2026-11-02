@@ -291,7 +291,6 @@ export const EN_FORMULE: Record<string, string> = {
   '{rituel} · actuellement {jour} à {heure} · avec {maitre}': '{rituel} · currently {jour} at {heure} · with {maitre}',
   'séance {i}/{n}': 'session {i}/{n}',
   'Jours avec créneaux libres': 'Days with free slots',
-  'maître {maitre}': 'with {maitre}',
   'heures libres': 'free times',
   'avec {maitre}': 'with {maitre}',
   'Choisir': 'Choose',

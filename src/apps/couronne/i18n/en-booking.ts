@@ -37,8 +37,8 @@ export const EN_BOOKING: Record<string, string> = {
   ' · votre tarif': ' · your price',
   'Réserver ce rituel': 'Book this ritual',
   'Voir toutes les prestations →': 'See all services →',
-  'Votre envie est notée, la maison la lira avant votre venue. Parcourez ses rituels : la maîtresse fera le reste au fauteuil.':
-    'Your wish is noted, the Maison will read it before your visit. Browse its rituals: your artisan will do the rest in the chair.',
+  'Votre envie est notée, la maison la lira avant votre venue. Parcourez ses rituels : nous ferons le reste au fauteuil.':
+    'Your wish is noted, the Maison will read it before your visit. Browse its rituals: we will do the rest in the chair.',
   'Voir les rituels': 'See the rituals',
   'Je sais déjà ce que je veux →': 'I already know what I want →',
   // Les mots du quiz (shared/quiz.ts), traduits à l'affichage.
