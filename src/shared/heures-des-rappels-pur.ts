@@ -54,6 +54,17 @@ export function passageDeLHeure(heure: number, h: HeuresDesRappels): 'premier' |
   if (h.second !== null && heure === h.second) return 'second';
   return null;
 }
+/* ⟨rappel-se-tait⟩ */
+/** LE RAPPEL DE LA VEILLE SE TAIT QUAND ELLE A DÉJÀ CONFIRMÉ — 2 novembre
+    2026, Yéman : « la cliente a confirmé Garder ton RDV à J-2, le rappel de
+    la veille ne part plus ». La marque est posée par le bouton « Oui, je
+    viens » du message de Perle ou par un « oui » écrit (reception-wa). Le
+    WhatsApp de la veille (rappels-j1) et la notification « Rappel · demain »
+    de Ma Couronne (push-notify) se taisent ; celle de deux heures avant reste. */
+export function rappelDeLaVeilleSeTait(a: { confirmeeParLaClienteLe?: unknown }): boolean {
+  return typeof a.confirmeeParLaClienteLe === 'string' && a.confirmeeParLaClienteLe.trim().length > 0;
+}
+/* ⟨/rappel-se-tait⟩ */
 /* ══ COPIE DANS rappels-j1 : FIN ══ */
 
 /** « 18 h et 19 h », « 18 h ». */

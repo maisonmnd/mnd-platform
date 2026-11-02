@@ -1068,7 +1068,7 @@ dit('push-notify porte le bloc ⟨veille-des-assistants⟩ du module pur, mot po
   bloc('src/shared/assistants-pur.ts'), bloc('supabase/functions/push-notify/index.ts'));
 const push = lit('supabase/functions/push-notify/index.ts');
 dit('… et le chien de garde n en garde aucune autre copie, et dit sa version', [1, 1, true],
-  [push.split('export function doitPrevenirDuSommeil(').length - 1, push.split('export const REGLAGES_PAR_DEFAUT').length - 1, push.includes("const VERSION = '2026-11-02-a';")]);
+  [push.split('export function doitPrevenirDuSommeil(').length - 1, push.split('export const REGLAGES_PAR_DEFAUT').length - 1, push.includes("const VERSION = '2026-11-02-b';")]);
 const charte = lit('docs/ASSISTANTS.md');
 dit('la charte, section 15 : le passage dit ses cartes, la carte ses faits et son privé, le bilan du matin', [true, true, true, true], [
   charte.includes('[--cartes 3]'), charte.includes("--faits '{"), charte.includes('[--contact "…" --message "…"]'), charte.includes('bilan deposer --jour 2026-11-01 --lus 12')]);

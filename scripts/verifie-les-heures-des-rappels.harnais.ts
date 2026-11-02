@@ -107,7 +107,10 @@ function controles(t: Textes): string[] {
   });
   exige('la porte des heures vient apres la cle du cron', cle >= 0 && porte > cle);
   exige('aucune reprise, aucun point, aucun rendez-vous lu, aucun envoi avant la porte', porte > 0 && premiersGestes.every((i) => i < 0 || i > porte));
-  exige('la version dit le 29 octobre', /const VERSION = '2026-10-29-[a-z] · les heures des rappels/.test(e));
+  exige('la version dit le 2 novembre', /const VERSION = '2026-11-02-[a-z] · les heures des rappels réglées au Trône ; la veille se tait quand elle a confirmé/.test(e));
+  /* 2 novembre 2026 : la veille se tait quand elle a confirmé à J-2. */
+  exige('les rendez-vous confirmes par la cliente sont retires avant tout envoi', /const rdvs: Rdv\[\] = tousDemain\.filter\(\(a\) => !rappelDeLaVeilleSeTait\(a\)\);/.test(e));
+  exige('la fonction dit combien de rappels se sont tus', /rdv: rdvs\.length, confirmeesTues,/.test(e));
   /* Le SQL : un job horaire, les anciens retires, la fonction d abord. */
   const s = egal(t.sql);
   exige('le SQL retire les anciens jobs du rappel', /select cron\.unschedule\(jobid\) from cron\.job where command ilike '%rappels_j1%' or command ilike '%rappels-j1%';/.test(s));
@@ -135,7 +138,9 @@ const PANNES: [string, keyof Textes, string, string][] = [
   ['le serveur compte en heure UTC', 'edge', 'Math.floor(heureDuSalon(Date.now()))', 'new Date().getUTCHours()'],
   ['les reprises partent avant la porte', 'edge', "  const { data: reglage } = await sb.from('documents')", "  await proposeLesReprises(sb, false, REGLES_PAR_DEFAUT);\n  const { data: reglage } = await sb.from('documents')"],
   ['le serveur ne lit pas le reglage', 'edge', "heuresDesRappels(reglage?.data", 'heuresDesRappels(undefined'],
-  ['la version n a pas bouge', 'edge', "const VERSION = '2026-10-29-a", "const VERSION = '2026-10-28-a"],
+  ['la version n a pas bouge', 'edge', "const VERSION = '2026-11-02-a", "const VERSION = '2026-10-29-a"],
+  ['la veille part meme confirmee', 'edge', 'tousDemain.filter((a) => !rappelDeLaVeilleSeTait(a))', 'tousDemain.filter((a) => !!a)'],
+  ['la regle ne regarde pas la marque', 'pur', "return typeof a.confirmeeParLaClienteLe === 'string'", "return typeof a.autreMomentDemandeLe === 'string'"],
   ['le SQL garde le job de 21 h', 'sql', "'0 * * * *'", "'0 20 * * *'"],
   ['le SQL laisse les anciens jobs', 'sql', 'select cron.unschedule(jobid)', 'select jobid'],
   ['le SQL oublie de dire la fonction d abord', 'sql', 'JAMAIS avant', 'peu importe l ordre'],

@@ -34,7 +34,7 @@ const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. 10 octobre 2026 : le passage du soir ne dépose plus
     un rappel que les heures calmes retiendraient jusqu'au jour même. */
-const VERSION = '2026-10-29-a · les heures des rappels réglées au Trône';
+const VERSION = '2026-11-02-a · les heures des rappels réglées au Trône ; la veille se tait quand elle a confirmé';
 
 type Rdv = {
   id: string;
@@ -203,6 +203,17 @@ function passageDeLHeure(heure: number, h: HeuresDesRappels): 'premier' | 'secon
   if (h.second !== null && heure === h.second) return 'second';
   return null;
 }
+/* ⟨rappel-se-tait⟩ */
+/** LE RAPPEL DE LA VEILLE SE TAIT QUAND ELLE A DÉJÀ CONFIRMÉ — 2 novembre
+    2026, Yéman : « la cliente a confirmé Garder ton RDV à J-2, le rappel de
+    la veille ne part plus ». La marque est posée par le bouton « Oui, je
+    viens » du message de Perle ou par un « oui » écrit (reception-wa). Le
+    WhatsApp de la veille (rappels-j1) et la notification « Rappel · demain »
+    de Ma Couronne (push-notify) se taisent ; celle de deux heures avant reste. */
+export function rappelDeLaVeilleSeTait(a: { confirmeeParLaClienteLe?: unknown }): boolean {
+  return typeof a.confirmeeParLaClienteLe === 'string' && a.confirmeeParLaClienteLe.trim().length > 0;
+}
+/* ⟨/rappel-se-tait⟩ */
 /* ══ COPIE DANS rappels-j1 : FIN ══ */
 
 /** Ce qu'une ligne déposée porte en plus de son identité : quand elle part,
@@ -688,9 +699,12 @@ Deno.serve(async (req) => {
     .neq('data->>status', 'annulé');
   if (errA) return new Response(JSON.stringify({ erreur: errA.message }), { status: 500 });
 
-  const rdvs: Rdv[] = (apptRows ?? []).map((r) => r.data as Rdv);
+  const tousDemain: Rdv[] = (apptRows ?? []).map((r) => r.data as Rdv);
+  /* Elle a déjà confirmé sa venue (« Oui, je viens » à J-2) : rien de plus la veille. */
+  const rdvs: Rdv[] = tousDemain.filter((a) => !rappelDeLaVeilleSeTait(a));
+  const confirmeesTues = tousDemain.length - rdvs.length;
   if (rdvs.length === 0) {
-    return new Response(JSON.stringify({ version: VERSION, jour: demain, rdv: 0, ...reprises, ...points }), { status: 200 });
+    return new Response(JSON.stringify({ version: VERSION, jour: demain, rdv: 0, confirmeesTues, ...reprises, ...points }), { status: 200 });
   }
 
   /* ── Les fiches (nom + téléphone), en une lecture ───────────────── */
@@ -890,7 +904,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ version: VERSION, jour: demain, rdv: rdvs.length, push: 'au job mnd-push-rappels', salle: salleOuverte, partiraitLeJourMeme, deposes: nDeposes, whatsapp: nWa, sms: nSms, ...reprises, ...points }),
+    JSON.stringify({ version: VERSION, jour: demain, rdv: rdvs.length, confirmeesTues, push: 'au job mnd-push-rappels', salle: salleOuverte, partiraitLeJourMeme, deposes: nDeposes, whatsapp: nWa, sms: nSms, ...reprises, ...points }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 });

@@ -631,6 +631,8 @@ const regles: Regle[] = [
         'veille-des-assistants': { fichier: 'src/shared/assistants-pur.ts', extrait: (s) => entre(s, 'veille-des-assistants') },
         /* L'accord des nouvelles demandé sur WhatsApp (2 novembre 2026), recopié dans whatsapp-webhook. */
         'accord-whatsapp': { fichier: 'src/shared/accord-whatsapp-pur.ts', extrait: (s) => entre(s, 'accord-whatsapp') },
+        /* Le rappel de la veille se tait quand elle a confirmé (2 novembre 2026), recopié dans rappels-j1 et push-notify. */
+        'rappel-se-tait': { fichier: 'src/shared/heures-des-rappels-pur.ts', extrait: (s) => entre(s, 'rappel-se-tait') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

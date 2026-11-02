@@ -28,7 +28,7 @@ const TZ = 'Africa/Porto-Novo';
     porteur d'un assistant) et le chien de garde des assistants reliés, au
     cron du personnel. 2 novembre 2026 : le chien de garde suit la veille
     des réglages (rythme du soir, grâce du matin). */
-const VERSION = '2026-11-02-a';
+const VERSION = '2026-11-02-b';
 
 /* LA DATE ET L'HEURE TELLES QU'ON LES DIT — 10 octobre 2026 (revue de nuit).
    Le rappel disait « Rendez-vous le 2026-10-11 à 09:00 », puis un tiret
@@ -212,6 +212,18 @@ async function broadcastToClients(payload: Payload): Promise<number> {
   return n;
 }
 
+/* ⟨rappel-se-tait⟩ */
+/** LE RAPPEL DE LA VEILLE SE TAIT QUAND ELLE A DÉJÀ CONFIRMÉ — 2 novembre
+    2026, Yéman : « la cliente a confirmé Garder ton RDV à J-2, le rappel de
+    la veille ne part plus ». La marque est posée par le bouton « Oui, je
+    viens » du message de Perle ou par un « oui » écrit (reception-wa). Le
+    WhatsApp de la veille (rappels-j1) et la notification « Rappel · demain »
+    de Ma Couronne (push-notify) se taisent ; celle de deux heures avant reste. */
+export function rappelDeLaVeilleSeTait(a: { confirmeeParLaClienteLe?: unknown }): boolean {
+  return typeof a.confirmeeParLaClienteLe === 'string' && a.confirmeeParLaClienteLe.trim().length > 0;
+}
+/* ⟨/rappel-se-tait⟩ */
+
 async function runReminders(): Promise<number> {
   const appts = await toutes('appointments', 'id,data');
   if (appts.length === 0) return 0;
@@ -232,6 +244,7 @@ async function runReminders(): Promise<number> {
     if (diffH <= 24 && diffH > 22) kind = 'j-1';
     else if (diffH <= 2 && diffH > 0.4) kind = 'h-2';
     if (!kind) continue;
+    if (kind === 'j-1' && rappelDeLaVeilleSeTait(a)) continue;
     const { data: seen } = await admin.from('push_reminders').select('appointment_id').eq('appointment_id', a.id ?? row.id).eq('kind', kind).maybeSingle();
     if (seen) continue;
     const title = kind === 'j-1' ? 'Rappel · demain' : 'Votre rituel approche';

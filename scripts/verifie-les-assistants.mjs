@@ -49,7 +49,7 @@ const PANNES = [
   ['la tache du soir ignore les heures reglees', PUR, 'champDesHeures(debutDuSoir, r.veilleA)', 'champDesHeures(18, 24)'],
   ['la nuit se dit endormie comme le jour', PUR, "      : { etat: 'endormi', detail: `au repos jusqu'à ${heureRondeDite(r.veilleDe)}, comme chaque nuit` };", "      : { etat: 'endormi', detail: `endormi depuis ${dureeDite(ecartMin)}` };"],
   ['la copie du chien de garde dans push-notify derive', PUSH, '  const depuis = Math.max(vu, debutDeLaVeilleMs(maintenantMs, r));', '  const depuis = vu;'],
-  ['push-notify garde son ancienne version', PUSH, "const VERSION = '2026-11-02-a';", "const VERSION = '2026-10-31-a';"],
+  ['push-notify garde son ancienne version', PUSH, "const VERSION = '2026-11-02-b';", "const VERSION = '2026-11-02-a';"],
   ['l heure dite oublie demain', PUR, '  if (dateISO === demain) return `demain ${h}`;\n', ''],
   ['les tournures interdites passent', PUR, '  for (const x of TOURNURES_INTERDITES) if (t.includes(retireLesAccents(x))) return x;\n', ''],
   ['l empreinte ne lit plus le jeton', PUR, "new TextEncoder().encode(String(jeton ?? '').trim())", "new TextEncoder().encode('')"],
