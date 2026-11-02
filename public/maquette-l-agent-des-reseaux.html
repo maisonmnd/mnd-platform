@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head>
+<body>
+<title>L'agent des réseaux</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@400;500&display=swap">
+<style>
+/* Mise en page : une colonne de lecture ; deux scènes qui se manipulent (le téléphone et le Trône pour Opale, l'écran d'achat pour Stock et Achats), puis les arbitrages. */
+:root {
+  --fond: #efe4d3;
+  --papier: #fbf7f0;
+  --encre: #1f2350;
+  --encre-douce: #4b4f72;
+  --cuivre: #a8622f;
+  --trait: #d9cbb5;
+  --vieux: #8a8270;
+  --vert: #3b8f5a;
+  --rouge: #a8433a;
+  --ecran: #1f2350;
+  --ecran-texte: #f3ece0;
+  --ecran-doux: #b9b6cf;
+  --ecran-trait: #3a3e6e;
+  --bulle-eux: #2b2f62;
+  --bulle-nous: #3b6b4f;
+  --vignette: #e7dccb;
+  --display: 'Cormorant Garamond', 'Times New Roman', serif;
+  --texte: 'Jost', 'Segoe UI', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond: #15173a; --papier: #1f2250; --encre: #f3ece0; --encre-douce: #c9c4d8; --cuivre: #d38a52; --trait: #34386a; --vieux: #9d97b0; --vert: #5fb57f; --rouge: #d9776c;
+  --ecran: #0f1130; --ecran-texte: #f3ece0; --ecran-doux: #a9a6c4; --ecran-trait: #2c3060; --bulle-eux: #23264f; --bulle-nous: #2f5a42; --vignette: #2a2e5e; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --fond: #15173a; --papier: #1f2250; --encre: #f3ece0; --encre-douce: #c9c4d8; --cuivre: #d38a52; --trait: #34386a; --vieux: #9d97b0; --vert: #5fb57f; --rouge: #d9776c;
+  --ecran: #0f1130; --ecran-texte: #f3ece0; --ecran-doux: #a9a6c4; --ecran-trait: #2c3060; --bulle-eux: #23264f; --bulle-nous: #2f5a42; --vignette: #2a2e5e; color-scheme: dark }
+body { background: var(--fond); color: var(--encre); font-family: var(--texte); font-size: 15px; line-height: 1.6; }
+.page { max-width: 1000px; margin: 0 auto; padding-block: 40px 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 500; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.05; }
+h2 { font-size: clamp(26px, 4.5vw, 34px); line-height: 1.1; }
+h3 { font-size: 21px; line-height: 1.2; }
+p { margin: 0; }
+.sur { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); }
+.chapo { color: var(--encre-douce); max-width: 66ch; }
+.citation { font-family: var(--display); font-style: italic; font-size: 21px; line-height: 1.35; max-width: 60ch; }
+.bandeau { background: var(--encre); color: var(--fond); padding: 10px 14px; border-radius: 4px; font-size: 13px; }
+.entete { display: grid; gap: 16px; }
+.section { display: grid; gap: 18px; }
+.constat { border-left: 2px solid var(--cuivre); padding: 4px 0 4px 14px; color: var(--encre-douce); max-width: 70ch; display: grid; gap: 8px; }
+.constat b { color: var(--encre); font-weight: 500; }
+.etiquette { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--vieux); }
+ul.net { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--encre-douce); max-width: 72ch; }
+ul.net b { color: var(--encre); font-weight: 500; }
+.deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px; }
+.carte { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; }
+.carte h3 { font-size: 19px; }
+.carte p, .carte li { color: var(--encre-douce); font-size: 14px; }
+.carte b { color: var(--encre); font-weight: 500; }
+button { font: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ── La scène d'Opale ── */
+.scene { display: grid; gap: 14px; }
+.pas-barre { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.pas-barre .heure { font-family: var(--display); font-size: 26px; min-width: 84px; }
+.pas-barre .titre { color: var(--encre-douce); flex: 1 1 260px; min-width: 0; }
+.commandes { display: flex; gap: 8px; }
+.cmd { border: 1px solid var(--trait); background: var(--papier); color: var(--encre); border-radius: 99px; padding: 6px 16px; font-size: 13px; cursor: pointer; }
+.cmd.plein { background: var(--cuivre); border-color: var(--cuivre); color: #fff; }
+.cmd:disabled { opacity: .4; cursor: default; }
+.points { display: flex; gap: 6px; }
+.points i { width: 8px; height: 8px; border-radius: 99px; background: var(--trait); }
+.points i.ici { background: var(--cuivre); }
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 16px; align-items: start; }
+@media (max-width: 760px) { .duo { grid-template-columns: 1fr; } }
+.tel { background: var(--ecran); color: var(--ecran-texte); border-radius: 26px; border: 5px solid #0b0c22; padding: 16px 14px 14px; display: grid; gap: 10px; min-height: 470px; align-content: start; }
+.tel .qui { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; border-bottom: 1px solid var(--ecran-trait); padding-bottom: 8px; }
+.tel .qui b { font-family: var(--display); font-size: 19px; font-weight: 500; }
+.tel .qui small { color: var(--ecran-doux); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; text-align: right; }
+.bulle { max-width: 92%; border-radius: 12px; padding: 7px 10px; font-size: 13.5px; line-height: 1.45; }
+.bulle.eux { background: var(--bulle-eux); justify-self: start; border-bottom-left-radius: 3px; }
+.bulle.nous { background: var(--bulle-nous); justify-self: end; border-bottom-right-radius: 3px; }
+.bulle small { display: block; color: var(--ecran-doux); font-size: 10.5px; margin-top: 2px; }
+.bulle .recu { display: block; margin-top: 6px; border: 1px dashed var(--ecran-trait); border-radius: 6px; padding: 10px; color: var(--ecran-doux); font-size: 11.5px; text-align: center; }
+.assist { border: 1px dashed var(--cuivre); border-radius: 10px; padding: 9px 11px; display: grid; gap: 7px; font-size: 13px; }
+.assist .nom { color: var(--cuivre); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+.assist .resume { color: var(--ecran-doux); }
+.assist .lu { background: rgba(255,255,255,.06); border-radius: 8px; padding: 6px 9px; display: grid; gap: 2px; }
+.assist .lu b { font-weight: 500; }
+.choix { display: flex; flex-wrap: wrap; gap: 5px; }
+.choix span { border: 1px solid var(--ecran-trait); border-radius: 99px; padding: 2px 10px; font-size: 11.5px; color: var(--ecran-doux); }
+.choix span.oui { border-color: var(--cuivre); color: var(--ecran-texte); background: rgba(211,138,82,.18); }
+.trone { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; display: grid; min-height: 470px; align-content: start; }
+.trone .barre { background: var(--encre); color: var(--fond); padding: 9px 14px; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; display: flex; gap: 16px; flex-wrap: wrap; border-radius: 4px 4px 0 0; }
+.trone .barre .ici { color: #e9b58d; }
+.trone .corps { padding: 14px; display: grid; gap: 12px; }
+.tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tuile { border: 1px solid var(--trait); border-radius: 4px; padding: 10px 12px; display: grid; gap: 2px; font-size: 12.5px; color: var(--encre-douce); }
+.tuile b { color: var(--encre); font-weight: 500; font-family: var(--display); font-size: 22px; }
+.tuile.vive { border-color: var(--cuivre); }
+.liste { display: grid; gap: 0; font-size: 13px; }
+.liste .r { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 8px 0; border-bottom: 1px solid var(--trait); color: var(--encre-douce); }
+.liste .r:last-child { border-bottom: 0; }
+.liste .r b { color: var(--encre); font-weight: 500; }
+.liste .r .montant { color: var(--encre); font-weight: 500; text-align: right; }
+.liste .r .trace { grid-column: 1 / -1; font-size: 11.5px; color: var(--vieux); }
+.liste .r .gestes { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
+.liste .r .gestes span { border: 1px solid var(--trait); border-radius: 99px; padding: 1px 10px; font-size: 11.5px; }
+.liste .r .gestes span.oui { border-color: var(--cuivre); color: var(--cuivre); }
+.liste .r.attente { background: color-mix(in srgb, var(--cuivre) 8%, var(--papier)); padding-inline: 8px; border-radius: 4px; border-bottom: 0; margin-bottom: 6px; }
+.liste .vide { color: var(--vieux); font-size: 12.5px; padding: 6px 0; }
+.legende { color: var(--encre-douce); font-size: 14px; max-width: 72ch; }
+
+/* ── L'écran d'achat ── */
+.achat { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; display: grid; }
+.achat .barre { background: var(--encre); color: var(--fond); padding: 9px 14px; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; display: flex; gap: 16px; flex-wrap: wrap; border-radius: 4px 4px 0 0; }
+.achat .barre .ici { color: #e9b58d; }
+.achat .corps { padding: 16px; display: grid; gap: 16px; }
+.champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 14px; }
+.champ { display: grid; gap: 3px; min-width: 0; }
+.champ label { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--vieux); }
+.champ input, .champ select { border: 1px solid var(--trait); background: var(--fond); color: var(--encre); border-radius: 3px; padding: 6px 8px; font: inherit; font-size: 14px; min-width: 0; width: 100%; box-sizing: border-box; }
+.photos { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.photo { width: 92px; height: 70px; border-radius: 4px; background: var(--vignette); border: 1px solid var(--trait); display: grid; place-items: center; font-size: 11px; color: var(--vieux); position: relative; overflow: hidden; }
+.photo svg { width: 70%; height: 70%; }
+.photo.ajout { border-style: dashed; background: transparent; }
+.lecture { font-size: 12.5px; color: var(--encre-douce); border-left: 2px solid var(--cuivre); padding-left: 10px; }
+.tab { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 680px; font-size: 13.5px; }
+th { text-align: left; font-weight: 500; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--vieux); padding: 6px 8px; border-bottom: 1px solid var(--trait); }
+td { padding: 6px 8px; border-bottom: 1px solid var(--trait); vertical-align: middle; color: var(--encre-douce); }
+td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--encre); }
+td input { border: 1px solid var(--trait); background: var(--fond); color: var(--encre); border-radius: 3px; padding: 4px 6px; font: inherit; font-size: 13.5px; width: 100%; box-sizing: border-box; min-width: 0; }
+td input.q { width: 56px; text-align: right; }
+td input.p { width: 84px; text-align: right; }
+.vig { width: 44px; height: 44px; border-radius: 4px; background: var(--vignette); display: grid; place-items: center; }
+.vig svg { width: 30px; height: 30px; }
+.fiche { font-size: 11.5px; border-radius: 99px; padding: 1px 9px; border: 1px solid var(--trait); white-space: nowrap; }
+.fiche.neuve { border-color: var(--cuivre); color: var(--cuivre); }
+.compteur { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline; padding: 10px 14px; border-radius: 4px; background: color-mix(in srgb, var(--vert) 12%, var(--papier)); border: 1px solid color-mix(in srgb, var(--vert) 40%, var(--trait)); font-size: 14px; }
+.compteur.ecart { background: color-mix(in srgb, var(--rouge) 10%, var(--papier)); border-color: color-mix(in srgb, var(--rouge) 45%, var(--trait)); }
+.compteur b { font-family: var(--display); font-size: 22px; font-weight: 500; }
+.compteur .dit { flex: 1 1 220px; color: var(--encre-douce); min-width: 0; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.bouton { border: 0; background: var(--cuivre); color: #fff; padding: 10px 22px; border-radius: 3px; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }
+.bouton:disabled { opacity: .45; cursor: default; }
+.bouton.doux { background: transparent; color: var(--encre); border: 1px solid var(--trait); }
+.resultat { border: 1px solid var(--vert); border-radius: 4px; padding: 14px 16px; display: grid; gap: 8px; background: color-mix(in srgb, var(--vert) 8%, var(--papier)); }
+.resultat ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--encre-douce); font-size: 14px; }
+.resultat b { color: var(--encre); font-weight: 500; }
+
+/* ── Arbitrages ── */
+.arbitrages { display: grid; gap: 14px; }
+.arbitrage { display: grid; gap: 8px; padding: 16px 18px; border-radius: 4px; background: var(--papier); border: 1px solid var(--trait); }
+.arbitrage h3 { font-size: 20px; }
+.arbitrage .q { color: var(--encre-douce); max-width: 72ch; }
+.options { display: grid; gap: 6px; }
+.option { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 6px; font-size: 14px; color: var(--encre-douce); }
+.option i { font-style: normal; color: var(--vieux); }
+.option.propose { color: var(--encre); }
+.option.propose i { color: var(--cuivre); }
+.option b { font-weight: 500; }
+.etapes { display: grid; gap: 12px; }
+.etape { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; align-items: start; }
+.etape .quand { font-family: var(--display); font-size: 20px; color: var(--cuivre); }
+.etape p { color: var(--encre-douce); }
+.etape b { color: var(--encre); font-weight: 500; }
+@media (max-width: 560px) { .etape { grid-template-columns: 1fr; gap: 4px; } }
+@media (prefers-reduced-motion: no-preference) { .tel, .trone, .resultat { transition: opacity .2s; } }
+</style>
+<style>
+/* Ajouts propres à cette maquette : la semaine, l'affiche d'exemple, la carte de validation, les chiffres. */
+.semaine { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.jour { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; padding: 10px 12px; display: grid; gap: 4px; font-size: 13px; color: var(--encre-douce); align-content: start; }
+.jour b { font-family: var(--display); font-size: 19px; font-weight: 500; color: var(--encre); }
+.jour .tag { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--cuivre); }
+.jour.toi { border-color: var(--cuivre); }
+.affiche { aspect-ratio: 4 / 5; max-width: 320px; width: 100%; background: var(--encre); color: var(--fond); border-radius: 4px; padding: 22px; display: grid; grid-template-rows: auto 1fr auto; gap: 10px; position: relative; overflow: hidden; }
+.affiche::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 30% 20%, rgba(255,255,255,.08), transparent 45%), repeating-linear-gradient(135deg, transparent 0 18px, rgba(255,255,255,.035) 18px 19px); pointer-events: none; }
+.affiche .mono { font-family: var(--display); font-size: 13px; letter-spacing: .3em; text-transform: uppercase; color: #e9b58d; }
+.affiche .titre-a { font-family: var(--display); font-size: clamp(26px, 5vw, 34px); line-height: 1.05; align-self: end; text-wrap: balance; }
+.affiche .photo-a { border: 1px solid rgba(233,181,141,.5); border-radius: 50% 50% 4px 4px; height: 46%; display: grid; place-items: center; color: #b9b6cf; font-size: 11.5px; text-align: center; padding: 8px; }
+.affiche .pied-a { display: flex; justify-content: space-between; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #e9b58d; border-top: 1px solid rgba(233,181,141,.4); padding-top: 8px; }
+.cote { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 700px) { .cote { grid-template-columns: 1fr; } }
+.carte-v { background: var(--papier); border: 1px solid var(--trait); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; font-size: 13.5px; }
+.carte-v .genre { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre); }
+.carte-v .legende-p { color: var(--encre-douce); border-left: 2px solid var(--trait); padding-left: 10px; white-space: pre-line; }
+.carte-v .boutons { display: flex; flex-wrap: wrap; gap: 5px; }
+.carte-v .boutons span { border: 1px solid var(--trait); border-radius: 99px; padding: 2px 10px; font-size: 11.5px; }
+.carte-v .boutons span.oui { background: var(--cuivre); border-color: var(--cuivre); color: #fff; }
+.chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.chiffre { border: 1px solid var(--trait); border-radius: 4px; padding: 12px 14px; display: grid; gap: 2px; background: var(--papier); }
+.chiffre b { font-family: var(--display); font-size: 26px; font-weight: 500; color: var(--encre); }
+.chiffre span { font-size: 12.5px; color: var(--encre-douce); }
+.chiffre small { font-size: 11px; color: var(--vieux); }
+table.simple { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+table.simple th { text-align: left; font-weight: 500; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--vieux); padding: 6px 8px; border-bottom: 1px solid var(--trait); }
+table.simple td { padding: 7px 8px; border-bottom: 1px solid var(--trait); color: var(--encre-douce); vertical-align: top; }
+table.simple td:first-child { color: var(--encre); white-space: nowrap; }
+.missions { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+</style>
+
+<div class="page">
+
+  <header class="entete">
+    <p class="sur">Maquette v0 · 2 novembre 2026 · à valider</p>
+    <h1>Un agent qui fait vivre la Maison sur les réseaux.</h1>
+    <p class="citation">« Un super agent en marketing digital qui pourra animer notre page Facebook, notre page Instagram et les autres réseaux sociaux, travailler sur nos pages internet, archiver les anciennes photos et redynamiser la page pour avoir un vrai nombre de nouveaux clients et de nouveaux abonnés. Faire des affiches et des vidéos pour la Maison MND. Un vrai expert en marketing et customer experience international. »</p>
+    <p class="chapo">Un agent de la Maison, comme Opale et Onyx, avec sa propre session et son propre dossier. Il publie, répond, mesure et propose, chaque semaine, à partir de ce que la Maison a déjà préparé. Rien ne part sans ton plan validé, et aucune cliente n'apparaît sans son accord écrit.</p>
+    <p class="bandeau">Première version, publiée tôt. Ce que tu corriges se refait à la même adresse.</p>
+  </header>
+
+  <section class="section">
+    <p class="etiquette">Ce que la Maison a déjà, et que personne ne publie</p>
+    <div class="chiffres">
+      <div class="chiffre"><b>66</b><span>publications écrites dans l'Atelier des contenus</span><small>trente jours, Instagram mois 2 et 3, LinkedIn deux mois</small></div>
+      <div class="chiffre"><b>13</b><span>Reels montés sans tournage, style éditorial</span><small>validés le 11 octobre 2026, muets, musique à l'envoi</small></div>
+      <div class="chiffre"><b>853</b><span>photos professionnelles rangées</span><small>plus 174 photos d'ateliers, galerie du 12 octobre 2026</small></div>
+      <div class="chiffre"><b>0</b><span>publication partie depuis</span><small>les comptes portent encore « M Natural Dreadlocks »</small></div>
+    </div>
+    <div class="constat">
+      <p><b>Le travail d'écriture est fait, l'exécution manque.</b> Les plans attendent dans l'Atelier, les Reels dorment dans le Drive, le nom « Maison MND » est approuvé par Meta depuis le 10 octobre 2026 et les comptes ne sont toujours pas renommés. Personne ne répond aux commentaires, personne ne lit les chiffres.</p>
+      <p><b>Le site sait déjà compter.</b> Chaque lien posé sur un réseau porte sa campagne, et le site la garde le temps de la visite. Ce qui manque pour dire « un vrai nombre » : la question au comptoir, « comment nous avez-vous connus ? », et un tableau qui réunit abonnés, visites et nouvelles clientes.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Le parti pris</p>
+    <h2>Il exécute ce que la Maison a décidé, et il te le montre avant.</h2>
+    <ul class="net">
+      <li><b>Une session de Claude Code dans son dossier</b>, sur ton ordinateur pour commencer, comme Opale ; plus tard sur la machine de la Maison. Il ouvre Chrome sur Meta Business Suite, TikTok et LinkedIn avec le compte de la Maison.</li>
+      <li><b>Il lit et écrit dans le Trône</b> : l'Atelier des contenus (calendrier, statuts, résultats), la galerie rangée (photos professionnelles, ateliers, coulisses), le monteur des Reels, le dépôt du site.</li>
+      <li><b>Il te propose sa semaine le mardi</b>, en cartes au Trône avec l'aperçu de chaque affiche et de chaque légende. Tu valides en une fois, il programme, il publie, il répond.</li>
+      <li><b>Il mesure le lundi</b> : abonnés gagnés par réseau, visites du site par campagne, nouvelles clientes qui ont dit « par Instagram » au comptoir. Le chiffre est dans le Trône, pas dans sa tête.</li>
+      <li><b>Il regarde ce qui marche ailleurs</b>, une fois par mois : les studios de locks qui réussissent à Paris, Londres, Atlanta, New York, et il en tire une proposition, jamais une copie.</li>
+    </ul>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Sa semaine</p>
+    <div class="semaine">
+      <div class="jour toi"><span class="tag">Lundi</span><b>Le bilan</b><span>Les chiffres de la semaine lus sur chaque réseau et dans le Trône. Une carte « bilan » pour toi.</span></div>
+      <div class="jour toi"><span class="tag">Mardi</span><b>Le plan</b><span>La semaine suivante en cartes : affiches, légendes, Reels, stories. Tu valides en une fois.</span></div>
+      <div class="jour"><span class="tag">Mercredi</span><b>Comprendre</b><span>Un post pilier expertise, programmé sur Instagram et Facebook.</span></div>
+      <div class="jour"><span class="tag">Jeudi</span><b>Les commentaires</b><span>Réponses du jour, dans la voix de la Maison. Un rendez-vous demandé renvoie au WhatsApp.</span></div>
+      <div class="jour"><span class="tag">Vendredi</span><b>Le geste</b><span>Un Reel : monté du tournage du mois, ou éditorial sans tournage.</span></div>
+      <div class="jour"><span class="tag">Samedi</span><b>La preuve</b><span>Un post avant-après ou coulisses, seulement avec le registre des accords.</span></div>
+      <div class="jour"><span class="tag">Dimanche</span><b>La story</b><span>Trois stories dans la semaine, la dernière le dimanche. Le site, un article du Journal par quinzaine.</span></div>
+    </div>
+    <p class="legende">Le rythme que tu avais choisi le 23 septembre 2026, deux publications et une vidéo par semaine, tenait compte d'une Maison à deux personnes qui écrivaient tout. Avec l'agent, l'écriture et la programmation ne te coûtent plus rien : trois publications, un Reel et trois stories par semaine, c'est le rythme proposé. Seul le tournage reste à vous deux, une matinée par mois.</p>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Ce qu'il fabrique</p>
+    <div class="cote">
+      <div class="affiche" aria-label="Exemple d'affiche typographique">
+        <span class="mono">Maison MND</span>
+        <div class="photo-a">une photo de la Maison dans l'arche<br>mains de Brice, jamais une cliente sans accord</div>
+        <div class="titre-a">Des locks qui tiennent, ça commence par le cuir chevelu.</div>
+        <div class="pied-a"><span>Comprendre</span><span>maisonmnd.com</span></div>
+      </div>
+      <div style="display:grid;gap:14px">
+        <div class="carte-v">
+          <span class="genre">Carte à valider · mercredi 11 novembre 2026 · Instagram et Facebook</span>
+          <b>Affiche · Comprendre · le cuir chevelu</b>
+          <span class="legende-p">Des locks qui tiennent commencent par un cuir chevelu propre et nourri. À la Maison, chaque entretien commence là.
+Comment prenez-vous soin du vôtre entre deux passages ?</span>
+          <span class="boutons"><span class="oui">Publier comme prévu</span><span>Modifier la légende</span><span>Changer la photo</span><span>Non</span></span>
+        </div>
+        <ul class="net">
+          <li><b>Les affiches</b> : cinq gabarits de la Maison, indigo et cuivre, Cormorant et Jost, la photo dans l'arche du monogramme. Faits en code, sur l'ordinateur, à partir des photos réelles. Jamais une image générée : c'est ta règle du 11 octobre 2026, elle tient.</li>
+          <li><b>Les vidéos</b> : les Reels éditoriaux sans tournage que le monteur sait déjà rendre, et les Reels tournés d'après le carnet, montés localement. Les mains de Brice, ta voix.</li>
+          <li><b>Les textes</b> : légendes dans la voix de la Maison, sans prix, sans « salon », en français d'abord, en anglais quand la publication vise la diaspora.</li>
+          <li><b>Le site</b> : un article du Journal par quinzaine, une page de campagne par offre avec son lien compté, les titres et descriptions qui aident Google.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Les quatre missions</p>
+    <div class="missions">
+      <div class="carte">
+        <h3>1. Animer les réseaux</h3>
+        <p>Instagram et Facebook d'abord, TikTok et LinkedIn ensuite. Publier le plan validé, répondre aux commentaires chaque jour, tenir les stories. Un message privé n'est jamais traité par lui : il renvoie au WhatsApp de la Maison, où l'automate et la réception répondent déjà.</p>
+      </div>
+      <div class="carte">
+        <h3>2. Relancer la page</h3>
+        <p>Renommer les comptes en Maison MND · @maison.mnd, refaire les bios avec le site et le WhatsApp, archiver les anciennes publications par lots que tu valides, annoncer le nouveau nom en premier post épinglé, et repartir avec neuf visuels pensés ensemble.</p>
+      </div>
+      <div class="carte">
+        <h3>3. Les pages internet</h3>
+        <p>Le Journal du site, les pages de campagne avec leur lien compté, les titres et descriptions pour Google, la fiche Google de la Maison tenue à jour. Chaque changement passe par le dépôt et par une publication du site, comme aujourd'hui.</p>
+      </div>
+      <div class="carte">
+        <h3>4. Mesurer et apprendre</h3>
+        <p>Le bilan du lundi au Trône, la question au comptoir « comment nous avez-vous connus ? », et une veille mensuelle de ce qui marche chez les meilleurs studios de locks du monde. Il propose, tu tranches.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Un vrai nombre</p>
+    <h2>Ce que le Trône montrera chaque lundi.</h2>
+    <div style="overflow-x:auto">
+      <table class="simple">
+        <thead><tr><th>Ce qu'on compte</th><th>D'où ça vient</th><th>Exemple de lecture</th></tr></thead>
+        <tbody>
+          <tr><td>Abonnés gagnés</td><td>Lus sur chaque réseau, par semaine</td><td>Instagram +48, Facebook +12, TikTok +31</td></tr>
+          <tr><td>Visites du site par réseau</td><td>Le lien compté de chaque publication</td><td>215 visites, dont 60 % depuis Instagram</td></tr>
+          <tr><td>Demandes de rendez-vous depuis le site</td><td>Le formulaire du site garde la campagne</td><td>9 demandes, 6 honorées sous 14 jours</td></tr>
+          <tr><td>Nouvelles clientes venues par les réseaux</td><td>La question au comptoir, sur la fiche</td><td>4 nouvelles clientes ont dit « Instagram »</td></tr>
+          <tr><td>Ce qui a le mieux marché</td><td>Portée, enregistrements, partages par publication</td><td>Le Reel « lavage » : 2 100 vues, 38 enregistrements</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="legende">Les chiffres ci-dessus sont des exemples de lecture, pas des promesses. Un objectif se fixe ensemble après les quatre premières semaines, quand on connaît le point de départ. Aucun franc de publicité ne part sans ton oui : la relance est organique d'abord, huit semaines, puis on décide ensemble si la publicité Meta vaut la peine.</p>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Pourquoi pas un outil du commerce</p>
+    <div class="constat">
+      <p>Metricool, Buffer, Hootsuite ou Later programment des publications et montrent des courbes. Ils ne connaissent ni la voix de la Maison, ni le registre des accords, ni la galerie rangée, ni le Trône où se comptent les clientes. Ils coûtent entre 15 000 et 60 000 F par mois pour programmer ce que l'agent programme sur les crédits déjà compris. Si un jour l'API de Meta vaut mieux que Chrome, l'agent l'utilisera, lui.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Ce qu'il ne fait jamais</p>
+    <ul class="net">
+      <li>Une image générée. Les affiches sont faites en code sur de vraies photos ; les vidéos, de vraies mains.</li>
+      <li>Un visage de cliente ou d'enfant sans la ligne du registre des accords. Un prénom d'enfant, jamais.</li>
+      <li>Un prix en public, le mot « salon », une promesse de résultat.</li>
+      <li>Publier hors du plan que tu as validé, ou publier la nuit.</li>
+      <li>Répondre à un message privé : il renvoie au WhatsApp de la Maison.</li>
+      <li>Dépenser en publicité, supprimer une publication, changer un mot de passe. Il archive, il ne supprime pas.</li>
+      <li>Toucher au WhatsApp de la Maison, au Trône des clientes ou à la caisse : ce sont d'autres portes.</li>
+    </ul>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Quatre choix à trancher</p>
+    <div class="arbitrages">
+      <div class="arbitrage">
+        <h3>1. Comment il publie</h3>
+        <p class="q">Les comptes vivent chez Meta, TikTok et LinkedIn. Par où l'agent y entre-t-il ?</p>
+        <div class="options">
+          <div class="option propose"><i>→</i><span><b>Proposé : par Chrome, dans Meta Business Suite, TikTok et LinkedIn</b>, avec le compte de la Maison, comme Opale lit WhatsApp Web. Ça marche dès demain, sans examen chez Meta. L'API viendra quand le nouveau portefeuille MAISON MND sera vérifié.</span></div>
+          <div class="option"><i>·</i><span>Par l'API de Meta depuis le Trône : plus solide, mais il faut l'examen de l'application chez Meta, et le portefeuille n'est pas prêt.</span></div>
+          <div class="option"><i>·</i><span>Par un outil du commerce que l'agent pilote : un abonnement de plus, pour ce qu'il sait faire seul.</span></div>
+        </div>
+      </div>
+      <div class="arbitrage">
+        <h3>2. Ta validation</h3>
+        <p class="q">Combien de fois veux-tu dire oui ?</p>
+        <div class="options">
+          <div class="option propose"><i>→</i><span><b>Proposé : le plan de la semaine validé en une fois, le mardi</b>, en cartes au Trône avec chaque aperçu. Ensuite il programme sans revenir vers toi. Toute pièce qui montre une cliente, un enfant ou qui parle d'argent repasse par toi, une à une.</span></div>
+          <div class="option"><i>·</i><span>Chaque publication validée une à une, la veille.</span></div>
+          <div class="option"><i>·</i><span>Tout automatique dans le cadre de la charte, sauf les clientes.</span></div>
+        </div>
+      </div>
+      <div class="arbitrage">
+        <h3>3. Les anciennes publications</h3>
+        <p class="q">Les pages portent des années de publications sous l'ancien nom. Que deviennent-elles ?</p>
+        <div class="options">
+          <div class="option propose"><i>→</i><span><b>Proposé : tout archiver, par lots que tu valides</b>, avant l'annonce du nom. Archiver masque sans supprimer, Instagram et Facebook le permettent ; les photos restent dans la galerie rangée. La grille repart avec neuf visuels pensés ensemble.</span></div>
+          <div class="option"><i>·</i><span>Garder les neuf publications qui ont le mieux marché, archiver le reste.</span></div>
+          <div class="option"><i>·</i><span>Ne rien archiver : le nouveau nom s'ajoute à l'historique.</span></div>
+        </div>
+      </div>
+      <div class="arbitrage">
+        <h3>4. Son nom</h3>
+        <p class="q">Opale veille sur ton WhatsApp, Onyx sur celui de Brice. L'agent des réseaux porte le nom de la Maison en public, il lui faut le sien en privé.</p>
+        <div class="options">
+          <div class="option propose"><i>→</i><span><b>Proposé : Ambre</b>, la pierre chaude, la couleur du cuivre de la Maison.</span></div>
+          <div class="option"><i>·</i><span>Jade, Corail, ou un nom que tu choisis.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="etiquette">Après ton « construis »</p>
+    <div class="etapes">
+      <div class="etape"><span class="quand">Semaine 1</span><p><b>Les fondations.</b> Le dossier et la charte de l'agent, son lanceur ; la question « comment nous avez-vous connus ? » au comptoir et sur la fiche ; les cinq gabarits d'affiches ; les bios et le renommage préparés ; l'inventaire des anciennes publications, par lots à valider ; le bilan du lundi dans le Trône.</p></div>
+      <div class="etape"><span class="quand">Semaine 2</span><p><b>La relance.</b> L'archivage validé, le renommage, l'annonce du nouveau nom épinglée, les neuf premiers visuels, et la première semaine publiée depuis les plans de l'Atelier.</p></div>
+      <div class="etape"><span class="quand">Semaines 3 à 8</span><p><b>Le rythme.</b> Le plan du mardi, les publications, les réponses du jour, un article du Journal par quinzaine, la première veille internationale, un tournage par mois d'après le carnet.</p></div>
+      <div class="etape"><span class="quand">Ensuite</span><p><b>On lit les huit semaines ensemble</b> et tu décides : la publicité Meta, TikTok et LinkedIn à plein rythme, l'API de Meta, la machine de la Maison.</p></div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>
