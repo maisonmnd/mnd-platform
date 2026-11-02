@@ -44,7 +44,10 @@ export const ACCUSE_DU_STOP = 'C’est noté : la Maison ne vous enverra plus se
 /** Une cliente qui demande franchement si elle parle à une personne. */
 export const estUneQuestionFranche = (texte: string): boolean =>
   /\b(robot|chatbot|bot|ia|intelligence artificielle|machine)\b|\b(message|réponse|reponse)s? automatiques?\b|\bje parle (à|a) qui\b|\bc.est (bien |vraiment )?g[ée]rard\b|\bune vraie personne\b|\bun (être )?humain\b/i.test(String(texte ?? ''));
-export const REPONSE_FRANCHE = 'Je suis l’assistant automatique de la Maison pour les rendez-vous. Si vous préférez, je préviens Gérard ou quelqu’un de l’équipe, qui vous écrit dans la journée.';
+/* 2 novembre 2026 : « Gérard n'existe plus » (Yéman). L'assistant des clientes
+   s'appelle Perle entre nous ; devant une cliente, il reste « l'assistant de la
+   Maison » et ne nomme personne. */
+export const REPONSE_FRANCHE = 'Je suis l’assistant automatique de la Maison pour les rendez-vous. Si vous préférez, je préviens une personne de l’équipe, qui vous écrit dans la journée.';
 
 /** LA PHRASE DE RETOUR à un bouton, et sa clé de réservation (une par jour et par numéro). */
 export function retourDuBouton(o: {

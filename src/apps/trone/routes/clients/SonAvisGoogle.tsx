@@ -68,7 +68,7 @@ export function SonAvisGoogle({ client }: { client: { id: string } }) {
             <span className="mnd-muted" style={{ fontSize: 11.5 }}>{reponse}</span>
             <span>
               <button type="button" className="trc-c360-linkbtn" onClick={() => navigate(`/gerard?vue=avis&avis=${encodeURIComponent(id)}`)}>
-                Ouvrir l’avis dans « Les avis » de l’Assistant Maison →
+                Ouvrir l’avis dans « Les avis » de Perle →
               </button>
             </span>
           </div>

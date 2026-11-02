@@ -441,8 +441,8 @@ export default function Gerard() {
   return (
     <div className="trc-ger trc-am">
       <PageHead
-        eyebrow="Clientèle · Assistant Maison"
-        title="Assistant Maison."
+        eyebrow="Clientèle · l’assistant des clientes"
+        title="Perle."
         actions={(
           <div className="trc-ger__chiffres">
             <span className="trc-ger__chiffre"><b>{plan.length}</b><small>à écrire aujourd’hui</small></span>

@@ -50,7 +50,7 @@ const TYPES: [FiltreDuJournal['type'], string][] = [
   ['relance-facture', 'Relances de facture'], ['rappel-echeance', 'Rappels d’échéance'], ['prix-revu', 'Prix revus'],
   ['parrainage', 'Marraines prévenues'], ['campagne', 'Campagnes'],
   /* L'Assistant Maison et la fête de couronne (27 octobre 2026). */
-  ['gerard', 'Assistant Maison'], ['fete-de-couronne', 'Fêtes de couronne'],
+  ['gerard', 'Perle'], ['fete-de-couronne', 'Fêtes de couronne'],
 ];
 const PERIODE_DITE: Record<FiltreDuJournal['jour'], string> = {
   aujourdhui: 'aujourd’hui', hier: 'hier', semaine: 'ces 7 derniers jours', '30-jours': 'ces 30 derniers jours',

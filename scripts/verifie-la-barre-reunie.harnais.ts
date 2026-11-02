@@ -55,7 +55,7 @@ dit('... par département : Direction 6, Clientèle 4, Atelier 2, Vente & Caisse
   { Direction: 6, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 4, Finances: 4, 'Marketing & Fidélité': 2, 'Équipe': 3, 'Académie': 1, 'Système': 3 },
   Object.fromEntries(NAV.map((g) => [g.group, g.items.filter((it) => !it.horsMenu).length])));
 dit('... dont Les prévisions, en Direction', ['Direction', false], [item('/previsions')?.groupe, !!item('/previsions')?.horsMenu]);
-dit('... dont l Assistant Maison, en Clientèle, juste sous Clientes', ['Clientèle', false, 'Assistant Maison', true],
+dit('... dont Perle (l assistant des clientes, ex-Assistant Maison), en Clientèle, juste sous Clientes', ['Clientèle', false, 'Perle', true],
   [item('/gerard')?.groupe, !!item('/gerard')?.horsMenu, item('/gerard')?.label,
     dansLaBarre.findIndex((it) => it.path === '/gerard') === dansLaBarre.findIndex((it) => it.path === '/customers') + 1]);
 /* 27 octobre 2026 : Les avis Google et Entre deux séances sont des vues de
@@ -92,7 +92,7 @@ dit('les cinq hotes retires sont hors barre, et gardent leur reunion et son titr
 dit('les vitrines et les QR codes restent separes (choix du 14 octobre), seuls visibles dans Marketing & Fidelite', [false, false, undefined, ['/vitrine', '/qr-codes']],
   [!!item('/vitrine')?.horsMenu, !!item('/qr-codes')?.horsMenu, reunionDe('/qr-codes')?.hote,
     NAV.find((g) => g.group === 'Marketing & Fidélité')?.items.filter((it) => !it.horsMenu).map((it) => it.path)]);
-dit('les libelles du 27 octobre 2026 : « QR de la Maison », « Assistant Maison », et le Foyer sans le mot banni', ['QR de la Maison', 'Assistant Maison', false],
+dit('les libelles : « QR de la Maison », « Perle » (2 novembre 2026), et le Foyer sans le mot banni', ['QR de la Maison', 'Perle', false],
   [item('/qr-codes')?.label, item('/gerard')?.label, /salon/i.test(item('/salon-foyer')?.label ?? '')]);
 dit('les Recommandations quittent la barre sans reunion', [true, true, undefined],
   [RETIRES_DE_LA_BARRE.includes('/recommandations'), item('/recommandations')?.horsMenu === true, reunionDe('/recommandations')]);
