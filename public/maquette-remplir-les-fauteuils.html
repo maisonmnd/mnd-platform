@@ -160,7 +160,7 @@ tr.fort td { color: var(--encre); font-weight: 500; }
         <button type="button" class="choix" data-rituel="lavage" aria-pressed="true">Le lavage <small>KLƆKLƆ™ Essentiel, mi-long · 10 000 F · 30 min</small></button>
         <button type="button" class="choix" data-rituel="complet" aria-pressed="false">Le rituel complet <small>4 gestes, DÀNDÀN™ compris · 70 000 F · 5 h</small></button>
       </div>
-      <p class="doux" id="vers">Vers le mardi 17 novembre 2026, deux semaines après aujourd'hui, à son heure habituelle (13 h).</p>
+      <p class="doux" id="vers"></p>
       <div class="places" id="places"></div>
       <div class="ligne"><button type="button" class="geste-doux" id="plus-tard">Pas maintenant</button></div>
       <div id="issue" hidden></div>
@@ -262,6 +262,11 @@ tr.fort td { color: var(--encre); font-weight: 500; }
       <p class="propose"><b>Choisi : partout</b>, le site, Ma Couronne, et le comptoir qui l'applique.</p>
       <p class="autres">Écarté : en ligne seulement, pour pousser la réservation en ligne.</p>
     </div>
+    <div class="arbitrage">
+      <h3>5. Trois précisions, tranchées pendant la construction</h3>
+      <p class="propose"><b>La remise famille et le mercredi ne s'additionnent pas</b> : la plus forte des deux est retenue, partout. <b>Les créations VÈKPÈ restent hors offre</b> (elles ont la leur). <b>MERCREDI15 vaut chaque mercredi</b>, pas une fois par cliente.</p>
+      <p class="autres">Écarté : les deux remises cumulées ; les créations comprises ; une seule fois par cliente.</p>
+    </div>
   </section>
 
 </div>
@@ -271,9 +276,9 @@ tr.fort td { color: var(--encre); font-weight: 500; }
   /* ── Un · La Caisse ── */
   var PLACES = {
     lavage: [
-      { jour: 'mardi 17 novembre 2026', heure: '13 h', prix: 10000 },
-      { jour: 'mercredi 18 novembre 2026', heure: '13 h', prix: 10000, mercredi: true },
-      { jour: 'samedi 21 novembre 2026', heure: '11 h', prix: 10000 }
+      { jour: 'mardi 24 novembre 2026', heure: '13 h', prix: 10000 },
+      { jour: 'mercredi 25 novembre 2026', heure: '13 h', prix: 10000, mercredi: true },
+      { jour: 'samedi 28 novembre 2026', heure: '11 h', prix: 10000 }
     ],
     complet: [
       { jour: 'mercredi 9 décembre 2026', heure: '10 h', prix: 70000, mercredi: true },
@@ -282,8 +287,8 @@ tr.fort td { color: var(--encre); font-weight: 500; }
     ]
   };
   var VERS = {
-    lavage: 'Vers le mardi 17 novembre 2026, deux semaines après aujourd’hui, à son heure habituelle (13 h).',
-    complet: 'Vers le 10 décembre 2026, deux mois après son dernier rituel complet (10 octobre 2026), le matin : le rituel dure 5 h.'
+    lavage: 'Vers le mardi 24 novembre 2026 : ses lavages reviennent tous les 20 jours environ (la médiane de ses écarts), le lundi est fermé, à son heure habituelle (13 h).',
+    complet: 'Vers le 12 décembre 2026, deux mois après son dernier rituel complet (10 octobre 2026), le matin : le rituel dure 5 h.'
   };
   var f = function (n) { return n.toLocaleString('fr-FR').replace(/ | /g, ' ') + ' F'; };
   var rituel = 'lavage';
@@ -313,7 +318,7 @@ tr.fort td { color: var(--encre); font-weight: 500; }
   });
   document.getElementById('plus-tard').addEventListener('click', function () {
     issue.hidden = false; issue.className = 'issue attente';
-    issue.innerHTML = '<b>Rien de posé.</b><span class="doux">Perle lui proposera son ' + (rituel === 'lavage' ? 'lavage vers le 14 novembre 2026' : 'rituel complet vers le 6 décembre 2026') + ', quelques jours avant sa date de cadence.</span>';
+    issue.innerHTML = '<b>Rien de posé.</b><span class="doux">Perle lui proposera son ' + (rituel === 'lavage' ? 'lavage vers le 21 novembre 2026' : 'rituel complet vers le 8 décembre 2026') + ', quelques jours avant sa date de cadence.</span>';
   });
   rend();
 
