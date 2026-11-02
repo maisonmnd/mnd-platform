@@ -1,0 +1,368 @@
+<title>Remplir les fauteuils</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@400;500&display=swap">
+<style>
+/* Mise en page : une colonne de lecture ; le constat chiffré, trois scènes qui se manipulent (la Caisse, la semaine en ligne, le mercredi), puis ce que ça ne fera pas et les arbitrages. */
+:root {
+  --fond: #efe4d3;
+  --papier: #fbf7f0;
+  --encre: #1f2350;
+  --encre-douce: #4b4f72;
+  --cuivre: #a8622f;
+  --cuivre-pale: #f1dcc8;
+  --trait: #d9cbb5;
+  --vieux: #8a8270;
+  --vert: #3b8f5a;
+  --ecran: #1f2350;
+  --ecran-texte: #f3ece0;
+  --ecran-doux: #b9b6cf;
+  --ecran-trait: #3a3e6e;
+  --case: #2b2f62;
+  --case-prise: #4a4f86;
+  --display: 'Cormorant Garamond', 'Times New Roman', serif;
+  --texte: 'Jost', 'Segoe UI', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond: #15173a; --papier: #1f2250; --encre: #f3ece0; --encre-douce: #c9c4d8; --cuivre: #d38a52; --cuivre-pale: #3a2f3a; --trait: #34386a; --vieux: #9d97b0; --vert: #5fb57f;
+  --ecran: #0f1130; --ecran-texte: #f3ece0; --ecran-doux: #a9a6c4; --ecran-trait: #2c3060; --case: #23264f; --case-prise: #3d4278; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --fond: #15173a; --papier: #1f2250; --encre: #f3ece0; --encre-douce: #c9c4d8; --cuivre: #d38a52; --cuivre-pale: #3a2f3a; --trait: #34386a; --vieux: #9d97b0; --vert: #5fb57f;
+  --ecran: #0f1130; --ecran-texte: #f3ece0; --ecran-doux: #a9a6c4; --ecran-trait: #2c3060; --case: #23264f; --case-prise: #3d4278; color-scheme: dark }
+body { background: var(--fond); color: var(--encre); font-family: var(--texte); font-size: 15px; line-height: 1.6; }
+.page { max-width: 1000px; margin: 0 auto; padding-block: 40px 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 500; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.05; }
+h2 { font-size: clamp(26px, 4.5vw, 34px); line-height: 1.1; }
+h3 { font-size: 21px; line-height: 1.2; }
+p { margin: 0; }
+.sur { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); }
+.chapo { color: var(--encre-douce); max-width: 66ch; }
+.bandeau { background: var(--encre); color: var(--fond); padding: 10px 14px; border-radius: 4px; font-size: 13px; }
+.entete, .section { display: grid; gap: 18px; }
+.constat { border-left: 2px solid var(--cuivre); padding: 4px 0 4px 14px; color: var(--encre-douce); max-width: 70ch; display: grid; gap: 8px; }
+.constat b { color: var(--encre); font-weight: 500; }
+.etiquette { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--vieux); }
+ul.net { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--encre-douce); max-width: 72ch; }
+ul.net b { color: var(--encre); font-weight: 500; }
+.deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px; }
+.carte { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; }
+.carte h3 { font-size: 19px; }
+.carte p, .carte li { color: var(--encre-douce); font-size: 14px; }
+.carte b { color: var(--encre); font-weight: 500; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ── Le constat ── */
+.tableau { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; background: var(--papier); border: 1px solid var(--trait); }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--trait); font-size: 14px; }
+th { font-weight: 500; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--vieux); }
+td.num, th.num { text-align: right; }
+.jauge { display: inline-block; height: 8px; background: var(--cuivre); border-radius: 2px; vertical-align: middle; margin-right: 8px; }
+tr.fort td { color: var(--encre); font-weight: 500; }
+.source { font-size: 12px; color: var(--vieux); max-width: 80ch; }
+
+/* ── Les écrans du Trône ── */
+.ecran { background: var(--ecran); color: var(--ecran-texte); border-radius: 6px; padding: 18px; display: grid; gap: 14px; }
+.ecran .etiquette { color: var(--ecran-doux); }
+.ecran .doux { color: var(--ecran-doux); font-size: 13px; }
+.ligne { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.paye { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--ecran-trait); padding-bottom: 12px; }
+.paye b { font-weight: 500; }
+.choix { background: transparent; color: var(--ecran-texte); border: 1px solid var(--ecran-trait); border-radius: 4px; padding: 9px 12px; text-align: left; display: grid; gap: 2px; min-width: 0; }
+.choix small { color: var(--ecran-doux); font-size: 12px; }
+.choix[aria-pressed="true"] { border-color: var(--cuivre); box-shadow: inset 0 0 0 1px var(--cuivre); }
+.places { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.place { background: var(--case); color: var(--ecran-texte); border: 1px solid var(--ecran-trait); border-radius: 4px; padding: 10px 12px; text-align: left; display: grid; gap: 2px; }
+.place .prix { font-size: 12px; color: var(--ecran-doux); }
+.place .remise { color: var(--cuivre); font-size: 12px; letter-spacing: .06em; }
+.place:hover { border-color: var(--cuivre); }
+.geste { background: var(--cuivre); color: #fff; border: 0; border-radius: 4px; padding: 10px 16px; font-weight: 500; letter-spacing: .04em; }
+.geste-doux { background: transparent; color: var(--ecran-texte); border: 1px solid var(--ecran-trait); border-radius: 4px; padding: 9px 14px; }
+.issue { border-left: 2px solid var(--vert); padding: 6px 0 6px 12px; display: grid; gap: 4px; }
+.issue.attente { border-left-color: var(--cuivre); }
+
+/* ── La semaine en ligne ── */
+.bascule { display: inline-flex; border: 1px solid var(--ecran-trait); border-radius: 4px; overflow: hidden; }
+.bascule button { background: transparent; color: var(--ecran-doux); border: 0; padding: 7px 12px; font-size: 13px; }
+.bascule button[aria-pressed="true"] { background: var(--cuivre); color: #fff; }
+.grille { overflow-x: auto; }
+.grille table { background: transparent; border: 0; min-width: 620px; }
+.grille th, .grille td { border-bottom: 1px solid var(--ecran-trait); color: var(--ecran-texte); padding: 8px 10px; font-size: 13px; }
+.grille th { color: var(--ecran-doux); }
+.cellule { display: inline-block; min-width: 96px; padding: 4px 8px; border-radius: 3px; font-size: 12px; }
+.c-prise { background: var(--case-prise); color: var(--ecran-texte); }
+.c-libre { border: 1px solid var(--vert); color: var(--vert); }
+.c-fermee { border: 1px dashed var(--ecran-trait); color: var(--ecran-doux); }
+.c-mercredi { border: 1px solid var(--cuivre); color: var(--cuivre); }
+
+/* ── Le mercredi ── */
+.mois { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; max-width: 520px; }
+.mois .j { background: var(--case); border: 1px solid var(--ecran-trait); border-radius: 3px; padding: 6px; min-height: 52px; font-size: 12px; display: grid; align-content: start; gap: 2px; }
+.mois .j.ferme { opacity: .45; }
+.mois .j.mer { border-color: var(--cuivre); }
+.mois .j.mer span { color: var(--cuivre); font-size: 11px; }
+.mois .t { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ecran-doux); text-align: center; }
+.offre { border: 1px solid var(--ecran-trait); border-radius: 4px; padding: 12px 14px; display: grid; gap: 6px; }
+.offre .titre { font-family: var(--display); font-size: 22px; }
+
+/* ── Arbitrages ── */
+.arbitrage { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; padding: 16px 18px; display: grid; gap: 8px; }
+.arbitrage .propose { border-left: 2px solid var(--cuivre); padding-left: 12px; }
+.arbitrage .propose b { color: var(--encre); font-weight: 500; }
+.arbitrage .autres { color: var(--encre-douce); font-size: 14px; }
+</style>
+
+<div class="page">
+
+  <header class="entete">
+    <p class="sur">Maquette · 2 novembre 2026 · Le Trône, Ma Couronne, le site</p>
+    <h1>Remplir les fauteuils</h1>
+    <p class="chapo">Les fauteuils de la Maison sont vides les trois quarts du temps, sauf le samedi. Trois gestes pour les remplir sans brader le samedi : poser son prochain rituel au moment où elle paie, ouvrir le second fauteuil en ligne en semaine, et donner une raison de venir le mercredi.</p>
+    <p class="bandeau">Maquette : rien n'est construit. Les cartes se touchent, rien ne part. Initiales seulement.</p>
+  </header>
+
+  <section class="section" aria-labelledby="t-constat">
+    <p class="sur">Le constat</p>
+    <h2 id="t-constat">Huit semaines, deux fauteuils</h2>
+    <div class="tableau">
+      <table>
+        <thead><tr><th>Jour</th><th>Fauteuils occupés</th><th class="num">RDV</th><th class="num">Valeur</th><th class="num">Panier moyen</th></tr></thead>
+        <tbody>
+          <tr><td>Mardi</td><td><span class="jauge" style="width:22px"></span><span class="num">22 %</span></td><td class="num">19</td><td class="num">560 000 F</td><td class="num">31 111 F</td></tr>
+          <tr><td>Mercredi</td><td><span class="jauge" style="width:11px"></span><span class="num">11 %</span></td><td class="num">10</td><td class="num">314 000 F</td><td class="num">31 400 F</td></tr>
+          <tr><td>Jeudi</td><td><span class="jauge" style="width:19px"></span><span class="num">19 %</span></td><td class="num">14</td><td class="num">842 800 F</td><td class="num">64 831 F</td></tr>
+          <tr><td>Vendredi</td><td><span class="jauge" style="width:25px"></span><span class="num">25 %</span></td><td class="num">19</td><td class="num">648 000 F</td><td class="num">34 105 F</td></tr>
+          <tr class="fort"><td>Samedi</td><td><span class="jauge" style="width:56px"></span><span class="num">56 %</span></td><td class="num">41</td><td class="num">1 269 000 F</td><td class="num">30 951 F</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="source">Du 7 septembre au 1er novembre 2026, rendez-vous non annulés. Occupation : minutes posées sur les heures d'ouverture (mardi à vendredi 8 h à 20 h 30, samedi 9 h à 20 h) fois deux fauteuils. Valeur : le prix inscrit sur le rendez-vous, pas l'encaissé.</p>
+    <div class="constat">
+      <p><b>6 rendez-vous sur 104 sont venus en ligne</b> (5 par Ma Couronne, 1 par le site) : presque tout passe par le Trône.</p>
+      <p><b>En ligne, un seul fauteuil à la fois.</b> Un rituel posé à 14 h ferme 14 h sur le site et dans Ma Couronne, même quand le second fauteuil est libre (règle du 24 octobre 2026, après le doublon du samedi).</p>
+      <p><b>Une offre se montre les jours où la cliente regarde</b>, pas le jour où elle vient : une « offre du mercredi » vue un samedi pour une venue le samedi s'appliquerait aussi.</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="t-un">
+    <p class="sur">Un · La Caisse</p>
+    <h2 id="t-un">Son prochain rituel, au moment où elle paie</h2>
+    <p class="chapo">Aujourd'hui, après l'encaissement, le bouton « Son prochain rendez-vous » ouvre une fiche vide de date. Demain, la Caisse propose son rituel habituel, au bon moment de son rythme, sur trois places réelles. Un toucher, et c'est posé.</p>
+    <div class="ecran" id="caisse">
+      <div class="paye">
+        <div><span class="etiquette">Encaissé</span><br><b>P. A. · KLƆKLƆ™ Essentiel · Le Souffle, mi-long</b></div>
+        <div class="num"><b>10 000 F</b> <span class="doux">· MTN MoMo · mardi 3 novembre 2026</span></div>
+      </div>
+      <div><span class="etiquette">Son prochain rituel</span><p class="doux">Son rythme, lu sur ses venues : un lavage toutes les 2 à 3 semaines, le rituel complet tous les deux mois.</p></div>
+      <div class="ligne" role="group" aria-label="Quel rituel">
+        <button type="button" class="choix" data-rituel="lavage" aria-pressed="true">Le lavage <small>KLƆKLƆ™ Essentiel, mi-long · 10 000 F · 30 min</small></button>
+        <button type="button" class="choix" data-rituel="complet" aria-pressed="false">Le rituel complet <small>4 gestes, DÀNDÀN™ compris · 70 000 F · 5 h</small></button>
+      </div>
+      <p class="doux" id="vers">Vers le mardi 17 novembre 2026, deux semaines après aujourd'hui, à son heure habituelle (13 h).</p>
+      <div class="places" id="places"></div>
+      <div class="ligne"><button type="button" class="geste-doux" id="plus-tard">Pas maintenant</button></div>
+      <div id="issue" hidden></div>
+    </div>
+    <ul class="net">
+      <li><b>Le rituel se lit sur ses venues</b> (la règle publiée ce jour dans Ma Couronne : ses trois derniers rituels différents, un geste fermé lu sous son successeur), <b>le moment sur sa cadence</b> (celle que Perle connaît déjà).</li>
+      <li><b>Les trois places sont vraies</b> : celles de l'agenda, fauteuils, équipe du jour, SÍNSIN chez Team et jours fermés compris. Une place partie entre-temps se relit avant de poser.</li>
+      <li><b>« Pas maintenant »</b> ne perd rien : Perle lui proposera son rituel quelques jours avant la date de sa cadence, comme aujourd'hui.</li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="t-deux">
+    <p class="sur">Deux · Le site et Ma Couronne</p>
+    <h2 id="t-deux">Le second fauteuil en ligne, du mardi au vendredi</h2>
+    <p class="chapo">En semaine, un rituel déjà posé ne ferme plus l'heure en ligne quand l'autre fauteuil est libre et que deux personnes sont au fauteuil ce jour-là (le planning de l'équipe). Le samedi garde la règle d'aujourd'hui : un fauteuil en ligne, le second au comptoir.</p>
+    <div class="ecran">
+      <div class="ligne" style="justify-content:space-between">
+        <span class="etiquette">Ce qu'une cliente peut réserver en ligne, mardi 17 novembre 2026</span>
+        <div class="bascule" role="group" aria-label="Avant ou après">
+          <button type="button" data-vue="avant" aria-pressed="false">Aujourd'hui</button>
+          <button type="button" data-vue="apres" aria-pressed="true">Proposé</button>
+        </div>
+      </div>
+      <div class="grille">
+        <table>
+          <thead><tr><th>Heure</th><th>Fauteuil 1</th><th>Fauteuil 2</th><th>En ligne</th></tr></thead>
+          <tbody id="journee"></tbody>
+        </table>
+      </div>
+      <p class="doux" id="bilan-jour"></p>
+    </div>
+    <ul class="net">
+      <li><b>Un SÍNSIN reste chez Team</b> : quand Team est déjà au fauteuil, le second fauteuil s'ouvre aux autres prestations (Expert), pas aux SÍNSIN.</li>
+      <li><b>Sans planning à deux ce jour-là</b>, la règle d'aujourd'hui revient seule : un fauteuil en ligne.</li>
+      <li><b>La base tient la même règle</b> (le garde des places en ligne, migration 0140, réglé par jour) : deux clientes qui touchent la même place en même temps, une seule l'obtient.</li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="t-trois">
+    <p class="sur">Trois · Les offres</p>
+    <h2 id="t-trois">Le mercredi de la Maison</h2>
+    <p class="chapo">Une offre qui porte sur le jour de la venue, et non plus sur le jour où l'on regarde. Le mercredi, le jour le plus vide (11 %), se marque en cuivre dans le calendrier du site et de Ma Couronne, et la remise se pose d'elle-même sur un rituel de ce jour-là, avec son code.</p>
+    <div class="ecran">
+      <div class="offre">
+        <span class="etiquette">L'offre, dans l'éditeur des offres</span>
+        <span class="titre">Le mercredi de la Maison</span>
+        <span class="doux">−15 % sur le rituel · code MERCREDI15 · un rituel posé un mercredi · jusqu'au 31 décembre 2026 · hors formules et abonnements · ne s'ajoute à aucun autre code</span>
+      </div>
+      <span class="etiquette">Novembre 2026, tel que la cliente le voit</span>
+      <div class="mois" id="mois" aria-label="Calendrier de novembre 2026"></div>
+      <p class="doux">Exemple : le lavage de P. A. un mercredi, 10 000 F devient <b class="num">8 500 F</b>. Un fauteuil vide ne rapporte rien : 8 500 F un mercredi valent mieux qu'un samedi déjà plein.</p>
+    </div>
+    <ul class="net">
+      <li><b>Un nouveau champ de l'offre</b> : « jours de la venue », à côté des « jours d'affichage » d'aujourd'hui. Les offres existantes (RENTREE10, ROSE15) ne changent pas.</li>
+      <li><b>Le comptoir l'applique aussi</b> : le code se pose sur un rituel du mercredi, au Trône comme en ligne, et se compte dans « Ce que ça rapporte ».</li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="t-pas">
+    <p class="sur">Les limites</p>
+    <h2 id="t-pas">Ce que ça ne fera pas</h2>
+    <div class="deux">
+      <div class="carte">
+        <h3>Pas un outil du commerce</h3>
+        <p>Les plateformes de réservation remplissent les heures creuses par des remises affichées à tous, et prennent une commission. Elles ne savent rien du SÍNSIN chez Team, de la cadence d'une tête, des foyers ni du prix figé au premier geste d'argent. La Maison a déjà son agenda : la règle vit dedans.</p>
+      </div>
+      <div class="carte">
+        <h3>Ce qui ne bouge pas</h3>
+        <ul class="net">
+          <li><b>Aucun supplément le samedi</b>, aucun prix qui monte avec la demande.</li>
+          <li><b>Jamais deux rituels sur un fauteuil</b> : le second fauteuil s'ouvre, il ne se double pas.</li>
+          <li><b>Le comptoir garde la main</b> : il pose ce qu'il veut, quand il veut.</li>
+          <li><b>Aucun message nouveau</b> : la confirmation et le rappel partent par les modèles WhatsApp déjà approuvés.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="t-arb">
+    <p class="sur">À trancher</p>
+    <h2 id="t-arb">Quatre arbitrages, une proposition pour chacun</h2>
+    <div class="arbitrage">
+      <h3>1. Le prochain rituel posé à la Caisse</h3>
+      <p class="propose"><b>Proposé : posé confirmé</b>, et la confirmation WhatsApp habituelle part aussitôt. Elle l'a choisi devant vous.</p>
+      <p class="autres">Sinon : posé « en attente », confirmé par elle sur WhatsApp ; ou seulement proposé dans le message de remerciement.</p>
+    </div>
+    <div class="arbitrage">
+      <h3>2. Quand le second fauteuil s'ouvre en ligne</h3>
+      <p class="propose"><b>Proposé : du mardi au vendredi, les jours où le planning met deux personnes au fauteuil.</b> Le samedi reste à un fauteuil en ligne.</p>
+      <p class="autres">Sinon : du mardi au vendredi, toujours ; ou aussi le samedi.</p>
+    </div>
+    <div class="arbitrage">
+      <h3>3. L'offre du mercredi</h3>
+      <p class="propose"><b>Proposé : −15 % sur le rituel posé un mercredi</b>, code MERCREDI15, jusqu'au 31 décembre 2026, puis on regarde ce qu'elle a rapporté.</p>
+      <p class="autres">Sinon : un soin DÀNDÀN™ Léger offert avec un rituel du mercredi ; ou −20 % sur les lavages seulement.</p>
+    </div>
+    <div class="arbitrage">
+      <h3>4. Où l'offre du mercredi se voit</h3>
+      <p class="propose"><b>Proposé : partout</b>, le site, Ma Couronne, et le comptoir qui l'applique.</p>
+      <p class="autres">Sinon : en ligne seulement, pour pousser la réservation en ligne.</p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  /* ── Un · La Caisse ── */
+  var PLACES = {
+    lavage: [
+      { jour: 'mardi 17 novembre 2026', heure: '13 h', prix: 10000 },
+      { jour: 'mercredi 18 novembre 2026', heure: '13 h', prix: 10000, mercredi: true },
+      { jour: 'samedi 21 novembre 2026', heure: '11 h', prix: 10000 }
+    ],
+    complet: [
+      { jour: 'mercredi 9 décembre 2026', heure: '10 h', prix: 70000, mercredi: true },
+      { jour: 'jeudi 10 décembre 2026', heure: '10 h', prix: 70000 },
+      { jour: 'samedi 12 décembre 2026', heure: '9 h', prix: 70000 }
+    ]
+  };
+  var VERS = {
+    lavage: 'Vers le mardi 17 novembre 2026, deux semaines après aujourd’hui, à son heure habituelle (13 h).',
+    complet: 'Vers le 10 décembre 2026, deux mois après son dernier rituel complet (10 octobre 2026), le matin : le rituel dure 5 h.'
+  };
+  var f = function (n) { return n.toLocaleString('fr-FR').replace(/ | /g, ' ') + ' F'; };
+  var rituel = 'lavage';
+  var places = document.getElementById('places');
+  var issue = document.getElementById('issue');
+  function rend() {
+    places.innerHTML = '';
+    document.getElementById('vers').textContent = VERS[rituel];
+    PLACES[rituel].forEach(function (p) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'place';
+      var net = p.mercredi ? Math.round(p.prix * 0.85) : p.prix;
+      b.innerHTML = '<span>' + p.jour + ' · ' + p.heure + '</span><span class="prix num">' + f(net) + '</span>' + (p.mercredi ? '<span class="remise">LE MERCREDI DE LA MAISON · −15 %</span>' : '');
+      b.addEventListener('click', function () {
+        issue.hidden = false; issue.className = 'issue';
+        issue.innerHTML = '<b>Posé, confirmé : ' + p.jour + ' à ' + p.heure + '.</b><span class="doux">Elle reçoit la confirmation sur WhatsApp, puis le rappel la veille. ' + (p.mercredi ? 'Code MERCREDI15 posé sur le rendez-vous.' : '') + '</span>';
+      });
+      places.appendChild(b);
+    });
+  }
+  document.querySelectorAll('.choix').forEach(function (c) {
+    c.addEventListener('click', function () {
+      rituel = c.getAttribute('data-rituel');
+      document.querySelectorAll('.choix').forEach(function (x) { x.setAttribute('aria-pressed', String(x === c)); });
+      issue.hidden = true; rend();
+    });
+  });
+  document.getElementById('plus-tard').addEventListener('click', function () {
+    issue.hidden = false; issue.className = 'issue attente';
+    issue.innerHTML = '<b>Rien de posé.</b><span class="doux">Perle lui proposera son ' + (rituel === 'lavage' ? 'lavage vers le 14 novembre 2026' : 'rituel complet vers le 6 décembre 2026') + ', quelques jours avant sa date de cadence.</span>';
+  });
+  rend();
+
+  /* ── Deux · La semaine en ligne ── */
+  var HEURES = [
+    ['9 h', 'Rituel posé au comptoir', '', false],
+    ['10 h', 'Rituel posé au comptoir', '', false],
+    ['11 h', '', '', false],
+    ['13 h', 'Lavage posé en ligne', '', false],
+    ['14 h', 'SÍNSIN posé (Team)', '', true],
+    ['15 h', 'SÍNSIN posé (Team)', '', true],
+    ['16 h', '', '', false],
+    ['17 h', 'Rituel posé au comptoir', '', false]
+  ];
+  var vue = 'apres';
+  function journee() {
+    var tb = document.getElementById('journee'); tb.innerHTML = '';
+    var ouvertes = 0;
+    HEURES.forEach(function (h) {
+      var f1 = h[1], sinsin = h[3];
+      var enLigne;
+      if (!f1) { enLigne = '<span class="cellule c-libre">libre</span>'; ouvertes++; }
+      else if (vue === 'avant') enLigne = '<span class="cellule c-fermee">fermée en ligne</span>';
+      else { enLigne = '<span class="cellule c-libre">libre, fauteuil 2' + (sinsin ? ', hors SÍNSIN' : '') + '</span>'; ouvertes++; }
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td class="num">' + h[0] + '</td><td>' + (f1 ? '<span class="cellule c-prise">' + f1 + '</span>' : '<span class="cellule c-libre">libre</span>') + '</td><td><span class="cellule c-libre">libre</span></td><td>' + enLigne + '</td>';
+      tb.appendChild(tr);
+    });
+    document.getElementById('bilan-jour').textContent = ouvertes + ' heures sur ' + HEURES.length + ' réservables en ligne ce jour-là' + (vue === 'avant' ? ', alors que le second fauteuil est libre toute la journée.' : ', le second fauteuil compris.');
+  }
+  document.querySelectorAll('.bascule button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      vue = b.getAttribute('data-vue');
+      document.querySelectorAll('.bascule button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      journee();
+    });
+  });
+  journee();
+
+  /* ── Trois · Novembre 2026 (le 1er est un dimanche) ── */
+  var mois = document.getElementById('mois');
+  ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].forEach(function (t) { var d = document.createElement('div'); d.className = 't'; d.textContent = t; mois.appendChild(d); });
+  for (var v = 0; v < 6; v++) mois.appendChild(document.createElement('div'));
+  for (var j = 1; j <= 30; j++) {
+    var dow = (j + 5) % 7; /* 0 = lundi */
+    var d = document.createElement('div');
+    d.className = 'j' + (dow === 0 || dow === 6 ? ' ferme' : '') + (dow === 2 ? ' mer' : '');
+    d.innerHTML = '<b class="num">' + j + '</b>' + (dow === 2 ? '<span>−15 %</span>' : '');
+    mois.appendChild(d);
+  }
+})();
+</script>
