@@ -580,7 +580,8 @@ dit('… avec les gestes réservés et l’arbre des familles', true,
 dit('… et la rend dès le lien ouvert (pourcentage et soins couverts)', true, /\.\.\.\(remise \? \{ remise \} : \{\}\),/.test(sansCommentaires));
 const pageReserver = readFileSync('src/apps/revelateur/ilots/Reserver.tsx', 'utf8');
 dit('le site barre les soins concernés avec la même règle que les offres, une seule remise à la fois', [true, true], [
-  /const offreAppliquee = offreDuMoment \?\? offreDeBienvenue;/.test(pageReserver),
+  /* Le mercredi de la Maison vient après (2 novembre 2026) : jamais deux remises. */
+  /const offreAppliquee = offreDuMoment \?\? offreDeBienvenue(?: \?\? offreDuJour)?;/.test(pageReserver),
   /lignesDuCode\([\s\S]{0,200}offreAppliquee,\s*\)/.test(pageReserver),
 ]);
 dit('… et la bannière le dit dès l’ouverture du lien', true, /\$\{qui\.prenom\} vous offre −\$\{qui\.remise\.pct\} % sur vos soins d’entretien\./.test(pageReserver));

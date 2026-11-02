@@ -798,7 +798,9 @@ const regles: Regle[] = [
     eprouve: () => {
       const { ecarts, vrai } = juge();
       const reserver = sansCommentaires(lit('src/apps/revelateur/ilots/Reserver.tsx'));
-      vrai('un code de forme marraine part au serveur (dans codeAmie)', /: FORME_DU_CODE\.test\(codeNormalise\(code\)\) \? \{ codeAmie: codeNormalise\(code\) \} : \{\}\)/.test(reserver));
+      /* Depuis le 2 novembre 2026, le mercredi de la Maison passe entre les deux
+         (`offreDuJour`) : un code d'offre, dans `code`, après celui d'une amie. */
+      vrai('un code de forme marraine part au serveur (dans codeAmie)', /: FORME_DU_CODE\.test\(codeNormalise\(code\)\) \? \{ codeAmie: codeNormalise\(code\) \}\s*(?:: offreDuJour\?\.code \? \{ code: codeNormalise\(offreDuJour\.code\) \}\s*)?: \{\}\)/.test(reserver));
       const choisit = fonction(reserver, 'const choisit = ', '\n  };');
       vrai('le choix du parcours garde le code dans l adresse', /replaceState\([^;]*&code=/.test(choisit) && /codeDeLAdresse\(\)/.test(choisit));
       vrai('un code inconnu du serveur le dit sans promettre', reserver.includes('Ce code n’ouvre pas de cadeau de bienvenue. Vous pouvez réserver au prix de la carte.'));
@@ -826,7 +828,7 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
-      { nom: 'le code de marraine ne voyage plus (offreDuMoment seul)', mute: [P('src/apps/revelateur/ilots/Reserver.tsx', ': FORME_DU_CODE.test(codeNormalise(code)) ? { codeAmie: codeNormalise(code) } : {}),', ': {}),')] },
+      { nom: 'le code de marraine ne voyage plus (offreDuMoment seul)', mute: [P('src/apps/revelateur/ilots/Reserver.tsx', '? { codeAmie: codeNormalise(code) }', '? {}')] },
       { nom: 'le code se perd a la porte', mute: [P('src/apps/revelateur/ilots/Reserver.tsx', "${codePose ? `&code=${encodeURIComponent(codePose)}` : ''}", '')] },
       { nom: '/m/ promet un cadeau', mute: [P('revelateur/m/index.html', '<h1>La Maison vous attend.</h1>', '<h1>Votre cadeau vous attend.</h1>')] },
       { nom: 'le site redemande un code', mute: [P('src/apps/revelateur/ilots/Parrainer.tsx', 'export default function Parrainer() {', "export default function Parrainer() {\n  void fetch('/x', { method: 'POST', body: JSON.stringify({ parrainage: true }) });")] },
@@ -1073,7 +1075,7 @@ const regles: Regle[] = [
     eprouve: () => {
       const { ecarts, vaut, vrai } = juge();
       const reserver = sansCommentaires(lit(RESERVER));
-      vrai('le site n envoie dans code que le code d une offre du moment', /\.\.\.\(offreDuMoment \? \{ code: codeNormalise\(code\) \}\s*: FORME_DU_CODE\.test\(codeNormalise\(code\)\) \? \{ codeAmie: codeNormalise\(code\) \} : \{\}\),/.test(reserver));
+      vrai('le site n envoie dans code que le code d une offre (du moment, ou du jour de la venue)', /\.\.\.\(offreDuMoment \? \{ code: codeNormalise\(code\) \}\s*: FORME_DU_CODE\.test\(codeNormalise\(code\)\) \? \{ codeAmie: codeNormalise\(code\) \}\s*(?:: offreDuJour\?\.code \? \{ code: codeNormalise\(offreDuJour\.code\) \}\s*)?: \{\}\),/.test(reserver));
       const edge = sansCommentaires(lf(lit(EDGE)));
       vrai('l Edge neuve lit les deux champs, et les resout pareil', /const codeEcrit = d\.codeAmie \?\? d\.code;/.test(edge) && /remiseDuCode\(\{ code: codeEcrit,/.test(edge) && !/remiseDuCode\(\{ code: d\.code,/.test(edge));
       vaut('la carte de Ma Couronne : la Graine toujours ; l ancien code avant le lancement seulement',
@@ -1088,7 +1090,7 @@ const regles: Regle[] = [
       return ecarts;
     },
     pannes: [
-      { nom: 'le code d une amie repart dans code (l ancienne Edge l honorerait)', mute: [P(RESERVER, '? { codeAmie: codeNormalise(code) } : {}),', '? { code: codeNormalise(code) } : {}),')] },
+      { nom: 'le code d une amie repart dans code (l ancienne Edge l honorerait)', mute: [P(RESERVER, '? { codeAmie: codeNormalise(code) }', '? { code: codeNormalise(code) }')] },
       { nom: 'l Edge neuve ignore codeAmie', mute: [P(EDGE, 'const codeEcrit = d.codeAmie ?? d.code;', 'const codeEcrit = d.code;')] },
       { nom: 'l ancienne carte survit au lancement', mute: [P(POUR, '  if (lance || fiche.archived) return null;', '  if (fiche.archived) return null;')] },
       { nom: 'Ma Couronne efface les cartes avant le lancement', mute: [P(CARTE, 'return donneesDeMaCarte(client, !!lunes.lanceLe);', 'return donneesDeMaCarte(client, true);')] },
