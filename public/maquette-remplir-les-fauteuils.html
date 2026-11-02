@@ -211,7 +211,7 @@ tr.fort td { color: var(--encre); font-weight: 500; }
       </div>
       <span class="etiquette">Novembre 2026, tel que la cliente le voit</span>
       <div class="mois" id="mois" aria-label="Calendrier de novembre 2026"></div>
-      <p class="doux">Exemple : le lavage de P. A. un mercredi, 10 000 F devient <b class="num">8 500 F</b>. Un fauteuil vide ne rapporte rien : 8 500 F un mercredi valent mieux qu'un samedi déjà plein.</p>
+      <p class="doux">Exemple : le lavage de P. A. un mercredi, 10 000 F devient <b class="num">9 000 F</b> (−15 %, puis le net monte au millier, la règle des codes du 23 octobre 2026). Un fauteuil vide ne rapporte rien : 9 000 F un mercredi valent mieux qu'une heure vide.</p>
     </div>
     <ul class="net">
       <li><b>Un nouveau champ de l'offre</b> : « jours de la venue », à côté des « jours d'affichage » d'aujourd'hui. Les offres existantes (RENTREE10, ROSE15) ne changent pas.</li>
@@ -295,7 +295,7 @@ tr.fort td { color: var(--encre); font-weight: 500; }
     PLACES[rituel].forEach(function (p) {
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'place';
-      var net = p.mercredi ? Math.round(p.prix * 0.85) : p.prix;
+      var net = p.mercredi ? Math.ceil(p.prix * 0.85 / 1000) * 1000 : p.prix;
       b.innerHTML = '<span>' + p.jour + ' · ' + p.heure + '</span><span class="prix num">' + f(net) + '</span>' + (p.mercredi ? '<span class="remise">LE MERCREDI DE LA MAISON · −15 %</span>' : '');
       b.addEventListener('click', function () {
         issue.hidden = false; issue.className = 'issue';
