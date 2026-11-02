@@ -7,15 +7,16 @@
    le corrige jamais ici, on corrige le dépôt et on refait le fichier.
 
    Appelée par le Trône (l'écran « Dictée MND », téléphone et ordinateur)
-   avec la session du personnel, et par la Dictée du bureau avec son jeton
-   (en-tête x-jeton-dictee, empreinte dans Paramètres › Dictée).
+   avec la session du personnel, et par la Dictée des ordinateurs, chacun
+   son jeton (en-tête x-jeton-dictee ; les empreintes, celle du bureau et
+   celle de chaque poste, dans Paramètres › Dictée).
 
    AUCUN SECRET ICI : SUPABASE_URL, SUPABASE_ANON_KEY, CLE_SERVICE,
    ANTHROPIC_API_KEY viennent de l'environnement (déjà posés).
 
    Déploiement : `node scripts/mise-en-ligne.mjs fonction dictee-au-propre
    --commit <sha> --jwt non` (la porte est jugée ici : la session de la
-   personne connectée, `is_staff`, ou l'empreinte du jeton du bureau).
+   personne connectée, `is_staff`, ou l'empreinte du jeton d'un ordinateur).
    Vérifier : son adresse répond sa version.
    ═══════════════════════════════════════════════════════════════════ */
 // scripts/serveur/dictee-au-propre.ts
@@ -117,12 +118,45 @@ async function empreinteDuJeton(jeton) {
   return hex(new Uint8Array(h));
 }
 var EN_TETE_DU_JETON = "x-jeton-dictee";
+var ID_DU_BUREAU = "bureau";
+var NOM_DU_BUREAU = "Le PC de Yéman";
+var POSTES_AU_PLUS = 6;
+var NOM_DU_POSTE_AU_PLUS = 40;
+var EMPREINTE = /^[0-9a-f]{64}$/;
+var estEmpreinte = (v) => typeof v === "string" && EMPREINTE.test(v);
+var nomDuPoste = (nom) => String(nom ?? "").replace(/\s+/g, " ").trim().slice(0, NOM_DU_POSTE_AU_PLUS).trim();
+function postesDeLaDictee(r) {
+  const brut = Array.isArray(r?.postes) ? r.postes : [];
+  const duBureau = r?.bureau?.empreinte;
+  const vues = new Set(estEmpreinte(duBureau) ? [duBureau] : []);
+  const ids = /* @__PURE__ */ new Set([ID_DU_BUREAU]);
+  const out = [];
+  for (const x of brut) {
+    if (!x || typeof x !== "object") continue;
+    const p = x;
+    const id = typeof p.id === "string" ? p.id.trim() : "";
+    const nom = nomDuPoste(p.nom);
+    if (!id || ids.has(id) || !nom || !estEmpreinte(p.empreinte) || vues.has(p.empreinte)) continue;
+    ids.add(id);
+    vues.add(p.empreinte);
+    out.push({ id, nom, empreinte: p.empreinte, poseLe: typeof p.poseLe === "string" ? p.poseLe : "", ...typeof p.par === "string" && p.par ? { par: p.par } : {} });
+    if (out.length >= POSTES_AU_PLUS) break;
+  }
+  return out;
+}
+function ordinateursDeLaDictee(r) {
+  const b = r?.bureau;
+  const bureau = b && estEmpreinte(b.empreinte) ? [{ id: ID_DU_BUREAU, nom: NOM_DU_BUREAU, empreinte: b.empreinte, poseLe: typeof b.poseLe === "string" ? b.poseLe : "", ...b.par ? { par: b.par } : {} }] : [];
+  return [...bureau, ...postesDeLaDictee(r)];
+}
+var empreintesDesPostes = (r) => ordinateursDeLaDictee(r).map((o) => o.empreinte);
+var nomDuPosteDe = (r, empreinte) => ordinateursDeLaDictee(r).find((o) => o.empreinte === empreinte)?.nom ?? "";
 
 // src/shared/civilite.ts
 var prenomSeul = (nom) => (nom ?? "").trim().split(/\s+/)[0] ?? "";
 
 // scripts/serveur/dictee-au-propre.ts
-var VERSION = "2026-10-31-a";
+var VERSION = "2026-11-02-a · un jeton par ordinateur";
 var TARIFS = {
   "claude-haiku-5-5": { entree: 0.1, sortie: 0.5 },
   "claude-sonnet-5-5": { entree: 2, sortie: 10 }
@@ -180,7 +214,14 @@ Deno.serve(async (req) => {
     const { data: luReglages } = await sb.from("documents").select("data").eq("key", "mnd_settings").maybeSingle();
     const reglages = luReglages?.data?.dictee ?? {};
     let porte = null;
-    if (jetonDuBureau && reglages.bureau?.empreinte && await empreinteDuJeton(jetonDuBureau) === reglages.bureau.empreinte) porte = "bureau";
+    let poste = "";
+    if (jetonDuBureau) {
+      const lue = await empreinteDuJeton(jetonDuBureau);
+      if (empreintesDesPostes(reglages).includes(lue)) {
+        porte = "bureau";
+        poste = nomDuPosteDe(reglages, lue);
+      }
+    }
     if (!porte && jeton) {
       const commeAppelant = createClient(url, anon, { global: { headers: { authorization: `Bearer ${jeton}` } } });
       const { data: estPersonnel, error: errStaff } = await commeAppelant.rpc("is_staff");
@@ -254,7 +295,7 @@ Deno.serve(async (req) => {
         usd: Math.round(((m0.usd ?? 0) + (e * t.entree + so * t.sortie) / 1e6) * 1e4) / 1e4
       } }
     });
-    dis("dictee", { porte, mode, modele, caracteres: texte.length, source: chaine(d.source) || "trone" });
+    dis("dictee", { porte, ...poste ? { poste } : {}, mode, modele, caracteres: texte.length, source: chaine(d.source) || "trone" });
     if (!propre) return json({ ok: false, motif: "modele", version: VERSION });
     return json({ ok: true, propre, mode, modele, version: VERSION });
   } catch (e) {

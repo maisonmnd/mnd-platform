@@ -24,15 +24,16 @@ const ENTETE = `// @ts-nocheck : fichier REGROUPÉ, ne pas modifier à la main.
    le corrige jamais ici, on corrige le dépôt et on refait le fichier.
 
    Appelée par le Trône (l'écran « Dictée MND », téléphone et ordinateur)
-   avec la session du personnel, et par la Dictée du bureau avec son jeton
-   (en-tête x-jeton-dictee, empreinte dans Paramètres › Dictée).
+   avec la session du personnel, et par la Dictée des ordinateurs, chacun
+   son jeton (en-tête x-jeton-dictee ; les empreintes, celle du bureau et
+   celle de chaque poste, dans Paramètres › Dictée).
 
    AUCUN SECRET ICI : SUPABASE_URL, SUPABASE_ANON_KEY, CLE_SERVICE,
    ANTHROPIC_API_KEY viennent de l'environnement (déjà posés).
 
    Déploiement : \`node scripts/mise-en-ligne.mjs fonction dictee-au-propre
    --commit <sha> --jwt non\` (la porte est jugée ici : la session de la
-   personne connectée, \`is_staff\`, ou l'empreinte du jeton du bureau).
+   personne connectée, \`is_staff\`, ou l'empreinte du jeton d'un ordinateur).
    Vérifier : son adresse répond sa version.
    ═══════════════════════════════════════════════════════════════════ */
 `;

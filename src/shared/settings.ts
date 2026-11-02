@@ -135,7 +135,8 @@ export type Settings = {
   relances?: ReglagesRelances;
   /** LA DICTÉE MND — 31 octobre 2026 (maquette F7LksMC3…) : les mots de la
       Maison, le mode et le modèle par défaut, l'empreinte du jeton de la
-      Dictée du bureau. La fonction `dictee-au-propre` les lit. */
+      Dictée du bureau, et depuis le 2 novembre 2026 celle de chaque autre
+      ordinateur (`postes`). La fonction `dictee-au-propre` les lit. */
   dictee?: ReglagesDictee;
   /** LES ASSISTANTS RELIÉS — 31 octobre 2026 (maquette TtHPKpjC…) : le rythme
       des passages, les heures de veille, le silence avant d'avertir, la durée

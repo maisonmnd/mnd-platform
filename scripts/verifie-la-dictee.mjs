@@ -19,6 +19,7 @@ const PUR = 'src/shared/dictee-pur.ts';
 const SERVEUR = 'scripts/serveur/dictee-au-propre.ts';
 const SHELL = 'src/apps/trone/shell/Shell.tsx';
 const APPEL = 'src/shared/dictee.ts';
+const CARTE = 'src/apps/trone/routes/systeme/CarteDictee.tsx';
 
 const PANNES = [
   ['la commande de mode ne se lit plus', PUR, "  const m = COMMANDE_DE_MODE.exec(texte ?? '');", '  const m = null;'],
@@ -27,7 +28,7 @@ const PANNES = [
   ['les hesitations restent au secours', PUR, "  let t = String(texte ?? '').replace(HESITATIONS, '');", "  let t = String(texte ?? '');"],
   ['l empreinte ne lit plus le jeton', PUR, "new TextEncoder().encode(String(jeton ?? '').trim())", "new TextEncoder().encode('')"],
   ['la porte s ouvre a tous', SERVEUR, "    if (!porte) return json({ ok: false, motif: 'reserve-au-personnel', version: VERSION }, 403);", '    if (false) return json({ ok: false, motif: \'reserve-au-personnel\', version: VERSION }, 403);'],
-  ['le jeton du bureau n est plus compare', SERVEUR, '(await empreinteDuJeton(jetonDuBureau)) === reglages.bureau.empreinte', 'true'],
+  ['le jeton du bureau n est plus compare', SERVEUR, 'if (empreintesDesPostes(reglages).includes(lue)) {', 'if (true) {'],
   ['le mode dit en parlant est ignore', SERVEUR, '    if (commande.mode) { mode = commande.mode; texte = commande.reste.trim() || texte; }', '    if (false) { mode = commande.mode; texte = commande.reste.trim() || texte; }'],
   ['le mode par defaut est oublie', SERVEUR, '    else if (!estMode(d.mode) && estMode(reglages.modeParDefaut)) mode = reglages.modeParDefaut;\n', ''],
   ['le modele regle est oublie', SERVEUR, '    const prefere = estModele(reglages.modele) ? reglages.modele : MODELE_PAR_DEFAUT;', '    const prefere = MODELE_PAR_DEFAUT;'],
@@ -37,6 +38,22 @@ const PANNES = [
   ['ce que Claude rend part sans passer au net', SERVEUR, "    const propre = nettoieLaReponse(rendu.corps.content?.filter((c) => c.type === 'text').map((c) => c.text ?? '').join('\\n') ?? '');", "    const propre = (rendu.corps.content?.filter((c) => c.type === 'text').map((c) => c.text ?? '').join('\\n') ?? '').trim();"],
   ['le bouton Dicter parait a qui ne voit pas l ecran', SHELL, "{peutVoir(role, '/dictee', mesDomaines) && <BoutonDictee />}", '<BoutonDictee />'],
   ['l appel attend hors ligne', APPEL, "  if (typeof navigator !== 'undefined' && navigator.onLine === false) return refus('hors-ligne');\n", ''],
+  /* UN JETON PAR ORDINATEUR - 2 novembre 2026. */
+  ['un poste n ouvre plus la porte : seul le bureau compte', PUR, '  return [...bureau, ...postesDeLaDictee(r)];', '  return [...bureau];'],
+  ['la porte ne lit plus que le bureau', SERVEUR, 'if (empreintesDesPostes(reglages).includes(lue)) {', 'if (reglages.bureau?.empreinte === lue) {'],
+  ['le bureau n ouvre plus, a cote des postes', PUR, '  return [...bureau, ...postesDeLaDictee(r)];', '  return [...postesDeLaDictee(r)];'],
+  ['un poste retire ouvre encore', PUR, '  const postes = postesDeLaDictee(r).filter((p) => p.id !== id);', '  const postes = postesDeLaDictee(r);'],
+  ['retirer un poste emporte le bureau', PUR, '    ...(bureau && id !== ID_DU_BUREAU ? { bureau } : {}),', '    ...(bureau && false ? { bureau } : {}),'],
+  ['la liste des postes n est plus bornee a la lecture', PUR, '    if (out.length >= POSTES_AU_PLUS) break;\n', ''],
+  ['un poste de trop s ajoute', PUR, "  if (postes.length >= POSTES_AU_PLUS) return { ok: false, motif: 'plein' };\n", ''],
+  ['le nom du poste n est plus borne', PUR, '.slice(0, NOM_DU_POSTE_AU_PLUS)', ''],
+  ['deux ordinateurs portent le meme nom', PUR, "  if (tous.some((o) => cle(o.nom) === cle(nom))) return { ok: false, motif: 'meme-nom' };\n", ''],
+  ['la date du poste perd son annee', PUR, ' ${MOIS[Number(m[2]) - 1]} ${m[1]}`', ' ${MOIS[Number(m[2]) - 1]}`'],
+  ['le fichier qui part ne connait que le bureau', CIBLE, 'if (empreintesDesPostes(reglages).includes(lue)) {', 'if (reglages.bureau?.empreinte === lue) {'],
+  ['Parametres demande le nom par la fenetre du navigateur', CARTE, '    const nom = await demandeUnTexte({', "    const nom = window.prompt('Le nom de l ordinateur'); void ({"],
+  ['le jeton du poste part en base', CARTE, 'nom, empreinte: await empreinteDuJeton(jeton), poseLe', 'nom, jeton, empreinte: await empreinteDuJeton(jeton), poseLe'],
+  ['un ordinateur n a plus son Retirer', CARTE, 'onClick={() => void retireUnOrdinateur(o)}>Retirer</button>', 'onClick={() => void retireUnOrdinateur(o)}>Garder</button>'],
+  ['un crochet sous un retour premature', CARTE, '  const [verdict, setVerdict] = useState<string | null>(null);', '  if (!settings) return null;\n  const [verdict, setVerdict] = useState<string | null>(null);'],
 ];
 
 const greffon = (panne) => ({
@@ -55,6 +72,10 @@ async function lance(panne) {
   const dossier = mkdtempSync(path.join(tmpdir(), 'verifie-la-dictee-'));
   const sortie = path.join(dossier, 'harnais.mjs');
   const fonction = path.join(dossier, 'dictee-au-propre.js');
+  /* Le fichier qui part, tel qu'il doit etre (regroupe du disque, sans panne) :
+     le harnais le compare a ce qu'il lit, panne posee en memoire comprise. */
+  const voulu = path.join(dossier, 'attendu.ts');
+  writeFileSync(voulu, attendu);
   try {
     const f = await build({
       entryPoints: [path.join(racine, SERVEUR)],
@@ -70,7 +91,7 @@ async function lance(panne) {
     });
     return spawnSync(process.execPath, [sortie], {
       cwd: racine, encoding: 'utf8',
-      env: { ...process.env, DICTEE_FONCTION: fonction, ...(panne ? { DICTEE_PANNE: JSON.stringify(panne) } : {}) },
+      env: { ...process.env, DICTEE_FONCTION: fonction, DICTEE_ATTENDU: voulu, ...(panne ? { DICTEE_PANNE: JSON.stringify(panne) } : {}) },
     });
   } finally {
     rmSync(dossier, { recursive: true, force: true });
@@ -78,7 +99,8 @@ async function lance(panne) {
 }
 
 const present = (() => { try { return readFileSync(path.join(racine, CIBLE), 'utf8').replace(/\r\n/g, '\n'); } catch { return ''; } })();
-if (present !== await fichierAttendu(racine)) {
+const attendu = await fichierAttendu(racine);
+if (present !== attendu) {
   console.log(`ECHEC ${CIBLE} a pris du retard sur le depot : node scripts/dictee-au-propre-serveur.mjs`);
   process.exit(1);
 }

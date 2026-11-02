@@ -129,8 +129,17 @@ modes réglés au Trône pour toute l'équipe.
 - La Dictée du bureau (`C:\Users\boyay\Dictee\dictee.py`, hors dépôt) passe
   par la fonction dès que `reglages.json › trone.jeton` est posé ; sinon
   Claude Haiku par la clé Windows, sinon les règles locales.
-- Bancs : `verifie-la-dictee` (16 pannes prouvées en mémoire), `verifie-sommaire`,
-  `verifie-porte`, `verifie-la-barre-reunie`, `verifie-le-trone-hors-ligne`.
+- Bancs : `verifie-la-dictee` (31 pannes prouvées en mémoire depuis le
+  2 novembre 2026), `verifie-sommaire`, `verifie-porte`,
+  `verifie-la-barre-reunie`, `verifie-le-trone-hors-ligne`.
+- **Un jeton par ordinateur (2 novembre 2026)**, pour le Mac : `bureau` reste
+  tel quel (montré comme « Le PC de Yéman ») ; les autres ordinateurs vivent
+  dans `mnd_settings.dictee.postes` (`{ id, nom, empreinte, poseLe, par? }`,
+  6 au plus, nom de 40 signes au plus). La porte accepte toute empreinte de
+  `empreintesDesPostes` (bureau + postes, bornés à la lecture aussi).
+  Paramètres › Dictée : « Donner un jeton à un autre ordinateur » (nom par
+  `demandeUnTexte`, jeton montré une fois), une ligne par ordinateur avec sa
+  date et « Retirer ». Fonction `dictee-au-propre` 2026-11-02-a.
 
 ## LA MAISON A SON REGISTRE : « MAISON MND », SEULE — 10 octobre 2026
 

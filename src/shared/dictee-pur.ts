@@ -13,8 +13,8 @@
    téléphone (Web Speech) ; au bureau, Whisper en local (C:\Users\…\Dictee).
    Ici vit LE CERVEAU : la consigne que Claude suit pour mettre au propre,
    les modes, la commande de mode dite en parlant, les mots de la Maison,
-   la mise au propre de secours quand Claude ne répond pas, et le jeton de
-   la Dictée du bureau (son empreinte seule se garde). */
+   la mise au propre de secours quand Claude ne répond pas, et les jetons
+   des ordinateurs, un par ordinateur (leur empreinte seule se garde). */
 
 export type ModeDictee = 'note' | 'message' | 'liste' | 'anglais';
 
@@ -42,9 +42,16 @@ export type ReglagesDictee = {
   mots?: string[];
   modeParDefaut?: ModeDictee;
   modele?: ModeleDictee;
-  /** La Dictée du bureau se présente avec un jeton ; ici son EMPREINTE seule, jamais le jeton. */
+  /** La Dictée du bureau se présente avec un jeton ; ici son EMPREINTE seule, jamais le jeton.
+      Il reste valable tel quel, montré comme le poste « Le PC de Yéman ». */
   bureau?: { empreinte: string; poseLe: string; par?: string };
+  /** Les autres ordinateurs (2 novembre 2026, le Mac) : un jeton chacun, nommé, retirable.
+      En fabriquer un ne coupe ni le bureau ni les autres. */
+  postes?: PosteDictee[];
 };
+
+/** Un ordinateur de plus qui dicte par le Trône : son nom, l'EMPREINTE de son jeton. */
+export type PosteDictee = { id: string; nom: string; empreinte: string; poseLe: string; par?: string };
 
 /** Les mots que Whisper entend mal et que Claude doit écrire ainsi. Les
     prestations et les prénoms de l'équipe viennent de la base, pas d'ici. */
@@ -166,6 +173,109 @@ export async function empreinteDuJeton(jeton: string): Promise<string> {
 }
 
 export const EN_TETE_DU_JETON = 'x-jeton-dictee';
+
+/* ── UN JETON PAR ORDINATEUR — 2 novembre 2026 ────────────────────────────
+   Le Mac de la maison a besoin du sien, et en fabriquer un ne doit pas couper
+   celui du PC. Le bureau (`bureau`) reste tel qu'il est, et vaut le poste
+   « Le PC de Yéman » ; les autres vivent dans `postes`, chacun nommé, daté,
+   retirable. La porte de la fonction accepte toute empreinte que rend
+   `empreintesDesPostes`, et rien d'autre. La liste est bornée À LA LECTURE
+   aussi : une ligne écrite à la main au-delà de la borne n'ouvre rien. */
+export const ID_DU_BUREAU = 'bureau';
+export const NOM_DU_BUREAU = 'Le PC de Yéman';
+/** Les autres ordinateurs, au plus ; le bureau n'en fait pas partie. */
+export const POSTES_AU_PLUS = 6;
+export const NOM_DU_POSTE_AU_PLUS = 40;
+
+const EMPREINTE = /^[0-9a-f]{64}$/;
+const estEmpreinte = (v: unknown): v is string => typeof v === 'string' && EMPREINTE.test(v);
+
+/** Le nom d'un poste : sans blanc autour ni en double, borné. */
+export const nomDuPoste = (nom: unknown): string =>
+  String(nom ?? '').replace(/\s+/g, ' ').trim().slice(0, NOM_DU_POSTE_AU_PLUS).trim();
+
+export function nouvelIdDePoste(): string {
+  const o = new Uint8Array(6);
+  globalThis.crypto.getRandomValues(o);
+  return `poste-${hex(o)}`;
+}
+
+/** Les postes tels que la porte les lit : bien formés, sans empreinte ni id en double, bornés. */
+export function postesDeLaDictee(r: ReglagesDictee | null | undefined): PosteDictee[] {
+  const brut: unknown[] = Array.isArray(r?.postes) ? r.postes : [];
+  const duBureau = r?.bureau?.empreinte;
+  const vues = new Set<string>(estEmpreinte(duBureau) ? [duBureau] : []);
+  const ids = new Set<string>([ID_DU_BUREAU]);
+  const out: PosteDictee[] = [];
+  for (const x of brut) {
+    if (!x || typeof x !== 'object') continue;
+    const p = x as Partial<PosteDictee>;
+    const id = typeof p.id === 'string' ? p.id.trim() : '';
+    const nom = nomDuPoste(p.nom);
+    if (!id || ids.has(id) || !nom || !estEmpreinte(p.empreinte) || vues.has(p.empreinte)) continue;
+    ids.add(id);
+    vues.add(p.empreinte);
+    out.push({ id, nom, empreinte: p.empreinte, poseLe: typeof p.poseLe === 'string' ? p.poseLe : '', ...(typeof p.par === 'string' && p.par ? { par: p.par } : {}) });
+    if (out.length >= POSTES_AU_PLUS) break;
+  }
+  return out;
+}
+
+/** Tous les ordinateurs qui dictent par le Trône : le bureau d'abord, puis les postes. */
+export function ordinateursDeLaDictee(r: ReglagesDictee | null | undefined): PosteDictee[] {
+  const b = r?.bureau;
+  const bureau: PosteDictee[] = b && estEmpreinte(b.empreinte)
+    ? [{ id: ID_DU_BUREAU, nom: NOM_DU_BUREAU, empreinte: b.empreinte, poseLe: typeof b.poseLe === 'string' ? b.poseLe : '', ...(b.par ? { par: b.par } : {}) }]
+    : [];
+  return [...bureau, ...postesDeLaDictee(r)];
+}
+
+/** Les empreintes qui ouvrent la porte de la fonction : celle du bureau, et celle de chaque poste. */
+export const empreintesDesPostes = (r: ReglagesDictee | null | undefined): string[] =>
+  ordinateursDeLaDictee(r).map((o) => o.empreinte);
+
+/** Le nom de l'ordinateur dont c'est l'empreinte, pour le journal ; vide s'il n'y en a pas. */
+export const nomDuPosteDe = (r: ReglagesDictee | null | undefined, empreinte: string): string =>
+  ordinateursDeLaDictee(r).find((o) => o.empreinte === empreinte)?.nom ?? '';
+
+export type IssueDuPoste =
+  | { ok: true; reglages: ReglagesDictee; poste: PosteDictee }
+  | { ok: false; motif: 'nom' | 'meme-nom' | 'empreinte' | 'id' | 'plein' };
+
+/** Ajoute un poste, sans toucher aux réglages reçus. Le bureau et les autres postes restent. */
+export function ajouteUnPoste(r: ReglagesDictee | null | undefined, p: PosteDictee): IssueDuPoste {
+  const base: ReglagesDictee = r ?? {};
+  const nom = nomDuPoste(p.nom);
+  if (!nom) return { ok: false, motif: 'nom' };
+  const tous = ordinateursDeLaDictee(base);
+  const cle = (n: string) => n.toLocaleLowerCase('fr');
+  if (tous.some((o) => cle(o.nom) === cle(nom))) return { ok: false, motif: 'meme-nom' };
+  if (!estEmpreinte(p.empreinte) || tous.some((o) => o.empreinte === p.empreinte)) return { ok: false, motif: 'empreinte' };
+  const postes = postesDeLaDictee(base);
+  if (postes.length >= POSTES_AU_PLUS) return { ok: false, motif: 'plein' };
+  const id = String(p.id ?? '').trim();
+  if (!id || id === ID_DU_BUREAU || postes.some((o) => o.id === id)) return { ok: false, motif: 'id' };
+  const poste: PosteDictee = { id, nom, empreinte: p.empreinte, poseLe: p.poseLe, ...(p.par ? { par: p.par } : {}) };
+  return { ok: true, reglages: { ...base, postes: [...postes, poste] }, poste };
+}
+
+/** Retire un poste (ou le bureau, par `ID_DU_BUREAU`), sans toucher aux réglages reçus. */
+export function retireUnPoste(r: ReglagesDictee | null | undefined, id: string): ReglagesDictee {
+  const { bureau, postes: _p, ...reste } = r ?? {};
+  const postes = postesDeLaDictee(r).filter((p) => p.id !== id);
+  return {
+    ...reste,
+    ...(bureau && id !== ID_DU_BUREAU ? { bureau } : {}),
+    ...(postes.length ? { postes } : {}),
+  };
+}
+
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+/** « 2 novembre 2026 » : l'année toujours (règle de la Maison). */
+export const jourDuPoste = (iso: string): string => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? '');
+  return m ? `${Number(m[3])}${m[3] === '01' ? 'er' : ''} ${MOIS[Number(m[2]) - 1]} ${m[1]}` : '';
+};
 
 /** Ce que la fonction rend. */
 export type ReponseDictee =

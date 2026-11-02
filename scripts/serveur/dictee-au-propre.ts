@@ -5,10 +5,12 @@
    (`node scripts/mise-en-ligne.mjs fonction dictee-au-propre --jwt non`).
 
    QUI L'APPELLE : l'écran « Dictée MND » du Trône (téléphone, ordinateur),
-   et la Dictée du bureau (C:\Users\…\Dictee\dictee.py). LA PORTE : une
-   session du personnel (`is_staff`, demandé à la base avec le jeton de
-   l'appelant), ou le jeton de la Dictée du bureau dont l'empreinte est dans
-   les réglages (Paramètres › Dictée).
+   et la Dictée des ordinateurs (le PC, C:\Users\…\Dictee\dictee.py ; le
+   Mac depuis le 2 novembre 2026). LA PORTE : une session du personnel
+   (`is_staff`, demandé à la base avec le jeton de l'appelant), ou le jeton
+   d'un ordinateur dont l'empreinte est dans les réglages (Paramètres ›
+   Dictée) : celle du bureau, ou celle d'un poste (`empreintesDesPostes`).
+   Un jeton par ordinateur : en refaire un ne coupe pas les autres.
 
    CE QU'ELLE FAIT : lit les réglages de la Dictée (mots, mode, modèle), les
    prestations du catalogue et les prénoms de l'équipe ; choisit le mode (dit
@@ -25,8 +27,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
   DICTEES_PAR_MOIS, EN_TETE_DU_JETON, MODELES_DICTEE, MODELE_PAR_DEFAUT, MOTS_DE_LA_MAISON, TEXTE_AU_PLUS,
-  consigneDeLaDictee, empreinteDuJeton, estMode, estModele, litLaCommandeDeMode, motsPropres, nettoieLaReponse,
-  type ModeDictee, type ReglagesDictee,
+  consigneDeLaDictee, empreinteDuJeton, empreintesDesPostes, estMode, estModele, litLaCommandeDeMode, motsPropres,
+  nettoieLaReponse, nomDuPosteDe, type ModeDictee, type ReglagesDictee,
 } from '../../src/shared/dictee-pur';
 import { prenomSeul } from '../../src/shared/civilite';
 
@@ -35,7 +37,7 @@ declare const Deno: {
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-const VERSION = '2026-10-31-a';
+const VERSION = '2026-11-02-a · un jeton par ordinateur';
 /** Le prix d'un million de jetons, en dollars, pour le compte du mois. */
 const TARIFS: Record<string, { entree: number; sortie: number }> = {
   'claude-haiku-5-5': { entree: 0.1, sortie: 0.5 },
@@ -104,13 +106,18 @@ Deno.serve(async (req) => {
 
   const sb: Base = createClient(url, service);
   try {
-    /* LES RÉGLAGES D'ABORD : la porte du bureau se juge sur l'empreinte qu'ils portent. */
+    /* LES RÉGLAGES D'ABORD : la porte des ordinateurs se juge sur les empreintes qu'ils portent. */
     const { data: luReglages } = await sb.from('documents').select('data').eq('key', 'mnd_settings').maybeSingle();
     const reglages = ((luReglages?.data as { dictee?: ReglagesDictee } | null)?.dictee ?? {}) as ReglagesDictee;
 
-    /* LA PORTE : le personnel connecté, ou la Dictée du bureau avec son jeton. */
+    /* LA PORTE : le personnel connecté, ou un ordinateur de la Maison avec son jeton
+       (le bureau, ou un poste nommé ; bien formés, bornés). */
     let porte: 'personnel' | 'bureau' | null = null;
-    if (jetonDuBureau && reglages.bureau?.empreinte && (await empreinteDuJeton(jetonDuBureau)) === reglages.bureau.empreinte) porte = 'bureau';
+    let poste = '';
+    if (jetonDuBureau) {
+      const lue = await empreinteDuJeton(jetonDuBureau);
+      if (empreintesDesPostes(reglages).includes(lue)) { porte = 'bureau'; poste = nomDuPosteDe(reglages, lue); }
+    }
     if (!porte && jeton) {
       const commeAppelant: Base = createClient(url, anon, { global: { headers: { authorization: `Bearer ${jeton}` } } });
       const { data: estPersonnel, error: errStaff } = await commeAppelant.rpc('is_staff');
@@ -181,7 +188,7 @@ Deno.serve(async (req) => {
         usd: Math.round(((m0.usd ?? 0) + (e * t.entree + so * t.sortie) / 1_000_000) * 10_000) / 10_000,
       } },
     });
-    dis('dictee', { porte, mode, modele, caracteres: texte.length, source: chaine(d.source) || 'trone' });
+    dis('dictee', { porte, ...(poste ? { poste } : {}), mode, modele, caracteres: texte.length, source: chaine(d.source) || 'trone' });
     if (!propre) return json({ ok: false, motif: 'modele', version: VERSION });
     return json({ ok: true, propre, mode, modele, version: VERSION });
   } catch (e) {
