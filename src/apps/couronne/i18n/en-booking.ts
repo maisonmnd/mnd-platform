@@ -257,4 +257,8 @@ export const EN_BOOKING: Record<string, string> = {
   '{jour}, {offre}, −{pct} %': '{jour}, {offre}, −{pct}%',
   'En cuivre : {offre}, −{pct} % sur votre rituel, jusqu’au {date}.': 'In copper: {offre}, −{pct}% on your ritual, until {date}.',
   'En cuivre : {offre}, −{pct} % sur votre rituel.': 'In copper: {offre}, −{pct}% on your ritual.',
+  // La plus forte des deux : la remise famille ou le mercredi, jamais les deux (2 novembre 2026).
+  '{offre} retenu, plus fort que la remise famille.': '{offre} applied: it saves more than the family discount.',
+  'Remise famille retenue : {offre} ne retire pas davantage.': 'Family discount applied: {offre} would not save more.',
+  'Remise famille retenue, plus forte que {offre}.': 'Family discount applied: it saves more than {offre}.',
 };

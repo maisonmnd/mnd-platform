@@ -39,6 +39,9 @@ import { uid } from '../../../../shared/store';
 import { jourCourtAn, jourEnLettres } from '../../../../shared/calendrier';
 import { heureDuMessage } from '../../../../shared/salle-des-envois';
 import { contratPourLaDate, usePlans, useStaff, useSubscribers } from '../equipe/data';
+import { useOffers } from '../../../../shared/offers';
+import { ceQueRetireLeMercredi, ditLaPlusForte, laPlusForteDesDeux, offreDuJourDeLaVenue, poseLOffreDuJour } from '../../../../shared/offres-pur';
+import { regimeTarifaire } from '../../../../shared/pricing';
 import {
   apptDurationMin, brutDuRituel, fmtDureeCourte, tarifsDuRituel, timeToMin, todayISO, useServicesById, type RdvInitial,
 } from '../clients/_shared';
@@ -76,6 +79,7 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, onALaM
   const [subs] = useSubscribers();
   const [plans] = usePlans();
   const [equipe] = useStaff();
+  const [offres] = useOffers();
   const byId = useServicesById();
   const aujourdhui = todayISO();
   const fiche = clients.find((c) => c.id === clientId);
@@ -107,7 +111,7 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, onALaM
   const [choisi, setChoisi] = useState<number | null>(null);
   const [ferme, setFerme] = useState(false);
   const [quandMeme, setQuandMeme] = useState(false);
-  const [issue, setIssue] = useState<{ pose: boolean; texte: string; detail: string } | null>(null);
+  const [issue, setIssue] = useState<{ pose: boolean; texte: string; detail: string; prixXof?: number; offre?: string } | null>(null);
   const iChoisi = choisi !== null && choisi < rituels.length ? choisi : leRituelDOffice(rituels);
   const rituel = iChoisi >= 0 ? rituels[iChoisi] : undefined;
 
@@ -122,15 +126,21 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, onALaM
     });
     const prixXof = brutDuRituel({ serviceIds: [...ids] }, byId, t);
     const famille = fiche?.familyId ? families.find((f) => f.id === fiche.familyId) : undefined;
+    const famPct = unGesteDansLePanier(t.chosen, t.pricing) ? 0 : remiseFamillePct(famille, clients, aujourdhui);
+    /* La part hors forfaits, comme la fenêtre fige la remise famille. */
+    const forfaits = t.chosen.filter((sv) => regimeTarifaire(sv, cats).k === 'forfait').reduce((n, sv) => n + Math.round(t.prixPlein(sv) * (1 - t.gesteDe(sv) / 100)), 0);
     return {
+      t,
       chosen: t.chosen,
       prixXof,
+      /* Ce que la remise famille retirerait, en francs (la plus forte des deux). */
+      familleXof: famPct > 0 ? Math.round(Math.max(0, prixXof - forfaits) * (famPct / 100)) : 0,
       dureeMin: Math.max(15, t.chosen.reduce((n, sv) => n + personalDurationMin(sv, t.pricing), 0) || 60),
       depositServiceIds: t.chosen.filter((s) => depositPctFor(s.id) > 0).map((s) => s.id),
       depositXof: Math.min(depositForServices(t.chosen, 0), prixXof),
       longueurPertinente: t.chosen.some(suitLongueur),
       prixLibre: t.chosen.some((sv) => !prixFerme(sv, t.pricing)),
-      famPct: unGesteDansLePanier(t.chosen, t.pricing) ? 0 : remiseFamillePct(famille, clients, aujourdhui),
+      famPct,
     };
   };
   const tarifs = rituels.map((r) => tarifDe(r.ids));
@@ -193,6 +203,38 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, onALaM
   };
   const raison = rituel ? casAPart(rituel.vers) : null;
 
+  /* ══ LE MERCREDI DE LA MAISON SUR UNE PLACE — 2 novembre 2026 ══════════
+     Une place un mercredi, dans la saison de l'offre, sur un rituel qu'elle
+     couvre : son prix est celui du mercredi (−15 %, net au millier), la place
+     le dit, et le toucher pose `codeOffre`, `offreId` et ses remises de
+     ligne, le prix figé au net arrondi, comme la fenêtre du rendez-vous. Rien
+     pour une formule à cette date. LA PLUS FORTE DES DEUX : une remise
+     famille plus forte (ou égale) l'emporte, la place garde son prix, et le
+     toucher ouvre la fiche, où la fenêtre fait le même choix. */
+  const leMercrediDeLaPlace = (iso: string) => {
+    if (!rituel || !tarif) return null;
+    const offre = offreDuJourDeLaVenue(offres, {
+      branchId: branch.id, dateIso: iso, serviceIds: rituel.ids,
+      couvertParAbonnement: !!contratPourLaDate(subs, clientId, iso, plans),
+    });
+    const pose = poseLOffreDuJour(offre, rituel.ids.map((id) => {
+      const sv = byId.get(id);
+      const p = sv ? Math.round(tarif.t.prixPlein(sv) * (1 - tarif.t.gesteDe(sv) / 100)) : 0;
+      return { id, prixXof: p, ferme: !!sv && p > 0 && prixFerme(sv, tarif.t.pricing) };
+    }));
+    if (!offre || !pose) return null;
+    const du = ceQueRetireLeMercredi({
+      sansLuiXof: tarif.prixXof,
+      avecLuiXof: brutDuRituel({ serviceIds: [...rituel.ids], remisesLignes: pose.remisesLignes }, byId, tarif.t),
+      brutNuXof: tarif.prixXof,
+      arrondir: !tarif.prixLibre,
+    });
+    if (du.mercrediXof <= 0) return null;
+    const duel = tarif.familleXof > 0 ? laPlusForteDesDeux({ familleXof: tarif.familleXof, mercrediXof: du.mercrediXof }) : null;
+    if (duel?.retenue === 'famille') return null;
+    return { offre, pose, netXof: du.netXof, mercrediXof: du.mercrediXof, phrase: duel ? ditLaPlusForte(duel, offre.title) : null };
+  };
+
   /* UN TOUCHER : la place se relit sur le carnet du moment, puis le rendez-vous
      se construit (UNE fonction, `leRendezVousDuProchainRituel`) et s'écrit
      par le geste de la fenêtre. */
@@ -208,6 +250,8 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, onALaM
       return;
     }
     const numero = numeroAPrevenirDuRdv({ choisi: '', fiche, derniers: siens.filter((a) => a.branchId === branch.id) });
+    /* Le mercredi de la Maison, relu pour CETTE place (2 novembre 2026). */
+    const mercredi = leMercrediDeLaPlace(p.iso);
     const rdv = leRendezVousDuProchainRituel({
       id: uid(),
       branchId: branch.id,
@@ -217,9 +261,10 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, onALaM
       master: maitre,
       longueur: tarif.longueurPertinente ? longueur : undefined,
       dureeMin: tarif.dureeMin,
-      priceXof: tarif.prixXof,
+      priceXof: mercredi ? mercredi.netXof : tarif.prixXof,
       depositServiceIds: tarif.depositServiceIds,
-      depositXof: tarif.depositXof,
+      depositXof: mercredi ? Math.min(tarif.depositXof, mercredi.netXof) : tarif.depositXof,
+      offreDuJour: mercredi?.pose ?? null,
       numeroAPrevenir: numero,
     });
     const pose = poseUnRendezVous(rdv);
@@ -231,6 +276,8 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, onALaM
       detail: momentDuRdv(pose) <= Date.now()
         ? 'Posé après son heure : ni confirmation ni rappel ne partiront.'
         : `La confirmation part sur WhatsApp${nom ? `, à ${nom}` : ''} ; la veille, son rappel suit.`,
+      prixXof: rdv.priceXof,
+      ...(mercredi ? { offre: `${mercredi.offre.title} : code ${mercredi.pose.codeOffre} posé sur le rendez-vous.` } : {}),
     });
   };
 
@@ -259,7 +306,8 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, onALaM
       {issue?.pose ? (
         <div className="trv-prochain__issue" role="status">
           <b>{issue.texte}</b>
-          <span>{[nomDe(rituel.ids), maitre ? `avec ${maitre}` : null, fmtDureeCourte(tarif.dureeMin), fmtMoney(tarif.prixXof, currency)].filter(Boolean).join(' · ')}</span>
+          <span>{[nomDe(rituel.ids), maitre ? `avec ${maitre}` : null, fmtDureeCourte(tarif.dureeMin), fmtMoney(issue.prixXof ?? tarif.prixXof, currency)].filter(Boolean).join(' · ')}</span>
+          {issue.offre && <span className="trv-prochain__offre">{issue.offre}</span>}
           <span>{issue.detail}</span>
         </div>
       ) : ferme ? (
@@ -300,14 +348,23 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, onALaM
           {raison && <p className="trv-prochain__note">{`${raison}. Un toucher sur une place ouvre sa fiche, posée sur cette place.`}</p>}
           {places.length > 0 ? (
             <div className="trv-prochain__places">
-              {places.map((p) => (
-                <button key={`${p.iso}-${p.heure}`} type="button" className="trv-prochain__place" data-iso={p.iso} data-heure={p.heure} onClick={() => toucheLaPlace(p)}>
-                  <span className="trv-prochain__place-titre">{p.titre}</span>
-                  <span className="trv-prochain__place-date">{`${jourCourtAn(p.iso)} · ${heureDuMessage(p.heure)}`}</span>
-                  <span className="trv-prochain__place-prix">{fmtMoney(tarif.prixXof, currency)}</span>
-                  <span className="trv-prochain__place-pourquoi">{[p.pourquoi, maitre ? `Avec ${maitre}.` : null].filter(Boolean).join(' ')}</span>
-                </button>
-              ))}
+              {places.map((p) => {
+                /* LE PRIX DE CETTE PLACE : celui du mercredi quand il la couvre. */
+                const mercredi = leMercrediDeLaPlace(p.iso);
+                return (
+                  <button key={`${p.iso}-${p.heure}`} type="button" className={`trv-prochain__place${mercredi ? ' est-offre' : ''}`} data-iso={p.iso} data-heure={p.heure} onClick={() => toucheLaPlace(p)}>
+                    <span className="trv-prochain__place-titre">{p.titre}</span>
+                    <span className="trv-prochain__place-date">{`${jourCourtAn(p.iso)} · ${heureDuMessage(p.heure)}`}</span>
+                    <span className="trv-prochain__place-prix">{fmtMoney(mercredi ? mercredi.netXof : tarif.prixXof, currency)}</span>
+                    {mercredi && (
+                      <span className="trv-prochain__place-offre">
+                        {`${mercredi.offre.title} · −${mercredi.offre.discountPct ?? 0} %`}{mercredi.phrase ? ` · ${mercredi.phrase}` : ''}
+                      </span>
+                    )}
+                    <span className="trv-prochain__place-pourquoi">{[p.pourquoi, maitre ? `Avec ${maitre}.` : null].filter(Boolean).join(' ')}</span>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <p className="trv-prochain__note">{`Aucune place libre pour ${fmtDureeCourte(tarif.dureeMin)} autour de cette date : choisissez à la main.`}</p>

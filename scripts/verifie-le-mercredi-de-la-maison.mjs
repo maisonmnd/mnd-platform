@@ -25,6 +25,8 @@ const R = 'src/apps/revelateur/ilots/Reserver.tsx';
 const E = 'src/apps/trone/routes/equipe/EditeurDesOffres.tsx';
 const D = 'supabase/functions/demande-submit/index.ts';
 const Q = 'supabase/reglage_mercredi_de_la_maison_20261102.sql';
+const PR = 'src/shared/prochain-rituel-pur.ts';
+const BL = 'src/apps/trone/routes/vente/SonProchainRituel.tsx';
 
 const PANNES = [
   /* Les huit pannes demandees, et celles qui les suivent dans chaque porte. */
@@ -57,7 +59,7 @@ const PANNES = [
   { nom: 'pas d arrondi au prix fige', fichier: S,
     avant: 'priceXof: effCovered ? 0 : needsAmount ? effGross : grossBase + arrondiDuCode,', apres: 'priceXof: effCovered ? 0 : needsAmount ? effGross : grossBase,' },
   { nom: 'pas d arrondi dans Ma Couronne', fichier: B,
-    avant: 'const remiseMercredi = Math.max(0, duMercredi.retire - arrondiDuNet(duMercredi.net, duMercredi.retire));', apres: 'const remiseMercredi = duMercredi.retire;' },
+    avant: 'const mercrediSeul = Math.max(0, duMercredi.retire - arrondiDuNet(duMercredi.net, duMercredi.retire));', apres: 'const mercrediSeul = duMercredi.retire;' },
   { nom: 'pas d arrondi sur le site', fichier: R,
     avant: 'const prixTotal = compte.net + arrondi;', apres: 'const prixTotal = compte.net;' },
   { nom: 'un serviceIds vide qui solde tout', fichier: P,
@@ -65,7 +67,7 @@ const PANNES = [
   { nom: 'un serviceIds vide qui solde ses lignes', fichier: P,
     avant: 'const porte = pct > 0 && l.ferme && l.prixXof > 0 && couvre.has(l.id);', apres: 'const porte = pct > 0 && l.ferme && l.prixXof > 0 && (couvre.size === 0 || couvre.has(l.id));' },
   { nom: 'Ma Couronne ne marque pas le mercredi', fichier: B,
-    avant: 'const duJour = c.free && (totalSessions === 1 || sessionDates.length === 0) ? leMercrediPour(c.iso) : null;', apres: 'const duJour = null as ReturnType<typeof leMercrediPour>;' },
+    avant: 'const duJour = c.free && (totalSessions === 1 || sessionDates.length === 0) ? leMercrediQuiCompte(c.iso) : null;', apres: 'const duJour = null as ReturnType<typeof leMercrediQuiCompte>;' },
   { nom: 'Ma Couronne ne pose pas le code', fichier: B,
     avant: '...(i === 0 && poseDuMercredi ? {', apres: '...(false ? {' },
   { nom: 'la carte de Ma Couronne pre-remplit la remise', fichier: L,
@@ -98,6 +100,34 @@ const PANNES = [
     avant: 'alter table public.repli_mnd_offers_20261102 enable row level security;', apres: '' },
   { nom: 'le reglage ajoute deux fois', fichier: Q,
     avant: '   and not exists (', apres: '   and true or exists (' },
+  /* La plus forte des deux (Yeman, au selecteur, 2 novembre 2026 au soir). */
+  { nom: 'la plus faible gardee', fichier: P,
+    avant: "if (mercrediXof > familleXof) return { retenue: 'mercredi', familleXof, mercrediXof };", apres: "if (mercrediXof < familleXof) return { retenue: 'mercredi', familleXof, mercrediXof };" },
+  { nom: 'a egalite, le mercredi', fichier: P,
+    avant: "if (mercrediXof > familleXof) return { retenue: 'mercredi', familleXof, mercrediXof };", apres: "if (mercrediXof >= familleXof && mercrediXof > 0) return { retenue: 'mercredi', familleXof, mercrediXof };" },
+  { nom: 'le mercredi compare avant son arrondi', fichier: P,
+    avant: 'const mercrediXof = Math.max(0, Math.round(e.sansLuiXof) - avec - arrondiXof);', apres: 'const mercrediXof = Math.max(0, Math.round(e.sansLuiXof) - avec);' },
+  { nom: 'la famille et le mercredi cumules dans Ma Couronne', fichier: B,
+    avant: "const remiseFamille = duel?.retenue === 'mercredi' ? 0 : familleSeule;", apres: 'const remiseFamille = familleSeule;' },
+  { nom: 'Ma Couronne pose le code quand la famille gagne', fichier: B,
+    avant: 'const poseDuMercredi = chiffre.remiseMercredi <= 0 ? null : poseLOffreDuJour(', apres: 'const poseDuMercredi = poseLOffreDuJour(' },
+  { nom: 'la famille et le mercredi cumules dans la fenetre', fichier: S,
+    avant: 'const discountPct = familleEcartee && familleEnPct ? 0 : discountPctSaisi;', apres: 'const discountPct = discountPctSaisi;' },
+  { nom: 'la fenetre pose le mercredi quand la famille gagne', fichier: S,
+    avant: " && duelFamille?.retenue !== 'famille' ? poseCandidate : null;", apres: ' ? poseCandidate : null;' },
+  { nom: 'la fenetre oublie la famille en francs', fichier: S,
+    avant: '...(familleEnFrancs > 0 && !familleEcartee && !effCovered && !forfaitPose', apres: '...(false && familleEnFrancs > 0 && !familleEcartee && !effCovered && !forfaitPose' },
+  /* Son prochain rituel, a la Caisse. */
+  { nom: 'le prochain rituel d un mercredi sans code', fichier: PR,
+    avant: '    ...(o.offreDuJour ? {', apres: '    ...(false ? {' },
+  { nom: 'le prochain rituel oublie l offre a la pose', fichier: BL,
+    avant: 'offreDuJour: mercredi?.pose ?? null,', apres: 'offreDuJour: null,' },
+  { nom: 'le prix de la place sans le mercredi', fichier: BL,
+    avant: '<span className="trv-prochain__place-prix">{fmtMoney(mercredi ? mercredi.netXof : tarif.prixXof, currency)}</span>', apres: '<span className="trv-prochain__place-prix">{fmtMoney(tarif.prixXof, currency)}</span>' },
+  { nom: 'le prix fige de la place sans le mercredi', fichier: BL,
+    avant: 'priceXof: mercredi ? mercredi.netXof : tarif.prixXof,', apres: 'priceXof: tarif.prixXof,' },
+  { nom: 'la famille et le mercredi cumules sur la place', fichier: BL,
+    avant: "    if (duel?.retenue === 'famille') return null;\n", apres: '' },
 ];
 
 const md5 = (rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');

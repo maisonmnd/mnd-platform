@@ -1600,6 +1600,11 @@
 .trv-prochain__place-date { font-family: var(--font-serif); font-size: 19px; line-height: 1.2; color: var(--color-indigo); }
 .trv-prochain__place-prix { font-family: var(--font-sans); font-size: 13px; font-weight: 500; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
 .trv-prochain__place-pourquoi { grid-column: 1 / -1; font-family: var(--font-sans); font-size: 12px; line-height: 1.45; color: var(--ink-soft); }
+/* LE MERCREDI DE LA MAISON SUR UNE PLACE (2 novembre 2026) : la place en
+   cuivre, l'offre et son taux sous la date, comme la maquette. */
+.trv-prochain__place.est-offre { border-color: var(--copper-300); }
+.trv-prochain__place-offre { grid-column: 1 / -1; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; font-weight: 600; color: var(--copper-700); }
+.trv-prochain__issue .trv-prochain__offre { color: var(--copper-700); }
 .trv-prochain__gestes { display: flex; gap: 8px; flex-wrap: wrap; }
 .trv-prochain__issue { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-left: 2px solid var(--color-copper); background: var(--paper); }
 .trv-prochain__issue b { font-family: var(--font-serif); font-weight: 400; font-size: 20px; line-height: 1.25; color: var(--color-indigo); }

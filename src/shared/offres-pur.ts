@@ -631,3 +631,52 @@ export function arrondiDuNet(netXof: number, remiseXof: number, palier = PALIER_
   const reste = Math.max(0, Math.round(netXof)) % palier;
   return Math.min(remise, reste === 0 ? 0 : palier - reste);
 }
+
+/** CE QUE LE MERCREDI RETIRE VRAIMENT, en francs, l'arrondi au millier déjà
+    repris. `sansLuiXof` : le rituel avec les seules remises de la main ;
+    `avecLuiXof` : avec celles du mercredi en plus ; `brutNuXof` : sans aucune
+    remise de ligne (la remise que l'arrondi borne, comme `arrondiDuCodeAuRdv`).
+    `arrondir` à faux pour un prix encore à convenir : son net n'est pas connu,
+    la fenêtre du rendez-vous ne l'arrondit pas. */
+export function ceQueRetireLeMercredi(e: {
+  sansLuiXof: number; avecLuiXof: number; brutNuXof: number; arrondir?: boolean;
+}): { arrondiXof: number; mercrediXof: number; netXof: number } {
+  const avec = Math.max(0, Math.round(e.avecLuiXof));
+  const arrondiXof = e.arrondir === false ? 0 : arrondiDuNet(avec, Math.max(0, Math.round(e.brutNuXof)) - avec);
+  const mercrediXof = Math.max(0, Math.round(e.sansLuiXof) - avec - arrondiXof);
+  return { arrondiXof, mercrediXof, netXof: avec + arrondiXof };
+}
+
+/* ══ LA PLUS FORTE DES DEUX — 2 novembre 2026 ═══════════════════════════
+   Yéman, au sélecteur, ce soir : la remise famille et le mercredi de la
+   Maison ne se cumulent JAMAIS, partout ; la plus forte des deux s'applique.
+   On compare ce qui sort du tiroir, en francs : la remise famille telle que
+   la fenêtre la fige (part hors forfaits × taux), et le mercredi APRÈS
+   l'arrondi au millier. À ÉGALITÉ, LA FAMILLE : elle vaut sans code à
+   compter, et c'est la règle du comptoir pour tout code (`leTicket`,
+   `laMeilleureEnFrancs` : ce qui est déjà posé l'emporte à égalité).
+
+   Les offres existantes ne changent pas : la règle ne vaut que pour une
+   offre du jour de la venue. */
+export type LaPlusForte = { retenue: 'famille' | 'mercredi' | 'aucune'; familleXof: number; mercrediXof: number };
+
+export function laPlusForteDesDeux(e: { familleXof: number; mercrediXof: number }): LaPlusForte {
+  const familleXof = Math.max(0, Math.round(e.familleXof));
+  const mercrediXof = Math.max(0, Math.round(e.mercrediXof));
+  if (mercrediXof > familleXof) return { retenue: 'mercredi', familleXof, mercrediXof };
+  if (familleXof > 0) return { retenue: 'famille', familleXof, mercrediXof };
+  return { retenue: 'aucune', familleXof, mercrediXof };
+}
+
+/** LA PHRASE DE L'ÉCRAN, quand les deux se présentaient : laquelle est
+    retenue, et pourquoi. `null` quand une seule des deux existait. Le nom de
+    l'offre se dit avec son article en minuscule au milieu d'une phrase
+    (« plus forte que le mercredi de la Maison »). */
+export function ditLaPlusForte(d: LaPlusForte, titre: string): string | null {
+  if (d.familleXof <= 0 || d.mercrediXof <= 0) return null;
+  const nom = String(titre ?? '').trim() || 'l’offre du jour';
+  const auMilieu = /^(Le|La|Les|L’|L')\s?/.test(nom) ? nom.charAt(0).toLowerCase() + nom.slice(1) : nom;
+  if (d.retenue === 'mercredi') return `${nom} retenu, plus fort que la remise famille.`;
+  if (d.mercrediXof === d.familleXof) return `Remise famille retenue : ${auMilieu} ne retire pas davantage.`;
+  return `Remise famille retenue, plus forte que ${auMilieu}.`;
+}

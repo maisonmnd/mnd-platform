@@ -19,10 +19,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
-  JOURS_DES_OFFRES, PALIER_DU_NET_XOF, arrondiDuNet, courtPourLaVenue, estUnCodeDuJour, jourDeLaSemaine,
-  lignesDuCode, offreDuCode, offreDuCodePassee, offreDuJourDeLaVenue, poseLOffreDuJour, pourquoiLOffreNeCourtPas,
-  remiseDeLOffreSurLeTicket, remisesDeLaMainSeules,
+  JOURS_DES_OFFRES, PALIER_DU_NET_XOF, arrondiDuNet, ceQueRetireLeMercredi, courtPourLaVenue, ditLaPlusForte, estUnCodeDuJour,
+  jourDeLaSemaine, laPlusForteDesDeux, lignesDuCode, offreDuCode, offreDuCodePassee, offreDuJourDeLaVenue, poseLOffreDuJour,
+  pourquoiLOffreNeCourtPas, remiseDeLOffreSurLeTicket, remisesDeLaMainSeules,
 } from '../src/shared/offres-pur';
+import { leRendezVousDuProchainRituel } from '../src/shared/prochain-rituel-pur';
 import { leTicket, libelleDuCode, PALIER_DU_CODE_XOF } from '../src/apps/trone/routes/vente/encaissement-pur';
 import { offreAProposer } from '../src/apps/trone/routes/vente/caisse-fluide-pur';
 import { apptNetXof, apptTotalXof } from '../src/apps/trone/routes/clients/_shared';
@@ -196,13 +197,13 @@ dit('l offre du jour ne se propose pas a la Caisse comme une offre de saison (el
 {
   const b = source('src/apps/couronne/Booking.tsx');
   dit('PANNE « Ma Couronne ne marque pas le mercredi » : la case du calendrier et la place portent « −15 % »', [true, true, true, true], [
-    /const duJour = c\.free && \(totalSessions === 1 \|\| sessionDates\.length === 0\) \? leMercrediPour\(c\.iso\) : null;/.test(b),
+    /const duJour = c\.free && \(totalSessions === 1 \|\| sessionDates\.length === 0\) \? leMercrediQuiCompte\(c\.iso\) : null;/.test(b),
     /\$\{duJour \? ' is-offre' : ''\}/.test(b),
     /\{duJour && <small className="mc-calday__offre">−\{duJour\.discountPct \?\? 0\} %<\/small>\}/.test(b),
     /\{duJour && <small className="mc-place__offre">/.test(b),
   ]);
   dit('le prix montre porte la remise et l arrondi, une offre pre-remplie l ecarte', [true, true, true], [
-    /const remiseMercredi = Math\.max\(0, duMercredi\.retire - arrondiDuNet\(duMercredi\.net, duMercredi\.retire\)\);/.test(b),
+    /const mercrediSeul = Math\.max\(0, duMercredi\.retire - arrondiDuNet\(duMercredi\.net, duMercredi\.retire\)\);/.test(b),
     /prix: Math\.max\(0, Math\.round\(\(connu - remiseMercredi\) \* \(1 - discountPct \/ 100\)\) - remiseFamille\),/.test(b),
     /dejaUnCode: discountPct > 0,/.test(b),
   ]);
@@ -294,6 +295,105 @@ dit('l offre du jour ne se propose pas a la Caisse comme une offre de saison (el
   dit('rien de destructif', null, /\b(drop\s+table|drop\s+schema|truncate|delete\s+from|drop\s+column)\b/i.exec(sql)?.[0] ?? null);
   const lus = [...sql.matchAll(/'(sub|conditions|title|tag|deal|bouton)', '([^']*)'/g)].map((m) => m[2]);
   dit('les mots lus par la cliente : ni tiret long, ni maitre, ni salon', [], lus.filter((t) => /—|ma[iî]tre|\bsalons?\b/i.test(t)));
+}
+
+/* ══ 15. La plus forte des deux (Yeman, au selecteur, 2 novembre 2026) ══
+   « Famille + mercredi : la plus forte des deux, partout, jamais les deux. »
+   On compare les francs, le mercredi APRES l'arrondi au millier ; a egalite,
+   la famille. */
+dit('PANNE « la plus faible gardee » : 1 500 F de famille contre 1 000 F de mercredi, la famille ; l inverse, le mercredi',
+  ['famille', 'mercredi'],
+  [laPlusForteDesDeux({ familleXof: 1_500, mercrediXof: 1_000 }).retenue, laPlusForteDesDeux({ familleXof: 1_000, mercrediXof: 1_500 }).retenue]);
+dit('a egalite, la famille ; seule, chacune ; ni l une ni l autre, aucune', ['famille', 'mercredi', 'famille', 'aucune'], [
+  laPlusForteDesDeux({ familleXof: 1_000, mercrediXof: 1_000 }).retenue, laPlusForteDesDeux({ familleXof: 0, mercrediXof: 500 }).retenue,
+  laPlusForteDesDeux({ familleXof: 500, mercrediXof: 0 }).retenue, laPlusForteDesDeux({ familleXof: 0, mercrediXof: 0 }).retenue]);
+dit('ce que le mercredi retire vraiment : 10 000 F a -15 %, 1 000 F apres l arrondi (9 000 F) ; sans arrondi pour un prix a convenir',
+  [{ arrondiXof: 500, mercrediXof: 1_000, netXof: 9_000 }, { arrondiXof: 0, mercrediXof: 1_500, netXof: 8_500 }],
+  [ceQueRetireLeMercredi({ sansLuiXof: 10_000, avecLuiXof: 8_500, brutNuXof: 10_000 }), ceQueRetireLeMercredi({ sansLuiXof: 10_000, avecLuiXof: 8_500, brutNuXof: 10_000, arrondir: false })]);
+dit('une famille a 10 % (1 000 F) contre le lavage du mercredi (1 000 F apres l arrondi) : la famille, a egalite', 'famille',
+  laPlusForteDesDeux({ familleXof: 1_000, ...ceQueRetireLeMercredi({ sansLuiXof: 10_000, avecLuiXof: 8_500, brutNuXof: 10_000 }) }).retenue);
+dit('l ecran dit laquelle est retenue', [
+  'Le mercredi de la Maison retenu, plus fort que la remise famille.',
+  'Remise famille retenue, plus forte que le mercredi de la Maison.',
+  'Remise famille retenue : le mercredi de la Maison ne retire pas davantage.',
+  null,
+], [
+  ditLaPlusForte(laPlusForteDesDeux({ familleXof: 1_000, mercrediXof: 3_000 }), 'Le mercredi de la Maison'),
+  ditLaPlusForte(laPlusForteDesDeux({ familleXof: 3_000, mercrediXof: 1_000 }), 'Le mercredi de la Maison'),
+  ditLaPlusForte(laPlusForteDesDeux({ familleXof: 1_000, mercrediXof: 1_000 }), 'Le mercredi de la Maison'),
+  ditLaPlusForte(laPlusForteDesDeux({ familleXof: 0, mercrediXof: 1_000 }), 'Le mercredi de la Maison'),
+]);
+{
+  /* LA CAISSE TIENT LA MEME REGLE (`leTicket`) : la remise famille du rendez-vous
+     contre le code du mercredi, apres l'arrondi, la famille a egalite. */
+  const ecarts: string[] = [];
+  for (const prix of [10_000, 20_000, 25_000, 47_000]) {
+    const brut = remiseDeLOffreSurLeTicket(MERCREDI, [{ serviceId: 'lavage', montantXof: prix }]).retire;
+    for (const famille of [0, 500, 1_000, 1_500, 2_000, 3_000, 3_750, 4_000, 7_050, 8_000]) {
+      const t = leTicket({ sousTotalXof: prix, prestationsXof: prix, remisePct: 0, remiseXof: 0, remiseDuRendezVousXof: famille, dejaRecuXof: 0, promoBrutXof: brut, nomDuCode: 'MERCREDI15' });
+      const regle = laPlusForteDesDeux({ familleXof: famille, mercrediXof: ceQueRetireLeMercredi({ sansLuiXof: prix, avecLuiXof: prix - brut, brutNuXof: prix }).mercrediXof });
+      if (t.cumul.codeConsomme !== (regle.retenue === 'mercredi')) ecarts.push(`${prix}/${famille}`);
+    }
+  }
+  dit('la Caisse (leTicket) et la regle pure gardent la meme sur 40 tickets', [], ecarts);
+}
+{
+  const b = source('src/apps/couronne/Booking.tsx');
+  dit('PANNE « la famille et le mercredi cumules » dans Ma Couronne : une seule des deux reste, et l ecran le dit', [true, true, true, true, true], [
+    /const duel = mercrediSeul > 0 && familleSeule > 0 \? laPlusForteDesDeux\(\{ familleXof: familleSeule, mercrediXof: mercrediSeul \}\) : null;/.test(b),
+    /const remiseMercredi = duel\?\.retenue === 'famille' \? 0 : mercrediSeul;/.test(b),
+    /const remiseFamille = duel\?\.retenue === 'mercredi' \? 0 : familleSeule;/.test(b),
+    /const poseDuMercredi = chiffre\.remiseMercredi <= 0 \? null : poseLOffreDuJour\(/.test(b),
+    /t\('\{offre\} retenu, plus fort que la remise famille\.'/.test(b) && /t\('Remise famille retenue, plus forte que \{offre\}\.'/.test(b),
+  ]);
+  dit('... le calendrier ne marque que le mercredi qui l emporte', true,
+    /const leMercrediQuiCompte = \(iso: string \| null \| undefined\) => \{\s*const o = leMercrediPour\(iso\);\s*return o && chiffreDe\(selected, o\)\.remiseMercredi > 0 \? o : null;/.test(b));
+  const s = source('src/apps/trone/routes/clients/_shared.tsx');
+  dit('PANNE « la famille et le mercredi cumules » dans la fenetre : la famille ecartee quand le mercredi gagne, le mercredi quand la famille gagne',
+    [true, true, true, true, true, true], [
+      /const duelFamille = duMercredi && familleXof > 0 \? laPlusForteDesDeux\(\{ familleXof, mercrediXof: duMercredi\.mercrediXof \}\) : null;/.test(s),
+      /const poseDuMercredi = poseCandidate && duMercredi && duMercredi\.mercrediXof > 0 && duelFamille\?\.retenue !== 'famille' \? poseCandidate : null;/.test(s),
+      /const discountPct = familleEcartee && familleEnPct \? 0 : discountPctSaisi;/.test(s),
+      /const discountXof = familleEcartee && !familleEnPct \? Math\.max\(0, discountXofSaisi - familleEnFrancs\) : discountXofSaisi;/.test(s),
+      /const familleEnPct = prixMode === 'remise' && famPct > 0 && discountPctSaisi === famPct;/.test(s),
+      /\.\.\.\(familleEnFrancs > 0 && !familleEcartee && !effCovered && !forfaitPose\s*\? \{ remiseFamille: true, remiseFamilleXof:/.test(s),
+    ]);
+  dit('... et l ecran de la fenetre dit laquelle est retenue', [true, true], [
+    /ditLaPlusForte\(duelFamille, offreDuMercredi\.title\)/.test(s),
+    /if \(duelFamille\?\.retenue === 'famille' && offreDuMercredi\) \{/.test(s),
+  ]);
+}
+
+/* ══ 16. Son prochain rituel, a la Caisse ══ */
+{
+  const pose = poseLOffreDuJour(MERCREDI, [{ id: 'lavage', prixXof: 10_000, ferme: true }])!;
+  const base = {
+    id: 'r9', branchId: LA_MAISON, clientId: 'c1', serviceIds: ['lavage'], place: { iso: '2026-11-18', heure: '13:00' }, master: 'Team',
+    dureeMin: 30, depositServiceIds: [] as string[], depositXof: 0,
+  };
+  const avec = leRendezVousDuProchainRituel({ ...base, priceXof: 9_000, offreDuJour: pose });
+  dit('PANNE « le prochain rituel d un mercredi sans code » : le code, l offre et la remise de ligne s ecrivent, au net arrondi',
+    { codeOffre: 'MERCREDI15', offreId: 'of-mercredi15', remisesLignes: [{ pct: 15 }], priceXof: 9_000 },
+    { codeOffre: avec.codeOffre, offreId: avec.offreId, remisesLignes: avec.remisesLignes, priceXof: avec.priceXof });
+  const sans = leRendezVousDuProchainRituel({ ...base, priceXof: 10_000 });
+  dit('... sans offre, rien de plus qu avant', [false, false, false], ['codeOffre', 'offreId', 'remisesLignes'].map((k) => k in sans));
+  const bloc = source('src/apps/trone/routes/vente/SonProchainRituel.tsx');
+  dit('le bloc juge chaque place, la pose porte l offre au net arrondi', [true, true, true, true, true], [
+    /const mercredi = leMercrediDeLaPlace\(p\.iso\);\s*const rdv = leRendezVousDuProchainRituel\(\{/.test(bloc),
+    /priceXof: mercredi \? mercredi\.netXof : tarif\.prixXof,/.test(bloc),
+    /offreDuJour: mercredi\?\.pose \?\? null,/.test(bloc),
+    /couvertParAbonnement: !!contratPourLaDate\(subs, clientId, iso, plans\),/.test(bloc),
+    bloc.indexOf('if (casAPart(p.iso)) {') > 0 && bloc.indexOf('if (casAPart(p.iso)) {') < bloc.indexOf('const mercredi = leMercrediDeLaPlace(p.iso);\n    const rdv'),
+  ]);
+  dit('PANNE « le prix de la place sans le mercredi » : chaque place dit son prix du mercredi, et l offre', [true, true, true], [
+    /<span className="trv-prochain__place-prix">\{fmtMoney\(mercredi \? mercredi\.netXof : tarif\.prixXof, currency\)\}<\/span>/.test(bloc),
+    /\$\{mercredi\.offre\.title\} · −\$\{mercredi\.offre\.discountPct \?\? 0\} %/.test(bloc),
+    /fmtMoney\(issue\.prixXof \?\? tarif\.prixXof, currency\)/.test(bloc),
+  ]);
+  dit('la plus forte des deux vaut aussi sur la place, la famille renvoie a la fiche', [true, true], [
+    /const duel = tarif\.familleXof > 0 \? laPlusForteDesDeux\(\{ familleXof: tarif\.familleXof, mercrediXof: du\.mercrediXof \}\) : null;\s*if \(duel\?\.retenue === 'famille'\) return null;/.test(bloc),
+    /familleXof: famPct > 0 \? Math\.round\(Math\.max\(0, prixXof - forfaits\) \* \(famPct \/ 100\)\) : 0,/.test(bloc),
+  ]);
 }
 
 if (ko) { console.log(`\n${ko} ECHEC(S).`); process.exit(1); }

@@ -50,7 +50,7 @@ import { releveDeLAbonnee, formuleProposeePourReserver, dansLaVie } from '../../
 import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
 import { PALIER_DU_CODE_XOF } from '../vente/encaissement-pur';
 import { useOffers } from '../../../../shared/offers';
-import { arrondiDuNet, estUnCodeDuJour, offreDuJourDeLaVenue, poseLOffreDuJour, remisesDeLaMainSeules } from '../../../../shared/offres-pur';
+import { arrondiDuNet, ceQueRetireLeMercredi, ditLaPlusForte, estUnCodeDuJour, laPlusForteDesDeux, offreDuJourDeLaVenue, poseLOffreDuJour, remisesDeLaMainSeules } from '../../../../shared/offres-pur';
 import { SeanceDeLaFormule } from './SeanceDeLaFormule';
 import { PiecesDuRendezVous } from './PiecesDuRendezVous';
 import type { PieceEnvoyee } from '../../../../shared/avant-le-fauteuil-pur';
@@ -1981,8 +1981,8 @@ function RdvModalCorps({
      fauteuil », choix 5) : les photos, vidéos et liens attachés au
      rendez-vous, écrits avec la note sur les deux chemins d'enregistrement. */
   const [pieces, setPieces] = useState<PieceEnvoyee[]>(appt?.pieces ?? []);
-  const [discountPct, setDiscountPct] = useState<number>(appt?.discountPct ?? 0);
-  const [discountXof, setDiscountXof] = useState<number>(appt?.discountXof ?? 0);
+  const [discountPctSaisi, setDiscountPct] = useState<number>(appt?.discountPct ?? 0);
+  const [discountXofSaisi, setDiscountXof] = useState<number>(appt?.discountXof ?? 0);
   /* LE FORFAIT PONCTUEL — un total négocié pour l'ensemble des gestes. Il
      REMPLACE les remises tant qu'il est posé : deux mécaniques sur le même
      rituel, et plus personne ne sait ce qui a été consenti. */
@@ -2364,7 +2364,7 @@ function RdvModalCorps({
   useEffect(() => {
     if (appt || sansPrix || forfaitOn || covered) return;
     if (famPct > 0) {
-      const vierge = prixMode === 'plein' && !discountPct && !discountXof;
+      const vierge = prixMode === 'plein' && !discountPctSaisi && !discountXofSaisi;
       if (vierge || famAuto.current) {
         famAuto.current = true;
         setPrixMode('remise');
@@ -2514,11 +2514,43 @@ function RdvModalCorps({
     forfait: forfaitOn && String(forfaitStr).trim() !== '',
     ecartee: mercrediEcarte,
   });
-  const poseDuMercredi = poseLOffreDuJour(offreDuMercredi, serviceIds.map((id) => {
+  const poseCandidate = poseLOffreDuJour(offreDuMercredi, serviceIds.map((id) => {
     const sv = byId.get(id);
     const p = sv ? Math.round(tarifs.prixPlein(sv) * (1 - tarifs.gesteDe(sv) / 100)) : 0;
     return { id, prixXof: p, ferme: !!sv && p > 0 && prixFerme(sv, pricing) };
   }), remisesALaMain);
+  /* ══ LA PLUS FORTE DES DEUX — 2 novembre 2026 (Yéman, au sélecteur) ══════
+     La remise famille et le mercredi ne se cumulent jamais : on compare les
+     francs (`laPlusForteDesDeux`), le mercredi après son arrondi au millier,
+     et seule la plus forte reste ; à égalité, la famille. La famille se lit
+     sous ses deux formes : le taux du compte posé ici (`discountPct`, que
+     l'effet du compte remplit d'office), ou les francs qu'un rendez-vous
+     déjà enregistré porte (`remiseFamille`, une reprise, Ma Couronne). Ce
+     qui perd est écarté du calcul et de l'enregistrement, pas de la saisie :
+     écarter le mercredi rend la famille. */
+  const brutDeLaMain = brutDuRituel({ serviceIds, remisesLignes: remisesALaMain }, byId, tarifs);
+  const duMercredi = poseCandidate ? ceQueRetireLeMercredi({
+    sansLuiXof: brutDeLaMain,
+    avecLuiXof: brutDuRituel({ serviceIds, remisesLignes: poseCandidate.remisesLignes }, byId, tarifs),
+    brutNuXof: brutDuRituel({ serviceIds, remisesLignes: [] }, byId, tarifs),
+    arrondir: !chosen.some((sv) => !prixFerme(sv, pricing)),
+  }) : null;
+  const familleEnPct = prixMode === 'remise' && famPct > 0 && discountPctSaisi === famPct;
+  const partDesForfaits = chosen
+    .filter((sv) => regimeTarifaire(sv, cats).k === 'forfait')
+    .reduce((s, sv) => s + netDeLaLigne(tarifs.prixPlein(sv), tarifs.gesteDe(sv), remiseDeLigne({ remisesLignes: remisesALaMain }, serviceIds.indexOf(sv.id))), 0);
+  const familleEnFrancs = !familleEnPct && !!appt?.remiseFamille
+    ? Math.min(Math.max(0, discountXofSaisi), Math.max(0, Math.round(appt.remiseFamilleXof ?? appt.discountXof ?? 0)))
+    : 0;
+  const familleXof = familleEnPct ? Math.round(Math.max(0, brutDeLaMain - partDesForfaits) * (famPct / 100)) : familleEnFrancs;
+  const duelFamille = duMercredi && familleXof > 0 ? laPlusForteDesDeux({ familleXof, mercrediXof: duMercredi.mercrediXof }) : null;
+  /* Un mercredi que l'arrondi mange en entier ne se pose pas : un code qui
+     ne retire rien ne serait que du bruit au Carnet. */
+  const poseDuMercredi = poseCandidate && duMercredi && duMercredi.mercrediXof > 0 && duelFamille?.retenue !== 'famille' ? poseCandidate : null;
+  const familleEcartee = !!poseDuMercredi && duelFamille?.retenue === 'mercredi';
+  /* Ce que lisent le total, l'acompte et l'enregistrement. */
+  const discountPct = familleEcartee && familleEnPct ? 0 : discountPctSaisi;
+  const discountXof = familleEcartee && !familleEnPct ? Math.max(0, discountXofSaisi - familleEnFrancs) : discountXofSaisi;
   /* LES REMISES DE LIGNE DU RENDEZ-VOUS : celles de la main, et celles du
      mercredi quand il se pose. C'est ce tableau que tout lit ensuite : le
      prix de chaque ligne, le total, le gel, l'enregistrement. */
@@ -3194,6 +3226,13 @@ function RdvModalCorps({
                 /* La part famille, seule (10 octobre 2026) : c'est elle, et
                    non le cumul, qui suit à la visite suivante. */
                 remiseFamilleXof: !effCovered && !forfaitPose && remiseEstFamille ? (remiseFamilleXof || undefined) : undefined,
+                /* LA FAMILLE EN FRANCS GARDE SON NOM (2 novembre 2026) : c'est par
+                   lui que la fenêtre, rouverte, la reconnaît face au mercredi.
+                   Sans lui, la remise d'une reprise passerait pour une remise
+                   de la main, et le mercredi s'y ajouterait. */
+                ...(familleEnFrancs > 0 && !familleEcartee && !effCovered && !forfaitPose
+                  ? { remiseFamille: true, remiseFamilleXof: Math.round(x.remiseFamilleXof ?? familleEnFrancs) }
+                  : {}),
                 /* PRIX D'ORIGINE CONSERVÉ tant que les prestations ne changent pas.
                    Prestations modifiées → recalcul au tarif du jour DE LA CLIENTE
                    (personnalisé si modèle/Juste Prix, sinon catalogue). Variable/
@@ -4996,7 +5035,7 @@ function RdvModalCorps({
                     {famPct > 0 && (
                       <button
                         type="button"
-                        className={`trc-disc ${discountPct === famPct ? 'is-on' : ''}`}
+                        className={`trc-disc ${discountPctSaisi === famPct ? 'is-on' : ''}`}
                         onClick={() => setDiscountPct(famPct)}
                         title={`L'avantage du compte ${familleDuCompte?.name ?? 'famille'}`}
                       >
@@ -5007,7 +5046,7 @@ function RdvModalCorps({
                       <button
                         key={p}
                         type="button"
-                        className={`trc-disc ${discountPct === p ? 'is-on' : ''}`}
+                        className={`trc-disc ${discountPctSaisi === p ? 'is-on' : ''}`}
                         onClick={() => setDiscountPct(p)}
                       >
                         −{p}%
@@ -5018,7 +5057,7 @@ function RdvModalCorps({
                       type="number"
                       min={0}
                       max={100}
-                      value={discountPct}
+                      value={discountPctSaisi}
                       onChange={(e) => setDiscountPct(Math.max(0, Math.min(plafondDeRemisePct(estDirection), Math.round(Number(e.target.value) || 0))))}
                       title={estDirection ? undefined : '50 % et plus : la direction seulement.'}
                       style={{ width: 68, textAlign: 'right' }}
@@ -5029,7 +5068,7 @@ function RdvModalCorps({
                       className="mnd-input"
                       type="number"
                       min={0}
-                      value={discountXof}
+                      value={discountXofSaisi}
                       onChange={(e) => setDiscountXof(Math.min(plafondDeRemiseXof(estDirection, effGross), Math.max(0, Math.round(Number(e.target.value) || 0))))}
                       style={{ width: 120, textAlign: 'right' }}
                       placeholder="0"
@@ -5192,7 +5231,17 @@ function RdvModalCorps({
                   <b>{offreDuMercredi.title}</b> · code {poseDuMercredi.codeOffre} · −{offreDuMercredi.discountPct ?? 0} % sur {n} {n > 1 ? 'gestes' : 'geste'}
                   {retire > 0 ? <>, soit −{argent(retire)}{arrondiDuCode > 0 ? ' (arrondi au millier)' : ''}</> : null}.
                   {' '}Il se pose de lui-même sur un rendez-vous de ce jour.
+                  {duelFamille && ditLaPlusForte(duelFamille, offreDuMercredi.title) ? <> {ditLaPlusForte(duelFamille, offreDuMercredi.title)} (famille : −{argent(duelFamille.familleXof)})</> : null}
                   <button type="button" style={bouton} onClick={() => setMercrediEcarte(true)}>Ne pas l’appliquer</button>
+                </div>
+              );
+            }
+            /* LA FAMILLE RETENUE SE DIT (2 novembre 2026) : la plus forte des deux. */
+            if (duelFamille?.retenue === 'famille' && offreDuMercredi) {
+              return (
+                <div style={boite}>
+                  {ditLaPlusForte(duelFamille, offreDuMercredi.title) ?? `${offreDuMercredi.title} ne s’ajoute pas à la remise famille.`}
+                  {` (famille : −${argent(duelFamille.familleXof)}, ${offreDuMercredi.title.charAt(0).toLowerCase()}${offreDuMercredi.title.slice(1)} : −${argent(duelFamille.mercrediXof)})`}
                 </div>
               );
             }

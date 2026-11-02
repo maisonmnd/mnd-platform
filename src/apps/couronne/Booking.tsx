@@ -13,7 +13,7 @@ import { fondeLaCouronne } from '../../shared/catalogue-pur';
 import { litLaPhrase, departage } from '../../shared/phrase-de-rendez-vous-pur';
 import { useSubscribers } from '../../shared/abonnements';
 import { useOffers } from '../../shared/offers';
-import { arrondiDuNet, ceQueLeCodeRetire, lignesDuCode, offreDuJourDeLaVenue, poseLOffreDuJour } from '../../shared/offres-pur';
+import { arrondiDuNet, ceQueLeCodeRetire, laPlusForteDesDeux, lignesDuCode, offreDuJourDeLaVenue, poseLOffreDuJour } from '../../shared/offres-pur';
 import { REGLES_DE_LA_MAISON } from '../../shared/abonnee-pur';
 import { useReleve } from './releve';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
@@ -359,24 +359,32 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
      règles qu'avant, dans le même ordre : `prixDansPanier` (le geste offert
      dépend du panier), la remise famille hors forfaits sauf geste au panier,
      l'offre en % puis la famille en francs (apptNetXof). */
-  const chiffreDe = (panier: Service[]) => {
+  /* `offreDuJour` : le mercredi de la Maison de la venue choisie, par défaut ;
+     le calendrier passe celui d'un autre jour pour savoir s'il le marque. */
+  const chiffreDe = (panier: Service[], offreDuJour = offreDuMercredi) => {
     const ici = (s: Service) => prixDansPanier(s, pricing, panier, tousServices, produits);
     const connu = panier.filter((s) => !s.hidePrice).reduce((n, s) => n + ici(s), 0);
     const pctFamille = unGesteDansLePanier(panier, pricing) ? 0 : famPctCompte;
     const forfaits = panier
       .filter((s) => !s.hidePrice && regimeTarifaire(s, tousCats).k === 'forfait')
       .reduce((n, s) => n + ici(s), 0);
-    const remiseFamille = pctFamille > 0 ? Math.round(Math.max(0, connu - forfaits) * (pctFamille / 100)) : 0;
+    const familleSeule = pctFamille > 0 ? Math.round(Math.max(0, connu - forfaits) * (pctFamille / 100)) : 0;
     /* LE MERCREDI DE LA MAISON, LIGNE À LIGNE (2 novembre 2026) : seules les
        prestations qu'il couvre, à prix ferme, bougent ; puis le net monte au
        millier, comme au Trône (`arrondiDuCodeAuRdv`). 10 000 F font 9 000 F. */
     const duMercredi = ceQueLeCodeRetire(lignesDuCode(
       panier.filter((s) => !s.hidePrice).map((s) => ({ id: s.id, prixXof: ici(s), ferme: priceModeOf(s) !== 'devis' && prixFerme(s, pricing) })),
-      offreDuMercredi,
+      offreDuJour,
     ));
-    const remiseMercredi = Math.max(0, duMercredi.retire - arrondiDuNet(duMercredi.net, duMercredi.retire));
+    const mercrediSeul = Math.max(0, duMercredi.retire - arrondiDuNet(duMercredi.net, duMercredi.retire));
+    /* LA PLUS FORTE DES DEUX (2 novembre 2026, Yéman) : la remise famille et le
+       mercredi ne se cumulent jamais ; on garde celle qui retire le plus de
+       francs, la famille à égalité (`laPlusForteDesDeux`, la règle du Trône). */
+    const duel = mercrediSeul > 0 && familleSeule > 0 ? laPlusForteDesDeux({ familleXof: familleSeule, mercrediXof: mercrediSeul }) : null;
+    const remiseMercredi = duel?.retenue === 'famille' ? 0 : mercrediSeul;
+    const remiseFamille = duel?.retenue === 'mercredi' ? 0 : familleSeule;
     return {
-      connu, forfaits, pctFamille, remiseFamille, remiseMercredi,
+      connu, forfaits, pctFamille, remiseFamille, remiseMercredi, duel,
       prix: Math.max(0, Math.round((connu - remiseMercredi) * (1 - discountPct / 100)) - remiseFamille),
       variable: panier.some((s) => priceModeOf(s) === 'variable' && !prixFerme(s, pricing)),
       masque: panier.length > 0 && panier.every((s) => s.hidePrice),
@@ -384,6 +392,13 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
     };
   };
   const chiffre = chiffreDe(selected);
+  /* LE MERCREDI QUI COMPTE POUR CE RITUEL, un jour donné : celui que l'offre
+     couvre ET qui l'emporte sur la remise famille. C'est lui seul que le
+     calendrier et les places marquent en cuivre (2 novembre 2026). */
+  const leMercrediQuiCompte = (iso: string | null | undefined) => {
+    const o = leMercrediPour(iso);
+    return o && chiffreDe(selected, o).remiseMercredi > 0 ? o : null;
+  };
   const totalDuration = chiffre.duree;
   /* Nombre de séances à programmer : le maximum parmi les prestations retenues. */
   const totalSessions = selected.reduce((n, s) => Math.max(n, s.sessions), 1);
@@ -438,7 +453,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   /* Le mercredi de la Maison allège aussi l'acompte : il se compte sur le prix
      qu'elle paiera, ligne à ligne (2 novembre 2026). */
   const pctMercrediDe = (s: Service): number =>
-    offreDuMercredi && (offreDuMercredi.serviceIds ?? []).includes(s.id) && priceModeOf(s) !== 'devis' && prixFerme(s, pricing)
+    offreDuMercredi && chiffre.remiseMercredi > 0 && (offreDuMercredi.serviceIds ?? []).includes(s.id) && priceModeOf(s) !== 'devis' && prixFerme(s, pricing)
       ? Math.max(0, Math.min(90, Math.round(offreDuMercredi.discountPct ?? 0))) : 0;
   const prixNetIci = (s: Service): number => Math.round(prixIci(s) * (1 - pctMercrediDe(s) / 100));
   const deposit = depositForServices(priced.map((s) => ({ id: s.id, priceXof: prixNetIci(s) })), discountPct);
@@ -874,7 +889,8 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
          2026), celle qui porte le prix : son code et ses remises de ligne,
          comme le site les pose (`poseLOffreDuJour`). Le Trône l'arrondit au
          millier à la lecture, et la Caisse ne la remet pas une seconde fois. */
-      const poseDuMercredi = poseLOffreDuJour(offreDuMercredi, selectedIds.map((id) => {
+      /* Rien quand la famille l'emporte, ou quand l'arrondi reprend tout (2 novembre 2026). */
+      const poseDuMercredi = chiffre.remiseMercredi <= 0 ? null : poseLOffreDuJour(offreDuMercredi, selectedIds.map((id) => {
         const s = tousServices.find((x) => x.id === id);
         const p = s && !s.hidePrice ? prixIci(s) : 0;
         return { id, prixXof: p, ferme: !!s && p > 0 && priceModeOf(s) !== 'devis' && prixFerme(s, pricing) };
@@ -1459,7 +1475,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                     {placesExpress.map(({ iso, place }) => {
                       const on = placeExpress?.iso === iso && placeExpress.heure === place.heure;
                       /* Le mercredi de la Maison se lit sur la place (2 novembre 2026). */
-                      const duJour = leMercrediPour(iso);
+                      const duJour = leMercrediQuiCompte(iso);
                       return (
                         <button key={`${iso}-${place.heure}`} type="button" className={`mc-place ${on ? 'is-on' : ''}${duJour ? ' is-offre' : ''}`} aria-pressed={on}
                           onClick={() => setPlaceExpress({ iso, heure: place.heure })}>
@@ -1756,6 +1772,17 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                     : t('Remise famille · −{pct} % · −{montant}', { pct: famPct, montant: prix(famRemiseXof, currency) })}
                 </div>
               )}
+              {/* LA PLUS FORTE DES DEUX SE DIT (2 novembre 2026) : jamais la famille
+                  et le mercredi ensemble, et la cliente lit laquelle est retenue. */}
+              {chiffre.duel && offreDuMercredi && (
+                <div className="mc-recapcard__meta">
+                  {chiffre.duel.retenue === 'mercredi'
+                    ? t('{offre} retenu, plus fort que la remise famille.', { offre: offreDuMercredi.title })
+                    : chiffre.duel.mercrediXof === chiffre.duel.familleXof
+                      ? t('Remise famille retenue : {offre} ne retire pas davantage.', { offre: offreDuMercredi.title.charAt(0).toLowerCase() + offreDuMercredi.title.slice(1) })
+                      : t('Remise famille retenue, plus forte que {offre}.', { offre: offreDuMercredi.title.charAt(0).toLowerCase() + offreDuMercredi.title.slice(1) })}
+                </div>
+              )}
               <div className="mc-hairline" />
               <div className="mc-recapcard__total">
                 <span>{anyHidden && !allHidden ? t('Total connu') : t('Total')}</span>
@@ -1871,7 +1898,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                    vaudrait pour CE rituel, dans sa saison. Pour une série, le
                    jour de la première séance seul compte (elle porte le prix) :
                    les suivantes ne se marquent pas. */
-                const duJour = c.free && (totalSessions === 1 || sessionDates.length === 0) ? leMercrediPour(c.iso) : null;
+                const duJour = c.free && (totalSessions === 1 || sessionDates.length === 0) ? leMercrediQuiCompte(c.iso) : null;
                 return (
                   <button
                     key={c.key}
@@ -1893,7 +1920,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
               <span />{t('Jours avec créneaux libres · {duree}', { duree: fmtDuration(totalDuration) })}
             </div>
             {(() => {
-              const enCuivre = calCells.map((c) => (c.free && c.iso ? leMercrediPour(c.iso) : null)).find(Boolean);
+              const enCuivre = calCells.map((c) => (c.free && c.iso ? leMercrediQuiCompte(c.iso) : null)).find(Boolean);
               return enCuivre ? (
                 <div className="mc-callegend mc-callegend--offre">
                   <span />{enCuivre.au

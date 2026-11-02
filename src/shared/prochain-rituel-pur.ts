@@ -268,9 +268,12 @@ export function ceQuiDemandeSaFiche(c: {
    confirmation-rdv le balaie et la confirmation WhatsApp habituelle part.
 
    L'OFFRE « LE MERCREDI DE LA MAISON » (−15 % sur un rituel posé un
-   mercredi, code MERCREDI15) se branchera ICI, au moment de réunir les deux
-   chantiers : son code et sa remise s'écrivent sur cet objet. Aucune remise
-   n'est posée par ce chantier-ci. */
+   mercredi, code MERCREDI15) S'Y BRANCHE depuis le 2 novembre 2026 au soir :
+   `offreDuJour`, ce que `poseLOffreDuJour` (offres-pur) rend pour la place
+   touchée, écrit son code, son offre et ses remises de ligne, comme le site
+   et la fenêtre du rendez-vous les écrivent ; le prix figé est alors le net
+   arrondi au millier (`ceQueRetireLeMercredi`). Sans elle, rien ne change :
+   aucun code, aucune remise. */
 export function leRendezVousDuProchainRituel(o: {
   id: string;
   branchId: string;
@@ -287,6 +290,8 @@ export function leRendezVousDuProchainRituel(o: {
   depositXof: number;
   /** Le parent qui reçoit la confirmation, sur une fiche à deux numéros. */
   numeroAPrevenir?: string;
+  /** Le mercredi de la Maison posé sur cette place (`poseLOffreDuJour`). */
+  offreDuJour?: { codeOffre: string; offreId?: string; remisesLignes: ({ pct?: number; xof?: number } | null)[] } | null;
 }): Appointment {
   return {
     id: o.id,
@@ -304,6 +309,11 @@ export function leRendezVousDuProchainRituel(o: {
     priceXof: o.priceXof,
     depositServiceIds: [...o.depositServiceIds],
     depositXof: o.depositXof,
+    ...(o.offreDuJour ? {
+      codeOffre: o.offreDuJour.codeOffre,
+      ...(o.offreDuJour.offreId ? { offreId: o.offreDuJour.offreId } : {}),
+      remisesLignes: o.offreDuJour.remisesLignes.map((r) => (r ? { ...r } : null)),
+    } : {}),
   };
 }
 
