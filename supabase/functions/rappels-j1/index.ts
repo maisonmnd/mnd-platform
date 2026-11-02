@@ -34,7 +34,7 @@ const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. 10 octobre 2026 : le passage du soir ne dépose plus
     un rappel que les heures calmes retiendraient jusqu'au jour même. */
-const VERSION = '2026-11-02-a · les heures des rappels réglées au Trône ; la veille se tait quand elle a confirmé';
+const VERSION = '2026-11-02-b · les heures des rappels réglées au Trône ; la veille se tait quand elle a confirmé ; un rappel remis ne repart jamais';
 
 type Rdv = {
   id: string;
@@ -749,6 +749,23 @@ Deno.serve(async (req) => {
   const SMS_TOKEN = Deno.env.get('SMS_TWILIO_TOKEN');
   const SMS_FROM = Deno.env.get('SMS_FROM');
 
+  /* ══ UN RAPPEL DÉJÀ REMIS NE REPART JAMAIS — 2 novembre 2026 ══════════
+     Ce soir-là, une cliente a reçu deux fois « votre rendez-vous est demain
+     à 17 h 30 », au premier passage puis au second : sa ligne du journal
+     avait été remise en « échec » entre les deux (une copie ancienne de la
+     ligne, réécrite par un poste), et le second passage l'a retentée,
+     comme il retente tout échec. Le journal des envois ne suffit donc pas :
+     on relit aussi le fil. Un rappel au même numéro, au même texte, depuis
+     vingt heures, que WhatsApp n'a pas dit « non remis », ne repart pas,
+     quel que soit l'état de sa ligne. */
+  const depuisVingtHeures = new Date(Date.now() - 20 * 3_600_000).toISOString();
+  const { data: dejaAuFil } = await sb.from('messages_wa').select('data')
+    .eq('data->>modele', WA_TEMPLATE).eq('data->>sens', 'sortant').gte('data->>quand', depuisVingtHeures).limit(1000);
+  const dejaRemis = new Set(((dejaAuFil ?? []) as { data?: { numero?: string; texte?: string; etat?: string } }[])
+    .filter((r) => r.data?.etat !== 'non-remis')
+    .map((r) => `${r.data?.numero ?? ''}|${r.data?.texte ?? ''}`));
+  let dejaRemisTus = 0;
+
   const aInserer: { id: string; branch_id: string | null; data: Record<string, unknown> }[] = [];
   /* ══ L'IDENTIFIANT META SE GARDE — 11 septembre 2026 ═══════════════
      Le journal écrivait « envoyé » dès que Meta ACCEPTAIT la requête, et
@@ -802,6 +819,7 @@ Deno.serve(async (req) => {
        Le modèle approuvé attend deux variables : {{1}} le prénom,
        {{2}} l'heure (voir docs/BRANCHER-ENVOIS.md). */
     const tel = numeroIntl(telDuRdv(a, fiche));
+    if (tel && dejaRemis.has(`${tel}|${prenom}, votre rendez-vous est demain à ${heureLisible(a.time)}.`)) { dejaRemisTus++; continue; }
     if (partiraitLeJourMeme) {
       const motif = 'heures calmes : déposé ce soir, il partirait le jour même du rendez-vous';
       if (WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)) consigne('whatsapp', a, 'périmé', motif);
@@ -904,7 +922,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ version: VERSION, jour: demain, rdv: rdvs.length, confirmeesTues, push: 'au job mnd-push-rappels', salle: salleOuverte, partiraitLeJourMeme, deposes: nDeposes, whatsapp: nWa, sms: nSms, ...reprises, ...points }),
+    JSON.stringify({ version: VERSION, jour: demain, rdv: rdvs.length, confirmeesTues, dejaRemisTus, push: 'au job mnd-push-rappels', salle: salleOuverte, partiraitLeJourMeme, deposes: nDeposes, whatsapp: nWa, sms: nSms, ...reprises, ...points }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 });
