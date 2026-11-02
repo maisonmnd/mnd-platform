@@ -8,6 +8,7 @@ import { type EnvieKey } from './quiz';
    l'exécution) — le runtime ne boucle pas. */
 import { estMineur } from './accounts';
 import { cadeauxApresRemise } from './club-pur';
+import type { ConnuePar } from './connue-par-pur';
 
 /* Têtes couronnées — CRM 360. Toutes les entités portent `branchId` :
    la branche sélectionnée filtre tout. */
@@ -32,6 +33,12 @@ export type Client = {
       menée à elle : ni la page, ni la campagne, ni le jour où elle a consenti.
       'whatsapp' · 9 octobre 2026 : née d'un rendez-vous pris sur WhatsApp. */
   source?: 'site' | 'consultation' | 'maison' | 'whatsapp';
+  /** « COMMENT NOUS AVEZ-VOUS CONNUS ? » — 2 novembre 2026 (le socle de la
+      Maison intelligente) : sa réponse au comptoir, fermée (shared/connue-par-pur),
+      et le jour où elle a été notée. Autre chose que `source`, qui dit par où
+      la fiche est née. */
+  connuePar?: ConnuePar;
+  connueParLe?: string;
   campagne?: string;
   pageOrigine?: string;
   consentementLe?: string;

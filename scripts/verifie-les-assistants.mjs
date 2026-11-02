@@ -24,6 +24,7 @@ const CHARTE = 'docs/ASSISTANTS.md';
 const ONYX = 'scripts/onyx-installe.sh';
 const SQL_SOIR = 'supabase/reglage_soir_des_assistants_20261102.sql';
 const ECRAN = 'src/apps/trone/routes/pilotage/Assistants.tsx';
+const SQL51 = 'supabase/migrations/0151_la_maison_intelligente.sql';
 
 const PANNES = [
   // le cerveau pur
@@ -61,7 +62,7 @@ const PANNES = [
   ['la serie du soir se rompt a chaque tour', SERVEUR, 'seuilDeSommeilMin(precedent, maintenantMs, reglages) * 60_000', '25 * 60_000'],
   ['l etat de l autre ignore les reglages', SERVEUR, 'etatDe(assistantDe(a), maintenantMs, reglages)', 'etatDe(assistantDe(a), maintenantMs)'],
   ['le passage ne rend plus les crons', SERVEUR, 'crons: cronsDeLaVeille(reglages) }', 'crons: [] }'],
-  ['la version de la fonction ne bouge pas', SERVEUR, "const VERSION = '2026-11-02-a';", "const VERSION = '2026-11-01-a';"],
+  ['la version de la fonction ne bouge pas', SERVEUR, "const VERSION = '2026-11-02-b · le socle : cartes de tous les genres, Je suis loin, bilan du matin';", "const VERSION = '2026-11-02-a';"],
   ['le mot du relais n est plus filtre', SERVEUR, "    if (!juge.ok) return refus('mot-refuse', 400, { detail: juge.motif });", "    if (false) return refus('mot-refuse', 400, { detail: juge.motif });"],
   ['la tournure interdite passe dans une decision', SERVEUR, "  if (tournure) return refus('proposition-refusee', 400, { tournure });", "  if (false) return refus('proposition-refusee', 400, { tournure });"],
   ['une fiche inconnue est posee quand meme', SERVEUR, "  if (!fiche) return refus('fiche-inconnue', 404);", "  if (!fiche) fiche = { id: 'inconnue' };"],
@@ -95,7 +96,7 @@ const PANNES = [
   ['un rendez-vous passe sort', FIC, "r.date >= aujourdhui && r.status !== 'annulé'", "r.status !== 'annulé'"],
   ['les accents empechent de trouver', FIC, "replace(/[aeiouycn]/g, '_')", "replace(/[q]/g, '_')"],
   ['la fiche rend sa note', FIC, '    numeros, rdvs: avenir,\n  };', '    numeros, rdvs: avenir, ...(d.note ? { note: d.note } : {}),\n  };'],
-  ['la depense nait acquise', SERVEUR, "validation: { etat: 'attente', soumisLe: maintenant, soumisPar: moi.nom },", "validation: { etat: 'validee', soumisLe: maintenant, soumisPar: moi.nom },"],
+  ['la depense nait acquise', SERVEUR, "{ etat: 'attente', soumisLe: maintenant, soumisPar: moi.nom }, fichier);", "{ etat: 'validee', soumisLe: maintenant, soumisPar: moi.nom }, fichier);"],
   ['le meme geste se rejoue', SERVEUR, "  if (dejaLa) return rendu({ verdict: 'deja', id });", "  if (false) return rendu({ verdict: 'deja', id });"],
   ['le doublon n est plus cherche', SERVEUR, '  if (!v.autre) {', '  if (false) {'],
   ['le journal de la depense porte l objet', SERVEUR, 'piece: pieceDuJournal(v.montantXof, categorie), branchId });', 'piece: `${pieceDuJournal(v.montantXof, categorie)} ${v.objet}`, branchId });'],
@@ -117,6 +118,41 @@ const PANNES = [
   ['la recherche ne plafonne plus', SERVEUR, '  if ((lues ?? []).length >= LECTURES_PAR_JOUR) return', '  if (false) return'],
   ['la lecture n est plus tracee', SERVEUR, "  await s.journalise(moi.nom, { verbe: 'lit',", "  if (false) await s.journalise(moi.nom, { verbe: 'lit',"],
   ['le journal de la lecture porte le nom cherche', SERVEUR, 'piece: pieceDeLaLecture(fiches.length),', 'piece: `${pieceDeLaLecture(fiches.length)} ${chaine(d.nom)}`,'],
+  // le socle de la Maison intelligente (2 novembre 2026)
+  ['la notification du tour part la nuit', PUR, 'export const notificationPermise = (heureCotonou: number): boolean => heureCotonou >= NOTIFICATIONS_DE && heureCotonou < NOTIFICATIONS_A;', 'export const notificationPermise = (heureCotonou: number): boolean => true;'],
+  ['le passage notifie sans regarder l heure', SERVEUR, 'if (mode.loin && cartesNouvelles > 0 && notificationPermise(aCotonou(maintenantMs).heure)) {', 'if (mode.loin && cartesNouvelles > 0) {'],
+  ['le tour notifie aussi quand le porteur est la', SERVEUR, 'if (mode.loin && cartesNouvelles > 0 && notificationPermise(', 'if (cartesNouvelles > 0 && notificationPermise('],
+  ['deux passages du meme tour notifient deux fois', SERVEUR, '    if (!(Number.isFinite(dejaPrevenu) && maintenantMs - dejaPrevenu < UN_TOUR_AU_MOINS_MS)) {', '    if (true) {'],
+  ['le passage ne dit plus le mode', SERVEUR, 'veille, mode, notifieCartes, relais', 'veille, notifieCartes, relais'],
+  ['un passage efface le mode loin', SERVEUR, ".update({ vu_le: maintenant, eveille_depuis: eveilleDepuis, etat }).eq('id', moi.id);", ".update({ vu_le: maintenant, eveille_depuis: eveilleDepuis, etat, loin_depuis: null }).eq('id', moi.id);"],
+  ['loin, chaque carte notifie', SERVEUR, '  if (d.notifier === true && !mode.loin) sent =', '  if (d.notifier === true) sent ='],
+  ['le prive passe hors du mode loin', SERVEUR, "    if (!mode.loin) return refus('prive-hors-loin', 409,", "    if (false) return refus('prive-hors-loin', 409,"],
+  ['le prive trop long passe', PUR, '  if (message.length > PRIVE_MESSAGE_AU_PLUS) return', '  if (false) return'],
+  ['le prive survit a la decision', SERVEUR, 'texte_modifie: texte, ...effaceLePrive(dec, maintenant),', 'texte_modifie: texte,'],
+  ['le passage rend le prive', SERVEUR, "  faits: (l.faits ?? null) as Decision['faits'],\n});", "  faits: (l.faits ?? null) as Decision['faits'], prive: l.prive,\n} as Decision);"],
+  ['une carte de rendez-vous sans numero passe', PUR, "      if (!cle) return { ok: false, motif: 'le numéro de la cliente' };\n", ''],
+  ['une carte de depense sans cle passe', PUR, "      if (!cle) return { ok: false, motif: 'la clé du message' };\n", ''],
+  ['les faits de la carte ne sont plus relus', SERVEUR, '  let faits = (lusFaits.faits ?? null) as Corps | null;', '  let faits = (d.faits ?? null) as Corps | null;'],
+  ['la carte de depense n est plus controlee au depot', SERVEUR, '    if (!c.ok) return c.refus;\n    faits = {', '    faits = {'],
+  ['la depense de la carte nait a valider', SERVEUR, "const validation = { etat: 'validee', soumisLe: maintenant, soumisPar: sien.nom, decidePar: qui.nom, decideLe: maintenant };", "const validation = { etat: 'attente', soumisLe: maintenant, soumisPar: sien.nom };"],
+  ['la depense de la carte est decidee par l assistant', SERVEUR, 'soumisPar: sien.nom, decidePar: qui.nom,', 'soumisPar: sien.nom, decidePar: sien.nom,'],
+  ['la meme depense se pose deux fois par deux cartes', SERVEUR, '  const id = await idDeLaDepense(sien.id, f.cle);', '  const id = await idDeLaDepense(sien.id, `${f.cle}:${dec.id}`);'],
+  ['un refus tranche quand meme la carte', SERVEUR, '  const c = await controleLaDepense(s, sien, lue.v);\n  if (!c.ok) return c.refus;', '  const c = await controleLaDepense(s, sien, lue.v);\n  if (!c.ok) { await trancheLaCarte(); return c.refus; }'],
+  ['corriger ignore la correction', SERVEUR, "  const lus = faitsDeLaCarte('depense', { ...avant, ...corrections });", "  const lus = faitsDeLaCarte('depense', { ...avant });"],
+  ['non pose quand meme la depense', SERVEUR, "  if (choix === 'non') { await trancheLaCarte(); return rendu({ id: dec.id, choix }); }\n", ''],
+  ['loin bascule les assistants des autres', SERVEUR, '    return a.porteur_user_id === qui.userId && !!p && passeAuTrone(p);', '    return !!p && passeAuTrone(p);'],
+  ['loin bascule une fonction', SERVEUR, '    return a.porteur_user_id === qui.userId && !!p && passeAuTrone(p);', '    return a.porteur_user_id === qui.userId;'],
+  ['loin touche une seconde fois remet l heure', SERVEUR, 'const depuis = loin ? (modeDe(a.loin_depuis).loinDepuis ?? maintenant) : null;', 'const depuis = loin ? maintenant : null;'],
+  ['le bilan accepte demain', SERVEUR, '  if (lu.bilan.jour > aujourdhui || lu.bilan.jour < plusAncien) return', '  if (lu.bilan.jour < plusAncien) return'],
+  ['le bilan double au lieu de remplacer', SERVEUR, 'const id = `${moi.id}:${lu.bilan.jour}`;', 'const id = `${moi.id}:${lu.bilan.jour}:${Math.random()}`;'],
+  ['le bilan accepte un compte inconnu', PUR, "    if (!(COMPTES_DU_BILAN as readonly string[]).includes(k)) return { ok: false, motif: `un compte inconnu : ${k.slice(0, 20)}` };\n", ''],
+  ['le mot du bilan cite', PUR, '    const r = resumeEstPropre(mot);\n    if (!r.ok) return { ok: false, motif: r.motif };\n', ''],
+  ['la migration oublie un genre de carte', SQL51, "  'rdv', 'depense', 'publication', 'planning', 'acces'));", "  'rdv', 'depense', 'publication', 'planning'));"],
+  ['la migration oublie le relais signal', SQL51, "  'signal', 'a-faire'));", "  'a-faire'));"],
+  ['les bilans sans RLS', SQL51, 'alter table public.assistants_bilans enable row level security;\n', ''],
+  ['le prive sans borne en base', SQL51, "and coalesce(length(prive->>'message'), 0) <= 1200));", 'and true));'],
+  ['le prive n est plus efface la nuit', SQL51, "and (tranchee is not null or cree_le < now() - interval '7 days');", "and false;"],
+  ['la charte oublie le bilan du matin', CHARTE, 'bilan deposer --jour 2026-11-01 --lus 12', 'bilan --jour 2026-11-01 --lus 12'],
 ];
 
 const greffon = (panne) => ({

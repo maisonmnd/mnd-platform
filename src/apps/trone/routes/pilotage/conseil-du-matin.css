@@ -1,0 +1,30 @@
+/* LE CONSEIL DU MATIN, 2 novembre 2026 (le socle de la Maison intelligente).
+   Une page sobre : l'indigo pour le titre, le cuivre pour la rubrique, un
+   plancher clair. Préfixe `cdm-`. */
+.cdm { --cdm-alerte: var(--alarme, #A3402B); background: var(--surface-card); border: 1px solid var(--hairline); border-left: 3px solid var(--color-copper, #B97A4A); border-radius: var(--radius-md, 4px); padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; font-family: var(--font-sans); color: var(--ink); min-width: 0; }
+.cdm-tete { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.cdm-sur { margin: 0; font: 500 11px/1.2 var(--font-sans); letter-spacing: .22em; text-transform: uppercase; color: var(--copper-700); }
+.cdm-titre { margin: 4px 0 0; font: 400 26px/1.15 var(--font-serif); color: var(--color-indigo); }
+.cdm-doux { margin: 0; color: var(--ink-soft); font-size: 12.5px; line-height: 1.5; }
+.cdm-bloc { display: flex; flex-direction: column; gap: 6px; }
+.cdm-rubrique { margin: 0; font: 500 11px/1.2 var(--font-sans); letter-spacing: .18em; text-transform: uppercase; color: var(--color-indigo); }
+.cdm-liste { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.cdm-point { padding: 8px 12px; border-radius: 3px; background: var(--paper, #F6F1E7); font-size: 14px; line-height: 1.5; max-width: 72ch; }
+.cdm-point.est-alerte { border-left: 3px solid var(--cdm-alerte); }
+.cdm-point.est-attention { border-left: 3px solid var(--color-copper, #B97A4A); }
+.cdm-point.est-calme { border-left: 3px solid var(--hairline); }
+.cdm-calme { margin: 0; font-size: 14px; color: var(--ink-soft); }
+.cdm-revue, .cdm-lundi { margin: 0; padding: 8px 12px; border: 1px solid var(--color-copper, #B97A4A); border-radius: 3px; background: var(--copper-50, #FAF1E9); font-size: 14px; line-height: 1.5; max-width: 72ch; }
+.cdm-replie { align-self: flex-start; background: none; border: 0; padding: 6px 0; min-height: 44px; font: 500 13px/1.3 var(--font-sans); color: var(--copper-700); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.cdm-suite { display: flex; flex-direction: column; gap: 14px; }
+.cdm-ligne { margin: 0; font-size: 13.5px; line-height: 1.55; max-width: 72ch; }
+.cdm-ligne.est-attention { color: var(--copper-700); }
+.cdm-dix { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+.cdm-pro { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 1px solid var(--hairline); border-radius: 3px; font-size: 12.5px; color: var(--ink-soft); min-width: 0; }
+.cdm-pro__nom { font: 400 18px/1.1 var(--font-serif); color: var(--color-indigo); }
+.cdm-pro__qui { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--copper-700); }
+.cdm-pro__dit { color: var(--ink); }
+.cdm-pro.est-alerte { border-color: var(--cdm-alerte); }
+.cdm-pro.est-ok .cdm-pro__nom::after { content: ''; display: inline-block; width: 7px; height: 7px; margin-left: 8px; border-radius: 99px; background: #0A7A6C; vertical-align: middle; }
+.cdm-pied { font-size: 11.5px; }
+@media (max-width: 560px) { .cdm { padding: 14px; } .cdm-titre { font-size: 22px; } }

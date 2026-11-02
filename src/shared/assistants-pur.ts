@@ -38,6 +38,10 @@ export type Assistant = {
   vuLe?: string | null;
   /** Depuis quand la série de passages tient sans trou (ISO UTC). */
   eveilleDepuis?: string | null;
+  /** « Je suis loin » (2 novembre 2026) : depuis quand le porteur a touché le
+      bouton ; null quand il est là. Colonne à part (`loin_depuis`), jamais
+      dans `etat`, pour qu'un passage ne l'écrase pas. */
+  loinDepuis?: string | null;
   etat: {
     controles?: Controles;
     empeche?: string | null;
@@ -309,6 +313,9 @@ export const GENRES_DE_RELAIS = [
   'rdv-pose-pour-toi', 'rdv-deplace', 'rdv-annule',
   'place-tenue', 'place-confirmee', 'place-refusee',
   'fil-ouvert', 'hermine-a-prevenir', 'envie-lue', 'argent-a-trancher', 'assistant-endormi',
+  /* La Maison intelligente (2 novembre 2026) : un fait à savoir, un geste à
+     faire, d'un professionnel à un autre (« Achat saisi, Caisse Principale »). */
+  'signal', 'a-faire',
 ] as const;
 export type GenreDeRelais = typeof GENRES_DE_RELAIS[number];
 
@@ -324,6 +331,8 @@ export const RELAIS_DIT: Record<GenreDeRelais, string> = {
   'envie-lue': 'Une envie lue, posée en Note du carnet',
   'argent-a-trancher': 'Une question d\'argent à trancher',
   'assistant-endormi': 'L\'autre assistant dort',
+  signal: 'Un fait à savoir',
+  'a-faire': 'Un geste à faire',
 };
 
 /** Les relais qui demandent un geste à l'autre porteur : ils partent aussi en
@@ -415,10 +424,18 @@ export function motEstPropre(
 
 /* ── Les décisions laissées au porteur ────────────────────────────────── */
 
-export const GENRES_DE_DECISION = ['reponse', 'place-tenue', 'note', 'argent', 'cercle'] as const;
+/* LES CARTES (2 novembre 2026, le socle de la Maison intelligente) : une
+   décision laissée au porteur est une CARTE, la seule façon de lui demander.
+   Aux cinq genres d'Opale s'ajoutent ceux de tous les professionnels :
+   un rendez-vous, une dépense, une publication, un planning, un accès.
+   Le « contact nouveau » est la carte `cercle`. La contrainte `check` de
+   0151 recopie cette liste : le banc des assistants les tient ensemble. */
+export const GENRES_DE_DECISION = ['reponse', 'place-tenue', 'note', 'argent', 'cercle', 'rdv', 'depense', 'publication', 'planning', 'acces'] as const;
 export type GenreDeDecision = typeof GENRES_DE_DECISION[number];
 
-export type ChoixDeDecision = 'envoyer' | 'modifier' | 'non' | 'confirmer' | 'autre-heure' | Cercle;
+export type ChoixDeDecision =
+  | 'envoyer' | 'modifier' | 'non' | 'confirmer' | 'autre-heure' | Cercle
+  | 'poser' | 'valider' | 'corriger' | 'publier' | 'accepter' | 'accorder' | 'refuser';
 
 export const CHOIX_PAR_GENRE: Record<GenreDeDecision, readonly ChoixDeDecision[]> = {
   reponse: ['envoyer', 'modifier', 'non'],
@@ -426,12 +443,138 @@ export const CHOIX_PAR_GENRE: Record<GenreDeDecision, readonly ChoixDeDecision[]
   note: ['envoyer', 'modifier', 'non'],
   argent: ['envoyer', 'modifier', 'non'],
   cercle: [...CERCLES],
+  /* « Poser et répondre » : la pose et la réponse partent au tour suivant. */
+  rdv: ['poser', 'autre-heure', 'modifier', 'non'],
+  /* « Valider » : la dépense entre DÉJÀ VALIDÉE au nom du porteur, d'un
+     toucher (choix 4 de « Je suis loin ») ; « Corriger » la valide avec les
+     faits corrigés sur la carte ; « Non » : ce n'est pas une dépense. */
+  depense: ['valider', 'corriger', 'non'],
+  publication: ['publier', 'modifier', 'non'],
+  planning: ['accepter', 'modifier', 'non'],
+  acces: ['accorder', 'refuser'],
 };
 
 export const CHOIX_DIT: Record<string, string> = {
   envoyer: 'Envoyer', modifier: 'Modifier', non: 'Non', confirmer: 'Confirmer', 'autre-heure': 'Autre heure',
   cliente: 'Cliente', proche: 'Proche', famille: 'Famille', fournisseur: 'Fournisseur', inconnu: 'Inconnu',
+  poser: 'Poser et répondre', valider: 'Valider', corriger: 'Corriger', publier: 'Publier', accepter: 'Accepter',
+  accorder: 'Accorder', refuser: 'Refuser',
 };
+
+/** Le « Non » de chaque genre, dit à sa façon sur la carte. */
+export const NON_DIT: Partial<Record<GenreDeDecision, string>> = {
+  reponse: 'Ne pas répondre', rdv: 'Ne rien poser', depense: 'Pas une dépense', publication: 'Ne pas publier', planning: 'Garder le planning',
+};
+
+/** Les choix qui demandent un texte au porteur (sa réponse, l'heure, la correction). */
+export const CHOIX_AVEC_TEXTE: readonly ChoixDeDecision[] = ['modifier', 'autre-heure', 'corriger'];
+
+/* ── Ce que la carte montre au porteur seul ──────────────────────────── */
+
+/** Tranché par Yéman le 1er novembre 2026 (« Je suis loin », choix 2) : la
+    carte montre le nom du contact et son message, POUR LE PORTEUR SEUL
+    (colonne `prive`, lue par lui seul), effacés dès la décision et au plus
+    tard après sept jours. Jamais pour un proche ou la famille : leurs fils ne
+    s'ouvrent pas en mode loin (choix 3). Jamais dans un relais, un résumé, le
+    journal, une notification, le Conseil du matin. */
+export type PriveDeLaCarte = { contact: string; message: string };
+export const PRIVE_CONTACT_AU_PLUS = 60;
+export const PRIVE_MESSAGE_AU_PLUS = 1200;
+export const PURGE_DU_PRIVE_JOURS = 7;
+
+export function priveEstPropre(p: unknown): { ok: true; prive: PriveDeLaCarte } | { ok: false; motif: string } {
+  if (!p || typeof p !== 'object') return { ok: false, motif: 'ni contact ni message' };
+  const contact = String((p as { contact?: unknown }).contact ?? '').trim();
+  const message = String((p as { message?: unknown }).message ?? '').trim();
+  if (!contact && !message) return { ok: false, motif: 'ni contact ni message' };
+  if (contact.length > PRIVE_CONTACT_AU_PLUS) return { ok: false, motif: `un contact de plus de ${PRIVE_CONTACT_AU_PLUS} caractères` };
+  if (message.length > PRIVE_MESSAGE_AU_PLUS) return { ok: false, motif: `un message de plus de ${PRIVE_MESSAGE_AU_PLUS} caractères` };
+  return { ok: true, prive: { contact, message } };
+}
+
+/** Le privé d'une carte est-il à effacer ? Dès qu'elle est tranchée, ou sept
+    jours après sa naissance. */
+export const priveAEffacer = (d: { tranchee?: string | null; creeLe: string }, maintenantMs: number): boolean => {
+  if (d.tranchee) return true;
+  const ne = Date.parse(d.creeLe);
+  return Number.isFinite(ne) && maintenantMs - ne >= PURGE_DU_PRIVE_JOURS * 24 * 60 * 60_000;
+};
+
+/* ── Les faits d'une carte (colonne `faits`) ─────────────────────────── */
+
+/** Ce dont le Trône a besoin pour exécuter la carte, sans texte privé. */
+export type FaitsDeRdv = { numeroCle: string; clientId?: string; services: string[]; date: string; time: string; pour?: string; prevenir?: string; tenue?: boolean };
+export type FaitsDeDepense = { montantXof: number; objet: string; categorie: string; caisse?: string; porteur?: string; beneficiaire?: string; date?: string; cle: string };
+export type FaitsDePublication = { reseau: string; quand?: string; apercu?: string };
+export type FaitsDePlanning = { jour?: string; quoi: string };
+export type FaitsDAcces = { quoi: string; pour?: string };
+export type FaitsDeLaCarte = FaitsDeRdv | FaitsDeDepense | FaitsDePublication | FaitsDePlanning | FaitsDAcces;
+
+const estDateISO = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const estHeure = (v: unknown): v is string => typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+const texteCourt = (v: unknown, max: number): string => String(v ?? '').trim().slice(0, max);
+const numeroCleDe = (v: unknown): string | null => numeroCle(typeof v === 'string' || typeof v === 'number' ? String(v) : null);
+
+/** Les faits d'une carte, lus selon son genre. Les genres sans faits
+    (réponse, note, argent, cercle, place tenue) n'en portent pas. */
+export function faitsDeLaCarte(genre: GenreDeDecision, f: unknown): { ok: true; faits: FaitsDeLaCarte | null } | { ok: false; motif: string } {
+  const o = (f && typeof f === 'object' ? f : {}) as Record<string, unknown>;
+  switch (genre) {
+    case 'rdv': {
+      const cle = numeroCleDe(o.numeroCle);
+      const services = Array.isArray(o.services) ? o.services.map((s) => texteCourt(s, 60)).filter(Boolean).slice(0, 6) : [];
+      if (!cle) return { ok: false, motif: 'le numéro de la cliente' };
+      if (services.length === 0) return { ok: false, motif: 'les prestations' };
+      if (!estDateISO(o.date) || !estHeure(o.time)) return { ok: false, motif: 'le jour et l\'heure' };
+      const prevenir = numeroCleDe(o.prevenir);
+      return { ok: true, faits: {
+        numeroCle: cle, services, date: o.date, time: o.time,
+        ...(texteCourt(o.clientId, 60) ? { clientId: texteCourt(o.clientId, 60) } : {}),
+        ...(texteCourt(o.pour, 60) ? { pour: texteCourt(o.pour, 60) } : {}),
+        ...(prevenir ? { prevenir } : {}),
+        ...(o.tenue === true ? { tenue: true } : {}),
+      } };
+    }
+    case 'depense': {
+      const montantXof = typeof o.montantXof === 'number' && Number.isFinite(o.montantXof) ? Math.round(o.montantXof) : NaN;
+      if (!(montantXof > 0)) return { ok: false, motif: 'le montant' };
+      const objet = texteCourt(o.objet, 80);
+      const categorie = texteCourt(o.categorie, 60);
+      const cle = texteCourt(o.cle, 120);
+      if (!objet) return { ok: false, motif: 'l\'objet' };
+      if (!categorie) return { ok: false, motif: 'la catégorie' };
+      if (!cle) return { ok: false, motif: 'la clé du message' };
+      if (o.date !== undefined && !estDateISO(o.date)) return { ok: false, motif: 'la date' };
+      return { ok: true, faits: {
+        montantXof, objet, categorie, cle,
+        ...(texteCourt(o.caisse, 60) ? { caisse: texteCourt(o.caisse, 60) } : {}),
+        ...(texteCourt(o.porteur, 60) ? { porteur: texteCourt(o.porteur, 60) } : {}),
+        ...(texteCourt(o.beneficiaire, 60) ? { beneficiaire: texteCourt(o.beneficiaire, 60) } : {}),
+        ...(estDateISO(o.date) ? { date: o.date } : {}),
+      } };
+    }
+    case 'publication': {
+      const reseau = texteCourt(o.reseau, 30);
+      if (!reseau) return { ok: false, motif: 'le réseau' };
+      return { ok: true, faits: { reseau, ...(texteCourt(o.quand, 40) ? { quand: texteCourt(o.quand, 40) } : {}), ...(texteCourt(o.apercu, 400) ? { apercu: texteCourt(o.apercu, 400) } : {}) } };
+    }
+    case 'planning': {
+      const quoi = texteCourt(o.quoi, 160);
+      if (!quoi) return { ok: false, motif: 'ce qui change' };
+      return { ok: true, faits: { quoi, ...(estDateISO(o.jour) ? { jour: o.jour } : {}) } };
+    }
+    case 'acces': {
+      const quoi = texteCourt(o.quoi, 160);
+      if (!quoi) return { ok: false, motif: 'l\'accès demandé' };
+      return { ok: true, faits: { quoi, ...(texteCourt(o.pour, 60) ? { pour: texteCourt(o.pour, 60) } : {}) } };
+    }
+    default:
+      return { ok: true, faits: null };
+  }
+}
+
+/** Les genres dont la carte exige des faits pour être déposée. */
+export const GENRES_AVEC_FAITS: readonly GenreDeDecision[] = ['rdv', 'depense', 'publication', 'planning', 'acces'];
 
 export type Decision = {
   id: string;
@@ -452,6 +595,12 @@ export type Decision = {
   texteModifie?: string | null;
   executeeLe?: string | null;
   creeLe: string;
+  /** Le nom du contact et son message, pour le porteur seul ; null dès la
+      décision et au plus tard sept jours après (voir `priveEstPropre`). */
+  prive?: PriveDeLaCarte | null;
+  priveEffaceLe?: string | null;
+  /** Les faits de la carte (rendez-vous, dépense, publication…). */
+  faits?: FaitsDeLaCarte | null;
 };
 
 export const RESUME_AU_PLUS = 160;
@@ -536,7 +685,7 @@ export const EN_TETE_DU_JETON_ASSISTANT = 'x-jeton-assistant';
 export const PORTE_ASSISTANT = 'assistant';
 
 /** Le corps d'une notification au porteur : jamais un nom, jamais un extrait. */
-export function corpsDeNotification(genre: GenreDeRelais | 'decision' | 'sommeil' | 'empeche', detail?: { heure?: string; nom?: string; depuis?: string; empeche?: string }): { titre: string; corps: string } {
+export function corpsDeNotification(genre: GenreDeRelais | 'decision' | 'sommeil' | 'empeche' | 'cartes', detail?: { heure?: string; nom?: string; depuis?: string; empeche?: string; n?: number }): { titre: string; corps: string } {
   const qui = detail?.nom ?? 'Votre assistant';
   switch (genre) {
     case 'place-tenue': return { titre: 'Une place tenue pour vous', corps: `${detail?.heure ?? 'Une place'} : confirmez d'un toucher dans Les assistants.` };
@@ -550,6 +699,12 @@ export function corpsDeNotification(genre: GenreDeRelais | 'decision' | 'sommeil
     case 'fil-ouvert': return { titre: 'La même personne vous écrit à tous les deux', corps: 'L\'autre assistant répond ; un relais le dit.' };
     case 'envie-lue': return { titre: 'Une envie notée', corps: 'Une Note du carnet a été posée sur un rendez-vous.' };
     case 'assistant-endormi': return { titre: 'L\'autre assistant dort', corps: 'Des fils attendent de son côté.' };
+    case 'signal': return { titre: 'Un fait à savoir', corps: 'Un relais vous attend au Trône.' };
+    case 'a-faire': return { titre: 'Un geste à faire', corps: 'Un relais vous attend au Trône.' };
+    case 'cartes': {
+      const n = Math.max(1, Math.round(detail?.n ?? 1));
+      return { titre: n > 1 ? `${n} cartes vous attendent` : 'Une carte vous attend', corps: `${qui} : à valider dans Les assistants.` };
+    }
     case 'decision': return { titre: 'Une décision vous attend', corps: `${qui} a laissé une proposition dans Les assistants.` };
     case 'sommeil': return { titre: `${qui} dort`, corps: `Aucun passage depuis ${detail?.depuis ?? 'un moment'}. Relancez-le d'un clic.` };
     case 'empeche': return { titre: `${qui} est empêché`, corps: detail?.empeche ?? 'Un contrôle a échoué au dernier passage.' };
@@ -582,8 +737,11 @@ export const ACTIONS_DU_JETON = [
   'rdv.poser', 'rdv.deplacer', 'rdv.annuler', 'note.poser', 'notifier',
   /* 1er novembre 2026 : la dépense du jour posée « à valider », et la fiche retrouvée par son nom (lecture seule). */
   'depense.poser', 'fiche.chercher',
+  /* 2 novembre 2026, le socle : le bilan déposé avant le Conseil du matin. */
+  'bilan.deposer',
 ] as const;
-export const ACTIONS_DU_SOUVERAIN = ['jeton.donner', 'jeton.retirer', 'decision.trancher', 'place.trancher'] as const;
+/* 2 novembre 2026 : « Je suis loin / Je suis là », le bouton du porteur. */
+export const ACTIONS_DU_SOUVERAIN = ['jeton.donner', 'jeton.retirer', 'decision.trancher', 'place.trancher', 'loin.basculer'] as const;
 
 export type ReponseAssistants =
   | { ok: true; version: string; [k: string]: unknown }
@@ -622,3 +780,50 @@ export const estUneTresse = (nomDePrestation: string | null | undefined, labelDe
   const r = String(labelDeRubrique ?? '').toLowerCase();
   return /tresse/.test(r) || /tresse|natte|vanille/.test(p);
 };
+
+/* ── « Je suis loin » (2 novembre 2026, le socle) ─────────────────────── */
+
+/** Les notifications d'un tour en mode loin : une seule, avec le nombre de
+    cartes nouvelles, jamais un nom ; jamais avant 7 h ni après 22 h (heure de
+    Cotonou), la carte attend au Trône. */
+export const NOTIFICATIONS_DE = 7;
+export const NOTIFICATIONS_A = 22;
+export const notificationPermise = (heureCotonou: number): boolean => heureCotonou >= NOTIFICATIONS_DE && heureCotonou < NOTIFICATIONS_A;
+
+/** Ce que le passage dit à l'assistant de son mode. */
+export type ModeDuPorteur = { loin: boolean; loinDepuis: string | null };
+export const modeDe = (loinDepuis: string | null | undefined): ModeDuPorteur => {
+  const ok = !!loinDepuis && Number.isFinite(Date.parse(loinDepuis));
+  return { loin: ok, loinDepuis: ok ? (loinDepuis as string) : null };
+};
+
+/* ── Le bilan du matin (2 novembre 2026, le socle) ─────────────────────── */
+
+/** Ce qu'un professionnel dépose avant 6 h 45 pour le Conseil du matin : des
+    compteurs de la veille, jamais un nom ni un texte. Un mot de cent
+    caractères au plus, jugé comme un résumé (sans guillemets, sans numéro). */
+export const COMPTES_DU_BILAN = ['lus', 'repondus', 'pouces', 'rdvPoses', 'depenses', 'cartes', 'relais', 'publications'] as const;
+export type CompteDuBilan = typeof COMPTES_DU_BILAN[number];
+export type BilanDuMatin = { jour: string; comptes: Partial<Record<CompteDuBilan, number>>; mot?: string | null };
+export const MOT_DU_BILAN_AU_PLUS = 100;
+
+export function bilanEstPropre(b: unknown): { ok: true; bilan: BilanDuMatin } | { ok: false; motif: string } {
+  const o = (b && typeof b === 'object' ? b : {}) as Record<string, unknown>;
+  const jour = String(o.jour ?? '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(jour)) return { ok: false, motif: 'le jour' };
+  const brut = (o.comptes && typeof o.comptes === 'object' ? o.comptes : {}) as Record<string, unknown>;
+  const comptes: Partial<Record<CompteDuBilan, number>> = {};
+  for (const k of Object.keys(brut)) {
+    if (!(COMPTES_DU_BILAN as readonly string[]).includes(k)) return { ok: false, motif: `un compte inconnu : ${k.slice(0, 20)}` };
+    const v = brut[k];
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 10_000) return { ok: false, motif: `le compte ${k}` };
+    comptes[k as CompteDuBilan] = Math.round(v);
+  }
+  const mot = String(o.mot ?? '').trim();
+  if (mot) {
+    if (mot.length > MOT_DU_BILAN_AU_PLUS) return { ok: false, motif: `un mot de plus de ${MOT_DU_BILAN_AU_PLUS} caractères` };
+    const r = resumeEstPropre(mot);
+    if (!r.ok) return { ok: false, motif: r.motif };
+  }
+  return { ok: true, bilan: { jour, comptes, ...(mot ? { mot } : {}) } };
+}

@@ -10,6 +10,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom, maisonRaison, maisonRaisonDuPdfAu, maisonVille } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
 import { aAccorde, aDefaitSesLocks, clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, sortiesDeLaMaison, MOIS_AVANT_SORTIE, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, depuisQuandALaMaison, joursDeLaTete, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
+import { CANAUX_DE_CONNAISSANCE, CONNUE_PAR_DIT, QUESTION_DU_COMPTOIR, estConnuePar, type ConnuePar } from '../../../../shared/connue-par-pur';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf, statutFidelite } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment, estampilleLaPose, noteDeLaMaison } from '../../../../shared/agenda';
@@ -3639,6 +3640,14 @@ function Customer360({
               <div className="trc-v"><u>E-mail</u><span className={client.email ? '' : 'is-vide'}>{client.email || '—'}</span></div>
               <div className="trc-v"><u>Ville</u><span className={client.city ? '' : 'is-vide'}>{client.city || '—'}</span></div>
               <div className="trc-v"><u>Anniv.</u><span className={client.birthday ? '' : 'is-vide'}>{client.birthday ? frBirthday(client.birthday) : '—'}</span></div>
+              {/* « Comment nous avez-vous connus ? » (2 novembre 2026) : un clic
+                  s'enregistre aussitôt, comme la civilité. */}
+              <div className="trc-v"><u>Nous connaît par</u><span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+                {CANAUX_DE_CONNAISSANCE.map((k) => (
+                  <button key={k} type="button" className={`trc-chip ${estConnuePar(client.connuePar) && client.connuePar === k ? 'is-active' : ''}`}
+                    onClick={() => patch({ connuePar: k, connueParLe: todayISO() })}>{CONNUE_PAR_DIT[k]}</button>
+                ))}
+              </span></div>
             </>
           )}
           {panEdite === 'joindre' && (<>
@@ -5751,6 +5760,9 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
   const [segments, setSegments] = useState<string[]>([]);
   const [lockCount, setLockCount] = useState('');
   const [crownSince, setCrownSince] = useState('');
+  /* « Comment nous avez-vous connus ? » (2 novembre 2026, le socle de la
+     Maison intelligente) : un toucher, demandé à chaque nouvelle fiche. */
+  const [connuePar, setConnuePar] = useState<ConnuePar | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [thinking, setThinking] = useState(false);
   const [why, setWhy] = useState<string | null>(null);
@@ -5806,6 +5818,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
   const save = () => {
     if (!prenom.trim()) { setError('Indiquez son prénom.'); return; }
     if (!nomFamille.trim()) { setError('Indiquez son nom de famille.'); return; }
+    if (!connuePar) { setError('Demandez comment la Maison a été connue : un toucher suffit, « Ne sait plus » compte aussi.'); return; }
     const client: Client = {
       id: uid(),
       branchId: branch.id,
@@ -5832,6 +5845,8 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
          PROUVE : la marque se lève d'elle-même à la 2ᵉ venue honorée
          (usePassageVivant), rien à entretenir. */
       dePassage: true,
+      connuePar,
+      connueParLe: todayISO(),
     };
     clientsStore.set((prev) => [...prev, client]);
     onClose();
@@ -5880,6 +5895,14 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
             <Input value={city} onChange={(e) => setCity(e.target.value)} />
           </Field>
         </div>
+
+        <Field label={QUESTION_DU_COMPTOIR}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {CANAUX_DE_CONNAISSANCE.map((k) => (
+              <button key={k} type="button" className={`trc-chip ${connuePar === k ? 'is-active' : ''}`} onClick={() => setConnuePar(k)}>{CONNUE_PAR_DIT[k]}</button>
+            ))}
+          </div>
+        </Field>
 
         <div className="tr-grid tr-grid--2">
           <Field label="Persona de départ">

@@ -30,8 +30,11 @@ const GENRES_DE_RELAIS = [
   'rdv-pose-pour-toi', 'rdv-deplace', 'rdv-annule',
   'place-tenue', 'place-confirmee', 'place-refusee',
   'fil-ouvert', 'hermine-a-prevenir', 'envie-lue', 'argent-a-trancher', 'assistant-endormi',
+  'signal', 'a-faire',
 ];
-const GENRES_DE_DECISION = ['reponse', 'place-tenue', 'note', 'argent', 'cercle'];
+const GENRES_DE_DECISION = ['reponse', 'place-tenue', 'note', 'argent', 'cercle', 'rdv', 'depense', 'publication', 'planning', 'acces'];
+// RECOPIÉ de assistants-pur.ts (COMPTES_DU_BILAN) : l'option de la ligne de commande, puis la clé du compte.
+const COMPTES_DU_BILAN = [['lus', 'lus'], ['repondus', 'repondus'], ['pouces', 'pouces'], ['rdv', 'rdvPoses'], ['depenses', 'depenses'], ['cartes', 'cartes'], ['relais', 'relais'], ['publications', 'publications']];
 const GENRES_DE_NOTIFICATION = [...GENRES_DE_RELAIS, 'decision', 'sommeil', 'empeche'];
 
 /* ── Ce qui s'écrit : toujours masqué ─────────────────────────────────── */
@@ -59,10 +62,19 @@ Réglages : --reglages <chemin>, sinon ./reglages.json, sinon <dossier personnel
 
 Sous-commandes :
   sante                         GET de santé de la fonction (public, sans jeton)
-  passage --chrome oui|non --lie oui|non --nonlus oui|non [--traites <n>] [--version <v>]
+  passage --chrome oui|non --lie oui|non --nonlus oui|non [--traites <n>] [--version <v>] [--cartes <n>]
+            (--cartes : les cartes déposées pendant ce tour ; en mode « Je suis loin », UNE notification
+             au porteur, le nombre seul, de 7 h à 22 h. La réponse dit le mode : mode.loin)
   relais deposer --pour <id d'assistant> --genre <genre> [--numero <n>] [--client <id>] [--rdv <id>] [--mot "..."] [--perime-dans <min>]
   relais traiter --id <id>
   decision deposer --genre <genre> --resume "..." [--proposition "..."] [--numero <n>] [--client <id>] [--rdv <id>] [--echeance <min>] [--notifier]
+            [--faits '<json>'] [--contact "..." --message "..."] [--autre]
+            (--faits : exigés pour rdv, depense, publication, planning, acces, par exemple
+               rdv      {"numeroCle":"229…","services":["svc-…"],"date":"AAAA-MM-JJ","time":"HH:mm","pour":"st-…"}
+               depense  {"montantXof":3500,"objet":"Eau","categorie":"Local","caisse":"Caisse Principale","cle":"<id du message>"}
+             --contact et --message : le nom du contact et son message, pour le porteur seul,
+               en mode « Je suis loin » seulement ; jamais pour un proche ou la famille ;
+             --autre : une carte de dépense qui n'est pas la dépense déjà au Trône)
   decision executee --id <id>
   rdv poser --numero <n> --services <id,id> --date AAAA-MM-JJ --time HH:mm --pour <team id>
             [--client <id>] [--master <team id>] [--duree <min>] [--note "..."] [--tenue]
@@ -79,6 +91,10 @@ Sous-commandes :
              --autre seulement quand Yéman a dit que ce n'est pas la dépense déjà au Trône)
   fiche chercher --nom "..." | --numero <n>
             (lecture seule : 5 fiches au plus, leurs numéros et leurs rendez-vous à venir)
+  bilan deposer --jour AAAA-MM-JJ [--lus <n>] [--repondus <n>] [--pouces <n>] [--rdv <n>] [--depenses <n>]
+            [--cartes <n>] [--relais <n>] [--publications <n>] [--mot "..."]
+            (avant 6 h 45, la journée écoulée, des nombres seulement ; le mot : 100 caractères,
+             sans guillemets ni numéro ; le redire le même jour le remplace)
 
 Options communes :
   --essai      affiche la requête qui partirait (jeton masqué), sans l'envoyer
@@ -198,6 +214,24 @@ function litLeRecu(options) {
   return { nom: path.basename(plein), type, base64: readFileSync(plein).toString('base64') };
 }
 
+/* LES FAITS D'UNE CARTE (2 novembre 2026) : un objet JSON ; la fonction les relit par genre. */
+function faitsDe(options) {
+  const v = texte(options, 'faits');
+  if (!v) return undefined;
+  let lu;
+  try { lu = JSON.parse(v); } catch { throw new Erreur('option-invalide', '--faits attend un objet JSON'); }
+  if (!lu || typeof lu !== 'object' || Array.isArray(lu)) throw new Erreur('option-invalide', '--faits attend un objet JSON');
+  return lu;
+}
+/* LE PRIVÉ D'UNE CARTE : le nom du contact et son message, en mode « Je suis loin » seulement (la fonction refuse sinon). */
+function priveDe(options) {
+  const contact = texte(options, 'contact'); const message = texte(options, 'message');
+  if (!contact && !message) return undefined;
+  if (contact.length > 60) throw new Erreur('option-invalide', '--contact : 60 caractères au plus');
+  if (message.length > 1200) throw new Erreur('option-invalide', '--message : 1200 caractères au plus');
+  return { contact, message };
+}
+
 /* ── Les sous-commandes → le corps de la requête ──────────────────────── */
 
 function corpsDe(mots, options, reglages) {
@@ -210,6 +244,7 @@ function corpsDe(mots, options, reglages) {
         controles: { chrome: ouiNon(options, 'chrome'), lie: ouiNon(options, 'lie'), nonLus: ouiNon(options, 'nonlus') },
         traites: entier(options, 'traites'),
         version: texte(options, 'version') || undefined,
+        cartesNouvelles: entier(options, 'cartes'),
       });
     case 'relais deposer':
       return sansVide({
@@ -235,6 +270,9 @@ function corpsDe(mots, options, reglages) {
         rdvId: texte(options, 'rdv') || undefined,
         echeanceMin: entier(options, 'echeance', 1),
         notifier: options.notifier === true ? true : undefined,
+        faits: faitsDe(options),
+        prive: priveDe(options),
+        autre: options.autre === true ? true : undefined,
       });
     case 'decision executee':
       return { action: 'decision.executee', id: exige(options, 'id') };
@@ -296,6 +334,11 @@ function corpsDe(mots, options, reglages) {
         idempotence: texte(options, 'cle') || cleParDefaut,
         recu: litLeRecu(options),
       });
+    }
+    case 'bilan deposer': {
+      const comptes = {};
+      for (const [option, cle] of COMPTES_DU_BILAN) { const n = entier(options, option); if (n !== undefined) comptes[cle] = n; }
+      return sansVide({ action: 'bilan.deposer', jour: dateISO(options, 'jour'), comptes, mot: texte(options, 'mot') || undefined });
     }
     case 'fiche chercher': {
       const n = numero(options, 'numero', false);

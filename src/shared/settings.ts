@@ -4,6 +4,7 @@ import type { ReglagesMndPay } from './mnd-pay-pur';
 import type { ReglagesRelances } from './relances-pur';
 import type { ReglagesDictee } from './dictee-pur';
 import type { ReglagesAssistants } from './assistants-pur';
+import type { ReglagesDuLivre } from './maison-intelligente-pur';
 
 /* Paramètres de la Maison — persistés en localStorage (clé `mnd_settings`).
    Jours & heures d'ouverture, bascules de rituel/notifications, et les liens
@@ -144,6 +145,11 @@ export type Settings = {
       tenue. La fonction `assistants-maison`, le chien de garde de
       push-notify et l'écran « Les assistants » les lisent. */
   assistants?: ReglagesAssistants;
+  /** LE LIVRE DES CRÉDITS — 2 novembre 2026 (la Maison intelligente) : le
+      plafond de chaque professionnel en dollars par mois, dans les 200 $ de
+      l'abonnement, et le seuil d'alerte. Lu par l'écran « Les assistants » et
+      par Saphir (Conseil du matin) ; réglé par un souverain. */
+  livreDesCredits?: ReglagesDuLivre;
 };
 
 /** Créneaux d'ouverture proposés — repris du prototype. */

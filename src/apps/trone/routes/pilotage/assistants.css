@@ -1,4 +1,5 @@
-/* LES ASSISTANTS RELIÉS, 31 octobre 2026, maquette TtHPKpjCqovrn8nookJ7eu.
+/* LES ASSISTANTS RELIÉS, 31 octobre 2026, maquette TtHPKpjCqovrn8nookJ7eu ;
+   le socle des dix professionnels depuis le 2 novembre 2026.
    Sobre : une tuile par assistant, des lignes repliées, le cuivre pour le
    geste principal, l'indigo pour la barre qui suit. Préfixe `ast-`. */
 .ast { --ast-ok: #0A7A6C; --ast-alerte: var(--alarme, #A3402B); --ast-dort: var(--obsidian-400, #6E6E7A); display: flex; flex-direction: column; gap: 18px; font-family: var(--font-sans); color: var(--ink); }
@@ -78,6 +79,66 @@
 .ast-champ .mnd-input { max-width: 110px; font-variant-numeric: tabular-nums; }
 .ast-regles p { margin: 0; font-size: 13.5px; line-height: 1.55; }
 
+/* ══ LE SOCLE DE LA MAISON INTELLIGENTE, 2 novembre 2026 ══ */
+
+/* ① Le bouton du porteur : « Je suis loin » / « Je suis là ». Loin, la carte
+   prend la bande indigo : on voit d'un coup d'œil que tout arrive ici. */
+.ast-mode { gap: 12px; border-left: 3px solid var(--color-copper, #B97A4A); }
+.ast-mode.est-loin { border-left-color: var(--color-indigo); background: var(--paper, #F6F1E7); }
+.ast-mode__tete { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
+.ast-mode__dit { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ast-mode__titre { font: 400 22px/1.2 var(--font-serif); color: var(--color-indigo); }
+.ast-mode__liste { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; line-height: 1.5; color: var(--ink-soft); max-width: 78ch; }
+
+/* ③ Le privé d'une carte : pour le porteur seul, bordé de cuivre. */
+.ast-prive { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px dashed var(--color-copper, #B97A4A); border-radius: var(--radius-md, 4px); background: var(--copper-50, #FAF1E9); max-width: 72ch; }
+.ast-prive__qui { font-weight: 500; color: var(--ink); }
+.ast-prive .ast-proposition { background: var(--surface-card); }
+.ast-correction { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.ast-correction label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--ink-soft); }
+
+/* ④ Les dix : une ligne par professionnel, le nom en serif, l'état en
+   pastille ; le panneau ouvert dit sa journée et ses niveaux. */
+.ast-pro__tete { display: grid; grid-template-columns: 96px minmax(0, 1.4fr) 150px 110px auto; gap: 10px; align-items: baseline; width: 100%; padding: 10px 4px; background: none; border: 0; text-align: left; cursor: pointer; font: 400 13.5px/1.45 var(--font-sans); color: var(--ink); min-height: 48px; }
+.ast-pro__tete:hover { background: var(--copper-50, #FAF1E9); }
+.ast-pro__nom { font: 400 20px/1.1 var(--font-serif); color: var(--color-indigo); }
+.ast-pro__tient { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ast-pro__porteur { font-size: 12.5px; color: var(--ink-soft); }
+.ast-pro__chiffres { display: flex; gap: 8px; align-items: baseline; justify-content: flex-end; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.ast-pastille { display: inline-block; padding: 1px 8px; border-radius: 99px; background: var(--color-copper, #B97A4A); color: var(--color-ivoire, #F6F1E7); font-size: 11.5px; }
+.ast-pro.est-eveille .ast-point { background: var(--ast-ok); }
+.ast-pro.est-eveille .ast-etat { color: var(--ast-ok); }
+.ast-pro.est-empeche .ast-point { background: var(--color-copper, #B97A4A); }
+.ast-pro.est-empeche .ast-etat { color: var(--copper-700); }
+.ast-pro.est-sans-jeton .ast-point { background: transparent; border: 1px solid var(--ast-dort); }
+.ast-pro.est-statut-en-ligne .ast-point { background: var(--ast-ok); }
+.ast-pro.est-statut-en-ligne .ast-etat { color: var(--ast-ok); }
+.ast-pro.est-statut-en-installation .ast-point, .ast-pro.est-statut-maquette .ast-point { background: var(--color-copper, #B97A4A); }
+.ast-pro.est-statut-a-construire .ast-point { background: transparent; border: 1px dashed var(--ast-dort); }
+.ast-pro.est-statut-a-part .ast-point { background: transparent; border: 1px solid var(--color-indigo); }
+
+/* ⑤ Le livre des crédits : une jauge par ligne ; l'alerte se lit en mots
+   à côté, jamais par la seule couleur. */
+.ast-credit { font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.ast-credit.est-proche { color: var(--copper-700); }
+.ast-credit.est-depasse { color: var(--ast-alerte); font-weight: 500; }
+.ast-jauge { display: block; height: 6px; border-radius: 99px; background: var(--hairline); overflow: hidden; min-width: 60px; }
+.ast-jauge i { display: block; height: 100%; border-radius: 99px; background: var(--color-indigo); }
+.ast-jauge i.est-proche { background: var(--color-copper, #B97A4A); }
+.ast-jauge i.est-depasse { background: var(--ast-alerte); }
+.ast-jauge--total { height: 10px; }
+.ast-livre__lignes { display: flex; flex-direction: column; }
+.ast-livre__ligne { display: grid; grid-template-columns: 96px 150px minmax(80px, 1fr) 130px auto; gap: 10px; align-items: center; padding: 7px 4px; border-top: 1px solid var(--hairline); font-size: 13.5px; }
+.ast-livre__ligne b { font-weight: 500; color: var(--ink); }
+.ast-livre__montant { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ast-livre__alerte { font-size: 12px; color: var(--ink-soft); }
+.ast-livre__ligne.est-proche .ast-livre__alerte { color: var(--copper-700); }
+.ast-livre__ligne.est-depasse .ast-livre__alerte { color: var(--ast-alerte); font-weight: 500; }
+
+/* ⑨ Les trois niveaux */
+.ast-niveau__tete { grid-template-columns: 110px minmax(0, 1fr) auto; }
+.ast-niveau { margin: 0; padding: 4px 14px 14px 32px; display: flex; flex-direction: column; gap: 5px; font-size: 13.5px; line-height: 1.5; }
+
 @media (max-width: 640px) {
   .ast-lu { align-items: flex-start; }
   .ast-ligne__tete { grid-template-columns: 64px minmax(0, 1fr); row-gap: 2px; }
@@ -87,4 +148,11 @@
   .ast-geste { grid-template-columns: 64px minmax(0, 1fr); }
   .ast-geste .ast-ligne__quoi { grid-column: 1 / -1; }
   .ast-suit__actions { margin-left: 0; }
+  .ast-pro__tete { grid-template-columns: 80px minmax(0, 1fr); row-gap: 4px; }
+  .ast-pro__tete .ast-etat, .ast-pro__porteur { grid-column: 2; }
+  .ast-pro__chiffres { grid-column: 1 / -1; justify-content: flex-start; }
+  .ast-livre__ligne { grid-template-columns: 80px minmax(0, 1fr); row-gap: 4px; }
+  .ast-livre__ligne .ast-jauge, .ast-livre__ligne .ast-livre__alerte, .ast-livre__ligne .ast-champ { grid-column: 1 / -1; }
+  .ast-niveau__tete { grid-template-columns: 80px minmax(0, 1fr); }
+  .ast-mode__titre { font-size: 19px; }
 }

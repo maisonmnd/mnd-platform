@@ -31,6 +31,15 @@
    par `confirmation-rdv` (voir `rdvPoser`) ; celle d'une place tenue part
    d'ici au toucher « Confirmer » (voir `deposeLaConfirmationOfficielle`).
 
+   LE SOCLE DE LA MAISON INTELLIGENTE (2 novembre 2026) : les cartes de tous
+   les genres (rendez-vous, dépense, publication, planning, accès, en plus des
+   cinq d'Opale), avec leurs `faits` ; le mode « Je suis loin » (`loin.basculer`,
+   le bouton du porteur) : la carte peut alors porter le nom du contact et son
+   message (`prive`), pour le porteur seul, effacés dès la décision ; une seule
+   notification par tour, avec le nombre de cartes, de 7 h à 22 h ; la carte
+   d'une dépense, validée d'un toucher, pose ici la dépense DÉJÀ VALIDÉE au nom
+   du porteur ; et le bilan du matin (`bilan.deposer`), lu par Saphir.
+
    AUCUN SECRET ICI : SUPABASE_URL et CLE_SERVICE (ou SUPABASE_SERVICE_ROLE_KEY)
    viennent de l'environnement ; WA_TOKEN, WA_PHONE_ID, WA_TEMPLATE_CONF
    seulement pour savoir si la pièce WhatsApp se dépose. GET sans clé : la
@@ -38,19 +47,20 @@
    jamais journalisé. */
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
-  ACTIONS_DU_JETON, CHOIX_PAR_GENRE, EN_TETE_DU_JETON_ASSISTANT, PORTE_ASSISTANT, RELAIS_DIT, RELAIS_QUI_DEMANDE_UN_GESTE,
-  aCotonou, corpsDeNotification, cleDeJour, cronsDeLaVeille, dansLaVeille, echeanceOuvree, empecheDit, empreinteDuJetonAssistant,
-  estGenreDeDecision, estGenreDeRelais, estUneTresse, etatDe, heureDite, motEstPropre, motsDe, noteEstPropre,
-  nouveauJetonAssistant, numeroCle as cleDuNumero, porteDeLAction, reglagesComplets, relaisPerime, resumeEstPropre, rythmeA,
-  seuilDeSommeilMin, tournureInterdite, vocabulairePermis,
-  type Assistant, type ChoixDeDecision, type Controles, type Decision, type GenreDeDecision, type GenreDeRelais,
+  ACTIONS_DU_JETON, CHOIX_AVEC_TEXTE, CHOIX_PAR_GENRE, EN_TETE_DU_JETON_ASSISTANT, GENRES_AVEC_FAITS, PORTE_ASSISTANT, RELAIS_DIT, RELAIS_QUI_DEMANDE_UN_GESTE,
+  aCotonou, bilanEstPropre, corpsDeNotification, cleDeJour, cronsDeLaVeille, dansLaVeille, echeanceOuvree, empecheDit, empreinteDuJetonAssistant,
+  estGenreDeDecision, estGenreDeRelais, estUneTresse, etatDe, faitsDeLaCarte, heureDite, modeDe, motEstPropre, motsDe, noteEstPropre,
+  notificationPermise, nouveauJetonAssistant, numeroCle as cleDuNumero, porteDeLAction, priveEstPropre, reglagesComplets, relaisPerime,
+  resumeEstPropre, rythmeA, seuilDeSommeilMin, tournureInterdite, vocabulairePermis,
+  type Assistant, type ChoixDeDecision, type Controles, type Decision, type FaitsDeDepense, type GenreDeDecision, type GenreDeRelais,
   type ReglagesAssistants, type Relais,
 } from '../../src/shared/assistants-pur';
+import { passeAuTrone, professionnel } from '../../src/shared/maison-intelligente-pur';
 import { appelDe } from '../../src/shared/civilite';
 import { heureDeDepart, reglesDepuis } from '../../src/shared/salle-des-envois';
 import {
   COMPARTIMENT_DES_RECUS, caisseDeLaDepense, categorieConnue, cheminDuRecu, doublonDeLaDepense, idDeLaDepense, libelleDeLaDepense,
-  lisLaDemandeDeDepense, lisLeRecu, pieceDuJournal, porteurConnu, prestataireNomme, saisiePar, type DepenseExistante,
+  lisLaDemandeDeDepense, lisLeRecu, pieceDuJournal, porteurConnu, prestataireNomme, saisiePar, type DemandeLue, type DepenseExistante,
 } from '../../src/shared/assistants-depenses-pur';
 import {
   FICHES_AU_PLUS, LECTURES_PAR_JOUR, ficheCorrespond, ficheLisible, lisLaRecherche, motifDeLaBase, pieceDeLaLecture,
@@ -62,8 +72,9 @@ declare const Deno: {
 };
 
 /* 2 novembre 2026 : la veille suit les réglages (rythme du jour et du soir) ;
-   le seuil du sommeil n'est plus une constante, le passage rend ses crons. */
-const VERSION = '2026-11-02-a';
+   le seuil du sommeil n'est plus une constante, le passage rend ses crons.
+   Puis, le même jour, le socle de la Maison intelligente. */
+const VERSION = '2026-11-02-b · le socle : cartes de tous les genres, Je suis loin, bilan du matin';
 /** La maison phare, quand l'assistant n'a pas de branche et que la table n'en dit pas. */
 const BRANCHE_PHARE = 'br-40r6u6frno';
 const ECRAN = 'Les assistants';
@@ -74,6 +85,11 @@ const ENVOI_MAX_MS = 8_000;
 /** La fenêtre de `pose_si_libre` (0140) : de demain à quatre-vingt-dix jours, comptés à Cotonou. */
 const FENETRE_DU_VERROU_JOURS = 90;
 const TZ = 'Africa/Porto-Novo';
+/** « Je suis loin » : une notification par tour. Le rythme le plus court est
+    de cinq minutes ; deux passages à moins de quatre minutes sont le même tour. */
+const UN_TOUR_AU_MOINS_MS = 4 * 60_000;
+/** Le bilan du matin se dépose pour un jour de la semaine écoulée, jamais pour demain. */
+const JOURS_DU_BILAN = 7;
 
 // deno-lint-ignore no-explicit-any
 type Base = any;
@@ -82,6 +98,7 @@ type LigneAssistant = {
   id: string; nom: string; porteur_team_id?: string | null; porteur_user_id?: string | null; appareil?: string | null;
   empreinte?: string | null; jeton_pose_le?: string | null; vu_le?: string | null; eveille_depuis?: string | null;
   etat?: Record<string, unknown> | null; branch_id?: string | null;
+  loin_depuis?: string | null; loin_par?: string | null;
 };
 type LigneRelais = {
   id: string; de: string; pour: string; genre: string; numero_cle?: string | null; client_id?: string | null; rdv_id?: string | null;
@@ -91,6 +108,7 @@ type LigneDecision = {
   id: string; assistant: string; genre: string; numero_cle?: string | null; client_id?: string | null; rdv_id?: string | null;
   resume: string; proposition?: string | null; choix: unknown; echeance?: string | null; tranchee?: string | null; tranchee_le?: string | null;
   tranchee_par?: string | null; texte_modifie?: string | null; executee_le?: string | null; branch_id?: string | null; cree_le: string;
+  faits?: Record<string, unknown> | null; prive?: unknown; prive_efface_le?: string | null;
 };
 /** Le rendez-vous tel qu'il vit dans `appointments.data` (forme de `Appointment`,
     plus les champs des assistants, en attendant qu'`agenda.ts` les nomme). */
@@ -173,6 +191,7 @@ const jourCourt = (ms: number): string => {
 const assistantDe = (l: LigneAssistant): Assistant => ({
   id: l.id, nom: l.nom, porteurTeamId: l.porteur_team_id ?? null, porteurUserId: l.porteur_user_id ?? null, appareil: l.appareil ?? null,
   aUnJeton: !!l.empreinte, vuLe: l.vu_le ?? null, eveilleDepuis: l.eveille_depuis ?? null, etat: (l.etat ?? {}) as Assistant['etat'],
+  loinDepuis: l.loin_depuis ?? null,
 });
 const relaisDe = (l: LigneRelais): Relais => ({
   id: l.id, de: l.de, pour: l.pour, genre: l.genre as GenreDeRelais, numeroCle: l.numero_cle ?? null, clientId: l.client_id ?? null,
@@ -184,7 +203,13 @@ const decisionDe = (l: LigneDecision): Decision => ({
   choix: (Array.isArray(l.choix) ? l.choix : []) as ChoixDeDecision[], echeance: l.echeance ?? null,
   tranchee: (l.tranchee ?? null) as ChoixDeDecision | null, trancheeLe: l.tranchee_le ?? null, trancheePar: l.tranchee_par ?? null,
   texteModifie: l.texte_modifie ?? null, executeeLe: l.executee_le ?? null, creeLe: l.cree_le,
+  /* Les faits, pour que l'assistant exécute la carte ; JAMAIS `prive` : le
+     nom et le message sont au porteur seul, à l'écran, pas à la machine. */
+  faits: (l.faits ?? null) as Decision['faits'],
 });
+/** Le privé d'une carte s'efface dans la même écriture que sa décision. */
+const effaceLePrive = (dec: LigneDecision, maintenant: string): Corps =>
+  ({ prive: null, ...(dec.prive != null ? { prive_efface_le: maintenant } : {}) });
 
 /* ── Le serveur ───────────────────────────────────────────────────────── */
 
@@ -384,6 +409,20 @@ async function passage(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Respo
   } else {
     delete etat.empechePrevenuLe;
   }
+  /* « JE SUIS LOIN » (2 novembre 2026) : le porteur a touché le bouton ; les
+     cartes nouvelles de ce tour partent en UNE notification, le nombre seul,
+     jamais un nom, de 7 h à 22 h (heure de Cotonou) ; la nuit, elles attendent
+     au Trône. Deux passages du même tour ne notifient qu'une fois. */
+  const mode = modeDe(moi.loin_depuis);
+  const cartesNouvelles = Math.max(0, Math.round(nombre(d.cartesNouvelles) ?? 0));
+  let notifieCartes = 0;
+  if (mode.loin && cartesNouvelles > 0 && notificationPermise(aCotonou(maintenantMs).heure)) {
+    const dejaPrevenu = Date.parse(chaine(etat.cartesPrevenuLe));
+    if (!(Number.isFinite(dejaPrevenu) && maintenantMs - dejaPrevenu < UN_TOUR_AU_MOINS_MS)) {
+      notifieCartes = (await s.notifieLePorteur(moi, 'cartes', { n: cartesNouvelles, nom: moi.nom })).sent;
+      etat.cartesPrevenuLe = maintenant;
+    }
+  }
   await s.sb.from('assistants').update({ vu_le: maintenant, eveille_depuis: eveilleDepuis, etat }).eq('id', moi.id);
 
   const [relaisLus, decisionsLues, tous] = await Promise.all([
@@ -401,7 +440,7 @@ async function passage(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Respo
      telles quelles (charte, section 3) et sait si cette heure en est. */
   const heure = aCotonou(maintenantMs).heure;
   const veille = { dansLaVeille: dansLaVeille(heure, reglages), rythmeMin: rythmeA(heure, reglages), crons: cronsDeLaVeille(reglages) };
-  return rendu({ assistant: { id: moi.id, nom: moi.nom }, precedentVuLe, eveilleDepuis, empeche: etat.empeche ?? null, notifie, reglages, veille, relais, decisions, autres });
+  return rendu({ assistant: { id: moi.id, nom: moi.nom }, precedentVuLe, eveilleDepuis, empeche: etat.empeche ?? null, notifie, reglages, veille, mode, notifieCartes, relais, decisions, autres });
 }
 
 async function relaisDeposer(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Response> {
@@ -455,16 +494,48 @@ async function decisionDeposer(s: Serveur, moi: LigneAssistant, d: Corps): Promi
   const proposition = chaine(d.proposition) || null;
   const tournure = tournureInterdite(proposition);
   if (tournure) return refus('proposition-refusee', 400, { tournure });
+  /* LES FAITS (2 novembre 2026) : ce que le Trône exécute, exigés pour un
+     rendez-vous, une dépense, une publication, un planning, un accès. */
+  const lusFaits = faitsDeLaCarte(genre, d.faits);
+  if (!lusFaits.ok) return refus('faits-refuses', 400, { detail: lusFaits.motif });
+  if (GENRES_AVEC_FAITS.includes(genre) && !lusFaits.faits) return refus('faits-refuses', 400, { detail: 'les faits de la carte' });
+  let faits = (lusFaits.faits ?? null) as Corps | null;
+  /* LE PRIVÉ : le nom du contact et son message, en mode loin seulement
+     (choix 2 de « Je suis loin »). Le porteur là, le sélecteur suffit. */
+  const mode = modeDe(moi.loin_depuis);
+  let prive: { contact: string; message: string } | null = null;
+  if (d.prive !== undefined && d.prive !== null) {
+    if (!mode.loin) return refus('prive-hors-loin', 409, { detail: 'le nom et le message ne viennent au Trône qu en mode Je suis loin' });
+    const p = priveEstPropre(d.prive);
+    if (!p.ok) return refus('prive-refuse', 400, { detail: p.motif });
+    prive = p.prive;
+  }
+  /* LA CARTE D'UNE DÉPENSE est contrôlée comme une dépense posée (prestataire,
+     catégorie, caisse, porteur, doublon du jour), sans rien écrire : une
+     carte qui arrive au porteur se valide d'un toucher. */
+  if (genre === 'depense') {
+    const f = faits as unknown as FaitsDeDepense;
+    const autre = d.autre === true;
+    const lue = lisLaDemandeDeDepense({ ...f, autre }, aCotonou(Date.now()).dateISO);
+    if (!lue.ok) return refus(lue.motif, 400, lue.detail ? { detail: lue.detail } : {});
+    const c = await controleLaDepense(s, moi, lue.v);
+    if (!c.ok) return c.refus;
+    faits = {
+      ...f, categorie: c.categorie, caisse: c.caisse, ...(c.porteur ? { porteur: c.porteur } : {}), date: lue.v.date, ...(autre ? { autre: true } : {}),
+    };
+  }
   const echeanceMin = nombre(d.echeanceMin);
   const id = identifiant('decision');
   await s.sb.from('assistants_decisions').insert({
     id, assistant: moi.id, genre, numero_cle: cleDuNumero(chaine(d.numeroCle)) ?? null, client_id: chaine(d.clientId) || null, rdv_id: chaine(d.rdvId) || null,
     resume, proposition, choix: [...CHOIX_PAR_GENRE[genre]],
     echeance: echeanceMin && echeanceMin > 0 ? plusTard(Date.now(), Math.min(echeanceMin, 60 * 24 * 14)) : null, branch_id: moi.branch_id ?? null,
+    faits, prive,
   });
+  /* Loin, le tour notifie une fois pour toutes ses cartes (`passage`). */
   let sent = 0;
-  if (d.notifier === true) sent = (await s.notifieLePorteur(moi, 'decision', { nom: moi.nom })).sent;
-  return rendu({ id, sent });
+  if (d.notifier === true && !mode.loin) sent = (await s.notifieLePorteur(moi, 'decision', { nom: moi.nom })).sent;
+  return rendu({ id, sent, ...(mode.loin ? { loin: true } : {}), ...(faits ? { faits } : {}) });
 }
 
 async function decisionExecutee(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Response> {
@@ -720,6 +791,66 @@ async function notifier(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Resp
    d'un gérant, à l'écran Dépenses. Jamais un prestataire (sa mission naît du
    rituel honoré), jamais un doublon du jour, jamais deux fois le même geste.
    Les règles : shared/assistants-depenses-pur. */
+/** Ce que la Maison connaît d'une dépense, contrôlé sans rien écrire : le
+    prestataire (refusé), la catégorie, la caisse, le porteur, le doublon du
+    jour (sauf « C'en est une autre »). Commun à `depense.poser`, à la carte
+    déposée et à la carte validée. */
+type DepenseControlee = { branchId: string; label: string; categorie: string; caisse: string; porteur?: string };
+async function controleLaDepense(s: Serveur, moi: LigneAssistant, v: DemandeLue): Promise<({ ok: true } & DepenseControlee) | { ok: false; refus: Response }> {
+  const branchId = chaine(moi.branch_id) || (await s.brancheVedette())?.id || BRANCHE_PHARE;
+  const [cats, boites, docs] = await Promise.all([
+    s.sb.from('expense_categories').select('id, data').limit(500),
+    s.sb.from('cashboxes').select('id, data').limit(1000),
+    s.sb.from('documents').select('key, data').in('key', ['mnd_porteurs', 'mnd_prestataires']),
+  ]);
+  const doc = (k: string): unknown => ((docs.data ?? []) as { key: string; data?: unknown }[]).find((x) => x.key === k)?.data;
+  const prestataires = (Array.isArray(doc('mnd_prestataires')) ? doc('mnd_prestataires') : []) as { name?: unknown; archived?: unknown }[];
+  const prestataire = prestataireNomme([v.objet, v.beneficiaire], prestataires);
+  if (prestataire) return { ok: false, refus: refus('prestataire', 409, { prestataire, detail: 'sa mission naît du rituel honoré, son paiement fait la dépense' }) };
+  const categories = lignesDe(cats.data as Ligne[] | null) as { name?: unknown }[];
+  const categorie = categorieConnue(v.categorie, categories);
+  if (!categorie) return { ok: false, refus: refus('categorie-inconnue', 400, { categories: categories.map((c) => chaine(c.name)).filter(Boolean) }) };
+  const caisse = caisseDeLaDepense(v.caisse, lignesDe(boites.data as Ligne[] | null), branchId);
+  if (!caisse.ok) return { ok: false, refus: refus('caisse-inconnue', 400, { caisses: caisse.caisses }) };
+  let porteur: string | undefined;
+  if (v.porteur) {
+    const liste = Array.isArray(doc('mnd_porteurs')) ? (doc('mnd_porteurs') as unknown[]) : [];
+    porteur = porteurConnu(v.porteur, liste) ?? undefined;
+    if (!porteur) return { ok: false, refus: refus('porteur-inconnu', 400, { porteurs: liste.map((x) => chaine(x)).filter(Boolean) }) };
+  }
+  const label = libelleDeLaDepense(v.objet, v.beneficiaire);
+
+  /* LE DOUBLON DU JOUR : déjà au Trône, on le dit et on attend (« C'en est une autre » : `autre`). */
+  if (!v.autre) {
+    const { data: duJour } = await s.sb.from('expenses').select('id, data').eq('branch_id', branchId).eq('data->>date', v.date).limit(1000);
+    const doublon = doublonDeLaDepense({ branchId, date: v.date, amountXof: v.montantXof, label }, lignesDe(duJour as Ligne[] | null) as DepenseExistante[]);
+    if (doublon) {
+      return { ok: false, refus: refus('doublon', 409, { deja: {
+        id: doublon.id, label: doublon.label, amountXof: doublon.amountXof, date: doublon.date, saisiePar: saisiePar(doublon),
+        ...(doublon.validation?.soumisLe ? { soumisLe: doublon.validation.soumisLe } : {}),
+      } }) };
+    }
+  }
+  return { ok: true, branchId, label, categorie, caisse: caisse.caisse, ...(porteur ? { porteur } : {}) };
+}
+
+/** La ligne `expenses`, telle que le Trône la lit (forme de `Expense`). */
+const ligneDeLaDepense = (c: DepenseControlee, v: DemandeLue, id: string, validation: Corps, fichier?: Corps) => ({
+  id, branchId: c.branchId, label: c.label, amountXof: v.montantXof, date: v.date, cashbox: c.caisse, category: c.categorie, recurring: null,
+  ...(c.porteur ? { porteur: c.porteur } : {}), ...(fichier ? { fichier } : {}),
+  validation,
+});
+
+/** L'écriture : posée, déjà là (un geste rejoué entre-temps), ou en échec. */
+async function poseLaLigne(s: Serveur, id: string, branchId: string, depense: Corps): Promise<'posee' | 'deja' | 'echec'> {
+  const { error } = await s.sb.from('expenses').insert({ id, branch_id: branchId, data: depense });
+  if (!error) return 'posee';
+  const { data: posee } = await s.sb.from('expenses').select('id').eq('id', id).maybeSingle();
+  if (posee) return 'deja';
+  dis('dépense non écrite', { motif: String(error.message ?? '').slice(0, 80) });
+  return 'echec';
+}
+
 async function depensePoser(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Response> {
   const maintenantMs = Date.now();
   const maintenant = new Date(maintenantMs).toISOString();
@@ -731,47 +862,17 @@ async function depensePoser(s: Serveur, moi: LigneAssistant, d: Corps): Promise<
   if (!idempotence) return refus('idempotence');
   const recuLu = lisLeRecu(d.recu);
   if (!recuLu.ok) return refus(recuLu.motif);
-  const branchId = chaine(moi.branch_id) || (await s.brancheVedette())?.id || BRANCHE_PHARE;
   const id = await idDeLaDepense(moi.id, idempotence);
 
   /* ① LE MÊME GESTE, rejoué après un redémarrage : rien de plus. */
   const { data: dejaLa } = await s.sb.from('expenses').select('id').eq('id', id).maybeSingle();
   if (dejaLa) return rendu({ verdict: 'deja', id });
 
-  /* ② Ce que la Maison connaît : catégories, caisses, porteurs, prestataires. */
-  const [cats, boites, docs] = await Promise.all([
-    s.sb.from('expense_categories').select('id, data').limit(500),
-    s.sb.from('cashboxes').select('id, data').limit(1000),
-    s.sb.from('documents').select('key, data').in('key', ['mnd_porteurs', 'mnd_prestataires']),
-  ]);
-  const doc = (k: string): unknown => ((docs.data ?? []) as { key: string; data?: unknown }[]).find((x) => x.key === k)?.data;
-  const prestataires = (Array.isArray(doc('mnd_prestataires')) ? doc('mnd_prestataires') : []) as { name?: unknown; archived?: unknown }[];
-  const prestataire = prestataireNomme([v.objet, v.beneficiaire], prestataires);
-  if (prestataire) return refus('prestataire', 409, { prestataire, detail: 'sa mission naît du rituel honoré, son paiement fait la dépense' });
-  const categories = lignesDe(cats.data as Ligne[] | null) as { name?: unknown }[];
-  const categorie = categorieConnue(v.categorie, categories);
-  if (!categorie) return refus('categorie-inconnue', 400, { categories: categories.map((c) => chaine(c.name)).filter(Boolean) });
-  const caisse = caisseDeLaDepense(v.caisse, lignesDe(boites.data as Ligne[] | null), branchId);
-  if (!caisse.ok) return refus('caisse-inconnue', 400, { caisses: caisse.caisses });
-  let porteur: string | undefined;
-  if (v.porteur) {
-    const liste = Array.isArray(doc('mnd_porteurs')) ? (doc('mnd_porteurs') as unknown[]) : [];
-    porteur = porteurConnu(v.porteur, liste) ?? undefined;
-    if (!porteur) return refus('porteur-inconnu', 400, { porteurs: liste.map((x) => chaine(x)).filter(Boolean) });
-  }
-  const label = libelleDeLaDepense(v.objet, v.beneficiaire);
-
-  /* ③ LE DOUBLON DU JOUR : déjà au Trône, on le dit et on attend (« C'en est une autre » : `autre`). */
-  if (!v.autre) {
-    const { data: duJour } = await s.sb.from('expenses').select('id, data').eq('branch_id', branchId).eq('data->>date', v.date).limit(1000);
-    const doublon = doublonDeLaDepense({ branchId, date: v.date, amountXof: v.montantXof, label }, lignesDe(duJour as Ligne[] | null) as DepenseExistante[]);
-    if (doublon) {
-      return refus('doublon', 409, { deja: {
-        id: doublon.id, label: doublon.label, amountXof: doublon.amountXof, date: doublon.date, saisiePar: saisiePar(doublon),
-        ...(doublon.validation?.soumisLe ? { soumisLe: doublon.validation.soumisLe } : {}),
-      } });
-    }
-  }
+  /* ② et ③ Ce que la Maison connaît (catégories, caisses, porteurs,
+     prestataires) et le doublon du jour : `controleLaDepense`. */
+  const c = await controleLaDepense(s, moi, v);
+  if (!c.ok) return c.refus;
+  const { branchId, label, categorie } = c;
 
   /* ④ LE REÇU, là où le Trône range les pièces jointes des dépenses. */
   let fichier: { chemin: string; nom: string; type: string; taille: number } | undefined;
@@ -783,23 +884,34 @@ async function depensePoser(s: Serveur, moi: LigneAssistant, d: Corps): Promise<
   }
 
   /* ⑤ LA LIGNE, À VALIDER. */
-  const depense = {
-    id, branchId, label, amountXof: v.montantXof, date: v.date, cashbox: caisse.caisse, category: categorie, recurring: null,
-    ...(porteur ? { porteur } : {}), ...(fichier ? { fichier } : {}),
-    validation: { etat: 'attente', soumisLe: maintenant, soumisPar: moi.nom },
-  };
-  const { error } = await s.sb.from('expenses').insert({ id, branch_id: branchId, data: depense });
-  if (error) {
-    const { data: posee } = await s.sb.from('expenses').select('id').eq('id', id).maybeSingle();
-    if (posee) return rendu({ verdict: 'deja', id });
-    dis('dépense non écrite', { motif: String(error.message ?? '').slice(0, 80) });
-    return refus('ecriture', 500);
-  }
+  const depense = ligneDeLaDepense(c, v, id, { etat: 'attente', soumisLe: maintenant, soumisPar: moi.nom }, fichier);
+  const ecrite = await poseLaLigne(s, id, branchId, depense);
+  if (ecrite === 'deja') return rendu({ verdict: 'deja', id });
+  if (ecrite === 'echec') return refus('ecriture', 500);
   await s.journalise(moi.nom, { verbe: 'pose', table: 'expenses', pieceId: id, piece: pieceDuJournal(v.montantXof, categorie), branchId });
   return rendu({
-    verdict: 'posee', id, label, amountXof: v.montantXof, date: v.date, cashbox: caisse.caisse, category: categorie,
-    ...(porteur ? { porteur } : {}), recu: !!fichier,
+    verdict: 'posee', id, label, amountXof: v.montantXof, date: v.date, cashbox: c.caisse, category: categorie,
+    ...(c.porteur ? { porteur: c.porteur } : {}), recu: !!fichier,
   });
+}
+
+/* ── LE BILAN DU MATIN (2 novembre 2026, le socle) ────────────────────
+   Avant 6 h 45, chaque professionnel qui passe au Trône dépose les compteurs
+   de sa journée écoulée (bilanEstPropre : des nombres, un mot sans nom ni
+   numéro) ; Saphir les lit à 7 h pour le Conseil du matin. Un bilan par
+   assistant et par jour : le redire le remplace. */
+async function bilanDeposer(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Response> {
+  const lu = bilanEstPropre(d.bilan ?? { jour: d.jour, comptes: d.comptes, mot: d.mot });
+  if (!lu.ok) return refus('bilan-refuse', 400, { detail: lu.motif });
+  const maintenantMs = Date.now();
+  const aujourdhui = aCotonou(maintenantMs).dateISO;
+  const plusAncien = dateCotonouDans(maintenantMs, -JOURS_DU_BILAN);
+  if (lu.bilan.jour > aujourdhui || lu.bilan.jour < plusAncien) return refus('jour-hors-borne', 400, { detail: `de ${plusAncien} à ${aujourdhui}` });
+  const id = `${moi.id}:${lu.bilan.jour}`;
+  const { error } = await s.sb.from('assistants_bilans').upsert(
+    { id, assistant: moi.id, jour: lu.bilan.jour, comptes: lu.bilan.comptes, mot: lu.bilan.mot ?? null }, { onConflict: 'id' });
+  if (error) { dis('bilan non écrit', { motif: String(error.message ?? '').slice(0, 80) }); return refus('ecriture', 500); }
+  return rendu({ id, jour: lu.bilan.jour, comptes: lu.bilan.comptes });
 }
 
 /* ── RETROUVER UNE FICHE (1er novembre 2026), lecture seule ────────────
@@ -900,9 +1012,97 @@ async function decisionTrancher(s: Serveur, qui: Souverain, d: Corps): Promise<R
   const permis = Array.isArray(dec.choix) ? (dec.choix as string[]) : [];
   if (!permis.includes(choix)) return refus('choix-inconnu');
   if (dec.genre === 'place-tenue') return placeTrancher(s, qui, { ...d, decisionId: dec.id, choix, mot: d.texte ?? d.mot });
-  const texte = choix === 'modifier' ? chaine(d.texte).slice(0, 1000) || null : null;
-  await s.sb.from('assistants_decisions').update({ tranchee: choix, tranchee_le: new Date().toISOString(), tranchee_par: qui.userId, texte_modifie: texte }).eq('id', id);
+  if (dec.genre === 'depense') return carteDeDepenseTranchee(s, qui, sien, dec, choix, d);
+  const maintenant = new Date().toISOString();
+  const texte = (CHOIX_AVEC_TEXTE as readonly string[]).includes(choix) ? chaine(d.texte).slice(0, 1000) || null : null;
+  await s.sb.from('assistants_decisions').update({
+    tranchee: choix, tranchee_le: maintenant, tranchee_par: qui.userId, texte_modifie: texte, ...effaceLePrive(dec, maintenant),
+  }).eq('id', id);
   return rendu({ id, choix });
+}
+
+/* ── LA CARTE D'UNE DÉPENSE, TRANCHÉE (2 novembre 2026) ───────────────
+   Choix 4 de « Je suis loin » : un toucher suffit. « Valider » pose ICI la
+   dépense, déjà validée au nom du porteur (`validation` : soumise par
+   l'assistant, décidée par le souverain, comme `validee(soumission(…))` du
+   Trône) ; « Corriger » la pose avec les faits corrigés sur la carte ;
+   « Non » ne pose rien. L'identifiant tient à la clé du message (comme
+   `depense.poser`) : la même dépense ne s'écrit jamais deux fois. Un refus
+   (un doublon apparu depuis, une catégorie rangée) revient à l'écran avec son
+   motif, et la carte reste à trancher. */
+async function carteDeDepenseTranchee(s: Serveur, qui: Souverain, sien: LigneAssistant, dec: LigneDecision, choix: string, d: Corps): Promise<Response> {
+  const maintenantMs = Date.now();
+  const maintenant = new Date(maintenantMs).toISOString();
+  const trancheLaCarte = async (plus: Corps = {}) => {
+    await s.sb.from('assistants_decisions').update({
+      tranchee: choix, tranchee_le: maintenant, tranchee_par: qui.userId, texte_modifie: null, executee_le: maintenant,
+      ...effaceLePrive(dec, maintenant), ...plus,
+    }).eq('id', dec.id);
+  };
+  if (choix === 'non') { await trancheLaCarte(); return rendu({ id: dec.id, choix }); }
+
+  const avant = (dec.faits ?? {}) as Corps;
+  const brut = (d.faits && typeof d.faits === 'object' ? d.faits : {}) as Corps;
+  const corrections: Corps = {};
+  if (choix === 'corriger') {
+    for (const k of ['montantXof', 'objet', 'categorie', 'caisse']) if (brut[k] !== undefined && brut[k] !== '') corrections[k] = brut[k];
+    if (Object.keys(corrections).length === 0) return refus('faits-refuses', 400, { detail: 'ce qui est corrigé : montant, objet, catégorie ou caisse' });
+  }
+  const lus = faitsDeLaCarte('depense', { ...avant, ...corrections });
+  if (!lus.ok) return refus('faits-refuses', 400, { detail: lus.motif });
+  const f = lus.faits as FaitsDeDepense;
+  const autre = avant.autre === true || d.autre === true;
+  const lue = lisLaDemandeDeDepense({ ...f, autre }, aCotonou(maintenantMs).dateISO);
+  if (!lue.ok) return refus(lue.motif, 400, lue.detail ? { detail: lue.detail } : {});
+  const faitsTenus = { ...f, ...(autre ? { autre: true } : {}) };
+
+  const id = await idDeLaDepense(sien.id, f.cle);
+  const { data: dejaLa } = await s.sb.from('expenses').select('id').eq('id', id).maybeSingle();
+  if (dejaLa) { await trancheLaCarte({ faits: faitsTenus }); return rendu({ id: dec.id, choix, depense: { verdict: 'deja', id } }); }
+
+  const c = await controleLaDepense(s, sien, lue.v);
+  if (!c.ok) return c.refus;
+  const validation = { etat: 'validee', soumisLe: maintenant, soumisPar: sien.nom, decidePar: qui.nom, decideLe: maintenant };
+  const ecrite = await poseLaLigne(s, id, c.branchId, ligneDeLaDepense(c, lue.v, id, validation));
+  if (ecrite === 'echec') return refus('ecriture', 500);
+  if (ecrite === 'posee') {
+    await s.journalise(qui.nom, {
+      verbe: 'pose', table: 'expenses', pieceId: id, branchId: c.branchId,
+      piece: pieceDuJournal(lue.v.montantXof, c.categorie).replace('Dépense à valider', 'Dépense validée sur une carte'),
+    });
+  }
+  await trancheLaCarte({ faits: { ...faitsTenus, categorie: c.categorie, caisse: c.caisse } });
+  return rendu({ id: dec.id, choix, depense: { verdict: ecrite, id, amountXof: lue.v.montantXof, category: c.categorie, cashbox: c.caisse } });
+}
+
+/* ── « JE SUIS LOIN / JE SUIS LÀ » (2 novembre 2026) ─────────────────
+   Le bouton du porteur, en haut des Assistants : il pose ou retire le mode sur
+   SES assistants qui passent au Trône (une session sur son ordinateur, jamais
+   ceux d'un autre, jamais une fonction). Deux colonnes à part : un passage
+   réécrit `etat`, jamais elles. Loin, l'assistant ne pose plus de question au
+   sélecteur : tout part en cartes, et le tour notifie. */
+async function loinBasculer(s: Serveur, qui: Souverain, d: Corps): Promise<Response> {
+  if (typeof d.loin !== 'boolean') return refus('loin', 400, { detail: 'loin : vrai ou faux' });
+  const loin = d.loin;
+  const miens = (await s.assistants()).filter((a) => {
+    const p = professionnel(a.id);
+    return a.porteur_user_id === qui.userId && !!p && passeAuTrone(p);
+  });
+  if (miens.length === 0) return refus('pas-d-assistant', 404, { detail: 'aucun assistant à vous ne passe au Trône' });
+  const maintenant = new Date().toISOString();
+  const avant = miens.some((a) => modeDe(a.loin_depuis).loin);
+  const apres: Corps[] = [];
+  for (const a of miens) {
+    const depuis = loin ? (modeDe(a.loin_depuis).loinDepuis ?? maintenant) : null;
+    await s.sb.from('assistants').update({ loin_depuis: depuis, loin_par: loin ? qui.nom : null }).eq('id', a.id);
+    apres.push({ id: a.id, nom: a.nom, ...modeDe(depuis) });
+  }
+  await s.journalise(qui.nom, {
+    verbe: 'modifie', table: 'assistants', pieceId: miens.map((a) => a.id).join(','),
+    piece: loin ? 'Je suis loin : les cartes au Trône' : 'Je suis là : les questions à l\'ordinateur',
+    champs: [{ champ: 'Mode', avant: avant ? 'loin' : 'là', apres: loin ? 'loin' : 'là' }],
+  });
+  return rendu({ loin, assistants: apres });
 }
 
 async function placeTrancher(s: Serveur, qui: Souverain, d: Corps): Promise<Response> {
@@ -940,7 +1140,9 @@ async function placeTrancher(s: Serveur, qui: Souverain, d: Corps): Promise<Resp
   const ecrit = await ecrisLeRdv(s, ligne, apres);
   if (!ecrit) return refus('modifie-entre-temps', 409);
   if (dec) {
-    await s.sb.from('assistants_decisions').update({ tranchee: choix, tranchee_le: maintenant, tranchee_par: qui.userId, texte_modifie: heureProposee ?? (chaine(d.mot).slice(0, 200) || null) }).eq('id', dec.id);
+    await s.sb.from('assistants_decisions').update({
+      tranchee: choix, tranchee_le: maintenant, tranchee_par: qui.userId, texte_modifie: heureProposee ?? (chaine(d.mot).slice(0, 200) || null), ...effaceLePrive(dec, maintenant),
+    }).eq('id', dec.id);
   }
   /* Le relais à celui qui a posé, et la notification de son porteur. */
   const poseur = await s.assistant(rdv.tenue.par);
@@ -1022,6 +1224,7 @@ Deno.serve(async (req) => {
         case 'notifier': return await notifier(s, moi, d);
         case 'depense.poser': return await depensePoser(s, moi, d);
         case 'fiche.chercher': return await ficheChercher(s, moi, d);
+        case 'bilan.deposer': return await bilanDeposer(s, moi, d);
       }
     } else {
       const qui = porte.qui;
@@ -1030,6 +1233,7 @@ Deno.serve(async (req) => {
         case 'jeton.retirer': return await jetonRetirer(s, qui, d);
         case 'decision.trancher': return await decisionTrancher(s, qui, d);
         case 'place.trancher': return await placeTrancher(s, qui, d);
+        case 'loin.basculer': return await loinBasculer(s, qui, d);
       }
     }
     return refus('action-inconnue');

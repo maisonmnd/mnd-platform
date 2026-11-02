@@ -155,7 +155,11 @@ var GENRES_DE_RELAIS = [
   "hermine-a-prevenir",
   "envie-lue",
   "argent-a-trancher",
-  "assistant-endormi"
+  "assistant-endormi",
+  /* La Maison intelligente (2 novembre 2026) : un fait à savoir, un geste à
+     faire, d'un professionnel à un autre (« Achat saisi, Caisse Principale »). */
+  "signal",
+  "a-faire"
 ];
 var RELAIS_DIT = {
   "rdv-pose-pour-toi": "Rendez-vous posé pour toi",
@@ -168,7 +172,9 @@ var RELAIS_DIT = {
   "hermine-a-prevenir": "Tresses posées : Hermine à prévenir",
   "envie-lue": "Une envie lue, posée en Note du carnet",
   "argent-a-trancher": "Une question d'argent à trancher",
-  "assistant-endormi": "L'autre assistant dort"
+  "assistant-endormi": "L'autre assistant dort",
+  signal: "Un fait à savoir",
+  "a-faire": "Un geste à faire"
 };
 var RELAIS_QUI_DEMANDE_UN_GESTE = ["place-tenue", "hermine-a-prevenir", "argent-a-trancher", "fil-ouvert"];
 var estGenreDeRelais = (g) => typeof g === "string" && GENRES_DE_RELAIS.includes(g);
@@ -422,14 +428,101 @@ function motEstPropre(mot, permis) {
   }
   return { ok: true };
 }
-var GENRES_DE_DECISION = ["reponse", "place-tenue", "note", "argent", "cercle"];
+var GENRES_DE_DECISION = ["reponse", "place-tenue", "note", "argent", "cercle", "rdv", "depense", "publication", "planning", "acces"];
 var CHOIX_PAR_GENRE = {
   reponse: ["envoyer", "modifier", "non"],
   "place-tenue": ["confirmer", "autre-heure", "non"],
   note: ["envoyer", "modifier", "non"],
   argent: ["envoyer", "modifier", "non"],
-  cercle: [...CERCLES]
+  cercle: [...CERCLES],
+  /* « Poser et répondre » : la pose et la réponse partent au tour suivant. */
+  rdv: ["poser", "autre-heure", "modifier", "non"],
+  /* « Valider » : la dépense entre DÉJÀ VALIDÉE au nom du porteur, d'un
+     toucher (choix 4 de « Je suis loin ») ; « Corriger » la valide avec les
+     faits corrigés sur la carte ; « Non » : ce n'est pas une dépense. */
+  depense: ["valider", "corriger", "non"],
+  publication: ["publier", "modifier", "non"],
+  planning: ["accepter", "modifier", "non"],
+  acces: ["accorder", "refuser"]
 };
+var CHOIX_AVEC_TEXTE = ["modifier", "autre-heure", "corriger"];
+var PRIVE_CONTACT_AU_PLUS = 60;
+var PRIVE_MESSAGE_AU_PLUS = 1200;
+function priveEstPropre(p) {
+  if (!p || typeof p !== "object") return { ok: false, motif: "ni contact ni message" };
+  const contact = String(p.contact ?? "").trim();
+  const message = String(p.message ?? "").trim();
+  if (!contact && !message) return { ok: false, motif: "ni contact ni message" };
+  if (contact.length > PRIVE_CONTACT_AU_PLUS) return { ok: false, motif: `un contact de plus de ${PRIVE_CONTACT_AU_PLUS} caractères` };
+  if (message.length > PRIVE_MESSAGE_AU_PLUS) return { ok: false, motif: `un message de plus de ${PRIVE_MESSAGE_AU_PLUS} caractères` };
+  return { ok: true, prive: { contact, message } };
+}
+var estDateISO = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+var estHeure = (v) => typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+var texteCourt = (v, max) => String(v ?? "").trim().slice(0, max);
+var numeroCleDe = (v) => numeroCle(typeof v === "string" || typeof v === "number" ? String(v) : null);
+function faitsDeLaCarte(genre, f) {
+  const o = f && typeof f === "object" ? f : {};
+  switch (genre) {
+    case "rdv": {
+      const cle = numeroCleDe(o.numeroCle);
+      const services = Array.isArray(o.services) ? o.services.map((s) => texteCourt(s, 60)).filter(Boolean).slice(0, 6) : [];
+      if (!cle) return { ok: false, motif: "le numéro de la cliente" };
+      if (services.length === 0) return { ok: false, motif: "les prestations" };
+      if (!estDateISO(o.date) || !estHeure(o.time)) return { ok: false, motif: "le jour et l'heure" };
+      const prevenir = numeroCleDe(o.prevenir);
+      return { ok: true, faits: {
+        numeroCle: cle,
+        services,
+        date: o.date,
+        time: o.time,
+        ...texteCourt(o.clientId, 60) ? { clientId: texteCourt(o.clientId, 60) } : {},
+        ...texteCourt(o.pour, 60) ? { pour: texteCourt(o.pour, 60) } : {},
+        ...prevenir ? { prevenir } : {},
+        ...o.tenue === true ? { tenue: true } : {}
+      } };
+    }
+    case "depense": {
+      const montantXof = typeof o.montantXof === "number" && Number.isFinite(o.montantXof) ? Math.round(o.montantXof) : NaN;
+      if (!(montantXof > 0)) return { ok: false, motif: "le montant" };
+      const objet = texteCourt(o.objet, 80);
+      const categorie = texteCourt(o.categorie, 60);
+      const cle = texteCourt(o.cle, 120);
+      if (!objet) return { ok: false, motif: "l'objet" };
+      if (!categorie) return { ok: false, motif: "la catégorie" };
+      if (!cle) return { ok: false, motif: "la clé du message" };
+      if (o.date !== void 0 && !estDateISO(o.date)) return { ok: false, motif: "la date" };
+      return { ok: true, faits: {
+        montantXof,
+        objet,
+        categorie,
+        cle,
+        ...texteCourt(o.caisse, 60) ? { caisse: texteCourt(o.caisse, 60) } : {},
+        ...texteCourt(o.porteur, 60) ? { porteur: texteCourt(o.porteur, 60) } : {},
+        ...texteCourt(o.beneficiaire, 60) ? { beneficiaire: texteCourt(o.beneficiaire, 60) } : {},
+        ...estDateISO(o.date) ? { date: o.date } : {}
+      } };
+    }
+    case "publication": {
+      const reseau = texteCourt(o.reseau, 30);
+      if (!reseau) return { ok: false, motif: "le réseau" };
+      return { ok: true, faits: { reseau, ...texteCourt(o.quand, 40) ? { quand: texteCourt(o.quand, 40) } : {}, ...texteCourt(o.apercu, 400) ? { apercu: texteCourt(o.apercu, 400) } : {} } };
+    }
+    case "planning": {
+      const quoi = texteCourt(o.quoi, 160);
+      if (!quoi) return { ok: false, motif: "ce qui change" };
+      return { ok: true, faits: { quoi, ...estDateISO(o.jour) ? { jour: o.jour } : {} } };
+    }
+    case "acces": {
+      const quoi = texteCourt(o.quoi, 160);
+      if (!quoi) return { ok: false, motif: "l'accès demandé" };
+      return { ok: true, faits: { quoi, ...texteCourt(o.pour, 60) ? { pour: texteCourt(o.pour, 60) } : {} } };
+    }
+    default:
+      return { ok: true, faits: null };
+  }
+}
+var GENRES_AVEC_FAITS = ["rdv", "depense", "publication", "planning", "acces"];
 var RESUME_AU_PLUS = 160;
 var estGenreDeDecision = (g) => typeof g === "string" && GENRES_DE_DECISION.includes(g);
 function resumeEstPropre(resume) {
@@ -505,6 +598,14 @@ function corpsDeNotification(genre, detail) {
       return { titre: "Une envie notée", corps: "Une Note du carnet a été posée sur un rendez-vous." };
     case "assistant-endormi":
       return { titre: "L'autre assistant dort", corps: "Des fils attendent de son côté." };
+    case "signal":
+      return { titre: "Un fait à savoir", corps: "Un relais vous attend au Trône." };
+    case "a-faire":
+      return { titre: "Un geste à faire", corps: "Un relais vous attend au Trône." };
+    case "cartes": {
+      const n = Math.max(1, Math.round(detail?.n ?? 1));
+      return { titre: n > 1 ? `${n} cartes vous attendent` : "Une carte vous attend", corps: `${qui} : à valider dans Les assistants.` };
+    }
     case "decision":
       return { titre: "Une décision vous attend", corps: `${qui} a laissé une proposition dans Les assistants.` };
     case "sommeil":
@@ -553,9 +654,11 @@ var ACTIONS_DU_JETON = [
   "notifier",
   /* 1er novembre 2026 : la dépense du jour posée « à valider », et la fiche retrouvée par son nom (lecture seule). */
   "depense.poser",
-  "fiche.chercher"
+  "fiche.chercher",
+  /* 2 novembre 2026, le socle : le bilan déposé avant le Conseil du matin. */
+  "bilan.deposer"
 ];
-var ACTIONS_DU_SOUVERAIN = ["jeton.donner", "jeton.retirer", "decision.trancher", "place.trancher"];
+var ACTIONS_DU_SOUVERAIN = ["jeton.donner", "jeton.retirer", "decision.trancher", "place.trancher", "loin.basculer"];
 var porteDeLAction = (action) => {
   if (typeof action !== "string") return null;
   if (ACTIONS_DU_JETON.includes(action)) return "jeton";
@@ -576,6 +679,204 @@ var estUneTresse = (nomDePrestation, labelDeRubrique) => {
   const r = String(labelDeRubrique ?? "").toLowerCase();
   return /tresse/.test(r) || /tresse|natte|vanille/.test(p);
 };
+var NOTIFICATIONS_DE = 7;
+var NOTIFICATIONS_A = 22;
+var notificationPermise = (heureCotonou) => heureCotonou >= NOTIFICATIONS_DE && heureCotonou < NOTIFICATIONS_A;
+var modeDe = (loinDepuis) => {
+  const ok = !!loinDepuis && Number.isFinite(Date.parse(loinDepuis));
+  return { loin: ok, loinDepuis: ok ? loinDepuis : null };
+};
+var COMPTES_DU_BILAN = ["lus", "repondus", "pouces", "rdvPoses", "depenses", "cartes", "relais", "publications"];
+var MOT_DU_BILAN_AU_PLUS = 100;
+function bilanEstPropre(b) {
+  const o = b && typeof b === "object" ? b : {};
+  const jour = String(o.jour ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(jour)) return { ok: false, motif: "le jour" };
+  const brut = o.comptes && typeof o.comptes === "object" ? o.comptes : {};
+  const comptes = {};
+  for (const k of Object.keys(brut)) {
+    if (!COMPTES_DU_BILAN.includes(k)) return { ok: false, motif: `un compte inconnu : ${k.slice(0, 20)}` };
+    const v = brut[k];
+    if (typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > 1e4) return { ok: false, motif: `le compte ${k}` };
+    comptes[k] = Math.round(v);
+  }
+  const mot = String(o.mot ?? "").trim();
+  if (mot) {
+    if (mot.length > MOT_DU_BILAN_AU_PLUS) return { ok: false, motif: `un mot de plus de ${MOT_DU_BILAN_AU_PLUS} caractères` };
+    const r = resumeEstPropre(mot);
+    if (!r.ok) return { ok: false, motif: r.motif };
+  }
+  return { ok: true, bilan: { jour, comptes, ...mot ? { mot } : {} } };
+}
+
+// src/shared/maison-intelligente-pur.ts
+var PROFESSIONNELS = [
+  {
+    id: "opale",
+    nom: "Opale",
+    tient: "l'assistante de Yéman",
+    departements: ["dept-direction"],
+    departementDit: "Direction",
+    porteurs: ["yeman"],
+    tourne: "session",
+    ouDit: "l'ordinateur de Yéman, Chrome",
+    statut: "en-ligne",
+    chaqueJour: "Lit le WhatsApp de Yéman, propose ses réponses, pose ses rendez-vous et ses dépenses depuis son fil.",
+    seul: "Lire, classer, un pouce sur un « Ok ».",
+    enCarte: "Chaque réponse, rendez-vous, dépense.",
+    quinzaine: "en ligne"
+  },
+  {
+    id: "onyx",
+    nom: "Onyx",
+    tient: "l'assistant de Brice",
+    departements: ["dept-direction"],
+    departementDit: "Direction",
+    porteurs: ["brice"],
+    tourne: "session",
+    ouDit: "le Mac de Brice, VS Code",
+    statut: "en-installation",
+    chaqueJour: "La même chose pour Brice, dans sa voix.",
+    seul: "Lire, classer, un pouce sur un « Ok ».",
+    enCarte: "Chaque réponse, rendez-vous, dépense.",
+    quinzaine: "en installation"
+  },
+  {
+    id: "saphir",
+    nom: "Saphir",
+    tient: "le conseil",
+    departements: ["dept-direction"],
+    departementDit: "Direction",
+    porteurs: ["yeman", "brice"],
+    tourne: "fonction",
+    ouDit: "une fonction du Trône, à 7 h",
+    statut: "en-ligne",
+    chaqueJour: "À 7 h, lit les bilans de tous et écrit le Conseil du matin : une page sur le téléphone.",
+    seul: "Lire, résumer, classer, rappeler.",
+    enCarte: "Une priorité qui change, un budget qui déborde.",
+    quinzaine: "semaines 1 et 2, puis à chaque quinzaine"
+  },
+  {
+    id: "perle",
+    nom: "Perle",
+    tient: "les clientes",
+    departements: ["dept-clientele"],
+    departementDit: "Clientèle",
+    porteurs: ["yeman"],
+    tourne: "fonction",
+    ouDit: "les fonctions du WhatsApp de la Maison",
+    statut: "en-ligne",
+    chaqueJour: "Le WhatsApp de la Maison : réserve, répond, garde les rendez-vous, envies, anniversaires, relances, avis Google, briefing avant le fauteuil.",
+    seul: "Modèles approuvés, réponses de la réception, réservation sous verrou.",
+    enCarte: "Tout texte libre hors réception, toute remise, toute cliente endormie.",
+    quinzaine: "semaines 3 et 4 (lot 3)"
+  },
+  {
+    id: "ambre",
+    nom: "Ambre",
+    tient: "les réseaux",
+    departements: ["dept-marketing"],
+    departementDit: "Marketing et Fidélité",
+    porteurs: ["yeman"],
+    tourne: "machine",
+    ouDit: "la machine de la Maison, Chrome",
+    statut: "maquette",
+    chaqueJour: "Instagram, Facebook, TikTok, LinkedIn, le Journal du site : plan du mardi, publications, réponses aux commentaires, bilan du lundi.",
+    seul: "Publier dans le plan validé, répondre aux commentaires.",
+    enCarte: "Le plan de la semaine, toute cliente ou enfant, tout argent.",
+    quinzaine: "semaines 3 et 4"
+  },
+  {
+    id: "grenat",
+    nom: "Grenat",
+    tient: "l'argent",
+    departements: ["dept-vente-caisse", "dept-finances"],
+    departementDit: "Vente et Caisse, Finances",
+    porteurs: ["yeman"],
+    tourne: "fonction",
+    ouDit: "une fonction du Trône",
+    statut: "a-construire",
+    chaqueJour: "La clôture du soir, les dépenses à valider rangées, les factures en retard relancées, les missions à payer, les écarts de caisse.",
+    seul: "Ranger, rapprocher, préparer, relancer par modèle.",
+    enCarte: "Tout argent qui sort, tout écart, tout refus.",
+    quinzaine: "semaines 5 et 6"
+  },
+  {
+    id: "jade",
+    nom: "Jade",
+    tient: "le stock",
+    departements: ["dept-atelier"],
+    departementDit: "Atelier",
+    porteurs: ["brice"],
+    tourne: "fonction",
+    ouDit: "une fonction du Trône",
+    statut: "a-construire",
+    chaqueJour: "Le stock et le Laboratoire : réassort, bons prêts, achats par photos, fournisseurs à rappeler, inventaire du mois.",
+    seul: "Compter, préparer un bon, lire un achat.",
+    enCarte: "Envoyer un bon, créer un fournisseur, un écart d'inventaire.",
+    quinzaine: "semaines 5 et 6"
+  },
+  {
+    id: "topaze",
+    nom: "Topaze",
+    tient: "l'équipe",
+    departements: ["dept-equipe", "dept-academie"],
+    departementDit: "Équipe et Académie",
+    porteurs: ["brice"],
+    tourne: "fonction",
+    ouDit: "une fonction du Trône",
+    statut: "a-construire",
+    chaqueJour: "Les fauteuils : jours creux et pleins, planning, pointage, congés, préparation de la paie, missions, Académie.",
+    seul: "Lire, préparer, rappeler.",
+    enCarte: "Un planning changé, une paie, une mission payée, une sanction.",
+    quinzaine: "semaines 7 et 8"
+  },
+  {
+    id: "jaspe",
+    nom: "Jaspe",
+    tient: "le gardien",
+    departements: ["dept-systeme"],
+    departementDit: "Système",
+    porteurs: ["yeman"],
+    tourne: "machine",
+    ouDit: "la machine de la Maison",
+    statut: "a-construire",
+    chaqueJour: "Bancs, sauvegardes de nuit, versions des fonctions, conflits de synchro, jetons et accès, publication, crédits.",
+    seul: "Vérifier, sauvegarder, publier ce qui est commité et vert.",
+    enCarte: "Un accès, un jeton, une clé, une panne.",
+    quinzaine: "semaines 7 et 8"
+  },
+  {
+    id: "cristal",
+    nom: "Cristal",
+    tient: "le secrétariat",
+    departements: [],
+    departementDit: "à part",
+    porteurs: ["yeman"],
+    tourne: "session",
+    ouDit: "l'ordinateur de Yéman",
+    statut: "a-part",
+    chaqueJour: "Les papiers de famille, les factures d'eau et d'électricité, les démarches, les mails de services, les lettres de la Maison.",
+    seul: "Lire, ranger, préparer.",
+    enCarte: "Tout envoi, tout paiement.",
+    quinzaine: "en ligne, à part",
+    horsDuTrone: true
+  }
+];
+var ID_DES_PROFESSIONNELS = PROFESSIONNELS.map((p) => p.id);
+var professionnel = (id) => PROFESSIONNELS.find((p) => p.id === id) ?? null;
+var passeAuTrone = (p) => p.tourne === "session" && !p.horsDuTrone;
+var RESERVE = "reserve";
+var COMPTEURS_DU_LIVRE = [
+  { cle: "mnd_ia_compteur_huit", parChantier: true, professionnel: RESERVE, dit: "ia-maison" },
+  { cle: "mnd_assistant_wa_compte", parChantier: false, professionnel: "perle", dit: "réception WhatsApp" },
+  { cle: "mnd_variantes_wa_compte", parChantier: false, professionnel: "perle", dit: "variantes WhatsApp" },
+  { cle: "mnd_tri_compte", parChantier: false, professionnel: "perle", dit: "tri des messages" },
+  { cle: "mnd_ia_compteur_diagnostic", parChantier: false, professionnel: "perle", dit: "diagnostic photo" },
+  { cle: "mnd_ia_compteur", parChantier: false, professionnel: "saphir", dit: "Centre de commande" },
+  { cle: "mnd_dictee_compte", parChantier: false, professionnel: RESERVE, dit: "la dictée" }
+];
+var CLES_DES_COMPTEURS = COMPTEURS_DU_LIVRE.map((c) => c.cle);
 
 // src/shared/civilite.ts
 var DIT = { madame: "Madame", mademoiselle: "Mademoiselle", monsieur: "Monsieur" };
@@ -800,7 +1101,7 @@ function ficheLisible(f, rdvs, nomDe, aujourdhui) {
 var pieceDeLaLecture = (n) => `une recherche de fiche, ${n === 0 ? "aucune trouvée" : n === 1 ? "une trouvée" : `${n} trouvées`}`;
 
 // scripts/serveur/assistants-maison.ts
-var VERSION = "2026-11-02-a";
+var VERSION = "2026-11-02-b · le socle : cartes de tous les genres, Je suis loin, bilan du matin";
 var BRANCHE_PHARE = "br-40r6u6frno";
 var ECRAN = "Les assistants";
 var ADRESSE_DES_ASSISTANTS = "/trone/#/assistants";
@@ -808,6 +1109,8 @@ var ETIQUETTE_DES_NOTIFICATIONS = "mnd-assistants";
 var ENVOI_MAX_MS = 8e3;
 var FENETRE_DU_VERROU_JOURS = 90;
 var TZ = "Africa/Porto-Novo";
+var UN_TOUR_AU_MOINS_MS = 4 * 6e4;
+var JOURS_DU_BILAN = 7;
 var CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": `authorization, x-client-info, apikey, content-type, ${EN_TETE_DU_JETON_ASSISTANT}`,
@@ -873,7 +1176,8 @@ var assistantDe = (l) => ({
   aUnJeton: !!l.empreinte,
   vuLe: l.vu_le ?? null,
   eveilleDepuis: l.eveille_depuis ?? null,
-  etat: l.etat ?? {}
+  etat: l.etat ?? {},
+  loinDepuis: l.loin_depuis ?? null
 });
 var relaisDe = (l) => ({
   id: l.id,
@@ -905,8 +1209,12 @@ var decisionDe = (l) => ({
   trancheePar: l.tranchee_par ?? null,
   texteModifie: l.texte_modifie ?? null,
   executeeLe: l.executee_le ?? null,
-  creeLe: l.cree_le
+  creeLe: l.cree_le,
+  /* Les faits, pour que l'assistant exécute la carte ; JAMAIS `prive` : le
+     nom et le message sont au porteur seul, à l'écran, pas à la machine. */
+  faits: l.faits ?? null
 });
+var effaceLePrive = (dec, maintenant) => ({ prive: null, ...dec.prive != null ? { prive_efface_le: maintenant } : {} });
 var Serveur = class {
   constructor(sb, url, service) {
     this.sb = sb;
@@ -1139,6 +1447,16 @@ async function passage(s, moi, d) {
   } else {
     delete etat.empechePrevenuLe;
   }
+  const mode = modeDe(moi.loin_depuis);
+  const cartesNouvelles = Math.max(0, Math.round(nombre(d.cartesNouvelles) ?? 0));
+  let notifieCartes = 0;
+  if (mode.loin && cartesNouvelles > 0 && notificationPermise(aCotonou(maintenantMs).heure)) {
+    const dejaPrevenu = Date.parse(chaine(etat.cartesPrevenuLe));
+    if (!(Number.isFinite(dejaPrevenu) && maintenantMs - dejaPrevenu < UN_TOUR_AU_MOINS_MS)) {
+      notifieCartes = (await s.notifieLePorteur(moi, "cartes", { n: cartesNouvelles, nom: moi.nom })).sent;
+      etat.cartesPrevenuLe = maintenant;
+    }
+  }
   await s.sb.from("assistants").update({ vu_le: maintenant, eveille_depuis: eveilleDepuis, etat }).eq("id", moi.id);
   const [relaisLus, decisionsLues, tous] = await Promise.all([
     s.sb.from("assistants_relais").select("*").eq("pour", moi.id).is("traite_le", null).order("quand", { ascending: true }).limit(200),
@@ -1153,7 +1471,7 @@ async function passage(s, moi, d) {
   });
   const heure = aCotonou(maintenantMs).heure;
   const veille = { dansLaVeille: dansLaVeille(heure, reglages), rythmeMin: rythmeA(heure, reglages), crons: cronsDeLaVeille(reglages) };
-  return rendu({ assistant: { id: moi.id, nom: moi.nom }, precedentVuLe, eveilleDepuis, empeche: etat.empeche ?? null, notifie, reglages, veille, relais, decisions, autres });
+  return rendu({ assistant: { id: moi.id, nom: moi.nom }, precedentVuLe, eveilleDepuis, empeche: etat.empeche ?? null, notifie, reglages, veille, mode, notifieCartes, relais, decisions, autres });
 }
 async function relaisDeposer(s, moi, d) {
   const genre = d.genre;
@@ -1208,6 +1526,34 @@ async function decisionDeposer(s, moi, d) {
   const proposition = chaine(d.proposition) || null;
   const tournure = tournureInterdite(proposition);
   if (tournure) return refus("proposition-refusee", 400, { tournure });
+  const lusFaits = faitsDeLaCarte(genre, d.faits);
+  if (!lusFaits.ok) return refus("faits-refuses", 400, { detail: lusFaits.motif });
+  if (GENRES_AVEC_FAITS.includes(genre) && !lusFaits.faits) return refus("faits-refuses", 400, { detail: "les faits de la carte" });
+  let faits = lusFaits.faits ?? null;
+  const mode = modeDe(moi.loin_depuis);
+  let prive = null;
+  if (d.prive !== void 0 && d.prive !== null) {
+    if (!mode.loin) return refus("prive-hors-loin", 409, { detail: "le nom et le message ne viennent au Trône qu en mode Je suis loin" });
+    const p = priveEstPropre(d.prive);
+    if (!p.ok) return refus("prive-refuse", 400, { detail: p.motif });
+    prive = p.prive;
+  }
+  if (genre === "depense") {
+    const f = faits;
+    const autre = d.autre === true;
+    const lue = lisLaDemandeDeDepense({ ...f, autre }, aCotonou(Date.now()).dateISO);
+    if (!lue.ok) return refus(lue.motif, 400, lue.detail ? { detail: lue.detail } : {});
+    const c = await controleLaDepense(s, moi, lue.v);
+    if (!c.ok) return c.refus;
+    faits = {
+      ...f,
+      categorie: c.categorie,
+      caisse: c.caisse,
+      ...c.porteur ? { porteur: c.porteur } : {},
+      date: lue.v.date,
+      ...autre ? { autre: true } : {}
+    };
+  }
   const echeanceMin = nombre(d.echeanceMin);
   const id = identifiant("decision");
   await s.sb.from("assistants_decisions").insert({
@@ -1221,11 +1567,13 @@ async function decisionDeposer(s, moi, d) {
     proposition,
     choix: [...CHOIX_PAR_GENRE[genre]],
     echeance: echeanceMin && echeanceMin > 0 ? plusTard(Date.now(), Math.min(echeanceMin, 60 * 24 * 14)) : null,
-    branch_id: moi.branch_id ?? null
+    branch_id: moi.branch_id ?? null,
+    faits,
+    prive
   });
   let sent = 0;
-  if (d.notifier === true) sent = (await s.notifieLePorteur(moi, "decision", { nom: moi.nom })).sent;
-  return rendu({ id, sent });
+  if (d.notifier === true && !mode.loin) sent = (await s.notifieLePorteur(moi, "decision", { nom: moi.nom })).sent;
+  return rendu({ id, sent, ...mode.loin ? { loin: true } : {}, ...faits ? { faits } : {} });
 }
 async function decisionExecutee(s, moi, d) {
   const id = chaine(d.id);
@@ -1490,6 +1838,66 @@ async function notifier(s, moi, d) {
   const r = await s.notifieLePorteur(pour, genre, detail);
   return rendu({ sent: r.sent, ...r.motif ? { motif: r.motif } : {} });
 }
+async function controleLaDepense(s, moi, v) {
+  const branchId = chaine(moi.branch_id) || (await s.brancheVedette())?.id || BRANCHE_PHARE;
+  const [cats, boites, docs] = await Promise.all([
+    s.sb.from("expense_categories").select("id, data").limit(500),
+    s.sb.from("cashboxes").select("id, data").limit(1e3),
+    s.sb.from("documents").select("key, data").in("key", ["mnd_porteurs", "mnd_prestataires"])
+  ]);
+  const doc = (k) => (docs.data ?? []).find((x) => x.key === k)?.data;
+  const prestataires = Array.isArray(doc("mnd_prestataires")) ? doc("mnd_prestataires") : [];
+  const prestataire = prestataireNomme([v.objet, v.beneficiaire], prestataires);
+  if (prestataire) return { ok: false, refus: refus("prestataire", 409, { prestataire, detail: "sa mission naît du rituel honoré, son paiement fait la dépense" }) };
+  const categories = lignesDe(cats.data);
+  const categorie = categorieConnue(v.categorie, categories);
+  if (!categorie) return { ok: false, refus: refus("categorie-inconnue", 400, { categories: categories.map((c) => chaine(c.name)).filter(Boolean) }) };
+  const caisse = caisseDeLaDepense(v.caisse, lignesDe(boites.data), branchId);
+  if (!caisse.ok) return { ok: false, refus: refus("caisse-inconnue", 400, { caisses: caisse.caisses }) };
+  let porteur;
+  if (v.porteur) {
+    const liste = Array.isArray(doc("mnd_porteurs")) ? doc("mnd_porteurs") : [];
+    porteur = porteurConnu(v.porteur, liste) ?? void 0;
+    if (!porteur) return { ok: false, refus: refus("porteur-inconnu", 400, { porteurs: liste.map((x) => chaine(x)).filter(Boolean) }) };
+  }
+  const label = libelleDeLaDepense(v.objet, v.beneficiaire);
+  if (!v.autre) {
+    const { data: duJour } = await s.sb.from("expenses").select("id, data").eq("branch_id", branchId).eq("data->>date", v.date).limit(1e3);
+    const doublon = doublonDeLaDepense({ branchId, date: v.date, amountXof: v.montantXof, label }, lignesDe(duJour));
+    if (doublon) {
+      return { ok: false, refus: refus("doublon", 409, { deja: {
+        id: doublon.id,
+        label: doublon.label,
+        amountXof: doublon.amountXof,
+        date: doublon.date,
+        saisiePar: saisiePar(doublon),
+        ...doublon.validation?.soumisLe ? { soumisLe: doublon.validation.soumisLe } : {}
+      } }) };
+    }
+  }
+  return { ok: true, branchId, label, categorie, caisse: caisse.caisse, ...porteur ? { porteur } : {} };
+}
+var ligneDeLaDepense = (c, v, id, validation, fichier) => ({
+  id,
+  branchId: c.branchId,
+  label: c.label,
+  amountXof: v.montantXof,
+  date: v.date,
+  cashbox: c.caisse,
+  category: c.categorie,
+  recurring: null,
+  ...c.porteur ? { porteur: c.porteur } : {},
+  ...fichier ? { fichier } : {},
+  validation
+});
+async function poseLaLigne(s, id, branchId, depense) {
+  const { error } = await s.sb.from("expenses").insert({ id, branch_id: branchId, data: depense });
+  if (!error) return "posee";
+  const { data: posee } = await s.sb.from("expenses").select("id").eq("id", id).maybeSingle();
+  if (posee) return "deja";
+  dis("dépense non écrite", { motif: String(error.message ?? "").slice(0, 80) });
+  return "echec";
+}
 async function depensePoser(s, moi, d) {
   const maintenantMs = Date.now();
   const maintenant = new Date(maintenantMs).toISOString();
@@ -1501,75 +1909,26 @@ async function depensePoser(s, moi, d) {
   if (!idempotence) return refus("idempotence");
   const recuLu = lisLeRecu(d.recu);
   if (!recuLu.ok) return refus(recuLu.motif);
-  const branchId = chaine(moi.branch_id) || (await s.brancheVedette())?.id || BRANCHE_PHARE;
   const id = await idDeLaDepense(moi.id, idempotence);
   const { data: dejaLa } = await s.sb.from("expenses").select("id").eq("id", id).maybeSingle();
   if (dejaLa) return rendu({ verdict: "deja", id });
-  const [cats, boites, docs] = await Promise.all([
-    s.sb.from("expense_categories").select("id, data").limit(500),
-    s.sb.from("cashboxes").select("id, data").limit(1e3),
-    s.sb.from("documents").select("key, data").in("key", ["mnd_porteurs", "mnd_prestataires"])
-  ]);
-  const doc = (k) => (docs.data ?? []).find((x) => x.key === k)?.data;
-  const prestataires = Array.isArray(doc("mnd_prestataires")) ? doc("mnd_prestataires") : [];
-  const prestataire = prestataireNomme([v.objet, v.beneficiaire], prestataires);
-  if (prestataire) return refus("prestataire", 409, { prestataire, detail: "sa mission naît du rituel honoré, son paiement fait la dépense" });
-  const categories = lignesDe(cats.data);
-  const categorie = categorieConnue(v.categorie, categories);
-  if (!categorie) return refus("categorie-inconnue", 400, { categories: categories.map((c) => chaine(c.name)).filter(Boolean) });
-  const caisse = caisseDeLaDepense(v.caisse, lignesDe(boites.data), branchId);
-  if (!caisse.ok) return refus("caisse-inconnue", 400, { caisses: caisse.caisses });
-  let porteur;
-  if (v.porteur) {
-    const liste = Array.isArray(doc("mnd_porteurs")) ? doc("mnd_porteurs") : [];
-    porteur = porteurConnu(v.porteur, liste) ?? void 0;
-    if (!porteur) return refus("porteur-inconnu", 400, { porteurs: liste.map((x) => chaine(x)).filter(Boolean) });
-  }
-  const label = libelleDeLaDepense(v.objet, v.beneficiaire);
-  if (!v.autre) {
-    const { data: duJour } = await s.sb.from("expenses").select("id, data").eq("branch_id", branchId).eq("data->>date", v.date).limit(1e3);
-    const doublon = doublonDeLaDepense({ branchId, date: v.date, amountXof: v.montantXof, label }, lignesDe(duJour));
-    if (doublon) {
-      return refus("doublon", 409, { deja: {
-        id: doublon.id,
-        label: doublon.label,
-        amountXof: doublon.amountXof,
-        date: doublon.date,
-        saisiePar: saisiePar(doublon),
-        ...doublon.validation?.soumisLe ? { soumisLe: doublon.validation.soumisLe } : {}
-      } });
-    }
-  }
+  const c = await controleLaDepense(s, moi, v);
+  if (!c.ok) return c.refus;
+  const { branchId, label, categorie } = c;
   let fichier;
   if (recuLu.recu) {
     const chemin = cheminDuRecu(branchId, id, recuLu.recu.nom);
-    const { error: error2 } = await s.sb.storage.from(COMPARTIMENT_DES_RECUS).upload(chemin, recuLu.recu.octets, { contentType: recuLu.recu.type, upsert: true });
-    if (error2) {
-      dis("reçu non déposé", { motif: String(error2.message ?? "").slice(0, 80) });
+    const { error } = await s.sb.storage.from(COMPARTIMENT_DES_RECUS).upload(chemin, recuLu.recu.octets, { contentType: recuLu.recu.type, upsert: true });
+    if (error) {
+      dis("reçu non déposé", { motif: String(error.message ?? "").slice(0, 80) });
       return refus("recu-non-depose", 502);
     }
     fichier = { chemin, nom: recuLu.recu.nom, type: recuLu.recu.type, taille: recuLu.recu.octets.length };
   }
-  const depense = {
-    id,
-    branchId,
-    label,
-    amountXof: v.montantXof,
-    date: v.date,
-    cashbox: caisse.caisse,
-    category: categorie,
-    recurring: null,
-    ...porteur ? { porteur } : {},
-    ...fichier ? { fichier } : {},
-    validation: { etat: "attente", soumisLe: maintenant, soumisPar: moi.nom }
-  };
-  const { error } = await s.sb.from("expenses").insert({ id, branch_id: branchId, data: depense });
-  if (error) {
-    const { data: posee } = await s.sb.from("expenses").select("id").eq("id", id).maybeSingle();
-    if (posee) return rendu({ verdict: "deja", id });
-    dis("dépense non écrite", { motif: String(error.message ?? "").slice(0, 80) });
-    return refus("ecriture", 500);
-  }
+  const depense = ligneDeLaDepense(c, v, id, { etat: "attente", soumisLe: maintenant, soumisPar: moi.nom }, fichier);
+  const ecrite = await poseLaLigne(s, id, branchId, depense);
+  if (ecrite === "deja") return rendu({ verdict: "deja", id });
+  if (ecrite === "echec") return refus("ecriture", 500);
   await s.journalise(moi.nom, { verbe: "pose", table: "expenses", pieceId: id, piece: pieceDuJournal(v.montantXof, categorie), branchId });
   return rendu({
     verdict: "posee",
@@ -1577,11 +1936,29 @@ async function depensePoser(s, moi, d) {
     label,
     amountXof: v.montantXof,
     date: v.date,
-    cashbox: caisse.caisse,
+    cashbox: c.caisse,
     category: categorie,
-    ...porteur ? { porteur } : {},
+    ...c.porteur ? { porteur: c.porteur } : {},
     recu: !!fichier
   });
+}
+async function bilanDeposer(s, moi, d) {
+  const lu = bilanEstPropre(d.bilan ?? { jour: d.jour, comptes: d.comptes, mot: d.mot });
+  if (!lu.ok) return refus("bilan-refuse", 400, { detail: lu.motif });
+  const maintenantMs = Date.now();
+  const aujourdhui = aCotonou(maintenantMs).dateISO;
+  const plusAncien = dateCotonouDans(maintenantMs, -JOURS_DU_BILAN);
+  if (lu.bilan.jour > aujourdhui || lu.bilan.jour < plusAncien) return refus("jour-hors-borne", 400, { detail: `de ${plusAncien} à ${aujourdhui}` });
+  const id = `${moi.id}:${lu.bilan.jour}`;
+  const { error } = await s.sb.from("assistants_bilans").upsert(
+    { id, assistant: moi.id, jour: lu.bilan.jour, comptes: lu.bilan.comptes, mot: lu.bilan.mot ?? null },
+    { onConflict: "id" }
+  );
+  if (error) {
+    dis("bilan non écrit", { motif: String(error.message ?? "").slice(0, 80) });
+    return refus("ecriture", 500);
+  }
+  return rendu({ id, jour: lu.bilan.jour, comptes: lu.bilan.comptes });
 }
 async function ficheChercher(s, moi, d) {
   const maintenantMs = Date.now();
@@ -1671,9 +2048,97 @@ async function decisionTrancher(s, qui, d) {
   const permis = Array.isArray(dec.choix) ? dec.choix : [];
   if (!permis.includes(choix)) return refus("choix-inconnu");
   if (dec.genre === "place-tenue") return placeTrancher(s, qui, { ...d, decisionId: dec.id, choix, mot: d.texte ?? d.mot });
-  const texte = choix === "modifier" ? chaine(d.texte).slice(0, 1e3) || null : null;
-  await s.sb.from("assistants_decisions").update({ tranchee: choix, tranchee_le: (/* @__PURE__ */ new Date()).toISOString(), tranchee_par: qui.userId, texte_modifie: texte }).eq("id", id);
+  if (dec.genre === "depense") return carteDeDepenseTranchee(s, qui, sien, dec, choix, d);
+  const maintenant = (/* @__PURE__ */ new Date()).toISOString();
+  const texte = CHOIX_AVEC_TEXTE.includes(choix) ? chaine(d.texte).slice(0, 1e3) || null : null;
+  await s.sb.from("assistants_decisions").update({
+    tranchee: choix,
+    tranchee_le: maintenant,
+    tranchee_par: qui.userId,
+    texte_modifie: texte,
+    ...effaceLePrive(dec, maintenant)
+  }).eq("id", id);
   return rendu({ id, choix });
+}
+async function carteDeDepenseTranchee(s, qui, sien, dec, choix, d) {
+  const maintenantMs = Date.now();
+  const maintenant = new Date(maintenantMs).toISOString();
+  const trancheLaCarte = async (plus = {}) => {
+    await s.sb.from("assistants_decisions").update({
+      tranchee: choix,
+      tranchee_le: maintenant,
+      tranchee_par: qui.userId,
+      texte_modifie: null,
+      executee_le: maintenant,
+      ...effaceLePrive(dec, maintenant),
+      ...plus
+    }).eq("id", dec.id);
+  };
+  if (choix === "non") {
+    await trancheLaCarte();
+    return rendu({ id: dec.id, choix });
+  }
+  const avant = dec.faits ?? {};
+  const brut = d.faits && typeof d.faits === "object" ? d.faits : {};
+  const corrections = {};
+  if (choix === "corriger") {
+    for (const k of ["montantXof", "objet", "categorie", "caisse"]) if (brut[k] !== void 0 && brut[k] !== "") corrections[k] = brut[k];
+    if (Object.keys(corrections).length === 0) return refus("faits-refuses", 400, { detail: "ce qui est corrigé : montant, objet, catégorie ou caisse" });
+  }
+  const lus = faitsDeLaCarte("depense", { ...avant, ...corrections });
+  if (!lus.ok) return refus("faits-refuses", 400, { detail: lus.motif });
+  const f = lus.faits;
+  const autre = avant.autre === true || d.autre === true;
+  const lue = lisLaDemandeDeDepense({ ...f, autre }, aCotonou(maintenantMs).dateISO);
+  if (!lue.ok) return refus(lue.motif, 400, lue.detail ? { detail: lue.detail } : {});
+  const faitsTenus = { ...f, ...autre ? { autre: true } : {} };
+  const id = await idDeLaDepense(sien.id, f.cle);
+  const { data: dejaLa } = await s.sb.from("expenses").select("id").eq("id", id).maybeSingle();
+  if (dejaLa) {
+    await trancheLaCarte({ faits: faitsTenus });
+    return rendu({ id: dec.id, choix, depense: { verdict: "deja", id } });
+  }
+  const c = await controleLaDepense(s, sien, lue.v);
+  if (!c.ok) return c.refus;
+  const validation = { etat: "validee", soumisLe: maintenant, soumisPar: sien.nom, decidePar: qui.nom, decideLe: maintenant };
+  const ecrite = await poseLaLigne(s, id, c.branchId, ligneDeLaDepense(c, lue.v, id, validation));
+  if (ecrite === "echec") return refus("ecriture", 500);
+  if (ecrite === "posee") {
+    await s.journalise(qui.nom, {
+      verbe: "pose",
+      table: "expenses",
+      pieceId: id,
+      branchId: c.branchId,
+      piece: pieceDuJournal(lue.v.montantXof, c.categorie).replace("Dépense à valider", "Dépense validée sur une carte")
+    });
+  }
+  await trancheLaCarte({ faits: { ...faitsTenus, categorie: c.categorie, caisse: c.caisse } });
+  return rendu({ id: dec.id, choix, depense: { verdict: ecrite, id, amountXof: lue.v.montantXof, category: c.categorie, cashbox: c.caisse } });
+}
+async function loinBasculer(s, qui, d) {
+  if (typeof d.loin !== "boolean") return refus("loin", 400, { detail: "loin : vrai ou faux" });
+  const loin = d.loin;
+  const miens = (await s.assistants()).filter((a) => {
+    const p = professionnel(a.id);
+    return a.porteur_user_id === qui.userId && !!p && passeAuTrone(p);
+  });
+  if (miens.length === 0) return refus("pas-d-assistant", 404, { detail: "aucun assistant à vous ne passe au Trône" });
+  const maintenant = (/* @__PURE__ */ new Date()).toISOString();
+  const avant = miens.some((a) => modeDe(a.loin_depuis).loin);
+  const apres = [];
+  for (const a of miens) {
+    const depuis = loin ? modeDe(a.loin_depuis).loinDepuis ?? maintenant : null;
+    await s.sb.from("assistants").update({ loin_depuis: depuis, loin_par: loin ? qui.nom : null }).eq("id", a.id);
+    apres.push({ id: a.id, nom: a.nom, ...modeDe(depuis) });
+  }
+  await s.journalise(qui.nom, {
+    verbe: "modifie",
+    table: "assistants",
+    pieceId: miens.map((a) => a.id).join(","),
+    piece: loin ? "Je suis loin : les cartes au Trône" : "Je suis là : les questions à l'ordinateur",
+    champs: [{ champ: "Mode", avant: avant ? "loin" : "là", apres: loin ? "loin" : "là" }]
+  });
+  return rendu({ loin, assistants: apres });
 }
 async function placeTrancher(s, qui, d) {
   const choix = chaine(d.choix);
@@ -1706,7 +2171,13 @@ async function placeTrancher(s, qui, d) {
   const ecrit = await ecrisLeRdv(s, ligne, apres);
   if (!ecrit) return refus("modifie-entre-temps", 409);
   if (dec) {
-    await s.sb.from("assistants_decisions").update({ tranchee: choix, tranchee_le: maintenant, tranchee_par: qui.userId, texte_modifie: heureProposee ?? (chaine(d.mot).slice(0, 200) || null) }).eq("id", dec.id);
+    await s.sb.from("assistants_decisions").update({
+      tranchee: choix,
+      tranchee_le: maintenant,
+      tranchee_par: qui.userId,
+      texte_modifie: heureProposee ?? (chaine(d.mot).slice(0, 200) || null),
+      ...effaceLePrive(dec, maintenant)
+    }).eq("id", dec.id);
   }
   const poseur = await s.assistant(rdv.tenue.par);
   let sent = 0;
@@ -1797,6 +2268,8 @@ Deno.serve(async (req) => {
           return await depensePoser(s, moi, d);
         case "fiche.chercher":
           return await ficheChercher(s, moi, d);
+        case "bilan.deposer":
+          return await bilanDeposer(s, moi, d);
       }
     } else {
       const qui = porte.qui;
@@ -1809,6 +2282,8 @@ Deno.serve(async (req) => {
           return await decisionTrancher(s, qui, d);
         case "place.trancher":
           return await placeTrancher(s, qui, d);
+        case "loin.basculer":
+          return await loinBasculer(s, qui, d);
       }
     }
     return refus("action-inconnue");

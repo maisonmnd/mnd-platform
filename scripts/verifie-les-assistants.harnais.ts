@@ -18,13 +18,25 @@
       insert direct hors fenêtre, place tenue, tresses), le verrou optimiste,
       la note, le jeton donné (l'empreinte écrite, jamais le jeton), la place
       tranchée et la confirmation officielle déposée, le journal.
-   ③ Le câblage : la migration porte les genres du module pur et l'empreinte
+   ④ Le socle de la Maison intelligente (2 novembre 2026) : « Je suis loin »
+      (le bouton du porteur, sur ses seuls assistants qui passent au Trône ;
+      une notification par tour, le nombre seul, de 7 h à 22 h ; le nom et le
+      message pour le porteur seul, refusés hors du mode loin, jamais rendus
+      au passage ni dans une notification, effacés à la décision), les faits
+      exigés par genre de carte, la carte d'une dépense contrôlée au dépôt puis
+      posée déjà validée au nom du porteur (idempotente, corrigée, refusée sans
+      trancher), le bilan du matin (borné, un par jour).
+   ③ Le câblage : la DERNIÈRE migration qui pose chaque contrainte porte les
+      genres du module pur, exactement ; 0151 pose le registre des dix, les
+      colonnes du mode loin, des faits et du privé, les bilans sous RLS ; l'empreinte
       d'Opale ; aucun nom privé dans les sources ; push-notify porte le bloc
       ⟨veille-des-assistants⟩ mot pour mot ; la charte, l'installateur
       d'Onyx, le SQL du soir et l'écran disent la veille des réglages.
    Les numéros, fiches et messages du banc sont inventés : rien de réel ici. */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import {
+  CHOIX_PAR_GENRE, MOT_DU_BILAN_AU_PLUS, PRIVE_CONTACT_AU_PLUS, PRIVE_MESSAGE_AU_PLUS, bilanEstPropre, faitsDeLaCarte, modeDe, notificationPermise,
+  priveAEffacer, priveEstPropre,
   GENRES_DE_DECISION, GENRES_DE_RELAIS, MARGE_DE_SOMMEIL_MIN, REGLAGES_PAR_DEFAUT, aCotonou, cronsDeLaVeille, dansLaVeille, doitPrevenirDuSommeil, echeanceOuvree,
   empreinteDuJetonAssistant, estUneTresse, etatDe, heureDite, motEstPropre, noteEstPropre, nouveauJetonAssistant, porteDeLAction, reglagesComplets,
   rythmeA, seuilDeSommeilMin, tournureInterdite, vocabulairePermis, type ReglagesAssistants,
@@ -34,6 +46,7 @@ import {
   porteurConnu, prestataireNomme, RECU_AU_PLUS_OCTETS,
 } from '../src/shared/assistants-depenses-pur';
 import { ficheCorrespond, ficheLisible, lisLaRecherche, motifDeLaBase, pieceDeLaLecture } from '../src/shared/assistants-fiches-pur';
+import { PROFESSIONNELS } from '../src/shared/maison-intelligente-pur';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -407,7 +420,7 @@ const aujourdhui = dateDans(0);
 const sansNom = (texte: string) => !/Awa|Codjo|Dossi|Efua|Fifa|Gbessi|Hola|Banc/.test(texte);
 
 const g = await handler!(new Request('http://f/assistants-maison', { method: 'GET' }));
-dit('GET : la santé, la version, le nombre d assistants, aucun secret', ['assistants-maison', '2026-11-02-a', 2, false],
+dit('GET : la santé, la version, le nombre d assistants, aucun secret', ['assistants-maison', '2026-11-02-b · le socle : cartes de tous les genres, Je suis loin, bilan du matin', 2, false],
   await g.json().then((x: { fonction?: string; version?: string; assistants?: number }) => [x.fonction, x.version, x.assistants, JSON.stringify(x).includes('service')]));
 dit('sans porte : refusé', [403, 'reserve-aux-assistants'], await appelle({}, { action: 'passage', controles: {} }).then((r) => [r.status, r.corps.motif]));
 dit('un jeton inconnu : refusé', [403, 'reserve-aux-assistants'], await appelle({ 'x-jeton-assistant': 'assistant-opale-faux' }, { action: 'passage', controles: {} }).then((r) => [r.status, r.corps.motif]));
@@ -746,6 +759,216 @@ dit('l écran Dépenses montre la file à valider, qui l a saisie, la pièce joi
   ecranD.includes('aValider(toutesLesDepenses, branch.id)'), ecranD.includes('Saisie par <b>{e.validation?.soumisPar}</b>'),
   ecranD.includes("{e.fichier ? ' · pièce jointe' : ' · aucune pièce jointe'}"), ecranD.includes('onClick={() => dirOui(e)}>Valider</button>')]);
 
+/* ── ④ LE SOCLE DE LA MAISON INTELLIGENTE (2 novembre 2026) ── */
+/* Le cerveau pur des cartes, du mode loin et du bilan. */
+dit('les notifications du mode loin : de 7 h à 22 h, jamais la nuit', [false, true, true, false], [6, 7, 21, 22].map(notificationPermise));
+dit('le mode : là sans date, là sur une date illisible, loin depuis une date', [{ loin: false, loinDepuis: null }, { loin: false, loinDepuis: null }, { loin: true, loinDepuis: '2026-11-02T08:00:00.000Z' }],
+  [modeDe(null), modeDe('pas une date'), modeDe('2026-11-02T08:00:00.000Z')]);
+dit('le privé : le contact et le message nettoyés ; trop longs ou vides, refusés', [
+  { ok: true, prive: { contact: 'Tata Banc', message: 'Bonjour' } }, false, false, false, false], [
+  priveEstPropre({ contact: ' Tata Banc ', message: ' Bonjour ' }), priveEstPropre({ contact: 'x'.repeat(PRIVE_CONTACT_AU_PLUS + 1), message: 'a' }).ok,
+  priveEstPropre({ contact: 'a', message: 'x'.repeat(PRIVE_MESSAGE_AU_PLUS + 1) }).ok, priveEstPropre({ contact: '', message: '' }).ok, priveEstPropre(null).ok]);
+dit('le privé s efface à la décision, ou sept jours après la naissance de la carte', [true, false, true], [
+  priveAEffacer({ tranchee: 'envoyer', creeLe: new Date().toISOString() }, Date.now()),
+  priveAEffacer({ tranchee: null, creeLe: new Date(Date.now() - 6 * 86_400_000).toISOString() }, Date.now()),
+  priveAEffacer({ tranchee: null, creeLe: new Date(Date.now() - 7 * 86_400_000).toISOString() }, Date.now())]);
+dit('chaque genre de carte a ses choix ; une réponse ne porte pas de faits ; une dépense sans montant ni clé est refusée', [true, { ok: true, faits: null }, 'le montant', 'la clé du message'], [
+  GENRES_DE_DECISION.every((g) => (CHOIX_PAR_GENRE[g] ?? []).length >= 2), faitsDeLaCarte('reponse', { x: 1 }),
+  (faitsDeLaCarte('depense', { montantXof: 0, objet: 'Eau', categorie: 'Local', cle: 'k' }) as { motif?: string }).motif,
+  (faitsDeLaCarte('depense', { montantXof: 10, objet: 'Eau', categorie: 'Local' }) as { motif?: string }).motif]);
+dit('le bilan : des comptes connus, bornés, un mot sans citation ni numéro', [true, false, false, false, false, false], [
+  bilanEstPropre({ jour: '2026-11-01', comptes: { lus: 3 }, mot: 'Calme' }).ok, bilanEstPropre({ jour: '2026-11-01', comptes: { clientes: 3 } }).ok,
+  bilanEstPropre({ jour: '2026-11-01', comptes: { lus: 10_001 } }).ok, bilanEstPropre({ jour: 'hier', comptes: {} }).ok,
+  bilanEstPropre({ jour: '2026-11-01', comptes: {}, mot: 'elle a dit « oui »' }).ok, bilanEstPropre({ jour: '2026-11-01', comptes: {}, mot: 'x'.repeat(MOT_DU_BILAN_AU_PLUS + 1) }).ok]);
+
+/* La fonction. Perle entre au registre (une fonction, au compte de Yéman, sans jeton). */
+tables.assistants.push({ id: 'perle', nom: 'Perle', porteur_team_id: 'st-5qduae5jef', porteur_user_id: 'u-yeman', appareil: 'une fonction', empreinte: null, jeton_pose_le: null, vu_le: null, eveille_depuis: null, etat: {}, branch_id: 'br-test', updated_at: horloge() });
+tables.assistants_bilans = [];
+const opaleS = ligne('assistants', (a) => a.id === 'opale')!;
+const onyxS = ligne('assistants', (a) => a.id === 'onyx')!;
+const perleS = ligne('assistants', (a) => a.id === 'perle')!;
+const grenatS = ligne('assistants', (a) => a.id === 'grenat')!;
+const sauveOpale = JSON.parse(JSON.stringify({ vu_le: opaleS.vu_le, eveille_depuis: opaleS.eveille_depuis, etat: opaleS.etat })) as Row;
+const PASSE = { action: 'passage', controles: { chrome: true, lie: true, nonLus: true } };
+/* Le tour, à une heure fixe du jour (le banc tourne aussi la nuit) : le porteur là. */
+const passeAvec = async (ms: number, corps: Record<string, unknown>) => {
+  Date.now = () => ms;
+  try { return await appelle(opale, corps); } finally { Date.now = vraiMaintenant; }
+};
+const avantLa = pushs.length;
+const passageLa = await passeAvec(aLHeure(9, 0), { ...PASSE, cartesNouvelles: 2 });
+dit('le passage dit le mode : là ; des cartes nouvelles, le porteur là : aucune notification', [{ loin: false, loinDepuis: null }, 0, 0],
+  [passageLa.corps.mode, passageLa.corps.notifieCartes, pushs.length - avantLa]);
+const avantPriveLa = tables.assistants_decisions.length;
+const priveLa = await appelle(opale, { action: 'decision.deposer', genre: 'reponse', resume: 'Une cliente demande une place', proposition: 'ok', prive: { contact: 'Tata Banc', message: 'Je peux passer samedi ?' } });
+dit('le porteur là : le nom et le message ne viennent pas au Trône (refusé, rien n est écrit)', [409, 'prive-hors-loin', avantPriveLa],
+  [priveLa.status, priveLa.corps.motif, tables.assistants_decisions.length]);
+
+/* « Je suis loin / Je suis là ». */
+dit('loin.basculer : un membre qui n est pas souverain non ; un assistant non ; loin doit être vrai ou faux', [403, 'reserve-aux-assistants', 403, 'mauvaise-porte', 400, 'loin'], [
+  ...(await appelle({ authorization: 'Bearer jwt-maitre' }, { action: 'loin.basculer', loin: true }).then((r) => [r.status, r.corps.motif])),
+  ...(await appelle(opale, { action: 'loin.basculer', loin: true }).then((r) => [r.status, r.corps.motif])),
+  ...(await appelle(yeman, { action: 'loin.basculer', loin: 'oui' }).then((r) => [r.status, r.corps.motif]))]);
+const loinY = await appelle(yeman, { action: 'loin.basculer', loin: true });
+const journalLoin = tables.journal_gestes.filter((g) => (g.data as Row).table === 'assistants').pop()?.data as Row | undefined;
+dit('Yéman touche « Je suis loin » : Opale seule (ni Perle, une fonction à son compte ; ni Onyx), signé, au journal',
+  [true, ['opale'], true, 'Y. B.', null, null, null, 'Y. B.', 'modifie', 'Je suis loin : les cartes au Trône', 'assistant'],
+  [loinY.corps.ok, ((loinY.corps.assistants ?? []) as Row[]).map((a) => a.id), !!opaleS.loin_depuis, opaleS.loin_par,
+    perleS.loin_depuis ?? null, onyxS.loin_depuis ?? null, grenatS.loin_depuis ?? null, journalLoin?.parNom, journalLoin?.verbe, journalLoin?.piece, journalLoin?.porte]);
+const loinB = await appelle(brice, { action: 'loin.basculer', loin: true });
+JWTS['jwt-tiers'] = 'u-tiers';
+tables.staff.push({ user_id: 'u-tiers', name: 'T. S.', role: 'souverain' });
+dit('un souverain qui ne porte aucun assistant d ordinateur : pas-d-assistant, rien ne bouge', [404, 'pas-d-assistant', true],
+  [...(await appelle({ authorization: 'Bearer jwt-tiers' }, { action: 'loin.basculer', loin: true }).then((r) => [r.status, r.corps.motif])), !!opaleS.loin_depuis]);
+dit('Brice touche le sien : Onyx seul (Grenat, au compte de Brice avec un jeton, n est pas une session)', [['onyx'], true, null],
+  [((loinB.corps.assistants ?? []) as Row[]).map((a) => a.id), !!onyxS.loin_depuis, grenatS.loin_depuis ?? null]);
+opaleS.loin_depuis = '2026-11-01T08:00:00.000Z';
+await appelle(yeman, { action: 'loin.basculer', loin: true });
+dit('… toucher « loin » une seconde fois garde l heure du départ', '2026-11-01T08:00:00.000Z', opaleS.loin_depuis);
+
+/* Le tour en mode loin : une notification, le nombre seul, de 7 h à 22 h. */
+const passeLoin = (ms: number, cartes: number) => passeAvec(ms, { ...PASSE, cartesNouvelles: cartes });
+const avantCartes = pushs.length;
+const c1 = await passeLoin(aLHeure(10, 3), 3);
+const notifC1 = pushs[avantCartes];
+dit('loin, à 10 h : le passage dit le mode, UNE notification au porteur, le nombre seul, sans nom',
+  [true, 1, 1, 'to-staff', 'u-yeman', '3 cartes vous attendent', 'Opale : à valider dans Les assistants.', '/trone/#/assistants'],
+  [(c1.corps.mode as Row)?.loin, c1.corps.notifieCartes, pushs.length - avantCartes, notifC1?.corps.mode, notifC1?.corps.userId, notifC1?.corps.title, notifC1?.corps.body, notifC1?.corps.url]);
+const c2 = await passeLoin(aLHeure(10, 5), 2);
+const c3 = await passeLoin(aLHeure(10, 13), 0);
+dit('… un second passage du même tour : rien de plus ; un tour sans carte nouvelle : rien', [0, 0, 1], [c2.corps.notifieCartes, c3.corps.notifieCartes, pushs.length - avantCartes]);
+const c4 = await passeLoin(aLHeure(21, 52), 1);
+const c5 = await passeLoin(aLHeure(22, 7), 1);
+const c6 = await passeLoin(aLHeure(30, 53), 1);
+const c7 = await passeLoin(aLHeure(31, 0), 1);
+dit('… la nuit, rien : à 22 h 07 et à 6 h 53 la carte attend ; à 21 h 52 et à 7 h, une notification', [1, 0, 0, 1, 3, 'Une carte vous attend'],
+  [c4.corps.notifieCartes, c5.corps.notifieCartes, c6.corps.notifieCartes, c7.corps.notifieCartes, pushs.length - avantCartes, pushs[pushs.length - 1]?.corps.title]);
+dit('… un passage ne touche jamais au mode loin', [true, '2026-11-01T08:00:00.000Z'], [(c7.corps.mode as Row)?.loin, opaleS.loin_depuis]);
+Object.assign(opaleS, sauveOpale);
+
+/* La carte en mode loin : le nom et le message, pour le porteur seul. */
+const avantCarteLoin = pushs.length;
+const carteR = await appelle(opale, { action: 'decision.deposer', genre: 'reponse', resume: 'Une cliente demande une place samedi', proposition: 'ok samedi 10h', notifier: true,
+  prive: { contact: 'Tata Banc', message: 'Bonjour, je peux passer samedi matin ?' } });
+const decR = ligne('assistants_decisions', (d) => d.id === carteR.corps.id)!;
+dit('loin : la carte porte le nom et le message pour le porteur seul ; aucune notification par carte, même demandée',
+  [true, true, { contact: 'Tata Banc', message: 'Bonjour, je peux passer samedi matin ?' }, 0, 0, null],
+  [carteR.corps.ok, carteR.corps.loin, decR?.prive, carteR.corps.sent, pushs.length - avantCarteLoin, decR?.faits ?? null]);
+dit('… un message trop long, un privé vide : refusés', [400, 'prive-refuse', 400, 'prive-refuse'], [
+  ...(await appelle(opale, { action: 'decision.deposer', genre: 'reponse', resume: 'Une cliente écrit', proposition: 'ok', prive: { contact: 'A', message: 'x'.repeat(1201) } }).then((r) => [r.status, r.corps.motif])),
+  ...(await appelle(opale, { action: 'decision.deposer', genre: 'reponse', resume: 'Une cliente écrit', proposition: 'ok', prive: { contact: '', message: '' } }).then((r) => [r.status, r.corps.motif]))]);
+tables.assistants_decisions.push({ id: 'dec-prive-reste', assistant: 'opale', genre: 'reponse', resume: 'r', proposition: 'ok', choix: ['envoyer', 'modifier', 'non'], tranchee: 'envoyer',
+  tranchee_le: horloge(), executee_le: null, cree_le: horloge(), faits: null, prive: { contact: 'Tata Banc', message: 'Le message privé du banc' } });
+const pPrive = await appelle(opale, PASSE);
+dit('le passage rend la carte tranchée à exécuter, jamais le nom ni le message', [true, false, false], [
+  ((pPrive.corps.decisions ?? []) as Row[]).some((d) => d.id === 'dec-prive-reste'), JSON.stringify(pPrive.corps).includes('Tata'), JSON.stringify(pPrive.corps).includes('message privé')]);
+await appelle(opale, { action: 'decision.executee', id: 'dec-prive-reste' });
+const tR = await appelle(yeman, { action: 'decision.trancher', id: carteR.corps.id, choix: 'envoyer' });
+dit('trancher efface le nom et le message dans la même écriture', [true, 'envoyer', null, true], [tR.corps.ok, decR?.tranchee, decR?.prive ?? null, !!decR?.prive_efface_le]);
+
+/* Les faits exigés par genre. */
+const carte = (genre: string, faits: unknown, plus: Record<string, unknown> = {}) =>
+  appelle(opale, { action: 'decision.deposer', genre, resume: 'Une carte du banc', ...(faits === undefined ? {} : { faits }), ...plus });
+const motifDe = async (r: Promise<{ status: number; corps: Reponse }>) => r.then((x) => [x.status, x.corps.motif, x.corps.detail]);
+dit('les faits exigés par genre : rendez-vous sans numéro, sans prestation, sans heure ; publication, planning, accès vides ; dépense sans rien', [
+  [400, 'faits-refuses', 'le numéro de la cliente'], [400, 'faits-refuses', 'les prestations'], [400, 'faits-refuses', 'le jour et l\'heure'],
+  [400, 'faits-refuses', 'le réseau'], [400, 'faits-refuses', 'ce qui change'], [400, 'faits-refuses', 'l\'accès demandé'], [400, 'faits-refuses', 'le montant']], [
+  await motifDe(carte('rdv', { services: ['s-creation'], date: dateDans(9), time: '11:00' })),
+  await motifDe(carte('rdv', { numeroCle: '2290197000001', services: [], date: dateDans(9), time: '11:00' })),
+  await motifDe(carte('rdv', { numeroCle: '2290197000001', services: ['s-creation'], date: dateDans(9), time: '25:00' })),
+  await motifDe(carte('publication', {})), await motifDe(carte('planning', undefined)), await motifDe(carte('acces', { quoi: '  ' })),
+  await motifDe(carte('depense', undefined))]);
+const cRdv = await carte('rdv', { numeroCle: '+229 01 97 00 00 01', services: ['s-creation'], date: dateDans(9), time: '11:00', pour: 'st-5qduae5jef', clientId: 'cl-1', bavard: 'non' });
+const decRdv = ligne('assistants_decisions', (d) => d.id === cRdv.corps.id)!;
+dit('une carte de rendez-vous : les faits relus (le numéro réduit, rien d étranger), ses quatre choix',
+  [true, { numeroCle: '2290197000001', services: ['s-creation'], date: dateDans(9), time: '11:00', clientId: 'cl-1', pour: 'st-5qduae5jef' }, ['poser', 'autre-heure', 'modifier', 'non']],
+  [cRdv.corps.ok, decRdv?.faits, decRdv?.choix]);
+const cRep = await carte('reponse', { numeroCle: '2290197000001' }, { proposition: 'ok' });
+dit('une réponse ne garde pas de faits', [true, null], [cRep.corps.ok, ligne('assistants_decisions', (d) => d.id === cRep.corps.id)?.faits ?? null]);
+await appelle(yeman, { action: 'decision.trancher', id: cRdv.corps.id, choix: 'autre-heure', texte: 'samedi 11h' });
+const pRdv = await appelle(opale, PASSE);
+const rendue = ((pRdv.corps.decisions ?? []) as Row[]).find((d) => d.id === cRdv.corps.id);
+dit('« Autre heure » garde le texte du porteur ; le passage rend la carte avec ses faits, pour que l assistant l exécute', ['autre-heure', 'samedi 11h', dateDans(9), '2290197000001'],
+  [rendue?.tranchee, rendue?.texteModifie, (rendue?.faits as Row)?.date, (rendue?.faits as Row)?.numeroCle]);
+
+/* La carte d'une dépense. */
+const avantDep = tables.expenses.length;
+const cPain = await carte('depense', { montantXof: 2500, objet: 'Pain', categorie: 'local', cle: 'opale:m-pain' });
+const decPain = ligne('assistants_decisions', (d) => d.id === cPain.corps.id)!;
+dit('une carte de dépense : contrôlée au dépôt (la catégorie de la Maison, la Caisse Principale, le jour), rien n est encore écrit',
+  [true, { montantXof: 2500, objet: 'Pain', categorie: 'Local', cle: 'opale:m-pain', caisse: 'Caisse Principale', date: aujourdhui }, ['valider', 'corriger', 'non'], avantDep],
+  [cPain.corps.ok, decPain?.faits, decPain?.choix, tables.expenses.length]);
+const cGazAutre = await carte('depense', { montantXof: 6000, objet: 'Gaz', categorie: 'Local', cle: 'opale:m-gaz3' }, { autre: true });
+dit('… au dépôt, les refus d une dépense : un prestataire, une catégorie inconnue, le doublon du jour ; « C en est une autre » passe et se garde', [
+  [409, 'prestataire'], [400, 'categorie-inconnue'], [409, 'doublon'], true, true], [
+  (await motifDe(carte('depense', { montantXof: 12000, objet: 'Tresses Hermine', categorie: 'Local', cle: 'opale:m-h2' }))).slice(0, 2),
+  (await motifDe(carte('depense', { montantXof: 500, objet: 'Pain', categorie: 'Essence', cle: 'opale:m-e' }))).slice(0, 2),
+  (await motifDe(carte('depense', { montantXof: 6000, objet: 'Gaz', categorie: 'Local', cle: 'opale:m-gaz2' }))).slice(0, 2),
+  cGazAutre.corps.ok, (ligne('assistants_decisions', (d) => d.id === cGazAutre.corps.id)?.faits as Row)?.autre]);
+dit('la carte de dépense : l autre souverain ne la tranche pas', [403, 'pas-ta-decision'],
+  await appelle(brice, { action: 'decision.trancher', id: cPain.corps.id, choix: 'valider' }).then((r) => [r.status, r.corps.motif]));
+const vPain = await appelle(yeman, { action: 'decision.trancher', id: cPain.corps.id, choix: 'valider' });
+const idPain = await idDeLaDepense('opale', 'opale:m-pain');
+const ePain = (ligne('expenses', (e) => e.id === idPain)?.data ?? {}) as Row;
+const vP = (ePain.validation ?? {}) as Row;
+const jPain = tables.journal_gestes.filter((g) => (g.data as Row).pieceId === idPain).pop()?.data as Row | undefined;
+dit('« Valider » d un toucher : la dépense posée DÉJÀ VALIDÉE (soumise par Opale, décidée par Yéman), la carte tranchée et exécutée, le journal au nom de Yéman sans l objet',
+  [true, 'posee', idPain, 2500, 'Local', 'Caisse Principale', aujourdhui, 'validee', 'Opale', 'Y. B.', true, true, 'valider', true,
+    'Y. B.', 'assistant', pieceDuJournal(2500, 'Local').replace('Dépense à valider', 'Dépense validée sur une carte'), false, avantDep + 1],
+  [vPain.corps.ok, (vPain.corps.depense as Row)?.verdict, (vPain.corps.depense as Row)?.id, ePain.amountXof, ePain.category, ePain.cashbox, ePain.date,
+    vP.etat, vP.soumisPar, vP.decidePar, !!vP.decideLe, !!vP.soumisLe, decPain?.tranchee, !!decPain?.executee_le,
+    jPain?.parNom, jPain?.porte, jPain?.piece, String(jPain?.piece).includes('Pain'), tables.expenses.length]);
+const cPain2 = await carte('depense', { montantXof: 2500, objet: 'Pain', categorie: 'Local', cle: 'opale:m-pain' }, { autre: true });
+const vPain2 = await appelle(yeman, { action: 'decision.trancher', id: cPain2.corps.id, choix: 'valider' });
+dit('… la même dépense (la même clé du message) sur une seconde carte : déjà là, rien de plus, la carte close', [true, 'deja', idPain, avantDep + 1, true],
+  [vPain2.corps.ok, (vPain2.corps.depense as Row)?.verdict, (vPain2.corps.depense as Row)?.id, tables.expenses.length, !!ligne('assistants_decisions', (d) => d.id === cPain2.corps.id)?.executee_le]);
+dit('… trancher deux fois : non', [409, 'deja-tranchee'], await appelle(yeman, { action: 'decision.trancher', id: cPain.corps.id, choix: 'valider' }).then((r) => [r.status, r.corps.motif]));
+const cSavon = await carte('depense', { montantXof: 800, objet: 'Savon', categorie: 'Local', cle: 'opale:m-savon2' });
+const decSavon = ligne('assistants_decisions', (d) => d.id === cSavon.corps.id)!;
+dit('« Corriger » sans rien corriger : refusé, la carte reste', [400, 'faits-refuses', null],
+  [...(await appelle(yeman, { action: 'decision.trancher', id: cSavon.corps.id, choix: 'corriger', faits: { porteur: 'B. A.' } }).then((r) => [r.status, r.corps.motif])), decSavon?.tranchee ?? null]);
+const kSavon = await appelle(yeman, { action: 'decision.trancher', id: cSavon.corps.id, choix: 'corriger', faits: { montantXof: 900, caisse: 'momo prive' } });
+const eSavon = (ligne('expenses', (e) => e.id === (kSavon.corps.depense as Row)?.id)?.data ?? {}) as Row;
+dit('« Corriger » : posée validée avec les faits corrigés, et la carte les garde', [true, 900, 'MoMo Privé', 'validee', 'Y. B.', 900, 'MoMo Privé', 'corriger', true],
+  [kSavon.corps.ok, eSavon.amountXof, eSavon.cashbox, (eSavon.validation as Row)?.etat, (eSavon.validation as Row)?.decidePar,
+    (decSavon?.faits as Row)?.montantXof, (decSavon?.faits as Row)?.caisse, decSavon?.tranchee, (kSavon.corps.depense as Row)?.id === await idDeLaDepense('opale', 'opale:m-savon2')]);
+const cBis = await carte('depense', { montantXof: 700, objet: 'Biscuits', categorie: 'Local', cle: 'opale:m-bis' });
+const avantNon = tables.expenses.length;
+const nBis = await appelle(yeman, { action: 'decision.trancher', id: cBis.corps.id, choix: 'non' });
+dit('« Non » : ce n est pas une dépense, rien n est posé, la carte est close', [true, avantNon, 'non', true],
+  [nBis.corps.ok, tables.expenses.length, ligne('assistants_decisions', (d) => d.id === cBis.corps.id)?.tranchee, !!ligne('assistants_decisions', (d) => d.id === cBis.corps.id)?.executee_le]);
+const cLait = await carte('depense', { montantXof: 1500, objet: 'Lait', categorie: 'Local', cle: 'opale:m-lait' });
+tables.expenses.push({ id: 'exp-lait', branch_id: 'br-test', data: { id: 'exp-lait', branchId: 'br-test', label: 'Lait', amountXof: 1500, date: aujourdhui, cashbox: 'Caisse Principale', category: 'Local', porteur: 'B. A.' } });
+const avantLait = tables.expenses.length;
+const vLait = await appelle(yeman, { action: 'decision.trancher', id: cLait.corps.id, choix: 'valider' });
+dit('un doublon apparu depuis le dépôt : refusé à l écran avec son motif, la carte reste à trancher, rien n est écrit', [409, 'doublon', 'exp-lait', null, avantLait],
+  [vLait.status, vLait.corps.motif, (vLait.corps.deja as Row)?.id, ligne('assistants_decisions', (d) => d.id === cLait.corps.id)?.tranchee ?? null, tables.expenses.length]);
+
+/* Le bilan du matin. */
+const hier = dateDans(-1);
+const b1 = await appelle(opale, { action: 'bilan.deposer', jour: hier, comptes: { lus: 12, repondus: 9, rdvPoses: 2 }, mot: 'Journée calme, deux rendez-vous' });
+const motB1 = ligne('assistants_bilans', (b) => b.id === `opale:${hier}`)?.mot;
+const b2 = await appelle(opale, { action: 'bilan.deposer', jour: hier, comptes: { lus: 14 } });
+const bilanL = ligne('assistants_bilans', (b) => b.id === `opale:${hier}`);
+dit('bilan.deposer : un bilan par assistant et par jour, le redire le remplace', [true, `opale:${hier}`, 'Journée calme, deux rendez-vous', true, 1, { lus: 14 }, null, 'opale'],
+  [b1.corps.ok, b1.corps.id, motB1, b2.corps.ok,
+    lignes('assistants_bilans', (b) => b.assistant === 'opale').length, bilanL?.comptes, bilanL?.mot ?? null, bilanL?.assistant]);
+const refusB = (d: Record<string, unknown>) => appelle(opale, { action: 'bilan.deposer', jour: hier, comptes: { lus: 1 }, ...d }).then((r) => [r.status, r.corps.motif]);
+dit('… les bornes du bilan : demain, il y a trente jours, un compte inconnu, un compte négatif, un mot qui cite, un mot avec un numéro ; un souverain ne dépose pas', [
+  [400, 'jour-hors-borne'], [400, 'jour-hors-borne'], [400, 'bilan-refuse'], [400, 'bilan-refuse'], [400, 'bilan-refuse'], [400, 'bilan-refuse'], [403, 'mauvaise-porte']], [
+  await refusB({ jour: dateDans(1) }), await refusB({ jour: dateDans(-30) }), await refusB({ comptes: { clientes: 2 } }), await refusB({ comptes: { lus: -1 } }),
+  await refusB({ mot: 'elle a dit « merci »' }), await refusB({ mot: 'rappeler le 01 97 00 00 01' }),
+  await appelle(yeman, { action: 'bilan.deposer', jour: hier, comptes: {} }).then((r) => [r.status, r.corps.motif])]);
+
+/* Je suis là : le mode s'en va, le sélecteur reprend. */
+const laY = await appelle(yeman, { action: 'loin.basculer', loin: false });
+const laB = await appelle(brice, { action: 'loin.basculer', loin: false });
+dit('« Je suis là » : le mode retiré, de qui il était, au journal', [true, null, null, true, null, 'Je suis là : les questions à l\'ordinateur'],
+  [laY.corps.ok, opaleS.loin_depuis ?? null, opaleS.loin_par ?? null, laB.corps.ok, onyxS.loin_depuis ?? null,
+    (tables.journal_gestes.filter((g) => (g.data as Row).table === 'assistants').pop()?.data as Row | undefined)?.piece]);
+dit('rien du socle ne fait sortir un nom ou un message privé : ni les notifications, ni le journal', [false, false, false, false], [
+  JSON.stringify(pushs).includes('Tata'), JSON.stringify(pushs).includes('samedi matin ?'), JSON.stringify(tables.journal_gestes).includes('Tata'), JSON.stringify(tables.journal_gestes).includes('Pain')]);
+
 /* La recherche d'une fiche (1er novembre 2026). */
 tables.clients.push(
   { id: 'cl-8', data: { name: 'Gbèssi Sossou', phone: '+229 01 97 00 00 10', civilite: 'madame', note: 'note privée', sante: 'allergie' } },
@@ -784,20 +1007,51 @@ tables.journal_gestes = tables.journal_gestes.filter((g) => !ajoutees.includes(g
 /* Le journal et les téléphones, sans nom. */
 dit('tout le journal passe par la porte assistant, signé, sans nom de cliente', [true, true, true, true], [
   tables.journal_gestes.length >= 8, tables.journal_gestes.every((g) => (g.data as Row).porte === 'assistant'),
-  tables.journal_gestes.every((g) => ['Opale', 'Onyx', 'Y. B.'].includes(String((g.data as Row).parNom))), sansNom(JSON.stringify(tables.journal_gestes)),
+  tables.journal_gestes.every((g) => ['Opale', 'Onyx', 'Y. B.', 'B. A.'].includes(String((g.data as Row).parNom))), sansNom(JSON.stringify(tables.journal_gestes)),
 ]);
 dit('aucune notification ne porte un nom ni un jeton', [true, true], [sansNom(JSON.stringify(pushs)), !JSON.stringify(pushs).includes(JETON_OPALE)]);
 
 /* ── ③ LE CÂBLAGE ── */
 const sql = lit('supabase/migrations/0149_assistants.sql');
-dit('la migration porte les genres du module pur, dans ses contraintes', [true, true], [
-  GENRES_DE_RELAIS.every((g) => sql.includes(`'${g}'`)), GENRES_DE_DECISION.every((g) => sql.includes(`'${g}'`)),
-]);
+/* Les genres : la DERNIÈRE migration qui pose chaque contrainte fait foi
+   (0149, puis 0151 depuis le 2 novembre 2026), et sa liste est exactement
+   celle du module pur, ni un genre de moins, ni un de plus. */
+const migrations = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql')).sort();
+const genresDeLaContrainte = (nom: string): { fichier: string; genres: string[] } => {
+  let fichier = ''; let genres: string[] = [];
+  for (const f of migrations) {
+    const texte = lit(`supabase/migrations/${f}`);
+    const i = texte.lastIndexOf(`constraint ${nom} check (genre in (`);
+    if (i < 0) continue;
+    const fin = texte.indexOf('))', i);
+    fichier = f; genres = [...texte.slice(i, fin).matchAll(/'([a-z-]+)'/g)].map((m) => m[1]).sort();
+  }
+  return { fichier, genres };
+};
+const contrainteR = genresDeLaContrainte('assistants_relais_genre');
+const contrainteD = genresDeLaContrainte('assistants_decisions_genre');
+dit('la dernière migration qui pose chaque contrainte porte exactement les genres du module pur',
+  ['0151_la_maison_intelligente.sql', [...GENRES_DE_RELAIS].sort(), '0151_la_maison_intelligente.sql', [...GENRES_DE_DECISION].sort()],
+  [contrainteR.fichier, contrainteR.genres, contrainteD.fichier, contrainteD.genres]);
+const sql51 = lit('supabase/migrations/0151_la_maison_intelligente.sql');
+const nouveaux = PROFESSIONNELS.filter((x) => !['opale', 'onyx'].includes(x.id));
+dit('0151 : les huit nouveaux du registre amorcés sans jeton, le mode loin à part, les faits et le privé borné comme le module pur', [true, false, true, true, true, true, true], [
+  nouveaux.every((x) => sql51.includes(`('${x.id}', `) && sql51.includes(`'${x.nom}'`)), /empreinte/.test(sql51.slice(sql51.indexOf('insert into public.assistants'), sql51.indexOf('on conflict (id) do nothing'))),
+  sql51.includes('add column if not exists loin_depuis') && sql51.includes('add column if not exists loin_par'),
+  sql51.includes('add column if not exists faits') && sql51.includes('add column if not exists prive ') && sql51.includes('add column if not exists prive_efface_le'),
+  sql51.includes(`coalesce(length(prive->>'contact'), 0) <= ${PRIVE_CONTACT_AU_PLUS}`), sql51.includes(`coalesce(length(prive->>'message'), 0) <= ${PRIVE_MESSAGE_AU_PLUS}`),
+  sql51.includes(`check (mot is null or length(mot) <= ${MOT_DU_BILAN_AU_PLUS})`)]);
+dit('… les bilans et le conseil sous RLS, lus par les souverains, écrits par la fonction seule ; le privé effacé chaque nuit', [true, true, false, true, true], [
+  sql51.includes('alter table public.assistants_bilans enable row level security;') && sql51.includes('alter table public.conseil_du_matin enable row level security;'),
+  /create policy assistants_bilans_lire on public\.assistants_bilans for select to authenticated\s+using \(public\.is_souverain\(\)\)/.test(sql51),
+  /for (insert|update|delete|all)/.test(sql51),
+  sql51.includes("cron.schedule('efface-le-prive-des-cartes', '17 3 * * *'") && sql51.includes("tranchee is not null or cree_le < now() - interval '7 days'"),
+  sql51.includes('revoke execute on function public.efface_le_prive_des_cartes() from public, anon, authenticated;')]);
 dit('… l empreinte d Opale, Onyx sans jeton, la RLS sur les quatre tables, aucune politique d insert', [true, true, 4, false], [
   sql.includes("'ea99abc29efac82eaa16c7179449dc50454af41331a06299403f395207b06b47'"), /'onyx', 'Onyx', 'st-d4t24p6inh', null/.test(sql),
   (sql.match(/enable row level security/g) ?? []).length, /for insert/.test(sql),
 ]);
-const miens = [lit('scripts/serveur/assistants-maison.ts'), lit('scripts/assistants-maison-serveur.mjs'), sql].join('\n');
+const miens = [lit('scripts/serveur/assistants-maison.ts'), lit('scripts/assistants-maison-serveur.mjs'), sql, sql51, lit('scripts/assistants-maison.mjs')].join('\n');
 dit('aucun numéro réel dans les sources, aucun tiret long dans les fichiers du chantier', [false, false],
   [/\+?229\s?\d{2}\s?\d{2}\s?\d{2}\s?\d{2}\s?\d{2}/.test(`${miens}\n${lit('src/shared/assistants-pur.ts')}`), miens.includes(String.fromCharCode(0x2014))]);
 
@@ -816,6 +1070,8 @@ const push = lit('supabase/functions/push-notify/index.ts');
 dit('… et le chien de garde n en garde aucune autre copie, et dit sa version', [1, 1, true],
   [push.split('export function doitPrevenirDuSommeil(').length - 1, push.split('export const REGLAGES_PAR_DEFAUT').length - 1, push.includes("const VERSION = '2026-11-02-a';")]);
 const charte = lit('docs/ASSISTANTS.md');
+dit('la charte, section 15 : le passage dit ses cartes, la carte ses faits et son privé, le bilan du matin', [true, true, true, true], [
+  charte.includes('[--cartes 3]'), charte.includes("--faits '{"), charte.includes('[--contact "…" --message "…"]'), charte.includes('bilan deposer --jour 2026-11-01 --lus 12')]);
 const cronsParDefaut = cronsDeLaVeille(REGLAGES_PAR_DEFAUT);
 dit('la charte du 2 novembre 2026 : aucun /loop à rythme, les crons par défaut dits deux fois (sections 3 et 14), aucun ancien cron', [true, false, true, false], [
   charte.includes('*Version du 2 novembre 2026'), /\/loop\s*\d/.test(charte),

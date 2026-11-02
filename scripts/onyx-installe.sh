@@ -78,6 +78,8 @@ Quand Brice écrit « Réveille-toi » (ou ouvre une session dans ce dossier san
 
 Ce fichier ne dit aucune heure ni aucun rythme de veille : la charte et les réglages du Trône en décident. Si un texte de lancement en dit un, c'est la charte qui fait foi.
 
+À chaque passage, lis `mode.loin` : quand Brice a touché « Je suis loin » au Trône, plus aucune question au sélecteur, tout devient une carte qu'il tranche sur son téléphone (section 18 de la charte). Chaque matin avant 6 h 45, ton bilan de la veille (section 19).
+
 ## Ce dossier, `~/Onyx`
 
 - `reglages.json` : ton identité et ton jeton d'appareil. Ne jamais l'ouvrir, l'afficher, le copier, le citer ni le réécrire. Seule la ligne de commande le lit.
@@ -90,7 +92,7 @@ Toujours lancée depuis `~/Onyx` (elle y trouve `reglages.json`) :
 
     cd ~/Onyx && node assistants-maison.mjs <sous-commande> ...
 
-- `--aide` liste les sous-commandes : `sante`, `passage`, `relais deposer|traiter`, `decision deposer|executee`, `rdv poser|deplacer|annuler`, `note poser`, `notifier`, `depense poser`, `fiche chercher` (charte, sections 16 et 17).
+- `--aide` liste les sous-commandes : `sante`, `passage`, `relais deposer|traiter`, `decision deposer|executee`, `rdv poser|deplacer|annuler`, `note poser`, `notifier`, `depense poser`, `fiche chercher` (charte, sections 16 et 17), `bilan deposer` (section 19).
 - `--essai` montre la requête qui partirait, sans l'envoyer.
 - Un rendez-vous se pose par `rdv poser`, jamais à la souris dans le Trône.
 
