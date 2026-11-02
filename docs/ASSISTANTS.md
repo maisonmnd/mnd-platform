@@ -26,9 +26,9 @@ Ton nom et ton porteur sont dans le `CLAUDE.md` de ton dossier (par exemple `C:\
 3. Ton passage : `node "<dépôt>\scripts\assistants-maison.mjs" passage --chrome oui|non --lie oui|non --nonlus oui|non --version <date de la charte>` depuis ton dossier. La réponse te rend ton dernier passage noté au Trône (`precedentVuLe`), tes relais en attente, les décisions tranchées à exécuter, les réglages, l'état de l'autre assistant.
 4. Si un contrôle a dit non : tu es « empêché ». Dis au porteur ce qui manque (Chrome fermé, WhatsApp Web délié, liste vide) et attends sa correction ; le Trône le montre et l'a prévenu sur son téléphone.
 5. Ce qui est arrivé pendant ton sommeil (entre `precedentVuLe` et maintenant) n'est jamais traité en silence : liste au porteur les personnes dont la discussion a bougé depuis, en une ligne chacune (nom du contact tel qu'il l'a enregistré, aperçu), et laisse-le dire lesquelles tu traites. Un contact dont la discussion n'a plus de non-lus a été lu sur le téléphone : tu le dis, tu n'y reviens pas.
-6. Lis tes relais (section 9) et exécute les décisions tranchées (section 7). Puis la veille commence : `/loop <rythme>` avec le rythme des réglages (10 minutes par défaut), entre les heures de veille (8 h à 20 h par défaut). Hors de ces heures, le tour ne fait que le passage.
+6. Lis tes relais (section 9) et exécute les décisions tranchées (section 7). Puis la veille commence, aux heures de la section 14 : un tour toutes les 10 minutes de 6 h à 18 h, puis toutes les 30 minutes de 18 h à minuit. Pose-la avec deux tâches cron (CronCreate), pas avec `/loop` : `*/10 6-17 * * *` et `7,37 18-23 * * *`. Entre minuit et 6 h, aucun tour.
 
-## 4. Le tour, toutes les dix minutes
+## 4. Le tour, toutes les dix minutes (toutes les trente après 18 h)
 
 Un tour est léger : pas de capture d'écran tant que rien n'a bougé.
 
@@ -130,7 +130,7 @@ Dans ton dossier, `etat.json` : l'instantané des fils (nom du contact, non-lus,
 
 ## 14. Les heures et la fin de journée
 
-Les heures de veille et le rythme viennent des réglages du Trône (`reglages` dans la réponse du passage). Hors des heures de veille, le tour ne fait que le passage, et rien ne part. Quand l'ordinateur se ferme, tu t'endors : le Trône le voit (plus de passage), prévient le porteur après le silence réglé, et l'autre assistant le dit à son porteur si une cliente attend. Au réveil, la section 3 reprend depuis ton dernier passage.
+**Les heures, depuis le 2 novembre 2026 (décision de Yéman, pour Opale et Onyx) : de 6 h à 18 h, un tour toutes les 10 minutes ; de 18 h à minuit, un tour toutes les 30 minutes ; entre minuit et 6 h, rien, ni lecture, ni pouce, ni sélecteur.** Les réglages du Trône (`reglages` dans la réponse du passage) disent la même veille : `veilleDe` 6, `veilleA` 24, `rythmeMin` 10, et `silenceMin` 45 pour que le chien de garde ne crie pas entre deux tours du soir. Si les réglages et cette section se contredisent, demande au porteur. Hors des heures de veille, rien ne part. Quand l'ordinateur se ferme, tu t'endors : le Trône le voit (plus de passage), prévient le porteur après le silence réglé, et l'autre assistant le dit à son porteur si une cliente attend. Au réveil, la section 3 reprend depuis ton dernier passage.
 
 ## 15. La ligne de commande, en un coup d'œil
 
