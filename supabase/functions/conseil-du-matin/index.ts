@@ -665,7 +665,7 @@ function ecrisLeConseil(f, maintenantMs) {
 }
 
 // scripts/serveur/conseil-du-matin.ts
-var VERSION = "2026-11-02-a";
+var VERSION = "2026-11-02-b";
 var ADRESSE = "/trone/#/assistants";
 var ETIQUETTE = "mnd-conseil";
 var ENVOI_MAX_MS = 8e3;
@@ -809,6 +809,14 @@ async function laPorte(sb, req, service) {
   const { data: staff } = await sb.from("staff").select("user_id, role").eq("user_id", uid).eq("role", "souverain").maybeSingle();
   return staff ? "souverain" : null;
 }
+async function laSourceDuCorps(req) {
+  try {
+    const d = await req.clone().json();
+    return typeof d?.source === "string" ? d.source : "";
+  } catch {
+    return "";
+  }
+}
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method === "GET") return json({ ok: true, fonction: "conseil-du-matin", version: VERSION });
@@ -818,8 +826,9 @@ Deno.serve(async (req) => {
   if (!url || !service) return json({ ok: false, motif: "environnement", version: VERSION }, 500);
   const sb = createClient(url, service);
   try {
-    const source = await laPorte(sb, req, service);
-    if (!source) return json({ ok: false, motif: "reserve-au-cron-et-aux-souverains", version: VERSION }, 403);
+    const porte = await laPorte(sb, req, service);
+    if (!porte) return json({ ok: false, motif: "reserve-au-cron-et-aux-souverains", version: VERSION }, 403);
+    const source = porte === "cron" && await laSourceDuCorps(req) === "essai" ? "essai" : porte;
     const maintenantMs = Date.now();
     const faits = await litLesFaits(sb, maintenantMs);
     const page = ecrisLeConseil(faits, maintenantMs);

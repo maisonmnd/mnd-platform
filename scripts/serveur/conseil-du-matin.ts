@@ -36,7 +36,7 @@ declare const Deno: {
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-const VERSION = '2026-11-02-a';
+const VERSION = '2026-11-02-b';
 const ADRESSE = '/trone/#/assistants';
 const ETIQUETTE = 'mnd-conseil';
 /** Un appel à push-notify ne pend jamais au-delà. */
@@ -194,6 +194,18 @@ async function laPorte(sb: Base, req: Request, service: string): Promise<'cron' 
   return staff ? 'souverain' : null;
 }
 
+/** Un ESSAI (2 novembre 2026) : la clé service avec le corps {"source":"essai"}
+    écrit la page sans notifier, pour voir le premier Conseil sans réveiller
+    la direction. Le cron envoie {"source":"cron"} : il notifie comme avant. */
+async function laSourceDuCorps(req: Request): Promise<string> {
+  try {
+    const d = (await req.clone().json()) as { source?: unknown };
+    return typeof d?.source === 'string' ? d.source : '';
+  } catch {
+    return '';
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method === 'GET') return json({ ok: true, fonction: 'conseil-du-matin', version: VERSION });
@@ -203,8 +215,9 @@ Deno.serve(async (req) => {
   if (!url || !service) return json({ ok: false, motif: 'environnement', version: VERSION }, 500);
   const sb: Base = createClient(url, service);
   try {
-    const source = await laPorte(sb, req, service);
-    if (!source) return json({ ok: false, motif: 'reserve-au-cron-et-aux-souverains', version: VERSION }, 403);
+    const porte = await laPorte(sb, req, service);
+    if (!porte) return json({ ok: false, motif: 'reserve-au-cron-et-aux-souverains', version: VERSION }, 403);
+    const source: 'cron' | 'souverain' | 'essai' = porte === 'cron' && (await laSourceDuCorps(req)) === 'essai' ? 'essai' : porte;
 
     const maintenantMs = Date.now();
     const faits = await litLesFaits(sb, maintenantMs);

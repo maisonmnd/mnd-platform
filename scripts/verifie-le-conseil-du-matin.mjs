@@ -45,10 +45,11 @@ const PANNES = [
   ['la revue tombe chaque jour', PUR, "    revue: jour.endsWith('-01') ?", '    revue: true ?'],
   ['le loin ne se dit plus', PUR, "' Mode « Je suis loin ».' : ''", "'' : ''"],
   // la fonction
-  ['sans cle, la fonction ecrit quand meme', SERVEUR, "    if (!source) return json({ ok: false, motif: 'reserve-au-cron-et-aux-souverains', version: VERSION }, 403);", "    if (false) return json({ ok: false, motif: 'reserve-au-cron-et-aux-souverains', version: VERSION }, 403);"],
+  ['sans cle, la fonction ecrit quand meme', SERVEUR, "    if (!porte) return json({ ok: false, motif: 'reserve-au-cron-et-aux-souverains', version: VERSION }, 403);", "    if (false) return json({ ok: false, motif: 'reserve-au-cron-et-aux-souverains', version: VERSION }, 403);"],
   ['un maitre passe pour un souverain', SERVEUR, ".eq('user_id', uid).eq('role', 'souverain').maybeSingle();", ".eq('user_id', uid).maybeSingle();"],
   ['le souverain notifie aussi', SERVEUR, "    if (source === 'cron' && !notifieLe) {", '    if (!notifieLe) {'],
   ['chaque relance renotifie', SERVEUR, "    if (source === 'cron' && !notifieLe) {", "    if (source === 'cron') {"],
+  ['un essai notifie comme le cron', SERVEUR, "=== 'essai' ? 'essai' : porte;", "=== 'essai' ? porte : porte;"],
   ['une seule page de mille lignes', SERVEUR, 'const PAGES_AU_PLUS = 20;', 'const PAGES_AU_PLUS = 1;'],
   ['hier deborde sur ce matin', SERVEUR, ".gte('data->>quand', debutHier).lt('data->>quand', debutJour)", ".gte('data->>quand', debutHier)"],
   ['le nom de la cliente sort des rendez-vous', SERVEUR, '.map((r) => ({ time: r.data?.time, master: r.data?.master, status: r.data?.status })))', '.map((r) => ({ ...r.data })))'],
@@ -56,7 +57,7 @@ const PANNES = [
   ['un relais perime reste a traiter', SERVEUR, "      .filter((r) => !r.perime_le || String(r.perime_le) > maintenant).length),", '      .length),'],
   ['une lecture manquee tue la page', SERVEUR, "    try { return await f(); } catch (e) { lacunes.push(cle);", '    try { return await f(); } catch (e) { throw e;'],
   ['un souverain deux fois notifie deux fois', SERVEUR, "  const ids = [...new Set(((data ?? []) as Ligne[]).map((s) => String(s.user_id ?? '')).filter(Boolean))];", "  const ids = ((data ?? []) as Ligne[]).map((s) => String(s.user_id ?? '')).filter(Boolean);"],
-  ['la fonction garde une ancienne version', SERVEUR, "const VERSION = '2026-11-02-a';", "const VERSION = '2026-11-01-a';"],
+  ['la fonction garde une ancienne version', SERVEUR, "const VERSION = '2026-11-02-b';", "const VERSION = '2026-11-02-a';"],
   // le câblage
   ['la tache de Saphir part a 6 h de Cotonou', SQL, "select cron.schedule('conseil-du-matin', '0 6 * * *',", "select cron.schedule('conseil-du-matin', '0 5 * * *',"],
   ['le composant lit une autre table', ECRAN, ".from('conseil_du_matin')", ".from('conseil')"],

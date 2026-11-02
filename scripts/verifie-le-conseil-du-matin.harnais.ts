@@ -295,14 +295,14 @@ const env: Record<string, string> = { SUPABASE_URL: 'http://base', CLE_SERVICE: 
 const sourceF = readFileSync(process.env.CONSEIL_FONCTION as string, 'utf8').replace(/^import \{ createClient \} from "npm:@supabase\/supabase-js@2";$/m, '');
 new Function('createClient', 'Deno', sourceF)(fabrique, { env: { get: (k: string) => env[k] }, serve: (hd: typeof handler) => { handler = hd; } });
 
-const appelle = async (entetes: Record<string, string>, methode = 'POST') => {
-  const r = await handler!(new Request('http://f/conseil-du-matin', { method: methode, headers: { 'content-type': 'application/json', ...entetes }, ...(methode === 'POST' ? { body: '{"source":"cron"}' } : {}) }));
+const appelle = async (entetes: Record<string, string>, methode = 'POST', corps = '{"source":"cron"}') => {
+  const r = await handler!(new Request('http://f/conseil-du-matin', { method: methode, headers: { 'content-type': 'application/json', ...entetes }, ...(methode === 'POST' ? { body: corps } : {}) }));
   return { status: r.status, corps: await r.json() as Row };
 };
 const service = { authorization: 'Bearer cle-service' };
 
 const sante = await appelle({}, 'GET');
-dit('la santé : sa version, sans clé', [200, true, 'conseil-du-matin', '2026-11-02-a'], [sante.status, sante.corps.ok, sante.corps.fonction, sante.corps.version]);
+dit('la santé : sa version, sans clé', [200, true, 'conseil-du-matin', '2026-11-02-b'], [sante.status, sante.corps.ok, sante.corps.fonction, sante.corps.version]);
 dit('sans clé, refusé', 403, (await appelle({})).status);
 dit('une clé inconnue, refusée', 403, (await appelle({ authorization: 'Bearer autre-chose' })).status);
 dit('un maître, refusé', 403, (await appelle({ authorization: 'Bearer jwt-maitre' })).status);
@@ -310,6 +310,9 @@ dit('rien n est écrit ni notifié par un refus', [0, 0], [tables.conseil_du_mat
 
 const parSouverain = await appelle({ authorization: 'Bearer jwt-yeman' });
 dit('un souverain écrit la page, sans notifier', [200, 'souverain', 0, 1, 0], [parSouverain.status, parSouverain.corps.source, parSouverain.corps.notifies, tables.conseil_du_matin.length, pushs.length]);
+const essai = await appelle(service, 'POST', '{"source":"essai"}');
+dit('un essai à la clé service écrit la page sans notifier, et ne prend pas la notification du matin', [200, 'essai', 0, 0, null],
+  [essai.status, essai.corps.source, essai.corps.notifies, pushs.length, (tables.conseil_du_matin[0].page as PageDuConseil).notifieLe ?? null]);
 const premier = await appelle(service);
 const page1 = tables.conseil_du_matin[0].page as PageDuConseil;
 dit('le cron écrit et notifie chaque souverain une fois (deux comptes, pas trois lignes)', [200, 'cron', 2, ['u-brice', 'u-yeman']],
@@ -317,7 +320,7 @@ dit('le cron écrit et notifie chaque souverain une fois (deux comptes, pas troi
 dit('la notification part en to-staff, armée de la clé service, sans nom', [['to-staff'], ['Bearer cle-service'], ['Le Conseil du matin'], true],
   [[...new Set(pushs.map((x) => x.corps.mode))], [...new Set(pushs.map((x) => x.autorisation))], [...new Set(pushs.map((x) => x.corps.title))],
     pushs.every((x) => /^(Un point presse|\d+ points pressent|Rien ne presse) ce matin\./.test(String(x.corps.body)) && !String(x.corps.body).includes('Awa'))]);
-dit('la page du jour, à la clé du jour de Cotonou, avec son heure de notification', ['2026-11-02', '2026-11-02-a', enIso(LUNDI_7H)],
+dit('la page du jour, à la clé du jour de Cotonou, avec son heure de notification', ['2026-11-02', '2026-11-02-b', enIso(LUNDI_7H)],
   [tables.conseil_du_matin[0].jour, tables.conseil_du_matin[0].version, page1.notifieLe]);
 dit('le journal d hier lu par pages : 2 500 gestes, ni avant ni ce matin', 'Hier, 2500 gestes au journal : 2400 au Trône, 100 par les assistants.', page1.hier[0]);
 dit('les relais d hier, et ceux à traiter non périmés', '2 relais entre professionnels hier, 1 encore à traiter.', page1.hier[2]);
