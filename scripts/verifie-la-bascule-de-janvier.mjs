@@ -65,7 +65,7 @@ const PANNES = [
   ['la plus ancienne visite sert', 'src/shared/bascule-de-janvier-pur.ts', '.sort((x, y) => y.date.localeCompare(x.date));', '.sort((x, y) => x.date.localeCompare(y.date));'],
   ['10 % pile se tient', 'src/shared/bascule-de-janvier-pur.ts', 'totalApres <= totalAvant * (1 + HAUSSE_TENUE)', 'totalApres < totalAvant * (1 + HAUSSE_TENUE)'],
   ['le seuil passe a 20 %', 'src/shared/bascule-de-janvier-pur.ts', 'export const HAUSSE_TENUE = 0.10;', 'export const HAUSSE_TENUE = 0.30;'],
-  ['l archivee ne trouve pas son successeur', 'src/shared/bascule-de-janvier-pur.ts', "{ 'sv-atl-iii-cou-l': 'sv-atl-iii-cou-c' }", '{}'],
+  ['l archivee ne trouve pas son successeur', 'src/shared/bascule-de-janvier-pur.ts', "  'sv-atl-iii-cou-l': 'sv-atl-iii-cou-c',\n", ''],
   ['une ligne qui ne monte pas se tient', 'src/shared/bascule-de-janvier-pur.ts', 'if ((l.n as number) > (l.a as number) && tenus[l.neuf] === undefined)', 'if (tenus[l.neuf] === undefined)'],
   ['les prix tenus durent toujours', 'src/shared/bascule-de-janvier-pur.ts', "t && jour.slice(0, 10) <= t.jusquau && ", "t && "],
   ['le prix tenu ecrase le prix ferme', 'src/shared/bascule-de-janvier-pur.ts', '{ ...actifs, ...(prixFixes ?? {}) }', '{ ...(prixFixes ?? {}), ...actifs }'],
