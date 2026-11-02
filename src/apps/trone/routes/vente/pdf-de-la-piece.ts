@@ -47,6 +47,15 @@ export const fmtDateFr = (iso: string) => {
   return s.replace(/^1 /, '1ᵉʳ ');
 };
 
+/** LE JOUR DE L'ARGENT DÉJÀ REÇU — 2 novembre 2026 : « il faut montrer le
+    paiement de 40 000 F à la date du samedi » (Yéman, facture du foyer d'E.
+    et N.). Tout l'argent d'une pièce entré le même jour : « Déjà réglé le
+    31 octobre 2026 ». Plusieurs jours : « Déjà réglé », sans en choisir un. */
+const dejaRegleLe = (p: Invoice): string => {
+  const jours = [...new Set(invoiceReglements(p).map((v) => v.date).filter(Boolean))];
+  return jours.length === 1 ? `Déjà réglé le ${fmtDateFr(jours[0])}` : 'Déjà réglé';
+};
+
 /** DE QUOI PAYER LE RESTE — 28 octobre 2026 : « il faut mettre à jour le code
     QR à celui de Maison MND 909099 » (Yéman), et au sélecteur, le code Tap &
     Go gardé dessous. Le QR porte l'identifiant MoMoPay de la Maison, que
@@ -119,7 +128,7 @@ export function pdfDuFoyer(o: {
       const remise = Math.round(p.lines.reduce((s, l) => s + ligneNetXof(l), 0)) - invoiceTotal(p);
       if (remise > 0) detail.push(`Remise · − ${o.fmt(remise)}`);
       const deja = invoiceTotal(p) - invoiceResteXof(p);
-      if (deja > 0) detail.push(`Déjà réglé · − ${o.fmt(deja)}`);
+      if (deja > 0) detail.push(`${dejaRegleLe(p)} · − ${o.fmt(deja)}`);
       return {
         label: `${o.nomDe(p)} · ${fmtDateFr(o.jourDe ? o.jourDe(p) : p.date)} · ${p.number}`,
         qty: 1,

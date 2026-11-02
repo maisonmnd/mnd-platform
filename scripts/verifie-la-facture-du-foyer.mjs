@@ -62,7 +62,8 @@ const FAUTES = [
   { n: 9, fichier: 'src/shared/facture-whatsapp.ts', avant: 'dateDite(o.jourIso), FACTURE_DU_FOYER_JOINTE, o.totalDit]', apres: "dateDite(o.jourIso), 'ci-jointe', o.totalDit]" },
   /* #10 a #12 (28 octobre 2026) : le papier du foyer, son QR, les tampons. */
   { n: 10, fichier: PIECE, avant: '${fmtDateFr(o.jourDe ? o.jourDe(p) : p.date)}', apres: '${(o.jourDe ? o.jourDe(p) : p.date).slice(5)}' },
-  { n: 10, fichier: PIECE, avant: "      if (deja > 0) detail.push(`Déjà réglé · − ${o.fmt(deja)}`);\n", apres: '' },
+  { n: 10, fichier: PIECE, avant: "      if (deja > 0) detail.push(`${dejaRegleLe(p)} · − ${o.fmt(deja)}`);\n", apres: '' },
+  { n: 10, fichier: PIECE, avant: "  return jours.length === 1 ? `Déjà réglé le ${fmtDateFr(jours[0])}` : 'Déjà réglé';", apres: "  return 'Déjà réglé';" },
   { n: 10, fichier: PIECE, avant: '  const totalXof = o.pieces.reduce((n, p) => n + invoiceResteXof(p), 0);', apres: '  const totalXof = o.pieces.reduce((n, p) => n + invoiceTotal(p), 0);' },
   { n: 11, fichier: PIECE, avant: '    qr: tg.qr,', apres: '    qr: momopay.qr,' },
   { n: 11, fichier: PIECE, avant: "    genre: 'tapgo',\n", apres: '' },

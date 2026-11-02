@@ -170,7 +170,7 @@ dit(5, 'cleDuFoyer : les deux ecritures du numero donnent la meme cle',
   });
   dit(10, 'le papier du foyer : celui des factures, une ligne par facture (le jour du rituel avec son annee, le numero), ses prestations a leur prix, le deja regle, le total des restes',
     ['releve', 'RÉCAPITULATIF DU FOYER', ['Aine A · 27 octobre 2026 · MND-2026-0163', 'Cadet A · 27 octobre 2026 · MND-2026-0162'],
-      [['SÍNSIN Signature · 35000 F', 'La sortie soignée · 2000 F'], ['KLƆKLƆ Essentiel · 5000 F', 'La sortie soignée · 2000 F', 'Déjà réglé · − 3000 F']],
+      [['SÍNSIN Signature · 35000 F', 'La sortie soignée · 2000 F'], ['KLƆKLƆ Essentiel · 5000 F', 'La sortie soignée · 2000 F', 'Déjà réglé le 27 octobre 2026 · − 3000 F']],
       ['37000 F', '4000 F'], '41000 F', '20261028-3344'],
     [papier.kind, papier.titre, papier.lines.map((l) => l.label), papier.lines.map((l) => l.detail), papier.lines.map((l) => l.total), papier.total, papier.number]);
   /* « Remets le code QR de FedaPay et enlève Maison MND du bas du QR code » (Yéman, 28 octobre 2026, épreuve en main). */
