@@ -181,7 +181,11 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-10-28-a · M. et Mme devant le prénom';
+const VERSION = '2026-11-02-a · le second fauteuil en ligne, du mardi au vendredi';
+
+/** LE SECOND FAUTEUIL, PAS DAVANTAGE (2 novembre 2026, 0152) : la copie de
+    `PLACES_EN_LIGNE_AU_PLUS` (src/shared/agenda-pur.ts), hors des repères. */
+const PLACES_EN_LIGNE_AU_PLUS = 2;
 
 /** `EdgeRuntime.waitUntil`, s'il existe (la même garde que le webhook) : ce
     qui n'a pas besoin d'être attendu continue après la réponse. Sans lui, la
@@ -1103,12 +1107,13 @@ async function laPlaceDemandee(o: {
   const recevable = laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant);
   if (recevable) return { erreur: recevable };
 
-  const [docs, services, categories, blocages, occupes] = await Promise.all([
+  const [docs, services, categories, blocages, occupes, placesDuJour] = await Promise.all([
     admin.from('documents').select('key, data').in('key', ['mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config', 'mnd_offers']),
     toutesLesLignes('catalog_services'),
     toutesLesLignes('catalog_categories'),
     toutesLesLignes('blocages', [['data->>branchId', o.branche.id], ['data->>date', o.date]]),
     admin.rpc('creneaux_occupes', { p_branch: o.branche.id, p_du: o.date, p_au: o.date }),
+    admin.rpc('places_en_ligne', { p_branch: o.branche.id, p_date: o.date }),
   ]);
   /* UNE LECTURE EN PANNE REFUSE : croire la journée vide, c'était poser une
      place sur un mur ou sur un rendez-vous qu'on n'a pas su lire. */
@@ -1130,7 +1135,20 @@ async function laPlaceDemandee(o: {
     occupes: pris,
   });
   if (!agenda) return { erreur: 'creneau_invalide' };
-  const verdict = laPlaceTient(agenda, { date: o.date, time: o.time, serviceIds: o.serviceIds }, maintenant);
+  /* LE SECOND FAUTEUIL EN LIGNE — 2 novembre 2026. Du mardi au vendredi,
+     quand le planning met deux personnes au fauteuil, le site propose aussi
+     le second fauteuil (heuresLibres) ; ce juge le reçoit donc du jour même,
+     de la base (`places_en_ligne`, 0152), au lieu de la place unique de
+     l'agenda du serveur. Une panne, ou la fonction pas encore posée : UNE
+     place, la règle du 24 octobre 2026 ; et jamais plus que le second
+     fauteuil. Le verrou (`pose_si_libre`) relit les mêmes places sous verrou.
+     Hors des repères ⟨place-du-serveur⟩, et c'est voulu : WhatsApp garde ses
+     propositions à une place. */
+  const lues = Number(placesDuJour.data);
+  const places = !placesDuJour.error && Number.isInteger(lues) && lues >= PLACES_EN_LIGNE
+    ? Math.min(lues, PLACES_EN_LIGNE_AU_PLUS) : PLACES_EN_LIGNE;
+  if (placesDuJour.error) console.error('demande-submit: places du jour illisibles, une place', placesDuJour.error.message);
+  const verdict = laPlaceTient({ ...agenda, sieges: places }, { date: o.date, time: o.time, serviceIds: o.serviceIds }, maintenant);
   if (!verdict.ok) return { erreur: verdict.erreur };
 
   /* Les offres de la Maison, pour résoudre un code : lues ici, avec le reste,

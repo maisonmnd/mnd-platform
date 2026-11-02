@@ -17,7 +17,9 @@ import { branchesStore, useBranch } from '../../shared/branches';
 import { tablePrete } from '../../shared/sync';
 import { type Appointment } from '../../shared/agenda';
 import { openingForIso, hourToMin, settingsStore } from '../../shared/settings';
-import { creneauxLibres, minutesDeHhmm as toMin, PLACES_EN_LIGNE, type CreneauOccupe } from '../../shared/agenda-pur';
+import {
+  carteDesPlaces, creneauxLibres, joursDeLaFenetre, minutesDeHhmm as toMin, placesDuJour, type CreneauOccupe,
+} from '../../shared/agenda-pur';
 import { blocagesStore, plagesBloquees } from '../../shared/blocages';
 import { useOffers, offerLiveNow } from '../../shared/offers';
 import { t, langue } from './i18n';
@@ -564,8 +566,13 @@ export function freeSlots(
        regardait que les rituels de SON maître : un rituel « Team » à 14 h
        laissait 14 h libre pour une réservation sans maître, et deux têtes de
        500 locks se sont retrouvées au même fauteuil. Désormais tout rituel
-       inscrit, quel qu'en soit le maître, ferme ses heures. */
-    capSimultane: PLACES_EN_LIGNE,
+       inscrit, quel qu'en soit le maître, ferme ses heures.
+       LE SECOND FAUTEUIL — 2 novembre 2026 : du mardi au vendredi, quand le
+       planning met deux personnes au fauteuil, la base laisse deux places ;
+       elles arrivent avec les murs (`useCreneauxOccupesCharges`). Un jour
+       qu'elle n'a pas dit garde une place. Le maître reste jugé seul : un
+       SÍNSIN cherche Team, et Team déjà au fauteuil ne se double pas. */
+    capSimultane: placesEnLigneDe(branchId, dateIso),
     maintenantMin: dateIso === isoOf(now) ? now.getHours() * 60 + now.getMinutes() : null,
   });
 }
@@ -608,16 +615,53 @@ export function useCreneauxOccupesCharges(branchId: string, du: string, au: stri
   useEffect(() => {
     let vivant = true;
     if (!supabase || !branchId || !du || !au) { setEtat({ occupes: [], charge: !supabase, cle }); return; }
-    void supabase
-      .rpc('creneaux_occupes', { p_branch: branchId, p_du: du, p_au: au })
-      .then(({ data, error }) => {
+    const sb = supabase;
+    /* LES PLACES DU JOUR PARTENT AVEC LES MURS — 2 novembre 2026 : une seule
+       mise à jour pour les deux, et chaque grille qui dépend des murs se
+       recalcule avec les places déjà retenues. Une panne des places (la
+       fonction pas encore posée, le réseau) ne retient rien : une place par
+       jour, la règle du 24 octobre 2026. */
+    const places = Promise.resolve(sb.rpc('places_en_ligne_du', { p_branch: branchId, p_debut: du, p_fin: au }))
+      .then(({ data, error }) => (error ? null : data as unknown), () => null);
+    void Promise.all([sb.rpc('creneaux_occupes', { p_branch: branchId, p_du: du, p_au: au }), places])
+      .then(([{ data, error }, lues]) => {
         if (!vivant) return;
+        retiensLesPlaces(branchId, du, au, lues);
         if (error) { setEtat({ occupes: [], charge: false, cle }); return; }
         setEtat({ occupes: (data ?? []) as CreneauOccupe[], charge: true, cle });
       });
     return () => { vivant = false; };
   }, [branchId, du, au, cle]);
   return { occupes: etat.occupes, charge: etat.charge && etat.cle === cle };
+}
+
+/* ── LE SECOND FAUTEUIL EN LIGNE, DU MARDI AU VENDREDI — 2 novembre 2026 ──
+   Les places que la base laisse en ligne, par branche et par jour, telles
+   que `places_en_ligne_du` (0152) les rend : un nombre par jour, rien
+   d'autre. Elles se retiennent ici, comme `freeSlots` lit déjà les réglages
+   et les murs dans leurs registres, pour que les quatre écrans qui
+   réservent (Réserver, Mes rendez-vous, le Cycle, le rituel inclus)
+   répondent la même chose sans rien changer à leurs appels. */
+const placesRetenues = new Map<string, Record<string, number>>();
+
+/** Retient la réponse d'une fenêtre : chaque jour de la fenêtre prend la
+    valeur lue, ou s'efface (une place). Une panne (`null`) efface la
+    fenêtre entière : on ne garde jamais une seconde place qu'on ne sait plus. */
+export function retiensLesPlaces(branchId: string, du: string, au: string, lignes: unknown): void {
+  const carte = { ...(placesRetenues.get(branchId) ?? {}) };
+  const lues = lignes === null ? {} : carteDesPlaces(lignes);
+  for (const iso of joursDeLaFenetre(du, au)) {
+    if (lues[iso] !== undefined) carte[iso] = lues[iso];
+    else delete carte[iso];
+  }
+  placesRetenues.set(branchId, carte);
+}
+
+/** Les places en ligne d'un jour : celles de la base, jamais plus que les
+    fauteuils de la branche ; une, sans réponse. */
+export function placesEnLigneDe(branchId: string, dateIso: string): number {
+  const sieges = branchesStore.get().find((b) => b.id === branchId)?.seats;
+  return placesDuJour(placesRetenues.get(branchId), dateIso, sieges);
 }
 
 /* ---------- Paliers d'expérience ---------- */

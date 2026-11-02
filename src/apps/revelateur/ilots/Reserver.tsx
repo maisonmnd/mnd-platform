@@ -4,7 +4,7 @@ import { client, lienWhatsApp, maison, offresDuSite, type OffreDuSite } from '..
 import { campagne, mesure } from '../mesure';
 import {
   agendaEnCache, calendrierDuSite, creneauxOccupes, groupesDePrestations, heuresLibres,
-  isoDuJour, jourCourt, jourDit, prestationsReservables, prochainsJours, PLAFOND_GESTES,
+  isoDuJour, jourCourt, jourDit, placesEnLigne, prestationsReservables, prochainsJours, PLAFOND_GESTES,
   type AgendaDeLaMaison, type PrestationPublique,
 } from '../agenda';
 import { porteDuBesoin, type Besoin } from '../../../shared/qualification';
@@ -12,7 +12,7 @@ import { CIVILITES, type Civilite } from '../../../shared/civilite';
 import { gesteDitEnFrancaisWa, nomEnFrancaisWa } from '../../../shared/gestes-en-francais';
 import { TELEPHONE_MONDE, TELEPHONE_PAYS } from '../../../shared/geo';
 import { fmtMoney } from '../../../shared/currency';
-import type { CreneauOccupe } from '../../../shared/agenda-pur';
+import type { CarteDesPlaces, CreneauOccupe } from '../../../shared/agenda-pur';
 import {
   ceQueLeCodeRetire, codeNormalise, lignesDuCode, offreDuCode, offreDuCodePassee, type OffreCodee,
 } from '../../../shared/offres-pur';
@@ -320,6 +320,10 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
      Les gestes paraissent ainsi sans attendre la base. */
   const [agenda, setAgenda] = useState<AgendaDeLaMaison | null | undefined>(() => initiales ?? agendaEnCache() ?? undefined);
   const [occupes, setOccupes] = useState<CreneauOccupe[]>([]);
+  /* LES PLACES EN LIGNE DE CHAQUE JOUR — 2 novembre 2026 (le second fauteuil,
+     du mardi au vendredi) : elles arrivent avec les créneaux pris ; vides,
+     chaque jour garde une place. */
+  const [placesParJour, setPlacesParJour] = useState<CarteDesPlaces>({});
   /* LES PLACES ATTENDENT LES CRÉNEAUX PRIS — 11 octobre 2026. Avec un agenda
      déjà là et des gestes déjà cochés (bon retour, lien préparé, page
      pré-écrite), toutes les heures ouvertes paraissaient libres le temps que
@@ -421,13 +425,14 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
       setDevise(m?.devise ?? 'XOF');
     }).catch(() => { /* le numéro garde celui du registre */ });
     const jours = prochainsJours(JOURS_PROPOSES);
-    void calendrierDuSite(jours[0], jours[jours.length - 1], initiales?.branchId).then(({ agenda: a, occupes: pris }) => {
+    void calendrierDuSite(jours[0], jours[jours.length - 1], initiales?.branchId).then(({ agenda: a, occupes: pris, places: lues }) => {
       if (!vivant) return;
       /* Un agenda absent ne remplace pas celui de la dernière visite : il
          rendait « La réservation en ligne n'est pas disponible » par-dessus
          un calendrier qui s'affichait (10 octobre 2026). */
       setAgenda((prec) => a ?? prec ?? null);
       setOccupes(pris);
+      setPlacesParJour(lues);
       setOccupesEtat('frais');
     }).catch(() => { if (vivant) { setAgenda((prec) => prec ?? null); setOccupesEtat('panne'); } });
     return () => { vivant = false; };
@@ -590,9 +595,9 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const jours = useMemo(() => {
     if (!agenda || serviceIds.length === 0 || occupesEtat !== 'frais') return [];
     return prochainsJours(JOURS_PROPOSES)
-      .map((iso) => ({ iso, heures: heuresLibres({ agenda, dateIso: iso, serviceIds, occupes }) }))
+      .map((iso) => ({ iso, heures: heuresLibres({ agenda, dateIso: iso, serviceIds, occupes, places: placesParJour }) }))
       .filter((j) => j.heures.length > 0);
-  }, [agenda, serviceIds, occupes, occupesEtat]);
+  }, [agenda, serviceIds, occupes, placesParJour, occupesEtat]);
 
   const heuresDuJour = jours.find((j) => j.iso === jour)?.heures ?? [];
   /* LES SIX PROCHAINES PLACES, tous jours confondus : la cliente pressée
@@ -812,7 +817,17 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
             ? 'Cette heure vient d’être prise. Choisissez-en une autre, la liste est à jour.'
             : 'Ce moment ne se réserve plus en ligne. Choisissez-en un autre, la liste est à jour.');
           const suite = prochainsJours(JOURS_PROPOSES);
-          if (agenda) setOccupes(await creneauxOccupes(agenda.branchId, suite[0], suite[suite.length - 1]));
+          /* Les places du jour se relisent avec les murs (2 novembre 2026) :
+             un planning changé entre-temps ne repropose pas une seconde place
+             que le serveur vient de refuser. */
+          if (agenda) {
+            const [murs, lues] = await Promise.all([
+              creneauxOccupes(agenda.branchId, suite[0], suite[suite.length - 1]),
+              placesEnLigne(agenda.branchId, suite[0], suite[suite.length - 1]),
+            ]);
+            setOccupes(murs);
+            setPlacesParJour(lues);
+          }
           setHeure(null);
         } else if (code.includes('rate')) {
           setErreur('Beaucoup de demandes d’un coup : réessayez dans quelques minutes, ou écrivez-nous sur WhatsApp.');

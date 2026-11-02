@@ -213,6 +213,137 @@ export function maitresPermis(noms: readonly (string | null | undefined)[], mait
 }
 /* ⟨/agenda-pur⟩ */
 
+/* ══ LE SECOND FAUTEUIL EN LIGNE, DU MARDI AU VENDREDI — 2 novembre 2026 ══
+
+   « Remplir les fauteuils » (maquette validée, « construis ») : sur huit
+   semaines, les fauteuils sont vides les trois quarts du temps sauf le
+   samedi, et en ligne un rituel posé à 14 h fermait 14 h même quand le
+   second fauteuil était libre (`PLACES_EN_LIGNE`, 24 octobre 2026).
+   L'arbitrage de Yéman, le 2 novembre 2026 : du mardi au vendredi, les jours
+   où le planning de l'équipe met DEUX personnes au fauteuil, une porte en
+   ligne peut prendre le second fauteuil. Le samedi garde un fauteuil en
+   ligne (le second reste au comptoir), et sans planning à deux, la règle du
+   24 octobre revient seule.
+
+   LA BASE EST SEULE JUGE : `places_en_ligne(branche, jour)` (migration 0152)
+   lit le planning (`mnd_planning`) et les fauteuils de la branche ; le
+   verrou `pose_si_libre` et le garde `une_place_en_ligne` la lisent du jour
+   du rendez-vous. Les portes clientes ne lisent pas le planning (il est au
+   personnel, 0130) : elles reçoivent par `places_en_ligne_du` un nombre par
+   jour, rien d'autre, et le passent à `creneauxLibres` (`capSimultane`).
+
+   HORS DES REPÈRES ⟨agenda-pur⟩, ET C'EST VOULU : les fonctions Edge
+   recopient ce bloc-là caractère pour caractère, et WhatsApp garde ses
+   propositions à une place. Rien d'ici n'a à vivre dans une fonction Edge.
+
+   `placesEnLigneDuJour` est le MIROIR de la fonction SQL : le banc
+   `verifie-le-second-fauteuil` la confronte au texte de la migration et à
+   `statutDuJour` (rh-pur), qui dessine le planning au Trône. */
+
+/** Le second fauteuil, pas davantage : un troisième serait un autre arbitrage. */
+export const PLACES_EN_LIGNE_AU_PLUS = 2;
+
+/** Mardi, mercredi, jeudi, vendredi (lundi = 0, comme le planning). */
+export const JOURS_DU_SECOND_FAUTEUIL: readonly number[] = [1, 2, 3, 4];
+
+/** Ce que le miroir lit du planning : la forme de `Planning` (rh-pur), une
+    semaine étant sept cases, lundi d'abord. */
+export type PlanningDesFauteuils = {
+  modele?: Readonly<Record<string, readonly (string | null | undefined)[] | undefined>>;
+  semaines?: Readonly<Record<string, Readonly<Record<string, readonly (string | null | undefined)[] | undefined>> | undefined>>;
+};
+
+/** Une fiche de l'équipe, telle que la base la lit dans `team`. */
+export type FicheDuFauteuil = { id: string; branchId?: string; archiveeLe?: string };
+
+const enUtcDuJour = (iso: string): number => {
+  const [a, m, j] = iso.slice(0, 10).split('-').map(Number);
+  return Date.UTC(a, (m || 1) - 1, j || 1);
+};
+/** Lundi = 0 … dimanche = 6, en UTC (jamais l'heure de la machine). */
+const rangDuJour = (iso: string): number => (new Date(enUtcDuJour(iso)).getUTCDay() + 6) % 7;
+const lundiDuJour = (iso: string): string => new Date(enUtcDuJour(iso) - rangDuJour(iso) * 86_400_000).toISOString().slice(0, 10);
+
+/** LE STATUT D'UNE FICHE CE JOUR-LÀ : la semaine qui s'écarte du modèle, sinon
+    le modèle (la règle de `statutDuJour`) ; une case vide passe au modèle.
+    Ce qui n'est pas une liste ne se lit pas (la base fait de même). */
+function statutDuFauteuil(p: PlanningDesFauteuils | undefined, staffId: string, iso: string): string {
+  const i = rangDuJour(iso);
+  const semaine = p?.semaines?.[lundiDuJour(iso)]?.[staffId];
+  const modele = p?.modele?.[staffId];
+  const dans = (l: unknown): string => (Array.isArray(l) && typeof l[i] === 'string' ? l[i] as string : '');
+  return dans(semaine) || dans(modele);
+}
+
+/** LES PLACES EN LIGNE D'UN JOUR, LE MIROIR DE `places_en_ligne` (0152).
+    2 si : c'est un mardi, un mercredi, un jeudi ou un vendredi ; au moins
+    deux fiches de la branche, présentes ce jour-là (pas parties), sont
+    « fauteuil » au planning ; et la branche a au moins deux fauteuils.
+    Sinon 1, la règle du 24 octobre 2026. Jamais plus que les fauteuils. */
+export function placesEnLigneDuJour(
+  iso: string,
+  planning: PlanningDesFauteuils | undefined,
+  sieges: number,
+  equipe: readonly FicheDuFauteuil[],
+  branchId: string,
+): number {
+  /* Une date qui n'existe pas (le 31 février) : la base ne la lit pas et
+     garde une place ; le miroir aussi, au lieu de la glisser au 3 mars. */
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso) || new Date(enUtcDuJour(iso)).toISOString().slice(0, 10) !== iso) return PLACES_EN_LIGNE;
+  if (!JOURS_DU_SECOND_FAUTEUIL.includes(rangDuJour(iso))) return PLACES_EN_LIGNE;
+  const fauteuils = Number.isFinite(sieges) ? Math.floor(sieges) : 0;
+  if (fauteuils < PLACES_EN_LIGNE_AU_PLUS) return PLACES_EN_LIGNE;
+  const auFauteuil = equipe.filter((f) => (f.branchId ?? '') === branchId
+    && (!f.archiveeLe || f.archiveeLe > iso)
+    && statutDuFauteuil(planning, f.id, iso) === 'fauteuil').length;
+  return auFauteuil >= 2 ? PLACES_EN_LIGNE_AU_PLUS : PLACES_EN_LIGNE;
+}
+
+/** Les places en ligne par jour, telles que `places_en_ligne_du` les rend
+    (« AAAA-MM-JJ » → nombre). Un jour absent vaut `PLACES_EN_LIGNE`. */
+export type CarteDesPlaces = Readonly<Record<string, number>>;
+
+/** LES LIGNES DE `places_en_ligne_du`, LUES SANS RIEN CROIRE : un jour ISO et
+    un entier d'au moins 1 ; tout le reste s'écarte. Une réponse qui n'est pas
+    une liste (une panne, une fonction pas encore posée) rend une carte vide :
+    chaque jour retombe alors sur une place. */
+export function carteDesPlaces(lignes: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!Array.isArray(lignes)) return out;
+  for (const l of lignes) {
+    if (!l || typeof l !== 'object') continue;
+    const { jour, places } = l as { jour?: unknown; places?: unknown };
+    const n = typeof places === 'number' ? places : typeof places === 'string' && /^\d{1,2}$/.test(places) ? Number(places) : Number.NaN;
+    if (typeof jour !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(jour) || !Number.isInteger(n) || n < 1) continue;
+    out[jour] = n;
+  }
+  return out;
+}
+
+/** LE PLAFOND D'UN JOUR POUR `creneauxLibres` (`capSimultane`), côté porte.
+    La carte vient de la base ; sans elle, ou pour un jour qu'elle ne porte
+    pas, UNE place : ne jamais promettre une place que la base refuserait.
+    Jamais au-delà du second fauteuil, ni des fauteuils de la branche quand la
+    porte les connaît (0 ou absent = inconnus : une place). */
+export function placesDuJour(carte: CarteDesPlaces | null | undefined, iso: string, sieges?: number | string | null): number {
+  const lue = carte?.[iso];
+  const n = typeof lue === 'number' && Number.isInteger(lue) && lue >= 1 ? lue : PLACES_EN_LIGNE;
+  /* Les fauteuils s'écrivent parfois en texte dans la base : on les lit en nombre. */
+  const f = sieges === undefined ? PLACES_EN_LIGNE_AU_PLUS : Number(sieges);
+  const plafond = Math.max(PLACES_EN_LIGNE, Math.min(PLACES_EN_LIGNE_AU_PLUS, Number.isFinite(f) ? Math.floor(f) : 0));
+  return Math.min(n, plafond);
+}
+
+/** Les jours d'une fenêtre, bornes comprises (« AAAA-MM-JJ »), au plus 400. */
+export function joursDeLaFenetre(du: string, au: string): string[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(du) || !/^\d{4}-\d{2}-\d{2}$/.test(au)) return [];
+  const out: string[] = [];
+  for (let t = enUtcDuJour(du), fin = enUtcDuJour(au); t <= fin && out.length < 400; t += 86_400_000) {
+    out.push(new Date(t).toISOString().slice(0, 10));
+  }
+  return out;
+}
+
 /* ══ L'ARGENT ET LA DURÉE D'UN RENDEZ-VOUS, PURS — 27 octobre 2026 ══════
    Sortis d'agenda.ts et du Trône (`_shared.tsx`) pour la fonction serveur
    de l'Assistant Maison ; les deux fichiers les réexportent ou les

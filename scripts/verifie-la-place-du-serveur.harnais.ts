@@ -451,7 +451,9 @@ function jugeLaPorte(brut: string): string[] {
   exige('plus aucune lecture directe des rendez-vous pour juger', !/from\('appointments'\)\.select\(/.test(s));
   exige('le catalogue, ses familles et les murs se lisent par pages', /toutesLesLignes\('catalog_services'\)/.test(s)
     && /toutesLesLignes\('catalog_categories'\)/.test(s) && /toutesLesLignes\('blocages', \[\['data->>branchId', o\.branche\.id\], \['data->>date', o\.date\]\]\)/.test(s));
-  exige('le juge est celui du serveur', /laPlaceTient\(agenda, \{ date: o\.date, time: o\.time, serviceIds: o\.serviceIds \}, maintenant\)/.test(s));
+  /* Le juge reçoit les places du jour de la base (0152, le second fauteuil,
+     2 novembre 2026) ; c'est toujours celui du serveur. */
+  exige('le juge est celui du serveur', /laPlaceTient\(\{ \.\.\.agenda, sieges: places \}, \{ date: o\.date, time: o\.time, serviceIds: o\.serviceIds \}, maintenant\)/.test(s));
   exige('la forme et la fenetre se jugent avant toute lecture', s.indexOf('laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant)') > -1
     && s.indexOf('laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant)') < s.indexOf("toutesLesLignes('catalog_services')"));
   exige('une lecture en panne refuse', /if \(panne \|\| pris\.length >= PLAFOND_D_UNE_REPONSE\)/.test(s) && /return \{ erreur: 'agenda_illisible' \}/.test(s));

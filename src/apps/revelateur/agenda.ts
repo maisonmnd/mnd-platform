@@ -1,7 +1,7 @@
 import type { FormuleRapide } from '../../shared/reservation-express';
 import {
-  creneauxLibres, dureeDesPrestations, estUnSinsin, MAITRE_DES_SINSIN, occupesDuJour, ouvertureDuJour, plagesBloquees, PLACES_EN_LIGNE,
-  type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
+  carteDesPlaces, creneauxLibres, dureeDesPrestations, estUnSinsin, MAITRE_DES_SINSIN, occupesDuJour, ouvertureDuJour, placesDuJour, plagesBloquees,
+  type CarteDesPlaces, type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
 } from '../../shared/agenda-pur';
 import { estUneConsultation, type MasquesDuSite } from '../../shared/catalogue-pur';
 import { porteDuBesoin, type Besoin } from '../../shared/qualification';
@@ -186,21 +186,26 @@ export function prechargeLesOccupes(branchId: string, du: string, au: string): P
   return promesse;
 }
 
-let calendrier: Promise<{ agenda: AgendaDeLaMaison | null; occupes: CreneauOccupe[] }> | null = null;
-export function calendrierDuSite(du: string, au: string, brancheConnue?: string): Promise<{ agenda: AgendaDeLaMaison | null; occupes: CreneauOccupe[] }> {
+let calendrier: Promise<{ agenda: AgendaDeLaMaison | null; occupes: CreneauOccupe[]; places: CarteDesPlaces }> | null = null;
+export function calendrierDuSite(du: string, au: string, brancheConnue?: string): Promise<{ agenda: AgendaDeLaMaison | null; occupes: CreneauOccupe[]; places: CarteDesPlaces }> {
   if (calendrier) return calendrier;
   const c = (async () => {
     let devine = brancheConnue ?? '';
     if (!devine) { try { devine = localStorage.getItem(CLE_BRANCHE) ?? ''; } catch { /* pas de stockage */ } }
     const pris = devine ? prechargeLesOccupes(devine, du, au) : null;
+    /* Les places du jour partent en même temps que les murs (2 novembre 2026). */
+    const lesPlaces = devine ? placesEnLigne(devine, du, au) : null;
     const agenda = await agendaDeLaMaison();
-    if (!agenda) return { agenda: null, occupes: [] };
+    if (!agenda) return { agenda: null, occupes: [], places: {} };
     try {
       localStorage.setItem(CLE_AGENDA, JSON.stringify(agenda));
       localStorage.setItem(CLE_BRANCHE, agenda.branchId);
     } catch { /* tant pis */ }
-    const occupes = pris && devine === agenda.branchId ? await pris : await creneauxOccupes(agenda.branchId, du, au);
-    return { agenda, occupes };
+    const [occupes, places] = await Promise.all([
+      pris && devine === agenda.branchId ? pris : creneauxOccupes(agenda.branchId, du, au),
+      lesPlaces && devine === agenda.branchId ? lesPlaces : placesEnLigne(agenda.branchId, du, au),
+    ]);
+    return { agenda, occupes, places };
   })();
   /* Un échec s'oublie : l'îlot qui rappelle relit, au lieu de recevoir la
      même promesse rejetée pour la vie de la page (10 octobre 2026). */
@@ -238,6 +243,33 @@ export async function creneauxOccupes(branchId: string, du: string, au: string):
   return (data ?? []) as CreneauOccupe[];
 }
 
+/** LES PLACES EN LIGNE DE CHAQUE JOUR — 2 novembre 2026 (le second fauteuil,
+    du mardi au vendredi). `places_en_ligne_du` (0152) rend un nombre par
+    jour, rien d'autre : ni nom, ni planning.
+
+    ELLE NE REJETTE JAMAIS : une panne, ou la fonction pas encore posée,
+    rend une carte vide, et chaque jour garde UNE place (la règle du 24
+    octobre 2026). Le calendrier ne se ferme pas pour autant, et il ne promet
+    jamais une seconde place que la base refuserait. */
+export async function placesEnLigne(branchId: string, du: string, au: string): Promise<CarteDesPlaces> {
+  try {
+    if (ADRESSE_DE_LA_BASE && CLEF_PUBLIQUE) {
+      const r = await fetch(`${ADRESSE_DE_LA_BASE}/rest/v1/rpc/places_en_ligne_du`, {
+        method: 'POST',
+        headers: { apikey: CLEF_PUBLIQUE, Authorization: `Bearer ${CLEF_PUBLIQUE}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_branch: branchId, p_debut: du, p_fin: au }),
+      });
+      return r.ok ? carteDesPlaces(await r.json()) : {};
+    }
+    const supabase = await client();
+    if (!supabase) return {};
+    const { data, error } = await supabase.rpc('places_en_ligne_du', { p_branch: branchId, p_debut: du, p_fin: au });
+    return error ? {} : carteDesPlaces(data);
+  } catch {
+    return {};
+  }
+}
+
 /** Les heures libres d'un jour, pour un rituel donné. Le maître est celui de
     la prestation quand elle en désigne un, sinon chacun de ceux de la Maison :
     une heure libre chez l'un suffit à la proposer. */
@@ -246,6 +278,8 @@ export function heuresLibres(o: {
   dateIso: string;
   serviceIds: string[];
   occupes: readonly CreneauOccupe[];
+  /** Les places en ligne par jour (`placesEnLigne`) ; absentes, une place. */
+  places?: CarteDesPlaces;
   maintenant?: Date;
 }): { heure: string; maitre: string }[] {
   const { agenda, dateIso, serviceIds } = o;
@@ -263,6 +297,12 @@ export function heuresLibres(o: {
   const maitres = sinsin ? [MAITRE_DES_SINSIN]
     : demandes.length > 0 ? [...new Set(demandes)] : (agenda.maitres.length > 0 ? agenda.maitres : ['']);
 
+  /* En ligne, un seul rituel à la fois (24 octobre 2026) ; du mardi au
+     vendredi, le second fauteuil quand la base le laisse (2 novembre 2026),
+     jamais plus que les fauteuils de la branche. Les maîtres restent jugés un
+     par un : un SÍNSIN ne cherche que Team, et Team déjà au fauteuil n'ouvre
+     rien ; un autre geste prend alors le second fauteuil, côté Expert. */
+  const places = placesDuJour(o.places, dateIso, agenda.sieges);
   const parHeure = new Map<string, string>();
   for (const maitre of maitres) {
     const heures = creneauxLibres({
@@ -273,8 +313,7 @@ export function heuresLibres(o: {
       master: maitre,
       capMaison: agenda.capMaison,
       capMaitre: agenda.capMaitre,
-      /* En ligne, un seul rituel à la fois (24 octobre 2026). */
-      capSimultane: PLACES_EN_LIGNE,
+      capSimultane: places,
       maintenantMin,
     });
     for (const h of heures) if (!parHeure.has(h)) parHeure.set(h, maitre);

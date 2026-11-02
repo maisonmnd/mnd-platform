@@ -40,10 +40,15 @@ dit('... quel que soit le maitre demande (Team, Expert, aucun)', [false, false, 
   ['Team', 'Expert', ''].map((m) => creneauxLibres({ opening: OUVERT, durationMin: 60, occupes: SAMEDI, master: m, capSimultane: PLACES_EN_LIGNE }).includes('15:00')));
 
 /* ── Les trois portes en ligne ────────────────────────────────────────── */
-dit('Ma Couronne : ses heures libres comptent tous les rituels', true,
-  sansCommentaires('src/apps/couronne/lib.ts').includes('capSimultane: PLACES_EN_LIGNE,'));
-dit('le site : les heures qu il propose aussi', true,
-  sansCommentaires('src/apps/revelateur/agenda.ts').includes('capSimultane: PLACES_EN_LIGNE,'));
+/* LE SECOND FAUTEUIL — 2 novembre 2026 : Ma Couronne et le site comptent
+   toujours tous les rituels, contre les places du JOUR (une, ou deux du mardi
+   au vendredi quand la base le dit) ; le banc verifie-le-second-fauteuil
+   eprouve la regle. WhatsApp garde une place. */
+dit('Ma Couronne : ses heures libres comptent tous les rituels, contre les places du jour', true,
+  sansCommentaires('src/apps/couronne/lib.ts').includes('capSimultane: placesEnLigneDe(branchId, dateIso),'));
+dit('le site : les heures qu il propose aussi', [true, true], [
+  sansCommentaires('src/apps/revelateur/agenda.ts').includes('const places = placesDuJour(o.places, dateIso, agenda.sieges);'),
+  sansCommentaires('src/apps/revelateur/agenda.ts').includes('capSimultane: places,')]);
 dit('le juge du serveur (site, WhatsApp) : une place, pas les fauteuils', true,
   sansCommentaires('src/shared/place-du-serveur.ts').includes('sieges: PLACES_EN_LIGNE,'));
 
