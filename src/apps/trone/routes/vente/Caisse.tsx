@@ -16,7 +16,8 @@ import { soinUtilise } from '../../../../shared/parrainage';
 import {
   useModelBands, useBandSets, pricingOf, personalPriceXof, prixFerme, estProposable,
 } from '../../../../shared/pricing';
-import { ClientPicker, RdvModal, useBranchAppointments, apptLabel, apptDueXof, apptNetXof, apptTotalXof, useServicesById, partsDuRituelXof, prixAFigerAuTicket, frShortAn } from '../clients/_shared';
+import { ClientPicker, RdvModal, useBranchAppointments, apptLabel, apptDueXof, apptNetXof, apptTotalXof, useServicesById, partsDuRituelXof, prixAFigerAuTicket, frShortAn, type RdvInitial } from '../clients/_shared';
+import { SonProchainRituel } from './SonProchainRituel';
 import { honoreALEncaissement } from '../clients/actions';
 import { appointmentsStore, useAppointments, venuesHonorees } from '../../../../shared/agenda';
 import { ClotureDuTiroir } from '../finances/ClotureDuTiroir';
@@ -344,8 +345,11 @@ export default function Caisse() {
   /* Le rendez-vous touché dans « À encaisser maintenant » : il se pose au
      ticket une fois la cliente choisie, quand son catalogue est le sien. */
   const [rituelAPrendre, setRituelAPrendre] = useState('');
-  const [reussite, setReussite] = useState<{ montant: string; detail: string; invoiceId: string; clientId: string; serviceIds: string[] } | null>(null);
-  const [rdvPour, setRdvPour] = useState<{ clientId: string; serviceIds: string[] } | null>(null);
+  /* `jour` et `longueur` (2 novembre 2026) : le jour de la vente et la
+     longueur travaillée, que « Son prochain rituel » lit pour mesurer son
+     rythme et tarifer le suivant comme celui-ci. */
+  const [reussite, setReussite] = useState<{ montant: string; detail: string; invoiceId: string; clientId: string; serviceIds: string[]; jour: string; longueur: LongueurId } | null>(null);
+  const [rdvPour, setRdvPour] = useState<RdvInitial | null>(null);
   /* LE SOIN OFFERT DE LA MARRAINE — 28 septembre 2026. Celui qu'on offre sur
      ce ticket, et la ligne qu'il a passée à 100 %. Il ne se consomme qu'à
      l'encaissement, comme un code : un ticket abandonné ne le brûle pas. */
@@ -1172,6 +1176,8 @@ export default function Caisse() {
       invoiceId: inv.id,
       clientId: client?.id ?? '',
       serviceIds: lines.filter((l) => l.kind === 'service').map((l) => l.key.slice(2)),
+      jour: dateVente,
+      longueur,
     });
     setDonneStr('');
     setCart({});
@@ -1442,9 +1448,23 @@ export default function Caisse() {
                 {waHint && <p>{waHint}</p>}
                 <div className="trv-reussite__boutons">
                   <Button variant="copper" onClick={ticketSuivant}>Ticket suivant</Button>
-                  {reussite.clientId && <Button variant="ghost" onClick={() => setRdvPour({ clientId: reussite.clientId, serviceIds: reussite.serviceIds })}>Son prochain rendez-vous</Button>}
                   <Button variant="ghost" onClick={() => navigate(`/factures?id=${reussite.invoiceId}`)}>Voir la pièce</Button>
                 </div>
+                {/* SON PROCHAIN RITUEL, AU MOMENT OÙ ELLE PAIE — 2 novembre 2026
+                    (maquette « Remplir les fauteuils », Un · La Caisse) : son
+                    rituel habituel sur trois places réelles, posé d'un toucher.
+                    « Choisir à la main » ouvre la fenêtre du rendez-vous, comme
+                    l'ancien bouton « Son prochain rendez-vous ». */}
+                {reussite.clientId && (
+                  <SonProchainRituel
+                    key={reussite.invoiceId}
+                    clientId={reussite.clientId}
+                    serviceIds={reussite.serviceIds}
+                    jour={reussite.jour}
+                    longueur={reussite.longueur}
+                    onALaMain={(initial) => setRdvPour(initial)}
+                  />
+                )}
               </div>
             ) : (
             <>
@@ -2186,8 +2206,10 @@ export default function Caisse() {
           </div>
         </div>
       )}
-      {/* SON PROCHAIN RENDEZ-VOUS, ouvert depuis l'écran de réussite (24 octobre 2026). */}
-      {rdvPour && <RdvModal title="Son prochain rendez-vous" initial={{ clientId: rdvPour.clientId, serviceIds: rdvPour.serviceIds }} onClose={() => setRdvPour(null)} />}
+      {/* SON PROCHAIN RENDEZ-VOUS, ouvert depuis l'écran de réussite (24 octobre 2026) ;
+          depuis le 2 novembre 2026, posé sur la place touchée quand le rituel
+          demande sa fiche (formule, remise famille, prix à convenir…). */}
+      {rdvPour && <RdvModal title="Son prochain rendez-vous" initial={rdvPour} onClose={() => setRdvPour(null)} />}
     </div>
   );
 }

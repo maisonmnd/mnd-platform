@@ -40,7 +40,7 @@ import { familleDe } from '../equipe/rh/familles';
 import { enPause } from '../../../../shared/formules-en-lunes-pur';
 import { regardADeduire, remiseAvecLeRegard, type RegardADeduire } from '../../../../shared/regard-deduit-pur';
 import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDeGestes } from '../_vie';
-import { estampilleLaPose, estampilleLesPoses, momentDuRdv } from '../../../../shared/agenda';
+import { momentDuRdv, poseUnRendezVous } from '../../../../shared/agenda';
 import { modelBandsStore, bandSetsStore, prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, tauxPermis, plafondDeRemisePct, plafondDeRemiseXof, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import { gammeNetteXof, gammeBruteXof, ligneNetteXof, ligneBruteXof, poseUnProduit, retireUnProduit, remiseDeLaLigne, ecartsDeTarif, manqueALEtagere, type LigneGamme } from '../../../../shared/gamme';
@@ -1704,8 +1704,9 @@ export const TIME_SLOTS: string[] = (() => {
    se lit comme une phrase — qui, quoi, quand, combien — et les numéros disent
    une vraie séquence : l'ordre dans lequel la main remplit, et celui dans
    lequel on relit un rituel au comptoir. */
-/** « 1 h 30 » · « 45 min » — la durée d'un rituel, dite court. */
-const fmtDureeCourte = (min: number): string => {
+/** « 1 h 30 » · « 45 min » — la durée d'un rituel, dite court. Exportée le
+    2 novembre 2026 : « Son prochain rituel » à la Caisse la dit pareil. */
+export const fmtDureeCourte = (min: number): string => {
   if (min < 60) return `${min} min`;
   const h = Math.floor(min / 60);
   const m = min % 60;
@@ -3295,13 +3296,15 @@ function RdvModalCorps({
       /* SÉANCE DE SUITE : elle se rattache au rituel qui porte le prix une
          fois qu'elle EXISTE — renuméroter la série suppose de la voir dans la
          liste. */
-      appointmentsStore.set((prev) => {
-        /* LA DATE DE POSE S'ÉCRIT ICI AUSSI — 13 septembre 2026. La fiche du
-           rendez-vous, le chemin le plus fréquenté, était le seul à ne pas
-           estampiller : les fonctions d'envoi ne pouvaient donc pas savoir
-           qu'un rituel avait été posé après son heure. */
-        const avec = [...prev, estampilleLaPose(created), ...estampilleLesPoses(suites)];
-        return estSuite ? attacheSeance(avec, created.id, suiteDe) : avec;
+      /* LA DATE DE POSE S'ÉCRIT ICI AUSSI — 13 septembre 2026. La fiche du
+         rendez-vous, le chemin le plus fréquenté, était le seul à ne pas
+         estampiller : les fonctions d'envoi ne pouvaient donc pas savoir
+         qu'un rituel avait été posé après son heure.
+         UN SEUL GESTE DEPUIS LE 2 NOVEMBRE 2026 (`poseUnRendezVous`, agenda.ts) :
+         « Son prochain rituel » à la Caisse écrit par le même. */
+      poseUnRendezVous(created, {
+        suites,
+        attache: estSuite ? (avec) => attacheSeance(avec, created.id, suiteDe) : undefined,
       });
       reglerLeSalon(created.id, chosenStatus);
       if (deduction) marqueLaDeduction(created.id, deduction);

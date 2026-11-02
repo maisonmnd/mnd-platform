@@ -865,6 +865,26 @@ export const estampilleLaPose = <T extends Appointment>(a: T): T =>
 export const estampilleLesPoses = <T extends Appointment>(as: readonly T[]): T[] =>
   as.map(estampilleLaPose);
 
+/** ══ POSER UN RENDEZ-VOUS NEUF, UN SEUL GESTE — 2 novembre 2026 ══════
+    Le geste d'écriture de « Poser le rendez-vous » dans la fenêtre du
+    rendez-vous, sorti pour que « Son prochain rituel » à la Caisse passe
+    par le MÊME : la pose estampillée (et ses séances incluses), puis la
+    série rattachée s'il y a lieu. Rien d'autre ne part d'ici : la
+    confirmation WhatsApp, c'est la fonction confirmation-rdv qui balaie le
+    carnet toutes les dix minutes et confirme ce qui est neuf, confirmé,
+    sans `sansConfirmation`, posé avant son heure. Un rendez-vous écrit par
+    ce chemin reçoit donc exactement ce que reçoit celui de la fenêtre. */
+export function poseUnRendezVous(
+  rdv: Appointment,
+  o: { suites?: readonly Appointment[]; attache?: (l: Appointment[]) => Appointment[] } = {},
+): Appointment {
+  appointmentsStore.set((prev) => {
+    const avec = [...prev, estampilleLaPose(rdv), ...estampilleLesPoses(o.suites ?? [])];
+    return o.attache ? o.attache(avec) : avec;
+  });
+  return appointmentsStore.get().find((x) => x.id === rdv.id) ?? rdv;
+}
+
 /* ══ UN RENDEZ-VOUS POSÉ APRÈS SON HEURE NE SE DIT À PERSONNE — 13 sept. 2026 ══
    « Chaque fois que je pose un rendez-vous dans le passé, n'envoie aucun
    WhatsApp, aucun rappel, rien à la cliente par l'API » (Yéman).

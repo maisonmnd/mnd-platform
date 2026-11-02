@@ -1569,6 +1569,42 @@
 .trv-reussite p { margin: 0; font-family: var(--font-sans); font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; }
 .trv-reussite__boutons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
 
+/* SON PROCHAIN RITUEL — 2 novembre 2026 (maquette « Remplir les fauteuils »).
+   Sous l'écran de réussite, dans la colonne du ticket : un filet, ses rituels
+   en puces, puis trois places en lignes (la colonne est étroite au bureau,
+   pleine largeur au téléphone). Indigo, le cuivre en filet et en titre. */
+.trv-prochain { align-self: stretch; display: flex; flex-direction: column; gap: 10px; margin-top: 10px; padding-top: 16px; border-top: 1px solid var(--hairline); }
+.trv-prochain__etiquette { font-family: var(--font-sans); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--copper-700); }
+.trv-reussite .trv-prochain__doux, .trv-prochain__doux { margin: 0; font-family: var(--font-sans); font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+.trv-reussite .trv-prochain__note, .trv-prochain__note { margin: 0; padding-left: 10px; border-left: 2px solid var(--copper-300); font-family: var(--font-sans); font-size: 12.5px; line-height: 1.5; color: var(--ink); }
+.trv-prochain__rituels { display: flex; flex-wrap: wrap; gap: 8px; }
+.trv-prochain__rituel {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 44px; max-width: 100%;
+  padding: 8px 12px; border: 1px solid var(--hairline); border-radius: var(--radius-md);
+  background: transparent; color: var(--color-indigo); font: inherit; text-align: left; cursor: pointer; transition: var(--transition-base);
+}
+.trv-prochain__rituel:hover { border-color: var(--copper-300); }
+.trv-prochain__rituel:focus-visible, .trv-prochain__place:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.trv-prochain__rituel-nom { font-family: var(--font-sans); font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+.trv-prochain__rituel small { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.trv-prochain__rituel.is-on { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
+.trv-prochain__rituel.is-on small { color: var(--copper-200); }
+.trv-prochain__places { display: flex; flex-direction: column; gap: 8px; }
+.trv-prochain__place {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: baseline; width: 100%;
+  padding: 11px 14px; border: 1px solid var(--hairline); border-radius: var(--radius-md);
+  background: var(--paper); color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: var(--transition-base);
+}
+.trv-prochain__place:hover { border-color: var(--copper-300); }
+.trv-prochain__place-titre { grid-column: 1 / -1; font-family: var(--font-sans); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; color: var(--copper-700); }
+.trv-prochain__place-date { font-family: var(--font-serif); font-size: 19px; line-height: 1.2; color: var(--color-indigo); }
+.trv-prochain__place-prix { font-family: var(--font-sans); font-size: 13px; font-weight: 500; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.trv-prochain__place-pourquoi { grid-column: 1 / -1; font-family: var(--font-sans); font-size: 12px; line-height: 1.45; color: var(--ink-soft); }
+.trv-prochain__gestes { display: flex; gap: 8px; flex-wrap: wrap; }
+.trv-prochain__issue { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-left: 2px solid var(--color-copper); background: var(--paper); }
+.trv-prochain__issue b { font-family: var(--font-serif); font-weight: 400; font-size: 20px; line-height: 1.25; color: var(--color-indigo); }
+.trv-prochain__issue span { font-family: var(--font-sans); font-size: 12.5px; line-height: 1.5; color: var(--ink-soft); }
+
 /* AU TÉLÉPHONE, LE TICKET NE TOMBE PLUS SOUS TOUT LE CATALOGUE (24 octobre
    2026) : la case et « À encaisser maintenant » en tête, puis le ticket, puis
    l'offre. La colonne de gauche s'efface pour que ses enfants se rangent. */
