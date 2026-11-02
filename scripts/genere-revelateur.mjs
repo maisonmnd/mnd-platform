@@ -302,12 +302,17 @@ const ICONES = `<svg width="0" height="0" style="position:absolute" aria-hidden=
 /* ── Le balisage structuré ───────────────────────────────────────────── */
 /* LES COMPTES DE LA MAISON, dans l'ordre où le pied les montre. Seuls ceux
    que le contenu connaît : on ne relie jamais une adresse qu'on n'a pas lue. */
+const ANCIEN_NOM = 'M Natural Dreadlocks';
 const comptesPublics = () => [
   ['instagram', 'Instagram'], ['facebook', 'Facebook'], ['tiktok', 'TikTok'], ['google', 'Fiche Google'],
 ].filter(([cle]) => COMMUN.comptes?.[cle]).map(([cle, nom]) => ({ nom, url: COMMUN.comptes[cle] }));
 const noeudMaison = () => ({
   '@type': 'HairSalon', '@id': `${SITE}#maison`,
   name: COMMUN.nom, url: SITE, image: `${SITE}assets/photos/site/partage-accueil.jpg`, logo: `${SITE}assets/monograms/mono-indigo.png`,
+  /* L'ANCIEN NOM, POUR LES MACHINES SEULES — 2 novembre 2026. La fiche Google
+     et les comptes portent encore « M Natural Dreadlocks » : une IA qui lit les
+     deux noms sans ce lien croit à deux maisons. Rien de visible ne l'écrit. */
+  alternateName: ANCIEN_NOM,
   description: 'Maison boutique de soin et de création de dreadlocks afro à Cotonou.',
   legalName: COMMUN.editeur.nomCommercial,
   /* PAS DE RCCM NI D'IFU ICI (relecture du 10 octobre 2026). Ce nœud nomme
@@ -1874,4 +1879,39 @@ ecrit(PLAN, page({
 pagesEcrites.push(PLAN);
 
 writeFileSync(path.join(SORTIE, 'pages.json'), JSON.stringify(pagesEcrites, null, 2));
+
+/* ── LE RÉSUMÉ POUR LES IA (llms.txt) — 2 novembre 2026 ───────────────
+   « Comment faire un référencement dans les LLM comme ChatGPT ? » (Yéman).
+   Un fichier texte à la racine du domaine, lu par les outils d'IA : qui est
+   la Maison, où, comment réserver, et ses pages, depuis les MÊMES données que
+   le site (rien d'écrit deux fois). Aucun montant, et jamais le mot qu'on ne
+   dit pas pour la Maison. Le récit garde ses noms chez lui : Kolétan ne se lit
+   que sur /notre-histoire/, d'où la phrase de remplacement ci-dessous.
+   `build-sites.mjs` le pose à la racine et remplace `__LIEN_DU_SITE__`. Le
+   chantier revient à Ambre. */
+const DESCRIPTIONS_LLMS = { '/notre-histoire/': 'Lisez le récit fondateur de la Maison MND, écrit par Brice et Yéman, de la terrasse de Cotonou au retour à la maison.' };
+const JOURS_FR = { Monday: 'lundi', Tuesday: 'mardi', Wednesday: 'mercredi', Thursday: 'jeudi', Friday: 'vendredi', Saturday: 'samedi', Sunday: 'dimanche' };
+const heuresDites = (h) => h.replace(':', ' h ').replace(/ h 00$/, ' h');
+const joursDits = (jours) => (jours.length > 2 ? `du ${JOURS_FR[jours[0]]} au ${JOURS_FR[jours[jours.length - 1]]}` : jours.map((j) => JOURS_FR[j]).join(' et '));
+const lienLlms = (chemin) => `${SITE}${chemin.replace(/^\//, '')}`;
+const ligneLlms = (nom, chemin, description) => `- [${nom}](${lienLlms(chemin)})${description ? `: ${description}` : ''}`;
+const llms = [
+  `# ${COMMUN.nom}`,
+  '',
+  `> Maison boutique de soin et de création de dreadlocks afro à ${COMMUN.ville}, au Bénin : création, entretien, réparation, soins et coloration végétale des locks, pour les adultes et les enfants. Anciennement « ${ANCIEN_NOM} ».`,
+  '',
+  `- Adresse : ${COMMUN.editeur.rue}, ${COMMUN.ville}, Bénin`,
+  `- Téléphone et WhatsApp : ${COMMUN.editeur.telephone}`,
+  `- Courriel : ${COMMUN.editeur.email}`,
+  ...(HORAIRES.length ? [`- Horaires : ${HORAIRES.map((r) => `${joursDits(r.dayOfWeek)}, de ${heuresDites(r.opens)} à ${heuresDites(r.closes)}`).join(' ; ')}`] : []),
+  `- Réserver en ligne : ${lienLlms('/reserver/')}`,
+  ...(COMMUN.comptes?.google ? [`- Fiche Google : ${COMMUN.comptes.google}`] : []),
+  '',
+  '## Les pages de la Maison',
+  '',
+  ...PAGES.filter((p) => !p.enAttente && !p.horsDesMoteurs).map((p) => ligneLlms(p.court ?? p.h1, p.chemin, DESCRIPTIONS_LLMS[p.chemin] ?? p.description)),
+  ...(articles.length ? ['', '## Le Journal', '', ...articles.map((a) => ligneLlms(a.titre, `/journal/${a.slug}/`, a.description))] : []),
+  '',
+].join('\n');
+writeFileSync(path.join(SORTIE, 'llms.txt'), llms);
 console.log(`Site révélateur : ${pagesEcrites.length} pages écrites dans revelateur/ (base ${BASE}).`);

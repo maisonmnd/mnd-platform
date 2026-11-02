@@ -539,6 +539,24 @@ const graphe = JSON.parse(accueil.match(/<script type="application\/ld\+json">([
 const fiche = graphe.find((n: { '@type': string }) => n['@type'] === 'HairSalon') ?? {};
 const comptes = (['instagram', 'facebook', 'tiktok', 'google'] as const).map((k) => COMMUN.comptes?.[k]).filter(Boolean);
 dit('la fiche structurée relie exactement les comptes que le contenu nomme', comptes, fiche.sameAs ?? []);
+
+/* LE RÉFÉRENCEMENT DANS LES IA — 2 novembre 2026. L'ancien nom relie la fiche
+   Google et les comptes, qui le portent encore, à la Maison ; le résumé pour
+   les IA (revelateur/llms.txt) naît avec les pages, des mêmes données. */
+dit('la fiche structurée dit l’ancien nom, pour que les IA relient la fiche Google', 'M Natural Dreadlocks', fiche.alternateName);
+const llms = existsSync('revelateur/llms.txt') ? readFileSync('revelateur/llms.txt', 'utf8') : '';
+const lienLlms = (chemin: string) => `(__LIEN_DU_SITE__${chemin.replace(/^\//, '')})`;
+dit('le résumé pour les IA : la Maison, son adresse, sa réservation, chaque page des moteurs', [true, true, true, true], [
+  llms.startsWith(`# ${COMMUN.nom}\n`),
+  llms.includes(COMMUN.editeur.rue),
+  llms.includes('__LIEN_DU_SITE__reserver/'),
+  PAGES.filter((p) => !p.enAttente && !p.horsDesMoteurs).every((p) => llms.includes(lienLlms(p.chemin))),
+]);
+dit('… sans montant, sans Kolétan, sans page hors des moteurs', [false, false, false], [
+  /\d[\d  .]*[  ]?(F|FCFA|XOF)\b/.test(llms),
+  /Kolétan/i.test(llms),
+  PAGES.filter((p) => p.enAttente || p.horsDesMoteurs).some((p) => llms.includes(lienLlms(p.chemin))),
+]);
 /* UNE ADRESSE LUE DANS DU HTML SE DÉSÉCHAPPE — 26 septembre 2026. L'adresse de
    la fiche Google porte maintenant un `&`, et le générateur l'écrit `&amp;`,
    ce qui est la bonne façon de l'écrire : un navigateur relit bien `&`. Ce

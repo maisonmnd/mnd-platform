@@ -320,6 +320,14 @@ ${adresses.map((loc) => `  <url>
     if (site.racine) console.log(`  sitemap : ${adresses.length} adresses`);
   }
   console.log(`  ${indexable ? 'explorable' : 'ferme aux moteurs'} : robots.txt${indexable && adresseDuSite ? ' + sitemap.xml' : ''}`);
+  /* LE RÉSUMÉ POUR LES IA — 2 novembre 2026. `genere-revelateur.mjs` l'écrit
+     avec les pages ; il ne vaut qu'à la racine du domaine, avec ses adresses
+     absolues, comme le sitemap. */
+  const llms = site.racine ? path.join(root, site.racine, 'llms.txt') : '';
+  if (indexable && adresseDuSite && llms && existsSync(llms)) {
+    writeFileSync(path.join(dossierPublie, 'llms.txt'), readFileSync(llms, 'utf8').replaceAll('__LIEN_DU_SITE__', adresseDuSite));
+    console.log('  llms.txt : le résumé pour les IA');
+  }
 
   /* ── LE SITE QUI VIT À LA RACINE PORTE LE DOMAINE ────────────────
      GitHub Pages lit le fichier CNAME du dépôt principal ; sans lui, TOUTE
