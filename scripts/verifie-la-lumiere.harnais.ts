@@ -406,7 +406,7 @@ const regles: Regle[] = [
         }
       }
       if ((page(e, '/').match(/data-voile/g) ?? []).length < 6) ecarts.push('accueil : moins de six tetes voilees');
-      if (!e.gen.includes('function voile(') || !e.gen.includes('${voile(transition && !finitBien(corps) ? corps + appelDeFin() : corps, classeBody)}')) ecarts.push('generateur : page() ne passe pas par voile()');
+      if (!e.gen.includes('function voile(') || !e.gen.includes('${voile(transition && !finitBien(corps) ? corps + appelDeFin(chemin) : corps, classeBody)}')) ecarts.push('generateur : page() ne passe pas par voile()');
       return ecarts;
     },
     pannes: [
@@ -541,7 +541,8 @@ const regles: Regle[] = [
       if (/:hover[^{]*\{[^}]*transform: translate/.test(bloc)) ecarts.push('un survol qui deplace');
       for (const motif of bloc.match(/\/assets\/motifs\/([\w-]+\.png)/g) ?? []) if (!existsSync(path.join('public', motif))) ecarts.push(`motif absent : ${motif}`);
       const neuf = sansCommentaires(e.gen.slice(e.gen.indexOf('function voile('), e.gen.indexOf('/* ── Les sections libres'))).replace(/<!--[\s\S]*?-->/g, '');
-      if (!e.gen.includes('const appelDeFin = () => `<section class="appel"><div class="conteneur"><div><h2>')) ecarts.push('l appel de fin ne porte pas la chaine que les harnais lisent');
+      /* 3 novembre 2026 : l'appel de fin prend le chemin de la page, son bouton Reserver garde le parcours. */
+      if (!e.gen.includes('const appelDeFin = (chemin) => `<section class="appel"><div class="conteneur"><div><h2>')) ecarts.push('l appel de fin ne porte pas la chaine que les harnais lisent');
       if (neuf.includes('—') || /\bsalon\b/i.test(neuf)) ecarts.push('le gabarit neuf porte un tiret cadratin ou « salon »');
       if (!e.gen.includes('<p class="pied-signature">${echappe(DEVISE_COMPLETE)}</p>')) ecarts.push('la signature n est pas DEVISE_COMPLETE');
       return ecarts;

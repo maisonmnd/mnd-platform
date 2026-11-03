@@ -377,7 +377,7 @@ function voile(corps, classeBody) {
    dernier chapitre : le contact porte un appel au milieu (avant « Qui signe »)
    et reçoit quand même sa bande de fin. */
 const finitBien = (corps) => { const i = corps.lastIndexOf('<section'); return i >= 0 && /^<section class="(appel|recit-fin|devise-bande)[ "]/.test(corps.slice(i)); };
-const appelDeFin = () => `<section class="appel"><div class="conteneur"><div><h2>Votre couronne, à votre tour.</h2><p class="ligne" style="margin-top:8px">La Maison vous attend à Cotonou : un diagnostic, un rendez-vous, ou simplement un mot.</p></div><div class="rangee"><a class="btn btn--fort" href="${lien('/reserver/')}">Réserver</a>${bouton({ texte: 'Écrire sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn')}</div></div></section>`;
+const appelDeFin = (chemin) => `<section class="appel"><div class="conteneur"><div><h2>Votre couronne, à votre tour.</h2><p class="ligne" style="margin-top:8px">La Maison vous attend à Cotonou : un diagnostic, un rendez-vous, ou simplement un mot.</p></div><div class="rangee"><a class="btn btn--fort" href="${attr(reserverDeLaPage(chemin))}">Réserver</a>${bouton({ texte: 'Écrire sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn')}</div></div></section>`;
 
 /* LA PORTE ET SES HEURES, AU PIED DE CHAQUE PAGE — 11 octobre 2026. Le pied
    disait la Maison sans dire où la trouver ni quand : l'adresse vivait sur
@@ -482,12 +482,12 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
       ${nav}
         </nav>
         <a class="tel" href="tel:${attr(COMMUN.editeur.telephone.replace(/\s/g, ''))}" aria-label="Appeler la Maison"><svg><use href="#i-tel"/></svg></a>
-        <a class="btn btn--plein" href="${lien('/reserver/')}">Réserver</a>
+        <a class="btn btn--plein" href="${attr(reserverDeLaPage(chemin))}">Réserver</a>
       </div>
     </header>
     ${classeBody === 'accueil-plein' ? '<script>(function(){var b=document.querySelector(".barre");if(b&&(location.hash.length>1||window.scrollY>24))b.classList.add("solide")})()</script>' : ''}
     <main id="contenu" tabindex="-1">
-${voile(transition && !finitBien(corps) ? corps + appelDeFin() : corps, classeBody)}
+${voile(transition && !finitBien(corps) ? corps + appelDeFin(chemin) : corps, classeBody)}
     </main>
     <footer>
       <div class="conteneur">
@@ -706,6 +706,17 @@ function clubParents(s) {
    premier geste, il se prend simplement au calendrier. */
 const RESERVABLES = new Set(['creation', 'reparation', 'entretien', 'enfant']);
 const versLaReservation = (besoin, famille) => `${lien('/reserver/')}?besoin=${besoin ?? 'inconnu'}${famille ? `&famille=${famille}` : ''}`;
+/* LE BOUTON « RÉSERVER » GARDE LE PARCOURS DE LA PAGE — 3 novembre 2026.
+   « Pre-select the service based on the page the user came from (fix the
+   ?besoin= parameter visibility) » (Yéman). Le bouton de la barre et l'appel
+   de fin menaient à /reserver/ nu depuis la page Entretien comme depuis
+   l'accueil : la porte reposait la question à laquelle la page venait de
+   répondre. Une page dont le parcours se réserve (et qui ne se demande pas
+   par message) y mène avec son `?besoin=` ; les autres, à la porte. */
+const reserverDeLaPage = (chemin) => {
+  const p = PAGES.find((x) => x.chemin === chemin);
+  return p && RESERVABLES.has(p.besoin ?? '') && !p.cta?.vers ? versLaReservation(p.besoin, p.cta?.famille) : lien('/reserver/');
+};
 /* LE RAPPEL A SA PAGE (22 septembre 2026) : « Me faire rappeler » y mène,
    au lieu du calendrier qui n'offrait que des consultations à choisir. */
 const versLeRappel = (besoin) => `${lien('/rappel/')}?besoin=${besoin ?? 'inconnu'}`;
@@ -1026,6 +1037,12 @@ function ilot(nom, p) {
       </aside>
     </div></section>`;
   }
+  /* LA PAGE DU RENDEZ-VOUS — 3 novembre 2026 : l'îlot lit le jeton de
+     l'adresse ; sans lui, la page dit encore où écrire. */
+  if (nom === 'rdv') {
+    const agenda = p.chemin === '/rdv/agenda/';
+    return `<section class="serre"><div class="conteneur"><div data-ilot="rdv" data-genre="${agenda ? 'agenda' : 'page'}"><p class="corps">Votre rendez-vous se charge. Si rien ne s’affiche, écrivez à la Maison sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Écrire à la Maison', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div></div></section>`;
+  }
   /* LA CARTE CADEAU se compose dans l'îlot ; sans lui, la page dit encore
      comment commander : WhatsApp, et la Maison la prépare avec vous. */
   /* LA BOUTIQUE — 22 octobre 2026. Le repli écrit ne dit RIEN de ce qui
@@ -1171,7 +1188,9 @@ function rendLibre(p, supplement = '') {
   const enTete = p.ilot === 'triage' || p.ilot === 'joindre' || p.ilot === 'offrir' || p.ilot === 'boutique'
     || p.ilot === 'parrainer' || p.ilot === 'ingredients' || p.ilot === 'engagements'
     /* La réservation et le rappel SONT la page (11 octobre 2026). */
-    || p.ilot === 'reserver' || p.ilot === 'demande';
+    || p.ilot === 'reserver' || p.ilot === 'demande'
+    /* La page du rendez-vous l'est aussi (3 novembre 2026). */
+    || p.ilot === 'rdv';
   /* La première image de la page part en priorité, comme sur les pages de service (11 octobre 2026). */
   const visuel = p.image ? `<div>${image(p.image, '', ' fetchpriority="high"').replace(' loading="lazy"', '')}</div>` : '';
   /* L'OUVERTURE PLEIN ÉCRAN (1er octobre 2026) : le surtitre, le titre, la ligne, un

@@ -58,6 +58,7 @@ import {
 import { passeAuTrone, professionnel } from '../../src/shared/maison-intelligente-pur';
 import { appelDe } from '../../src/shared/civilite';
 import { heureDeDepart, reglesDepuis } from '../../src/shared/salle-des-envois';
+import { NOM_DU_SECRET_DES_LIENS, composantsDeLaConfirmation, jetonDuRendezVous, referenceDuRendezVous, texteDeLaConfirmation } from '../../src/shared/lien-du-rdv-pur';
 import {
   COMPARTIMENT_DES_RECUS, caisseDeLaDepense, categorieConnue, cheminDuRecu, doublonDeLaDepense, idDeLaDepense, libelleDeLaDepense,
   lisLaDemandeDeDepense, lisLeRecu, pieceDuJournal, porteurConnu, prestataireNomme, saisiePar, type DemandeLue, type DepenseExistante,
@@ -74,7 +75,7 @@ declare const Deno: {
 /* 2 novembre 2026 : la veille suit les réglages (rythme du jour et du soir) ;
    le seuil du sommeil n'est plus une constante, le passage rend ses crons.
    Puis, le même jour, le socle de la Maison intelligente. */
-const VERSION = '2026-11-02-b · le socle : cartes de tous les genres, Je suis loin, bilan du matin';
+const VERSION = '2026-11-03-a · le socle : cartes de tous les genres, Je suis loin, bilan du matin ; la confirmation à liens';
 /** La maison phare, quand l'assistant n'a pas de branche et que la table n'en dit pas. */
 const BRANCHE_PHARE = 'br-40r6u6frno';
 const ECRAN = 'Les assistants';
@@ -364,11 +365,21 @@ class Serveur {
     })];
     const tel = numeroIntl(chaine(rdv.numeroAPrevenir) || fiche?.phone);
     if (Deno.env.get('WA_TOKEN') && Deno.env.get('WA_PHONE_ID') && tel) {
-      lignes.push(socle('whatsapp', {
-        genre: 'whatsapp', numero: tel, modele: Deno.env.get('WA_TEMPLATE_CONF') ?? 'confirmation_rdv', parQui: 'Le Trône',
-        texteAuFil: `Bonjour ${prenom}, c'est confirmé : votre rendez-vous est retenu ${quand}. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.`,
-        composants: [{ type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: quand }] }],
-      }));
+      /* LA CONFIRMATION À LIENS (3 novembre 2026), la même pièce que
+         `confirmation-rdv` : la référence et les deux boutons quand le modèle
+         neuf est posé, l'ancien en repli dans le colis. */
+      const modele = Deno.env.get('WA_TEMPLATE_CONF') ?? 'confirmation_rdv';
+      const liens = (Deno.env.get('WA_TEMPLATE_CONF_LIENS') ?? '').trim();
+      const secret = (Deno.env.get(NOM_DU_SECRET_DES_LIENS) ?? '').trim();
+      const reference = referenceDuRendezVous(rdv.id);
+      const jeton = liens && secret ? await jetonDuRendezVous(secret, rdv.id).catch(() => '') : '';
+      const sansLiens = { modele, composants: composantsDeLaConfirmation({ avecLiens: false, prenom, quand, reference, jeton }), texteAuFil: texteDeLaConfirmation({ avecLiens: false, prenom, quand, reference }) };
+      lignes.push(socle('whatsapp', jeton ? {
+        genre: 'whatsapp', numero: tel, modele: liens, parQui: 'Le Trône',
+        texteAuFil: texteDeLaConfirmation({ avecLiens: true, prenom, quand, reference }),
+        composants: composantsDeLaConfirmation({ avecLiens: true, prenom, quand, reference, jeton }),
+        repli: sansLiens,
+      } : { genre: 'whatsapp', numero: tel, parQui: 'Le Trône', ...sansLiens }));
     }
     const { error } = await this.sb.from('envois').upsert(lignes, { onConflict: 'id', ignoreDuplicates: true });
     if (error) { dis('confirmation non déposée', { motif: String(error.message ?? '').slice(0, 80) }); return 0; }

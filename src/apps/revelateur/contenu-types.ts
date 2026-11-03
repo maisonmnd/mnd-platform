@@ -129,7 +129,9 @@ export type Page = {
        montent pas de React, ils se rendent à la construction. */
     | 'parrainer' | 'testeuse' | 'engagements' | 'ingredients'
     /* 22 octobre 2026 : la Boutique de la Maison. */
-    | 'boutique';
+    | 'boutique'
+    /* 3 novembre 2026 : la page du rendez-vous (/rdv/ et /rdv/agenda/). */
+    | 'rdv';
   /** LA FAMILLE DE LUMIÈRE, forcée. Sans ce champ, tons.ts la déduit : parcours
       (cta, pas, îlot d'action), offres (offres, offrir, parrainer), maison sinon. */
   ton?: Ton;

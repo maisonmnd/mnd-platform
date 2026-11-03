@@ -448,7 +448,17 @@ function jugeLaPorte(brut: string): string[] {
   exige('la place n est retenue que si le verrou a pose CE rendez-vous', /posee\?\.ok === true && posee\.id === candidat/.test(s));
   exige('le rendez-vous porte sa duree figee', /master,\s*dureeMin,\s*status: 'confirmé',\s*source: 'site'/.test(s));
   exige('les creneaux occupes se lisent par creneaux_occupes, pour le jour', /admin\.rpc\('creneaux_occupes', \{ p_branch: o\.branche\.id, p_du: o\.date, p_au: o\.date \}\)/.test(s));
-  exige('plus aucune lecture directe des rendez-vous pour juger', !/from\('appointments'\)\.select\(/.test(s));
+  /* 3 novembre 2026 : la page du rendez-vous et la cliente qui revient lisent UN rendez-vous par son
+     identifiant, ou ceux d'UNE fiche ; elles ne jugent aucune place. Leur section est mise de cote, et
+     ce qu'elle lit est tenu : jamais par jour, jamais toute la table. */
+  const debutHorsJuge = s.indexOf('async function litLeRendezVous(');
+  const finHorsJuge = s.indexOf('const RATE_MAX_VOCAL');
+  const horsJuge = debutHorsJuge > 0 && finHorsJuge > debutHorsJuge ? s.slice(debutHorsJuge, finHorsJuge) : '';
+  const pourJuger = horsJuge ? s.replace(horsJuge, '') : s;
+  exige('plus aucune lecture directe des rendez-vous pour juger', !/from\('appointments'\)\.select\(/.test(pourJuger));
+  exige('la page du rendez-vous et le retour lisent un rendez-vous par son id, ou ceux d une fiche, rien d autre',
+    !!horsJuge && (horsJuge.match(/from\('appointments'\)\.select\([^)]*\)[^;]*/g) ?? []).every((l) => /\.eq\('id', apptId\)\.maybeSingle\(\)$|\.eq\('data->>clientId', f\.id\)\.limit\(500\)$/.test(l))
+    && (horsJuge.match(/from\('appointments'\)/g) ?? []).length === 2);
   exige('le catalogue, ses familles et les murs se lisent par pages', /toutesLesLignes\('catalog_services'\)/.test(s)
     && /toutesLesLignes\('catalog_categories'\)/.test(s) && /toutesLesLignes\('blocages', \[\['data->>branchId', o\.branche\.id\], \['data->>date', o\.date\]\]\)/.test(s));
   /* Le juge reçoit les places du jour de la base (0152, le second fauteuil,

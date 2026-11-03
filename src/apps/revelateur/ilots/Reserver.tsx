@@ -21,6 +21,13 @@ import Demande from './Demande';
 import { raisonDuRefus } from '../refus-du-serveur';
 import { diagnosticGarde, oublieLeDiagnostic } from '../diagnostic-garde';
 import { lienLu } from '../../../shared/lien-reservation';
+import { ficheAgendaICS, motPourAnnuler, motPourDeplacer } from '../../../shared/lien-du-rdv-pur';
+import {
+  appelDuRetour, barreDuTotal, coordonneesLues, DELAI_DU_CHARGEUR_MS, ditLeRetour, dureeDite, etatDuChargeur, gestesAPrecocher,
+  gestesDeLAdresse, heureDite, NOM_DU_PARCOURS, nomDuFichierAgenda, PHRASE_DU_REPLI_DES_PLACES, PHRASE_DU_REPLI_DU_CALENDRIER,
+  referenceDeLaReponse, texteDeLaBarre, type DitDuRetour,
+} from '../reservation-du-site-pure';
+import { Chargeur, RepliDuChargement } from './Chargeur';
 import { litLaPhrase, departage } from '../../../shared/phrase-de-rendez-vous-pur';
 import { FORME_DU_CODE } from '../../../shared/parrainage-pur';
 import {
@@ -143,22 +150,12 @@ const aLEtranger = (): boolean => { try { return new Date().getTimezoneOffset() 
 /* LE NUMÉRO MASQUÉ — sur un téléphone prêté ou un poste partagé, le numéro de
    la précédente ne se lit plus en clair dans « Bon retour ». */
 const numeroMasque = (n: string): string => { const c = n.replace(/\D/g, ''); return c.length >= 4 ? `… ${c.slice(-4, -2)} ${c.slice(-2)}` : '…'; };
-/* L'AGENDA DU TÉLÉPHONE : un fichier .ics, à l'heure de Cotonou, sans rien
-   de plus que ce que l'écran dit. */
-const fichierAgenda = (o: { date: string; heure: string; dureeMin: number; titre: string; note: string }): string => {
-  const [h, m] = o.heure.split(':').map(Number);
-  const debut = new Date(Date.UTC(Number(o.date.slice(0, 4)), Number(o.date.slice(5, 7)) - 1, Number(o.date.slice(8, 10)), h, m));
-  const fin = new Date(debut.getTime() + Math.max(60, o.dureeMin || 60) * 60_000);
-  const t = (d: Date) => `${d.toISOString().slice(0, 10).replace(/-/g, '')}T${d.toISOString().slice(11, 16).replace(':', '')}00`;
-  const texte = (s: string) => s.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, '\\n');
-  return `data:text/calendar;charset=utf-8,${encodeURIComponent([
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Maison MND//site//FR', 'BEGIN:VEVENT',
-    `UID:${o.date}-${o.heure.replace(':', '')}@maisonmnd.com`,
-    `DTSTART;TZID=Africa/Porto-Novo:${t(debut)}`, `DTEND;TZID=Africa/Porto-Novo:${t(fin)}`,
-    `SUMMARY:${texte(o.titre)}`, 'LOCATION:Maison MND · Cotonou', `DESCRIPTION:${texte(o.note)}`,
-    'END:VEVENT', 'END:VCALENDAR',
-  ].join('\r\n'))}`;
-};
+/* L'AGENDA DU TÉLÉPHONE — 3 novembre 2026 : le fichier .ics est celui du
+   contrat (lien-du-rdv-pur, `ficheAgendaICS`), le même que la page du
+   rendez-vous ouverte depuis WhatsApp : l'identifiant du rendez-vous en
+   UID (un second ajout remplace le premier au lieu de doubler), la
+   référence dans la note, l'adresse de la Maison en lieu. */
+const adresseDAgenda = (ics: string): string => `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
 
 const JOURS_PROPOSES = 21;
 /* TOUS LES INDICATIFS DU MONDE — 13 octobre 2026 : « le numéro de tél. ne
@@ -283,13 +280,9 @@ const prixDit = (s: PrestationPublique, devise: string, ctx?: ContexteDuCalibre)
   return s.priceMode === 'variable' || (ctx && seCompteAuLock(s)) ? `à partir de ${fmtMoney(p, devise)}` : fmtMoney(p, devise);
 };
 
-const dit = (min?: number): string => {
-  if (!min) return '';
-  if (min < 60) return `${min} min`;
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`;
-};
+/* La durée dite vit dans le module pur depuis le 3 novembre 2026 : la barre
+   du total et le banc la lisent au même endroit. */
+const dit = dureeDite;
 
 /* ══ LA PHRASE ENTIÈRE — 24 octobre 2026 ══════════════════════════════
    « Taper une phrase entière dans la case (« Mireille retwist mercredi à
@@ -332,6 +325,11 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
      'attente' : rien ne se propose encore ; 'frais' : les places sont vraies ;
      'panne' : on le dit, et WhatsApp reste. */
   const [occupesEtat, setOccupesEtat] = useState<'attente' | 'frais' | 'panne'>('attente');
+  /* LE CHARGEUR — 3 novembre 2026 : après douze secondes d'attente, le repli
+     (« Les places ne se chargent pas », Réessayer, WhatsApp). `essai`
+     relance pour de bon la lecture de l'agenda et des créneaux pris. */
+  const [lent, setLent] = useState(false);
+  const [essai, setEssai] = useState(0);
   const [whatsapp, setWhatsapp] = useState('');
   const [devise, setDevise] = useState('XOF');
   const [serviceIds, setServiceIds] = useState<string[]>([]);
@@ -346,6 +344,9 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
      arrive de Conversations ; les gestes se cochent, le calibre se dit, et
      la cliente va droit au jour et à l'heure. Lu une fois, à l'ouverture. */
   const [prepare] = useState(() => lienLu(typeof location === 'undefined' ? '' : location.search));
+  /* LE GESTE VENU DE L'ADRESSE — 3 novembre 2026 (`?geste=sv-a,sv-b`) : il se
+     précoche s'il se réserve par cette porte ; le lien préparé l'emporte. */
+  const [voulusDeLAdresse] = useState(() => gestesDeLAdresse(typeof location === 'undefined' ? '' : location.search));
   const [preparee, setPreparee] = useState(false);
   const [calibreId, setCalibreId] = useState<string>(prepare.calibre);
   /* L'assistant : la famille en cours, et « toutes vues ». */
@@ -386,6 +387,14 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const [moi, setMoi] = useState<MemoireDuSite | null>(memoireDuSite);
   /* « Bon retour » : sa dernière venue est cochée, elle n'a qu'à toucher une place. */
   const [retour, setRetour] = useState(false);
+  /* LE RETOUR D'UNE CLIENTE SUR UN AUTRE TÉLÉPHONE — 3 novembre 2026. « Déjà
+     venue à la Maison ? » : son numéro, et le serveur envoie sur CE WhatsApp
+     sa réservation préparée. La page ne sait jamais si le numéro est connu.
+     `identiteLue` : le lien de ce WhatsApp, relu (son appel), ou 'passee'. */
+  const [retourOuvert, setRetourOuvert] = useState(false);
+  const [retourEnvoi, setRetourEnvoi] = useState(false);
+  const [retourDit, setRetourDit] = useState<DitDuRetour | null>(null);
+  const [identiteLue, setIdentiteLue] = useState<{ appel: string } | 'passee' | null>(null);
   const [retourPose, setRetourPose] = useState(false);
   const [code, setCode] = useState(codeDeLAdresse);
   const [offres, setOffres] = useState<OffreDuSite[]>([]);
@@ -411,6 +420,10 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     /** La durée et le prix, redits à l'écran de succès. */
     resume?: string;
     dureeMin?: number;
+    /** LA RÉFÉRENCE DU RENDEZ-VOUS — 3 novembre 2026 : « MND-7K3Q », dite
+        avant WhatsApp ; et l'identifiant, qui fait l'UID du fichier .ics. */
+    reference?: string;
+    apptId?: string;
   } | null>(null);
   /* LA BANDE DE FIN NE REDIT PAS « RÉSERVER » après une place tenue : le corps
      de la page porte la classe, la feuille cache l'appel. */
@@ -437,7 +450,21 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
       setOccupesEtat('frais');
     }).catch(() => { if (vivant) { setAgenda((prec) => prec ?? null); setOccupesEtat('panne'); } });
     return () => { vivant = false; };
-  }, []);
+  }, [essai]);
+  /* Douze secondes sans réponse : le repli paraît, et s'efface si les places
+     arrivent quand même. */
+  useEffect(() => {
+    if (occupesEtat !== 'attente') return;
+    setLent(false);
+    const minuterie = setTimeout(() => setLent(true), DELAI_DU_CHARGEUR_MS);
+    return () => clearTimeout(minuterie);
+  }, [occupesEtat, essai]);
+  const recharger = () => {
+    setAgenda((a) => (a === null ? undefined : a));
+    setOccupesEtat('attente');
+    setLent(false);
+    setEssai((n) => n + 1);
+  };
 
   /* Les offres ne bloquent rien : si elles n'arrivent pas, la
      réservation se fait au prix de la carte, ce qui est l'état d'hier. */
@@ -490,6 +517,9 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     setCivilite((c) => c || moi.civilite || '');
     setNumero((n) => n || moi.numero);
     if (consultation || prepare.gestes.length > 0) return;
+    /* L'adresse l'emporte sur la mémoire (3 novembre 2026) : la page d'où elle
+       vient a dit son geste. */
+    if (gestesAPrecocher(voulusDeLAdresse, offerts, PLAFOND_GESTES).length > 0) return;
     const ok = moi.serviceIds.every((id) => prestations.some((x) => x.id === id));
     if (!ok) return;
     setServiceIds(moi.serviceIds.slice(0, PLAFOND_GESTES));
@@ -497,7 +527,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     if (moi.calibreId && (moi.calibreId === 'inconnu' || bandes.some((b) => b.id === moi.calibreId))) setCalibreId(moi.calibreId);
     else setCalibreId('inconnu');
     setRetour(true);
-  }, [agenda, retourPose, preparee, moi, consultation, prepare, prestations, bandes]);
+  }, [agenda, retourPose, preparee, moi, consultation, prepare, prestations, bandes, voulusDeLAdresse, offerts]);
   /* LA CONSULTATION UNIQUE EST DÉJÀ CHOISIE — 11 octobre 2026 (maquette
      validée) : une case seule ne disait pas « touchez ici pour voir les
      heures », et un grand vide précédait la suite. Une fois : si elle la
@@ -541,6 +571,65 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     () => serviceIds.map((id) => offerts.find((s) => s.id === id)).filter(Boolean) as PrestationPublique[],
     [serviceIds, offerts],
   );
+  /* LE GESTE DE L'ADRESSE SE PRÉCOCHE — 3 novembre 2026. Une fois, le
+     catalogue arrivé ; sa famille s'ouvre ; un identifiant inconnu, ou hors
+     de cette porte, ne fait rien. La consultation cochée d'office reste. */
+  const [voulusPoses, setVoulusPoses] = useState(false);
+  useEffect(() => {
+    if (voulusPoses || !agenda || !preparee) return;
+    setVoulusPoses(true);
+    if (prepare.gestes.length > 0) return;
+    const pris = gestesAPrecocher(voulusDeLAdresse, offerts, PLAFOND_GESTES);
+    if (!pris.length) return;
+    setServiceIds((prec) => [...new Set([...prec, ...pris])].slice(0, PLAFOND_GESTES));
+    setRepondu(true);
+    if (ajouts.some((s) => pris.includes(s.id))) setAjoutsOuverts(true);
+    const aOuvrir = [...groupes, ...(consultation ? groupesDePrestations(agenda, ajouts, 'entretien') : [])]
+      .filter((g) => g.items.some((x) => pris.includes(x.id)));
+    if (aOuvrir.length) setPlies((p) => ({ ...(p ?? {}), ...Object.fromEntries(aOuvrir.map((g) => [g.id, true])) }));
+  }, [voulusPoses, agenda, preparee, prepare, voulusDeLAdresse, offerts, ajouts, groupes, consultation]);
+  /* LE LIEN DU RETOUR RELU — 3 novembre 2026. Le WhatsApp « réservation
+     préparée » porte un jeton d'identité ; le serveur le juge et rend ses
+     coordonnées, qui remplissent la fiche. Un jeton passé ne casse rien. */
+  useEffect(() => {
+    if (!prepare.identite) return;
+    let vivant = true;
+    void (async () => {
+      try {
+        const supabase = await client();
+        if (!supabase) return;
+        const { data, error } = await supabase.functions.invoke('demande-submit', { body: { cliente: 'lire', identite: prepare.identite } });
+        if (!vivant) return;
+        const c = error ? null : coordonneesLues(data);
+        if (!c) { setIdentiteLue('passee'); return; }
+        if (c.prenom) setPrenom(c.prenom);
+        if (c.nom) setNom(c.nom);
+        if (c.civilite) setCivilite(c.civilite);
+        /* `dial` vide : le numéro vient entier, en +international ; le pays
+           du formulaire ne bouge pas (le serveur lit un numéro en +). */
+        const lePays = c.dial ? TELEPHONE_MONDE.find((x) => x.dial === c.dial)?.name : undefined;
+        if (lePays) setPays(lePays);
+        setNumero(c.numero);
+        setIdentiteLue({ appel: appelDuRetour(c) });
+      } catch { /* sans réponse, elle tape ses coordonnées, comme avant */ }
+    })();
+    return () => { vivant = false; };
+  }, [prepare.identite]);
+  const demanderLeRetour = async () => {
+    if (retourEnvoi) return;
+    if (numero.replace(/\D/g, '').length < 8) { setRetourDit({ phrase: f.erreurNumero, faute: 'telephone' }); return; }
+    setRetourEnvoi(true);
+    try {
+      const supabase = await client();
+      if (!supabase) { setRetourDit(ditLeRetour(null)); return; }
+      const { data, error } = await supabase.functions.invoke('demande-submit', { body: { cliente: 'retour', telephone: numero, dial: indicatif } });
+      setRetourDit(error ? ditLeRetour({ error: await raisonDuRefus(data, error) }) : ditLeRetour(data as { ok?: unknown; error?: unknown } | null));
+    } catch {
+      setRetourDit(ditLeRetour(null));
+    } finally {
+      setRetourEnvoi(false);
+    }
+  };
   /* Les familles des gestes qu'une consultation peut accueillir, dans
      l'ordre du soin ; elles se plient comme les autres (`plies`). */
   const groupesDesAjouts = useMemo(
@@ -835,6 +924,9 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         codeRaison?: 'inconnu' | 'sans-effet' | 'deja-utilise' | 'cadeau'
           | 'parrainage' | 'parrainage-soi-meme' | 'parrainage-deja-cliente' | 'parrainage-deja-utilise';
         marraine?: string; cadeau?: string; confirme?: boolean; accuse?: string;
+        /* 3 novembre 2026 : la référence (une ancienne fonction ne la rend
+           pas, elle se recalcule d'après `apptId`). */
+        apptId?: string; reference?: string;
       };
       if (error || !r.ok) {
         /* La raison est dans le corps de la réponse refusée, pas dans `data`
@@ -876,6 +968,8 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         accuse: typeof r.accuse === 'string' ? r.accuse : undefined,
         resume: [dit(dureeTotale), prixTotal > 0 ? `${prixFlou ? 'à partir de ' : ''}${fmtMoney(prixTotal, devise)}, à régler à la Maison` : ''].filter(Boolean).join(' · '),
         dureeMin: dureeTotale,
+        ...(r.confirme === true ? { reference: referenceDeLaReponse(r) || undefined } : {}),
+        ...(typeof r.apptId === 'string' && r.apptId ? { apptId: r.apptId } : {}),
       });
       /* Le téléphone la retient pour la prochaine fois : prénom, numéro,
          gestes, calibre. Jamais le maître, jamais le code. */
@@ -902,6 +996,16 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         <h2>{recu.confirme ? `C’est réservé${prenom.trim() ? `, ${prenom.trim().split(' ')[0]}` : ''}.` : 'Votre place est demandée.'}</h2>
         <p className="merci__place">{jourDit(recu.date)}, à {recu.heure}.</p>
         {recu.resume && <p className="merci__resume">{recu.resume}</p>}
+        {/* LA RÉFÉRENCE, AVANT WHATSAPP — 3 novembre 2026 : « On-screen
+            confirmation with reference number before the WhatsApp message »
+            (Yéman). La même que dans la confirmation WhatsApp et au Trône. */}
+        {recu.confirme && recu.reference && (
+          <p className="merci__reference">
+            <span>Votre référence</span>
+            <b>{recu.reference}</b>
+            <small>À garder pour tout échange avec la Maison.</small>
+          </p>
+        )}
         {/* CE QUE LE SERVEUR A VRAIMENT FAIT — 11 octobre 2026. « La confirmation
             arrive sur WhatsApp » se lisait même quand l'accusé n'était pas parti
             (sans clés, échec Meta, numéro hors WhatsApp) : la page lit `accuse`
@@ -965,12 +1069,28 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
             fin » (Yéman). */}
         <div className="rangee">
           <a className={`btn ${recu.confirme && recu.accuse === 'envoyé' ? '' : 'btn--fort'}`} href={lienWhatsApp(whatsapp, texteDeLaDemande(recu, `${prenom.trim()} ${nom.trim()}`, mot))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: besoin })}>{recu.confirme ? 'Écrire à la Maison sur WhatsApp' : 'Envoyer ma demande sur WhatsApp'}</a>
-          {/* L'AGENDA DU TÉLÉPHONE — un fichier .ics, à l'heure de Cotonou. */}
+          {/* L'AGENDA DU TÉLÉPHONE — un fichier .ics, à l'heure de Cotonou
+              (3 novembre 2026 : celui du contrat, avec la référence). */}
           {recu.confirme && (
-            <a className="btn" href={fichierAgenda({ date: recu.date, heure: recu.heure, dureeMin: recu.dureeMin ?? 60, titre: `Maison MND · ${recu.gestes.map((n) => nomEnFrancaisWa(n).francais).join(', ') || 'votre venue'}`, note: 'Réservé depuis maisonmnd.com. Pour déplacer ou annuler, un mot sur WhatsApp suffit.' })} download={`maison-mnd-${recu.date}.ics`}>Ajouter à mon agenda</a>
+            <a className="btn" href={adresseDAgenda(ficheAgendaICS({
+              apptId: recu.apptId || `${recu.date}-${recu.heure.replace(':', '')}`,
+              date: recu.date, heure: recu.heure, dureeMin: recu.dureeMin ?? 60,
+              titre: `Maison MND · ${recu.gestes.map((n) => nomEnFrancaisWa(n).francais).join(', ') || 'votre venue'}`,
+              note: `${recu.reference ? `Réf. ${recu.reference}. ` : ''}Réservé depuis maisonmnd.com. Pour déplacer ou annuler, un mot sur WhatsApp suffit.`,
+              lieu: `${COMMUN.nom}, ${COMMUN.editeur.adresseComplete}`,
+            }))} download={nomDuFichierAgenda(recu.date)}>Ajouter à mon agenda</a>
           )}
         </div>
-        <p className="legende">{recu.confirme ? 'Pour une question, pour déplacer ou annuler votre venue : un mot sur WhatsApp suffit.' : 'La Maison vous répond dans cette conversation.'}</p>
+        {/* DÉPLACER, ANNULER — 3 novembre 2026 : deux liens qui écrivent à la
+            Maison sur WhatsApp, le moment et la référence déjà dans le message ;
+            la réception les comprend. */}
+        {recu.confirme && recu.reference && (
+          <p className="merci__changer">
+            <a className="btn btn--lien" href={lienWhatsApp(whatsapp, motPourDeplacer(`${jourDit(recu.date)} à ${heureDite(recu.heure)}`, recu.reference))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: besoin, chemin: 'deplacer' })}>Déplacer</a>
+            <a className="btn btn--lien" href={lienWhatsApp(whatsapp, motPourAnnuler(`${jourDit(recu.date)} à ${heureDite(recu.heure)}`, recu.reference))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: besoin, chemin: 'annuler' })}>Annuler</a>
+          </p>
+        )}
+        <p className="legende">{recu.confirme ? (recu.reference ? 'Déplacer et Annuler écrivent à la Maison sur WhatsApp, votre référence déjà dans le message.' : 'Pour une question, pour déplacer ou annuler votre venue : un mot sur WhatsApp suffit.') : 'La Maison vous répond dans cette conversation.'}</p>
         <p className="merci__liens"><a className="btn btn--lien" href={import.meta.env.BASE_URL}>Retour à l’accueil</a></p>
         {recu.confirme && (
           <div className="merci__attend"><h3>Nous vous attendons.</h3><p>Votre espace Ma Couronne s’ouvre à votre premier rendez-vous : vos venues, votre suivi, vos formules.</p></div>
@@ -980,14 +1100,24 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   }
 
   /* ── Le calendrier se charge ──────────────────────────────────────── */
-  if (agenda === undefined) return <div className="formulaire"><p className="corps">Le calendrier se charge.</p></div>;
+  /* 3 novembre 2026 : un chargeur visible, puis le repli et Réessayer. */
+  if (agenda === undefined) {
+    return (
+      <div className="formulaire">
+        {lent ? <RepliDuChargement phrase={PHRASE_DU_REPLI_DU_CALENDRIER} wa={wa} surReessayer={recharger} /> : <Chargeur texte="Le calendrier se charge." />}
+      </div>
+    );
+  }
 
   /* ── Sans base : WhatsApp, qui marche toujours ────────────────────── */
   if (agenda === null) {
     return (
       <div className="formulaire">
         <p className="corps">La réservation en ligne n’est pas disponible pour l’instant. Écrivez-nous, nous vous répondons personnellement.</p>
-        <a className="btn btn--plein" href={wa} target="_blank" rel="noopener">Parler à MND sur WhatsApp</a>
+        <p className="rangee">
+          <button type="button" className="btn btn--fort" onClick={recharger}>Réessayer</button>
+          <a className="btn btn--plein" href={wa} target="_blank" rel="noopener">Parler à MND sur WhatsApp</a>
+        </p>
       </div>
     );
   }
@@ -1169,6 +1299,11 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
      consultation et hors lien préparé par la Maison (elle a déjà choisi). */
   const express = !consultation && !composer && formules.length > 0 && prepare.gestes.length === 0;
   const court = express || retour;
+  /* LA BARRE DU TOTAL — 3 novembre 2026 : « a live summary bar showing total
+     duration + total price as services are selected » (Yéman). Les mêmes
+     chiffres que « Votre venue » (le calibre, le code, le mercredi compris). */
+  const barre = barreDuTotal({ nombre: choisies.length, dureeMin: dureeTotale, prix: prixTotal, flou: prixFlou, devise });
+  const etatDesPlaces = etatDuChargeur(occupesEtat, lent ? DELAI_DU_CHARGEUR_MS : 0);
   const recapitulatif = `${choisies.map((x) => nomEnFrancaisWa(x.name).francais).join(' · ')}${dureeTotale ? ` · ${dit(dureeTotale)}` : ''}${prixTotal > 0 ? ` · ${prixFlou ? 'à partir de ' : ''}${fmtMoney(prixTotal, devise)}` : ''}`;
   const lesCalibres = (!consultation || ajoutsOuverts || ajoutsPris) && bandes.length > 0 ? (
     <div className="calibres" role="group" aria-label="Vos locks">
@@ -1194,7 +1329,45 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         <li className={heure ? 'fait' : pret ? 'ici' : ''}>Quand</li>
         <li className={heure ? 'ici' : ''}>Vous</li>
       </ol>
-      {surLaPorte && <p className="changer-porte"><button type="button" className="btn btn--lien" onClick={surLaPorte}>Changer de porte</button></p>}
+      {/* LE PARCOURS SE VOIT — 3 novembre 2026 : venue d'une page (`?besoin=`),
+          la cliente lit d'où elle vient, et en change d'un toucher. */}
+      {besoin !== 'inconnu' ? (
+        <p className="parcours-dit">
+          <span>Votre parcours : <b>{NOM_DU_PARCOURS[besoin]}</b></span>
+          {surLaPorte && <button type="button" className="btn btn--lien" onClick={surLaPorte}>Changer de porte</button>}
+        </p>
+      ) : surLaPorte && <p className="changer-porte"><button type="button" className="btn btn--lien" onClick={surLaPorte}>Changer de porte</button></p>}
+      {identiteLue && identiteLue !== 'passee' && (
+        <p className="retour-lu" role="status">Bon retour{identiteLue.appel ? `, ${identiteLue.appel}` : ''}. Vos coordonnées sont prêtes : choisissez votre jour et votre heure.</p>
+      )}
+      {identiteLue === 'passee' && <p className="legende retour-lu--passe">Ce lien de retour ne vaut plus : vos coordonnées se tapent ici, une seule fois.</p>}
+      {/* DÉJÀ VENUE À LA MAISON ? — 3 novembre 2026. Seulement quand ce
+          téléphone ne la connaît pas (sinon « Bon retour » fait mieux) et que
+          rien n'est encore choisi : c'est un raccourci, pas un détour. */}
+      {!moi && !identiteLue && !prepare.gestes.length && !choisi && (
+        <div className="retour-cliente">
+          {!retourOuvert ? (
+            <button type="button" className="btn btn--lien" onClick={() => setRetourOuvert(true)}>Déjà venue à la Maison ? Recevez votre réservation préparée</button>
+          ) : (
+            <form className="retour-cliente__forme" onSubmit={(e) => { e.preventDefault(); void demanderLeRetour(); }} noValidate>
+              <label htmlFor="retour-numero" className="champ__titre">Déjà venue à la Maison ? Votre numéro WhatsApp</label>
+              <div className="numero">
+                <select className="indicatif" aria-label="Indicatif du pays" value={pays} onChange={(e) => setPays(e.target.value)}>
+                  <optgroup label="Les plus fréquents">
+                    {FREQUENTS.map((x) => <option key={x.name} value={x.name}>{x.dial} {x.name}</option>)}
+                  </optgroup>
+                  <optgroup label="Tous les pays">
+                    {AUTRES_PAYS.map((x) => <option key={x.name} value={x.name}>{x.dial} {x.name}</option>)}
+                  </optgroup>
+                </select>
+                <input id="retour-numero" inputMode="tel" autoComplete="tel-national" placeholder={f.numeroExemple} value={numero} onChange={(e) => { setNumero(e.target.value); setRetourDit(null); }} aria-invalid={retourDit?.faute === 'telephone' || undefined} />
+              </div>
+              <button type="submit" className="btn btn--fort" disabled={retourEnvoi}>{retourEnvoi ? 'Envoi en cours' : 'Recevoir ma réservation préparée'}</button>
+              {retourDit && <p className={retourDit.faute ? 'erreur' : 'legende retour-cliente__dit'} role="status">{retourDit.phrase}</p>}
+            </form>
+          )}
+        </div>
+      )}
       {lu && (
         <div className="phrase-du-site__lu" role="status">
           <p>{lu.texte}</p>
@@ -1441,10 +1614,12 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
               efface l'heure choisie, donc le formulaire et le message qu'il
               portait : la visiteuse voyait la liste revenir sans un mot. */}
           {erreur && !heure && <p className="erreur" role="alert">{erreur}</p>}
-          {occupesEtat === 'attente'
-            ? <p className="legende" aria-live="polite">Les places se chargent.</p>
-            : occupesEtat === 'panne'
-            ? <p className="corps">Les places ne se chargent pas pour l’instant. Écrivez-nous, nous trouvons l’heure ensemble.<br /><a className="btn btn--plein" style={{ marginTop: 12 }} href={wa} target="_blank" rel="noopener">Parler à MND sur WhatsApp</a></p>
+          {/* LE CHARGEUR DES PLACES — 3 novembre 2026 : trois points cuivre,
+              puis, passé douze secondes ou à la panne, le repli qui relance. */}
+          {etatDesPlaces === 'charge'
+            ? <Chargeur texte="Les places se chargent." />
+            : etatDesPlaces === 'lent' || etatDesPlaces === 'panne'
+            ? <RepliDuChargement phrase={PHRASE_DU_REPLI_DES_PLACES} wa={wa} surReessayer={recharger} />
             : jours.length === 0
             ? (
               <p className="corps">
@@ -1612,6 +1787,14 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
           <p className="legende">En réservant, vous acceptez que la Maison vous écrive sur WhatsApp pour ce rendez-vous. Rien à payer aujourd’hui, le règlement se fait à la Maison.</p>
           {erreur && <p className="erreur" id="res-erreur" role="alert">{erreur}</p>}
         </form>
+      )}
+      {/* LA BARRE DU TOTAL, collante au bas de l'écran tant que la réservation
+          se lit (3 novembre 2026). Rien avant le premier geste. */}
+      {barre && (
+        <div className="barre-du-total" role="status" aria-live="polite" aria-atomic="true" data-texte={texteDeLaBarre(barre)}>
+          <span className="barre-du-total__gestes">{barre.gestes}{barre.duree ? ` · ${barre.duree}` : ''}</span>
+          <b className="barre-du-total__prix">{barre.prix}</b>
+        </div>
       )}
     </div>
   );

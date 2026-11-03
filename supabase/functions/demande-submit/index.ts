@@ -181,7 +181,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-02-a · le second fauteuil en semaine, le mercredi de la Maison';
+const VERSION = '2026-11-03-a · le second fauteuil en semaine, le mercredi de la Maison ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
 
 /** LE SECOND FAUTEUIL, PAS DAVANTAGE (2 novembre 2026, 0152) : la copie de
     `PLACES_EN_LIGNE_AU_PLUS` (src/shared/agenda-pur.ts), hors des repères. */
@@ -303,6 +303,220 @@ export const texteDeLAccuse = (genre: GenreDAccuse, appel: string, quand: string
       ? `Bonjour ${appel}, la Maison MND a bien reçu votre demande de rendez-vous pour le ${quand}. Nous vous confirmerons très prochainement votre créneau sur ce même numéro.`
       : `Bonjour ${appel}, la Maison MND a bien reçu votre demande (${quand}). Nous vous répondons très vite, sur ce numéro.`;
 /* ⟨/accuse-du-site⟩ */
+
+/* LE LIEN DU RENDEZ-VOUS — 3 novembre 2026. Bloc RECOPIÉ tel quel de
+   `src/shared/lien-du-rdv-pur.ts` (la référence lisible, les jetons signés,
+   la confirmation à liens, le retour d'une cliente ; ses choix y sont
+   écrits) ; `verifie-les-douze-lunes` confronte les copies. NE RIEN
+   RETOUCHER ENTRE LES REPÈRES. */
+/* ⟨lien-du-rdv⟩ */
+/** Les adresses fixes des deux boutons du modèle `confirmation_rdv_liens`. */
+export const URL_DU_RDV = 'https://maisonmnd.com/rdv/?v=';
+export const URL_DE_L_AGENDA = 'https://maisonmnd.com/rdv/agenda/?v=';
+
+/** La référence dite à la cliente : « MND-7K3Q ». Quatre signes tirés d'un
+    alphabet sans 0, O, 1 ni I ; la même pour un même rendez-vous, partout
+    (l'écran du site, le modèle, la page du rendez-vous, le Trône). */
+export const ALPHABET_DE_LA_REFERENCE = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export const PREFIXE_DE_LA_REFERENCE = 'MND-';
+export const FORME_DE_LA_REFERENCE = /^MND-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/;
+export function referenceDuRendezVous(apptId: string): string {
+  /* FNV-1a sur 32 bits : stable, sans dépendance, suffisant pour une
+     référence lue par une personne (le jour et l'heure l'accompagnent). */
+  let h = 0x811c9dc5;
+  for (const c of String(apptId ?? '')) {
+    h ^= c.codePointAt(0) ?? 0;
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  let s = '';
+  for (let i = 0; i < 4; i++) { s += ALPHABET_DE_LA_REFERENCE[h % 32]; h = Math.floor(h / 32); }
+  return `${PREFIXE_DE_LA_REFERENCE}${s}`;
+}
+
+/** Le jeton : `<id du rendez-vous>.<22 signes de signature>`. L'identifiant
+    ne porte jamais de point ; la signature est HMAC-SHA-256 de « rdv: » +
+    identifiant, en base64url, coupée à 22 signes (132 bits). Un seul mot
+    de [A-Za-z0-9._-] : c'est ce qu'un bouton de modèle Meta accepte. */
+export const FORME_DU_JETON_DU_RDV = /^[A-Za-z0-9_-]{1,120}\.[A-Za-z0-9_-]{22}$/;
+const base64url = (octets: ArrayBuffer): string =>
+  btoa(String.fromCharCode(...new Uint8Array(octets))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+async function signe(secret: string, texte: string): Promise<string> {
+  const enc = new TextEncoder();
+  const cle = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return base64url(await crypto.subtle.sign('HMAC', cle, enc.encode(texte))).slice(0, 22);
+}
+export async function jetonDuRendezVous(secret: string, apptId: string): Promise<string> {
+  if (!secret || !/^[A-Za-z0-9_-]{1,120}$/.test(apptId)) throw new Error('jeton du rendez-vous : identifiant ou secret impossible');
+  return `${apptId}.${await signe(secret, `rdv:${apptId}`)}`;
+}
+/** L'identifiant du rendez-vous que le jeton désigne, ou null s'il est
+    faux, forgé ou mal formé. La comparaison ne s'arrête pas à la première
+    différence. */
+export async function apptIdDuJeton(secret: string, jeton: unknown): Promise<string | null> {
+  const j = String(jeton ?? '');
+  if (!secret || !FORME_DU_JETON_DU_RDV.test(j)) return null;
+  const i = j.lastIndexOf('.');
+  const apptId = j.slice(0, i);
+  const attendu = await signe(secret, `rdv:${apptId}`);
+  const donne = j.slice(i + 1);
+  let diff = attendu.length ^ donne.length;
+  for (let k = 0; k < attendu.length; k++) diff |= attendu.charCodeAt(k) ^ donne.charCodeAt(k);
+  return diff === 0 ? apptId : null;
+}
+
+/* LE MODÈLE DE LA CONFIRMATION, AVEC OU SANS LIENS. `confirmation_rdv`
+   (approuvé) : « Bonjour {{1}}, c'est confirmé : votre rendez-vous est
+   retenu {{2}}. Nous vous attendons. Merci de nous prévenir en cas
+   d'empêchement. » `confirmation_rdv_liens` (à faire approuver, secret
+   WA_TEMPLATE_CONF_LIENS) : « Bonjour {{1}}, c'est confirmé : votre
+   rendez-vous est retenu {{2}}. Votre référence : {{3}}. Nous vous
+   attendons. Pour déplacer ou annuler, touchez le bouton ci-dessous. »,
+   puis deux boutons à URL dynamique, « Déplacer ou annuler » et « Ajouter à
+   mon agenda », chacun avec le jeton. Tant que le secret n'est pas posé,
+   ou si Meta refuse le modèle neuf (#132xxx), l'ancien part. */
+export type ConfirmationAEnvoyer = { avecLiens: boolean; prenom: string; quand: string; reference: string; jeton: string };
+export function composantsDeLaConfirmation(o: ConfirmationAEnvoyer): unknown[] {
+  const corps = [{ type: 'text', text: o.prenom }, { type: 'text', text: o.quand }];
+  if (!o.avecLiens) return [{ type: 'body', parameters: corps }];
+  return [
+    { type: 'body', parameters: [...corps, { type: 'text', text: o.reference }] },
+    { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: o.jeton }] },
+    { type: 'button', sub_type: 'url', index: '1', parameters: [{ type: 'text', text: o.jeton }] },
+  ];
+}
+/** Ce que le fil de la Maison montre de la confirmation partie. */
+export function texteDeLaConfirmation(o: Pick<ConfirmationAEnvoyer, 'avecLiens' | 'prenom' | 'quand' | 'reference'>): string {
+  return o.avecLiens
+    ? `Bonjour ${o.prenom}, c'est confirmé : votre rendez-vous est retenu ${o.quand}. Votre référence : ${o.reference}. Nous vous attendons. Pour déplacer ou annuler, touchez le bouton ci-dessous.`
+    : `Bonjour ${o.prenom}, c'est confirmé : votre rendez-vous est retenu ${o.quand}. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.`;
+}
+
+/** Les mots que la cliente envoie au WhatsApp de la Maison depuis la page
+    du rendez-vous : la réception les comprend (déplacer, annuler). */
+export const motPourDeplacer = (quand: string, reference: string): string =>
+  `Bonjour, je souhaite déplacer mon rendez-vous du ${quand} (réf. ${reference}). Quelles places avez-vous ?`;
+export const motPourAnnuler = (quand: string, reference: string): string =>
+  `Bonjour, je dois annuler mon rendez-vous du ${quand} (réf. ${reference}). Merci de votre compréhension.`;
+
+/** LE FICHIER .ICS, à l'heure de Cotonou (UTC+1 toute l'année), sans rien
+    de plus que ce que l'écran dit. Le site le construit (l'écran Réservé, la
+    page /rdv/agenda/) ; le banc le tient. */
+export function ficheAgendaICS(o: { apptId: string; date: string; heure: string; dureeMin: number; titre: string; note: string; lieu?: string }): string {
+  const [h, m] = o.heure.split(':').map(Number);
+  const debut = new Date(Date.UTC(Number(o.date.slice(0, 4)), Number(o.date.slice(5, 7)) - 1, Number(o.date.slice(8, 10)), h, m));
+  const fin = new Date(debut.getTime() + Math.max(60, o.dureeMin || 60) * 60_000);
+  const t = (d: Date) => `${d.toISOString().slice(0, 10).replace(/-/g, '')}T${d.toISOString().slice(11, 16).replace(':', '')}00`;
+  const texte = (s: string) => String(s ?? '').replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\r?\n/g, '\\n');
+  return [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Maison MND//site//FR', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
+    `UID:${o.apptId}@maisonmnd.com`,
+    `DTSTAMP:${t(new Date(Date.UTC(Number(o.date.slice(0, 4)), Number(o.date.slice(5, 7)) - 1, Number(o.date.slice(8, 10)))))}Z`,
+    `DTSTART;TZID=Africa/Porto-Novo:${t(debut)}`, `DTEND;TZID=Africa/Porto-Novo:${t(fin)}`,
+    `SUMMARY:${texte(o.titre)}`, `LOCATION:${texte(o.lieu ?? 'Maison MND · Cotonou')}`, `DESCRIPTION:${texte(o.note)}`,
+    'END:VEVENT', 'END:VCALENDAR',
+  ].join('\r\n');
+}
+/* LE RETOUR D'UNE CLIENTE, EN UN TOUCHER — 3 novembre 2026 (le septième
+   changement). Sur le site, « Déjà cliente ? » demande son numéro ; le
+   serveur ne dit JAMAIS si le numéro est connu (rien ne se lit en tapant le
+   numéro d'une autre) : si la Maison la connaît, le modèle approuvé
+   `reservation_preparee` part sur CE WhatsApp, avec ses derniers gestes
+   cochés et ce jeton d'identité en quatrième segment du lien `?r=`. La page
+   le rend au serveur, qui remplit prénom, nom, civilité et numéro. Sept
+   jours, puis le jeton ne vaut plus. */
+export const FORME_DU_JETON_D_IDENTITE = /^[A-Za-z0-9_-]{1,80}~\d{8}~[A-Za-z0-9_-]{22}$/;
+export const JOURS_DU_JETON_D_IDENTITE = 7;
+export const jourCompact = (iso: string): string => String(iso ?? '').slice(0, 10).replace(/-/g, '');
+export async function jetonDIdentite(secret: string, clientId: string, valableJusquAuISO: string): Promise<string> {
+  const jour = jourCompact(valableJusquAuISO);
+  if (!secret || !/^[A-Za-z0-9_-]{1,80}$/.test(clientId) || !/^\d{8}$/.test(jour)) throw new Error('jeton d identité : impossible');
+  return `${clientId}~${jour}~${await signe(secret, `identite:${clientId}:${jour}`)}`;
+}
+/** La fiche que le jeton désigne, ou null : faux, forgé, mal formé, ou passé. */
+export async function clientIdDuJetonDIdentite(secret: string, jeton: unknown, aujourdhuiISO: string): Promise<string | null> {
+  const j = String(jeton ?? '');
+  if (!secret || !FORME_DU_JETON_D_IDENTITE.test(j)) return null;
+  const [clientId, jour, donne] = j.split('~');
+  if (jour < jourCompact(aujourdhuiISO)) return null;
+  const attendu = await signe(secret, `identite:${clientId}:${jour}`);
+  let diff = attendu.length ^ donne.length;
+  for (let k = 0; k < attendu.length; k++) diff |= attendu.charCodeAt(k) ^ donne.charCodeAt(k);
+  return diff === 0 ? clientId : null;
+}
+/* LE SECRET QUI SIGNE LES DEUX JETONS : celui que la plateforme pose dans
+   CHAQUE fonction, le même partout. Les clés de la Maison (CLE_SERVICE,
+   SERVICE_KEY) ne se lisent pas dans le même ordre d'une fonction à l'autre ;
+   un jeton signé par l'une ne se relirait pas dans l'autre. Le site n'en
+   connaît que le nom. */
+export const NOM_DU_SECRET_DES_LIENS = 'SUPABASE_SERVICE_ROLE_KEY';
+
+/** Meta refuse le MODÈLE, pas la cliente : pas encore approuvé, en pause,
+    désactivé, ou des variables qui ne tombent pas juste (#132000 à #132999).
+    Alors l'ancienne confirmation part, le jour même. */
+export const refusDuModele = (code: unknown): boolean => {
+  const n = Number(code);
+  return Number.isInteger(n) && n >= 132000 && n < 133000;
+};
+/** Ce qu'une confirmation à liens déposée en salle emporte pour le cas où
+    Meta refuserait le modèle neuf : l'ancien, ses variables, ses mots. */
+export type RepliDuModele = { modele: string; composants: unknown[]; texteAuFil: string };
+
+/** Ce que la page du rendez-vous dit de lui : à venir, passé, annulé. Un
+    rendez-vous honoré est passé, même le jour même. */
+export type EtatDuRdv = 'a-venir' | 'passe' | 'annule';
+export function etatDuRendezVous(r: { date?: string; status?: string }, aujourdhuiISO: string): EtatDuRdv {
+  if (r.status === 'annulé') return 'annule';
+  if (r.status === 'honoré') return 'passe';
+  return String(r.date ?? '') < String(aujourdhuiISO ?? '').slice(0, 10) ? 'passe' : 'a-venir';
+}
+
+/** LES COORDONNÉES D'UNE FICHE, POUR LE FORMULAIRE DU SITE : le prénom (le
+    premier mot du nom), le reste du nom, la civilité si la fiche la dit
+    (jamais supposée), et le numéro coupé en indicatif et chiffres. Un
+    numéro d'un pays que la liste ne connaît pas garde tout son « + » et un
+    indicatif vide : le formulaire le prend tel quel. */
+export const INDICATIFS_DU_RETOUR = ['+229', '+225', '+228', '+226', '+227', '+221', '+237', '+234', '+233', '+241', '+242', '+243', '+33', '+32', '+41', '+44', '+49', '+39', '+34', '+1'];
+export function coordonneesDeLaFiche(f: { name?: unknown; civilite?: unknown; auMasculin?: unknown; phone?: unknown }): { prenom: string; nom: string; civilite: string; numero: string; dial: string } {
+  const mots = String(f.name ?? '').trim().split(/\s+/).filter(Boolean);
+  /* « Au masculin » est l'ancienne marque d'un Monsieur (avant le 2 octobre
+     2026) : elle dit la civilité, elle ne la suppose pas. */
+  const civilite = f.civilite === 'madame' || f.civilite === 'mademoiselle' || f.civilite === 'monsieur' ? String(f.civilite)
+    : f.auMasculin === true ? 'monsieur' : '';
+  const brut = String(f.phone ?? '').replace(/[^\d+]/g, '');
+  const e164 = brut.startsWith('+') ? brut : brut.startsWith('00') ? `+${brut.slice(2)}` : '';
+  const dial = e164 ? (INDICATIFS_DU_RETOUR.find((d) => e164.startsWith(d) && e164.length > d.length + 6) ?? '') : '';
+  return {
+    prenom: mots[0] ?? '', nom: mots.slice(1).join(' '), civilite,
+    numero: dial ? e164.slice(dial.length) : e164 || brut.replace(/\D/g, ''), dial: dial || (e164 ? '' : '+229'),
+  };
+}
+
+/** LES GESTES DU DERNIER RITUEL, cochés d'avance dans la réservation
+    préparée : ceux du rendez-vous honoré ou confirmé le plus récent déjà
+    passé (aujourd'hui compris), sinon du prochain. Jamais un annulé ; six au
+    plus, comme le formulaire. */
+export function gestesDuDernierRituel(rdvs: { date?: string; status?: string; serviceIds?: unknown }[], aujourdhuiISO: string): string[] {
+  const jour = String(aujourdhuiISO ?? '').slice(0, 10);
+  const vivants = rdvs.filter((r) => r.status !== 'annulé' && Array.isArray(r.serviceIds) && (r.serviceIds as unknown[]).length > 0 && !!r.date);
+  const passes = vivants.filter((r) => String(r.date) <= jour).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const avenir = vivants.filter((r) => String(r.date) > jour).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const choisi = passes[0] ?? avenir[0];
+  if (!choisi) return [];
+  return [...new Set((choisi.serviceIds as unknown[]).map(String).filter((g) => /^[A-Za-z0-9_-]{1,80}$/.test(g)))].slice(0, 6);
+}
+/** Le mot du bouton de `reservation_preparee` pour une cliente qui revient :
+    le même format que `jetonDuLien` (src/shared/lien-reservation.ts), le
+    parcours de l'entretien, le calibre vide, le jeton d'identité en quatrième
+    segment. Le banc le relit avec `lienLu`. */
+export const jetonDuLienDuRetour = (gestes: string[], identite: string): string =>
+  ['entretien', gestes.filter((g) => /^[A-Za-z0-9_-]{1,80}$/.test(g)).join('~'), '', identite].join('.');
+/** Le {{2}} du modèle : les gestes dits, ou la venue quand il n'y en a pas. */
+export const gestesDitsDuRetour = (noms: string[]): string => noms.filter(Boolean).join(' et ') || 'votre prochaine venue';
+/* ⟨/lien-du-rdv⟩ */
+/** Le secret des deux jetons, le même dans chaque fonction (voir le bloc). */
+const SECRET_DES_LIENS = (Deno.env.get(NOM_DU_SECRET_DES_LIENS) ?? '').trim();
+/** Le jour de Cotonou (UTC+1 toute l'année). */
+const aujourdhuiACotonou = (): string => new Date(Date.now() + 3_600_000).toISOString().slice(0, 10);
 const texte = (v: unknown, max: number): string => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
 /* LE MESSAGE VOCAL DU SITE — 19 octobre 2026. Bloc RECOPIÉ tel quel de
@@ -1785,45 +1999,63 @@ async function envoieLAccuse(o: {
   const prenom = appelDe(o.civilite ? { civilite: o.civilite } : null, o.prenom);
   const quand = o.quand;
 
+  /* LA CONFIRMATION À LIENS — 3 novembre 2026. Une place posée part avec sa
+     référence et deux boutons (« Déplacer ou annuler », « Ajouter à mon
+     agenda ») dès que le modèle `confirmation_rdv_liens` est approuvé et son
+     nom posé dans WA_TEMPLATE_CONF_LIENS. Si Meta refuse le modèle neuf
+     (#132xxx), l'ancienne confirmation part dans la même seconde : la place
+     ne reste jamais sans son message. Les deux autres accusés ne changent pas. */
+  const LIENS = genreAccuse === 'confirmation' && o.apptId ? (Deno.env.get('WA_TEMPLATE_CONF_LIENS') ?? '').trim() : '';
+  const reference = o.apptId ? referenceDuRendezVous(o.apptId) : '';
+  const jeton = LIENS && SECRET_DES_LIENS && o.apptId ? await jetonDuRendezVous(SECRET_DES_LIENS, o.apptId).catch(() => '') : '';
+
   let statut = 'échec';
   let detail: string | undefined;
   let codeMeta: number | undefined;
   let waId = '';
+  let avecLiens = false;
+  let repliDuModele: number | undefined;
   try {
-    /* Huit secondes au plus : la visiteuse attend la réponse du bouton. */
-    const garde = new AbortController();
-    const minuterie = setTimeout(() => garde.abort(), 8000);
-    const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: tel,
-        type: 'template',
-        template: {
-          name: MODELE,
-          language: { code: 'fr' },
-          components: [{
-            type: 'body',
-            parameters: [{ type: 'text', text: prenom }, { type: 'text', text: quand }],
-          }],
-        },
-      }),
-      signal: garde.signal,
-    });
-    clearTimeout(minuterie);
-    const rep = await r.json().catch(() => ({})) as { messages?: { id?: string }[]; error?: { code?: number; message?: string } };
-    waId = String(rep?.messages?.[0]?.id ?? '');
-    if (r.ok) {
-      statut = 'envoyé';
-      if (!waId) detail = 'accepté sans identifiant Meta';
-    } else {
+    for (const liens of jeton ? [true, false] : [false]) {
+      /* Huit secondes au plus : la visiteuse attend la réponse du bouton. */
+      const garde = new AbortController();
+      const minuterie = setTimeout(() => garde.abort(), 8000);
+      const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: tel,
+          type: 'template',
+          template: {
+            name: liens ? LIENS : MODELE,
+            language: { code: 'fr' },
+            components: composantsDeLaConfirmation({ avecLiens: liens, prenom, quand, reference, jeton }),
+          },
+        }),
+        signal: garde.signal,
+      });
+      clearTimeout(minuterie);
+      const rep = await r.json().catch(() => ({})) as { messages?: { id?: string }[]; error?: { code?: number; message?: string } };
+      waId = String(rep?.messages?.[0]?.id ?? '');
+      avecLiens = liens;
+      if (r.ok) {
+        statut = 'envoyé';
+        detail = waId ? undefined : 'accepté sans identifiant Meta';
+        codeMeta = undefined;
+        break;
+      }
       codeMeta = Number(rep?.error?.code) || undefined;
       detail = String(rep?.error?.message ?? `HTTP ${r.status}`);
+      /* Seul un refus DU MODÈLE fait partir l'ancien ; un numéro hors
+         WhatsApp le refuserait aussi. */
+      if (!liens || !refusDuModele(codeMeta)) break;
+      repliDuModele = codeMeta;
     }
   } catch (e) {
     detail = String(e);
   }
+  const modeleParti = avecLiens ? LIENS : MODELE;
 
   const id = o.apptId ? `conf-${o.apptId}-whatsapp` : `acc-${o.demandeId}-whatsapp`;
   const maintenant = new Date().toISOString();
@@ -1837,6 +2069,9 @@ async function envoieLAccuse(o: {
       ...(detail ? { detail: detail.slice(0, 300) } : {}),
       ...(codeMeta ? { codeMeta } : {}),
       ...(waId ? { waMessageId: waId } : {}),
+      modele: modeleParti,
+      ...(reference ? { reference } : {}),
+      ...(repliDuModele ? { repliDuModele } : {}),
       quand: maintenant,
     },
   }, { onConflict: 'id' });
@@ -1850,13 +2085,171 @@ async function envoieLAccuse(o: {
       branch_id: o.branchId,
       data: {
         id: idFil, waId, branchId: o.branchId, sens: 'sortant', numero: tel, clientId: '',
-        texte: texteDeLAccuse(genreAccuse, prenom, quand),
-        type: 'text', quand: maintenant, etat: 'en-route', modele: MODELE, parQui: 'Le Trône',
+        texte: genreAccuse === 'confirmation' ? texteDeLaConfirmation({ avecLiens, prenom, quand, reference }) : texteDeLAccuse(genreAccuse, prenom, quand),
+        type: 'text', quand: maintenant, etat: 'en-route', modele: modeleParti, parQui: 'Le Trône',
       },
     }, { onConflict: 'id' });
     if (error) console.error('demande-submit: fil', error.message);
   }
   return statut;
+}
+
+/* ══ LA PAGE DU RENDEZ-VOUS — 3 novembre 2026 ═══════════════════════════
+   `/rdv/?v=<jeton>` et `/rdv/agenda/?v=<jeton>`, ouvertes par les deux
+   boutons de la confirmation. Le jeton signé désigne le rendez-vous ; la
+   réponse ne dit que ce que la confirmation disait déjà : le jour, l'heure,
+   la durée, les gestes, l'appel et la référence. Jamais le numéro, ni le
+   nom entier, ni le prix. Un jeton faux ou forgé ne lit rien. */
+async function litLeRendezVous(v: unknown): Promise<Response> {
+  const apptId = await apptIdDuJeton(SECRET_DES_LIENS, v);
+  if (!apptId) return json({ ok: false, error: 'lien' });
+  const { data: row, error } = await admin.from('appointments').select('id, data').eq('id', apptId).maybeSingle();
+  if (error) { console.error('demande-submit: rendez-vous illisible', error.message); return json({ ok: false, error: 'introuvable' }); }
+  const a = (row?.data ?? null) as { date?: string; time?: string; dureeMin?: number; serviceIds?: unknown; status?: string; clientId?: string; clientName?: string } | null;
+  if (!a || !a.date || !a.time) return json({ ok: false, error: 'introuvable' });
+  const ids = Array.isArray(a.serviceIds) ? (a.serviceIds as unknown[]).map(String).slice(0, 6) : [];
+  const [{ data: sv }, { data: fiche }, { data: dem }] = await Promise.all([
+    ids.length ? admin.from('services').select('id, data').in('id', ids) : Promise.resolve({ data: [] as { id: string; data: { name?: string } }[] }),
+    a.clientId ? admin.from('clients').select('data').eq('id', a.clientId).maybeSingle() : Promise.resolve({ data: null }),
+    /* Une réservation du site pas encore rattachée à sa fiche : la civilité
+       qu'elle a choisie vit dans sa demande. */
+    a.clientId ? Promise.resolve({ data: [] as { data: { prenom?: string; civilite?: string } }[] }) : admin.from('demandes').select('data').eq('data->>apptId', apptId).limit(1),
+  ]);
+  const noms = new Map(((sv ?? []) as { id: string; data?: { name?: string } }[]).map((s) => [s.id, String(s.data?.name ?? '').trim()]));
+  const laDemande = ((dem ?? []) as { data?: { prenom?: string; civilite?: string } }[])[0]?.data;
+  const appel = fiche?.data
+    ? appelDe(fiche.data as { name?: unknown; civilite?: unknown; auMasculin?: unknown }, a.clientName)
+    : appelDe(laDemande?.civilite ? { civilite: laDemande.civilite } : null, laDemande?.prenom ?? a.clientName);
+  return json({
+    ok: true,
+    rdv: {
+      reference: referenceDuRendezVous(apptId), date: a.date, heure: a.time,
+      dureeMin: Math.max(15, Math.round(Number(a.dureeMin) || 60)),
+      gestes: ids.map((id) => noms.get(id) ?? '').filter(Boolean),
+      appel, statut: etatDuRendezVous(a, aujourdhuiACotonou()),
+    },
+  });
+}
+
+/* ══ LA CLIENTE QUI REVIENT — 3 novembre 2026 ═════════════════════════════
+   « Déjà venue à la Maison ? » sur le site : elle tape son numéro. La
+   réponse est TOUJOURS la même, et tout de suite, connue ou pas : rien ne
+   se lit en tapant le numéro d'une autre, pas même au temps de réponse.
+   Si une fiche porte ce numéro, la réservation préparée part sur CE
+   WhatsApp (modèle approuvé `reservation_preparee`), avec les gestes de son
+   dernier rituel et un jeton d'identité de sept jours : le lien ouvre le
+   formulaire déjà rempli. Une fois par jour et par fiche, au plus. */
+function prepareLeRetour(body: Record<string, unknown>): Response {
+  const telephone = telephoneNormalise(String(body.telephone ?? ''), String(body.dial ?? '+229'));
+  if (!telephone) return json({ ok: false, error: 'telephone' });
+  enTacheDeFond(envoieLeRetour(telephone).catch((e) => console.error('demande-submit: retour', String(e))));
+  return json({ ok: true });
+}
+
+async function envoieLeRetour(telephone: string): Promise<void> {
+  const WA_TOKEN = Deno.env.get('WA_TOKEN');
+  const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');
+  if (!WA_TOKEN || !WA_PHONE_ID || !SECRET_DES_LIENS) return;
+  const fiches = await fichesDuNumero(telephone);
+  if (!fiches || fiches.length === 0) return;
+  /* Le numéro PRINCIPAL d'une fiche d'abord (le parent avant l'enfant dont
+     il est le second numéro) ; puis celle qui est venue le plus récemment. */
+  const fin = huitDerniers(telephone);
+  const principales = fiches.filter((f) => huitDerniers(f.phone ?? '') === fin);
+  const candidates = (principales.length ? principales : fiches).slice(0, 4);
+  const jour = aujourdhuiACotonou();
+  let choisie: { id: string; rdvs: { date?: string; status?: string; serviceIds?: unknown }[]; derniere: string } | null = null;
+  for (const f of candidates) {
+    const { data } = await admin.from('appointments').select('data').eq('data->>clientId', f.id).limit(500);
+    const rdvs = ((data ?? []) as { data: { date?: string; status?: string; serviceIds?: unknown } }[]).map((r) => r.data);
+    const derniere = rdvs.filter((r) => r.status !== 'annulé' && (r.date ?? '') <= jour).map((r) => r.date ?? '').sort().pop() ?? '';
+    if (!choisie || derniere > choisie.derniere) choisie = { id: f.id, rdvs, derniere };
+  }
+  if (!choisie || !/^[A-Za-z0-9_-]{1,80}$/.test(choisie.id)) return;
+  const { data: ficheRow } = await admin.from('clients').select('id, branch_id, data').eq('id', choisie.id).maybeSingle();
+  const fiche = (ficheRow?.data ?? null) as { name?: string; civilite?: string; auMasculin?: boolean; branchId?: string } | null;
+  if (!fiche) return;
+
+  /* UNE FOIS PAR JOUR : la ligne du journal se prend AVANT l'envoi ; deux
+     demandes à la même seconde n'en écrivent qu'une, et une seule part. */
+  const id = `retour-${choisie.id}-${jour.replace(/-/g, '')}`;
+  const branchId = fiche.branchId ?? (ficheRow as { branch_id?: string } | null)?.branch_id ?? null;
+  const { data: pris, error: errPris } = await admin.from('envois')
+    .upsert({ id, branch_id: branchId, data: { id, branchId, type: 'retour', canal: 'whatsapp', clientId: choisie.id, statut: 'en-envoi', quand: new Date().toISOString() } }, { onConflict: 'id', ignoreDuplicates: true })
+    .select('id');
+  if (errPris || (pris ?? []).length === 0) return;
+
+  const gestes = gestesDuDernierRituel(choisie.rdvs, jour);
+  const { data: sv } = gestes.length ? await admin.from('services').select('id, data').in('id', gestes) : { data: [] };
+  const nomDe = new Map(((sv ?? []) as { id: string; data?: { name?: string } }[]).map((s) => [s.id, String(s.data?.name ?? '').trim()]));
+  const gestesDits = gestesDitsDuRetour(gestes.map((g) => nomDe.get(g) ?? ''));
+  const valable = new Date(Date.parse(`${jour}T12:00:00Z`) + JOURS_DU_JETON_D_IDENTITE * 86_400_000).toISOString().slice(0, 10);
+  const identite = await jetonDIdentite(SECRET_DES_LIENS, choisie.id, valable);
+  const mot = jetonDuLienDuRetour(gestes, identite);
+  const appel = appelDe(fiche, fiche.name);
+  const tel = telephone.replace(/\D/g, '');
+  const MODELE = (Deno.env.get('WA_TEMPLATE_RESA_PREPAREE') ?? '').trim() || 'reservation_preparee';
+
+  let statut = 'échec';
+  let detail: string | undefined;
+  let codeMeta: number | undefined;
+  let waId = '';
+  try {
+    const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(8000),
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp', to: tel, type: 'template',
+        template: {
+          name: MODELE, language: { code: 'fr' },
+          components: [
+            { type: 'body', parameters: [{ type: 'text', text: appel }, { type: 'text', text: gestesDits }] },
+            { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: mot }] },
+          ],
+        },
+      }),
+    });
+    const rep = await r.json().catch(() => ({})) as { messages?: { id?: string }[]; error?: { code?: number; message?: string } };
+    waId = String(rep?.messages?.[0]?.id ?? '');
+    if (r.ok) { statut = 'envoyé'; if (!waId) detail = 'accepté sans identifiant Meta'; }
+    else { codeMeta = Number(rep?.error?.code) || undefined; detail = String(rep?.error?.message ?? `HTTP ${r.status}`); }
+  } catch (e) {
+    detail = String(e);
+  }
+  const maintenant = new Date().toISOString();
+  await admin.from('envois').update({
+    data: {
+      id, branchId, type: 'retour', canal: 'whatsapp', clientId: choisie.id, prenom: appel, numero: `+${tel}`, statut, modele: MODELE,
+      ...(detail ? { detail: detail.slice(0, 300) } : {}), ...(codeMeta ? { codeMeta } : {}), ...(waId ? { waMessageId: waId } : {}),
+      quand: maintenant,
+    },
+  }).eq('id', id);
+  if (waId) {
+    /* Le fil dit ce qu'elle a reçu, sans le jeton : le lien est le sien. */
+    const idFil = `wa-${waId}`;
+    const { error } = await admin.from('messages_wa').upsert({
+      id: idFil, branch_id: branchId,
+      data: {
+        id: idFil, waId, branchId, sens: 'sortant', numero: `+${tel}`, clientId: choisie.id,
+        texte: `Bonjour ${appel}, la Maison MND a préparé votre réservation : ${gestesDits}. Il ne vous reste qu'à choisir votre jour et votre heure. [Choisir mon heure, demandé depuis le site]`,
+        type: 'text', quand: maintenant, etat: 'en-route', modele: MODELE, parQui: 'Le site',
+      },
+    }, { onConflict: 'id' });
+    if (error) console.error('demande-submit: fil du retour', error.message);
+  }
+}
+
+/** Le jeton d'identité rendu par la page : les coordonnées de SA fiche, pour
+    remplir le formulaire. Faux, forgé ou passé : rien. */
+async function litLaCliente(identite: unknown): Promise<Response> {
+  const clientId = await clientIdDuJetonDIdentite(SECRET_DES_LIENS, identite, aujourdhuiACotonou());
+  if (!clientId) return json({ ok: false, error: 'lien' });
+  const { data: row, error } = await admin.from('clients').select('data').eq('id', clientId).maybeSingle();
+  if (error) console.error('demande-submit: fiche du retour illisible', error.message);
+  const f = (row?.data ?? null) as { name?: unknown; civilite?: unknown; auMasculin?: unknown; phone?: unknown } | null;
+  if (!f) return json({ ok: false, error: 'lien' });
+  return json({ ok: true, cliente: coordonneesDeLaFiche(f) });
 }
 
 /* ══ LE MESSAGE VOCAL — 19 octobre 2026 ══════════════════════════════════
@@ -2003,6 +2396,22 @@ Deno.serve(async (req) => {
   }
   /* Le site ne crée plus de code (De main en main) : réponse sans base. */
   if (body.parrainage === true) return json({ error: 'parrainage_ferme' }, 409);
+  /* LA PAGE DU RENDEZ-VOUS ET LA CLIENTE QUI REVIENT — 3 novembre 2026,
+     chacune son seau : lire son rendez-vous, ou demander sa réservation
+     préparée, n'est pas déposer une demande, et ne doit pas refuser celle
+     qui suit. */
+  if (body.rdv === 'lire') {
+    if (!(await allowRate(ip, 'rdv_lire', 30))) return json({ error: 'rate_limited' }, 429);
+    return await litLeRendezVous(body.v);
+  }
+  if (body.cliente === 'retour') {
+    if (!(await allowRate(ip, 'cliente_retour', 5))) return json({ error: 'rate_limited' }, 429);
+    return prepareLeRetour(body);
+  }
+  if (body.cliente === 'lire') {
+    if (!(await allowRate(ip, 'cliente_lire', 20))) return json({ error: 'rate_limited' }, 429);
+    return await litLaCliente(body.identite);
+  }
   if (!(await allowRate(ip))) return json({ error: 'rate_limited' }, 429);
 
   const genre = String(body.genre ?? 'prospect');
@@ -2296,7 +2705,7 @@ Deno.serve(async (req) => {
   /* LA RAISON REMONTE À LA PAGE : « déjà utilisé » se dit au clic, pas au
      comptoir. `codeApplique` dit si la remise a réellement porté. */
   return json({
-    ok: true, id, apptId, sent, accuse, ...(apptId ? { confirme: true } : {}),
+    ok: true, id, apptId, sent, accuse, ...(apptId ? { confirme: true, reference: referenceDuRendezVous(apptId) } : {}),
     ...(duCode.code ? { code: duCode.code, codeApplique: !!duCode.remisesLignes } : {}),
     ...(duCode.raison ? { codeRaison: duCode.raison } : {}),
     ...(duCode.raison === 'parrainage' ? { marraine: duCode.marraine, cadeau: duCode.cadeau ?? '' } : {}),

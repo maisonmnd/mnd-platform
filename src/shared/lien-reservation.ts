@@ -13,7 +13,7 @@
    site ne puissent pas en diverger ; `verifie-lien-reservation` l'éprouve. */
 
 export type BesoinDuLien = 'entretien' | 'creation' | 'reparation' | 'enfant';
-export type LienPrepare = { besoin: BesoinDuLien; gestes: string[]; calibre?: string };
+export type LienPrepare = { besoin: BesoinDuLien; gestes: string[]; calibre?: string; /** Le jeton d'identité d'une cliente qui revient (3 novembre 2026, lien-du-rdv-pur). */ identite?: string };
 
 const ID_SUR = /^[A-Za-z0-9_-]{1,80}$/;
 const BESOINS: readonly BesoinDuLien[] = ['entretien', 'creation', 'reparation', 'enfant'];
@@ -33,29 +33,36 @@ export function lienDeReservation(site: string, l: LienPrepare): string {
    à laquelle Meta ajoute UNE variable. Des `&` et des virgules risqueraient
    d'y être encodés : la variable est donc un seul mot, fait de caractères
    qu'aucune adresse ne réécrit. Forme : `besoin.geste~geste~geste.calibre`
-   (le calibre peut manquer). */
+   (le calibre peut manquer). QUATRIÈME SEGMENT — 3 novembre 2026 : le
+   jeton d'identité d'une cliente qui revient (`besoin.gestes.calibre.identite`,
+   le calibre vide gardant sa place) ; il est fait de [A-Za-z0-9_-~], jamais
+   d'un point. */
+const IDENTITE_SURE = /^[A-Za-z0-9_-]{1,80}~\d{8}~[A-Za-z0-9_-]{22}$/;
 export function jetonDuLien(l: LienPrepare): string {
   const gestes = l.gestes.filter((g) => /^[A-Za-z0-9_-]{1,80}$/.test(g));
-  return [l.besoin, gestes.join('~'), l.calibre && ID_SUR.test(l.calibre) ? l.calibre : ''].join('.').replace(/\.$/, '');
+  const calibre = l.calibre && ID_SUR.test(l.calibre) ? l.calibre : '';
+  const identite = l.identite && IDENTITE_SURE.test(l.identite) ? l.identite : '';
+  const segments = identite ? [l.besoin, gestes.join('~'), calibre, identite] : [l.besoin, gestes.join('~'), calibre];
+  return segments.join('.').replace(/\.$/, '');
 }
 export const URL_DU_MODELE = 'https://maisonmnd.com/reserver/?r=';
 
 /** Ce que l'adresse d'une page de réservation prépare. Tout ce qui n'a pas
     la forme d'un identifiant est écarté, jamais interprété. */
-export function lienLu(recherche: string): { gestes: string[]; calibre: string } {
+export function lienLu(recherche: string): { gestes: string[]; calibre: string; identite: string } {
   try {
     const p = new URLSearchParams(recherche);
     const r = p.get('r');
     if (r) {
-      const [, gestesBruts = '', cal = ''] = r.split('.');
+      const [, gestesBruts = '', cal = '', ident = ''] = r.split('.');
       const gestes = [...new Set(gestesBruts.split('~').filter((g) => ID_SUR.test(g)))];
-      return { gestes, calibre: ID_SUR.test(cal) ? cal : '' };
+      return { gestes, calibre: ID_SUR.test(cal) ? cal : '', identite: IDENTITE_SURE.test(ident) ? ident : '' };
     }
     const gestes = [...new Set((p.get('gestes') ?? '').split(',').map((g) => g.trim()).filter((g) => ID_SUR.test(g)))];
     const calibre = p.get('calibre') ?? '';
-    return { gestes, calibre: ID_SUR.test(calibre) ? calibre : '' };
+    return { gestes, calibre: ID_SUR.test(calibre) ? calibre : '', identite: '' };
   } catch {
-    return { gestes: [], calibre: '' };
+    return { gestes: [], calibre: '', identite: '' };
   }
 }
 

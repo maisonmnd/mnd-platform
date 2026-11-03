@@ -20,15 +20,23 @@ try {
   const l = lienDeReservation('https://maisonmnd.com', { besoin: 'entretien', gestes: ['sv-atl-ii-e', 'sv-plt-05-ess-c'], calibre: 'cal-pico' });
   dit('le lien mène à la page de réservation du site', true, l.startsWith('https://maisonmnd.com/reserver/?besoin=entretien'));
   const u = new URL(l);
-  dit('… et se relit à l’identique', { gestes: ['sv-atl-ii-e', 'sv-plt-05-ess-c'], calibre: 'cal-pico' }, lienLu(u.search));
-  dit('ce qui n’a pas la forme d’un identifiant est écarté', { gestes: ['ok-1'], calibre: '' }, lienLu('?gestes=ok-1,<script>,a%20b&calibre=x y'));
+  dit('… et se relit à l’identique', { gestes: ['sv-atl-ii-e', 'sv-plt-05-ess-c'], calibre: 'cal-pico', identite: '' }, lienLu(u.search));
+  dit('ce qui n’a pas la forme d’un identifiant est écarté', { gestes: ['ok-1'], calibre: '', identite: '' }, lienLu('?gestes=ok-1,<script>,a%20b&calibre=x y'));
   dit('les doublons ne comptent qu’une fois', ['a', 'b'], lienLu('?gestes=a,b,a').gestes);
-  dit('sans gestes, rien de préparé', { gestes: [], calibre: '' }, lienLu('?besoin=entretien'));
+  dit('sans gestes, rien de préparé', { gestes: [], calibre: '', identite: '' }, lienLu('?besoin=entretien'));
   const { jetonDuLien, URL_DU_MODELE } = await import(pathToFileURL(out).href);
   const jeton = jetonDuLien({ besoin: 'entretien', gestes: ['sv-atl-ii-e', 'sv-plt-05-ess-c'], calibre: 'cal-pico' });
   dit('le jeton du modèle Meta est un seul mot sans caractère réécrit', true, /^[A-Za-z0-9._~-]+$/.test(jeton));
-  dit('… et se relit comme le lien complet', { gestes: ['sv-atl-ii-e', 'sv-plt-05-ess-c'], calibre: 'cal-pico' }, lienLu(new URL(URL_DU_MODELE + jeton).search));
-  dit('… même sans calibre', { gestes: ['a'], calibre: '' }, lienLu('?r=' + jetonDuLien({ besoin: 'entretien', gestes: ['a'] })));
+  dit('… et se relit comme le lien complet', { gestes: ['sv-atl-ii-e', 'sv-plt-05-ess-c'], calibre: 'cal-pico', identite: '' }, lienLu(new URL(URL_DU_MODELE + jeton).search));
+  dit('… même sans calibre', { gestes: ['a'], calibre: '', identite: '' }, lienLu('?r=' + jetonDuLien({ besoin: 'entretien', gestes: ['a'] })));
+  /* LE RETOUR D'UNE CLIENTE (3 novembre 2026) : le jeton d'identité, quatrième segment. */
+  const identite = 'MND-KNHU~20261110~abcDEF123_-abcDEF123_-';
+  const rRetour = jetonDuLien({ besoin: 'entretien', gestes: ['a', 'b'], identite });
+  dit('le jeton d’identité voyage en quatrième segment, le calibre vide gardant sa place', `entretien.a~b..${identite}`, rRetour);
+  dit('… et se relit', { gestes: ['a', 'b'], calibre: '', identite }, lienLu('?r=' + rRetour));
+  dit('… avec le calibre quand il est là', { gestes: ['a'], calibre: 'cal-pico', identite }, lienLu('?r=' + jetonDuLien({ besoin: 'entretien', gestes: ['a'], calibre: 'cal-pico', identite })));
+  dit('un faux jeton d’identité est écarté, pas interprété', '', lienLu('?r=entretien.a..pas-un-jeton').identite);
+  dit('un jeton d’identité mal formé ne part pas dans le lien', 'entretien.a', jetonDuLien({ besoin: 'entretien', gestes: ['a'], identite: 'x.y' }));
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(path.join(racine, 'src/apps/revelateur/ilots/Reserver.tsx'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   dit('la réservation lit l’adresse avec la même fonction', true, /lienLu\(/.test(src) && /setServiceIds\(ok\)/.test(src));

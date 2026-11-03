@@ -633,6 +633,8 @@ const regles: Regle[] = [
         'accord-whatsapp': { fichier: 'src/shared/accord-whatsapp-pur.ts', extrait: (s) => entre(s, 'accord-whatsapp') },
         /* Le rappel de la veille se tait quand elle a confirmé (2 novembre 2026), recopié dans rappels-j1 et push-notify. */
         'rappel-se-tait': { fichier: 'src/shared/heures-des-rappels-pur.ts', extrait: (s) => entre(s, 'rappel-se-tait') },
+        /* Le lien du rendez-vous (3 novembre 2026) : la référence, les jetons, la confirmation à liens, recopié dans demande-submit et confirmation-rdv. */
+        'lien-du-rdv': { fichier: 'src/shared/lien-du-rdv-pur.ts', extrait: (s) => entre(s, 'lien-du-rdv') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

@@ -420,7 +420,7 @@ const aujourdhui = dateDans(0);
 const sansNom = (texte: string) => !/Awa|Codjo|Dossi|Efua|Fifa|Gbessi|Hola|Banc/.test(texte);
 
 const g = await handler!(new Request('http://f/assistants-maison', { method: 'GET' }));
-dit('GET : la santé, la version, le nombre d assistants, aucun secret', ['assistants-maison', '2026-11-02-b · le socle : cartes de tous les genres, Je suis loin, bilan du matin', 2, false],
+dit('GET : la santé, la version, le nombre d assistants, aucun secret', ['assistants-maison', '2026-11-03-a · le socle : cartes de tous les genres, Je suis loin, bilan du matin ; la confirmation à liens', 2, false],
   await g.json().then((x: { fonction?: string; version?: string; assistants?: number }) => [x.fonction, x.version, x.assistants, JSON.stringify(x).includes('service')]));
 dit('sans porte : refusé', [403, 'reserve-aux-assistants'], await appelle({}, { action: 'passage', controles: {} }).then((r) => [r.status, r.corps.motif]));
 dit('un jeton inconnu : refusé', [403, 'reserve-aux-assistants'], await appelle({ 'x-jeton-assistant': 'assistant-opale-faux' }, { action: 'passage', controles: {} }).then((r) => [r.status, r.corps.motif]));

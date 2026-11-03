@@ -658,3 +658,47 @@ Réglages facultatifs dans `mnd_auto_config` : `salleMin`, `calmeDe`,
 **Pas encore en salle :** la fin de paquet et le merci de parrainage, qui
 partent du Trône lui-même (`envoieSurWhatsApp`), et la réponse à une
 réservation faite par la cliente, qui reste immédiate par décision.
+
+## La confirmation à liens et la cliente qui revient (3 novembre 2026)
+
+**Le modèle `confirmation_rdv_liens`** (déposé le 3 novembre 2026, en examen
+chez Meta). Utility, français, sans en-tête. Corps : « Bonjour {{1}}, c'est
+confirmé : votre rendez-vous est retenu {{2}}. Votre référence : {{3}}. Nous
+vous attendons. Pour déplacer ou annuler, touchez le bouton ci-dessous. »
+Pied : la devise. Deux boutons à URL dynamique : « Déplacer ou annuler »
+vers `https://maisonmnd.com/rdv/?v={{1}}`, « Ajouter à mon agenda » vers
+`https://maisonmnd.com/rdv/agenda/?v={{1}}`. Le {{1}} des deux boutons est le
+même jeton signé (`<id du rendez-vous>.<22 signes>`, HMAC avec le secret que
+la plateforme pose dans chaque fonction, `SUPABASE_SERVICE_ROLE_KEY`). La
+référence (« MND-7K3Q ») se calcule sur l'identifiant : la même à l'écran du
+site, dans le message et sur la page du rendez-vous. Source :
+`src/shared/lien-du-rdv-pur.ts`, recopié dans `demande-submit` et
+`confirmation-rdv`, importé par `assistants-maison`.
+
+**À poser une fois Meta d'accord :** le secret `WA_TEMPLATE_CONF_LIENS =
+confirmation_rdv_liens`. Avant lui, rien ne change. Après lui, les trois
+chemins de la confirmation (le site, le balayage de `confirmation-rdv`, la
+pièce déposée par Opale) prennent le modèle à liens ; si Meta le refuse
+(#132000 à #132999 : pas approuvé, en pause, variables fausses), l'ancien
+`confirmation_rdv` part dans la même seconde, en direct comme en salle (le
+colis emporte son `repli`, que `envois-partent` envoie). Le journal dit
+`modele`, `reference` et, le cas échéant, `repliDuModele`.
+
+**La page du rendez-vous** (`/rdv/` et `/rdv/agenda/`, hors des moteurs)
+demande `demande-submit` avec `{ rdv: 'lire', v }` : le jour, l'heure, la
+durée, les gestes, l'appel et la référence, jamais le numéro, le nom entier
+ni le prix. Déplacer et annuler y ouvrent WhatsApp avec un mot prêt, que la
+réception comprend ; le fichier .ics se construit dans la page.
+
+**La cliente qui revient.** Sur le site, « Déjà venue à la Maison ? »
+envoie `{ cliente: 'retour', telephone, dial }`. La réponse est toujours la
+même, tout de suite. Si une fiche porte ce numéro (le numéro principal avant
+le second), `reservation_preparee` part sur ce WhatsApp, une fois par jour et
+par fiche (`retour-<fiche>-<AAAAMMJJ>` au journal), avec les gestes de son
+dernier rituel et un jeton d'identité de sept jours en quatrième segment du
+lien. La page le rend par `{ cliente: 'lire', identite }` et remplit le
+formulaire. Chaque route a son seau : lire un rendez-vous (30 par dix
+minutes et par adresse), demander son retour (5), relire son identité (20).
+
+Bancs : `verifie-le-lien-du-rdv`, `verifie-le-rdv-au-serveur` (les vraies
+fonctions contre une base et un Meta simulés, `--prouve`), les douze lunes.

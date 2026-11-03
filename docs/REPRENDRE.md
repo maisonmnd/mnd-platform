@@ -2,6 +2,23 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA RÉSERVATION DU SITE, SEPT CHANGEMENTS — 3 novembre 2026, CONSTRUITE
+
+« Make these changes on maisonmnd.com » (Yéman, 3 novembre 2026), sept points sur le formulaire de réservation, construits sans maquette (des améliorations détaillées par elle du formulaire existant).
+
+- **Le contrat** : `src/shared/lien-du-rdv-pur.ts`, bloc ⟨lien-du-rdv⟩ recopié dans demande-submit et confirmation-rdv (douze lunes), importé par assistants-maison. La référence « MND-XXXX » (FNV-1a sur l'identifiant, alphabet sans 0/O/1/I, valeur gravée au banc), le jeton du rendez-vous `<id>.<22 signes>` (HMAC avec `SUPABASE_SERVICE_ROLE_KEY`, le seul secret identique dans chaque fonction), la confirmation avec ou sans liens, les mots pour déplacer ou annuler, le .ics, le jeton d'identité de sept jours, `refusDuModele` (#132000 à #132999), `etatDuRendezVous`, `coordonneesDeLaFiche`, `gestesDuDernierRituel`, `jetonDuLienDuRetour`. `lien-reservation.ts` : `?r=besoin.gestes.calibre.identite`.
+- **1. La barre du total** : collante au bas du formulaire dès le premier geste, nombre, durée et prix (« à partir de », « prix à la Maison »), les mêmes chiffres que « Votre venue » (calibre, code, mercredi).
+- **2. La présélection** : le bouton « Réserver » de la barre et l'appel de fin gardent le `?besoin=` de la page (genere-revelateur, `reserverDeLaPage`) ; « Votre parcours : Entretien » avec « Changer de porte » ; `?geste=a,b` précoche, aucune page ne le porte encore (contenu.ts ne connaît aucun identifiant de prestation).
+- **3 et 4. La confirmation WhatsApp à liens** : modèle `confirmation_rdv_liens` déposé chez Meta le 3 novembre 2026 (Utility, référence en {{3}}, boutons /rdv/?v= et /rdv/agenda/?v=), fiche 30 du document des modèles. Il part dès le secret `WA_TEMPLATE_CONF_LIENS = confirmation_rdv_liens`, À POSER À L'APPROBATION ; avant, rien ne change. Si Meta le refuse, l'ancien part dans la même seconde, en direct (demande-submit, confirmation-rdv) comme en salle (le colis emporte `repli`, envois-partent l'envoie). L'écran Réservé a aussi « Déplacer » et « Annuler » (WhatsApp avec le mot prêt) et le .ics par `ficheAgendaICS`.
+- **5. Le chargeur** : trois points cuivre (`Chargeur.tsx`), animés sous no-preference seulement ; passé 12 s ou à la panne, « Réessayer » qui relit vraiment, et WhatsApp.
+- **6. La référence à l'écran**, en grand, avant la ligne de WhatsApp ; repli `referenceDuRendezVous(apptId)` si la fonction ne la rend pas.
+- **7. La cliente qui revient** : « Déjà venue à la Maison ? » en haut de la réservation tant que rien n'est coché et que le téléphone ne la connaît pas ; `{ cliente: 'retour' }` répond toujours pareil et tout de suite ; si une fiche porte le numéro (le principal avant le second), `reservation_preparee` part une fois par jour et par fiche avec les gestes de son dernier rituel et l'identité ; `{ cliente: 'lire' }` remplit le formulaire.
+- **La page du rendez-vous** `/rdv/` et `/rdv/agenda/` (îlot `rdv`, `MonRendezVous.tsx`, hors des moteurs) : `{ rdv: 'lire', v }` rend jour, heure, durée, gestes, appel, référence, état ; jamais numéro, nom entier ni prix. « Annuler » envoie un mot à la Maison : Perle n'annule rien seule, l'équipe le lit dans Conversations.
+- **Seaux** : lire un rendez-vous 30, demander son retour 5, relire son identité 20, par dix minutes et par adresse, à part de celui des réservations.
+- **Bancs** : verifie-le-lien-du-rdv (54), verifie-le-rdv-au-serveur (40, les vraies fonctions contre une base, un Meta et un Deno simulés ; `--prouve` 16 pannes sur 16, plantées en mémoire), verifie-la-reservation-du-site (65, 23 pannes), verifie-lien-reservation ; ancres mises à jour dans l'accusé du site, la place du serveur, les assistants, la lumière, les douze lunes (original `lien-du-rdv`).
+- **Mise en ligne** : fonctions demande-submit, confirmation-rdv, envois-partent, assistants-maison (2026-11-03-a), puis le site public. Le secret à l'approbation de Meta.
+- **À faire ensuite, si elle le veut** : que Perle lise la référence « réf. MND-XXXX » d'un message pour désigner le bon rendez-vous ; des `?geste=` sur les pages qui présentent un geste précis.
+
 ## AVANT LE FAUTEUIL — 31 octobre 2026, EN LIGNE (0147 et 0148 PASSÉES, Trône publié)
 
 Trône publié au 125c9e96, build 20261031212755, le 31 octobre 2026 : 515

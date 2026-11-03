@@ -38,6 +38,8 @@ export type Remise = {
 export const REMISE_EXCLUE: ReadonlySet<string> = new Set([
   '/reserver/', '/rappel/', '/conditions/', '/confidentialite/', '/mentions-legales/',
   '/plan-du-site/', '/les-offres/', '/m/', '/404.html',
+  /* La page du rendez-vous (3 novembre 2026) : on y vient pour SA place. */
+  '/rdv/', '/rdv/agenda/',
 ]);
 
 /** Les pages où la fenêtre ne s'ouvre pas d'elle-même : celles dont le

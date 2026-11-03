@@ -926,6 +926,46 @@ function heureDeDepart(maintenantMs, r) {
   return { partA: finDesHeuresCalmes(apresLaSalle, r), calme: true };
 }
 
+// src/shared/lien-du-rdv-pur.ts
+var ALPHABET_DE_LA_REFERENCE = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+var PREFIXE_DE_LA_REFERENCE = "MND-";
+function referenceDuRendezVous(apptId) {
+  let h = 2166136261;
+  for (const c of String(apptId ?? "")) {
+    h ^= c.codePointAt(0) ?? 0;
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  let s = "";
+  for (let i = 0; i < 4; i++) {
+    s += ALPHABET_DE_LA_REFERENCE[h % 32];
+    h = Math.floor(h / 32);
+  }
+  return `${PREFIXE_DE_LA_REFERENCE}${s}`;
+}
+var base64url = (octets) => btoa(String.fromCharCode(...new Uint8Array(octets))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+async function signe(secret, texte) {
+  const enc = new TextEncoder();
+  const cle = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return base64url(await crypto.subtle.sign("HMAC", cle, enc.encode(texte))).slice(0, 22);
+}
+async function jetonDuRendezVous(secret, apptId) {
+  if (!secret || !/^[A-Za-z0-9_-]{1,120}$/.test(apptId)) throw new Error("jeton du rendez-vous : identifiant ou secret impossible");
+  return `${apptId}.${await signe(secret, `rdv:${apptId}`)}`;
+}
+function composantsDeLaConfirmation(o) {
+  const corps = [{ type: "text", text: o.prenom }, { type: "text", text: o.quand }];
+  if (!o.avecLiens) return [{ type: "body", parameters: corps }];
+  return [
+    { type: "body", parameters: [...corps, { type: "text", text: o.reference }] },
+    { type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: o.jeton }] },
+    { type: "button", sub_type: "url", index: "1", parameters: [{ type: "text", text: o.jeton }] }
+  ];
+}
+function texteDeLaConfirmation(o) {
+  return o.avecLiens ? `Bonjour ${o.prenom}, c'est confirmé : votre rendez-vous est retenu ${o.quand}. Votre référence : ${o.reference}. Nous vous attendons. Pour déplacer ou annuler, touchez le bouton ci-dessous.` : `Bonjour ${o.prenom}, c'est confirmé : votre rendez-vous est retenu ${o.quand}. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.`;
+}
+var NOM_DU_SECRET_DES_LIENS = "SUPABASE_SERVICE_ROLE_KEY";
+
 // src/shared/assistants-depenses-pur.ts
 var MONTANT_AU_PLUS_XOF = 2e6;
 var OBJET_AU_PLUS = 80;
@@ -1101,7 +1141,7 @@ function ficheLisible(f, rdvs, nomDe, aujourdhui) {
 var pieceDeLaLecture = (n) => `une recherche de fiche, ${n === 0 ? "aucune trouvée" : n === 1 ? "une trouvée" : `${n} trouvées`}`;
 
 // scripts/serveur/assistants-maison.ts
-var VERSION = "2026-11-02-b · le socle : cartes de tous les genres, Je suis loin, bilan du matin";
+var VERSION = "2026-11-03-a · le socle : cartes de tous les genres, Je suis loin, bilan du matin ; la confirmation à liens";
 var BRANCHE_PHARE = "br-40r6u6frno";
 var ECRAN = "Les assistants";
 var ADRESSE_DES_ASSISTANTS = "/trone/#/assistants";
@@ -1405,14 +1445,21 @@ var Serveur = class {
     })];
     const tel = numeroIntl(chaine(rdv.numeroAPrevenir) || fiche?.phone);
     if (Deno.env.get("WA_TOKEN") && Deno.env.get("WA_PHONE_ID") && tel) {
-      lignes.push(socle("whatsapp", {
+      const modele = Deno.env.get("WA_TEMPLATE_CONF") ?? "confirmation_rdv";
+      const liens = (Deno.env.get("WA_TEMPLATE_CONF_LIENS") ?? "").trim();
+      const secret = (Deno.env.get(NOM_DU_SECRET_DES_LIENS) ?? "").trim();
+      const reference = referenceDuRendezVous(rdv.id);
+      const jeton = liens && secret ? await jetonDuRendezVous(secret, rdv.id).catch(() => "") : "";
+      const sansLiens = { modele, composants: composantsDeLaConfirmation({ avecLiens: false, prenom, quand, reference, jeton }), texteAuFil: texteDeLaConfirmation({ avecLiens: false, prenom, quand, reference }) };
+      lignes.push(socle("whatsapp", jeton ? {
         genre: "whatsapp",
         numero: tel,
-        modele: Deno.env.get("WA_TEMPLATE_CONF") ?? "confirmation_rdv",
+        modele: liens,
         parQui: "Le Trône",
-        texteAuFil: `Bonjour ${prenom}, c'est confirmé : votre rendez-vous est retenu ${quand}. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.`,
-        composants: [{ type: "body", parameters: [{ type: "text", text: prenom }, { type: "text", text: quand }] }]
-      }));
+        texteAuFil: texteDeLaConfirmation({ avecLiens: true, prenom, quand, reference }),
+        composants: composantsDeLaConfirmation({ avecLiens: true, prenom, quand, reference, jeton }),
+        repli: sansLiens
+      } : { genre: "whatsapp", numero: tel, parQui: "Le Trône", ...sansLiens }));
     }
     const { error } = await this.sb.from("envois").upsert(lignes, { onConflict: "id", ignoreDuplicates: true });
     if (error) {

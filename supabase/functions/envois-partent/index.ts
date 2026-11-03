@@ -41,7 +41,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const VERSION = '2026-10-23-a';
+const VERSION = '2026-11-03-a';
 
 /* ── LE CALCUL DES HEURES, recopié de src/shared/salle-des-envois.ts ── */
 const DECALAGE_DU_SALON_H = 1;
@@ -124,7 +124,12 @@ function recolleLeColis<T extends { type?: string; dateRdv?: string; heure?: str
 
 /** Ce qu'il faut pour envoyer, déposé par la fonction qui a jugé. */
 type Colis =
-  | { genre: 'whatsapp'; numero: string; modele: string; composants: unknown[]; texteAuFil?: string; parQui?: string; rdvChampApres?: string }
+  | {
+    genre: 'whatsapp'; numero: string; modele: string; composants: unknown[]; texteAuFil?: string; parQui?: string; rdvChampApres?: string;
+    /** LE REPLI — 3 novembre 2026 : l'ancien modèle et ses mots, pour le cas
+        où Meta refuserait le neuf (la confirmation à liens). */
+    repli?: { modele: string; composants: unknown[]; texteAuFil?: string };
+  }
   | { genre: 'push'; clientId: string; titre: string; corps: string; url?: string }
   | { genre: 'sms'; numero: string; texte: string };
 
@@ -297,23 +302,38 @@ Deno.serve(async (req) => {
     try {
       if (colis.genre === 'whatsapp') {
         if (!WA_TOKEN || !WA_PHONE_ID) { await ecris({ statut: 'échec', detail: 'clés Meta absentes' }); echecs++; continue; }
-        const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
+        const envoie = (modele: string, composants: unknown[]) => fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
           method: 'POST',
           signal: AbortSignal.timeout(ENVOI_MAX_MS),
           headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
           body: JSON.stringify({
             messaging_product: 'whatsapp', to: colis.numero, type: 'template',
-            template: { name: colis.modele, language: { code: 'fr' }, components: colis.composants },
+            template: { name: modele, language: { code: 'fr' }, components: composants },
           }),
         });
-        const rep = await r.json().catch(() => ({})) as { messages?: { id?: string }[]; error?: { code?: number; message?: string } };
+        type Reponse = { messages?: { id?: string }[]; error?: { code?: number; message?: string } };
+        let r = await envoie(colis.modele, colis.composants);
+        let rep = await r.json().catch(() => ({})) as Reponse;
+        /* LE REPLI DU MODÈLE — 3 novembre 2026. Meta refuse le MODÈLE neuf
+           (#132000 à #132999 : pas approuvé, en pause, variables fausses) et
+           le colis emporte l'ancien : il part dans la même minute, et le fil
+           dira ce qui est vraiment parti. Tout autre refus reste un échec. */
+        let repliDuModele: number | undefined;
+        const codeDuRefus = Number(rep?.error?.code);
+        if (!r.ok && colis.repli && Number.isInteger(codeDuRefus) && codeDuRefus >= 132000 && codeDuRefus < 133000) {
+          repliDuModele = codeDuRefus;
+          colis = { ...colis, modele: colis.repli.modele, composants: colis.repli.composants, texteAuFil: colis.repli.texteAuFil ?? colis.texteAuFil };
+          r = await envoie(colis.modele, colis.composants);
+          rep = await r.json().catch(() => ({})) as Reponse;
+        }
         const waId = String(rep?.messages?.[0]?.id ?? '');
+        const duRepli = repliDuModele ? { repliDuModele, modele: colis.modele } : {};
         if (!r.ok) {
-          await ecris({ statut: 'échec', detail: String(rep?.error?.message ?? `HTTP ${r.status}`).slice(0, 300), ...(Number(rep?.error?.code) ? { codeMeta: Number(rep?.error?.code) } : {}) });
+          await ecris({ statut: 'échec', detail: String(rep?.error?.message ?? `HTTP ${r.status}`).slice(0, 300), ...(Number(rep?.error?.code) ? { codeMeta: Number(rep?.error?.code) } : {}), ...duRepli });
           echecs++;
           continue;
         }
-        await ecris({ statut: 'envoyé', ...(waId ? { waMessageId: waId } : { detail: 'accepté sans identifiant Meta' }) });
+        await ecris({ statut: 'envoyé', ...(waId ? { waMessageId: waId } : { detail: 'accepté sans identifiant Meta' }), ...duRepli });
         partis++;
         if (waId && colis.texteAuFil) {
           const idFil = `wa-${waId}`;

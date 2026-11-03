@@ -81,7 +81,8 @@ dit('l Edge choisit le modele par le genre de l accuse', true,
   && /const MODELE = modeleDeLAccuse\(genreAccuse, \{\s*conf: Deno\.env\.get\('WA_TEMPLATE_CONF'\),\s*accuse: Deno\.env\.get\('WA_TEMPLATE_ACCUSE'\),\s*simple: Deno\.env\.get\('WA_TEMPLATE_ACCUSE_SIMPLE'\),\s*\}\);/.test(EDGE));
 dit('... sans modele juste, rien ne part', true, /if \(!MODELE\) \{\s*console\.log\([^)]*\);\s*return 'sans-modele';\s*\}/.test(EDGE));
 dit('... l ancien repli vers demande_recue a disparu', false, EDGE.includes("Deno.env.get('WA_TEMPLATE_ACCUSE_SIMPLE') ?? Deno.env.get('WA_TEMPLATE_ACCUSE')"));
-dit('... le fil montre le texte du meme accuse', true, EDGE.includes('texte: texteDeLAccuse(genreAccuse, prenom, quand),'));
+/* 3 novembre 2026 : la confirmation d'une place posee dit ses liens et sa reference quand le modele a liens est parti. */
+dit('... le fil montre le texte du meme accuse', true, EDGE.includes("texte: genreAccuse === 'confirmation' ? texteDeLaConfirmation({ avecLiens, prenom, quand, reference }) : texteDeLAccuse(genreAccuse, prenom, quand),"));
 dit('l appel passe la place et ce qu elle a demande', true,
   EDGE.includes('    avecPlace,\n    quand: avecPlace ? `${jourEnClair(date)} à ${heureLisible(time)}` : quandDeLaDemande(texte(d.profil, 80), besoin),\n    ...(avecPlace ? { date, time } : {}),'));
 

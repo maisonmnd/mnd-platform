@@ -1600,6 +1600,41 @@ export const PAGES: Page[] = [
     jsonld: 'aucun',
     court: 'Réserver',
   },
+  /* ── LA PAGE DU RENDEZ-VOUS — 3 novembre 2026 ─────────────────────────
+     « Add a "Déplacer/Annuler" WhatsApp link to the confirmation message »
+     et « an .ics calendar link » (Yéman). Les deux boutons du modèle
+     `confirmation_rdv_liens` mènent ici avec le jeton signé du rendez-vous
+     (`?v=`) : l'îlot `rdv` (MonRendezVous) le lit, montre le rendez-vous,
+     propose Déplacer, Annuler et l'agenda. Elles ne servent qu'à la cliente
+     qui a le lien : hors des moteurs et du plan, pour toujours. */
+  {
+    chemin: '/rdv/',
+    titre: 'Votre rendez-vous · Maison MND',
+    description: 'Retrouvez votre rendez-vous à la Maison MND : le jour, l’heure et votre référence. Déplacez-le, annulez-le ou ajoutez-le à votre agenda.',
+    h1: 'Votre rendez-vous.',
+    sur: 'Maison MND',
+    ligne: 'Le jour, l\u2019heure et votre référence. Un empêchement : un mot à la Maison suffit.',
+    besoin: 'inconnu',
+    ilot: 'rdv',
+    ton: 'reservation',
+    jsonld: 'aucun',
+    court: 'Votre rendez-vous',
+    horsDesMoteurs: 'La page du bouton « Déplacer ou annuler » de la confirmation WhatsApp : elle ne sert qu’à la cliente qui a le lien, jamais aux moteurs ni au plan du site.',
+  },
+  {
+    chemin: '/rdv/agenda/',
+    titre: 'Ajouter votre rendez-vous à l’agenda · Maison MND',
+    description: 'Ajoutez votre rendez-vous à la Maison MND à l’agenda de votre téléphone : le jour, l’heure, l’adresse et votre référence, en un fichier.',
+    h1: 'Votre rendez-vous, dans votre agenda.',
+    sur: 'Maison MND',
+    ligne: 'Le fichier se télécharge de lui-même. S\u2019il ne s\u2019ouvre pas, le bouton le reprend.',
+    besoin: 'inconnu',
+    ilot: 'rdv',
+    ton: 'reservation',
+    jsonld: 'aucun',
+    court: 'Votre agenda',
+    horsDesMoteurs: 'La page du bouton « Ajouter à mon agenda » de la confirmation WhatsApp : elle ne sert qu’à la cliente qui a le lien, jamais aux moteurs ni au plan du site.',
+  },
   /* ── LA COMMUNAUTÉ MND — 28 septembre 2026 (maquette validée) ────── */
   /* DE MAIN EN MAIN — 9 octobre 2026 : la page garde son adresse et se
      réécrit. La carte se gagne à la Maison, le site ne donne plus de code ;
