@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LA RÉSERVATION DU SITE, SEPT CHANGEMENTS — 3 novembre 2026, CONSTRUITE
+## LA RÉSERVATION DU SITE, SEPT CHANGEMENTS — 3 novembre 2026, EN LIGNE (secret des liens à l'approbation de Meta)
 
 « Make these changes on maisonmnd.com » (Yéman, 3 novembre 2026), sept points sur le formulaire de réservation, construits sans maquette (des améliorations détaillées par elle du formulaire existant).
 
@@ -16,7 +16,7 @@
 - **La page du rendez-vous** `/rdv/` et `/rdv/agenda/` (îlot `rdv`, `MonRendezVous.tsx`, hors des moteurs) : `{ rdv: 'lire', v }` rend jour, heure, durée, gestes, appel, référence, état ; jamais numéro, nom entier ni prix. « Annuler » envoie un mot à la Maison : Perle n'annule rien seule, l'équipe le lit dans Conversations.
 - **Seaux** : lire un rendez-vous 30, demander son retour 5, relire son identité 20, par dix minutes et par adresse, à part de celui des réservations.
 - **Bancs** : verifie-le-lien-du-rdv (54), verifie-le-rdv-au-serveur (40, les vraies fonctions contre une base, un Meta et un Deno simulés ; `--prouve` 16 pannes sur 16, plantées en mémoire), verifie-la-reservation-du-site (65, 23 pannes), verifie-lien-reservation ; ancres mises à jour dans l'accusé du site, la place du serveur, les assistants, la lumière, les douze lunes (original `lien-du-rdv`).
-- **Mise en ligne** : fonctions demande-submit, confirmation-rdv, envois-partent, assistants-maison (2026-11-03-a), puis le site public. Le secret à l'approbation de Meta.
+- **Mise en ligne** (3 novembre 2026, commit d9f43825) : demande-submit v36, confirmation-rdv v46, envois-partent v15, assistants-maison v8, tous 2026-11-03-a ; routes neuves essayées en ligne avec des entrées qui n'envoient rien (jeton faux, identité fausse, numéro mal formé). Site public publié depuis une copie propre, build 20261103071631, 380/380 octets identiques au servi. Le secret `WA_TEMPLATE_CONF_LIENS` se pose à l'approbation de `confirmation_rdv_liens` (en revue chez Meta le 3 novembre 2026 au matin).
 - **À faire ensuite, si elle le veut** : que Perle lise la référence « réf. MND-XXXX » d'un message pour désigner le bon rendez-vous ; des `?geste=` sur les pages qui présentent un geste précis.
 
 ## AVANT LE FAUTEUIL — 31 octobre 2026, EN LIGNE (0147 et 0148 PASSÉES, Trône publié)
