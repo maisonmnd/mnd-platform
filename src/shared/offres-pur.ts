@@ -169,6 +169,7 @@ export function codeDepuisLOffre(
 }
 
 export type OffreCodee = {
+  id?: string;
   active: boolean;
   du?: string;
   au?: string;
@@ -182,6 +183,13 @@ export type OffreCodee = {
   /** LES JOURS DE LA VENUE (2 novembre 2026), voir plus bas : posés, l'offre
       ne vaut que pour un rendez-vous qui tombe ces jours-là. */
   joursDeLaVenue?: string[];
+  /** LES PLACES LIMITÉES (4 novembre 2026), voir plus bas : le nombre de
+      places par jour de la venue. Absent ou nul, l'offre court comme avant. */
+  placesParJour?: number;
+  /** Seulement un jour où personne d'autre n'a réservé. */
+  jourVideSeulement?: boolean;
+  /** Combien de jours à l'avance les places s'ouvrent. Absent : sans borne. */
+  horizonJours?: number;
 };
 
 /* ══ LE JOUR DE LA VENUE — 2 novembre 2026 ══════════════════════════
@@ -511,6 +519,92 @@ export function offresDuTrottoir<T extends { active?: boolean; du?: string; au?:
    site les pose depuis le 24 septembre 2026 ; « Ce que ça rapporte » le
    compte comme les autres. */
 
+/* ══ LES PLACES LIMITÉES — 4 novembre 2026 ═══════════════════════════════
+   « Quand il y a eu trois réservations qui ont utilisé la remise, ça bloque,
+   ça disparaît… C'est comme un décompte… il faut vite booker. Il faut
+   écrire : Remise : il reste une place » (Yéman), puis, au sélecteur et
+   dans la maquette « Places limitées » (AhFRNqiggFoaiR725iKSQe, « construis ») :
+   du mardi au vendredi, jamais le samedi, seulement un jour vide, trois
+   places par jour, les jours des 14 jours à venir ; une réservation au plein
+   tarif ce jour-là ferme les places restantes ; une place prise est gardée ;
+   jamais pour une tête aux prix convenus, abonnée, ni qui a déjà une remise.
+   Les jours, le nombre de places et l'horizon sont des RÉGLAGES de l'offre
+   (Système › Paramètres), jamais des constantes : rien ici ne les suppose.
+
+   Le 4 novembre 2026, un mercredi de six rendez-vous avait donné −15 % à
+   chaque shampoing : une remise faite pour remplir un jour vide offerte à qui
+   venait de toute façon. Ce module compte AVANT de remiser. */
+
+/** L'offre se compte-t-elle en places ? */
+export const estAPlaces = (o: { placesParJour?: number } | null | undefined): boolean =>
+  Math.floor(o?.placesParJour ?? 0) > 0;
+
+/** Ce qui occupe un jour, pour une offre à places : les places déjà prises
+    avec elle, et les autres rendez-vous. */
+export type OccupationDuJour = { prises: number; autres: number };
+
+/** Un rendez-vous tel que le compte des places le lit. */
+export type RdvACompter = {
+  id?: string; date?: string; status?: string; branchId?: string; offreId?: string; codeOffre?: string;
+};
+
+/** L'OCCUPATION D'UN JOUR : les rendez-vous non annulés de la maison ce
+    jour-là, celui qu'on relit ôté (`saufId`). Une place prise porte
+    l'identifiant de l'offre, ou à défaut son code. */
+export function occupationDuJour(
+  offre: { id?: string; code?: string },
+  rdvs: readonly RdvACompter[],
+  dateIso: string,
+  e: { branchId?: string; saufId?: string } = {},
+): OccupationDuJour {
+  const code = codeNormalise(offre.code);
+  let prises = 0;
+  let autres = 0;
+  for (const r of rdvs) {
+    if (!r || String(r.date ?? '').slice(0, 10) !== dateIso || r.status === 'annulé') continue;
+    if (e.saufId && r.id === e.saufId) continue;
+    if (e.branchId && r.branchId && r.branchId !== e.branchId) continue;
+    const sienne = (!!offre.id && r.offreId === offre.id) || (!!code && codeNormalise(r.codeOffre) === code);
+    if (sienne) prises++; else autres++;
+  }
+  return { prises, autres };
+}
+
+/** LES PLACES QUI RESTENT CE JOUR-LÀ. `null` : l'offre ne concerne pas ce
+    jour (éteinte, hors de ses jours ou de sa saison, passé, au-delà de son
+    horizon, ou occupation inconnue). `0` : le jour est pris (plus de place,
+    ou plus vide). Sinon, le nombre à dire. */
+export function placesRestantes(
+  o: OffreCodee,
+  dateIso: string | null | undefined,
+  occ: OccupationDuJour | null | undefined,
+  aujourdhui: string,
+): number | null {
+  if (!o?.active || !estAPlaces(o) || !occ || !dateIso) return null;
+  const j = String(dateIso).slice(0, 10);
+  if (!laVenueTombeBien(o, j) || j < aujourdhui) return null;
+  const horizon = Math.floor(o.horizonJours ?? 0);
+  if (horizon > 0 && joursEntre(aujourdhui, j) > horizon) return null;
+  if (o.jourVideSeulement && occ.autres > 0) return 0;
+  return Math.max(0, Math.floor(o.placesParJour as number) - occ.prises);
+}
+
+/** LE DÉCOMPTE, tel qu'il s'écrit partout. */
+export const ditLesPlaces = (n: number): string =>
+  n === 1 ? 'Remise : il reste une place' : `Remise : il reste ${n} places`;
+
+/* UNE SEULE REMISE — 4 novembre 2026. « Quand il y a déjà des prix convenus,
+   des abonnements ou des remises, il ne faut pas refaire une remise, quelle
+   que soit sa nature, pour les clients » (Yéman). La remise famille comprise :
+   une tête aux prix convenus ou abonnée ne la prend pas non plus. */
+export const remiseFamilleDeLaTete = (pct: number, tete: { prixConvenus?: boolean; abonnee?: boolean }): number =>
+  tete.prixConvenus || tete.abonnee ? 0 : Math.max(0, Math.round(pct));
+
+/** Un geste qui ne prend AUCUNE remise, d'aucune sorte, famille comprise :
+    le Rituel Sówà™ (« aucune remise », Yéman, 4 novembre 2026), marqué
+    `sansRemise` au catalogue plutôt que nommé ici. */
+export const gesteSansRemise = (s: { sansRemise?: boolean } | null | undefined): boolean => !!s?.sansRemise;
+
 /** Ce qu'on sait du rendez-vous pour juger l'offre du jour de sa venue. */
 export type VenueAJuger = {
   /** La maison du rendez-vous ; une offre sans branche vaut partout. */
@@ -530,6 +624,24 @@ export type VenueAJuger = {
   /** La Maison l'a écartée de ce rendez-vous (`horsOffreDuJour`) : le
       comptoir garde la main, et son choix tient à la réouverture. */
   ecartee?: boolean;
+  /** PLACES LIMITÉES : l'occupation du jour (`occupationDuJour`, le rendez-vous
+      relu ôté). Sans elle, une offre à places ne vaut pour personne : jamais
+      de remise sur un jour qu'on n'a pas compté. */
+  occupation?: OccupationDuJour;
+  /** Aujourd'hui (ISO), pour l'horizon et le passé d'une offre à places. */
+  aujourdhui?: string;
+  /** Une seule remise : une tête aux prix convenus, ou qui a déjà une remise
+      (famille, la main…), ne prend jamais de place limitée. */
+  prixConvenus?: boolean;
+  autreRemise?: boolean;
+  /** L'offre dont ce rendez-vous tient DÉJÀ une place À CETTE DATE : une
+      place prise est gardée, même si le jour s'est rempli depuis. À ne
+      passer que si la date relue est celle qu'il avait. */
+  offreTenue?: string;
+  /** Les places restantes DÉJÀ LUES de la base (`places_de_la_remise`) par
+      une porte qui ne voit pas l'agenda (le site, Ma Couronne). Données, elles
+      tiennent lieu d'occupation. */
+  placesConnues?: number | null;
 };
 
 /** L'OFFRE DU JOUR DE LA VENUE QUI VAUT POUR CE RENDEZ-VOUS, ou `null`.
@@ -550,6 +662,14 @@ export function offreDuJourDeLaVenue<T extends OffreCodee & { branchId?: string 
     if (o.branchId && v.branchId && o.branchId !== v.branchId) continue;
     if (!laVenueTombeBien(o, v.dateIso)) continue;
     if (!(o.serviceIds ?? []).some((id) => gestes.has(id))) continue;
+    if (estAPlaces(o)) {
+      if (v.prixConvenus || v.autreRemise) continue;
+      const tenue = !!o.id && v.offreTenue === o.id;
+      const restantes = v.placesConnues !== undefined
+        ? v.placesConnues
+        : placesRestantes(o, v.dateIso, v.occupation, v.aujourdhui ?? isoDuJour(new Date()));
+      if (!tenue && !((restantes ?? 0) > 0)) continue;
+    }
     if (!mieux || (o.discountPct ?? 0) > (mieux.discountPct ?? 0)) mieux = o;
   }
   return mieux;
