@@ -125,8 +125,9 @@ try {
   /* ── A. L'ÉCRAN AU REPOS ── */
   await ouvre('/parametres', 7000);
   let t = await texte();
-  /* Neuf depuis le 31 octobre 2026 : la Dictée MND. */
-  dit('neuf tuiles', (await evalue(`document.querySelectorAll('.prm-tuile').length`)) === 9, await evalue(`document.querySelectorAll('.prm-tuile').length`));
+  /* Neuf depuis le 31 octobre 2026 : la Dictée MND ; dix depuis le 4 novembre
+     2026 : les Places limitées. */
+  dit('dix tuiles', (await evalue(`document.querySelectorAll('.prm-tuile').length`)) === 10, await evalue(`document.querySelectorAll('.prm-tuile').length`));
   dit('cinq gestes rapides', (await evalue(`document.querySelectorAll('.prm-geste').length`)) === 5);
   dit('la tuile des heures dit la semaine', t.includes('mar. au ven. 8 h à 20 h 30 · sam. 9 h à 20 h · fermée lundi et dimanche'), t.match(/Heures et jours[^·]*·[^·]*/)?.[0]);
   dit('la tuile des paiements compte les modes', t.includes('8 modes · MND PAY allumé · relances allumées'));

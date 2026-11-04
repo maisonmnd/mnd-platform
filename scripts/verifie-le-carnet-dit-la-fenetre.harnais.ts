@@ -345,7 +345,10 @@ else {
   dit('actions : des-honorer et remettre a zero passent par rituelDeshonore, la visite suivante garde sa remise famille', [true, true, true], [
     new RegExp(String.raw`a\.id === frais\.id \? rituelDeshonore\(a, byId\) : a`).test(actions),
     new RegExp(String.raw`a\.status === 'honoré' \? rituelDeshonore\(a, parIdDuCatalogue\) : a`).test(actions),
-    new RegExp(String.raw`\.\.\.sansLaVisite\(appt\),\s*\.\.\.remiseFamilleQuiSuit\(appt\),`).test(actions),
+    /* Une seule remise (4 novembre 2026) : la place du jour ne suit pas, la famille suit
+       par laFamilleQuiSuitLaTete, qui rend remiseFamilleQuiSuit sauf prix convenus ou abonnee. */
+    new RegExp(String.raw`\.\.\.sansLaVisite\(appt\),\s*\.\.\.sansLaPlaceDuJour\(appt\),\s*\.\.\.laFamilleQuiSuitLaTete\(appt, \w+\),`).test(actions)
+      && /return suit \? remiseFamilleQuiSuit\(appt\) : \{ remiseFamille: undefined, remiseFamilleXof: undefined \};/.test(actions),
   ]);
   const caisse = sansCom('src/apps/trone/routes/vente/Caisse.tsx');
   dit('Caisse : le prix fige est celui du ticket, la remise se mesure contre lui', [true, false, true], [
@@ -399,7 +402,10 @@ else {
   const laReprise = corpsDe(actions, 'export function poseLaReprise', 'export function honorAppointment');
   dit('poseLaReprise : sansLaVisite puis remiseFamilleQuiSuit', [true, true], [
     laReprise.length > 0,
-    new RegExp(String.raw`\.\.\.sansLaVisite\(appt\),\s*\.\.\.remiseFamilleQuiSuit\(appt\),`).test(laReprise),
+    /* Une seule remise (4 novembre 2026) : la place du jour ne suit pas, la famille suit
+       par laFamilleQuiSuitLaTete, qui rend remiseFamilleQuiSuit sauf prix convenus ou abonnee. */
+    new RegExp(String.raw`\.\.\.sansLaVisite\(appt\),\s*\.\.\.sansLaPlaceDuJour\(appt\),\s*\.\.\.laFamilleQuiSuitLaTete\(appt, \w+\),`).test(laReprise)
+      && /return suit \? remiseFamilleQuiSuit\(appt\) : \{ remiseFamille: undefined, remiseFamilleXof: undefined \};/.test(actions),
   ]);
 
   /* ── 17. Les cinq autres ecrans suivent la clef du tarif (10 octobre 2026) ──
