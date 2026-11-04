@@ -358,7 +358,7 @@ export default function Caisse() {
   /* `jour` et `longueur` (2 novembre 2026) : le jour de la vente et la
      longueur travaillée, que « Son prochain rituel » lit pour mesurer son
      rythme et tarifer le suivant comme celui-ci. */
-  const [reussite, setReussite] = useState<{ montant: string; detail: string; invoiceId: string; clientId: string; serviceIds: string[]; jour: string; longueur: LongueurId } | null>(null);
+  const [reussite, setReussite] = useState<{ montant: string; detail: string; invoiceId: string; clientId: string; serviceIds: string[]; rituelId?: string; jour: string; longueur: LongueurId } | null>(null);
   const [rdvPour, setRdvPour] = useState<RdvInitial | null>(null);
   /* LE SOIN OFFERT DE LA MARRAINE — 28 septembre 2026. Celui qu'on offre sur
      ce ticket, et la ligne qu'il a passée à 100 %. Il ne se consomme qu'à
@@ -1251,6 +1251,8 @@ export default function Caisse() {
       invoiceId: inv.id,
       clientId: client?.id ?? '',
       serviceIds: lines.filter((l) => l.kind === 'service').map((l) => l.key.slice(2)),
+      /* Le rendez-vous soldé : sa suite (un seul prochain) et, après une création, La Retouche comprise. */
+      rituelId: apptToSettle || undefined,
       jour: dateVente,
       longueur,
     });
@@ -1521,24 +1523,38 @@ export default function Caisse() {
                 <p>{reussite.detail}</p>
                 {recuHint && <p>{recuHint}</p>}
                 {waHint && <p>{waHint}</p>}
-                <div className="trv-reussite__boutons">
-                  <Button variant="copper" onClick={ticketSuivant}>Ticket suivant</Button>
-                  <Button variant="ghost" onClick={() => navigate(`/factures?id=${reussite.invoiceId}`)}>Voir la pièce</Button>
-                </div>
-                {/* SON PROCHAIN RITUEL, AU MOMENT OÙ ELLE PAIE — 2 novembre 2026
-                    (maquette « Remplir les fauteuils », Un · La Caisse) : son
-                    rituel habituel sur trois places réelles, posé d'un toucher.
-                    « Choisir à la main » ouvre la fenêtre du rendez-vous, comme
-                    l'ancien bouton « Son prochain rendez-vous ». */}
-                {reussite.clientId && (
+                {/* SON PROCHAIN RITUEL, LA MÊME CARTE QUE « C'EST RÉGLÉ » (4 novembre
+                    2026, maquette du prochain rituel à l'encaissement, v2) :
+                    proposé, validé d'un toucher. « Ticket suivant » passe par la
+                    carte : un rendez-vous non validé se demande, un rendez-vous
+                    validé reçoit sa seule confirmation. Sans fiche, comme avant. */}
+                {reussite.clientId ? (
                   <SonProchainRituel
                     key={reussite.invoiceId}
                     clientId={reussite.clientId}
                     serviceIds={reussite.serviceIds}
                     jour={reussite.jour}
                     longueur={reussite.longueur}
+                    rituelId={reussite.rituelId}
                     onALaMain={(initial) => setRdvPour(initial)}
-                  />
+                    onFerme={ticketSuivant}
+                  >
+                    {({ carte, pied, terminer, plein }) => (
+                      <>
+                        <div className="trv-reussite__boutons">
+                          <Button variant={plein ? 'copper' : 'ghost'} onClick={terminer}>Ticket suivant</Button>
+                          <Button variant="ghost" onClick={() => navigate(`/factures?id=${reussite.invoiceId}`)}>Voir la pièce</Button>
+                        </div>
+                        {pied && <div className="trv-prochain__pied">{pied}</div>}
+                        {carte}
+                      </>
+                    )}
+                  </SonProchainRituel>
+                ) : (
+                  <div className="trv-reussite__boutons">
+                    <Button variant="copper" onClick={ticketSuivant}>Ticket suivant</Button>
+                    <Button variant="ghost" onClick={() => navigate(`/factures?id=${reussite.invoiceId}`)}>Voir la pièce</Button>
+                  </div>
                 )}
               </div>
             ) : (

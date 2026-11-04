@@ -37,6 +37,9 @@ import {
   tarifsDuRituel, PortesWhatsApp, DrillModal, type Drill,
 } from './_shared';
 import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honoreSansEncaisser, PayAppointmentModal, piecesDuFoyer, prenomsDuFoyer } from './actions';
+import { FenetreDuProchainRituel } from '../vente/SonProchainRituel';
+import { laCarteSOuvreApresLHonneur, sonProchainDejaPose } from '../../../../shared/carte-du-prochain-rituel';
+import { momentDuMessage } from '../../../../shared/salle-des-envois';
 import { rdvsDuFoyerLeJour } from '../../../../shared/facture-du-foyer-pur';
 import { quiAnnuler } from './foyer-gestes';
 import { SerieModal } from './SerieModal';
@@ -343,6 +346,9 @@ export default function Carnet() {
      voit aussitôt, et un bandeau garde six secondes de quoi revenir en
      arrière. Pas de retour quand un message est parti : il ne se rattrape pas. */
   const [defaire, setDefaire] = useState<{ dit: string; fn?: () => void } | null>(null);
+  /* SON PROCHAIN RITUEL APRÈS « HONORÉ » — 4 novembre 2026 : la carte de
+     « C'est réglé », proposée, validée d'un toucher (rien d'office). */
+  const [prochainPour, setProchainPour] = useState<string | null>(null);
   useEffect(() => {
     if (!defaire) return;
     const t = setTimeout(() => setDefaire(null), 6000);
@@ -536,6 +542,9 @@ export default function Carnet() {
       bands, sets, cats: categories, byId, tousServices: services, produits,
     }));
     if (envoyer && h.facture && !h.deja) void envoiDeLaPiece.aRegler(h.facture.id, a.date, { memePasse: true });
+    /* La reprise n'est plus posée d'office : la carte la propose quand ce
+       rituel est le moment de la suite (le dernier, récent, rien de posé). */
+    if (h.honore && laCarteSOuvreApresLHonneur(a.id)) setProchainPour(a.id);
     return h;
   };
   /* HONORÉ ET ANNULÉ D'UN TOUCHER — 4 novembre 2026. Le jour même, honorer
@@ -547,9 +556,12 @@ export default function Carnet() {
     const h = termineLaSeance(a, envoyer);
     if (!h.honore) return;
     const qui = clientOf(a.clientId)?.name ?? a.clientName ?? 'Cliente de passage';
+    /* Son prochain déjà posé se dit ici : la carte ne s'ouvre pas pour lui. */
+    const suite = sonProchainDejaPose(a.id);
+    const sonProchain = suite ? `, son prochain rendez-vous : ${momentDuMessage(suite.date, suite.time)}` : '';
     setDefaire(envoyer
-      ? { dit: `${qui} · ${a.time} : honoré${h.facture && !h.deja ? ', le reste part sur son WhatsApp' : ''}` }
-      : { dit: `${qui} · ${a.time} : honoré, sans message`, fn: () => { void deshonoreLeRituel(a, byId); } });
+      ? { dit: `${qui} · ${a.time} : honoré${h.facture && !h.deja ? ', le reste part sur son WhatsApp' : ''}${sonProchain}` }
+      : { dit: `${qui} · ${a.time} : honoré, sans message${sonProchain}`, fn: () => { void deshonoreLeRituel(a, byId); } });
   };
   /* LES DEUX, OU SEULEMENT ELLE ? — 4 novembre 2026 (le parcours du foyer,
      arbitrage 2). Un rendez-vous du foyer pose la question (shared/foyer-pur,
@@ -1449,6 +1461,7 @@ export default function Carnet() {
       {pointDe && <FenetreDuPoint teteId={pointDe} onClose={() => setPointDe(null)} />}
       {cahierOuvert && peutRattraperUnCahier && <RattraperUnCahier onClose={() => setCahierOuvert(false)} />}
 
+      {prochainPour && <FenetreDuProchainRituel rituelId={prochainPour} onClose={() => setProchainPour(null)} />}
       {payAppt && !sansPrix && (
         <PayAppointmentModal
           appt={payAppt}

@@ -33,6 +33,8 @@ import { composeStore, compositionsRecuesStore } from '../../../../shared/bridge
 import { useEnfantsDeclares, nomPropose } from '../../../../shared/enfants';
 import { createStore, useStore } from '../../../../shared/store';
 import { PayAppointmentModal, honoreSansEncaisser } from '../clients/actions';
+import { FenetreDuProchainRituel } from '../vente/SonProchainRituel';
+import { laCarteSOuvreApresLHonneur } from '../../../../shared/carte-du-prochain-rituel';
 import { useModelBands, useBandSets } from '../../../../shared/pricing';
 import { useProducts } from '../../../../shared/catalog';
 import { useAuth, useStaff } from '../../../../shared/auth';
@@ -138,6 +140,8 @@ export default function Dashboard() {
   const [produitsTarif] = useProducts();
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
+  /* Son prochain rituel après « honoré » (4 novembre 2026) : proposé, validé d'un toucher. */
+  const [prochainPour, setProchainPour] = useState<string | null>(null);
 
   const today = todayISO();
   /* La prévision du mois, calculée une fois pour le bloc et pour l'assistant. */
@@ -740,6 +744,8 @@ export default function Dashboard() {
       }));
       /* La facture à régler part seule chez elle (17 octobre 2026). */
       if (h.facture && !h.deja) void envoiDeLaPiece.aRegler(h.facture.id, a.date);
+      /* La reprise n'est plus posée d'office : la carte la propose. */
+      if (h.honore && laCarteSOuvreApresLHonneur(a.id)) setProchainPour(a.id);
     }
   };
 
@@ -1413,6 +1419,7 @@ export default function Dashboard() {
 
       {/* Encaissement d’un rendez-vous du carnet du jour */}
       {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
+      {prochainPour && <FenetreDuProchainRituel rituelId={prochainPour} onClose={() => setProchainPour(null)} />}
 
       {/* Ce qu’il y a derrière un chiffre — chaque ligne ouvre sa facture */}
       {drill && <DrillModal drill={drill} onClose={() => setDrill(null)} />}

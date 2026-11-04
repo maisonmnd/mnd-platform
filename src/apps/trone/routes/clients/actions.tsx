@@ -1,4 +1,4 @@
-import { sansLaVisite, pourquoiPasDeRepriseIci, prochainDejaPose } from '../../../../shared/reprise-nue';
+import { sansLaVisite } from '../../../../shared/reprise-nue';
 import { suiteImposee } from '../../../../shared/retouche-comprise-pur';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Field, Input, Modal, Select, toast, alerte, demande } from '../../../../ds/components';
@@ -6,11 +6,11 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
-import { dateDeLaReprise, RYTHMES_ABO, rythmeDeReprise } from '../../../../shared/cadence';
+import { dateDeLaReprise } from '../../../../shared/cadence';
 import { useClients, clientsStore, useFamilies, familiesStore, aUnPrixConvenu } from '../../../../shared/clients';
-import { appointmentsStore, useAppointments, apptPayeurId, apptPaidXof, venuesHonorees, type Appointment, type ApptPayment, estampilleLaPose } from '../../../../shared/agenda';
-import { useCategories, fondeLaCouronne, servicesStore, type Service, useProducts } from '../../../../shared/catalog';
-import { aDefaitSesLocks, estDePassage as estDePassageCli, estDiaspora, joursDeLaTete } from '../../../../shared/clients';
+import { appointmentsStore, useAppointments, apptPayeurId, apptPaidXof, venuesHonorees, type Appointment, type ApptPayment } from '../../../../shared/agenda';
+import { useCategories, fondeLaCouronne, servicesStore, type Service, useProducts, type LongueurId } from '../../../../shared/catalog';
+import { joursDeLaTete } from '../../../../shared/clients';
 import { estUnCodeDuJour, remiseDeFactureAReporter, remiseDuComptoirEcrite, remiseDuComptoirRendue } from '../../../../shared/offres-pur';
 import { invoicesStore, cashboxesStore, useCashboxes, caissesPourLaDate, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, quiEncaisse, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
 import { detailDuForfait } from '../../../../shared/kids';
@@ -36,12 +36,12 @@ import { signeLeMessage } from '../../../../shared/identite';
 import { consommerPourRituel, rembobinerRituel, retirerParReferences } from '../../../../shared/stock';
 import { detacherFacture } from '../../../../shared/laboratoire';
 import { useStaff, adresseDe, contratPourLaDate, plansStore, subscribersStore } from '../equipe/data';
-import { laFamilleSuitElle, offreDesPlacesDuRdv } from './places-au-trone-pur';
+import { offreDesPlacesDuRdv } from './places-au-trone-pur';
 import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import {
   apptLabel, apptServices, apptNetXof, apptTotalXof, apptDueXof, svcPriceForAppt, remiseDeLigne, forfaitTauxPct, frShort, todayISO, useServicesById, addDaysISO,
-  ChampDeDate, frShortAn, tarifsDuRituel, prixAFiger, rituelDeshonore, remiseFamilleQuiSuit,
+  ChampDeDate, frShortAn, tarifsDuRituel, prixAFiger, rituelDeshonore,
 } from './_shared';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
@@ -64,6 +64,9 @@ import { identiteCourante } from '../../../../shared/journal';
 import { useEstDirection } from '../_vie';
 import { methodeDuMoyenLu, noteDeLaCapture, type MoyenLu } from '../../../../shared/ia-capture-pur';
 import { DeposerUneCapture } from '../vente/DeposerUneCapture';
+import { SonProchainRituel } from '../vente/SonProchainRituel';
+import { jourEnLettres } from '../../../../shared/calendrier';
+import { heureDuMessage } from '../../../../shared/salle-des-envois';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
 
@@ -128,110 +131,71 @@ export type ReprisePosee = { pose?: Appointment; raison?: string };
    reprise d'un rendez-vous à −15 % aurait compté une place prise au plein
    tarif, puis repris la remise à sa réouverture. La remise famille, elle, ne
    suit plus une tête passée aux prix convenus, ni abonnée à la date de la
-   suite (`laFamilleSuitElle`). */
+   suite : la carte « Son prochain rituel » la rejuge à la date de sa place
+   (`famPctDeLaTete`), au tarif de sa tête, sans rien recopier de la visite
+   (4 novembre 2026 ; `laFamilleQuiSuitLaTete`, qui recopiait les francs de
+   la visite pour la reprise d'office, s'en va avec elle). */
 function sansLaPlaceDuJour(appt: Appointment): Partial<Appointment> {
   const offres = offersStore.get();
   return estUnCodeDuJour(appt.codeOffre, offres) || !!offreDesPlacesDuRdv(appt, offres)
     ? { codeOffre: undefined, offreId: undefined, horsOffreDuJour: undefined }
     : {};
 }
-function laFamilleQuiSuitLaTete(appt: Appointment, date: string): Partial<Appointment> {
-  const tete = clientsStore.get().find((c) => c.id === appt.clientId);
-  const suit = laFamilleSuitElle({
-    prixConvenus: !!tete && aUnPrixConvenu(tete),
-    abonnee: !!appt.clientId && !!contratPourLaDate(subscribersStore.get(), appt.clientId, date, plansStore.get()),
-  });
-  return suit ? remiseFamilleQuiSuit(appt) : { remiseFamille: undefined, remiseFamilleXof: undefined };
+
+/* ══ LA REPRISE N'EST PLUS POSÉE D'OFFICE · 4 novembre 2026 ═══════════════
+   « Dans le parcours du rendez-vous des clients, quand on finit d'encaisser
+   le paiement, j'aimerais voir la date du prochain rendez-vous à l'écran,
+   qu'il soit validé, et pouvoir le modifier au besoin » (Yéman ; maquette
+   `public/maquette-prochain-rituel-a-l-encaissement.html`, v2, tranchée au
+   sélecteur). PROPOSÉ, VALIDÉ D'UN TOUCHER : la clôture ne pose plus rien.
+   La carte « Son prochain rituel » (vente/SonProchainRituel.tsx) le propose
+   après l'encaissement (« C'est réglé »), à la Caisse, et quand on marque un
+   rituel honoré au Carnet ou au tableau de bord ; un toucher le pose.
+
+   `poseLaReprise` reste parce que le sélecteur de statut de la fenêtre du
+   rendez-vous l'appelle encore : elle ne pose plus rien et ne dit rien. Les
+   gardes d'hier servent la carte : `pourquoiPasDeRepriseIci` et
+   `prochainDejaPose` (reprise-nue), `suiteImposee` (après VÈKPÈ, La Retouche
+   comprise), `sansLaVisite` et `sansLaPlaceDuJour` (rien du jour ne suit). */
+export function poseLaReprise(_appt: Appointment): ReprisePosee {
+  return {};
 }
 
-export function poseLaReprise(appt: Appointment): ReprisePosee {
-  /* CHAQUE REFUS SE DIT (9 septembre — « je n'ai pas eu son prochain RDV
-     automatique », Befoune, et personne ne pouvait dire quel garde avait
-     parlé). Un silence ressemble à une panne ; une raison s'arbitre. */
-  if (!appt.clientId) return { raison: 'rituel sans fiche cliente' };
-  if (appt.serviceIds.length === 0) return { raison: 'rituel sans prestations' };
+/** LA SUITE QU'IMPOSE CE RITUEL, construite pour la carte (10 octobre 2026,
+    « la création appelle sa retouche ») : après une création VÈKPÈ, La
+    Retouche comprise à quatre semaines, offerte ; après elle, la première
+    venue. Rien n'est écrit ici : la carte la pose d'un toucher. `null` : la
+    suite ordinaire, son rituel habituel, s'applique. */
+export function laSuiteImposeeDuRituel(appt: Appointment): { suite: Appointment; date: string; semaines: number } | null {
+  if (!appt.clientId || appt.serviceIds.length === 0) return null;
   const cliente = clientsStore.get().find((c) => c.id === appt.clientId);
-  if (!cliente) return { raison: 'fiche cliente introuvable' };
-  if (cliente.sansRepriseAuto) return { raison: 'la reprise est coupée sur sa fiche' };
-  const tous = appointmentsStore.get();
-  /* ══ LA CRÉATION APPELLE SA RETOUCHE — 10 octobre 2026 ════════════════
-     Après une création, la suite n'est pas une autre création au rythme de
-     la tête : c'est La Retouche comprise, à quatre semaines, offerte ; après
-     elle, la première venue (voir `shared/retouche-comprise-pur`). Sans
-     attendre de rythme : la couronne vient de naître. */
+  if (!cliente) return null;
   const catalogue = servicesStore.get();
   const imposee = suiteImposee(appt, (id) => { const sv = catalogue.find((s) => s.id === id); return !!sv && fondeLaCouronne(sv); }, catalogue);
-  if (imposee) {
-    const gardeI = pourquoiPasDeRepriseIci(appt, tous, todayISO());
-    if (gardeI) return { raison: gardeI };
-    const aVenirI = prochainDejaPose(appt, tous, todayISO());
-    if (aVenirI) return { raison: `elle a déjà un rendez-vous à venir (${frShort(aVenirI.date)})` };
-    const dateI = dateDeLaReprise(appt.date, imposee.semaines, joursDeLaTete(cliente));
-    const suiteI: Appointment = {
-      ...sansLaVisite(appt),
-      /* La place limitée ne suit pas (4 novembre 2026) ; la famille non plus,
-         ici comme avant : la Retouche comprise est offerte. */
-      ...sansLaPlaceDuJour(appt),
-      id: `ap-${uid()}`,
-      date: dateI,
-      status: 'confirmé',
-      source: 'trone',
-      repriseDe: appt.id,
-      serviceIds: imposee.serviceIds,
-      mains: undefined,
-      dureeMin: imposee.dureeMin,
-      remisesLignes: imposee.remisesLignes,
-      retoucheComprise: imposee.retoucheComprise,
-      sinsinOffert: imposee.sinsinOffert,
-      note: imposee.note,
-    } as Appointment;
-    appointmentsStore.set((prev) => [...prev, estampilleLaPose(suiteI)]);
-    return { pose: suiteI };
-  }
-  const rythme = rythmeDeReprise(cliente, tous);
-  if (!rythme) {
-    return {
-      raison: estDePassageCli(cliente) ? 'tête de passage — pas de reprise sans rythme posé'
-        : estDiaspora(cliente) ? 'diaspora — pas de reprise sans rythme posé'
-          : aDefaitSesLocks(cliente) ? 'elle a défait ses locks'
-            : 'cadence pas encore lisible (moins de deux venues honorées)',
-    };
-  }
-  /* La reprise effacée, le rituel plus récent, le rituel trop ancien
-     (2 octobre 2026, Shegun et Nathael) : voir `pourquoiPasDeRepriseIci`. */
-  const garde = pourquoiPasDeRepriseIci(appt, tous, todayISO());
-  if (garde) return { raison: garde };
-  /* UN RITUEL, UN SEUL PROCHAIN RENDEZ-VOUS (4 octobre 2026) : la même garde
-     que l'écran d'encaissement, voir `prochainDejaPose`. */
-  const aVenir = prochainDejaPose(appt, tous, todayISO());
-  if (aVenir) return { raison: `elle a déjà un rendez-vous à venir (${frShort(aVenir.date)})` };
-  const date = dateDeLaReprise(appt.date, rythme.semaines, joursDeLaTete(cliente));
-  const suivant: Appointment = {
-    /* CE QUI APPARTENAIT À LA VISITE D'AVANT NE SE RECOPIE PAS (shared/reprise-nue) :
-       son argent (versements, somme réglée, acompte, pièce), sa remise du jour, sa
-       Gamme, son forfait, son prix figé, ses points, sa couverture d'abonnement.
-       La somme réglée passait, le 2 octobre : la reprise naissait « payée ». Elle
-       se chiffre au tarif du jour où on l'ouvre, et se fige quand on l'enregistre. */
+  if (!imposee) return null;
+  const date = dateDeLaReprise(appt.date, imposee.semaines, joursDeLaTete(cliente));
+  const suite: Appointment = {
     ...sansLaVisite(appt),
-    /* LA REMISE FAMILLE SUIT LA REPRISE — 10 octobre 2026, décision de la
-       direction : la fenêtre la fige en francs, `sansLaVisite` la retirait
-       comme une remise du jour, et la visite suivante d'une tête à compte
-       famille la perdait en silence. Même geste que « Reprogrammé depuis
-       l'encaissement ». Une seule remise (4 novembre 2026) : ni la place
-       limitée ni, pour une tête aux prix convenus ou abonnée, la famille. */
+    /* La place limitée ne suit pas (4 novembre 2026) ; la famille non plus,
+       ici comme avant : la Retouche comprise est offerte. Ni le lien de
+       règlement, ni le foyer, ni la place tenue de la visite. */
     ...sansLaPlaceDuJour(appt),
-    ...laFamilleQuiSuitLaTete(appt, date),
+    lienDeReglement: undefined, lienDuFoyer: undefined, tenue: undefined, hermine: undefined, poseePar: undefined,
+    remiseFamille: undefined, remiseFamilleXof: undefined,
     id: `ap-${uid()}`,
     date,
     status: 'confirmé',
     source: 'trone',
     repriseDe: appt.id,
-    note: rythme.observe
-      ? `Reprise posée à la clôture · cadence observée ≈ ${rythme.semaines} semaines`
-      : `Reprise posée à la clôture · toutes les ${rythme.semaines} semaines`,
+    serviceIds: imposee.serviceIds,
+    mains: undefined,
+    dureeMin: imposee.dureeMin,
+    remisesLignes: imposee.remisesLignes,
+    retoucheComprise: imposee.retoucheComprise,
+    sinsinOffert: imposee.sinsinOffert,
+    note: imposee.note,
   } as Appointment;
-  appointmentsStore.set((prev) => [...prev, estampilleLaPose(suivant)]);
-  return { pose: suivant };
+  return { suite, date, semaines: imposee.semaines };
 }
 
 export function honorAppointment(
@@ -308,18 +272,10 @@ export function honorAppointment(
   const missions = poseLesMissionsDuRituel(appt, (id) => byId.get(id)?.name, { caisse: opts.caisse });
   if (missions.dit) toast(missions.dit);
 
-  /* LA REPRISE SE POSE ICI, à la clôture et nulle part ailleurs : c'est le seul
-     moment où la Maison sait que la tête est venue, et donc quand la suivante
-     est due. Elle se pose sans bruit, et l'écran l'annonce — un rendez-vous
-     apparu sans un mot serait pire que pas de rendez-vous du tout. */
-  const reprise = poseLaReprise(appt);
-  if (!opts.muet && reprise.pose) {
-    toast(`Rituel honoré. Sa reprise est posée le ${frShortAn(reprise.pose.date)} à ${reprise.pose.time}.`);
-  } else if (!opts.muet && reprise.raison && appt.clientId && appt.serviceIds.length > 0) {
-    /* LE POURQUOI S'AFFICHE — sauf pour les cas sans objet (vente au
-       comptoir sans fiche, rituel vide), où il n'y a rien à expliquer. */
-    toast(`Rituel honoré. Pas de reprise : ${reprise.raison}.`);
-  }
+  /* LA REPRISE NE SE POSE PLUS ICI (4 novembre 2026) : la clôture se tait,
+     et la carte « Son prochain rituel » propose la suite, validée d'un
+     toucher (voir `poseLaReprise`). */
+  const reprise: ReprisePosee = {};
 
   /* ── LA COURONNE NAÎT ICI — 19 août 2026 ─────────────────────────
      Un rituel honoré qui porte une création VÈKPÈ inscrit la date de la
@@ -358,6 +314,8 @@ export function honorAppointment(
 export type HonneurDeLEncaissement = {
   etat: 'honore' | 'deja' | 'a-venir' | 'annule' | 'absent';
   reprise?: ReprisePosee;
+  /** Les points du Cercle comptés par cet honneur (« C'est réglé » le dit). */
+  points?: number;
 };
 
 export function honoreALEncaissement(
@@ -373,7 +331,8 @@ export function honoreALEncaissement(
     if (!opts.muet) toast(`Le rituel du ${frShortAn(a.date)} n’a pas encore eu lieu : honorez-le le jour venu.`);
     return { etat: 'a-venir' };
   }
-  return { etat: 'honore', reprise: honorAppointment(a, byId, opts).reprise };
+  const h = honorAppointment(a, byId, opts);
+  return { etat: 'honore', reprise: h.reprise, points: h.points };
 }
 
 /* ══ HONORER SANS ENCAISSER, C'EST FACTURER — 4 octobre 2026 ══════════════
@@ -1123,6 +1082,100 @@ export function emettreLaPieceDuRituelRegle(
   return { ok: true, deja: r.deja };
 }
 
+/* ══ « C'EST RÉGLÉ » — 4 novembre 2026 ═══════════════════════════════════
+   Maquette `public/maquette-prochain-rituel-a-l-encaissement.html` (v2),
+   tranchée au sélecteur. La fenêtre ne se ferme plus à l'encaissement :
+   à gauche, la carte « Son prochain rituel » (la même qu'à la Caisse et au
+   Carnet : vente/SonProchainRituel.tsx), proposée, validée d'un toucher ; à
+   droite, le ticket réglé en bref. « Terminer » (ou ✕, ou Échap) passe par
+   la carte : un rendez-vous proposé non validé se demande dans le pied, un
+   rendez-vous validé reçoit sa seule confirmation à cette fermeture. */
+type EcranRegle = {
+  /** Un règlement (« C'est réglé ») ou une séance terminée sans encaisser. */
+  genre: 'regle' | 'seance';
+  total: boolean;
+  montantXof: number;
+  resteXof: number;
+  sous: string;
+  lignes: { libelle: string; sous?: string; montantXof: number }[];
+  faits: string[];
+  /** La conversation de la demande d'avis, ouverte à la fermeture. */
+  avis?: string;
+};
+
+function EcranCEstRegle({ regle, appt, nom, sousTitre, longueur, onClose }: {
+  regle: EcranRegle;
+  appt: Appointment;
+  nom: string;
+  sousTitre: string;
+  longueur: LongueurId;
+  onClose: () => void;
+}) {
+  const { currency } = useBranch();
+  const titre = regle.genre === 'seance' ? 'Séance terminée' : regle.total ? 'C’est réglé' : 'Paiement enregistré';
+  const sur = regle.genre === 'seance'
+    ? (regle.resteXof > 0 ? 'À régler' : 'Rien à régler')
+    : regle.total ? 'Réglé en totalité' : `Réglé en partie · reste ${fmtMoney(regle.resteXof, currency)}`;
+  return (
+    <SonProchainRituel
+      clientId={appt.clientId}
+      serviceIds={appt.serviceIds}
+      jour={appt.date}
+      longueur={longueur}
+      rituelId={appt.id}
+      onFerme={onClose}
+    >
+      {({ carte, pied, terminer, plein }) => (
+        <Modal
+          title={(
+            <span className="trv-regle__titre">
+              <span className="trv-regle__coche" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 14 14"><path d="M2.5 7.4l3 3 6-6.4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </span>
+              {titre}
+            </span>
+          )}
+          onClose={terminer}
+          width={1060}
+        >
+          <div className="trv-regle" data-regle={regle.genre}>
+            <p className="trv-regle__qui">{`${nom} · ${sousTitre}`}</p>
+            <div className="trv-regle__corps">
+              <div className="trv-regle__gauche">{carte}</div>
+              <aside className="trv-regle__droite" aria-label="Le ticket réglé">
+                <div className="trv-regle__montant">
+                  <span className="trv-regle__sur">{sur}</span>
+                  <b>{fmtMoney(regle.montantXof, currency)}</b>
+                  <small>{regle.sous}</small>
+                </div>
+                {regle.lignes.length > 0 && (
+                  <div className="trv-regle__lignes">
+                    {regle.lignes.map((l, i) => (
+                      <div key={`${l.libelle}-${i}`} className="trv-regle__ligne">
+                        <div>{l.libelle}{l.sous && <small>{l.sous}</small>}</div>
+                        <div className="trv-regle__mt">{fmtMoney(l.montantXof, currency)}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="trv-regle__faits">
+                  {regle.faits.map((f) => (
+                    <div key={f}><span className="trv-regle__fait" aria-hidden="true">✓</span><span>{f}</span></div>
+                  ))}
+                </div>
+              </aside>
+            </div>
+            <div className="trv-regle__pied">
+              <div className="trv-regle__pied-gauche">{pied}</div>
+              <Button variant={plein ? 'copper' : 'ghost'} className="trv-regle__terminer" onClick={terminer}>Terminer</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </SonProchainRituel>
+  );
+}
+
 export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, initial, onEncaisse }: {
   appt: Appointment;
   onClose: () => void;
@@ -1582,33 +1635,14 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
     toast(`Caisse « ${nom} » créée, les billets en ${payCurrency} y entreront.`);
   };
 
-  /* Reprogrammation automatique : au moment d'encaisser, poser d'un geste le
-     prochain RDV (résserrage/soin de suite), même cliente / prestations / maître. */
-  const addDaysISO = (iso: string, days: number) => {
-    const d = new Date(`${iso || todayISO()}T00:00:00`);
-    d.setDate(d.getDate() + days);
-    return d.toISOString().slice(0, 10);
-  };
-  const [reschedule, setReschedule] = useState(false);
-  /* Le prochain déjà posé, lu au rendu : l'interrupteur ne s'allume pas
-     quand il existe (un rituel, un seul prochain rendez-vous). */
-  const prochainExistant = prochainDejaPose(appt, appointmentsStore.get(), todayISO());
-  const [nextDate, setNextDate] = useState(() => {
-    const d = addDaysISO(appt.date, 28); // 4 semaines par défaut
-    return d > todayISO() ? d : addDaysISO(todayISO(), 28);
-  });
-  const [nextTime, setNextTime] = useState(appt.time || '09:00');
-  /* LA DATE D'UN RYTHME — on compte depuis le RITUEL, pas depuis le clic :
-     encaisser trois jours plus tard ne doit pas décaler la reprise de trois
-     jours. Si elle est déjà passée, on repart d'aujourd'hui. */
-  const dateDansSemaines = (semaines: number) => {
-    const d = addDaysISO(appt.date, semaines * 7);
-    return d > todayISO() ? d : addDaysISO(todayISO(), semaines * 7);
-  };
-  const setNextIn = (days: number) => {
-    const d = addDaysISO(appt.date, days);
-    setNextDate(d > todayISO() ? d : addDaysISO(todayISO(), days));
-  };
+  /* L'INTERRUPTEUR « REPROGRAMMER LE PROCHAIN RENDEZ-VOUS » EST RETIRÉ —
+     4 novembre 2026 (maquette du prochain rituel à l'encaissement, v2). Il se
+     réglait AVANT d'encaisser et posait un rendez-vous à l'aveugle. L'écran
+     « C'est réglé » le remplace : après l'encaissement, la carte « Son
+     prochain rituel » le propose, la date en grand, validé d'un toucher. */
+  /* « C'EST RÉGLÉ » : ce que l'encaissement vient d'écrire, gardé pour
+     l'écran qui suit (le ticket réglé en bref), ou la séance terminée. */
+  const [regle, setRegle] = useState<EcranRegle | null>(null);
 
   /* LA PIÈCE DU RITUEL, LUE EN DIRECT — c'est elle qui porte le journal des
      versements depuis le 17 août. On la relit dans le magasin à chaque rendu :
@@ -1667,7 +1701,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
     /* LA GAMME SEULE SUFFIT : sur un rituel déjà soldé, la cliente peut
        repartir avec un flacon — c'était impossible, le geste sortait sans
        rien dire, et le flacon partait sans pièce. */
-    if (amount <= 0 && avoirApplied <= 0 && totalGamme <= 0 && tip <= 0 && !depositJustConfirmed && !reschedule) return;
+    if (amount <= 0 && avoirApplied <= 0 && totalGamme <= 0 && tip <= 0 && !depositJustConfirmed) return;
     /* La ceinture du bouton grisé : aucun chemin n'écrit un argent sans tiroir,
        ni des parts qui dépassent le reste, ni une part MND PAY pas encore payée. */
     if (ditLaCaisse || partsTropHautes || avoirTropHaut || mndEnAttente || horsCarnet > 0 || traceQuiManque) return;
@@ -2070,57 +2104,22 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
         : x)));
     }
 
-    /* Reprogrammation automatique : la VISITE SUIVANTE, « confirmée » — même
-       cliente, mêmes prestations, mêmes mains, même maître. Impayée, à honorer
-       et encaisser le moment venu.
-       9 octobre 2026 : elle suit désormais la règle de la reprise
-       (`sansLaVisite`, comme `poseLaReprise`). Elle recopiait le prix et la
-       remise en francs de la visite encaissée ; elle se chiffre maintenant au
-       tarif de sa tête le jour où elle a lieu, et se fige au premier geste
-       d'argent. Le pourcentage du rendez-vous passe. La remise famille, que
-       la fenêtre fige en FRANCS, passe aussi (`remiseFamilleQuiSuit`) :
-       `sansLaVisite` la retirait comme une remise du jour, et la visite
-       suivante d'une tête à compte famille la perdait en silence. */
-    let rescheduled = false;
-    /* UN RITUEL, UN SEUL PROCHAIN RENDEZ-VOUS — 4 octobre 2026. Ce bloc
-       créait son rendez-vous à chaque encaissement, sans garde : repasser ou
-       corriger un paiement en ajoutait un à chaque fois (Nadège K., 3 octobre).
-       Il ne pose plus rien si la suite de ce rituel, ou un rendez-vous à venir
-       de la tête, existe déjà, et il RELIE ce qu'il pose (`repriseDe`) pour que
-       la reprise de la clôture le reconnaisse. */
-    const dejaPose = reschedule ? prochainDejaPose(appt, appointmentsStore.get(), todayISO()) : null;
-    if (reschedule && nextDate && !dejaPose) {
-      /* Après une création, le prochain est La Retouche comprise, jamais une
-         autre création (10 octobre 2026, voir `poseLaReprise`). */
-      const catalogueE = servicesStore.get();
-      const imposeeE = suiteImposee(appt, (id) => { const sv = catalogueE.find((s) => s.id === id); return !!sv && fondeLaCouronne(sv); }, catalogueE);
-      const newAppt: Appointment = {
-        ...sansLaVisite(appt),
-        ...sansLaPlaceDuJour(appt),
-        ...laFamilleQuiSuitLaTete(appt, nextDate),
-        id: `appt-${uid()}`,
-        clientName: appt.clientName ?? client?.name,
-        date: nextDate,
-        time: nextTime || appt.time || '09:00',
-        status: 'confirmé',
-        source: 'trone',
-        note: 'Reprogrammé depuis l’encaissement',
-        repriseDe: appt.id,
-        ...(imposeeE ? {
-          serviceIds: imposeeE.serviceIds, mains: undefined, dureeMin: imposeeE.dureeMin,
-          remisesLignes: imposeeE.remisesLignes, retoucheComprise: imposeeE.retoucheComprise, sinsinOffert: imposeeE.sinsinOffert,
-          discountXof: undefined, remiseFamille: undefined, remiseFamilleXof: undefined, note: imposeeE.note,
-        } : {}),
-      } as Appointment;
-      appointmentsStore.set((prev) => [...prev, estampilleLaPose(newAppt)]);
-      rescheduled = true;
-    }
+    /* LA VISITE REPROGRAMMÉE D'AVANT L'ENCAISSEMENT N'EXISTE PLUS (4 novembre
+       2026) : la carte de « C'est réglé » propose le prochain rendez-vous,
+       et un toucher le pose, une seule fois pour ce rituel (`prochainDejaPose`). */
 
     /* ══ ENCAISSER, C'EST HONORER — 13 septembre 2026 ══════════════════
-       Après la reprogrammation, jamais avant : si l'encaissement vient de
-       poser le prochain rendez-vous, la reprise de la clôture le voit et ne
-       s'en pose pas un second. L'annonce se fait dans la ligne du règlement. */
+       L'annonce se fait dans « C'est réglé », ou dans la ligne du règlement. */
     const honneur = settleTotal > 0 ? honoreALEncaissement(appt.id, byId, { muet: true }) : undefined;
+    /* ══ « C'EST RÉGLÉ » — 4 novembre 2026 ═════════════════════════════════
+       La fenêtre ne se ferme plus à l'encaissement d'un rituel qui a eu lieu :
+       elle passe à « C'est réglé », son prochain rituel à gauche, le ticket
+       réglé en bref à droite. Un second règlement à suivre, un rituel de
+       demain réglé d'avance, la Gamme ou un pourboire seuls : elle se ferme
+       comme avant. */
+    const montreLeRegle = !garderOuvert && settleTotal > 0 && (honneur?.etat === 'honore' || honneur?.etat === 'deja')
+      && !!appt.clientId && appt.serviceIds.length > 0;
+    let cheminDeLAvis: string | undefined;
 
     /* ── L'AVIS GOOGLE DE LA PREMIÈRE VENUE — 18 août 2026 ─────────────
        « Je veux que mes nouvelles clientes de passage laissent un avis
@@ -2159,10 +2158,13 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
         /* ON NE SORT PAS DU TRÔNE (14 septembre) : la demande d'avis
            ouvrait `wa.me`. Elle ouvre la conversation, le mot déjà écrit —
            et la Maison saura qu'elle l'a demandé, ce que `wa.me` ne disait
-           à personne. */
-        window.location.hash = `#${cheminDeLaConversation(tel, mot) ?? '/conversations'}`;
+           à personne. Après « C'est réglé », à sa fermeture (4 novembre
+           2026) : partir tout de suite aurait fermé la carte du prochain
+           rituel avant qu'on la lise. */
+        cheminDeLAvis = `#${cheminDeLaConversation(tel, mot) ?? '/conversations'}`;
       }
     }
+    if (cheminDeLAvis && !montreLeRegle) window.location.hash = cheminDeLAvis;
 
     /* RESTER POUR LE SECOND RÈGLEMENT — « je veux enregistrer un premier
        paiement sur cette facture, et ensuite le deuxième mode de paiement dans
@@ -2177,6 +2179,32 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
       const t0 = parts[0]?.tuile;
       setParts([partNeuve(t0 && t0 !== 'mndpay' && t0 !== 'avoir' ? t0 : 'especes', '')]);
       setTipStr('0');
+    } else if (montreLeRegle) {
+      /* Le ticket réglé en bref : la pièce que ce geste vient d'écrire, les
+         parts et leur caisse, le pourboire ; ce qui est fait. */
+      const piece = idPieceEncaissee ? invoicesStore.get().find((i) => i.id === idPieceEncaissee) : undefined;
+      const sesParts = parts.map((pt, i) => ({ c: lesCaisses[i], x: montantDe(pt) })).filter((l) => l.x > 0);
+      setRegle({
+        genre: 'regle',
+        total: fullyPaid,
+        montantXof: settleTotal + totalGamme + (tipRecorded ? tip : 0),
+        resteXof: remainingAfter,
+        sous: [quiNom ? `Encaissé par ${quiNom}` : 'Encaissé par ce poste', piece ? `facture ${piece.number}` : ''].filter(Boolean).join(' · '),
+        lignes: [
+          ...(piece?.lines ?? []).map((l) => ({ libelle: l.label, montantXof: ligneNetXof(l) })),
+          ...(tip > 0 ? [{ libelle: 'Pourboire', sous: tipRecorded ? 'partagé entre l’équipe' : 'non attribué', montantXof: tip }] : []),
+          ...sesParts.map((l) => ({ libelle: l.c.methode, sous: l.c.caisse ? `caisse ${l.c.caisse}` : undefined, montantXof: l.x })),
+          ...(avoirApplied > 0 && !sesParts.some((l) => l.c.methode === 'Avoir') ? [{ libelle: 'Avoir', sous: 'crédit du compte', montantXof: avoirApplied }] : []),
+        ],
+        faits: [
+          honneur?.etat === 'honore' ? ((honneur.points ?? 0) > 0 ? 'Rituel honoré, points du Cercle comptés' : 'Rituel honoré') : 'Rituel déjà honoré',
+          piece ? (papierPart ? `Facture ${piece.number} prête, envoyée avec le reçu`
+            : sansPapierSurSaFiche ? `Facture ${piece.number} prête, rien par WhatsApp : sa fiche le demande`
+              : `Facture ${piece.number} prête, sans message`) : '',
+          remainingAfter > 0 ? `Il reste ${fmtMoney(remainingAfter, currency)} dû` : '',
+        ].filter(Boolean),
+        avis: cheminDeLAvis,
+      });
     } else {
       onClose();
     }
@@ -2191,15 +2219,12 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
       : tipRecorded ? ` · pourboire ${fmtMoney(tip, currency)} partagé en ${partsEcrites.length} parts`
       : ` · pourboire ${fmtMoney(tip, currency)} NON attribué (aucun membre du personnel dans cette branche)`;
     const depMsg = depositJustConfirmed ? `Acompte de ${fmtMoney(deposit, currency)} confirmé reçu. ` : '';
-    const reschedMsg = rescheduled
-      ? `Prochain RDV reprogrammé le ${frShortAn(nextDate)} à ${nextTime}.`
-      : dejaPose ? `Aucun RDV de plus : le prochain est déjà posé le ${frShortAn(dejaPose.date)}.` : '';
     const honneurMsg = honneur?.etat === 'honore'
-      ? `Rituel honoré.${honneur.reprise?.pose ? ` Sa reprise est posée le ${frShortAn(honneur.reprise.pose.date)} à ${honneur.reprise.pose.time}.` : ''}`
+      ? 'Rituel honoré.'
       : honneur?.etat === 'a-venir'
         ? `Le rituel du ${frShortAn(appt.date)} n’a pas encore eu lieu : honorez-le le jour venu.`
         : '';
-    const msg = [(depMsg + (payMsg + tipMsg).replace(/^ · /, '')).trim(), reschedMsg, honneurMsg].filter(Boolean).join(' · ') || 'Enregistré.';
+    const msg = [(depMsg + (payMsg + tipMsg).replace(/^ · /, '')).trim(), honneurMsg].filter(Boolean).join(' · ') || 'Enregistré.';
     /* Succès → toast (zéro clic, la caissière enchaîne). Un pourboire NON
        attribuable, lui, doit être VU : il passe par le bandeau d'ALERTE, qui
        porte la brique, se tient sept secondes et interrompt les lecteurs
@@ -2207,8 +2232,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
        navigateur a été retirée parce qu'elle pouvait être désactivée d'une
        case à cocher, auquel cas ce pourboire ne se voyait plus DU TOUT.
        Le report de 30 ms reste : il laisse la modale se refermer d'abord. */
+    /* « C'est réglé » dit le règlement à l'écran : pas de bandeau de plus. */
     if (tip > 0 && !tipRecorded) window.setTimeout(() => alerte(msg), 30);
-    else toast(msg);
+    else if (!montreLeRegle) toast(msg);
     mndPayRef.current = null;
     /* LA FACTURE PART SEULE CHEZ ELLE — 17 octobre 2026 (« cette facture doit
        aller instantanément chez le client »). Seulement pour l'argent reçu
@@ -2273,7 +2299,6 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
   const resumeSuite = [
     `facture ${frShort(invDate)}`,
     `argent ${frShort(payDate)}`,
-    reschedule && !prochainExistant ? 'prochain RDV posé' : '',
     fxOn ? `en ${fxCode}` : '',
   ].filter(Boolean).join(' · ');
   const bascule = (k: EtapeEncId) => setEtape((e) => (e === k ? null : k));
@@ -2334,6 +2359,24 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
     const cfg = autoConfigStore.get();
     return { titre: 'Régler par MoMo.', phrase: `Marchand ${cfg.momoMarchand || MOMO_MARCHAND_DEFAUT}.${aRegler}`, valeur: cfg.momoQr || MOMO_QR_DEFAUT };
   };
+
+  /* « C'EST RÉGLÉ » — 4 novembre 2026. Tous les crochets sont au-dessus : ce
+     retour ne change pas leur ordre. */
+  if (regle) {
+    return (
+      <EcranCEstRegle
+        regle={regle}
+        appt={appt}
+        nom={client?.name ?? appt.clientName ?? 'Cliente'}
+        sousTitre={[`rituel du ${jourEnLettres(appt.date).replace(/^./, (c) => c.toLowerCase())}${appt.time ? ` à ${heureDuMessage(appt.time)}` : ''}`, appt.master ? `avec ${appt.master}` : ''].filter(Boolean).join(' · ')}
+        longueur={appt.longueur ?? client?.longueur ?? 'mi-long'}
+        onClose={() => {
+          onClose();
+          if (regle.avis) window.location.hash = regle.avis;
+        }}
+      />
+    );
+  }
 
   return (
     <Modal title="Encaisser le rituel" onClose={onClose} width={1060}>
@@ -2749,7 +2792,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
           <Button
             variant="copper"
             onClick={() => confirm()}
-            disabled={(settleTotal <= 0 && totalGamme <= 0 && (tip <= 0 || partage.length === 0) && !depositJustConfirmed && !reschedule) || empecheTout}
+            disabled={(settleTotal <= 0 && totalGamme <= 0 && (tip <= 0 || partage.length === 0) && !depositJustConfirmed) || empecheTout}
           >
             {/* LE BOUTON DIT LES DEUX MONTANTS (7 septembre) : un bouton qui ne
                 dit pas ce qu'il fait apprend à ne plus le lire. */}
@@ -2761,9 +2804,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                   ? `Enregistrer le pourboire ${fmtMoney(tip, currency)}`
                   : settleTotal <= 0 && depositJustConfirmed
                     ? 'Confirmer l’acompte reçu'
-                    : settleTotal <= 0 && reschedule
-                      ? 'Reprogrammer le rendez-vous'
-                      : `Encaisser ${fmtMoney(settleTotal, currency)}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}${fullyPaid ? '' : ' (partiel)'}`}
+                    : `Encaisser ${fmtMoney(settleTotal, currency)}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}${fullyPaid ? '' : ' (partiel)'}`}
           </Button>
         </div>
         </aside>
@@ -3143,45 +3184,11 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
             </div>
           )}
 
-          {/* Reprogrammation automatique du prochain rendez-vous. */}
-          <div style={{ border: '1px solid var(--hairline)', borderRadius: 'var(--radius-md)', padding: '11px 13px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--color-indigo)' }}>
-                Reprogrammer le prochain rendez-vous
-              </span>
-              <Toggle on={reschedule && !prochainExistant} onToggle={() => { if (!prochainExistant) setReschedule((v) => !v); }} />
-            </div>
-            {prochainExistant && (
-              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.5 }}>
-                Le prochain rendez-vous est déjà posé le {frShortAn(prochainExistant.date)}{prochainExistant.time ? ` à ${prochainExistant.time}` : ''} : rien de plus ne sera créé.
-              </div>
-            )}
-            {reschedule && !prochainExistant && (
-              <>
-                <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
-                  {/* LES RYTHMES DE LA MAISON, ÉCRITS UNE FOIS (`RYTHMES_ABO`) ;
-                      le rythme choisi se voit, la date fait foi. */}
-                  {RYTHMES_ABO.map((sem) => (
-                    <button
-                      key={sem}
-                      type="button"
-                      className={`mnd-btn mnd-btn--sm ${nextDate === dateDansSemaines(sem) ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
-                      style={{ flex: 'none' }}
-                      onClick={() => setNextIn(sem * 7)}
-                    >
-                      {sem} sem.
-                    </button>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <ChampDeDate compact sens="avant" value={nextDate} onChange={setNextDate} min={todayISO()} style={{ flex: 1, minWidth: 0 }} />
-                  <Input type="time" value={nextTime} onChange={(e) => setNextTime(e.target.value)} style={{ width: 108, flex: 'none' }} />
-                </div>
-                <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
-                  Un RDV « confirmé » identique sera créé pour {client?.name ?? 'la cliente'}, mêmes prestations, même prix (remise comprise), même maître, à honorer et encaisser le jour venu.
-                </div>
-              </>
-            )}
+          {/* L'INTERRUPTEUR « REPROGRAMMER » EST RETIRÉ (4 novembre 2026) : le
+              prochain rendez-vous se propose après l'encaissement, dans
+              « C'est réglé », la date en grand, validé d'un toucher. */}
+          <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+            Son prochain rendez-vous se propose juste après l’encaissement, la date en grand : un toucher le valide.
           </div>
 
           {/* ENREGISTRER SANS SORTIR — un second règlement, un autre jour ou
@@ -3231,6 +3238,23 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                 client, bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsCatalogue,
               }));
               if (envoyer && h.facture && !h.deja) void envoiDeLaPiece.aRegler(h.facture.id, appt.date, { memePasse: true });
+              /* MARQUÉ HONORÉ SANS ENCAISSER (4 novembre 2026) : la même carte
+                 que « C'est réglé », proposée, validée d'un toucher. */
+              if (h.honore && appt.clientId && appt.serviceIds.length > 0) {
+                const maj = appointmentsStore.get().find((x) => x.id === appt.id) ?? appt;
+                setRegle({
+                  genre: 'seance',
+                  total: false,
+                  montantXof: apptDueXof(maj, byId),
+                  resteXof: apptDueXof(maj, byId),
+                  sous: h.facture ? `facture ${h.facture.number}, à régler` : 'rien à régler',
+                  lignes: (h.facture?.lines ?? []).map((l) => ({ libelle: l.label, montantXof: ligneNetXof(l) })),
+                  faits: [
+                    'Rituel honoré',
+                    h.facture ? (envoyer && !h.deja ? `Facture ${h.facture.number} envoyée sur son WhatsApp` : `Facture ${h.facture.number}, sans message`) : '',
+                  ].filter(Boolean),
+                });
+              }
             };
             return appt.date === todayISO() ? (
               <Button variant="ghost" style={LIBELLE_LONG} onClick={() => termine(papierPart)}>{papierPart ? 'Terminer la séance · le reste part sur son WhatsApp' : 'Terminer la séance · sans message'}</Button>
