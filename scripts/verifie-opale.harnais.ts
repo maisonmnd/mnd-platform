@@ -474,6 +474,22 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
   dit('la consigne : la Maison MND en entier, confirme et jamais deplace', [true, true], [consigne.includes('écris « la Maison MND » en entier'), consigne.includes('ne dis jamais qu’il a été déplacé')]);
 }
 
+/* ══ 11 ter. AUCUNE OFFRE ANNONCÉE (4 novembre 2026) ══
+   « Jamais deux remises » et MERCREDI15 le jour même seulement : Opale ne
+   réserve jamais le jour même ; elle ne parle d'aucune remise, d'aucun code,
+   d'aucune offre. La Maison les applique au comptoir. */
+{
+  decor();
+  table('documents').find((d) => d.key === 'mnd_offers')!.data = [{ code: 'MERCREDI15', active: true, title: 'Le mercredi de la Maison', sub: 'Venez un mercredi : -15 %', conditions: 'Sur les soins.' }];
+  const w = elleEcrit(NUM, 'Bonjour, vous avez des promotions ?');
+  FILE = [{ texte: 'Bonjour Mme Akouele, la Maison MND vous accueille avec plaisir.' }];
+  await tour(NUM, [w]);
+  const ctx = String(DEMANDES[0]?.messages?.[0]?.content ?? '');
+  dit('aucune offre au contexte, meme active ; la consigne n en parle pas', [false, false, true], [
+    ctx.includes('MERCREDI15'), ctx.includes('L’offre du moment'), consigneDOpale().includes('Ne parle d’aucune remise, d’aucun code ni d’aucune offre'),
+  ]);
+}
+
 /* ══ 12. LE MODULE PUR ══ */
 {
   dit('le reglage : opale seulement quand il le dit', ['automate', 'automate', 'opale'], [reglageDOpale(null).qui, reglageDOpale({ qui: 'autre' }).qui, reglageDOpale({ qui: 'opale' }).qui]);

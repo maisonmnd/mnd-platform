@@ -45,6 +45,8 @@ const PANNES = [
   { nom: 'la reprise prend son mot de relais pour une reponse', fichier: AU, avant: "&& d.etape !== 'main') break;", apres: ') break;' },
   { nom: 'la consigne laisse dire deplace', fichier: OP, avant: ' : ne dis jamais qu’il a été déplacé.', apres: '.' },
   { nom: 'la consigne oublie la Maison MND', fichier: OP, avant: 'Quand tu nommes le lieu, écris « la Maison MND » en entier : « Nous vous attendons à la Maison MND ». ', apres: '' },
+  { nom: 'Opale annonce l offre du moment', fichier: AU, avant: '    paiements, offres: [], catalogue,', apres: "    paiements, offres: offresDOpale(docs.get('mnd_offers'), aujourdhui), catalogue," },
+  { nom: 'la consigne laisse parler des remises', fichier: OP, avant: 'Ne parle d’aucune remise, d’aucun code ni d’aucune offre : la Maison MND les applique elle-même, quand ils valent pour elle.', apres: 'L’offre du jour se dit telle quelle.' },
   { nom: 'la copie du bloc derive', fichier: AU, avant: 'export const MESSAGES_D_OPALE_PAR_JOUR = 40;', apres: 'export const MESSAGES_D_OPALE_PAR_JOUR = 400;' },
 ];
 

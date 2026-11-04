@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-04-b · Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais';
+const VERSION = '2026-11-04-c · Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -4770,7 +4770,7 @@ export function consigneDOpale(): string {
     'Une création de locks ou une réparation commence TOUJOURS par une consultation : n’en donne aucun prix, ni « à partir de », ni estimation ; la Maison remet son devis écrit après la consultation. Propose de réserver la consultation.',
     'Les extensions de locks se décident à la consultation (la teinte, le calibre, le nombre) : aucun prix.',
     'Les soins, entretiens, reprises, coiffures : le prix du catalogue, ou celui que l’outil `prix` rend pour elle. Un prix qui dépend de ses locks : il te faut son nombre de locks (approximatif) ; s’il n’est ni dans le contexte ni dans le fil, demande-le avec délicatesse, sans citer de montant. Un prix qui dépend de la longueur : demande sa longueur (court, mi-long, long).',
-    'Aucun autre montant, aucune estimation, aucune remise que le contexte ou un outil ne donne pas. L’offre du jour, si le contexte en dit une, se dit telle quelle.',
+    'Aucun autre montant ni estimation que le contexte ou un outil ne donne pas. Ne parle d’aucune remise, d’aucun code ni d’aucune offre : la Maison MND les applique elle-même, quand ils valent pour elle.',
     'Les liens de la Maison (catalogue en ligne, consultation de création, consultation de réparation) sont dans le contexte : donne-les quand ils la servent.',
     '',
     'LE LIEU',
@@ -6375,7 +6375,10 @@ async function unTourDOpale(
     fiches: fichesDOpale, rdvs, connaitLeLieu,
     adresse: String(agenda?.lignes.branche.data?.address ?? '').trim() || ADRESSE_D_OPALE,
     liens: { catalogue: 'https://maisonmnd.com/reserver/?besoin=entretien', creation: 'https://maisonmnd.com/reserver/?besoin=creation', reparation: 'https://maisonmnd.com/reserver/?besoin=reparation' },
-    paiements, offres: offresDOpale(docs.get('mnd_offers'), aujourdhui), catalogue,
+    /* AUCUNE OFFRE ANNONCÉE (4 novembre 2026) : « jamais deux remises » et
+       MERCREDI15 le jour même seulement (le-trone-67, sur la règle de Yéman) ;
+       Opale ne réserve jamais le jour même. La Maison les applique au comptoir. */
+    paiements, offres: [], catalogue,
     ...(etatDOpale.enAttente ? { enAttente: etatDOpale.enAttente } : {}),
     fil: filLu, nouveaux, nomDe,
   });

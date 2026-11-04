@@ -160,7 +160,7 @@ export function consigneDOpale(): string {
     'Une création de locks ou une réparation commence TOUJOURS par une consultation : n’en donne aucun prix, ni « à partir de », ni estimation ; la Maison remet son devis écrit après la consultation. Propose de réserver la consultation.',
     'Les extensions de locks se décident à la consultation (la teinte, le calibre, le nombre) : aucun prix.',
     'Les soins, entretiens, reprises, coiffures : le prix du catalogue, ou celui que l’outil `prix` rend pour elle. Un prix qui dépend de ses locks : il te faut son nombre de locks (approximatif) ; s’il n’est ni dans le contexte ni dans le fil, demande-le avec délicatesse, sans citer de montant. Un prix qui dépend de la longueur : demande sa longueur (court, mi-long, long).',
-    'Aucun autre montant, aucune estimation, aucune remise que le contexte ou un outil ne donne pas. L’offre du jour, si le contexte en dit une, se dit telle quelle.',
+    'Aucun autre montant ni estimation que le contexte ou un outil ne donne pas. Ne parle d’aucune remise, d’aucun code ni d’aucune offre : la Maison MND les applique elle-même, quand ils valent pour elle.',
     'Les liens de la Maison (catalogue en ligne, consultation de création, consultation de réparation) sont dans le contexte : donne-les quand ils la servent.',
     '',
     'LE LIEU',
