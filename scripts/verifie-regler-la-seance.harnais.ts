@@ -150,7 +150,7 @@ const envoi = sansCommentaires(lis('src/apps/trone/routes/vente/envoi-de-la-piec
    d envoi tranche (une piece deja partie ne repart pas) ; la preparation (Tap & Go, PDF) vient apres. */
 dit('« Terminer la seance » : le lien seulement quand la fonction repond, le rituel du jour seulement, la decision avant de preparer',
   [true, true, true], [/saitRegler\(await versionDuReglement\(\)\)/.test(envoi),
-    /if \(!o\?\.memePasse && jourDuRituel !== aujourdhui\(\)\) return;\s*const avant = laPiece\(pieceId\);\s*if \(!avant\) return;\s*const decision = decisionDEnvoi\(\{ piece: avant, geste: o\?\.renvoi \? 'renvoi' : 'auto'[^\n]*\n\s*if \(!decision\.envoie\) \{[^\n]*return; \}\s*const p = await preparer/.test(envoi),
+    /if \(!o\?\.memePasse && jourDuRituel !== aujourdhui\(\)\) return;\s*const avant = laPiece\(pieceId\);\s*if \(!avant\) return;\s*if \(!o\?\.renvoi && sansPapierPour\(avant\)\) \{[^\n]*return; \}\s*const decision = decisionDEnvoi\(\{ piece: avant, geste: o\?\.renvoi \? 'renvoi' : 'auto'[^\n]*\n\s*if \(!decision\.envoie\) \{[^\n]*return; \}\s*const p = await preparer/.test(envoi),
     /enLigne: !!lien/.test(envoi)]);
 /* UN RENDEZ-VOUS PASSÉ A DEUX GESTES — 26 octobre 2026 (sa décision) : « envoyer la facture » part
    exprès (memePasse), « Honorer sans prévenir » ne dit rien ; aucun autre bouton n'envoie pour un RDV passé. */

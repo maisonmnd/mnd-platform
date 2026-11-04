@@ -96,6 +96,14 @@ export function useEnvoiDeLaPiece() {
     ...(r.deja ? { dAilleurs: true as const } : { parQui: quiEncaisse() }),
   });
   const laPiece = (pieceId: string) => invoicesStore.get().find((i) => i.id === pieceId);
+  /* PAS DE PAPIER PAR WHATSAPP — 4 novembre 2026 (« trop de messages ») : la
+     fiche qui recevrait le papier (la payeuse, sinon la tête soignée) le
+     refuse. Seul un renvoi exprès passe ; aucun geste automatique. */
+  const sansPapierPour = (piece: NonNullable<ReturnType<typeof laPiece>>): boolean => {
+    const payeuse = clients.find((c) => c.id === piece.clientId);
+    const soignee = clients.find((c) => c.id === (piece.forClientId ?? piece.clientId));
+    return (payeuse?.phone?.trim() ? payeuse : soignee)?.sansPapiersWa === true;
+  };
 
   /** Après un règlement reçu `jourDuPaiement` pour le rituel de `jourDuRituel` :
       seulement l'argent d'aujourd'hui, pour un rituel d'aujourd'hui ou à venir.
@@ -106,6 +114,7 @@ export function useEnvoiDeLaPiece() {
     if (!recuAEnvoyer({ jourDuPaiement, jourDuRituel, aujourdhui: aujourdhui() }) || !(montantXof > 0)) return;
     const piece = laPiece(pieceId);
     if (!piece) return;
+    if (sansPapierPour(piece)) { toast(`Facture ${piece.number} : pas de reçu par WhatsApp, sa fiche le demande.`); return; }
     const decision = decisionDEnvoi({ piece, geste: 'auto', instant: new Date().toISOString() });
     /* « ne part pas », jamais « n'est pas renvoyé » : c'est la facture qui est partie, aucun reçu n'a existé. */
     if (!decision.envoie) { toast(`Facture ${piece.number} ${decision.motif} : le reçu ne part pas.`); return; }
@@ -129,6 +138,7 @@ export function useEnvoiDeLaPiece() {
     if (!o?.memePasse && jourDuRituel !== aujourdhui()) return;
     const avant = laPiece(pieceId);
     if (!avant) return;
+    if (!o?.renvoi && sansPapierPour(avant)) { toast(`Facture ${avant.number} : pas de facture par WhatsApp, sa fiche le demande.`); return; }
     const decision = decisionDEnvoi({ piece: avant, geste: o?.renvoi ? 'renvoi' : 'auto', instant: new Date().toISOString() });
     if (!decision.envoie) { toast(`Facture ${avant.number} ${decision.motif} : rien de plus n’est envoyé.`); return; }
     const p = await preparer(pieceId);
@@ -190,6 +200,7 @@ export function useEnvoiDeLaPiece() {
     const soignee = clients.find((c) => c.id === (p0.forClientId ?? p0.clientId));
     const destinataire = payeuse?.phone?.trim() ? payeuse : soignee;
     if (!destinataire?.phone?.trim()) { toast('Facture du foyer non envoyée : pas de numéro sur la fiche.'); return; }
+    if (!o?.renvoi && destinataire.sansPapiersWa === true) { toast('Facture du foyer : pas de papier par WhatsApp, sa fiche le demande.'); return; }
     const prenomDe = (p: typeof p0) => {
       const tete = clients.find((c) => c.id === (p.forClientId ?? p.clientId));
       return (tete?.name ?? 'Une tête').split(' ')[0];

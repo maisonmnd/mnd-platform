@@ -114,7 +114,8 @@ dit(5, 'cleDuFoyer : les deux ecritures du numero donnent la meme cle',
   dit(7, 'Encaissement : le foyer du jour, terminer = true sans renvoi, apres coup = false en renvoi',
     [1, 1, 1],
     [fois(actions, 'const duJour = rdvsDuFoyerLeJour(appt, tousLesRdv, clients);'),
-      fois(actions, 'void envoiDeLaPiece.foyer(piecesDuFoyer(duJour, byId, tarifsDe, { terminer: true }), appt.date);'),
+      /* La case « Envoyer le reçu sur son WhatsApp » (4 novembre 2026) : décochée, on termine sans envoyer. */
+      fois(actions, 'const ids = piecesDuFoyer(duJour, byId, tarifsDe, { terminer: true }); if (papierPart) void envoiDeLaPiece.foyer(ids, appt.date);'),
       fois(actions, 'void envoiDeLaPiece.foyer(piecesDuFoyer(duJour, byId, tarifsDe, { terminer: false }), appt.date, { renvoi: true });')]);
   dit(7, 'piecesDuFoyer : chaque tete a son tarif, terminer honore d abord, un rituel qui ne doit rien ne donne rien',
     [1, 1, 1],

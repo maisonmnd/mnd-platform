@@ -514,7 +514,7 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
   const avis = lis('supabase/functions/avis-google/index.ts');
   dit('la Caisse, la demande d avis du comptoir et celle du serveur ne font pas voir le retard', [true, true, true, true],
     [/const recuPermis = recuAEnvoyer\(\{ jourDuPaiement: dateVente, jourDuRituel: rituelChoisi\?\.date, aujourdhui: todayIso\(\) \}\);/.test(caisse),
-      /if \(envoyerRecu && client\?\.phone && pay !== 'Lien WhatsApp' && recuPermis\) \{/.test(caisse),
+      /if \(envoyerRecu && client\?\.phone && client\.sansPapiersWa !== true && pay !== 'Lien WhatsApp' && recuPermis\) \{/.test(caisse),
       /autoConfigStore\.get\(\)\.avisAuto !== true && appt\.date >= addDaysISO\(todayISO\(\), -1\)\) \{/.test(act),
       /\(j === aujourdhui \|\| j === hier\) && \(p\.date === aujourdhui \|\| p\.date === hier\)/.test(avis)]);
   dit('honorer sans encaisser envoie la facture à régler, partout (rituel, Carnet, tableau de bord)', [true, true, true],

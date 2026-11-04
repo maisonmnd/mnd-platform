@@ -1143,6 +1143,13 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
   const payerId = appt.offertPar || (client ? payerClientIdOf(client, families) : appt.clientId);
   const payerClient = clients.find((c) => c.id === payerId);
   const isFamilyPayer = payerId !== appt.clientId; // payeur distinct : famille OU rituel offert
+  /* LE PAPIER PART-IL ? — 4 novembre 2026 (« trop de messages », Yéman) : le
+     reçu d'un règlement, ou la facture de « Terminer la séance », part sur son
+     WhatsApp si la case est cochée, d'office. Une fiche qui le refuse
+     (`sansPapiersWa`, celle qui reçoit le papier) la décoche et la grise. */
+  const sansPapierSurSaFiche = (payerClient?.phone?.trim() ? payerClient : client)?.sansPapiersWa === true;
+  const [envoyerLePapier, setEnvoyerLePapier] = useState(true);
+  const papierPart = envoyerLePapier && !sansPapierSurSaFiche;
 
   const services = apptServices(appt, byId);
   /* Contexte tarifaire de la cliente — la facture ventile chaque prestation selon
@@ -2177,7 +2184,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
        AUJOURD'HUI : un rattrapage (une année passée, un versement daté d'un
        autre jour) ne réveille pas une cliente avec un vieux reçu. La règle
        des envois : une date métier, jamais l'heure de l'écriture. */
-    if (idPieceEncaissee && settleTotal + totalGamme > 0) {
+    if (idPieceEncaissee && settleTotal + totalGamme > 0 && papierPart) {
       void envoieLaFacture(idPieceEncaissee, settleTotal + totalGamme);
     }
   };
@@ -2704,6 +2711,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
               Inscrire au carnet les {fmtMoney(horsCarnet, currency)} déjà sur la facture
             </Button>
           )}
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: 'var(--ink-soft)', cursor: sansPapierSurSaFiche ? 'default' : 'pointer' }}>
+            <input type="checkbox" checked={papierPart} disabled={sansPapierSurSaFiche} onChange={(e) => setEnvoyerLePapier(e.target.checked)} style={{ accentColor: 'var(--color-copper)' }} />
+            {sansPapierSurSaFiche ? 'Pas de reçu ni de facture par WhatsApp : sa fiche le demande' : 'Envoyer le reçu sur son WhatsApp'}
+          </label>
           <Button
             variant="copper"
             onClick={() => confirm()}
@@ -3167,8 +3178,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
             const qui = prenomsDuFoyer(duJour, clients);
             if (aTerminer) {
               return (
-                <Button variant="ghost" style={LIBELLE_LONG} onClick={() => { void envoiDeLaPiece.foyer(piecesDuFoyer(duJour, byId, tarifsDe, { terminer: true }), appt.date); }}>
-                  Terminer les séances de {qui} · une facture du foyer
+                <Button variant="ghost" style={LIBELLE_LONG} onClick={() => { const ids = piecesDuFoyer(duJour, byId, tarifsDe, { terminer: true }); if (papierPart) void envoiDeLaPiece.foyer(ids, appt.date); }}>
+                  Terminer les séances de {qui} · {papierPart ? 'une facture du foyer' : 'sans message'}
                 </Button>
               );
             }
@@ -3191,7 +3202,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
               if (envoyer && h.facture && !h.deja) void envoiDeLaPiece.aRegler(h.facture.id, appt.date, { memePasse: true });
             };
             return appt.date === todayISO() ? (
-              <Button variant="ghost" style={LIBELLE_LONG} onClick={() => termine(true)}>Terminer la séance · le reste part sur son WhatsApp</Button>
+              <Button variant="ghost" style={LIBELLE_LONG} onClick={() => termine(papierPart)}>{papierPart ? 'Terminer la séance · le reste part sur son WhatsApp' : 'Terminer la séance · sans message'}</Button>
             ) : (
               <>
                 <Button variant="ghost" style={LIBELLE_LONG} onClick={() => termine(true)}>Terminer la séance · envoyer la facture</Button>

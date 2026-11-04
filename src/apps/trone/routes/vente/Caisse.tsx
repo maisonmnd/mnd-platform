@@ -691,6 +691,10 @@ export default function Caisse() {
      ou solo). Applicable jusqu'au net ; le comptant couvre le reste. La part avoir
      est du revenu mais hors caisse (avoirXof — routée par la Synthèse). */
   const posClient = branchClients.find((c) => c.id === clientId);
+  /* PAS DE PAPIER PAR WHATSAPP (4 novembre 2026, « trop de messages ») : la
+     case du reçu suit la fiche ; une fiche qui le refuse la décoche et la grise. */
+  const sansPapierPos = posClient?.sansPapiersWa === true;
+  useEffect(() => { setEnvoyerRecu(!sansPapierPos); }, [clientId, sansPapierPos]);
   const soinsDispo: SoinOffert[] = soinsEnAttente(posClient?.soinsOfferts);
   /** OFFRIR LE SOIN : sa prestation (ou, s'il n'en nomme pas, la première
       prestation du ticket) passe à 100 %. Absente du ticket, elle s'y ajoute. */
@@ -1170,7 +1174,7 @@ export default function Caisse() {
     if (envoyerRecu && client?.phone && pay !== 'Lien WhatsApp' && !recuPermis) {
       setRecuHint('Reçu non envoyé : un rattrapage d’un jour passé ne prévient pas la cliente.');
     }
-    if (envoyerRecu && client?.phone && pay !== 'Lien WhatsApp' && recuPermis) {
+    if (envoyerRecu && client?.phone && client.sansPapiersWa !== true && pay !== 'Lien WhatsApp' && recuPermis) {
       const montantDit = fmtMoney(argentDuJour.reduce((n, v) => n + v.amountXof, 0) || netXof, currency);
       /* UNE PIÈCE, UN SEUL WHATSAPP (1er novembre 2026) : la clé de la pièce au
          serveur, et la marque sur la pièce dès que le reçu a répondu, pour
@@ -2020,8 +2024,8 @@ export default function Caisse() {
 
               {posClient?.phone && pay !== 'Lien WhatsApp' && lines.length > 0 && (
                 <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>
-                  <input type="checkbox" checked={envoyerRecu} onChange={(e) => setEnvoyerRecu(e.target.checked)} />
-                  Envoyer le reçu sur son WhatsApp
+                  <input type="checkbox" checked={envoyerRecu && !sansPapierPos} disabled={sansPapierPos} onChange={(e) => setEnvoyerRecu(e.target.checked)} />
+                  {sansPapierPos ? 'Pas de reçu par WhatsApp : sa fiche le demande' : 'Envoyer le reçu sur son WhatsApp'}
                 </label>
               )}
               {recuHint && <div className="trv-pdf-hint" style={{ marginTop: 10 }}>{recuHint}</div>}

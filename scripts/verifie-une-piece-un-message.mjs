@@ -27,6 +27,7 @@ const prouve = process.argv.includes('--prouve');
 const P = 'src/shared/une-piece-un-message-pur.ts';
 const E = 'src/apps/trone/routes/vente/envoi-de-la-piece.ts';
 const C = 'src/apps/trone/routes/vente/Caisse.tsx';
+const A = 'src/apps/trone/routes/clients/actions.tsx';
 const L = 'src/apps/trone/shell/useReglementsEnLigne.ts';
 const R = 'src/shared/recu-whatsapp.ts';
 const F = 'src/shared/facture-whatsapp.ts';
@@ -84,6 +85,13 @@ const FAUTES = [
   { n: 9, fichier: W, avant: ', ...(d.deja ? { deja: true as const } : {}) };', apres: ' };' },
   /* #10 : « Terminer » le foyer renvoie une facture deja partie seule. */
   { n: 10, fichier: E, avant: 'const ouvertes = o?.renvoi ? aRegle : aRegle.filter((p) => !pieceDejaPartie(p));', apres: 'const ouvertes = aRegle;' },
+  /* #11 : la fiche ne coupe plus le recu, la facture ou le foyer ; la case de l encaissement ne retient plus rien ; la Caisse ne suit plus la fiche. */
+  { n: 11, fichier: E, avant: 'if (sansPapierPour(piece)) {', apres: 'if (false) {' },
+  { n: 11, fichier: E, avant: 'if (!o?.renvoi && sansPapierPour(avant))', apres: 'if (false)' },
+  { n: 11, fichier: E, avant: 'if (!o?.renvoi && destinataire.sansPapiersWa === true)', apres: 'if (false)' },
+  { n: 11, fichier: A, avant: 'settleTotal + totalGamme > 0 && papierPart) {', apres: 'settleTotal + totalGamme > 0) {' },
+  { n: 11, fichier: A, avant: 'onClick={() => termine(papierPart)}', apres: 'onClick={() => termine(true)}' },
+  { n: 11, fichier: C, avant: 'client.sansPapiersWa !== true && ', apres: '' },
 ];
 
 const md5 = (rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');

@@ -391,6 +391,12 @@ export type Client = {
      reprise pour cette tête. `repriseAuto` n'est plus lu nulle part — gardé
      pour les fiches qui le portent, jamais réécrit. */
   sansRepriseAuto?: boolean;
+  /** PAS DE PAPIER PAR WHATSAPP — 4 novembre 2026 (« trop de messages »,
+      Yéman) : ni le reçu d'un règlement ni la facture à régler ne partent
+      seuls vers elle. La case de l'encaissement et celle de la Caisse sont
+      décochées pour elle ; seul un renvoi exprès (« Renvoyer la facture »)
+      part. Elle vaut pour la fiche qui reçoit le papier (la payeuse). */
+  sansPapiersWa?: boolean;
   preferredMaster?: string;
   recoProductId?: string; // produit de la Gamme recommandé par la maison — affiché au Carnet de Suivi
   /** CE QU'ELLE EST VENUE CHERCHER, dit par elle au quiz de Ma Couronne

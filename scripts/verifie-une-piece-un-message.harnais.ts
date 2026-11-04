@@ -283,4 +283,33 @@ const SECONDE: PiecePartie = { partieLe: SOIR, modele: 'recu_de_paiement', parQu
   ]);
 }
 
+/* == #11 -- PAS DE PAPIER PAR WHATSAPP (4 novembre 2026, « trop de messages ») ==
+   Une case a l encaissement, cochee d office ; la meme pour « Terminer la seance »
+   et la facture du foyer ; une case sur la fiche coupe tout envoi seul, sauf le
+   renvoi expres. */
+{
+  const e = source('src/apps/trone/routes/vente/envoi-de-la-piece.ts');
+  const a = source('src/apps/trone/routes/clients/actions.tsx');
+  const c = source('src/apps/trone/routes/vente/Caisse.tsx');
+  const f = source('src/apps/trone/routes/clients/Customers.tsx');
+  dit(11, 'la fiche coupe le recu, la facture a regler et le foyer, jamais le renvoi expres', [true, true, true, true], [
+    /return \(payeuse\?\.phone\?\.trim\(\) \? payeuse : soignee\)\?\.sansPapiersWa === true;/.test(e),
+    /if \(!piece\) return;\s*if \(sansPapierPour\(piece\)\) \{[^\n]*return; \}\s*const decision = decisionDEnvoi\(\{ piece, geste: 'auto'/.test(e),
+    /if \(!avant\) return;\s*if \(!o\?\.renvoi && sansPapierPour\(avant\)\) \{[^\n]*return; \}/.test(e),
+    /if \(!o\?\.renvoi && destinataire\.sansPapiersWa === true\) \{[^\n]*return; \}/.test(e),
+  ]);
+  dit(11, 'l encaissement : la case cochee d office, grisee par la fiche ; decochee, ni recu ni facture ne part', [true, true, true, true, true], [
+    /const \[envoyerLePapier, setEnvoyerLePapier\] = useState\(true\);\s*const papierPart = envoyerLePapier && !sansPapierSurSaFiche;/.test(a),
+    /settleTotal \+ totalGamme > 0 && papierPart\) \{\s*void envoieLaFacture\(/.test(a),
+    /checked=\{papierPart\} disabled=\{sansPapierSurSaFiche\}/.test(a),
+    /onClick=\{\(\) => termine\(papierPart\)\}/.test(a),
+    /if \(papierPart\) void envoiDeLaPiece\.foyer\(ids, appt\.date\);/.test(a),
+  ]);
+  dit(11, 'la Caisse suit la fiche ; la fiche porte sa case', [true, true, true], [
+    /useEffect\(\(\) => \{ setEnvoyerRecu\(!sansPapierPos\); \}, \[clientId, sansPapierPos\]\);/.test(c),
+    /client\.sansPapiersWa !== true && pay !== 'Lien WhatsApp' && recuPermis/.test(c),
+    /patch\(\{ sansPapiersWa: e\.target\.checked \? undefined : true \}\)/.test(f),
+  ]);
+}
+
 console.log(ko === 0 ? 'Tout tient.' : `${ko} constat(s) en echec.`);

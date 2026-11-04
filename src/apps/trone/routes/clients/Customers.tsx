@@ -4047,6 +4047,24 @@ function Customer360({
                         : <>Elle s’armera toute seule dès que deux venues honorées donneront une cadence. Jamais pour une tête de passage ni une diaspora sans rythme posé.</>}
                 </div>
               </Field>
+              {/* SES PAPIERS SUR WHATSAPP — 4 novembre 2026 (« trop de messages ») :
+                  la case coupée, ni reçu ni facture ne partent seuls vers elle. */}
+              <Field label="Reçus et factures sur WhatsApp">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={!client.sansPapiersWa}
+                    onChange={(e) => patch({ sansPapiersWa: e.target.checked ? undefined : true })}
+                    style={{ accentColor: 'var(--color-copper)' }}
+                  />
+                  <span style={{ fontSize: 12.5 }}>Lui envoyer son reçu et sa facture sur WhatsApp</span>
+                </label>
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
+                  {client.sansPapiersWa
+                    ? <>Coupé pour elle : ni reçu ni facture ne partent seuls. « Renvoyer la facture » reste possible, exprès.</>
+                    : <>Le reçu part à l’encaissement, la facture en terminant la séance. La case de l’encaissement peut les retenir, une fois.</>}
+                </div>
+              </Field>
               <Field label="Produit recommandé · son Carnet de Suivi">
                 <Select value={client.recoProductId ?? ''} onChange={(e) => patch({ recoProductId: e.target.value || undefined })}>
                   <option value="">— aucun —</option>
