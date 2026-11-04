@@ -613,6 +613,8 @@ const regles: Regle[] = [
         'automate-wa': { fichier: 'src/shared/automate-wa.ts', extrait: (s) => entre(s, 'automate-wa') },
         /* Opale (4 novembre 2026) : sa consigne, ses outils, ses juges, dans whatsapp-automate. */
         opale: { fichier: 'src/shared/opale-pur.ts', extrait: (s) => entre(s, 'opale') },
+        /* La porte d'Opale (4 novembre 2026) : jamais deux fois, pas de rappel à qui vient de confirmer, la civilité de la fiche, recopiée dans envois-partent. */
+        'porte-des-modeles': { fichier: 'src/shared/porte-des-modeles-pur.ts', extrait: (s) => entre(s, 'porte-des-modeles') },
         /* Les gestes dits en francais (13 octobre 2026), recopies dans whatsapp-automate. */
         'gestes-en-francais': { fichier: 'src/shared/gestes-en-francais.ts', extrait: (s) => entre(s, 'gestes-en-francais') },
         /* Le bareme du site (30 octobre 2026), recopie dans whatsapp-automate : le prix dit des le choix. */
