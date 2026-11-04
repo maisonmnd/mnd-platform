@@ -25,7 +25,7 @@ import { Button } from '../../../../ds/components';
 import { maitreParDefaut, useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { estArchivee, fondeLaCouronne, LONGUEURS, suitLongueur, useCategories, useProducts, useServices, type LongueurId } from '../../../../shared/catalog';
-import { remiseFamillePct, useClients, useFamilies } from '../../../../shared/clients';
+import { aUnPrixConvenu, remiseFamillePct, useClients, useFamilies } from '../../../../shared/clients';
 import { appointmentsStore, momentDuRdv, poseUnRendezVous, useAppointments, type Appointment } from '../../../../shared/agenda';
 import { blocagesStore, plagesBloquees, useBlocages, type Blocage } from '../../../../shared/blocages';
 import { depositForServices, depositPctFor, openingForIso, settingsStore } from '../../../../shared/settings';
@@ -40,7 +40,8 @@ import { jourCourtAn, jourEnLettres } from '../../../../shared/calendrier';
 import { heureDuMessage } from '../../../../shared/salle-des-envois';
 import { contratPourLaDate, usePlans, useStaff, useSubscribers } from '../equipe/data';
 import { useOffers } from '../../../../shared/offers';
-import { ceQueRetireLeMercredi, ditLaPlusForte, laPlusForteDesDeux, offreDuJourDeLaVenue, poseLOffreDuJour } from '../../../../shared/offres-pur';
+import { ceQueRetireLeMercredi, gesteSansRemise, poseLOffreDuJour } from '../../../../shared/offres-pur';
+import { ditLaPlaceDuRdv, famPctDeLaTete, lOffreDuJourAuTrone } from '../clients/places-au-trone-pur';
 import { regimeTarifaire } from '../../../../shared/pricing';
 import {
   apptDurationMin, brutDuRituel, fmtDureeCourte, tarifsDuRituel, timeToMin, todayISO, useServicesById, type RdvInitial,
@@ -120,29 +121,38 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, onALaM
      (`brutDuRituel`), sa durée (`personalDurationMin`, jamais moins de
      15 minutes), l'acompte des Paramètres, et la remise famille que la
      fenêtre poserait d'office (elle renvoie à la fiche). */
+  /* UNE SEULE REMISE (4 novembre 2026) : la remise famille de sa tête se juge
+     à la date de la place (`famPctDeLaTete`) ; aux prix convenus ou abonnée,
+     aucune. Un geste offert au panier la retire aussi. */
+  const prixConvenus = !!fiche && aUnPrixConvenu(fiche);
+  const familleDeLaTete = fiche?.familyId ? families.find((f) => f.id === fiche.familyId) : undefined;
+  const famPctDuFoyer = remiseFamillePct(familleDeLaTete, clients, aujourdhui);
   const tarifDe = (ids: readonly string[]) => {
     const t = tarifsDuRituel({ serviceIds: [...ids], longueur }, {
       client: fiche, bands, sets, cats, byId, tousServices: services, produits,
     });
     const prixXof = brutDuRituel({ serviceIds: [...ids] }, byId, t);
-    const famille = fiche?.familyId ? families.find((f) => f.id === fiche.familyId) : undefined;
-    const famPct = unGesteDansLePanier(t.chosen, t.pricing) ? 0 : remiseFamillePct(famille, clients, aujourdhui);
-    /* La part hors forfaits, comme la fenêtre fige la remise famille. */
-    const forfaits = t.chosen.filter((sv) => regimeTarifaire(sv, cats).k === 'forfait').reduce((n, sv) => n + Math.round(t.prixPlein(sv) * (1 - t.gesteDe(sv) / 100)), 0);
+    /* La part que la remise famille prendrait : ni les forfaits, ni un geste
+       sans remise (le Rituel Sówà™). Nulle, la fiche n'a rien à poser. */
+    const horsFamille = t.chosen
+      .filter((sv) => regimeTarifaire(sv, cats).k === 'forfait' || gesteSansRemise(sv))
+      .reduce((n, sv) => n + Math.round(t.prixPlein(sv) * (1 - t.gesteDe(sv) / 100)), 0);
     return {
       t,
       chosen: t.chosen,
       prixXof,
-      /* Ce que la remise famille retirerait, en francs (la plus forte des deux). */
-      familleXof: famPct > 0 ? Math.round(Math.max(0, prixXof - forfaits) * (famPct / 100)) : 0,
+      baseFamilleXof: Math.max(0, prixXof - horsFamille),
+      gesteAuPanier: unGesteDansLePanier(t.chosen, t.pricing),
       dureeMin: Math.max(15, t.chosen.reduce((n, sv) => n + personalDurationMin(sv, t.pricing), 0) || 60),
       depositServiceIds: t.chosen.filter((s) => depositPctFor(s.id) > 0).map((s) => s.id),
       depositXof: Math.min(depositForServices(t.chosen, 0), prixXof),
       longueurPertinente: t.chosen.some(suitLongueur),
       prixLibre: t.chosen.some((sv) => !prixFerme(sv, t.pricing)),
-      famPct,
     };
   };
+  /** La remise famille de sa tête à cette date, avant la règle du geste. */
+  const famPctA = (iso: string): number =>
+    famPctDeLaTete(famPctDuFoyer, { prixConvenus, abonnee: !!contratPourLaDate(subs, clientId, iso, plans) });
   const tarifs = rituels.map((r) => tarifDe(r.ids));
   const tarif = iChoisi >= 0 ? tarifs[iChoisi] : undefined;
   const maitre = rituel && tarif
@@ -194,7 +204,7 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, onALaM
     const mains = equipe.filter((m) => sameName(m.name, maitre)).map((m) => ({ nom: m.name, palier: m.palier ?? null }));
     return ceQuiDemandeSaFiche({
       formule: !!contratPourLaDate(subs, clientId, iso, plans),
-      remiseFamillePct: tarif.famPct,
+      remiseFamillePct: tarif.gesteAuPanier || tarif.baseFamilleXof <= 0 ? 0 : famPctA(iso),
       prixLibre: tarif.prixLibre,
       seancesIncluses: tarif.chosen.some((sv) => (sv.includes ?? []).some((i) => (i.afterWeeks ?? 0) > 0)),
       salonPrive: tarif.chosen.some((sv) => !!sv.privatise),
@@ -208,21 +218,32 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, onALaM
      couvre : son prix est celui du mercredi (−15 %, net au millier), la place
      le dit, et le toucher pose `codeOffre`, `offreId` et ses remises de
      ligne, le prix figé au net arrondi, comme la fenêtre du rendez-vous. Rien
-     pour une formule à cette date. LA PLUS FORTE DES DEUX : une remise
-     famille plus forte (ou égale) l'emporte, la place garde son prix, et le
-     toucher ouvre la fiche, où la fenêtre fait le même choix. */
-  const leMercrediDeLaPlace = (iso: string) => {
+     pour une formule à cette date. */
+  /* ══ LES PLACES LIMITÉES SUR UNE PLACE — 4 novembre 2026 ══════════════════
+     Une place un jour de l'offre, vide, dans ses jours à l'avance, sur un rituel
+     qu'elle couvre : son prix est celui de la remise (net au millier), la
+     place dit le décompte (« Places limitées · Remise : il reste 2 places »),
+     et le toucher pose la place. Le compte se tire du carnet, relu au toucher.
+     UNE SEULE REMISE remplace « la plus forte des deux » : jamais pour une
+     tête aux prix convenus, abonnée à cette date, de la famille d'un foyer
+     remisé, ni sur un rituel qui porte un geste offert. */
+  const leMercrediDeLaPlace = (iso: string, carnet: readonly Appointment[] = tous) => {
     if (!rituel || !tarif) return null;
-    const offre = offreDuJourDeLaVenue(offres, {
-      branchId: branch.id, dateIso: iso, serviceIds: rituel.ids,
+    const juge = lOffreDuJourAuTrone(offres, {
+      branchId: branch.id, dateIso: iso, serviceIds: rituel.ids, aujourdhui,
       couvertParAbonnement: !!contratPourLaDate(subs, clientId, iso, plans),
+      prixConvenus,
+      autreRemise: famPctA(iso) > 0 || tarif.gesteAuPanier,
+      rdvs: carnet,
     });
+    const offre = juge?.offre ?? null;
+    /* Le Rituel Sówà™ ne prend aucune remise (`sansRemise` au catalogue). */
     const pose = poseLOffreDuJour(offre, rituel.ids.map((id) => {
       const sv = byId.get(id);
       const p = sv ? Math.round(tarif.t.prixPlein(sv) * (1 - tarif.t.gesteDe(sv) / 100)) : 0;
-      return { id, prixXof: p, ferme: !!sv && p > 0 && prixFerme(sv, tarif.t.pricing) };
+      return { id, prixXof: p, ferme: !!sv && p > 0 && prixFerme(sv, tarif.t.pricing) && !gesteSansRemise(sv) };
     }));
-    if (!offre || !pose) return null;
+    if (!offre || !pose || !juge) return null;
     const du = ceQueRetireLeMercredi({
       sansLuiXof: tarif.prixXof,
       avecLuiXof: brutDuRituel({ serviceIds: [...rituel.ids], remisesLignes: pose.remisesLignes }, byId, tarif.t),
@@ -230,9 +251,7 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, onALaM
       arrondir: !tarif.prixLibre,
     });
     if (du.mercrediXof <= 0) return null;
-    const duel = tarif.familleXof > 0 ? laPlusForteDesDeux({ familleXof: tarif.familleXof, mercrediXof: du.mercrediXof }) : null;
-    if (duel?.retenue === 'famille') return null;
-    return { offre, pose, netXof: du.netXof, mercrediXof: du.mercrediXof, phrase: duel ? ditLaPlusForte(duel, offre.title) : null };
+    return { offre, pose, netXof: du.netXof, mercrediXof: du.mercrediXof, aPlaces: juge.aPlaces, phrase: ditLaPlaceDuRdv(juge) };
   };
 
   /* UN TOUCHER : la place se relit sur le carnet du moment, puis le rendez-vous
@@ -250,8 +269,9 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, onALaM
       return;
     }
     const numero = numeroAPrevenirDuRdv({ choisi: '', fiche, derniers: siens.filter((a) => a.branchId === branch.id) });
-    /* Le mercredi de la Maison, relu pour CETTE place (2 novembre 2026). */
-    const mercredi = leMercrediDeLaPlace(p.iso);
+    /* L'offre du jour, relue pour CETTE place sur le carnet du moment : une
+       autre main a pu prendre la dernière place entre-temps (4 novembre 2026). */
+    const mercredi = leMercrediDeLaPlace(p.iso, appointmentsStore.get());
     const rdv = leRendezVousDuProchainRituel({
       id: uid(),
       branchId: branch.id,
@@ -277,7 +297,11 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, onALaM
         ? 'Posé après son heure : ni confirmation ni rappel ne partiront.'
         : `La confirmation part sur WhatsApp${nom ? `, à ${nom}` : ''} ; la veille, son rappel suit.`,
       prixXof: rdv.priceXof,
-      ...(mercredi ? { offre: `${mercredi.offre.title} : code ${mercredi.pose.codeOffre} posé sur le rendez-vous.` } : {}),
+      ...(mercredi ? {
+        offre: mercredi.aPlaces
+          ? `${mercredi.offre.title} : −${mercredi.offre.discountPct ?? 0} % posé sur le rendez-vous, une place prise.`
+          : `${mercredi.offre.title} : code ${mercredi.pose.codeOffre} posé sur le rendez-vous.`,
+      } : {}),
     });
   };
 
@@ -358,7 +382,7 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, onALaM
                     <span className="trv-prochain__place-prix">{fmtMoney(mercredi ? mercredi.netXof : tarif.prixXof, currency)}</span>
                     {mercredi && (
                       <span className="trv-prochain__place-offre">
-                        {`${mercredi.offre.title} · −${mercredi.offre.discountPct ?? 0} %`}{mercredi.phrase ? ` · ${mercredi.phrase}` : ''}
+                        {`${mercredi.phrase} · −${mercredi.offre.discountPct ?? 0} %`}
                       </span>
                     )}
                     <span className="trv-prochain__place-pourquoi">{[p.pourquoi, maitre ? `Avec ${maitre}.` : null].filter(Boolean).join(' ')}</span>

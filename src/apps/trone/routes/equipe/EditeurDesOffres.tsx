@@ -1,5 +1,6 @@
 import { asset } from '../../../../shared/asset';
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button, Card, Eyebrow, Field, Input, Modal, Select, alerte, demande, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { useStaff } from '../../../../shared/auth';
@@ -701,6 +702,15 @@ export default function EditeurDesOffres({ abonnes }: { abonnes: ReadonlySet<str
                       <div>
                         <div className="tre-offer__meta-label">Jours de la venue</div>
                         <div className="tre-offer__meta-value" style={{ color: 'var(--copper-700)' }}>{o.joursDeLaVenue.join(' · ')}</div>
+                      </div>
+                    ) : null}
+                    {/* LES PLACES LIMITÉES (4 novembre 2026) : réglées dans Système › Paramètres. */}
+                    {(o.placesParJour ?? 0) > 0 ? (
+                      <div>
+                        <div className="tre-offer__meta-label">Places limitées</div>
+                        <div className="tre-offer__meta-value" style={{ color: 'var(--copper-700)' }}>
+                          {o.placesParJour} par jour vide{o.horizonJours ? `, ${o.horizonJours} jours à l’avance` : ''} · <Link to="/parametres?ouvre=places">réglées dans les Paramètres</Link>
+                        </div>
                       </div>
                     ) : null}
                     <div>

@@ -14,7 +14,7 @@ import { maisonNom, houseSignature } from '../../../../shared/identite';
 import { momentCourt, texteDuRappel } from '../../../../shared/rappel';
 import {
   clientsStore, clienteDePassage, ensureInitiePersona, estDePassage, useClients, useFamilies,
-  remiseFamillePct, tetesRegulieres, type Client,
+  remiseFamillePct, tetesRegulieres, aUnPrixConvenu, type Client,
 } from '../../../../shared/clients';
 import { apptPaidXof,
   appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey, venuesHonorees,
@@ -50,7 +50,8 @@ import { releveDeLAbonnee, formuleProposeePourReserver, dansLaVie } from '../../
 import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
 import { PALIER_DU_CODE_XOF } from '../vente/encaissement-pur';
 import { useOffers } from '../../../../shared/offers';
-import { arrondiDuNet, ceQueRetireLeMercredi, ditLaPlusForte, estUnCodeDuJour, laPlusForteDesDeux, offreDuJourDeLaVenue, poseLOffreDuJour, remisesDeLaMainSeules } from '../../../../shared/offres-pur';
+import { arrondiDuNet, ceQueRetireLeMercredi, estAPlaces, estUnCodeDuJour, gesteSansRemise, poseLOffreDuJour } from '../../../../shared/offres-pur';
+import { ditLaPlaceDuRdv, famPctDeLaTete, lOffreDuJourAuTrone, occupationPourLeRdv, offreAPlacesDuJour, pourquoiSansPlace, remisesDeLaMainDuRdv } from './places-au-trone-pur';
 import { SeanceDeLaFormule } from './SeanceDeLaFormule';
 import { PiecesDuRendezVous } from './PiecesDuRendezVous';
 import type { PieceEnvoyee } from '../../../../shared/avant-le-fauteuil-pur';
@@ -650,7 +651,8 @@ export function chiffreDeLaCompagne(o: {
   const tarifs = tarifsDuRituel({ serviceIds: ids, longueur: o.fiche?.longueur, date: o.date }, { ...o.ctx, client: o.fiche });
   const lignes = lignesAuTarif({ serviceIds: ids, remisesLignes: [] }, o.ctx.byId, tarifs);
   const brutXof = lignes.reduce((n, l) => n + l.net, 0);
-  const forfaits = lignes.filter((l) => regimeTarifaire(l.sv, o.ctx.cats).k === 'forfait').reduce((n, l) => n + l.net, 0);
+  /* Ni les forfaits ni un geste sans remise (le Rituel Sówà™, 4 novembre 2026). */
+  const forfaits = lignes.filter((l) => regimeTarifaire(l.sv, o.ctx.cats).k === 'forfait' || gesteSansRemise(l.sv)).reduce((n, l) => n + l.net, 0);
   const pct = unGesteDansLePanier(tarifs.chosen, tarifs.pricing) ? 0 : Math.max(0, o.famPct);
   const remiseFamilleXof = Math.round(Math.max(0, brutXof - forfaits) * (pct / 100));
   const duree = tarifs.chosen.reduce((n, sv) => n + personalDurationMin(sv, tarifs.pricing), 0);
@@ -1972,7 +1974,7 @@ function RdvModalCorps({
      CELLES DE LA MAIN, depuis le 2 novembre 2026 : les −15 % du mercredi se
      reposent à chaque rendu selon la date (`remisesL`, plus bas). */
   const [remisesALaMain, setRemisesL] = useState<({ pct?: number; xof?: number } | null)[]>(
-    () => (!appt ? [] : rdvFige ? (appt.remisesLignes ?? []) : remisesDeLaMainSeules(appt, offresDeLaMaison)),
+    () => (!appt ? [] : rdvFige ? (appt.remisesLignes ?? []) : remisesDeLaMainDuRdv(appt, offresDeLaMaison)),
   );
   /* « Ne pas l'appliquer » : le comptoir garde la main, et son choix tient. */
   const [mercrediEcarte, setMercrediEcarte] = useState<boolean>(!!appt?.horsOffreDuJour);
@@ -2239,8 +2241,14 @@ function RdvModalCorps({
   const ficheCliente = clients.find((c) => c.id === clientId);
   const familleDuCompte = ficheCliente?.familyId ? families.find((f) => f.id === ficheCliente.familyId) : undefined;
   /* Le taux du compte, avant la règle du geste — voir `famPct`, plus bas :
-     le juge a besoin du contexte tarifaire, qui n'existe qu'après la longueur. */
-  const famPctCompte = remiseFamillePct(familleDuCompte, clients, todayISO());
+     le juge a besoin du contexte tarifaire, qui n'existe qu'après la longueur.
+     UNE SEULE REMISE (4 novembre 2026, Yéman) : une tête aux prix convenus, ou
+     abonnée à la date du rendez-vous, ne prend pas la remise famille
+     (`famPctDeLaTete`, places-au-trone-pur). */
+  const prixConvenusDeLaTete = !!ficheCliente && aUnPrixConvenu(ficheCliente);
+  const abonneeALaDate = !!membership;
+  const famPctDuFoyer = remiseFamillePct(familleDuCompte, clients, todayISO());
+  const famPctCompte = famPctDeLaTete(famPctDuFoyer, { prixConvenus: prixConvenusDeLaTete, abonnee: abonneeALaDate });
 
   /* Prestations choisies qui sont INCLUSES dans la formule de l'abonnée, avec leur
      allocation restante sur le cycle (le RDV en cours exclu de son propre décompte).
@@ -2547,29 +2555,44 @@ function RdvModalCorps({
      qui EST celui d'un jour de la venue n'est pas « un autre code » : il se
      repose, ou s'en va, avec la date. */
   const codeDuRdv = appt?.codeOffre && (rdvFige || !estUnCodeDuJour(appt.codeOffre, offresDeLaMaison)) ? appt.codeOffre : undefined;
-  const offreDuMercredi = rdvFige ? null : offreDuJourDeLaVenue(offresDeLaMaison, {
-    branchId: branch.id, dateIso: date, serviceIds,
+  /* ══ LES PLACES LIMITÉES — 4 novembre 2026 (maquette AhFRNqiggFoaiR725iKSQe) ══
+     Une offre à places se compte AVANT de remiser : l'occupation du jour se
+     tire du carnet (`lOffreDuJourAuTrone`, places-au-trone-pur), le
+     rendez-vous relu ôté quand il tient sa place, compté parmi les autres
+     quand il a été posé ce jour-là au plein tarif. Une place prise est gardée
+     (`relu`, la date inchangée).
+
+     UNE SEULE REMISE remplace « la plus forte des deux » (Yéman, 4 novembre
+     2026) : jamais de place pour une tête aux prix convenus, abonnée à la
+     date, ni qui a déjà une remise (la famille de son foyer, un geste offert,
+     une remise de la main sur tout ou sur une ligne, un autre code). */
+  const autreRemiseIci = famPctCompte > 0 || gesteAuPanier || discountPctSaisi > 0 || discountXofSaisi > 0
+    || remisesALaMain.some((r) => (r?.pct ?? 0) > 0 || (r?.xof ?? 0) > 0);
+  /* Une séance de suite ne se paie pas (la série est réglée sur sa première
+     séance) : rien à remiser, et aucun code à compter. Une abonnée à la date
+     ne prend pas de place, que ce rituel soit couvert ou non. */
+  const couvertIci = effCovered || estSuite || (appt?.seriesIndex ?? 1) > 1;
+  const forfaitIci = forfaitOn && String(forfaitStr).trim() !== '';
+  const venueIci = {
+    branchId: branch.id, dateIso: date, serviceIds, aujourdhui: todayISO(),
     dejaUnCode: !!codeDuRdv,
-    /* Une séance de suite ne se paie pas (la série est réglée sur sa
-       première séance) : rien à remiser, et aucun code à compter. */
-    couvertParAbonnement: effCovered || estSuite || (appt?.seriesIndex ?? 1) > 1,
-    forfait: forfaitOn && String(forfaitStr).trim() !== '',
-    ecartee: mercrediEcarte,
-  });
+    couvertParAbonnement: couvertIci || abonneeALaDate,
+    forfait: forfaitIci,
+    prixConvenus: prixConvenusDeLaTete,
+    autreRemise: autreRemiseIci,
+    rdvs: tousLesRdv,
+    relu: appt ?? null,
+    /* Les places prises au comptoir par une cliente de passage, ce jour-là. */
+    pieces: invoicesStore.get(),
+  };
+  const jugeDuJour = rdvFige ? null : lOffreDuJourAuTrone(offresDeLaMaison, { ...venueIci, ecartee: mercrediEcarte });
+  const offreDuMercredi = jugeDuJour?.offre ?? null;
+  /* Le Rituel Sówà™ ne prend aucune remise (`sansRemise` au catalogue). */
   const poseCandidate = poseLOffreDuJour(offreDuMercredi, serviceIds.map((id) => {
     const sv = byId.get(id);
     const p = sv ? Math.round(tarifs.prixPlein(sv) * (1 - tarifs.gesteDe(sv) / 100)) : 0;
-    return { id, prixXof: p, ferme: !!sv && p > 0 && prixFerme(sv, pricing) };
+    return { id, prixXof: p, ferme: !!sv && p > 0 && prixFerme(sv, pricing) && !gesteSansRemise(sv) };
   }), remisesALaMain);
-  /* ══ LA PLUS FORTE DES DEUX — 2 novembre 2026 (Yéman, au sélecteur) ══════
-     La remise famille et le mercredi ne se cumulent jamais : on compare les
-     francs (`laPlusForteDesDeux`), le mercredi après son arrondi au millier,
-     et seule la plus forte reste ; à égalité, la famille. La famille se lit
-     sous ses deux formes : le taux du compte posé ici (`discountPct`, que
-     l'effet du compte remplit d'office), ou les francs qu'un rendez-vous
-     déjà enregistré porte (`remiseFamille`, une reprise, Ma Couronne). Ce
-     qui perd est écarté du calcul et de l'enregistrement, pas de la saisie :
-     écarter le mercredi rend la famille. */
   const brutDeLaMain = brutDuRituel({ serviceIds, remisesLignes: remisesALaMain }, byId, tarifs);
   const duMercredi = poseCandidate ? ceQueRetireLeMercredi({
     sansLuiXof: brutDeLaMain,
@@ -2577,22 +2600,19 @@ function RdvModalCorps({
     brutNuXof: brutDuRituel({ serviceIds, remisesLignes: [] }, byId, tarifs),
     arrondir: !chosen.some((sv) => !prixFerme(sv, pricing)),
   }) : null;
-  const familleEnPct = prixMode === 'remise' && famPct > 0 && discountPctSaisi === famPct;
-  const partDesForfaits = chosen
-    .filter((sv) => regimeTarifaire(sv, cats).k === 'forfait')
-    .reduce((s, sv) => s + netDeLaLigne(tarifs.prixPlein(sv), tarifs.gesteDe(sv), remiseDeLigne({ remisesLignes: remisesALaMain }, serviceIds.indexOf(sv.id))), 0);
-  const familleEnFrancs = !familleEnPct && !!appt?.remiseFamille
+  /* La famille en francs d'un rendez-vous déjà enregistré (une reprise, Ma
+     Couronne) garde son nom à l'enregistrement : c'est par lui que la fenêtre,
+     rouverte, la reconnaît. */
+  const familleEnFrancs = !(prixMode === 'remise' && famPct > 0 && discountPctSaisi === famPct) && !!appt?.remiseFamille
     ? Math.min(Math.max(0, discountXofSaisi), Math.max(0, Math.round(appt.remiseFamilleXof ?? appt.discountXof ?? 0)))
     : 0;
-  const familleXof = familleEnPct ? Math.round(Math.max(0, brutDeLaMain - partDesForfaits) * (famPct / 100)) : familleEnFrancs;
-  const duelFamille = duMercredi && familleXof > 0 ? laPlusForteDesDeux({ familleXof, mercrediXof: duMercredi.mercrediXof }) : null;
-  /* Un mercredi que l'arrondi mange en entier ne se pose pas : un code qui
-     ne retire rien ne serait que du bruit au Carnet. */
-  const poseDuMercredi = poseCandidate && duMercredi && duMercredi.mercrediXof > 0 && duelFamille?.retenue !== 'famille' ? poseCandidate : null;
-  const familleEcartee = !!poseDuMercredi && duelFamille?.retenue === 'mercredi';
-  /* Ce que lisent le total, l'acompte et l'enregistrement. */
-  const discountPct = familleEcartee && familleEnPct ? 0 : discountPctSaisi;
-  const discountXof = familleEcartee && !familleEnPct ? Math.max(0, discountXofSaisi - familleEnFrancs) : discountXofSaisi;
+  /* Une offre que l'arrondi mange en entier ne se pose pas : un code qui ne
+     retire rien ne serait que du bruit au Carnet. */
+  const poseDuMercredi = poseCandidate && duMercredi && duMercredi.mercrediXof > 0 ? poseCandidate : null;
+  /* Ce que lisent le total, l'acompte et l'enregistrement : une seule remise,
+     rien n'est plus écarté au profit d'une autre. */
+  const discountPct = discountPctSaisi;
+  const discountXof = discountXofSaisi;
   /* LES REMISES DE LIGNE DU RENDEZ-VOUS : celles de la main, et celles du
      mercredi quand il se pose. C'est ce tableau que tout lit ensuite : le
      prix de chaque ligne, le total, le gel, l'enregistrement. */
@@ -2651,6 +2671,13 @@ function RdvModalCorps({
     ? arrondiDuNet(grossBase, brutDuRituel({ serviceIds, remisesLignes: [] }, byId, tarifs) - grossBase, PALIER_DU_CODE_XOF)
     : 0;
   const grossXof = keepFrozen ? (frozenXof as number) : grossBase + arrondiDuCode;
+  /* CE QUE L'OFFRE DU JOUR RETIRE, l'arrondi au millier repris : le panier le
+     dit sur sa ligne, le bandeau aussi (4 novembre 2026). */
+  const retireParLaPlace = poseDuMercredi ? Math.max(0, brutDeLaMain - (grossBase + arrondiDuCode)) : 0;
+  /* Le décompte, tel que le bandeau et le panier l'écrivent : « Places
+     limitées · Remise : il reste 2 places » avant la pose, « Places limitées ·
+     place tenue » quand ce rendez-vous la garde. */
+  const placeDite = poseDuMercredi && jugeDuJour ? ditLaPlaceDuRdv(jugeDuJour) : '';
 
   /* LE MONTANT CONVENU NE VAUT QUE POUR LES PRESTATIONS À PRIX LIBRE.
      Il REMPLAÇAIT le total du rituel : une reprise SÍNSIN à 45 000 F posée à
@@ -2729,8 +2756,11 @@ function RdvModalCorps({
      identité que partout : discountPct === famPct), le pourcentage ne porte
      que sur la part hors forfaits. Une remise manuelle, elle, porte sur tout
      — c'est un geste de la main, pas un barème. */
+  /* NI SUR UN GESTE SANS REMISE (4 novembre 2026) : le Rituel Sówà™ ne prend
+     aucune remise, famille comprise (`gesteSansRemise`, `sansRemise` au
+     catalogue). Il sort de la part remisée comme un forfait. */
   const forfaitPartXof = chosen
-    .filter((sv) => regimeTarifaire(sv, cats).k === 'forfait')
+    .filter((sv) => regimeTarifaire(sv, cats).k === 'forfait' || gesteSansRemise(sv))
     .reduce((s, sv) => s + prixDe(sv), 0);
   const remiseEstFamille = prixMode === 'remise' && famPct > 0 && discountPct === famPct;
   const baseRemisePct = remiseEstFamille ? Math.max(0, effGross - forfaitPartXof) : effGross;
@@ -2978,7 +3008,13 @@ function RdvModalCorps({
   const compagnes = (foyerAPoser?.aPoser ?? []).map((c) => {
     const ids = gestesDesCompagnes[c.clientId] ?? c.serviceIds;
     const fiche = clients.find((x) => x.id === c.clientId);
-    return { ...c, ids, fiche, chiffre: chiffreDeLaCompagne({ fiche, serviceIds: ids, date, famPct: famPctCompte, ctx: ctxDuTarif }) };
+    /* Chaque tête du foyer juge SA remise famille : aux prix convenus ou
+       abonnée à la date, aucune (une seule remise, 4 novembre 2026). */
+    const famPctIci = famPctDeLaTete(famPctDuFoyer, {
+      prixConvenus: !!fiche && aUnPrixConvenu(fiche),
+      abonnee: !!contratPourLaDate(subs, c.clientId, date, plans),
+    });
+    return { ...c, ids, fiche, chiffre: chiffreDeLaCompagne({ fiche, serviceIds: ids, date, famPct: famPctIci, ctx: ctxDuTarif }) };
   });
   const libresALHeure = compagnes.length > 0
     ? maitresLibres({
@@ -3375,7 +3411,7 @@ function RdvModalCorps({
                    lui que la fenêtre, rouverte, la reconnaît face au mercredi.
                    Sans lui, la remise d'une reprise passerait pour une remise
                    de la main, et le mercredi s'y ajouterait. */
-                ...(familleEnFrancs > 0 && !familleEcartee && !effCovered && !forfaitPose
+                ...(familleEnFrancs > 0 && !effCovered && !forfaitPose
                   ? { remiseFamille: true, remiseFamilleXof: Math.round(x.remiseFamilleXof ?? familleEnFrancs) }
                   : {}),
                 /* PRIX D'ORIGINE CONSERVÉ tant que les prestations ne changent pas.
@@ -4495,7 +4531,7 @@ function RdvModalCorps({
                         {posee
                           ? <>Remise · <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{argent(net)}</b> au lieu de {argent(plein)}</>
                           : parLeMercredi && offreDuMercredi
-                            ? <>{offreDuMercredi.title} · <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>−{offreDuMercredi.discountPct ?? 0} %</b>, code {offreDuMercredi.code}</>
+                            ? <>{offreDuMercredi.title} · <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>−{offreDuMercredi.discountPct ?? 0} %</b>{jugeDuJour?.aPlaces ? ', avec la place' : `, code ${offreDuMercredi.code}`}</>
                             : 'Au prix annoncé'}
                       </span>
                       <button
@@ -5668,46 +5704,55 @@ function RdvModalCorps({
           {/* LE MERCREDI DE LA MAISON, DIT À L'ÉCRAN — 2 novembre 2026. Posé de
               lui-même sur un rendez-vous de ce jour ; le comptoir garde la main
               (« Ne pas l'appliquer »), et ce qui l'empêche se dit. */}
-          {!sansPrix && (() => {
-            const possible = rdvFige ? null : offreDuJourDeLaVenue(offresDeLaMaison, { branchId: branch.id, dateIso: date, serviceIds });
-            if (!possible) return null;
+          {/* LES PLACES LIMITÉES, DITES À L'ÉCRAN — 4 novembre 2026 : « Places
+              limitées · Remise : il reste 2 places » quand la place se pose,
+              « place tenue » quand ce rendez-vous la garde ; sinon, pourquoi
+              pas (une seule remise, le jour déjà pris, plus de place). */}
+          {!sansPrix && !rdvFige && (() => {
             const boite = { fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 } as const;
             const bouton = { cursor: 'pointer', background: 'none', color: 'var(--copper-700)', border: '1px solid var(--copper-300)', borderRadius: 3, padding: '4px 10px', fontFamily: 'var(--font-sans)', fontSize: 11.5, marginLeft: 8 } as const;
-            if (poseDuMercredi && offreDuMercredi) {
-              const sansLui = brutDuRituel({ serviceIds, remisesLignes: remisesALaMain }, byId, tarifs);
-              const retire = Math.max(0, sansLui - (grossBase + arrondiDuCode));
+            if (poseDuMercredi && offreDuMercredi && jugeDuJour) {
               const n = poseDuMercredi.remisesLignes.filter((x, i) => !!x && !(remisesALaMain[i] && ((remisesALaMain[i]?.pct ?? 0) > 0 || (remisesALaMain[i]?.xof ?? 0) > 0))).length;
               return (
-                <div style={boite}>
-                  <b>{offreDuMercredi.title}</b> · code {poseDuMercredi.codeOffre} · −{offreDuMercredi.discountPct ?? 0} % sur {n} {n > 1 ? 'gestes' : 'geste'}
-                  {retire > 0 ? <>, soit −{argent(retire)}{arrondiDuCode > 0 ? ' (arrondi au millier)' : ''}</> : null}.
-                  {' '}Il se pose de lui-même sur un rendez-vous de ce jour.
-                  {duelFamille && ditLaPlusForte(duelFamille, offreDuMercredi.title) ? <> {ditLaPlusForte(duelFamille, offreDuMercredi.title)} (famille : −{argent(duelFamille.familleXof)})</> : null}
+                <div style={boite} className="trc-rdv-places">
+                  <b>{placeDite}</b> · −{offreDuMercredi.discountPct ?? 0} % sur {n} {n > 1 ? 'gestes' : 'geste'}
+                  {retireParLaPlace > 0 ? <>, soit −{argent(retireParLaPlace)}{arrondiDuCode > 0 ? ' (arrondi au millier)' : ''}</> : null}.
+                  {' '}{jugeDuJour.aPlaces
+                    ? (jugeDuJour.tenue ? 'Ce rendez-vous garde sa place.' : 'La remise se pose d’elle-même avec la place, sans code à taper.')
+                    : 'Il se pose de lui-même sur un rendez-vous de ce jour.'}
                   <button type="button" style={bouton} onClick={() => setMercrediEcarte(true)}>Ne pas l’appliquer</button>
                 </div>
               );
             }
-            /* LA FAMILLE RETENUE SE DIT (2 novembre 2026) : la plus forte des deux. */
-            if (duelFamille?.retenue === 'famille' && offreDuMercredi) {
-              return (
-                <div style={boite}>
-                  {ditLaPlusForte(duelFamille, offreDuMercredi.title) ?? `${offreDuMercredi.title} ne s’ajoute pas à la remise famille.`}
-                  {` (famille : −${argent(duelFamille.familleXof)}, ${offreDuMercredi.title.charAt(0).toLowerCase()}${offreDuMercredi.title.slice(1)} : −${argent(duelFamille.mercrediXof)})`}
-                </div>
-              );
-            }
             if (mercrediEcarte) {
+              const sansEcart = lOffreDuJourAuTrone(offresDeLaMaison, venueIci);
+              if (!sansEcart) return null;
               return (
                 <div style={boite}>
-                  {possible.title} n’est pas appliqué à ce rendez-vous.
+                  {sansEcart.offre.title} : la remise n’est pas appliquée à ce rendez-vous.
                   <button type="button" style={bouton} onClick={() => setMercrediEcarte(false)}>L’appliquer</button>
                 </div>
               );
             }
+            const aPlaces = offreAPlacesDuJour(offresDeLaMaison, { branchId: branch.id, dateIso: date, serviceIds });
+            if (aPlaces) {
+              const sans = pourquoiSansPlace(aPlaces, {
+                dateIso: date, aujourdhui: todayISO(),
+                occupation: occupationPourLeRdv(aPlaces, tousLesRdv, date, { branchId: branch.id, relu: appt, pieces: venueIci.pieces }),
+                prixConvenus: prixConvenusDeLaTete, abonnee: abonneeALaDate, famille: famPctCompte > 0,
+                dejaUnCode: codeDuRdv, couvert: couvertIci, forfait: forfaitIci, autreRemise: autreRemiseIci,
+              });
+              if (!sans) return null;
+              return sans.jour
+                ? <div className="mnd-muted trc-rdv-places" style={{ fontSize: 11.5, lineHeight: 1.5 }}>{sans.texte}</div>
+                : <div style={boite} className="trc-rdv-places">{sans.texte}</div>;
+            }
+            const possible = lOffreDuJourAuTrone(offresDeLaMaison.filter((o) => !estAPlaces(o)), { branchId: branch.id, dateIso: date, serviceIds, rdvs: [] });
+            if (!possible) return null;
             const pourquoi = codeDuRdv ? `ce rendez-vous porte déjà le code ${codeDuRdv}`
               : effCovered ? 'le rituel est couvert par l’abonnement'
-                : forfaitOn && String(forfaitStr).trim() !== '' ? 'un forfait est posé' : '';
-            return pourquoi ? <div style={boite}>{possible.title} ne s’ajoute pas : {pourquoi}.</div> : null;
+                : forfaitIci ? 'un forfait est posé' : '';
+            return pourquoi ? <div style={boite}>{possible.offre.title} ne s’ajoute pas : {pourquoi}.</div> : null;
           })()}
           {/* LE RÉCAPITULATIF ENTIER SE TAIT. Le laisser avec des tirets partout
               n'apprend rien et donne l'air d'un écran cassé : mieux vaut qu'il
@@ -5837,6 +5882,17 @@ function RdvModalCorps({
                   )}
                 </div>
               ))}
+              {/* LA PLACE AU PANIER (4 novembre 2026) : « Places limitées ·
+                  Remise : il reste 2 places », et ce qu'elle retire. */}
+              {!sansPrix && !effCovered && !estSuite && placeDite && retireParLaPlace > 0 && (
+                <div className="trc-rdv5__ligne est-remise trc-rdv5__place">
+                  <span className="trc-rdv5__lib">
+                    {placeDite}
+                    <small>−{offreDuMercredi?.discountPct ?? 0} %, posée d’elle-même{arrondiDuCode > 0 ? ', arrondi au millier' : ''}</small>
+                  </span>
+                  <span className="trc-rdv5__mt">−{argent(retireParLaPlace)}</span>
+                </div>
+              )}
               {!sansPrix && !effCovered && !estSuite && (effGross - totalXof > 0 ? (
                 <div className="trc-rdv5__ligne est-remise">
                   <span className="trc-rdv5__lib">

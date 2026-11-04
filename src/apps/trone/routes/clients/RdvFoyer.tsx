@@ -17,7 +17,10 @@ import { Button, Field, Modal, Select, toast } from '../../../../ds/components';
 import { OptionsPrestations } from '../_ui';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { useClients, useFamilies, remiseFamillePct, type Client } from '../../../../shared/clients';
+import { useClients, useFamilies, remiseFamillePct, aUnPrixConvenu, type Client } from '../../../../shared/clients';
+import { gesteSansRemise } from '../../../../shared/offres-pur';
+import { contratPourLaDate, usePlans, useSubscribers } from '../equipe/data';
+import { famPctDeLaTete } from './places-au-trone-pur';
 import { ageDe, estKids } from '../../../../shared/accounts';
 import { catalogueDeLaTete } from '../../../../shared/kids';
 import { useServices, useProducts, type Service } from '../../../../shared/catalog';
@@ -57,6 +60,9 @@ export function RdvFoyerModal({ clientId, onClose }: { clientId: string; onClose
   const [bands] = useModelBands();
   const [sets] = useBandSets();
   const [appts] = useAppointments();
+  /* Les formules : une tête abonnée à la date ne prend pas la remise famille. */
+  const [subs] = useSubscribers();
+  const [plans] = usePlans();
 
   const client = clients.find((c) => c.id === clientId);
   const famille = client?.familyId ? families.find((f) => f.id === client.familyId) : undefined;
@@ -97,9 +103,11 @@ export function RdvFoyerModal({ clientId, onClose }: { clientId: string; onClose
       const sv = byId.get(id);
       return sv ? (perso ? personalPriceXof(sv, pricing, services, produits) : prixDeBase(sv, pricing)) : 0;
     });
+    /* Hors remise famille : les forfaits, et un geste sans remise (le Rituel
+       Sówà™, « aucune remise », 4 novembre 2026). */
     const forfaitXof = ids.reduce((n, id, i) => {
       const sv = byId.get(id);
-      return n + (sv && regimeTarifaire(sv).k === 'forfait' ? prixLignes[i] : 0);
+      return n + (sv && (regimeTarifaire(sv).k === 'forfait' || gesteSansRemise(sv)) ? prixLignes[i] : 0);
     }, 0);
     const prixXof = prixLignes.reduce((n, x) => n + x, 0);
     const dureeMin = svcs.reduce((n, sv) => n + (personalDurationMin(sv, pricing) ?? sv.durationMin ?? 60), 0);
@@ -119,11 +127,17 @@ export function RdvFoyerModal({ clientId, onClose }: { clientId: string; onClose
      LA REMISE FAMILLE SE FIGE EN FRANCS, HORS FORFAITS, tête par tête, comme
      à la modale (`_shared`). Elle se posait ici en pourcentage sur tout,
      forfaits compris : le même foyer payait autrement selon l'écran. */
-  const famPct = remiseFamillePct(famille, clients, todayISO());
+  const famPctDuFoyer = remiseFamillePct(famille, clients, todayISO());
   const gestes = gestesEnsemble(lignes.map((l) => ({ id: l.tete.id, mineur: estMineur(l.tete, todayISO()), serviceIds: l.ids })), date);
   const chiffres = lignes.map((l) => {
     const g = gestes[l.tete.id];
     const gesteXof = (g ?? []).reduce((n, x) => n + (l.prixLignes[x.index] ?? 0), 0);
+    /* UNE SEULE REMISE, TÊTE PAR TÊTE (4 novembre 2026) : aux prix convenus,
+       ou abonnée à la date du rendez-vous, aucune remise famille. */
+    const famPct = famPctDeLaTete(famPctDuFoyer, {
+      prixConvenus: aUnPrixConvenu(l.tete),
+      abonnee: !!contratPourLaDate(subs, l.tete.id, date, plans),
+    });
     const famXof = !g && famPct > 0 ? Math.round(Math.max(0, l.prixXof - l.forfaitXof) * famPct / 100) : 0;
     return { id: l.tete.id, gestes: g, gesteXof, famXof };
   });
@@ -374,7 +388,7 @@ export function RdvFoyerModal({ clientId, onClose }: { clientId: string; onClose
                 {remisesXof > 0 && (
                   <span className="mnd-muted" style={{ flex: '1 1 100%', fontSize: 11, lineHeight: 1.5 }}>
                     {fmtMoney(totalXof, currency)}
-                    {chiffres.some((c) => c.famXof > 0) ? ` moins la remise famille de ${famPct} % (hors forfaits)` : ''}
+                    {chiffres.some((c) => c.famXof > 0) ? ` moins la remise famille de ${famPctDuFoyer} % (hors forfaits${chiffres.some((c) => c.famXof <= 0 && !c.gestes) ? ', et pas sur une tête aux prix convenus ou abonnée' : ''})` : ''}
                     {chiffres.filter((c) => c.gestes).map((c) => ` · ${(c.gestes ?? []).map(libelleDuGeste).join(', ')}`).join('')}
                   </span>
                 )}

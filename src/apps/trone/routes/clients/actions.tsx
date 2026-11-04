@@ -11,7 +11,7 @@ import { useClients, clientsStore, useFamilies, familiesStore, aUnPrixConvenu } 
 import { appointmentsStore, useAppointments, apptPayeurId, apptPaidXof, venuesHonorees, type Appointment, type ApptPayment, estampilleLaPose } from '../../../../shared/agenda';
 import { useCategories, fondeLaCouronne, servicesStore, type Service, useProducts } from '../../../../shared/catalog';
 import { aDefaitSesLocks, estDePassage as estDePassageCli, estDiaspora, joursDeLaTete } from '../../../../shared/clients';
-import { remiseDeFactureAReporter, remiseDuComptoirEcrite, remiseDuComptoirRendue } from '../../../../shared/offres-pur';
+import { estUnCodeDuJour, remiseDeFactureAReporter, remiseDuComptoirEcrite, remiseDuComptoirRendue } from '../../../../shared/offres-pur';
 import { invoicesStore, cashboxesStore, useCashboxes, caissesPourLaDate, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, quiEncaisse, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
 import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
@@ -20,7 +20,7 @@ import { gammePayeeSurSesPieces, graveLesLignesReglees, ligneNetteXof, lignesARe
 import { useLaGammePayeeRegravee } from './gamme-payee';
 import { duDuCompte, peutPartirDevant, tetesDuCompte } from '../../../../shared/compte';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, splitByWeights } from '../../../../shared/pricing';
-import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle, cercleSeuilStore } from '../../../../shared/offers';
+import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle, cercleSeuilStore, offersStore } from '../../../../shared/offers';
 import { uid } from '../../../../shared/store';
 import { sameName, normName } from '../../../../shared/text';
 import { addTipPartage, repartirPourboire, retirerPourboiresDesFactures, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
@@ -35,7 +35,8 @@ import { ReglementEnDirect } from './ReglementEnDirect';
 import { signeLeMessage } from '../../../../shared/identite';
 import { consommerPourRituel, rembobinerRituel, retirerParReferences } from '../../../../shared/stock';
 import { detacherFacture } from '../../../../shared/laboratoire';
-import { useStaff, adresseDe } from '../equipe/data';
+import { useStaff, adresseDe, contratPourLaDate, plansStore, subscribersStore } from '../equipe/data';
+import { laFamilleSuitElle, offreDesPlacesDuRdv } from './places-au-trone-pur';
 import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import {
@@ -120,6 +121,29 @@ export function awardLoyalty(clientId: string, amountXof: number, label: string)
 export type ReprisePosee = { pose?: Appointment; raison?: string };
 
 
+/* ══ UNE SEULE REMISE À LA VISITE SUIVANTE — 4 novembre 2026 ══════════════
+   La place limitée appartient au jour qu'elle a pris : sa marque (le code et
+   l'offre d'un jour de la venue, et l'écart « Ne pas l'appliquer ») ne passe
+   pas à la suite, qui se rejuge à sa date. `sansLaVisite` la gardait : la
+   reprise d'un rendez-vous à −15 % aurait compté une place prise au plein
+   tarif, puis repris la remise à sa réouverture. La remise famille, elle, ne
+   suit plus une tête passée aux prix convenus, ni abonnée à la date de la
+   suite (`laFamilleSuitElle`). */
+function sansLaPlaceDuJour(appt: Appointment): Partial<Appointment> {
+  const offres = offersStore.get();
+  return estUnCodeDuJour(appt.codeOffre, offres) || !!offreDesPlacesDuRdv(appt, offres)
+    ? { codeOffre: undefined, offreId: undefined, horsOffreDuJour: undefined }
+    : {};
+}
+function laFamilleQuiSuitLaTete(appt: Appointment, date: string): Partial<Appointment> {
+  const tete = clientsStore.get().find((c) => c.id === appt.clientId);
+  const suit = laFamilleSuitElle({
+    prixConvenus: !!tete && aUnPrixConvenu(tete),
+    abonnee: !!appt.clientId && !!contratPourLaDate(subscribersStore.get(), appt.clientId, date, plansStore.get()),
+  });
+  return suit ? remiseFamilleQuiSuit(appt) : { remiseFamille: undefined, remiseFamilleXof: undefined };
+}
+
 export function poseLaReprise(appt: Appointment): ReprisePosee {
   /* CHAQUE REFUS SE DIT (9 septembre — « je n'ai pas eu son prochain RDV
      automatique », Befoune, et personne ne pouvait dire quel garde avait
@@ -142,10 +166,14 @@ export function poseLaReprise(appt: Appointment): ReprisePosee {
     if (gardeI) return { raison: gardeI };
     const aVenirI = prochainDejaPose(appt, tous, todayISO());
     if (aVenirI) return { raison: `elle a déjà un rendez-vous à venir (${frShort(aVenirI.date)})` };
+    const dateI = dateDeLaReprise(appt.date, imposee.semaines, joursDeLaTete(cliente));
     const suiteI: Appointment = {
       ...sansLaVisite(appt),
+      /* La place limitée ne suit pas (4 novembre 2026) ; la famille non plus,
+         ici comme avant : la Retouche comprise est offerte. */
+      ...sansLaPlaceDuJour(appt),
       id: `ap-${uid()}`,
-      date: dateDeLaReprise(appt.date, imposee.semaines, joursDeLaTete(cliente)),
+      date: dateI,
       status: 'confirmé',
       source: 'trone',
       repriseDe: appt.id,
@@ -189,8 +217,10 @@ export function poseLaReprise(appt: Appointment): ReprisePosee {
        direction : la fenêtre la fige en francs, `sansLaVisite` la retirait
        comme une remise du jour, et la visite suivante d'une tête à compte
        famille la perdait en silence. Même geste que « Reprogrammé depuis
-       l'encaissement ». */
-    ...remiseFamilleQuiSuit(appt),
+       l'encaissement ». Une seule remise (4 novembre 2026) : ni la place
+       limitée ni, pour une tête aux prix convenus ou abonnée, la famille. */
+    ...sansLaPlaceDuJour(appt),
+    ...laFamilleQuiSuitLaTete(appt, date),
     id: `ap-${uid()}`,
     date,
     status: 'confirmé',
@@ -2066,7 +2096,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
       const imposeeE = suiteImposee(appt, (id) => { const sv = catalogueE.find((s) => s.id === id); return !!sv && fondeLaCouronne(sv); }, catalogueE);
       const newAppt: Appointment = {
         ...sansLaVisite(appt),
-        ...remiseFamilleQuiSuit(appt),
+        ...sansLaPlaceDuJour(appt),
+        ...laFamilleQuiSuitLaTete(appt, nextDate),
         id: `appt-${uid()}`,
         clientName: appt.clientName ?? client?.name,
         date: nextDate,

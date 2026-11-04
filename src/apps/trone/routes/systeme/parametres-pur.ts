@@ -15,7 +15,11 @@ export type IdTuile =
   | 'heures' | 'whatsapp' | 'paiements' | 'envoyer'
   | 'reservation' | 'pointage' | 'diagnostic' | 'notifications'
   /* La neuvième, née le 31 octobre 2026 : la Dictée MND (maquette F7LksMC3…). */
-  | 'dictee';
+  | 'dictee'
+  /* La dixième, née le 4 novembre 2026 : les Places limitées (maquette
+     AhFRNqiggFoaiR725iKSQe, « J'aimerais avoir les jours des 15 % réglables
+     sur le Trône avec le nombre de places », Yéman). */
+  | 'places';
 
 export type Tuile = { id: IdTuile; nom: string; mots: string };
 
@@ -26,6 +30,7 @@ export const TUILES: readonly Tuile[] = [
   { id: 'paiements', nom: 'Paiements', mots: 'paiement paiements modes espèces momo moov celtiis carte chèque virement mnd pay fedapay tap go zelle devise étrangère euro dollar relance relances facture factures rythme rattrapage' },
   { id: 'envoyer', nom: 'Ce qu’on envoie aux clientes', mots: 'itinéraire chemin adresse plan google maps avis lien momo qr ussd marchand code 909099 messages automatiques' },
   { id: 'reservation', nom: 'Réservation et acompte', mots: 'réservation réserver acompte pourcentage prestations plafond maître jour paliers élévation souveraineté habilitée main ma couronne en ligne' },
+  { id: 'places', nom: 'Places limitées', mots: 'places limitées remise 15 % quinze décompte jour vide mardi mercredi jeudi vendredi samedi shampoing shampoings lavage lavages soin soins offre du jour' },
   { id: 'pointage', nom: 'Pointage de l’équipe', mots: 'pointage présence preuve position gps rayon mètres code du jour comptoir arrivée équipe' },
   { id: 'diagnostic', nom: 'Diagnostic photo', mots: 'diagnostic photo photos locks ma couronne table observation rituel produit claude' },
   { id: 'notifications', nom: 'Notifications', mots: 'notification notifications cloche alerte rendez-vous stock réassort factures attente' },
@@ -163,6 +168,37 @@ export function resumeDictee(nbMots: number, mode: string, bureauRelie: boolean)
     dit: `${nbMots} mot${nbMots > 1 ? 's' : ''} de la Maison · mode ${mode} · bureau ${bureauRelie ? 'relié' : 'sans jeton'}`,
     etat: bureauRelie ? { ton: 'ok', dit: 'téléphone et bureau' } : { ton: 'neutre', dit: 'téléphone' },
   };
+}
+
+/* ── LES PLACES LIMITÉES (4 novembre 2026) ── */
+const JOURS_DES_PLACES = ['Mar', 'Mer', 'Jeu', 'Ven', 'Sam'] as const;
+const COURT_DES_PLACES: Record<string, string> = { Mar: 'mar.', Mer: 'mer.', Jeu: 'jeu.', Ven: 'ven.', Sam: 'sam.' };
+
+/** « mar. au ven. », « mar. et mer. », « mar., jeu. et sam. » : les jours qui
+    se suivent vont ensemble. */
+export function joursDesPlacesDits(jours: readonly string[]): string {
+  const idx = JOURS_DES_PLACES.map((j, i) => (jours.includes(j) ? i : -1)).filter((i) => i >= 0);
+  if (idx.length === 0) return 'aucun jour';
+  const suites: number[][] = [];
+  for (const i of idx) {
+    const s = suites[suites.length - 1];
+    if (s && s[s.length - 1] === i - 1) s.push(i); else suites.push([i]);
+  }
+  if (suites.length === 1 && suites[0].length >= 3) {
+    return `${COURT_DES_PLACES[JOURS_DES_PLACES[suites[0][0]]]} au ${COURT_DES_PLACES[JOURS_DES_PLACES[suites[0][suites[0].length - 1]]]}`;
+  }
+  const dits = idx.map((i) => COURT_DES_PLACES[JOURS_DES_PLACES[i]]);
+  return dits.length === 1 ? dits[0] : `${dits.slice(0, -1).join(', ')} et ${dits[dits.length - 1]}`;
+}
+
+/** Le résumé de la tuile : les jours, les places, l'horizon, le pourcentage. */
+export function resumePlaces(r: { existe: boolean; active: boolean; jours: readonly string[]; places: number; horizon: number; pct: number }): { dit: string; etat: Etat } {
+  const dit = `${joursDesPlacesDits(r.jours)} · ${r.places} place${r.places > 1 ? 's' : ''} par jour · ${r.horizon} jours à l’avance · −${r.pct} %`;
+  if (!r.existe) return { dit, etat: { ton: 'neutre', dit: 'à poser' } };
+  if (!r.active) return { dit, etat: { ton: 'neutre', dit: 'éteinte' } };
+  return r.jours.length === 0
+    ? { dit, etat: { ton: 'attention', dit: 'aucun jour' } }
+    : { dit, etat: { ton: 'ok', dit: 'allumée' } };
 }
 
 /** Les trois sujets que la cloche du Trône sait taire (shell/Notifications.tsx). */

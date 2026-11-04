@@ -10,7 +10,7 @@ import { useCategories, useServices, useProducts, productsStore, priceModeOf, ca
 import { venteGamme } from '../../../../shared/stock';
 import { useFormations } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
-import { useClients, useFamilies, clientsStore } from '../../../../shared/clients';
+import { useClients, useFamilies, clientsStore, remiseFamillePct, aUnPrixConvenu } from '../../../../shared/clients';
 import { genreEffectif, soinsEnAttente, type SoinOffert } from '../../../../shared/parrainage-pur';
 import { soinUtilise } from '../../../../shared/parrainage';
 import {
@@ -32,7 +32,7 @@ import {
   honoreLeCode, normaliseLeCode,
 } from '../../../../shared/promos';
 import { useOffers } from '../../../../shared/offers';
-import { offreDuCode, offreDuCodePassee, offreDuJourDeLaVenue, remiseDeLOffreSurLeTicket, pourquoiLOffreNeCourtPas, remiseDuComptoirAuRendezVous, remiseDuComptoirEcrite } from '../../../../shared/offres-pur';
+import { codeNormalise, estAPlaces, offreDuCode, offreDuCodePassee, remiseDeLOffreSurLeTicket, pourquoiLOffreNeCourtPas, remiseDuComptoirAuRendezVous, remiseDuComptoirEcrite } from '../../../../shared/offres-pur';
 import { useAuth } from '../../../../shared/auth';
 import { ChampDeDate } from '../../../../ds/dates';
 import { useEstDirection } from '../_vie';
@@ -49,7 +49,8 @@ import { remisesDuPapier } from './pdf-de-la-piece';
 import { aEncaisserMaintenant, billetsRonds, moyenHabituel, offreAProposer, renduDeMonnaie } from './caisse-fluide-pur';
 import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 import { ChampsDeLaTrace } from './TraceDuMoyen';
-import { useStaff, adresseDe } from '../equipe/data';
+import { useStaff, adresseDe, useSubscribers, usePlans, contratPourLaDate } from '../equipe/data';
+import { ditLaPlaceDuRdv, famPctDeLaTete, lOffreDuJourAuTrone } from '../clients/places-au-trone-pur';
 import { avecLesMoyensDeLaMaison, caisseProposee, caissesAuChoix, deviseDuMoyen, peutChangerLaCaisse, poseLaCaisse } from '../../../../shared/caisses-des-caissiers-pur';
 import { identiteCourante } from '../../../../shared/journal';
 import { DeposerUneCapture } from './DeposerUneCapture';
@@ -141,6 +142,9 @@ export default function Caisse() {
   const [bands] = useModelBands();
   const [sets] = useBandSets();
   const [families] = useFamilies();
+  /* Les formules, pour « une seule remise » : une abonnée ne prend pas de place limitée. */
+  const [subs] = useSubscribers();
+  const [plans] = usePlans();
   const [credits] = useCredits();
   const [invoices, setInvoices] = useInvoices();
   const [cashboxes] = useCashboxes();
@@ -630,18 +634,46 @@ export default function Caisse() {
   const rituelDuTicket = apptToSettle ? carnet.find((a) => a.id === apptToSettle) : undefined;
   const venueDuTicket = rituelDuTicket?.date ?? dateVente;
   const cleDuTicket = rituelDuTicket?.id ?? `vente-${venueDuTicket}`;
-  const offreDuMercredi = !codeSaisi.trim() ? offreDuJourDeLaVenue(offresDeLaBranche, {
-    branchId: branch.id, dateIso: venueDuTicket, serviceIds: lignesRemisables.map((l) => l.serviceId),
+  /* ══ LES PLACES LIMITÉES À LA CAISSE — 4 novembre 2026 ═══════════════════
+     Le jour de la venue : celui du rendez-vous soldé, sinon celui de la vente
+     (la cliente de passage, aujourd'hui ; un jour passé n'ouvre aucune
+     place). Le compte se tire du carnet, le rendez-vous soldé ôté s'il tient
+     sa place, et des tickets de passage du jour qui l'ont prise
+     (`prisesAuComptoir`). UNE SEULE REMISE : rien pour une tête aux prix
+     convenus, abonnée à cette date, ni qui a déjà une remise (la famille de
+     son foyer, la remise du rendez-vous, une remise du ticket ou d'une ligne). */
+  const teteDuTicket = branchClients.find((c) => c.id === clientId);
+  const familleDuTicket = teteDuTicket?.familyId ? families.find((f) => f.id === teteDuTicket.familyId) : undefined;
+  const prixConvenusDuTicket = !!teteDuTicket && aUnPrixConvenu(teteDuTicket);
+  const abonneeDuTicket = !!clientId && !!contratPourLaDate(subs, clientId, venueDuTicket, plans);
+  const familleDuTicketPct = famPctDeLaTete(remiseFamillePct(familleDuTicket, clients, todayIso()), { prixConvenus: prixConvenusDuTicket, abonnee: abonneeDuTicket });
+  const remiseDuRituelXof = rituelDuTicket ? Math.max(0, apptTotalXof(rituelDuTicket, svcById) - apptNetXof(rituelDuTicket, svcById)) : 0;
+  const autreRemiseDuTicket = familleDuTicketPct > 0 || globalDisc > 0 || globalDiscXof > 0 || remiseDuRituelXof > 0
+    || lines.some((l) => l.kind === 'service' && (l.disc ?? 0) > 0)
+    || (rituelDuTicket?.remisesLignes ?? []).some((r) => (r?.pct ?? 0) > 0 || (r?.xof ?? 0) > 0);
+  const jugeDuTicket = !codeSaisi.trim() ? lOffreDuJourAuTrone(offresDeLaBranche, {
+    branchId: branch.id, dateIso: venueDuTicket, serviceIds: lignesRemisables.map((l) => l.serviceId), aujourdhui: todayIso(),
     dejaUnCode: !!rituelDuTicket?.codeOffre,
-    couvertParAbonnement: !!rituelDuTicket?.coveredBySub || (rituelDuTicket?.seriesIndex ?? 1) > 1,
+    couvertParAbonnement: !!rituelDuTicket?.coveredBySub || (rituelDuTicket?.seriesIndex ?? 1) > 1 || abonneeDuTicket,
     forfait: !!rituelDuTicket?.forfait,
     ecartee: !!rituelDuTicket?.horsOffreDuJour || mercrediEcarteSur === cleDuTicket,
+    prixConvenus: prixConvenusDuTicket,
+    autreRemise: autreRemiseDuTicket,
+    rdvs: carnet,
+    relu: rituelDuTicket ?? null,
+    pieces: invoices,
   }) : null;
+  const offreDuMercredi = jugeDuTicket?.offre ?? null;
   const codeTape = codeSaisi.trim() ? codeSaisi : (offreDuMercredi?.code ?? '');
   const codeNominatif = codeDit(codeTape, codes, branch.id);
-  const offreCodee = !codeNominatif ? offreDuCode(offresDeLaBranche, codeTape, new Date(), venueDuTicket) : null;
-  const offreHorsSaison = !codeNominatif && !offreCodee ? offreDuCodePassee(offresDeLaBranche, codeTape, new Date(), venueDuTicket) : null;
+  /* PLUS DE CODE À TAPER (4 novembre 2026) : le code d'une offre à places ne
+     se tape pas, il se pose avec la place, comptée. Tapé à la main, il
+     passerait par-dessus le décompte et « une seule remise ». */
+  const codeAPlacesTape = !!codeSaisi.trim() && offresDeLaBranche.some((o) => estAPlaces(o) && !!codeNormalise(o.code) && codeNormalise(o.code) === codeNormalise(codeSaisi));
+  const offreCodee = !codeNominatif && !codeAPlacesTape ? offreDuCode(offresDeLaBranche, codeTape, new Date(), venueDuTicket) : null;
+  const offreHorsSaison = !codeNominatif && !offreCodee && !codeAPlacesTape ? offreDuCodePassee(offresDeLaBranche, codeTape, new Date(), venueDuTicket) : null;
   const refusDuCode = offreCodee ? null
+    : codeAPlacesTape ? 'Ce code ne se tape pas : la remise des places limitées se pose d’elle-même, quand le jour a encore une place.'
     : offreHorsSaison ? pourquoiLOffreNeCourtPas(offreHorsSaison, new Date(), venueDuTicket)
       : pourquoiLeCodeNeVautPas({
         tape: codeTape, codes, clientId, branchId: branch.id, maintenant: new Date().toISOString(),
@@ -1733,9 +1765,11 @@ export default function Caisse() {
                 )}
                 {/* LE MERCREDI DE LA MAISON SE DIT, ET S'ÉCARTE (2 novembre 2026) :
                     posé de lui-même, il ne s'applique jamais en silence. */}
-                {offreDuMercredi && (
-                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)', display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    {offreDuMercredi.title} : posé de lui-même, la venue tombe un jour de l’offre.
+                {offreDuMercredi && jugeDuTicket && (
+                  <span className="trv-places" style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)', display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {jugeDuTicket.aPlaces
+                      ? `${ditLaPlaceDuRdv(jugeDuTicket)} · −${offreDuMercredi.discountPct ?? 0} %, posée d’elle-même sur ce ticket.`
+                      : `${offreDuMercredi.title} : posé de lui-même, la venue tombe un jour de l’offre.`}
                     <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" onClick={() => setMercrediEcarteSur(cleDuTicket)}>Ne pas l’appliquer</button>
                   </span>
                 )}

@@ -60,7 +60,7 @@ import { pushToClient } from '../../../../shared/push';
 import { PayAppointmentModal } from './actions';
 import { BoutonDuPoint, FenetreDuPoint } from '../vente/FenetreDuPoint';
 import { FenetreDesCivilites } from './FenetreDesCivilites';
-import { useSubscribers, usePlans, prixVenduXof, type Subscriber } from '../equipe/data';
+import { useSubscribers, usePlans, prixVenduXof, contratPourLaDate, type Subscriber } from '../equipe/data';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera, Search } from 'lucide-react';
 import {
@@ -4174,7 +4174,11 @@ function Customer360({
                       pas seulement dans Finances › Comptes : c'est sur cette
                       fiche qu'on prend le rendez-vous qui la portera. */}
                   <div className="trc-sub" style={{ padding: '10px 13px', borderBottom: '1px solid var(--hairline)', lineHeight: 1.5 }}>
-                    {remiseFamillePct(clientFamily, tetesBranche, todayISO()) > 0 ? (
+                    {/* UNE SEULE REMISE (4 novembre 2026) : aux prix convenus, ou
+                        abonnée, la tête ne prend pas la remise de son compte. */}
+                    {remiseFamillePct(clientFamily, tetesBranche, todayISO()) > 0 && (aUnPrixConvenu(client) || !!contratPourLaDate(subs, client.id, todayISO(), plans)) ? (
+                      <>Remise famille · <b style={{ fontWeight: 600 }}>aucune pour elle</b> : {aUnPrixConvenu(client) ? 'ses prix convenus s’appliquent' : 'sa formule court'} (une seule remise). Les autres têtes du compte gardent −{remiseFamillePct(clientFamily, tetesBranche, todayISO())}%.</>
+                    ) : remiseFamillePct(clientFamily, tetesBranche, todayISO()) > 0 ? (
                       <>Remise famille · <b style={{ fontWeight: 600, color: 'var(--copper-700)' }}>−{remiseFamillePct(clientFamily, tetesBranche, todayISO())}%</b>
                         {clientFamily.remisePct === undefined ? ' (barème du foyer)' : ' (personnalisée)'}, posée d'office sur les rendez-vous des membres, hors forfaits.</>
                     ) : (

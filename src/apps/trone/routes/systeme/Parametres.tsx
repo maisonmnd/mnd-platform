@@ -45,8 +45,11 @@ import { MOTS_DE_LA_MAISON, motsPropres, nomDuMode } from '../../../../shared/di
 import {
   TUILES, RAREMENT, NOTIFICATIONS, MOT_DU_VERROU, estIdTuile, verrouOuvert, sansAccent, tuilesTrouvees, rarementTrouves,
   resumeDesHeures, etatDesHeures, resumeWhatsApp, etatWhatsApp, resumePaiements, etatPaiements, resumeEnvois,
-  resumeReservation, resumePointage, resumeDiagnostic, resumeNotifications, resumeDictee, type Etat, type IdTuile,
+  resumeReservation, resumePointage, resumeDiagnostic, resumeNotifications, resumeDictee, resumePlaces, type Etat, type IdTuile,
 } from './parametres-pur';
+import { CartePlacesLimitees } from './CartePlacesLimitees';
+import { reglageDesPlaces } from '../clients/places-au-trone-pur';
+import { useOffers } from '../../../../shared/offers';
 
 /* Système · Paramètres — depuis le 29 octobre 2026, huit tuiles pour ce qui se
    règle au quotidien, cinq gestes rapides, « Rarement » pour le reste, et ce
@@ -1534,6 +1537,8 @@ export default function Parametres() {
   const [reception] = useReception();
   const modeAssistant = reglageDeLaReception(reception).mode;
 
+  /* Les places limitées (4 novembre 2026) : la tuile lit l'offre du magasin des offres. */
+  const [offresDeLaMaison] = useOffers();
   const resumes: Record<IdTuile, { dit: string; etat: Etat }> = {
     heures: { dit: resumeDesHeures(settings.hours), etat: etatDesHeures(settings.hours) },
     whatsapp: { dit: resumeWhatsApp(reglageWa.mode, modeAssistant, reglageWa.horizonJours), etat: etatWhatsApp(reglageWa.mode) },
@@ -1550,6 +1555,7 @@ export default function Parametres() {
     diagnostic: resumeDiagnostic((autoCfgRaw as { diagnosticPhoto?: unknown }).diagnosticPhoto === true),
     notifications: { dit: resumeNotifications(settings.toggles), etat: { ton: 'ok', dit: 'reliées' } },
     dictee: resumeDictee(motsPropres([...MOTS_DE_LA_MAISON, ...(settings.dictee?.mots ?? [])]).length, nomDuMode(settings.dictee?.modeParDefaut ?? 'note'), !!settings.dictee?.bureau),
+    places: resumePlaces(reglageDesPlaces(offresDeLaMaison)),
   };
   const nomDe = (id: IdTuile) => TUILES.find((t) => t.id === id)?.nom ?? id;
 
@@ -2469,6 +2475,9 @@ export default function Parametres() {
 
           {/* LA DICTÉE MND (31 octobre 2026) : les mots de la Maison, le mode et le cerveau au départ, le jeton du bureau. */}
           {ouverte === 'dictee' && <CarteDictee />}
+
+          {/* LES PLACES LIMITÉES (4 novembre 2026) : l'allumage, les jours, les places, l'horizon et le pourcentage, direction seule. */}
+          {ouverte === 'places' && <CartePlacesLimitees />}
 
           {ouverte === 'notifications' && (
             /* LES TROIS SUJETS QUE LA CLOCHE SAIT TAIRE. Ils étaient affichés
