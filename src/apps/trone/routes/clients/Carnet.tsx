@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Search } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useBilans } from '../../../../shared/bilans';
@@ -31,8 +32,8 @@ import { useStore } from '../../../../shared/store';
 import { voitLesPrix } from '../index';
 import { type Service } from '../../../../shared/catalog';
 import {
-  Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, type RdvInitial,
-  addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, montantDuCarnet, apptDueXof, apptDepositCreditXof, apptDurationMin, frDay, frShort, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, type RdvInitial,
+  addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, montantDuCarnet, apptDueXof, apptDepositCreditXof, apptDurationMin, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   tarifsDuRituel, PortesWhatsApp, DrillModal, type Drill,
 } from './_shared';
 import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honoreSansEncaisser, PayAppointmentModal, piecesDuFoyer, prenomsDuFoyer } from './actions';
@@ -51,7 +52,85 @@ import { AvantLeFauteuil } from './AvantLeFauteuil';
 
 /* Le Carnet — le registre des rendez-vous : multi-services, duplication, statuts. */
 
-const GRID = '96px 90px 1.3fr 1.6fr 0.9fr 232px';
+/* LE CARNET LISIBLE EN DEUX SECONDES — 4 novembre 2026 (maquette
+   JsrKf8QF9e4Z5Txqz524T3, « construis »). La cliente d'abord, son rituel
+   dessous, l'heure dans sa colonne, le prix et le statut à droite. La date
+   quitte la ligne : chaque jour a son en-tête. */
+const GRID = '76px minmax(0, 1.9fr) minmax(0, 0.9fr) auto';
+
+/* Le statut se lit à sa couleur : honoré vert, confirmé indigo, en attente
+   cuivre, annulé rouge. Les mêmes classes que la pastille des autres écrans. */
+const CLASSE_DU_STATUT: Record<Appointment['status'], string> = {
+  'confirmé': 'trc-pill--confirme',
+  'en attente': 'trc-pill--attente',
+  'honoré': 'trc-pill--honore',
+  'annulé': 'trc-pill--annule',
+};
+const dureeDite = (min: number) => (min >= 60 ? `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60}` : ''}` : `${min} min`);
+/* Un rendez-vous passé ou du jour, encore confirmé ou en attente, attend son statut. */
+const estAClore = (a: Appointment, aujourdhui: string) => a.date <= aujourdhui && (a.status === 'confirmé' || a.status === 'en attente');
+
+/* ══ LE MENU QUI NE S'ÉCHAPPE PLUS — 4 novembre 2026 ═══════════════════════
+   « Le menu déroulant pour changer le statut est peu intuitif, il ne doit pas
+   disparaître de façon frustrante » (Yéman). Il vivait DANS la feuille : sous
+   900 px la feuille défile de côté et le rognait, et un clic n'importe où le
+   fermait. Il se pose désormais par-dessus l'écran, sous son bouton (au-dessus
+   près du bas), suit le défilement, et ne se ferme que sur un choix, Échap ou
+   un toucher ailleurs. Il reste l'enfant de sa ligne pour React : ses clics
+   s'arrêtent avant d'ouvrir la fenêtre du rendez-vous. */
+function MenuFlottant({ ancre, onClose, children }: { ancre: HTMLElement; onClose: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const ferme = useRef(onClose);
+  ferme.current = onClose;
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  useLayoutEffect(() => {
+    const place = () => {
+      const m = ref.current;
+      if (!m || !ancre.isConnected) return;
+      const b = ancre.getBoundingClientRect();
+      const r = m.getBoundingClientRect();
+      const top = window.innerHeight - b.bottom < r.height + 12 && b.top > r.height + 12 ? b.top - r.height - 6 : b.bottom + 6;
+      const left = Math.min(Math.max(12, b.right - r.width), window.innerWidth - r.width - 12);
+      setPos({ top: Math.max(8, top), left: Math.max(8, left) });
+    };
+    place();
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => { window.removeEventListener('scroll', place, true); window.removeEventListener('resize', place); };
+  }, [ancre]);
+  useEffect(() => {
+    const dehors = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (ref.current?.contains(t) || ancre.contains(t)) return;
+      ferme.current();
+    };
+    const touche = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') { ferme.current(); ancre.focus(); } };
+    document.addEventListener('pointerdown', dehors);
+    document.addEventListener('keydown', touche);
+    return () => { document.removeEventListener('pointerdown', dehors); document.removeEventListener('keydown', touche); };
+  }, [ancre]);
+  useEffect(() => { ref.current?.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true }); }, []);
+  const fleches = (e: KeyboardEvent<HTMLDivElement>) => {
+    const items = [...(ref.current?.querySelectorAll<HTMLButtonElement>('button') ?? [])];
+    const i = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length]?.focus(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length]?.focus(); }
+    else if (e.key === 'Tab') ferme.current();
+  };
+  return createPortal(
+    <div
+      ref={ref}
+      role="menu"
+      className="trc-menu trc-menu--fixed trc-menu--flottant"
+      style={{ position: 'fixed', top: pos?.top ?? 0, left: pos?.left ?? 0, right: 'auto', visibility: pos ? 'visible' : 'hidden' }}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={fleches}
+    >
+      {children}
+    </div>,
+    document.body,
+  );
+}
 
 /* ---------- LES VUES DU CARNET ----------
    Ce qu'on vient chercher au comptoir, en une question : « les impayés », « ce
@@ -70,7 +149,7 @@ const GRID = '96px 90px 1.3fr 1.6fr 0.9fr 232px';
    n'existe pas, et faire chercher au comptoir un argent que la Maison n'attend
    pas. Les trois vues d'argent l'écartent donc. La pastille de la ligne, elle,
    continue de dire l'état comptable — c'est son rôle. */
-type VueCarnet = '' | 'avenir' | 'impaye' | 'partiel' | 'paye' | 'attente' | 'confirme' | 'honore' | 'annule';
+type VueCarnet = '' | 'avenir' | 'aclore' | 'impaye' | 'partiel' | 'paye' | 'attente' | 'confirme' | 'honore' | 'annule';
 
 const VUES: Record<VueCarnet, {
   label: string;
@@ -78,6 +157,8 @@ const VUES: Record<VueCarnet, {
 }> = {
   '':         { label: 'Tout',        garde: () => true },
   avenir:     { label: 'À venir',     garde: (a, _b, aVenir) => aVenir(a) },
+  /* Ce qui est passé ou du jour et attend encore Honoré ou Annulé (4 novembre 2026). */
+  aclore:     { label: 'À clore',     garde: (a) => estAClore(a, todayISO()) },
   impaye:     { label: 'Impayés',     garde: (a, b) => a.status !== 'annulé' && apptPayState(a, b) === 'impayé' },
   partiel:    { label: 'Partiels',    garde: (a, b) => a.status !== 'annulé' && apptPayState(a, b) === 'partiel' },
   paye:       { label: 'Payés',       garde: (a, b) => a.status !== 'annulé' && apptPayState(a, b) === 'payé' },
@@ -253,13 +334,30 @@ export default function Carnet() {
      rendez-vous dans la liste ; les comptes des vues ne bougent pas. */
   const [presse, setPresse] = useState<CleQuiPresse | ''>('');
 
-  /* Ferme le menu ⋯ à un clic hors menu (le bouton et le menu stoppent la propagation). */
+  /* Le menu se pose sous son bouton, la pastille du statut (4 novembre 2026) ;
+     il se ferme lui-même sur un choix, Échap ou un toucher ailleurs. */
+  const [menuAncre, setMenuAncre] = useState<HTMLElement | null>(null);
+  const fermeLeMenu = () => setMenuFor(null);
+  /* UN GESTE SE DÉFAIT — 4 novembre 2026 : Honoré ou Annulé d'un toucher se
+     voit aussitôt, et un bandeau garde six secondes de quoi revenir en
+     arrière. Pas de retour quand un message est parti : il ne se rattrape pas. */
+  const [defaire, setDefaire] = useState<{ dit: string; fn?: () => void } | null>(null);
   useEffect(() => {
-    if (!menuFor) return;
-    const close = () => setMenuFor(null);
-    window.addEventListener('click', close);
-    return () => window.removeEventListener('click', close);
-  }, [menuFor]);
+    if (!defaire) return;
+    const t = setTimeout(() => setDefaire(null), 6000);
+    return () => clearTimeout(t);
+  }, [defaire]);
+  /* La barre de recherche reste en haut de la liste ; les en-têtes de jour
+     collent juste sous elle, quelle que soit sa hauteur. */
+  const barreRef = useRef<HTMLDivElement>(null);
+  const [hautBarre, setHautBarre] = useState(0);
+  useLayoutEffect(() => {
+    const el = barreRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setHautBarre(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   /* UNE FICHE SE TROUVE PAR SON IDENTIFIANT (1er octobre 2026). Chaque ligne
      relisait la liste des fiches pour trouver la sienne : mille rendez-vous
@@ -428,6 +526,37 @@ export default function Carnet() {
   const setStatus = (id: string, status: Appointment['status']) =>
     appointmentsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
 
+  /* Honorer sans encaisser émet la facture (4 octobre 2026) ; « Terminer la
+     séance » l'envoie sur son WhatsApp (25 octobre). Un seul chemin pour le
+     menu et pour le toucher direct (4 novembre 2026). */
+  const termineLaSeance = (a: Appointment, envoyer: boolean) => {
+    const h = honoreSansEncaisser(a, byId, tarifsDuRituel(a, {
+      client: clients.find((c) => c.id === a.clientId),
+      bands, sets, cats: categories, byId, tousServices: services, produits,
+    }));
+    if (envoyer && h.facture && !h.deja) void envoiDeLaPiece.aRegler(h.facture.id, a.date, { memePasse: true });
+    return h;
+  };
+  /* HONORÉ ET ANNULÉ D'UN TOUCHER — 4 novembre 2026. Le jour même, honorer
+     termine la séance comme le menu : le reste dû part sur son WhatsApp. Un
+     rendez-vous passé s'honore sans prévenir (sa règle du 26 octobre 2026 :
+     l'envoi d'un passé reste un geste exprès, au menu). */
+  const honoreDuDoigt = (a: Appointment) => {
+    const envoyer = a.date === today;
+    const h = termineLaSeance(a, envoyer);
+    if (!h.honore) return;
+    const qui = clientOf(a.clientId)?.name ?? a.clientName ?? 'Cliente de passage';
+    setDefaire(envoyer
+      ? { dit: `${qui} · ${a.time} : honoré${h.facture && !h.deja ? ', le reste part sur son WhatsApp' : ''}` }
+      : { dit: `${qui} · ${a.time} : honoré, sans message`, fn: () => { void deshonoreLeRituel(a, byId); } });
+  };
+  const annuleDuDoigt = (a: Appointment) => {
+    const avant = a.status;
+    setStatus(a.id, 'annulé');
+    const qui = clientOf(a.clientId)?.name ?? a.clientName ?? 'Cliente de passage';
+    setDefaire({ dit: `${qui} · ${a.time} : annulé`, fn: () => setStatus(a.id, avant) });
+  };
+
   /* Suppression définitive d'un rendez-vous (depuis le menu ⋯) — confirmation requise. */
   const aEteEncaisse = (a: Appointment) => (a.paidXof ?? 0) > 0 || (a.payments ?? []).length > 0 || !!a.invoiceId;
   const deleteAppt = async (a: Appointment) => {
@@ -532,34 +661,78 @@ export default function Carnet() {
           </div>,
         );
       }
+      /* Un mois passé replié ne montre que son en-tête. */
+      if (repliable && !moisOuvert(k)) continue;
       /* LES JOURS DISENT LEUR CHARGE (25 octobre 2026) : sous le mois, chaque
          jour à venir s'annonce avec ses rendez-vous, son montant et la part
-         des fauteuils occupée. */
-      if (!repliable && a.date !== jourVu) {
-        jourVu = a.date;
-        const duJour = liste.filter((x) => x.date === a.date);
-        const n = comptesParJour.get(a.date) ?? 0;
-        const r = reperesDe(reperes, a.date);
-        const c = chargeSurObjectif(n, r);
-        out.push(
-          <div key={`jour-${a.date}`} className="trc-carnet-jour">
-            <span className="trc-carnet-jour__nom">{jourEnClair(a.date).replace(/^./, (c) => c.toUpperCase())}</span>
+         des fauteuils occupée.
+         CHAQUE JOUR A SON EN-TÊTE, PASSÉS COMPRIS — 4 novembre 2026 : « il doit
+         être absolument évident quand on passe d'un jour à l'autre » (Yéman).
+         Le jour se dit en entier, avec l'année ; il colle en haut de la liste
+         tant qu'on le parcourt, et ce qui reste à clore s'y compte. */
+      if (a.date === jourVu) continue;
+      jourVu = a.date;
+      const duJour = liste.filter((x) => x.date === a.date)
+        .sort((x, y) => timeToMin(x.time) - timeToMin(y.time));
+      const n = comptesParJour.get(a.date) ?? 0;
+      const r = reperesDe(reperes, a.date);
+      const c = chargeSurObjectif(n, r);
+      const aClore = duJour.filter((x) => estAClore(x, today)).length;
+      const moment = a.date === today ? 'Aujourd’hui' : a.date === addDaysISO(today, 1) ? 'Demain' : a.date === addDaysISO(today, -1) ? 'Hier' : '';
+      out.push(
+        <div key={`jour-${a.date}`} className={`trc-carnet-jour${a.date === today ? ' est-aujourdhui' : a.date < today ? ' est-passe' : ''}`}>
+          <span className="trc-carnet-jour__nom">{jourEnClair(a.date).replace(/^./, (c) => c.toUpperCase())}</span>
+          {moment && <span className="trc-carnet-jour__moment">{moment}</span>}
+          <span className="trc-carnet-jour__infos">
             <span>{duJour.length} rendez-vous</span>
             {!sansPrix && <span className="trc-carnet-jour__xof">{fmtMoney(duJour.reduce((n, x) => n + apptNetXof(x, byId), 0), currency)}</span>}
-            {c.ton !== 'sans' && (
+            {aClore > 0 && <b className="trc-carnet-jour__clore">{aClore} à clore</b>}
+            {a.date >= today && c.ton !== 'sans' && (
               <span className={`trc-carnet-jour__charge${c.ton === 'plein' ? ' est-plein' : c.ton === 'creux' ? ' est-creux' : ''}`} title={calculDuJour(r, n)}>
                 objectif <i aria-hidden="true"><b style={{ width: `${Math.min(100, Math.round(c.part * 100))}%` }} /></i> {`${n} / ${c.objectif} RDV`}
               </span>
             )}
+          </span>
+        </div>,
+      );
+      /* UNE CARTE PAR CLIENTE — 4 novembre 2026 : ses rendez-vous du jour sous
+         son nom, dans l'ordre des heures ; on voit où sa fiche commence et où
+         elle finit. Une cliente de passage a sa carte par rendez-vous. */
+      const cartes: Appointment[][] = [];
+      for (const x of duJour) {
+        const sienne = x.clientId ? cartes.find((g) => g[0].clientId === x.clientId) : undefined;
+        if (sienne) sienne.push(x); else cartes.push([x]);
+      }
+      for (const g of cartes) {
+        if (g.length === 1) {
+          out.push(<div key={`carte-${g[0].id}`} className="trc-carte-rdv">{renderRow(g[0])}</div>);
+          continue;
+        }
+        const cl = clientOf(g[0].clientId);
+        const vivants = g.filter((x) => x.status !== 'annulé');
+        out.push(
+          <div key={`carte-${g[0].id}`} className="trc-carte-rdv est-groupe">
+            <div className="trc-carte-rdv__tete" style={{ gridTemplateColumns: GRID }}>
+              <span />
+              <span className="trc-rdv__nom">
+                {cl && <Avatar client={cl} size={30} />}
+                <span className="trc-name">{cl?.name ?? g[0].clientName ?? 'Cliente de passage'}</span>
+                <span onClick={(e) => e.stopPropagation()}><PortesWhatsApp phone={cl?.phone} /></span>
+              </span>
+              <span className="trc-carte-rdv__total">
+                {g.length} rendez-vous{!sansPrix ? ` · ${fmtMoney(vivants.reduce((s, x) => s + apptNetXof(x, byId), 0), currency)}` : ''}
+              </span>
+              <span />
+            </div>
+            {g.map((x) => renderRow(x, false))}
           </div>,
         );
       }
-      if (!repliable || moisOuvert(k)) out.push(renderRow(a));
     }
     return out;
   };
 
-  const renderRow = (a: Appointment) => {
+  const renderRow = (a: Appointment, avecNom = true) => {
     const c = clientOf(a.clientId);
     const canConfirm = a.status === 'en attente';
     const canHonor = a.status === 'confirmé';
@@ -579,22 +752,23 @@ export default function Carnet() {
          clics avant qu'ils n'ouvrent la fenêtre du rendez-vous. */
       <Fragment key={a.id}>
       <div
-        className="trc-sheet__row"
+        className={`trc-sheet__row trc-rdv est-${CLASSE_DU_STATUT[a.status].replace('trc-pill--', '')}`}
         style={{ gridTemplateColumns: GRID, cursor: 'pointer' }}
         onClick={() => setModal({ appt: a })}
         title="Modifier ce rendez-vous"
       >
-        {/* LE JOUR DE LA SEMAINE SE LIT AU CARNET — 6 septembre 2026.
-            « Préciser le jour du RDV à côté de la date, pour mesurer quel
-            jour un client aime venir plus souvent » (Yéman). Sans lui, une
-            habitude de mardi ne se voyait nulle part — et la fiche ne
-            pouvait pas la deviner non plus. */}
-        <span className="trc-date">{frShort(a.date)}</span>
-        <span className="trc-time">{a.time}</span>
-        <span className="trc-carnet__client" style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          {c && <Avatar client={c} size={30} />}
-          <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span className="trc-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {/* LE JOUR DE LA SEMAINE SE LIT AU CARNET — 6 septembre 2026. Depuis le
+            4 novembre 2026, il se lit dans l'en-tête de chaque jour, en entier ;
+            la ligne garde l'heure, dans sa colonne, et la durée dessous. */}
+        <span className="trc-rdv__heure">
+          <span className="trc-time">{a.time}</span>
+          <small>{dureeDite(apptDurationMin(a, byId))}</small>
+        </span>
+        <span className="trc-carnet__client">
+          {avecNom && (
+          <span className="trc-rdv__nom">
+            {c && <Avatar client={c} size={30} />}
+            <span className="trc-name">
               {c?.name ?? a.clientName ?? 'Cliente de passage'}
             </span>
             {/* LE TÉLÉPHONE, AU CARNET. C'est ici qu'on cherche à joindre quelqu'un
@@ -608,13 +782,11 @@ export default function Carnet() {
             {/* LES DEUX PORTES — un seul composant, partagé avec Clientes
                 (15 septembre 2026, « exactement comme sur Carnet »). Recopier
                 le dessin ferait diverger les deux écrans au premier réglage. */}
-            <span style={{ alignSelf: 'flex-start' }}>
-              <PortesWhatsApp phone={c?.phone} />
-            </span>
+            <PortesWhatsApp phone={c?.phone} />
           </span>
-        </span>
-        <span className="trc-carnet__svc" style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>{apptLabel(a, byId)}</span>
+          )}
+        <span className="trc-carnet__svc">
+          <span className="trc-rdv__rituel">{apptLabel(a, byId)}</span>
           {a.serviceIds.length > 1 && <span className="trc-src trc-src--indigo">{a.serviceIds.length} services</span>}
           {/* CE QU'ELLE EMPORTE SE VOIT AU CARNET — 5 septembre 2026. Une
               Gamme posee a la reservation et invisible ici serait une promesse
@@ -683,7 +855,8 @@ export default function Carnet() {
           ))}
           <SourceBadge source={a.source} />
         </span>
-        <span className="trc-carnet__amount" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        </span>
+        <span className="trc-carnet__amount">
           {a.coveredBySub ? (
             <span
               className="trc-serie-chip"
@@ -753,20 +926,66 @@ export default function Carnet() {
             );
           })()}
         </span>
-        <span className="trc-carnet__status" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
+        <span className="trc-carnet__status">
+          <span className="trc-rdv__pastilles">
           <PayStatusPill a={a} byId={byId} />
-          <StatusPill status={a.status} />
           <ReminderBell appt={a} client={c} byId={byId} />
+          {/* LA PASTILLE EST LE BOUTON — 4 novembre 2026 : le statut se lit à sa
+              couleur et s'ouvre d'un toucher sur le menu du rendez-vous. */}
           <span className="trc-menuwrap" onClick={(e) => e.stopPropagation()}>
             <button
-              className="trc-dots"
-              aria-label="Actions"
-              onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === a.id ? null : a.id); }}
+              type="button"
+              className={`trc-pill trc-statut ${CLASSE_DU_STATUT[a.status]}`}
+              aria-haspopup="menu"
+              aria-expanded={menuFor === a.id}
+              aria-label={`Statut : ${a.status}. Changer le statut ou agir sur ce rendez-vous`}
+              title="Changer le statut, encaisser, envoyer la facture"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (menuFor === a.id) { fermeLeMenu(); return; }
+                setMenuAncre(e.currentTarget);
+                setMenuFor(a.id);
+              }}
             >
-              ⋯
+              {a.status}<span className="trc-statut__chevron" aria-hidden="true">▾</span>
             </button>
-            {menuFor === a.id && (
-              <div className="trc-menu">
+            {menuFor === a.id && menuAncre && (
+              <MenuFlottant ancre={menuAncre} onClose={fermeLeMenu}>
+                <div className="trc-menu__titre">Statut</div>
+                {canConfirm && (
+                  <button onClick={() => { setStatus(a.id, 'confirmé'); setMenuFor(null); }}>Confirmer le rendez-vous</button>
+                )}
+                {canHonor && (() => {
+                  /* UN RENDEZ-VOUS PASSÉ A DEUX GESTES (26 octobre 2026, sa
+                     décision) : « envoyer la facture » part exprès, « Honorer
+                     sans prévenir » ne dit rien. */
+                  const termine = (envoyer: boolean) => {
+                    termineLaSeance(a, envoyer);
+                    setMenuFor(null);
+                  };
+                  return a.date === todayISO() ? (
+                    <button onClick={() => termine(true)}>Terminer la séance · le reste part sur son WhatsApp</button>
+                  ) : (
+                    <>
+                      <button onClick={() => termine(true)}>Terminer la séance · envoyer la facture</button>
+                      <button onClick={() => termine(false)}>Honorer sans prévenir</button>
+                    </>
+                  );
+                })()}
+                {canCancel && (
+                  <button className="is-danger" onClick={() => { setStatus(a.id, 'annulé'); setMenuFor(null); }}>
+                    Annuler le rendez-vous
+                  </button>
+                )}
+                {a.status === 'honoré' && (
+                  <button className="is-danger" onClick={() => { void deshonoreLeRituel(a, byId); setMenuFor(null); }}>
+                    Dés-honorer le rituel
+                  </button>
+                )}
+                {a.status === 'annulé' && (
+                  <button onClick={() => { setStatus(a.id, 'confirmé'); setMenuFor(null); }}>Rétablir le rendez-vous</button>
+                )}
+                <div className="trc-menu__filet" role="separator" />
                 {canEncaisser && !sansPrix && (
                   <button onClick={() => { setPayAppt(a); setMenuFor(null); }}>
                     Encaisser {dueX > 0 ? `· reste ${fmtMoney(dueX, currency)}` : '(pourboire)'}
@@ -818,31 +1037,6 @@ export default function Carnet() {
                   </button>
                 )}
                 <button onClick={() => { setModal({ appt: a }); setMenuFor(null); }}>Modifier le rendez-vous</button>
-                {canConfirm && (
-                  <button onClick={() => { setStatus(a.id, 'confirmé'); setMenuFor(null); }}>Confirmer le rendez-vous</button>
-                )}
-                {canHonor && (() => {
-                  /* Honorer sans encaisser émet la facture (4 octobre 2026) ; « Terminer
-                     la séance » l'envoie sur son WhatsApp (25 octobre). UN RENDEZ-VOUS
-                     PASSÉ A DEUX GESTES (26 octobre 2026, sa décision) : « envoyer la
-                     facture » part exprès, « Honorer sans prévenir » ne dit rien. */
-                  const termine = (envoyer: boolean) => {
-                    const h = honoreSansEncaisser(a, byId, tarifsDuRituel(a, {
-                      client: clients.find((c) => c.id === a.clientId),
-                      bands, sets, cats: categories, byId, tousServices: services, produits,
-                    }));
-                    if (envoyer && h.facture && !h.deja) void envoiDeLaPiece.aRegler(h.facture.id, a.date, { memePasse: true });
-                    setMenuFor(null);
-                  };
-                  return a.date === todayISO() ? (
-                    <button onClick={() => termine(true)}>Terminer la séance · le reste part sur son WhatsApp</button>
-                  ) : (
-                    <>
-                      <button onClick={() => termine(true)}>Terminer la séance · envoyer la facture</button>
-                      <button onClick={() => termine(false)}>Honorer sans prévenir</button>
-                    </>
-                  );
-                })()}
                 {/* LE CHEMIN INVERSE — 13 septembre 2026. L'annulation
                     d'encaissement y renvoyait depuis août, et il n'existait pas. */}
                 {a.status === 'honoré' && apptDueXof(a, byId) > 0 && (() => {
@@ -891,25 +1085,33 @@ export default function Carnet() {
                   teteId={a.clientId} className="" libelle="Envoyer le point du compte"
                   onOpen={(id) => { setMenuFor(null); setPointDe(id); }}
                 />
-                {a.status === 'honoré' && (
-                  <button className="is-danger" onClick={() => { void deshonoreLeRituel(a, byId); setMenuFor(null); }}>
-                    Dés-honorer le rituel
-                  </button>
-                )}
                 <button onClick={() => { duplicateLast(a.clientId); setMenuFor(null); }}>
                   ⟳ Dupliquer le dernier RDV {c ? `de ${c.name.split(' ')[0]}` : ''}
                 </button>
-                {canCancel && (
-                  <button className="is-danger" onClick={() => { setStatus(a.id, 'annulé'); setMenuFor(null); }}>
-                    Annuler le rendez-vous
-                  </button>
-                )}
                 <button className="is-danger" onClick={() => { deleteAppt(a); setMenuFor(null); }}>
                   Supprimer définitivement
                 </button>
-              </div>
+              </MenuFlottant>
             )}
           </span>
+          </span>
+          {/* HONORÉ OU ANNULÉ D'UN TOUCHER — 4 novembre 2026 : sur ce qui est passé
+              ou du jour et attend encore son statut, sans ouvrir le menu. */}
+          {estAClore(a, today) && (
+            <span className="trc-rdv__vite" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className="trc-vite trc-vite--oui"
+                onClick={() => honoreDuDoigt(a)}
+                title={a.date === today ? 'Terminer la séance : le reste dû part sur son WhatsApp' : 'Honorer sans prévenir'}
+              >
+                ✓ Honoré
+              </button>
+              <button type="button" className="trc-vite trc-vite--non" onClick={() => annuleDuDoigt(a)} title="Annuler le rendez-vous">
+                Annulé
+              </button>
+            </span>
+          )}
         </span>
       </div>
       {/* Replié par défaut ; ouvert d'office le jour même quand il y a quelque
@@ -985,7 +1187,7 @@ export default function Carnet() {
         }
       />
 
-      <div className="trc-toolbar">
+      <div className="trc-toolbar trc-carnet-barre" ref={barreRef}>
         <div className="trc-searchwrap">
           <Search size={17} aria-hidden="true" />
           <Input
@@ -1159,12 +1361,10 @@ export default function Carnet() {
         );
       })()}
 
-      <div className="trc-sheet trc-carnet">
+      <div className="trc-sheet trc-carnet" style={{ '--carnet-barre': `${hautBarre}px` } as CSSProperties}>
         <div className="trc-sheet__head" style={{ gridTemplateColumns: GRID }}>
-          <span>Date</span>
           <span>Heure</span>
-          <span>Cliente</span>
-          <span>Services</span>
+          <span>Cliente et rituel</span>
           <span>{sansPrix ? '' : 'Montant'}</span>
           <span style={{ textAlign: 'right' }}>Statut</span>
         </div>
@@ -1226,6 +1426,14 @@ export default function Carnet() {
           carnet. On relit le rituel dans le magasin — celui qu'on tient en
           main date de son ouverture, et le versement qu'on vient d'inscrire
           l'a déjà fait vieillir. */}
+      {defaire && (
+        <div className="trc-defaire" role="status">
+          <span>{defaire.dit}</span>
+          {defaire.fn && (
+            <button type="button" onClick={() => { defaire.fn?.(); setDefaire(null); }}>Défaire</button>
+          )}
+        </div>
+      )}
       {detail && <DrillModal drill={detail} onClose={() => setDetail(null)} />}
       {serieOuverte && <SerieModal onClose={() => setSerieOuverte(false)} />}
       {pointDe && <FenetreDuPoint teteId={pointDe} onClose={() => setPointDe(null)} />}

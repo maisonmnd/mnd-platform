@@ -231,8 +231,10 @@
 }
 .trc-pill--confirme { border-color: var(--indigo-200); color: var(--indigo-600); background: var(--indigo-50); }
 .trc-pill--attente { border-color: var(--copper-300); color: var(--copper-700); background: var(--copper-50); }
-.trc-pill--honore { border-color: var(--hairline); color: var(--ink-soft); background: var(--paper-2); }
-.trc-pill--annule { color: var(--obsidian-300); text-decoration: line-through; }
+/* Honoré se lit en vert, annulé en rouge (4 novembre 2026) : un honoré gris se
+   confondait avec le fond, un annulé gris avec un statut oublié. */
+.trc-pill--honore { border-color: #A9CDB5; color: #2F6B45; background: #E6F1E9; }
+.trc-pill--annule { border-color: #E2B4AC; color: #8F3B30; background: #F8EAE7; text-decoration: line-through; }
 .trc-pill--new { border-color: var(--copper-300); color: var(--copper-700); background: var(--copper-100); }
 
 .trc-src {
@@ -1532,6 +1534,16 @@
   .trc-sheet--fluid .trc-sheet__head,
   .trc-sheet--fluid .trc-sheet__row,
   .trc-sheet--fluid .trc-sheet__group { min-width: 0; }
+
+  /* Le Carnet tient dans sa largeur depuis le 4 novembre 2026 : il ne défile
+     plus de côté (ce défilement rognait le menu et décollait les jours). */
+  .trc-sheet.trc-carnet { overflow: visible; }
+  .trc-carnet .trc-sheet__head,
+  .trc-carnet .trc-sheet__row,
+  .trc-carnet .trc-sheet__group { min-width: 0; }
+  /* Sous 900 px, la zone qui défile n'a plus que 20 px de marge en haut. */
+  .trc-carnet-barre { top: -20px; }
+  .trc-carnet-jour { top: calc(var(--carnet-barre, 0px) - 20px); }
 }
 
 /* Le Carnet en cartes empilées sur téléphone — plus de défilement latéral :
@@ -1547,12 +1559,18 @@
     min-width: 0 !important;
     padding: 14px 16px;
   }
-  .trc-carnet .trc-date { order: 1; }
-  .trc-carnet .trc-time { order: 2; font-size: 16px; }
-  .trc-carnet .trc-carnet__status { order: 3; margin-left: auto; }
-  .trc-carnet .trc-carnet__client { order: 4; flex: 1 1 100%; }
-  .trc-carnet .trc-carnet__svc { order: 5; flex: 1 1 100%; }
-  .trc-carnet .trc-carnet__amount { order: 6; flex: 1 1 100%; }
+  /* 4 novembre 2026 : l'heure et le statut en haut, puis la cliente et son
+     rituel sur toute la largeur, puis le montant. */
+  .trc-carnet .trc-rdv__heure { order: 1; display: flex; gap: 8px; align-items: baseline; }
+  .trc-carnet .trc-carnet__status { order: 2; margin-left: auto; }
+  .trc-carnet .trc-carnet__client { order: 3; flex: 1 1 100%; }
+  .trc-carnet .trc-carnet__amount { order: 4; flex: 1 1 100%; flex-direction: row; justify-content: flex-start; align-items: center; flex-wrap: wrap; text-align: left; }
+  .trc-carte-rdv { margin: 8px 8px 0; }
+  .trc-carte-rdv__tete { display: flex; flex-wrap: wrap; padding: 12px 16px 2px; }
+  .trc-carte-rdv__tete > span:empty { display: none; }
+  .trc-carnet-jour { padding: 14px 14px 8px; }
+  .trc-carnet-jour__nom { font-size: 20px; }
+  .trc-carnet-jour__infos { margin-left: 0; width: 100%; }
 }
 
 /* Tiroir fiche 360 : plein écran sur téléphone. */
@@ -3545,8 +3563,78 @@
 .trc-compris { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: -4px 0 12px; }
 .trc-compris__dit { font-size: 12.5px; color: var(--ink-soft); }
 .trc-compris__puce { font: 500 11px var(--font-sans); letter-spacing: .04em; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--indigo-200, #C9CEEB); color: var(--color-indigo); }
-.trc-carnet-jour { display: flex; gap: 18px; align-items: baseline; flex-wrap: wrap; padding: 8px 18px; background: var(--paper-2, #EFE7DA); font-size: 12.5px; color: var(--ink-soft); }
-.trc-carnet-jour__nom { font: 400 16px var(--font-serif); color: var(--color-indigo); margin-right: auto; }
+/* ══ LE CARNET LISIBLE EN DEUX SECONDES — 4 novembre 2026 ═══════════════════
+   Chaque jour a son en-tête, collé en haut de la liste tant qu'on le parcourt
+   (sous la barre de recherche, elle aussi collée) ; aujourd'hui est en indigo,
+   les jours passés plus pâles. Chaque cliente a sa carte. */
+/* La zone qui défile (.tr-content) a sa marge du haut : sans ce retrait, la
+   barre collait 32 px plus bas et laissait voir la liste au-dessus d'elle. */
+.trc-carnet-barre { --retrait: var(--space-6, 32px); position: sticky; top: calc(-1 * var(--retrait)); z-index: 6; background: var(--paper); padding-block: 8px; }
+.trc-carnet-jour {
+  position: sticky; top: calc(var(--carnet-barre, 0px) - var(--space-6, 32px)); z-index: 4;
+  display: flex; gap: 6px 14px; align-items: baseline; flex-wrap: wrap;
+  padding: 16px 18px 10px; margin-top: 10px;
+  background: var(--paper-2, #E3DACB); border-top: 1px solid var(--hairline); border-bottom: 2px solid var(--color-indigo);
+  font-size: 12.5px; color: var(--ink-soft);
+}
+.trc-carnet-jour.est-aujourdhui { background: var(--indigo-50, #EDEEF4); border-bottom-color: var(--color-indigo); }
+.trc-carnet-jour.est-passe { background: var(--paper, #F6F1E7); border-bottom-color: var(--hairline); }
+.trc-carnet-jour__nom { font: 500 23px/1.15 var(--font-serif); color: var(--color-indigo); }
+.trc-carnet-jour.est-passe .trc-carnet-jour__nom { color: var(--ink-soft); }
+.trc-carnet-jour__moment { align-self: center; font: 500 10.5px var(--font-sans); letter-spacing: .14em; text-transform: uppercase; background: var(--color-indigo); color: var(--color-ivoire, #F6F1E7); border-radius: 3px; padding: 2px 7px; }
+.trc-carnet-jour__infos { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin-left: auto; font-variant-numeric: tabular-nums; }
+.trc-carnet-jour__clore { font-weight: 600; color: var(--copper-700); }
+
+.trc-carte-rdv { margin: 8px 12px 0; background: var(--surface-card); border: 1px solid var(--hairline); border-radius: var(--radius-md); overflow: visible; }
+.trc-carnet > .trc-carte-rdv:last-child { margin-bottom: 12px; }
+.trc-carte-rdv .trc-sheet__row { border-radius: var(--radius-md); }
+.trc-carte-rdv .trc-sheet__row:last-child { border-bottom: none; }
+.trc-carte-rdv.est-groupe .trc-sheet__row { border-top: 1px dashed var(--hairline); border-bottom: none; border-radius: 0; }
+.trc-carte-rdv__tete { display: grid; align-items: center; gap: 10px; padding: 12px 18px 2px; }
+.trc-carte-rdv__total { grid-column: 3 / 5; justify-self: end; font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+.trc-rdv { align-items: start !important; padding: 12px 18px !important; }
+.trc-rdv__heure { display: grid; gap: 1px; padding-top: 2px; }
+.trc-rdv__heure .trc-time { font-size: 17px; font-weight: 400; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.trc-rdv__heure small { font-size: 11.5px; color: var(--ink-soft); }
+.trc-carnet .trc-carnet__client { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.trc-rdv__nom { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.trc-carnet .trc-rdv__nom .trc-name, .trc-carte-rdv__tete .trc-name { font: 600 19px/1.2 var(--font-serif); color: var(--ink); overflow-wrap: anywhere; }
+.trc-carnet .trc-carnet__svc { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; min-width: 0; }
+.trc-rdv__rituel { font-size: 14px; color: var(--ink); }
+.trc-carnet .trc-carnet__amount { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; padding-top: 2px; }
+.trc-carnet .trc-carnet__status { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.trc-rdv__pastilles { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.trc-rdv.est-annule .trc-name, .trc-rdv.est-annule .trc-rdv__rituel { text-decoration: line-through; text-decoration-color: #C98A80; color: var(--ink-soft); }
+
+/* La pastille du statut est le bouton du menu. */
+.trc-statut { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-family: var(--font-sans); }
+.trc-statut::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.trc-statut.trc-pill--annule { text-decoration: none; }
+.trc-statut__chevron { font-size: 10px; line-height: 1; }
+.trc-statut:hover { filter: brightness(.97); }
+.trc-statut:focus-visible { outline: 2px solid var(--copper-500); outline-offset: 2px; }
+.trc-rdv__vite { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.trc-vite { font: 500 12.5px var(--font-sans); border-radius: 4px; padding: 5px 11px; cursor: pointer; background: var(--surface-card); border: 1px solid; }
+.trc-vite--oui { color: #2F6B45; border-color: #A9CDB5; }
+.trc-vite--oui:hover { background: #E6F1E9; }
+.trc-vite--non { color: #8F3B30; border-color: #E2B4AC; }
+.trc-vite--non:hover { background: #F8EAE7; }
+.trc-vite:focus-visible { outline: 2px solid var(--copper-500); outline-offset: 2px; }
+
+/* Le menu posé par-dessus l'écran : il ne se rogne plus dans la feuille. */
+.trc-menu--flottant { position: fixed; right: auto; min-width: 260px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow-y: auto; }
+.trc-menu__titre { padding: 6px 16px 4px; font: 500 10px var(--font-sans); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-menu__filet { height: 1px; margin: 6px 12px; background: var(--hairline); }
+.trc-menu button:focus-visible { background: var(--hover-veil); outline: none; }
+
+.trc-defaire {
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); translate: -50% 0; z-index: 210;
+  display: flex; align-items: center; gap: 14px; max-width: calc(100vw - 32px);
+  background: var(--color-indigo); color: var(--color-ivoire, #F6F1E7); border-radius: var(--radius-md);
+  padding: 10px 10px 10px 16px; font-size: 13.5px; box-shadow: var(--shadow-lg);
+}
+.trc-defaire button { font: 600 12.5px var(--font-sans); color: inherit; background: none; border: 1px solid rgba(246, 241, 231, .5); border-radius: 4px; padding: 4px 10px; cursor: pointer; }
 .trc-carnet-jour__xof { font-variant-numeric: tabular-nums; color: var(--ink); }
 .trc-carnet-jour__charge { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
 .trc-carnet-jour__charge i { display: inline-block; width: 64px; height: 6px; border-radius: 3px; background: var(--hairline); overflow: hidden; }
