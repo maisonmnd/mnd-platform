@@ -39,7 +39,7 @@ const PANNES = [
   ['le franc dans le bac a sable', "const DEVISE = 'EUR';", "const DEVISE = 'XOF';"],
   ['les cles montrees au GET', 'cles: { collection: !!k.collection, disbursement: !!k.disbursement }', 'cles: { collection: k.collection, disbursement: k.disbursement }'],
   ['le jeton au rapport', "jeton ? `jeton reçu, valable ${r.corps?.expires_in ?? '?'} s`", 'jeton ? jeton'],
-  ['le champ du rappel rempli en sandbox', "const HOTE_SANDBOX = '';", "const HOTE_SANDBOX = 'maisonmnd.com';"],
+  ['le champ du rappel rempli en sandbox', "const HOTE_SANDBOX = 'test';", "const HOTE_SANDBOX = 'maisonmnd.com';"],
   ['pas de repli si MTN refuse le vide', " ?? await entree(o.hoteRappel, false, `Utilisateur de repli, rappels vers ${o.hoteRappel}`);", ';'],
   ['une adresse de rappel envoyee', "{ ...auth, 'X-Reference-Id': ref }", "{ ...auth, 'X-Reference-Id': ref, 'X-Callback-Url': 'https://' + o.hoteRappel + '/rappel' }"],
   ['pas de depot apres un virement refuse', '    if (!reussie(v.statut)) await suis(', '    if (false) await suis('],
@@ -127,7 +127,7 @@ async function fauxFetch(entree, init = {}) {
   let m;
   if (methode === 'POST' && p === '/v1_0/apiuser') {
     if (!UUID.test(h['x-reference-id'] ?? '') || typeof corps?.providerCallbackHost !== 'string') return rep(400, { message: 'mal forme' });
-    if (sandbox === 'vide-refuse' && corps.providerCallbackHost === '') return rep(400, { code: 'INVALID_CALLBACK_HOST' });
+    if (sandbox === 'vide-refuse' && (corps.providerCallbackHost === '' || corps.providerCallbackHost === 'test')) return rep(400, { code: 'INVALID_CALLBACK_HOST' });
     utilisateurs.set(h['x-reference-id'], { cle, hote: corps.providerCallbackHost });
     return rep(201);
   }
@@ -163,8 +163,8 @@ async function fauxFetch(entree, init = {}) {
     if (rappel && new URL(rappel).host !== jeton.hote) return rep(500, { code: 'INVALID_CALLBACK_URL_HOST' });
     const numero = (corps.payer ?? corps.payee)?.partyId;
     let issue = numero === REFUSE ? { status: 'FAILED', reason: 'APPROVAL_REJECTED' } : { status: 'SUCCESSFUL', financialTransactionId: '1234567' };
-    /* Le Sandbox des essais reels : tout hote declare fait tomber ce qui devait reussir ; le vide passe ; le virement est refuse. */
-    if (sandbox !== 'ideal' && jeton.hote !== '' && issue.status === 'SUCCESSFUL') issue = { status: 'FAILED', reason: 'INVALID_CALLBACK_URL_HOST' };
+    /* Le Sandbox des essais reels : tout hote declare fait tomber ce qui devait reussir ; « test » (Justo, 4 novembre 2026) passe ; le virement est refuse. */
+    if (sandbox !== 'ideal' && jeton.hote !== '' && jeton.hote !== 'test' && issue.status === 'SUCCESSFUL') issue = { status: 'FAILED', reason: 'INVALID_CALLBACK_URL_HOST' };
     if (sandbox !== 'ideal' && p.endsWith('/transfer')) issue = { status: 'FAILED', reason: 'NOT_ALLOWED_TARGET_ENVIRONMENT' };
     operations.set(ref, { lu: 0, issue });
     return rep(202);
@@ -227,8 +227,8 @@ dit('ideal : la demande va jusqu a SUCCESSFUL, malgre un premier PENDING', /stat
 dit('ideal : la demande refusee dit FAILED et son motif', /statut FAILED, motif APPROVAL_REJECTED/.test(etapeDe(o, 'collection', 'Demande de paiement refusée par la cliente')?.detail ?? '') && etapeDe(o, 'collection', 'Demande de paiement refusée par la cliente')?.ok === true,
   etapeDe(o, 'collection', 'Demande de paiement refusée par la cliente')?.detail);
 const creations = versMtn().filter((j) => j.url.endsWith('/v1_0/apiuser'));
-dit('le champ du rappel est vide a la creation, comme MTN le conseille', creations.length === 2 && creations.every((j) => j.corps?.providerCallbackHost === ''), JSON.stringify(creations.map((j) => j.corps)));
-dit('la relecture dit le champ du rappel vide', /environnement sandbox, champ du rappel vide/.test(etapeDe(o, 'collection', 'Relire l’utilisateur')?.detail ?? ''), etapeDe(o, 'collection', 'Relire l’utilisateur')?.detail);
+dit('le champ du rappel vaut « test » a la creation, comme MTN le conseille', creations.length === 2 && creations.every((j) => j.corps?.providerCallbackHost === 'test'), JSON.stringify(creations.map((j) => j.corps)));
+dit('la relecture dit le champ du rappel', /environnement sandbox, champ du rappel test/.test(etapeDe(o, 'collection', 'Relire l’utilisateur')?.detail ?? ''), etapeDe(o, 'collection', 'Relire l’utilisateur')?.detail);
 dit('aucune demande ne porte d adresse de rappel', !versMtn().some((j) => j.h['x-callback-url']), versMtn().find((j) => j.h['x-callback-url'])?.url);
 dit('tout appel vers MTN va au bac a sable, et a lui seul', versMtn().length > 0 && versMtn().every((j) => j.url.startsWith('https://sandbox.momodeveloper.mtn.com/')), versMtn().map((j) => j.url).find((u) => !u.startsWith('https://sandbox.')));
 dit('chaque appel d operation porte l environnement sandbox', versMtn().filter((j) => j.h.authorization?.startsWith('Bearer ')).every((j) => j.h['x-target-environment'] === 'sandbox'));
@@ -242,7 +242,7 @@ const refus = etapeDe(o, 'collection', 'Demande de paiement refusée par la clie
 dit('annexe : chaque operation porte sa reference complete, celle envoyee a MTN', [etapeDe(o, 'collection', 'Demande de paiement qui réussit'), refus, etapeDe(o, 'disbursement', 'Virement vers un compte MoMo')]
   .every((e) => UUID.test(e?.reference ?? '') && envoisOp.includes(e.reference)), JSON.stringify([refus?.reference, envoisOp]));
 const creation = etapeDe(o, 'collection', 'Créer l’utilisateur d’API');
-dit('annexe : la creation porte l utilisateur complet et ce qui a ete envoye', UUID.test(creation?.reference ?? '') && creation?.envoye === '{"providerCallbackHost":""}', JSON.stringify(creation));
+dit('annexe : la creation porte l utilisateur complet et ce qui a ete envoye', UUID.test(creation?.reference ?? '') && creation?.envoye === '{"providerCallbackHost":"test"}', JSON.stringify(creation));
 dit('annexe : la reponse de MTN est gardee telle quelle (statut et motif)', /"status":"FAILED"/.test(refus?.reponse ?? '') && /APPROVAL_REJECTED/.test(refus?.reponse ?? ''), refus?.reponse);
 dit('annexe : chaque etape porte son heure', o.etapes.every((e) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(e.quand ?? '')), JSON.stringify(o.etapes.map((e) => e.quand)));
 dit('annexe : la cle et le jeton sont dits gardes, jamais montres', /\[gardé sur le serveur\]/.test(etapeDe(o, 'collection', 'Obtenir la clé de l’utilisateur')?.reponse ?? '')

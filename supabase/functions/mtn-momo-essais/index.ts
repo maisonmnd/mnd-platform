@@ -48,7 +48,7 @@
    POST|PUT ?rappel=<ref>  l'annonce de MTN pour une demande ou un virement.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-10-29-c';
+const VERSION = '2026-11-04-a';
 
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o, null, 2), { status, headers: { 'content-type': 'application/json' } });
@@ -68,8 +68,11 @@ const EN_COURS = new Set(['PENDING', 'ONGOING']);
     « vous pouvez laisser le champ du callback vide en sandbox » ; le target
     environment est « sandbox »). Trois essais du 28 octobre l'avaient
     rempli : toute opération qui devait réussir tombait en
-    INVALID_CALLBACK_URL_HOST, quel que soit l'hôte. */
-const HOTE_SANDBOX = '';
+    INVALID_CALLBACK_URL_HOST, quel que soit l'hôte. Le vide, lui, est
+    refusé (400) aux essais du 29 octobre. 4 novembre 2026, Justo au
+    téléphone : en sandbox le rappel ne marche pas, « test » est juste une
+    valeur pour que l'appel passe. */
+const HOTE_SANDBOX = 'test';
 
 type Etape = {
   produit: string; etape: string; requete: string; http: number | null; ok: boolean; detail: string;
