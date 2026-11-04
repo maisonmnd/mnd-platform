@@ -5,7 +5,7 @@ import { Button, toast, demande } from '../../../../ds/components';
 import { autoriserLaPurge } from '../../../../shared/sync';
 import { useBranch } from '../../../../shared/branches';
 import { useAuth, useStaff } from '../../../../shared/auth';
-import { clientsStore, useClients, type Client } from '../../../../shared/clients';
+import { clientsStore, useClients, useFamilies, type Client } from '../../../../shared/clients';
 import {
   useMessagesWa, useFilsPrives, basculeLeSecret, filsDeLaMaison, resteEnClair,
   numeroWa, messagesWaStore, type Fil,
@@ -281,9 +281,10 @@ export function ConversationsDAvant() {
 
   /* TOUTES LES TÊTES QUE LE NUMÉRO RECONNAÎT, l'équipe d'abord : une employée
      qui est aussi cliente se lit dans Équipe. Même priorité que la base. */
+  const [familles] = useFamilies();
   const tetes = useMemo(
-    () => tetesDeLaMaison({ clientes: clients, equipe, prestataires, fournisseurs, engagements }),
-    [clients, equipe, prestataires, fournisseurs, engagements],
+    () => tetesDeLaMaison({ clientes: clients, familles, equipe, prestataires, fournisseurs, engagements }),
+    [clients, familles, equipe, prestataires, fournisseurs, engagements],
   );
   /* L'AUTOMATE ENTRE DANS LE JUGE (9 octobre 2026) : un fil qu'il mène et
      dont il a traité le dernier mot n'attend pas la Maison ; une main passée,

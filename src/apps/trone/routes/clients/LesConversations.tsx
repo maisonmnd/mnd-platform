@@ -55,6 +55,7 @@ import { ALLUMAGE_DIT, AUTOMATISATIONS_REELLES, GROUPES_DES_AUTOMATISATIONS, com
 import { reglesDepuis } from '../../../../shared/salle-des-envois';
 import type { EnvoiLu } from '../../../../shared/envois';
 import { useStaff } from '../equipe/data';
+import { useFamilies } from '../../../../shared/clients';
 import { ArrowRight, CalendarPlus, Check, ChevronDown, Phone, UserRound, X } from 'lucide-react';
 
 /* ══ LES CONVERSATIONS, VUE DE L'ASSISTANT MAISON ══════════════════════════
@@ -237,7 +238,8 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
   /* LE JUGE WHATSAPP EST CELUI DES CONVERSATIONS : `filsDeLaMaison` rend
      `Fil.attendUneReponse` ; on le lit, on ne le refait pas. L'automate
      entre dans le juge (9 octobre 2026) par `automatesDesFils`. */
-  const tetes = useMemo(() => tetesDeLaMaison({ clientes: clients }), [clients]);
+  const [familles] = useFamilies();
+  const tetes = useMemo(() => tetesDeLaMaison({ clientes: clients, familles }), [clients, familles]);
   const automates = useMemo(() => automatesDesFils(lignesDeLAutomate, reglageDeLAutomate(cfg.automateWa).pauseHeures), [lignesDeLAutomate, cfg.automateWa]);
   const tous = useMemo(() => filsDeLaMaison(messages, tetes, prives, tick, branch.id, automates), [messages, tetes, prives, tick, branch.id, automates]);
   /* LE NUMÉRO PEUT VENIR D'AILLEURS (`?n=`, dix-neuf appelants) : une cliente

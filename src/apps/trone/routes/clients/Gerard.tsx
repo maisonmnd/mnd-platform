@@ -5,7 +5,7 @@ import { useBranch } from '../../../../shared/branches';
 import { useStaff, type Staff } from '../../../../shared/auth';
 import { DEVISE_COMPLETE } from '../../../../shared/identite';
 import { CIVILITES, appelDe, estMuette, ficheAvecCivilite, prenomSeul, type Civilite } from '../../../../shared/civilite';
-import { clientsStore, type Client } from '../../../../shared/clients';
+import { clientsStore, useFamilies, type Client } from '../../../../shared/clients';
 import {
   automatesDesFils, cheminDeLaConversation, estArchive, filsDeLaMaison, lienWaMe, tetesDeLaMaison,
   useFilsArchives, useFilsAutomate, useFilsPrives, useMessagesWa,
@@ -252,7 +252,8 @@ export default function Gerard() {
   const signalements = useMemo(() => signalementsTous.filter((s) => !s.branchId || s.branchId === branch.id), [signalementsTous, branch.id]);
   /* LE JUGE WHATSAPP EST CELUI DES CONVERSATIONS : `filsDeLaMaison` rend
      `Fil.attendUneReponse` ; on le lit, on ne le refait pas. */
-  const tetes = useMemo(() => tetesDeLaMaison({ clientes: clients }), [clients]);
+  const [familles] = useFamilies();
+  const tetes = useMemo(() => tetesDeLaMaison({ clientes: clients, familles }), [clients, familles]);
   const automates = useMemo(() => automatesDesFils(lignesDeLAutomate, reglageDeLAutomate(cfg.automateWa).pauseHeures), [lignesDeLAutomate, cfg.automateWa]);
   /* « Rien à répondre » (Les conversations, 27 octobre 2026) vaut ici aussi :
      un fil rangé ne compte pas dans « attend un humain » jusqu'à son prochain mot. */

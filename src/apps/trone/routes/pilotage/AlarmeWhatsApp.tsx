@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBranch } from '../../../../shared/branches';
-import { useClients } from '../../../../shared/clients';
+import { useClients, useFamilies } from '../../../../shared/clients';
 import {
   useMessagesWa, useFilsPrives, useFilsArchives, useAlarmeRetires, filsDeLaMaison, tetesDeLaMaison,
   filsSansReponse, resteEnClair, lienDuFil, messagesQuiSonnent, numeroWa, TIROIRS, TIROIR_DIT,
@@ -109,9 +109,10 @@ export default function AlarmeWhatsApp() {
   }, []);
 
   /* LES MÊMES TÊTES ET LES MÊMES FILS QUE L'ÉCRAN DES CONVERSATIONS. */
+  const [familles] = useFamilies();
   const tetes = useMemo(
-    () => tetesDeLaMaison({ clientes: clients, equipe, prestataires, fournisseurs, engagements }),
-    [clients, equipe, prestataires, fournisseurs, engagements],
+    () => tetesDeLaMaison({ clientes: clients, familles, equipe, prestataires, fournisseurs, engagements }),
+    [clients, familles, equipe, prestataires, fournisseurs, engagements],
   );
   const tous = useMemo(
     () => filsDeLaMaison(messages, tetes, prives, tick, branch.id, automates),

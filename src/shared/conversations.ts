@@ -35,6 +35,7 @@ import {
 /* Le calcul vit dans `numero-wa-pur.ts` depuis le 27 octobre 2026 : la
    fonction serveur de l'Assistant Maison le lit au même mot près. */
 import { numeroWa } from './numero-wa-pur';
+import { voixDesNumeros, type FamillePayeuse, type FicheParlante } from './voix-du-numero-pur';
 export { numeroWa };
 
 /** LA CLÉ D'UN NUMÉRO POUR LE COMPARER (13 octobre 2026) : Meta dit
@@ -453,13 +454,23 @@ export type TeteConnue = {
   tiroir?: Tiroir;
   /** Le chemin de sa fiche dans le Trône. */
   fiche?: string;
+  /** UNE VOIX SANS FICHE (4 novembre 2026, `voix-du-numero-pur`) : le parent
+      que les fiches d'enfants nomment (« Maman d'A. et N. »). Le fil
+      a un nom, mais pas de fiche : jamais celle d'un enfant. */
+  sansFiche?: boolean;
+  /** Les fiches d'enfants qui portent ce numéro, quand la voix est un parent. */
+  enfants?: string[];
 };
 
 /** TOUTES LES TÊTES QUE LE NUMÉRO PEUT RECONNAÎTRE, dans un seul carnet.
     Les formes sont réduites au strict nécessaire : ce module ne connaît ni
     la fiche d'équipe ni le fournisseur, seulement un nom et des numéros. */
 export function tetesDeLaMaison(o: {
-  clientes: readonly { id: string; name: string; phone?: string; phone2?: string; branchId: string }[];
+  clientes: readonly FicheParlante[];
+  /** Les comptes famille : le parent qui paie parle sur le numéro de ses enfants. */
+  familles?: readonly FamillePayeuse[];
+  /** « AAAA-MM-JJ » : l'âge des enfants se juge ce jour-là (aujourd'hui par défaut). */
+  aujourdhui?: string;
   equipe?: readonly { id: string; name: string; phone?: string; branchId: string }[];
   prestataires?: readonly { id: string; name: string; phone?: string; branchId: string; archived?: boolean }[];
   fournisseurs?: readonly { id: string; nom: string; telephone?: string; branchId: string; actif?: boolean }[];
@@ -486,11 +497,25 @@ export function tetesDeLaMaison(o: {
       id: e.id, name: e.prestataire, phone: e.telephone, branchId: e.branchId, tiroir: 'prestataires',
       fiche: `/engagements?id=${encodeURIComponent(e.id)}`,
     })),
-    ...o.clientes.map((c): TeteConnue => ({
-      id: c.id, name: c.name, phone: c.phone, phone2: c.phone2, branchId: c.branchId,
-      tiroir: 'clientes', fiche: `/customers?id=${c.id}`,
-    })),
+    /* LA VOIX D'UN NUMÉRO, JAMAIS UNE FICHE D'ENFANT (4 novembre 2026) : un
+       enfant ne prête pas son numéro (celui de son parent) ; le numéro parle
+       par l'adulte qui le porte, le parent payeur, ou une voix sans fiche. */
+    ...tetesDesClientes(o.clientes, o.familles, o.aujourdhui ?? new Date().toISOString().slice(0, 10)),
   ];
+}
+
+function tetesDesClientes(clientes: readonly FicheParlante[], familles: readonly FamillePayeuse[] | undefined, aujourdhui: string): TeteConnue[] {
+  const { voix, parle } = voixDesNumeros({ fiches: clientes, familles, aujourdhui });
+  const tetes: TeteConnue[] = clientes.map((c) => ({
+    id: c.id, name: c.name, phone: parle(c, 'phone') ? c.phone : undefined, phone2: parle(c, 'phone2') ? c.phone2 : undefined,
+    branchId: c.branchId, tiroir: 'clientes', fiche: `/customers?id=${c.id}`,
+  }));
+  for (const v of voix.values()) {
+    tetes.push(v.genre === 'fiche'
+      ? { id: v.fiche.id, name: v.fiche.name, phone: v.numero, branchId: v.fiche.branchId, tiroir: 'clientes', fiche: `/customers?id=${v.fiche.id}`, enfants: v.enfants }
+      : { id: `voix:${numeroWa(v.numero)}`, name: v.nom, phone: v.numero, branchId: v.branchId, tiroir: 'clientes', sansFiche: true, enfants: v.enfants });
+  }
+  return tetes;
 }
 
 /** LA TÊTE D'UN NUMÉRO, l'équipe d'abord. `undefined` pour un inconnu. */
@@ -605,9 +630,9 @@ export function filsDeLaMaison(
       /* `clientId` reste celui d'une CLIENTE : une tête d'équipe ne l'est
          pas, et les gestes du fil (facture, relevé, promo) ne la concernent
          pas. */
-      clientId: tete && (tete.tiroir ?? 'clientes') === 'clientes' ? tete.id : undefined,
+      clientId: tete && !tete.sansFiche && (tete.tiroir ?? 'clientes') === 'clientes' ? tete.id : undefined,
       nom: tete?.name ?? liste.find((m) => m.nomProfil)?.nomProfil ?? numero,
-      sansFiche: !tete,
+      sansFiche: !tete || !!tete.sansFiche,
       prive: prives.includes(numero),
       messages: liste,
       dernier,
@@ -744,9 +769,9 @@ export function filNeuf(numero: string, tete?: TeteConnue): Fil | null {
   };
   return {
     numero: n,
-    clientId: tete && (tete.tiroir ?? 'clientes') === 'clientes' ? tete.id : undefined,
+    clientId: tete && !tete.sansFiche && (tete.tiroir ?? 'clientes') === 'clientes' ? tete.id : undefined,
     nom: tete?.name ?? `+${n}`,
-    sansFiche: !tete,
+    sansFiche: !tete || !!tete.sansFiche,
     prive: false,
     messages: [],
     dernier: fantome,
