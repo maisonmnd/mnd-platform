@@ -2,6 +2,16 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE MERCREDI DE LA MAISON SUR LES SHAMPOINGS, LAVAGES ET SOINS SEULS — 4 novembre 2026, EN LIGNE
+
+« Quand on remplit le fauteuil, la remise de 15 % est pour les shampoings, le lavage et les soins uniquement » (Yéman, 4 novembre 2026). Au sélecteur : aucun geste Kids, toute la réparation (GBÌGBÌ™ Protéiné, les quatre FÍNFÍN™, ÀLÀLÀ™), le soin 2 en 1 WÈWÈ™ + DÀNDÀN™ aussi, et les deux rendez-vous déjà réservés dans Ma Couronne avec MERCREDI15 (D. D. le 4 nov., P. A. le 23 déc. 2026) honorés tels quels.
+
+- **Réglage** `supabase/reglage_mercredi_soins_seuls_20261104.sql` (commit a77602ea), PASSÉ : MERCREDI15 couvre 18 prestations au lieu de 61 ; `sub` et `conditions` disent « shampoings, lavages et soins ». Copie `repli_mnd_offers_20261104` sous RLS. Rejouable.
+- **Aucun code changé** : la remise se pose déjà ligne à ligne sur les seules prestations couvertes, aux quatre portes et dans demande-submit ; un mercredi sans aucun de ces gestes ne pose plus le code. Les rendez-vous déjà gravés gardent leurs remises de ligne (la Caisse lit celles du rendez-vous ; une réouverture garde le −15 % d'une ligne non couverte comme remise de la main).
+- **Banc** verifie-le-mercredi-de-la-maison : section 14 bis, 56 pannes qui crient.
+- **Site public** republié (build 20261104044141, servi 380/380) : la carte de l'offre est écrite à la construction.
+- Restés hors remise sans qu'elle l'ait tranché : le Protocole Post-Couleur et les cures (VÍVÍVÓ™, GBÌGBÌ™ Cure de trois).
+
 ## LA RÉSERVATION DU SITE, SEPT CHANGEMENTS — 3 novembre 2026, EN LIGNE (secret des liens à l'approbation de Meta)
 
 « Make these changes on maisonmnd.com » (Yéman, 3 novembre 2026), sept points sur le formulaire de réservation, construits sans maquette (des améliorations détaillées par elle du formulaire existant).
