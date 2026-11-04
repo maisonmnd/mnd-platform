@@ -82,7 +82,9 @@ async function lanceLeBanc({ geste }) {
 
   /* LA JOURNÉE D'EXEMPLE — noms et montants inventés. Deux rendez-vous du
      jour, à minuit, d'une minute : finis dès que le banc tourne. */
-  const J = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  /* Le jour que la page propose (`jourPropose`) : avant 6 h, la veille. */
+  const proposeLe = new Date(); if (proposeLe.getHours() < 6) proposeLe.setDate(proposeLe.getDate() - 1);
+  const J = new Date(proposeLe.getTime() - proposeLe.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   const SEMENCE = {
     'trone::mnd_cashboxes': [{ id: 'cb-rm', branchId: 'maison', name: 'Real Money', sub: 'Tiroir des espèces', glyph: '◈', openingXof: 20000 }],
     'trone::mnd_clients': [
