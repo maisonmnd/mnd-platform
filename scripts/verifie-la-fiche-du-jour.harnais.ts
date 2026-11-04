@@ -410,9 +410,15 @@ dit('qui peut demander : souverain, gérant, un maître de la Clientèle ou de l
      (la liste `CHANTIERS_IA` et leurs départements), mais elle ne fait que
      répondre à une demande du Trône ; elle ne compose ni ne programme rien.
      On la juge sans cette copie : hors du bloc ⟨ia-maison⟩, elle ne doit pas
-     plus connaître la fiche du jour que les autres. */
+     plus connaître la fiche du jour que les autres.
+     LE LIVRE DES CRÉDITS AUSSI (4 novembre 2026) : `conseil-du-matin`
+     regroupe la Maison intelligente, dont la table
+     `CHANTIER_VERS_PROFESSIONNEL` range chaque chantier d'ia-maison sous son
+     professionnel (« fiche-du-jour » sous Perle) pour compter les dollars.
+     Une clé de comptes, pas une tâche : on la juge sans cette table. */
   const fonctions = readdirSync('supabase/functions').filter((d) => !d.startsWith('_'));
-  const sansLeContrat = (src: string): string => src.replace(/\/\* ⟨ia-maison⟩ \*\/[\s\S]*?\/\* ⟨\/ia-maison⟩ \*\//, '');
+  const sansLeContrat = (src: string): string => src.replace(/\/\* ⟨ia-maison⟩ \*\/[\s\S]*?\/\* ⟨\/ia-maison⟩ \*\//, '')
+    .replace(/CHANTIER_VERS_PROFESSIONNEL\b[^={]*=\s*\{[^}]*\}/, '');
   const fonctionsQuiLaConnaissent = fonctions.filter((d) => {
     try { return /fiche-du-jour|fiches_du_jour|FicheDuJour/.test(sansLeContrat(readFileSync(`supabase/functions/${d}/index.ts`, 'utf8'))); } catch { return false; }
   });
