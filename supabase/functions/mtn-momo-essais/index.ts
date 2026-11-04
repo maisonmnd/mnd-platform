@@ -48,7 +48,7 @@
    POST|PUT ?rappel=<ref>  l'annonce de MTN pour une demande ou un virement.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-11-04-a';
+const VERSION = '2026-11-04-b';
 
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o, null, 2), { status, headers: { 'content-type': 'application/json' } });
@@ -58,9 +58,13 @@ const BASE = 'https://sandbox.momodeveloper.mtn.com';
 const ENV_CIBLE = 'sandbox';
 /** Le Sandbox ne connaît que l'euro, une monnaie d'essai. */
 const DEVISE = 'EUR';
-/** Les numéros d'essai de MTN : tout numéro hors de leur liste réussit ;
-    46733123451 est celui d'une cliente qui refuse. */
-const NUMERO_REUSSI = '46733123459';
+/** Les numéros d'essai de MTN (Sandbox Use Cases, relus le 4 novembre 2026) :
+    « Any other number results in Success » ; 46733123451 est celui d'une
+    cliente qui refuse. 46733123459, pris jusqu'ici pour la réussite, est DANS
+    la liste : RequestToPayPayerInvalidCallbackUrlHost, DepositPayerInvalid-
+    CallbackUrlHost, TransferPayeeNotAllowedTargetEnvironment. C'était lui qui
+    faisait tomber les essais depuis le 28 octobre. */
+const NUMERO_REUSSI = '46733123499';
 const NUMERO_REFUSE = '46733123451';
 const MONTANT = '100';
 const EN_COURS = new Set(['PENDING', 'ONGOING']);
