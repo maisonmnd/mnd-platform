@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-04-a · Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve';
+const VERSION = '2026-11-04-b · Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -4740,7 +4740,7 @@ export function consigneDOpale(): string {
     '',
     'LA VOIX DE LA MAISON',
     'Celle d’une maison d’exception : élégante, posée, attentionnée. Jamais familière, jamais commerciale, jamais pressante. Des phrases complètes et soignées, courtes : une à quatre phrases.',
-    'Le vouvoiement, toujours. On dit « la Maison », JAMAIS « salon ». La Maison parle de « votre couronne », de « vos locks », d’un « rituel ».',
+    'Le vouvoiement, toujours. On dit « la Maison », JAMAIS « salon ». Quand tu nommes le lieu, écris « la Maison MND » en entier : « Nous vous attendons à la Maison MND ». La Maison parle de « votre couronne », de « vos locks », d’un « rituel ».',
     'Pas d’émoji, pas de tiret long, pas de liste à puces, pas de titre, pas de point d’exclamation répété. Ni « coucou », ni « ok », ni abréviation.',
     'Pas de formule d’assistant : ni « je suis l’assistant », ni « n’hésitez pas », ni « merci pour votre message » à chaque fois, ni récapitulatif de ce qu’elle vient de dire. Ne signe pas, n’ajoute pas de devise.',
     'Reprends l’appel que le contexte donne (« Mme Akouélé », « M. Jean-Luc ») tel quel, sans inventer ni nom ni civilité. Sans appel connu, n’en mets pas.',
@@ -4761,7 +4761,7 @@ export function consigneDOpale(): string {
     'Elle choisit une place : appelle `proposer_le_rendez_vous`, puis écris le récapitulatif que l’outil te rend (les gestes, le jour avec l’année, l’heure, et le prix s’il est connu) et demande-lui de confirmer. Ne dis pas « c’est confirmé » à ce moment-là.',
     'Elle confirme (« oui », « je confirme », « parfait », « c’est bon ») un récapitulatif que tu as envoyé : appelle `confirmer`. Puis dis que c’est confirmé, avec le jour, l’année et l’heure, en une ou deux phrases. Si l’outil dit que la place vient d’être prise, propose les places qu’il rend.',
     'Le numéro a plusieurs fiches (une mère et ses enfants) : demande pour qui seulement si ce n’est pas clair ; une personne qui écrit pour elle-même ne se le fait jamais demander. Elle n’a pas de fiche : avant de proposer, demande « Pour inscrire votre rendez-vous, comment devons-nous vous appeler ? », puis « Madame ou Monsieur ? » s’il le faut. Jamais une civilité supposée.',
-    'Elle veut changer l’heure ou le jour d’un rendez-vous qu’elle a : `chercher_des_places` pour les mêmes gestes, puis `proposer_le_deplacement`, puis `confirmer` à son oui. La même personne de la Maison la reçoit.',
+    'Elle veut changer l’heure ou le jour d’un rendez-vous qu’elle a : `chercher_des_places` pour les mêmes gestes, puis `proposer_le_deplacement`, puis `confirmer` à son oui. La même personne de la Maison la reçoit. Une fois fait, dis seulement que son rendez-vous est confirmé pour le nouveau jour et la nouvelle heure (« Votre rendez-vous est confirmé pour le vendredi 6 novembre 2026 à 10 h. ») : ne dis jamais qu’il a été déplacé.',
     'Elle annule : remercie-la de prévenir, dis que la Maison s’en occupe, et appelle `passer_la_main` (motif « annulation »). Tu n’annules rien toi-même.',
     'Elle demande si un rendez-vous tient (« c’est confirmé pour 15 h ? ») : réponds d’après ses rendez-vous du contexte, avec le jour, l’année et l’heure. S’il n’y figure pas, dis-le simplement et propose de le poser.',
     'Elle est en route, en retard, ou arrive : un mot bref (« Bien noté, nous vous attendons. »).',
@@ -6386,6 +6386,12 @@ async function unTourDOpale(
   let enAttente: EnAttenteDOpale | null | undefined = undefined;
   const premierDuTour = nouveaux[0]?.quand ?? tour.quand;
   const fichesIds = fiches.map((f) => f.id);
+  /* LA FENÊTRE DES PLACES (4 novembre 2026) : « je serai là le samedi 28
+     novembre » ne se juge pas sur les quatorze jours des listes de
+     l'automate. Trente jours d'office, jusqu'au jour qu'elle demande et une
+     semaine de plus, quatre-vingt-dix au plus (la fenêtre du site). */
+  const joursJusqua = (iso: string): number => Math.round((Date.parse(`${iso}T12:00:00Z`) - Date.parse(`${aujourdhui}T12:00:00Z`)) / JOUR_WA);
+  const horizonPour = (jour?: string): number => Math.min(90, Math.max(reglage.horizonJours, 30, jour ? joursJusqua(jour) + 7 : 0));
   const ficheDe = (id: string): FicheDuNumero | undefined => fiches.find((f) => f.id === id);
   // deno-lint-ignore no-explicit-any
   const prixPour = (ids: string[], tete: TeteDuPrix, fixes?: Record<string, number>): { lignes: string[]; total?: number } => {
@@ -6422,10 +6428,10 @@ async function unTourDOpale(
       if (typeof e?.rdv === 'string' && e.rdv) {
         const r = await leRdvADeplacer(sb, { rdvId: e.rdv, fiches, aujourdhui, agenda: agenda!.agenda });
         if (!r) return 'Ce rendez-vous ne se déplace pas ici (il n’est pas à ce numéro, ou il est passé ou clos) : passe la main (motif « question »).';
-        places = placesDuMaitreWa(agenda!.agenda, r.maitre, { date: r.date, time: r.time, dureeMin: r.dureeMin }, ms, reglage.horizonJours);
-      } else places = vue!.agenda.places(g.ids);
+        places = placesDuMaitreWa(agenda!.agenda, r.maitre, { date: r.date, time: r.time, dureeMin: r.dureeMin }, ms, horizonPour(souhaitLu(e ?? {}).jour));
+      } else places = placesLibres(agenda!.agenda, g.ids, ms, horizonPour(souhaitLu(e ?? {}).jour));
       const dites = placesDites(places, souhaitLu(e ?? {}));
-      if (dites.length === 0) return `Aucune place libre dans les ${reglage.horizonJours} prochains jours pour ces gestes. Dis-le avec égards et passe la main (motif « question »).`;
+      if (dites.length === 0) return `Aucune place libre d’ici ${horizonPour(souhaitLu(e ?? {}).jour)} jours pour ces gestes. Dis-le avec égards et passe la main (motif « question »).`;
       return `Places libres (${g.ids.map(nomDe).join(' et ')}) :\n${dites.map((p) => `- ${p.iso} ${p.heure} : ${placeDite(p)}`).join('\n')}${g.inconnus.length ? `\n(ignorés, inconnus : ${g.inconnus.join(', ')})` : ''}`;
     }
     if (nom === 'prix') {
@@ -6440,9 +6446,9 @@ async function unTourDOpale(
     if (nom === 'proposer_le_rendez_vous') {
       const p = propositionLue(e ?? {}, { fiches: fichesIds, connus, aujourdhui });
       if (!p.ok) return p.pourquoi;
-      const libre = vue!.agenda.places(p.gestes).some((x) => x.iso === p.date && x.heure === p.heure);
+      const libre = laPlaceTient(agenda!.agenda, { date: p.date, time: p.heure, serviceIds: p.gestes }, ms).ok;
       if (!libre) {
-        const proches = placesDites(vue!.agenda.places(p.gestes), { jour: p.date, heure: p.heure }, 3);
+        const proches = placesDites(placesLibres(agenda!.agenda, p.gestes, ms, horizonPour(p.date)), { jour: p.date, heure: p.heure }, 3);
         return `Cette place n’est pas libre.${proches.length ? ` Les plus proches :\n${proches.map((x) => `- ${x.iso} ${x.heure} : ${placeDite(x)}`).join('\n')}` : ''}`;
       }
       const dureeMin = dureeDesPrestations(p.gestes, agenda!.agenda.services);
@@ -6512,7 +6518,7 @@ async function unTourDOpale(
         }
         enAttente = null;
         if (['creneau_pris', 'creneau_plafond', 'creneau_complet', 'creneau_hors_ouverture', 'creneau_ferme'].includes(verdict.raison)) {
-          const proches = placesDites(vue!.agenda.places(a.gestes), { jour: a.date, heure: a.heure }, 3);
+          const proches = placesDites(placesLibres(agenda!.agenda, a.gestes, ms, horizonPour(a.date)), { jour: a.date, heure: a.heure }, 3);
           return `Cette place vient d’être prise.${proches.length ? ` Propose-lui les plus proches :\n${proches.map((x) => `- ${x.iso} ${x.heure} : ${placeDite(x)}`).join('\n')}` : ' Passe la main (motif « question »).'}`;
         }
         return 'Le rendez-vous n’a pas pu être posé. Passe la main (motif « question »).';
@@ -6529,7 +6535,7 @@ async function unTourDOpale(
         issue.issue = { genre: 'deplace', rdvId: a.rdvId };
         issue.deplace = d;
         issue.alerte = alerteDeLAutomate({ genre: 'deplace', prenom: d.prenom, numero: o.numero, date: a.date, time: a.heure });
-        return `C’est fait : le rendez-vous passe à ${placeDite({ iso: a.date, heure: a.heure })}. Dis-le-lui en une ou deux phrases.`;
+        return `C’est fait. Dis-lui seulement que son rendez-vous est confirmé pour le ${placeDite({ iso: a.date, heure: a.heure })}, en une ou deux phrases ; jamais « déplacé ».`;
       }
       return verdict.raison === 'creneau_pris' || verdict.raison === 'creneau_plafond'
         ? 'Cette place vient d’être prise. Cherche à nouveau les places (chercher_des_places, champ « rdv »).'
@@ -6697,8 +6703,11 @@ async function reprendAvecOpale(
   if (error) return { repris: false, raison: 'messages illisibles' };
   const recents = ((data ?? []) as Ligne[]).map((l) => l.data ?? {});
   const attente: string[] = [];
+  /* Le mot qui passait la main (« une personne de la Maison vous répond »,
+     d'Opale ou de l'automate) n'a rien répondu (4 novembre 2026, M. R. :
+     rendue à Opale, elle ne voyait rien qui attende). */
   for (const d of recents) {
-    if (d.sens === 'sortant' && d.etat !== 'non-remis') break;
+    if (d.sens === 'sortant' && d.etat !== 'non-remis' && d.etape !== 'main') break;
     if (d.sens === 'entrant' && d.waId) attente.unshift(String(d.waId));
   }
   if (attente.length === 0) return { repris: true, etape: 'besoin' };

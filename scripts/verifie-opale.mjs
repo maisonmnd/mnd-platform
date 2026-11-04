@@ -41,6 +41,10 @@ const PANNES = [
   { nom: 'le moment du matin se lit a l envers', fichier: OP, avant: "if (s.moment === 'matin') return m < 12 * 60;", apres: "if (s.moment === 'matin') return m >= 12 * 60;" },
   { nom: 'confirmer permis avant la lecture du recapitulatif', fichier: OP, avant: '  if (Number.isFinite(premier) && premier < le) return', apres: '  if (false) return' },
   { nom: 'le webhook coupe le tour a 30 s', fichier: WH, avant: 'const AUTOMATE_EN_FOND_MS = 120_000;', apres: 'const AUTOMATE_EN_FOND_MS = 30_000;' },
+  { nom: 'les places s arretent a quatorze jours', fichier: AU, avant: 'const horizonPour = (jour?: string): number => Math.min(90, Math.max(reglage.horizonJours, 30, jour ? joursJusqua(jour) + 7 : 0));', apres: 'const horizonPour = (_jour?: string): number => reglage.horizonJours;' },
+  { nom: 'la reprise prend son mot de relais pour une reponse', fichier: AU, avant: "&& d.etape !== 'main') break;", apres: ') break;' },
+  { nom: 'la consigne laisse dire deplace', fichier: OP, avant: ' : ne dis jamais qu’il a été déplacé.', apres: '.' },
+  { nom: 'la consigne oublie la Maison MND', fichier: OP, avant: 'Quand tu nommes le lieu, écris « la Maison MND » en entier : « Nous vous attendons à la Maison MND ». ', apres: '' },
   { nom: 'la copie du bloc derive', fichier: AU, avant: 'export const MESSAGES_D_OPALE_PAR_JOUR = 40;', apres: 'export const MESSAGES_D_OPALE_PAR_JOUR = 400;' },
 ];
 

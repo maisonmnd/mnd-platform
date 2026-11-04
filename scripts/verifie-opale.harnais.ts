@@ -127,6 +127,7 @@ const RPC: Record<string, (a: any) => any> = {
       numeros: [c.data.phone].filter(Boolean), ...(c.data.derniereVenue ? { derniereVenue: c.data.derniereVenue } : {}), branchId: 'br-banc',
     })),
   creneaux_occupes: () => [],
+  is_staff: () => true,
   avance_le_fil: ({ p_numero, p_version, p_data }) => {
     const main = table('fils_automate').find((l) => l.id === `main-${p_numero}`)?.data;
     if (main && main.pauseLe && Date.parse(main.jusqua) > Date.now() && !(main.rendueLe && main.rendueLe >= main.pauseLe)) return null;
@@ -175,7 +176,7 @@ const resultatsDe = (i: number): string[] => {
 /* ── Deno, Meta ── */
 const ENV: Record<string, string | undefined> = {
   SUPABASE_URL: 'http://faux.local', CLE_SERVICE: 'la-cle-de-la-maison', WA_TOKEN: 'jeton-meta-de-banc', WA_PHONE_ID: '1234',
-  ANTHROPIC_API_KEY: 'cle-claude-de-banc',
+  ANTHROPIC_API_KEY: 'cle-claude-de-banc', SUPABASE_ANON_KEY: 'cle-publique-de-banc',
 };
 const SERVIS: ((req: Request) => Promise<Response>)[] = [];
 const META: any[] = [];
@@ -204,7 +205,7 @@ const AUJOURDHUI = ICI(Date.now());
 const jourOuvert = (apres: number): string => {
   let iso = AUJOURDHUI;
   let vus = 0;
-  for (let i = 1; i < 20; i++) {
+  for (let i = 1; i < 60; i++) {
     iso = plusJours(AUJOURDHUI, i);
     const dow = new Date(`${iso}T12:00:00Z`).getUTCDay();
     if (dow === 0 || dow === 1) continue;
@@ -214,6 +215,8 @@ const jourOuvert = (apres: number): string => {
 };
 const J1 = jourOuvert(1);
 const J2 = jourOuvert(2);
+/** Un jour ouvert dans trois semaines et plus : au-delà des quatorze jours des listes. */
+const LOIN = jourOuvert(16);
 function decor(qui: 'opale' | 'automate' | null = 'opale') {
   for (const k of Object.keys(TABLES)) delete TABLES[k];
   POSES.length = 0; META.length = 0; DEMANDES.length = 0; FILE = [];
@@ -438,6 +441,39 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
   dit('une habituee en route : pas de plan', [['text'], true], [META.map((m) => m.type), (resultatsDe(1)[0] ?? '').includes('connaît déjà')]);
 }
 
+/* ══ 11 bis. LES CORRECTIFS DU 4 NOVEMBRE 2026 ══
+   « Je serai là le samedi 28 novembre » : la fenêtre des places suit le jour
+   demandé (Mme S. a lu « plus de place » à tort) ; rendue à Opale après son
+   mot de relais, elle répond (M. R.) ; « la Maison MND » ; un rendez-vous
+   changé se dit confirmé, jamais déplacé. */
+{
+  decor();
+  const w = elleEcrit(NUM, `Je serai là le ${LOIN}, pour un shampoing`);
+  FILE = [
+    { outils: [{ name: 'chercher_des_places', input: { gestes: ['sv-plt-05-ess-c'], jour: LOIN } }] },
+    { outils: [{ name: 'proposer_le_rendez_vous', input: { pour: 'cl-banc-a', gestes: ['sv-plt-05-ess-c'], date: LOIN, heure: '10:00' } }] },
+    { texte: `Avec plaisir, Mme Akouele : le ${LOIN} à 10 h, cela vous convient ?` },
+  ];
+  await tour(NUM, [w]);
+  dit('un jour au-dela des quatorze jours : ses places, et la place se tient', [true, true], [(resultatsDe(1)[0] ?? '').includes(`${LOIN} 10:00`), (resultatsDe(2)[0] ?? '').startsWith('Place tenue')]);
+
+  decor();
+  elleEcrit(NUM, 'Bonjour, un traitement anti-poux pour mon fils svp', 3_600_000);
+  table('messages_wa').push({ id: 'wa-relais', data: { sens: 'sortant', numero: NUM, parQui: OPALE, etape: 'main', etat: 'remis', texte: 'Une personne de la Maison vous répond ici.', quand: new Date(Date.now() - 3_500_000).toISOString() } });
+  const rendue = new Date(Date.now() - 1000).toISOString();
+  table('fils_automate').push({ id: `main-${NUM}`, data: { numero: NUM, pauseLe: new Date(Date.now() - 3_000_000).toISOString(), jusqua: new Date(Date.now() + 600_000).toISOString(), rendueLe: rendue } });
+  FILE = [{ texte: 'Bonjour Mme Akouele, avec plaisir : nous recevons votre fils à la Maison MND.' }];
+  const h = SERVIS[0];
+  const r = await (await h(new Request('http://faux.local/functions/v1/whatsapp-automate', {
+    method: 'POST', headers: { authorization: 'Bearer jeton-de-la-direction', 'content-type': 'application/json' },
+    body: JSON.stringify({ reprise: { numero: NUM, tiroir: 'clientes', rendueLe: rendue } }),
+  }))).json();
+  dit('rendue a Opale apres son mot de relais : elle repond a ce qui attendait', [true, 1, true], [r.repris, META.length, String(DEMANDES[0]?.messages?.[0]?.content ?? '').includes('anti-poux pour mon fils')]);
+
+  const consigne = consigneDOpale();
+  dit('la consigne : la Maison MND en entier, confirme et jamais deplace', [true, true], [consigne.includes('écris « la Maison MND » en entier'), consigne.includes('ne dis jamais qu’il a été déplacé')]);
+}
+
 /* ══ 12. LE MODULE PUR ══ */
 {
   dit('le reglage : opale seulement quand il le dit', ['automate', 'automate', 'opale'], [reglageDOpale(null).qui, reglageDOpale({ qui: 'autre' }).qui, reglageDOpale({ qui: 'opale' }).qui]);
@@ -504,7 +540,7 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
   const w = brut('supabase/functions/whatsapp-webhook/index.ts');
   dit('le webhook laisse 120 s au tour d Opale', true, /const AUTOMATE_EN_FOND_MS = 120_000;/.test(w));
   const a = brut('supabase/functions/whatsapp-automate/index.ts');
-  dit('la fonction importe le SDK, et sa version le dit', [true, true], [a.includes("import Anthropic from 'npm:@anthropic-ai/sdk';"), /const VERSION = '2026-11-04-a · Opale/.test(a)]);
+  dit('la fonction importe le SDK, et sa version le dit', [true, true], [a.includes("import Anthropic from 'npm:@anthropic-ai/sdk';"), /const VERSION = '2026-11-04-[a-z] · Opale/.test(a)]);
 }
 
 console.log(`${ko ? 'ECHEC' : 'OK   '} ${n} controles, ${ko} echec(s)`);
