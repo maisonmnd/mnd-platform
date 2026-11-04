@@ -29,6 +29,14 @@ export type InstantOffer = {
       offres-pur). Absent ou vide, rien ne change : l'offre court comme
       avant, au jour où l'on regarde. */
   joursDeLaVenue?: string[];
+  /** LES PLACES LIMITÉES — 4 novembre 2026 (maquette « Places limitées ») :
+      le nombre de places par jour de la venue, réglé par Yéman dans Système ›
+      Paramètres. Posé, l'offre se compte (`placesRestantes`, offres-pur). */
+  placesParJour?: number;
+  /** Seulement un jour où personne d'autre n'a réservé. */
+  jourVideSeulement?: boolean;
+  /** Combien de jours à l'avance les places s'ouvrent. */
+  horizonJours?: number;
   heureDebut: string;
   heureFin: string;
   active: boolean;

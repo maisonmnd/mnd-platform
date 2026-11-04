@@ -90,6 +90,9 @@ export type Service = {
   id: string;
   categoryId: string;
   name: string;
+  /** AUCUNE REMISE, D'AUCUNE SORTE, famille comprise — 4 novembre 2026 (le
+      Rituel Sówà™, Yéman). Lu par `gesteSansRemise` (offres-pur). */
+  sansRemise?: boolean;
   palier: 'Fondation' | 'Élévation' | 'Souveraineté';
   /** LE PALIER POSÉ PAR LA MAISON — 16 septembre 2026. « Quand je modifie
       moi-même directement le palier d'une prestation, ne fais pas revenir le
