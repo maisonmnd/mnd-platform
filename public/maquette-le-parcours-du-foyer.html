@@ -1,0 +1,308 @@
+<title>Le parcours du foyer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@400;500&display=swap">
+<style>
+/* Mise en page : une colonne de lecture ; le constat du 4 novembre 2026, le principe, deux scènes qui se manipulent (le rendez-vous du foyer au Trône, le fil WhatsApp du foyer), puis Opale, les limites et les arbitrages. */
+:root {
+  --fond: #efe4d3;
+  --papier: #fbf7f0;
+  --encre: #1f2350;
+  --encre-douce: #4b4f72;
+  --cuivre: #a8622f;
+  --trait: #d9cbb5;
+  --vieux: #8a8270;
+  --vert: #3b8f5a;
+  --rouge: #a8433a;
+  --ecran: #1f2350;
+  --ecran-texte: #f3ece0;
+  --ecran-doux: #b9b6cf;
+  --ecran-trait: #3a3e6e;
+  --case: #2b2f62;
+  --bulle: #e7f2e4;
+  --bulle-texte: #1f2b22;
+  --display: 'Cormorant Garamond', 'Times New Roman', serif;
+  --texte: 'Jost', 'Segoe UI', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond: #15173a; --papier: #1f2250; --encre: #f3ece0; --encre-douce: #c9c4d8; --cuivre: #d38a52; --trait: #34386a; --vieux: #9d97b0; --vert: #5fb57f; --rouge: #d9776c;
+  --ecran: #0f1130; --ecran-texte: #f3ece0; --ecran-doux: #a9a6c4; --ecran-trait: #2c3060; --case: #23264f; --bulle: #24412f; --bulle-texte: #e6f2e6; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --fond: #15173a; --papier: #1f2250; --encre: #f3ece0; --encre-douce: #c9c4d8; --cuivre: #d38a52; --trait: #34386a; --vieux: #9d97b0; --vert: #5fb57f; --rouge: #d9776c;
+  --ecran: #0f1130; --ecran-texte: #f3ece0; --ecran-doux: #a9a6c4; --ecran-trait: #2c3060; --case: #23264f; --bulle: #24412f; --bulle-texte: #e6f2e6; color-scheme: dark }
+body { background: var(--fond); color: var(--encre); font-family: var(--texte); font-size: 15px; line-height: 1.6; }
+.page { max-width: 1000px; margin: 0 auto; padding-block: 40px 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 500; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.05; }
+h2 { font-size: clamp(26px, 4.5vw, 34px); line-height: 1.1; }
+h3 { font-size: 21px; line-height: 1.2; }
+p { margin: 0; }
+.sur { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre); }
+.chapo { color: var(--encre-douce); max-width: 66ch; }
+.citation { font-family: var(--display); font-style: italic; font-size: 21px; line-height: 1.35; max-width: 60ch; }
+.bandeau { background: var(--encre); color: var(--fond); padding: 10px 14px; border-radius: 4px; font-size: 13px; }
+.entete, .section { display: grid; gap: 18px; }
+.etiquette { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--vieux); }
+ul.net, ol.net { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--encre-douce); max-width: 72ch; }
+ul.net b, ol.net b { color: var(--encre); font-weight: 500; }
+.deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px; }
+.carte { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; }
+.carte h3 { font-size: 19px; }
+.carte p, .carte li { color: var(--encre-douce); font-size: 14px; }
+.carte b { color: var(--encre); font-weight: 500; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ── Le constat ── */
+.fil-du-jour { display: grid; gap: 0; border-left: 2px solid var(--cuivre); padding-left: 14px; max-width: 70ch; }
+.fil-du-jour li { list-style: none; padding: 6px 0; color: var(--encre-douce); font-size: 14px; }
+.fil-du-jour li b { color: var(--encre); font-weight: 500; }
+.fil-du-jour .heure { display: inline-block; min-width: 92px; color: var(--vieux); font-variant-numeric: tabular-nums; }
+.fil-du-jour ul { margin: 0; padding: 0; }
+
+/* ── Les écrans ── */
+.ecran { background: var(--ecran); color: var(--ecran-texte); border-radius: 6px; padding: 18px; display: grid; gap: 14px; }
+.ecran .etiquette { color: var(--ecran-doux); }
+.ecran .doux { color: var(--ecran-doux); font-size: 13px; }
+.ligne { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.foyer { border: 1px solid var(--cuivre); border-radius: 4px; padding: 14px; display: grid; gap: 10px; }
+.foyer-titre { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.foyer-titre b { font-family: var(--display); font-size: 22px; font-weight: 500; }
+.tetes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.tete { background: var(--case); border: 1px solid var(--ecran-trait); border-radius: 4px; padding: 10px 12px; display: grid; gap: 2px; }
+.tete small { color: var(--ecran-doux); font-size: 12px; }
+.tete.annulee { opacity: .45; text-decoration: line-through; }
+.geste { background: var(--cuivre); color: #fff; border: 0; border-radius: 4px; padding: 9px 14px; font-weight: 500; letter-spacing: .03em; }
+.geste-doux { background: transparent; color: var(--ecran-texte); border: 1px solid var(--ecran-trait); border-radius: 4px; padding: 8px 12px; }
+.issue { border-left: 2px solid var(--vert); padding: 6px 0 6px 12px; display: grid; gap: 4px; font-size: 14px; }
+.issue.attention { border-left-color: var(--cuivre); }
+.choix-deux { display: flex; flex-wrap: wrap; gap: 8px; }
+.telephone { background: var(--papier); border: 1px solid var(--trait); border-radius: 18px; padding: 14px; max-width: 380px; display: grid; gap: 10px; }
+.telephone .haut { font-size: 13px; color: var(--vieux); border-bottom: 1px solid var(--trait); padding-bottom: 8px; }
+.bulle { background: var(--bulle); color: var(--bulle-texte); border-radius: 10px 10px 10px 2px; padding: 9px 12px; font-size: 14px; max-width: 92%; }
+.bulle small { display: block; color: var(--vieux); font-size: 11px; margin-top: 4px; }
+.bascule { display: inline-flex; border: 1px solid var(--trait); border-radius: 4px; overflow: hidden; }
+.bascule button { background: transparent; color: var(--encre-douce); border: 0; padding: 7px 12px; font-size: 13px; }
+.bascule button[aria-pressed="true"] { background: var(--cuivre); color: #fff; }
+
+/* ── Arbitrages ── */
+.arbitrage { background: var(--papier); border: 1px solid var(--trait); border-radius: 4px; padding: 16px 18px; display: grid; gap: 8px; }
+.arbitrage .propose { border-left: 2px solid var(--cuivre); padding-left: 12px; }
+.arbitrage .propose b { color: var(--encre); font-weight: 500; }
+.arbitrage .autres { color: var(--encre-douce); font-size: 14px; }
+</style>
+
+<div class="page">
+
+  <header class="entete">
+    <p class="sur">Maquette · 4 novembre 2026 · Le Trône, Opale, WhatsApp, Ma Couronne</p>
+    <h1>Le parcours du foyer</h1>
+    <p class="citation">« Faith and Jade always come together, they are sisters. Must find a way to keep their appointment under one canal. Everything the same. »</p>
+    <p class="chapo">Deux sœurs qui viennent ensemble sont UN rendez-vous pour la Maison : une date, une heure, deux fauteuils, un seul message. Aujourd'hui le Trône les pose ensemble, puis les traite chacune à part. La maquette montre le foyer qui se déplace, s'annule, se confirme et se rappelle d'un seul geste.</p>
+    <p class="bandeau">Maquette : rien n'est construit. Les boutons se touchent, rien ne part. Initiales seulement.</p>
+  </header>
+
+  <section class="section" aria-labelledby="t-constat">
+    <p class="sur">Le constat</p>
+    <h2 id="t-constat">Le matin du 4 novembre 2026, deux sœurs, sept gestes</h2>
+    <div class="fil-du-jour">
+      <ul>
+        <li><span class="heure">3 nov.</span>F. K. est annulée pour le 4 novembre ; <b>J. K. reste posée</b> à 13 h. Rien ne dit qu'elles venaient ensemble.</li>
+        <li><span class="heure">4 nov., 6 h</span>« Déplace J. K. au 22 décembre avec sa sœur » : <b>un premier geste</b> pour J. K.</li>
+        <li><span class="heure">&nbsp;</span>F. K. : Opale <b>est refusée</b> (en ligne, un seul fauteuil à la fois ce jour-là) ; il faut passer par le Trône, à la main.</li>
+        <li><span class="heure">&nbsp;</span>Ses gestes à choisir à nouveau, <b>une question</b> sur sa formule (elle a 9 ans : la carte MND Kids).</li>
+        <li><span class="heure">&nbsp;</span>La date, l'heure, le fauteuil, <b>retapés</b> pour la seconde.</li>
+        <li><span class="heure">22 déc.</span>Le même numéro recevra <b>deux confirmations</b>, <b>deux rappels</b> la veille, et, demain, deux relances si l'une est en retard.</li>
+      </ul>
+    </div>
+    <div class="deux">
+      <div class="carte">
+        <h3>Ce qui existe déjà</h3>
+        <ul class="net">
+          <li><b>Le rendez-vous du foyer</b> (2 septembre 2026) : deux têtes posées ensemble, liées par un même identifiant de foyer.</li>
+          <li><b>La facture du foyer</b> (27 octobre 2026) : un PDF, un WhatsApp, un total.</li>
+          <li><b>Le lien du foyer</b> (28 octobre 2026) : un seul paiement KkiaPay pour tous.</li>
+          <li><b>Le bon parent prévenu</b> : l'enfant au parent qui l'a pris, la facture au payeur.</li>
+        </ul>
+      </div>
+      <div class="carte">
+        <h3>Ce qui manque</h3>
+        <ul class="net">
+          <li>Le lien <b>se perd</b> au premier déplacement : chacune se déplace, s'annule et se confirme seule (c'était la règle du 2 septembre 2026, « une fille malade ne fait pas tomber le rendez-vous de sa mère »).</li>
+          <li>La confirmation, le rappel, la relance partent <b>une fois par tête</b>, au même numéro.</li>
+          <li>Opale et Ma Couronne ne savent pas poser <b>deux têtes à la même heure</b>.</li>
+          <li>Deux rendez-vous posés à part (comme ce matin) <b>ne se rattachent pas</b> après coup.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="t-principe">
+    <p class="sur">Le principe</p>
+    <h2 id="t-principe">Elles viennent toujours ensemble</h2>
+    <p class="chapo">Sur le compte famille, une case nouvelle : <b>« Elles viennent toujours ensemble »</b>. Cochée, tout rendez-vous de l'une est un rendez-vous du foyer : posé, déplacé, confirmé, rappelé, relancé et encaissé ensemble. Chaque tête garde ses gestes, son prix, son fauteuil et sa fiche (le calendrier, les mains et les commissions comptent toujours par tête).</p>
+    <ol class="net">
+      <li><b>Poser</b> : une tête choisie, le Trône ajoute l'autre, à la même heure, sur le second fauteuil. Ses gestes sont les mêmes, dans la version de son âge (MND Kids sous 15 ans) : « everything the same », au bon tarif.</li>
+      <li><b>Déplacer</b> : un seul geste déplace le foyer entier ; « seulement elle » reste possible.</li>
+      <li><b>Annuler</b> : le Trône demande « les deux ou seulement F. K. ? ».</li>
+      <li><b>Prévenir</b> : un seul message au numéro du foyer, qui nomme les deux.</li>
+      <li><b>Encaisser</b> : un ticket, une facture du foyer, un lien de paiement (déjà là).</li>
+    </ol>
+  </section>
+
+  <section class="section" aria-labelledby="t-scene">
+    <p class="sur">La scène · le Trône</p>
+    <h2 id="t-scene">Le rendez-vous du foyer, d'un seul geste</h2>
+    <div class="ecran" id="scene">
+      <div class="foyer">
+        <div class="foyer-titre">
+          <b id="quand">Mardi 22 décembre 2026 · 10 h</b>
+          <span class="doux">Foyer K. · elles viennent toujours ensemble · numéro du foyer +229 01 ·· ·· ·· 42</span>
+        </div>
+        <div class="tetes">
+          <div class="tete" id="t-jade"><span>J. K.</span><small>KLƆKLƆ™ Essentiel + SÍNSIN™ Essentiel · Team · 2 h 30</small><small class="num">30 000 F</small></div>
+          <div class="tete" id="t-faith"><span>F. K. · 9 ans, MND Kids</span><small>KLƆKLƆ™ Kids + SÍNSIN™ Kids · second fauteuil · 1 h 15</small><small class="num">20 000 F</small></div>
+        </div>
+        <div class="ligne">
+          <button type="button" class="geste" id="b-deplacer">Déplacer le foyer</button>
+          <button type="button" class="geste-doux" id="b-annuler">Annuler</button>
+          <button type="button" class="geste-doux" id="b-encaisser">Encaisser le foyer</button>
+        </div>
+        <div id="question" hidden></div>
+        <div id="issue" class="issue" hidden></div>
+      </div>
+      <p class="doux">Ce matin, ces deux rendez-vous ont été posés à part. Le Trône les reconnaît (même numéro, même jour, même heure, même compte famille) et propose : <b>« Elles viennent ensemble ? Les lier »</b>. Un toucher, et le foyer se forme.</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="t-fil">
+    <p class="sur">Le fil WhatsApp</p>
+    <h2 id="t-fil">Un seul message, qui les nomme toutes les deux</h2>
+    <div class="ligne">
+      <div class="bascule" role="group" aria-label="Avant ou après">
+        <button type="button" data-fil="avant" aria-pressed="false">Aujourd'hui</button>
+        <button type="button" data-fil="apres" aria-pressed="true">Proposé</button>
+      </div>
+    </div>
+    <div class="telephone" aria-live="polite">
+      <div class="haut">Maison MND · au numéro du foyer</div>
+      <div id="fil"></div>
+    </div>
+    <p class="chapo">Les mêmes modèles WhatsApp, déjà approuvés chez Meta : le prénom devient « Jade et Faith ». Aucun modèle nouveau à faire approuver, si le texte du modèle porte déjà le prénom en variable.</p>
+  </section>
+
+  <section class="section" aria-labelledby="t-opale">
+    <p class="sur">Opale et Ma Couronne</p>
+    <h2 id="t-opale">« Déplace Jade au 22 décembre avec sa sœur »</h2>
+    <ul class="net">
+      <li><b>Opale</b> lit la case du foyer : « déplace Jade » déplace le foyer. Elle pose les deux têtes en une fois, sur les deux fauteuils, comme le comptoir (pas la règle d'une place en ligne, qui est faite pour les inconnues du site).</li>
+      <li><b>Ma Couronne</b> : la mère, ou la grande sœur, qui réserve pour l'une voit « et Faith ? » cochée d'office ; l'heure proposée est une heure où les deux fauteuils sont libres.</li>
+      <li><b>Perle et les rappels</b> : la cadence se lit par foyer ; une relance ne part pas pour l'une quand l'autre a déjà répondu.</li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="t-pas">
+    <p class="sur">Les limites</p>
+    <h2 id="t-pas">Ce que ça ne fera pas</h2>
+    <div class="deux">
+      <div class="carte">
+        <h3>Deux rendez-vous, toujours</h3>
+        <p>Le foyer n'est pas un rendez-vous à deux têtes : le calendrier, les mains, les commissions, le suivi de chaque couronne et l'âge comptent par tête. Le foyer les tient ensemble, il ne les fond pas.</p>
+      </div>
+      <div class="carte">
+        <h3>Ce qui ne bouge pas</h3>
+        <ul class="net">
+          <li><b>Le tarif de l'âge</b> : la petite reste à la carte MND Kids.</li>
+          <li><b>Seulement elle</b> reste toujours possible, pour une malade ou un examen.</li>
+          <li><b>Un foyer sans la case</b> garde la règle d'aujourd'hui, chacune à part.</li>
+          <li><b>Aucun message en plus</b> : un message de moins, pas un nouveau.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="t-arb">
+    <p class="sur">À trancher</p>
+    <h2 id="t-arb">Cinq arbitrages, une proposition pour chacun</h2>
+    <div class="arbitrage">
+      <h3>1. Déplacer</h3>
+      <p class="propose"><b>Proposé : un geste déplace le foyer entier</b>, avec « seulement elle » à côté.</p>
+      <p class="autres">Sinon : demander à chaque fois « les deux ou seulement elle ? ».</p>
+    </div>
+    <div class="arbitrage">
+      <h3>2. Annuler</h3>
+      <p class="propose"><b>Proposé : le Trône demande « les deux ou seulement F. K. ? »</b> (une annulation se trompe moins qu'un déplacement).</p>
+      <p class="autres">Sinon : annuler les deux d'office.</p>
+    </div>
+    <div class="arbitrage">
+      <h3>3. Les messages</h3>
+      <p class="propose"><b>Proposé : un seul message par foyer</b> (confirmation, rappel de la veille, déplacement, relance), au numéro du foyer, qui nomme les deux.</p>
+      <p class="autres">Sinon : un message par tête, comme aujourd'hui.</p>
+    </div>
+    <div class="arbitrage">
+      <h3>4. Les gestes</h3>
+      <p class="propose"><b>Proposé : les mêmes gestes pour les deux, chacune au tarif de son âge</b> (KLƆKLƆ™ et SÍNSIN™ pour J. K., leur version MND Kids pour F. K.), qu'on peut changer pour l'une.</p>
+      <p class="autres">Sinon : chacune ses propres gestes habituels ; ou exactement les mêmes gestes, au tarif adulte pour les deux.</p>
+    </div>
+    <div class="arbitrage">
+      <h3>5. Quand le foyer se forme</h3>
+      <p class="propose"><b>Proposé : la case « Elles viennent toujours ensemble » sur le compte famille</b>, et le Trône propose « Les lier » dès qu'il voit deux têtes du même compte à la même heure.</p>
+      <p class="autres">Sinon : à la main seulement, rendez-vous par rendez-vous.</p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  var quand = document.getElementById('quand');
+  var issue = document.getElementById('issue');
+  var question = document.getElementById('question');
+  var tFaith = document.getElementById('t-faith');
+  function dit(html, attention) { issue.hidden = false; issue.className = 'issue' + (attention ? ' attention' : ''); issue.innerHTML = html; }
+  document.getElementById('b-deplacer').addEventListener('click', function () {
+    question.hidden = true; tFaith.classList.remove('annulee');
+    quand.textContent = 'Mardi 29 décembre 2026 · 10 h';
+    dit('<b>Le foyer est déplacé : mardi 29 décembre 2026 à 10 h, les deux.</b><span>Un seul message part au numéro du foyer : « Jade et Faith sont attendues mardi 29 décembre 2026 à 10 h. »</span>');
+  });
+  document.getElementById('b-annuler').addEventListener('click', function () {
+    issue.hidden = true; question.hidden = false;
+    question.className = 'choix-deux';
+    question.innerHTML = '<span class="doux" style="width:100%">Annuler les deux, ou seulement F. K. ?</span>';
+    var deux = document.createElement('button'); deux.type = 'button'; deux.className = 'geste-doux'; deux.textContent = 'Les deux';
+    var une = document.createElement('button'); une.type = 'button'; une.className = 'geste-doux'; une.textContent = 'Seulement F. K.';
+    deux.addEventListener('click', function () { question.hidden = true; dit('<b>Le foyer est annulé.</b><span>Un seul message au numéro du foyer, et les deux places se libèrent.</span>', true); });
+    une.addEventListener('click', function () { question.hidden = true; tFaith.classList.add('annulee'); dit('<b>F. K. est annulée, J. K. reste posée.</b><span>Le message le dit : « Jade reste attendue mardi 22 décembre 2026 à 10 h ; la place de Faith est libérée. »</span>', true); });
+    question.appendChild(deux); question.appendChild(une);
+  });
+  document.getElementById('b-encaisser').addEventListener('click', function () {
+    question.hidden = true;
+    dit('<b>Un ticket pour le foyer : 50 000 F.</b><span>J. K. 30 000 F et F. K. 20 000 F, une facture du foyer, un lien de paiement (déjà là depuis le 27 octobre 2026).</span>');
+  });
+
+  var FILS = {
+    avant: [
+      ['Bonjour, le rendez-vous de Jade est confirmé : mardi 22 décembre 2026 à 10 h.', 'confirmation'],
+      ['Bonjour, le rendez-vous de Faith est confirmé : mardi 22 décembre 2026 à 10 h.', 'confirmation, une seconde fois'],
+      ['Rappel : Jade est attendue demain à 10 h.', 'rappel de la veille'],
+      ['Rappel : Faith est attendue demain à 10 h.', 'rappel de la veille, une seconde fois']
+    ],
+    apres: [
+      ['Bonjour, Jade et Faith sont attendues mardi 22 décembre 2026 à 10 h, ensemble.', 'une confirmation pour le foyer'],
+      ['Rappel : Jade et Faith sont attendues demain à 10 h.', 'un rappel pour le foyer']
+    ]
+  };
+  var fil = document.getElementById('fil');
+  function rendFil(v) {
+    fil.innerHTML = '';
+    FILS[v].forEach(function (m) { var b = document.createElement('div'); b.className = 'bulle'; b.innerHTML = m[0] + '<small>' + m[1] + '</small>'; fil.appendChild(b); });
+  }
+  document.querySelectorAll('.bascule button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.bascule button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      rendFil(b.getAttribute('data-fil'));
+    });
+  });
+  rendFil('apres');
+})();
+</script>
