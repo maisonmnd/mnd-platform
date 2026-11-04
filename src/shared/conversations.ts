@@ -408,9 +408,11 @@ export function filCorrespond(f: { nom: string; numero: string; messages: readon
    Arbitrage au sélecteur : on EFFACE les fils SANS FICHE (spams, inconnus,
    numéros de passage), la direction seule, après confirmation, sur tous les
    postes. Le fil d'une personne qui a une fiche ne s'efface pas : il
-   s'archive, son histoire appartient à la Maison. */
-export const filEffacable = (f: { sansFiche: boolean; messages: readonly unknown[] }): boolean =>
-  f.sansFiche && f.messages.length > 0;
+   s'archive, son histoire appartient à la Maison. Le fil d'un PARENT sans
+   fiche (« Maman d'A. », revue du 4 novembre 2026) non plus : il parle pour
+   des enfants qui ont la leur. */
+export const filEffacable = (f: { sansFiche: boolean; parentDe?: readonly string[]; messages: readonly unknown[] }): boolean =>
+  f.sansFiche && !f.parentDe?.length && f.messages.length > 0;
 
 export type Fil = {
   /** La clé du fil : le numéro réduit. Une tête sans fiche en a un aussi. */
@@ -422,6 +424,10 @@ export type Fil = {
   nom: string;
   /** Sans fiche : l'écran propose de l'attacher, il ne crée jamais seul. */
   sansFiche: boolean;
+  /** LA VOIX D'UN PARENT SANS FICHE (4 novembre 2026) : les fiches d'enfants
+      pour qui ce numéro parle. Ce n'est pas un inconnu : on ne l'efface ni
+      ne le bloque. */
+  parentDe?: string[];
   prive: boolean;
   messages: MessageWa[];
   dernier: MessageWa;
@@ -506,15 +512,20 @@ export function tetesDeLaMaison(o: {
 
 function tetesDesClientes(clientes: readonly FicheParlante[], familles: readonly FamillePayeuse[] | undefined, aujourdhui: string): TeteConnue[] {
   const { voix, parle } = voixDesNumeros({ fiches: clientes, familles, aujourdhui });
-  const tetes: TeteConnue[] = clientes.map((c) => ({
+  const teteDe = (c: FicheParlante): TeteConnue => ({
     id: c.id, name: c.name, phone: parle(c, 'phone') ? c.phone : undefined, phone2: parle(c, 'phone2') ? c.phone2 : undefined,
     branchId: c.branchId, tiroir: 'clientes', fiche: `/customers?id=${c.id}`,
-  }));
+  });
+  const tetes: TeteConnue[] = clientes.filter((c) => !c.archived).map(teteDe);
   for (const v of voix.values()) {
     tetes.push(v.genre === 'fiche'
       ? { id: v.fiche.id, name: v.fiche.name, phone: v.numero, branchId: v.fiche.branchId, tiroir: 'clientes', fiche: `/customers?id=${v.fiche.id}`, enfants: v.enfants }
       : { id: `voix:${numeroWa(v.numero)}`, name: v.nom, phone: v.numero, branchId: v.branchId, tiroir: 'clientes', sansFiche: true, enfants: v.enfants });
   }
+  /* UNE FICHE ARCHIVÉE VIENT APRÈS LES VOIX (revue du 4 novembre 2026) :
+     `teteDuNumero` prend la première ; elle ne nomme un numéro que si
+     personne de vivant ne le porte. */
+  tetes.push(...clientes.filter((c) => c.archived).map(teteDe));
   return tetes;
 }
 
@@ -633,6 +644,7 @@ export function filsDeLaMaison(
       clientId: tete && !tete.sansFiche && (tete.tiroir ?? 'clientes') === 'clientes' ? tete.id : undefined,
       nom: tete?.name ?? liste.find((m) => m.nomProfil)?.nomProfil ?? numero,
       sansFiche: !tete || !!tete.sansFiche,
+      ...(tete?.sansFiche && tete.enfants?.length ? { parentDe: tete.enfants } : {}),
       prive: prives.includes(numero),
       messages: liste,
       dernier,
@@ -772,6 +784,7 @@ export function filNeuf(numero: string, tete?: TeteConnue): Fil | null {
     clientId: tete && !tete.sansFiche && (tete.tiroir ?? 'clientes') === 'clientes' ? tete.id : undefined,
     nom: tete?.name ?? `+${n}`,
     sansFiche: !tete || !!tete.sansFiche,
+    ...(tete?.sansFiche && tete.enfants?.length ? { parentDe: tete.enfants } : {}),
     prive: false,
     messages: [],
     dernier: fantome,

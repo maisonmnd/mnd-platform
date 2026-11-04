@@ -46,6 +46,7 @@ import { estUneQuestionFranche, heureDite, jourDit } from './gerard-pur';
 import type { Discussion, MessageAuTrone } from './discussions';
 import type { AppelRecu } from './appels';
 import { cleDuTri, etatDuNumero, type EntreeDuTri, type TriDesMessages } from './tri-des-messages-pur';
+import { voixDesNumeros, type FamillePayeuse, type FicheParlante } from './voix-du-numero-pur';
 
 /* ── LES MOTS ────────────────────────────────────────────────────────────── */
 
@@ -102,6 +103,10 @@ export type Boite = {
   /** « KT » ; « ? » quand on ne connaît pas son nom. */
   initiales: string;
   sansFiche: boolean;
+  /** LA VOIX D'UN PARENT SANS FICHE (revue du 4 novembre 2026) : les fiches
+      d'enfants pour qui ce numéro parle. Pas un inconnu : ni bloquée, ni
+      triée comme un démarcheur. */
+  parentDe?: string[];
   tiroir: Tiroir;
   branchId?: string;
   /** Les sources présentes, dans l'ordre où elles paraissent. */
@@ -143,7 +148,11 @@ export type Boite = {
 };
 
 /** Ce que la boîte lit d'une fiche cliente : de quoi la nommer et la joindre. */
-export type ClienteDeLaBoite = { id: string; name: string; phone?: string; phone2?: string; branchId?: string };
+export type ClienteDeLaBoite = {
+  id: string; name: string; phone?: string; phone2?: string; branchId?: string;
+  /** De quoi juger la voix d'un numéro (`voix-du-numero-pur`) : un enfant ne prête pas le numéro de son parent. */
+  phoneNom?: string; phone2Nom?: string; birthday?: string; familyId?: string; archived?: boolean;
+};
 /** Une ligne `envois`, avec les champs que l'Assistant y pose (cast local). */
 export type EnvoiDeLaBoite = EnvoiLu & { genre?: string; texte?: string; parQui?: string; deposeLe?: string; partA?: string };
 
@@ -166,6 +175,10 @@ export type EntreeDesBoites = {
   riensARepondre?: Readonly<RiensARepondre>;
   /** Le registre du tri des démarcheurs (`mnd_tri_des_messages`). */
   tri?: Readonly<TriDesMessages>;
+  /** Les comptes famille : le parent qui paie parle sur le numéro de ses enfants. */
+  familles?: readonly FamillePayeuse[];
+  /** « AAAA-MM-JJ » : l'âge des enfants se juge ce jour-là (celui de `maintenant` par défaut). */
+  aujourdhui?: string;
 };
 
 /* ── RIEN À RÉPONDRE · 27 octobre 2026 ───────────────────────────────────
@@ -422,19 +435,42 @@ export function boitesDeLaMaison(e: EntreeDesBoites): Boite[] {
 
   /* La clé : la fiche, sinon la cliente que le numéro désigne, sinon le
      numéro lui-même, sinon la pièce seule. */
+  /* LA VOIX D'UN NUMÉRO (revue du 4 novembre 2026, `voix-du-numero-pur`) :
+     une fiche d'ENFANT ne prête pas le numéro de son parent à une boîte (le
+     fil de « Maman d'A. » se rangeait sous la fiche de l'enfant), même quand
+     une pièce ancienne porte son identifiant ; une fiche ARCHIVÉE ne nomme un
+     numéro que si aucune fiche vivante ne le porte. */
+  const aujourdhui = e.aujourdhui ?? jourACotonou(new Date(e.maintenant).toISOString());
+  const parlantes: FicheParlante[] = e.clientes.map((c) => ({ ...c, branchId: c.branchId ?? '' }));
+  const { parle } = voixDesNumeros({ fiches: parlantes, familles: e.familles, aujourdhui });
+  const muets = new Set<string>();
+  const portesParLesVivantes = new Set<string>();
+  for (const c of parlantes) {
+    for (const champ of ['phone', 'phone2'] as const) {
+      const k = cleDuNumero(c[champ]);
+      if (!k) continue;
+      if (!c.archived) portesParLesVivantes.add(k);
+      if (!parle(c, champ)) muets.add(`${c.id}|${k}`);
+    }
+  }
+  const muette = (clientId: string, k: string): boolean => !!k && muets.has(`${clientId}|${k}`);
   const clienteDuNumero = new Map<string, string>();
   const pose = (numero: string | null | undefined, clientId: string | null | undefined) => {
     const k = cleDuNumero(numero ?? undefined);
-    if (k && clientId && !clienteDuNumero.has(k)) clienteDuNumero.set(k, clientId);
+    if (k && clientId && !muette(clientId, k) && !clienteDuNumero.has(k)) clienteDuNumero.set(k, clientId);
   };
-  for (const c of e.clientes) { pose(c.phone, c.id); pose(c.phone2, c.id); }
+  for (const c of parlantes) if (!c.archived) { pose(c.phone, c.id); pose(c.phone2, c.id); }
   for (const f of e.fils) pose(f.numero, f.clientId);
   for (const a of e.appelsWa ?? []) pose(a.numero, a.clientId);
   for (const d of e.demandes ?? []) pose(d.telephone, d.clientId);
   for (const d of e.discussions ?? []) pose(d.telephone, d.client_id);
+  for (const c of parlantes) {
+    if (!c.archived) continue;
+    for (const brut of [c.phone, c.phone2]) if (!portesParLesVivantes.has(cleDuNumero(brut))) pose(brut, c.id);
+  }
   const cle = (clientId: string | null | undefined, numero: string | null | undefined, repli: string): string => {
-    if (clientId) return `c:${clientId}`;
     const k = cleDuNumero(numero ?? undefined);
+    if (clientId && !muette(clientId, k)) return `c:${clientId}`;
     if (!k) return repli;
     const c = clienteDuNumero.get(k);
     return c ? `c:${c}` : `n:${k}`;
@@ -625,8 +661,10 @@ export function boitesDeLaMaison(e: EntreeDesBoites): Boite[] {
     const canaux: SourceDeBulle[] = [];
     for (const x of b.bulles) if (!canaux.includes(x.source)) canaux.push(x.source);
 
-    /* LE TRI DES DÉMARCHEURS : seulement une boîte sans fiche, par son numéro WhatsApp. */
-    const etatDuTri = !b.clientId && e.tri && fil?.numero ? etatDuNumero(e.tri as TriDesMessages, fil.numero) : 'inconnu';
+    /* LE TRI DES DÉMARCHEURS : seulement une boîte sans fiche, par son numéro
+       WhatsApp ; jamais la voix d'un parent sans fiche. */
+    const parentDe = b.fils.find((f) => f.parentDe?.length)?.parentDe;
+    const etatDuTri = !b.clientId && !parentDe && e.tri && fil?.numero ? etatDuNumero(e.tri as TriDesMessages, fil.numero) : 'inconnu';
     const entreeDuTri = etatDuTri === 'bloque' ? e.tri?.bloques[cleDuTri(fil?.numero)] : etatDuTri === 'proposition' ? e.tri?.propositions[cleDuTri(fil?.numero)] : undefined;
     const tri = entreeDuTri && (etatDuTri === 'bloque' || etatDuTri === 'proposition') ? { etat: etatDuTri, entree: entreeDuTri } : undefined;
     const sansPhrase: Omit<Boite, 'quiALaMain' | 'filtres'> = {
@@ -639,6 +677,7 @@ export function boitesDeLaMaison(e: EntreeDesBoites): Boite[] {
       nom,
       initiales: nomConnu ? initialesDe(nomConnu) : '?',
       sansFiche: !b.clientId,
+      ...(parentDe ? { parentDe } : {}),
       tiroir,
       ...((cliente?.branchId ?? b.branchId) ? { branchId: cliente?.branchId ?? b.branchId } : {}),
       canaux,

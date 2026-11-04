@@ -8,7 +8,10 @@
    numéros sont INVENTÉS : le dépôt est public. */
 import { readFileSync } from 'node:fs';
 import { parleSurCeNumero, voixDesNumeros, type FicheParlante } from '../src/shared/voix-du-numero-pur';
-import { filsDeLaMaison, teteDuNumero, tetesDeLaMaison, type MessageWa } from '../src/shared/conversations';
+import { filEffacable, filsDeLaMaison, teteDuNumero, tetesDeLaMaison, type MessageWa } from '../src/shared/conversations';
+import { boitesDeLaMaison } from '../src/shared/boite-unique-pur';
+import { laVoixDuFil, type LecteurDeLaVoix } from '../src/shared/voix-du-fil-pur';
+import type { AppelWa } from '../src/shared/appels-wa';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -76,11 +79,58 @@ dit('les fils : la mère (sa fiche), Maman (sans fiche, nommée), le papa (sa fi
   [['2290197000011', 'ro', 'Rose G.', false], ['33600000001', null, 'Maman d’Aurel et Noam', true], ['2290197000022', 'mc', 'Marc A.', false]],
   ['2290197000011', '33600000001', '2290197000022'].map((n) => { const x = fils.find((y) => y.numero === n); return x ? [x.numero, x.clientId ?? null, x.nom, x.sansFiche] : [n, 'absent']; }));
 
-/* ── 4. La lettre ── */
+/* ── 4. La revue du 4 novembre 2026 : sans date de naissance, archivée, la boîte, le fil du parent ── */
+const ONCLE = '+229 0197000044';
+const PE = f({ id: 'pe', name: 'Paul E.', phone: ONCLE, familyId: 'fam-e' });
+const PI = f({ id: 'pi', name: 'Pia E.', phone: ONCLE, familyId: 'fam-e' });
+const PERE = f({ id: 'pere', name: 'Eric E.', phone: ONCLE, familyId: 'fam-e' });
+const SANS = f({ id: 'sans', name: 'Sacha T.', phone: '+229 0197000055', familyId: 'fam-t' });
+const MERE_T = f({ id: 'mt', name: 'Tania T.', familyId: 'fam-t' });
+const AINEE = f({ id: 'ai', name: 'Ada T.', phone: '+229 0197000066', familyId: 'fam-t2' });
+const MERE_T2 = f({ id: 'mt2', name: 'Tess T.', phone: '+229 0197000077', familyId: 'fam-t2' });
+const FAM2 = [...FAMILLES, { id: 'fam-e', payerClientId: 'pere' }, { id: 'fam-t', payerClientId: 'mt' }, { id: 'fam-t2', payerClientId: 'mt2' }];
+const TOUTES = [...FICHES, PE, PI, PERE, SANS, MERE_T, AINEE, MERE_T2];
+const tetes2 = tetesDeLaMaison({ clientes: TOUTES, familles: FAM2, aujourdhui: AUJ });
+const qui2 = (n: string) => { const t = teteDuNumero(n, tetes2); return t ? `${t.id}${t.sansFiche ? ':sans-fiche' : ''}` : 'aucune'; };
+dit('sans date de naissance, sous un payeur qui porte le même numéro : le payeur parle, même listé après', 'pere', qui2('2290197000044'));
+dit('sans date de naissance, sous un payeur sans numéro : le payeur parle sur son numéro', 'mt', qui2('2290197000055'));
+dit('sans date de naissance, sur un numéro bien à elle (le payeur a le sien) : elle parle', 'ai', qui2('2290197000066'));
+const ARCH = f({ id: 'arch', name: 'Zoé Z.', phone: MAMAN, archived: true });
+const tetes3 = tetesDeLaMaison({ clientes: [ARCH, ...FICHES], familles: FAMILLES, aujourdhui: AUJ });
+dit('une fiche archivée listée en premier ne passe pas devant la voix du parent', 'voix:33600000001:sans-fiche',
+  ((t) => (t ? `${t.id}${t.sansFiche ? ':sans-fiche' : ''}` : 'aucune'))(teteDuNumero('33600000001', tetes3)));
+dit('une fiche archivée nomme encore un numéro que personne de vivant ne porte', 'arch2',
+  teteDuNumero('2290197000088', tetesDeLaMaison({ clientes: [f({ id: 'arch2', name: 'Yan Y.', phone: '+229 0197000088', archived: true })], aujourdhui: AUJ }))?.id ?? 'aucune');
+
+const filMaman = fils.find((x) => x.numero === '33600000001');
+const inconnu = filsDeLaMaison([m('9', '22990000099', 'Promo')], tetes, [], Date.parse('2026-11-04T08:00:00Z'))[0];
+dit('le fil de Maman porte ses enfants ; il ne s’efface pas, un inconnu oui', [['au', 'no'], false, true],
+  [filMaman?.parentDe ?? null, filMaman ? filEffacable(filMaman) : 'absent', inconnu ? filEffacable(inconnu) : 'absent']);
+
+const appelAncien = { id: 'wa-call-1', callId: '1', numero: '33600000001', clientId: 'au', sens: 'entrant', etat: 'manque', sonneLe: '2026-11-04T07:10:00Z' } as unknown as AppelWa;
+const boites = boitesDeLaMaison({ fils, appelsWa: [appelAncien], clientes: [ARCH, ...FICHES], familles: FAMILLES, aujourdhui: AUJ, maintenant: Date.parse('2026-11-04T08:00:00Z') });
+const boiteMaman = boites.find((b) => b.numero === '33600000001');
+dit('la boîte du fil de Maman : rangée sous le numéro, pas sous l’enfant ni l’archivée, avec son appel ancien, un parent',
+  ['n:33600000001', ['au', 'no'], 1, true],
+  [boiteMaman?.cle ?? 'absente', boiteMaman?.parentDe ?? null, boiteMaman?.appelsWa.length ?? 0, !boites.some((b) => b.cle === 'c:au' || b.cle === 'c:arch')]);
+dit('la boîte du téléphone de la mère reste celle de sa fiche', 'c:ro', boites.find((b) => b.numero === '2290197000011')?.cle ?? 'absente');
+
+/* Le serveur (`laVoixDuFil`) : la même règle pour un enfant sans date de naissance. */
+const base: Record<'clients' | 'families', { id: string; data: Record<string, unknown> }[]> = {
+  clients: [PE, PI, PERE].map((x) => ({ id: x.id, data: { ...x } })),
+  families: [{ id: 'fam-e', data: { payerClientId: 'pere' } }],
+};
+const lisLaBase: LecteurDeLaVoix = async (table, ids) => base[table].filter((l) => ids.includes(l.id));
+const vFil = await laVoixDuFil('2290197000044', ['pe', 'pi', 'pere'], lisLaBase, AUJ);
+dit('au serveur : le payeur parle, les deux enfants sans date sont muettes', ['pere', ['pe', 'pi']], [vFil?.fiche?.id ?? null, vFil?.muettes ?? null]);
+
+/* ── 5. La lettre ── */
 const pur = readFileSync('src/shared/voix-du-numero-pur.ts', 'utf8');
 const ecrans = ['src/apps/trone/routes/clients/LesConversations.tsx', 'src/apps/trone/routes/clients/Conversations.tsx', 'src/apps/trone/routes/clients/Gerard.tsx', 'src/apps/trone/routes/pilotage/AlarmeWhatsApp.tsx']
   .map((p) => sansCommentaires(readFileSync(p, 'utf8')));
 dit('les quatre écrans donnent les comptes famille aux têtes', [true, true, true, true], ecrans.map((e) => /tetesDeLaMaison\(\{ clientes: clients, familles/.test(e)));
+dit('Les conversations : la boîte reçoit les comptes famille ; « Bloquer » jamais sur le fil d’un parent', [true, 3],
+  [/clientes: clients, familles, maintenant/.test(ecrans[0]), (ecrans[0].match(/b\.sansFiche && !b\.parentDe|!b\.sansFiche \|\| b\.parentDe/g) ?? []).length]);
 dit('pas de tiret cadratin, pas le mot banni', [false, false], [pur.includes(String.fromCharCode(0x2014)), /\bsalons?\b/i.test(pur)]);
 
 console.log(ko === 0 ? '\nLa voix du numero tient.' : `\n${ko} ECHEC(S)`);

@@ -44,6 +44,9 @@ globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assig
 const PUR = 'src/shared/voix-du-numero-pur.ts';
 const CONV = 'src/shared/conversations.ts';
 const GERARD = 'src/apps/trone/routes/clients/Gerard.tsx';
+const BOITE = 'src/shared/boite-unique-pur.ts';
+const LES = 'src/apps/trone/routes/clients/LesConversations.tsx';
+const FIL = 'src/shared/voix-du-fil-pur.ts';
 const PANNES = [
   ['une mineure parle sur le numero de sa mere', PUR, "if (estMineur(f, aujourdhui)) return false;", ""],
   ['le nom Maman ou Papa ignore', PUR, "return !LIBELLE_PARENTAL.test(nom ?? '');", "return true;"],
@@ -53,6 +56,18 @@ const PANNES = [
   ['l enfant garde son numero dans les tetes', CONV, "phone: parle(c, 'phone') ? c.phone : undefined, phone2: parle(c, 'phone2') ? c.phone2 : undefined,", "phone: c.phone, phone2: c.phone2,"],
   ['la voix sans fiche devient une cliente', CONV, "      clientId: tete && !tete.sansFiche && (tete.tiroir", "      clientId: tete && (tete.tiroir"],
   ['un ecran oublie les comptes famille', GERARD, "tetesDeLaMaison({ clientes: clients, familles })", "tetesDeLaMaison({ clientes: clients })"],
+  ['un enfant sans date de naissance parle sous son payeur', PUR, "if (ageDe(f.birthday, aujourdhui) !== undefined || !f.familyId) return false;", "return false;"],
+  ['le payeur sans numero ne parle pas pour l enfant sans date', PUR, "return (!p1 && !p2) || (!!k && (p1 === k || p2 === k));", "return !!k && (p1 === k || p2 === k);"],
+  ['une fiche archivee passe devant la voix', CONV, "const tetes: TeteConnue[] = clientes.filter((c) => !c.archived).map(teteDe);", "const tetes: TeteConnue[] = clientes.map(teteDe);"],
+  ['le fil du parent s efface', CONV, "f.sansFiche && !f.parentDe?.length && f.messages.length > 0", "f.sansFiche && f.messages.length > 0"],
+  ['le fil du parent perd ses enfants', CONV, "      ...(tete?.sansFiche && tete.enfants?.length ? { parentDe: tete.enfants } : {}),\n      prive: prives.includes(numero),", "      prive: prives.includes(numero),"],
+  ['la boite range le parent sous l enfant', BOITE, "if (k && clientId && !muette(clientId, k) && !clienteDuNumero.has(k))", "if (k && clientId && !clienteDuNumero.has(k))"],
+  ['une piece ancienne de l enfant tire la boite', BOITE, "if (clientId && !muette(clientId, k)) return `c:${clientId}`;", "if (clientId) return `c:${clientId}`;"],
+  ['l archivee prend le numero des vivantes', BOITE, "if (!portesParLesVivantes.has(cleDuNumero(brut))) pose(brut, c.id);", "pose(brut, c.id);"],
+  ['la boite perd le parent', BOITE, "      ...(parentDe ? { parentDe } : {}),\n", ""],
+  ['la boite oublie les comptes famille', LES, "clientes: clients, familles, maintenant", "clientes: clients, maintenant"],
+  ['le parent se bloque', LES, "estDirection && b.sansFiche && !b.parentDe && b.fil && b.numero && !b.tri && aConfirmer !== b.cle && <button", "estDirection && b.sansFiche && b.fil && b.numero && !b.tri && aConfirmer !== b.cle && <button"],
+  ['le serveur laisse parler l enfant sans date', FIL, " && !muetteSousSonPayeur(f, c, connues, familles, aujourdhui));", ");"],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

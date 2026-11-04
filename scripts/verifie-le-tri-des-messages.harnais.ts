@@ -61,7 +61,7 @@ dit('une boite bloquee ne parait que dans Bloques ; une proposition dans Proposi
 ]);
 const boite = readFileSync('src/shared/boite-unique-pur.ts', 'utf8');
 dit('la boite : seulement sans fiche, par son numero WhatsApp ; un trie n attend pas de reponse', [true, true],
-  [boite.includes("const etatDuTri = !b.clientId && e.tri && fil?.numero ? etatDuNumero(e.tri as TriDesMessages, fil.numero) : 'inconnu';"), boite.includes('attendUneReponse: !tri && pourquoi.length > 0,')]);
+  [boite.includes("const etatDuTri = !b.clientId && !parentDe && e.tri && fil?.numero ? etatDuNumero(e.tri as TriDesMessages, fil.numero) : 'inconnu';"), boite.includes('attendUneReponse: !tri && pourquoi.length > 0,')]);
 
 /* ── ③ LA FONCTION, CONTRE UNE BASE, UN CLAUDE ET UN WHATSAPP SIMULÉS ── */
 type Ligne = { id: string; data: Record<string, unknown> };
@@ -248,7 +248,7 @@ dit('le Trone : les onglets Propositions et Bloques, Debloquer, Bloquer ce numer
   conv.includes("(['propositions', 'bloques'] as const).map((f) => ("), conv.includes("{b.tri.etat === 'bloque' ? 'Débloquer' : 'C’est une cliente'}"),
   conv.includes('>Bloquer ce numéro</button>'), conv.includes('>Relire les dernières 24 h</button>'), conv.includes('Bloquer les cochés ({passe.coches.length})'),
 ]);
-dit('... la direction seule bloque et debloque', [true, true], [conv.includes('{estDirection && b.sansFiche && b.fil && b.numero && !b.tri && aConfirmer !== b.cle && ('), conv.includes("{filtre === 'bloques' && estDirection && (")]);
+dit('... la direction seule bloque et debloque', [true, true], [conv.includes('{estDirection && b.sansFiche && !b.parentDe && b.fil && b.numero && !b.tri && aConfirmer !== b.cle && ('), conv.includes("{filtre === 'bloques' && estDirection && (")]);
 
 console.log(ko === 0 ? `\nLe tri tient (${n} controles).` : `\n${ko} controle(s) en echec sur ${n}.`);
 process.exitCode = ko === 0 ? 0 : 1;

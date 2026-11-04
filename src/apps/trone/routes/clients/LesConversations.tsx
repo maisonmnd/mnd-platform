@@ -265,9 +265,9 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
   const [aConfirmer, setAConfirmer] = useState<string | null>(null);
   const envoisLus = envois as unknown as EnvoiDeLaBoite[];
   const entreeDesBoites = useMemo(() => ({
-    fils, discussions, demandes, appelsWa, appels, signalements, envois: envoisLus, clientes: clients, maintenant: tick, branchId: branch.id, tiroirs: [...new Set(['clientes' as const, ...fils.map((f) => f.tiroir)])],
+    fils, discussions, demandes, appelsWa, appels, signalements, envois: envoisLus, clientes: clients, familles, maintenant: tick, branchId: branch.id, tiroirs: [...new Set(['clientes' as const, ...fils.map((f) => f.tiroir)])],
     riensARepondre: riens, tri,
-  }), [fils, discussions, demandes, appelsWa, appels, signalements, envoisLus, clients, tick, branch.id, riens, tri]);
+  }), [fils, discussions, demandes, appelsWa, appels, signalements, envoisLus, clients, familles, tick, branch.id, riens, tri]);
   const boitesBrutes = useMemo(() => boitesDeLaMaison(entreeDesBoites), [entreeDesBoites]);
 
   /* LA BOÎTE QU'UN LIEN DÉSIGNE : `?n=` (un numéro), `?c=` (une fiche), `?d=` (une discussion). */
@@ -789,7 +789,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
         </div>
       );
     }
-    if (!estDirection || !b.sansFiche || !b.fil || !b.numero) return null;
+    if (!estDirection || !b.sansFiche || b.parentDe || !b.fil || !b.numero) return null;
     return aConfirmer === b.cle ? (
       <div className="trc-bx__tri" role="note">
         <span>Bloquer ce numéro chez WhatsApp : il ne pourra plus écrire à la Maison. Ses messages restent lisibles dans « Bloqués ».</span>
@@ -841,7 +841,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
           {b.fil && estDirection && b.fil.messages.length > 0 && (
             <button type="button" className="trc-ger__btn trc-am__btn--calme" onClick={() => basculeLArchive(b.fil!)}>{estArchive(b.fil, archives) ? 'Désarchiver' : 'Archiver'}</button>
           )}
-          {estDirection && b.sansFiche && b.fil && b.numero && !b.tri && aConfirmer !== b.cle && (
+          {estDirection && b.sansFiche && !b.parentDe && b.fil && b.numero && !b.tri && aConfirmer !== b.cle && (
             <button type="button" className="trc-ger__btn trc-am__btn--calme" onClick={() => setAConfirmer(b.cle)}>Bloquer ce numéro</button>
           )}
         </div>
@@ -931,7 +931,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
             {!etroit && <button type="button" className="trc-bx__outil-btn" onClick={() => poseLeRdv(b)}><CalendarPlus size={14} aria-hidden="true" />RDV</button>}
             {!etroit && <button type="button" className={`trc-bx__outil-btn${ficheOuverte ? ' est-choisi' : ''}`} aria-pressed={ficheOuverte} onClick={() => setFicheOuverte((v) => !v)}><UserRound size={14} aria-hidden="true" />Sa fiche</button>}
             {b.attendUneReponse && !etroit && <button type="button" className="trc-bx__outil-btn" onClick={() => range(b)}><Check size={14} aria-hidden="true" />Rien à répondre</button>}
-            {estDirection && b.sansFiche && b.fil && b.numero && !b.tri && aConfirmer !== b.cle && <button type="button" className="trc-bx__outil-btn" onClick={() => setAConfirmer(b.cle)}>Bloquer ce numéro</button>}
+            {estDirection && b.sansFiche && !b.parentDe && b.fil && b.numero && !b.tri && aConfirmer !== b.cle && <button type="button" className="trc-bx__outil-btn" onClick={() => setAConfirmer(b.cle)}>Bloquer ce numéro</button>}
             <button type="button" className="trc-bx__outil-btn trc-bx__suivante" onClick={suivante}>Suivante<ArrowRight size={14} aria-hidden="true" /></button>
           </span>
         </div>

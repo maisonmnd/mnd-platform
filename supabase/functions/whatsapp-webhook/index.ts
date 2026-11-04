@@ -127,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-04-b · une fiche d enfant n est jamais la voix du numero : le message et l appel portent l adulte, le payeur, ou personne ; les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour';
+const VERSION = '2026-11-04-c · une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero : le message et l appel portent l adulte, le payeur, ou personne ; les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -1129,6 +1129,25 @@ export function parleSurCeNumero(f: FicheParlante, champ: 'phone' | 'phone2', au
   return !LIBELLE_PARENTAL.test(nom ?? '');
 }
 
+/** SANS DATE DE NAISSANCE, SOUS UN PAYEUR : la fiche ne parle pas sur le
+    numéro du parent qui règle son compte famille, ni sur aucun numéro quand
+    ce parent n'en a pas. `fiches` : celles qu'on connaît (le payeur parmi
+    elles, sinon on ne juge pas). */
+export function muetteSousSonPayeur(
+  f: FicheParlante, champ: 'phone' | 'phone2', fiches: readonly FicheParlante[],
+  familles: readonly FamillePayeuse[] | undefined, aujourdhui: string,
+): boolean {
+  if (ageDe(f.birthday, aujourdhui) !== undefined || !f.familyId) return false;
+  const payeurId = (familles ?? []).find((fa) => fa.id === f.familyId)?.payerClientId;
+  if (!payeurId || payeurId === f.id) return false;
+  const payeur = fiches.find((x) => x.id === payeurId && !x.archived);
+  if (!payeur) return false;
+  const k = cleDuNumero(f[champ]);
+  const p1 = cleDuNumero(payeur.phone);
+  const p2 = cleDuNumero(payeur.phone2);
+  return (!p1 && !p2) || (!!k && (p1 === k || p2 === k));
+}
+
 export type VoixDuNumero =
   /** Une fiche adulte parle sur ce numéro (elle le porte, ou elle règle le compte des enfants qui le portent). */
   | { genre: 'fiche'; numero: string; fiche: FicheParlante; enfants: string[] }
@@ -1144,7 +1163,8 @@ export function voixDesNumeros(o: {
   aujourdhui: string;
 }): { voix: Map<string, VoixDuNumero>; parle: (f: FicheParlante, champ: 'phone' | 'phone2') => boolean } {
   const vivantes = o.fiches.filter((f) => !f.archived);
-  const parle = (f: FicheParlante, champ: 'phone' | 'phone2') => parleSurCeNumero(f, champ, o.aujourdhui);
+  const parle = (f: FicheParlante, champ: 'phone' | 'phone2') =>
+    parleSurCeNumero(f, champ, o.aujourdhui) && !muetteSousSonPayeur(f, champ, vivantes, o.familles, o.aujourdhui);
   const adultes = new Set<string>();
   const enfants = new Map<string, { brut: string; fiche: FicheParlante; libelle?: string }[]>();
   for (const f of vivantes) {
@@ -1238,20 +1258,24 @@ export async function laVoixDuFil(numero: string, ids: readonly string[], lis: L
   const lignes = new Map(lues.map((l) => [String(l.id), l]));
   const fiches = lues.map(ficheParlanteDe).filter((f) => !f.archived);
   const porte = (f: FicheParlante, champ: 'phone' | 'phone2'): boolean => cle(f[champ]) === k;
-  const parleIci = (f: FicheParlante): boolean => (['phone', 'phone2'] as const).some((c) => porte(f, c) && parleSurCeNumero(f, c, aujourdhui));
   const portent = fiches.filter((f) => porte(f, 'phone') || porte(f, 'phone2'));
-  const muettes = portent.filter((f) => !parleIci(f)).map((f) => f.id);
-  const adulte = portent.find(parleIci);
-  if (adulte) return { fiche: ficheDeLaVoix(adulte, lignes.get(adulte.id)), muettes };
-  if (portent.length === 0) return { muettes };
-  /* Seuls des enfants le portent : le parent qui règle leur compte famille. */
+  if (portent.length === 0) return { muettes: [] };
+  /* Les comptes famille de celles qui le portent, et leurs payeurs : un
+     enfant SANS DATE DE NAISSANCE se juge par eux (`muetteSousSonPayeur`). */
   const foyers = [...new Set(portent.map((f) => f.familyId).filter((x): x is string => !!x))];
   const familles: FamillePayeuse[] = foyers.length === 0 ? [] : ((await lis('families', foyers)) ?? [])
     .map((l) => ({ id: String(l.id), payerClientId: texteDeLaVoix(l.data?.payerClientId) }));
   const absents = [...new Set(familles.map((f) => f.payerClientId).filter((x): x is string => !!x && !lignes.has(x)))];
   const payeurs = absents.length === 0 ? [] : ((await lis('clients', absents)) ?? []);
   for (const l of payeurs) lignes.set(String(l.id), l);
-  const { voix } = voixDesNumeros({ fiches: [...fiches, ...payeurs.map(ficheParlanteDe)], familles, aujourdhui });
+  const connues = [...fiches, ...payeurs.map(ficheParlanteDe).filter((f) => !f.archived)];
+  const parleIci = (f: FicheParlante): boolean => (['phone', 'phone2'] as const)
+    .some((c) => porte(f, c) && parleSurCeNumero(f, c, aujourdhui) && !muetteSousSonPayeur(f, c, connues, familles, aujourdhui));
+  const muettes = portent.filter((f) => !parleIci(f)).map((f) => f.id);
+  const adulte = portent.find(parleIci);
+  if (adulte) return { fiche: ficheDeLaVoix(adulte, lignes.get(adulte.id)), muettes };
+  /* Seuls des enfants le portent : le parent qui règle leur compte famille. */
+  const { voix } = voixDesNumeros({ fiches: connues, familles, aujourdhui });
   const v = voix.get(k);
   if (v?.genre === 'fiche') return { fiche: ficheDeLaVoix(v.fiche, lignes.get(v.fiche.id)), payeur: true, muettes };
   if (v?.genre === 'sans-fiche') return { nom: v.nom, muettes };
