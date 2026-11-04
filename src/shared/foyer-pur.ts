@@ -288,8 +288,8 @@ export const EQUIVALENCES_KIDS: readonly { famille: string; adultes: readonly st
   { famille: 'SÍNSIN™', adultes: ['sv-atl-ii-e', 'sv-atl-ii-l'], kids: 'sv-kids-sinsin' },
   /* Les soins : le renfort seul (rangé aux soins le 10 octobre 2026). */
   { famille: 'GBÌGBÌ™ · le renfort', adultes: ['sv-plt-40-m'], kids: 'sv-kids-gbigbi' },
-  /* Les soins : la sublimation et le renfort durable, les deux gestes en un. */
-  { famille: 'la sublimation', adultes: ['sv-gbeji-sublimation'], kids: 'sv-kids-yekpe' },
+  /* LA SUBLIMATION N'A PAS DE VERSION KIDS (Yéman, 4 novembre 2026 : « no
+     yekpe ») : elle reste telle quelle, et l'écran la signale à revoir. */
 ];
 
 export type GesteDeSonAge = {

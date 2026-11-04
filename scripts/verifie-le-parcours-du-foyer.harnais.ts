@@ -145,7 +145,10 @@ dit('à âge égal, les mêmes gestes', [KLOKLO, SINSIN], gestesDeSonAge([KLOKLO
 dit('un âge inconnu ne change rien', [KLOKLO, SINSIN], gestesDeSonAge([KLOKLO, SINSIN], 'inconnu').serviceIds);
 dit('les trois lavages et la Signature des grandes ont leur version Kids', [KLOKLO_KIDS, KLOKLO_KIDS, KLOKLO_KIDS, SINSIN_KIDS],
   ['sv-plt-05-sig-c', 'sv-plt-05-pre-c', 'sv-dds-shp-e', 'sv-atl-ii-l'].map((id) => versionDeSonAge(id, 'oui').id));
-dit('les soins : le renfort et la sublimation', ['sv-kids-gbigbi', 'sv-kids-yekpe'], ['sv-plt-40-m', 'sv-gbeji-sublimation'].map((id) => versionDeSonAge(id, 'oui').id));
+dit('les soins : le renfort a sa version Kids', 'sv-kids-gbigbi', versionDeSonAge('sv-plt-40-m', 'oui').id);
+/* « no yekpe » (Yéman, 4 novembre 2026) : la sublimation n'a pas de version Kids. */
+dit('la sublimation reste telle quelle, signalée à revoir', { id: 'sv-gbeji-sublimation', sansVersion: true },
+  (({ id, sansVersion }) => ({ id, sansVersion }))(versionDeSonAge('sv-gbeji-sublimation', 'oui')));
 dit('deux lavages des grandes font un seul KLƆKLƆ™ Kids', [KLOKLO_KIDS], gestesDeSonAge([KLOKLO, 'sv-plt-05-sig-c'], 'oui').serviceIds);
 dit('un soin sans version Kids reste, signalé à revoir', { ids: [KLOKLO_KIDS, 'sv-plt-10-m'], aRevoir: ['sv-plt-10-m'] },
   (() => { const g = gestesDeSonAge([KLOKLO, 'sv-plt-10-m'], 'oui'); return { ids: g.serviceIds, aRevoir: g.aRevoir }; })());
