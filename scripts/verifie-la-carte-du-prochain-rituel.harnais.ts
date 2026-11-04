@@ -6,8 +6,8 @@
    dans sa fiche. Données inventées : le dépôt est public. */
 import { readFileSync } from 'node:fs';
 import {
-  carteNeuve, ceQueDitLaPlace, gesteSurLaCarte, issueDeLaFermeture, laPlaceDOffice, laRaisonDeLaDate,
-  lesJoursDUneAutreDate, pastilleDeLaCarte, type EtatDeLaCarte, type GesteDeLaCarte,
+  carteNeuve, ceQueDitLaPlace, ceQueDitLeRendezVousDejaLa, ceQuiPartVersElle, gesteSurLaCarte, issueDeLaFermeture, laPlaceDOffice, laRaisonDeLaDate,
+  lesHeuresDuJour, lesJoursDUneAutreDate, pastilleDeLaCarte, sansDateDOffice, type EtatDeLaCarte, type GesteDeLaCarte,
 } from '../src/shared/carte-du-prochain-rituel-pur';
 import type { Proposition } from '../src/apps/trone/routes/clients/rdv-fluide-pur';
 
@@ -31,6 +31,14 @@ dit('son jour habituel d’abord, sinon sa date, sinon la première ; rien : nul
     laPlaceDOffice([P('tot', '2026-11-28', '09:00'), P('date', '2026-12-02', '10:00')])?.iso ?? null,
     laPlaceDOffice([P('tot', '2026-11-28', '09:00'), P('autre', '2026-12-09', '10:00')])?.iso ?? null,
     laPlaceDOffice([]),
+  ]);
+/* Le 2 décembre 2026 est un mercredi (3) ; le 5, un samedi (6). */
+dit('sa date qui tombe déjà sur son jour habituel passe devant le même jour une semaine plus tard ; sinon son jour',
+  ['2026-12-02', '2026-12-05', '2026-12-05'],
+  [
+    laPlaceDOffice([P('date', '2026-12-02', '10:00'), P('jour', '2026-12-09', '10:00')], 3)?.iso ?? null,
+    laPlaceDOffice([P('date', '2026-12-02', '10:00'), P('jour', '2026-12-05', '10:00')], 6)?.iso ?? null,
+    laPlaceDOffice([P('date', '2026-12-02', '10:00'), P('jour', '2026-12-05', '10:00')], null)?.iso ?? null,
   ]);
 
 /* ── 2. Ce que dit la place, et pourquoi cette date ── */
@@ -121,6 +129,39 @@ const placesDe = (iso: string) => ({ ferme: new Date(`${iso}T12:00:00Z`).getUTCD
 dit('« Une autre date » : les jours ouverts qui ont une place, sans le lundi fermé ni le jour complet',
   ['2026-12-01', '2026-12-02', '2026-12-04', '2026-12-05', '2026-12-06'],
   lesJoursDUneAutreDate({ depuis: '2026-11-30', placesDe, ajouteJours: ajoute, n: 5 }));
+
+/* ── 4 bis. Ce que les écrans ajoutent (4 novembre 2026) ── */
+dit('pas de date en grand : première venue, tête de passage ou diaspora sans rythme ; un rythme mesuré la donne',
+  [true, false, true, false, false, true],
+  [
+    sansDateDOffice({ source: 'defaut' }),
+    sansDateDOffice({ source: 'cadence' }),
+    sansDateDOffice({ source: 'cadence', dePassage: true }),
+    sansDateDOffice({ source: 'cadence', diaspora: true, rythmeSurLaFiche: true }),
+    sansDateDOffice({ source: 'rituel', dePassage: true }),
+    sansDateDOffice({ source: 'defaut', rythmeSurLaFiche: true }),
+  ]);
+dit('les heures d’un jour : toutes celles du jour, les prises barrées, dans l’ordre',
+  [{ heure: '09:00', libre: false }, { heure: '10:00', libre: true }, { heure: '11:30', libre: true }, { heure: '14:00', libre: false }],
+  lesHeuresDuJour({ toutes: ['14:00', '09:00', '11:30', '10:00'], libres: ['11:30', '10:00'] }));
+const valideeA = joue(neuve, [{ genre: 'valider', id: 'r1' }]).x;
+dit('ce qu’elle reçoit : rien avant de valider, une fois à la fermeture, rien de plus pour un rendez-vous déjà là, rien sans numéro',
+  ['attend', 'part', 'deja', 'sans-numero', 'rien'],
+  [
+    ceQuiPartVersElle(neuve, { aUnNumero: true }).genre,
+    ceQuiPartVersElle(valideeA, { aUnNumero: true }).genre,
+    ceQuiPartVersElle(deja, { aUnNumero: true }).genre,
+    ceQuiPartVersElle(valideeA, { aUnNumero: false }).genre,
+    ceQuiPartVersElle(e2.x, { aUnNumero: true }).genre,
+  ]);
+const dateDite = (iso: string) => ({ '2026-10-20': '20 octobre 2026' } as Record<string, string>)[iso] ?? iso;
+dit('le rendez-vous déjà là dit d’où il vient',
+  ['Posé le 20 octobre 2026 depuis Ma Couronne, confirmé.', 'Posé le 20 octobre 2026 au Trône, en attente de confirmation.', 'Déjà posé, confirmé.'],
+  [
+    ceQueDitLeRendezVousDejaLa({ creeLe: '2026-10-20T09:12:00.000Z', source: 'couronne', status: 'confirmé', dateDite }),
+    ceQueDitLeRendezVousDejaLa({ creeLe: '2026-10-20T09:12:00.000Z', source: 'trone', status: 'en attente', dateDite }),
+    ceQueDitLeRendezVousDejaLa({ dateDite }),
+  ]);
 
 /* ── 5. La lettre ── */
 const pur = readFileSync('src/shared/carte-du-prochain-rituel-pur.ts', 'utf8');

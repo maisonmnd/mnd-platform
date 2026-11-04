@@ -33,9 +33,14 @@ export const memePlace = (a: PlaceDeLaCarte | null | undefined, b: PlaceDeLaCart
   !!a && !!b && a.iso === b.iso && a.heure === b.heure;
 
 /** LA PLACE PROPOSÉE D'OFFICE parmi ses trois places : son jour habituel,
-    autour de son rythme ; sinon sa date ; sinon la première. `null` : aucune. */
-export function laPlaceDOffice(places: readonly Proposition[]): Proposition | null {
-  return places.find((p) => p.cle === 'jour') ?? places.find((p) => p.cle === 'date') ?? places[0] ?? null;
+    autour de son rythme ; sinon sa date ; sinon la première. `null` : aucune.
+    SA DATE QUI TOMBE DÉJÀ SUR SON JOUR (4 novembre 2026, les écrans) : les
+    trois places du « + RDV » ne redonnent pas ce jour sous « Son samedi », et
+    le samedi suivant, une semaine trop tard, passait devant. Sa date gagne. */
+export function laPlaceDOffice(places: readonly Proposition[], jourHabituel?: number | null): Proposition | null {
+  const date = places.find((p) => p.cle === 'date');
+  if (date && jourHabituel !== null && jourHabituel !== undefined && new Date(`${date.iso}T12:00:00`).getDay() === jourHabituel) return date;
+  return places.find((p) => p.cle === 'jour') ?? date ?? places[0] ?? null;
 }
 
 /** POURQUOI CETTE DATE, en une phrase pour l'équipe : son rythme, d'où il
@@ -240,4 +245,63 @@ export function lesJoursDUneAutreDate(o: {
     if (!p.ferme && p.heures.length > 0) jours.push(iso);
   }
   return jours;
+}
+
+/* ── CE QUE LES ÉCRANS AJOUTENT À LA CARTE · 4 novembre 2026 ─────────────
+   La fenêtre « Encaisser le rituel » (« C'est réglé »), la Caisse après le
+   paiement, et « Marquer honoré » au Carnet montrent la même carte ; ces
+   règles disent ce qu'elle montre, sans magasin ni React. */
+
+const enMinutes = (h: string) => { const [hh, mm] = h.split(':').map(Number); return (hh || 0) * 60 + (mm || 0); };
+
+/** PAS DE DATE EN GRAND quand son rythme ne se lit pas : une première venue
+    (ni rythme mesuré ni cadence), une tête de passage ou de la diaspora sans
+    rythme posé sur sa fiche (sauf un rythme mesuré sur ce rituel). La carte
+    propose alors trois places : un toucher pose. */
+export function sansDateDOffice(o: {
+  source: 'rituel' | 'cadence' | 'defaut';
+  dePassage?: boolean;
+  diaspora?: boolean;
+  rythmeSurLaFiche?: boolean;
+}): boolean {
+  if (o.source === 'defaut') return true;
+  return (!!o.dePassage || !!o.diaspora) && !o.rythmeSurLaFiche && o.source !== 'rituel';
+}
+
+/** LES HEURES D'UN JOUR DE « UNE AUTRE DATE » : celles que le jour ouvre pour
+    sa durée (le carnet vide), les prises barrées, rangées dans le temps. */
+export function lesHeuresDuJour(o: { toutes: readonly string[]; libres: readonly string[] }): { heure: string; libre: boolean }[] {
+  const libres = new Set(o.libres);
+  return [...new Set([...o.toutes, ...o.libres])]
+    .sort((a, b) => enMinutes(a) - enMinutes(b))
+    .map((heure) => ({ heure, libre: libres.has(heure) }));
+}
+
+/** CE QU'ELLE REÇOIT, dit avant la fermeture : rien tant que ce n'est pas
+    validé ; une seule confirmation, à la fermeture ; rien de plus pour un
+    rendez-vous qui existait déjà ; rien du tout sans numéro. */
+export function ceQuiPartVersElle(e: EtatDeLaCarte, o: { aUnNumero: boolean }): { genre: 'rien' | 'deja' | 'attend' | 'sans-numero' | 'part'; texte: string } {
+  if (e.retire || !e.place) return { genre: 'rien', texte: 'Rien ne part vers elle.' };
+  if (e.dejaLa) return { genre: 'deja', texte: 'Rien de plus : ce rendez-vous existait déjà, sa confirmation est partie quand il a été posé.' };
+  if (!e.valide) {
+    return { genre: 'attend', texte: 'Rien tant que le rendez-vous n’est pas validé. Validé, la confirmation part à la fermeture de cet écran, une seule fois, avec la date retenue.' };
+  }
+  if (!o.aUnNumero) return { genre: 'sans-numero', texte: 'Sa fiche n’a pas de numéro : aucune confirmation ne partira. Le rendez-vous est posé, confirmé.' };
+  return { genre: 'part', texte: 'À la fermeture de cet écran, une seule fois, avec la date retenue. Changer la place avant de fermer n’envoie rien de plus.' };
+}
+
+const D_OU_VIENT: Record<string, string> = {
+  couronne: 'depuis Ma Couronne',
+  site: 'depuis le site',
+  whatsapp: 'sur WhatsApp',
+  trone: 'au Trône',
+};
+
+/** LE RENDEZ-VOUS QUI EXISTAIT DÉJÀ, d'où il vient : « Posé le 20 octobre
+    2026 depuis Ma Couronne, confirmé. » `dateDite` : « 20 octobre 2026 ». */
+export function ceQueDitLeRendezVousDejaLa(o: { creeLe?: string; source?: string; status?: string; dateDite: (iso: string) => string }): string {
+  const quand = /^\d{4}-\d{2}-\d{2}/.test(o.creeLe ?? '') ? ` le ${o.dateDite((o.creeLe as string).slice(0, 10))}` : '';
+  const ou = o.source && D_OU_VIENT[o.source] ? ` ${D_OU_VIENT[o.source]}` : '';
+  const statut = o.status === 'en attente' ? 'en attente de confirmation' : 'confirmé';
+  return quand || ou ? `Posé${quand}${ou}, ${statut}.` : `Déjà posé, ${statut}.`;
 }

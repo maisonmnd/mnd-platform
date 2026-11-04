@@ -255,7 +255,7 @@ export function ceQuiDemandeSaFiche(c: {
   if ((c.remiseFamillePct ?? 0) > 0) return `La remise famille de son foyer (${c.remiseFamillePct} %) se pose dans sa fiche`;
   if (c.prixLibre) return 'Un geste de ce rituel se tarife au fauteuil : son prix se convient dans sa fiche';
   if (c.seancesIncluses) return 'Ce rituel pose des séances incluses : elles se datent dans sa fiche';
-  if (c.salonPrive) return 'Ce rituel privatise le salon : le salon se ferme depuis sa fiche';
+  if (c.salonPrive) return 'Ce rituel privatise la Maison : la fermeture se pose dans sa fiche';
   if (c.paliersStricts) return 'Le réglage strict des paliers demande une main habilitée : elle se choisit dans sa fiche';
   return null;
 }
@@ -273,7 +273,13 @@ export function ceQuiDemandeSaFiche(c: {
    touchée, écrit son code, son offre et ses remises de ligne, comme le site
    et la fenêtre du rendez-vous les écrivent ; le prix figé est alors le net
    arrondi au millier (`ceQueRetireLeMercredi`). Sans elle, rien ne change :
-   aucun code, aucune remise. */
+   aucun code, aucune remise.
+
+   LA CARTE « SON PROCHAIN RITUEL » (4 novembre 2026) le pose SANS
+   confirmation tant qu'elle est ouverte (`sansConfirmation`), relié à son
+   rituel (`repriseDe`), et lève le drapeau à sa fermeture : la
+   confirmation-rdv le balaie alors, une fois, à la date retenue. La remise
+   famille de sa tête s'y fige en francs, comme la fenêtre la fige. */
 export function leRendezVousDuProchainRituel(o: {
   id: string;
   branchId: string;
@@ -292,7 +298,17 @@ export function leRendezVousDuProchainRituel(o: {
   numeroAPrevenir?: string;
   /** Le mercredi de la Maison posé sur cette place (`poseLOffreDuJour`). */
   offreDuJour?: { codeOffre: string; offreId?: string; remisesLignes: ({ pct?: number; xof?: number } | null)[] } | null;
+  /** LA CARTE « SON PROCHAIN RITUEL » (4 novembre 2026) : le rituel dont il
+      est la suite (« un rituel, un seul prochain », `prochainDejaPose`). */
+  repriseDe?: string;
+  /** La carte pose SANS confirmation tant qu'elle est ouverte ; elle lève
+      ce drapeau à sa fermeture, et la confirmation part une fois. */
+  sansConfirmation?: boolean;
+  /** La remise famille de sa tête, en francs, comme la fenêtre la fige
+      (`remiseFamille`, `remiseFamilleXof`, et le cumul `discountXof`). */
+  remiseFamilleXof?: number;
 }): Appointment {
+  const famille = Math.max(0, Math.round(o.remiseFamilleXof ?? 0));
   return {
     id: o.id,
     branchId: o.branchId,
@@ -306,7 +322,10 @@ export function leRendezVousDuProchainRituel(o: {
     master: o.master,
     status: 'confirmé',
     source: 'trone',
+    ...(o.sansConfirmation ? { sansConfirmation: true } : {}),
+    ...(o.repriseDe ? { repriseDe: o.repriseDe } : {}),
     priceXof: o.priceXof,
+    ...(famille > 0 ? { discountXof: famille, remiseFamille: true, remiseFamilleXof: famille } : {}),
     depositServiceIds: [...o.depositServiceIds],
     depositXof: o.depositXof,
     ...(o.offreDuJour ? {

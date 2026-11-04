@@ -50,11 +50,21 @@ const PANNES = [
   ['retirer sans confirmation', PUR, "return { etat: { ...e, pied: 'demande-retrait' }, effets: [] };", "return { etat: { ...e, retire: true, valide: false, rdvId: null, pied: 'rien' }, effets: [{ genre: 'retirer', rdvId: e.rdvId ?? '' }] };"],
   ['un retire se confirme quand meme', PUR, "if (e.valide && e.rdvId && !e.retire) {", "if (e.rdvId || e.retire) {"],
   ['la carte termine accepte encore des gestes', PUR, "if (e.pied === 'termine') return rien;", ""],
-  ['la date d office oublie son jour habituel', PUR, "return places.find((p) => p.cle === 'jour') ?? places.find((p) => p.cle === 'date') ?? places[0] ?? null;", "return places.find((p) => p.cle === 'date') ?? places[0] ?? null;"],
+  ['la date d office oublie son jour habituel', PUR, "return places.find((p) => p.cle === 'jour') ?? date ?? places[0] ?? null;", "return date ?? places[0] ?? null;"],
+  ['sa date sur son jour cede au meme jour une semaine plus tard', PUR, "if (date && jourHabituel !== null && jourHabituel !== undefined && new Date(`${date.iso}T12:00:00`).getDay() === jourHabituel) return date;", ''],
   ['l heure prise ne se dit pas', PUR, "if (o.heureHabituelle && o.place.heure !== o.heureHabituelle) {", "if (false) {"],
   ['la pastille ne dit pas le changement', PUR, "if (!e.dejaLa && e.depart && !memePlace(e.place, e.depart)) return { texte: 'Confirmé · changé', ton: 'change' };", ""],
   ['revenir ne deplace pas le rendez-vous pose', PUR, "if (e.valide && e.rdvId) return { etat: { ...e, place: e.depart, modif: false }, effets: [{ genre: 'deplacer', rdvId: e.rdvId, place: e.depart }] };", ""],
   ['une autre date garde les jours fermes', PUR, "if (!p.ferme && p.heures.length > 0) jours.push(iso);", "jours.push(iso);"],
+  /* Ce que les ecrans ajoutent (4 novembre 2026). */
+  ['une premiere venue prend une date en grand', PUR, "if (o.source === 'defaut') return true;", ''],
+  ['une tete de passage sans rythme prend une date en grand', PUR, "return (!!o.dePassage || !!o.diaspora) && !o.rythmeSurLaFiche && o.source !== 'rituel';", 'return false;'],
+  ['les heures prises disparaissent au lieu d etre barrees', PUR, 'return [...new Set([...o.toutes, ...o.libres])]', 'return [...new Set([...o.libres])]'],
+  ['les heures du jour en desordre', PUR, '    .sort((a, b) => enMinutes(a) - enMinutes(b))\n', ''],
+  ['ce qu elle recoit promet un message avant validation', PUR, "  if (!e.valide) {\n    return { genre: 'attend',", "  if (false) {\n    return { genre: 'attend',"],
+  ['un rendez-vous deja la promet une confirmation de plus', PUR, "  if (e.dejaLa) return { genre: 'deja',", "  if (false) return { genre: 'deja',"],
+  ['sans numero, une confirmation promise', PUR, "  if (!o.aUnNumero) return { genre: 'sans-numero',", "  if (false) return { genre: 'sans-numero',"],
+  ['le rendez-vous deja la tait sa source', PUR, "const ou = o.source && D_OU_VIENT[o.source] ? ` ${D_OU_VIENT[o.source]}` : '';", "const ou = '';"],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');
