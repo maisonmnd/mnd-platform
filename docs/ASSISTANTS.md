@@ -15,7 +15,7 @@ Dix professionnels, un par département, chacun un nom de pierre et un porteur (
 | Saphir | le conseil | Yéman et Brice | une fonction du Trône, à 7 h |
 | Perle | les clientes | Yéman | les fonctions du WhatsApp de la Maison |
 | Ambre | les réseaux | Yéman | la machine de la Maison, Chrome |
-| Grenat | l'argent | Yéman | une fonction du Trône |
+| Grenat | l'argent | Yéman | une fonction du Trône, à 15 h et à 19 h (la clôture de la journée, section 21) |
 | Jade | le stock | Brice | une fonction du Trône |
 | Topaze | l'équipe | Brice | une fonction du Trône |
 | Jaspe | le gardien | Yéman | la machine de la Maison |
@@ -280,3 +280,13 @@ Une question au sélecteur bloque toute ta session : aucun tour ne part tant qu'
 | `place-tenue`, `note`, `argent` | comme aux sections 7 et 8 | |
 
 Une dépense validée sur sa carte entre déjà validée, au nom du porteur, d'un seul toucher (choix 4 de « Je suis loin ») ; « Corriger » la valide avec les faits corrigés sur la carte. Une carte qui demande des faits (`rdv`, `depense`, `publication`, `planning`, `acces`) ne se dépose pas sans eux.
+
+## 21. La clôture de Grenat
+
+*Tranché par Yéman le 4 novembre 2026 (maquette 9KCMgAb1…, « construis ») : Grenat, avancé, porte la clôture ; Opale garde les messages.*
+
+1. **Quand.** Aux heures réglées dans Système › Paramètres › Heures et jours (15 h et 19 h par défaut, deux au plus, la direction seule), puis au mot du matin (6 h 45), qui relit la veille entière pour le Conseil de Saphir. Jamais un jour où la Maison est fermée et où rien n'a bougé : il lit les horaires, il ne les suppose pas.
+2. **Les six règles d'une journée close** (`src/shared/cloture-du-jour-pur.ts`, recopiée dans la fonction `cloture-du-jour`) : chaque rendez-vous passé a son état final ; chaque rendez-vous honoré a une seule facture, au même prix, au même argent ; une seule remise, et une place limitée seulement un jour vide ; chaque facture terminée part une fois, par la salle, sauf « Pas de reçu ni de facture par WhatsApp » ; une facture payée effacée est une alarme ; la caisse du jour, par moyen et par tiroir.
+3. **Seul, trois gestes sûrs** : déposer le papier pas encore parti dans la salle d'attente (le Trône en fait le PDF, le facteur le porte, la clé de la pièce et sa marque tiennent « une pièce, un seul WhatsApp ») ; passer « honoré » un rendez-vous réglé en entier encore « confirmé » (le Trône en fait les suites) ; relier une facture à son rendez-vous quand un seul candidat existe. Chaque geste relu juste avant d'écrire, écrit sous condition.
+4. **Jamais seul** : dire venue, absente ou annulée ; un prix, une remise, un paiement ; effacer ou annuler une pièce ; encaisser. Une facture payée ne s'efface que par la direction, avec un motif écrit (0156) ; Grenat le signale, et l'argent reste compté jusqu'à ce que la direction tranche dans « La journée ».
+5. **Qui est prévenu** : la direction et la personne au comptoir ce jour-là (les comptes qui ont écrit une pièce ou un rendez-vous, lus dans la trace), une notification, des nombres, jamais un nom. Son bilan (`grenat:<jour>`) va au Conseil du matin : ce qui est resté ouvert la veille presse.

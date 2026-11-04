@@ -792,14 +792,16 @@ var PROFESSIONNELS = [
     tient: "l'argent",
     departements: ["dept-vente-caisse", "dept-finances"],
     departementDit: "Vente et Caisse, Finances",
+    /* AVANCÉ LE 4 NOVEMBRE 2026 (maquette 9KCMgAb1…) : il naît avec la
+       clôture de la journée, à 15 h et à 19 h (fonction `cloture-du-jour`). */
     porteurs: ["yeman"],
     tourne: "fonction",
-    ouDit: "une fonction du Trône",
-    statut: "a-construire",
-    chaqueJour: "La clôture du soir, les dépenses à valider rangées, les factures en retard relancées, les missions à payer, les écarts de caisse.",
-    seul: "Ranger, rapprocher, préparer, relancer par modèle.",
-    enCarte: "Tout argent qui sort, tout écart, tout refus.",
-    quinzaine: "semaines 5 et 6"
+    ouDit: "une fonction du Trône, à 15 h et à 19 h",
+    statut: "en-installation",
+    chaqueJour: "La clôture de la journée à 15 h et à 19 h : chaque rendez-vous à son état final, une facture au même prix et au même argent, le papier parti, les pièces payées effacées signalées, la caisse du jour par moyen et par tiroir.",
+    seul: "Envoyer le papier pas encore parti (par la salle), passer honoré un rendez-vous réglé en entier, relier une facture à son seul rendez-vous.",
+    enCarte: "Tout argent qui sort, tout écart, une absence, un prix, un effacement.",
+    quinzaine: "avancé au 4 novembre 2026"
   },
   {
     id: "jade",

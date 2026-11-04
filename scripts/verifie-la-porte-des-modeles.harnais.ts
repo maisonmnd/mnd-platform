@@ -439,7 +439,8 @@ const DEJA_JOURNAL = 'déjà parti : le même message est au journal depuis moin
   const data = source('src/apps/trone/routes/equipe/data.ts');
   const envois = source('src/shared/envois.ts');
   dit('le Trone connait « perime » et le dit « pas envoye » : aucun statut nouveau', true,
-    data.includes("| 'en-attente' | 'retenu' | 'écarté' | 'périmé' | 'en-envoi';") && envois.includes("perime: 'pas envoyé'"));
+    /* Grenat ajoute « à-préparer » après eux (4 novembre 2026) : la porte, elle, n'en ajoute aucun. */
+    data.includes("| 'en-attente' | 'retenu' | 'écarté' | 'périmé' | 'en-envoi'") && envois.includes("perime: 'pas envoyé'"));
 }
 
 /* ══ 11. rappels-j1 : ce qu'Opale a retenu ne se redepose pas ══ */

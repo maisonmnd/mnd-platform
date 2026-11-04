@@ -9,7 +9,7 @@ import { gammeTouteReglee } from '../../../../shared/gamme';
 import { useLaGammePayeeRegravee } from './gamme-payee';
 import { chiffreAttenduDuJour } from './chiffre-du-jour-pur';
 import { ChampDeDate } from '../../../../ds/dates';
-import { Button, Input, alerte, refus, demande } from '../../../../ds/components';
+import { Button, Input, alerte, refus, demande, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { normName } from '../../../../shared/text';
@@ -582,6 +582,12 @@ export default function Carnet() {
   /* Suppression définitive d'un rendez-vous (depuis le menu ⋯) — confirmation requise. */
   const aEteEncaisse = (a: Appointment) => (a.paidXof ?? 0) > 0 || (a.payments ?? []).length > 0 || !!a.invoiceId;
   const deleteAppt = async (a: Appointment) => {
+    /* UN RENDEZ-VOUS ENCAISSÉ EMPORTE SES FACTURES PAYÉES (4 novembre 2026,
+       règle 5 de la clôture de Grenat) : la direction seule l'efface. */
+    if (moiCarnet?.role !== 'souverain' && ((a.paidXof ?? 0) > 0 || (a.payments ?? []).some((p) => (p.amountXof ?? 0) > 0))) {
+      toast('Un rendez-vous encaissé ne s’efface que par la direction : ses factures payées partiraient avec lui.');
+      return;
+    }
     if (!await demande({
       quoi: 'Suppression définitive',
       titre: 'Supprimer ce rendez-vous ?',

@@ -612,7 +612,15 @@ export type Envoi = {
       septembre) rejoignent le journal ; « fin-de-paquet » y vivait déjà sans
       être déclaré. Le journal les lit tous (`shared/envois`). */
   type: 'rappel-j1' | 'avis-google' | 'confirmation' | 'accuse' | 'fin-de-paquet' | 'reprise-j3' | 'point-apres' | 'point-avant' | 'relance-facture'
-    | 'rappel-echeance' | 'prix-revu' | 'parrainage' | 'campagne' | 'gerard';
+    | 'rappel-echeance' | 'prix-revu' | 'parrainage' | 'campagne' | 'gerard'
+    /* LE PAPIER D'UNE PIÈCE QUE GRENAT ENVOIE SEUL (4 novembre 2026, la
+       clôture de la journée) : déposé « à-préparer » par le serveur, préparé
+       au Trône (le PDF), porté par le facteur. */
+    | 'papier-de-la-piece';
+  /** Le papier de Grenat : le reçu ou la facture à régler, son montant, le jour du dépôt. */
+  papier?: 'recu' | 'facture';
+  montantXof?: number;
+  jour?: string;
   /** La campagne du Marketing qui l'a déposé (21 octobre 2026). */
   campagneId?: string;
   canal: 'push' | 'whatsapp' | 'sms' | 'wa-main';
@@ -639,7 +647,9 @@ export type Envoi = {
     /* LA SALLE D'ATTENTE (2 octobre 2026, shared/salle-des-envois) : un message
        déposé attend, une main peut le retenir ou l'écarter, le facteur le
        prend en main, et un rendez-vous qui a bougé le périme. */
-    | 'en-attente' | 'retenu' | 'écarté' | 'périmé' | 'en-envoi';
+    | 'en-attente' | 'retenu' | 'écarté' | 'périmé' | 'en-envoi'
+    /* Grenat l'a déposé, le Trône en fait le PDF (4 novembre 2026). */
+    | 'à-préparer';
   /** L'instant où il pourra partir, et s'il attend la fin des heures calmes. */
   partA?: string;
   calme?: boolean;

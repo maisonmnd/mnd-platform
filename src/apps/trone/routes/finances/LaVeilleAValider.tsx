@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { fmtIn } from '../../../../shared/currency';
 import { useStaff as useMaTete } from '../../../../shared/auth';
 import { cashboxCurrency, useCashboxes, useEntreesHorsActivite, useExpenses } from '../../../../shared/finance';
@@ -6,6 +7,7 @@ import { cloturesStore, useClotures } from '../../../../shared/caisse-du-soir';
 import { aValider, pourquoiOnNeValidePas, tiroirsQuiSeComptent, tiroirsSansCloture, type Cloture } from '../../../../shared/caisse-du-soir-pur';
 import { useBranch } from '../../../../shared/branches';
 import { useRegistreEncaissements, todayISO } from './_shared';
+import { dernierPassage, momentDit, useComptesRendusDeGrenat } from '../../../../shared/cloture-du-jour';
 import { ClotureDuTiroir } from './ClotureDuTiroir';
 import './caisse-du-soir.css';
 
@@ -35,6 +37,13 @@ export function LaVeilleAValider() {
   const [expenses] = useExpenses();
   const [horsActivite] = useEntreesHorsActivite();
   const registre = useRegistreEncaissements();
+  const navigate = useNavigate();
+  /* LE COMPTE RENDU DE GRENAT DE LA VEILLE — 4 novembre 2026 (maquette
+     9KCMgAb1…) : « La veille à valider porte aussi le compte rendu de
+     Grenat » : ce qui a été clos, ce qu'il a fait seul, ce qui est resté
+     ouvert, les pièces payées effacées. Le mot du matin (6 h 45) l'emporte
+     sur 19 h : il a relu la veille entière. */
+  const [crs] = useComptesRendusDeGrenat();
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [reprise, setReprise] = useState<string | null>(null);
   const [mot, setMot] = useState('');
@@ -54,7 +63,10 @@ export function LaVeilleAValider() {
     horsActivite,
   }), [branch.id, veille, registre, expenses, clotures, boxes, horsActivite]);
 
-  if (!voit || (ecarts.length === 0 && oublies.length === 0)) return null;
+  const grenat = dernierPassage(crs, branch.id, veille);
+  const grenatDit = grenat && (!grenat.cloture.verdict.close || (grenat.gestesFaits?.length ?? 0) > 0 || grenat.cloture.alarmes.length > 0) ? grenat : null;
+
+  if (!voit || (ecarts.length === 0 && oublies.length === 0 && !grenatDit)) return null;
 
   const deviseDe = (nom: string) => {
     const b = boxes.find((x) => x.branchId === branch.id && x.name === nom);
@@ -73,10 +85,27 @@ export function LaVeilleAValider() {
         <span style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>Les caisses à valider</span>
         <span className="mnd-muted" style={{ fontSize: 12 }}>
           {[ecarts.length ? `${ecarts.length} écart${ecarts.length > 1 ? 's' : ''} déclaré${ecarts.length > 1 ? 's' : ''}` : null,
-            oublies.length ? `${oublies.length} tiroir${oublies.length > 1 ? 's' : ''} pas clôturé${oublies.length > 1 ? 's' : ''} hier` : null].filter(Boolean).join(' · ')}
+            oublies.length ? `${oublies.length} tiroir${oublies.length > 1 ? 's' : ''} pas clôturé${oublies.length > 1 ? 's' : ''} hier` : null,
+            grenatDit ? 'le compte rendu de Grenat' : null].filter(Boolean).join(' · ')}
         </span>
       </div>
       <div className="cds-veille" style={{ padding: '0 16px 6px' }}>
+        {grenatDit && (
+          <div className="cds-veille__ligne" data-veille="grenat">
+            <div>
+              <b>Grenat · la clôture d’hier ({momentDit(grenatDit.moment)})</b>
+              <small>
+                {grenatDit.cloture.verdict.dit}
+                {grenatDit.cloture.comptes.clos ? ` · ${grenatDit.cloture.comptes.clos} rendez-vous clos` : ''}
+                {(grenatDit.gestesFaits?.length ?? 0) ? ` · ${grenatDit.gestesFaits!.length} geste${grenatDit.gestesFaits!.length > 1 ? 's' : ''} fait${grenatDit.gestesFaits!.length > 1 ? 's' : ''} seul` : ''}
+              </small>
+              {grenatDit.cloture.verdict.reste.length > 0 && <small>Resté ouvert : {grenatDit.cloture.verdict.reste.join(', ')}.</small>}
+              {grenatDit.cloture.alarmes.map((a) => <small key={a.cle}>{a.dit}</small>)}
+            </div>
+            <span className={`cds-puce ${grenatDit.cloture.verdict.close ? 'is-ok' : 'is-attente'}`}>{grenatDit.cloture.verdict.close ? 'close' : 'à reprendre'}</span>
+            <button type="button" className="cds-bouton" onClick={() => navigate('/la-journee')}>La journée</button>
+          </div>
+        )}
         {ecarts.map((c) => {
           const f = (n: number) => fmtIn(n, deviseDe(c.cashbox));
           const empeche = pourquoiOnNeValidePas({ estSouverain: souverain, moi, cloture: c });

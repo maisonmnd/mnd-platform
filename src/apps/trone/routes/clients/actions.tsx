@@ -2,6 +2,7 @@ import { sansLaVisite } from '../../../../shared/reprise-nue';
 import { suiteImposee } from '../../../../shared/retouche-comprise-pur';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Field, Input, Modal, Select, toast, alerte, demande } from '../../../../ds/components';
+import { useStaff as useMaTeteAuComptoir } from '../../../../shared/auth';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
@@ -1544,6 +1545,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
      Le compte connecté, retrouvé à sa fiche par l'adresse qui fait foi
      (`adresseDe`). Sans fiche, ses espèces vont au tiroir commun. */
   const estDirection = useEstDirection();
+  /* Annuler un encaissement efface ses factures payées : la direction seule (4 novembre 2026, règle 5 de la clôture de Grenat). */
+  const souverainAuComptoir = useMaTeteAuComptoir()?.role === 'souverain';
   const monMail = (identiteCourante().mail ?? '').trim().toLowerCase();
   const maFiche = monMail ? team.find((m) => adresseDe(m) === monMail) : undefined;
   const anneePassee = estAnneeAnterieure(appt.date, todayISO());
@@ -2540,7 +2543,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
               </div>
             </div>
           )}
-          {alreadyPaid > 0 && (
+          {alreadyPaid > 0 && souverainAuComptoir && (
             <button
               type="button"
               className="tre-link-btn tre-link-btn--danger"

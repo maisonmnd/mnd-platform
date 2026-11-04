@@ -1619,3 +1619,9 @@
   .trv-pos-offre > .trv-maintenant { order: 1; margin-bottom: 0; }
   .trv-pos-grid > .trv-ticket { order: 2; }
 }
+
+/* LE CHEMIN VERS LA JOURNÉE — 4 novembre 2026 : la barre « Encaisser |
+   Journal de caisse » est partie ; une ligne discrète mène au journal du
+   jour, qui vit dans Finances › La journée. */
+.trv-lien-journee { display: flex; justify-content: flex-end; margin: -6px 0 14px; }
+.trv-lien-journee .trv-linkbtn { font-size: 12px; }

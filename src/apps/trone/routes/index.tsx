@@ -1,5 +1,5 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
-import { Compass, Bot, TrendingUp, UserRoundCheck, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, Mic, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, Radio, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Star, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
+import { Compass, Bot, TrendingUp, UserRoundCheck, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardCheck, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, Mic, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, Radio, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Star, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
 /* Registre des routes du Trône, groupées par DÉPARTEMENT.
    Le module d'un écran (routes/<dossier>/) dit d'où il vient, pas où il se range :
@@ -160,6 +160,11 @@ const NAV_DES_ECRANS: TroneGroup[] = [
       /* LES CAISSES ONT LEUR ÉCRAN — 22 août 2026. Elles vivaient sous
          « Dépenses » par accident d'histoire : une caisse n'appartient pas
          aux dépenses, c'est le tiroir par lequel TOUT passe. */
+      /* LA JOURNÉE (4 novembre 2026, maquette 9KCMgAb1…) : la clôture de
+         Grenat en haut, la caisse du jour en bas (le journal de la Caisse
+         déplacé), sur une seule page. Première des Finances : c'est là que
+         la journée se ferme. */
+      { path: '/la-journee', label: 'La journée', icon: ClipboardCheck, Component: lazy(() => import('./finances/LaJournee')) },
       { path: '/caisses', label: 'Les caisses', icon: Wallet, Component: lazy(() => import('./finances/Caisses')) },
       { path: '/coffre', label: 'Coffre-fort', icon: Landmark, Component: lazy(() => import('./finances/Coffre')) },
       /* LES CRÉANCES (26 août) — ce que la Maison attend, rangé par ÂGE. Le dû
@@ -479,7 +484,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>
@@ -531,6 +536,10 @@ export const peutVoir = (
      la direction et le département Finances, même si le reste des RH leur
      est fermé. */
   if (path === '/prets-personnel') return peutVoir(role, '/prets', acces);
+  /* LA JOURNÉE (4 novembre 2026) s'ouvre aussi à qui ouvre la Caisse : le
+     journal de caisse en vient, et la personne au comptoir le perdrait
+     sinon. Son département (Finances) l'ouvre comme les autres. */
+  if (path === '/la-journee' && peutVoir(role, '/caisse', acces)) return true;
   if (ROUTES_SOUVERAIN.includes(path)) return role === 'souverain';
   if (ROUTES_DIRECTION.includes(path)) return role === 'souverain' || role === 'gerant';
   if (role !== 'maitre') return true;

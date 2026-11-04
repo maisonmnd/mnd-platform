@@ -214,6 +214,7 @@ export const SORTIES_HORS_DE_LA_PORTE: readonly { qui: string; quoi: string }[] 
   { qui: 'demande-submit', quoi: 'l’accusé et la confirmation d’une réservation du site, tout de suite' },
   { qui: 'whatsapp-automate, whatsapp-webhook', quoi: 'les réponses dans une conversation ouverte' },
   { qui: 'le Trône', quoi: 'les envois de l’équipe (composer, tournée du matin, « à la main ») : jamais jugés' },
+  { qui: 'cloture-du-jour (Grenat)', quoi: 'le papier d’une pièce : il passe par la salle, gardé par la marque de la pièce et sa clé au serveur (une pièce, un seul WhatsApp), pas par la porte' },
 ];
 
 /** La famille d'une ligne d'envoi, ou null. */

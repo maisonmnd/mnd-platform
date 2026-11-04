@@ -331,6 +331,7 @@ export const SORTIES_HORS_DE_LA_PORTE: readonly { qui: string; quoi: string }[] 
   { qui: 'demande-submit', quoi: 'l’accusé et la confirmation d’une réservation du site, tout de suite' },
   { qui: 'whatsapp-automate, whatsapp-webhook', quoi: 'les réponses dans une conversation ouverte' },
   { qui: 'le Trône', quoi: 'les envois de l’équipe (composer, tournée du matin, « à la main ») : jamais jugés' },
+  { qui: 'cloture-du-jour (Grenat)', quoi: 'le papier d’une pièce : il passe par la salle, gardé par la marque de la pièce et sa clé au serveur (une pièce, un seul WhatsApp), pas par la porte' },
 ];
 
 /** La famille d'une ligne d'envoi, ou null. */
@@ -664,7 +665,7 @@ export function partiAuFil(l: LigneALaPorte, messages: readonly MessageALaPorte[
 }
 /* ⟨/porte-des-modeles⟩ */
 
-const VERSION = '2026-11-04-b · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi';
+const VERSION = '2026-11-04-c · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi ; le papier d’une pièce déposé par Grenat : la pièce relue, sa clé réservée, sa marque posée';
 
 /* ── LE CALCUL DES HEURES, recopié de src/shared/salle-des-envois.ts ── */
 const DECALAGE_DU_SALON_H = 1;
@@ -831,6 +832,54 @@ async function faitsDeLaPorte(sb: Sb, l: LigneALaPorte, rdv: RdvALaPorte | null,
     envois: [...lignes.values()],
     messages: ((fil.data ?? []) as { data: MessageALaPorte }[]).map((r) => r.data ?? {}),
   };
+}
+
+/* ══ LE PAPIER D'UNE PIÈCE, DÉPOSÉ PAR GRENAT — 4 novembre 2026 ═══════════
+   La clôture de Grenat (`cloture-du-jour`) dépose le reçu ou la facture pas
+   encore partis ; le Trône en fait le PDF et pose la ligne en salle. Ici,
+   juste avant Meta, les DEUX VERROUS d'« une pièce, un seul WhatsApp »
+   (une-piece-un-message-pur.ts) :
+     ① la pièce relue : effacée, ou portant déjà sa marque `whatsapp`, rien
+        ne part (« périmé », et pourquoi) ;
+     ② la CLÉ DE LA PIÈCE (`piece-<id>`) réservée dans `messages_wa`, à
+        l'identifiant que `whatsapp-envoi` en dérive (SHA-256) : un poste du
+        comptoir qui enverrait le même papier se heurte à elle et reçoit
+        « déjà ». Prise et pas reprenable : rien ne part. Meta refuse : la
+        clé est rendue (« non-remis »), comme `whatsapp-envoi` le fait.
+   Parti, la ligne réservée devient le message du fil (son `waId`), et la
+   pièce reçoit sa marque, si aucune n'est venue entre-temps. */
+const TYPE_DU_PAPIER = 'papier-de-la-piece';
+const RESERVATION_ABANDONNEE_MS = 5 * 60 * 1000;
+const idDeLaCle = async (cle: string): Promise<string> => {
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(cle)));
+  return `wa-cle-${[...h.slice(0, 16)].map((o) => o.toString(16).padStart(2, '0')).join('')}`;
+};
+type ReservationDuPapier = { id: string; data: Record<string, unknown> } | { refus: string };
+async function reserveLePapier(sb: Sb, l: Ligne, colis: { numero: string; modele: string; parQui?: string }): Promise<ReservationDuPapier> {
+  const pieceId = String(l.data.invoiceId ?? '');
+  if (!pieceId) return { refus: 'ligne de papier sans pièce' };
+  const { data: piece, error } = await sb.from('invoices').select('id, data').eq('id', pieceId).maybeSingle();
+  if (error) return { refus: `la pièce n’a pas pu être relue : ${String(error.message ?? '').slice(0, 80)}` };
+  if (!piece) return { refus: 'la pièce n’existe plus' };
+  if ((piece.data as { whatsapp?: { partieLe?: string } } | null)?.whatsapp?.partieLe) return { refus: 'déjà parti : la pièce porte sa marque' };
+  const cleUnique = `piece-${pieceId}`;
+  const id = await idDeLaCle(cleUnique);
+  const quand = new Date().toISOString();
+  const data = {
+    id, branchId: l.data.branchId, sens: 'sortant', numero: colis.numero, clientId: l.data.clientId,
+    texte: `Modèle « ${colis.modele} »`, type: 'text', quand, etat: 'en-route', modele: colis.modele, parQui: colis.parQui ?? 'Grenat', cleUnique,
+  };
+  const { data: prise } = await sb.from('messages_wa')
+    .upsert({ id, branch_id: l.branch_id ?? null, data }, { onConflict: 'id', ignoreDuplicates: true }).select('id');
+  if ((prise ?? []).length) return { id, data };
+  const { data: avantLu } = await sb.from('messages_wa').select('id, data').eq('id', id).limit(1);
+  const avant = (((avantLu ?? [])[0] as { data?: Record<string, unknown> } | undefined)?.data ?? {}) as { waId?: string; etat?: string; quand?: string };
+  const depuis = Date.parse(String(avant.quand ?? ''));
+  const reprenable = avant.etat === 'non-remis' || (!avant.waId && avant.etat === 'en-route' && Number.isFinite(depuis) && Date.now() - depuis > RESERVATION_ABANDONNEE_MS);
+  if (!reprenable) return { refus: 'déjà parti d’un autre poste : la clé de la pièce est prise' };
+  const { data: reprise } = await sb.from('messages_wa').update({ data, updated_at: quand })
+    .eq('id', id).eq('data->>etat', String(avant.etat)).eq('data->>quand', String(avant.quand)).select('id');
+  return (reprise ?? []).length ? { id, data } : { refus: 'déjà parti d’un autre poste : la clé de la pièce est prise' };
 }
 
 Deno.serve(async (req) => {
@@ -1029,6 +1078,9 @@ Deno.serve(async (req) => {
           }),
         });
         type Reponse = { messages?: { id?: string }[]; error?: { code?: number; message?: string } };
+        /* LE PAPIER D'UNE PIÈCE (Grenat, 4 novembre 2026) : la pièce relue, sa clé réservée. */
+        const papier = l.data.type === TYPE_DU_PAPIER ? await reserveLePapier(sb, l, colis) : null;
+        if (papier && 'refus' in papier) { await ecris({ statut: 'périmé', detail: papier.refus }); perimes++; continue; }
         let r = await envoie(colis.modele, colis.composants);
         let rep = await r.json().catch(() => ({})) as Reponse;
         /* LE REPLI DU MODÈLE — 3 novembre 2026. Meta refuse le MODÈLE neuf
@@ -1046,13 +1098,24 @@ Deno.serve(async (req) => {
         const waId = String(rep?.messages?.[0]?.id ?? '');
         const duRepli = repliDuModele ? { repliDuModele, modele: colis.modele } : {};
         if (!r.ok) {
+          /* La clé de la pièce est rendue : rien n'est parti, un autre geste pourra l'envoyer. */
+          if (papier && !('refus' in papier)) await sb.from('messages_wa').update({ data: { ...papier.data, etat: 'non-remis', detail: String(rep?.error?.message ?? `HTTP ${r.status}`).slice(0, 300) } }).eq('id', papier.id);
           await ecris({ statut: 'échec', detail: String(rep?.error?.message ?? `HTTP ${r.status}`).slice(0, 300), ...(Number(rep?.error?.code) ? { codeMeta: Number(rep?.error?.code) } : {}), ...duRepli });
           echecs++;
           continue;
         }
         await ecris({ statut: 'envoyé', ...(waId ? { waMessageId: waId } : { detail: 'accepté sans identifiant Meta' }), ...duRepli });
         partis++;
-        if (waId && colis.texteAuFil) {
+        if (papier && !('refus' in papier)) {
+          /* La ligne réservée devient le message du fil ; la pièce reçoit sa marque. */
+          await sb.from('messages_wa').update({ data: { ...papier.data, ...(waId ? { waId } : {}), texte: colis.texteAuFil ?? papier.data.texte, modele: colis.modele } }).eq('id', papier.id);
+          const { data: pieceRow } = await sb.from('invoices').select('id, data').eq('id', String(l.data.invoiceId)).maybeSingle();
+          const pd = (pieceRow?.data ?? null) as { whatsapp?: { partieLe?: string } } | null;
+          if (pieceRow && !pd?.whatsapp?.partieLe) {
+            await sb.from('invoices').update({ data: { ...(pieceRow.data as object), whatsapp: { partieLe: new Date().toISOString(), modele: colis.modele, parQui: 'Grenat' } } })
+              .eq('id', String(l.data.invoiceId)).is('data->whatsapp', null);
+          }
+        } else if (waId && colis.texteAuFil) {
           const idFil = `wa-${waId}`;
           const { error: errFil } = await sb.from('messages_wa').upsert({
             id: idFil,

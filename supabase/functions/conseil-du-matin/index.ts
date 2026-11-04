@@ -214,14 +214,16 @@ var PROFESSIONNELS = [
     tient: "l'argent",
     departements: ["dept-vente-caisse", "dept-finances"],
     departementDit: "Vente et Caisse, Finances",
+    /* AVANCÉ LE 4 NOVEMBRE 2026 (maquette 9KCMgAb1…) : il naît avec la
+       clôture de la journée, à 15 h et à 19 h (fonction `cloture-du-jour`). */
     porteurs: ["yeman"],
     tourne: "fonction",
-    ouDit: "une fonction du Trône",
-    statut: "a-construire",
-    chaqueJour: "La clôture du soir, les dépenses à valider rangées, les factures en retard relancées, les missions à payer, les écarts de caisse.",
-    seul: "Ranger, rapprocher, préparer, relancer par modèle.",
-    enCarte: "Tout argent qui sort, tout écart, tout refus.",
-    quinzaine: "semaines 5 et 6"
+    ouDit: "une fonction du Trône, à 15 h et à 19 h",
+    statut: "en-installation",
+    chaqueJour: "La clôture de la journée à 15 h et à 19 h : chaque rendez-vous à son état final, une facture au même prix et au même argent, le papier parti, les pièces payées effacées signalées, la caisse du jour par moyen et par tiroir.",
+    seul: "Envoyer le papier pas encore parti (par la salle), passer honoré un rendez-vous réglé en entier, relier une facture à son seul rendez-vous.",
+    enCarte: "Tout argent qui sort, tout écart, une absence, un prix, un effacement.",
+    quinzaine: "avancé au 4 novembre 2026"
   },
   {
     id: "jade",
@@ -520,6 +522,17 @@ function pointsQuiPressent(f, maintenantMs, livre) {
       texte: l.alerte === "depasse" ? `${l.nom} a dépassé son plafond : ${dollarsDits(l.usd)} sur ${dollarsDits(l.plafond)}.` : `${l.nom} approche de son plafond : ${dollarsDits(l.usd)} sur ${dollarsDits(l.plafond)}.`
     });
   }
+  const hierDeCotonou = aCotonou(maintenantMs - 864e5).dateISO;
+  const grenat = (f.bilans ?? []).find((b) => b.assistant === "grenat" && b.jour === hierDeCotonou);
+  if (grenat) {
+    const c = grenat.comptes ?? {};
+    const ouverts = [
+      entier(c.aClore) ? nombreDit(entier(c.aClore), "rendez-vous resté ouvert", "rendez-vous restés ouverts") : "",
+      entier(c.aRevoir) ? nombreDit(entier(c.aRevoir), "facture à revoir", "factures à revoir") : "",
+      entier(c.alarmes) ? nombreDit(entier(c.alarmes), "pièce payée effacée", "pièces payées effacées") : ""
+    ].filter(Boolean);
+    if (ouverts.length) points.push({ rang: entier(c.alarmes) ? 1 : 3, ton: entier(c.alarmes) ? "alerte" : "attention", texte: `La journée d'hier n'est pas close : ${ouverts.join(", ")}.` });
+  }
   const dep = entier(f.depensesAValider);
   if (dep > 0) points.push({ rang: 5, ton: "attention", texte: dep === 1 ? "Une dépense attend sa validation." : `${dep} dépenses attendent leur validation.` });
   const places = (f.cartes ?? []).filter((c) => c.genre === "place-tenue" && decisionEnAttente({ tranchee: c.tranchee ?? null, echeance: c.echeance ?? null }, maintenantMs)).length;
@@ -558,7 +571,14 @@ function hier(f, jour, jourDHier) {
     ["depenses", "dépense", "dépenses"],
     ["cartes", "carte", "cartes"],
     ["relais", "relais", "relais"],
-    ["publications", "publication", "publications"]
+    ["publications", "publication", "publications"],
+    /* La clôture de Grenat (4 novembre 2026) : ce qu'il a fait seul, ce qui est resté ouvert. */
+    ["papiers", "papier envoyé", "papiers envoyés"],
+    ["honores", "rendez-vous passé honoré", "rendez-vous passés honorés"],
+    ["relies", "facture reliée", "factures reliées"],
+    ["aClore", "rendez-vous resté ouvert", "rendez-vous restés ouverts"],
+    ["aRevoir", "facture à revoir", "factures à revoir"],
+    ["alarmes", "pièce payée effacée", "pièces payées effacées"]
   ];
   const parQui = /* @__PURE__ */ new Map();
   for (const b of f.bilans ?? []) {
@@ -665,7 +685,7 @@ function ecrisLeConseil(f, maintenantMs) {
 }
 
 // scripts/serveur/conseil-du-matin.ts
-var VERSION = "2026-11-02-b";
+var VERSION = "2026-11-04-a";
 var ADRESSE = "/trone/#/assistants";
 var ETIQUETTE = "mnd-conseil";
 var ENVOI_MAX_MS = 8e3;

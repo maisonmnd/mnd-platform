@@ -50,9 +50,11 @@ const dansLaBarre = items.filter((it) => !it.horsMenu);
 /* 29 depuis le 31 octobre 2026 : « Les assistants » (maquette TtHPKpjC…,
    Opale et Onyx reliés par le Trône), en Direction, sous Les agents ; les
    souverains seuls. */
-dit('la barre montre 29 rubriques', 29, dansLaBarre.length);
-dit('... par département : Direction 6, Clientèle 4, Atelier 2, Vente & Caisse 4, Finances 4, Marketing & Fidélité 2, Équipe 3, Académie 1, Système 3',
-  { Direction: 6, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 4, Finances: 4, 'Marketing & Fidélité': 2, 'Équipe': 3, 'Académie': 1, 'Système': 3 },
+/* 30 depuis le 4 novembre 2026 : « La journée » (la clôture de Grenat et la
+   caisse du jour, maquette 9KCMgAb1…), première des Finances. */
+dit('la barre montre 30 rubriques', 30, dansLaBarre.length);
+dit('... par département : Direction 6, Clientèle 4, Atelier 2, Vente & Caisse 4, Finances 5, Marketing & Fidélité 2, Équipe 3, Académie 1, Système 3',
+  { Direction: 6, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 4, Finances: 5, 'Marketing & Fidélité': 2, 'Équipe': 3, 'Académie': 1, 'Système': 3 },
   Object.fromEntries(NAV.map((g) => [g.group, g.items.filter((it) => !it.horsMenu).length])));
 dit('... dont Les prévisions, en Direction', ['Direction', false], [item('/previsions')?.groupe, !!item('/previsions')?.horsMenu]);
 dit('... dont Perle (l assistant des clientes, ex-Assistant Maison), en Clientèle, juste sous Clientes', ['Clientèle', false, 'Perle', true],
@@ -170,6 +172,9 @@ const seulementLeMois = { '/bilan-mensuel': true, '/mon-mois': false, '/calendri
 dit('le premier ecran ouvert d un maitre tient compte des reunions (un onglet absorbe)', '/bilan-mensuel', premierEcranVisible('maitre', seulementLeMois));
 const seulementConsultations = { '/consultations': true, '/mon-mois': false, '/calendrier': false, '/fil': false, '/tableau': false, '/mes-taches': false };
 dit('... et qui ne voit qu un ecran retire de la barre n a pas de premier ecran (l adresse reste)', null, premierEcranVisible('maitre', seulementConsultations));
+
+/* LA JOURNÉE (4 novembre 2026) : en Finances, ouverte à qui ouvre la Caisse. */
+dit('La journée est la première des Finances', ['Finances', false, '/la-journee'], [item('/la-journee')?.groupe, !!item('/la-journee')?.horsMenu, NAV.find((g) => g.group === 'Finances')?.items[0]?.path]);
 
 console.log(ko ? `\n${ko} ECHEC.` : '\nLa barre reunie tient ses promesses.');
 if (ko) process.exitCode = 1;

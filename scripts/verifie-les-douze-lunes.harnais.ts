@@ -646,6 +646,8 @@ const regles: Regle[] = [
         'prenom-de': { fichier: 'src/shared/foyer-pur.ts', extrait: (s) => entre(s, 'prenom-de') },
         'voix-du-numero': { fichier: 'src/shared/voix-du-numero-pur.ts', extrait: (s) => entre(s, 'voix-du-numero') },
         'voix-du-fil': { fichier: 'src/shared/voix-du-fil-pur.ts', extrait: (s) => entre(s, 'voix-du-fil') },
+        /* La clôture de Grenat (4 novembre 2026) : les six règles d'une journée close, recopiées dans cloture-du-jour. */
+        'cloture-du-jour': { fichier: 'src/shared/cloture-du-jour-pur.ts', extrait: (s) => entre(s, 'cloture-du-jour') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

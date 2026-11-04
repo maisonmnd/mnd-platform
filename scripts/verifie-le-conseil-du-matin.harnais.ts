@@ -302,7 +302,7 @@ const appelle = async (entetes: Record<string, string>, methode = 'POST', corps 
 const service = { authorization: 'Bearer cle-service' };
 
 const sante = await appelle({}, 'GET');
-dit('la santé : sa version, sans clé', [200, true, 'conseil-du-matin', '2026-11-02-b'], [sante.status, sante.corps.ok, sante.corps.fonction, sante.corps.version]);
+dit('la santé : sa version, sans clé', [200, true, 'conseil-du-matin', '2026-11-04-a'], [sante.status, sante.corps.ok, sante.corps.fonction, sante.corps.version]);
 dit('sans clé, refusé', 403, (await appelle({})).status);
 dit('une clé inconnue, refusée', 403, (await appelle({ authorization: 'Bearer autre-chose' })).status);
 dit('un maître, refusé', 403, (await appelle({ authorization: 'Bearer jwt-maitre' })).status);
@@ -320,7 +320,7 @@ dit('le cron écrit et notifie chaque souverain une fois (deux comptes, pas troi
 dit('la notification part en to-staff, armée de la clé service, sans nom', [['to-staff'], ['Bearer cle-service'], ['Le Conseil du matin'], true],
   [[...new Set(pushs.map((x) => x.corps.mode))], [...new Set(pushs.map((x) => x.autorisation))], [...new Set(pushs.map((x) => x.corps.title))],
     pushs.every((x) => /^(Un point presse|\d+ points pressent|Rien ne presse) ce matin\./.test(String(x.corps.body)) && !String(x.corps.body).includes('Awa'))]);
-dit('la page du jour, à la clé du jour de Cotonou, avec son heure de notification', ['2026-11-02', '2026-11-02-b', enIso(LUNDI_7H)],
+dit('la page du jour, à la clé du jour de Cotonou, avec son heure de notification', ['2026-11-02', '2026-11-04-a', enIso(LUNDI_7H)],
   [tables.conseil_du_matin[0].jour, tables.conseil_du_matin[0].version, page1.notifieLe]);
 dit('le journal d hier lu par pages : 2 500 gestes, ni avant ni ce matin', 'Hier, 2500 gestes au journal : 2400 au Trône, 100 par les assistants.', page1.hier[0]);
 dit('les relais d hier, et ceux à traiter non périmés', '2 relais entre professionnels hier, 1 encore à traiter.', page1.hier[2]);

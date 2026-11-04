@@ -17,7 +17,9 @@ export type TypeDEnvoi = 'accuse' | 'confirmation' | 'rappel-j1' | 'avis-google'
   /* La fête de couronne (`supabase/functions/fete-de-couronne`, 21 octobre
      2026) écrivait ce type sans qu'il soit déclaré : le journal le nomme
      depuis le 27 octobre 2026 (lot 3 de l'Assistant Maison). */
-  | 'fete-de-couronne';
+  | 'fete-de-couronne'
+  /* Le papier d'une pièce que Grenat envoie seul, par la salle (4 novembre 2026). */
+  | 'papier-de-la-piece';
 
 /** Ce que le journal lit d'une ligne `envois`. Les champs viennent de
     fonctions différentes, écrites à des dates différentes : tous facultatifs
@@ -53,6 +55,9 @@ export const devenuDe = (e: Pick<EnvoiLu, 'statut' | 'etat'>): DevenuDeLEnvoi =>
      ni l'autre n'est parti. */
   if (e.statut === ECARTE) return 'ecarte';
   if (e.statut === PERIME) return 'perime';
+  /* GRENAT L'A DÉPOSÉ, LE TRÔNE LE PRÉPARE (4 novembre 2026) : pas encore en
+     salle, pas encore parti. */
+  if (e.statut === 'à-préparer') return 'en-cours';
   if (e.etat === 'lu') return 'lu';
   if (e.etat === 'remis') return 'remis';
   if (e.etat === 'non-remis') return 'non-remis';
@@ -101,6 +106,8 @@ export const TYPE_DIT: Record<string, string> = {
      écrite dans la table ne change pas, seul le mot à l'écran. */
   gerard: 'Assistant Maison',
   'fete-de-couronne': 'Fête de couronne',
+  /* La clôture de Grenat (4 novembre 2026) : le reçu ou la facture pas encore partis. */
+  'papier-de-la-piece': 'Papier de la pièce, par Grenat',
 };
 export const typeDit = (t: string): string => TYPE_DIT[t] ?? t;
 

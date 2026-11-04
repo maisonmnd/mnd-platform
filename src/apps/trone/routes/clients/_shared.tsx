@@ -40,6 +40,7 @@ import { familleDe } from '../equipe/rh/familles';
 import { enPause } from '../../../../shared/formules-en-lunes-pur';
 import { regardADeduire, remiseAvecLeRegard, type RegardADeduire } from '../../../../shared/regard-deduit-pur';
 import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDeGestes } from '../_vie';
+import { useStaff as useMaTeteDuRdv } from '../../../../shared/auth';
 import { momentDuRdv, poseUnRendezVous } from '../../../../shared/agenda';
 import { modelBandsStore, bandSetsStore, prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, tauxPermis, plafondDeRemisePct, plafondDeRemiseXof, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
@@ -1928,6 +1929,8 @@ function RdvModalCorps({
      naissance en tête, l'onglet « Sa vie » à côté, lus dans la trace signée
      par la base (0092). La direction seule : la base refuse les autres. */
   const estDirection = useEstDirection();
+  /* Un rendez-vous encaissé emporte ses factures payées : la direction seule (4 novembre 2026, règle 5 de la clôture). */
+  const souverainDuRdv = useMaTeteDuRdv()?.role === 'souverain';
   const [vueDeLaFiche, setVueDeLaFiche] = useState<'rdv' | 'vie' | 'siens'>('rdv');
   const vie = useVieDuRendezVous(appt, estDirection);
 
@@ -3721,6 +3724,10 @@ function RdvModalCorps({
   const remove = async () => {
     if (!appt) return;
     const encaisse = (appt.paidXof ?? 0) > 0 || (appt.payments ?? []).length > 0 || !!appt.invoiceId;
+    if (!souverainDuRdv && ((appt.paidXof ?? 0) > 0 || (appt.payments ?? []).some((p) => (p.amountXof ?? 0) > 0))) {
+      toast('Un rendez-vous encaissé ne s’efface que par la direction : ses factures payées partiraient avec lui.');
+      return;
+    }
     if (!await demande({
       quoi: 'Suppression définitive',
       titre: 'Supprimer ce rendez-vous ?',

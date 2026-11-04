@@ -41,6 +41,7 @@ import { useAuth, useStaff } from '../../../../shared/auth';
 import './pilotage.css';
 import { RevenuDuJour } from '../finances/RevenuDuJour';
 import { LaVeilleAValider } from '../finances/LaVeilleAValider';
+import { CarteDeLaJournee } from '../finances/CarteDeLaJournee';
 import { useRegistreEncaissements } from '../finances/_shared';
 import { revenuDuJour } from '../../../../shared/caisse-du-soir-pur';
 import { ChampDeDate } from '../../../../ds/dates';
@@ -882,6 +883,10 @@ export default function Dashboard() {
       {/* LES CAISSES À VALIDER — 3 octobre 2026 : les écarts déclarés au comptage
           du soir, et les tiroirs restés ouverts hier. La direction seule. */}
       <LaVeilleAValider />
+
+      {/* LA JOURNÉE, LA CLÔTURE DE GRENAT — 4 novembre 2026 (maquette
+          9KCMgAb1…) : le verdict du jour et le chemin vers Finances › La journée. */}
+      <CarteDeLaJournee />
 
       {/* LA PRÉVISION DU MOIS — 24 octobre 2026, maquette VJ5PJEGUPDbYKUgEdMUNbS :
           le Trône calcule, chaque part se dit en clair (PrevisionDuMois.tsx). */}

@@ -25,7 +25,7 @@ export type Tuile = { id: IdTuile; nom: string; mots: string };
 
 /** L'ordre est celui de l'écran : le plus touché d'abord. */
 export const TUILES: readonly Tuile[] = [
-  { id: 'heures', nom: 'Heures et jours', mots: 'heures horaires ouverture fermeture ouvert fermé jour journée exceptionnelle férié inventaire congé bloquer créneau pause midi absence' },
+  { id: 'heures', nom: 'Heures et jours', mots: 'heures horaires ouverture fermeture ouvert fermé jour journée exceptionnelle férié inventaire congé bloquer créneau pause midi absence clôture grenat caisse du jour' },
   { id: 'whatsapp', nom: 'WhatsApp', mots: 'whatsapp automate assistant phrases claude numéros essai places horizon main équipe pause réponse' },
   { id: 'paiements', nom: 'Paiements', mots: 'paiement paiements modes espèces momo moov celtiis carte chèque virement mnd pay fedapay tap go zelle devise étrangère euro dollar relance relances facture factures rythme rattrapage' },
   { id: 'envoyer', nom: 'Ce qu’on envoie aux clientes', mots: 'itinéraire chemin adresse plan google maps avis lien momo qr ussd marchand code 909099 messages automatiques' },

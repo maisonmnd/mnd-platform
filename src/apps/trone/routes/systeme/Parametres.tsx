@@ -4,7 +4,7 @@ import { PageHead } from '../_ui';
 import { Button, Card, Eyebrow, Field, Input, Select, Textarea, toast, demande } from '../../../../ds/components';
 import { Toggle } from '../equipe/ui';
 import { supabase } from '../../../../shared/supabase';
-import { useAuth } from '../../../../shared/auth';
+import { useAuth, useStaff as useMaTeteAuxParametres } from '../../../../shared/auth';
 import { getSyncState, subscribeSync, tablePrete } from '../../../../shared/sync';
 import { resumeDeLaMemoire, ditLePoids, ecrituresRecues, PLACE_ACCORDEE } from '../../../../shared/poids-de-la-memoire';
 import { autoConfigStore, MOMO_QR_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT, type AutoConfig } from '../equipe/data';
@@ -48,6 +48,7 @@ import {
   resumeReservation, resumePointage, resumeDiagnostic, resumeNotifications, resumeDictee, resumePlaces, type Etat, type IdTuile,
 } from './parametres-pur';
 import { CartePlacesLimitees } from './CartePlacesLimitees';
+import { CarteClotureDeGrenat } from './CarteClotureDeGrenat';
 import { reglageDesPlaces } from '../clients/places-au-trone-pur';
 import { useOffers } from '../../../../shared/offers';
 
@@ -812,8 +813,12 @@ function ResetEncaissementsCard() {
   const [invoices] = useStore(invoicesStore);
   const [armed, setArmed] = useState(false);
   const paidCount = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'payée').length;
+  /* Ce geste efface des factures payées : la direction seule (4 novembre
+     2026, règle 5 de la clôture de Grenat ; la base le garde, 0156). */
+  const souverainIci = useMaTeteAuxParametres()?.role === 'souverain';
 
   const doReset = () => {
+    if (!souverainIci) { toast('Une facture payée ne s’efface que par la direction.'); setArmed(false); return; }
     const r = resetAllPaidInvoices(branch.id);
     setArmed(false);
     toast(
@@ -1995,6 +2000,8 @@ export default function Parametres() {
                   jour : on voit ce qu’on bloque.
                 </div>
               </Card>
+              {/* LES HEURES DE LA CLÔTURE DE GRENAT (4 novembre 2026) : 15 h et 19 h par défaut, la direction seule. */}
+              <CarteClotureDeGrenat />
             </>
           )}
 

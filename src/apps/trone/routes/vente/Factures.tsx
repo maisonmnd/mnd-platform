@@ -24,7 +24,10 @@ import { BlocRelances } from './BlocRelances';
 import { fmtDateFr, useLaPieceEnPdf, detailPorte } from './pdf-de-la-piece';
 import { BoutonDuPoint, FenetreDuPoint } from './FenetreDuPoint';
 import { filStore, nouveauMessage } from '../../../../shared/fil';
-import { useAuth } from '../../../../shared/auth';
+import { useAuth, useStaff as useMaTete } from '../../../../shared/auth';
+import { demandeUnTexte } from '../../../../ds/demande';
+import { pieceAPaye, type PieceLue } from '../../../../shared/cloture-du-jour-pur';
+import { effaceLaPiecePayee } from '../../../../shared/cloture-du-jour';
 import { useStaff } from '../equipe/data';
 import { coffreStore, useCashboxes, caissesPourLaDate, useInvoices, usePaymentMethods, invoiceTotal, ligneNetXof, invoiceReglements, invoiceRegleXof, invoiceResteXof, invoiceSoldee, type Invoice, type InvoiceLine, type PaymentMethod , nextInvoiceNumber, nouvelleFacture, ligneFacture, invoicesStore } from '../../../../shared/finance';
 import { appointmentsStore, useAppointments, type Appointment, estampilleLaPose } from '../../../../shared/agenda';
@@ -135,6 +138,13 @@ export default function Factures() {
   /* 50 % et 100 % : la direction seulement (10 octobre 2026). Une remise déjà
      posée reste lisible dans le menu, même pour l'équipe. */
   const estDirection = useEstDirection();
+  /* UNE FACTURE PAYÉE NE S'EFFACE QUE PAR LA DIRECTION — 4 novembre 2026
+     (la clôture de Grenat, règle 5) : le souverain seul, Yéman ou Brice,
+     avec un motif écrit. Au comptoir, le bouton disparaît ; la base le
+     garde aussi (0156, `garde_des_pieces_payees`). */
+  const maTete = useMaTete();
+  const souverain = maTete?.role === 'souverain';
+  const peutSupprimer = (d: Invoice): boolean => souverain || !pieceAPaye(d as unknown as PieceLue);
   const [invoices, setInvoices] = useInvoices();
   const [clients] = useClients();
   /* LA PAYEUSE DU FOYER, pour le lien commun : c'est elle qui règle. */
@@ -540,6 +550,13 @@ export default function Factures() {
   const appliquerLesFusions = () => {
     const liste = fusions ?? [];
     if (liste.length === 0) { setFusions(null); return; }
+    /* Fondre une pièce PAYÉE l'efface (4 novembre 2026, règle 5) : la
+       direction seule, comme « Supprimer ». Son argent passe à la pièce
+       gardée, et Grenat la lit « fondue », sans alarme. */
+    if (!souverain && liste.some((f) => f.fondues.some((x) => pieceAPaye(x as unknown as PieceLue)))) {
+      toast('Une facture payée ne se fond que par la direction : elle efface la pièce fondue.');
+      return;
+    }
     const aSupprimer = new Set(liste.flatMap((f) => f.fondues.map((x) => x.id)));
     /* Le pourboire SUIT la pièce survivante — il ne meurt pas avec la pièce
        fondue : l'argent a bien été remis, seule la pièce change de nom. */
@@ -728,6 +745,15 @@ export default function Factures() {
        (elle) et l'état du RDV (paidXof, honoré, points). Supprimer l'une sans
        rembobiner l'autre laissait le rituel « payé » à jamais — on rembobine. */
     const doc = invoices.find((i) => i.id === id);
+    /* UNE PIÈCE PAYÉE (4 novembre 2026) : la direction seule, et son motif
+       d'abord. Le motif s'écrit sur la pièce et l'efface au serveur dans la
+       même transaction (`efface_la_piece_payee`) : la trace le porte, et
+       Grenat le signale à son passage. */
+    const payee = !!doc && pieceAPaye(doc as unknown as PieceLue);
+    if (payee && !souverain) {
+      toast('Une facture payée ne s’efface que par la direction, avec un motif écrit.');
+      return;
+    }
     const linked = doc ? appointmentsStore.get().find((a) => a.invoiceId === id) : undefined;
     const warn = linked
       ? `\n\nCette facture règle le rituel de ${clientNameOf(doc!)} du ${frDay(linked.date)} : sa suppression annule aussi l'encaissement, le rituel redevient impayé. Il reste HONORÉ et garde ses points : supprimer une pièce n'efface que de l'argent.`
@@ -742,6 +768,21 @@ export default function Factures() {
       refuser: 'Garder la pièce',
       dur: true,
     })) return;
+    if (payee) {
+      const motif = await demandeUnTexte({
+        quoi: 'Facture payée',
+        titre: `Pourquoi effacer ${label} ?`,
+        dit: 'De l’argent y est entré : le motif est obligatoire. Il reste dans la trace, et Grenat signale l’effacement ; l’argent reste compté jusqu’à votre décision dans La journée.',
+        etiquette: 'Le motif, en une phrase',
+        gabarit: 'Saisie en double, refaite sur F-2026-…',
+        accepter: 'Effacer la facture payée',
+        refuser: 'Garder la pièce',
+        dur: true,
+      });
+      if (motif === null) return;
+      const refus = await effaceLaPiecePayee(id, motif);
+      if (refus) { toast(refus); return; }
+    }
     /* L'AVOIR REVIENT TOUJOURS (3 octobre 2026). Le rembobinage ne partait
        que si la pièce était encore rattachée à son rendez-vous : un rendez-vous
        supprimé avant sa facture laissait l'avoir dépensé pour rien (47 000 F,
@@ -1527,7 +1568,7 @@ export default function Factures() {
                   </Button>
                   <Button variant="ghost" onClick={cancelEdit}>Annuler</Button>
                 </div>
-                {editing?.mode === 'edit' && (
+                {editing?.mode === 'edit' && peutSupprimer(draft) && (
                   <button
                     className="trv-linkbtn trv-linkbtn--muted"
                     style={{ alignSelf: 'flex-start', color: 'var(--trv-error)' }}
@@ -1543,14 +1584,16 @@ export default function Factures() {
             <div className="trv-doc-actions" style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div className="trv-doc-actions__row" style={{ display: 'flex', gap: 8 }}>
                 <Button variant="copper" style={{ flex: 1 }} size="sm" onClick={() => openEdit(selected)}>Modifier</Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  style={{ color: 'var(--trv-error)' }}
-                  onClick={() => deleteDoc(selected.id, `${selected.kind === 'devis' ? 'ce devis' : 'cette facture'} ${selected.number}`)}
-                >
-                  Supprimer
-                </Button>
+                {peutSupprimer(selected) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    style={{ color: 'var(--trv-error)' }}
+                    onClick={() => deleteDoc(selected.id, `${selected.kind === 'devis' ? 'ce devis' : 'cette facture'} ${selected.number}`)}
+                  >
+                    Supprimer
+                  </Button>
+                )}
               </div>
               {/* SA NAISSANCE ET SA VIE — 13 septembre 2026, signées par la base
                   (0092). La direction seule : le composant ne rend rien aux autres. */}

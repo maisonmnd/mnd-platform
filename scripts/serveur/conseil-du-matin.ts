@@ -36,7 +36,7 @@ declare const Deno: {
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-const VERSION = '2026-11-02-b';
+const VERSION = '2026-11-04-a';
 const ADRESSE = '/trone/#/assistants';
 const ETIQUETTE = 'mnd-conseil';
 /** Un appel à push-notify ne pend jamais au-delà. */

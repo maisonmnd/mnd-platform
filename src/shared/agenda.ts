@@ -402,6 +402,11 @@ export type Appointment = {
   annuleePar?: 'cliente' | 'maison';
   /** Elle n'est pas venue : « Absente : marquer manquée », au comptoir. */
   absente?: { le: string; par?: string };
+  /** PASSÉ « HONORÉ » PAR GRENAT (4 novembre 2026, la clôture de la journée) :
+      un rendez-vous réglé en entier, encore « confirmé » après sa fin. Les
+      suites (points, stock, mission, reprise) se font au Trône
+      (`useLaMainDeGrenat`), par un seul poste, qui réserve `suitesLe`. */
+  honoreParGrenat?: { le: string; moment?: string; suitesLe?: string };
   /** LA SÉANCE RENDUE : une manquée que la Maison redonne, avec son motif. */
   rendue?: { le: string; motif: string; par?: string };
   /** Proposée par la Maison (la cadence posée d'avance), en attente d'elle. */

@@ -134,6 +134,12 @@ export type Settings = {
       allumées par la direction, le jour du lancement, et le rattrapage des
       trente jours d'avant validé une fois. La tournée du serveur les lit. */
   relances?: ReglagesRelances;
+  /** LA CLÔTURE DE GRENAT — 4 novembre 2026 (maquette 9KCMgAb1…) : les heures
+      (du salon) où Grenat relit la journée, deux au plus, de 8 h à 23 h ;
+      absent = 15 h et 19 h. La fonction `cloture-du-jour` les lit
+      (`heuresDeLaCloture`, cloture-du-jour-pur.ts). La direction seule les
+      règle, dans Paramètres › Heures et jours. */
+  cloture?: { heures?: number[] };
   /** LA DICTÉE MND — 31 octobre 2026 (maquette F7LksMC3…) : les mots de la
       Maison, le mode et le modèle par défaut, l'empreinte du jeton de la
       Dictée du bureau, et depuis le 2 novembre 2026 celle de chaque autre

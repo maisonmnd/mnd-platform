@@ -134,11 +134,12 @@ await evalue(`document.querySelector('[role=dialog] button[aria-label="Fermer"],
 await evalue(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
 await attend(600);
 
-/* 2. La caisse du soir. */
-await evalue(`location.hash = '#/caisse'`);
+/* 2. La caisse du soir. LE JOURNAL A QUITTÉ LA CAISSE (4 novembre 2026,
+   la clôture de Grenat) : il vit en bas de Finances › La journée, et
+   « Clôturer la caisse » s'y allume sur une journée close (ici, trois
+   ventes de passage, sans rendez-vous : rien à clore). */
+await evalue(`location.hash = '#/la-journee'`);
 await attend(3000);
-await evalue(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Journal de caisse')?.click()`);
-await attend(800);
 /* LE JOURNAL A SON JOUR (4 octobre) : « Aujourd'hui » montre les trois tickets. */
 await evalue(`[...document.querySelectorAll('.cds-jour button')].find((b) => b.textContent.trim() === 'Aujourd’hui')?.click()`);
 await attend(600);

@@ -218,6 +218,21 @@ function pointsQuiPressent(f: FaitsDuConseil, maintenantMs: number, livre: Retur
         : `${l.nom} approche de son plafond : ${dollarsDits(l.usd)} sur ${dollarsDits(l.plafond)}.` });
   }
 
+  /* ④ bis LA CLÔTURE DE GRENAT D'HIER (4 novembre 2026) : son mot du matin a
+     relu la veille entière (un rendez-vous fini après 19 h compris) ; ce qui
+     est resté ouvert presse, en nombres. */
+  const hierDeCotonou = aCotonou(maintenantMs - 86_400_000).dateISO;
+  const grenat = (f.bilans ?? []).find((b) => b.assistant === 'grenat' && b.jour === hierDeCotonou);
+  if (grenat) {
+    const c = (grenat.comptes ?? {}) as Record<string, unknown>;
+    const ouverts = [
+      entier(c.aClore) ? nombreDit(entier(c.aClore), 'rendez-vous resté ouvert', 'rendez-vous restés ouverts') : '',
+      entier(c.aRevoir) ? nombreDit(entier(c.aRevoir), 'facture à revoir', 'factures à revoir') : '',
+      entier(c.alarmes) ? nombreDit(entier(c.alarmes), 'pièce payée effacée', 'pièces payées effacées') : '',
+    ].filter(Boolean);
+    if (ouverts.length) points.push({ rang: entier(c.alarmes) ? 1 : 3, ton: entier(c.alarmes) ? 'alerte' : 'attention', texte: `La journée d'hier n'est pas close : ${ouverts.join(', ')}.` });
+  }
+
   /* ⑤ Les dépenses à valider. */
   const dep = entier(f.depensesAValider);
   if (dep > 0) points.push({ rang: 5, ton: 'attention', texte: dep === 1 ? 'Une dépense attend sa validation.' : `${dep} dépenses attendent leur validation.` });
@@ -254,6 +269,9 @@ function hier(f: FaitsDuConseil, jour: string, jourDHier: string): string[] {
   const COMPTES_DITS: [string, string, string][] = [
     ['lus', 'lu', 'lus'], ['repondus', 'réponse', 'réponses'], ['pouces', 'pouce', 'pouces'], ['rdvPoses', 'rendez-vous posé', 'rendez-vous posés'],
     ['depenses', 'dépense', 'dépenses'], ['cartes', 'carte', 'cartes'], ['relais', 'relais', 'relais'], ['publications', 'publication', 'publications'],
+    /* La clôture de Grenat (4 novembre 2026) : ce qu'il a fait seul, ce qui est resté ouvert. */
+    ['papiers', 'papier envoyé', 'papiers envoyés'], ['honores', 'rendez-vous passé honoré', 'rendez-vous passés honorés'], ['relies', 'facture reliée', 'factures reliées'],
+    ['aClore', 'rendez-vous resté ouvert', 'rendez-vous restés ouverts'], ['aRevoir', 'facture à revoir', 'factures à revoir'], ['alarmes', 'pièce payée effacée', 'pièces payées effacées'],
   ];
   const parQui = new Map<string, BilanLu>();
   for (const b of f.bilans ?? []) {
