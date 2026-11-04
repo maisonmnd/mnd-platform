@@ -479,6 +479,24 @@ export default function Comptes() {
                       })}
                     </div>
 
+                    {/* LA CASE DU FOYER, SUR LA CARTE — 4 novembre 2026 : elle se
+                        coche ici même, comme la remise, sans ouvrir le foyer. Elle
+                        ne paraît qu'à partir de deux têtes rattachées. */}
+                    {members.length >= 2 && (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 12.5, cursor: 'pointer', color: f.toujoursEnsemble ? 'var(--copper-700)' : 'var(--ink-soft)' }}>
+                        <input
+                          type="checkbox"
+                          checked={!!f.toujoursEnsemble}
+                          onChange={(e) => {
+                            const oui = e.target.checked;
+                            familiesStore.set((prev) => prev.map((x) => (x.id === f.id ? { ...x, toujoursEnsemble: oui || undefined } : x)));
+                          }}
+                          style={{ accentColor: 'var(--color-copper)' }}
+                        />
+                        Elles viennent toujours ensemble
+                      </label>
+                    )}
+
                     {(adresseAbsente || sansNaissance > 0) && (
                       <div style={{ marginTop: 9, fontSize: 12, color: 'var(--copper-700)', lineHeight: 1.5 }}>
                         {adresseAbsente && <div>Adresse e-mail absente : elle ne retrouvera pas ses enfants en s’inscrivant sur Ma Couronne.</div>}
@@ -788,6 +806,11 @@ function FamilyModal({
   const [memberIds, setMemberIds] = useState<string[]>(initMembers);
   const [payerId, setPayerId] = useState(family?.payerClientId ?? parent?.id ?? '');
   const [pick, setPick] = useState('');
+  /* ELLES VIENNENT TOUJOURS ENSEMBLE — 4 novembre 2026 (le parcours du
+     foyer, arbitrage 5). Décochée par défaut : un compte famille n'est pas
+     une venue, et une mère qui règle pour sa fille ne vient pas forcément
+     avec elle. */
+  const [toujoursEnsemble, setToujoursEnsemble] = useState(!!family?.toujoursEnsemble);
   /* LA REMISE FAMILLE — deux régimes (14 août, décision de Yéman) :
      · BARÈME DU FOYER (compte muet) : 1 enfant mineur → 10 %, 2 et plus →
        15 %, aucun → 0. Il suit la famille tout seul — un enfant s'ajoute,
@@ -833,8 +856,16 @@ function FamilyModal({
   const save = () => {
     if (!name.trim()) return;
     const id = family?.id ?? `fam-${uid()}`;
-    /* Barème du foyer = remisePct ABSENT — le juge décide, et suit la famille. */
-    const rec: Family = { id, branchId, name: name.trim(), payerClientId: payerId || undefined, note: note.trim() || undefined, remisePct: remiseAuto ? undefined : remiseNum };
+    /* Barème du foyer = remisePct ABSENT — le juge décide, et suit la famille.
+       CE QUE L'ÉDITEUR NE MONTRE PAS SE GARDE (4 novembre 2026) : le compte
+       se réécrivait d'un objet neuf, et un champ posé ailleurs (la case du
+       foyer, demain un autre) partait au premier enregistrement. */
+    const rec: Family = {
+      ...(family ?? {}),
+      id, branchId, name: name.trim(), payerClientId: payerId || undefined, note: note.trim() || undefined,
+      remisePct: remiseAuto ? undefined : remiseNum,
+      toujoursEnsemble: toujoursEnsemble || undefined,
+    };
     familiesStore.set((prev) => (family ? prev.map((f) => (f.id === id ? rec : f)) : [...prev, rec]));
     /* Rattachements : membres cochés → familyId, retirés → familyId effacé. */
     clientsStore.set((prev) => prev.map((c) => {
@@ -873,6 +904,21 @@ function FamilyModal({
             <ClientPicker value={pick} onChange={addMember} allowPassage placeholder="Ajouter une cliente au compte…" />
             <div className="mnd-muted" style={{ fontSize: 10.5 }}>Le parent payeur (★) est celui qui règle les factures du compte.</div>
           </div>
+        </Field>
+        <Field label="Leurs rendez-vous">
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer', fontSize: 13, lineHeight: 1.5 }}>
+            <input
+              type="checkbox" checked={toujoursEnsemble} onChange={(e) => setToujoursEnsemble(e.target.checked)}
+              style={{ accentColor: 'var(--color-copper)', marginTop: 3 }}
+            />
+            <span>
+              <b style={{ fontWeight: 600, color: 'var(--color-indigo)' }}>Elles viennent toujours ensemble</b>
+              <span className="mnd-muted" style={{ display: 'block', fontSize: 11.5 }}>
+                Un rendez-vous pour l’une pose les autres à la même heure, sur l’autre fauteuil, avec les mêmes gestes au tarif
+                de leur âge. Le foyer se déplace d’un geste ; l’annulation demande « les deux, ou seulement elle ? ».
+              </span>
+            </span>
+          </label>
         </Field>
         <Field label="Remise famille">
           {(() => {

@@ -33,18 +33,17 @@ import {
 import { uid } from '../../../../shared/store';
 import { TIME_SLOTS, todayISO, poseLHoteDuFoyer } from './_shared';
 import { ChampDeDate } from '../../../../ds/dates';
+import { tetesDuFoyer as tetesDuFoyerPur } from '../../../../shared/foyer-pur';
 
 /** Les têtes d'un foyer : toutes celles rattachées au compte, quel que soit
     leur âge. `tetesPortees` ne rend que les MINEURES, ce qui est juste pour Ma
     Couronne — un adulte ne réserve pas pour un autre adulte sans son mot — mais
-    faux au comptoir, où la Maison a les deux sœurs devant elle. */
-export const tetesDuFoyer = (client: Client, clients: readonly Client[], familyId?: string): Client[] => {
-  const fid = familyId ?? client.familyId;
-  if (!fid) return [];
-  return clients
-    .filter((c) => c.familyId === fid && !c.archived)
-    .sort((a, b) => (a.id === client.id ? -1 : b.id === client.id ? 1 : a.name.localeCompare(b.name, 'fr')));
-};
+    faux au comptoir, où la Maison a les deux sœurs devant elle.
+    LA RÈGLE VIT DANS shared/foyer-pur.ts depuis le 4 novembre 2026 (le
+    parcours du foyer) : la fenêtre du rendez-vous la lit aussi, pour poser
+    les sœurs qui viennent toujours ensemble. */
+export const tetesDuFoyer = (client: Client, clients: readonly Client[], familyId?: string): Client[] =>
+  tetesDuFoyerPur(client, clients, familyId);
 
 type Choix = { serviceIds: string[] };
 
@@ -68,7 +67,11 @@ export function RdvFoyerModal({ clientId, onClose }: { clientId: string; onClose
 
   /* LA TÊTE PAR LAQUELLE ON EST ARRIVÉ EST COCHÉE : c'est elle qu'on servait
      quand l'idée du foyer est venue. */
-  const [pris, setPris] = useState<Record<string, Choix>>(() => ({ [clientId]: { serviceIds: [] } }));
+  /* ELLES VIENNENT TOUJOURS ENSEMBLE (4 novembre 2026) : la case du compte
+     coche d'office toutes les têtes ; on en décoche une pour cette fois. */
+  const [pris, setPris] = useState<Record<string, Choix>>(() => (famille?.toujoursEnsemble
+    ? Object.fromEntries(tetes.map((t) => [t.id, { serviceIds: [] }]))
+    : { [clientId]: { serviceIds: [] } }));
   /* LES TÊTES POUR QUI LA GARDE MND KIDS EST LEVÉE, sur CE rendez-vous.
      Tête par tête : dans un foyer, l'enfant garde sa section pendant que la
      mère mal datée retrouve la sienne. Rien n'est retenu d'une fois sur

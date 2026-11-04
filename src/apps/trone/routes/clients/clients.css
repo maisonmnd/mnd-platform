@@ -3905,3 +3905,27 @@
   .trc-enc2__gauche { order: 2; }
   .trc-enc2__ticket > .trc-enc2__barre { order: 3; position: sticky !important; bottom: -1px !important; margin: 0 -2px !important; padding: 11px 2px 2px !important; box-shadow: 0 -8px 14px -10px rgba(30, 33, 80, .18), 0 28px 0 0 var(--color-ivoire) !important; }
 }
+
+/* ══ LE PARCOURS DU FOYER — 4 novembre 2026 ═════════════════════════════
+   À gauche de la fenêtre du rendez-vous : le foyer relu (qui vient avec
+   elle, « Seulement elle »), les sœurs posées avec elle, « Les lier ». Le
+   cuivre en filet et en accent, jamais en texte courant sur fond clair. */
+.trc-foyer { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--copper-300); border-left: 3px solid var(--color-copper); border-radius: var(--radius-md); background: var(--surface-card); }
+.trc-foyer__tete { display: flex; justify-content: space-between; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; }
+.trc-foyer__ligne { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: baseline; font-size: 13px; }
+.trc-foyer__ligne b { font-family: var(--font-serif); font-size: 17px; font-weight: 400; color: var(--color-indigo); grid-column: 1; }
+.trc-foyer__ligne span { grid-column: 1; color: var(--ink-soft); font-size: 12px; overflow-wrap: anywhere; }
+.trc-foyer__ligne .trc-foyer__mt { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--color-indigo); font-size: 14px; }
+.trc-foyer__compagne { display: flex; flex-direction: column; gap: 5px; padding-top: 8px; border-top: 1px solid var(--hairline); }
+.trc-foyer__dit { font-size: 11.5px; color: var(--ink-soft); line-height: 1.45; }
+.trc-foyer__dit--cuivre { color: var(--copper-700); }
+.trc-foyer__gestes { display: flex; gap: 6px 14px; flex-wrap: wrap; }
+.trc-foyer__choisir { display: flex; flex-direction: column; gap: 7px; }
+.trc-foyer__seule { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--color-indigo); cursor: pointer; }
+.trc-foyer__seule input, .trc-foyer--lier input { accent-color: var(--color-copper); }
+.trc-foyer--lier { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; font-size: 13px; color: var(--color-indigo); background: var(--copper-50); }
+label.trc-foyer--lier { justify-content: flex-start; cursor: pointer; }
+.trc-foyer__question { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; padding: 9px 12px; border-left: 3px solid var(--color-brique, #96412E); background: var(--brique-faible, #FBF0ED); font-size: 13px; color: var(--ink); }
+.trc-foyer__choix { display: flex; gap: 8px; flex-wrap: wrap; }
+.trc-rdv5__foyer { display: flex; flex-direction: column; border-top: 1px solid var(--hairline); padding-top: 8px; }
+.trc-rdv5__foyer .trc-rdv5__total b { font-size: 24px; }

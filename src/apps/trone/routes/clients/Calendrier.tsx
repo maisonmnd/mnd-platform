@@ -10,6 +10,7 @@ import {
   useBranchAppointments, useBranchClients, useServicesById, useClefDuTarif, type RdvInitial,
 } from './_shared';
 import { PayAppointmentModal } from './actions';
+import { deplaceAvecLeFoyer, quiSuit } from './foyer-gestes';
 import { useStaff as useMyStaff } from '../../../../shared/auth';
 import { useSettings } from '../../../../shared/settings';
 import { staffAccessStore } from '../equipe/data';
@@ -168,15 +169,20 @@ export default function Calendrier() {
     window.setTimeout(() => { didDrag.current = false; }, 0);
   };
 
+  /* LE FOYER SUIT LE GLISSER — 4 novembre 2026 (le parcours du foyer,
+     arbitrage 1). Un rendez-vous du foyer glissé à un autre jour ou une autre
+     heure emmène ses sœurs (même jour, même écart), chacune chez son maître ;
+     la colonne d'arrivée ne change que le maître du rendez-vous glissé.
+     « Seulement elle » se coche dans la fenêtre du rendez-vous. */
   const applyMove = (a: Appointment, next: { date: string; time: string; master: string }) => {
     if (a.date === next.date && a.time === next.time && a.master === next.master) return;
-    appointmentsStore.set((prev) =>
-      prev.map((x) => (x.id === a.id ? { ...x, date: next.date, time: next.time, master: next.master } : x)),
-    );
+    const suit = quiSuit(a);
+    const n = deplaceAvecLeFoyer(a, next);
+    const foyer = n > 1 && suit ? ` ${suit} suit, chacune à son fauteuil ; seulement elle : dans sa fenêtre.` : '';
     if (collides(a, next.date, next.time, next.master)) {
-      flashHint(`Déplacé à ${next.time}, chevauchement avec un autre rituel de ${next.master}.`);
+      flashHint(`Déplacé à ${next.time}, chevauchement avec un autre rituel de ${next.master}.${foyer}`);
     } else {
-      flashHint(`Rituel déplacé à ${frShort(next.date)} · ${next.time}.`);
+      flashHint(`Rituel déplacé à ${frShort(next.date)} · ${next.time}.${foyer}`);
     }
   };
 

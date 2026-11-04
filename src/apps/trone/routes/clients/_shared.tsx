@@ -69,6 +69,13 @@ import {
   raisonDeLHeure, rangeeSuivante, septJours, type Occupant, type Rangee,
 } from './rdv-fluide-pur';
 import { dureeDuRendezVous, estUnSinsin, maitresPermis, MAITRE_DES_SINSIN } from '../../../../shared/agenda-pur';
+import { maitresLibres } from '../../../../shared/agenda';
+import {
+  aLierAvec, appliqueLeDeplacement, autresDuFoyer, compagnesAPoser, deplacementDuFoyer, lienDesRdvs, maitresDesCompagnes,
+  prenomDe, prenomsDits, questionDAnnulation, type RdvDuFoyer,
+} from '../../../../shared/foyer-pur';
+import { lieLeFoyer, quiAnnuler } from './foyer-gestes';
+import { OptionsPrestations } from '../_ui';
 
 export { ChampDeDate };
 
@@ -622,6 +629,41 @@ export function tarifsDuRituel(
     personnalise ? personalPriceXof(sv, pricing, ctx.tousServices, ctx.produits) : prixDeBase(sv, pricing);
   const gesteDe = (sv: Service) => remiseGestePct(sv, pricing, chosen);
   return { pricing, chosen, prixPlein, gesteDe };
+}
+
+/* ══ LE PRIX DE LA SŒUR QUI VIENT AVEC ELLE — 4 novembre 2026 ═══════════
+   Le parcours du foyer : poser pour une tête d'un compte « toujours
+   ensemble » pose les autres, chacune au tarif de SA tête (son calibre, sa
+   longueur, son âge), par le même calcul que la fenêtre et le Carnet
+   (`tarifsDuRituel`, `brutDuRituel`). La remise famille s'y fige en francs,
+   hors forfaits, comme sur la tête choisie (J. K. 6 600 F et F. K. 4 400 F à
+   22 %, le 4 novembre 2026), et une seule faveur à la fois : un geste offert
+   au panier retire la remise. */
+export function chiffreDeLaCompagne(o: {
+  fiche: Client | undefined;
+  serviceIds: readonly string[];
+  date: string;
+  famPct: number;
+  ctx: Omit<Parameters<typeof tarifsDuRituel>[1], 'client'>;
+}): { brutXof: number; remiseFamilleXof: number; netXof: number; dureeMin: number; longueur?: LongueurId; prixAVoir: boolean } {
+  const ids = [...o.serviceIds];
+  const tarifs = tarifsDuRituel({ serviceIds: ids, longueur: o.fiche?.longueur, date: o.date }, { ...o.ctx, client: o.fiche });
+  const lignes = lignesAuTarif({ serviceIds: ids, remisesLignes: [] }, o.ctx.byId, tarifs);
+  const brutXof = lignes.reduce((n, l) => n + l.net, 0);
+  const forfaits = lignes.filter((l) => regimeTarifaire(l.sv, o.ctx.cats).k === 'forfait').reduce((n, l) => n + l.net, 0);
+  const pct = unGesteDansLePanier(tarifs.chosen, tarifs.pricing) ? 0 : Math.max(0, o.famPct);
+  const remiseFamilleXof = Math.round(Math.max(0, brutXof - forfaits) * (pct / 100));
+  const duree = tarifs.chosen.reduce((n, sv) => n + personalDurationMin(sv, tarifs.pricing), 0);
+  return {
+    brutXof,
+    remiseFamilleXof,
+    netXof: Math.max(0, brutXof - remiseFamilleXof),
+    dureeMin: Math.max(15, duree || 60),
+    longueur: tarifs.chosen.some(suitLongueur) ? tarifs.pricing.longueur : undefined,
+    /* Une prestation sur devis, ou une variable que son calibre ne tranche
+       pas : le prix se dit au fauteuil, dans SON rendez-vous. */
+    prixAVoir: tarifs.chosen.some((sv) => !prixFerme(sv, tarifs.pricing)),
+  };
 }
 
 /* ══ LE TARIF DE LA TÊTE, UN SEUL CALCUL — 9 octobre 2026 ═══════════════
@@ -2790,6 +2832,8 @@ function RdvModalCorps({
   const [avecConfirmation, setAvecConfirmation] = useState(true);
   /* L'écran « posé » : le rendez-vous qu'on vient d'écrire. */
   const [poseLe, setPoseLe] = useState<Appointment | null>(null);
+  /* Les prénoms des sœurs posées avec elle (le parcours du foyer, 4 novembre 2026). */
+  const [foyerPose, setFoyerPose] = useState('');
   /* Son rituel habituel se pose une fois par cliente choisie, jamais par-dessus une saisie. */
   const [habitudeDe, setHabitudeDe] = useState<string>(appt?.clientId ?? '');
   const basculeRang = (r: Rangee) => setRang((x) => (x === r ? '' : r));
@@ -2880,6 +2924,87 @@ function RdvModalCorps({
   /* « POSER QUAND MÊME » NE VAUT QUE POUR L'HEURE OÙ ON L'A DIT : un autre
      jour, une autre heure, une autre durée se rejugent. */
   useEffect(() => { setForcePlein(false); }, [date, time, dureeRetenue]);
+
+  /* ══ LE PARCOURS DU FOYER — 4 novembre 2026 ═══════════════════════════════
+     « [F. K.] and [J. K.] always come together, they are sisters. Must find a
+     way to keep their appointment under one canal. Everything the same »
+     (Yéman). Maquette `public/maquette-le-parcours-du-foyer.html`, ses cinq
+     arbitrages tranchés. Les règles vivent dans shared/foyer-pur.ts ; ici,
+     ce que la fenêtre en montre et en écrit :
+     - un rendez-vous NEUF pour une tête d'un compte « toujours ensemble »
+       pose les autres à la même heure, sur l'autre fauteuil, avec les gestes
+       de leur âge et un `foyerId` commun (`compagnesAPoser`) ;
+     - un rendez-vous DU FOYER relu : changer son jour ou son heure déplace
+       tout le foyer, sauf « Seulement elle » (`deplacementDuFoyer`) ;
+     - deux têtes du même compte au même jour, à la même heure, sans foyer
+       commun : « Elles viennent ensemble ? Les lier » (`aLierAvec`). */
+  const rdvDuMagasin = appt ? branchAppts.find((a) => a.id === appt.id) ?? appt : undefined;
+  const autresDuFoyerIci = rdvDuMagasin ? autresDuFoyer(rdvDuMagasin, branchAppts) : [];
+  const suiventIci = autresDuFoyerIci.filter((a) => a.status !== 'honoré');
+  const prenomIci = prenomDe(clients.find((c) => c.id === clientId)?.name) || 'elle';
+  const prenomDuRdv = (a: Pick<Appointment, 'clientId' | 'clientName'>) =>
+    prenomDe(clients.find((c) => c.id === a.clientId)?.name ?? a.clientName) || 'elle';
+  /* « SEULEMENT ELLE » : par rendez-vous relu, jamais retenu d'une fois sur
+     l'autre ; décochée, le foyer suit. */
+  const [seulementElle, setSeulementElle] = useState(false);
+  /* L'ANNULATION PAR LE STATUT : la même question que le bouton, posée sous
+     le sélecteur (« les deux, ou seulement elle ? »). */
+  const [annuleLeFoyer, setAnnuleLeFoyer] = useState<'tous' | 'elle' | null>(null);
+  const aLierIci = rdvDuMagasin ? aLierAvec(rdvDuMagasin, branchAppts, clients) : [];
+  /* LES TÊTES QUI VIENNENT AVEC ELLE, sur un rendez-vous neuf. `exclues` :
+     retirées pour cette fois ; `gestesDesCompagnes` : les gestes changés pour
+     l'une (« qu'on peut changer pour l'une », arbitrage 4). Tout se remet à
+     zéro quand la tête change. */
+  const [exclues, setExclues] = useState<ReadonlySet<string>>(() => new Set());
+  const [gestesDesCompagnes, setGestesDesCompagnes] = useState<Record<string, string[]>>({});
+  const [compagneOuverte, setCompagneOuverte] = useState<string | null>(null);
+  useEffect(() => { setExclues(new Set()); setGestesDesCompagnes({}); setCompagneOuverte(null); }, [clientId]);
+  const foyerAPoser = !appt && clientId
+    ? compagnesAPoser({
+      clientId, fiches: clients, famille: familleDuCompte, rdvs: branchAppts, branchId: branch.id,
+      date, time, serviceIds,
+      verdictDe: (f) => estKids(f, todayISO()),
+      estPourEnfants: (id) => !!byId.get(id)?.reserveEnfants,
+      exclues,
+    })
+    : null;
+  /* « Les lier » à la pose, hors de la case : une tête du même compte a déjà
+     son rendez-vous à ce jour et à cette heure. Proposé, jamais d'office. */
+  const [lierALaPose, setLierALaPose] = useState(false);
+  const aLierALaPose = !appt && clientId && momentChoisi && !foyerAPoser?.ensemble
+    ? aLierAvec<RdvDuFoyer>({ id: '', clientId, date, time, status: 'confirmé', branchId: branch.id }, branchAppts, clients)
+    : [];
+  const ctxDuTarif = { bands, sets, cats, byId, tousServices: services, produits: produitsGamme };
+  const compagnes = (foyerAPoser?.aPoser ?? []).map((c) => {
+    const ids = gestesDesCompagnes[c.clientId] ?? c.serviceIds;
+    const fiche = clients.find((x) => x.id === c.clientId);
+    return { ...c, ids, fiche, chiffre: chiffreDeLaCompagne({ fiche, serviceIds: ids, date, famPct: famPctCompte, ctx: ctxDuTarif }) };
+  });
+  const libresALHeure = compagnes.length > 0
+    ? maitresLibres({
+      appts: branchAppts, branchId: branch.id, dateIso: date, heure: time,
+      dureeMin: Math.max(dureeRetenue, ...compagnes.map((c) => c.chiffre.dureeMin)),
+      maitres: branch.masters, dejaPoses: [{ master, time, dureeMin: dureeRetenue }],
+    })
+    : [];
+  const maitresDuFoyer = maitresDesCompagnes({
+    maitreDeLaTete: master,
+    compagnes: compagnes.map((c) => ({ clientId: c.clientId, permis: maitresPermis(c.ids.map((id) => byId.get(id)?.name), branch.masters) })),
+    libres: libresALHeure,
+  });
+  const compagnesPretes = compagnes.filter((c) => c.ids.length > 0);
+  const liesALaPose = [
+    ...(foyerAPoser?.dejaLa ?? []).filter((d) => d.memeHeure).map((d) => d.apptId),
+    ...(lierALaPose ? aLierALaPose.map((a) => a.id) : []),
+  ];
+  /* LES FAUTEUILS DU FOYER : la tête et ses sœurs à la même heure, plus ce
+     qui occupe déjà cette heure. Le comptoir pose quand même (les deux
+     fauteuils sont à lui) ; l'écran le dit en cuivre. */
+  const fauteuilsDuFoyerPleins = compagnesPretes.length > 0 && sieges > 0 && momentChoisi
+    && occupesDe(date).filter((o) => {
+      const d = timeToMin(time);
+      return d < o.debutMin + o.dureeMin && o.debutMin < d + dureeRetenue;
+    }).length + 1 + compagnesPretes.length > sieges;
   /* LES SÍNSIN CHEZ TEAM — 24 octobre 2026 (« un seul maître Team pour les
      SÍNSIN, l'expert n'est proposé que pour les autres services », Yéman).
      À la création, un SÍNSIN pose Team ; un rendez-vous relu garde le sien
@@ -3123,6 +3248,15 @@ function RdvModalCorps({
         return false;
       }
     }
+    /* L'ANNULATION DU FOYER PAR LE STATUT — 4 novembre 2026 (arbitrage 2) :
+       la même question que « Annuler le rendez-vous », posée sous le
+       sélecteur. Sans réponse, rien ne s'écrit. */
+    const annuleIci = !!appt && chosenStatus === 'annulé' && appt.status !== 'annulé' && suiventIci.length > 0;
+    if (annuleIci && !annuleLeFoyer) {
+      setError(`Dites d’abord, sous le statut, s’il faut annuler tout le foyer ou seulement ${prenomIci}.`);
+      setRang('plus');
+      return false;
+    }
     /* LE SALON SOUVERAIN FERME LA MAISON (15 août) — « quand quelqu'un
        réserve, le salon est bloqué pour ce temps ». La plage se pose au NOM du
        rendez-vous : elle se repose sans se dédoubler quand l'heure change, et
@@ -3143,6 +3277,10 @@ function RdvModalCorps({
     };
 
     if (appt) {
+      /* LE RENDEZ-VOUS TEL QU'IL ÉTAIT, pour savoir qui le foyer emmène : son
+         `foyerId` du magasin (il a pu être lié depuis l'ouverture), son jour
+         et son heure d'avant. */
+      const avantDeLEcriture = { ...(appointmentsStore.get().find((x) => x.id === appt.id) ?? appt), date: appt.date, time: appt.time };
       /* LA SÉRIE SE POSE APRÈS L'ÉCRITURE (15 août) — `attacheSeance` a besoin
          de voir le rendez-vous à jour pour renuméroter toute la série. */
       const poseLaSerie = (l: Appointment[]): Appointment[] => {
@@ -3271,6 +3409,28 @@ function RdvModalCorps({
             : x,
         ),
       ));
+      /* ══ LE FOYER SUIT — 4 novembre 2026 (arbitrage 1) ══════════════════
+         Un jour ou une heure changés emmènent les autres têtes du foyer, au
+         même jour et avec le même écart (ensemble à 10 h, ensemble à la
+         nouvelle heure), chacune à son fauteuil et chez son maître.
+         « Seulement elle » : elle seule bouge, et quitte le foyer. */
+      if (chosenStatus !== 'annulé' && (date !== appt.date || time !== appt.time)) {
+        const d = deplacementDuFoyer({ rdv: avantDeLEcriture, rdvs: appointmentsStore.get(), date, time, seulementElle });
+        if (d.length > 1 || d.some((x) => x.detache)) appointmentsStore.set((prev) => appliqueLeDeplacement(prev, d));
+        if (d.length > 1) {
+          const suivent = d.slice(1).map((x) => appointmentsStore.get().find((a) => a.id === x.id)).filter((a): a is Appointment => !!a);
+          toast(`Le foyer suit : ${prenomsDits(suivent.map(prenomDuRdv))} aussi, le ${jourDit(date)}.`);
+        }
+      }
+      /* « Les deux » au statut annulé : les autres têtes du foyer s'annulent
+         avec elle, de la main de la Maison. */
+      if (annuleIci && annuleLeFoyer === 'tous') {
+        const ids = suiventIci.map((a) => a.id);
+        const le = new Date().toISOString();
+        appointmentsStore.set((prev) => prev.map((x) => (ids.includes(x.id) && x.status !== 'annulé'
+          ? { ...x, status: 'annulé' as const, ...(x.annuleeLe ? {} : { annuleeLe: le, annuleePar: 'maison' as const }) }
+          : x)));
+      }
       reglerLeSalon(appt.id, chosenStatus);
       /* LE STOCK SUIT LE STATUT, quel que soit le chemin. Le bouton du Carnet
          n'était pas le seul à écrire « honoré » : ce sélecteur aussi — et il
@@ -3413,10 +3573,55 @@ function RdvModalCorps({
          qu'un rituel avait été posé après son heure.
          UN SEUL GESTE DEPUIS LE 2 NOVEMBRE 2026 (`poseUnRendezVous`, agenda.ts) :
          « Son prochain rituel » à la Caisse écrit par le même. */
+      /* ══ LE FOYER SE POSE ENSEMBLE — 4 novembre 2026 (arbitrages 4 et 5) ══
+         Ses sœurs du compte « toujours ensemble » se posent dans le même
+         geste : même jour, même heure, l'autre fauteuil, les gestes de leur
+         âge (ou ceux changés pour l'une), chacune à son prix et sa remise
+         famille en francs. Une tête qui a déjà son rendez-vous à cette heure
+         le garde et rejoint le foyer : jamais deux rendez-vous le même jour.
+         Le même `foyerId` sur toutes (celui qu'un rendez-vous lié porte déjà,
+         sinon un neuf, « fo-… » comme RdvFoyer). */
+      const liesIci = liesALaPose;
+      const lien = compagnesPretes.length > 0 || liesIci.length > 0
+        ? lienDesRdvs(branchAppts.filter((a) => liesIci.includes(a.id)), `fo-${uid()}`)
+        : null;
+      if (lien) created.foyerId = lien.foyerId;
+      const desCompagnes: Appointment[] = lien ? compagnesPretes.map((c) => {
+        const svcs = c.ids.map((id) => byId.get(id)).filter((s): s is Service => !!s);
+        const acompte = svcs.filter((s) => depositPctFor(s.id) > 0);
+        return {
+          id: uid(),
+          branchId: branch.id,
+          clientId: c.clientId,
+          serviceIds: c.ids,
+          longueur: c.chiffre.longueur,
+          dureeMin: c.chiffre.dureeMin,
+          date,
+          time,
+          master: maitresDuFoyer[c.clientId] ?? master,
+          status: chosenStatus,
+          source: 'trone' as const,
+          sansConfirmation: created.sansConfirmation,
+          foyerId: lien.foyerId,
+          priceXof: c.chiffre.brutXof,
+          ...(c.chiffre.remiseFamilleXof > 0
+            ? { remiseFamille: true as const, discountXof: c.chiffre.remiseFamilleXof, remiseFamilleXof: c.chiffre.remiseFamilleXof }
+            : {}),
+          depositServiceIds: acompte.map((s) => s.id),
+          depositXof: Math.min(depositForServices(acompte, 0), c.chiffre.netXof),
+        };
+      }) : [];
       poseUnRendezVous(created, {
-        suites,
-        attache: estSuite ? (avec) => attacheSeance(avec, created.id, suiteDe) : undefined,
+        suites: [...suites, ...desCompagnes],
+        attache: (avec) => {
+          const l = estSuite ? attacheSeance(avec, created.id, suiteDe) : avec;
+          return lien && liesIci.length > 0 ? l.map((a) => (liesIci.includes(a.id) ? { ...a, foyerId: lien.foyerId } : a)) : l;
+        },
       });
+      setFoyerPose(prenomsDits([
+        ...compagnesPretes.map((c) => c.prenom),
+        ...branchAppts.filter((a) => liesIci.includes(a.id)).map(prenomDuRdv),
+      ]));
       reglerLeSalon(created.id, chosenStatus);
       if (deduction) marqueLaDeduction(created.id, deduction);
       /* L'ÉCRAN « POSÉ » (28 octobre 2026) : la fenêtre reste, dit ce qui
@@ -3494,6 +3699,15 @@ function RdvModalCorps({
      mais reste visible (barré) au Carnet — l'histoire n'est pas effacée. */
   const cancelRdv = async () => {
     if (!appt) return;
+    const paidIci = appt.paidXof ?? 0;
+    /* ══ LES DEUX, OU SEULEMENT ELLE ? — 4 novembre 2026 (arbitrage 2) ══════
+       Un rendez-vous du foyer demande d'abord qui s'annule ; la question
+       nomme l'acte et porte ce qu'il change, elle tient donc lieu de la
+       confirmation d'après. Hors foyer, rien ne change. */
+    const qui = await quiAnnuler(appointmentsStore.get().find((x) => x.id === appt.id) ?? appt, paidIci > 0
+      ? `Le rendez-vous de ${prenomIci} porte déjà ${argent(paidIci)} encaissés : l’annulation ne rembourse rien. Les places annulées sortent du calendrier et de tout chiffre, et restent visibles, barrées, au Carnet.`
+      : undefined);
+    if (!qui) return;
     /* ══ UNE SÉANCE DE FORMULE : QUI ANNULE ? — 20 octobre 2026 (décision 3) ══
        À moins de 24 h, une annulation de la CLIENTE compte la séance
        (« Manquée ») ; une annulation de la Maison ne compte jamais. Le
@@ -3514,7 +3728,7 @@ function RdvModalCorps({
     const msg = paid > 0
       ? `Annuler ce rendez-vous ? Il porte déjà ${argent(paid)} encaissés, l'annulation ne rembourse rien (passez par « Encaisser → Annuler l'encaissement » d'abord si besoin). Le rituel sortira du calendrier et ne comptera dans aucun chiffre.`
       : 'Annuler ce rendez-vous ? Il sortira du calendrier et ne comptera dans aucun chiffre, il restera visible, barré, au Carnet.';
-    if (!await demande({
+    if (!qui.demande && !await demande({
       quoi: 'Annulation',
       titre: 'Annuler ce rendez-vous ?',
       dit: msg,
@@ -3522,9 +3736,14 @@ function RdvModalCorps({
       refuser: 'Le garder au calendrier',
       dur: true,
     })) return;
-    appointmentsStore.set((prev) => prev.map((x) => (x.id === appt.id
-      ? { ...x, status: 'annulé', ...(parQui ? { annuleeLe: new Date().toISOString(), annuleePar: parQui } : {}) }
-      : x)));
+    const le = new Date().toISOString();
+    appointmentsStore.set((prev) => prev.map((x) => {
+      if (x.id === appt.id) return { ...x, status: 'annulé', ...(parQui ? { annuleeLe: le, annuleePar: parQui } : {}) };
+      /* Ses sœurs du foyer (« Les deux ») : une séance de formule garde qui
+         l'a annulée, la réponse donnée pour elle, sinon la Maison. */
+      if (!qui.ids.includes(x.id) || x.status === 'annulé' || x.status === 'honoré') return x;
+      return { ...x, status: 'annulé', ...(x.coveredBySub && x.coverKind !== 'forfait' && !x.annuleeLe ? { annuleeLe: le, annuleePar: parQui ?? 'maison' } : {}) };
+    }));
     /* S'il avait été honoré, sa recette revient au stock — un rituel annulé
        n'a rien consommé. Sans mouvement : geste muet. */
     rembobinerRituel(appt.id);
@@ -3601,6 +3820,11 @@ function RdvModalCorps({
             {[courts.join(' + '), `${jourDit(poseLe.date)} à ${poseLe.time}`, poseLe.master ? `avec ${poseLe.master}` : null, fmtDureeCourte(dureeRetenue), prixDuRituelDit]
               .filter(Boolean).join(' · ')}
           </p>
+          {foyerPose && (
+            <p className="trc-rdv3__note trc-rdv3__note--cuivre">
+              Avec {foyerPose}, à la même heure : un rendez-vous du foyer, qui se déplace d’un geste.
+            </p>
+          )}
           <p className="trc-rdv3__note">{messageDeLaPose}</p>
           <div className="trc-rdv3__boutons">
             <Button variant="copper" onClick={onAutreRdv ?? onClose}>Un autre rendez-vous</Button>
@@ -3773,6 +3997,170 @@ function RdvModalCorps({
                 </div>
               )}
           </section>
+        )}
+        {/* ══ LE FOYER, À GAUCHE — 4 novembre 2026 (le parcours du foyer) ══════
+            Relu : qui vient avec elle, et « Seulement elle » à côté du
+            déplacement. Neuf : les sœurs du compte « toujours ensemble », à
+            la même heure, leurs gestes de leur âge et leur prix. Posés à
+            part : « Elles viennent ensemble ? Les lier ». */}
+        {rdvClient && !changeQui && appt && autresDuFoyerIci.length > 0 && (
+          <section className="trc-foyer" aria-label="Le foyer">
+            <div className="trc-foyer__tete">
+              <span className="trc-rdv3__petit">Le foyer · elles viennent ensemble</span>
+              <span className="trc-rdv3__meta">{prenomsDits([prenomIci, ...autresDuFoyerIci.map(prenomDuRdv)])}</span>
+            </div>
+            {autresDuFoyerIci.map((a) => (
+              <div key={a.id} className="trc-foyer__ligne">
+                <b>{clients.find((c) => c.id === a.clientId)?.name ?? a.clientName ?? prenomDuRdv(a)}</b>
+                <span>
+                  {[a.time, a.master || null, apptServices(a, byId).map((sv) => sv.name.split(' · ')[0]).join(' + ') || null, a.status === 'honoré' ? 'honoré' : null]
+                    .filter(Boolean).join(' · ')}
+                </span>
+              </div>
+            ))}
+            {suiventIci.length > 0 && (
+              <>
+                <p className="trc-rdv3__note">
+                  {date === appt.date && time === appt.time
+                    ? 'Changer le jour ou l’heure déplace tout le foyer, chacune à son fauteuil et chez son maître.'
+                    : seulementElle
+                      ? `${prenomIci} se déplace seule et quitte le foyer ; ${prenomsDits(suiventIci.map(prenomDuRdv))} reste le ${jourDit(appt.date)} à ${appt.time}.`
+                      : `${prenomsDits(suiventIci.map(prenomDuRdv))} suit : le ${jourDit(date)}, ${suiventIci.every((a) => a.time === appt.time) ? 'à la même heure qu’elle' : 'avec le même écart d’heure'}, chacune à son fauteuil.`}
+                </p>
+                <label className="trc-foyer__seule">
+                  <input type="checkbox" checked={seulementElle} onChange={(e) => setSeulementElle(e.target.checked)} />
+                  Seulement {prenomIci}
+                </label>
+              </>
+            )}
+          </section>
+        )}
+        {rdvClient && !changeQui && appt && rdvDuMagasin && aLierIci.length > 0 && (
+          <div className="trc-foyer trc-foyer--lier" role="status">
+            <span>
+              Elles viennent ensemble ? {prenomsDits(aLierIci.map(prenomDuRdv))} a aussi son rendez-vous le {jourDit(rdvDuMagasin.date)} à {rdvDuMagasin.time}.
+            </span>
+            <Button
+              size="sm" variant="ghost"
+              onClick={() => {
+                const n = lieLeFoyer(rdvDuMagasin);
+                toast(n > 0 ? `Le foyer est lié : ${n} rendez-vous, qui se déplacent d’un geste.` : 'Rien à lier : le foyer a changé entre-temps.');
+              }}
+            >
+              Les lier
+            </Button>
+          </div>
+        )}
+        {rdvClient && !changeQui && !appt && foyerAPoser?.ensemble && (compagnes.length > 0 || foyerAPoser.dejaLa.length > 0 || exclues.size > 0) && (
+          <section className="trc-foyer" aria-label="Elles viennent toujours ensemble">
+            <div className="trc-foyer__tete">
+              <span className="trc-rdv3__petit">Elles viennent toujours ensemble</span>
+              <span className="trc-rdv3__meta">{momentChoisi ? `à ${time}, sur l’autre fauteuil` : 'à la même heure, sur l’autre fauteuil'}</span>
+            </div>
+            {compagnes.map((c) => {
+              const ouverte = compagneOuverte === c.clientId;
+              const verdict = estKids(c.fiche, todayISO());
+              const changes = c.lignes.filter((l) => l.change);
+              const sansVersion = c.ids.filter((id) => c.lignes.some((l) => l.sansVersion && l.id === id));
+              return (
+                <div key={c.clientId} className="trc-foyer__compagne">
+                  <div className="trc-foyer__ligne">
+                    <b>{c.fiche?.name ?? c.prenom}</b>
+                    <span>
+                      {c.ids.length > 0
+                        ? [c.ids.map((id) => byId.get(id)?.name.split(' · ')[0] ?? 'Prestation retirée').join(' + '), maitresDuFoyer[c.clientId] ?? master, fmtDureeCourte(c.chiffre.dureeMin)].join(' · ')
+                        : serviceIds.length === 0 ? 'ses gestes suivront les siens' : 'aucun geste : elle ne sera pas posée'}
+                    </span>
+                    {!sansPrix && c.ids.length > 0 && <span className="trc-foyer__mt">{c.chiffre.prixAVoir ? 'prix au fauteuil' : argent(c.chiffre.netXof)}</span>}
+                  </div>
+                  {!gestesDesCompagnes[c.clientId] && changes.length > 0 && (
+                    <small className="trc-foyer__dit">
+                      À son âge, {verdict === 'oui' ? 'la carte MND Kids' : 'la carte des grandes'} : {changes.map((l) => byId.get(l.id)?.name.split(' · ')[0] ?? l.id).join(' + ')}.
+                    </small>
+                  )}
+                  {c.ageInconnu && <small className="trc-foyer__dit trc-foyer__dit--cuivre">Sa date de naissance manque : les mêmes gestes, à revoir pour son âge.</small>}
+                  {sansVersion.length > 0 && (
+                    <small className="trc-foyer__dit trc-foyer__dit--cuivre">
+                      Sans version de son âge au catalogue : {sansVersion.map((id) => byId.get(id)?.name.split(' · ')[0] ?? id).join(', ')}. À revoir pour elle.
+                    </small>
+                  )}
+                  <div className="trc-foyer__gestes">
+                    <button type="button" className="trc-rdv3__lien" aria-expanded={ouverte} onClick={() => setCompagneOuverte(ouverte ? null : c.clientId)}>
+                      {ouverte ? 'Fermer ses gestes' : 'Changer ses gestes'}
+                    </button>
+                    {gestesDesCompagnes[c.clientId] && (
+                      <button type="button" className="trc-rdv3__lien" onClick={() => setGestesDesCompagnes((p) => { const n = { ...p }; delete n[c.clientId]; return n; })}>
+                        Reprendre les siens, à son âge
+                      </button>
+                    )}
+                    <button type="button" className="trc-rdv3__lien" onClick={() => setExclues((p) => new Set([...p, c.clientId]))}>
+                      Pas cette fois
+                    </button>
+                  </div>
+                  {ouverte && (
+                    <div className="trc-foyer__choisir">
+                      {c.ids.length > 0 && (
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {c.ids.map((id) => (
+                            <button
+                              key={id} type="button" className="tre-chip" title="Retirer"
+                              onClick={() => setGestesDesCompagnes((p) => ({ ...p, [c.clientId]: c.ids.filter((x) => x !== id) }))}
+                            >
+                              {byId.get(id)?.name ?? 'Prestation retirée'} ✕
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <Select
+                        value=""
+                        aria-label={`Ajouter une prestation pour ${c.prenom || 'elle'}`}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (!v) return;
+                          setGestesDesCompagnes((p) => ({ ...p, [c.clientId]: [...c.ids.filter((x) => x !== v), v] }));
+                          e.currentTarget.value = '';
+                        }}
+                      >
+                        <option value="" disabled>+ Ajouter une prestation…</option>
+                        {/* SON CATALOGUE À ELLE, la règle de RdvFoyer : l'enfant
+                            voit MND Kids, la grande ne la voit pas. */}
+                        <OptionsPrestations
+                          services={catalogueDeLaTete(services.filter((sv) => !sv.reserveEnfants || verdict !== 'non'), verdict)}
+                          exclure={(sv) => c.ids.includes(sv.id)}
+                        />
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {exclues.size > 0 && (
+              <p className="trc-rdv3__note">
+                {prenomsDits([...exclues].map((id) => prenomDe(clients.find((c) => c.id === id)?.name) || 'elle'))} ne vient pas cette fois.{' '}
+                <button type="button" className="tre-link-btn" onClick={() => setExclues(new Set())}>La remettre</button>
+              </p>
+            )}
+            {foyerAPoser.dejaLa.map((d) => (
+              <p key={d.apptId} className="trc-rdv3__note">
+                {d.memeHeure
+                  ? `${clients.find((c) => c.id === d.clientId)?.name ?? d.prenom} a déjà son rendez-vous à ${d.time} ce jour-là : il rejoint le foyer.`
+                  : `${clients.find((c) => c.id === d.clientId)?.name ?? d.prenom} a déjà son rendez-vous ce jour-là, à ${d.time} : il reste à part.`}
+              </p>
+            ))}
+            {fauteuilsDuFoyerPleins && (
+              <p className="trc-rdv3__note trc-rdv3__note--cuivre">
+                Les fauteuils sont pleins à {time} pour tout le foyer : il se pose quand même, la Maison s’organise.
+              </p>
+            )}
+          </section>
+        )}
+        {rdvClient && !changeQui && !appt && aLierALaPose.length > 0 && (
+          <label className="trc-foyer trc-foyer--lier">
+            <input type="checkbox" checked={lierALaPose} onChange={(e) => setLierALaPose(e.target.checked)} />
+            <span>
+              Elles viennent ensemble ? {prenomsDits(aLierALaPose.map((a) => prenomDe(clients.find((c) => c.id === a.clientId)?.name) || 'elle'))} a déjà son rendez-vous à {time} ce jour-là : les lier.
+            </span>
+          </label>
         )}
         {/* ══ CE QUE LA MAISON PROPOSE — 28 octobre 2026 ══════════════════
             Trois rendez-vous tout prêts sur des places libres : un toucher
@@ -4791,7 +5179,7 @@ function RdvModalCorps({
               reste que ce qui appartient au moment. */}
           {appt && (
             <Field label="Statut">
-              <Select value={status} onChange={(e) => setStatus(e.target.value as Appointment['status'])}>
+              <Select value={status} onChange={(e) => { setStatus(e.target.value as Appointment['status']); setAnnuleLeFoyer(null); }}>
                 {RDV_STATUSES.map((s) => (
                   <option key={s} value={s}>
                     {s}
@@ -4800,6 +5188,22 @@ function RdvModalCorps({
               </Select>
             </Field>
           )}
+          {/* LES DEUX, OU SEULEMENT ELLE ? — 4 novembre 2026 : « annulé » sur
+              un rendez-vous du foyer pose la question ici, et l'enregistrement
+              attend la réponse. */}
+          {appt && status === 'annulé' && appt.status !== 'annulé' && suiventIci.length > 0 && (() => {
+            const q = rdvDuMagasin ? questionDAnnulation(rdvDuMagasin, branchAppts, clients) : null;
+            if (!q) return null;
+            return (
+              <div className="trc-foyer__question" role="group" aria-label={q.titre}>
+                <span>{q.titre}</span>
+                <div className="trc-foyer__choix">
+                  <button type="button" className={`tre-chip${annuleLeFoyer === 'tous' ? ' is-on' : ''}`} aria-pressed={annuleLeFoyer === 'tous'} onClick={() => setAnnuleLeFoyer('tous')}>{q.tous}</button>
+                  <button type="button" className={`tre-chip${annuleLeFoyer === 'elle' ? ' is-on' : ''}`} aria-pressed={annuleLeFoyer === 'elle'} onClick={() => setAnnuleLeFoyer('elle')}>{q.elle}</button>
+                </div>
+              </div>
+            );
+          })()}
           {/* LA NOTE SE REPLIE (14 août) : elle reste vide la plupart du temps,
               et occupait une ligne entière entre deux champs qu'on remplit
               toujours. Le pli s'ouvre de lui-même quand elle porte un mot. */}
@@ -5442,6 +5846,38 @@ function RdvModalCorps({
             <div className="trc-rdv5__total"><span>Total</span><b>{prixDuRituelDit}</b></div>
           )}
           {!sansPrix && hasDeposit && <p className="trc-rdv5__vide">Acompte demandé à la pose : {argent(depositXof)}</p>}
+          {/* LE MONTANT DU FOYER — 4 novembre 2026 : ses sœurs posées avec elle
+              (ou déjà du foyer), chacune à son prix, et ce que le foyer règle.
+              Un ticket, une facture du foyer, un lien (déjà là). */}
+          {!sansPrix && (() => {
+            const lignes = !appt
+              ? compagnesPretes.map((c) => ({
+                cle: c.clientId,
+                nom: c.fiche?.name ?? c.prenom,
+                dit: [c.ids.map((id) => byId.get(id)?.name.split(' · ')[0] ?? 'Prestation retirée').join(' + '), c.chiffre.remiseFamilleXof > 0 ? `remise famille −${argent(c.chiffre.remiseFamilleXof)}` : null].filter(Boolean).join(' · '),
+                xof: c.chiffre.prixAVoir ? null : c.chiffre.netXof,
+              }))
+              : autresDuFoyerIci.map((a) => ({
+                cle: a.id,
+                nom: clients.find((c) => c.id === a.clientId)?.name ?? a.clientName ?? prenomDuRdv(a),
+                dit: apptServices(a, byId).map((sv) => sv.name.split(' · ')[0]).join(' + '),
+                xof: apptNetXof(a, byId),
+              }));
+            if (lignes.length === 0) return null;
+            const total = totalXof + lignes.reduce((n, l) => n + (l.xof ?? 0), 0);
+            return (
+              <div className="trc-rdv5__foyer">
+                <span className="trc-rdv3__petit">{appt ? 'Le foyer, ce jour-là' : 'Avec elle, à la même heure'}</span>
+                {lignes.map((l) => (
+                  <div key={l.cle} className="trc-rdv5__ligne">
+                    <span className="trc-rdv5__lib">{l.nom}<small>{l.dit}</small></span>
+                    <span className="trc-rdv5__mt">{l.xof === null ? 'au fauteuil' : argent(l.xof)}</span>
+                  </div>
+                ))}
+                <div className="trc-rdv5__total"><span>Le foyer règle</span><b>{argent(total)}</b></div>
+              </div>
+            );
+          })()}
         {/* LA BARRE COLLANTE : ce qu'on est en train de poser, toujours sous
             les yeux, et les boutons qui le posent. Elle remplace le bandeau
             indigo du haut (14 août), qui disait la même chose. Depuis le
@@ -5451,7 +5887,10 @@ function RdvModalCorps({
             {pret ? (
               <>
                 <b>{rdvClient?.name ?? 'Une cliente'} · {jourCourtAn(date)} · {time}</b>
-                <span>{[courts.join(' + '), master, fmtDureeCourte(dureeRetenue), prixDuRituelDit].filter(Boolean).join(' · ')}</span>
+                <span>{[
+                  courts.join(' + '), master, fmtDureeCourte(dureeRetenue), prixDuRituelDit,
+                  compagnesPretes.length > 0 ? `avec ${prenomsDits(compagnesPretes.map((c) => c.prenom || 'une autre tête'))}` : null,
+                ].filter(Boolean).join(' · ')}</span>
               </>
             ) : (
               <>

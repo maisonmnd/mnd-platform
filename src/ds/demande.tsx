@@ -55,7 +55,22 @@ export function demandeUnTexte(q: QuestionDeLaMaison): Promise<string | null> {
   return pose(q, q);
 }
 
-function pose(d: DemandeDeLaMaison, champ?: QuestionDeLaMaison): Promise<string | null> {
+/* ══ DEUX ACTES ET LE REPOS — 4 novembre 2026 (le parcours du foyer) ══════
+   « Annuler les deux, ou seulement A. ? » : deux réponses agissent, et
+   aucune n'est le repos. Les poser sur `demande` aurait fait d'Échap un
+   « seulement elle » : un réflexe annulerait une tête sans qu'on l'ait lu.
+   Le troisième bouton reste donc « Ne rien faire », qui prend le foyer, et
+   Échap n'annule rien. */
+const AUTRE = '\u0000autre';
+
+/** Pose une question à deux actes. `'accepter'` = le bouton `accepter`,
+    `'autre'` = le bouton `autre` ; toute autre issue, Échap compris, rend
+    `null`. */
+export function demandeEntre(d: DemandeDeLaMaison & { autre: string }): Promise<'accepter' | 'autre' | null> {
+  return pose(d, undefined).then((r) => (r === null ? null : r === AUTRE ? 'autre' : 'accepter'));
+}
+
+function pose(d: DemandeDeLaMaison & { autre?: string }, champ?: QuestionDeLaMaison): Promise<string | null> {
   if (typeof document === 'undefined') return Promise.resolve(null);
   /* UN GARDE-FOU DE DÉVELOPPEMENT, PAS UNE SERRURE. Il rappelle la règle au
      moment où on écrit l'appel, et ne casse jamais un geste en production. */
@@ -84,7 +99,7 @@ function pose(d: DemandeDeLaMaison, champ?: QuestionDeLaMaison): Promise<string 
 }
 
 function Fenetre({ d, champ, repond }: {
-  d: DemandeDeLaMaison;
+  d: DemandeDeLaMaison & { autre?: string };
   champ?: QuestionDeLaMaison;
   repond: (r: string | null) => void;
 }) {
@@ -170,6 +185,13 @@ function Fenetre({ d, champ, repond }: {
           <button ref={sur} type="button" className="mnd-dem__b mnd-dem__b--sur" onClick={() => repond(null)}>
             {refuser}
           </button>
+          {/* LE SECOND ACTE (4 novembre 2026) : creux comme le repos, il agit
+              pourtant ; seul le bouton plein nomme l'acte le plus large. */}
+          {!champ && d.autre?.trim() ? (
+            <button type="button" className="mnd-dem__b mnd-dem__b--sur" onClick={() => repond(AUTRE)}>
+              {d.autre.trim()}
+            </button>
+          ) : null}
           <button type="button" className="mnd-dem__b mnd-dem__b--fait" disabled={!peutAgir} onClick={valide}>
             {accepter}
           </button>

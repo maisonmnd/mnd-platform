@@ -38,6 +38,7 @@ import {
 } from './_shared';
 import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honoreSansEncaisser, PayAppointmentModal, piecesDuFoyer, prenomsDuFoyer } from './actions';
 import { rdvsDuFoyerLeJour } from '../../../../shared/facture-du-foyer-pur';
+import { quiAnnuler } from './foyer-gestes';
 import { SerieModal } from './SerieModal';
 import { RattraperUnCahier } from './RattraperUnCahier';
 import { useSaitIaMaison } from '../../../../shared/ia-maison';
@@ -550,11 +551,20 @@ export default function Carnet() {
       ? { dit: `${qui} · ${a.time} : honoré${h.facture && !h.deja ? ', le reste part sur son WhatsApp' : ''}` }
       : { dit: `${qui} · ${a.time} : honoré, sans message`, fn: () => { void deshonoreLeRituel(a, byId); } });
   };
-  const annuleDuDoigt = (a: Appointment) => {
-    const avant = a.status;
-    setStatus(a.id, 'annulé');
+  /* LES DEUX, OU SEULEMENT ELLE ? — 4 novembre 2026 (le parcours du foyer,
+     arbitrage 2). Un rendez-vous du foyer pose la question (shared/foyer-pur,
+     `questionDAnnulation`) ; hors foyer, le toucher annule comme avant.
+     « Défaire » rend à chacune son statut d'avant. */
+  const annuleDuDoigt = async (a: Appointment) => {
+    const r = await quiAnnuler(a);
+    if (!r) return;
+    const avant = new Map(appointmentsStore.get().filter((x) => r.ids.includes(x.id)).map((x) => [x.id, x.status] as const));
+    appointmentsStore.set((prev) => prev.map((x) => (avant.has(x.id) && x.status !== 'annulé' && x.status !== 'honoré' ? { ...x, status: 'annulé' } : x)));
     const qui = clientOf(a.clientId)?.name ?? a.clientName ?? 'Cliente de passage';
-    setDefaire({ dit: `${qui} · ${a.time} : annulé`, fn: () => setStatus(a.id, avant) });
+    setDefaire({
+      dit: r.ids.length > 1 ? `${qui} · ${a.time} : le foyer est annulé (${r.ids.length} rendez-vous)` : `${qui} · ${a.time} : annulé`,
+      fn: () => appointmentsStore.set((prev) => prev.map((x) => (avant.has(x.id) ? { ...x, status: avant.get(x.id)! } : x))),
+    });
   };
 
   /* Suppression définitive d'un rendez-vous (depuis le menu ⋯) — confirmation requise. */
@@ -973,7 +983,7 @@ export default function Carnet() {
                   );
                 })()}
                 {canCancel && (
-                  <button className="is-danger" onClick={() => { setStatus(a.id, 'annulé'); setMenuFor(null); }}>
+                  <button className="is-danger" onClick={() => { setMenuFor(null); void annuleDuDoigt(a); }}>
                     Annuler le rendez-vous
                   </button>
                 )}
@@ -1107,7 +1117,7 @@ export default function Carnet() {
               >
                 ✓ Honoré
               </button>
-              <button type="button" className="trc-vite trc-vite--non" onClick={() => annuleDuDoigt(a)} title="Annuler le rendez-vous">
+              <button type="button" className="trc-vite trc-vite--non" onClick={() => { void annuleDuDoigt(a); }} title="Annuler le rendez-vous">
                 Annulé
               </button>
             </span>

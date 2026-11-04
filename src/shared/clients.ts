@@ -460,6 +460,12 @@ export type Family = {
       Un taux posé est une remise PERSONNALISÉE et fait foi ;
       0 = ce compte n'a pas de remise. Le juge unique est `remiseFamillePct`. */
   remisePct?: number;
+  /** « ELLES VIENNENT TOUJOURS ENSEMBLE » — 4 novembre 2026 (le parcours du
+      foyer, arbitrage 5). Cochée, poser pour une tête ajoute les autres à la
+      même heure, sur l'autre fauteuil, avec les gestes de leur âge et un
+      `foyerId` commun. ABSENTE = la règle d'avant, chacune à part. Le juge
+      est `compagnesAPoser` (shared/foyer-pur.ts). */
+  toujoursEnsemble?: boolean;
 };
 
 /** SES JOURS, D'OÙ QU'ILS VIENNENT — 6 septembre 2026.
