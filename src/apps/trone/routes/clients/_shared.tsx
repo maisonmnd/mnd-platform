@@ -5089,7 +5089,15 @@ function RdvModalCorps({
                   septembre 2026 ne coûte pas vingt clics. */}
               <ChampDeDate
                 value={date}
-                onChange={(d) => { setDate(d); setJourVu(d); setDebutChoisi(debutDeLaSemaine(d, aujourdhui, !!appt)); }}
+                onChange={(d) => {
+                  setDate(d);
+                  /* UNE CASE VIDÉE N'EST PAS UN JOUR — 4 novembre 2026 : effacée
+                     avant d'être retapée, elle menait la semaine à « NaN », sept
+                     cases sous la même clé, et six restaient à l'écran. */
+                  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+                  setJourVu(d);
+                  setDebutChoisi(debutDeLaSemaine(d, aujourdhui, !!appt));
+                }}
                 ariaLabel="Le jour du rituel"
                 sens="avant"
                 alertePasse

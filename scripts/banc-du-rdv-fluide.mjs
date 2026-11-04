@@ -173,6 +173,20 @@ await attend(400);
 dit('un seul volet ouvert', (await ouverte()) === 'Le jour, l’heure, le maître', await ouverte());
 const jours = await evalue(`[...document.querySelectorAll('.trc-rdv3__jour')].map((b) => b.textContent.replace(/\\s+/g, ' ').trim())`);
 dit('sept jours, le dimanche fermé', jours.length === 7 && jours.some((j) => /^dim\..*fermé/.test(j)), jours.join(' | '));
+/* UNE DATE EFFACÉE PUIS RETAPÉE (4 novembre 2026, le-trone-b3) : la case vide
+   menait la semaine à « NaN », sept cases sous la même clé, et six restaient
+   à l'écran à côté des sept justes. */
+const dateAvant = await evalue(`document.querySelector('.trc-rdv3__autre input')?.value ?? ''`);
+const loin = jourPlus(21);
+dit('« Ou une autre date » se vide', await tape('.trc-rdv3__autre input', ''));
+await attend(300);
+await tape('.trc-rdv3__autre input', `${loin.slice(8, 10)}/${loin.slice(5, 7)}/${loin.slice(0, 4)}`);
+await attend(400);
+const joursLoin = await evalue(`[...document.querySelectorAll('.trc-rdv3__jour')].map((b) => b.textContent.replace(/\\s+/g, ' ').trim())`);
+dit('... retapée trois semaines plus loin : sept jours justes, aucun NaN', joursLoin.length === 7 && !joursLoin.some((j) => /NaN|Invalid/.test(j))
+  && (await evalue(`[...document.querySelectorAll('.trc-rdv3__jour b')].map((b) => b.textContent)`)).includes(String(Number(loin.slice(8, 10)))), joursLoin.join(' | '));
+await tape('.trc-rdv3__autre input', dateAvant);
+await attend(400);
 dit('« Une autre heure » : 11:00', await choisis('.trc-rdv3__autre select', '11:00'));
 await attend(400);
 const bloquee = await texte('.trc-rdv3__raison.is-bloque');
