@@ -877,3 +877,25 @@ body[data-surface='trone'] {
   .tr-attente__bloc > img { animation: none; }
   .tr-attente__filet i { animation: none; width: 100%; opacity: .5; }
 }
+
+/* ---------- La barre repliée (4 novembre 2026) ----------
+   « Menu latéral, rétractable si possible » (Yéman, la refonte des
+   conversations). Sur un écran large seulement : une bande indigo de 60 px,
+   le monogramme et le bouton qui rouvre la barre ; le choix se retient par
+   poste (`mnd_barre_repliee`). Au téléphone, la barre reste un tiroir. */
+.tr-side__rail { display: none; }
+.tr-nav__replier { margin-top: 6px; }
+@media (min-width: 901px) {
+  .tr-shell.tr-shell--repliee { grid-template-columns: 60px 1fr; }
+  .tr-shell--repliee .tr-side { padding: 22px 0 16px; overflow: hidden; }
+  .tr-shell--repliee .tr-side > :not(.tr-side__rail) { display: none; }
+  .tr-shell--repliee .tr-side__rail { display: flex; flex-direction: column; align-items: center; gap: 18px; flex: 1; }
+}
+.tr-side__monogramme { font-size: 24px; line-height: 1; color: var(--color-ivoire); }
+.tr-side__deplier {
+  margin-top: auto; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px;
+  border: 0; background: none; cursor: pointer; color: var(--indigo-200);
+}
+.tr-side__deplier:hover { background: var(--indigo-500); color: var(--color-ivoire); }
+.tr-side__deplier:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+@media (max-width: 900px) { .tr-nav__replier { display: none; } }

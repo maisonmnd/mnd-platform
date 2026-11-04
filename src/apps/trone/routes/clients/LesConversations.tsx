@@ -26,8 +26,7 @@ import { jourDit, heureDite, type FicheDeGerard } from '../../../../shared/gerar
 import { francs as enFrancs } from '../../../../shared/ia-faits-pur';
 import { dureeDite as depuisDit } from '../../../../shared/assistant-aujourdhui-pur';
 import {
-  FILTRE_DIT, boiteDuNumero, boitesDeLaMaison, boitesDuFiltre, cleDuFilRange, comptesDesFiltres, heureACotonou, repondusSousUneHeure,
-  reponsesGratuitesRestantes, type AuteurDeBulle, type Boite, type Bulle, type EnvoiDeLaBoite, type FiltreDeLaBoite, type SourceDeBulle,
+  FILTRE_DIT, boiteDuNumero, boitesDeLaMaison, boitesDuFiltre, cleDuFilRange, comptesDesFiltres, heureACotonou, type AuteurDeBulle, type Boite, type Bulle, type EnvoiDeLaBoite, type FiltreDeLaBoite, type SourceDeBulle,
 } from '../../../../shared/boite-unique-pur';
 import {
   GROUPES_A_TRAITER, GROUPE_DIT, ceQuIlFautFaire, groupeDe, pastilleDe, type GesteATraiter,
@@ -50,6 +49,13 @@ import './clients.css';
 import './les-conversations.css';
 import { bloqueLesNumeros, debloqueLeNumero, relisLesDernieresHeures, rendsLaCliente, useTriDesMessages, type ProposeParLaPasse } from '../../../../shared/tri-des-messages';
 import { motifDit } from '../../../../shared/tri-des-messages-pur';
+import { badgeDe, enAttenteDElle, enSalleDAttente, quiTient, tenueDite, type Tenue } from '../../../../shared/qui-tient-pur';
+import { prendsLaBoite, rendsLaBoite, usePrises } from '../../../../shared/qui-tient';
+import { ALLUMAGE_DIT, AUTOMATISATIONS_REELLES, GROUPES_DES_AUTOMATISATIONS, compteDuMois, moisDuSalon, type AutomatisationReelle } from '../../../../shared/automatisations-reelles-pur';
+import { reglesDepuis } from '../../../../shared/salle-des-envois';
+import type { EnvoiLu } from '../../../../shared/envois';
+import { useStaff } from '../equipe/data';
+import { ArrowRight, CalendarPlus, Check, ChevronDown, Phone, UserRound, X } from 'lucide-react';
 
 /* ══ LES CONVERSATIONS, VUE DE L'ASSISTANT MAISON ══════════════════════════
    27 octobre 2026, lot 3 : spécification `docs/spec-assistant-maison.md`
@@ -134,6 +140,20 @@ function useEtroit(largeur = 900): boolean {
 type Retenu = { cle: string; valeur: string; alarme?: boolean };
 type Outil = 'reponses' | 'envois' | 'mots' | 'scenarios';
 
+/* LES QUATRE ONGLETS (4 novembre 2026, maquette PeKLwgLpMsmupgqHCyUSuc) :
+   « À traiter » (la salle d'attente, puis ce que l'équipe tient, puis les
+   mercis), « En attente » (la Maison a écrit la dernière, elle doit
+   répondre), « Toutes », et « Règles » (ce qui part seul, en Quand → Alors). */
+type Onglet = 'traiter' | 'attente' | 'toutes' | 'regles';
+const ONGLETS: readonly { k: Onglet; dit: string }[] = [
+  { k: 'traiter', dit: 'À traiter' }, { k: 'attente', dit: 'En attente' }, { k: 'toutes', dit: 'Toutes' }, { k: 'regles', dit: 'Règles' },
+];
+/** Ce qu'une règle fait de la salle d'attente des envois : les réponses à
+    ce qu'elle vient d'écrire partent tout de suite (choix du 2 octobre
+    2026) ; le reste attend dans « Ce qui part ». */
+const PART_TOUT_DE_SUITE = new Set(['automate-wa', 'accuse']);
+const SANS_LA_SALLE = new Set(['push-rappels', 'avis-premiere-venue']);
+
 export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
   /* Les crochets, tous, AVANT le premier retour (banc verifie-l-ordre-des-crochets). */
   const { branch } = useBranch();
@@ -168,6 +188,20 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
     const f = params.get('filtre');
     return f === 'tout' || f === 'site' || f === 'entre-deux' || f === 'propositions' || f === 'bloques' ? f : 'attend';
   });
+  const [onglet, setOnglet] = useState<Onglet>(() => {
+    const o = params.get('onglet');
+    if (o === 'attente' || o === 'regles') return o;
+    const f = params.get('filtre');
+    return f && f !== 'attend' ? 'toutes' : 'traiter';
+  });
+  /* La salle d'attente se replie d'un geste ; la prise s'écrit dans `mnd_qui_tient`. */
+  const [salleRepliee, setSalleRepliee] = useState(false);
+  const [menuTenue, setMenuTenue] = useState(false);
+  /* L'action suggérée se masque pour CETTE boîte et CETTE phrase ; une autre phrase la remontre. */
+  const [suggestionCachee, setSuggestionCachee] = useState<string | null>(null);
+  const [regle, setRegle] = useState<string>(AUTOMATISATIONS_REELLES[0]?.id ?? '');
+  const [prises] = usePrises();
+  const [equipe] = useStaff();
   const [cherche, setCherche] = useState('');
   /* UNE CONVERSATION OUVERTE À LA FOIS : la clé de la boîte. */
   const [ouverte, setOuverte] = useState<string | null>(null);
@@ -178,8 +212,9 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
   const [rdvPour, setRdvPour] = useState<RdvInitial | null>(null);
   const [brouillonDuChat, setBrouillonDuChat] = useState('');
   const [chatEnVol, setChatEnVol] = useState(false);
-  /* Sa fiche s'ouvre d'elle-même sur un grand écran ; plus étroit, elle passerait par-dessus la conversation. */
-  const [ficheOuverte, setFicheOuverte] = useState(() => typeof window === 'undefined' || window.innerWidth > 1280);
+  /* SA FICHE, EN TIROIR (4 novembre 2026) : fermée d'office, elle s'ouvre
+     par « Sa fiche » par-dessus la conversation, jamais en colonne fixe. */
+  const [ficheOuverte, setFicheOuverte] = useState(false);
   const [menuOutils, setMenuOutils] = useState(false);
   const [outil, setOutil] = useState<Outil | null>(() => (params.get('envois') === '1' ? 'envois' : params.get('reponses') === '1' ? 'reponses' : params.get('scenarios') === '1' ? 'scenarios' : null));
   /* LA BANQUE DE SCÉNARIOS (30 octobre 2026) : « Mauvaise réponse » y range
@@ -258,7 +293,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
     ameneLaBoite();
     /* Le filtre s'ouvre si la boîte désignée n'y paraît pas : un lien ne doit jamais mener à une liste qui la cache. */
     const b = boitesBrutes.find((x) => x.cle === cleDemandee);
-    if (b && !b.filtres.includes(filtre)) setFiltre('tout');
+    if (b && (onglet === 'regles' || (onglet === 'attente' && !enAttenteDElle(b, tick)) || !b.filtres.includes(filtre))) { setFiltre('tout'); setOnglet('toutes'); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cleDemandee]);
   /* LE MESSAGE PRÉ-ÉCRIT QUI ARRIVE D'AILLEURS (`?t=`) se pose dans la zone, à
@@ -293,18 +328,38 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
      parcourent. */
   const recherche = plat(cherche.trim());
   const groupes = useMemo(() => GROUPES_A_TRAITER.map((g) => ({ g, boites: boites.filter((b) => groupeDe(b, tick) === g) })), [boites, tick]);
+  /* QUI TIENT CHAQUE BOÎTE (4 novembre 2026) : la prise écrite, l'automate,
+     Perle, la dernière main de l'équipe (`qui-tient-pur`). « À traiter » se
+     lit en trois temps : la SALLE D'ATTENTE (personne ne la tient encore),
+     ce que l'équipe tient, puis les mercis sans question. */
+  const tenues = useMemo(() => new Map(boites.map((b) => [b.cle, quiTient(b, prises, tick)])), [boites, prises, tick]);
+  const tenueDe = (b: Boite): Tenue => tenues.get(b.cle) ?? { qui: 'personne' };
+  const aTraiter = useMemo(() => {
+    const vivantes = groupes.filter((x) => x.g !== 'merci').flatMap((x) => x.boites);
+    return {
+      salle: vivantes.filter((b) => enSalleDAttente(b, tenueDe(b))),
+      tenues: vivantes.filter((b) => !enSalleDAttente(b, tenueDe(b))),
+      mercis: groupes.find((x) => x.g === 'merci')?.boites ?? [],
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupes, tenues]);
+  /* EN ATTENTE : la Maison a écrit la dernière, il y a moins de 7 jours ; la plus récente d'abord. */
+  const enAttente = useMemo(() => boites.filter((b) => enAttenteDElle(b, tick))
+    .sort((x, y) => (y.derniere?.quand ?? '').localeCompare(x.derniere?.quand ?? '')), [boites, tick]);
   const ordre = useMemo(() => {
     if (recherche) {
       const chiffres = chiffresSeuls(recherche);
       return boites.filter((b) => plat(`${b.nom} ${b.bulles.slice(-30).map((x) => x.texte).join(' ')}`).includes(recherche)
         || (chiffres.length >= 4 && chiffresSeuls(b.numero).includes(chiffres)));
     }
-    if (filtre === 'attend') return groupes.flatMap((x) => x.boites);
+    if (onglet === 'regles') return [];
+    if (onglet === 'attente') return enAttente;
+    if (onglet === 'traiter' && filtre === 'attend') return [...aTraiter.salle, ...aTraiter.tenues, ...aTraiter.mercis];
     return visibles;
-  }, [recherche, boites, filtre, groupes, visibles]);
+  }, [recherche, boites, onglet, filtre, aTraiter, enAttente, visibles]);
   const boite = boites.find((b) => b.cle === ouverte) ?? null;
   /* Au téléphone, une conversation ouverte prend tout l'écran : la liste s'efface derrière elle. */
-  const ouvertEtroit = etroit && !!boite;
+  const ouvertEtroit = etroit && !!boite && onglet !== 'regles';
 
   /* SUR UN GRAND ÉCRAN, LA PREMIÈRE CONVERSATION S'OUVRE SEULE : la colonne
      de droite n'est jamais vide quand il y a quelqu'un à qui répondre. */
@@ -315,18 +370,20 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
     if (premiere) setOuverte(premiere.cle);
   }, [etroit, cleDemandee, ouverte, boites, ordre]);
 
-  /* LA LIGNE CHIFFRÉE : qui attend, par groupe ; répondues sous 1 h
-     aujourd'hui (le jour de Cotonou, une main humaine seulement) ; réponses
-     gratuites restantes ce mois. */
-  const attendent = useMemo(() => {
-    const qui = boites.filter((b) => b.attendUneReponse);
-    return { total: qui.length, sante: qui.filter((b) => b.sante).length };
-  }, [boites]);
-  const parGroupe = useMemo(() => Object.fromEntries(groupes.map((x) => [x.g, x.boites.length])) as Record<string, number>, [groupes]);
+  /* LA LIGNE CHIFFRÉE S'EFFACE (4 novembre 2026) : les nombres des onglets
+     disent qui attend ; seul un souci Santé se signale en tête. */
+  const santeEnAttente = useMemo(() => boites.filter((b) => b.attendUneReponse && b.sante).length, [boites]);
   const nowIso = new Date(tick).toISOString();
-  const jourDeCotonou = jourACotonou(nowIso);
-  const repondues = useMemo(() => repondusSousUneHeure(messages, jourDeCotonou, tick), [messages, jourDeCotonou, tick]);
-  const gratuites = useMemo(() => reponsesGratuitesRestantes(messages, jourDeCotonou.slice(0, 7), branch.id), [messages, jourDeCotonou, branch.id]);
+  /* L'ÉQUIPE QUI PEUT TENIR UNE CONVERSATION : les fiches de la branche qui
+     ont un compte au Trône (son adresse de connexion, ou un accès préparé). */
+  const moiNom = moi?.name?.trim() ?? '';
+  const lEquipe = useMemo(() => equipe
+    .filter((m) => (!m.branchId || m.branchId === branch.id) && (m.compteMail || m.roleDAcces) && !/part|sorti|ancien|archiv/i.test(m.statut ?? ''))
+    .map((m) => m.name.trim()).filter((n, i, t) => n && t.indexOf(n) === i && n.toLowerCase() !== moiNom.toLowerCase())
+    .sort((a, b) => a.localeCompare(b, 'fr')), [equipe, branch.id, moiNom]);
+  /* LES RÈGLES : ce qui part seul, compté ce mois-ci par le journal des envois. */
+  const reglesDeLaSalle = reglesDepuis(cfg);
+  const moisCourant = moisDuSalon(nowIso);
 
   /* SA FICHE lit la fiche de l'Assistant (une seule lecture par écran). */
   const ficheDe = useMemo(() => new Map(cerveau.fiches.map((f) => [f.id, f])), [cerveau.fiches]);
@@ -410,7 +467,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
     return () => { window.removeEventListener('pointerdown', arme); window.removeEventListener('keydown', arme); };
   }, []);
   /* Une conversation qui change referme le souci, le brouillon du chat, la citation. */
-  useEffect(() => { setSouciOuvert(null); setBrouillonDuChat(''); setCite(null); setBulleTouchee(null); }, [ouverte]);
+  useEffect(() => { setSouciOuvert(null); setBrouillonDuChat(''); setCite(null); setBulleTouchee(null); setMenuTenue(false); }, [ouverte]);
   /* AU TÉLÉPHONE, LA CONVERSATION OUVERTE COUVRE L'ÉCRAN (27 octobre 2026,
      banc du téléphone) : `trc-am__plein` (assistant-maison.css). Elle prend
      la hauteur que le CLAVIER laisse : `visualViewport` la donne, la feuille
@@ -454,9 +511,35 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
   };
   const choisitLeFiltre = (f: FiltreDeLaBoite) => {
     setFiltre(f);
+    setOnglet(f === 'attend' ? 'traiter' : 'toutes');
     const suivants = new URLSearchParams(params);
+    suivants.delete('onglet');
     if (f === 'attend') suivants.delete('filtre'); else suivants.set('filtre', f);
     setParams(suivants, { replace: true });
+  };
+  const choisitLOnglet = (o: Onglet) => {
+    if (o === 'traiter') { choisitLeFiltre('attend'); return; }
+    if (o === 'toutes') { choisitLeFiltre('tout'); return; }
+    setOnglet(o);
+    setMenuTenue(false);
+    const suivants = new URLSearchParams(params);
+    suivants.delete('filtre');
+    suivants.set('onglet', o);
+    setParams(suivants, { replace: true });
+  };
+  /* « JE LA PRENDS », et le menu « Gérée par » : la prise s'écrit pour toute
+     l'équipe. Prendre un fil que l'automate tient lui fait reprendre la main. */
+  const prends = (b: Boite, nom: string = moiNom) => {
+    if (!nom) { toast('Votre nom manque à votre compte : la prise ne peut pas s’écrire.'); return; }
+    prendsLaBoite(b.cle, nom, moiNom || undefined, new Date().toISOString());
+    if (b.fil?.automate?.tenue === 'tenu' && boite?.cle === b.cle) poignee.current?.prendsLaMain('reprendre', true);
+    setMenuTenue(false);
+    toast(nom === moiNom ? `Vous tenez la conversation avec ${b.nom}.` : `${nom} tient la conversation avec ${b.nom}.`);
+  };
+  const rendsALaSalle = (b: Boite) => {
+    rendsLaBoite(b.cle);
+    setMenuTenue(false);
+    toast(`${b.nom} retourne en salle d’attente.`);
   };
   /** La boîte qui suit celle-ci dans l'ordre de la liste (on revient au début après la dernière). */
   const apres = (cle: string | undefined, liste: readonly Boite[] = ordre): Boite | null => {
@@ -603,34 +686,54 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
     return r ? `${jourDit(r.date)} à ${heureDite(r.time)}` : undefined;
   };
 
-  /** UNE LIGNE DE LA LISTE : l'avatar, le nom, depuis quand, son dernier mot et UNE pastille. */
-  const ligneDe = (b: Boite) => {
+  /** LE BADGE D'UNE BOÎTE, un seul (`badgeDe`) : il part de la pastille d'À traiter. */
+  const badgeDeLaBoite = (b: Boite) => badgeDe(b, { pastille: pastilleDe(b), tenue: tenueDe(b), merci: groupeDe(b, tick) === 'merci', maintenant: tick });
+
+  /** UNE LIGNE DE LA LISTE : l'avatar, le nom, depuis quand, son dernier mot,
+      UN badge et qui la tient. En salle d'attente, « Je la prends » à côté. */
+  const ligneDe = (b: Boite, enSalle = false) => {
     const dernier = b.derniereDElle ?? b.derniere;
     const mot = dernier ? (dernier.texte.trim() || (dernier.source === 'chat' ? 'discussion du site' : SOURCE_DITE[dernier.source])) : 'rien encore';
-    const p = pastilleDe(b);
+    const badge = badgeDeLaBoite(b);
+    const tenue = tenueDite(tenueDe(b), moiNom);
     const courante = boite?.cle === b.cle;
-    const ton = b.sante || p.ton === 'terre' ? 'terre' : dernier?.source === 'whatsapp' ? 'cuivre' : 'indigo';
+    const nouvelle = badge.cle === 'nouveau';
     return (
-      <li key={b.cle}>
+      <li key={b.cle} className={enSalle ? 'trc-bx__en-salle' : undefined}>
         <button
           type="button" data-cle={b.cle}
-          className={`trc-bx__ligne${courante ? ' est-courante' : ''}`}
+          className={`trc-bx__ligne${courante ? ' est-courante' : ''}${nouvelle ? ' est-nouvelle' : ''}`}
           aria-current={courante ? 'true' : undefined}
           onClick={() => ouvre(b)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); ouvre(b); prendLaSaisie(); } }}
         >
-          <span className={`trc-am__avatar trc-am__avatar--${ton}`} aria-hidden="true">{b.initiales}</span>
+          <span className={`trc-bx__avatar${nouvelle ? ' est-nouvelle' : ''}`} aria-hidden="true">{b.initiales}</span>
           <span className="trc-bx__qui">
             <span className="trc-bx__haut">
               <b>{b.nom}</b>
               {b.depuisMs !== undefined && <span className="trc-bx__depuis">{depuisDit(b.depuisMs)}</span>}
             </span>
             <span className="trc-bx__mot">{dernier ? `${SOURCE_DITE[dernier.source]} : ` : ''}{court(mot)}</span>
-            <span className={`trc-bx__pastille trc-bx__pastille--${p.ton}`}>{p.dit}</span>
+            <span className="trc-bx__pied">
+              <span className={`trc-bx__pastille trc-bx__badge--${badge.ton}`}>{badge.dit}</span>
+              <span className={`trc-bx__tient trc-bx__tient--${tenue.ton}`}><i aria-hidden="true">{tenue.initiale}</i>{tenue.dit}</span>
+            </span>
           </span>
         </button>
+        {enSalle && <button type="button" className="trc-bx__prendre" onClick={() => prends(b)}>Je la prends</button>}
       </li>
     );
+  };
+  /** LA RÈGLE OUVERTE, et son compte du mois. */
+  const regleOuverte: AutomatisationReelle | undefined = AUTOMATISATIONS_REELLES.find((a) => a.id === regle) ?? AUTOMATISATIONS_REELLES[0];
+  const etatDeLaRegle = (a: AutomatisationReelle): string => (a.allumage === 'reglage' || a.allumage === 'ici' ? (a.reglage ? `réglable · ${a.reglage.dit}` : 'réglable ici') : ALLUMAGE_DIT[a.allumage]);
+  const gardesDeLaRegle = (a: AutomatisationReelle): string[] => {
+    if (PART_TOUT_DE_SUITE.has(a.id)) return ['Part tout de suite : c’est elle qui vient d’écrire.'];
+    if (SANS_LA_SALLE.has(a.id)) return [a.pasCompte ? `${a.pasCompte[0].toUpperCase()}${a.pasCompte.slice(1)}.` : 'Ne passe pas par WhatsApp.'];
+    return [
+      `Attend ${reglesDeLaSalle.salleMin} minutes dans « Ce qui part » : vous pouvez le retenir ou l’écarter.`,
+      `Heures calmes de ${reglesDeLaSalle.calmeDe} h à ${reglesDeLaSalle.calmeA} h : il part le matin.`,
+    ];
   };
 
   /* ── Les gestes du tri des démarcheurs ── */
@@ -702,7 +805,6 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
     const discussion = b.discussions[0];
     return (
       <>
-        {leTri(b)}
         <h3 className="trc-bx__sous">Sa fiche, en chiffres <span>{b.clientId ? 'lue sur sa fiche' : 'sans fiche'}</span></h3>
         {b.clientId ? (
           <dl className="trc-bx__chiffres">
@@ -774,6 +876,10 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
     const p = pastilleDe(b);
     const tonDuFaire = !b.attendUneReponse ? 'calme' : p.ton === 'terre' ? 'terre' : 'cuivre';
     const sous = [b.canaux.map((c) => SOURCE_DITE[c]).join(', '), numeroDit(b.numero), b.sansFiche ? 'sans fiche' : ''].filter(Boolean).join(' · ');
+    const tenue = tenueDe(b);
+    const tenueLue = tenueDite(tenue, moiNom);
+    const cleDeLaSuggestion = `${b.cle}|${faire.phrase}`;
+    const suggestionVisible = suggestionCachee !== cleDeLaSuggestion;
     return (
       <section
         ref={convOuverte}
@@ -781,34 +887,70 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
         aria-label={`La conversation avec ${b.nom}`}
         onKeyDown={echapDansLaConversation}
       >
-        {/* LA TÊTE : au téléphone le retour à la liste ; partout le nom, ses canaux, et les gestes de tous les jours. */}
+        {/* LA TÊTE : au téléphone le retour à la liste ; partout le nom, ses canaux, QUI LA TIENT, et une barre d'outils compacte. */}
         <div className={etroit ? 'trc-am__tete trc-bx__tete' : 'trc-bx__tete'}>
           {etroit && <button type="button" className="trc-am__retour" onClick={() => ouvre(null)} aria-label="Revenir à la liste des conversations">←</button>}
-          <span className={`trc-am__avatar trc-am__avatar--${b.sante ? 'terre' : b.fil ? 'cuivre' : 'indigo'}`} aria-hidden="true">{b.initiales}</span>
           <span className="trc-bx__nom">
             <b>{b.nom}</b>
             <span>{sous}</span>
           </span>
-          <span className="trc-bx__boutons">
-            {tel && !etroit && <a className="trc-ger__btn" href={tel}>Appeler</a>}
-            {!etroit && <button type="button" className="trc-ger__btn" onClick={() => poseLeRdv(b)}>Poser un RDV</button>}
-            {!etroit && <button type="button" className="trc-ger__btn" aria-pressed={ficheOuverte} onClick={() => setFicheOuverte((v) => !v)}>Sa fiche</button>}
-            <button type="button" className="trc-ger__btn trc-bx__suivante" onClick={suivante}>Suivante →</button>
+          <span className="trc-bx__geree">
+            <button type="button" className="trc-bx__geree-btn" aria-expanded={menuTenue} onClick={() => setMenuTenue((v) => !v)}>
+              <span className="trc-bx__geree-dit">Gérée par</span>
+              <span className={`trc-bx__tient trc-bx__tient--${tenueLue.ton}`}><i aria-hidden="true">{tenueLue.initiale}</i>{tenueLue.dit}</span>
+              <ChevronDown size={13} aria-hidden="true" />
+            </button>
+            {menuTenue && (
+              <span className="trc-bx__geree-menu" role="menu">
+                <span className="trc-bx__geree-titre">Qui tient cette conversation</span>
+                {moiNom && (
+                  <button type="button" role="menuitem" className={tenueLue.ton === 'vous' ? 'est-choisi' : ''} onClick={() => prends(b)}>
+                    <span className="trc-bx__tient trc-bx__tient--vous"><i aria-hidden="true">{moiNom[0]?.toUpperCase()}</i>Vous</span><small>je la prends</small>
+                  </button>
+                )}
+                {lEquipe.map((nom) => (
+                  <button key={nom} type="button" role="menuitem" className={tenue.qui === 'equipe' && tenue.nom === nom ? 'est-choisi' : ''} onClick={() => prends(b, nom)}>
+                    <span className="trc-bx__tient trc-bx__tient--equipe"><i aria-hidden="true">{nom[0]?.toUpperCase()}</i>{nom}</span><small>la lui confier</small>
+                  </button>
+                ))}
+                {(tenue.qui === 'perle' || tenue.qui === 'automate') && (
+                  <span className="trc-bx__geree-note">{tenueLue.dit} tient ce fil{b.fil?.automate?.tenue === 'tenu' ? ' : la prendre lui fait reprendre la main' : ''}.</span>
+                )}
+                {tenue.qui === 'equipe' && tenue.prise && (
+                  <button type="button" role="menuitem" onClick={() => rendsALaSalle(b)}>
+                    <span className="trc-bx__tient trc-bx__tient--personne"><i aria-hidden="true">?</i>Personne</span><small>la remettre en salle d’attente</small>
+                  </button>
+                )}
+              </span>
+            )}
+          </span>
+          <span className="trc-bx__boutons" role="toolbar" aria-label="Les gestes de la conversation">
+            {tel && !etroit && <a className="trc-bx__outil-btn" href={tel}><Phone size={14} aria-hidden="true" />Appeler</a>}
+            {!etroit && <button type="button" className="trc-bx__outil-btn" onClick={() => poseLeRdv(b)}><CalendarPlus size={14} aria-hidden="true" />RDV</button>}
+            {!etroit && <button type="button" className={`trc-bx__outil-btn${ficheOuverte ? ' est-choisi' : ''}`} aria-pressed={ficheOuverte} onClick={() => setFicheOuverte((v) => !v)}><UserRound size={14} aria-hidden="true" />Sa fiche</button>}
+            {b.attendUneReponse && !etroit && <button type="button" className="trc-bx__outil-btn" onClick={() => range(b)}><Check size={14} aria-hidden="true" />Rien à répondre</button>}
+            {estDirection && b.sansFiche && b.fil && b.numero && !b.tri && aConfirmer !== b.cle && <button type="button" className="trc-bx__outil-btn" onClick={() => setAConfirmer(b.cle)}>Bloquer ce numéro</button>}
+            <button type="button" className="trc-bx__outil-btn trc-bx__suivante" onClick={suivante}>Suivante<ArrowRight size={14} aria-hidden="true" /></button>
           </span>
         </div>
         <div className="trc-am__corps">
-          {/* CE QU'IL FAUT FAIRE : une phrase, et ses gestes, le principal d'abord. */}
-          <div className={`trc-bx__faire trc-bx__faire--${tonDuFaire}`}>
-            <p className="trc-bx__faire-titre">Ce qu’il faut faire</p>
-            <p className="trc-bx__faire-phrase">{faire.phrase}</p>
-            {faire.gestes.length > 0 && (
-              <div className="trc-bx__faire-gestes">
-                {faire.gestes.map((g, i) => (g.cle === 'appeler' && tel
-                  ? <a key={g.cle} className={`trc-ger__btn${i === 0 ? ' trc-bx__principal' : ''}`} href={tel}>{g.dit}</a>
-                  : <button key={g.cle} type="button" className={`trc-ger__btn${i === 0 ? ' trc-bx__principal' : ''}`} onClick={() => faisLeGeste(g.cle, b)}>{g.dit}</button>))}
-              </div>
-            )}
-          </div>
+          {/* LE TRI DES DÉMARCHEURS dans la conversation (4 novembre 2026) : bloqué, proposition, ou la confirmation de « Bloquer ce numéro », sans ouvrir sa fiche. */}
+          {(b.tri || aConfirmer === b.cle) && <div className="trc-bx__tri-conv">{leTri(b)}</div>}
+          {/* L'ACTION SUGGÉRÉE (4 novembre 2026) : « Ce qu'il faut faire » en bandeau discret, sa phrase et ses gestes, le principal d'abord ; elle se masque pour cette phrase. */}
+          {suggestionVisible && (
+            <div className={`trc-bx__faire trc-bx__faire--${tonDuFaire}`}>
+              <p className="trc-bx__faire-titre">Action suggérée</p>
+              <p className="trc-bx__faire-phrase">{faire.phrase}</p>
+              {faire.gestes.length > 0 && (
+                <div className="trc-bx__faire-gestes">
+                  {faire.gestes.map((g, i) => (g.cle === 'appeler' && tel
+                    ? <a key={g.cle} className={`trc-ger__btn${i === 0 ? ' trc-bx__principal' : ''}`} href={tel}>{g.dit}</a>
+                    : <button key={g.cle} type="button" className={`trc-ger__btn${i === 0 ? ' trc-bx__principal' : ''}`} onClick={() => faisLeGeste(g.cle, b)}>{g.dit}</button>))}
+                </div>
+              )}
+              <button type="button" className="trc-bx__faire-x" onClick={() => setSuggestionCachee(cleDeLaSuggestion)} aria-label="Masquer l’action suggérée"><X size={14} aria-hidden="true" /></button>
+            </div>
+          )}
 
           {/* LE FIL FUSIONNÉ, dans l'ordre du temps : chaque bulle dit sa source et son auteur ; ce qui est parti seul se grise. */}
           <div ref={filOuvert} className="trc-bulles">
@@ -892,22 +1034,15 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
 
   return (
     <>
-      {/* LA LIGNE CHIFFRÉE, à la place des trois tuiles ; les outils de la boîte, à droite. */}
-      <div className="trc-bx__resume">
-        <p>
-          <b className="trc-bx__gros">{attendent.total}</b> à traiter{attendent.total ? ' : ' : ''}
-          {attendent.total > 0 && <>
-            <b>{parGroupe.maintenant ?? 0}</b> maintenant, <b>{parGroupe.plus ?? 0}</b> plus ancienne{(parGroupe.plus ?? 0) > 1 ? 's' : ''}, <b>{parGroupe.merci ?? 0}</b> merci à ranger
-          </>}
-          {attendent.sante > 0 && <span className="trc-am__alarme"> · dont {attendent.sante} Santé</span>}
-          <span className="trc-bx__doux"> · {repondues.repondues} sur {repondues.questions} répondues sous 1 h aujourd’hui{repondues.enCours ? ` (${repondues.enCours} en cours)` : ''} · {gratuites.restantes.toLocaleString('fr-FR')} réponses gratuites restantes ce mois</span>
-        </p>
+      {/* LA TÊTE DE LA BOÎTE (4 novembre 2026) : la ligne chiffrée s'efface ; un souci Santé seul s'y signale, et les outils restent à droite. */}
+      <div className="trc-bx__resume trc-bx-vue">
+        <p>{santeEnAttente > 0 && <span className="trc-am__alarme">{santeEnAttente} souci{santeEnAttente > 1 ? 's' : ''} Santé à rappeler sous 24 h</span>}</p>
         <div className="trc-bx__menu">
           <button type="button" className="trc-ger__btn" aria-expanded={menuOutils} onClick={() => setMenuOutils((v) => !v)}>Outils de la boîte ▾</button>
           {menuOutils && (
             <div className="trc-bx__menu-liste" role="menu">
               <button type="button" role="menuitem" onClick={() => ouvreLOutil('reponses')}><b>Réponses toutes prêtes</b><span>{compteDesReponses.validees} validée{compteDesReponses.validees > 1 ? 's' : ''} sur {compteDesReponses.total}</span></button>
-              <button type="button" role="menuitem" onClick={() => ouvreLOutil('envois')}><b>Ce qui part</b><span>la salle d’attente et le journal des envois</span></button>
+              <button type="button" role="menuitem" onClick={() => ouvreLOutil('envois')}><b>Ce qui part</b><span>les envois retenus et le journal</span></button>
               <button type="button" role="menuitem" onClick={() => ouvreLOutil('mots')}><b>Ce qu’elles disent</b><span>leurs mots des {JOURS_DE_LEURS_MOTS} derniers jours</span></button>
               <button type="button" role="menuitem" onClick={() => ouvreLOutil('scenarios')}><b>Banque de scénarios</b><span>{banqueAValider > 0 ? `${banqueAValider} cas à valider` : 'les vrais messages, rejoués à chaque changement'}</span></button>
             </div>
@@ -916,33 +1051,26 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
       </div>
 
       {/* LA BOÎTE : la liste, la conversation, sa fiche. */}
-      <section ref={boiteRef} className={`trc-bx${ouvertEtroit ? ' est-ouverte' : ''}${boite && ficheOuverte && !etroit ? ' avec-fiche' : ''}`} aria-label="Les conversations">
+      <section ref={boiteRef} className={`trc-bx trc-bx-vue${ouvertEtroit ? ' est-ouverte' : ''}`} aria-label="Les conversations">
         <div className="trc-bx__liste" ref={listeRef} onKeyDown={auClavierDansLaListe}>
           <div className="trc-bx__commandes">
-            <input
-              type="search" className="mnd-input trc-bx__cherche" value={cherche} onChange={(e) => setCherche(e.target.value)}
-              placeholder="Chercher un nom, un numéro, un mot" aria-label="Chercher une conversation"
-            />
-            <div className="trc-bx__segments" role="group" aria-label="Quelles conversations">
-              <button type="button" aria-pressed={filtre === 'attend'} className={filtre === 'attend' ? 'est-choisi' : ''} onClick={() => choisitLeFiltre('attend')}>À traiter · {comptes.attend}</button>
-              <button type="button" aria-pressed={dansToutes} className={dansToutes ? 'est-choisi' : ''} onClick={() => choisitLeFiltre('tout')}>Toutes · {comptes.tout}</button>
-            </div>
-            {/* LE TRI DES DÉMARCHEURS (29 octobre 2026) : ce que Claude a rangé, et ce qui est bloqué. */}
-            <div className="trc-bx__puces" role="group" aria-label="Le tri">
-              {(['propositions', 'bloques'] as const).map((f) => (
-                <button key={f} type="button" aria-pressed={filtre === f} className={filtre === f ? 'est-choisi' : ''} onClick={() => choisitLeFiltre(filtre === f ? 'attend' : f)}>
-                  {FILTRE_DIT[f]} · {comptes[f]}
-                </button>
-              ))}
-            </div>
-            {dansToutes && (
-              <div className="trc-bx__puces" role="group" aria-label="Seulement">
-                {(['site', 'entre-deux'] as const).map((f) => (
-                  <button key={f} type="button" aria-pressed={filtre === f} className={filtre === f ? 'est-choisi' : ''} onClick={() => choisitLeFiltre(filtre === f ? 'tout' : f)}>
-                    {FILTRE_DIT[f]} · {comptes[f]}
+            {/* LES QUATRE ONGLETS, leur nombre à côté (4 novembre 2026). */}
+            <div className="trc-bx__segments" role="tablist" aria-label="Quelles conversations">
+              {ONGLETS.map((o) => {
+                const choisi = onglet === o.k;
+                const n = o.k === 'traiter' ? comptes.attend : o.k === 'attente' ? enAttente.length : o.k === 'toutes' ? comptes.tout : AUTOMATISATIONS_REELLES.length;
+                return (
+                  <button key={o.k} type="button" role="tab" aria-selected={choisi} aria-pressed={choisi} className={choisi ? 'est-choisi' : ''} onClick={() => choisitLOnglet(o.k)}>
+                    {o.dit}<em>{n}</em>
                   </button>
-                ))}
-              </div>
+                );
+              })}
+            </div>
+            {onglet !== 'regles' && (
+              <input
+                type="search" className="mnd-input trc-bx__cherche" value={cherche} onChange={(e) => setCherche(e.target.value)}
+                placeholder="Un nom, un numéro, un mot" aria-label="Chercher une conversation"
+              />
             )}
           </div>
 
@@ -950,20 +1078,74 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
             {recherche ? (
               <>
                 <h3 className="trc-bx__groupe">Résultats · {ordre.length}</h3>
-                {ordre.length === 0 ? <p className="trc-ger__vide">Personne ne répond à « {cherche.trim()} ».</p> : <ul className="trc-bx__lignes">{ordre.map(ligneDe)}</ul>}
+                {ordre.length === 0 ? <p className="trc-ger__vide">Personne ne répond à « {cherche.trim()} ».</p> : <ul className="trc-bx__lignes">{ordre.map((b) => ligneDe(b))}</ul>}
               </>
-            ) : filtre === 'attend' ? (
+            ) : onglet === 'regles' ? (
+              <>
+                {/* LES RÈGLES : ce qui part seul, rangé comme dans Marketing › Automatisations ; « Ce qui part » en tête. */}
+                <div className="trc-bx__envois">
+                  <span><b>Ce qui part</b>Tout message automatique attend {reglesDeLaSalle.salleMin} minutes avant de partir.</span>
+                  <button type="button" className="trc-bx__prendre" onClick={() => ouvreLOutil('envois')}>Voir</button>
+                </div>
+                {GROUPES_DES_AUTOMATISATIONS.map((g) => {
+                  const regles = AUTOMATISATIONS_REELLES.filter((a) => a.groupe === g.k);
+                  if (regles.length === 0) return null;
+                  return (
+                    <div key={g.k}>
+                      <h3 className="trc-bx__groupe">{g.dit}</h3>
+                      <ul className="trc-bx__lignes">
+                        {regles.map((a) => (
+                          <li key={a.id}>
+                            <button type="button" className={`trc-bx__regle${regleOuverte?.id === a.id ? ' est-courante' : ''}`} aria-current={regleOuverte?.id === a.id ? 'true' : undefined} onClick={() => setRegle(a.id)}>
+                              <b>{a.quand}</b>
+                              <span>{a.quoi}</span>
+                              <span className="trc-bx__allume">{etatDeLaRegle(a)}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </>
+            ) : onglet === 'traiter' && filtre === 'attend' ? (
               ordre.length === 0
                 ? <p className="trc-ger__vide">Plus rien à traiter : chaque message, chaque demande et chaque souci a sa suite.</p>
-                : groupes.filter((x) => x.boites.length > 0).map((x) => (
-                  <div key={x.g}>
-                    <div className="trc-bx__groupe-tete">
-                      <h3 className="trc-bx__groupe">{GROUPE_DIT[x.g]} · {x.boites.length}</h3>
-                      {x.g === 'merci' && <button type="button" className="trc-ger__btn trc-am__btn--calme" onClick={() => rangeLesMercis(x.boites)}>Tout ranger</button>}
-                    </div>
-                    <ul className="trc-bx__lignes">{x.boites.map(ligneDe)}</ul>
-                  </div>
-                ))
+                : (
+                  <>
+                    {/* LA SALLE D'ATTENTE : elles attendent, et personne ne les tient encore. */}
+                    {aTraiter.salle.length > 0 && (
+                      <div className="trc-bx__salle">
+                        <button type="button" className="trc-bx__salle-tete" aria-expanded={!salleRepliee} onClick={() => setSalleRepliee((v) => !v)}>
+                          <b>Salle d’attente · {aTraiter.salle.length}</b>
+                          <span>personne ne s’en occupe encore</span>
+                          <ChevronDown size={14} aria-hidden="true" className={salleRepliee ? '' : 'est-ouvert'} />
+                        </button>
+                        {!salleRepliee && <ul className="trc-bx__lignes">{aTraiter.salle.map((b) => ligneDe(b, true))}</ul>}
+                      </div>
+                    )}
+                    {aTraiter.tenues.length > 0 && (
+                      <div>
+                        <h3 className="trc-bx__groupe">L’équipe s’en occupe · {aTraiter.tenues.length}</h3>
+                        <ul className="trc-bx__lignes">{aTraiter.tenues.map((b) => ligneDe(b))}</ul>
+                      </div>
+                    )}
+                    {aTraiter.mercis.length > 0 && (
+                      <div>
+                        <div className="trc-bx__groupe-tete">
+                          <h3 className="trc-bx__groupe">{GROUPE_DIT.merci} · {aTraiter.mercis.length}</h3>
+                          <button type="button" className="trc-ger__btn trc-am__btn--calme" onClick={() => rangeLesMercis(aTraiter.mercis)}>Tout ranger</button>
+                        </div>
+                        <ul className="trc-bx__lignes">{aTraiter.mercis.map((b) => ligneDe(b))}</ul>
+                      </div>
+                    )}
+                  </>
+                )
+            ) : onglet === 'attente' ? (
+              <>
+                <h3 className="trc-bx__groupe">Elles doivent répondre · {enAttente.length}</h3>
+                {enAttente.length === 0 ? <p className="trc-ger__vide">Personne ne doit de réponse à la Maison cette semaine.</p> : <ul className="trc-bx__lignes">{enAttente.map((b) => ligneDe(b))}</ul>}
+              </>
             ) : filtre === 'bloques' || filtre === 'propositions' ? (
               <>
                 <p className="trc-ger__doux trc-bx__tri-aide">
@@ -974,16 +1156,67 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
                 {filtre === 'bloques' && estDirection && (
                   <button type="button" className="trc-ger__btn trc-bx__tri-passe" onClick={() => void lanceLaPasse()}>Relire les dernières 24 h</button>
                 )}
-                {ordre.length === 0 ? <p className="trc-ger__vide">{filtre === 'bloques' ? 'Aucun numéro bloqué.' : 'Aucune proposition.'}</p> : <ul className="trc-bx__lignes">{ordre.map(ligneDe)}</ul>}
+                {ordre.length === 0 ? <p className="trc-ger__vide">{filtre === 'bloques' ? 'Aucun numéro bloqué.' : 'Aucune proposition.'}</p> : <ul className="trc-bx__lignes">{ordre.map((b) => ligneDe(b))}</ul>}
               </>
             ) : (
-              ordre.length === 0 ? <p className="trc-ger__vide">Aucune conversation ici.</p> : <ul className="trc-bx__lignes">{ordre.map(ligneDe)}</ul>
+              ordre.length === 0 ? <p className="trc-ger__vide">Aucune conversation ici.</p> : <ul className="trc-bx__lignes">{ordre.map((b) => ligneDe(b))}</ul>
             )}
           </div>
-          {!etroit && <p className="trc-bx__aide">Au clavier : flèches haut et bas pour passer de l’une à l’autre, Entrée pour écrire, Échap pour revenir à la liste.</p>}
+          {/* LE PIED DE LA LISTE : le tri des démarcheurs (29 octobre 2026), ce que Claude a rangé et ce qui est bloqué ; dans « Toutes », le site et les soucis. */}
+          {onglet !== 'regles' && (
+            <div className="trc-bx__pied-liste">
+              <div className="trc-bx__puces" role="group" aria-label="Le tri">
+                {(['propositions', 'bloques'] as const).map((f) => (
+                  <button key={f} type="button" aria-pressed={filtre === f} className={filtre === f ? 'est-choisi' : ''} onClick={() => choisitLeFiltre(filtre === f ? 'attend' : f)}>
+                    {FILTRE_DIT[f]} · {comptes[f]}
+                  </button>
+                ))}
+              </div>
+              {onglet === 'toutes' && dansToutes && (
+                <div className="trc-bx__puces" role="group" aria-label="Seulement">
+                  {(['site', 'entre-deux'] as const).map((f) => (
+                    <button key={f} type="button" aria-pressed={filtre === f} className={filtre === f ? 'est-choisi' : ''} onClick={() => choisitLeFiltre(filtre === f ? 'tout' : f)}>
+                      {FILTRE_DIT[f]} · {comptes[f]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {boite ? conversation(boite) : !etroit ? (
+        {onglet === 'regles' && !recherche && regleOuverte ? (
+          /* LA RÈGLE OUVERTE : Quand → Alors, ses garde-fous, où elle se règle, et ce qu'elle a fait ce mois-ci. */
+          <section className="trc-bx__conv trc-bx__regle-ouverte" aria-label={`La règle : ${regleOuverte.quand}`}>
+            {(() => {
+              const c = compteDuMois(envoisLus as unknown as EnvoiLu[], regleOuverte.types, moisCourant, branch.id);
+              const groupe = GROUPES_DES_AUTOMATISATIONS.find((g) => g.k === regleOuverte.groupe)?.dit ?? '';
+              return (
+                <div className="trc-bx__regle-corps">
+                  <p className="trc-bx__regle-groupe">{groupe}</p>
+                  <div className="trc-bx__flux">
+                    <div><span>Quand</span><b>{regleOuverte.quand}</b></div>
+                    <ArrowRight size={20} aria-hidden="true" className="trc-bx__fleche" />
+                    <div><span>Alors</span><b>{regleOuverte.quoi}</b></div>
+                  </div>
+                  <div>
+                    <p className="trc-bx__regle-groupe">Les garde-fous</p>
+                    <ul className="trc-bx__gardes">{gardesDeLaRegle(regleOuverte).map((g) => <li key={g}>{g}</li>)}</ul>
+                  </div>
+                  <dl className="trc-bx__chiffres">
+                    <div><dt>État</dt><dd>{etatDeLaRegle(regleOuverte)}</dd></div>
+                    <div><dt>Ce mois-ci</dt><dd>{regleOuverte.types.length === 0 ? (regleOuverte.pasCompte ?? 'non compté') : `${c.partis} parti${c.partis > 1 ? 's' : ''}${c.aRegarder ? ` · ${c.aRegarder} à regarder` : ''}`}</dd></div>
+                    {regleOuverte.modeles.length > 0 && <div><dt>Modèle{regleOuverte.modeles.length > 1 ? 's' : ''} Meta</dt><dd>{regleOuverte.modeles.join(', ')}</dd></div>}
+                  </dl>
+                  <div className="trc-bx__autres">
+                    <Link className="trc-ger__btn" to={regleOuverte.reglage?.vers ?? '/marketing?tab=auto'}>{regleOuverte.reglage ? `Régler dans ${regleOuverte.reglage.dit}` : 'Voir dans Marketing › Automatisations'}</Link>
+                    {!PART_TOUT_DE_SUITE.has(regleOuverte.id) && !SANS_LA_SALLE.has(regleOuverte.id) && <button type="button" className="trc-ger__btn" onClick={() => ouvreLOutil('envois')}>Voir ce qui part</button>}
+                  </div>
+                </div>
+              );
+            })()}
+          </section>
+        ) : boite ? conversation(boite) : !etroit ? (
           <div className="trc-bx__conv trc-bx__conv--vide"><p>Choisissez une conversation dans la liste.</p></div>
         ) : null}
 
@@ -1042,7 +1275,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
         {outil === 'envois' && (
           <section className="trc-ger__carte trc-bx__outil">
             <div className="trc-ger__haut">
-              <h3>Ce qui part <span>la salle d’attente et le journal</span></h3>
+              <h3>Ce qui part <span>les envois retenus et le journal</span></h3>
               <button type="button" className="trc-ger__btn trc-am__btn--calme" onClick={() => setOutil(null)}>Fermer</button>
             </div>
             <EnvoisAutomatiques typeInitial={params.get('type')} onOuvrirLeFil={ouvreLeFilDe} />

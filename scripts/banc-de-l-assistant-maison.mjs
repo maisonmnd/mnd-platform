@@ -254,7 +254,7 @@ try {
       const nom = premiere?.querySelector('.trc-bx__haut b')?.textContent?.trim();
       const pastille = premiere?.querySelector('.trc-bx__pastille')?.textContent ?? '';
       const faire = !!v.querySelector('.trc-bx__conv .trc-bx__faire');
-      return resume && segments === 2 && nom === 'K. T.' && /^Santé/.test(pastille) && faire ? true : JSON.stringify({ resume, segments, nom, pastille, faire });
+      return resume && segments === 4 && nom === 'K. T.' && /^Santé/.test(pastille) && faire ? true : JSON.stringify({ resume, segments, nom, pastille, faire });
     })()`,
     /* Quatre tuiles ; la liste des avis Google (vide, Supabase injoignable : elle le dit). */
     avis: String.raw`(() => {

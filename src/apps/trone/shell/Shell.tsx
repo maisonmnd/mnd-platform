@@ -626,6 +626,18 @@ export default function Shell() {
      laissent monter ou descendre. Un mode, pas un réglage caché — on le quitte
      du même bouton qui l'a ouvert. */
   const [rangement, setRangement] = useState(false);
+  /* LA BARRE SE REPLIE (4 novembre 2026, la refonte des conversations) :
+     « Menu latéral, rétractable si possible » (Yéman). Une bande indigo de
+     60 px garde le monogramme et le bouton qui la rouvre ; le choix se
+     retient PAR POSTE, comme le rangement. Au téléphone, la barre reste un
+     tiroir : elle ne se replie jamais. */
+  const [barreRepliee, setBarreRepliee] = useState(() => {
+    try { return localStorage.getItem('mnd_barre_repliee') === '1'; } catch { return false; }
+  });
+  const basculeLaBarre = () => setBarreRepliee((v) => {
+    try { localStorage.setItem('mnd_barre_repliee', v ? '0' : '1'); } catch { /* le poste refuse : la barre bascule quand même */ }
+    return !v;
+  });
 
   /** Monter ou descendre un onglet dans son groupe. On enregistre la liste
       ENTIÈRE des chemins visibles, jamais un simple décalage : le rangement
@@ -796,9 +808,16 @@ export default function Shell() {
        Elle ne paraît plus dès qu'on est maître, mais seulement si un de ses
        trois gestes reste ouvert ; garder les 78 px sans elle laissait une
        bande morte sous la dernière ligne de chaque écran. */
-    <div className={`tr-shell ${sideOpen ? 'is-side-open' : ''} ${gestesRapides(staff?.role, mesDomaines).aucun ? '' : 'tr-shell--barre'}`}>
+    <div className={`tr-shell ${sideOpen ? 'is-side-open' : ''} ${gestesRapides(staff?.role, mesDomaines).aucun ? '' : 'tr-shell--barre'}${barreRepliee ? ' tr-shell--repliee' : ''}`}>
       {sideOpen && <div className="tr-side-veil" onClick={closeSide} />}
       <aside className="tr-side">
+        {/* La bande repliée : le monogramme, et le bouton qui rouvre la barre. */}
+        <div className="tr-side__rail">
+          <span className="mnd-serif tr-side__monogramme" aria-hidden="true">M</span>
+          <button type="button" className="tr-side__deplier" onClick={basculeLaBarre} aria-label="Déplier la barre" title="Déplier la barre">
+            <ChevronDown size={16} style={{ transform: 'rotate(-90deg)' }} />
+          </button>
+        </div>
         {/* 26 octobre 2026 : la marque de la maquette des avis, sans le sceau.
             « Le Trône » remplace « Propulsé par LOKAA » sous le nom. */}
         <div className="tr-side__brand">
@@ -880,6 +899,9 @@ export default function Shell() {
             title={rangement ? 'Revenir au menu' : 'Monter et descendre les onglets'}
           >
             {rangement ? 'Terminer le rangement' : 'Ranger le menu'}
+          </button>
+          <button className="tr-nav__ranger tr-nav__replier" onClick={basculeLaBarre} title="Replier la barre en une bande étroite">
+            Replier la barre
           </button>
           {rangement && (
             <div className="tr-nav__aide">

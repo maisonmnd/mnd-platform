@@ -184,7 +184,7 @@ try {
   await attend(500);
   await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-bx__lignes button, .trc-bx__lignes li')].find((x) => x.innerText.includes('Inconnu Z.')); (b?.querySelector('button') ?? b)?.click(); return !!b; })()`);
   await attend(800);
-  dit('un fil sans fiche : « Bloquer ce numéro »', await clique('.trc-bx__fiche button, .trc-bx__autres button', 'Bloquer ce numéro'));
+  dit('un fil sans fiche : « Bloquer ce numéro »', await clique('.trc-bx__fiche button, .trc-bx__autres button, .trc-bx__boutons button', 'Bloquer ce numéro'));
   await attend(300);
   const confirme = await evalue(String.raw`(document.querySelector('.trc-bx__tri')?.innerText || '').replace(/\s+/g, ' ')`);
   dit('... demande confirmation, et dit ce que ca fait', /il ne pourra plus écrire à la Maison/.test(confirme), confirme.slice(0, 160));
