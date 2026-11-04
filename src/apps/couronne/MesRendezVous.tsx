@@ -19,11 +19,16 @@ import {
   dayLabelIsoFr,
   fmtDuration,
   freeSlots,
+  placesDeLaRemiseDe,
+  useAucuneRemise,
   useCreneauxOccupes,
   pad2,
   todayIso,
   useClientId,
 } from './lib';
+import { useOffers } from '../../shared/offers';
+import { codeNormalise, estAPlaces } from '../../shared/offres-pur';
+import { estLaPlacePartie, laPlaceDuJour } from './places-pure';
 import { etatDeLaSeance, seDeplaceEnLigne } from '../../shared/abonnee-pur';
 import { decaleLeJour } from '../../shared/ia-faits-pur';
 import { ETAT_SEANCE, appelleLaMaison, dateDansLaPhrase, leJour, seanceDuRelevé, useRelevesDe } from './releve';
@@ -251,6 +256,29 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
      les dépendances, la grille garde sa réponse d'avant. Voir Booking. */
   const [reglages] = useSettings();
 
+  /* ══ SA PLACE LIMITÉE, AU DÉPLACEMENT — 4 novembre 2026 ═══════════════
+     Un rendez-vous qui tient une place (Places limitées, −15 %) la GARDE à
+     sa date, même si le jour s'est rempli depuis (`offreTenue`). Un autre
+     jour ne la garde que s'il y reste des places, telles que la base les
+     dit. Le calendrier le montre en cuivre AVANT qu'elle ne choisisse, et la
+     Maison redit le prix en confirmant tout déplacement. Aux prix convenus
+     ou abonnée, rien ne se montre (une seule remise). */
+  const [offresDeLaMaison] = useOffers();
+  const aucuneRemise = useAucuneRemise(editing?.clientId);
+  const placeTenue = editing
+    ? offresDeLaMaison.find((o) => estAPlaces(o)
+      && ((!!editing.offreId && editing.offreId === o.id) || (!!editing.codeOffre && codeNormalise(editing.codeOffre) === codeNormalise(o.code))))
+    : undefined;
+  const laPlaceTientLe = (iso: string | undefined): boolean => !!iso && !!editing && !!placeTenue && !!laPlaceDuJour([placeTenue], {
+    branchId: editing.branchId,
+    dateIso: iso,
+    serviceIds: editing.serviceIds,
+    carte: placesDeLaRemiseDe(branch.id),
+    aujourdhui: today,
+    aucuneRemise,
+    offreTenue: iso === editing.date ? placeTenue.id : undefined,
+  });
+
   const calCells = useMemo(() => {
     if (!editing) return [];
     const dur = durationOf(editing);
@@ -299,7 +327,11 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
       toast(parLaMaison.raison === 'moins_de_24_h' ? t('À moins de 24 h, écrivez à la Maison : elle peut la déplacer sans la compter.')
         : parLaMaison.raison === 'fin' ? t('Cette date est après la fin de votre formule.')
           : parLaMaison.raison === 'place' ? t('Ce moment vient d’être pris. Choisissez-en un autre.')
-            : t('La Maison n’a pas pu déplacer cette séance. Écrivez-lui.'));
+            /* LA PLACE LIMITÉE PARTIE (4 novembre 2026) : le garde des places
+               refuse ; rien ne bouge, et aucun prix ne change en silence. */
+            : estLaPlacePartie(parLaMaison.raison)
+              ? t('La dernière place à −{pct} % de ce jour vient de partir. Choisissez un jour en cuivre, ou écrivez à la Maison.', { pct: Math.round(placeTenue?.discountPct ?? 0) })
+              : t('La Maison n’a pas pu déplacer cette séance. Écrivez-lui.'));
       return;
     }
     const transmis = parLaMaison.ok ? true : await ecrisRendezVous(a.id, { date: iso, time: heure, status: 'en attente' });
@@ -497,27 +529,34 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
               {DOW_LETTERS.map((d, i) => <div key={i}>{d}</div>)}
             </div>
             <div className="mc-calgrid">
-              {calCells.map((c) =>
-                c.day === null ? (
-                  <span key={c.key} />
-                ) : (
+              {calCells.map((c) => {
+                if (c.day === null) return <span key={c.key} />;
+                /* Le jour où sa place limitée tient, en cuivre (4 novembre 2026). */
+                const tient = c.free && laPlaceTientLe(c.iso);
+                return (
                   <button
                     key={c.key}
-                    className={`mc-calday ${c.iso === selIso ? 'is-sel' : ''} ${c.free ? 'is-free' : 'is-off'}`}
+                    className={`mc-calday ${c.iso === selIso ? 'is-sel' : ''} ${c.free ? 'is-free' : 'is-off'}${tient ? ' is-offre' : ''}`}
                     onClick={() => {
                       if (!c.free) { toast(t('Aucune disponibilité ce jour.')); return; }
                       setSelIso(c.iso!);
                     }}
                   >
                     {c.day}
-                    {c.free && c.iso !== selIso && <i />}
+                    {tient && <small className="mc-calday__offre">−{placeTenue?.discountPct ?? 0} %</small>}
+                    {c.free && c.iso !== selIso && !tient && <i />}
                   </button>
-                )
-              )}
+                );
+              })}
             </div>
             <div className="mc-callegend">
               <span />{t('Jours avec créneaux libres')} · {fmtDuration(durationOf(editing))}
             </div>
+            {placeTenue && !aucuneRemise && (
+              <div className="mc-callegend mc-callegend--offre">
+                <span />{t('Places limitées : votre remise de {pct} % tient les jours en cuivre. Un autre jour, la Maison vous redit le prix en confirmant.', { pct: Math.round(placeTenue.discountPct ?? 0) })}
+              </div>
+            )}
 
             {selIso && (
               <div className="mc-fade" style={{ marginTop: 20 }}>

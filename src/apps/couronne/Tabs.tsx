@@ -34,6 +34,7 @@ import { ageDe, tetesPortees, statutFidelite, type StatutFidelite } from '../../
 import { corrigerNaissance, declarationsDe, rattacherEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
 import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useFoyerTiers, cercleActifStore, foyerActifStore } from '../../shared/offers';
+import { remiseFamilleDeLaTete } from '../../shared/offres-pur';
 import { deliveryFee, useSettings } from '../../shared/settings';
 import { palierDuCarnet, pasSuivant, jourLocal, PALIER_DIT } from '../../shared/paliers';
 import { ProchaineMarche } from './ProchaineMarche';
@@ -56,6 +57,7 @@ import {
   useClient,
   useTetesDuFoyer,
   useClientId,
+  useLaTeteALaRemise,
   useLiveOffers,
   useOfferCountdown,
   useVisibleCatalog,
@@ -665,6 +667,9 @@ export function HomeTab({
       return;
     }
     if (o.serviceId) onOpenBooking({ serviceId: o.serviceId, discountPct: o.discountPct, offerLabel: o.tag });
+    /* PLACES LIMITÉES (4 novembre 2026) : la réservation s'ouvre, sans
+       remise pré-remplie ; la place se pose d'elle-même sur un jour qui en a. */
+    else onOpenBooking();
   };
 
   return (
@@ -1802,6 +1807,9 @@ export function ProfilTab({ toast, entrees }: {
   const famPctProfil = tetesDuFoyerProfil !== null && familleProfil
     ? remiseFamillePourTetes(familleProfil, tetesDuFoyerProfil)
     : remiseFamillePct(familleProfil, tousClientsProfil, todayIso(), 'mineurs');
+  /* UNE SEULE REMISE (4 novembre 2026) : aux prix convenus ou abonnée, pas de
+     remise famille, et elle ne se dit pas ici. */
+  const famPctDit = remiseFamilleDeLaTete(famPctProfil, useLaTeteALaRemise());
   const { session } = useAuth();
   const email = client?.email ?? session?.user?.email ?? '';
   /* Le calibre affiché se déduit du comptage — le style à la main est retiré. */
@@ -1908,9 +1916,9 @@ export function ProfilTab({ toast, entrees }: {
           <div className="mc-idcard__name">{client?.name ?? 'Ma Couronne'}</div>
           {email && <div className="mc-idcard__meta" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</div>}
           <div className="mc-idcard__meta">{t('Tête couronnée depuis {annee} · {maison}', { annee: sinceYear, maison: branch.name })}</div>
-          {famPctProfil > 0 && (
+          {famPctDit > 0 && (
             <div className="mc-idcard__meta" style={{ color: 'var(--copper-700, #9E6238)' }}>
-              {t('Compte famille · remise −{pct} % (hors forfaits)', { pct: famPctProfil })}
+              {t('Compte famille · remise −{pct} % (hors forfaits)', { pct: famPctDit })}
             </div>
           )}
         </div>

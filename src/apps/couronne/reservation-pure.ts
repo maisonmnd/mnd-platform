@@ -4,6 +4,7 @@
    `verifie-revue-couronne-site` les éprouve seuls. Ce fichier est PUR : il ne
    lit ni magasin, ni réseau, ni horloge. */
 import type { CreneauOccupe } from '../../shared/agenda-pur';
+import { estLaPlacePartie } from './places-pure';
 
 /** LE RENDEZ-VOUS NAÎT-IL CONFIRMÉ ?
 
@@ -93,10 +94,16 @@ export function issueDeLaPlace(o: {
 
 /** LA RÉPONSE DE LA BASE À L'ÉCRITURE — 24 octobre 2026. Le garde
     `une_place_en_ligne` (migration 0140) refuse une place déjà prise par
-    `creneau_pris` ; tout autre refus est une écriture qui n'est pas partie. */
-export function verdictDeLEcriture(message: string | null | undefined): 'posee' | 'prise' | 'echec' {
+    `creneau_pris` ; tout autre refus est une écriture qui n'est pas partie.
+
+    LA PLACE LIMITÉE PARTIE — 4 novembre 2026 : le garde des places (0154)
+    refuse une remise dont la dernière place vient de partir, par un message
+    qui commence par `PLACES_LIMITEES:`. L'heure, elle, reste libre : la
+    cliente choisit de confirmer au tarif de la Maison, jamais en silence. */
+export function verdictDeLEcriture(message: string | null | undefined): 'posee' | 'prise' | 'place-partie' | 'echec' {
   if (message == null) return 'posee';
-  return /creneau_pris/.test(message) ? 'prise' : 'echec';
+  if (/creneau_pris/.test(message)) return 'prise';
+  return estLaPlacePartie(message) ? 'place-partie' : 'echec';
 }
 
 export async function relisLesMurs(

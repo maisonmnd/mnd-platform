@@ -33,4 +33,10 @@ export const EN_RDV: Record<string, string> = {
   'Ouvrir': 'Open',
   '{rituel} · {jour} à {heure}. Venez les locks secs, sans produit.': '{rituel} · {jour} at {heure}. Come with dry locks, no product.',
   '{rituel} confirmé, la maison vous attend.': '{rituel} confirmed, the Maison is expecting you.',
+  // PLACES LIMITÉES AU DÉPLACEMENT (4 novembre 2026) : anglais laissé identique
+  // au français, à traduire à la relecture de Yéman (l'anglais est fermé).
+  'La dernière place à −{pct} % de ce jour vient de partir. Choisissez un jour en cuivre, ou écrivez à la Maison.':
+    'La dernière place à −{pct} % de ce jour vient de partir. Choisissez un jour en cuivre, ou écrivez à la Maison.',
+  'Places limitées : votre remise de {pct} % tient les jours en cuivre. Un autre jour, la Maison vous redit le prix en confirmant.':
+    'Places limitées : votre remise de {pct} % tient les jours en cuivre. Un autre jour, la Maison vous redit le prix en confirmant.',
 };

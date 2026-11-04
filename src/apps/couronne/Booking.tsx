@@ -13,7 +13,8 @@ import { fondeLaCouronne } from '../../shared/catalogue-pur';
 import { litLaPhrase, departage } from '../../shared/phrase-de-rendez-vous-pur';
 import { useSubscribers } from '../../shared/abonnements';
 import { useOffers } from '../../shared/offers';
-import { arrondiDuNet, ceQueLeCodeRetire, laPlusForteDesDeux, lignesDuCode, offreDuJourDeLaVenue, poseLOffreDuJour } from '../../shared/offres-pur';
+import { ditLesPlaces, gesteSansRemise, poseLOffreDuJour, remiseFamilleDeLaTete } from '../../shared/offres-pur';
+import { laPlaceDuJour, laPlaceEstPartie, leChiffreDuPanier, pctDeLaLigne, placesLues, type LigneDuPanier } from './places-pure';
 import { REGLES_DE_LA_MAISON } from '../../shared/abonnee-pur';
 import { useReleve } from './releve';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
@@ -37,14 +38,17 @@ import {
   dateOfIso,
   dayLabelIso,
   ensureClient,
+  fermeLaPlaceIci,
   firstName,
   fmtDuration,
   freeSlots,
   grilleDuJour,
+  placesDeLaRemiseDe,
   useCreneauxOccupesCharges,
   pad2,
   todayIso,
   useClient,
+  useLaTeteALaRemise,
   useTetesDuFoyer,
   useClientId,
   useVisibleCatalog,
@@ -243,6 +247,15 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   const famPctCompte = tetesDuFoyer !== null && familleDeLaTete && familleDeLaTete.id === client?.familyId
     ? remiseFamillePourTetes(familleDeLaTete, tetesDuFoyer)
     : remiseFamillePct(familleDeLaTete, tousClients, todayIso(), 'mineurs');
+  /* ══ UNE SEULE REMISE — 4 novembre 2026 ═════════════════════════════
+     « Quand il y a déjà des prix convenus, des abonnements ou des remises,
+     il ne faut pas refaire une remise, quelle que soit sa nature » (Yéman).
+     Le compte connecté ET la tête pour qui elle réserve : qu'une des deux
+     soit aux prix convenus ou abonnée, et rien ne se montre, rien ne se
+     retire, la remise famille comprise (`remiseFamilleDeLaTete`). */
+  const teteALaRemise = useLaTeteALaRemise(cible?.id);
+  const aucuneRemise = !!teteALaRemise.prixConvenus || !!teteALaRemise.abonnee;
+  const famPctTete = remiseFamilleDeLaTete(famPctCompte, teteALaRemise);
 
   const prefService = prefill ? services.find((s) => s.id === (prefill.serviceId ?? prefill.serviceIds?.[0])) ?? null : null;
   /* La venue entière, dans l'ordre du catalogue, sans les gestes retirés. */
@@ -306,27 +319,36 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
      rien du tout (voie manuelle). */
   const [onlinePaid, setOnlinePaid] = useState<{ ok: boolean; ref: string } | null>(null);
 
-  const discountPct = prefill?.discountPct ?? 0;
+  /* L'offre de saison touchée au rail. Aux prix convenus ou abonnée, aucune :
+     le rail ne la lui montre pas, et une prérempli venue d'ailleurs ne vaut
+     rien (une seule remise). */
+  const discountPct = aucuneRemise ? 0 : (prefill?.discountPct ?? 0);
   const offerLabel = prefill?.offerLabel;
 
-  /* ══ LE MERCREDI DE LA MAISON — 2 novembre 2026 ═════════════════════
-     Maquette « Remplir les fauteuils », validée par Yéman : −15 % sur le
-     rituel posé un mercredi, jusqu'au 31 décembre 2026, hors formules et
-     abonnements, et il ne s'ajoute à aucun autre code. La règle vit dans
-     `offres-pur` (`offreDuJourDeLaVenue`), la même au site et au Trône.
+  /* ══ LES PLACES LIMITÉES — 4 novembre 2026 ══════════════════════════
+     Maquette « Places limitées » (AhFRNqiggFoaiR725iKSQe), « construis » de
+     Yéman : −15 % sur les shampoings, lavages et soins, du mardi au
+     vendredi, seulement un jour vide, trois places par jour décomptées, les
+     jours vides des 14 jours à venir. Plus de code à taper : la remise se
+     pose d'elle-même avec la place. Les jours, les places, l'horizon et le
+     pourcentage sont des réglages de l'offre, jamais des constantes ici.
+
+     MA COURONNE NE COMPTE PAS LES PLACES, ELLE LES LIT : la base les dit
+     (`places_de_la_remise`, lues avec les murs), et la règle est celle de
+     `offres-pur`, la même au Trône et au site (places-pure, `laPlaceDuJour`).
 
      LE JOUR QUI COMPTE EST CELUI DE SA VENUE : la première séance (c'est
      elle qui porte le prix), sinon le jour touché au calendrier, sinon la
      place touchée dans « Les prochaines places ». Jamais aujourd'hui.
 
-     UNE OFFRE DÉJÀ PRÉ-REMPLIE (une carte d'offre, `discountPct`) l'écarte :
-     une offre à la fois. */
+     L'ANCIEN MERCREDI DE LA MAISON (of-mercredi15, éteint le 4 novembre
+     2026) NE REVIENT PAS PAR ICI : seule une offre à places se pose. */
   const [offresDeLaMaison] = useOffers();
   const jourDeLaVenue = sessionDates[0]?.iso ?? selIso ?? (step === EXPRESS ? placeExpress?.iso : undefined) ?? null;
-  const leMercrediPour = (iso: string | null | undefined) => offreDuJourDeLaVenue(offresDeLaMaison, {
-    branchId: branch.id, dateIso: iso, serviceIds: selectedIds, dejaUnCode: discountPct > 0,
-  });
-  const offreDuMercredi = leMercrediPour(jourDeLaVenue);
+  /* LA PLACE PARTIE À L'ÉCRITURE : elle a choisi le tarif de la Maison ce
+     jour-là, et la place ne s'y repose plus. */
+  const [renonceLe, setRenonceLe] = useState<string | null>(null);
+  const [placePartie, setPlacePartie] = useState<{ iso: string; pct: number; online?: { apptId: string; transactionId: string; confirmed: boolean } } | null>(null);
 
   /* ---- Prestations retenues (dans l'ordre du catalogue) et agrégats ---- */
   const selected = useMemo(
@@ -359,45 +381,71 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
      règles qu'avant, dans le même ordre : `prixDansPanier` (le geste offert
      dépend du panier), la remise famille hors forfaits sauf geste au panier,
      l'offre en % puis la famille en francs (apptNetXof). */
-  /* `offreDuJour` : le mercredi de la Maison de la venue choisie, par défaut ;
-     le calendrier passe celui d'un autre jour pour savoir s'il le marque. */
-  const chiffreDe = (panier: Service[], offreDuJour = offreDuMercredi) => {
-    const ici = (s: Service) => prixDansPanier(s, pricing, panier, tousServices, produits);
-    const connu = panier.filter((s) => !s.hidePrice).reduce((n, s) => n + ici(s), 0);
-    const pctFamille = unGesteDansLePanier(panier, pricing) ? 0 : famPctCompte;
-    const forfaits = panier
-      .filter((s) => !s.hidePrice && regimeTarifaire(s, tousCats).k === 'forfait')
-      .reduce((n, s) => n + ici(s), 0);
-    const familleSeule = pctFamille > 0 ? Math.round(Math.max(0, connu - forfaits) * (pctFamille / 100)) : 0;
-    /* LE MERCREDI DE LA MAISON, LIGNE À LIGNE (2 novembre 2026) : seules les
-       prestations qu'il couvre, à prix ferme, bougent ; puis le net monte au
-       millier, comme au Trône (`arrondiDuCodeAuRdv`). 10 000 F font 9 000 F. */
-    const duMercredi = ceQueLeCodeRetire(lignesDuCode(
-      panier.filter((s) => !s.hidePrice).map((s) => ({ id: s.id, prixXof: ici(s), ferme: priceModeOf(s) !== 'devis' && prixFerme(s, pricing) })),
-      offreDuJour,
-    ));
-    const mercrediSeul = Math.max(0, duMercredi.retire - arrondiDuNet(duMercredi.net, duMercredi.retire));
-    /* LA PLUS FORTE DES DEUX (2 novembre 2026, Yéman) : la remise famille et le
-       mercredi ne se cumulent jamais ; on garde celle qui retire le plus de
-       francs, la famille à égalité (`laPlusForteDesDeux`, la règle du Trône). */
-    const duel = mercrediSeul > 0 && familleSeule > 0 ? laPlusForteDesDeux({ familleXof: familleSeule, mercrediXof: mercrediSeul }) : null;
-    const remiseMercredi = duel?.retenue === 'famille' ? 0 : mercrediSeul;
-    const remiseFamille = duel?.retenue === 'mercredi' ? 0 : familleSeule;
+  /* LES LIGNES D'UN PANIER, telles que le chiffre les lit (places-pure) : son
+     prix ici (`prixDansPanier`, le geste offert dépend du panier), ferme ou
+     non, au forfait ou non, et sans aucune remise (le Rituel Sówà™, marqué
+     `sansRemise` au catalogue, `gesteSansRemise`). */
+  const lignesDe = (panier: Service[]): LigneDuPanier[] => panier.map((s) => ({
+    id: s.id,
+    prixXof: s.hidePrice ? 0 : prixDansPanier(s, pricing, panier, tousServices, produits),
+    masque: !!s.hidePrice,
+    ferme: priceModeOf(s) !== 'devis' && prixFerme(s, pricing),
+    forfait: regimeTarifaire(s, tousCats).k === 'forfait',
+    sansRemise: gesteSansRemise(s),
+  }));
+  /* LA PLACE LIMITÉE D'UN JOUR POUR CE PANIER (places-pure, `laPlaceDuJour`) :
+     les places lues de la base, jamais pour les prix convenus ni une abonnée,
+     jamais par-dessus une offre de saison, la remise famille ou un geste de
+     la Maison (une seule remise). */
+  const laPlacePour = (iso: string | null | undefined, panier: Service[] = selected) => laPlaceDuJour(offresDeLaMaison, {
+    branchId: branch.id,
+    dateIso: iso,
+    serviceIds: panier.map((s) => s.id),
+    carte: placesDeLaRemiseDe(branch.id),
+    aujourdhui: todayIso(),
+    aucuneRemise,
+    dejaUnCode: discountPct > 0,
+    autreRemise: unGesteDansLePanier(panier, pricing)
+      || leChiffreDuPanier({ lignes: lignesDe(panier), famillePct: famPctTete }).remiseFamille > 0,
+    renonceLe,
+  });
+  /* LE CHIFFRE D'UN PANIER — 7 octobre 2026, sous UNE SEULE REMISE depuis le
+     4 novembre 2026 (places-pure, `leChiffreDuPanier`) : un geste de la
+     Maison, la remise famille, l'offre de saison ou la place, jamais deux.
+     « La plus forte des deux » n'est plus : une remise famille présente
+     ferme la place. `place` : celle du jour de la venue, par défaut ; le
+     calendrier passe celle d'un autre jour pour savoir s'il le marque. */
+  const chiffreDe = (panier: Service[], place = laPlacePour(jourDeLaVenue, panier)) => {
+    const c = leChiffreDuPanier({
+      lignes: lignesDe(panier),
+      famillePct: famPctTete,
+      offreDeSaisonPct: discountPct,
+      place,
+      aucuneRemise,
+      geste: unGesteDansLePanier(panier, pricing),
+    });
     return {
-      connu, forfaits, pctFamille, remiseFamille, remiseMercredi, duel,
-      prix: Math.max(0, Math.round((connu - remiseMercredi) * (1 - discountPct / 100)) - remiseFamille),
+      ...c,
+      /* La place retenue, seulement si elle retire vraiment quelque chose. */
+      place: c.retenue === 'place' ? place ?? null : null,
       variable: panier.some((s) => priceModeOf(s) === 'variable' && !prixFerme(s, pricing)),
       masque: panier.length > 0 && panier.every((s) => s.hidePrice),
       duree: panier.reduce((n, s) => n + personalDurationMin(s, pricingDuree), 0),
     };
   };
   const chiffre = chiffreDe(selected);
-  /* LE MERCREDI QUI COMPTE POUR CE RITUEL, un jour donné : celui que l'offre
-     couvre ET qui l'emporte sur la remise famille. C'est lui seul que le
-     calendrier et les places marquent en cuivre (2 novembre 2026). */
-  const leMercrediQuiCompte = (iso: string | null | undefined) => {
-    const o = leMercrediPour(iso);
-    return o && chiffreDe(selected, o).remiseMercredi > 0 ? o : null;
+  /* LA PLACE QUI COMPTE POUR CE RITUEL, un jour donné : celle que l'offre
+     couvre ET qui retire vraiment. C'est elle seule que le calendrier et les
+     places marquent en cuivre. */
+  const laPlaceQuiCompte = (iso: string | null | undefined) => {
+    const o = laPlacePour(iso);
+    return o && chiffreDe(selected, o).retenue === 'place' ? o : null;
+  };
+  /* LE DÉCOMPTE D'UN JOUR, tel que la base l'a dit : « Remise : il reste
+     2 places » (`ditLesPlaces`, la phrase de partout). */
+  const placesDit = (o: { id?: string; code?: string }, iso: string): string | null => {
+    const n = placesLues(placesDeLaRemiseDe(branch.id), o, iso);
+    return n !== null && n > 0 ? t(ditLesPlaces(n)) : null;
   };
   const totalDuration = chiffre.duree;
   /* Nombre de séances à programmer : le maximum parmi les prestations retenues. */
@@ -450,13 +498,17 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   const priced = selected.filter((s) => !s.hidePrice);
   /* L'acompte se calcule sur les prix PERSONNALISÉS — le pourcentage de la
      maison s'applique à ce que la cliente paiera vraiment. */
-  /* Le mercredi de la Maison allège aussi l'acompte : il se compte sur le prix
-     qu'elle paiera, ligne à ligne (2 novembre 2026). */
-  const pctMercrediDe = (s: Service): number =>
-    offreDuMercredi && chiffre.remiseMercredi > 0 && (offreDuMercredi.serviceIds ?? []).includes(s.id) && priceModeOf(s) !== 'devis' && prixFerme(s, pricing)
-      ? Math.max(0, Math.min(90, Math.round(offreDuMercredi.discountPct ?? 0))) : 0;
-  const prixNetIci = (s: Service): number => Math.round(prixIci(s) * (1 - pctMercrediDe(s) / 100));
-  const deposit = depositForServices(priced.map((s) => ({ id: s.id, priceXof: prixNetIci(s) })), discountPct);
+  /* LA REMISE RETENUE ALLÈGE AUSSI L'ACOMPTE : il se compte sur le prix
+     qu'elle paiera, ligne à ligne (la place ou l'offre de saison, jamais sur
+     une ligne sans remise). La remise famille, en francs, ne le touche pas,
+     comme avant. */
+  const lignesChoisies = lignesDe(selected);
+  const pctDe = (s: Service): number => {
+    const l = lignesChoisies.find((x) => x.id === s.id);
+    return l ? pctDeLaLigne(chiffre, l, chiffre.place) : 0;
+  };
+  const prixNetIci = (s: Service): number => Math.round(prixIci(s) * (1 - pctDe(s) / 100));
+  const deposit = depositForServices(priced.map((s) => ({ id: s.id, priceXof: prixNetIci(s) })));
   const hasDeposit = deposit > 0;
   /* Les taux pouvant différer d'une prestation à l'autre, on n'annonce un
      pourcentage que s'il est unique — sinon le montant parle seul. */
@@ -464,7 +516,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   const depositPct = depositRates.length === 1 ? depositRates[0] : null;
   /* Base réellement soumise à l'acompte (≠ total : seules certaines prestations). */
   const depositBase = Math.round(
-    priced.filter((s) => depositPctFor(s.id) > 0).reduce((n, s) => n + prixNetIci(s), 0) * (1 - discountPct / 100),
+    priced.filter((s) => depositPctFor(s.id) > 0).reduce((n, s) => n + prixNetIci(s), 0),
   );
 
   /* CE QUI LA CONCERNE, ELLE. Les créations existent en cinq versions, une par
@@ -775,12 +827,19 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
      table `payments` (écrite par la fonction Edge) — c'est elle que le comptoir
      doit croire en cas de doute. */
   const ecritureEnCours = useRef(false);
+  /* L'acompte annoncé ou payé à la première tentative (voir `finalize`). */
+  const acompteDeLaTentative = useRef<number | null>(null);
   const settle = (online?: { apptId: string; transactionId: string; confirmed: boolean }) => {
     if (hasDeposit && !online && !pay) { toast(t('Choisissez votre moyen d’envoi.')); return; }
     if (!selected.length || sessionDates.length < totalSessions) return;
     const finalize = async () => {
+      /* L'ACOMPTE DE LA PREMIÈRE TENTATIVE : envoyé ou payé, il ne change plus
+         si la place part et qu'elle confirme au tarif de la Maison. */
+      const acompte = acompteDeLaTentative.current ?? deposit;
+      acompteDeLaTentative.current = null;
       const baseNotes: string[] = [];
-      if (offerLabel) baseNotes.push(`Offre de saison · ${offerLabel}`);
+      /* Une seule remise : l'offre de saison ne se note que si elle s'applique. */
+      if (offerLabel && chiffre.retenue === 'offre') baseNotes.push(`Offre de saison · ${offerLabel}`);
       /* CE QU'ELLE EST VENUE CHERCHER, porté par le rituel : le maître le lit au
          Calendrier avant qu'elle ne s'assoie. */
       if (envie) baseNotes.push(`Envie · ${envieLabel(envie)}`);
@@ -788,9 +847,9 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
       /* Le comptoir doit savoir COMMENT la cliente annonce avoir envoyé l'acompte —
          il le vérifiera avant de le créditer (depositConfirmed). */
       if (hasDeposit && online) {
-        baseNotes.push(`Acompte ${fmtMoney(deposit, currency)} réglé en ligne · KkiaPay · réf. ${online.transactionId}`);
+        baseNotes.push(`Acompte ${fmtMoney(acompte, currency)} réglé en ligne · KkiaPay · réf. ${online.transactionId}`);
       } else if (hasDeposit) {
-        baseNotes.push(`Acompte ${fmtMoney(deposit, currency)} annoncé · ${payMethodName}`);
+        baseNotes.push(`Acompte ${fmtMoney(acompte, currency)} annoncé · ${payMethodName}`);
       }
       /* Garantit la fiche cliente sur LA MÊME branche que le RDV, sous la session
          authentifiée (l'écriture Supabase passe alors le RLS et remonte au Trône). */
@@ -885,20 +944,22 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
         seancesToujoursLibres,
       });
       setNeTenu(tenu);
-      /* LE MERCREDI DE LA MAISON SE POSE SUR LA PREMIÈRE SÉANCE (2 novembre
-         2026), celle qui porte le prix : son code et ses remises de ligne,
-         comme le site les pose (`poseLOffreDuJour`). Le Trône l'arrondit au
-         millier à la lecture, et la Caisse ne la remet pas une seconde fois. */
-      /* Rien quand la famille l'emporte, ou quand l'arrondi reprend tout (2 novembre 2026). */
-      const poseDuMercredi = chiffre.remiseMercredi <= 0 ? null : poseLOffreDuJour(offreDuMercredi, selectedIds.map((id) => {
+      /* LA PLACE LIMITÉE SE POSE SUR LA PREMIÈRE SÉANCE (4 novembre 2026),
+         celle qui porte le prix : son code, son identifiant et ses remises de
+         ligne, comme le site les pose (`poseLOffreDuJour`). Le Trône l'arrondit
+         au millier à la lecture, et la Caisse ne la remet pas une seconde
+         fois. Rien quand une autre remise est retenue, ou quand l'arrondi
+         reprend tout ; jamais sur une ligne sans remise. */
+      const laPlace = chiffre.retenue === 'place' ? chiffre.place : null;
+      const poseDeLaPlace = !laPlace ? null : poseLOffreDuJour(laPlace, selectedIds.map((id) => {
         const s = tousServices.find((x) => x.id === id);
         const p = s && !s.hidePrice ? prixIci(s) : 0;
-        return { id, prixXof: p, ferme: !!s && p > 0 && priceModeOf(s) !== 'devis' && prixFerme(s, pricing) };
+        return { id, prixXof: p, ferme: !!s && p > 0 && priceModeOf(s) !== 'devis' && prixFerme(s, pricing) && !gesteSansRemise(s) };
       }));
       const newAppts: Appointment[] = sessionDates.map((sd, i) => {
         const notes = [...baseNotes];
         if (totalSessions > 1) notes.push(`Séance ${i + 1}/${totalSessions}`);
-        if (i === 0 && poseDuMercredi && offreDuMercredi) notes.push(`${offreDuMercredi.title} · code ${poseDuMercredi.codeOffre}`);
+        if (i === 0 && poseDeLaPlace && laPlace) notes.push(`${laPlace.title} · code ${poseDeLaPlace.codeOffre}`);
         return {
           /* La séance 1 porte l'identifiant RÉSERVÉ avant l'ouverture du widget :
              c'est lui qui a voyagé chez KkiaPay en `partnerId`, et par lui que le
@@ -924,7 +985,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
              annoncé mais pas prouvé laisse « en attente » : la Maison vérifie. */
           status: tenu ? 'confirmé' : 'en attente',
           /* L'acompte ne s'applique qu'à la première séance (et seulement s'il y en a un). */
-          depositXof: i === 0 && hasDeposit ? deposit : undefined,
+          depositXof: i === 0 && hasDeposit ? acompte : undefined,
           /* Un acompte n'est « reçu » que sur verdict serveur — sinon il reste
              annoncé, et le comptoir le vérifie comme aujourd'hui. */
           ...(i === 0 && online?.confirmed ? { depositConfirmed: true } : {}),
@@ -935,14 +996,21 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
              variable (le montant se fixe au fauteuil). L'offre éventuelle est
              portée par discountPct — le net retombe sur le total annoncé. */
           ...(i === 0 && personalized && !anyHidden && !anyVariable
-            /* Le prix figé est celui qu'elle a vu : le mercredi déduit et
-               arrondi au millier (2 novembre 2026). */
-            ? { priceXof: knownTotal - (poseDuMercredi ? chiffre.remiseMercredi : 0), ...(discountPct > 0 ? { discountPct } : {}) }
+            /* Le prix figé est celui qu'elle a vu : la place déduite et
+               arrondie au millier (4 novembre 2026). L'offre de saison suit
+               en pour cent, ou en francs quand une ligne ne prend aucune
+               remise (le pour cent du rendez-vous mordrait sur elle). */
+            ? {
+              priceXof: knownTotal - (poseDeLaPlace ? chiffre.remisePlace : 0),
+              ...(chiffre.retenue === 'offre'
+                ? (chiffre.sansRemiseXof > 0 ? { discountXof: chiffre.remiseOffre } : { discountPct: chiffre.pctOffre })
+                : {}),
+            }
             : {}),
-          ...(i === 0 && poseDuMercredi ? {
-            codeOffre: poseDuMercredi.codeOffre,
-            ...(poseDuMercredi.offreId ? { offreId: poseDuMercredi.offreId } : {}),
-            remisesLignes: poseDuMercredi.remisesLignes,
+          ...(i === 0 && poseDeLaPlace ? {
+            codeOffre: poseDeLaPlace.codeOffre,
+            ...(poseDeLaPlace.offreId ? { offreId: poseDeLaPlace.offreId } : {}),
+            remisesLignes: poseDeLaPlace.remisesLignes,
           } : {}),
           /* LA REMISE FAMILLE VOYAGE AVEC LE RENDEZ-VOUS — figée en francs
              (part hors forfaits × taux) : l'encaissement du Trône retranche
@@ -980,7 +1048,20 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
         const { error } = await sb.from('appointments').insert(poses.map((a) => ({ id: a.id, branch_id: a.branchId ?? null, data: a })));
         const verdict = verdictDeLEcriture(error ? error.message : null);
         if (verdict === 'prise') { if (online?.confirmed) acompteSansPlace(); else laPlacePrise(); return; }
-        if (verdict === 'echec' && !online?.confirmed) {
+        /* LA DERNIÈRE PLACE VIENT DE PARTIR — 4 novembre 2026. Le garde des
+           places (0154) refuse la remise ; l'heure reste libre. Rien ne
+           s'écrit, aucun prix ne change en silence : elle choisit de
+           confirmer au tarif de la Maison, ou un autre jour. Le jour se
+           ferme ici aussitôt, sans attendre la relecture. */
+        if (verdict === 'place-partie' && laPlace) {
+          setPaying(false);
+          acompteDeLaTentative.current = acompte;
+          const jour = sessionDates[0]?.iso ?? '';
+          fermeLaPlaceIci(branch.id, laPlaceEstPartie(placesDeLaRemiseDe(branch.id), laPlace, jour));
+          setPlacePartie({ iso: jour, pct: Math.max(0, Math.round(laPlace.discountPct ?? 0)), ...(online ? { online } : {}) });
+          return;
+        }
+        if ((verdict === 'echec' || verdict === 'place-partie') && !online?.confirmed) {
           console.warn('[mnd-couronne] réservation refusée :', error?.message);
           setPaying(false);
           toast(t('La réservation n’est pas partie. Vérifiez votre connexion, puis réessayez.'));
@@ -992,7 +1073,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
       /* Alerte le personnel du Trône (Web Push), même Le Trône fermé. */
       void pushNotifyStaff(
         online?.confirmed ? 'Réservation payée · Ma Couronne' : tenu ? 'Réservé · Ma Couronne' : 'Nouvelle réservation · Ma Couronne',
-        `${beneficiaire ? `${cibleNom} · par ${clientName}` : clientName} · ${summaryLabel}${online?.confirmed ? ` · acompte ${fmtMoney(deposit, currency)} reçu` : ''}`,
+        `${beneficiaire ? `${cibleNom} · par ${clientName}` : clientName} · ${summaryLabel}${online?.confirmed ? ` · acompte ${fmtMoney(acompte, currency)} reçu` : ''}`,
         '/trone/#/calendrier',
       );
       setPaying(false);
@@ -1027,6 +1108,32 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
     void finalize()
       .catch((e: unknown) => { console.warn('[mnd-couronne] réservation :', e); setPaying(false); })
       .finally(() => { ecritureEnCours.current = false; });
+  };
+
+  /* ══ LA PLACE PARTIE : SON CHOIX, JAMAIS UN PRIX CHANGÉ EN SILENCE ══════
+     « Confirmer au tarif de la Maison » : la place ne se repose plus ce
+     jour-là (`renonceLe`), le chiffre se refait au tarif de la Maison, et la
+     réservation repart au rendu suivant, avec le même acompte. « Choisir un
+     autre jour » : rien ne part, le moment se rouvre. */
+  const relanceAuTarif = useRef<{ online?: { apptId: string; transactionId: string; confirmed: boolean } } | null>(null);
+  const confirmerAuTarif = () => {
+    if (!placePartie) return;
+    relanceAuTarif.current = { online: placePartie.online };
+    setRenonceLe(placePartie.iso);
+    setPlacePartie(null);
+  };
+  useEffect(() => {
+    const r = relanceAuTarif.current;
+    if (!r || !renonceLe) return;
+    relanceAuTarif.current = null;
+    settle(r.online);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renonceLe]);
+  const choisirUnAutreJour = () => {
+    acompteDeLaTentative.current = null;
+    setPlacePartie(null);
+    setSessionDates([]); setSelIso(null); setTime(null); setPlaceExpress(null);
+    if (step === 5) setStep(3);
   };
 
   /* ══ UNE TOUCHE QUI RÉSERVE — 7 octobre 2026 ═════════════════════════
@@ -1414,6 +1521,26 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
       </div>
 
       <div className="mc-scroll mc-flowbody">
+        {/* LA DERNIÈRE PLACE VIENT DE PARTIR (4 novembre 2026) : la base a
+            refusé la remise, rien n'est parti. Elle choisit : le tarif de la
+            Maison, ou un autre jour. Jamais un prix changé en silence. */}
+        {placePartie && (
+          <div className="mc-nontransmis" role="alert">
+            <b>{t('La dernière place à −{pct} % vient de partir.', { pct: placePartie.pct })}</b>
+            <span>
+              {t('Au tarif de la Maison, votre rituel est à {montant}.', { montant: ditLeChiffre(chiffreDe(selected, null)) })}
+              {placePartie.online?.confirmed ? ` ${t('Votre acompte est bien reçu.')}` : ''}
+            </span>
+            <button type="button" className="mc-cta mc-cta--copper" onClick={confirmerAuTarif} disabled={paying}>
+              {t('Confirmer au tarif de la Maison')}
+            </button>
+            {!placePartie.online && (
+              <button type="button" className="mc-textbtn" onClick={choisirUnAutreJour} disabled={paying}>
+                {t('Choisir un autre jour')}
+              </button>
+            )}
+          </div>
+        )}
         {luPhrase && (
           <div className="mc-phrase__lu" role="status">
             <div>{luPhrase.texte}</div>
@@ -1474,10 +1601,12 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                   <div className="mc-places" role="group" aria-label={t('Les prochaines places')}>
                     {placesExpress.map(({ iso, place }) => {
                       const on = placeExpress?.iso === iso && placeExpress.heure === place.heure;
-                      /* Le mercredi de la Maison se lit sur la place (2 novembre 2026). */
-                      const duJour = leMercrediQuiCompte(iso);
+                      /* La place limitée se lit sur le moment (4 novembre 2026). */
+                      const duJour = laPlaceQuiCompte(iso);
+                      const decompte = duJour ? placesDit(duJour, iso) : null;
                       return (
                         <button key={`${iso}-${place.heure}`} type="button" className={`mc-place ${on ? 'is-on' : ''}${duJour ? ' is-offre' : ''}`} aria-pressed={on}
+                          aria-label={duJour ? t('{jour} à {heure}, Places limitées, −{pct} %{decompte}', { jour: jourDit(iso), heure: place.heure, pct: duJour.discountPct ?? 0, decompte: decompte ? `, ${decompte}` : '' }) : undefined}
                           onClick={() => setPlaceExpress({ iso, heure: place.heure })}>
                           {jourDit(iso)} · {place.heure}
                           {duJour && <small className="mc-place__offre">−{duJour.discountPct ?? 0} %</small>}
@@ -1486,6 +1615,13 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                     })}
                     {placesExpress.length === 0 && <div className="mc-emptyline">{t('Aucune place libre ces quatre semaines.')}</div>}
                     <button type="button" className="mc-place mc-place--autre" onClick={unAutreJour}>{t('Un autre jour')}</button>
+                  </div>
+                )}
+                {/* LE DÉCOMPTE DU JOUR CHOISI : « Places limitées · Remise : il
+                    reste 2 places ». Il faut vite réserver, et elle le lit. */}
+                {placeExpress && chiffre.place && placesDit(chiffre.place, placeExpress.iso) && (
+                  <div className="mc-callegend mc-callegend--offre">
+                    <span />{t('Places limitées · {decompte}', { decompte: placesDit(chiffre.place, placeExpress.iso) ?? '' })}
                   </div>
                 )}
                 <div className="mc-multibar">
@@ -1741,25 +1877,45 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                 temps — votre rituel · le moment · la confirmation. */}
             <div className="mc-recapcard mc-recapcard--tete">
               <div className="mc-micro-eyebrow mc-recapcard__et">{t('Votre rituel')}</div>
-              {selected.map((s) => (
-                <div key={s.id} className="mc-recapcard__svcline">
-                  <div>
-                    <div className="mc-recapcard__svcname">{s.name}</div>
-                    <div className="mc-recapcard__svcsub">{fmtDuration(s.durationMin)}</div>
+              {selected.map((s) => {
+                /* LA LIGNE DIT SA REMISE (4 novembre 2026) : à −15 % avec
+                   « place limitée », ou « sans remise » quand le rituel en
+                   porte une qui ne la touche pas (le Rituel Sówà™). */
+                const pct = pctDe(s);
+                const enPlace = chiffre.retenue === 'place' && pct > 0;
+                const sansRemiseIci = gesteSansRemise(s) && chiffre.retenue !== 'aucune' && chiffre.retenue !== 'geste';
+                return (
+                  <div key={s.id} className="mc-recapcard__svcline">
+                    <div>
+                      <div className="mc-recapcard__svcname">{s.name}</div>
+                      <div className="mc-recapcard__svcsub">
+                        {fmtDuration(s.durationMin)}
+                        {enPlace ? ` · ${t('place limitée')}` : ''}
+                        {sansRemiseIci ? ` · ${t('sans remise')}` : ''}
+                      </div>
+                    </div>
+                    <div className="mc-recapcard__svcprice">{priceLabel(s, pct)}</div>
                   </div>
-                  <div className="mc-recapcard__svcprice">{priceLabel(s, discountPct || pctMercrediDe(s))}</div>
-                </div>
-              ))}
-              {discountPct > 0 && knownTotal > 0 && (
+                );
+              })}
+              {chiffre.retenue === 'offre' && knownTotal > 0 && (
                 <div className="mc-recapcard__deal">
-                  {offerLabel ?? t('Offre de saison')} · −{discountPct} % <s>{prix(knownTotal, currency)}</s>
+                  {offerLabel ?? t('Offre de saison')} · −{chiffre.pctOffre} % <s>{prix(knownTotal, currency)}</s>
                 </div>
               )}
-              {/* LE MERCREDI DE LA MAISON SE LIT (2 novembre 2026) : son nom, son
-                  taux, ce qu'il retire, et le plein barré. */}
-              {offreDuMercredi && chiffre.remiseMercredi > 0 && knownTotal > 0 && (
+              {/* UNE SEULE REMISE SE DIT (4 novembre 2026) : la carte d'offre
+                  touchée ne s'ajoute pas à la remise famille ni au geste de la
+                  Maison, et la cliente le lit avant de réserver. */}
+              {discountPct > 0 && (chiffre.retenue === 'famille' || chiffre.retenue === 'geste') && (
+                <div className="mc-recapcard__meta">
+                  {t('{offre} ne s’ajoute pas : une seule remise par rituel.', { offre: offerLabel ?? t('L’offre de saison') })}
+                </div>
+              )}
+              {/* LA PLACE LIMITÉE SE LIT (4 novembre 2026) : son nom, son taux,
+                  ce qu'elle retire, et le plein barré. */}
+              {chiffre.retenue === 'place' && chiffre.place && knownTotal > 0 && (
                 <div className="mc-recapcard__deal mc-recapcard__deal--jour">
-                  {t('{offre} · −{pct} % · −{montant}', { offre: offreDuMercredi.title, pct: offreDuMercredi.discountPct ?? 0, montant: prix(chiffre.remiseMercredi, currency) })}
+                  {t('Places limitées · −{pct} % · −{montant}', { pct: chiffre.place.discountPct ?? 0, montant: prix(chiffre.remisePlace, currency) })}
                   {' '}<s>{prix(knownTotal, currency)}</s>
                 </div>
               )}
@@ -1770,17 +1926,6 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                   {famForfaitXof > 0
                     ? t('Remise famille · −{pct} % (hors forfaits) · −{montant}', { pct: famPct, montant: prix(famRemiseXof, currency) })
                     : t('Remise famille · −{pct} % · −{montant}', { pct: famPct, montant: prix(famRemiseXof, currency) })}
-                </div>
-              )}
-              {/* LA PLUS FORTE DES DEUX SE DIT (2 novembre 2026) : jamais la famille
-                  et le mercredi ensemble, et la cliente lit laquelle est retenue. */}
-              {chiffre.duel && offreDuMercredi && (
-                <div className="mc-recapcard__meta">
-                  {chiffre.duel.retenue === 'mercredi'
-                    ? t('{offre} retenu, plus fort que la remise famille.', { offre: offreDuMercredi.title })
-                    : chiffre.duel.mercrediXof === chiffre.duel.familleXof
-                      ? t('Remise famille retenue : {offre} ne retire pas davantage.', { offre: offreDuMercredi.title.charAt(0).toLowerCase() + offreDuMercredi.title.slice(1) })
-                      : t('Remise famille retenue, plus forte que {offre}.', { offre: offreDuMercredi.title.charAt(0).toLowerCase() + offreDuMercredi.title.slice(1) })}
                 </div>
               )}
               <div className="mc-hairline" />
@@ -1893,17 +2038,18 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
             <div className="mc-calgrid">
               {calCells.map((c) => {
                 if (c.day === null) return <span key={c.key} />;
-                /* LE MERCREDI EN CUIVRE, « −15 % » (2 novembre 2026, maquette
-                   « Remplir les fauteuils ») : seulement les jours où l'offre
-                   vaudrait pour CE rituel, dans sa saison. Pour une série, le
-                   jour de la première séance seul compte (elle porte le prix) :
-                   les suivantes ne se marquent pas. */
-                const duJour = c.free && (totalSessions === 1 || sessionDates.length === 0) ? leMercrediQuiCompte(c.iso) : null;
+                /* LES JOURS QUI ONT DES PLACES, EN CUIVRE, « −15 % » (4 novembre
+                   2026, maquette « Places limitées ») : seulement les jours où
+                   la place vaudrait pour CE rituel. Pour une série, le jour de
+                   la première séance seul compte (elle porte le prix) : les
+                   suivantes ne se marquent pas. */
+                const duJour = c.free && (totalSessions === 1 || sessionDates.length === 0) ? laPlaceQuiCompte(c.iso) : null;
+                const decompte = duJour && c.iso ? placesDit(duJour, c.iso) : null;
                 return (
                   <button
                     key={c.key}
                     className={`mc-calday ${c.iso === selIso ? 'is-sel' : ''} ${c.free ? 'is-free' : 'is-off'}${duJour ? ' is-offre' : ''}`}
-                    aria-label={duJour ? t('{jour}, {offre}, −{pct} %', { jour: jourDit(c.iso!), offre: duJour.title, pct: duJour.discountPct ?? 0 }) : undefined}
+                    aria-label={duJour ? t('{jour}, Places limitées, −{pct} %{decompte}', { jour: jourDit(c.iso!), pct: duJour.discountPct ?? 0, decompte: decompte ? `, ${decompte}` : '' }) : undefined}
                     onClick={() => {
                       if (!c.free) { toast(t('Aucune disponibilité ce jour.')); return; }
                       setSelIso(c.iso!); setTime(null);
@@ -1920,12 +2066,10 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
               <span />{t('Jours avec créneaux libres · {duree}', { duree: fmtDuration(totalDuration) })}
             </div>
             {(() => {
-              const enCuivre = calCells.map((c) => (c.free && c.iso ? leMercrediQuiCompte(c.iso) : null)).find(Boolean);
+              const enCuivre = calCells.map((c) => (c.free && c.iso ? laPlaceQuiCompte(c.iso) : null)).find(Boolean);
               return enCuivre ? (
                 <div className="mc-callegend mc-callegend--offre">
-                  <span />{enCuivre.au
-                    ? t('En cuivre : {offre}, −{pct} % sur votre rituel, jusqu’au {date}.', { offre: enCuivre.title, pct: enCuivre.discountPct ?? 0, date: jourDuRituel(enCuivre.au) })
-                    : t('En cuivre : {offre}, −{pct} % sur votre rituel.', { offre: enCuivre.title, pct: enCuivre.discountPct ?? 0 })}
+                  <span />{t('En cuivre : Places limitées, −{pct} % sur les shampoings, lavages et soins.', { pct: enCuivre.discountPct ?? 0 })}
                 </div>
               ) : null;
             })()}
@@ -1933,6 +2077,17 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
             {selIso && (
               <div className="mc-fade">
                 <div className="mc-micro-eyebrow mc-stepkicker">{t('L’heure · {jour}', { jour: jourDit(selIso) })}</div>
+                {/* LE DÉCOMPTE DU JOUR CHOISI (4 novembre 2026) : « Places
+                    limitées · Remise : il reste une place ». */}
+                {(totalSessions === 1 || sessionDates.length === 0 || sessionDates[0]?.iso === selIso) && (() => {
+                  const o = laPlaceQuiCompte(selIso);
+                  const decompte = o ? placesDit(o, selIso) : null;
+                  return decompte ? (
+                    <div className="mc-callegend mc-callegend--offre" style={{ margin: '0 0 10px' }}>
+                      <span />{t('Places limitées · {decompte}', { decompte })}
+                    </div>
+                  ) : null;
+                })()}
                 <div className="mc-stack">
                   {dayTimes.map((h) => {
                     const choisi = time === h && sessionDates.some((sd) => sd.iso === selIso && sd.time === h);

@@ -261,4 +261,22 @@ export const EN_BOOKING: Record<string, string> = {
   '{offre} retenu, plus fort que la remise famille.': '{offre} applied: it saves more than the family discount.',
   'Remise famille retenue : {offre} ne retire pas davantage.': 'Family discount applied: {offre} would not save more.',
   'Remise famille retenue, plus forte que {offre}.': 'Family discount applied: it saves more than {offre}.',
+  // PLACES LIMITÉES ET UNE SEULE REMISE (4 novembre 2026). L'ANGLAIS EST LAISSÉ
+  // IDENTIQUE AU FRANÇAIS, À TRADUIRE À LA RELECTURE DE YÉMAN (l'anglais est
+  // fermé, ANGLAIS_OUVERT = false). Le décompte « Remise : il reste N places »
+  // passe par t(ditLesPlaces(n)) et revient en français tant qu'il n'a pas d'anglais.
+  'La dernière place à −{pct} % vient de partir.': 'La dernière place à −{pct} % vient de partir.',
+  'Au tarif de la Maison, votre rituel est à {montant}.': 'Au tarif de la Maison, votre rituel est à {montant}.',
+  'Votre acompte est bien reçu.': 'Votre acompte est bien reçu.',
+  'Confirmer au tarif de la Maison': 'Confirmer au tarif de la Maison',
+  'Choisir un autre jour': 'Choisir un autre jour',
+  '{jour} à {heure}, Places limitées, −{pct} %{decompte}': '{jour} à {heure}, Places limitées, −{pct} %{decompte}',
+  '{jour}, Places limitées, −{pct} %{decompte}': '{jour}, Places limitées, −{pct} %{decompte}',
+  'Places limitées · {decompte}': 'Places limitées · {decompte}',
+  'place limitée': 'place limitée',
+  'sans remise': 'sans remise',
+  '{offre} ne s’ajoute pas : une seule remise par rituel.': '{offre} ne s’ajoute pas : une seule remise par rituel.',
+  'L’offre de saison': 'L’offre de saison',
+  'Places limitées · −{pct} % · −{montant}': 'Places limitées · −{pct} % · −{montant}',
+  'En cuivre : Places limitées, −{pct} % sur les shampoings, lavages et soins.': 'En cuivre : Places limitées, −{pct} % sur les shampoings, lavages et soins.',
 };

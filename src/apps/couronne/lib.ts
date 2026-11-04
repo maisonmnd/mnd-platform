@@ -12,7 +12,7 @@ import {
   type Product,
 } from '../../shared/catalog';
 import { vitrineConfigStore, catalogueVisiblePour } from '../../shared/bridges';
-import { clientsStore, initiePersonaId, useClients, type Client } from '../../shared/clients';
+import { aUnPrixConvenu, clientsStore, initiePersonaId, useClients, type Client } from '../../shared/clients';
 import { branchesStore, useBranch } from '../../shared/branches';
 import { tablePrete } from '../../shared/sync';
 import { type Appointment } from '../../shared/agenda';
@@ -23,6 +23,11 @@ import {
 import { blocagesStore, plagesBloquees } from '../../shared/blocages';
 import { useOffers, offerLiveNow, porteSurLeJourDeLaVenue } from '../../shared/offers';
 import { t, langue } from './i18n';
+import { useReleve } from './releve';
+import {
+  aucuneRemisePour, carteDesPlacesDeLaRemise, fondsLaFenetre, formulesQuiCourent, lesTetesReunies,
+  type CarteDesPlacesDeLaRemise, type TeteALaRemise,
+} from './places-pure';
 import { boutiqueOuverte } from '../../shared/boutique-pur';
 
 /* Ma Couronne — bibliothèque locale : cliente, visibilité, dates, créneaux, offres. */
@@ -261,6 +266,35 @@ export function useClient(): Client | undefined {
   const [clients] = useClients();
   const clientId = useClientId();
   return clients.find((c) => c.id === clientId);
+}
+
+/* ══ UNE SEULE REMISE — 4 novembre 2026 ══════════════════════════════════
+   « S'assurer que ces remises-là ne s'affichent pas sur Ma Couronne de ces
+   clients-là EN AUCUNE CIRCONSTANCE. Ni les autres remises » (Yéman). Une
+   cliente aux prix convenus (`aUnPrixConvenu`, le prédicat de toute la
+   Maison) ou abonnée (une formule qui court à SON relevé, le juge unique de
+   l'abonnée) ne voit ni remise ni offre, nulle part : ni à la réservation,
+   ni au rail des offres, ni à l'accueil, ni au profil.
+
+   `teteId` : la tête pour qui elle réserve, quand ce n'est pas elle. Il
+   suffit que l'une des deux soit aux prix convenus ou abonnée (places-pure,
+   `lesTetesReunies`) : ce que la remise famille lit aussi
+   (`remiseFamilleDeLaTete`). */
+export function useLaTeteALaRemise(teteId?: string): TeteALaRemise {
+  const me = useClient();
+  const [clients] = useClients();
+  const autre = teteId && teteId !== me?.id ? clients.find((c) => c.id === teteId) : undefined;
+  const releveMoi = useReleve(me?.id);
+  const releveTete = useReleve(autre?.id);
+  return lesTetesReunies([
+    me ? { prixConvenus: aUnPrixConvenu(me), abonnee: formulesQuiCourent(releveMoi) } : null,
+    autre ? { prixConvenus: aUnPrixConvenu(autre), abonnee: formulesQuiCourent(releveTete) } : null,
+  ]);
+}
+
+/** Aucune remise ni offre à lui montrer (voir `useLaTeteALaRemise`). */
+export function useAucuneRemise(teteId?: string): boolean {
+  return aucuneRemisePour([useLaTeteALaRemise(teteId)]);
 }
 
 /** LA PORTE DÉJÀ OUVERTE — cette session est-elle un DOUBLON ? Le verdict
@@ -623,9 +657,17 @@ export function useCreneauxOccupesCharges(branchId: string, du: string, au: stri
        jour, la règle du 24 octobre 2026. */
     const places = Promise.resolve(sb.rpc('places_en_ligne_du', { p_branch: branchId, p_debut: du, p_fin: au }))
       .then(({ data, error }) => (error ? null : data as unknown), () => null);
-    void Promise.all([sb.rpc('creneaux_occupes', { p_branch: branchId, p_du: du, p_au: au }), places])
-      .then(([{ data, error }, lues]) => {
+    /* LES PLACES LIMITÉES PARTENT AUSSI AVEC LES MURS — 4 novembre 2026
+       (`places_de_la_remise`, 0154) : une ligne par jour concerné, et le
+       nombre de places qui restent. Une panne (la fonction pas encore posée,
+       le réseau) n'en retient aucune : jamais de remise sur un jour qu'on n'a
+       pas compté. */
+    const remise = Promise.resolve(sb.rpc('places_de_la_remise', { p_branch: branchId, p_debut: du, p_fin: au }))
+      .then((lue) => (lue.error ? null : lue.data as unknown), () => null);
+    void Promise.all([sb.rpc('creneaux_occupes', { p_branch: branchId, p_du: du, p_au: au }), places, remise])
+      .then(([{ data, error }, lues, laRemise]) => {
         if (!vivant) return;
+        retiensLesPlacesDeLaRemise(branchId, du, au, laRemise);
         retiensLesPlaces(branchId, du, au, lues);
         if (error) { setEtat({ occupes: [], charge: false, cle }); return; }
         setEtat({ occupes: (data ?? []) as CreneauOccupe[], charge: true, cle });
@@ -662,6 +704,32 @@ export function retiensLesPlaces(branchId: string, du: string, au: string, ligne
 export function placesEnLigneDe(branchId: string, dateIso: string): number {
   const sieges = branchesStore.get().find((b) => b.id === branchId)?.seats;
   return placesDuJour(placesRetenues.get(branchId), dateIso, sieges);
+}
+
+/* ── LES PLACES LIMITÉES, TELLES QUE LA BASE LES DIT — 4 novembre 2026 ──
+   Ma Couronne ne voit pas l'agenda des autres (RLS) : elle ne compte pas
+   les places, elle les lit (`places_de_la_remise`, 0154), par branche, jour
+   et offre. Elles se retiennent ici comme les places en ligne, pour que la
+   réservation et le déplacement répondent la même chose. */
+const placesDeLaRemiseRetenues = new Map<string, CarteDesPlacesDeLaRemise>();
+
+/** Retient la réponse d'une fenêtre (places-pure, `fondsLaFenetre`) : une
+    panne efface la fenêtre, et ses jours ne se remisent plus. */
+export function retiensLesPlacesDeLaRemise(branchId: string, du: string, au: string, lignes: unknown): void {
+  placesDeLaRemiseRetenues.set(branchId, fondsLaFenetre(
+    placesDeLaRemiseRetenues.get(branchId) ?? {},
+    joursDeLaFenetre(du, au),
+    lignes === null ? null : carteDesPlacesDeLaRemise(lignes),
+  ));
+}
+
+/** Les places limitées connues pour cette branche. */
+export const placesDeLaRemiseDe = (branchId: string): CarteDesPlacesDeLaRemise =>
+  placesDeLaRemiseRetenues.get(branchId) ?? {};
+
+/** La place partie à l'écriture : le jour se ferme ici sans attendre la relecture. */
+export function fermeLaPlaceIci(branchId: string, carte: CarteDesPlacesDeLaRemise): void {
+  placesDeLaRemiseRetenues.set(branchId, carte);
 }
 
 /* ---------- Paliers d'expérience ---------- */
@@ -704,10 +772,14 @@ const OFFER_THEMES: Offer['theme'][] = ['copper', 'indigo', 'sable'];
 export function useLiveOffers(): { offers: Offer[]; endMin: number | null } {
   const { branch } = useBranch();
   const [all] = useOffers();
+  /* UNE SEULE REMISE (4 novembre 2026) : aux prix convenus ou abonnée, aucune
+     offre ne paraît, ni le rail, ni son compte à rebours. */
+  const aucuneRemise = useAucuneRemise();
   const now = new Date();
   /* Le bouton se dit dans sa langue : la memo se refait quand elle change. */
   const lg = langue();
   return useMemo(() => {
+    if (aucuneRemise) return { offers: [], endMin: null };
     const live = all.filter((o) => o.branchId === branch.id && offerLiveNow(o, now));
     const offers = live.map((o, i): Offer => ({
       id: o.id,
@@ -722,15 +794,18 @@ export function useLiveOffers(): { offers: Offer[]; endMin: number | null } {
       serviceId: o.serviceId,
       title: o.title,
       sub: o.sub,
-      cta: o.serviceId ? t('Réserver {offre}', { offre: o.deal }) : o.deal,
+      /* PLACES LIMITÉES (4 novembre 2026) : sa carte ouvre la réservation,
+         où les jours qui ont des places se disent ; la remise s'y pose
+         d'elle-même avec la place, sans code. */
+      cta: o.serviceId ? t('Réserver {offre}', { offre: o.deal }) : porteSurLeJourDeLaVenue(o) ? t('Voir les jours') : o.deal,
       theme: OFFER_THEMES[i % OFFER_THEMES.length],
-      act: o.serviceId ? 'book' : 'invite',
+      act: o.serviceId || porteSurLeJourDeLaVenue(o) ? 'book' : 'invite',
     }));
     /* Fin de fenêtre la plus proche — pour le compte à rebours. */
     const endMin = live.length ? Math.min(...live.map((o) => hourToMin(o.heureFin))) : null;
     return { offers, endMin };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [all, branch.id, now.getHours(), now.getMinutes(), lg]);
+  }, [all, branch.id, now.getHours(), now.getMinutes(), lg, aucuneRemise]);
 }
 
 /** Compte à rebours vivant jusqu'à la fin de fenêtre d'offre (minutes depuis minuit). */

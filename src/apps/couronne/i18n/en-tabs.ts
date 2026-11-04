@@ -374,4 +374,7 @@ export const EN_TABS: Record<string, string> = {
   '{rituel} confirmé, la maison vous attend, avec {maitre}.': '{rituel} confirmed. The Maison awaits you, with {maitre}.',
   '{rituel}, acompte reçu, en attente de la maison.': '{rituel}, deposit received, awaiting the Maison.',
   'Aucune notification, la maison veille.': 'No notifications. The Maison is watching over you.',
+  // Places limitées (4 novembre 2026) : la carte de l'offre ouvre la réservation.
+  // Anglais laissé identique au français, à traduire à la relecture de Yéman.
+  'Voir les jours': 'Voir les jours',
 };
