@@ -197,7 +197,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-04-a · les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
+const VERSION = '2026-11-05-a · dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
 
 /** LE SECOND FAUTEUIL, PAS DAVANTAGE (2 novembre 2026, 0152) : la copie de
     `PLACES_EN_LIGNE_AU_PLUS` (src/shared/agenda-pur.ts), hors des repères. */

@@ -636,7 +636,7 @@ const initialesBrutes = pageOffres.match(/<div data-ilot="offres">\s*<script typ
 if (initialesBrutes === undefined) {
   console.log('—     les offres ne sont pas écrites dans la page (base non lue à la génération) : l’îlot les montera, rien à éprouver ici.');
 } else {
-  const initiales = JSON.parse(initialesBrutes) as { code?: string; active?: boolean; du?: string; au?: string }[];
+  const initiales = JSON.parse(initialesBrutes) as { code?: string; active?: boolean; du?: string; au?: string; placesParJour?: number }[];
   const enCours = initiales.filter((o) => etatDeLOffre(o) === 'cours');
   const aVenir = initiales.filter((o) => etatDeLOffre(o) === 'venir');
   const cartes = (h: string) => (h.match(/<article class="offre-site/g) ?? []).length;
@@ -645,7 +645,12 @@ if (initialesBrutes === undefined) {
   dit('… l’accueil n’écrit plus de carte d’offre', 0, cartes(accueil));
   dit('… et n’y pose aucun onglet', false, accueil.includes('role="tablist"'));
   const montrees = enCours.length ? enCours : aVenir;
-  dit('… chaque carte écrit son code en toutes lettres', [], montrees.filter((o) => o.code && !pageOffres.includes(`<b>${o.code}</b>`)).map((o) => o.code));
+  dit('… chaque carte écrit son code en toutes lettres', [], montrees.filter((o) => o.code && !((o.placesParJour ?? 0) > 0) && !pageOffres.includes(`<b>${o.code}</b>`)).map((o) => o.code));
+  /* PLACES LIMITÉES (4 novembre 2026) : aucun code à taper, la remise se pose
+     avec la place ; la carte le dit, « sans code · Places limitées ». */
+  dit('… une offre à places n’écrit pas son code, elle dit « sans code · Places limitées »', [], montrees
+    .filter((o) => (o.placesParJour ?? 0) > 0 && (pageOffres.includes(`<b>${o.code}</b>`) || !pageOffres.includes('<span>sans code</span><b>Places limitées</b>')))
+    .map((o) => o.code));
   dit('… le JSON ne peut pas fermer son script', false, /<\/|<script/i.test(initialesBrutes));
   dit('… ni leurs données', false, accueil.includes(`<script type="application/json" data-initiales>${initialesBrutes}</script>`));
 }
@@ -726,7 +731,7 @@ console.log(ko === 0 ? '\nTout est juste.' : `\n${ko} vérification(s) en échec
       !!agendaEcrit.branchId && (agendaEcrit.services?.length ?? 0) > 0 && Array.isArray(agendaEcrit.semaine) && agendaEcrit.semaine.length > 0);
     dit('… sans les murs, qui se lisent en vif', [], agendaEcrit.murs ?? ['absents']);
     dit('… élagué : aucune description, aucun champ du Trône dans une prestation', [],
-      (agendaEcrit.services ?? []).flatMap((s) => Object.keys(s)).filter((k, i, a) => a.indexOf(k) === i && !['id', 'name', 'categoryId', 'durationMin', 'scalesWithModel', 'priceFloors', 'bandId', 'bandIds', 'ratePerLock', 'tarifMode', 'prixParLongueur', 'paliersDeLocks', 'priceXof', 'priceMode', 'hidePrice', 'consultationAvant', 'enabled', 'archived', 'master'].includes(k)));
+      (agendaEcrit.services ?? []).flatMap((s) => Object.keys(s)).filter((k, i, a) => a.indexOf(k) === i && !['id', 'name', 'categoryId', 'durationMin', 'scalesWithModel', 'priceFloors', 'bandId', 'bandIds', 'ratePerLock', 'tarifMode', 'prixParLongueur', 'paliersDeLocks', 'priceXof', 'priceMode', 'hidePrice', 'consultationAvant', 'enabled', 'archived', 'master', 'sansRemise'].includes(k)));
   }
 }
 /* LA SUITE DU RAPPEL N'EST PAS CELLE DE LA RÉSERVATION (11 octobre 2026). */
