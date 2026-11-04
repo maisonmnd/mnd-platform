@@ -895,7 +895,8 @@ export default { setVapidDetails: (...a) => f.webpush.setVapidDetails(...a), sen
       const url = pathToFileURL(cale).href;
       const brut = lf(lit(`supabase/functions/${nom}/index.ts`));
       if (!brut) throw new Error(`fonction ${nom} introuvable`);
-      const src = brut.split("'npm:@supabase/supabase-js@2'").join(`'${url}'`).split("'npm:web-push@3.6.7'").join(`'${url}'`);
+      const src = brut.split("'npm:@supabase/supabase-js@2'").join(`'${url}'`).split("'npm:web-push@3.6.7'").join(`'${url}'`)
+        .split("'npm:@anthropic-ai/sdk'").join(`'${url}'`);
       const { transform } = await esbuild();
       const { code } = await transform(src, { loader: 'ts', format: 'esm' });
       const f = path.join(dossier(), `${nom}.mjs`);
@@ -2641,7 +2642,7 @@ const regles: Regle[] = [
       const debut = conv.indexOf("if (vue.tenue === 'fini' && vue.etape === 'confirme')");
       const suite = conv.indexOf('  if (vue.tenue', debut + 20);
       const bandeau = debut < 0 ? '' : conv.slice(debut, suite > debut ? suite : debut + 2400);
-      vrai('le Trone offre « Rendre a l automate » sur le bandeau de la pose, et dit jusqu a quand', /onClick=\{surRendre\}>Rendre à l’automate</.test(bandeau) && bandeau.includes('L’automate laisse la Maison répondre'));
+      vrai('le Trone offre « Rendre a l automate » sur le bandeau de la pose, et dit jusqu a quand', bandeau.includes('{!opale && <Button variant="ghost" size="sm" onClick={surRendre}>{rendre}</Button>}') && conv.includes("const rendre = opale ? 'Rendre à Opale' : 'Rendre à l’automate';") && bandeau.includes('L’automate laisse la Maison répondre'));
       return ecarts;
     },
     pannes: [
@@ -2650,7 +2651,7 @@ const regles: Regle[] = [
       { nom: 'non merci oublie le mercredi', mute: [P(AUTO, '          if (desMots) retiensLesMots();\n          return dire(msgPlaces({}));', '          return dire(msgPlaces({}));')] },
       { nom: 'un fil confirme ne se rend pas', mute: [P(AUTO, "    if (Number.isFinite(rendue) && Number.isFinite(maj) && rendue >= maj) return 'repos';\n", '')] },
       { nom: 'le plafond compte les messages d avant la main rendue', mute: [P(AUTO, '    return ms - t < JOUR_WA && !(Number.isFinite(rendue) && t <= rendue);', '    return ms - t < JOUR_WA;')] },
-      { nom: 'le Trone n offre pas Rendre a l automate apres la pose', mute: [P(ECRAN_COMPOSEUR, '{/* rendre après la pose */}<Button variant="ghost" size="sm" onClick={surRendre}>Rendre à l’automate</Button>', '')] },
+      { nom: 'le Trone n offre pas Rendre a l automate apres la pose', mute: [P(ECRAN_COMPOSEUR, '{/* rendre après la pose */}{!opale && <Button variant="ghost" size="sm" onClick={surRendre}>{rendre}</Button>}', '')] },
     ],
   },
   /* ══ R34 · le lien Google Maps de la Maison, 13 octobre 2026 ═══════════ */
@@ -2959,7 +2960,7 @@ const regles: Regle[] = [
       const resa = elle(r, t0 + 120000, { texte: 'Je voudrais réserver samedi' });
       vrai('une envie de reserver apres une reponse ouvre le parcours', ['meme', 'besoin'].includes(resa.messages[0]?.etape ?? ''), resa.messages[0]?.etape);
       const fn = lf(lit(F_AUTO));
-      vrai('la fonction lit les reponses de la Maison', fn.includes("'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa', 'mnd_tri_des_messages', 'mnd_model_bands', 'mnd_model_band_sets']") && fn.includes("conseil: conseilDeLaMaison(docs.get('mnd_reponses_maison')),"));
+      vrai('la fonction lit les reponses de la Maison', fn.includes("'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa', 'mnd_tri_des_messages', 'mnd_model_bands', 'mnd_model_band_sets', 'mnd_opale', 'mnd_offers', 'mnd_payment_methods']") && fn.includes("conseil: conseilDeLaMaison(docs.get('mnd_reponses_maison')),"));
       vrai('la fonction donne les prix du catalogue du jour au tour', fn.includes('...(agenda ? { prix: prixDuCatalogue(agenda.lignes.services) } : {}),'));
       vrai('le juge de la fonction ne laisse passer un prix que venu du catalogue', (fn.match(/texteSain\(toutLeTexteWa\(m\), m\.prixDuCatalogue === true\)/g) ?? []).length === 3 && !/texteSain\(toutLeTexteWa\(m\)\)/.test(fn));
       vrai('la trace porte la reponse envoyee', fn.includes('...(o.m.reponseId ? { reponse: o.m.reponseId } : {}),'));
@@ -3065,7 +3066,7 @@ const regles: Regle[] = [
       vrai('la fonction ne demande la reception que la ou elle peut parler', fn.includes('if (!laReceptionPeutParler(fil, tour, ctxLeger, reglageDeLaReception(docs.get(CLE_DE_LA_RECEPTION)))) return { pris: false };') && fn.includes('reception = await demandeALaReception(o, { tour, fiches, docs, ms });'));
       vrai('la fonction appelle reception-wa avec sa cle, et prend le secours sans reponse sure', fn.includes('`${base}/functions/v1/reception-wa`') && (fn.match(/return secours\(\);/g) ?? []).length >= 3);
       vrai('un mot refuse par les juges laisse place au secours', fn.includes('if (direct && sortie.messages.some((m) => juge2(m).length > 0)) {'));
-      vrai('la trace dit Assistant Maison et se compte', fn.includes("parQui: o.m.deLaReception ? 'Assistant Maison' : 'Le Trône',") && fn.includes('...(o.m.deLaReception ? { reception: true } : {}),'));
+      vrai('la trace dit Assistant Maison et se compte', fn.includes("parQui: o.parQui ?? (o.m.deLaReception ? 'Assistant Maison' : 'Le Trône'),") && fn.includes('...(o.m.deLaReception ? { reception: true } : {}),'));
       return ecarts;
     },
     pannes: [
@@ -3077,7 +3078,7 @@ const regles: Regle[] = [
       { nom: 'equipe ne passe pas la main', mute: [P(AUTO, "    if (r.suite === 'equipe') {\n      const s = laMain('question', true, r.texte, true);", "    if (false) {\n      const s = laMain('question', true, r.texte, true);")] },
       { nom: 'la fonction ne demande jamais la reception', mute: [P(F_AUTO, 'reception = await demandeALaReception(o, { tour, fiches, docs, ms });', "reception = { texte: '', suite: 'rien' };")] },
       { nom: 'un mot refuse laisse la cliente sans reponse', mute: [P(F_AUTO, 'if (direct && sortie.messages.some((m) => juge2(m).length > 0)) {', 'if (false) {')] },
-      { nom: 'la trace ne dit plus Assistant Maison', mute: [P(F_AUTO, "parQui: o.m.deLaReception ? 'Assistant Maison' : 'Le Trône',", "parQui: 'Le Trône',")] },
+      { nom: 'la trace ne dit plus Assistant Maison', mute: [P(F_AUTO, "parQui: o.parQui ?? (o.m.deLaReception ? 'Assistant Maison' : 'Le Trône'),", "parQui: o.parQui ?? 'Le Trône',")] },
       { nom: 'les calibres gardent leur identifiant court : le toucher se perd', mute: [P(AUTO, "id: l.id.startsWith('calibre:') ? choix('calibre', l.id.slice('calibre:'.length)) : l.id", 'id: l.id')] },
       { nom: 'un calibre touche relance le parcours au lieu de la reception', mute: [P(AUTO, "    parle = lisLeChoix(tour.choix.id)?.geste !== 'calibre';", '    parle = true;')] },
     ],

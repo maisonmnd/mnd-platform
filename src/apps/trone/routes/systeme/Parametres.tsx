@@ -29,6 +29,8 @@ import { useExceptionsHoraires, usePointageConfig, assurerCodeDuJour, type Horai
 import { useBlocages, type Blocage } from '../../../../shared/blocages';
 import { reglageDeLaReception, type ModeDeLaReception } from '../../../../shared/automate-wa';
 import { receptionStore, useCompteDeLaReception, useReception } from '../../../../shared/reception-wa';
+import { opaleStore, useCompteDOpale, useOpale } from '../../../../shared/opale';
+import { MESSAGES_D_OPALE_PAR_JOUR, reglageDOpale, type QuiRepondWa } from '../../../../shared/opale-pur';
 import { uid } from '../../../../shared/store';
 import {
   useModelBands, sortedBands, ecrisCalibresPartout, modelBandsStore, bandSetsStore,
@@ -1226,6 +1228,66 @@ function LAssistantRepondEnPhrases() {
   );
 }
 
+/* ══ QUI RÉPOND SUR WHATSAPP · 4 novembre 2026 ═══════════════════════
+   « L'automate fait beaucoup d'erreurs. J'aimerais que ce soit Opale qui
+   gère les conversations du Trône » (Yéman). Opale lit tout le fil, répond
+   en phrases, pose et déplace les rendez-vous sous verrou, et passe la main
+   à l'équipe pour ce qui revient à une personne. L'automate reste en
+   réserve : un toucher le rallume. */
+const QUI_REPOND: { value: QuiRepondWa; label: string; dit: string }[] = [
+  { value: 'opale', label: 'Opale', dit: 'Opale répond à toutes les clientes, jour et nuit, et à l’équipe pour ses numéros d’essai. Les réglages de l’automate ci-dessous ne servent plus, sauf ses numéros d’essai et la durée de la main de l’équipe.' },
+  { value: 'automate', label: 'L’automate', dit: 'L’ancien automate répond, avec ses listes, comme avant le 4 novembre 2026.' },
+];
+
+function QuiRepondSurWhatsApp() {
+  const estDirection = useEstDirection();
+  const [brut] = useOpale();
+  const [compte] = useCompteDOpale();
+  const r = reglageDOpale(brut);
+  const choix = QUI_REPOND.find((q) => q.value === r.qui) ?? QUI_REPOND[1];
+  const mois = new Date(Date.now() + 3_600_000).toISOString().slice(0, 7);
+  const ceMois = compte?.[mois];
+  const change = (qui: QuiRepondWa) => {
+    if (!estDirection) { toast('Ce réglage appartient à la direction.'); return; }
+    opaleStore.set({ qui });
+  };
+  return (
+    <Card className="sys-section" style={{ marginTop: 18 }}>
+      <div className="sys-section__title">Qui répond sur WhatsApp</div>
+      <div className="sys-section__cap" style={{ maxWidth: 680 }}>
+        Opale lit toute la conversation, la fiche, l’agenda et le catalogue, puis répond en phrases, avec la voix
+        de la Maison. Elle propose les vraies places, écrit le récapitulatif, et ne pose le rendez-vous qu’au oui
+        de la cliente ; elle déplace chez le même maître. Une annulation, la santé, une plainte, l’argent, une
+        photo ou un vocal : elle passe la main à l’équipe, qui est prévenue. Quand une personne écrit, Opale se tait.
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 6 }}>
+        <div className="mnd-segs" role="radiogroup" aria-label="Qui répond sur WhatsApp">
+          {QUI_REPOND.map((q) => (
+            <button
+              key={q.value}
+              type="button"
+              role="radio"
+              aria-checked={r.qui === q.value}
+              className={`mnd-seg ${r.qui === q.value ? 'is-active' : ''}`}
+              disabled={!estDirection}
+              style={!estDirection ? { cursor: 'not-allowed' } : undefined}
+              onClick={() => change(q.value)}
+            >
+              {q.label}
+            </button>
+          ))}
+        </div>
+        <span className="mnd-muted" style={{ fontSize: 12, maxWidth: '52ch', lineHeight: 1.5 }}>{choix.dit}</span>
+      </div>
+      <div className="mnd-muted" style={{ fontSize: 12, marginTop: 10, lineHeight: 1.55, maxWidth: 680 }}>
+        Ce mois-ci : {ceMois?.appels ?? 0} appel{(ceMois?.appels ?? 0) > 1 ? 's' : ''} à Claude
+        {ceMois?.usd ? `, environ ${ceMois.usd.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} $ pris sur les crédits API inclus` : ''}.
+        {` ${MESSAGES_D_OPALE_PAR_JOUR} messages au plus par numéro en vingt-quatre heures ; au-delà, l’équipe reprend.`}
+      </div>
+    </Card>
+  );
+}
+
 export default function Parametres() {
   const [exceptions, setExceptions] = useExceptionsHoraires();
   const [blocages, setBlocages] = useBlocages();
@@ -1932,6 +1994,8 @@ export default function Parametres() {
 
           {ouverte === 'whatsapp' && (
             <>
+              {/* ══ QUI RÉPOND · 4 novembre 2026 : Opale, ou l'automate en réserve ══ */}
+              <QuiRepondSurWhatsApp />
               {/* ══ LA MAISON RÉPOND SUR WHATSAPP · 9 octobre 2026 ═══════════ */}
               <LaMaisonRepondSurWhatsApp
                 brut={autoCfgRaw.automateWa}

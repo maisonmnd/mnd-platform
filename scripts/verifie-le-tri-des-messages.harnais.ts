@@ -242,7 +242,7 @@ dit('... rien n est appele pour un numero rendu, juge ou avec une fiche ; injoig
 ]);
 const cleWa = new Function(`${auto.slice(auto.indexOf('const cleDuTriWa = '), auto.indexOf('};', auto.indexOf('const cleDuTriWa = ')) + 2).replace('(numero: string): string =>', '(numero) =>')}; return cleDuTriWa;`)() as (x: string) => string;
 dit('... la cle de l automate est celle du tri', NUMEROS.map(cleDuTri), NUMEROS.map((x) => cleWa(x)));
-dit('... il lit le registre avec ses documents', true, auto.includes("'mnd_assistant_wa', 'mnd_tri_des_messages'];"));
+dit('... il lit le registre avec ses documents', true, /'mnd_assistant_wa', 'mnd_tri_des_messages'[,\]]/.test(auto));
 const conv = readFileSync('src/apps/trone/routes/clients/LesConversations.tsx', 'utf8');
 dit('le Trone : les onglets Propositions et Bloques, Debloquer, Bloquer ce numero, la passe et ses coches', [true, true, true, true, true], [
   conv.includes("(['propositions', 'bloques'] as const).map((f) => ("), conv.includes("{b.tri.etat === 'bloque' ? 'Débloquer' : 'C’est une cliente'}"),

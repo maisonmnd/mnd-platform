@@ -13,6 +13,8 @@ import {
   ETAPE_DITE, ETAPES_EN_COURS, MOTIF_DIT, heureDite, jourDitAvecAnnee, numeroServi, pauseActive, reglageDeLAutomate,
   type EtapeDuFil, type EtatDuFil, type MainDuFil, type VueDeLAutomate,
 } from '../../../../shared/automate-wa';
+import { useOpale } from '../../../../shared/opale';
+import { reglageDOpale } from '../../../../shared/opale-pur';
 import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
 import { motifDuRefus } from '../../../../shared/whatsapp';
 import { appelleOuGarde, gardeUnAppel } from '../../../../shared/appels-en-attente';
@@ -130,7 +132,7 @@ export const etapeDite = (e: string | undefined): string =>
   (e && e in ETAPE_DITE ? ETAPE_DITE[e as EtapeDuFil] : e ?? '');
 
 export function BandeauDeLAutomate({
-  vue, etat, main, rdv, gestesDuRdv, surReprendre, surRendre, surPoser, surOuvrirRdv, pauseHeures, parLaReception,
+  vue, etat, main, rdv, gestesDuRdv, surReprendre, surRendre, surPoser, surOuvrirRdv, pauseHeures, parLaReception, opale,
 }: {
   vue: VueDeLAutomate;
   etat: EtatDuFil | null;
@@ -147,13 +149,20 @@ export function BandeauDeLAutomate({
   pauseHeures: number;
   /** Son dernier mot vient de la réception (l'assistant qui répond en phrases). */
   parLaReception?: boolean;
+  /** OPALE RÉPOND (4 novembre 2026, `mnd_opale`) : le bandeau la nomme, et
+      ne dit ni étape ni parcours, qu'elle n'a pas. */
+  opale?: boolean;
 }) {
   const etape = etapeDite(vue.etape);
+  const qui = opale ? 'Opale' : 'L’automate';
+  const rendre = opale ? 'Rendre à Opale' : 'Rendre à l’automate';
   if (vue.tenue === 'tenu') {
     return (
       <div className="trc-automate" role="status">
         <span className="trc-automate__dit">
-          La Maison répond seule{vue.depuis ? ` depuis ${quandDuBandeau(vue.depuis)}` : ''} · étape : <b>{etape}</b>
+          {opale
+            ? <>Opale répond{vue.depuis ? ` depuis ${quandDuBandeau(vue.depuis)}` : ''}</>
+            : <>La Maison répond seule{vue.depuis ? ` depuis ${quandDuBandeau(vue.depuis)}` : ''} · étape : <b>{etape}</b></>}
         </span>
         <span className="trc-automate__gestes">
           {surPoser && <Button variant="ghost" size="sm" onClick={surPoser}>Poser ce rendez-vous</Button>}
@@ -167,12 +176,12 @@ export function BandeauDeLAutomate({
       <div className="trc-automate trc-automate--main" role="status">
         <span className="trc-automate__dit">
           <span className="trc-horloge trc-horloge--main">Main passée</span>{' '}
-          L’automate a passé la main{etat?.mainPasseeLe ? ` ${quandDuBandeau(etat.mainPasseeLe, 'à ')}` : ''}
+          {qui} a passé la main{etat?.mainPasseeLe ? ` ${quandDuBandeau(etat.mainPasseeLe, 'à ')}` : ''}
           {vue.motif ? ` · ${MOTIF_DIT[vue.motif] ?? vue.motif}` : ''}. Elle attend une personne de la Maison.
         </span>
         <span className="trc-automate__gestes">
           {surPoser && <Button size="sm" onClick={surPoser}>Poser ce rendez-vous</Button>}
-          <Button variant="ghost" size="sm" onClick={surRendre}>Rendre à l’automate</Button>
+          <Button variant="ghost" size="sm" onClick={surRendre}>{rendre}</Button>
         </span>
       </div>
     );
@@ -182,12 +191,12 @@ export function BandeauDeLAutomate({
     return (
       <div className="trc-automate trc-automate--pause" role="status">
         <span className="trc-automate__dit">
-          L’équipe a la main{main?.jusqua ? ` ${finDuBandeau(main.jusqua)}` : ''} : l’automate se tait sur ce fil.
-          {enRoute ? ` Il en était à : ${etapeDite(etat?.etape)}.` : ''}
+          L’équipe a la main{main?.jusqua ? ` ${finDuBandeau(main.jusqua)}` : ''} : {opale ? 'Opale' : 'l’automate'} se tait sur ce fil.
+          {enRoute && !opale ? ` Il en était à : ${etapeDite(etat?.etape)}.` : ''}
         </span>
         <span className="trc-automate__gestes">
           {surPoser && <Button variant="ghost" size="sm" onClick={surPoser}>Poser ce rendez-vous</Button>}
-          <Button variant="ghost" size="sm" onClick={surRendre}>Rendre à l’automate</Button>
+          <Button variant="ghost" size="sm" onClick={surRendre}>{rendre}</Button>
         </span>
       </div>
     );
@@ -202,14 +211,14 @@ export function BandeauDeLAutomate({
         <span className="trc-automate__dit">
           <b>Rendez-vous posé</b>
           {rdv
-            ? <> · {jourDitAvecAnnee(rdv.date)} à {heureDite(rdv.time)}{gestesDuRdv ? ` · ${gestesDuRdv}` : ''} · « Pris sur WhatsApp, réponse automatique »
+            ? <> · {jourDitAvecAnnee(rdv.date)} à {heureDite(rdv.time)}{gestesDuRdv ? ` · ${gestesDuRdv}` : ''} · {opale ? '« Pris sur WhatsApp par Opale »' : '« Pris sur WhatsApp, réponse automatique »'}
                 {rdv.status === 'annulé' ? ' · annulé depuis par la Maison' : ''}</>
-            : ' par la réponse automatique. Il paraîtra au calendrier dès qu’il arrive sur ce poste.'}
-          {' '}L’automate laisse la Maison répondre{fin ? ` ${finDuBandeau(fin)}` : ''}.
+            : `${opale ? ' par Opale' : ' par la réponse automatique'}. Il paraîtra au calendrier dès qu’il arrive sur ce poste.`}
+          {opale ? ' Opale continue de lui répondre.' : <>{' '}L’automate laisse la Maison répondre{fin ? ` ${finDuBandeau(fin)}` : ''}.</>}
         </span>
         <span className="trc-automate__gestes">
           {rdv && surOuvrirRdv && <Button variant="ghost" size="sm" onClick={surOuvrirRdv}>Ouvrir le rendez-vous</Button>}
-          {/* rendre après la pose */}<Button variant="ghost" size="sm" onClick={surRendre}>Rendre à l’automate</Button>
+          {/* rendre après la pose */}{!opale && <Button variant="ghost" size="sm" onClick={surRendre}>{rendre}</Button>}
         </span>
       </div>
     );
@@ -289,6 +298,10 @@ export function ComposeurWhatsApp({ fil, texte, surTexte, cite, surCite, poignee
   const [lignesDeLAutomate] = useFilsAutomate();
   const [configAuto] = useAutoConfig();
   const reglageAutomate = useMemo(() => reglageDeLAutomate(configAuto.automateWa), [configAuto.automateWa]);
+  /* OPALE RÉPOND (4 novembre 2026) : les mots du bandeau et des toasts la nomment. */
+  const [opaleBrut] = useOpale();
+  const avecOpale = reglageDOpale(opaleBrut).qui === 'opale';
+  const leQui = avecOpale ? 'Opale' : 'l’automate';
   const automates = useMemo(
     () => automatesDesFils(lignesDeLAutomate, reglageAutomate.pauseHeures),
     [lignesDeLAutomate, reglageAutomate.pauseHeures],
@@ -346,7 +359,7 @@ export function ComposeurWhatsApp({ fil, texte, surTexte, cite, surCite, poignee
     if (!explicite && Date.now() - avant < 30_000) return;
     mainPriseLe.current.set(fil.numero, Date.now());
     poseLaMain(fil.numero, motif, { pauseHeures: reglageAutomate.pauseHeures, branchId: branch.id });
-    if (explicite) toast(`Vous avez la main : l’automate se tait sur ce fil pendant ${reglageAutomate.pauseHeures} h.`);
+    if (explicite) toast(`Vous avez la main : ${leQui} se tait sur ce fil pendant ${reglageAutomate.pauseHeures} h.`);
   };
   const rendsLaMain = (): void => {
     if (!fil.automate) return;
@@ -354,14 +367,16 @@ export function ComposeurWhatsApp({ fil, texte, surTexte, cite, surCite, poignee
     const rendueLe = rendsALAutomate(fil.numero, { mainPasseeLe: automates.get(fil.numero)?.fil?.mainPasseeLe, branchId: branch.id });
     /* IL REPREND TOUT DE SUITE (13 octobre 2026) : la fonction renvoie l'étape
        où il en était, si la fenêtre de 24 heures est ouverte. */
-    const attendre = 'Rendu à l’automate. Il reprendra au prochain message de la cliente, sans rien lui écrire d’ici là.';
+    const attendre = avecOpale
+      ? 'Rendu à Opale. Elle répondra au prochain message de la cliente.'
+      : 'Rendu à l’automate. Il reprendra au prochain message de la cliente, sans rien lui écrire d’ici là.';
     if (!supabase || !rendueLe) { toast(attendre); return; }
-    toast('Rendu à l’automate : il reprend où il en était…');
+    toast(avecOpale ? 'Rendu à Opale : elle lit ce qui attend…' : 'Rendu à l’automate : il reprend où il en était…');
     void supabase.functions.invoke('whatsapp-automate', { body: { reprise: { numero: fil.numero, tiroir: fil.tiroir, rendueLe } } })
       .then(({ data }) => {
         const r = (data ?? {}) as { repris?: boolean; raison?: string; etape?: string };
-        if (r.repris) toast(`L’automate a repris : il a renvoyé « ${etapeDite(r.etape)} ».`);
-        else if (r.raison === 'fenetre') toast('Rendu à l’automate. Elle n’a pas écrit depuis plus de 24 h : WhatsApp l’empêche d’écrire le premier, il reprendra à son prochain message.');
+        if (r.repris) toast(avecOpale ? 'Opale a repris la conversation.' : `L’automate a repris : il a renvoyé « ${etapeDite(r.etape)} ».`);
+        else if (r.raison === 'fenetre') toast(`Rendu à ${leQui}. Elle n’a pas écrit depuis plus de 24 h : WhatsApp empêche d’écrire le premier, la reprise se fera à son prochain message.`);
         else toast(attendre);
       }, () => toast(attendre));
   };
@@ -711,6 +726,7 @@ export function ComposeurWhatsApp({ fil, texte, surTexte, cite, surCite, poignee
               surOuvrirRdv={rdv ? () => setRdvOuvert(rdv) : undefined}
               pauseHeures={reglageAutomate.pauseHeures}
               parLaReception={[...fil.messages].reverse().find((m) => m.sens === 'sortant')?.reception === true}
+              opale={avecOpale}
             />
           );
         })()}
@@ -725,15 +741,23 @@ export function ComposeurWhatsApp({ fil, texte, surTexte, cite, surCite, poignee
             return (
               <div className="trc-automate trc-automate--pause" role="status">
                 <span className="trc-automate__dit">
-                  L’équipe a la main{mainDuFil?.jusqua ? ` ${finDuBandeau(mainDuFil.jusqua)}` : ''} : l’automate se tait sur ce fil.
+                  L’équipe a la main{mainDuFil?.jusqua ? ` ${finDuBandeau(mainDuFil.jusqua)}` : ''} : {leQui} se tait sur ce fil.
                 </span>
                 <span className="trc-automate__gestes">
                   <Button variant="ghost" size="sm" onClick={() => {
                     mainPriseLe.current.delete(fil.numero);
                     rendsALAutomate(fil.numero, { branchId: branch.id });
-                    toast('Rendu à l’automate : il répondra au prochain message de ce numéro.');
-                  }}>Rendre à l’automate</Button>
+                    toast(avecOpale ? 'Rendu à Opale : elle répondra au prochain message de ce numéro.' : 'Rendu à l’automate : il répondra au prochain message de ce numéro.');
+                  }}>{avecOpale ? 'Rendre à Opale' : 'Rendre à l’automate'}</Button>
                 </span>
+              </div>
+            );
+          }
+          if (avecOpale) {
+            if (fil.tiroir === 'clientes' || numeroServi({ ...reglageAutomate, mode: 'essai' }, fil.numero, fil.tiroir)) return null;
+            return (
+              <div className="trc-automate trc-automate--pause" role="status">
+                <span className="trc-automate__dit">Opale ne répond pas à ce numéro : elle sert les clientes, et l’équipe pour les numéros d’essai seulement (Système › Paramètres).</span>
               </div>
             );
           }

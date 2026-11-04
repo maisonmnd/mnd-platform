@@ -611,6 +611,8 @@ const regles: Regle[] = [
            du site, et le dialogue entier, recopiés dans whatsapp-automate. */
         'prochaines-places': { fichier: 'src/shared/reservation-express.ts', extrait: (s) => entre(s, 'prochaines-places') },
         'automate-wa': { fichier: 'src/shared/automate-wa.ts', extrait: (s) => entre(s, 'automate-wa') },
+        /* Opale (4 novembre 2026) : sa consigne, ses outils, ses juges, dans whatsapp-automate. */
+        opale: { fichier: 'src/shared/opale-pur.ts', extrait: (s) => entre(s, 'opale') },
         /* Les gestes dits en francais (13 octobre 2026), recopies dans whatsapp-automate. */
         'gestes-en-francais': { fichier: 'src/shared/gestes-en-francais.ts', extrait: (s) => entre(s, 'gestes-en-francais') },
         /* Le bareme du site (30 octobre 2026), recopie dans whatsapp-automate : le prix dit des le choix. */

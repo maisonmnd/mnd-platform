@@ -127,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-02-c · les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main';
+const VERSION = '2026-11-04-a · les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -662,7 +662,9 @@ async function previensLesTelephones(
    sans attendre la conversation (l'automate attend 2,5 s « en train
    d'écrire », lit l'agenda, pose sous verrou). Sans elle, le webhook attend
    la même tâche, 8 s au plus. */
-const AUTOMATE_EN_FOND_MS = 30_000;
+/* Opale (4 novembre 2026) lit tout, appelle ses outils et Claude : son
+   tour tient en 85 s au plus, on lui en laisse 120. */
+const AUTOMATE_EN_FOND_MS = 120_000;
 const AUTOMATE_SANS_FOND_MS = 8_000;
 
 type Confie = { numero: string; tiroir: string; waIds: string[]; nom: string };
