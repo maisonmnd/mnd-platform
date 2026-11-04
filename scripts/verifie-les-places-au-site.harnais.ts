@@ -27,7 +27,7 @@ import path from 'node:path';
 import { occupationDuJour, placesRestantes, ditLesPlaces, offreDuJourDeLaVenue } from '../src/shared/offres-pur';
 import { jetonDIdentite } from '../src/shared/lien-du-rdv-pur';
 import {
-  bandeauDesPlaces, carteDesRemises, estUnCodeDesPlaces, offreDesPlacesOuverte, offreDuJourDuSite, PHRASE_DES_TARIFS_CONVENUS,
+  bandeauDesPlaces, carteDesRemises, estUnCodeDesPlaces, offreDesPlacesOuverte, offreDuJourDuSite, PHRASE_DES_TARIFS_CONVENUS, PHRASE_DU_DOUTE,
   phraseDeLaPlacePartie, phraseDeLaPlaceTenue, phraseDUneSeuleRemise, placesConnuesDe, placesDites, prixConvenusDuRetour,
   BOUTON_DU_TARIF_DE_LA_MAISON,
 } from '../src/apps/revelateur/places-du-site-pur';
@@ -296,6 +296,9 @@ const TETES: Record<string, { prixConvenus?: boolean; abonnee?: boolean; famille
 };
 let POSE_REFUSEE = false;
 let PLACES_EN_PANNE = false;
+/* DANS LE DOUTE, PAS DE REMISE (4 novembre 2026) : la lecture du numero en
+   panne, ou une reponse sans ses trois oui/non. */
+let NUMERO_LU: 'ok' | 'panne' | 'incomplet' = 'ok';
 const rpc = async (nom: string, a: any): Promise<{ data: any; error: any }> => {
   if (nom === 'creneaux_occupes') return { data: [], error: null };
   if (nom === 'places_en_ligne') return { data: 1, error: null };
@@ -315,6 +318,8 @@ const rpc = async (nom: string, a: any): Promise<{ data: any; error: any }> => {
     return { data: out, error: null };
   }
   if (nom === 'une_seule_remise') {
+    if (NUMERO_LU === 'panne') return { data: null, error: { message: 'panne de banc' } };
+    if (NUMERO_LU === 'incomplet') return { data: { prixConvenus: false }, error: null };
     const t = TETES[String(a.p_numero ?? '').replace(/\D/g, '')] ?? {};
     return { data: { prixConvenus: !!t.prixConvenus, abonnee: !!t.abonnee, famille: !!t.famille }, error: null };
   }
@@ -427,6 +432,29 @@ const sw = await reserve(MERCREDI3, ['sv-sowa'], { code: 'PLACES15' });
 dit('le Rituel Sowa ne prend aucune remise, et ce n est pas une place partie', [200, undefined, undefined],
   [sw.statut, sw.corps.placeLimitee, rdvDe(sw.corps.apptId)?.remisesLignes]);
 
+/* ── 3f. Dans le doute, pas de remise (Yeman, au selecteur, 4 novembre 2026) ──
+   Si ce que porte le numero (`une_seule_remise`) ne se relit pas, la place ne
+   se pose pas : le rendez-vous tient au tarif de la Maison, la reponse et la
+   note le disent ; jamais un prix change en silence. */
+const [MARDI3, VENDREDI3] = [MARDI, VENDREDI].map((d) => plus(d, 14));
+NUMERO_LU = 'panne';
+const d1 = await reserve(MARDI3, ['sv-shampoing', 'sv-retwist'], { code: 'PLACES15' });
+NUMERO_LU = 'incomplet';
+const d2 = await reserve(VENDREDI3, ['sv-shampoing'], { code: 'PLACES15' });
+NUMERO_LU = 'ok';
+dit('le numero ne se relit pas : le rendez-vous tient, sans place, sans remise, sans code, et la reponse le dit',
+  [200, true, undefined, 'illisible', undefined, undefined, undefined],
+  [d1.statut, d1.corps.confirme, d1.corps.placeLimitee, d1.corps.uneSeuleRemise, rdvDe(d1.corps.apptId)?.remisesLignes, rdvDe(d1.corps.apptId)?.codeOffre, d1.corps.codeApplique]);
+dit('... la note du rendez-vous le dit a l accueil, sobrement', true,
+  /dans le doute, sans place limitée : ce que porte son numéro n’a pas pu se relire/.test(String(rdvDe(d1.corps.apptId)?.note)));
+dit('... une reponse qui ne dit pas ses trois oui/non : de meme', [200, 'illisible', undefined, undefined],
+  [d2.statut, d2.corps.uneSeuleRemise, d2.corps.placeLimitee, rdvDe(d2.corps.apptId)?.remisesLignes]);
+dit('... la page dit le doute, sans prix a sa place', [true, false, false],
+  [phraseDUneSeuleRemise('illisible') === PHRASE_DU_DOUTE && PHRASE_DU_DOUTE.length > 0, /\d/.test(PHRASE_DU_DOUTE), /—|\bsalon/.test(PHRASE_DU_DOUTE)]);
+/* Le troisieme jeudi garde deux places (l2 en a pris une, plus haut). */
+const d3 = await reserve(JEUDI3, ['sv-shampoing'], { code: 'PLACES15' });
+dit('... la lecture revenue, la place se pose de nouveau', [200, true, undefined], [d3.statut, d3.corps.placeLimitee, d3.corps.uneSeuleRemise]);
+
 /* ── 3e. Le noyau du serveur, et ses prix convenus dits avant la confirmation ── */
 dit('le serveur lit les places de la base, rien sur une panne ni un jour non dit', [2, null, null, null], [
   serveur.placesLuesPour([{ jour: MARDI, offre: 'of-x', places: 2 }], 'of-x', MARDI), serveur.placesLuesPour(null, 'of-x', MARDI),
@@ -436,7 +464,8 @@ dit('... un code des places ne vaut pas un code d offre', [true, true, false], [
   serveur.estUnCodeDesPlaces([PLACES], ' places 15 '), serveur.estUnCodeDesPlaces([{ ...PLACES, active: false }], 'PLACES15'),
   serveur.estUnCodeDesPlaces([PLACES, RENTREE], 'RENTREE10')]);
 const candidat = { offre: PLACES, remisesLignes: [{ pct: 15 }] };
-dit('... une lecture du numero en panne laisse la place (comme l usage d un code)', true, 'verdict' in serveur.laPlaceTranchee(candidat, null));
+dit('... une lecture du numero en panne : dans le doute, pas de place (4 novembre 2026)', { raison: 'illisible' }, serveur.laPlaceTranchee(candidat, null));
+dit('... une tete lue sans autre remise : la place', true, 'verdict' in serveur.laPlaceTranchee(candidat, { prixConvenus: false, abonnee: false, famille: false }));
 const SECRET = ENV.SUPABASE_SERVICE_ROLE_KEY as string;
 const jusqua = plus(AUJ, 3);
 const lu1 = await appelle({ cliente: 'lire', identite: await jetonDIdentite(SECRET, 'cl-convenus', jusqua) });

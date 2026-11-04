@@ -173,7 +173,10 @@
 // silence). La garde de la base (`PLACES_LIMITEES`) départage la dernière
 // place sous verrou. `tarifDeLaMaison` : la cliente a choisi le tarif de la
 // Maison après une place partie. Le Rituel Sówà™ (`sansRemise`) ne prend
-// aucune remise. Banc : `scripts/verifie-les-places-au-site.mjs --prouve`.
+// aucune remise. DANS LE DOUTE, PAS DE REMISE (4 novembre 2026, au soir) :
+// si `une_seule_remise` ne se relit pas, la place ne se pose pas, et la
+// réponse (`uneSeuleRemise: 'illisible'`) comme la note du rendez-vous le
+// disent. Banc : `scripts/verifie-les-places-au-site.mjs --prouve`.
 //
 // Déployez via le tableau de bord (Edge Functions → New function → coller ce
 // fichier EN ENTIER). Secrets : SERVICE_KEY (comme push-notify) ; pour
@@ -1674,7 +1677,9 @@ function estUnCodeDesPlaces(offres: readonly OffreCodee[], code: unknown): boole
 
 /** Ce que les fiches du numéro portent déjà (`une_seule_remise`, 0154). */
 type TeteLue = { prixConvenus?: boolean; abonnee?: boolean; famille?: boolean };
-type RaisonDUneSeuleRemise = 'prix-convenus' | 'abonnee' | 'famille';
+/** `illisible` : ce que porte le numéro n'a pas pu se relire. Dans le doute,
+    pas de remise (Yéman, 4 novembre 2026). */
+type RaisonDUneSeuleRemise = 'prix-convenus' | 'abonnee' | 'famille' | 'illisible';
 type PlaceCandidate = { offre: OffreCodee & { branchId?: string }; remisesLignes: ({ pct: number } | null)[] };
 
 /** LA PLACE QUE CE RENDEZ-VOUS PRENDRAIT, avant de savoir qui le prend : une
@@ -1707,10 +1712,15 @@ function laPlaceCandidate(o: {
 
 /** UNE SEULE REMISE : la place se pose, ou la raison qui l'écarte. Une tête
     aux prix convenus, abonnée, ou dont le compte famille porte une remise ne
-    prend jamais de place (Yéman, 4 novembre 2026). `null` (le numéro n'a pas
-    pu se lire) laisse la place : refuser une remise due sur une panne se vit
-    au comptoir, comme pour l'usage d'un code (`codeDejaUtilise`). */
+    prend jamais de place (Yéman, 4 novembre 2026).
+
+    DANS LE DOUTE, PAS DE REMISE (Yéman, au sélecteur, le même soir) : `null`
+    (le numéro n'a pas pu se relire, ou la base a rendu une erreur) ne pose
+    pas la place. Le rendez-vous tient au tarif de la Maison ; la réponse et
+    la note le disent, jamais un prix changé en silence. L'usage d'un code
+    (`codeDejaUtilise`) garde, lui, sa règle d'avant. */
 function laPlaceTranchee(c: PlaceCandidate, tete: TeteLue | null): { raison: RaisonDUneSeuleRemise } | { verdict: VerdictDuCode } {
+  if (!tete) return { raison: 'illisible' };
   if (tete?.prixConvenus) return { raison: 'prix-convenus' };
   if (tete?.abonnee) return { raison: 'abonnee' };
   if (tete?.famille) return { raison: 'famille' };
@@ -1726,7 +1736,8 @@ function laPlaceTranchee(c: PlaceCandidate, tete: TeteLue | null): { raison: Rai
 const uneSeuleRemiseEnClair = (r: RaisonDUneSeuleRemise | ''): string =>
   r === 'prix-convenus' ? 'une seule remise : ses prix convenus, sans place limitée'
     : r === 'abonnee' ? 'une seule remise : son abonnement, sans place limitée'
-      : r === 'famille' ? 'une seule remise : sa remise famille, sans place limitée' : '';
+      : r === 'famille' ? 'une seule remise : sa remise famille, sans place limitée'
+        : r === 'illisible' ? 'dans le doute, sans place limitée : ce que porte son numéro n’a pas pu se relire' : '';
 
 /* ══ RÉSOLUTION DU CODE : FIN ══ */
 
@@ -1754,8 +1765,8 @@ async function codeDejaUtilise(code: string, telephone: string): Promise<boolean
 
 /** CE QUE LE NUMÉRO PORTE DÉJÀ — 4 novembre 2026 (`une_seule_remise`, 0154) :
     prix convenus, abonnement vivant au jour de la venue, remise famille. Trois
-    oui/non, rien d'autre. Une lecture en panne rend `null`, qui laisse la
-    place (voir `laPlaceTranchee`) ; l'erreur part au journal. */
+    oui/non, rien d'autre. Une lecture en panne rend `null` : dans le doute,
+    la place ne se pose pas (voir `laPlaceTranchee`) ; l'erreur part au journal. */
 async function remisesDuNumero(telephone: string, date: string): Promise<TeteLue | null> {
   const { data, error } = await admin.rpc('une_seule_remise', { p_numero: telephone, p_date: date });
   if (error || !data || typeof data !== 'object') {
@@ -1763,6 +1774,11 @@ async function remisesDuNumero(telephone: string, date: string): Promise<TeteLue
     return null;
   }
   const d = data as Record<string, unknown>;
+  /* Une réponse qui ne dit pas ses trois oui/non ne dit rien : dans le doute. */
+  if (typeof d.prixConvenus !== 'boolean' || typeof d.abonnee !== 'boolean' || typeof d.famille !== 'boolean') {
+    console.error('demande-submit: une seule remise incomplète');
+    return null;
+  }
   return { prixConvenus: d.prixConvenus === true, abonnee: d.abonnee === true, famille: d.famille === true };
 }
 

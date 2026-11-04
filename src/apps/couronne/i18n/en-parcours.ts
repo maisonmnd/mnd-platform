@@ -106,6 +106,7 @@ export const EN_PARCOURS: Record<string, string> = {
   'tout prêts · {n}': 'ready-made · {n}',
   'Composez le vôtre': 'Compose your own',
   '−{pct} % · dès {min} soins': '−{pct}% · from {min} treatments',
+  'dès {min} soins': 'from {min} treatments',
   'Les forfaits': 'The packages',
   'tout faits · {n}': 'ready-made · {n}',
   'Vous aviez demandé « {formule} », la Maison vous répond très vite. Vous pouvez aussi prendre une formule directement ci-dessous.': 'You asked for “{formule}”. The Maison will reply very soon. You can also take a plan directly below.',
@@ -133,6 +134,7 @@ export const EN_PARCOURS: Record<string, string> = {
   'Ajouter {nom}': 'Add {nom}',
   'Sous-total': 'Subtotal',
   'Abonnement · {min} prestations minimum ({n}/{min}), complétez vos soins pour activer l’avantage −{pct} %.': 'Plan · {min} services minimum ({n}/{min}). Add treatments to unlock the −{pct}% benefit.',
+  'Abonnement · {min} prestations minimum ({n}/{min}), complétez vos soins pour composer.': 'Plan · {min} services minimum ({n}/{min}). Add treatments to compose.',
   'Ajoutez au moins une prestation pour composer.': 'Add at least one service to compose.',
   'Composer · transmettre au Trône': 'Compose · send to the Maison',
   // Les moments du parcours des formules (shared/abonnements, FAMILLES_FORMULES) et leurs voisins.

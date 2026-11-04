@@ -51,7 +51,10 @@ import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
 import { PALIER_DU_CODE_XOF } from '../vente/encaissement-pur';
 import { useOffers } from '../../../../shared/offers';
 import { arrondiDuNet, ceQueRetireLeMercredi, estAPlaces, estUnCodeDuJour, gesteSansRemise, poseLOffreDuJour } from '../../../../shared/offres-pur';
-import { ditLaPlaceDuRdv, famPctDeLaTete, lOffreDuJourAuTrone, occupationPourLeRdv, offreAPlacesDuJour, pourquoiSansPlace, remisesDeLaMainDuRdv } from './places-au-trone-pur';
+import {
+  ditLaPlaceDuRdv, ditLeGesteSansRemise, famPctDeLaTete, laRemiseSurTout, lOffreDuJourAuTrone, occupationPourLeRdv, offreAPlacesDuJour,
+  pourquoiSansPlace, remisesDeLaMainDuRdv, remisesHorsDuGesteSansRemise,
+} from './places-au-trone-pur';
 import { SeanceDeLaFormule } from './SeanceDeLaFormule';
 import { PiecesDuRendezVous } from './PiecesDuRendezVous';
 import type { PieceEnvoyee } from '../../../../shared/avant-le-fauteuil-pur';
@@ -1972,9 +1975,11 @@ function RdvModalCorps({
   const rdvFige = !!appt && (appt.status === 'honoré' || apptPaidXof(appt) > 0 || (appt.remiseDuComptoirXof ?? 0) > 0);
   /* LES REMISES DE LIGNE — tableau parallèle à `serviceIds`, comme les mains.
      CELLES DE LA MAIN, depuis le 2 novembre 2026 : les −15 % du mercredi se
-     reposent à chaque rendu selon la date (`remisesL`, plus bas). */
+     reposent à chaque rendu selon la date (`remisesL`, plus bas). Celle d'un
+     geste sans remise (le Rituel Sówà™, 4 novembre 2026) ne revient pas. */
   const [remisesALaMain, setRemisesL] = useState<({ pct?: number; xof?: number } | null)[]>(
-    () => (!appt ? [] : rdvFige ? (appt.remisesLignes ?? []) : remisesDeLaMainDuRdv(appt, offresDeLaMaison)),
+    () => (!appt ? [] : rdvFige ? (appt.remisesLignes ?? [])
+      : remisesHorsDuGesteSansRemise(remisesDeLaMainDuRdv(appt, offresDeLaMaison), appt.serviceIds, (id) => gesteSansRemise(byId.get(id)))),
   );
   /* « Ne pas l'appliquer » : le comptoir garde la main, et son choix tient. */
   const [mercrediEcarte, setMercrediEcarte] = useState<boolean>(!!appt?.horsOffreDuJour);
@@ -2764,13 +2769,30 @@ function RdvModalCorps({
     .reduce((s, sv) => s + prixDe(sv), 0);
   const remiseEstFamille = prixMode === 'remise' && famPct > 0 && discountPct === famPct;
   const baseRemisePct = remiseEstFamille ? Math.max(0, effGross - forfaitPartXof) : effGross;
+  /* NI LA REMISE SUR TOUT DE LA MAIN (4 novembre 2026, au sélecteur : « le
+     Rituel Sówà™ ne prend AUCUNE remise, même posée à la main ») : le
+     pourcentage et les francs portent sur le reste du rendez-vous
+     (`laRemiseSurTout`). Sans geste sans remise, le calcul d'hier. */
+  const sansRemiseXof = chosen.filter((sv) => gesteSansRemise(sv)).reduce((s, sv) => s + prixDe(sv), 0);
+  const surTout = laRemiseSurTout({
+    brutXof: effGross, sansRemiseXof, pct: discountPct, xof: discountXof,
+    ...(remiseEstFamille ? { basePctXof: baseRemisePct } : {}),
+  });
   /* En francs exacts — c'est CE montant que l'enregistrement fige. */
-  const remiseFamilleXof = remiseEstFamille ? Math.round(baseRemisePct * (discountPct / 100)) : 0;
+  const remiseFamilleXof = remiseEstFamille ? surTout.pctXof : 0;
   const totalXof = effCovered
     ? 0
     : forfaitPose
       ? forfaitNum
-      : Math.max(0, effGross - Math.round(baseRemisePct * (discountPct / 100)) - discountXof);
+      : surTout.netXof;
+  /* CE QUE L'ENREGISTREMENT ÉCRIT. Un forfait posé efface les remises ; la
+     remise famille se fige en francs (part hors forfaits et hors Sówà × taux) ;
+     le pourcentage de la main aussi quand le rendez-vous porte un geste sans
+     remise (`enFrancs`) : `apptNetXof` l'appliquerait sinon au Sówà. */
+  const discountPctEcrit = effCovered || forfaitPose || remiseEstFamille || surTout.enFrancs ? undefined : (discountPct || undefined);
+  const discountXofEcrit = effCovered || forfaitPose ? undefined
+    : remiseEstFamille ? ((surTout.xof + remiseFamilleXof) || undefined)
+    : ((surTout.enFrancs ? surTout.pctXof + surTout.xof : surTout.xof) || undefined);
   /* Acompte piloté par Paramètres : SEULEMENT les prestations qui l'exigent,
      CHACUNE à son propre taux. Aucune (ou taux 0) → pas d'acompte. */
   const depositServiceIds = chosen.filter((s) => depositPctFor(s.id) > 0).map((s) => s.id);
@@ -3399,10 +3421,8 @@ function RdvModalCorps({
                 /* La remise famille se FIGE EN FRANCS (part hors forfaits ×
                    taux) : la facture et l'encaissement retranchent ce montant
                    exact, sans avoir à reconnaître les forfaits après coup. */
-                discountPct: effCovered || forfaitPose || remiseEstFamille ? undefined : (discountPct || undefined),
-                discountXof: effCovered || forfaitPose ? undefined
-                  : remiseEstFamille ? (((discountXof || 0) + remiseFamilleXof) || undefined)
-                  : (discountXof || undefined),
+                discountPct: discountPctEcrit,
+                discountXof: discountXofEcrit,
                 remiseFamille: !effCovered && !forfaitPose && remiseEstFamille ? true : undefined,
                 /* La part famille, seule (10 octobre 2026) : c'est elle, et
                    non le cumul, qui suit à la visite suivante. */
@@ -3542,10 +3562,8 @@ function RdvModalCorps({
         offertPar: offertRetenu,
         forfait: forfaitEnregistre,
         /* Remise famille figée en francs — voir la note du chemin des séries. */
-        discountPct: effCovered || forfaitPose || remiseEstFamille ? undefined : (discountPct || undefined),
-        discountXof: effCovered || forfaitPose ? undefined
-          : remiseEstFamille ? (((discountXof || 0) + remiseFamilleXof) || undefined)
-          : (discountXof || undefined),
+        discountPct: discountPctEcrit,
+        discountXof: discountXofEcrit,
         remiseFamille: !effCovered && !forfaitPose && remiseEstFamille ? true : undefined,
         remiseFamilleXof: !effCovered && !forfaitPose && remiseEstFamille ? (remiseFamilleXof || undefined) : undefined,
         /* Couvert par l'abonnement → prix 0 ; variable/devis gèle le montant
@@ -4505,6 +4523,15 @@ function RdvModalCorps({
                   sur dix se vendent au prix annoncé, et deux champs par
                   prestation rempliraient l'écran d'un cas rare. */}
               {!sansPrix && (() => {
+                /* LE RITUEL SÓWÀ™ (4 novembre 2026) : la remise de ligne ne
+                   s'ouvre pas sur lui, et l'écran le dit d'une phrase. */
+                if (gesteSansRemise(sv)) {
+                  return (
+                    <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px solid var(--hairline)' }}>
+                      <span className="mnd-muted" style={{ fontSize: 11.5 }}>{ditLeGesteSansRemise(sv.name)}</span>
+                    </div>
+                  );
+                }
                 const pos = serviceIds.indexOf(sv.id);
                 /* La main lit SES remises ; celle du mercredi se dit à part. */
                 const r = remisesALaMain[pos] ?? {};
@@ -5566,6 +5593,12 @@ function RdvModalCorps({
                   <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6 }}>
                     Le pourcentage d’abord, les francs ensuite, les deux se cumulent.
                   </div>
+                  {/* LE RITUEL SÓWÀ™ HORS DE LA REMISE SUR TOUT (4 novembre 2026). */}
+                  {sansRemiseXof > 0 && (
+                    <div style={{ fontSize: 11.5, marginTop: 6, color: 'var(--copper-700)' }}>
+                      {ditLeGesteSansRemise(chosen.find((sv) => gesteSansRemise(sv))?.name)} La remise porte sur le reste du rendez-vous.
+                    </div>
+                  )}
                 </>
               )}
               {prixMode === 'forfait' && (

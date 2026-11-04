@@ -16,7 +16,8 @@ import { tetesPortees } from '../../shared/accounts';
 import { decaleLeJour } from '../../shared/ia-faits-pur';
 import { jourOuvre, peutAcheterLaFormule, prixPourLaTete, type ReleveDeLAbonnee } from '../../shared/abonnee-pur';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
-import { useClient } from './lib';
+import { useAucuneRemise, useClient } from './lib';
+import { rangDuFoyerPourElle } from './places-pure';
 import { dateDansLaPhrase, leJour, useReleve } from './releve';
 import { t, prix } from './i18n';
 import './couronne.css';
@@ -138,7 +139,11 @@ export default function AchatFormule({
     return 1 + avecFormule.size;
   }, [client, tous, familles, subs, jour]);
   const carte = gainPourElle(plan, 'mensuel', maTete, calibresAbo, (id) => services.find((x) => x.id === id)?.priceXof).carteXof;
-  const foyer = prixPourLaTete({ prixTeteXof: prixTete, valeurCarteXof: carte, rangDansLeFoyer: rang });
+  /* NI LES AUTRES REMISES (4 novembre 2026, au sélecteur) : aux prix convenus
+     ou abonnée, la remise Foyer ne s'affiche ni ne s'applique. Le serveur
+     juge de même (0155) : l'écran dit le prix qu'il prendra. */
+  const aucuneRemise = useAucuneRemise();
+  const foyer = prixPourLaTete({ prixTeteXof: prixTete, valeurCarteXof: carte, rangDansLeFoyer: rangDuFoyerPourElle(rang, aucuneRemise) });
   const total = foyer.prixXof;
 
   /* EN 1, 2 OU 3 FOIS, quand le serveur le tient (`decoupesEnLigne`). Le

@@ -25,8 +25,56 @@ const A = 'src/apps/trone/routes/clients/actions.tsx';
 const PR = 'src/apps/trone/routes/systeme/Parametres.tsx';
 const K = 'src/apps/trone/routes/systeme/CartePlacesLimitees.tsx';
 const U = 'src/apps/trone/routes/clients/Customers.tsx';
+const E = 'src/apps/trone/routes/vente/encaissement-pur.ts';
 
 const PANNES = [
+  /* Le Rituel Sowa ne prend aucune remise, meme posee a la main (4 novembre 2026). */
+  { nom: 'le ticket ignore la part du Sowa', fichier: E,
+    avant: 'const sans = Math.min(Math.round(prest), f(e.sansRemiseXof ?? 0));', apres: 'const sans = 0;' },
+  { nom: 'le pourcentage du ticket mord sur le Sowa', fichier: E,
+    avant: 'const resteApresPct = Math.round((sous - sans) * (1 - pctEff / 100));', apres: 'const resteApresPct = Math.round(sous * (1 - pctEff / 100)) - sans;' },
+  { nom: 'les francs du ticket mordent sur le Sowa', fichier: E,
+    avant: 'const xofTenu = sans > 0 ? Math.min(xofEff, Math.max(0, resteApresPct - rdvEff)) : xofEff;', apres: 'const xofTenu = xofEff;' },
+  { nom: 'la piece applique le pourcentage au Sowa', fichier: E,
+    avant: 'const enFrancs = sans > 0 && pctEff > 0;', apres: 'const enFrancs = false;' },
+  { nom: 'la ligne du Sowa garde sa remise au ticket', fichier: E,
+    avant: '(disc: number, sansRemise: boolean): number => (sansRemise ? 0 : disc);', apres: '(disc: number, sansRemise: boolean): number => (sansRemise ? disc : disc);' },
+  { nom: 'la remise sur tout du rendez-vous mord sur le Sowa', fichier: P,
+    avant: 'const base = Math.min(brut - sans, Math.max(0, Math.round(e.basePctXof ?? brut - sans)));', apres: 'const base = Math.max(0, Math.round(e.basePctXof ?? brut));' },
+  { nom: 'les francs du rendez-vous mordent sur le Sowa', fichier: P,
+    avant: 'const xof = sans > 0 ? Math.min(saisi, Math.max(0, brut - sans - pctXof)) : saisi;', apres: 'const xof = saisi;' },
+  { nom: 'le pourcentage du rendez-vous s ecrit en pour cent, Sowa compris', fichier: P,
+    avant: 'enFrancs: sans > 0 && pctXof > 0 };', apres: 'enFrancs: false };' },
+  { nom: 'une remise de ligne d avant revient sur le Sowa', fichier: P,
+    avant: 'return remises.map((r, i) => (r && !sansRemise(serviceIds[i]) ? r : null));', apres: 'return remises.map((r) => r ?? null);' },
+  { nom: 'la phrase du Sowa se perd', fichier: P,
+    avant: 'return /^rituel\\b/i.test(n) ? `Le ${n} ne prend aucune remise.` : `${n} ne prend aucune remise.`;', apres: 'return `${n}, sans remise.`;' },
+  { nom: 'la Caisse : la remise de ligne s ouvre sur le Sowa', fichier: C,
+    avant: 'setCart((c) => (c[key] && !ligneSansRemise(key) ?', apres: 'setCart((c) => (c[key] ?' },
+  { nom: 'la Caisse : la ligne du Sowa se remise', fichier: C,
+    avant: 'const v = { ...posee, disc: remiseDeLaLigneTenue(posee.disc, sansRemise) };', apres: 'const v = posee;' },
+  { nom: 'la Caisse : le ticket ne connait pas la part du Sowa', fichier: C,
+    avant: 'sansRemiseXof: lines.filter((l) => l.sansRemise).reduce((n, l) => n + l.netXof, 0),', apres: 'sansRemiseXof: 0,' },
+  { nom: 'la Caisse : un code mord sur le Sowa', fichier: C,
+    avant: "    .filter((l) => !l.sansRemise)\n", apres: '' },
+  { nom: 'la Caisse : le soin offert se pose sur le Sowa', fichier: C,
+    avant: ": lines.find((l) => l.kind === 'service' && !l.sansRemise)?.key);", apres: ": lines.find((l) => l.kind === 'service')?.key);" },
+  { nom: 'la Caisse tait le Sowa sur sa ligne', fichier: C,
+    avant: '{l.sansRemise ? (', apres: '{false ? (' },
+  { nom: 'la Caisse tait le Sowa sous la remise sur tout', fichier: C,
+    avant: '{ticket.sansRemiseXof > 0 && (', apres: '{false && (' },
+  { nom: 'la fenetre remise le Sowa sur tout', fichier: S,
+    avant: 'brutXof: effGross, sansRemiseXof, pct: discountPct, xof: discountXof,', apres: 'brutXof: effGross, sansRemiseXof: 0, pct: discountPct, xof: discountXof,' },
+  { nom: 'la fenetre ecrit le pourcentage sur le Sowa', fichier: S,
+    avant: 'const discountPctEcrit = effCovered || forfaitPose || remiseEstFamille || surTout.enFrancs ? undefined', apres: 'const discountPctEcrit = effCovered || forfaitPose || remiseEstFamille ? undefined' },
+  { nom: 'la fenetre ouvre la remise de ligne du Sowa', fichier: S,
+    avant: '                if (gesteSansRemise(sv)) {\n                  return (', apres: '                if (false) {\n                  return (' },
+  { nom: 'la fenetre tait le Sowa sous la remise sur tout', fichier: S,
+    avant: '{sansRemiseXof > 0 && (', apres: '{false && (' },
+  { nom: 'la fenetre garde une remise de ligne d avant sur le Sowa', fichier: S,
+    avant: 'remisesHorsDuGesteSansRemise(remisesDeLaMainDuRdv(appt, offresDeLaMaison), appt.serviceIds, (id) => gesteSansRemise(byId.get(id)))',
+    apres: 'remisesDeLaMainDuRdv(appt, offresDeLaMaison)' },
+
   /* Les regles du Trone. */
   { nom: 'le relu au plein tarif rouvre le jour', fichier: P,
     avant: 'saufId: tenue ? e.relu?.id : undefined', apres: 'saufId: e.relu?.id' },
@@ -171,6 +219,15 @@ const PANNES = [
 
 const md5 = (rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');
 
+/* Le ticket de la Caisse (encaissement-pur) lit `shared/promos`, qui monte
+   un magasin : un navigateur de carton le laisse naitre sans se plaindre,
+   comme dans verifie-l-arrondi-du-code. */
+const BANNIERE = `const __m = new Map();
+globalThis.localStorage = { getItem: (k) => (__m.has(k) ? __m.get(k) : null), setItem: (k, v) => __m.set(k, String(v)), removeItem: (k) => __m.delete(k) };
+globalThis.window = { addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; }, location: { href: '', hash: '' }, setTimeout: () => 0 };
+globalThis.document = { body: { dataset: {}, appendChild() {} }, addEventListener() {}, createElement: () => ({ setAttribute() {}, style: {}, classList: { add() {} }, remove() {} }), querySelectorAll: () => [] };
+globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assign(this, o); } };`;
+
 const lance = async (panne) => {
   const dossier = mkdtempSync(path.join(tmpdir(), 'verifie-les-places-au-trone-'));
   const sortie = path.join(dossier, 'harnais.mjs');
@@ -189,7 +246,12 @@ const lance = async (panne) => {
           });
         },
       }] : [],
-      define: { __PANNE__: JSON.stringify(panne ?? null) },
+      define: {
+        __PANNE__: JSON.stringify(panne ?? null),
+        'import.meta.env': JSON.stringify({ VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', BASE_URL: '/' }),
+      },
+      loader: { '.css': 'empty' },
+      banner: { js: BANNIERE },
     });
     return spawnSync(process.execPath, [sortie], { cwd: racine, encoding: 'utf8' });
   } finally {

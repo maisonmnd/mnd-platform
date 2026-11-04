@@ -45,6 +45,11 @@ export type EntreeDuTicket = {
   /** Ce que le code tapé retirerait, et son nom. */
   promoBrutXof: number;
   nomDuCode: string;
+  /** LA PART QUI NE PREND AUCUNE REMISE (4 novembre 2026) : les lignes d'un
+      geste `sansRemise` (le Rituel Sówà™, `gesteSansRemise`). La remise sur
+      tout, en pour cent comme en francs, ne la touche jamais. Absente : zéro,
+      le ticket d'hier. */
+  sansRemiseXof?: number;
 };
 
 export type Ticket = {
@@ -66,7 +71,16 @@ export type Ticket = {
   arrondiXof: number;
   /** Le code retirait quelque chose, mais l'arrondi au millier a tout repris. */
   codeMangeParLArrondi: boolean;
+  /** La part du ticket qui ne prend aucune remise (le Rituel Sówà™). */
+  sansRemiseXof: number;
 };
+
+/* ══ LE RITUEL SÓWÀ™ NE PREND AUCUNE REMISE, MÊME POSÉE À LA MAIN ══════════
+   4 novembre 2026, au sélecteur (Yéman) : la remise sur tout, en pour cent ou
+   en francs, ne porte jamais sur une ligne `sansRemise`, et la remise de
+   ligne ne s'ouvre pas sur elle. `leTicket` la tient hors de la remise sur
+   tout (`sansRemiseXof`) ; la ligne, elle, garde son prix ici. */
+export const remiseDeLaLigneTenue = (disc: number, sansRemise: boolean): number => (sansRemise ? 0 : disc);
 
 /** L'ARRONDI DU CODE — 23 octobre 2026. « Quand les codes promos sont mis,
     calculés et arrondis au franc suivant. Pas de monnaie » (Yéman) ; au
@@ -80,12 +94,15 @@ export const PALIER_DU_CODE_XOF = 1000;
 export function leTicket(e: EntreeDuTicket): Ticket {
   const sous = Math.max(0, e.sousTotalXof);
   const prest = Math.min(sous, Math.max(0, e.prestationsXof));
+  /* LE RITUEL SÓWÀ™ (4 novembre 2026) : sa part sort de la remise sur tout.
+     C'est une prestation, elle ne dépasse donc jamais les prestations. */
+  const sans = Math.min(Math.round(prest), f(e.sansRemiseXof ?? 0));
   const pct = Math.max(0, Math.min(100, e.remisePct));
   const xof = f(e.remiseXof);
   /* La remise du rendez-vous ne dépasse jamais ce que ses prestations valent
      au ticket : une ligne retirée n'emporte pas un geste plus grand qu'elle. */
   const rdv = Math.min(f(e.remiseDuRendezVousXof), Math.round(prest));
-  const dejaPose = Math.round(sous * (pct / 100)) + xof + rdv;
+  const dejaPose = Math.round((sous - sans) * (pct / 100)) + xof + rdv;
   /* LE NET DU CODE MONTE AU MILLIER SUIVANT. Le code qui gagne écarte tout ce
      qui était posé : son net est le sous-total moins sa remise, et c'est ce
      net qui s'arrondit ; la remise rend la différence, jamais plus qu'elle ne
@@ -101,14 +118,27 @@ export function leTicket(e: EntreeDuTicket): Ticket {
   const pctEff = cumul.codeConsomme ? 0 : pct;
   const xofEff = cumul.codeConsomme ? 0 : xof;
   const rdvEff = cumul.codeConsomme ? 0 : rdv;
-  const netXof = Math.max(0, Math.round(sous * (1 - pctEff / 100)) - xofEff - rdvEff - promoXof);
-  const partNetteXof = Math.max(0, Math.round(prest * (1 - pctEff / 100)) - xofEff - rdvEff - promoXof);
+  /* LA REMISE SUR TOUT PORTE SUR LE RESTE, JAMAIS SUR LE RITUEL SÓWÀ™. Le
+     pourcentage se prend sur ce qui n'est pas lui ; les francs de la main
+     s'arrêtent où il commence. Sans ligne sans remise (`sans` à zéro), le
+     calcul est exactement celui d'hier. */
+  const resteApresPct = Math.round((sous - sans) * (1 - pctEff / 100));
+  const xofTenu = sans > 0 ? Math.min(xofEff, Math.max(0, resteApresPct - rdvEff)) : xofEff;
+  const netXof = Math.max(0, sans + resteApresPct - xofTenu - rdvEff - promoXof);
+  const partNetteXof = Math.max(0, sans + Math.round((prest - sans) * (1 - pctEff / 100)) - xofTenu - rdvEff - promoXof);
   const acompteXof = Math.min(f(e.dejaRecuXof), partNetteXof, netXof);
+  /* LA PIÈCE ÉCRIT LE POURCENTAGE EN FRANCS quand le ticket porte une ligne
+     sans remise : `invoiceTotal` l'appliquerait à toutes les lignes, Sówà
+     compris. En francs exacts, la pièce dit le même net que le ticket. */
+  const enFrancs = sans > 0 && pctEff > 0;
   return {
-    cumul, remisePct: pctEff, remiseXof: xofEff, remiseDuRendezVousXof: rdvEff, promoXof,
+    cumul, remisePct: enFrancs ? 0 : pctEff,
+    remiseXof: enFrancs ? Math.max(0, Math.round(sous - sans) - resteApresPct) + xofTenu : xofTenu,
+    remiseDuRendezVousXof: rdvEff, promoXof,
     netXof, partNetteXof, acompteXof, aPayerXof: Math.max(0, netXof - acompteXof),
     arrondiXof: cumul.codeConsomme ? arrondi : 0,
     codeMangeParLArrondi: brut > 0 && arrondi === brut,
+    sansRemiseXof: sans,
   };
 }
 

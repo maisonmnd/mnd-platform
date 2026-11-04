@@ -11,7 +11,7 @@ import {
 } from '../../shared/abonnements';
 import { demandeOuverteDe, useDemandesFormule, formulesVisiblesPour, vitrineConfigStore } from '../../shared/bridges';
 import { useStore } from '../../shared/store';
-import { useClient } from './lib';
+import { useAucuneRemise, useClient } from './lib';
 import type { ReleveDeLAbonnee, ReleveDuContrat } from '../../shared/abonnee-pur';
 import AchatFormule from './AchatFormule';
 import { SesFormules } from './SesFormules';
@@ -53,6 +53,9 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
   const [appts] = useAppointments();
   const [services] = useServices();
   const client = useClient();
+  /* NI LES AUTRES REMISES (4 novembre 2026) : aux prix convenus ou abonnée,
+     aucun gain chiffré sur la vitrine des formules. */
+  const aucuneRemise = useAucuneRemise();
   const numero = (branch.phone ?? '').replace(/\D/g, '');
 
   /* CE QUE LA MAISON SAIT DE SA TÊTE — 1er septembre 2026. Le comptage réel
@@ -84,6 +87,7 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
      donc « 252 000 F » et « vous gagnez 58 000 F » : deux chiffres qui ne se
      répondent pas. `gainPourElle` chiffre les deux moitiés avec la même tête. */
   const gainDe = (p: Plan): number | null => {
+    if (aucuneRemise) return null;
     const g = gainPourElle(p, 'mensuel', maTete, calibresAbo,
       (id) => services.find((x) => x.id === id)?.priceXof);
     return g.gainXof > 0 ? g.gainXof : null;
@@ -102,7 +106,8 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
      des trois derniers mois. C'est le seul argument qu'on ne peut pas
      discuter, et il ne demande aucun effort de vente au comptoir. */
   const suggestion = useMemo(() => {
-    if (!client) return null;
+    /* « X F de moins » est un avantage chiffré : rien pour elle (4 novembre 2026). */
+    if (!client || aucuneRemise) return null;
     const depuis = new Date(Date.now() - 92 * 86_400_000).toISOString().slice(0, 10);
     const miens = appts.filter((a) => a.clientId === client.id && a.status === 'honoré' && a.date >= depuis);
     return formuleLaPlusUtile({
@@ -110,7 +115,7 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
       rituels: miens.map((a) => ({ serviceIds: a.serviceIds, netXof: a.paidXof ?? 0 })),
       moisObserves: 3,
     });
-  }, [client, appts, plans]);
+  }, [client, appts, plans, aucuneRemise]);
 
   /* LE MÊME RANGEMENT QUE LE TRÔNE, lu de la même source. Une vitrine qui
      aurait son propre ordre aurait divergé au premier ajout, et la cliente
@@ -252,7 +257,7 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
                 {(() => {
                   const g = gainDe(p);
                   if (g !== null) return <span className="cma-offre__gain">{t('Vous gagnez {montant}', { montant: prix(g, currency) })}</span>;
-                  return p.discountPct ? <span className="cma-offre__gain">{t('−{pct} % sur la carte', { pct: p.discountPct })}</span> : null;
+                  return p.discountPct && !aucuneRemise ? <span className="cma-offre__gain">{t('−{pct} % sur la carte', { pct: p.discountPct })}</span> : null;
                 })()}
               </div>
               <button

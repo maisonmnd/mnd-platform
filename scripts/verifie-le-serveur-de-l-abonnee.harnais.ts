@@ -18,7 +18,9 @@
       (`BANC_PGLITE` = un dossier qui porte node_modules/@electric-sql/pglite) :
       les outils du juge contre l'original, puis les fonctions de la cliente
       et de l'argent, comme une cliente, le personnel et le serveur.
-      Sans PGlite, cette partie se SAUTE et le dit.
+      Sans PGlite, cette partie se SAUTE et le dit. En dernier (4d), la
+      0155 (4 novembre 2026) : pas de remise Foyer pour une tête aux prix
+      convenus ou abonnée.
 
    Tout est inventé. Sortie ASCII. */
 import { readFileSync } from 'node:fs';
@@ -678,6 +680,41 @@ if (!PGlite) {
     id: 'abo-retard', reference: 'ABO-2026-090', sinceIso: '2026-09-30', startIso: '2026-09-30', expiresIso: '2027-06-27',
     echeances: [{ numero: 1, dueIso: '2026-09-30', amountXof: 70000 }, { numero: 2, dueIso: '2026-10-05', amountXof: 70000 }] }))]);
   dit('4c · quinze jours de retard : la seance incluse se refuse, et dit pourquoi', 'retard', (await reserve('cliente', 'abo-retard', '2026-11-25')).raison);
+
+  /* ── 4d. LA REMISE FOYER SOUS « UNE SEULE REMISE » (0155, 4 novembre 2026) ──
+     Yeman, au selecteur : a une tete aux prix convenus ou abonnee, « ni les
+     autres remises, en aucune circonstance ». Ma Couronne ne montre plus la
+     remise Foyer ; le serveur, seul juge du prix, ne l'applique plus. Noa :
+     ni prix convenu ni formule ; Ines : un prix convenu ; Nadia : sa formule
+     retenue plus haut (4c). Toutes trois mineures du foyer d'Akouavi. */
+  await fige('2026-10-20', '2026-10-20T10:00:00+01:00');
+  await q(`insert into public.clients (id, branch_id, data) values ('cl-n2', 'br', $1::jsonb), ('cl-n3', 'br', $2::jsonb)`, [
+    JSON.stringify({ id: 'cl-n2', name: 'Noa K.', birthday: '2018-03-03', familyId: 'fam-1' }),
+    JSON.stringify({ id: 'cl-n3', name: 'Ines K.', birthday: '2019-04-04', familyId: 'fam-1', prixFixes: { [GBEJI]: 30000 } }),
+  ]);
+  const rangs = async (): Promise<number[]> => (await q(
+    `select public.abo_rang_dans_le_foyer(t, '2026-10-20'::date) as r, ord from unnest($1::text[]) with ordinality u(t, ord) order by ord`,
+    [['cl-n2', 'cl-n3', 'cl-na']])).map((r) => Number(r.r));
+  const avant55 = await rangs();
+  const SQL_0155 = lis('supabase/migrations/0155_le_foyer_sous_une_seule_remise.sql');
+  let pose55 = true;
+  try { await db.exec(SQL_0155); } catch (e) { pose55 = false; console.log(`       ${sansAccent(String((e as Error).message))}`); }
+  dit('4d · la migration 0155 se pose par-dessus la 0139, d un seul tenant', true, pose55);
+  const c55 = pose55 ? (await q(SQL_0155.slice(SQL_0155.lastIndexOf('select\n'))))[0] : null;
+  dit('4d · son controle : le juge pose, le rang qui le lit, le juge ferme aux clientes', { juge_pose: true, rang_sous_le_juge: true, juge_au_serveur: true },
+    c55 && { juge_pose: c55.juge_pose, rang_sous_le_juge: c55.rang_sous_le_juge, juge_au_serveur: c55.juge_au_serveur });
+  dit('4d · avant elle, Ines (prix convenus) et Nadia (abonnee) prenaient le rang du Foyer, comme Noa', [3, 3, 2], avant55);
+  dit('4d · apres : Ines et Nadia comptent comme une premiere tete ; Noa garde son rang', [3, 1, 1], await rangs());
+  const n2 = await sous('cliente', `'pl-lune-gbeji', 1, null, null, 'cl-n2'`);
+  const n3 = await sous('cliente', `'pl-lune-gbeji', 1, null, null, 'cl-n3'`);
+  const na = await sous('cliente', `'pl-lune-gbeji', 1, null, null, 'cl-na'`);
+  dit('4d · Noa : la remise Foyer, comme au comptoir', { ok: true, totalXof: prixDuFoyer(37500, 41667), foyer: true },
+    { ok: n2.ok, totalXof: Number(n2.totalXof), foyer: Number(n2.foyerXof) > 0 });
+  dit('4d · Ines, aux prix convenus, et Nadia, abonnee : ni remise Foyer ni motif, le prix de la formule', [
+    { ok: true, totalXof: 37500, foyerXof: 0, motif: null }, { ok: true, totalXof: 37500, foyerXof: 0, motif: null }], [
+    { ok: n3.ok, totalXof: Number(n3.totalXof), foyerXof: Number(n3.foyerXof), motif: (await ligne('subscribers', n3.subId))?.motifConvenu ?? null },
+    { ok: na.ok, totalXof: Number(na.totalXof), foyerXof: Number(na.foyerXof), motif: (await ligne('subscribers', na.subId))?.motifConvenu ?? null }]);
+  dit('4d · la 0155 se rejoue sans danger', true, await (async () => { try { await db.exec(SQL_0155); return true; } catch { return false; } })());
 }
 
 console.log(`\n${ko ? `${ko} controle(s) en echec sur ${n}.` : `Le serveur de l abonnee tient (${n} epreuves).`}`);

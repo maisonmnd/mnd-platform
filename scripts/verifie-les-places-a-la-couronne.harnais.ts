@@ -30,9 +30,11 @@ import {
   type OffreCodee, type RdvACompter,
 } from '../src/shared/offres-pur';
 import {
-  aucuneRemisePour, carteDesPlacesDeLaRemise, estLaPlacePartie, fondsLaFenetre, formulesQuiCourent, laPlaceDuJour,
-  laPlaceEstPartie, leChiffreDuPanier, lesTetesReunies, pctDeLaLigne, placesLues, type LigneDuPanier,
+  aucuneRemisePour, avantageDuSurMesure, carteDesPlacesDeLaRemise, estLaPlacePartie, fondsLaFenetre, formulesQuiCourent, laPlaceDuJour,
+  laPlaceEstPartie, leChiffreDuPanier, lesTetesReunies, pctDeLaLigne, placesLues, rangDuFoyerPourElle, soinsOffertsPourElle,
+  type LigneDuPanier,
 } from '../src/apps/couronne/places-pure';
+import { prixPourLaTete } from '../src/shared/abonnee-pur';
 import { verdictDeLEcriture } from '../src/apps/couronne/reservation-pure';
 
 declare const __PANNE__: { fichier: string; avant: string; apres: string } | null;
@@ -399,6 +401,87 @@ dit('Deplacer : la place gardee a sa date, le refus dit, rien aux prix convenus'
   const ecrans = readdirSync(path.join(racine, 'src/apps/couronne')).filter((f) => /\.(ts|tsx)$/.test(f));
   const revenants = ecrans.filter((f) => /of-mercredi15|MERCREDI15/.test(source(`src/apps/couronne/${f}`)));
   dit('l ancien mercredi (of-mercredi15) ne revient nulle part dans Ma Couronne', [], revenants);
+}
+
+/* ══ 8. NI LES AUTRES REMISES, EN AUCUNE CIRCONSTANCE ══
+   Yeman, au selecteur, 4 novembre 2026 : a une cliente aux prix convenus ou
+   abonnee (le juge de `useAucuneRemise`), Ma Couronne retire aussi l'avantage
+   abonne du sur-mesure (Compose), la remise Foyer a l'achat d'une formule
+   (AchatFormule, et le serveur, 0155) et les soins offerts du Cercle ; aucun
+   avantage chiffre nulle part. */
+{
+  const convenu = aucuneRemisePour([lesTetesReunies([{ prixConvenus: true }])]);
+  const abonnee = aucuneRemisePour([lesTetesReunies([{ abonnee: true }])]);
+  const libre = aucuneRemisePour([lesTetesReunies([{}])]);
+  dit('sur-mesure : l avantage abonne (-15 %) pour une cliente libre, rien aux prix convenus ni pour une abonnee', [15, 0, 0],
+    [avantageDuSurMesure(15, libre), avantageDuSurMesure(15, convenu), avantageDuSurMesure(15, abonnee)]);
+  /* Le Carnet de Six a 140 000 F pour sa tete, 168 000 F a la carte, deuxieme tete du foyer. */
+  const foyer = (aucune: boolean) => prixPourLaTete({ prixTeteXof: 140_000, valeurCarteXof: 168_000, rangDansLeFoyer: rangDuFoyerPourElle(2, aucune) });
+  dit('achat d une formule, deuxieme tete : la remise Foyer pour une cliente libre (126 000 F)', [true, 126_000], [foyer(false).foyerJoue, foyer(false).prixXof]);
+  dit('... aux prix convenus ou abonnee : ni remise Foyer ni prix barre, 140 000 F', [false, 0, 140_000], [foyer(true).foyerJoue, foyer(true).foyerXof, foyer(true).prixXof]);
+  dit('... une premiere tete reste une premiere tete', 1, rangDuFoyerPourElle(1, false));
+  const soins = [{ id: 'so-1' }, { id: 'so-2' }];
+  dit('les soins offerts du Cercle : les siens pour une cliente libre, aucun aux prix convenus ni pour une abonnee', [2, 0, 0, 0],
+    [soinsOffertsPourElle(soins, libre).length, soinsOffertsPourElle(soins, convenu).length, soinsOffertsPourElle(soins, abonnee).length,
+      soinsOffertsPourElle(undefined, false).length]);
+}
+{
+  const C = source('src/apps/couronne/Compose.tsx');
+  const A = source('src/apps/couronne/AchatFormule.tsx');
+  const K = source('src/apps/couronne/MaCarte.tsx');
+  const F = source('src/apps/couronne/MaFormule.tsx');
+  dit('Compose : la tete juge, l avantage abonne ni affiche ni transmis au Trone', [true, true, true, true], [
+    /const aucuneRemise = useAucuneRemise\(\);/.test(C),
+    /const discountPct = avantageDuSurMesure\(sm\.aboPct, aucuneRemise\);/.test(C),
+    /\n\s+discountPct,\n\s+items: lines\.map/.test(C) && /totalXof: total,/.test(C),
+    /\{count > 0 && discountPct > 0 && \(/.test(C),
+  ]);
+  dit('... ni « −15 % · des 3 soins », ni « −x % a y % de remise », ni le gain des formules, ni l avantage a activer', [true, true, true, true, true], [
+    /\{discountPct > 0 \? t\('−\{pct\} % · dès \{min\} soins', \{ pct: discountPct, min: sm\.aboMin \}\) : t\('dès \{min\} soins', \{ min: sm\.aboMin \}\)\}/.test(C),
+    /\{remises && !aucuneRemise \? t\('−\{min\} % à \{max\} % de remise'/.test(C),
+    /const gainDit = aucuneRemise \? 0 : g\.gainXof;/.test(C) && !/\{g\.gainXof > 0 &&/.test(C) && /\{gainDit > 0 && <span className="cma-offre__gain">/.test(C),
+    /\{discountPct > 0\s*\? t\('Abonnement · \{min\} prestations minimum \(\{n\}\/\{min\}\), complétez vos soins pour activer l’avantage −\{pct\} %\.'/.test(C),
+    !/sm\.aboPct, min/.test(C),
+  ]);
+  dit('AchatFormule : la remise Foyer ne s affiche ni ne s applique a elle', [true, true], [
+    /const aucuneRemise = useAucuneRemise\(\);/.test(A),
+    /rangDansLeFoyer: rangDuFoyerPourElle\(rang, aucuneRemise\)/.test(A),
+  ]);
+  dit('Accueil et Cercle : ni recompense qui attend, ni sceaux du Foyer', [true, true, true], [
+    /const soinsQuiAttendent = soinsOffertsPourElle\(soinsEnAttente\(client\?\.soinsOfferts\), aucuneRemise\);/.test(T),
+    /const foyerTiers = soinsOffertsPourElle\(foyerTiersLus, aucuneRemise\);/.test(T),
+    /cercle\.foyer && !cercle\.dependant && cercle\.foyerOuvert && !aucuneRemise && \(/.test(T),
+  ]);
+  dit('Mon ambassade : ses soins offerts ni montres ni gardes, et la regle ne lui promet rien', [true, true, true, 1, true, true], [
+    /const aucuneRemise = useAucuneRemise\(\);/.test(K),
+    /const sesSoins = soinsOffertsPourElle\(client\?\.soinsOfferts, aucuneRemise\);/.test(K),
+    /const attente = soinsEnAttente\(sesSoins, aujourdhui\);/.test(K),
+    K.split('client?.soinsOfferts').length - 1,
+    /\{aucuneRemise \? t\('une branche chacune'\) : t\('une récompense chacune'\)\}/.test(K),
+    /\{aucuneRemise\s*\? t\('Une amie compte quand elle est venue\. Les amies de vos amies grandissent votre arbre\./.test(K),
+  ]);
+  dit('Ma formule : ni « vous gagnez », ni « −x % sur la carte », ni « X F de moins » pour elle', [true, true, true, true], [
+    /const aucuneRemise = useAucuneRemise\(\);/.test(F),
+    /const gainDe = \(p: Plan\): number \| null => \{\s*if \(aucuneRemise\) return null;/.test(F),
+    /p\.discountPct && !aucuneRemise \? <span className="cma-offre__gain">/.test(F),
+    /if \(!client \|\| aucuneRemise\) return null;/.test(F),
+  ]);
+  /* LE SERVEUR, A LA LETTRE (le vrai SQL se joue dans verifie-le-serveur-de-l-abonnee, BANC_PGLITE). */
+  const SQL = brut('supabase/migrations/0155_le_foyer_sous_une_seule_remise.sql').replace(/--[^\n]*/g, '');
+  dit('0155 : le juge de la tete (prix convenus de plus de zero franc, formule qui court, lune reglee d une resiliee)', [true, true, true, true], [
+    SQL.includes('create or replace function public.abo_foyer_sans_remise(p_tete text, p_jour date) returns boolean'),
+    SQL.includes("and jsonb_typeof(e.value) = 'number' and (e.value #>> '{}')::numeric > 0)"),
+    SQL.includes("and (f.etat in ('retenue', 'en-cours', 'en-pause', 'epuisee')"),
+    SQL.includes("or (f.etat = 'resiliee' and f.dernier is not null\n                       and f.dernier > public.abo_date(s.data->>'resilieeLe') and f.dernier >= p_jour)"),
+  ]);
+  dit('0155 : le rang du foyer passe par le juge, ferme aux clientes', [true, true, true], [
+    SQL.includes('select case when public.abo_foyer_sans_remise(p_tete, p_jour) then 1 else ('),
+    SQL.includes('revoke all on function public.abo_foyer_sans_remise(text, date) from public, anon, authenticated;'),
+    SQL.includes('revoke all on function public.abo_rang_dans_le_foyer(text, date) from public, anon, authenticated;'),
+  ]);
+  const nouvelles = ['dès {min} soins', 'Abonnement · {min} prestations minimum ({n}/{min}), complétez vos soins pour composer.', 'une branche chacune',
+    'Une amie compte quand elle est venue. Les amies de vos amies grandissent votre arbre. Rien à payer, jamais d’argent.'];
+  dit('les phrases neuves : ni tiret long, ni « salon », ni chiffre de remise', [], nouvelles.filter((p) => /—|\bsalon|−|%/.test(p)));
 }
 
 console.log(ko === 0 ? '\nLes places limitees tiennent a Ma Couronne.' : `\n${ko} controle(s) en echec.`);

@@ -77,6 +77,13 @@ const PANNES = [
   { nom: 'un geste sans prix ferme passe pour une place partie', fichier: DS, avant: "  if (!lignes.some((l) => l.remisee)) return 'sans-effet';", apres: '  if (!lignes.some((l) => l.remisee)) return null;' },
   { nom: 'une place par-dessus un autre code', fichier: DS, avant: "const unAutreCode = !!duCode.code && duCode.raison !== 'inconnu';", apres: 'const unAutreCode = false;' },
   { nom: 'le lien de retour tait les prix convenus', fichier: DS, avant: '...(convenus ? { prixConvenus: true } : {}) });', apres: '});' },
+  /* Dans le doute, pas de remise (4 novembre 2026, au soir). */
+  { nom: 'une lecture du numero en panne laisse la place', fichier: DS, avant: "  if (!tete) return { raison: 'illisible' };\n", apres: '' },
+  { nom: 'une reponse sans ses trois oui/non passe pour une tete sans remise', fichier: DS,
+    avant: "  if (typeof d.prixConvenus !== 'boolean' || typeof d.abonnee !== 'boolean' || typeof d.famille !== 'boolean') {", apres: '  if (false) {' },
+  { nom: 'la note tait le doute', fichier: DS,
+    avant: "        : r === 'illisible' ? 'dans le doute, sans place limitée : ce que porte son numéro n’a pas pu se relire' : '';", apres: "        : '';" },
+  { nom: 'la page tait le doute', fichier: P, avant: "  if (r === 'illisible') return PHRASE_DU_DOUTE;\n", apres: '' },
   /* Le site. */
   { nom: 'le site ne passe pas les places lues', fichier: P, avant: '{ ...v, placesConnues: placesConnuesDe(carte, o.id, v.dateIso) }', apres: '{ ...v }' },
   { nom: 'une ligne de places negative se lit', fichier: P, avant: '|| !Number.isInteger(n) || n < 0) continue;', apres: ') continue;' },

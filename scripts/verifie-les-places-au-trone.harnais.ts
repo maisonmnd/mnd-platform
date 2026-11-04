@@ -18,10 +18,13 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
-  baseDeLaRemiseFamille, ditLaPlaceDuRdv, famPctDeLaTete, laFamilleSuitElle, lOffreDuJourAuTrone, occupationPourLeRdv,
-  offreAPlacesDuJour, offresApresLeReglage, placeTenue, pourquoiSansPlace, prisesAuComptoir, reglageDesPlaces,
-  remiseFamilleEnFrancs, remisesDeLaMainDuRdv, type VenueDuTrone,
+  baseDeLaRemiseFamille, ditLaPlaceDuRdv, ditLeGesteSansRemise, famPctDeLaTete, laFamilleSuitElle, laRemiseSurTout, lOffreDuJourAuTrone,
+  occupationPourLeRdv, offreAPlacesDuJour, offresApresLeReglage, placeTenue, pourquoiSansPlace, prisesAuComptoir, reglageDesPlaces,
+  remiseFamilleEnFrancs, remisesDeLaMainDuRdv, remisesHorsDuGesteSansRemise, type VenueDuTrone,
 } from '../src/apps/trone/routes/clients/places-au-trone-pur';
+import { leTicket, remiseDeLaLigneTenue, type EntreeDuTicket } from '../src/apps/trone/routes/vente/encaissement-pur';
+import { invoiceTotal } from '../src/shared/finance-pur';
+import type { Invoice } from '../src/shared/finance';
 import { joursDesPlacesDits, resumePlaces, tuilesTrouvees } from '../src/apps/trone/routes/systeme/parametres-pur';
 
 declare const __PANNE__: { fichier: string; avant: string; apres: string } | null;
@@ -205,6 +208,55 @@ const phrases = [
 ];
 dit('jamais le tiret long, jamais « salon », jamais « maitre » dans ces phrases', [], phrases.filter((p) => /—|salon|ma[iî]tre/i.test(p)));
 
+/* ═══ 1b. LE RITUEL SOWA NE PREND AUCUNE REMISE, MEME POSEE A LA MAIN ═══
+   Yeman, au selecteur, 4 novembre 2026 : la remise sur tout (pour cent ou
+   francs) de la fenetre et du ticket ne porte jamais sur une ligne
+   `sansRemise`, et la remise de ligne ne s'ouvre pas sur elle. Le Sowa :
+   15 000 F ; un shampoing : 10 000 F ; un produit : 10 000 F. */
+const SOWA = 15_000;
+const SH = 10_000;
+const entree = (plus: Partial<EntreeDuTicket>): EntreeDuTicket => ({
+  sousTotalXof: SOWA + SH, prestationsXof: SOWA + SH, remisePct: 0, remiseXof: 0, remiseDuRendezVousXof: 0,
+  dejaRecuXof: 0, promoBrutXof: 0, nomDuCode: '', sansRemiseXof: SOWA, ...plus,
+});
+/** La piece telle que la Caisse l'ecrit (`globalDiscountPct: ticket.remisePct`, les francs ensuite). */
+const pieceDu = (t: ReturnType<typeof leTicket>, lignes: number[]): number => invoiceTotal({
+  lines: lignes.map((x, i) => ({ id: `l${i}`, label: 'x', qty: 1, unitXof: x, discountPct: 0 })),
+  globalDiscountPct: t.remisePct, globalDiscountXof: (t.remiseXof + t.remiseDuRendezVousXof + t.promoXof) || undefined,
+} as unknown as Invoice);
+{
+  const dix = leTicket(entree({ remisePct: 10 }));
+  dit('ticket : Sowa et shampoing, -10 % sur tout : le Sowa garde ses 15 000 F, 24 000 F', [24_000, 24_000, 15_000], [dix.netXof, dix.partNetteXof, dix.sansRemiseXof]);
+  dit('... la piece ecrit le pourcentage en francs (1 000 F), et dit le meme net', [0, 1_000, 24_000], [dix.remisePct, dix.remiseXof, pieceDu(dix, [SOWA, SH])]);
+  const francs = leTicket(entree({ remiseXof: 20_000 }));
+  dit('ticket : 20 000 F de remise a la main : elle s arrete au shampoing, le Sowa paye entier', [15_000, 10_000, 15_000], [francs.netXof, francs.remiseXof, pieceDu(francs, [SOWA, SH])]);
+  const seul = leTicket(entree({ sousTotalXof: SOWA, prestationsXof: SOWA, remisePct: 50, remiseXof: 3_000 }));
+  dit('ticket : le Sowa seul, -50 % et 3 000 F : 15 000 F, aucune remise ecrite', [15_000, 0, 0, 15_000], [seul.netXof, seul.remisePct, seul.remiseXof, pieceDu(seul, [SOWA])]);
+  const produit = leTicket(entree({ sousTotalXof: SOWA + 10_000, prestationsXof: SOWA, remisePct: 10 }));
+  dit('ticket : le Sowa et un produit, -10 % : sur le produit seul ; la part des prestations reste 15 000 F', [24_000, 15_000, 24_000],
+    [produit.netXof, produit.partNetteXof, pieceDu(produit, [SOWA, 10_000])]);
+  const sans = leTicket(entree({ sousTotalXof: 80_000, prestationsXof: 80_000, sansRemiseXof: 0, remisePct: 10, remiseXof: 2_000 }));
+  dit('ticket sans Sowa : le calcul d hier (80 000 F, -10 %, 2 000 F : 70 000 F, le pourcentage ecrit tel quel)', [70_000, 10, 2_000], [sans.netXof, sans.remisePct, sans.remiseXof]);
+  const code = leTicket(entree({ promoBrutXof: 1_500, nomDuCode: 'ROSE15' }));
+  dit('ticket : un code sur le shampoing seul (sa base exclut le Sowa) : le Sowa entier', [true, 24_000], [code.cumul.codeConsomme, code.netXof]);
+  dit('la ligne du Sowa ne garde aucune remise de ligne ; les autres gardent la leur', [0, 0, 15, 100], [
+    remiseDeLaLigneTenue(100, true), remiseDeLaLigneTenue(15, true), remiseDeLaLigneTenue(15, false), remiseDeLaLigneTenue(100, false)]);
+}
+{
+  const r = (plus: Partial<Parameters<typeof laRemiseSurTout>[0]>) => laRemiseSurTout({ brutXof: SOWA + SH, sansRemiseXof: SOWA, pct: 0, xof: 0, ...plus });
+  dit('fenetre : -10 % sur tout : 1 000 F sur le shampoing, 24 000 F, ecrit en francs', { pctXof: 1_000, xof: 0, netXof: 24_000, enFrancs: true }, r({ pct: 10 }));
+  dit('fenetre : 20 000 F a la main : 10 000 F retenus, le Sowa paye entier', { pctXof: 0, xof: 10_000, netXof: 15_000, enFrancs: false }, r({ xof: 20_000 }));
+  dit('fenetre : -10 % puis 20 000 F : 1 000 F et 9 000 F, jamais sous le Sowa', { pctXof: 1_000, xof: 9_000, netXof: 15_000, enFrancs: true }, r({ pct: 10, xof: 20_000 }));
+  dit('fenetre : la famille sur sa base (hors forfaits et Sowa)', { pctXof: 1_500, xof: 0, netXof: 23_500, enFrancs: true }, r({ pct: 15, basePctXof: SH }));
+  dit('fenetre : le Sowa seul ne prend rien', { pctXof: 0, xof: 0, netXof: SOWA, enFrancs: false }, laRemiseSurTout({ brutXof: SOWA, sansRemiseXof: SOWA, pct: 50, xof: 5_000 }));
+  dit('fenetre sans Sowa : le calcul d hier, le pourcentage ecrit tel quel', { pctXof: 8_000, xof: 2_000, netXof: 70_000, enFrancs: false },
+    laRemiseSurTout({ brutXof: 80_000, sansRemiseXof: 0, pct: 10, xof: 2_000 }));
+  dit('fenetre rouverte : la remise de ligne posee avant sur le Sowa ne revient pas, les autres restent', [null, { xof: 500 }, null],
+    remisesHorsDuGesteSansRemise([{ pct: 10 }, { xof: 500 }, null], ['sv-sowa', 'sv-x', 'sv-y'], (id) => id === 'sv-sowa'));
+  dit('la phrase de l ecran', ['Le Rituel Sówà™ ne prend aucune remise.', 'Le Rituel Sówà™ ne prend aucune remise.', 'Soin rare ne prend aucune remise.'],
+    [ditLeGesteSansRemise('Rituel Sówà™'), ditLeGesteSansRemise(undefined), ditLeGesteSansRemise('Soin rare')]);
+}
+
 /* ═══ 2. LES PORTES DU TRONE ═══════════════════════════════════════════ */
 const S = lis('src/apps/trone/routes/clients/_shared.tsx');
 const C = lis('src/apps/trone/routes/vente/Caisse.tsx');
@@ -259,6 +311,33 @@ contient('la Caisse : le code des places ne se tape pas a la main', C,
   'const offreCodee = !codeNominatif && !codeAPlacesTape ? offreDuCode(offresDeLaBranche, codeTape, new Date(), venueDuTicket) : null;',
   ": codeAPlacesTape ? 'Ce code ne se tape pas : la remise des places limitées se pose d’elle-même, quand le jour a encore une place.'");
 contient('la Caisse dit le decompte', C, '`${ditLaPlaceDuRdv(jugeDuTicket)} · −${offreDuMercredi.discountPct ?? 0} %, posée d’elle-même sur ce ticket.`');
+contient('la Caisse : le Rituel Sowa sans remise de ligne, ni code, ni soin offert, ni remise sur tout', C,
+  "const ligneSansRemise = (key: string): boolean => key.startsWith('s:') && gesteSansRemise(svcById.get(key.slice(2)));",
+  'setCart((c) => (c[key] && !ligneSansRemise(key) ?',
+  'const v = { ...posee, disc: remiseDeLaLigneTenue(posee.disc, sansRemise) };',
+  "const discEff = remiseDeLaLigneDuTicket(it.kind, v.disc, remiseGamme);",
+  "    .filter((l) => l.kind === 'service')\n    .filter((l) => !l.sansRemise)\n    .map((l) => ({ serviceId: l.key.slice(2), montantXof: Math.round(l.netXof) }));",
+  'sansRemiseXof: lines.filter((l) => l.sansRemise).reduce((n, l) => n + l.netXof, 0),',
+  ": lines.find((l) => l.kind === 'service' && !l.sansRemise)?.key);",
+  'globalDiscountPct: ticket.remisePct,');
+contient('la Caisse le dit d une phrase, sur la ligne et sous la remise sur tout', C,
+  '{l.sansRemise ? (', '{ditLeGesteSansRemise(l.n)}', '{ticket.sansRemiseXof > 0 && (',
+  '{ditLeGesteSansRemise(lines.find((l) => l.sansRemise)?.n)} La remise porte sur le reste du ticket.');
+contient('la fenetre : la remise sur tout et la remise de ligne ne portent jamais sur le Rituel Sowa', S,
+  'const sansRemiseXof = chosen.filter((sv) => gesteSansRemise(sv)).reduce((s, sv) => s + prixDe(sv), 0);',
+  'brutXof: effGross, sansRemiseXof, pct: discountPct, xof: discountXof,',
+  '...(remiseEstFamille ? { basePctXof: baseRemisePct } : {}),',
+  '      : surTout.netXof;',
+  'const discountPctEcrit = effCovered || forfaitPose || remiseEstFamille || surTout.enFrancs ? undefined : (discountPct || undefined);',
+  ': ((surTout.enFrancs ? surTout.pctXof + surTout.xof : surTout.xof) || undefined);',
+  'remisesHorsDuGesteSansRemise(remisesDeLaMainDuRdv(appt, offresDeLaMaison), appt.serviceIds, (id) => gesteSansRemise(byId.get(id)))',
+  '                if (gesteSansRemise(sv)) {\n                  return (',
+  '{ditLeGesteSansRemise(sv.name)}',
+  '{sansRemiseXof > 0 && (',
+  '{ditLeGesteSansRemise(chosen.find((sv) => gesteSansRemise(sv))?.name)} La remise porte sur le reste du rendez-vous.');
+dit('la fenetre ecrit la remise par un seul chemin (series et rendez-vous)', [2, 2, 0], [
+  S.split('discountPct: discountPctEcrit,').length - 1, S.split('discountXof: discountXofEcrit,').length - 1,
+  S.split('remiseEstFamille ? (((discountXof || 0) + remiseFamilleXof) || undefined)').length - 1]);
 
 /* Son prochain rituel. */
 contient('son prochain rituel : le compte, une seule remise, relu au toucher', B,

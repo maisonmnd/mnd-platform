@@ -107,12 +107,17 @@ export const BOUTON_DU_TARIF_DE_LA_MAISON = 'Confirmer au tarif de la Maison';
 /** Ses prix convenus sont connus avant la confirmation (son lien de retour). */
 export const PHRASE_DES_TARIFS_CONVENUS = 'Vos tarifs convenus s’appliquent.';
 
+/** Le serveur n'a pas pu relire ce que porte son numéro : dans le doute, pas
+    de remise (4 novembre 2026). La page le dit, sans prix à sa place. */
+export const PHRASE_DU_DOUTE = 'La remise des places limitées n’a pas pu être vérifiée : votre rendez-vous est tenu, la Maison vous confirme le tarif.';
+
 /** Ce que le serveur a tranché quand la place n'a pas été prise : une seule
-    remise, la sienne. Vide pour une raison inconnue. */
+    remise, la sienne, ou le doute. Vide pour une raison inconnue. */
 export function phraseDUneSeuleRemise(r: unknown): string {
   if (r === 'prix-convenus') return PHRASE_DES_TARIFS_CONVENUS;
   if (r === 'abonnee') return 'Votre abonnement s’applique : une seule remise à la fois.';
   if (r === 'famille') return 'Votre remise famille s’applique : une seule remise à la fois.';
+  if (r === 'illisible') return PHRASE_DU_DOUTE;
   return '';
 }
 

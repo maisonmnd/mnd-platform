@@ -106,8 +106,10 @@ dit(6, 'Caisse : la remise gamme passe par la ligne, la piece l ecrit, le ticket
   /setGlobalDiscXof\(0\);\n\s*setRemiseGamme\(0\);/.test(caisse),
   /onClick=\{\(\) => setRemiseGamme\(taux\)\}/.test(caisse),
 ]);
+/* Le Rituel Sowa n'est la base d'aucun code (4 novembre 2026) : le filtre
+   des lignes sans remise s'intercale, verifie-les-places-au-trone le tient. */
 dit(6, 'Caisse : le code ne vise que les prestations (ROSE15 hors gamme)', true,
-  /const lignesRemisables = lines\n\s*\.filter\(\(l\) => l\.kind === 'service'\)\n\s*\.map\(\(l\) => \(\{ serviceId: l\.key\.slice\(2\), montantXof: Math\.round\(l\.netXof\) \}\)\);/.test(caisse));
+  /const lignesRemisables = lines\n\s*\.filter\(\(l\) => l\.kind === 'service'\)\n(?:\s*\.filter\(\(l\) => !l\.sansRemise\)\n)?\s*\.map\(\(l\) => \(\{ serviceId: l\.key\.slice\(2\), montantXof: Math\.round\(l\.netXof\) \}\)\);/.test(caisse));
 
 /* ══ #7 — PARTOUT : LE RENDEZ-VOUS RESERVE AVEC UN CODE ══
    Au selecteur, « Oui, partout » : un rendez-vous pris sur le site avec

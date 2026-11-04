@@ -21,6 +21,11 @@ const B = 'src/apps/couronne/Booking.tsx';
 const T = 'src/apps/couronne/Tabs.tsx';
 const L = 'src/apps/couronne/lib.ts';
 const M = 'src/apps/couronne/MesRendezVous.tsx';
+const C = 'src/apps/couronne/Compose.tsx';
+const A = 'src/apps/couronne/AchatFormule.tsx';
+const K = 'src/apps/couronne/MaCarte.tsx';
+const F = 'src/apps/couronne/MaFormule.tsx';
+const Q = 'supabase/migrations/0155_le_foyer_sous_une_seule_remise.sql';
 
 const PANNES = [
   /* La regle de Ma Couronne (places-pure). */
@@ -108,6 +113,50 @@ const PANNES = [
     avant: 'offreTenue: iso === editing.date ? placeTenue.id : undefined,', apres: 'offreTenue: undefined,' },
   { nom: 'Deplacer : le refus des places est muet', fichier: M,
     avant: ': estLaPlacePartie(parLaMaison.raison)', apres: ': false' },
+
+  /* Ni les autres remises, en aucune circonstance (4 novembre 2026, au selecteur). */
+  { nom: 'l avantage abonne pour une cliente aux prix convenus', fichier: P,
+    avant: '(aucuneRemise ? 0 : Math.max(0, Math.round(pct || 0)));', apres: '(Math.max(0, Math.round(pct || 0)));' },
+  { nom: 'la remise Foyer pour une abonnee', fichier: P,
+    avant: 'export const rangDuFoyerPourElle = (rang: number, aucuneRemise: boolean): number => (aucuneRemise ? 1 : rang);',
+    apres: 'export const rangDuFoyerPourElle = (rang: number, aucuneRemise: boolean): number => (aucuneRemise ? rang : rang);' },
+  { nom: 'les soins offerts du Cercle pour une cliente aux prix convenus', fichier: P,
+    avant: '(aucuneRemise ? [] : [...(soins ?? [])]);', apres: '([...(soins ?? [])]);' },
+  { nom: 'Compose : l avantage abonne transmis au Trone', fichier: C,
+    avant: 'const discountPct = avantageDuSurMesure(sm.aboPct, aucuneRemise);', apres: 'const discountPct = sm.aboPct;' },
+  { nom: 'Compose : « −0 % » affiche', fichier: C,
+    avant: '{count > 0 && discountPct > 0 && (', apres: '{count > 0 && (' },
+  { nom: 'Compose : l onglet dit encore −15 %', fichier: C,
+    avant: "{discountPct > 0 ? t('−{pct} % · dès {min} soins', { pct: discountPct, min: sm.aboMin }) : t('dès {min} soins', { min: sm.aboMin })}",
+    apres: "{t('−{pct} % · dès {min} soins', { pct: sm.aboPct, min: sm.aboMin })}" },
+  { nom: 'Compose : « de remise » sur nos abonnements', fichier: C,
+    avant: '{remises && !aucuneRemise ? t(', apres: '{remises ? t(' },
+  { nom: 'Compose : le gain des formules chiffre', fichier: C,
+    avant: 'const gainDit = aucuneRemise ? 0 : g.gainXof;', apres: 'const gainDit = g.gainXof;' },
+  { nom: 'AchatFormule : la remise Foyer s applique', fichier: A,
+    avant: 'rangDansLeFoyer: rangDuFoyerPourElle(rang, aucuneRemise)', apres: 'rangDansLeFoyer: rang' },
+  { nom: 'Accueil : « une recompense vous attend »', fichier: T,
+    avant: 'soinsOffertsPourElle(soinsEnAttente(client?.soinsOfferts), aucuneRemise)', apres: 'soinsEnAttente(client?.soinsOfferts)' },
+  { nom: 'Cercle : les sceaux du Foyer', fichier: T,
+    avant: 'cercle.foyerOuvert && !aucuneRemise && (', apres: 'cercle.foyerOuvert && (' },
+  { nom: 'Mon ambassade : ses recompenses montrees et gardees', fichier: K,
+    avant: 'const sesSoins = soinsOffertsPourElle(client?.soinsOfferts, aucuneRemise);', apres: 'const sesSoins = client?.soinsOfferts ?? [];' },
+  { nom: 'Mon ambassade : la regle promet une recompense', fichier: K,
+    avant: "{aucuneRemise ? t('une branche chacune') : t('une récompense chacune')}", apres: "{t('une récompense chacune')}" },
+  { nom: 'Ma formule : « vous gagnez »', fichier: F,
+    avant: '    if (aucuneRemise) return null;\n', apres: '' },
+  { nom: 'Ma formule : « X F de moins »', fichier: F,
+    avant: 'if (!client || aucuneRemise) return null;', apres: 'if (!client) return null;' },
+  { nom: '0155 : le rang ne lit pas le juge', fichier: Q,
+    avant: 'select case when public.abo_foyer_sans_remise(p_tete, p_jour) then 1 else (', apres: 'select case when false then 1 else (' },
+  { nom: '0155 : un prix convenu a zero franc compte', fichier: Q,
+    avant: "(e.value #>> '{}')::numeric > 0)", apres: "(e.value #>> '{}')::numeric >= 0)" },
+  { nom: '0155 : une formule retenue ne compte pas', fichier: Q,
+    avant: "and (f.etat in ('retenue', 'en-cours', 'en-pause', 'epuisee')", apres: "and (f.etat in ('en-cours', 'en-pause', 'epuisee')" },
+  { nom: '0155 : la lune reglee d une resiliee ne compte pas', fichier: Q,
+    avant: "or (f.etat = 'resiliee' and f.dernier is not null", apres: "or (false and f.dernier is not null" },
+  { nom: '0155 : le juge ouvert aux clientes', fichier: Q,
+    avant: 'revoke all on function public.abo_foyer_sans_remise(text, date) from public, anon, authenticated;\n', apres: '' },
 ];
 
 const md5 = (rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');

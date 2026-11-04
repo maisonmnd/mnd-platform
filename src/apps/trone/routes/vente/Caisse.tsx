@@ -32,7 +32,7 @@ import {
   honoreLeCode, normaliseLeCode,
 } from '../../../../shared/promos';
 import { useOffers } from '../../../../shared/offers';
-import { codeNormalise, estAPlaces, offreDuCode, offreDuCodePassee, remiseDeLOffreSurLeTicket, pourquoiLOffreNeCourtPas, remiseDuComptoirAuRendezVous, remiseDuComptoirEcrite } from '../../../../shared/offres-pur';
+import { codeNormalise, estAPlaces, gesteSansRemise, offreDuCode, offreDuCodePassee, remiseDeLOffreSurLeTicket, pourquoiLOffreNeCourtPas, remiseDuComptoirAuRendezVous, remiseDuComptoirEcrite } from '../../../../shared/offres-pur';
 import { useAuth } from '../../../../shared/auth';
 import { ChampDeDate } from '../../../../ds/dates';
 import { useEstDirection } from '../_vie';
@@ -44,13 +44,13 @@ import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import './vente.css';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { RattacherUneCarte } from './RattacherUneCarte';
-import { leTicket, versementsDuTicket, ceQueLeRendezVousRecoit, lArgentDejaRecu, aDejaSaPiece, remiseDeLaLigneDuTicket, PALIER_DU_CODE_XOF, libelleDuCode } from './encaissement-pur';
+import { leTicket, versementsDuTicket, ceQueLeRendezVousRecoit, lArgentDejaRecu, aDejaSaPiece, remiseDeLaLigneDuTicket, remiseDeLaLigneTenue, PALIER_DU_CODE_XOF, libelleDuCode } from './encaissement-pur';
 import { remisesDuPapier } from './pdf-de-la-piece';
 import { aEncaisserMaintenant, billetsRonds, moyenHabituel, offreAProposer, renduDeMonnaie } from './caisse-fluide-pur';
 import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 import { ChampsDeLaTrace } from './TraceDuMoyen';
 import { useStaff, adresseDe, useSubscribers, usePlans, contratPourLaDate } from '../equipe/data';
-import { ditLaPlaceDuRdv, famPctDeLaTete, lOffreDuJourAuTrone } from '../clients/places-au-trone-pur';
+import { ditLaPlaceDuRdv, ditLeGesteSansRemise, famPctDeLaTete, lOffreDuJourAuTrone } from '../clients/places-au-trone-pur';
 import { avecLesMoyensDeLaMaison, caisseProposee, caissesAuChoix, deviseDuMoyen, peutChangerLaCaisse, poseLaCaisse } from '../../../../shared/caisses-des-caissiers-pur';
 import { identiteCourante } from '../../../../shared/journal';
 import { DeposerUneCapture } from './DeposerUneCapture';
@@ -562,13 +562,19 @@ export default function Caisse() {
       }
       return { ...c, [key]: { ...cur, qty: cur.qty - 1 } };
     });
+  /* LE RITUEL SÓWÀ™ NE PREND AUCUNE REMISE, MÊME POSÉE À LA MAIN (4 novembre
+     2026, Yéman, au sélecteur). Une ligne d'un geste `sansRemise` : ni remise
+     de ligne, ni soin offert, ni code, ni remise sur tout. */
+  const ligneSansRemise = (key: string): boolean => key.startsWith('s:') && gesteSansRemise(svcById.get(key.slice(2)));
   const setLineDisc = (key: string, pct: number) =>
-    setCart((c) => (c[key] ? { ...c, [key]: { ...c[key], disc: c[key].disc === pct ? 0 : pct } } : c));
+    setCart((c) => (c[key] && !ligneSansRemise(key) ? { ...c, [key]: { ...c[key], disc: c[key].disc === pct ? 0 : pct } } : c));
 
   const lines = Object.entries(cart)
     .filter(([k]) => flat[k])
-    .map(([k, v]) => {
+    .map(([k, posee]) => {
       const it = flat[k];
+      const sansRemise = it.kind === 'service' && ligneSansRemise(k);
+      const v = { ...posee, disc: remiseDeLaLigneTenue(posee.disc, sansRemise) };
       /* Prix effectif de la ligne : le montant SAISI pour un sur-devis (0 tant
          qu'il n'est pas renseigné), le prix catalogue sinon. */
       /* UN PRIX POSÉ SUR LA LIGNE L'EMPORTE — 31 août 2026. Il ne servait
@@ -582,7 +588,7 @@ export default function Caisse() {
          remise gamme pour un produit (la plus forte des deux). */
       const discEff = remiseDeLaLigneDuTicket(it.kind, v.disc, remiseGamme);
       const netXof = unit * v.qty * (1 - discEff / 100);
-      return { key: k, ...it, ...v, unit, discEff, netXof };
+      return { key: k, ...it, ...v, unit, discEff, netXof, sansRemise };
     });
   const subXof = lines.reduce((s, l) => s + l.netXof, 0);
   /* LE SELECTEUR DE LONGUEUR NE PARAIT QUE S'IL COMMANDE QUELQUE CHOSE. Il
@@ -610,8 +616,10 @@ export default function Caisse() {
      LES CLÉS DU TICKET PORTENT LEUR PRÉFIXE (`s:`, `p:`, `f:`) : seules
      les PRESTATIONS peuvent être visées par un code, un produit ne se remise
      pas par une promotion de rituel. */
+  /* Le Rituel Sówà™ n'est la base d'aucun code (4 novembre 2026). */
   const lignesRemisables = lines
     .filter((l) => l.kind === 'service')
+    .filter((l) => !l.sansRemise)
     .map((l) => ({ serviceId: l.key.slice(2), montantXof: Math.round(l.netXof) }));
   /* LE CODE D'UNE OFFRE VAUT AUSSI ICI — 1er octobre 2026. « Les codes de réductions
      ROSE15 ne marchent pas sur le Trône » (Yéman). Un code NOMINATIF passe d'abord :
@@ -712,6 +720,8 @@ export default function Caisse() {
     dejaRecuXof: rituelChoisi ? Math.max(0, apptNetXof(rituelChoisi, svcById) - apptDueXof(rituelChoisi, svcById)) : 0,
     promoBrutXof,
     nomDuCode: codePromo?.code ?? offreCodee?.code ?? '',
+    /* Le Rituel Sówà™ hors de la remise sur tout (4 novembre 2026). */
+    sansRemiseXof: lines.filter((l) => l.sansRemise).reduce((n, l) => n + l.netXof, 0),
   });
   const { cumul, promoXof, netXof } = ticket;
   /* Ce qui reste à régler au comptoir : le net, moins l'acompte déjà reçu. */
@@ -730,9 +740,9 @@ export default function Caisse() {
   const soinsDispo: SoinOffert[] = soinsEnAttente(posClient?.soinsOfferts);
   /** OFFRIR LE SOIN : sa prestation (ou, s'il n'en nomme pas, la première
       prestation du ticket) passe à 100 %. Absente du ticket, elle s'y ajoute. */
-  const cleDuSoin = (soin: SoinOffert) => (soin.serviceId && flat[`s:${soin.serviceId}`]
+  const cleDuSoin = (soin: SoinOffert) => (soin.serviceId && flat[`s:${soin.serviceId}`] && !ligneSansRemise(`s:${soin.serviceId}`)
     ? `s:${soin.serviceId}`
-    : lines.find((l) => l.kind === 'service')?.key);
+    : lines.find((l) => l.kind === 'service' && !l.sansRemise)?.key);
   /** LA REMISE DE L'AMBASSADRICE (28 septembre 2026) : sur le produit choisi,
       ou sur le premier produit du ticket. Jamais sur une prestation. */
   const cleDeLaRemise = (soin: SoinOffert) => (soin.produitId && flat[`p:${soin.produitId}`]
@@ -1614,12 +1624,17 @@ export default function Caisse() {
                       légende de la ligne. Au bureau, rien ne change. */}
                   <div className={`trv-line__disc ${discFor === l.key ? 'is-open' : ''}`}>
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Remise ligne</span>
-                    <span className="trv-disc-badge">{l.disc}</span>
-                    {tauxPermis(estDirection).map((pct) => (
-                      <button key={pct} className={`trv-pill ${l.disc === pct ? 'is-active is-active--copper' : ''}`} onClick={() => setLineDisc(l.key, pct)}>
-                        −{pct}%
-                      </button>
-                    ))}
+                    {/* Le Rituel Sówà™ : la remise de ligne ne s'ouvre pas, l'écran le dit. */}
+                    {l.sansRemise ? (
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>{ditLeGesteSansRemise(l.n)}</span>
+                    ) : (<>
+                      <span className="trv-disc-badge">{l.disc}</span>
+                      {tauxPermis(estDirection).map((pct) => (
+                        <button key={pct} className={`trv-pill ${l.disc === pct ? 'is-active is-active--copper' : ''}`} onClick={() => setLineDisc(l.key, pct)}>
+                          −{pct}%
+                        </button>
+                      ))}
+                    </>)}
                   </div>
                 </div>
               ))}
@@ -1671,6 +1686,13 @@ export default function Caisse() {
                     {pct === 0 ? '0' : `−${pct}%`}
                   </button>
                 ))}
+                {/* LE RITUEL SÓWÀ™ HORS DE LA REMISE SUR TOUT (4 novembre 2026) :
+                    elle porte sur le reste du ticket, et l'écran le dit. */}
+                {ticket.sansRemiseXof > 0 && (
+                  <span style={{ flexBasis: '100%', fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>
+                    {ditLeGesteSansRemise(lines.find((l) => l.sansRemise)?.n)} La remise porte sur le reste du ticket.
+                  </span>
+                )}
               </div>
 
               {/* ── LA REMISE GAMME — 23 octobre 2026 ─────────────────────

@@ -226,6 +226,7 @@ export const EN_FORMULE: Record<string, string> = {
   'Tout part de vous. Partagez votre carte : chaque amie venue devient une branche, et les amies de vos amies vous reviennent en écho.': 'It all starts with you. Share your card: every friend who visits becomes a branch, and their friends come back to you as an echo.',
   'Vos amies': 'Your friends',
   'une récompense chacune': 'one reward each',
+  'une branche chacune': 'one branch each',
   'Leurs amies': 'Their friends',
   'votre arbre les garde': 'your tree keeps them',
   'Vos récompenses': 'Your rewards',
@@ -246,6 +247,7 @@ export const EN_FORMULE: Record<string, string> = {
   'Lien copié : {lien}': 'Link copied: {lien}',
   'Les rangs': 'The ranks',
   'Une amie compte quand elle est venue. Pour chacune, une récompense à choisir : un soin offert ou une remise. Les amies de vos amies grandissent votre arbre. Rien à payer, jamais d’argent.': 'A friend counts once she has visited. For each one, a reward to choose: a complimentary treatment or a discount. Your friends’ friends grow your tree. Nothing to pay, never money.',
+  'Une amie compte quand elle est venue. Les amies de vos amies grandissent votre arbre. Rien à payer, jamais d’argent.': 'A friend counts once she has visited. Your friends’ friends grow your tree. Nothing to pay, never money.',
   'Mon ambassade.': 'My ambassadorship.',
   // De main en main (9 octobre 2026) : sans Graine, le chemin vers elle.
   'Votre Graine dans {n} visites': 'Your Seed in {n} visits',

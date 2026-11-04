@@ -57,6 +57,7 @@ import {
   useClient,
   useTetesDuFoyer,
   useClientId,
+  useAucuneRemise,
   useLaTeteALaRemise,
   useLiveOffers,
   useOfferCountdown,
@@ -64,6 +65,7 @@ import {
   type BookingPrefill,
   type Offer,
 } from './lib';
+import { soinsOffertsPourElle } from './places-pure';
 import { DateEnClair } from '../../ds/dates';
 import { useTheme } from './theme';
 import { t, locale, langue, useLangue, changeLaLangue, anglaisPropose, prix, motsDeDate } from './i18n';
@@ -445,7 +447,10 @@ export function HomeTab({
   const maCarte = useMaCarte();
   /* DE MAIN EN MAIN (9 octobre 2026) : sans Graine, le chemin vers elle. */
   const maGraine = useMaGraine();
-  const soinsQuiAttendent = soinsEnAttente(client?.soinsOfferts);
+  /* NI LES AUTRES REMISES (4 novembre 2026) : aux prix convenus ou abonnée,
+     aucun soin offert ne l'attend ici. */
+  const aucuneRemise = useAucuneRemise();
+  const soinsQuiAttendent = soinsOffertsPourElle(soinsEnAttente(client?.soinsOfferts), aucuneRemise);
   const { currency } = useBranch();
   const [services] = useServices();
   /* LE CATALOGUE VISIBLE pour tout ce qui PROPOSE (reco) : une prestation
@@ -1467,9 +1472,14 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
 /* ================= CERCLE ================= */
 
 export function CercleTab({ toast }: { toast: (m: string) => void }) {
-  const [foyerTiers] = useFoyerTiers();
+  const [foyerTiersLus] = useFoyerTiers();
   const [services] = useServices();
   const cercle = useCercle();
+  /* NI LES AUTRES REMISES (4 novembre 2026, au sélecteur) : aux prix convenus
+     ou abonnée, les soins offerts du Cercle (ses récompenses, les sceaux du
+     Foyer) ne se montrent ni ne se gardent ici. */
+  const aucuneRemise = useAucuneRemise();
+  const foyerTiers = soinsOffertsPourElle(foyerTiersLus, aucuneRemise);
 
   /* ══ LE CERCLE RÉUNI — 29 septembre 2026 (maquette validée) ══════════════
      Le Cercle et les ambassadrices ne font plus qu'un. On y lit, dans
@@ -1529,8 +1539,9 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
       <MonAmbassade toast={toast} />
 
       {/* LE FOYER — la reconnaissance de la maisonnée, sur sa dépense cumulée.
-          Un sceau atteint se pose comme une récompense (Vos récompenses). */}
-      {cercle.foyer && !cercle.dependant && cercle.foyerOuvert && (<>
+          Un sceau atteint se pose comme une récompense (Vos récompenses).
+          Rien aux prix convenus ni pour une abonnée (4 novembre 2026). */}
+      {cercle.foyer && !cercle.dependant && cercle.foyerOuvert && !aucuneRemise && (<>
         <div className="mc-sectionlabel" style={{ margin: '26px 0 10px' }}>{t('Le Foyer')}</div>
         <div className="mc-pointscard">
           <div className="mc-pointscard__watermark" aria-hidden="true" />

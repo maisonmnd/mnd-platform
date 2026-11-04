@@ -121,6 +121,28 @@ export const lesTetesReunies = (tetes: readonly (TeteALaRemise | null | undefine
 export const formulesQuiCourent = (releve: { contrats?: readonly unknown[] } | null | undefined): boolean =>
   (releve?.contrats?.length ?? 0) > 0;
 
+/* ── NI LES AUTRES REMISES, EN AUCUNE CIRCONSTANCE ─────────────────────────
+   4 novembre 2026, au sélecteur (Yéman) : à une cliente aux prix convenus ou
+   abonnée (`aucuneRemisePour`), Ma Couronne ne montre ni n'applique AUCUNE
+   remise ni aucun avantage chiffré. Trois de plus que les places : l'avantage
+   abonné du sur-mesure, la remise Foyer à l'achat d'une formule, les soins
+   offerts du Cercle. */
+
+/** L'AVANTAGE ABONNÉ DU SUR-MESURE (−15 %, réglé au Trône) : rien pour elle.
+    C'est aussi ce que la composition transmet au Trône. */
+export const avantageDuSurMesure = (pct: number, aucuneRemise: boolean): number =>
+  (aucuneRemise ? 0 : Math.max(0, Math.round(pct || 0)));
+
+/** LE RANG QUI DONNE LA REMISE FOYER (deuxième ou troisième tête,
+    `leFoyerJoue`) : pour elle, celui d'une première tête. Le serveur juge de
+    même à la souscription (0155, `abo_foyer_sans_remise`). */
+export const rangDuFoyerPourElle = (rang: number, aucuneRemise: boolean): number => (aucuneRemise ? 1 : rang);
+
+/** LES SOINS OFFERTS DU CERCLE (ses récompenses, les sceaux du Foyer) : aucun
+    pour elle, ni montré ni gardé ici. Ils restent sur sa fiche. */
+export const soinsOffertsPourElle = <T>(soins: readonly T[] | null | undefined, aucuneRemise: boolean): T[] =>
+  (aucuneRemise ? [] : [...(soins ?? [])]);
+
 /* ── LA PLACE D'UN JOUR, POUR SON RITUEL ────────────────────────────────── */
 
 const pctDe = (o: { discountPct?: number } | null | undefined): number => Math.max(0, Math.round(o?.discountPct ?? 0));

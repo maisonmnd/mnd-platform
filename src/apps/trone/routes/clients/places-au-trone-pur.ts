@@ -237,6 +237,62 @@ export const baseDeLaRemiseFamille = (lignes: readonly { net: number; forfait?: 
 export const remiseFamilleEnFrancs = (lignes: readonly { net: number; forfait?: boolean; sansRemise?: boolean }[], pct: number): number =>
   pct > 0 ? Math.round(baseDeLaRemiseFamille(lignes) * (pct / 100)) : 0;
 
+/* ── LA REMISE SUR TOUT, JAMAIS SUR LE RITUEL SÓWÀ™ ─────────────────────
+   4 novembre 2026, au sélecteur (Yéman) : « Le Rituel Sówà™ ne prend AUCUNE
+   remise, même posée à la main ». La remise sur tout du rendez-vous, en pour
+   cent comme en francs, porte sur le reste ; la ligne du Sówà garde son prix.
+   Un rendez-vous sans geste sans remise se calcule exactement comme hier. */
+
+export type RemiseSurTout = {
+  /** Ce que le pourcentage retire, en francs. */
+  pctXof: number;
+  /** Les francs de la main, arrêtés où commence la part sans remise. */
+  xof: number;
+  /** Le total après la remise sur tout. */
+  netXof: number;
+  /** Le pourcentage s'écrit en francs : `apptNetXof` l'appliquerait sinon au
+      rendez-vous entier, Sówà compris. */
+  enFrancs: boolean;
+};
+
+export function laRemiseSurTout(e: {
+  /** Le total du rendez-vous, remises de ligne déduites. */
+  brutXof: number;
+  /** La part des gestes sans remise (`gesteSansRemise`). */
+  sansRemiseXof: number;
+  pct: number;
+  xof: number;
+  /** La part que prend le pourcentage, quand elle est plus petite que « tout
+      sauf le Sówà » (la remise famille épargne aussi les forfaits). */
+  basePctXof?: number;
+}): RemiseSurTout {
+  const brut = Math.max(0, Math.round(e.brutXof));
+  const sans = Math.min(brut, Math.max(0, Math.round(e.sansRemiseXof)));
+  const base = Math.min(brut - sans, Math.max(0, Math.round(e.basePctXof ?? brut - sans)));
+  const pctXof = Math.round(base * (Math.max(0, Math.min(100, e.pct || 0)) / 100));
+  const saisi = Math.max(0, Math.round(e.xof || 0));
+  const xof = sans > 0 ? Math.min(saisi, Math.max(0, brut - sans - pctXof)) : saisi;
+  return { pctXof, xof, netXof: Math.max(0, brut - pctXof - xof), enFrancs: sans > 0 && pctXof > 0 };
+}
+
+/** LES REMISES DE LIGNE, CELLE D'UN GESTE SANS REMISE ÔTÉE : posée avant le
+    4 novembre 2026 sur le Rituel Sówà™, elle ne revient pas à la réouverture
+    d'un rendez-vous qui n'est pas figé. Tableau parallèle aux gestes. */
+export function remisesHorsDuGesteSansRemise<R>(
+  remises: readonly (R | null | undefined)[],
+  serviceIds: readonly string[],
+  sansRemise: (serviceId: string) => boolean,
+): (R | null)[] {
+  return remises.map((r, i) => (r && !sansRemise(serviceIds[i]) ? r : null));
+}
+
+/** LA PHRASE DE L'ÉCRAN, sur la ligne et sous la remise sur tout : « Le
+    Rituel Sówà™ ne prend aucune remise. » Le nom vient du catalogue. */
+export function ditLeGesteSansRemise(nom?: string | null): string {
+  const n = String(nom ?? '').trim() || 'Rituel Sówà™';
+  return /^rituel\b/i.test(n) ? `Le ${n} ne prend aucune remise.` : `${n} ne prend aucune remise.`;
+}
+
 /** LA REMISE FAMILLE QUI SUIT À LA VISITE SUIVANTE (`remiseFamilleQuiSuit`,
     la reprise, « Reprogrammé depuis l'encaissement ») : plus rien pour une
     tête passée aux prix convenus ou abonnée à la date de la suite. */

@@ -20,7 +20,8 @@ import { uid } from '../../shared/store';
 import { estKids } from '../../shared/accounts';
 import { useAppointments, venuesHonorees } from '../../shared/agenda';
 import { useFamilies } from '../../shared/clients';
-import { fmtDuration, useClient, useVisibleCatalog } from './lib';
+import { fmtDuration, useAucuneRemise, useClient, useVisibleCatalog } from './lib';
+import { avantageDuSurMesure } from './places-pure';
 import Cycle, { semainesDuForfait } from './Cycle';
 import AchatFormule from './AchatFormule';
 import { priceModeOf, sousArbreOf, useCategories, useServices, useProducts, type Service, type ServiceInclus } from '../../shared/catalog';
@@ -71,6 +72,9 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
      continuent de sortir de la carte élaguée : rien d'invisible ne fuit. */
   const [tousCats] = useCategories();
   const client = useClient();
+  /* NI LES AUTRES REMISES (4 novembre 2026) : aux prix convenus ou abonnée,
+     ni avantage abonné ni gain chiffré, nulle part sur cet écran. */
+  const aucuneRemise = useAucuneRemise();
   /* LES RÉGLAGES DU SUR-MESURE viennent du Trône (12 août) — remises,
      minimum et ateliers d'abonnement ne sont plus écrits ici. */
   const [cfgV] = useStore(vitrineConfigStore);
@@ -263,8 +267,9 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
   );
   const count = lines.reduce((a, l) => a + l.q, 0);
   const subtotal = lines.reduce((a, l) => a + l.line, 0);
-  /* UN SEUL RÉGIME COMPOSE DÉSORMAIS : le taux ne se demande plus. */
-  const discountPct = sm.aboPct;
+  /* UN SEUL RÉGIME COMPOSE DÉSORMAIS : le taux ne se demande plus. Aux prix
+     convenus ou abonnée, aucun avantage, ni affiché ni transmis au Trône. */
+  const discountPct = avantageDuSurMesure(sm.aboPct, aucuneRemise);
   const discount = Math.round((subtotal * discountPct) / 100);
   const total = subtotal - discount;
   const aboBlocked = mode === 'abonnement' && count < sm.aboMin;
@@ -418,13 +423,13 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                   Sans aucune remise annoncée, on retombe sur le compte, qui a
                   au moins le mérite d'être vrai. */}
               <span className="mc-mode__sub">
-                {remises ? t('−{min} % à {max} % de remise', { min: remises.min, max: remises.max }) : t('tout prêts · {n}', { n: mesFormules.length })}
+                {remises && !aucuneRemise ? t('−{min} % à {max} % de remise', { min: remises.min, max: remises.max }) : t('tout prêts · {n}', { n: mesFormules.length })}
               </span>
             </button>
           )}
           <button className={`mc-mode ${mode === 'abonnement' ? 'is-abo' : ''}`} onClick={() => switchMode('abonnement')}>
             <span className="mc-mode__name">{t('Composez le vôtre')}</span>
-            <span className="mc-mode__sub">{t('−{pct} % · dès {min} soins', { pct: sm.aboPct, min: sm.aboMin })}</span>
+            <span className="mc-mode__sub">{discountPct > 0 ? t('−{pct} % · dès {min} soins', { pct: discountPct, min: sm.aboMin }) : t('dès {min} soins', { min: sm.aboMin })}</span>
           </button>
           {forfaits.length > 0 && (
             <button className={`mc-mode ${mode === 'forfaits' ? 'is-pack' : ''}`} onClick={() => switchMode('forfaits')}>
@@ -489,14 +494,17 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                          lui montrer une étendue le lui reprendrait. */
                       const etendue = maTete.bandId
                         ? null : libelleFourchette(pl, 'mensuel', calibresAbo, (x) => prix(x, currency));
+                      /* Aux prix convenus ou abonnée, aucun gain chiffré : le
+                         prix de la formule se dit seul (4 novembre 2026). */
+                      const gainDit = aucuneRemise ? 0 : g.gainXof;
                       return (
                         <>
-                          {(ecrits.length > 0 || g.gainXof > 0) && (
+                          {(ecrits.length > 0 || gainDit > 0) && (
                             <ul className="cma-inclus">
                               {ecrits.map((av) => (
                                 <li key={av}><i>◆</i><span>{av}</span></li>
                               ))}
-                              {g.gainXof > 0 && (
+                              {gainDit > 0 && (
                                 <li><i>◆</i><span>
                                   {t('{prix} à la carte,', { prix: prix(g.carteXof, currency) })} <b>{t('vous gagnez {gain}', { gain: prix(g.gainXof, currency) })}</b>
                                   {g.illimitees > 0 ? t(', et l’illimité en plus') : ''}
@@ -518,7 +526,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                                 {etendue ? ` · ${t(SELON_LE_CALIBRE)}` : ''}
                               </span>
                             </span>
-                            {g.gainXof > 0 && <span className="cma-offre__gain">{t('−{pct} % sur la carte', { pct: g.pct })}</span>}
+                            {gainDit > 0 && <span className="cma-offre__gain">{t('−{pct} % sur la carte', { pct: g.pct })}</span>}
                           </div>
                         </>
                       );
@@ -651,7 +659,10 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
           et un pied qui annoncerait « 0 prestation » ne dirait que du vide. */}
       {mode === 'abonnement' && (
       <div className="mc-cmfooter">
-        {count > 0 && (
+        {/* L'AVANTAGE ABONNÉ NE PARAÎT QUE S'IL EXISTE : aux prix convenus ou
+            abonnée, il n'y en a aucun (4 novembre 2026), et « −0 % » serait
+            encore un chiffre de remise. */}
+        {count > 0 && discountPct > 0 && (
           <>
             <div className="mc-cmfooter__row"><span>{t('Sous-total')}</span><span>{prix(subtotal, currency)}</span></div>
             <div className="mc-cmfooter__row mc-cmfooter__row--deal">
@@ -670,7 +681,9 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
         {aboBlocked && (
           <div className="mc-cmfooter__hint">
             <span>⚑</span>
-            <span>{t('Abonnement · {min} prestations minimum ({n}/{min}), complétez vos soins pour activer l’avantage −{pct} %.', { min: sm.aboMin, n: count, pct: sm.aboPct })}</span>
+            <span>{discountPct > 0
+              ? t('Abonnement · {min} prestations minimum ({n}/{min}), complétez vos soins pour activer l’avantage −{pct} %.', { min: sm.aboMin, n: count, pct: discountPct })
+              : t('Abonnement · {min} prestations minimum ({n}/{min}), complétez vos soins pour composer.', { min: sm.aboMin, n: count })}</span>
           </div>
         )}
         {count === 0 && !aboBlocked && (

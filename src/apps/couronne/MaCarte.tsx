@@ -10,7 +10,8 @@ import { useDouzeLunes } from '../../shared/douze-lunes';
 import { useAppointments } from '../../shared/agenda';
 import { clientsStore } from '../../shared/clients';
 import { asset } from '../../shared/asset';
-import { todayIso, useClient, useVisibleCatalog } from './lib';
+import { todayIso, useAucuneRemise, useClient, useVisibleCatalog } from './lib';
+import { soinsOffertsPourElle } from './places-pure';
 import { t, locale } from './i18n';
 
 /* ══ MON AMBASSADE — 28 septembre 2026 (maquette validée, « construits ») ══
@@ -258,7 +259,12 @@ export function MonAmbassade({ toast }: { toast: (m: string) => void }) {
   const rang = rangDe(venues);
   const suivant = rangSuivant(venues);
   const choix = client?.choixRecompenses ?? {};
-  const attente = soinsEnAttente(client?.soinsOfferts, aujourdhui);
+  /* NI LES AUTRES REMISES (4 novembre 2026, au sélecteur) : aux prix
+     convenus ou abonnée, ses soins offerts ne se montrent ni ne se gardent
+     ici, et la règle ne lui promet pas de récompense. */
+  const aucuneRemise = useAucuneRemise();
+  const sesSoins = soinsOffertsPourElle(client?.soinsOfferts, aucuneRemise);
+  const attente = soinsEnAttente(sesSoins, aujourdhui);
   const aChoisir = attente.filter((s) => genreEffectif(s, choix) === 'a-choisir');
   const nomDuService = (id?: string) => (id ? services.find((x) => x.id === id)?.name : undefined);
 
@@ -374,17 +380,17 @@ export function MonAmbassade({ toast }: { toast: (m: string) => void }) {
               ? <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: 'rgba(246,241,231,.86)' }}>{t('Tout part de vous. Partagez votre carte : chaque amie venue devient une branche, et les amies de vos amies vous reviennent en écho.')}</p>
               : <Arbre prenom={donnees.prenom} filleules={resume?.filleules ?? []} echos={resume?.echos ?? []} />}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <span style={{ background: IVOIRE, color: INDIGO, borderRadius: 12, padding: 10, fontSize: 12.5, lineHeight: 1.4 }}><b style={{ fontWeight: 500 }}>{t('Vos amies')}</b><br />{t('une récompense chacune')}</span>
+              <span style={{ background: IVOIRE, color: INDIGO, borderRadius: 12, padding: 10, fontSize: 12.5, lineHeight: 1.4 }}><b style={{ fontWeight: 500 }}>{t('Vos amies')}</b><br />{aucuneRemise ? t('une branche chacune') : t('une récompense chacune')}</span>
               <span style={{ border: `1px solid ${CU_300}`, borderRadius: 12, padding: 10, fontSize: 12.5, lineHeight: 1.4 }}><b style={{ fontWeight: 500 }}>{t('Leurs amies')}</b><br />{t('votre arbre les garde')}</span>
             </div>
           </div>
         )}
 
         {/* SES RÉCOMPENSES, le Foyer compris : elles se lisent sans carte. */}
-        {(client?.soinsOfferts ?? []).length > 0 && (
+        {sesSoins.length > 0 && (
           <div style={{ display: 'grid', gap: 4 }}>
             <span style={etiquette}>{t('Vos récompenses')}</span>
-            {(client?.soinsOfferts ?? []).map((s) => {
+            {sesSoins.map((s) => {
               const g = genreEffectif(s, choix);
               const expiree = !s.utiliseLe && !!s.expireLe && s.expireLe < aujourdhui;
               const dit = g === 'a-choisir' ? t('à choisir') : g === 'remise' ? (choix[s.id]?.produitId ? t('−{pct} % sur {produit}', { pct: s.pct ?? 20, produit: products.find((p) => p.id === choix[s.id]?.produitId)?.name ?? t('un produit') }) : s.libelle.startsWith('−') ? libelleDit(s.libelle) : t('−{pct} % sur {produit}', { pct: s.pct ?? 20, produit: t('un produit') })) : (nomDuService(s.serviceId) ?? (s.libelle === 'Une récompense à choisir' ? t('Un soin offert') : libelleDit(s.libelle)));
@@ -429,7 +435,9 @@ export function MonAmbassade({ toast }: { toast: (m: string) => void }) {
                 ))}
               </div>
               <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: DOUX }}>
-                {t('Une amie compte quand elle est venue. Pour chacune, une récompense à choisir : un soin offert ou une remise. Les amies de vos amies grandissent votre arbre. Rien à payer, jamais d’argent.')}
+                {aucuneRemise
+                  ? t('Une amie compte quand elle est venue. Les amies de vos amies grandissent votre arbre. Rien à payer, jamais d’argent.')
+                  : t('Une amie compte quand elle est venue. Pour chacune, une récompense à choisir : un soin offert ou une remise. Les amies de vos amies grandissent votre arbre. Rien à payer, jamais d’argent.')}
               </p>
             </div>
           </>
