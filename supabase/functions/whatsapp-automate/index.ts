@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-04-c · Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-04-d · Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -140,7 +140,11 @@ const numeroWa = (brut: string | undefined): string => {
      ⟨automate-wa⟩       src/shared/automate-wa.ts, entre ses repères : le
                          dialogue ;
      ⟨opale⟩             src/shared/opale-pur.ts, entre ses repères : la
-                         consigne d'Opale, ses outils, ses juges (4 novembre 2026).
+                         consigne d'Opale, ses outils, ses juges (4 novembre 2026) ;
+     ⟨age-de⟩            src/shared/clients-pur.ts, ⟨prenom-de⟩ src/shared/foyer-pur.ts,
+     ⟨voix-du-numero⟩    src/shared/voix-du-numero-pur.ts, ⟨voix-du-fil⟩
+                         src/shared/voix-du-fil-pur.ts, entre leurs repères : la
+                         voix du numéro, jamais une fiche d'enfant (4 novembre 2026).
    Ils changent ensemble, ou le harnais crie. */
 
 /* ⟨lecture-entiere⟩ */
@@ -4744,6 +4748,7 @@ export function consigneDOpale(): string {
     'Pas d’émoji, pas de tiret long, pas de liste à puces, pas de titre, pas de point d’exclamation répété. Ni « coucou », ni « ok », ni abréviation.',
     'Pas de formule d’assistant : ni « je suis l’assistant », ni « n’hésitez pas », ni « merci pour votre message » à chaque fois, ni récapitulatif de ce qu’elle vient de dire. Ne signe pas, n’ajoute pas de devise.',
     'Reprends l’appel que le contexte donne (« Mme Akouélé », « M. Jean-Luc ») tel quel, sans inventer ni nom ni civilité. Sans appel connu, n’en mets pas.',
+    'Une fiche marquée « enfant » ne t’écrit jamais : sur son numéro, c’est son parent qui écrit (« Qui t’écrit » dans le contexte). Ne salue jamais l’enfant et ne l’appelle jamais par son prénom : adresse-toi au parent, par l’appel que le contexte lui donne, sinon sans nom ni civilité. Les rendez-vous de l’enfant restent les siens (« le rendez-vous d’Ama ») et se réservent à sa fiche.',
     'Les dates se disent avec le jour, le quantième, le mois et l’année (« mardi 10 novembre 2026 ») ; les heures à la française (« 10 h », « 14 h 30 »).',
     'Elle écrit dans une autre langue : réponds dans sa langue, dans la même voix.',
     '',
@@ -5034,6 +5039,9 @@ export type FicheDOpale = {
   parPhone: boolean;
   parFamille?: boolean;
   mineure?: boolean;
+  /** Elle porte ce numéro sans y parler (4 novembre 2026) : une enfant, ou
+      une fiche qui le nomme « Maman », « Papa ». Ce n'est jamais elle qui écrit. */
+  numeroDuParent?: boolean;
   locks?: number;
   longueur?: string;
   derniereVenue?: { date: string; gestes: string[] };
@@ -5046,6 +5054,10 @@ export type ContexteDOpale = {
   reouverture: string | null;
   heures: readonly string[];
   fiches: readonly FicheDOpale[];
+  /** QUI ÉCRIT SUR UN NUMÉRO D'ENFANT (4 novembre 2026) : le parent qui règle
+      leur compte famille (sa fiche, son appel), sinon un parent sans fiche,
+      que la fiche des enfants nomme peut-être (« Maman d'A. »). */
+  parent?: { ficheId?: string; appel?: string; prenom?: string; nom?: string };
   nomProfil?: string;
   rdvs: readonly RdvDOpale[];
   connaitLeLieu: boolean;
@@ -5101,13 +5113,19 @@ export function contexteDOpale(c: ContexteDOpale): string {
   for (const f of c.fiches) {
     const traits = [
       f.appel ? `on l’appelle « ${f.appel} »` : `son prénom : ${f.prenom || 'inconnu'}, civilité inconnue`,
-      f.parPhone ? 'ce numéro est le sien' : f.parFamille ? 'rattachée à ce numéro par sa famille' : 'ce numéro est l’un des siens',
-      ...(f.mineure ? ['enfant'] : []),
+      f.numeroDuParent ? 'ce numéro est celui de son parent : ce n’est jamais elle qui écrit' : f.parPhone ? 'ce numéro est le sien' : f.parFamille ? 'rattachée à ce numéro par sa famille' : 'ce numéro est l’un des siens',
+      ...(f.mineure || f.numeroDuParent ? ['enfant'] : []),
       ...(f.locks ? [`environ ${f.locks} locks`] : []),
       ...(f.longueur ? [`longueur ${f.longueur}`] : []),
       ...(f.derniereVenue ? [`dernière venue : ${jourDitAvecAnnee(f.derniereVenue.date)} (${f.derniereVenue.gestes.map(c.nomDe).join(' et ')})`] : ['jamais venue']),
     ];
     l.push(`- fiche [${f.id}] : ${traits.join(' ; ')}.`);
+  }
+  if (c.parent) {
+    const p = c.parent;
+    const qui = p.appel ? `on l’appelle « ${p.appel} »` : p.prenom ? `son prénom : ${p.prenom}, civilité inconnue`
+      : p.nom ? `la fiche des enfants le nomme « ${p.nom} » (ce n’est ni un appel ni une civilité)` : 'ni son nom ni sa civilité ne sont connus';
+    l.push(`Qui t’écrit : le parent des enfants, ${p.ficheId ? `fiche [${p.ficheId}]` : 'sans fiche à ce numéro'} ; ${qui}. Ce ne sont jamais les enfants qui écrivent.`);
   }
   if (c.rdvs.length > 0) {
     l.push('Ses rendez-vous à venir :');
@@ -5157,7 +5175,16 @@ export function montantsDuTexte(t: string): number[] {
   }
   return r;
 }
-export function fautesDOpale(texte: string, o: { montantsPermis: ReadonlySet<number>; questionFranche: boolean }): string[] {
+/** LE SALUT D'UN ENFANT (4 novembre 2026) : « Bonjour Ama », « Merci, Mlle Ama »
+    sur le numéro de son parent. C'est le parent qui écrit. */
+export const salueLEnfant = (texte: string, prenom: string): boolean => {
+  const p = String(prenom ?? '').trim();
+  if (p.length < 2) return false;
+  const nom = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?<![\\p{L}])(?:bonjour|bonsoir|bienvenue|merci|avec plaisir|ch[èe]re?|salut)\\s*,?\\s+(?:(?:mme|mlle|m\\.|madame|mademoiselle|monsieur)\\s+)?${nom}(?![\\p{L}])`, 'iu').test(String(texte ?? ''));
+};
+
+export function fautesDOpale(texte: string, o: { montantsPermis: ReadonlySet<number>; questionFranche: boolean; enfants?: readonly string[] }): string[] {
   const t = String(texte ?? '').trim();
   const fautes: string[] = [];
   if (!t) fautes.push('un message vide');
@@ -5165,6 +5192,7 @@ export function fautesDOpale(texte: string, o: { montantsPermis: ReadonlySet<num
   fautes.push(...texteSain(t, true));
   if (EMOJI.test(t)) fautes.push('un émoji');
   if (!o.questionFranche && FORMULES_D_ASSISTANT.test(t)) fautes.push('une formule d’assistant');
+  for (const p of o.enfants ?? []) if (salueLEnfant(t, p)) fautes.push(`le prénom de l’enfant (« ${p} ») dans le salut : c’est son parent qui écrit, adresse-toi au parent`);
   for (const n of montantsDuTexte(t)) if (!o.montantsPermis.has(n)) fautes.push(`un montant que ni le catalogue ni un outil n’a dit (${n} F)`);
   if (/\+?\d[\d\s]{7,}\d/.test(t.replace(/\d{1,3}(?:[\s  .]\d{3})+\s?(?:fcfa|cfa|xof|francs?|f)(?![\p{L}])/giu, ''))) fautes.push('un numéro');
   return fautes;
@@ -5245,6 +5273,241 @@ export function coutDOpale(u: { input_tokens?: number | null; output_tokens?: nu
     + n(u.cache_read_input_tokens) * TARIF_D_OPALE.cacheLu + n(u.cache_creation_input_tokens) * TARIF_D_OPALE.cacheEcrit) / 1_000_000;
 }
 /* ⟨/opale⟩ */
+
+/* ══ LA VOIX DU NUMÉRO, JAMAIS UNE FICHE D'ENFANT · 4 novembre 2026 ═══
+   « Une fiche d'enfant ne doit jamais être la voix d'un numéro WhatsApp »
+   (Yéman). Recopiés tels quels, dans cet ordre : l'âge (clients-pur), le
+   prénom (foyer-pur), la règle du Trône (voix-du-numero-pur), puis ce que
+   le serveur en fait pour un fil (voix-du-fil-pur). Opale parle au parent ;
+   la trace porte l'adulte, le payeur, ou personne. */
+/* ⟨age-de⟩ */
+/** L'âge en années révolues, ou `undefined` si la date de naissance manque. */
+export function ageDe(birthday: string | undefined, aujourdhui: string): number | undefined {
+  if (!birthday) return undefined;
+  const n = new Date(`${birthday}T00:00:00`);
+  const j = new Date(`${aujourdhui}T00:00:00`);
+  if (Number.isNaN(n.getTime()) || Number.isNaN(j.getTime())) return undefined;
+  let a = j.getFullYear() - n.getFullYear();
+  const m = j.getMonth() - n.getMonth();
+  if (m < 0 || (m === 0 && j.getDate() < n.getDate())) a -= 1;
+  return a;
+}
+
+/** Est-elle mineure ? SANS DATE DE NAISSANCE, LA RÉPONSE EST NON — et c'est
+    voulu : la minorité ouvre l'accès du parent à ses données, elle ne se
+    présume pas. La règle échoue fermée, ce qui oblige à renseigner la date. */
+export const estMineur = (client: { birthday?: string }, aujourdhui: string): boolean => {
+  const a = ageDe(client.birthday, aujourdhui);
+  return a !== undefined && a < 18;
+};
+/* ⟨/age-de⟩ */
+
+/* ⟨prenom-de⟩ */
+const CIVILITES = /^(m\.?|mr\.?|mme\.?|mlle\.?|madame|mademoiselle|monsieur|dr\.?)$/i;
+
+/** LE PRÉNOM SEUL, le premier mot du nom : jamais le nom de famille, et
+    jamais une civilité (la Maison ne la suppose pas ; une civilité écrite
+    en tête du nom se saute). Sans nom : une chaîne vide. */
+export const prenomDe = (nom?: string | null): string => {
+  const mots = String(nom ?? '').trim().split(/\s+/).filter(Boolean);
+  while (mots.length > 1 && CIVILITES.test(mots[0])) mots.shift();
+  return mots[0] ?? '';
+};
+
+/** « A. et B. », « A., B. et C. » : les prénoms du foyer, dits ensemble. */
+export const prenomsDits = (prenoms: readonly string[]): string => {
+  const p = prenoms.filter(Boolean);
+  return p.length > 1 ? `${p.slice(0, -1).join(', ')} et ${p[p.length - 1]}` : (p[0] ?? '');
+};
+/* ⟨/prenom-de⟩ */
+
+/* ⟨voix-du-numero⟩ */
+/** La clé de comparaison d'un numéro (229 01 97… et 229 97… sont le même). */
+const cleDuNumero = (brut: string | undefined): string => {
+  const d = numeroWa(brut);
+  return d.length === 13 && d.startsWith('22901') ? `229${d.slice(5)}` : d;
+};
+
+/** Le nom qu'une fiche donne à l'un de ses numéros, quand c'est celui d'un parent. */
+export const LIBELLE_PARENTAL = /^\s*(maman|papa|m[èe]re|p[èe]re|parents?|tuteur|tutrice)\b/i;
+
+export type FicheParlante = {
+  id: string;
+  name: string;
+  branchId: string;
+  phone?: string;
+  phone2?: string;
+  phoneNom?: string;
+  phone2Nom?: string;
+  birthday?: string;
+  familyId?: string;
+  archived?: boolean;
+};
+export type FamillePayeuse = { id: string; payerClientId?: string };
+
+/** LA FICHE PARLE-T-ELLE SUR CE NUMÉRO ? Non si elle est mineure, ou si elle
+    nomme ce numéro comme celui d'un parent. */
+export function parleSurCeNumero(f: FicheParlante, champ: 'phone' | 'phone2', aujourdhui: string): boolean {
+  if (estMineur(f, aujourdhui)) return false;
+  const nom = champ === 'phone' ? f.phoneNom : f.phone2Nom;
+  return !LIBELLE_PARENTAL.test(nom ?? '');
+}
+
+export type VoixDuNumero =
+  /** Une fiche adulte parle sur ce numéro (elle le porte, ou elle règle le compte des enfants qui le portent). */
+  | { genre: 'fiche'; numero: string; fiche: FicheParlante; enfants: string[] }
+  /** Personne n'a de fiche pour ce numéro : la voix porte le nom que les enfants lui donnent. */
+  | { genre: 'sans-fiche'; numero: string; nom: string; branchId: string; enfants: string[] };
+
+/** LES VOIX DES NUMÉROS QUE SEULS DES ENFANTS PORTENT (clé du numéro → voix),
+    et, pour chaque fiche, les numéros sur lesquels elle parle. Un numéro porté
+    par un adulte n'a pas d'entrée ici : il parle déjà par sa fiche. */
+export function voixDesNumeros(o: {
+  fiches: readonly FicheParlante[];
+  familles?: readonly FamillePayeuse[];
+  aujourdhui: string;
+}): { voix: Map<string, VoixDuNumero>; parle: (f: FicheParlante, champ: 'phone' | 'phone2') => boolean } {
+  const vivantes = o.fiches.filter((f) => !f.archived);
+  const parle = (f: FicheParlante, champ: 'phone' | 'phone2') => parleSurCeNumero(f, champ, o.aujourdhui);
+  const adultes = new Set<string>();
+  const enfants = new Map<string, { brut: string; fiche: FicheParlante; libelle?: string }[]>();
+  for (const f of vivantes) {
+    for (const champ of ['phone', 'phone2'] as const) {
+      const brut = f[champ];
+      const k = cleDuNumero(brut);
+      if (!k || !brut) continue;
+      if (parle(f, champ)) { adultes.add(k); continue; }
+      const liste = enfants.get(k) ?? [];
+      if (!liste.some((x) => x.fiche.id === f.id)) liste.push({ brut, fiche: f, libelle: champ === 'phone' ? f.phoneNom : f.phone2Nom });
+      enfants.set(k, liste);
+    }
+  }
+  const voix = new Map<string, VoixDuNumero>();
+  for (const [k, liste] of enfants) {
+    if (adultes.has(k)) continue;
+    const ids = liste.map((x) => x.fiche.id);
+    const famille = (o.familles ?? []).find((fa) => liste.some((x) => x.fiche.familyId && x.fiche.familyId === fa.id));
+    const payeur = famille?.payerClientId ? vivantes.find((f) => f.id === famille.payerClientId) : undefined;
+    /* Le payeur parle sur ce numéro s'il n'en a pas à lui : la mère qui règle
+       le compte de ses filles écrit du téléphone que portent les filles. */
+    const payeurSansNumero = !!payeur && !cleDuNumero(payeur.phone) && !cleDuNumero(payeur.phone2);
+    if (payeur && payeurSansNumero && !ids.includes(payeur.id)) {
+      voix.set(k, { genre: 'fiche', numero: liste[0].brut, fiche: payeur, enfants: ids });
+      continue;
+    }
+    const libelle = (liste.find((x) => LIBELLE_PARENTAL.test(x.libelle ?? ''))?.libelle ?? '').trim();
+    const qui = libelle ? `${libelle[0].toUpperCase()}${libelle.slice(1).toLowerCase()}` : 'Parent';
+    const prenoms = prenomsDits([...new Set(liste.map((x) => prenomDe(x.fiche.name)).filter(Boolean))]);
+    /* « Maman d'A. », « Parent de J. » : l'élision devant une voyelle. */
+    const de = /^[aeiouyàâäéèêëîïôöûüh]/i.test(prenoms) ? 'd’' : 'de ';
+    voix.set(k, { genre: 'sans-fiche', numero: liste[0].brut, nom: `${qui} ${de}${prenoms}`, branchId: liste[0].fiche.branchId, enfants: ids });
+  }
+  return { voix, parle };
+}
+/* ⟨/voix-du-numero⟩ */
+
+/* ⟨voix-du-fil⟩ */
+/** Une ligne de la base telle qu'on la lit : `clients` ou `families`. */
+export type LigneDeLaVoix = { id: string; data?: Record<string, unknown> | null };
+/** Lit des lignes par leurs identifiants ; `null` : la base ne répond pas. */
+export type LecteurDeLaVoix = (table: 'clients' | 'families', ids: readonly string[]) => Promise<readonly LigneDeLaVoix[] | null>;
+/** La fiche qui parle, telle qu'un message la porte et qu'on l'appelle. */
+export type FicheDeLaVoix = { id: string; name: string; branchId: string; civilite?: 'madame' | 'mademoiselle' | 'monsieur'; auMasculin?: boolean };
+export type VoixDuFil = {
+  /** L'adulte qui porte ce numéro, sinon le parent qui règle le compte des enfants. */
+  fiche?: FicheDeLaVoix;
+  /** La fiche qui parle est celle du parent payeur : elle ne porte pas ce numéro. */
+  payeur?: boolean;
+  /** Personne n'a de fiche : le nom que la fiche des enfants lui donne (« Maman d'A. »). */
+  nom?: string;
+  /** Les fiches qui portent ce numéro sans y parler : les enfants. */
+  muettes: string[];
+};
+
+const texteDeLaVoix = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v : undefined);
+const ficheParlanteDe = (l: LigneDeLaVoix): FicheParlante => ({
+  id: String(l.id),
+  name: texteDeLaVoix(l.data?.name) ?? '',
+  branchId: texteDeLaVoix(l.data?.branchId) ?? '',
+  phone: texteDeLaVoix(l.data?.phone),
+  phone2: texteDeLaVoix(l.data?.phone2),
+  phoneNom: texteDeLaVoix(l.data?.phoneNom),
+  phone2Nom: texteDeLaVoix(l.data?.phone2Nom),
+  birthday: texteDeLaVoix(l.data?.birthday),
+  familyId: texteDeLaVoix(l.data?.familyId),
+  archived: l.data?.archived === true,
+});
+const ficheDeLaVoix = (f: FicheParlante, l: LigneDeLaVoix | undefined): FicheDeLaVoix => {
+  const c = l?.data?.civilite;
+  return {
+    id: f.id, name: f.name, branchId: f.branchId,
+    ...(c === 'madame' || c === 'mademoiselle' || c === 'monsieur' ? { civilite: c } : {}),
+    ...(l?.data?.auMasculin === true ? { auMasculin: true } : {}),
+  };
+};
+
+/** QUI PARLE SUR CE NUMÉRO, pour un fil du serveur. `ids` : les fiches que la
+    base rattache au numéro (celles qui le portent, et leur famille). `null` :
+    la base ne répond pas, et le fil n'est rattaché à personne. */
+export async function laVoixDuFil(numero: string, ids: readonly string[], lis: LecteurDeLaVoix, aujourdhui: string): Promise<VoixDuFil | null> {
+  const cle = (brut: string | undefined): string => {
+    const d = numeroWa(brut);
+    return d.length === 13 && d.startsWith('22901') ? `229${d.slice(5)}` : d;
+  };
+  const k = cle(numero);
+  const uniques = [...new Set(ids.filter(Boolean))];
+  if (!k || uniques.length === 0) return { muettes: [] };
+  const lues = await lis('clients', uniques);
+  if (!lues) return null;
+  const lignes = new Map(lues.map((l) => [String(l.id), l]));
+  const fiches = lues.map(ficheParlanteDe).filter((f) => !f.archived);
+  const porte = (f: FicheParlante, champ: 'phone' | 'phone2'): boolean => cle(f[champ]) === k;
+  const parleIci = (f: FicheParlante): boolean => (['phone', 'phone2'] as const).some((c) => porte(f, c) && parleSurCeNumero(f, c, aujourdhui));
+  const portent = fiches.filter((f) => porte(f, 'phone') || porte(f, 'phone2'));
+  const muettes = portent.filter((f) => !parleIci(f)).map((f) => f.id);
+  const adulte = portent.find(parleIci);
+  if (adulte) return { fiche: ficheDeLaVoix(adulte, lignes.get(adulte.id)), muettes };
+  if (portent.length === 0) return { muettes };
+  /* Seuls des enfants le portent : le parent qui règle leur compte famille. */
+  const foyers = [...new Set(portent.map((f) => f.familyId).filter((x): x is string => !!x))];
+  const familles: FamillePayeuse[] = foyers.length === 0 ? [] : ((await lis('families', foyers)) ?? [])
+    .map((l) => ({ id: String(l.id), payerClientId: texteDeLaVoix(l.data?.payerClientId) }));
+  const absents = [...new Set(familles.map((f) => f.payerClientId).filter((x): x is string => !!x && !lignes.has(x)))];
+  const payeurs = absents.length === 0 ? [] : ((await lis('clients', absents)) ?? []);
+  for (const l of payeurs) lignes.set(String(l.id), l);
+  const { voix } = voixDesNumeros({ fiches: [...fiches, ...payeurs.map(ficheParlanteDe)], familles, aujourdhui });
+  const v = voix.get(k);
+  if (v?.genre === 'fiche') return { fiche: ficheDeLaVoix(v.fiche, lignes.get(v.fiche.id)), payeur: true, muettes };
+  if (v?.genre === 'sans-fiche') return { nom: v.nom, muettes };
+  return { muettes };
+}
+/* ⟨/voix-du-fil⟩ */
+
+/** LE LECTEUR DE LA VOIX : les lignes entières, par leurs identifiants ;
+    `null` si la base ne répond pas (le fil n'est alors rattaché à personne). */
+function lecteurDeLaVoix(sb: SupabaseClient): LecteurDeLaVoix {
+  return async (t, ids) => {
+    try {
+      const { data, error } = await sb.from(t).select('id, data').in('id', [...ids]);
+      if (error) { dis('voix · lecture impossible', { table: t, motif: error.message.slice(0, 120) }); return null; }
+      return (data ?? []) as LigneDeLaVoix[];
+    } catch (e) {
+      dis('voix · lecture impossible', { table: t, motif: String(e).slice(0, 120) });
+      return null;
+    }
+  };
+}
+
+/** QUI SIGNE LA TRACE D'UN MESSAGE DE L'AUTOMATE (4 novembre 2026) : celle
+    qu'elle a dit être (« Pour moi »), si elle parle sur ce numéro ; sinon
+    la voix du numéro ; jamais une fiche d'enfant. */
+async function ficheDeLaTrace(sb: SupabaseClient, numero: string, fiches: readonly FicheDuNumero[], choisieId: string | undefined, ms: number): Promise<string | undefined> {
+  const iso = instantACotonou(ms).iso;
+  const voix = await laVoixDuFil(numero, fiches.map((f) => f.id), lecteurDeLaVoix(sb), iso);
+  const choisie = fiches.find((f) => f.id === choisieId);
+  if (choisie && !choisie.parFamille && !mineureWa(choisie.naissance, iso) && !(voix?.muettes ?? []).includes(choisie.id)) return choisie.id;
+  return voix ? voix.fiche?.id : titulaireDuNumero(fiches, iso)?.id;
+}
 
 /* ══ CE QUE LE DIALOGUE VOIT DE L'AGENDA ═══════════════════════════════
    Ni l'écran ni la cliente ne calculent une place : ce serveur la calcule
@@ -6316,7 +6579,13 @@ async function unTourDOpale(
   const { count: dits } = await sb.from('messages_wa').select('id', { count: 'exact', head: true })
     .eq('data->>numero', o.numero).eq('data->>parQui', OPALE).gte('data->>quand', depuis24);
   const titulaire = titulaireDuNumero(fiches, instantACotonou(ms).iso) ?? fiches.find((f) => f.parPhone) ?? fiches[0];
-  const prenomPourAlerte = prenomDuNomWa(titulaire?.nom) || '';
+  /* LA VOIX DU NUMÉRO (4 novembre 2026) : jamais une fiche d'enfant. Elle
+     signe la trace, nomme l'alerte, et Opale parle au parent. Illisible :
+     l'adulte seul (`titulaireDuNumero`), sinon personne. */
+  const voixDuNumero = await laVoixDuFil(o.numero, fiches.map((f) => f.id), lecteurDeLaVoix(sb), instantACotonou(ms).iso);
+  const adulteDuNumero = titulaireDuNumero(fiches, instantACotonou(ms).iso);
+  const ficheQuiParle = voixDuNumero ? voixDuNumero.fiche : adulteDuNumero ? { id: adulteDuNumero.id, name: adulteDuNumero.nom } : undefined;
+  const prenomPourAlerte = prenomDuNomWa(ficheQuiParle?.name) || '';
   if ((dits ?? 0) >= MESSAGES_D_OPALE_PAR_JOUR) {
     dis('opale · plafond du numero');
     return { pris: false };
@@ -6362,17 +6631,29 @@ async function unTourDOpale(
     parPhone: f.parPhone,
     ...(f.parFamille ? { parFamille: true } : {}),
     ...(mineureWa(f.naissance, aujourdhuiIso) ? { mineure: true } : {}),
+    ...(voixDuNumero?.muettes.includes(f.id) ? { numeroDuParent: true } : {}),
     ...(f.tete?.locks ? { locks: f.tete.locks } : {}),
     ...(f.tete?.longueur ? { longueur: f.tete.longueur } : {}),
     ...(f.derniereVenue ? { derniereVenue: { date: f.derniereVenue.date, gestes: f.derniereVenue.serviceIds } } : {}),
   }));
+  /* QUI ÉCRIT SUR UN NUMÉRO D'ENFANT : le parent qui règle leur compte, sinon
+     un parent sans fiche. Le juge refuse le prénom d'un enfant dans le salut. */
+  const voixFiche = voixDuNumero?.fiche;
+  const parentDOpale: ContexteDOpale['parent'] = voixDuNumero && voixDuNumero.muettes.length > 0 && (!voixFiche || voixDuNumero.payeur)
+    ? voixFiche
+      ? { ficheId: voixFiche.id, appel: voixFiche.civilite ? appelDe({ name: voixFiche.name, civilite: voixFiche.civilite, auMasculin: voixFiche.auMasculin }) : '', prenom: prenomDuNomWa(voixFiche.name) }
+      : { ...(voixDuNumero.nom ? { nom: voixDuNumero.nom } : {}) }
+    : undefined;
+  const prenomDuParent = prenomDuNomWa(ficheQuiParle?.name);
+  const prenomsDesEnfants = [...new Set(fiches.filter((f) => voixDuNumero?.muettes.includes(f.id) || mineureWa(f.naissance, aujourdhuiIso))
+    .map((f) => prenomDuNomWa(f.nom)).filter((p) => p && p !== prenomDuParent))];
   const paiements = Array.isArray(docs.get('mnd_payment_methods'))
     ? (docs.get('mnd_payment_methods') as unknown[]).filter((x): x is string => typeof x === 'string' && x.trim().length > 0 && x.length < 40).slice(0, 12)
     : [];
   const contexte = contexteDOpale({
     maintenantMs: ms, aujourdhui, heureDuJour: heureDite(`${String(Math.floor(instantACotonou(ms).min / 60)).padStart(2, '0')}:${String(instantACotonou(ms).min % 60).padStart(2, '0')}`),
     reouverture, heures: heuresDites(Array.isArray(semaine) ? semaine : []),
-    fiches: fichesDOpale, rdvs, connaitLeLieu,
+    fiches: fichesDOpale, ...(parentDOpale ? { parent: parentDOpale } : {}), rdvs, connaitLeLieu,
     adresse: String(agenda?.lignes.branche.data?.address ?? '').trim() || ADRESSE_D_OPALE,
     liens: { catalogue: 'https://maisonmnd.com/reserver/?besoin=entretien', creation: 'https://maisonmnd.com/reserver/?besoin=creation', reparation: 'https://maisonmnd.com/reserver/?besoin=reparation' },
     /* AUCUNE OFFRE ANNONCÉE (4 novembre 2026) : « jamais deux remises » et
@@ -6598,7 +6879,7 @@ async function unTourDOpale(
         // deno-lint-ignore no-explicit-any
         const texte = ((r?.content ?? []) as any[]).filter((b) => b?.type === 'text').map((b) => String(b.text ?? '')).join('\n').trim();
         if (issue.silence) break;
-        const fautes = fautesDOpale(texte, { montantsPermis: permis, questionFranche });
+        const fautes = fautesDOpale(texte, { montantsPermis: permis, questionFranche, enfants: prenomsDesEnfants });
         if (fautes.length === 0) { issue.texte = texte; break; }
         dis('opale · message retenu par les juges', { fautes: fautes.length, relu });
         if (relu) { secours = true; break; }
@@ -6666,7 +6947,8 @@ async function unTourDOpale(
   }
 
   /* ⑨ À META, puis la trace, signée Opale. */
-  const clientIdDuFil = (fiches.find((f) => (f.numeros ?? []).some((x) => cleWa(x) === cleWa(o.numero))) ?? titulaire)?.id;
+  /* La trace porte la voix du numéro : l'adulte, le payeur, ou personne (4 novembre 2026). */
+  const clientIdDuFil = ficheQuiParle?.id;
   let refus: MotifDeLaMain | null = null;
   let premier: Rendu | null = null;
   for (const m of sortants) {
@@ -6973,8 +7255,7 @@ async function unTour(
 
   /* ⑩ LE MESSAGE, à Graph, puis sa trace. Les juges de la Maison passent
      d'abord : un message qu'elle n'écrirait pas ne part pas. */
-  const clientIdDuFil = sortie.etat.panier.clientId
-    ?? (fiches.find((f) => (f.numeros ?? []).some((x) => cleWa(x) === cleWa(o.numero))) ?? fiches.find((f) => f.parPhone))?.id;
+  const clientIdDuFil = await ficheDeLaTrace(sb, o.numero, fiches, sortie.etat.panier.clientId, ms);
   let refus: MotifDeLaMain | null = null;
   let laConfirmation: Rendu | null = null;
   for (const m of sortie.messages) {
@@ -7135,7 +7416,7 @@ async function reprendLeFil(
   });
   if (errAvance || typeof version !== 'number') return { repris: false, raison: 'fil en mouvement' };
 
-  const clientId = sortie.etat.panier.clientId ?? titulaire?.id;
+  const clientId = await ficheDeLaTrace(sb, o.numero, fiches, sortie.etat.panier.clientId, ms);
   for (const m of sortie.messages) {
     if ([...respecteMeta(m), ...texteSain(toutLeTexteWa(m), m.prixDuCatalogue === true)].length > 0) return { repris: false, raison: 'message retenu par les juges' };
     const rendu = await envoieAGraph(o.jeton, o.phoneId, chargeGraph(m, o.numero));

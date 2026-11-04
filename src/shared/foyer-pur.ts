@@ -75,6 +75,7 @@ const parHeure = <T extends RdvDuFoyer>(a: T, b: T): number =>
 
 /* ══ 1. QUI EST DU FOYER ═══════════════════════════════════════════════ */
 
+/* ⟨prenom-de⟩ */
 const CIVILITES = /^(m\.?|mr\.?|mme\.?|mlle\.?|madame|mademoiselle|monsieur|dr\.?)$/i;
 
 /** LE PRÉNOM SEUL, le premier mot du nom : jamais le nom de famille, et
@@ -91,6 +92,7 @@ export const prenomsDits = (prenoms: readonly string[]): string => {
   const p = prenoms.filter(Boolean);
   return p.length > 1 ? `${p.slice(0, -1).join(', ')} et ${p[p.length - 1]}` : (p[0] ?? '');
 };
+/* ⟨/prenom-de⟩ */
 
 /** LES TÊTES D'UN COMPTE FAMILLE, quel que soit leur âge, celle par qui l'on
     arrive en tête (2 septembre 2026, sorti de RdvFoyer.tsx le 4 novembre

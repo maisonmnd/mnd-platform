@@ -641,6 +641,11 @@ const regles: Regle[] = [
         'lien-du-rdv': { fichier: 'src/shared/lien-du-rdv-pur.ts', extrait: (s) => entre(s, 'lien-du-rdv') },
         /* Le message du foyer (4 novembre 2026) : un message par foyer, qui nomme chaque tête, recopié dans confirmation-rdv, rappels-j1 et envois-partent. */
         'message-du-foyer': { fichier: 'src/shared/message-du-foyer-pur.ts', extrait: (s) => entre(s, 'message-du-foyer') },
+        /* La voix du numéro, jamais une fiche d'enfant (4 novembre 2026) : l'âge, le prénom, la règle du Trône et sa lecture pour un fil, recopiés dans whatsapp-webhook et whatsapp-automate. */
+        'age-de': { fichier: 'src/shared/clients-pur.ts', extrait: (s) => entre(s, 'age-de') },
+        'prenom-de': { fichier: 'src/shared/foyer-pur.ts', extrait: (s) => entre(s, 'prenom-de') },
+        'voix-du-numero': { fichier: 'src/shared/voix-du-numero-pur.ts', extrait: (s) => entre(s, 'voix-du-numero') },
+        'voix-du-fil': { fichier: 'src/shared/voix-du-fil-pur.ts', extrait: (s) => entre(s, 'voix-du-fil') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

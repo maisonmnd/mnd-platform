@@ -24,6 +24,7 @@ import { estMineur } from './clients-pur';
 import { prenomDe, prenomsDits } from './foyer-pur';
 import { numeroWa } from './numero-wa-pur';
 
+/* ⟨voix-du-numero⟩ */
 /** La clé de comparaison d'un numéro (229 01 97… et 229 97… sont le même). */
 const cleDuNumero = (brut: string | undefined): string => {
   const d = numeroWa(brut);
@@ -106,3 +107,4 @@ export function voixDesNumeros(o: {
   }
   return { voix, parle };
 }
+/* ⟨/voix-du-numero⟩ */

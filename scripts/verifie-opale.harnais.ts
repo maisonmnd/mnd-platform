@@ -11,8 +11,9 @@
 import {
   CLE_D_OPALE, MESSAGES_D_OPALE_PAR_JOUR, OPALE, OUTILS_D_OPALE, confirmationPermise, consigneDOpale, contexteDOpale,
   etatApresOpale, fautesDOpale, gestesLus, heuresDites, montantsDuTexte, opaleSert, placesDites, propositionLue,
-  reglageDOpale, estUneQuestionFrancheDOpale, type ContexteDOpale,
+  reglageDOpale, estUneQuestionFrancheDOpale, salueLEnfant, type ContexteDOpale,
 } from '../src/shared/opale-pur';
+import { laVoixDuFil, type LecteurDeLaVoix, type LigneDeLaVoix } from '../src/shared/voix-du-fil-pur';
 
 declare const __PANNE__: { fichier: string; avant: string; apres: string } | null;
 
@@ -125,6 +126,7 @@ const RPC: Record<string, (a: any) => any> = {
     .map((c) => ({
       id: c.id, nom: c.data.name, ...(c.data.civilite ? { civilite: c.data.civilite } : {}), parPhone: cle8(c.data.phone) === cle8(num),
       numeros: [c.data.phone].filter(Boolean), ...(c.data.derniereVenue ? { derniereVenue: c.data.derniereVenue } : {}), branchId: 'br-banc',
+      ...(c.data.birthday ? { naissance: c.data.birthday } : {}), ...(c.data.familyId ? { familyId: c.data.familyId } : {}),
     })),
   creneaux_occupes: () => [],
   is_staff: () => true,
@@ -487,6 +489,84 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
   const ctx = String(DEMANDES[0]?.messages?.[0]?.content ?? '');
   dit('aucune offre au contexte, meme active ; la consigne n en parle pas', [false, false, true], [
     ctx.includes('MERCREDI15'), ctx.includes('L’offre du moment'), consigneDOpale().includes('Ne parle d’aucune remise, d’aucun code ni d’aucune offre'),
+  ]);
+}
+
+/* ══ 11 quater. LE NUMÉRO DE LA MÈRE, QUE PORTENT SES FILLES (4 novembre 2026) ══
+   « Une fiche d'enfant ne doit jamais être la voix d'un numéro » (Yéman) : la
+   mère écrit du numéro de ses deux filles mineures. Opale lui parle, jamais
+   « Bonjour Ama » ; la trace porte la mère (qui règle le compte famille), ou
+   personne quand le parent n'a pas de fiche. Tout est inventé. */
+{
+  const NUM2 = '22990000003';
+  const filles = (plus: Record<string, unknown> = {}) => {
+    table('clients').push(
+      { id: 'cl-fille-a', data: { name: 'Ama Banc', phone: '+229 01 90 00 00 03', birthday: '2017-03-02', familyId: 'fam-banc', ...plus } },
+      { id: 'cl-fille-b', data: { name: 'Afi Banc', phone: '+229 01 90 00 00 03', birthday: '2019-05-05', familyId: 'fam-banc' } },
+    );
+  };
+  decor();
+  filles();
+  table('clients').push({ id: 'cl-mere', data: { name: 'Rose Banc', civilite: 'madame', familyId: 'fam-banc' } });
+  table('families').push({ id: 'fam-banc', data: { payerClientId: 'cl-mere' } });
+  const w = elleEcrit(NUM2, 'Bonjour, je voudrais un rendez-vous pour mes filles');
+  FILE = [
+    { texte: 'Bonjour Ama, avec plaisir. Pour quel jour souhaitez-vous venir ?' },
+    { texte: 'Bonjour Mme Rose, avec plaisir : pour quel jour souhaitez-vous recevoir vos filles à la Maison MND ?' },
+  ];
+  await tour(NUM2, [w]);
+  const ctx = String(DEMANDES[0]?.messages?.[0]?.content ?? '');
+  dit('le contexte : la mere ecrit, ses filles ne parlent pas sur son numero', [true, true, false], [
+    ctx.includes('Qui t’écrit : le parent des enfants, fiche [cl-mere] ; on l’appelle « Mme Rose »'),
+    ctx.includes('fiche [cl-fille-a] : son prénom : Ama, civilité inconnue ; ce numéro est celui de son parent : ce n’est jamais elle qui écrit ; enfant'),
+    ctx.includes('fiche [cl-fille-a] : son prénom : Ama, civilité inconnue ; ce numéro est le sien'),
+  ]);
+  dit('« Bonjour Ama » est retenu et reecrit ; seul le salut a la mere part', [2, true, 1, true], [
+    DEMANDES.length, String(DEMANDES[1]?.messages?.at(-1)?.content ?? '').includes('le prénom de l’enfant (« Ama »)'),
+    META.length, textesEnvoyes()[0]?.startsWith('Bonjour Mme Rose') ?? false,
+  ]);
+  dit('la trace porte la mere, jamais une fille', ['cl-mere'], traces().map((t) => t.clientId));
+  dit('la consigne : jamais l enfant saluee, le parent', true, consigneDOpale().includes('Ne salue jamais l’enfant et ne l’appelle jamais par son prénom'));
+
+  decor();
+  filles({ phoneNom: 'Maman' });
+  const w2 = elleEcrit(NUM2, 'Bonjour');
+  FILE = [{ texte: 'Bonjour, la Maison MND vous écoute.' }];
+  await tour(NUM2, [w2]);
+  const ctx2 = String(DEMANDES[0]?.messages?.[0]?.content ?? '');
+  dit('sans fiche du parent : la voix que nomme la fiche des enfants, la trace a personne', [true, [null]], [
+    ctx2.includes('Qui t’écrit : le parent des enfants, sans fiche à ce numéro ; la fiche des enfants le nomme « Maman d’Ama et Afi »'),
+    traces().map((t) => t.clientId ?? null),
+  ]);
+}
+
+/* ══ 11 quinquies. LA VOIX D'UN FIL, SEULE (voix-du-fil-pur) ══ */
+{
+  const lignes: Record<'clients' | 'families', LigneDeLaVoix[]> = { clients: [], families: [] };
+  const lis = (muette = false): LecteurDeLaVoix => async (t, ids) => (muette ? null : lignes[t].filter((l) => ids.includes(l.id)));
+  const AUJ = '2026-11-04';
+  const MERE = '+229 01 90 00 00 07';
+  lignes.clients = [
+    { id: 'a', data: { name: 'Ama B.', phone: MERE, birthday: '2017-03-02', familyId: 'f' } },
+    { id: 'm', data: { name: 'Rose B.', civilite: 'madame', phone: '+229 01 90 00 00 08', familyId: 'f' } },
+  ];
+  lignes.families = [{ id: 'f', data: { payerClientId: 'm' } }];
+  const v1 = await laVoixDuFil('22990000007', ['a'], lis(), AUJ);
+  dit('le payeur a son numero a lui : une voix sans fiche, l enfant muette', [null, 'Parent d’Ama', ['a']], [v1?.fiche?.id ?? null, v1?.nom, v1?.muettes]);
+  lignes.clients[1] = { id: 'm', data: { name: 'Rose B.', civilite: 'madame', familyId: 'f' } };
+  const v2 = await laVoixDuFil('2290190000007', ['a'], lis(), AUJ);
+  dit('le payeur sans numero parle, avec sa civilite ; le numero en 01 se replie', ['m', true, 'madame', ['a']], [v2?.fiche?.id, v2?.payeur, v2?.fiche?.civilite, v2?.muettes]);
+  lignes.clients.push({ id: 'p', data: { name: 'Koffi B.', phone: MERE } });
+  const v3 = await laVoixDuFil('22990000007', ['a', 'p'], lis(), AUJ);
+  dit('un adulte porte le numero : c est lui, l enfant reste muette', ['p', null, ['a']], [v3?.fiche?.id, v3?.payeur ?? null, v3?.muettes]);
+  lignes.clients[2] = { id: 'p', data: { name: 'Koffi B.', phone: MERE, phoneNom: 'Papa' } };
+  const v4 = await laVoixDuFil('22990000007', ['a', 'p'], lis(), AUJ);
+  dit('un adulte qui nomme ce numero « Papa » n y parle pas : le payeur', ['m', ['a', 'p']], [v4?.fiche?.id, v4?.muettes]);
+  dit('la base muette : null, le fil a personne', null, await laVoixDuFil('22990000007', ['a'], lis(true), AUJ));
+  dit('aucune fiche : personne', { muettes: [] }, await laVoixDuFil('22990000007', [], lis(), AUJ));
+  dit('le salut d un enfant', [true, true, false, false, false], [
+    salueLEnfant('Bonjour Ama, avec plaisir.', 'Ama'), salueLEnfant('Merci, Mlle Ama.', 'Ama'),
+    salueLEnfant('Bonjour Mme Rose, le rendez-vous d’Ama est confirmé.', 'Ama'), salueLEnfant('Bonjour Amadou.', 'Ama'), salueLEnfant('Bonjour A.', 'A'),
   ]);
 }
 

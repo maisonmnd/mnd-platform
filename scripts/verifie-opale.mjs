@@ -28,7 +28,7 @@ const PANNES = [
   { nom: 'Opale parle quand l equipe a la main', fichier: AU, avant: "if (pauseActive(main, ms)) { dis('opale · l equipe a la main'); return { pris: false }; }", apres: '' },
   { nom: 'Opale parle apres avoir passe la main', fichier: AU, avant: "if (fil && etapeCourante(fil, main, ms, reglage.pauseHeures) === 'main' && !o.reprise) { dis('opale · la main est passee, pas encore rendue'); return { pris: false }; }", apres: '' },
   { nom: 'la trace n est pas signee Opale', fichier: AU, avant: 'm, rendu, parQui: OPALE, ', apres: 'm, rendu, ' },
-  { nom: 'les juges ne lisent pas son message', fichier: AU, avant: 'const fautes = fautesDOpale(texte, { montantsPermis: permis, questionFranche });', apres: 'const fautes: string[] = [];' },
+  { nom: 'les juges ne lisent pas son message', fichier: AU, avant: 'const fautes = fautesDOpale(texte, { montantsPermis: permis, questionFranche, enfants: prenomsDesEnfants });', apres: 'const fautes: string[] = [];' },
   { nom: 'Claude injoignable laisse la cliente sans reponse', fichier: AU, avant: "dis('opale · claude injoignable', { motif: String((e as Error)?.message ?? e).slice(0, 120) });\n      secours = true;", apres: 'throw e;' },
   { nom: 'le plafond du numero ne tient pas', fichier: AU, avant: 'if ((dits ?? 0) >= MESSAGES_D_OPALE_PAR_JOUR) {', apres: 'if (false) {' },
   { nom: 'un prestataire est servi', fichier: AU, avant: "  if (o.tiroir !== 'equipe') return false;\n  const k = o.cle(o.numero);", apres: "  if (o.tiroir !== 'equipe') return true;\n  const k = o.cle(o.numero);" },
@@ -47,6 +47,11 @@ const PANNES = [
   { nom: 'la consigne oublie la Maison MND', fichier: OP, avant: 'Quand tu nommes le lieu, écris « la Maison MND » en entier : « Nous vous attendons à la Maison MND ». ', apres: '' },
   { nom: 'Opale annonce l offre du moment', fichier: AU, avant: '    paiements, offres: [], catalogue,', apres: "    paiements, offres: offresDOpale(docs.get('mnd_offers'), aujourdhui), catalogue," },
   { nom: 'la consigne laisse parler des remises', fichier: OP, avant: 'Ne parle d’aucune remise, d’aucun code ni d’aucune offre : la Maison MND les applique elle-même, quand ils valent pour elle.', apres: 'L’offre du jour se dit telle quelle.' },
+  { nom: 'une enfant parle sur le numero de sa mere', fichier: AU, avant: '  const adulte = portent.find(parleIci);', apres: '  const adulte = portent[0];' },
+  { nom: 'la trace porte la premiere fiche du numero', fichier: AU, avant: '  const clientIdDuFil = ficheQuiParle?.id;', apres: '  const clientIdDuFil = fiches[0]?.id;' },
+  { nom: 'Opale ne sait pas qui ecrit', fichier: AU, avant: '    fiches: fichesDOpale, ...(parentDOpale ? { parent: parentDOpale } : {}), rdvs, connaitLeLieu,', apres: '    fiches: fichesDOpale, rdvs, connaitLeLieu,' },
+  { nom: 'le juge laisse saluer l enfant', fichier: AU, avant: 'questionFranche, enfants: prenomsDesEnfants });', apres: 'questionFranche });' },
+  { nom: 'la consigne laisse saluer l enfant', fichier: OP, avant: 'Ne salue jamais l’enfant et ne l’appelle jamais par son prénom : ', apres: '' },
   { nom: 'la copie du bloc derive', fichier: AU, avant: 'export const MESSAGES_D_OPALE_PAR_JOUR = 40;', apres: 'export const MESSAGES_D_OPALE_PAR_JOUR = 400;' },
 ];
 

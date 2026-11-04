@@ -134,6 +134,7 @@ export function consigneDOpale(): string {
     'Pas d’émoji, pas de tiret long, pas de liste à puces, pas de titre, pas de point d’exclamation répété. Ni « coucou », ni « ok », ni abréviation.',
     'Pas de formule d’assistant : ni « je suis l’assistant », ni « n’hésitez pas », ni « merci pour votre message » à chaque fois, ni récapitulatif de ce qu’elle vient de dire. Ne signe pas, n’ajoute pas de devise.',
     'Reprends l’appel que le contexte donne (« Mme Akouélé », « M. Jean-Luc ») tel quel, sans inventer ni nom ni civilité. Sans appel connu, n’en mets pas.',
+    'Une fiche marquée « enfant » ne t’écrit jamais : sur son numéro, c’est son parent qui écrit (« Qui t’écrit » dans le contexte). Ne salue jamais l’enfant et ne l’appelle jamais par son prénom : adresse-toi au parent, par l’appel que le contexte lui donne, sinon sans nom ni civilité. Les rendez-vous de l’enfant restent les siens (« le rendez-vous d’Ama ») et se réservent à sa fiche.',
     'Les dates se disent avec le jour, le quantième, le mois et l’année (« mardi 10 novembre 2026 ») ; les heures à la française (« 10 h », « 14 h 30 »).',
     'Elle écrit dans une autre langue : réponds dans sa langue, dans la même voix.',
     '',
@@ -424,6 +425,9 @@ export type FicheDOpale = {
   parPhone: boolean;
   parFamille?: boolean;
   mineure?: boolean;
+  /** Elle porte ce numéro sans y parler (4 novembre 2026) : une enfant, ou
+      une fiche qui le nomme « Maman », « Papa ». Ce n'est jamais elle qui écrit. */
+  numeroDuParent?: boolean;
   locks?: number;
   longueur?: string;
   derniereVenue?: { date: string; gestes: string[] };
@@ -436,6 +440,10 @@ export type ContexteDOpale = {
   reouverture: string | null;
   heures: readonly string[];
   fiches: readonly FicheDOpale[];
+  /** QUI ÉCRIT SUR UN NUMÉRO D'ENFANT (4 novembre 2026) : le parent qui règle
+      leur compte famille (sa fiche, son appel), sinon un parent sans fiche,
+      que la fiche des enfants nomme peut-être (« Maman d'A. »). */
+  parent?: { ficheId?: string; appel?: string; prenom?: string; nom?: string };
   nomProfil?: string;
   rdvs: readonly RdvDOpale[];
   connaitLeLieu: boolean;
@@ -491,13 +499,19 @@ export function contexteDOpale(c: ContexteDOpale): string {
   for (const f of c.fiches) {
     const traits = [
       f.appel ? `on l’appelle « ${f.appel} »` : `son prénom : ${f.prenom || 'inconnu'}, civilité inconnue`,
-      f.parPhone ? 'ce numéro est le sien' : f.parFamille ? 'rattachée à ce numéro par sa famille' : 'ce numéro est l’un des siens',
-      ...(f.mineure ? ['enfant'] : []),
+      f.numeroDuParent ? 'ce numéro est celui de son parent : ce n’est jamais elle qui écrit' : f.parPhone ? 'ce numéro est le sien' : f.parFamille ? 'rattachée à ce numéro par sa famille' : 'ce numéro est l’un des siens',
+      ...(f.mineure || f.numeroDuParent ? ['enfant'] : []),
       ...(f.locks ? [`environ ${f.locks} locks`] : []),
       ...(f.longueur ? [`longueur ${f.longueur}`] : []),
       ...(f.derniereVenue ? [`dernière venue : ${jourDitAvecAnnee(f.derniereVenue.date)} (${f.derniereVenue.gestes.map(c.nomDe).join(' et ')})`] : ['jamais venue']),
     ];
     l.push(`- fiche [${f.id}] : ${traits.join(' ; ')}.`);
+  }
+  if (c.parent) {
+    const p = c.parent;
+    const qui = p.appel ? `on l’appelle « ${p.appel} »` : p.prenom ? `son prénom : ${p.prenom}, civilité inconnue`
+      : p.nom ? `la fiche des enfants le nomme « ${p.nom} » (ce n’est ni un appel ni une civilité)` : 'ni son nom ni sa civilité ne sont connus';
+    l.push(`Qui t’écrit : le parent des enfants, ${p.ficheId ? `fiche [${p.ficheId}]` : 'sans fiche à ce numéro'} ; ${qui}. Ce ne sont jamais les enfants qui écrivent.`);
   }
   if (c.rdvs.length > 0) {
     l.push('Ses rendez-vous à venir :');
@@ -547,7 +561,16 @@ export function montantsDuTexte(t: string): number[] {
   }
   return r;
 }
-export function fautesDOpale(texte: string, o: { montantsPermis: ReadonlySet<number>; questionFranche: boolean }): string[] {
+/** LE SALUT D'UN ENFANT (4 novembre 2026) : « Bonjour Ama », « Merci, Mlle Ama »
+    sur le numéro de son parent. C'est le parent qui écrit. */
+export const salueLEnfant = (texte: string, prenom: string): boolean => {
+  const p = String(prenom ?? '').trim();
+  if (p.length < 2) return false;
+  const nom = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?<![\\p{L}])(?:bonjour|bonsoir|bienvenue|merci|avec plaisir|ch[èe]re?|salut)\\s*,?\\s+(?:(?:mme|mlle|m\\.|madame|mademoiselle|monsieur)\\s+)?${nom}(?![\\p{L}])`, 'iu').test(String(texte ?? ''));
+};
+
+export function fautesDOpale(texte: string, o: { montantsPermis: ReadonlySet<number>; questionFranche: boolean; enfants?: readonly string[] }): string[] {
   const t = String(texte ?? '').trim();
   const fautes: string[] = [];
   if (!t) fautes.push('un message vide');
@@ -555,6 +578,7 @@ export function fautesDOpale(texte: string, o: { montantsPermis: ReadonlySet<num
   fautes.push(...texteSain(t, true));
   if (EMOJI.test(t)) fautes.push('un émoji');
   if (!o.questionFranche && FORMULES_D_ASSISTANT.test(t)) fautes.push('une formule d’assistant');
+  for (const p of o.enfants ?? []) if (salueLEnfant(t, p)) fautes.push(`le prénom de l’enfant (« ${p} ») dans le salut : c’est son parent qui écrit, adresse-toi au parent`);
   for (const n of montantsDuTexte(t)) if (!o.montantsPermis.has(n)) fautes.push(`un montant que ni le catalogue ni un outil n’a dit (${n} F)`);
   if (/\+?\d[\d\s]{7,}\d/.test(t.replace(/\d{1,3}(?:[\s  .]\d{3})+\s?(?:fcfa|cfa|xof|francs?|f)(?![\p{L}])/giu, ''))) fautes.push('un numéro');
   return fautes;

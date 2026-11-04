@@ -2515,7 +2515,8 @@ const regles: Regle[] = [
       vaut('listee au plan de 2024, servie sous l ancien numero de Meta (le premier essai de Yeman)', [true, true, false],
         [numeroServi(essai, '22997000099', 'clientes'), numeroServi(essai, '2290197000099', 'equipe'), numeroServi(essai, '22997000098', 'clientes')]);
       const auto = lit(F_AUTO), hook = lit(F_HOOK), conv = lit(CONV), sql = lit('supabase/migrations/0128_la_cle_du_numero.sql');
-      vrai('la fonction rattache la fiche du numero par cle', auto.includes("(f.numeros ?? []).some((x) => cleWa(x) === cleWa(o.numero))"));
+      /* Depuis le 4 novembre 2026, la trace porte la VOIX du numero (jamais une fiche d enfant), lue par cle elle aussi. */
+      vrai('la fonction rattache la fiche du numero par cle', auto.includes("const porte = (f: FicheParlante, champ: 'phone' | 'phone2'): boolean => cle(f[champ]) === k;") && auto.includes('const voixDuNumero = await laVoixDuFil(o.numero,'));
       vrai('le webhook lit les fiches par cle quand la RPC manque', hook.includes('f.numeros.some((x) => cleWa(x) === cle)'));
       vrai('le Trone trouve la tete d un numero par cle', conv.includes('cleDuNumeroWa(t.phone) !== n && cleDuNumeroWa(t.phone2) !== n'));
       vrai('la base compare les fiches, la tete et la reserve par cle (0128)', sql.includes("public.cle_du_numero_wa(c.data->>'phone') = (select v from num) as par_phone") && sql.includes("and (public.cle_du_numero_wa(c.data->>'phone') = (select v from num)") && /cle_du_numero_wa\(t\.data->>'phone'\)/.test(sql) && /cle_du_numero_wa\(m\.data->>'numero'\)/.test(sql));
@@ -2524,7 +2525,7 @@ const regles: Regle[] = [
     },
     pannes: [
       { nom: 'l essai compare les chiffres a l egal', mute: [P(AUTO, "  if (reglage.numerosEssai.some((x) => cleWa(x) === n)) return true;", "  if (reglage.numerosEssai.includes(String(numero ?? '').replace(/\\D/g, ''))) return true;")] },
-      { nom: 'la fonction rattache la fiche a l egal', mute: [P(F_AUTO, "(f.numeros ?? []).some((x) => cleWa(x) === cleWa(o.numero))", "(f.numeros ?? []).includes(o.numero)")] },
+      { nom: 'la fonction rattache la fiche a l egal', mute: [P(F_AUTO, "const porte = (f: FicheParlante, champ: 'phone' | 'phone2'): boolean => cle(f[champ]) === k;", "const porte = (f: FicheParlante, champ: 'phone' | 'phone2'): boolean => numeroWa(f[champ]) === numero;")] },
       { nom: 'le Trone cherche la tete a l egal', mute: [P(CONV, 'cleDuNumeroWa(t.phone) !== n && cleDuNumeroWa(t.phone2) !== n', 'numeroWa(t.phone) !== n && numeroWa(t.phone2) !== n')] },
       { nom: 'la base compare les fiches a l egal', mute: [P('supabase/migrations/0128_la_cle_du_numero.sql', "public.cle_du_numero_wa(c.data->>'phone') = (select v from num) as par_phone", "public.numero_wa(c.data->>'phone') = (select v from num) as par_phone")] },
     ],
@@ -2972,7 +2973,7 @@ const regles: Regle[] = [
       { nom: 'merci relance', mute: [P(AUTO, "      return silence();\n    }\n    /* UNE QUESTION QUI N'EST PAS", "      return ecart();\n    }\n    /* UNE QUESTION QUI N'EST PAS")] },
       { nom: 'le juge de la fonction oublie le catalogue', mute: [P(F_AUTO, 'texteSain(toutLeTexteWa(m), m.prixDuCatalogue === true)', 'texteSain(toutLeTexteWa(m))')] },
       { nom: 'la trace oublie la reponse', mute: [P(F_AUTO, '      ...(o.m.reponseId ? { reponse: o.m.reponseId } : {}),\n', '')] },
-      { nom: 'la fonction ne lit pas le conseil', mute: [P(F_AUTO, "'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa', 'mnd_tri_des_messages', 'mnd_model_bands', 'mnd_model_band_sets']", "'mnd_house_identity', 'mnd_assistant_wa', 'mnd_tri_des_messages', 'mnd_model_bands', 'mnd_model_band_sets']")] },
+      { nom: 'la fonction ne lit pas le conseil', mute: [P(F_AUTO, "'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa',", "'mnd_house_identity', 'mnd_assistant_wa',")] },
     ],
   },
   /* ══ R42 · au Trône : les brouillons, la validation de la direction, 14 octobre 2026 ═══ */
@@ -3995,6 +3996,43 @@ const regles: Regle[] = [
       { nom: 'l accord laisse passer d autres boutons', mute: [P(AUTO, '/^NOUVELLES:(oui|non)$/.test(b.id) && ', '')] },
       { nom: 'la reception ne sait plus l accord', mute: [P(F_AUTO, '    sait: [...CE_QUE_L_AUTOMATE_SAIT],\n', '')] },
       { nom: 'le deplacement demande attend la fin du parcours', mute: [P(AUTO, '(!enCours || ctx.deplacerDemande)', '!enCours')] },
+    ],
+  },
+
+  /* ══ R55 ═════════════════════════════════════════════════════════════
+     4 novembre 2026, la règle de Yéman : « une fiche d'enfant ne doit jamais
+     être la voix d'un numéro WhatsApp ». La mère écrit du numéro que portent
+     ses deux filles mineures : le VRAI webhook range son message sur elle
+     (elle règle le compte famille), sinon sur personne ; un adulte qui porte
+     le numéro en reste la voix. Tout est inventé. */
+  {
+    id: 'R55', nom: 'R55 une fiche d enfant n est jamais la voix d un numero : le message de la mere ecrit du numero de ses filles porte la mere qui regle le compte, sinon personne ; un adulte qui porte le numero en reste la voix',
+    eprouve: async () => {
+      const { ecarts, vaut } = juge();
+      const NUM_FILLES = '2290197000055';
+      const filles = (plus: Any = {}) => [
+        { id: 'cli-fille-a', data: { name: 'Ama Banc', phone: '+229 01 97 00 00 55', birthday: '2017-03-02', familyId: 'fam-r55', branchId: 'maison', ...plus } },
+        { id: 'cli-fille-b', data: { name: 'Afi Banc', phone: '+229 01 97 00 00 55', birthday: '2019-05-05', familyId: 'fam-r55', branchId: 'maison' } },
+      ];
+      const entrantDe = (num: string) => [...T('messages_wa').values()].map((l: Any) => l.data).find((d: Any) => d.sens === 'entrant' && d.numero === num);
+      await auBanc(ecarts, async () => {
+        avecTacheDeFond(true);
+        remetsLaBase({ mode: 'essai', numerosEssai: [] }, { clients: [...filles(), { id: 'cli-mere', data: { name: 'Rose Banc', civilite: 'madame', familyId: 'fam-r55', branchId: 'maison' } }] });
+        T('families').set('fam-r55', { id: 'fam-r55', data: { payerClientId: 'cli-mere' } });
+        await ecrit(NUM_FILLES, 'Bonjour, c est pour mes filles');
+        vaut('banc : le message porte la mere qui regle le compte, dans la branche des filles', ['cli-mere', 'maison'], [entrantDe(NUM_FILLES)?.clientId ?? null, entrantDe(NUM_FILLES)?.branchId ?? null]);
+        remetsLaBase({ mode: 'essai', numerosEssai: [] }, { clients: filles({ phoneNom: 'Maman' }) });
+        await ecrit(NUM_FILLES, 'Bonjour');
+        vaut('banc : sans fiche du parent, le message n est rattache a personne, la branche reste', [null, 'maison'], [entrantDe(NUM_FILLES)?.clientId ?? null, entrantDe(NUM_FILLES)?.branchId ?? null]);
+        remetsLaBase({ mode: 'essai', numerosEssai: [] }, { clients: [...filles(), { id: 'cli-pere', data: { name: 'Koffi Banc', civilite: 'monsieur', phone: '+229 01 97 00 00 55', branchId: 'maison' } }] });
+        await ecrit(NUM_FILLES, 'Bonsoir');
+        vaut('banc : un adulte porte le numero, il en reste la voix', ['cli-pere'], [entrantDe(NUM_FILLES)?.clientId ?? null]);
+      });
+      return ecarts;
+    },
+    pannes: [
+      { nom: 'le webhook prend la premiere fiche du numero', mute: [P(F_HOOK, "          sens: 'entrant', numero: e.numero, clientId: tete?.id,", "          sens: 'entrant', numero: e.numero, clientId: (fichesParNumero.get(e.numero) ?? [])[0]?.id,")] },
+      { nom: 'une enfant parle sur le numero de sa mere (copie du webhook)', mute: [P(F_HOOK, '  const adulte = portent.find(parleIci);', '  const adulte = portent[0];')] },
     ],
   },
 ];

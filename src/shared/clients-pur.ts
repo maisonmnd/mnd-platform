@@ -74,6 +74,7 @@ export const dortDepuisLongtemps = (
   return derniereVenue < moisAvant(aujourdhui, mois);
 };
 
+/* ⟨age-de⟩ */
 /** L'âge en années révolues, ou `undefined` si la date de naissance manque. */
 export function ageDe(birthday: string | undefined, aujourdhui: string): number | undefined {
   if (!birthday) return undefined;
@@ -93,3 +94,4 @@ export const estMineur = (client: { birthday?: string }, aujourdhui: string): bo
   const a = ageDe(client.birthday, aujourdhui);
   return a !== undefined && a < 18;
 };
+/* ⟨/age-de⟩ */
