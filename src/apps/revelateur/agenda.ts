@@ -11,6 +11,7 @@ import { client } from './maison';
 import { litToutesLesPages } from '../../shared/lecture-entiere';
 import { assembleLAgenda, type LigneLue } from './agenda-assemble';
 import { estUnGesteDeLaCouleur, titreDeLaFamille } from './couleur-pure';
+import { carteDesRemises, type CarteDesRemises } from './places-du-site-pur';
 
 /* LE CALENDRIER DU SITE, SANS COMPTE — 17 septembre 2026.
 
@@ -59,6 +60,9 @@ export type PrestationPublique = {
   enabled?: boolean;
   archived?: boolean;
   master?: string;
+  /** AUCUNE REMISE, D'AUCUNE SORTE — 4 novembre 2026 (le Rituel Sówà™) : la
+      ligne garde son prix sous tout code et toute place (`gesteSansRemise`). */
+  sansRemise?: boolean;
 };
 
 export type CategoriePublique = { id: string; label: string; fon?: string; parentId?: string; enabled?: boolean };
@@ -186,8 +190,9 @@ export function prechargeLesOccupes(branchId: string, du: string, au: string): P
   return promesse;
 }
 
-let calendrier: Promise<{ agenda: AgendaDeLaMaison | null; occupes: CreneauOccupe[]; places: CarteDesPlaces }> | null = null;
-export function calendrierDuSite(du: string, au: string, brancheConnue?: string): Promise<{ agenda: AgendaDeLaMaison | null; occupes: CreneauOccupe[]; places: CarteDesPlaces }> {
+type CalendrierDuSite = { agenda: AgendaDeLaMaison | null; occupes: CreneauOccupe[]; places: CarteDesPlaces; remises: CarteDesRemises };
+let calendrier: Promise<CalendrierDuSite> | null = null;
+export function calendrierDuSite(du: string, au: string, brancheConnue?: string): Promise<CalendrierDuSite> {
   if (calendrier) return calendrier;
   const c = (async () => {
     let devine = brancheConnue ?? '';
@@ -195,17 +200,20 @@ export function calendrierDuSite(du: string, au: string, brancheConnue?: string)
     const pris = devine ? prechargeLesOccupes(devine, du, au) : null;
     /* Les places du jour partent en même temps que les murs (2 novembre 2026). */
     const lesPlaces = devine ? placesEnLigne(devine, du, au) : null;
+    /* Les places limitées de la remise aussi (4 novembre 2026). */
+    const lesRemises = devine ? placesDeLaRemise(devine, du, au) : null;
     const agenda = await agendaDeLaMaison();
-    if (!agenda) return { agenda: null, occupes: [], places: {} };
+    if (!agenda) return { agenda: null, occupes: [], places: {}, remises: {} };
     try {
       localStorage.setItem(CLE_AGENDA, JSON.stringify(agenda));
       localStorage.setItem(CLE_BRANCHE, agenda.branchId);
     } catch { /* tant pis */ }
-    const [occupes, places] = await Promise.all([
+    const [occupes, places, remises] = await Promise.all([
       pris && devine === agenda.branchId ? pris : creneauxOccupes(agenda.branchId, du, au),
       lesPlaces && devine === agenda.branchId ? lesPlaces : placesEnLigne(agenda.branchId, du, au),
+      lesRemises && devine === agenda.branchId ? lesRemises : placesDeLaRemise(agenda.branchId, du, au),
     ]);
-    return { agenda, occupes, places };
+    return { agenda, occupes, places, remises };
   })();
   /* Un échec s'oublie : l'îlot qui rappelle relit, au lieu de recevoir la
      même promesse rejetée pour la vie de la page (10 octobre 2026). */
@@ -265,6 +273,34 @@ export async function placesEnLigne(branchId: string, du: string, au: string): P
     if (!supabase) return {};
     const { data, error } = await supabase.rpc('places_en_ligne_du', { p_branch: branchId, p_debut: du, p_fin: au });
     return error ? {} : carteDesPlaces(data);
+  } catch {
+    return {};
+  }
+}
+
+/** LES PLACES LIMITÉES DE LA REMISE — 4 novembre 2026 (`places_de_la_remise`,
+    0154) : par jour et par offre à places, le nombre de places qui restent,
+    rien d'autre (ni nom, ni rendez-vous). Lue comme `placesEnLigne`, sur la
+    même fenêtre ; la base borne elle-même l'horizon de l'offre.
+
+    ELLE NE REJETTE JAMAIS, ET ÉCHOUE FERMÉ : une panne, ou la fonction pas
+    encore posée, rend une carte vide, et une carte vide ne remise aucun jour.
+    Le calendrier, lui, reste entier : seules les places de la remise
+    manquent. */
+export async function placesDeLaRemise(branchId: string, du: string, au: string): Promise<CarteDesRemises> {
+  try {
+    if (ADRESSE_DE_LA_BASE && CLEF_PUBLIQUE) {
+      const r = await fetch(`${ADRESSE_DE_LA_BASE}/rest/v1/rpc/places_de_la_remise`, {
+        method: 'POST',
+        headers: { apikey: CLEF_PUBLIQUE, Authorization: `Bearer ${CLEF_PUBLIQUE}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_branch: branchId, p_debut: du, p_fin: au }),
+      });
+      return r.ok ? carteDesRemises(await r.json()) : {};
+    }
+    const supabase = await client();
+    if (!supabase) return {};
+    const { data, error } = await supabase.rpc('places_de_la_remise', { p_branch: branchId, p_debut: du, p_fin: au });
+    return error ? {} : carteDesRemises(data);
   } catch {
     return {};
   }

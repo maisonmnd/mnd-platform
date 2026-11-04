@@ -163,6 +163,14 @@ export type OffreDuSite = {
   /* LES JOURS DE LA VENUE — 2 novembre 2026 : l'offre ne vaut que pour une
      venue ces jours-là (« Le mercredi de la Maison »), voir offres-pur. */
   joursDeLaVenue?: string[];
+  /* LES PLACES LIMITÉES — 4 novembre 2026 : des places par jour de la venue,
+     un jour vide seulement, un horizon. Réglages de la Maison (Système ›
+     Paramètres) ; le site ne les compte pas lui-même, il lit les places
+     déjà comptées par la base (`placesDeLaRemise`, agenda.ts). Une offre à
+     places n'a pas de code à taper : la remise se pose avec la place. */
+  placesParJour?: number;
+  jourVideSeulement?: boolean;
+  horizonJours?: number;
 };
 
 export async function offresDuSite(): Promise<OffreDuSite[]> {

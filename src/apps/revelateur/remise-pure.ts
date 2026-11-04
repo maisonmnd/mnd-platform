@@ -1,4 +1,4 @@
-import { offresDuTrottoir } from '../../shared/offres-pur';
+import { estAPlaces, offresDuTrottoir } from '../../shared/offres-pur';
 import { laPorte } from './offre-porte';
 
 /* LA REMISE QUI REVIENT AU DÉFILEMENT — 11 octobre 2026, maquette validée
@@ -74,9 +74,15 @@ export function courtDeLaPhrase(sub: string): string {
 /** Les remises à écrire dans la page : les offres du trottoir qui ont une
     date et une remise dite, dans l'ordre où elles commencent. Avec `depuis`
     (le jour de la construction), celles déjà finies restent dehors. */
+/* UNE OFFRE À PLACES NE REVIENT PAS AU DÉFILEMENT — 4 novembre 2026 (les
+   places limitées). Elle n'a pas de fin et pas de code à copier : sa vérité
+   est le décompte de chaque jour, que seule la réservation lit (et la page
+   des offres la présente). Un bandeau sur chaque page la promettrait encore
+   les jours où plus aucune place ne reste. */
 export function remisesAEcrire(liste: unknown, depuis = ''): Remise[] {
-  type Brute = { id?: string; title?: string; tag?: string; deal?: string; sub?: string; code?: string; bouton?: string; parcours?: string; du?: string; au?: string; active?: boolean; vitrine?: boolean };
+  type Brute = { id?: string; title?: string; tag?: string; deal?: string; sub?: string; code?: string; bouton?: string; parcours?: string; du?: string; au?: string; active?: boolean; vitrine?: boolean; placesParJour?: number };
   return offresDuTrottoir<Brute>(liste)
+    .filter((o) => !estAPlaces(o))
     .filter((o) => !!(o.du || o.au) && !!String(o.deal ?? '').trim() && !!String(o.title ?? '').trim())
     .filter((o) => !depuis || !o.au || o.au >= depuis)
     .sort((a, b) => String(a.du ?? '').localeCompare(String(b.du ?? '')))

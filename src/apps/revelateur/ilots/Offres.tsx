@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { offresDuSite, type OffreDuSite } from '../maison';
-import { etatDeLOffre } from '../../../shared/offres-pur';
+import { estAPlaces, etatDeLOffre } from '../../../shared/offres-pur';
 import { PARCOURS, laPorte } from '../offre-porte';
 
 /* LES OFFRES DE LA MAISON, EN COURS ET À VENIR — 18 septembre 2026.
@@ -153,10 +153,15 @@ export default function Offres({ genre, initiales }: { genre?: string; initiales
                       lien : il se recopie sur une affiche, se dit au
                       téléphone, et se retape si la cliente revient plus tard
                       par un autre chemin. */}
-                  {o.code ? (
+                  {/* LES PLACES LIMITÉES N'ONT PAS DE CODE — 4 novembre 2026 :
+                      la remise se pose d'elle-même avec la place, et le
+                      décompte se lit sur le calendrier de la réservation. */}
+                  {estAPlaces(o) ? (
+                    <p className="offre-site__code"><span>sans code</span><b>Places limitées</b></p>
+                  ) : o.code ? (
                     <p className="offre-site__code"><span>avec le code</span><b>{o.code}</b></p>
                   ) : null}
-                  <a className="btn btn--plein" href={laPorte(o)}>{o.bouton?.trim() || par?.bouton || 'J’en profite'}</a>
+                  <a className="btn btn--plein" href={laPorte(estAPlaces(o) ? { parcours: o.parcours } : o)}>{o.bouton?.trim() || par?.bouton || 'J’en profite'}</a>
                   <details className="offre-site__cond">
                     <summary>Voir les conditions</summary>
                     <p>{conditions}</p>

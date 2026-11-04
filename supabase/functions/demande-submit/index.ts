@@ -162,6 +162,19 @@
 // la date du lancement. Un code éteint rend `inconnu` à la réservation, et
 // `{ ok: false }` à « qui ».
 //
+// LES PLACES LIMITÉES — 4 novembre 2026 (maquette « Places limitées »,
+// « construis », Yéman). La remise d'une offre à places (`placesParJour`) se
+// pose D'ELLE-MÊME avec la place : du mardi au vendredi, un jour vide, des
+// places décomptées par la base (`places_de_la_remise`, 0154), jamais pour une
+// tête aux prix convenus, abonnée ou à remise famille (`une_seule_remise`),
+// jamais par-dessus un autre code. Son code ne se tape plus : le site l'envoie
+// pour dire qu'il montrait la remise, et si la place est partie, rien ne
+// s'écrit et la réponse dit `places_limitees` (le prix ne change jamais en
+// silence). La garde de la base (`PLACES_LIMITEES`) départage la dernière
+// place sous verrou. `tarifDeLaMaison` : la cliente a choisi le tarif de la
+// Maison après une place partie. Le Rituel Sówà™ (`sansRemise`) ne prend
+// aucune remise. Banc : `scripts/verifie-les-places-au-site.mjs --prouve`.
+//
 // Déployez via le tableau de bord (Edge Functions → New function → coller ce
 // fichier EN ENTIER). Secrets : SERVICE_KEY (comme push-notify) ; pour
 // l'alerte, VAPID_PUBLIC, VAPID_PRIVATE, VAPID_SUBJECT (les mêmes).
@@ -181,7 +194,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-03-a · le second fauteuil en semaine, le mercredi de la Maison ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
+const VERSION = '2026-11-04-a · les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
 
 /** LE SECOND FAUTEUIL, PAS DAVANTAGE (2 novembre 2026, 0152) : la copie de
     `PLACES_EN_LIGNE_AU_PLUS` (src/shared/agenda-pur.ts), hors des repères. */
@@ -1315,19 +1328,26 @@ async function laPlaceDemandee(o: {
   offres: any[];
   /** L'arbre des familles, lu ici une fois : la remise de bienvenue s'en sert. */
   familles: { id: string; parentId?: string }[];
+  /** LES PLACES DE LA REMISE CE JOUR-LÀ (`places_de_la_remise`, 0154) ;
+      `null` quand la base n'a pas su les dire : aucune place, alors. */
+  placesDeLaRemise: LigneDesPlaces[] | null;
 }> {
   const maintenant = Date.now();
   /* La forme et la fenêtre d'abord : un appel mal formé ne coûte rien à la base. */
   const recevable = laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant);
   if (recevable) return { erreur: recevable };
 
-  const [docs, services, categories, blocages, occupes, placesDuJour] = await Promise.all([
+  const [docs, services, categories, blocages, occupes, placesDuJour, placesDeLaRemise] = await Promise.all([
     admin.from('documents').select('key, data').in('key', ['mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config', 'mnd_offers']),
     toutesLesLignes('catalog_services'),
     toutesLesLignes('catalog_categories'),
     toutesLesLignes('blocages', [['data->>branchId', o.branche.id], ['data->>date', o.date]]),
     admin.rpc('creneaux_occupes', { p_branch: o.branche.id, p_du: o.date, p_au: o.date }),
     admin.rpc('places_en_ligne', { p_branch: o.branche.id, p_date: o.date }),
+    /* LES PLACES LIMITÉES — 4 novembre 2026 : lues avec le reste, la même
+       règle que le site (0154). Une panne ne refuse pas la place : elle
+       retire seulement la remise, qu'on ne pose jamais sur un jour non compté. */
+    admin.rpc('places_de_la_remise', { p_branch: o.branche.id, p_debut: o.date, p_fin: o.date }),
   ]);
   /* UNE LECTURE EN PANNE REFUSE : croire la journée vide, c'était poser une
      place sur un mur ou sur un rendez-vous qu'on n'a pas su lire. */
@@ -1368,12 +1388,15 @@ async function laPlaceDemandee(o: {
   /* Les offres de la Maison, pour résoudre un code : lues ici, avec le reste,
      pour ne pas rouvrir la base une seconde fois. */
   const offresBrutes = doc('mnd_offers');
+  if (placesDeLaRemise.error) console.error('demande-submit: places de la remise illisibles, aucune', placesDeLaRemise.error.message);
   return {
     dureeMin: verdict.dureeMin,
     maitres: verdict.maitres,
     catalogue: (services.data ?? []) as ServiceEnBase[],
     offres: (Array.isArray(offresBrutes) ? offresBrutes : []) as any[],
     familles: agenda.categories,
+    placesDeLaRemise: placesDeLaRemise.error ? null
+      : (Array.isArray(placesDeLaRemise.data) ? placesDeLaRemise.data : []) as LigneDesPlaces[],
   };
 }
 
@@ -1383,12 +1406,27 @@ async function laPlaceDemandee(o: {
    parce que le jour se calcule ici dans le fuseau de la Maison (Deno tourne
    en UTC, et une saison qui finit le 30 se terminerait à 1 h du matin).
    `courtPourLaVenue` aussi, pour la même raison (2 novembre 2026 : le jour
-   de la venue, « Le mercredi de la Maison »). */
+   de la venue, « Le mercredi de la Maison »).
+   LES PLACES LIMITÉES (4 novembre 2026) : `estAPlaces`, `placesRestantes`,
+   `gesteSansRemise` et `offreDuJourDeLaVenue`, tels quels. Ici, le jour de
+   Cotonou leur est toujours passé (`aujourdhui`), et les places viennent de
+   la base (`placesConnues`, 0154) : `isoDuJour` n'est là que parce que
+   l'original le nomme. */
 /* ══ COPIE DE offres-pur : DÉBUT ══ */
+const isoDuJour = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function joursEntre(depuisIso: string, versIso: string): number {
+  const a = new Date(`${depuisIso}T00:00:00`).getTime();
+  const b = new Date(`${versIso}T00:00:00`).getTime();
+  return Math.round((b - a) / 86400000);
+}
 const CODE_MAX = 16;
 const codeNormalise = (v: unknown): string =>
   String(v ?? '').replace(/\s+/g, '').toUpperCase().slice(0, CODE_MAX);
-type OffreCodee = { active: boolean; du?: string; au?: string; code?: string; discountPct?: number; serviceIds?: string[]; joursDeLaVenue?: string[] };
+type OffreCodee = {
+  id?: string; active: boolean; du?: string; au?: string; code?: string; discountPct?: number; serviceIds?: string[]; joursDeLaVenue?: string[];
+  placesParJour?: number; jourVideSeulement?: boolean; horizonJours?: number;
+};
 const dansLaSaison = (o: { du?: string; au?: string }, j: string): boolean => {
   if (o.du && j < o.du) return false;
   if (o.au && j > o.au) return false;
@@ -1439,6 +1477,63 @@ function lignesDuCode(lignes: readonly LigneAPrix[], offre: OffreCodee | null): 
     return { ...l, net: porte ? Math.round(l.prixXof * (1 - pct / 100)) : l.prixXof, remisee: porte };
   });
 }
+const estAPlaces = (o: { placesParJour?: number } | null | undefined): boolean =>
+  Math.floor(o?.placesParJour ?? 0) > 0;
+type OccupationDuJour = { prises: number; autres: number };
+function placesRestantes(
+  o: OffreCodee,
+  dateIso: string | null | undefined,
+  occ: OccupationDuJour | null | undefined,
+  aujourdhui: string,
+): number | null {
+  if (!o?.active || !estAPlaces(o) || !occ || !dateIso) return null;
+  const j = String(dateIso).slice(0, 10);
+  if (!laVenueTombeBien(o, j) || j < aujourdhui) return null;
+  const horizon = Math.floor(o.horizonJours ?? 0);
+  if (horizon > 0 && joursEntre(aujourdhui, j) > horizon) return null;
+  if (o.jourVideSeulement && occ.autres > 0) return 0;
+  return Math.max(0, Math.floor(o.placesParJour as number) - occ.prises);
+}
+const gesteSansRemise = (s: { sansRemise?: boolean } | null | undefined): boolean => !!s?.sansRemise;
+type VenueAJuger = {
+  branchId?: string;
+  dateIso: string | null | undefined;
+  serviceIds: readonly string[];
+  dejaUnCode?: boolean;
+  couvertParAbonnement?: boolean;
+  forfait?: boolean;
+  ecartee?: boolean;
+  occupation?: OccupationDuJour;
+  aujourdhui?: string;
+  prixConvenus?: boolean;
+  autreRemise?: boolean;
+  offreTenue?: string;
+  placesConnues?: number | null;
+};
+function offreDuJourDeLaVenue<T extends OffreCodee & { branchId?: string }>(
+  offres: readonly T[],
+  v: VenueAJuger,
+): T | null {
+  if (v.dejaUnCode || v.couvertParAbonnement || v.forfait || v.ecartee || !v.dateIso) return null;
+  const gestes = new Set(v.serviceIds);
+  let mieux: T | null = null;
+  for (const o of offres) {
+    if (!o || !o.active || !codeNormalise(o.code) || !porteSurLeJourDeLaVenue(o)) continue;
+    if (o.branchId && v.branchId && o.branchId !== v.branchId) continue;
+    if (!laVenueTombeBien(o, v.dateIso)) continue;
+    if (!(o.serviceIds ?? []).some((id) => gestes.has(id))) continue;
+    if (estAPlaces(o)) {
+      if (v.prixConvenus || v.autreRemise) continue;
+      const tenue = !!o.id && v.offreTenue === o.id;
+      const restantes = v.placesConnues !== undefined
+        ? v.placesConnues
+        : placesRestantes(o, v.dateIso, v.occupation, v.aujourdhui ?? isoDuJour(new Date()));
+      if (!tenue && !((restantes ?? 0) > 0)) continue;
+    }
+    if (!mieux || (o.discountPct ?? 0) > (mieux.discountPct ?? 0)) mieux = o;
+  }
+  return mieux;
+}
 /* ══ COPIE DE offres-pur : FIN ══ */
 
 /* Tout ce qui suit jusqu'au repère de fin ne touche NI la base NI le réseau :
@@ -1454,13 +1549,16 @@ const jourDeLaMaison = (): string =>
 /** LE PRIX FERME D'UNE PRESTATION, ou zéro : même règle que la réservation
     du site (`prixFerme`, Reserver.tsx). Un devis, un prix caché ou absent
     valent zéro ; « variable » compte comme ferme et dit « à partir de ». */
-type ServiceEnBase = { id: string; data?: { name?: string; priceXof?: number; priceMode?: string; hidePrice?: boolean; categoryId?: string; durationMin?: number; enabled?: boolean; archived?: boolean } };
+type ServiceEnBase = { id: string; data?: { name?: string; priceXof?: number; priceMode?: string; hidePrice?: boolean; categoryId?: string; durationMin?: number; enabled?: boolean; archived?: boolean; sansRemise?: boolean } };
+/* UN GESTE SANS REMISE N'EN PREND AUCUNE — 4 novembre 2026 (le Rituel Sówà™,
+   `sansRemise` au catalogue, Yéman) : son prix ne s'engage pour aucun code,
+   aucune place, aucun parrainage. Il garde son prix ; la ligne ne mord pas. */
 const ligneAPrix = (id: string, catalogue: ServiceEnBase[]): LigneAPrix => {
   const s = catalogue.find((x) => x.id === id)?.data;
   const mode = s?.priceMode ?? (s?.hidePrice ? 'devis' : 'fixe');
   const p = Number(s?.priceXof ?? 0);
   const prix = !p || mode === 'devis' ? 0 : p;
-  return { id, prixXof: prix, ferme: prix > 0 };
+  return { id, prixXof: prix, ferme: prix > 0 && !gesteSansRemise(s) };
 };
 
 /** POURQUOI LE CODE N'A RIEN RETIRÉ, en un mot. Absent quand il a retiré.
@@ -1481,6 +1579,9 @@ type VerdictDuCode = {
   /** L'offre porte sur le jour de la venue (2 novembre 2026) : elle vaut à
       chaque venue ces jours-là, pas une seule fois par personne. */
   chaqueVenue?: boolean;
+  /** LA PLACE LIMITÉE (4 novembre 2026) : la remise s'est posée d'elle-même
+      avec la place, sans code tapé. */
+  placeLimitee?: boolean;
   raison?: RaisonDuCode;
   /** Le parrainage : le prénom de la marraine, l'id de sa demande (ou de sa
       fiche), le cadeau dit, et son numéro pour la prévenir. */
@@ -1496,6 +1597,7 @@ type VerdictDuCode = {
     rendez-vous, sans rien connaître de nos conventions. */
 const raisonEnClair = (v: VerdictDuCode): string => {
   if (!v.code) return '';
+  if (v.placeLimitee) return `place limitée, remise posée avec la place (${v.code})`;
   if (v.raison === 'deja-utilise') return `code ${v.code} déjà utilisé par ce numéro`;
   if (v.raison === 'inconnu') return `code ${v.code} (aucune offre en cours)`;
   if (v.raison === 'cadeau') return `code ${v.code} (cadeau de l'offre, à appliquer à la Maison)`;
@@ -1541,6 +1643,91 @@ function remiseDuCode(o: {
   return { ...base, raison: pct > 0 ? 'sans-effet' as const : 'cadeau' as const };
 }
 
+/* ══ LES PLACES LIMITÉES — 4 novembre 2026 ═════════════════════════════
+   La décision de Yéman (maquette « Places limitées », « construis ») : la
+   remise se pose D'ELLE-MÊME avec la place, plus aucun code à taper ; du mardi
+   au vendredi, un jour vide, des places décomptées, une seule remise. Tout ce
+   qui juge vit ici, sans base ni réseau : les places du jour viennent de la
+   base (`places_de_la_remise`, 0154) et ce que porte le numéro aussi
+   (`une_seule_remise`), lus par le serveur et passés en données. La base
+   garde la dernière place sous verrou (`PLACES_LIMITEES`). */
+
+/** Une ligne de `places_de_la_remise` : un jour, une offre, ses places. */
+type LigneDesPlaces = { jour?: unknown; offre?: unknown; places?: unknown };
+
+/** LES PLACES LUES POUR CETTE OFFRE CE JOUR-LÀ. `null` quand la base n'a rien
+    dit (panne, jour non concerné) : jamais de remise sur un jour non compté. */
+function placesLuesPour(lignes: readonly LigneDesPlaces[] | null | undefined, offreId: string | undefined, jour: string): number | null {
+  if (!lignes || !offreId) return null;
+  const l = lignes.find((x) => String(x?.offre ?? '') === offreId && String(x?.jour ?? '').slice(0, 10) === jour);
+  const n = Number(l?.places);
+  return l && Number.isInteger(n) && n >= 0 ? n : null;
+}
+
+/** CE CODE EST-IL CELUI D'UNE OFFRE À PLACES ? Il ne se tape plus : le site
+    l'envoie pour dire « j'ai montré la remise de ce jour », et le serveur
+    juge la place lui-même, jamais le code. */
+function estUnCodeDesPlaces(offres: readonly OffreCodee[], code: unknown): boolean {
+  const c = codeNormalise(code);
+  return !!c && offres.some((o) => estAPlaces(o) && codeNormalise(o.code) === c);
+}
+
+/** Ce que les fiches du numéro portent déjà (`une_seule_remise`, 0154). */
+type TeteLue = { prixConvenus?: boolean; abonnee?: boolean; famille?: boolean };
+type RaisonDUneSeuleRemise = 'prix-convenus' | 'abonnee' | 'famille';
+type PlaceCandidate = { offre: OffreCodee & { branchId?: string }; remisesLignes: ({ pct: number } | null)[] };
+
+/** LA PLACE QUE CE RENDEZ-VOUS PRENDRAIT, avant de savoir qui le prend : une
+    offre à places de cette maison, dont un jour de la venue est ce jour, qui
+    couvre un geste choisi, avec au moins une place lue. À plusieurs, la plus
+    forte remise (`offreDuJourDeLaVenue`). `null` : aucune place pour cette
+    venue. `'sans-effet'` : la place existe, mais aucun geste choisi n'a de
+    prix ferme à remiser (un prix à la Maison, un geste sans remise) ; rien ne
+    se pose, et ce n'est pas une place partie. */
+function laPlaceCandidate(o: {
+  offres: readonly (OffreCodee & { branchId?: string })[];
+  places: readonly LigneDesPlaces[] | null;
+  date: string; serviceIds: string[]; branchId: string; catalogue: ServiceEnBase[]; aujourdhui: string;
+}): PlaceCandidate | 'sans-effet' | null {
+  let mieux: (OffreCodee & { branchId?: string }) | null = null;
+  for (const x of o.offres) {
+    if (!estAPlaces(x)) continue;
+    const r = offreDuJourDeLaVenue([x], {
+      branchId: o.branchId, dateIso: o.date, serviceIds: o.serviceIds, aujourdhui: o.aujourdhui,
+      placesConnues: placesLuesPour(o.places, x.id, o.date),
+    });
+    if (r && (!mieux || (r.discountPct ?? 0) > (mieux.discountPct ?? 0))) mieux = r;
+  }
+  if (!mieux) return null;
+  const lignes = lignesDuCode(o.serviceIds.map((id) => ligneAPrix(id, o.catalogue)), mieux);
+  if (!lignes.some((l) => l.remisee)) return 'sans-effet';
+  const pct = Math.max(0, Math.min(90, Math.round(mieux.discountPct ?? 0)));
+  return { offre: mieux, remisesLignes: lignes.map((l) => (l.remisee ? { pct } : null)) };
+}
+
+/** UNE SEULE REMISE : la place se pose, ou la raison qui l'écarte. Une tête
+    aux prix convenus, abonnée, ou dont le compte famille porte une remise ne
+    prend jamais de place (Yéman, 4 novembre 2026). `null` (le numéro n'a pas
+    pu se lire) laisse la place : refuser une remise due sur une panne se vit
+    au comptoir, comme pour l'usage d'un code (`codeDejaUtilise`). */
+function laPlaceTranchee(c: PlaceCandidate, tete: TeteLue | null): { raison: RaisonDUneSeuleRemise } | { verdict: VerdictDuCode } {
+  if (tete?.prixConvenus) return { raison: 'prix-convenus' };
+  if (tete?.abonnee) return { raison: 'abonnee' };
+  if (tete?.famille) return { raison: 'famille' };
+  return {
+    verdict: {
+      code: codeNormalise(c.offre.code), ...(c.offre.id ? { offreId: String(c.offre.id) } : {}),
+      chaqueVenue: true, placeLimitee: true, remisesLignes: c.remisesLignes,
+    },
+  };
+}
+
+/** La raison, dite comme on la dirait à l'accueil, sur la note du rendez-vous. */
+const uneSeuleRemiseEnClair = (r: RaisonDUneSeuleRemise | ''): string =>
+  r === 'prix-convenus' ? 'une seule remise : ses prix convenus, sans place limitée'
+    : r === 'abonnee' ? 'une seule remise : son abonnement, sans place limitée'
+      : r === 'famille' ? 'une seule remise : sa remise famille, sans place limitée' : '';
+
 /* ══ RÉSOLUTION DU CODE : FIN ══ */
 
 /** CE NUMÉRO A-T-IL DÉJÀ REÇU CE CODE ? On ne regarde que les demandes dont
@@ -1563,6 +1750,20 @@ async function codeDejaUtilise(code: string, telephone: string): Promise<boolean
     return false;
   }
   return (data ?? []).length > 0;
+}
+
+/** CE QUE LE NUMÉRO PORTE DÉJÀ — 4 novembre 2026 (`une_seule_remise`, 0154) :
+    prix convenus, abonnement vivant au jour de la venue, remise famille. Trois
+    oui/non, rien d'autre. Une lecture en panne rend `null`, qui laisse la
+    place (voir `laPlaceTranchee`) ; l'erreur part au journal. */
+async function remisesDuNumero(telephone: string, date: string): Promise<TeteLue | null> {
+  const { data, error } = await admin.rpc('une_seule_remise', { p_numero: telephone, p_date: date });
+  if (error || !data || typeof data !== 'object') {
+    console.error('demande-submit: une seule remise illisible', error?.message ?? 'réponse vide');
+    return null;
+  }
+  const d = data as Record<string, unknown>;
+  return { prixConvenus: d.prixConvenus === true, abonnee: d.abonnee === true, famille: d.famille === true };
 }
 
 /* ══ LE PARRAINAGE ══════════════════════════════════════════════════════
@@ -2247,9 +2448,16 @@ async function litLaCliente(identite: unknown): Promise<Response> {
   if (!clientId) return json({ ok: false, error: 'lien' });
   const { data: row, error } = await admin.from('clients').select('data').eq('id', clientId).maybeSingle();
   if (error) console.error('demande-submit: fiche du retour illisible', error.message);
-  const f = (row?.data ?? null) as { name?: unknown; civilite?: unknown; auMasculin?: unknown; phone?: unknown } | null;
+  const f = (row?.data ?? null) as { name?: unknown; civilite?: unknown; auMasculin?: unknown; phone?: unknown; prixFixes?: unknown } | null;
   if (!f) return json({ ok: false, error: 'lien' });
-  return json({ ok: true, cliente: coordonneesDeLaFiche(f) });
+  /* SES PRIX CONVENUS, DITS AVANT LA CONFIRMATION — 4 novembre 2026 (une
+     seule remise) : la page, qui la reconnaît par son lien signé, retire la
+     place limitée et écrit « Vos tarifs convenus s'appliquent. » Rien d'autre
+     de sa fiche ne sort, et seulement quand c'est vrai (la règle de
+     `comptePrixConvenus` : un montant de plus de zéro franc). */
+  const convenus = !!f.prixFixes && typeof f.prixFixes === 'object'
+    && Object.values(f.prixFixes as Record<string, unknown>).some((v) => typeof v === 'number' && v > 0);
+  return json({ ok: true, cliente: coordonneesDeLaFiche(f), ...(convenus ? { prixConvenus: true } : {}) });
 }
 
 /* ══ LE MESSAGE VOCAL — 19 octobre 2026 ══════════════════════════════════
@@ -2496,6 +2704,9 @@ Deno.serve(async (req) => {
      deux se résolvent ici de la même façon. */
   const codeEcrit = d.codeAmie ?? d.code;
   let duCode: VerdictDuCode = { code: '' };
+  /** UNE SEULE REMISE (4 novembre 2026) : la raison qui a écarté la place
+      limitée de ce rendez-vous, dite à la note et à la page. */
+  let uneSeuleRemise: RaisonDUneSeuleRemise | '' = '';
   let nomsDesGestes: string[] = [];
   if (avecPlace) {
     const verdict = await laPlaceDemandee({ branche: branche.ligne, serviceIds, date, time });
@@ -2505,6 +2716,12 @@ Deno.serve(async (req) => {
     master = verdict.maitres[0] ?? '';
     nomsDesGestes = serviceIds.map((sid: string) => verdict.catalogue.find((x) => x.id === sid)?.data?.name ?? sid);
     duCode = remiseDuCode({ code: codeEcrit, serviceIds, branchId, catalogue: verdict.catalogue, offres: verdict.offres, date });
+    /* LA PLACE LIMITÉE NE SE TAPE PAS — 4 novembre 2026. Le code d'une offre à
+       places arrive quand la page a MONTRÉ la remise de ce jour ; il ne vaut
+       rien par lui-même (tapé un samedi, ou sur un jour plein, il ouvrirait
+       la remise sans place). On l'oublie, et la place se juge plus bas. */
+    const placeAttendue = estUnCodeDesPlaces(verdict.offres, codeEcrit);
+    if (placeAttendue) duCode = { code: '' };
     /* Une fois par personne : la remise tombe, la réservation tient.
        SAUF UNE OFFRE DU JOUR DE LA VENUE (2 novembre 2026) : « −15 % sur le
        rituel posé un mercredi » vaut à chaque mercredi, comme au comptoir du
@@ -2519,6 +2736,28 @@ Deno.serve(async (req) => {
       duCode = (await verdictDuParrainage(duCode.code, telephone, {
         serviceIds, catalogue: verdict.catalogue, familles: verdict.familles,
       }).catch(() => null)) ?? duCode;
+    }
+    /* LA PLACE SE POSE D'ELLE-MÊME — 4 novembre 2026. Jamais par-dessus un
+       autre code (un code inconnu n'en est pas un, comme sur la page), jamais
+       quand la cliente a choisi le tarif de la Maison après qu'une place est
+       partie. Plus de place ce jour-là alors que la page la montrait : rien ne
+       s'écrit, la page le dit (« La dernière place vient de partir ») et la
+       cliente choisit ; le prix ne change jamais en silence. Une tête qui a
+       déjà une remise garde la sienne : la place n'est pas prise, la page dit
+       pourquoi. */
+    const unAutreCode = !!duCode.code && duCode.raison !== 'inconnu';
+    if (!unAutreCode && d.tarifDeLaMaison !== true) {
+      const candidate = laPlaceCandidate({
+        offres: verdict.offres, places: verdict.placesDeLaRemise, date, serviceIds, branchId,
+        catalogue: verdict.catalogue, aujourdhui: jourDeLaMaison(),
+      });
+      if (!candidate) {
+        if (placeAttendue) return json({ error: 'places_limitees' }, 409);
+      } else if (candidate !== 'sans-effet') {
+        const tranchee = laPlaceTranchee(candidate, await remisesDuNumero(telephone, date));
+        if ('raison' in tranchee) uneSeuleRemise = tranchee.raison;
+        else duCode = tranchee.verdict;
+      }
     }
   } else if (FORME_DU_CODE.test(codeNormalise(codeEcrit))) {
     /* LA DEMANDE DE RAPPEL PORTE AUSSI LE CODE D'UNE GRAINE — 9 octobre 2026
@@ -2554,6 +2793,8 @@ Deno.serve(async (req) => {
     ...(duCode.code ? { code: duCode.code } : {}),
     ...(duCode.offreId ? { offreId: duCode.offreId } : {}),
     ...(duCode.raison ? { codeRaison: duCode.raison } : {}),
+    ...(duCode.placeLimitee ? { placeLimitee: true } : {}),
+    ...(uneSeuleRemise ? { uneSeuleRemise } : {}),
     ...(duCode.raison === 'parrainage' ? {
       parrainDe: duCode.code, marraineId: duCode.marraineId,
       ...(duCode.marraineClientId ? { marraineClientId: duCode.marraineClientId } : {}),
@@ -2615,6 +2856,7 @@ Deno.serve(async (req) => {
       pourQui === 'enfant' ? 'Pour son enfant' : pourQui === 'autre' ? 'Pour quelqu’un d’autre' : '',
       lockCount ? `Calibre annoncé : ${calibre || `${lockCount} locks`}` : '',
       raisonEnClair(duCode),
+      uneSeuleRemiseEnClair(uneSeuleRemise),
       d.mot ? texte(d.mot, 1000) : '',
     ].filter(Boolean).join(' · ');
     const appt = {
@@ -2664,6 +2906,17 @@ Deno.serve(async (req) => {
          rendez-vous que la base refuse ne prend pas la fois de la cliente. */
       const applique = duCode.remisesLignes ? { codeApplique: true } : {};
       await admin.from('demandes').update({ data: { ...demande, apptId, master: posee.master ?? master, ...applique } }).eq('id', id);
+    } else if (duCode.placeLimitee && /PLACES_LIMITEES/.test(errPose?.message ?? '')) {
+      /* LA DERNIÈRE PLACE EST PARTIE ENTRE LA LECTURE ET LA POSE — 4 novembre
+         2026 : la garde de la base (0154) a départagé, sous verrou, deux
+         clientes sur la même dernière place. Rien n'est posé ; la demande et
+         sa ligne au fil, écrites par cet appel il y a un instant, s'effacent :
+         la page dit « La dernière place vient de partir », et la cliente
+         confirme au tarif de la Maison si elle le veut. Le prix ne change
+         jamais en silence. */
+      await admin.from('messages_wa').delete().eq('id', `site-${id}`);
+      await admin.from('demandes').delete().eq('id', id);
+      return json({ error: 'places_limitees' }, 409);
     } else {
       console.error('demande-submit: place non posée', errPose?.message ?? posee?.raison ?? 'réponse vide');
     }
@@ -2709,5 +2962,9 @@ Deno.serve(async (req) => {
     ...(duCode.code ? { code: duCode.code, codeApplique: !!duCode.remisesLignes } : {}),
     ...(duCode.raison ? { codeRaison: duCode.raison } : {}),
     ...(duCode.raison === 'parrainage' ? { marraine: duCode.marraine, cadeau: duCode.cadeau ?? '' } : {}),
+    /* LA PLACE LIMITÉE, ET CE QUI L'A ÉCARTÉE (4 novembre 2026) : la page dit
+       le prix de la confirmation d'après ce que le serveur a vraiment posé. */
+    ...(duCode.placeLimitee ? { placeLimitee: true, offreId: duCode.offreId } : {}),
+    ...(uneSeuleRemise ? { uneSeuleRemise } : {}),
   });
 });

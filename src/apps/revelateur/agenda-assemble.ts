@@ -80,6 +80,8 @@ const CHAMPS_DE_LA_PRESTATION = [
   'id', 'name', 'categoryId', 'durationMin', 'scalesWithModel', 'priceFloors', 'bandId', 'bandIds', 'ratePerLock',
   'tarifMode', 'prixParLongueur', 'paliersDeLocks', 'priceXof', 'priceMode', 'hidePrice', 'consultationAvant',
   'enabled', 'archived', 'master',
+  /* Le Rituel Sówà™ ne prend aucune remise (4 novembre 2026). */
+  'sansRemise',
 ] as const;
 export function elagueLaPrestation(s: PrestationPublique): PrestationPublique {
   const brut = s as unknown as Record<string, unknown>;

@@ -15,7 +15,9 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { codeNormalise, lignesDuCode, offreDuCode } from '../src/shared/offres-pur';
+import {
+  codeNormalise, estAPlaces, gesteSansRemise, joursEntre, lignesDuCode, offreDuCode, offreDuJourDeLaVenue, placesRestantes,
+} from '../src/shared/offres-pur';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -50,7 +52,7 @@ dit('... et ne touche ni la base ni le reseau', [false, false],
    dans un dossier temporaire, d'où « esbuild » ne se résout pas. */
 const { transform } = await import(pathToFileURL(path.join(process.cwd(), 'node_modules/esbuild/lib/main.js')).href) as typeof import('esbuild');
 const { code: js } = await transform(
-  `${bloc}${blocR}\nexport { codeNormalise, offreDuCode, lignesDuCode, dansLaSaison, remiseDuCode, raisonEnClair };`,
+  `${bloc}${blocR}\nexport { codeNormalise, offreDuCode, lignesDuCode, dansLaSaison, remiseDuCode, raisonEnClair, estAPlaces, placesRestantes, gesteSansRemise, offreDuJourDeLaVenue, joursEntre };`,
   { loader: 'ts', format: 'esm' },
 );
 const banc = mkdtempSync(path.join(os.tmpdir(), 'code-au-serveur-'));
@@ -63,6 +65,11 @@ type Copie = {
   dansLaSaison: (o: any, j: string) => boolean;
   remiseDuCode: (o: any) => { code: string; offreId?: string; remisesLignes?: ({ pct: number } | null)[]; raison?: string };
   raisonEnClair: (v: any) => string;
+  estAPlaces: (o: any) => boolean;
+  placesRestantes: (o: any, d: string | null | undefined, occ: any, auj: string) => number | null;
+  gesteSansRemise: (s: any) => boolean;
+  offreDuJourDeLaVenue: (o: readonly any[], v: any) => any;
+  joursEntre: (a: string, b: string) => number;
 };
 let copie: Copie;
 try {
@@ -155,6 +162,55 @@ dit('la note dit la raison en clair, pour qui ne connait pas nos mots',
   [raisonEnClairDe({ code: 'RENTREE10' }), raisonEnClairDe({ code: 'RENTREE10', raison: 'deja-utilise' }),
     raisonEnClairDe({ code: 'JAMAISVU', raison: 'inconnu' }), raisonEnClairDe({ code: 'CREATION', raison: 'cadeau' }),
     raisonEnClairDe({ code: 'RENTREE10', raison: 'sans-effet' }), raisonEnClairDe({ code: '' })]);
+
+/* ── LES PLACES LIMITÉES, LA MÊME RÈGLE — 4 novembre 2026 ─────────────
+   La copie d'`estAPlaces`, `placesRestantes`, `gesteSansRemise` et
+   `offreDuJourDeLaVenue` répond comme l'original, cas pour cas : le
+   décompte, le jour vide, le samedi, l'horizon, le passé, une seule
+   remise, la place tenue, les places lues de la base. */
+const PLACES = {
+  id: 'of-places', active: true, code: 'PLACES15', discountPct: 15, serviceIds: ['lavage', 'soin'],
+  joursDeLaVenue: ['Mar', 'Mer', 'Jeu', 'Ven'], placesParJour: 3, jourVideSeulement: true, horizonJours: 14, du: '2026-11-05',
+};
+const AUJ_P = '2026-11-05';
+const CAS_DES_PLACES: [string, string, { prises: number; autres: number } | null, Record<string, unknown>][] = [
+  ['mardi vide', '2026-11-10', { prises: 0, autres: 0 }, {}],
+  ['une prise', '2026-11-10', { prises: 1, autres: 0 }, {}],
+  ['trois prises', '2026-11-10', { prises: 3, autres: 0 }, {}],
+  ['jour occupe', '2026-11-10', { prises: 0, autres: 1 }, {}],
+  ['samedi', '2026-11-14', { prises: 0, autres: 0 }, {}],
+  ['quinzieme jour', '2026-11-20', { prises: 0, autres: 0 }, {}],
+  ['jour passe', '2026-11-03', { prises: 0, autres: 0 }, { du: undefined }],
+  ['sans occupation', '2026-11-10', null, {}],
+  ['eteinte', '2026-11-10', { prises: 0, autres: 0 }, { active: false }],
+  ['cinq places au reglage', '2026-11-10', { prises: 1, autres: 0 }, { placesParJour: 5 }],
+];
+for (const [nom, jour, occ, autre] of CAS_DES_PLACES) {
+  const o = { ...PLACES, ...autre };
+  dit(`placesRestantes, ${nom} : la meme reponse`, placesRestantes(o, jour, occ, AUJ_P), copie.placesRestantes(o, jour, occ, AUJ_P));
+}
+dit('estAPlaces, gesteSansRemise, joursEntre : les memes',
+  [estAPlaces(PLACES), estAPlaces({}), gesteSansRemise({ sansRemise: true }), gesteSansRemise({}), joursEntre('2026-11-05', '2026-11-19')],
+  [copie.estAPlaces(PLACES), copie.estAPlaces({}), copie.gesteSansRemise({ sansRemise: true }), copie.gesteSansRemise({}), copie.joursEntre('2026-11-05', '2026-11-19')]);
+const VENUES: [string, Record<string, unknown>][] = [
+  ['places lues 2', { dateIso: '2026-11-10', placesConnues: 2 }],
+  ['places lues 0', { dateIso: '2026-11-10', placesConnues: 0 }],
+  ['rien de lu', { dateIso: '2026-11-10', placesConnues: null }],
+  ['samedi lu 3', { dateIso: '2026-11-14', placesConnues: 3 }],
+  ['prix convenus', { dateIso: '2026-11-10', placesConnues: 3, prixConvenus: true }],
+  ['autre remise', { dateIso: '2026-11-10', placesConnues: 3, autreRemise: true }],
+  ['autre code', { dateIso: '2026-11-10', placesConnues: 3, dejaUnCode: true }],
+  ['place tenue, jour plein', { dateIso: '2026-11-10', placesConnues: 0, offreTenue: 'of-places' }],
+  ['occupation comptee', { dateIso: '2026-11-10', occupation: { prises: 2, autres: 0 }, aujourdhui: AUJ_P }],
+  ['geste non couvert', { dateIso: '2026-11-10', placesConnues: 3, serviceIds: ['reprise'] }],
+];
+for (const [nom, v] of VENUES) {
+  const venue = { serviceIds: ['lavage', 'reprise'], aujourdhui: AUJ_P, ...v };
+  dit(`offreDuJourDeLaVenue, ${nom} : la meme offre`, offreDuJourDeLaVenue([PLACES], venue as any)?.id ?? null, copie.offreDuJourDeLaVenue([PLACES], venue)?.id ?? null);
+}
+dit('le Sowa marque sansRemise ne prend aucune remise de code au serveur', 'sans-effet',
+  copie.remiseDuCode({ code: 'SOWA10', serviceIds: ['sowa'], branchId: LA_MAISON, catalogue: [{ id: 'sowa', data: { priceXof: 25000, priceMode: 'fixe', sansRemise: true } }],
+    offres: [{ id: 'off-sowa', active: true, code: 'SOWA10', discountPct: 10, serviceIds: ['sowa'] }] }).raison);
 
 /* ── Les règles à la lettre du fichier, commentaires effacés ──────── */
 dit('le navigateur ne dicte jamais un pourcentage ni une remise', false,

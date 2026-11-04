@@ -4,7 +4,7 @@ import { client, lienWhatsApp, maison, offresDuSite, type OffreDuSite } from '..
 import { campagne, mesure } from '../mesure';
 import {
   agendaEnCache, calendrierDuSite, creneauxOccupes, groupesDePrestations, heuresLibres,
-  isoDuJour, jourCourt, jourDit, placesEnLigne, prestationsReservables, prochainsJours, PLAFOND_GESTES,
+  isoDuJour, jourCourt, jourDit, placesDeLaRemise, placesEnLigne, prestationsReservables, prochainsJours, PLAFOND_GESTES,
   type AgendaDeLaMaison, type PrestationPublique,
 } from '../agenda';
 import { porteDuBesoin, type Besoin } from '../../../shared/qualification';
@@ -14,9 +14,14 @@ import { TELEPHONE_MONDE, TELEPHONE_PAYS } from '../../../shared/geo';
 import { fmtMoney } from '../../../shared/currency';
 import type { CarteDesPlaces, CreneauOccupe } from '../../../shared/agenda-pur';
 import {
-  arrondiDuNet, ceQueLeCodeRetire, codeNormalise, lignesDuCode, offreDuCode, offreDuCodePassee, offreDuJourDeLaVenue,
+  arrondiDuNet, ceQueLeCodeRetire, codeNormalise, ditLesPlaces, estAPlaces, gesteSansRemise, lignesDuCode, offreDuCode, offreDuCodePassee,
   porteSurLeJourDeLaVenue, pourquoiLOffreNeCourtPas, type OffreCodee,
 } from '../../../shared/offres-pur';
+import {
+  bandeauDesPlaces, BOUTON_DU_TARIF_DE_LA_MAISON, estUnCodeDesPlaces, offreDesPlacesOuverte, offreDuJourDuSite,
+  PHRASE_DES_TARIFS_CONVENUS, phraseDeLaPlacePartie, phraseDeLaPlaceTenue, phraseDUneSeuleRemise, placesConnuesDe,
+  placesDites, prixConvenusDuRetour, type CarteDesRemises,
+} from '../places-du-site-pur';
 import Demande from './Demande';
 import { raisonDuRefus } from '../refus-du-serveur';
 import { diagnosticGarde, oublieLeDiagnostic } from '../diagnostic-garde';
@@ -318,6 +323,16 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
      du mardi au vendredi) : elles arrivent avec les créneaux pris ; vides,
      chaque jour garde une place. */
   const [placesParJour, setPlacesParJour] = useState<CarteDesPlaces>({});
+  /* LES PLACES LIMITÉES DE LA REMISE — 4 novembre 2026 : comptées par la base
+     (`places_de_la_remise`), elles arrivent avec les créneaux pris. Vides, la
+     remise ne se pose sur aucun jour. */
+  const [remisesParJour, setRemisesParJour] = useState<CarteDesRemises>({});
+  /* LA DERNIÈRE PLACE EST PARTIE à l'envoi (`places_limitees`) : l'offre
+     qu'on montrait, pour dire son pourcentage ; puis, si elle le choisit, le
+     tarif de la Maison, sans remise. Un autre jour ou d'autres gestes
+     effacent l'un et l'autre. */
+  const [placePartie, setPlacePartie] = useState<{ discountPct?: number } | null>(null);
+  const [tarifDeLaMaison, setTarifDeLaMaison] = useState(false);
   /* LES PLACES ATTENDENT LES CRÉNEAUX PRIS — 11 octobre 2026. Avec un agenda
      déjà là et des gestes déjà cochés (bon retour, lien préparé, page
      pré-écrite), toutes les heures ouvertes paraissaient libres le temps que
@@ -394,7 +409,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const [retourOuvert, setRetourOuvert] = useState(false);
   const [retourEnvoi, setRetourEnvoi] = useState(false);
   const [retourDit, setRetourDit] = useState<DitDuRetour | null>(null);
-  const [identiteLue, setIdentiteLue] = useState<{ appel: string } | 'passee' | null>(null);
+  const [identiteLue, setIdentiteLue] = useState<{ appel: string; prixConvenus?: boolean } | 'passee' | null>(null);
   const [retourPose, setRetourPose] = useState(false);
   const [code, setCode] = useState(codeDeLAdresse);
   const [offres, setOffres] = useState<OffreDuSite[]>([]);
@@ -424,6 +439,10 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         avant WhatsApp ; et l'identifiant, qui fait l'UID du fichier .ics. */
     reference?: string;
     apptId?: string;
+    /** LES PLACES LIMITÉES — 4 novembre 2026 : la phrase de la place tenue, ou
+        celle de la remise qu'elle a déjà (une seule remise), dites au clic. */
+    placeLimitee?: string;
+    uneSeuleRemise?: string;
   } | null>(null);
   /* LA BANDE DE FIN NE REDIT PAS « RÉSERVER » après une place tenue : le corps
      de la page porte la classe, la feuille cache l'appel. */
@@ -439,7 +458,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
       setDevise(m?.devise ?? 'XOF');
     }).catch(() => { /* le numéro garde celui du registre */ });
     const jours = prochainsJours(JOURS_PROPOSES);
-    void calendrierDuSite(jours[0], jours[jours.length - 1], initiales?.branchId).then(({ agenda: a, occupes: pris, places: lues }) => {
+    void calendrierDuSite(jours[0], jours[jours.length - 1], initiales?.branchId).then(({ agenda: a, occupes: pris, places: lues, remises }) => {
       if (!vivant) return;
       /* Un agenda absent ne remplace pas celui de la dernière visite : il
          rendait « La réservation en ligne n'est pas disponible » par-dessus
@@ -447,6 +466,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
       setAgenda((prec) => a ?? prec ?? null);
       setOccupes(pris);
       setPlacesParJour(lues);
+      setRemisesParJour(remises);
       setOccupesEtat('frais');
     }).catch(() => { if (vivant) { setAgenda((prec) => prec ?? null); setOccupesEtat('panne'); } });
     return () => { vivant = false; };
@@ -610,7 +630,9 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         const lePays = c.dial ? TELEPHONE_MONDE.find((x) => x.dial === c.dial)?.name : undefined;
         if (lePays) setPays(lePays);
         setNumero(c.numero);
-        setIdentiteLue({ appel: appelDuRetour(c) });
+        /* SES PRIX CONVENUS, CONNUS AVANT LA CONFIRMATION (4 novembre 2026) :
+           la place limitée ne se pose pas, et la page le dit. */
+        setIdentiteLue({ appel: appelDuRetour(c), ...(prixConvenusDuRetour(data) ? { prixConvenus: true } : {}) });
       } catch { /* sans réponse, elle tape ses coordonnées, comme avant */ }
     })();
     return () => { vivant = false; };
@@ -653,10 +675,16 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
      mercredi de la Maison) : MERCREDI15 ne court que pour une venue un
      mercredi. Sans jour choisi (`null`), elle ne court pas encore. Les autres
      offres l'ignorent et se jugent sur aujourd'hui, comme avant. */
-  const offreDuMoment = useMemo(() => offreDuCode(offres, code, new Date(), jour || null), [offres, code, jour]);
+  const offreDuCodeTape = useMemo(() => offreDuCode(offres, code, new Date(), jour || null), [offres, code, jour]);
+  /* LA PLACE LIMITÉE NE SE TAPE PAS — 4 novembre 2026. Son code, tapé ou venu
+     d'un ancien lien, n'est pas un code d'offre : il ouvrirait la remise un
+     samedi ou sur un jour plein. La remise se pose d'elle-même avec la place
+     (`offreDuJour`, plus bas), et la page le dit. */
+  const codeDesPlaces = estUnCodeDesPlaces(offres, code);
+  const offreDuMoment = codeDesPlaces ? null : offreDuCodeTape;
   const offrePassee = useMemo(
-    () => (offreDuMoment ? null : offreDuCodePassee(offres, code, new Date(), jour || null)),
-    [offres, code, offreDuMoment, jour],
+    () => (offreDuMoment || codeDesPlaces ? null : offreDuCodePassee(offres, code, new Date(), jour || null)),
+    [offres, code, offreDuMoment, codeDesPlaces, jour],
   );
   /* LA REMISE DE BIENVENUE D'UNE MARRAINE se calcule exactement comme celle
      d'une offre : mêmes lignes, même barre sur le prix (7 octobre 2026). */
@@ -673,16 +701,46 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
      celui d'une marraine, l'écarte. Un code mal tapé, qui n'ouvre rien, ne
      le lui fait pas perdre. */
   const unAutreCode = !!offreDuMoment || FORME_DU_CODE.test(codeNormalise(code));
-  const remiseDuMercredi = (iso: string | null | undefined) =>
-    offreDuJourDeLaVenue(offres, { branchId: agenda?.branchId, dateIso: iso, serviceIds, dejaUnCode: unAutreCode });
+  /* LES PLACES LIMITÉES — 4 novembre 2026. La règle est celle d'hier
+     (`offreDuJourDeLaVenue`), chaque offre à places recevant les places de
+     SON jour lues de la base : rien le samedi, rien un jour à zéro, rien
+     au-delà de l'horizon, et jamais sur un jour qu'on n'a pas compté. Une
+     seule remise : ses prix convenus connus (son lien de retour) l'écartent,
+     comme le tarif de la Maison qu'elle choisit après qu'une place est
+     partie. */
+  const prixConvenusConnus = !!identiteLue && identiteLue !== 'passee' && !!identiteLue.prixConvenus;
+  const venueDuJour = (iso: string | null | undefined, convenus: boolean) => ({
+    branchId: agenda?.branchId, dateIso: iso, serviceIds, dejaUnCode: unAutreCode,
+    ...(convenus ? { prixConvenus: true } : {}), ...(tarifDeLaMaison ? { ecartee: true } : {}),
+  });
+  const remiseDuJourDe = (iso: string | null | undefined) =>
+    offreDuJourDuSite(offres, remisesParJour, venueDuJour(iso, prixConvenusConnus));
   const offreDuJour = useMemo(
-    () => offreDuJourDeLaVenue(offres, { branchId: agenda?.branchId, dateIso: jour || null, serviceIds, dejaUnCode: unAutreCode }),
-    [offres, agenda?.branchId, jour, serviceIds, unAutreCode],
+    () => offreDuJourDuSite(offres, remisesParJour, venueDuJour(jour || null, prixConvenusConnus)),
+    [offres, remisesParJour, agenda?.branchId, jour, serviceIds, unAutreCode, prixConvenusConnus, tarifDeLaMaison],
   );
+  /* Ce que la place aurait donné sans ses prix convenus : pour le dire. */
+  const offreSansSesTarifs = useMemo(
+    () => (prixConvenusConnus ? offreDuJourDuSite(offres, remisesParJour, venueDuJour(jour || null, false)) : null),
+    [prixConvenusConnus, offres, remisesParJour, agenda?.branchId, jour, serviceIds, unAutreCode, tarifDeLaMaison],
+  );
+  const sesTarifsConvenus = !!offreSansSesTarifs && estAPlaces(offreSansSesTarifs);
+  /** Les places qui restent le jour choisi, pour l'offre à places qui s'y pose. */
+  const placesDuChoix = offreDuJour && estAPlaces(offreDuJour) ? placesConnuesDe(remisesParJour, offreDuJour.id, jour) : null;
+  /* Un autre jour, d'autres gestes : la place partie et le tarif choisi s'effacent. */
+  useEffect(() => { setPlacePartie(null); setTarifDeLaMaison(false); }, [jour, serviceIds]);
   const offreAppliquee = offreDuMoment ?? offreDeBienvenue ?? offreDuJour;
+  /** L'offre à places posée sur cette venue : ses lignes disent « place limitée ». */
+  const offreDesPlaces = offreAppliquee && estAPlaces(offreAppliquee) ? offreAppliquee : null;
+  /* LE RITUEL SÓWÀ™ NE PREND AUCUNE REMISE (4 novembre 2026) : sa ligne garde
+     son prix sous tout code et toute place. */
+  const lignesAPrix = useMemo(
+    () => choisies.map((s) => ({ id: s.id, prixXof: prixFerme(s, ctx), ferme: prixFerme(s, ctx) > 0 && !gesteSansRemise(s) })),
+    [choisies, ctx],
+  );
   const lignes = useMemo(
     () => lignesDuCode(
-      choisies.map((s) => ({ id: s.id, prixXof: prixFerme(s, ctx), ferme: prixFerme(s, ctx) > 0 })),
+      choisies.map((s) => ({ id: s.id, prixXof: prixFerme(s, ctx), ferme: prixFerme(s, ctx) > 0 && !gesteSansRemise(s) })),
       offreAppliquee,
     ),
     /* `ctx` AUSSI (10 octobre 2026) : une formule choisie, puis un calibre,
@@ -905,9 +963,15 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                le code d'une amie n'y ferait donc rien ; la neuve lit les deux. */
             ...(offreDuMoment ? { code: codeNormalise(code) }
               : FORME_DU_CODE.test(codeNormalise(code)) ? { codeAmie: codeNormalise(code) }
-                /* Le mercredi de la Maison voyage par son code, comme une offre
-                   tapée : le serveur le revérifie sur la date du rendez-vous. */
+                /* L'offre du jour de la venue voyage par son code : le serveur
+                   la revérifie sur la date du rendez-vous. Celui d'une offre à
+                   places (4 novembre 2026) dit seulement « la page montrait la
+                   remise de ce jour » : le serveur recompte la place lui-même,
+                   et si elle vient de partir, il ne pose rien et le dit. */
                 : offreDuJour?.code ? { code: codeNormalise(offreDuJour.code) } : {}),
+            /* LE TARIF DE LA MAISON, CHOISI après qu'une place est partie : sans
+               remise, sans refus. */
+            ...(tarifDeLaMaison ? { tarifDeLaMaison: true } : {}),
             serviceIds, date: jour, time: heure.heure, master: heure.maitre,
             ...(bandeChoisie ? { lockCount: lockCountAnnonce, calibre: bandeChoisie.name } : {}),
             /* L'INDICATIF ET POUR QUI voyagent (11 octobre 2026) : le serveur
@@ -927,11 +991,25 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         /* 3 novembre 2026 : la référence (une ancienne fonction ne la rend
            pas, elle se recalcule d'après `apptId`). */
         apptId?: string; reference?: string;
+        /* 4 novembre 2026 : la place limitée posée (et son offre), ou la
+           remise qu'elle a déjà et qui l'a écartée. */
+        placeLimitee?: boolean; offreId?: string; uneSeuleRemise?: string;
       };
       if (error || !r.ok) {
         /* La raison est dans le corps de la réponse refusée, pas dans `data`
            (voir refus-du-serveur.ts, 10 octobre 2026). */
         const code = await raisonDuRefus(data, error);
+        if (code === 'places_limitees') {
+          /* LA DERNIÈRE PLACE EST PARTIE — 4 novembre 2026. Rien n'est posé ;
+             l'heure reste libre. La page le dit, relit les places, et la
+             cliente confirme au tarif de la Maison si elle le veut. */
+          setPlacePartie(offreDuJour ?? { discountPct: 0 });
+          if (agenda) {
+            const suite = prochainsJours(JOURS_PROPOSES);
+            setRemisesParJour(await placesDeLaRemise(agenda.branchId, suite[0], suite[suite.length - 1]));
+          }
+          return;
+        }
         if (code.includes('creneau')) {
           setErreur(code === 'creneau_pris' || code === 'creneau_plafond'
             ? 'Cette heure vient d’être prise. Choisissez-en une autre, la liste est à jour.'
@@ -941,12 +1019,14 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
              un planning changé entre-temps ne repropose pas une seconde place
              que le serveur vient de refuser. */
           if (agenda) {
-            const [murs, lues] = await Promise.all([
+            const [murs, lues, remises] = await Promise.all([
               creneauxOccupes(agenda.branchId, suite[0], suite[suite.length - 1]),
               placesEnLigne(agenda.branchId, suite[0], suite[suite.length - 1]),
+              placesDeLaRemise(agenda.branchId, suite[0], suite[suite.length - 1]),
             ]);
             setOccupes(murs);
             setPlacesParJour(lues);
+            setRemisesParJour(remises);
           }
           setHeure(null);
         } else if (code.includes('rate')) {
@@ -961,12 +1041,26 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         }
         return;
       }
+      /* LE PRIX DE LA CONFIRMATION EST CELUI QUE LE SERVEUR A POSÉ — 4 novembre
+         2026 (les places limitées). La place limitée : le serveur seul la tient,
+         celle qu'il a posée compte, celle qu'il n'a pas posée ne compte pas ;
+         une remise qu'elle a déjà (prix convenus, abonnement, famille) fait un
+         prix que la page ne connaît pas, et la confirmation dit laquelle. */
+      const offreDuServeur = r.placeLimitee
+        ? (offres.find((o) => o.id === r.offreId) ?? (offreDuJour && estAPlaces(offreDuJour) ? offreDuJour : null))
+        : null;
+      const offreConfirmee = offreDuMoment ?? offreDeBienvenue ?? (offreDuJour && !estAPlaces(offreDuJour) ? offreDuJour : offreDuServeur);
+      const duServeur = ceQueLeCodeRetire(lignesDuCode(lignesAPrix, offreConfirmee));
+      const prixConfirme = duServeur.net + arrondiDuNet(duServeur.net, duServeur.retire);
+      const uneSeuleRemise = phraseDUneSeuleRemise(r.uneSeuleRemise);
       setRecu({
         date: jour, heure: heure.heure, gestes: choisies.map((s) => s.name),
         code: r.code, codeApplique: r.codeApplique, codeRaison: r.codeRaison,
         marraine: r.marraine, cadeau: r.cadeau, confirme: r.confirme === true,
         accuse: typeof r.accuse === 'string' ? r.accuse : undefined,
-        resume: [dit(dureeTotale), prixTotal > 0 ? `${prixFlou ? 'à partir de ' : ''}${fmtMoney(prixTotal, devise)}, à régler à la Maison` : ''].filter(Boolean).join(' · '),
+        resume: [dit(dureeTotale), !uneSeuleRemise && prixConfirme > 0 ? `${prixFlou ? 'à partir de ' : ''}${fmtMoney(prixConfirme, devise)}, à régler à la Maison` : ''].filter(Boolean).join(' · '),
+        ...(r.placeLimitee ? { placeLimitee: phraseDeLaPlaceTenue(offreDuServeur) } : {}),
+        ...(uneSeuleRemise ? { uneSeuleRemise } : {}),
         dureeMin: dureeTotale,
         ...(r.confirme === true ? { reference: referenceDeLaReponse(r) || undefined } : {}),
         ...(typeof r.apptId === 'string' && r.apptId ? { apptId: r.apptId } : {}),
@@ -1032,7 +1126,12 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
             inconnu n'est pas un reproche, et un cadeau ne se déduit pas mais
             s'applique bien. Le silence, lui, laisserait croire à une remise
             qui n'aura pas lieu. */}
-        {recu.code && (
+        {/* LA PLACE LIMITÉE, OU LA REMISE QU'ELLE A DÉJÀ — 4 novembre 2026 :
+            aucun code à lire, la phrase de ce que le serveur a posé. */}
+        {(recu.placeLimitee || recu.uneSeuleRemise) && (
+          <p className="code-offre__dit est-bonne" style={{ marginTop: 14 }}>{recu.placeLimitee ?? recu.uneSeuleRemise}</p>
+        )}
+        {recu.code && !recu.placeLimitee && (
           <p className="code-offre__dit" style={{ marginTop: 14 }}>
             {/* LE PARRAINAGE — 28 septembre 2026 : quatre issues, chacune
                 sans reproche ; la place, elle, est toujours demandée. */}
@@ -1242,11 +1341,25 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                 <p className="code-offre__dit">{porteSurLeJourDeLaVenue(offreDuMoment) ? 'Une offre à la fois.' : 'Une seule fois par personne, et une offre à la fois.'}</p>
               </>
             )}
-            {/* LE MERCREDI DE LA MAISON, POSÉ SANS RIEN TAPER — 2 novembre 2026. */}
+            {/* L'OFFRE DU JOUR DE LA VENUE, POSÉE SANS RIEN TAPER — 2 novembre
+                2026 ; LA PLACE LIMITÉE, sans code et avec son décompte, depuis le
+                4 novembre 2026. */}
             {!offreDuMoment && !offreDeBienvenue && offreDuJour && compte.retire > 0 && (
-              <p className="code-offre__dit est-bonne">
-                {offreDuJour.title} · −{offreDuJour.discountPct} % · {fmtMoney(retireNet, devise)} de moins sur {compte.combien} {compte.combien > 1 ? 'gestes' : 'geste'}{arrondi > 0 ? ', arrondi au millier' : ''}. Le code {offreDuJour.code} part avec votre demande.
-              </p>
+              estAPlaces(offreDuJour) ? (
+                <p className="code-offre__dit est-bonne">
+                  {offreDuJour.title} · −{offreDuJour.discountPct} % · {fmtMoney(retireNet, devise)} de moins sur {compte.combien} {compte.combien > 1 ? 'gestes' : 'geste'}{arrondi > 0 ? ', arrondi au millier' : ''}. {placesDuChoix !== null ? `${ditLesPlaces(placesDuChoix)}. ` : ''}La remise se pose d’elle-même avec la place, sans code.
+                </p>
+              ) : (
+                <p className="code-offre__dit est-bonne">
+                  {offreDuJour.title} · −{offreDuJour.discountPct} % · {fmtMoney(retireNet, devise)} de moins sur {compte.combien} {compte.combien > 1 ? 'gestes' : 'geste'}{arrondi > 0 ? ', arrondi au millier' : ''}. Le code {offreDuJour.code} part avec votre demande.
+                </p>
+              )
+            )}
+            {/* SES TARIFS CONVENUS, CONNUS AVANT LA CONFIRMATION : une seule remise. */}
+            {sesTarifsConvenus && <p className="code-offre__dit">{PHRASE_DES_TARIFS_CONVENUS}</p>}
+            {/* LE CODE DES PLACES, TAPÉ OU VENU D'UN LIEN : il n'y a rien à taper. */}
+            {codeDesPlaces && (
+              <p className="code-offre__dit">Pas de code à taper pour les places limitées : la remise se pose d’elle-même avec la place, les jours où il en reste.</p>
             )}
             {offreDuMoment && compte.retire === 0 && (
               <p className="code-offre__dit">
@@ -1288,7 +1401,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
             {!offreDuMoment && !offrePassee && etatDuCode === 'inconnu' && (
               <p className="code-offre__dit">Ce code n’ouvre pas de cadeau de bienvenue. Vous pouvez réserver au prix de la carte.</p>
             )}
-            {!offreDuMoment && !offrePassee && code && !FORME_DU_CODE.test(code) && (
+            {!offreDuMoment && !offrePassee && code && !codeDesPlaces && !FORME_DU_CODE.test(code) && (
               <p className="code-offre__dit">Nous ne connaissons pas ce code. Vous pouvez réserver, tout se règle au prix de la carte.</p>
             )}
           </div>
@@ -1303,6 +1416,9 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
      duration + total price as services are selected » (Yéman). Les mêmes
      chiffres que « Votre venue » (le calibre, le code, le mercredi compris). */
   const barre = barreDuTotal({ nombre: choisies.length, dureeMin: dureeTotale, prix: prixTotal, flou: prixFlou, devise });
+  /* LE BANDEAU DES PLACES LIMITÉES — 4 novembre 2026 : quand au moins un jour
+     lu a encore une place, et pas pour une tête dont on sait les prix convenus. */
+  const desPlacesOuvertes = prixConvenusConnus ? null : offreDesPlacesOuverte(offres, remisesParJour, agenda?.branchId);
   const etatDesPlaces = etatDuChargeur(occupesEtat, lent ? DELAI_DU_CHARGEUR_MS : 0);
   const recapitulatif = `${choisies.map((x) => nomEnFrancaisWa(x.name).francais).join(' · ')}${dureeTotale ? ` · ${dit(dureeTotale)}` : ''}${prixTotal > 0 ? ` · ${prixFlou ? 'à partir de ' : ''}${fmtMoney(prixTotal, devise)}` : ''}`;
   const lesCalibres = (!consultation || ajoutsOuverts || ajoutsPris) && bandes.length > 0 ? (
@@ -1329,6 +1445,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         <li className={heure ? 'fait' : pret ? 'ici' : ''}>Quand</li>
         <li className={heure ? 'ici' : ''}>Vous</li>
       </ol>
+      {desPlacesOuvertes && <p className="bandeau-des-places" role="note">{bandeauDesPlaces(desPlacesOuvertes)}</p>}
       {/* LE PARCOURS SE VOIT — 3 novembre 2026 : venue d'une page (`?besoin=`),
           la cliente lit d'où elle vient, et en change d'un toucher. */}
       {besoin !== 'inconnu' ? (
@@ -1578,6 +1695,8 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                         <b className="panier__net">
                           {s.priceMode === 'variable' ? 'à partir de ' : ''}{fmtMoney(netDe(s.id), devise)}
                         </b>
+                        {/* LA LIGNE DIT D'OÙ VIENT SA REMISE (4 novembre 2026). */}
+                        {offreDesPlaces && <small className="panier__place">place limitée</small>}
                       </>
                     )
                     : prixDit(s, devise, ctx)}
@@ -1600,6 +1719,10 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
               <b>{prixFlou && prixTotal > 0 ? <em>à partir de </em> : null}{prixTotal > 0 ? fmtMoney(prixTotal, devise) : 'à la Maison'}</b>
             </p>
           </div>
+          {/* LE DÉCOMPTE DU JOUR CHOISI, sous le total (4 novembre 2026). */}
+          {offreDesPlaces && placesDuChoix !== null && (
+            <p className="legende remise-du-jour">{ditLesPlaces(placesDuChoix)} · Places limitées</p>
+          )}
           {blocDuCode}
           {plein && <p className="legende avertit">Six gestes au plus dans une même venue. Retirez-en un pour en cocher un autre.</p>}
           {prixFlou && prixTotal > 0 && <p className="legende">Un geste au moins se règle à la Maison : ce total est un plancher, jamais une promesse.</p>}
@@ -1635,20 +1758,23 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                     le maître : la cliente choisit un moment, pas une main. */}
                 <div className="places">
                   {places.map(({ iso, place }) => {
-                    /* LE MERCREDI SE MARQUE EN CUIVRE (2 novembre 2026) : la
-                       remise se lit avant de toucher la place. */
-                    const duJour = remiseDuMercredi(iso);
+                    /* LA REMISE DU JOUR SE MARQUE EN CUIVRE (2 novembre 2026) :
+                       elle se lit avant de toucher la place ; une place limitée
+                       dit son décompte (4 novembre 2026). */
+                    const duJour = remiseDuJourDe(iso);
+                    const restent = duJour && estAPlaces(duJour) ? placesConnuesDe(remisesParJour, duJour.id, iso) : null;
                     return (
                       <button
                         type="button"
                         key={`${iso}-${place.heure}`}
                         className={`place${jour === iso && heure?.heure === place.heure ? ' est-choisie' : ''}${duJour ? ' est-offre' : ''}`}
                         aria-pressed={jour === iso && heure?.heure === place.heure}
-                        aria-label={duJour ? `${jourProche(iso)} à ${place.heure}, ${duJour.title}, −${duJour.discountPct} %` : undefined}
+                        aria-label={duJour ? `${jourProche(iso)} à ${place.heure}, ${duJour.title}, −${duJour.discountPct} %${restent !== null ? `, ${ditLesPlaces(restent)}` : ''}` : undefined}
                         onClick={() => prendreLaPlace(iso, place)}
                       >
                         <span>{jourProche(iso)}</span><b>{place.heure}</b>
                         {duJour && <small className="remise-du-jour">−{duJour.discountPct} %</small>}
+                        {restent !== null && <small className="places-du-jour">{ditLesPlaces(restent)}</small>}
                       </button>
                     );
                   })}
@@ -1662,13 +1788,15 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                     const c = jourCourt(j.iso);
                     /* LE MOIS EN TÊTE DE BANDE quand il change (11 octobre 2026). */
                     const nouveauMois = i === 0 || j.iso.slice(0, 7) !== jours[i - 1].iso.slice(0, 7);
-                    const duJour = remiseDuMercredi(j.iso);
+                    const duJour = remiseDuJourDe(j.iso);
+                    const restent = duJour && estAPlaces(duJour) ? placesConnuesDe(remisesParJour, duJour.id, j.iso) : null;
                     return (
                       <Fragment key={j.iso}>
                         {nouveauMois && <span className="jours__mois">{moisEtAnnee(j.iso)}</span>}
-                        <button type="button" className={`jour${jour === j.iso ? ' est-choisi' : ''}${duJour ? ' est-offre' : ''}`} aria-pressed={jour === j.iso} onClick={() => { setJour(j.iso); setHeure(null); }}>
+                        <button type="button" className={`jour${jour === j.iso ? ' est-choisi' : ''}${duJour ? ' est-offre' : ''}`} aria-pressed={jour === j.iso} aria-label={restent !== null ? `${jourDit(j.iso)}, ${ditLesPlaces(restent)}` : undefined} onClick={() => { setJour(j.iso); setHeure(null); }}>
                           <span>{c.lettre}</span><b>{c.chiffre}</b>
                           {duJour && <small className="remise-du-jour">−{duJour.discountPct} %</small>}
+                          {restent !== null && <small className="places-du-jour">{placesDites(restent)}</small>}
                         </button>
                       </Fragment>
                     );
@@ -1677,6 +1805,10 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                 {jour && (
                   <div className="heures venir">
                     <p className="legende" style={{ width: '100%' }}>{jourDit(jour)}</p>
+                    {/* LE DÉCOMPTE DU JOUR CHOISI, en toutes lettres (4 novembre 2026). */}
+                    {offreDuJour && placesDuChoix !== null && (
+                      <p className="legende remise-du-jour" style={{ width: '100%' }}>{ditLesPlaces(placesDuChoix)} · {bandeauDesPlaces(offreDuJour)}</p>
+                    )}
                     {heuresDuJour.map((h) => (
                       <button type="button" key={h.heure} className={`heure${heure?.heure === h.heure ? ' est-choisie' : ''}`} aria-pressed={heure?.heure === h.heure} onClick={() => { setErreur(null); setHeure(h); }}>
                         {h.heure}
@@ -1707,8 +1839,21 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
             {prixTotal > 0 ? ` · ${prixFlou ? 'à partir de ' : ''}${fmtMoney(prixTotal, devise)}` : ''}
           </p>
           {!offreDuMoment && !offreDeBienvenue && offreDuJour && compte.retire > 0 && (
-            <p className="legende remise-du-jour">{offreDuJour.title} · −{offreDuJour.discountPct} % · code {offreDuJour.code}</p>
+            estAPlaces(offreDuJour)
+              ? <p className="legende remise-du-jour">{offreDuJour.title} · −{offreDuJour.discountPct} % · {placesDuChoix !== null ? ditLesPlaces(placesDuChoix) : 'place limitée'}</p>
+              : <p className="legende remise-du-jour">{offreDuJour.title} · −{offreDuJour.discountPct} % · code {offreDuJour.code}</p>
           )}
+          {sesTarifsConvenus && <p className="legende">{PHRASE_DES_TARIFS_CONVENUS}</p>}
+          {/* LA DERNIÈRE PLACE EST PARTIE — 4 novembre 2026 : rien n'est posé,
+              l'heure reste à elle ; elle confirme au tarif de la Maison si
+              elle le veut, en voyant le prix d'abord. */}
+          {placePartie && (
+            <div className="place-partie" role="alert">
+              <p className="erreur">{phraseDeLaPlacePartie(placePartie)}</p>
+              <button type="button" className="btn btn--fort" onClick={() => { setTarifDeLaMaison(true); setPlacePartie(null); }}>{BOUTON_DU_TARIF_DE_LA_MAISON}</button>
+            </div>
+          )}
+          {tarifDeLaMaison && <p className="legende">Au tarif de la Maison, sans remise : touchez « Réserver » pour confirmer.</p>}
           {f.avantDeVenir[besoin] && (
             <div className="avant-de-venir"><b>Avant de venir</b><p>{f.avantDeVenir[besoin]}</p></div>
           )}
