@@ -107,14 +107,19 @@ function controles(t: Textes): string[] {
   });
   exige('la porte des heures vient apres la cle du cron', cle >= 0 && porte > cle);
   exige('aucune reprise, aucun point, aucun rendez-vous lu, aucun envoi avant la porte', porte > 0 && premiersGestes.every((i) => i < 0 || i > porte));
-  exige('la version dit le 2 novembre, b', /const VERSION = '2026-11-02-b · les heures des rappels réglées au Trône ; la veille se tait quand elle a confirmé ; un rappel remis ne repart jamais';/.test(e));
+  exige('la version dit le 4 novembre, a (la porte d Opale)', /const VERSION = '2026-11-04-a · la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';/.test(e));
   /* 2 novembre 2026 : la veille se tait quand elle a confirmé à J-2. */
   exige('les rendez-vous confirmes par la cliente sont retires avant tout envoi', /const rdvs: Rdv\[\] = tousDemain\.filter\(\(a\) => !rappelDeLaVeilleSeTait\(a\)\);/.test(e));
   exige('la fonction dit combien de rappels se sont tus', /rdv: rdvs\.length, confirmeesTues, dejaRemisTus,/.test(e));
   /* 2 novembre 2026 : un rappel deja remis ne repart jamais, quel que soit l etat de sa ligne. */
   exige('la fonction relit le fil des vingt dernieres heures', /\.eq\('data->>modele', WA_TEMPLATE\)\.eq\('data->>sens', 'sortant'\)\.gte\('data->>quand', depuisVingtHeures\)/.test(e)
     && /\.filter\(\(r\) => r\.data\?\.etat !== 'non-remis'\)/.test(e));
-  exige('un rappel deja remis au meme numero et au meme texte ne repart pas', /if \(tel && dejaRemis\.has\(`\$\{tel\}\|\$\{prenom\}, votre rendez-vous est demain à \$\{heureLisible\(a\.time\)\}\.`\)\) \{ dejaRemisTus\+\+; continue; \}/.test(e));
+  /* 4 novembre 2026, la porte d'Opale : le numero par sa cle, la meme fiche suffit, sinon le meme texte sans civilite. */
+  exige('un rappel deja remis a la cle de ce numero, pour la meme fiche ou au meme texte sans civilite, ne repart pas',
+    /if \(tel && \(dejaRemis\.has\(`\$\{cleDuNumero\(tel\)\}\|tete\|\$\{a\.clientId\}`\) \|\| dejaRemis\.has\(`\$\{cleDuNumero\(tel\)\}\|texte\|\$\{texteSansCivilite\(`\$\{prenom\}, votre rendez-vous est demain à \$\{heureLisible\(a\.time\)\}\.`\)\}`\)\)\) \{ dejaRemisTus\+\+; continue; \}/.test(e));
+  exige('le fil se range par cle du numero, par fiche et par texte sans civilite',
+    /\.\.\.\(r\.data\?\.clientId \? \[`\$\{cleDuNumero\(r\.data\?\.numero\)\}\|tete\|\$\{r\.data\.clientId\}`\] : \[\]\),/.test(e)
+    && /\.\.\.\(r\.data\?\.texte \? \[`\$\{cleDuNumero\(r\.data\?\.numero\)\}\|texte\|\$\{texteSansCivilite\(r\.data\.texte\)\}`\] : \[\]\),/.test(e));
   exige('le garde passe avant tout depot et tout envoi', e.indexOf('dejaRemis.has(') > 0 && e.indexOf('dejaRemis.has(') < e.indexOf("consigne('whatsapp', a, 'en-attente'"));
   /* Le SQL : un job horaire, les anciens retires, la fonction d abord. */
   const s = egal(t.sql);
@@ -143,7 +148,9 @@ const PANNES: [string, keyof Textes, string, string][] = [
   ['le serveur compte en heure UTC', 'edge', 'Math.floor(heureDuSalon(Date.now()))', 'new Date().getUTCHours()'],
   ['les reprises partent avant la porte', 'edge', "  const { data: reglage } = await sb.from('documents')", "  await proposeLesReprises(sb, false, REGLES_PAR_DEFAUT);\n  const { data: reglage } = await sb.from('documents')"],
   ['le serveur ne lit pas le reglage', 'edge', "heuresDesRappels(reglage?.data", 'heuresDesRappels(undefined'],
-  ['la version n a pas bouge', 'edge', "const VERSION = '2026-11-02-b", "const VERSION = '2026-11-02-a"],
+  ['la version n a pas bouge', 'edge', "const VERSION = '2026-11-04-a", "const VERSION = '2026-11-02-b"],
+  ['le fil se compare au numero tel quel', 'edge', 'if (tel && (dejaRemis.has(`${cleDuNumero(tel)}|tete|', 'if (tel && (dejaRemis.has(`${tel}|tete|'],
+  ['le fil ne se range plus par fiche', 'edge', '...(r.data?.clientId ? [`${cleDuNumero(r.data?.numero)}|tete|${r.data.clientId}`] : []),', ''],
   ['un rappel remis repart quand meme', 'edge', 'dejaRemisTus++; continue; }', 'dejaRemisTus++; }'],
   ['un non remis compte comme remis', 'edge', ".filter((r) => r.data?.etat !== 'non-remis')", '.filter((r) => !!r)'],
   ['la veille part meme confirmee', 'edge', 'tousDemain.filter((a) => !rappelDeLaVeilleSeTait(a))', 'tousDemain.filter((a) => !!a)'],

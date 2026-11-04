@@ -34,7 +34,7 @@ const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. 10 octobre 2026 : le passage du soir ne dépose plus
     un rappel que les heures calmes retiendraient jusqu'au jour même. */
-const VERSION = '2026-11-02-b · les heures des rappels réglées au Trône ; la veille se tait quand elle a confirmé ; un rappel remis ne repart jamais';
+const VERSION = '2026-11-04-a · la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
 
 type Rdv = {
   id: string;
@@ -228,6 +228,20 @@ const depot = (maintenantMs: number, r: ReglesDeLaSalle, colis: Record<string, u
 /** Les verdicts qui ne verrouillent pas : un raté se retente, un message
     périmé (rendez-vous déplacé pendant l'attente) peut se redéposer. */
 const SE_RETENTE = new Set(['échec', 'périmé']);
+/* ══ CE QU'OPALE A RETENU NE SE REDÉPOSE PAS — 4 novembre 2026 ══════════
+   La porte d'Opale (envois-partent, src/shared/porte-des-modeles-pur.ts)
+   rend « périmé » le message qu'elle retient, avec le détail « retenu par
+   Opale : <motif> » : déjà parti, elle vient de confirmer, elle a écrit, le
+   rendez-vous ne tient plus. Le redéposer au passage suivant le ferait
+   repartir ou le ferait retenir encore : il verrouille comme un envoi. Les
+   trois aides sont celles de la porte, mot pour mot (le banc de la porte
+   les compare). */
+const retenuParOpale = (d: { detail?: unknown } | null | undefined): boolean => String(d?.detail ?? '').startsWith('retenu par Opale');
+const cleDuNumero = (brut: unknown): string => {
+  const d = numeroIntl(String(brut ?? '')) ?? '';
+  return d.length === 13 && d.startsWith('22901') ? `229${d.slice(5)}` : d;
+};
+const texteSansCivilite = (t: unknown): string => String(t ?? '').replace(/(^|[\s,;:(«"'])(?:M\.|Mme|Mlle|Monsieur|Madame|Mademoiselle)(?= )\s*/g, '$1').replace(/\s+/g, ' ').trim();
 
 /* ══ LA REPRISE PROPOSÉE, TROIS JOURS AVANT — 29 septembre 2026 ═══════════
    « And for renewal appointments even faster » (Yéman), maquette « La
@@ -289,7 +303,7 @@ async function proposeLesReprises(sb: ReturnType<typeof createClient>, salleOuve
   const { data: dejaRows } = await sb.from('envois').select('id, data').in('id', attendus);
   const deja = new Set(
     (dejaRows ?? [])
-      .filter((r) => !SE_RETENTE.has((r.data as { statut?: string } | null)?.statut ?? ''))
+      .filter((r) => !SE_RETENTE.has((r.data as { statut?: string } | null)?.statut ?? '') || retenuParOpale(r.data as { detail?: unknown } | null))
       .map((r) => r.id as string),
   );
 
@@ -513,7 +527,7 @@ async function poseLesPointsDEtape(sb: ReturnType<typeof createClient>, salleOuv
   const { data: dejaRows } = await sb.from('envois').select('id, data').in('id', aPoser.map(idDe));
   const deja = new Set(
     (dejaRows ?? [])
-      .filter((r) => !SE_RETENTE.has((r.data as { statut?: string } | null)?.statut ?? ''))
+      .filter((r) => !SE_RETENTE.has((r.data as { statut?: string } | null)?.statut ?? '') || retenuParOpale(r.data as { detail?: unknown } | null))
       .map((r) => r.id as string),
   );
 
@@ -737,7 +751,7 @@ Deno.serve(async (req) => {
   const { data: dejaRows } = await sb.from('envois').select('id, data').eq('data->>dateRdv', demain);
   const deja = new Set(
     (dejaRows ?? [])
-      .filter((r) => !SE_RETENTE.has((r.data as { statut?: string } | null)?.statut ?? ''))
+      .filter((r) => !SE_RETENTE.has((r.data as { statut?: string } | null)?.statut ?? '') || retenuParOpale(r.data as { detail?: unknown } | null))
       .map((r) => r.id as string),
   );
 
@@ -757,13 +771,25 @@ Deno.serve(async (req) => {
      comme il retente tout échec. Le journal des envois ne suffit donc pas :
      on relit aussi le fil. Un rappel au même numéro, au même texte, depuis
      vingt heures, que WhatsApp n'a pas dit « non remis », ne repart pas,
-     quel que soit l'état de sa ligne. */
+     quel que soit l'état de sa ligne.
+
+     SANS EXIGER LE MÊME TEXTE — 4 novembre 2026 (la porte d'Opale). Le
+     numéro se compare par sa clé (229 et huit chiffres : Meta et la fiche ne
+     l'écrivent pas pareil), et le même modèle depuis vingt heures suffit
+     pour la même fiche, même si le texte a changé entre deux passages (la
+     civilité corrigée, l'heure dite autrement, un second rendez-vous). Pour
+     une autre fiche au même numéro, le texte décide, civilités ôtées : deux
+     enfants d'un même parent reçoivent chacun leur rappel. */
   const depuisVingtHeures = new Date(Date.now() - 20 * 3_600_000).toISOString();
   const { data: dejaAuFil } = await sb.from('messages_wa').select('data')
     .eq('data->>modele', WA_TEMPLATE).eq('data->>sens', 'sortant').gte('data->>quand', depuisVingtHeures).limit(1000);
-  const dejaRemis = new Set(((dejaAuFil ?? []) as { data?: { numero?: string; texte?: string; etat?: string } }[])
+  const dejaRemis = new Set(((dejaAuFil ?? []) as { data?: { numero?: string; texte?: string; etat?: string; clientId?: string } }[])
     .filter((r) => r.data?.etat !== 'non-remis')
-    .map((r) => `${r.data?.numero ?? ''}|${r.data?.texte ?? ''}`));
+    .filter((r) => !!cleDuNumero(r.data?.numero))
+    .flatMap((r) => [
+      ...(r.data?.clientId ? [`${cleDuNumero(r.data?.numero)}|tete|${r.data.clientId}`] : []),
+      ...(r.data?.texte ? [`${cleDuNumero(r.data?.numero)}|texte|${texteSansCivilite(r.data.texte)}`] : []),
+    ]));
   let dejaRemisTus = 0;
 
   const aInserer: { id: string; branch_id: string | null; data: Record<string, unknown> }[] = [];
@@ -819,7 +845,8 @@ Deno.serve(async (req) => {
        Le modèle approuvé attend deux variables : {{1}} le prénom,
        {{2}} l'heure (voir docs/BRANCHER-ENVOIS.md). */
     const tel = numeroIntl(telDuRdv(a, fiche));
-    if (tel && dejaRemis.has(`${tel}|${prenom}, votre rendez-vous est demain à ${heureLisible(a.time)}.`)) { dejaRemisTus++; continue; }
+    if (tel && (dejaRemis.has(`${cleDuNumero(tel)}|tete|${a.clientId}`)
+      || dejaRemis.has(`${cleDuNumero(tel)}|texte|${texteSansCivilite(`${prenom}, votre rendez-vous est demain à ${heureLisible(a.time)}.`)}`))) { dejaRemisTus++; continue; }
     if (partiraitLeJourMeme) {
       const motif = 'heures calmes : déposé ce soir, il partirait le jour même du rendez-vous';
       if (WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)) consigne('whatsapp', a, 'périmé', motif);
