@@ -639,6 +639,8 @@ const regles: Regle[] = [
         'rappel-se-tait': { fichier: 'src/shared/heures-des-rappels-pur.ts', extrait: (s) => entre(s, 'rappel-se-tait') },
         /* Le lien du rendez-vous (3 novembre 2026) : la référence, les jetons, la confirmation à liens, recopié dans demande-submit et confirmation-rdv. */
         'lien-du-rdv': { fichier: 'src/shared/lien-du-rdv-pur.ts', extrait: (s) => entre(s, 'lien-du-rdv') },
+        /* Le message du foyer (4 novembre 2026) : un message par foyer, qui nomme chaque tête, recopié dans confirmation-rdv, rappels-j1 et envois-partent. */
+        'message-du-foyer': { fichier: 'src/shared/message-du-foyer-pur.ts', extrait: (s) => entre(s, 'message-du-foyer') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

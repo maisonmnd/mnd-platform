@@ -617,6 +617,11 @@ export type Envoi = {
   campagneId?: string;
   canal: 'push' | 'whatsapp' | 'sms' | 'wa-main';
   apptId: string;
+  /** LE MESSAGE D'UN FOYER (4 novembre 2026, shared/message-du-foyer-pur) :
+      il vit sous la ligne de sa première tête et nomme les autres. */
+  foyerId?: string;
+  apptIds?: string[];
+  clientIds?: string[];
   /** Le numéro et le prénom, quand il n'y a pas encore de fiche : l'accusé
       part vers une visiteuse du site qui n'en a pas. */
   numero?: string;

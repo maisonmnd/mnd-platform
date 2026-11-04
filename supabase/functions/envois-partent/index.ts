@@ -41,6 +41,125 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+/* ══ LE MESSAGE DU FOYER, 4 novembre 2026 ══════════════════════════════
+   « Un seul message par foyer, au numéro du foyer, qui nomme toutes les
+   têtes » (maquette du parcours du foyer, arbitrage 3). Recopié À
+   L'IDENTIQUE de `src/shared/message-du-foyer-pur.ts` ; la porte d'Opale y
+   lit les têtes qu'une ligne nomme, et le facteur relit le foyer avant
+   l'envoi. Le banc des douze lunes compare les copies. ══ */
+/* ⟨message-du-foyer⟩ */
+/** Une tête à prévenir : son rendez-vous, et le numéro où on la prévient. */
+export type TeteAPrevenir = { id: string; clientId?: string; foyerId?: string; date: string; time?: string; status?: string; numero?: string | null };
+/** Un foyer à prévenir : la tête qui porte le message (la plus tôt), puis toutes, dans l'ordre. */
+export type FoyerAPrevenir<T extends TeteAPrevenir> = { cle: string; porteur: T; tetes: T[] };
+
+/** Le prénom d'une fiche : le premier mot de son nom, jamais le nom de famille. */
+export const prenomDeLaTete = (nom: unknown): string => String(nom ?? '').trim().split(/\s+/)[0] ?? '';
+
+/** Les prénoms dits en français : « Jade », « Jade et Faith », « Jade, Faith et Maëlle ». */
+export function prenomsDits(prenoms: readonly string[]): string {
+  const p = prenoms.map((x) => String(x ?? '').trim()).filter(Boolean);
+  if (p.length <= 1) return p[0] ?? '';
+  return `${p.slice(0, -1).join(', ')} et ${p[p.length - 1]}`;
+}
+
+/** La clé du numéro : 229 et huit chiffres, que Meta et la fiche l'écrivent avec ou sans le 01. */
+export const cleDuNumeroDuFoyer = (brut: unknown): string => {
+  const d = String(brut ?? '').replace(/\D/g, '');
+  const n = !d ? '' : d.startsWith('00229') ? d.slice(2) : d.startsWith('229') ? d : d.length === 10 && d.startsWith('01') ? `229${d}` : d.length === 8 ? `22901${d}` : d;
+  return n.length === 13 && n.startsWith('22901') ? `229${n.slice(5)}` : n;
+};
+
+const heureDuFoyer = (t?: string): string => (/^\d{1,2}:\d{2}$/.test(t ?? '') ? (t as string).padStart(5, '0') : '23:59');
+const plusTot = (a: TeteAPrevenir, b: TeteAPrevenir): number =>
+  `${a.date} ${heureDuFoyer(a.time)} ${a.id}`.localeCompare(`${b.date} ${heureDuFoyer(b.time)} ${b.id}`);
+
+/** Le foyer d'une tête : son `foyerId`, son jour, la clé de son numéro. Sans foyer ou sans numéro, elle est seule. */
+export const cleDuFoyer = (t: TeteAPrevenir): string => {
+  const numero = cleDuNumeroDuFoyer(t.numero);
+  return t.foyerId && t.date && numero ? `foyer|${t.foyerId}|${t.date.slice(0, 10)}|${numero}` : `seule|${t.id}`;
+};
+
+/** LES FOYERS À PRÉVENIR : un groupe par foyer, par jour et par numéro, jamais un rendez-vous annulé ; la tête la plus tôt porte le message. */
+export function foyersAPrevenir<T extends TeteAPrevenir>(tetes: readonly T[]): FoyerAPrevenir<T>[] {
+  const groupes = new Map<string, T[]>();
+  const vus = new Set<string>();
+  for (const t of tetes) {
+    if (!t || !t.id || t.status === 'annulé' || vus.has(t.id)) continue;
+    vus.add(t.id);
+    const cle = cleDuFoyer(t);
+    groupes.set(cle, [...(groupes.get(cle) ?? []), t]);
+  }
+  return [...groupes.entries()]
+    .map(([cle, g]) => { const tries = [...g].sort(plusTot); return { cle, porteur: tries[0], tetes: tries }; })
+    .sort((a, b) => plusTot(a.porteur, b.porteur));
+}
+
+/** Les têtes du foyer, une fois par fiche. */
+const unesParFiche = <T extends TeteAPrevenir>(f: FoyerAPrevenir<T>): T[] => {
+  const vues = new Set<string>();
+  return f.tetes.filter((t) => { const k = t.clientId || t.id; if (vues.has(k)) return false; vues.add(k); return true; });
+};
+
+/** L'APPEL DU MESSAGE : une fiche seule garde son appel (sa civilité) ; dès deux fiches, leurs prénoms. */
+export function appelDuFoyer<T extends TeteAPrevenir>(f: FoyerAPrevenir<T>, appelSeule: (t: T) => string, prenomDe: (t: T) => string): string {
+  const fiches = unesParFiche(f);
+  return fiches.length <= 1 ? appelSeule(f.porteur) : prenomsDits(fiches.map(prenomDe));
+}
+
+/** Ce que la ligne d'envoi porte en plus pour un foyer de deux rendez-vous ou plus ; rien pour une tête seule. */
+export function champsDuFoyer<T extends TeteAPrevenir>(f: FoyerAPrevenir<T>): { foyerId?: string; apptIds?: string[]; clientIds?: string[] } {
+  if (f.tetes.length < 2) return {};
+  return {
+    ...(f.porteur.foyerId ? { foyerId: f.porteur.foyerId } : {}),
+    apptIds: f.tetes.map((t) => t.id),
+    clientIds: [...new Set(f.tetes.map((t) => t.clientId).filter((c): c is string => !!c))],
+  };
+}
+
+const listeDuFoyer = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => String(x ?? '')).filter(Boolean) : []);
+/** Les rendez-vous qu'une ligne nomme : le sien, et ceux de son foyer. */
+export const tetesNommees = (l: { apptId?: unknown; apptIds?: unknown } | null | undefined): string[] =>
+  [...new Set([String(l?.apptId ?? ''), ...listeDuFoyer(l?.apptIds)].filter(Boolean))];
+/** Les fiches qu'une ligne ou un message du fil nomme : la sienne, et celles de son foyer. */
+export const fichesNommees = (l: { clientId?: unknown; clientIds?: unknown } | null | undefined): string[] =>
+  [...new Set([String(l?.clientId ?? ''), ...listeDuFoyer(l?.clientIds)].filter(Boolean))];
+/** Une ligne nomme-t-elle ce rendez-vous ? Le Trône lit ainsi la tournée de chaque tête. */
+export const nommeLeRendezVous = (l: { apptId?: unknown; apptIds?: unknown } | null | undefined, apptId: string): boolean =>
+  !!apptId && tetesNommees(l).includes(apptId);
+
+/** LES TÊTES COUVERTES : les rendez-vous que nomme une ligne de ce type et de ce canal qui verrouille. */
+export function tetesCouvertes<L extends { type?: unknown; canal?: unknown; apptId?: unknown; apptIds?: unknown }>(
+  lignes: readonly (L | null | undefined)[], o: { type: string; canal: string; verrouille: (l: L) => boolean },
+): Set<string> {
+  const couvertes = new Set<string>();
+  for (const l of lignes) {
+    if (!l || String(l.type ?? '') !== o.type || String(l.canal ?? '') !== o.canal || !o.verrouille(l)) continue;
+    for (const id of tetesNommees(l)) couvertes.add(id);
+  }
+  return couvertes;
+}
+
+/** UN FOYER QUI NE TIENT PLUS, relu avant l'envoi : une autre tête nommée a
+    disparu, est annulée ou a changé de jour. Le message ne part pas
+    (« périmé », sans la marque d'Opale) : la fonction qui l'a déposé le
+    refait avec les têtes qui restent. `rdvs` : les rendez-vous relus. */
+export function foyerQuiNeTientPlus(
+  l: { apptId?: unknown; apptIds?: unknown; dateRdv?: unknown },
+  rdvs: ReadonlyMap<string, { date?: string; status?: string } | null | undefined>,
+): string | null {
+  const jour = String(l.dateRdv ?? '').slice(0, 10);
+  for (const id of tetesNommees(l)) {
+    if (id === String(l.apptId ?? '')) continue;
+    const r = rdvs.get(id);
+    if (!r) return 'un rendez-vous du foyer n’existe plus : le message se refait sans lui';
+    if (r.status === 'annulé') return 'un rendez-vous du foyer a été annulé : le message se refait sans lui';
+    if (String(r.date ?? '').slice(0, 10) !== jour) return 'un rendez-vous du foyer a changé de jour : le message se refait sans lui';
+  }
+  return null;
+}
+/* ⟨/message-du-foyer⟩ */
+
 /* ══ LA PORTE D'OPALE — 4 novembre 2026 ══════════════════════════════
    « Opale garde la porte de tous les modèles Meta automatiques » (Yéman).
    Recopié À L'IDENTIQUE de `src/shared/porte-des-modeles-pur.ts` (une
@@ -264,12 +383,14 @@ export type LigneALaPorte = {
   apptId?: string; clientId?: string; pourId?: string; teteId?: string; subId?: string; seanceId?: string;
   invoiceId?: string; invoiceIds?: unknown; campagneId?: string; echeance?: unknown; dueIso?: string; revuLe?: string;
   dateRdv?: string; heure?: string; deposeLe?: string; quand?: string; prisLe?: string; recolleLe?: string; parLaMain?: boolean;
+  /** Le message d'un foyer : le foyer, chaque rendez-vous et chaque fiche qu'il nomme. */
+  foyerId?: string; apptIds?: unknown; clientIds?: unknown;
   colis?: ColisALaPorte;
   [k: string]: unknown;
 };
-export type RdvALaPorte = { date?: string; time?: string; status?: string; confirmeeParLaClienteLe?: unknown; deplaceLe?: unknown; [k: string]: unknown };
+export type RdvALaPorte = { date?: string; time?: string; status?: string; confirmeeParLaClienteLe?: unknown; deplaceLe?: unknown; foyerId?: unknown; [k: string]: unknown };
 export type FicheALaPorte = { name?: unknown; civilite?: unknown; auMasculin?: unknown; [k: string]: unknown };
-export type MessageALaPorte = { sens?: string; numero?: string; clientId?: string; texte?: string; modele?: string; quand?: string; etat?: string; [k: string]: unknown };
+export type MessageALaPorte = { sens?: string; numero?: string; clientId?: string; clientIds?: unknown; texte?: string; modele?: string; quand?: string; etat?: string; [k: string]: unknown };
 export type ContexteDeLaPorte = {
   maintenantMs: number;
   /** Le rendez-vous relu (null : il n'existe plus ; absent : la ligne n'en nomme pas). */
@@ -322,48 +443,69 @@ export function cleDeLEvenement(l: LigneALaPorte): string {
     numéro, depuis vingt heures, que WhatsApp n'a pas dit « non remis », pour
     la même fiche (famille « une par tête ») ou au même texte, civilités
     ôtées. Deux enfants d'un même parent, deux formules d'une même payeuse :
-    deux fiches ou deux textes, donc deux messages. */
+    deux fiches ou deux textes, donc deux messages.
+
+    UN FOYER, UN MESSAGE (4 novembre 2026). Deux enfants d'un même foyer,
+    le même jour, au même numéro, sont nommés par UN message (`apptIds`,
+    `clientIds`). Chaque rendez-vous nommé par une ligne partie au journal,
+    et chaque fiche nommée par un message du fil, est couvert : une ligne
+    dont toutes les têtes sont déjà couvertes ne repart pas, qu'elle soit
+    celle du foyer ou celle d'une seule tête. Deux enfants d'un même parent
+    hors d'un foyer gardent chacun leur message, comme avant. */
 export function dejaParti(l: LigneALaPorte, ctx: ContexteDeLaPorte): string | null {
   const depuis = ctx.maintenantMs - JAMAIS_DEUX_FOIS_MS;
   const recent = (q: unknown): boolean => { const t = instant(q); return Number.isFinite(t) && t >= depuis && t <= ctx.maintenantMs + 5 * 60_000; };
   const cle = cleDeLEvenement(l);
+  const famille = entreeDe(l);
+  const tetes = famille?.rdv ? tetesNommees(l) : [];
+  const couvertes = new Set<string>();
   for (const o of ctx.envois ?? []) {
     if (!o || o.id === l.id || !recent(o.quand)) continue;
     if (o.statut !== 'envoyé' && o.statut !== 'à-la-main') continue;
     if (o.canal !== 'whatsapp' && o.canal !== 'wa-main') continue;
     if (cleDeLEvenement(o) === cle) return 'déjà parti : le même message est au journal depuis moins de 20 h';
+    if (tetes.length > 0 && entreeDe(o)?.famille === famille?.famille) for (const t of tetesNommees(o)) couvertes.add(t);
   }
+  if (tetes.length > 0 && tetes.every((t) => couvertes.has(t))) return 'déjà parti : chaque rendez-vous de ce foyer est nommé au journal depuis moins de 20 h';
   const numero = cleDuNumeroWa(l.colis?.numero);
   const modeles = [l.colis?.modele, l.colis?.repli?.modele].filter((m): m is string => !!m);
   const textes = [l.colis?.texteAuFil, l.colis?.repli?.texteAuFil].filter((t): t is string => !!t).map(texteSansCivilite);
   const unParTete = entreeDe(l)?.unParTete ?? false;
   if (!numero || modeles.length === 0) return null;
+  const nommees = fichesNommees(l);
+  const vues = new Set<string>();
   for (const m of ctx.messages ?? []) {
     if (!m || m.sens !== 'sortant' || m.etat === 'non-remis' || !recent(m.quand)) continue;
     if (!m.modele || !modeles.includes(m.modele) || cleDuNumeroWa(m.numero) !== numero) continue;
-    const memeTete = unParTete && !!l.clientId && !!m.clientId && m.clientId === l.clientId;
     const memeTexte = !!m.texte && textes.includes(texteSansCivilite(m.texte));
-    if (memeTete || memeTexte) return 'déjà parti : le même modèle est au fil de ce numéro depuis moins de 20 h';
+    if (memeTexte) return 'déjà parti : le même modèle est au fil de ce numéro depuis moins de 20 h';
+    if (unParTete) for (const c of fichesNommees(m)) vues.add(c);
   }
+  const memeTete = unParTete && nommees.length > 0 && nommees.every((c) => vues.has(c));
+  if (memeTete) return 'déjà parti : le même modèle est au fil de ce numéro depuis moins de 20 h';
   return null;
 }
 
 /** (c) PAS DE RAPPEL À QUI VIENT DE CONFIRMER. Pour les rappels seulement :
     « Oui, je viens » posé sur le rendez-vous ; sa confirmation partie il y a
     moins de 24 heures (le modèle, ou la confirmation dite dans la
-    conversation) ; ou un message d'elle depuis le dépôt de la ligne. */
+    conversation) ; ou un message d'elle depuis le dépôt de la ligne. Le
+    rappel d'un foyer se tait quand chaque rendez-vous qu'il nomme a eu sa
+    confirmation depuis moins de 24 heures (celle du foyer les nomme tous). */
 export function vientDeConfirmer(l: LigneALaPorte, ctx: ContexteDeLaPorte): string | null {
   if (!entreeDe(l)?.rappel) return null;
   const marque = ctx.rdv?.confirmeeParLaClienteLe;
   if (l.apptId && typeof marque === 'string' && marque.trim()) return 'elle a déjà confirmé sa venue';
   if (l.apptId) {
+    const confirmes = new Set<string>();
     for (const o of ctx.envois ?? []) {
-      if (!o || o.type !== 'confirmation' || o.apptId !== l.apptId || o.statut !== 'envoyé') continue;
+      if (!o || o.type !== 'confirmation' || o.statut !== 'envoyé') continue;
       const t = instant(o.quand);
       if (Number.isFinite(t) && t <= ctx.maintenantMs + 5 * 60_000 && ctx.maintenantMs - t < CONFIRMATION_RECENTE_MS) {
-        return 'sa confirmation est partie il y a moins de 24 h';
+        for (const id of tetesNommees(o)) confirmes.add(id);
       }
     }
+    if (tetesNommees(l).every((id) => confirmes.has(id))) return 'sa confirmation est partie il y a moins de 24 h';
   }
   const depot = instant(l.deposeLe ?? l.quand);
   const numero = cleDuNumeroWa(l.colis?.numero);
@@ -522,7 +664,7 @@ export function partiAuFil(l: LigneALaPorte, messages: readonly MessageALaPorte[
 }
 /* ⟨/porte-des-modeles⟩ */
 
-const VERSION = '2026-11-04-a · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste';
+const VERSION = '2026-11-04-b · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi';
 
 /* ── LE CALCUL DES HEURES, recopié de src/shared/salle-des-envois.ts ── */
 const DECALAGE_DU_SALON_H = 1;
@@ -654,13 +796,18 @@ const TYPE_DIT: Record<string, string> = {
    fiche depuis vingt-quatre heures) et le fil de son numéro (sous toutes ses
    formes, depuis le dépôt et au moins vingt-quatre heures). Une lecture qui
    échoue ne laisse pas juger : `null`, et la ligne redevient un échec à
-   retenter, jamais un message parti sans sa porte. */
+   retenter, jamais un message parti sans sa porte.
+
+   LE FOYER AUSSI (4 novembre 2026) : les lignes du même foyer (celui de la
+   ligne, ou celui du rendez-vous relu), pour qu'une tête déjà nommée par le
+   message du foyer ne reparte pas sous une autre ligne. */
 type Sb = ReturnType<typeof createClient>;
 async function faitsDeLaPorte(sb: Sb, l: LigneALaPorte, rdv: RdvALaPorte | null, maintenantMs: number): Promise<ContexteDeLaPorte | null> {
   const depuis = depuisPourLaPorte(l, maintenantMs);
   const idFiche = String(l.pourId || l.clientId || '');
   const variantes = variantesDuNumero(l.colis?.numero);
-  const [fiche, voisines, fil] = await Promise.all([
+  const foyer = String(l.foyerId || (l.apptId ? rdv?.foyerId ?? '' : '') || '');
+  const [fiche, voisines, fil, duFoyer] = await Promise.all([
     idFiche ? sb.from('clients').select('id, data').eq('id', idFiche).maybeSingle() : Promise.resolve({ data: null, error: null }),
     l.apptId
       ? sb.from('envois').select('id, data').eq('data->>apptId', l.apptId).limit(200)
@@ -670,13 +817,18 @@ async function faitsDeLaPorte(sb: Sb, l: LigneALaPorte, rdv: RdvALaPorte | null,
     variantes.length
       ? sb.from('messages_wa').select('data').in('data->>numero', variantes).gte('data->>quand', depuis).limit(500)
       : Promise.resolve({ data: [], error: null }),
+    foyer
+      ? sb.from('envois').select('id, data').eq('data->>foyerId', foyer).limit(200)
+      : Promise.resolve({ data: [], error: null }),
   ]);
-  if (fiche.error || voisines.error || fil.error) return null;
+  if (fiche.error || voisines.error || fil.error || duFoyer.error) return null;
+  const lignes = new Map<string, LigneALaPorte>();
+  for (const r of [...(voisines.data ?? []), ...(duFoyer.data ?? [])] as { id: string; data: LigneALaPorte }[]) lignes.set(r.id, { ...(r.data ?? {}), id: r.id });
   return {
     maintenantMs,
     ...(l.apptId ? { rdv } : {}),
     fiche: ((fiche.data as { data?: FicheALaPorte } | null)?.data ?? null),
-    envois: ((voisines.data ?? []) as { id: string; data: LigneALaPorte }[]).map((r) => ({ ...(r.data ?? {}), id: r.id })),
+    envois: [...lignes.values()],
     messages: ((fil.data ?? []) as { data: MessageALaPorte }[]).map((r) => r.data ?? {}),
   };
 }
@@ -828,6 +980,19 @@ Deno.serve(async (req) => {
       }
       const motif = pourquoiIlNePartPlus(repris ?? l.data, rdv, Date.now());
       if (motif) { await ecris({ statut: 'périmé', detail: motif }); perimes++; continue; }
+      /* LE FOYER RELU, 4 novembre 2026. Le message d'un foyer nomme d'autres
+         têtes que la sienne (`apptIds`) : une d'elles annulée, disparue ou
+         passée à un autre jour pendant l'attente, et il ne part pas. Il
+         devient « périmé » sans la marque d'Opale : la fonction qui l'a
+         déposé le refait avec les têtes qui restent (`foyerQuiNeTientPlus`). */
+      const autresTetes = tetesNommees(l.data).filter((id) => id !== l.data.apptId);
+      if (autresTetes.length > 0) {
+        const { data: lesAutres, error: errAutres } = await sb.from('appointments').select('id, data').in('id', autresTetes);
+        if (errAutres) { await ecris({ statut: 'échec', detail: 'le foyer n’a pas pu être relu' }); echecs++; continue; }
+        const relus = new Map(((lesAutres ?? []) as { id: string; data: { date?: string; status?: string } }[]).map((r) => [r.id, r.data ?? null]));
+        const motifDuFoyer = foyerQuiNeTientPlus({ apptId: l.data.apptId, apptIds: l.data.apptIds, dateRdv: base.dateRdv }, relus);
+        if (motifDuFoyer) { await ecris({ statut: 'périmé', detail: motifDuFoyer }); perimes++; continue; }
+      }
     }
     if (!colis) { await ecris({ statut: 'échec', detail: 'déposé sans colis' }); echecs++; continue; }
 
@@ -894,6 +1059,8 @@ Deno.serve(async (req) => {
             branch_id: l.branch_id,
             data: {
               id: idFil, waId, branchId: l.data.branchId, sens: 'sortant', numero: colis.numero, clientId: l.data.clientId,
+              /* Le message d'un foyer dit au fil chaque fiche qu'il nomme : la porte et rappels-j1 les y lisent. */
+              ...(fichesNommees(l.data).length > 1 ? { clientIds: fichesNommees(l.data) } : {}),
               texte: colis.texteAuFil, type: 'text', quand: new Date().toISOString(), etat: 'en-route',
               modele: colis.modele, parQui: colis.parQui ?? 'Le Trône',
             },

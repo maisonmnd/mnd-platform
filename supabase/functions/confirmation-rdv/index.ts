@@ -58,6 +58,8 @@ type Rdv = {
   source?: string;
   /** La confirmation décochée au « + RDV » du Trône (28 octobre 2026). */
   sansConfirmation?: boolean;
+  /** Le foyer qui vient ensemble (2 septembre 2026) : un message pour tous (4 novembre 2026). */
+  foyerId?: string;
 };
 
 /* ══ UN RENDEZ-VOUS POSÉ APRÈS SON HEURE NE SE DIT À PERSONNE — 13 sept. 2026 ══
@@ -131,7 +133,7 @@ const confirmationEstNeuve = (
 /** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-03-a · M. et Mme devant le prénom ; la confirmation à liens, sa référence, son repli';
+const VERSION = '2026-11-04-a · un message par foyer, qui nomme chaque tête ; un périmé retenu par Opale ne se redépose pas';
 
 /* LE LIEN DU RENDEZ-VOUS — 3 novembre 2026. Bloc RECOPIÉ tel quel de
    `src/shared/lien-du-rdv-pur.ts` (ses choix y sont écrits) ;
@@ -343,6 +345,134 @@ export const gestesDitsDuRetour = (noms: string[]): string => noms.filter(Boolea
 /* ⟨/lien-du-rdv⟩ */
 /** Le secret des jetons, le même dans chaque fonction (voir le bloc). */
 const SECRET_DES_LIENS = (Deno.env.get(NOM_DU_SECRET_DES_LIENS) ?? '').trim();
+
+/* LE MESSAGE DU FOYER, 4 novembre 2026. « Un seul message par foyer, au
+   numéro du foyer, qui nomme toutes les têtes » (maquette du parcours du
+   foyer, arbitrage 3, validée par Yéman). Deux sœurs posées ensemble (même
+   `foyerId`, même jour, même numéro) reçoivent UNE confirmation : « Bonjour
+   Jade et Faith, c'est confirmé : votre rendez-vous est retenu mardi 22
+   décembre 2026 à 10 h. » Bloc RECOPIÉ tel quel de
+   `src/shared/message-du-foyer-pur.ts` ; `verifie-les-douze-lunes` confronte
+   les copies. NE RIEN RETOUCHER ENTRE LES REPÈRES. */
+/* ⟨message-du-foyer⟩ */
+/** Une tête à prévenir : son rendez-vous, et le numéro où on la prévient. */
+export type TeteAPrevenir = { id: string; clientId?: string; foyerId?: string; date: string; time?: string; status?: string; numero?: string | null };
+/** Un foyer à prévenir : la tête qui porte le message (la plus tôt), puis toutes, dans l'ordre. */
+export type FoyerAPrevenir<T extends TeteAPrevenir> = { cle: string; porteur: T; tetes: T[] };
+
+/** Le prénom d'une fiche : le premier mot de son nom, jamais le nom de famille. */
+export const prenomDeLaTete = (nom: unknown): string => String(nom ?? '').trim().split(/\s+/)[0] ?? '';
+
+/** Les prénoms dits en français : « Jade », « Jade et Faith », « Jade, Faith et Maëlle ». */
+export function prenomsDits(prenoms: readonly string[]): string {
+  const p = prenoms.map((x) => String(x ?? '').trim()).filter(Boolean);
+  if (p.length <= 1) return p[0] ?? '';
+  return `${p.slice(0, -1).join(', ')} et ${p[p.length - 1]}`;
+}
+
+/** La clé du numéro : 229 et huit chiffres, que Meta et la fiche l'écrivent avec ou sans le 01. */
+export const cleDuNumeroDuFoyer = (brut: unknown): string => {
+  const d = String(brut ?? '').replace(/\D/g, '');
+  const n = !d ? '' : d.startsWith('00229') ? d.slice(2) : d.startsWith('229') ? d : d.length === 10 && d.startsWith('01') ? `229${d}` : d.length === 8 ? `22901${d}` : d;
+  return n.length === 13 && n.startsWith('22901') ? `229${n.slice(5)}` : n;
+};
+
+const heureDuFoyer = (t?: string): string => (/^\d{1,2}:\d{2}$/.test(t ?? '') ? (t as string).padStart(5, '0') : '23:59');
+const plusTot = (a: TeteAPrevenir, b: TeteAPrevenir): number =>
+  `${a.date} ${heureDuFoyer(a.time)} ${a.id}`.localeCompare(`${b.date} ${heureDuFoyer(b.time)} ${b.id}`);
+
+/** Le foyer d'une tête : son `foyerId`, son jour, la clé de son numéro. Sans foyer ou sans numéro, elle est seule. */
+export const cleDuFoyer = (t: TeteAPrevenir): string => {
+  const numero = cleDuNumeroDuFoyer(t.numero);
+  return t.foyerId && t.date && numero ? `foyer|${t.foyerId}|${t.date.slice(0, 10)}|${numero}` : `seule|${t.id}`;
+};
+
+/** LES FOYERS À PRÉVENIR : un groupe par foyer, par jour et par numéro, jamais un rendez-vous annulé ; la tête la plus tôt porte le message. */
+export function foyersAPrevenir<T extends TeteAPrevenir>(tetes: readonly T[]): FoyerAPrevenir<T>[] {
+  const groupes = new Map<string, T[]>();
+  const vus = new Set<string>();
+  for (const t of tetes) {
+    if (!t || !t.id || t.status === 'annulé' || vus.has(t.id)) continue;
+    vus.add(t.id);
+    const cle = cleDuFoyer(t);
+    groupes.set(cle, [...(groupes.get(cle) ?? []), t]);
+  }
+  return [...groupes.entries()]
+    .map(([cle, g]) => { const tries = [...g].sort(plusTot); return { cle, porteur: tries[0], tetes: tries }; })
+    .sort((a, b) => plusTot(a.porteur, b.porteur));
+}
+
+/** Les têtes du foyer, une fois par fiche. */
+const unesParFiche = <T extends TeteAPrevenir>(f: FoyerAPrevenir<T>): T[] => {
+  const vues = new Set<string>();
+  return f.tetes.filter((t) => { const k = t.clientId || t.id; if (vues.has(k)) return false; vues.add(k); return true; });
+};
+
+/** L'APPEL DU MESSAGE : une fiche seule garde son appel (sa civilité) ; dès deux fiches, leurs prénoms. */
+export function appelDuFoyer<T extends TeteAPrevenir>(f: FoyerAPrevenir<T>, appelSeule: (t: T) => string, prenomDe: (t: T) => string): string {
+  const fiches = unesParFiche(f);
+  return fiches.length <= 1 ? appelSeule(f.porteur) : prenomsDits(fiches.map(prenomDe));
+}
+
+/** Ce que la ligne d'envoi porte en plus pour un foyer de deux rendez-vous ou plus ; rien pour une tête seule. */
+export function champsDuFoyer<T extends TeteAPrevenir>(f: FoyerAPrevenir<T>): { foyerId?: string; apptIds?: string[]; clientIds?: string[] } {
+  if (f.tetes.length < 2) return {};
+  return {
+    ...(f.porteur.foyerId ? { foyerId: f.porteur.foyerId } : {}),
+    apptIds: f.tetes.map((t) => t.id),
+    clientIds: [...new Set(f.tetes.map((t) => t.clientId).filter((c): c is string => !!c))],
+  };
+}
+
+const listeDuFoyer = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => String(x ?? '')).filter(Boolean) : []);
+/** Les rendez-vous qu'une ligne nomme : le sien, et ceux de son foyer. */
+export const tetesNommees = (l: { apptId?: unknown; apptIds?: unknown } | null | undefined): string[] =>
+  [...new Set([String(l?.apptId ?? ''), ...listeDuFoyer(l?.apptIds)].filter(Boolean))];
+/** Les fiches qu'une ligne ou un message du fil nomme : la sienne, et celles de son foyer. */
+export const fichesNommees = (l: { clientId?: unknown; clientIds?: unknown } | null | undefined): string[] =>
+  [...new Set([String(l?.clientId ?? ''), ...listeDuFoyer(l?.clientIds)].filter(Boolean))];
+/** Une ligne nomme-t-elle ce rendez-vous ? Le Trône lit ainsi la tournée de chaque tête. */
+export const nommeLeRendezVous = (l: { apptId?: unknown; apptIds?: unknown } | null | undefined, apptId: string): boolean =>
+  !!apptId && tetesNommees(l).includes(apptId);
+
+/** LES TÊTES COUVERTES : les rendez-vous que nomme une ligne de ce type et de ce canal qui verrouille. */
+export function tetesCouvertes<L extends { type?: unknown; canal?: unknown; apptId?: unknown; apptIds?: unknown }>(
+  lignes: readonly (L | null | undefined)[], o: { type: string; canal: string; verrouille: (l: L) => boolean },
+): Set<string> {
+  const couvertes = new Set<string>();
+  for (const l of lignes) {
+    if (!l || String(l.type ?? '') !== o.type || String(l.canal ?? '') !== o.canal || !o.verrouille(l)) continue;
+    for (const id of tetesNommees(l)) couvertes.add(id);
+  }
+  return couvertes;
+}
+
+/** UN FOYER QUI NE TIENT PLUS, relu avant l'envoi : une autre tête nommée a
+    disparu, est annulée ou a changé de jour. Le message ne part pas
+    (« périmé », sans la marque d'Opale) : la fonction qui l'a déposé le
+    refait avec les têtes qui restent. `rdvs` : les rendez-vous relus. */
+export function foyerQuiNeTientPlus(
+  l: { apptId?: unknown; apptIds?: unknown; dateRdv?: unknown },
+  rdvs: ReadonlyMap<string, { date?: string; status?: string } | null | undefined>,
+): string | null {
+  const jour = String(l.dateRdv ?? '').slice(0, 10);
+  for (const id of tetesNommees(l)) {
+    if (id === String(l.apptId ?? '')) continue;
+    const r = rdvs.get(id);
+    if (!r) return 'un rendez-vous du foyer n’existe plus : le message se refait sans lui';
+    if (r.status === 'annulé') return 'un rendez-vous du foyer a été annulé : le message se refait sans lui';
+    if (String(r.date ?? '').slice(0, 10) !== jour) return 'un rendez-vous du foyer a changé de jour : le message se refait sans lui';
+  }
+  return null;
+}
+/* ⟨/message-du-foyer⟩ */
+
+/* CE QU'OPALE A RETENU NE SE REDÉPOSE PAS, 4 novembre 2026. La porte
+   d'Opale (envois-partent) rend « périmé » la confirmation qu'elle retient,
+   avec le détail « retenu par Opale : <motif> ». La redéposer au passage
+   suivant la ferait juger encore, ou partir : elle verrouille comme un
+   envoi. La marque est celle de la porte, mot pour mot (comme rappels-j1). */
+const retenuParOpale = (d: { detail?: unknown } | null | undefined): boolean => String(d?.detail ?? '').startsWith('retenu par Opale');
 
 /* UNE RAFALE NE PART JAMAIS TOUTE SEULE — 21 septembre 2026. Le soir du
    21, une écriture en bloc a fait partir des dizaines de confirmations d'un
@@ -625,10 +755,29 @@ Deno.serve(async (req) => {
   const { data: dejaRows } = await sb.from('envois').select('id, data').in('id', attendus);
   const deja = new Set(
     (dejaRows ?? [])
-      .filter((r) => !SE_RETENTE.has((r.data as { statut?: string } | null)?.statut ?? ''))
+      .filter((r) => !SE_RETENTE.has((r.data as { statut?: string } | null)?.statut ?? '') || retenuParOpale(r.data as { detail?: unknown } | null))
       .filter((r) => !enCoursPerime(r.data as { statut?: string; quand?: string } | null, Date.now()))
       .map((r) => r.id as string),
   );
+
+  /* ══ UNE TÊTE NOMMÉE PAR LE MESSAGE DE SON FOYER EST CONFIRMÉE · 4 novembre 2026 ══
+     La confirmation d'un foyer vit sous la ligne de sa première tête
+     (`conf-<la plus tôt>-whatsapp`) et nomme les autres (`apptIds`). Une
+     tête nommée par une ligne qui verrouille (déposée, partie, retenue par
+     une main ou par Opale) ne reçoit rien de plus : sa ligne compte comme
+     posée. Une lecture qui échoue tait ce passage-ci pour les têtes d'un
+     foyer, le suivant les reprend (la fenêtre est de deux heures). */
+  const foyersVus = [...new Set(rdvs.map((a) => a.foyerId).filter((f): f is string => !!f))];
+  if (foyersVus.length > 0) {
+    const { data: duFoyer, error: errFoyer } = await sb.from('envois').select('id, data').in('data->>foyerId', foyersVus).limit(500);
+    const verrouille = (d: { statut?: string; quand?: string; detail?: unknown }): boolean =>
+      (!SE_RETENTE.has(d.statut ?? '') || retenuParOpale(d)) && !enCoursPerime(d, Date.now());
+    const couvertes = errFoyer
+      ? new Set(rdvs.filter((a) => !!a.foyerId).map((a) => a.id))
+      : tetesCouvertes(((duFoyer ?? []) as { data: { type?: string; canal?: string; apptId?: string; apptIds?: unknown; statut?: string; quand?: string; detail?: unknown } }[]).map((r) => r.data),
+        { type: 'confirmation', canal: 'whatsapp', verrouille });
+    for (const id of couvertes) deja.add(`conf-${id}-whatsapp`);
+  }
 
   const WA_TOKEN = Deno.env.get('WA_TOKEN');
   const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');
@@ -672,6 +821,22 @@ Deno.serve(async (req) => {
     (ficheRows ?? []).map((r) => [r.id as string, { id: r.id as string, ...(r.data as Fiche) }]),
   );
 
+  /* ══ LE FOYER, UN SEUL WHATSAPP · 4 novembre 2026 ══════════════════════
+     Les têtes qui attendent encore leur WhatsApp, rangées par foyer (même
+     `foyerId`, même jour, même numéro à prévenir). La plus tôt porte le
+     message, au nom de toutes ; les autres n'en reçoivent pas d'autre. Une
+     tête seule, ou sans foyer, part comme avant, avec sa civilité. Le push,
+     lui, reste à chaque tête : il va à l'appli de chacune, pas à un numéro. */
+  const foyersWa = foyersAPrevenir(aEnvoyer
+    .filter((a) => !!WA_TOKEN && !!WA_PHONE_ID && !deja.has(`conf-${a.id}-whatsapp`))
+    .map((a) => ({ ...a, numero: numeroIntl(telDuRdv(a, fiches.get(a.clientId))) }))
+    .filter((a) => !!a.numero));
+  const foyerDuPorteur = new Map(foyersWa.filter((f) => f.tetes.length > 1).map((f) => [f.porteur.id, f]));
+  /* Les autres têtes d'un foyer sont dites par le WhatsApp de la première :
+     le leur compte comme posé, aucun ne part. */
+  for (const f of foyersWa) for (const t of f.tetes.slice(1)) deja.add(`conf-${t.id}-whatsapp`);
+  const prenomDuFoyer = (t: Rdv): string => prenomDeLaTete(fiches.get(t.clientId)?.name ?? t.clientName);
+
   const aInserer: { id: string; branch_id: string | null; data: Record<string, unknown> }[] = [];
   /* ══ L'IDENTIFIANT META ET LE CODE SE GARDENT — 18 septembre 2026 ══════
      « Comment retrouver toutes les confirmations ? » (Yéman). Le journal
@@ -691,6 +856,8 @@ Deno.serve(async (req) => {
         ...(waMessageId ? { waMessageId } : {}),
         ...(codeMeta ? { codeMeta } : {}),
         quand: new Date().toISOString(),
+        /* Le WhatsApp d'un foyer dit chaque rendez-vous et chaque fiche qu'il nomme. */
+        ...(canal === 'whatsapp' && foyerDuPorteur.has(a.id) ? champsDuFoyer(foyerDuPorteur.get(a.id)!) : {}),
         ...(plus ?? {}),
       },
     });
@@ -709,6 +876,7 @@ Deno.serve(async (req) => {
       branch_id: a.branchId ?? null,
       data: {
         id, waId, branchId: a.branchId, sens: 'sortant', numero, clientId: a.clientId,
+        ...(foyerDuPorteur.has(a.id) ? { clientIds: champsDuFoyer(foyerDuPorteur.get(a.id)!).clientIds } : {}),
         texte, type: 'text', quand: new Date().toISOString(), etat: 'en-route',
         modele, parQui: 'Le Trône',
       },
@@ -720,7 +888,11 @@ Deno.serve(async (req) => {
 
   for (const a of aEnvoyer) {
     const fiche = fiches.get(a.clientId);
-    const prenom = appelDe(fiche, a.clientName);
+    /* L'appel de sa fiche, pour son push ; celui du foyer, pour le WhatsApp
+       qu'elle porte (« Jade et Faith »). */
+    const appelDeLaTete = appelDe(fiche, a.clientName);
+    const sonFoyer = foyerDuPorteur.get(a.id);
+    const prenom = sonFoyer ? appelDuFoyer(sonFoyer, () => appelDeLaTete, prenomDuFoyer) : appelDeLaTete;
     const quand = `${jourEnClair(a.date)} à ${heureLisible(a.time)}`;
     /* ELLE A RÉSERVÉ ELLE-MÊME (Ma Couronne, et depuis le 9 octobre 2026
        WhatsApp, au toucher « Je confirme ») : sa confirmation part tout de
@@ -735,8 +907,8 @@ Deno.serve(async (req) => {
     if (enSalle && !deja.has(`conf-${a.id}-push`)) {
       consigne('push', a, 'en-attente', undefined, undefined, undefined, depot(Date.now(), regles, {
         genre: 'push', clientId: a.clientId, titre: `${nomMaison} · c'est confirmé`,
-        corps: `${prenom}, votre rendez-vous est retenu ${quand}. ${cfg.itineraire?.trim() ?? ''}`.trim(), url: '/couronne/',
-      }, prenom));
+        corps: `${appelDeLaTete}, votre rendez-vous est retenu ${quand}. ${cfg.itineraire?.trim() ?? ''}`.trim(), url: '/couronne/',
+      }, appelDeLaTete));
       nDeposes++;
     } else if (!deja.has(`conf-${a.id}-push`)) {
       try {
@@ -748,7 +920,7 @@ Deno.serve(async (req) => {
             mode: 'to-client',
             clientId: a.clientId,
             title: `${nomMaison} · c'est confirmé`,
-            body: `${prenom}, votre rendez-vous est retenu ${quand}. ${cfg.itineraire?.trim() ?? ''}`.trim(),
+            body: `${appelDeLaTete}, votre rendez-vous est retenu ${quand}. ${cfg.itineraire?.trim() ?? ''}`.trim(),
             url: '/couronne/',
           }),
         });

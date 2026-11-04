@@ -21,7 +21,11 @@
          connaît que (b). Un envoi de l'équipe, ou une ligne qu'une main a
          fait partir « maintenant », ne se juge jamais : la main a choisi.
      (b) JAMAIS DEUX FOIS : le même événement déjà parti dans les vingt
-         dernières heures, au journal ou au fil, ne repart pas.
+         dernières heures, au journal ou au fil, ne repart pas. UN FOYER,
+         UN MESSAGE (4 novembre 2026) : un message qui nomme plusieurs têtes
+         d'un foyer (`apptIds`, `clientIds`, src/shared/message-du-foyer-pur)
+         couvre chacune ; une autre ligne pour une tête déjà nommée ne
+         repart pas.
      (c) PAS DE RAPPEL À QUI VIENT DE CONFIRMER : « Oui, je viens » posé,
          une confirmation partie il y a moins de 24 heures, ou un message
          d'elle depuis le dépôt (la conversation est ouverte : l'équipe ou
@@ -39,7 +43,10 @@
    Ce bloc vit à l'identique dans `envois-partent`, qui n'importe rien du
    dépôt ; le banc des douze lunes compare les copies, et
    scripts/verifie-la-porte-des-modeles éprouve chaque règle dans les deux
-   sens. Module PUR : ni Supabase, ni DOM, ni horloge (l'heure se donne). */
+   sens. Module PUR : ni Supabase, ni DOM, ni horloge (l'heure se donne).
+   Il lit les têtes nommées par `tetesNommees` et `fichesNommees`, du bloc
+   ⟨message-du-foyer⟩ : envois-partent porte les deux copies. */
+import { fichesNommees, tetesNommees } from './message-du-foyer-pur';
 
 /* ⟨porte-des-modeles⟩ */
 /** La marque d'une ligne retenue par la porte. Le Trône la montre dans le
@@ -259,12 +266,14 @@ export type LigneALaPorte = {
   apptId?: string; clientId?: string; pourId?: string; teteId?: string; subId?: string; seanceId?: string;
   invoiceId?: string; invoiceIds?: unknown; campagneId?: string; echeance?: unknown; dueIso?: string; revuLe?: string;
   dateRdv?: string; heure?: string; deposeLe?: string; quand?: string; prisLe?: string; recolleLe?: string; parLaMain?: boolean;
+  /** Le message d'un foyer : le foyer, chaque rendez-vous et chaque fiche qu'il nomme. */
+  foyerId?: string; apptIds?: unknown; clientIds?: unknown;
   colis?: ColisALaPorte;
   [k: string]: unknown;
 };
-export type RdvALaPorte = { date?: string; time?: string; status?: string; confirmeeParLaClienteLe?: unknown; deplaceLe?: unknown; [k: string]: unknown };
+export type RdvALaPorte = { date?: string; time?: string; status?: string; confirmeeParLaClienteLe?: unknown; deplaceLe?: unknown; foyerId?: unknown; [k: string]: unknown };
 export type FicheALaPorte = { name?: unknown; civilite?: unknown; auMasculin?: unknown; [k: string]: unknown };
-export type MessageALaPorte = { sens?: string; numero?: string; clientId?: string; texte?: string; modele?: string; quand?: string; etat?: string; [k: string]: unknown };
+export type MessageALaPorte = { sens?: string; numero?: string; clientId?: string; clientIds?: unknown; texte?: string; modele?: string; quand?: string; etat?: string; [k: string]: unknown };
 export type ContexteDeLaPorte = {
   maintenantMs: number;
   /** Le rendez-vous relu (null : il n'existe plus ; absent : la ligne n'en nomme pas). */
@@ -317,48 +326,69 @@ export function cleDeLEvenement(l: LigneALaPorte): string {
     numéro, depuis vingt heures, que WhatsApp n'a pas dit « non remis », pour
     la même fiche (famille « une par tête ») ou au même texte, civilités
     ôtées. Deux enfants d'un même parent, deux formules d'une même payeuse :
-    deux fiches ou deux textes, donc deux messages. */
+    deux fiches ou deux textes, donc deux messages.
+
+    UN FOYER, UN MESSAGE (4 novembre 2026). Deux enfants d'un même foyer,
+    le même jour, au même numéro, sont nommés par UN message (`apptIds`,
+    `clientIds`). Chaque rendez-vous nommé par une ligne partie au journal,
+    et chaque fiche nommée par un message du fil, est couvert : une ligne
+    dont toutes les têtes sont déjà couvertes ne repart pas, qu'elle soit
+    celle du foyer ou celle d'une seule tête. Deux enfants d'un même parent
+    hors d'un foyer gardent chacun leur message, comme avant. */
 export function dejaParti(l: LigneALaPorte, ctx: ContexteDeLaPorte): string | null {
   const depuis = ctx.maintenantMs - JAMAIS_DEUX_FOIS_MS;
   const recent = (q: unknown): boolean => { const t = instant(q); return Number.isFinite(t) && t >= depuis && t <= ctx.maintenantMs + 5 * 60_000; };
   const cle = cleDeLEvenement(l);
+  const famille = entreeDe(l);
+  const tetes = famille?.rdv ? tetesNommees(l) : [];
+  const couvertes = new Set<string>();
   for (const o of ctx.envois ?? []) {
     if (!o || o.id === l.id || !recent(o.quand)) continue;
     if (o.statut !== 'envoyé' && o.statut !== 'à-la-main') continue;
     if (o.canal !== 'whatsapp' && o.canal !== 'wa-main') continue;
     if (cleDeLEvenement(o) === cle) return 'déjà parti : le même message est au journal depuis moins de 20 h';
+    if (tetes.length > 0 && entreeDe(o)?.famille === famille?.famille) for (const t of tetesNommees(o)) couvertes.add(t);
   }
+  if (tetes.length > 0 && tetes.every((t) => couvertes.has(t))) return 'déjà parti : chaque rendez-vous de ce foyer est nommé au journal depuis moins de 20 h';
   const numero = cleDuNumeroWa(l.colis?.numero);
   const modeles = [l.colis?.modele, l.colis?.repli?.modele].filter((m): m is string => !!m);
   const textes = [l.colis?.texteAuFil, l.colis?.repli?.texteAuFil].filter((t): t is string => !!t).map(texteSansCivilite);
   const unParTete = entreeDe(l)?.unParTete ?? false;
   if (!numero || modeles.length === 0) return null;
+  const nommees = fichesNommees(l);
+  const vues = new Set<string>();
   for (const m of ctx.messages ?? []) {
     if (!m || m.sens !== 'sortant' || m.etat === 'non-remis' || !recent(m.quand)) continue;
     if (!m.modele || !modeles.includes(m.modele) || cleDuNumeroWa(m.numero) !== numero) continue;
-    const memeTete = unParTete && !!l.clientId && !!m.clientId && m.clientId === l.clientId;
     const memeTexte = !!m.texte && textes.includes(texteSansCivilite(m.texte));
-    if (memeTete || memeTexte) return 'déjà parti : le même modèle est au fil de ce numéro depuis moins de 20 h';
+    if (memeTexte) return 'déjà parti : le même modèle est au fil de ce numéro depuis moins de 20 h';
+    if (unParTete) for (const c of fichesNommees(m)) vues.add(c);
   }
+  const memeTete = unParTete && nommees.length > 0 && nommees.every((c) => vues.has(c));
+  if (memeTete) return 'déjà parti : le même modèle est au fil de ce numéro depuis moins de 20 h';
   return null;
 }
 
 /** (c) PAS DE RAPPEL À QUI VIENT DE CONFIRMER. Pour les rappels seulement :
     « Oui, je viens » posé sur le rendez-vous ; sa confirmation partie il y a
     moins de 24 heures (le modèle, ou la confirmation dite dans la
-    conversation) ; ou un message d'elle depuis le dépôt de la ligne. */
+    conversation) ; ou un message d'elle depuis le dépôt de la ligne. Le
+    rappel d'un foyer se tait quand chaque rendez-vous qu'il nomme a eu sa
+    confirmation depuis moins de 24 heures (celle du foyer les nomme tous). */
 export function vientDeConfirmer(l: LigneALaPorte, ctx: ContexteDeLaPorte): string | null {
   if (!entreeDe(l)?.rappel) return null;
   const marque = ctx.rdv?.confirmeeParLaClienteLe;
   if (l.apptId && typeof marque === 'string' && marque.trim()) return 'elle a déjà confirmé sa venue';
   if (l.apptId) {
+    const confirmes = new Set<string>();
     for (const o of ctx.envois ?? []) {
-      if (!o || o.type !== 'confirmation' || o.apptId !== l.apptId || o.statut !== 'envoyé') continue;
+      if (!o || o.type !== 'confirmation' || o.statut !== 'envoyé') continue;
       const t = instant(o.quand);
       if (Number.isFinite(t) && t <= ctx.maintenantMs + 5 * 60_000 && ctx.maintenantMs - t < CONFIRMATION_RECENTE_MS) {
-        return 'sa confirmation est partie il y a moins de 24 h';
+        for (const id of tetesNommees(o)) confirmes.add(id);
       }
     }
+    if (tetesNommees(l).every((id) => confirmes.has(id))) return 'sa confirmation est partie il y a moins de 24 h';
   }
   const depot = instant(l.deposeLe ?? l.quand);
   const numero = cleDuNumeroWa(l.colis?.numero);

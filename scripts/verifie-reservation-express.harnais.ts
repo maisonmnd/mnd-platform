@@ -169,8 +169,10 @@ dit('... et envoie LA confirmation sous l identifiant du balayage', [true, true,
 dit('... le balayage ne verrouille que sur un envoi reussi (un echec du site se retente)', true,
   /* Depuis la salle d'attente (2 octobre 2026), deux verdicts se retentent :
      l'échec, et le message périmé par un rendez-vous déplacé pendant l'attente. */
-  conf.includes(".filter((r) => !SE_RETENTE.has((r.data as { statut?: string } | null)?.statut ?? ''))")
-  && conf.includes("const SE_RETENTE = new Set(['échec', 'périmé']);"));
+  /* Sauf le périmé retenu par Opale (4 novembre 2026) : il verrouille, il ne se redépose pas. */
+  conf.includes(".filter((r) => !SE_RETENTE.has((r.data as { statut?: string } | null)?.statut ?? '') || retenuParOpale(r.data as { detail?: unknown } | null))")
+  && conf.includes("const SE_RETENTE = new Set(['échec', 'périmé']);")
+  && conf.includes("const retenuParOpale = (d: { detail?: unknown } | null | undefined): boolean => String(d?.detail ?? '').startsWith('retenu par Opale');"));
 
 /* ── (6) Le maitre n est ni choisi ni lu par la cliente ── */
 const reserver = lis('src/apps/revelateur/ilots/Reserver.tsx');

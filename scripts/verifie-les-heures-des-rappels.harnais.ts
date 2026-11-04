@@ -107,7 +107,10 @@ function controles(t: Textes): string[] {
   });
   exige('la porte des heures vient apres la cle du cron', cle >= 0 && porte > cle);
   exige('aucune reprise, aucun point, aucun rendez-vous lu, aucun envoi avant la porte', porte > 0 && premiersGestes.every((i) => i < 0 || i > porte));
-  exige('la version dit le 4 novembre, a (la porte d Opale)', /const VERSION = '2026-11-04-a · la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';/.test(e));
+  /* Le 4 novembre 2026, a (la porte d'Opale) ou plus récente : b, le rappel du foyer. */
+  exige('la version dit le 4 novembre, a (la porte d Opale) ou plus recente',
+    ((/const VERSION = '(\d{4}-\d{2}-\d{2}-[a-z]) /.exec(e)?.[1]) ?? '') >= '2026-11-04-a'
+    && /const VERSION = '[^']*la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';/.test(e));
   /* 2 novembre 2026 : la veille se tait quand elle a confirmé à J-2. */
   exige('les rendez-vous confirmes par la cliente sont retires avant tout envoi', /const rdvs: Rdv\[\] = tousDemain\.filter\(\(a\) => !rappelDeLaVeilleSeTait\(a\)\);/.test(e));
   exige('la fonction dit combien de rappels se sont tus', /rdv: rdvs\.length, confirmeesTues, dejaRemisTus,/.test(e));
@@ -148,7 +151,7 @@ const PANNES: [string, keyof Textes, string, string][] = [
   ['le serveur compte en heure UTC', 'edge', 'Math.floor(heureDuSalon(Date.now()))', 'new Date().getUTCHours()'],
   ['les reprises partent avant la porte', 'edge', "  const { data: reglage } = await sb.from('documents')", "  await proposeLesReprises(sb, false, REGLES_PAR_DEFAUT);\n  const { data: reglage } = await sb.from('documents')"],
   ['le serveur ne lit pas le reglage', 'edge', "heuresDesRappels(reglage?.data", 'heuresDesRappels(undefined'],
-  ['la version n a pas bouge', 'edge', "const VERSION = '2026-11-04-a", "const VERSION = '2026-11-02-b"],
+  ['la version n a pas bouge', 'edge', "const VERSION = '2026-11-04-b", "const VERSION = '2026-11-02-b"],
   ['le fil se compare au numero tel quel', 'edge', 'if (tel && (dejaRemis.has(`${cleDuNumero(tel)}|tete|', 'if (tel && (dejaRemis.has(`${tel}|tete|'],
   ['le fil ne se range plus par fiche', 'edge', '...(r.data?.clientId ? [`${cleDuNumero(r.data?.numero)}|tete|${r.data.clientId}`] : []),', ''],
   ['un rappel remis repart quand meme', 'edge', 'dejaRemisTus++; continue; }', 'dejaRemisTus++; }'],

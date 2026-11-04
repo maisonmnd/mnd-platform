@@ -15,6 +15,7 @@ import { useCategories } from '../../../../shared/catalog';
 import { useInvoices, useDepensesComptees, invoiceTotal, invoiceRegleAu, invoiceReglements, invoiceResteXof, depensesDuMois, type Invoice } from '../../../../shared/finance';
 import { useApprenants, useEnvois, useSubscribers } from '../equipe/data';
 import { etatDeLaTournee } from '../../../../shared/tournee';
+import { nommeLeRendezVous } from '../../../../shared/message-du-foyer-pur';
 import { splitByWeights } from '../../../../shared/pricing';
 import { usePrets, pretsASurveiller, joursEntre } from '../../../../shared/foyer';
 import { useCoffre, useObjectifs, objectifsASurveiller } from '../../../../shared/finance';
@@ -831,7 +832,8 @@ export default function Dashboard() {
      chiffres, ce que son panneau contient ; le panneau lit les mêmes. */
   const appelsEnRetard = appelsAFaire.filter((a) => a.suite === 'rappel' && !!a.quand && a.quand < today).length;
   const rappelsALaMain = demainRows.filter((a) => {
-    const e = etatDeLaTournee(envois.filter((x) => x.apptId === a.id && x.type === 'rappel-j1' && !attendEncore(x)));
+    /* Le rappel d'un foyer nomme chaque tête (`apptIds`, 4 novembre 2026) : il compte pour chacune. */
+    const e = etatDeLaTournee(envois.filter((x) => nommeLeRendezVous(x, a.id) && x.type === 'rappel-j1' && !attendEncore(x)));
     return e.rate || e.muet;
   }).length;
   const aEncaisserXof = aEncaisser.resteRituels + aEncaisser.resteFactures;
@@ -1194,7 +1196,8 @@ export default function Dashboard() {
                    est pur (`shared/tournee.ts`), éprouvé, et l'écran ne fait que
                    le lire. */
                 /* Un rappel qui attend en salle n'est pas encore passé (2 octobre 2026). */
-                const lignes = envois.filter((e) => e.apptId === a.id && e.type === 'rappel-j1' && !attendEncore(e));
+                /* Le rappel d'un foyer compte pour chaque tête qu'il nomme (4 novembre 2026). */
+                const lignes = envois.filter((e) => nommeLeRendezVous(e, a.id) && e.type === 'rappel-j1' && !attendEncore(e));
                 const etat = etatDeLaTournee(lignes);
                 const tag = (texte: string, ton?: 'alerte' | 'cuivre') => (
                   <span

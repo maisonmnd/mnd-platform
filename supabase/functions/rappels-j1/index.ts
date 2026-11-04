@@ -34,7 +34,7 @@ const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. 10 octobre 2026 : le passage du soir ne dépose plus
     un rappel que les heures calmes retiendraient jusqu'au jour même. */
-const VERSION = '2026-11-04-a · la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
+const VERSION = '2026-11-04-b · un rappel par foyer, qui nomme chaque tête ; la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
 
 type Rdv = {
   id: string;
@@ -46,6 +46,8 @@ type Rdv = {
   date: string;
   time: string;
   status: string;
+  /** Le foyer qui vient ensemble : un rappel pour tous (4 novembre 2026). */
+  foyerId?: string;
 };
 
 type Fiche = { id: string; name?: string; phone?: string };
@@ -242,6 +244,127 @@ const cleDuNumero = (brut: unknown): string => {
   return d.length === 13 && d.startsWith('22901') ? `229${d.slice(5)}` : d;
 };
 const texteSansCivilite = (t: unknown): string => String(t ?? '').replace(/(^|[\s,;:(«"'])(?:M\.|Mme|Mlle|Monsieur|Madame|Mademoiselle)(?= )\s*/g, '$1').replace(/\s+/g, ' ').trim();
+
+/* ══ LE FOYER, UN SEUL RAPPEL · 4 novembre 2026 ═══════════════════════════
+   « Un seul message par foyer, au numéro du foyer, qui nomme toutes les
+   têtes » (maquette du parcours du foyer, arbitrage 3, validée par Yéman).
+   Deux sœurs du même foyer, demain, au même numéro : « Bonjour Jade et
+   Faith, petit rappel de la maison : votre rendez-vous est prévu demain à
+   10 h. » une fois, au lieu d'une fois par tête. Bloc RECOPIÉ tel quel de
+   `src/shared/message-du-foyer-pur.ts` ; `verifie-les-douze-lunes` confronte
+   les copies. NE RIEN RETOUCHER ENTRE LES REPÈRES. */
+/* ⟨message-du-foyer⟩ */
+/** Une tête à prévenir : son rendez-vous, et le numéro où on la prévient. */
+export type TeteAPrevenir = { id: string; clientId?: string; foyerId?: string; date: string; time?: string; status?: string; numero?: string | null };
+/** Un foyer à prévenir : la tête qui porte le message (la plus tôt), puis toutes, dans l'ordre. */
+export type FoyerAPrevenir<T extends TeteAPrevenir> = { cle: string; porteur: T; tetes: T[] };
+
+/** Le prénom d'une fiche : le premier mot de son nom, jamais le nom de famille. */
+export const prenomDeLaTete = (nom: unknown): string => String(nom ?? '').trim().split(/\s+/)[0] ?? '';
+
+/** Les prénoms dits en français : « Jade », « Jade et Faith », « Jade, Faith et Maëlle ». */
+export function prenomsDits(prenoms: readonly string[]): string {
+  const p = prenoms.map((x) => String(x ?? '').trim()).filter(Boolean);
+  if (p.length <= 1) return p[0] ?? '';
+  return `${p.slice(0, -1).join(', ')} et ${p[p.length - 1]}`;
+}
+
+/** La clé du numéro : 229 et huit chiffres, que Meta et la fiche l'écrivent avec ou sans le 01. */
+export const cleDuNumeroDuFoyer = (brut: unknown): string => {
+  const d = String(brut ?? '').replace(/\D/g, '');
+  const n = !d ? '' : d.startsWith('00229') ? d.slice(2) : d.startsWith('229') ? d : d.length === 10 && d.startsWith('01') ? `229${d}` : d.length === 8 ? `22901${d}` : d;
+  return n.length === 13 && n.startsWith('22901') ? `229${n.slice(5)}` : n;
+};
+
+const heureDuFoyer = (t?: string): string => (/^\d{1,2}:\d{2}$/.test(t ?? '') ? (t as string).padStart(5, '0') : '23:59');
+const plusTot = (a: TeteAPrevenir, b: TeteAPrevenir): number =>
+  `${a.date} ${heureDuFoyer(a.time)} ${a.id}`.localeCompare(`${b.date} ${heureDuFoyer(b.time)} ${b.id}`);
+
+/** Le foyer d'une tête : son `foyerId`, son jour, la clé de son numéro. Sans foyer ou sans numéro, elle est seule. */
+export const cleDuFoyer = (t: TeteAPrevenir): string => {
+  const numero = cleDuNumeroDuFoyer(t.numero);
+  return t.foyerId && t.date && numero ? `foyer|${t.foyerId}|${t.date.slice(0, 10)}|${numero}` : `seule|${t.id}`;
+};
+
+/** LES FOYERS À PRÉVENIR : un groupe par foyer, par jour et par numéro, jamais un rendez-vous annulé ; la tête la plus tôt porte le message. */
+export function foyersAPrevenir<T extends TeteAPrevenir>(tetes: readonly T[]): FoyerAPrevenir<T>[] {
+  const groupes = new Map<string, T[]>();
+  const vus = new Set<string>();
+  for (const t of tetes) {
+    if (!t || !t.id || t.status === 'annulé' || vus.has(t.id)) continue;
+    vus.add(t.id);
+    const cle = cleDuFoyer(t);
+    groupes.set(cle, [...(groupes.get(cle) ?? []), t]);
+  }
+  return [...groupes.entries()]
+    .map(([cle, g]) => { const tries = [...g].sort(plusTot); return { cle, porteur: tries[0], tetes: tries }; })
+    .sort((a, b) => plusTot(a.porteur, b.porteur));
+}
+
+/** Les têtes du foyer, une fois par fiche. */
+const unesParFiche = <T extends TeteAPrevenir>(f: FoyerAPrevenir<T>): T[] => {
+  const vues = new Set<string>();
+  return f.tetes.filter((t) => { const k = t.clientId || t.id; if (vues.has(k)) return false; vues.add(k); return true; });
+};
+
+/** L'APPEL DU MESSAGE : une fiche seule garde son appel (sa civilité) ; dès deux fiches, leurs prénoms. */
+export function appelDuFoyer<T extends TeteAPrevenir>(f: FoyerAPrevenir<T>, appelSeule: (t: T) => string, prenomDe: (t: T) => string): string {
+  const fiches = unesParFiche(f);
+  return fiches.length <= 1 ? appelSeule(f.porteur) : prenomsDits(fiches.map(prenomDe));
+}
+
+/** Ce que la ligne d'envoi porte en plus pour un foyer de deux rendez-vous ou plus ; rien pour une tête seule. */
+export function champsDuFoyer<T extends TeteAPrevenir>(f: FoyerAPrevenir<T>): { foyerId?: string; apptIds?: string[]; clientIds?: string[] } {
+  if (f.tetes.length < 2) return {};
+  return {
+    ...(f.porteur.foyerId ? { foyerId: f.porteur.foyerId } : {}),
+    apptIds: f.tetes.map((t) => t.id),
+    clientIds: [...new Set(f.tetes.map((t) => t.clientId).filter((c): c is string => !!c))],
+  };
+}
+
+const listeDuFoyer = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => String(x ?? '')).filter(Boolean) : []);
+/** Les rendez-vous qu'une ligne nomme : le sien, et ceux de son foyer. */
+export const tetesNommees = (l: { apptId?: unknown; apptIds?: unknown } | null | undefined): string[] =>
+  [...new Set([String(l?.apptId ?? ''), ...listeDuFoyer(l?.apptIds)].filter(Boolean))];
+/** Les fiches qu'une ligne ou un message du fil nomme : la sienne, et celles de son foyer. */
+export const fichesNommees = (l: { clientId?: unknown; clientIds?: unknown } | null | undefined): string[] =>
+  [...new Set([String(l?.clientId ?? ''), ...listeDuFoyer(l?.clientIds)].filter(Boolean))];
+/** Une ligne nomme-t-elle ce rendez-vous ? Le Trône lit ainsi la tournée de chaque tête. */
+export const nommeLeRendezVous = (l: { apptId?: unknown; apptIds?: unknown } | null | undefined, apptId: string): boolean =>
+  !!apptId && tetesNommees(l).includes(apptId);
+
+/** LES TÊTES COUVERTES : les rendez-vous que nomme une ligne de ce type et de ce canal qui verrouille. */
+export function tetesCouvertes<L extends { type?: unknown; canal?: unknown; apptId?: unknown; apptIds?: unknown }>(
+  lignes: readonly (L | null | undefined)[], o: { type: string; canal: string; verrouille: (l: L) => boolean },
+): Set<string> {
+  const couvertes = new Set<string>();
+  for (const l of lignes) {
+    if (!l || String(l.type ?? '') !== o.type || String(l.canal ?? '') !== o.canal || !o.verrouille(l)) continue;
+    for (const id of tetesNommees(l)) couvertes.add(id);
+  }
+  return couvertes;
+}
+
+/** UN FOYER QUI NE TIENT PLUS, relu avant l'envoi : une autre tête nommée a
+    disparu, est annulée ou a changé de jour. Le message ne part pas
+    (« périmé », sans la marque d'Opale) : la fonction qui l'a déposé le
+    refait avec les têtes qui restent. `rdvs` : les rendez-vous relus. */
+export function foyerQuiNeTientPlus(
+  l: { apptId?: unknown; apptIds?: unknown; dateRdv?: unknown },
+  rdvs: ReadonlyMap<string, { date?: string; status?: string } | null | undefined>,
+): string | null {
+  const jour = String(l.dateRdv ?? '').slice(0, 10);
+  for (const id of tetesNommees(l)) {
+    if (id === String(l.apptId ?? '')) continue;
+    const r = rdvs.get(id);
+    if (!r) return 'un rendez-vous du foyer n’existe plus : le message se refait sans lui';
+    if (r.status === 'annulé') return 'un rendez-vous du foyer a été annulé : le message se refait sans lui';
+    if (String(r.date ?? '').slice(0, 10) !== jour) return 'un rendez-vous du foyer a changé de jour : le message se refait sans lui';
+  }
+  return null;
+}
+/* ⟨/message-du-foyer⟩ */
 
 /* ══ LA REPRISE PROPOSÉE, TROIS JOURS AVANT — 29 septembre 2026 ═══════════
    « And for renewal appointments even faster » (Yéman), maquette « La
@@ -754,6 +877,17 @@ Deno.serve(async (req) => {
       .filter((r) => !SE_RETENTE.has((r.data as { statut?: string } | null)?.statut ?? '') || retenuParOpale(r.data as { detail?: unknown } | null))
       .map((r) => r.id as string),
   );
+  /* UNE TÊTE NOMMÉE PAR LE RAPPEL DE SON FOYER EST RAPPELÉE (4 novembre
+     2026). Le rappel d'un foyer vit sous la ligne de sa première tête et
+     nomme les autres (`apptIds`) : une tête nommée par une ligne qui
+     verrouille (partie, déposée, retenue par une main ou par Opale) compte
+     comme posée, sur ce canal. Un rappel retenu par Opale ne se redépose
+     donc pour aucune des têtes qu'il nommait. */
+  const verrouille = (d: { statut?: string; detail?: unknown }): boolean => !SE_RETENTE.has(d.statut ?? '') || retenuParOpale(d);
+  for (const canal of ['whatsapp', 'sms']) {
+    const lignesDuJour = ((dejaRows ?? []) as { data: { type?: string; canal?: string; apptId?: string; apptIds?: unknown; statut?: string; detail?: unknown } }[]).map((r) => r.data);
+    for (const id of tetesCouvertes(lignesDuJour, { type: 'rappel-j1', canal, verrouille })) deja.add(`env-${id}-${canal}`);
+  }
 
   /* ── Les canaux configurés ──────────────────────────────────────── */
   const WA_TOKEN = Deno.env.get('WA_TOKEN');
@@ -779,15 +913,21 @@ Deno.serve(async (req) => {
      pour la même fiche, même si le texte a changé entre deux passages (la
      civilité corrigée, l'heure dite autrement, un second rendez-vous). Pour
      une autre fiche au même numéro, le texte décide, civilités ôtées : deux
-     enfants d'un même parent reçoivent chacun leur rappel. */
+     enfants d'un même parent reçoivent chacun leur rappel.
+
+     SAUF S'ILS SONT DU MÊME FOYER (4 novembre 2026). Deux enfants du même
+     foyer (`foyerId`), le même jour, au même numéro, sont nommés par UN
+     rappel ; son message au fil dit chaque fiche qu'il nomme (`clientIds`),
+     et chacune compte comme rappelée. Hors d'un foyer, rien ne change. */
   const depuisVingtHeures = new Date(Date.now() - 20 * 3_600_000).toISOString();
   const { data: dejaAuFil } = await sb.from('messages_wa').select('data')
     .eq('data->>modele', WA_TEMPLATE).eq('data->>sens', 'sortant').gte('data->>quand', depuisVingtHeures).limit(1000);
-  const dejaRemis = new Set(((dejaAuFil ?? []) as { data?: { numero?: string; texte?: string; etat?: string; clientId?: string } }[])
+  const dejaRemis = new Set(((dejaAuFil ?? []) as { data?: { numero?: string; texte?: string; etat?: string; clientId?: string; clientIds?: unknown } }[])
     .filter((r) => r.data?.etat !== 'non-remis')
     .filter((r) => !!cleDuNumero(r.data?.numero))
     .flatMap((r) => [
       ...(r.data?.clientId ? [`${cleDuNumero(r.data?.numero)}|tete|${r.data.clientId}`] : []),
+      ...fichesNommees({ clientIds: r.data?.clientIds }).map((c) => `${cleDuNumero(r.data?.numero)}|tete|${c}`),
       ...(r.data?.texte ? [`${cleDuNumero(r.data?.numero)}|texte|${texteSansCivilite(r.data.texte)}`] : []),
     ]));
   let dejaRemisTus = 0;
@@ -800,6 +940,9 @@ Deno.serve(async (req) => {
      accusé ne porte que l'identifiant DU MESSAGE, et nous ne le gardions
      nulle part. Impossible de rapprocher, donc impossible de savoir.
      `waMessageId` est le fil qui relie l'envoi à son accusé. */
+  /* LE FOYER : ce que la ligne d'un foyer porte en plus (`foyerId`,
+     `apptIds`, `clientIds`), rangé sous l'identifiant de sa ligne. */
+  const champsParLigne = new Map<string, Record<string, unknown>>();
   const consigne = (canal: string, a: Rdv, statut: string, detail?: string, waMessageId?: string, plus?: Record<string, unknown>) => {
     aInserer.push({
       id: `env-${a.id}-${canal}`,
@@ -810,6 +953,7 @@ Deno.serve(async (req) => {
         statut, ...(detail ? { detail: detail.slice(0, 300) } : {}),
         ...(waMessageId ? { waMessageId } : {}),
         quand: new Date().toISOString(),
+        ...(champsParLigne.get(`env-${a.id}-${canal}`) ?? {}),
         ...(plus ?? {}),
       },
     });
@@ -820,23 +964,29 @@ Deno.serve(async (req) => {
      et le maître ne voit pas qu'un rappel est parti vers elle une heure plus
      tôt. Le fil doit porter TOUT ce qui s'est dit, y compris ce que la Maison
      a écrit toute seule. Identifiant déduit de celui de Meta, pour que
-     l'accusé du webhook retrouve sa ligne. */
+     l'accusé du webhook retrouve sa ligne. Le rappel d'un foyer y dit chaque
+     fiche qu'il nomme (`clientIds`, 4 novembre 2026). */
   const auFil: { id: string; branch_id: string | null; data: Record<string, unknown> }[] = [];
   const consigneAuFil = (a: Rdv, numero: string, waId: string, texte: string, modele: string) => {
     const id = `wa-${waId}`;
+    const duFoyer = champsParLigne.get(`env-${a.id}-whatsapp`)?.clientIds;
     auFil.push({
       id,
       branch_id: a.branchId ?? null,
       data: {
         id, waId, branchId: a.branchId, sens: 'sortant', numero, clientId: a.clientId,
+        ...(Array.isArray(duFoyer) ? { clientIds: duFoyer } : {}),
         texte, type: 'text', quand: new Date().toISOString(), etat: 'en-route',
         modele, parQui: 'la Maison, automatiquement',
       },
     });
   };
 
-  let nWa = 0, nSms = 0, nDeposes = 0;
+  let nWa = 0, nSms = 0, nDeposes = 0, foyersReunis = 0;
 
+  /* ① LES TÊTES À RAPPELER, une à une : la garde du fil d'abord. */
+  type TeteDuRappel = Rdv & { numero: string | null; appel: string; prenomSeul: string };
+  const aRappeler: TeteDuRappel[] = [];
   for (const a of rdvs) {
     const fiche = fiches.get(a.clientId);
     const prenom = appelDe(fiche, a.clientName);
@@ -847,93 +997,126 @@ Deno.serve(async (req) => {
     const tel = numeroIntl(telDuRdv(a, fiche));
     if (tel && (dejaRemis.has(`${cleDuNumero(tel)}|tete|${a.clientId}`)
       || dejaRemis.has(`${cleDuNumero(tel)}|texte|${texteSansCivilite(`${prenom}, votre rendez-vous est demain à ${heureLisible(a.time)}.`)}`))) { dejaRemisTus++; continue; }
-    if (partiraitLeJourMeme) {
-      const motif = 'heures calmes : déposé ce soir, il partirait le jour même du rendez-vous';
-      if (WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)) consigne('whatsapp', a, 'périmé', motif);
-      if (SMS_SID && SMS_TOKEN && SMS_FROM && tel && !deja.has(`env-${a.id}-sms`)) consigne('sms', a, 'périmé', motif);
-      continue;
-    }
-    if (salleOuverte && WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)) {
-      consigne('whatsapp', a, 'en-attente', undefined, undefined, depot(Date.now(), regles, {
-        genre: 'whatsapp', numero: tel, modele: WA_TEMPLATE, parQui: 'la Maison, automatiquement',
-        texteAuFil: `${prenom}, votre rendez-vous est demain à ${heureLisible(a.time)}.`,
-        composants: [{ type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: heureLisible(a.time) }] }],
-      }, prenom));
-      nDeposes++;
-    } else if (WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)) {
-      try {
-        const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            to: tel,
-            type: 'template',
-            template: {
-              name: WA_TEMPLATE,
-              language: { code: 'fr' },
-              components: [{
-                type: 'body',
-                parameters: [{ type: 'text', text: prenom }, { type: 'text', text: heureLisible(a.time) }],
-              }],
-            },
-          }),
-        });
-        const rep = await r.json().catch(() => ({}));
-        const waId = String(rep?.messages?.[0]?.id ?? '');
-        if (r.ok && waId) {
-          consigne('whatsapp', a, 'envoyé', undefined, waId);
-          consigneAuFil(
-            a, tel, waId,
-            `${prenom}, votre rendez-vous est demain à ${heureLisible(a.time)}.`,
-            WA_TEMPLATE,
-          );
-          nWa++;
-        } else if (r.ok) {
-          /* ACCEPTÉ SANS IDENTIFIANT : Meta a dit oui mais ne nomme pas le
-             message. On ne saura jamais ce qu'il devient — mieux vaut le dire
-             au journal que de laisser croire à un suivi qu'on n'a pas. */
-          consigne('whatsapp', a, 'envoyé', 'accepté sans identifiant Meta');
-          nWa++;
-        } else {
-          consigne('whatsapp', a, 'échec', String(rep?.error?.message ?? `HTTP ${r.status}`));
+    aRappeler.push({ ...a, numero: tel, appel: prenom, prenomSeul: prenomDeLaTete(fiche?.name ?? a.clientName) });
+  }
+
+  /* ② PAR FOYER, UN SEUL RAPPEL (4 novembre 2026). Les têtes d'un même
+     foyer, demain, au même numéro, ne font qu'un message : la plus tôt le
+     porte, à son heure, et il les nomme toutes (« Jade et Faith »). Sur
+     chaque canal, seules les têtes que rien ne couvre encore sont nommées.
+     Une tête seule part comme avant, avec sa civilité. */
+  for (const foyer of foyersAPrevenir(aRappeler)) {
+    const surLeCanal = (canal: string): FoyerAPrevenir<TeteDuRappel> | null => {
+      const tetes = foyer.tetes.filter((t) => !deja.has(`env-${t.id}-${canal}`));
+      if (tetes.length === 0) return null;
+      const f = { cle: foyer.cle, porteur: tetes[0], tetes };
+      champsParLigne.set(`env-${f.porteur.id}-${canal}`, champsDuFoyer(f));
+      return f;
+    };
+    const fWa = surLeCanal('whatsapp');
+    const fSms = surLeCanal('sms');
+    if ((fWa?.tetes.length ?? 0) > 1 || (fSms?.tetes.length ?? 0) > 1) foyersReunis++;
+    const motif = 'heures calmes : déposé ce soir, il partirait le jour même du rendez-vous';
+
+    if (fWa) {
+      const a = fWa.porteur;
+      const prenom = appelDuFoyer(fWa, (t) => t.appel, (t) => t.prenomSeul);
+      const tel = a.numero;
+      if (partiraitLeJourMeme) {
+        if (WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)) consigne('whatsapp', a, 'périmé', motif);
+      } else if (salleOuverte && WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)) {
+        consigne('whatsapp', a, 'en-attente', undefined, undefined, depot(Date.now(), regles, {
+          genre: 'whatsapp', numero: tel, modele: WA_TEMPLATE, parQui: 'la Maison, automatiquement',
+          texteAuFil: `${prenom}, votre rendez-vous est demain à ${heureLisible(a.time)}.`,
+          composants: [{ type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: heureLisible(a.time) }] }],
+        }, prenom));
+        nDeposes++;
+      } else if (WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)) {
+        try {
+          const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
+            body: JSON.stringify({
+              messaging_product: 'whatsapp',
+              to: tel,
+              type: 'template',
+              template: {
+                name: WA_TEMPLATE,
+                language: { code: 'fr' },
+                components: [{
+                  type: 'body',
+                  parameters: [{ type: 'text', text: prenom }, { type: 'text', text: heureLisible(a.time) }],
+                }],
+              },
+            }),
+          });
+          const rep = await r.json().catch(() => ({}));
+          const waId = String(rep?.messages?.[0]?.id ?? '');
+          if (r.ok && waId) {
+            consigne('whatsapp', a, 'envoyé', undefined, waId);
+            consigneAuFil(
+              a, tel, waId,
+              `${prenom}, votre rendez-vous est demain à ${heureLisible(a.time)}.`,
+              WA_TEMPLATE,
+            );
+            nWa++;
+          } else if (r.ok) {
+            /* ACCEPTÉ SANS IDENTIFIANT : Meta a dit oui mais ne nomme pas le
+               message. On ne saura jamais ce qu'il devient — mieux vaut le dire
+               au journal que de laisser croire à un suivi qu'on n'a pas. */
+            consigne('whatsapp', a, 'envoyé', 'accepté sans identifiant Meta');
+            nWa++;
+          } else {
+            consigne('whatsapp', a, 'échec', String(rep?.error?.message ?? `HTTP ${r.status}`));
+          }
+        } catch (e) {
+          consigne('whatsapp', a, 'échec', String(e));
         }
-      } catch (e) {
-        consigne('whatsapp', a, 'échec', String(e));
       }
     }
 
     /* ③ SMS — seulement si la Maison a posé ses clés (forme Twilio ;
-       autre fournisseur = adapter ce bloc, le reste ne bouge pas). */
-    if (salleOuverte && SMS_SID && SMS_TOKEN && SMS_FROM && tel && !deja.has(`env-${a.id}-sms`)) {
-      consigne('sms', a, 'en-attente', undefined, undefined, depot(Date.now(), regles, {
-        genre: 'sms', numero: tel,
-        texte: `${nomMaison}, rappel : votre rendez-vous est demain à ${heureLisible(a.time)}. Merci de nous prévenir en cas d'empêchement.`,
-      }, prenom));
-      nDeposes++;
-    } else if (SMS_SID && SMS_TOKEN && SMS_FROM && tel && !deja.has(`env-${a.id}-sms`)) {
-      try {
-        const corps = new URLSearchParams({
-          From: SMS_FROM,
-          To: `+${tel}`,
-          Body: `${nomMaison}, rappel : votre rendez-vous est demain à ${heureLisible(a.time)}. Merci de nous prévenir en cas d'empêchement.`,
-        });
-        const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${SMS_SID}/Messages.json`, {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/x-www-form-urlencoded',
-            authorization: `Basic ${btoa(`${SMS_SID}:${SMS_TOKEN}`)}`,
-          },
-          body: corps.toString(),
-        });
-        if (r.ok) { consigne('sms', a, 'envoyé'); nSms++; }
-        else consigne('sms', a, 'échec', await r.text());
-      } catch (e) {
-        consigne('sms', a, 'échec', String(e));
+       autre fournisseur = adapter ce bloc, le reste ne bouge pas). Le SMS
+       d'un foyer nomme ses têtes, sans genre (« le rendez-vous de Jade et
+       Faith ») ; celui d'une tête seule ne change pas. */
+    if (fSms) {
+      const a = fSms.porteur;
+      const tel = a.numero;
+      const noms = appelDuFoyer(fSms, () => '', (t) => t.prenomSeul);
+      const texteDuSms = noms
+        ? `${nomMaison}, rappel : le rendez-vous de ${noms} est demain à ${heureLisible(a.time)}. Merci de nous prévenir en cas d'empêchement.`
+        : `${nomMaison}, rappel : votre rendez-vous est demain à ${heureLisible(a.time)}. Merci de nous prévenir en cas d'empêchement.`;
+      if (partiraitLeJourMeme) {
+        if (SMS_SID && SMS_TOKEN && SMS_FROM && tel && !deja.has(`env-${a.id}-sms`)) consigne('sms', a, 'périmé', motif);
+      } else if (salleOuverte && SMS_SID && SMS_TOKEN && SMS_FROM && tel && !deja.has(`env-${a.id}-sms`)) {
+        consigne('sms', a, 'en-attente', undefined, undefined, depot(Date.now(), regles, {
+          genre: 'sms', numero: tel,
+          texte: texteDuSms,
+        }, appelDuFoyer(fSms, (t) => t.appel, (t) => t.prenomSeul)));
+        nDeposes++;
+      } else if (SMS_SID && SMS_TOKEN && SMS_FROM && tel && !deja.has(`env-${a.id}-sms`)) {
+        try {
+          const corps = new URLSearchParams({
+            From: SMS_FROM,
+            To: `+${tel}`,
+            Body: texteDuSms,
+          });
+          const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${SMS_SID}/Messages.json`, {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/x-www-form-urlencoded',
+              authorization: `Basic ${btoa(`${SMS_SID}:${SMS_TOKEN}`)}`,
+            },
+            body: corps.toString(),
+          });
+          if (r.ok) { consigne('sms', a, 'envoyé'); nSms++; }
+          else consigne('sms', a, 'échec', await r.text());
+        } catch (e) {
+          consigne('sms', a, 'échec', String(e));
+        }
       }
     }
   }
-
   /* ── Le journal s'écrit en un geste (upsert : re-réveil sans doublon) ── */
   if (aInserer.length > 0) {
     const { error: errE } = await sb.from('envois').upsert(aInserer, { onConflict: 'id' });
@@ -949,7 +1132,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ version: VERSION, jour: demain, rdv: rdvs.length, confirmeesTues, dejaRemisTus, push: 'au job mnd-push-rappels', salle: salleOuverte, partiraitLeJourMeme, deposes: nDeposes, whatsapp: nWa, sms: nSms, ...reprises, ...points }),
+    JSON.stringify({ version: VERSION, jour: demain, rdv: rdvs.length, confirmeesTues, dejaRemisTus, push: 'au job mnd-push-rappels', salle: salleOuverte, partiraitLeJourMeme, deposes: nDeposes, foyersReunis, whatsapp: nWa, sms: nSms, ...reprises, ...points }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 });

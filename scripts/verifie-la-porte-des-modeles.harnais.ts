@@ -196,6 +196,15 @@ const DEJA_JOURNAL = 'déjà parti : le même message est au journal depuis moin
   dit('un autre numero ne compte pas', null, dejaParti(ligneJ1(), ctx({ messages: [filJ1({ numero: '22966000002' })] })));
   dit('PANNE « deux enfants confondus » : deux enfants d un meme parent recoivent chacun leur rappel', null,
     dejaParti(ligneJ1(), ctx({ messages: [filJ1({ clientId: 'cl-kiki', texte: texteJ1('Mlle Kiki') })] })));
+  /* UN FOYER, UN MESSAGE (4 novembre 2026) : deux enfants du MEME FOYER sont
+     nommes par un message (`clientIds`, `apptIds`) ; il couvre chacun. */
+  dit('PANNE « le foyer oublie au fil » : nommee par le rappel de son foyer, la seconde ne recoit pas le sien', DEJA_FIL,
+    dejaParti(ligneJ1(), ctx({ messages: [filJ1({ clientId: 'cl-kiki', clientIds: ['cl-kiki', 'cl-awa'], texte: texteJ1('Kiki et Awa') })] })));
+  dit('PANNE « le foyer oublie au journal » : son rendez-vous nomme par la ligne partie du foyer, elle ne repart pas', true,
+    /chaque rendez-vous de ce foyer/.test(dejaParti(ligneJ1(), ctx({ envois: [{ id: 'env-ap-kiki-whatsapp', type: 'rappel-j1', canal: 'whatsapp', apptId: 'ap-kiki', apptIds: ['ap-kiki', RDV], statut: 'envoyé', quand: PREMIER }] })) ?? ''));
+  dit('... mais le message d un foyer qui ne la nommait pas la laisse partir', null,
+    dejaParti(ligneJ1(), ctx({ envois: [{ id: 'env-ap-kiki-whatsapp', type: 'rappel-j1', canal: 'whatsapp', apptId: 'ap-kiki', apptIds: ['ap-kiki', 'ap-lola'], statut: 'envoyé', quand: PREMIER }],
+      messages: [filJ1({ clientId: 'cl-kiki', clientIds: ['cl-kiki', 'cl-lola'], texte: texteJ1('Kiki et Lola') })] })));
   dit('PANNE « une seule tete par jour oubliee » : un second rendez-vous pour la meme personne ne fait pas un second rappel', DEJA_FIL,
     dejaParti(ligneJ1({ colis: colisJ1('Mme Awa', '22997000001', '10 h') }), ctx({ messages: [filJ1()] })));
   dit('PANNE « le texte compare avec sa civilite » : une fiche en double, le meme texte a la civilite pres, ne repart pas', DEJA_FIL,
@@ -394,8 +403,10 @@ const DEJA_JOURNAL = 'déjà parti : le même message est au journal depuis moin
   dit('le facteur porte le bloc, caractere pour caractere', true, !!original && original.length > 5000 && copie === original);
   dit('le bloc ne porte aucun import', false, /^import /m.test(original ?? ''));
   const f = source(EP);
+  /* La version dit la porte d'Opale, au 4 novembre 2026 ou plus tard (le foyer l'a montée au -b). */
+  const versionDu = (s: string): string => /const VERSION = '(\d{4}-\d{2}-\d{2}-[a-z])/.exec(s)?.[1] ?? '';
   dit('la version du facteur dit la porte d Opale', true,
-    f.includes("const VERSION = '2026-11-04-a · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste';"));
+    versionDu(f) >= '2026-11-04-a' && /const VERSION = '[^']* · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste/.test(f));
   const prise = f.indexOf(".update({ data: { ...l.data, prisLe: maintenant, statut: 'en-envoi' } }) .eq('id', l.id).eq('data->>statut', 'en-attente').select('id');");
   const relu = f.indexOf('const motif = pourquoiIlNePartPlus(repris ?? l.data, rdv, Date.now());');
   const porte = f.indexOf('const v = laPorte(devant, faits);');
@@ -416,7 +427,7 @@ const DEJA_JOURNAL = 'déjà parti : le même message est au journal depuis moin
     && f.includes("sb.from('messages_wa').select('data').in('data->>numero', variantes).gte('data->>quand', depuis).limit(500)")
     && f.includes('const variantes = variantesDuNumero(l.colis?.numero);'));
   dit('PANNE « une lecture en panne laisse partir » : sans lecture, pas de jugement, un echec a retenter', true,
-    f.includes('if (fiche.error || voisines.error || fil.error) return null;') && f.includes("if (!faits) { await ecris({ statut: 'échec', detail: `la porte d’Opale n’a pas pu lire le journal ou le fil"));
+    f.includes('if (fiche.error || voisines.error || fil.error || duFoyer.error) return null;') && f.includes("if (!faits) { await ecris({ statut: 'échec', detail: `la porte d’Opale n’a pas pu lire le journal ou le fil"));
   dit('le rendez-vous relu sert a la porte, et les verdicts d avant restent', true,
     f.includes('rdvRelu = rdv as RdvALaPorte | null;') && f.includes('faits = await faitsDeLaPorte(sb, devant, rdvRelu, Date.now());')
     && f.includes("if (motif) { await ecris({ statut: 'périmé', detail: motif }); perimes++; continue; }"));
@@ -436,7 +447,8 @@ const DEJA_JOURNAL = 'déjà parti : le même message est au journal depuis moin
   const r = source(RJ);
   const pur = egal(sansCommentaires(disque(PUR)));
   dit('la version de rappels-j1 dit la porte d Opale', true,
-    r.includes("const VERSION = '2026-11-04-a · la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';"));
+    (/const VERSION = '(\d{4}-\d{2}-\d{2}-[a-z])/.exec(r)?.[1] ?? '') >= '2026-11-04-a'
+    && /const VERSION = '[^']*la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';/.test(r));
   dit('la marque lue par rappels-j1 est celle de la porte', true,
     r.includes("const retenuParOpale = (d: { detail?: unknown } | null | undefined): boolean => String(d?.detail ?? '').startsWith('retenu par Opale');") && MARQUE_D_OPALE === 'retenu par Opale');
   dit('PANNE « rappels-j1 redepose ce qu Opale a retenu » : la ligne de la veille retenue par Opale verrouille', true,
