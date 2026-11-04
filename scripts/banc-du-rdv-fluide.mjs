@@ -138,7 +138,7 @@ const attendues = await evalue(`[...document.querySelectorAll('.trc-rdv4__attend
 dit('Mireille est attendue cette semaine (sa reprise approche)', attendues.some((x) => x.includes('Mireille A.') && /Sa reprise/.test(x)), attendues.join(' | '));
 dit('aucun volet ouvert', (await ouverte()) === '', await ouverte());
 dit('la barre dit ce qui reste', (await texte('.trc-rdv3__barre-texte')).includes('Reste : la cliente, les prestations, puis le moment.'), await texte('.trc-rdv3__barre-texte'));
-dit('Poser et En attente attendent', (await desactive('Poser le rendez-vous')) === 'true' && (await desactive('En attente')) === 'true');
+dit('Confirmer et Mettre en attente attendent', (await desactive('Confirmer le RDV')) === 'true' && (await desactive('Mettre en attente')) === 'true');
 dit('la confirmation WhatsApp est cochée d office', await evalue(`!!document.querySelector('.trc-rdv4__wa input')?.checked`));
 
 /* ── 2. UN TOUCHER : sa fiche, son rituel posé, trois propositions ── */
@@ -159,13 +159,13 @@ dit('trois propositions : à sa date, le plus tôt, son jour', cartes.length ===
 const heuresDesCartes = cartes.map((c) => c.quand.slice(0, 5));
 dit('aucune ne tombe sur les fauteuils pleins (3 h de rituel, 11:00 à 13:30)', !heuresDesCartes.some((h) => ['08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00'].includes(h)), heuresDesCartes.join(' '));
 dit('chacune dit son maître et pourquoi', cartes.every((c) => /avec Team/.test(c.quand) && c.pourquoi.length > 10), JSON.stringify(cartes.map((c) => `${c.quand} / ${c.pourquoi}`)));
-dit('rien n est posé avant le toucher', (await desactive('Poser le rendez-vous')) === 'true');
+dit('rien n est posé avant le toucher', (await desactive('Confirmer le RDV')) === 'true');
 dit('« À sa date » se touche', await clique('.trc-rdv4__carte', 'À sa date'));
 await attend(400);
 dit('la carte touchée est marquée', await evalue(`document.querySelector('.trc-rdv4__carte.is-on .trc-rdv4__carte-titre')?.textContent === 'À sa date'`));
 const barre = await texte('.trc-rdv3__barre-texte');
 dit('la barre dit le rendez-vous', barre.includes('Mireille A.') && barre.includes(heuresDesCartes[0]) && barre.includes('Team') && barre.includes('55 000'), barre);
-dit('Poser s ouvre', (await desactive('Poser le rendez-vous')) === 'false');
+dit('Poser s ouvre', (await desactive('Confirmer le RDV')) === 'false');
 
 /* ── 3. CHANGER LE MOMENT : le volet, les fauteuils pleins, une heure prise ── */
 dit('« Changer le jour, l heure ou le maître » ouvre son volet', await clique('.trc-rdv4__bouton', 'Changer le jour'));
@@ -177,10 +177,10 @@ dit('« Une autre heure » : 11:00', await choisis('.trc-rdv3__autre select', '1
 await attend(400);
 const bloquee = await texte('.trc-rdv3__raison.is-bloque');
 dit('les deux fauteuils pleins bloquent', bloquee.startsWith('Les 2 fauteuils sont occupés'), bloquee);
-dit('Poser et En attente se ferment', (await desactive('Poser le rendez-vous')) === 'true' && (await desactive('En attente')) === 'true');
+dit('Confirmer et Mettre en attente se ferment', (await desactive('Confirmer le RDV')) === 'true' && (await desactive('Mettre en attente')) === 'true');
 dit('« Poser quand même à 11:00 »', await clique('.trc-rdv3__forcer', 'Poser quand même à 11:00'));
 await attend(400);
-dit('... Poser s ouvre', (await desactive('Poser le rendez-vous')) === 'false' && !(await evalue(`!!document.querySelector('.trc-rdv3__raison.is-bloque')`)));
+dit('... Poser s ouvre', (await desactive('Confirmer le RDV')) === 'false' && !(await evalue(`!!document.querySelector('.trc-rdv3__raison.is-bloque')`)));
 dit('« Une autre heure » : 16:00', await choisis('.trc-rdv3__autre select', '16:00'));
 await attend(400);
 const prise = await texte('.trc-rdv3__raison');
@@ -199,7 +199,7 @@ if (process.env.PHOTOS) {
 await cdp('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
 
 /* ── 4. POSER : l'écran « posé », puis « Le modifier » ── */
-dit('« Poser le rendez-vous »', await clique('.trc-rdv3__barre button', 'Poser le rendez-vous'));
+dit('« Confirmer le RDV »', await clique('.trc-rdv3__barre button', 'Confirmer le RDV'));
 await attend(900);
 const pose = ((await lis('trone::mnd_appointments')) ?? []).filter((a) => a.clientId === 'cl-mir' && a.status !== 'honoré');
 dit('un seul rendez-vous écrit, à 16:00, ses deux prestations, Team, confirmation gardée', pose.length === 1 && pose[0].time === '16:00' && pose[0].master === 'Team'
@@ -251,7 +251,7 @@ if (process.env.PHOTOS) {
   const r = await cdp('Page.captureScreenshot', { format: 'png' });
   writeFileSync(path.join(process.env.PHOTOS, 'rdv-3-telephone.png'), Buffer.from(r.result.data, 'base64'));
 }
-dit('« Poser le rendez-vous », confirmation décochée', await clique('.trc-rdv3__barre button', 'Poser le rendez-vous'));
+dit('« Confirmer le RDV », confirmation décochée', await clique('.trc-rdv3__barre button', 'Confirmer le RDV'));
 await attend(800);
 const posN = ((await lis('trone::mnd_appointments')) ?? []).filter((a) => a.clientId === 'cl-x2' && !String(a.id).startsWith('plein'));
 dit('écrit sans confirmation', posN.length === 1 && posN[0].sansConfirmation === true, JSON.stringify(posN.map((a) => [a.date, a.time, a.sansConfirmation])));

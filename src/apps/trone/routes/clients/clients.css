@@ -3838,3 +3838,70 @@
 .trc-pieces-rdv__ajout:disabled { opacity: .5; cursor: default; }
 .trc-pieces-rdv__lien { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--copper-300); border-radius: var(--radius-md); background: var(--copper-50); }
 .trc-pieces-rdv__attente { font-size: 12px; color: var(--ink-soft); }
+
+/* ══ LE RENDEZ-VOUS EN DEUX COLONNES — 4 novembre 2026 (maquette 51siicjB…) ══
+   À gauche les trois étapes et leurs volets ; à droite le panier, collé en haut
+   de la fenêtre : les gestes et leur prix, la remise, le total en grand, puis la
+   barre et ses boutons, « Confirmer le RDV » seul en plein. Sur téléphone, une
+   colonne : le panier suit, et la barre reste collée au bas de la fenêtre. */
+.trc-rdv3.trc-rdv5 { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: 18px; align-items: start; }
+.trc-rdv5__gauche { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.trc-rdv5__etapes { display: flex; gap: 6px; flex-wrap: wrap; }
+.trc-rdv5__etape { flex: 1 1 150px; display: flex; align-items: center; gap: 10px; text-align: left; background: none; border: 0; border-bottom: 3px solid var(--hairline); padding: 8px 6px; cursor: pointer; color: var(--ink-soft); font: inherit; }
+.trc-rdv5__etape:disabled { cursor: default; opacity: .6; }
+.trc-rdv5__etape b { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid currentColor; display: inline-grid; place-items: center; font-size: 12.5px; font-weight: 600; flex: none; }
+.trc-rdv5__etape span { display: grid; line-height: 1.25; font-size: 13.5px; min-width: 0; }
+.trc-rdv5__etape small { font-size: 11.5px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trc-rdv5__etape.est-ici { color: var(--color-indigo); border-bottom-color: var(--color-indigo); }
+.trc-rdv5__etape.est-faite { color: #2F6B45; border-bottom-color: #2F6B45; }
+.trc-rdv5__etape.est-faite b { background: #2F6B45; border-color: #2F6B45; color: #FFFFFF; }
+.trc-rdv5__etape:focus-visible { outline: 2px solid var(--copper-500); outline-offset: 2px; }
+.trc-rdv5__panier { position: sticky; top: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; background: var(--surface-card); border: 1px solid var(--hairline); border-radius: var(--radius-md); padding: 14px; }
+.trc-rdv5__vide { margin: 0; font-size: 12.5px; color: var(--ink-soft); }
+.trc-rdv5__lignes { display: flex; flex-direction: column; border-top: 1px solid var(--hairline); }
+.trc-rdv5__ligne { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 8px 0; border-bottom: 1px solid var(--hairline); font-size: 13.5px; }
+.trc-rdv5__lib { min-width: 0; color: var(--ink); overflow-wrap: anywhere; }
+.trc-rdv5__lib small { display: block; font-size: 11.5px; color: var(--ink-soft); }
+.trc-rdv5__mt { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.trc-rdv5__mt s { color: var(--ink-soft); font-size: 12px; margin-right: 4px; }
+.trc-rdv5__ligne.est-remise .trc-rdv5__mt { color: #2F6B45; }
+.trc-rdv5__lien { background: none; border: 0; padding: 0; font: inherit; font-size: 11.5px; color: var(--copper-700); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.trc-rdv5__lien:focus-visible { outline: 2px solid var(--copper-500); outline-offset: 2px; }
+.trc-rdv5__ajout { align-self: flex-start; margin-top: 8px; font-size: 12.5px; }
+.trc-rdv5__total { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; border-top: 2px solid var(--color-indigo); padding-top: 10px; }
+.trc-rdv5__total span { font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-rdv5__total b { font: 400 32px/1 var(--font-serif); color: var(--color-indigo); font-variant-numeric: lining-nums tabular-nums; }
+.trc-rdv5__panier .trc-rdv3__barre { position: static; margin-top: 2px; box-shadow: none; flex-direction: column; align-items: stretch; }
+.trc-rdv5__panier .trc-rdv3__barre-texte { flex: none; }
+.trc-rdv5__panier .trc-rdv3__boutons { flex-direction: column; align-items: stretch; }
+.trc-rdv5__panier .trc-rdv3__boutons .mnd-btn { width: 100%; justify-content: center; }
+.trc-rdv5__panier .trc-rdv3__boutons .trc-rdv3__lien { align-self: center; }
+@media (max-width: 860px) {
+  .trc-rdv3.trc-rdv5 { grid-template-columns: minmax(0, 1fr); }
+  .trc-rdv5__panier { display: contents; }
+  .trc-rdv5__panier .trc-rdv3__barre { position: sticky; bottom: 0; box-shadow: 0 -8px 18px -10px rgba(20, 18, 48, .45); }
+}
+
+/* ══ L'ENCAISSEMENT EN DEUX COLONNES — 4 novembre 2026 (maquette XqKRFq4R…) ══
+   À gauche « Comment elle paie » et « Et ensuite » ; à droite le ticket, collé
+   en haut : le reste à encaisser, ce qu'elle doit (toujours ouvert), la barre et
+   son bouton. Sur téléphone, une colonne : le reste en haut, la barre collée en
+   bas, comme avant. Les styles en ligne de la fenêtre restent ; ces règles ne
+   défont que leur collage quand le ticket colle déjà. */
+.trc-enc2 { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr); grid-template-areas: "retour retour" "gauche ticket"; gap: 12px 18px; align-items: start; }
+.trc-enc2__retour { grid-area: retour; justify-self: start; }
+.trc-enc2__gauche { grid-area: gauche; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.trc-enc2__ticket { grid-area: ticket; position: sticky; top: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.trc-enc2__ticket > .trc-enc2__bandeau { position: static !important; margin: 0 !important; }
+.trc-enc2__du { display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); padding: 12px 13px 14px; font-size: 13px; }
+.trc-enc2__titre { font-family: var(--font-serif); font-size: 16.5px; color: var(--color-indigo); }
+.trc-enc2__ticket > .trc-enc2__barre { position: static !important; margin: 0 !important; box-shadow: none !important; padding: 12px 0 0 !important; }
+@media (max-width: 860px) {
+  .trc-enc2 { grid-template-columns: minmax(0, 1fr); grid-template-areas: none; }
+  .trc-enc2__retour, .trc-enc2__gauche { grid-area: auto; }
+  .trc-enc2__ticket { display: contents; }
+  .trc-enc2__ticket > .trc-enc2__bandeau { position: sticky !important; top: -1px !important; margin: -4px -2px 0 !important; }
+  .trc-enc2__du { order: 1; }
+  .trc-enc2__gauche { order: 2; }
+  .trc-enc2__ticket > .trc-enc2__barre { order: 3; position: sticky !important; bottom: -1px !important; margin: 0 -2px !important; padding: 11px 2px 2px !important; box-shadow: 0 -8px 14px -10px rgba(30, 33, 80, .18), 0 28px 0 0 var(--color-ivoire) !important; }
+}

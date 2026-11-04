@@ -1328,9 +1328,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
      une part comme les autres (sa tuile), la seule qui ne passe par aucune
      caisse. Elles remplacent le montant, le moyen et la caisse uniques
      d'avant, et le champ d'avoir à part. */
-  const [etape, setEtape] = useState<EtapeEncId | null>(
-    () => ((appt.depositXof ?? 0) > 0 && !appt.depositConfirmed ? 'du' : 'paie'),
-  );
+  /* « Ce qu'elle doit » est le ticket, toujours ouvert à droite (4 novembre
+     2026) : l'acompte à vérifier s'y lit sans rien ouvrir ; à gauche, on
+     commence par « Comment elle paie ». */
+  const [etape, setEtape] = useState<EtapeEncId | null>(() => 'paie');
   const [parts, setParts] = useState<PartEnc[]>(() => [initial ? partDeLaLecture(initial, methods) : partNeuve('especes', due)]);
   const montantDe = (pt: PartEnc): number => Math.max(0, Math.round(Number(pt.montantStr) || 0));
   const majPart = (id: string, patch: Partial<PartEnc>) =>
@@ -2297,13 +2298,18 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
   };
 
   return (
-    <Modal title="Encaisser le rituel" onClose={onClose} width={520}>
+    <Modal title="Encaisser le rituel" onClose={onClose} width={1060}>
       {qrAuComptoir && <AuComptoir g={qrAuComptoir} onClose={() => setQrAuComptoir(null)} />}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* L'ENCAISSEMENT EN DEUX COLONNES — 4 novembre 2026 (maquette XqKRFq4R…,
+          « construis les deux ») : à gauche comment elle paie et ce qui suit ;
+          à droite le ticket, collé en haut : le reste à encaisser, ce qu'elle
+          doit, et la barre avec le seul bouton plein. */}
+      <div className="trc-enc2">
         {/* LE CHEMIN DU RETOUR, EN HAUT — là où l'œil cherche à revenir. */}
         {onRetour && (
           <button
             type="button"
+            className="trc-enc2__retour"
             onClick={onRetour}
             style={{
               alignSelf: 'flex-start', cursor: 'pointer', background: 'none', border: 'none',
@@ -2318,7 +2324,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
             ENCAISSER. Depuis le 17 octobre, il dit aussi QUI encaisse (c'est
             sa caisse qui reçoit les espèces) et, seulement quand c'est vrai,
             que le rendez-vous est d'une année antérieure. */}
-        <div style={{
+        <aside className="trc-enc2__ticket" aria-label="Le ticket">
+        <div className="trc-enc2__bandeau" style={{
           position: 'sticky', top: -1, zIndex: 3, margin: '-4px -2px 0',
           background: 'var(--color-indigo)', borderRadius: 3, padding: '13px 16px',
         }}>
@@ -2354,7 +2361,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
         )}
 
         {/* ① CE QU'ELLE DOIT — le compte du rituel, avant tout règlement. */}
-        <EtapeEnc n={1} titre="Ce qu’elle doit" resume={resumeDu} alerte={acompteAVerifier || forfaitABouge || !!aReporter} ouvert={etape === 'du'} onBascule={() => bascule('du')}>
+        <section className="trc-enc2__du" aria-label="Ce qu’elle doit">
+          <span className="trc-enc2__titre">Ce qu’elle doit</span>
           {gammeDuRdvXof > 0 ? (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -2664,8 +2672,61 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
               )}
             </div>
           )}
-        </EtapeEnc>
+        </section>
+        {/* ═══ LA BARRE COLLANTE — ce qui est réglé, où va l'argent, et le
+            bouton. Elle ne quitte jamais l'écran : la caissière lit sa phrase
+            avant d'appuyer, et ce qui bloque se dit ici, en une ligne. */}
+        <div className="trc-enc2__barre" style={{
+          position: 'sticky', bottom: -1, zIndex: 3, margin: '0 -2px', padding: '11px 2px 2px',
+          background: 'var(--color-ivoire)', borderTop: '1px solid var(--hairline)',
+          /* La seconde ombre, pleine et ivoire, couvre la marge du bas : au
+             téléphone, la fenêtre défile avec sa marge, et le texte passait
+             sous la barre. */
+          boxShadow: '0 -8px 14px -10px rgba(30, 33, 80, .18), 0 28px 0 0 var(--color-ivoire)', display: 'grid', gap: 8,
+        }}>
+          <div style={{ fontSize: 12.5, lineHeight: 1.55, color: 'var(--ink)' }}>
+            {lignesPayees.length > 0 ? lignesPayees.map(ditLaPart).join(' · ') : 'Rien d’encaissé pour l’instant.'}
+            {totalGamme > 0 && ` · Gamme ${fmtMoney(totalGamme, currency)} → ${gammeBox || 'caisse à choisir'}`}
+            {tip > 0 && ` · pourboire ${fmtMoney(tip, currency)}`}
+            {due > 0 && settleTotal > 0 && (
+              <b style={{ display: 'block', fontWeight: 600, color: remainingAfter === 0 ? 'var(--color-indigo)' : 'var(--copper-700)' }}>
+                {remainingAfter === 0 ? 'Tout est réglé.' : `Il resterait ${fmtMoney(remainingAfter, currency)} dû.`}
+              </b>
+            )}
+          </div>
+          {blocage && (
+            <div role="alert" style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--color-brique, #96412E)', borderLeft: '2px solid var(--color-brique, #96412E)', paddingLeft: 10 }}>
+              {blocage}
+            </div>
+          )}
+          {horsCarnet > 0 && (
+            <Button variant="ghost" onClick={inscrisAuCarnet} data-hors-carnet={horsCarnet}>
+              Inscrire au carnet les {fmtMoney(horsCarnet, currency)} déjà sur la facture
+            </Button>
+          )}
+          <Button
+            variant="copper"
+            onClick={() => confirm()}
+            disabled={(settleTotal <= 0 && totalGamme <= 0 && (tip <= 0 || partage.length === 0) && !depositJustConfirmed && !reschedule) || empecheTout}
+          >
+            {/* LE BOUTON DIT LES DEUX MONTANTS (7 septembre) : un bouton qui ne
+                dit pas ce qu'il fait apprend à ne plus le lire. */}
+            {fxOn && fxAmount > 0
+              ? `Encaisser ${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}`
+              : settleTotal <= 0 && totalGamme > 0
+                ? `Encaisser la Gamme · ${fmtMoney(totalGamme, currency)}`
+                : settleTotal <= 0 && tip > 0
+                  ? `Enregistrer le pourboire ${fmtMoney(tip, currency)}`
+                  : settleTotal <= 0 && depositJustConfirmed
+                    ? 'Confirmer l’acompte reçu'
+                    : settleTotal <= 0 && reschedule
+                      ? 'Reprogrammer le rendez-vous'
+                      : `Encaisser ${fmtMoney(settleTotal, currency)}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}${fullyPaid ? '' : ' (partiel)'}`}
+          </Button>
+        </div>
+        </aside>
 
+        <div className="trc-enc2__gauche">
         {/* ② COMMENT ELLE PAIE — les parts, chacune sa tuile, son montant, et
             la caisse que sa décision nomme. Le pourboire vient avec l'argent. */}
         <EtapeEnc n={2} titre="Comment elle paie" resume={resumePaie} ouvert={etape === 'paie'} onBascule={() => bascule('paie')}>
@@ -3181,56 +3242,6 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
           <ReglementEnDirect appt={appt} />
         </EtapeEnc>
 
-        {/* ═══ LA BARRE COLLANTE — ce qui est réglé, où va l'argent, et le
-            bouton. Elle ne quitte jamais l'écran : la caissière lit sa phrase
-            avant d'appuyer, et ce qui bloque se dit ici, en une ligne. */}
-        <div style={{
-          position: 'sticky', bottom: -1, zIndex: 3, margin: '0 -2px', padding: '11px 2px 2px',
-          background: 'var(--color-ivoire)', borderTop: '1px solid var(--hairline)',
-          /* La seconde ombre, pleine et ivoire, couvre la marge du bas : au
-             téléphone, la fenêtre défile avec sa marge, et le texte passait
-             sous la barre. */
-          boxShadow: '0 -8px 14px -10px rgba(30, 33, 80, .18), 0 28px 0 0 var(--color-ivoire)', display: 'grid', gap: 8,
-        }}>
-          <div style={{ fontSize: 12.5, lineHeight: 1.55, color: 'var(--ink)' }}>
-            {lignesPayees.length > 0 ? lignesPayees.map(ditLaPart).join(' · ') : 'Rien d’encaissé pour l’instant.'}
-            {totalGamme > 0 && ` · Gamme ${fmtMoney(totalGamme, currency)} → ${gammeBox || 'caisse à choisir'}`}
-            {tip > 0 && ` · pourboire ${fmtMoney(tip, currency)}`}
-            {due > 0 && settleTotal > 0 && (
-              <b style={{ display: 'block', fontWeight: 600, color: remainingAfter === 0 ? 'var(--color-indigo)' : 'var(--copper-700)' }}>
-                {remainingAfter === 0 ? 'Tout est réglé.' : `Il resterait ${fmtMoney(remainingAfter, currency)} dû.`}
-              </b>
-            )}
-          </div>
-          {blocage && (
-            <div role="alert" style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--color-brique, #96412E)', borderLeft: '2px solid var(--color-brique, #96412E)', paddingLeft: 10 }}>
-              {blocage}
-            </div>
-          )}
-          {horsCarnet > 0 && (
-            <Button variant="ghost" onClick={inscrisAuCarnet} data-hors-carnet={horsCarnet}>
-              Inscrire au carnet les {fmtMoney(horsCarnet, currency)} déjà sur la facture
-            </Button>
-          )}
-          <Button
-            variant="copper"
-            onClick={() => confirm()}
-            disabled={(settleTotal <= 0 && totalGamme <= 0 && (tip <= 0 || partage.length === 0) && !depositJustConfirmed && !reschedule) || empecheTout}
-          >
-            {/* LE BOUTON DIT LES DEUX MONTANTS (7 septembre) : un bouton qui ne
-                dit pas ce qu'il fait apprend à ne plus le lire. */}
-            {fxOn && fxAmount > 0
-              ? `Encaisser ${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}`
-              : settleTotal <= 0 && totalGamme > 0
-                ? `Encaisser la Gamme · ${fmtMoney(totalGamme, currency)}`
-                : settleTotal <= 0 && tip > 0
-                  ? `Enregistrer le pourboire ${fmtMoney(tip, currency)}`
-                  : settleTotal <= 0 && depositJustConfirmed
-                    ? 'Confirmer l’acompte reçu'
-                    : settleTotal <= 0 && reschedule
-                      ? 'Reprogrammer le rendez-vous'
-                      : `Encaisser ${fmtMoney(settleTotal, currency)}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}${fullyPaid ? '' : ' (partiel)'}`}
-          </Button>
         </div>
       </div>
     </Modal>

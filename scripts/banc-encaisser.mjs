@@ -147,7 +147,9 @@ const ouvreLEncaissement = async (q) => {
   await attend(1500);
   await cdp('Page.reload', { ignoreCache: false });
   await attend(7000);
-  const points = await evalue(`(() => { const b = document.querySelector('.trc-dots'); if (b) b.click(); return !!b; })()`);
+  /* Depuis le 4 novembre 2026, la pastille du statut ouvre le menu du rendez-vous
+     (le bouton ⋯ n'existe plus au Carnet). */
+  const points = await evalue(`(() => { const b = document.querySelector('.trc-statut'); if (b) b.click(); return !!b; })()`);
   await attend(400);
   const enc = await clique('.trc-menu button', 'Encaisser');
   await attend(900);
@@ -160,7 +162,7 @@ let t = await texteModale();
 dit('trois temps : ce qu elle doit, comment elle paie, et ensuite', ['Ce qu’elle doit', 'Comment elle paie', 'Et ensuite'].every((x) => t.includes(x)));
 const tuiles = await evalue(`[...${modale}.querySelectorAll('.trv-pay .n')].map((x) => x.textContent.trim())`);
 dit('les tuiles : Espèces, MTN MoMoPay, Carte, Chèque, Autres, et pas de Moov', ['Espèces', 'MTN MoMoPay', 'Carte', 'Chèque', 'Autres'].every((x) => tuiles.includes(x)) && !tuiles.some((x) => /moov/i.test(x)), JSON.stringify(tuiles));
-dit('« Ce qu elle doit » est replié, son résumé sur la ligne', t.includes('Total 30') && (await evalue(`[...${modale}.querySelectorAll('section > button[aria-expanded]')].map((b) => b.getAttribute('aria-expanded')).join(',')`)) === 'false,true,false');
+dit('« Ce qu elle doit » est le ticket, toujours ouvert ; à gauche, « Comment elle paie » ouvert', /Total\s*30/.test(t) && (await evalue(`[...${modale}.querySelectorAll('section > button[aria-expanded]')].map((b) => b.getAttribute('aria-expanded')).join(',')`)) === 'true,false');
 dit('la barre dit où vont les 30 000 F', /30\s?000\s?F en espèces → Terrasse · Tiroir espèces/u.test(t), t.match(/[^.]*en espèces[^.]*/u)?.[0]);
 await capture('encaisser-bureau', 1280, 900, false);
 await capture('encaisser-telephone', 390, 844, true);

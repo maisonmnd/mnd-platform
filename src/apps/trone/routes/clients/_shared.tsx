@@ -2793,6 +2793,13 @@ function RdvModalCorps({
   /* Son rituel habituel se pose une fois par cliente choisie, jamais par-dessus une saisie. */
   const [habitudeDe, setHabitudeDe] = useState<string>(appt?.clientId ?? '');
   const basculeRang = (r: Rangee) => setRang((x) => (x === r ? '' : r));
+  /* LES ÉTAPES ET LE PANIER OUVRENT LEUR VOLET, ils ne le referment jamais
+     (4 novembre 2026, maquette 51siicjB…) : le volet vient sous les yeux. */
+  const ouvreLeVolet = (r: 'quoi' | 'quand' | 'plus') => {
+    setRang(r);
+    const titre = { quoi: 'La prestation', quand: 'Le jour, l’heure, le maître', plus: 'Prix, formule, note' }[r];
+    requestAnimationFrame(() => document.querySelector(`.trc-rdv4__volet[aria-label="${titre}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+  };
   const [debutChoisi, setDebutChoisi] = useState<string | null>(null);
   const [jourVu, setJourVu] = useState<string | null>(null);
   const [blocages] = useBlocages();
@@ -3533,7 +3540,7 @@ function RdvModalCorps({
   const montreSaVie = !!appt && estDirection;
   const montreSiens = !!clientId && sesRdv.some((a) => a.id !== appt?.id);
   return (
-    <Modal title={title ?? (appt ? 'Modifier le rendez-vous.' : 'Nouveau rendez-vous.')} onClose={onClose} width={720}>
+    <Modal title={title ?? (appt ? 'Modifier le rendez-vous.' : 'Nouveau rendez-vous.')} onClose={onClose} width={1120}>
       {(montreSaVie || montreSiens) && (
         <div className="tvie-entete">
           {montreSaVie && appt && (
@@ -3604,7 +3611,39 @@ function RdvModalCorps({
           </div>
         </div>
       ) : (
-      <div className="trc-rdv3">
+      <div className="trc-rdv3 trc-rdv5">
+        {/* LA FENÊTRE EN DEUX COLONNES — 4 novembre 2026 (maquette 51siicjB…,
+            « construis ») : à gauche les étapes et leurs volets, à droite le
+            panier, toujours sous les yeux, avec le total et le seul bouton
+            plein. Les règles de prix restent dans leurs volets. */}
+        <div className="trc-rdv5__gauche">
+        {/* LES TROIS ÉTAPES : où l'on en est d'un coup d'œil ; un toucher ouvre
+            l'étape, il ne la referme pas. */}
+        {!appt && (() => {
+          const fait1 = !!clientId && serviceIds.length > 0;
+          const ici = !fait1 ? 1 : !momentChoisi ? 2 : 3;
+          const etapes: { n: number; nom: string; dit: string; fait: boolean; volet: 'quoi' | 'quand' | 'plus' }[] = [
+            { n: 1, nom: 'Cliente et prestations', dit: fait1 ? `${serviceIds.length} geste${serviceIds.length > 1 ? 's' : ''}` : clientId ? 'à choisir' : 'la cliente d’abord', fait: fait1, volet: 'quoi' },
+            { n: 2, nom: 'Créneau', dit: momentChoisi ? `${jourCourtAn(date)} · ${time}` : 'à choisir', fait: momentChoisi, volet: 'quand' },
+            { n: 3, nom: 'Validation', dit: pret ? 'prête' : 'après les deux', fait: false, volet: 'plus' },
+          ];
+          return (
+            <nav className="trc-rdv5__etapes" aria-label="Les étapes du rendez-vous">
+              {etapes.map((e) => (
+                <button
+                  key={e.n} type="button"
+                  className={`trc-rdv5__etape${e.fait ? ' est-faite' : ''}${ici === e.n ? ' est-ici' : ''}`}
+                  aria-current={ici === e.n ? 'step' : undefined}
+                  disabled={!rdvClient}
+                  onClick={() => ouvreLeVolet(e.volet)}
+                >
+                  <b aria-hidden="true">{e.fait ? '✓' : e.n}</b>
+                  <span>{e.nom}<small>{e.dit}</small></span>
+                </button>
+              ))}
+            </nav>
+          );
+        })()}
         {/* LA SÉANCE DE SA FORMULE — 20 octobre 2026 : « Incluse · séance 3 sur
             6 », ce qu'il reste, et les gestes qui font bouger le compteur. */}
         {appt && appt.coveredBySub && appt.coverKind !== 'forfait' && <SeanceDeLaFormule appt={appt} onFait={onClose} />}
@@ -5351,9 +5390,62 @@ function RdvModalCorps({
           </div>
         )}
 
+        </div>
+        {/* LE PANIER — 4 novembre 2026 : chaque geste et son prix (barré quand
+            une remise de ligne le touche), la remise sur tout, le total en
+            grand. Un lien ouvre le volet où la remise se règle : les plafonds
+            du rôle et la remise du compte famille y restent seuls juges. */}
+        <aside className="trc-rdv5__panier" aria-label="Le panier du rendez-vous">
+          <span className="trc-rdv3__petit">Le panier</span>
+          {chosen.length === 0 ? (
+            <p className="trc-rdv5__vide">{rdvClient ? 'Aucune prestation : choisissez-en une à gauche.' : 'La cliente d’abord, puis ses prestations.'}</p>
+          ) : (
+            <div className="trc-rdv5__lignes">
+              {lignesAuTarif({ serviceIds, remisesLignes: remisesALaMain }, byId, tarifs).map((l) => (
+                <div key={`${l.i}-${l.sv.id}`} className="trc-rdv5__ligne">
+                  <span className="trc-rdv5__lib">
+                    {l.sv.name}
+                    <small>
+                      {fmtDureeCourte(l.sv.durationMin ?? 0)}
+                      {!sansPrix && !effCovered && !estSuite && (
+                        <>
+                          {' · '}
+                          <button type="button" className="trc-rdv5__lien" onClick={() => ouvreLeVolet('quoi')}>
+                            {l.net < l.plein ? `remise −${argent(l.plein - l.net)}` : 'remise sur ce geste'}
+                          </button>
+                        </>
+                      )}
+                    </small>
+                  </span>
+                  {!sansPrix && (
+                    <span className="trc-rdv5__mt">
+                      {l.net < l.plein && <s>{argent(l.plein)}</s>}
+                      {priceModeOf(l.sv) === 'devis' ? 'sur devis' : argent(l.net)}
+                    </span>
+                  )}
+                </div>
+              ))}
+              {!sansPrix && !effCovered && !estSuite && (effGross - totalXof > 0 ? (
+                <div className="trc-rdv5__ligne est-remise">
+                  <span className="trc-rdv5__lib">
+                    {forfaitPose ? 'Forfait' : remiseEstFamille ? 'Remise du compte famille' : 'Remise sur tout le rendez-vous'}
+                    <small><button type="button" className="trc-rdv5__lien" onClick={() => ouvreLeVolet('plus')}>la changer</button></small>
+                  </span>
+                  <span className="trc-rdv5__mt">−{argent(effGross - totalXof)}</span>
+                </div>
+              ) : (
+                <button type="button" className="trc-rdv5__lien trc-rdv5__ajout" onClick={() => ouvreLeVolet('plus')}>+ Remise sur tout, forfait ou formule</button>
+              ))}
+            </div>
+          )}
+          {!sansPrix && chosen.length > 0 && prixDuRituelDit && (
+            <div className="trc-rdv5__total"><span>Total</span><b>{prixDuRituelDit}</b></div>
+          )}
+          {!sansPrix && hasDeposit && <p className="trc-rdv5__vide">Acompte demandé à la pose : {argent(depositXof)}</p>}
         {/* LA BARRE COLLANTE : ce qu'on est en train de poser, toujours sous
             les yeux, et les boutons qui le posent. Elle remplace le bandeau
-            indigo du haut (14 août), qui disait la même chose. */}
+            indigo du haut (14 août), qui disait la même chose. Depuis le
+            4 novembre 2026, elle ferme le panier. */}
         <div className="trc-rdv3__barre">
           <div className="trc-rdv3__barre-texte">
             {pret ? (
@@ -5395,16 +5487,20 @@ function RdvModalCorps({
                   <input type="checkbox" checked={avecConfirmation} onChange={(e) => setAvecConfirmation(e.target.checked)} />
                   Confirmation WhatsApp
                 </label>
-                <Button variant="ghost" onClick={() => save('en attente')} disabled={!pret || bloque}>
-                  En attente
-                </Button>
+                {/* UN SEUL BOUTON PLEIN — 4 novembre 2026 : « Confirmer le RDV » ;
+                    l'attente et l'annulation en second. */}
                 <Button variant="copper" onClick={() => save('confirmé')} disabled={!pret || bloque}>
-                  {hasDeposit ? 'Poser et demander l’acompte' : 'Poser le rendez-vous'}
+                  {hasDeposit ? 'Confirmer et demander l’acompte' : 'Confirmer le RDV'}
                 </Button>
+                <Button variant="ghost" onClick={() => save('en attente')} disabled={!pret || bloque}>
+                  Mettre en attente
+                </Button>
+                <button type="button" className="trc-rdv3__lien trc-rdv3__lien--clair" onClick={onClose}>Annuler</button>
               </>
             )}
           </div>
         </div>
+        </aside>
       </div>
       )}
       {/* L'AUTRE RENDEZ-VOUS, PAR-DESSUS : posé hors de cette fenêtre (portail),
