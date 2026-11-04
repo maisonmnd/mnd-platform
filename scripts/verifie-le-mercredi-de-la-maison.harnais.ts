@@ -297,6 +297,44 @@ dit('l offre du jour ne se propose pas a la Caisse comme une offre de saison (el
   dit('les mots lus par la cliente : ni tiret long, ni maitre, ni salon', [], lus.filter((t) => /—|ma[iî]tre|\bsalons?\b/i.test(t)));
 }
 
+/* ══ 14 bis. Les shampoings, lavages et soins seuls (Yeman, 4 novembre 2026) ══
+   « Quand on remplit le fauteuil, la remise de 15 % est pour les shampoings, le
+   lavage et les soins uniquement », puis au selecteur : aucun geste Kids, toute
+   la reparation, le soin 2 en 1 aussi. Le reglage remplace la liste et les deux
+   phrases de MERCREDI15, et rien d'autre. */
+{
+  const sql = brut('supabase/reglage_mercredi_soins_seuls_20261104.sql').replace(/--[^\n]*/g, '');
+  dit('soins seuls : d abord la copie de repli, RLS aussitot', [true, true], [
+    /create table if not exists public\.repli_mnd_offers_20261104 as\s+select \* from public\.documents where key = 'mnd_offers';/.test(sql),
+    /alter table public\.repli_mnd_offers_20261104 enable row level security;/.test(sql),
+  ]);
+  const liste = sql.slice(sql.indexOf('where s.id in ('), sql.indexOf('and coalesce((s.data'));
+  const ids = [...liste.matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();
+  const DECIDES = [
+    'sv-dds-shp-e', 'sv-plt-05-ess-c', 'sv-plt-05-pre-c', 'sv-plt-05-sig-c',
+    'sv-dds-dec', 'sv-dds-soi-c', 'sv-plt-10-l', 'sv-plt-10-m', 'sv-plt-20-c', 'sv-plt-30-c', 'sv-plt-40-m',
+    'sv-forfait-sv-plt-60-wd-c',
+    'sv-atl-iv-gbp-prot', 'sv-finfin-legere', 'sv-atl-iv-gbe-c', 'sv-atl-iv-gbp-c', 'sv-plt-50-ret-r-c', 'sv-atl-iv-ala-c',
+  ].sort();
+  dit('soins seuls : les 18 gestes decides, ni reprise, ni creation, ni geste Kids', [DECIDES, []],
+    [ids, ids.filter((id) => /^(sv-kids-|sv-atl-ii-|sv-atl-i-|sv-gbeji-|sv-retouches-|sv-atl-iii-|sv-souv-|sv-sup-)/.test(id))]);
+  dit('soins seuls : les prestations archivees tombent d elles-memes', true, /and coalesce\(\(s\.data->>'archived'\)::boolean, false\) = false/.test(sql));
+  dit('soins seuls : seule MERCREDI15 change, a sa place, liste et phrases', [true, true, true, true], [
+    /case when upper\(coalesce\(t\.e->>'code', ''\)\) = 'MERCREDI15'\s+then t\.e \|\| neuf\.mots \|\| jsonb_build_object\('serviceIds', neuf\.ids\)\s+else t\.e end/.test(sql),
+    /order by t\.n\)\s+from jsonb_array_elements\(d\.data\) with ordinality as t\(e, n\)/.test(sql),
+    /where d\.key = 'mnd_offers'\s+and jsonb_typeof\(d\.data\) = 'array'/.test(sql),
+    !/'(discountPct|du|au|joursDeLaVenue|days|active|code)',/.test(sql.slice(sql.indexOf('with neuf as ('), sql.indexOf('update public.documents d'))),
+  ]);
+  dit('soins seuls : rejouable, rien ne s ecrit quand tout est deja la', true,
+    /and \(\(e->'serviceIds'\) is distinct from neuf\.ids or not \(e @> neuf\.mots\)\)/.test(sql));
+  dit('soins seuls : rien de destructif', null, /(drop\s+table|drop\s+schema|truncate|delete\s+from|drop\s+column)/i.exec(sql)?.[0] ?? null);
+  const lus = [...sql.matchAll(/'(sub|conditions)', '([^']*)'/g)].map((m) => m[2]);
+  dit('soins seuls : deux phrases qui disent shampoings, lavages et soins, sans tiret long, ni maitre, ni salon', [2, true, true, []], [
+    lus.length, /shampoings, lavages et soins/.test(lus[0] ?? ''), /les autres gestes gardent leur prix/.test(lus[1] ?? ''),
+    lus.filter((t) => /—|ma[iî]tre|salons?/i.test(t)),
+  ]);
+}
+
 /* ══ 15. La plus forte des deux (Yeman, au selecteur, 2 novembre 2026) ══
    « Famille + mercredi : la plus forte des deux, partout, jamais les deux. »
    On compare les francs, le mercredi APRES l'arrondi au millier ; a egalite,

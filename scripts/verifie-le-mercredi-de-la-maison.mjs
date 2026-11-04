@@ -25,6 +25,7 @@ const R = 'src/apps/revelateur/ilots/Reserver.tsx';
 const E = 'src/apps/trone/routes/equipe/EditeurDesOffres.tsx';
 const D = 'supabase/functions/demande-submit/index.ts';
 const Q = 'supabase/reglage_mercredi_de_la_maison_20261102.sql';
+const Q2 = 'supabase/reglage_mercredi_soins_seuls_20261104.sql';
 const PR = 'src/shared/prochain-rituel-pur.ts';
 const BL = 'src/apps/trone/routes/vente/SonProchainRituel.tsx';
 
@@ -100,6 +101,23 @@ const PANNES = [
     avant: 'alter table public.repli_mnd_offers_20261102 enable row level security;', apres: '' },
   { nom: 'le reglage ajoute deux fois', fichier: Q,
     avant: '   and not exists (', apres: '   and true or exists (' },
+  /* Les shampoings, lavages et soins seuls (Yeman, 4 novembre 2026). */
+  { nom: 'les soins seuls gardent la reprise', fichier: Q2,
+    avant: "       'sv-plt-40-m',               --", apres: "       'sv-plt-40-m', 'sv-atl-ii-e', --" },
+  { nom: 'les soins seuls oublient le soin 2 en 1', fichier: Q2,
+    avant: "       'sv-forfait-sv-plt-60-wd-c', --", apres: '       --' },
+  { nom: 'les soins seuls prennent un geste Kids', fichier: Q2,
+    avant: "       'sv-dds-shp-e',              --", apres: "       'sv-dds-shp-e', 'sv-kids-kloklo', --" },
+  { nom: 'les soins seuls sans repli RLS', fichier: Q2,
+    avant: 'alter table public.repli_mnd_offers_20261104 enable row level security;', apres: '' },
+  { nom: 'les soins seuls touchent toutes les offres', fichier: Q2,
+    avant: "case when upper(coalesce(t.e->>'code', '')) = 'MERCREDI15'", apres: 'case when true' },
+  { nom: 'les soins seuls melangent les offres', fichier: Q2,
+    avant: '                  order by t.n)', apres: '                  )' },
+  { nom: 'les soins seuls se reecrivent a chaque fois', fichier: Q2,
+    avant: "        and ((e->'serviceIds') is distinct from neuf.ids or not (e @> neuf.mots))", apres: '' },
+  { nom: 'les soins seuls disent encore le rituel', fichier: Q2,
+    avant: 'sur vos shampoings, lavages et soins, le jour', apres: 'sur votre rituel, le jour' },
   /* La plus forte des deux (Yeman, au selecteur, 2 novembre 2026 au soir). */
   { nom: 'la plus faible gardee', fichier: P,
     avant: "if (mercrediXof > familleXof) return { retenue: 'mercredi', familleXof, mercrediXof };", apres: "if (mercrediXof < familleXof) return { retenue: 'mercredi', familleXof, mercrediXof };" },
