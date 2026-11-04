@@ -55,8 +55,9 @@ const PANNES = [
   ['la Mini de 2026 perd sa promesse', 'src/shared/retouche-comprise-pur.ts', "|| (serviceId === CREATION_MINI && (date ?? '').slice(0, 10) < MINI_SANS_SINSIN_DES);", ';'],
   ['Nano et Pico ne promettent plus', 'src/shared/retouche-comprise-pur.ts', '  CREATIONS_AU_SINSIN_OFFERT.includes(serviceId)\n  ||', '  false\n  ||'],
   ['la reprise recopie le Regard', 'src/shared/reprise-nue.ts', "'retoucheComprise', 'sinsinOffert', 'regardDeduit', 'deduitSur',", "'retoucheComprise', 'sinsinOffert',"],
-  ['la reprise suit le rythme avant la Retouche', 'src/apps/trone/routes/clients/actions.tsx', '  if (imposee) {\n    const gardeI', '  if (false && imposee) {\n    const gardeI'],
-  ['la promesse ne passe pas a la Retouche posee', 'src/apps/trone/routes/clients/actions.tsx', '      sinsinOffert: imposee.sinsinOffert,\n', ''],
+  ['la carte suit le rythme avant la Retouche', 'src/apps/trone/routes/vente/SonProchainRituel.tsx', '  const rituels = useMemo(() => (imposee ? [] : sesProchainsRituels({', '  const rituels = useMemo(() => (false ? [] : sesProchainsRituels({'],
+  ['la Retouche jamais construite pour la carte', 'src/apps/trone/routes/vente/SonProchainRituel.tsx', '    return r ? laSuiteImposeeDuRituel(r) : null;', '    return r ? null : null;'],
+  ['la promesse ne passe pas a la Retouche posee', 'src/apps/trone/routes/clients/actions.tsx', '    sinsinOffert: imposee.sinsinOffert,\n', ''],
   /* Une seule horloge de fidelite */
   ['le Cercle ferme reconnait encore', 'src/shared/accounts.ts', '  const membreCercle = cercleOuvert && !convenu', '  const membreCercle = !convenu'],
   ['le Foyer ferme reconnait encore', 'src/shared/accounts.ts', '  const foyerAtteint = foyerOuvert && foyer &&', '  const foyerAtteint = foyer &&'],

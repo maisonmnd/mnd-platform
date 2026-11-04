@@ -344,7 +344,9 @@ contient('son prochain rituel : le compte, une seule remise, relu au toucher', B
   'const juge = lOffreDuJourAuTrone(offres, {', '      prixConvenus,\n      autreRemise: famPctA(iso) > 0 || tarif.gesteAuPanier,\n      rdvs: carnet,',
   'leMercrediDeLaPlace(p.iso, appointmentsStore.get())',
   'famPctDeLaTete(famPctDuFoyer, { prixConvenus, abonnee: !!contratPourLaDate(subs, clientId, iso, plans) })',
-  'remiseFamillePct: tarif.gesteAuPanier || tarif.baseFamilleXof <= 0 ? 0 : famPctA(iso),',
+  'const pct = tarif.gesteAuPanier || tarif.baseFamilleXof <= 0 ? 0 : famPctA(iso);',
+  /* Une seule remise sur le rendez-vous de la carte : la place, ou la famille. */
+  'remiseFamilleXof: mercredi ? 0 : familleXof(p.iso),',
   '{`${mercredi.phrase} · −${mercredi.offre.discountPct ?? 0} %`}', '&& !gesteSansRemise(sv) };');
 
 /* Le rendez-vous du foyer. */
@@ -352,12 +354,16 @@ contient('le foyer : la famille tete par tete, jamais sur le Rituel Sowa', F,
   'const famPct = famPctDeLaTete(famPctDuFoyer, {\n      prixConvenus: aUnPrixConvenu(l.tete),\n      abonnee: !!contratPourLaDate(subs, l.tete.id, date, plans),',
   "(regimeTarifaire(sv).k === 'forfait' || gesteSansRemise(sv))");
 
-/* La reprise et la visite reprogrammee. */
-dit('la reprise et la visite reprogrammee : la place ne suit pas, la famille suit la tete', [3, 1, 1, 0], [
+/* La reprise et la visite reprogrammee (4 novembre 2026) : ni l'une ni l'autre
+   ne se posent plus d'office ; la carte « Son prochain rituel » construit le
+   rendez-vous neuf, au tarif de sa tete, et ne recopie rien de la visite. Seule
+   La Retouche comprise part de la visite : sans sa place, sans sa famille. */
+dit('la suite imposee : la place ne suit pas, la famille non plus ; plus de visite reprogrammee', [1, 0, 0, 0, true], [
   A.split('...sansLaPlaceDuJour(appt),').length - 1,
   A.split('...laFamilleQuiSuitLaTete(appt, date),').length - 1,
   A.split('...laFamilleQuiSuitLaTete(appt, nextDate),').length - 1,
   A.split('...remiseFamilleQuiSuit(appt),').length - 1,
+  A.includes('    remiseFamille: undefined, remiseFamilleXof: undefined,\n'),
 ]);
 
 /* Systeme › Parametres. */

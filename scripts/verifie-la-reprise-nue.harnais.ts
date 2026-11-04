@@ -10,6 +10,7 @@
 import { readFileSync } from 'node:fs';
 import { sansLaVisite, reprisesARendreNues, CHAMPS_DE_LA_VISITE, pourquoiPasDeRepriseIci, rituelDeLaRepriseEffacee, CLOTURE_JOURS, prochainDejaPose } from '../src/shared/reprise-nue';
 import { poseLaReprise, honorAppointment } from '../src/apps/trone/routes/clients/actions';
+import { laCarteSOuvreApresLHonneur } from '../src/shared/carte-du-prochain-rituel';
 import { appointmentsStore } from '../src/shared/agenda';
 import { clientsStore } from '../src/shared/clients';
 import { apptPayState } from '../src/apps/trone/routes/clients/_shared';
@@ -39,71 +40,71 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
   dit('le rituel d avant n est pas touche', 8000, visite.paidXof);
 }
 
-/* ── 3. LA PANNE, sur le vrai poseLaReprise ── */
+/* ── 3. LA PANNE, ET SA FIN (4 novembre 2026) ──
+   Vicentia : deux clotures du meme soir posaient deux reprises. Depuis le
+   4 novembre 2026, la cloture ne pose plus rien : la carte « Son prochain
+   rituel » propose la suite, validee d'un toucher. Sur le VRAI honorAppointment. */
 {
   clientsStore.set([{ id: 'vic', branchId: 'b', name: 'Vicentia A', phone: '+22966000000', city: '', persona: 'p', since: '2025-01-01', segments: [], priceCoef: 1, loyaltyPoints: 0, rythmeSemaines: 5 } as never]);
-  const rituel = (id: string, sid: string, prix: number) => ({
+  const rituel = (id: string, sid: string) => ({
     id, branchId: 'b', clientId: 'vic', serviceIds: [sid], date: ilYa(3), time: '17:30', master: 'Team', status: 'confirmé',
   });
   appointmentsStore.set([
-    { ...rituel('h1', 's0', 0), date: ilYa(93), status: 'honoré' },
-    { ...rituel('h2', 's0', 0), date: ilYa(58), status: 'honoré' },
-    rituel('r1', 'styling', 2000), rituel('r2', 'signature', 8000),
+    { ...rituel('h1', 's0'), date: ilYa(93), status: 'honoré' },
+    { ...rituel('h2', 's0'), date: ilYa(58), status: 'honoré' },
+    rituel('r1', 'styling'), rituel('r2', 'signature'),
   ] as never);
-  /* Encaisser r1 : la somme s'ecrit, PUIS il s'honore et pose sa reprise. */
+  /* Encaisser : la somme s'ecrit, PUIS il s'honore, comme l'encaissement. */
   const encaisseEtHonore = (id: string, somme: number) => {
     appointmentsStore.set((prev) => prev.map((a) => (a.id === id
-      ? { ...a, paidXof: somme, payments: [{ id: `p-${id}`, amountXof: somme, date: '2026-10-02' }], status: 'honoré' } : a)));
-    return poseLaReprise(appointmentsStore.get().find((a) => a.id === id)!);
+      ? { ...a, paidXof: somme, payments: [{ id: `p-${id}`, amountXof: somme, date: '2026-10-02' }] } : a)));
+    return honorAppointment(appointmentsStore.get().find((a) => a.id === id)! as never, new Map(), { muet: true });
   };
   const premiere = encaisseEtHonore('r1', 2000);
-  dit('la premiere cloture pose sa reprise', true, !!premiere.pose);
-  const reprise = appointmentsStore.get().find((a) => a.repriseDe === 'r1');
-  dit('LA REPRISE NAIT NUE : aucune somme reglee', [undefined, undefined], [reprise?.paidXof, reprise?.payments]);
-  dit('... donc elle n est pas « payee »', 'impayé', reprise ? apptPayState({ ...reprise, priceXof: 2000 }, new Map()) : null);
-  const seconde = encaisseEtHonore('r2', 8000);
-  /* Garde d'avant le 2 octobre (« elle a deja un rendez-vous a venir ») : elle tient sur un seul poste. */
-  dit('la seconde cloture du meme soir ne pose rien', [false, true], [!!seconde.pose, /rendez-vous/.test(seconde.raison ?? '')]);
-  dit('... la tete n a qu une reprise', 1, appointmentsStore.get().filter((a) => a.repriseDe).length);
+  const aVenir = () => appointmentsStore.get().filter((a) => a.clientId === 'vic' && a.date > ilYa(0)).length;
+  dit('la cloture ne pose plus rien d office : la carte propose', [false, 0], [!!premiere.reprise.pose, aVenir()]);
+  encaisseEtHonore('r2', 8000);
+  dit('... la seconde cloture du meme soir non plus', 0, aVenir());
+  dit('poseLaReprise, que le selecteur de la fenetre appelle encore, ne pose rien et ne dit rien', [{}, 0],
+    [poseLaReprise(appointmentsStore.get().find((a) => a.id === 'r1')!), aVenir()]);
 }
 
-/* ── 3 bis. UNE REPRISE NE REVIENT PAS TOUTE SEULE (2 octobre 2026) ──
-   Shegun : sa reprise du 30 octobre, effacee, revenait a chaque sauvegarde.
-   Nathael : un rituel d'il y a cinq semaines, ressaisi, posait un rendez-vous
-   pour le lendemain. Rejoue sur le VRAI poseLaReprise. */
+/* ── 3 bis. QUAND LA CARTE S'OUVRE APRES « HONORE » (4 novembre 2026) ──
+   Les gardes de l'ancienne reprise disent desormais QUAND la carte se
+   propose au Carnet : Shegun (sa suite effacee a la main ne revient pas),
+   Nathael (un rituel d'il y a cinq semaines, ou qui n'est pas le dernier, ne
+   la propose pas). Sur la VRAIE porte du Carnet. */
 {
   const tete = (id: string) => ({ id, branchId: 'b', name: `Tete ${id}`, phone: '+22966000001', city: '', persona: 'p', since: '2025-01-01', segments: [], priceCoef: 1, loyaltyPoints: 0, rythmeSemaines: 4 });
-  const rdv = (id: string, clientId: string, date: string, status = 'honoré') => ({ id, branchId: 'b', clientId, serviceIds: ['s1'], date, time: '11:00', master: 'Team', status });
+  const rdv = (id: string, clientId: string, date: string, status = 'honoré', plus: Record<string, unknown> = {}) => ({ id, branchId: 'b', clientId, serviceIds: ['s1'], date, time: '11:00', master: 'Team', status, ...plus });
   clientsStore.set([tete('she'), tete('nat')] as never);
 
-  /* Shegun : honoree aujourd'hui, sa reprise se pose ; on l'efface comme le Carnet. */
   appointmentsStore.set([rdv('s1', 'she', ilYa(60)), rdv('s2', 'she', ilYa(30)), rdv('s3', 'she', ilYa(0))] as never);
-  const pose = poseLaReprise(appointmentsStore.get().find((a) => a.id === 's3')!);
-  dit('Shegun : la cloture du jour pose sa reprise', true, !!pose.pose);
-  const reprise = appointmentsStore.get().find((a) => a.repriseDe === 's3')!;
-  const marque = rituelDeLaRepriseEffacee(reprise);
-  appointmentsStore.set((prev) => prev.filter((x) => x.id !== reprise.id).map((x) => (x.id === marque ? { ...x, repriseRetiree: true } : x)));
-  const encore = poseLaReprise(appointmentsStore.get().find((a) => a.id === 's3')!);
-  dit('... effacee a la main, la sauvegarde suivante ne la repose PAS', [false, 'sa reprise a été retirée à la main'], [!!encore.pose, encore.raison]);
-  dit('... et la tete n a aucun rendez-vous a venir', 0, appointmentsStore.get().filter((a) => a.clientId === 'she' && a.date > ilYa(0)).length);
-  dit('... la marque ne passe pas a une reprise future', true, CHAMPS_DE_LA_VISITE.includes('repriseRetiree' as never));
+  dit('Shegun : honoree aujourd hui, la carte se propose', true, laCarteSOuvreApresLHonneur('s3'));
+  appointmentsStore.set((prev) => prev.map((x) => (x.id === 's3' ? { ...x, repriseRetiree: true } : x)));
+  dit('... sa suite retiree a la main, la carte ne revient pas', false, laCarteSOuvreApresLHonneur('s3'));
+  appointmentsStore.set([rdv('s1', 'she', ilYa(60)), rdv('s3', 'she', ilYa(0)), rdv('s4', 'she', ilYa(-20), 'confirmé')] as never);
+  dit('... un rendez-vous deja pose : la carte ne s ouvre pas (le bandeau le dit)', false, laCarteSOuvreApresLHonneur('s3'));
+  appointmentsStore.set([rdv('s3', 'she', ilYa(0)), rdv('s5', 'she', ilYa(-28), 'confirmé', { repriseDe: 's3' })] as never);
+  dit('... sa suite deja posee par la carte : elle ne s ouvre pas une seconde fois', false, laCarteSOuvreApresLHonneur('s3'));
 
-  /* Nathael : un rituel d'il y a cinq semaines, ressaisi aujourd'hui. */
   appointmentsStore.set([rdv('n0', 'nat', ilYa(70)), rdv('n1', 'nat', ilYa(35))] as never);
-  const vieux = poseLaReprise(appointmentsStore.get().find((a) => a.id === 'n1')!);
-  dit(`Nathael : un rituel de plus de ${CLOTURE_JOURS} jours ne pose rien`, [false, true], [!!vieux.pose, /plus de 14 jours/.test(vieux.raison ?? '')]);
-  /* Un rituel recent, mais pas le dernier. */
+  dit(`Nathael : un rituel de plus de ${CLOTURE_JOURS} jours ne la propose pas`, false, laCarteSOuvreApresLHonneur('n1'));
   appointmentsStore.set([rdv('n0', 'nat', ilYa(40)), rdv('n1', 'nat', ilYa(10)), rdv('n2', 'nat', ilYa(3))] as never);
-  const pasLeDernier = poseLaReprise(appointmentsStore.get().find((a) => a.id === 'n1')!);
-  dit('... un rituel qui n est pas le dernier ne pose rien', [false, true], [!!pasLeDernier.pose, /plus récent/.test(pasLeDernier.raison ?? '')]);
-  dit('... le dernier, lui, pose sa reprise', true, !!poseLaReprise(appointmentsStore.get().find((a) => a.id === 'n2')!).pose);
+  dit('... un rituel qui n est pas le dernier non plus', false, laCarteSOuvreApresLHonneur('n1'));
+  dit('... le dernier, lui, la propose', true, laCarteSOuvreApresLHonneur('n2'));
+  dit('... un rituel absent du carnet ne la propose pas', false, laCarteSOuvreApresLHonneur('n3-absent'));
   dit('la regle pure : un rituel annule ne compte pas comme plus recent', null,
     pourquoiPasDeRepriseIci({ id: 'a', clientId: 'x', date: ilYa(2) }, [{ id: 'b', clientId: 'x', date: ilYa(1), status: 'annulé' }], ilYa(0)));
+  dit('la regle pure : une suite retiree a la main se dit', 'sa reprise a été retirée à la main',
+    pourquoiPasDeRepriseIci({ id: 'a', clientId: 'x', date: ilYa(0), repriseRetiree: true }, [], ilYa(0)));
+  dit('la marque ne passe pas a une suite future', true, CHAMPS_DE_LA_VISITE.includes('repriseRetiree' as never));
 
-  /* Les deux chemins de suppression laissent la marque. */
+  /* Les chemins de suppression laissent la marque : le Carnet, la fenetre,
+     et « Pas de prochain rendez-vous » sur la carte. */
   const sansCom = (f: string) => readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-  for (const f of ['src/apps/trone/routes/clients/Carnet.tsx', 'src/apps/trone/routes/clients/_shared.tsx']) {
-    dit(`${f.split('/').pop()} : supprimer une reprise laisse la marque sur son rituel`, true,
+  for (const f of ['src/apps/trone/routes/clients/Carnet.tsx', 'src/apps/trone/routes/clients/_shared.tsx', 'src/shared/carte-du-prochain-rituel.ts']) {
+    dit(`${f.split('/').pop()} : supprimer une suite laisse la marque sur son rituel`, true,
       /rituelDeLaRepriseEffacee\(/.test(sansCom(f)) && /repriseRetiree: true/.test(sansCom(f)));
   }
 }
@@ -135,10 +136,16 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
   dit('un rendez-vous a venir de la tete bloque aussi (le plus proche)', 'n3', prochainDejaPose(rituel, [rituel, { ...suite, repriseDe: undefined }, autre], auj)?.id);
   dit('un rendez-vous annule ou passe ne bloque pas', null, prochainDejaPose(rituel, [rituel, { ...autre, status: 'annulé' }, { ...autre, id: 'n4', date: ilYa(5) }], auj));
   const actions = readFileSync('src/apps/trone/routes/clients/actions.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-  dit('« Reprogrammer » a l encaissement passe par la garde', true,
-    /const dejaPose = reschedule \? prochainDejaPose\(appt, appointmentsStore\.get\(\), todayISO\(\)\) : null;\s*if \(reschedule && nextDate && !dejaPose\)/.test(actions));
-  dit('... et relie ce qu il pose a son rituel', true, /note: 'Reprogrammé depuis l’encaissement',\s*repriseDe: appt\.id,/.test(actions));
-  dit('la reprise de la cloture passe par la meme garde', true, /const aVenir = prochainDejaPose\(appt, tous, todayISO\(\)\);/.test(actions));
+  /* 4 novembre 2026 : l'interrupteur « Reprogrammer » d'avant l'encaissement
+     est retire ; la carte « Son prochain rituel » passe par la meme garde et
+     relie ce qu'elle pose a son rituel. */
+  const carte = readFileSync('src/apps/trone/routes/vente/SonProchainRituel.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const porte = readFileSync('src/shared/carte-du-prochain-rituel.ts', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  dit('l interrupteur « Reprogrammer » n existe plus a l encaissement', [false, false],
+    [/\breschedule\b|setReschedule/.test(actions), /Reprogrammer le prochain rendez-vous|Reprogrammé depuis l’encaissement/.test(actions)]);
+  dit('la carte passe par la garde, et relie ce qu elle pose a son rituel', [true, true],
+    [/return prochainDejaPose\(repere, tous\.filter\(/.test(carte), /repriseDe: rituelId,/.test(carte)]);
+  dit('la porte du Carnet passe par la meme garde', true, /!pourquoiPasDeRepriseIci\(rituel, tous, jour\) && !prochainDejaPose\(rituel, tous, jour\)/.test(porte));
 }
 
 /* ── 4 ter. On n'honore pas ce qui n'a pas eu lieu (4 octobre 2026, Nadège K. :
@@ -169,7 +176,7 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
 /* ── 5. Branche ── */
 {
   const actions = readFileSync('src/apps/trone/routes/clients/actions.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-  dit('poseLaReprise part de la visite debarrassee', true, /\.\.\.sansLaVisite\(appt\),/.test(actions));
+  dit('la suite imposee (La Retouche comprise) part de la visite debarrassee', true, /export function laSuiteImposeeDuRituel[\s\S]*?\.\.\.sansLaVisite\(appt\),\s*\.\.\.sansLaPlaceDuJour\(appt\),/.test(actions));
   const shell = readFileSync('src/apps/trone/shell/Shell.tsx', 'utf8');
   dit('la reparation est montee dans le Trone', true, /useReprisesNuesVivant\(\);/.test(shell));
 }

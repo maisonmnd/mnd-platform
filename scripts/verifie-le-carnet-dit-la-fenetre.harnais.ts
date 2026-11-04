@@ -96,13 +96,18 @@ const repriseNue = (plus: Partial<Appointment> = {}) => ({
   date: '2026-12-19', time: '10:00', master: 'Team', status: 'confirmé', source: 'trone', repriseDe: 'kk-0910', ...plus,
 } as unknown as Appointment);
 
-/* ── 1. L'honneur du 9 octobre 2026 ── */
+/* ── 1. L'honneur du 9 octobre 2026 ──
+   Depuis le 4 novembre 2026, honorer ne pose plus la reprise d'office : la
+   carte « Son prochain rituel » la propose, validee d'un toucher. La reprise
+   du 19 decembre de K. K., posee le 9 octobre par la cloture d'alors, vit
+   toujours au carnet : on la remet telle que la cloture la posait. */
 horloge('2026-10-09');
 neuf([KK], [RDV_0910]);
 honorAppointment(lu('kk-0910'), byId, { muet: true });
+dit('honorer ne pose plus la reprise d office (4 novembre 2026)', 0, appointmentsStore.get().filter((a) => a.repriseDe === 'kk-0910').length);
+appointmentsStore.set((prev) => [...prev, repriseNue()]);
 const R = appointmentsStore.get().find((a) => a.repriseDe === 'kk-0910') as Appointment;
-dit('honorer le 9 octobre pose la reprise', true, !!R);
-dit('... le 19 decembre 2026', '2026-12-19', R?.date);
+dit('la reprise posee par la cloture d alors : le 19 decembre 2026', '2026-12-19', R?.date);
 dit('... sans prix', undefined, R?.priceXof);
 dit('le 9 octobre garde son prix', 35000, lu('kk-0910').priceXof);
 
@@ -243,7 +248,8 @@ else {
     new RegExp(String.raw`\.\.\.prixAFiger\(a, byId\), status: 'honoré'`).test(actions),
     new RegExp(String.raw`const freeze = prixFigeAuReglement\(appt, byId, \{ settleTotal, totalGamme \}\);`).test(actions)
       && new RegExp(String.raw`const prixFige = e\.settleTotal > 0 \|\| e\.totalGamme > 0 \? prixAFiger\(appt, byId\) : \{\};`).test(auReglement),
-    new RegExp(String.raw`const newAppt: Appointment = \{\s*\.\.\.sansLaVisite\(appt\),`).test(actions),
+    /* La visite reprogrammee est retiree (4 novembre 2026) : seule La Retouche comprise part encore de la visite, nue. */
+    new RegExp(String.raw`const suite: Appointment = \{\s*\.\.\.sansLaVisite\(appt\),`).test(actions),
     new RegExp(String.raw`priceXof: appt\.priceXof \?\? apptTotalXof`).test(actions),
   ]);
   const caisse = sansCom('src/apps/trone/routes/vente/Caisse.tsx');
@@ -345,10 +351,11 @@ else {
   dit('actions : des-honorer et remettre a zero passent par rituelDeshonore, la visite suivante garde sa remise famille', [true, true, true], [
     new RegExp(String.raw`a\.id === frais\.id \? rituelDeshonore\(a, byId\) : a`).test(actions),
     new RegExp(String.raw`a\.status === 'honoré' \? rituelDeshonore\(a, parIdDuCatalogue\) : a`).test(actions),
-    /* Une seule remise (4 novembre 2026) : la place du jour ne suit pas, la famille suit
-       par laFamilleQuiSuitLaTete, qui rend remiseFamilleQuiSuit sauf prix convenus ou abonnee. */
-    new RegExp(String.raw`\.\.\.sansLaVisite\(appt\),\s*\.\.\.sansLaPlaceDuJour\(appt\),\s*\.\.\.laFamilleQuiSuitLaTete\(appt, \w+\),`).test(actions)
-      && /return suit \? remiseFamilleQuiSuit\(appt\) : \{ remiseFamille: undefined, remiseFamilleXof: undefined \};/.test(actions),
+    /* La suite (4 novembre 2026) : la carte « Son prochain rituel » construit
+       un rendez-vous neuf, la remise famille de sa tete rejugee a la date de
+       la place ; seule La Retouche comprise part de la visite, sans sa place. */
+    new RegExp(String.raw`\.\.\.sansLaVisite\(appt\),\s*\.\.\.sansLaPlaceDuJour\(appt\),`).test(actions)
+      && !/laFamilleQuiSuitLaTete/.test(actions),
   ]);
   const caisse = sansCom('src/apps/trone/routes/vente/Caisse.tsx');
   dit('Caisse : le prix fige est celui du ticket, la remise se mesure contre lui', [true, false, true], [
@@ -393,19 +400,22 @@ else {
     new RegExp(String.raw`prixFigeParLArgent: fige\.priceXof`).test(caisse),
   ]);
 
-  /* ── 16. La reprise de la cloture garde la remise famille (10 octobre 2026) ──
-     Le meme geste que la visite reprogrammee, dans le corps de `poseLaReprise`. */
+  /* ── 16. La suite garde la remise famille de sa tete (10 octobre, 4 novembre 2026) ──
+     La reprise d'office est retiree : la carte « Son prochain rituel » pose
+     la suite, la remise famille de sa tete rejugee a la date de la place (une
+     tete aux prix convenus ou abonnee n'en a pas), en francs, comme la
+     fenetre la fige ; une seule remise : la place limitee, ou la famille. */
   const corpsDe = (src: string, debut: string, fin: string) => {
     const i = src.indexOf(debut); const j = i < 0 ? -1 : src.indexOf(fin, i + debut.length);
     return i < 0 || j < 0 ? '' : src.slice(i, j);
   };
-  const laReprise = corpsDe(actions, 'export function poseLaReprise', 'export function honorAppointment');
-  dit('poseLaReprise : sansLaVisite puis remiseFamilleQuiSuit', [true, true], [
-    laReprise.length > 0,
-    /* Une seule remise (4 novembre 2026) : la place du jour ne suit pas, la famille suit
-       par laFamilleQuiSuitLaTete, qui rend remiseFamilleQuiSuit sauf prix convenus ou abonnee. */
-    new RegExp(String.raw`\.\.\.sansLaVisite\(appt\),\s*\.\.\.sansLaPlaceDuJour\(appt\),\s*\.\.\.laFamilleQuiSuitLaTete\(appt, \w+\),`).test(laReprise)
-      && /return suit \? remiseFamilleQuiSuit\(appt\) : \{ remiseFamille: undefined, remiseFamilleXof: undefined \};/.test(actions),
+  const laCarte = readFileSync('src/apps/trone/routes/vente/SonProchainRituel.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const prochainPur = readFileSync('src/shared/prochain-rituel-pur.ts', 'utf8');
+  dit('la suite : la remise famille de sa tete, rejugee a sa date, figee en francs comme la fenetre', [true, true, true, false], [
+    laCarte.includes('famPctDeLaTete(famPctDuFoyer, { prixConvenus, abonnee: !!contratPourLaDate(subs, clientId, iso, plans) })'),
+    laCarte.includes('remiseFamilleXof: mercredi ? 0 : familleXof(p.iso),'),
+    prochainPur.includes('...(famille > 0 ? { discountXof: famille, remiseFamille: true, remiseFamilleXof: famille } : {}),'),
+    /laFamilleQuiSuitLaTete|remiseFamilleQuiSuit\(appt\)/.test(actions),
   ]);
 
   /* ── 17. Les cinq autres ecrans suivent la clef du tarif (10 octobre 2026) ──

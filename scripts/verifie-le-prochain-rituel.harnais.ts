@@ -214,16 +214,32 @@ const bloc = lis('PROCHAIN_BLOC', 'src/apps/trone/routes/vente/SonProchainRituel
 const caisse = lis('PROCHAIN_CAISSE', 'src/apps/trone/routes/vente/Caisse.tsx');
 const fenetre = lis('PROCHAIN_FENETRE', 'src/apps/trone/routes/clients/_shared.tsx');
 
-const iRelit = bloc.indexOf('if (!laPlaceTient(fraiches, p.heure)) {');
-const iConstruit = bloc.indexOf('const rdv = leRendezVousDuProchainRituel({');
-const iPose = bloc.indexOf('const pose = poseUnRendezVous(rdv);');
-dit('le toucher relit la place sur le carnet DU MOMENT, puis construit, puis pose par le geste de la fenêtre', [true, true, true],
-  [bloc.includes('const fraiches = placesDe(appointmentsStore.get(), blocagesStore.get(), tarif.dureeMin, maitre)(p.iso);'),
-    iRelit > 0 && iRelit < iConstruit && iConstruit < iPose, !/appointmentsStore\.set\(/.test(bloc)]);
+/* LA CARTE PARTAGÉE (4 novembre 2026) : un geste passe par la règle pure ;
+   la place se relit sur le carnet DU MOMENT avant tout effet ; puis l'effet
+   « poser » construit (UNE fonction) et pose par le geste de la fenêtre. */
+const corpsDe = (debut: string, fin: string) => { const i = bloc.indexOf(debut); const j = bloc.indexOf(fin, i + 1); return i >= 0 && j > i ? bloc.slice(i, j) : ''; };
+const leGeste = corpsDe('const fais = (g: GesteDeLaCarte) => {', 'const terminer = () =>');
+const lEffet = corpsDe('const execute = (f: EffetDeLaCarte, apres: EtatDeLaCarte) => {', 'const fais = (g: GesteDeLaCarte) => {');
+const leRdv = corpsDe('const construis = (p: PlaceDeLaCarte, id: string): Appointment | null => {', 'const ouvreLaFenetre =');
+const iRelit = leGeste.indexOf('if (!laPlaceTient(fraiches, p.heure)) {');
+dit('le toucher relit la place sur le carnet DU MOMENT, puis construit, puis pose par le geste de la fenêtre', [true, true, true, true],
+  [leGeste.includes('const fraiches = placesDe(appointmentsStore.get(), blocagesStore.get(), tarif.dureeMin, maitre)(p.iso);'),
+    iRelit > 0 && iRelit < leGeste.indexOf('for (const f of r.effets) execute(f, r.etat);'),
+    leRdv.includes('const rdv = leRendezVousDuProchainRituel({') && /if \(f\.genre === 'poser'\) \{\n\s*const rdv = construis\(f\.place, f\.id\);\n\s*if \(!rdv\) return;\n\s*const pose = poseUnRendezVous\(rdv\);/.test(lEffet),
+    !/appointmentsStore\.set\(/.test(bloc)]);
 dit('un rituel qui demande sa fiche ouvre la fenêtre sur la place, sans rien poser', true,
-  /if \(casAPart\(p\.iso\)\) \{\n\s*onALaMain\(\{ clientId, serviceIds: rituel\.ids, date: p\.iso, time: p\.heure, master: maitre \}\);\n\s*return;\n\s*\}/.test(bloc)
-    && bloc.indexOf('if (casAPart(p.iso)) {') < iPose);
-dit('« Pas maintenant » ne fait que fermer', true, bloc.includes('onClick={() => setFerme(true)}>Pas maintenant</Button>'));
+  /if \(casAPart\(p\.iso\)\) \{[\s\S]*?ouvreLaFenetre\(lu \? \{ appt: lu \} : \{ place: p \}\);\n\s*return;\n\s*\}/.test(leGeste)
+    && leGeste.indexOf('if (casAPart(p.iso)) {') < leGeste.indexOf('execute(f, r.etat)'));
+dit('« Terminer » passe par la carte, la confirmation se lève à la fermeture, et si l écran disparaît', [true, true, true], [
+  bloc.includes("const terminer = () => fais({ genre: 'terminer' });"),
+  /\} else if \(f\.genre === 'confirmer'\) \{\n\s*leveLaConfirmation\(f\.rdvId\);/.test(lEffet),
+  /useEffect\(\(\) => \(\) => \{\n\s*const c = carteRef\.current;\n\s*if \(c\.valide && c\.rdvId && !c\.dejaLa && !c\.retire && c\.pied !== 'termine'\) leveLaConfirmation\(c\.rdvId\);/.test(bloc),
+]);
+dit('un rituel, un seul prochain : le rendez-vous déjà là se montre, et la carte relie le sien à son rituel', [true, true, true], [
+  bloc.includes('return prochainDejaPose(repere, tous.filter('),
+  bloc.includes('    deja: dejaPose ? { id: dejaPose.id, iso: dejaPose.date, heure: dejaPose.time } : null,'),
+  leRdv.includes('      repriseDe: rituelId,'),
+]);
 dit('le bloc lit ses rituels comme Ma Couronne : successeurs, créations, paiement du jour, cadence', [true, true, true, true], [
   bloc.includes('successeur: (id) => SUCCESSEURS[id],'),
   bloc.includes('estCreation: (id) => { const sv = byId.get(id); return !!sv && fondeLaCouronne(sv); },'),
@@ -239,9 +255,9 @@ dit('les places de la fenêtre : fauteuils, ouverture du jour, murs du maître, 
   /placesDuJour\(\{[\s\S]*?ouverture: openingForIso\(iso\),[\s\S]*?sieges,\n\s*\}\)/.test(bloc),
   bloc.includes('bloques: plagesBloquees(murs, branch.id, iso, qui),'),
   bloc.includes(".filter((a) => a.branchId === branch.id && a.date === iso && a.status !== 'annulé')"),
-  bloc.includes('heureHabituelle: heureHabituelle(sesVenues),'),
+  bloc.includes('const sonHeure = heureHabituelle(sesVenues);') && bloc.includes('      heureHabituelle: sonHeure,'),
 ]);
-dit('aucun « sansConfirmation » à la Caisse : la confirmation habituelle part', false, /sansConfirmation/.test(bloc));
+dit('la carte pose SANS confirmation tant qu elle est ouverte (une seule, à la fermeture)', true, leRdv.includes('      sansConfirmation: true,'));
 /* Les commentaires ôtés, il reste le code, ses chaînes et le texte du JSX :
    tout ce que l'écran peut dire. */
 dit('aucun tiret long ni émoji dans ce que l écran dit', [false, false], [bloc.includes('—'), /\p{Extended_Pictographic}/u.test(bloc)]);

@@ -131,11 +131,18 @@ dit('ni Kofi ni « Retouches Post Création » dans le socle', [], socle.filter(
 /* ── 7. Les écrans (commentaires effacés) ── */
 const sansCom = (f: string) => readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 const actions = sansCom('src/apps/trone/routes/clients/actions.tsx');
-dit('la reprise : la suite imposee AVANT le rythme, et a l encaissement aussi', [true, true], [
-  /const imposee = suiteImposee\([\s\S]*?if \(imposee\) \{[\s\S]*?return \{ pose: suiteI \};\s*\}\s*const rythme = rythmeDeReprise\(cliente, tous\);/.test(actions),
-  /const imposeeE = suiteImposee\(/.test(actions),
+/* 4 novembre 2026 : la reprise d'office et la visite reprogrammee sont
+   retirees. La suite imposee se construit en UN endroit
+   (`laSuiteImposeeDuRituel`), et la carte « Son prochain rituel » (la meme
+   a l'encaissement, a la Caisse et au Carnet) la propose AVANT son rituel
+   habituel. */
+const carteDuProchain = sansCom('src/apps/trone/routes/vente/SonProchainRituel.tsx');
+dit('la suite : la suite imposee AVANT le rythme, la meme carte partout', [true, true, true], [
+  /export function laSuiteImposeeDuRituel[\s\S]*?const imposee = suiteImposee\(appt,[\s\S]*?if \(!imposee\) return null;/.test(actions),
+  /return r \? laSuiteImposeeDuRituel\(r\) : null;/.test(carteDuProchain),
+  /const rituels = useMemo\(\(\) => \(imposee \? \[\] : sesProchainsRituels\(\{/.test(carteDuProchain),
 ]);
-dit('la promesse du SINSIN passe a la Retouche posee, aux deux chemins', 2, (actions.match(/sinsinOffert: imposeeE?\.sinsinOffert/g) ?? []).length);
+dit('la promesse du SINSIN passe a la Retouche posee, en un seul endroit', 1, (actions.match(/sinsinOffert: imposee\.sinsinOffert/g) ?? []).length);
 dit('les interrupteurs eteints par defaut, les sceaux gardes', [true, true, true], [
   /cercleActifStore = createStore<boolean>\('mnd_cercle_actif', false\)/.test(sansCom('src/shared/offers.ts')),
   /foyerActifStore = createStore<boolean>\('mnd_foyer_actif', false\)/.test(sansCom('src/shared/offers.ts')),

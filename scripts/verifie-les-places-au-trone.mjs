@@ -180,6 +180,10 @@ const PANNES = [
     avant: 'leMercrediDeLaPlace(p.iso, appointmentsStore.get())', apres: 'leMercrediDeLaPlace(p.iso)' },
   { nom: 'le prochain rituel : la famille d une tete aux prix convenus', fichier: B,
     avant: 'famPctDeLaTete(famPctDuFoyer, { prixConvenus, abonnee: !!contratPourLaDate(subs, clientId, iso, plans) })', apres: 'famPctDuFoyer' },
+  { nom: 'le prochain rituel pose la famille sur un geste offert', fichier: B,
+    avant: 'const pct = tarif.gesteAuPanier || tarif.baseFamilleXof <= 0 ? 0 : famPctA(iso);', apres: 'const pct = famPctA(iso);' },
+  { nom: 'le prochain rituel cumule la place et la famille sur le rendez-vous', fichier: B,
+    avant: 'remiseFamilleXof: mercredi ? 0 : familleXof(p.iso),', apres: 'remiseFamilleXof: familleXof(p.iso),' },
   { nom: 'la place du prochain rituel sans decompte', fichier: B,
     avant: '{`${mercredi.phrase} · −${mercredi.offre.discountPct ?? 0} %`}', apres: '{`${mercredi.offre.title} · −${mercredi.offre.discountPct ?? 0} %`}' },
 
@@ -188,12 +192,14 @@ const PANNES = [
     avant: 'prixConvenus: aUnPrixConvenu(l.tete),', apres: 'prixConvenus: false,' },
   { nom: 'le foyer : la famille sur le Rituel Sowa', fichier: F,
     avant: "(regimeTarifaire(sv).k === 'forfait' || gesteSansRemise(sv))", apres: "regimeTarifaire(sv).k === 'forfait'" },
-  { nom: 'la reprise garde la place', fichier: A,
-    avant: '    ...sansLaPlaceDuJour(appt),\n    ...laFamilleQuiSuitLaTete(appt, date),', apres: '    ...laFamilleQuiSuitLaTete(appt, date),' },
-  { nom: 'la famille suit une tete aux prix convenus a la reprise', fichier: A,
-    avant: '...laFamilleQuiSuitLaTete(appt, date),', apres: '...remiseFamilleQuiSuit(appt),' },
-  { nom: 'la visite reprogrammee garde la place', fichier: A,
-    avant: '        ...sansLaPlaceDuJour(appt),\n        ...laFamilleQuiSuitLaTete(appt, nextDate),', apres: '        ...laFamilleQuiSuitLaTete(appt, nextDate),' },
+  /* 4 novembre 2026 : la reprise d'office et la visite reprogrammee sont
+     retirees ; seule La Retouche comprise part encore de la visite. */
+  { nom: 'la Retouche comprise garde la place', fichier: A,
+    avant: '    ...sansLaPlaceDuJour(appt),\n    lienDeReglement: undefined,', apres: '    lienDeReglement: undefined,' },
+  { nom: 'la Retouche comprise prend la famille de la visite', fichier: A,
+    avant: '    remiseFamille: undefined, remiseFamilleXof: undefined,\n', apres: '' },
+  { nom: 'la visite reprogrammee revient', fichier: A,
+    avant: '    ...sansLaVisite(appt),\n    /* La place limitée ne suit pas (4 novembre 2026) ; la famille non plus,', apres: '    ...sansLaVisite(appt),\n    ...laFamilleQuiSuitLaTete(appt, nextDate),\n    /* La place limitée ne suit pas (4 novembre 2026) ; la famille non plus,' },
 
   /* Systeme › Parametres. */
   { nom: 'pas de carte des places', fichier: PR,
