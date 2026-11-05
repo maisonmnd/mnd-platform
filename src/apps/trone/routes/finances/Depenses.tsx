@@ -49,6 +49,9 @@ import { ChampDeDate } from '../../../../ds/dates';
 import { reponsesManquantes, ditCeQuiManque, compteDesReponses, derniereDepenseDe, ditLaDerniereFois, groupeParJour, ditLeJour } from '../../../../shared/depenses-saisie';
 import { champsRemplis, cuivreSi, formulaireDepuisLaLecture, type ChampDuRecu } from '../../../../shared/ia-recu-pur';
 import { PhotoDuRecu } from './PhotoDuRecu';
+import { DepenseEnUnePhrase } from './DepenseEnUnePhrase';
+import { EngagementsDuMois, usePreparationDesEngagements } from './EngagementsDuMois';
+import { origineDeLaDepense } from '../../../../shared/depense-en-une-phrase-pur';
 
 /** Jour d'un achat, ex. « 13 juil. » — pour afficher la date de chaque dépense. */
 /* `fmtDay` a rejoint `_shared` le 23 août 2026 — voir pourquoi là-bas. */
@@ -166,6 +169,17 @@ export default function Depenses() {
   const aValiderPourMoi = useMemo(
     () => (voitToutesLesDepenses ? aValider(toutesLesDepenses, branch.id) : []),
     [voitToutesLesDepenses, toutesLesDepenses, branch.id],
+  );
+  /* ══ LES DÉPENSES PRÉPARÉES PAR GRENAT — 5 novembre 2026 ══════════════
+     Maquette FyXznPQfTLKnL5MQgbn4C1, validée : les engagements de chaque
+     mois se préparent à l'ouverture de cet écran par un poste de la
+     direction (en attendant la fonction du serveur), à valider ; « Valider
+     tout » dit oui d'un geste à ce que ce compte peut valider (jamais ses
+     propres dépenses, la règle de toujours). */
+  usePreparationDesEngagements();
+  const validablesPourMoi = useMemo(
+    () => aValiderPourMoi.filter((e) => peutValider(monProfil?.role, monNom, e)),
+    [aValiderPourMoi, monProfil?.role, monNom],
   );
   const [budgets, setBudgets] = useBudgets();
   const [cashboxes, setCashboxes] = useCashboxes();
@@ -1058,6 +1072,27 @@ export default function Depenses() {
       : x)));
   };
   const dirOui = (e: Expense) => trancher(e, (v) => validee(v, monNom || 'La Maison', new Date().toISOString()));
+  /* « VALIDER TOUT » (5 novembre 2026, maquette des dépenses préparées) : un
+     seul oui pour la liste, après avoir dit combien et quel total. Chaque
+     ligne passe par la même règle que son bouton (`peutValider`). */
+  const validerTout = async () => {
+    const liste = validablesPourMoi;
+    if (liste.length === 0) return;
+    const total = liste.reduce((n, e) => n + expenseTotal(e), 0);
+    if (!await demande({
+      quoi: 'Les dépenses préparées',
+      titre: liste.length > 1 ? `Valider les ${liste.length} dépenses ?` : 'Valider cette dépense ?',
+      dit: `${fmtMoney(total, currency)} entrent dans vos chiffres et sortent de leurs caisses. Chaque ligne reste corrigeable avant : « Corriger » l’ouvre.`,
+      accepter: liste.length > 1 ? `Valider les ${liste.length}` : 'Valider',
+      refuser: 'Revoir la liste',
+    })) return;
+    const ids = new Set(liste.map((e) => e.id));
+    const quand = new Date().toISOString();
+    setExpenses((prev) => prev.map((x) => (ids.has(x.id) && x.validation && peutValider(monProfil?.role, monNom, x)
+      ? { ...x, validation: validee(x.validation, monNom || 'La Maison', quand) }
+      : x)));
+    toast(liste.length > 1 ? `${liste.length} dépenses validées.` : 'Dépense validée.');
+  };
   const [aRefuser, setARefuser] = useState<Expense | null>(null);
   const [motifRefus, setMotifRefus] = useState('');
   const confirmerLeRefus = () => {
@@ -1431,14 +1466,18 @@ export default function Depenses() {
           Avant les totaux, avant le flux : ce qui demande une décision. Le
           panneau disparaît quand la file est vide, il ne devient jamais un
           meuble qu'on cesse de voir. */}
+      {/* ══ EN TÊTE : LA PHRASE, PUIS LES DÉPENSES PRÉPARÉES — 5 novembre
+          2026 (maquette FyXznPQfTLKnL5MQgbn4C1). La case sert à tous ; la
+          liste et les engagements de chaque mois, à la direction. */}
+      <DepenseEnUnePhrase />
       {voitToutesLesDepenses && aValiderPourMoi.length > 0 && (() => {
         const enRetardIci = aValiderPourMoi.filter((e) => enRetard(e, maintenant));
         const total = aValiderPourMoi.reduce((n, e) => n + expenseTotal(e), 0);
         return (
-          <div className="trf-panel trf-valider" style={{ marginBottom: 18 }}>
+          <div className="trf-panel trf-valider" style={{ marginBottom: 18 }} data-preparees="liste">
             <div className="trf-valider__bandeau">
               <span className="trf-valider__titre">
-                {aValiderPourMoi.length} dépense{aValiderPourMoi.length > 1 ? 's attendent' : ' attend'} votre oui
+                {aValiderPourMoi.length} dépense{aValiderPourMoi.length > 1 ? 's préparées' : ' préparée'}, à valider
               </span>
               <span className="trf-valider__dit">
                 {fmtMoney(total, currency)} au total
@@ -1446,6 +1485,9 @@ export default function Depenses() {
                   <>, dont <b style={{ color: 'var(--trf-error)' }}>{enRetardIci.length} en retard</b></>
                 )}. Rien de tout cela n’est encore dans vos chiffres.
               </span>
+              {validablesPourMoi.length > 0 && (
+                <button type="button" className="trf-act trf-act--oui" data-preparees="valider-tout" onClick={() => void validerTout()}>Valider tout</button>
+              )}
             </div>
             {aValiderPourMoi.map((e) => {
               const tard = enRetard(e, maintenant);
@@ -1453,7 +1495,8 @@ export default function Depenses() {
               const part = Math.min(100, Math.round((heures / DELAI_VALIDATION_H) * 100));
               const mienne = !peutValider(monProfil?.role, monNom, e);
               return (
-                <div key={e.id} className={`trf-vcarte ${tard ? 'is-tard' : ''}`}>
+                <div key={e.id} className={`trf-vcarte ${tard ? 'is-tard' : ''}`} data-preparee={e.id}>
+                  <div className="dpg-source">{origineDeLaDepense(e as Expense & { preparee?: { source?: string } })}</div>
                   <div className="trf-vcarte__tete">
                     <span className="trf-vcarte__nom">{e.label}</span>
                     <span className={`trf-past ${tard ? 'trf-past--tard' : 'trf-past--attente'}`}>
@@ -1480,8 +1523,8 @@ export default function Depenses() {
                   ) : (
                     <div className="trf-vcarte__gestes">
                       <button className="trf-act trf-act--oui" onClick={() => dirOui(e)}>Valider</button>
+                      <button className="trf-act" onClick={() => openEdit(e)}>Corriger</button>
                       <button className="trf-act trf-act--non" onClick={() => { setARefuser(e); setMotifRefus(''); }}>Refuser</button>
-                      <button className="trf-act" onClick={() => openEdit(e)}>Voir le détail</button>
                     </div>
                   )}
                 </div>
@@ -1537,6 +1580,9 @@ export default function Depenses() {
           </div>
         </div>
       )}
+
+      {/* LES ENGAGEMENTS DE CHAQUE MOIS (5 novembre 2026) : la direction seule. */}
+      <EngagementsDuMois />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20, flexWrap: 'wrap' }}>
         <div>

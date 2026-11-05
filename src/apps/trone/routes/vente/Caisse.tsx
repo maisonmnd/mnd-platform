@@ -62,6 +62,7 @@ import { envoieLeRecu, MODELE_RECU, recuAEnvoyer } from '../../../../shared/recu
 import { CLE_DE_LA_PIECE, enRouteAilleurs } from '../../../../shared/une-piece-un-message-pur';
 import { noteLaPiecePartie } from '../../../../shared/une-piece-un-message';
 import { PanneauMndPay } from './MndPay';
+import { DepenseEnUnePhrase } from '../finances/DepenseEnUnePhrase';
 
 /** La tuile MND PAY dans la grille des moyens : un moyen à part, qui ne
     s'encaisse pas d'un bouton mais par la confirmation du prestataire. */
@@ -1329,6 +1330,9 @@ export default function Caisse() {
           <button type="button" className="trv-linkbtn" data-lien="pourboires" onClick={() => navigate('/pourboires')}>Les pourboires de l’équipe : Équipe › Les pourboires ›</button>
         )}
       </div>
+      {/* UNE DÉPENSE EN UNE PHRASE (5 novembre 2026, maquette des dépenses
+          préparées) : en tête seulement, à part du ticket. */}
+      <DepenseEnUnePhrase ou="caisse" />
         <>
         {/* LA CLIENTE ET LA LONGUEUR EN TÊTE (maquette écran 3) : le rush
             commence par QUI, pas par le catalogue. La cliente choisie se dit

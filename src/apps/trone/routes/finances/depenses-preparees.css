@@ -1,0 +1,83 @@
+/* LES DÉPENSES PRÉPARÉES PAR GRENAT — 5 novembre 2026 (maquette
+   FyXznPQfTLKnL5MQgbn4C1). La case de la phrase, la liste à valider, les
+   engagements de chaque mois. Indigo et cuivre, rayons de 3 px, Jost. */
+
+.dpg-phrase {
+  display: grid;
+  gap: 8px;
+  padding: 13px 15px;
+  margin-bottom: 16px;
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  background: var(--surface-card);
+}
+.dpg-phrase--caisse { margin: 0 0 14px; }
+.dpg-phrase__sur {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.dpg-phrase__ligne { display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch; }
+.dpg-phrase__mot { flex: 1 1 260px; min-width: 0; }
+.dpg-phrase__dicter { display: inline-flex; align-items: center; gap: 6px; }
+.dpg-phrase__dicter.is-ecoute { border-color: var(--color-copper); color: var(--color-copper); }
+.dpg-phrase__poser { background: var(--color-copper); color: var(--color-ivoire); border-color: var(--color-copper); }
+.dpg-phrase__poser:disabled { opacity: .45; cursor: not-allowed; }
+.dpg-phrase__lu { display: grid; gap: 6px; font-size: 13px; line-height: 1.6; color: var(--ink-soft); }
+.dpg-phrase__lu p { margin: 0; }
+.dpg-phrase__demande { color: var(--trf-error, #96412E); }
+.dpg-phrase__etat { font-size: 12px; }
+.dpg-phrase__corrige { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.dpg-phrase__corrige .mnd-select { min-width: 0; max-width: 100%; flex: 0 1 220px; }
+.dpg-phrase__dit { margin: 0; font-size: 12.5px; line-height: 1.6; }
+.dpg-phrase__dit.is-ok { color: var(--color-indigo); }
+.dpg-phrase__dit.is-non { color: var(--trf-error, #96412E); }
+
+.dpg-source {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--color-copper);
+}
+
+.dpg-eng { margin-bottom: 18px; }
+.dpg-eng__tete {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.dpg-eng__titre { font-family: var(--font-serif); font-size: 21px; color: var(--color-indigo); }
+.dpg-eng__resume { font-size: 12.5px; color: var(--ink-soft); flex: 1; min-width: 200px; }
+.dpg-eng__liste { display: grid; gap: 10px; margin-top: 14px; }
+.dpg-eng__ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  background: var(--surface-card);
+}
+.dpg-eng__ligne.is-eteint { opacity: .6; }
+.dpg-eng__nom { font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); }
+.dpg-eng__xof { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.dpg-eng__meta { grid-column: 1 / -1; font-size: 12px; color: var(--ink-soft); line-height: 1.6; }
+.dpg-eng__gestes { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.dpg-eng__reprise { border-style: dashed; }
+.dpg-eng__forme { display: grid; gap: 12px; }
+.dpg-eng__deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+
+@media (max-width: 560px) {
+  .dpg-phrase__ligne > .trf-act { flex: 1 1 auto; }
+}
