@@ -2,6 +2,7 @@ import { createStore, useStore } from '../../../../shared/store';
 import type { Origine } from './variables-du-mois';
 import { bindCollection, bindDocument } from '../../../../shared/sync';
 import type { Expense } from '../../../../shared/finance';
+import type { NomMtnVu } from '../../../../shared/paie-par-mtn-pur';
 import type {
   AccordDuPlafond, ConfirmationDeLaLigne, DepotDeLaLigne, FraisParEnvoi, PaieDu5DuRun, ValidationDeLaLigne,
 } from '../../../../shared/paie-du-5-pur';
@@ -685,6 +686,13 @@ export type PayrollLine = {
   /** Les frais d'envoi retenus sur le net, et ce qui est parti. */
   fraisEnvoiXof?: number;
   envoyeXof?: number;
+  /* ══ LA PAIE PAR MTN — 5 novembre 2026, lot 2 (maquette 6bNGeh7nyABot…) ══
+     « C’est bien son numéro » quand le nom chez MTN diffère de la fiche ;
+     puis, à la réponse de MTN, la transaction et la référence de l’envoi.
+     Voir `shared/paie-par-mtn-pur`. */
+  nomMtnVu?: NomMtnVu;
+  transactionMtn?: string;
+  referenceMtn?: string;
 };
 export type PayrollRun = {
   id: string;

@@ -25,6 +25,8 @@
    montants sont des francs CFA entiers ; leur mise en forme vient de
    l'écran (`fmtMoney`), passée en argument. */
 
+import type { LectureMtn } from './paie-par-mtn-pur';
+
 export type Voie = 'MTN' | 'Moov';
 export const VOIES: readonly Voie[] = ['MTN', 'Moov'];
 const estUneVoie = (v: unknown): v is Voie => v === 'MTN' || v === 'Moov';
@@ -591,6 +593,8 @@ export type PaieDu5DuRun = {
   fichierMtn?: FichierMtnPrepare;
   /** Les lots déposés au portail. */
   lotsMtn?: LotMtn[];
+  /** LA PAIE PAR MTN (lot 2) : le solde et les noms lus chez MTN avant le toucher. */
+  lectureMtn?: LectureMtn;
 };
 
 export const RE_LOT = /^[A-Za-z0-9][A-Za-z0-9._/-]{2,63}$/;

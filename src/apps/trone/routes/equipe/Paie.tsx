@@ -38,6 +38,7 @@ import {
 } from './payroll';
 import { ChampDeMois } from '../../../../ds/dates';
 import PaieDu5 from './PaieDu5';
+import EssaiMtn from './EssaiMtn';
 import { numeroDit } from '../../../../shared/paie-du-5-pur';
 import { dansLeFichierEnAttente, deposeDansMonEspace } from './paie-du-5';
 
@@ -257,6 +258,9 @@ export function PaieRuns() {
         <span className="mnd-muted" style={{ fontSize: 12 }}>Un run par mois et par atelier · cycle brouillon → validé → payé → clôturé.</span>
         <Button variant="copper" onClick={() => setCreating(true)} disabled={asArray(staff).filter((m) => m.branchId === branch.id).length === 0}>+ Nouveau run</Button>
       </div>
+
+      {/* LA PAIE PAR MTN — 5 novembre 2026, lot 2 : le test de 100 F, avant le 5. */}
+      <EssaiMtn />
 
       {asArray(staff).filter((m) => m.branchId === branch.id).length === 0 && (
         <Card className="tre-empty"><div className="tre-empty__title">Aucun employé sur cet atelier.</div><div className="tre-empty__sub">Ajoutez l’équipe dans l’onglet « Équipe » avant de lancer un run.</div></Card>

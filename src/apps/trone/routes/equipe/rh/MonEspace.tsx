@@ -173,7 +173,7 @@ function MonBulletinDuMois({ b }: { b: BulletinPublie }) {
     repond('erreur', t.slice(0, 500));
   };
   const etat = b.payeLe
-    ? { ton: 'fait', dit: `Payé le ${jourDit(b.payeLe, false)} : ${F(d.envoyeXof)} envoyés sur ton numéro${d.voie ? ` ${d.voie}` : ''}.` }
+    ? { ton: 'fait', dit: `Payé le ${jourDit(b.payeLe, false)} : ${F(d.envoyeXof)} envoyés sur ton numéro${d.voie ? ` ${d.voie}` : ''}.${b.transactionMtn ? ` Transaction MTN ${b.transactionMtn}.` : ''}` }
     : pourCeBulletin?.etat === 'confirme'
       ? { ton: 'fait', dit: `Confirmé le ${quandDit(pourCeBulletin.le)}. ${apresLaPaie || !d.paieLe ? 'Ton net part dès que la Maison l’a validé.' : `Ton net part le ${momentDit(d.paieLe)}, après la validation de la Maison.`}` }
       : pourCeBulletin?.etat === 'erreur'

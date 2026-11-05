@@ -89,3 +89,8 @@
 .p5-tel__gestes { display: grid; gap: 8px; }
 .p5-tel__gestes .mnd-btn { width: 100%; }
 .p5-tel textarea { width: 100%; box-sizing: border-box; }
+
+/* LA PAIE PAR MTN (lot 2) : le fichier du portail, plié en secours. */
+.p5__secours { border-top: 1px solid var(--hairline); padding-top: 8px; }
+.p5__secours > summary { cursor: pointer; font-size: 12.5px; color: var(--color-indigo); padding: 4px 0; }
+.p5__secours > summary:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }

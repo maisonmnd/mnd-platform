@@ -50,6 +50,8 @@ export type BulletinPublie = {
   depot?: BulletinDepose;
   /** Le jour où sa ligne a été payée (lot MTN), dit dans Mon espace. */
   payeLe?: string;
+  /** La transaction MTN de l’envoi par l’API (la paie par MTN, lot 2). */
+  transactionMtn?: string;
 };
 export type BulletinDepose = {
   le: string;

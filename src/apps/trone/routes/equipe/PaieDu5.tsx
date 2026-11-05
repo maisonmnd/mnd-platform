@@ -19,6 +19,9 @@ import {
   type BulletinLink, type PayrollLine, type PayrollRun,
 } from './payroll';
 import { dansLeFichierEnAttente, deposeDansMonEspace } from './paie-du-5';
+import PaieParMtn from './PaieParMtn';
+import { programmeLeRun, useEnvoisMtn, useServeurMtn } from './paie-par-mtn';
+import { ceQuiManque, heureDeDepart } from '../../../../shared/paie-par-mtn-pur';
 import './paie-du-5.css';
 
 /* ══ LA PAIE DU 5, L'ÉCRAN DE LA DIRECTION · 5 novembre 2026 (lot 1) ════
@@ -75,6 +78,9 @@ export default function PaieDu5({ run, bulletinFor }: { run: PayrollRun; bulleti
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [lot, setLot] = useState('');
   const [erreurLot, setErreurLot] = useState('');
+  /* LA PAIE PAR MTN (lot 2) : allumée quand le serveur a ses clés. */
+  const serveur = useServeurMtn();
+  const { envois: envoisMtn, relis: relisLeRegistre } = useEnvoisMtn({ runId: run.id, actif: serveur.pret });
 
   const F = (n: number) => fmtMoney(n, currency);
   const fige = run.status === 'cloture';
@@ -143,9 +149,10 @@ export default function PaieDu5({ run, bulletinFor }: { run: PayrollRun; bulleti
     if (!await demande({
       quoi: 'La paie du 5',
       titre: `Valider ${cibles.length} fiche${cibles.length > 1 ? 's' : ''} pour ${F(total)} ?`,
-      dit: avant && cal
+      dit: (avant && cal
         ? `Elles sont programmées pour le ${momentDit(cal.paie.local)}. Validé par ${qui}.`
-        : `Elles sont payables dès maintenant. Validé par ${qui}.`,
+        : `Elles sont payables dès maintenant. Validé par ${qui}.`)
+        + (serveur.pret && parVoie.MTN.nombre ? ` Les lignes MTN partent par l’API MTN le ${quandDit(heureDeDepart(cal, Date.now()), true)}.` : ''),
       suite: `MTN : ${parVoie.MTN.nombre}, ${F(parVoie.MTN.envoyeXof)} · Moov : ${parVoie.Moov.nombre}, ${F(parVoie.Moov.envoyeXof)}${parVoie['sans-voie'].nombre ? ` · sans numéro : ${parVoie['sans-voie'].nombre}` : ''}.`,
       accepter: 'Valider et programmer',
       refuser: 'Pas encore',
@@ -159,6 +166,28 @@ export default function PaieDu5({ run, bulletinFor }: { run: PayrollRun; bulleti
       paieDu5: { ...(x.paieDu5 ?? {}), validations: [...(x.paieDu5?.validations ?? []), { par: qui, le, employeeIds: r.validees }] },
     }));
     toast(`${r.validees.length} fiche${r.validees.length > 1 ? 's' : ''} validée${r.validees.length > 1 ? 's' : ''} par ${qui}.`);
+    /* LA PAIE PAR MTN : le même toucher programme les lignes MTN validées. */
+    if (!serveur.pret) return;
+    const mtn = cibles.filter((x) => x.lecture.voie === 'MTN' && !x.ligne.prestataire && !!x.lecture.msisdn && r.validees.includes(x.ligne.employeeId));
+    if (!mtn.length) return;
+    const partA = heureDeDepart(cal, Date.now());
+    const dejaProgramme = envoisMtn.filter((e) => e.etat === 'programme').reduce((s, e) => s + e.montant_xof, 0);
+    const manque = ceQuiManque(pd5.lectureMtn?.soldeXof, dejaProgramme + mtn.reduce((s, x) => s + x.lecture.envoyeXof, 0));
+    if (manque != null && manque > 0) {
+      alerte(`Validées, mais pas programmées : le solde du compte de paie MTN ne couvre pas l’envoi (il manque ${F(manque)}). Alimentez le compte, lisez à nouveau chez MTN, puis touchez « Programmer l’envoi ».`, 12000);
+      return;
+    }
+    const res = await programmeLeRun({
+      runId: run.id, periode: run.period, partA, envois: envoisMtn, lecture: pd5.lectureMtn,
+      items: mtn.map((x) => ({ employeeId: x.ligne.employeeId, nom: x.ligne.name, msisdn: x.lecture.msisdn as string, montantXof: x.lecture.envoyeXof })),
+      vus: (id) => lines.find((l) => l.employeeId === id)?.nomMtnVu,
+    });
+    relisLeRegistre();
+    if (res.erreur) { alerte(res.erreur); return; }
+    if (res.inscrits.length) toast(`${res.inscrits.length} envoi${res.inscrits.length > 1 ? 's' : ''} MTN programmé${res.inscrits.length > 1 ? 's' : ''} pour le ${quandDit(partA, true)}.`);
+    const nom = res.tri.attendent.filter((a) => a.pourquoi === 'nom' || a.pourquoi === 'inactif');
+    if (nom.length) alerte(`${nom.map((a) => a.nom).join(', ')} : le numéro attend votre mot (voir « MTN · par l’API »).`, 12000);
+    if (res.refuses.length) alerte(`Le serveur a refusé ${res.refuses.length} envoi${res.refuses.length > 1 ? 's' : ''} : ${res.refuses.map((x) => x.erreur).join(' ; ')}.`, 12000);
   };
 
   const accorde = async (l: PayrollLine, lu: LectureDeLaLigne) => {
@@ -275,7 +304,7 @@ export default function PaieDu5({ run, bulletinFor }: { run: PayrollRun; bulleti
     /* Ce qui l'arrêtera une fois confirmée se dit dès maintenant. */
     const gardes = lu.blocages.length ? ` · puis ${lu.blocages.map((b) => COURT[b.code]).join(', ')}` : '';
     switch (lu.etat) {
-      case 'payee': return `${l.payeMoyen ?? voie} · payée le ${jourDit(l.payeLe ?? '', false)}${l.lotMtn ? ` · lot ${l.lotMtn}` : ''}`;
+      case 'payee': return `${l.payeMoyen ?? voie} · payée le ${jourDit(l.payeLe ?? '', false)}${l.lotMtn ? ` · lot ${l.lotMtn}` : ''}${l.transactionMtn ? ` · transaction ${l.transactionMtn}` : ''}`;
       case 'payable': return `${voie} · validée par ${l.validation?.par ?? ''} le ${quandDit(l.validation?.le)}`;
       case 'confirmee': return `${voie} · ${l.prestataire ? 'facture acceptée' : `confirmée le ${quandDit(lu.confirmation?.le)}${lu.enRetard ? ', en retard' : ''}`}`;
       case 'erreur': return `${voie} · erreur signalée le ${quandDit(lu.confirmation?.le)}${gardes}`;
@@ -330,6 +359,48 @@ export default function PaieDu5({ run, bulletinFor }: { run: PayrollRun; bulleti
       </div>
     );
   };
+
+  /* Le fichier du portail MTN : la voie d'avant, gardée en secours. */
+  const portailMtn = (
+        <div className="p5__voie">
+          <h4>MTN · portail MTN entreprise</h4>
+          {pd5.fichierMtn ? (
+            <>
+              <p>
+                Fichier téléchargé le {quandDit(pd5.fichierMtn.le)} par {pd5.fichierMtn.par || 'la direction'} : {pd5.fichierMtn.lignes.length} ligne{pd5.fichierMtn.lignes.length > 1 ? 's' : ''}, {F(pd5.fichierMtn.totalXof)}.
+                {' '}Déposez-le au portail (Action, Transfers, Batch upload), puis collez ici le numéro de lot qu’il affiche une seule fois.
+              </p>
+              <div className="p5__lot">
+                <Field label="Numéro de lot (batch ID)">
+                  <Input value={lot} disabled={fige} autoComplete="off" spellCheck={false} onChange={(e) => { setLot(e.target.value); setErreurLot(''); }} />
+                </Field>
+                <Button variant="copper" disabled={fige || !lot.trim()} onClick={() => void cEstEnvoye()}>C’est envoyé</Button>
+              </div>
+              {erreurLot && <div className="p5__erreur" role="alert">{erreurLot}</div>}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <Button size="sm" variant="ghost" disabled={fige || fichierPossible.length === 0} onClick={() => void telecharge()}>Télécharger à nouveau</Button>
+                <Button size="sm" variant="ghost" disabled={fige} onClick={() => void abandonne()}>Abandonner ce fichier</Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p>
+                {fichierPossible.length
+                  ? `${fichierPossible.length} ligne${fichierPossible.length > 1 ? 's' : ''} MTN validée${fichierPossible.length > 1 ? 's' : ''}, ${F(fichierPossible.reduce((s, x) => s + x.montantXof, 0))}, frais retirés.${cal && maintenant < cal.paie.ms ? ` Le fichier se dépose le ${momentDit(cal.paie.local)}.` : ''}`
+                  : 'Aucune ligne MTN validée à payer pour l’instant.'}
+              </p>
+              {fichierPossible.length > 0 && <Button variant="indigo" disabled={fige} onClick={() => void telecharge()}>Télécharger le fichier MTN</Button>}
+            </>
+          )}
+          {(pd5.lotsMtn ?? []).length > 0 && (
+            <ul className="p5__lots">
+              {(pd5.lotsMtn ?? []).map((x) => (
+                <li key={x.batch}>Lot {x.batch} · {x.employeeIds.length} ligne{x.employeeIds.length > 1 ? 's' : ''} · {F(x.totalXof)} · noté le {quandDit(x.le)} par {x.par}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+  );
 
   const validations = pd5.validations ?? [];
   const derniereValidation = validations[validations.length - 1];
@@ -425,44 +496,16 @@ export default function PaieDu5({ run, bulletinFor }: { run: PayrollRun; bulleti
           </div>
         )}
 
-        <div className="p5__voie">
-          <h4>MTN · portail MTN entreprise</h4>
-          {pd5.fichierMtn ? (
-            <>
-              <p>
-                Fichier téléchargé le {quandDit(pd5.fichierMtn.le)} par {pd5.fichierMtn.par || 'la direction'} : {pd5.fichierMtn.lignes.length} ligne{pd5.fichierMtn.lignes.length > 1 ? 's' : ''}, {F(pd5.fichierMtn.totalXof)}.
-                {' '}Déposez-le au portail (Action, Transfers, Batch upload), puis collez ici le numéro de lot qu’il affiche une seule fois.
-              </p>
-              <div className="p5__lot">
-                <Field label="Numéro de lot (batch ID)">
-                  <Input value={lot} disabled={fige} autoComplete="off" spellCheck={false} onChange={(e) => { setLot(e.target.value); setErreurLot(''); }} />
-                </Field>
-                <Button variant="copper" disabled={fige || !lot.trim()} onClick={() => void cEstEnvoye()}>C’est envoyé</Button>
-              </div>
-              {erreurLot && <div className="p5__erreur" role="alert">{erreurLot}</div>}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                <Button size="sm" variant="ghost" disabled={fige || fichierPossible.length === 0} onClick={() => void telecharge()}>Télécharger à nouveau</Button>
-                <Button size="sm" variant="ghost" disabled={fige} onClick={() => void abandonne()}>Abandonner ce fichier</Button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p>
-                {fichierPossible.length
-                  ? `${fichierPossible.length} ligne${fichierPossible.length > 1 ? 's' : ''} MTN validée${fichierPossible.length > 1 ? 's' : ''}, ${F(fichierPossible.reduce((s, x) => s + x.montantXof, 0))}, frais retirés.${cal && maintenant < cal.paie.ms ? ` Le fichier se dépose le ${momentDit(cal.paie.local)}.` : ''}`
-                  : 'Aucune ligne MTN validée à payer pour l’instant.'}
-              </p>
-              {fichierPossible.length > 0 && <Button variant="indigo" disabled={fige} onClick={() => void telecharge()}>Télécharger le fichier MTN</Button>}
-            </>
-          )}
-          {(pd5.lotsMtn ?? []).length > 0 && (
-            <ul className="p5__lots">
-              {(pd5.lotsMtn ?? []).map((x) => (
-                <li key={x.batch}>Lot {x.batch} · {x.employeeIds.length} ligne{x.employeeIds.length > 1 ? 's' : ''} · {F(x.totalXof)} · noté le {quandDit(x.le)} par {x.par}</li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {serveur.pret && (
+          <PaieParMtn run={run} lues={lues} cal={cal} qui={qui} F={F} fige={fige} envois={envoisMtn} relisLeRegistre={relisLeRegistre} ecrisLeRun={ecrisLeRun} />
+        )}
+        {serveur.pret ? (
+          <details className="p5__secours">
+            <summary>Le fichier du portail MTN, en secours</summary>
+            {portailMtn}
+          </details>
+        ) : portailMtn}
+        {!serveur.pret && serveur.charge && <p className="p5__doux">L’envoi par l’API MTN s’allume quand les six clés MTN sont posées. D’ici là, le fichier du portail.</p>}
 
         <div className="p5__voie">
           <h4>Moov · FedaPay</h4>
@@ -477,7 +520,9 @@ export default function PaieDu5({ run, bulletinFor }: { run: PayrollRun; bulleti
             <span>Toutes les lignes sont payées. Passez le run à « Validé » puis « Payé », en haut de la fiche : les salaires s’inscrivent aux Dépenses et les bulletins se publient.</span>
           </div>
         )}
-        <p className="p5__doux">Heures de Cotonou. Rien ne part seul : le Trône prépare le fichier, et vous le déposez au portail MTN.</p>
+        <p className="p5__doux">{serveur.pret
+          ? 'Heures de Cotonou. Rien ne part sans votre toucher : le Trône confie les envois au serveur de la Maison, qui les envoie par MTN à l’heure dite.'
+          : 'Heures de Cotonou. Rien ne part seul : le Trône prépare le fichier, et vous le déposez au portail MTN.'}</p>
       </div>
     </section>
   );
