@@ -19,7 +19,7 @@ import {
   A_PREPARER, TYPE_DU_PAPIER, aCotonouLe, clotureDuJour, dureeLue, familleLue, francsDits, gesteToujoursValable, heureEnClair,
   heuresDeLaCloture, idDuPapier, initialesDe, laMaisonEstFermee, notificationDeLaCloture, papierDuJour, pieceAPaye, prixFigeLu,
   remisesDuRdv, totalDeLaPiece, versementsDeLaPiece,
-  SEUIL_DE_LA_PHOTO_XOF, ceQuiManqueALaDepense, cleDeLEcart, cleDuJourSansDepense, dateDite, depenseEnAttente, heuresDAttente, montantDeLaDepense,
+  ceQuiManqueALaDepense, cleDeLEcart, cleDuJourSansDepense, dateDite, depenseEnAttente, heuresDAttente, montantDeLaDepense,
   type ComptageLu, type DepenseLue, type FaitsDeLaJournee, type FicheLue, type PieceLue, type RdvLu,
 } from '../src/shared/cloture-du-jour-pur';
 import { dureeDuRendezVous, ouvertureDuJour } from '../src/shared/agenda-pur';
@@ -28,7 +28,6 @@ import { recuAEnvoyer } from '../src/shared/recu-whatsapp';
 import { invoiceReglements, invoiceTotal } from '../src/shared/finance-pur';
 import { DEFAULT_SETTINGS } from '../src/shared/settings';
 import { estEnAttente, expenseTotal, heuresDattente, type Expense, type Invoice } from '../src/shared/finance';
-import { SEUIL_DU_JUSTIFICATIF_XOF } from '../src/shared/agents-maison-pur';
 
 let ko = 0;
 const ascii = (s: string) => s.replace(/[^\x20-\x7e]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
@@ -362,20 +361,24 @@ const casDAttente: Partial<DepenseLue>[] = [{}, { validation: { etat: 'attente',
   { validation: { etat: 'attente', soumisLe: '2026-11-05T12:00:00Z', soumisPar: 'Opale' } }, { validation: { etat: 'attente', soumisLe: 'illisible', soumisPar: 'Opale' } }];
 dit('depenseEnAttente = estEnAttente (finance)', casDAttente.map((e) => estEnAttente(exp(e))), casDAttente.map((e) => depenseEnAttente(e)));
 dit('heuresDAttente = heuresDattente (finance)', casDAttente.map((e) => heuresDattente(exp(e), a('19:00'))), casDAttente.map((e) => heuresDAttente(e, a('19:00'))));
-dit('le seuil de la photo = le seuil du justificatif (agents-maison-pur)', SEUIL_DU_JUSTIFICATIF_XOF, SEUIL_DE_LA_PHOTO_XOF);
 dit('les dates dites, l annee toujours', ['1er novembre 2026', '4 novembre 2026', '31 octobre 2026'], [dateDite('2026-11-01'), dateDite('2026-11-04'), dateDite('2026-10-31')]);
 
 const D = (id: string, plus: Partial<DepenseLue> = {}): DepenseLue => ({
   id, branchId: 'maison', label: 'Achat', amountXof: 10000, date: JOUR, cashbox: 'Caisse Principale', category: 'Divers', porteur: 'Sandrine', fichier: true, ...plus,
 });
 const attend = (soumisLe: string, soumisPar = 'Opale') => ({ etat: 'attente', soumisLe, soumisPar });
-dit('ce qui manque : la photo au-dessus du seuil, et qui a paye', [['recu', 'porteur'], ['porteur'], [], [], ['recu'], ['recu']], [
+/* « PAS BESOIN DE PHOTO » (Yeman, 5 novembre 2026, au selecteur) : Grenat ne
+   reclame plus jamais la photo du recu, a aucun montant ; seul « qui a paye »
+   manquant rend une depense a completer. */
+dit('ce qui manque : qui a paye, et jamais la photo du recu, a aucun montant', [['porteur'], ['porteur'], [], [], [], [], [], []], [
   ceQuiManqueALaDepense(D('m1', { porteur: undefined, fichier: undefined, amountXof: 64600 })),
   ceQuiManqueALaDepense(D('m2', { porteur: '  ', fichier: undefined, amountXof: 4999 })),
   ceQuiManqueALaDepense(D('m3', { porteur: undefined, laMaisonAPaye: true, fichier: undefined, amountXof: 2000 })),
   ceQuiManqueALaDepense(D('m4')),
   ceQuiManqueALaDepense(D('m5', { fichier: undefined, amountXof: 5000 })),
   ceQuiManqueALaDepense(D('m6', { fichier: undefined, amountXof: 0, items: [{ amountXof: 3000 }, { amountXof: 3000 }] })),
+  ceQuiManqueALaDepense(D('m7', { fichier: undefined, amountXof: 20000 })),
+  ceQuiManqueALaDepense(D('m8', { fichier: undefined, amountXof: 300000 })),
 ]);
 
 const TRANSPORT = D('d-transport', { label: 'Transport des produits', amountXof: 3000, fichier: undefined, validation: attend('2026-11-04T12:00:00Z') });
@@ -414,9 +417,20 @@ dit('19 h : la depense posee par Opale, comme la maquette la dit',
 dit('... celle d un autre jour attend aussi, sa date dite, sans retenir le comptage',
   { dit: 'Du 2 novembre 2026, posée par Kabirou, à valider depuis 56 heures. Caisse Principale.', bloque: false, heure: '' },
   (({ dit: d, bloque, heure }) => ({ dit: d, bloque, heure }))(ligneDe('d-avant')!));
-dit('... les meches, sans photo du recu ni qui a paye',
-  { quoi: `Mèches · ${F(64600)}`, dit: 'Matières premières, Caisse Principale : sans photo du reçu, et sans qui a payé.', etat: 'À compléter', gestes: ['joindre-la-photo', 'dire-qui-a-paye'], bloque: false },
-  (({ quoi, dit: d, etatDit, gestes, bloque }) => ({ quoi, dit: d, etat: etatDit, gestes, bloque }))(ligneDe('d-meches')!));
+dit('... les meches, sans qui a paye : un seul geste, « Dire qui a paye », et pas un mot de la photo',
+  { quoi: `Mèches · ${F(64600)}`, dit: 'Matières premières, Caisse Principale : sans qui a payé.', etat: 'À compléter', gestes: ['dire-qui-a-paye'], manque: ['porteur'], bloque: false },
+  (({ quoi, dit: d, etatDit, gestes, manque, bloque }) => ({ quoi, dit: d, etat: etatDit, gestes, manque, bloque }))(ligneDe('d-meches')!));
+vrai('19 h : aucune ligne de Grenat ne parle de photo ni de reçu', (sous?.constats.length ?? 0) > 0 && !sous!.constats.some((c) => /photo|reçu|justificatif/i.test(`${c.quoi} ${c.dit}`)),
+  sous?.constats.filter((c) => /photo|reçu|justificatif/i.test(`${c.quoi} ${c.dit}`)).map((c) => c.dit));
+const SANS_PHOTO = D('d-sans-photo', { label: 'Produits', amountXof: 20000, category: 'Matières premières', porteur: 'Sandrine', fichier: undefined });
+const sp = jd(a('19:00'), { depenses: [SANS_PHOTO], comptages: [] });
+dit('« Pas besoin de photo » : une depense de 20 000 F sans photo mais avec qui a paye n est PAS a completer',
+  { constats: [], aCompleter: 0, saisies: 1, totalXof: 20000, aDire: [], close: true },
+  { constats: sp.depenses?.constats.map((c) => [c.genre, c.depenseId]), aCompleter: sp.depenses?.comptes.aCompleter, saisies: sp.depenses?.saisies, totalXof: sp.depenses?.totalXof, aDire: sp.depenses?.aDire, close: sp.verdict.close });
+const spAttente = jd(a('19:00'), { depenses: [{ ...SANS_PHOTO, id: 'd-sans-photo-attente', validation: attend('2026-11-04T12:00:00Z') }], comptages: [] });
+dit('... posee par Opale et a valider, Grenat ne dit rien de la photo non plus',
+  { dit: 'Posée par Opale, à valider depuis 6 heures. Caisse Principale.', gestes: ['valider', 'refuser'], manque: undefined },
+  (({ dit: d, gestes, manque }) => ({ dit: d, gestes, manque }))(spAttente.depenses?.constats[0] ?? { dit: '', gestes: [], manque: ['?'] }));
 dit('... l ecart du tiroir sans depense en face, avec sa note',
   { quoi: `Tiroir Real Money · ${F(2500)} de moins que l’attendu`, dit: 'Au comptage de 19 h 00, un écart sans dépense en face : une dépense oubliée ? Sa note : « monnaie rendue ».',
     gestes: ['c-etait-une-depense', 'laisser-l-ecart'], tiroir: 'Real Money', montant: 2500, note: 'monnaie rendue', cle: 'ecart:clo-1' },
@@ -477,9 +491,11 @@ vrai('La journee : Valider et Refuser par la validation de toujours (peutValider
   journee.includes("if (g === 'valider' || g === 'refuser') { const e = depenseDe(c.depenseId); return !!e && peutValider(me?.role, monNom, e); }")
   && journee.includes("if (g === 'rien-aujourdhui' || g === 'laisser-l-ecart') return souverain;")
   && journee.includes("if (!souverain) { toast('La direction seule le dit.'); return; }"));
-vrai('La journee : Joindre la photo et Dire qui a paye ouvrent la fiche ; Saisir et C etait une depense ouvrent le formulaire',
-  journee.includes("navigate(`/depenses?depense=${encodeURIComponent(c.depenseId ?? '')}&volet=${g === 'joindre-la-photo' ? 'recu' : 'porteur'}`);")
+vrai('La journee : Dire qui a paye ouvre la fiche ; Saisir et C etait une depense ouvrent le formulaire',
+  journee.includes("navigate(`/depenses?depense=${encodeURIComponent(c.depenseId ?? '')}&volet=porteur`);")
   && journee.includes("const q = new URLSearchParams({ nouvelle: '1', date: jour });") && journee.includes("if (c.comptageId) q.set('ecart', c.comptageId);"));
+vrai('« Pas besoin de photo » : ni La journee ni la regle ne proposent « Joindre la photo » (la photo reste libre depuis la fiche)',
+  !/joindre-la-photo|Joindre la photo|volet=recu/.test(journee) && !/joindre-la-photo|SEUIL_DE_LA_PHOTO|e\.fichier/.test(original ?? 'joindre-la-photo'));
 const blocDeLaJournee = journee.slice(posDep, journee.indexOf('{alarmes.length > 0 && ('));
 const litteraux = (s: string) => s.match(/'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`|>[^<>{}\n]+</g) ?? [];
 const blocDeLaRegle = (original ?? '').slice((original ?? '').indexOf('export type DepenseLue'), (original ?? '').indexOf('export function clotureDuJour'));

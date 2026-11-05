@@ -51,11 +51,13 @@ import './la-journee.css';
    du jour. Grenat ne saisit rien : chaque constat porte le geste qui le
    règle, par les chemins de toujours. « Valider », « Refuser » : la
    validation des Dépenses (`peutValider`, souverain ou gérant, jamais ses
-   propres dépenses) ; « Joindre la photo », « Dire qui a payé » ouvrent la
-   fiche de la dépense ; « Saisir une dépense », « C'était une dépense »
-   ouvrent le formulaire des Dépenses ; « Rien aujourd'hui » et « Laisser
-   l'écart » sont des décisions de clôture, de la direction (0156). Un
-   compte qui ne voit que ses dépenses ne voit ici que les siennes. */
+   propres dépenses) ; « Dire qui a payé » ouvre la fiche de la dépense ;
+   « Saisir une dépense », « C'était une dépense » ouvrent le formulaire
+   des Dépenses ; « Rien aujourd'hui » et « Laisser l'écart » sont des
+   décisions de clôture, de la direction (0156). Un compte qui ne voit que
+   ses dépenses ne voit ici que les siennes. « Pas besoin de photo »
+   (Yéman, 5 novembre 2026) : Grenat ne réclame jamais la photo du reçu ;
+   elle se joint librement depuis la fiche de la dépense. */
 
 const ETAT_TON: Record<string, string> = {
   'a-venir': 'cuivre', 'en-cours': 'cuivre', 'a-encaisser': 'ko', 'sans-etat': 'ko', regle: 'cuivre', 'a-revoir': 'ko', clos: 'ok', annule: 'ok',
@@ -63,7 +65,7 @@ const ETAT_TON: Record<string, string> = {
 const GESTE_DIT: Record<GesteDuComptoir, string> = { encaisser: 'Encaisser', honore: 'Honoré', absente: 'Absente', annulee: 'Annulée' };
 const DEPENSE_TON: Record<ConstatDeDepense['genre'], string> = { 'jour-sans-depense': 'cuivre', 'a-valider': 'cuivre', 'a-completer': 'ko', 'ecart-sans-depense': 'ko' };
 const GESTE_DEPENSE_DIT: Record<Exclude<GesteDeDepense, 'rien-aujourdhui'>, string> = {
-  valider: 'Valider', refuser: 'Refuser', 'joindre-la-photo': 'Joindre la photo', 'dire-qui-a-paye': 'Dire qui a payé',
+  valider: 'Valider', refuser: 'Refuser', 'dire-qui-a-paye': 'Dire qui a payé',
   saisir: 'Saisir une dépense', 'c-etait-une-depense': 'C’était une dépense', 'laisser-l-ecart': 'Laisser l’écart, avec sa note',
 };
 
@@ -134,8 +136,8 @@ export default function LaJournee() {
       toast(pourquoi ?? (g === 'valider' ? 'Validée : elle entre dans les chiffres.' : 'Refusée avec son motif : elle reste, barrée, chez celui qui l’a saisie.'));
       return;
     }
-    if (g === 'joindre-la-photo' || g === 'dire-qui-a-paye') {
-      navigate(`/depenses?depense=${encodeURIComponent(c.depenseId ?? '')}&volet=${g === 'joindre-la-photo' ? 'recu' : 'porteur'}`);
+    if (g === 'dire-qui-a-paye') {
+      navigate(`/depenses?depense=${encodeURIComponent(c.depenseId ?? '')}&volet=porteur`);
       return;
     }
     if (g === 'saisir' || g === 'c-etait-une-depense') {

@@ -61,7 +61,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
    dépôt). Le banc `verifie-la-cloture-du-jour` et celui des douze lunes (R8)
    comparent la copie à l'original, caractère pour caractère. ══ */
 /* ⟨cloture-du-jour⟩ */
-export const VERSION_DE_LA_CLOTURE = '2026-11-05-a';
+export const VERSION_DE_LA_CLOTURE = '2026-11-05-b';
 
 /** Cotonou vit à UTC + 1, toute l'année. */
 export const DECALAGE_DE_COTONOU_MIN = 60;
@@ -432,9 +432,8 @@ export function pourquoiLaPlaceNeTientPas(a: RdvLu, rdvs: readonly RdvLu[], offr
    8). GRENAT RELIT, IL NE SAISIT JAMAIS UNE DÉPENSE. Il met sous les yeux :
      · les dépenses « à valider » qui attendent (posées par Opale ou par
        l'équipe) : « Valider », « Refuser », la validation de toujours ;
-     · les dépenses du jour sans photo du reçu (au-dessus du seuil du
-       justificatif) ou sans qui a payé : « Joindre la photo », « Dire qui a
-       payé » ouvrent leur fiche ;
+     · les dépenses du jour sans qui a payé : « Dire qui a payé » ouvre leur
+       fiche ;
      · un jour ouvert sans aucune dépense saisie : il le DEMANDE, à l'heure
        de la relecture (la dernière clôture du jour) ; « Saisir une
        dépense », ou « Rien aujourd'hui », une décision de la direction ;
@@ -443,7 +442,11 @@ export function pourquoiLaPlaceNeTientPas(a: RdvLu, rdvs: readonly RdvLu[], offr
    UNE JOURNÉE RESTE CLOSE avec une dépense à compléter : seule une dépense
    à valider DU JOUR bloque le comptage (le tiroir attendu la compte déjà
    comme sortie, le livre pas encore). Sans dépenses lues, rien ne se dit :
-   l'absence de faits n'est pas un jour sans dépense. */
+   l'absence de faits n'est pas un jour sans dépense.
+   « PAS BESOIN DE PHOTO » (Yéman, 5 novembre 2026) : Grenat ne réclame
+   jamais la photo du reçu, à aucun montant ; seul « qui a payé » manquant
+   rend une dépense à compléter. La photo se joint toujours librement
+   depuis la fiche de la dépense. */
 
 /** Une dépense telle que la clôture la lit (`expenses`, finance.ts). */
 export type DepenseLue = {
@@ -451,7 +454,7 @@ export type DepenseLue = {
   date?: string; cashbox?: string; category?: string;
   /** Qui l'a payée ; `laMaisonAPaye` : « La Maison elle-même », dit au formulaire. */
   porteur?: string; laMaisonAPaye?: boolean;
-  /** La photo du reçu (`fichier`, la pièce jointe du dossier « depense »). */
+  /** La photo du reçu (`fichier`), lue sans jamais être réclamée. */
   fichier?: unknown;
   /** Une récurrente, une charge de la paie, l'intérêt d'une échéance : rien de saisi ce jour. */
   recurring?: string | null; source?: string; empruntId?: string;
@@ -467,11 +470,6 @@ export type ComptageLu = {
   depenses?: readonly string[];
   le?: string; reprend?: string; validation?: { verdict?: string } | null;
 };
-
-/** Sous ce montant (un ticket de taxi, un sachet d'eau), la photo du reçu ne
-    se réclame pas : le seuil du justificatif (`SEUIL_DU_JUSTIFICATIF_XOF`,
-    agents-maison-pur.ts ; le banc compare les deux). */
-export const SEUIL_DE_LA_PHOTO_XOF = 5000;
 
 /** Le montant d'une dépense, la même lecture qu'`expenseTotal`. */
 export const montantDeLaDepense = (e: Pick<DepenseLue, 'amountXof' | 'items'>): number =>
@@ -493,11 +491,11 @@ export function heuresDAttente(e: Pick<DepenseLue, 'validation'>, maintenantMs: 
 export const saisieALaMain = (e: Pick<DepenseLue, 'recurring' | 'source' | 'empruntId'>): boolean =>
   !e.recurring && !e.source && !e.empruntId;
 
-/** CE QUI MANQUE À UNE DÉPENSE : la photo du reçu (au-dessus du seuil), et
-    qui a payé (un porteur, ou « La Maison elle-même » dite au formulaire). */
-export function ceQuiManqueALaDepense(e: DepenseLue): ('recu' | 'porteur')[] {
-  const manque: ('recu' | 'porteur')[] = [];
-  if (!e.fichier && montantDeLaDepense(e) >= SEUIL_DE_LA_PHOTO_XOF) manque.push('recu');
+/** CE QUI MANQUE À UNE DÉPENSE : qui a payé (un porteur, ou « La Maison
+    elle-même » dite au formulaire). Jamais la photo du reçu : « Pas besoin
+    de photo » (Yéman, 5 novembre 2026). */
+export function ceQuiManqueALaDepense(e: DepenseLue): 'porteur'[] {
+  const manque: 'porteur'[] = [];
   if (!String(e.porteur ?? '').trim() && !e.laMaisonAPaye) manque.push('porteur');
   return manque;
 }
@@ -510,7 +508,7 @@ export const dateDite = (iso: unknown): string => {
   return `${Number(m[3])}${Number(m[3]) === 1 ? 'er' : ''} ${MOIS_DITS[Number(m[2]) - 1]} ${m[1]}`;
 };
 
-export type GesteDeDepense = 'valider' | 'refuser' | 'joindre-la-photo' | 'dire-qui-a-paye' | 'saisir' | 'rien-aujourdhui' | 'c-etait-une-depense' | 'laisser-l-ecart';
+export type GesteDeDepense = 'valider' | 'refuser' | 'dire-qui-a-paye' | 'saisir' | 'rien-aujourdhui' | 'c-etait-une-depense' | 'laisser-l-ecart';
 
 export type ConstatDeDepense = {
   cle: string;
@@ -520,7 +518,7 @@ export type ConstatDeDepense = {
   /** Seule une dépense à valider DU JOUR bloque le comptage. */
   bloque: boolean;
   depenseId?: string; comptageId?: string; tiroir?: string; montantXof?: number;
-  manque?: ('recu' | 'porteur')[];
+  manque?: 'porteur'[];
   /** La note du comptage, quand l'écart en a une : « Laisser l'écart » la garde. */
   note?: string;
 };
@@ -565,7 +563,7 @@ export function depensesDuJour(o: {
     return ici.jour === o.jour ? heureEnClair(ici.minutes) : '';
   };
   const quoiDe = (e: DepenseLue) => `${String(e.label ?? '').trim() || 'Dépense'} · ${francsDits(montantDeLaDepense(e))}`;
-  const manqueDit = (m: ('recu' | 'porteur')[]) => [m.includes('recu') ? 'sans photo du reçu' : '', m.includes('porteur') ? 'sans qui a payé' : ''].filter(Boolean).join(', et ');
+  const manqueDit = (m: 'porteur'[]) => (m.includes('porteur') ? 'sans qui a payé' : '');
   const constats: ConstatDeDepense[] = [];
 
   /* LE JOUR OUVERT SANS AUCUNE DÉPENSE : demandé, jamais supposé, à l'heure
@@ -593,7 +591,7 @@ export function depensesDuJour(o: {
     if (duJour) comptes.aValiderDuJour += 1; else comptes.aValiderAvant += 1;
   }
 
-  /* LES DÉPENSES DU JOUR À COMPLÉTER : la photo du reçu, qui a payé. */
+  /* LES DÉPENSES DU JOUR À COMPLÉTER : qui a payé, rien d'autre (jamais la photo). */
   for (const e of saisies) {
     if (depenseEnAttente(e)) continue;
     const manque = ceQuiManqueALaDepense(e);
@@ -601,7 +599,7 @@ export function depensesDuJour(o: {
     const ou = [String(e.category ?? '').trim(), String(e.cashbox ?? '').trim()].filter(Boolean).join(', ');
     const dit = ou ? `${ou} : ${manqueDit(manque)}.` : `${manqueDit(manque).replace(/^./, (x) => x.toUpperCase())}.`;
     constats.push({ cle: `depense-a-completer:${e.id}`, genre: 'a-completer', heure: '', quoi: quoiDe(e), dit, etatDit: 'À compléter',
-      gestes: [...(manque.includes('recu') ? ['joindre-la-photo' as const] : []), ...(manque.includes('porteur') ? ['dire-qui-a-paye' as const] : [])],
+      gestes: ['dire-qui-a-paye'],
       bloque: false, depenseId: e.id, montantXof: montantDeLaDepense(e), manque });
     comptes.aCompleter += 1;
   }
@@ -956,7 +954,7 @@ export function gesteToujoursValable(g: GesteSur, f: FaitsDeLaJournee): boolean 
 }
 /* ⟨/cloture-du-jour⟩ */
 
-const VERSION = '2026-11-05-a';
+const VERSION = '2026-11-05-b';
 const ADRESSE = '/trone/#/la-journee';
 const ETIQUETTE = 'mnd-cloture';
 /** Mille lignes par page : le plafond de Supabase. Au-delà de vingt pages, on s'arrête. */
@@ -1145,7 +1143,7 @@ Deno.serve(async (req) => {
     }));
     const decisions: DecisionLue[] = decisionsBrutes.map((l) => ({ ...((l.data ?? {}) as DecisionLue), cle: String(l.data?.cle ?? '') })).filter((d) => !!d.cle);
     let envois: EnvoiDePapierLu[] = papiers.map((l) => ({ id: l.id, type: String(l.data?.type ?? ''), statut: String(l.data?.statut ?? ''), invoiceId: String(l.data?.invoiceId ?? '') }));
-    /* La photo du reçu ne se recopie pas : la règle demande seulement si elle est là. */
+    /* La photo du reçu ne se recopie pas : la règle ne la réclame plus (« Pas besoin de photo », 5 novembre 2026), un oui ou un non suffit. */
     const depenses: DepenseLue[] = [...lignesDepenses.values()].map((l) => {
       const d = (l.data ?? {}) as DepenseLue;
       return { ...d, id: l.id, branchId: d.branchId ?? (l.branch_id ?? undefined), fichier: d.fichier ? true : undefined };

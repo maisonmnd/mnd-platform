@@ -85,7 +85,11 @@ const PANNES = [
   { nom: 'une depense a valider d un autre jour retient le comptage', fichier: P, avant: 'if (duJour) comptes.aValiderDuJour += 1; else comptes.aValiderAvant += 1;', apres: 'comptes.aValiderDuJour += 1;' },
   { nom: 'la recurrente compte comme saisie du jour', fichier: P, avant: '  !e.recurring && !e.source && !e.empruntId;', apres: '  !e.source && !e.empruntId;' },
   { nom: 'la charge de la paie compte comme saisie du jour', fichier: P, avant: '  !e.recurring && !e.source && !e.empruntId;', apres: '  !e.recurring && !e.empruntId;' },
-  { nom: 'la photo du recu se reclame sous le seuil du justificatif', fichier: P, avant: "if (!e.fichier && montantDeLaDepense(e) >= SEUIL_DE_LA_PHOTO_XOF) manque.push('recu');", apres: "if (!e.fichier) manque.push('recu');" },
+  /* « Pas besoin de photo » (5 novembre 2026) : Grenat ne la reclame plus. */
+  { nom: 'Grenat reclame encore la photo du recu (au-dessus de 5 000 F)', fichier: P, avant: "if (!String(e.porteur ?? '').trim() && !e.laMaisonAPaye) manque.push('porteur');", apres: "if (!e.fichier && montantDeLaDepense(e) >= 5000) manque.push('recu' as 'porteur');\n  if (!String(e.porteur ?? '').trim() && !e.laMaisonAPaye) manque.push('porteur');" },
+  { nom: 'Grenat propose encore « Joindre la photo » a la depense a completer', fichier: P, avant: "gestes: ['dire-qui-a-paye'],", apres: "gestes: ['joindre-la-photo' as 'dire-qui-a-paye', 'dire-qui-a-paye']," },
+  { nom: 'Grenat dit encore « sans photo du recu »', fichier: P, avant: "const manqueDit = (m: 'porteur'[]) => (m.includes('porteur') ? 'sans qui a payé' : '');", apres: "const manqueDit = (m: 'porteur'[]) => (m.includes('porteur') ? 'sans photo du reçu, et sans qui a payé' : '');" },
+  { nom: 'La journee propose encore « Joindre la photo »', fichier: LJ, avant: "valider: 'Valider', refuser: 'Refuser', 'dire-qui-a-paye': 'Dire qui a payé',", apres: "valider: 'Valider', refuser: 'Refuser', 'joindre-la-photo': 'Joindre la photo', 'dire-qui-a-paye': 'Dire qui a payé',", disque: true },
   { nom: '« La Maison elle-meme » ne vaut pas reponse', fichier: P, avant: "if (!String(e.porteur ?? '').trim() && !e.laMaisonAPaye) manque.push('porteur');", apres: "if (!String(e.porteur ?? '').trim()) manque.push('porteur');" },
   { nom: 'le jour sans depense se demande avant la relecture', fichier: P, avant: 'const relues = o.minutesMaintenant >= heure * 60;', apres: 'const relues = true;' },
   { nom: 'l heure reglee de la relecture est ignoree', fichier: P, avant: 'const heure = Number.isInteger(o.heureDesDepenses) ? Number(o.heureDesDepenses) : 19;', apres: 'const heure = 19;' },
@@ -120,7 +124,7 @@ const PANNES = [
   { nom: 'Depenses n ecrit plus le lien de l ecart', fichier: DEP, avant: '...(form.ecartDe ? { ecartDe: form.ecartDe } : {}),', apres: '', disque: true },
   { nom: 'Depenses n ecrit plus « La Maison elle-meme »', fichier: DEP, avant: 'const laMaisonAPaye = voitToutesLesDepenses && form.porteurChoisi && !form.porteur.trim();', apres: 'const laMaisonAPaye = false;', disque: true },
   /* La copie, la fonction, la migration. */
-  { nom: 'un caractere change dans la copie de la fonction', fichier: FN, avant: "export const VERSION_DE_LA_CLOTURE = '2026-11-05-a';", apres: "export const VERSION_DE_LA_CLOTURE = '2026-11-05-b';", disque: true },
+  { nom: 'un caractere change dans la copie de la fonction', fichier: FN, avant: "export const VERSION_DE_LA_CLOTURE = '2026-11-05-b';", apres: "export const VERSION_DE_LA_CLOTURE = '2026-11-05-c';", disque: true },
   { nom: 'le maitre qui a pose un rendez-vous est prevenu', fichier: FN, avant: ".eq('table_name', 'invoices').eq('porte', 'trone')", apres: ".in('table_name', ['invoices', 'appointments']).eq('porte', 'trone')", disque: true },
   { nom: 'la porte de secours ouverte a toute l equipe', fichier: 'src/apps/trone/routes/finances/Caisses.tsx', avant: '{estDirection && (', apres: '{(true) && (', disque: true },
   { nom: 'la fonction ecrit sans relire', fichier: FN, avant: 'if (!gesteToujoursValable(', apres: 'if (false && !gesteToujoursValable(', disque: true },

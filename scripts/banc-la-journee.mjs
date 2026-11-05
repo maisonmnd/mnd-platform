@@ -18,12 +18,15 @@
 
    LES DÉPENSES DU JOUR (5 novembre 2026, « Oui, il les relit à 19 h ») :
      - la section se tient sous les rendez-vous et avant la caisse du jour ;
-     - une dépense sans photo du reçu ni qui a payé se dit « À compléter »
-       avec « Joindre la photo », « Dire qui a payé » ; un écart de tiroir
-       sans dépense en face se dit « Écart » avec « C'était une dépense » ;
-       une dépense d'un jour passé « À valider » ; la récurrente se tait ;
+     - une dépense sans qui a payé se dit « À compléter » avec « Dire qui a
+       payé », et rien d'autre ; « PAS BESOIN DE PHOTO » (Yéman, 5 novembre
+       2026) : une dépense de 20 000 F sans photo, qui a payé dit, ne se
+       relit pas, et aucune ligne ne propose « Joindre la photo » ; un écart
+       de tiroir sans dépense en face se dit « Écart » avec « C'était une
+       dépense » ; une dépense d'un jour passé « À valider » ; la récurrente
+       se tait ;
      - rien de cela ne retient la journée : après « Absente », elle est close ;
-     - « Joindre la photo » ouvre la fiche de la dépense, « C'était une
+     - « Dire qui a payé » ouvre la fiche de la dépense, « C'était une
        dépense » le formulaire avec l'écart ; le jour d'avant (s'il était
        ouvert), Grenat demande « Aucune dépense saisie » et « Saisir une
        dépense » ouvre le formulaire ;
@@ -116,6 +119,8 @@ async function lanceLeBanc({ geste, scenario = 'complet' }) {
   const DEPENSES_COMPLET = [
     { id: 'dep-banc-meches', branchId: 'maison', label: 'Mèches', amountXof: 64600, date: J, cashbox: 'Real Money', category: 'Matières premières' },
     { id: 'dep-banc-loyer', branchId: 'maison', label: 'Loyer', amountXof: 300000, date: J, cashbox: 'Real Money', category: 'Local', recurring: 'mensuel' },
+    /* « Pas besoin de photo » : 20 000 F sans photo du reçu, qui a payé dit. */
+    { id: 'dep-banc-produits', branchId: 'maison', label: 'Produits de soin', amountXof: 20000, date: J, cashbox: 'Real Money', category: 'Matières premières', porteur: 'Sandrine' },
     { id: 'dep-banc-gaz', branchId: 'maison', label: 'Gaz', amountXof: 6000, date: ilYATroisJours, cashbox: 'Real Money', category: 'Local', porteur: 'Sandrine',
       validation: { etat: 'attente', soumisLe: `${ilYATroisJours}T10:00:00.000Z`, soumisPar: 'Opale' } },
   ];
@@ -211,7 +216,9 @@ async function lanceLeBanc({ geste, scenario = 'complet' }) {
   const lignes = (await lignesDepenses()) ?? [];
   dit('Grenat met sous les yeux : la dépense d un jour passé à valider, celle à compléter, l écart du tiroir', JSON.stringify(lignes.map((l) => l.genre)) === JSON.stringify(['a-valider', 'a-completer', 'ecart-sans-depense']), JSON.stringify(lignes.map((l) => l.genre)));
   const meches = lignes.find((l) => l.genre === 'a-completer');
-  dit('... les mèches : sans photo du reçu, et sans qui a payé, avec leurs deux gestes', !!meches && /sans photo du reçu, et sans qui a payé/.test(meches.texte) && JSON.stringify(meches.gestes) === JSON.stringify(['Joindre la photo', 'Dire qui a payé']), JSON.stringify(meches));
+  dit('... les mèches : sans qui a payé, avec son seul geste « Dire qui a payé »', !!meches && /Matières premières, Real Money : sans qui a payé\./.test(meches.texte) && JSON.stringify(meches.gestes) === JSON.stringify(['Dire qui a payé']), JSON.stringify(meches));
+  dit('... « Pas besoin de photo » : les 20 000 F de produits, sans photo mais qui a payé dit, ne se relisent pas', !lignes.some((l) => /Produits de soin/.test(l.texte)), JSON.stringify(lignes.map((l) => l.texte)));
+  dit('... et la section ne réclame aucune photo (ni « Joindre la photo », ni « photo du reçu »)', !/photo/i.test(await evalue(`document.querySelector('[data-lj="depenses"]')?.innerText ?? 'photo'`) ?? 'photo') && !lignes.some((l) => l.gestes.includes('Joindre la photo')));
   const ecart = lignes.find((l) => l.genre === 'ecart-sans-depense');
   dit('... l écart de Real Money, 2 500 F, avec sa note et « C’était une dépense »', !!ecart && /Tiroir Real Money · 2[\s\u202f\u00a0]500[\s\u202f\u00a0]F de moins que l’attendu/.test(ecart.texte) && /Monnaie rendue/.test(ecart.texte) && JSON.stringify(ecart.gestes) === JSON.stringify(['C’était une dépense']), JSON.stringify(ecart));
   dit('... « Laisser l’écart » est à la direction (le comptoir ne le voit pas)', !!ecart && /La direction peut laisser l’écart, avec sa note/.test(ecart.texte));
@@ -248,7 +255,7 @@ async function lanceLeBanc({ geste, scenario = 'complet' }) {
 
   /* 4. Les gestes des dépenses ouvrent les chemins de toujours. */
   const champ = (valeur) => `[...(document.querySelector('[role=dialog]')?.querySelectorAll('input') ?? [])].some((i) => ${valeur})`;
-  dit('« Joindre la photo » se touche', await touche('[data-lj-depense] .lj-g', 'Joindre la photo'));
+  dit('« Dire qui a payé » se touche', await touche('[data-lj-depense] .lj-g', 'Dire qui a payé'));
   await attend(2500);
   dit('... et ouvre la fiche des mèches, dans les Dépenses', /#\/depenses/.test(await evalue('location.hash') ?? '') && await evalue(champ(`i.value === 'Mèches'`)), await evalue('location.hash'));
   await photo('4-fiche');
