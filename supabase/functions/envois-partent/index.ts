@@ -719,8 +719,190 @@ export function partiAuFil(l: LigneALaPorte, messages: readonly MessageALaPorte[
     && instant(m.quand) >= prise - 60_000) ?? null;
 }
 /* ⟨/porte-des-modeles⟩ */
+/* ══ ARRÊTÉ D'AVANCE, MODÈLE EN PAUSE — 5 novembre 2026 (ce qui va partir) ══
+   « Ne pas envoyer » (la direction, depuis l'onglet « À venir ») et
+   l'interrupteur « En service / En pause » d'un modèle. Recopié À
+   L'IDENTIQUE de `src/shared/arret-d-avance-pur.ts` ; le banc des douze
+   lunes (R8) compare la copie. NE RIEN RETOUCHER ENTRE LES REPÈRES. ══ */
+/* ⟨arret-d-avance⟩ */
+/** Un message arrêté d'avance : sa clé, qui l'a arrêté et quand ; « Remettre » pose `remisLe`. */
+type ArretDAvance = { id?: string; cle?: string; arreteLe?: string; arretePar?: string; remisLe?: string; remisPar?: string; [k: string]: unknown };
+/** Un modèle Meta en pause chez nous : `enPause` vrai, qui, quand, pourquoi ; « Reprendre » le remet à faux. */
+type PauseDuModele = { id?: string; modele?: string; enPause?: boolean; par?: string; le?: string; motif?: string; parOpale?: boolean; [k: string]: unknown };
+/** Ce que la porte d'avance décide d'une ligne. `repli` : le modèle est en pause, son repli part à sa place. */
+type VerdictDAvance =
+  | { verdict: 'arrete'; cle: string; par: string; le: string; motif: string }
+  | { verdict: 'en-pause'; modele: string; motif: string }
+  | { verdict: 'repli'; modele: string; motif: string };
+/** Ce qu'une ligne d'envoi porte et que la clé lit. */
+type LigneDAvance = {
+  id?: unknown; type?: unknown; genre?: unknown; apptId?: unknown; seanceId?: unknown; invoiceId?: unknown; rang?: unknown;
+  clientId?: unknown; teteId?: unknown; subId?: unknown; campagneId?: unknown; dateRdv?: unknown; anniversaire?: unknown;
+  colis?: { genre?: unknown; modele?: unknown; repli?: { modele?: unknown } | null } | null;
+  [k: string]: unknown;
+};
 
-const VERSION = '2026-11-04-c · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi ; le papier d’une pièce déposé par Grenat : la pièce relue, sa clé réservée, sa marque posée';
+/** Le mot qui ouvre le détail d'une ligne arrêtée d'avance : le Trône le lit. */
+const MARQUE_DE_L_ARRET = 'arrêté d’avance';
+/** Opale signale un modèle au deuxième « non remis » de suite, le met en pause au cinquième. */
+const NON_REMIS_SIGNALE_AU = 2;
+const NON_REMIS_EN_PAUSE_AU = 5;
+
+const motDAvance = (v: unknown): string => String(v ?? '').trim();
+
+/** LA CLÉ D'UN MESSAGE : la même pour la prévision, la ligne en salle et la
+    ligne prise par le facteur. Une ligne que rien ne décrit n'est qu'elle-même. */
+function cleDuMessage(l: LigneDAvance | null | undefined): string {
+  const type = motDAvance(l?.type);
+  const id = motDAvance(l?.id);
+  const rdv = motDAvance(l?.apptId);
+  if ((type === 'rappel-j1' || type === 'confirmation' || type === 'reprise-j3') && rdv) return `${type}:${rdv}`;
+  if (type === 'point-apres' || type === 'point-avant') {
+    const seance = motDAvance(l?.seanceId) || rdv;
+    if (seance) return `${type}:${seance}`;
+  }
+  if (type === 'relance-facture') {
+    const m = /^rl-(.+)-(\d+)-whatsapp$/.exec(id);
+    if (m) return `relance:${m[1]}:${m[2]}`;
+    if (motDAvance(l?.invoiceId) && motDAvance(l?.rang)) return `relance:${motDAvance(l?.invoiceId)}:${motDAvance(l?.rang)}`;
+  }
+  if (type === 'rappel-echeance' || type === 'prix-revu') {
+    const m = /^(?:rv|pr)-(.+)-whatsapp$/.exec(id);
+    if (m) return `${type === 'prix-revu' ? 'prix-revu' : 'echeance'}:${m[1]}`;
+  }
+  if (type === 'fete-de-couronne') {
+    const m = /^fc-(.+)-(\d{4})-whatsapp$/.exec(id);
+    if (m) return `fete:${m[1]}:${m[2]}`;
+  }
+  if (type === 'avis-google' && motDAvance(l?.invoiceId)) return `avis:${motDAvance(l?.invoiceId)}`;
+  if (type === 'papier-de-la-piece' && motDAvance(l?.invoiceId)) return `papier:${motDAvance(l?.invoiceId)}`;
+  if (type === 'campagne' && motDAvance(l?.campagneId)) return `campagne:${motDAvance(l?.campagneId)}:${motDAvance(l?.clientId)}`;
+  if (type === 'gerard') {
+    const genre = motDAvance(l?.genre);
+    const jour = /^gerard-(\d{4}-\d{2}-\d{2})-/.exec(id)?.[1] ?? '';
+    if (genre === 'garder' && rdv) return `garder:${rdv}`;
+    if (genre === 'anniversaire' && motDAvance(l?.clientId) && jour) return `anniv:${motDAvance(l?.clientId)}:${jour.slice(0, 4)}`;
+    if (genre && motDAvance(l?.clientId) && jour) return `perle:${genre}:${motDAvance(l?.clientId)}:${jour}`;
+  }
+  return `ligne:${id}`;
+}
+
+/** L'ARRÊT EN VIGUEUR pour cette clé, ou null. Remis après le dernier arrêt : plus d'arrêt. */
+function arretEnVigueur(cle: string, arrets: readonly (ArretDAvance | null | undefined)[] | null | undefined): ArretDAvance | null {
+  if (!cle) return null;
+  for (const a of arrets ?? []) {
+    if (!a || motDAvance(a.cle ?? a.id) !== cle || !motDAvance(a.arreteLe)) continue;
+    if (motDAvance(a.remisLe) && motDAvance(a.remisLe) >= motDAvance(a.arreteLe)) continue;
+    return a;
+  }
+  return null;
+}
+
+/** LE MODÈLE EST-IL EN PAUSE ? La pause en vigueur, ou null. */
+function modeleEnPause(modele: unknown, pauses: readonly (PauseDuModele | null | undefined)[] | null | undefined): PauseDuModele | null {
+  const m = motDAvance(modele);
+  if (!m) return null;
+  for (const p of pauses ?? []) if (p && motDAvance(p.modele ?? p.id) === m && p.enPause === true) return p;
+  return null;
+}
+
+/** « mercredi 4 novembre 2026 à 21 h 40 », à l'heure de Cotonou (UTC + 1, sans heure d'été). */
+function momentDAvance(iso: unknown): string {
+  const t = Date.parse(motDAvance(iso));
+  if (!Number.isFinite(t)) return '';
+  const d = new Date(t + 3_600_000);
+  const JOURS_DITS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const MOIS_DITS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const j = d.getUTCDate();
+  const mi = d.getUTCMinutes();
+  return `${JOURS_DITS[d.getUTCDay()]} ${j === 1 ? '1er' : j} ${MOIS_DITS[d.getUTCMonth()]} ${d.getUTCFullYear()} à ${d.getUTCHours()} h${mi ? ` ${String(mi).padStart(2, '0')}` : ''}`;
+}
+
+/** LA PORTE D'AVANCE : l'arrêt de la direction d'abord, quel que soit le
+    canal (le SMS d'un rappel arrêté ne part pas non plus) ; puis, pour un
+    modèle WhatsApp, la pause : son repli part s'il en a un qui n'est pas en
+    pause, sinon rien. `null` : rien ne l'arrête ici. */
+function laPorteDAvance(
+  l: LigneDAvance | null | undefined,
+  o: { arrets?: readonly (ArretDAvance | null | undefined)[] | null; pauses?: readonly (PauseDuModele | null | undefined)[] | null },
+): VerdictDAvance | null {
+  const cle = cleDuMessage(l);
+  const arret = arretEnVigueur(cle, o.arrets);
+  if (arret) {
+    const par = motDAvance(arret.arretePar) || 'la direction';
+    const le = motDAvance(arret.arreteLe);
+    const quand = momentDAvance(le);
+    return { verdict: 'arrete', cle, par, le, motif: `${MARQUE_DE_L_ARRET} par ${par}${quand ? `, ${quand}` : ''}` };
+  }
+  if (motDAvance(l?.colis?.genre) !== 'whatsapp') return null;
+  const modele = motDAvance(l?.colis?.modele);
+  const pause = modeleEnPause(modele, o.pauses);
+  if (!pause) return null;
+  const repli = motDAvance(l?.colis?.repli?.modele);
+  if (repli && repli !== modele && !modeleEnPause(repli, o.pauses)) {
+    return { verdict: 'repli', modele: repli, motif: `le modèle ${modele} est en pause : ${repli} part à sa place` };
+  }
+  const par = motDAvance(pause.par);
+  return { verdict: 'en-pause', modele, motif: `le modèle ${modele} est en pause${par ? ` (${par === 'Opale' ? 'mis en pause par Opale' : `par ${par}`})` : ''}` };
+}
+
+/** CE QUE LA LIGNE DEVIENT quand elle ne part pas. Arrêtée : « écarté », par
+    qui l'a arrêtée ; le colis reste, « Remettre » peut la rendre tant que
+    son heure n'est pas passée. En pause : « périmé », marqué par Opale (les
+    fonctions ne la redéposent pas). Un repli n'écrit rien : la ligne part. */
+function ligneRetenueDAvance(v: VerdictDAvance, maintenantIso: string): Record<string, unknown> | null {
+  if (v.verdict === 'arrete') {
+    return { statut: 'écarté', ecartePar: v.par, ecarteLe: maintenantIso, detail: v.motif, arretDAvance: { cle: v.cle, par: v.par, le: v.le } };
+  }
+  if (v.verdict === 'en-pause') return { statut: 'périmé', detail: `retenu par Opale : ${v.motif}`, modeleEnPause: v.modele };
+  return null;
+}
+
+/** LA SÉRIE DES « NON REMIS » d'un modèle : du plus récent au plus ancien, les
+    messages sortants que WhatsApp a jugés, comptés tant qu'ils sont « non
+    remis ». Un message encore en route ne compte ni pour ni contre. */
+function serieDeNonRemis(messages: readonly ({ sens?: unknown; etat?: unknown; quand?: unknown } | null | undefined)[]): number {
+  const juges = messages
+    .filter((m): m is { sens?: unknown; etat?: unknown; quand?: unknown } => !!m && motDAvance(m.sens) === 'sortant'
+      && ['non-remis', 'remis', 'lu'].includes(motDAvance(m.etat)) && Number.isFinite(Date.parse(motDAvance(m.quand))))
+    .sort((a, b) => Date.parse(motDAvance(b.quand)) - Date.parse(motDAvance(a.quand)));
+  let n = 0;
+  for (const m of juges) {
+    if (motDAvance(m.etat) !== 'non-remis') break;
+    n += 1;
+  }
+  return n;
+}
+
+/** CE QU'OPALE FAIT D'UNE SÉRIE : rien, le signaler, ou mettre le modèle en pause. */
+function veilleDuModele(serie: number): 'rien' | 'signale' | 'pause' {
+  if (serie >= NON_REMIS_EN_PAUSE_AU) return 'pause';
+  if (serie >= NON_REMIS_SIGNALE_AU) return 'signale';
+  return 'rien';
+}
+
+/** Ce qu'une fonction donne pour lire : la base, telle que le client Supabase la présente. */
+type BaseDAvance = { from(t: string): { select(c: string): { range(de: number, a: number): PromiseLike<{ data: unknown[] | null; error: unknown }> } } };
+/** LA LECTURE AU DÉPÔT : une fonction qui dépose lit les arrêts et les pauses
+    une fois par passage. Une lecture qui échoue n'arrête rien ici : le
+    facteur, lui, ne laisse rien partir sans les avoir lus. */
+async function litLesArretsEtLesPauses(sb: BaseDAvance): Promise<{ arrets: ArretDAvance[]; pauses: PauseDuModele[] }> {
+  const lis = async (t: string): Promise<Record<string, unknown>[]> => {
+    try {
+      const { data, error } = await sb.from(t).select('id, data').range(0, 4999);
+      if (error) return [];
+      return ((data ?? []) as { id?: unknown; data?: Record<string, unknown> | null }[]).map((r) => ({ ...(r?.data ?? {}), id: String(r?.id ?? '') }));
+    } catch {
+      return [];
+    }
+  };
+  const [arrets, pauses] = await Promise.all([lis('envois_arretes'), lis('modeles_en_pause')]);
+  return { arrets: arrets as ArretDAvance[], pauses: pauses as PauseDuModele[] };
+}
+/* ⟨/arret-d-avance⟩ */
+
+
+const VERSION = '2026-11-05-a · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi ; le papier d’une pièce déposé par Grenat : la pièce relue, sa clé réservée, sa marque posée ; ce qui va partir : arrêté d’avance, modèle en pause, cinq non remis de suite et Opale le met en pause';
 
 /* ── LE CALCUL DES HEURES, recopié de src/shared/salle-des-envois.ts ── */
 const DECALAGE_DU_SALON_H = 1;
@@ -889,6 +1071,41 @@ async function faitsDeLaPorte(sb: Sb, l: LigneALaPorte, rdv: RdvALaPorte | null,
   };
 }
 
+/* ══ CE QUI VA PARTIR : LA PORTE D'AVANCE — 5 novembre 2026 ═══════════════
+   « Qu'on puisse arrêter le message au besoin », « mettre des modèles en
+   pause » (Yéman, 4 novembre 2026). Deux lectures par réveil, une fois pour
+   toutes les lignes portées : les messages arrêtés d'avance par la direction
+   (`envois_arretes`) et les modèles en pause (`modeles_en_pause`, 0158). Une
+   lecture qui échoue ne laisse rien partir sans elles : `null`, et chaque
+   ligne redevient un échec que sa fonction retentera. Seule une table encore
+   absente (0158 pas encore passée) laisse le facteur porter comme avant.
+
+   OPALE VEILLE : avant de porter un modèle WhatsApp, la série de ses « non
+   remis » les plus récents (depuis quatorze jours, et depuis qu'une main l'a
+   repris) se lit au fil ; à cinq de suite, Opale le met en pause (`parOpale`)
+   et rien ne part plus avec lui tant que la direction ne l'a pas repris. */
+type AvanceDuReveil = { arrets: ArretDAvance[]; pauses: PauseDuModele[] };
+const tableAbsente = (e: { code?: string; message?: string } | null | undefined): boolean =>
+  !!e && (e.code === '42P01' || e.code === 'PGRST205' || /does not exist|could not find the table/i.test(String(e.message ?? '')));
+async function litLAvance(sb: Sb): Promise<AvanceDuReveil | null> {
+  const [a, p] = await Promise.all([
+    sb.from('envois_arretes').select('id, data').limit(5000),
+    sb.from('modeles_en_pause').select('id, data').limit(500),
+  ]);
+  if ((a.error && !tableAbsente(a.error)) || (p.error && !tableAbsente(p.error))) return null;
+  return {
+    arrets: ((a.error ? [] : a.data ?? []) as { id: string; data: ArretDAvance }[]).map((r) => ({ ...(r.data ?? {}), id: r.id })),
+    pauses: ((p.error ? [] : p.data ?? []) as { id: string; data: PauseDuModele }[]).map((r) => ({ ...(r.data ?? {}), id: r.id })),
+  };
+}
+const VEILLE_DES_NON_REMIS_MS = 14 * 86_400_000;
+async function serieDuModele(sb: Sb, modele: string, depuisMs: number): Promise<number | null> {
+  const { data, error } = await sb.from('messages_wa').select('data').eq('data->>modele', modele).eq('data->>sens', 'sortant')
+    .gte('data->>quand', new Date(depuisMs).toISOString()).limit(500);
+  if (error) return null;
+  return serieDeNonRemis(((data ?? []) as { data: Record<string, unknown> }[]).map((r) => r.data ?? {}));
+}
+
 /* ══ LE PAPIER D'UNE PIÈCE, DÉPOSÉ PAR GRENAT — 4 novembre 2026 ═══════════
    La clôture de Grenat (`cloture-du-jour`) dépose le reçu ou la facture pas
    encore partis ; le Trône en fait le PDF et pose la ligne en salle. Ici,
@@ -1051,6 +1268,11 @@ Deno.serve(async (req) => {
   const SMS_FROM = Deno.env.get('SMS_FROM');
 
   let partis = 0, perimes = 0, echecs = 0, dejaPris = 0, retenusParOpale = 0, corrigesParOpale = 0;
+  let arretesDAvance = 0, enPause = 0, replisCarEnPause = 0;
+  const misEnPauseParOpale: string[] = [];
+  /* LA PORTE D'AVANCE (5 novembre 2026) : les arrêts et les pauses, lus une fois pour ce réveil. */
+  const avance = aPorter.length > 0 ? await litLAvance(sb) : { arrets: [], pauses: [] };
+  const seriesLues = new Map<string, number | null>();
 
   for (const l of aPorter) {
     /* ⑤ JE LE PRENDS EN MAIN, et moi seul : l'écriture ne passe que s'il est
@@ -1106,6 +1328,40 @@ Deno.serve(async (req) => {
        part avec l'appel de sa fiche. Un envoi de l'équipe ou une main qui a
        dit « maintenant » ne se juge pas (`quellePorte`). */
     const devant: LigneALaPorte = { ...(l.data as LigneALaPorte), ...(base as LigneALaPorte), id: l.id, parLaMain: l.data.parLaMain, colis: colis as ColisALaPorte };
+    /* ⑥ bis LA PORTE D'AVANCE — 5 novembre 2026 (ce qui va partir). Avant
+       toute autre règle, et pour toute ligne (le SMS d'un rappel arrêté non
+       plus, une main qui a dit « maintenant » non plus) : arrêté d'avance par
+       la direction, la ligne devient « écarté », son colis gardé (« Remettre »
+       peut la rendre tant que son heure n'est pas passée) ; un modèle en
+       pause : « périmé », retenu par Opale, ou son repli part à sa place. */
+    if (!avance) { await ecris({ statut: 'échec', detail: 'la porte d’Opale n’a pas pu lire les arrêts et les pauses' }); echecs++; continue; }
+    if (colis.genre === 'whatsapp' && !modeleEnPause(colis.modele, avance.pauses)) {
+      const m = String(colis.modele ?? '');
+      if (m && !seriesLues.has(m)) {
+        const reprise = Date.parse(String(avance.pauses.find((p) => String(p.modele ?? p.id) === m)?.reprisLe ?? ''));
+        const depuis = Math.max(Date.now() - VEILLE_DES_NON_REMIS_MS, Number.isFinite(reprise) ? reprise : 0);
+        seriesLues.set(m, await serieDuModele(sb, m, depuis));
+      }
+      const serie = seriesLues.get(m);
+      if (typeof serie === 'number' && veilleDuModele(serie) === 'pause') {
+        const pause: PauseDuModele = { id: m, modele: m, enPause: true, par: 'Opale', le: new Date().toISOString(), parOpale: true, motif: `${serie} messages de suite non remis` };
+        const { error: errPause } = await sb.from('modeles_en_pause').upsert({ id: m, branch_id: null, data: pause }, { onConflict: 'id' });
+        if (!errPause) { avance.pauses.push(pause); misEnPauseParOpale.push(m); }
+      }
+    }
+    const dAvance = laPorteDAvance(devant, avance);
+    if (dAvance && dAvance.verdict !== 'repli') {
+      const retenue = ligneRetenueDAvance(dAvance, new Date().toISOString()) ?? {};
+      await ecris(dAvance.verdict === 'arrete' ? { ...retenue, colis: colisDepose, partA: l.data.partA } : retenue);
+      if (dAvance.verdict === 'arrete') arretesDAvance++; else { enPause++; perimes++; }
+      continue;
+    }
+    if (dAvance?.verdict === 'repli' && colis.genre === 'whatsapp' && colis.repli) {
+      colis = { ...colis, modele: colis.repli.modele, composants: colis.repli.composants, texteAuFil: colis.repli.texteAuFil ?? colis.texteAuFil, repli: undefined };
+      devant.colis = colis as ColisALaPorte;
+      (base as Record<string, unknown>).repliCarEnPause = dAvance.motif;
+      replisCarEnPause++;
+    }
     if (quellePorte(devant) !== 'aucune') {
       let faits: ContexteDeLaPorte | null = null;
       let panneDeLecture = '';
@@ -1224,7 +1480,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ version: VERSION, enSalle: enSalle.length, heuresCalmes: calme, annonces, partis, perimes, echecs, dejaPris, interrompus, retrouves, retenusParOpale, corrigesParOpale }),
+    JSON.stringify({ version: VERSION, enSalle: enSalle.length, heuresCalmes: calme, annonces, partis, perimes, echecs, dejaPris, interrompus, retrouves, retenusParOpale, corrigesParOpale, arretesDAvance, enPause, replisCarEnPause, misEnPauseParOpale }),
     { headers: { 'content-type': 'application/json' } },
   );
 });

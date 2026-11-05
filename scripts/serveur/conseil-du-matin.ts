@@ -29,14 +29,16 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { aCotonou } from '../../src/shared/assistants-pur';
 import { CLES_DES_COMPTEURS } from '../../src/shared/maison-intelligente-pur';
-import { ecrisLeConseil, type FaitsDuConseil, type PageDuConseil } from '../../src/shared/conseil-du-matin-pur';
+import { ecrisLeConseil, type EnvoisMetaDuMatin, type FaitsDuConseil, type PageDuConseil } from '../../src/shared/conseil-du-matin-pur';
+import { heuresDesRappels, rappelDeLaVeilleSeTait } from '../../src/shared/heures-des-rappels-pur';
 
 declare const Deno: {
   env: { get(nom: string): string | undefined };
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-const VERSION = '2026-11-04-a';
+/* 2026-11-05-a : ce qui va partir, le mot d'Opale (les rappels du soir, ce qu'elle a retenu, les modèles en pause). */
+const VERSION = '2026-11-05-a';
 const ADRESSE = '/trone/#/assistants';
 const ETIQUETTE = 'mnd-conseil';
 /** Un appel à push-notify ne pend jamais au-delà. */
@@ -151,6 +153,34 @@ async function litLesFaits(sb: Base, maintenantMs: number): Promise<FaitsDuConse
     }),
   ]);
 
+  /* CE QUI VA PARTIR (5 novembre 2026) : le mot d'Opale. Les rendez-vous de
+     demain qui recevront le rappel de la veille ce soir (ni annulés, ni
+     honorés, ni déjà confirmés par la cliente), ce qui attend en salle, ce
+     qu'elle a retenu ou que la direction a arrêté depuis hier, et les modèles
+     en pause. Des nombres et des noms de modèles seulement. */
+  const envoisMeta = await essaie('envois', null as EnvoisMetaDuMatin | null, async () => {
+    const demain = aCotonou(maintenantMs + 86_400_000).dateISO;
+    const { data: cfg, error: errCfg } = await sb.from('documents').select('data').eq('key', 'mnd_auto_config').maybeSingle();
+    if (errCfg) throw new Error(errCfg.message);
+    const heures = heuresDesRappels((cfg?.data ?? null) as { rappelPremier?: unknown; rappelSecond?: unknown } | null);
+    const deDemain = await parPages((de, a) => sb.from('appointments').select('id, data').eq('data->>date', demain).order('id').range(de, a));
+    const rappelsDuSoir = deDemain.filter((r) => {
+      const s = String(r.data?.status ?? '');
+      return s !== 'annulé' && s !== 'honoré' && !rappelDeLaVeilleSeTait((r.data ?? {}) as { confirmeeParLaClienteLe?: unknown });
+    }).length;
+    const lignes = await parPages((de, a) => sb.from('envois').select('id, data').gte('data->>quand', debutHier).order('id').range(de, a));
+    const enAttente = await parPages((de, a) => sb.from('envois').select('id').eq('data->>statut', 'en-attente').order('id').range(de, a));
+    const retenus = lignes
+      .filter((l) => String(l.data?.statut ?? '') === 'périmé' && String(l.data?.detail ?? '').startsWith('retenu par Opale'))
+      .map((l) => String(l.data?.detail ?? ''));
+    const arretes = lignes.filter((l) => String(l.data?.statut ?? '') === 'écarté' && !!l.data?.arretDAvance).length;
+    const { data: pauses, error: errP } = await sb.from('modeles_en_pause').select('id, data').range(0, 499);
+    const enPause = errP ? [] : ((pauses ?? []) as Ligne[])
+      .filter((p) => p.data?.enPause === true)
+      .map((p) => ({ modele: String(p.data?.modele ?? p.id ?? ''), parOpale: p.data?.parOpale === true }));
+    return { rappelsDuSoir, heureDuRappel: heures.premier, enSalle: enAttente.length, retenus, arretes, enPause };
+  });
+
   /* Le lundi : les clientes distinctes avec un rituel honoré dans les 90 derniers jours. */
   let actives90: number | null = null;
   if (c.jour === 1) {
@@ -168,6 +198,7 @@ async function litLesFaits(sb: Base, maintenantMs: number): Promise<FaitsDuConse
     livre: (reglages.livreDesCredits ?? null) as FaitsDuConseil['livre'],
     conseil: (reglages.conseil ?? null) as FaitsDuConseil['conseil'],
     actives90,
+    envoisMeta,
     lacunes: [...new Set(lacunes)],
   };
 }

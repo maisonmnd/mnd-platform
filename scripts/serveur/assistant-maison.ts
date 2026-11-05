@@ -26,6 +26,7 @@ import { reglesDepuis } from '../../src/shared/salle-des-envois';
 import { lisLAssistant, codeDeLaSituation } from '../../src/shared/assistant-lecture-pur';
 import { CLE_DU_SERVEUR, lignesDuPassage, lignesNeuves, remisesAFabriquer, type EtatDuServeur } from '../../src/shared/assistant-passage-pur';
 import { HEURE_DU_PASSAGE_A, HEURE_DU_PASSAGE_DE, planDuJour, reglagesLus } from '../../src/shared/gerard-pur';
+import { laPorteDAvance, ligneRetenueDAvance, litLesArretsEtLesPauses } from '../../src/shared/arret-d-avance-pur';
 
 declare const Deno: {
   env: { get(nom: string): string | undefined };
@@ -34,8 +35,9 @@ declare const Deno: {
 
 /* 30-a (30 octobre 2026) : le SÍNSIN™ se dit « Reprise des racines »
    (shared/gestes-en-francais), rien d'autre. */
+/* 2026-11-05-a : ce qui va partir, une ligne arrêtée d'avance ou d'un modèle en pause s'écrit « écarté » ou « périmé ». */
 /* 2026-11-02-b : « garder » dès J-3 pour toutes (de passage, diaspora, locks défaits ; l'enfant par son parent), choix de Yéman au sélecteur. */
-const VERSION = '2026-11-02-b';
+const VERSION = '2026-11-05-a';
 
 type Ligne = { id: string; branch_id?: string | null; data: Record<string, unknown> };
 // deno-lint-ignore no-explicit-any
@@ -134,6 +136,15 @@ async function passage(sb: Base, maintenantMs: number, reglagesGerard: unknown):
   ]);
   const d = <T>(l: Ligne[]) => l.map((x) => x.data as T);
   const existantes = new Set(envois.map((e) => e.id));
+  /* CE QUI VA PARTIR (5 novembre 2026) : une ligne arrêtée d'avance par la
+     direction (« garder », la carte d'anniversaire…), ou dont le modèle est
+     en pause, s'écrit telle qu'elle partirait, mais « écarté » ou « périmé ». */
+  const avance = await litLesArretsEtLesPauses(sb);
+  const maintenantIso = new Date(maintenantMs).toISOString();
+  const retenueSiArretee = <L extends Record<string, unknown>>(l: L): L => {
+    const v = laPorteDAvance(l, avance);
+    return v && v.verdict !== 'repli' ? { ...l, ...(ligneRetenueDAvance(v, maintenantIso) ?? {}) } : l;
+  };
   let deposees = 0; let plan = 0;
   const erreurs: string[] = [];
   for (const b of d<{ id: string; seats?: number }>(branches)) {
@@ -147,7 +158,8 @@ async function passage(sb: Base, maintenantMs: number, reglagesGerard: unknown):
     });
     const leurPlan = planDuJour(cerveau.fiches, cerveau.ctx);
     plan += leurPlan.length;
-    const neuves = lignesNeuves(lignesDuPassage({ cerveau, plan: leurPlan, reglagesGerard, maintenantMs, branchId: b.id, regles }), existantes);
+    const neuves = lignesNeuves(lignesDuPassage({ cerveau, plan: leurPlan, reglagesGerard, maintenantMs, branchId: b.id, regles }), existantes)
+      .map((l) => retenueSiArretee(l as unknown as Record<string, unknown>) as unknown as typeof l);
     if (neuves.length === 0) continue;
     /* Jamais une ligne existante réécrite : un second passage ne remet rien « en attente ». */
     const { error } = await sb.from('envois').upsert(neuves.map((l) => ({ id: l.id, branch_id: l.branchId, data: l })), { onConflict: 'id', ignoreDuplicates: true });

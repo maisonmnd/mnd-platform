@@ -34,7 +34,7 @@ const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. 10 octobre 2026 : le passage du soir ne dépose plus
     un rappel que les heures calmes retiendraient jusqu'au jour même. */
-const VERSION = '2026-11-04-b · un rappel par foyer, qui nomme chaque tête ; la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
+const VERSION = '2026-11-05-a · ce qui va partir : un rappel, une reprise ou un point arrêtés d’avance, ou d’un modèle en pause, ne se déposent pas ; un rappel par foyer, qui nomme chaque tête ; la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
 
 type Rdv = {
   id: string;
@@ -416,6 +416,188 @@ export function foyerQuiNeTientPlus(
   return null;
 }
 /* ⟨/message-du-foyer⟩ */
+/* ══ ARRÊTÉ D'AVANCE, MODÈLE EN PAUSE — 5 novembre 2026 (ce qui va partir) ══
+   « Ne pas envoyer » (la direction, depuis l'onglet « À venir ») et
+   l'interrupteur « En service / En pause » d'un modèle. Recopié À
+   L'IDENTIQUE de `src/shared/arret-d-avance-pur.ts` ; le banc des douze
+   lunes (R8) compare la copie. NE RIEN RETOUCHER ENTRE LES REPÈRES. ══ */
+/* ⟨arret-d-avance⟩ */
+/** Un message arrêté d'avance : sa clé, qui l'a arrêté et quand ; « Remettre » pose `remisLe`. */
+type ArretDAvance = { id?: string; cle?: string; arreteLe?: string; arretePar?: string; remisLe?: string; remisPar?: string; [k: string]: unknown };
+/** Un modèle Meta en pause chez nous : `enPause` vrai, qui, quand, pourquoi ; « Reprendre » le remet à faux. */
+type PauseDuModele = { id?: string; modele?: string; enPause?: boolean; par?: string; le?: string; motif?: string; parOpale?: boolean; [k: string]: unknown };
+/** Ce que la porte d'avance décide d'une ligne. `repli` : le modèle est en pause, son repli part à sa place. */
+type VerdictDAvance =
+  | { verdict: 'arrete'; cle: string; par: string; le: string; motif: string }
+  | { verdict: 'en-pause'; modele: string; motif: string }
+  | { verdict: 'repli'; modele: string; motif: string };
+/** Ce qu'une ligne d'envoi porte et que la clé lit. */
+type LigneDAvance = {
+  id?: unknown; type?: unknown; genre?: unknown; apptId?: unknown; seanceId?: unknown; invoiceId?: unknown; rang?: unknown;
+  clientId?: unknown; teteId?: unknown; subId?: unknown; campagneId?: unknown; dateRdv?: unknown; anniversaire?: unknown;
+  colis?: { genre?: unknown; modele?: unknown; repli?: { modele?: unknown } | null } | null;
+  [k: string]: unknown;
+};
+
+/** Le mot qui ouvre le détail d'une ligne arrêtée d'avance : le Trône le lit. */
+const MARQUE_DE_L_ARRET = 'arrêté d’avance';
+/** Opale signale un modèle au deuxième « non remis » de suite, le met en pause au cinquième. */
+const NON_REMIS_SIGNALE_AU = 2;
+const NON_REMIS_EN_PAUSE_AU = 5;
+
+const motDAvance = (v: unknown): string => String(v ?? '').trim();
+
+/** LA CLÉ D'UN MESSAGE : la même pour la prévision, la ligne en salle et la
+    ligne prise par le facteur. Une ligne que rien ne décrit n'est qu'elle-même. */
+function cleDuMessage(l: LigneDAvance | null | undefined): string {
+  const type = motDAvance(l?.type);
+  const id = motDAvance(l?.id);
+  const rdv = motDAvance(l?.apptId);
+  if ((type === 'rappel-j1' || type === 'confirmation' || type === 'reprise-j3') && rdv) return `${type}:${rdv}`;
+  if (type === 'point-apres' || type === 'point-avant') {
+    const seance = motDAvance(l?.seanceId) || rdv;
+    if (seance) return `${type}:${seance}`;
+  }
+  if (type === 'relance-facture') {
+    const m = /^rl-(.+)-(\d+)-whatsapp$/.exec(id);
+    if (m) return `relance:${m[1]}:${m[2]}`;
+    if (motDAvance(l?.invoiceId) && motDAvance(l?.rang)) return `relance:${motDAvance(l?.invoiceId)}:${motDAvance(l?.rang)}`;
+  }
+  if (type === 'rappel-echeance' || type === 'prix-revu') {
+    const m = /^(?:rv|pr)-(.+)-whatsapp$/.exec(id);
+    if (m) return `${type === 'prix-revu' ? 'prix-revu' : 'echeance'}:${m[1]}`;
+  }
+  if (type === 'fete-de-couronne') {
+    const m = /^fc-(.+)-(\d{4})-whatsapp$/.exec(id);
+    if (m) return `fete:${m[1]}:${m[2]}`;
+  }
+  if (type === 'avis-google' && motDAvance(l?.invoiceId)) return `avis:${motDAvance(l?.invoiceId)}`;
+  if (type === 'papier-de-la-piece' && motDAvance(l?.invoiceId)) return `papier:${motDAvance(l?.invoiceId)}`;
+  if (type === 'campagne' && motDAvance(l?.campagneId)) return `campagne:${motDAvance(l?.campagneId)}:${motDAvance(l?.clientId)}`;
+  if (type === 'gerard') {
+    const genre = motDAvance(l?.genre);
+    const jour = /^gerard-(\d{4}-\d{2}-\d{2})-/.exec(id)?.[1] ?? '';
+    if (genre === 'garder' && rdv) return `garder:${rdv}`;
+    if (genre === 'anniversaire' && motDAvance(l?.clientId) && jour) return `anniv:${motDAvance(l?.clientId)}:${jour.slice(0, 4)}`;
+    if (genre && motDAvance(l?.clientId) && jour) return `perle:${genre}:${motDAvance(l?.clientId)}:${jour}`;
+  }
+  return `ligne:${id}`;
+}
+
+/** L'ARRÊT EN VIGUEUR pour cette clé, ou null. Remis après le dernier arrêt : plus d'arrêt. */
+function arretEnVigueur(cle: string, arrets: readonly (ArretDAvance | null | undefined)[] | null | undefined): ArretDAvance | null {
+  if (!cle) return null;
+  for (const a of arrets ?? []) {
+    if (!a || motDAvance(a.cle ?? a.id) !== cle || !motDAvance(a.arreteLe)) continue;
+    if (motDAvance(a.remisLe) && motDAvance(a.remisLe) >= motDAvance(a.arreteLe)) continue;
+    return a;
+  }
+  return null;
+}
+
+/** LE MODÈLE EST-IL EN PAUSE ? La pause en vigueur, ou null. */
+function modeleEnPause(modele: unknown, pauses: readonly (PauseDuModele | null | undefined)[] | null | undefined): PauseDuModele | null {
+  const m = motDAvance(modele);
+  if (!m) return null;
+  for (const p of pauses ?? []) if (p && motDAvance(p.modele ?? p.id) === m && p.enPause === true) return p;
+  return null;
+}
+
+/** « mercredi 4 novembre 2026 à 21 h 40 », à l'heure de Cotonou (UTC + 1, sans heure d'été). */
+function momentDAvance(iso: unknown): string {
+  const t = Date.parse(motDAvance(iso));
+  if (!Number.isFinite(t)) return '';
+  const d = new Date(t + 3_600_000);
+  const JOURS_DITS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const MOIS_DITS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const j = d.getUTCDate();
+  const mi = d.getUTCMinutes();
+  return `${JOURS_DITS[d.getUTCDay()]} ${j === 1 ? '1er' : j} ${MOIS_DITS[d.getUTCMonth()]} ${d.getUTCFullYear()} à ${d.getUTCHours()} h${mi ? ` ${String(mi).padStart(2, '0')}` : ''}`;
+}
+
+/** LA PORTE D'AVANCE : l'arrêt de la direction d'abord, quel que soit le
+    canal (le SMS d'un rappel arrêté ne part pas non plus) ; puis, pour un
+    modèle WhatsApp, la pause : son repli part s'il en a un qui n'est pas en
+    pause, sinon rien. `null` : rien ne l'arrête ici. */
+function laPorteDAvance(
+  l: LigneDAvance | null | undefined,
+  o: { arrets?: readonly (ArretDAvance | null | undefined)[] | null; pauses?: readonly (PauseDuModele | null | undefined)[] | null },
+): VerdictDAvance | null {
+  const cle = cleDuMessage(l);
+  const arret = arretEnVigueur(cle, o.arrets);
+  if (arret) {
+    const par = motDAvance(arret.arretePar) || 'la direction';
+    const le = motDAvance(arret.arreteLe);
+    const quand = momentDAvance(le);
+    return { verdict: 'arrete', cle, par, le, motif: `${MARQUE_DE_L_ARRET} par ${par}${quand ? `, ${quand}` : ''}` };
+  }
+  if (motDAvance(l?.colis?.genre) !== 'whatsapp') return null;
+  const modele = motDAvance(l?.colis?.modele);
+  const pause = modeleEnPause(modele, o.pauses);
+  if (!pause) return null;
+  const repli = motDAvance(l?.colis?.repli?.modele);
+  if (repli && repli !== modele && !modeleEnPause(repli, o.pauses)) {
+    return { verdict: 'repli', modele: repli, motif: `le modèle ${modele} est en pause : ${repli} part à sa place` };
+  }
+  const par = motDAvance(pause.par);
+  return { verdict: 'en-pause', modele, motif: `le modèle ${modele} est en pause${par ? ` (${par === 'Opale' ? 'mis en pause par Opale' : `par ${par}`})` : ''}` };
+}
+
+/** CE QUE LA LIGNE DEVIENT quand elle ne part pas. Arrêtée : « écarté », par
+    qui l'a arrêtée ; le colis reste, « Remettre » peut la rendre tant que
+    son heure n'est pas passée. En pause : « périmé », marqué par Opale (les
+    fonctions ne la redéposent pas). Un repli n'écrit rien : la ligne part. */
+function ligneRetenueDAvance(v: VerdictDAvance, maintenantIso: string): Record<string, unknown> | null {
+  if (v.verdict === 'arrete') {
+    return { statut: 'écarté', ecartePar: v.par, ecarteLe: maintenantIso, detail: v.motif, arretDAvance: { cle: v.cle, par: v.par, le: v.le } };
+  }
+  if (v.verdict === 'en-pause') return { statut: 'périmé', detail: `retenu par Opale : ${v.motif}`, modeleEnPause: v.modele };
+  return null;
+}
+
+/** LA SÉRIE DES « NON REMIS » d'un modèle : du plus récent au plus ancien, les
+    messages sortants que WhatsApp a jugés, comptés tant qu'ils sont « non
+    remis ». Un message encore en route ne compte ni pour ni contre. */
+function serieDeNonRemis(messages: readonly ({ sens?: unknown; etat?: unknown; quand?: unknown } | null | undefined)[]): number {
+  const juges = messages
+    .filter((m): m is { sens?: unknown; etat?: unknown; quand?: unknown } => !!m && motDAvance(m.sens) === 'sortant'
+      && ['non-remis', 'remis', 'lu'].includes(motDAvance(m.etat)) && Number.isFinite(Date.parse(motDAvance(m.quand))))
+    .sort((a, b) => Date.parse(motDAvance(b.quand)) - Date.parse(motDAvance(a.quand)));
+  let n = 0;
+  for (const m of juges) {
+    if (motDAvance(m.etat) !== 'non-remis') break;
+    n += 1;
+  }
+  return n;
+}
+
+/** CE QU'OPALE FAIT D'UNE SÉRIE : rien, le signaler, ou mettre le modèle en pause. */
+function veilleDuModele(serie: number): 'rien' | 'signale' | 'pause' {
+  if (serie >= NON_REMIS_EN_PAUSE_AU) return 'pause';
+  if (serie >= NON_REMIS_SIGNALE_AU) return 'signale';
+  return 'rien';
+}
+
+/** Ce qu'une fonction donne pour lire : la base, telle que le client Supabase la présente. */
+type BaseDAvance = { from(t: string): { select(c: string): { range(de: number, a: number): PromiseLike<{ data: unknown[] | null; error: unknown }> } } };
+/** LA LECTURE AU DÉPÔT : une fonction qui dépose lit les arrêts et les pauses
+    une fois par passage. Une lecture qui échoue n'arrête rien ici : le
+    facteur, lui, ne laisse rien partir sans les avoir lus. */
+async function litLesArretsEtLesPauses(sb: BaseDAvance): Promise<{ arrets: ArretDAvance[]; pauses: PauseDuModele[] }> {
+  const lis = async (t: string): Promise<Record<string, unknown>[]> => {
+    try {
+      const { data, error } = await sb.from(t).select('id, data').range(0, 4999);
+      if (error) return [];
+      return ((data ?? []) as { id?: unknown; data?: Record<string, unknown> | null }[]).map((r) => ({ ...(r?.data ?? {}), id: String(r?.id ?? '') }));
+    } catch {
+      return [];
+    }
+  };
+  const [arrets, pauses] = await Promise.all([lis('envois_arretes'), lis('modeles_en_pause')]);
+  return { arrets: arrets as ArretDAvance[], pauses: pauses as PauseDuModele[] };
+}
+/* ⟨/arret-d-avance⟩ */
+
 
 /* ══ LA REPRISE PROPOSÉE, TROIS JOURS AVANT — 29 septembre 2026 ═══════════
    « And for renewal appointments even faster » (Yéman), maquette « La
@@ -464,6 +646,8 @@ async function proposeLesReprises(sb: ReturnType<typeof createClient>, salleOuve
   const WA_TOKEN = Deno.env.get('WA_TOKEN');
   const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');
   if (!MODELE || !WA_TOKEN || !WA_PHONE_ID) return { reprises: 'sans-modele' };
+  /* Ce qui va partir (5 novembre 2026) : les reprises arrêtées d'avance et les modèles en pause. */
+  const avanceDuDepot = await litLesArretsEtLesPauses(sb);
 
   const jour = new Date(Date.now() + JOURS_AVANT_LA_REPRISE * 86_400_000).toLocaleDateString('en-CA', { timeZone: TZ });
   const { data: lignes, error } = await sb.from('appointments').select('id, branch_id, data')
@@ -514,6 +698,20 @@ async function proposeLesReprises(sb: ReturnType<typeof createClient>, salleOuve
       { type: 'button', sub_type: 'quick_reply', index: '1', parameters: [{ type: 'payload', payload: `REPRISE_AUTRE:${a.id}` }] },
     ];
     const texteDuFil = `Bonjour ${prenom}, votre prochain rituel est prévu ${quand} : ${gestes}. [Je confirme] [Un autre moment]`;
+    /* ARRÊTÉE D'AVANCE, OU SON MODÈLE EN PAUSE (5 novembre 2026, ce qui va
+       partir) : écrite telle qu'elle partirait, mais « écarté » ou « périmé ». */
+    if (tel) {
+      const aDeposer = {
+        id: idEnvoi, branchId: a.branchId, type: 'reprise-j3', canal: 'whatsapp',
+        apptId: a.id, clientId: a.clientId, dateRdv: a.date, heure: a.time, statut: 'en-attente', quand: maintenant,
+        ...depot(Date.now(), regles, { genre: 'whatsapp', numero: tel, modele: MODELE, parQui: 'la Maison, automatiquement', texteAuFil: texteDuFil, composants, rdvChampApres: 'repriseProposeeLe' }, prenom),
+      };
+      const dAvance = laPorteDAvance(aDeposer, avanceDuDepot);
+      if (dAvance && dAvance.verdict !== 'repli') {
+        await sb.from('envois').upsert({ id: idEnvoi, branch_id: a.branchId ?? null, data: { ...aDeposer, ...ligneRetenueDAvance(dAvance, maintenant) } }, { onConflict: 'id' });
+        continue;
+      }
+    }
     /* EN SALLE : le facteur portera, et inscrira la proposition sur le rendez-vous. */
     if (salleOuverte && tel) {
       await sb.from('envois').upsert({
@@ -647,6 +845,8 @@ async function poseLesPointsDEtape(sb: ReturnType<typeof createClient>, salleOuv
   const WA_TOKEN = Deno.env.get('WA_TOKEN');
   const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');
   if ((!APRES && !AVANT) || !WA_TOKEN || !WA_PHONE_ID) return { points: 'sans-modele' };
+  /* Ce qui va partir (5 novembre 2026) : les points arrêtés d'avance et les modèles en pause. */
+  const avanceDuDepot = await litLesArretsEtLesPauses(sb);
 
   const aujourdhui = new Date().toLocaleDateString('en-CA', { timeZone: TZ });
   /* Les séances qui ouvrent un point AUJOURD'HUI : honorées il y a sept jours,
@@ -743,6 +943,20 @@ async function poseLesPointsDEtape(sb: ReturnType<typeof createClient>, salleOuv
        voyage sous `seanceId`. Celui d'avant garde son rendez-vous : déplacé
        ou annulé pendant l'attente, il ne part plus. */
     const rdvDuPoint = p.type === 'avant' ? { apptId: a.id, heure: a.time } : { apptId: '' };
+    /* ARRÊTÉ D'AVANCE, OU SON MODÈLE EN PAUSE (5 novembre 2026, ce qui va
+       partir) : écrit tel qu'il partirait, mais « écarté » ou « périmé ». */
+    if (tel) {
+      const aDeposer = {
+        id: idEnvoi, branchId: a.branchId, type: `point-${p.type}`, canal: 'whatsapp', ...rdvDuPoint, seanceId: a.id,
+        clientId: fiche.id, dateRdv: a.date, statut: 'en-attente', quand: maintenant,
+        ...depot(Date.now(), regles, { genre: 'whatsapp', numero: tel, modele, parQui: 'la Maison, automatiquement', texteAuFil: texteDuFil, composants }, prenom),
+      };
+      const dAvance = laPorteDAvance(aDeposer, avanceDuDepot);
+      if (dAvance && dAvance.verdict !== 'repli') {
+        await sb.from('envois').upsert({ id: idEnvoi, branch_id: a.branchId ?? null, data: { ...aDeposer, ...ligneRetenueDAvance(dAvance, maintenant) } }, { onConflict: 'id' });
+        continue;
+      }
+    }
     /* EN SALLE : le facteur portera. */
     if (salleOuverte && tel) {
       await sb.from('envois').upsert({
@@ -940,6 +1154,10 @@ Deno.serve(async (req) => {
     for (const id of tetesCouvertes(lignesDuJour, { type: 'rappel-j1', canal, verrouille })) deja.add(`env-${id}-${canal}`);
   }
 
+  /* Ce qui va partir (5 novembre 2026) : les rappels arrêtés d'avance (le SMS
+     avec le WhatsApp, une seule clé) et les modèles en pause. */
+  const avanceDuDepot = await litLesArretsEtLesPauses(sb);
+
   /* ── Les canaux configurés ──────────────────────────────────────── */
   const WA_TOKEN = Deno.env.get('WA_TOKEN');
   const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');
@@ -1073,7 +1291,19 @@ Deno.serve(async (req) => {
       const a = fWa.porteur;
       const prenom = appelDuFoyer(fWa, (t) => t.appel, (t) => t.prenomSeul);
       const tel = a.numero;
-      if (partiraitLeJourMeme) {
+      /* ARRÊTÉ D'AVANCE, OU SON MODÈLE EN PAUSE (5 novembre 2026, ce qui va
+         partir) : consigné tel qu'il partirait, mais « écarté » ou « périmé ». */
+      const colisDuRappel = {
+        genre: 'whatsapp', numero: tel ?? '', modele: WA_TEMPLATE, parQui: 'la Maison, automatiquement',
+        texteAuFil: `${prenom}, votre rendez-vous est demain à ${heureLisible(a.time)}.`,
+        composants: [{ type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: heureLisible(a.time) }] }],
+      };
+      const dAvanceWa = !partiraitLeJourMeme && WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)
+        ? laPorteDAvance({ id: `env-${a.id}-whatsapp`, type: 'rappel-j1', apptId: a.id, colis: colisDuRappel }, avanceDuDepot) : null;
+      if (dAvanceWa && dAvanceWa.verdict !== 'repli') {
+        const retenue = ligneRetenueDAvance(dAvanceWa, new Date().toISOString()) ?? {};
+        consigne('whatsapp', a, String(retenue.statut), String(retenue.detail ?? ''), undefined, { ...depot(Date.now(), regles, colisDuRappel, prenom), ...retenue });
+      } else if (partiraitLeJourMeme) {
         if (WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)) consigne('whatsapp', a, 'périmé', motif);
       } else if (salleOuverte && WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)) {
         consigne('whatsapp', a, 'en-attente', undefined, undefined, depot(Date.now(), regles, {
@@ -1137,7 +1367,12 @@ Deno.serve(async (req) => {
       const texteDuSms = noms
         ? `${nomMaison}, rappel : le rendez-vous de ${noms} est demain à ${heureLisible(a.time)}. Merci de nous prévenir en cas d'empêchement.`
         : `${nomMaison}, rappel : votre rendez-vous est demain à ${heureLisible(a.time)}. Merci de nous prévenir en cas d'empêchement.`;
-      if (partiraitLeJourMeme) {
+      const dAvanceSms = !partiraitLeJourMeme && SMS_SID && SMS_TOKEN && SMS_FROM && tel && !deja.has(`env-${a.id}-sms`)
+        ? laPorteDAvance({ id: `env-${a.id}-sms`, type: 'rappel-j1', apptId: a.id, colis: { genre: 'sms' } }, avanceDuDepot) : null;
+      if (dAvanceSms && dAvanceSms.verdict !== 'repli') {
+        const retenue = ligneRetenueDAvance(dAvanceSms, new Date().toISOString()) ?? {};
+        consigne('sms', a, String(retenue.statut), String(retenue.detail ?? ''), undefined, retenue);
+      } else if (partiraitLeJourMeme) {
         if (SMS_SID && SMS_TOKEN && SMS_FROM && tel && !deja.has(`env-${a.id}-sms`)) consigne('sms', a, 'périmé', motif);
       } else if (salleOuverte && SMS_SID && SMS_TOKEN && SMS_FROM && tel && !deja.has(`env-${a.id}-sms`)) {
         consigne('sms', a, 'en-attente', undefined, undefined, depot(Date.now(), regles, {

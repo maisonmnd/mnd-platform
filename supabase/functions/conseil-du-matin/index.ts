@@ -432,8 +432,27 @@ var LACUNES_DITES = {
   taches: "les tâches de la nuit",
   compteurs: "les compteurs de crédits",
   actives: "les clientes actives",
-  reglages: "les réglages"
+  reglages: "les réglages",
+  envois: "les messages Meta"
 };
+var MOTIFS_COURTS = {
+  "deja-parti": ["déjà parti", "déjà partis"],
+  confirme: ["confirmation déjà reçue", "confirmations déjà reçues"],
+  ecrit: ["conversation ouverte", "conversations ouvertes"],
+  rdv: ["rendez-vous qui ne tient plus", "rendez-vous qui ne tiennent plus"],
+  pause: ["message d’un modèle en pause", "messages d’un modèle en pause"],
+  autre: ["autre motif", "autres motifs"]
+};
+function motifCourt(detail) {
+  const d = String(detail ?? "").replace(/^retenu par Opale : /, "");
+  if (/^déjà parti/.test(d)) return "deja-parti";
+  if (/^elle a déjà confirmé|^sa confirmation est partie/.test(d)) return "confirme";
+  if (/^elle a écrit/.test(d)) return "ecrit";
+  if (/^le rendez-vous|^l’heure du rendez-vous/.test(d)) return "rdv";
+  if (/^le modèle .* est en pause/.test(d)) return "pause";
+  return "autre";
+}
+var modeleSage = (m) => /^[a-z0-9_]{2,60}$/.test(String(m ?? "")) ? String(m) : null;
 var JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
 var MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
 function jourDit(jourISO) {
@@ -533,6 +552,10 @@ function pointsQuiPressent(f, maintenantMs, livre) {
     ].filter(Boolean);
     if (ouverts.length) points.push({ rang: entier(c.alarmes) ? 1 : 3, ton: entier(c.alarmes) ? "alerte" : "attention", texte: `La journée d'hier n'est pas close : ${ouverts.join(", ")}.` });
   }
+  for (const p of f.envoisMeta?.enPause ?? []) {
+    const m = modeleSage(p.modele);
+    if (m && p.parOpale) points.push({ rang: 2, ton: "alerte", texte: `Opale a mis en pause le modèle ${m} : ses messages revenaient non remis.` });
+  }
   const dep = entier(f.depensesAValider);
   if (dep > 0) points.push({ rang: 5, ton: "attention", texte: dep === 1 ? "Une dépense attend sa validation." : `${dep} dépenses attendent leur validation.` });
   const places = (f.cartes ?? []).filter((c) => c.genre === "place-tenue" && decisionEnAttente({ tranchee: c.tranchee ?? null, echeance: c.echeance ?? null }, maintenantMs)).length;
@@ -600,9 +623,36 @@ function hier(f, jour, jourDHier) {
   else lignes.push(`${capitale(nombreDit(rh, "relais", "relais"))} entre professionnels hier${rt ? `, ${rt} encore à traiter` : ""}.`);
   return lignes;
 }
+function messagesMetaDuJour(e) {
+  if (!e) return [];
+  const lignes = [];
+  const soir = entier(e.rappelsDuSoir);
+  const salle = entier(e.enSalle);
+  const h = typeof e.heureDuRappel === "number" && e.heureDuRappel >= 9 && e.heureDuRappel <= 19 ? `${Math.round(e.heureDuRappel)} h` : null;
+  const part = [];
+  if (soir) part.push(`${nombreDit(soir, "rappel de la veille partira", "rappels de la veille partiront")} ce soir${h ? ` dès ${h}` : ""}`);
+  if (salle) part.push(`${nombreDit(salle, "message attend", "messages attendent")} déjà en salle`);
+  lignes.push(part.length ? `Messages Meta : ${part.join(", ")}.` : "Messages Meta : rien de prévu ce soir pour le moment.");
+  const parMotif = /* @__PURE__ */ new Map();
+  for (const r of e.retenus ?? []) {
+    const m = motifCourt(r);
+    parMotif.set(m, (parMotif.get(m) ?? 0) + 1);
+  }
+  const retenus = [...parMotif.values()].reduce((a, b) => a + b, 0);
+  if (retenus) {
+    const detail = [...parMotif.entries()].sort((a, b) => b[1] - a[1]).map(([m, n]) => nombreDit(n, MOTIFS_COURTS[m][0], MOTIFS_COURTS[m][1])).join(", ");
+    lignes.push(`Opale a retenu ${nombreDit(retenus, "message", "messages")} depuis hier : ${detail}.`);
+  }
+  const arretes = entier(e.arretes);
+  if (arretes) lignes.push(`${capitale(nombreDit(arretes, "message arrêté", "messages arrêtés"))} d'avance par la direction depuis hier.`);
+  const pauses = (e.enPause ?? []).map((p) => modeleSage(p.modele)).filter((m) => !!m);
+  if (pauses.length) lignes.push(`En pause : ${pauses.join(", ")}.`);
+  return lignes;
+}
 function aujourdhui(f) {
+  const meta = messagesMetaDuJour(f.envoisMeta);
   const rdvs = (f.rdvDuJour ?? []).filter((r) => String(r.status ?? "") !== "annulé");
-  if (rdvs.length === 0) return ["Aucun rendez-vous aujourd'hui."];
+  if (rdvs.length === 0) return ["Aucun rendez-vous aujourd'hui.", ...meta];
   const heures = rdvs.map((r) => String(r.time ?? "")).filter((t) => heureDite(t)).sort();
   const premiere = heures.length ? heureDite(heures[0]) : null;
   const lignes = [`${capitale(nombreDit(rdvs.length, "rendez-vous", "rendez-vous"))} aujourd'hui${premiere ? `, le premier à ${premiere}` : ""}.`];
@@ -612,7 +662,7 @@ function aujourdhui(f) {
     parFauteuil.set(p, (parFauteuil.get(p) ?? 0) + 1);
   }
   lignes.push(`Par fauteuil : ${[...parFauteuil.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([p, n]) => `${p} ${n}`).join(", ")}.`);
-  return lignes;
+  return [...lignes, ...meta];
 }
 function lesDix(f, maintenantMs) {
   const r = reglagesComplets(f.reglagesAssistants ?? null);
@@ -684,8 +734,27 @@ function ecrisLeConseil(f, maintenantMs) {
   };
 }
 
+// src/shared/heures-des-rappels-pur.ts
+var HEURES_DES_RAPPELS_PAR_DEFAUT = { premier: 18, second: 19 };
+var PREMIERE_HEURE_DES_RAPPELS = 9;
+var DERNIERE_HEURE_DES_RAPPELS = 19;
+function heuresDesRappels(cfg) {
+  const heure = (v) => {
+    if (typeof v !== "number" && typeof v !== "string") return null;
+    const x = Number(v);
+    return v !== "" && Number.isInteger(x) && x >= PREMIERE_HEURE_DES_RAPPELS && x <= DERNIERE_HEURE_DES_RAPPELS ? x : null;
+  };
+  const premier = heure(cfg?.rappelPremier) ?? HEURES_DES_RAPPELS_PAR_DEFAUT.premier;
+  const brut = cfg?.rappelSecond;
+  const second = brut === void 0 || brut === null ? HEURES_DES_RAPPELS_PAR_DEFAUT.second : heure(brut);
+  return { premier, second: second !== null && second > premier ? second : null };
+}
+function rappelDeLaVeilleSeTait(a) {
+  return typeof a.confirmeeParLaClienteLe === "string" && a.confirmeeParLaClienteLe.trim().length > 0;
+}
+
 // scripts/serveur/conseil-du-matin.ts
-var VERSION = "2026-11-04-a";
+var VERSION = "2026-11-05-a";
 var ADRESSE = "/trone/#/assistants";
 var ETIQUETTE = "mnd-conseil";
 var ENVOI_MAX_MS = 8e3;
@@ -777,6 +846,24 @@ async function litLesFaits(sb, maintenantMs) {
       return (data ?? []).map((t) => ({ tache: t.tache, echecs: t.echecs }));
     })
   ]);
+  const envoisMeta = await essaie("envois", null, async () => {
+    const demain = aCotonou(maintenantMs + 864e5).dateISO;
+    const { data: cfg, error: errCfg } = await sb.from("documents").select("data").eq("key", "mnd_auto_config").maybeSingle();
+    if (errCfg) throw new Error(errCfg.message);
+    const heures = heuresDesRappels(cfg?.data ?? null);
+    const deDemain = await parPages((de2, a) => sb.from("appointments").select("id, data").eq("data->>date", demain).order("id").range(de2, a));
+    const rappelsDuSoir = deDemain.filter((r) => {
+      const s = String(r.data?.status ?? "");
+      return s !== "annulé" && s !== "honoré" && !rappelDeLaVeilleSeTait(r.data ?? {});
+    }).length;
+    const lignes = await parPages((de2, a) => sb.from("envois").select("id, data").gte("data->>quand", debutHier).order("id").range(de2, a));
+    const enAttente = await parPages((de2, a) => sb.from("envois").select("id").eq("data->>statut", "en-attente").order("id").range(de2, a));
+    const retenus = lignes.filter((l) => String(l.data?.statut ?? "") === "périmé" && String(l.data?.detail ?? "").startsWith("retenu par Opale")).map((l) => String(l.data?.detail ?? ""));
+    const arretes = lignes.filter((l) => String(l.data?.statut ?? "") === "écarté" && !!l.data?.arretDAvance).length;
+    const { data: pauses, error: errP } = await sb.from("modeles_en_pause").select("id, data").range(0, 499);
+    const enPause = errP ? [] : (pauses ?? []).filter((p) => p.data?.enPause === true).map((p) => ({ modele: String(p.data?.modele ?? p.id ?? ""), parOpale: p.data?.parOpale === true }));
+    return { rappelsDuSoir, heureDuRappel: heures.premier, enSalle: enAttente.length, retenus, arretes, enPause };
+  });
   let actives90 = null;
   if (c.jour === 1) {
     actives90 = await essaie("actives", null, async () => {
@@ -799,6 +886,7 @@ async function litLesFaits(sb, maintenantMs) {
     livre: reglages.livreDesCredits ?? null,
     conseil: reglages.conseil ?? null,
     actives90,
+    envoisMeta,
     lacunes: [...new Set(lacunes)]
   };
 }

@@ -645,6 +645,7 @@ export function ConversationsDAvant() {
       {vue === 'envois' && (
         <EnvoisAutomatiques
           typeInitial={params.get('type')}
+          ongletInitial={params.get('onglet')}
           onOuvrirLeFil={(numero) => {
             const n = numeroWa(numero);
             setVue('fils');

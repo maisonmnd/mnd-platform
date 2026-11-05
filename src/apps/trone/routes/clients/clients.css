@@ -3945,3 +3945,51 @@ label.trc-foyer--lier { justify-content: flex-start; cursor: pointer; }
 .tr-code-rdv > b { font-size: 15px; letter-spacing: .08em; font-weight: 600; color: var(--color-indigo); }
 .tr-code-rdv__copie { font: inherit; font-size: 12px; padding: 3px 10px; border: 1px solid var(--hairline); border-radius: var(--radius-sm, 3px); background: var(--surface-card); color: var(--ink); cursor: pointer; }
 .tr-code-rdv__copie:hover { border-color: var(--copper-300); }
+
+/* CE QUI VA PARTIR (5 novembre 2026) : les onglets des envois automatiques,
+   « À venir » jour par jour, et « Les modèles Meta ». Maquette v3 validée. */
+.trc-envois-onglets { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+.trc-envois-onglets button { font: inherit; font-size: 13px; padding: 5px 13px; border-radius: 999px; border: 1px solid var(--hairline); background: transparent; color: var(--ink-soft, #4b4f72); cursor: pointer; }
+.trc-envois-onglets button[aria-pressed="true"] { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire, #F6F1E7); }
+.trc-avenir { border: 1px solid var(--hairline); border-radius: var(--radius-md, 6px); background: var(--paper, #fff); overflow: hidden; min-width: 0; }
+.trc-avenir__tete { padding: 14px 16px; border-bottom: 1px solid var(--hairline); display: grid; gap: 10px; }
+.trc-avenir__compte { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13.5px; color: var(--ink-soft, #4b4f72); }
+.trc-avenir__compte b { color: var(--color-indigo); font-weight: 500; }
+.trc-avenir__filtres { display: flex; flex-wrap: wrap; gap: 6px; }
+.trc-avenir__filtres button { font: inherit; font-size: 12.5px; padding: 4px 10px; border-radius: 3px; border: 1px solid var(--hairline); background: transparent; color: var(--ink-soft, #4b4f72); cursor: pointer; }
+.trc-avenir__filtres button[aria-pressed="true"] { border-color: var(--color-copper); color: var(--copper-700); }
+.trc-avenir__jour { position: sticky; top: 0; z-index: 1; background: var(--ivoire, #F6F1E7); padding: 7px 16px; font-size: 13px; font-weight: 500; color: var(--color-indigo); display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--hairline); }
+.trc-avenir__jour span:last-child { color: var(--ink-soft, #8a8270); font-weight: 400; }
+.trc-avenir__calme { padding: 7px 16px; font-size: 12.5px; color: var(--ink-soft, #8a8270); border-bottom: 1px dashed var(--hairline); margin: 0; }
+.trc-avenir__vide { padding: 14px 16px; font-size: 13.5px; color: var(--ink-soft, #8a8270); margin: 0; }
+.trc-avenir__envoi { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; gap: 4px 14px; padding: 11px 16px; border-bottom: 1px solid var(--hairline); align-items: start; }
+.trc-avenir__heure { font-family: var(--font-serif); font-size: 20px; line-height: 1.15; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.trc-avenir__qui { font-weight: 500; color: var(--color-indigo); }
+.trc-avenir__modele { display: block; font-size: 12.5px; color: var(--ink-soft, #4b4f72); }
+.trc-avenir__modele code { font-size: 11.5px; color: var(--ink-soft, #8a8270); font-family: ui-monospace, Consolas, monospace; }
+.trc-avenir__pourquoi { display: block; font-size: 12.5px; color: var(--ink-soft, #4b4f72); }
+.trc-avenir__gestes { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.trc-avenir__lire { font: inherit; font-size: 12.5px; background: none; border: none; padding: 0; color: var(--copper-700); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.trc-avenir__stop { font: inherit; font-size: 12.5px; white-space: nowrap; background: transparent; border: 1px solid var(--color-brique, #96412E); color: var(--color-brique, #96412E); border-radius: 3px; padding: 4px 10px; cursor: pointer; }
+.trc-avenir__remettre { font: inherit; font-size: 12.5px; white-space: nowrap; background: transparent; border: 1px solid var(--hairline); color: var(--ink-soft, #4b4f72); border-radius: 3px; padding: 4px 10px; cursor: pointer; }
+.trc-avenir__texte { grid-column: 2 / -1; background: var(--ivoire, #F6F1E7); border-radius: 3px; padding: 9px 11px; font-size: 13px; color: var(--ink); white-space: pre-line; margin: 0; }
+.trc-avenir__envoi--arrete { background: var(--brique-faible, #FBF0ED); }
+.trc-avenir__envoi--arrete .trc-avenir__heure, .trc-avenir__envoi--arrete .trc-avenir__qui { text-decoration: line-through; color: var(--ink-soft, #8a8270); }
+.trc-avenir__dit { grid-column: 2 / -1; font-size: 12.5px; color: var(--color-brique, #96412E); margin: 0; }
+.trc-avenir__pastille { display: inline-block; margin-left: 6px; font-size: 10.5px; letter-spacing: .06em; padding: 1px 7px; border-radius: 3px; background: var(--color-copper); color: #fff; vertical-align: 2px; }
+.trc-avenir__note { font-size: 11.5px; line-height: 1.6; margin: 10px 2px 0; }
+.trc-modeles { overflow-x: auto; border: 1px solid var(--hairline); border-radius: var(--radius-md, 6px); background: var(--paper, #fff); }
+.trc-modeles table { border-collapse: collapse; width: 100%; min-width: 860px; }
+.trc-modeles th, .trc-modeles td { text-align: left; padding: 8px 11px; border-bottom: 1px solid var(--hairline); font-size: 13px; vertical-align: top; }
+.trc-modeles th { font-weight: 500; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft, #8a8270); }
+.trc-modeles td code { font-size: 12px; font-family: ui-monospace, Consolas, monospace; }
+.trc-modeles .num { text-align: right; font-variant-numeric: tabular-nums; }
+.trc-modeles tr.trc-modeles--alerte td { background: var(--brique-faible, #FBF0ED); }
+.trc-modeles tr.trc-modeles--alerte td.trc-modeles__nonremis { color: var(--color-brique, #96412E); font-weight: 500; }
+.trc-modeles__bascule { font: inherit; font-size: 12px; white-space: nowrap; border-radius: 999px; padding: 3px 10px; cursor: pointer; border: 1px solid var(--hairline); background: transparent; color: var(--ink); }
+.trc-modeles__bascule[aria-pressed="true"] { border-color: var(--color-brique, #96412E); color: var(--color-brique, #96412E); }
+@media (max-width: 640px) {
+  .trc-avenir__envoi { grid-template-columns: 48px minmax(0, 1fr); }
+  .trc-avenir__gestes { grid-column: 2; flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .trc-avenir__texte, .trc-avenir__dit { grid-column: 1 / -1; }
+}

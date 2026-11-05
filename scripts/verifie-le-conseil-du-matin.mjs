@@ -57,7 +57,7 @@ const PANNES = [
   ['un relais perime reste a traiter', SERVEUR, "      .filter((r) => !r.perime_le || String(r.perime_le) > maintenant).length),", '      .length),'],
   ['une lecture manquee tue la page', SERVEUR, "    try { return await f(); } catch (e) { lacunes.push(cle);", '    try { return await f(); } catch (e) { throw e;'],
   ['un souverain deux fois notifie deux fois', SERVEUR, "  const ids = [...new Set(((data ?? []) as Ligne[]).map((s) => String(s.user_id ?? '')).filter(Boolean))];", "  const ids = ((data ?? []) as Ligne[]).map((s) => String(s.user_id ?? '')).filter(Boolean);"],
-  ['la fonction garde une ancienne version', SERVEUR, "const VERSION = '2026-11-04-a';", "const VERSION = '2026-11-02-b';"],
+  ['la fonction garde une ancienne version', SERVEUR, "const VERSION = '2026-11-05-a';", "const VERSION = '2026-11-02-b';"],
   // le câblage
   ['la tache de Saphir part a 6 h de Cotonou', SQL, "select cron.schedule('conseil-du-matin', '0 6 * * *',", "select cron.schedule('conseil-du-matin', '0 5 * * *',"],
   ['le composant lit une autre table', ECRAN, ".from('conseil_du_matin')", ".from('conseil')"],

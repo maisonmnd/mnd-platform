@@ -1506,8 +1506,111 @@ function remisesAFabriquer(envois) {
   return out;
 }
 
+// src/shared/arret-d-avance-pur.ts
+var MARQUE_DE_L_ARRET = "arrêté d’avance";
+var motDAvance = (v) => String(v ?? "").trim();
+function cleDuMessage(l) {
+  const type = motDAvance(l?.type);
+  const id = motDAvance(l?.id);
+  const rdv = motDAvance(l?.apptId);
+  if ((type === "rappel-j1" || type === "confirmation" || type === "reprise-j3") && rdv) return `${type}:${rdv}`;
+  if (type === "point-apres" || type === "point-avant") {
+    const seance = motDAvance(l?.seanceId) || rdv;
+    if (seance) return `${type}:${seance}`;
+  }
+  if (type === "relance-facture") {
+    const m = /^rl-(.+)-(\d+)-whatsapp$/.exec(id);
+    if (m) return `relance:${m[1]}:${m[2]}`;
+    if (motDAvance(l?.invoiceId) && motDAvance(l?.rang)) return `relance:${motDAvance(l?.invoiceId)}:${motDAvance(l?.rang)}`;
+  }
+  if (type === "rappel-echeance" || type === "prix-revu") {
+    const m = /^(?:rv|pr)-(.+)-whatsapp$/.exec(id);
+    if (m) return `${type === "prix-revu" ? "prix-revu" : "echeance"}:${m[1]}`;
+  }
+  if (type === "fete-de-couronne") {
+    const m = /^fc-(.+)-(\d{4})-whatsapp$/.exec(id);
+    if (m) return `fete:${m[1]}:${m[2]}`;
+  }
+  if (type === "avis-google" && motDAvance(l?.invoiceId)) return `avis:${motDAvance(l?.invoiceId)}`;
+  if (type === "papier-de-la-piece" && motDAvance(l?.invoiceId)) return `papier:${motDAvance(l?.invoiceId)}`;
+  if (type === "campagne" && motDAvance(l?.campagneId)) return `campagne:${motDAvance(l?.campagneId)}:${motDAvance(l?.clientId)}`;
+  if (type === "gerard") {
+    const genre = motDAvance(l?.genre);
+    const jour = /^gerard-(\d{4}-\d{2}-\d{2})-/.exec(id)?.[1] ?? "";
+    if (genre === "garder" && rdv) return `garder:${rdv}`;
+    if (genre === "anniversaire" && motDAvance(l?.clientId) && jour) return `anniv:${motDAvance(l?.clientId)}:${jour.slice(0, 4)}`;
+    if (genre && motDAvance(l?.clientId) && jour) return `perle:${genre}:${motDAvance(l?.clientId)}:${jour}`;
+  }
+  return `ligne:${id}`;
+}
+function arretEnVigueur(cle, arrets) {
+  if (!cle) return null;
+  for (const a2 of arrets ?? []) {
+    if (!a2 || motDAvance(a2.cle ?? a2.id) !== cle || !motDAvance(a2.arreteLe)) continue;
+    if (motDAvance(a2.remisLe) && motDAvance(a2.remisLe) >= motDAvance(a2.arreteLe)) continue;
+    return a2;
+  }
+  return null;
+}
+function modeleEnPause(modele, pauses) {
+  const m = motDAvance(modele);
+  if (!m) return null;
+  for (const p of pauses ?? []) if (p && motDAvance(p.modele ?? p.id) === m && p.enPause === true) return p;
+  return null;
+}
+function momentDAvance(iso2) {
+  const t = Date.parse(motDAvance(iso2));
+  if (!Number.isFinite(t)) return "";
+  const d = new Date(t + 36e5);
+  const JOURS_DITS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+  const MOIS_DITS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  const j = d.getUTCDate();
+  const mi = d.getUTCMinutes();
+  return `${JOURS_DITS[d.getUTCDay()]} ${j === 1 ? "1er" : j} ${MOIS_DITS[d.getUTCMonth()]} ${d.getUTCFullYear()} à ${d.getUTCHours()} h${mi ? ` ${String(mi).padStart(2, "0")}` : ""}`;
+}
+function laPorteDAvance(l, o) {
+  const cle = cleDuMessage(l);
+  const arret = arretEnVigueur(cle, o.arrets);
+  if (arret) {
+    const par2 = motDAvance(arret.arretePar) || "la direction";
+    const le = motDAvance(arret.arreteLe);
+    const quand = momentDAvance(le);
+    return { verdict: "arrete", cle, par: par2, le, motif: `${MARQUE_DE_L_ARRET} par ${par2}${quand ? `, ${quand}` : ""}` };
+  }
+  if (motDAvance(l?.colis?.genre) !== "whatsapp") return null;
+  const modele = motDAvance(l?.colis?.modele);
+  const pause = modeleEnPause(modele, o.pauses);
+  if (!pause) return null;
+  const repli = motDAvance(l?.colis?.repli?.modele);
+  if (repli && repli !== modele && !modeleEnPause(repli, o.pauses)) {
+    return { verdict: "repli", modele: repli, motif: `le modèle ${modele} est en pause : ${repli} part à sa place` };
+  }
+  const par = motDAvance(pause.par);
+  return { verdict: "en-pause", modele, motif: `le modèle ${modele} est en pause${par ? ` (${par === "Opale" ? "mis en pause par Opale" : `par ${par}`})` : ""}` };
+}
+function ligneRetenueDAvance(v, maintenantIso) {
+  if (v.verdict === "arrete") {
+    return { statut: "écarté", ecartePar: v.par, ecarteLe: maintenantIso, detail: v.motif, arretDAvance: { cle: v.cle, par: v.par, le: v.le } };
+  }
+  if (v.verdict === "en-pause") return { statut: "périmé", detail: `retenu par Opale : ${v.motif}`, modeleEnPause: v.modele };
+  return null;
+}
+async function litLesArretsEtLesPauses(sb) {
+  const lis = async (t) => {
+    try {
+      const { data, error } = await sb.from(t).select("id, data").range(0, 4999);
+      if (error) return [];
+      return (data ?? []).map((r) => ({ ...r?.data ?? {}, id: String(r?.id ?? "") }));
+    } catch {
+      return [];
+    }
+  };
+  const [arrets, pauses] = await Promise.all([lis("envois_arretes"), lis("modeles_en_pause")]);
+  return { arrets, pauses };
+}
+
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-11-02-b";
+var VERSION = "2026-11-05-a";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {
@@ -1604,6 +1707,12 @@ async function passage(sb, maintenantMs, reglagesGerard) {
   ]);
   const d = (l) => l.map((x) => x.data);
   const existantes = new Set(envois.map((e) => e.id));
+  const avance = await litLesArretsEtLesPauses(sb);
+  const maintenantIso = new Date(maintenantMs).toISOString();
+  const retenueSiArretee = (l) => {
+    const v = laPorteDAvance(l, avance);
+    return v && v.verdict !== "repli" ? { ...l, ...ligneRetenueDAvance(v, maintenantIso) ?? {} } : l;
+  };
   let deposees = 0;
   let plan = 0;
   const erreurs = [];
@@ -1629,7 +1738,7 @@ async function passage(sb, maintenantMs, reglagesGerard) {
     });
     const leurPlan = planDuJour(cerveau.fiches, cerveau.ctx);
     plan += leurPlan.length;
-    const neuves = lignesNeuves(lignesDuPassage({ cerveau, plan: leurPlan, reglagesGerard, maintenantMs, branchId: b.id, regles }), existantes);
+    const neuves = lignesNeuves(lignesDuPassage({ cerveau, plan: leurPlan, reglagesGerard, maintenantMs, branchId: b.id, regles }), existantes).map((l) => retenueSiArretee(l));
     if (neuves.length === 0) continue;
     const { error } = await sb.from("envois").upsert(neuves.map((l) => ({ id: l.id, branch_id: l.branchId, data: l })), { onConflict: "id", ignoreDuplicates: true });
     if (error) erreurs.push(`envois : ${error.message}`);

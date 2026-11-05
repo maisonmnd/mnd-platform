@@ -64,6 +64,25 @@ export type FaitsDuConseil = {
   conseil?: ReglagesDuConseil | null;
   /** Ce que la fonction n'a pas pu lire ce matin (clés de LACUNES_DITES). */
   lacunes?: string[];
+  /** CE QUI VA PARTIR (5 novembre 2026) : ce qu'Opale sait des modèles Meta ce
+      matin, en nombres et en noms de modèles seulement. */
+  envoisMeta?: EnvoisMetaDuMatin | null;
+};
+
+/** Les messages Meta du jour, vus par la porte d'Opale. */
+export type EnvoisMetaDuMatin = {
+  /** Les rendez-vous de demain qui recevront le rappel de la veille ce soir. */
+  rappelsDuSoir?: number;
+  /** L'heure du premier passage des rappels (18 par défaut). */
+  heureDuRappel?: number | null;
+  /** Les messages qui attendent déjà en salle. */
+  enSalle?: number;
+  /** Les motifs (le détail « retenu par Opale : … ») des messages retenus depuis hier matin. */
+  retenus?: string[];
+  /** Les messages arrêtés d'avance par la direction depuis hier matin. */
+  arretes?: number;
+  /** Les modèles en pause chez nous, et qui les a mis en pause. */
+  enPause?: { modele: string; parOpale?: boolean; motif?: string }[];
 };
 
 /** Ce que Saphir dit quand une lecture a manqué : une liste fermée. */
@@ -71,7 +90,30 @@ export const LACUNES_DITES: Record<string, string> = {
   assistants: 'le registre des professionnels', cartes: 'les cartes', relais: 'les relais', bilans: 'les bilans',
   journal: 'le journal', rdv: 'les rendez-vous du jour', equipe: "l'équipe", depenses: 'les dépenses', taches: 'les tâches de la nuit',
   compteurs: 'les compteurs de crédits', actives: 'les clientes actives', reglages: 'les réglages',
+  envois: 'les messages Meta',
 };
+
+/** CE QU'OPALE A RETENU, en peu de mots : le motif de la porte réduit à sa
+    famille, dit au singulier et au pluriel. */
+export const MOTIFS_COURTS: Record<string, [string, string]> = {
+  'deja-parti': ['déjà parti', 'déjà partis'],
+  confirme: ['confirmation déjà reçue', 'confirmations déjà reçues'],
+  ecrit: ['conversation ouverte', 'conversations ouvertes'],
+  rdv: ['rendez-vous qui ne tient plus', 'rendez-vous qui ne tiennent plus'],
+  pause: ['message d’un modèle en pause', 'messages d’un modèle en pause'],
+  autre: ['autre motif', 'autres motifs'],
+};
+export function motifCourt(detail: unknown): keyof typeof MOTIFS_COURTS {
+  const d = String(detail ?? '').replace(/^retenu par Opale : /, '');
+  if (/^déjà parti/.test(d)) return 'deja-parti';
+  if (/^elle a déjà confirmé|^sa confirmation est partie/.test(d)) return 'confirme';
+  if (/^elle a écrit/.test(d)) return 'ecrit';
+  if (/^le rendez-vous|^l’heure du rendez-vous/.test(d)) return 'rdv';
+  if (/^le modèle .* est en pause/.test(d)) return 'pause';
+  return 'autre';
+}
+/** Un nom de modèle Meta, s'il est sage : des minuscules, des chiffres, des soulignés. */
+const modeleSage = (m: unknown): string | null => (/^[a-z0-9_]{2,60}$/.test(String(m ?? '')) ? String(m) : null);
 
 /* ── La page ──────────────────────────────────────────────────────────── */
 
@@ -233,6 +275,13 @@ function pointsQuiPressent(f: FaitsDuConseil, maintenantMs: number, livre: Retur
     if (ouverts.length) points.push({ rang: entier(c.alarmes) ? 1 : 3, ton: entier(c.alarmes) ? 'alerte' : 'attention', texte: `La journée d'hier n'est pas close : ${ouverts.join(', ')}.` });
   }
 
+  /* ④ ter CE QUI VA PARTIR (5 novembre 2026) : un modèle qu'Opale a mis en
+     pause (cinq « non remis » de suite) presse : rien ne part plus avec lui. */
+  for (const p of f.envoisMeta?.enPause ?? []) {
+    const m = modeleSage(p.modele);
+    if (m && p.parOpale) points.push({ rang: 2, ton: 'alerte', texte: `Opale a mis en pause le modèle ${m} : ses messages revenaient non remis.` });
+  }
+
   /* ⑤ Les dépenses à valider. */
   const dep = entier(f.depensesAValider);
   if (dep > 0) points.push({ rang: 5, ton: 'attention', texte: dep === 1 ? 'Une dépense attend sa validation.' : `${dep} dépenses attendent leur validation.` });
@@ -295,9 +344,35 @@ function hier(f: FaitsDuConseil, jour: string, jourDHier: string): string[] {
   return lignes;
 }
 
+/** CE QUI PART AUJOURD'HUI, CE QU'OPALE A RETENU (5 novembre 2026). */
+export function messagesMetaDuJour(e: EnvoisMetaDuMatin | null | undefined): string[] {
+  if (!e) return [];
+  const lignes: string[] = [];
+  const soir = entier(e.rappelsDuSoir);
+  const salle = entier(e.enSalle);
+  const h = typeof e.heureDuRappel === 'number' && e.heureDuRappel >= 9 && e.heureDuRappel <= 19 ? `${Math.round(e.heureDuRappel)} h` : null;
+  const part: string[] = [];
+  if (soir) part.push(`${nombreDit(soir, 'rappel de la veille partira', 'rappels de la veille partiront')} ce soir${h ? ` dès ${h}` : ''}`);
+  if (salle) part.push(`${nombreDit(salle, 'message attend', 'messages attendent')} déjà en salle`);
+  lignes.push(part.length ? `Messages Meta : ${part.join(', ')}.` : 'Messages Meta : rien de prévu ce soir pour le moment.');
+  const parMotif = new Map<string, number>();
+  for (const r of e.retenus ?? []) { const m = motifCourt(r); parMotif.set(m, (parMotif.get(m) ?? 0) + 1); }
+  const retenus = [...parMotif.values()].reduce((a, b) => a + b, 0);
+  if (retenus) {
+    const detail = [...parMotif.entries()].sort((a, b) => b[1] - a[1]).map(([m, n]) => nombreDit(n, MOTIFS_COURTS[m][0], MOTIFS_COURTS[m][1])).join(', ');
+    lignes.push(`Opale a retenu ${nombreDit(retenus, 'message', 'messages')} depuis hier : ${detail}.`);
+  }
+  const arretes = entier(e.arretes);
+  if (arretes) lignes.push(`${capitale(nombreDit(arretes, 'message arrêté', 'messages arrêtés'))} d'avance par la direction depuis hier.`);
+  const pauses = (e.enPause ?? []).map((p) => modeleSage(p.modele)).filter((m): m is string => !!m);
+  if (pauses.length) lignes.push(`En pause : ${pauses.join(', ')}.`);
+  return lignes;
+}
+
 function aujourdhui(f: FaitsDuConseil): string[] {
+  const meta = messagesMetaDuJour(f.envoisMeta);
   const rdvs = (f.rdvDuJour ?? []).filter((r) => String(r.status ?? '') !== 'annulé');
-  if (rdvs.length === 0) return ['Aucun rendez-vous aujourd\'hui.'];
+  if (rdvs.length === 0) return ['Aucun rendez-vous aujourd\'hui.', ...meta];
   const heures = rdvs.map((r) => String(r.time ?? '')).filter((t) => heureDite(t)).sort();
   const premiere = heures.length ? heureDite(heures[0]) : null;
   const lignes = [`${capitale(nombreDit(rdvs.length, 'rendez-vous', 'rendez-vous'))} aujourd'hui${premiere ? `, le premier à ${premiere}` : ''}.`];
@@ -307,7 +382,7 @@ function aujourdhui(f: FaitsDuConseil): string[] {
     parFauteuil.set(p, (parFauteuil.get(p) ?? 0) + 1);
   }
   lignes.push(`Par fauteuil : ${[...parFauteuil.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([p, n]) => `${p} ${n}`).join(', ')}.`);
-  return lignes;
+  return [...lignes, ...meta];
 }
 
 function lesDix(f: FaitsDuConseil, maintenantMs: number): ProDuConseil[] {

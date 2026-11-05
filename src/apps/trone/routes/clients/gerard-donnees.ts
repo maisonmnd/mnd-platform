@@ -13,7 +13,7 @@ import { supabase } from '../../../../shared/supabase';
 import { codesPromoStore, useCodesPromo } from '../../../../shared/promos';
 import { useStore } from '../../../../shared/store';
 import { passageDu, planDuJour, type Situation } from '../../../../shared/gerard-pur';
-import { codeDeLaSituation, lisLAssistant, type CerveauDeGerard } from '../../../../shared/assistant-lecture-pur';
+import { codeDeLaSituation, lisLAssistant, type CerveauDeGerard, type EntreesDeLAssistant } from '../../../../shared/assistant-lecture-pur';
 import { CLE_DU_SERVEUR, lignesDuPassage, lignesNeuves, remisesAFabriquer, serveurVivant, type EtatDuServeur } from '../../../../shared/assistant-passage-pur';
 import { reglagesDeGerardStore, reglagesLus, useReglagesDeGerard } from '../../../../shared/gerard';
 import { envoisStore, useEnvois } from '../equipe/data';
@@ -37,6 +37,36 @@ export type { CerveauDeGerard };
    27 OCTOBRE 2026 : la lecture vit dans `shared/assistant-lecture-pur.ts`,
    partagée avec la fonction serveur `assistant-maison`. Ici, la prise sur
    les magasins du Trône, et rien d'autre. */
+
+/** CE QUE L'ASSISTANT LIT, sans le jour : les mêmes entrées servent au
+    passage d'aujourd'hui et à « Ce qui va partir » (5 novembre 2026), qui
+    rejoue le même cerveau jour par jour. */
+export type EntreesSansLeJour = Omit<EntreesDeLAssistant, 'aujourdhui' | 'maintenantMs'>;
+export function useEntreesDeLAssistant(): EntreesSansLeJour {
+  const { branch } = useBranch();
+  const appts = useBranchAppointments();
+  const clients = useBranchClients();
+  const byId = useServicesById();
+  const signalements = useSignalements();
+  const abonnes = useAbonnesAuxNotifications();
+  const [envois] = useEnvois();
+  const [pieces] = useInvoices();
+  const [blocages] = useBlocages();
+  const [reglages] = useSettings();
+  const [familles] = useFamilies();
+  const [messages] = useMessagesWa();
+  const [cartes] = useCartesCadeaux();
+  const [codes] = useCodesPromo();
+  const [brutGerard] = useReglagesDeGerard();
+  return useMemo(() => ({
+    branche: { id: branch.id, seats: branch.seats },
+    clients, rdvs: appts, prestations: byId, signalements, abonnes, envois, messages, pieces, blocages,
+    familles, cartes, codes, reglagesGerard: brutGerard, ouverture: openingForIso,
+  }),
+  /* Les réglages de la Maison (`reglages`) portent les heures que lit `openingForIso`. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [appts, clients, byId, signalements, abonnes, envois, pieces, blocages, branch.id, branch.seats, reglages, familles, messages, cartes, codes, brutGerard]);
+}
 
 /** LES FICHES QUE L'ASSISTANT LIT, prises sur les magasins du Trône. */
 export function useCerveauDeGerard(): CerveauDeGerard {

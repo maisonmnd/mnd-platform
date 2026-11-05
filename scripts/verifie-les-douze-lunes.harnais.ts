@@ -662,6 +662,8 @@ const regles: Regle[] = [
         'prenom-d-usage': { fichier: 'src/shared/civilite.ts', extrait: (s) => entre(s, 'prenom-d-usage') },
         /* Déplacer depuis le site (7 novembre 2026) : la règle des 24 heures, recopiée dans demande-submit. */
         'deplacer-du-site': { fichier: 'src/shared/deplacer-du-site-pur.ts', extrait: (s) => entre(s, 'deplacer-du-site') },
+        /* Ce qui va partir (5 novembre 2026) : la clé d'un message, l'arrêt d'avance, la pause d'un modèle et la veille d'Opale, recopiés dans envois-partent et chaque fonction qui dépose. */
+        'arret-d-avance': { fichier: 'src/shared/arret-d-avance-pur.ts', extrait: (s) => entre(s, 'arret-d-avance') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

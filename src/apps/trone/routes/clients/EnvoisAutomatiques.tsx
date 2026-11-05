@@ -22,7 +22,14 @@
      · CHAQUE ENVOI EST UNE LIGNE QUI SE LIT : l'heure, la cliente, le
        message et son rendez-vous, puis ce qu'il est devenu, en couleur, avec
        son motif. Sur téléphone, la ligne passe sur deux étages.
-   Un écran vide dit pourquoi, et propose d'élargir la période. */
+   Un écran vide dit pourquoi, et propose d'élargir la période.
+
+   ══ CE QUI VA PARTIR — 5 novembre 2026 ══════════════════════════════════
+   Maquette « Ce qui va partir » (v3), son choix : quatre onglets. « En
+   salle » (les dix minutes, `SalleDesEnvois`), « À venir » (les sept jours,
+   `AVenir`), « Partis » (le journal ci-dessous) et « Les modèles Meta »
+   (`ModelesMeta`). `?onglet=a-venir|salle|partis|modeles` en ouvre un ;
+   sans lui, la salle quand un message y attend, sinon le journal. */
 
 import { useMemo, useState } from 'react';
 import { useBranch } from '../../../../shared/branches';
@@ -35,6 +42,11 @@ import {
 } from '../../../../shared/envois';
 import { useEnvois } from '../equipe/data';
 import { SalleDesEnvois } from './SalleDesEnvois';
+import { AVenir } from './AVenir';
+import { ModelesMeta } from './ModelesMeta';
+
+type OngletDesEnvois = 'salle' | 'a-venir' | 'partis' | 'modeles';
+const ONGLETS: [OngletDesEnvois, string][] = [['salle', 'En salle'], ['a-venir', 'À venir'], ['partis', 'Partis'], ['modeles', 'Les modèles Meta']];
 
 const FUSEAU = 'Africa/Porto-Novo';
 
@@ -78,12 +90,14 @@ const pastille = (texte: string, ton: { fond: string; encre: string; bord: strin
   }}>{texte}</span>
 );
 
-export function EnvoisAutomatiques({ onOuvrirLeFil, typeInitial, jourInitial }: {
+export function EnvoisAutomatiques({ onOuvrirLeFil, typeInitial, jourInitial, ongletInitial }: {
   onOuvrirLeFil: (numero: string) => void;
   /** `?type=` — le Marketing ouvre le journal sur une automatisation (21 octobre 2026), sur sept jours. */
   typeInitial?: string | null;
   /** La période d'ouverture : « Ce que ça rapporte » ouvre sur trente jours (27 octobre 2026). */
   jourInitial?: FiltreDuJournal['jour'];
+  /** `?onglet=` : « a-venir », « salle », « partis », « modeles » (5 novembre 2026). */
+  ongletInitial?: string | null;
 }) {
   const { branch } = useBranch();
   const [envois] = useEnvois();
@@ -104,6 +118,13 @@ export function EnvoisAutomatiques({ onOuvrirLeFil, typeInitial, jourInitial }: 
   const ficheDe = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
   const surLaSemaine = envoisDeLaPeriode(ici, 'semaine', aujourdhui).length;
   const surTrenteJours = envoisDeLaPeriode(ici, '30-jours', aujourdhui).length;
+  const enSalle = ici.filter((e) => e.statut === 'en-attente' || e.statut === 'retenu').length;
+  const [onglet, setOnglet] = useState<OngletDesEnvois>(() => {
+    const voulu = ONGLETS.find(([k]) => k === ongletInitial)?.[0];
+    if (voulu) return voulu;
+    if (typeDemande || jourInitial) return 'partis';
+    return envois.some((e) => e && (!e.branchId || e.branchId === branch.id) && (e.statut === 'en-attente' || e.statut === 'retenu')) ? 'salle' : 'partis';
+  });
 
   const segment = (actif: boolean): React.CSSProperties => ({
     font: 'inherit', fontSize: 12.5, padding: '6px 14px', cursor: 'pointer', border: 'none',
@@ -112,9 +133,30 @@ export function EnvoisAutomatiques({ onOuvrirLeFil, typeInitial, jourInitial }: 
 
   return (
     <div>
-      {/* CE QUI VA PARTIR, AVANT QUE ÇA PARTE (2 octobre 2026). */}
-      <SalleDesEnvois />
+      {/* LES QUATRE ONGLETS (5 novembre 2026, ce qui va partir). */}
+      <div className="trc-envois-onglets" role="tablist" aria-label="Envois automatiques">
+        {ONGLETS.map(([k, mot]) => (
+          <button key={k} type="button" role="tab" aria-pressed={onglet === k} aria-selected={onglet === k} onClick={() => setOnglet(k)}>
+            {k === 'salle' ? `${mot} (${enSalle})` : mot}
+          </button>
+        ))}
+      </div>
 
+      {onglet === 'salle' && (
+        <>
+          {/* CE QUI VA PARTIR DANS LES DIX MINUTES (2 octobre 2026). */}
+          <SalleDesEnvois />
+          {enSalle === 0 && (
+            <p className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '4px 2px 12px' }}>
+              Rien n’attend dans la salle. Un message automatique y passe dix minutes avant de partir ; ce qui partira plus tard est dans « À venir ».
+            </p>
+          )}
+        </>
+      )}
+      {onglet === 'a-venir' && <AVenir />}
+      {onglet === 'modeles' && <ModelesMeta />}
+
+      {onglet === 'partis' && (<>
       {/* ── Ce qui est parti : un titre, pour ne pas le confondre avec la salle ── */}
       <div style={{ fontFamily: 'var(--font-serif)', fontSize: 21, color: 'var(--color-indigo)', margin: '4px 0 10px' }}>Ce qui est parti</div>
 
@@ -234,6 +276,7 @@ export function EnvoisAutomatiques({ onOuvrirLeFil, typeInitial, jourInitial }: 
         Ce que la Maison envoie seule. « Remis » et « lu » viennent de WhatsApp ; un message non arrivé dit pourquoi.
         Les messages écrits à la main vivent dans les fils.
       </p>
+      </>)}
     </div>
   );
 }

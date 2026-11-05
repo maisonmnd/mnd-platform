@@ -320,7 +320,7 @@ const lis = (f: string): string => {
 const sansCommentaires = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 const conf = sansCommentaires(lis('supabase/functions/confirmation-rdv/index.ts'));
 dit('S36 confirmation-rdv essaie le modele a liens puis l ancien, sur un refus du modele seulement', [true, true, true], [
-  conf.includes('for (const liens of jeton ? [true, false] : [false])'),
+  conf.includes('for (const liens of jeton && !liensEnPause ? [true, false] : [false])'),
   /\} else if \(liens && refusDuModele\(rep\?\.error\?\.code\)\) \{\s*repliDuModele = Number\(rep\?\.error\?\.code\);\s*continue;/.test(conf),
   conf.includes("const WA_TEMPLATE_LIENS = (Deno.env.get('WA_TEMPLATE_CONF_LIENS') ?? '').trim();"),
 ]);

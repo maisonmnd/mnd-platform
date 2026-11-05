@@ -218,6 +218,20 @@ const tables: Record<string, Row[]> = {
     { user_id: 'u-brice', role: 'souverain', name: 'B bis' }, { user_id: 'u-maitre', role: 'maitre', name: 'M' },
   ],
   conseil_du_matin: [],
+  /* Ce qui va partir (5 novembre 2026) : le mot d'Opale lit les envois et les modèles en pause. */
+  envois: [
+    { id: 'e-deja-1', data: { statut: 'périmé', detail: 'retenu par Opale : déjà parti : le même message est au journal depuis moins de 20 h', quand: enIso(DEBUT_HIER + 3_600_000), clientId: 'cl-x' } },
+    { id: 'e-deja-2', data: { statut: 'périmé', detail: 'retenu par Opale : déjà parti : le même modèle est au fil de ce numéro depuis moins de 20 h', quand: enIso(DEBUT_JOUR + 3_600_000) } },
+    { id: 'e-rdv', data: { statut: 'périmé', detail: 'retenu par Opale : le rendez-vous a été annulé', quand: enIso(DEBUT_HIER + 7_200_000) } },
+    { id: 'e-avant-hier', data: { statut: 'périmé', detail: 'retenu par Opale : déjà parti', quand: enIso(DEBUT_HIER - 3_600_000) } },
+    { id: 'e-perime-simple', data: { statut: 'périmé', detail: 'le rendez-vous a été déplacé', quand: enIso(DEBUT_HIER + 3_600_000) } },
+    { id: 'e-arrete', data: { statut: 'écarté', arretDAvance: { cle: 'rappel-j1:a9', par: 'Yéman' }, quand: enIso(DEBUT_JOUR + 60_000) } },
+    { id: 'e-salle', data: { statut: 'en-attente', quand: enIso(DEBUT_JOUR + 120_000) } },
+  ],
+  modeles_en_pause: [
+    { id: 'fin_de_paquet', data: { modele: 'fin_de_paquet', enPause: true, par: 'Opale', parOpale: true } },
+    { id: 'carte_marraine', data: { modele: 'carte_marraine', enPause: false, reprisPar: 'Yéman' } },
+  ],
 };
 /* Le journal d'hier : 2 500 gestes (plus que deux pages), et des gestes hors d'hier qui ne comptent pas. */
 for (let i = 0; i < 2500; i += 1) tables.journal_gestes.push({ id: `g${String(i).padStart(5, '0')}`, data: { quand: enIso(DEBUT_HIER + 1000 + i * 30_000), porte: i < 2400 ? 'trone' : 'assistant' } });
@@ -234,6 +248,10 @@ for (let i = 0; i < 1300; i += 1) {
   tables.appointments.push({ id: `h${String(i).padStart(5, '0')}`, data: { date: jour, time: '10:00', master: 'st-b', status: 'honoré', clientId: `cl-${i % 320}` } });
 }
 tables.appointments.push(
+  /* Demain : un rappel du soir ; l'annulé, l'honoré et la confirmée par la cliente se taisent. */
+  { id: 'demain-1', data: { date: '2026-11-03', time: '11:00', status: 'confirmé', clientId: 'cl-d1' } },
+  { id: 'demain-2', data: { date: '2026-11-03', time: '12:00', status: 'annulé', clientId: 'cl-d2' } },
+  { id: 'demain-3', data: { date: '2026-11-03', time: '13:00', status: 'confirmé', clientId: 'cl-d3', confirmeeParLaClienteLe: '2026-11-01T10:00:00Z' } },
   { id: 'vieux', data: { date: '2026-08-04', status: 'honoré', clientId: 'cl-vieille' } },
   { id: 'confirme', data: { date: '2026-10-20', status: 'confirmé', clientId: 'cl-confirmee' } },
 );
@@ -308,7 +326,7 @@ const appelle = async (entetes: Record<string, string>, methode = 'POST', corps 
 const service = { authorization: 'Bearer cle-service' };
 
 const sante = await appelle({}, 'GET');
-dit('la santé : sa version, sans clé', [200, true, 'conseil-du-matin', '2026-11-04-a'], [sante.status, sante.corps.ok, sante.corps.fonction, sante.corps.version]);
+dit('la santé : sa version, sans clé', [200, true, 'conseil-du-matin', '2026-11-05-a'], [sante.status, sante.corps.ok, sante.corps.fonction, sante.corps.version]);
 dit('sans clé, refusé', 403, (await appelle({})).status);
 dit('une clé inconnue, refusée', 403, (await appelle({ authorization: 'Bearer autre-chose' })).status);
 dit('un maître, refusé', 403, (await appelle({ authorization: 'Bearer jwt-maitre' })).status);
@@ -326,17 +344,27 @@ dit('le cron écrit et notifie chaque souverain une fois (deux comptes, pas troi
 dit('la notification part en to-staff, armée de la clé service, sans nom', [['to-staff'], ['Bearer cle-service'], ['Le Conseil du matin'], true],
   [[...new Set(pushs.map((x) => x.corps.mode))], [...new Set(pushs.map((x) => x.autorisation))], [...new Set(pushs.map((x) => x.corps.title))],
     pushs.every((x) => /^(Un point presse|\d+ points pressent|Rien ne presse) ce matin\./.test(String(x.corps.body)) && !String(x.corps.body).includes('Awa'))]);
-dit('la page du jour, à la clé du jour de Cotonou, avec son heure de notification', ['2026-11-02', '2026-11-04-a', enIso(LUNDI_7H)],
+dit('la page du jour, à la clé du jour de Cotonou, avec son heure de notification', ['2026-11-02', '2026-11-05-a', enIso(LUNDI_7H)],
   [tables.conseil_du_matin[0].jour, tables.conseil_du_matin[0].version, page1.notifieLe]);
 dit('le journal d hier lu par pages : 2 500 gestes, ni avant ni ce matin', 'Hier, 2500 gestes au journal : 2400 au Trône, 100 par les assistants.', page1.hier[0]);
 dit('les relais d hier, et ceux à traiter non périmés', '2 relais entre professionnels hier, 1 encore à traiter.', page1.hier[2]);
 dit('le bilan par ses compteurs, sans son mot', 'Le bilan d\'Opale : 7 lus.', page1.hier[1]);
-dit('aujourd hui depuis la base, sans les annulés', ['2 rendez-vous aujourd\'hui, le premier à 9 h.', 'Par fauteuil : Brice 1, Nassim 1.'], page1.aujourdhui);
+dit('aujourd hui depuis la base, sans les annulés ; puis le mot d Opale : le rappel du soir (ni annulé, ni honoré, ni déjà confirmé), la salle, ce qu elle a retenu, l arrêt, la pause', [
+  '2 rendez-vous aujourd\'hui, le premier à 9 h.', 'Par fauteuil : Brice 1, Nassim 1.',
+  'Messages Meta : 1 rappel de la veille partira ce soir dès 18 h, 1 message attend déjà en salle.',
+  'Opale a retenu 3 messages depuis hier : 2 déjà partis, 1 rendez-vous qui ne tient plus.',
+  '1 message arrêté d\'avance par la direction depuis hier.',
+  'En pause : fin_de_paquet.',
+], page1.aujourdhui);
+dit('ce qui presse : le modèle qu Opale a mis en pause, sans nom de cliente', true,
+  page1.presse.some((l: { texte: string }) => l.texte === 'Opale a mis en pause le modèle fin_de_paquet : ses messages revenaient non remis.'));
 dit('le lundi compté sur 90 jours, par pages, clientes distinctes', 'Le chiffre du lundi : 320 clientes actives à 90 jours. Au départ : 90. Cible au 2 février 2027 : 111.', page1.lundi?.dit);
-dit('ce qui presse depuis la base : la tâche, Onyx, la carte, les crédits, les dépenses', [
-  'La tâche « rappels-j1-chaque-heure » a échoué 2 fois depuis hier matin.', 'Onyx dort depuis 7 h 30.', 'Une carte attend depuis plus d\'un jour chez Opale.',
-  'Perle approche de son plafond : 50 $ sur 60 $.', '2 dépenses attendent leur validation.',
+dit('ce qui presse depuis la base : la tâche, Onyx, le modèle qu Opale a mis en pause, la carte, puis le compte', [
+  'La tâche « rappels-j1-chaque-heure » a échoué 2 fois depuis hier matin.', 'Onyx dort depuis 7 h 30.',
+  'Opale a mis en pause le modèle fin_de_paquet : ses messages revenaient non remis.',
+  'Une carte attend depuis plus d\'un jour chez Opale.', 'Et 2 autres points, dans Les assistants.',
 ], page1.presse.map((l) => l.texte));
+dit('... les six points qui pressent, en tout (les crédits et les dépenses comptés)', 6, page1.pressentEnTout);
 dit('la page de la base ne porte ni nom ni numéro', { awa: false, banc: false, numero: false, tiret: false }, sansNiNomNiNumero(page1));
 
 maintenant = LUNDI_7H + 20 * 60_000;
