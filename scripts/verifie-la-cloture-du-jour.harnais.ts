@@ -340,5 +340,11 @@ vrai('0156 : le motif ecrit avant l effacement (efface_la_piece_payee)', /create
 vrai('0156 : les crons de Grenat (chaque heure du salon, et le mot du matin)', /cron\.schedule\('cloture-de-grenat'/.test(sql) && /cron\.schedule\('cloture-de-grenat-matin'/.test(sql));
 vrai('0156 : aucune table repli_ sans RLS', !/create table[^;]*repli_/i.test(sql) || /repli_[\s\S]*enable row level security/.test(sql));
 
+/* ── 9. Ses deux choix du 5 novembre 2026 ── */
+vrai('le comptoir prevenu = qui a encaisse ce jour-la (les pieces seules, pas les rendez-vous)',
+  /\.eq\('table_name', 'invoices'\)\.eq\('porte', 'trone'\)/.test(fonction) && !/'appointments'\]\)\.eq\('porte', 'trone'\)/.test(fonction));
+vrai('Les caisses : « Cloturer la caisse » reste, porte de secours de la direction seule',
+  /\{estDirection && \(\s*<button[^>]*onClick=\{\(\) => setClotureOuverte\(true\)\}>\s*Clôturer la caisse/.test(lis('src/apps/trone/routes/finances/Caisses.tsx')));
+
 if (ko) console.log(`\n${ko} controle(s) en echec.`);
 else console.log('\nLa cloture de Grenat tient ses six regles.');

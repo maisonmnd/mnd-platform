@@ -27,6 +27,7 @@ import { useCaisses, ReleveCaisse, soldeVisible, ouvreLaCaisse, refermeLaCaisse,
 import { useSettings, settingsStore } from '../../../../shared/settings';
 import './finances.css';
 import { ChampDeDate } from '../../../../ds/dates';
+import { useEstDirection } from '../_vie';
 
 /* ── LES CAISSES · L'ÉCRAN — 22 août 2026 ───────────────────────────
    « Est-ce que je ne devrais pas avoir un bouton revenu tout comme j'ai un
@@ -99,6 +100,11 @@ export default function Caisses() {
   const [reglages] = useSettings();
   const toutesOuvertes = useCaissesOuvertes();
   const [clotureOuverte, setClotureOuverte] = useState(false);
+  /* LA PORTE DE SECOURS — 5 novembre 2026. « Clôturer la caisse » ne s'allume
+     à La journée que sur une journée close (Grenat) ; ici, il reste, pour la
+     direction seule (« Oui, pour la direction seule », Yéman) : une panne, un
+     soir difficile. L'équipe clôture depuis La journée. */
+  const estDirection = useEstDirection();
   const [departOuvert, setDepartOuvert] = useState(false);
   const [basculeOuverte, setBasculeOuverte] = useState(false);
   const ecranVerrouille = !!reglages.codeCaissesHash && !toutesOuvertes.has(CLE_ECRAN);
@@ -343,9 +349,11 @@ export default function Caisses() {
           {/* LA CAISSE DU SOIR SE TROUVE AUSSI ICI — 4 octobre 2026. « Où est-ce ? »
               (Yéman) : le comptage n'était qu'au Journal de caisse du POS, et c'est
               ici, devant ses tiroirs, qu'on le cherche. */}
-          <button className="trf-act" style={{ padding: '12px 16px', borderColor: 'var(--color-copper)', color: 'var(--copper-700)' }} onClick={() => setClotureOuverte(true)}>
-            Clôturer la caisse
-          </button>
+          {estDirection && (
+            <button className="trf-act" style={{ padding: '12px 16px', borderColor: 'var(--color-copper)', color: 'var(--copper-700)' }} onClick={() => setClotureOuverte(true)}>
+              Clôturer la caisse
+            </button>
+          )}
           <button className="trf-act" style={{ padding: '12px 16px' }} onClick={() => setDepartOuvert(true)}>
             Départ des caisses
           </button>

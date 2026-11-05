@@ -788,10 +788,12 @@ function rdvDe(l: Ligne, prestations: ReadonlyMap<string, Prestation>, nomDe: (i
 }
 
 /** Les comptes du personnel qui ont tenu le comptoir aujourd'hui : ceux qui
-    ont écrit une pièce ou un rendez-vous depuis le Trône (la trace, 0092). */
+    ont ENCAISSÉ, c'est-à-dire écrit une pièce depuis le Trône (la trace,
+    0092). « Qui a encaissé ce jour-là » (Yéman, 5 novembre 2026) : un maître
+    qui a seulement posé ou déplacé un rendez-vous n'est pas prévenu. */
 async function lesComptesDuComptoir(sb: Base, jour: string): Promise<string[]> {
   const lignes = await parPages((de, a) => sb.from('traces').select('id, compte')
-    .in('table_name', ['invoices', 'appointments']).eq('porte', 'trone').not('compte', 'is', null)
+    .eq('table_name', 'invoices').eq('porte', 'trone').not('compte', 'is', null)
     .gte('fait_le', minuitDe(jour)).lt('fait_le', minuitDe(lendemain(jour))).order('id').range(de, a));
   return [...new Set(lignes.map((t) => String(t.compte ?? '')).filter(Boolean))];
 }
