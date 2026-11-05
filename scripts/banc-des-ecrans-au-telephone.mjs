@@ -24,6 +24,7 @@ import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync } from 'no
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const args = process.argv.slice(2).filter((a) => a !== '--prouve');
 const prouve = process.argv.includes('--prouve');
@@ -37,7 +38,9 @@ const L = 390, H = 844;
 
 /* Les écrans : lus dans le menu même, pour qu'un écran ajouté demain soit
    éprouvé sans qu'on pense à l'inscrire ici. */
-const index = readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..', 'src', 'apps', 'trone', 'routes', 'index.tsx'), 'utf8');
+/* `fileURLToPath`, pas `new URL(...).pathname` : sous « Le Trone » le chemin
+   gardait « %20 » et le banc ne trouvait pas le menu (le-trone-17, 5 nov. 2026). */
+const index = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'apps', 'trone', 'routes', 'index.tsx'), 'utf8');
 const chemins = [...new Set([...index.matchAll(/path: '(\/[^']*)'/g)].map((m) => m[1]))].sort();
 const VUES_DE_PERLE = ['gerard?vue=aujourdhui', 'gerard?vue=conversations&filtre=tout', 'gerard?vue=avis', 'gerard?vue=offres', 'gerard?vue=rapporte'];
 const ECRANS = [...chemins.map((c) => c.slice(1)), ...VUES_DE_PERLE];
