@@ -10,6 +10,7 @@ import { CLE_DES_ENGAGEMENTS, type EngagementDuMois } from './engagements-du-moi
    d'amorçage est refusé sans bruit (un refus de droit n'est pas une panne),
    et l'écran ne lui montre rien (EngagementsDuMois). La déconnexion efface la
    copie du poste (auth.ts, SENSITIVE_KEYS). Les règles : engagements-du-mois-pur. */
-export const engagementsDuMoisStore = createStore<EngagementDuMois[]>(CLE_DES_ENGAGEMENTS, []);
+/* La clé en toutes lettres : verifie-cles-uniques lit chaque createStore. */
+export const engagementsDuMoisStore = createStore<EngagementDuMois[]>('mnd_engagements_du_mois', []);
 bindDocument(engagementsDuMoisStore, CLE_DES_ENGAGEMENTS);
 export const useEngagementsDuMois = () => useStore(engagementsDuMoisStore);
