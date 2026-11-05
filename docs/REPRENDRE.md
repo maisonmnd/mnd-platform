@@ -2,6 +2,16 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA CAISSE AU JOUR LE JOUR — 5 novembre 2026, CONSTRUITE (le Trône seul à publier ; aucune migration, aucune fonction)
+
+« En début de mois il faut ramener le tiroir à 0 F », puis « je veux savoir clairement combien j'ai en caisse au jour le jour » (Yéman, devant la clôture du tiroir d'espèces du 4 novembre 2026 : son livre n'avait jamais vu sortir que ses dépenses depuis janvier 2026, il additionnait dix mois d'espèces). Maquette VE8iiT7uH5ypfFJ5jcWXPt validée (« construis ») ; « à régulariser » est son mot pour l'argent sorti sans justificatif.
+
+- **La règle** `src/shared/remise-a-zero-pur.ts` : la remise à 0 F (le reste du livre = « À régulariser », jamais dans l'avenir, jamais avant la dernière clôture du tiroir, jamais deux fois, jamais plus que le livre), ce que chaque mois a laissé (la somme tombe sur le livre), la part régularisée (la sortie baisse, la dépense née sort du même tiroir : le tiroir ne bouge pas deux fois), le tiroir jour par jour.
+- **Le modèle** : `'À régulariser'` est un motif de SORTIE hors activité (`MOTIFS_SORTIE_HORS_ACTIVITE`, table `entrees_hors_activite`, rien de neuf en base) : le tiroir baisse, le résultat ne bouge pas ; la Synthèse le dit dans « Sorties hors activité ». La sortie porte `remise` (livre, initial, reste, mois, écritures sœurs, parts régularisées).
+- **Le Trône** : Finances › Les caisses, carte d'un tiroir de la Maison, « Remettre à 0 F » (direction seule ; à la main chaque fin de mois) : banque ou épargne (transfert), coffre, dépense justifiée, prélèvement de l'associé, reste ; « À régulariser » se calcule. Le registre « À régulariser » sous les cartes : « Justifier une partie » (dépense du bon mois), « C'était un prélèvement », « Défaire la remise » tant que rien n'est régularisé. Le relevé du tiroir a « Jour par jour » (matin, entrées, sorties, soir selon le livre, compté).
+- **Bancs** : `verifie-la-caisse-au-jour-le-jour` (`--prouve` 21 pannes) ; `banc-la-caisse-au-jour` (CDP, Trône construit hors ligne, comme la direction).
+- **Reste** : passer la remise d'octobre du tiroir d'espèces au 31 octobre 2026 (tiroir vide le 1er novembre 2026 selon Yéman : tout le livre à régulariser), puis la clôture du 4 novembre 2026.
+
 ## LES POURBOIRES DE L'ÉQUIPE — EN LIGNE le 5 novembre 2026 (0157 passée : déclencheur `tips_previent` → push-notify to-staff, jamais la direction, journal `pourboires_prevenus` sous RLS ; Trône build 20261105051539 @ f548a030). Ne JAMAIS passer `supabase/essai_0157_a_blanc.sql` (il poserait de fausses parts et notifierait l'équipe). Preuve de l'envoi réel : le premier pourboire d'un membre hors direction (notification + ligne « parti »).
 
 ## LA CLÔTURE DE GRENAT ET « LA JOURNÉE » — 4 novembre 2026, EN LIGNE le 5 novembre 2026 (0156 passée, envois-partent v19, cloture-du-jour v1 et son essai, Trône build 20261105005331 @ dba8e0e0, conseil-du-matin v6, assistants-maison v10)

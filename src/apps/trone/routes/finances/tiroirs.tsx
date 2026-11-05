@@ -30,6 +30,9 @@ import { usePrets } from '../../../../shared/foyer';
 import { useSettings } from '../../../../shared/settings';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { fmtDay, monthKey, monthLabel, monthShort, shiftMonth, todayISO } from './_shared';
+import { useClotures } from '../../../../shared/caisse-du-soir';
+import { MOTIF_A_REGULARISER, dernierJourDuMois, lesJoursDuTiroir } from '../../../../shared/remise-a-zero-pur';
+import './caisse-au-jour.css';
 
 /* ── LES CAISSES OUVERTES DE LA SÉANCE — 22 août 2026 ──────────────
    Une caisse discrète se déverrouille pour la SÉANCE, jamais au-delà : ce
@@ -661,7 +664,7 @@ export function ReleveCaisse({
   const openEdit = onExpense ?? (() => {});
 
   /* La portée : tout, ou le seul mois affiché. « Tout » est la porte. */
-  const [portee, setPortee] = useState<'tout' | 'mois'>('tout');
+  const [portee, setPortee] = useState<'tout' | 'mois' | 'jours'>('tout');
   const [cherche, setCherche] = useState('');
 
   /* DEPUIS TOUJOURS : une borne assez basse pour qu'aucune écriture ne lui
@@ -766,7 +769,7 @@ export function ReleveCaisse({
 
       <div className="trf-releve-barre">
         <div style={{ display: 'flex', gap: 7 }}>
-          {([['tout', 'Tout l’historique'], ['mois', monthName]] as const).map(([k, mot]) => (
+          {([['tout', 'Tout l’historique'], ['mois', monthName], ['jours', 'Jour par jour']] as const).map(([k, mot]) => (
             <button
               key={k}
               type="button"
@@ -802,6 +805,9 @@ export function ReleveCaisse({
         </div>
       )}
 
+      {/* LE TIROIR JOUR PAR JOUR — 5 novembre 2026 (« je veux savoir clairement
+          combien j'ai en caisse au jour le jour »). */}
+      {portee === 'jours' ? <TiroirJourParJour nom={nom} month={month} /> : (<>
       <div className="mnd-muted" style={{ fontSize: 11.5, margin: '12px 0 4px', lineHeight: 1.5 }}>
         {boxCur !== currency ? `Caisse en ${boxCur}, ` : ''}
         encaissements crédités (avoir déduit, pourboire inclus), dépenses vivantes débitées.
@@ -902,6 +908,7 @@ export function ReleveCaisse({
           <div className="mnd-serif" style={{ fontSize: 15, color: 'var(--ink-soft)' }}>{fmtIn(startBalance, boxCur)}</div>
         </div>
       </div>
+      </>)}
 
       {onRapport && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
@@ -909,6 +916,96 @@ export function ReleveCaisse({
         </div>
       )}
     </Modal>
+  );
+}
+
+/* ── LE TIROIR JOUR PAR JOUR — 5 novembre 2026 ───────────────────────
+   « Je veux savoir clairement combien j'ai en caisse au jour le jour »
+   (Yéman). Maquette « La caisse au jour le jour », validée. Une ligne par
+   jour du mois lu : le matin, ce qui est entré, ce qui est sorti, le soir
+   selon le livre, puis ce que la main a compté à la clôture. Le chiffre vrai
+   est celui du comptage ; sans clôture, le Trône dit « selon le livre ». Les
+   chiffres viennent de `boxMoves`, la même source que le relevé et la
+   clôture du soir : ils ne peuvent pas se contredire. */
+const jourCourt = (iso: string) =>
+  new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+
+export function TiroirJourParJour({ nom, month }: { nom: string; month: string }) {
+  const { boxMoves, branch } = useCaisses(month);
+  const [clotures] = useClotures();
+  const aujourdhui = todayISO();
+  const de = `${month}-01`;
+  const fin = dernierJourDuMois(month);
+  const a = fin < aujourdhui ? fin : aujourdhui;
+  if (de > aujourdhui) {
+    return <div className="trf-empty" style={{ marginTop: 10 }}>{monthLabel(month)} n’a pas encore commencé.</div>;
+  }
+  const vu = boxMoves(nom, { de, a });
+  const f = (n: number) => fmtIn(n, vu.boxCur);
+  const lesClotures = clotures.filter((c) => c.branchId === branch.id && c.cashbox === nom);
+  const jours = lesJoursDuTiroir({
+    de, a, departXof: vu.startBalance,
+    moves: vu.moves.map((m) => ({ date: m.date, delta: m.delta, remise: m.label.startsWith(MOTIF_A_REGULARISER) })),
+    clotures: lesClotures,
+  });
+  const ceSoir = jours.at(-1);
+  const dernier = [...lesClotures].sort((x, y) => `${x.date}${x.le ?? ''}`.localeCompare(`${y.date}${y.le ?? ''}`)).at(-1);
+  return (
+    <div>
+      <div className="cjj-tete">
+        <div>
+          <small>{a === aujourdhui ? 'Ce soir, selon le livre' : `Au soir du ${jourCourt(a)}, selon le livre`}</small>
+          <b>{f(ceSoir?.soirXof ?? vu.startBalance)}</b>
+        </div>
+        <div className="cjj-dernier">
+          {dernier
+            ? <>Dernier comptage : {jourCourt(dernier.date)}<br />{f(dernier.compteXof)} comptés{dernier.ecartXof !== 0 ? `, écart ${dernier.ecartXof > 0 ? '+' : '−'} ${f(Math.abs(dernier.ecartXof))}` : ', juste'}</>
+            : 'Jamais compté : clôturez le tiroir pour le chiffre de la main.'}
+        </div>
+      </div>
+      <div className="cjj-table-ou">
+        <table className="cjj-table">
+          <thead>
+            <tr><th>Jour</th><th>Matin</th><th>Entrées</th><th>Sorties</th><th>Soir, selon le livre</th><th>Compté</th></tr>
+          </thead>
+          <tbody>
+            {jours.map((j) => {
+              const bouge = j.entreesXof > 0 || j.sortiesXof > 0;
+              const auj = j.jour === aujourdhui;
+              return (
+                <tr key={j.jour} className={j.remiseXof > 0 ? 'is-remise' : auj ? 'is-auj' : undefined}>
+                  <td>{jourCourt(j.jour)}</td>
+                  <td>{f(j.matinXof)}</td>
+                  <td className={j.entreesXof ? undefined : 'cjj-vide'}>{j.entreesXof ? `+ ${f(j.entreesXof)}` : f(0)}</td>
+                  <td className={j.sortiesXof ? undefined : 'cjj-vide'}>
+                    {j.sortiesXof ? `− ${f(j.sortiesXof)}` : f(0)}
+                    {j.remiseXof > 0 && <small>dont {f(j.remiseXof)} à régulariser</small>}
+                  </td>
+                  <td className="cjj-soir">{f(j.soirXof)}</td>
+                  <td>
+                    {j.compte
+                      ? (j.compte.ecartXof === 0
+                        ? <span className="cjj-etat is-ok">juste · {f(j.compte.compteXof)}</span>
+                        : <span className="cjj-etat is-ecart">{f(j.compte.compteXof)} · écart {j.compte.ecartXof > 0 ? '+' : '−'} {f(Math.abs(j.compte.ecartXof))}</span>)
+                      : auj
+                        ? <span className="cjj-etat is-rien">aujourd’hui</span>
+                        : j.remiseXof > 0
+                          ? <span className="cjj-etat is-ok">remis à {f(j.soirXof)}</span>
+                          : bouge
+                            ? <span className="cjj-etat is-attente">pas compté</span>
+                            : <span className="cjj-vide" style={{ fontSize: 11.5 }}>rien n’a bougé</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="cjj-muet" style={{ marginTop: 8 }}>
+        Le chiffre vrai est celui du comptage : tant qu’un soir n’est pas clôturé, le Trône dit « selon le livre ».
+        Un livre trop haut se remet à 0 F depuis la carte du tiroir, « Remettre à 0 F ».
+      </p>
+    </div>
   );
 }
 

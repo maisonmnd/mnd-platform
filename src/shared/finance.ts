@@ -5,6 +5,7 @@ import { identiteCourante } from './journal';
 import type { TraceDuMoyen } from './trace-du-moyen-pur';
 import type { ReglementEnLigne } from './regler-la-seance-pur';
 import type { PiecePartie } from './une-piece-un-message-pur';
+import type { RemiseDuTiroir } from './remise-a-zero-pur';
 
 /* Finances — factures/devis, dépenses, caisses. Montants stockés en XOF. */
 
@@ -1237,6 +1238,12 @@ export const MOTIFS_SORTIE_HORS_ACTIVITE = [
      salaire. En sortie hors activité, elle n'entame pas le résultat et se
      regroupe à la Synthèse ; la phrase dit QUI, obligatoirement. */
   'Prélèvement de l’associé',
+  /* « À RÉGULARISER » — 5 novembre 2026 (« juste pour les soldes qui n'ont
+     pas de justificatif il faut appeler ça à régulariser », Yéman). L'argent
+     sorti d'un tiroir sans pièce : il ne s'écrit qu'à la remise à 0 F du
+     tiroir, et quitte ce motif dès qu'une pièce se retrouve. Voir
+     `shared/remise-a-zero-pur`. */
+  'À régulariser',
   'Autre',
 ] as const;
 export type MotifSortieHorsActivite = (typeof MOTIFS_SORTIE_HORS_ACTIVITE)[number];
@@ -1265,6 +1272,10 @@ export type MouvementHorsActivite = {
       au soir) : un prélèvement POUR lui, ou un remboursement DE lui. Absent
       sur tout le reste. Voir `shared/compte-courant`. */
   staffId?: string;
+  /** LA REMISE À 0 F DU TIROIR (5 novembre 2026) : posée sur la seule sortie
+      « À régulariser » qu'elle a écrite. Le livre d'avant, ce que chaque mois
+      avait laissé, les écritures sœurs, les parts régularisées depuis. */
+  remise?: RemiseDuTiroir;
 };
 
 /** Nom conservé pour les appelants d'avant le second passage. */

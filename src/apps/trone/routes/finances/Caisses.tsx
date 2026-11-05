@@ -1,5 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import { ClotureDuTiroir } from './ClotureDuTiroir';
+import { RemiseAZero } from './RemiseAZero';
+import { ARegulariser } from './ARegulariser';
 import { DepartDesCaisses, moisEtAn } from './DepartDesCaisses';
 import { BasculeDOctobre } from './BasculeDOctobre';
 import { FusionDesCaisses } from './FusionDesCaisses';
@@ -106,6 +108,9 @@ export default function Caisses() {
      soir difficile. L'équipe clôture depuis La journée. */
   const estDirection = useEstDirection();
   const [departOuvert, setDepartOuvert] = useState(false);
+  /* LA REMISE À 0 F — 5 novembre 2026 (« en début de mois il faut ramener le
+     tiroir à 0 F », Yéman ; à la main, chaque mois). Le nom du tiroir ouvert. */
+  const [remiseDe, setRemiseDe] = useState<string | null>(null);
   const [basculeOuverte, setBasculeOuverte] = useState(false);
   const ecranVerrouille = !!reglages.codeCaissesHash && !toutesOuvertes.has(CLE_ECRAN);
 
@@ -329,6 +334,7 @@ export default function Caisses() {
     <div className="mnd-rise">
       {clotureOuverte && <ClotureDuTiroir onClose={() => setClotureOuverte(false)} />}
       {departOuvert && <DepartDesCaisses onClose={() => setDepartOuvert(false)} />}
+      {remiseDe && <RemiseAZero cashbox={remiseDe} onClose={() => setRemiseDe(null)} />}
       {basculeOuverte && <BasculeDOctobre onClose={() => setBasculeOuverte(false)} />}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20, flexWrap: 'wrap' }}>
         <div>
@@ -572,6 +578,11 @@ export default function Caisses() {
                                 MODIFIER PASSE PAR LE CODE quand la caisse est
                                 fermée : la fiche dit le solde d'ouverture, et
                                 laisserait ôter le verrou. */}
+                            {/* « Remettre à 0 F » : la direction, un tiroir de la Maison
+                                dont le livre dit quelque chose (5 novembre 2026). */}
+                            {estDirection && visible && boxCur === currency && !gardeToutSonPasse(c) && bal > 0 && (
+                              <button className="trf-caisse__acte" onClick={() => setRemiseDe(c.name)}>Remettre à 0 F</button>
+                            )}
                             <button className="trf-caisse__acte" onClick={() => (visible ? openEditBox(c) : demanderLeCode(c, 'modifier'))}>Modifier</button>
                             </>
                             )}
@@ -633,6 +644,9 @@ export default function Caisses() {
           })()}
         </>
       )}
+
+      {/* « À RÉGULARISER » — 5 novembre 2026 : l'argent sorti sans justificatif. */}
+      <ARegulariser />
 
       {transfertsDuMois.length > 0 && (
         <div className="trf-panel" style={{ marginTop: 18 }}>
