@@ -234,6 +234,7 @@ const papier = (plus: Partial<PieceLue> = {}, f2: Partial<FaitsDeLaJournee> = {}
 const p1 = papier();
 dit('le recu d une piece reglee ce jour, pas parti : Grenat l envoie par la salle', [{ genre: 'envoyer-le-papier', papier: 'recu', montantXof: 52000, pieceId: 'inv-20' }],
   p1.gestes.map((g) => ({ genre: g.genre, papier: (g as { papier: string }).papier, montantXof: (g as { montantXof: number }).montantXof, pieceId: (g as { pieceId: string }).pieceId })));
+vrai('... ce papier qui attend Grenat ne retient pas le comptage (5 novembre 2026, Yeman)', p1.verdict.close && !p1.verdict.reste.some((r) => /Grenat/.test(r)));
 dit('... deja parti : rien', [], papier({ whatsapp: parti('15:11') }).gestes);
 dit('... « Pas de recu ni de facture par WhatsApp » : rien', { g: 0, p: 'excepte' },
   (() => { const c = papier({}, { fiches: fiches.map((x) => (x.id === 'c-2' ? { ...x, sansPapiersWa: true } : x)) }); return { g: c.gestes.length, p: c.pieces[0].papier }; })());
@@ -514,6 +515,10 @@ vrai('Depenses : « C etait une depense » ecrit le lien de l ecart, « La Maiso
   depensesTsx.includes('...(form.ecartDe ? { ecartDe: form.ecartDe } : {}),')
   && depensesTsx.includes('const laMaisonAPaye = voitToutesLesDepenses && form.porteurChoisi && !form.porteur.trim();')
   && depensesTsx.includes("if (ecart) setForm((f) => ({ ...f, ecartDe: ecart.slice(0, 120) }));"));
+
+/* NE PAS ENVOYER CE PAPIER (5 novembre 2026) : le geste de la direction pose la ligne de salle
+   ecartee de CETTE piece, que la regle 4 lit ; la fiche n'est pas touchee. */
+vrai('La journee : « Ne pas envoyer ce papier » pose la ligne de salle ecartee de la piece', /Ne pas envoyer ce papier/.test(journee) && /id = idDuPapier\(g\.pieceId\)/.test(journee) && /type: TYPE_DU_PAPIER, canal: 'whatsapp', statut: 'écarté'/.test(journee) && !/sansPapiersWa/.test(journee.slice(journee.indexOf('const nePasEnvoyer'), journee.indexOf('const appts'))));
 
 if (ko) console.log(`\n${ko} controle(s) en echec.`);
 else console.log('\nLa cloture de Grenat tient ses six regles, et relit les depenses du jour.');

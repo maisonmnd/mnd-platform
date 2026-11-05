@@ -32,6 +32,8 @@ const CAISSES = 'src/apps/trone/routes/finances/Caisses.tsx';
 const LUS = [P, FN, SQL, LJ, PRISE, PARTAGE, VEILLE, DEP, CAISSES];
 
 const PANNES = [
+  { nom: 'un geste de Grenat retient encore le comptage', fichier: P, avant: "  /* CE QUE GRENAT FAIT SEUL NE RETIENT PAS LE COMPTAGE", apres: "  if (gestes.length) reste.push(nombreDit(gestes.length, 'geste que Grenat fait seul', 'gestes que Grenat fait seul'));\n  /* CE QUE GRENAT FAIT SEUL NE RETIENT PAS LE COMPTAGE" },
+  { nom: 'ne pas envoyer ce papier ne pose plus la ligne ecartee', fichier: LJ, avant: "type: TYPE_DU_PAPIER, canal: 'whatsapp', statut: 'écarté',", apres: "type: TYPE_DU_PAPIER, canal: 'whatsapp', statut: 'retenu',", disque: true },
   /* Regle 1 : l'etat final. */
   { nom: 'un rendez-vous fini se croit encore en cours', fichier: P, avant: 'const passe = minutesMaintenant >= fin;', apres: 'const passe = minutesMaintenant > fin + 60;' },
   { nom: 'la duree du rendez-vous est oubliee', fichier: P, avant: 'const fin = (debut ?? 0) + Math.max(1, Math.round(Number(a.dureeMin) || 60));', apres: 'const fin = (debut ?? 0) + 60;' },
@@ -124,7 +126,7 @@ const PANNES = [
   { nom: 'Depenses n ecrit plus le lien de l ecart', fichier: DEP, avant: '...(form.ecartDe ? { ecartDe: form.ecartDe } : {}),', apres: '', disque: true },
   { nom: 'Depenses n ecrit plus « La Maison elle-meme »', fichier: DEP, avant: 'const laMaisonAPaye = voitToutesLesDepenses && form.porteurChoisi && !form.porteur.trim();', apres: 'const laMaisonAPaye = false;', disque: true },
   /* La copie, la fonction, la migration. */
-  { nom: 'un caractere change dans la copie de la fonction', fichier: FN, avant: "export const VERSION_DE_LA_CLOTURE = '2026-11-05-b';", apres: "export const VERSION_DE_LA_CLOTURE = '2026-11-05-c';", disque: true },
+  { nom: 'un caractere change dans la copie de la fonction', fichier: FN, avant: "export const VERSION_DE_LA_CLOTURE = '2026-11-05-c';", apres: "export const VERSION_DE_LA_CLOTURE = '2026-11-05-d';", disque: true },
   { nom: 'le maitre qui a pose un rendez-vous est prevenu', fichier: FN, avant: ".eq('table_name', 'invoices').eq('porte', 'trone')", apres: ".in('table_name', ['invoices', 'appointments']).eq('porte', 'trone')", disque: true },
   { nom: 'la porte de secours ouverte a toute l equipe', fichier: 'src/apps/trone/routes/finances/Caisses.tsx', avant: '{estDirection && (', apres: '{(true) && (', disque: true },
   { nom: 'la fonction ecrit sans relire', fichier: FN, avant: 'if (!gesteToujoursValable(', apres: 'if (false && !gesteToujoursValable(', disque: true },

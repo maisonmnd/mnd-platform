@@ -9,12 +9,12 @@ import { useCategories, useServices, useProducts } from '../../../../shared/cata
 import { useClients } from '../../../../shared/clients';
 import { useModelBands, useBandSets } from '../../../../shared/pricing';
 import { jourPropose } from '../../../../shared/caisse-du-soir-pur';
-import { francsDits, type ConstatDeDepense, type GesteDeDepense, type GesteDuComptoir } from '../../../../shared/cloture-du-jour-pur';
+import { francsDits, idDuPapier, TYPE_DU_PAPIER, type ConstatDeDepense, type GesteDeDepense, type GesteDuComptoir, type GesteSur } from '../../../../shared/cloture-du-jour-pur';
 import { decideLaDepense, momentDit, tranche } from '../../../../shared/cloture-du-jour';
 import { peutValider, useExpenses } from '../../../../shared/finance';
 import { useStore } from '../../../../shared/store';
 import { sameName } from '../../../../shared/text';
-import { staffAccessStore } from '../equipe/data';
+import { envoisStore, staffAccessStore } from '../equipe/data';
 import { tarifsDuRituel, useBranchAppointments, useServicesById } from '../clients/_shared';
 import { useClotureDuJour } from './useClotureDuJour';
 import { honoreSansEncaisser, PayAppointmentModal } from '../clients/actions';
@@ -77,6 +77,23 @@ export default function LaJournee() {
   const moi = me?.name?.trim() || 'La direction';
   const aujourdhui = todayISO();
   const [jour, setJour] = useState(() => jourPropose(new Date()));
+
+  /** Le papier de cette pièce ne part pas : sa ligne de salle, écartée par une main. */
+  const nePasEnvoyer = (g: Extract<GesteSur, { genre: 'envoyer-le-papier' }>) => {
+    const id = idDuPapier(g.pieceId);
+    const le = new Date().toISOString();
+    const ligne = {
+      id, branchId: branch.id, type: TYPE_DU_PAPIER, canal: 'whatsapp', statut: 'écarté',
+      invoiceId: g.pieceId, ...(g.rdvId ? { apptId: g.rdvId } : {}), papier: g.papier, montantXof: g.montantXof,
+      jour, deposeLe: le, quand: le, parQui: moi, ecartePar: moi, ecarteLe: le,
+    };
+    envoisStore.set((prev) => {
+      const avant = prev.find((e) => e.id === id) as { statut?: string } | undefined;
+      if (avant && avant.statut !== 'échec') return prev;
+      return [...prev.filter((e) => e.id !== id), ligne as unknown as (typeof prev)[number]];
+    });
+    toast(`${g.papier === 'recu' ? 'Le reçu' : 'La facture'} ne partira pas : Grenat ne l’envoie plus.`);
+  };
 
   const appts = useBranchAppointments();
   const byId = useServicesById();
@@ -337,7 +354,18 @@ export default function LaJournee() {
         <div className="lj-bloc" data-lj="grenat">
           <p className="lj-bloc__tete"><span>Ce que Grenat fait seul</span><span>trois gestes sûrs</span></p>
           {fait.map((g) => <p className="lj-fait" key={g.cle}>Fait : {g.dit}</p>)}
-          {cloture.gestes.map((g) => <p className="lj-fait lj-fait--attend" key={g.cle}>À son prochain passage : {g.dit}</p>)}
+          {cloture.gestes.map((g) => (
+            <div className="lj-ligne" key={g.cle} data-lj-geste={g.genre}>
+              <p className="lj-fait lj-fait--attend">À son prochain passage : {g.dit}</p>
+              {/* NE PAS ENVOYER CE PAPIER — 5 novembre 2026, Yéman : « Pour cette
+                  facture Grenat n'envoie plus ce reçu à la cliente ». Une ligne de
+                  salle écartée, pour cette pièce seule (la règle 4 la lit) ; la
+                  fiche garde ses papiers pour les autres pièces. */}
+              {souverain && g.genre === 'envoyer-le-papier' && (
+                <span className="lj-gestes"><button type="button" className="lj-g" data-geste="ne-pas-envoyer" onClick={() => nePasEnvoyer(g)}>Ne pas envoyer ce papier</button></span>
+              )}
+            </div>
+          ))}
           {fait.length === 0 && cloture.gestes.length === 0 && (
             <p className="lj-vide">{passage ? `Grenat a tout relu à ${momentDit(passage.moment)} : rien à faire seul.` : 'Rien à faire seul pour l’instant.'}</p>
           )}

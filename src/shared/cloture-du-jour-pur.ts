@@ -37,7 +37,7 @@
    l'écran « La journée » et le serveur jugent avec la même règle. */
 
 /* ⟨cloture-du-jour⟩ */
-export const VERSION_DE_LA_CLOTURE = '2026-11-05-b';
+export const VERSION_DE_LA_CLOTURE = '2026-11-05-c';
 
 /** Cotonou vit à UTC + 1, toute l'année. */
 export const DECALAGE_DE_COTONOU_MIN = 60;
@@ -893,7 +893,8 @@ export function clotureDuJour(f: FaitsDeLaJournee): ClotureDuJour {
   if (aRevoirEnTout) reste.push(nombreDit(aRevoirEnTout, 'facture à revoir', 'factures à revoir'));
   if (alarmesOuvertes) reste.push(nombreDit(alarmesOuvertes, 'pièce payée effacée à trancher', 'pièces payées effacées à trancher'));
   if (depenses.comptes.aValiderDuJour) reste.push(nombreDit(depenses.comptes.aValiderDuJour, 'dépense à valider', 'dépenses à valider'));
-  if (gestes.length) reste.push(nombreDit(gestes.length, 'geste que Grenat fait seul', 'gestes que Grenat fait seul'));
+  /* CE QUE GRENAT FAIT SEUL NE RETIENT PAS LE COMPTAGE — 5 novembre 2026, Yéman :
+     un papier qui attend son passage ne grise plus « Clôturer la caisse ». */
   const ferme = !!f.ferme;
   const close = reste.length === 0;
   const dit = close
