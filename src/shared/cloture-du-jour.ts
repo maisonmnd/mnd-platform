@@ -1,6 +1,7 @@
 import { createStore, useStore } from './store';
 import { bindCollection } from './sync';
 import { supabase } from './supabase';
+import { expensesStore, peutValider, refusee, validee } from './finance';
 import type { ClotureDuJour, EffacementLu, PieceLue } from './cloture-du-jour-pur';
 
 /* ══ LA CLÔTURE DE GRENAT, AU TRÔNE — 4 novembre 2026 ═══════════════════
@@ -60,6 +61,29 @@ export function tranche(o: { branchId: string; cle: string; par: string; mot?: s
   const id = `${o.branchId}|${o.cle}`.slice(0, 200);
   const d: DecisionDeCloture = { id, branchId: o.branchId, cle: o.cle, par: o.par, le: new Date().toISOString(), ...(o.mot?.trim() ? { mot: o.mot.trim() } : {}) };
   decisionsDeClotureStore.set((prev) => [...prev.filter((x) => x.id !== id), d]);
+}
+
+/** VALIDER OU REFUSER UNE DÉPENSE DEPUIS LA JOURNÉE — 5 novembre 2026.
+    Grenat ne saisit ni ne tranche : il met la dépense sous les yeux, et le
+    geste est LA VALIDATION DE TOUJOURS (finance.ts : `peutValider`,
+    `validee`, `refusee`), écrite par le magasin complet, jamais par une vue
+    filtrée. Rend `null` quand c'est fait, sinon pourquoi. */
+export function decideLaDepense(o: { id: string; role?: string; nom: string; oui: boolean; motif?: string }): string | null {
+  const e = expensesStore.get().find((x) => x.id === o.id);
+  if (!e || !e.validation || e.validation.etat !== 'attente') return 'Cette dépense n’attend plus de réponse.';
+  if (!peutValider(o.role, o.nom, e)) {
+    return o.role === 'souverain' || o.role === 'gerant'
+      ? 'Vous l’avez saisie vous-même : un autre souverain, ou un gérant, la valide.'
+      : 'La direction seule valide ou refuse une dépense.';
+  }
+  const motif = o.motif?.trim() ?? '';
+  if (!o.oui && !motif) return 'Un refus se donne avec son motif.';
+  const le = new Date().toISOString();
+  const par = o.nom.trim() || 'La Maison';
+  expensesStore.set((prev) => prev.map((x) => (x.id === o.id && x.validation
+    ? { ...x, validation: o.oui ? validee(x.validation, par, le) : refusee(x.validation, par, le, motif) }
+    : x)));
+  return null;
 }
 
 /** LES PIÈCES EFFACÉES D'UN JOUR, lues dans la trace de la base. Seule la

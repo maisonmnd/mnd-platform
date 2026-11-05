@@ -290,6 +290,15 @@ export type Expense = {
      Sandrine · courses au marché » : le marché reçoit, Sandrine porte. Les
      mêler donnerait un « à qui je paie le plus » qui répond à côté. */
   porteur?: string;
+  /** « LA MAISON ELLE-MÊME » A PAYÉ, dit au formulaire — 5 novembre 2026.
+      Un porteur vide ne distingue pas « la Maison » de « personne n'a
+      répondu » : la clôture de Grenat demande « qui a payé » tant que ni
+      l'un ni l'autre n'est écrit (cloture-du-jour-pur.ts). */
+  laMaisonAPaye?: boolean;
+  /** ÉCRITE POUR L'ÉCART D'UN COMPTAGE — 5 novembre 2026 : l'identifiant de
+      la clôture du tiroir (« C'était une dépense », depuis La journée).
+      Le lien est écrit, jamais déduit : il ferme le constat de Grenat. */
+  ecartDe?: string;
   /** IL A AVANCÉ DE SA POCHE — 31 août 2026.
 
       `porteur` seul suppose que la Maison lui avait DÉJÀ remis l'argent : la

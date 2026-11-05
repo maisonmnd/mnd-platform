@@ -19,14 +19,16 @@ import {
   A_PREPARER, TYPE_DU_PAPIER, aCotonouLe, clotureDuJour, dureeLue, familleLue, francsDits, gesteToujoursValable, heureEnClair,
   heuresDeLaCloture, idDuPapier, initialesDe, laMaisonEstFermee, notificationDeLaCloture, papierDuJour, pieceAPaye, prixFigeLu,
   remisesDuRdv, totalDeLaPiece, versementsDeLaPiece,
-  type FaitsDeLaJournee, type FicheLue, type PieceLue, type RdvLu,
+  SEUIL_DE_LA_PHOTO_XOF, ceQuiManqueALaDepense, cleDeLEcart, cleDuJourSansDepense, dateDite, depenseEnAttente, heuresDAttente, montantDeLaDepense,
+  type ComptageLu, type DepenseLue, type FaitsDeLaJournee, type FicheLue, type PieceLue, type RdvLu,
 } from '../src/shared/cloture-du-jour-pur';
 import { dureeDuRendezVous, ouvertureDuJour } from '../src/shared/agenda-pur';
 import { familleDuMoyen } from '../src/shared/caisse-du-soir-pur';
 import { recuAEnvoyer } from '../src/shared/recu-whatsapp';
 import { invoiceReglements, invoiceTotal } from '../src/shared/finance-pur';
 import { DEFAULT_SETTINGS } from '../src/shared/settings';
-import type { Invoice } from '../src/shared/finance';
+import { estEnAttente, expenseTotal, heuresDattente, type Expense, type Invoice } from '../src/shared/finance';
+import { SEUIL_DU_JUSTIFICATIF_XOF } from '../src/shared/agents-maison-pur';
 
 let ko = 0;
 const ascii = (s: string) => s.replace(/[^\x20-\x7e]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
@@ -346,5 +348,156 @@ vrai('le comptoir prevenu = qui a encaisse ce jour-la (les pieces seules, pas le
 vrai('Les caisses : « Cloturer la caisse » reste, porte de secours de la direction seule',
   /\{estDirection && \(\s*<button[^>]*onClick=\{\(\) => setClotureOuverte\(true\)\}>\s*Clôturer la caisse/.test(lis('src/apps/trone/routes/finances/Caisses.tsx')));
 
+/* ── 10. Les depenses du jour (5 novembre 2026) ──
+   « Comment Grenat saisit les depenses ? » Il ne les saisit pas ; « Oui, il
+   les relit a 19 h » (Yeman ; maquette 9KCMgAb1..., section 8). Le constat
+   reel : aucune depense saisie depuis le 1er novembre 2026 ; les dernieres,
+   31 octobre 2026 (7, 92 425 F, 4 sans porteur) ; aucune jamais « a valider ».
+   Scenario fictif equivalent, les montants de la maquette. */
+const exp = (e: Partial<DepenseLue>) => e as unknown as Expense;
+const casDeMontant: Partial<DepenseLue>[] = [{ amountXof: 3000 }, { amountXof: 9000, items: [{ amountXof: 4000 }, { amountXof: 2500 }] }, { amountXof: 5000, items: [] }];
+dit('montantDeLaDepense = expenseTotal (finance)', casDeMontant.map((e) => expenseTotal(exp(e))), casDeMontant.map((e) => montantDeLaDepense(e)));
+const casDAttente: Partial<DepenseLue>[] = [{}, { validation: { etat: 'attente', soumisLe: '2026-11-04T12:00:00Z', soumisPar: 'Opale' } },
+  { validation: { etat: 'validee', soumisLe: '2026-11-04T12:00:00Z', soumisPar: 'Opale' } }, { validation: { etat: 'refusee', soumisLe: '2026-11-04T12:00:00Z', soumisPar: 'Opale' } },
+  { validation: { etat: 'attente', soumisLe: '2026-11-05T12:00:00Z', soumisPar: 'Opale' } }, { validation: { etat: 'attente', soumisLe: 'illisible', soumisPar: 'Opale' } }];
+dit('depenseEnAttente = estEnAttente (finance)', casDAttente.map((e) => estEnAttente(exp(e))), casDAttente.map((e) => depenseEnAttente(e)));
+dit('heuresDAttente = heuresDattente (finance)', casDAttente.map((e) => heuresDattente(exp(e), a('19:00'))), casDAttente.map((e) => heuresDAttente(e, a('19:00'))));
+dit('le seuil de la photo = le seuil du justificatif (agents-maison-pur)', SEUIL_DU_JUSTIFICATIF_XOF, SEUIL_DE_LA_PHOTO_XOF);
+dit('les dates dites, l annee toujours', ['1er novembre 2026', '4 novembre 2026', '31 octobre 2026'], [dateDite('2026-11-01'), dateDite('2026-11-04'), dateDite('2026-10-31')]);
+
+const D = (id: string, plus: Partial<DepenseLue> = {}): DepenseLue => ({
+  id, branchId: 'maison', label: 'Achat', amountXof: 10000, date: JOUR, cashbox: 'Caisse Principale', category: 'Divers', porteur: 'Sandrine', fichier: true, ...plus,
+});
+const attend = (soumisLe: string, soumisPar = 'Opale') => ({ etat: 'attente', soumisLe, soumisPar });
+dit('ce qui manque : la photo au-dessus du seuil, et qui a paye', [['recu', 'porteur'], ['porteur'], [], [], ['recu'], ['recu']], [
+  ceQuiManqueALaDepense(D('m1', { porteur: undefined, fichier: undefined, amountXof: 64600 })),
+  ceQuiManqueALaDepense(D('m2', { porteur: '  ', fichier: undefined, amountXof: 4999 })),
+  ceQuiManqueALaDepense(D('m3', { porteur: undefined, laMaisonAPaye: true, fichier: undefined, amountXof: 2000 })),
+  ceQuiManqueALaDepense(D('m4')),
+  ceQuiManqueALaDepense(D('m5', { fichier: undefined, amountXof: 5000 })),
+  ceQuiManqueALaDepense(D('m6', { fichier: undefined, amountXof: 0, items: [{ amountXof: 3000 }, { amountXof: 3000 }] })),
+]);
+
+const TRANSPORT = D('d-transport', { label: 'Transport des produits', amountXof: 3000, fichier: undefined, validation: attend('2026-11-04T12:00:00Z') });
+const DEPENSES: DepenseLue[] = [
+  TRANSPORT,
+  D('d-meches', { label: 'Mèches', amountXof: 64600, category: 'Matières premières', porteur: undefined, fichier: undefined }),
+  D('d-loyer', { label: 'Loyer', amountXof: 300000, recurring: 'mensuel', porteur: undefined, fichier: undefined }),
+  D('d-paie', { label: 'Salaire', amountXof: 80000, source: 'run', porteur: undefined, fichier: undefined }),
+  D('d-eau', { label: 'Eau', amountXof: 500, fichier: undefined }),
+  D('d-refusee', { label: 'Taxi', amountXof: 7000, porteur: undefined, fichier: undefined, validation: { etat: 'refusee', soumisLe: '2026-11-04T09:00:00Z', soumisPar: 'K.' } }),
+  D('d-avant', { label: 'Gaz', amountXof: 6000, date: '2026-11-02', validation: attend('2026-11-02T10:00:00Z', 'Kabirou') }),
+  D('d-maison', { label: 'Savon', amountXof: 8000, porteur: undefined, laMaisonAPaye: true }),
+  D('d-ailleurs', { branchId: 'ailleurs', label: 'Autre maison', porteur: undefined, fichier: undefined }),
+  D('d-pour-ecart', { label: 'Coursier', amountXof: 1500, ecartDe: 'clo-7' }),
+];
+const C = (id: string, plus: Partial<ComptageLu> = {}): ComptageLu => ({ id, branchId: 'maison', cashbox: 'Real Money', date: JOUR, ecartXof: 0, le: '2026-11-04T18:00:00Z', ...plus });
+const COMPTAGES: ComptageLu[] = [
+  C('clo-1', { ecartXof: -2500, note: 'monnaie rendue' }),
+  C('clo-2', { ecartXof: -1000, depenses: ['exp-x'] }),
+  C('clo-3', { ecartXof: 500 }),
+  C('clo-4', { ecartXof: -3000, validation: { verdict: 'accepte' } }),
+  C('clo-5', { ecartXof: -4000 }), C('clo-6', { ecartXof: 0, reprend: 'clo-5' }),
+  C('clo-7', { ecartXof: -1500 }),
+  C('clo-8', { ecartXof: -900, date: '2026-11-03' }),
+  C('clo-9', { ecartXof: -700, branchId: 'ailleurs' }),
+];
+const jd = (ms: number, plus: Partial<FaitsDeLaJournee> = {}) => clotureDuJour({ jour: JOUR, maintenantMs: ms, branchId: 'maison', rdvs: [], pieces: [], fiches, depenses: DEPENSES, comptages: COMPTAGES, ...plus });
+const d19 = jd(a('19:00'));
+const sous = d19.depenses;
+dit('19 h : ce que Grenat met sous les yeux, dans l ordre de la maquette', [['a-valider', 'd-avant'], ['a-valider', 'd-transport'], ['a-completer', 'd-meches'], ['ecart-sans-depense', 'clo-1']],
+  sous?.constats.map((c) => [c.genre, c.depenseId ?? c.comptageId]));
+const ligneDe = (id: string) => sous?.constats.find((c) => (c.depenseId ?? c.comptageId) === id);
+dit('19 h : la depense posee par Opale, comme la maquette la dit',
+  { quoi: `Transport des produits · ${F(3000)}`, heure: '13 h 00', dit: 'Posée par Opale, à valider depuis 6 heures. Caisse Principale.', etat: 'À valider', gestes: ['valider', 'refuser'], bloque: true },
+  (({ quoi, heure, dit: d, etatDit, gestes, bloque }) => ({ quoi, heure, dit: d, etat: etatDit, gestes, bloque }))(ligneDe('d-transport')!));
+dit('... celle d un autre jour attend aussi, sa date dite, sans retenir le comptage',
+  { dit: 'Du 2 novembre 2026, posée par Kabirou, à valider depuis 56 heures. Caisse Principale.', bloque: false, heure: '' },
+  (({ dit: d, bloque, heure }) => ({ dit: d, bloque, heure }))(ligneDe('d-avant')!));
+dit('... les meches, sans photo du recu ni qui a paye',
+  { quoi: `Mèches · ${F(64600)}`, dit: 'Matières premières, Caisse Principale : sans photo du reçu, et sans qui a payé.', etat: 'À compléter', gestes: ['joindre-la-photo', 'dire-qui-a-paye'], bloque: false },
+  (({ quoi, dit: d, etatDit, gestes, bloque }) => ({ quoi, dit: d, etat: etatDit, gestes, bloque }))(ligneDe('d-meches')!));
+dit('... l ecart du tiroir sans depense en face, avec sa note',
+  { quoi: `Tiroir Real Money · ${F(2500)} de moins que l’attendu`, dit: 'Au comptage de 19 h 00, un écart sans dépense en face : une dépense oubliée ? Sa note : « monnaie rendue ».',
+    gestes: ['c-etait-une-depense', 'laisser-l-ecart'], tiroir: 'Real Money', montant: 2500, note: 'monnaie rendue', cle: 'ecart:clo-1' },
+  (({ quoi, dit: d, gestes, tiroir, montantXof, note, cle }) => ({ quoi, dit: d, gestes, tiroir, montant: montantXof, note, cle }))(ligneDe('clo-1')!));
+dit('19 h : les saisies du jour (en attente comprises ; ni la recurrente, ni la paie, ni la refusee, ni l autre maison)', { n: 5, t: 77600 }, { n: sous?.saisies, t: sous?.totalXof });
+dit('19 h : la depense a valider du jour retient le comptage, et elle seule',
+  { close: false, reste: ['1 dépense à valider'], dit: '1 dépense à valider, la caisse ne se compte pas encore' },
+  { close: d19.verdict.close, reste: d19.verdict.reste, dit: d19.verdict.dit });
+dit('19 h : la notification, en nombres',
+  { titre: 'Clôture de 19 h', corps: '1 dépense à valider, 1 dépense d’un jour passé à valider, 1 dépense à compléter, 1 écart de tiroir sans dépense.' }, notificationDeLaCloture(d19, 19));
+const validee = jd(a('19:00'), { depenses: DEPENSES.map((e) => (e.id === 'd-transport' ? { ...e, validation: { ...attend('2026-11-04T12:00:00Z'), etat: 'validee' } } : e)) });
+dit('validee, la journee est close malgre la depense a completer et l ecart', { close: true, dit: 'La journée est close : la caisse peut se compter.' }, { close: validee.verdict.close, dit: validee.verdict.dit });
+dit('... et la notification de 19 h les dit quand meme, en nombres',
+  'La journée est close : la caisse peut se compter. À voir aussi : 1 dépense d’un jour passé à valider, 1 dépense à compléter, 1 écart de tiroir sans dépense.', notificationDeLaCloture(validee, 19).corps);
+const refusee = jd(a('19:00'), { depenses: DEPENSES.map((e) => (e.id === 'd-transport' ? { ...e, validation: { ...attend('2026-11-04T12:00:00Z'), etat: 'refusee' } } : e)) });
+dit('refusee, elle ne retient plus rien et ne se relit plus', { close: true, lignes: 0 }, { close: refusee.verdict.close, lignes: refusee.depenses?.constats.filter((c) => c.depenseId === 'd-transport').length });
+const d15 = jd(a('15:00'));
+dit('15 h : la depense a valider du jour retient deja le comptage ; le reste attend la relecture de 19 h',
+  { reste: ['1 dépense à valider'], aDire: [], corps: '1 dépense à valider.', relues: false }, { reste: d15.verdict.reste, aDire: d15.depenses?.aDire, corps: notificationDeLaCloture(d15, 15).corps, relues: d15.depenses?.relues });
+dit('... les constats se voient deja a l ecran', 4, d15.depenses?.constats.length);
+dit('laisser l ecart (une decision de la direction) le ferme', [], jd(a('19:00'), { decisions: [{ cle: cleDeLEcart('clo-1'), par: 'Brice', mot: 'L écart reste, avec sa note.' }] })
+  .depenses?.constats.filter((c) => c.genre === 'ecart-sans-depense'));
+dit('un compte rendu d avant (sans depenses) se notifie comme avant', { titre: 'Clôture de 19 h', corps: '2 rendez-vous à clore.' },
+  notificationDeLaCloture({ verdict: { close: false, dit: '', reste: ['2 rendez-vous à clore'] }, comptes: q19.comptes, alarmes: [] }, 19));
+
+/* Le jour ouvert sans aucune depense saisie : il le DEMANDE. */
+const sansRien = (ms: number, plus: Partial<FaitsDeLaJournee> = {}) => clotureDuJour({ jour: JOUR, maintenantMs: ms, branchId: 'maison', rdvs: [], pieces: [], fiches,
+  depenses: DEPENSES.filter((e) => ['d-loyer', 'd-paie', 'd-refusee', 'd-ailleurs'].includes(e.id)), comptages: [], ...plus });
+const s19 = sansRien(a('19:00'));
+dit('un jour ouvert sans depense saisie : Grenat le demande a 19 h, sans rien supposer',
+  { genre: 'jour-sans-depense', quoi: 'Aucune dépense saisie aujourd’hui', gestes: ['saisir', 'rien-aujourdhui'], bloque: false, cle: cleDuJourSansDepense(JOUR) },
+  (({ genre, quoi, gestes, bloque, cle }) => ({ genre, quoi, gestes, bloque, cle }))(s19.depenses?.constats[0] ?? { genre: '', quoi: '', gestes: [], bloque: true, cle: '' }));
+dit('... sans retenir la journee ; la notification le dit', { close: true, corps: 'La journée est close : la caisse peut se compter. À voir aussi : aucune dépense saisie.' },
+  { close: s19.verdict.close, corps: notificationDeLaCloture(s19, 19).corps });
+dit('... pas a 15 h', 0, sansRien(a('15:00')).depenses?.constats.length);
+dit('... pas un jour ferme', 0, sansRien(a('19:00'), { ferme: true }).depenses?.constats.length);
+dit('... « Rien aujourd hui » de la direction le ferme', 0, sansRien(a('19:00'), { decisions: [{ cle: cleDuJourSansDepense(JOUR), par: 'Yéman' }] }).depenses?.constats.length);
+dit('... l heure reglee de la relecture (20 h) : pas encore a 19 h', 0, sansRien(a('19:00'), { heureDesDepenses: 20 }).depenses?.constats.length);
+dit('... le lendemain matin, la veille se relit en entier', 'Aucune dépense saisie ce jour-là', sansRien(a('07:00', '2026-11-05')).depenses?.constats[0]?.quoi);
+dit('... sans depenses lues, rien ne se dit (l absence de faits n est pas un jour sans depense)', { lues: false, n: 0 },
+  (({ depenses }) => ({ lues: depenses?.lues, n: depenses?.constats.length }))(sansRien(a('19:00'), { depenses: undefined })));
+dit('... une depense de l autre maison ne compte pas comme saisie ici', 'jour-sans-depense', s19.depenses?.constats[0]?.genre);
+
+/* Les copies dans la fonction, les gestes au Trone. */
+vrai('la fonction lit les depenses du jour, celles qui attendent et celles de l ecart, par pages de mille',
+  /from\('expenses'\)\.select\('id, branch_id, data'\)\.eq\('data->>date', jour\)\.order\('id'\)\.range\(/.test(horsDuBloc)
+  && /from\('expenses'\)\.select\('id, branch_id, data'\)\.eq\('data->validation->>etat', 'attente'\)\.order\('id'\)\.range\(/.test(horsDuBloc)
+  && /from\('expenses'\)\.select\('id, branch_id, data'\)\.in\('data->>ecartDe', t\)/.test(horsDuBloc));
+vrai('la fonction lit les comptages de tiroir du jour', /from\('clotures_caisse'\)\.select\('id, branch_id, data'\)\.eq\('data->>date', jour\)/.test(horsDuBloc));
+vrai('la fonction n ecrit jamais une depense', !/from\('expenses'\)\s*\.\s*(insert|update|upsert|delete)\(/.test(fonction) && !/from\('expenses'\)[^;\n]*\.(insert|update|upsert|delete)\(/.test(fonction));
+vrai('la fonction passe a la regle les depenses, les comptages et l heure de la relecture (la derniere cloture)',
+  /envois, depenses, comptages, heureDesDepenses \}\);/.test(horsDuBloc) && /const heureDesDepenses = Math\.max\(\.\.\.heures\);/.test(horsDuBloc));
+const journee = lis('src/apps/trone/routes/finances/LaJournee.tsx');
+const posDep = journee.indexOf('data-lj="depenses"');
+vrai('La journee : les depenses sous les rendez-vous, avant la caisse du jour',
+  posDep > journee.indexOf('Les rendez-vous du jour') && journee.indexOf('Les rendez-vous du jour') > 0 && posDep < journee.indexOf('data-lj="caisse-resume"') && posDep < journee.indexOf('<JournalDeCaisse'));
+vrai('La journee : Valider et Refuser par la validation de toujours (peutValider) ; Rien aujourd hui et Laisser l ecart a la direction seule',
+  journee.includes("if (g === 'valider' || g === 'refuser') { const e = depenseDe(c.depenseId); return !!e && peutValider(me?.role, monNom, e); }")
+  && journee.includes("if (g === 'rien-aujourdhui' || g === 'laisser-l-ecart') return souverain;")
+  && journee.includes("if (!souverain) { toast('La direction seule le dit.'); return; }"));
+vrai('La journee : Joindre la photo et Dire qui a paye ouvrent la fiche ; Saisir et C etait une depense ouvrent le formulaire',
+  journee.includes("navigate(`/depenses?depense=${encodeURIComponent(c.depenseId ?? '')}&volet=${g === 'joindre-la-photo' ? 'recu' : 'porteur'}`);")
+  && journee.includes("const q = new URLSearchParams({ nouvelle: '1', date: jour });") && journee.includes("if (c.comptageId) q.set('ecart', c.comptageId);"));
+const blocDeLaJournee = journee.slice(posDep, journee.indexOf('{alarmes.length > 0 && ('));
+const litteraux = (s: string) => s.match(/'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`|>[^<>{}\n]+</g) ?? [];
+const blocDeLaRegle = (original ?? '').slice((original ?? '').indexOf('export type DepenseLue'), (original ?? '').indexOf('export function clotureDuJour'));
+vrai('les textes neufs : jamais le tiret « — », jamais « salon »', blocDeLaRegle.length > 1000 && blocDeLaJournee.length > 500
+  && ![...litteraux(blocDeLaRegle), ...litteraux(blocDeLaJournee)].some((t) => t.includes('—') || /salon/i.test(t)));
+const prise = lis('src/apps/trone/routes/finances/useClotureDuJour.ts');
+vrai('le Trone juge avec les depenses, les comptages et l heure de la relecture',
+  prise.includes('depenses: depenses as unknown as DepenseLue[],') && prise.includes('comptages: comptages as unknown as ComptageLu[],')
+  && prise.includes('const heureDesDepenses = Math.max(...heuresDeLaCloture(settings.cloture?.heures));'));
+const partage = lis('src/shared/cloture-du-jour.ts');
+vrai('decideLaDepense : la validation de toujours (peutValider), le motif exige au refus',
+  partage.includes('if (!peutValider(o.role, o.nom, e)) {') && partage.includes("if (!o.oui && !motif) return 'Un refus se donne avec son motif.';"));
+vrai('la veille a valider dit les depenses relues par Grenat', lis('src/apps/trone/routes/finances/LaVeilleAValider.tsx').includes('const depensesDites = grenat?.cloture.depenses?.aDire ?? [];'));
+const depensesTsx = lis('src/apps/trone/routes/finances/Depenses.tsx');
+vrai('Depenses : « C etait une depense » ecrit le lien de l ecart, « La Maison elle-meme » s ecrit',
+  depensesTsx.includes('...(form.ecartDe ? { ecartDe: form.ecartDe } : {}),')
+  && depensesTsx.includes('const laMaisonAPaye = voitToutesLesDepenses && form.porteurChoisi && !form.porteur.trim();')
+  && depensesTsx.includes("if (ecart) setForm((f) => ({ ...f, ecartDe: ecart.slice(0, 120) }));"));
+
 if (ko) console.log(`\n${ko} controle(s) en echec.`);
-else console.log('\nLa cloture de Grenat tient ses six regles.');
+else console.log('\nLa cloture de Grenat tient ses six regles, et relit les depenses du jour.');

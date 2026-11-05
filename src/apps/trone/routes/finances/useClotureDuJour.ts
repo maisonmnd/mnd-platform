@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useBranch } from '../../../../shared/branches';
 import { aUnPrixConvenu, useClients } from '../../../../shared/clients';
-import { useInvoices } from '../../../../shared/finance';
+import { useExpenses, useInvoices } from '../../../../shared/finance';
+import { useClotures } from '../../../../shared/caisse-du-soir';
 import { useOffers } from '../../../../shared/offers';
-import { openingForIso } from '../../../../shared/settings';
+import { openingForIso, useSettings } from '../../../../shared/settings';
 import {
-  TYPE_DU_PAPIER, clotureDuJour, type Alarme, type ClotureDuJour, type EffacementLu, type PieceLue, type RdvLu,
+  TYPE_DU_PAPIER, clotureDuJour, heuresDeLaCloture,
+  type Alarme, type ClotureDuJour, type ComptageLu, type DepenseLue, type EffacementLu, type PieceLue, type RdvLu,
 } from '../../../../shared/cloture-du-jour-pur';
 import {
   dernierPassage, effacementsDuJour, useComptesRendusDeGrenat, useDecisionsDeCloture, type CompteRenduDeGrenat,
@@ -19,6 +21,10 @@ import { apptDurationMin, apptLabel, apptNetXof, useBranchAppointments, useServi
    salle d'attente, les décisions) passés à LA MÊME RÈGLE que la fonction de
    Grenat (`clotureDuJour`). Le prix d'un rendez-vous est celui que le Carnet
    montre (`apptNetXof`) ; sa durée, celle du calendrier.
+
+   LES DÉPENSES (5 novembre 2026, « Oui, il les relit à 19 h ») : le registre
+   brut des dépenses (en attente comprises) et les comptages de tiroir, et
+   l'heure de la relecture, la dernière heure de clôture réglée.
 
    Les pièces effacées se lisent dans la trace, que la base ne montre qu'à
    la direction ; pour les autres, les alarmes du dernier passage de Grenat,
@@ -35,6 +41,8 @@ export type ClotureLue = {
   pourquoiPasEncore: string;
   /** La trace a pu être lue (la direction). */
   traceLue: boolean;
+  /** L'heure de la relecture des dépenses (la dernière clôture réglée). */
+  heureDesDepenses: number;
 };
 
 export function useClotureDuJour(jour: string): ClotureLue {
@@ -47,6 +55,10 @@ export function useClotureDuJour(jour: string): ClotureLue {
   const [envois] = useEnvois();
   const [crs] = useComptesRendusDeGrenat();
   const [decisions] = useDecisionsDeCloture();
+  const [depenses] = useExpenses();
+  const [comptages] = useClotures();
+  const [settings] = useSettings();
+  const heureDesDepenses = Math.max(...heuresDeLaCloture(settings.cloture?.heures));
   /* L'heure qui passe : un rendez-vous finit pendant qu'on regarde l'écran. */
   const [maintenantMs, setMaintenantMs] = useState(() => Date.now());
   useEffect(() => { const t = window.setInterval(() => setMaintenantMs(Date.now()), 60_000); return () => window.clearInterval(t); }, []);
@@ -78,8 +90,11 @@ export function useClotureDuJour(jour: string): ClotureLue {
       offres, effacements: effaces ?? [],
       decisions: decisions.filter((d) => d.branchId === branch.id).map((d) => ({ cle: d.cle, par: d.par, le: d.le, mot: d.mot })),
       envois: envois.filter((e) => e.type === TYPE_DU_PAPIER).map((e) => ({ id: e.id, type: e.type, statut: e.statut, invoiceId: (e as { invoiceId?: string }).invoiceId })),
+      depenses: depenses as unknown as DepenseLue[],
+      comptages: comptages as unknown as ComptageLu[],
+      heureDesDepenses,
     });
-  }, [appts, jour, maintenantMs, branch.id, invoices, clients, offres, effaces, decisions, envois, byId]);
+  }, [appts, jour, maintenantMs, branch.id, invoices, clients, offres, effaces, decisions, envois, byId, depenses, comptages, heureDesDepenses]);
 
   const passage = dernierPassage(crs, branch.id, jour);
   const tranchees = new Set(decisions.filter((d) => d.branchId === branch.id).map((d) => d.cle));
@@ -92,5 +107,5 @@ export function useClotureDuJour(jour: string): ClotureLue {
   if (effaces === null && alarmesOuvertes.length) reste.push(alarmesOuvertes.length > 1 ? `${alarmesOuvertes.length} pièces payées effacées à trancher` : '1 pièce payée effacée à trancher');
   const verdictDit = close ? cloture.verdict.dit : effaces === null && cloture.verdict.close ? 'Une facture payée a été effacée' : cloture.verdict.dit;
   const pourquoiPasEncore = close ? '' : `Grenat : la caisse ne se compte pas encore. ${reste.join(', ').replace(/^./, (x) => x.toUpperCase())}.`;
-  return { cloture, passage, alarmes, close, reste, verdictDit, pourquoiPasEncore, traceLue: effaces !== null };
+  return { cloture, passage, alarmes, close, reste, verdictDit, pourquoiPasEncore, traceLue: effaces !== null, heureDesDepenses };
 }

@@ -37,7 +37,7 @@
    l'écran « La journée » et le serveur jugent avec la même règle. */
 
 /* ⟨cloture-du-jour⟩ */
-export const VERSION_DE_LA_CLOTURE = '2026-11-04-a';
+export const VERSION_DE_LA_CLOTURE = '2026-11-05-a';
 
 /** Cotonou vit à UTC + 1, toute l'année. */
 export const DECALAGE_DE_COTONOU_MIN = 60;
@@ -284,6 +284,13 @@ export type FaitsDeLaJournee = {
   effacements?: readonly EffacementLu[];
   decisions?: readonly DecisionLue[];
   envois?: readonly EnvoiDePapierLu[];
+  /** Les dépenses (5 novembre 2026) : celles du jour, et celles qui attendent
+      un oui. Absentes : la clôture ne dit rien des dépenses. */
+  depenses?: readonly DepenseLue[];
+  /** Les comptages de tiroir du jour (`clotures_caisse`), pour l'écart. */
+  comptages?: readonly ComptageLu[];
+  /** L'heure de la relecture des dépenses : la dernière clôture du jour (19 h par défaut). */
+  heureDesDepenses?: number;
 };
 
 /** Le type de la ligne d'envoi du papier d'une pièce, et son identifiant :
@@ -349,6 +356,8 @@ export type ClotureDuJour = {
   caisse: CaisseDuJour;
   comptes: ComptesDeLaJournee;
   verdict: { close: boolean; dit: string; reste: string[] };
+  /** Les dépenses du jour, relues (absentes des comptes rendus d'avant le 5 novembre 2026). */
+  depenses?: DepensesDuJour;
 };
 
 const nombreDit = (n: number, un: string, plusieurs: string): string => `${n} ${n > 1 ? plusieurs : un}`;
@@ -391,6 +400,216 @@ export function pourquoiLaPlaceNeTientPas(a: RdvLu, rdvs: readonly RdvLu[], offr
   if (!Number.isFinite(posee)) return null;
   const avant = memeJour.some((r) => r.id !== a.id && !sienne(r) && Date.parse(r.creeLe ?? '') < posee);
   return avant ? 'la place limitée a été prise un jour qui avait déjà un rendez-vous' : null;
+}
+
+/* ── LES DÉPENSES DU JOUR — 5 novembre 2026 ─────────────────────────────
+   « Comment Grenat saisit les dépenses ? » Il ne les saisit pas ; « Oui, il
+   les relit à 19 h » (Yéman, 5 novembre 2026 ; maquette 9KCMgAb1…, section
+   8). GRENAT RELIT, IL NE SAISIT JAMAIS UNE DÉPENSE. Il met sous les yeux :
+     · les dépenses « à valider » qui attendent (posées par Opale ou par
+       l'équipe) : « Valider », « Refuser », la validation de toujours ;
+     · les dépenses du jour sans photo du reçu (au-dessus du seuil du
+       justificatif) ou sans qui a payé : « Joindre la photo », « Dire qui a
+       payé » ouvrent leur fiche ;
+     · un jour ouvert sans aucune dépense saisie : il le DEMANDE, à l'heure
+       de la relecture (la dernière clôture du jour) ; « Saisir une
+       dépense », ou « Rien aujourd'hui », une décision de la direction ;
+     · un écart de tiroir au comptage sans dépense en face : « C'était une
+       dépense », ou « Laisser l'écart, avec sa note ».
+   UNE JOURNÉE RESTE CLOSE avec une dépense à compléter : seule une dépense
+   à valider DU JOUR bloque le comptage (le tiroir attendu la compte déjà
+   comme sortie, le livre pas encore). Sans dépenses lues, rien ne se dit :
+   l'absence de faits n'est pas un jour sans dépense. */
+
+/** Une dépense telle que la clôture la lit (`expenses`, finance.ts). */
+export type DepenseLue = {
+  id: string; branchId?: string; label?: string; amountXof?: number; items?: readonly { amountXof?: number }[] | null;
+  date?: string; cashbox?: string; category?: string;
+  /** Qui l'a payée ; `laMaisonAPaye` : « La Maison elle-même », dit au formulaire. */
+  porteur?: string; laMaisonAPaye?: boolean;
+  /** La photo du reçu (`fichier`, la pièce jointe du dossier « depense »). */
+  fichier?: unknown;
+  /** Une récurrente, une charge de la paie, l'intérêt d'une échéance : rien de saisi ce jour. */
+  recurring?: string | null; source?: string; empruntId?: string;
+  /** Écrite pour l'écart d'un comptage (« C'était une dépense ») : la clôture du tiroir. */
+  ecartDe?: string;
+  validation?: { etat?: string; soumisLe?: string; soumisPar?: string } | null;
+};
+
+/** Le comptage d'un tiroir, tel que la clôture le lit (`clotures_caisse`, caisse-du-soir-pur.ts). */
+export type ComptageLu = {
+  id: string; branchId?: string; cashbox?: string; date?: string; ecartXof?: number; note?: string;
+  /** Les dépenses écrites PENDANT le comptage (« C'était une dépense »). */
+  depenses?: readonly string[];
+  le?: string; reprend?: string; validation?: { verdict?: string } | null;
+};
+
+/** Sous ce montant (un ticket de taxi, un sachet d'eau), la photo du reçu ne
+    se réclame pas : le seuil du justificatif (`SEUIL_DU_JUSTIFICATIF_XOF`,
+    agents-maison-pur.ts ; le banc compare les deux). */
+export const SEUIL_DE_LA_PHOTO_XOF = 5000;
+
+/** Le montant d'une dépense, la même lecture qu'`expenseTotal`. */
+export const montantDeLaDepense = (e: Pick<DepenseLue, 'amountXof' | 'items'>): number =>
+  e.items && e.items.length ? e.items.reduce((s, it) => s + (Number(it.amountXof) || 0), 0) : Number(e.amountXof) || 0;
+
+/** Elle attend un oui, la même lecture qu'`estEnAttente`. */
+export const depenseEnAttente = (e: Pick<DepenseLue, 'validation'>): boolean => e.validation?.etat === 'attente';
+
+/** Les heures écoulées depuis la soumission, la même lecture qu'`heuresDattente`. */
+export function heuresDAttente(e: Pick<DepenseLue, 'validation'>, maintenantMs: number): number | null {
+  if (!depenseEnAttente(e)) return null;
+  const t = Date.parse(e.validation?.soumisLe ?? '');
+  if (Number.isNaN(t)) return null;
+  return Math.max(0, (maintenantMs - t) / 3_600_000);
+}
+
+/** SAISIE À LA MAIN : ni une récurrente (elle court seule de mois en mois),
+    ni une charge écrite par la paie, ni l'intérêt d'une échéance d'emprunt. */
+export const saisieALaMain = (e: Pick<DepenseLue, 'recurring' | 'source' | 'empruntId'>): boolean =>
+  !e.recurring && !e.source && !e.empruntId;
+
+/** CE QUI MANQUE À UNE DÉPENSE : la photo du reçu (au-dessus du seuil), et
+    qui a payé (un porteur, ou « La Maison elle-même » dite au formulaire). */
+export function ceQuiManqueALaDepense(e: DepenseLue): ('recu' | 'porteur')[] {
+  const manque: ('recu' | 'porteur')[] = [];
+  if (!e.fichier && montantDeLaDepense(e) >= SEUIL_DE_LA_PHOTO_XOF) manque.push('recu');
+  if (!String(e.porteur ?? '').trim() && !e.laMaisonAPaye) manque.push('porteur');
+  return manque;
+}
+
+const MOIS_DITS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+/** « 1er novembre 2026 », « 4 novembre 2026 » : la date dite, l'année toujours. */
+export const dateDite = (iso: unknown): string => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso ?? ''));
+  if (!m || !MOIS_DITS[Number(m[2]) - 1]) return String(iso ?? '');
+  return `${Number(m[3])}${Number(m[3]) === 1 ? 'er' : ''} ${MOIS_DITS[Number(m[2]) - 1]} ${m[1]}`;
+};
+
+export type GesteDeDepense = 'valider' | 'refuser' | 'joindre-la-photo' | 'dire-qui-a-paye' | 'saisir' | 'rien-aujourdhui' | 'c-etait-une-depense' | 'laisser-l-ecart';
+
+export type ConstatDeDepense = {
+  cle: string;
+  genre: 'jour-sans-depense' | 'a-valider' | 'a-completer' | 'ecart-sans-depense';
+  heure: string; quoi: string; dit: string; etatDit: string;
+  gestes: GesteDeDepense[];
+  /** Seule une dépense à valider DU JOUR bloque le comptage. */
+  bloque: boolean;
+  depenseId?: string; comptageId?: string; tiroir?: string; montantXof?: number;
+  manque?: ('recu' | 'porteur')[];
+  /** La note du comptage, quand l'écart en a une : « Laisser l'écart » la garde. */
+  note?: string;
+};
+
+export type DepensesDuJour = {
+  /** Les dépenses ont été lues. */
+  lues: boolean;
+  /** L'heure de la relecture est passée : la question du jour sans dépense
+      se pose, et les nombres entrent dans la notification. */
+  relues: boolean;
+  constats: ConstatDeDepense[];
+  /** Les dépenses saisies à la main ce jour (en attente comprises), et leur total. */
+  saisies: number; totalXof: number;
+  comptes: { aValiderDuJour: number; aValiderAvant: number; aCompleter: number; sansDepense: number; ecarts: number };
+  /** Ce qui reste à dire sans bloquer, en nombres (à l'heure de la relecture). */
+  aDire: string[];
+};
+
+/** La clé de « Rien aujourd'hui » et celle de « Laisser l'écart, avec sa note ». */
+export const cleDuJourSansDepense = (jour: string): string => `sans-depense:${jour}`;
+export const cleDeLEcart = (comptageId: string): string => `ecart:${comptageId}`;
+
+/** LES DÉPENSES DU JOUR, relues : ce que Grenat met sous les yeux. Pure. */
+export function depensesDuJour(o: {
+  jour: string; maintenantMs: number; minutesMaintenant: number; branchId?: string; ferme: boolean;
+  depenses?: readonly DepenseLue[]; comptages?: readonly ComptageLu[]; heureDesDepenses?: number;
+  tranche: ReadonlyMap<string, DecisionLue>;
+}): DepensesDuJour {
+  const comptes = { aValiderDuJour: 0, aValiderAvant: 0, aCompleter: 0, sansDepense: 0, ecarts: 0 };
+  if (!o.depenses) return { lues: false, relues: false, constats: [], saisies: 0, totalXof: 0, comptes, aDire: [] };
+  const heure = Number.isInteger(o.heureDesDepenses) ? Number(o.heureDesDepenses) : 19;
+  const relues = o.minutesMaintenant >= heure * 60;
+  const deLaMaison = (b?: string) => !o.branchId || !b || b === o.branchId;
+  const vivantes = o.depenses.filter((e) => deLaMaison(e.branchId) && e.validation?.etat !== 'refusee');
+  const saisies = vivantes.filter((e) => e.date === o.jour && saisieALaMain(e));
+  const enAttente = vivantes.filter((e) => depenseEnAttente(e) && String(e.date ?? '') <= o.jour)
+    .sort((a, b) => String(a.validation?.soumisLe ?? '').localeCompare(String(b.validation?.soumisLe ?? '')) || a.id.localeCompare(b.id));
+  const heureDe = (iso?: string): string => {
+    const t = Date.parse(iso ?? '');
+    if (!Number.isFinite(t)) return '';
+    const ici = aCotonouLe(t);
+    return ici.jour === o.jour ? heureEnClair(ici.minutes) : '';
+  };
+  const quoiDe = (e: DepenseLue) => `${String(e.label ?? '').trim() || 'Dépense'} · ${francsDits(montantDeLaDepense(e))}`;
+  const manqueDit = (m: ('recu' | 'porteur')[]) => [m.includes('recu') ? 'sans photo du reçu' : '', m.includes('porteur') ? 'sans qui a payé' : ''].filter(Boolean).join(', et ');
+  const constats: ConstatDeDepense[] = [];
+
+  /* LE JOUR OUVERT SANS AUCUNE DÉPENSE : demandé, jamais supposé, à l'heure
+     de la relecture ; « Rien aujourd'hui » de la direction le ferme. */
+  const cleSans = cleDuJourSansDepense(o.jour);
+  if (relues && !o.ferme && saisies.length === 0 && !o.tranche.has(cleSans)) {
+    const aujourdhui = aCotonouLe(o.maintenantMs).jour === o.jour;
+    constats.push({ cle: cleSans, genre: 'jour-sans-depense', heure: '', etatDit: 'À dire', bloque: false,
+      quoi: aujourdhui ? 'Aucune dépense saisie aujourd’hui' : 'Aucune dépense saisie ce jour-là',
+      dit: 'Rien acheté, rien payé de la caisse ? Le comptage du soir le dira.', gestes: ['saisir', 'rien-aujourdhui'] });
+    comptes.sansDepense = 1;
+  }
+
+  /* LES DÉPENSES À VALIDER, la plus ancienne d'abord. */
+  for (const e of enAttente) {
+    const duJour = e.date === o.jour;
+    const h = heuresDAttente(e, o.maintenantMs);
+    const attente = h === null ? 'à valider' : h < 1 ? 'à valider depuis moins d’une heure' : `à valider depuis ${nombreDit(Math.floor(h), 'heure', 'heures')}`;
+    const qui = String(e.validation?.soumisPar ?? '').trim();
+    const debut = [duJour ? '' : `Du ${dateDite(e.date)}`, qui ? `posée par ${qui}` : 'posée par l’équipe', attente].filter(Boolean).join(', ');
+    const manque = ceQuiManqueALaDepense(e);
+    const dit = `${debut.charAt(0).toUpperCase()}${debut.slice(1)}.${e.cashbox ? ` ${e.cashbox}.` : ''}${manque.length ? ` ${manqueDit(manque).replace(/^./, (x) => x.toUpperCase())}.` : ''}`;
+    constats.push({ cle: `depense-a-valider:${e.id}`, genre: 'a-valider', heure: heureDe(e.validation?.soumisLe), quoi: quoiDe(e), dit, etatDit: 'À valider',
+      gestes: ['valider', 'refuser'], bloque: duJour, depenseId: e.id, montantXof: montantDeLaDepense(e), ...(manque.length ? { manque } : {}) });
+    if (duJour) comptes.aValiderDuJour += 1; else comptes.aValiderAvant += 1;
+  }
+
+  /* LES DÉPENSES DU JOUR À COMPLÉTER : la photo du reçu, qui a payé. */
+  for (const e of saisies) {
+    if (depenseEnAttente(e)) continue;
+    const manque = ceQuiManqueALaDepense(e);
+    if (!manque.length) continue;
+    const ou = [String(e.category ?? '').trim(), String(e.cashbox ?? '').trim()].filter(Boolean).join(', ');
+    const dit = ou ? `${ou} : ${manqueDit(manque)}.` : `${manqueDit(manque).replace(/^./, (x) => x.toUpperCase())}.`;
+    constats.push({ cle: `depense-a-completer:${e.id}`, genre: 'a-completer', heure: '', quoi: quoiDe(e), dit, etatDit: 'À compléter',
+      gestes: [...(manque.includes('recu') ? ['joindre-la-photo' as const] : []), ...(manque.includes('porteur') ? ['dire-qui-a-paye' as const] : [])],
+      bloque: false, depenseId: e.id, montantXof: montantDeLaDepense(e), manque });
+    comptes.aCompleter += 1;
+  }
+
+  /* L'ÉCART DE TIROIR SANS DÉPENSE EN FACE : il manque de l'argent au
+     comptage du jour, aucune dépense n'a été écrite pendant le comptage ni
+     pour lui après, la direction n'y a pas encore répondu (acceptée ou
+     reprise), aucun recomptage ne le remplace. */
+  const comptages = (o.comptages ?? []).filter((c) => deLaMaison(c.branchId) && c.date === o.jour);
+  for (const c of comptages) {
+    const ecart = Math.round(Number(c.ecartXof) || 0);
+    if (ecart >= 0) continue;
+    if (c.depenses?.length || c.validation) continue;
+    if ((o.comptages ?? []).some((x) => x.reprend === c.id)) continue;
+    if (vivantes.some((e) => e.ecartDe === c.id)) continue;
+    if (o.tranche.has(cleDeLEcart(c.id))) continue;
+    const note = String(c.note ?? '').trim();
+    const aQuelleHeure = heureDe(c.le);
+    constats.push({ cle: cleDeLEcart(c.id), genre: 'ecart-sans-depense', heure: aQuelleHeure, etatDit: 'Écart', bloque: false,
+      quoi: `Tiroir ${String(c.cashbox ?? '').trim() || 'sans nom'} · ${francsDits(-ecart)} de moins que l’attendu`,
+      dit: `Au comptage${aQuelleHeure ? ` de ${aQuelleHeure}` : ''}, un écart sans dépense en face : une dépense oubliée ?${note ? ` Sa note : « ${note} ».` : ''}`,
+      gestes: ['c-etait-une-depense', 'laisser-l-ecart'], comptageId: c.id, tiroir: c.cashbox, montantXof: -ecart, ...(note ? { note } : {}) });
+    comptes.ecarts += 1;
+  }
+
+  const aDire = relues ? [
+    comptes.aValiderAvant ? nombreDit(comptes.aValiderAvant, 'dépense d’un jour passé à valider', 'dépenses de jours passés à valider') : '',
+    comptes.aCompleter ? nombreDit(comptes.aCompleter, 'dépense à compléter', 'dépenses à compléter') : '',
+    comptes.sansDepense ? 'aucune dépense saisie' : '',
+    comptes.ecarts ? nombreDit(comptes.ecarts, 'écart de tiroir sans dépense', 'écarts de tiroir sans dépense') : '',
+  ].filter(Boolean) : [];
+  return { lues: true, relues, constats, saisies: saisies.length, totalXof: saisies.reduce((s, e) => s + montantDeLaDepense(e), 0), comptes, aDire };
 }
 
 /** LA CLÔTURE D'UNE JOURNÉE. Pure : les mêmes faits rendent toujours la
@@ -654,6 +873,12 @@ export function clotureDuJour(f: FaitsDeLaJournee): ClotureDuJour {
     resteAEncaisserXof: resteAEncaisser, rdvAEncaisser: aEncaisser.length,
   };
 
+  /* LES DÉPENSES DU JOUR, relues : seule une dépense à valider du jour bloque. */
+  const depenses = depensesDuJour({
+    jour, maintenantMs: f.maintenantMs, minutesMaintenant, branchId: f.branchId, ferme: !!f.ferme,
+    depenses: f.depenses, comptages: f.comptages, heureDesDepenses: f.heureDesDepenses, tranche,
+  });
+
   /* LE VERDICT : ce qui reste, dit en nombres ; jamais un nom. */
   const compte = (e: EtatDuRdv) => constats.filter((c) => c.etat === e).length;
   const aRevoirEnTout = constats.reduce((s, c) => s + c.aRevoir.length, 0) + lesPieces.reduce((s, p) => s + p.aRevoir.length, 0);
@@ -669,6 +894,7 @@ export function clotureDuJour(f: FaitsDeLaJournee): ClotureDuJour {
   if (comptes.aVenir + comptes.enCours) reste.push(`${nombreDit(comptes.aVenir + comptes.enCours, 'rendez-vous pas encore fini', 'rendez-vous pas encore finis')}`);
   if (aRevoirEnTout) reste.push(nombreDit(aRevoirEnTout, 'facture à revoir', 'factures à revoir'));
   if (alarmesOuvertes) reste.push(nombreDit(alarmesOuvertes, 'pièce payée effacée à trancher', 'pièces payées effacées à trancher'));
+  if (depenses.comptes.aValiderDuJour) reste.push(nombreDit(depenses.comptes.aValiderDuJour, 'dépense à valider', 'dépenses à valider'));
   if (gestes.length) reste.push(nombreDit(gestes.length, 'geste que Grenat fait seul', 'gestes que Grenat fait seul'));
   const ferme = !!f.ferme;
   const close = reste.length === 0;
@@ -678,16 +904,23 @@ export function clotureDuJour(f: FaitsDeLaJournee): ClotureDuJour {
       : `${reste[0].charAt(0).toUpperCase()}${reste[0].slice(1)}, la caisse ne se compte pas encore`;
   return {
     version: VERSION_DE_LA_CLOTURE, jour, ecriteA: new Date(f.maintenantMs).toISOString(), ferme,
-    rdvs: constats, pieces: lesPieces, gestes, alarmes, caisse, comptes, verdict: { close, dit, reste },
+    rdvs: constats, pieces: lesPieces, gestes, alarmes, caisse, comptes, verdict: { close, dit, reste }, depenses,
   };
 }
 
 /** LA NOTIFICATION DE LA CLÔTURE : « Clôture de 19 h : 6 rendez-vous à clore,
-    1 facture à revoir. » Des nombres, jamais une cliente. */
-export function notificationDeLaCloture(c: Pick<ClotureDuJour, 'verdict' | 'comptes' | 'alarmes'>, heure: number | 'matin'): { titre: string; corps: string } {
+    1 facture à revoir. » Des nombres, jamais une cliente. À l'heure de la
+    relecture, les dépenses s'y disent aussi, en nombres (5 novembre 2026). */
+export function notificationDeLaCloture(
+  c: Pick<ClotureDuJour, 'verdict' | 'comptes' | 'alarmes'> & { depenses?: Pick<DepensesDuJour, 'aDire'> },
+  heure: number | 'matin',
+): { titre: string; corps: string } {
   const titre = heure === 'matin' ? 'La clôture d’hier' : `Clôture de ${heure} h`;
-  if (c.verdict.close) return { titre, corps: 'La journée est close : la caisse peut se compter.' };
-  return { titre, corps: `${c.verdict.reste.join(', ')}.`.replace(/^./, (x) => x.toUpperCase()) };
+  const aDire = c.depenses?.aDire ?? [];
+  if (c.verdict.close) {
+    return { titre, corps: aDire.length ? `La journée est close : la caisse peut se compter. À voir aussi : ${aDire.join(', ')}.` : 'La journée est close : la caisse peut se compter.' };
+  }
+  return { titre, corps: `${[...c.verdict.reste, ...aDire].join(', ')}.`.replace(/^./, (x) => x.toUpperCase()) };
 }
 
 /** L'ÉTAT DU RENDEZ-VOUS APRÈS UN GESTE DE GRENAT, relu juste avant

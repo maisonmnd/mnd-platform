@@ -9,8 +9,12 @@ import { useCategories, useServices, useProducts } from '../../../../shared/cata
 import { useClients } from '../../../../shared/clients';
 import { useModelBands, useBandSets } from '../../../../shared/pricing';
 import { jourPropose } from '../../../../shared/caisse-du-soir-pur';
-import { francsDits, type GesteDuComptoir } from '../../../../shared/cloture-du-jour-pur';
-import { momentDit, tranche } from '../../../../shared/cloture-du-jour';
+import { francsDits, type ConstatDeDepense, type GesteDeDepense, type GesteDuComptoir } from '../../../../shared/cloture-du-jour-pur';
+import { decideLaDepense, momentDit, tranche } from '../../../../shared/cloture-du-jour';
+import { peutValider, useExpenses } from '../../../../shared/finance';
+import { useStore } from '../../../../shared/store';
+import { sameName } from '../../../../shared/text';
+import { staffAccessStore } from '../equipe/data';
 import { tarifsDuRituel, useBranchAppointments, useServicesById } from '../clients/_shared';
 import { useClotureDuJour } from './useClotureDuJour';
 import { honoreSansEncaisser, PayAppointmentModal } from '../clients/actions';
@@ -40,12 +44,28 @@ import './la-journee.css';
    Les gestes du comptoir passent par les MÊMES chemins que le Carnet
    (encaisser, terminer la séance, annuler) : deux chemins pour un geste
    finiraient par ne plus dire la même chose. Trancher une alarme ou un
-   constat est réservé à la direction (souverain), la base le garde (0156). */
+   constat est réservé à la direction (souverain), la base le garde (0156).
+
+   LES DÉPENSES DU JOUR — 5 novembre 2026 (« Oui, il les relit à 19 h »,
+   maquette 9KCMgAb1…, section 8) : sous les rendez-vous, avant la caisse
+   du jour. Grenat ne saisit rien : chaque constat porte le geste qui le
+   règle, par les chemins de toujours. « Valider », « Refuser » : la
+   validation des Dépenses (`peutValider`, souverain ou gérant, jamais ses
+   propres dépenses) ; « Joindre la photo », « Dire qui a payé » ouvrent la
+   fiche de la dépense ; « Saisir une dépense », « C'était une dépense »
+   ouvrent le formulaire des Dépenses ; « Rien aujourd'hui » et « Laisser
+   l'écart » sont des décisions de clôture, de la direction (0156). Un
+   compte qui ne voit que ses dépenses ne voit ici que les siennes. */
 
 const ETAT_TON: Record<string, string> = {
   'a-venir': 'cuivre', 'en-cours': 'cuivre', 'a-encaisser': 'ko', 'sans-etat': 'ko', regle: 'cuivre', 'a-revoir': 'ko', clos: 'ok', annule: 'ok',
 };
 const GESTE_DIT: Record<GesteDuComptoir, string> = { encaisser: 'Encaisser', honore: 'Honoré', absente: 'Absente', annulee: 'Annulée' };
+const DEPENSE_TON: Record<ConstatDeDepense['genre'], string> = { 'jour-sans-depense': 'cuivre', 'a-valider': 'cuivre', 'a-completer': 'ko', 'ecart-sans-depense': 'ko' };
+const GESTE_DEPENSE_DIT: Record<Exclude<GesteDeDepense, 'rien-aujourdhui'>, string> = {
+  valider: 'Valider', refuser: 'Refuser', 'joindre-la-photo': 'Joindre la photo', 'dire-qui-a-paye': 'Dire qui a payé',
+  saisir: 'Saisir une dépense', 'c-etait-une-depense': 'C’était une dépense', 'laisser-l-ecart': 'Laisser l’écart, avec sa note',
+};
 
 export default function LaJournee() {
   const navigate = useNavigate();
@@ -67,8 +87,78 @@ export default function LaJournee() {
   const envoiDeLaPiece = useEnvoiDeLaPiece();
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
   /* La même prise que la carte du tableau de bord (useClotureDuJour.ts). */
-  const { cloture, passage, alarmes, close, pourquoiPasEncore, verdictDit } = useClotureDuJour(jour);
+  const { cloture, passage, alarmes, close, pourquoiPasEncore, verdictDit, heureDesDepenses } = useClotureDuJour(jour);
   const alarmesOuvertes = alarmes.filter((x) => x.ouverte);
+
+  /* ── Les dépenses du jour : chacun ne voit que ce qu'il voit aux Dépenses ── */
+  const [toutesLesDepenses] = useExpenses();
+  const accesTous = useStore(staffAccessStore)[0];
+  const monNom = me?.name?.trim() ?? '';
+  const voitToutesLesDepenses = me?.role !== 'maitre' || (accesTous[me?.user_id ?? ''] ?? {}).finances === true;
+  const depenseDe = (id?: string) => (id ? toutesLesDepenses.find((e) => e.id === id) : undefined);
+  const sienne = (id?: string): boolean => {
+    const e = depenseDe(id);
+    return !!e && ((!!e.porteur && sameName(e.porteur, monNom)) || (!!e.validation && sameName(e.validation.soumisPar, monNom)));
+  };
+  const depenses = cloture.depenses;
+  const constatsDepenses = depenses?.constats ?? [];
+  const depensesVues = voitToutesLesDepenses ? constatsDepenses : constatsDepenses.filter((c) => !c.depenseId || sienne(c.depenseId));
+  const depensesCachees = constatsDepenses.length - depensesVues.length;
+  const gestesVus = (c: ConstatDeDepense): GesteDeDepense[] => c.gestes.filter((g) => {
+    if (g === 'valider' || g === 'refuser') { const e = depenseDe(c.depenseId); return !!e && peutValider(me?.role, monNom, e); }
+    if (g === 'rien-aujourdhui' || g === 'laisser-l-ecart') return souverain;
+    return true;
+  });
+  const pourquoiPasCeGeste = (c: ConstatDeDepense): string => {
+    if (c.genre === 'a-valider') {
+      return (me?.role === 'souverain' || me?.role === 'gerant') ? 'Vous l’avez saisie vous-même : un autre souverain, ou un gérant, la valide.' : 'La direction la valide ou la refuse.';
+    }
+    if (c.genre === 'jour-sans-depense') return `La direction peut dire « ${jour === aujourdhui ? 'Rien aujourd’hui' : 'Rien ce jour-là'} ».`;
+    if (c.genre === 'ecart-sans-depense') return 'La direction peut laisser l’écart, avec sa note.';
+    return '';
+  };
+  const faisPourLaDepense = async (c: ConstatDeDepense, g: GesteDeDepense) => {
+    if (g === 'valider' || g === 'refuser') {
+      let motif: string | undefined;
+      if (g === 'refuser') {
+        const m = await demandeUnTexte({
+          quoi: 'Les dépenses du jour', titre: 'Refuser cette dépense ?',
+          dit: `${c.quoi}. Un refus se donne avec son motif : la ligne reste, barrée, chez celui qui l’a saisie.`,
+          etiquette: 'Le motif du refus', gabarit: 'Pas de reçu, et le montant ne correspond pas.',
+          accepter: 'Refuser la dépense', refuser: 'Ne rien faire',
+        });
+        if (m === null) return;
+        motif = m;
+      }
+      const pourquoi = decideLaDepense({ id: c.depenseId ?? '', role: me?.role, nom: monNom, oui: g === 'valider', motif });
+      toast(pourquoi ?? (g === 'valider' ? 'Validée : elle entre dans les chiffres.' : 'Refusée avec son motif : elle reste, barrée, chez celui qui l’a saisie.'));
+      return;
+    }
+    if (g === 'joindre-la-photo' || g === 'dire-qui-a-paye') {
+      navigate(`/depenses?depense=${encodeURIComponent(c.depenseId ?? '')}&volet=${g === 'joindre-la-photo' ? 'recu' : 'porteur'}`);
+      return;
+    }
+    if (g === 'saisir' || g === 'c-etait-une-depense') {
+      const q = new URLSearchParams({ nouvelle: '1', date: jour });
+      if (g === 'c-etait-une-depense') {
+        if (c.tiroir) q.set('caisse', c.tiroir);
+        if (c.montantXof) q.set('montant', String(c.montantXof));
+        if (c.comptageId) q.set('ecart', c.comptageId);
+      }
+      navigate(`/depenses?${q.toString()}`);
+      return;
+    }
+    /* « Rien aujourd'hui », « Laisser l'écart » : des décisions de clôture, de la direction (0156). */
+    if (!souverain) { toast('La direction seule le dit.'); return; }
+    if (g === 'rien-aujourdhui') {
+      tranche({ branchId: branch.id, cle: c.cle, par: moi, mot: 'Rien acheté, rien payé de la caisse ce jour-là.' });
+      toast('Noté : aucune dépense ce jour-là. Grenat ne le redemande pas.');
+      return;
+    }
+    tranche({ branchId: branch.id, cle: c.cle, par: moi, mot: c.note ? `L’écart reste, avec sa note : « ${c.note} ».` : 'L’écart reste, sans dépense en face.' });
+    toast('L’écart reste, avec sa note. Grenat ne le redemande pas.');
+  };
+  const saisiesDites = (n: number) => `${n} dépense${n > 1 ? 's' : ''} saisie${n > 1 ? 's' : ''}`;
 
   /* ── Les gestes du comptoir, par les chemins du Carnet ── */
   const rdvDe = (id: string) => appts.find((a) => a.id === id);
@@ -120,7 +210,7 @@ export default function LaJournee() {
       <div className="lj-tete">
         <div className="trv-sec-label trv-sec-label--copper">Finances · La journée · {jourDit}</div>
         <h2 className="lj-titre">La journée.</h2>
-        <p className="lj-sous">La clôture de Grenat en haut, la caisse du jour en bas. Grenat relit chaque rendez-vous et chaque facture aux heures réglées ; ce qui est sûr, il le termine ; le reste attend votre geste.</p>
+        <p className="lj-sous">La clôture de Grenat en haut, la caisse du jour en bas. Grenat relit chaque rendez-vous et chaque facture aux heures réglées, et les dépenses du jour à la dernière ; ce qui est sûr, il le termine ; le reste attend votre geste.</p>
       </div>
 
       <section className="lj-carte" aria-label="La clôture de Grenat" data-lj="cloture">
@@ -157,6 +247,52 @@ export default function LaJournee() {
             </div>
           ))}
         </div>
+
+        {/* LES DÉPENSES DU JOUR, sous les rendez-vous et avant la caisse du jour (5 novembre 2026). */}
+        {depenses?.lues && (
+          <div className="lj-bloc" data-lj="depenses">
+            <p className="lj-bloc__tete">
+              <span>Les dépenses du jour</span>
+              <span>{saisiesDites(depenses.saisies)}{depenses.totalXof > 0 ? ` · ${francsDits(depenses.totalXof)}` : ''}{depenses.relues ? ' · relues par Grenat' : ` · relues à ${heureDesDepenses} h`}</span>
+            </p>
+            {depensesVues.map((c) => {
+              const gs = gestesVus(c);
+              const pourquoi = gs.length < c.gestes.length ? pourquoiPasCeGeste(c) : '';
+              return (
+                <div className="lj-ligne" key={c.cle} data-lj-depense={c.cle} data-genre={c.genre} data-bloque={c.bloque ? 'oui' : 'non'}>
+                  <span className="lj-heure">{c.heure}</span>
+                  <span className="lj-qui-dit">
+                    <span className="lj-qui">{c.quoi}</span>
+                    <span className="lj-dit">{c.dit}</span>
+                    {c.bloque && <span className="lj-revoir">Elle retient le comptage du tiroir tant qu’elle n’est pas validée.</span>}
+                    {pourquoi && <span className="lj-libelle">{pourquoi}</span>}
+                  </span>
+                  <span className={`lj-etat ${DEPENSE_TON[c.genre]}`}>{c.etatDit}</span>
+                  {gs.length > 0 && (
+                    <span className="lj-gestes">
+                      {gs.map((g, i) => (
+                        <button type="button" key={g} className={`lj-g${i === 0 ? ' plein' : ''}`} onClick={() => void faisPourLaDepense(c, g)}>
+                          {g === 'rien-aujourdhui' ? (jour === aujourdhui ? 'Rien aujourd’hui' : 'Rien ce jour-là') : GESTE_DEPENSE_DIT[g]}
+                        </button>
+                      ))}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+            {depensesCachees > 0 && (
+              <p className="lj-vide">{depensesCachees > 1 ? `${depensesCachees} autres dépenses à relire, que la direction voit.` : 'Une autre dépense à relire, que la direction voit.'}</p>
+            )}
+            {constatsDepenses.length === 0 && (
+              <p className="lj-vide">
+                {depenses.relues
+                  ? (depenses.saisies ? `Rien à redire : ${saisiesDites(depenses.saisies)}, chacune complète.` : 'Aucune dépense ce jour-là, et rien à redire.')
+                  : `Rien à redire pour l’instant ; Grenat relit les dépenses à ${heureDesDepenses} h.`}
+              </p>
+            )}
+            <p className="lj-regle">Grenat ne saisit aucune dépense lui-même. Il les met sous vos yeux avec le geste qui les règle ; la validation reste à la direction, comme aujourd’hui. Une dépense à compléter ne retient pas la journée : seule une dépense à valider du jour retient le comptage.</p>
+          </div>
+        )}
 
         {alarmes.length > 0 && (
           <div className="lj-bloc lj-bloc--alarme" data-lj="alarmes">

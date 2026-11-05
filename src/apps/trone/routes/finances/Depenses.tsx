@@ -65,7 +65,7 @@ const FLOW_FILLS = [
   'var(--indigo-300)', 'var(--copper-200)', 'var(--indigo-600)', 'var(--color-argile)',
 ];
 
-type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; enDevise: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[]; sources: DepenseSource[]; fichier?: PieceJointe; porteur: string; avancee: boolean; porteurChoisi: boolean; caisseChoisie: boolean };
+type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; enDevise: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[]; sources: DepenseSource[]; fichier?: PieceJointe; porteur: string; avancee: boolean; porteurChoisi: boolean; caisseChoisie: boolean; ecartDe?: string };
 /** `currency` vide = la caisse tient la devise de la maison. */
 type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string; equipe: boolean };
 
@@ -707,9 +707,22 @@ export default function Depenses() {
   const [paramsNouvelle, setParamsNouvelle] = useSearchParams();
   useEffect(() => {
     if (paramsNouvelle.get('nouvelle') !== '1') return;
-    openFor();
+    /* DEPUIS LA JOURNÉE — 5 novembre 2026 : « Saisir une dépense » porte le
+       jour relu (`date`) ; « C'était une dépense » porte aussi le tiroir
+       (`caisse`), l'écart (`montant`) et le comptage (`ecart`), écrit sur la
+       dépense pour fermer le constat de Grenat. Rien de plus n'est choisi
+       d'office : la catégorie et qui a payé restent à dire. */
+    const caisse = paramsNouvelle.get('caisse') ?? '';
+    const connue = !!caisse && branchBoxes.some((b) => b.name === caisse);
+    openFor(connue ? caisse : undefined);
+    const date = paramsNouvelle.get('date') ?? '';
+    const montant = (paramsNouvelle.get('montant') ?? '').replace(/\D/g, '');
+    const ecart = (paramsNouvelle.get('ecart') ?? '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date) && date <= todayISO()) setForm((f) => ({ ...f, date }));
+    if (montant) setForm((f) => ({ ...f, amount: montant }));
+    if (ecart) setForm((f) => ({ ...f, ecartDe: ecart.slice(0, 120) }));
     const reste = new URLSearchParams(paramsNouvelle);
-    reste.delete('nouvelle');
+    for (const k of ['nouvelle', 'date', 'caisse', 'montant', 'ecart']) reste.delete(k);
     setParamsNouvelle(reste, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramsNouvelle, setParamsNouvelle]);
@@ -723,12 +736,22 @@ export default function Depenses() {
      l'écriture. */
   const [ouvertPar, setOuvertPar] = useState<string | null>(null);
   useEffect(() => {
-    const vise = new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('depense');
+    const lus = new URLSearchParams(window.location.hash.split('?')[1] ?? '');
+    const vise = lus.get('depense');
     if (!vise || vise === ouvertPar) return;
     const cible = toutesLesDepenses.find((e) => e.id === vise);
     if (!cible) return;
     setOuvertPar(vise);
     openEdit(cible);
+    /* DEPUIS LA JOURNÉE — 5 novembre 2026 : « Joindre la photo » ouvre le
+       volet du reçu ; « Dire qui a payé » repose la question quand ni un
+       porteur ni « La Maison elle-même » n'est écrit (un porteur vide ne les
+       distinguait pas). */
+    const volet = lus.get('volet');
+    if (volet === 'recu') { setPlusOuvert(true); setVoletRecu(true); }
+    if (volet === 'porteur' && voitToutesLesDepenses && !(cible.porteur ?? '').trim() && !cible.laMaisonAPaye) {
+      setForm((f) => ({ ...f, porteurChoisi: false }));
+    }
     navigate('/depenses', { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toutesLesDepenses]);
@@ -966,6 +989,10 @@ export default function Depenses() {
        qui ne dit rien, et il vaut mieux ne rien dire. */
     const sources = form.sources.filter((s) => s.xof > 0);
     const dits = sources.length ? sources : undefined;
+    /* « LA MAISON ELLE-MÊME », DITE ET ÉCRITE — 5 novembre 2026 : un porteur
+       vide ne disait pas si la Maison avait payé ou si personne n'avait
+       répondu ; la clôture de Grenat demande « qui a payé » sans ce mot. */
+    const laMaisonAPaye = voitToutesLesDepenses && form.porteurChoisi && !form.porteur.trim();
     if (editingId) {
       /* LA CEINTURE : quel que soit le chemin qui mène ici, une ligne déjà
          tranchée ne se réécrit pas de ses mains. L'écran a retiré le bouton ;
@@ -980,6 +1007,7 @@ export default function Depenses() {
         fx: hasItems ? undefined : montantsDep.fx,
         fichier: form.fichier,
         porteur: form.porteur.trim() || undefined,
+        laMaisonAPaye: laMaisonAPaye || undefined,
         /* IL A AVANCÉ DE SA POCHE : la charge compte, la caisse ne
            bouge pas. Sans porteur, l'avance n'a personne à qui
            rendre — on ne la retient donc pas. */
@@ -1001,6 +1029,8 @@ export default function Depenses() {
         fx: hasItems ? undefined : montantsDep.fx,
         fichier: form.fichier,
         porteur: form.porteur.trim() || undefined,
+        ...(laMaisonAPaye ? { laMaisonAPaye: true } : {}),
+        ...(form.ecartDe ? { ecartDe: form.ecartDe } : {}),
         /* IL A AVANCÉ DE SA POCHE : la charge compte, la caisse ne
            bouge pas. Sans porteur, l'avance n'a personne à qui
            rendre — on ne la retient donc pas. */

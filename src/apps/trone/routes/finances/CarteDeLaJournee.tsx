@@ -12,8 +12,10 @@ export function CarteDeLaJournee() {
   const navigate = useNavigate();
   const jour = todayISO();
   const { cloture, passage, close, reste, verdictDit } = useClotureDuJour(jour);
-  /* Un jour sans rien (Maison fermée, matin vide) ne prend pas la place. */
-  if (cloture.rdvs.length === 0 && cloture.caisse.versements === 0 && !passage) return null;
+  /* Un jour sans rien (Maison fermée, matin vide) ne prend pas la place ;
+     une dépense à valider du jour, qui retient le comptage, la prend. */
+  const retenue = (cloture.depenses?.comptes.aValiderDuJour ?? 0) > 0;
+  if (cloture.rdvs.length === 0 && cloture.caisse.versements === 0 && !passage && !retenue) return null;
   return (
     <div className="lj-carte lj-carte--tdb" data-lj="carte-du-tableau-de-bord" style={{ marginTop: 22, marginBottom: 0 }}>
       <div className="lj-carte__tete">

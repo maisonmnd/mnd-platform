@@ -64,7 +64,11 @@ export function LaVeilleAValider() {
   }), [branch.id, veille, registre, expenses, clotures, boxes, horsActivite]);
 
   const grenat = dernierPassage(crs, branch.id, veille);
-  const grenatDit = grenat && (!grenat.cloture.verdict.close || (grenat.gestesFaits?.length ?? 0) > 0 || grenat.cloture.alarmes.length > 0) ? grenat : null;
+  /* LES DÉPENSES DE LA VEILLE, relues par Grenat (5 novembre 2026, maquette
+     9KCMgAb1…, section 8) : en nombres, comme la notification de 19 h ; les
+     gestes sont dans La journée. Un compte rendu d'avant n'en porte pas. */
+  const depensesDites = grenat?.cloture.depenses?.aDire ?? [];
+  const grenatDit = grenat && (!grenat.cloture.verdict.close || (grenat.gestesFaits?.length ?? 0) > 0 || grenat.cloture.alarmes.length > 0 || depensesDites.length > 0) ? grenat : null;
 
   if (!voit || (ecarts.length === 0 && oublies.length === 0 && !grenatDit)) return null;
 
@@ -100,6 +104,7 @@ export function LaVeilleAValider() {
                 {(grenatDit.gestesFaits?.length ?? 0) ? ` · ${grenatDit.gestesFaits!.length} geste${grenatDit.gestesFaits!.length > 1 ? 's' : ''} fait${grenatDit.gestesFaits!.length > 1 ? 's' : ''} seul` : ''}
               </small>
               {grenatDit.cloture.verdict.reste.length > 0 && <small>Resté ouvert : {grenatDit.cloture.verdict.reste.join(', ')}.</small>}
+              {depensesDites.length > 0 && <small data-veille="grenat-depenses">Les dépenses : {depensesDites.join(', ')}.</small>}
               {grenatDit.cloture.alarmes.map((a) => <small key={a.cle}>{a.dit}</small>)}
             </div>
             <span className={`cds-puce ${grenatDit.cloture.verdict.close ? 'is-ok' : 'is-attente'}`}>{grenatDit.cloture.verdict.close ? 'close' : 'à reprendre'}</span>
