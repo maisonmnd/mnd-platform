@@ -198,7 +198,11 @@ export function lisLaPhrase(phraseBrute: string, ctx: ContexteDeLaPhrase): Lectu
   let date = ctx.aujourdhui;
   let jourDit: LectureDeLaPhrase['jourDit'] = 'rien';
   const [ay, am] = ctx.aujourdhui.split('-').map(Number);
-  const dansLePasse = (iso: string | null, unAnAvant: () => string | null): string | null => (iso && iso > ctx.aujourdhui ? unAnAvant() : iso);
+  /* Une date sans année est celle de cette année ; loin dans l'avenir (plus
+     de deux mois), c'est celle de l'an passé (« le 20 décembre » dit en
+     janvier). Proche, elle reste à venir, et Grenat le dit. */
+  const dansLePasse = (iso: string | null, unAnAvant: () => string | null): string | null =>
+    (iso && iso > ctx.aujourdhui && (jourDe(iso).getTime() - jourDe(ctx.aujourdhui).getTime()) / 86_400_000 > 62 ? unAnAvant() : iso);
   for (let i = 0; i < n && jourDit === 'rien'; i++) {
     const j = jetons[i];
     if (j.genre === 'mot') {

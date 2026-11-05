@@ -1518,7 +1518,11 @@ export default function Depenses() {
                       croyant à une panne. */}
                   {mienne ? (
                     <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.6 }}>
-                      Vous l’avez saisie vous-même. Un autre souverain, ou un gérant, doit la valider.
+                      {/* Une dépense préparée par Grenat, ou saisie par un autre,
+                          n'est pas « la vôtre » (5 novembre 2026) : on dit qui tranche. */}
+                      {sameName(e.validation?.soumisPar, monNom)
+                        ? 'Vous l’avez saisie vous-même. Un autre souverain, ou un gérant, doit la valider.'
+                        : 'La direction la valide ou la refuse.'}
                     </div>
                   ) : (
                     <div className="trf-vcarte__gestes">
