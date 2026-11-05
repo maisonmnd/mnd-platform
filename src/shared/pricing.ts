@@ -306,6 +306,9 @@ export type PersonalPricing = {
       réserve pose la sienne par-dessus, et le rendez-vous la fige. Absente,
       une prestation à prix par longueur retombe sur son prix catalogue. */
   longueur?: LongueurId;
+  /** SA FICHE COCHE « la remise du rituel complet » (5 novembre 2026) : les
+      gestes réservés aux fiches cochées s'appliquent à elle. */
+  rituelComplet?: boolean;
 };
 
 /** LE PRIX FERME QUI CHANGE UNE FOIS, au-delà d'un compte de locks.
@@ -347,7 +350,7 @@ export const prixDeBase = (
 /** Le contexte tarifaire d'une cliente : sa tranche de modèle + son Juste Prix.
     `sets` est facultatif : sans lui, tout suit le barème de la Maison, comme avant. */
 export const pricingOf = (
-  client: Pick<Client, 'lockCount' | 'priceCoef' | 'prixFixes' | 'longueur' | 'margeCalibre' | 'prixTenus'> | undefined,
+  client: Pick<Client, 'lockCount' | 'priceCoef' | 'prixFixes' | 'longueur' | 'margeCalibre' | 'prixTenus' | 'remiseDuRituelComplet'> | undefined,
   bands: ModelBand[],
   sets?: Record<string, ModelBand[]>,
   /* L'arbre des categories : sans lui, une prestation rangee sous une famille
@@ -370,6 +373,8 @@ export const pricingOf = (
      Caisse) l'écrasent par l'étalement `{ ...pricingOf(...), longueur }` ;
      Ma Couronne, qui n'a pas de sélecteur, montre ainsi SES prix. */
   longueur: client?.longueur,
+  /* La coche de la fiche : les gestes réservés aux fiches cochées (5 novembre 2026). */
+  rituelComplet: client?.remiseDuRituelComplet === true,
   sets,
   cats,
 });
@@ -823,8 +828,14 @@ export const plafondDeRemiseXof = (estDirection: boolean, baseXof: number): numb
   estDirection ? Number.POSITIVE_INFINITY : Math.max(0, Math.floor((baseXof * (SEUIL_DE_LA_DIRECTION_PCT - 1)) / 100));
 export const TAUX_DE_REMISE = [5, 10, 15, 20, 25, 50, 100] as const;
 
-export const remiseGestePct = (sv: Service, p: PersonalPricing, panier: readonly Service[]): number => {
-  let mieux = 0;
+/* LE GESTE QUI GAGNE, en pourcentage ET en francs — 5 novembre 2026. Un geste
+   en francs (`GesteOffert.xof`) se dit en pourcentage du prix de SA tête,
+   sans arrondi, pour que tous les totaux qui multiplient par (1 − pct) tombent
+   au franc près ; ses francs, eux, se lisent par `remiseGesteXof` (la ligne
+   de facture, l'affichage). Le plus généreux gagne, comme avant. */
+const leGesteQuiGagne = (sv: Service, p: PersonalPricing, panier: readonly Service[]): { pct: number; xof: number } => {
+  let mieux = { pct: 0, xof: 0 };
+  let prix: number | undefined;
   for (const g of gestesDe(sv)) {
     /* Bornée à des calibres ? La tête doit en être — un calibre inconnu ne
        donne rien : on n'offre pas sur une supposition. */
@@ -832,12 +843,37 @@ export const remiseGestePct = (sv: Service, p: PersonalPricing, panier: readonly
       const band = bandForService(sv, p);
       if (!band || !g.bandIds.includes(band.id)) continue;
     }
+    /* Réservé aux fiches cochées : sans la coche, rien. */
+    if (g.fichesCochees && !p.rituelComplet) continue;
     if (!panier.some((x) => x.id !== sv.id && g.serviceIds.includes(x.id))) continue;
+    const francs = Number(g.xof);
+    if (Number.isFinite(francs) && francs > 0) {
+      prix ??= personalPriceXof(sv, p);
+      if (!(prix > 0)) continue;
+      const xof = Math.min(Math.round(francs), prix);
+      const pct = (100 * xof) / prix;
+      if (pct > mieux.pct) mieux = { pct, xof };
+      continue;
+    }
     const pct = Number.isFinite(Number(g.pct)) ? Math.max(0, Math.min(100, Math.round(Number(g.pct)))) : 100;
-    if (pct > mieux) mieux = pct;
+    if (pct > mieux.pct) mieux = { pct, xof: 0 };
   }
   return mieux;
 };
+
+export const remiseGestePct = (sv: Service, p: PersonalPricing, panier: readonly Service[]): number =>
+  leGesteQuiGagne(sv, p, panier).pct;
+
+/** LES FRANCS DU GESTE QUI GAGNE, quand c'est un geste en francs ; 0 sinon. */
+export const remiseGesteXof = (sv: Service, p: PersonalPricing, panier: readonly Service[]): number =>
+  leGesteQuiGagne(sv, p, panier).xof;
+
+/** LE JUGE DU GESTE QUE LES ÉCRANS SE PASSENT : il rend le pourcentage, et
+    porte ses francs (`xof`) pour les pièces, qui écrivent une remise de
+    ligne en francs plutôt qu'un pourcentage à virgule. */
+export type JugeDuGeste = ((sv: Service) => number) & { xof?: (sv: Service) => number };
+export const francsDuGeste = (juge: (sv: Service) => number, sv: Service): number =>
+  Math.max(0, Math.round((juge as JugeDuGeste).xof?.(sv) ?? 0));
 
 /** Offerte tout court — le geste vaut 100 %. */
 export const estOfferte = (sv: Service, p: PersonalPricing, panier: readonly Service[]): boolean =>

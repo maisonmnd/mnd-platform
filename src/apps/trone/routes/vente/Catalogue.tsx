@@ -87,7 +87,7 @@ type SvcForm = {
       l'une de ces prestations est au même rituel, pour ces calibres (vide =
       tous). Une LISTE : le shampoing est offert avec une Reprise ET à moitié
       prix avec une coloration. */
-  gestes: { serviceIds: string[]; bandIds: string[]; pct: string }[];
+  gestes: { serviceIds: string[]; bandIds: string[]; pct: string; xof: string; fichesCochees: boolean }[];
   /** LE SALON SOUVERAIN (15 août) — elle ferme la Maison, et pour combien de
       têtes au plus. Le plafond se règle ici : deux aujourd'hui, autre chose
       demain, sans passer par le code. */
@@ -689,6 +689,8 @@ export default function Catalogue() {
       gestes: gestesDe(svc).map((g) => ({
         serviceIds: [...g.serviceIds], bandIds: [...(g.bandIds ?? [])],
         pct: String(Number.isFinite(Number(g.pct)) ? Number(g.pct) : 100),
+        xof: Number(g.xof) > 0 ? String(Math.round(Number(g.xof))) : '',
+        fichesCochees: !!g.fichesCochees,
       })),
     });
 
@@ -975,11 +977,16 @@ export default function Catalogue() {
       offertAvec: (() => {
         const gardes = svcForm.gestes
           .filter((g) => g.serviceIds.length > 0)
-          .map((g) => ({
-            serviceIds: g.serviceIds,
-            bandIds: g.bandIds.length ? g.bandIds : undefined,
-            pct: Math.max(1, Math.min(100, parseInt(g.pct, 10) || 100)),
-          }));
+          .map((g) => {
+            /* EN FRANCS (5 novembre 2026) : le montant prend la place du pourcentage. */
+            const francs = parseInt(g.xof, 10) || 0;
+            return {
+              serviceIds: g.serviceIds,
+              bandIds: g.bandIds.length ? g.bandIds : undefined,
+              ...(francs > 0 ? { xof: francs } : { pct: Math.max(1, Math.min(100, parseInt(g.pct, 10) || 100)) }),
+              ...(g.fichesCochees ? { fichesCochees: true } : {}),
+            };
+          });
         return gardes.length ? gardes : undefined;
       })(),
     };
@@ -2700,7 +2707,18 @@ export default function Catalogue() {
                           onChange={(e) => majGeste({ pct: e.target.value.replace(/[^0-9]/g, '') })}
                         />
                         <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>
-                          % de son prix{(parseInt(g.pct, 10) || 0) >= 100 ? ', elle est offerte' : ''}, avec :
+                          % de son prix{(parseInt(g.pct, 10) || 0) >= 100 ? ', elle est offerte' : ''}, ou
+                        </span>
+                        <Input
+                          inputMode="numeric"
+                          style={{ width: 92 }}
+                          aria-label="Ou un montant en francs"
+                          placeholder="francs"
+                          value={g.xof}
+                          onChange={(e) => majGeste({ xof: e.target.value.replace(/[^0-9]/g, '') })}
+                        />
+                        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>
+                          F{(parseInt(g.xof, 10) || 0) > 0 ? ' (le montant prend la place du pourcentage)' : ''}, avec :
                         </span>
                         <button
                           type="button"
@@ -2759,6 +2777,17 @@ export default function Catalogue() {
                           ))}
                         </div>
                       )}
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={g.fichesCochees}
+                          onChange={(e) => majGeste({ fichesCochees: e.target.checked })}
+                          style={{ accentColor: 'var(--color-copper)' }}
+                        />
+                        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12 }}>
+                          Seulement les clientes dont la fiche coche « Remise du rituel complet »
+                        </span>
+                      </label>
                       <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, marginBottom: 4 }}>
                         Pour quels calibres ? Aucune coche : pour toutes les têtes.
                       </div>
@@ -2786,7 +2815,7 @@ export default function Catalogue() {
                 type="button"
                 className="trv-minibtn"
                 style={{ marginTop: svcForm.gestes.length ? 10 : 0 }}
-                onClick={() => setSvcForm({ ...svcForm, gestes: [...svcForm.gestes, { serviceIds: [], bandIds: [], pct: '100' }] })}
+                onClick={() => setSvcForm({ ...svcForm, gestes: [...svcForm.gestes, { serviceIds: [], bandIds: [], pct: '100', xof: '', fichesCochees: false }] })}
               >
                 ＋ Ajouter un geste
               </button>

@@ -42,7 +42,7 @@ import { regardADeduire, remiseAvecLeRegard, type RegardADeduire } from '../../.
 import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDeGestes } from '../_vie';
 import { useStaff as useMaTeteDuRdv } from '../../../../shared/auth';
 import { momentDuRdv, poseUnRendezVous } from '../../../../shared/agenda';
-import { modelBandsStore, bandSetsStore, prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, tauxPermis, plafondDeRemisePct, plafondDeRemiseXof, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
+import { modelBandsStore, bandSetsStore, prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, remiseGesteXof, francsDuGeste, type JugeDuGeste, tauxPermis, plafondDeRemisePct, plafondDeRemiseXof, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import { gammeNetteXof, gammeBruteXof, ligneNetteXof, ligneBruteXof, poseUnProduit, retireUnProduit, remiseDeLaLigne, ecartsDeTarif, manqueALEtagere, type LigneGamme } from '../../../../shared/gamme';
 import type { CommRates } from '../equipe/payroll';
@@ -612,7 +612,7 @@ export function tarifsDuRituel(
      rendez-vous y passe ce qui est à l'écran, avant tout enregistrement. */
   appt: Pick<Appointment, 'serviceIds' | 'longueur'> & { date?: string },
   ctx: {
-    client?: Pick<Client, 'lockCount' | 'priceCoef' | 'prixFixes' | 'longueur' | 'prixTenus'>;
+    client?: Pick<Client, 'lockCount' | 'priceCoef' | 'prixFixes' | 'longueur' | 'prixTenus' | 'remiseDuRituelComplet'>;
     bands: ModelBand[];
     sets: Parameters<typeof pricingOf>[2];
     cats: Parameters<typeof pricingOf>[3];
@@ -632,7 +632,10 @@ export function tarifsDuRituel(
   const personnalise = isPersonalized(pricing) && chosen.length > 0;
   const prixPlein = (sv: Service) =>
     personnalise ? personalPriceXof(sv, pricing, ctx.tousServices, ctx.produits) : prixDeBase(sv, pricing);
-  const gesteDe = (sv: Service) => remiseGestePct(sv, pricing, chosen);
+  /* Le juge porte aussi les francs d'un geste en francs (5 novembre 2026). */
+  const gesteDe: JugeDuGeste = Object.assign((sv: Service) => remiseGestePct(sv, pricing, chosen), {
+    xof: (sv: Service) => remiseGesteXof(sv, pricing, chosen),
+  });
   return { pricing, chosen, prixPlein, gesteDe };
 }
 
@@ -1170,11 +1173,17 @@ export function alignerFacturesDuRituel(
        qu'une fiche a disparu du catalogue, et la remise irait au geste voisin. */
     const posRituel = services.map((sv) => appt.serviceIds.indexOf(sv.id));
     const mains2 = services.map((_, i) => remiseDeLigne(appt, posRituel[i] >= 0 ? posRituel[i] : i));
+    /* UN GESTE EN FRANCS S'ÉCRIT EN FRANCS (5 novembre 2026) : « −5 000 F »,
+       jamais un pourcentage arrondi qui ferait 6 960 F au lieu de 7 000 F. */
+    const gestesEnFrancs = services.map((s) => francsDuGeste(gesteOf, s));
     const gestes = services.map((s, i) => {
+      if (gestesEnFrancs[i] > 0) return 0;
       const auto = Math.max(0, Math.min(100, Math.round(gesteOf(s))));
       return auto > 0 ? auto : Math.round(mains2[i].pct);
     });
-    const francs = services.map((s, i) => (Math.round(gesteOf(s)) > 0 ? 0 : Math.round(mains2[i].xof)));
+    const francs = services.map((s, i) => (gestesEnFrancs[i] > 0
+      ? gestesEnFrancs[i]
+      : (Math.round(gesteOf(s)) > 0 ? 0 : Math.round(mains2[i].xof))));
     /* `gross` est ce que les lignes valent VRAIMENT — geste déduit. C'est lui
        qu'on compare au total payé, sinon le geste serait compté deux fois :
        une fois sur la ligne, une fois dans la remise globale. */
@@ -4361,6 +4370,7 @@ function RdvModalCorps({
                          qui reste et la baisse consentie. */
                       ? (() => {
                           const pct = remiseGestePct(sv, pricing, chosen);
+                          const francs = remiseGesteXof(sv, pricing, chosen);
                           return (
                             <span title="Geste de la maison, réglé au Catalogue">
                               <span style={{ textDecoration: 'line-through', color: 'var(--ink-soft)', marginRight: 6 }}>
@@ -4369,7 +4379,7 @@ function RdvModalCorps({
                               <span style={{ color: 'var(--copper-700)' }}>
                                 {pct >= 100
                                   ? 'offert'
-                                  : `${argent(prixDansPanier(sv, pricing, chosen, services, produitsGamme))} · −${pct} %`}
+                                  : `${argent(prixDansPanier(sv, pricing, chosen, services, produitsGamme))} · −${francs > 0 ? argent(francs) : `${pct} %`}`}
                               </span>
                             </span>
                           );

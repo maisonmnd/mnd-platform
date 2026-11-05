@@ -12,7 +12,7 @@ import { useServices } from '../../../../shared/catalog';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { payerClientIdOf } from '../../../../shared/accounts';
 import { Avatar, ClientPicker, RdvModal, alignerFacturesDuRituel, facturesQuiAttendent, frDay, frShortAn, tarifsDuRituel, todayISO, useServicesById, type EcartDeConformite } from '../clients/_shared';
-import { useModelBands, useBandSets, TAUX_DE_REMISE } from '../../../../shared/pricing';
+import { useModelBands, useBandSets, TAUX_DE_REMISE, francsDuGeste } from '../../../../shared/pricing';
 import { useCategories, useProducts } from '../../../../shared/catalog';
 import { Modal, toast, Field, Input } from '../../../../ds/components';
 import { rewindPaymentForDeletedInvoice } from '../clients/actions';
@@ -526,13 +526,18 @@ export default function Factures() {
         client: clients.find((c) => c.id === a.clientId),
         bands, sets, cats, byId, tousServices: services, produits,
       });
-      const lignes = t.chosen.map((sv) => ({
-        id: `il-${uid()}`, label: sv.name, qty: 1,
-        unitXof: t.prixPlein(sv), discountPct: t.gesteDe(sv),
-      }));
+      /* Un geste en francs s'écrit en francs (5 novembre 2026). */
+      const lignes = t.chosen.map((sv) => {
+        const fr = francsDuGeste(t.gesteDe, sv);
+        return {
+          id: `il-${uid()}`, label: sv.name, qty: 1,
+          unitXof: t.prixPlein(sv), discountPct: fr > 0 ? 0 : t.gesteDe(sv),
+          ...(fr > 0 ? { discountXof: fr } : {}),
+        };
+      });
       const journal = ordre.flatMap((p) => invoiceReglements(p));
       const recuAvant = ordre.reduce((s, p) => s + invoiceRegleXof(p), 0);
-      const brut = lignes.reduce((s, l) => s + l.unitXof * (1 - l.discountPct / 100), 0);
+      const brut = lignes.reduce((s, l) => s + l.unitXof * (1 - l.discountPct / 100) - (l.discountXof ?? 0), 0);
       const apresBase: Invoice = {
         ...garde,
         lines: lignes.length > 0 ? lignes : garde.lines,

@@ -29,7 +29,7 @@ import { recoPourEnvie, type RecoContexte } from '../../shared/reco';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useAuth } from '../../shared/auth';
 import { useCategories, useProducts, useServices, priceModeOf, longueurLabel, catsDansLOrdre, mondeDeCat, mondeLabel, type Service } from '../../shared/catalog';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, personalDurationMin, isPersonalized, prixFerme, estProposable, scalesWithModel, sortedBands, bandOf, bandRange, regimeTarifaire, type ModelBand } from '../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, remiseGesteXof, unGesteDansLePanier, personalDurationMin, isPersonalized, prixFerme, estProposable, scalesWithModel, sortedBands, bandOf, bandRange, regimeTarifaire, type ModelBand } from '../../shared/pricing';
 import { fourchetteDuModele } from './fourchette';
 import {
   DOW_LETTERS,
@@ -1395,7 +1395,10 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
        c'est ce qui donne envie de l'ajouter au rituel. */
     const geste = remiseGestePct(s, pricing, selected);
     if (geste >= 100) return t('Offert');
-    if (geste > 0) return `${prix(prixIci(s), currency)} · −${geste} %`;
+    if (geste > 0) {
+      const francs = remiseGesteXof(s, pricing, selected);
+      return `${prix(prixIci(s), currency)} · −${francs > 0 ? prix(francs, currency) : `${geste} %`}`;
+    }
     /* Le prix affiché est LE SIEN — modèle + Juste Prix — pas celui du catalogue. */
     const amount = prix(Math.round(personalPriceXof(s, pricing, tousServices, produits) * (1 - pct / 100)), currency);
     return mode === 'variable' ? t('à partir de {montant}', { montant: amount }) : amount;

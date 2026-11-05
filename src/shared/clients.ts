@@ -397,6 +397,11 @@ export type Client = {
       décochées pour elle ; seul un renvoi exprès (« Renvoyer la facture »)
       part. Elle vaut pour la fiche qui reçoit le papier (la payeuse). */
   sansPapiersWa?: boolean;
+  /** LA REMISE DU RITUEL COMPLET — 5 novembre 2026 (« Celles que je coche »,
+      Yéman) : quand elle fait le shampoing et la reprise au même rituel, le
+      geste de la Maison réservé aux fiches cochées s'applique (5 000 F sur le
+      shampoing). Voir `GesteOffert.fichesCochees`. */
+  remiseDuRituelComplet?: boolean;
   preferredMaster?: string;
   recoProductId?: string; // produit de la Gamme recommandé par la maison — affiché au Carnet de Suivi
   /** CE QU'ELLE EST VENUE CHERCHER, dit par elle au quiz de Ma Couronne

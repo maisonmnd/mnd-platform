@@ -20,7 +20,7 @@ import { venteGamme, fichePourGamme, stockDe, useMouvementsStock } from '../../.
 import { gammePayeeSurSesPieces, graveLesLignesReglees, ligneNetteXof, lignesARegler, piecesDuRendezVous } from '../../../../shared/gamme';
 import { useLaGammePayeeRegravee } from './gamme-payee';
 import { duDuCompte, peutPartirDevant, tetesDuCompte } from '../../../../shared/compte';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, splitByWeights } from '../../../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, splitByWeights, francsDuGeste } from '../../../../shared/pricing';
 import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle, cercleSeuilStore, offersStore } from '../../../../shared/offers';
 import { uid } from '../../../../shared/store';
 import { sameName, normName } from '../../../../shared/text';
@@ -997,6 +997,9 @@ export function factureAEnvoyer(
     gestes: services.map((sv) => {
       const pos = appt.serviceIds.indexOf(sv.id);
       const r = remiseDeLigne(appt, pos >= 0 ? pos : 0);
+      /* Un geste en francs s'écrit en francs (5 novembre 2026). */
+      const fr = francsDuGeste(gesteOf, sv);
+      if (fr > 0) return { nom: sv.name, pleinXof: prixPlein(sv), remisePct: 0, remiseXof: fr };
       const g = Math.max(0, Math.min(100, Math.round(gesteOf(sv))));
       return { nom: sv.name, pleinXof: prixPlein(sv), remisePct: g > 0 ? g : r.pct, remiseXof: g > 0 ? 0 : r.xof };
     }),

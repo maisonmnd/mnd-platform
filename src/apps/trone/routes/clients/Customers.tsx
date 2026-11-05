@@ -4065,6 +4065,26 @@ function Customer360({
                     : <>Le reçu part à l’encaissement, la facture en terminant la séance. La case de l’encaissement peut les retenir, une fois.</>}
                 </div>
               </Field>
+              {/* LA REMISE DU RITUEL COMPLET — 5 novembre 2026 (« Celles que je
+                  coche », Yéman) : shampoing et reprise au même rituel, 5 000 F
+                  de moins sur le shampoing, tout seuls. Le geste vit au
+                  Catalogue (KLƆKLƆ™ Essentiel), réservé aux fiches cochées. */}
+              <Field label="Remise du rituel complet">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!client.remiseDuRituelComplet}
+                    onChange={(e) => patch({ remiseDuRituelComplet: e.target.checked ? true : undefined })}
+                    style={{ accentColor: 'var(--color-copper)' }}
+                  />
+                  <span style={{ fontSize: 12.5 }}>Shampoing et reprise au même rituel : sa remise se pose seule</span>
+                </label>
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
+                  {client.remiseDuRituelComplet
+                    ? <>Cochée : quand elle fait le shampoing et une reprise SÍNSIN™, le shampoing baisse du geste réglé au Catalogue. C’est sa seule remise du rituel.</>
+                    : <>Non cochée : le geste du rituel complet ne s’applique pas à elle.</>}
+                </div>
+              </Field>
               <Field label="Produit recommandé · son Carnet de Suivi">
                 <Select value={client.recoProductId ?? ''} onChange={(e) => patch({ recoProductId: e.target.value || undefined })}>
                   <option value="">— aucun —</option>

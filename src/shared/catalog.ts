@@ -84,7 +84,22 @@ export const suitLongueur = (sv: Pick<Service, 'prixParLongueur'>): boolean =>
   Object.values(sv.prixParLongueur ?? {}).some((v) => typeof v === 'number');
 
 /** Un geste de la maison — voir `Service.offertAvec`. */
-export type GesteOffert = { serviceIds: string[]; bandIds?: string[]; pct?: number };
+export type GesteOffert = {
+  serviceIds: string[];
+  bandIds?: string[];
+  pct?: number;
+  /** LE GESTE EN FRANCS — 5 novembre 2026 (« les clientes comme V. A.
+      auront des remises automatiques quand elles font tout le service : le
+      shampoing et la reprise », 5 000 F « toujours », Yéman). Il prend la
+      place du pourcentage : le prix baisse de ce montant, jamais sous zéro,
+      quelle que soit la longueur. Sur la facture, une remise de ligne en
+      francs, jamais un pourcentage à virgule. */
+  xof?: number;
+  /** SEULEMENT LES FICHES COCHÉES (« Celles que je coche ») : la cliente doit
+      porter `Client.remiseDuRituelComplet`. Sans la coche, le geste ne
+      s'applique pas. */
+  fichesCochees?: boolean;
+};
 
 export type Service = {
   id: string;
