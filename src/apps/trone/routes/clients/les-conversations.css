@@ -2,8 +2,9 @@
    Maquette HCVUUyvAxSxNFqQ82FXYpp, validée : la liste à gauche, la
    conversation à droite, sa fiche en colonne repliable ; une ligne chiffrée
    en tête ; « Ce qu'il faut faire » au-dessus du fil. Les teintes de
-   l'Assistant (`--am-*`, assistant-maison.css) : indigo, cuivre, terre pour
-   Santé et rappeler, vert pour ce qui est rangé. Au téléphone (900 px et
+   l'Assistant (`--am-*`, assistant-maison.css) : indigo et cuivre seulement
+   depuis le 5 novembre 2026 (l'urgence en cuivre foncé plein, le rangé en
+   indigo). Au téléphone (900 px et
    moins) la liste OU la conversation en plein écran (`trc-am__plein`).
    Jamais d'obsidienne ; rien ne déborde à 390 px.
 
@@ -103,10 +104,10 @@
   flex: 0 1 auto; min-width: 0; max-width: 100%; padding: 0 8px; border-radius: 999px; border: 1px solid transparent;
   font: 500 11.5px/20px var(--font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-/* UN BADGE PAR LIGNE (`badgeDe`, qui-tient-pur) : vert pour une nouvelle, terre pour l'urgence, cuivre à répondre, indigo pour une demande et ce que l'équipe tient, gris pour l'attente. */
+/* UN BADGE PAR LIGNE (`badgeDe`, qui-tient-pur) : indigo pour une nouvelle (le jeton « vert »), cuivre foncé plein pour l'urgence (le jeton « terre »), cuivre pâle à répondre, indigo pour une demande et ce que l'équipe tient, gris pour l'attente. */
 .trc-bx__badge--vert { background: var(--am-vert-pale); color: var(--am-vert-fonce); }
 .trc-bx__badge--vert::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: var(--am-vert); vertical-align: 1px; }
-.trc-bx__badge--terre { background: var(--am-terre-pale); color: var(--am-terre); }
+.trc-bx__badge--terre { background: var(--am-terre); color: #FFFFFF; }
 .trc-bx__badge--cuivre { background: var(--am-cuivre-pale); color: var(--copper-700, #7A4C27); }
 .trc-bx__badge--indigo { background: var(--am-indigo-pale); color: var(--color-indigo); }
 .trc-bx__badge--indigo-pale { background: #EDEEF4; color: #2C3470; }
@@ -139,7 +140,7 @@
 .trc-bx__prendre:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 1px; }
 .trc-bx__pied-liste { display: grid; gap: 6px; padding: 8px 12px 10px; border-top: 1px solid var(--bx-trait); }
 .trc-bx__pastille--cuivre { background: var(--am-cuivre-pale); color: var(--copper-700, #7A4C27); }
-.trc-bx__pastille--terre { background: var(--am-terre-pale); color: var(--am-terre); }
+.trc-bx__pastille--terre { background: var(--am-terre); color: #FFFFFF; }
 .trc-bx__pastille--indigo { background: var(--am-indigo-pale); color: var(--color-indigo); }
 .trc-bx__pastille--contour { border-color: var(--color-indigo); color: var(--color-indigo); }
 .trc-bx__pastille--calme { background: rgba(20, 20, 27, .06); color: var(--ink-soft); }

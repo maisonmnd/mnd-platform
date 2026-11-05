@@ -52,7 +52,7 @@ import './avis-google-rubrique.css';
 /** Les étoiles : cuivre par défaut ; dans la vue, or, et terre pour 1 à 3 (« bas »). */
 export const ETOILES = (n: number, ton?: 'or' | 'bas') => {
   const k = Math.max(0, Math.min(5, Math.round(n)));
-  const style = ton === 'bas' ? { color: 'var(--am-terre, #A3402B)' } : ton === 'or' ? { color: 'var(--am-or, #C9A227)' } : undefined;
+  const style = ton === 'bas' ? { color: 'var(--am-terre, #7C4C2C)' } : ton === 'or' ? { color: 'var(--am-or, #1E2150)' } : undefined;
   return <span className="trc-avr__etoiles" style={style} aria-label={`${k} étoiles sur 5`}>{'★'.repeat(k)}<span className="trc-avr__etoiles-vides">{'★'.repeat(5 - k)}</span></span>;
 };
 
