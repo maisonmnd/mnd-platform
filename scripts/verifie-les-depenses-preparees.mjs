@@ -22,8 +22,13 @@ const DEP = 'src/apps/trone/routes/finances/Depenses.tsx';
 const CAISSE = 'src/apps/trone/routes/vente/Caisse.tsx';
 const CASE = 'src/apps/trone/routes/finances/DepenseEnUnePhrase.tsx';
 const ENG = 'src/apps/trone/routes/finances/EngagementsDuMois.tsx';
+/* Les engagements a la direction seule (0160, 5 novembre 2026). */
+const MIG = 'supabase/migrations/0160_les_engagements_a_la_direction.sql';
+const ESSAI = 'supabase/essai_0160_a_blanc.sql';
+const STORE = 'src/shared/engagements-du-mois.ts';
+const AUTH = 'src/shared/auth.ts';
 /* Tout ce que le harnais LIT (readFileSync). */
-const LUS = [DEP, CAISSE, CASE, ENG, E, P];
+const LUS = [DEP, CAISSE, CASE, ENG, E, P, MIG, ESSAI, STORE, AUTH];
 
 const PANNES = [
   /* La phrase. */
@@ -70,6 +75,20 @@ const PANNES = [
   { nom: 'la case pose sans relire le magasin', fichier: CASE, avant: 'const j = jugeLaPhrase(lecture, { branchId: branch.id, existantes: toutes, prestataires });\n    if (!j.ok)', apres: 'const j = jugement;\n    if (!j.ok)', disque: true },
   { nom: 'la preparation tourne hors ligne', fichier: ENG, avant: "if (typeof navigator !== 'undefined' && navigator.onLine === false) return;", apres: '', disque: true },
   { nom: 'un crochet sous le retour des engagements', fichier: ENG, avant: '  if (!direction) return null;\n', apres: '  if (!direction) return null;\n  const [x] = useState(0); void x;\n', disque: true },
+  /* Les engagements a la direction seule (0160). */
+  { nom: '0160 reserve aussi une autre cle a la direction', fichier: MIG, avant: "  select array['mnd_engagements_du_mois']::text[]", apres: "  select array['mnd_engagements_du_mois', 'mnd_porteurs']::text[]", disque: true },
+  { nom: '0160 : la regle devient permissive (elle ne retient plus rien)', fichier: MIG, avant: '  as restrictive\n', apres: '  as permissive\n', disque: true },
+  { nom: '0160 : le gerant n est plus de la direction', fichier: MIG, avant: '  using (not (key = any(public.cles_de_la_direction())) or public.est_direction())\n', apres: '  using (not (key = any(public.cles_de_la_direction())) or public.is_souverain())\n', disque: true },
+  { nom: '0160 : l ecriture n est plus gardee', fichier: MIG, avant: '  with check (not (key = any(public.cles_de_la_direction())) or public.est_direction());', apres: '  with check (true);', disque: true },
+  { nom: '0160 reecrit une regle d avant', fichier: MIG, avant: '-- ⟨/0160⟩', apres: 'drop policy if exists docs_staff_lire on public.documents;\n-- ⟨/0160⟩', disque: true },
+  { nom: '0160 touche une donnee', fichier: MIG, avant: '-- ⟨/0160⟩', apres: "update public.documents set data = '[]'::jsonb where key = 'mnd_engagements_du_mois';\n-- ⟨/0160⟩", disque: true },
+  { nom: 'l essai ne porte plus la migration a l identique', fichier: ESSAI, avant: '  as restrictive\n', apres: '  as permissive\n', disque: true },
+  { nom: 'l essai ne compare plus les autres cles', fichier: ESSAI, avant: "if (av -> 'cles' ->> k) is not distinct from (ap -> 'cles' ->> k) then", apres: 'if true then', disque: true },
+  { nom: 'l essai laisse la migration derriere lui', fichier: ESSAI, avant: "  raise exception 'ESSAI 0160 : % | %'", apres: "  raise notice 'ESSAI 0160 : % | %'", disque: true },
+  { nom: 'les engagements se montrent a l equipe', fichier: ENG, avant: '  if (!direction) return null;\n', apres: '\n', disque: true },
+  { nom: 'la preparation tourne pour l equipe', fichier: ENG, avant: '    if (!direction) return;\n', apres: '\n', disque: true },
+  { nom: 'l equipe compte comme la direction', fichier: ENG, avant: "role === 'souverain' || role === 'gerant';", apres: 'role !== undefined;', disque: true },
+  { nom: 'la deconnexion garde les engagements sur le poste', fichier: AUTH, avant: "  'mnd_engagements_du_mois',\n];", apres: '];', disque: true },
 ];
 
 const md5 = (rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');

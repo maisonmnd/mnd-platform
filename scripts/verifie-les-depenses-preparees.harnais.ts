@@ -9,16 +9,18 @@
    jamais un prestataire, rien de la famille. Les engagements de chaque mois :
    le jour venu, Grenat prepare la depense a valider, une fois par mois et par
    engagement (cle engagement:<id>:<aaaa-mm>) ; l ancien engagement mensuel en
-   base se reprend dans la liste.
+   base se reprend dans la liste. « Direction seule » (5 novembre 2026) : la
+   ligne des engagements se lit et s ecrit par la direction (0160), rien ne
+   change pour les autres cles.
 
    TOUS LES ATTENDUS SONT ECRITS EN DUR, tires de ces phrases. */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import {
   depenseDeLaPhrase, ditLaLecture, enregistreeAcquise, jugeLaPhrase, lisLaPhrase, origineDeLaDepense,
   type ContexteDeLaPhrase,
 } from '../src/shared/depense-en-une-phrase-pur';
 import {
-  cleDeLEngagement, dateDuMois, depensesAPreparer, engagementValide, idDeLaDepensePreparee, mensuellesAReprendre,
+  CLE_DES_ENGAGEMENTS, cleDeLEngagement, dateDuMois, depensesAPreparer, engagementValide, idDeLaDepensePreparee, mensuellesAReprendre,
   moisAPreparer, premierMois, repriseDeLaMensuelle, type EngagementDuMois,
 } from '../src/shared/engagements-du-mois-pur';
 import { depensesDuJour, type DepenseLue } from '../src/shared/cloture-du-jour-pur';
@@ -211,5 +213,57 @@ dit('le bloc pur des engagements est sans import (la fonction du serveur le reco
 dit('pas de tiret « — » dans les textes neufs', [false, false, false], [
   /'[^'\n]*—[^'\n]*'|`[^`\n]*—[^`\n]*`|>[^<\n]*—[^<\n]*</.test(phrase), /'[^'\n]*—[^'\n]*'|`[^`\n]*—[^`\n]*`|>[^<\n]*—[^<\n]*</.test(eng),
   /'[^'\n]*—[^'\n]*'|`[^`\n]*—[^`\n]*`/.test(lis('src/shared/depense-en-une-phrase-pur.ts'))]);
+
+/* ── 9. Les engagements a la direction seule (0160) ──
+   « Direction seule » (Yeman, 5 novembre 2026, au selecteur) : la ligne
+   `mnd_engagements_du_mois` de `documents` se lit et s ecrit par la direction
+   (souverain ET gerant, est_direction, la regle de « + Depense »), et rien ne
+   change pour les autres cles. Une regle RESTRICTIVE sur cette seule cle,
+   aucune regle d avant retiree ni reecrite. */
+const migrations0160 = readdirSync('supabase/migrations').filter((n) => /^0160_/.test(n));
+dit('une seule migration 0160, celle des engagements', ['0160_les_engagements_a_la_direction.sql'], migrations0160);
+const m0160 = migrations0160.length ? lis(`supabase/migrations/${migrations0160[0]}`) : '';
+const entreLesMarques = (src: string): string | null => {
+  const i = src.indexOf('-- ⟨0160⟩\n');
+  const k = src.indexOf('-- ⟨/0160⟩', i);
+  return i < 0 || k < 0 ? null : src.slice(i, k);
+};
+const bloc0160 = entreLesMarques(m0160) ?? '';
+const sansCommentaires = (s: string) => s.split('\n').filter((l) => !/^\s*--/.test(l)).join('\n');
+const executable = sansCommentaires(bloc0160);
+const listeReservee = /create or replace function public\.cles_de_la_direction\(\) returns text\[\]\s*language sql immutable as \$\$\s*select array\[([^\]]*)\]::text\[\]\s*\$\$;/.exec(executable);
+dit('0160 : la liste de la direction = la cle du Trone, et elle seule', [CLE_DES_ENGAGEMENTS],
+  listeReservee ? [...listeReservee[1].matchAll(/'([^']*)'/g)].map((x) => x[1]) : null);
+dit('... aucune autre cle nommee dans ce que la migration execute', [CLE_DES_ENGAGEMENTS], [...new Set([...executable.matchAll(/'(mnd_[a-z0-9_]+)'/g)].map((x) => x[1]))]);
+const REGLE = 'create policy docs_direction_seule on public.documents\n  as restrictive\n  for all\n  to anon, authenticated\n'
+  + '  using (not (key = any(public.cles_de_la_direction())) or public.est_direction())\n'
+  + '  with check (not (key = any(public.cles_de_la_direction())) or public.est_direction());';
+dit('0160 : une regle RESTRICTIVE, pour tout (lire, creer, modifier, effacer), a la direction (est_direction : souverain ET gerant)', true, executable.includes(REGLE));
+dit('... la direction, pas le souverain seul', false, /is_souverain|is_staff/.test(executable));
+dit('0160 : aucune autre regle retiree, reecrite ou modifiee (seule docs_direction_seule)', ['docs_direction_seule', 'docs_direction_seule'],
+  [...executable.matchAll(/\b(?:create|drop|alter)\s+policy\s+(?:if\s+exists\s+)?(\w+)/gi)].map((x) => x[1]));
+dit('0160 : aucune donnee touchee, aucun droit retire, aucune RLS levee', false,
+  /\b(insert|update|delete|truncate|grant|revoke|disable|no force)\b|alter\s+table|drop\s+function/i.test(executable));
+dit('0160 : hors du bloc, rien que des lectures de controle', false,
+  /\b(create|drop|alter|insert|update|delete|truncate|grant|revoke)\b/i.test(sansCommentaires(m0160.replace(bloc0160, ''))));
+dit('0160 : aucune table neuve, donc aucune table repli_ sans RLS', [false, false], [/create\s+table/i.test(executable), /repli_/i.test(executable)]);
+const essai0160 = (() => { try { return lis('supabase/essai_0160_a_blanc.sql'); } catch { return ''; } })();
+dit('l essai a blanc porte la migration a l identique', true, !!bloc0160 && entreLesMarques(essai0160) === bloc0160);
+dit('... il se fait passer pour un compte (role authenticated, sub du jeton), puis rend la main', [true, true, true, true], [
+  essai0160.includes('set local role authenticated;'), essai0160.includes("perform set_config('request.jwt.claims', json_build_object('sub', p_uid, 'role', 'authenticated')::text, true);"),
+  essai0160.includes("execute format('set local role %I', v_role);"), essai0160.includes("set local role anon;")]);
+dit('... il mesure avant ET apres la migration, et compare toutes les autres cles', [true, true, true], [
+  essai0160.indexOf('do $avant$') >= 0 && essai0160.indexOf('do $avant$') < essai0160.indexOf('-- ⟨0160⟩'),
+  essai0160.indexOf('do $essai$') > essai0160.indexOf('-- ⟨/0160⟩'),
+  essai0160.includes("if (av -> 'cles' ->> k) is not distinct from (ap -> 'cles' ->> k) then")]);
+dit('... et finit par l exception qui annule tout', true, /raise exception 'ESSAI 0160 : % \| %'[^;]*;\s*end \$essai\$;\s*$/.test(essai0160));
+const store0160 = lis('src/shared/engagements-du-mois.ts');
+const auth0160 = lis('src/shared/auth.ts');
+dit('le Trone : le magasin lie a cette cle ; l ecran et la preparation a la direction seule ; la copie du poste purgee a la deconnexion', [true, true, true, true, true], [
+  store0160.includes('bindDocument(engagementsDuMoisStore, CLE_DES_ENGAGEMENTS);'),
+  eng.includes("export const estDirection = (role: string | undefined): boolean => role === 'souverain' || role === 'gerant';"),
+  /export function EngagementsDuMois\(\) \{[\s\S]*?\n {2}if \(!direction\) return null;\n/.test(eng),
+  /export function usePreparationDesEngagements\(\): void \{[\s\S]*?if \(!direction\) return;[\s\S]*?if \(!direction \|\| !pret/.test(eng),
+  /const SENSITIVE_KEYS = \[[\s\S]*?'mnd_engagements_du_mois',[\s\S]*?\];/.test(auth0160)]);
 
 console.log(ko === 0 ? '\nLes depenses preparees par Grenat tiennent.' : `\n${ko} ECHEC.`);

@@ -15,6 +15,9 @@
        le dit, et rien ne se pose ;
      - la dépense d'un engagement, préparée par Grenat, est dans la liste
        (« Engagement ») avec « Corriger », qui ouvre sa fiche ;
+     - « Direction seule » (0160, 5 novembre 2026) : le comptoir, même avec
+       une copie d'hier des engagements sur le poste, ne voit ni la section
+       des engagements ni « Aucun engagement actif », et aucune erreur ;
      - la Caisse porte la même case, en tête, avant le ticket.
 
    Il attend le Trône construit sans serveur (SOUS BASH) :
@@ -106,6 +109,9 @@ async function lanceLeBanc({ geste }) {
         validation: { etat: 'attente', soumisLe: new Date().toISOString(), soumisPar: 'Grenat' },
         preparee: { par: 'Grenat', source: 'engagement', cle: `engagement:ebanc:${MOIS}`, engagementId: 'ebanc' } },
     ],
+    /* Une copie d'hier des engagements, restée sur le poste du comptoir. */
+    'trone::mnd_engagements_du_mois': [{ id: 'ebanc', branchId: 'maison', libelle: 'Internet de la Maison', montantXof: 27000, categorie: 'Local', caisse: 'MoMoPay Maison MND',
+      jour: 1, actif: true, depuis: MOIS, faits: [MOIS], creeLe: new Date().toISOString(), creePar: 'Direction' }],
   };
 
   await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/trone.html` });
@@ -129,6 +135,8 @@ async function lanceLeBanc({ geste }) {
   const titre1 = await evalue(`document.querySelector('[data-preparees="liste"] .trf-valider__titre')?.innerText ?? ''`);
   dit('la liste dit « 1 dépense préparée, à valider »', /^1 dépense préparée, à valider$/.test(titre1 ?? ''), titre1);
   dit('le comptoir ne voit pas « Valider tout » (la direction seule)', await evalue(`!document.querySelector('[data-preparees="valider-tout"]')`));
+  dit('« Direction seule » : le comptoir ne voit pas les engagements de chaque mois, ni une liste vide (« Aucun engagement actif »)',
+    await evalue(`!document.querySelector('[data-engagements="section"]') && !/Les engagements de chaque mois|Aucun engagement actif|\\+ Engagement/.test(document.body.innerText)`));
 
   /* 2. Sans montant, Grenat demande. */
   await ecris('gaz pour la cuisine');

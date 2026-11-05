@@ -214,6 +214,9 @@ const SENSITIVE_KEYS = [
      ne s'inscrit plus comme un geste (store.ts, `estUnePurge`) : rien ne
      part au serveur. */
   'mnd_secretariat', 'mnd_bilans', 'mnd_notes_de_seance',
+  /* LES ENGAGEMENTS DE CHAQUE MOIS — 5 novembre 2026, « Direction seule »
+     (0160) : le train de vie de la Maison ne reste pas sur un poste partagé. */
+  'mnd_engagements_du_mois',
 ];
 
 export async function signOut(): Promise<void> {
