@@ -31,6 +31,8 @@ const P5 = 'src/apps/trone/routes/equipe/PaieDu5.tsx';
 const BLOC = 'src/apps/trone/routes/equipe/PaieParMtn.tsx';
 const SQL = 'supabase/migrations/0163_la_paie_par_mtn.sql';
 const PREVIENT = 'supabase/migrations/0164_la_paie_previent_chacun.sql';
+const WHATSAPP_SQL = 'supabase/migrations/0165_la_paie_sur_whatsapp.sql';
+const WEBHOOK = 'supabase/functions/whatsapp-webhook/index.ts';
 const PANNES = [
   /* Le serveur */
   ['n importe qui confie un envoi', FONCTION, "  if (!moi || !DIRECTION.has(String(moi.role))) return null;", '  if (!moi) return null;'],
@@ -77,6 +79,19 @@ const PANNES = [
   ['de octobre', PREVIENT, "then 'd’' else 'de ' end", "then 'de ' else 'de ' end"],
   ['la paie du mois ne previent personne', P5, '      prevenir: true,\n    });', '      prevenir: false,\n    });'],
   ['la notification sans l elision', PUR, '  `Ta paie ${duMois(periode)} est partie : ${francsDits(montantXof)}.`;', '  `Ta paie de ${moisDit(periode)} est partie : ${francsDits(montantXof)}.`;'],
+  ['le WhatsApp part sans « prevenir »', FONCTION, "  if (e.genre !== 'paie' || !e.prevenir || !e.periode) return 'sans objet';", "  if (e.genre !== 'paie' || !e.periode) return 'sans objet';"],
+  ['le WhatsApp part la nuit', FONCTION, '  const { partA, calme } = heureDeDepartEnSalle(maintenantMs, regles);', '  const { partA, calme } = { partA: maintenantMs + regles.salleMin * 60_000, calme: false };'],
+  ['les reglages de la salle oublies', FONCTION, "  const regles = reglesDepuis(doc('mnd_auto_config'));", '  const regles = reglesDepuis(null);'],
+  ['le WhatsApp sans les boutons de l envoi', FONCTION, '`PAIE_PASENCORE:${e.reference}`', '`PASENCORE:${e.reference}`'],
+  ['le WhatsApp au mauvais numero', FONCTION, '  const numero = numeroIntl(fiche?.phone);', '  const numero = numeroIntl(e.msisdn.slice(3));'],
+  ['le WhatsApp sans le mois', FONCTION, '  const objet = `votre paie ${duMoisDit(e.periode)}`;', '  const objet = `votre paie`;'],
+  ['le WhatsApp jamais depose', FONCTION, '      if (recu) await deposeLeWhatsApp(e, Date.now());', ''],
+  ['un bouton de paie d un autre numero vaut', WEBHOOK, "    if (!numeroParti || numeroParti !== String(e.numero ?? '').replace(/\\D/g, '')) { dis('bouton · paie, numéro étranger'); continue; }", ''],
+  ['un bouton de paie confie a l automate', WEBHOOK, '        if (estUnBoutonDeLaPaie(e.bouton?.id)) continue;\n', ''],
+  ['la reponse sur un envoi pas recu', WEBHOOK, "    }).eq('reference', reference).eq('etat', 'recu');", "    }).eq('reference', reference);"],
+  ['les boutons inverses', WEBHOOK, "      reponse_employe: m[1].toUpperCase() === 'RECU' ? 'bien-recu' : 'pas-encore',", "      reponse_employe: m[1].toUpperCase() === 'RECU' ? 'pas-encore' : 'bien-recu',"],
+  ['pas encore sonne deux fois', WHATSAPP_SQL, " or old.reponse_employe is not distinct from 'pas-encore' then", ' then'],
+  ['pas encore ne previent pas la direction', WHATSAPP_SQL, "      'mode', 'direction',", "      'mode', 'staff',"],
   ['l equipe ecrit au registre', SQL, 'revoke all on public.paie_envois_mtn from anon, authenticated;', '-- (revoke retire)'],
   ['l equipe recoit tous les droits', SQL, 'grant select on public.paie_envois_mtn to authenticated;', 'grant all on public.paie_envois_mtn to authenticated;'],
 ];
@@ -161,11 +176,15 @@ const N = { bon: '2290190000001', refuse: '2290190000002', lent: '2290190000003'
 const NOMS = { [N.bon]: ['AICHA', 'KOSSOU'], [N.refuse]: ['PAULIN', 'AHO'] };
 
 let registre = [];
+let envoisDeposes = new Map();
+let envoisPostes = [];
+let reglesSalle = null;
+const TELEPHONES = { e1: '01 90 00 00 11', e2: '0022901900000 12', e4: '+229 01 90 00 00 14', e5: '01 90 00 00 15' };
 let transferts = new Map();  // ref -> { msisdn, montant, posts, lu, statut }
 let journal = [];
 let soldeMtn = 1_000_000;
 let perduUneFois = new Set();
-const remiseAZero = () => { registre = []; transferts = new Map(); journal = []; soldeMtn = 1_000_000; perduUneFois = new Set(); };
+const remiseAZero = () => { envoisDeposes = new Map(); envoisPostes = []; registre = []; transferts = new Map(); journal = []; soldeMtn = 1_000_000; perduUneFois = new Set(); };
 
 const rep = (status, corps) => new Response(corps === undefined ? '' : JSON.stringify(corps), { status, headers: { 'content-type': 'application/json' } });
 const valeurs = (v) => v.replace(/^in\.\(|\)$/g, '').split(',').map((x) => x.replace(/^"|"$/g, ''));
@@ -182,6 +201,20 @@ const filtreDe = (url) => {
 function base(url, methode, h, corps) {
   if (h.apikey !== SERVICE || h.authorization !== `Bearer ${SERVICE}`) return rep(401, { message: 'service attendu' });
   const table = url.pathname.replace('/rest/v1/', '');
+  if (table === 'team') {
+    const id = decodeURIComponent(url.searchParams.get('id')?.replace(/^eq\./, '') ?? '');
+    return rep(200, TELEPHONES[id] ? [{ data: { id, name: id === 'e1' ? 'Aïcha Kossou' : 'Fiche ' + id, phone: TELEPHONES[id], branchId: 'br-1' } }] : (id ? [{ data: { id, name: 'Fiche ' + id } }] : []));
+  }
+  if (table === 'documents') {
+    return rep(200, [{ key: 'mnd_house_identity', data: { nom: 'Maison MND' } }, ...(reglesSalle ? [{ key: 'mnd_auto_config', data: reglesSalle }] : [])]);
+  }
+  if (table === 'envois') {
+    if (methode !== 'POST') return rep(405);
+    envoisPostes.push(corps.id);
+    if (envoisDeposes.has(corps.id)) return /ignore-duplicates/.test(h.prefer ?? '') ? rep(201) : rep(409, { code: '23505' });
+    envoisDeposes.set(corps.id, corps);
+    return rep(201);
+  }
   if (table === 'staff') {
     const uid = url.searchParams.get('user_id')?.replace(/^eq\./, '');
     return rep(200, STAFF[uid] ? [STAFF[uid]] : []);
@@ -435,6 +468,51 @@ const postsTransfert = () => journal.filter((j) => j.methode === 'POST' && j.url
   dit('MTN repond 500 mais a pris l envoi : le Trone relit, un seul envoi, recu', postsDe(a) === 1 && ligne(a.reference).etat === 'recu', JSON.stringify({ posts: postsDe(a), l: ligne(a.reference) }));
   dit('MTN accepte puis ne montre pas l envoi : le Trone attend, sans renvoyer', postsDe(b) === 1 && ligne(b.reference).etat === 'recu', JSON.stringify({ posts: postsDe(b), l: ligne(b.reference) }));
   dit('MTN ne prend jamais l envoi : trois essais sous la meme reference, puis un refus qui se dit', postsDe(c) === 3 && ligne(c.reference).etat === 'refuse' && ligne(c.reference).raison === 'INCONNU_CHEZ_MTN', JSON.stringify({ posts: postsDe(c), l: ligne(c.reference) }));
+}
+
+/* La paie sur WhatsApp : le message deposé en salle quand MTN dit recu */
+{
+  remiseAZero();
+  const vrai = Date.now;
+  try {
+    /* 18 h 05 a Cotonou : la salle de 15 minutes lue dans mnd_auto_config. */
+    Date.now = () => Date.parse('2026-12-05T17:05:00Z');
+    reglesSalle = { salleMin: 15, calmeDe: 20, calmeA: 8 };
+    const a = paie({ employeeId: 'e1', prevenir: true, partA: '2026-12-05T17:00:00Z' });
+    const b = paie({ employeeId: 'e2', nom: 'Sika H.', msisdn: N.lent, montantXof: 90000, prevenir: false, partA: '2026-12-05T17:00:00Z' });
+    const c = paie({ employeeId: 'e4', nom: 'Rose Dah', msisdn: N.muet, montantXof: 70000, prevenir: true, partA: '2026-12-05T17:00:00Z' });
+    await direction({ action: 'programmer', envois: [a, b, c] });
+    for (let i = 0; i < 4; i++) await cron();
+    const wa = envoisDeposes.get('paie-' + a.reference + '-whatsapp');
+    const corps = wa?.data?.colis?.composants?.[0]?.parameters?.map((p) => p.text);
+    dit('MTN dit recu : le WhatsApp attend en salle, vers le telephone de la fiche, avec le modele approuve',
+      wa?.data?.statut === 'en-attente' && wa?.data?.colis?.numero === '2290190000011' && wa?.data?.colis?.modele === 'versement_engagement' && wa?.data?.type === 'paie-recue',
+      JSON.stringify(wa));
+    dit('le message dit la Maison, le montant et le mois, avec l annee', JSON.stringify(corps) === JSON.stringify(['Maison MND', '150 000 F', 'votre paie de novembre 2026']), JSON.stringify(corps));
+    dit('les deux boutons rapportent la reference de l envoi',
+      wa?.data?.colis?.composants?.[1]?.parameters?.[0]?.payload === 'PAIE_RECU:' + a.reference && wa?.data?.colis?.composants?.[2]?.parameters?.[0]?.payload === 'PAIE_PASENCORE:' + a.reference,
+      JSON.stringify(wa?.data?.colis?.composants?.slice(1)));
+    dit('le temps de salle vient des reglages de la Maison', wa?.data?.partA === '2026-12-05T17:20:00.000Z' && !wa?.data?.calme, String(wa?.data?.partA));
+    dit('sans « prevenir », aucun WhatsApp', !envoisDeposes.has('paie-' + b.reference + '-whatsapp') && ligne(b.reference).etat === 'recu', JSON.stringify([...envoisDeposes.keys()]));
+    dit('le registre dit ce qui est parti sur WhatsApp', ligne(a.reference).whatsapp === 'déposé en salle', String(ligne(a.reference).whatsapp));
+    dit('un seul depot par envoi, meme apres plusieurs passages', envoisPostes.filter((x) => x === 'paie-' + a.reference + '-whatsapp').length === 1, JSON.stringify(envoisPostes));
+    /* 21 h 30 a Cotonou : le message attend la fin des heures calmes, 8 h. */
+    Date.now = () => Date.parse('2026-12-05T20:30:00Z');
+    reglesSalle = null;
+    const d = paie({ employeeId: 'e5', nom: 'Léa Sossa', msisdn: N.bon, montantXof: 60000, prevenir: true, periode: '2026-10', runId: 'run-2', partA: '2026-12-05T20:00:00Z' });
+    await direction({ action: 'programmer', envois: [d] });
+    await cron();
+    const wd = envoisDeposes.get('paie-' + d.reference + '-whatsapp');
+    dit('apres 20 h, le WhatsApp part a 8 h le lendemain, heures calmes dites', wd?.data?.partA === '2026-12-06T07:00:00.000Z' && wd?.data?.calme === true, JSON.stringify(wd?.data && { partA: wd.data.partA, calme: wd.data.calme }));
+    dit('l elision du mois', wd?.data?.colis?.composants?.[0]?.parameters?.[2]?.text === 'votre paie d’octobre 2026', String(wd?.data?.colis?.composants?.[0]?.parameters?.[2]?.text));
+    const e = paie({ employeeId: 'e9', nom: 'Sans Tel', msisdn: N.bon, montantXof: 50000, prevenir: true, runId: 'run-3', partA: '2026-12-05T20:00:00Z' });
+    await direction({ action: 'programmer', envois: [e] });
+    await cron();
+    dit('une fiche sans telephone : rien ne part, et le registre le dit', !envoisDeposes.has('paie-' + e.reference + '-whatsapp') && ligne(e.reference).whatsapp === 'sans numéro sur la fiche', String(ligne(e.reference).whatsapp));
+  } finally {
+    Date.now = vrai;
+    reglesSalle = null;
+  }
 }
 
 /* Annuler */

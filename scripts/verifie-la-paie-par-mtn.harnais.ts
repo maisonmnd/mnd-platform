@@ -160,5 +160,18 @@ dit('jamais une reponse de MTN refusee pour une notification ; le declencheur su
   [/exception when others then\n\s*-- Jamais une réponse de MTN refusée pour une notification\.\n\s*raise warning/.test(previent), /after update of etat on public\.paie_envois_mtn/.test(previent)]);
 dit('la paie du mois previent l equipe', [true, true], [/prevenir: true,\r?\n\s*\}\);/.test(p5), /vus, prevenir: true \}\)/.test(bloc)]);
 
+const webhook = lis('supabase/functions/whatsapp-webhook/index.ts').replace(/\r\n/g, '\n');
+const surWhatsapp = lis('supabase/migrations/0165_la_paie_sur_whatsapp.sql').replace(/\r\n/g, '\n');
+dit('le webhook lit les deux boutons de la paie, du seul numero a qui le message est parti', [true, true, true],
+  [/const m = \(e\.bouton\?\.id \?\? ''\)\.match\(RE_BOUTON_DE_LA_PAIE\);/.test(webhook),
+    /if \(!numeroParti \|\| numeroParti !== String\(e\.numero \?\? ''\)\.replace\(\/\\D\/g, ''\)\) \{ dis\('bouton · paie, numéro étranger'\); continue; \}/.test(webhook),
+    /\}\)\.eq\('reference', reference\)\.eq\('etat', 'recu'\);/.test(webhook)]);
+dit('« Oui, bien reçu » ecrit bien-recu, « Pas encore » ecrit pas-encore', true,
+  /reponse_employe: m\[1\]\.toUpperCase\(\) === 'RECU' \? 'bien-recu' : 'pas-encore',/.test(webhook));
+dit('une reponse de paie ne va ni a l automate ni aux sonneries', [true, true],
+  [/if \(estUnBoutonDeLaPaie\(e\.bouton\?\.id\)\) continue;/.test(webhook), /!estUnBoutonDePerle\(e\.bouton\?\.id\) && !estUnBoutonDeLaPaie\(e\.bouton\?\.id\)\)/.test(webhook)]);
+dit('« Pas encore » previent la direction, une fois', [true, true],
+  [/if new\.reponse_employe is distinct from 'pas-encore' or old\.reponse_employe is not distinct from 'pas-encore' then/.test(surWhatsapp), /'mode', 'direction',/.test(surWhatsapp)]);
+
 console.log(ko === 0 ? '\nLes regles de la paie par MTN tiennent.' : `\n${ko} ECHEC(S)`);
 if (ko) process.exitCode = 1;

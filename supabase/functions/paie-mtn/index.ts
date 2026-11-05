@@ -45,7 +45,7 @@
    POST  { action, … } : voir plus bas.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-11-05-b';
+const VERSION = '2026-11-06-a';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -239,6 +239,118 @@ async function pars(e: Envoi): Promise<string> {
   return issue.etat;
 }
 
+/* ══ LA PAIE SUR WHATSAPP — 6 novembre 2026 ══════════════════════════════
+   « Il faut que l'employé reçoive un message sur son WhatsApp et sur le
+   Trône » (Yéman). Au sélecteur : AVEC le montant, donc le modèle déjà
+   approuvé `versement_engagement` (« Bonjour, {{1}} vous a versé {{2}} pour
+   {{3}}. L'avez-vous bien reçu ? »), et ses deux boutons, « Oui, bien reçu »
+   et « Pas encore ». La réponse revient sur l'envoi (whatsapp-webhook,
+   PAIE_RECU / PAIE_PASENCORE) ; un « Pas encore » prévient la direction (0165).
+
+   PAR LA SALLE D'ATTENTE, TOUJOURS (choix du 29 octobre 2026 : tout ce qui
+   part seul y passe). Le message est DÉPOSÉ dans `envois` ; le facteur
+   (`envois-partent`) le porte après le temps de salle, jamais dans les heures
+   calmes, lues dans `mnd_auto_config` comme partout. Un dépôt par envoi
+   reçu : l'identifiant `paie-<référence>-whatsapp` ne se dépose qu'une fois.
+   Le téléphone est celui de la fiche (`phone`), comme le bulletin WhatsApp.
+
+   ⟨regles-de-la-salle⟩ : copie de src/shared/salle-des-envois.ts
+   (reglesDepuis, dansLesHeuresCalmes, finDesHeuresCalmes, heureDeDepart),
+   éprouvée par le banc verifie-la-paie-par-mtn. */
+type ReglesDeLaSalle = { salleMin: number; calmeDe: number; calmeA: number };
+const DECALAGE_DU_SALON_H = 1;
+function reglesDepuis(cfg: any): ReglesDeLaSalle {
+  const n = (v: unknown, min: number, max: number, defaut: number): number => {
+    const x = Number(v);
+    return Number.isFinite(x) && x >= min && x <= max ? Math.round(x) : defaut;
+  };
+  return { salleMin: n(cfg?.salleMin, 1, 120, 10), calmeDe: n(cfg?.calmeDe, 0, 23, 20), calmeA: n(cfg?.calmeA, 0, 23, 8) };
+}
+const heureDuSalon = (ms: number): number => {
+  const d = new Date(ms + DECALAGE_DU_SALON_H * 3_600_000);
+  return d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600;
+};
+function dansLesHeuresCalmes(ms: number, r: ReglesDeLaSalle): boolean {
+  if (r.calmeDe === r.calmeA) return false;
+  const h = heureDuSalon(ms);
+  return r.calmeDe < r.calmeA ? (h >= r.calmeDe && h < r.calmeA) : (h >= r.calmeDe || h < r.calmeA);
+}
+function finDesHeuresCalmes(ms: number, r: ReglesDeLaSalle): number {
+  const local = new Date(ms + DECALAGE_DU_SALON_H * 3_600_000);
+  const fin = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate(), r.calmeA, 0, 0) - DECALAGE_DU_SALON_H * 3_600_000;
+  return fin > ms ? fin : fin + 86_400_000;
+}
+function heureDeDepartEnSalle(maintenantMs: number, r: ReglesDeLaSalle): { partA: number; calme: boolean } {
+  const apresLaSalle = maintenantMs + r.salleMin * 60_000;
+  if (!dansLesHeuresCalmes(apresLaSalle, r)) return { partA: apresLaSalle, calme: false };
+  return { partA: finDesHeuresCalmes(apresLaSalle, r), calme: true };
+}
+/* ⟨/regles-de-la-salle⟩ */
+
+const MODELE_VERSEMENT = 'versement_engagement';
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+/** « de novembre 2026 », « d’octobre 2026 » : comme `duMois` (paie-du-5-pur). */
+const duMoisDit = (periode: string): string => {
+  const m = /^(\d{4})-(\d{2})$/.exec(periode ?? '');
+  const mois = m ? `${MOIS[Number(m[2]) - 1]} ${m[1]}` : periode;
+  return /^[aeiouyàâéèêîôû]/i.test(mois) ? `d’${mois}` : `de ${mois}`;
+};
+const francsDits = (n: number): string => `${String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} F`;
+/** Le numéro WhatsApp de la fiche, en 229… : comme rappels-j1. */
+const numeroIntl = (brut: string | undefined): string | null => {
+  const d = (brut ?? '').replace(/\D/g, '');
+  if (!d) return null;
+  if (d.startsWith('00229')) return d.slice(2);
+  if (d.startsWith('229')) return d;
+  if (d.length === 10 && d.startsWith('01')) return `229${d}`;
+  if (d.length === 8) return `22901${d}`;
+  return d;
+};
+
+/** Le WhatsApp « votre paie est partie », déposé en salle une seule fois. */
+async function deposeLeWhatsApp(e: Envoi, maintenantMs: number): Promise<string> {
+  if (e.genre !== 'paie' || !e.prevenir || !e.periode) return 'sans objet';
+  const t = await base(`team?id=eq.${encodeURIComponent(e.employee_id)}&select=data&limit=1`);
+  const fiche = Array.isArray(t.corps) ? t.corps[0]?.data : null;
+  const numero = numeroIntl(fiche?.phone);
+  if (!numero || !/^229\d{8,10}$/.test(numero)) {
+    await ecris(e.reference, { whatsapp: 'sans numéro sur la fiche', whatsapp_le: new Date(maintenantMs).toISOString() });
+    return 'sans numéro';
+  }
+  const docs = await base(`documents?key=in.(mnd_house_identity,mnd_auto_config)&select=key,data`);
+  const doc = (k: string) => (Array.isArray(docs.corps) ? docs.corps.find((d: any) => d.key === k)?.data : null);
+  const nomMaison = String(doc('mnd_house_identity')?.nom ?? '').trim() || 'Maison MND';
+  const regles = reglesDepuis(doc('mnd_auto_config'));
+  const { partA, calme } = heureDeDepartEnSalle(maintenantMs, regles);
+  const montant = francsDits(e.montant_xof);
+  const objet = `votre paie ${duMoisDit(e.periode)}`;
+  const prenom = String(fiche?.name ?? e.nom).trim().split(/\s+/)[0] || e.nom;
+  const id = `paie-${e.reference}-whatsapp`;
+  const ligne = {
+    id, branch_id: fiche?.branchId ?? null,
+    data: {
+      id, branchId: fiche?.branchId, type: 'paie-recue', canal: 'whatsapp', statut: 'en-attente',
+      employeeId: e.employee_id, reference: e.reference, quand: new Date(maintenantMs).toISOString(),
+      deposeLe: new Date(maintenantMs).toISOString(), partA: new Date(partA).toISOString(), ...(calme ? { calme: true } : {}), prenom,
+      colis: {
+        genre: 'whatsapp', numero, modele: MODELE_VERSEMENT, parQui: 'la Maison, automatiquement',
+        texteAuFil: `Bonjour, ${nomMaison} vous a versé ${montant} pour ${objet}. L’avez-vous bien reçu ? [Oui, bien reçu] [Pas encore]`,
+        composants: [
+          { type: 'body', parameters: [{ type: 'text', text: nomMaison }, { type: 'text', text: montant }, { type: 'text', text: objet }] },
+          /* Ce que chaque bouton rapporte au webhook : l'envoi visé. */
+          { type: 'button', sub_type: 'quick_reply', index: '0', parameters: [{ type: 'payload', payload: `PAIE_RECU:${e.reference}` }] },
+          { type: 'button', sub_type: 'quick_reply', index: '1', parameters: [{ type: 'payload', payload: `PAIE_PASENCORE:${e.reference}` }] },
+        ],
+      },
+    },
+  };
+  /* Une seule fois : un envoi déjà déposé (ou parti) ne se redépose jamais. */
+  const r = await base('envois', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: JSON.stringify(ligne) });
+  const dit = r.ok ? (calme ? 'déposé, part à la fin des heures calmes' : 'déposé en salle') : `refusé (${r.status})`;
+  await ecris(e.reference, { whatsapp: dit, whatsapp_le: new Date(maintenantMs).toISOString() });
+  return dit;
+}
+
 /* ── LE PASSAGE : les envois dus, puis les réponses attendues ── */
 async function passage(references?: string[]) {
   const bilan = { partis: 0, recus: 0, refuses: 0, attendent: 0, solde: null as number | null, note: '' };
@@ -285,8 +397,10 @@ async function passage(references?: string[]) {
       continue;
     }
     if (issue.etat === 'recu') {
-      await ecris(e.reference, { etat: 'recu', repondu_le: new Date().toISOString(), ...(issue.transaction ? { transaction_mtn: issue.transaction } : {}), note: null }, e.etat);
+      const recu = await ecris(e.reference, { etat: 'recu', repondu_le: new Date().toISOString(), ...(issue.transaction ? { transaction_mtn: issue.transaction } : {}), note: null }, e.etat);
       bilan.recus++;
+      /* LA PAIE SUR WHATSAPP : celui qui a écrit « reçu » dépose le message, une fois. */
+      if (recu) await deposeLeWhatsApp(e, Date.now());
     } else if (issue.etat === 'refuse') {
       await ecris(e.reference, { etat: 'refuse', raison: issue.raison, repondu_le: new Date().toISOString() }, e.etat);
       bilan.refuses++;

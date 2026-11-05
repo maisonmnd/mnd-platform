@@ -127,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-04-c · une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero : le message et l appel portent l adulte, le payeur, ou personne ; les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour';
+const VERSION = '2026-11-06-a · les boutons de la paie (PAIE_RECU, PAIE_PASENCORE) s écrivent sur le registre des envois MTN, venus du seul numéro à qui le message est parti, sans automate ni sonnerie ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero : le message et l appel portent l adulte, le payeur, ou personne ; les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -1379,6 +1379,10 @@ async function demandeLAccordDesNouvelles(
 /** Un bouton de Perle : ceux de ses modèles, et les deux de l'accord. Ni
     l'automate ni l'alerte générique ne les prennent : ⑤ bis·4 les traite. */
 const estUnBoutonDePerle = (id: string | undefined): boolean => !!lisLeBoutonDeLAssistant(id) || !!accordDuBouton(String(id ?? ''), '');
+/** LES BOUTONS DE LA PAIE (6 novembre 2026) : « Oui, bien reçu » et « Pas encore »
+    sous le WhatsApp que paie-mtn dépose quand MTN dit le salaire reçu. */
+const RE_BOUTON_DE_LA_PAIE = /^PAIE_(RECU|PASENCORE):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const estUnBoutonDeLaPaie = (id: string | undefined): boolean => RE_BOUTON_DE_LA_PAIE.test(String(id ?? ''));
 
 /** UN LECTEUR DE FICHES POUR UN APPEL : une RPC par numéro, gardée ; la
     table par pages une seule fois, si la RPC manque. Ne lève jamais : une
@@ -2132,6 +2136,8 @@ Deno.serve(async (req) => {
            tour ; ⑤ bis·4 les traite, et lui transmet « Changer l'heure » avec le
            rendez-vous à déplacer. */
         if (estUnBoutonDePerle(e.bouton?.id)) continue;
+        /* Les boutons de la paie (⑤ bis·1) : une réponse au registre, pas une conversation. */
+        if (estUnBoutonDeLaPaie(e.bouton?.id)) continue;
         const tiroir = tiroirDe(e.numero);
         if (tiroir !== 'clientes' && tiroir !== 'equipe') continue;
         const c = confies.get(e.numero) ?? { numero: e.numero, tiroir, waIds: [], nom: nomDe(e) };
@@ -2148,7 +2154,7 @@ Deno.serve(async (req) => {
       }
 
       const arrivees: Arrivee[] = entrants
-        .filter((e) => estNeuf(e) && !confies.has(e.numero) && !estUnBoutonDePerle(e.bouton?.id))
+        .filter((e) => estNeuf(e) && !confies.has(e.numero) && !estUnBoutonDePerle(e.bouton?.id) && !estUnBoutonDeLaPaie(e.bouton?.id))
         .map((e) => ({
           numero: e.numero,
           tiroir: tiroirDe(e.numero),
@@ -2183,6 +2189,30 @@ Deno.serve(async (req) => {
     }).eq('id', ligne.id);
     if (error) dis('bouton · écriture refusée', { motif: error.message.slice(0, 120) });
     else dis('bouton · versement', { geste: m[1] });
+  }
+
+  /* ── ⑤ bis·1 LA PAIE, REÇUE OU PAS — 6 novembre 2026 ────────────────
+     « Oui, bien reçu » (PAIE_RECU:<référence>) ou « Pas encore »
+     (PAIE_PASENCORE:<référence>), sous le WhatsApp que paie-mtn dépose en
+     salle quand MTN dit le salaire reçu. La réponse s'écrit sur l'envoi du
+     registre (paie_envois_mtn, 0165) ; « Pas encore » y prévient la direction.
+     SEUL SON NUMÉRO RÉPOND : le bouton ne vaut que venu du numéro à qui le
+     message est parti (le colis de l'envoi `paie-<référence>-whatsapp`). */
+  for (const e of entrants) {
+    if (!estNeuf(e)) continue;
+    const m = (e.bouton?.id ?? '').match(RE_BOUTON_DE_LA_PAIE);
+    if (!m) continue;
+    const reference = m[2].toLowerCase();
+    const { data: env } = await sb.from('envois').select('data').eq('id', `paie-${reference}-whatsapp`).limit(1);
+    const numeroParti = String(((env ?? [])[0] as { data?: { colis?: { numero?: string } } } | undefined)?.data?.colis?.numero ?? '').replace(/\D/g, '');
+    if (!numeroParti || numeroParti !== String(e.numero ?? '').replace(/\D/g, '')) { dis('bouton · paie, numéro étranger'); continue; }
+    const { error } = await sb.from('paie_envois_mtn').update({
+      reponse_employe: m[1].toUpperCase() === 'RECU' ? 'bien-recu' : 'pas-encore',
+      reponse_employe_le: e.quand || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq('reference', reference).eq('etat', 'recu');
+    if (error) dis('bouton · paie, écriture refusée', { motif: error.message.slice(0, 120) });
+    else dis('bouton · paie', { geste: m[1].toUpperCase() });
   }
 
   /* ── ⑤ bis·2 LA REPRISE, CONFIRMÉE D'UNE TOUCHE — 29 septembre 2026 ──

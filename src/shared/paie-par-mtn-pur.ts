@@ -47,6 +47,12 @@ export type EnvoiMtn = {
   remplace?: string | null;
   note?: string | null;
   tentatives?: number | null;
+  /** Prévenir la personne (0164) ; le WhatsApp déposé (0165) et sa réponse. */
+  prevenir?: boolean | null;
+  whatsapp?: string | null;
+  whatsapp_le?: string | null;
+  reponse_employe?: 'bien-recu' | 'pas-encore' | null;
+  reponse_employe_le?: string | null;
 };
 
 export const ETAT_DE_L_ENVOI_DIT: Record<EtatDeLEnvoi, string> = {

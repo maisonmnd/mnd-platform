@@ -32,7 +32,7 @@ export function ceQuiSeDitDeLEnvoi(e: EnvoiMtn): string {
     case 'envoi':
     case 'envoye': return `Envoyé le ${quandDit(e.envoye_le ?? undefined)} · le Trône attend la réponse de MTN · ${ref}`;
     case 'sans-reponse': return `Envoyé le ${quandDit(e.envoye_le ?? undefined)} · MTN n’a pas encore répondu : le Trône relit cette référence, sans renvoyer · ${ref}`;
-    case 'recu': return `Reçu le ${quandDit(e.repondu_le ?? undefined)}${e.transaction_mtn ? ` · transaction MTN ${e.transaction_mtn}` : ''}`;
+    case 'recu': return `Reçu le ${quandDit(e.repondu_le ?? undefined)}${e.transaction_mtn ? ` · transaction MTN ${e.transaction_mtn}` : ''}${e.whatsapp ? ` · WhatsApp : ${e.whatsapp}` : ''}${e.reponse_employe === 'bien-recu' ? ` · « Oui, bien reçu » le ${quandDit(e.reponse_employe_le ?? undefined)}` : e.reponse_employe === 'pas-encore' ? ` · « Pas encore » le ${quandDit(e.reponse_employe_le ?? undefined)} : vérifiez chez MTN` : ''}`;
     case 'refuse': return `${raisonDite(e.raison)}. Rien n’a quitté le compte, rien ne repart seul · ${ref}`;
     case 'annule': return `Annulé · ${ref}`;
   }
