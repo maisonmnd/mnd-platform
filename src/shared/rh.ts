@@ -4,6 +4,7 @@ import { bindCollection, bindDocument } from './sync';
 import { allege, copieEnMemoire, ESSAIS_D_ENVOI } from './papiers';
 import { TAILLE_MAX, typeDuFichier } from './papiers-pur';
 import type { Fichier, LigneRh, Planning, ReglagesRh } from './rh-pur';
+import type { ConfirmationDePaie, LigneDuDetail, Voie } from './paie-du-5-pur';
 
 /* ══ LA DIRECTION DES RESSOURCES HUMAINES, CÔTÉ TRÔNE — 14 octobre 2026 ══
 
@@ -43,10 +44,41 @@ export type BulletinPublie = {
   publieLe: string;
   /** Ce que bulletin.html lit pour se remplir (voir `BulletinLink`, payroll.ts). */
   lien: Record<string, string | number | boolean | undefined>;
+  /** LA PAIE DU 5 (5 novembre 2026) : le bulletin DÉPOSÉ avant d'être
+      payé, pour que chacun le confirme. `publieLe` reste vide tant que le
+      run n'est pas payé ; « Mes bulletins » ne liste que les publiés. */
+  depot?: BulletinDepose;
+  /** Le jour où sa ligne a été payée (lot MTN), dit dans Mon espace. */
+  payeLe?: string;
+};
+export type BulletinDepose = {
+  le: string;
+  cle: string;
+  voie?: Voie;
+  /** Le détail lu par la personne, la ligne des frais d'envoi comprise. */
+  lignes: LigneDuDetail[];
+  netXof: number;
+  fraisXof: number;
+  envoyeXof: number;
+  libelleDesFrais: string;
+  /** Les moments du mois, à l'heure de Cotonou (« AAAA-MM-JJTHH:mm »). */
+  confirmerAvant?: string;
+  paieLe?: string;
 };
 export const bulletinsStore = createStore<BulletinPublie[]>('mnd_bulletins', []);
 bindCollection(bulletinsStore, 'bulletins');
 export const useBulletins = (): BulletinPublie[] => enListe<BulletinPublie>(useStore(bulletinsStore)[0]);
+
+/* ── Les réponses aux bulletins (table `paie_confirmations`, 0161) ──
+   Chacune écrit la sienne depuis Mon espace (« Je confirme mon bulletin »,
+   « Je signale une erreur ») ; le souverain les lit toutes. Une ligne par
+   bulletin, même identifiant que lui. */
+export const confirmationsDePaieStore = createStore<ConfirmationDePaie[]>('mnd_paie_confirmations', []);
+bindCollection(confirmationsDePaieStore, 'paie_confirmations');
+export const useConfirmationsDePaie = (): ConfirmationDePaie[] => enListe<ConfirmationDePaie>(useStore(confirmationsDePaieStore)[0]);
+export function repondsAuBulletin(c: ConfirmationDePaie): void {
+  confirmationsDePaieStore.set((prev) => [c, ...enListe<ConfirmationDePaie>(prev).filter((x) => x.id !== c.id)]);
+}
 
 /* ── Écrire au registre ── */
 export function nouvelleLigneRh<L extends LigneRh>(o: Omit<L, 'id' | 'creeLe' | 'creePar'> & { par: string }): L {

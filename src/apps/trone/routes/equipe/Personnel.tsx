@@ -26,7 +26,8 @@ import {
 import {
   anciennete, ancienneteYears, monthLabel, shortDate, useStaff,
   type StaffMember, type StaffRisk, ordonneEquipe, staffStore,
-  useFonctions, ajouteUneFonction, FONCTIONS_AU_FAUTEUIL } from './data';
+  useFonctions, ajouteUneFonction, FONCTIONS_AU_FAUTEUIL, GROUPES_DE_PAIE, groupeDe, type GroupeDePaie } from './data';
+import { gardeDuNumero, jourDit, heureDite, aCotonou, lisLeNumero, numeroDeLaFiche, numeroDit, quandDit } from '../../../../shared/paie-du-5-pur';
 import {
   useBaremePoints, chargeSalaire, chargeAvance, chargeAvanceId, useAdvances,
   computePay, parametersFor, usePayrollParameters, useCommRates, sansChargesSociales,
@@ -178,6 +179,11 @@ type StaffForm = {
   atelier: string;
   commissionPct: string;
   paiement: string;
+  /** LA PAIE DU 5 (5 novembre 2026) : le numéro mobile money tel que saisi,
+      son opérateur, et le groupe de paie. */
+  mmNumero: string;
+  mmOperateur: string;
+  groupe: GroupeDePaie;
   /** Sa grille de prestataire, prestation → prix tel que saisi. */
   grille: Record<string, string>;
   /** Son habilitation : jusqu'à quel palier elle exécute. Vide = pas posée. */
@@ -187,12 +193,30 @@ type StaffForm = {
 const emptyForm = (branchId: string): StaffForm => ({
   name: '', role: 'Maîtresse', branchId, phone: '+229 ', email: '', compteMail: '', since: new Date().toISOString().slice(0, 10), salaire: '', auFauteuil: true, partPourboire: '1', commissionne: false, commissionTaux: '',
   matricule: '', cnssNum: '', ifu: '', contractType: 'CDI', atelier: '', commissionPct: '', paiement: '',
+  mmNumero: '', mmOperateur: '', groupe: 'equipe',
   associe: false,
   grille: {},
   palier: '',
 });
 
 const CONTRACT_TYPES = ['CDI', 'CDD', 'apprentissage', 'prestataire'] as const;
+
+/** CE QUE LA PAIE DIT DU NUMÉRO, sous le champ : illisible, ou changé depuis
+    moins de sept jours (la paie le garde jusqu'à sa revalidation). */
+function NumeroDeLaPaie({ membre, saisi }: { membre?: StaffMember; saisi: string }) {
+  const lu = saisi.trim() ? lisLeNumero(saisi) : null;
+  const mm = membre?.mobileMoney;
+  const g = gardeDuNumero(mm, Date.now());
+  const dit = lu?.erreur
+    ? lu.erreur
+    : mm && g.bloque && g.jusquAMs != null
+      ? `Changé le ${quandDit(mm.changeLe)} : la paie le garde jusqu’au ${jourDit(aCotonou(g.jusquAMs))} à ${heureDite(aCotonou(g.jusquAMs))}, ou jusqu’à sa revalidation dans la paie du mois.`
+      : mm?.revalideLe && g.revalide
+        ? `Revalidé le ${quandDit(mm.revalideLe)}${mm.revalidePar ? ` par ${mm.revalidePar}` : ''}.`
+        : mm ? `Dernier changement le ${quandDit(mm.changeLe)}.` : '';
+  if (!dit) return null;
+  return <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5, marginTop: -6, overflowWrap: 'anywhere' }}>{dit}</div>;
+}
 
 /** La grille saisie devient des francs ; une case vide n'est pas un prix. */
 const grilleDuFormulaire = (g: Record<string, string>): Record<string, number> | undefined => {
@@ -898,6 +922,7 @@ export default function Personnel() {
       commissionTaux: m.commissionTauxPct !== undefined ? String(m.commissionTauxPct) : '',
       matricule: m.matricule ?? '', cnssNum: m.cnssNum ?? '', ifu: m.ifu ?? '',
       contractType: m.contractType ?? 'CDI', atelier: m.atelier ?? '', commissionPct: m.commissionPct != null ? String(m.commissionPct) : '', paiement: m.paiement ?? '',
+      mmNumero: m.mobileMoney ? numeroDit(m.mobileMoney.numero) : '', mmOperateur: m.mobileMoney?.operateur ?? '', groupe: groupeDe(m),
       grille: Object.fromEntries(Object.entries(m.grille ?? {}).map(([k, v]) => [k, String(v)])),
       palier: m.palier ?? '',
     });
@@ -906,6 +931,13 @@ export default function Personnel() {
 
   const save = () => {
     if (!form.name.trim()) return;
+    /* LE NUMÉRO MOBILE MONEY SE LIT AVANT D'ÊTRE GARDÉ (la paie du 5) : un
+       salaire envoyé à un numéro mal écrit ne revient pas. Changé, il repart
+       à zéro et la paie le garde sept jours ; identique, il garde son
+       histoire. */
+    const avantMm = editId ? staff.find((x) => x.id === editId)?.mobileMoney : undefined;
+    const mm = numeroDeLaFiche(avantMm, form.mmNumero, form.mmOperateur, new Date().toISOString(), me?.name ?? session?.user?.email ?? undefined);
+    if (mm.erreur) { toast(`Numéro mobile money : ${mm.erreur}`); return; }
     const salaireXof = Math.max(0, parseInt(form.salaire, 10) || 0);
     /* Champs du dossier paie communs à la création et à la modification. */
     const dossier = {
@@ -916,6 +948,8 @@ export default function Personnel() {
       atelier: form.atelier.trim() || undefined,
       commissionPct: form.commissionPct.trim() === '' ? undefined : Math.max(0, Math.min(100, parseFloat(form.commissionPct) || 0)),
       paiement: form.paiement.trim() || undefined,
+      mobileMoney: mm.mobileMoney,
+      groupe: form.groupe,
       grille: grilleDuFormulaire(form.grille),
       /* L'HABILITATION — vide = pas posée, jamais « Fondation » par défaut. */
       palier: (LES_PALIERS as readonly string[]).includes(form.palier) ? (form.palier as StaffMember['palier']) : undefined,
@@ -1846,7 +1880,28 @@ export default function Personnel() {
               <Field label="Atelier d’affectation"><Input value={form.atelier} onChange={(e) => setForm({ ...form, atelier: e.target.value })} /></Field>
               <Field label="Commission sur prestations (%)"><Input inputMode="decimal" value={form.commissionPct} onChange={(e) => setForm({ ...form, commissionPct: e.target.value })} placeholder="0" /></Field>
             </div>
-            <Field label="Coordonnées de paiement (Mobile Money / banque)">
+            {/* LA PAIE DU 5 (5 novembre 2026) : le numéro où part le salaire,
+                son opérateur, et le groupe. Un numéro MTN part par le fichier
+                du portail MTN, un numéro Moov par FedaPay. */}
+            <div className="tr-grid tr-grid--2">
+              <Field label="Numéro mobile money (paie)">
+                <Input inputMode="tel" value={form.mmNumero} placeholder="01 00 00 00 00" disabled={!estDirection} onChange={(e) => setForm({ ...form, mmNumero: e.target.value })} />
+              </Field>
+              <Field label="Opérateur">
+                <Select value={form.mmOperateur} disabled={!estDirection} onChange={(e) => setForm({ ...form, mmOperateur: e.target.value })}>
+                  <option value="">À choisir</option>
+                  <option value="MTN">MTN, par le portail MTN</option>
+                  <option value="Moov">Moov, par FedaPay</option>
+                </Select>
+              </Field>
+            </div>
+            <NumeroDeLaPaie membre={editId ? staff.find((x) => x.id === editId) : undefined} saisi={form.mmNumero} />
+            <Field label="Groupe de paie">
+              <Select value={form.groupe} disabled={!estDirection} onChange={(e) => setForm({ ...form, groupe: e.target.value as GroupeDePaie })}>
+                {(Object.keys(GROUPES_DE_PAIE) as GroupeDePaie[]).map((g) => <option key={g} value={g}>{GROUPES_DE_PAIE[g]}, Maison MND</option>)}
+              </Select>
+            </Field>
+            <Field label="Autres coordonnées de paiement (banque, note)">
               <Input value={form.paiement} onChange={(e) => setForm({ ...form, paiement: e.target.value })} />
             </Field>
 

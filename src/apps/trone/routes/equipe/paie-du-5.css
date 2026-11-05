@@ -1,0 +1,91 @@
+/* ══ LA PAIE DU 5 · 5 novembre 2026 (lot 1) ════════════════════════════
+   Au plus près de la maquette VomoheW35… : indigo et cuivre, aucun vert,
+   aucun rouge, aucun jaune. Le bloc de la direction (`.p5`) vit dans le run
+   du mois ; le bulletin de Mon espace (`.p5-tel`) chez chacun. Tout tient à
+   390 px : des colonnes `minmax(0, 1fr)`, des montants qui ne cassent pas,
+   des textes qui passent à la ligne. */
+
+.p5 { border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface-card); overflow: hidden; margin-top: 14px; min-width: 0; }
+.p5__haut { padding: 16px 16px 12px; display: grid; gap: 4px; border-bottom: 1px solid var(--hairline); }
+.p5__sourcil { font: 600 11px var(--font-sans, 'Jost', sans-serif); letter-spacing: .16em; text-transform: uppercase; color: var(--copper-700); overflow-wrap: anywhere; }
+.p5__titre { margin: 0; font-family: var(--font-serif); font-weight: 400; font-size: 22px; line-height: 1.2; color: var(--color-indigo); }
+.p5__doux { margin: 0; color: var(--ink-soft); font-size: 12.5px; line-height: 1.55; overflow-wrap: anywhere; }
+
+.p5__resume { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--hairline); }
+.p5__resume > div { padding: 10px 16px; display: grid; gap: 2px; min-width: 0; }
+.p5__resume > div + div { border-left: 1px solid var(--hairline); }
+.p5__resume b { font-family: var(--font-serif); font-weight: 400; font-size: 22px; line-height: 1.1; color: var(--color-indigo); font-variant-numeric: lining-nums tabular-nums; overflow-wrap: anywhere; }
+.p5__resume small { font-size: 12px; color: var(--ink-soft); }
+@media (max-width: 560px) {
+  .p5__resume { grid-template-columns: minmax(0, 1fr); }
+  .p5__resume > div + div { border-left: 0; border-top: 1px solid var(--hairline); }
+}
+
+.p5__soldes { padding: 9px 16px; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; border-bottom: 1px solid var(--hairline); background: var(--indigo-50); color: var(--color-indigo); }
+.p5__soldes span { min-width: 0; overflow-wrap: anywhere; }
+.p5__note { padding: 10px 16px; border-bottom: 1px solid var(--hairline); display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; font-size: 12.5px; line-height: 1.5; }
+.p5__note > span { flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; }
+.p5__note--cuivre { border-left: 3px solid var(--color-copper); background: var(--copper-50); }
+
+.p5__groupe { padding: 10px 16px 4px; font: 600 11px var(--font-sans, 'Jost', sans-serif); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.p5-ligne { border-bottom: 1px solid var(--hairline); }
+.p5-ligne > button { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 16px; }
+.p5-ligne > button:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.p5-ini { width: 34px; height: 34px; border-radius: 50%; background: var(--copper-50); display: grid; place-items: center; font: 600 12px var(--font-sans, 'Jost', sans-serif); color: var(--color-indigo); }
+.p5-qui { min-width: 0; display: grid; gap: 2px; }
+.p5-qui b { font-weight: 500; color: var(--color-indigo); overflow-wrap: anywhere; }
+.p5-qui small { color: var(--ink-soft); font-size: 12px; overflow-wrap: anywhere; }
+.p5-droite { display: grid; gap: 4px; justify-items: end; }
+.p5-net { font: 500 15px var(--font-sans, 'Jost', sans-serif); color: var(--color-indigo); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.p5-pill { font: 600 10px var(--font-sans, 'Jost', sans-serif); letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 3px; white-space: nowrap; border: 1px solid transparent; }
+.p5-pill--fait { background: var(--indigo-100); color: var(--color-indigo); }
+.p5-pill--alerte { background: var(--color-copper); color: var(--color-ivoire); }
+.p5-pill--attente { background: transparent; color: var(--ink-soft); border-color: var(--hairline); }
+
+.p5-detail { padding: 0 16px 14px 60px; display: grid; gap: 4px; font-size: 13px; }
+.p5-detail__rang { display: flex; justify-content: space-between; gap: 12px; max-width: 440px; font-variant-numeric: tabular-nums; }
+.p5-detail__rang span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.p5-detail__rang span:last-child { white-space: nowrap; }
+.p5-detail__rang--total { border-top: 1px solid var(--hairline); padding-top: 4px; font-weight: 600; color: var(--color-indigo); }
+.p5-detail__rang--envoye { color: var(--copper-700); font-weight: 600; }
+.p5-detail p { margin: 4px 0 0; color: var(--ink-soft); font-size: 12.5px; line-height: 1.5; max-width: 62ch; overflow-wrap: anywhere; }
+.p5-detail p b { color: var(--color-indigo); font-weight: 500; }
+.p5-detail__gestes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+@media (max-width: 480px) { .p5-detail { padding-left: 16px; } }
+@media (prefers-reduced-motion: no-preference) {
+  .p5-detail { animation: p5-ouvre .18s ease-out; }
+  @keyframes p5-ouvre { from { opacity: .4; } to { opacity: 1; } }
+}
+
+.p5__pied { padding: 14px 16px; display: grid; gap: 10px; }
+.p5__pied > * { min-width: 0; }
+.p5__programme { background: var(--color-indigo); color: var(--color-ivoire); padding: 11px 14px; border-radius: 4px; font-size: 13.5px; line-height: 1.5; display: grid; gap: 4px; overflow-wrap: anywhere; }
+.p5__voie { border: 1px solid var(--hairline); border-radius: var(--radius-md); padding: 12px 14px; display: grid; gap: 8px; }
+.p5__voie h4 { margin: 0; font: 600 11.5px var(--font-sans, 'Jost', sans-serif); letter-spacing: .14em; text-transform: uppercase; color: var(--color-indigo); }
+.p5__voie p { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--ink-soft); overflow-wrap: anywhere; }
+.p5__lot { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.p5__lot .mnd-field { min-width: 0; }
+@media (max-width: 480px) { .p5__lot { grid-template-columns: minmax(0, 1fr); } }
+.p5__erreur { font-size: 12.5px; color: var(--copper-700); border-left: 2px solid var(--color-copper); padding-left: 8px; overflow-wrap: anywhere; }
+.p5__lots { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 12.5px; color: var(--ink-soft); }
+.p5__lots li { overflow-wrap: anywhere; }
+
+/* ── Mon espace : le bulletin du mois ── */
+.p5-tel { display: grid; gap: 10px; }
+.p5-tel__barre { font: 600 11px var(--font-sans, 'Jost', sans-serif) !important; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.p5-tel__net { font-family: var(--font-serif); font-size: 32px !important; font-weight: 400; line-height: 1; color: var(--color-indigo) !important; font-variant-numeric: lining-nums tabular-nums; }
+.p5-tel__lignes { display: grid; gap: 3px; font-size: 13px; }
+.p5-tel__lignes > div { display: flex; justify-content: space-between; gap: 10px; font-variant-numeric: tabular-nums; }
+.p5-tel__lignes > div > span { font-size: 13px !important; }
+.p5-tel__lignes > div > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.p5-tel__lignes > div > span:last-child { white-space: nowrap; color: var(--ink) !important; }
+.p5-tel__total > span { font-weight: 600; color: var(--color-indigo) !important; }
+.p5-tel__envoye > span { font-weight: 600; color: var(--copper-700) !important; }
+.p5-tel__total { border-top: 1px solid var(--hairline); padding-top: 4px; }
+.p5-tel__etat { font-size: 13.5px !important; line-height: 1.55; border-radius: 4px; padding: 10px 12px; overflow-wrap: anywhere; }
+.p5-tel__etat--fait { background: var(--indigo-50); color: var(--color-indigo) !important; }
+.p5-tel__etat--attente { border: 1px solid var(--hairline); color: var(--ink) !important; }
+.p5-tel__etat--alerte { border-left: 3px solid var(--color-copper); background: var(--copper-50); color: var(--ink) !important; }
+.p5-tel__gestes { display: grid; gap: 8px; }
+.p5-tel__gestes .mnd-btn { width: 100%; }
+.p5-tel textarea { width: 100%; box-sizing: border-box; }

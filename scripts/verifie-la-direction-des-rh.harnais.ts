@@ -11,7 +11,7 @@
      départ, obligations, ce qui attend la direction ;
    · la 0130 dit ce que le Trône suppose (éprouvée à part dans PGlite).
    Les attentes viennent de la PROMESSE, jamais du calcul du code. */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { CHAMPS_DU_DOSSIER, dossiersDuPersonnelStore, staffStore, type StaffMember } from '../src/apps/trone/routes/equipe/data';
 import { variablesDuMois } from '../src/apps/trone/routes/equipe/variables-du-mois';
 import {
@@ -58,7 +58,12 @@ dossiersDuPersonnelStore.set((prev) => [...prev, { id: 'orphelin', branchId: 'b'
 staffStore.set((prev) => prev.filter((m) => m.id !== 'z'));
 dit('une fiche retirée emporte son dossier ; un dossier arrivé avant sa fiche reste', ['a', 'orphelin'], (disque('mnd_team_dossiers') as { id: string }[]).map((d) => d.id).sort());
 const sql = lis('supabase/migrations/0130_la_direction_des_ressources_humaines.sql');
-const listeSql = /create or replace function public\.champs_du_dossier\(\)[\s\S]*?array\[([\s\S]*?)\]::text\[\]/.exec(sql)?.[1]?.match(/'([^']+)'/g)?.map((x) => x.slice(1, -1)) ?? [];
+/* LA DERNIÈRE MIGRATION QUI LA DÉFINIT FAIT FOI (0161, la paie du 5, y
+   ajoute `mobileMoney`) : c'est elle que la base exécute en dernier. */
+const RE_CHAMPS = /create or replace function public\.champs_du_dossier\(\)[\s\S]*?array\[([\s\S]*?)\]::text\[\]/;
+const derniereDefinition = readdirSync('supabase/migrations').filter((f) => /^\d{4}_.*\.sql$/.test(f)).sort()
+  .map((f) => lis(`supabase/migrations/${f}`)).filter((t) => RE_CHAMPS.test(t)).at(-1) ?? sql;
+const listeSql = RE_CHAMPS.exec(derniereDefinition)?.[1]?.match(/'([^']+)'/g)?.map((x) => x.slice(1, -1)) ?? [];
 dit('la liste des champs privés est la même dans le Trône et dans la base', [...CHAMPS_DU_DOSSIER].sort(), listeSql.sort());
 
 /* ── 2. LES QUATRE FUITES ── */

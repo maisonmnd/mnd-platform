@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La paie du 5</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@400;500;600&display=swap">
+<style>
+/* Mise en page : une colonne de lecture (760 px), la frise du mois en tête, puis Mon espace (le téléphone de l'employée) et l'écran de validation, posés comme au Trône. */
+:root {
+  --ivoire: #F6F1E7; --carte: #FFFDF8; --indigo: #1E2150; --cuivre: #B97A4A; --cuivre-fonce: #9E6238;
+  --encre: #1F1D26; --encre-douce: #6A6474; --trait: rgba(30, 33, 80, .14); --pale: #F1E7D9;
+  --indigo-pale: #E7E8F2; --cuivre-pale: #F3E7DB; --gris: #77717F; --gris-pale: #ECE8E1; --sur-indigo: #F6F1E7;
+  --serif: "Cormorant Garamond", "Noto Serif", Georgia, serif;
+  --sans: "Jost", "Noto Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --encre-douce: #A9A3B3; --trait: rgba(236, 231, 221, .16); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --gris: #A9A3B3; --gris-pale: #2A2735; --sur-indigo: #15161F; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --encre-douce: #A9A3B3; --trait: rgba(236, 231, 221, .16); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --gris: #A9A3B3; --gris-pale: #2A2735; --sur-indigo: #15161F; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ivoire); color: var(--encre); font: 400 15px/1.6 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 64px; }
+main { max-width: 760px; margin: 0 auto; display: grid; gap: 48px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 500; color: var(--indigo); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(36px, 8vw, 52px); }
+h2 { font-size: clamp(26px, 5.6vw, 32px); padding-bottom: 8px; border-bottom: 1px solid var(--trait); }
+h3 { font-size: 22px; }
+p { margin: 0; max-width: 65ch; }
+.sourcil { font: 600 11px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre-fonce); }
+.doux { color: var(--encre-douce); }
+.tete { display: grid; gap: 12px; background: var(--indigo); color: var(--sur-indigo); padding: 28px 24px; border-radius: 6px; }
+.tete h1 { color: var(--sur-indigo); }
+.tete .sourcil { color: var(--cuivre); }
+.tete .bandeau { background: transparent; border: 1px solid rgba(246, 241, 231, .28); color: var(--sur-indigo); opacity: .9; }
+.bandeau { border: 1px dashed var(--cuivre); background: var(--pale); padding: 10px 14px; border-radius: 4px; font-size: 13.5px; }
+section { display: grid; gap: 16px; }
+.num { font-variant-numeric: tabular-nums; }
+
+.frise { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.temps { background: var(--carte); border: 1px solid var(--trait); border-radius: 4px; padding: 14px; display: grid; gap: 6px; align-content: start; }
+.temps b { font: 600 22px/1.1 var(--serif); color: var(--cuivre-fonce); }
+.temps strong { font-weight: 600; color: var(--indigo); line-height: 1.3; }
+.temps small { color: var(--encre-douce); font-size: 13px; line-height: 1.5; }
+.temps.toi { border-color: var(--cuivre); box-shadow: inset 0 3px 0 var(--cuivre); }
+@media (max-width: 720px) { .frise { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 440px) { .frise { grid-template-columns: minmax(0, 1fr); } }
+
+/* Mon espace : le téléphone de l'employée */
+.duo { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 640px) { .duo { grid-template-columns: minmax(0, 1fr); } }
+.tel { background: var(--carte); border: 1px solid var(--trait); border-radius: 22px; padding: 18px 16px; display: grid; gap: 12px; max-width: 300px; }
+.tel__barre { font: 600 11px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--encre-douce); }
+.tel__net { font: 600 34px/1 var(--serif); color: var(--indigo); font-variant-numeric: tabular-nums; }
+.tel__lignes { display: grid; gap: 3px; font-size: 13px; }
+.tel__lignes div { display: flex; justify-content: space-between; gap: 10px; font-variant-numeric: tabular-nums; }
+.tel textarea { width: 100%; min-height: 64px; font: 400 14px var(--sans); color: var(--encre); background: var(--ivoire); border: 1px solid var(--trait); border-radius: 4px; padding: 8px; resize: vertical; }
+.tel textarea:focus-visible { outline: 2px solid var(--cuivre); }
+.tel__etat { font-size: 13.5px; border-radius: 4px; padding: 10px 12px; }
+.liste-doux { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; }
+
+/* L'écran de validation */
+.ecran { background: var(--carte); border: 1px solid var(--trait); border-radius: 8px; overflow: hidden; }
+.ecran__haut { padding: 18px 18px 14px; display: grid; gap: 4px; border-bottom: 1px solid var(--trait); }
+.resume { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--trait); }
+.resume > div { padding: 12px 18px; display: grid; gap: 2px; }
+.resume > div + div { border-left: 1px solid var(--trait); }
+.resume b { font: 600 24px/1.1 var(--serif); color: var(--indigo); }
+.resume small { font-size: 12.5px; color: var(--encre-douce); }
+@media (max-width: 560px) { .resume { grid-template-columns: minmax(0, 1fr); } .resume > div + div { border-left: 0; border-top: 1px solid var(--trait); } }
+.soldes { padding: 10px 18px; display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; border-bottom: 1px solid var(--trait); background: var(--gris-pale); }
+.soldes span { display: inline-flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.groupe { padding: 10px 18px 4px; font: 600 11px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--encre-douce); }
+.ligne { border-bottom: 1px solid var(--trait); }
+.ligne > button { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 18px; }
+.ligne > button:focus-visible { outline: 2px solid var(--cuivre); outline-offset: -2px; }
+.ini { width: 38px; height: 38px; border-radius: 50%; background: var(--pale); display: grid; place-items: center; font: 600 13px var(--sans); color: var(--indigo); }
+.qui { min-width: 0; display: grid; gap: 2px; }
+.qui b { font-weight: 600; }
+.qui small { color: var(--encre-douce); font-size: 12.5px; overflow-wrap: anywhere; }
+.droite { display: grid; gap: 4px; justify-items: end; }
+.net { font: 600 17px var(--sans); color: var(--indigo); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pill { font: 600 10.5px var(--sans); letter-spacing: .08em; text-transform: uppercase; padding: 3px 9px; border-radius: 3px; white-space: nowrap; border: 1px solid transparent; }
+.pill--fait { background: var(--indigo-pale); color: var(--indigo); }
+.pill--alerte { background: var(--cuivre); color: var(--carte); }
+.pill--attente { background: transparent; color: var(--gris); border-color: var(--trait); }
+.detail { padding: 0 18px 14px 68px; display: grid; gap: 4px; font-size: 13.5px; }
+.detail div { display: flex; justify-content: space-between; gap: 12px; max-width: 420px; font-variant-numeric: tabular-nums; }
+.detail .total { border-top: 1px solid var(--trait); padding-top: 4px; font-weight: 600; color: var(--indigo); }
+.detail p { color: var(--encre-douce); font-size: 12.5px; margin-top: 4px; }
+@media (max-width: 480px) { .detail { padding-left: 18px; } }
+.ecran__pied { padding: 16px 18px; display: grid; gap: 10px; }
+.btn { all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 13px 18px; border-radius: 4px; font: 600 12px var(--sans); letter-spacing: .14em; text-transform: uppercase; }
+.btn--plein { background: var(--cuivre); color: #FFFDF8; }
+.btn--plein:hover { filter: brightness(1.1); }
+.btn--creux { border: 1px solid var(--indigo); color: var(--indigo); }
+.btn--lien { color: var(--indigo); padding: 6px 0; text-decoration: underline; text-underline-offset: 3px; letter-spacing: .06em; }
+.btn:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.programme { border: 0; background: var(--indigo); color: var(--sur-indigo); padding: 12px 14px; border-radius: 4px; font-size: 14px; display: grid; gap: 6px; }
+
+.envois { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.envois li { background: var(--carte); border: 1px solid var(--trait); border-radius: 6px; padding: 10px 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline; font-size: 14px; }
+.envois small { grid-column: 1 / -1; color: var(--encre-douce); font-size: 12.5px; overflow-wrap: anywhere; }
+
+.voies { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.voie { background: var(--carte); border: 1px solid var(--trait); border-radius: 6px; padding: 16px; display: grid; gap: 8px; align-content: start; }
+.voie ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
+@media (max-width: 620px) { .voies { grid-template-columns: minmax(0, 1fr); } }
+.regle { border-left: 3px solid var(--cuivre); padding: 8px 14px; background: var(--carte); font-size: 14.5px; }
+.liste { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.questions { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
+.questions li b { color: var(--indigo); font-weight: 600; }
+footer { font-size: 12.5px; color: var(--encre-douce); border-top: 1px solid var(--trait); padding-top: 14px; }
+@media (prefers-reduced-motion: no-preference) { .detail { animation: ouvre .18s ease-out; } @keyframes ouvre { from { opacity: .4; transform: translateY(-3px); } to { opacity: 1; transform: none; } } }
+</style>
+</head>
+<body>
+<main>
+  <header class="tete">
+    <span class="sourcil">Maquette · Équipe › Ressources humaines › La paie</span>
+    <h1>La paie du 5.</h1>
+    <p>Le 1er, l'agent des ressources humaines dépose chaque bulletin dans Mon espace. Chacun le confirme jusqu'au 5 à midi. Vous ou Brice validez l'après-midi, et le Trône paie le 5 à 18 h.</p>
+    <p class="bandeau">Maquette du 5 novembre 2026, version 5, validée (« construis la paie »). Construite au Trône, lot 1, le 5 novembre 2026 : le numéro mobile money sur chaque fiche, le dépôt des bulletins dans Mon espace, « Je confirme mon bulletin » et « Je signale une erreur », « Valider et programmer », le fichier du portail MTN et son numéro de lot, les garde-fous. Au lot 2 : le dépôt seul du 1er par l'agent, les rappels, l'envoi FedaPay des numéros Moov. Les personnes et les montants sont des exemples, calculés avec le barème actuel du Trône, qui attend encore la relecture du comptable.</p>
+  </header>
+
+  <section aria-labelledby="t-mois">
+    <h2 id="t-mois">Le mois en quatre temps</h2>
+    <div class="frise">
+      <div class="temps"><b>Le 1er, 8 h</b><strong>L'agent prépare</strong><small>Il relit pointages, primes, pourboires, avances et retenues, puis dépose chaque bulletin dans Mon espace. Chacun reçoit une notification.</small></div>
+      <div class="temps"><b>Du 1er au 5, midi</b><strong>Chacun confirme</strong><small>« Je confirme » ou « Je signale une erreur », avec un mot. L'agent corrige, la personne confirme à nouveau.</small></div>
+      <div class="temps toi"><b>Le 5, de 12 h à 18 h</b><strong>Vous ou Brice validez</strong><small>Un seul toucher pour toutes les fiches confirmées. Rappels à 12 h et à 16 h.</small></div>
+      <div class="temps"><b>Le 5, 18 h</b><strong>Le Trône paie</strong><small>Chaque net confirmé et validé part. Un 5 qui tombe un dimanche passe au lundi 6, aux mêmes heures.</small></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-groupes">
+    <h2 id="t-groupes">L'équipe</h2>
+    <div class="voies">
+      <div class="voie">
+        <h3>L'équipe</h3>
+        <ul>
+          <li>Les employés de la Maison MND : fauteuil, accueil, praticiennes, direction.</li>
+          <li>Au Trône : une fiche par personne avec son rôle, son groupe, son numéro mobile money et son salaire.</li>
+          <li>Payée le 5 à 18 h, après la confirmation de chacun dans Mon espace.</li>
+          <li>Son propre lot MTN, avec son numéro de lot.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-espace">
+    <h2 id="t-espace">Dans Mon espace</h2>
+    <div class="duo">
+      <div class="tel" id="tel">
+        <span class="tel__barre">Mon espace · Mon bulletin</span>
+        <span class="doux" style="font-size:13px">Novembre 2026 · A. K., maîtresse de fauteuil</span>
+        <span class="tel__net" id="tel-net">0 F</span>
+        <div class="tel__lignes" id="tel-lignes"></div>
+        <div id="tel-gestes" style="display:grid;gap:8px">
+          <button class="btn btn--plein" type="button" id="je-confirme">Je confirme mon bulletin</button>
+          <button class="btn btn--creux" type="button" id="je-signale">Je signale une erreur</button>
+        </div>
+        <div id="tel-erreur" hidden style="display:grid;gap:8px">
+          <label for="mot" class="doux" style="font-size:13px">Ce qui ne va pas</label>
+          <textarea id="mot">Il manque ma prime du samedi 14 novembre 2026.</textarea>
+          <button class="btn btn--plein" type="button" id="envoyer-mot">Envoyer à l'agent</button>
+        </div>
+        <div id="tel-etat" class="tel__etat" hidden></div>
+      </div>
+      <div style="display:grid;gap:12px;align-content:start">
+        <p>Chacun voit son bulletin résumé et le détail complet en dessous. Deux gestes seulement.</p>
+        <ul class="liste-doux">
+          <li><b>Je confirme</b> : la fiche passe dans la liste à valider.</li>
+          <li><b>Je signale une erreur</b> : un mot part à l'agent. Il corrige le bulletin, et la personne le retrouve à confirmer.</li>
+          <li>Pas confirmée le 5 à midi : la fiche n'est pas payée le 5. Elle part dès qu'elle est confirmée et que vous ou Brice l'avez validée.</li>
+        </ul>
+        <p class="doux" style="font-size:13.5px">Essayez les deux boutons du téléphone.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-ecran">
+    <h2 id="t-ecran">L'écran du 5 à midi</h2>
+    <p class="doux">Ce que vous ou Brice voyez au Trône. Touchez une personne pour son bulletin résumé.</p>
+    <div class="ecran">
+      <div class="ecran__haut">
+        <span class="sourcil">À valider avant le samedi 5 décembre 2026, 18 h</span>
+        <h3>La paie de novembre 2026</h3>
+      </div>
+      <div class="resume">
+        <div><b class="num" id="r-nb">0</b><small>fiches confirmées, payées à 18 h</small></div>
+        <div><b class="num" id="r-total">0 F</b><small>nets à envoyer</small></div>
+        <div><b class="num" id="r-reste">0</b><small>en attente ou signalées</small></div>
+      </div>
+      <div class="soldes" id="soldes"></div>
+      <div id="lignes"></div>
+      <div class="ecran__pied" id="pied">
+        <button class="btn btn--plein" id="valider" type="button">Valider et programmer pour 18 h</button>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-soir">
+    <h2 id="t-soir">Le 5 au soir</h2>
+    <p>Une notification à 18 h 05 donne l'état de chaque envoi. Un envoi qui échoue n'est jamais renvoyé seul : il attend votre choix.</p>
+    <ul class="envois">
+      <li><span><b>R. D.</b> · 98 200 F par FedaPay</span><span class="pill pill--fait">Reçu</span><small>Moov · parti à 18 h 00 · référence PAIE-2026-11-RD · bulletin dans Mon espace</small></li>
+      <li><span><b>A. K.</b> · MTN</span><span class="pill pill--attente">Liste prête</span><small>Les envois MTN sont dans la liste du portail MTN entreprise. Vous la déposez ; le portail affiche une seule fois le numéro du lot (batch ID). Vous le collez dans « C'est envoyé » : il reste sur chaque fiche, et les fiches passent à « payé ».</small></li>
+      <li><span><b>M. A.</b> · en retard</span><span class="pill pill--alerte">Pas confirmée</span><small>Confirmée le 6 à 10 h 12, validée par Brice à 11 h : payée au passage suivant, le 6 à 18 h.</small></li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="t-voies">
+    <h2 id="t-voies">MoMoPay ou FedaPay</h2>
+    <div class="voies">
+      <div class="voie">
+        <h3>MoMoPay, décaissement</h3>
+        <ul>
+          <li>Compte de décaissement de la Maison (MAISON MND BULK), déjà activé.</li>
+          <li>Vers les numéros MTN seulement.</li>
+          <li>Vous l'utilisez par le portail MTN entreprise : le Trône prépare la liste des envois MTN à 18 h, au format du portail (HDR,Salary, puis une ligne par personne). Vous la déposez.</li>
+          <li>Le portail affiche une seule fois le numéro du lot (batch ID). « C'est envoyé » ne se touche qu'avec ce numéro : il est gardé sur la paie du mois et sur chaque fiche, pour retrouver le lot chez MTN.</li>
+        </ul>
+      </div>
+      <div class="voie">
+        <h3>FedaPay</h3>
+        <ul>
+          <li>Depuis le solde FedaPay de la Maison, déjà relié au Trône pour MND PAY.</li>
+          <li>Vers MTN et Moov.</li>
+          <li>Entièrement automatique à 18 h, dès que FedaPay ouvre les envois (« payouts ») sur le compte.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="regle">Votre choix : un numéro MTN part par la liste du portail MoMoPay (le compte de décaissement), un numéro Moov part par FedaPay, automatiquement. La Maison ne prend pas en charge les frais MoMo : ils sont retirés du montant envoyé.</p>
+  </section>
+
+  <section aria-labelledby="t-gardes">
+    <h2 id="t-gardes">Les garde-fous</h2>
+    <ul class="liste">
+      <li>Rien ne part sans deux accords : celui de la personne sur son bulletin, puis l'empreinte de Yéman ou de Brice. Chacun voit qui a validé.</li>
+      <li>Les frais MoMo ne sont pas pris en charge par la Maison. Le Trône les retire du montant envoyé, et le bulletin les montre sur une ligne « Frais d'envoi MoMo » : chacun sait pourquoi il reçoit un peu moins que son net.</li>
+      <li>Le total ne dépasse jamais la masse salariale validée. Chaque net reste sous le net du mois d'avant plus 25 % : au-delà, il attend votre accord.</li>
+      <li>Un numéro changé dans les 7 derniers jours est bloqué jusqu'à ce que vous le revalidiez.</li>
+      <li>Chaque bulletin porte une référence unique : un même bulletin ne peut pas être payé deux fois.</li>
+      <li>Jusqu'à 17 h 59 le 5, vous pouvez tout annuler d'un toucher.</li>
+      <li>Chaque envoi est noté au Journal des gestes et dans la caisse qui l'a payé.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="t-avant">
+    <h2 id="t-avant">Avant d'allumer</h2>
+    <ul class="liste">
+      <li>MTN : me montrer le modèle de fichier d'envoi groupé du portail entreprise (une capture sans mot de passe ni code), pour que la liste du Trône s'y dépose telle quelle.</li>
+      <li>FedaPay : demander l'ouverture des envois (payouts) et vérifier les frais par envoi.</li>
+      <li>Les soldes : alimenter les comptes avant le 5 à midi.</li>
+      <li>Les fiches : un numéro mobile money au nom de chaque personne, et chacun relié à son Mon espace.</li>
+      <li>Le comptable : valider le barème (CNSS, impôt sur les salaires) dans les réglages de la paie.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="t-questions">
+    <h2 id="t-questions">Vos choix du 5 novembre 2026</h2>
+    <ol class="questions">
+      <li><b>La fiche</b> : chacun confirme le bulletin préparé, ou signale une erreur.</li>
+      <li><b>Le calendrier</b> : confirmation jusqu'au 5 à midi, paie le 5 à 18 h.</li>
+      <li><b>En retard</b> : payée dès qu'elle est confirmée et validée.</li>
+      <li><b>Le 5 tombe un dimanche</b> : tout passe au lundi 6.</li>
+      <li><b>L'empreinte</b> : vous ou Brice.</li>
+      <li><b>Les frais MoMo</b> : pas pour la Maison ; retirés du montant envoyé et montrés sur le bulletin.</li>
+      <li><b>Les bulletins</b> : dans Mon espace seulement, rien sur WhatsApp.</li>
+      <li><b>La voie</b> : MTN par la liste du portail MoMoPay, Moov par FedaPay.</li>
+      <li><b>Le plafond</b> : le net du mois d'avant plus 25 % ; au-delà, votre accord.</li>
+    </ol>
+  </section>
+
+  <footer>Maquette pour Yéman, Maison MND, 5 novembre 2026. Elle se construit dans le Trône après votre accord.</footer>
+</main>
+
+<script>
+(() => {
+  /* Le calcul de la maquette : CNSS salariale 3,6 % et impôt par tranches sur le brut (barème actuel du Trône, à faire valider par le comptable). */
+  const TRANCHES = [[60000, 0], [150000, .10], [250000, .15], [500000, .19], [Infinity, .30]];
+  const its = (brut) => { let r = 0, bas = 0; for (const [haut, taux] of TRANCHES) { if (brut > bas) r += (Math.min(brut, haut) - bas) * taux; bas = haut; } return Math.round(r); };
+  const F = (n) => n.toLocaleString('fr-FR').replace(/ | /g, ' ') + ' F';
+  const GENS = [
+    { ini: 'A. K.', role: 'Maîtresse de fauteuil', brut: 175000, prime: 15000, avance: 0, retenue: 0, voie: 'MTN', etat: 'confirme', quand: 'confirmé le 2 à 9 h 14' },
+    { ini: 'R. D.', role: 'Coiffeuse', brut: 110000, prime: 5000, avance: 10000, retenue: 0, voie: 'Moov', etat: 'confirme', quand: 'confirmé le 1er à 20 h 02' },
+    { ini: 'S. H.', role: 'Coiffeuse', brut: 90000, prime: 0, avance: 0, retenue: 5000, voie: 'MTN', etat: 'confirme', quand: 'confirmé le 4 à 18 h 40' },
+    { ini: 'P. G.', role: 'Praticienne', brut: 130000, prime: 10000, avance: 20000, retenue: 0, voie: 'MTN', etat: 'signale', quand: 'erreur signalée le 3 : « il manque ma prime du 14 »' },
+    { ini: 'J. T.', role: 'Praticienne', brut: 70000, prime: 0, avance: 0, retenue: 0, voie: 'Moov', etat: 'confirme', quand: 'confirmé le 1er à 11 h 30' },
+    { ini: 'M. A.', role: 'Accueil', brut: 85000, prime: 0, avance: 0, retenue: 0, voie: 'MTN', etat: 'attente', quand: 'pas encore confirmé' },
+  ];
+  for (const g of GENS) { const b = g.brut + g.prime; g.cnss = Math.round(b * .036); g.its = its(b); g.net = b - g.cnss - g.its - g.avance - g.retenue; }
+  const detailDe = (g) => `<div><span>Salaire de base</span><span>${F(g.brut)}</span></div>${g.prime ? `<div><span>Primes et pourboires</span><span>${F(g.prime)}</span></div>` : ''}<div><span>CNSS (3,6 %)</span><span>− ${F(g.cnss)}</span></div><div><span>Impôt sur les salaires</span><span>− ${F(g.its)}</span></div>${g.avance ? `<div><span>Avance du mois</span><span>− ${F(g.avance)}</span></div>` : ''}${g.retenue ? `<div><span>Retenue de prêt</span><span>− ${F(g.retenue)}</span></div>` : ''}`;
+
+  /* Mon espace */
+  const moi = GENS[0];
+  document.getElementById('tel-net').textContent = F(moi.net);
+  document.getElementById('tel-lignes').innerHTML = detailDe(moi);
+  const gestes = document.getElementById('tel-gestes'), erreur = document.getElementById('tel-erreur'), etat = document.getElementById('tel-etat');
+  document.getElementById('je-confirme').addEventListener('click', () => { gestes.hidden = true; etat.hidden = false; etat.className = 'tel__etat pill--fait'; etat.textContent = 'Confirmé. Ton net part le samedi 5 décembre 2026 à 18 h, après la validation de la Maison.'; });
+  document.getElementById('je-signale').addEventListener('click', () => { gestes.hidden = true; erreur.hidden = false; });
+  document.getElementById('envoyer-mot').addEventListener('click', () => { erreur.hidden = true; etat.hidden = false; etat.className = 'tel__etat pill--attente'; etat.textContent = 'Envoyé à l’agent. Ton bulletin corrigé revient ici, à confirmer.'; });
+
+  /* L'écran du 5 à midi */
+  const partent = GENS.filter((g) => g.etat === 'confirme');
+  document.getElementById('r-nb').textContent = partent.length;
+  document.getElementById('r-total').textContent = F(partent.reduce((s, g) => s + g.net, 0));
+  document.getElementById('r-reste').textContent = GENS.length - partent.length;
+  const besoin = (v) => partent.filter((g) => g.voie === v).reduce((s, g) => s + g.net, 0);
+  document.getElementById('soldes').innerHTML = `<span><b>MTN</b> <span class="num">${F(besoin('MTN'))} à envoyer</span></span><span><b>Moov</b> <span class="num">${F(besoin('Moov'))} à envoyer</span></span><span class="doux">Soldes lus à 12 h, comparés avant votre toucher.</span>`;
+  const PILL = { confirme: ['pill--fait', 'Confirmé'], signale: ['pill--alerte', 'Erreur signalée'], attente: ['pill--attente', 'En attente'] };
+  const lignes = document.getElementById('lignes');
+  let ouverte = null;
+  const groupe = (titre, liste) => {
+    if (!liste.length) return;
+    const t = document.createElement('div'); t.className = 'groupe'; t.textContent = titre; lignes.appendChild(t);
+    for (const g of liste) {
+      const d = document.createElement('div'); d.className = 'ligne';
+      const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-expanded', 'false');
+      b.innerHTML = `<span class="ini">${g.ini.replace(/[ .]/g, '')}</span><span class="qui"><b>${g.ini} · ${g.role}</b><small>${g.voie} · ${g.quand}</small></span><span class="droite"><span class="net">${F(g.net)}</span><span class="pill ${PILL[g.etat][0]}">${PILL[g.etat][1]}</span></span>`;
+      const det = document.createElement('div'); det.className = 'detail'; det.hidden = true;
+      det.innerHTML = detailDe(g) + `<div class="total"><span>Net</span><span>${F(g.net)}</span></div>` + (g.etat === 'confirme' ? '' : `<p>${g.etat === 'signale' ? 'L’agent corrige ; la fiche revient à confirmer. Pas payée à 18 h si elle n’est pas reconfirmée et validée avant.' : 'Pas payée à 18 h. Elle partira dès qu’elle est confirmée et validée.'}</p>`);
+      b.addEventListener('click', () => {
+        if (ouverte && ouverte !== det) { ouverte.hidden = true; ouverte.previousElementSibling.setAttribute('aria-expanded', 'false'); }
+        det.hidden = !det.hidden; b.setAttribute('aria-expanded', String(!det.hidden)); ouverte = det.hidden ? null : det;
+      });
+      d.append(b, det); lignes.appendChild(d);
+    }
+  };
+  groupe('Confirmées : payées à 18 h', partent);
+  groupe('Pas encore payables', GENS.filter((g) => g.etat !== 'confirme'));
+  document.getElementById('valider').addEventListener('click', () => {
+    const pied = document.getElementById('pied');
+    pied.innerHTML = `<div class="programme" role="status"><b>Validé par Yéman à 14 h 20. Programmé pour le samedi 5 décembre 2026 à 18 h.</b><span>${partent.length} fiches pour ${F(partent.reduce((s, g) => s + g.net, 0))}. Annulable jusqu’à 17 h 59. Les deux fiches restantes partiront dès qu’elles seront confirmées et validées.</span></div><button class="btn btn--lien" type="button" id="annuler">Annuler la programmation</button>`;
+    document.getElementById('annuler').addEventListener('click', () => location.reload());
+  });
+})();
+</script>
+</body>
+</html>

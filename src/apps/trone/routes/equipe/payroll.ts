@@ -2,6 +2,9 @@ import { createStore, useStore } from '../../../../shared/store';
 import type { Origine } from './variables-du-mois';
 import { bindCollection, bindDocument } from '../../../../shared/sync';
 import type { Expense } from '../../../../shared/finance';
+import type {
+  AccordDuPlafond, ConfirmationDeLaLigne, DepotDeLaLigne, FraisParEnvoi, PaieDu5DuRun, ValidationDeLaLigne,
+} from '../../../../shared/paie-du-5-pur';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Paie · moteur de calcul (règles béninoises) — LA SOURCE DE VÉRITÉ.
@@ -49,6 +52,12 @@ export type PayrollParameters = {
       le droit du travail encadre les retenues sur salaire, et le taux qui
       s'applique à la Maison n'est écrit nulle part ici. */
   plafondRetenuePretPct?: number;
+  /** LES FRAIS D'ENVOI MOBILE MONEY, par envoi et par voie — 5 novembre
+      2026, la paie du 5. « La Maison MND ne supporte pas les frais Momo » :
+      ils sont retirés du montant envoyé et le bulletin les montre. Le tarif
+      n'est pas connu : ABSENT = « à renseigner », et le montant envoyé reste
+      le net. Zéro est un tarif renseigné. Voir `shared/paie-du-5-pur`. */
+  fraisParEnvoiXof?: FraisParEnvoi;
 };
 
 /* Valeurs de départ (spec) — PROVISOIRES, à faire valider par le comptable. */
@@ -659,6 +668,23 @@ export type PayrollLine = {
       prime de points, les pourboires et les retenues du mois arrivent seuls
       dans le run ; chacun garde ici sa provenance, que l'écran montre. */
   origines?: Origine[];
+
+  /* ══ LA PAIE DU 5 — 5 novembre 2026, lot 1 (maquette VomoheW35…) ══════
+     Le bulletin déposé dans Mon espace (la voie et les frais de ce jour-là,
+     et sa clé), la réponse de la personne, la validation de la direction
+     (qui, quand, pour quel bulletin), l'accord au-delà du plafond, et le
+     lot MTN qui l'a payée. Le pointage d'au-dessus reste le juge : une ligne
+     payée par un lot reçoit `payeLe`, `payeMoyen: 'MTN'` comme une autre.
+     Les règles vivent dans `shared/paie-du-5-pur`. */
+  depot?: DepotDeLaLigne;
+  confirmation?: ConfirmationDeLaLigne;
+  validation?: ValidationDeLaLigne;
+  accordPlafond?: AccordDuPlafond;
+  /** Le numéro de lot (batch ID) du portail MTN qui l'a payée. */
+  lotMtn?: string;
+  /** Les frais d'envoi retenus sur le net, et ce qui est parti. */
+  fraisEnvoiXof?: number;
+  envoyeXof?: number;
 };
 export type PayrollRun = {
   id: string;
@@ -671,6 +697,9 @@ export type PayrollRun = {
   paidAt?: string;
   closedAt?: string;
   branchId?: string;
+  /** La paie du 5 sur ce run : les validations, le fichier MTN en attente
+      de son numéro de lot, et les lots déposés. */
+  paieDu5?: PaieDu5DuRun;
 };
 export const payrollRunsStore = createStore<PayrollRun[]>('mnd_payroll_runs', []);
 export const usePayrollRuns = (): [PayrollRun[], typeof payrollRunsStore.set] => {

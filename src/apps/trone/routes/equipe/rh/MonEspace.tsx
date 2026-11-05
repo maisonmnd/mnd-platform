@@ -10,7 +10,9 @@ import {
   ajouteJours, dateDite, lundiDe, statutDuJour,
   type Entretien, type PieceDuDossier, type Sanction,
 } from '../../../../../shared/rh-pur';
-import { lienDeLaPiece, useBulletins, usePlanning, useRegistreRh } from '../../../../../shared/rh';
+import { lienDeLaPiece, repondsAuBulletin, useBulletins, useConfirmationsDePaie, usePlanning, useRegistreRh, type BulletinPublie } from '../../../../../shared/rh';
+import { duMois, jourDit, momentDit, quandDit } from '../../../../../shared/paie-du-5-pur';
+import '../paie-du-5.css';
 import type { StaffMember } from '../data';
 import {
   LEAVE_STATUS_LABEL, congeBalance, daysInclusive, leaveStore, ouvreLeBulletin, parametersFor, useLeave,
@@ -54,7 +56,10 @@ export default function MonEspace({ moi, relie }: { moi: StaffMember | null; rel
   const p = parametersFor(jour.slice(0, 7));
   const mesConges = conges.filter((c) => c.employeeId === moi.id).sort((a, b) => b.startDate.localeCompare(a.startDate));
   const solde = moi.since ? congeBalance(moi.since, conges, moi.id, p.congesJoursParMois).solde : 0;
-  const mesBulletins = bulletins.filter((b) => b.employeeId === moi.id).sort((a, b) => b.period.localeCompare(a.period));
+  /* « Mes bulletins » : les publiés (run payé). Le bulletin DÉPOSÉ pour la
+     paie du 5, pas encore publié, a son propre bloc au-dessus. */
+  const mesBulletins = bulletins.filter((b) => b.employeeId === moi.id && !!b.publieLe).sort((a, b) => b.period.localeCompare(a.period));
+  const aConfirmer = bulletins.filter((b) => b.employeeId === moi.id && !!b.depot && !b.publieLe).sort((a, b) => b.period.localeCompare(a.period))[0];
   const lundi = lundiDe(jour);
   const pieces = registre.filter((l): l is PieceDuDossier => l.genre === 'piece' && l.staffId === moi.id && !!l.partage);
   const entretiens = registre.filter((l): l is Entretien => l.genre === 'entretien' && l.staffId === moi.id && !!l.partage);
@@ -104,6 +109,7 @@ export default function MonEspace({ moi, relie }: { moi: StaffMember | null; rel
           }).join(' · ')}
         </span>
       </div>
+      {aConfirmer && <MonBulletinDuMois b={aConfirmer} />}
       <div className="rh-tuile">
         <span>Mes bulletins</span>
         {mesBulletins.length === 0 ? <span>Aucun bulletin publié pour l’instant.</span> : mesBulletins.slice(0, 12).map((b) => (
@@ -128,5 +134,80 @@ export default function MonEspace({ moi, relie }: { moi: StaffMember | null; rel
         </div>
       )}
     </section>
+  );
+}
+
+/* ══ MON BULLETIN DU MOIS — la paie du 5, 5 novembre 2026 (lot 1) ══════
+   Maquette VomoheW35…, « Dans Mon espace » : le net, le détail (la ligne
+   des frais d'envoi MoMo comprise), puis deux gestes seulement. « Je
+   confirme mon bulletin » : la fiche passe dans la liste à valider. « Je
+   signale une erreur », avec un mot : il part aux ressources humaines, qui
+   corrigent ; le bulletin revient ici, à confirmer. La réponse porte la clé
+   du bulletin lu : corrigé depuis, il redemande une confirmation. Rien ne
+   part sur WhatsApp (son choix du 5 novembre 2026). */
+function MonBulletinDuMois({ b }: { b: BulletinPublie }) {
+  const { currency } = useBranch();
+  const reponses = useConfirmationsDePaie();
+  const [mot, setMot] = useState<string | null>(null);
+  const d = b.depot;
+  if (!d) return null;
+  const F = (n: number) => fmtMoney(n, currency);
+  const reponse = reponses.find((r) => r.id === b.id && r.employeeId === b.employeeId);
+  const pourCeBulletin = reponse && reponse.cle === d.cle ? reponse : undefined;
+  const corrige = !!reponse && !pourCeBulletin;
+  /* Les moments du dépôt sont à l'heure de Cotonou (UTC+1, toute l'année). */
+  const passe = (local?: string) => !!local && Date.now() > Date.parse(`${local}:00+01:00`);
+  const apresLaPaie = passe(d.paieLe);
+  const apresMidi = passe(d.confirmerAvant);
+  const repond = (etat: 'confirme' | 'erreur', texte?: string) => {
+    repondsAuBulletin({
+      id: b.id, branchId: b.branchId, runId: b.runId, period: b.period, employeeId: b.employeeId,
+      etat, le: new Date().toISOString(), cle: d.cle, ...(texte ? { mot: texte } : {}),
+    });
+    setMot(null);
+    toast(etat === 'confirme' ? 'Bulletin confirmé.' : 'Envoyé aux ressources humaines.');
+  };
+  const envoieLeMot = () => {
+    const t = (mot ?? '').trim();
+    if (!t) { toast('Écris ce qui ne va pas, en quelques mots.'); return; }
+    repond('erreur', t.slice(0, 500));
+  };
+  const etat = b.payeLe
+    ? { ton: 'fait', dit: `Payé le ${jourDit(b.payeLe, false)} : ${F(d.envoyeXof)} envoyés sur ton numéro${d.voie ? ` ${d.voie}` : ''}.` }
+    : pourCeBulletin?.etat === 'confirme'
+      ? { ton: 'fait', dit: `Confirmé le ${quandDit(pourCeBulletin.le)}. ${apresLaPaie || !d.paieLe ? 'Ton net part dès que la Maison l’a validé.' : `Ton net part le ${momentDit(d.paieLe)}, après la validation de la Maison.`}` }
+      : pourCeBulletin?.etat === 'erreur'
+        ? { ton: 'alerte', dit: `Erreur signalée${pourCeBulletin.mot ? ` : « ${pourCeBulletin.mot} »` : ''}. Les ressources humaines corrigent ton bulletin ; il revient ici, à confirmer.` }
+        : corrige
+          ? { ton: 'attente', dit: 'Ton bulletin a été corrigé : relis-le, puis confirme-le.' }
+          : { ton: 'attente', dit: d.confirmerAvant && !apresMidi
+            ? `À confirmer avant le ${momentDit(d.confirmerAvant)}.`
+            : 'Tu peux encore le confirmer : il partira dès que la Maison l’aura validé.' };
+  return (
+    <div className="rh-tuile p5-tel" aria-label={`Mon bulletin ${duMois(b.period)}`}>
+      <span className="p5-tel__barre">Mon bulletin {duMois(b.period)}</span>
+      <b className="p5-tel__net">{F(d.netXof)}</b>
+      <div className="p5-tel__lignes">
+        {d.lignes.map((x, i) => <div key={i}><span>{x.libelle}</span><span>{x.retenue ? '− ' : ''}{F(x.montantXof)}</span></div>)}
+        <div className="p5-tel__total"><span>Net</span><span>{F(d.netXof)}</span></div>
+        {d.fraisXof > 0 && <div><span>{d.libelleDesFrais}</span><span>− {F(d.fraisXof)}</span></div>}
+        <div className="p5-tel__envoye"><span>Envoyé sur ton numéro{d.voie ? ` ${d.voie}` : ''}</span><span>{F(d.envoyeXof)}</span></div>
+      </div>
+      {d.fraisXof > 0 && <span>La Maison ne prend pas en charge les frais d’envoi : ils sont retirés du montant envoyé.</span>}
+      <span className={`p5-tel__etat p5-tel__etat--${etat.ton}`} role="status">{etat.dit}</span>
+      {!b.payeLe && mot === null && (
+        <div className="p5-tel__gestes">
+          {pourCeBulletin?.etat !== 'confirme' && <Button variant="copper" onClick={() => repond('confirme')}>Je confirme mon bulletin</Button>}
+          {pourCeBulletin?.etat !== 'erreur' && <Button variant="ghost" onClick={() => setMot('')}>Je signale une erreur</Button>}
+        </div>
+      )}
+      {!b.payeLe && mot !== null && (
+        <div className="p5-tel__gestes">
+          <Field label="Ce qui ne va pas"><Textarea rows={3} value={mot} maxLength={500} onChange={(e) => setMot(e.target.value)} /></Field>
+          <Button variant="copper" onClick={envoieLeMot}>Envoyer aux ressources humaines</Button>
+          <Button variant="ghost" onClick={() => setMot(null)}>Ne rien envoyer</Button>
+        </div>
+      )}
+    </div>
   );
 }

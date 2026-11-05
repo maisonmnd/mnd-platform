@@ -37,6 +37,9 @@ import {
   type PayrollParameters, type ItsBracket,
 } from './payroll';
 import { ChampDeMois } from '../../../../ds/dates';
+import PaieDu5 from './PaieDu5';
+import { numeroDit } from '../../../../shared/paie-du-5-pur';
+import { dansLeFichierEnAttente, deposeDansMonEspace } from './paie-du-5';
 
 /* Paie — runs mensuels. Le calcul vient du moteur vérifié (payroll.ts) ; ici on
    assemble les lignes depuis les dossiers + avances, on gère le cycle de vie, et
@@ -357,6 +360,15 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
   };
   const numeroDe = (l: PayrollLine): string =>
     (lePersonnel.find((m) => m.id === l.employeeId)?.phone ?? '').trim();
+  /* LE NUMÉRO OÙ PART LE SALAIRE — la paie du 5, 5 novembre 2026. Le
+     bordereau montre et copie le numéro mobile money de la fiche quand il
+     est posé (les lignes Moov s'y pointent encore à la main) ; sinon le
+     téléphone, comme avant. Le bulletin WhatsApp garde le téléphone. */
+  const mobileMoneyDe = (l: PayrollLine) => lePersonnel.find((m) => m.id === l.employeeId)?.mobileMoney;
+  const numeroDuVersement = (l: PayrollLine): string => {
+    const mm = mobileMoneyDe(l);
+    return mm ? numeroDit(mm.numero) : numeroDe(l);
+  };
 
   const frDate = (iso: string) =>
     new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -489,7 +501,7 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
         {
           heading: 'À verser',
           rows: lines.filter((l) => !ligneEstPayee(l)).map((l) => ({
-            label: `${l.name}${numeroDe(l) ? ` · ${numeroDe(l)}` : ' · numéro manquant'}`,
+            label: `${l.name}${numeroDuVersement(l) ? ` · ${numeroDuVersement(l)}` : ' · numéro manquant'}`,
             value: fmtMoney(l.result?.net ?? 0, currency),
           })),
         },
@@ -514,12 +526,21 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
 
   const bordereauCsv = () => downloadCsv(`bordereau-${run.period}.csv`, [
     ['Nom', 'Numéro', 'Moyen', 'Net', 'Versé le'],
-    ...lines.map((l) => [l.name, numeroDe(l), l.paiement ?? '', String(l.result?.net ?? 0), l.payeLe ?? '']),
+    ...lines.map((l) => [l.name, numeroDuVersement(l), mobileMoneyDe(l)?.operateur ?? l.paiement ?? '', String(l.result?.net ?? 0), l.payeLe ?? '']),
   ]);
   const saveLine = (i: number, gains: PayGains, deductions: PayDeductions) => {
     const line = recomputeLine({ ...lines[i], gains, deductions }, p);
     setRun({ lines: lines.map((l, j) => (j === i ? line : l)) });
     setEditLine(null);
+    /* LA PAIE DU 5 : un bulletin déjà déposé dans Mon espace y repart
+       corrigé, et la personne le confirme à nouveau (sa réponse d'avant
+       portait sur l'ancien). */
+    if (lines[i]?.depot) {
+      deposeDansMonEspace({
+        runId: run.id, bulletinFor, fraisParEnvoi: p.fraisParEnvoiXof, fiches: lePersonnel, branchId: branch.id,
+        par: maTete?.name ?? session?.user?.email ?? undefined, employeeIds: [line.employeeId],
+      });
+    }
   };
 
   /* ═══ LA PAIE DOIT ENTRER DANS LES DÉPENSES ═══
@@ -678,6 +699,8 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
        facture acceptée : acceptée après la création du run, il n'y serait pas. */
     const lignesAJour = next === 'valide'
       ? lines.map((l) => {
+        /* Une ligne déjà payée (un lot MTN de la paie du 5) ne bouge plus. */
+        if (ligneEstPayee(l)) return l;
         if (!(l.prestataire || estPrestataire(lePersonnel.find((m) => m.id === l.employeeId)))) return l;
         const f = factureDe(factures, l.employeeId, run.period);
         const total = totalAccepte(f);
@@ -704,7 +727,11 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
     if (next === 'paye' || next === 'cloture') publieLesBulletins();
   };
   const publieLesBulletins = () => {
+    /* Le dépôt de la paie du 5 (le détail confirmé, le jour payé) reste sur
+       le bulletin publié. */
+    const anciens = new Map(asArray<BulletinPublie>(bulletinsStore.get()).map((b) => [b.id, b]));
     const publies: BulletinPublie[] = lines.filter((l) => !l.prestataire).map((l) => ({
+      ...(anciens.get(`${run.id}:${l.employeeId}`) ?? {}),
       id: `${run.id}:${l.employeeId}`, branchId: run.branchId ?? branch.id, runId: run.id, period: run.period,
       employeeId: l.employeeId, name: l.name, netXof: l.result.net, publieLe: nowStamp(),
       lien: bulletinFor(l) as unknown as BulletinPublie['lien'],
@@ -817,7 +844,8 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
           )}
 
           {lines.map((l, i) => {
-            const num = numeroDe(l);
+            const num = numeroDuVersement(l);
+            const mm = mobileMoneyDe(l);
             const verse = ligneEstPayee(l);
             return (
               <div key={l.employeeId + String(i)} className={`tre-bord ${verse ? 'is-verse' : ''} ${!num && !verse ? 'is-manque' : ''}`}>
@@ -833,7 +861,7 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
                 <span className="tre-bord__nom">{l.name}</span>
                 {num ? (
                   <span className="tre-bord__num">
-                    {l.paiement ? `${l.paiement} · ` : ''}<b>{num}</b>
+                    {mm ? `${mm.operateur} · ` : l.paiement ? `${l.paiement} · ` : ''}<b>{num}</b>
                     {/* LE PRESSE-PAPIERS PEUT REFUSER (navigateur ancien, page non
                         sécurisée) : on le dit plutôt que de laisser croire que
                         c'est copié. */}
@@ -1000,6 +1028,10 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
         </div>
       )}
 
+      {/* LA PAIE DU 5 — 5 novembre 2026, lot 1 : confirmer, valider, le
+          fichier MTN et son numéro de lot (maquette VomoheW35…). */}
+      <PaieDu5 run={run} bulletinFor={bulletinFor} />
+
       {/* LES FACTURES DES PRESTATAIRES — leur état, et le geste qui tranche. */}
       <FacturesDuRun run={run} onOuvre={setFactureOuverte} />
 
@@ -1030,7 +1062,7 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
                 </td>
                 <td style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-copper)' }}>{fmtMoney(l.result.net, currency)}</td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  {editable && <button className="tre-link-btn" onClick={() => setEditLine(i)}>Modifier</button>}
+                  {editable && !ligneEstPayee(l) && !dansLeFichierEnAttente(run, l.employeeId) && <button className="tre-link-btn" onClick={() => setEditLine(i)}>Modifier</button>}
                   {/* UNE PRESTATAIRE N'A PAS DE BULLETIN : elle a sa facture. */}
                   {l.prestataire ? (
                     <button
@@ -1330,6 +1362,41 @@ export function PaieParametres() {
               l’écart à la fin du prêt.</>
             : <><b>Pas encore fixé.</b> Aucune retenue de prêt n’est bornée tant que ce taux manque. Le droit du
               travail encadre les retenues sur salaire : fixez-le avec votre comptable.</>}
+        </div>
+      </Card>
+
+      {/* ══ LES FRAIS D'ENVOI MOBILE MONEY — 5 novembre 2026, la paie du 5 ══
+          « La Maison MND ne supporte pas les frais Momo » (Yéman) : ils sont
+          retirés du montant envoyé et le bulletin les montre. VIDES TANT QUE
+          LE TARIF N'EST PAS CONNU : le Trône n'invente aucun chiffre, et le
+          montant envoyé reste le net. */}
+      <Card style={{ padding: '20px 22px' }}>
+        <div className="tre-sec-label" style={{ marginBottom: 14 }}>Frais d’envoi mobile money · retirés du montant envoyé</div>
+        <div className="tr-grid tr-grid--2">
+          {(['MTN', 'Moov'] as const).map((v) => (
+            <Field key={v} label={v === 'MTN' ? 'Frais par envoi MTN (portail MTN)' : 'Frais par envoi Moov (FedaPay)'}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Input
+                  inputMode="numeric"
+                  value={p.fraisParEnvoiXof?.[v] != null ? String(p.fraisParEnvoiXof[v]) : ''}
+                  placeholder="à renseigner"
+                  onChange={(e) => {
+                    const t = e.target.value.trim();
+                    const suivant = { ...(p.fraisParEnvoiXof ?? {}) };
+                    if (t === '') delete suivant[v]; else suivant[v] = digits(t);
+                    patch({ fraisParEnvoiXof: Object.keys(suivant).length ? suivant : undefined });
+                  }}
+                  style={{ maxWidth: 140 }}
+                />
+                <span className="mnd-muted" style={{ fontSize: 12 }}>F par envoi</span>
+              </div>
+            </Field>
+          ))}
+        </div>
+        <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 8 }}>
+          {p.fraisParEnvoiXof?.MTN != null || p.fraisParEnvoiXof?.Moov != null
+            ? <>Chaque bulletin déposé dans Mon espace porte la ligne « Frais d’envoi MoMo » et le montant qui arrive sur le téléphone. Un tarif changé compte au dépôt suivant.</>
+            : <><b>À renseigner.</b> Tant que le tarif manque, le montant envoyé est le net : la Maison paie les frais.</>}
         </div>
       </Card>
 

@@ -78,6 +78,7 @@ import { type SignatureTracee } from '../../../../shared/contrats';
 import { type Evaluation } from '../../../../shared/evaluation';
 import { fichesStore, reglementStore } from '../../../../shared/textes';
 import { contratsStore } from '../../../../shared/reglages-contrats';
+import type { MobileMoney } from '../../../../shared/paie-du-5-pur';
 
 export type StaffRisk = 'faible' | 'modéré' | 'élevé';
 
@@ -173,6 +174,16 @@ export type StaffMember = {
   atelier?: string;     // atelier d'affectation (Cotonou, Calavi…)
   commissionPct?: number; // taux de commission sur prestations encaissées
   paiement?: string;    // mode/coordonnées de règlement (Mobile Money / banque)
+  /** SON NUMÉRO MOBILE MONEY, STRUCTURÉ — 5 novembre 2026, la paie du 5.
+      Le numéro (229 + dix chiffres), l'opérateur (MTN part par le fichier
+      du portail MTN, Moov par FedaPay) et la date du dernier changement : un
+      numéro changé depuis moins de sept jours ne reçoit rien avant d'être
+      revalidé. PRIVÉ (CHAMPS_DU_DOSSIER, 0161). `paiement` reste la note
+      libre (banque, autre). Voir `shared/paie-du-5-pur`. */
+  mobileMoney?: MobileMoney;
+  /** SON GROUPE DE PAIE. Un seul au Trône : « L'équipe », la Maison MND.
+      Absent = L'équipe. Voir `GROUPES_DE_PAIE`. */
+  groupe?: GroupeDePaie;
   /** LE RÈGLEMENT INTÉRIEUR, REMIS ET SIGNÉ — 6 septembre 2026.
 
       Un règlement s'affiche ET se remet contre décharge : sans la décharge, la
@@ -233,6 +244,13 @@ export type StaffMember = {
   /** PUBLIC : partie ce jour-là. La fiche s'archive, elle ne s'efface plus. */
   archiveeLe?: string;
 };
+
+/* LES GROUPES DE PAIE — 5 novembre 2026 (« que le travail soit vraiment
+   simplifié en ressources humaines pour retrouver qui est qui », Yéman). Le
+   Trône n'en connaît qu'un : l'équipe de la Maison MND, payée le 5. */
+export type GroupeDePaie = 'equipe';
+export const GROUPES_DE_PAIE: Record<GroupeDePaie, string> = { equipe: 'L’équipe' };
+export const groupeDe = (m: Pick<StaffMember, 'groupe'>): GroupeDePaie => (m.groupe && m.groupe in GROUPES_DE_PAIE ? m.groupe : 'equipe');
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
 export const STAFF_SEED: StaffMember[] = [];
@@ -298,6 +316,8 @@ export const CHAMPS_DU_DOSSIER = [
   'retenuesCompteCourant', 'evaluations',
   'satisfaction', 'wellbeing', 'charge', 'risk', 'riskDrivers', 'nextStep', 'recognition',
   'finContrat', 'finEssai', 'aptitude', 'urgence', 'integration', 'depart',
+  /* La paie du 5 (0161) : le numéro où part le salaire. */
+  'mobileMoney',
 ] as const;
 type ChampDuDossier = (typeof CHAMPS_DU_DOSSIER)[number];
 export type DossierDuPersonnel = { id: string; branchId: string } & Partial<Pick<StaffMember, ChampDuDossier>>;
