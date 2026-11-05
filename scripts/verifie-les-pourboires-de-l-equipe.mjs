@@ -24,6 +24,8 @@ const S = 'supabase/migrations/0157_les_pourboires_de_l_equipe.sql';
 const E = 'src/apps/trone/routes/equipe/';
 
 const PANNES = [
+  /* Son choix du 5 novembre 2026 : la direction n'est pas prevenue. */
+  { nom: 'la direction est prevenue', fichier: 'supabase/migrations/0157_les_pourboires_de_l_equipe.sql', avant: "s.user_id = compte and s.role = 'souverain'", apres: "s.user_id = compte and s.role = 'jamais'" },
   /* La regle. */
   { nom: 'la semaine commence le dimanche', fichier: P,
     avant: 'return ajouteJours(jour, -((d.getUTCDay() + 6) % 7));', apres: 'return ajouteJours(jour, -(d.getUTCDay() % 7));' },

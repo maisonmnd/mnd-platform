@@ -222,6 +222,8 @@ dit('le detail de Nassim : 11 000 F, ses quatre mois, sa derniere part', [11000,
 const SQL = 'supabase/migrations/0157_les_pourboires_de_l_equipe.sql';
 const sql = lis(SQL);
 const corpsSql = sql.replace(/^[ \t]*--.*\n/gm, '');
+dit('la direction n est pas prevenue (le souverain saute, issue « direction »)', true,
+  /if exists \(select 1 from public\.staff s where s\.user_id = compte and s\.role = 'souverain'\) then\s*update public\.pourboires_prevenus set issue = 'direction'/.test(corpsSql));
 const PUR = lis('src/shared/pourboires-de-l-equipe-pur.ts');
 const civ = (t: string) => /CIVILITES = \/(\^\(m[^/]*\$)\/i/.exec(t)?.[1] ?? null;
 const civSql = /mots\[1\] ~\* '([^']+)'/.exec(corpsSql)?.[1] ?? null;

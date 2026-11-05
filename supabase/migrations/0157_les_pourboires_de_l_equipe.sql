@@ -154,6 +154,12 @@ begin
       update public.pourboires_prevenus set issue = 'sans-compte' where tip_id = new.id;
       return new;
     end if;
+    -- La direction n'est pas prévenue (« Non, pas pour nous », Yéman,
+    -- 5 novembre 2026) : elle voit tout dans Équipe › Les pourboires.
+    if exists (select 1 from public.staff s where s.user_id = compte and s.role = 'souverain') then
+      update public.pourboires_prevenus set issue = 'direction' where tip_id = new.id;
+      return new;
+    end if;
 
     -- ⟨notification-du-pourboire⟩ : sa part et le prénom ; son total du mois.
     prenom := public.prenom_de_la_cliente(new.data ->> 'note');
