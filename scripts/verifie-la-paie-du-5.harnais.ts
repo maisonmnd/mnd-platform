@@ -376,5 +376,27 @@ dit('le personnel de la maison familiale n’entre jamais au Trône', [false, fa
   [/Entretien et cuisine/i.test(touches), /cuisini[èe]re/i.test(touches), /maison familiale/i.test(touches)]);
 dit('la maquette est copiée, marquée construite (lot 1)', [true, true], [maquette.includes('Construite au Trône, lot 1'), maquette.includes('<title>La paie du 5</title>')]);
 
+/* ── LES POURBOIRES PARTENT EN ESPÈCES (6 novembre 2026, maquette Les paiements, choix 1) ── */
+{
+  const mmMtn: MobileMoney = { numero: '2290190000001', operateur: 'MTN', changeLe: '2026-01-01T00:00:00Z' };
+  const avecPb = ligne({ employeeId: 'pb', net: 100000, gains: { base: 95000, heuresSup: 0, prime: 0, pourboires: 5000, commission: 0, indemnites: 0 } });
+  const lu = litLaLigne({ ligne: avecPb, mobileMoney: mmMtn, fraisParEnvoi: { MTN: 100 }, maintenantMs: Date.parse('2026-12-02T10:00:00Z') });
+  dit('les pourboires restent au net mais ne partent pas par MTN : net moins frais moins pourboires', [100000, 5000, 94900], [lu.netXof, lu.especesXof, lu.envoyeXof]);
+  const det = detailDuBulletin(avecPb, 'MTN', 100);
+  dit('le bulletin dit les pourboires en gain, puis remis en especes, et le montant envoye', [true, 5000, 94900],
+    [det.lignes.some((x) => x.libelle === 'Pourboires' && x.montantXof === 5000 && !x.retenue), det.especesXof, det.envoyeXof]);
+  const presta = ligne({ employeeId: 'pr', net: 60000, prestataire: true, gains: { base: 60000, heuresSup: 0, prime: 0, pourboires: 3000, commission: 0, indemnites: 0 } });
+  dit('une prestataire n a pas de pourboires en especes', [0, 60000], [detailDuBulletin(presta, 'MTN', 0).especesXof, detailDuBulletin(presta, 'MTN', 0).envoyeXof]);
+  const tout = ligne({ employeeId: 'tt', net: 4000, gains: { base: 0, heuresSup: 0, prime: 0, pourboires: 6000, commission: 0, indemnites: 0 } });
+  dit('jamais un montant envoye sous zero', [4000, 0], [detailDuBulletin(tout, 'MTN', 0).especesXof, detailDuBulletin(tout, 'MTN', 0).envoyeXof]);
+  const fichierPb: FichierMtnPrepare = { le: '2026-12-05T17:00:00Z', par: 'Y.', totalXof: 94900, lignes: [{ employeeId: 'pb', nom: 'PB', msisdn: '2290190000001', montantXof: 94900 }] };
+  const lotPb = appliqueLeLot([avecPb], fichierPb, 'LOT-PB', '2026-12-05');
+  dit('au lot du portail, les pourboires en especes ne comptent pas comme des frais', [94900, 100], [lotPb.lignes[0].envoyeXof, lotPb.lignes[0].fraisEnvoiXof]);
+  const espace = readFileSync('src/apps/trone/routes/equipe/rh/MonEspace.tsx', 'utf8');
+  const depose = readFileSync('src/apps/trone/routes/equipe/paie-du-5.ts', 'utf8');
+  dit('Mon espace dit les pourboires remis en especes ; le depot les porte', [true, true],
+    [/\{\(d\.especesXof \?\? 0\) > 0 && <div><span>\{LIBELLE_DES_ESPECES\}<\/span>/.test(espace), /\.\.\.\(det\.especesXof > 0 \? \{ especesXof: det\.especesXof \} : \{\}\),/.test(depose)]);
+}
+
 console.log(ko === 0 ? '\nLa paie du 5 tient.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);

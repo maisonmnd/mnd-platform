@@ -61,6 +61,8 @@ export type BulletinDepose = {
   lignes: LigneDuDetail[];
   netXof: number;
   fraisXof: number;
+  /** Les pourboires remis en espèces le jour de paie, hors du montant envoyé. */
+  especesXof?: number;
   envoyeXof: number;
   libelleDesFrais: string;
   /** Les moments du mois, à l'heure de Cotonou (« AAAA-MM-JJTHH:mm »). */

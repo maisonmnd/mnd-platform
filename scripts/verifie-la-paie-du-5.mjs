@@ -64,7 +64,11 @@ const PANNES = [
   ['l accord vaut pour tout net', PUR, 'const accorde = !!l.accordPlafond && l.accordPlafond.netXof === net;', 'const accorde = !!l.accordPlafond;'],
   ['un brouillon non paye fait le mois d avant', PUR, "(r.status !== 'brouillon' || estPayee(l))", 'true'],
   /* L etat */
-  ['les frais ne sont plus retires', PUR, '    envoyeXof: net - frais.fraisXof,', '    envoyeXof: net,'],
+  ['les frais ne sont plus retires', PUR, '    envoyeXof: Math.max(0, net - frais.fraisXof - especes),', '    envoyeXof: Math.max(0, net - especes),'],
+  ['les pourboires partent par MTN', PUR, '    envoyeXof: Math.max(0, net - frais.fraisXof - especes),', '    envoyeXof: Math.max(0, net - frais.fraisXof),'],
+  ['le bulletin oublie les especes', PUR, '  return { lignes: out, netXof, fraisXof: frais, especesXof, envoyeXof: Math.max(0, netXof - frais - especesXof), libelleDesFrais: libelleDesFrais(voie) };', '  return { lignes: out, netXof, fraisXof: frais, especesXof, envoyeXof: Math.max(0, netXof - frais), libelleDesFrais: libelleDesFrais(voie) };'],
+  ['une prestataire paie des pourboires en especes', PUR, '  l.prestataire ? 0 : Math.max(0, Math.round(Number(l.gains?.pourboires) || 0));', '  Math.max(0, Math.round(Number(l.gains?.pourboires) || 0));'],
+  ['le lot compte les especes en frais', PUR, 'fraisEnvoiXof: Math.max(0, net - pourboiresEnEspecesXof(l) - f.montantXof) };', 'fraisEnvoiXof: Math.max(0, net - f.montantXof) };'],
   ['une confirmation perimee vaut', PUR, 'const valable = !l.prestataire && derniere && depotAJour && derniere.cle === cle ? derniere : undefined;', 'const valable = !l.prestataire && derniere ? derniere : undefined;'],
   ['la premiere reponse fait foi', PUR, ".sort((a, b) => (a.le ?? '').localeCompare(b.le ?? ''));", ".sort((a, b) => (b.le ?? '').localeCompare(a.le ?? ''));"],
   ['la reponse d une autre fiche compte', PUR, 'o.confirmationLue && o.confirmationLue.employeeId === l.employeeId ? o.confirmationLue : undefined', 'o.confirmationLue'],

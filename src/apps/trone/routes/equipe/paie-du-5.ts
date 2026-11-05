@@ -53,6 +53,7 @@ export function deposeDansMonEspace(o: {
       lien: o.bulletinFor(l) as unknown as BulletinPublie['lien'],
       depot: {
         le, cle: d.cle, ...(d.voie ? { voie: d.voie } : {}), lignes: det.lignes, netXof: det.netXof, fraisXof: det.fraisXof,
+        ...(det.especesXof > 0 ? { especesXof: det.especesXof } : {}),
         envoyeXof: det.envoyeXof, libelleDesFrais: det.libelleDesFrais,
         ...(cal ? { confirmerAvant: cal.finDesConfirmations.local, paieLe: cal.paie.local } : {}),
       },

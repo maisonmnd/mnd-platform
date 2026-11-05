@@ -293,6 +293,18 @@ export function depotDeLaLigne(r: ResultatDeLaLigne | undefined, voie: Voie | un
 }
 
 export type LigneDuDetail = { libelle: string; montantXof: number; retenue: boolean };
+
+/** LES POURBOIRES PARTENT EN ESPÈCES — 6 novembre 2026. Maquette « Les
+    paiements » (7AvgqVQdWV1QrQn7eQoA4i), validée, choix 1 de Yéman : les
+    pourboires du mois sont remis en espèces le jour de paie, cochés « Remis »
+    personne par personne. Ils restent dans le net du bulletin (ils sont un
+    gain), mais ne partent PAS par mobile money : le montant envoyé est le
+    net moins les frais d'envoi moins ces pourboires. Sans cela, un pourboire
+    partirait deux fois, par MTN et de la main à la main. Une prestataire n'en
+    a pas sur sa facture. */
+export const LIBELLE_DES_ESPECES = 'Pourboires, remis en espèces';
+export const pourboiresEnEspecesXof = (l: { gains?: { pourboires?: number }; prestataire?: boolean }): number =>
+  l.prestataire ? 0 : Math.max(0, Math.round(Number(l.gains?.pourboires) || 0));
 type GainsDuBulletin = { base?: number; heuresSup?: number; prime?: number; pourboires?: number; commission?: number; indemnites?: number };
 type RetenuesDuBulletin = { avance?: number; autresRetenues?: number; retenuePret?: number; retenueCompteCourant?: number };
 
@@ -301,7 +313,7 @@ type RetenuesDuBulletin = { avance?: number; autresRetenues?: number; retenuePre
 export function detailDuBulletin(
   l: { gains?: GainsDuBulletin; deductions?: RetenuesDuBulletin; result?: ResultatDeLaLigne; prestataire?: boolean },
   voie: Voie | undefined, fraisXof: number,
-): { lignes: LigneDuDetail[]; netXof: number; fraisXof: number; envoyeXof: number; libelleDesFrais: string } {
+): { lignes: LigneDuDetail[]; netXof: number; fraisXof: number; especesXof: number; envoyeXof: number; libelleDesFrais: string } {
   const g = l.gains ?? {}; const d = l.deductions ?? {}; const r = l.result ?? {};
   const out: LigneDuDetail[] = [{ libelle: l.prestataire ? 'Facture acceptée' : 'Salaire de base', montantXof: Math.round(g.base ?? 0), retenue: false }];
   const plus = (libelle: string, n?: number) => { if ((n ?? 0) > 0) out.push({ libelle, montantXof: Math.round(n ?? 0), retenue: false }); };
@@ -319,7 +331,8 @@ export function detailDuBulletin(
   moins('Compte courant d’associé', d.retenueCompteCourant);
   const netXof = Math.round(r.net ?? 0);
   const frais = Math.max(0, Math.round(fraisXof || 0));
-  return { lignes: out, netXof, fraisXof: frais, envoyeXof: netXof - frais, libelleDesFrais: libelleDesFrais(voie) };
+  const especesXof = Math.min(pourboiresEnEspecesXof(l), Math.max(0, netXof - frais));
+  return { lignes: out, netXof, fraisXof: frais, especesXof, envoyeXof: Math.max(0, netXof - frais - especesXof), libelleDesFrais: libelleDesFrais(voie) };
 }
 
 /* ── 7. L'ÉTAT DE CHAQUE LIGNE ─────────────────────────────────────── */
@@ -339,6 +352,8 @@ export type LigneDeLaPaie = {
   name: string;
   prestataire?: boolean;
   result: ResultatDeLaLigne;
+  /** Les pourboires du bulletin, remis en espèces (voir `pourboiresEnEspecesXof`). */
+  gains?: { pourboires?: number };
   payeLe?: string;
   payeMoyen?: string;
   payeNote?: string;
@@ -396,6 +411,8 @@ export type LectureDeLaLigne = {
   netXof: number;
   fraisXof: number;
   fraisRenseignes: boolean;
+  /** Les pourboires remis en espèces, hors du montant envoyé. */
+  especesXof: number;
   envoyeXof: number;
   cle: string;
   depotAJour: boolean;
@@ -481,6 +498,8 @@ export function litLaLigne(o: {
             : 'confirmee';
   }
 
+  /* Les pourboires remis en espèces ne partent pas par mobile money. */
+  const especes = Math.min(pourboiresEnEspecesXof(l), Math.max(0, net - frais.fraisXof));
   const enRetard = !!valable && valable.etat === 'confirme' && !!o.calendrier
     && Date.parse(valable.le) > o.calendrier.finDesConfirmations.ms;
 
@@ -493,7 +512,8 @@ export function litLaLigne(o: {
     netXof: net,
     fraisXof: frais.fraisXof,
     fraisRenseignes: frais.renseignes,
-    envoyeXof: net - frais.fraisXof,
+    especesXof: especes,
+    envoyeXof: Math.max(0, net - frais.fraisXof - especes),
     cle,
     depotAJour,
     ...(valable ? { confirmation: valable } : {}),
@@ -628,7 +648,7 @@ export function appliqueLeLot<L extends LigneDeLaPaie>(
     if (estPayee(l)) { dejaPayees.push(l.employeeId); return l; }
     payees.push(l.employeeId);
     const net = Math.round(l.result?.net ?? 0);
-    return { ...l, payeLe: jour, payeMoyen: 'MTN', payeNote: undefined, lotMtn: b, envoyeXof: f.montantXof, fraisEnvoiXof: Math.max(0, net - f.montantXof) };
+    return { ...l, payeLe: jour, payeMoyen: 'MTN', payeNote: undefined, lotMtn: b, envoyeXof: f.montantXof, fraisEnvoiXof: Math.max(0, net - pourboiresEnEspecesXof(l) - f.montantXof) };
   });
   return { lignes: out, payees, dejaPayees, absentes };
 }

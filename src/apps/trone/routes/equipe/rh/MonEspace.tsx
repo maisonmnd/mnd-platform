@@ -11,7 +11,7 @@ import {
   type Entretien, type PieceDuDossier, type Sanction,
 } from '../../../../../shared/rh-pur';
 import { lienDeLaPiece, repondsAuBulletin, useBulletins, useConfirmationsDePaie, usePlanning, useRegistreRh, type BulletinPublie } from '../../../../../shared/rh';
-import { duMois, jourDit, momentDit, quandDit } from '../../../../../shared/paie-du-5-pur';
+import { LIBELLE_DES_ESPECES, duMois, jourDit, momentDit, quandDit } from '../../../../../shared/paie-du-5-pur';
 import '../paie-du-5.css';
 import type { StaffMember } from '../data';
 import {
@@ -191,6 +191,7 @@ function MonBulletinDuMois({ b }: { b: BulletinPublie }) {
         {d.lignes.map((x, i) => <div key={i}><span>{x.libelle}</span><span>{x.retenue ? '− ' : ''}{F(x.montantXof)}</span></div>)}
         <div className="p5-tel__total"><span>Net</span><span>{F(d.netXof)}</span></div>
         {d.fraisXof > 0 && <div><span>{d.libelleDesFrais}</span><span>− {F(d.fraisXof)}</span></div>}
+        {(d.especesXof ?? 0) > 0 && <div><span>{LIBELLE_DES_ESPECES}</span><span>− {F(d.especesXof ?? 0)}</span></div>}
         <div className="p5-tel__envoye"><span>Envoyé sur ton numéro{d.voie ? ` ${d.voie}` : ''}</span><span>{F(d.envoyeXof)}</span></div>
       </div>
       {d.fraisXof > 0 && <span>La Maison ne prend pas en charge les frais d’envoi : ils sont retirés du montant envoyé.</span>}

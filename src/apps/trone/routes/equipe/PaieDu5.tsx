@@ -5,7 +5,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useAuth, useStaff as useMaTete } from '../../../../shared/auth';
 import { bulletinsStore, useConfirmationsDePaie, type BulletinPublie } from '../../../../shared/rh';
 import {
-  ETAT_DIT, appliqueLeLot, calendrierDeLaPaie, detailDuBulletin, fichierMtn, heureDite,
+  ETAT_DIT, LIBELLE_DES_ESPECES, appliqueLeLot, calendrierDeLaPaie, detailDuBulletin, fichierMtn, heureDite,
   idDuBulletin, jourDit, libelleDesFrais, lignesDuFichierMtn, litLaLigne, lotsDejaNotes, moisDit, momentDit,
   netDuMoisDAvant, nomDuFichierMtn, numeroDit, phaseDuMois, phraseDuBlocage, pourquoiPasLeLot, quandDit,
   resumeDeLaPaie, totauxParVoie, valideLesLignes,
@@ -328,6 +328,7 @@ export default function PaieDu5({ run, bulletinFor }: { run: PayrollRun; bulleti
         ))}
         <div className="p5-detail__rang p5-detail__rang--total"><span>Net</span><span>{F(det.netXof)}</span></div>
         {lu.fraisXof > 0 && <div className="p5-detail__rang"><span>{libelleDesFrais(lu.voie)}</span><span>− {F(lu.fraisXof)}</span></div>}
+        {lu.especesXof > 0 && <div className="p5-detail__rang"><span>{LIBELLE_DES_ESPECES}</span><span>− {F(lu.especesXof)}</span></div>}
         <div className="p5-detail__rang p5-detail__rang--envoye"><span>Montant envoyé</span><span>{F(lu.envoyeXof)}</span></div>
         {!lu.fraisRenseignes && lu.voie && <p>Frais d’envoi {lu.voie} à renseigner : le montant envoyé est le net.</p>}
         <p>
