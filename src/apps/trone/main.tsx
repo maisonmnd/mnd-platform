@@ -4,7 +4,7 @@ import '../../shared/preload-guard';
 import '../../shared/version';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createHashRouter, RouterProvider } from 'react-router-dom';
+import { createHashRouter, Navigate, RouterProvider } from 'react-router-dom';
 import './trone.css';
 import Shell from './shell/Shell';
 import { ErreurDEcran } from './shell/ErreurDEcran';
@@ -69,7 +69,13 @@ const router = createHashRouter([
         element: <it.Component />,
         /* Un écran qui ne s'ouvre pas le dit, la barre reste (4 oct. 2026). */
         errorElement: <ErreurDEcran />,
-      }))
+      })).concat([
+        /* UNE ADRESSE INCONNUE RAMÈNE AU TABLEAU DE BORD — 5 novembre 2026 :
+           une ancre suivie comme une page (« #le-mois ») ou un vieux lien
+           montrait la page d'erreur brute du routeur, « Unexpected
+           Application Error ». */
+        { path: '*', element: <Navigate to="/" replace /> },
+      ] as never[])
     ),
   },
 ]);

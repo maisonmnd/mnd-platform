@@ -1,6 +1,7 @@
 import { attendEncore } from '../../../../shared/salle-des-envois';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { allerALaSection } from '../../../../ds/ancre';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -876,10 +877,10 @@ export default function Dashboard() {
           pilules À faire et La Cadence sont parties avec la barre (lot 3 de
           l'Assistant Maison, 27 octobre) ; « + Le calendrier » reste. */}
       <nav className="trd-nav" aria-label="Le tableau de bord">
-        <a href="#le-mois">Le mois</a>
-        <a href="#aujourdhui">Aujourd’hui</a>
-        <a href="#a-traiter">À traiter</a>
-        <a href="#le-detail-du-mois">Le détail du mois</a>
+        <a href="#le-mois" onClick={allerALaSection('le-mois')}>Le mois</a>
+        <a href="#aujourdhui" onClick={allerALaSection('aujourdhui')}>Aujourd’hui</a>
+        <a href="#a-traiter" onClick={allerALaSection('a-traiter')}>À traiter</a>
+        <a href="#le-detail-du-mois" onClick={allerALaSection('le-detail-du-mois')}>Le détail du mois</a>
         <button type="button" className="trp-af-pill" onClick={() => navigate('/calendrier')}>+ Le calendrier</button>
       </nav>
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { allerALaSection } from '../../../../ds/ancre';
 import { useNavigate } from 'react-router-dom';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -375,7 +376,7 @@ export function PrevisionDuMois({ donnees }: { donnees: DonneesDeLaPrevision }) 
           <span className="trd-mois__gros">{fmt(prevision.centraleXof)}</span>
           <span className="trd-mois__dit">
             Entre {fmt(prevision.basXof)} (bas) et {fmt(prevision.hautXof)} (haut).{' '}
-            <a href="#trd-mois-bas-haut" className="trd-mois__lien">Ce que veulent dire bas et haut</a>
+            <a href="#trd-mois-bas-haut" className="trd-mois__lien" onClick={allerALaSection('trd-mois-bas-haut')}>Ce que veulent dire bas et haut</a>
           </span>
         </div>
         <div className="trd-mois__avance">
