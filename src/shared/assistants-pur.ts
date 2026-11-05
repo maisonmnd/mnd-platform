@@ -42,6 +42,10 @@ export type Assistant = {
       bouton ; null quand il est là. Colonne à part (`loin_depuis`), jamais
       dans `etat`, pour qu'un passage ne l'écrase pas. */
   loinDepuis?: string | null;
+  /** Le guetteur des consignes (5 novembre 2026) : la dernière fois qu'il a
+      regardé (`consigne.lire`, toutes les 60 secondes). Colonne à part
+      (`guette_le`, 0162), qu'un passage ne réécrit pas. */
+  guetteLe?: string | null;
   etat: {
     controles?: Controles;
     empeche?: string | null;
@@ -739,6 +743,9 @@ export const ACTIONS_DU_JETON = [
   'depense.poser', 'fiche.chercher',
   /* 2 novembre 2026, le socle : le bilan déposé avant le Conseil du matin. */
   'bilan.deposer',
+  /* 5 novembre 2026, une consigne aux assistants : la lire (ou la regarder sans
+     la marquer, pour le guetteur), y répondre, la passer à un autre. */
+  'consigne.lire', 'consigne.repondre', 'consigne.passer',
 ] as const;
 /* 2 novembre 2026 : « Je suis loin / Je suis là », le bouton du porteur. */
 export const ACTIONS_DU_SOUVERAIN = ['jeton.donner', 'jeton.retirer', 'decision.trancher', 'place.trancher', 'loin.basculer'] as const;

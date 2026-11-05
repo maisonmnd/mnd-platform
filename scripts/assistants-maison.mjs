@@ -36,6 +36,8 @@ const GENRES_DE_DECISION = ['reponse', 'place-tenue', 'note', 'argent', 'cercle'
 // RECOPIÉ de assistants-pur.ts (COMPTES_DU_BILAN) : l'option de la ligne de commande, puis la clé du compte.
 const COMPTES_DU_BILAN = [['lus', 'lus'], ['repondus', 'repondus'], ['pouces', 'pouces'], ['rdv', 'rdvPoses'], ['depenses', 'depenses'], ['cartes', 'cartes'], ['relais', 'relais'], ['publications', 'publications']];
 const GENRES_DE_NOTIFICATION = [...GENRES_DE_RELAIS, 'decision', 'sommeil', 'empeche'];
+// RECOPIÉ de consignes-pur.ts (statutDeLaReponse) : ce qu'un assistant répond à une consigne, et ses synonymes.
+const STATUTS_DE_LA_REPONSE = { faite: 'faite', fait: 'faite', 'oui-attendu': 'oui-attendu', oui: 'oui-attendu', 'en-attente': 'en-attente', attente: 'en-attente' };
 
 /* ── Ce qui s'écrit : toujours masqué ─────────────────────────────────── */
 
@@ -95,6 +97,23 @@ Sous-commandes :
             [--cartes <n>] [--relais <n>] [--publications <n>] [--mot "..."]
             (avant 6 h 45, la journée écoulée, des nombres seulement ; le mot : 100 caractères,
              sans guillemets ni numéro ; le redire le même jour le remplace)
+  consigne lire [--regarder]
+            (les consignes de la direction pour cet assistant, pas encore faites ; celles qui
+             étaient nouvelles passent « lue ». --regarder : les voir sans rien marquer, comme
+             le guetteur. Une consigne « oui-attendu » revient avec l'état de sa carte)
+  consigne repondre --id <id> --statut faite|oui-attendu|en-attente --reponse "..."
+            [--defaire '<json>'] [--decision <id de carte>]
+            (faite : fait seul, dans ton domaine ; --defaire : le champ « defaire » rendu par
+               rdv poser, rdv deplacer, rdv annuler ou note poser, un objet ou une liste
+               '[{...},{...}]' ; la direction peut le défaire pendant une heure ;
+             oui-attendu : un message, l'argent ou un effacement ; dépose d'abord la carte par
+               decision deposer SANS --notifier, puis donne son id : c'est la réponse qui notifie,
+               une seule fois, jamais de 22 h à 7 h ;
+             en-attente : il te manque une précision, ou ton tour ; dis-le dans la réponse.
+             Après le oui exécuté : consigne repondre --statut faite)
+  consigne passer --id <id> --pour <id d'assistant> [--mot "..."]
+            (hors de ton domaine : à l'assistant qui s'en occupe ; le fil le dit. Le mot :
+             200 caractères au plus, pourquoi tu la passes)
 
 Options communes :
   --essai      affiche la requête qui partirait (jeton masqué), sans l'envoyer
@@ -111,7 +130,7 @@ Exemple (31 octobre 2026) :
 
 /* ── Les arguments ────────────────────────────────────────────────────── */
 
-const DRAPEAUX = new Set(['essai', 'aide', 'tenue', 'ajouter', 'notifier', 'autre']);
+const DRAPEAUX = new Set(['essai', 'aide', 'tenue', 'ajouter', 'notifier', 'autre', 'regarder']);
 
 function litLesArguments(argv) {
   const mots = []; const options = {};
@@ -232,6 +251,22 @@ function priveDe(options) {
   return { contact, message };
 }
 
+/* LE DÉFAIRE D'UNE CONSIGNE (5 novembre 2026) : un objet ou une liste JSON ; la fonction relit chaque geste. */
+function defaireDe(options) {
+  const v = texte(options, 'defaire');
+  if (!v) return undefined;
+  let lu;
+  try { lu = JSON.parse(v); } catch { throw new Erreur('option-invalide', '--defaire attend un objet ou une liste JSON'); }
+  if (!lu || typeof lu !== 'object') throw new Erreur('option-invalide', '--defaire attend un objet ou une liste JSON');
+  return lu;
+}
+function statutDe(options) {
+  const v = exige(options, 'statut', '--statut faite|oui-attendu|en-attente').toLowerCase();
+  const s = STATUTS_DE_LA_REPONSE[v];
+  if (!s) throw new Erreur('option-invalide', '--statut attend faite, oui-attendu ou en-attente');
+  return s;
+}
+
 /* ── Les sous-commandes → le corps de la requête ──────────────────────── */
 
 function corpsDe(mots, options, reglages) {
@@ -339,6 +374,21 @@ function corpsDe(mots, options, reglages) {
       const comptes = {};
       for (const [option, cle] of COMPTES_DU_BILAN) { const n = entier(options, option); if (n !== undefined) comptes[cle] = n; }
       return sansVide({ action: 'bilan.deposer', jour: dateISO(options, 'jour'), comptes, mot: texte(options, 'mot') || undefined });
+    }
+    case 'consigne lire':
+      return options.regarder === true ? { action: 'consigne.lire', marquer: false } : { action: 'consigne.lire' };
+    case 'consigne repondre': {
+      const reponse = exige(options, 'reponse', '--reponse "..."');
+      if (reponse.length > 600) throw new Erreur('option-invalide', '--reponse : 600 caractères au plus');
+      return sansVide({
+        action: 'consigne.repondre', id: exige(options, 'id'), statut: statutDe(options), reponse,
+        defaire: defaireDe(options), decision: texte(options, 'decision') || undefined,
+      });
+    }
+    case 'consigne passer': {
+      const mot = texte(options, 'mot');
+      if (mot.length > 200) throw new Erreur('option-invalide', '--mot : 200 caractères au plus');
+      return sansVide({ action: 'consigne.passer', id: exige(options, 'id'), pour: exige(options, 'pour', "--pour <id d'assistant>"), mot: mot || undefined });
     }
     case 'fiche chercher': {
       const n = numero(options, 'numero', false);

@@ -1,0 +1,54 @@
+/* ÉCRIRE À UN ASSISTANT, 5 novembre 2026 (« Une consigne aux assistants »,
+   lot 1). Au plus près de la maquette 2AqfEEiPvpdfUUkXzs2XUC : indigo pour
+   ce qui est fait, cuivre pour ce qui attend votre oui et pour le geste
+   principal, le reste en encre douce. Aucun vert, rouge ni jaune.
+   Préfixe `csg-`. Tient dans un téléphone debout : tout se replie. */
+.csg { gap: 12px; }
+.csg-haut { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid var(--hairline); }
+.csg-titre { margin: 0; font: 300 24px/1.15 var(--font-serif); color: var(--color-indigo); }
+.csg-veille { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-soft); min-width: 0; }
+.csg-veille i { width: 8px; height: 8px; border-radius: 99px; display: inline-block; flex: none; border: 1px solid var(--ink-soft); background: transparent; }
+.csg-veille.est-veille i, .csg-veille.est-eveille i { background: var(--color-indigo); border-color: var(--color-indigo); }
+.csg-veille.est-empeche i { background: var(--color-copper, #B97A4A); border-color: var(--color-copper, #B97A4A); }
+
+.csg-saisie { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.csg-choix, .csg-exemples { display: flex; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.csg-puce { cursor: pointer; font: 400 12.5px/1.3 var(--font-sans); padding: 6px 11px; min-height: 32px; border: 1px solid var(--hairline); border-radius: 99px; background: transparent; color: var(--ink-soft); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: var(--transition-base); }
+.csg-puce:hover { background: var(--copper-50, #FAF1E9); }
+.csg-puce:focus-visible { outline: 2px solid var(--color-copper, #B97A4A); outline-offset: 2px; }
+.csg-puce.est-choisie { border-color: var(--color-indigo); color: var(--color-indigo); font-weight: 500; }
+.csg-puce--autres { border-style: dashed; }
+.csg-dit { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--ink-soft); max-width: 70ch; }
+.csg-dit--fort { color: var(--copper-700); }
+.csg-etiquette { font-size: 13px; color: var(--ink-soft); }
+.csg-texte { width: 100%; min-height: 84px; background: var(--paper, #F6F1E7); font-size: 15px; line-height: 1.5; box-sizing: border-box; }
+.csg-rangee { display: flex; gap: 10px; flex-wrap: wrap; justify-content: space-between; align-items: center; }
+.csg-dicter { display: inline-flex; align-items: center; gap: 6px; }
+.csg-dicter.est-ecoute { border-color: var(--color-copper, #B97A4A); color: var(--copper-700); }
+.csg-regle { margin: 0; font-size: 12px; line-height: 1.5; color: var(--ink-soft); max-width: 70ch; }
+
+/* Le fil des consignes */
+.csg-fil { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.csg-item { border-top: 1px solid var(--hairline); padding: 12px 2px; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.csg-etat { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-width: 0; }
+.csg-etat small { color: var(--ink-soft); font-size: 12px; line-height: 1.4; min-width: 0; overflow-wrap: anywhere; }
+.csg-pastille { font: 500 10.5px/1.2 var(--font-sans); letter-spacing: .08em; text-transform: uppercase; padding: 3px 9px; border-radius: 3px; white-space: nowrap; border: 1px solid transparent; }
+.csg-pastille.est-fait { background: var(--indigo-50, #E7E8F2); color: var(--color-indigo); }
+.csg-pastille.est-attente { color: var(--ink-soft); border-color: var(--hairline); }
+.csg-pastille.est-alerte { background: var(--color-copper, #B97A4A); color: var(--color-ivoire, #F6F1E7); }
+.csg-texte-dit { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; white-space: pre-line; }
+.csg-reponse { border-left: 3px solid var(--color-indigo); background: var(--paper, #F6F1E7); padding: 8px 12px; font-size: 13.5px; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; color: var(--ink); overflow-wrap: anywhere; white-space: pre-line; min-width: 0; }
+.csg-reponse.est-oui { border-left-color: var(--color-copper, #B97A4A); }
+.csg-lien { background: none; border: 0; padding: 4px 0; cursor: pointer; font: 500 11.5px/1.3 var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--color-indigo); text-decoration: underline; text-underline-offset: 3px; min-height: 32px; }
+.csg-lien:disabled { opacity: .5; cursor: default; }
+.csg-lien:focus-visible { outline: 2px solid var(--color-copper, #B97A4A); outline-offset: 2px; }
+.csg-plus { display: flex; justify-content: flex-start; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .csg-item:first-child { animation: csg-arrive .3s ease-out; }
+  @keyframes csg-arrive { from { opacity: .3; } to { opacity: 1; } }
+}
+@media (max-width: 640px) {
+  .csg-titre { font-size: 21px; }
+  .csg-rangee > .mnd-btn, .csg-rangee > button { flex: 1 1 auto; }
+}

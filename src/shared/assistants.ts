@@ -38,6 +38,7 @@ type LigneAssistant = {
   empreinte: string | null; jeton_pose_le: string | null; vu_le: string | null; eveille_depuis: string | null;
   etat: Assistant['etat'] | null;
   loin_depuis?: string | null;
+  guette_le?: string | null;
 };
 type LigneRelais = {
   id: string; de: string; pour: string; genre: string; numero_cle: string | null; client_id: string | null; rdv_id: string | null;
@@ -55,6 +56,7 @@ const enAssistant = (l: LigneAssistant): Assistant => ({
   /* L'empreinte ne sort pas de ce module : seul le fait qu'un jeton existe. */
   aUnJeton: !!l.empreinte, vuLe: l.vu_le, eveilleDepuis: l.eveille_depuis, etat: l.etat ?? {},
   loinDepuis: l.loin_depuis ?? null,
+  guetteLe: l.guette_le ?? null,
 });
 const enRelais = (l: LigneRelais): Relais => ({
   id: l.id, de: l.de, pour: l.pour, genre: l.genre as GenreDeRelais, numeroCle: l.numero_cle, clientId: l.client_id, rdvId: l.rdv_id,

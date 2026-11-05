@@ -22,6 +22,7 @@ import {
 } from '../../../../shared/assistants';
 import type { Geste } from '../../../../shared/journal';
 import ConseilDuMatin from './ConseilDuMatin';
+import ConsigneAuxAssistants from './ConsigneAuxAssistants';
 import './assistants.css';
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -31,6 +32,10 @@ import './assistants.css';
    seuls (route `/assistants`, ROUTES_SOUVERAIN).
 
    DANS L'ORDRE OÙ ELLE LE LIT :
+     ⓪ ÉCRIRE À UN ASSISTANT (5 novembre 2026, « Une consigne aux
+        assistants », lot 1, composant `ConsigneAuxAssistants`) : le choix de
+        l'assistant, le champ et la dictée, le fil des consignes, Défaire
+        pendant une heure ; la direction seule ;
      ① LE BOUTON DU PORTEUR : « Je suis loin » / « Je suis là » (maquette
         JYW7EQz1kmVXrUSGWQqebZ, choix 1) : ses assistants d'ordinateur ne
         lui posent plus de question au sélecteur, tout arrive ici en cartes ;
@@ -292,6 +297,12 @@ export default function Assistants() {
     setReglages((prev) => ({ ...prev, assistants: { ...(prev.assistants ?? {}), [cle]: n !== undefined && Number.isFinite(n) ? n : undefined } }));
   };
 
+  /* « Voir la carte », depuis le fil des consignes : la carte s'ouvre et vient sous les yeux. */
+  const ouvrirLaCarte = (decisionId: string) => {
+    setOuvert(`decision:${decisionId}`);
+    setTimeout(() => { document.getElementById(`carte-${decisionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+  };
+
   const luLe = lecture ? heureCotonouDite(lecture.luLe) : '';
   const ligneDuLivre = (id: string) => livre.lignes.find((l) => l.id === id) ?? null;
   /** L'état vivant (éveillé, endormi, empêché, sans jeton) de ceux qui passent
@@ -323,6 +334,9 @@ export default function Assistants() {
       {lecture?.tablesAbsentes && (
         <p className="ast-alerte ast-note">Les tables des assistants ne sont pas encore en ligne (migrations 0149 et 0151) : l’écran se remplira dès qu’elles le seront.</p>
       )}
+
+      {/* ══ ⓪ ÉCRIRE À UN ASSISTANT : la direction seule (la route et la table le sont aussi) ══ */}
+      {(!monProfil || estSouverain) && <ConsigneAuxAssistants decisions={decisions} ouvrirLaCarte={ouvrirLaCarte} />}
 
       {/* ══ ① LE BOUTON DU PORTEUR ══ */}
       {mesOrdinateurs.length > 0 && (
@@ -366,7 +380,7 @@ export default function Assistants() {
             const cle = `decision:${d.id}`;
             const estOuverte = ouvert === cle;
             return (
-              <div className={`ast-ligne${estOuverte ? ' est-ouverte' : ''}`} key={d.id}>
+              <div className={`ast-ligne${estOuverte ? ' est-ouverte' : ''}`} key={d.id} id={`carte-${d.id}`}>
                 <button type="button" className="ast-ligne__tete" aria-expanded={estOuverte} onClick={() => setOuvert(estOuverte ? null : cle)}>
                   <span className="ast-ligne__h">{quandDit(d.creeLe, maintenant)}</span>
                   <span className="ast-ligne__qui">{nomDe(d.assistant)} · {GENRE_DE_DECISION_DIT[d.genre] ?? d.genre}</span>

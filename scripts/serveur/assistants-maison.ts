@@ -40,6 +40,15 @@
    d'une dépense, validée d'un toucher, pose ici la dépense DÉJÀ VALIDÉE au nom
    du porteur ; et le bilan du matin (`bilan.deposer`), lu par Saphir.
 
+   UNE CONSIGNE AUX ASSISTANTS (5 novembre 2026, lot 1) : la direction écrit
+   à l'assistant de son choix (table `assistants_consignes`, 0162) ;
+   `consigne.lire` les rend à l'assistant qui appelle (et, avec `marquer:
+   false`, les montre au guetteur du PC sans rien marquer), `consigne.repondre`
+   dit ce qui est fait, ce qui attend un oui (la seule notification), ce qui
+   attend ; `consigne.passer` la donne à l'assistant concerné. Les gestes faits
+   seuls (rdv.poser, rdv.deplacer, rdv.annuler, note.poser) rendent leur
+   `defaire`, que l'assistant recopie dans sa réponse.
+
    AUCUN SECRET ICI : SUPABASE_URL et CLE_SERVICE (ou SUPABASE_SERVICE_ROLE_KEY)
    viennent de l'environnement ; WA_TOKEN, WA_PHONE_ID, WA_TEMPLATE_CONF
    seulement pour savoir si la pièce WhatsApp se dépose. GET sans clé : la
@@ -66,6 +75,10 @@ import {
 import {
   FICHES_AU_PLUS, LECTURES_PAR_JOUR, ficheCorrespond, ficheLisible, lisLaRecherche, motifDeLaBase, pieceDeLaLecture,
 } from '../../src/shared/assistants-fiches-pur';
+import {
+  CONSIGNES_LUES_AU_PLUS, DEFAIRE_PENDANT_MS, MOT_DE_PASSE_AU_PLUS, STATUTS_A_LIRE, STATUTS_NOUVEAUX, defaireDeLAnnulation, defaireDeLaNote, defaireDeLaPose,
+  defaireDuDeplacement, estNouvelle, notificationDuOui, peutPasser, reponseDeConsigne,
+} from '../../src/shared/consignes-pur';
 
 declare const Deno: {
   env: { get(nom: string): string | undefined };
@@ -75,12 +88,13 @@ declare const Deno: {
 /* 2 novembre 2026 : la veille suit les réglages (rythme du jour et du soir) ;
    le seuil du sommeil n'est plus une constante, le passage rend ses crons.
    Puis, le même jour, le socle de la Maison intelligente. */
-const VERSION = '2026-11-03-a · le socle : cartes de tous les genres, Je suis loin, bilan du matin ; la confirmation à liens';
+const VERSION = '2026-11-05-a · une consigne aux assistants : consigne.lire, consigne.repondre, consigne.passer ; défaire rendu par les gestes faits seuls';
 /** La maison phare, quand l'assistant n'a pas de branche et que la table n'en dit pas. */
 const BRANCHE_PHARE = 'br-40r6u6frno';
 const ECRAN = 'Les assistants';
 const ADRESSE_DES_ASSISTANTS = '/trone/#/assistants';
 const ETIQUETTE_DES_NOTIFICATIONS = 'mnd-assistants';
+const ETIQUETTE_DES_CONSIGNES = 'mnd-consignes';
 /** Un appel à push-notify ne pend jamais au-delà. */
 const ENVOI_MAX_MS = 8_000;
 /** La fenêtre de `pose_si_libre` (0140) : de demain à quatre-vingt-dix jours, comptés à Cotonou. */
@@ -119,6 +133,13 @@ type Rdv = {
   sansConfirmation?: boolean; creeLe?: string; dureeMin?: number; note?: string;
   tenue?: { jusqua: string; par: string; pour?: string; confirmeeLe?: string; refuseeLe?: string };
   [k: string]: unknown;
+};
+/** Une consigne de la direction (0162), telle que la table la garde. */
+type LigneConsigne = {
+  id: string; de: string; de_user_id?: string | null; pour: string; texte: string; statut: string; reponse?: string | null;
+  defaire?: unknown; decision_id?: string | null; ecrite_le: string; lue_le?: string | null; faite_le?: string | null;
+  passee_de?: string | null; passee_le?: string | null; passee_mot?: string | null; notifie_le?: string | null;
+  defaite_le?: string | null; defaite_par?: string | null; branch_id?: string | null;
 };
 type Fiche = { id: string; name?: string; prenom?: string; phone?: string; phone2?: string; civilite?: string; auMasculin?: boolean; branchId?: string };
 type Souverain = { userId: string; nom: string };
@@ -300,6 +321,24 @@ class Serveur {
     } catch (e) {
       dis('notification en échec', { genre, motif: String((e as Error)?.message ?? e).slice(0, 80) });
       return { sent: 0, motif: 'push-notify' };
+    }
+  }
+
+  /** Une notification à un compte de la direction, par push-notify (mode
+      to-staff) : un titre et un corps déjà propres (sans nom, sans extrait). */
+  async notifieLeCompte(userId: string | null | undefined, titre: string, corps: string, etiquette = ETIQUETTE_DES_NOTIFICATIONS): Promise<number> {
+    if (!userId) return 0;
+    try {
+      const r = await fetch(`${this.url}/functions/v1/push-notify`, {
+        method: 'POST', signal: AbortSignal.timeout(ENVOI_MAX_MS),
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${this.service}` },
+        body: JSON.stringify({ mode: 'to-staff', userId, title: titre, body: corps, url: ADRESSE_DES_ASSISTANTS, tag: etiquette }),
+      });
+      const lu = (await r.json().catch(() => ({}))) as { sent?: number };
+      return Number(lu.sent ?? 0) || 0;
+    } catch (e) {
+      dis('notification en échec', { genre: etiquette, motif: String((e as Error)?.message ?? e).slice(0, 80) });
+      return 0;
     }
   }
 
@@ -692,7 +731,7 @@ async function rdvPoser(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Resp
   /* ⑧ LE JOURNAL : un fait de la Maison, sans nom de cliente. */
   await s.journalise(moi.nom, { verbe: 'pose', table: 'appointments', pieceId: rdvId, piece: `Rendez-vous ${heure}${prestation ? `, ${prestation}` : ''}`, branchId });
   dis('rdv', { par: moi.id, verdict: tenue ? 'tenue' : 'pose', fenetre: dansLaFenetre, autre: autre?.id ?? null });
-  return rendu({ verdict: tenue ? 'tenue' : 'pose', rdvId, master: masterPose, sent, ...(tenue ? { tenue: rdv.tenue } : {}) });
+  return rendu({ verdict: tenue ? 'tenue' : 'pose', rdvId, master: masterPose, sent, ...(tenue ? { tenue: rdv.tenue } : {}), defaire: defaireDeLaPose(rdvId) });
 }
 
 /** Le verrou optimiste : la ligne telle qu'on l'a lue, ou « modifié entre temps ». */
@@ -736,7 +775,7 @@ async function rdvDeplacer(s: Serveur, moi: LigneAssistant, d: Corps): Promise<R
     verbe: 'modifie', table: 'appointments', pieceId: v.ligne.id, piece: `Rendez-vous ${heure}`, branchId: v.ligne.branch_id,
     champs: [{ champ: 'Date', avant: avant.date, apres: date }, { champ: 'Heure', avant: avant.time, apres: time }],
   });
-  return rendu({ rdvId: v.ligne.id, updatedAt: ecrit.updated_at, sent });
+  return rendu({ rdvId: v.ligne.id, updatedAt: ecrit.updated_at, sent, defaire: defaireDuDeplacement(v.ligne.id, { date: avant.date, time: avant.time }, { date, time }) });
 }
 
 async function rdvAnnuler(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Response> {
@@ -757,7 +796,7 @@ async function rdvAnnuler(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Re
     verbe: 'modifie', table: 'appointments', pieceId: v.ligne.id, piece: `Rendez-vous ${heure}, annulé`, branchId: v.ligne.branch_id,
     champs: [{ champ: 'Statut', avant: avant.status, apres: 'annulé' }],
   });
-  return rendu({ rdvId: v.ligne.id, updatedAt: ecrit.updated_at, sent });
+  return rendu({ rdvId: v.ligne.id, updatedAt: ecrit.updated_at, sent, defaire: defaireDeLAnnulation(v.ligne.id, avant.status) });
 }
 
 async function notePoser(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Response> {
@@ -773,7 +812,7 @@ async function notePoser(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Res
   const ajout = `${moi.nom}, ${jourCourt(maintenantMs)} : ${note}`;
   await s.sb.from('appointments').update({ data: { ...ligne.data, note: lu ? `${lu}\n${ajout}` : ajout } }).eq('id', rdvId);
   await s.journalise(moi.nom, { verbe: 'modifie', table: 'appointments', pieceId: rdvId, piece: `Note du carnet, rendez-vous ${heureDite(ligne.data.date, ligne.data.time, maintenantMs)}`, branchId: ligne.branch_id });
-  return rendu({ rdvId });
+  return rendu({ rdvId, defaire: defaireDeLaNote(rdvId, ajout) });
 }
 
 const GENRES_DE_NOTIFICATION = new Set<string>(['decision', 'sommeil', 'empeche']);
@@ -966,6 +1005,123 @@ async function ficheChercher(s: Serveur, moi: LigneAssistant, d: Corps): Promise
   }
   await s.journalise(moi.nom, { verbe: 'lit', table: 'clients', pieceId: identifiant('lecture'), piece: pieceDeLaLecture(fiches.length), branchId: moi.branch_id });
   return rendu({ fiches, plus });
+}
+
+/* ── UNE CONSIGNE AUX ASSISTANTS (5 novembre 2026, lot 1) ──────────────
+   Maquette 2AqfEEiPvpdfUUkXzs2XUC, validée. La direction écrit au Trône
+   (table `assistants_consignes`, sous RLS, à son nom) ; l'assistant reconnu
+   par son jeton lit ce qui est à lui, répond, ou passe à un autre. Seule la
+   consigne qui attend un oui notifie (la carte est déposée avant, par
+   `decision.deposer` SANS --notifier). Les règles : shared/consignes-pur. */
+const consigneDe = (l: LigneConsigne) => ({
+  id: l.id, de: l.de, texte: l.texte, statut: l.statut, nouvelle: estNouvelle(l.statut), ecriteLe: l.ecrite_le,
+  lueLe: l.lue_le ?? null, ...(l.reponse ? { reponse: l.reponse } : {}),
+  ...(l.passee_de ? { passeeDe: l.passee_de, passeeLe: l.passee_le ?? null, ...(l.passee_mot ? { passeeMot: l.passee_mot } : {}) } : {}),
+  ...(l.decision_id ? { decisionId: l.decision_id } : {}),
+});
+
+async function consigneLire(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Response> {
+  /* `marquer: false` : le guetteur regarde sans rien marquer ; la session, elle, marque « lue ». */
+  const marquer = d.marquer !== false;
+  const maintenant = new Date().toISOString();
+  const { data, error } = await s.sb.from('assistants_consignes').select('*').eq('pour', moi.id).in('statut', [...STATUTS_A_LIRE])
+    .order('ecrite_le', { ascending: true }).limit(CONSIGNES_LUES_AU_PLUS);
+  if (error) { dis('consignes illisibles', { motif: String(error.message ?? '').slice(0, 80) }); return refus('consignes-absentes', 503); }
+  const lignes = (data ?? []) as LigneConsigne[];
+  /* Le guetteur (ou la session) a regardé : l'écran le dit. Une colonne à part, jamais `etat`. */
+  try { await s.sb.from('assistants').update({ guette_le: maintenant }).eq('id', moi.id); } catch { /* la colonne manque avant 0162 */ }
+  /* L'état des cartes liées : le oui (ou le non) de la direction, à exécuter puis à clore. */
+  const ids = lignes.map((l) => l.decision_id).filter((x): x is string => !!x);
+  const cartes = new Map<string, LigneDecision>();
+  if (ids.length) {
+    const { data: decs } = await s.sb.from('assistants_decisions').select('*').in('id', ids);
+    for (const dec of (decs ?? []) as LigneDecision[]) cartes.set(dec.id, dec);
+  }
+  const nouvelles = lignes.filter((l) => estNouvelle(l.statut)).map((l) => l.id);
+  if (marquer && nouvelles.length) {
+    await s.sb.from('assistants_consignes').update({ statut: 'lue', lue_le: maintenant })
+      .in('id', nouvelles).eq('pour', moi.id).in('statut', [...STATUTS_NOUVEAUX]);
+  }
+  const consignes = lignes.map((l) => {
+    const c = consigneDe(l);
+    const dec = l.decision_id ? cartes.get(l.decision_id) : undefined;
+    const lue = marquer && estNouvelle(l.statut) ? { statut: 'lue', lueLe: maintenant } : {};
+    return {
+      ...c, ...lue,
+      ...(dec ? { carte: { tranchee: dec.tranchee ?? null, texteModifie: dec.texte_modifie ?? null, executeeLe: dec.executee_le ?? null } } : {}),
+    };
+  });
+  return rendu({ assistant: { id: moi.id, nom: moi.nom }, marquees: marquer ? nouvelles.length : 0, nouvelles: nouvelles.length, consignes });
+}
+
+async function consigneRepondre(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Response> {
+  const id = chaine(d.id);
+  if (!id) return refus('id');
+  const { data } = await s.sb.from('assistants_consignes').select('*').eq('id', id).maybeSingle();
+  const c = (data ?? null) as LigneConsigne | null;
+  if (!c) return refus('consigne-inconnue', 404);
+  if (c.pour !== moi.id) return refus('pas-a-toi', 403);
+  const juge = reponseDeConsigne({ actuel: c.statut, statut: d.statut, reponse: d.reponse, defaire: d.defaire, decision: d.decision });
+  if (!juge.ok) return refus(juge.motif, juge.motif === 'deja-close' ? 409 : 400, juge.detail ? { detail: juge.detail } : {});
+  const r = juge.r;
+  /* La carte liée : la sienne, jamais celle d'un autre assistant. */
+  if (r.decisionId) {
+    const { data: dec } = await s.sb.from('assistants_decisions').select('id, assistant').eq('id', r.decisionId).maybeSingle();
+    if (!dec) return refus('decision-inconnue', 404);
+    if ((dec as { assistant?: string }).assistant !== moi.id) return refus('pas-ta-carte', 403);
+  }
+  const maintenantMs = Date.now();
+  const maintenant = new Date(maintenantMs).toISOString();
+  const patch: Corps = {
+    statut: r.statut, reponse: r.reponse, lue_le: c.lue_le ?? maintenant,
+    ...(r.statut === 'faite' ? { faite_le: maintenant, defaire: r.gestes.length ? r.gestes : null } : {}),
+    ...(r.decisionId ? { decision_id: r.decisionId } : {}),
+  };
+  /* Sous le statut lu : deux réponses croisées, la seconde est refusée. */
+  const { data: ecrit } = await s.sb.from('assistants_consignes').update(patch).eq('id', id).eq('pour', moi.id).eq('statut', c.statut).select('id');
+  if (!ecrit || (ecrit as unknown[]).length === 0) return refus('modifie-entre-temps', 409);
+  /* LA SEULE NOTIFICATION : une consigne qui attend un oui. Une fois par
+     consigne ; au porteur de l'assistant (c'est lui qui voit la carte), et à
+     qui a écrit la consigne si c'est un autre compte. Jamais la nuit (de 22 h
+     à 7 h, heure de Cotonou) : la carte attend au Trône. */
+  let notifie = 0;
+  let nuit = false;
+  if (r.statut === 'oui-attendu' && !c.notifie_le) {
+    if (!notificationPermise(aCotonou(maintenantMs).heure)) nuit = true;
+    else {
+      const { titre, corps } = notificationDuOui(moi.nom);
+      const comptes = [...new Set([moi.porteur_user_id, c.de_user_id].filter((x): x is string => !!x))];
+      for (const u of comptes) notifie += await s.notifieLeCompte(u, titre, corps, ETIQUETTE_DES_CONSIGNES);
+      await s.sb.from('assistants_consignes').update({ notifie_le: maintenant }).eq('id', id);
+    }
+  }
+  dis('consigne', { par: moi.id, statut: r.statut, gestes: r.gestes.length, notifie });
+  return rendu({
+    id, statut: r.statut, notifie, ...(nuit ? { nuit: true } : {}),
+    ...(r.statut === 'faite' && r.gestes.length ? { defaireJusqua: new Date(maintenantMs + DEFAIRE_PENDANT_MS).toISOString() } : {}),
+  });
+}
+
+async function consignePasser(s: Serveur, moi: LigneAssistant, d: Corps): Promise<Response> {
+  const id = chaine(d.id);
+  if (!id) return refus('id');
+  const { data } = await s.sb.from('assistants_consignes').select('*').eq('id', id).maybeSingle();
+  const c = (data ?? null) as LigneConsigne | null;
+  if (!c) return refus('consigne-inconnue', 404);
+  if (c.pour !== moi.id) return refus('pas-a-toi', 403);
+  if (!peutPasser(c.statut)) return refus('deja-close', 409);
+  const pourId = chaine(d.pour).toLowerCase();
+  if (!pourId || pourId === moi.id) return refus('pour-invalide');
+  const cible = await s.assistant(pourId);
+  if (!cible) return refus('assistant-inconnu', 404);
+  const mot = chaine(d.mot);
+  if (mot.length > MOT_DE_PASSE_AU_PLUS) return refus('mot-trop-long', 400, { detail: `${MOT_DE_PASSE_AU_PLUS} caractères au plus` });
+  const maintenant = new Date().toISOString();
+  const { data: ecrit } = await s.sb.from('assistants_consignes').update({
+    pour: cible.id, statut: 'passee', passee_de: moi.id, passee_le: maintenant, passee_mot: mot || null, lue_le: null,
+  }).eq('id', id).eq('pour', moi.id).eq('statut', c.statut).select('id');
+  if (!ecrit || (ecrit as unknown[]).length === 0) return refus('modifie-entre-temps', 409);
+  return rendu({ id, pour: cible.id, nom: cible.nom, relie: !!cible.empreinte });
 }
 
 /* ── Les actions de la porte B (un souverain, depuis l'écran) ────────── */
@@ -1236,6 +1392,9 @@ Deno.serve(async (req) => {
         case 'depense.poser': return await depensePoser(s, moi, d);
         case 'fiche.chercher': return await ficheChercher(s, moi, d);
         case 'bilan.deposer': return await bilanDeposer(s, moi, d);
+        case 'consigne.lire': return await consigneLire(s, moi, d);
+        case 'consigne.repondre': return await consigneRepondre(s, moi, d);
+        case 'consigne.passer': return await consignePasser(s, moi, d);
       }
     } else {
       const qui = porte.qui;

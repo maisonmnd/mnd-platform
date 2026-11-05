@@ -62,7 +62,7 @@ const PANNES = [
   ['la serie du soir se rompt a chaque tour', SERVEUR, 'seuilDeSommeilMin(precedent, maintenantMs, reglages) * 60_000', '25 * 60_000'],
   ['l etat de l autre ignore les reglages', SERVEUR, 'etatDe(assistantDe(a), maintenantMs, reglages)', 'etatDe(assistantDe(a), maintenantMs)'],
   ['le passage ne rend plus les crons', SERVEUR, 'crons: cronsDeLaVeille(reglages) }', 'crons: [] }'],
-  ['la version de la fonction ne bouge pas', SERVEUR, "const VERSION = '2026-11-02-b · le socle : cartes de tous les genres, Je suis loin, bilan du matin';", "const VERSION = '2026-11-02-a';"],
+  ['la version de la fonction ne bouge pas', SERVEUR, "const VERSION = '2026-11-05-a · une consigne aux assistants : consigne.lire, consigne.repondre, consigne.passer ; défaire rendu par les gestes faits seuls';", "const VERSION = '2026-11-03-a';"],
   ['le mot du relais n est plus filtre', SERVEUR, "    if (!juge.ok) return refus('mot-refuse', 400, { detail: juge.motif });", "    if (false) return refus('mot-refuse', 400, { detail: juge.motif });"],
   ['la tournure interdite passe dans une decision', SERVEUR, "  if (tournure) return refus('proposition-refusee', 400, { tournure });", "  if (false) return refus('proposition-refusee', 400, { tournure });"],
   ['une fiche inconnue est posee quand meme', SERVEUR, "  if (!fiche) return refus('fiche-inconnue', 404);", "  if (!fiche) fiche = { id: 'inconnue' };"],

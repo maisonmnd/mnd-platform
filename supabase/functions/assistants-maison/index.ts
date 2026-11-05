@@ -656,7 +656,12 @@ var ACTIONS_DU_JETON = [
   "depense.poser",
   "fiche.chercher",
   /* 2 novembre 2026, le socle : le bilan déposé avant le Conseil du matin. */
-  "bilan.deposer"
+  "bilan.deposer",
+  /* 5 novembre 2026, une consigne aux assistants : la lire (ou la regarder sans
+     la marquer, pour le guetteur), y répondre, la passer à un autre. */
+  "consigne.lire",
+  "consigne.repondre",
+  "consigne.passer"
 ];
 var ACTIONS_DU_SOUVERAIN = ["jeton.donner", "jeton.retirer", "decision.trancher", "place.trancher", "loin.basculer"];
 var porteDeLAction = (action) => {
@@ -1142,12 +1147,108 @@ function ficheLisible(f, rdvs, nomDe, aujourdhui) {
 }
 var pieceDeLaLecture = (n) => `une recherche de fiche, ${n === 0 ? "aucune trouvée" : n === 1 ? "une trouvée" : `${n} trouvées`}`;
 
+// src/shared/consignes-pur.ts
+var STATUT_DIT = {
+  envoyee: "Envoyée",
+  lue: "Lue",
+  faite: "Fait",
+  "oui-attendu": "Votre oui",
+  passee: "Passée",
+  "en-attente": "En attente"
+};
+var STATUTS_NOUVEAUX = ["envoyee", "passee"];
+var STATUTS_A_LIRE = ["envoyee", "passee", "lue", "en-attente", "oui-attendu"];
+var STATUTS_OUVERTS = ["envoyee", "passee", "lue", "en-attente"];
+var estNouvelle = (statut) => STATUTS_NOUVEAUX.includes(String(statut ?? ""));
+function statutDeLaReponse(mot) {
+  const m = String(mot ?? "").trim().toLowerCase();
+  if (m === "faite" || m === "fait") return "faite";
+  if (m === "oui-attendu" || m === "oui") return "oui-attendu";
+  if (m === "en-attente" || m === "attente") return "en-attente";
+  return null;
+}
+var REPONSE_AU_PLUS = 600;
+var MOT_DE_PASSE_AU_PLUS = 200;
+var GESTES_A_DEFAIRE_AU_PLUS = 5;
+var LIGNE_DE_NOTE_AU_PLUS = 300;
+var CONSIGNES_LUES_AU_PLUS = 50;
+var DEFAIRE_PENDANT_MS = 60 * 6e4;
+var GUETTEUR_FRAIS_MS = 3 * 6e4;
+var sansControle = (t) => t.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "");
+var STATUTS_D_AVANT = ["confirmé", "en attente", "honoré"];
+var defaireDeLaPose = (rdvId) => ({ genre: "rdv-pose", rdvId });
+var defaireDuDeplacement = (rdvId, avant, apres) => ({ genre: "rdv-deplace", rdvId, avant: { date: avant.date, time: avant.time }, apres: { date: apres.date, time: apres.time } });
+var defaireDeLAnnulation = (rdvId, statutAvant) => ({ genre: "rdv-annule", rdvId, avant: { status: statutAvant } });
+var defaireDeLaNote = (rdvId, ligne) => ({ genre: "note", rdvId, ligne });
+var idSain = (v) => typeof v === "string" && /^[A-Za-z0-9_.:-]{1,80}$/.test(v) ? v : null;
+var dateSaine = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+var heureSaine = (v) => typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : null;
+function lisLeDefaire(v) {
+  if (v === void 0 || v === null) return { ok: true, gestes: [] };
+  const liste = Array.isArray(v) ? v : [v];
+  if (liste.length > GESTES_A_DEFAIRE_AU_PLUS) return { ok: false, motif: `plus de ${GESTES_A_DEFAIRE_AU_PLUS} gestes à défaire` };
+  const gestes = [];
+  for (const brut of liste) {
+    const g = brut && typeof brut === "object" ? brut : {};
+    const rdvId = idSain(g.rdvId);
+    if (!rdvId) return { ok: false, motif: "un geste sans rendez-vous lisible" };
+    if (g.genre === "rdv-pose") {
+      gestes.push(defaireDeLaPose(rdvId));
+      continue;
+    }
+    if (g.genre === "rdv-deplace") {
+      const av = g.avant ?? {};
+      const ap = g.apres ?? {};
+      const d1 = dateSaine(av.date);
+      const t1 = heureSaine(av.time);
+      const d2 = dateSaine(ap.date);
+      const t2 = heureSaine(ap.time);
+      if (!d1 || !t1 || !d2 || !t2) return { ok: false, motif: "un déplacement sans son avant et son après" };
+      gestes.push(defaireDuDeplacement(rdvId, { date: d1, time: t1 }, { date: d2, time: t2 }));
+      continue;
+    }
+    if (g.genre === "rdv-annule") {
+      const s = String((g.avant ?? {}).status ?? "");
+      if (!STATUTS_D_AVANT.includes(s)) return { ok: false, motif: "une annulation sans le statut d avant" };
+      gestes.push(defaireDeLAnnulation(rdvId, s));
+      continue;
+    }
+    if (g.genre === "note") {
+      const ligne = typeof g.ligne === "string" ? g.ligne.trim() : "";
+      if (!ligne || ligne.length > LIGNE_DE_NOTE_AU_PLUS || ligne.includes("\n")) return { ok: false, motif: "une note sans sa ligne" };
+      gestes.push(defaireDeLaNote(rdvId, ligne));
+      continue;
+    }
+    return { ok: false, motif: "un genre de geste inconnu" };
+  }
+  return { ok: true, gestes };
+}
+function reponseDeConsigne(o) {
+  const statut = statutDeLaReponse(o.statut);
+  if (!statut) return { ok: false, motif: "statut-inconnu", detail: "faite, oui-attendu ou en-attente" };
+  const ouvert = STATUTS_OUVERTS.includes(o.actuel);
+  const apresLeOui = o.actuel === "oui-attendu" && (statut === "faite" || statut === "en-attente");
+  if (!ouvert && !apresLeOui) return { ok: false, motif: "deja-close", detail: `la consigne est ${STATUT_DIT[o.actuel] ?? o.actuel}` };
+  const reponse = sansControle(String(o.reponse ?? "")).trim();
+  if (!reponse) return { ok: false, motif: "reponse-vide" };
+  if (reponse.length > REPONSE_AU_PLUS) return { ok: false, motif: "reponse-trop-longue", detail: `${REPONSE_AU_PLUS} caractères au plus` };
+  const d = lisLeDefaire(o.defaire);
+  if (!d.ok) return { ok: false, motif: "defaire-refuse", detail: d.motif };
+  if (d.gestes.length && (statut !== "faite" || o.actuel === "oui-attendu")) return { ok: false, motif: "defaire-hors-fait", detail: "défaire ne vaut que pour ce qui est fait seul" };
+  const decisionId = typeof o.decision === "string" && o.decision.trim() ? o.decision.trim() : null;
+  if (statut === "oui-attendu" && !decisionId) return { ok: false, motif: "decision-manquante", detail: "la carte déposée par decision deposer" };
+  return { ok: true, r: { statut, reponse, gestes: d.gestes, decisionId } };
+}
+var peutPasser = (actuel) => STATUTS_OUVERTS.includes(actuel);
+var notificationDuOui = (nomDeLAssistant) => ({ titre: "Une consigne attend votre oui", corps: `${nomDeLAssistant} a préparé une carte dans Les assistants.` });
+
 // scripts/serveur/assistants-maison.ts
-var VERSION = "2026-11-03-a · le socle : cartes de tous les genres, Je suis loin, bilan du matin ; la confirmation à liens";
+var VERSION = "2026-11-05-a · une consigne aux assistants : consigne.lire, consigne.repondre, consigne.passer ; défaire rendu par les gestes faits seuls";
 var BRANCHE_PHARE = "br-40r6u6frno";
 var ECRAN = "Les assistants";
 var ADRESSE_DES_ASSISTANTS = "/trone/#/assistants";
 var ETIQUETTE_DES_NOTIFICATIONS = "mnd-assistants";
+var ETIQUETTE_DES_CONSIGNES = "mnd-consignes";
 var ENVOI_MAX_MS = 8e3;
 var FENETRE_DU_VERROU_JOURS = 90;
 var TZ = "Africa/Porto-Novo";
@@ -1360,6 +1461,24 @@ var Serveur = class {
     } catch (e) {
       dis("notification en échec", { genre, motif: String(e?.message ?? e).slice(0, 80) });
       return { sent: 0, motif: "push-notify" };
+    }
+  }
+  /** Une notification à un compte de la direction, par push-notify (mode
+      to-staff) : un titre et un corps déjà propres (sans nom, sans extrait). */
+  async notifieLeCompte(userId, titre, corps, etiquette = ETIQUETTE_DES_NOTIFICATIONS) {
+    if (!userId) return 0;
+    try {
+      const r = await fetch(`${this.url}/functions/v1/push-notify`, {
+        method: "POST",
+        signal: AbortSignal.timeout(ENVOI_MAX_MS),
+        headers: { "content-type": "application/json", authorization: `Bearer ${this.service}` },
+        body: JSON.stringify({ mode: "to-staff", userId, title: titre, body: corps, url: ADRESSE_DES_ASSISTANTS, tag: etiquette })
+      });
+      const lu = await r.json().catch(() => ({}));
+      return Number(lu.sent ?? 0) || 0;
+    } catch (e) {
+      dis("notification en échec", { genre: etiquette, motif: String(e?.message ?? e).slice(0, 80) });
+      return 0;
     }
   }
   /** Un relais déposé par la fonction : la ligne, la notification si le genre
@@ -1785,7 +1904,7 @@ async function rdvPoser(s, moi, d) {
   }
   await s.journalise(moi.nom, { verbe: "pose", table: "appointments", pieceId: rdvId, piece: `Rendez-vous ${heure}${prestation ? `, ${prestation}` : ""}`, branchId });
   dis("rdv", { par: moi.id, verdict: tenue ? "tenue" : "pose", fenetre: dansLaFenetre, autre: autre?.id ?? null });
-  return rendu({ verdict: tenue ? "tenue" : "pose", rdvId, master: masterPose, sent, ...tenue ? { tenue: rdv.tenue } : {} });
+  return rendu({ verdict: tenue ? "tenue" : "pose", rdvId, master: masterPose, sent, ...tenue ? { tenue: rdv.tenue } : {}, defaire: defaireDeLaPose(rdvId) });
 }
 async function rdvSousVerrou(s, d) {
   const rdvId = chaine(d.rdvId);
@@ -1829,7 +1948,7 @@ async function rdvDeplacer(s, moi, d) {
     branchId: v.ligne.branch_id,
     champs: [{ champ: "Date", avant: avant.date, apres: date }, { champ: "Heure", avant: avant.time, apres: time }]
   });
-  return rendu({ rdvId: v.ligne.id, updatedAt: ecrit.updated_at, sent });
+  return rendu({ rdvId: v.ligne.id, updatedAt: ecrit.updated_at, sent, defaire: defaireDuDeplacement(v.ligne.id, { date: avant.date, time: avant.time }, { date, time }) });
 }
 async function rdvAnnuler(s, moi, d) {
   const v = await rdvSousVerrou(s, d);
@@ -1853,7 +1972,7 @@ async function rdvAnnuler(s, moi, d) {
     branchId: v.ligne.branch_id,
     champs: [{ champ: "Statut", avant: avant.status, apres: "annulé" }]
   });
-  return rendu({ rdvId: v.ligne.id, updatedAt: ecrit.updated_at, sent });
+  return rendu({ rdvId: v.ligne.id, updatedAt: ecrit.updated_at, sent, defaire: defaireDeLAnnulation(v.ligne.id, avant.status) });
 }
 async function notePoser(s, moi, d) {
   const rdvId = chaine(d.rdvId);
@@ -1869,7 +1988,7 @@ async function notePoser(s, moi, d) {
   await s.sb.from("appointments").update({ data: { ...ligne.data, note: lu ? `${lu}
 ${ajout}` : ajout } }).eq("id", rdvId);
   await s.journalise(moi.nom, { verbe: "modifie", table: "appointments", pieceId: rdvId, piece: `Note du carnet, rendez-vous ${heureDite(ligne.data.date, ligne.data.time, maintenantMs)}`, branchId: ligne.branch_id });
-  return rendu({ rdvId });
+  return rendu({ rdvId, defaire: defaireDeLaNote(rdvId, ajout) });
 }
 var GENRES_DE_NOTIFICATION = /* @__PURE__ */ new Set(["decision", "sommeil", "empeche"]);
 async function notifier(s, moi, d) {
@@ -2047,6 +2166,125 @@ async function ficheChercher(s, moi, d) {
   }
   await s.journalise(moi.nom, { verbe: "lit", table: "clients", pieceId: identifiant("lecture"), piece: pieceDeLaLecture(fiches.length), branchId: moi.branch_id });
   return rendu({ fiches, plus });
+}
+var consigneDe = (l) => ({
+  id: l.id,
+  de: l.de,
+  texte: l.texte,
+  statut: l.statut,
+  nouvelle: estNouvelle(l.statut),
+  ecriteLe: l.ecrite_le,
+  lueLe: l.lue_le ?? null,
+  ...l.reponse ? { reponse: l.reponse } : {},
+  ...l.passee_de ? { passeeDe: l.passee_de, passeeLe: l.passee_le ?? null, ...l.passee_mot ? { passeeMot: l.passee_mot } : {} } : {},
+  ...l.decision_id ? { decisionId: l.decision_id } : {}
+});
+async function consigneLire(s, moi, d) {
+  const marquer = d.marquer !== false;
+  const maintenant = (/* @__PURE__ */ new Date()).toISOString();
+  const { data, error } = await s.sb.from("assistants_consignes").select("*").eq("pour", moi.id).in("statut", [...STATUTS_A_LIRE]).order("ecrite_le", { ascending: true }).limit(CONSIGNES_LUES_AU_PLUS);
+  if (error) {
+    dis("consignes illisibles", { motif: String(error.message ?? "").slice(0, 80) });
+    return refus("consignes-absentes", 503);
+  }
+  const lignes = data ?? [];
+  try {
+    await s.sb.from("assistants").update({ guette_le: maintenant }).eq("id", moi.id);
+  } catch {
+  }
+  const ids = lignes.map((l) => l.decision_id).filter((x) => !!x);
+  const cartes = /* @__PURE__ */ new Map();
+  if (ids.length) {
+    const { data: decs } = await s.sb.from("assistants_decisions").select("*").in("id", ids);
+    for (const dec of decs ?? []) cartes.set(dec.id, dec);
+  }
+  const nouvelles = lignes.filter((l) => estNouvelle(l.statut)).map((l) => l.id);
+  if (marquer && nouvelles.length) {
+    await s.sb.from("assistants_consignes").update({ statut: "lue", lue_le: maintenant }).in("id", nouvelles).eq("pour", moi.id).in("statut", [...STATUTS_NOUVEAUX]);
+  }
+  const consignes = lignes.map((l) => {
+    const c = consigneDe(l);
+    const dec = l.decision_id ? cartes.get(l.decision_id) : void 0;
+    const lue = marquer && estNouvelle(l.statut) ? { statut: "lue", lueLe: maintenant } : {};
+    return {
+      ...c,
+      ...lue,
+      ...dec ? { carte: { tranchee: dec.tranchee ?? null, texteModifie: dec.texte_modifie ?? null, executeeLe: dec.executee_le ?? null } } : {}
+    };
+  });
+  return rendu({ assistant: { id: moi.id, nom: moi.nom }, marquees: marquer ? nouvelles.length : 0, nouvelles: nouvelles.length, consignes });
+}
+async function consigneRepondre(s, moi, d) {
+  const id = chaine(d.id);
+  if (!id) return refus("id");
+  const { data } = await s.sb.from("assistants_consignes").select("*").eq("id", id).maybeSingle();
+  const c = data ?? null;
+  if (!c) return refus("consigne-inconnue", 404);
+  if (c.pour !== moi.id) return refus("pas-a-toi", 403);
+  const juge = reponseDeConsigne({ actuel: c.statut, statut: d.statut, reponse: d.reponse, defaire: d.defaire, decision: d.decision });
+  if (!juge.ok) return refus(juge.motif, juge.motif === "deja-close" ? 409 : 400, juge.detail ? { detail: juge.detail } : {});
+  const r = juge.r;
+  if (r.decisionId) {
+    const { data: dec } = await s.sb.from("assistants_decisions").select("id, assistant").eq("id", r.decisionId).maybeSingle();
+    if (!dec) return refus("decision-inconnue", 404);
+    if (dec.assistant !== moi.id) return refus("pas-ta-carte", 403);
+  }
+  const maintenantMs = Date.now();
+  const maintenant = new Date(maintenantMs).toISOString();
+  const patch = {
+    statut: r.statut,
+    reponse: r.reponse,
+    lue_le: c.lue_le ?? maintenant,
+    ...r.statut === "faite" ? { faite_le: maintenant, defaire: r.gestes.length ? r.gestes : null } : {},
+    ...r.decisionId ? { decision_id: r.decisionId } : {}
+  };
+  const { data: ecrit } = await s.sb.from("assistants_consignes").update(patch).eq("id", id).eq("pour", moi.id).eq("statut", c.statut).select("id");
+  if (!ecrit || ecrit.length === 0) return refus("modifie-entre-temps", 409);
+  let notifie = 0;
+  let nuit = false;
+  if (r.statut === "oui-attendu" && !c.notifie_le) {
+    if (!notificationPermise(aCotonou(maintenantMs).heure)) nuit = true;
+    else {
+      const { titre, corps } = notificationDuOui(moi.nom);
+      const comptes = [...new Set([moi.porteur_user_id, c.de_user_id].filter((x) => !!x))];
+      for (const u of comptes) notifie += await s.notifieLeCompte(u, titre, corps, ETIQUETTE_DES_CONSIGNES);
+      await s.sb.from("assistants_consignes").update({ notifie_le: maintenant }).eq("id", id);
+    }
+  }
+  dis("consigne", { par: moi.id, statut: r.statut, gestes: r.gestes.length, notifie });
+  return rendu({
+    id,
+    statut: r.statut,
+    notifie,
+    ...nuit ? { nuit: true } : {},
+    ...r.statut === "faite" && r.gestes.length ? { defaireJusqua: new Date(maintenantMs + DEFAIRE_PENDANT_MS).toISOString() } : {}
+  });
+}
+async function consignePasser(s, moi, d) {
+  const id = chaine(d.id);
+  if (!id) return refus("id");
+  const { data } = await s.sb.from("assistants_consignes").select("*").eq("id", id).maybeSingle();
+  const c = data ?? null;
+  if (!c) return refus("consigne-inconnue", 404);
+  if (c.pour !== moi.id) return refus("pas-a-toi", 403);
+  if (!peutPasser(c.statut)) return refus("deja-close", 409);
+  const pourId = chaine(d.pour).toLowerCase();
+  if (!pourId || pourId === moi.id) return refus("pour-invalide");
+  const cible = await s.assistant(pourId);
+  if (!cible) return refus("assistant-inconnu", 404);
+  const mot = chaine(d.mot);
+  if (mot.length > MOT_DE_PASSE_AU_PLUS) return refus("mot-trop-long", 400, { detail: `${MOT_DE_PASSE_AU_PLUS} caractères au plus` });
+  const maintenant = (/* @__PURE__ */ new Date()).toISOString();
+  const { data: ecrit } = await s.sb.from("assistants_consignes").update({
+    pour: cible.id,
+    statut: "passee",
+    passee_de: moi.id,
+    passee_le: maintenant,
+    passee_mot: mot || null,
+    lue_le: null
+  }).eq("id", id).eq("pour", moi.id).eq("statut", c.statut).select("id");
+  if (!ecrit || ecrit.length === 0) return refus("modifie-entre-temps", 409);
+  return rendu({ id, pour: cible.id, nom: cible.nom, relie: !!cible.empreinte });
 }
 async function jetonDonner(s, qui, d) {
   const id = chaine(d.id).toLowerCase();
@@ -2319,6 +2557,12 @@ Deno.serve(async (req) => {
           return await ficheChercher(s, moi, d);
         case "bilan.deposer":
           return await bilanDeposer(s, moi, d);
+        case "consigne.lire":
+          return await consigneLire(s, moi, d);
+        case "consigne.repondre":
+          return await consigneRepondre(s, moi, d);
+        case "consigne.passer":
+          return await consignePasser(s, moi, d);
       }
     } else {
       const qui = porte.qui;
