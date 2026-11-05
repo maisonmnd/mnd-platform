@@ -139,7 +139,9 @@ dit('la fenêtre de la remise s ouvre', !!ouverte);
 await photo('1-remise');
 dit('le livre au soir de la remise et « À régulariser » disent 140 000 F', (await chiffres('.cjj-grand b', MODALE)) === '140000' && (await chiffres('.cjj-calc', MODALE)) === '140000',
   `${await chiffres('.cjj-grand b', MODALE)} / ${await chiffres('.cjj-calc', MODALE)}`);
-const mois = await evalue(`[...(${MODALE}).querySelectorAll('.cjj-ligne')].map((l) => l.textContent.replace(/\\D/g, ''))`);
+const mois = await evalue(`[...(${MODALE}).querySelectorAll('.cjj-ligne')].map((l) => (l.lastElementChild?.textContent || '').replace(/\\D/g, ''))`);
+const moisDits = await evalue(`[...(${MODALE}).querySelectorAll('.cjj-ligne')].map((l) => l.firstElementChild?.textContent || '')`);
+dit('chaque mois se dit avec son année', (moisDits ?? []).length > 0 && (moisDits ?? []).every((t) => /\d{4}/.test(t) || t.startsWith('Laissé')), JSON.stringify(moisDits));
 dit('ce que chaque mois a laissé : 100 000 F puis 40 000 F', JSON.stringify(mois?.slice(-2)) === JSON.stringify(['100000', '40000']), JSON.stringify(mois));
 await tape('#rz-banque', '40000');
 await attend(400);

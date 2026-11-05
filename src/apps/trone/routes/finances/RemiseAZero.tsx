@@ -17,7 +17,7 @@ import {
 } from '../../../../shared/remise-a-zero-pur';
 import { useStaff } from '../equipe/data';
 import { useCaisses } from './tiroirs';
-import { ChampPieceJointe, monthKey, monthLabel, todayISO } from './_shared';
+import { ChampPieceJointe, monthKey, monthTitle, todayISO } from './_shared';
 import './caisse-au-jour.css';
 
 /* ══ REMETTRE LE TIROIR À 0 F — 5 novembre 2026 ═══════════════════════════
@@ -185,7 +185,7 @@ export function RemiseAZero({ cashbox, onClose }: { cashbox: string; onClose: ()
             <div className="cjj-muet" style={{ marginBottom: 2 }}>Ce que chaque mois a laissé dans le tiroir{derniereRemiseLe ? `, depuis la remise du ${derniereRemiseLe.split('-').reverse().join('/')}` : ''} :</div>
             {parMois.map((p) => (
               <div className="cjj-ligne" key={`${p.mois}-${p.reste ? 'r' : 'm'}`}>
-                <span>{p.reste ? `Laissé à la remise d’avant` : monthLabel(p.mois)}</span>
+                <span>{p.reste ? `Laissé à la remise d’avant` : monthTitle(p.mois)}</span>
                 <span className="cjj-num">{p.xof < 0 ? '− ' : ''}{f(Math.abs(p.xof))}</span>
               </div>
             ))}

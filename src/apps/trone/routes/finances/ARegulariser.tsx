@@ -16,7 +16,7 @@ import {
 } from '../../../../shared/remise-a-zero-pur';
 import { useStaff } from '../equipe/data';
 import { useEstDirection } from '../_vie';
-import { ChampPieceJointe, monthLabel } from './_shared';
+import { ChampPieceJointe, monthTitle } from './_shared';
 import './caisse-au-jour.css';
 
 /* ══ « À RÉGULARISER » — 5 novembre 2026 ══════════════════════════════════
@@ -93,7 +93,7 @@ export function ARegulariser() {
         }]
         : suite;
     });
-    toast(`${f(xof)} régularisés : ${form.devient === 'depense' ? `dépense de ${monthLabel(form.mois)}` : `prélèvement de ${associe?.name ?? 'l’associé'}`}.`);
+    toast(`${f(xof)} régularisés : ${form.devient === 'depense' ? `dépense · ${monthTitle(form.mois)}` : `prélèvement de ${associe?.name ?? 'l’associé'}`}.`);
     setForm(null);
   };
 
@@ -142,7 +142,7 @@ export function ARegulariser() {
                 <div className="cjj-mois">
                   {r.parMois.map((p) => (
                     <div key={`${p.mois}-${p.reste ? 'r' : 'm'}`}>
-                      <span>{p.reste ? 'Remise d’avant' : monthLabel(p.mois)}</span>
+                      <span>{p.reste ? 'Remise d’avant' : monthTitle(p.mois)}</span>
                       <b>{p.xof < 0 ? '− ' : ''}{f(Math.abs(p.xof))}</b>
                     </div>
                   ))}
@@ -167,7 +167,7 @@ export function ARegulariser() {
                 <label htmlFor={`rg-mois-${m.id}`}>Mois
                   <select id={`rg-mois-${m.id}`} className="mnd-input" value={ouvert.mois} onChange={(e) => setForm({ ...ouvert, mois: e.target.value })}>
                     {[...new Set([...(r?.parMois.filter((p) => !p.reste).map((p) => p.mois) ?? []), m.date.slice(0, 7)])].sort().map((mo) => (
-                      <option key={mo} value={mo}>{monthLabel(mo)}</option>
+                      <option key={mo} value={mo}>{monthTitle(mo)}</option>
                     ))}
                   </select>
                 </label>

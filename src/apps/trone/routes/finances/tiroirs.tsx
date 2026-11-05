@@ -29,7 +29,7 @@ import { useRemboursements } from '../../../../shared/avances';
 import { usePrets } from '../../../../shared/foyer';
 import { useSettings } from '../../../../shared/settings';
 import { useClients, useFamilies } from '../../../../shared/clients';
-import { fmtDay, monthKey, monthLabel, monthShort, shiftMonth, todayISO } from './_shared';
+import { fmtDay, monthKey, monthLabel, monthShort, monthTitle, shiftMonth, todayISO } from './_shared';
 import { useClotures } from '../../../../shared/caisse-du-soir';
 import { MOTIF_A_REGULARISER, dernierJourDuMois, lesJoursDuTiroir } from '../../../../shared/remise-a-zero-pur';
 import './caisse-au-jour.css';
@@ -938,7 +938,7 @@ export function TiroirJourParJour({ nom, month }: { nom: string; month: string }
   const fin = dernierJourDuMois(month);
   const a = fin < aujourdhui ? fin : aujourdhui;
   if (de > aujourdhui) {
-    return <div className="trf-empty" style={{ marginTop: 10 }}>{monthLabel(month)} n’a pas encore commencé.</div>;
+    return <div className="trf-empty" style={{ marginTop: 10 }}>{monthTitle(month)} n’a pas encore commencé.</div>;
   }
   const vu = boxMoves(nom, { de, a });
   const f = (n: number) => fmtIn(n, vu.boxCur);
