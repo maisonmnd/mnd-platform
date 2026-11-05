@@ -73,8 +73,10 @@ export function useReglementsEnLigne(): void {
           const membres = team.filter((s) => s.branchId === branch.id).map((s) => ({ id: s.id, part: s.partPourboire ?? PART_POURBOIRE_DEFAUT }));
           const lignes = partsDuReglement(t.r, repartirPourboire(t.r.pourboireXof, membres), piece.id, nomDeLaCliente ?? undefined);
           if (!lignes.length) return;
-          tipsStore.set((prev) => [...prev, ...(lignes.filter((l) => !prev.some((x) => x.id === l.id)) as Tip[])]);
+          /* L'instant de l'inscription (5 novembre 2026) : l'écran de chacun
+             dit « à l'instant » sur sa part. */
           const quand = new Date().toISOString();
+          tipsStore.set((prev) => [...prev, ...(lignes.filter((l) => !prev.some((x) => x.id === l.id)).map((l) => ({ ...l, inscritLe: quand })) as Tip[])]);
           invoicesStore.set((prev) => prev.map((p) => (p.id === piece.id ? marqueLeReglement(p, t.r.id, 'partsLe', quand) : p)));
         });
       }

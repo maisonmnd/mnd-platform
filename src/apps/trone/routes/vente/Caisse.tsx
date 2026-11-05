@@ -32,6 +32,7 @@ import { codeNormalise, estAPlaces, gesteSansRemise, offreDuCode, offreDuCodePas
 import { useAuth } from '../../../../shared/auth';
 import { ChampDeDate } from '../../../../ds/dates';
 import { useEstDirection } from '../_vie';
+import { useVoitLesPourboiresDeLEquipe } from '../equipe/MesPourboires';
 import { maisonNom, maisonRaisonDuPdfAu, signeLeMessage } from '../../../../shared/identite';
 import { uid } from '../../../../shared/store';
 import { graveLesLignesReglees, ligneNetteXof } from '../../../../shared/gamme';
@@ -191,6 +192,8 @@ export default function Caisse() {
   /* CORRIGER UN ENCAISSEMENT, C'EST DÉPLACER DE L'ARGENT DÉJÀ COMPTÉ. La
      direction seule (décision du 15 septembre) ; la trace dira qui. */
   const estDirection = useEstDirection();
+  /* Le tableau des pourboires de l'équipe, à la direction (5 novembre 2026). */
+  const voitLesPourboires = useVoitLesPourboiresDeLEquipe();
   /* Devise étrangère — exceptionnel, ouvert depuis Paramètres. */
   const [settings] = useSettings();
   const [fxOn, setFxOn] = useState(false);
@@ -1320,6 +1323,11 @@ export default function Caisse() {
           le journal du jour vit dans Finances › La journée. */}
       <div className="trv-lien-journee">
         <button type="button" className="trv-linkbtn" onClick={() => navigate('/la-journee')}>La caisse du jour et la clôture de Grenat : Finances › La journée ›</button>
+        {/* LES POURBOIRES DE L'ÉQUIPE (5 novembre 2026) : « c'est quelque part
+            dans l'encaissement, et ce n'est pas facile à voir » (Yéman). */}
+        {voitLesPourboires && (
+          <button type="button" className="trv-linkbtn" data-lien="pourboires" onClick={() => navigate('/pourboires')}>Les pourboires de l’équipe : Équipe › Les pourboires ›</button>
+        )}
       </div>
         <>
         {/* LA CLIENTE ET LA LONGUEUR EN TÊTE (maquette écran 3) : le rush

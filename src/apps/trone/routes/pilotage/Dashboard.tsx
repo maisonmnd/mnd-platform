@@ -38,6 +38,7 @@ import { laCarteSOuvreApresLHonneur } from '../../../../shared/carte-du-prochain
 import { useModelBands, useBandSets } from '../../../../shared/pricing';
 import { useProducts } from '../../../../shared/catalog';
 import { useAuth, useStaff } from '../../../../shared/auth';
+import { MesPourboiresEnDirect, useMaFicheDansLEquipe } from '../equipe/MesPourboires';
 import './pilotage.css';
 import { RevenuDuJour } from '../finances/RevenuDuJour';
 import { LaVeilleAValider } from '../finances/LaVeilleAValider';
@@ -153,6 +154,8 @@ export default function Dashboard() {
      locale de l'e-mail ; jamais un nom en dur. */
   const { session } = useAuth();
   const staff = useStaff();
+  /* Sa fiche dans l'équipe, pour SES pourboires en tête (5 novembre 2026). */
+  const maFiche = useMaFicheDansLEquipe();
   const rawWho = (staff?.name?.trim().split(' ')[0]) || (session?.user?.email?.split('@')[0]) || '';
   const who = rawWho ? rawWho.charAt(0).toUpperCase() + rawWho.slice(1) : '';
   const thisMonth = monthKey(today);
@@ -857,6 +860,12 @@ export default function Dashboard() {
       >
         {greeting}{who ? `, ${who}` : ''}.
       </h2>
+
+      {/* SES POURBOIRES, EN TÊTE DE SON ACCUEIL — 5 novembre 2026 (maquette
+          2e4ZNFxyREv6mxG4vakuh5, écran 4) : la direction a aussi sa part
+          (une demi-part chacun) ; le tableau de l'équipe vit dans Équipe ›
+          Les pourboires. Rien sans fiche ni part. */}
+      <MesPourboiresEnDirect moi={maFiche} />
 
       {/* LA PAGE EN ORDRE — 27 octobre 2026 (maquette Q9Nkir2cdF4jSP6QDTH3cG,
           au sélecteur : « le mois, puis les leviers ») : des ancres, les

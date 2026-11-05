@@ -37,6 +37,7 @@ import { usePointages } from '../../../../shared/caisse-du-soir';
 import type { Pointage } from '../../../../shared/caisse-du-soir-pur';
 import { ChampDeDate } from '../../../../ds/dates';
 import { appelDe } from '../../../../shared/civilite';
+import { useVoitLesPourboiresDeLEquipe } from '../equipe/MesPourboires';
 
 /* Encaissements — le registre de TOUT ce qui entre, par toutes les portes :
    factures réglées au comptoir, acomptes (en ligne ou remis à la Maison),
@@ -315,6 +316,8 @@ export default function Encaissements() {
      liées ne bougent pas. Souverain seulement : ce geste réécrit l'argent
      des mains de toute l'équipe. */
   const monProfil = useMonProfil();
+  /* Le tableau de l'équipe, à un toucher du filtre « Pourboires » (5 novembre 2026). */
+  const voitLesPourboires = useVoitLesPourboiresDeLEquipe();
   const reconstruireLesParts = async () => {
     const equipe = staffStore.get()
       .filter((m) => m.branchId === branch.id)
@@ -818,6 +821,11 @@ export default function Encaissements() {
             {method && ` · ${method}`}{box && ` · ${box}`}
           </span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+            {kind === 'pourboire' && voitLesPourboires && (
+              <Button size="sm" variant="ghost" data-lien="pourboires" onClick={() => navigate('/pourboires')}>
+                Le tableau de l’équipe ›
+              </Button>
+            )}
             {kind === 'pourboire' && monProfil?.role === 'souverain' && (
               <Button size="sm" variant="ghost" onClick={reconstruireLesParts}>
                 Reconstruire les parts de l’équipe

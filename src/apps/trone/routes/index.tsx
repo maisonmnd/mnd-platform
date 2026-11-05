@@ -1,5 +1,5 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
-import { Compass, Bot, TrendingUp, UserRoundCheck, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardCheck, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, Mic, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, Radio, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Star, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
+import { Coins, Compass, Bot, TrendingUp, UserRoundCheck, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardCheck, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, Mic, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, Radio, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Star, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
 /* Registre des routes du Trône, groupées par DÉPARTEMENT.
    Le module d'un écran (routes/<dossier>/) dit d'où il vient, pas où il se range :
@@ -229,6 +229,12 @@ const NAV_DES_ECRANS: TroneGroup[] = [
       { path: '/mes-taches', label: 'Mes tâches', icon: ListTodo, Component: lazy(() => import('./equipe/MesTaches')) },
       { path: '/mon-mois', label: 'Mon mois', icon: BadgeCheck, Component: lazy(() => import('./equipe/MonMois')) },
       { path: '/personnel', label: 'Ressources humaines', icon: UsersRound, Component: lazy(() => import('./equipe/Personnel')) },
+      /* LES POURBOIRES (5 novembre 2026, maquette 2e4ZNFxyREv6mxG4vakuh5) :
+         le tableau de l'équipe, son évolution mois par mois et le fil des
+         pourboires. « C'est quelque part dans l'encaissement, et ce n'est pas
+         facile à voir » (Yéman) : il prend une rubrique, à la direction
+         seule (ROUTES_DIRECTION) ; la Caisse et Encaissements y mènent. */
+      { path: '/pourboires', label: 'Les pourboires', icon: Coins, Component: lazy(() => import('./equipe/Pourboires')) },
       /* LES PRÊTS AU PERSONNEL — 14 octobre 2026, décision de la direction :
          les prêts consentis à l'équipe vivent aux Ressources humaines, à côté
          de la paie qui les rembourse ; le même écran des prêts, lu pour
@@ -484,7 +490,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/pourboires'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>
@@ -525,7 +531,9 @@ export const ROUTES_SOUVERAIN = ['/salon-foyer', '/centre-de-commande', '/atelie
    trace signée par la base : sa vraie barrière est la RLS de 0092
    (`est_direction()`). L'ancien journal écrit par l'application, lui, reste
    lisible du souverain seul (0070). */
-export const ROUTES_DIRECTION = ['/journal'];
+/* LES POURBOIRES DE L'ÉQUIPE (5 novembre 2026) : « réservé à la direction »,
+   le choix de Yéman ; chacun lit SA part en tête de Mon mois. */
+export const ROUTES_DIRECTION = ['/journal', '/pourboires'];
 
 export const peutVoir = (
   role: string | undefined,

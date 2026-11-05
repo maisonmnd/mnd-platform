@@ -64,10 +64,17 @@ const PANNES = [
   ['les prestataires quittent les Ressources humaines', INDEX, ", { path: '/prestataires', label: 'Les prestataires' }", ''],
   ['les QR reprennent leur ancien nom', INDEX, "label: 'QR de la Maison'", "label: 'QR Codes'"],
   ['le Foyer remontre le mot banni', INDEX, "label: 'Maison & Foyer'", "label: 'Salon & Foyer'"],
-  /* 31 octobre 2026 : la liste finit par /dictee et /assistants ; l'aiguille suit. */
-  ['l Audience oubliee des ecrans nes apres', INDEX, "'/previsions', '/gerard', '/audience', '/dictee', '/assistants'];", "'/previsions', '/gerard', '/dictee', '/assistants'];"],
+  /* 31 octobre 2026 : la liste finit par /dictee et /assistants ; l'aiguille suit.
+     5 novembre 2026 : elle finit par /la-journee (4 novembre, l'aiguille était
+     restée derrière : introuvable) et /pourboires ; l'aiguille suit encore. */
+  ['l Audience oubliee des ecrans nes apres', INDEX, "'/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/pourboires'];", "'/previsions', '/gerard', '/dictee', '/assistants', '/la-journee', '/pourboires'];"],
   ['Entre deux seances retire en ecrivant horsMenu dans sa ligne', INDEX,
     "{ path: '/entre-deux', label: 'Entre deux séances'", "{ path: '/entre-deux', horsMenu: true, label: 'Entre deux séances'"],
+  /* 5 novembre 2026 : Les pourboires, à la direction seule. */
+  ['les pourboires s ouvrent a un maitre', INDEX,
+    "export const ROUTES_DIRECTION = ['/journal', '/pourboires'];", "export const ROUTES_DIRECTION = ['/journal'];"],
+  ['les pourboires quittent l Equipe', INDEX,
+    "      { path: '/pourboires', label: 'Les pourboires', icon: Coins, Component: lazy(() => import('./equipe/Pourboires')) },\n", ''],
   ['les Ambassadrices retournent au Marketing', INDEX,
     "      { path: '/parrainages', horsMenu: true, label: 'Ambassadrices', icon: HeartHandshake, Component: lazy(() => import('./equipe/Parrainages')) },\n      /* GÉRARD",
     "      /* GÉRARD"],

@@ -22,6 +22,11 @@ export type Tip = {
       pourboires que personne n'avait touchés. Absent sur les parts d'avant ce
       jour — elles ne peuvent pas être reliées après coup. */
   invoiceId?: string;
+  /** L'INSTANT OÙ LA PART S'EST INSCRITE — 5 novembre 2026 (les pourboires de
+      l'équipe). `date` dit le jour du pourboire, pas l'heure : sans cet
+      instant, l'écran de chacun ne pouvait pas dire « +1 000 F de pourboire,
+      à l'instant ». Absent sur les parts d'avant ce jour. */
+  inscritLe?: string;
 };
 
 /** LES PARTS D'UNE PIÈCE SUPPRIMÉE S'EN VONT AVEC ELLE. Rend le nombre de
@@ -107,9 +112,11 @@ export function addTipPartage(
 ): { staffId: string; amountXof: number }[] {
   const parts = repartirPourboire(montantXof, membres);
   if (!parts.length) return [];
+  const inscritLe = new Date().toISOString();
   const lignes: Tip[] = parts.map((p) => ({
     id: `tp-${uid()}`, staffId: p.staffId, amountXof: p.amountXof, date, note,
     ...(invoiceId ? { invoiceId } : {}),
+    inscritLe,
   }));
   tipsStore.set((prev) => [...prev, ...lignes]);
   return parts;
@@ -118,7 +125,7 @@ export function addTipPartage(
 /** Enregistre un pourboire pour un membre du personnel (par staffId). */
 export function addTip(staffId: string, amountXof: number, date: string, note?: string) {
   if (!staffId || amountXof <= 0) return;
-  const t: Tip = { id: `tp-${uid()}`, staffId, amountXof: Math.round(amountXof), date, note };
+  const t: Tip = { id: `tp-${uid()}`, staffId, amountXof: Math.round(amountXof), date, note, inscritLe: new Date().toISOString() };
   tipsStore.set((prev) => [...prev, t]);
 }
 

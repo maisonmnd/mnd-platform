@@ -19,13 +19,13 @@ import {
   type Attendance,
 } from './payroll';
 import { uid } from '../../../../shared/store';
-import { useTips } from '../../../../shared/tips';
 import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
 import { useServices } from '../../../../shared/catalog';
 import { MaFacture } from './FacturePrestataire';
 import { estPrestataire } from './facture';
 import './equipe.css';
 import MonEspace from './rh/MonEspace';
+import { MesPourboiresEnDirect, ficheDEssai } from './MesPourboires';
 
 /* MON MOIS — l'écran que chacun ouvre pour soi.
 
@@ -116,7 +116,6 @@ export default function MonMois() {
   const me = useMyStaff();
   const { session } = useAuth();
   const [corrige, setCorrige] = useState<string | null>(null);
-  const [tips] = useTips();
   const [appts] = useAppointments();
   const [services] = useServices();
   const svcById = useMemo(() => new Map(services.map((sv) => [sv.id, sv])), [services]);
@@ -137,7 +136,8 @@ export default function MonMois() {
   const monMail = (session?.user?.email ?? '').trim().toLowerCase();
   const moi = equipe.find((m) => monMail && adresseDe(m) === monMail)
     ?? equipe.find((m) => sameName(m.name, me?.name ?? ''))
-    ?? null;
+    /* Le Trône d'essai, sans serveur (les bancs à l'écran) : MesPourboires.tsx. */
+    ?? ficheDEssai(equipe);
   const gerant = me?.role === 'souverain' || me?.role === 'gerant';
 
   /* LE CODE DU JOUR, À CÔTÉ DU POINTAGE — et seulement pour le gérant.
@@ -312,15 +312,6 @@ export default function MonMois() {
     toast('Pointage supprimé.');
   };
 
-  /* MES POURBOIRES DU MOIS. Le partage se voit deja au comptoir au moment de
-     l'encaissement ; il ne se revoyait plus ensuite, et une regle qu'on ne
-     peut pas relire finit par se discuter de memoire. */
-  const mesPourboires = useMemo(
-    () => (moi ? tips.filter((t) => t.staffId === moi.id && moisDe(t.date) === M).sort((a, b) => (a.date < b.date ? 1 : -1)) : []),
-    [tips, moi, M],
-  );
-  const totalPourboires = mesPourboires.reduce((n, t) => n + t.amountXof, 0);
-
   /* LES TÊTES À COMPLÉTER. Une prestation sans mains désignées ne compte pour
      personne — ni dans la production, ni dans les seuils. Elle retombe sur le
      maître assigné, qui n'est pas toujours celui qui a travaillé.
@@ -362,6 +353,13 @@ export default function MonMois() {
         title="Mon mois."
         sub="Pointage · points · prime · mon espace."
       />
+
+      {/* MES POURBOIRES, EN TÊTE ET EN DIRECT — 5 novembre 2026 (maquette
+          2e4ZNFxyREv6mxG4vakuh5, écran 4) : « ils ont besoin de savoir
+          combien ils gagnent au fur et à mesure » (Yéman). Il remplace la
+          liste « Mes pourboires » du bas de la page, qui disait le nom entier
+          de la cliente : l'équipe la lit par son prénom. */}
+      <MesPourboiresEnDirect moi={moi} />
 
       {!moi && (
         <Card style={{ padding: '18px 20px' }}>
@@ -543,47 +541,6 @@ export default function MonMois() {
             </div>
           </Card>
         </>
-      )}
-
-      {/* ── MES POURBOIRES ────────────────────────────────────────────
-          Transparents : chacun relit sa part sans avoir à la demander. */}
-      {moi && (
-        <Card style={{ marginTop: 14, padding: '16px 18px' }}>
-          <div className="tre-rates__head">
-            <span className="tre-rates__title">Mes pourboires · {totalPourboires > 0 ? fmtMoney(totalPourboires, currency) : '—'}</span>
-            <span className="mnd-muted" style={{ fontSize: 12 }}>
-              Le pourboire se partage entre toute l’équipe, qu’on ait touché la tête ou non.
-              Ta part : {(moi.partPourboire ?? 1) === 1 ? 'une part' : (moi.partPourboire ?? 1) === 0 ? 'aucune' : `${moi.partPourboire} part`}.
-            </span>
-          </div>
-          {mesPourboires.length === 0 ? (
-            <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 10 }}>Aucun pourboire ce mois-ci.</div>
-          ) : (
-            <div className="mnd-scroll-x" style={{ marginTop: 12 }}>
-              <table className="tre-table">
-                {/* LA CLIENTE SE DIT — 19 août 2026 : « besoin de savoir c'est
-                    le pourboire de quelle cliente ». La note du pourboire porte
-                    son nom depuis ce jour ; les parts d'avant n'en ont pas — le
-                    tiret dit « enregistré avant qu'on le note », pas « anonyme ». */}
-                <thead><tr><th>Jour</th><th>De la part de</th><th className="num">Ma part</th></tr></thead>
-                <tbody>
-                  {mesPourboires.map((t) => (
-                    <tr key={t.id}>
-                      <td>{new Date(`${t.date}T00:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}</td>
-                      <td>{t.note?.trim() || <span className="mnd-muted">—</span>}</td>
-                      <td className="num">{fmtMoney(t.amountXof, currency)}</td>
-                    </tr>
-                  ))}
-                  <tr>
-                    <td style={{ fontWeight: 500 }}>Total du mois</td>
-                    <td />
-                    <td className="num">{fmtMoney(totalPourboires, currency)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
       )}
 
       {/* ── LES TÊTES À COMPLÉTER ─────────────────────────────────────

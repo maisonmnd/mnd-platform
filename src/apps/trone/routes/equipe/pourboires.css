@@ -1,0 +1,193 @@
+/* ══ LES POURBOIRES DE L'ÉQUIPE — 5 novembre 2026 ═══════════════════════════
+   Maquette 2e4ZNFxyREv6mxG4vakuh5 : le bloc de chacun (tpb-) et la page de la
+   direction (tpp-). Les couleurs sont celles du Trône (indigo, cuivre, ivoire). */
+
+/* ── Le bloc de chacun ─────────────────────────────────────────────────── */
+.tpb {
+  background: var(--paper, #F6F1E7);
+  border: 1px solid var(--hairline, rgba(20, 20, 27, 0.14));
+  border-left: 3px solid var(--copper-600, #9E6238);
+  border-radius: 6px;
+  padding: 16px 18px;
+  display: grid;
+  gap: 12px;
+  margin: 14px 0;
+  max-width: 560px;
+}
+.tpb__arrive {
+  margin: 0;
+  background: #E6F1E9;
+  color: #2F6B45;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  animation: tpb-arrive 0.6s ease-out;
+}
+@keyframes tpb-arrive { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tpb__arrive { animation: none; } }
+.tpb__tete { display: grid; gap: 2px; }
+.tpb__sur {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft, #45454F);
+}
+.tpb__chiffre {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 44px;
+  line-height: 1;
+  color: var(--copper-700, #7C4C2C);
+  font-variant-numeric: tabular-nums;
+}
+.tpb__trois { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.tpb__case {
+  margin: 0;
+  border: 1px solid var(--hairline, rgba(20, 20, 27, 0.14));
+  border-radius: 6px;
+  padding: 8px 6px;
+  text-align: center;
+  min-width: 0;
+}
+.tpb__case b {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--color-indigo, #1E2150);
+  font-variant-numeric: tabular-nums;
+}
+.tpb__case span {
+  font-size: 10.5px;
+  color: var(--ink-soft, #45454F);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.tpb__liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13.5px; }
+.tpb__liste li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px dashed var(--hairline, rgba(20, 20, 27, 0.14));
+  padding-bottom: 6px;
+}
+.tpb__liste b { font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tpb__doux { margin: 0; font-size: 12.5px; color: var(--ink-soft, #45454F); line-height: 1.55; }
+.tpb__plus { justify-self: start; }
+
+/* ── La page de la direction ───────────────────────────────────────────── */
+.tpp { display: grid; gap: 8px; }
+.tpp-section { display: grid; gap: 12px; margin-top: 18px; min-width: 0; }
+.tpp-h { margin: 0; font-family: var(--font-serif); font-weight: 400; font-size: 24px; color: var(--color-indigo, #1E2150); }
+.tpp-doux { margin: 0; font-size: 12.5px; color: var(--ink-soft, #45454F); line-height: 1.55; }
+.tpp-tableau {
+  background: var(--paper, #F6F1E7);
+  border: 1px solid var(--hairline, rgba(20, 20, 27, 0.14));
+  border-radius: 6px;
+  overflow-x: auto;
+}
+.tpp-tableau table { min-width: 640px; width: 100%; }
+/* Huit colonnes : des marges plus serrées que les autres tableaux de l'Équipe. */
+.tpp-tableau .tre-table th, .tpp-tableau .tre-table td { padding: 10px 12px; }
+.tpp-tableau .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tpp-tableau .tre-table td.num { font-size: 16px; }
+/* `.tre-table .num` peint les chiffres en indigo : sur l'en-tête indigo, ils
+   disparaissaient. L'en-tête garde sa voix à lui. */
+.tpp-tableau .tre-table th.num {
+  font-family: inherit;
+  font-size: 9.5px;
+  font-weight: var(--weight-medium);
+  color: var(--indigo-100, rgba(246, 241, 231, 0.75));
+}
+.tpp-tableau td:first-child { white-space: nowrap; }
+.tpp-nom, .tpp-mois {
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  text-align: inherit;
+  border-bottom: 1px dotted currentColor;
+}
+.tpp-nom:hover, .tpp-mois:hover { color: var(--copper-700, #7C4C2C); }
+.tpp-nom:focus-visible, .tpp-mois:focus-visible { outline: 2px solid var(--focus-ring, rgba(185, 122, 74, 0.55)); outline-offset: 2px; }
+.tpp-mois.is-choisi { color: var(--copper-700, #7C4C2C); border-bottom: 2px solid currentColor; }
+.tpp-tableau tr.is-ouvert td { background: var(--copper-50, #FAF1E9); }
+.tpp-sans td { color: var(--ink-soft, #45454F); font-size: 13px; }
+.tpp-total td { font-weight: 500; background: var(--color-sable, #E3DACB); }
+
+.tpp-detail {
+  background: var(--paper, #F6F1E7);
+  border: 1px solid var(--hairline, rgba(20, 20, 27, 0.14));
+  border-left: 3px solid var(--copper-600, #9E6238);
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+}
+.tpp-detail__tete { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.tpp-detail__tete h4 { margin: 0; font-family: var(--font-serif); font-weight: 500; font-size: 20px; }
+.tpp-detail__tete .tre-link-btn { margin-left: auto; }
+.tpp-detail__chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.tpp-detail__chiffres p { margin: 0; border: 1px solid var(--hairline, rgba(20, 20, 27, 0.14)); border-radius: 6px; padding: 8px; text-align: center; }
+.tpp-detail__chiffres b { display: block; font-family: var(--font-serif); font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.tpp-detail__chiffres span { font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft, #45454F); }
+.tpp-detail__liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; max-height: 320px; overflow-y: auto; }
+.tpp-detail__liste li { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px dashed var(--hairline, rgba(20, 20, 27, 0.14)); padding-bottom: 4px; }
+.tpp-detail__liste b { font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.tpp-graphe {
+  background: var(--paper, #F6F1E7);
+  border: 1px solid var(--hairline, rgba(20, 20, 27, 0.14));
+  border-radius: 6px;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.tpp-barres__cadre { width: 100%; min-width: 0; }
+.tpp-barres { width: 100%; height: auto; display: block; }
+.tpp-barres__axe { stroke: var(--hairline, rgba(20, 20, 27, 0.14)); stroke-width: 1; }
+.tpp-barres__cible { fill: transparent; }
+.tpp-barres__barre { fill: var(--copper-600, #9E6238); }
+.tpp-barres__mois.is-en-cours .tpp-barres__barre { fill: var(--copper-100, #F1DDC9); stroke: var(--copper-600, #9E6238); stroke-width: 1.5; }
+.tpp-barres__mois { cursor: pointer; outline: none; }
+.tpp-barres__mois:hover .tpp-barres__barre { opacity: 0.85; }
+.tpp-barres__mois:focus-visible .tpp-barres__cible { fill: var(--hover-veil, rgba(20, 20, 27, 0.04)); }
+.tpp-barres__mois.is-choisi .tpp-barres__nom { fill: var(--copper-700, #7C4C2C); text-decoration: underline; }
+.tpp-barres__val { fill: var(--ink, #14141B); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.tpp-barres__nom { fill: var(--ink-soft, #45454F); font-size: 12px; }
+.tpp-barres__note { fill: var(--ink-soft, #45454F); font-size: 11px; font-style: italic; }
+
+.tpp-fil__tete { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.tpp-fil {
+  background: var(--paper, #F6F1E7);
+  border: 1px solid var(--hairline, rgba(20, 20, 27, 0.14));
+  border-radius: 6px;
+  overflow: hidden;
+}
+.tpp-fil__ligne {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) auto;
+  grid-template-areas: "jour qui x" ". parts parts";
+  gap: 4px 14px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--hairline, rgba(20, 20, 27, 0.14));
+  align-items: baseline;
+  font-size: 14px;
+}
+.tpp-fil__ligne:first-child { border-top: 0; }
+.tpp-fil__jour { grid-area: jour; }
+.tpp-fil__qui { grid-area: qui; min-width: 0; }
+.tpp-fil__x { grid-area: x; font-family: var(--font-serif); font-size: 18px; text-align: right; white-space: nowrap; }
+.tpp-fil__parts { grid-area: parts; font-size: 12.5px; color: var(--ink-soft, #45454F); }
+.tpp-fil .num { font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) {
+  .tpp-fil__ligne { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "jour x" "qui qui" "parts parts"; }
+  .tpb__chiffre { font-size: 38px; }
+}

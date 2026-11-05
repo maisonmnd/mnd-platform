@@ -52,9 +52,12 @@ const dansLaBarre = items.filter((it) => !it.horsMenu);
    souverains seuls. */
 /* 30 depuis le 4 novembre 2026 : « La journée » (la clôture de Grenat et la
    caisse du jour, maquette 9KCMgAb1…), première des Finances. */
-dit('la barre montre 30 rubriques', 30, dansLaBarre.length);
-dit('... par département : Direction 6, Clientèle 4, Atelier 2, Vente & Caisse 4, Finances 5, Marketing & Fidélité 2, Équipe 3, Académie 1, Système 3',
-  { Direction: 6, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 4, Finances: 5, 'Marketing & Fidélité': 2, 'Équipe': 3, 'Académie': 1, 'Système': 3 },
+/* 31 depuis le 5 novembre 2026 : « Les pourboires » (maquette 2e4ZNFxy…,
+   choix de Yéman : Équipe › Les pourboires, réservé à la direction), sous
+   les Ressources humaines. */
+dit('la barre montre 31 rubriques', 31, dansLaBarre.length);
+dit('... par département : Direction 6, Clientèle 4, Atelier 2, Vente & Caisse 4, Finances 5, Marketing & Fidélité 2, Équipe 4, Académie 1, Système 3',
+  { Direction: 6, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 4, Finances: 5, 'Marketing & Fidélité': 2, 'Équipe': 4, 'Académie': 1, 'Système': 3 },
   Object.fromEntries(NAV.map((g) => [g.group, g.items.filter((it) => !it.horsMenu).length])));
 dit('... dont Les prévisions, en Direction', ['Direction', false], [item('/previsions')?.groupe, !!item('/previsions')?.horsMenu]);
 dit('... dont Perle (l assistant des clientes, ex-Assistant Maison), en Clientèle, juste sous Clientes', ['Clientèle', false, 'Perle', true],
@@ -175,6 +178,17 @@ dit('... et qui ne voit qu un ecran retire de la barre n a pas de premier ecran 
 
 /* LA JOURNÉE (4 novembre 2026) : en Finances, ouverte à qui ouvre la Caisse. */
 dit('La journée est la première des Finances', ['Finances', false, '/la-journee'], [item('/la-journee')?.groupe, !!item('/la-journee')?.horsMenu, NAV.find((g) => g.group === 'Finances')?.items[0]?.path]);
+
+/* LES POURBOIRES (5 novembre 2026) : en Équipe, sous les Ressources humaines,
+   la direction seule ; un maître ne l'ouvre ni par le département Équipe, ni
+   par la case de l'écran. */
+dit('Les pourboires : en Équipe, juste sous les Ressources humaines, nés après les départements', ['Équipe', false, true, true],
+  [item('/pourboires')?.groupe, !!item('/pourboires')?.horsMenu,
+    dansLaBarre.findIndex((it) => it.path === '/pourboires') === dansLaBarre.findIndex((it) => it.path === '/personnel') + 1,
+    ECRANS_NES_APRES_LES_DEPARTEMENTS.includes('/pourboires')]);
+dit('... la direction seule : souverain et gérant oui, un maître non (département Équipe, case de l écran, Finances)', [true, true, false, false, false],
+  [peutVoir('souverain', '/pourboires', {}), peutVoir('gerant', '/pourboires', {}), peutVoir('maitre', '/pourboires', { 'dept-equipe': true }),
+    peutVoir('maitre', '/pourboires', { '/pourboires': true }), peutVoir('maitre', '/pourboires', { 'dept-finances': true, equipe: true })]);
 
 console.log(ko ? `\n${ko} ECHEC.` : '\nLa barre reunie tient ses promesses.');
 if (ko) process.exitCode = 1;
