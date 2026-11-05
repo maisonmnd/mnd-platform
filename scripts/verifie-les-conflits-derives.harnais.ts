@@ -190,5 +190,21 @@ dit('le motif vient du corps de la reponse ; illisible, une phrase francaise et 
 const panneau = sansCommentaires('src/apps/trone/shell/Shell.tsx');
 dit('le panneau dit le refus en francais', true, /\{refusEnFrancais\(r\.refus\)\}/.test(panneau));
 
+/* ── UNE BRANCHE POSÉE N'EST PAS UNE DISPUTE (5 novembre 2026) ──────────
+   « fix it » (Yéman, capture) : fils_automate · main-22999774949, « branchId
+   vide → br-40r6u6frno ». L'automate écrit la ligne sans branche, le poste y
+   pose la sienne : personne n'a rien tapé. */
+const fil = (champs: Record<string, unknown>) => JSON.stringify({ id: 'main-22999774949', numero: '22999774949', etat: 'ouvert', ...champs });
+dit('seule la branche, vide d un cote et posee de l autre : pas un conflit', [],
+  champsQuiDifferent(conflit('fils_automate', 'main-22999774949', fil({ branchId: 'br-40r6u6frno' }), fil({}))));
+dit('... dans l autre sens aussi', [],
+  champsQuiDifferent(conflit('fils_automate', 'main-22999774949', fil({ branchId: '' }), fil({ branchId: 'br-40r6u6frno' }))));
+dit('... et un conflit deja note ainsi ne se montre plus', false,
+  conflitUtile(conflit('fils_automate', 'main-22999774949', fil({ branchId: 'br-40r6u6frno' }), fil({}))));
+dit('deux branches differentes, toutes deux posees : la question reste', ['branchId'],
+  champsQuiDifferent(conflit('fils_automate', 'main-22999774949', fil({ branchId: 'br-a' }), fil({ branchId: 'br-b' }))));
+dit('la branche vide ET un vrai champ qui differe : le vrai champ seul est montre', ['etat'],
+  champsQuiDifferent(conflit('fils_automate', 'main-22999774949', fil({ branchId: 'br-40r6u6frno', etat: 'clos' }), fil({}))));
+
 console.log(ko === 0 ? '\nCe que la Maison calcule ne se dispute pas.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);

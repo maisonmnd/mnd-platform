@@ -224,6 +224,8 @@ const enLigne = (j: string | null): Record<string, unknown> | null => {
 
 /** LES CHAMPS QUI DIFFÈRENT VRAIMENT entre les deux versions, champs dérivés
     retirés. `null` d'un côté (une suppression) : la ligne entière diffère. */
+const vide = (x: unknown): boolean => x === undefined || x === null || x === '';
+
 export function champsQuiDifferent(c: Pick<Conflit, 'table' | 'notre' | 'leur'>): string[] {
   const a = enLigne(c.notre);
   const b = enLigne(c.leur);
@@ -231,7 +233,13 @@ export function champsQuiDifferent(c: Pick<Conflit, 'table' | 'notre' | 'leur'>)
   const derive = DERIVES.get(c.table);
   const ignores = new Set(derive ? [...derive(a), ...derive(b)] : []);
   const cles = new Set([...Object.keys(a), ...Object.keys(b)]);
-  return [...cles].filter((k) => !ignores.has(k) && canonique(a[k]) !== canonique(b[k])).sort();
+  /* UNE BRANCHE POSÉE N'EST PAS UNE DISPUTE — 5 novembre 2026, « fix it »
+     (Yéman, fils_automate : « branchId vide → br-… ») : l'automate écrit
+     sans branche, le poste y pose la sienne ; personne ne l'a tapée. Vide
+     d'un côté, posée de l'autre : rien à demander. Deux branches posées et
+     différentes restent une question. */
+  const brancheSeulementPosee = (k: string) => k === 'branchId' && (vide(a[k]) || vide(b[k]));
+  return [...cles].filter((k) => !ignores.has(k) && !brancheSeulementPosee(k) && canonique(a[k]) !== canonique(b[k])).sort();
 }
 
 /* ══ UN CONFLIT DÉJÀ TRANCHÉ NE SE DEMANDE PLUS — 6 octobre 2026 ═══════
