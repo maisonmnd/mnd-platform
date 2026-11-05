@@ -104,6 +104,26 @@
 .cdj-pont i { display: inline-block; width: 16px; font-style: normal; color: var(--cdj-vieux); }
 .cdj-ligne--fort { font-weight: 500; }
 
+/* ── Une ligne de caisse se clique : elle ouvre tous ses montants ── */
+.cdj-table tr.cdj-choisit { cursor: pointer; }
+.cdj-table tr.cdj-choisit:hover td { background: var(--hover-veil, rgba(20, 20, 27, .04)); }
+
+/* ── Tous les montants de la caisse ── */
+.cdj-livre { scroll-margin-top: 104px; }
+.cdj-livre-jour { cursor: pointer; }
+.cdj-livre-jour td { background: var(--cdj-fond-doux); font-weight: 500; }
+.cdj-livre-jour:hover td { background: color-mix(in srgb, var(--cdj-fond-doux) 80%, var(--cdj-cuivre-pale)); }
+.cdj-livre-jour.est-du-jour td:first-child { box-shadow: inset 3px 0 0 var(--cdj-cuivre); }
+.cdj-livre-jour:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.cdj-chevron { display: inline-block; width: 16px; color: var(--cdj-cuivre); }
+.cdj-livre-montant td:first-child { padding-left: 32px; color: var(--cdj-doux); }
+.cdj-libelle { white-space: normal !important; min-width: 200px; }
+.cdj-livre-montant.est-attente td { color: var(--cdj-cuivre); }
+.cdj-livre-matin td { font-size: 12.5px !important; color: var(--cdj-doux) !important; }
+.cdj-livre-matin td:first-child { padding-left: 32px; }
+.cdj-livre-depart td { font-size: 12.5px !important; color: var(--cdj-doux) !important; border-bottom: 0; }
+.cdj-livre-depart b { color: var(--cdj-encre); }
+
 /* ── Le pied ── */
 .cdj-pied { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; background: var(--cdj-papier); border: 1px solid var(--cdj-trait); border-radius: 8px; padding: 14px 16px; }
 .cdj-pied__dit { font-size: 13.5px; color: var(--cdj-doux); font-variant-numeric: tabular-nums; min-width: 0; }

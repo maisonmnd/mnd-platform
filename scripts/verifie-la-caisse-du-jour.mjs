@@ -83,6 +83,18 @@ const PANNES = [
   ['l ecran lit le livre du mois', ECRAN, 'boxMoves(box.name, { de: jour, a: jour })', "boxMoves(box.name, { de: `${jour.slice(0, 7)}-01`, a: jour })"],
   ['l ecran oublie la mesure des vieilles clotures', ECRAN, 'livreXof: livreDeLaCloture(brute, horsActiviteJusquAu(box.name, brute.date))', 'livreXof: brute.livreXof'],
   ['l ecran oublie la journee close', ECRAN, 'journeeClose={clotureOuverteAuxGestes}', 'journeeClose={true}'],
+  /* Tous les montants d'une caisse (5 novembre 2026). */
+  ['le livre oublie les pourboires gardes', PUR, '    ...c.pourboiresDuMatin.filter((p) => dansLAvant(p.jour)).map(duPourboire),\n', ''],
+  ['le livre oublie les attentes d avant', PUR, '    ...c.attentesAvant.filter((e) => dansLAvant(jourDe(e.date))).map(deLAttente),\n', ''],
+  ['le livre part de zero', PUR, 'const departXof = c.matinXof - somme(avant.map((m) => m.xof));', 'const departXof = 0;'],
+  ['le jour affiche vide disparait du livre', PUR, '  if (!parJour.has(o.jour)) parJour.set(o.jour, []);\n', ''],
+  ['la remise passe avant une cloture plus recente', PUR, 'c && (!r || c >= r) ?', 'c && !r ?'],
+  ['le livre recule avant le debut des comptes', PUR, 'if (plusRecent && lendemainDe(plusRecent.le) > o.debutDesComptes)', 'if (plusRecent)'],
+  ['le livre compte les lignes d avant son depart', PUR, 'const dansLAvant = (j: string) => j >= o.depuis && j < o.jour;', 'const dansLAvant = (j: string) => j < o.jour;'],
+  ['le jour se range sans l heure', PUR, ".sort((a, b) => (a.heure ?? '99:99').localeCompare(b.heure ?? '99:99'));", '.sort(() => 0);'],
+  ['la ligne entiere ne choisit plus la caisse', ECRAN, 'data-caisse={nom} onClick={(e) => surLaLigne(e, l)}', 'data-caisse={nom}'],
+  ['l ecran lit le livre depuis toujours', ECRAN, 'avant: de <= veille ? boxMoves(nom, { de, a: veille })', "avant: de <= veille ? boxMoves(nom, { de: '1900-01-01', a: veille })"],
+  ['le livre ignore la cloture', ECRAN, 'clotureLe: derniereCloture(clotures, branch.id, nom, veille)?.date,', 'clotureLe: undefined,'],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

@@ -262,6 +262,44 @@ dit('... aucune sortie, dite', /Aucune sortie ce jour-là/.test(await evalue(`do
 dit('aucun tiret « — » dans la caisse du jour', !/—/.test(await evalue(`document.querySelector('[data-journal="caisse-du-jour"]')?.innerText ?? '—'`) ?? '—'));
 dit('pas de billetage', !/billet/i.test(await evalue(`document.querySelector('[data-journal="caisse-du-jour"]')?.innerText ?? ''`) ?? ''));
 
+/* 5 bis. Tous les montants de la caisse (5 novembre 2026, « quand je clique sur une caisse, je veux voir tous les montants »). */
+const livre = () => evalue(`(() => {
+  const l = document.querySelector('[data-cdj="livre"]'); if (!l) return null;
+  const n = (t) => Number((t ?? '').replace(/[^\\d]/g, ''));
+  return {
+    de: l.dataset.livreDe,
+    jours: [...l.querySelectorAll('tr[data-livre-jour]')].map((r) => [r.dataset.livreJour, r.getAttribute('aria-expanded'), n(r.cells[4].textContent)]),
+    montants: [...l.querySelectorAll('tr[data-montant]')].map((r) => r.dataset.montant),
+    matin: [...l.querySelectorAll('tr[data-livre-matin]')].map((r) => [r.dataset.livreMatin, n(r.cells[1].textContent)]),
+    depart: n(l.querySelector('[data-cdj="depart"] td:last-child')?.textContent), departDit: l.querySelector('[data-cdj="depart"] td')?.textContent ?? '',
+    total: n(l.querySelector('[data-cdj="livre-total"] td:last-child')?.textContent),
+    vu: l.getBoundingClientRect().top < innerHeight && l.getBoundingClientRect().bottom > 0,
+  };
+})()`);
+const lr = await livre();
+dit('le livre de Real Money : le 4 ouvert (302 000 F au soir), le 3 replié (77 000 F), parti de 0 F, 302 000 F disponibles',
+  !!lr && lr.de === RM && JSON.stringify(lr.jours) === JSON.stringify([[J, 'true', 302000], [VEILLE, 'false', 77000]])
+    && lr.depart === 0 && /Ouverture de la caisse|Début des comptes/.test(lr.departDit) && lr.total === 302000, JSON.stringify(lr));
+dit('... le 4, montant par montant, le plus récent en haut : chaque pourboire au-dessus de son versement ; au matin 77 000 F',
+  !!lr && JSON.stringify(lr.montants) === JSON.stringify(['pourboire', 'versement', 'versement', 'pourboire', 'versement', 'versement', 'versement', 'versement', 'versement'])
+    && JSON.stringify(lr.matin) === JSON.stringify([[J, 77000]]), JSON.stringify(lr && { m: lr.montants, matin: lr.matin }));
+await evalue(`document.querySelector('[data-cdj="livre"] tr[data-livre-jour="${VEILLE}"]')?.click()`);
+await attend(300);
+const lr3 = await livre();
+dit('... un clic déplie le 3 : son versement de 77 000 F, son matin à 0 F', !!lr3 && lr3.montants.length === 10 && JSON.stringify(lr3.matin) === JSON.stringify([[J, 77000], [VEILLE, 0]]), JSON.stringify(lr3));
+const largeurLivre = await photo('1280-livre');
+await evalue(`document.querySelector('[data-journal="caisse-du-jour"] tr[data-caisse="${KKIA}"] td[data-col="matin"]')?.click()`);
+await attend(900);
+const lk = await livre();
+dit('un clic sur la ligne de KkiaPay ouvre ses montants : 60 600 F depuis l ouverture, rien le 4, 60 600 F ce soir, et y mène',
+  !!lk && lk.de === KKIA && lk.depart === 60600 && JSON.stringify(lk.jours) === JSON.stringify([[J, 'true', 60600]]) && lk.montants.length === 0 && lk.total === 60600 && lk.vu, JSON.stringify(lk));
+await evalue(`document.querySelector('[data-journal="caisse-du-jour"] input[data-compte="${MOMO}"]')?.click()`);
+await attend(300);
+dit('... un clic dans un champ de la ligne MoMoPay ne change pas de caisse', (await livre())?.de === KKIA, (await livre())?.de);
+await evalue(`document.querySelector('[data-journal="caisse-du-jour"] button[data-voir="${RM}"]')?.click()`);
+await attend(600);
+dit('... le nom de Real Money y ramène', (await livre())?.de === RM, (await livre())?.de);
+
 /* 6. À 400 px, rien ne déborde. */
 await largeur(400, 900);
 const mesure = await evalue(`(() => {

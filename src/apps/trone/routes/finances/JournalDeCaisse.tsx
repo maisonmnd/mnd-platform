@@ -1,4 +1,4 @@
-import { Fragment, useState, type KeyboardEvent } from 'react';
+import { Fragment, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '../../../../ds/components';
 import { ChampDeDate } from '../../../../ds/dates';
@@ -6,7 +6,7 @@ import { useStaff as useMaTete } from '../../../../shared/auth';
 import { fmtIn, fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import {
-  aValider as aValiderDepenses, caisseDiscrete, cashboxCurrency, entreesHorsActiviteStore, expenseTotal, invoiceReglements,
+  aValider as aValiderDepenses, caisseDiscrete, cashboxCurrency, entreesHorsActiviteStore, expenseTotal, gardeToutSonPasse, invoiceReglements,
   useEntreesHorsActivite, useExpenses, useInvoices,
   type Cashbox, type Invoice,
 } from '../../../../shared/finance';
@@ -14,9 +14,9 @@ import { cloturesStore, useClotures } from '../../../../shared/caisse-du-soir';
 import { derniereCloture, fondPropose, livreDeLaCloture } from '../../../../shared/caisse-du-soir-pur';
 import { derniereRemiseDe } from '../../../../shared/remise-a-zero-pur';
 import {
-  caissesDuComptoir, cocheeAuDepart, compteEtEcart, etatDeLaCaisse, etatDit, laCaisseDuJour, laRemiseDesPourboires, lesCloturesDuSoir, lesTotaux,
-  montantSaisi, pourboiresDesPieces, pourquoiPasLaCloture, pourquoiPasLaRemiseDesPourboires, remisesDesPourboires,
-  type CaisseACloturer, type CaisseDuJour, type EtatDeLaCaisse, type LigneDuLivre,
+  caissesDuComptoir, cocheeAuDepart, compteEtEcart, etatDeLaCaisse, etatDit, laCaisseDuJour, laRemiseDesPourboires, leDepartDuLivre, leLivreDeLaCaisse,
+  lesCloturesDuSoir, lesTotaux, montantSaisi, pourboiresDesPieces, pourquoiPasLaCloture, pourquoiPasLaRemiseDesPourboires, remisesDesPourboires,
+  type CaisseACloturer, type CaisseDuJour, type EtatDeLaCaisse, type LigneDuLivre, type LivreDeLaCaisse,
 } from '../../../../shared/caisse-du-jour-pur';
 import { useEstDirection } from '../_vie';
 import { JournalMndPay } from '../vente/JournalMndPay';
@@ -91,7 +91,7 @@ export function JournalDeCaisse({ jour, onJour, aujourdhui, clotureOuverteAuxGes
   /** Ce qui reste, dit, quand elle ne l'est pas. */
   pourquoiPasEncore: string;
 }) {
-  const { branch, currency, branchBoxes, boxMoves, horsActiviteJusquAu } = useCaisses(monthKey(jour));
+  const { branch, currency, branchBoxes, boxMoves, horsActiviteJusquAu, depuis } = useCaisses(monthKey(jour));
   const [invoices] = useInvoices();
   const [depenses] = useExpenses();
   const [clotures] = useClotures();
@@ -108,6 +108,12 @@ export function JournalDeCaisse({ jour, onJour, aujourdhui, clotureOuverteAuxGes
      du soir les retire de l'attendu, on les retire aussi (`ClotureDuTiroir`). */
   const enAttente = aValiderDepenses(depenses, branch.id).filter((e) => !e.avancee && e.date <= jour);
   const veille = veilleIso(jour);
+  const versLigne = (m: ReturnType<typeof boxMoves>['moves'][number]): LigneDuLivre => ({
+    date: m.date, delta: m.delta, label: m.label, sub: m.sub,
+    ...(m.invoiceId ? { invoiceId: m.invoiceId } : {}),
+    ...(m.expense ? { expenseId: m.expense.id } : {}),
+    ...(m.transfertId ? { transfertId: m.transfertId } : {}),
+  });
 
   const caisses: CaisseVue[] = ordre.map((box) => {
     const vu = boxMoves(box.name, { de: jour, a: jour });
@@ -115,12 +121,7 @@ export function JournalDeCaisse({ jour, onJour, aujourdhui, clotureOuverteAuxGes
     const caisse = laCaisseDuJour({
       nom: box.name, jour,
       livreMatinXof: vu.startBalance,
-      moves: vu.moves.map((m): LigneDuLivre => ({
-        date: m.date, delta: m.delta, label: m.label, sub: m.sub,
-        ...(m.invoiceId ? { invoiceId: m.invoiceId } : {}),
-        ...(m.expense ? { expenseId: m.expense.id } : {}),
-        ...(m.transfertId ? { transfertId: m.transfertId } : {}),
-      })),
+      moves: vu.moves.map(versLigne),
       enAttente: enAttente.filter((e) => e.cashbox === box.name).map((e) => ({ id: e.id, label: e.label, date: e.date, xof: expenseTotal(e) })),
       /* Une clôture d'avant le 10 octobre 2026 se remet à la mesure du livre
          de ce soir, comme dans la clôture du soir. */
@@ -139,6 +140,35 @@ export function JournalDeCaisse({ jour, onJour, aujourdhui, clotureOuverteAuxGes
     };
   });
 
+  /* TOUS LES MONTANTS DE LA CAISSE CHOISIE (5 novembre 2026, « quand je
+     clique sur une caisse, je veux voir tous les montants qui sont associés
+     à cette caisse ») : son livre depuis sa dernière clôture, sa dernière
+     remise à 0 F, ou le début des comptes, jusqu'au soir du jour. Calculé
+     pour la seule caisse ouverte. */
+  const pieceDe = new Map(invoices.map((i) => [i.id, i] as const));
+  const livreDe = (nom: string): LivreDeLaCaisse | null => {
+    const vue = caisses.find((c) => c.box.name === nom);
+    if (!vue || vue.verrouillee) return null;
+    const { depuis: de, depart, departLe } = leDepartDuLivre({
+      clotureLe: derniereCloture(clotures, branch.id, nom, veille)?.date,
+      remiseLe: derniereRemiseDe(horsActivite.filter((m) => m.date.slice(0, 10) <= veille), branch.id, nom),
+      /* Une ancienne garde tout son passé : son livre part de son ouverture. */
+      debutDesComptes: depuis && !gardeToutSonPasse(vue.box) ? `${depuis}-01` : '1900-01-01',
+    });
+    const heureDe = (m: { invoiceId?: string; expenseId?: string; jour: string }): string | undefined => {
+      if (m.expenseId) return undefined;
+      const i = m.invoiceId ? pieceDe.get(m.invoiceId) : undefined;
+      if (!i) return undefined;
+      const vs = invoiceReglements(i).filter((p) => (p.cashbox ?? i.cashbox) === nom && (p.date || i.date).slice(0, 10) === m.jour);
+      return vs.map((p) => p.time ?? '').filter(Boolean).sort()[0] || i.time || undefined;
+    };
+    return leLivreDeLaCaisse({
+      caisse: vue.caisse, jour, depuis: de, depart, departLe,
+      avant: de <= veille ? boxMoves(nom, { de, a: veille }).moves.map(versLigne) : [],
+      heureDe,
+    });
+  };
+
   const jourDit = (() => {
     const s = new Date(`${jour}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     return s.charAt(0).toUpperCase() + s.slice(1);
@@ -153,15 +183,17 @@ export function JournalDeCaisse({ jour, onJour, aujourdhui, clotureOuverteAuxGes
         jour={jour} jourDit={jourDit} onJour={onJour} aujourdhui={aujourdhui}
         caisses={caisses} invoices={invoices} currency={currency} branchId={branch.id}
         journeeClose={clotureOuverteAuxGestes} pourquoiJournee={pourquoiPasEncore}
+        livreDe={livreDe}
       />
     </div>
   );
 }
 
-function LesCaisses({ jour, jourDit, onJour, aujourdhui, caisses, invoices, currency, branchId, journeeClose, pourquoiJournee }: {
+function LesCaisses({ jour, jourDit, onJour, aujourdhui, caisses, invoices, currency, branchId, journeeClose, pourquoiJournee, livreDe }: {
   jour: string; jourDit: string; onJour: (iso: string) => void; aujourdhui: string;
   caisses: CaisseVue[]; invoices: Invoice[]; currency: string; branchId: string;
   journeeClose: boolean; pourquoiJournee: string;
+  livreDe: (nom: string) => LivreDeLaCaisse | null;
 }) {
   const navigate = useNavigate();
   const estDirection = useEstDirection();
@@ -209,6 +241,17 @@ function LesCaisses({ jour, jourDit, onJour, aujourdhui, caisses, invoices, curr
     ?? cochees.find((l) => l.caisse.bouge) ?? cochees[0] ?? duComptoir[0];
 
   const coche = (nom: string, oui: boolean) => setCocheVoulue((p) => ({ ...p, [nom]: oui }));
+  /* UN CLIC SUR LA CAISSE (la ligne entière, hors case, champ et bouton)
+     ouvre tous ses montants, et y mène. */
+  const leLivreRef = useRef<HTMLElement | null>(null);
+  const choisir = (nom: string) => {
+    setChoisie(nom);
+    requestAnimationFrame(() => leLivreRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }));
+  };
+  const surLaLigne = (e: MouseEvent, l: (typeof lignes)[number]) => {
+    if (l.vue.verrouillee || (e.target as HTMLElement).closest('input, button, label, a, select, textarea')) return;
+    choisir(l.caisse.nom);
+  };
   const fermer = () => {
     if (pourquoi) return;
     const nouvelles = lesCloturesDuSoir({ branchId, jour, par: moi, le: new Date().toISOString(), id: () => `clo-${uid()}`, cochees: aCloturer });
@@ -252,14 +295,17 @@ function LesCaisses({ jour, jourDit, onJour, aujourdhui, caisses, invoices, curr
     const montrerMotif = l.cochee && vue.etat.etat === 'ouverte' && (l.ecartXof ?? 0) !== 0;
     return (
       <Fragment key={vue.box.id}>
-        <tr data-caisse={nom} className={`${l.cochee ? '' : 'est-off'}${detail?.caisse.nom === nom ? ' est-choisie' : ''}`}>
+        <tr
+          data-caisse={nom} onClick={(e) => surLaLigne(e, l)}
+          className={`${l.cochee ? '' : 'est-off'}${detail?.caisse.nom === nom ? ' est-choisie' : ''}${vue.verrouillee ? '' : ' cdj-choisit'}`}
+        >
           <td className="g">
             <span className="cdj-case">
               <input
                 type="checkbox" data-coche={nom} checked={l.cochee} disabled={vue.verrouillee}
                 aria-label={`Cocher ${nom}`} onChange={(e) => coche(nom, e.target.checked)}
               />
-              <button type="button" className="cdj-nom" disabled={vue.verrouillee} onClick={() => setChoisie(nom)} title="Voir le détail du jour">
+              <button type="button" className="cdj-nom" data-voir={nom} disabled={vue.verrouillee} onClick={() => choisir(nom)} title="Voir tous ses montants">
                 <b>{nom}</b><small>{sousTitre(l)}</small>
               </button>
             </span>
@@ -441,6 +487,16 @@ function LesCaisses({ jour, jourDit, onJour, aujourdhui, caisses, invoices, curr
         </div>
       </section>
 
+      {d && dv && (() => {
+        const livre = livreDe(d.nom);
+        return livre ? (
+          <LeLivre
+            key={`${d.nom}|${jour}`} livre={livre} jour={jour} f={(n) => f(n, dv)} refDuLivre={leLivreRef}
+            ouvreLaPiece={ouvreLaPiece} ouvreLaDepense={(id) => navigate(`/depenses?depense=${encodeURIComponent(id)}`)} pieceDe={pieceDe}
+          />
+        ) : null;
+      })()}
+
       {d && dv && (
         <div className="cdj-grille">
           <section className="cdj-carte" data-cdj="detail" aria-labelledby="cdj-t-entrees">
@@ -536,5 +592,128 @@ function LesCaisses({ jour, jourDit, onJour, aujourdhui, caisses, invoices, curr
         <button type="button" className="cdj-btn" data-cdj="cloturer" disabled={!!pourquoi} title={pourquoi ?? ''} onClick={fermer}>Clôturer les caisses cochées</button>
       </footer>
     </div>
+  );
+}
+
+/* ── TOUS LES MONTANTS DE LA CAISSE ──────────────────────────────────────
+   Le plus récent en haut : le jour affiché ouvert, les jours d'avant repliés
+   sur leur résumé (montants, entrées, sorties, solde du soir), un clic les
+   déplie. En bas, le départ du livre. Chaque montant ouvre sa pièce ou sa
+   dépense. Le solde après chaque montant ; « Au matin » du jour affiché est
+   le Matin du tableau, son soir le Disponible. */
+const premierDit = (iso: string): string => {
+  const d = new Date(`${iso}T12:00:00`);
+  const mois = d.toLocaleDateString('fr-FR', { month: 'long' });
+  return `${d.getDate() === 1 ? '1er' : d.getDate()} ${mois}`;
+};
+const jourCourt = (iso: string): string => {
+  const s = new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+const OUVERTURE = '1900-01-01';
+
+function LeLivre({ livre, jour, f, refDuLivre, ouvreLaPiece, ouvreLaDepense, pieceDe }: {
+  livre: LivreDeLaCaisse; jour: string; f: (n: number) => string;
+  refDuLivre: { current: HTMLElement | null };
+  ouvreLaPiece: (id: string) => void; ouvreLaDepense: (id: string) => void;
+  pieceDe: ReadonlyMap<string, Invoice>;
+}) {
+  const [ouverts, setOuverts] = useState<ReadonlySet<string>>(() => new Set([jour]));
+  const tousOuverts = livre.jours.every((j) => ouverts.has(j.jour));
+  const bascule = (j: string) => setOuverts((p) => { const n = new Set(p); if (n.has(j)) n.delete(j); else n.add(j); return n; });
+  const toutBasculer = () => setOuverts(tousOuverts ? new Set([jour]) : new Set(livre.jours.map((j) => j.jour)));
+  const auClavier = (e: KeyboardEvent, faire: () => void) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); faire(); } };
+  const departDit = livre.depart === 'cloture' && livre.departLe
+    ? `Compté à la clôture du ${premierDit(livre.departLe)}`
+    : livre.depart === 'remise' && livre.departLe
+      ? `Remise à 0 F du ${premierDit(livre.departLe)}`
+      : livre.depuis === OUVERTURE ? 'Ouverture de la caisse' : `Début des comptes · ${premierDit(livre.depuis)}`;
+  const depuisDit = livre.depuis === OUVERTURE ? 'depuis l’ouverture' : `depuis le ${premierDit(livre.depuis)}`;
+  const libelle = (m: LivreDeLaCaisse['jours'][number]['montants'][number]): { l: string; s?: string } => {
+    const i = m.invoiceId ? pieceDe.get(m.invoiceId) : undefined;
+    if (m.genre === 'pourboire') return { l: `Pourboire · ${i?.clientName || m.label}`, s: i?.number };
+    if (m.genre === 'versement' && i) {
+      const moyens = [...new Set(invoiceReglements(i)
+        .filter((p) => (p.cashbox ?? i.cashbox) === livre.nom && (p.date || i.date).slice(0, 10) === m.jour && p.method !== 'Avoir' && p.method !== 'Acompte')
+        .map((p) => p.method))].join(' + ');
+      return { l: i.clientName || m.label, s: [i.number, moyens].filter(Boolean).join(' · ') };
+    }
+    return { l: m.label, s: m.sub };
+  };
+  const dit = (n: number) => `${n} montant${n > 1 ? 's' : ''}`;
+
+  return (
+    <section className="cdj-carte cdj-livre" data-cdj="livre" data-livre-de={livre.nom} ref={(el) => { refDuLivre.current = el; }} aria-labelledby="cdj-t-livre">
+      <div className="cdj-carte__t">
+        <h4 id="cdj-t-livre">{livre.nom} · tous ses montants</h4>
+        <span>
+          {depuisDit} · {dit(livre.n)} · entrées {f(livre.entreesXof)} · sorties {f(livre.sortiesXof)}
+          {livre.jours.length > 1 && (
+            <button type="button" className="cdj-lien" data-cdj="tout-deplier" onClick={toutBasculer}>{tousOuverts ? 'Tout replier' : 'Tout déplier'}</button>
+          )}
+        </span>
+      </div>
+      <div className="cdj-defile">
+        <table className="cdj-table cdj-table--livre">
+          <thead>
+            <tr><th className="g">Jour · heure</th><th className="g">Montant</th><th>+ Entrée</th><th>− Sortie</th><th>Solde</th></tr>
+          </thead>
+          <tbody>
+            {[...livre.jours].reverse().map((j) => {
+              const ouvert = ouverts.has(j.jour);
+              return (
+                <Fragment key={j.jour}>
+                  <tr
+                    className={`cdj-livre-jour${j.jour === jour ? ' est-du-jour' : ''}`} data-livre-jour={j.jour}
+                    role="button" tabIndex={0} aria-expanded={ouvert}
+                    onClick={() => bascule(j.jour)} onKeyDown={(k) => auClavier(k, () => bascule(j.jour))}
+                  >
+                    <td className="g"><span className="cdj-chevron" aria-hidden="true">{ouvert ? '▾' : '▸'}</span>{jourCourt(j.jour)}</td>
+                    <td className="g">{j.montants.length ? dit(j.montants.length) : 'aucun montant'}</td>
+                    <td>{j.entreesXof ? f(j.entreesXof) : VIDE}</td>
+                    <td>{j.sortiesXof ? f(j.sortiesXof) : VIDE}</td>
+                    <td><b>{f(j.soirXof)}</b></td>
+                  </tr>
+                  {ouvert && [...j.montants].reverse().map((m, k) => {
+                    const { l, s } = libelle(m);
+                    const ouvre = m.invoiceId ? () => ouvreLaPiece(m.invoiceId!) : m.expenseId ? () => ouvreLaDepense(m.expenseId!) : undefined;
+                    return (
+                      <tr
+                        key={`${j.jour}-${k}`} data-montant={m.genre} className={`cdj-livre-montant${ouvre ? ' cdj-ouvre' : ''}${m.genre === 'attente' ? ' est-attente' : ''}`}
+                        {...(ouvre ? { role: 'button', tabIndex: 0, title: m.invoiceId ? 'Ouvrir la facture' : 'Ouvrir la dépense', onClick: ouvre, onKeyDown: (e: KeyboardEvent) => auClavier(e, ouvre) } : {})}
+                      >
+                        <td className="g">{m.heure ? m.heure.slice(0, 5).replace(':', ' h ') : VIDE}</td>
+                        <td className="g cdj-libelle">{l}{s ? <small className="cdj-sous">{s}</small> : null}</td>
+                        <td>{m.xof > 0 ? f(m.xof) : VIDE}</td>
+                        <td>{m.xof < 0 ? f(-m.xof) : VIDE}</td>
+                        <td>{f(m.soldeXof)}</td>
+                      </tr>
+                    );
+                  })}
+                  {ouvert && (
+                    <tr className="cdj-livre-matin" data-livre-matin={j.jour}>
+                      <td className="g" colSpan={4}>Au matin du {premierDit(j.jour)}</td>
+                      <td>{f(j.matinXof)}</td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+            <tr className="cdj-livre-depart" data-cdj="depart">
+              <td className="g" colSpan={4}>Au départ · {departDit}</td>
+              <td><b>{f(livre.departXof)}</b></td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr className="cdj-total" data-cdj="livre-total">
+              <td className="g" colSpan={2}>Disponible ce soir · {dit(livre.n)}</td>
+              <td>{f(livre.entreesXof)}</td>
+              <td>{f(livre.sortiesXof)}</td>
+              <td>{f(livre.disponibleXof)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
   );
 }

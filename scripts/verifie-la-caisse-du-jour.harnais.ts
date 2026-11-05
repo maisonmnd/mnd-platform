@@ -10,6 +10,7 @@
 import { readFileSync } from 'node:fs';
 import {
   MOTIF_POURBOIRES_REMIS, caissesDuComptoir, cocheeAuDepart, compteEtEcart, etatDeLaCaisse, etatDit, laCaisseDuJour, laRemiseDesPourboires,
+  leDepartDuLivre, leLivreDeLaCaisse, lendemainDe, type LivreDeLaCaisse,
   lesCloturesDuSoir, lesTotaux, montantSaisi, pourboiresDesPieces, pourboiresDuJour, pourquoiPasLaCloture, pourquoiPasLaRemiseDesPourboires,
   remisesDesPourboires,
   type CaisseACloturer, type CaisseDuJour, type LigneDuLivre, type LigneDuTableau,
@@ -307,6 +308,94 @@ dit('les totaux disent les pourboires à remettre des seules cochées', [7000, 0
 vrai('l écran lit les remises de chaque caisse et la remise à 0 F', /remises: remisesDesPourboires\(horsActivite, branch\.id, box\.name\)/.test(ecran) && /suiviDepuis: derniereRemiseDe\(horsActivite, branch\.id, box\.name\)/.test(ecran));
 vrai('« Remettre les pourboires » est à la direction seule, et écrit au magasin hors activité', /const peutRemettre = \(l: \(typeof lignes\)\[number\]\) => estDirection && /.test(ecran)
   && /entreesHorsActiviteStore\.set\(\(prev\) => \[\.\.\.prev, laRemiseDesPourboires\(\{/.test(ecran) && !/expensesStore/.test(code));
+
+/* ── 9. Tous les montants d'une caisse (5 novembre 2026, « quand je clique sur une caisse ») ── */
+const DEBUT = '2026-10-01';
+const tient = (nom: string, l: LivreDeLaCaisse, c: CaisseDuJour, jour: string) => {
+  const leJour = l.jours.find((j) => j.jour === jour);
+  vrai(`${nom} : départ + entrées − sorties = disponible ; le matin du jour = le Matin du tableau ; le soir = le Disponible`,
+    l.departXof + l.entreesXof - l.sortiesXof === c.disponibleXof && l.disponibleXof === c.disponibleXof
+      && leJour?.matinXof === c.matinXof && leJour?.soirXof === c.disponibleXof && l.jours.at(-1)?.jour === jour,
+    JSON.stringify({ depart: l.departXof, e: l.entreesXof, s: l.sortiesXof, matin: leJour?.matinXof, soir: leJour?.soirXof }));
+};
+dit('le départ : la clôture la plus récente, sinon la remise à 0 F, sinon le début des comptes ; jamais avant lui',
+  [
+    { depuis: LENDEMAIN, depart: 'cloture', departLe: J },
+    { depuis: LENDEMAIN, depart: 'remise', departLe: J },
+    { depuis: '2026-11-01', depart: 'remise', departLe: '2026-10-31' },
+    { depuis: DEBUT, depart: 'debut' },
+    { depuis: DEBUT, depart: 'debut' },
+  ],
+  [
+    leDepartDuLivre({ clotureLe: J, remiseLe: '2026-10-31', debutDesComptes: DEBUT }),
+    leDepartDuLivre({ clotureLe: '2026-10-20', remiseLe: J, debutDesComptes: DEBUT }),
+    leDepartDuLivre({ remiseLe: '2026-10-31', debutDesComptes: DEBUT }),
+    leDepartDuLivre({ clotureLe: '2026-09-12', debutDesComptes: DEBUT }),
+    leDepartDuLivre({ debutDesComptes: DEBUT }),
+  ]);
+dit('le lendemain passe les fins de mois', ['2026-11-01', '2027-01-01', '2026-03-01'], [lendemainDe('2026-10-31'), lendemainDe('2026-12-31'), lendemainDe('2026-02-28')]);
+
+/* KkiaPay, rien de reçu le 4 : ses 60 600 F se lisent montant par montant depuis le 1er octobre. */
+const AVANT_KKIA: LigneDuLivre[] = [
+  { date: '2026-10-12', delta: 20000, label: 'C. 21.', sub: 'F-BANC-21', invoiceId: 'inv-21' },
+  { date: '2026-10-20T10:12:00.000Z', delta: 25100, label: 'C. 22.', sub: 'F-BANC-22', invoiceId: 'inv-22' },
+  { date: '2026-10-25', delta: -4500, label: 'Frais du banc', expenseId: 'exp-k1' },
+  { date: '2026-11-02', delta: 20000, label: 'C. 23.', sub: 'F-BANC-23', invoiceId: 'inv-23' },
+  { date: '2026-10-28', delta: 0, label: 'Ligne à 0 F' },
+];
+const lk = leLivreDeLaCaisse({ caisse: kkia, jour: J, depuis: DEBUT, depart: 'debut', avant: AVANT_KKIA });
+dit('KkiaPay : départ 0 F au 1er octobre, 4 montants, 65 100 F entrés, 4 500 F sortis, 60 600 F ; le 4 est là, vide',
+  [0, 4, 65100, 4500, 60600, ['2026-10-12', '2026-10-20', '2026-10-25', '2026-11-02', J], 0],
+  [lk.departXof, lk.n, lk.entreesXof, lk.sortiesXof, lk.disponibleXof, lk.jours.map((j) => j.jour), lk.jours.at(-1)!.montants.length]);
+dit('... le solde après chaque montant', [20000, 45100, 40600, 60600], lk.jours.flatMap((j) => j.montants.map((m) => m.soldeXof)));
+dit('... chaque montant dit ce qu il est et mène à sa fiche', [['versement', 'inv-21'], ['versement', 'inv-22'], ['sortie', 'exp-k1'], ['versement', 'inv-23']],
+  lk.jours.flatMap((j) => j.montants.map((m) => [m.genre, m.invoiceId ?? m.expenseId])));
+tient('KkiaPay', lk, kkia, J);
+
+/* Une dépense d'avant en attente de validation : le matin l'a retirée, le livre la montre. */
+const kkiaAttente = caisse(KKIA, 60600, [], { enAttente: [{ id: 'exp-k2', label: 'Taxi du banc', date: VEILLE, xof: 2000 }] });
+const lka = leLivreDeLaCaisse({ caisse: kkiaAttente, jour: J, depuis: DEBUT, depart: 'debut', avant: AVANT_KKIA });
+dit('... une dépense d avant en attente : 58 600 F au matin, le livre la montre à son jour, le départ reste 0 F',
+  [58600, 0, { jour: VEILLE, genre: 'attente', xof: -2000, expenseId: 'exp-k2' }],
+  [kkiaAttente.matinXof, lka.departXof, (({ jour, genre, xof, expenseId }) => ({ jour, genre, xof, expenseId }))(lka.jours.find((j) => j.jour === VEILLE)!.montants[0])]);
+tient('KkiaPay en attente', lka, kkiaAttente, J);
+
+/* Real Money le 5 : la remise à 0 F du 31 octobre, puis le 2, le 3, le 4 et ses pourboires gardés. */
+const AVANT_RM: LigneDuLivre[] = [
+  { date: '2026-10-31', delta: 5000, label: 'Avant la remise : déjà dans le départ' },
+  { date: '2026-11-02', delta: 30000, label: 'C. 31.', sub: 'F-BANC-31', invoiceId: 'inv-31' },
+  { date: '2026-11-03', delta: 47000, label: 'C. 32.', sub: 'F-BANC-32', invoiceId: 'inv-32' },
+  ...LIVRE_RM,
+];
+const depRM = leDepartDuLivre({ remiseLe: '2026-10-31', debutDesComptes: DEBUT });
+const lr = leLivreDeLaCaisse({ caisse: le5, jour: LENDEMAIN, ...depRM, avant: AVANT_RM });
+const le4DuLivre = lr.jours.find((j) => j.jour === J)!;
+dit('Real Money le 5 : départ 0 F (remise à 0 F du 31), le 4 entre 225 000 F dont 7 000 F de pourboires, 302 000 F au soir',
+  [0, ['2026-11-02', '2026-11-03', J, LENDEMAIN], 225000, 302000, 2],
+  [lr.departXof, lr.jours.map((j) => j.jour), le4DuLivre.entreesXof, le4DuLivre.soirXof, le4DuLivre.montants.filter((m) => m.genre === 'pourboire').length]);
+tient('Real Money le 5', lr, le5, LENDEMAIN);
+
+/* Le 4 clôturé à 302 000 F, la remise des pourboires le 5 : le livre part du compté. */
+const lc = leLivreDeLaCaisse({ caisse: le5Clos, jour: LENDEMAIN, ...leDepartDuLivre({ clotureLe: J, remiseLe: '2026-10-31', debutDesComptes: DEBUT }), avant: [] });
+dit('le 4 clôturé : le livre part des 302 000 F comptés, la remise sort 7 000 F, 295 000 F ce soir',
+  ['cloture', 302000, 1, -7000, 295000], [lc.depart, lc.departXof, lc.n, lc.jours[0].montants[0].xof, lc.disponibleXof]);
+tient('Real Money clôturé', lc, le5Clos, LENDEMAIN);
+
+/* Dans le jour, à l'heure : le pourboire suit son versement. */
+const heureBanc = (m: { invoiceId?: string; jour: string }) => PIECES.find((p) => p.id === m.invoiceId)?.payments?.[0]?.time;
+const lh = leLivreDeLaCaisse({ caisse: le4, jour: J, ...depRM, avant: AVANT_RM.slice(0, 3), heureDe: heureBanc });
+dit('le 4 à l heure : 07 h 51 d abord, chaque pourboire juste après son versement',
+  ['07:51', 'versement', 'versement', 'versement', 'versement', 'versement', 'pourboire', 'versement', 'versement', 'pourboire'],
+  [lh.jours.at(-1)!.montants[0].heure, ...lh.jours.at(-1)!.montants.map((m) => m.genre)]);
+dit('... le solde après le premier, après le dernier', [84000, 302000], [lh.jours.at(-1)!.montants[0].soldeXof, lh.jours.at(-1)!.montants.at(-1)!.soldeXof]);
+tient('Real Money le 4 à l heure', lh, le4, J);
+
+/* L'écran : la ligne entière ouvre le livre, lu depuis son départ, la veille au plus tard. */
+vrai('l écran : un clic sur la ligne de caisse ouvre tous ses montants', /data-caisse=\{nom\} onClick=\{\(e\) => surLaLigne\(e, l\)\}/.test(code) && /<LeLivre\b/.test(code));
+vrai('l écran lit le livre de son départ à la veille, la clôture et la remise d avant le jour',
+  /avant: de <= veille \? boxMoves\(nom, \{ de, a: veille \}\)\.moves\.map\(versLigne\)/.test(code)
+  && /clotureLe: derniereCloture\(clotures, branch\.id, nom, veille\)\?\.date,/.test(code)
+  && /remiseLe: derniereRemiseDe\(horsActivite\.filter\(\(m\) => m\.date\.slice\(0, 10\) <= veille\), branch\.id, nom\),/.test(code));
 
 console.log(ko === 0 ? '\nLa caisse du jour tient ses chiffres : disponible, totaux cochés, pourboires, clôture.' : `\n${ko} controle(s) en echec.`);
 process.exitCode = ko === 0 ? 0 : 1;

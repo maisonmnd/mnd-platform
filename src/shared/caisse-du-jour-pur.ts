@@ -109,6 +109,11 @@ export type CaisseDuJour = {
   autresEntrees: LigneDuLivre[];
   sorties: SortieDuJour[];
   pourboires: PourboireDuJour[];
+  /** Les pourboires des jours d'avant que le matin garde (leur somme est
+      `pourboiresDuMatinXof`) : le livre de la caisse les montre à leur jour. */
+  pourboiresDuMatin: PourboireDuJour[];
+  /** Les dépenses en attente des jours d'avant, que le matin a déjà retirées. */
+  attentesAvant: AttenteDuTiroir[];
   /** Quelque chose a bougé ce jour-là. */
   bouge: boolean;
 };
@@ -201,7 +206,8 @@ export function laCaisseDuJour(o: {
 }): CaisseDuJour {
   const { nom, jour } = o;
   const suivi = o.suiviDepuis && o.suiviDepuis > SUIVI_DES_POURBOIRES_DEPUIS ? o.suiviDepuis : SUIVI_DES_POURBOIRES_DEPUIS;
-  const attenteAvant = somme(o.enAttente.filter((e) => jourDe(e.date) < jour).map((e) => e.xof));
+  const attentesAvant = o.enAttente.filter((e) => jourDe(e.date) < jour);
+  const attenteAvant = somme(attentesAvant.map((e) => e.xof));
   const attenteDuJour = o.enAttente.filter((e) => jourDe(e.date) === jour);
   const moves = o.moves.filter((m) => jourDe(m.date) === jour);
   const siens = o.pourboires.filter((p) => p.cashbox === nom);
@@ -209,7 +215,8 @@ export function laCaisseDuJour(o: {
   /* Gardés au matin : entrés après la dernière clôture (son compté porte ceux
      d'avant) et après le départ du suivi, avant ce jour. */
   const gardesDepuis = o.derniere?.date && o.derniere.date > suivi ? o.derniere.date : suivi;
-  const pourboiresDuMatinXof = somme(siens.filter((p) => p.jour > gardesDepuis && p.jour < jour).map((p) => p.xof));
+  const pourboiresDuMatin = siens.filter((p) => p.jour > gardesDepuis && p.jour < jour);
+  const pourboiresDuMatinXof = somme(pourboiresDuMatin.map((p) => p.xof));
   const recus = somme(siens.filter((p) => p.jour > suivi && p.jour <= jour).map((p) => p.xof));
   const remis = somme((o.remises ?? []).filter((r) => jourDe(r.date) > suivi && jourDe(r.date) <= jour).map((r) => r.xof));
 
@@ -235,8 +242,155 @@ export function laCaisseDuJour(o: {
     disponibleXof: matinXof + versementsXof + pourboiresXof + autresEntreesXof - sortiesXof,
     livreSoirXof,
     livreAClotureXof: livreSoirXof - attenteAvant - somme(attenteDuJour.map((e) => e.xof)),
-    entrees, autresEntrees, sorties, pourboires,
+    entrees, autresEntrees, sorties, pourboires, pourboiresDuMatin, attentesAvant,
     bouge: moves.length > 0 || pourboires.length > 0 || attenteDuJour.length > 0,
+  };
+}
+
+/* ══ TOUS LES MONTANTS D'UNE CAISSE — 5 novembre 2026 ═════════════════════
+   « Quand je clique sur une caisse, je veux voir tous les montants qui sont
+   associés à cette caisse » (Yéman, sur KkiaPay : 65 600 F au matin, aucun
+   versement du jour, et rien pour dire d'où viennent les 65 600 F).
+
+   LE LIVRE DE LA CAISSE, montant par montant, depuis son dernier départ
+   connu jusqu'au soir du jour affiché :
+     · le soir de sa dernière clôture (son compté est le départ) ;
+     · sinon le soir de sa dernière remise à 0 F ;
+     · sinon le début des comptes (le mois de départ des caisses).
+   Chaque versement, pourboire, entrée et sortie, à son jour, avec le solde
+   après lui. Les pourboires et les dépenses en attente y sont, comme dans le
+   matin et le disponible ; rien d'autre.
+
+   AU FRANC PRÈS, PAR CONSTRUCTION. Le départ est le « Matin » du tableau
+   moins tout ce que le livre a bougé avant le jour : le solde du matin du
+   jour retombe sur le Matin, celui du soir sur le Disponible, sans second
+   calcul qui pourrait un jour les contredire (la ligne du tableau et son
+   détail lisent la même caisse). Sans clôture, le départ est le livre au
+   début de la période : le banc le vérifie. */
+
+export type DepartDuLivre = 'cloture' | 'remise' | 'debut';
+
+export type MontantDuLivre = {
+  jour: string;
+  genre: 'versement' | 'pourboire' | 'entree' | 'sortie' | 'attente';
+  label: string;
+  sub?: string;
+  /** Signé : positif entre dans la caisse, négatif en sort. */
+  xof: number;
+  heure?: string;
+  invoiceId?: string;
+  expenseId?: string;
+  transfertId?: string;
+  /** Le solde de la caisse juste après ce montant. */
+  soldeXof: number;
+};
+
+export type JourDuLivre = {
+  jour: string;
+  matinXof: number;
+  entreesXof: number;
+  sortiesXof: number;
+  soirXof: number;
+  /** Dans l'ordre du jour : le premier montant d'abord. */
+  montants: MontantDuLivre[];
+};
+
+export type LivreDeLaCaisse = {
+  nom: string;
+  /** Le premier jour du livre (AAAA-MM-JJ). */
+  depuis: string;
+  depart: DepartDuLivre;
+  /** Le jour de la clôture ou de la remise à 0 F d'où il part. */
+  departLe?: string;
+  departXof: number;
+  /** Du plus ancien au jour affiché ; le jour affiché y est toujours. */
+  jours: JourDuLivre[];
+  n: number;
+  entreesXof: number;
+  sortiesXof: number;
+  /** Le « Disponible » du tableau. */
+  disponibleXof: number;
+};
+
+/** Le lendemain d'un jour AAAA-MM-JJ, sans fuseau. */
+export const lendemainDe = (iso: string): string => {
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
+
+/** D'où part le livre : le plus récent de la clôture et de la remise à 0 F
+    (au plus tard la veille), jamais avant le début des comptes. */
+export function leDepartDuLivre(o: { clotureLe?: string; remiseLe?: string; debutDesComptes: string }): { depuis: string; depart: DepartDuLivre; departLe?: string } {
+  const c = o.clotureLe?.slice(0, 10);
+  const r = o.remiseLe?.slice(0, 10);
+  const plusRecent: { le: string; depart: DepartDuLivre } | null = c && (!r || c >= r) ? { le: c, depart: 'cloture' } : r ? { le: r, depart: 'remise' } : null;
+  if (plusRecent && lendemainDe(plusRecent.le) > o.debutDesComptes) return { depuis: lendemainDe(plusRecent.le), depart: plusRecent.depart, departLe: plusRecent.le };
+  return { depuis: o.debutDesComptes, depart: 'debut' };
+}
+
+const genreDe = (m: LigneDuLivre): MontantDuLivre['genre'] => (m.invoiceId && m.delta > 0 ? 'versement' : m.delta > 0 ? 'entree' : 'sortie');
+const duLivre = (m: LigneDuLivre, genre = genreDe(m)): Omit<MontantDuLivre, 'soldeXof'> => ({
+  jour: jourDe(m.date), genre, label: m.label, ...(m.sub ? { sub: m.sub } : {}), xof: m.delta,
+  ...(m.invoiceId ? { invoiceId: m.invoiceId } : {}), ...(m.expenseId ? { expenseId: m.expenseId } : {}), ...(m.transfertId ? { transfertId: m.transfertId } : {}),
+});
+const duPourboire = (p: PourboireDuJour): Omit<MontantDuLivre, 'soldeXof'> => ({ jour: p.jour, genre: 'pourboire', label: 'Pourboire', xof: p.xof, invoiceId: p.invoiceId });
+const deLAttente = (e: AttenteDuTiroir): Omit<MontantDuLivre, 'soldeXof'> => ({ jour: jourDe(e.date), genre: 'attente', label: e.label, sub: 'En attente de validation', xof: -e.xof, expenseId: e.id });
+
+export function leLivreDeLaCaisse(o: {
+  caisse: CaisseDuJour;
+  jour: string;
+  depuis: string;
+  depart: DepartDuLivre;
+  departLe?: string;
+  /** Les lignes du livre de `depuis` à la veille : `boxMoves(nom, { de: depuis, a: veille }).moves`. */
+  avant: readonly LigneDuLivre[];
+  /** L'heure d'un montant (le versement de la pièce ce jour-là), si on la connaît. */
+  heureDe?: (m: { invoiceId?: string; expenseId?: string; jour: string }) => string | undefined;
+}): LivreDeLaCaisse {
+  const c = o.caisse;
+  const dansLAvant = (j: string) => j >= o.depuis && j < o.jour;
+  const avant = [
+    ...o.avant.filter((m) => m.delta !== 0 && dansLAvant(jourDe(m.date))).map((m) => duLivre(m)),
+    ...c.pourboiresDuMatin.filter((p) => dansLAvant(p.jour)).map(duPourboire),
+    ...c.attentesAvant.filter((e) => dansLAvant(jourDe(e.date))).map(deLAttente),
+  ];
+  const duJour = [
+    ...c.entrees.map((m) => ({ ...duLivre(m, 'versement'), jour: o.jour })),
+    ...c.autresEntrees.map((m) => ({ ...duLivre(m, 'entree'), jour: o.jour })),
+    ...c.pourboires.map((p) => ({ ...duPourboire(p), jour: o.jour })),
+    ...c.sorties.map((s) => (s.enAttente
+      ? { ...duLivre(s, 'attente'), sub: 'En attente de validation', jour: o.jour }
+      : { ...duLivre(s, 'sortie'), jour: o.jour })),
+  ];
+  const departXof = c.matinXof - somme(avant.map((m) => m.xof));
+
+  const parJour = new Map<string, Omit<MontantDuLivre, 'soldeXof'>[]>();
+  for (const m of [...avant, ...duJour]) {
+    const heure = o.heureDe?.(m);
+    const l = parJour.get(m.jour) ?? [];
+    l.push(heure ? { ...m, heure } : m);
+    parJour.set(m.jour, l);
+  }
+  if (!parJour.has(o.jour)) parJour.set(o.jour, []);
+  let solde = departXof;
+  const jours: JourDuLivre[] = [...parJour.keys()].sort().map((jour) => {
+    const matinXof = solde;
+    /* Dans le jour : à l'heure ; sans heure, après, dans l'ordre reçu (le tri est stable). */
+    const ranges = parJour.get(jour)!.slice().sort((a, b) => (a.heure ?? '99:99').localeCompare(b.heure ?? '99:99'));
+    const montants = ranges.map((m) => { solde += m.xof; return { ...m, soldeXof: solde }; });
+    return {
+      jour, matinXof, soirXof: solde, montants,
+      entreesXof: somme(montants.filter((m) => m.xof > 0).map((m) => m.xof)),
+      sortiesXof: somme(montants.filter((m) => m.xof < 0).map((m) => -m.xof)),
+    };
+  });
+  return {
+    nom: c.nom, depuis: o.depuis, depart: o.depart, ...(o.departLe ? { departLe: o.departLe } : {}), departXof, jours,
+    n: somme(jours.map((j) => j.montants.length)),
+    entreesXof: somme(jours.map((j) => j.entreesXof)),
+    sortiesXof: somme(jours.map((j) => j.sortiesXof)),
+    disponibleXof: c.disponibleXof,
   };
 }
 
