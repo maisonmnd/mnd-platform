@@ -112,6 +112,9 @@ const payISO = (d: string): string => {
   return fr ? `${fr[3]}-${fr[2]}-${fr[1]}` : d;
 };
 
+/** Une ligne de « À traiter » s'accorde à son chiffre : « 1 geste », « 2 gestes ». */
+const accorde = (n: number, un: string, plusieurs: string): string => (n > 1 ? plusieurs : un);
+
 export default function Dashboard() {
   /* La direction, ou le Trône d'essai sans serveur (rien n'y est protégé qui
      ne soit déjà sur l'appareil : la règle de `useVoitLesPourboiresDeLEquipe`). */
@@ -752,28 +755,28 @@ function TableauDeLaDirection() {
       : dep && dep.sansDepense > 0 ? [{ k: 'dep-sans', n: 0, ko: true, dit: 'dépense saisie aujourd’hui', geste: 'Saisir', go: versLaJournee }] : []),
     ...(santeOuverte > 0 || entreDeuxEnRetard > 0 ? [{
       k: 'entre-deux', n: santeOuverte || entreDeuxEnRetard, ko: santeOuverte > 0,
-      dit: santeOuverte > 0 ? 'soucis santé à rappeler' : 'soucis entre deux séances en retard',
+      dit: santeOuverte > 0 ? accorde(santeOuverte, 'souci santé à rappeler', 'soucis santé à rappeler') : accorde(entreDeuxEnRetard, 'souci entre deux séances en retard', 'soucis entre deux séances en retard'),
       geste: 'Voir', go: () => navigate('/entre-deux'),
     }] : []),
-    ...(rappelsALaMain > 0 ? [{ k: 'rappels', n: rappelsALaMain, ko: true, dit: 'rappels de demain à la main', geste: 'Rappeler', go: () => ouvreLeDetail('tournee') }] : []),
-    ...(engagementsDus.livraisonsEnRetard.length > 0 ? [{ k: 'livraisons', n: engagementsDus.livraisonsEnRetard.length, ko: true, dit: 'livraisons en retard', geste: 'Voir', go: () => navigate('/engagements') }] : []),
+    ...(rappelsALaMain > 0 ? [{ k: 'rappels', n: rappelsALaMain, ko: true, dit: accorde(rappelsALaMain, 'rappel de demain à la main', 'rappels de demain à la main'), geste: 'Rappeler', go: () => ouvreLeDetail('tournee') }] : []),
+    ...(engagementsDus.livraisonsEnRetard.length > 0 ? [{ k: 'livraisons', n: engagementsDus.livraisonsEnRetard.length, ko: true, dit: accorde(engagementsDus.livraisonsEnRetard.length, 'livraison en retard', 'livraisons en retard'), geste: 'Voir', go: () => navigate('/engagements') }] : []),
     ...(pretsAVeiller.length > 0 ? [{
       k: 'prets', n: pretsAVeiller.length, ko: pretsEnRetard > 0,
-      dit: pretsEnRetard > 0 ? `remboursements de prêt · ${pretsEnRetard} en retard` : 'remboursements de prêt attendus',
+      dit: pretsEnRetard > 0 ? `${accorde(pretsAVeiller.length, 'remboursement de prêt', 'remboursements de prêt')} · ${pretsEnRetard} en retard` : accorde(pretsAVeiller.length, 'remboursement de prêt attendu', 'remboursements de prêt attendus'),
       geste: 'Voir', go: () => navigate('/prets'),
     }] : []),
     ...(jalonsAVeiller.length > 0 ? [{
       k: 'jalons', n: jalonsAVeiller.length, ko: jalonsEnRetard > 0,
-      dit: jalonsEnRetard > 0 ? `versements d’épargne · ${jalonsEnRetard} en retard` : 'versements d’épargne attendus',
+      dit: jalonsEnRetard > 0 ? `${accorde(jalonsAVeiller.length, 'versement d’épargne', 'versements d’épargne')} · ${jalonsEnRetard} en retard` : accorde(jalonsAVeiller.length, 'versement d’épargne attendu', 'versements d’épargne attendus'),
       geste: 'Voir', go: () => navigate('/prets?onglet=objectifs'),
     }] : []),
     ...(aClore > 0 ? [{ k: 'a-clore', n: aClore, dit: 'rendez-vous du jour à clore', geste: 'Clore', go: versLaJournee }] : []),
-    ...(journee.cloture.comptes.aRevoir > 0 ? [{ k: 'a-revoir', n: journee.cloture.comptes.aRevoir, dit: 'factures du jour à revoir', geste: 'Revoir', go: versLaJournee }] : []),
-    ...(journee.cloture.gestes.length > 0 ? [{ k: 'gestes', n: journee.cloture.gestes.length, dit: 'gestes que Grenat fait seul', geste: 'Voir', go: versLaJournee }] : []),
+    ...(journee.cloture.comptes.aRevoir > 0 ? [{ k: 'a-revoir', n: journee.cloture.comptes.aRevoir, dit: accorde(journee.cloture.comptes.aRevoir, 'facture du jour à revoir', 'factures du jour à revoir'), geste: 'Revoir', go: versLaJournee }] : []),
+    ...(journee.cloture.gestes.length > 0 ? [{ k: 'gestes', n: journee.cloture.gestes.length, dit: accorde(journee.cloture.gestes.length, 'geste que Grenat fait seul', 'gestes que Grenat fait seul'), geste: 'Voir', go: versLaJournee }] : []),
     /* LES DÉPENSES PRÉPARÉES, À VALIDER (5 novembre 2026) : la liste de Finances ›
        Dépenses ; celles du jour, qui retiennent le comptage, ont leur ligne rouge. */
     ...(depensesAValider - (dep?.aValiderDuJour ?? 0) > 0 ? [{ k: 'dep-preparees', n: depensesAValider - (dep?.aValiderDuJour ?? 0), dit: depensesAValider - (dep?.aValiderDuJour ?? 0) > 1 ? 'dépenses préparées à valider' : 'dépense préparée à valider', geste: 'Valider', go: () => navigate('/depenses') }] : []),
-    ...(dep && dep.aCompleter > 0 ? [{ k: 'dep-completer', n: dep.aCompleter, dit: 'dépenses à compléter', geste: 'Compléter', go: versLaJournee }] : []),
+    ...(dep && dep.aCompleter > 0 ? [{ k: 'dep-completer', n: dep.aCompleter, dit: accorde(dep.aCompleter, 'dépense à compléter', 'dépenses à compléter'), geste: 'Compléter', go: versLaJournee }] : []),
     /* EXACTEMENT CELLES-LÀ : la page ouvre le même juge par `?filtre=reste`. */
     ...(aEncaisser.factures > 0 ? [{ k: 'factures', n: aEncaisser.factures, dit: aEncaisser.factures > 1 ? 'factures impayées' : 'facture impayée', geste: 'Relancer', go: () => navigate('/factures?filtre=reste') }] : []),
     ...(aEncaisser.rituels > 0 ? [{ k: 'rituels', n: aEncaisser.rituels, dit: aEncaisser.rituels > 1 ? 'rituels honorés sans versement' : 'rituel honoré sans versement', geste: 'Encaisser', go: () => navigate('/carnet') }] : []),
@@ -784,14 +787,14 @@ function TableauDeLaDirection() {
       dit: `${appelsAFaire.length > 1 ? 'appels à traiter' : 'appel à traiter'}${appelsEnRetard ? ` · ${appelsEnRetard} en retard` : ''}`,
       geste: 'Appeler', go: () => ouvreLeDetail('appels'),
     }] : []),
-    ...(compoNouvelles.length > 0 ? [{ k: 'compositions', n: compoNouvelles.length, dit: 'rituels sur-mesure à sceller', geste: 'Sceller', go: () => setCompoOpen(true) }] : []),
+    ...(compoNouvelles.length > 0 ? [{ k: 'compositions', n: compoNouvelles.length, dit: accorde(compoNouvelles.length, 'rituel sur-mesure à sceller', 'rituels sur-mesure à sceller'), geste: 'Sceller', go: () => setCompoOpen(true) }] : []),
     ...(anniversaires.length > 0 ? [{
       k: 'anniversaires', n: anniversaires.length, dit: anniversaires.length > 1 ? 'anniversaires sous 2 jours' : 'anniversaire sous 2 jours',
       geste: anniversaires.length > 1 ? 'Les cartes' : 'Sa carte',
       go: anniversaires.length === 1 ? () => setCarteFor(anniversaires[0].c) : () => ouvreLeDetail('anniversaires'),
     }] : []),
     ...(enfantsArrives.length > 0 ? [{
-      k: 'enfants', n: enfantsArrives.length, dit: 'enfants rattachés depuis Ma Couronne', geste: 'Voir',
+      k: 'enfants', n: enfantsArrives.length, dit: accorde(enfantsArrives.length, 'enfant rattaché depuis Ma Couronne', 'enfants rattachés depuis Ma Couronne'), geste: 'Voir',
       go: () => {
         /* Vus = reçus : la ligne s'éteint, le journal demeure. */
         const ids = enfantsArrives.map((d) => d.id);
@@ -800,14 +803,14 @@ function TableauDeLaDirection() {
       },
     }] : []),
     /* LE MÊME JUGE QU'À FAIRE (`relancesAReprendre`) : la même liste, en tête de page. */
-    ...(reprisesARelancer > 0 ? [{ k: 'relances-j3', n: reprisesARelancer, dit: 'retenues à relancer sous 3 jours', geste: 'Relancer', go: () => navigate('/a-faire') }] : []),
+    ...(reprisesARelancer > 0 ? [{ k: 'relances-j3', n: reprisesARelancer, dit: accorde(reprisesARelancer, 'retenue à relancer sous 3 jours', 'retenues à relancer sous 3 jours'), geste: 'Relancer', go: () => navigate('/a-faire') }] : []),
     ...(engagementsDus.enCours > 0 || engagementsDus.sansDecharge > 0 ? [{
       k: 'engagements', n: engagementsDus.enCours || engagementsDus.sansDecharge,
-      dit: engagementsDus.enCours > 0 ? `engagements en cours · ${restesDits(engagementsDus.restes, currency)}` : 'versements sans décharge',
+      dit: engagementsDus.enCours > 0 ? `${accorde(engagementsDus.enCours, 'engagement en cours', 'engagements en cours')} · ${restesDits(engagementsDus.restes, currency)}` : accorde(engagementsDus.sansDecharge, 'versement sans décharge', 'versements sans décharge'),
       geste: 'Voir', go: () => navigate('/engagements'),
     }] : []),
     /* UN CARNET LIBRE PROPOSE : les couronnes qui ont passé leur cadence. */
-    ...(relances > 0 ? [{ k: 'cadence', n: relances, dit: 'couronnes au-delà de leur cadence', geste: 'Relancer', go: () => navigate('/customers') }] : []),
+    ...(relances > 0 ? [{ k: 'cadence', n: relances, dit: accorde(relances, 'couronne au-delà de sa cadence', 'couronnes au-delà de leur cadence'), geste: 'Relancer', go: () => navigate('/customers') }] : []),
   ];
   /* Les anomalies d'abord, l'alarme WhatsApp en tête. */
   const taches = [...toutes.filter((t) => t.ko), ...toutes.filter((t) => !t.ko)];
