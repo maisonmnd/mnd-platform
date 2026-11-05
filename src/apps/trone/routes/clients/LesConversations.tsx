@@ -1392,7 +1392,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
               <h3>Ce qui part <span>les envois retenus et le journal</span></h3>
               <button type="button" className="trc-ger__btn trc-am__btn--calme" onClick={() => setOutil(null)}>Fermer</button>
             </div>
-            <EnvoisAutomatiques typeInitial={params.get('type')} onOuvrirLeFil={ouvreLeFilDe} />
+            <EnvoisAutomatiques typeInitial={params.get('type')} ongletInitial={params.get('onglet')} onOuvrirLeFil={ouvreLeFilDe} />
           </section>
         )}
         {outil === 'mots' && (

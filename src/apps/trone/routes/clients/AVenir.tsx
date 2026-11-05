@@ -77,11 +77,11 @@ export function AVenir() {
 
   return (
     <div>
-      <div className="trc-avenir">
+      <div className="trc-avenir" data-direction={direction ? 'oui' : 'non'}>
         <div className="trc-avenir__tete">
           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 21, color: 'var(--color-indigo)' }}>Ce qui va partir</div>
           <div className="trc-avenir__compte" data-banc="compte">
-            <span><b>{compte.partiront}</b> partiront</span>
+            <span><b>{compte.partiront}</b> {compte.partiront > 1 ? 'partiront' : 'partira'}</span>
             <span><b>{compte.arretes}</b> arrêté{compte.arretes > 1 ? 's' : ''}</span>
             {compte.enPause > 0 && <span><b>{compte.enPause}</b> en pause</span>}
             <span>des 7 jours à venir</span>

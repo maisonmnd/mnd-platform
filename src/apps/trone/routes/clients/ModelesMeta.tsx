@@ -172,7 +172,11 @@ export function ModelesMeta() {
             Opale signale {signales.map((l) => `${l.modele} (${l.serie} non remis de suite)`).join(', ')} : un modèle est signalé au {NON_REMIS_SIGNALE_AU}e « non remis » de suite et mis en pause au {NON_REMIS_EN_PAUSE_AU}e.
           </p>
         )}
-        {jamais.length > 0 && <p style={{ margin: 0 }}>Approuvés, jamais encore partis : {jamais.map((l) => l.modele).join(', ')}.</p>}
+        {jamais.length > 0 && (
+          <p style={{ margin: 0 }}>
+            {(lecture?.modeles ?? []).length > 0 ? 'Approuvés chez Meta' : 'Connus du code (l’état chez Meta n’est pas lu)'}, jamais encore partis : {jamais.map((l) => l.modele).join(', ')}.
+          </p>
+        )}
         <p style={{ margin: 0 }}>
           En pause chez nous, plus rien ne part avec ce modèle, d’aucune porte : la porte d’Opale le refuse ; la confirmation à liens part alors sous l’ancien modèle.
           Meta ne permet pas à une entreprise de mettre elle-même un modèle en pause : seul Meta le fait, quand la qualité baisse ; « Reprendre chez Meta » le relance.
