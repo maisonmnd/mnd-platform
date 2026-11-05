@@ -2,6 +2,8 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES POURBOIRES DE L'ÉQUIPE — EN LIGNE le 5 novembre 2026 (0157 passée : déclencheur `tips_previent` → push-notify to-staff, jamais la direction, journal `pourboires_prevenus` sous RLS ; Trône build 20261105051539 @ f548a030). Ne JAMAIS passer `supabase/essai_0157_a_blanc.sql` (il poserait de fausses parts et notifierait l'équipe). Preuve de l'envoi réel : le premier pourboire d'un membre hors direction (notification + ligne « parti »).
+
 ## LA CLÔTURE DE GRENAT ET « LA JOURNÉE » — 4 novembre 2026, EN LIGNE le 5 novembre 2026 (0156 passée, envois-partent v19, cloture-du-jour v1 et son essai, Trône build 20261105005331 @ dba8e0e0, conseil-du-matin v6, assistants-maison v10)
 
 « Tous les jours à 15 h et à 19 h, qu'Opale clôture toutes les factures, qu'elles soient terminées, envoyées aux clients, et qu'on puisse faire la caisse du jour », puis « relier ce travail avec la caisse du jour que nous tenons dans le Trône », puis « la caisse du jour en fin de page… combiner le travail et supprimer la barre de navigation de la caisse du jour » (Yéman). Maquette 9KCMgAb1qksSVcEXDiKaHE validée (« construis ») : c'est GRENAT (l'argent, avancé, `en-installation` au registre) qui porte la clôture ; Opale garde les messages.
