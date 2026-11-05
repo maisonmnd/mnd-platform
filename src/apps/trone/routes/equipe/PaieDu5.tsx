@@ -116,7 +116,8 @@ export default function PaieDu5({ run, bulletinFor }: { run: PayrollRun; bulleti
   const fraisAJour = lues.filter(({ ligne, lecture }) => !ligne.prestataire && !!ligne.depot && !ligneEstPayee(ligne) && !dansLeFichierEnAttente(run, ligne.employeeId) && lecture.voie
     && (ligne.depot.fraisXof !== (frais?.[lecture.voie] ?? 0) || ligne.depot.fraisRenseignes !== (frais?.[lecture.voie] != null)));
   /* Les frais à renseigner, pour les seules voies qu'on paiera ce mois. */
-  const fraisNonRenseignes = (['MTN', 'Moov'] as const).filter((v) => frais?.[v] == null && lues.some((x) => x.lecture.voie === v && x.lecture.etat !== 'payee'));
+  /* Par l'API MTN (lot 2), le contrat dit 0 % sur le versé : aucun frais MTN à renseigner. */
+  const fraisNonRenseignes = (['MTN', 'Moov'] as const).filter((v) => !(v === 'MTN' && serveur.pret) && frais?.[v] == null && lues.some((x) => x.lecture.voie === v && x.lecture.etat !== 'payee'));
 
   const ecrisLeRun = (change: (r: PayrollRun) => PayrollRun) =>
     payrollRunsStore.set((prev) => prev.map((r) => (r.id === run.id ? change(r) : r)));
