@@ -41,9 +41,12 @@ dit('une journee vide : zero partout', { nombre: 0, attenduXof: 0, rituelsXof: 0
 
 /* ── Les écrans ──────────────────────────────────────────────────────── */
 const tableau = sansCommentaires('src/apps/trone/routes/pilotage/Dashboard.tsx');
-dit('le tableau de bord le dit en tete du carnet du jour, sur les rendez-vous du jour', [true, true], [
-  tableau.includes('const j = chiffreAttenduDuJour(todayRows.map((a) => ({ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme, })), today);'),
-  tableau.includes('Attendu aujourd’hui')]);
+/* 5 novembre 2026 (tableau de bord en quatre bandes) : au pied d'« Aujourd'hui »,
+   « Attendu » s'ouvre sur les rendez-vous du jour. */
+dit('le tableau de bord le dit au pied d Aujourd hui, sur les rendez-vous du jour', [true, true, true], [
+  tableau.includes('const jourDuChiffre = chiffreAttenduDuJour(todayRows.map((a) => ({ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme, })), today);'),
+  tableau.includes('Attendu aujourd’hui'),
+  tableau.includes('Attendu <b>{fmt(jourDuChiffre.attenduXof)}</b>')]);
 const carnet = sansCommentaires('src/apps/trone/routes/clients/Carnet.tsx');
 /* 26 octobre 2026 : la tuile interroge le jour choisi (aujourd'hui par défaut), même calcul. */
 dit('le Carnet en fait une tuile, avec le meme calcul, aujourd hui par defaut', [true, true, true], [
@@ -67,8 +70,8 @@ dit('... chaque detail porte le total de sa tuile, et une ligne ouvre son rendez
   carnet.includes('total: totaux.creanceXof,'), carnet.includes('total: totaux.jour.attenduXof,'), carnet.includes('total: totaux.avenirXof,'),
   carnet.includes('const ouvreLeRdv = (a: Appointment) => () => { setDetail(null); setModal({ appt: a }); };')]);
 dit('le tableau de bord ouvre aussi « Attendu aujourd hui » sur ses rendez-vous', [true, true], [
-  tableau.includes('<button type="button" className="trp-day__chiffre" onClick={ouvre}'),
-  tableau.includes('total: j.attenduXof,')]);
+  tableau.includes('<button type="button" onClick={openAttendu}'),
+  tableau.includes('total: jourDuChiffre.attenduXof,')]);
 
 console.log(`\n${n - ko}/${n} epreuves : le chiffre du jour et ce qu elle doit.`);
 if (ko) console.log(`${ko} ECHEC(S).`);

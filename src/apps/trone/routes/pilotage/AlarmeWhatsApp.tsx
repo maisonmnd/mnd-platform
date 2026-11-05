@@ -76,7 +76,13 @@ const quandRecu = (iso: string, maintenant: number): string => {
   return ecart < 60_000 ? 'à l’instant' : `il y a ${resteEnClair(ecart)}`;
 };
 
-export default function AlarmeWhatsApp() {
+/** CE QUE L'ALARME SAIT, ET SA SONNETTE — 5 novembre 2026 (tableau de bord en
+    quatre bandes) : le tableau de bord en fait la ligne rouge en tête de « À
+    traiter » et la liste de « Le détail » ; le crochet monté une fois garde
+    la sonnette, même quand la liste est repliée. */
+export type LAlarme = { enAttente: Fil[]; retirer: (f: Fil) => void; tick: number };
+
+export function useLAlarmeWhatsApp(): LAlarme {
   const { branch } = useBranch();
   const [clients] = useClients();
   const [messages] = useMessagesWa();
@@ -169,10 +175,24 @@ export default function AlarmeWhatsApp() {
     };
   }, []);
 
+  return { enAttente, retirer, tick };
+}
+
+/** Le plus pressé : sous deux heures, la fenêtre se ferme bientôt. */
+export const filPressant = (f: Fil): boolean => f.fenetre.resteMs < PRESSANT_MS;
+
+/** L'ALARME SEULE, autonome : son crochet, sa liste. */
+export default function AlarmeWhatsApp() {
+  const alarme = useLAlarmeWhatsApp();
   /* RIEN QUI ATTEND, RIEN À DIRE : l'alarme disparaît avec la dernière
      réponse, et ne laisse pas de cadre vide derrière elle. */
-  if (enAttente.length === 0) return null;
+  if (alarme.enAttente.length === 0) return null;
+  return <ListeDeLAlarme {...alarme} />;
+}
 
+/** LA LISTE, lue d'un crochet monté ailleurs (le tableau de bord la range
+    dans « Le détail » : la sonnette ne sonne qu'une fois). */
+export function ListeDeLAlarme({ enAttente, retirer, tick }: LAlarme) {
   const n = enAttente.length;
   return (
     <section className="trp-alarme" aria-label="Messages WhatsApp sans réponse">

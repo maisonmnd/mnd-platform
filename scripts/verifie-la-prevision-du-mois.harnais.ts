@@ -116,18 +116,27 @@ dit('l objectif du mois : le sien, sinon le dernier fixe avant ; jamais un mois 
   [objectifDuMois({ '2026-09': 2000000, '2026-10': 2400000 }, '2026-10'), objectifDuMois({ '2026-09': 2000000, '2026-11': 9 }, '2026-10'),
     objectifDuMois({ '2026-11': 9 }, '2026-10'), objectifDuMois({ '2026-09': 2000000, '2026-10': 0 }, '2026-10'), objectifDuMois(undefined, '2026-10')]);
 
-/* ── Au tableau de bord (texte) ───────────────────────────────────── */
+/* ── Au tableau de bord et aux Prévisions (texte) ─────────────────── */
 const tableau = sansCommentaires('src/apps/trone/routes/pilotage/Dashboard.tsx');
 const bloc = sansCommentaires('src/apps/trone/routes/pilotage/PrevisionDuMois.tsx');
-/* 27 OCTOBRE 2026, au sélecteur : « le mois, puis les leviers ». La
-   prévision passe en tête, ses quatre chiffres la suivent, puis les lignes
-   repliées (Aujourd'hui, À traiter, Le détail du mois). */
-dit('la prevision ouvre le tableau de bord, avant ses quatre chiffres et les lignes repliees, calculee une fois', true,
-  /<nav className="trd-nav"[\s\S]*<PrevisionDuMois donnees=\{prevDuMois\} \/>[\s\S]*\{kpis\.map[\s\S]*<GroupeDeReplis id="aujourdhui"[\s\S]*<GroupeDeReplis id="a-traiter"[\s\S]*<GroupeDeReplis id="le-detail-du-mois"/.test(tableau)
-  && tableau.includes('const prevDuMois = usePrevisionDuMois();'));
-dit('un seul panneau ouvert par groupe ; « Voir » sur les impayes echus ouvre leur ligne', [true, true],
+const previsions = sansCommentaires('src/apps/trone/routes/pilotage/Previsions.tsx');
+/* 5 NOVEMBRE 2026, maquette « Tableau de bord » en quatre bandes, validée :
+   le grand bloc de la prévision quitte le tableau de bord pour Les
+   prévisions › Le mois en francs (calculé une fois pour le bloc et pour
+   l'assistant) ; le tableau de bord n'en garde que la fourchette, qui y
+   mène. Jamais le chiffre exact au tableau de bord. */
+dit('la prevision vit aux Previsions (Le mois en francs), calculee une fois pour le bloc et l assistant', [true, true, true],
+  [/function LeMoisEnFrancs\(\) \{[\s\S]*const prevDuMois = usePrevisionDuMois\(\);[\s\S]*<PrevisionDuMois donnees=\{prevDuMois\} \/>/.test(previsions),
+    previsions.includes("params.get('vue') === 'francs' ? 'francs' : '4s'"), previsions.includes("{vue === 'francs' ? <LeMoisEnFrancs /> :")]);
+dit('le tableau de bord n en garde que la fourchette, et y mene', [false, true, true, false],
+  [/<PrevisionDuMois\b/.test(tableau),
+    tableau.includes('const fourchette = `${fmt(prevDuMois.prevision.basXof)} à ${fmt(prevDuMois.prevision.hautXof)}`;'),
+    tableau.includes("onClick={() => navigate('/previsions?vue=francs')}><span>Prévision fin de mois</span><b>{fourchette}</b>"),
+    /prevDuMois\.prevision\.centraleXof/.test(tableau)]);
+dit('un seul panneau ouvert par groupe ; une ligne de « A traiter » ouvre son panneau du detail', [true, true],
   [sansCommentaires('src/apps/trone/routes/pilotage/Replis.tsx').includes('const ouvert = g ? g.ouvert === cle : seul;'),
-    tableau.includes("go: () => { setOuvertATraiter('impayes');")]);
+    tableau.includes('<GroupeDeReplis id="le-detail" titre="Le détail" ouvert={ouvertDetail} onOuvre={setOuvertDetail}>')
+      && tableau.includes("go: () => ouvreLeDetail('appels')")]);
 dit('l entre se lit avec la regle des Revenus du mois', true, bloc.includes('revenuDuMois(args, mk, { cut: d })'));
 /* LE TRÔNE CALCULE, CLAUDE EXPLIQUE (24 octobre 2026) : le calcul de la
    prévision ne touche ni un serveur ni un modèle ; l'assistant ne parle que

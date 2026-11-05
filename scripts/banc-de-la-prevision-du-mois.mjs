@@ -13,6 +13,11 @@
      - l'objectif s'enregistre et l'écart s'affiche ;
      - au téléphone (390 px), rien ne déborde ; aucune erreur.
 
+   5 novembre 2026 (tableau de bord en quatre bandes) : la carte a quitté le
+   tableau de bord pour Les prévisions › Le mois en francs
+   (`#/previsions?vue=francs`) ; le tableau de bord n'en garde que la
+   fourchette, une ligne de « Le mois » qui y mène (contrôle 5).
+
    Les fiches sont des exemples, signées d'initiales. */
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync, statSync, renameSync } from 'node:fs';
@@ -132,11 +137,13 @@ try {
   await cdp('Page.navigate', { url: `${origine}/` });
   await attend(2500);
   await evalue(`(() => { for (const [k, v] of Object.entries(${JSON.stringify(semence)})) localStorage.setItem(k, JSON.stringify(v)); return true; })()`);
-  await evalue(`location.hash = '#/'; location.reload(); true`);
+  /* 5 novembre 2026 : la carte vit aux Prévisions, « Le mois en francs » ;
+     le tableau de bord n'en garde que la fourchette (contrôle 5). */
+  await evalue(`location.hash = '#/previsions?vue=francs'; location.reload(); true`);
   const vu = await jusqua(`document.querySelectorAll('.trd-mois__jour').length > 0`, 40000);
 
   /* 1. La carte. */
-  dit('la carte de la prévision s ouvre au tableau de bord', !!vu && !(await tombe()));
+  dit('la carte de la prévision s ouvre aux Prévisions, Le mois en francs', !!vu && !(await tombe()));
   const nbJours = await evalue(`document.querySelectorAll('.trd-mois__jour').length`);
   dit('un bouton par jour du mois', nbJours === dernier.getDate(), nbJours);
   const points = await evalue(`(document.querySelector('.trd-mois__cumul')?.getAttribute('points') || '').split(' ').length`);
@@ -179,27 +186,37 @@ try {
   dit('... l écart à combler s affiche, et la ligne d objectif sur la courbe', /Il manque/.test(await evalue(`document.querySelector('.trd-mois__ecart')?.innerText || ''`)) && !!(await evalue(`!!document.querySelector('.trd-mois__ligne-objectif')`)));
   await photo('3-objectif');
 
-  /* 5. La page en ordre : des ancres, trois groupes de lignes repliées, un seul panneau ouvert. */
-  dit('les ancres de la page et ses trois groupes', JSON.stringify(await evalue(`[...document.querySelectorAll('.trd-nav a')].map((a) => a.getAttribute('href'))`)) === JSON.stringify(['#le-mois', '#aujourdhui', '#a-traiter', '#le-detail-du-mois'])
-    && !!(await evalue(`!!document.getElementById('aujourdhui') && !!document.getElementById('a-traiter') && !!document.getElementById('le-detail-du-mois') && !!document.getElementById('le-mois')`)));
-  const ouverts = (groupe) => evalue(`[...document.querySelectorAll('#${groupe} .trd-repli__bascule')].filter((b) => b.getAttribute('aria-expanded') === 'true').map((b) => b.querySelector('.trd-repli__titre').innerText)`);
-  dit('Aujourd hui s ouvre sur le carnet du jour, avec son résumé chiffré', JSON.stringify(await ouverts('aujourdhui')) === JSON.stringify(['Le carnet du jour'])
-    && /rendez-vous|libre/.test(await evalue(`document.querySelector('#aujourdhui .trd-repli__resume')?.innerText || ''`)), JSON.stringify(await ouverts('aujourdhui')));
-  await evalue(`(() => { const b = [...document.querySelectorAll('#aujourdhui .trd-repli__bascule')].find((x) => /Demandes du site/.test(x.innerText)); if (b) b.click(); return !!b; })()`);
-  await attend(250);
-  dit('un seul panneau ouvert à la fois : les demandes ouvertes, le carnet replié', JSON.stringify(await ouverts('aujourdhui')) === JSON.stringify(['Demandes du site']), JSON.stringify(await ouverts('aujourdhui')));
-  await evalue(`(() => { const b = [...document.querySelectorAll('#a-traiter .trd-repli__bascule')].find((x) => /Ce qui presse/.test(x.innerText)); if (b) b.click(); return !!b; })()`);
-  await attend(250);
-  const voir = await evalue(`(() => { const p = document.querySelector('#a-traiter .trd-repli.est-ouvert'); const b = p && [...p.querySelectorAll('button')].find((x) => /^voir$/i.test(x.innerText.trim()) && /impay/i.test(x.parentElement?.innerText || '')); if (b) b.click(); return !!b; })()`);
-  await attend(500);
-  dit('« Voir » sur les impayés échus ouvre leur ligne repliée', voir && JSON.stringify(await ouverts('a-traiter')) === JSON.stringify(['Rendez-vous impayés']), JSON.stringify(await ouverts('a-traiter')));
   await photo('5-page');
+
+  /* 5. Le tableau de bord n'en garde que la fourchette, et elle mène ici. */
+  await evalue(`location.hash = '#/'; true`);
+  const ligne = await jusqua(`(() => { const b = document.querySelector('[data-ligne="prevision"]'); return b ? b.innerText.replace(/\\s+/g, ' ') : null; })()`, 20000);
+  dit('le tableau de bord garde la fourchette de la prévision, jamais le grand bloc', !!ligne && /Prévision fin de mois .+ à .+/.test(ligne) && (await evalue(`document.querySelectorAll('.trd-mois').length`)) === 0, ligne);
+  await evalue(`document.querySelector('[data-ligne="prevision"]')?.click(); true`);
+  const revenu = await jusqua(`document.querySelectorAll('.trd-mois__jour').length > 0`, 15000);
+  dit('... et la ligne mène aux Prévisions, Le mois en francs', !!revenu && (await evalue('location.hash')) === '#/previsions?vue=francs', await evalue('location.hash'));
 
   /* 6. Au téléphone. */
   await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await attend(900);
   dit('au téléphone (390 px), rien ne déborde', (await evalue('document.documentElement.scrollWidth > window.innerWidth + 1')) === false, String(await evalue('document.documentElement.scrollWidth')));
   await photo('4-telephone');
+
+  /* 7. L'ÉQUIPE (5 novembre 2026) : un compte de l'équipe à qui le tableau de
+     bord est ouvert lit sa version courte : sa journée, ses rendez-vous, ses
+     pourboires ; jamais l'argent de la Maison ni la prévision. */
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 1366, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await evalue(`(() => {
+    localStorage.setItem(${JSON.stringify(`mnd_hors_ligne::tete::${CLE}`)}, JSON.stringify({ uid: ${JSON.stringify(UID)}, le: ${JSON.stringify(le)}, tete: { user_id: ${JSON.stringify(UID)}, name: 'Banc', role: 'maitre', rubrics: [] } }));
+    localStorage.setItem('trone::mnd_staff_access', JSON.stringify({ ${JSON.stringify(UID)}: { '/': true } }));
+    location.hash = '#/'; location.reload(); return true;
+  })()`);
+  const equipe = await jusqua(`!!document.querySelector('[data-tdb="equipe"]')`, 40000);
+  const vueEquipe = await evalue(`(() => { const t = document.querySelector('.tdb')?.innerText ?? ''; return {
+    cases: [...document.querySelectorAll('[data-tdb="bandeau"] .tdb-kpi__l')].map((e) => e.textContent.trim()),
+    argent: /Impayés|Encaissé|Prévision|Gagné/.test(t), mois: !!document.querySelector('[data-tdb="mois"]'), journee: !!document.querySelector('[data-tdb="aujourdhui"]') }; })()`);
+  dit('l equipe lit sa version courte : ses rendez-vous, ses pourboires, sans l argent de la Maison', !!equipe && vueEquipe?.cases.length === 4
+    && vueEquipe.cases.includes('Mes rendez-vous') && vueEquipe.cases.includes('Mes pourboires') && !vueEquipe.argent && !vueEquipe.mois && vueEquipe.journee, JSON.stringify(vueEquipe));
   dit('aucune erreur dans la page', erreurs.length === 0, erreurs.slice(0, 3).join(' | ') || 'aucune');
   ws.close();
 } catch (e) {

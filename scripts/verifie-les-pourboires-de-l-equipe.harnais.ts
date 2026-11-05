@@ -283,7 +283,15 @@ dit('Mon mois porte le bloc en tete, et plus la liste au nom entier', [true, fal
   [/mon espace\."\s*\/>\s*<MesPourboiresEnDirect moi=\{moi\} \/>/.test(monMois),
     monMois.includes('t.note?.trim()')]);
 const dash = sansCommentaires(lis('src/apps/trone/routes/pilotage/Dashboard.tsx'));
-dit('le Tableau de bord porte le bloc sous la salutation', true, /\{greeting\}\{who \? `, \$\{who\}` : ''\}\.\s*<\/h2>\s*<MesPourboiresEnDirect moi=\{maFiche\} \/>/.test(dash));
+/* 5 NOVEMBRE 2026, tableau de bord en quatre bandes (maquette validée) : le
+   grand bloc quitte le tableau de bord, il vit dans Mon mois ; l'équipe y lit
+   ses pourboires en chiffres (aujourd'hui, la semaine, le mois, le mois
+   d'avant), la direction le total de l'équipe, qui mène à Équipe › Les
+   pourboires. */
+dit('le Tableau de bord : plus le grand bloc ; l equipe y lit ses pourboires, la direction ceux de l equipe', [false, true, true],
+  [/<MesPourboiresEnDirect\b/.test(dash),
+    dash.includes('const mes = useMemo(() => (maFiche ? mesPourboires(tips, maFiche.id, today) : null), [tips, maFiche, today]);'),
+    dash.includes("onClick={() => navigate('/pourboires')}><span>Pourboires (équipe)</span><b>{fmt(pourboiresEquipe.mois)}</b>")]);
 const caisse = sansCommentaires(lis('src/apps/trone/routes/vente/Caisse.tsx'));
 dit('la Caisse y mene, apres le lien de La journee', true,
   /navigate\('\/la-journee'\)\}>[^<]*<\/button>\s*\{voitLesPourboires && \(\s*<button type="button" className="trv-linkbtn" data-lien="pourboires" onClick=\{\(\) => navigate\('\/pourboires'\)\}>/.test(caisse));

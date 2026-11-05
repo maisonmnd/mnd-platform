@@ -1,0 +1,150 @@
+/* ══ LE TABLEAU DE BORD EN QUATRE BANDES — 5 novembre 2026 ══════════════
+   Maquette validée (« c'est bon construis ») : l'en-tête et ses puces, le
+   bandeau de six chiffres, Aujourd'hui et À traiter côte à côte, Le mois.
+   Relevé d'expert : les chiffres en Cormorant, le texte en Jost, l'indigo
+   structure, le cuivre ponctue, le rouge ne dit qu'une anomalie. Tient à
+   400 px : le bandeau passe en trois puis deux colonnes, les colonnes
+   s'empilent, les tableaux glissent dans leur boîte. */
+.tdb {
+  --tdb-papier: color-mix(in srgb, var(--surface-card) 45%, #FFFFFF);
+  --tdb-fond-doux: var(--color-ivoire);
+  --tdb-encre: var(--color-indigo);
+  --tdb-doux: var(--ink-soft);
+  --tdb-vieux: var(--obsidian-300, #70707B);
+  --tdb-trait: var(--hairline);
+  --tdb-cuivre: var(--copper-600, #9E6238);
+  --tdb-cuivre-pale: var(--copper-50, #FAF1E9);
+  --tdb-vert: #2F6B45;
+  --tdb-vert-pale: #E6F1E9;
+  --tdb-rouge: #8F3B30;
+  --tdb-rouge-pale: #F8EAE7;
+  display: grid;
+  /* Une colonne qui ne grandit pas avec son contenu : sans elle, le tableau
+     d'Aujourd'hui (qui glisse dans sa boîte) élargissait toute la page. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  min-width: 0;
+  color: var(--tdb-encre);
+  font-family: var(--font-sans);
+}
+.tdb p { margin: 0; }
+.tdb .num, .tdb__num { font-variant-numeric: lining-nums tabular-nums; }
+
+/* ── 1. L'en-tête ── */
+.tdb-tete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.tdb-tete__sur { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--tdb-cuivre); }
+.tdb-tete__titre { font-family: var(--font-serif); font-weight: 500; font-size: clamp(28px, 4.5vw, 40px); line-height: 1; margin: 4px 0 0; color: var(--tdb-encre); }
+.tdb-puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.tdb-puce { font: 400 12px/1.4 var(--font-sans); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--tdb-trait); background: var(--tdb-papier); color: var(--tdb-doux); white-space: nowrap; font-variant-numeric: tabular-nums; }
+button.tdb-puce { cursor: pointer; }
+button.tdb-puce:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.tdb-puce.est-ok { color: var(--tdb-vert); border-color: var(--tdb-vert-pale); background: var(--tdb-vert-pale); }
+.tdb-puce.est-attente { color: var(--tdb-cuivre); border-color: var(--tdb-cuivre-pale); background: var(--tdb-cuivre-pale); }
+.tdb-puce.est-ko { color: var(--tdb-rouge); border-color: var(--tdb-rouge-pale); background: var(--tdb-rouge-pale); }
+
+/* ── 2. Le bandeau de chiffres ── */
+.tdb-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); background: var(--tdb-papier); border: 1px solid var(--tdb-trait); border-radius: 8px; overflow: hidden; }
+.tdb-kpis--quatre { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tdb-kpi { display: grid; align-content: start; gap: 2px; min-width: 0; padding: 14px 16px; border: 0; border-left: 1px solid var(--tdb-trait); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.tdb-kpi:first-child { border-left: 0; }
+.tdb-kpi:hover { background: var(--hover-veil, rgba(20, 20, 27, .04)); }
+.tdb-kpi:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.tdb-kpi__l { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--tdb-vieux); }
+.tdb-kpi__v { font-family: var(--font-serif); font-weight: 500; font-size: 28px; line-height: 1.1; color: var(--tdb-encre); font-variant-numeric: lining-nums tabular-nums; overflow-wrap: anywhere; }
+.tdb-kpi__c { font-size: 12px; color: var(--tdb-doux); font-variant-numeric: tabular-nums; }
+.tdb-kpi__v.est-ko, .tdb-kpi__c.est-ko { color: var(--tdb-rouge); }
+
+/* ── Les cartes ── */
+.tdb-grille { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.tdb-grille--seule { grid-template-columns: minmax(0, 1fr); }
+.tdb-carte { background: var(--tdb-papier); border: 1px solid var(--tdb-trait); border-radius: 8px; overflow: hidden; min-width: 0; }
+.tdb-carte__t { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--tdb-trait); }
+.tdb-carte__t h2 { margin: 0; font: 500 11px/1.3 var(--font-sans); letter-spacing: .14em; text-transform: uppercase; color: var(--tdb-vieux); }
+.tdb-carte__t h2 small { margin-left: 8px; font-size: 11px; letter-spacing: .04em; text-transform: none; color: var(--tdb-doux); font-weight: 400; }
+.tdb-lien { padding: 0; border: 0; background: none; font: 400 12.5px var(--font-sans); color: var(--tdb-cuivre); cursor: pointer; white-space: nowrap; }
+.tdb-lien:hover { text-decoration: underline; }
+.tdb-lien:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+
+/* ── 3a. Aujourd'hui ── */
+/* Relative : le libellé caché des gestes (position absolue) reste dans la boîte qui glisse,
+   sans élargir la page. */
+.tdb-defile { overflow-x: auto; position: relative; }
+.tdb-table { border-collapse: collapse; width: 100%; }
+.tdb-table th, .tdb-table td { padding: 9px 10px; border-bottom: 1px solid var(--tdb-trait); text-align: left; white-space: nowrap; font-size: 13.5px; font-variant-numeric: lining-nums; }
+.tdb-table th:first-child, .tdb-table td:first-child { padding-left: 16px; }
+.tdb-table th:last-child, .tdb-table td:last-child { padding-right: 16px; }
+.tdb-table td.tdb-txt { white-space: normal; min-width: 72px; }
+.tdb-table th { font-weight: 500; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--tdb-vieux); }
+.tdb-table td.n, .tdb-table th.n { text-align: right; font-variant-numeric: tabular-nums; }
+.tdb-table tbody tr:last-child td { border-bottom: 0; }
+.tdb-table tbody tr { cursor: pointer; }
+.tdb-table tbody tr:hover td { background: var(--hover-veil, rgba(20, 20, 27, .04)); }
+.tdb-table tr.est-moi td { font-weight: 500; }
+.tdb-table td.tdb-vide { cursor: default; color: var(--tdb-doux); white-space: normal; }
+.tdb-cache { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.tdb-gestes { display: flex; gap: 6px; justify-content: flex-end; }
+.tdb-resume { display: flex; gap: 6px 18px; flex-wrap: wrap; padding: 10px 16px; border-top: 1px solid var(--tdb-trait); background: var(--tdb-fond-doux); font-size: 13px; color: var(--tdb-doux); }
+.tdb-resume b { color: var(--tdb-encre); font-weight: 500; font-variant-numeric: lining-nums tabular-nums; }
+.tdb-resume button { padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
+.tdb-resume button:hover b { text-decoration: underline; }
+
+/* ── 3b. À traiter ── */
+.tdb-tache { display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--tdb-trait); }
+.tdb-tache:last-child { border-bottom: 0; }
+.tdb-tache__n { font-family: var(--font-serif); font-weight: 500; font-size: 22px; line-height: 1.1; text-align: right; color: var(--tdb-encre); font-variant-numeric: lining-nums tabular-nums; overflow-wrap: anywhere; }
+.tdb-tache__n.est-ko { color: var(--tdb-rouge); }
+.tdb-tache__dit { font-size: 13.5px; min-width: 0; }
+.tdb-tache.est-ko .tdb-tache__dit { color: var(--tdb-rouge); }
+.tdb-btn { font: 400 12.5px/1.2 var(--font-sans); padding: 6px 12px; min-height: 32px; border-radius: 4px; border: 1px solid var(--tdb-cuivre); background: transparent; color: var(--tdb-cuivre); cursor: pointer; white-space: nowrap; }
+.tdb-btn:hover { background: var(--tdb-cuivre-pale); }
+.tdb-btn:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.tdb-btn--etat { border-color: var(--tdb-encre); color: var(--tdb-encre); }
+.tdb-btn--etat:hover { background: var(--indigo-50, #EDEEF4); }
+.tdb-tache.est-ko .tdb-btn { border-color: var(--tdb-rouge); color: var(--tdb-rouge); }
+.tdb-tache.est-ko .tdb-btn:hover { background: var(--tdb-rouge-pale); }
+.tdb-rien { padding: 14px 16px; font-size: 13.5px; color: var(--tdb-doux); }
+
+/* ── 4. Le mois ── */
+.tdb-mois { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+.tdb-mois__graphe { padding: 14px 16px; border-right: 1px solid var(--tdb-trait); }
+.tdb-mois__graphe svg { width: 100%; height: auto; display: block; }
+.tdb-mois__graphe text { fill: var(--tdb-doux); font-family: var(--font-sans); font-size: 12px; }
+.tdb-mois__graphe .val { fill: var(--tdb-encre); font-weight: 500; font-variant-numeric: tabular-nums; }
+.tdb-mois__graphe .b { fill: var(--color-indigo); }
+.tdb-mois__graphe .b.en-cours { fill: var(--color-argile, #CDBBA9); }
+.tdb-mois__graphe .axe { stroke: var(--tdb-trait); }
+.tdb-lignes { display: grid; }
+.tdb-ligne { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 10px 16px; border: 0; border-bottom: 1px solid var(--tdb-trait); background: transparent; color: inherit; font: 400 13.5px var(--font-sans); text-align: left; cursor: pointer; }
+.tdb-ligne:last-child { border-bottom: 0; }
+.tdb-ligne:hover { background: var(--hover-veil, rgba(20, 20, 27, .04)); }
+.tdb-ligne:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.tdb-ligne b { font-weight: 500; text-align: right; font-variant-numeric: lining-nums tabular-nums; }
+.tdb-ligne b.est-ko { color: var(--tdb-rouge); }
+
+/* ── Le détail, replié sous les quatre bandes ── */
+.tdb-detail .trd-groupe { margin-top: 0; }
+.tdb-detail .trd-groupe__titre { font: 500 11px/1.3 var(--font-sans); letter-spacing: .14em; text-transform: uppercase; color: var(--tdb-vieux); }
+
+@media (max-width: 900px) {
+  .tdb-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .tdb-kpis > .tdb-kpi:nth-child(3n + 1) { border-left: 0; }
+  .tdb-kpis > .tdb-kpi:nth-child(n + 4) { border-top: 1px solid var(--tdb-trait); }
+  .tdb-kpis--quatre { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tdb-kpis--quatre > .tdb-kpi { border-left: 1px solid var(--tdb-trait); border-top: 0; }
+  .tdb-kpis--quatre > .tdb-kpi:nth-child(2n + 1) { border-left: 0; }
+  .tdb-kpis--quatre > .tdb-kpi:nth-child(n + 3) { border-top: 1px solid var(--tdb-trait); }
+  .tdb-grille, .tdb-mois { grid-template-columns: minmax(0, 1fr); }
+  .tdb-mois__graphe { border-right: 0; border-bottom: 1px solid var(--tdb-trait); }
+}
+@media (max-width: 520px) {
+  .tdb-kpis, .tdb-kpis--quatre { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tdb-kpis > .tdb-kpi { border-left: 0; border-top: 1px solid var(--tdb-trait); }
+  .tdb-kpis > .tdb-kpi:nth-child(2n) { border-left: 1px solid var(--tdb-trait); }
+  .tdb-kpis > .tdb-kpi:nth-child(-n + 2) { border-top: 0; }
+  .tdb-kpi { padding: 12px 12px; }
+  .tdb-kpi__v { font-size: 24px; }
+  .tdb-tache { grid-template-columns: 56px minmax(0, 1fr); padding: 10px 12px; }
+  .tdb-tache .tdb-btn { grid-column: 2; justify-self: start; }
+  .tdb-carte__t { padding: 12px 12px; flex-wrap: wrap; }
+  .tdb-ligne { padding: 10px 12px; }
+}

@@ -236,10 +236,16 @@ export default function Factures() {
   const [appointments] = useAppointments();
   const byId = useServicesById();
   const filtre = params.get('filtre');
+  /* « AVEC UN RESTE » (5 novembre 2026, tableau de bord en quatre bandes) :
+     les « factures impayées » du tableau de bord, le calcul de l'agent des
+     encaissements (`?filtre=reste`) : toute facture de la branche qui garde
+     un reste, exactement celles que le chiffre compte. */
   const idsARegler = useMemo(
     () => (filtre === 'a-regler'
       ? new Set(facturesQuiAttendent(invoices, appointments, byId, branch.id, todayISO()).map((i) => i.id))
-      : null),
+      : filtre === 'reste'
+        ? new Set(invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && invoiceResteXof(i) > 0).map((i) => i.id))
+        : null),
     [filtre, invoices, appointments, byId, branch.id],
   );
 

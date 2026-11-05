@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useBranch } from '../../../../shared/branches';
 import { useSettings, openingForIso } from '../../../../shared/settings';
 import { predictNextVisit, tauxDeRealisation } from '../../../../shared/cadence';
@@ -13,7 +13,11 @@ import {
   HORIZONS_DES_PREVISIONS, type ColonneDesPrevisions, type HorizonDesPrevisions, type MoisRejoue, type Previsions as LesPrevisions, type RdvDesPrevisions,
 } from '../../../../shared/previsions-pur';
 import { useCampaigns, useEnvois } from '../equipe/data';
-import { apptDurationMin, todayISO, useBranchAppointments, useBranchClients, useServicesById } from '../clients/_shared';
+import { apptDueXof, apptDurationMin, apptNetXof, todayISO, useBranchAppointments, useBranchClients, useServicesById } from '../clients/_shared';
+import { chiffreAttenduDuJour } from '../clients/chiffre-du-jour-pur';
+import { fmtMoney } from '../../../../shared/currency';
+import { PrevisionDuMois, usePrevisionDuMois } from './PrevisionDuMois';
+import { DemanderALaMaison } from './DemanderALaMaison';
 import { PageHead } from '../_ui';
 import './previsions.css';
 
@@ -329,12 +333,38 @@ function Graphe({ colonnes }: { colonnes: ColonneDesPrevisions[] }) {
   );
 }
 
+/* ══ LE MOIS EN FRANCS — 5 novembre 2026 ═════════════════════════════════
+   La prévision du mois et « Demander aux chiffres » quittent le tableau de
+   bord (maquette « Tableau de bord » en quatre bandes, validée) : il n'en
+   garde que la fourchette, qui mène ici (`/previsions?vue=francs`). Le
+   calcul ne tourne que sur cet onglet. */
+function LeMoisEnFrancs() {
+  const { currency } = useBranch();
+  const appts = useBranchAppointments();
+  const byId = useServicesById();
+  const today = todayISO();
+  /* La prévision du mois, calculée une fois pour le bloc et pour l'assistant. */
+  const prevDuMois = usePrevisionDuMois();
+  /* LA JOURNÉE, DITE À L'ASSISTANT : des sommes, jamais une cliente. */
+  const jourDuChiffre = chiffreAttenduDuJour(appts.filter((a) => a.date === today && a.status !== 'annulé').map((a) => ({
+    date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme,
+  })), today);
+  const jourPourLAssistant = `${jourDuChiffre.nombre} rendez-vous, ${fmtMoney(jourDuChiffre.attenduXof, currency)} attendus, dont ${fmtMoney(jourDuChiffre.encaisseXof, currency)} déjà encaissés ; reste ${fmtMoney(jourDuChiffre.resteXof, currency)}.`;
+  return (
+    <>
+      <PrevisionDuMois donnees={prevDuMois} />
+      <DemanderALaMaison prevision={prevDuMois} jour={jourPourLAssistant} />
+    </>
+  );
+}
+
 export default function Previsions() {
   const navigate = useNavigate();
   const today = todayISO();
-  const [vue, setVue] = useState<HorizonDesPrevisions | 'passe'>('4s');
+  const [params] = useSearchParams();
+  const [vue, setVue] = useState<HorizonDesPrevisions | 'passe' | 'francs'>(() => (params.get('vue') === 'francs' ? 'francs' : '4s'));
   const rdvs = useLesRdvs();
-  const { p, titre, quatorze } = usePrevisions(vue === 'passe' ? '4s' : vue, rdvs);
+  const { p, titre, quatorze } = usePrevisions(vue === 'passe' || vue === 'francs' ? '4s' : vue, rdvs);
   const passe = useRejeu(vue === 'passe', rdvs);
   const resume = passe ? resumeDuRejeu(passe) : null;
   const joursCreux = quatorze.filter((j) => j.creux).length;
@@ -345,7 +375,7 @@ export default function Previsions() {
       <PageHead
         eyebrow={vue === 'passe' ? 'Direction · ce qui est venu' : 'Direction · ce qui vient'}
         title="Les prévisions."
-        actions={resume ? (
+        actions={vue === 'francs' ? undefined : resume ? (
           <div className="trp-prev__chiffres">
             <span className="trp-prev__chiffre"><b>{resume.venus}</b><small>RDV venus en {resume.mois} mois</small></span>
             <span className="trp-prev__chiffre"><b>{resume.part !== null ? pct(resume.part) : '·'}</b><small>du plafond atteignable</small></span>
@@ -373,9 +403,12 @@ export default function Previsions() {
         <button type="button" role="tab" aria-selected={vue === 'passe'} className={vue === 'passe' ? 'est-choisi' : ''} onClick={() => setVue('passe')}>
           12 derniers mois
         </button>
+        <button type="button" role="tab" aria-selected={vue === 'francs'} className={vue === 'francs' ? 'est-choisi' : ''} onClick={() => setVue('francs')}>
+          Le mois en francs
+        </button>
       </div>
 
-      {passe ? <LePasse lignes={passe} /> : (<>
+      {vue === 'francs' ? <LeMoisEnFrancs /> : passe ? <LePasse lignes={passe} /> : (<>
 
       <section className="trp-prev__vedette" aria-label={titre}>
         <div className="trp-prev__vedette-haut">
@@ -522,7 +555,7 @@ export default function Previsions() {
       <p className="trp-prev__pied">
         Posés : le Carnet, rendez-vous non annulés. Reprises : le juge de la Cadence, une cliente comptée une seule fois (à l’heure, en retard ou endormie).
         Plafond : l’historique des jours ouverts depuis janvier 2025. Marketing : les envois « reprise proposée » et les campagnes « Dormantes ». Ici on compte des
-        rendez-vous ; le chiffre en francs reste à la prévision du Tableau de bord.
+        rendez-vous ; le chiffre en francs se lit dans « Le mois en francs ».
       </p>
       </>)}
     </div>

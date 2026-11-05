@@ -1,33 +1,29 @@
 import { attendEncore } from '../../../../shared/salle-des-envois';
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { allerALaSection } from '../../../../ds/ancre';
-import { Eyebrow, Modal } from '../../../../ds/components';
+import { Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom, signeLeMessage } from '../../../../shared/identite';
 import { openingForIso, joursFermesParmi, prochainJourOuvert } from '../../../../shared/settings';
 import { quandDemandee, horodatageLisible, porteDuRendezVous } from '../../../../shared/temps';
-import { estCouronnee, joursAvantAnniversaire, sortiesDeLaMaison, useClients, type Client } from '../../../../shared/clients';
+import { joursAvantAnniversaire, useClients, type Client } from '../../../../shared/clients';
 import { CarteModal } from '../clients/CarteModal';
 import { appointmentsStore, tetesVenues, type Appointment } from '../../../../shared/agenda';
 import { useAppels, appelsAActer, marquerAppelFait, reporterAppel, messageAppel } from '../../../../shared/appels';
 import { useCategories } from '../../../../shared/catalog';
-import { useInvoices, useDepensesComptees, invoiceTotal, invoiceRegleAu, invoiceReglements, invoiceResteXof, depensesDuMois, type Invoice } from '../../../../shared/finance';
+import { useInvoices, useDepensesComptees, invoiceReglements, invoiceResteXof, depensesDuMois, type Invoice } from '../../../../shared/finance';
 import { useApprenants, useEnvois, useSubscribers } from '../equipe/data';
 import { etatDeLaTournee } from '../../../../shared/tournee';
 import { nommeLeRendezVous } from '../../../../shared/message-du-foyer-pur';
-import { splitByWeights } from '../../../../shared/pricing';
 import { usePrets, pretsASurveiller, joursEntre } from '../../../../shared/foyer';
 import { useCoffre, useObjectifs, objectifsASurveiller } from '../../../../shared/finance';
-import { totalsOf, MAISON_BUCKETS, emptyTotals, sumTotals, type Part } from '../../../../shared/maisons';
 import { chiffreAttenduDuJour } from '../clients/chiffre-du-jour-pur';
 import { GroupeDeReplis, Repli } from './Replis';
 import {
-  Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, tarifsDuRituel, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, frShortAn, fromISO,
-  facturesQuiAttendent,
+  RdvModal, ReminderBell, StatusPill, tarifsDuRituel, apptLabel, apptNetXof, apptDueXof, apptDurationMin, addDaysISO, frShort, frShortAn, fromISO,
   predictNextVisit, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
-  DrillModal, revenuDuMois, revenusProjetesDuMois, useClefDuTarif, type Drill, type DrillRow,
+  DrillModal, revenuDuMois, useClefDuTarif, type Drill, type DrillRow,
 } from '../clients/_shared';
 import { relancesAReprendre } from '../../../../shared/afaire';
 import { composeStore, compositionsRecuesStore } from '../../../../shared/bridges';
@@ -38,19 +34,23 @@ import { FenetreDuProchainRituel } from '../vente/SonProchainRituel';
 import { laCarteSOuvreApresLHonneur } from '../../../../shared/carte-du-prochain-rituel';
 import { useModelBands, useBandSets } from '../../../../shared/pricing';
 import { useProducts } from '../../../../shared/catalog';
-import { useAuth, useStaff } from '../../../../shared/auth';
-import { MesPourboiresEnDirect, useMaFicheDansLEquipe } from '../equipe/MesPourboires';
+import { supabase } from '../../../../shared/supabase';
+import { sameName } from '../../../../shared/text';
+import { useTips } from '../../../../shared/tips';
+import { mesPourboires } from '../../../../shared/pourboires-de-l-equipe-pur';
+import { useMaFicheDansLEquipe } from '../equipe/MesPourboires';
+import { useEstDirection } from '../_vie';
 import './pilotage.css';
+import './tableau-de-bord.css';
 import { RevenuDuJour } from '../finances/RevenuDuJour';
 import { LaVeilleAValider } from '../finances/LaVeilleAValider';
-import { CarteDeLaJournee } from '../finances/CarteDeLaJournee';
+import { useClotureDuJour } from '../finances/useClotureDuJour';
 import { useRegistreEncaissements } from '../finances/_shared';
 import { revenuDuJour } from '../../../../shared/caisse-du-soir-pur';
 import { ChampDeDate } from '../../../../ds/dates';
-import { cheminDeLaConversation } from '../../../../shared/conversations';
-import AlarmeWhatsApp from './AlarmeWhatsApp';
-import { PrevisionDuMois, usePrevisionDuMois } from './PrevisionDuMois';
-import { DemanderALaMaison } from './DemanderALaMaison';
+import { cheminDeLaConversation, lienDuFil } from '../../../../shared/conversations';
+import { ListeDeLAlarme, filPressant, useLAlarmeWhatsApp } from './AlarmeWhatsApp';
+import { usePrevisionDuMois } from './PrevisionDuMois';
 import { PassageDeGerard } from '../clients/PassageDeGerard';
 import { PassageAvantLeFauteuil } from '../clients/PassageAvantLeFauteuil';
 import { useDemandes, demandesTriees, ditLeBesoin, ditLeGenre, depuisQuand, telephoneMasque, nomDeLaDemande } from '../../../../shared/demandes';
@@ -61,14 +61,45 @@ import { useEnvoiDeLaPiece } from '../vente/envoi-de-la-piece';
 import {
   useEngagements, useDevisRecus, useVersementsEngagement, litLesDossiers, bilanDesEngagements, restesDits,
 } from '../../../../shared/engagements';
+import {
+  clientesActives, dateDuTitre, encaissePourLesMoisDAvant, honoresDuMois, joursDits, moisAvant, nombreDe, nomDuMois,
+  septJours, versementsDuMois,
+} from './tableau-de-bord-pur';
+import {
+  estFermeLe, useDepensesAValider, useEnvoisDeLaDemiHeure, useLaVeilleEnNombres, useMinute, usePlacesLimiteesOuvertes, usePourboiresDeLEquipe,
+  useProchainPassageDeGrenat, useSynchroDite,
+} from './tableau-de-bord-donnees';
 
 /* Tableau de bord — la salle du conseil au matin. Tout est dérivé des magasins,
-   filtré par la branche, exprimé dans sa devise. */
+   filtré par la branche, exprimé dans sa devise.
+
+   ══ EN QUATRE BANDES — 5 novembre 2026 ══════════════════════════════════
+   « Make dashboard more pro, expert ready, less writing, plus avec des
+   chiffres. Il y a trop de choses partout et ce n'est pas structuré ni
+   cohérent » (Yéman) ; maquette validée le même jour (« c'est bon
+   construis ») : l'en-tête et ses puces, le bandeau de six chiffres,
+   Aujourd'hui et À traiter côte à côte, Le mois ; et dessous, fermé au
+   départ, un seul groupe « Le détail » pour les panneaux qui agissent.
+   Chaque chiffre mène à son écran d'un toucher ; aucune phrase n'explique.
+   Où sont partis les blocs d'avant :
+     · « Mes pourboires » : Équipe › Mon mois (le bloc vit là) ;
+     · la prévision du mois et « Demander aux chiffres » : Les prévisions ›
+       Le mois en francs ; ici, sa seule fourchette ;
+     · « Le mois, par maison » : la Synthèse (« Chiffre par maison ») ;
+     · l'alarme WhatsApp, la veille à valider, la journée de Grenat, les
+       appels, les demandes, la tournée, ce qui presse, les impayés : une
+       ligne chiffrée de « À traiter » chacun, et leur panneau dans « Le
+       détail ».
+   L'ÉQUIPE (ni souverain ni gérant) lit une version courte : sa journée,
+   ses rendez-vous, ses pourboires, jamais les chiffres de la Maison. */
 
 /* Les arrivées d'enfants DÉJÀ REÇUES (marquées d'un geste) — mémoire locale du
    poste, comme la file des compositions : le journal `enfants_declares`, lui,
    reste intact. */
 const enfantsRecusVusStore = createStore<string[]>('mnd_enfants_recus_vus', []);
+
+/* Un rendez-vous sans prestation se dit « · », jamais d'un tiret cadratin. */
+const rituelDit = (label: string): string => (label.trim() === String.fromCharCode(8212) ? '·' : label);
 
 const monthKey = (iso: string) => iso.slice(0, 7);
 /* Date d'un règlement de formation (jj/mm/aaaa, ou ISO) → clé de mois / jour ISO. */
@@ -82,6 +113,13 @@ const payISO = (d: string): string => {
 };
 
 export default function Dashboard() {
+  /* La direction, ou le Trône d'essai sans serveur (rien n'y est protégé qui
+     ne soit déjà sur l'appareil : la règle de `useVoitLesPourboiresDeLEquipe`). */
+  const voitLaMaison = useEstDirection() || !supabase;
+  return voitLaMaison ? <TableauDeLaDirection /> : <TableauDeLEquipe />;
+}
+
+function TableauDeLaDirection() {
   const navigate = useNavigate();
   const { branch, currency } = useBranch();
   /* La facture à régler part seule chez elle (17 octobre 2026). */
@@ -147,18 +185,9 @@ export default function Dashboard() {
   const [prochainPour, setProchainPour] = useState<string | null>(null);
 
   const today = todayISO();
-  /* La prévision du mois, calculée une fois pour le bloc et pour l'assistant. */
+  /* La prévision du mois : le tableau de bord n'en lit que la fourchette (son
+     bloc et « Demander aux chiffres » vivent aux Prévisions, 5 novembre 2026). */
   const prevDuMois = usePrevisionDuMois();
-  const now = new Date();
-  const greeting = now.getHours() >= 17 || now.getHours() < 5 ? 'Bonsoir' : 'Bonjour';
-  /* Salutation à la personne connectée — nom du personnel, sinon la partie
-     locale de l'e-mail ; jamais un nom en dur. */
-  const { session } = useAuth();
-  const staff = useStaff();
-  /* Sa fiche dans l'équipe, pour SES pourboires en tête (5 novembre 2026). */
-  const maFiche = useMaFicheDansLEquipe();
-  const rawWho = (staff?.name?.trim().split(' ')[0]) || (session?.user?.email?.split('@')[0]) || '';
-  const who = rawWho ? rawWho.charAt(0).toUpperCase() + rawWho.slice(1) : '';
   const thisMonth = monthKey(today);
   const prevMonth = monthKey(addDaysISO(`${thisMonth}-01`, -1));
   const prevMonthName = fromISO(`${prevMonth}-15`).toLocaleDateString('fr-FR', { month: 'long' });
@@ -171,7 +200,7 @@ export default function Dashboard() {
   const finPrev = new Date(Number(prevMonth.slice(0, 4)), Number(prevMonth.slice(5, 7)), 0).getDate();
   const cutPrev = `${prevMonth}-${String(Math.min(jourDuMois, finPrev)).padStart(2, '0')}`;
 
-  const { revenue, projete, prevRevenue, spent, prevSpent, rev7, todayRows, revMaison } = useMemo(() => {
+  const { revenue, spent, rev7, todayRows } = useMemo(() => {
     /* Une prestation encaissée porte un invoiceId : sa facture (payée) la compte déjà.
        On ne recompte donc jamais l'appt côté carnet → fini le double comptage carnet+caisse. */
     /* SEUL un rituel HONORÉ est du chiffre. L'ancienne présomption « confirmé et
@@ -221,26 +250,11 @@ export default function Dashboard() {
       return { iso, total: dayRev(iso), label: fromISO(iso).toLocaleDateString('fr-FR', { weekday: 'narrow' }).toUpperCase() };
     });
 
-    /* LE CHIFFRE PAR MAISON — Atelier MND™ / Studio ACƆ™.
-       Les deux maisons partagent une branche : ce qui les sépare est le
-       catalogue. On ventile donc LIGNE À LIGNE, jamais rendez-vous par
-       rendez-vous : sept visites portent des rituels des deux maisons, et
-       trancher pour l'une aurait basculé 209 000 F du mauvais côté.
-       Le total d'un rituel est réparti au prorata des prix catalogue, comme
-       partout ailleurs au Trône — la somme des parts égale toujours le total. */
-    const partsOf = (a: Appointment): Part[] => {
-      const total = apptNetXof(a, byId);
-      const poids = a.serviceIds.map((id) => byId.get(id)?.priceXof ?? 0);
-      const parts = splitByWeights(total, poids);
-      return a.serviceIds.map((id, i) => ({ serviceId: id, amountXof: parts[i] }));
-    };
-    const revMaison = totalsOf(
-      realizedAppts.filter((a) => monthKey(a.date) === thisMonth),
-      partsOf, byId, catById,
-    );
+    /* LE CHIFFRE PAR MAISON (Atelier MND™ / Studio ACƆ™) a quitté le tableau
+       de bord le 5 novembre 2026 : la Synthèse le ventile déjà, ligne à ligne
+       et visite par visite (« Chiffre par maison »). */
 
     return {
-      revMaison,
       /* CA du mois par la porte unique `revenuDuMois` (clients/_shared) —
          abonnements COMPRIS, comme la Synthèse (ils manquaient ici). Écran
          opérationnel : toutes les caisses comptent. */
@@ -248,11 +262,10 @@ export default function Dashboard() {
          15 comptait dès le 1er : « j'ai besoin que ce soit les revenus actuels,
          payés » (Yéman). Ce qui est daté d'après aujourd'hui se lit à part. */
       revenue: revenuDuMois({ invoices, appts, byId, apprenants, abonnes, branchId: branch.id }, thisMonth, { cut: today }),
-      projete: revenusProjetesDuMois({ invoices, appts, byId, apprenants, abonnes, branchId: branch.id }, thisMonth, today),
-      /* À JOUR ÉGAL : le mois précédent s'arrête au même jour que nous. */
-      prevRevenue: revenuDuMois({ invoices, appts, byId, apprenants, abonnes, branchId: branch.id }, prevMonth, { cut: cutPrev }),
+      /* Les revenus projetés du mois se lisent désormais dans la prévision
+         (Les prévisions › Le mois en francs, « Encore attendu ») ; le
+         Résultat net, dans la Synthèse (5 novembre 2026). */
       spent: exp(thisMonth),
-      prevSpent: exp(prevMonth, cutPrev),
       rev7,
       todayRows: appts
         .filter((a) => a.date === today && a.status !== 'annulé')
@@ -345,44 +358,25 @@ export default function Dashboard() {
      & Achats. Ce panneau ne garde que ce qui presse VRAIMENT le matin :
      l'argent qui doit rentrer, et la parole due à une cliente. */
   const unpaidRef = useRef<HTMLDivElement>(null);
-  /* « À traiter » se pilote d'ici : « Voir » sur les impayés échus ouvre leur
-     ligne repliée, puis la page y descend (27 octobre 2026). */
-  const [ouvertATraiter, setOuvertATraiter] = useState<string | null>(null);
-
-  /* « Têtes couronnées » comptait les FICHES de la branche — donc aussi les
-     comptes ouverts sur Ma Couronne sans jamais venir. Une tête est couronnée
-     quand la Maison l'a réellement couronnée (11 août). */
-  const tetesCouronnees = useMemo(() => {
-    const venues = tetesVenues(appts);
-    /* SANS LES SORTIES — 11 septembre 2026. Une tête qui a défait ses locks,
-       ou qui n'est pas venue depuis plus de cinq mois, gonflait ce nombre
-       d'une relation qui n'existe plus. Le juge est partagé
-       (`sortiesDeLaMaison`) : le registre des Clientes et l'Analytique
-       comptent sur la même carte, sinon trois écrans annonceraient trois
-       chiffres pour une seule Maison. */
-    const sorties = sortiesDeLaMaison(clients, appts, todayISO());
-    return clients.filter((c) => estCouronnee(c, venues) && !sorties.has(c.id)).length;
-  }, [clients, appts]);
-
-  /* LES FACTURES ÉMISES QUI ATTENDENT LEUR RÈGLEMENT — les pièces, pas les
-     rendez-vous. On ÔTE celles déjà comptées dans les impayés échus : la même
-     somme lue deux fois ferait croire à une dette double. */
-  /* LE JUGE EST PARTAGÉ avec la page Factures (`facturesQuiAttendent`) : le
-     nombre lu ici est celui de la liste où mène le bouton, exactement. */
-  const facturesARegler = useMemo(() => {
-    const rows = facturesQuiAttendent(invoices, appts, byId, branch.id, today);
-    /* CE QUI RESTE DÛ, pas ce que la pièce vaut : une facture à moitié réglée
-       est une créance de son SOLDE. Compter son total réclamerait deux fois
-       l'argent déjà reçu. */
-    const total = rows.reduce((s, i) => s + invoiceResteXof(i), 0);
-    return { count: rows.length, total };
-  }, [invoices, appts, byId, branch.id, today, clefDuTarif]);
+  /* « Le détail » se pilote d'ici : une ligne de « À traiter » ouvre son
+     panneau replié, puis la page y descend (27 octobre 2026 ; un seul groupe
+     depuis le 5 novembre 2026). */
+  const [ouvertDetail, setOuvertDetail] = useState<string | null>(null);
+  const ouvreLeDetail = (cle: string) => {
+    setOuvertDetail(cle);
+    setTimeout(() => document.getElementById(`tdb-detail-${cle}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  };
 
   /* « À ENCAISSER » (27 octobre 2026, lot 3 de l'Assistant Maison, maquette
      « 4 tuiles replacées ») : la tuile qui remplace l'agent des encaissements
      au tableau de bord, avec SON calcul, tel quel (Agents.tsx) : les factures
      de la branche qui gardent un reste, et les rituels honorés d'avant
-     aujourd'hui sans facture ni versement. Des chiffres, deux liens. */
+     aujourd'hui sans facture ni versement. Des chiffres, deux liens.
+     DEPUIS LE 5 NOVEMBRE 2026, c'est le chiffre « Impayés » du bandeau, et
+     deux lignes de « À traiter » : les factures (`/factures?filtre=reste`,
+     exactement celles-là) et les rituels (le Carnet). Les « factures à
+     régler » d'avant (`facturesQuiAttendent`) en étaient une part : un seul
+     compte des factures, pour qu'un chiffre ne contredise pas l'autre. */
   const aEncaisser = useMemo(() => {
     const factures = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && invoiceResteXof(i) > 0);
     const rituels = appts.filter((a) => a.status === 'honoré' && !a.invoiceId && a.date < today && apptDueXof(a, byId) > 0);
@@ -391,6 +385,8 @@ export default function Dashboard() {
       resteFactures: factures.reduce((s, i) => s + invoiceResteXof(i), 0),
       rituels: rituels.length,
       resteRituels: rituels.reduce((s, a) => s + apptDueXof(a, byId), 0),
+      lesFactures: factures,
+      lesRituels: rituels,
     };
   }, [clefDuTarif, invoices, appts, byId, branch.id, today]);
 
@@ -496,133 +492,6 @@ export default function Dashboard() {
   const fileEntreDeux = fileRangee(signalements);
   const santeOuverte = fileEntreDeux.filter((s) => niveauDe(s.soucis) === 'sante').length;
   const entreDeuxEnRetard = fileEntreDeux.filter((s) => enRetard(s, new Date().toISOString())).length;
-  const presseRows = [
-    ...(santeOuverte > 0 || entreDeuxEnRetard > 0 ? [{
-      k: 'entre-deux',
-      label: santeOuverte > 0
-        ? `${santeOuverte} souci${santeOuverte > 1 ? 's' : ''} santé à rappeler`
-        : `${entreDeuxEnRetard} souci${entreDeuxEnRetard > 1 ? 's' : ''} entre deux séances en retard`,
-      sub: santeOuverte > 0 && entreDeuxEnRetard > 0 ? `dont ${entreDeuxEnRetard} en retard · Entre deux séances` : 'Entre deux séances',
-      action: 'Voir', go: () => navigate('/entre-deux'),
-    }] : []),
-    ...(aRecevoir.length > 0 ? [{
-      k: 'attente',
-      label: `${aRecevoir.length} réservation${aRecevoir.length > 1 ? 's' : ''} à recevoir`,
-      sub: aRecevoir.slice(0, 3).map((a) => `${a.clientName || 'Une tête'} · ${frShortAn(a.date)} ${a.time}`).join(' · ')
-        + (aRecevoir.length > 3 ? ' · …' : ''),
-      action: 'Recevoir', go: () => setAttenteOpen(true),
-    }] : []),
-    ...(enfantsArrives.length > 0 ? [{
-      k: 'enfants',
-      label: `${enfantsArrives.length} enfant${enfantsArrives.length > 1 ? 's' : ''} rattaché${enfantsArrives.length > 1 ? 's' : ''} depuis Ma Couronne`,
-      sub: enfantsArrives.slice(0, 4).map((d) => nomPropose(d) || 'Sans nom').join(' · ')
-        + (enfantsArrives.length > 4 ? ' · …' : ''),
-      action: 'Voir',
-      go: () => {
-        /* Vus = reçus : la ligne s'éteint, le journal demeure. */
-        const ids = enfantsArrives.map((d) => d.id);
-        enfantsRecusVusStore.set((prev) => [...new Set([...prev, ...ids])]);
-        navigate('/customers');
-      },
-    }] : []),
-    /* LES PRÊTS QUI PRESSENT — 23 août 2026. « Un prêt qu’on ne voit pas est
-       un prêt qu’on oublie » : ce qui est en retard, ou attendu sous huit
-       jours, remonte ici comme les anniversaires. Le calcul vit dans foyer.ts
-       et rend déjà la liste triée par urgence. */
-    ...jalonsAVeiller.map((e) => {
-      const j = e.prochain ? joursEntre(todayISO(), e.prochain.date) : 0;
-      return {
-        k: `objectif-${e.objectif.id}`,
-        label: e.retardXof > 0
-          ? `${e.objectif.nom}, ${fmtMoney(e.retardXof, currency)} de retard sur le plan`
-          : `${e.objectif.nom}, versement attendu ${j === 0 ? 'aujourd’hui' : `dans ${j} jour${j > 1 ? 's' : ''}`}`,
-        sub: `${fmtMoney(e.prochain?.montantXof ?? 0, currency)} · il manque ${fmtMoney(e.manque, currency)} sur ${fmtMoney(e.objectif.cibleXof, currency)}`,
-        action: 'Voir',
-        go: () => navigate('/prets?onglet=objectifs'),
-      };
-    }),
-
-    ...pretsAVeiller.map((e) => {
-      const j = e.prochaine ? joursEntre(todayISO(), e.prochaine.date) : 0;
-      return {
-        k: `pret-${e.nom}`,
-        label: j < 0
-          ? `${e.nom}, remboursement en retard de ${-j} jour${-j > 1 ? 's' : ''}`
-          : `${e.nom}, remboursement attendu ${j === 0 ? 'aujourd’hui' : `dans ${j} jour${j > 1 ? 's' : ''}`}`,
-        sub: `${fmtMoney(e.prochaine?.montantXof ?? e.reste, currency)} · reste dû ${fmtMoney(e.reste, currency)}`,
-        action: 'Voir',
-        go: () => navigate('/prets'),
-      };
-    }),
-
-    ...(compoNouvelles.length > 0 ? [{
-      k: 'compositions',
-      label: `${compoNouvelles.length} rituel${compoNouvelles.length > 1 ? 's' : ''} sur-mesure à sceller`,
-      sub: compoNouvelles.map((r) => r.client).join(' · '),
-      action: 'Voir', go: () => setCompoOpen(true),
-    }] : []),
-    ...anniversaires.map(({ c, j }) => ({
-      k: `anniv-${c.id}`,
-      label: `Joyeux anniversaire à ${c.name}`,
-      sub: j === 0 ? 'c’est aujourd’hui' : j === 1 ? 'c’est demain' : 'dans 2 jours',
-      /* ══ LE JOUR J OUVRE SA CARTE — 7 septembre 2026 ══════════════════
-         « Quand on appuie "Sa carte", ça ouvre son aperçu ; il doit ouvrir la
-         carte directement » (Yéman). Le bouton menait à sa fiche, où la carte
-         attendait un second clic : un bouton qui dit « Sa carte » et montre
-         autre chose est un bouton qui ment, et l'on cesse d'y croire.
-
-         LE MOT N'EST PAS ÉCRIT ICI. Il vit dans la carte, et nulle part
-         ailleurs : deux textes finissent toujours par diverger, on aurait
-         corrigé l'un en croyant les corriger tous les deux. */
-      action: 'Sa carte',
-      go: () => setCarteFor(c),
-    })),
-    ...(facturesARegler.count > 0 ? [{
-      k: 'factures',
-      label: `${facturesARegler.count} facture${facturesARegler.count > 1 ? 's' : ''} à régler`,
-      sub: `${fmtMoney(facturesARegler.total, currency)} en attente`,
-      /* EXACTEMENT CELLES-LÀ — « les 17 factures à régler doivent mener aux
-         17 » (Yéman). La page ouvre le même juge par `?filtre=a-regler`. */
-      action: 'Voir', go: () => navigate('/factures?filtre=a-regler'),
-    }] : []),
-    ...(reprisesARelancer > 0 ? [{
-      k: 'relances-j3',
-      label: `${reprisesARelancer} retenue${reprisesARelancer > 1 ? 's' : ''} à relancer`,
-      sub: 'à 3 jours ou moins · la liste du mois vit sur À faire',
-      /* EXACTEMENT CELLES-LÀ : À faire ouvre la même liste, du même juge,
-         en tête de page, avec le WhatsApp prêt. */
-      action: 'Voir', go: () => navigate('/a-faire'),
-    }] : []),
-    ...(engagementsDus.enCours > 0 || engagementsDus.sansDecharge > 0 ? [{
-      k: 'engagements',
-      label: engagementsDus.enCours > 0
-        ? `${engagementsDus.enCours} engagement${engagementsDus.enCours > 1 ? 's' : ''} en cours`
-        : `${engagementsDus.sansDecharge} versement${engagementsDus.sansDecharge > 1 ? 's' : ''} sans décharge`,
-      sub: [
-        /* DEVISE PAR DEVISE : « 1 090 000 F · 700 € restent à payer ». */
-        engagementsDus.enCours > 0
-          ? `${restesDits(engagementsDus.restes, currency)} restent à payer`
-          : '',
-        engagementsDus.enCours > 0 && engagementsDus.sansDecharge > 0
-          ? `${engagementsDus.sansDecharge} versement${engagementsDus.sansDecharge > 1 ? 's' : ''} sans décharge`
-          : '',
-        /* LA LIVRAISON (17 septembre 2026) : passée sans « livré », ou à poser. */
-        engagementsDus.livraisonsEnRetard.length > 0
-          ? `${engagementsDus.livraisonsEnRetard.length} livraison${engagementsDus.livraisonsEnRetard.length > 1 ? 's' : ''} en retard`
-          : '',
-        engagementsDus.livraisonsAPoser > 0
-          ? `${engagementsDus.livraisonsAPoser} date${engagementsDus.livraisonsAPoser > 1 ? 's' : ''} de livraison à poser`
-          : '',
-      ].filter(Boolean).join(' · ') || 'l’argent est sorti, rien ne dit encore qu’il est arrivé',
-      action: 'Voir', go: () => navigate('/engagements'),
-    }] : []),
-    ...(unpaid.overdue.rows.length > 0 ? [{
-      k: 'impayes',
-      label: `${unpaid.overdue.rows.length} impayé${unpaid.overdue.rows.length > 1 ? 's' : ''} échu${unpaid.overdue.rows.length > 1 ? 's' : ''}`,
-      sub: `${fmtMoney(unpaid.overdue.total, currency)} dus`,
-      action: 'Voir', go: () => { setOuvertATraiter('impayes'); setTimeout(() => unpaidRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); },
-    }] : []),
-  ];
 
   /* Les relances d'un carnet libre — le MÊME juge que la fiche cliente
      (`predictNextVisit`) : une couronne dont la date estimée est passée, sans
@@ -634,44 +503,6 @@ export default function Dashboard() {
       return r.predicted && r.iso !== null && r.iso <= today;
     }).length;
   }, [clients, appts, today, todayRows.length]);
-
-  const net = revenue - spent;
-  const prevNet = prevRevenue - prevSpent;
-
-  /* La tendance ne parle que quand la comparaison est LOYALE — et elle dit sa
-     règle en toutes lettres. Un rouge qu'on peut croire vaut mieux qu'un rouge
-     permanent qu'on apprend à ignorer. */
-  const trend = (cur: number, prev: number): { t: string; down: boolean } => {
-    if (prev === 0) return { t: `rien à comparer en ${prevMonthName}`, down: false };
-    const pct = Math.round(((cur - prev) / Math.abs(prev)) * 100);
-    return { t: `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)} % vs ${jourDuMois} ${prevMonthName} · à jour égal`, down: pct < 0 };
-  };
-
-  const kpis = [
-    { label: 'Revenus du mois', value: fmtMoney(revenue, currency), bar: 'var(--color-indigo)', trend: trend(revenue, prevRevenue), action: () => setBreakOpen(true) },
-    {
-      /* LA CASE À PART : ce que le reste du mois promet, sans le mêler à ce qui est entré. */
-      label: 'Revenus projetés du mois', value: fmtMoney(projete.total, currency), bar: 'var(--color-copper)',
-      trend: {
-        t: projete.total === 0 ? 'rien d’attendu d’ici la fin du mois'
-          : `${projete.attendus} rendez-vous à venir, dont ${projete.nombre} restant à régler · rien n’est encore acquis`,
-        down: false,
-      },
-      action: () => openProjete(),
-    },
-    {
-      label: 'Dépenses du mois', value: fmtMoney(spent, currency), bar: 'var(--color-copper)',
-      /* Zéro dépense saisie n'est pas « ▼ 100 % » : c'est un registre vide, et
-         il vaut mieux le dire que faire croire à une économie. */
-      trend: spent === 0 ? { t: 'rien de saisi ce mois', down: false } : trend(spent, prevSpent),
-      action: () => navigate('/depenses'),
-    },
-    {
-      label: 'Résultat net du mois', value: fmtMoney(net, currency), bar: 'var(--copper-600)',
-      trend: spent === 0 ? { t: '= revenus, aucune dépense saisie', down: false } : trend(net, prevNet),
-      action: () => navigate('/synthese'),
-    },
-  ];
 
   const clientOf = (id: string) => allClients.find((c) => c.id === id);
 
@@ -762,50 +593,6 @@ export default function Dashboard() {
   /** Le revenu d'un jour : la fenêtre du pointage (`RevenuDuJour`). */
   const openDay = (iso: string) => { setDrill(null); setJourOuvert(iso); };
 
-  /** Les 7 jours, ligne à ligne — le détail derrière le total de la semaine. */
-  const openWeek = () => {
-    const rows: DrillRow[] = [...rev7]
-      .reverse()
-      .map((d) => ({
-        who: frShort(d.iso),
-        sub: d.total > 0 ? 'Voir la journée' : 'Aucun mouvement',
-        amount: d.total,
-        onOpen: d.total > 0 ? () => openDay(d.iso) : undefined,
-      }));
-    setDrill({ title: 'Revenu · 7 jours', sub: 'L’argent reçu, jour par jour. Un jour s’ouvre sur son pointage.', rows, total: rev7Total });
-  };
-
-  /** LE DÉTAIL DU PROJETÉ — chaque rendez-vous qui reste à régler, puis les versements
-      datés plus tard. Le total de la liste est celui de la tuile, à l'unité près. */
-  const openProjete = () => {
-    const rdv: DrillRow[] = appts
-      .filter((a) => a.branchId === branch.id && a.status !== 'annulé' && a.status !== 'honoré'
-        && monthKey(a.date) === thisMonth && a.date >= today && apptDueXof(a, byId) > 0)
-      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : timeToMin(a.time) - timeToMin(b.time)))
-      .map((a) => ({
-        who: nameOf(a.clientId), sub: `Reste à régler · ${apptLabel(a, byId)}`, date: a.date,
-        amount: apptDueXof(a, byId), onOpen: () => { setDrill(null); setEditAppt(a); },
-      }));
-    const vers: DrillRow[] = invoices
-      .filter((i) => i.branchId === branch.id && i.kind === 'facture')
-      .flatMap((i) => invoiceReglements(i)
-        .filter((p) => (p.date ?? '').startsWith(thisMonth) && (p.date ?? '') > today && p.amountXof > 0)
-        .map((p) => ({
-          who: i.clientName || nameOf(i.clientId), sub: `Versement daté plus tard · ${i.number}`,
-          date: p.date, amount: p.amountXof, invoiceId: i.id,
-        })));
-    /* Formation et abonnements datés plus tard : rares, mais le total doit tomber juste. */
-    const autres = projete.versements - vers.reduce((n, r) => n + (r.amount ?? 0), 0);
-    const rows: DrillRow[] = [...rdv, ...vers,
-      ...(autres > 0 ? [{ who: 'Formation et abonnements', sub: 'Versements datés plus tard', amount: autres }] : [])];
-    setDrill({
-      title: 'Revenus projetés du mois',
-      sub: `${projete.attendus} rendez-vous à venir au Carnet, à leur valeur entière. Ici, seulement ce qui reste à entrer : ${projete.nombre} rendez-vous ont encore un reste à régler ; les autres sont déjà soldés. Un versement daté du jour du rendez-vous se lit à sa date, plus bas.`,
-      rows,
-      total: projete.total,
-    });
-  };
-
   /** Les factures d'un moyen de paiement — chacune ouvrable. */
   const openPayMethod = (method: string) => {
     const partDuMoyen = (i: Invoice) => invoiceReglements(i)
@@ -829,13 +616,8 @@ export default function Dashboard() {
     });
   };
 
-  /* — revenu 7 jours, barres SVG — */
-  const rev7Total = rev7.reduce((s, d) => s + d.total, 0);
-  const rev7Max = Math.max(...rev7.map((d) => d.total), 1);
-  const best = rev7.reduce((a, b) => (b.total >= a.total ? b : a), rev7[0]);
-  const bestName = fromISO(best.iso).toLocaleDateString('fr-FR', { weekday: 'long' });
-
-  /* LA JOURNÉE, DITE À L'ASSISTANT : des sommes, jamais une cliente. */
+  /* LA JOURNÉE EN SOMMES (24 octobre 2026, `chiffre-du-jour-pur`) : l'attendu,
+     l'encaissé, le reste, au pied d'« Aujourd'hui » ; le même calcul qu'au Carnet. */
   const jourDuChiffre = chiffreAttenduDuJour(todayRows.map((a) => ({
     date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme,
   })), today);
@@ -847,261 +629,407 @@ export default function Dashboard() {
     const e = etatDeLaTournee(envois.filter((x) => nommeLeRendezVous(x, a.id) && x.type === 'rappel-j1' && !attendEncore(x)));
     return e.rate || e.muet;
   }).length;
-  const aEncaisserXof = aEncaisser.resteRituels + aEncaisser.resteFactures;
   const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`;
-  const jourPourLAssistant = `${jourDuChiffre.nombre} rendez-vous, ${fmtMoney(jourDuChiffre.attenduXof, currency)} attendus, dont ${fmtMoney(jourDuChiffre.encaisseXof, currency)} déjà encaissés ; reste ${fmtMoney(jourDuChiffre.resteXof, currency)}.`;
+
+  /* ══ LES QUATRE BANDES — 5 novembre 2026 ═════════════════════════════
+     Les nombres des puces, du bandeau, de « À traiter » et du mois, lus des
+     juges que les écrans d'origine gardent (aucune lecture de plus). */
+  const minute = useMinute();
+  const synchro = useSynchroDite();
+  const envoisDemiHeure = useEnvoisDeLaDemiHeure(minute);
+  const passageGrenat = useProchainPassageDeGrenat(minute);
+  /* La journée de Grenat : la même prise que Finances › La journée. */
+  const journee = useClotureDuJour(today);
+  const veille = useLaVeilleEnNombres();
+  /* L'alarme WhatsApp montée une fois : sa sonnette sonne, repliée ou non. */
+  const alarme = useLAlarmeWhatsApp();
+  const places = usePlacesLimiteesOuvertes();
+  const pourboiresEquipe = usePourboiresDeLEquipe(today);
+  /* Les dépenses à valider, celles que Grenat prépare comprises (Finances › Dépenses). */
+  const depensesAValider = useDepensesAValider();
+
+  /* LE BANDEAU ET LE MOIS, en un calcul. « Encaissé » est la porte des
+     Revenus du mois (`revenuDuMois`, borné à aujourd'hui) ; « Gagné », les
+     rituels honorés du mois à leur net (la règle du chiffre des prestations). */
+  const chiffres = useMemo(() => {
+    const args = { invoices, appts, byId, apprenants, abonnes, branchId: branch.id };
+    const netDe = (a: Appointment) => apptNetXof(a, byId);
+    const factures = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture');
+    const desPorteurs = [...apprenants, ...abonnes].flatMap((p) => (p.payments ?? []).map((r) => ({ date: payISO(r.date), amountXof: r.amountXof })));
+    const avantDernier = moisAvant(thisMonth, 2);
+    return {
+      honores: honoresDuMois(appts, thisMonth, today, netDe),
+      honoresAvant: honoresDuMois(appts, prevMonth, null, netDe),
+      pourAvant: encaissePourLesMoisDAvant(factures.map((i) => ({ date: i.date, reglements: invoiceReglements(i) })), thisMonth, today),
+      versements: versementsDuMois([...factures.flatMap((i) => invoiceReglements(i)), ...desPorteurs], thisMonth, today),
+      barres: [
+        { mois: avantDernier, xof: revenuDuMois(args, avantDernier), enCours: false },
+        { mois: prevMonth, xof: revenuDuMois(args, prevMonth), enCours: false },
+        { mois: thisMonth, xof: revenue, enCours: true },
+      ],
+      actives: clientesActives(appts, today, 90),
+      sept: septJours(appts, today, estFermeLe),
+    };
+  }, [invoices, appts, byId, apprenants, abonnes, branch.id, thisMonth, prevMonth, today, revenue, clefDuTarif]);
+
+  /* LES FAUTEUILS DU JOUR : combien sont pris au plus fort de la journée,
+     sur ceux de la Maison (les durées du calendrier). */
+  const fauteuils = useMemo(() => {
+    const plages = todayRows.map((a) => { const d = timeToMin(a.time); return [d, d + Math.max(1, apptDurationMin(a, byId))] as const; });
+    let pris = 0;
+    for (const [d] of plages) pris = Math.max(pris, plages.filter(([x, y]) => x <= d && d < y).length);
+    return { pris, sieges: Math.max(0, branch.seats ?? 0) };
+  }, [todayRows, byId, branch.seats]);
+
+  const fmt = (x: number) => fmtMoney(x, currency);
+  const nomMois = nomDuMois(thisMonth);
+  const encaisseAujourdhui = rev7[rev7.length - 1]?.total ?? 0;
+
+  /* LES IMPAYÉS : le calcul de l'agent des encaissements (« À encaisser »),
+     ce que la Maison a fait ou facturé et qui n'est pas encore entré : les
+     factures qui gardent un reste, les rituels honorés sans facture ni
+     versement. Un rendez-vous passé sans état n'y est pas : rien n'a été fait. */
+  const impayesXof = aEncaisser.resteFactures + aEncaisser.resteRituels;
+  const impayesDits = [
+    aEncaisser.factures ? nombreDe(aEncaisser.factures, 'facture') : '',
+    aEncaisser.rituels ? nombreDe(aEncaisser.rituels, 'rituel') : '',
+  ].filter(Boolean).join(' · ') || 'rien à encaisser';
+  const openImpayes = () => {
+    const pieces: DrillRow[] = [...aEncaisser.lesFactures]
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+      .map((i) => ({ who: i.clientName || nameOf(i.clientId), sub: `Facture · ${i.number}`, date: i.date, amount: invoiceResteXof(i), invoiceId: i.id }));
+    const rituels: DrillRow[] = [...aEncaisser.lesRituels]
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+      .map((a) => ({
+        who: clientOf(a.clientId)?.name ?? a.clientName ?? 'Cliente', sub: `Rituel honoré sans versement · ${apptLabel(a, byId)}`, date: a.date, amount: apptDueXof(a, byId),
+        onOpen: () => { setDrill(null); setPayAppt(a); },
+      }));
+    setDrill({ title: 'Impayés', sub: impayesDits, rows: [...pieces, ...rituels], total: impayesXof });
+  };
+
+  /* L'ATTENDU DU JOUR, rendez-vous par rendez-vous (24 octobre 2026). */
+  const openAttendu = () => setDrill({
+    title: 'Attendu aujourd’hui',
+    sub: `Encaissé ${fmt(jourDuChiffre.encaisseXof)} · reste ${fmt(jourDuChiffre.resteXof)}`,
+    rows: todayRows.map((a) => {
+      const u = chiffreAttenduDuJour([{ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme }], a.date);
+      return {
+        who: clientOf(a.clientId)?.name ?? a.clientName ?? 'Cliente de passage',
+        sub: `${a.time} · ${apptLabel(a, byId)}${u.gammeXof > 0 ? ` · dont Gamme ${fmt(u.gammeXof)}` : ''} · ${u.resteXof > 0 ? `reste ${fmt(u.resteXof)}` : 'réglé'}`,
+        amount: u.attenduXof, onOpen: () => { setDrill(null); setEditAppt(a); },
+      };
+    }),
+    total: jourDuChiffre.attenduXof,
+  });
+
+  /* ── À TRAITER : une ligne par sujet, un grand chiffre, trois à six mots,
+     un geste. Rouge : une anomalie. Une ligne ne paraît que si elle compte
+     quelque chose, sauf l'anomalie à zéro (aucune dépense depuis le 1er). */
+  type Tache = { k: string; n: number; dit: string; geste: string; go: () => void; ko?: boolean };
+  const dep = journee.cloture.depenses?.comptes;
+  const piecesEffacees = journee.alarmes.filter((x) => x.ouverte).length;
+  const aClore = journee.cloture.comptes.aEncaisser + journee.cloture.comptes.sansEtat;
+  const pretsEnRetard = pretsAVeiller.filter((e) => !!e.prochaine && joursEntre(today, e.prochaine.date) < 0).length;
+  const jalonsEnRetard = jalonsAVeiller.filter((e) => e.retardXof > 0).length;
+  const zeroDepenseDuMois = spent === 0 && jourDuMois >= 2;
+  const pressants = alarme.enAttente.filter(filPressant).length;
+  const seulFil = alarme.enAttente.length === 1 ? alarme.enAttente[0] : null;
+  const versLaJournee = () => navigate('/la-journee');
+  const toutes: Tache[] = [
+    ...(alarme.enAttente.length > 0 ? [{
+      k: 'whatsapp', n: alarme.enAttente.length, ko: true,
+      dit: `${alarme.enAttente.length > 1 ? 'messages WhatsApp sans réponse' : 'message WhatsApp sans réponse'}${pressants ? ` · ${pressants} sous 2 h` : ''}`,
+      geste: 'Répondre',
+      go: seulFil ? () => navigate(cheminDeLaConversation(seulFil.numero) ?? '/conversations') : () => ouvreLeDetail('messages'),
+    }] : []),
+    ...(piecesEffacees > 0 ? [{ k: 'effacees', n: piecesEffacees, ko: true, dit: piecesEffacees > 1 ? 'pièces payées effacées' : 'pièce payée effacée', geste: 'Trancher', go: versLaJournee }] : []),
+    ...(veille.ecarts > 0 ? [{ k: 'ecarts', n: veille.ecarts, ko: true, dit: veille.ecarts > 1 ? 'écarts de caisse à trancher' : 'écart de caisse à trancher', geste: 'Trancher', go: () => ouvreLeDetail('veille') }] : []),
+    ...(veille.oublies.length > 0 ? [{ k: 'tiroirs', n: veille.oublies.length, ko: true, dit: veille.oublies.length > 1 ? 'tiroirs non comptés hier' : 'tiroir non compté hier', geste: 'Compter', go: () => ouvreLeDetail('veille') }] : []),
+    ...(dep && dep.aValiderDuJour > 0 ? [{ k: 'dep-jour', n: dep.aValiderDuJour, ko: true, dit: dep.aValiderDuJour > 1 ? 'dépenses du jour à valider' : 'dépense du jour à valider', geste: 'Valider', go: versLaJournee }] : []),
+    ...(dep && dep.ecarts > 0 ? [{ k: 'dep-ecarts', n: dep.ecarts, ko: true, dit: dep.ecarts > 1 ? 'écarts de tiroir sans dépense' : 'écart de tiroir sans dépense', geste: 'Voir', go: versLaJournee }] : []),
+    ...(zeroDepenseDuMois
+      ? [{ k: 'dep-mois', n: 0, ko: true, dit: 'dépense depuis le 1er', geste: 'Saisir', go: () => navigate('/depenses') }]
+      : dep && dep.sansDepense > 0 ? [{ k: 'dep-sans', n: 0, ko: true, dit: 'dépense saisie aujourd’hui', geste: 'Saisir', go: versLaJournee }] : []),
+    ...(santeOuverte > 0 || entreDeuxEnRetard > 0 ? [{
+      k: 'entre-deux', n: santeOuverte || entreDeuxEnRetard, ko: santeOuverte > 0,
+      dit: santeOuverte > 0 ? 'soucis santé à rappeler' : 'soucis entre deux séances en retard',
+      geste: 'Voir', go: () => navigate('/entre-deux'),
+    }] : []),
+    ...(rappelsALaMain > 0 ? [{ k: 'rappels', n: rappelsALaMain, ko: true, dit: 'rappels de demain à la main', geste: 'Rappeler', go: () => ouvreLeDetail('tournee') }] : []),
+    ...(engagementsDus.livraisonsEnRetard.length > 0 ? [{ k: 'livraisons', n: engagementsDus.livraisonsEnRetard.length, ko: true, dit: 'livraisons en retard', geste: 'Voir', go: () => navigate('/engagements') }] : []),
+    ...(pretsAVeiller.length > 0 ? [{
+      k: 'prets', n: pretsAVeiller.length, ko: pretsEnRetard > 0,
+      dit: pretsEnRetard > 0 ? `remboursements de prêt · ${pretsEnRetard} en retard` : 'remboursements de prêt attendus',
+      geste: 'Voir', go: () => navigate('/prets'),
+    }] : []),
+    ...(jalonsAVeiller.length > 0 ? [{
+      k: 'jalons', n: jalonsAVeiller.length, ko: jalonsEnRetard > 0,
+      dit: jalonsEnRetard > 0 ? `versements d’épargne · ${jalonsEnRetard} en retard` : 'versements d’épargne attendus',
+      geste: 'Voir', go: () => navigate('/prets?onglet=objectifs'),
+    }] : []),
+    ...(aClore > 0 ? [{ k: 'a-clore', n: aClore, dit: 'rendez-vous du jour à clore', geste: 'Clore', go: versLaJournee }] : []),
+    ...(journee.cloture.comptes.aRevoir > 0 ? [{ k: 'a-revoir', n: journee.cloture.comptes.aRevoir, dit: 'factures du jour à revoir', geste: 'Revoir', go: versLaJournee }] : []),
+    ...(journee.cloture.gestes.length > 0 ? [{ k: 'gestes', n: journee.cloture.gestes.length, dit: 'gestes que Grenat fait seul', geste: 'Voir', go: versLaJournee }] : []),
+    /* LES DÉPENSES PRÉPARÉES, À VALIDER (5 novembre 2026) : la liste de Finances ›
+       Dépenses ; celles du jour, qui retiennent le comptage, ont leur ligne rouge. */
+    ...(depensesAValider - (dep?.aValiderDuJour ?? 0) > 0 ? [{ k: 'dep-preparees', n: depensesAValider - (dep?.aValiderDuJour ?? 0), dit: depensesAValider - (dep?.aValiderDuJour ?? 0) > 1 ? 'dépenses préparées à valider' : 'dépense préparée à valider', geste: 'Valider', go: () => navigate('/depenses') }] : []),
+    ...(dep && dep.aCompleter > 0 ? [{ k: 'dep-completer', n: dep.aCompleter, dit: 'dépenses à compléter', geste: 'Compléter', go: versLaJournee }] : []),
+    /* EXACTEMENT CELLES-LÀ : la page ouvre le même juge par `?filtre=reste`. */
+    ...(aEncaisser.factures > 0 ? [{ k: 'factures', n: aEncaisser.factures, dit: aEncaisser.factures > 1 ? 'factures impayées' : 'facture impayée', geste: 'Relancer', go: () => navigate('/factures?filtre=reste') }] : []),
+    ...(aEncaisser.rituels > 0 ? [{ k: 'rituels', n: aEncaisser.rituels, dit: aEncaisser.rituels > 1 ? 'rituels honorés sans versement' : 'rituel honoré sans versement', geste: 'Encaisser', go: () => navigate('/carnet') }] : []),
+    ...(aRecevoir.length > 0 ? [{ k: 'attente', n: aRecevoir.length, dit: aRecevoir.length > 1 ? 'réservations à recevoir' : 'réservation à recevoir', geste: 'Recevoir', go: () => setAttenteOpen(true) }] : []),
+    ...(demandesRows.length > 0 ? [{ k: 'demandes', n: demandesRows.length, dit: demandesRows.length > 1 ? 'demandes du site' : 'demande du site', geste: 'Traiter', go: () => navigate('/demandes') }] : []),
+    ...(appelsAFaire.length > 0 ? [{
+      k: 'appels', n: appelsAFaire.length, ko: appelsEnRetard > 0,
+      dit: `${appelsAFaire.length > 1 ? 'appels à traiter' : 'appel à traiter'}${appelsEnRetard ? ` · ${appelsEnRetard} en retard` : ''}`,
+      geste: 'Appeler', go: () => ouvreLeDetail('appels'),
+    }] : []),
+    ...(compoNouvelles.length > 0 ? [{ k: 'compositions', n: compoNouvelles.length, dit: 'rituels sur-mesure à sceller', geste: 'Sceller', go: () => setCompoOpen(true) }] : []),
+    ...(anniversaires.length > 0 ? [{
+      k: 'anniversaires', n: anniversaires.length, dit: anniversaires.length > 1 ? 'anniversaires sous 2 jours' : 'anniversaire sous 2 jours',
+      geste: anniversaires.length > 1 ? 'Les cartes' : 'Sa carte',
+      go: anniversaires.length === 1 ? () => setCarteFor(anniversaires[0].c) : () => ouvreLeDetail('anniversaires'),
+    }] : []),
+    ...(enfantsArrives.length > 0 ? [{
+      k: 'enfants', n: enfantsArrives.length, dit: 'enfants rattachés depuis Ma Couronne', geste: 'Voir',
+      go: () => {
+        /* Vus = reçus : la ligne s'éteint, le journal demeure. */
+        const ids = enfantsArrives.map((d) => d.id);
+        enfantsRecusVusStore.set((prev) => [...new Set([...prev, ...ids])]);
+        navigate('/customers');
+      },
+    }] : []),
+    /* LE MÊME JUGE QU'À FAIRE (`relancesAReprendre`) : la même liste, en tête de page. */
+    ...(reprisesARelancer > 0 ? [{ k: 'relances-j3', n: reprisesARelancer, dit: 'retenues à relancer sous 3 jours', geste: 'Relancer', go: () => navigate('/a-faire') }] : []),
+    ...(engagementsDus.enCours > 0 || engagementsDus.sansDecharge > 0 ? [{
+      k: 'engagements', n: engagementsDus.enCours || engagementsDus.sansDecharge,
+      dit: engagementsDus.enCours > 0 ? `engagements en cours · ${restesDits(engagementsDus.restes, currency)}` : 'versements sans décharge',
+      geste: 'Voir', go: () => navigate('/engagements'),
+    }] : []),
+    /* UN CARNET LIBRE PROPOSE : les couronnes qui ont passé leur cadence. */
+    ...(relances > 0 ? [{ k: 'cadence', n: relances, dit: 'couronnes au-delà de leur cadence', geste: 'Relancer', go: () => navigate('/customers') }] : []),
+  ];
+  /* Les anomalies d'abord, l'alarme WhatsApp en tête. */
+  const taches = [...toutes.filter((t) => t.ko), ...toutes.filter((t) => !t.ko)];
+
+  /* ── LE MOIS ── */
+  const maxBarre = Math.max(1, ...chiffres.barres.map((b) => b.xof));
+  const fourchette = `${fmt(prevDuMois.prevision.basXof)} à ${fmt(prevDuMois.prevision.hautXof)}`;
+  const placesDites = !places.active ? 'éteintes'
+    : places.jours.length === 0 ? 'aucun jour ouvert'
+      : `${joursDits(places.jours.map((j) => j.iso))} · ${nombreDe(places.jours.reduce((s, j) => s + j.reste, 0), 'place')}`;
+  const journeeClose = journee.close && journee.cloture.rdvs.length > 0;
+  const tonDeLaSynchro = synchro.ton === 'ok' ? ' est-ok' : synchro.ton === 'attente' ? ' est-attente' : synchro.ton === 'ko' ? ' est-ko' : '';
+
+  const kpis = [
+    { k: 'jour', l: 'Encaissé aujourd’hui', v: fmt(encaisseAujourdhui), c: nombreDe(todayRows.length, 'rendez-vous', 'rendez-vous'), go: () => openDay(today) },
+    { k: 'mois', l: `Encaissé ${nomMois}`, v: fmt(revenue), c: `au ${jourDuMois} · ${nombreDe(chiffres.versements, 'versement')}`, go: () => setBreakOpen(true) },
+    { k: 'impayes', l: 'Impayés', v: fmt(impayesXof), c: impayesDits, ko: impayesXof > 0, go: openImpayes },
+    { k: 'rituels', l: `Rituels ${nomMois}`, v: String(chiffres.honores.nombre), c: `${prevMonthName} : ${chiffres.honoresAvant.nombre}`, go: () => navigate('/chiffre-des-prestations') },
+    { k: 'actives', l: 'Clientes actives', v: String(chiffres.actives), c: 'sur 90 jours', go: () => navigate('/customers') },
+    { k: 'sept', l: '7 jours', v: String(chiffres.sept.rdv), c: `rendez-vous · ${nombreDe(chiffres.sept.joursLibres, 'jour libre', 'jours libres')}`, go: () => navigate('/calendrier') },
+  ];
+
+  /* Le détail : un panneau par sujet qui agit, fermé au départ. */
+  const aDuDetail = alarme.enAttente.length > 0 || (veille.voit && (veille.ecarts + veille.oublies.length > 0 || veille.grenat))
+    || unpaid.overdue.rows.length + unpaid.upcoming.rows.length > 0 || appelsAFaire.length > 0 || demandesRows.length > 0
+    || demainRows.length > 0 || anniversaires.length > 0;
 
   return (
-    <div className="mnd-rise">
-      <Eyebrow>
-        Le Trône · {branch.city} · {frShort(today)} {now.getFullYear()}
-      </Eyebrow>
-      <h2
-        style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 38, color: 'var(--color-indigo)', margin: '6px 0 0', lineHeight: 1 }}
-      >
-        {greeting}{who ? `, ${who}` : ''}.
-      </h2>
-
-      {/* SES POURBOIRES, EN TÊTE DE SON ACCUEIL — 5 novembre 2026 (maquette
-          2e4ZNFxyREv6mxG4vakuh5, écran 4) : la direction a aussi sa part
-          (une demi-part chacun) ; le tableau de l'équipe vit dans Équipe ›
-          Les pourboires. Rien sans fiche ni part. */}
-      <MesPourboiresEnDirect moi={maFiche} />
-
-      {/* LA PAGE EN ORDRE — 27 octobre 2026 (maquette Q9Nkir2cdF4jSP6QDTH3cG,
-          au sélecteur : « le mois, puis les leviers ») : des ancres, les
-          alarmes du moment, LE MOIS (la prévision, ses leviers, son calcul,
-          puis ses quatre chiffres), et en dessous des lignes repliées qui
-          disent chacune en chiffres ce qu'elles cachent. « Je veux des
-          boutons qui appellent une action » (Yéman, 9 septembre 2026). Les
-          pilules À faire et La Cadence sont parties avec la barre (lot 3 de
-          l'Assistant Maison, 27 octobre) ; « + Le calendrier » reste. */}
-      <nav className="trd-nav" aria-label="Le tableau de bord">
-        <a href="#le-mois" onClick={allerALaSection('le-mois')}>Le mois</a>
-        <a href="#aujourdhui" onClick={allerALaSection('aujourdhui')}>Aujourd’hui</a>
-        <a href="#a-traiter" onClick={allerALaSection('a-traiter')}>À traiter</a>
-        <a href="#le-detail-du-mois" onClick={allerALaSection('le-detail-du-mois')}>Le détail du mois</a>
-        <button type="button" className="trp-af-pill" onClick={() => navigate('/calendrier')}>+ Le calendrier</button>
-      </nav>
-
-      {/* L'ALARME DES MESSAGES SANS RÉPONSE — 18 septembre 2026. En tête,
-          avant tout le reste : une fenêtre de 24 h ne se rattrape pas, un
-          rendez-vous à caler, si. Elle disparaît d'elle-même à la dernière
-          réponse. */}
-      <AlarmeWhatsApp />
-
-      {/* LES CAISSES À VALIDER — 3 octobre 2026 : les écarts déclarés au comptage
-          du soir, et les tiroirs restés ouverts hier. La direction seule. */}
-      <LaVeilleAValider />
-
-      {/* LA JOURNÉE, LA CLÔTURE DE GRENAT — 4 novembre 2026 (maquette
-          9KCMgAb1…) : le verdict du jour et le chemin vers Finances › La journée. */}
-      <CarteDeLaJournee />
-
-      {/* LA PRÉVISION DU MOIS — 24 octobre 2026, maquette VJ5PJEGUPDbYKUgEdMUNbS :
-          le Trône calcule, chaque part se dit en clair (PrevisionDuMois.tsx). */}
-      <PrevisionDuMois donnees={prevDuMois} />
-      {/* « À VALIDER · LES AGENTS » A QUITTÉ LE TABLEAU DE BORD (27 octobre
-          2026, lot 3 de l'Assistant Maison, maquette « 4 tuiles replacées ») :
-          quatre tuiles le remplacent, chacune chez elle : « À encaisser » dans
-          Ce qui presse ci-dessous, « Sans justificatif · Divers à ranger » aux
-          Dépenses, « Bons à préparer » au Stock & Achats, « Les 14 prochains
-          jours » aux Prévisions. Le passage dû des processus se fait depuis
-          Les agents (Centre de commande). */}
+    <div className="mnd-rise tdb" data-tdb="direction">
+      {/* LES PASSAGES DU JOUR : invisibles, montés ici (Gérard, devenu Perle,
+          et « Avant le fauteuil ») ; ils ne tournent que pour la direction. */}
       <PassageDeGerard />
-      {/* « AVANT LE FAUTEUIL » (31 octobre 2026) : le soir dès 18 h 50 pour
-          les têtes de demain, le matin dès 6 h 45 pour celles d'aujourd'hui,
-          la direction reçoit la notification sur son téléphone, une fois. */}
       <PassageAvantLeFauteuil />
 
-      {/* KPI majeurs */}
-      {/* Les quatre chiffres du mois sur une ligne dès 1 000 px (à 240 px, 3 + 1). */}
-      <div className="tr-grid" style={{ marginTop: 24, gridTemplateColumns: 'repeat(auto-fit, minmax(215px, 1fr))' }}>
+      {/* ── 1. L'EN-TÊTE ── */}
+      <header className="tdb-tete" data-tdb="tete">
+        <div>
+          <p className="tdb-tete__sur">Tableau de bord · {maisonNom()}</p>
+          <h1 className="tdb-tete__titre">{dateDuTitre(today)}</h1>
+        </div>
+        <div className="tdb-puces">
+          <span className={`tdb-puce${tonDeLaSynchro}`} role="status">{synchro.dit}</span>
+          <button type="button" className={`tdb-puce${envoisDemiHeure > 0 ? ' est-attente' : ''}`} onClick={() => navigate('/conversations?envois=1')}>
+            {nombreDe(envoisDemiHeure, 'envoi')} · 30 min
+          </button>
+          <button type="button" className={`tdb-puce${journeeClose ? ' est-ok' : ''}`} onClick={() => navigate('/la-journee')}>
+            {journeeClose ? 'Journée close' : passageGrenat !== null ? `Grenat · ${passageGrenat} h` : 'Grenat · demain matin'}
+          </button>
+        </div>
+      </header>
+
+      {/* ── 2. LE BANDEAU : six chiffres, chacun s'ouvre sur son écran ── */}
+      <section className="tdb-kpis" aria-label="Les chiffres du jour et du mois" data-tdb="bandeau">
         {kpis.map((k) => (
-          <div
-            className="trp-kpi trp-kpi--click"
-            key={k.label}
-            role="button"
-            tabIndex={0}
-            onClick={k.action}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') k.action(); }}
-          >
-            <span className="trp-kpi__bar" style={{ background: k.bar }} />
-            <div className="trp-kpi__label">{k.label}</div>
-            <div className="trp-kpi__value">{k.value}</div>
-            <div className="trp-kpi__foot">
-              <span className={`trp-kpi__trend ${k.trend.down ? 'trp-kpi__trend--down' : ''}`}>{k.trend.t}</span>
-              <button className="trp-kpi__link" onClick={(e) => { e.stopPropagation(); k.action(); }}>
-                Voir le détail →
-              </button>
-            </div>
-          </div>
+          <button type="button" key={k.k} className="tdb-kpi" data-kpi={k.k} onClick={k.go}>
+            <span className="tdb-kpi__l">{k.l}</span>
+            <span className={`tdb-kpi__v${k.ko ? ' est-ko' : ''}`}>{k.v}</span>
+            <span className={`tdb-kpi__c${k.ko ? ' est-ko' : ''}`}>{k.c}</span>
+          </button>
         ))}
-      </div>
+      </section>
 
-      <GroupeDeReplis id="aujourdhui" titre="Aujourd’hui" sousTitre="Le carnet, les appels, les demandes, les rappels de demain" ouvertAuDepart="carnet">
-        <Repli
-          cle="carnet" titre="Le carnet du jour" compte={todayRows.length}
-          resume={todayRows.length === 0 ? 'Le carnet est libre aujourd’hui.' : `${pluriel(todayRows.length, 'rendez-vous')} · ${fmtMoney(jourDuChiffre.attenduXof, currency)} attendus · reste ${fmtMoney(jourDuChiffre.resteXof, currency)}`}
-          geste={{ dit: 'Le carnet', faire: () => navigate('/carnet') }}
-        >
-          {/* Carnet du jour + revenu 7 jours */}
-          {/* LE CHIFFRE ATTENDU DE LA JOURNÉE — 24 octobre 2026 (voir
-              clients/chiffre-du-jour-pur.ts) : rituels du jour et Gamme posée, ce
-              qui est déjà entré et ce qui reste. Le même calcul qu'au Carnet. */}
-          <div className="tr-cols" style={{ '--cols': '1.55fr 1fr', gap: 18, marginTop: 24, alignItems: 'start' } as CSSProperties}>
-            <div className="trp-day">
-              <div className="trp-day__head">
-                <span className="trp-day__title">Le carnet du jour{todayRows.length > 0 ? ` · ${todayRows.length}` : ''}</span>
-                <button className="trp-kpi__link" onClick={() => navigate('/carnet')}>
-                  Tout voir →
-                </button>
-              </div>
-              {(() => {
-                const j = chiffreAttenduDuJour(todayRows.map((a) => ({
-                  date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme,
-                })), today);
-                /* Il s'ouvre sur ses rendez-vous (24 octobre 2026, « rendre
-                   cliquables les attendus »). */
-                const ouvre = () => setDrill({
-                  title: 'Attendu aujourd’hui',
-                  sub: `Rituels du jour et Gamme posée · déjà encaissé ${fmtMoney(j.encaisseXof, currency)} · reste ${fmtMoney(j.resteXof, currency)}`,
-                  rows: todayRows.map((a) => {
-                    const u = chiffreAttenduDuJour([{ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme }], a.date);
-                    return {
-                      who: clientOf(a.clientId)?.name ?? 'Cliente de passage',
-                      sub: `${a.time} · ${apptLabel(a, byId)}${u.gammeXof > 0 ? ` · dont Gamme ${fmtMoney(u.gammeXof, currency)}` : ''} · ${u.resteXof > 0 ? `reste ${fmtMoney(u.resteXof, currency)}` : 'réglé'}`,
-                      amount: u.attenduXof, onOpen: () => { setDrill(null); setEditAppt(a); },
-                    };
-                  }),
-                  total: j.attenduXof,
-                });
-                return j.attenduXof > 0 ? (
-                  <button type="button" className="trp-day__chiffre" onClick={ouvre} title="Voir les rendez-vous du jour">
-                    <span className="trp-day__chiffre-lab">Attendu aujourd’hui ›</span>
-                    <b>{fmtMoney(j.attenduXof, currency)}</b>
-                    <span className="trp-day__chiffre-sub">
-                      déjà encaissé {fmtMoney(j.encaisseXof, currency)} · reste {fmtMoney(j.resteXof, currency)}
-                      {j.gammeXof > 0 ? ` · dont Gamme ${fmtMoney(j.gammeXof, currency)}` : ''}
-                    </span>
-                  </button>
-                ) : null;
-              })()}
-              {/* UN ÉTAT VIDE PROPOSE, il ne constate pas : un carnet libre est
-                  l'occasion de relancer les couronnes qui ont passé leur cadence. */}
-              {todayRows.length === 0 && (
-                relances > 0 ? (
-                  <div className="trp-day__empty">
-                    Le carnet est libre, {relances === 1 ? 'une couronne a dépassé sa cadence' : `${relances} couronnes ont dépassé leur cadence`}.
-                    {' '}
-                    <button className="trp-kpi__link" onClick={() => navigate('/customers')}>Voir les relances →</button>
-                  </div>
-                ) : (
-                  <div className="trp-day__empty">Le carnet est libre aujourd’hui.</div>
-                )
-              )}
-              {todayRows.map((a) => {
-                const c = clientOf(a.clientId);
-                return (
-                  <div
-                    className="trp-day__row trp-day__row--click"
-                    key={a.id}
-                    onClick={() => setEditAppt(a)}
-                    title="Modifier ce rendez-vous"
-                  >
-                    <div className="trp-day__time">{a.time}</div>
-                    {c && <Avatar client={c} size={34} />}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="trp-day__client">{c?.name ?? 'Cliente de passage'}</div>
-                      <div className="trp-day__meta">
-                        {apptLabel(a, byId)} · {a.master}
-                      </div>
-                    </div>
-                    <SourceBadge source={a.source} />
-                    <PayStatusPill a={a} byId={byId} />
-                    <StatusPill status={a.status} />
-                    <ReminderBell appt={a} client={c} byId={byId} />
-                    {/* LA PAIRE DANGEREUSE, SÉPARÉE (maquette du 10 août). « Honorer »
-                        (un ÉTAT, indigo) vient d'abord ; « Encaisser » (de l'ARGENT,
-                        cuivre) ferme la ligne, à l'écart — NN/g : deux actions
-                        opposées qui se touchent, au pouce, c'est l'erreur assurée. */}
-                    {a.status !== 'honoré' && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); advance(a); }}
-                        style={{
-                          cursor: 'pointer', flex: 'none', borderRadius: 2, padding: '10px 14px',
-                          fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 500,
-                          background: a.status === 'en attente' ? 'var(--color-copper)' : 'transparent',
-                          color: a.status === 'en attente' ? 'var(--color-ivoire)' : 'var(--color-indigo)',
-                          border: a.status === 'en attente' ? '1px solid transparent' : '1px solid var(--color-indigo)',
-                        }}
-                      >
-                        {/* « Terminer » le jour même : le reste part sur son WhatsApp (25 octobre 2026). */}
-                        {a.status === 'en attente' ? 'Confirmer' : a.date === todayISO() ? 'Terminer' : 'Honorer'}
-                      </button>
-                    )}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}
-                      title="Encaisser, paiement partiel ou total"
-                      style={{
-                        cursor: 'pointer', flex: 'none', borderRadius: 2, padding: '10px 14px', marginLeft: 12,
-                        fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 500,
-                        background: 'transparent', color: 'var(--copper-700)', border: '1px solid var(--color-copper)',
-                      }}
-                    >
-                      Encaisser
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div>
-            <div className="trp-rev">
-              <button className="trp-rev__open" onClick={openWeek} title="Voir le détail des 7 jours">
-                <div className="trp-rev__eyebrow">Revenu · 7 jours</div>
-                <div className="trp-rev__value">{fmtMoney(rev7Total, currency)}</div>
-              </button>
-              <svg viewBox="0 0 280 150" style={{ width: '100%', height: 150, marginTop: 18, display: 'block' }} role="group" aria-label="Revenu des 7 derniers jours">
-                {rev7.map((d, i) => {
-                  const h = Math.max(4, Math.round((d.total / rev7Max) * 118));
-                  const x = 8 + i * 39;
-                  const isBest = d.iso === best.iso && d.total > 0;
+      {/* ── 3. AUJOURD'HUI et À TRAITER ── */}
+      <div className="tdb-grille">
+        <section className="tdb-carte" aria-labelledby="tdb-t-jour" data-tdb="aujourdhui">
+          <div className="tdb-carte__t">
+            <h2 id="tdb-t-jour">Aujourd’hui</h2>
+            <button type="button" className="tdb-lien" onClick={() => navigate('/carnet')}>Le Carnet ›</button>
+          </div>
+          <div className="tdb-defile">
+            <table className="tdb-table">
+              <thead>
+                <tr><th>Heure</th><th>Cliente</th><th>Rituel</th><th>État</th><th className="n">Montant</th><th><span className="tdb-cache">Gestes</span></th></tr>
+              </thead>
+              <tbody>
+                {todayRows.length === 0 && (
+                  <tr><td className="tdb-vide" colSpan={6}>Carnet libre</td></tr>
+                )}
+                {todayRows.map((a) => {
+                  const u = chiffreAttenduDuJour([{ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme }], a.date);
                   return (
-                    <g key={d.iso} role="button" tabIndex={0} style={{ cursor: 'pointer' }} onClick={() => openDay(d.iso)}>
-                      <title>{`${frShort(d.iso)} · ${fmtMoney(d.total, currency)}`}</title>
-                      {/* Cible de clic sur toute la colonne : une journée creuse n'a
-                          qu'un trait de 4 px, impossible à viser au doigt. */}
-                      <rect x={x - 6} y={4} width={38} height={142} fill="transparent" />
-                      <rect x={x} y={130 - h} width={26} height={h} rx={2} fill={isBest ? 'var(--color-copper)' : 'rgba(246,241,231,0.28)'} />
-                      <text x={x + 13} y={146} textAnchor="middle" fontSize={9.5} fontFamily="var(--font-sans)" fill="var(--indigo-200)">
-                        {d.label}
-                      </text>
-                    </g>
+                    <tr key={a.id} onClick={() => setEditAppt(a)} title="Ouvrir ce rendez-vous">
+                      <td className="tdb__num">{a.time}</td>
+                      <td className="tdb-txt">{clientOf(a.clientId)?.name ?? a.clientName ?? 'Cliente de passage'}</td>
+                      <td className="tdb-txt">{rituelDit(apptLabel(a, byId))}</td>
+                      <td><StatusPill status={a.status} /></td>
+                      <td className="n">{u.attenduXof > 0 ? fmt(u.attenduXof) : '·'}</td>
+                      <td>
+                        {/* UN GESTE PAR LIGNE, LE SUIVANT (5 novembre 2026) : confirmer,
+                            terminer, puis encaisser ; jamais l'état et l'argent côte à
+                            côte (la paire dangereuse, maquette du 10 août). La ligne
+                            touchée ouvre le rendez-vous et tous ses gestes. */}
+                        <span className="tdb-gestes">
+                          {a.status !== 'honoré' ? (
+                            <button type="button" className="tdb-btn tdb-btn--etat" onClick={(e) => { e.stopPropagation(); advance(a); }}>
+                              {/* « Terminer » le jour même : le reste part sur son WhatsApp (25 octobre 2026). */}
+                              {a.status === 'en attente' ? 'Confirmer' : a.date === todayISO() ? 'Terminer' : 'Honorer'}
+                            </button>
+                          ) : u.resteXof > 0 ? (
+                            <button type="button" className="tdb-btn" onClick={(e) => { e.stopPropagation(); setPayAppt(a); }} title="Encaisser, paiement partiel ou total">
+                              Encaisser
+                            </button>
+                          ) : null}
+                        </span>
+                      </td>
+                    </tr>
                   );
                 })}
-              </svg>
-              <button className="trp-rev__foot trp-rev__foot--btn" onClick={() => openDay(best.iso)} title="Voir le meilleur jour">
-                <span>Meilleur jour · {bestName}</span>
-                <span className="trp-rev__best">{fmtMoney(best.total, currency)}</span>
-              </button>
-            </div>
-            <div className="trp-tile" style={{ marginTop: 12 }}>
-              <div className="trp-tile__label">Têtes couronnées</div>
-              <div className="trp-tile__value">{tetesCouronnees}</div>
-              <div className="trp-tile__cap">venues au moins une fois</div>
-            </div>
-            </div>
+              </tbody>
+            </table>
           </div>
-        </Repli>
-        {/* APPELS À TRAITER — posés à la volée, ils restent ici jusqu'à ce qu'ils
-            soient faits ou transformés en rendez-vous. Rien ne s'oublie entre deux clientes. */}
-        {appelsAFaire.length > 0 && (
-          <Repli
-            cle="appels" titre="Appels à traiter" compte={appelsAFaire.length} ton={appelsEnRetard > 0 ? 'presse' : 'calme'}
-            resume={`${pluriel(appelsAFaire.length, 'appel')} en attente${appelsEnRetard ? ` · ${appelsEnRetard} en retard` : ''}`}
-            geste={{ dit: 'Voir tout', faire: () => navigate('/appels') }}
+          <p className="tdb-resume">
+            <button type="button" onClick={openAttendu} title="Attendu aujourd’hui, rendez-vous par rendez-vous">Attendu <b>{fmt(jourDuChiffre.attenduXof)}</b></button>
+            <span>Encaissé <b>{fmt(jourDuChiffre.encaisseXof)}</b></span>
+            <span>Fauteuils <b>{fauteuils.sieges > 0 ? `${fauteuils.pris} / ${fauteuils.sieges}` : fauteuils.pris}</b></span>
+          </p>
+        </section>
+
+        <section className="tdb-carte" aria-labelledby="tdb-t-traiter" data-tdb="a-traiter">
+          <div className="tdb-carte__t">
+            <h2 id="tdb-t-traiter">À traiter</h2>
+            <button type="button" className="tdb-lien" onClick={() => navigate('/la-journee')}>La journée ›</button>
+          </div>
+          {taches.length === 0 && <p className="tdb-rien">Rien à traiter</p>}
+          {taches.map((t) => (
+            <div key={t.k} className={`tdb-tache${t.ko ? ' est-ko' : ''}`} data-tache={t.k}>
+              <span className={`tdb-tache__n${t.ko ? ' est-ko' : ''}`}>{t.n}</span>
+              <span className="tdb-tache__dit">{t.dit}</span>
+              <button type="button" className="tdb-btn" onClick={t.go}>{t.geste}</button>
+            </div>
+          ))}
+        </section>
+      </div>
+
+      {/* ── 4. LE MOIS ── */}
+      <section className="tdb-carte" aria-labelledby="tdb-t-mois" data-tdb="mois">
+        <div className="tdb-carte__t">
+          <h2 id="tdb-t-mois">Le mois <small>{nomMois} {thisMonth.slice(0, 4)}</small></h2>
+          <button type="button" className="tdb-lien" onClick={() => navigate('/encaissements')}>Les encaissements ›</button>
+        </div>
+        <div className="tdb-mois">
+          <div
+            className="tdb-mois__graphe" role="img"
+            aria-label={`Encaissé par mois : ${chiffres.barres.map((b) => `${nomDuMois(b.mois)} ${b.mois.slice(0, 4)}${b.enCours ? ` au ${jourDuMois}` : ''}, ${fmt(b.xof)}`).join(' ; ')}.`}
           >
+            <svg viewBox="0 0 520 200" aria-hidden="true">
+              <line className="axe" x1="20" y1="168" x2="500" y2="168" />
+              {chiffres.barres.map((b, i) => {
+                const h = Math.max(2, Math.round((b.xof / maxBarre) * 140 * 10) / 10);
+                const x = 60 + i * 152;
+                const nom = nomDuMois(b.mois);
+                return (
+                  <g key={b.mois}>
+                    <rect className={`b${b.enCours ? ' en-cours' : ''}`} x={x} y={168 - h} width="96" height={h} rx="3" />
+                    <text className="val" x={x + 48} y={160 - h} textAnchor="middle">{fmt(b.xof)}</text>
+                    <text x={x + 48} y="188" textAnchor="middle">{nom.charAt(0).toUpperCase() + nom.slice(1)}{b.enCours ? ` (au ${jourDuMois})` : ''}</text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+          <div className="tdb-lignes">
+            <button type="button" className="tdb-ligne" onClick={() => navigate('/chiffre-des-prestations')}><span>Gagné {nomMois}</span><b>{fmt(chiffres.honores.xof)}</b></button>
+            <button type="button" className="tdb-ligne" onClick={() => navigate('/encaissements')}><span>Encaissé pour {prevMonthName} et avant</span><b>{fmt(chiffres.pourAvant.xof)}</b></button>
+            <button type="button" className="tdb-ligne" onClick={() => navigate('/pourboires')}><span>Pourboires (équipe)</span><b>{fmt(pourboiresEquipe.mois)}</b></button>
+            <button type="button" className="tdb-ligne" onClick={() => navigate('/depenses')}><span>Dépenses</span><b className={zeroDepenseDuMois ? 'est-ko' : ''}>{fmt(spent)}</b></button>
+            {/* LA PRÉVISION, EN FOURCHETTE SEULEMENT : son calcul vit aux Prévisions. */}
+            <button type="button" className="tdb-ligne" data-ligne="prevision" onClick={() => navigate('/previsions?vue=francs')}><span>Prévision fin de mois</span><b>{fourchette}</b></button>
+            <button type="button" className="tdb-ligne" onClick={() => navigate('/parametres?ouvre=places')}><span>Places limitées</span><b>{placesDites}</b></button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── LE DÉTAIL : les panneaux qui agissent, fermés au départ, un seul ouvert ── */}
+      {aDuDetail && (
+        <div className="tdb-detail" data-tdb="detail">
+          <GroupeDeReplis id="le-detail" titre="Le détail" ouvert={ouvertDetail} onOuvre={setOuvertDetail}>
+            {alarme.enAttente.length > 0 && (
+              <div id="tdb-detail-messages">
+                <Repli
+                  cle="messages" titre="Messages sans réponse" compte={alarme.enAttente.length} ton="presse"
+                  resume={pressants ? `${pressants} sous 2 h · fenêtre de 24 h` : 'fenêtre de 24 h ouverte'}
+                  geste={{ dit: 'Les conversations', faire: () => navigate('/conversations') }}
+                >
+                  <ListeDeLAlarme {...alarme} />
+                </Repli>
+              </div>
+            )}
+            {veille.voit && (veille.ecarts + veille.oublies.length > 0 || veille.grenat) && (
+              <div id="tdb-detail-veille">
+                <Repli
+                  cle="veille" titre="La veille à valider" compte={veille.ecarts + veille.oublies.length} ton={veille.ecarts + veille.oublies.length > 0 ? 'presse' : 'calme'}
+                  resume={[veille.ecarts ? nombreDe(veille.ecarts, 'écart déclaré', 'écarts déclarés') : '', veille.oublies.length ? nombreDe(veille.oublies.length, 'tiroir non compté', 'tiroirs non comptés') : '', veille.grenat ? 'compte rendu de Grenat' : ''].filter(Boolean).join(' · ')}
+                >
+                  {/* LES CAISSES À VALIDER — 3 octobre 2026 : les écarts déclarés au
+                      comptage du soir, et les tiroirs restés ouverts hier. */}
+                  <LaVeilleAValider />
+                </Repli>
+              </div>
+            )}
+            {unpaid.overdue.rows.length + unpaid.upcoming.rows.length > 0 && (
+              <div id="tdb-detail-impayes">
+                <Repli
+                  cle="impayes" titre="Rendez-vous impayés" compte={unpaid.overdue.rows.length} ton={unpaid.overdue.rows.length > 0 ? 'presse' : 'calme'}
+                  resume={`Échus : ${unpaid.overdue.rows.length} · ${fmtMoney(unpaid.overdue.total, currency)} · à venir : ${unpaid.upcoming.rows.length} · ${fmtMoney(unpaid.upcoming.total, currency)}`}
+                >
+          <div ref={unpaidRef} className="tr-grid trd-impayes" style={{ marginTop: 18, alignItems: 'start' }}>
+            {renderUnpaidGroup('Impayés échus · en retard', unpaid.overdue, 'Aucun impayé échu, rien en retard.')}
+            {renderUnpaidGroup('Soldes à venir', unpaid.upcoming, 'Aucun solde à venir.')}
+          </div>
+                </Repli>
+              </div>
+            )}
+            {/* APPELS À TRAITER — posés à la volée, ils restent ici jusqu'à ce qu'ils
+                soient faits ou transformés en rendez-vous. */}
+            {appelsAFaire.length > 0 && (
+              <div id="tdb-detail-appels">
+                <Repli
+                  cle="appels" titre="Appels à traiter" compte={appelsAFaire.length} ton={appelsEnRetard > 0 ? 'presse' : 'calme'}
+                  resume={`${pluriel(appelsAFaire.length, 'appel')} en attente${appelsEnRetard ? ` · ${appelsEnRetard} en retard` : ''}`}
+                  geste={{ dit: 'Voir tout', faire: () => navigate('/appels') }}
+                >
               <div style={{ marginTop: 22, border: '1px solid var(--hairline)', borderRadius: 4, overflow: 'hidden' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '12px 16px', borderBottom: '1px solid var(--hairline)', background: 'var(--copper-50, #FAF1E9)' }}>
                   <span style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>Appels à traiter</span>
@@ -1154,16 +1082,16 @@ export default function Dashboard() {
                   );
                 })}
               </div>
-          </Repli>
-        )}
-        <Repli
-          cle="demandes" titre="Demandes du site" compte={demandesRows.length}
-          resume={demandesRows.length === 0 ? 'Aucune demande en attente.' : `${pluriel(demandesRows.length, 'demande')} en attente · la plus ancienne ${depuisQuand(demandesRows[demandesRows.length - 1].createdAt)}`}
-          geste={{ dit: 'Traiter', faire: () => navigate('/demandes') }}
-        >
-          {/* Ce qui presse — chaque alerte porte son GESTE : réassort → le bon,
-              impayés échus → la section qui les encaisse. L'ancienne tuile
-              « Alertes stock : 5 » constatait ; ici l'écran tend la main. */}
+                </Repli>
+              </div>
+            )}
+            {demandesRows.length > 0 && (
+              <div id="tdb-detail-demandes">
+                <Repli
+                  cle="demandes" titre="Demandes du site" compte={demandesRows.length}
+                  resume={`${pluriel(demandesRows.length, 'demande')} en attente · la plus ancienne ${depuisQuand(demandesRows[demandesRows.length - 1].createdAt)}`}
+                  geste={{ dit: 'Traiter', faire: () => navigate('/demandes') }}
+                >
           <div className="trp-panel" style={{ marginTop: 14 }}>
             <div className="trp-panel__title">
               Demandes du site · rendez-vous et rappels{demandesRows.length > 0 ? ` · ${demandesRows.length}` : ''}
@@ -1192,15 +1120,15 @@ export default function Dashboard() {
                 </div>
               ))}
           </div>
-        </Repli>
-        <Repli
-          cle="tournee" titre="La tournée du matin" compte={demainRows.length} ton={rappelsALaMain > 0 ? 'presse' : 'calme'}
-          resume={demainRows.length === 0 ? 'Rien à rappeler, le carnet de demain est libre.' : `${pluriel(demainRows.length, 'rappel')} de demain${rappelsALaMain ? ` · ${rappelsALaMain} à faire à la main` : ' · tous partis ou en route'}`}
-        >
-          {/* ── LA TOURNÉE DU MATIN — les rappels de demain, réunis (13 août).
-              Les cloches existaient, dispersées sur le Carnet et le Calendrier ;
-              ici elles s'alignent : un tap par cliente, et la pastille dit si le
-              rappel PUSH est déjà parti tout seul (fonction `rappels-j1`). */}
+                </Repli>
+              </div>
+            )}
+            {demainRows.length > 0 && (
+              <div id="tdb-detail-tournee">
+                <Repli
+                  cle="tournee" titre="La tournée du matin" compte={demainRows.length} ton={rappelsALaMain > 0 ? 'presse' : 'calme'}
+                  resume={`${pluriel(demainRows.length, 'rappel')} de demain${rappelsALaMain ? ` · ${rappelsALaMain} à faire à la main` : ' · tous partis ou en route'}`}
+                >
           <div className="trp-panel" style={{ marginTop: 14 }}>
             <div className="trp-panel__title">
               La tournée du matin · rappels de demain{demainRows.length > 0 ? ` · ${demainRows.length}` : ''}
@@ -1261,104 +1189,31 @@ export default function Dashboard() {
                   </div>
                 );
               })}
-            {demainRows.length > 0 && (
-              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
-                Le passage automatique ne voit que les rendez-vous posés avant son heure.
-                <b>Pas encore passé</b> dit qu’il ne l’a pas encore vu ; si plus aucun passage
-                n’est prévu aujourd’hui, ce rappel ne partira pas tout seul.
-                {' '}<b>Échec</b> et <b>Rien n’est parti</b> appellent ta main tout de suite :
-                la cloche ouvre WhatsApp pré-rempli, un tap, Envoyer, et elle se souvient
-                de ton geste.
-              </div>
-            )}
           </div>
-        </Repli>
-      </GroupeDeReplis>
-
-      <GroupeDeReplis id="a-traiter" titre="À traiter" sousTitre="L’argent qui doit rentrer, et ce qui presse" ouvert={ouvertATraiter} onOuvre={setOuvertATraiter}>
-        <Repli
-          cle="presse" titre="Ce qui presse" compte={presseRows.length + (aEncaisserXof > 0 ? 1 : 0)} ton={presseRows.length > 0 || aEncaisserXof > 0 ? 'presse' : 'calme'}
-          resume={presseRows.length === 0 && aEncaisserXof === 0 ? 'Rien ne presse, tout est réglé.' : [aEncaisserXof > 0 ? `${fmtMoney(aEncaisserXof, currency)} à encaisser` : '', presseRows.length ? pluriel(presseRows.length, 'alerte') : ''].filter(Boolean).join(' · ')}
-        >
-          <div className="trp-panel" style={{ marginTop: 14 }}>
-            <div className="trp-panel__title">Ce qui presse</div>
-            {/* « À ENCAISSER » : la tuile de l'agent des encaissements (27 octobre
-                2026). Le carnet encaisse les rituels, la page Factures ouvre
-                exactement celles qui gardent un reste. */}
-            {aEncaisser.rituels + aEncaisser.factures > 0 && (
-              <div className="trp-agents" style={{ marginTop: 0, marginBottom: 10, cursor: 'default' }} aria-label="À encaisser">
-                <span className="trp-prev__sur">À encaisser</span>
-                <span><b>{aEncaisser.rituels}</b> rituel{aEncaisser.rituels > 1 ? 's' : ''} honoré{aEncaisser.rituels > 1 ? 's' : ''} sans versement · {fmtMoney(aEncaisser.resteRituels, currency)}</span>
-                <span><b>{aEncaisser.factures}</b> facture{aEncaisser.factures > 1 ? 's' : ''} avec un reste · {fmtMoney(aEncaisser.resteFactures, currency)}</span>
-                <span><b>{fmtMoney(aEncaisser.resteRituels + aEncaisser.resteFactures, currency)}</b> à encaisser</span>
-                <button type="button" className="trp-prev__lien" onClick={() => navigate('/carnet')}>Le carnet ›</button>
-                <button type="button" className="trp-prev__lien" onClick={() => navigate('/factures?filtre=a-regler')}>Les factures ›</button>
+                </Repli>
               </div>
             )}
-            {presseRows.length === 0 && aEncaisser.rituels + aEncaisser.factures === 0 && <div className="trp-empty">Rien ne presse, tout est réglé.</div>}
-            {presseRows.map((r, i) => (
-                <div
-                  key={r.k}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 0', borderTop: i === 0 ? 'none' : '1px solid var(--hairline)' }}
+            {anniversaires.length > 0 && (
+              <div id="tdb-detail-anniversaires">
+                <Repli
+                  cle="anniversaires" titre="Anniversaires" compte={anniversaires.length}
+                  resume={`${anniversaires.filter((x) => x.j === 0).length} aujourd’hui · ${anniversaires.filter((x) => x.j > 0).length} sous 2 jours`}
                 >
-                  <div style={{ minWidth: 0 }}>
-                    <span style={{ fontWeight: 500 }}>{r.label}</span>
-                    <span className="mnd-muted" style={{ marginLeft: 10, fontSize: 12 }}>{r.sub}</span>
+                  <div className="trp-panel" style={{ marginTop: 14 }}>
+                    {anniversaires.map(({ c, j }, i) => (
+                      <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 0', borderTop: i === 0 ? 'none' : '1px solid var(--hairline)' }}>
+                        <span><b style={{ fontWeight: 500 }}>{c.name}</b> <span className="mnd-muted" style={{ fontSize: 12 }}>{j === 0 ? 'aujourd’hui' : j === 1 ? 'demain' : 'dans 2 jours'}</span></span>
+                        {/* LE JOUR J OUVRE SA CARTE (7 septembre 2026) : la même modale que sur sa fiche. */}
+                        <button type="button" className="trp-pay__cta" onClick={() => setCarteFor(c)}>Sa carte</button>
+                      </div>
+                    ))}
                   </div>
-                  <button className="trp-pay__cta" onClick={r.go}>{r.action}</button>
-                </div>
-              ))}
-          </div>
-        </Repli>
-        <Repli
-          cle="impayes" titre="Rendez-vous impayés" compte={unpaid.overdue.rows.length} ton={unpaid.overdue.rows.length > 0 ? 'presse' : 'calme'}
-          resume={`Échus : ${unpaid.overdue.rows.length} · ${fmtMoney(unpaid.overdue.total, currency)} · à venir : ${unpaid.upcoming.rows.length} · ${fmtMoney(unpaid.upcoming.total, currency)}`}
-        >
-          {/* Rendez-vous impayés — échus (en retard) d'un côté, à venir de l'autre, chacun son total.
-              `unpaidRef` : la ligne « impayés échus » de Ce qui presse descend ici. */}
-          <div ref={unpaidRef} className="tr-grid trd-impayes" style={{ marginTop: 18, alignItems: 'start' }}>
-            {renderUnpaidGroup('Impayés échus · en retard', unpaid.overdue, 'Aucun impayé échu, rien en retard.')}
-            {renderUnpaidGroup('Soldes à venir', unpaid.upcoming, 'Aucun solde à venir.')}
-          </div>
-        </Repli>
-      </GroupeDeReplis>
-
-      <GroupeDeReplis id="le-detail-du-mois" titre="Le détail du mois">
-        {/* LE CHIFFRE PAR MAISON — n'apparaît que s'il y a quelque chose à séparer.
-            Une Maison qui ne vend que des locks n'a pas à lire une ligne « Studio
-            0 F » tous les matins. */}
-        {sumTotals(revMaison) > 0 && (revMaison.studio > 0 || revMaison.plateau > 0) && (
-          <Repli
-            cle="maisons" titre="Le mois, par maison"
-            resume={MAISON_BUCKETS.map((m) => `${m.label} ${fmtMoney(revMaison[m.k], currency)}`).join(' · ')}
-          >
-              <div className="tr-card" style={{ marginTop: 14, padding: '14px 18px' }}>
-                <Eyebrow>Le mois, par maison</Eyebrow>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 28, marginTop: 10 }}>
-                  {MAISON_BUCKETS.map((m) => (
-                    <div key={m.k}>
-                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
-                        {m.label}
-                      </div>
-                      <div style={{ fontSize: 19, marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
-                        {fmtMoney(revMaison[m.k], currency)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.5 }}>
-                  Prestations du carnet, ventilées ligne à ligne. « Plateau seul » : les soins et lavages
-                  vendus sans rituel d’une maison, rien ne permet de les rattacher, on ne devine pas.
-                </div>
+                </Repli>
               </div>
-          </Repli>
-        )}
-        <Repli cle="demander" titre="Demander aux chiffres" resume="Une question ; la réponse avec les seules sommes du Trône.">
-          {/* DEMANDER À LA MAISON — 24 octobre 2026, maquette VJ5PJEGU… : une
-              question, et l'assistant répond avec les seules sommes du Trône. */}
-          <DemanderALaMaison prevision={prevDuMois} jour={jourPourLAssistant} />
-        </Repli>
-      </GroupeDeReplis>
+            )}
+          </GroupeDeReplis>
+        </div>
+      )}
 
       {/* Décomposition du revenu du mois */}
       {breakOpen && (
@@ -1664,6 +1519,117 @@ export default function Dashboard() {
           </div>
         </Modal>
       )}
+    </div>
+  );
+}
+
+
+/* ══ LE TABLEAU DE L'ÉQUIPE — 5 novembre 2026 ═══════════════════════════
+   Pour qui n'est ni souverain ni gérant : sa journée, ses rendez-vous, ses
+   pourboires, en chiffres ; jamais l'argent de la Maison (ni l'encaissé du
+   mois, ni les impayés), ni les montants des rendez-vous. Le bloc entier de
+   ses pourboires vit dans Mon mois ; ici, ses totaux. */
+function TableauDeLEquipe() {
+  const navigate = useNavigate();
+  const { currency } = useBranch();
+  const appts = useBranchAppointments();
+  const [allClients] = useClients();
+  const byId = useServicesById();
+  const maFiche = useMaFicheDansLEquipe();
+  const [tips] = useTips();
+  const synchro = useSynchroDite();
+  /* L'alarme de toujours : les clientes seules, pour l'équipe. */
+  const alarme = useLAlarmeWhatsApp();
+  const [editAppt, setEditAppt] = useState<Appointment | null>(null);
+  const today = todayISO();
+  const fmt = (x: number) => fmtMoney(x, currency);
+  const prevMonthName = nomDuMois(moisAvant(today.slice(0, 7)));
+
+  const duJour = useMemo(
+    () => appts.filter((a) => a.date === today && a.status !== 'annulé').sort((a, b) => timeToMin(a.time) - timeToMin(b.time)),
+    [appts, today],
+  );
+  const estAMoi = (a: Appointment): boolean => !!maFiche && !!a.master && sameName(a.master, maFiche.name);
+  const mesDuJour = duJour.filter(estAMoi).length;
+  const mesSeptJours = useMemo(() => {
+    const fin = addDaysISO(today, 6);
+    return appts.filter((a) => a.status !== 'annulé' && a.date >= today && a.date <= fin && !!maFiche && !!a.master && sameName(a.master, maFiche.name)).length;
+  }, [appts, today, maFiche]);
+  const mes = useMemo(() => (maFiche ? mesPourboires(tips, maFiche.id, today) : null), [tips, maFiche, today]);
+  const seulFil = alarme.enAttente.length === 1 ? alarme.enAttente[0] : null;
+  const tonDeLaSynchro = synchro.ton === 'ok' ? ' est-ok' : synchro.ton === 'attente' ? ' est-attente' : synchro.ton === 'ko' ? ' est-ko' : '';
+
+  const kpis = [
+    { k: 'mes-rdv', l: 'Mes rendez-vous', v: String(mesDuJour), c: `aujourd’hui · ${nombreDe(duJour.length, 'à la Maison', 'à la Maison')}`, go: () => navigate('/calendrier') },
+    { k: 'mes-sept', l: '7 jours', v: String(mesSeptJours), c: 'mes rendez-vous', go: () => navigate('/calendrier') },
+    { k: 'mes-pourboires-jour', l: 'Mes pourboires', v: fmt(mes?.totaux.aujourdhui ?? 0), c: `aujourd’hui · semaine ${fmt(mes?.totaux.semaine ?? 0)}`, go: () => navigate('/mon-mois') },
+    { k: 'mes-pourboires-mois', l: `Pourboires ${nomDuMois(today.slice(0, 7))}`, v: fmt(mes?.totaux.mois ?? 0), c: `${prevMonthName} : ${fmt(mes?.totaux.moisPrecedent ?? 0)}`, go: () => navigate('/mon-mois') },
+  ];
+
+  return (
+    <div className="mnd-rise tdb" data-tdb="equipe">
+      <header className="tdb-tete" data-tdb="tete">
+        <div>
+          <p className="tdb-tete__sur">Tableau de bord · {maisonNom()}</p>
+          <h1 className="tdb-tete__titre">{dateDuTitre(today)}</h1>
+        </div>
+        <div className="tdb-puces">
+          <span className={`tdb-puce${tonDeLaSynchro}`} role="status">{synchro.dit}</span>
+          <button type="button" className="tdb-puce" onClick={() => navigate('/mon-mois')}>Mon mois ›</button>
+        </div>
+      </header>
+
+      <section className="tdb-kpis tdb-kpis--quatre" aria-label="Mes chiffres" data-tdb="bandeau">
+        {kpis.map((k) => (
+          <button type="button" key={k.k} className="tdb-kpi" data-kpi={k.k} onClick={k.go}>
+            <span className="tdb-kpi__l">{k.l}</span>
+            <span className="tdb-kpi__v">{k.v}</span>
+            <span className="tdb-kpi__c">{k.c}</span>
+          </button>
+        ))}
+      </section>
+
+      <div className={`tdb-grille${alarme.enAttente.length === 0 ? ' tdb-grille--seule' : ''}`}>
+        <section className="tdb-carte" aria-labelledby="tdb-t-ma-journee" data-tdb="aujourdhui">
+          <div className="tdb-carte__t">
+            <h2 id="tdb-t-ma-journee">Aujourd’hui</h2>
+            <button type="button" className="tdb-lien" onClick={() => navigate('/calendrier')}>Le calendrier ›</button>
+          </div>
+          <div className="tdb-defile">
+            <table className="tdb-table">
+              <thead><tr><th>Heure</th><th>Cliente</th><th>Rituel</th><th>Avec</th><th>État</th></tr></thead>
+              <tbody>
+                {duJour.length === 0 && <tr><td className="tdb-vide" colSpan={5}>Carnet libre</td></tr>}
+                {duJour.map((a) => (
+                  <tr key={a.id} className={estAMoi(a) ? 'est-moi' : undefined} onClick={() => setEditAppt(a)} title="Ouvrir ce rendez-vous">
+                    <td className="tdb__num">{a.time}</td>
+                    <td className="tdb-txt">{allClients.find((c) => c.id === a.clientId)?.name ?? a.clientName ?? 'Cliente de passage'}</td>
+                    <td className="tdb-txt">{rituelDit(apptLabel(a, byId))}</td>
+                    <td>{a.master || '·'}</td>
+                    <td><StatusPill status={a.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {alarme.enAttente.length > 0 && (
+          <section className="tdb-carte" aria-labelledby="tdb-t-a-traiter" data-tdb="a-traiter">
+            <div className="tdb-carte__t">
+              <h2 id="tdb-t-a-traiter">À traiter</h2>
+              <button type="button" className="tdb-lien" onClick={() => navigate('/conversations')}>Les conversations ›</button>
+            </div>
+            <div className="tdb-tache est-ko" data-tache="whatsapp">
+              <span className="tdb-tache__n est-ko">{alarme.enAttente.length}</span>
+              <span className="tdb-tache__dit">{alarme.enAttente.length > 1 ? 'messages WhatsApp sans réponse' : 'message WhatsApp sans réponse'}</span>
+              <button type="button" className="tdb-btn" onClick={() => navigate(seulFil ? cheminDeLaConversation(seulFil.numero) ?? '/conversations' : '/conversations')}>Répondre</button>
+            </div>
+          </section>
+        )}
+      </div>
+
+      {editAppt && <RdvModal appt={editAppt} onClose={() => setEditAppt(null)} />}
     </div>
   );
 }

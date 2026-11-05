@@ -146,19 +146,27 @@ dit('ce que l assistant propose repasse par les briques du Trone avant de s affi
 dit('le gardien de la marque relit chaque message, un prix bloque', [true, true],
   [(agents.match(/relisLaMarque\([a-z.]*message, \{ campagne: true \}\)/g) ?? []).length === 2, agents.includes('if (bloquant(remarques))')]);
 dit('les passages ne se font que pour un souverain', [true, true], [agents.includes('useLancePassagesDus(estSouverain, processus, passages, tetes)'), avalider.includes("if (monProfil?.role !== 'souverain') return null;")]);
-dit('au tableau de bord : Demander a la Maison ; A valider n y est plus', [true, false],
-  [tableau.includes('<DemanderALaMaison prevision={prevDuMois} jour={jourPourLAssistant} />'), tableau.includes('<AValiderDesAgents />')]);
+/* 5 NOVEMBRE 2026 : « Demander aux chiffres » suit la prévision aux Prévisions
+   (Le mois en francs), qui la calcule une fois pour les deux. */
+const lesPrevisions = sansCommentaires('src/apps/trone/routes/pilotage/Previsions.tsx');
+dit('Demander a la Maison suit la prevision (Le mois en francs) ; A valider n est pas au tableau de bord', [true, false, false],
+  [lesPrevisions.includes('<DemanderALaMaison prevision={prevDuMois} jour={jourPourLAssistant} />'), tableau.includes('<AValiderDesAgents />'), tableau.includes('<DemanderALaMaison')]);
 /* LES QUATRE TUILES LE REMPLACENT (27 octobre 2026, lot 3 de l'Assistant
    Maison, maquette « 4 tuiles replacees ») : chacune lit le calcul de son
    agent, tel quel, et porte un lien ; aucune ne relance les reprises. */
 const depenses = sansCommentaires('src/apps/trone/routes/finances/Depenses.tsx');
 const stock = sansCommentaires('src/apps/trone/routes/vente/HomeRituals.tsx');
 const previsions = sansCommentaires('src/apps/trone/routes/pilotage/Previsions.tsx');
-dit('... A encaisser, dans Ce qui presse : le calcul de l agent des encaissements, deux liens', [true, true, true, true],
+/* 5 NOVEMBRE 2026 (tableau de bord en quatre bandes) : « À encaisser » devient
+   le chiffre « Impayés » du bandeau et deux lignes de « À traiter », chacune
+   vers SA liste exacte (`/factures?filtre=reste`, le Carnet). */
+const lesFactures = sansCommentaires('src/apps/trone/routes/vente/Factures.tsx');
+dit('... A encaisser : le calcul de l agent des encaissements, le chiffre Impayes, deux lignes et leurs listes', [true, true, true, true, true],
   [tableau.includes("const rituels = appts.filter((a) => a.status === 'honoré' && !a.invoiceId && a.date < today && apptDueXof(a, byId) > 0);"),
     tableau.includes("invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && invoiceResteXof(i) > 0)"),
-    tableau.includes('<span className="trp-prev__sur">À encaisser</span>'),
-    /navigate\('\/carnet'\)\}>Le carnet ›<\/button>[\s\S]*navigate\('\/factures\?filtre=a-regler'\)\}>Les factures ›<\/button>/.test(tableau)]);
+    tableau.includes('const impayesXof = aEncaisser.resteFactures + aEncaisser.resteRituels;'),
+    tableau.includes("geste: 'Relancer', go: () => navigate('/factures?filtre=reste')") && tableau.includes("geste: 'Encaisser', go: () => navigate('/carnet')"),
+    lesFactures.includes("filtre === 'reste' ? new Set(invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && invoiceResteXof(i) > 0).map((i) => i.id))")]);
 dit('... Sans justificatif et Divers a ranger, aux Depenses : le calcul de l agent de la comptabilite, comptes et francs', [true, true, true],
   [depenses.includes('depensesSansJustificatif(toutesLesDepenses, branch.id, debutDuMoisEnCours)'), depenses.includes('rangementsProposes(toutesLesDepenses, branch.id)'),
     depenses.includes("'Sans justificatif · Divers à ranger', `${sansJustificatif.length} · ${diversARanger.length}`")]);
