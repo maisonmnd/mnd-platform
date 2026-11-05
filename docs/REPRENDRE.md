@@ -2,6 +2,13 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA PAIE DU 5, LOT 1 — 5 novembre 2026, EN LIGNE (0161 passée ; Trône build 20261105113628 @ 8018cfe7)
+
+Écrite par le-trone-b4, reprise et vérifiée par le-trone-e6 (« Laisse e6 faire la paie »). Maquette VomoheW35Pi3E5CnhfjTvq. Le 1er à 8 h, chaque bulletin du run est déposé dans Mon espace ; chacun « Je confirme » ou « Je signale une erreur » jusqu'au 5 à 12 h ; Yéman ou Brice valide jusqu'à 18 h ; le Trône prépare le fichier MTN (`HDR,Salary,n,total`, puis `n,MSISDN,229…,montant,nom`, virgules, CRLF) pour le compte d'envoi groupé, que la direction dépose elle-même ; le numéro de lot est exigé à « C'est envoyé ». Garde-fous : numéro changé depuis moins de 7 jours bloqué, net au-dessus du mois d'avant + 25 % sur accord, frais d'envoi retirés du montant envoyé (tarif à renseigner dans Paramètres de paie). Aucun paiement ne part seul.
+
+- **Règle** `src/shared/paie-du-5-pur.ts` ; écran `equipe/PaieDu5.tsx` dans le run ; Mon espace ; `0161` : `mobileMoney` dans les champs privés du dossier, table `paie_confirmations` sous RLS. Banc `verifie-la-paie-du-5` (`--prouve` 49 pannes).
+- **Partage** : l'équipe salariée et les prêts à le-trone-e6 ; le lot des prestataires (et la maquette des employés de la maison chez Cristal) à le-trone-b4 ; le run des salariés devra écarter les prestataires quand leur lot existera. Lot 2 : Moov par FedaPay.
+
 ## LA CAISSE AU JOUR LE JOUR — 5 novembre 2026, EN LIGNE (le Trône seul ; aucune migration, aucune fonction)
 
 « En début de mois il faut ramener le tiroir à 0 F », puis « je veux savoir clairement combien j'ai en caisse au jour le jour » (Yéman, devant la clôture du tiroir d'espèces du 4 novembre 2026 : son livre n'avait jamais vu sortir que ses dépenses depuis janvier 2026, il additionnait dix mois d'espèces). Maquette VE8iiT7uH5ypfFJ5jcWXPt validée (« construis ») ; « à régulariser » est son mot pour l'argent sorti sans justificatif.
