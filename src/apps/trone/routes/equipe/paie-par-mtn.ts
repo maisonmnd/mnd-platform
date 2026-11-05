@@ -61,7 +61,8 @@ export function useServeurMtn(): EtatDuServeurMtn & { charge: boolean } {
 export const lisChezMtn = (numeros: string[]) =>
   appelle<LectureMtn>({ action: 'lire', numeros });
 
-export type EnvoiAProgrammer = ItemAEnvoyer & { reference: string; runId: string; periode: string; partA: string };
+/** `prevenir` : la personne reçoit « Ta paie … est partie » quand MTN dit reçu (0164) ; l'équipe oui, prestataires et entreprises non. */
+export type EnvoiAProgrammer = ItemAEnvoyer & { reference: string; runId: string; periode: string; partA: string; prevenir?: boolean };
 export const programme = (envois: EnvoiAProgrammer[]) =>
   appelle<{ inscrits: string[]; refuses: { reference: string; erreur: string }[] }>({ action: 'programmer', envois });
 
@@ -84,10 +85,12 @@ export async function programmeLeRun(o: {
   runId: string; periode: string; partA: string;
   items: ItemAEnvoyer[]; envois: EnvoiMtn[]; lecture?: LectureMtn;
   vus: (employeeId: string) => NomMtnVu | undefined;
+  /** Prévenir chacun quand MTN dit reçu : vrai pour l'équipe. */
+  prevenir: boolean;
 }) {
   const tri = triDesEnvois({ runId: o.runId, items: o.items, envois: o.envois, lecture: o.lecture, vus: o.vus });
   if (!tri.partent.length) return { tri, inscrits: [] as string[], refuses: [] as { reference: string; erreur: string }[] };
-  const r = await programme(tri.partent.map((x) => ({ ...x, reference: nouvelleReference(), runId: o.runId, periode: o.periode, partA: o.partA })));
+  const r = await programme(tri.partent.map((x) => ({ ...x, reference: nouvelleReference(), runId: o.runId, periode: o.periode, partA: o.partA, prevenir: o.prevenir })));
   return { tri, inscrits: r.inscrits ?? [], refuses: r.refuses ?? [], erreur: r.erreur };
 }
 

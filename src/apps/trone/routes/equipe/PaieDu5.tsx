@@ -181,6 +181,8 @@ export default function PaieDu5({ run, bulletinFor }: { run: PayrollRun; bulleti
       runId: run.id, periode: run.period, partA, envois: envoisMtn, lecture: pd5.lectureMtn,
       items: mtn.map((x) => ({ employeeId: x.ligne.employeeId, nom: x.ligne.name, msisdn: x.lecture.msisdn as string, montantXof: x.lecture.envoyeXof })),
       vus: (id) => lines.find((l) => l.employeeId === id)?.nomMtnVu,
+      /* L'équipe salariée : chacun est prévenu quand MTN dit reçu (0164). */
+      prevenir: true,
     });
     relisLeRegistre();
     if (res.erreur) { alerte(res.erreur); return; }

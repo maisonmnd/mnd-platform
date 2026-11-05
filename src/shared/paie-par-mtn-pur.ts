@@ -20,7 +20,7 @@
 
    Claude ne déclenche jamais un envoi : seul le Trône confie les envois au
    serveur, après le toucher de la direction. */
-import { RE_MSISDN, aCotonou, type CalendrierDeLaPaie, type LectureDeLaLigne } from './paie-du-5-pur';
+import { RE_MSISDN, aCotonou, duMois, type CalendrierDeLaPaie, type LectureDeLaLigne } from './paie-du-5-pur';
 
 /* ── 1. LE REGISTRE DES ENVOIS (paie_envois_mtn, 0163) ────────────────── */
 export type EtatDeLEnvoi = 'programme' | 'envoi' | 'envoye' | 'sans-reponse' | 'recu' | 'refuse' | 'annule';
@@ -204,6 +204,16 @@ export function appliqueLesRecus<L extends LignePayable>(lignes: readonly L[], r
   });
   return { lignes: sortie, payees };
 }
+
+/* ── 6 bis. PRÉVENIR CHACUN (0164) ────────────────────────────────────
+   « Prévenir chacun · notification du Trône quand son argent part »
+   (maquette Les paiements, choix 3). La base écrit la notification quand
+   MTN dit reçu, pour un envoi de l'équipe (`prevenir`) ; ici, le même texte,
+   au mot près, que le banc compare au déclencheur. */
+export const francsDits = (n: number): string =>
+  `${String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u202F')} F`;
+export const notificationDeLaPaie = (periode: string, montantXof: number): string =>
+  `Ta paie ${duMois(periode)} est partie : ${francsDits(montantXof)}.`;
 
 /* ── 7. LE TEST DE 100 F ──────────────────────────────────────────────
    Un bouton dans La paie, avant le 5 : 100 F vers le numéro MTN de chaque

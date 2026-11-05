@@ -136,7 +136,7 @@ export default function PaieParMtn(p: {
       accepter: 'Programmer',
       refuser: 'Pas encore',
     })) return;
-    const r = await programmeLeRun({ runId: run.id, periode: run.period, partA, items, envois, lecture, vus });
+    const r = await programmeLeRun({ runId: run.id, periode: run.period, partA, items, envois, lecture, vus, prevenir: true });
     if (r.erreur) { alerte(r.erreur); return; }
     toast(`${r.inscrits.length} envoi${r.inscrits.length > 1 ? 's' : ''} programmé${r.inscrits.length > 1 ? 's' : ''}.`);
     if (r.refuses.length) alerte(`${r.refuses.length} envoi${r.refuses.length > 1 ? 's' : ''} refusé${r.refuses.length > 1 ? 's' : ''} par le serveur : ${r.refuses.map((x) => x.erreur).join(' ; ')}.`);

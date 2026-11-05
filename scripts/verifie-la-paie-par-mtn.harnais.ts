@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs';
 import {
   appliqueLesRecus, bilanDeLEssai, ceQuiManque, depenseDeLEssai, depenseDeLEssaiId, envoiActif, equipeDeLEssai,
-  heureDeDepart, idDeLEssai, itemsDuRun, nomConcorde, pourquoiPasLEssai, raisonDite, triDesEnvois,
+  heureDeDepart, idDeLEssai, itemsDuRun, nomConcorde, notificationDeLaPaie, pourquoiPasLEssai, raisonDite, triDesEnvois,
   type EnvoiMtn, type LectureMtn,
 } from '../src/shared/paie-par-mtn-pur';
 import { calendrierDeLaPaie, type LectureDeLaLigne } from '../src/shared/paie-du-5-pur';
@@ -120,6 +120,11 @@ dit('la depense du test : les recus seulement, une seule par test, la Maison a p
   [depenseDeLEssaiId('essai-202612011800'), 200, 'Essai de paie MTN · 2 envois', true], [dep?.id, dep?.amountXof, dep?.label, dep?.laMaisonAPaye]);
 dit('un solde inconnu ne couvre rien ; un solde court dit ce qui manque', [null, 0, 5000], [ceQuiManque(null, 100), ceQuiManque(10000, 10000), ceQuiManque(5000, 10000)]);
 
+/* ── 7 bis. Prevenir chacun (0164) ── */
+dit('la notification de la paie, avec l annee, les francs et l elision',
+  ['Ta paie de novembre 2026 est partie : 50 000 F.', 'Ta paie d’octobre 2026 est partie : 150 000 F.', 'Ta paie d’août 2027 est partie : 900 F.', 'Ta paie d’avril 2027 est partie : 1 250 000 F.'],
+  [notificationDeLaPaie('2026-11', 50000), notificationDeLaPaie('2026-10', 150000), notificationDeLaPaie('2027-08', 900), notificationDeLaPaie('2027-04', 1250000)]);
+
 /* ── 8. Les ecrans et la base ── */
 const lis = (f: string) => readFileSync(f, 'utf8');
 const p5 = lis('src/apps/trone/routes/equipe/PaieDu5.tsx');
@@ -127,6 +132,7 @@ const bloc = lis('src/apps/trone/routes/equipe/PaieParMtn.tsx');
 const paie = lis('src/apps/trone/routes/equipe/Paie.tsx');
 const espace = lis('src/apps/trone/routes/equipe/rh/MonEspace.tsx');
 const sql = lis('supabase/migrations/0163_la_paie_par_mtn.sql');
+const previent = lis('supabase/migrations/0164_la_paie_previent_chacun.sql').replace(/\r\n/g, '\n');
 dit('le meme toucher programme les lignes MTN, seulement quand le serveur est pret', [true, true],
   [/if \(!serveur\.pret\) return;\s*\n\s*const mtn = cibles\.filter/.test(p5), /await programmeLeRun\(\{/.test(p5)]);
 dit('le solde court arrete la programmation', true, /if \(manque != null && manque > 0\) \{\s*\n\s*alerte\(`Validées, mais pas programmées/.test(p5));
@@ -142,6 +148,17 @@ dit('la base : RLS, lecture par la direction seule, aucune ecriture de l equipe,
     /revoke all on public\.paie_envois_mtn from anon, authenticated;\s*\n\s*grant select on public\.paie_envois_mtn to authenticated;/.test(sql),
     /on public\.paie_envois_mtn \(run_id, employee_id\)\s*\n\s*where genre = 'paie' and etat not in \('refuse', 'annule'\);/.test(sql)]);
 dit('le test ne depasse pas 500 F dans la base non plus', true, /genre = 'essai' and essai_id is not null and montant_xof <= 500/.test(sql));
+
+dit('le declencheur : seulement le passage a recu, d une paie a prevenir', true,
+  /if new\.genre <> 'paie' or not new\.prevenir or new\.etat <> 'recu' or old\.etat = 'recu' then\n\s*return new;/.test(previent));
+dit('une reference, une seule notification ; la direction jamais prevenue', [true, true],
+  [/insert into public\.paies_prevenues \(reference, staff_id\) values \(new\.reference, new\.employee_id\)\n\s*on conflict \(reference\) do nothing;\n\s*if not found then/.test(previent),
+    /s\.role in \('souverain', 'gerant'\)\) then\n\s*update public\.paies_prevenues set issue = 'direction'/.test(previent)]);
+dit('le texte du declencheur est celui du Trone : l elision des mois a voyelle, l annee, les francs', true,
+  /titre := 'Ta paie ' \|\| case when extract\(month from jour\) in \(4, 8, 10\) then 'd’' else 'de ' end\n\s*\|\| public\.mois_dit\(jour\) \|\| ' est partie : ' \|\| public\.francs_dits\(new\.montant_xof::bigint\) \|\| '\.';/.test(previent));
+dit('jamais une reponse de MTN refusee pour une notification ; le declencheur sur l etat seul', [true, true],
+  [/exception when others then\n\s*-- Jamais une réponse de MTN refusée pour une notification\.\n\s*raise warning/.test(previent), /after update of etat on public\.paie_envois_mtn/.test(previent)]);
+dit('la paie du mois previent l equipe', [true, true], [/prevenir: true,\r?\n\s*\}\);/.test(p5), /vus, prevenir: true \}\)/.test(bloc)]);
 
 console.log(ko === 0 ? '\nLes regles de la paie par MTN tiennent.' : `\n${ko} ECHEC(S)`);
 if (ko) process.exitCode = 1;

@@ -45,7 +45,7 @@
    POST  { action, … } : voir plus bas.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-11-05-a';
+const VERSION = '2026-11-05-b';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -78,6 +78,8 @@ type Envoi = {
   employee_id: string; nom: string; msisdn: string; montant_xof: number; etat: string; part_a: string;
   programme_par: string; programme_le?: string; tentatives?: number; transaction_mtn?: string | null;
   raison?: string | null; note?: string | null; remplace?: string | null;
+  /** Prévenir la personne quand MTN dit reçu (0164) : l'équipe seulement, jamais un test. */
+  prevenir?: boolean;
 };
 
 /** Un envoi confié par le Trône, relu champ par champ : rien d'autre n'entre au registre. */
@@ -106,7 +108,8 @@ function envoiLu(x: any, genre: 'paie' | 'essai', par: string, maintenant: strin
     essai_id = String(x.essaiId ?? '').trim();
     if (!/^essai-\d{12}$/.test(essai_id)) return 'test illisible';
   }
-  return { reference: reference.toLowerCase(), genre, run_id, periode, essai_id, employee_id, nom, msisdn, montant_xof: montant, etat: 'programme', part_a, programme_par: par };
+  const prevenir = genre === 'paie' && x.prevenir === true;
+  return { reference: reference.toLowerCase(), genre, run_id, periode, essai_id, employee_id, nom, msisdn, montant_xof: montant, etat: 'programme', part_a, programme_par: par, prevenir };
 }
 
 /** Ce que MTN répond à un envoi (POST transfer), en un état du registre. */
@@ -401,6 +404,7 @@ Deno.serve(async (req) => {
       reference: nouvelle, genre: avant.genre, run_id: avant.run_id, periode: avant.periode, essai_id: avant.essai_id,
       employee_id: avant.employee_id, nom: avant.nom, msisdn, montant_xof: avant.montant_xof,
       etat: 'programme', part_a: maintenant, programme_par: qui.par, remplace: avant.reference,
+      prevenir: avant.genre === 'paie' && avant.prevenir === true,
     };
     const r = await inscris([e]);
     if (!r.inscrits.length) return json({ erreur: r.refuses[0]?.erreur ?? 'refusé' }, 409);

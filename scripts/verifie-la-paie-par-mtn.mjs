@@ -30,6 +30,7 @@ const PUR = 'src/shared/paie-par-mtn-pur.ts';
 const P5 = 'src/apps/trone/routes/equipe/PaieDu5.tsx';
 const BLOC = 'src/apps/trone/routes/equipe/PaieParMtn.tsx';
 const SQL = 'supabase/migrations/0163_la_paie_par_mtn.sql';
+const PREVIENT = 'supabase/migrations/0164_la_paie_previent_chacun.sql';
 const PANNES = [
   /* Le serveur */
   ['n importe qui confie un envoi', FONCTION, "  if (!moi || !DIRECTION.has(String(moi.role))) return null;", '  if (!moi) return null;'],
@@ -66,6 +67,16 @@ const PANNES = [
   ['la validation ne programme plus', P5, '    const res = await programmeLeRun({', '    const res = await Promise.resolve({ tri: { attendent: [] }, inscrits: [], refuses: [], erreur: undefined }) ?? programmeLeRun({'],
   ['le portail disparait', P5, "        ) : portailMtn}\n", '        ) : null}\n'],
   ['un refus se renvoie sans toucher', BLOC, '              {e.etat === \'refuse\' && !fige && <span><Button size="sm" variant="ghost" onClick={() => void renvoyer(e)}>', '              {e.etat === \'refuse\' && !fige && <span><Button size="sm" variant="ghost" onClick={() => void renvoie(e.reference)}>'],
+  ['un test previent', FONCTION, "  const prevenir = genre === 'paie' && x.prevenir === true;", '  const prevenir = x.prevenir === true;'],
+  ['tout le monde est prevenu', FONCTION, "  const prevenir = genre === 'paie' && x.prevenir === true;", '  const prevenir = true;'],
+  ['le renvoi oublie de prevenir', FONCTION, "      prevenir: avant.genre === 'paie' && avant.prevenir === true,\n", ''],
+  ['le declencheur sonne a chaque ecriture', PREVIENT, " or new.etat <> 'recu' or old.etat = 'recu' then", " or new.etat <> 'recu' then"],
+  ['le declencheur previent les prestataires', PREVIENT, "if new.genre <> 'paie' or not new.prevenir or ", "if new.genre <> 'paie' or "],
+  ['la direction prevenue', PREVIENT, "s.role in ('souverain', 'gerant')", "s.role in ('souverain-inexistant')"],
+  ['deux notifications par envoi', PREVIENT, '      on conflict (reference) do nothing;\n    if not found then\n      return new;\n    end if;\n', '      on conflict (reference) do nothing;\n'],
+  ['de octobre', PREVIENT, "then 'd’' else 'de ' end", "then 'de ' else 'de ' end"],
+  ['la paie du mois ne previent personne', P5, '      prevenir: true,\n    });', '      prevenir: false,\n    });'],
+  ['la notification sans l elision', PUR, '  `Ta paie ${duMois(periode)} est partie : ${francsDits(montantXof)}.`;', '  `Ta paie de ${moisDit(periode)} est partie : ${francsDits(montantXof)}.`;'],
   ['l equipe ecrit au registre', SQL, 'revoke all on public.paie_envois_mtn from anon, authenticated;', '-- (revoke retire)'],
   ['l equipe recoit tous les droits', SQL, 'grant select on public.paie_envois_mtn to authenticated;', 'grant all on public.paie_envois_mtn to authenticated;'],
 ];
@@ -329,6 +340,7 @@ const postsTransfert = () => journal.filter((j) => j.methode === 'POST' && j.url
   remiseAZero();
   const a = paie({ partA: futur });
   const r = await direction({ action: 'programmer', envois: [a, paie({ employeeId: 'e1' }), paie({ employeeId: 'e9', msisdn: '22990000001' }), paie({ employeeId: 'e8', montantXof: 0 })] });
+  dit('sans « prevenir », personne n est prevenu', ligne(a.reference)?.prevenir === false, JSON.stringify(ligne(a.reference)));
   dit('programmer : la reference ecrite, rien ne part ; un second envoi pour le meme bulletin, un numero illisible, un montant nul : refuses',
     r.o?.inscrits?.length === 1 && r.o?.refuses?.length === 3 && ligne(a.reference)?.etat === 'programme' && postsTransfert().length === 0, r.t);
   dit('le serveur relit lui-meme le numero et le montant, avant la base', ['numéro MTN illisible', 'montant hors bornes (1 à 2000000 F)'].every((m) => r.o?.refuses?.some((x) => x.erreur === m)), r.t);
@@ -374,7 +386,7 @@ const postsTransfert = () => journal.filter((j) => j.methode === 'POST' && j.url
 /* Le refus, puis le renvoi */
 {
   remiseAZero();
-  const a = paie({ employeeId: 'e2', nom: 'Paulin Aho', msisdn: N.refuse, montantXof: 80000 });
+  const a = paie({ employeeId: 'e2', nom: 'Paulin Aho', msisdn: N.refuse, montantXof: 80000, prevenir: true });
   await direction({ action: 'programmer', envois: [a] });
   await cron();
   dit('MTN refuse : le refus et sa raison sont notes', ligne(a.reference).etat === 'refuse' && ligne(a.reference).raison === 'PAYEE_NOT_ALLOWED_TO_RECEIVE', JSON.stringify(ligne(a.reference)));
@@ -389,6 +401,7 @@ const postsTransfert = () => journal.filter((j) => j.methode === 'POST' && j.url
   const n = ligne(nouvelle);
   dit('renvoyer : une nouvelle reference, qui se souvient de l ancienne, partie aussitot vers le numero corrige',
     r.status === 200 && n?.remplace === a.reference && n?.msisdn === N.bon && n?.programme_par === 'Y. B.' && transferts.has(nouvelle) && ligne(a.reference).etat === 'refuse', r.t);
+  dit('le renvoi garde « prevenir »', ligne(a.reference).prevenir === true && n?.prevenir === true, JSON.stringify([ligne(a.reference).prevenir, n?.prevenir]));
   const r2 = await direction({ action: 'renvoyer', reference: nouvelle, nouvelle: ref() });
   dit('seul un envoi refuse se renvoie', r2.status === 409, r2.t);
 }
@@ -445,10 +458,11 @@ const postsTransfert = () => journal.filter((j) => j.methode === 'POST' && j.url
   remiseAZero();
   const essaiId = 'essai-202612011800';
   const r = await direction({ action: 'tester', essaiId, envois: [
-    { reference: ref(), employeeId: 'e1', nom: 'Aïcha Kossou', msisdn: N.bon, montantXof: 100 },
-    { reference: ref(), employeeId: 'e2', nom: 'Paulin Aho', msisdn: N.refuse, montantXof: 100 },
+    { reference: ref(), employeeId: 'e1', nom: 'Aïcha Kossou', msisdn: N.bon, montantXof: 100, prevenir: true },
+    { reference: ref(), employeeId: 'e2', nom: 'Paulin Aho', msisdn: N.refuse, montantXof: 100, prevenir: true },
     { reference: ref(), employeeId: 'e3', nom: 'Sika H.', msisdn: N.lent, montantXof: 600 },
   ] });
+  dit('un test ne previent jamais personne, meme demande', registre.filter((x) => x.essai_id === essaiId).every((x) => x.prevenir === false), JSON.stringify(registre.map((x) => x.prevenir)));
   dit('le test part aussitot ; 600 F est refuse par le serveur lui-meme', r.o?.inscrits?.length === 2 && r.o?.refuses?.length === 1 && r.o?.refuses?.[0]?.erreur === 'montant hors bornes (1 à 500 F)' && postsTransfert().length === 2, r.t);
   const lignes = registre.filter((x) => x.essai_id === essaiId);
   dit('le test : le recu et le refus se disent', lignes.some((x) => x.etat === 'recu') && lignes.some((x) => x.etat === 'refuse' && x.raison === 'PAYEE_NOT_ALLOWED_TO_RECEIVE'), JSON.stringify(lignes.map((x) => x.etat)));
