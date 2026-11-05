@@ -1,0 +1,156 @@
+/* ══ LES PAIEMENTS · 5 novembre 2026 ════════════════════════════════════
+   Au plus près de la maquette public/maquette-les-paiements.html (v5) :
+   indigo et cuivre, aucun vert, aucun rouge, aucun jaune ; Cormorant pour
+   les titres et les chiffres, Jost pour le reste. Une colonne de 1040 px,
+   chiffres en tête, un tableau unique, la validation en pied collant. Les
+   couleurs passent par les jetons du Trône (thème sombre compris). */
+
+.lp { max-width: 1040px; margin: 0 auto; display: grid; gap: 34px; padding-bottom: 24px; min-width: 0; }
+.lp h1, .lp h2 { font-family: var(--font-serif); font-weight: 400; color: var(--color-indigo); margin: 0; line-height: 1.12; text-wrap: balance; }
+.lp h1 { font-size: clamp(34px, 6.4vw, 50px); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.lp h2 { font-size: clamp(22px, 4.2vw, 28px); }
+.lp section { display: grid; gap: 12px; min-width: 0; }
+.lp-sourcil { font: 600 11px var(--font-sans, 'Jost', sans-serif); letter-spacing: .18em; text-transform: uppercase; color: var(--copper-700); }
+.lp-doux { color: var(--ink-soft); }
+.lp-petit { font-size: 12.5px; line-height: 1.5; margin: 0; }
+.lp-num { font-variant-numeric: tabular-nums; }
+.lp-moins { color: var(--copper-700); }
+.lp-vide { color: var(--ink-soft); }
+.lp-titre-de-bloc { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--hairline); padding-bottom: 8px; }
+.lp-lien { border: 0; background: none; color: var(--copper-700); padding: 0; font: 500 13px var(--font-sans, 'Jost', sans-serif); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.lp-lien:focus-visible, .lp-mois:focus-visible, .lp-remis:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.lp-bandeau { border: 1px dashed var(--color-copper); background: var(--copper-50); padding: 8px 14px; border-radius: 4px; font-size: 13px; line-height: 1.5; }
+.lp-souci { font-size: 12.5px; color: var(--copper-700); border-left: 2px solid var(--color-copper); padding-left: 8px; }
+
+/* En-tête */
+.lp-tete { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+.lp-tete > div { display: grid; gap: 8px; min-width: 0; }
+.lp-tete__droite { justify-items: end; }
+.lp-mois { border: 0; background: none; color: var(--color-copper); font: 400 28px/1 var(--font-serif); cursor: pointer; padding: 0 4px; }
+.lp-etat { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; font: 500 13px var(--font-sans, 'Jost', sans-serif); border: 1px solid var(--color-copper); color: var(--copper-700); background: var(--copper-50); }
+.lp-etat--fait { border-color: var(--color-indigo); color: var(--color-ivoire); background: var(--color-indigo); }
+.lp-etat i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+/* Les cinq chiffres */
+.lp-chiffres { display: grid; grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr)); border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); overflow: hidden; }
+.lp-chiffre { padding: 14px 16px; display: grid; gap: 4px; border-left: 1px solid var(--hairline); min-width: 0; }
+.lp-chiffre:first-child { border-left: 0; background: var(--color-indigo); color: var(--color-ivoire); }
+.lp-chiffre:first-child .lp-sourcil { color: var(--copper-300, #D6A06F); }
+.lp-chiffre b { font: 400 26px/1.1 var(--font-serif); font-variant-numeric: lining-nums tabular-nums; color: var(--color-indigo); overflow-wrap: anywhere; }
+.lp-chiffre:first-child b { font-size: 34px; color: var(--color-ivoire); }
+.lp-chiffre .lp-op { font: 500 12.5px var(--font-sans, 'Jost', sans-serif); color: var(--ink-soft); }
+.lp-chiffre:first-child .lp-op { color: var(--color-ivoire); opacity: .78; }
+.lp-chiffre--hors { background: var(--indigo-50); }
+@media (max-width: 760px) {
+  .lp-chiffres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lp-chiffre:first-child { grid-column: 1 / -1; }
+  .lp-chiffre:nth-child(2), .lp-chiffre:nth-child(4) { border-left: 0; }
+  .lp-chiffre { border-top: 1px solid var(--hairline); }
+  .lp-chiffre:first-child { border-top: 0; }
+}
+
+/* La frise */
+.lp-frise { display: grid !important; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0 !important; }
+.lp-pas { position: relative; padding: 12px 10px 0 0; display: grid; gap: 2px; font-size: 13px; min-width: 0; }
+.lp-pas::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--hairline); }
+.lp-pas--passe::before { background: var(--color-indigo); }
+.lp-pas--ici::before { background: linear-gradient(90deg, var(--color-indigo) 50%, var(--color-copper) 50%); }
+.lp-pas b { font: 500 17px var(--font-serif); color: var(--color-indigo); }
+.lp-pas--ici b { color: var(--copper-700); }
+.lp-pas span { color: var(--ink-soft); }
+@media (max-width: 680px) { .lp-frise { grid-template-columns: minmax(0, 1fr); gap: 10px !important; } }
+
+/* À regarder */
+.lp-points { display: grid; border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); }
+.lp-point { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 11px 16px; border-top: 1px solid var(--hairline); font-size: 14px; line-height: 1.5; }
+.lp-point:first-child { border-top: 0; }
+.lp-point > div { min-width: 0; overflow-wrap: anywhere; }
+.lp-point__marque { width: 10px; height: 10px; border-radius: 50%; background: var(--color-copper); justify-self: center; }
+.lp-point--bloque .lp-point__marque { background: var(--copper-700); box-shadow: 0 0 0 3px var(--copper-50); }
+.lp-point strong { font-weight: 600; color: var(--color-indigo); }
+.lp-point__gestes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.lp-prix { width: 110px !important; }
+@media (max-width: 560px) { .lp-point { grid-template-columns: 16px minmax(0, 1fr); } .lp-point__gestes { grid-column: 2; justify-content: flex-start; } }
+
+/* Le tableau */
+.lp-defile { overflow-x: auto; border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); }
+.lp-table { width: 100%; border-collapse: collapse; min-width: 860px; font-size: 14px; }
+.lp-table th { text-align: left; font: 600 10.5px var(--font-sans, 'Jost', sans-serif); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); padding: 10px 12px; border-bottom: 1px solid var(--hairline); white-space: nowrap; }
+.lp-table td { padding: 10px 12px; border-top: 1px solid var(--hairline); vertical-align: middle; font-variant-numeric: tabular-nums; }
+.lp-table .lp-n { text-align: right; white-space: nowrap; }
+.lp-groupe td { background: var(--indigo-50); font: 600 11px var(--font-sans, 'Jost', sans-serif); letter-spacing: .14em; text-transform: uppercase; color: var(--color-indigo); padding: 9px 12px; }
+.lp-groupe td span { font-weight: 500; letter-spacing: .04em; text-transform: none; color: var(--ink-soft); margin-left: 8px; }
+.lp-ajoute { margin-left: 14px; letter-spacing: .02em; text-transform: none; }
+.lp-modifie { margin-left: 8px; font-size: 12px; font-weight: 400; }
+.lp-ligne { cursor: pointer; }
+.lp-ligne:hover td { background: var(--copper-50); }
+.lp-ligne td:first-child, .lp-nom { font-weight: 500; color: var(--color-indigo); }
+.lp-chev { display: inline-block; width: 14px; color: var(--color-copper); transition: transform .15s ease-out; }
+.lp-ligne--ouverte .lp-chev { transform: rotate(90deg); }
+.lp-detail td { background: var(--paper); padding: 0; }
+.lp-total td { font-weight: 600; color: var(--color-indigo); border-top: 2px solid var(--color-indigo); }
+.lp-etat-ligne { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lp-jour { width: auto !important; padding: 3px 6px !important; font-size: 12.5px !important; min-height: 0 !important; border-color: var(--color-copper) !important; }
+
+/* Les pastilles */
+.lp-pastille { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font: 500 12px var(--font-sans, 'Jost', sans-serif); white-space: nowrap; border: 1px solid var(--hairline); color: var(--ink-soft); }
+.lp-pastille--ok { border-color: var(--color-indigo); color: var(--color-indigo); background: var(--indigo-50); }
+.lp-pastille--attend { border-color: var(--color-copper); color: var(--copper-700); background: var(--copper-50); }
+.lp-pastille--paye { border-color: var(--color-indigo); background: var(--color-indigo); color: var(--color-ivoire); }
+.lp-pastille--envoi { border-color: var(--color-indigo); color: var(--color-indigo); border-style: dashed; }
+.lp-pastille--non { color: var(--ink-soft); border-style: dashed; white-space: normal; }
+.lp-reponse { font-size: 12px; color: var(--color-indigo); white-space: nowrap; }
+.lp-reponse--pas { color: var(--copper-700); }
+.lp-numero { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lp-numero__v { color: var(--color-indigo); font-weight: 600; margin-left: 4px; }
+.lp-numero__p { color: var(--copper-700); font-size: 12px; margin-left: 6px; }
+.lp-remis { border: 1px dashed var(--color-copper); background: transparent; color: var(--copper-700); border-radius: 999px; padding: 2px 9px; font: 500 12px var(--font-sans, 'Jost', sans-serif); white-space: nowrap; font-variant-numeric: tabular-nums; cursor: pointer; }
+.lp-remis--oui { border-style: solid; border-color: var(--color-indigo); background: var(--indigo-50); color: var(--color-indigo); }
+
+/* Le bulletin au toucher d'une ligne */
+.lp-bulletin { padding: 12px 16px 14px 38px; display: grid; gap: 6px; font-size: 13.5px; }
+.lp-bulletin__grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 4px 24px; }
+.lp-bulletin__grille > div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px dotted var(--hairline); padding: 3px 0; font-variant-numeric: tabular-nums; }
+.lp-bulletin__grille > div span:first-child { color: var(--ink-soft); min-width: 0; overflow-wrap: anywhere; }
+.lp-bulletin__net, .lp-bulletin__mtn { font-weight: 600; color: var(--color-indigo); }
+.lp-bulletin p { margin: 2px 0 0; color: var(--ink-soft); font-size: 12.5px; line-height: 1.5; max-width: 70ch; overflow-wrap: anywhere; }
+.lp-gestes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+@media (max-width: 480px) { .lp-bulletin { padding-left: 16px; } }
+
+/* Le test MTN */
+.lp-test { border: 1px solid var(--color-copper); border-radius: 4px; background: var(--surface-card); display: grid; }
+.lp-test--replie { border: 1px solid var(--color-indigo); background: var(--indigo-50); padding: 10px 16px; border-radius: 4px; font-size: 13.5px; display: block !important; }
+.lp-test__ligne { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.1fr) 130px minmax(0, 1.8fr); gap: 12px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--hairline); font-variant-numeric: tabular-nums; }
+.lp-test__ligne:first-child { border-top: 0; }
+.lp-test__ligne strong { color: var(--color-indigo); font-weight: 500; }
+.lp-test__ligne .mnd-input { width: 90px; text-align: right; display: inline-block; }
+.lp-test__etat { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.lp-test__pied { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--hairline); background: var(--copper-50); }
+.lp-test__pied b { font: 400 20px var(--font-serif); color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { .lp-test__ligne { grid-template-columns: minmax(0, 1fr) 120px; } .lp-test__etat { grid-column: 1 / -1; } }
+
+/* Les prêts */
+.lp-pret { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) auto; gap: 18px; align-items: center; padding: 14px 16px; border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); }
+.lp-pret__qui { display: grid; gap: 2px; }
+.lp-pret__qui strong { font: 400 20px var(--font-serif); color: var(--color-indigo); }
+.lp-pret__chiffres { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; margin-bottom: 8px; flex-wrap: wrap; }
+.lp-pret__chiffres b { font: 400 18px var(--font-serif); color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.lp-jauge { height: 8px; border-radius: 99px; background: var(--indigo-50); overflow: hidden; }
+.lp-jauge i { display: block; height: 100%; background: var(--color-indigo); }
+.lp-echeances { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.lp-echeances span { font-size: 12px; padding: 3px 8px; border-radius: 3px; background: var(--indigo-50); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.lp-echeances span.lp-faite { background: var(--color-indigo); color: var(--color-ivoire); }
+.lp-echeances span.lp-cemois { background: var(--color-copper); color: var(--color-ivoire); }
+@media (max-width: 720px) { .lp-pret { grid-template-columns: minmax(0, 1fr); } }
+
+/* Les saisies */
+.lp-form { display: grid; gap: 12px; }
+
+/* Le pied collant : la validation du mois */
+.lp-pied { position: sticky; bottom: 0; z-index: 5; background: var(--color-indigo); color: var(--color-ivoire); border-radius: 4px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; box-shadow: 0 -6px 18px rgba(20, 20, 40, .12); }
+.lp-pied__resume { display: grid; min-width: 0; }
+.lp-pied__resume b { font: 400 22px var(--font-serif); font-variant-numeric: tabular-nums; }
+.lp-pied__resume span { font-size: 12.5px; opacity: .82; overflow-wrap: anywhere; }
+.lp-pied__actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+@media (prefers-reduced-motion: reduce) { .lp-chev { transition: none; } }

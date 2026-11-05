@@ -110,7 +110,9 @@ dit('un onglet n appartient qu a une reunion', true,
 /* Les trois réunions qui grandissent le 27 octobre 2026. */
 dit('Clientes : les clientes, l Audience, les Ambassadrices', ['/customers', '/audience', '/parrainages'], REUNIONS.find((r) => r.hote === '/customers')?.onglets.map((o) => o.path));
 dit('Synthese & bilan : le resultat, le mois, les prestations', ['/synthese', '/bilan-mensuel', '/chiffre-des-prestations'], REUNIONS.find((r) => r.hote === '/synthese')?.onglets.map((o) => o.path));
-dit('Ressources humaines : le personnel, les prets au personnel, les prestataires', ['/personnel', '/prets-personnel', '/prestataires'], REUNIONS.find((r) => r.hote === '/personnel')?.onglets.map((o) => o.path));
+/* 5 novembre 2026 : « Les paiements » (maquette maquette-les-paiements.html,
+   v5) entre aux Ressources humaines, en deuxième onglet. */
+dit('Ressources humaines : le personnel, les paiements, les prets au personnel, les prestataires', ['/personnel', '/paiements', '/prets-personnel', '/prestataires'], REUNIONS.find((r) => r.hote === '/personnel')?.onglets.map((o) => o.path));
 dit('l Audience : nee le 27 octobre 2026 en Clientele, hors barre (onglet), nommee parmi les ecrans nes apres', ['Clientèle', true, true],
   [item('/audience')?.groupe, item('/audience')?.horsMenu === true, ECRANS_NES_APRES_LES_DEPARTEMENTS.includes('/audience')]);
 dit('les Ambassadrices : la ligne garde horsMenu, et vit sous Clientes', ['Clientèle', true],
@@ -189,6 +191,13 @@ dit('Les pourboires : en Équipe, juste sous les Ressources humaines, nés aprè
 dit('... la direction seule : souverain et gérant oui, un maître non (département Équipe, case de l écran, Finances)', [true, true, false, false, false],
   [peutVoir('souverain', '/pourboires', {}), peutVoir('gerant', '/pourboires', {}), peutVoir('maitre', '/pourboires', { 'dept-equipe': true }),
     peutVoir('maitre', '/pourboires', { '/pourboires': true }), peutVoir('maitre', '/pourboires', { 'dept-finances': true, equipe: true })]);
+
+/* LES PAIEMENTS (5 novembre 2026) : un onglet des Ressources humaines, hors
+   barre, né après les départements, au souverain seul (comme la paie). */
+dit('Les paiements : en Équipe, onglet des Ressources humaines (hors barre), nés après les départements', ['Équipe', true, '/personnel', true],
+  [item('/paiements')?.groupe, item('/paiements')?.horsMenu === true, reunionDe('/paiements')?.hote, ECRANS_NES_APRES_LES_DEPARTEMENTS.includes('/paiements')]);
+dit('... le souverain seul : ni le gérant, ni un maître (département Équipe, case de l écran)', [true, false, false, false],
+  [peutVoir('souverain', '/paiements', {}), peutVoir('gerant', '/paiements', {}), peutVoir('maitre', '/paiements', { 'dept-equipe': true }), peutVoir('maitre', '/paiements', { '/paiements': true })]);
 
 console.log(ko ? `\n${ko} ECHEC.` : '\nLa barre reunie tient ses promesses.');
 if (ko) process.exitCode = 1;

@@ -241,6 +241,13 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          l'équipe seule. La direction et le département Finances y gardent
          l'accès (`peutVoir`). */
       { path: '/prets-personnel', horsMenu: true, label: 'Les prêts au personnel', icon: PoigneeDeMain, Component: lazy(() => import('./finances/Prets')) },
+      /* LES PAIEMENTS (5 novembre 2026, maquette maquette-les-paiements.html
+         v5, « construis ») : un mois, un tableau, un toucher. Les salaires du
+         run (la paie du 5), les prêts, les pourboires en espèces, les
+         prestataires et les entreprises, chacun à sa date. Un onglet des
+         Ressources humaines, au souverain seul (ROUTES_SOUVERAIN), comme la
+         paie ; les écrans d'avant restent (« Réglages »). */
+      { path: '/paiements', horsMenu: true, label: 'Les paiements', icon: HandCoins, Component: lazy(() => import('./equipe/LesPaiements')) },
       { path: '/prestataires', label: 'Prestataires', icon: Handshake, Component: lazy(() => import('./equipe/Prestataires')) },
       /* LA DICTÉE MND (31 octobre 2026) — hors menu : on la tient par le
          bouton « Dicter » de la barre du haut, sur chaque écran, et par le
@@ -326,7 +333,7 @@ export const REUNIONS: readonly Reunion[] = [
   { hote: '/prets', titre: 'Prêts & compte courant', onglets: [{ path: '/prets', label: 'Les prêts' }, { path: '/compte-courant', label: 'Le compte courant' }] },
   { hote: '/marketing', titre: 'Marketing', onglets: [{ path: '/marketing', label: 'Le marketing' }, { path: '/personas', label: 'Les personas' }] },
   { hote: '/fil', titre: 'Le Fil', onglets: [{ path: '/fil', label: 'Le fil' }, { path: '/tableau', label: 'Le tableau' }, { path: '/mes-taches', label: 'Mes tâches' }] },
-  { hote: '/personnel', titre: 'Ressources humaines', onglets: [{ path: '/personnel', label: 'Ressources humaines' }, { path: '/prets-personnel', label: 'Les prêts au personnel' }, { path: '/prestataires', label: 'Les prestataires' }] },
+  { hote: '/personnel', titre: 'Ressources humaines', onglets: [{ path: '/personnel', label: 'Ressources humaines' }, { path: '/paiements', label: 'Les paiements' }, { path: '/prets-personnel', label: 'Les prêts au personnel' }, { path: '/prestataires', label: 'Les prestataires' }] },
   { hote: '/parametres', titre: 'Paramètres', onglets: [{ path: '/parametres', label: 'Les réglages' }, { path: '/marque', label: 'La marque et le thème' }, { path: '/branches', label: 'Les branches' }] },
 ];
 /** Hors de la barre : l'adresse reste, l'écran aussi, et la réunion s'il en
@@ -490,7 +497,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/pourboires'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>
@@ -522,7 +529,9 @@ const ouvertParSonGroupe = (path: string, acces: Record<string, boolean>): boole
 /* LE CENTRE DE COMMANDE AUSSI (11 octobre 2026) : Yéman ou Brice valident,
    il porte les chiffres du mois et les décisions de la Maison. L'atelier des
    contenus de même : ce qui part au nom de la Maison passe par eux. */
-export const ROUTES_SOUVERAIN = ['/salon-foyer', '/centre-de-commande', '/atelier-des-contenus', '/agents', '/assistants'];
+/* LES PAIEMENTS (5 novembre 2026) : le souverain seul, comme la paie (la
+   base garde les runs au souverain) ; Yéman ou Brice valident le mois. */
+export const ROUTES_SOUVERAIN = ['/salon-foyer', '/centre-de-commande', '/atelier-des-contenus', '/agents', '/assistants', '/paiements'];
 
 /* Le journal dit qui fait quoi : le rendre lisible de tous changerait le
    climat de la Maison — on ne travaille pas pareil quand chaque geste est

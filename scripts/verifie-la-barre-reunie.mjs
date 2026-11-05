@@ -66,8 +66,13 @@ const PANNES = [
   ['le Foyer remontre le mot banni', INDEX, "label: 'Maison & Foyer'", "label: 'Salon & Foyer'"],
   /* 31 octobre 2026 : la liste finit par /dictee et /assistants ; l'aiguille suit.
      5 novembre 2026 : elle finit par /la-journee (4 novembre, l'aiguille était
-     restée derrière : introuvable) et /pourboires ; l'aiguille suit encore. */
-  ['l Audience oubliee des ecrans nes apres', INDEX, "'/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/pourboires'];", "'/previsions', '/gerard', '/dictee', '/assistants', '/la-journee', '/pourboires'];"],
+     restée derrière : introuvable) et /pourboires ; l'aiguille suit encore.
+     5 novembre 2026, le soir : /paiements (Les paiements) entre avant
+     /pourboires ; l'aiguille suit. */
+  ['l Audience oubliee des ecrans nes apres', INDEX, "'/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires'];", "'/previsions', '/gerard', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires'];"],
+  /* 5 novembre 2026 : Les paiements, un onglet des Ressources humaines, au souverain seul. */
+  ['les paiements quittent les Ressources humaines', INDEX, ", { path: '/paiements', label: 'Les paiements' }", ''],
+  ['les paiements s ouvrent au gerant', INDEX, "'/agents', '/assistants', '/paiements'];", "'/agents', '/assistants'];"],
   ['Entre deux seances retire en ecrivant horsMenu dans sa ligne', INDEX,
     "{ path: '/entre-deux', label: 'Entre deux séances'", "{ path: '/entre-deux', horsMenu: true, label: 'Entre deux séances'"],
   /* 5 novembre 2026 : Les pourboires, à la direction seule. */

@@ -1,0 +1,663 @@
+<title>Les paiements</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@400;500;600&display=swap">
+<style>
+/* Mise en page : l'écran du Trône, une colonne de 1040 px ; chiffres en tête, un tableau unique, la validation en pied collant. */
+:root {
+  --ivoire: #F6F1E7; --carte: #FFFDF8; --indigo: #1E2150; --cuivre: #B97A4A; --cuivre-fonce: #9E6238;
+  --encre: #1F1D26; --encre-douce: #6A6474; --trait: rgba(30, 33, 80, .14); --pale: #F1E7D9;
+  --indigo-pale: #E7E8F2; --cuivre-pale: #F3E7DB; --gris: #77717F; --gris-pale: #ECE8E1; --sur-indigo: #F6F1E7; --sur-cuivre: #FFFDF8;
+  --tel: #1A1C2E;
+  --serif: "Cormorant Garamond", "Noto Serif", Georgia, serif;
+  --sans: "Jost", "Noto Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --encre-douce: #A9A3B3; --trait: rgba(236, 231, 221, .16); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --gris: #A9A3B3; --gris-pale: #2A2735; --sur-indigo: #15161F; --sur-cuivre: #15161F;
+  --tel: #0E0F17; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --encre-douce: #A9A3B3; --trait: rgba(236, 231, 221, .16); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --gris: #A9A3B3; --gris-pale: #2A2735; --sur-indigo: #15161F; --sur-cuivre: #15161F;
+  --tel: #0E0F17; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ivoire); color: var(--encre); font: 400 15px/1.55 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 120px; }
+main { max-width: 1040px; margin: 0 auto; display: grid; gap: 40px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 500; color: var(--indigo); text-wrap: balance; margin: 0; line-height: 1.12; }
+h1 { font-size: clamp(38px, 7vw, 54px); }
+h2 { font-size: clamp(24px, 4.6vw, 30px); }
+h3 { font-size: 20px; }
+p { margin: 0; max-width: 65ch; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+.sourcil { font: 600 11px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre-fonce); }
+.doux { color: var(--encre-douce); }
+.petit { font-size: 13px; }
+section { display: grid; gap: 14px; }
+.titre-de-bloc { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--trait); padding-bottom: 8px; }
+
+.bandeau { border: 1px dashed var(--cuivre); background: var(--pale); padding: 8px 14px; border-radius: 4px; font-size: 13px; }
+
+/* En-tête */
+.tete { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.tete > div { display: grid; gap: 8px; min-width: 0; }
+.etat { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; font: 500 13px var(--sans); border: 1px solid var(--cuivre); color: var(--cuivre-fonce); background: var(--cuivre-pale); }
+.etat.fait { border-color: var(--indigo); color: var(--sur-indigo); background: var(--indigo); }
+.etat i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+/* Chiffres */
+.chiffres { display: grid; grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr)); border: 1px solid var(--trait); border-radius: 6px; background: var(--carte); overflow: hidden; }
+.chiffre { padding: 16px 18px; display: grid; gap: 4px; border-left: 1px solid var(--trait); min-width: 0; }
+.chiffre:first-child { border-left: 0; background: var(--indigo); color: var(--sur-indigo); }
+.chiffre:first-child .sourcil { color: var(--cuivre); }
+.chiffre b { font: 500 28px/1.1 var(--serif); font-variant-numeric: tabular-nums; }
+.chiffre:first-child b { font-size: 36px; }
+.chiffre .op { font: 500 13px var(--sans); color: var(--encre-douce); }
+.chiffre:first-child .op { color: var(--sur-indigo); opacity: .75; }
+@media (max-width: 760px) { .chiffres { grid-template-columns: repeat(2, minmax(0, 1fr)); } .chiffre:first-child { grid-column: 1 / -1; } .chiffre:nth-child(2), .chiffre:nth-child(4) { border-left: 0; } .chiffre { border-top: 1px solid var(--trait); } .chiffre:first-child { border-top: 0; } }
+
+/* Frise */
+.frise { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; counter-reset: etape; }
+.pas { position: relative; padding: 12px 10px 0 0; display: grid; gap: 2px; font-size: 13px; min-width: 0; }
+.pas::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--trait); }
+.pas.passe::before { background: var(--indigo); }
+.pas.ici::before { background: linear-gradient(90deg, var(--indigo) 50%, var(--cuivre) 50%); }
+.pas b { font: 600 15px var(--serif); color: var(--indigo); font-size: 17px; }
+.pas.ici b { color: var(--cuivre-fonce); }
+.pas span { color: var(--encre-douce); }
+@media (max-width: 680px) { .frise { grid-template-columns: minmax(0, 1fr); gap: 10px; } }
+
+/* À regarder */
+.points { display: grid; border: 1px solid var(--trait); border-radius: 6px; background: var(--carte); }
+.point { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--trait); }
+.point:first-child { border-top: 0; }
+.point .marque { width: 10px; height: 10px; border-radius: 50%; background: var(--cuivre); justify-self: center; }
+.point.bloque .marque { background: var(--cuivre-fonce); box-shadow: 0 0 0 3px var(--cuivre-pale); }
+.point strong { font-weight: 600; color: var(--indigo); }
+.point .gestes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.point.regle { opacity: .55; }
+.point.regle .marque { background: var(--indigo); box-shadow: none; }
+.point input { width: 110px; padding: 6px 8px; border: 1px solid var(--trait); border-radius: 4px; background: var(--ivoire); color: var(--encre); font: inherit; font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .point { grid-template-columns: 16px minmax(0, 1fr); } .point .gestes { grid-column: 2; justify-content: flex-start; } }
+
+.btn { border: 1px solid var(--indigo); background: transparent; color: var(--indigo); padding: 6px 12px; border-radius: 4px; font: 500 12.5px var(--sans); letter-spacing: .04em; white-space: nowrap; }
+.btn:hover { background: var(--indigo-pale); }
+.btn.plein { background: var(--cuivre); border-color: var(--cuivre); color: var(--sur-cuivre); }
+.btn.plein:hover { background: var(--cuivre-fonce); }
+.btn:disabled { opacity: .5; cursor: default; }
+.lien { border: 0; background: none; color: var(--cuivre-fonce); padding: 0; font: 500 13px var(--sans); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Tableau */
+.defile { overflow-x: auto; border: 1px solid var(--trait); border-radius: 6px; background: var(--carte); }
+table { width: 100%; border-collapse: collapse; min-width: 820px; }
+th { text-align: left; font: 600 10.5px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--encre-douce); padding: 10px 12px; border-bottom: 1px solid var(--trait); white-space: nowrap; }
+th.n, td.n { text-align: right; }
+td { padding: 11px 12px; border-top: 1px solid var(--trait); vertical-align: middle; font-variant-numeric: tabular-nums; }
+tr.groupe td { background: var(--gris-pale); font: 600 11px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--indigo); padding: 9px 12px; }
+tr.groupe td span { font-weight: 500; letter-spacing: .04em; text-transform: none; color: var(--encre-douce); margin-left: 8px; }
+tr.ligne { cursor: pointer; }
+tr.ligne:hover td { background: var(--pale); }
+tr.ligne td:first-child { font-weight: 500; color: var(--indigo); }
+.chev { display: inline-block; width: 14px; color: var(--cuivre); transition: transform .15s; }
+tr.ouvert .chev { transform: rotate(90deg); }
+tr.detail td { background: var(--ivoire); padding: 0; }
+tr.detail .bulletin { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 6px 24px; padding: 12px 16px 14px 38px; font-size: 13.5px; }
+.bulletin div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px dotted var(--trait); padding: 3px 0; }
+.bulletin div span:first-child { color: var(--encre-douce); }
+tr.total td { font-weight: 600; color: var(--indigo); border-top: 2px solid var(--indigo); }
+.moins { color: var(--cuivre-fonce); }
+.vide { color: var(--gris); }
+.pastille { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font: 500 12px var(--sans); white-space: nowrap; border: 1px solid var(--trait); color: var(--encre-douce); }
+.pastille.ok { border-color: var(--indigo); color: var(--indigo); background: var(--indigo-pale); }
+.pastille.attend { border-color: var(--cuivre); color: var(--cuivre-fonce); background: var(--cuivre-pale); }
+.pastille.paye { border-color: var(--indigo); background: var(--indigo); color: var(--sur-indigo); }
+.pastille.envoi { border-color: var(--indigo); color: var(--indigo); border-style: dashed; }
+.pastille.non { color: var(--gris); border-style: dashed; }
+.numero { white-space: nowrap; }
+.numero .v { color: var(--indigo); font-weight: 600; margin-left: 4px; }
+.numero .p { color: var(--cuivre-fonce); font-size: 12px; margin-left: 4px; }
+
+/* Prêts */
+.pret { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) auto; gap: 18px; align-items: center; padding: 16px 18px; border: 1px solid var(--trait); border-radius: 6px; background: var(--carte); }
+.pret .qui { display: grid; gap: 2px; }
+.pret .qui strong { font: 500 20px var(--serif); color: var(--indigo); }
+.jauge { height: 8px; border-radius: 99px; background: var(--gris-pale); overflow: hidden; }
+.jauge i { display: block; height: 100%; background: var(--indigo); width: 60%; }
+.echeances { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.echeances span { font-size: 12px; padding: 3px 8px; border-radius: 4px; background: var(--gris-pale); color: var(--encre-douce); font-variant-numeric: tabular-nums; }
+.echeances span.faite { background: var(--indigo); color: var(--sur-indigo); }
+.echeances span.cemois { background: var(--cuivre); color: var(--sur-cuivre); }
+.pret .chiffres-pret { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; margin-bottom: 8px; flex-wrap: wrap; }
+.pret .chiffres-pret b { font: 500 18px var(--serif); color: var(--indigo); font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) { .pret { grid-template-columns: minmax(0, 1fr); } }
+
+/* Deux colonnes : numéros et téléphone */
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 28px; align-items: start; }
+@media (max-width: 820px) { .duo { grid-template-columns: minmax(0, 1fr); } }
+.etapes-num { display: grid; gap: 10px; }
+.etapes-num div { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; padding: 12px 14px; background: var(--carte); border: 1px solid var(--trait); border-radius: 6px; font-size: 14px; }
+.etapes-num b { font: 600 20px/1 var(--serif); color: var(--cuivre-fonce); }
+.etapes-num strong { color: var(--indigo); font-weight: 600; display: block; }
+
+.tel { background: var(--tel); border-radius: 28px; padding: 12px; box-shadow: 0 12px 30px rgba(20, 20, 40, .18); max-width: 320px; width: 100%; justify-self: center; }
+.ecran { background: var(--ivoire); border-radius: 18px; overflow: hidden; display: grid; }
+.ecran .barre { background: var(--indigo); color: var(--sur-indigo); padding: 12px 16px; display: flex; justify-content: space-between; font-size: 12px; }
+.ecran .corps { padding: 16px; display: grid; gap: 12px; }
+.notif { background: var(--carte); border: 1px solid var(--trait); border-radius: 10px; padding: 10px 12px; font-size: 13px; display: grid; gap: 2px; box-shadow: 0 4px 12px rgba(20, 20, 40, .08); }
+.notif b { color: var(--indigo); font-size: 12px; letter-spacing: .06em; }
+.montant-tel { font: 500 38px/1 var(--serif); color: var(--indigo); font-variant-numeric: tabular-nums; }
+.lignes-tel { display: grid; gap: 4px; font-size: 13px; }
+.lignes-tel div { display: flex; justify-content: space-between; border-bottom: 1px dotted var(--trait); padding: 3px 0; }
+.lignes-tel div span:first-child { color: var(--encre-douce); }
+.gestes-tel { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.gestes-tel .btn { padding: 10px 8px; text-align: center; white-space: normal; }
+
+/* Ce qui change */
+.change { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.change > div { background: var(--carte); border: 1px solid var(--trait); border-radius: 6px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
+.change ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
+.change .barre-de { text-decoration: line-through; text-decoration-color: var(--cuivre); color: var(--encre-douce); }
+@media (max-width: 640px) { .change { grid-template-columns: minmax(0, 1fr); } }
+
+/* Le test MTN */
+.test { border: 1px solid var(--cuivre); border-radius: 6px; background: var(--carte); display: grid; }
+.test.reussi { border-color: var(--indigo); }
+.test-ligne { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) 120px minmax(0, 1.6fr); gap: 12px; align-items: center; padding: 11px 16px; border-top: 1px solid var(--trait); font-variant-numeric: tabular-nums; }
+.test-ligne:first-child { border-top: 0; }
+.test-ligne strong { color: var(--indigo); font-weight: 500; }
+.test-ligne input { width: 100%; max-width: 110px; padding: 6px 8px; border: 1px solid var(--trait); border-radius: 4px; background: var(--ivoire); color: var(--encre); font: inherit; font-variant-numeric: tabular-nums; text-align: right; }
+.test-pied { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--trait); background: var(--cuivre-pale); border-radius: 0 0 6px 6px; }
+.test.reussi .test-pied { background: var(--indigo-pale); }
+.test-pied b { font: 500 20px var(--serif); color: var(--indigo); font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { .test-ligne { grid-template-columns: minmax(0, 1fr) 100px; } .test-ligne .tl-num { grid-column: 1; } .test-ligne .tl-etat { grid-column: 1 / -1; } }
+.remis { border: 1px dashed var(--cuivre); background: transparent; color: var(--cuivre-fonce); border-radius: 999px; padding: 2px 9px; font: 500 12px var(--sans); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.remis.oui { border-style: solid; border-color: var(--indigo); background: var(--indigo-pale); color: var(--indigo); }
+.chiffre.hors { background: var(--gris-pale); }
+.etat-entreprise { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+select.jour { padding: 3px 6px; border: 1px solid var(--cuivre); border-radius: 4px; background: var(--ivoire); color: var(--indigo); font: 500 12.5px var(--sans); font-variant-numeric: tabular-nums; }
+
+.arbitres { display: grid; gap: 10px; }
+.arbitre { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; padding: 12px 14px; border-left: 3px solid var(--cuivre); background: var(--carte); border-radius: 0 6px 6px 0; }
+.arbitre b { font: 600 20px/1 var(--serif); color: var(--cuivre-fonce); }
+.arbitre strong { color: var(--indigo); font-weight: 600; }
+
+/* Pied collant : la validation */
+.pied { position: fixed; left: 0; right: 0; bottom: 0; background: var(--indigo); color: var(--sur-indigo); z-index: 5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px calc(12px + env(safe-area-inset-bottom, 0px)); }
+.pied .dedans { max-width: 1040px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.pied .resume { display: grid; gap: 0; min-width: 0; }
+.pied .resume b { font: 500 22px var(--serif); font-variant-numeric: tabular-nums; }
+.pied .resume span { font-size: 12.5px; opacity: .8; }
+.pied .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.pied .btn { border-color: rgba(246, 241, 231, .4); color: var(--sur-indigo); }
+.pied .btn:hover { background: rgba(246, 241, 231, .1); }
+.pied .btn.plein { background: var(--cuivre); border-color: var(--cuivre); color: var(--sur-cuivre); padding: 10px 18px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 10px; }
+.pied .btn.plein svg { width: 18px; height: 18px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pied { background: #23264A; } :root:not([data-theme="light"]) .pied, :root:not([data-theme="light"]) .pied .btn { color: #F6F1E7; } }
+:root[data-theme="dark"] .pied { background: #23264A; }
+:root[data-theme="dark"] .pied, :root[data-theme="dark"] .pied .btn { color: #F6F1E7; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<main>
+  <div class="bandeau">Maquette v1 · vos choix du 5 nov. et le test MTN · chiffres d'exemple · rien n'est construit. Touchez les boutons : l'écran réagit.</div>
+
+  <header class="tete">
+    <div>
+      <span class="sourcil">Équipe · Les paiements</span>
+      <h1>Novembre 2026.</h1>
+      <span class="doux">Versé le samedi 5 déc. · prestataires et entreprises à leur date · par MTN depuis le compte de paie · pourboires en espèces</span>
+    </div>
+    <span class="etat" id="etat-du-mois"><i></i><span id="etat-texte">À valider · 4 points</span></span>
+  </header>
+
+  <!-- Les cinq chiffres, en pont -->
+  <section aria-label="Les chiffres du mois">
+    <div class="chiffres">
+      <div class="chiffre"><span class="sourcil">Par MTN</span><b id="c-total">310 000 F</b><span class="op" id="c-nb">7 virements · frais MTN 0 F</span></div>
+      <div class="chiffre"><span class="sourcil">Salaires nets</span><b>285 000</b><span class="op">5 bulletins</span></div>
+      <div class="chiffre"><span class="sourcil">Retenues de prêt</span><b class="moins">− 30 000</b><span class="op">1 prêt en cours</span></div>
+      <div class="chiffre"><span class="sourcil">Prestataires · entreprises</span><b id="c-presta">+ 100 000</b><span class="op" id="c-presta-op">2 missions sur 3 · 1 facture</span></div>
+      <div class="chiffre hors"><span class="sourcil">Pourboires · espèces</span><b>10 000</b><span class="op" id="c-remis">remis le 5 · 0 / 5 cochés</span></div>
+    </div>
+  </section>
+
+  <!-- Le mois en cinq temps -->
+  <section aria-label="Le calendrier du mois">
+    <div class="frise">
+      <div class="pas passe"><b>1er · 8 h</b><span>Bulletins prêts</span></div>
+      <div class="pas passe"><b>1er → 5 · 12 h</b><span id="f-confirm">Chacun confirme · 4 / 5</span></div>
+      <div class="pas ici" id="f-toucher"><b>5 · 12 h → 18 h</b><span>Votre toucher</span></div>
+      <div class="pas" id="f-envoi"><b>5 · 18 h</b><span>Salaires par MTN · pourboires en espèces</span></div>
+      <div class="pas" id="f-presta"><b>À leur date · 18 h</b><span>Prestataires · entreprises</span></div>
+    </div>
+  </section>
+
+  <!-- Le test MTN, avant le premier mois par l'API -->
+  <section>
+    <div class="titre-de-bloc"><h2>Le test MTN</h2><span class="doux petit" id="test-etat">Avant le 5 · depuis le compte de paie</span></div>
+    <div class="test" id="test">
+      <div class="test-ligne" data-t="yb"><strong>Yéman B.</strong><span class="tl-num numero num">01 •• •• •• 73<span class="v">✓</span></span><span><input id="t-yb" inputmode="numeric" value="500" aria-label="Montant du test pour Yéman"> F</span><span class="tl-etat"><span class="pastille ok">Prêt</span></span></div>
+      <div class="test-ligne" data-t="ba"><strong>Brice A.</strong><span class="tl-num numero num">01 •• •• •• 52<span class="v">✓</span></span><span><input id="t-ba" inputmode="numeric" value="500" aria-label="Montant du test pour Brice"> F</span><span class="tl-etat"><span class="pastille ok">Prêt</span></span></div>
+      <div class="test-ligne" data-t="gt"><strong>Gérard T.</strong><span class="tl-num numero num">01 •• •• •• 41<span class="v">✓</span></span><span><input id="t-gt" inputmode="numeric" value="100" aria-label="Montant du test pour Gérard"> F</span><span class="tl-etat"><span class="pastille ok">Prêt</span></span></div>
+      <div class="test-pied">
+        <span><b id="test-total">1 100 F</b> <span class="doux petit" id="test-sous">offerts par la Maison · dépense « Essai de paie MTN » · bulletins inchangés</span></span>
+        <button class="btn plein" type="button" id="test-envoyer">Envoyer le test · empreinte</button>
+      </div>
+    </div>
+    <p class="doux petit">MTN refuse un montant : « Relancer à 500 F ». Pas de test réussi : le 5, la paie passe par le fichier du portail.</p>
+  </section>
+
+  <!-- Ce que le Trône a repéré -->
+  <section>
+    <div class="titre-de-bloc"><h2>À regarder</h2><span class="doux petit" id="points-reste">4 points · rien ne bloque l'envoi</span></div>
+    <div class="points" id="points">
+      <div class="point" data-point="numeros">
+        <span class="marque"></span>
+        <div><strong>2 numéros repris des fiches</strong> · Brice A., Nassim M. · <span class="doux">MTN : noms conformes</span></div>
+        <div class="gestes"><button class="btn plein" data-faire="numeros">Prendre les 2</button></div>
+      </div>
+      <div class="point" data-point="ecart">
+        <span class="marque"></span>
+        <div><strong>Aimer H. · net + 31 %</strong> sur octobre · <span class="doux">plafond + 25 % · prime de seuil 15 000 F (Carnet : 41 rituels)</span></div>
+        <div class="gestes"><button class="btn" data-ouvrir="ah">Voir</button><button class="btn plein" data-faire="ecart">Accepter</button></div>
+      </div>
+      <div class="point" data-point="prix">
+        <span class="marque"></span>
+        <div><strong>Plombier P. · mission sans prix</strong> · fuite du 28 oct. · <span class="doux">ne part pas sans prix</span></div>
+        <div class="gestes" id="g-prix"><button class="btn plein" data-faire="prix">Poser le prix</button></div>
+      </div>
+      <div class="point" data-point="solde">
+        <span class="marque"></span>
+        <div><strong>Compte de paie MTN · solde 0 F</strong> · il faut <span class="num" id="p-solde">310 000 F</span> le 5 avant 18 h · <span class="doux">sinon rien ne part et vous êtes prévenue</span></div>
+        <div class="gestes"><button class="btn" data-faire="solde">Me le rappeler le 5 à 9 h</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Qui reçoit quoi -->
+  <section>
+    <div class="titre-de-bloc"><h2>Qui reçoit quoi</h2><span class="doux petit">Touchez une ligne : son bulletin</span></div>
+    <div class="defile">
+      <table>
+        <thead><tr><th>Personne</th><th class="n">Net</th><th class="n">Prêt</th><th class="n">Par MTN</th><th>Numéro MTN</th><th>État</th><th class="n">Pourboires · espèces</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p class="doux petit">Date d'un prestataire ou d'une entreprise : le 10 par défaut, 1 à 28 ou dernier jour, sur sa ligne. Dimanche : le lundi. Avant le 5 : un toucher à part ce jour-là. Changée après votre toucher : la ligne attend votre toucher.</p>
+  </section>
+
+  <!-- Les prêts -->
+  <section>
+    <div class="titre-de-bloc"><h2>Les prêts</h2><button class="lien" type="button">+ Prêter à un membre</button></div>
+    <div class="pret">
+      <div class="qui"><strong>Nassim M.</strong><span class="doux petit">150 000 F prêtés le 1er sept. · 30 000 F par bulletin</span></div>
+      <div>
+        <div class="chiffres-pret">
+          <span>Retenu <b>90 000</b></span><span>Reste après ce mois <b>60 000</b></span><span>Dernière retenue <b>janv. 2027</b></span>
+        </div>
+        <div class="jauge" aria-label="60 % remboursés"><i></i></div>
+        <div class="echeances num">
+          <span class="faite">sept. 30 000</span><span class="faite">oct. 30 000</span><span class="cemois">nov. 30 000</span><span>déc. 30 000</span><span>janv. 30 000</span>
+        </div>
+      </div>
+      <div><button class="btn">Sauter un mois</button></div>
+    </div>
+  </section>
+
+  <!-- Les numéros sans saisie, et le téléphone de chacun -->
+  <section class="duo">
+    <div style="display:grid; gap:14px; min-width:0">
+      <div class="titre-de-bloc"><h2>Les numéros, sans saisie</h2></div>
+      <div class="etapes-num">
+        <div><b>1</b><span><strong>Le Trône propose</strong>le téléphone de la fiche, s'il est MTN.</span></div>
+        <div><b>2</b><span><strong>MTN répond le nom du titulaire</strong>avant tout envoi.</span></div>
+        <div><b>3</b><span><strong>Nom conforme : pris d'un toucher.</strong>Nom différent : la ligne attend votre mot.</span></div>
+        <div><b>4</b><span><strong>Numéro changé : 7 jours de garde.</strong>Le mois passe sur l'ancien numéro.</span></div>
+      </div>
+      <p class="doux petit">Chacun voit son numéro masqué dans Mon espace et peut demander un changement.</p>
+    </div>
+
+    <div class="tel" aria-label="Le téléphone de Nassim">
+      <div class="ecran">
+        <div class="barre"><span>Mon espace · Ma paie</span><span>N. M.</span></div>
+        <div class="corps">
+          <div class="notif" id="notif" hidden><b>LE TRÔNE</b><span id="notif-texte">Ta paie de novembre est partie : 50 000 F.</span></div>
+          <span class="sourcil">Novembre 2026</span>
+          <span class="montant-tel" id="tel-montant">50 000 F</span>
+          <span class="doux petit" id="tel-sous">sur 01 •• •• •• 08 · le 5 déc. à 18 h</span>
+          <div class="lignes-tel">
+            <div><span>Salaire net</span><span class="num">80 000</span></div>
+            <div><span>Prêt · retenue</span><span class="num moins">− 30 000</span></div>
+            <div><span>Par MTN</span><span class="num">50 000</span></div>
+            <div><span>Pourboires · espèces le 5</span><span class="num">2 500</span></div>
+            <div><span>Reste du prêt</span><span class="num">60 000</span></div>
+          </div>
+          <div class="gestes-tel" id="tel-gestes">
+            <button class="btn" type="button" id="tel-signale">Je signale une erreur</button>
+            <button class="btn plein" type="button" id="tel-confirme">Je confirme</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Ce qui change -->
+  <section>
+    <div class="titre-de-bloc"><h2>Ce qui change</h2></div>
+    <div class="change">
+      <div>
+        <span class="sourcil">Disparaît de l'écran</span>
+        <ul>
+          <li class="barre-de">Les runs, « Nouveau run »</li>
+          <li class="barre-de">Variables du mois · Production et primes de seuil</li>
+          <li class="barre-de">L'onglet « Les prêts au personnel »</li>
+          <li class="barre-de">Le test de 100 F en paragraphe</li>
+          <li class="barre-de">Le fichier du portail MTN à déposer</li>
+        </ul>
+      </div>
+      <div>
+        <span class="sourcil">Le Trône le fait seul</span>
+        <ul>
+          <li>Primes de seuil lues dans le Carnet</li>
+          <li>Retenue de prêt posée sur le bulletin</li>
+          <li>Pourboires du mois comptés par personne, à cocher « Remis »</li>
+          <li>Missions des prestataires reprises à leur prix</li>
+          <li>Agents d'autres entreprises : payés à l'entreprise, sur sa facture, en dépense fournisseur</li>
+          <li>Le test MTN : un bloc, qui s'efface une fois réussi</li>
+          <li>Réglages et barème : dans « Réglages »</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Les choix à faire -->
+  <section>
+    <div class="titre-de-bloc"><h2>Vos choix</h2><span class="doux petit">5 nov. 2026</span></div>
+    <div class="arbitres">
+      <div class="arbitre"><b>1</b><span><strong>Pourboires</strong> · en espèces le 5, cochés « Remis » personne par personne.</span></div>
+      <div class="arbitre"><b>2</b><span><strong>Numéros</strong> · repris des fiches, nom vérifié chez MTN.</span></div>
+      <div class="arbitre"><b>3</b><span><strong>Prévenir chacun</strong> · notification du Trône quand son argent part.</span></div>
+      <div class="arbitre"><b>4</b><span><strong>Prestataires</strong> · compris dans votre toucher du 5.</span></div>
+      <div class="arbitre"><b>5</b><span><strong>Le test</strong> · 500 F à Yéman, 500 F à Brice, 100 F à Gérard, avant le 5.</span></div>
+      <div class="arbitre"><b>6</b><span><strong>Agents d'autres entreprises</strong> · l'entreprise est payée sur sa facture, par MTN, dans votre toucher. Sans facture jointe, rien ne part.</span></div>
+      <div class="arbitre"><b>7</b><span><strong>Date de paie</strong> · propre à chaque prestataire et à chaque entreprise, le 10 par défaut, changée sur sa ligne. Avant le 5 : un toucher à part ce jour-là. Changée après votre toucher : la ligne attend votre toucher.</span></div>
+    </div>
+  </section>
+</main>
+
+<div class="pied" role="region" aria-label="Validation du mois">
+  <div class="dedans">
+    <div class="resume"><b id="pied-total">310 000 F · 7 virements</b><span id="pied-sous">Votre empreinte ou celle de Brice · annulable jusqu'au 5 à 17 h 59</span></div>
+    <div class="actions">
+      <button class="btn" type="button" id="rejouer" hidden>Voir le 5 à 18 h</button>
+      <button class="btn plein" type="button" id="valider">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M12 11v3M8.5 9.5a4 4 0 0 1 7 2.5v2.5M7.5 14v-2a4.5 4.5 0 0 1 1-2.8M12 7.5a4.5 4.5 0 0 1 4.5 4.5v4M9.5 17.5c.6-1 .9-2.2.9-3.5v-2a1.6 1.6 0 0 1 3.2 0v3M6 8a7 7 0 0 1 12.5 3.5M5 12v1.5"/></svg>
+        <span>Valider le mois</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const F = (n) => n.toLocaleString('fr-FR').replace(/ | /g, ' ');
+  const equipe = [
+    { id: 'gt', nom: 'Gérard T.', net: 85000, base: 70000, prime: 15000, cnss: 0, pret: 0, pb: 2500, num: '41', numOk: true, etat: 'ok', oct: 83500 },
+    { id: 'nm', nom: 'Nassim M.', net: 80000, base: 80000, prime: 0, pret: 30000, pb: 2500, num: '08', numOk: false, etat: 'attend', oct: 80000 },
+    { id: 'ah', nom: 'Aimer H.', net: 70000, base: 55000, prime: 15000, pret: 0, pb: 2500, num: '26', numOk: true, etat: 'ok', oct: 53500, ecart: true },
+    { id: 'yb', nom: 'Yéman B.', net: 25000, base: 25000, prime: 0, pret: 0, pb: 1250, num: '73', numOk: true, etat: 'ok', oct: 25000 },
+    { id: 'ba', nom: 'Brice A.', net: 25000, base: 25000, prime: 0, pret: 0, pb: 1250, num: '52', numOk: false, etat: 'ok', oct: 25000 },
+  ];
+  const presta = [
+    { id: 'pj', nom: 'Jardinier J.', mission: '4 passages · oct.', montant: 20000, num: '19', numOk: true, jour: 10 },
+    { id: 'pe', nom: 'Électricien E.', mission: 'Tableau du 1er étage · 2 nov.', montant: 35000, num: '64', numOk: true, jour: 15 },
+    { id: 'pp', nom: 'Plombier P.', mission: 'Fuite · 28 oct.', montant: null, num: '90', numOk: true, jour: 10 },
+  ];
+  const entreprises = [
+    { id: 'eg', nom: 'Gardiennage S.', agent: 'agent D.', facture: 'Facture 2026-118 · novembre · jointe', montant: 45000, num: '37', numOk: true, jour: 10 },
+    { id: 'ec', nom: 'Climatisation C.', agent: 'technicien R.', facture: 'Forfait d\'entretien · novembre · joint', montant: 25000, num: '85', numOk: true, jour: 'dernier' },
+  ];
+  const JOURS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+  const dateDe = (j) => {
+    let d = j === 'dernier' ? 31 : j;
+    let w = new Date(Date.UTC(2026, 11, d)).getUTCDay();
+    const decale = w === 0;
+    if (decale) { d += 1; w = 1; }
+    return { d, label: `${JOURS[w]} ${d === 1 ? '1er' : d} déc.`, decale };
+  };
+  const choixDuJour = (p) => {
+    let o = '';
+    for (let i = 1; i <= 28; i++) o += `<option value="${i}"${p.jour === i ? ' selected' : ''}>le ${i === 1 ? '1er' : i}</option>`;
+    o += `<option value="dernier"${p.jour === 'dernier' ? ' selected' : ''}>dernier jour</option>`;
+    return `<select class="jour" data-jour="${p.id}" aria-label="Date de paie de ${p.nom}">${o}</select>`;
+  };
+  const etatEntreprise = (p) => {
+    const dt = dateDe(p.jour);
+    const note = dt.decale ? ' · dimanche, passé au lundi' : '';
+    if (p.change && s.valide) return `<span class="pastille attend">Date changée · votre toucher</span>`;
+    if (p.jour !== 'dernier' && p.jour < 5) return `<span class="pastille attend">Toucher à part · ${dt.label}</span>`;
+    if (s.valide) return `<span class="pastille ok">Programmé · ${dt.label} 18 h</span>`;
+    return `<span class="pastille ok">Prêt · ${dt.label}${note}</span>`;
+  };
+  const s = { valide: false, envoye: false, ouvert: null, faits: new Set() };
+  const envoyeDe = (p) => p.net - p.pret;
+  const remis = new Set();
+  const totalEquipe = () => equipe.reduce((t, p) => t + envoyeDe(p), 0);
+  const totalPresta = () => presta.reduce((t, p) => t + (p.montant || 0), 0);
+  const totalEntr = () => entreprises.reduce((t, p) => t + p.montant, 0);
+  const nbVirements = () => equipe.length + presta.filter((p) => p.montant).length + entreprises.length;
+
+  const pastille = (p, presta_) => {
+    if (presta_) {
+      if (!p.montant) return `<span class="etat-entreprise">${choixDuJour(p)}<span class="pastille non">Ne part pas · sans prix</span></span>`;
+      return `<span class="etat-entreprise">${choixDuJour(p)}${etatEntreprise(p)}</span>`;
+    }
+    if (p.paye) return `<span class="pastille paye">Payé · 18 h 0${p.paye}</span>`;
+    if (p.envoi) return '<span class="pastille envoi">Envoi…</span>';
+    if (p.etat === 'attend') return s.envoye ? '<span class="pastille attend">Part dès sa confirmation</span>' : '<span class="pastille attend">Attend sa confirmation</span>';
+    if (s.valide) return '<span class="pastille ok">Programmé · 5 déc. 18 h</span>';
+    return '<span class="pastille ok">Confirmé</span>';
+  };
+  const numero = (p) => `<span class="numero num">01 •• •• •• ${p.num}${p.numOk ? '<span class="v" title="Nom vérifié chez MTN">✓</span>' : '<span class="p">repris de la fiche</span>'}</span>`;
+
+  const bulletin = (p) => `<tr class="detail"><td colspan="7"><div class="bulletin num">
+      <div><span>Salaire de base</span><span>${F(p.base)}</span></div>
+      <div><span>Prime de seuil (Carnet)</span><span>${p.prime ? F(p.prime) : '–'}</span></div>
+      <div><span>Net du bulletin</span><span>${F(p.net)}</span></div>
+      <div><span>Retenue de prêt</span><span class="${p.pret ? 'moins' : ''}">${p.pret ? '− ' + F(p.pret) : '–'}</span></div>
+      <div><span>Par MTN</span><span>${F(envoyeDe(p))}</span></div>
+      <div><span>Pourboires · espèces le 5</span><span>${F(p.pb)}</span></div>
+      <div><span>Frais MTN</span><span>0</span></div>
+      <div><span>Octobre</span><span>${F(p.oct)}</span></div>
+      <div><span>Référence</span><span>PAIE-2026-11-${p.id.toUpperCase()}</span></div>
+    </div></td></tr>`;
+
+  function rendre() {
+    const tb = document.getElementById('tbody');
+    let h = `<tr class="groupe"><td colspan="7">L'équipe<span>le 5 déc. à 18 h · ${F(totalEquipe())} F</span></td></tr>`;
+    for (const p of equipe) {
+      const o = s.ouvert === p.id;
+      h += `<tr class="ligne${o ? ' ouvert' : ''}" data-id="${p.id}"><td><span class="chev">›</span>${p.nom}</td>
+        <td class="n">${F(p.net)}</td><td class="n ${p.pret ? 'moins' : 'vide'}">${p.pret ? '− ' + F(p.pret) : '–'}</td>
+        <td class="n"><b>${F(envoyeDe(p))}</b></td><td>${numero(p)}</td><td>${pastille(p)}</td>
+        <td class="n"><button type="button" class="remis${remis.has(p.id) ? ' oui' : ''}" data-remis="${p.id}">${F(p.pb)} · ${remis.has(p.id) ? 'Remis ✓' : 'À remettre'}</button></td></tr>`;
+      if (o) h += bulletin(p);
+    }
+    h += `<tr class="groupe"><td colspan="7">Prestataires<span>chacun à sa date · ${F(totalPresta())} F</span></td></tr>`;
+    for (const p of presta) {
+      h += `<tr><td style="font-weight:500;color:var(--indigo)"><span class="chev"></span>${p.nom}</td>
+        <td class="doux" colspan="2">${p.mission}</td>
+        <td class="n">${p.montant ? '<b>' + F(p.montant) + '</b>' : '<span class="vide">sans prix</span>'}</td><td>${numero(p)}</td><td>${pastille(p, true)}</td><td class="n vide">–</td></tr>`;
+    }
+    h += `<tr class="groupe"><td colspan="7">Entreprises<span>chacune à sa date · payées à l'entreprise, sur facture · ${F(totalEntr())} F</span></td></tr>`;
+    for (const p of entreprises) {
+      h += `<tr><td style="font-weight:500;color:var(--indigo)"><span class="chev"></span>${p.nom} <span class="doux petit" style="font-weight:400">· ${p.agent}</span></td>
+        <td class="doux" colspan="2">${p.facture}</td>
+        <td class="n"><b>${F(p.montant)}</b></td><td>${numero(p)}</td><td><span class="etat-entreprise">${choixDuJour(p)}${etatEntreprise(p)}</span></td><td class="n vide">–</td></tr>`;
+    }
+    const tot = totalEquipe() + totalPresta() + totalEntr();
+    h += `<tr class="total"><td>Total</td><td class="n">285 000</td><td class="n moins">− 30 000</td><td class="n">${F(tot)}</td><td colspan="2">${nbVirements()} virements · frais 0 F</td><td class="n">10 000 · ${remis.size} / 5</td></tr>`;
+    tb.innerHTML = h;
+    document.getElementById('c-remis').textContent = `remis le 5 · ${remis.size} / 5 cochés`;
+
+    document.getElementById('c-total').textContent = F(tot) + ' F';
+    document.getElementById('c-nb').textContent = `${nbVirements()} virements · frais MTN 0 F`;
+    document.getElementById('c-presta').textContent = '+ ' + F(totalPresta() + totalEntr());
+    document.getElementById('c-presta-op').textContent = `${presta.filter((p) => p.montant).length} missions sur 3 · ${entreprises.length} facture${entreprises.length > 1 ? 's' : ''}`;
+    document.getElementById('p-solde').textContent = F(tot) + ' F';
+    document.getElementById('pied-total').textContent = `${F(tot)} F · ${nbVirements()} virements`;
+    const conf = equipe.filter((p) => p.etat === 'ok').length;
+    document.getElementById('f-confirm').textContent = `Chacun confirme · ${conf} / 5`;
+
+    const reste = 4 - s.faits.size;
+    const etat = document.getElementById('etat-du-mois');
+    if (s.envoye) { etat.className = 'etat fait'; document.getElementById('etat-texte').textContent = 'Payé · ' + F(equipe.filter((p) => p.paye).reduce((t, p) => t + envoyeDe(p), 0)) + ' F partis'; }
+    else if (s.valide) { etat.className = 'etat fait'; document.getElementById('etat-texte').textContent = 'Validé · part le 5 à 18 h'; }
+    else { etat.className = 'etat'; document.getElementById('etat-texte').textContent = reste ? `À valider · ${reste} point${reste > 1 ? 's' : ''}` : 'Prêt à valider'; }
+    document.getElementById('points-reste').textContent = reste ? `${reste} point${reste > 1 ? 's' : ''} · rien ne bloque l'envoi` : 'Tout est vu';
+  }
+
+  document.getElementById('tbody').addEventListener('change', (e) => {
+    const sel = e.target.closest('select[data-jour]'); if (!sel) return;
+    const p = [...entreprises, ...presta].find((x) => x.id === sel.dataset.jour); if (!p) return;
+    p.jour = sel.value === 'dernier' ? 'dernier' : parseInt(sel.value, 10);
+    if (s.valide) p.change = true;
+    rendre();
+  });
+  document.getElementById('tbody').addEventListener('click', (e) => {
+    const r = e.target.closest('[data-remis]');
+    if (r) { const id = r.dataset.remis; remis.has(id) ? remis.delete(id) : remis.add(id); rendre(); return; }
+    const tr = e.target.closest('tr.ligne'); if (!tr) return;
+    s.ouvert = s.ouvert === tr.dataset.id ? null : tr.dataset.id; rendre();
+  });
+
+  const regler = (nom, note) => {
+    const el = document.querySelector(`[data-point="${nom}"]`); if (!el) return;
+    el.classList.add('regle'); s.faits.add(nom);
+    el.querySelector('.gestes').innerHTML = `<span class="doux petit">${note}</span>`;
+    rendre();
+  };
+  document.getElementById('points').addEventListener('click', (e) => {
+    const o = e.target.closest('[data-ouvrir]');
+    if (o) { s.ouvert = o.dataset.ouvrir; rendre(); document.querySelector(`tr[data-id="${o.dataset.ouvrir}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    const b = e.target.closest('[data-faire]'); if (!b) return;
+    const f = b.dataset.faire;
+    if (f === 'numeros') { equipe.forEach((p) => { p.numOk = true; }); regler('numeros', 'Pris · noms conformes'); }
+    if (f === 'ecart') regler('ecart', 'Accepté par vous');
+    if (f === 'solde') regler('solde', 'Rappel le 5 à 9 h');
+    if (f === 'prix') {
+      document.getElementById('g-prix').innerHTML = '<input id="prix-plombier" inputmode="numeric" value="15 000" aria-label="Prix de la mission"><button class="btn plein" data-faire="prix-ok">Poser</button>';
+      document.getElementById('prix-plombier').focus();
+    }
+    if (f === 'prix-ok') {
+      const v = parseInt(document.getElementById('prix-plombier').value.replace(/\D/g, ''), 10) || 0;
+      if (v > 0) { presta[2].montant = v; presta[2].mission = 'Fuite · 28 oct. · prix posé'; regler('prix', `${F(v)} F posés · tracé`); }
+    }
+  });
+
+  // Le téléphone de Nassim
+  const confirmer = () => {
+    equipe[1].etat = 'ok';
+    document.getElementById('tel-gestes').innerHTML = '<span class="pastille ok" style="grid-column:1/-1;justify-content:center">Confirmé · merci</span>';
+    rendre();
+    if (s.envoye && !equipe[1].paye) envoyer([equipe[1]]);
+  };
+  document.getElementById('tel-confirme').addEventListener('click', confirmer);
+  document.getElementById('tel-signale').addEventListener('click', () => {
+    document.getElementById('tel-gestes').innerHTML = '<span class="pastille attend" style="grid-column:1/-1;justify-content:center">Signalé · la direction est prévenue</span>';
+  });
+
+  // La validation, puis le 5 à 18 h
+  const valider = document.getElementById('valider');
+  valider.addEventListener('click', () => {
+    if (s.valide) return;
+    s.valide = true;
+    valider.innerHTML = '<span>Validé par Yéman · 5 déc. 14 h 12</span>'; valider.disabled = true;
+    document.getElementById('pied-sous').innerHTML = 'Part le 5 à 18 h · <button class="lien" style="color:inherit" id="annuler" type="button">Annuler jusqu\'à 17 h 59</button>';
+    document.getElementById('rejouer').hidden = false;
+    document.getElementById('f-toucher').className = 'pas passe';
+    document.getElementById('f-envoi').className = 'pas ici';
+    rendre();
+  });
+  document.querySelector('.pied').addEventListener('click', (e) => {
+    if (e.target.id !== 'annuler' || s.envoye) return;
+    s.valide = false;
+    valider.disabled = false;
+    valider.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M12 11v3M8.5 9.5a4 4 0 0 1 7 2.5v2.5M7.5 14v-2a4.5 4.5 0 0 1 1-2.8M12 7.5a4.5 4.5 0 0 1 4.5 4.5v4M9.5 17.5c.6-1 .9-2.2.9-3.5v-2a1.6 1.6 0 0 1 3.2 0v3M6 8a7 7 0 0 1 12.5 3.5M5 12v1.5"/></svg><span>Valider le mois</span>';
+    document.getElementById('pied-sous').textContent = 'Votre empreinte ou celle de Brice · annulable jusqu\'au 5 à 17 h 59';
+    document.getElementById('rejouer').hidden = true;
+    document.getElementById('f-toucher').className = 'pas ici';
+    document.getElementById('f-envoi').className = 'pas';
+    rendre();
+  });
+
+  let minute = 1;
+  function envoyer(liste) {
+    let i = 0;
+    const pas = () => {
+      const p = liste[i]; if (!p) { rendre(); return; }
+      p.envoi = true; rendre();
+      setTimeout(() => {
+        p.envoi = false; p.paye = Math.min(minute++, 9); rendre();
+        if (p.id === 'nm') {
+          const n = document.getElementById('notif'); n.hidden = false;
+          document.getElementById('tel-sous').textContent = `Reçu sur 01 •• •• •• 08 · 5 déc. 18 h 0${p.paye}`;
+        }
+        i++; setTimeout(pas, 220);
+      }, 420);
+    };
+    pas();
+  }
+  document.getElementById('rejouer').addEventListener('click', (e) => {
+    if (s.envoye) return;
+    s.envoye = true; e.target.hidden = true;
+    document.getElementById('f-envoi').className = 'pas passe';
+    document.getElementById('f-presta').className = 'pas ici';
+    document.getElementById('pied-sous').textContent = 'Le 5 à 18 h · MTN relit chaque virement par sa référence';
+    envoyer(equipe.filter((p) => p.etat === 'ok'));
+  });
+
+  // Le test MTN : 500 F à Yéman, 500 F à Brice, 100 F à Gérard
+  const testIds = ['yb', 'ba', 'gt'];
+  const montantTest = (id) => parseInt(document.getElementById('t-' + id).value.replace(/\D/g, ''), 10) || 0;
+  const totalTest = () => {
+    const t = testIds.reduce((a, id) => a + montantTest(id), 0);
+    document.getElementById('test-total').textContent = F(t) + ' F';
+    return t;
+  };
+  testIds.forEach((id) => document.getElementById('t-' + id).addEventListener('input', totalTest));
+  document.getElementById('test-envoyer').addEventListener('click', (e) => {
+    const b = e.currentTarget; if (b.disabled) return;
+    b.disabled = true; b.textContent = 'Envoi…';
+    testIds.forEach((id) => { document.getElementById('t-' + id).disabled = true; });
+    document.getElementById('test-etat').textContent = 'Envoyé par Yéman · 28 nov. 10 h 14';
+    let i = 0;
+    const pas = () => {
+      const id = testIds[i];
+      if (!id) {
+        const t = totalTest();
+        document.getElementById('test').classList.add('reussi');
+        b.textContent = 'Réussi · 3 / 3';
+        document.getElementById('test-sous').textContent = `${F(t)} F en dépense « Essai de paie MTN » · le 5, tout part par l'API`;
+        document.getElementById('test-etat').textContent = 'Réussi le 28 nov. · le bloc s\'efface au 1er déc.';
+        return;
+      }
+      const cel = document.querySelector(`[data-t="${id}"] .tl-etat`);
+      cel.innerHTML = '<span class="pastille envoi">Envoi…</span>';
+      setTimeout(() => {
+        cel.innerHTML = `<span class="pastille paye">Reçu · 10 h ${15 + i} · ESSAI-${id.toUpperCase()}</span>`;
+        i++; setTimeout(pas, 200);
+      }, 450);
+    };
+    pas();
+  });
+
+  rendre();
+})();
+</script>

@@ -2,6 +2,7 @@ import { createStore, useStore } from './store';
 import { bindDocument } from './sync';
 import type { SignatureTracee } from './contrats';
 import type { ReglementDuPrestataire } from './missions-prestataires-pur';
+import type { MobileMoney } from './paie-du-5-pur';
 
 /* ══ LE RÉPERTOIRE DES PRESTATAIRES EXTÉRIEURS ═══════════════════════
    Il vivait dans l'écran `equipe/Prestataires.tsx`. Il en sort le
@@ -41,6 +42,11 @@ export type Provider = {
       choisie ce jour-là) ou « payée le jour même » (la mission naît payée, la
       charge sort de la caisse de l'encaissement). Absent = à payer. */
   reglement?: ReglementDuPrestataire;
+  /** SON NUMÉRO MTN, PRIS DE SON TÉLÉPHONE — 5 novembre 2026 (Les paiements).
+      Proposé depuis `phone`, le nom du titulaire lu chez MTN, puis pris d'un
+      toucher par la direction ; la garde des sept jours de la paie du 5
+      s'applique (`gardeDuNumero`). Absent = pas encore pris. */
+  mobileMoney?: MobileMoney;
 };
 
 /* EXPORTÉ POUR LES TEXTES DE LA MAISON : l'écran des contrats compte combien
