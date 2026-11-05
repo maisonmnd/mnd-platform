@@ -66,7 +66,8 @@ const PANNES = [
   ['la validation ne programme plus', P5, '    const res = await programmeLeRun({', '    const res = await Promise.resolve({ tri: { attendent: [] }, inscrits: [], refuses: [], erreur: undefined }) ?? programmeLeRun({'],
   ['le portail disparait', P5, "        ) : portailMtn}\n", '        ) : null}\n'],
   ['un refus se renvoie sans toucher', BLOC, '              {e.etat === \'refuse\' && !fige && <span><Button size="sm" variant="ghost" onClick={() => void renvoyer(e)}>', '              {e.etat === \'refuse\' && !fige && <span><Button size="sm" variant="ghost" onClick={() => void renvoie(e.reference)}>'],
-  ['l equipe ecrit au registre', SQL, 'revoke insert, update, delete, truncate on public.paie_envois_mtn from anon, authenticated;', '-- (revoke retire)'],
+  ['l equipe ecrit au registre', SQL, 'revoke all on public.paie_envois_mtn from anon, authenticated;', '-- (revoke retire)'],
+  ['l equipe recoit tous les droits', SQL, 'grant select on public.paie_envois_mtn to authenticated;', 'grant all on public.paie_envois_mtn to authenticated;'],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

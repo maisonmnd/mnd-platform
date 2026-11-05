@@ -67,7 +67,10 @@ alter table public.paie_envois_mtn enable row level security;
 drop policy if exists direction_lit on public.paie_envois_mtn;
 create policy direction_lit on public.paie_envois_mtn for select to authenticated
   using (public.est_direction());
-revoke insert, update, delete, truncate on public.paie_envois_mtn from anon, authenticated;
+-- Aucun droit pour l'équipe ni le public, sinon lire (sous la politique) :
+-- tout est retiré, puis la lecture seule est rendue à `authenticated`.
+revoke all on public.paie_envois_mtn from anon, authenticated;
+grant select on public.paie_envois_mtn to authenticated;
 
 -- ── ② LE PASSAGE, TOUTES LES 10 MINUTES ──────────────────────────────────
 create or replace function public.passe_la_paie_mtn_sql()

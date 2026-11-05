@@ -139,7 +139,7 @@ dit('La paie montre le test ; Mon espace dit la transaction', [true, true], [/<E
 dit('la base : RLS, lecture par la direction seule, aucune ecriture de l equipe, un envoi vivant par bulletin', [true, true, true, true],
   [/alter table public\.paie_envois_mtn enable row level security;/.test(sql),
     /for select to authenticated\s*\n\s*using \(public\.est_direction\(\)\);/.test(sql),
-    /revoke insert, update, delete, truncate on public\.paie_envois_mtn from anon, authenticated;/.test(sql),
+    /revoke all on public\.paie_envois_mtn from anon, authenticated;\s*\n\s*grant select on public\.paie_envois_mtn to authenticated;/.test(sql),
     /on public\.paie_envois_mtn \(run_id, employee_id\)\s*\n\s*where genre = 'paie' and etat not in \('refuse', 'annule'\);/.test(sql)]);
 dit('le test ne depasse pas 500 F dans la base non plus', true, /genre = 'essai' and essai_id is not null and montant_xof <= 500/.test(sql));
 
