@@ -7,9 +7,10 @@
 
      - la barre du jour ouvre le revenu pointé : 120 000 F reçus, les espèces
        « au comptage », le MoMo « à pointer » ; « Pointer » fait monter le pointé ;
-     - « Clôturer la caisse » ouvre le comptage ; le tiroir attend fond +
-       espèces − dépense ; un écart sans mot ne se clôture pas ;
-     - « C'était une dépense » refait l'attendu et l'écart tombe ;
+     - la caisse du jour (La journée, depuis le 5 novembre 2026 caisse par
+       caisse) : le tiroir attend fond + espèces − dépense ; un écart sans
+       mot ne se clôture pas ; la clôture se garde ;
+     - l'écart se dit dans les dépenses du jour, avec « C'était une dépense » ;
      - après la clôture, les espèces du jour sont « pointé · comptage ».
 
    Il attend le Trône construit sans serveur :
@@ -135,58 +136,52 @@ await evalue(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape
 await attend(600);
 
 /* 2. La caisse du soir. LE JOURNAL A QUITTÉ LA CAISSE (4 novembre 2026,
-   la clôture de Grenat) : il vit en bas de Finances › La journée, et
-   « Clôturer la caisse » s'y allume sur une journée close (ici, trois
-   ventes de passage, sans rendez-vous : rien à clore). */
+   la clôture de Grenat) : il vit en bas de Finances › La journée (ici, trois
+   ventes de passage, sans rendez-vous : rien à clore). DEPUIS LE 5 NOVEMBRE
+   2026, la caisse du jour s'y coche et s'y compte caisse par caisse, en un
+   montant (« Clôturer les caisses cochées » ; son banc est
+   `banc-la-caisse-du-jour`). Le comptage tiroir par tiroir, avec son fond et
+   son coffre (`ClotureDuTiroir`), reste aux Caisses, porte de secours de la
+   direction. Ce banc y tient les promesses du soir : l'attendu du tiroir, un
+   écart sans mot qui ne se clôture pas, la clôture gardée, et l'écart qui se
+   dit dans les dépenses du jour avec « C'était une dépense ». */
 await evalue(`location.hash = '#/la-journee'`);
 await attend(3000);
 /* LE JOURNAL A SON JOUR (4 octobre) : « Aujourd'hui » montre les trois tickets. */
-await evalue(`[...document.querySelectorAll('.cds-jour button')].find((b) => b.textContent.trim() === 'Aujourd’hui')?.click()`);
-await attend(600);
-const journal = await evalue(`document.body.innerText`);
-dit('le journal choisit son jour et montre ceux d aujourd hui', /Journal ·/i.test(journal ?? '') && /F-2026-0901|0901/.test(journal ?? ''));
+const leJour = async (mot) => { await evalue(`[...document.querySelectorAll('.cds-jour button')].find((b) => b.textContent.trim() === ${JSON.stringify(mot)})?.click()`); await attend(700); };
+await leJour('Aujourd’hui');
+const journal = await evalue(`document.querySelector('[data-journal="caisse-du-jour"]')?.innerText ?? ''`);
+dit('la caisse du jour choisit son jour et montre ceux d aujourd hui', /La caisse du jour/i.test(journal ?? '') && /F-2026-0901/.test(journal ?? ''));
 await photo('2a-journal');
-const cloture = await clique('Clôturer la caisse');
-await attend(1000);
-t = await texteModale();
-dit('« Cloturer la caisse » ouvre le comptage des tiroirs', cloture && /La caisse du soir/.test(t ?? ''), cloture ? '' : 'bouton introuvable');
+const TIROIR = 'Accueil espèces';
+const cel = (col) => evalue(`(document.querySelector('[data-journal="caisse-du-jour"] tr[data-caisse="${TIROIR}"] td[data-col="${col}"]')?.textContent ?? '').trim()`);
+const chiffres = async (col) => ((await cel(col)) ?? '').replace(/\D/g, '');
+const pourquoi = () => evalue(`document.querySelector('[data-journal="caisse-du-jour"] .cdj-pourquoi')?.textContent ?? ''`);
+const eteint = () => evalue(`document.querySelector('[data-cdj="cloturer"]')?.disabled ?? null`);
 /* LE JOUR SE CHOISIT (4 octobre) : la veille n'a rien vu bouger, le jour même si. */
-await clique('Hier');
-await attend(500);
-t = await texteModale();
-dit('« Hier » : le tiroir n a rien vu bouger', /Accueil espèces[\s\S]*?Rien n’a bougé hier/.test(t ?? ''));
-await clique('Aujourd’hui');
-await attend(500);
-t = await texteModale();
-dit('le tiroir des especes est a cloturer', /Accueil espèces[\s\S]*?À clôturer : il a bougé aujourd’hui/.test(t ?? ''));
+await leJour('Hier');
+dit('« Hier » : le tiroir n a rien vu bouger', (await chiffres('versements')) === '0' && (await chiffres('sorties')) === '0', `${await cel('versements')} / ${await cel('sorties')}`);
+await leJour('Aujourd’hui');
+const coche = await evalue(`document.querySelector('[data-journal="caisse-du-jour"] input[data-coche="${TIROIR}"]')?.checked ?? null`);
+dit('le tiroir des especes est coche, a compter', coche === true && !!(await evalue(`!!document.querySelector('[data-journal="caisse-du-jour"] input[data-compte="${TIROIR}"]')`)), String(coche));
 await photo('2-tiroirs');
-await evalue(`(() => { const l = [...document.querySelectorAll('[role=dialog] .cds-tiroir')].find((x) => x.textContent.includes('Accueil espèces')); l?.querySelector('button')?.click(); return !!l; })()`);
-await attend(900);
-t = await texteModale();
-dit('l attendu : fond 20 000 + 65 000 − 3 500 = 81 500 F', /Attendu dans le tiroir\s*81[\s\u202f\u00a0]500/.test(t ?? ''), (t ?? '').match(/Attendu dans le tiroir\s*[^\n]*/)?.[0]);
-await tape('input[inputmode=numeric]', '79500');
+dit('l attendu : fond 20 000 + 65 000 − 3 500 = 81 500 F', (await chiffres('disponible')) === '81500', await cel('disponible'));
+await tape(`input[data-compte="${TIROIR}"]`, '79500');
 await attend(500);
-t = await texteModale();
-dit('compte 79 500 : ecart − 2 000 F', /écart\s*−\s*2[\s\u202f\u00a0]000/.test(t ?? ''), (t ?? '').match(/écart[^\n]*/)?.[0]);
-const bloque = await evalue(`[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === 'Clôturer le tiroir')?.disabled`);
-dit('un ecart sans mot ne se cloture pas', bloque === true, bloque);
+dit('compte 79 500 : ecart − 2 000 F', /−2[\s  ]000/.test((await cel('ecart')) ?? ''), await cel('ecart'));
+dit('un ecart sans mot ne se cloture pas', (await eteint()) === true && /Motif de l’écart : Accueil espèces\./.test((await pourquoi()) ?? ''), await pourquoi());
 await photo('3-ecart');
-await clique('C’était une dépense');
+await tape(`input[data-motif="${TIROIR}"]`, 'Eau pour l’atelier, pas encore écrite');
 await attend(400);
-await tape('.cds-depense input', 'Eau pour l’atelier', 0);
-await clique('Écrire la dépense');
-await attend(700);
-t = await texteModale();
-dit('« C etait une depense » refait l attendu : 79 500 F', /Attendu dans le tiroir\s*79[\s\u202f\u00a0]500/.test(t ?? ''), (t ?? '').match(/Attendu dans le tiroir\s*[^\n]*/)?.[0]);
-dit('... et le compte est juste', /le compte est juste/.test(t ?? ''));
-dit('... le surplus est propose au coffre (59 500 F)', /surplus au coffre\s*:\s*59[\s\u202f\u00a0]500/.test(t ?? ''), (t ?? '').match(/surplus au coffre[^\n]*/)?.[0]);
-await photo('4-juste');
-await clique('Clôturer le tiroir');
-await attend(800);
-t = await texteModale();
-dit('la cloture est faite, juste', /Clôturé à[\s\S]*juste/.test(t ?? ''), (t ?? '').split('\n')[1]);
-const garde = await evalue(`JSON.parse(localStorage.getItem('trone::mnd_clotures_caisse') || '[]').map((c) => ({ a: c.attenduXof, c: c.compteXof, e: c.ecartXof, v: c.verseAuCoffreXof, l: c.laisseXof }))`);
-dit('la cloture est gardee : attendu, compte, ecart, coffre, laisse', JSON.stringify(garde) === JSON.stringify([{ a: 79500, c: 79500, e: 0, v: 59500, l: 20000 }]), JSON.stringify(garde));
+dit('le motif dit : la cloture s ouvre', (await eteint()) === false, await pourquoi());
+await evalue(`document.querySelector('[data-cdj="cloturer"]')?.click()`);
+await attend(900);
+const garde = await evalue(`JSON.parse(localStorage.getItem('trone::mnd_clotures_caisse') || '[]').map((c) => ({ a: c.attenduXof, c: c.compteXof, e: c.ecartXof, n: c.note, v: c.verseAuCoffreXof, l: c.laisseXof }))`);
+dit('la cloture est gardee : attendu, compte, ecart, motif, rien au coffre, laisse', JSON.stringify(garde) === JSON.stringify([{ a: 81500, c: 79500, e: -2000, n: 'Eau pour l’atelier, pas encore écrite', v: 0, l: 79500 }]), JSON.stringify(garde));
+dit('la cloture est faite : le tiroir se montre clos', /Close à/.test(await evalue(`document.querySelector('[data-journal="caisse-du-jour"] tr[data-caisse="${TIROIR}"]')?.innerText ?? ''`) ?? ''));
+await attend(600);
+const ecartDit = await evalue(`(() => { const l = [...document.querySelectorAll('[data-lj-depense]')].find((x) => x.getAttribute('data-genre') === 'ecart-sans-depense'); return l ? { texte: l.innerText.replace(/\\s+/g, ' '), gestes: [...l.querySelectorAll('.lj-g')].map((b) => b.textContent.trim()) } : null; })()`);
+dit('l ecart se dit dans les depenses du jour, avec « C etait une depense »', !!ecartDit && /Accueil espèces · 2[\s  ]000[\s  ]F de moins/.test(ecartDit.texte) && ecartDit.gestes.includes('C’était une dépense'), JSON.stringify(ecartDit));
 await photo('5-cloture');
 
 /* 3. Le revenu, après la clôture. */

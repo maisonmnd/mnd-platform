@@ -1,218 +1,540 @@
-import { useState, type CSSProperties } from 'react';
+import { Fragment, useState, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '../../../../ds/components';
+import { toast } from '../../../../ds/components';
 import { ChampDeDate } from '../../../../ds/dates';
-import { useBranch } from '../../../../shared/branches';
-import { fmtMoney } from '../../../../shared/currency';
-import { useClients } from '../../../../shared/clients';
-import { useCashboxes, useInvoices, invoiceReglements, type Invoice, type InvoicePayment, type PaymentMethod } from '../../../../shared/finance';
+import { useStaff as useMaTete } from '../../../../shared/auth';
+import { fmtIn, fmtMoney } from '../../../../shared/currency';
+import { uid } from '../../../../shared/store';
+import {
+  aValider as aValiderDepenses, caisseDiscrete, cashboxCurrency, entreesHorsActiviteStore, expenseTotal, invoiceReglements,
+  useEntreesHorsActivite, useExpenses, useInvoices,
+  type Cashbox, type Invoice,
+} from '../../../../shared/finance';
+import { cloturesStore, useClotures } from '../../../../shared/caisse-du-soir';
+import { derniereCloture, fondPropose, livreDeLaCloture } from '../../../../shared/caisse-du-soir-pur';
+import { derniereRemiseDe } from '../../../../shared/remise-a-zero-pur';
+import {
+  caissesDuComptoir, cocheeAuDepart, compteEtEcart, etatDeLaCaisse, etatDit, laCaisseDuJour, laRemiseDesPourboires, lesCloturesDuSoir, lesTotaux,
+  montantSaisi, pourboiresDesPieces, pourquoiPasLaCloture, pourquoiPasLaRemiseDesPourboires, remisesDesPourboires,
+  type CaisseACloturer, type CaisseDuJour, type EtatDeLaCaisse, type LigneDuLivre,
+} from '../../../../shared/caisse-du-jour-pur';
 import { useEstDirection } from '../_vie';
 import { JournalMndPay } from '../vente/JournalMndPay';
-import { ClotureDuTiroir } from './ClotureDuTiroir';
+import { useCaisses } from './tiroirs';
+import { monthKey } from './_shared';
 import '../vente/vente.css';
 import './caisse-du-soir.css';
+import './caisse-du-jour.css';
 
-/* ══ LA CAISSE DU JOUR, EN FIN DE « LA JOURNÉE » — 4 novembre 2026 ══════
-   « La caisse du jour en fin de page… combiner le travail et supprimer la
-   barre de navigation de la caisse du jour » (Yéman, maquette 9KCMgAb1…,
-   « construis »). Ce journal vivait dans la Caisse, derrière l'onglet
-   « Journal de caisse » ; il est DÉPLACÉ ici, tel quel : le jour (Hier,
-   Aujourd'hui, une date), les caisses, les chiffres par moyen, les
-   versements un par un, les pourboires, et « Clôturer la caisse » qui ouvre
-   le comptage habituel du tiroir pour ce jour.
+/* ══ LA CAISSE DU JOUR, CAISSE PAR CAISSE — 5 novembre 2026 ═══════════════
+   « Dans la caisse du jour je veux pouvoir cocher les caisses pour voir quoi
+   est disponible dans la caisse et clôturer correctement la caisse. Je ne
+   veux pas juste un résumé » (Yéman). Maquette « La caisse du jour »
+   validée (« Validé, construis »). Elle remplace, en bas de Finances › La
+   journée, les pilules à choix unique et les chiffres par moyen :
 
-   CE QUI CHANGE : « Clôturer la caisse » ne s'allume que quand la journée
-   est close (la clôture de Grenat, en haut de la page). Sinon le bouton
-   reste éteint et la carte dit ce qui reste : un tiroir compté trop tôt
-   mentirait. Le comptage lui-même (`ClotureDuTiroir`) n'a pas bougé. */
+     · l'en-tête : le jour (Hier, Aujourd'hui, une date) et l'état ;
+     · le bandeau : six chiffres sur les SEULES caisses cochées ;
+     · « Les caisses » : une ligne par caisse, sa case, Matin, + Versements,
+       + Pourboires, − Sorties, = Disponible, Compté, Écart ; le total ne
+       somme que les cochées. Le comptoir est coché au départ s'il a un
+       solde ou un mouvement ; les banques et les autres, repliées ;
+     · le détail de la caisse choisie : ses entrées (une ligne ouvre la
+       facture) et ses sorties, chacune nommée ;
+     · « Clôturer les caisses cochées » : une clôture par caisse cochée et
+       comptée, celle qu'écrit la clôture du soir.
 
-const fmtDateFr = (iso: string) => {
-  const d = new Date(iso + 'T00:00:00');
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+   LES ESPÈCES SE COMPTENT EN UN MONTANT (sa décision) : pas de billetage.
+   LES POURBOIRES restent dans le tiroir jusqu'aux salaires du 5 : ils
+   comptent dans le disponible, de jour en jour, jusqu'à leur remise. La paie
+   ne fait sortir aucune espèce (les salaires partent par MTN) : la direction
+   les remet d'un geste, « Remettre les pourboires », une sortie hors
+   activité du tiroir (« Pourboires remis à l’équipe »), jamais une dépense.
+
+   LES CHIFFRES VIENNENT DU LIVRE DES CAISSES (`boxMoves`, la source de
+   Finances › Les caisses et de son « Jour par jour ») et de la dernière
+   clôture (`attenduDuTiroir`) ; `caisse-du-jour-pur` les range, sans
+   formule nouvelle. LE BOUTON garde la condition d'avant : il ne s'allume
+   que sur une journée close (la clôture de Grenat), et dit pourquoi. */
+
+const veilleIso = (iso: string): string => {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() - 1);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
-/** La veille d'un jour ISO, en heure locale. */
-const veilleIso = (iso: string): string => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); };
+const heureDe = (iso: string) => new Date(iso).toTimeString().slice(0, 5).replace(':', ' h ');
+const VIDE = '–';
+
+/** Une caisse vue ce jour-là : ses chiffres, son état, ce qu'on peut en montrer. */
+type CaisseVue = {
+  box: Cashbox;
+  caisse: CaisseDuJour;
+  etat: EtatDeLaCaisse;
+  duComptoir: boolean;
+  devise: string;
+  enDevise: boolean;
+  /** Une caisse à code ne dit jamais son solde hors de l'écran des Caisses. */
+  verrouillee: boolean;
+  fondXof: number;
+  /** Sa dernière clôture, tous jours (AAAA-MM-JJ) : la remise des pourboires ne se date pas avant. */
+  derniereClotureLe?: string;
+};
 
 export function JournalDeCaisse({ jour, onJour, aujourdhui, clotureOuverteAuxGestes, pourquoiPasEncore }: {
   /** Le jour du journal (et de la clôture), choisi par la page. */
   jour: string;
   onJour: (iso: string) => void;
   aujourdhui: string;
-  /** La journée est close : « Clôturer la caisse » s'allume. */
+  /** La journée est close : « Clôturer les caisses cochées » peut s'allumer. */
   clotureOuverteAuxGestes: boolean;
   /** Ce qui reste, dit, quand elle ne l'est pas. */
   pourquoiPasEncore: string;
 }) {
-  const navigate = useNavigate();
-  const { branch, currency } = useBranch();
+  const { branch, currency, branchBoxes, boxMoves, horsActiviteJusquAu } = useCaisses(monthKey(jour));
   const [invoices] = useInvoices();
-  const [clients] = useClients();
-  const [cashboxes] = useCashboxes();
-  const estDirection = useEstDirection();
-  const branchCashboxes = cashboxes.filter((c) => c.branchId === branch.id);
-  const [journalCaisse, setJournalCaisse] = useState<string>('Toutes');
-  const [clotureOuverte, setClotureOuverte] = useState(false);
+  const [depenses] = useExpenses();
+  const [clotures] = useClotures();
+  const [horsActivite] = useEntreesHorsActivite();
 
-  /* — journal du jour — CE QUI EST ENTRÉ EN CAISSE CE JOUR-LÀ, versement par
-     versement, comme le relevé du tiroir (tiroirs.tsx) — jamais « la pièce en
-     bloc à sa date ». Corrigé le 24 août : le total sommait `invoiceTotal` de
-     chaque pièce datée du jour, donc (1) il comptait la part réglée par AVOIR
-     (un crédit, pas des billets) et l'ACOMPTE déjà entré un autre jour ; (2) un
-     versement reçu aujourd'hui sur une pièce d'hier n'apparaissait pas, et une
-     pièce du jour à moitié réglée comptait en entier ; (3) la ventilation
-     MoMo/Espèces/Carte imputait tout le total au PREMIER moyen d'une pièce
-     multi-moyens. On lit désormais les versements, chacun à son jour, sa caisse
-     et son moyen — l'avoir et l'acompte écartés (même règle qu'`invoiceCaisseAu`). */
-  const caisseDuVersement = (i: Invoice, p: InvoicePayment) => p.cashbox ?? i.cashbox ?? 'Caisse principale';
-  const versementsDuJour = invoices
-    .filter((i) => i.branchId === branch.id && i.kind === 'facture')
-    .flatMap((i) =>
-      invoiceReglements(i)
-        .filter((p) => (p.date ?? i.date) === jour && p.method !== 'Avoir' && p.method !== 'Acompte')
-        .map((p) => ({ inv: i, p })),
-    )
-    .filter((e) => journalCaisse === 'Toutes' || caisseDuVersement(e.inv, e.p) === journalCaisse);
-  const journalTotal = versementsDuJour.reduce((s, e) => s + e.p.amountXof, 0);
-  /* Le pourboire est un fait de la PIÈCE, pas d'un versement : on le lit sur les
-     pièces DISTINCTES qui ont reçu un versement ce jour, sans le compter deux
-     fois quand une pièce a été réglée en plusieurs fois. Hors chiffre d'affaires,
-     à reverser aux maîtres. */
-  const piecesDuJour = [...new Map(versementsDuJour.map((e) => [e.inv.id, e.inv])).values()];
-  const tipsTotal = piecesDuJour.reduce((s, i) => s + (i.tipXof ?? 0), 0);
-  const sumBy = (fn: (p?: PaymentMethod) => boolean) =>
-    versementsDuJour.filter((e) => fn(e.p.method)).reduce((s, e) => s + e.p.amountXof, 0);
-  const clientName = (i: Invoice) => clients.find((c) => c.id === i.clientId)?.name ?? i.clientName ?? '—';
-  const journalDateLabel = (() => {
-    /* L'année sur la date (règle de la Maison). */
+  /* Le comptoir d'abord, dans son ordre ; puis toutes les autres de la branche. */
+  const comptoir = caissesDuComptoir(branchBoxes, branch.id);
+  const duComptoir = new Set(comptoir.map((b) => b.id));
+  const ordre = [...comptoir, ...branchBoxes.filter((b) => !duComptoir.has(b.id))];
+  /* Les pourboires, chacun à son jour et dans sa caisse : ceux du jour, ceux
+     que la caisse garde des jours d'avant, ceux qui restent à remettre. */
+  const pourboires = pourboiresDesPieces(invoices, branch.id);
+  /* Les dépenses sorties d'un tiroir sans être encore validées : la clôture
+     du soir les retire de l'attendu, on les retire aussi (`ClotureDuTiroir`). */
+  const enAttente = aValiderDepenses(depenses, branch.id).filter((e) => !e.avancee && e.date <= jour);
+  const veille = veilleIso(jour);
+
+  const caisses: CaisseVue[] = ordre.map((box) => {
+    const vu = boxMoves(box.name, { de: jour, a: jour });
+    const brute = derniereCloture(clotures, branch.id, box.name, veille);
+    const caisse = laCaisseDuJour({
+      nom: box.name, jour,
+      livreMatinXof: vu.startBalance,
+      moves: vu.moves.map((m): LigneDuLivre => ({
+        date: m.date, delta: m.delta, label: m.label, sub: m.sub,
+        ...(m.invoiceId ? { invoiceId: m.invoiceId } : {}),
+        ...(m.expense ? { expenseId: m.expense.id } : {}),
+        ...(m.transfertId ? { transfertId: m.transfertId } : {}),
+      })),
+      enAttente: enAttente.filter((e) => e.cashbox === box.name).map((e) => ({ id: e.id, label: e.label, date: e.date, xof: expenseTotal(e) })),
+      /* Une clôture d'avant le 10 octobre 2026 se remet à la mesure du livre
+         de ce soir, comme dans la clôture du soir. */
+      derniere: brute ? { laisseXof: brute.laisseXof, livreXof: livreDeLaCloture(brute, horsActiviteJusquAu(box.name, brute.date)), date: brute.date } : undefined,
+      pourboires,
+      remises: remisesDesPourboires(horsActivite, branch.id, box.name),
+      /* Une remise à 0 F du tiroir emporte ce qu'il gardait, pourboires compris. */
+      suiviDepuis: derniereRemiseDe(horsActivite, branch.id, box.name),
+    });
+    const devise = cashboxCurrency(box);
+    return {
+      box, caisse, devise, enDevise: devise !== currency, verrouillee: caisseDiscrete(box), duComptoir: duComptoir.has(box.id),
+      etat: etatDeLaCaisse({ clotures, branchId: branch.id, cashbox: box.name, jour, aujourdhui }),
+      fondXof: fondPropose(derniereCloture(clotures, branch.id, box.name, jour)),
+      derniereClotureLe: derniereCloture(clotures, branch.id, box.name)?.date,
+    };
+  });
+
+  const jourDit = (() => {
     const s = new Date(`${jour}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     return s.charAt(0).toUpperCase() + s.slice(1);
   })();
 
   return (
-    <div data-journal="caisse-du-jour">
+    <div data-journal="caisse-du-jour" className="cdj">
       <JournalMndPay branchId={branch.id} jour={jour} currency={currency} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22, gap: 16, flexWrap: 'wrap' }}>
+      {/* L'état du tableau se remet à neuf quand le jour change. */}
+      <LesCaisses
+        key={`${branch.id}|${jour}`}
+        jour={jour} jourDit={jourDit} onJour={onJour} aujourdhui={aujourdhui}
+        caisses={caisses} invoices={invoices} currency={currency} branchId={branch.id}
+        journeeClose={clotureOuverteAuxGestes} pourquoiJournee={pourquoiPasEncore}
+      />
+    </div>
+  );
+}
+
+function LesCaisses({ jour, jourDit, onJour, aujourdhui, caisses, invoices, currency, branchId, journeeClose, pourquoiJournee }: {
+  jour: string; jourDit: string; onJour: (iso: string) => void; aujourdhui: string;
+  caisses: CaisseVue[]; invoices: Invoice[]; currency: string; branchId: string;
+  journeeClose: boolean; pourquoiJournee: string;
+}) {
+  const navigate = useNavigate();
+  const estDirection = useEstDirection();
+  const me = useMaTete();
+  const moi = me?.name?.trim() || 'Sans nom';
+
+  /* Ce que la main a décidé ; le reste suit la règle du départ. */
+  const [cocheVoulue, setCocheVoulue] = useState<Record<string, boolean>>({});
+  const [saisies, setSaisies] = useState<Record<string, string>>({});
+  const [motifs, setMotifs] = useState<Record<string, string>>({});
+  const [choisie, setChoisie] = useState<string | null>(null);
+  const [autresOuvertes, setAutresOuvertes] = useState(false);
+  /* « Remettre les pourboires » : la caisse ouverte, le montant saisi, ce qui l'empêche. */
+  const [remise, setRemise] = useState<{ nom: string; saisie: string; souci: string } | null>(null);
+
+  const f = (n: number, c: CaisseVue | null = null) => (c && c.enDevise ? fmtIn(n, c.devise) : fmtMoney(n, currency));
+  const signe = (n: number, c: CaisseVue | null = null) => (n === 0 ? f(0, c) : `${n > 0 ? '+' : '−'}${f(Math.abs(n), c)}`);
+  const estCochee = (c: CaisseVue) => !c.verrouillee && (cocheVoulue[c.box.name] ?? cocheeAuDepart(c.caisse, c.duComptoir));
+
+  const lignes = caisses.map((c) => {
+    const { compteXof, ecartXof } = compteEtEcart(c.etat, montantSaisi(saisies[c.box.name] ?? ''), c.caisse.disponibleXof);
+    return { vue: c, caisse: c.caisse, compteXof, ecartXof, cochee: estCochee(c) };
+  });
+  const cochees = lignes.filter((l) => l.cochee);
+  /* Les totaux en francs : une caisse en devise se lit sur sa ligne, hors total. */
+  const enFrancs = lignes.filter((l) => !l.vue.enDevise);
+  const t = lesTotaux(enFrancs, new Set(cochees.map((l) => l.caisse.nom)));
+  const nomsCoches = cochees.filter((l) => !l.vue.enDevise).map((l) => l.caisse.nom);
+  const enDeviseCochees = cochees.filter((l) => l.vue.enDevise).length;
+  const aCloturer: CaisseACloturer[] = cochees.map((l) => ({
+    nom: l.caisse.nom, etat: l.vue.etat, caisse: l.caisse, compteXof: l.compteXof, ecartXof: l.ecartXof,
+    motif: motifs[l.caisse.nom] ?? '', fondXof: l.vue.fondXof,
+  }));
+  const pourquoi = pourquoiPasLaCloture({ journeeClose, pourquoiJournee, cochees: aCloturer });
+  const etat = etatDit(aCloturer);
+  const avecAutres = lignes.some((l) => l.caisse.autresEntreesXof !== 0);
+  const nbColonnes = avecAutres ? 9 : 8;
+
+  const duComptoir = lignes.filter((l) => l.vue.duComptoir);
+  const lesAutres = lignes.filter((l) => !l.vue.duComptoir);
+  const autresVues = lesAutres.filter((l) => autresOuvertes || l.cochee);
+
+  /* La caisse du détail : celle qu'on a choisie, sinon la première cochée qui a bougé. */
+  const detail = lignes.find((l) => l.caisse.nom === choisie && !l.vue.verrouillee)
+    ?? cochees.find((l) => l.caisse.bouge) ?? cochees[0] ?? duComptoir[0];
+
+  const coche = (nom: string, oui: boolean) => setCocheVoulue((p) => ({ ...p, [nom]: oui }));
+  const fermer = () => {
+    if (pourquoi) return;
+    const nouvelles = lesCloturesDuSoir({ branchId, jour, par: moi, le: new Date().toISOString(), id: () => `clo-${uid()}`, cochees: aCloturer });
+    if (nouvelles.length === 0) return;
+    cloturesStore.set((prev) => [...prev, ...nouvelles]);
+    const faites = new Set(nouvelles.map((c) => c.cashbox));
+    setSaisies((p) => Object.fromEntries(Object.entries(p).filter(([k]) => !faites.has(k))));
+    setMotifs((p) => Object.fromEntries(Object.entries(p).filter(([k]) => !faites.has(k))));
+    const ecart = nouvelles.reduce((s, c) => s + c.ecartXof, 0);
+    toast(`${nouvelles.length} caisse${nouvelles.length > 1 ? 's' : ''} clôturée${nouvelles.length > 1 ? 's' : ''} · écart ${signe(ecart)}`);
+  };
+
+  /* REMETTRE LES POURBOIRES — la direction seule : une sortie hors activité
+     du tiroir, au jour affiché (`laRemiseDesPourboires`), jamais une dépense. */
+  const peutRemettre = (l: (typeof lignes)[number]) => estDirection && !l.vue.verrouillee && !l.vue.enDevise && l.caisse.aRemettreXof > 0;
+  const remettre = (l: (typeof lignes)[number]) => {
+    const saisie = remise?.nom === l.caisse.nom ? remise.saisie : String(l.caisse.aRemettreXof);
+    const xof = montantSaisi(saisie);
+    const souci = pourquoiPasLaRemiseDesPourboires({ xof, aRemettreXof: l.caisse.aRemettreXof, jour, aujourdhui, derniereClotureLe: l.vue.derniereClotureLe });
+    if (souci || xof === null) { setRemise({ nom: l.caisse.nom, saisie, souci: souci ?? 'Le montant manque.' }); return; }
+    entreesHorsActiviteStore.set((prev) => [...prev, laRemiseDesPourboires({ id: `hav-${uid()}`, branchId, cashbox: l.caisse.nom, jour, xof, par: moi })]);
+    setRemise(null);
+    toast(`${f(xof, l.vue)} de pourboires remis à l’équipe · ${l.caisse.nom}`);
+  };
+
+  const sousTitre = (l: (typeof lignes)[number]): string => {
+    const { vue, caisse } = l;
+    if (vue.verrouillee) return 'Verrouillée';
+    if (vue.etat.etat === 'close') return `Close à ${heureDe(vue.etat.cloture.le)} · ${vue.etat.cloture.par}`;
+    if (vue.etat.etat === 'bloquee') return 'Close un jour d’après';
+    if (vue.enDevise) return `En ${vue.devise}, hors total`;
+    if (!caisse.bouge && caisse.matinXof === 0 && caisse.disponibleXof === 0) return 'Aucun mouvement';
+    if (caisse.matinSelon === 'comptage') return 'Matin compté';
+    return vue.box.sub || 'Selon le livre';
+  };
+
+  const ligneDeCaisse = (l: (typeof lignes)[number]) => {
+    const { vue, caisse } = l;
+    const nom = caisse.nom;
+    const m = (n: number) => (vue.verrouillee ? '•••' : f(n, vue));
+    const montrerMotif = l.cochee && vue.etat.etat === 'ouverte' && (l.ecartXof ?? 0) !== 0;
+    return (
+      <Fragment key={vue.box.id}>
+        <tr data-caisse={nom} className={`${l.cochee ? '' : 'est-off'}${detail?.caisse.nom === nom ? ' est-choisie' : ''}`}>
+          <td className="g">
+            <span className="cdj-case">
+              <input
+                type="checkbox" data-coche={nom} checked={l.cochee} disabled={vue.verrouillee}
+                aria-label={`Cocher ${nom}`} onChange={(e) => coche(nom, e.target.checked)}
+              />
+              <button type="button" className="cdj-nom" disabled={vue.verrouillee} onClick={() => setChoisie(nom)} title="Voir le détail du jour">
+                <b>{nom}</b><small>{sousTitre(l)}</small>
+              </button>
+            </span>
+          </td>
+          <td data-col="matin">{m(caisse.matinXof)}</td>
+          <td data-col="versements">{m(caisse.versementsXof)}</td>
+          <td data-col="pourboires">
+            {m(caisse.pourboiresXof)}
+            {!vue.verrouillee && caisse.aRemettreXof > 0 && <small className="cdj-sous" data-a-remettre={nom}>à remettre {f(caisse.aRemettreXof, vue)}</small>}
+            {peutRemettre(l) && remise?.nom !== nom && (
+              <button type="button" className="cdj-mini cdj-mini--remettre" data-remettre={nom} onClick={() => setRemise({ nom, saisie: String(caisse.aRemettreXof), souci: '' })}>Remettre les pourboires</button>
+            )}
+          </td>
+          {avecAutres && <td data-col="autres">{m(caisse.autresEntreesXof)}</td>}
+          <td data-col="sorties">{m(caisse.sortiesXof)}</td>
+          <td data-col="disponible"><b>{m(caisse.disponibleXof)}</b></td>
+          <td data-col="compte">
+            {vue.verrouillee || vue.etat.etat === 'bloquee'
+              ? VIDE
+              : vue.etat.etat === 'close'
+                ? <span className="cdj-clos">{f(vue.etat.cloture.compteXof, vue)}</span>
+                : (
+                  <input
+                    className="cdj-champ" data-compte={nom} inputMode="numeric" placeholder="0" aria-label={`Compté ${nom}`}
+                    value={saisies[nom] ?? ''} onChange={(e) => setSaisies((p) => ({ ...p, [nom]: e.target.value }))}
+                  />
+                )}
+          </td>
+          <td data-col="ecart" className={l.ecartXof === null ? '' : l.ecartXof === 0 ? 'est-juste' : 'est-ecart'}>
+            {l.ecartXof === null ? VIDE : signe(l.ecartXof, vue)}
+          </td>
+        </tr>
+        {montrerMotif && (
+          <tr className="cdj-motif" data-motif-de={nom}>
+            <td colSpan={nbColonnes}>
+              <label>
+                <span>Motif de l’écart · {nom}</span>
+                <input
+                  className="cdj-champ cdj-champ--motif" data-motif={nom} value={motifs[nom] ?? ''}
+                  placeholder="Ex. 2 000 F rendus en monnaie, non notés"
+                  onChange={(e) => setMotifs((p) => ({ ...p, [nom]: e.target.value }))}
+                />
+              </label>
+            </td>
+          </tr>
+        )}
+        {remise?.nom === nom && peutRemettre(l) && (
+          <tr className="cdj-remise" data-remise-de={nom}>
+            <td colSpan={nbColonnes}>
+              <label>
+                <span>Remettre les pourboires · {nom} · à remettre <b>{f(caisse.aRemettreXof, vue)}</b></span>
+                <input
+                  className="cdj-champ" data-remise-montant={nom} inputMode="numeric" aria-label={`Pourboires remis · ${nom}`}
+                  value={remise.saisie} onChange={(e) => setRemise({ nom, saisie: e.target.value, souci: '' })}
+                />
+              </label>
+              <button type="button" className="cdj-btn cdj-btn--petit" data-cdj="remettre" onClick={() => remettre(l)}>Remettre</button>
+              <button type="button" className="cdj-lien" onClick={() => setRemise(null)}>Annuler</button>
+              {remise.souci && <span className="cdj-souci">{remise.souci}</span>}
+            </td>
+          </tr>
+        )}
+      </Fragment>
+    );
+  };
+
+  /* ── Le détail de la caisse choisie ── */
+  const pieceDe = new Map(invoices.map((i) => [i.id, i] as const));
+  const d = detail ? detail.caisse : null;
+  const dv = detail ? detail.vue : null;
+  type Entree = { invoiceId: string; heure: string; numero: string; cliente: string; moyen: string; montant: number; pourboire: number };
+  const entrees: Entree[] = (() => {
+    if (!d) return [];
+    const parPiece = new Map<string, Entree>();
+    const tipDe = (id: string) => d.pourboires.filter((p) => p.invoiceId === id).reduce((s, p) => s + p.xof, 0);
+    const versementsDuJour = (i: Invoice | undefined) => (i ? invoiceReglements(i).filter((p) => (p.cashbox ?? i.cashbox) === d.nom && (p.date || i.date).slice(0, 10) === jour && p.method !== 'Avoir' && p.method !== 'Acompte') : []);
+    const ligne = (id: string, montant: number, label?: string): Entree => {
+      const i = pieceDe.get(id);
+      const vs = versementsDuJour(i);
+      return {
+        invoiceId: id,
+        heure: vs.map((p) => p.time ?? '').filter(Boolean).sort().at(-1) ?? i?.time ?? VIDE,
+        numero: i?.number ?? VIDE,
+        cliente: label ?? i?.clientName ?? VIDE,
+        moyen: [...new Set(vs.map((p) => p.method))].join(' + ') || i?.payment || VIDE,
+        montant, pourboire: tipDe(id),
+      };
+    };
+    for (const m of d.entrees) parPiece.set(m.invoiceId!, ligne(m.invoiceId!, m.delta, m.label));
+    for (const p of d.pourboires) if (!parPiece.has(p.invoiceId)) parPiece.set(p.invoiceId, ligne(p.invoiceId, 0));
+    return [...parPiece.values()].sort((a, b) => a.heure.localeCompare(b.heure));
+  })();
+  const ouvreLaPiece = (id: string) => navigate(`/factures?id=${id}`);
+  const auClavier = (e: KeyboardEvent, faire: () => void) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); faire(); } };
+
+  const resume = `${nomsCoches.length ? nomsCoches.join(', ') : 'aucune'}${enDeviseCochees ? ` · ${enDeviseCochees} en devise, hors total` : ''}`;
+  const matinSelon = (() => {
+    const c = cochees.filter((l) => !l.vue.enDevise);
+    const n = c.filter((l) => l.caisse.matinSelon === 'comptage').length;
+    if (c.length === 0 || n === 0) return 'selon le livre';
+    return n === c.length ? 'compté la veille' : `${n} compté${n > 1 ? 's' : ''} la veille`;
+  })();
+
+  return (
+    <div className="cdj-corps">
+      <header className="cdj-tete">
         <div>
-          <div className="trv-sec-label trv-sec-label--copper" style={{ marginBottom: 6 }}>Caisse · Journal · {journalDateLabel}</div>
-          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, lineHeight: 1.05, color: 'var(--color-indigo)' }}>La caisse du jour.</div>
-          {/* LE JOUR DU JOURNAL SE CHOISIT — 4 octobre 2026. « Choisir la date
-              pour clôturer la caisse » (Yéman, 1 h 56) : « Clôturer la caisse »
-              prend le jour affiché. Avant 6 h, la veille est proposée. */}
-          <div className="cds-jour" style={{ marginTop: 12 }}>
+          <p className="cdj-sur">Finances · La journée · La caisse du jour</p>
+          <h3 className="cdj-titre">{jourDit}</h3>
+          <div className="cds-jour cdj-jour">
             <span className="cds-jour__mot">Le jour</span>
             <button type="button" className={`cds-bouton${jour === veilleIso(aujourdhui) ? ' is-indigo' : ''}`} onClick={() => onJour(veilleIso(aujourdhui))}>Hier</button>
             <button type="button" className={`cds-bouton${jour === aujourdhui ? ' is-indigo' : ''}`} onClick={() => onJour(aujourdhui)}>Aujourd’hui</button>
             <ChampDeDate value={jour} onChange={(v) => { if (v) onJour(v); }} sens="arriere" max={aujourdhui} compact ariaLabel="Le jour du journal" />
           </div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
-            {['Toutes', ...branchCashboxes.map((c) => c.name)].map((n) => (
-              <button key={n} className={`trv-pill ${journalCaisse === n ? 'is-active' : ''}`} onClick={() => setJournalCaisse(n)}>
-                {n === 'Toutes' ? 'Toutes les caisses' : n}
-              </button>
-            ))}
-          </div>
         </div>
-        {/* LA CAISSE DU SOIR — 3 octobre 2026 : le comptage des tiroirs
-            (maquette « Le pointage du jour »). DEPUIS LE 4 NOVEMBRE 2026, il ne
-            s'ouvre que sur une journée close (la clôture de Grenat). */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, maxWidth: 360 }}>
-          <Button variant="ghost" disabled={!clotureOuverteAuxGestes} onClick={() => setClotureOuverte(true)}>Clôturer la caisse</Button>
-          {!clotureOuverteAuxGestes && (
-            <span className="jdc-pas-encore" style={{ fontSize: 12, color: 'var(--copper-700)', textAlign: 'right', lineHeight: 1.45 }}>{pourquoiPasEncore}</span>
-          )}
+        <div className="cdj-puces">
+          <span className={`cdj-puce ${journeeClose ? 'est-ok' : 'est-attente'}`}>{journeeClose ? 'Journée close · Grenat' : 'Journée ouverte'}</span>
+          <span className={`cdj-puce ${etat.close ? 'est-ok' : 'est-attente'}`} data-cdj="etat">{etat.dit}</span>
         </div>
-        {clotureOuverte && <ClotureDuTiroir tiroir={journalCaisse !== 'Toutes' ? journalCaisse : undefined} jour={jour} onClose={() => setClotureOuverte(false)} />}
-      </div>
+      </header>
 
-      <div className="tr-grid tr-cols" style={{ '--cols': '1.3fr 1fr 1fr 1fr 1fr', '--cols-md': 'repeat(3, minmax(0,1fr))', '--cols-sm': 'repeat(2, minmax(0,1fr))', marginBottom: 24 } as CSSProperties}>
-        <div className="trv-kpi trv-kpi--copper">
-          <div className="l">Total encaissé · jour</div>
-          <div className="v">{fmtMoney(journalTotal, currency)}</div>
-          <div className="c">{versementsDuJour.length} versement{versementsDuJour.length > 1 ? 's' : ''}</div>
+      <section className="cdj-kpis" aria-label="Les caisses cochées">
+        <div className="cdj-kpi" data-kpi="n"><p className="l">Caisses cochées</p><p className="v">{t.n}</p><p className="c">{resume}</p></div>
+        <div className="cdj-kpi" data-kpi="matin"><p className="l">Au matin</p><p className="v">{f(t.matinXof)}</p><p className="c">{matinSelon}</p></div>
+        <div className="cdj-kpi" data-kpi="entrees">
+          <p className="l">Entrées</p><p className="v">{f(t.versementsXof + t.pourboiresXof + t.autresEntreesXof)}</p>
+          <p className="c">{f(t.versementsXof)} + {f(t.pourboiresXof)} pourboires{t.autresEntreesXof ? ` + ${f(t.autresEntreesXof)} autres` : ''}</p>
         </div>
-        <div className="trv-kpi"><div className="l">Mobile Money</div><div className="v">{fmtMoney(sumBy((p) => p === 'MTN MoMo' || p === 'Moov'), currency)}</div></div>
-        <div className="trv-kpi"><div className="l">Espèces</div><div className="v">{fmtMoney(sumBy((p) => p === 'Espèces'), currency)}</div></div>
-        <div className="trv-kpi"><div className="l">Carte</div><div className="v">{fmtMoney(sumBy((p) => p === 'Carte'), currency)}</div></div>
-        <div className="trv-kpi"><div className="l">WhatsApp</div><div className="v">{fmtMoney(sumBy((p) => p === 'Lien WhatsApp'), currency)}</div></div>
-      </div>
+        <div className="cdj-kpi" data-kpi="sorties"><p className="l">Sorties</p><p className="v">{f(t.sortiesXof)}</p><p className="c">dépenses, coffre, transferts</p></div>
+        <div className="cdj-kpi" data-kpi="disponible"><p className="l">Disponible</p><p className="v">{f(t.disponibleXof)}</p><p className="c">{t.aRemettreXof > 0 ? `dont pourboires à remettre : ${f(t.aRemettreXof)}` : 'doit y être ce soir'}</p></div>
+        <div className="cdj-kpi" data-kpi="compte">
+          <p className="l">Compté · écart</p>
+          <p className={`v${t.comptees && t.ecartXof !== 0 ? ' est-ecart' : ''}`}>{t.comptees ? f(t.compteXof) : VIDE}</p>
+          <p className={`c${t.comptees ? (t.ecartXof === 0 ? ' est-juste' : ' est-ecart') : ''}`}>
+            {t.comptees ? `${t.comptees} / ${t.n} comptée${t.comptees > 1 ? 's' : ''} · écart ${signe(t.ecartXof)}` : 'rien compté'}
+          </p>
+        </div>
+      </section>
 
-      {tipsTotal > 0 && (
-        <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 5, padding: '14px 18px', marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink-soft)' }}>
-            Pourboires encaissés · à reverser aux maîtres : <strong style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, color: 'var(--copper-600)' }}>{fmtMoney(tipsTotal, currency)}</strong>
-          </div>
-          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink-soft)' }}>
-            Encaissé en caisse (dont pourboires) : <strong style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, color: 'var(--color-indigo)' }}>{fmtMoney(journalTotal + tipsTotal, currency)}</strong>
-          </div>
+      <section className="cdj-carte" aria-labelledby="cdj-t-caisses">
+        <div className="cdj-carte__t"><h4 id="cdj-t-caisses">Les caisses</h4><span>{cochees.length} cochée{cochees.length > 1 ? 's' : ''} sur {lignes.length}</span></div>
+        <div className="cdj-defile">
+          <table className="cdj-table">
+            <thead>
+              <tr>
+                <th className="g">Caisse</th><th>Matin</th><th>+ Versements</th><th>+ Pourboires</th>
+                {avecAutres && <th>+ Autres entrées</th>}
+                <th>− Sorties</th><th>= Disponible</th><th>Compté</th><th>Écart</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="cdj-groupe"><td colSpan={nbColonnes}>Comptoir</td></tr>
+              {duComptoir.map(ligneDeCaisse)}
+              {lesAutres.length > 0 && (
+                <tr className="cdj-groupe">
+                  <td colSpan={nbColonnes}>
+                    Banques et autres · {lesAutres.length} caisse{lesAutres.length > 1 ? 's' : ''}
+                    <button type="button" className="cdj-lien" data-cdj="autres" onClick={() => setAutresOuvertes((v) => !v)}>{autresOuvertes ? 'Replier' : 'Voir'}</button>
+                  </td>
+                </tr>
+              )}
+              {autresVues.map(ligneDeCaisse)}
+            </tbody>
+            <tfoot>
+              <tr className="cdj-total" data-cdj="total">
+                <td className="g">Total coché</td>
+                <td data-col="matin">{f(t.matinXof)}</td>
+                <td data-col="versements">{f(t.versementsXof)}</td>
+                <td data-col="pourboires">{f(t.pourboiresXof)}</td>
+                {avecAutres && <td data-col="autres">{f(t.autresEntreesXof)}</td>}
+                <td data-col="sorties">{f(t.sortiesXof)}</td>
+                <td data-col="disponible">{f(t.disponibleXof)}</td>
+                <td data-col="compte">{t.comptees ? f(t.compteXof) : VIDE}</td>
+                <td data-col="ecart" className={t.comptees ? (t.ecartXof === 0 ? 'est-juste' : 'est-ecart') : ''}>{t.comptees ? signe(t.ecartXof) : VIDE}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+
+      {d && dv && (
+        <div className="cdj-grille">
+          <section className="cdj-carte" data-cdj="detail" aria-labelledby="cdj-t-entrees">
+            <div className="cdj-carte__t">
+              <h4 id="cdj-t-entrees">{d.nom} · les entrées du jour</h4>
+              <span>{d.entrees.length} versement{d.entrees.length > 1 ? 's' : ''} · {f(d.versementsXof, dv)} · pourboires {f(d.pourboiresXof, dv)}</span>
+            </div>
+            <div className="cdj-defile">
+              <table className="cdj-table cdj-table--detail">
+                <thead>
+                  <tr><th className="g">Heure</th><th className="g">Pièce</th><th className="g">Cliente</th><th className="g">Moyen</th><th>Montant</th><th>Pourboire</th><th>Total</th></tr>
+                </thead>
+                <tbody>
+                  {entrees.map((e) => (
+                    <tr
+                      key={e.invoiceId} className="cdj-ouvre" data-entree={e.invoiceId} role="button" tabIndex={0} title="Ouvrir la facture"
+                      onClick={() => ouvreLaPiece(e.invoiceId)} onKeyDown={(k) => auClavier(k, () => ouvreLaPiece(e.invoiceId))}
+                    >
+                      <td className="g">{e.heure}</td>
+                      <td className="g cdj-piece">
+                        {e.numero}
+                        {/* MODIFIER UN ENCAISSEMENT (15 septembre 2026) : la direction seule, dans l'éditeur des Factures. */}
+                        {estDirection && (
+                          <button type="button" className="cdj-mini" title="Modifier cet encaissement"
+                            onClick={(k) => { k.stopPropagation(); navigate(`/factures?id=${e.invoiceId}&modifier=1`); }}>Modifier</button>
+                        )}
+                      </td>
+                      <td className="g">{e.cliente}</td>
+                      <td className="g">{e.moyen}</td>
+                      <td>{f(e.montant, dv)}</td>
+                      <td>{e.pourboire ? f(e.pourboire, dv) : VIDE}</td>
+                      <td><b>{f(e.montant + e.pourboire, dv)}</b></td>
+                    </tr>
+                  ))}
+                  {entrees.length === 0 && <tr><td className="g cdj-rien" colSpan={7}>Aucun versement ce jour-là.</td></tr>}
+                  {d.autresEntrees.map((m, i) => (
+                    <tr key={`a-${i}`} data-autre-entree="">
+                      <td className="g" colSpan={4}>{m.label}{m.sub ? <small className="cdj-sous">{m.sub}</small> : null}</td>
+                      <td>{f(m.delta, dv)}</td><td>{VIDE}</td><td><b>{f(m.delta, dv)}</b></td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="cdj-total">
+                    <td className="g" colSpan={4}>Total des entrées</td>
+                    <td>{f(d.versementsXof + d.autresEntreesXof, dv)}</td><td>{f(d.pourboiresXof, dv)}</td>
+                    <td>{f(d.versementsXof + d.autresEntreesXof + d.pourboiresXof, dv)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </section>
+
+          <section className="cdj-carte" data-cdj="sorties" aria-labelledby="cdj-t-sorties">
+            <div className="cdj-carte__t"><h4 id="cdj-t-sorties">{d.nom} · les sorties du jour</h4><span>{f(d.sortiesXof, dv)}</span></div>
+            {d.sorties.length === 0 && <p className="cdj-ligne cdj-rien">Aucune sortie ce jour-là.</p>}
+            {d.sorties.map((s, i) => {
+              const ouvre = s.expenseId ? () => navigate(`/depenses?depense=${encodeURIComponent(s.expenseId!)}`) : undefined;
+              return (
+                <p
+                  key={`s-${i}`} className={`cdj-ligne${ouvre ? ' cdj-ouvre' : ''}`} data-sortie=""
+                  {...(ouvre ? { role: 'button', tabIndex: 0, title: 'Ouvrir la dépense', onClick: ouvre, onKeyDown: (k: KeyboardEvent) => auClavier(k, ouvre) } : {})}
+                >
+                  <span>{s.label}{s.sub ? <small className="cdj-sous">{s.sub}</small> : null}</span>
+                  <b>{f(-s.delta, dv)}</b>
+                </p>
+              );
+            })}
+            <div className="cdj-pont" data-cdj="pont">
+              <p className="cdj-ligne"><span><i></i>Au matin</span><b>{f(d.matinXof, dv)}</b></p>
+              {d.pourboiresDuMatinXof > 0 && <p className="cdj-ligne cdj-ligne--dont"><span><i></i>dont pourboires d’avant</span><b>{f(d.pourboiresDuMatinXof, dv)}</b></p>}
+              <p className="cdj-ligne"><span><i>+</i>Versements</span><b>{f(d.versementsXof, dv)}</b></p>
+              <p className="cdj-ligne"><span><i>+</i>Pourboires</span><b>{f(d.pourboiresXof, dv)}</b></p>
+              {d.autresEntreesXof !== 0 && <p className="cdj-ligne"><span><i>+</i>Autres entrées</span><b>{f(d.autresEntreesXof, dv)}</b></p>}
+              <p className="cdj-ligne"><span><i>−</i>Sorties</span><b>{f(d.sortiesXof, dv)}</b></p>
+              <p className="cdj-ligne cdj-ligne--fort"><span><i>=</i>Disponible ce soir</span><b>{f(d.disponibleXof, dv)}</b></p>
+              <p className="cdj-ligne cdj-ligne--dont" data-cdj="a-remettre"><span><i></i>dont pourboires à remettre</span><b>{f(d.aRemettreXof, dv)}</b></p>
+            </div>
+          </section>
         </div>
       )}
 
-      <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 5, overflow: 'hidden' }}>
-        <div className="trv-journal-head">
-          <span className="trv-th">N°</span>
-          <span className="trv-th">Date</span>
-          <span className="trv-th">Détail</span>
-          <span className="trv-th">Paiement</span>
-          <span className="trv-th" style={{ textAlign: 'right' }}>Montant</span>
-        </div>
-        {versementsDuJour.map(({ inv: i, p }) => (
-          <div
-            key={`${i.id}-${p.id}`}
-            className="trv-journal-row"
-            onClick={() => navigate(`/factures?id=${i.id}`)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/factures?id=${i.id}`); } }}
-            style={{ cursor: 'pointer' }}
-            title="Ouvrir la facture"
-            role="button"
-            tabIndex={0}
-          >
-            <span style={{ fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums', fontSize: 12.5, letterSpacing: '.04em', color: 'var(--copper-600)' }}>
-              {i.number.slice(-8)}
-              {/* ── MODIFIER UN ENCAISSEMENT — 15 septembre 2026 ────────
-                  « Dans encaissement je veux le bouton modifier » (Yéman).
-                  LA DIRECTION SEULE (décision du 15 septembre) : corriger un
-                  encaissement, c'est déplacer de l'argent déjà compté. IL MÈNE
-                  À L'ÉDITEUR QUI EXISTE, dans Factures & devis : deux éditeurs
-                  pour une facture finiraient par ne plus dire la même chose. */}
-              {estDirection && (
-                <button
-                  type="button"
-                  className="trv-minibtn"
-                  style={{ marginLeft: 8 }}
-                  title="Modifier cet encaissement"
-                  onClick={(e) => { e.stopPropagation(); navigate(`/factures?id=${i.id}&modifier=1`); }}
-                >
-                  Modifier
-                </button>
-              )}
-            </span>
-            <span>
-              <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink)' }}>{fmtDateFr(p.date ?? i.date)}</span>
-              <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>{p.time ?? i.time ?? '—'}</span>
-            </span>
-            <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>
-                {i.lines.map((l) => (l.qty > 1 ? `${l.label} ×${l.qty}` : l.label)).join(' · ')}
-              </div>
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 3 }}>
-                {clientName(i)} · {caisseDuVersement(i, p)}
-              </div>
-            </div>
-            <div>
-              <span className={`trv-paychip ${p.method === 'MTN MoMo' || p.method === 'Moov' ? 'momo' : ''}`}>{p.method}</span>
-            </div>
-            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)', textAlign: 'right' }}>
-              {fmtMoney(p.amountXof, currency)}
-            </span>
-          </div>
-        ))}
-        {versementsDuJour.length === 0 && (
-          <div style={{ padding: '26px 24px', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--ink-soft)' }}>
-            {jour === aujourdhui ? 'Aucun encaissement pour cette caisse aujourd’hui. Le premier ticket du jour ouvrira le journal.' : 'Aucun encaissement pour cette caisse ce jour-là.'}
-          </div>
-        )}
-      </div>
+      <footer className="cdj-pied">
+        <p className="cdj-pied__dit">
+          {pourquoi
+            ? <span className={`cdj-pourquoi${journeeClose ? '' : ' jdc-pas-encore'}`}>{pourquoi}</span>
+            : <>
+              <b>{aCloturer.filter((c) => c.etat.etat === 'ouverte').length} caisse{aCloturer.filter((c) => c.etat.etat === 'ouverte').length > 1 ? 's' : ''}</b>
+              {' · disponible '}<b>{f(t.disponibleXof)}</b>{' · compté '}<b>{f(t.compteXof)}</b>{' · écart '}
+              <b className={t.ecartXof === 0 ? 'est-juste' : 'est-ecart'}>{signe(t.ecartXof)}</b>
+            </>}
+        </p>
+        <button type="button" className="cdj-btn" data-cdj="cloturer" disabled={!!pourquoi} title={pourquoi ?? ''} onClick={fermer}>Clôturer les caisses cochées</button>
+      </footer>
     </div>
   );
 }

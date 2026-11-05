@@ -1247,6 +1247,13 @@ export const MOTIFS_SORTIE_HORS_ACTIVITE = [
      salaire. En sortie hors activité, elle n'entame pas le résultat et se
      regroupe à la Synthèse ; la phrase dit QUI, obligatoirement. */
   'Prélèvement de l’associé',
+  /* LES POURBOIRES REMIS À L'ÉQUIPE — 5 novembre 2026. Les pourboires en
+     espèces restent dans le tiroir jusqu'aux salaires du 5, et la paie ne
+     fait sortir aucune espèce (les salaires partent par MTN) : la direction
+     les remet d'un geste depuis la caisse du jour. L'argent des mains qui
+     leur revient, jamais une dépense de la Maison. Voir
+     `shared/caisse-du-jour-pur` (`MOTIF_POURBOIRES_REMIS`). */
+  'Pourboires remis à l’équipe',
   /* « À RÉGULARISER » — 5 novembre 2026 (« juste pour les soldes qui n'ont
      pas de justificatif il faut appeler ça à régulariser », Yéman). L'argent
      sorti d'un tiroir sans pièce : il ne s'écrit qu'à la remise à 0 F du

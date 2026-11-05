@@ -1,0 +1,128 @@
+/* ══ LA CAISSE DU JOUR, CAISSE PAR CAISSE — 5 novembre 2026 ═══════════════
+   Maquette « La caisse du jour » validée. Les jetons du tableau de bord
+   (pilotage/tableau-de-bord.css) : les chiffres en Cormorant, le texte en
+   Jost, l'indigo structure, le cuivre ponctue, le vert dit « juste », le
+   rouge un écart. Tient à 400 px : le bandeau passe en trois puis deux
+   colonnes, les tableaux glissent dans leur boîte, jamais la page. */
+.cdj {
+  --cdj-papier: color-mix(in srgb, var(--surface-card) 45%, #FFFFFF);
+  --cdj-fond-doux: var(--color-ivoire, #F3ECE1);
+  --cdj-encre: var(--color-indigo);
+  --cdj-doux: var(--ink-soft);
+  --cdj-vieux: var(--obsidian-300, #70707B);
+  --cdj-trait: var(--hairline);
+  --cdj-cuivre: var(--copper-600, #9E6238);
+  --cdj-cuivre-pale: var(--copper-50, #FAF1E9);
+  --cdj-vert: #2F6B45;
+  --cdj-vert-pale: #E6F1E9;
+  --cdj-rouge: #8F3B30;
+  --cdj-rouge-pale: #F8EAE7;
+  min-width: 0;
+  color: var(--cdj-encre);
+  font-family: var(--font-sans);
+}
+.cdj p { margin: 0; }
+.cdj-corps { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; min-width: 0; }
+
+/* ── L'en-tête ── */
+.cdj-tete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.cdj-tete > div:first-child { min-width: 0; }
+.cdj-sur { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--cdj-cuivre); }
+.cdj-titre { font-family: var(--font-serif); font-weight: 500; font-size: clamp(26px, 4.5vw, 38px); line-height: 1; margin: 4px 0 0; color: var(--cdj-encre); }
+.cdj-jour { margin-top: 12px; }
+.cdj-puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.cdj-puce { font: 400 12px/1.4 var(--font-sans); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--cdj-trait); background: var(--cdj-papier); color: var(--cdj-doux); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cdj-puce.est-ok { color: var(--cdj-vert); border-color: var(--cdj-vert-pale); background: var(--cdj-vert-pale); }
+.cdj-puce.est-attente { color: var(--cdj-cuivre); border-color: var(--cdj-cuivre-pale); background: var(--cdj-cuivre-pale); }
+
+/* ── Le bandeau de six chiffres ── */
+.cdj-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); background: var(--cdj-papier); border: 1px solid var(--cdj-trait); border-radius: 8px; overflow: hidden; }
+.cdj-kpi { display: grid; align-content: start; gap: 2px; min-width: 0; padding: 14px 16px; border-left: 1px solid var(--cdj-trait); }
+.cdj-kpi:first-child { border-left: 0; }
+.cdj-kpi .l { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--cdj-vieux); }
+.cdj-kpi .v { font-family: var(--font-serif); font-weight: 500; font-size: 27px; line-height: 1.1; color: var(--cdj-encre); font-variant-numeric: lining-nums tabular-nums; overflow-wrap: anywhere; }
+.cdj-kpi .c { font-size: 12px; color: var(--cdj-doux); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.cdj .est-ecart { color: var(--cdj-rouge) !important; }
+.cdj .est-juste { color: var(--cdj-vert) !important; }
+
+/* ── Les cartes ── */
+.cdj-carte { background: var(--cdj-papier); border: 1px solid var(--cdj-trait); border-radius: 8px; overflow: hidden; min-width: 0; }
+.cdj-carte__t { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 10px; padding: 12px 16px; border-bottom: 1px solid var(--cdj-trait); }
+.cdj-carte__t h4 { margin: 0; font: 500 11px/1.3 var(--font-sans); letter-spacing: .14em; text-transform: uppercase; color: var(--cdj-vieux); }
+.cdj-carte__t span { font-size: 12.5px; color: var(--cdj-doux); font-variant-numeric: tabular-nums; }
+.cdj-defile { overflow-x: auto; max-width: 100%; }
+
+/* ── Les tableaux ── */
+.cdj-table { border-collapse: collapse; width: 100%; }
+.cdj-table th, .cdj-table td { padding: 8px 10px; border-bottom: 1px solid var(--cdj-trait); text-align: right; white-space: nowrap; font-size: 13.5px; font-variant-numeric: lining-nums tabular-nums; color: var(--cdj-encre); }
+.cdj-table th:first-child, .cdj-table td:first-child { padding-left: 16px; }
+.cdj-table th:last-child, .cdj-table td:last-child { padding-right: 16px; }
+.cdj-table th { font-weight: 500; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--cdj-vieux); }
+.cdj-table .g { text-align: left; }
+.cdj-table b { font-weight: 500; }
+.cdj-table tr.est-off td { color: var(--cdj-vieux); }
+.cdj-table tr.est-off .cdj-champ { opacity: .5; }
+.cdj-table tr.est-choisie td:first-child { box-shadow: inset 3px 0 0 var(--cdj-cuivre); }
+.cdj-groupe td { font-size: 10.5px !important; letter-spacing: .12em; text-transform: uppercase; color: var(--cdj-cuivre) !important; text-align: left !important; padding-top: 14px !important; background: var(--cdj-papier); }
+.cdj-total td { font-weight: 500; background: var(--cdj-fond-doux); border-bottom: 0; }
+.cdj-case { display: inline-flex; align-items: center; gap: 10px; }
+.cdj-case input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--cdj-cuivre); margin: 0; cursor: pointer; flex: none; }
+.cdj-nom { display: grid; text-align: left; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; min-width: 0; }
+.cdj-nom b { font-weight: 500; }
+.cdj-nom small { font-size: 11.5px; color: var(--cdj-doux); max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.cdj-nom:hover b { text-decoration: underline; text-underline-offset: 3px; }
+.cdj-nom:focus-visible, .cdj-lien:focus-visible, .cdj-btn:focus-visible, .cdj-ouvre:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.cdj-champ { width: 112px; font: inherit; font-size: 13.5px; font-variant-numeric: tabular-nums; text-align: right; padding: 5px 8px; border: 1px solid var(--cdj-trait); border-radius: 4px; background: var(--surface-card, #fff); color: var(--cdj-encre); }
+.cdj-champ:focus { outline: 2px solid var(--cdj-cuivre); outline-offset: 1px; }
+.cdj-clos { color: var(--cdj-vert); }
+.cdj-motif td { text-align: left !important; white-space: normal !important; background: var(--cdj-rouge-pale); }
+.cdj-motif label { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 12.5px; color: var(--cdj-rouge); }
+.cdj-champ--motif { width: min(420px, 100%); text-align: left; }
+.cdj-remise td { text-align: left !important; white-space: normal !important; background: var(--cdj-cuivre-pale); }
+.cdj-remise label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 12.5px; color: var(--cdj-encre); margin-right: 12px; }
+.cdj-remise label b { font-weight: 500; }
+.cdj-souci { display: block; margin-top: 6px; font-size: 12px; color: var(--cdj-rouge); }
+.cdj-mini--remettre { display: block; margin: 4px 0 0 auto; }
+.cdj-btn--petit { padding: 6px 12px; min-height: 32px; font-size: 12.5px; }
+.cdj-ligne--dont { font-size: 12.5px; color: var(--cdj-doux); }
+.cdj-lien { margin-left: 10px; padding: 0; border: 0; background: none; font: 400 12.5px var(--font-sans); letter-spacing: 0; text-transform: none; color: var(--cdj-cuivre); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.cdj-ouvre { cursor: pointer; }
+.cdj-ouvre:hover td, p.cdj-ouvre:hover { background: var(--hover-veil, rgba(20, 20, 27, .04)); }
+.cdj-piece { color: var(--cdj-cuivre) !important; }
+.cdj-mini { margin-left: 8px; font: 400 11px var(--font-sans); padding: 2px 7px; border: 1px solid var(--cdj-trait); border-radius: 3px; background: transparent; color: var(--cdj-encre); cursor: pointer; }
+.cdj-sous { display: block; font-size: 11.5px; color: var(--cdj-doux); white-space: normal; }
+.cdj-rien { color: var(--cdj-doux) !important; font-style: italic; white-space: normal !important; }
+
+/* ── Le détail : entrées à gauche, sorties et pont à droite ── */
+.cdj-grille { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.cdj-ligne { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 9px 16px; border-bottom: 1px solid var(--cdj-trait); font-size: 13.5px; }
+.cdj-ligne b { font-weight: 500; font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.cdj-ligne > span { min-width: 0; }
+.cdj-pont { border-top: 1px solid var(--cdj-trait); background: var(--cdj-fond-doux); }
+.cdj-pont .cdj-ligne { padding-top: 7px; padding-bottom: 7px; }
+.cdj-pont .cdj-ligne:last-child { border-bottom: 0; }
+.cdj-pont i { display: inline-block; width: 16px; font-style: normal; color: var(--cdj-vieux); }
+.cdj-ligne--fort { font-weight: 500; }
+
+/* ── Le pied ── */
+.cdj-pied { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; background: var(--cdj-papier); border: 1px solid var(--cdj-trait); border-radius: 8px; padding: 14px 16px; }
+.cdj-pied__dit { font-size: 13.5px; color: var(--cdj-doux); font-variant-numeric: tabular-nums; min-width: 0; }
+.cdj-pied__dit b { color: var(--cdj-encre); font-weight: 500; }
+.cdj-pourquoi { color: var(--copper-700, #8A5430); }
+.cdj-btn { font: 400 13px/1.2 var(--font-sans); padding: 9px 16px; min-height: 36px; border-radius: 4px; border: 1px solid var(--cdj-cuivre); background: var(--cdj-cuivre); color: #fff; cursor: pointer; }
+.cdj-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+@media (max-width: 900px) {
+  .cdj-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cdj-kpi:nth-child(4) { border-left: 0; }
+  .cdj-kpi:nth-child(n+4) { border-top: 1px solid var(--cdj-trait); }
+  .cdj-grille { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 520px) {
+  .cdj-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cdj-kpi { border-left: 0 !important; border-top: 1px solid var(--cdj-trait); padding: 12px 14px; }
+  .cdj-kpi:nth-child(-n+2) { border-top: 0; }
+  .cdj-kpi:nth-child(even) { border-left: 1px solid var(--cdj-trait) !important; }
+  .cdj-kpi .v { font-size: 23px; }
+  .cdj-pied .cdj-btn { width: 100%; }
+}

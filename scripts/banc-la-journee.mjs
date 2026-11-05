@@ -9,10 +9,13 @@
        d'onglets : la clôture de Grenat en haut, la caisse du jour en bas ;
      - un rendez-vous fini sans état se dit « Sans état », avec « Honoré »,
        « Absente », « Annulée » ; un rendez-vous réglé et honoré est « Clos » ;
-     - tant qu'il reste un rendez-vous à clore, « Clôturer la caisse » est
-       éteint et la carte dit ce qui reste ;
-     - « Absente » clôt le rendez-vous : la journée est close, « Clôturer la
-       caisse » s'allume et ouvre le comptage habituel du tiroir ;
+     - tant qu'il reste un rendez-vous à clore, « Clôturer les caisses
+       cochées » est éteint et la carte dit ce qui reste ;
+     - « Absente » clôt le rendez-vous : la journée est close, le verrou de
+       la journée tombe ; Real Money, déjà compté ce jour-là, se montre clos
+       avec son compté et son écart, et ne se reclôt pas en double (la
+       caisse du jour caisse par caisse, 5 novembre 2026 : son propre banc
+       est `banc-la-caisse-du-jour`) ;
      - la Caisse n'a plus sa barre « Encaisser | Journal de caisse », et son
        lien mène à La journée.
 
@@ -160,7 +163,7 @@ async function lanceLeBanc({ geste, scenario = 'complet' }) {
 
   const texte = () => evalue('document.body.innerText');
   const etat = (rdv) => evalue(`document.querySelector('[data-lj-rdv="${rdv}"]')?.getAttribute('data-etat') ?? null`);
-  const cloturer = () => evalue(`(() => { const b = [...document.querySelectorAll('[data-journal="caisse-du-jour"] button')].find((x) => x.textContent.trim() === 'Clôturer la caisse'); return b ? (b.disabled ? 'eteint' : 'allume') : 'absent'; })()`);
+  const cloturer = () => evalue(`(() => { const b = [...document.querySelectorAll('[data-journal="caisse-du-jour"] button')].find((x) => x.textContent.trim() === 'Clôturer les caisses cochées'); return b ? (b.disabled ? 'eteint' : 'allume') : 'absent'; })()`);
   const lignesDepenses = () => evalue(`[...document.querySelectorAll('[data-lj-depense]')].map((l) => ({ genre: l.getAttribute('data-genre'), bloque: l.getAttribute('data-bloque'), texte: l.innerText.replace(/\\s+/g, ' '), gestes: [...l.querySelectorAll('.lj-g')].map((b) => b.textContent.trim()) }))`);
   const touche = (selecteur, bouton) => evalue(`(() => { const b = [...document.querySelectorAll(${JSON.stringify(selecteur)})].find((x) => x.textContent.trim() === ${JSON.stringify(bouton)}); if (b) b.click(); return !!b; })()`);
   const echap = async () => { await evalue(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`); await attend(600); };
@@ -179,7 +182,7 @@ async function lanceLeBanc({ geste, scenario = 'complet' }) {
     dit('apres « Absente », le rendez-vous est clos', (await etat('r-banc-2')) === 'annule', await etat('r-banc-2'));
     const v = await verdict();
     dit('... mais la dépense à valider du jour retient la journée', /1 dépense à valider, la caisse ne se compte pas encore/.test(v ?? ''), v);
-    dit('... « Clôturer la caisse » reste éteint', (await cloturer()) === 'eteint', await cloturer());
+    dit('... « Clôturer les caisses cochées » reste éteint', (await cloturer()) === 'eteint', await cloturer());
     dit('... et la carte dit pourquoi', /1 dépense à valider/.test(await evalue(`document.querySelector('.jdc-pas-encore')?.textContent ?? ''`) ?? ''));
     await photo('1-retenue');
     dit('aucune erreur dans la page', erreurs.length === 0, erreurs.slice(0, 3).join(' | ') || 'aucune');
@@ -201,7 +204,7 @@ async function lanceLeBanc({ geste, scenario = 'complet' }) {
   dit('... avec ses gestes d un toucher', JSON.stringify(gestes) === JSON.stringify(['Honoré', 'Absente', 'Annulée']), JSON.stringify(gestes));
   dit('les initiales, jamais le nom', /V\. A\./.test(t ?? '') && !/Victoire Agbo/.test(await evalue(`document.querySelector('[data-lj="cloture"]')?.innerText ?? ''`) ?? ''));
   dit('le verdict dit ce qui reste', /1 rendez-vous à clore/.test((await verdict()) ?? ''), await verdict());
-  dit('« Cloturer la caisse » est eteint tant que la journee n est pas close', (await cloturer()) === 'eteint', await cloturer());
+  dit('« Clôturer les caisses cochées » est eteint tant que la journee n est pas close', (await cloturer()) === 'eteint', await cloturer());
   dit('... et la carte dit ce qui reste', /Grenat : la caisse ne se compte pas encore/.test(await evalue(`document.querySelector('.jdc-pas-encore')?.textContent ?? ''`) ?? ''));
   dit('la caisse du jour compte les 45 000 F du jour', /45[\s\u202f\u00a0]000/.test(await evalue(`document.querySelector('[data-journal="caisse-du-jour"]')?.innerText ?? ''`) ?? ''));
 
@@ -236,13 +239,13 @@ async function lanceLeBanc({ geste, scenario = 'complet' }) {
   dit('apres « Absente », le rendez-vous est clos', (await etat('r-banc-2')) === 'annule', await etat('r-banc-2'));
   const v = await verdict();
   dit('... la journee est close, malgré la dépense à compléter et l écart', /La journée est close : la caisse peut se compter\./.test(v ?? ''), v);
-  dit('... « Cloturer la caisse » s allume', (await cloturer()) === 'allume', await cloturer());
-  await evalue(`[...document.querySelectorAll('[data-journal="caisse-du-jour"] button')].find((x) => x.textContent.trim() === 'Clôturer la caisse')?.click()`);
-  await attend(1000);
-  const modale = await evalue(`(document.querySelector('[role=dialog]') || {}).innerText ?? ''`);
-  dit('... et ouvre le comptage habituel du tiroir', /La caisse du soir|Clôturer ·/.test(modale ?? ''), (modale ?? '').split('\n')[0]);
+  dit('... le verrou de la journée tombe : la carte ne dit plus « Grenat »', !(await evalue(`!!document.querySelector('[data-journal="caisse-du-jour"] .jdc-pas-encore')`)));
+  const rmClos = await evalue(`(() => { const r = document.querySelector('[data-journal="caisse-du-jour"] tr[data-caisse="Real Money"]'); return r ? { coche: r.querySelector('input[type=checkbox]')?.checked, texte: r.innerText.replace(/\\s+/g, ' '), saisie: !!r.querySelector('input[data-compte]') } : null; })()`);
+  dit('... Real Money, compté ce jour-là, se montre clos : 45 000 F comptés, écart −2 500 F',
+    !!rmClos && rmClos.coche === true && /Close à/.test(rmClos.texte) && /45[\s  ]000/.test(rmClos.texte) && /−2[\s  ]500/.test(rmClos.texte) && !rmClos.saisie, JSON.stringify(rmClos));
+  dit('... et ne se reclôt pas en double : le bouton reste éteint, « Les caisses cochées sont closes »',
+    (await cloturer()) === 'eteint' && /Les caisses cochées sont closes\./.test(await evalue(`document.querySelector('[data-journal="caisse-du-jour"] .cdj-pourquoi')?.textContent ?? ''`) ?? ''), await cloturer());
   await photo('2-close');
-  await echap();
 
   /* 3. La Caisse, sans sa barre. */
   await evalue(`location.hash = '#/caisse'`);
