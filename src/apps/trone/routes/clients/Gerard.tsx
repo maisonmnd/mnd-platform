@@ -440,7 +440,7 @@ export default function Gerard() {
   const propsDesVues: PropsDUneVue = { cerveau, reglages, moi };
 
   return (
-    <div className="trc-ger trc-am">
+    <div className={`trc-ger trc-am${vue === 'conversations' ? ' trc-am--conversations' : ''}`}>
       <PageHead
         eyebrow="Clientèle · l’assistant des clientes"
         title="Perle."

@@ -281,6 +281,36 @@
   .trc-am__filtres .trc-tab { padding: 8px 14px; }
 }
 
+/* ── LE TÉLÉPHONE DEBOUT (5 novembre 2026, « Make conversations and assistant
+   phone responsive. Not working well », Yéman) ──
+   Le couché avait été resserré le 27 octobre ; le téléphone DEBOUT gardait
+   l'en-tête de bureau : sourcil, grand titre et cinq chiffres sur deux
+   lignes, 420 px avant la barre des vues. La première conversation de la
+   liste naissait au bas du premier écran. Ici le titre se fait petit, les
+   cinq chiffres tiennent sur une rangée qui glisse, et dans « Les
+   conversations » ils s'effacent : la liste passe d'abord. Dans une
+   conversation ouverte, la note de l'automate qui ne fait que DIRE cède sa
+   place au fil, comme au téléphone couché. */
+@media (max-width: 760px) {
+  .trc-ger.trc-am { gap: 12px; }
+  .trc-am > .tr-page-head { margin-bottom: 0; gap: 10px; }
+  .trc-am > .tr-page-head .mnd-eyebrow { display: none; }
+  .trc-am > .tr-page-head h2 { font-size: 26px; margin-top: 0; }
+  .trc-am > .tr-page-head .tr-page-head__actions { min-width: 0; max-width: 100%; }
+  .trc-am > .tr-page-head .trc-ger__chiffres { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 18px; min-width: 0; max-width: 100%; }
+  .trc-am > .tr-page-head .trc-ger__chiffres::-webkit-scrollbar { display: none; }
+  .trc-am > .tr-page-head .trc-ger__chiffre { flex: none; }
+  .trc-am > .tr-page-head .trc-ger__chiffre b { font-size: 21px; }
+  .trc-am > .tr-page-head .trc-ger__chiffre small { font-size: 11px; white-space: nowrap; }
+  .trc-am.trc-am--conversations > .tr-page-head .tr-page-head__actions { display: none; }
+  .trc-am.trc-am--conversations > .tr-page-head { flex-wrap: nowrap; }
+  .trc-am__vues button { padding: 9px 10px 10px; font-size: 12.5px; }
+  .trc-am__plein .trc-saisie .trc-automate:not(:has(button)) { display: none; }
+  .trc-am__plein .trc-bx__faire.est-sans-geste { padding: 6px 36px 6px 10px; }
+  .trc-am__plein .trc-bx__faire.est-sans-geste .trc-bx__faire-titre { display: none; }
+  .trc-am__plein .trc-bx__faire.est-sans-geste .trc-bx__faire-phrase { -webkit-line-clamp: 2; font-size: 13px; color: var(--ink-soft); }
+}
+
 /* ── Une vue en construction ── */
 .trc-am__chantier { border-style: dashed; }
 

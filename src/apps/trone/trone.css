@@ -456,6 +456,28 @@ body[data-surface='trone'] {
   .tr-top .mnd-btn { padding: 8px 12px; font-size: 11px; }
 }
 
+/* L'EN-TÊTE DU TÉLÉPHONE DEBOUT (5 novembre 2026, « The app must be entirely
+   phone responsive », Yéman). Sur 390 px, la barre passait sur DEUX lignes et
+   la date sur une troisième : 125 px pris en haut de chaque écran, avant même
+   le titre de la page. Elle tient désormais sur UNE ligne qui glisse au doigt :
+   le menu reste collé à gauche, « + Encaisser » collé à droite, le reste
+   (recherche, dictée, cloche, « + RDV », « + Dépense », clés) passe entre eux.
+   La date s'efface (elle est sur le téléphone). Les panneaux de la barre
+   (Trouver, Recherche, cloche, clés) s'ouvrent en position fixe ou par
+   portail : la rangée qui glisse ne les coupe pas. */
+@media (max-width: 760px) {
+  .tr-top {
+    flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+    scrollbar-width: none; padding: 8px 12px; gap: 6px;
+  }
+  .tr-top::-webkit-scrollbar { display: none; }
+  .tr-top > * { flex: none; }
+  .tr-top__trail { display: none; }
+  .tr-top .mnd-btn { padding: 8px 10px; font-size: 10.5px; letter-spacing: .08em; white-space: nowrap; }
+  .tr-top > .tr-burger { position: sticky; left: -12px; z-index: 2; margin: 0 2px 0 -12px; padding: 6px 6px 6px 12px; background: var(--color-ivoire); }
+  .tr-top > .mnd-btn:not(.mnd-btn--ghost) { position: sticky; right: 0; z-index: 2; box-shadow: -10px 0 8px -2px var(--color-ivoire); }
+}
+
 /* Pastille de synchronisation — un mot, une couleur (vert = tout est au serveur,
    cuivre = envoi en cours, rouge = hors ligne / en échec). */
 .tr-top__sync {

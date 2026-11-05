@@ -881,7 +881,11 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
     const tenue = tenueDe(b);
     const tenueLue = tenueDite(tenue, moiNom);
     const cleDeLaSuggestion = `${b.cle}|${faire.phrase}`;
-    const suggestionVisible = suggestionCachee !== cleDeLaSuggestion;
+    /* « RIEN À FAIRE. » SEUL NE S'AFFICHE PLUS (5 novembre 2026) : sans geste
+       ni rendez-vous à dire, le bandeau ne disait rien et prenait, au
+       téléphone, la place de trois bulles. */
+    const rienADire = faire.gestes.length === 0 && faire.phrase === 'Rien à faire.';
+    const suggestionVisible = suggestionCachee !== cleDeLaSuggestion && !rienADire;
     return (
       <section
         ref={convOuverte}
@@ -940,7 +944,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
           {(b.tri || aConfirmer === b.cle) && <div className="trc-bx__tri-conv">{leTri(b)}</div>}
           {/* L'ACTION SUGGÉRÉE (4 novembre 2026) : « Ce qu'il faut faire » en bandeau discret, sa phrase et ses gestes, le principal d'abord ; elle se masque pour cette phrase. */}
           {suggestionVisible && (
-            <div className={`trc-bx__faire trc-bx__faire--${tonDuFaire}`}>
+            <div className={`trc-bx__faire trc-bx__faire--${tonDuFaire}${faire.gestes.length === 0 ? ' est-sans-geste' : ''}`}>
               <p className="trc-bx__faire-titre">Action suggérée</p>
               <p className="trc-bx__faire-phrase">{faire.phrase}</p>
               {faire.gestes.length > 0 && (
