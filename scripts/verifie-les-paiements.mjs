@@ -30,6 +30,7 @@ const PUR = 'src/shared/les-paiements-pur.ts';
 const ECRAN = 'src/apps/trone/routes/equipe/LesPaiements.tsx';
 const MAGASIN = 'src/apps/trone/routes/equipe/les-paiements.ts';
 const INDEX = 'src/apps/trone/routes/index.tsx';
+const STYLE = 'src/apps/trone/routes/equipe/les-paiements.css';
 const PANNES = [
   /* Les dates */
   ['le dimanche reste un dimanche', PUR, '  const dimanche = new Date(Date.UTC(a, mo - 1, j)).getUTCDay() === 0;', '  const dimanche = false;'],
@@ -71,6 +72,7 @@ const PANNES = [
   ['l ecran ouvert a tous', ECRAN, '  if (!estSouverain) {', '  if (false) {'],
   ['les paiements s ouvrent au gerant', INDEX, "'/agents', '/assistants', '/paiements'];", "'/agents', '/assistants'];"],
   ['les paiements quittent les Ressources humaines', INDEX, ", { path: '/paiements', label: 'Les paiements' }", ''],
+  ['la barre de validation flotte au-dessus du bord', STYLE, '.lp-pied { position: sticky; bottom: calc(-1 * var(--space-9, 96px));', '.lp-pied { position: sticky; bottom: 0;'],
   /* numero invente : le vrai ne s'ecrit nulle part dans le depot public */
   ['le numero du compte de paie revient dans l ecran', ECRAN, "const COMPTE_DE_PAIE = 'compte de paie MTN';", "const COMPTE_DE_PAIE = '01 90 00 00 00';"],
 ];

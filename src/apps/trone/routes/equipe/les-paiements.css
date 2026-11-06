@@ -147,10 +147,19 @@
 .lp-form { display: grid; gap: 12px; }
 
 /* Le pied collant : la validation du mois */
-.lp-pied { position: sticky; bottom: 0; z-index: 5; background: var(--color-indigo); color: var(--color-ivoire); border-radius: 4px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; box-shadow: 0 -6px 18px rgba(20, 20, 40, .12); }
+/* Collé au BORD de la fenêtre : la zone de contenu du Trône (.tr-content) garde un
+   rembourrage en bas (var(--space-9) ; 40 px sous 900 px ; 78 px avec la barre du
+   téléphone), et un élément collant s'arrête au-dessus de ce rembourrage. On le
+   compense, sinon la barre flotte au milieu de l'écran. */
+.lp-pied { position: sticky; bottom: calc(-1 * var(--space-9, 96px)); z-index: 5; background: var(--color-indigo); color: var(--color-ivoire); border-radius: 4px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; box-shadow: 0 -6px 18px rgba(20, 20, 40, .12); }
 .lp-pied__resume { display: grid; min-width: 0; }
 .lp-pied__resume b { font: 400 22px var(--font-serif); font-variant-numeric: tabular-nums; }
 .lp-pied__resume span { font-size: 12.5px; opacity: .82; overflow-wrap: anywhere; }
 .lp-pied__actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
 @media (prefers-reduced-motion: reduce) { .lp-chev { transition: none; } }
+
+@media (max-width: 900px) {
+  .lp-pied { bottom: -40px; }
+  .tr-shell--barre .lp-pied { bottom: -78px; }
+}

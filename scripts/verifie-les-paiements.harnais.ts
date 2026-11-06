@@ -256,6 +256,11 @@ dit('le dernier mois ne retient que le reste : 15 000, solde ce mois', [0, '2026
 /* ── 8. L'ecran, la route, le serveur ── */
 const ECRAN = lis('src/apps/trone/routes/equipe/LesPaiements.tsx');
 const MAGASIN = lis('src/apps/trone/routes/equipe/les-paiements.ts');
+const STYLE = lis('src/apps/trone/routes/equipe/les-paiements.css');
+/* Vu en ligne le 6 nov. 2026 : collee a bottom 0, la barre flottait 96 px au-dessus
+   du bord (le rembourrage bas de .tr-content). Elle le compense, aux trois tailles. */
+dit('la barre de validation colle au bord de la fenetre, pas au-dessus du rembourrage', [true, true, true],
+  [STYLE.includes('.lp-pied { position: sticky; bottom: calc(-1 * var(--space-9, 96px));'), STYLE.includes('  .lp-pied { bottom: -40px; }'), STYLE.includes('  .tr-shell--barre .lp-pied { bottom: -78px; }')]);
 const INDEX = lis('src/apps/trone/routes/index.tsx');
 const PUR = lis('src/shared/les-paiements-pur.ts');
 dit('l equipe salariee est prevenue, les prestataires et les entreprises non (0164)', [true, true],
