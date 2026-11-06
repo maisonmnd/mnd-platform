@@ -1,5 +1,6 @@
 import { asset } from '../../shared/asset';
 import FermetureAnnoncee from './FermetureAnnoncee';
+import RituelEnCours from './RituelEnCours';
 import { TexteFon } from '../../ds/fon';
 import { EntreDeux } from './EntreDeux';
 import { MonDiagnosticPhoto } from './MonDiagnosticPhoto';
@@ -546,6 +547,10 @@ export function HomeTab({
   const abonneeA = aUneFormule(releveA);
   const carteProchaine = (
     <>
+        {/* VOTRE RITUEL · EN COURS (6 novembre 2026, Terminer et régler) : à
+            l'heure du rituel, le jour même, « Terminer mon rituel », puis le
+            règlement, puis « vous pouvez partir ». Rien hors de ce moment. */}
+        <RituelEnCours nomDuRituel={(a) => serviceNames(a, services)} />
         {/* VOTRE PROCHAINE SÉANCE — EN TÊTE (maquette accueil, repère 2) : la
             séance prise, ou la séance PRÉDITE avec ses deux gestes. Le vide
             n'ouvre plus l'écran. */}

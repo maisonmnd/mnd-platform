@@ -78,6 +78,9 @@ export type RdvLu = {
   master?: string; status?: string; payments?: VersementLu[]; paidXof?: number;
   lienDeReglement?: LienDeReglement;
   lienDuFoyer?: LienDuFoyer;
+  /** Elle a déclaré avoir terminé (6 novembre 2026, terminer-et-regler-pur.ts) :
+      sa pièce se prépare au Trône, la page l'attend au lieu de renoncer. */
+  termineParElle?: { le?: string } | null;
 };
 
 /* ══ LE RÈGLEMENT DU FOYER — 28 octobre 2026 ═════════════════════════════
@@ -273,6 +276,9 @@ export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDe
     reference: o.rdv ? referenceDuRdv(o.rdv.id) : '',
     branchId: o.branchId ?? '',
     ...(tapgo ? { tapgo } : {}),
+    /* Elle a terminé elle-même et sa pièce n'est pas encore écrite : le
+       Trône la prépare, la page attend (6 novembre 2026). */
+    ...(e.etat === 'sans-piece' && o.rdv?.termineParElle?.le ? { enPreparation: true } : {}),
   };
 }
 
@@ -320,9 +326,13 @@ export function pageDuFoyer(o: {
   const totalXof = etats.reduce((s, e) => s + e.totalXof, 0);
   const recuXof = etats.reduce((s, e) => s + e.recuXof, 0);
   const resteXof = etats.reduce((s, e) => s + e.resteXof, 0);
+  /* UNE TÊTE QUI A TERMINÉ ELLE-MÊME ET N'A PAS ENCORE SA PIÈCE (6 novembre
+     2026) : le Trône l'écrit dans l'instant. La page attend toutes les
+     pièces du foyer : un total à moitié prêt ferait régler la moitié. */
+  const enPreparation = vivantes.some((t) => !t.piece && !!t.rdv.termineParElle?.le);
   const etat: EtatDuLien = o.tetes.length === 0 ? 'introuvable'
     : vivantes.length === 0 ? 'annule'
-      : avecPiece.length === 0 ? 'sans-piece'
+      : avecPiece.length === 0 || enPreparation ? 'sans-piece'
         : resteXof > 0 ? 'a-regler' : 'reglee';
   const tetes: TeteDuFoyer[] = avecPiece.map((t, i) => ({
     prenom: prenomDe(t.nom ?? t.rdv.clientName), jour: t.rdv.date ?? '', lignes: lignesDites(t.piece!), resteXof: etats[i].resteXof,
@@ -345,5 +355,6 @@ export function pageDuFoyer(o: {
     reference: referenceDuFoyer(o.jeton),
     branchId: o.branchId ?? '',
     tetes,
+    ...(enPreparation ? { enPreparation: true } : {}),
   };
 }

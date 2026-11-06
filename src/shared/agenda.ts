@@ -3,6 +3,7 @@ import type { LongueurId } from './catalog';
 import type { LigneGamme } from './gamme';
 import type { LienDeReglement, LienDuFoyer } from './regler-la-seance-pur';
 import type { PieceEnvoyee } from './avant-le-fauteuil-pur';
+import type { MarqueDeLaFin, MarqueDeLHonneur } from './terminer-et-regler-pur';
 
 /* Le Carnet — rendez-vous multi-services, 08:00–18:00.
    Les semences sont générées autour d'aujourd'hui : le carnet vit toujours. */
@@ -408,6 +409,18 @@ export type Appointment = {
       suites (points, stock, mission, reprise) se font au Trône
       (`useLaMainDeGrenat`), par un seul poste, qui réserve `suitesLe`. */
   honoreParGrenat?: { le: string; moment?: string; suitesLe?: string };
+  /** ELLE A TERMINÉ ELLE-MÊME — 6 novembre 2026 (« Terminer et régler »). La
+      cliente a déclaré avoir terminé, par Ma Couronne, le site ou le WhatsApp
+      de la Maison : la fonction `terminer-et-regler` pose cette marque, le
+      serveur seul. Un poste du Trône écrit alors sa pièce au tarif de sa tête
+      (`useLaFinDuRituel`), sans honorer : le rendez-vous passe honoré quand
+      elle a réglé. Voir shared/terminer-et-regler-pur.ts. */
+  termineParElle?: MarqueDeLaFin;
+  /** PASSÉ « HONORÉ » À SON RÈGLEMENT (6 novembre 2026) : la fonction
+      `regler-la-seance` l'écrit quand la pièce d'un rendez-vous qu'elle a
+      terminé est soldée. Les suites (points, stock, mission) se font au
+      Trône, par un seul poste, qui réserve `suitesLe`, comme pour Grenat. */
+  honoreAuReglement?: MarqueDeLHonneur;
   /** Une trace d'avant le 6 novembre 2026 (« la séance rendue ») : plus rien
       ne la lit, il n'y a plus de séance manquée à rendre. */
   rendue?: { le: string; motif: string; par?: string };

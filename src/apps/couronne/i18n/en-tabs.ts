@@ -377,4 +377,27 @@ export const EN_TABS: Record<string, string> = {
   // Places limitées (4 novembre 2026) : la carte de l'offre ouvre la réservation.
   // Anglais laissé identique au français, à traduire à la relecture de Yéman.
   'Voir les jours': 'Voir les jours',
+  // Terminer et régler (6 novembre 2026) : la carte « Votre rituel · en cours » de l'accueil.
+  // À relire par Yéman avec le reste de l'anglais (ANGLAIS_OUVERT).
+  'Votre rituel · en cours': 'Your ritual · in progress',
+  'Votre rituel · terminé': 'Your ritual · finished',
+  'Votre rituel · réglé': 'Your ritual · paid',
+  'Quand l’équipe a fini, terminez ici : vous réglez depuis votre téléphone et vous partez sans passer au comptoir.': 'When the team has finished, end it here: you pay from your phone and leave without stopping at the counter.',
+  'Terminer mon rituel': 'End my ritual',
+  'L’équipe est prévenue. Votre règlement vous attend.': 'The team has been told. Your payment is waiting for you.',
+  'Régler mon rituel': 'Pay for my ritual',
+  'Si l’équipe ajoute une prestation ou un produit pendant le rituel, votre montant se met à jour tout seul.': 'If the team adds a service or a product during the ritual, your amount updates by itself.',
+  'Merci, {prenom}.': 'Thank you, {prenom}.',
+  'Merci.': 'Thank you.',
+  'Vous pouvez partir : la Maison est prévenue.': 'You may leave: the Maison has been told.',
+  'Votre reçu': 'Your receipt',
+  'Réglé par {moyen}': 'Paid by {moyen}',
+  'Réglé': 'Paid',
+  'dont {montant} de merci pour l’équipe': 'including {montant} as a thank-you for the team',
+  'Votre reçu arrive aussi sur WhatsApp, la facture jointe.': 'Your receipt is also on its way on WhatsApp, with the invoice attached.',
+  'Ce rituel est déjà réglé. Merci.': 'This ritual is already paid. Thank you.',
+  'Il n’y a rien à régler pour ce rituel.': 'There is nothing to pay for this ritual.',
+  'Pour votre règlement, l’équipe vous attend au comptoir.': 'For your payment, the team is waiting for you at the counter.',
+  'Le règlement en ligne n’est pas ouvert pour ce rituel. L’équipe vous répond au comptoir.': 'Online payment is not open for this ritual. The team will help you at the counter.',
+  'Le règlement ne répond pas. Réessayez dans un moment, ou passez au comptoir.': 'Payment is not responding. Try again in a moment, or stop at the counter.',
 };

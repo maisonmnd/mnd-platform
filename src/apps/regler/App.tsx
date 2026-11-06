@@ -3,6 +3,7 @@ import { asset } from '../../shared/asset';
 import { payWithKkiapay } from '../../shared/kkiapay-widget';
 import { TexteFon } from '../../ds/fon';
 import { lisLeLien, regleLeLien, type PageDuLien } from '../../shared/regler-la-seance-serveur';
+import { retourAMaCouronne } from '../../shared/terminer-et-regler-serveur';
 
 /* ══ RÉGLER SA SÉANCE — la page de la cliente (25 octobre 2026) ══════════
    Ouverte depuis le bouton « Régler » de son message (payer.html?tg=r-…).
@@ -40,12 +41,19 @@ const DEVISE = 'mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là';
 
 type Ecran =
   | { k: 'lecture' }
-  | { k: 'erreur'; dit: string }
+  | { k: 'preparation' }
+  | { k: 'erreur'; dit: string; reessayer?: boolean }
   | { k: 'page'; page: PageDuLien }
   | { k: 'paiement'; page: PageDuLien }
-  | { k: 'reglee'; page: PageDuLien; paye?: number };
+  | { k: 'reglee'; page: PageDuLien; paye?: number; honore?: boolean };
 
 const jetonDeLAdresse = (): string => (new URLSearchParams(window.location.search).get('r') ?? '').trim();
+/* TERMINER ET RÉGLER (6 novembre 2026) : elle a terminé elle-même, sa pièce
+   s'écrit au Trône dans l'instant. La page l'attend trois minutes (72
+   relectures de 2,5 s) avant de proposer le comptoir. Venue de Ma Couronne
+   (`retour=couronne`), elle y revient d'un toucher une fois le règlement fait. */
+const RELECTURES_DE_LA_PREPARATION = 72;
+const retourDemande = (): boolean => new URLSearchParams(window.location.search).get('retour') === 'couronne';
 
 export default function App() {
   const jeton = jetonDeLAdresse();
@@ -64,6 +72,17 @@ export default function App() {
       return;
     }
     const p = r.page;
+    /* Elle a terminé elle-même : le Trône prépare sa pièce. La page attend,
+       et le dit ; au bout de trois minutes, le comptoir reste là. */
+    if (p.etat === 'sans-piece' && p.enPreparation) {
+      if (essai < RELECTURES_DE_LA_PREPARATION) {
+        setEcran({ k: 'preparation' });
+        window.setTimeout(() => { void lis(essai + 1); }, 2500);
+        return;
+      }
+      setEcran({ k: 'erreur', dit: 'Votre montant n’est pas encore prêt : l’équipe le prépare. Réessayez dans un instant, ou réglez au comptoir.', reessayer: true });
+      return;
+    }
     /* Le rendez-vous vient d'être écrit au comptoir : il peut mettre quelques
        secondes à arriver. On relit trois fois avant de dire « introuvable ». */
     if ((p.etat === 'introuvable' || p.etat === 'sans-piece') && essai < 3) {
@@ -92,7 +111,7 @@ export default function App() {
       return;
     }
     const r = await regleLeLien(jeton, transactionId);
-    if (r.ok) { setEcran({ k: 'reglee', page: { ...p, resteXof: 0 }, paye: montant }); return; }
+    if (r.ok) { setEcran({ k: 'reglee', page: { ...p, resteXof: 0 }, paye: montant, honore: r.honore === true }); return; }
     if (r.error === 'reseau' || r.error === 'hors_ligne') {
       /* L'argent est chez KkiaPay ; son filet préviendra la Maison. */
       setEcran({ k: 'reglee', page: { ...p, resteXof: 0 }, paye: montant });
@@ -126,7 +145,12 @@ export default function App() {
 
       {ecran.k === 'lecture' && <p className="rg-doux rg-centre">Un instant, la Maison relit votre séance…</p>}
 
+      {ecran.k === 'preparation' && <p className="rg-doux rg-centre" aria-live="polite">La Maison prépare votre montant. Un instant…</p>}
+
       {ecran.k === 'erreur' && <p className="rg-doux rg-centre">{ecran.dit}</p>}
+      {ecran.k === 'erreur' && ecran.reessayer && (
+        <button type="button" className="rg-autre" onClick={() => { setEcran({ k: 'lecture' }); void lis(); }}>Réessayer</button>
+      )}
 
       {(ecran.k === 'page' || ecran.k === 'paiement') && (() => {
         const p = ecran.page;
@@ -208,7 +232,10 @@ export default function App() {
             <span>{ecran.page.tetes
               ? (ecran.paye ? 'Vos reçus arrivent sur WhatsApp, chaque facture jointe.' : 'Il n’y a plus rien à régler pour ces séances.')
               : (ecran.paye ? 'Votre reçu arrive sur WhatsApp, la facture jointe.' : 'Il n’y a plus rien à régler pour cette séance.')}</span>
+            {/* Elle avait terminé elle-même : réglé, le rendez-vous est honoré (6 novembre 2026). */}
+            {ecran.honore && <span>Vous pouvez partir : la Maison est prévenue.</span>}
           </div>
+          {retourDemande() && <a className="rg-autre" href={retourAMaCouronne()}>Revenir à Ma Couronne</a>}
         </section>
       )}
 

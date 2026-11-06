@@ -31,6 +31,8 @@ import {
 } from '../src/shared/regler-la-seance-pur';
 import { prixFigeLu } from '../src/shared/cloture-du-jour-pur';
 import { LIEN_TAPGO } from '../src/shared/mnd-pay-pur';
+import { pageDuReglement, refusDeLaFin, retourAMaCouronne } from '../src/shared/terminer-et-regler-serveur';
+import { EN } from '../src/apps/couronne/i18n/en';
 import {
   CHEMIN_POUR_RETROUVER, MOTS_DE_LA_RECHERCHE, billetDeLaPageLu, billetLu, codeDeLAdresse, finLue, rechercheLue, refusDit, reglementDuBillet, saisieARevoir,
 } from '../src/apps/revelateur/billet-du-rdv-pur';
@@ -604,6 +606,61 @@ const generateur = lis('scripts/genere-revelateur.mjs');
 dit('le generateur donne a cette page le genre « retrouver », et le site y mene discretement : le pied de page, la page de reservation', [true, true, true],
   [/if \(nom === 'rdv' && p\.chemin === '\/mon-rendez-vous\/'\) \{\s*return `<section class="serre"><div class="conteneur"><div data-ilot="rdv" data-genre="retrouver">/.test(generateur),/\{ texte: 'Retrouver mon rendez-vous', vers: '\/mon-rendez-vous\/' \},/.test(contenuDuSite),
     /<a href="\$\{attr\(lien\('\/mon-rendez-vous\/'\)\)\}">Déjà un rendez-vous \? Retrouvez-le avec votre code\.<\/a>/.test(generateur)]);
+
+/* ══ 17. LA PORTE DE MA COURONNE, et la page « Regler » qui la suit ══════ */
+dit('de Ma Couronne a la page « Regler » : un chemin sur la meme origine, jamais un domaine ; en ligne sous /trone/, en developpement a la racine',
+  [`/trone/regler.html?r=${J1}&retour=couronne`, `/regler.html?r=${J1}&retour=couronne`], [pageDuReglement(J1, '/couronne/'), pageDuReglement(J1, '/couronne.html')]);
+dit('... et le retour a Ma Couronne, une fois le reglement fait', ['/couronne/', '/couronne.html'], [retourAMaCouronne('/trone/regler.html'), retourAMaCouronne('/regler.html')]);
+const REFUS = [refusDeLaFin({ ok: true, etat: 'deja-regle' }), refusDeLaFin({ ok: true, etat: 'rien-a-regler' }), refusDeLaFin({ ok: true, etat: 'comptoir' }), refusDeLaFin({ ok: true, etat: 'avant-l-heure' }), refusDeLaFin({ error: 'reseau' })];
+dit('une porte restee fermee se dit en une phrase, jamais un code', [
+  'Ce rituel est déjà réglé. Merci.', 'Il n’y a rien à régler pour ce rituel.', 'Pour votre règlement, l’équipe vous attend au comptoir.',
+  'Le règlement en ligne n’est pas ouvert pour ce rituel. L’équipe vous répond au comptoir.', 'Le règlement ne répond pas. Réessayez dans un moment, ou passez au comptoir.',
+], REFUS);
+dit('... et chacune de ces phrases a son anglais dans Ma Couronne', [], REFUS.filter((p) => !EN[p]));
+
+/* La page « Regler » attend la piece que le Trone prepare, puis dit qu'elle peut partir. */
+remplis();
+const m1 = await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-jour' }, { cle: 'jeton.de.awa' });
+const pageEnAttente = (await appelle(regler, { action: 'lire', jeton: String(m1.corps.jeton) })).corps.page;
+dit('elle a termine, sa piece n est pas encore ecrite : la page le sait et attend (« en preparation »), au lieu de renoncer', ['sans-piece', true], [pageEnAttente?.etat, pageEnAttente?.enPreparation]);
+Object.assign(rdvDe('rdv-demain'), { lienDeReglement: { jeton: J2, creeLe: 'x' } });
+dit('... sans declaration, une page sans piece ne promet rien', ['sans-piece', undefined],
+  await appelle(regler, { action: 'lire', jeton: J2 }).then((r) => [r.corps.page?.etat, r.corps.page?.enPreparation]));
+db.invoices.push(piece('f-jour', 'rdv-jour', 12000));
+transactions.tx5 = { status: 'SUCCESS', amount: 12000, fees: 228, source: 'MTN_BENIN' };
+const m2 = await appelle(regler, { action: 'regler', jeton: String(m1.corps.jeton), transactionId: 'tx5' });
+dit('elle regle : la fonction dit que le rendez-vous est honore, la page peut dire « vous pouvez partir » ; un rejeu le redit', [true, true],
+  [m2.corps.honore, (await appelle(regler, { action: 'regler', jeton: String(m1.corps.jeton), transactionId: 'tx5' })).corps.honore]);
+remplis();
+Object.assign(rdvDe('rdv-jour'), { lienDeReglement: { jeton: J2, creeLe: 'x' }, status: 'honoré' });
+db.invoices.push(piece('f-jour', 'rdv-jour', 12000));
+transactions.tx6 = { status: 'SUCCESS', amount: 12000, fees: 228, source: 'MTN_BENIN' };
+dit('le chemin d avant (la seance terminee au comptoir) ne dit pas « vous pouvez partir » : rien n a ete honore ici', false,
+  (await appelle(regler, { action: 'regler', jeton: J2, transactionId: 'tx6' })).corps.honore);
+remplis();
+const mf = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-na', 'rdv-fi'] }, { cle: SERVICE });
+db.invoices.push(piece('f-na', 'rdv-na', 7000));
+const pageDuFoyerAMoitie = (await appelle(regler, { action: 'lire', jeton: String(mf.corps.jeton) })).corps.page;
+dit('le foyer : une piece ecrite, l autre pas encore ; la page attend les deux, jamais un total a moitie pret', ['sans-piece', true], [pageDuFoyerAMoitie?.etat, pageDuFoyerAMoitie?.enPreparation]);
+db.invoices.push(piece('f-fi', 'rdv-fi', 5000));
+dit('... les deux pieces ecrites : le total entier', ['a-regler', 12000], await appelle(regler, { action: 'lire', jeton: String(mf.corps.jeton) }).then((r) => [r.corps.page?.etat, r.corps.page?.resteXof]));
+
+const carteMc = sansCommentaires(lis('src/apps/couronne/RituelEnCours.tsx'));
+const tabsMc = sansCommentaires(lis('src/apps/couronne/Tabs.tsx'));
+dit('l accueil de Ma Couronne monte la carte « Votre rituel · en cours », au-dessus de la prochaine seance', [true, true],
+  [/import RituelEnCours from '\.\/RituelEnCours';/.test(tabsMc), /<RituelEnCours nomDuRituel=\{\(a\) => serviceNames\(a, services\)\} \/>\s*\{\}\s*<div className="mc-nextrdv">/.test(tabsMc)]);
+dit('la carte suit la regle (ses rendez-vous a elle, « Passe au comptoir » l eteint) et passe par le serveur, avec son compte', [true, true, true, true],
+  [/carteDuRituelEnCours\(\{\s*rdvs: appts\.filter\(\(a\) => a\.clientId === monId\),/.test(carteMc), /passeAuComptoir: client\?\.passeAuComptoir === true,/.test(carteMc),
+    /const r = await termineMonRituel\(rdv\.id, session\?\.access_token \?\? ''\);/.test(carteMc),
+    /if \(r\.ok && r\.etat === 'a-regler' && r\.jeton\) \{ window\.location\.assign\(pageDuReglement\(r\.jeton\)\); return; \}/.test(carteMc)]);
+dit('... « vous pouvez partir » seulement quand la carte dit « regle » ; le bouton change de nom quand elle a termine', [true, true],
+  [/if \(carte\.etat === 'regle'\) \{[\s\S]*t\('Vous pouvez partir : la Maison est prévenue\.'\)/.test(carteMc), /aTermine \? t\('Régler mon rituel'\) : t\('Terminer mon rituel'\)/.test(carteMc)]);
+const pageRegler = sansCommentaires(lis('src/apps/regler/App.tsx'));
+dit('la page « Regler » : elle attend la piece en preparation (trois minutes), dit « vous pouvez partir » seulement si la fonction l a honore, et ramene a Ma Couronne',
+  [true, true, true, true, true],
+  [/if \(p\.etat === 'sans-piece' && p\.enPreparation\) \{\s*if \(essai < RELECTURES_DE_LA_PREPARATION\) \{/.test(pageRegler), /const RELECTURES_DE_LA_PREPARATION = 72;/.test(pageRegler),
+    /honore: r\.honore === true \}\); return; \}/.test(pageRegler), /\{ecran\.honore && <span>Vous pouvez partir : la Maison est prévenue\.<\/span>\}/.test(pageRegler),
+    /\{retourDemande\(\) && <a className="rg-autre" href=\{retourAMaCouronne\(\)\}>Revenir à Ma Couronne<\/a>\}/.test(pageRegler)]);
 
 console.log(ko ? `\n${ko} echec(s) sur ${n}.` : `\nTout tient (${n} controles).`);
 if (ko) process.exit(1);

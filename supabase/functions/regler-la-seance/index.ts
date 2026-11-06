@@ -109,6 +109,9 @@ export type RdvLu = {
   master?: string; status?: string; payments?: VersementLu[]; paidXof?: number;
   lienDeReglement?: LienDeReglement;
   lienDuFoyer?: LienDuFoyer;
+  /** Elle a déclaré avoir terminé (6 novembre 2026, terminer-et-regler-pur.ts) :
+      sa pièce se prépare au Trône, la page l'attend au lieu de renoncer. */
+  termineParElle?: { le?: string } | null;
 };
 
 export type LienDuFoyer = {
@@ -273,6 +276,9 @@ export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDe
     reference: o.rdv ? referenceDuRdv(o.rdv.id) : '',
     branchId: o.branchId ?? '',
     ...(tapgo ? { tapgo } : {}),
+    /* Elle a terminé elle-même et sa pièce n'est pas encore écrite : le
+       Trône la prépare, la page attend (6 novembre 2026). */
+    ...(e.etat === 'sans-piece' && o.rdv?.termineParElle?.le ? { enPreparation: true } : {}),
   };
 }
 
@@ -307,9 +313,13 @@ export function pageDuFoyer(o: {
   const totalXof = etats.reduce((s, e) => s + e.totalXof, 0);
   const recuXof = etats.reduce((s, e) => s + e.recuXof, 0);
   const resteXof = etats.reduce((s, e) => s + e.resteXof, 0);
+  /* UNE TÊTE QUI A TERMINÉ ELLE-MÊME ET N'A PAS ENCORE SA PIÈCE (6 novembre
+     2026) : le Trône l'écrit dans l'instant. La page attend toutes les
+     pièces du foyer : un total à moitié prêt ferait régler la moitié. */
+  const enPreparation = vivantes.some((t) => !t.piece && !!t.rdv.termineParElle?.le);
   const etat: EtatDuLien = o.tetes.length === 0 ? 'introuvable'
     : vivantes.length === 0 ? 'annule'
-      : avecPiece.length === 0 ? 'sans-piece'
+      : avecPiece.length === 0 || enPreparation ? 'sans-piece'
         : resteXof > 0 ? 'a-regler' : 'reglee';
   const tetes: TeteDuFoyer[] = avecPiece.map((t, i) => ({
     prenom: prenomDe(t.nom ?? t.rdv.clientName), jour: t.rdv.date ?? '', lignes: lignesDites(t.piece!), resteXof: etats[i].resteXof,
@@ -332,6 +342,7 @@ export function pageDuFoyer(o: {
     reference: referenceDuFoyer(o.jeton),
     branchId: o.branchId ?? '',
     tetes,
+    ...(enPreparation ? { enPreparation: true } : {}),
   };
 }
 // ── FIN copie de shared/regler-la-seance-pur.ts
@@ -348,8 +359,10 @@ export function pageDuFoyer(o: {
 /* ⟨honneur-au-reglement⟩ */
 /** Par quelle porte elle a déclaré avoir terminé. */
 export type PorteDeLaFin = 'couronne' | 'site' | 'whatsapp';
-/** La marque posée sur le rendez-vous à sa déclaration (le serveur seul l'écrit). */
-export type MarqueDeLaFin = { le: string; par: PorteDeLaFin };
+/** La marque posée sur le rendez-vous à sa déclaration (le serveur seul
+    l'écrit). `pieceLe` : un poste du Trône a réservé l'écriture de sa pièce
+    (une écriture conditionnelle, un seul poste la fait). */
+export type MarqueDeLaFin = { le: string; par: PorteDeLaFin; pieceLe?: string };
 /** La marque posée au règlement : le serveur passe « honoré », un poste du
     Trône réserve les suites (`suitesLe`) et les fait, comme au comptoir. */
 export type MarqueDeLHonneur = { le: string; suitesLe?: string };
@@ -453,7 +466,7 @@ async function transaction(transactionId: string): Promise<KkiaTransaction> {
    reste reste au registre, « à rapprocher » au comptoir : on ne perd jamais
    un franc reçu. */
 async function appliquer(rdv: Ligne, t: { id: string; amountXof: number; feesXof: number; source?: string }): Promise<
-  { ok: true; deja?: boolean; versementXof: number; pourboireXof: number } | { ok: false; erreur: string; status: number }
+  { ok: true; deja?: boolean; versementXof: number; pourboireXof: number; honore?: boolean } | { ok: false; erreur: string; status: number }
 > {
   const reference = referenceDuRdv(rdv.id);
   const r = rdv.data ?? {};
@@ -475,8 +488,8 @@ async function appliquer(rdv: Ligne, t: { id: string; amountXof: number; feesXof
   const piece: PieceLue = { ...(pieceLigne.data ?? {}), id: pieceLigne.id };
   if (dejaInscrit(piece, t.id)) {
     /* Un rejeu : l'argent est posé. Si l'honneur n'avait pas pu s'écrire, il s'écrit. */
-    await suisLeRdv(rdv.id, null, piece.id, resteDeLaPiece(piece), new Date());
-    return { ok: true, deja: true, versementXof: 0, pourboireXof: 0 };
+    const honore = await suisLeRdv(rdv.id, null, piece.id, resteDeLaPiece(piece), new Date());
+    return { ok: true, deja: true, versementXof: 0, pourboireXof: 0, honore };
   }
 
   const partage = partageDuPaiement(t.amountXof, resteDeLaPiece(piece));
@@ -492,20 +505,24 @@ async function appliquer(rdv: Ligne, t: { id: string; amountXof: number; feesXof
   const { error: e1 } = await admin.from('invoices').update({ data: neuve }).eq('id', piece.id);
   if (e1) throw new Error(e1.message);
 
-  await suisLeRdv(rdv.id, v, piece.id, resteDeLaPiece(neuve), quand);
-  return { ok: true, versementXof: partage.versementXof, pourboireXof: partage.pourboireXof };
+  const honore = await suisLeRdv(rdv.id, v, piece.id, resteDeLaPiece(neuve), quand);
+  return { ok: true, versementXof: partage.versementXof, pourboireXof: partage.pourboireXof, honore };
 }
 
 /** LE RENDEZ-VOUS SUIT SA PIÈCE, relu à l'instant : le versement, puis
-    l'honneur quand elle avait déclaré avoir terminé (`rdvApresLeReglement`). */
-async function suisLeRdv(rdvId: string, v: VersementLu | null, pieceId: string, resteXof: number, quand: Date, parLeFoyer = false): Promise<void> {
+    l'honneur quand elle avait déclaré avoir terminé (`rdvApresLeReglement`).
+    Rend vrai quand le rendez-vous porte l'honneur du règlement (posé ici ou
+    déjà là) : la page dit alors « vous pouvez partir ». */
+async function suisLeRdv(rdvId: string, v: VersementLu | null, pieceId: string, resteXof: number, quand: Date, parLeFoyer = false): Promise<boolean> {
   const { data: frais } = await admin.from('appointments').select('id,data').eq('id', rdvId).maybeSingle();
-  if (!frais) return;
+  if (!frais) return false;
   const avant: RdvLu = { ...(frais.data ?? {}), id: frais.id };
   const apres = rdvApresLeReglement(avant, v, pieceId, resteXof, quand, parLeFoyer);
-  if (apres === avant) return;
+  const honore = !!(apres as { honoreAuReglement?: { le?: string } }).honoreAuReglement?.le;
+  if (apres === avant) return honore;
   const { error } = await admin.from('appointments').update({ data: apres }).eq('id', rdvId);
   if (error) throw new Error(error.message);
+  return honore;
 }
 
 /** LE FILET : les transactions du registre pour ce rendez-vous (posées par
@@ -541,7 +558,7 @@ async function lesRdvsDuFoyer(jeton: string): Promise<Ligne[]> {
     ne se repose pas (un rejeu ne double rien) ; un argent qui ne couvre pas
     le tout reste au registre, « à rapprocher » au comptoir. */
 async function appliquerAuFoyer(jeton: string, rdvs: Ligne[], t: { id: string; amountXof: number; feesXof: number; source?: string }): Promise<
-  { ok: true; deja?: boolean; versementXof: number; pourboireXof: number } | { ok: false; erreur: string; status: number }
+  { ok: true; deja?: boolean; versementXof: number; pourboireXof: number; honore?: boolean } | { ok: false; erreur: string; status: number }
 > {
   const reference = referenceDuFoyer(jeton);
   const { error: insErr } = await admin.from('payments').insert({
@@ -566,13 +583,20 @@ async function appliquerAuFoyer(jeton: string, rdvs: Ligne[], t: { id: string; a
   const posee = (p: PieceLue) => (p.payments ?? []).filter((v) => v.id === idDuVersementDuFoyer(t.id, p.id));
   const dejaRecu = pieces.reduce((s, x) => s + posee(x.piece).reduce((a, v) => a + n(v.amountXof), 0), 0);
   const aPoser = pieces.filter((x) => posee(x.piece).length === 0);
-  if (dejaRecu > 0 && aPoser.every((x) => resteDeLaPiece(x.piece) <= 0)) return { ok: true, deja: true, versementXof: 0, pourboireXof: 0 };
+  /* Un rejeu : l'argent est posé. L'honneur qui n'aurait pas pu s'écrire s'écrit, tête par tête. */
+  const rejeu = async () => {
+    let honore = true;
+    for (const x of pieces) honore = (await suisLeRdv(x.rdv.id, null, x.piece.id, resteDeLaPiece(x.piece), new Date(), true)) && honore;
+    return { ok: true as const, deja: true, versementXof: 0, pourboireXof: 0, honore };
+  };
+  if (dejaRecu > 0 && aPoser.every((x) => resteDeLaPiece(x.piece) <= 0)) return await rejeu();
   const rep = repartitionDuFoyer(t.amountXof - dejaRecu, aPoser.map((x) => ({ id: x.piece.id, resteXof: resteDeLaPiece(x.piece) })));
-  if (!rep.ok) return dejaRecu > 0 ? { ok: true, deja: true, versementXof: 0, pourboireXof: 0 } : { ok: false, erreur: rep.raison, status: 409 };
+  if (!rep.ok) return dejaRecu > 0 ? await rejeu() : { ok: false, erreur: rep.raison, status: 409 };
 
   const quand = new Date();
   const derniere = rep.parts[rep.parts.length - 1].id;
   let verse = 0;
+  let tousHonores = true;
   for (const part of rep.parts) {
     const x = aPoser.find((y) => y.piece.id === part.id);
     if (!x) continue;
@@ -585,10 +609,10 @@ async function appliquerAuFoyer(jeton: string, rdvs: Ligne[], t: { id: string; a
     const neuve = pieceReglee(x.piece, v, pourboire, trace);
     const { error: e1 } = await admin.from('invoices').update({ data: neuve }).eq('id', x.piece.id);
     if (e1) throw new Error(e1.message);
-    await suisLeRdv(x.rdv.id, v, x.piece.id, resteDeLaPiece(neuve), quand, true);
+    tousHonores = (await suisLeRdv(x.rdv.id, v, x.piece.id, resteDeLaPiece(neuve), quand, true)) && tousHonores;
     verse += part.montantXof;
   }
-  return { ok: true, versementXof: verse, pourboireXof: rep.pourboireXof };
+  return { ok: true, versementXof: verse, pourboireXof: rep.pourboireXof, honore: tousHonores };
 }
 
 /** LE FILET DU FOYER : les transactions du registre à sa référence, pas encore posées. */
@@ -660,7 +684,9 @@ async function regler(req: Request, b: any) {
   const argent = { id: transactionId, amountXof: Math.round(Number(tx.amount ?? 0)), feesXof: Math.round(Number(tx.fees ?? 0)), source: tx.source };
   const r = rdv ? await appliquer(rdv, argent) : await appliquerAuFoyer(jeton, foyer, argent);
   if (!r.ok) return json({ error: r.erreur }, r.status);
-  return json({ ok: true, deja: !!r.deja, versementXof: r.versementXof, pourboireXof: r.pourboireXof, moyen: moyenDit(tx.source) });
+  /* `honore` : elle avait terminé elle-même et tout est réglé, le rendez-vous
+     vient de passer honoré. La page lui dit qu'elle peut partir. */
+  return json({ ok: true, deja: !!r.deja, versementXof: r.versementXof, pourboireXof: r.pourboireXof, moyen: moyenDit(tx.source), honore: !!r.honore });
 }
 
 Deno.serve(async (req) => {

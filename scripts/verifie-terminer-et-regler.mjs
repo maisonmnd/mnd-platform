@@ -19,6 +19,11 @@ const PUR = 'src/shared/terminer-et-regler-pur.ts';
 const TER = 'supabase/functions/terminer-et-regler/index.ts';
 const REG = 'supabase/functions/regler-la-seance/index.ts';
 const AU = 'supabase/functions/whatsapp-automate/index.ts';
+const TABS = 'src/apps/couronne/Tabs.tsx';
+const CARTE = 'src/apps/couronne/RituelEnCours.tsx';
+const SERVEUR = 'src/shared/terminer-et-regler-serveur.ts';
+const ENTABS = 'src/apps/couronne/i18n/en-tabs.ts';
+const REGLER = 'src/apps/regler/App.tsx';
 const SITE = 'src/apps/revelateur/billet-du-rdv-pur.ts';
 const ILOT = 'src/apps/revelateur/ilots/MonRendezVous.tsx';
 const CONTENU = 'src/apps/revelateur/contenu.ts';
@@ -27,8 +32,12 @@ const PANNES = [
   /* ── Le serveur : les vraies fonctions, rejouees ── */
   ['le reglement n honore plus', REG, "  return honneur ? ({ ...regle, status: 'honoré', honoreAuReglement: honneur } as RdvLu) : regle;", '  return regle;'],
   ['l honneur sans la marque que le Trone suit', REG, "({ ...regle, status: 'honoré', honoreAuReglement: honneur } as RdvLu)", "({ ...regle, status: 'honoré' } as RdvLu)"],
-  ['un rejeu ne rattrape pas l honneur', REG, '    await suisLeRdv(rdv.id, null, piece.id, resteDeLaPiece(piece), new Date());\n', ''],
-  ['le foyer regle n honore pas', REG, '    await suisLeRdv(x.rdv.id, v, x.piece.id, resteDeLaPiece(neuve), quand, true);', '    await suisLeRdv(x.rdv.id, v, x.piece.id, 1, quand, true);'],
+  ['un rejeu ne rattrape pas l honneur', REG, '    const honore = await suisLeRdv(rdv.id, null, piece.id, resteDeLaPiece(piece), new Date());\n', '    const honore = false;\n'],
+  ['le foyer regle n honore pas', REG, 'tousHonores = (await suisLeRdv(x.rdv.id, v, x.piece.id, resteDeLaPiece(neuve), quand, true)) && tousHonores;', 'tousHonores = (await suisLeRdv(x.rdv.id, v, x.piece.id, 1, quand, true)) && tousHonores;'],
+  ['la page dit « vous pouvez partir » sans honneur', REG, 'moyen: moyenDit(tx.source), honore: !!r.honore });', 'moyen: moyenDit(tx.source), honore: true });'],
+  ['la page ne sait pas que le rendez-vous est honore', REG, "  const honore = !!(apres as { honoreAuReglement?: { le?: string } }).honoreAuReglement?.le;", '  const honore = false;'],
+  ['la page renonce pendant que le Trone prepare la piece', REG, "    ...(e.etat === 'sans-piece' && o.rdv?.termineParElle?.le ? { enPreparation: true } : {}),\n", ''],
+  ['le foyer se regle a moitie pret', REG, "      : avecPiece.length === 0 || enPreparation ? 'sans-piece'", "      : avecPiece.length === 0 ? 'sans-piece'"],
   ['la copie de l honneur derive dans regler-la-seance', REG, '  if (!Number.isFinite(reste) || Math.round(reste) > 0) return null;', '  if (!Number.isFinite(reste) || Math.round(reste) > 1) return null;'],
   ['la copie de la regle derive dans terminer-et-regler', TER, 'export const JOURS_APRES_DE_LA_RECHERCHE = 100;', 'export const JOURS_APRES_DE_LA_RECHERCHE = 101;'],
   ['la porte WhatsApp s ouvre sans la cle de service', TER, "    if (!parLeService(req)) return json({ ok: false, error: 'interdit' }, 403);\n", ''],
@@ -45,6 +54,20 @@ const PANNES = [
   ['« Passe au comptoir » ignore par le serveur', TER, "      porte: porteDeLaFin({ rdv, maintenantMs: maintenant, passeAuComptoir: fiche?.passeAuComptoir === true,", '      porte: porteDeLaFin({ rdv, maintenantMs: maintenant, passeAuComptoir: false,'],
   ['le serveur honore a la declaration', TER, '      return { ...d, termineParElle: marque, ...avecLien };', "      return { ...d, termineParElle: marque, ...avecLien, status: 'honoré' };"],
   ['le billet dit son nom de famille', TER, "    rdv, reference: referenceDuRendezVous(l.id), prenom: String(fiche?.name ?? l.data?.clientName ?? ''),", "    rdv, reference: String(fiche?.name ?? ''), prenom: String(fiche?.name ?? l.data?.clientName ?? ''),"],
+  /* ── La porte de Ma Couronne, et la page « Regler » ── */
+  ['l accueil de Ma Couronne ne monte pas la carte', TABS, "        <RituelEnCours nomDuRituel={(a) => serviceNames(a, services)} />\n", ''],
+  ['la carte montre le rituel d une autre', CARTE, '    rdvs: appts.filter((a) => a.clientId === monId),', '    rdvs: appts,'],
+  ['la carte ignore « Passe au comptoir »', CARTE, '    passeAuComptoir: client?.passeAuComptoir === true,', '    passeAuComptoir: false,'],
+  ['la carte termine sans son compte', CARTE, "await termineMonRituel(rdv.id, session?.access_token ?? '');", "await termineMonRituel(rdv.id, '');"],
+  ['la carte mene au reglement porte fermee', CARTE, "    if (r.ok && r.etat === 'a-regler' && r.jeton) {", '    if (r.jeton) {'],
+  ['Ma Couronne dit « vous pouvez partir » avant le reglement (la carte)', CARTE, "  if (carte.etat === 'regle') {", "  if (carte.etat !== 'en-cours') {"],
+  ['le chemin de Ma Couronne sort de l origine', SERVEUR, "  const page = chemin.startsWith('/couronne/') ? '/trone/regler.html' : '/regler.html';", "  const page = 'https://maisonmnd.com/trone/regler.html';"],
+  ['le retour a Ma Couronne se perd', SERVEUR, "  return chemin.startsWith('/trone/') ? '/couronne/' : '/couronne.html';", "  return '/';"],
+  ['un refus se dit par son code', SERVEUR, "  if (r.ok && r.etat === 'comptoir') return 'Pour votre règlement, l’équipe vous attend au comptoir.';\n", ''],
+  ['une phrase de refus sans anglais', ENTABS, "  'Il n’y a rien à régler pour ce rituel.': 'There is nothing to pay for this ritual.',\n", ''],
+  ['la page Regler renonce pendant la preparation', REGLER, "    if (p.etat === 'sans-piece' && p.enPreparation) {", '    if (false) {'],
+  ['la page Regler dit « vous pouvez partir » a toutes', REGLER, 'honore: r.honore === true }); return; }', 'honore: true }); return; }'],
+  ['la page Regler ne ramene pas a Ma Couronne', REGLER, '          {retourDemande() && <a className="rg-autre" href={retourAMaCouronne()}>Revenir à Ma Couronne</a>}\n', ''],
   /* ── La porte du site ── */
   ['le site distingue un code inconnu de chiffres faux', SITE, "  if (x.ok !== true) return x.error === 'introuvable' ? { etat: 'introuvable' } : { etat: 'panne' };", "  if (x.ok !== true) return x.error === 'introuvable' ? { etat: 'panne' } : { etat: 'introuvable' };"],
   ['le site croit un jeton qui n en est pas un', SITE, " || typeof x.v !== 'string' || !/^[A-Za-z0-9_-]{1,120}\\.[A-Za-z0-9_-]{22}$/.test(x.v)) return { etat: 'panne' };", ") return { etat: 'panne' };"],

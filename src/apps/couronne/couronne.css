@@ -2388,6 +2388,15 @@
 }
 .mc-nextrdv__manage:hover { background: rgba(246, 241, 231, 0.1); }
 
+/* VOTRE RITUEL · EN COURS (6 novembre 2026, Terminer et régler) : la carte
+   de la séance, ses couleurs comprises ; ici, seulement l'espace. */
+.mc-rituel { margin-bottom: 12px; }
+.mc-rituel__texte { margin-top: 10px; line-height: 1.5; }
+.mc-rituel .mc-cta { margin-top: 14px; }
+.mc-rituel__recu { margin-top: 12px; }
+.mc-rituel__recu summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; text-decoration: underline; }
+.mc-rituel__ligne { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-variant-numeric: tabular-nums; }
+
 /* Carte rendez-vous — la cliente voit, déplace, annule. */
 .mc-rdvcard {
   background: var(--surface-card);

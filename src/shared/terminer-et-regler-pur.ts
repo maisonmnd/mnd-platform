@@ -38,8 +38,10 @@
 /* ⟨honneur-au-reglement⟩ */
 /** Par quelle porte elle a déclaré avoir terminé. */
 export type PorteDeLaFin = 'couronne' | 'site' | 'whatsapp';
-/** La marque posée sur le rendez-vous à sa déclaration (le serveur seul l'écrit). */
-export type MarqueDeLaFin = { le: string; par: PorteDeLaFin };
+/** La marque posée sur le rendez-vous à sa déclaration (le serveur seul
+    l'écrit). `pieceLe` : un poste du Trône a réservé l'écriture de sa pièce
+    (une écriture conditionnelle, un seul poste la fait). */
+export type MarqueDeLaFin = { le: string; par: PorteDeLaFin; pieceLe?: string };
 /** La marque posée au règlement : le serveur passe « honoré », un poste du
     Trône réserve les suites (`suitesLe`) et les fait, comme au comptoir. */
 export type MarqueDeLHonneur = { le: string; suitesLe?: string };

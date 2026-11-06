@@ -23,6 +23,8 @@ export type PageDuLien = {
   tapgo?: { parametre: string; totalXof: number };
   /** Le foyer (28 octobre 2026) : chaque tête, son jour, ses lignes, son reste. */
   tetes?: { prenom: string; jour: string; lignes: { label: string; montantXof: number }[]; resteXof: number }[];
+  /** Elle a terminé elle-même (6 novembre 2026) : sa pièce se prépare au Trône, la page attend. */
+  enPreparation?: boolean;
 };
 
 export type Reponse = { ok?: boolean; error?: string; version?: string; page?: PageDuLien; [k: string]: unknown };

@@ -397,6 +397,12 @@ export type Client = {
       décochées pour elle ; seul un renvoi exprès (« Renvoyer la facture »)
       part. Elle vaut pour la fiche qui reçoit le papier (la payeuse). */
   sansPapiersWa?: boolean;
+  /** PASSE AU COMPTOIR — 6 novembre 2026 (« Terminer et régler », arbitrage
+      de Yéman : « toutes les clientes ; une case "Passe au comptoir" sur la
+      fiche pour l'éteindre »). Cochée, elle ne termine ni ne règle elle-même :
+      ni le bouton de Ma Couronne, ni celui du site, ni le lien du WhatsApp de
+      la Maison. La règle : shared/terminer-et-regler-pur.ts (`porteDeLaFin`). */
+  passeAuComptoir?: boolean;
   /** LA REMISE DU RITUEL COMPLET — 5 novembre 2026 (« Celles que je coche »,
       Yéman) : quand elle fait le shampoing et la reprise au même rituel, le
       geste de la Maison réservé aux fiches cochées s'applique (5 000 F sur le
