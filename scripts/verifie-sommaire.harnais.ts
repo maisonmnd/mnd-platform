@@ -88,7 +88,7 @@ function controle(ecran: string, cloche: string, marketing: string, textes: stri
     /const ecrisLAutomate = \(r: ReglageDeLAutomate\) => setAutoCfgRaw\(\{ \.\.\.autoCfg, automateWa: r \}\);/.test(corps)
     && /ecris=\{ecrisLAutomate\}/.test(corps) && /ecrisLAutomate\(\{ \.\.\.reglageWa, mode: 'eteint' \}\)/.test(corps));
   dit('la pause est à la direction', true, /const pauseWhatsApp = \(\) => \{\s*if \(!estDirection\) \{ toast\('Ce réglage appartient à la direction\.'\); return; \}/.test(corps));
-  dit('fermer un jour écrit une journée exceptionnelle fermée', true, /setExceptions\(\[\.\.\.exceptions, \{\s*id: `hx-\$\{uid\(\)\}`, date: ferme\.date, open: '', close: '', closed: true,/.test(corps));
+  dit('fermer un jour écrit une journée exceptionnelle fermée ; ouverte, elle porte ses heures', true, /setExceptions\(\[\.\.\.exceptions, \{\s*id: `hx-\$\{uid\(\)\}`, date: ferme\.date,\s*\.\.\.\(ferme\.ouvert \? \{ open: ferme\.open\.trim\(\), close: ferme\.close\.trim\(\), closed: false \} : \{ open: '', close: '', closed: true \}\),/.test(corps));
 
   /* ⑥ LES TROIS NOTIFICATIONS SONT CELLES QUE LA CLOCHE LIT. */
   const lues = [...cloche.matchAll(/tg\.(notif[A-Za-z]+) !== false/g)].map((m) => m[1]).sort();

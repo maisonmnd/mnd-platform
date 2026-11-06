@@ -171,6 +171,22 @@ try {
   const exceptions = (await lis('trone::mnd_horaires_exceptions')) ?? [];
   dit('une journée exceptionnelle fermée est écrite, pour demain', exceptions.length === 1 && exceptions[0].closed === true && exceptions[0].date > new Date().toISOString().slice(0, 10), JSON.stringify(exceptions[0] ?? null));
 
+  /* ── D bis. « + JOURNÉE EXCEPTIONNELLE » S'OUVRE SOUS SON BOUTON — 6 novembre 2026 ──
+     « Les journées exceptionnelles ne s'ouvrent pas dans les paramètres » : le
+     formulaire s'ouvrait en haut du panneau, hors de la vue. */
+  dit('« + Journée exceptionnelle » ouvre son formulaire', await clique('button', '+ Journée exceptionnelle'));
+  await attend(1200);
+  dit('… dans la vue, dans la carte des journées exceptionnelles', await evalue(`(() => { const f = document.querySelector('.prm-formulaire'); if (!f) return false; const r = f.getBoundingClientRect(); const carte = f.parentElement && f.parentElement.closest('.sys-section'); return r.top >= 0 && r.top < window.innerHeight && !!carte && /Journées exceptionnelles/.test(carte.querySelector('.sys-section__title').textContent); })()`));
+  dit('… et peut ouvrir la Maison à d’autres heures', await evalue(`(() => { const b = document.querySelector('.prm-formulaire button[aria-label="Fermé ou ouvert ce jour"]'); if (b) b.click(); return !!b; })()`));
+  await attend(500);
+  await ecris('.prm-formulaire input[aria-label="Ouverture"]', '10h00');
+  await ecris('.prm-formulaire input[aria-label="Fermeture"]', '15h00');
+  dit('« Poser cette journée »', await clique('button', 'Poser cette journée'));
+  await attend(900);
+  const exceptions2 = (await lis('trone::mnd_horaires_exceptions')) ?? [];
+  const ouverte = exceptions2.find((x) => x.closed === false);
+  dit('une journée ouverte de 10 h à 15 h est écrite', exceptions2.length === 2 && !!ouverte && ouverte.open === '10h00' && ouverte.close === '15h00', JSON.stringify(exceptions2));
+
   /* ── E. UNE NOTIFICATION S'ÉTEINT VRAIMENT ── */
   await ouvre('/parametres?ouvre=notifications', 6000);
   t = await texte();

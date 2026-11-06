@@ -1567,22 +1567,40 @@ export default function Parametres() {
   /* ── LES GESTES RAPIDES ── */
   const [formulaire, setFormulaire] = useState<'fermer' | 'bloquer' | null>(null);
   const demain = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
-  const [ferme, setFerme] = useState<{ date: string; staffId: string; note: string }>({ date: demain, staffId: '', note: '' });
+  const [ferme, setFerme] = useState<{ date: string; staffId: string; note: string; ouvert: boolean; open: string; close: string }>({ date: demain, staffId: '', note: '', ouvert: false, open: '', close: '' });
+  /* LE FORMULAIRE SE MONTRE OÙ L'ON A CLIQUÉ — 6 novembre 2026. « Les journées
+     exceptionnelles ne s'ouvrent pas dans les paramètres » (Yéman) : le formulaire
+     s'ouvrait en haut du panneau, 800 pixels au-dessus du bouton, hors de la vue.
+     Il vit maintenant dans sa carte, sous son bouton, et l'écran le montre. */
+  const formulaireRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!formulaire) return;
+    const t = window.setTimeout(() => {
+      formulaireRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      formulaireRef.current?.querySelector<HTMLElement>('input, select, button')?.focus({ preventScroll: true });
+    }, 60);
+    return () => window.clearTimeout(t);
+  }, [formulaire]);
   const [bloque, setBloque] = useState<{ date: string; master: string; debut: string; fin: string; motif: string }>({ date: demain, master: '', debut: '12h00', fin: '14h00', motif: '' });
   const dateLisible = (iso: string) =>
     new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const geste = (g: 'fermer' | 'bloquer') => { setFormulaire(g); ouvre('heures'); };
   const fermeLeJour = () => {
-    if (!ferme.date) { toast('Choisissez le jour à fermer.'); return; }
+    if (!ferme.date) { toast('Choisissez le jour.'); return; }
+    if (ferme.ouvert && !ferme.open.trim() && !ferme.close.trim()) { toast('Écrivez au moins une heure : celle d’ouverture ou celle de fermeture.'); return; }
     setExceptions([...exceptions, {
-      id: `hx-${uid()}`, date: ferme.date, open: '', close: '', closed: true,
+      id: `hx-${uid()}`, date: ferme.date,
+      ...(ferme.ouvert ? { open: ferme.open.trim(), close: ferme.close.trim(), closed: false } : { open: '', close: '', closed: true }),
       ...(ferme.staffId ? { staffId: ferme.staffId } : {}), ...(ferme.note.trim() ? { note: ferme.note.trim() } : {}),
     }]);
+    const heures = ferme.ouvert ? `, de ${ferme.open.trim() || 'l’heure habituelle'} à ${ferme.close.trim() || 'l’heure habituelle'}` : '';
     toast(ferme.staffId
-      ? `Journée posée le ${dateLisible(ferme.date)} pour ${equipe.find((m) => m.id === ferme.staffId)?.name ?? 'cette personne'}.`
-      : `La Maison est fermée le ${dateLisible(ferme.date)} : la réservation en ligne ne propose plus ce jour.`);
+      ? `Journée posée le ${dateLisible(ferme.date)}${heures} pour ${equipe.find((m) => m.id === ferme.staffId)?.name ?? 'cette personne'}.`
+      : ferme.ouvert
+        ? `Journée exceptionnelle le ${dateLisible(ferme.date)}${heures} : la réservation suit ces heures-là.`
+        : `La Maison est fermée le ${dateLisible(ferme.date)} : la réservation en ligne ne propose plus ce jour.`);
     setFormulaire(null);
-    setFerme({ date: demain, staffId: '', note: '' });
+    setFerme({ date: demain, staffId: '', note: '', ouvert: false, open: '', close: '' });
   };
   const bloqueLeCreneau = () => {
     if (!bloque.date) { toast('Choisissez le jour du créneau.'); return; }
@@ -1769,46 +1787,6 @@ export default function Parametres() {
 
           {ouverte === 'heures' && (
             <>
-              {formulaire === 'fermer' && (
-                <Card className="sys-section prm-formulaire">
-                  <div className="sys-section__title">Fermer la Maison un jour</div>
-                  <div className="sys-section__cap">Un jour férié, un inventaire, une fermeture. Ce jour-là, la réservation en ligne ne propose plus rien ; une personne seule garde son horaire.</div>
-                  <div className="prm-formulaire__ligne">
-                    <ChampDeDate compact value={ferme.date} onChange={(iso) => setFerme({ ...ferme, date: iso })} style={{ width: 170 }} />
-                    <Select value={ferme.staffId} onChange={(e) => setFerme({ ...ferme, staffId: e.target.value })} style={{ width: 200 }} aria-label="Pour qui">
-                      <option value="">Toute la Maison</option>
-                      {equipe.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                    </Select>
-                    <Input value={ferme.note} onChange={(e) => setFerme({ ...ferme, note: e.target.value })} placeholder="Note lue par les clientes, par exemple : inventaire" style={{ flex: 1, minWidth: 200 }} aria-label="Note" />
-                  </div>
-                  <div className="prm-formulaire__gestes">
-                    <Button variant="copper" onClick={fermeLeJour}>Fermer ce jour</Button>
-                    <Button variant="ghost" onClick={() => setFormulaire(null)}>Annuler</Button>
-                  </div>
-                </Card>
-              )}
-              {formulaire === 'bloquer' && (
-                <Card className="sys-section prm-formulaire">
-                  <div className="sys-section__title">Bloquer un créneau</div>
-                  <div className="sys-section__cap">Une pause de midi, un maître pris ailleurs : la plage disparaît de la réservation en ligne et de l’automate. Laissez les heures vides pour toute la journée.</div>
-                  <div className="prm-formulaire__ligne">
-                    <ChampDeDate compact value={bloque.date} onChange={(iso) => setBloque({ ...bloque, date: iso })} style={{ width: 170 }} />
-                    <Select value={bloque.master} onChange={(e) => setBloque({ ...bloque, master: e.target.value })} style={{ width: 200 }} aria-label="Pour qui">
-                      <option value="">Toute la Maison</option>
-                      {maitresDuCalendrier.map((nom) => <option key={nom} value={nom}>{nom}</option>)}
-                    </Select>
-                    <Input value={bloque.debut} onChange={(e) => setBloque({ ...bloque, debut: e.target.value })} placeholder="hh h mm" style={{ width: 92, textAlign: 'center' }} aria-label="De" />
-                    <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
-                    <Input value={bloque.fin} onChange={(e) => setBloque({ ...bloque, fin: e.target.value })} placeholder="hh h mm" style={{ width: 92, textAlign: 'center' }} aria-label="À" />
-                    <Input value={bloque.motif} onChange={(e) => setBloque({ ...bloque, motif: e.target.value })} placeholder="Motif lu par les clientes" style={{ flex: 1, minWidth: 180 }} aria-label="Motif" />
-                  </div>
-                  <div className="prm-formulaire__gestes">
-                    <Button variant="copper" onClick={bloqueLeCreneau}>Bloquer ce créneau</Button>
-                    <Button variant="ghost" onClick={() => setFormulaire(null)}>Annuler</Button>
-                  </div>
-                </Card>
-              )}
-
               {/* ── LES HEURES DU SALON ─────────────────────────────────────
                   UNE SEULE CARTE, UNE SEULE DONNÉE. Il en existait deux : celle-ci,
                   qui commande les créneaux réservables (`openingForIso`), et une autre
@@ -1917,11 +1895,43 @@ export default function Parametres() {
                   })}
                 </div>
 
-                <div style={{ marginTop: 12 }}>
-                  <button className="tre-link-btn" onClick={() => setFormulaire('fermer')}>
-                    + Journée exceptionnelle
-                  </button>
-                </div>
+                {formulaire !== 'fermer' && (
+                  <div style={{ marginTop: 12 }}>
+                    <button className="tre-link-btn" onClick={() => setFormulaire('fermer')}>
+                      + Journée exceptionnelle
+                    </button>
+                  </div>
+                )}
+              {formulaire === 'fermer' && (
+                <div ref={formulaireRef}><Card className="sys-section prm-formulaire" style={{ marginTop: 12 }}>
+                  <div className="sys-section__title">{ferme.ouvert ? 'Une journée aux heures exceptionnelles' : 'Fermer la Maison un jour'}</div>
+                  <div className="sys-section__cap">{ferme.ouvert
+                    ? 'Un inventaire, une arrivée décalée : ce jour-là, ces heures remplacent celles de la semaine. Une heure laissée vide garde celle de la semaine.'
+                    : 'Un jour férié, un inventaire, une fermeture. Ce jour-là, la réservation en ligne ne propose plus rien ; une personne seule garde son horaire.'}</div>
+                  <div className="prm-formulaire__ligne">
+                    <ChampDeDate compact value={ferme.date} onChange={(iso) => setFerme({ ...ferme, date: iso })} style={{ width: 170 }} />
+                    <Select value={ferme.staffId} onChange={(e) => setFerme({ ...ferme, staffId: e.target.value })} style={{ width: 200 }} aria-label="Pour qui">
+                      <option value="">Toute la Maison</option>
+                      {equipe.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    </Select>
+                    <button type="button" className={`tre-chip ${ferme.ouvert ? 'is-on' : ''}`} onClick={() => setFerme({ ...ferme, ouvert: !ferme.ouvert })} style={{ fontSize: 11.5, minWidth: 78 }} aria-label="Fermé ou ouvert ce jour">
+                      {ferme.ouvert ? 'Ouvert' : 'Fermé'}
+                    </button>
+                    {ferme.ouvert && (
+                      <>
+                        <Input value={ferme.open} onChange={(e) => setFerme({ ...ferme, open: e.target.value })} placeholder="hh h mm" style={{ width: 86, textAlign: 'center' }} aria-label="Ouverture" />
+                        <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
+                        <Input value={ferme.close} onChange={(e) => setFerme({ ...ferme, close: e.target.value })} placeholder="hh h mm" style={{ width: 86, textAlign: 'center' }} aria-label="Fermeture" />
+                      </>
+                    )}
+                    <Input value={ferme.note} onChange={(e) => setFerme({ ...ferme, note: e.target.value })} placeholder="Note lue par les clientes, par exemple : inventaire" style={{ flex: 1, minWidth: 200 }} aria-label="Note" />
+                  </div>
+                  <div className="prm-formulaire__gestes">
+                    <Button variant="copper" onClick={fermeLeJour}>{ferme.ouvert ? 'Poser cette journée' : 'Fermer ce jour'}</Button>
+                    <Button variant="ghost" onClick={() => setFormulaire(null)}>Annuler</Button>
+                  </div>
+                </Card></div>
+              )}
 
                 <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
                   Une heure laissée vide garde celle de la semaine : décaler la seule ouverture est donc
@@ -1988,11 +1998,34 @@ export default function Parametres() {
                   })}
                 </div>
 
-                <div style={{ marginTop: 12 }}>
-                  <button className="tre-link-btn" onClick={() => setFormulaire('bloquer')}>
-                    + Bloquer un créneau
-                  </button>
-                </div>
+                {formulaire !== 'bloquer' && (
+                  <div style={{ marginTop: 12 }}>
+                    <button className="tre-link-btn" onClick={() => setFormulaire('bloquer')}>
+                      + Bloquer un créneau
+                    </button>
+                  </div>
+                )}
+              {formulaire === 'bloquer' && (
+                <div ref={formulaireRef}><Card className="sys-section prm-formulaire" style={{ marginTop: 12 }}>
+                  <div className="sys-section__title">Bloquer un créneau</div>
+                  <div className="sys-section__cap">Une pause de midi, un maître pris ailleurs : la plage disparaît de la réservation en ligne et de l’automate. Laissez les heures vides pour toute la journée.</div>
+                  <div className="prm-formulaire__ligne">
+                    <ChampDeDate compact value={bloque.date} onChange={(iso) => setBloque({ ...bloque, date: iso })} style={{ width: 170 }} />
+                    <Select value={bloque.master} onChange={(e) => setBloque({ ...bloque, master: e.target.value })} style={{ width: 200 }} aria-label="Pour qui">
+                      <option value="">Toute la Maison</option>
+                      {maitresDuCalendrier.map((nom) => <option key={nom} value={nom}>{nom}</option>)}
+                    </Select>
+                    <Input value={bloque.debut} onChange={(e) => setBloque({ ...bloque, debut: e.target.value })} placeholder="hh h mm" style={{ width: 92, textAlign: 'center' }} aria-label="De" />
+                    <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
+                    <Input value={bloque.fin} onChange={(e) => setBloque({ ...bloque, fin: e.target.value })} placeholder="hh h mm" style={{ width: 92, textAlign: 'center' }} aria-label="À" />
+                    <Input value={bloque.motif} onChange={(e) => setBloque({ ...bloque, motif: e.target.value })} placeholder="Motif lu par les clientes" style={{ flex: 1, minWidth: 180 }} aria-label="Motif" />
+                  </div>
+                  <div className="prm-formulaire__gestes">
+                    <Button variant="copper" onClick={bloqueLeCreneau}>Bloquer ce créneau</Button>
+                    <Button variant="ghost" onClick={() => setFormulaire(null)}>Annuler</Button>
+                  </div>
+                </Card></div>
+              )}
 
                 <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.55 }}>
                   Le motif peut être lu par les clientes, écris ce qui peut se dire à une cliente,
