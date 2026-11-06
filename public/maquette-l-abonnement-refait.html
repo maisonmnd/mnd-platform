@@ -169,6 +169,32 @@ td.d, th.d { text-align: right; white-space: nowrap; }
 textarea { width: 100%; min-height: 62px; border: 1px solid var(--trait); border-radius: 4px; background: var(--carte); color: var(--encre); font: 400 13.5px/1.45 var(--sans); padding: 8px 10px; resize: vertical; }
 .imprimer { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 
+/* La boutique des attentions */
+.sous { display: flex; flex-wrap: wrap; gap: 6px; }
+.panier { border: 1px solid var(--trait); border-radius: 6px; padding: 14px; display: grid; gap: 8px; background: var(--ivoire); }
+.panier__tete { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; align-items: baseline; }
+.panier__tete b { font-weight: 500; color: var(--indigo); }
+.emplacement { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 8px 0; border-top: 1px dotted var(--trait); }
+.emplacement > span:first-child { font: 600 10.5px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--encre-douce); }
+@media (max-width: 560px) { .emplacement { grid-template-columns: minmax(0, 1fr) auto; } .emplacement > span:first-child { grid-column: 1 / -1; } }
+.rayons { display: grid; grid-template-columns: repeat(auto-fill, minmax(164px, 1fr)); gap: 10px; }
+.article { border: 1px solid var(--trait); border-radius: 6px; background: var(--carte); padding: 12px; display: grid; gap: 6px; align-content: start; text-align: left; }
+button.article { cursor: pointer; }
+button.article.on { border-color: var(--cuivre); background: var(--cuivre-pale); }
+.article b { font: 500 17px/1.2 var(--serif); color: var(--indigo); }
+.niveau { justify-self: start; font: 600 10px var(--sans); letter-spacing: .1em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--trait); color: var(--encre-douce); }
+.niveau--carte { border-color: var(--cuivre); color: var(--cuivre-fonce); }
+.niveau--or { background: var(--or); border-color: var(--or); color: var(--sur-or); }
+.bascule { border: 1px solid var(--trait); background: none; border-radius: 999px; padding: 4px 10px; font-size: 11.5px; cursor: pointer; justify-self: start; color: var(--encre-douce); }
+.bascule[aria-pressed="true"] { background: var(--indigo); border-color: var(--indigo); color: var(--sur-indigo); }
+.aprep { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border: 0; border-top: 1px dotted var(--trait); background: none; width: 100%; text-align: left; cursor: pointer; }
+.aprep:first-child { border-top: 0; }
+.coche-p { width: 18px; height: 18px; border: 1.5px solid var(--cuivre); border-radius: 4px; flex: 0 0 auto; margin-top: 2px; }
+.aprep[aria-pressed="true"] .coche-p { background: var(--cuivre); }
+.aprep[aria-pressed="true"] span:last-child { text-decoration: line-through; color: var(--encre-douce); }
+.fin { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+@media (max-width: 760px) { .fin { grid-template-columns: 1fr; } }
+
 /* La carte de papier */
 .papiers { display: flex; flex-wrap: wrap; gap: 18px; }
 .papier { width: min(100%, 330px); aspect-ratio: 148 / 105; border-radius: 4px; padding: 18px 20px; display: grid; }
@@ -212,7 +238,7 @@ details ul { margin: 10px 0 2px; padding-left: 18px; display: grid; gap: 4px; ma
   <span class="sourcil">Maquette · à valider avant toute construction</span>
   <h1>L’abonnement, refait</h1>
   <p>Toutes ses pages, pour l’abonnée dans Ma Couronne et pour la Maison au Trône. Et une idée neuve : à chaque séance, une attention l’attend. Un présent et sa carte, remis au fauteuil dès son arrivée à la Maison MND.</p>
-  <span class="bandeau">Deuxième version, 6 novembre 2026, avec vos huit choix. Rien n’est construit. Les noms, les prix et les présents montrés sont des exemples.</span>
+  <span class="bandeau">Troisième version, 6 novembre 2026, avec vos douze choix. Rien n’est construit. Les noms, les prix et les articles montrés sont des exemples.</span>
 </header>
 
 <section aria-label="Les trois idées">
@@ -238,8 +264,14 @@ details ul { margin: 10px 0 2px; padding-left: 18px; display: grid; gap: 4px; ma
 
 <section>
   <h2>Pour la Maison, au Trône</h2>
-  <p>L’écran Abonnements s’ouvre sur ce qu’il y a à faire aujourd’hui. Touchez « Arrivée » puis « Remise » sur la ligne d’Awa : le téléphone plus haut suit, et l’attention rejoint ce qu’elle a reçu.</p>
+  <p>L’écran Abonnements s’ouvre sur ce qu’il y a à faire aujourd’hui. Touchez « Arrivée » puis « Remise » sur la ligne d’Awa : le téléphone plus haut suit, et l’attention rejoint ce qu’elle a reçu. L’onglet « Les attentions » est une boutique : un panier par séance, que vous changez et que vous validez.</p>
   <div class="ecran" id="trone"></div>
+</section>
+
+<section>
+  <h2>À la fin du rendez-vous</h2>
+  <p>Au moment d’encaisser, le Trône propose jusqu’à trois petits articles payants, entre 800 et 1 500 F. C’est vous qui choisissez lesquels, dans la boutique des attentions, avec « En fin de rendez-vous ». Un toucher les ajoute au ticket. Proposé à toutes les clientes, abonnées ou non.</p>
+  <div class="ecran" id="fin"></div>
 </section>
 
 <section>
@@ -289,17 +321,22 @@ details ul { margin: 10px 0 2px; padding-left: 18px; display: grid; gap: 4px; ma
     <div><b>La carte</b><p>Imprimée par le Trône, signée à la main.</p></div>
     <div><b>Qui prépare</b><p>Perle propose le présent et le mot, vous validez la semaine.</p></div>
     <div><b>Pour qui</b><p>Toutes les abonnées, à la lune comme au carnet.</p></div>
-    <div><b>Le sceau d’or</b><p>Oui : un présent plus beau à la dernière séance d’un carnet.</p></div>
+    <div><b>Le sceau d’or</b><p>Oui : un présent plus beau à la dernière séance d’un carnet. Le T-shirt « Le sceau au cœur », qui ne se vend pas.</p></div>
+    <div><b>Qui choisit</b><p>La Maison choisit tout, comme dans une boutique : boisson, bouchée et présent s’attachent à la séance. Tout reste une surprise.</p></div>
+    <div><b>Trois niveaux</b><p>Offert dans l’attention ; à la carte, entre 800 et 1 500 F ; sceau d’or.</p></div>
+    <div><b>En fin de rendez-vous</b><p>Les articles à la carte se proposent quand elle règle. Vous choisissez lesquels.</p></div>
+    <div><b>Le frais</b><p>Une artisane du quartier, commandée la veille à partir des paniers validés.</p></div>
   </div>
 </section>
 
 <section>
   <h2>Ce qu’il reste à fixer</h2>
   <div class="trancher">
-    <div><h4>La réserve de départ</h4><p>La liste des présents, c’est vous qui la composez. Ceux de la maquette sont des exemples.</p></div>
-    <div><h4>Le coût visé par présent</h4><p>Un montant moyen par séance, et un autre pour le sceau d’or. Le Trône s’en sert pour proposer, et l’affiche dans Les comptes.</p></div>
+    <div><h4>Les articles de départ</h4><p>Vos coches sur la page des goodies deviennent les articles de la boutique. Ceux de la maquette sont des exemples.</p></div>
+    <div><h4>Les prix et les coûts</h4><p>Le prix de chaque article à la carte, entre 800 et 1 500 F, et le coût visé d’un panier offert. Le Trône s’en sert pour proposer, et l’affiche dans Les comptes.</p></div>
     <div><h4>La phrase de la veille</h4><p>« Une attention vous y attend » ajoute une phrase au rappel : c’est un modèle à faire approuver chez Meta. Sinon, le rappel reste tel qu’il est.</p></div>
     <div><h4>Le sceau d’or des formules à la lune</h4><p>Un carnet a une dernière séance, une formule à la lune n’en a pas. Proposé : à la sixième lune tenue d’affilée.</p></div>
+    <div><h4>Le moment de la proposition payante</h4><p>Proposé : à l’encaissement, quand elle règle. À confirmer si vous la voulez aussi à la fin d’une réservation en ligne.</p></div>
   </div>
 </section>
 
@@ -317,8 +354,8 @@ details ul { margin: 10px 0 2px; padding-left: 18px; display: grid; gap: 4px; ma
   <details><summary>Cinq lots, dans cet ordre</summary>
     <ul>
       <li>Le socle : le chemin de sceaux et les pages de Ma Couronne refaites, sans l’attention.</li>
-      <li>L’attention : la réserve des présents, la semaine à valider, les cartes en PDF, « Arrivée » et « Remise ».</li>
-      <li>Le Trône : l’onglet « Aujourd’hui », la ligne de l’abonnée, l’attention sur le rendez-vous.</li>
+      <li>L’attention : la boutique (articles, niveaux, stock), le programme par formule, les paniers de la semaine, la liste de la veille, les cartes en PDF, « Arrivée » et « Remise ».</li>
+      <li>Le Trône : l’onglet « Aujourd’hui », la ligne de l’abonnée, le panier sur le rendez-vous, les articles proposés à l’encaissement.</li>
       <li>Les messages : la phrase de la veille et le message d’après, puis leur branchement à la salle d’attente.</li>
       <li>La page du site.</li>
     </ul>
@@ -336,7 +373,7 @@ const ATT = [
   { present: 'Le tirage de votre couronne en photo', mot: 'Du 8 août au 31 octobre 2026 : regardez le chemin parcouru.' },
   { present: 'Un foulard de nuit', mot: 'Quatre séances que vous nous confiez votre couronne. Merci de cette confiance.', indice: 'elle se noue' },
   { present: 'Un présent à emporter', mot: '', indice: 'elle sent bon' },
-  { present: 'Le présent du sceau d’or', mot: 'Six séances, un carnet tenu jusqu’au bout. La Maison vous remercie.', indice: 'c’est la plus belle' },
+  { present: 'Le T-shirt « Le sceau au cœur »', mot: 'Six séances, un carnet tenu jusqu’au bout. La Maison vous remercie.', indice: 'elle ne se vend pas' },
 ];
 const PLACES = [['samedi 23 janvier 2027', '9 h 00', 'Votre jour, votre heure'], ['samedi 23 janvier 2027', '11 h 30', ''], ['samedi 30 janvier 2027', '9 h 00', '']];
 const MOMENTS = [
@@ -353,9 +390,32 @@ const NOTES = {
   regler: ['Inchangé sur le fond.', 'Une somme, une date, trois façons de régler. L’alerte de l’accueil y mène d’un toucher.'],
   choisir: ['Aujourd’hui : une liste de formules.', 'Demain : trois façons de venir, au prix de sa tête, et ce que chaque abonnée reçoit.'],
 };
-const E = { moment: 'entre', page: 'accueil', remise: false, place: null, regle: false, rub: 'seances', sel: 4, onglet: 'jour', valide: {}, imprime: false, ab: 0, mot: '' };
+const E = { moment: 'entre', page: 'accueil', remise: false, place: null, regle: false, rub: 'seances', sel: 4, onglet: 'jour', valide: {}, imprime: false, ab: 0, mot: '',
+  sous: 'semaine', rayon: 'tout', choisit: null, mots: {}, prep: {}, ticket: {}, upsell: { 'bissap-b': true, duo: true, chouchou: true },
+  paniers: [{ boire: 'bissap', gout: 'wagashi', present: 'foulard' }, { boire: 'gingembre', gout: 'ata', present: 'tshirt' }, { boire: 'ananas', gout: 'avocat', present: 'huile' }] };
 const $ = (id) => document.getElementById(id);
 const F = (n) => n.toLocaleString('fr-FR') + ' F';
+
+/* ── La boutique des attentions : [id, nom, rayon, niveau, prix, réserve] ── */
+const ART = [
+  ['bissap', 'Le bissap glacé', 'boire', 'offert', 0, 'frais'], ['ananas', 'L’ananas pain de sucre', 'boire', 'offert', 0, 'frais'],
+  ['gingembre', 'Le gingembre-citron', 'boire', 'offert', 0, 'frais'], ['adoyo', 'L’adoyo', 'boire', 'offert', 0, 'frais'],
+  ['bissap-b', 'Le bissap, la bouteille à emporter', 'boire', 'carte', 1000, 'frais'],
+  ['wagashi', 'Le petit pain wagashi', 'gout', 'offert', 0, 'frais'], ['avocat', 'Le petit pain avocat-moyo', 'gout', 'offert', 0, 'frais'],
+  ['ata', 'Les ata', 'gout', 'offert', 0, 'frais'], ['gum', 'Le chewing-gum', 'gout', 'offert', 0, 200], ['menthe', 'La pastille à la menthe', 'gout', 'offert', 0, 150],
+  ['duo', 'Le duo de petits pains', 'gout', 'carte', 1500, 'frais'], ['kluiklui', 'Le kluiklui, le sachet', 'gout', 'carte', 800, 14],
+  ['foulard', 'Le foulard de nuit', 'present', 'offert', 0, 2], ['bonnet', 'Le bonnet de satin', 'present', 'offert', 0, 6],
+  ['huile', 'L’huile de voyage', 'present', 'offert', 0, 12], ['stylo', 'Le stylo cuivre', 'present', 'offert', 0, 20],
+  ['chouchou', 'Le chouchou de satin', 'present', 'carte', 1500, 9], ['tshirt', 'Le T-shirt « Le sceau au cœur »', 'present', 'or', 0, 3],
+];
+const RAYONS = { boire: 'À boire', gout: 'À goûter', present: 'Le présent' };
+const art = (id) => ART.find((a) => a[0] === id);
+const nomArt = (id) => art(id)[1];
+const bas = (t) => t.replace(/^./, (c) => c.toLowerCase());
+const ech = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const stockDit = (a) => (a[5] === 'frais' ? 'Frais, commandé la veille' : a[5] + ' en réserve');
+const niveauDit = (a) => (a[3] === 'offert' ? 'Offert' : a[3] === 'or' ? 'Sceau d’or' : 'À la carte · ' + F(a[4]));
+const niveauClasse = (a) => (a[3] === 'or' ? ' niveau--or' : a[3] === 'carte' ? ' niveau--carte' : '');
 
 /* ── Le sceau dentelé ──────────────────────────────────────────────────── */
 function sceau(etat, glyphe, taille) {
@@ -383,6 +443,8 @@ function seances() {
   });
 }
 const duJour = () => (E.moment === 'derniere' ? 6 : 4);
+const panierDuJour = () => (duJour() === 6 ? { boire: 'bissap', gout: 'ata', present: 'tshirt' } : E.paniers[0]);
+const servi = () => { const p = panierDuJour(); return bas(nomArt(p.boire)) + ' et ' + bas(nomArt(p.gout)); };
 const arrivee = () => ['arrivee', 'apres', 'derniere'].includes(E.moment);
 const remise = () => E.moment === 'apres' || (arrivee() && E.remise);
 const recue = (x) => x.etat === 'faite' || (remise() && x.n === duJour());
@@ -399,7 +461,7 @@ function scelle(n, phrase, pouls) {
 }
 function recu(n) {
   const a = ATT[n - 1];
-  return `<div class="lettre"><span class="sourcil">${n === 6 ? 'Le sceau d’or · reçu aujourd’hui' : 'Reçue aujourd’hui'}</span><h4>${a.present}</h4><blockquote>${a.mot}</blockquote><cite>La Maison MND · le mot de votre carte</cite>${n === 6 ? '<button class="btn plein" data-a="page:choisir">Reprendre un carnet</button>' : ''}</div>`;
+  return `<div class="lettre"><span class="sourcil">${n === 6 ? 'Le sceau d’or · reçu aujourd’hui' : 'Reçue aujourd’hui'}</span><h4>${a.present}</h4><blockquote>${a.mot}</blockquote><cite>La Maison MND · le mot de votre carte</cite><p class="petit doux">Servi aujourd’hui : ${servi()}.</p>${n === 6 ? '<button class="btn plein" data-a="page:choisir">Reprendre un carnet</button>' : ''}</div>`;
 }
 function pli() {
   const m = E.moment, n = duJour();
@@ -534,12 +596,57 @@ const SEM = [
   ['F. H.', 'jeu. 17 déc. 2026 · séance 3 sur 8', 'Une huile de voyage', 'Sa fiche note un voyage fin décembre.', 'Pour que votre couronne voyage aussi bien que vous.'],
 ];
 const pts = (s) => `<span class="points" aria-hidden="true">${[...s].map((c) => `<i class="${c === 'f' ? 'f' : c === 'r' ? 'r' : ''}"></i>`).join('')}</span>`;
+function choix(i, slot) {
+  return `<div class="rayons">${ART.filter((a) => a[2] === slot && a[3] !== 'carte').map((a) => `<button class="article${E.paniers[i][slot] === a[0] ? ' on' : ''}" data-a="prendre:${i}-${slot}-${a[0]}"><b>${a[1]}</b><span class="niveau${niveauClasse(a)}">${niveauDit(a)}</span><span class="petit doux">${stockDit(a)}</span></button>`).join('')}</div>`;
+}
+function vAttentions() {
+  const barre = `<div class="sous">${[['semaine', 'La semaine'], ['boutique', 'La boutique'], ['programme', 'Le programme'], ['veille', 'La veille']].map((x) => `<button class="puce${E.sous === x[0] ? ' on' : ''}" data-a="sous:${x[0]}" aria-pressed="${E.sous === x[0]}">${x[1]}</button>`).join('')}</div>`;
+  if (E.sous === 'semaine') {
+    const tout = SEM.every((_, i) => E.valide[i]);
+    return barre + `<p class="petit doux">Perle remplit chaque panier d’après le programme et la fiche. Vous changez un article comme dans une boutique, puis vous validez.</p>
+      ${SEM.map((x, i) => {
+        const p = E.paniers[i];
+        const ligne = (slot) => `<div class="emplacement"><span>${RAYONS[slot]}</span><span>${nomArt(p[slot])}${art(p[slot])[5] === 'frais' ? ' <span class="petit doux">· commandé la veille</span>' : ''}</span>${E.valide[i] ? '<span></span>' : `<button class="btn mini" data-a="changer:${i}-${slot}">${E.choisit === i + '-' + slot ? 'Fermer' : 'Changer'}</button>`}</div>${E.choisit === i + '-' + slot ? choix(i, slot) : ''}`;
+        return `<div class="panier"><div class="panier__tete"><span><b>${x[0]}</b> · ${x[1]}</span><span class="etat">${E.valide[i] ? 'Validé' : 'Proposé par Perle'}</span></div>
+          <div class="emplacement"><span>La carte</span><span><label class="petit doux" for="mot${i}">Le mot</label><textarea id="mot${i}"${E.valide[i] ? ' readonly' : ''}>${ech(E.mots['mot' + i] ?? x[4])}</textarea></span><span></span></div>
+          ${ligne('boire')}${ligne('gout')}${ligne('present')}
+          <p class="petit doux">Pourquoi : ${x[3]}</p>
+          ${E.valide[i] ? '' : `<div><button class="btn mini plein" data-a="valider:${i}">Valider le panier</button></div>`}</div>`;
+      }).join('')}
+      <div class="imprimer"><button class="btn${tout && !E.imprime ? ' plein' : ''}" data-a="imprimer"${tout ? '' : ' disabled'}>Imprimer les cartes de la semaine</button><span class="petit doux">${E.imprime ? 'PDF prêt : 3 cartes sur une feuille, à signer à la main.' : tout ? 'Les trois paniers sont validés.' : 'Validez les trois paniers pour imprimer.'}</span></div>`;
+  }
+  if (E.sous === 'boutique') {
+    return barre + `<p class="petit doux">Vos articles, rangés par rayon. Trois niveaux : offert dans l’attention, à la carte entre 800 et 1 500 F, sceau d’or. Un article à la carte se propose en fin de rendez-vous si vous le décidez.</p>
+      <div class="sous">${[['tout', 'Tous les rayons'], ...Object.entries(RAYONS)].map((x) => `<button class="puce${E.rayon === x[0] ? ' on' : ''}" data-a="rayon:${x[0]}" aria-pressed="${E.rayon === x[0]}">${x[1]}</button>`).join('')}</div>
+      <div class="rayons">${ART.filter((a) => E.rayon === 'tout' || a[2] === E.rayon).map((a) => `<div class="article"><b>${a[1]}</b><span class="niveau${niveauClasse(a)}">${niveauDit(a)}</span><span class="petit doux">${stockDit(a)}</span>${a[3] === 'carte' ? `<button class="bascule" data-a="upsell:${a[0]}" aria-pressed="${!!E.upsell[a[0]]}">${E.upsell[a[0]] ? 'En fin de rendez-vous' : 'Pas proposé'}</button>` : ''}</div>`).join('')}</div>
+      <p class="petit doux">Foulard de nuit : 2 en réserve pour 3 séances à venir, à recommander. Les articles viennent de vos coches sur la page des goodies ; prix et réserves sont des exemples.</p>`;
+  }
+  if (E.sous === 'programme') {
+    const rangs = [['1', 'Le mot de bienvenue', 'Un petit pain', 'Pour sa couronne'], ['2', 'Un mot', 'Une bouchée', 'À sentir'], ['3', 'Un mot', 'Un petit pain', 'À porter'], ['4', 'Un mot', 'Une bouchée', 'Pour sa couronne'], ['5', 'Un mot', 'Un petit pain', 'À porter'], ['6', 'Le mot du sceau d’or', 'Une bouchée', 'Le T-shirt « Le sceau au cœur »']];
+    const regles = ['Jamais deux fois le même article à la même personne.', 'Jamais ce que sa fiche déconseille : une allergie écarte l’article.', 'Un article épuisé n’est pas proposé ; le Trône prévient quand la réserve ne couvre plus les séances à venir.', 'Le frais se commande la veille, à l’artisane du quartier.', 'Un coût visé par panier, à saisir.'];
+    return barre + `<p class="petit doux">La règle du Carnet de Six, séance par séance. Perle s’en sert pour remplir les paniers. Chaque formule a la sienne, et vous pouvez la changer.</p>
+      <div class="table"><table><tr><th>Séance</th><th>La carte</th><th>À boire</th><th>À goûter</th><th>Le présent, pris au rayon</th></tr>${rangs.map((r) => `<tr><td class="num">${r[0]}</td><td>${r[1]}</td><td>Une boisson offerte</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('')}</table></div>
+      <div><span class="sourcil">Les règles que Perle suit</span><div class="fil">${regles.map((r) => `<div class="ligne"><div class="ligne__quoi"><span>${r}</span></div></div>`).join('')}</div></div>`;
+  }
+  const pj = E.paniers[0];
+  const taches = [['c1', `Commande à l’artisane : ${bas(nomArt(pj.boire))}, ${bas(nomArt(pj.gout))}.`], ['c2', `À sortir de la réserve : ${bas(nomArt(pj.present))}.`], ['c3', 'À imprimer et à signer : la carte d’A. D.']];
+  return barre + `<p class="petit doux">Vendredi 11 décembre 2026, pour demain : une séance de formule. Le Trône dresse la liste à partir des paniers validés.</p>
+    <div>${taches.map((t) => `<button class="aprep" data-a="prep:${t[0]}" aria-pressed="${!!E.prep[t[0]]}"><span class="coche-p" aria-hidden="true"></span><span>${t[1]}</span></button>`).join('')}</div>
+    <div class="imprimer"><button class="btn" data-a="rien">Préparer le message à l’artisane</button><span class="petit doux">Le texte se prépare ; vous l’envoyez vous-même.</span></div>`;
+}
+function rFin() {
+  const prop = ART.filter((a) => a[3] === 'carte' && E.upsell[a[0]]).slice(0, 3), pris = prop.filter((a) => E.ticket[a[0]]);
+  $('fin').innerHTML = `<div class="ecran__titre"><h3>C’est réglé</h3><span class="petit doux">A. D. · séance 4 sur 6 · samedi 12 décembre 2026</span></div><div class="vue fin">
+    <div><span class="sourcil">Le ticket</span><div class="lg"><span>Séance 4 sur 6 de sa formule</span><span class="num">Incluse</span></div>${pris.map((a) => `<div class="lg"><span>${a[1]}</span><span class="num">${F(a[4])}</span></div>`).join('')}<div class="lg"><span><b>À régler</b></span><span class="num"><b>${F(pris.reduce((t, a) => t + a[4], 0))}</b></span></div></div>
+    <div style="display:grid;gap:10px;align-content:start"><span class="sourcil">Avant de partir</span>${prop.length ? `<div class="rayons">${prop.map((a) => `<button class="article${E.ticket[a[0]] ? ' on' : ''}" data-a="ticket:${a[0]}" aria-pressed="${!!E.ticket[a[0]]}"><b>${a[1]}</b><span class="niveau niveau--carte">${F(a[4])}</span><span class="petit doux">${E.ticket[a[0]] ? 'Ajouté au ticket' : 'Ajouter au ticket'}</span></button>`).join('')}</div>` : '<p class="petit doux">Aucun article proposé : choisissez-en dans la boutique des attentions.</p>'}</div></div>`;
+}
+
 function rTrone() {
   const tabs = [['jour', 'Aujourd’hui', 1], ['abonnees', 'Les abonnées', 0], ['attentions', 'Les attentions', 1], ['formules', 'Les formules', 0], ['comptes', 'Les comptes', 0]];
   let vue = '';
   if (E.onglet === 'jour') {
-    const n = duJour(), fin = n === 6, arr = arrivee(), rem = remise(), quoi = ATT[n - 1].present.replace(/^./, (c) => c.toLowerCase());
-    const etatA = !arr ? `Attention prête : ${quoi}, et sa carte à signer.` : !rem ? `Arrivée à 9 h 04. À remettre au fauteuil : ${quoi}, et sa carte signée.` : 'Remise à 9 h 10. Elle la retrouve dans Ma Couronne.';
+    const n = duJour(), fin = n === 6, arr = arrivee(), rem = remise(), pj = panierDuJour(), quoi = bas(nomArt(pj.present));
+    const etatA = !arr ? `Panier prêt : ${servi()}, ${quoi}, et sa carte à signer.` : !rem ? `Arrivée à 9 h 04. À servir : ${servi()}. À remettre : ${quoi}, et sa carte signée.` : 'Servie et remise à 9 h 10. Elle retrouve son attention dans Ma Couronne.';
     const geste = !arr ? '<button class="btn mini plein" data-a="arrivee">Arrivée</button>' : !rem ? '<button class="btn mini plein" data-a="remise">Remise</button>' : '<span class="etat">Remise</span>';
     const autres = fin
       ? `<div class="ligne"><div class="ligne__quoi"><span><b>Fin de carnet · A. D.</b> · sa sixième séance, aujourd’hui</span><span class="petit doux">Lui proposer de reprendre un Carnet de Six avant son départ.</span></div><div class="ligne__gestes"><button class="btn mini" data-a="rien">Préparer</button></div></div>`
@@ -556,22 +663,7 @@ function rTrone() {
       ${E.ab === i ? `<div class="ouvert-l"><div class="lg"><span>Règlement</span><span>${a[3]}</span></div><div class="lg"><span>Prochaine séance</span><span>${a[4]}</span></div><div class="lg"><span>Attention prévue</span><span>${a[5]}</span></div>
         <div class="ligne__gestes" style="justify-content:flex-start"><button class="btn mini plein" data-a="rien">Réserver</button><button class="btn mini" data-a="rien">Encaisser</button><button class="btn mini" data-a="rien">Prolonger</button><button class="btn mini" data-a="rien">Rendre une séance</button><button class="btn mini" data-a="rien">Résilier</button></div></div>` : ''}</div>`).join('')}</div>`;
   } else if (E.onglet === 'attentions') {
-    const tout = SEM.every((_, i) => E.valide[i]);
-    vue = `<div><span class="sourcil">La règle</span><div class="fil">
-        <div class="ligne"><div class="ligne__quoi"><span><b>Un présent et sa carte</b> à chaque séance de formule</span></div><span class="etat">Toutes les abonnées</span></div>
-        <div class="ligne"><div class="ligne__quoi"><span><b>Le sceau d’or</b> à la dernière séance d’un carnet</span></div><span class="etat">Un présent plus beau</span></div>
-        <div class="ligne"><div class="ligne__quoi"><span><b>Le coût visé</b> par présent, et pour le sceau d’or</span></div><span class="etat">À saisir</span></div>
-      </div></div>
-      <div><span class="sourcil">La semaine à valider</span><p class="petit doux">Perle propose le présent et le mot à partir de la fiche. Vous retouchez le mot, vous validez d’un toucher.</p><div class="fil">${SEM.map((x, i) => `<div class="ligne"><div class="ligne__quoi"><span><b>${x[0]}</b> · ${x[1]}</span><span>${x[2]}</span><span class="petit doux">Pourquoi : ${x[3]}</span><label class="petit doux" for="mot${i}">Le mot de la carte</label><textarea id="mot${i}">${x[4]}</textarea></div>
-        <div class="ligne__gestes">${E.valide[i] ? '<span class="etat">Validée</span>' : `<button class="btn mini plein" data-a="valider:${i}">Valider</button><button class="btn mini" data-a="rien">Changer</button>`}</div></div>`).join('')}</div>
-        <div class="imprimer"><button class="btn${tout && !E.imprime ? ' plein' : ''}" data-a="imprimer"${tout ? '' : ' disabled'}>Imprimer les cartes de la semaine</button><span class="petit doux">${E.imprime ? 'PDF prêt : 3 cartes sur une feuille, à signer à la main.' : tout ? 'Les trois sont validées.' : 'Validez les trois attentions pour imprimer.'}</span></div></div>
-      <div><span class="sourcil">La réserve</span><div class="table"><table><tr><th>Présent</th><th>Ce qu’il coûte</th><th class="d">En réserve</th><th class="d">Séances à venir</th></tr>
-        <tr><td>Bonnet de satin</td><td>À saisir</td><td class="d num">6</td><td class="d num">1</td></tr>
-        <tr><td>Huile de voyage</td><td>À saisir</td><td class="d num">12</td><td class="d num">2</td></tr>
-        <tr><td>Foulard de nuit</td><td>À saisir</td><td class="d num">2</td><td class="d num">3</td></tr>
-        <tr><td>Tirage de sa couronne en photo</td><td>À saisir</td><td class="d">À la demande</td><td class="d num">1</td></tr>
-        <tr><td>Présent du sceau d’or</td><td>À saisir</td><td class="d num">3</td><td class="d num">1</td></tr></table></div>
-        <p class="petit doux">Foulard de nuit : 2 en réserve pour 3 séances à venir, à recommander. Un présent épuisé n’est plus proposé.</p></div>`;
+    vue = vAttentions();
   } else if (E.onglet === 'formules') {
     vue = `<p class="petit doux">Les sept formules en lunes, ouvertes le 1er janvier 2027. Prix pour une tête Medium, courte.</p><div class="table"><table><tr><th>Formule</th><th>Ce qu’elle contient</th><th>Validité</th><th class="d">Prix</th></tr>
       <tr><td>KLƆKLƆ™ · Chaque Lune</td><td>Un lavage Signature par lune</td><td>Tant qu’elle la garde</td><td class="d num">${F(12000)} / lune</td></tr>
@@ -592,7 +684,7 @@ function rTrone() {
   $('trone').innerHTML = `<div class="ecran__titre"><h3>Abonnements</h3><span class="petit doux">Exemple, chiffres inventés</span></div>
     <div class="onglets" role="tablist">${tabs.map((t) => `<button class="onglet${E.onglet === t[0] ? ' on' : ''}${t[2] ? ' neuf' : ''}" role="tab" aria-selected="${E.onglet === t[0]}" data-a="onglet:${t[0]}">${t[1]}</button>`).join('')}</div><div class="vue">${vue}</div>`;
 }
-function rends() { rReglages(); rTel(); rTrone(); rCarte(); }
+function rends() { ATT[3].present = nomArt(E.paniers[0].present); rReglages(); rTel(); rTrone(); rCarte(); rFin(); }
 
 /* ── Les gestes ────────────────────────────────────────────────────────── */
 document.addEventListener('click', (e) => {
@@ -608,14 +700,22 @@ document.addEventListener('click', (e) => {
   else if (a === 'regler') E.regle = true;
   else if (a === 'onglet') E.onglet = v;
   else if (a === 'ab') E.ab = E.ab === Number(v) ? -1 : Number(v);
-  else if (a === 'valider') E.valide[v] = true;
+  else if (a === 'valider') { E.valide[v] = true; E.choisit = null; }
   else if (a === 'imprimer') E.imprime = true;
+  else if (a === 'sous') { E.sous = v; E.choisit = null; }
+  else if (a === 'rayon') E.rayon = v;
+  else if (a === 'changer') E.choisit = E.choisit === v ? null : v;
+  else if (a === 'prendre') { const [i, slot, ...r] = v.split('-'); E.paniers[Number(i)][slot] = r.join('-'); E.choisit = null; }
+  else if (a === 'upsell') { if (E.upsell[v]) delete E.upsell[v]; else E.upsell[v] = true; }
+  else if (a === 'ticket') { if (E.ticket[v]) delete E.ticket[v]; else E.ticket[v] = true; }
+  else if (a === 'prep') { if (E.prep[v]) delete E.prep[v]; else E.prep[v] = true; }
   else if (a === 'arrivee') Object.assign(E, { moment: 'arrivee', page: 'accueil', remise: false, sel: 4 });
   else if (a === 'remise') { E.remise = true; E.page = 'accueil'; }
   else if (a === 'inerte') E.mot = 'Ce geste garde son écran d’aujourd’hui.';
   else if (a === 'rien') return;
   rends();
 });
+document.addEventListener('input', (e) => { if (e.target.id && e.target.id.startsWith('mot')) E.mots[e.target.id] = e.target.value; });
 rends();
 </script>
 </body>
