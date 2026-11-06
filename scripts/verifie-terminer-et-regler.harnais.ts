@@ -21,7 +21,7 @@ import {
   SIGNES_DU_JETON_DE_LA_FIN, LONGUEUR_DU_JETON_DE_LA_FIN, jetonDeLaFin, estUnJetonDeLaFin, adresseDuReglementDeLaFin,
   lienDeLaFin, notificationDeLaFin, ditQuElleATermine, ditAutreChoseQueLaFin, nommeSonRendezVous, codeDansLeMessage, motDeLaMaisonALaFin, PAGE_POUR_RETROUVER_SON_RDV,
   aPeineCommence, ATTENTE_DE_LA_PORTE_WHATSAPP_MS, acompteAVerifier, notificationDeLAcompteAVerifier,
-  marqueDeLaFinAuCarnet, pieceAPreparer, suitesAFaire, carteDuRituelEnCours, versementsDejaRecus,
+  marqueDeLaFinAuCarnet, pieceAPreparer, suitesAFaire, carteDuRituelEnCours, versementsDejaRecus, gesteDeLaPiece, ATTENTE_D_UNE_RESERVATION_MS,
   type RdvDeLaFin, type PieceDeLaFin,
 } from '../src/shared/terminer-et-regler-pur';
 import { ALPHABET_DE_LA_REFERENCE, referenceDuRendezVous, FORME_DU_JETON_DU_RDV, apptIdDuJeton } from '../src/shared/lien-du-rdv-pur';
@@ -889,10 +889,34 @@ dit('sa piece : seulement pour une declaration qui tient, quand aucune piece ne 
   [true, true],
   [/pieceAPreparer\(a, invoices\.some\(\(i\) => i\.apptId === a\.id && i\.kind === 'facture'\)\)/.test(effetPiece),
     /!tablePrete\('appointments'\) \|\| !tablePrete\('invoices'\) \|\| !tablePrete\('clients'\) \|\| byId\.size === 0\) return;/.test(effetPiece)]);
-dit('... un seul poste l ecrit : la reservation au serveur (ecriture conditionnelle sur pieceLe) passe avant toute ecriture',
-  [true, true],
-  [/\.eq\('id', a\.id\)\.is\('data->termineParElle->>pieceLe', null\)\.select\('id'\);\s*if \(!\(prise \?\? \[\]\)\.length\) return;/.test(effetPiece),
-    effetPiece.indexOf("if (!(prise ?? []).length) return;") < effetPiece.indexOf('appointmentsStore.set(')]);
+dit('... un seul poste l ecrit : la reservation au serveur (ecriture conditionnelle sur pieceLe : libre, ou la MEME ancienne reservation) passe avant toute ecriture',
+  [true, true, true],
+  [/await \(ancienne === null\s*\? ecriture\.is\('data->termineParElle->>pieceLe', null\)\s*: ecriture\.eq\('data->termineParElle->>pieceLe', ancienne\)\)\.select\('id'\);/.test(effetPiece),
+    /if \(!\(prise \?\? \[\]\)\.length\) \{ fait\.delete\(`piece-\$\{cle\}`\); return; \}/.test(effetPiece),
+    effetPiece.indexOf('if (!(prise ?? []).length)') > 0 && effetPiece.indexOf('if (!(prise ?? []).length)') < effetPiece.indexOf('appointmentsStore.set(')]);
+/* UNE RESERVATION QUI N'ABOUTIT PAS NE BLOQUE PLUS LA PIECE (relecture du 6 novembre 2026) : supabase-js
+   rend son erreur sans la lever, et le poste gardait le rendez-vous pour « fait » ; une reservation
+   prise par un poste qui se ferme restait la pour toujours. */
+const R = '2026-11-06T09:02:00.000Z';
+dit('le geste d un poste : reserver quand rien ne l est ; attendre une reservation vue depuis moins de 90 s (ou pas encore vue) ; la reprendre ensuite',
+  [90000, 'reserver', 'reserver', 'attendre', 'attendre', 'attendre', 'reprendre', 'reprendre'],
+  [ATTENTE_D_UNE_RESERVATION_MS, gesteDeLaPiece({ pieceLe: undefined, vueDepuisMs: null, maintenantMs: 1000 }), gesteDeLaPiece({ pieceLe: '', vueDepuisMs: 5, maintenantMs: 1e9 }),
+    gesteDeLaPiece({ pieceLe: R, vueDepuisMs: null, maintenantMs: 1e9 }), gesteDeLaPiece({ pieceLe: R, vueDepuisMs: 1000, maintenantMs: 1000 }), gesteDeLaPiece({ pieceLe: R, vueDepuisMs: 1000, maintenantMs: 90_999 }),
+    gesteDeLaPiece({ pieceLe: R, vueDepuisMs: 1000, maintenantMs: 91_000 }), gesteDeLaPiece({ pieceLe: R, vueDepuisMs: 1000, maintenantMs: 5e6 })]);
+dit('le poste lit l erreur que supabase-js REND sans la lever (la lecture, les pieces, l ecriture) ; un echec retire le rendez-vous de ce qu il croit fait, et se retente',
+  [true, true, true, true],
+  [/const \{ data: ligne, error: lecture \} = await sb\.from\('appointments'\)\.select\('id, data'\)\.eq\('id', a\.id\)\.maybeSingle\(\);\s*if \(lecture\) throw new Error\(lecture\.message\);/.test(effetPiece),
+    /\.select\('id'\);\s*if \(refus\) throw new Error\(refus\.message\);/.test(effetPiece), /if \(pieces\) throw new Error\(pieces\.message\);/.test(effetPiece),
+    /\} catch \(err\) \{\s*fait\.delete\(`piece-\$\{cle\}`\);\s*retente\(\);/.test(effetPiece)]);
+dit('une reservation vue depuis 90 s, toujours sans piece, se reprend : le delai court sur l horloge de CE poste, la reprise regarde d abord les pieces du serveur, un minuteur reveille l examen',
+  [true, true, true, true, true],
+  [/if \(vue && !reservationsVues\.has\(cle\)\) reservationsVues\.set\(cle, maintenant\);/.test(effetPiece),
+    /const geste = gesteDeLaPiece\(\{ pieceLe: vue, vueDepuisMs: vue \? reservationsVues\.get\(cle\) \?\? null : null, maintenantMs: maintenant \}\);\s*if \(geste === 'attendre'\) \{/.test(effetPiece),
+    /if \(ancienne !== vue\) \{ fait\.delete\(`piece-\$\{cle\}`\); return; \}/.test(effetPiece),
+    /if \(ancienne !== null\) \{\s*const \{ data: dejaLa, error: pieces \} = await sb\.from\('invoices'\)\.select\('id'\)\.eq\('data->>apptId', a\.id\)\.limit\(1\);\s*if \(pieces\) throw new Error\(pieces\.message\);\s*if \(\(dejaLa \?\? \[\]\)\.length > 0\) return;/.test(effetPiece),
+    /const minuteur = window\.setTimeout\(\(\) => setTic\(\(x\) => x \+ 1\), Math\.max\(1000, reveil \+ 500\)\);\s*return \(\) => window\.clearTimeout\(minuteur\);\s*\}, \[session, appts, invoices, clients, categories, services, produits, bands, sets, byId, branch\.id, tic\]\);/.test(effetPiece)]);
+dit('un verdict rendu sur ce poste (rien a regler, piece impossible) ne se redit pas a chaque reprise', [true, true, true],
+  [/if \(fait\.has\(`sans-\$\{a\.id\}`\)\) continue;/.test(effetPiece), /if \(apptDueXof\(frais, byId\) <= 0\) \{\s*fait\.add\(`sans-\$\{a\.id\}`\);/.test(effetPiece), /if \(!r\.ok\) \{ fait\.add\(`sans-\$\{a\.id\}`\);/.test(effetPiece)]);
 dit('... le prix se fige avec la reservation, la piece s ecrit au tarif de sa tete (celle de « Terminer la seance »)',
   [true, true, true],
   [/\{ \.\.\.x, \.\.\.prixAFiger\(x, byId\), termineParElle: \{ \.\.\.x\.termineParElle, pieceLe \} \}/.test(effetPiece),

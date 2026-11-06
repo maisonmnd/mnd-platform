@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../../shared/auth';
 import { useBranch } from '../../../shared/branches';
 import { appointmentsStore, useAppointments } from '../../../shared/agenda';
@@ -9,7 +9,7 @@ import { useBandSets, useModelBands } from '../../../shared/pricing';
 import { supabase } from '../../../shared/supabase';
 import { tablePrete } from '../../../shared/sync';
 import { sonne } from '../../../shared/sonnette';
-import { pieceAPreparer, suitesAFaire, versementsDejaRecus } from '../../../shared/terminer-et-regler-pur';
+import { ATTENTE_D_UNE_RESERVATION_MS, gesteDeLaPiece, pieceAPreparer, suitesAFaire, versementsDejaRecus } from '../../../shared/terminer-et-regler-pur';
 import { lArgentDejaRecu } from '../routes/vente/encaissement-pur';
 import { toast } from '../../../ds/components';
 import { apptDueXof, prixAFiger, tarifsDuRituel, useServicesById } from '../routes/clients/_shared';
@@ -29,8 +29,11 @@ import { factureAEnvoyer, honorAppointment } from '../routes/clients/actions';
       Caisse). La page « Régler » de la cliente la relit et dit le juste
       reste. Un poste RÉSERVE d'abord la pièce au serveur
       (écriture conditionnelle sur `termineParElle.pieceLe`) : deux postes
-      ouverts n'en écrivent qu'une. Une marque qui ne tient pas (posée hors
-      de la porte) n'écrit rien (`pieceAPreparer`).
+      ouverts n'en écrivent qu'une. Une réservation qui n'aboutit pas (le
+      poste se ferme, le réseau manque) ne bloque personne : un poste qui la
+      voit depuis 90 secondes, toujours sans pièce, la reprend
+      (`gesteDeLaPiece`). Une marque qui ne tient pas (posée hors de la
+      porte) n'écrit rien (`pieceAPreparer`).
 
    ② LES SUITES DE L'HONNEUR. Quand elle a réglé, `regler-la-seance` passe le
       rendez-vous « honoré » (`honoreAuReglement`) ; les points, le stock et
@@ -40,6 +43,8 @@ import { factureAEnvoyer, honorAppointment } from '../routes/clients/actions';
    Et l'annonce : un mot et un son quand elle vient de terminer. */
 
 const fait = new Set<string>();
+/** Depuis quand CE poste voit chaque réservation (`rdv|pieceLe`) : l'horloge de ce poste, jamais celle d'un autre. */
+const reservationsVues = new Map<string, number>();
 const VUES = 'mnd_fins_annoncees';
 const lisLesVues = (): Set<string> => {
   try { return new Set(JSON.parse(localStorage.getItem(VUES) ?? '[]') as string[]); } catch { return new Set(); }
@@ -61,6 +66,8 @@ export function useLaFinDuRituel(): void {
   const [bands] = useModelBands();
   const [sets] = useBandSets();
   const byId = useServicesById();
+  /* Le réveil : rien ne change à l'écran pendant qu'une réservation vieillit, un minuteur relance l'examen. */
+  const [tic, setTic] = useState(0);
 
   /* ⓪ L'annonce : elle vient de terminer (moins de quinze minutes), une fois par poste. */
   useEffect(() => {
@@ -84,21 +91,53 @@ export function useLaFinDuRituel(): void {
   useEffect(() => {
     const sb = supabase;
     if (!session || !sb || !tablePrete('appointments') || !tablePrete('invoices') || !tablePrete('clients') || byId.size === 0) return;
-    const aPreparer = appts.filter((a) => a.branchId === branch.id && !!a.termineParElle && !a.termineParElle.pieceLe && !fait.has(`piece-${a.id}`)
+    const maintenant = Date.now();
+    const declarees = appts.filter((a) => a.branchId === branch.id && !!a.termineParElle
       && pieceAPreparer(a, invoices.some((i) => i.apptId === a.id && i.kind === 'facture')));
-    for (const a of aPreparer) {
-      fait.add(`piece-${a.id}`);
+    /* Le prochain réveil : une réservation vue attend ses 90 secondes, un échec se retente. */
+    let reveil = Infinity;
+    const retente = () => window.setTimeout(() => setTic((x) => x + 1), 15_000);
+    for (const a of declarees) {
+      /* Ce poste a déjà rendu son verdict (rien à régler, pièce impossible) : il ne le redit pas. */
+      if (fait.has(`sans-${a.id}`)) continue;
+      /* La réservation que ce poste VOIT sur la ligne, et depuis quand il la voit. */
+      const vue = a.termineParElle?.pieceLe ?? null;
+      const cle = `${a.id}|${vue ?? ''}`;
+      if (vue && !reservationsVues.has(cle)) reservationsVues.set(cle, maintenant);
+      const geste = gesteDeLaPiece({ pieceLe: vue, vueDepuisMs: vue ? reservationsVues.get(cle) ?? null : null, maintenantMs: maintenant });
+      if (geste === 'attendre') {
+        reveil = Math.min(reveil, (reservationsVues.get(cle) ?? maintenant) + ATTENTE_D_UNE_RESERVATION_MS - maintenant);
+        continue;
+      }
+      if (fait.has(`piece-${cle}`)) continue;
+      fait.add(`piece-${cle}`);
       void (async () => {
         try {
-          /* La réservation, au serveur : un seul poste écrit la pièce. */
-          const { data: ligne } = await sb.from('appointments').select('id, data').eq('id', a.id).maybeSingle();
+          /* La réservation, au serveur : un seul poste écrit la pièce. supabase-js
+             REND son erreur sans la lever : elle se lit, sinon ce poste croyait
+             avoir essayé et n'y revenait plus. */
+          const { data: ligne, error: lecture } = await sb.from('appointments').select('id, data').eq('id', a.id).maybeSingle();
+          if (lecture) throw new Error(lecture.message);
           const d = (ligne?.data ?? null) as (Record<string, unknown> & { termineParElle?: Record<string, unknown> }) | null;
-          if (!d?.termineParElle || d.termineParElle.pieceLe || d.status !== 'confirmé') return;
+          if (!d?.termineParElle || d.status !== 'confirmé') return;
+          /* La ligne du serveur porte une autre réservation que celle que ce poste a vue vieillir : un autre poste vient de la prendre. */
+          const ancienne = typeof d.termineParElle.pieceLe === 'string' && d.termineParElle.pieceLe ? d.termineParElle.pieceLe : null;
+          if (ancienne !== vue) { fait.delete(`piece-${cle}`); return; }
+          if (ancienne !== null) {
+            /* Reprise : la pièce est peut-être au serveur sans être encore arrivée sur ce poste. */
+            const { data: dejaLa, error: pieces } = await sb.from('invoices').select('id').eq('data->>apptId', a.id).limit(1);
+            if (pieces) throw new Error(pieces.message);
+            if ((dejaLa ?? []).length > 0) return;
+          }
           const pieceLe = new Date().toISOString();
-          const { data: prise } = await sb.from('appointments')
-            .update({ data: { ...d, termineParElle: { ...d.termineParElle, pieceLe } } })
-            .eq('id', a.id).is('data->termineParElle->>pieceLe', null).select('id');
-          if (!(prise ?? []).length) return;
+          const ecriture = sb.from('appointments').update({ data: { ...d, termineParElle: { ...d.termineParElle, pieceLe } } }).eq('id', a.id);
+          /* Sous condition : personne d'autre n'a réservé (ou repris) entre-temps. */
+          const { data: prise, error: refus } = await (ancienne === null
+            ? ecriture.is('data->termineParElle->>pieceLe', null)
+            : ecriture.eq('data->termineParElle->>pieceLe', ancienne)).select('id');
+          if (refus) throw new Error(refus.message);
+          /* Un autre poste l'a prise : celui-ci pourra la reprendre si elle n'aboutit pas. */
+          if (!(prise ?? []).length) { fait.delete(`piece-${cle}`); return; }
 
           /* Le prix se fige au premier geste d'argent, sur la ligne du magasin, avec la réservation. */
           appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id && x.termineParElle
@@ -108,6 +147,7 @@ export function useLaFinDuRituel(): void {
           if (!frais) return;
           const prenom = (clients.find((c) => c.id === frais.clientId)?.name ?? frais.clientName ?? 'Elle').split(' ')[0];
           if (apptDueXof(frais, byId) <= 0) {
+            fait.add(`sans-${a.id}`);
             toast(`${prenom} a terminé son rituel : rien à régler. Honorez-le au Carnet.`, 8000);
             return;
           }
@@ -116,7 +156,7 @@ export function useLaFinDuRituel(): void {
             bands, sets, cats: categories, byId, tousServices: services, produits,
           });
           const r = factureAEnvoyer(frais, byId, frais.branchId, tarifs.prixPlein, tarifs.gesteDe);
-          if (!r.ok) { toast(`${prenom} a terminé son rituel, mais sa pièce n’a pas pu s’écrire (${r.erreur}) : encaissez-la au comptoir.`, 10_000); return; }
+          if (!r.ok) { fait.add(`sans-${a.id}`); toast(`${prenom} a terminé son rituel, mais sa pièce n’a pas pu s’écrire (${r.erreur}) : encaissez-la au comptoir.`, 10_000); return; }
           /* L'acompte reconnu et les versements d'avant montent sur la pièce
              neuve, comme au ticket de la Caisse : la page « Régler » dit alors
              le juste reste, pas le prix entier. Jamais sur une pièce déjà là. */
@@ -129,13 +169,17 @@ export function useLaFinDuRituel(): void {
             }
           }
         } catch (err) {
-          /* Le réseau a manqué : ce poste réessaiera au prochain changement, la réservation garde l'unicité. */
-          fait.delete(`piece-${a.id}`);
+          /* Le réseau a manqué, ou la base a refusé : ce poste réessaie (au prochain changement, sinon dans quinze secondes), la réservation garde l'unicité. */
+          fait.delete(`piece-${cle}`);
+          retente();
           console.warn('[la fin du rituel] pièce :', err);
         }
       })();
     }
-  }, [session, appts, invoices, clients, categories, services, produits, bands, sets, byId, branch.id]);
+    if (reveil === Infinity) return;
+    const minuteur = window.setTimeout(() => setTic((x) => x + 1), Math.max(1000, reveil + 500));
+    return () => window.clearTimeout(minuteur);
+  }, [session, appts, invoices, clients, categories, services, produits, bands, sets, byId, branch.id, tic]);
 
   /* ② Les suites d'un honneur posé au règlement. */
   useEffect(() => {

@@ -575,6 +575,22 @@ export function pieceAPreparer(r: Pick<RdvDeLaFin, 'id' | 'date' | 'time' | 'sta
   return !aDejaSaPiece && r.status === 'confirmé' && finValable(r);
 }
 
+/** UNE RÉSERVATION QUI N'ABOUTIT PAS NE BLOQUE PLUS LA PIÈCE (relecture du 6
+    novembre 2026). Un poste réserve la pièce (`pieceLe`) avant de l'écrire ;
+    s'il se ferme, perd le réseau ou échoue juste après, la réservation
+    restait, et aucun poste n'écrivait plus jamais la pièce. Ce qu'un poste
+    fait d'une déclaration toujours sans pièce : la réserver quand rien ne
+    l'est ; attendre une réservation qu'il VOIT depuis moins de 90 secondes ;
+    la reprendre ensuite. Le délai se compte sur l'horloge de CE poste,
+    depuis qu'il a vu la réservation : jamais une heure d'un poste comparée
+    à celle d'un autre. */
+export const ATTENTE_D_UNE_RESERVATION_MS = 90_000;
+export function gesteDeLaPiece(o: { pieceLe?: string | null; vueDepuisMs: number | null; maintenantMs: number }): 'reserver' | 'attendre' | 'reprendre' {
+  if (!o.pieceLe) return 'reserver';
+  if (o.vueDepuisMs === null || !Number.isFinite(o.vueDepuisMs)) return 'attendre';
+  return o.maintenantMs - o.vueDepuisMs >= ATTENTE_D_UNE_RESERVATION_MS ? 'reprendre' : 'attendre';
+}
+
 /** L'ARGENT DÉJÀ REÇU MONTE SUR SA PIÈCE : l'acompte reconnu et les
     versements d'avant, chacun à SA date, comme le ticket de la Caisse les
     écrit (« Acompte », sans caisse : ils sont entrés un autre jour, aucun
