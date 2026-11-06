@@ -154,6 +154,8 @@ export const COMMUN: Commun = {
           { texte: 'WhatsApp', vers: 'whatsapp:inconnu' },
           { texte: 'Nous écrire', vers: '/contact/' },
           { texte: 'Me faire rappeler', vers: '/rappel/' },
+          /* Le code de confirmation et les 4 derniers chiffres (6 novembre 2026). */
+          { texte: 'Retrouver mon rendez-vous', vers: '/mon-rendez-vous/' },
         ],
       },
     ],
@@ -1634,6 +1636,27 @@ export const PAGES: Page[] = [
     jsonld: 'aucun',
     court: 'Votre agenda',
     horsDesMoteurs: 'La page du bouton « Ajouter à mon agenda » de la confirmation WhatsApp : elle ne sert qu’à la cliente qui a le lien, jamais aux moteurs ni au plan du site.',
+  },
+  /* ── RETROUVER MON RENDEZ-VOUS — 6 novembre 2026 (« Terminer et régler »,
+     la porte du site). « Il peut aller sur maisonmnd.com, mettre son code de
+     confirmation et passer au règlement. Un peu comme sur les sites d'avion »
+     (Yéman). Son code ET les 4 derniers chiffres de son numéro : le même
+     îlot `rdv` (genre « retrouver ») appelle la fonction terminer-et-regler,
+     qui rend le jeton signé de /rdv/ ; la page y mène. Elle ne sert qu'à
+     celle qui a déjà un rendez-vous : hors des moteurs et du plan. */
+  {
+    chemin: '/mon-rendez-vous/',
+    titre: 'Retrouver mon rendez-vous · Maison MND',
+    description: 'Retrouvez votre rendez-vous à la Maison MND avec votre code de confirmation et les 4 derniers chiffres de votre numéro : le régler, le déplacer, l’ajouter à votre agenda.',
+    h1: 'Retrouver mon rendez-vous.',
+    sur: 'Maison MND',
+    ligne: 'Votre code de confirmation et les 4 derniers chiffres de votre numéro.',
+    besoin: 'inconnu',
+    ilot: 'rdv',
+    ton: 'reservation',
+    jsonld: 'aucun',
+    court: 'Mon rendez-vous',
+    horsDesMoteurs: 'La page où une cliente retrouve son rendez-vous avec son code de confirmation : elle ne sert qu’à celle qui a déjà un rendez-vous, jamais aux moteurs ni au plan du site.',
   },
   /* ── LA COMMUNAUTÉ MND — 28 septembre 2026 (maquette validée) ────── */
   /* DE MAIN EN MAIN — 9 octobre 2026 : la page garde son adresse et se

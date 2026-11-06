@@ -19,6 +19,10 @@ const PUR = 'src/shared/terminer-et-regler-pur.ts';
 const TER = 'supabase/functions/terminer-et-regler/index.ts';
 const REG = 'supabase/functions/regler-la-seance/index.ts';
 const AU = 'supabase/functions/whatsapp-automate/index.ts';
+const SITE = 'src/apps/revelateur/billet-du-rdv-pur.ts';
+const ILOT = 'src/apps/revelateur/ilots/MonRendezVous.tsx';
+const CONTENU = 'src/apps/revelateur/contenu.ts';
+const GENERE = 'scripts/genere-revelateur.mjs';
 const PANNES = [
   /* ── Le serveur : les vraies fonctions, rejouees ── */
   ['le reglement n honore plus', REG, "  return honneur ? ({ ...regle, status: 'honoré', honoreAuReglement: honneur } as RdvLu) : regle;", '  return regle;'],
@@ -41,6 +45,25 @@ const PANNES = [
   ['« Passe au comptoir » ignore par le serveur', TER, "      porte: porteDeLaFin({ rdv, maintenantMs: maintenant, passeAuComptoir: fiche?.passeAuComptoir === true,", '      porte: porteDeLaFin({ rdv, maintenantMs: maintenant, passeAuComptoir: false,'],
   ['le serveur honore a la declaration', TER, '      return { ...d, termineParElle: marque, ...avecLien };', "      return { ...d, termineParElle: marque, ...avecLien, status: 'honoré' };"],
   ['le billet dit son nom de famille', TER, "    rdv, reference: referenceDuRendezVous(l.id), prenom: String(fiche?.name ?? l.data?.clientName ?? ''),", "    rdv, reference: String(fiche?.name ?? ''), prenom: String(fiche?.name ?? l.data?.clientName ?? ''),"],
+  /* ── La porte du site ── */
+  ['le site distingue un code inconnu de chiffres faux', SITE, "  if (x.ok !== true) return x.error === 'introuvable' ? { etat: 'introuvable' } : { etat: 'panne' };", "  if (x.ok !== true) return x.error === 'introuvable' ? { etat: 'panne' } : { etat: 'introuvable' };"],
+  ['le site croit un jeton qui n en est pas un', SITE, " || typeof x.v !== 'string' || !/^[A-Za-z0-9_-]{1,120}\\.[A-Za-z0-9_-]{22}$/.test(x.v)) return { etat: 'panne' };", ") return { etat: 'panne' };"],
+  ['le site suit n importe quelle adresse de reglement', SITE, "  return typeof x.adresse === 'string' && /^https:\\/\\/maisonmnd\\.com\\/trone\\/payer\\.html\\?tg=r-[23456789a-z]{14}$/.test(x.adresse)\n", "  return typeof x.adresse === 'string'\n"],
+  ['le bouton parait porte fermee', SITE, '  if (b.porte.ouverte) {\n    return b.aTermine', '  if (true) {\n    return b.aTermine'],
+  ['le site affiche un montant qu il ne connait pas', SITE, "  const montant = b.resteXof !== null && b.resteXof > 0 ? francsDits(b.resteXof) : undefined;", '  const montant = francsDits(b.resteXof ?? 0);'],
+  ['un billet au montant negatif se lit', SITE, '  if (reste !== null && (!Number.isFinite(reste) || reste < 0)) return null;\n', ''],
+  ['un billet sans porte se lit', SITE, " || !porte || typeof porte.ouverte !== 'boolean' || typeof porte.raison !== 'string') return null;", ') return null;'],
+  ['le code seul part au serveur', SITE, "  if (!quatreChiffresLus(chiffres)) return { champ: 'chiffres', dit: 'Quatre chiffres : les derniers de votre numéro.' };\n", ''],
+  ['« regle » garde un bouton', SITE, "note: 'Votre reçu arrive sur WhatsApp, la facture jointe.', leJourMeme: true };", "note: 'Votre reçu arrive sur WhatsApp, la facture jointe.', bouton: 'Régler mon rituel', leJourMeme: true };"],
+  ['la veille, Deplacer et Annuler disparaissent', SITE, "paraît ici : vous réglez depuis votre téléphone.', leJourMeme: false,", "paraît ici : vous réglez depuis votre téléphone.', leJourMeme: true,"],
+  ['le lien du WhatsApp mene a une page qui n existe pas', SITE, "export const CHEMIN_POUR_RETROUVER = 'mon-rendez-vous/';", "export const CHEMIN_POUR_RETROUVER = 'retrouver/';"],
+  ['la page termine par une autre porte', ILOT, "demandeALaFin({ action: 'terminer', porte: 'site', v: jeton })", "demandeALaFin({ action: 'terminer', porte: 'couronne', v: jeton })"],
+  ['la page suit une adresse non relue', ILOT, "      if (r.etat === 'a-regler') { location.assign(r.adresse); return; }", "      if ((data as { adresse?: string })?.adresse) { location.assign((data as { adresse: string }).adresse); return; }"],
+  ['le jour meme, Deplacer et Annuler restent', ILOT, '  const changer = aVenir && !reglement?.leJourMeme;', '  const changer = aVenir;'],
+  ['la page de l agenda porte le reglement', ILOT, '  const reglement = !agendaSeul && billet ? reglementDuBillet(billet) : null;', '  const reglement = billet ? reglementDuBillet(billet) : null;'],
+  ['la page /mon-rendez-vous/ s offre aux moteurs', CONTENU, "    horsDesMoteurs: 'La page où une cliente retrouve son rendez-vous avec son code de confirmation : elle ne sert qu’à celle qui a déjà un rendez-vous, jamais aux moteurs ni au plan du site.',\n", ''],
+  ['le pied de page n y mene plus', CONTENU, "          { texte: 'Retrouver mon rendez-vous', vers: '/mon-rendez-vous/' },\n", ''],
+  ['la page de la recherche monte le billet vide', GENERE, '<div data-ilot="rdv" data-genre="retrouver">', '<div data-ilot="rdv" data-genre="page">'],
   /* ── La porte du WhatsApp : la copie de la phrase (ses scenarios vivent dans verifie-opale) ── */
   ['la copie de la phrase derive dans whatsapp-automate', AU, "  if (!t || t.split(' ').length > 14) return false;", "  if (!t || t.split(' ').length > 15) return false;"],
   /* ── La regle pure ── */

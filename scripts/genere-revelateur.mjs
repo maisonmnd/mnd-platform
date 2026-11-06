@@ -1035,8 +1035,15 @@ function ilot(nom, p) {
         <div data-ilot="contact" data-genre="court"></div>
         ${rappel ? '<div data-ilot="vocal" data-genre="carte"></div>' : ''}
         <p class="compte">Aucun compte à créer, rien à payer aujourd’hui.</p>
+        ${rappel ? '' : `<p class="compte"><a href="${attr(lien('/mon-rendez-vous/'))}">Déjà un rendez-vous ? Retrouvez-le avec votre code.</a></p>`}
       </aside>
     </div></section>`;
+  }
+  /* RETROUVER MON RENDEZ-VOUS — 6 novembre 2026 (/mon-rendez-vous/) : le même
+     îlot que la page du rendez-vous, au genre « retrouver » : son code de
+     confirmation et les 4 derniers chiffres de son numéro. */
+  if (nom === 'rdv' && p.chemin === '/mon-rendez-vous/') {
+    return `<section class="serre"><div class="conteneur"><div data-ilot="rdv" data-genre="retrouver"><p class="corps">Votre rendez-vous se retrouve ici avec votre code de confirmation. Si rien ne s’affiche, écrivez à la Maison sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Écrire à la Maison', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div></div></section>`;
   }
   /* LA PAGE DU RENDEZ-VOUS — 3 novembre 2026 : l'îlot lit le jeton de
      l'adresse ; sans lui, la page dit encore où écrire. */

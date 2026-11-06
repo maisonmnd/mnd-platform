@@ -31,6 +31,9 @@ import {
 } from '../src/shared/regler-la-seance-pur';
 import { prixFigeLu } from '../src/shared/cloture-du-jour-pur';
 import { LIEN_TAPGO } from '../src/shared/mnd-pay-pur';
+import {
+  CHEMIN_POUR_RETROUVER, MOTS_DE_LA_RECHERCHE, billetDeLaPageLu, billetLu, codeDeLAdresse, finLue, rechercheLue, refusDit, reglementDuBillet, saisieARevoir,
+} from '../src/apps/revelateur/billet-du-rdv-pur';
 
 let ko = 0; let n = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -537,6 +540,70 @@ transactions.tx3 = { status: 'SUCCESS', amount: 12000, fees: 228, source: 'MTN_B
 const pf = await appelle(regler, { action: 'regler', jeton: String(df.corps.jeton), transactionId: 'tx3' });
 dit('le foyer regle d un seul paiement : chaque tete passe honoree', [200, 12000, 'honoré', 'honoré', true, true],
   [pf.status, pf.corps.versementXof, rdvDe('rdv-na').status, rdvDe('rdv-fi').status, !!rdvDe('rdv-na').honoreAuReglement?.le, !!rdvDe('rdv-fi').honoreAuReglement?.le]);
+
+/* ══ 16. LA PORTE DU SITE : « Retrouver mon rendez-vous » et le billet ═══
+   Les lectures et les mots de billet-du-rdv-pur.ts, nourris des reponses de
+   la VRAIE fonction ; puis le cablage de la page, lu dans ses sources. */
+remplis();
+const sTrouve = await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '4480' });
+const lueTrouve = rechercheLue(sTrouve.corps, sTrouve.status);
+dit('le site lit la recherche : trouve, avec le jeton de /rdv/ et le billet', ['trouve', true, 12000], [lueTrouve.etat, lueTrouve.etat === 'trouve' && FORME_DU_JETON_DU_RDV.test(lueTrouve.v), lueTrouve.etat === 'trouve' ? lueTrouve.billet.resteXof : null]);
+const sFaux = await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '0000' }, { ip: '9.9.9.1' });
+const sInconnu = await appelle(finir, { action: 'retrouver', code: 'MND-ZZZZ', chiffres: '4480' }, { ip: '9.9.9.2' });
+dit('... un code inconnu et des chiffres faux se lisent pareil : « introuvable », une seule phrase pour les deux', ['introuvable', 'introuvable', 'Nous ne retrouvons pas ce rendez-vous. Vérifiez votre code et vos quatre chiffres, ou écrivez à la Maison.'],
+  [rechercheLue(sFaux.corps, sFaux.status).etat, rechercheLue(sInconnu.corps, sInconnu.status).etat, MOTS_DE_LA_RECHERCHE.introuvable]);
+dit('... le frein se dit « trop », une reponse abimee « panne », jamais « trouve » sans un vrai jeton', ['trop', 'trop', 'panne', 'panne', 'panne'],
+  [rechercheLue({ ok: false, error: 'trop' }, 429).etat, rechercheLue(null, 429).etat, rechercheLue(null).etat, rechercheLue({ ok: true, v: 'pas-un-jeton', billet: sTrouve.corps.billet }).etat, rechercheLue({ ok: true, v: sTrouve.corps.v, billet: { reference: 'x' } }).etat]);
+dit('la saisie se relit avant d appeler : le code seul ne part pas, trois chiffres non plus', ['code', 'chiffres', 'chiffres', null],
+  [saisieARevoir('7K3', '4480')?.champ, saisieARevoir('MND-7K3Q', '')?.champ, saisieARevoir('mnd 7k3q', '448')?.champ, saisieARevoir('mnd 7k3q', '4480')]);
+dit('le code pose dans l adresse par le WhatsApp de la Maison se relit ; un code abime ne se pose pas', ['MND-7K3Q', '', ''], [codeDeLAdresse('?code=MND-7K3Q'), codeDeLAdresse('?code=<script>'), codeDeLAdresse('')]);
+dit('le lien du WhatsApp de la Maison mene a la page de la recherche', `https://maisonmnd.com/${CHEMIN_POUR_RETROUVER}`, PAGE_POUR_RETROUVER_SON_RDV);
+
+const sBillet = await appelle(finir, { action: 'billet', v: sTrouve.corps.v });
+const billetDuJour = billetDeLaPageLu(sBillet.corps)!;
+dit('le billet du jour, a l heure du rituel : « Terminer et regler », le montant du serveur, plus de Deplacer ni d Annuler',
+  { sur: 'Votre rituel est en cours', phrase: 'Quand l’équipe a fini, terminez ici : vous réglez depuis votre téléphone et vous partez sans passer au comptoir.', montant: '12 000 F', bouton: 'Terminer et régler', note: 'Si l’équipe ajoute un soin ou un produit, le montant se met à jour sur la page du règlement.', leJourMeme: true },
+  reglementDuBillet(billetDuJour));
+const sFin = await appelle(finir, { action: 'terminer', porte: 'site', v: sTrouve.corps.v });
+dit('« Terminer et regler » : le site ne suit que l adresse de la page « Regler » de la Maison', ['a-regler', true, 'panne', 'panne'],
+  [finLue(sFin.corps, sFin.status).etat, (finLue(sFin.corps) as { adresse?: string }).adresse === sFin.corps.adresse,
+    finLue({ ok: true, etat: 'a-regler', adresse: 'https://ailleurs.example/payer.html?tg=r-23456789abcdef' }).etat, finLue({ ok: true, etat: 'a-regler' }).etat]);
+dit('... apres sa declaration, le billet dit « Regler mon rituel » ; une porte fermee se dit en une phrase, sans adresse',
+  ['Régler mon rituel', { etat: 'ferme', raison: 'comptoir' }, 'Pour votre règlement, l’équipe vous attend au comptoir.', 'Ce bouton s’allume à l’heure de votre rituel.'],
+  [reglementDuBillet(billetDeLaPageLu((await appelle(finir, { action: 'billet', v: sTrouve.corps.v })).corps)!)?.bouton, finLue({ ok: true, etat: 'comptoir' }), refusDit('comptoir'), refusDit('avant-l-heure')]);
+const billetDe = (plus: Record<string, unknown>) => billetLu({ reference: 'MND-7K3Q', prenom: 'Awa', jour: JOUR, heure: '08:00', etat: 'confirme', resteXof: 12000, porte: { ouverte: false, raison: 'pas-encore-le-jour' }, aTermine: false, ...plus })!;
+dit('la veille : ce qui sera a regler, AUCUN bouton, Deplacer et Annuler restent', [undefined, '12 000 F', false, 'À régler'],
+  [reglementDuBillet(billetDe({}))?.bouton, reglementDuBillet(billetDe({}))?.montant, reglementDuBillet(billetDe({}))?.leJourMeme, reglementDuBillet(billetDe({}))?.sur]);
+dit('regle : « Vous pouvez partir : la Maison est prevenue », sans bouton ; un montant inconnu ne s affiche pas ; un annule ne dit rien du reglement',
+  ['Merci, Awa. Vous pouvez partir : la Maison est prévenue.', undefined, undefined, null],
+  [reglementDuBillet(billetDe({ etat: 'regle', resteXof: 0, porte: { ouverte: false, raison: 'deja-regle' } }))?.phrase,
+    reglementDuBillet(billetDe({ etat: 'regle', resteXof: 0, porte: { ouverte: false, raison: 'deja-regle' } }))?.bouton,
+    reglementDuBillet(billetDe({ etat: 'en-cours', resteXof: null, porte: { ouverte: true, raison: 'ouverte' } }))?.montant,
+    reglementDuBillet(billetDe({ etat: 'annule', resteXof: null, porte: { ouverte: false, raison: 'annule' } }))]);
+dit('un billet abime ne se lit pas : sans porte, un montant negatif, un etat inconnu', [null, null, null],
+  [billetLu({ reference: 'MND-7K3Q', jour: JOUR, etat: 'confirme' }), billetLu({ reference: 'MND-7K3Q', jour: JOUR, etat: 'confirme', resteXof: -5, porte: { ouverte: false, raison: 'x' } }),
+    billetLu({ reference: 'MND-7K3Q', jour: JOUR, etat: 'gratuit', porte: { ouverte: true, raison: 'ouverte' } })]);
+const MOTS_DU_SITE = [...Object.values(MOTS_DE_LA_RECHERCHE), refusDit('x'), refusDit('deja-regle'), reglementDuBillet(billetDuJour)!.phrase, reglementDuBillet(billetDe({}))!.phrase];
+dit('la voix de la Maison sur le site : ni tiret long, ni « salon », ni « maitre », le vouvoiement', [false, false, false],
+  [MOTS_DU_SITE.some((m) => /—|–/.test(m)), MOTS_DU_SITE.some((m) => /salon|ma[iî]tre/i.test(m)), MOTS_DU_SITE.some((m) => /\b(tu|ton|ta|tes)\b/i.test(m))]);
+
+const sansCommentaires = (s: string): string => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+const ilot = sansCommentaires(lis('src/apps/revelateur/ilots/MonRendezVous.tsx'));
+dit('la page parle a la fonction terminer-et-regler : retrouver (code et chiffres), billet (son jeton), terminer (la porte du site, son jeton)', [true, true, true, true],
+  [/supabase\.functions\.invoke\(FONCTION_DE_LA_FIN, \{ body: corps \}\)/.test(ilot), /demandeALaFin\(\{ action: 'retrouver', code, chiffres \}\)/.test(ilot),
+    /demandeALaFin\(\{ action: 'billet', v: jeton \}\)/.test(ilot), /demandeALaFin\(\{ action: 'terminer', porte: 'site', v: jeton \}\)/.test(ilot)]);
+dit('... trouve, elle mene au billet /rdv/?v= ; a regler, a la seule adresse relue ; elle ne decide d aucun montant', [true, true, false],
+  [/location\.assign\(`\$\{import\.meta\.env\.BASE_URL\}rdv\/\?v=\$\{encodeURIComponent\(r\.v\)\}`\)/.test(ilot), /if \(r\.etat === 'a-regler'\) \{ location\.assign\(r\.adresse\); return; \}/.test(ilot), /resteXof\s*[=+*-]/.test(ilot)]);
+dit('... le jour meme, Deplacer et Annuler laissent la place au reglement ; la page de l agenda ne porte pas le reglement', [true, true],
+  [/const changer = aVenir && !reglement\?\.leJourMeme;/.test(ilot), /const reglement = !agendaSeul && billet \? reglementDuBillet\(billet\) : null;/.test(ilot)]);
+const contenuDuSite = lis('src/apps/revelateur/contenu.ts');
+const pageDuCode = /\{\s*chemin: '\/mon-rendez-vous\/',[\s\S]*?\n  \},/.exec(contenuDuSite)?.[0] ?? '';
+dit('la page /mon-rendez-vous/ existe, monte l ilot du rendez-vous, et reste hors des moteurs et du plan', [true, true, true],
+  [pageDuCode.length > 100, /ilot: 'rdv',/.test(pageDuCode), /horsDesMoteurs: '/.test(pageDuCode)]);
+const generateur = lis('scripts/genere-revelateur.mjs');
+dit('le generateur donne a cette page le genre « retrouver », et le site y mene discretement : le pied de page, la page de reservation', [true, true, true],
+  [/if \(nom === 'rdv' && p\.chemin === '\/mon-rendez-vous\/'\) \{\s*return `<section class="serre"><div class="conteneur"><div data-ilot="rdv" data-genre="retrouver">/.test(generateur),/\{ texte: 'Retrouver mon rendez-vous', vers: '\/mon-rendez-vous\/' \},/.test(contenuDuSite),
+    /<a href="\$\{attr\(lien\('\/mon-rendez-vous\/'\)\)\}">Déjà un rendez-vous \? Retrouvez-le avec votre code\.<\/a>/.test(generateur)]);
 
 console.log(ko ? `\n${ko} echec(s) sur ${n}.` : `\nTout tient (${n} controles).`);
 if (ko) process.exit(1);

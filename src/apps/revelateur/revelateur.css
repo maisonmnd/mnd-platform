@@ -2737,3 +2737,10 @@ footer ul { gap: 12px; }
 .rdv-page h2 { font-size: clamp(24px, 3.2vw, 34px); }
 .rdv-page p { max-width: 52ch; }
 .rdv-page__changer { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--filet); }
+/* TERMINER ET RÉGLER (6 novembre 2026) : le règlement sur le billet, et la
+   recherche par le code de confirmation (/mon-rendez-vous/). */
+.rdv-page__reglement { display: grid; gap: 8px; padding-top: 12px; border-top: 1px dashed var(--accent); }
+.rdv-page__montant { font-family: var(--serif); font-size: clamp(28px, 4vw, 36px); line-height: 1.1; color: var(--titre); font-variant-numeric: tabular-nums; }
+.rdv-cherche .champ { max-width: 360px; }
+.rdv-cherche .champ input { font-size: 20px; letter-spacing: .12em; font-variant-numeric: tabular-nums; }
+.rdv-cherche__dit { padding-left: 10px; border-left: 3px solid var(--accent); color: var(--titre); }
