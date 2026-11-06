@@ -848,6 +848,8 @@ async function previensLePersonnel(n: { titre: string; corps: string; url: strin
   }
 }
 
+/** Les têtes d'un même numéro qu'un seul message WhatsApp peut déclarer (le lien du foyer en porte six). */
+const TETES_AU_PLUS_PAR_WHATSAPP = 6;
 /** La raison d'une porte fermée ; `a-peine-commence` ne vaut que sur WhatsApp
     (les vingt premières minutes du rituel : une phrase libre n'y est pas une
     déclaration, la Maison ne pose aucune marque et Opale répond). */
@@ -861,7 +863,11 @@ async function terminer(req: Request, b: any) {
   let ids: string[] = [];
   if (porte === 'whatsapp') {
     if (!parLeService(req)) return json({ ok: false, error: 'interdit' }, 403);
-    ids = (Array.isArray(b.rdvIds) ? b.rdvIds : []).map(String).filter(Boolean).slice(0, 6);
+    ids = [...new Set<string>((Array.isArray(b.rdvIds) ? b.rdvIds : []).map(String).filter(Boolean))];
+    /* PLUS DE SIX TÊTES LE MÊME JOUR À CE NUMÉRO : on ne coupe plus la liste
+       en silence (les suivantes restaient sans marque ni lien). Rien ne se
+       pose, et la conversation suit son cours avec Opale et l'équipe. */
+    if (ids.length > TETES_AU_PLUS_PAR_WHATSAPP) return json({ ok: true, etat: 'trop-de-tetes' });
   } else {
     if (!(await permis(ipOf(req), 'fin-terminer', 20))) return json({ ok: false, error: 'trop' }, 429);
     if (porte === 'site') {
@@ -920,16 +926,22 @@ async function terminer(req: Request, b: any) {
   const le = new Date(maintenant).toISOString();
   let neuve = false;
   for (const t of ouvertes) {
+    /* REJUGÉ À CHAQUE ESSAI : quand deux déclarations se croisent, la
+       première écriture de celle-ci échoue (la ligne a bougé), et la ligne
+       relue porte déjà la marque de l'autre. C'est l'autre qui prévient le
+       personnel : celle-ci ne le prévient pas une seconde fois. */
+    let cetteEcriturePoseLaMarque = false;
     const ecrit = await ecrisLeRdv(t.ligne.id, (d) => {
+      cetteEcriturePoseLaMarque = !d.termineParElle?.le;
       const marque = d.termineParElle?.le ? d.termineParElle : { le, par: porte };
       const avecLien = lien.genre === 'seul'
         ? { lienDeReglement: estUnJetonDeLaFin(d.lienDeReglement?.jeton) ? d.lienDeReglement : { ...(d.lienDeReglement ?? {}), jeton: lien.jeton, creeLe: le } }
         : { lienDuFoyer: d.lienDuFoyer?.jeton === lien.jeton ? d.lienDuFoyer : { jeton: lien.jeton, apptIds: lien.apptIds, creeLe: le } };
       if (d.termineParElle?.le && JSON.stringify({ ...d, ...avecLien }) === JSON.stringify(d)) return null;
-      if (!d.termineParElle?.le) neuve = true;
       return { ...d, termineParElle: marque, ...avecLien };
     });
     if (ecrit === null) return json({ ok: false, error: 'ecriture' }, 409);
+    if (cetteEcriturePoseLaMarque) neuve = true;
   }
   /* Le jeton qui vaut : celui que porte la ligne (un second toucher, une autre porte). */
   const jeton = lien.genre === 'seul'

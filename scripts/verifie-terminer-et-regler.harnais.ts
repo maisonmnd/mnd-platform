@@ -694,6 +694,25 @@ entreDeux = () => { const l = db.appointments.find((x) => x.id === 'rdv-jour')!;
 await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-jour' }, { cle: 'jeton.de.awa' });
 dit('le serveur n ecrit jamais sur une ligne qui a bouge : l ecriture du Trone survit, la marque se pose a la relecture', ['posee entre deux', 'couronne'],
   [rdvDe('rdv-jour').noteDuTrone, rdvDe('rdv-jour').termineParElle?.par]);
+/* DEUX DECLARATIONS QUI SE CROISENT (relecture du 6 novembre 2026) : l'autre porte pose sa marque
+   (et previent le personnel) entre la lecture et l'ecriture de celle-ci. A la relecture la marque
+   est deja la : celle-ci garde le lien, et ne previent pas le personnel une seconde fois. */
+remplis();
+entreDeux = () => {
+  const l = db.appointments.find((x) => x.id === 'rdv-jour')!;
+  l.data = { ...l.data, termineParElle: { le: new Date(A_10H).toISOString(), par: 'site' } }; l.updated_at = `t${++tic}`;
+};
+const croisee = await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-jour' }, { cle: 'jeton.de.awa' });
+dit('deux declarations se croisent : la marque de la premiere porte reste, la seconde repond « deja » avec son lien, et le personnel n est pas prevenu une seconde fois',
+  ['a-regler', true, 'site', true, 0], [croisee.corps.etat, croisee.corps.deja, rdvDe('rdv-jour').termineParElle?.par, estUnJeton(String(croisee.corps.jeton)), notifications.length]);
+/* PLUS DE SIX TETES LE MEME JOUR A CE NUMERO : la liste ne se coupe plus en silence. */
+remplis();
+const sept = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-jour', 'rdv-na', 'rdv-fi', 'rdv-9', 'rdv-comptoir', 'rdv-demain', 'rdv-parent'] }, { cle: SERVICE });
+const marqueesApresSept = db.appointments.filter((x) => x.data?.termineParElle).length;
+const six = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-jour', 'rdv-na', 'rdv-fi', 'rdv-9', 'rdv-comptoir', 'rdv-demain', 'rdv-jour'] }, { cle: SERVICE });
+dit('WhatsApp, sept tetes d un coup : rien ne se pose (« trop-de-tetes », Opale et l equipe repondent) ; six (un doublon ne compte pas), la declaration passe',
+  [{ version: '2026-11-06-b', ok: true, etat: 'trop-de-tetes' }, 0, 0, 'a-regler', true],
+  [sept.corps, marqueesApresSept, notifications.filter((x) => !x.corps.includes('Acompte')).length - (six.corps.etat === 'a-regler' ? 1 : 0), six.corps.etat, db.appointments.filter((x) => x.data?.termineParElle).length >= 3]);
 
 /* ── Le foyer : un seul numero, un seul lien ── */
 remplis();
@@ -941,6 +960,9 @@ dit('une reservation vue depuis 90 s, toujours sans piece, se reprend : le delai
     /if \(ancienne !== vue\) \{ fait\.delete\(`piece-\$\{cle\}`\); return; \}/.test(effetPiece),
     /if \(ancienne !== null\) \{\s*const \{ data: dejaLa, error: pieces \} = await sb\.from\('invoices'\)\.select\('id'\)\.eq\('data->>apptId', a\.id\)\.limit\(1\);\s*if \(pieces\) throw new Error\(pieces\.message\);\s*if \(\(dejaLa \?\? \[\]\)\.length > 0\) return;/.test(effetPiece),
     /const minuteur = window\.setTimeout\(\(\) => setTic\(\(x\) => x \+ 1\), Math\.max\(1000, reveil \+ 500\)\);\s*return \(\) => window\.clearTimeout\(minuteur\);\s*\}, \[session, appts, invoices, clients, categories, services, produits, bands, sets, byId, branch\.id, tic\]\);/.test(effetPiece)]);
+dit('un rituel dont une piece existe deja, liee autrement (les trois liens de la Caisse), n en recoit pas une seconde : le Trone le dit, et rien ne s ecrit', [true, true],
+  [/if \(aDejaSaPiece\(a, invoices\)\) \{\s*fait\.add\(`sans-\$\{a\.id\}`\);[\s\S]*?Encaissez-la au comptoir\.`, 10_000\);\s*continue;\s*\}/.test(effetPiece),
+    effetPiece.indexOf('if (aDejaSaPiece(a, invoices)) {') > 0 && effetPiece.indexOf('if (aDejaSaPiece(a, invoices)) {') < effetPiece.indexOf('fait.add(`piece-${cle}`);')]);
 dit('un verdict rendu sur ce poste (rien a regler, piece impossible) ne se redit pas a chaque reprise', [true, true, true],
   [/if \(fait\.has\(`sans-\$\{a\.id\}`\)\) continue;/.test(effetPiece), /if \(apptDueXof\(frais, byId\) <= 0\) \{\s*fait\.add\(`sans-\$\{a\.id\}`\);/.test(effetPiece), /if \(!r\.ok\) \{ fait\.add\(`sans-\$\{a\.id\}`\);/.test(effetPiece)]);
 dit('... le prix se fige avec la reservation, la piece s ecrit au tarif de sa tete (celle de « Terminer la seance »)',

@@ -10,7 +10,7 @@ import { supabase } from '../../../shared/supabase';
 import { tablePrete } from '../../../shared/sync';
 import { sonne } from '../../../shared/sonnette';
 import { ATTENTE_D_UNE_RESERVATION_MS, gesteDeLaPiece, pieceAPreparer, suitesAFaire, versementsDejaRecus } from '../../../shared/terminer-et-regler-pur';
-import { lArgentDejaRecu } from '../routes/vente/encaissement-pur';
+import { aDejaSaPiece, lArgentDejaRecu } from '../routes/vente/encaissement-pur';
 import { toast } from '../../../ds/components';
 import { apptDueXof, prixAFiger, tarifsDuRituel, useServicesById } from '../routes/clients/_shared';
 import { factureAEnvoyer, honorAppointment } from '../routes/clients/actions';
@@ -100,6 +100,16 @@ export function useLaFinDuRituel(): void {
     for (const a of declarees) {
       /* Ce poste a déjà rendu son verdict (rien à régler, pièce impossible) : il ne le redit pas. */
       if (fait.has(`sans-${a.id}`)) continue;
+      /* UNE PIÈCE PORTE DÉJÀ CE RITUEL, LIÉE AUTREMENT (le rendez-vous nomme sa
+         pièce, ou un de ses versements la nomme : les trois liens de la
+         Caisse, `aDejaSaPiece`). En écrire une seconde compterait l'argent
+         deux fois : le Trône n'écrit rien et le dit, elle règle au comptoir. */
+      if (aDejaSaPiece(a, invoices)) {
+        fait.add(`sans-${a.id}`);
+        const qui = (clients.find((c) => c.id === a.clientId)?.name ?? a.clientName ?? 'Elle').split(' ')[0];
+        toast(`${qui} a terminé son rituel : une pièce porte déjà ce rendez-vous. Encaissez-la au comptoir.`, 10_000);
+        continue;
+      }
       /* La réservation que ce poste VOIT sur la ligne, et depuis quand il la voit. */
       const vue = a.termineParElle?.pieceLe ?? null;
       const cle = `${a.id}|${vue ?? ''}`;
