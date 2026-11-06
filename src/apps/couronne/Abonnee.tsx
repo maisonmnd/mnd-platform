@@ -48,7 +48,7 @@ const dernierJour = (au: string): string => decaleLeJour(au, -1);
 /* ── LE CHEMIN DE SCEAUX · 6 novembre 2026 ──────────────────────────────
    Un sceau dentelé par séance, dans l'ordre où elle les vit : il remplace la
    barre en trois matières. Les matières restent celles de la légende (plein :
-   faite ; hachuré : réservée ; brique : manquée ; vide : disponible), et les
+   faite ; hachuré : réservée ; vide : disponible), et les
    comptes sont ceux du relevé (`cheminDeLaLigne`). Le chemin se tait pour un
    lecteur d'écran : la légende, juste dessous, le dit en mots. */
 const DENTELE = (() => {
@@ -91,7 +91,6 @@ export function Chemin({ pas, voile, grand }: { pas: Pas[] | null; voile?: boole
 export function Legende({ l, perdue }: { l: LigneDeSeances; perdue?: boolean }) {
   const items: [string, string][] = [];
   if (l.faites) items.push(['faite', l.faites > 1 ? t('{n} faites', { n: l.faites }) : t('{n} faite', { n: l.faites })]);
-  if (l.manquees) items.push(['manquee', l.manquees > 1 ? t('{n} manquées', { n: l.manquees }) : t('{n} manquée', { n: l.manquees })]);
   if (l.reservees) items.push(['reservee', l.reservees > 1 ? t('{n} réservées', { n: l.reservees }) : t('{n} réservée', { n: l.reservees })]);
   if (l.disponibles !== null && l.disponibles > 0) {
     items.push(perdue
@@ -118,7 +117,7 @@ function chiffreDeLaLigne(c: ReleveDuContrat, l: LigneDeSeances): string {
   /* L'ANCIEN CARNET ÉPUISÉ : ses séances ont été prises avant Le Trône ; on ne
      prétend pas « 2 sur 6 ». */
   if (c.etat === 'epuisee' && c.epuiseeParLAncienCarnet) return t('épuisée');
-  if (c.etat === 'epuisee') return t('{n} sur {total}', { n: l.faites + l.manquees, total: l.incluses });
+  if (c.etat === 'epuisee') return t('{n} sur {total}', { n: l.faites, total: l.incluses });
   return (l.disponibles ?? 0) > 1 ? t('{n} disponibles', { n: l.disponibles ?? 0 }) : t('{n} disponible', { n: l.disponibles ?? 0 });
 }
 

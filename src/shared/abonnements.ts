@@ -613,8 +613,8 @@ export function releveDuContrat(
 }
 
 /** LES RENDEZ-VOUS QUI DÉCOMPTENT CET ABONNEMENT, du plus récent au plus ancien :
-    toute sa vie, faites, réservées et manquées (une annulée ou une rendue ne
-    prend rien). Même juge que le compteur : la liste et le nombre ne peuvent
+    toute sa vie, faites et réservées (une annulée, une absente ne prennent
+    rien : la séance revient à la formule, 6 novembre 2026). Même juge que le compteur : la liste et le nombre ne peuvent
     pas se contredire. */
 export const rdvCouvertsDe = (
   sub: Subscriber, plan: Plan | undefined, appts: readonly Appointment[], o: ContexteDuJuge = {},
@@ -642,13 +642,12 @@ export const rdvCouvertsDe = (
     et décompte les deux : c'est bien deux jetons qu'il consomme.
 
     LES TROIS PARTS — 20 octobre 2026 (décision 1). `used` est ce qui est
-    PRIS : faites, réservées et manquées. Elles se lisent aussi à part,
+    PRIS : faites et réservées. Elles se lisent aussi à part,
     parce qu'une séance réservée n'est pas une séance faite. */
 export type IncludedUsageDetail = IncludedUsage & {
   rdv: Appointment[];
   faites: number;
   reservees: number;
-  manquees: number;
   /** Dont les réservées passées restées « Confirmée » : à clôturer. */
   aCloturer: number;
 };
@@ -669,9 +668,9 @@ export const usageDetaille = (
       .sort((a, b) => (a.date === b.date ? (a.time < b.time ? 1 : -1) : (a.date < b.date ? 1 : -1)));
     return {
       serviceId: l.serviceId, qty: l.incluses,
-      used: l.faites + l.reservees + l.manquees,
+      used: l.faites + l.reservees,
       remaining: l.disponibles,
-      rdv, faites: l.faites, reservees: l.reservees, manquees: l.manquees, aCloturer: l.aCloturer,
+      rdv, faites: l.faites, reservees: l.reservees, aCloturer: l.aCloturer,
     };
   });
 };
@@ -773,14 +772,13 @@ export type ContratDuCompte = {
   resteXof: number;
   verseXof: number;
   /** SÉANCES, pas prestations (« six séances, pas douze ») : prises (faites,
-      réservées, manquées) et vendues, dans la fenêtre du jour (sa lune pour
+      réservées) et vendues, dans la fenêtre du jour (sa lune pour
       un cycle, toute sa vie pour un paquet). `promis` 0 : sans limite. */
   utilises: number;
   promis: number;
-  /** LES MÊMES MOTS QUE MA COURONNE : faites, réservées, manquées. */
+  /** LES MÊMES MOTS QUE MA COURONNE : faites, réservées. */
   faites: number;
   reservees: number;
-  manquees: number;
   /** Jours sans abonnement avant celui-ci, quand le précédent avait une fin. */
   trouJours: number | null;
   /** Le relevé du juge, entier : échéances, versements, porte, séances datées. */
@@ -869,9 +867,9 @@ export function comptesAbonnement(o: {
       if (!c) return;
       const comptees = new Set(c.attribuees.filter((x) => x.compte).map((x) => x.id));
       const lignes: IncludedUsageDetail[] = c.seances.map((l) => ({
-        serviceId: l.serviceId, qty: l.incluses, used: l.faites + l.reservees + l.manquees, remaining: l.disponibles,
+        serviceId: l.serviceId, qty: l.incluses, used: l.faites + l.reservees, remaining: l.disponibles,
         rdv: l.seances.filter((id) => comptees.has(id)).map((id) => parId.get(id)).filter((a): a is Appointment => !!a),
-        faites: l.faites, reservees: l.reservees, manquees: l.manquees, aCloturer: l.aCloturer,
+        faites: l.faites, reservees: l.reservees, aCloturer: l.aCloturer,
       }));
       /* LE TROU SE MESURE ENTRE LA FIN DU PRÉCÉDENT ET LE DÉBUT DE CELUI-CI.
          Le « précédent » est le suivant dans la liste, puisqu'elle descend le
@@ -895,8 +893,7 @@ export function comptesAbonnement(o: {
         utilises: siennes.length,
         promis: bornees.length ? Math.max(...bornees) : 0,
         faites: siennes.filter((x) => x.etat === 'faite').length,
-        reservees: siennes.filter((x) => x.etat !== 'faite' && x.etat !== 'manquee').length,
-        manquees: siennes.filter((x) => x.etat === 'manquee').length,
+        reservees: siennes.filter((x) => x.etat !== 'faite').length,
         trouJours,
         releve: c,
       });

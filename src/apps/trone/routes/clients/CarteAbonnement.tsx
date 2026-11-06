@@ -14,13 +14,13 @@ import type { Client } from '../../../../shared/clients';
 import { appelDe } from '../../../../shared/civilite';
 import {
   releveDeLAbonnee, jourDitAvecLAnnee, francs,
-  type ReleveDuContrat, type LigneDeSeances, type SeanceDuContrat,
+  type ReleveDuContrat, type LigneDeSeances,
 } from '../../../../shared/abonnee-pur';
 import { decaleLeJour, jourDeCotonou } from '../../../../shared/ia-faits-pur';
 import { LienMndPay } from '../vente/LienMndPay';
 import {
   effetDeLaResiliation, resilie, effetDeLaProlongation, prolonge, effetDeLaSuspension, suspend,
-  effetDuPrixRevu, revoitLePrix, verseSurLAbonnement, effetDeRendre, rendLaSeance, type Effet, type VersementDuComptoir,
+  effetDuPrixRevu, revoitLePrix, verseSurLAbonnement, type Effet, type VersementDuComptoir,
   echeancierAPoser, echeancierAEcrire, effetDePoserLEcheancier, poseLEcheancier,
 } from './gestes-de-l-abonnement';
 import './abonnement.css';
@@ -39,7 +39,7 @@ import './abonnement.css';
    CHAQUE GESTE DIT SON EFFET AVANT D'AGIR, et ce que la cliente lira. Un seul
    panneau ouvert à la fois. */
 
-type Geste = 'encaisser' | 'lien' | 'prolonger' | 'suspendre' | 'resilier' | 'rendre' | 'revoir' | 'poser';
+type Geste = 'encaisser' | 'lien' | 'prolonger' | 'suspendre' | 'resilier' | 'revoir' | 'poser';
 
 const MOTIFS = ['Maladie', 'Voyage', 'Empêchement de la Maison', 'Geste de la Maison', 'Autre'];
 
@@ -54,7 +54,6 @@ function BarreDesSeances({ l }: { l: LigneDeSeances }) {
     <span className="trc-abo__barre" aria-hidden="true">
       <i className="faite" style={{ width: `${(l.faites / t) * 100}%` }} />
       <i className="reservee" style={{ width: `${(reservees / t) * 100}%` }} />
-      <i className="manquee" style={{ width: `${(l.manquees / t) * 100}%` }} />
     </span>
   );
 }
@@ -185,7 +184,6 @@ export function CarteAbonnement({ client, appts, invoices }: {
         const du = aPoser ? undefined : argent.echeances.find((e) => e.statut === 'en-retard' || e.statut === 'a-regler-aujourdhui');
         const montantDu = du ? argent.aRegleAujourdhuiXof : aPoser ? 0 : argent.pourOuvrir?.montantXof ?? argent.luneARegler?.montantXof ?? 0;
         const vivant = c.etat === 'en-cours' || c.etat === 'en-pause';
-        const manquees = c.attribuees.filter((s) => s.etat === 'manquee' && !s.rendue);
         const g = ouvert?.sub === c.sub.id ? ouvert.geste : null;
         const alertes = releve.alertes.filter((a) => a.subId === c.sub.id);
         return (
@@ -236,7 +234,6 @@ export function CarteAbonnement({ client, appts, invoices }: {
                         ? <>sans limite · <b>{l.faites}</b> {l.faites > 1 ? 'faites' : 'faite'}</>
                         : <>
                           <b>{l.faites}</b> {l.faites > 1 ? 'faites' : 'faite'}
-                          {l.manquees > 0 && <> · <b>{l.manquees}</b> {l.manquees > 1 ? 'manquées' : 'manquée'}</>}
                           {' · '}<b>{l.reservees}</b> {l.reservees > 1 ? 'réservées' : 'réservée'}
                           {l.aCloturer > 0 && <> (dont {l.aCloturer} à clôturer)</>}
                           {' · '}<b>{l.disponibles}</b> {(l.disponibles ?? 0) > 1 ? 'disponibles' : 'disponible'} sur {l.incluses}
@@ -244,7 +241,7 @@ export function CarteAbonnement({ client, appts, invoices }: {
                     </span>
                   </div>
                 ))}
-                <p className="trc-abo__note">Barre pleine : faite ; hachurée : réservée ; brique : manquée ; vide : disponible.</p>
+                <p className="trc-abo__note">Barre pleine : faite ; hachurée : réservée ; vide : disponible. Une séance annulée ou absente revient à la formule.</p>
                 {c.sub.prixRevu && (
                   <p className="trc-abo__note">
                     Prix revu le {dit(c.sub.prixRevu.le)} après le comptage : {francs(c.sub.prixRevu.ancienXof)} → {francs(c.sub.prixRevu.nouveauXof)}.
@@ -338,7 +335,6 @@ export function CarteAbonnement({ client, appts, invoices }: {
               <button type="button" className="trc-abo__btn" aria-pressed={g === 'prolonger'} disabled={!paquet || !vivant} onClick={() => ouvre(c.sub.id, 'prolonger')}>Prolonger</button>
               <button type="button" className="trc-abo__btn" aria-pressed={g === 'suspendre'} disabled={!vivant} onClick={() => ouvre(c.sub.id, 'suspendre')}>Suspendre</button>
               <button type="button" className="trc-abo__btn is-sensible" aria-pressed={g === 'resilier'} disabled={c.etat === 'retenue'} onClick={() => ouvre(c.sub.id, 'resilier')}>Résilier daté</button>
-              <button type="button" className="trc-abo__btn is-sensible" aria-pressed={g === 'rendre'} disabled={manquees.length === 0} onClick={() => ouvre(c.sub.id, 'rendre')}>Rendre la séance</button>
               <button type="button" className="trc-abo__btn is-sensible" aria-pressed={g === 'revoir'} disabled={!paquet || !vivant} onClick={() => ouvre(c.sub.id, 'revoir')}>Revoir le prix après le comptage</button>
             </div>
 
@@ -474,30 +470,6 @@ export function CarteAbonnement({ client, appts, invoices }: {
                 </PanneauDEffet>
               );
             })()}
-
-            {g === 'rendre' && (
-              <div className="trc-abo__effet is-sensible">
-                <p>Séances manquées sur ce contrat :</p>
-                <div className="trc-abo__champs">
-                  <label>Motif<select value={motif} onChange={(e) => setMotif(e.target.value)}>{MOTIFS.map((m) => <option key={m}>{m}</option>)}</select></label>
-                </div>
-                {manquees.map((s: SeanceDuContrat) => {
-                  const effet = effetDeRendre(c, s);
-                  return (
-                    <div key={s.id} className="trc-abo__rendre">
-                      <span>Le {dit(s.date)}{s.rang && s.total ? ` · séance ${s.rang} sur ${s.total}` : ''}</span>
-                      <small>{effet.lignes[0]}</small>
-                      <Button variant="ghost" size="sm" onClick={() => {
-                        rendLaSeance(s.id, motif, quiEncaisse(), jour);
-                        toast('Séance rendue : elle revient à la formule.');
-                      }}>
-                        Rendre la séance du {dit(s.date)}
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
 
             {g === 'revoir' && (() => {
               const voulu = parseInt(prixCompte.replace(/[^0-9]/g, ''), 10) || 0;

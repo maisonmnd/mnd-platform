@@ -54,7 +54,7 @@ export function effetDeLaResiliation(
   const lignes: string[] = [];
   const p = apres.argent.prorata;
   if (p) {
-    lignes.push(`Séances comptées au ${dit(le)} : ${p.comptees} sur ${p.seances} (faites et manquées).`);
+    lignes.push(`Séances comptées au ${dit(le)} : ${p.comptees} sur ${p.seances} (les séances faites).`);
     lignes.push(`Consommé : ${francs(p.consommeXof)} · réglé : ${francs(apres.argent.regleXof)}.`);
     if (p.avoirXof > 0) lignes.push(`Avoir de ${francs(p.avoirXof)}, à part dans Mon solde, jamais retranché en silence.`);
     if (p.resteXof > 0) lignes.push(`Consommé au-delà du réglé : ${francs(p.resteXof)} dus le ${dit(p.dueIso)}, relancés comme une échéance.`);
@@ -369,10 +369,10 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
 }
 
 /** CE QUE LA FICHE DIT DE LA SÉANCE. Le rang ne se dit que pour une séance qui
-    COMPTE : une annulée, une rendue, une séance posée après la résiliation ne
+    COMPTE : une annulée, une absente, une séance posée après la résiliation ne
     prennent aucun crédit, et « séance 0 sur 6 » ne s'écrit jamais. */
 export function ditLaSeance(
-  c: ReleveDuContrat, s: SeanceDuContrat, a: Pick<Appointment, 'annuleeLe' | 'annuleePar'>,
+  c: ReleveDuContrat, s: SeanceDuContrat, a: Pick<Appointment, 'annuleePar' | 'absente'>,
 ): { titre: string; resteDit: string } {
   const ligne = c.seances.find((l) => s.serviceIds.includes(l.serviceId));
   const dispo = ligne?.disponibles;
@@ -381,11 +381,7 @@ export function ditLaSeance(
   if (s.pourquoiPas === 'apres-resiliation') {
     titre = `Hors formule : posée après la résiliation du ${jourDitAvecLAnnee(c.sub.resilieeLe ?? '')}`;
   } else if (s.etat === 'annulee') {
-    titre = `Annulée${a.annuleePar === 'maison' ? ' par la Maison' : a.annuleeLe ? ' plus de 24 h avant' : ''} · la séance revient à la formule ${c.reference}`;
-  } else if (s.etat === 'manquee') {
-    titre = s.rendue || !rang
-      ? `Manquée, rendue par la Maison · la séance revient à la formule ${c.reference}`
-      : `Manquée · ${rang} comptée sur ${c.reference}`;
+    titre = `${a.absente ? 'Absente' : a.annuleePar === 'maison' ? 'Annulée par la Maison' : 'Annulée'} · la séance revient à la formule ${c.reference}`;
   } else {
     titre = rang ? `Incluse · ${rang} · formule ${c.reference}` : `Couverte par la formule ${c.reference}`;
   }
@@ -413,56 +409,32 @@ export function effetDeMarquerFaite(c: ReleveDuContrat | undefined, s: SeanceDuC
   };
 }
 
+/** ABSENTE : UNE SÉANCE MANQUÉE NE SE PERD PAS (6 novembre 2026, Yéman : « On ne
+    perd pas les séances qu'on a manquées […] J'annule et je reprogramme
+    seulement »). La séance s'annule et revient à la formule ; il n'y a plus de
+    séance « manquée, comptée », ni rien à rendre. */
 export function effetDeMarquerAbsente(c: ReleveDuContrat | undefined, s: SeanceDuContrat | undefined): Effet {
   const l = ligneDe(c, s);
-  const rang = s?.rang && s.total ? `séance ${s.rang} sur ${s.total} ` : '';
   return {
     lignes: [
-      `${rang ? `${rang[0].toUpperCase()}${rang.slice(1)}` : 'La séance '}comptée, marquée « Manquée »${l ? ` : réservées ${l.reservees} → ${Math.max(0, l.reservees - 1)}, manquées ${l.manquees} → ${l.manquees + 1}, disponibles ${l.disponibles ?? 'sans limite'} inchangées` : ''}.`,
+      `La séance s’annule et revient à la formule${l ? ` : réservées ${l.reservees} → ${Math.max(0, l.reservees - 1)}${l.disponibles !== null ? `, disponibles ${l.disponibles} → ${l.disponibles + 1}` : ''}` : ''}.`,
       'Elle sort du calendrier ; aucun chiffre de fauteuil ne la compte.',
-      'Pour un motif justifié, « Rendre la séance » la rend ensuite.',
+      'Reprogrammez-la quand elle le souhaite : rien n’est perdu.',
     ],
-    laClienteLit: 'Manquée · comptée.',
+    laClienteLit: 'Annulée, la séance revient à votre formule.',
   };
-}
-
-export function effetDeRendre(c: ReleveDuContrat | undefined, s: SeanceDuContrat | undefined): Effet {
-  const l = ligneDe(c, s);
-  return {
-    lignes: [
-      `La séance revient à la formule${l && l.disponibles !== null ? ` : disponibles ${l.disponibles} → ${l.disponibles + 1}` : ''}.`,
-      'Le motif reste au Trône ; la séance garde sa trace « Manquée, rendue ».',
-    ],
-    laClienteLit: 'Manquée, rendue par la Maison : la séance revient à votre formule.',
-  };
-}
-
-/** À MOINS DE 24 H, une annulation de la cliente compte la séance. */
-export function effetDeLAnnulation(a: Appointment, par: 'cliente' | 'maison', maintenant: Date = new Date()): Effet {
-  const debut = Date.parse(`${a.date}T${(a.time || '00:00').padStart(5, '0')}:00+01:00`);
-  const heures = (debut - maintenant.getTime()) / 3_600_000;
-  if (par === 'maison') {
-    return { lignes: ['Annulée par la Maison : la séance ne compte jamais, elle revient à la formule.'], laClienteLit: 'Annulée par la Maison.' };
-  }
-  return heures < 24
-    ? { lignes: [`Annulée à moins de 24 h (${Math.max(0, Math.round(heures))} h avant) : la séance est COMPTÉE, marquée « Manquée ».`, 'Pour un motif justifié, « Rendre la séance » la rend ensuite.'], laClienteLit: 'Manquée · comptée.' }
-    : { lignes: [`Annulée plus de 24 h avant : la séance revient à la formule.`], laClienteLit: 'Annulée, la séance revient à votre formule.' };
 }
 
 const metsAJour = (id: string, f: (a: Appointment) => Appointment): void =>
   appointmentsStore.set((prev) => prev.map((a) => (a.id === id ? f(a) : a)));
 
-/** ABSENTE : la séance sort du calendrier et compte, « Manquée ». */
+/** ABSENTE : la séance sort du calendrier et revient à la formule. */
 export function marqueAbsente(apptId: string, par?: string, aujourdhui = jourDeCotonou()): void {
   metsAJour(apptId, (a) => ({ ...a, status: 'annulé', absente: { le: aujourdhui, ...(par ? { par } : {}) } }));
 }
 
-/** RENDRE LA SÉANCE : une manquée que la Maison redonne, avec son motif. */
-export function rendLaSeance(apptId: string, motif: string, par?: string, aujourdhui = jourDeCotonou()): void {
-  metsAJour(apptId, (a) => ({ ...a, rendue: { le: aujourdhui, motif: motif.trim(), ...(par ? { par } : {}) } }));
-}
-
-/** ANNULER, EN DISANT QUI : l'instant est écrit, le juge décide si elle compte. */
+/** ANNULER, EN DISANT QUI : l'instant et l'auteur sont écrits, pour la trace.
+    Aucune annulation ne compte : la séance revient à la formule. */
 export function annuleLaSeance(apptId: string, par: 'cliente' | 'maison', maintenant: Date = new Date()): void {
   metsAJour(apptId, (a) => ({ ...a, status: 'annulé', annuleeLe: maintenant.toISOString(), annuleePar: par }));
 }

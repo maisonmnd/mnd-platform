@@ -194,8 +194,9 @@ export default function LaJournee() {
       if (h.honore && h.facture && !h.deja && a.date === aujourdhui) void envoiDeLaPiece.aRegler(h.facture.id, a.date, { memePasse: true });
       return;
     }
-    /* « Absente » comme « Absente : marquer manquée » (la séance de la
-       formule) ; « Annulée » comme le toucher du Carnet : le statut seul. */
+    /* « Absente » comme « Absente : annuler la séance » (la séance d'une
+       formule revient à la formule) ; « Annulée » comme le toucher du Carnet :
+       le statut seul. */
     const absente = g === 'absente';
     appointmentsStore.set((prev) => prev.map((x) => (x.id === id && x.status !== 'honoré'
       ? { ...x, status: 'annulé', ...(absente ? { absente: { le: jour, par: moi } } : {}) }

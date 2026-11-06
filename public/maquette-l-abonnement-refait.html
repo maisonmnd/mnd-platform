@@ -346,7 +346,7 @@ details ul { margin: 10px 0 2px; padding-left: 18px; display: grid; gap: 4px; ma
   <details><summary>Les règles convenues le 20 octobre 2026 restent</summary>
     <ul>
       <li>Une séance se compte « faite », « réservée » ou « disponible », avec les mêmes mots partout.</li>
-      <li>Annulée à moins de 24 h, ou absente : la séance est comptée « Manquée » ; la Maison peut la rendre.</li>
+      <li>Une séance annulée ou manquée n’est jamais perdue : elle revient à la formule (tranché le 6 novembre 2026).</li>
       <li>Un carnet a une date de fin ; les séances non prises sont perdues, la Maison peut prolonger avec un motif.</li>
       <li>Chaque Lune se règle avant la lune ; non réglée, la formule se met en pause, sans dette.</li>
       <li>Une formule prise en ligne et non réglée est retenue sept jours, puis s’efface.</li>
@@ -518,7 +518,7 @@ function pFormule() {
       ${rub('seances', 'Mes séances', `${mots(k.f, 'faite', 'faites')} · ${mots(k.r, 'réservée', 'réservées')} · ${mots(k.d, 'disponible', 'disponibles')}`, s.map((y) => `<div class="lg"><span>Séance ${y.n}${y.etat !== 'dispo' ? ' · ' + y.date : ''}</span><span class="etat">${ETATS[y.etat]}</span></div>`).join(''))}
       ${rub('attentions', 'Mes attentions', nr === 6 ? 'les six reçues' : `${mots(nr, 'reçue', 'reçues')} · la suivante scellée`, `<p>Un présent et sa carte à chaque séance.</p><button class="btn mini" data-a="page:attentions">Ouvrir mes attentions</button>`)}
       ${rub('reglement', 'Mon règlement', du ? `Réglé ${F(70000)} sur ${F(140000)}` : 'Vous êtes à jour', `<div class="lg"><span>8 août 2026 · à la signature</span><span class="num">${F(70000)}</span></div><div class="lg"><span>${du ? 'Avant le lundi 9 novembre 2026' : '8 septembre 2026'}</span><span class="num">${F(70000)}${du ? '' : ' · réglé'}</span></div>${du ? `<button class="btn mini plein" data-a="page:regler">Régler ${F(70000)}</button>` : ''}`)}
-      ${rub('convenu', 'Ce qui est convenu', 'Valable jusqu’au 5 mai 2027', `<div class="lg"><span>Six venues GBÈJÍ™, la sixième offerte</span></div><div class="lg"><span>Annulée à moins de 24 h, ou absente : la séance est comptée</span></div><div class="lg"><span>Les séances non prises au 5 mai 2027 sont perdues ; la Maison peut prolonger</span></div><button class="lien" data-a="page:choisir">Prendre une autre formule</button>`)}
+      ${rub('convenu', 'Ce qui est convenu', 'Valable jusqu’au 5 mai 2027', `<div class="lg"><span>Six venues GBÈJÍ™, la sixième offerte</span></div><div class="lg"><span>Annulée ou manquée : la séance revient à votre formule</span></div><div class="lg"><span>Les séances non prises au 5 mai 2027 sont perdues ; la Maison peut prolonger</span></div><button class="lien" data-a="page:choisir">Prendre une autre formule</button>`)}
     </div>`;
 }
 function pAttentions() {

@@ -289,8 +289,7 @@ export default function AchatFormule({
               )}
               <div className="ab-verrou">
                 <dl>
-                  <div><dt>{t('Annuler ou déplacer')}</dt><dd>{t('Plus de 24 h avant : rien n’est compté, la séance revient à votre formule.')}</dd></div>
-                  <div><dt>{t('À moins de 24 h, ou absente')}</dt><dd>{t('La séance est comptée et marquée « Manquée ». Pour un motif justifié, la Maison peut la rendre.')}</dd></div>
+                  <div><dt>{t('Annuler ou déplacer')}</dt><dd>{t('Une séance annulée ou manquée n’est jamais perdue : elle revient à votre formule.')}</dd></div>
                   {finDuPaquet && <div><dt>{t('Fin')}</dt><dd>{t('Le {date}. Sur demande, la Maison peut la repousser, avec un motif.', { date: dateDansLaPhrase(finDuPaquet) })}</dd></div>}
                   <div><dt>{t('Le prix')}</dt><dd>{t('S’il est revu après le comptage de votre calibre, la Maison vous l’annonce ici et par WhatsApp avant que vos échéances changent.')}</dd></div>
                 </dl>
@@ -348,7 +347,7 @@ export default function AchatFormule({
               <p className="ab-meta">{t('Un rappel vous arrive sur WhatsApp la veille de chaque échéance.')}</p>
               <label className="ab-lu">
                 <input type="checkbox" checked={lu} onChange={(e) => setLu(e.target.checked)} />
-                <span>{t('J’ai lu ce qui est convenu : les séances non prises à la date de fin sont perdues ; à moins de 24 h, ou absente, la séance est comptée.')}</span>
+                <span>{t('J’ai lu ce qui est convenu : les séances non prises à la date de fin sont perdues.')}</span>
               </label>
               {kkiapayEnabled() && (
                 <button type="button" className="cma-btn cma-btn--indigo" disabled={!!occupe || !lu} onClick={() => void enLigne()}>

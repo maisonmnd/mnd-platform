@@ -70,7 +70,7 @@ const releve = (o: Partial<EntreeDuReleve> = {}): ReleveDeLAbonnee => releveDeLA
 const leContrat = (r: ReleveDeLAbonnee, id = 'abo-14') => [...r.contrats, ...r.anciens].find((c) => c.sub.id === id);
 const ligneDe = (r: ReleveDeLAbonnee, id = 'abo-14', sv = GBEJI) => {
   const l = leContrat(r, id)?.seances.find((x) => x.serviceId === sv);
-  return l && { incluses: l.incluses, faites: l.faites, reservees: l.reservees, manquees: l.manquees, disponibles: l.disponibles };
+  return l && { incluses: l.incluses, faites: l.faites, reservees: l.reservees, disponibles: l.disponibles };
 };
 const toutesLesAlertes: Alerte[] = [];
 const garde = (r: ReleveDeLAbonnee) => { toutesLesAlertes.push(...r.alertes); return r; };
@@ -87,7 +87,7 @@ dit('les francs se disent avec des espaces insecables', '70 000 F', francs(70
   const r = garde(releve());
   const c = leContrat(r);
   dit('a jour : la formule est en cours', 'en-cours', c?.etat);
-  dit('a jour : 2 faites, 1 reservee, 3 disponibles sur 6', { incluses: 6, faites: 2, reservees: 1, manquees: 0, disponibles: 3 }, ligneDe(r));
+  dit('a jour : 2 faites, 1 reservee, 3 disponibles sur 6', { incluses: 6, faites: 2, reservees: 1, disponibles: 3 }, ligneDe(r));
   dit('la reservee du 3 novembre 2026 est la seance 3 sur 6', { rang: 3, total: 6 },
     (({ rang, total }) => ({ rang, total }))(c!.attribuees.find((s) => s.id === 'a3')!));
   dit('la fin dite est la fin vendue', '2027-06-29', c?.finIso);
@@ -213,15 +213,21 @@ dit('les francs se disent avec des espaces insecables', '70 000 F', francs(70
   dit('une retenue effacee ne ferme pas « une fois par tete »', { ok: true }, peutAcheterLaFormule(PREMIERES, prem, PLANS));
 }
 
-/* ── 6. EPUISEE : 6 comptees (5 faites, 1 manquee), la place se libere (decision 4) ── */
+/* ── 6. EPUISEE : 6 faites, la place se libere (decision 4). Une seance annulee
+      la veille au soir ne compte pas : elle revient a la formule (6 novembre 2026) ── */
 {
   const dates = ['2026-10-06', '2026-10-16', '2026-10-30', '2026-11-13', '2026-11-27'];
   const faites = dates.map((d, i) => seance({ id: `e${i}`, date: d }));
-  const manquee = seance({ id: 'e5', date: '2026-12-11', time: '10:00', status: 'annulé', annuleeLe: '2026-12-10T18:00:00+01:00', annuleePar: 'cliente' });
+  const sixieme = seance({ id: 'e5', date: '2026-12-11', time: '10:00' });
+  const annuleeLaVeille = seance({ id: 'e5', date: '2026-12-11', time: '10:00', status: 'annulé', annuleeLe: '2026-12-10T18:00:00+01:00', annuleePar: 'cliente' });
   const sub = contrat({ payments: [{ id: 'v1', amountXof: 70000, date: '2026-10-02' }, { id: 'v2', amountXof: 70000, date: '2026-11-02' }] });
-  const r = garde(releve({ jour: '2026-12-15', subs: [sub], appts: [...faites, manquee] }));
+  const presque = garde(releve({ jour: '2026-12-15', subs: [sub], appts: [...faites, annuleeLaVeille] }));
+  dit('5 faites et une annulee la veille au soir : pas epuisee, la sixieme est revenue',
+    { etat: 'en-cours', ligne: { incluses: 6, faites: 5, reservees: 0, disponibles: 1 }, inc: true },
+    { etat: leContrat(presque)?.etat, ligne: ligneDe(presque), inc: presque.porte.peutReserverIncluse });
+  const r = garde(releve({ jour: '2026-12-15', subs: [sub], appts: [...faites, sixieme] }));
   dit('6 comptees sur 6 : epuisee', 'epuisee', leContrat(r)?.etat);
-  dit('… 5 faites et 1 manquee, 0 disponible', { incluses: 6, faites: 5, reservees: 0, manquees: 1, disponibles: 0 }, ligneDe(r));
+  dit('… 6 faites, 0 disponible', { incluses: 6, faites: 6, reservees: 0, disponibles: 0 }, ligneDe(r));
   dit('epuisee : plus d incluse, mais l achat reste ouvert', { inc: false, raison: 'epuisee', ach: true },
     { inc: r.porte.peutReserverIncluse, raison: r.porte.raison, ach: r.porte.peutAcheter });
   dit('le meme Carnet de Six peut se reprendre', { ok: true }, peutAcheterLaFormule(SIX, r, PLANS));
@@ -325,26 +331,33 @@ dit('les francs se disent avec des espaces insecables', '70 000 F', francs(70
     { aRegler: deux.solde.aRegleAujourdhuiXof, avoir: deux.solde.avoirXof });
 }
 
-/* ── 12. LA MANQUEE : moins de 24 h, ou absente (decision 3) ── */
+/* ── 12. UNE SEANCE MANQUEE NE SE PERD PAS : annulee a toute heure, ou absente, elle
+       revient a la formule (6 novembre 2026, Yeman ; la decision 3 du 20 octobre est levee) ── */
 {
   const avec = (o: Partial<SeanceLue>) => releve({ jour: '2026-11-04', appts: [A1, A2, { ...A3, ...o }] });
   const tard = avec({ status: 'annulé', annuleeLe: '2026-11-02T14:00:00+01:00', annuleePar: 'cliente' });
-  dit('annulee 20 h avant : manquee, et comptee', { incluses: 6, faites: 2, reservees: 0, manquees: 1, disponibles: 3 }, ligneDe(tard));
-  dit('… l etat le dit', 'manquee', leContrat(tard)?.attribuees.find((s) => s.id === 'a3')?.etat);
+  dit('annulee 20 h avant : rien n est compte, la seance revient a la formule', { incluses: 6, faites: 2, reservees: 0, disponibles: 4 }, ligneDe(tard));
+  dit('… l etat le dit : annulee, hors compte', { etat: 'annulee', compte: false, pourquoi: 'annulee' },
+    (() => { const s = leContrat(tard)?.attribuees.find((x) => x.id === 'a3'); return { etat: s?.etat, compte: s?.compte, pourquoi: s?.pourquoiPas }; })());
   dit('annulee 49 h avant : annulee, rendue a la formule', 4, ligneDe(avec({ status: 'annulé', annuleeLe: '2026-11-01T09:00:00+01:00', annuleePar: 'cliente' }))?.disponibles);
-  dit('une heure sans fuseau est celle de Cotonou', 'manquee',
-    etatDeLaSeance({ ...A3, status: 'annulé', annuleeLe: '2026-11-02T14:00:00', annuleePar: 'cliente' }, '2026-11-04'));
-  dit('24 h pile : ce n est pas « moins de 24 h »', 'annulee',
-    etatDeLaSeance({ ...A3, status: 'annulé', annuleeLe: '2026-11-02T10:00:00+01:00', annuleePar: 'cliente' }, '2026-11-04'));
+  dit('annulee une heure avant, par la cliente : annulee aussi', 'annulee',
+    etatDeLaSeance({ ...A3, status: 'annulé', annuleeLe: '2026-11-03T09:00:00', annuleePar: 'cliente' }, '2026-11-04'));
+  dit('annulee apres l heure de la seance : annulee encore', 'annulee',
+    etatDeLaSeance({ ...A3, status: 'annulé', annuleeLe: '2026-11-03T15:00:00+01:00', annuleePar: 'cliente' }, '2026-11-04'));
   dit('une annulation de la Maison ne compte jamais', 'annulee',
     etatDeLaSeance({ ...A3, status: 'annulé', annuleeLe: '2026-11-03T08:00:00+01:00', annuleePar: 'maison' }, '2026-11-04'));
-  dit('absente : manquee, et comptee', { etat: 'manquee', manquees: 1 },
-    { etat: etatDeLaSeance({ ...A3, absente: { le: '2026-11-03' } }, '2026-11-04'), manquees: ligneDe(avec({ absente: { le: '2026-11-03' } }))?.manquees });
+  const absente = avec({ absente: { le: '2026-11-03' } });
+  dit('absente : annulee, rien n est compte, la formule la retrouve', { etat: 'annulee', compte: false, disponibles: 4 },
+    { etat: etatDeLaSeance({ ...A3, absente: { le: '2026-11-03' } }, '2026-11-04'),
+      compte: leContrat(absente)?.attribuees.find((x) => x.id === 'a3')?.compte, disponibles: ligneDe(absente)?.disponibles });
   dit('une annulation d avant, sans heure, ne compte pas', 'annulee', etatDeLaSeance({ ...A3, status: 'annulé' }, '2026-11-04'));
   const rendue = avec({ status: 'annulé', annuleeLe: '2026-11-02T14:00:00+01:00', annuleePar: 'cliente', rendue: { le: '2026-11-04', motif: 'enfant malade' } });
   const s = leContrat(rendue)!.attribuees.find((x) => x.id === 'a3')!;
-  dit('« Rendre la seance » : elle reste manquee, ne compte plus, la formule la retrouve', { etat: 'manquee', rendue: true, compte: false, disponibles: 4 },
-    { etat: s.etat, rendue: s.rendue, compte: s.compte, disponibles: ligneDe(rendue)?.disponibles });
+  dit('l ancienne trace « rendue » ne change plus rien : annulee, hors compte', { etat: 'annulee', compte: false, disponibles: 4 },
+    { etat: s.etat, compte: s.compte, disponibles: ligneDe(rendue)?.disponibles });
+  dit('plus aucune seance ne porte l etat « manquee », plus aucune ligne ne compte de manquees', [[], false],
+    [[tard, absente, rendue].flatMap((r) => leContrat(r)?.attribuees ?? []).filter((x) => (x.etat as string) === 'manquee').map((x) => x.id),
+      [tard, absente, rendue].some((r) => 'manquees' in (ligneDe(r) ?? {}))]);
 }
 
 /* ── 13. PROPOSEE PAR LA MAISON : comptee aussitot, rendue si refusee ── */

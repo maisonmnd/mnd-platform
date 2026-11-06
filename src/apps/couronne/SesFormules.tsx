@@ -37,7 +37,7 @@ const lignePerdue = (c: ReleveDuContrat): boolean =>
 /** Le chemin d'une prestation, dans l'en-tête de son pli ; au-delà de douze séances, le compte en mots. */
 function CheminDuPli({ c, l }: { c: ReleveDuContrat; l: LigneDeSeances }) {
   if (l.incluses === null) return null;
-  if (l.incluses > PLUS_LONG_CHEMIN) return <span className="ab-pli__resume">{t('{n} prises sur {total}', { n: l.faites + l.manquees + l.reservees, total: l.incluses })}</span>;
+  if (l.incluses > PLUS_LONG_CHEMIN) return <span className="ab-pli__resume">{t('{n} prises sur {total}', { n: l.faites + l.reservees, total: l.incluses })}</span>;
   return (
     <span className="ab-pli__chemin">
       <Chemin pas={cheminDeLaLigne(c, l, lignePerdue(c))} grand voile={c.etat === 'retenue' || c.etat === 'en-pause'} />
@@ -48,7 +48,6 @@ function CheminDuPli({ c, l }: { c: ReleveDuContrat; l: LigneDeSeances }) {
 /** Le mot d'une séance dans la liste dépliée. */
 function motDeLaSeance(s: SeanceDuContrat): string {
   if (s.etat === 'faite') return t('faite');
-  if (s.etat === 'manquee') return t('manquée, comptée');
   if (s.etat === 'proposee') return t('proposée par la Maison');
   if (s.etat === 'a-cloturer') return t('passée');
   return t('réservée');
@@ -156,12 +155,12 @@ function LigneDePrestation({ c, l, ouvert, onBascule, onOpenRdv, onReserverInclu
             <>
               {seances.map((s, i) => (
                 <li key={s.id} className="ab-s">
-                  <span className={`ab-jeton ${s.etat === 'faite' ? 'is-faite' : s.etat === 'manquee' ? 'is-manquee' : 'is-reservee'}`}>{s.etat === 'faite' ? '✓' : s.etat === 'manquee' ? '×' : ''}</span>
+                  <span className={`ab-jeton ${s.etat === 'faite' ? 'is-faite' : 'is-reservee'}`}>{s.etat === 'faite' ? '✓' : ''}</span>
                   <span className="ab-s__t">
                     <b>{t('Séance {n} · {mot}', { n: i + 1, mot: motDeLaSeance(s) })}</b>
-                    <span>{s.etat === 'faite' || s.etat === 'manquee' ? dateLongue(s.date) : t('{date} · {heure}', { date: dateLongue(s.date), heure: heureDite(s.time) })}</span>
+                    <span>{s.etat === 'faite' ? dateLongue(s.date) : t('{date} · {heure}', { date: dateLongue(s.date), heure: heureDite(s.time) })}</span>
                   </span>
-                  {s.etat === 'faite' || s.etat === 'manquee'
+                  {s.etat === 'faite'
                     ? <span />
                     : <button type="button" className="ab-s__go" onClick={() => onOpenRdv(s.id)}>{t('Ouvrir')}</button>}
                 </li>
@@ -277,21 +276,22 @@ function Reglement({ c, prenom, onRegler, onSolde }: { c: ReleveDuContrat; preno
   );
 }
 
-/** CE QUI EST CONVENU, avec les mêmes mots qu'à l'achat (décisions 3, 4, 5, 9, 10). */
+/** CE QUI EST CONVENU, avec les mêmes mots qu'à l'achat (décisions 4, 5, 9, 10 du
+    20 octobre 2026 ; la 3 est levée le 6 novembre 2026 : une séance annulée ou
+    manquée ne se perd pas). */
 function Convenu({ c }: { c: ReleveDuContrat }) {
   const items: [string, string][] = c.mode === 'cycle' ? [
     [t('La lune'), t('Elle dure 30 jours et commence le jour du règlement. Elle se règle avant, au mois seulement.')],
     [t('Non réglée'), t('La formule se met en pause, sans dette. Elle reprend le jour où vous réglez.')],
-    [t('Annuler ou déplacer'), t('Plus de 24 h avant : rien n’est compté. À moins de 24 h, ou absente : la séance est comptée et marquée « Manquée ». Pour un motif justifié, la Maison peut la rendre.')],
-    [t('Déplacer à moins de 24 h'), t('Écrivez à la Maison : elle peut la déplacer sans la compter.')],
+    [t('Annuler ou déplacer'), t('Une séance annulée ou manquée n’est jamais perdue : elle revient à votre formule.')],
+    [t('Déplacer à moins de 24 h'), t('Écrivez à la Maison : elle la déplace avec vous.')],
     [t('Résilier'), t('Quand vous voulez, daté, avec son motif. La lune en cours court jusqu’à son terme : vos séances restent réservables jusque-là. Une lune réglée d’avance et pas encore commencée devient un avoir ; rien ne sort de la caisse.')],
     [t('Le prix'), t('S’il est revu après le comptage de votre calibre, la Maison vous l’annonce ici et par WhatsApp avant la lune qui change.')],
   ] : [
     [t('Départ'), t('Le {date}.', { date: dateDansLaPhrase(c.debutIso) })],
     [t('Fin'), c.finIso ? t('Le {date}. Les séances non prises à cette date sont perdues.', { date: dateDansLaPhrase(c.finIso) }) : t('Les séances non prises à la date de fin sont perdues.')],
-    [t('Annuler ou déplacer'), t('Plus de 24 h avant : rien n’est compté, la séance revient à votre formule.')],
-    [t('À moins de 24 h, ou absente'), t('La séance est comptée et marquée « Manquée ». Pour un motif justifié, la Maison peut la rendre.')],
-    [t('Reporter'), t('Vous déplacez une séance autant qu’il le faut, plus de 24 h avant, jusqu’à la date de fin. À moins de 24 h, écrivez à la Maison : elle peut la déplacer sans la compter.')],
+    [t('Annuler ou déplacer'), t('Une séance annulée ou manquée n’est jamais perdue : elle revient à votre formule.')],
+    [t('Reporter'), t('Vous déplacez une séance autant qu’il le faut, plus de 24 h avant, jusqu’à la date de fin. À moins de 24 h, écrivez à la Maison : elle la déplace avec vous.')],
     [t('Prolonger'), t('Sur demande, la Maison peut repousser la fin, avec un motif et une nouvelle date.')],
     [t('Résilier'), t('Ce que vous avez réglé au-delà des séances faites devient un avoir au prorata, arrondi au franc ; rien ne sort de la caisse. Si les séances faites dépassent ce que vous avez réglé, la différence est à régler le jour de la résiliation. La résiliation se demande à la Maison, datée, avec son motif.')],
     [t('Le prix'), t('S’il est revu après un nouveau comptage de votre calibre, la Maison vous l’annonce ici et par WhatsApp avant que vos échéances changent ; l’écart s’ajoute à la prochaine échéance, ou devient une échéance à 30 jours s’il n’en reste pas. En votre faveur, il se retranche de la prochaine échéance, ou devient un avoir.')],
@@ -350,7 +350,7 @@ function Rubrique({ titre, resume, ouverte, onBascule, children }: {
 
 /** Une formule passée, repliée : son état final, ses dates, ses séances faites. */
 function Passee({ c, ouvert, onBascule }: { c: ReleveDuContrat; ouvert: boolean; onBascule: () => void }) {
-  const comptees = c.attribuees.filter((s) => s.compte && (s.etat === 'faite' || s.etat === 'manquee'));
+  const comptees = c.attribuees.filter((s) => s.compte && s.etat === 'faite');
   const total = c.seances.reduce((m, l) => Math.max(m, l.incluses ?? 0), 0);
   const fin = c.etat === 'resiliee' && c.resilieeLe ? t('Résiliée le {date}', { date: dateDansLaPhrase(c.resilieeLe) })
     : c.etat === 'effacee' && c.effaceeLe ? t('Retenue non réglée, effacée le {date}', { date: dateDansLaPhrase(c.effaceeLe) })
@@ -371,7 +371,7 @@ function Passee({ c, ouvert, onBascule }: { c: ReleveDuContrat; ouvert: boolean;
             : t('Signée le {debut}. Réglé {regle}.', { debut: dateDansLaPhrase(c.debutIso), regle: prix(c.argent.regleXof) })}</span></span><span /></li>
           {comptees.map((s, i) => (
             <li key={s.id} className="ab-s">
-              <span className={`ab-jeton ${s.etat === 'manquee' ? 'is-manquee' : 'is-faite'}`}>{s.etat === 'manquee' ? '×' : '✓'}</span>
+              <span className="ab-jeton is-faite">✓</span>
               <span className="ab-s__t"><b>{t('Séance {n} · {mot}', { n: i + 1, mot: motDeLaSeance(s) })}</b><span>{dateLongue(s.date)}</span></span>
               <span />
             </li>

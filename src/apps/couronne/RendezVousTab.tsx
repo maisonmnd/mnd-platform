@@ -17,9 +17,9 @@ import './abonnee.css';
    « À venir », barrée, jusqu'à sa date : elle n'a pas eu lieu.
 
    CHAQUE CARTE DIT SON ÉTAT ET SON ARGENT, lus dans le relevé : « Incluse ·
-   séance 3 sur 6 », « Manquée », « Reste 10 000 F ». Déplacer et Annuler
-   ouvrent la fiche du rendez-vous, qui dit leur effet AVANT d'agir (« à moins
-   de 24 h, la séance est comptée »). */
+   séance 3 sur 6 », « Reste 10 000 F ». Déplacer et Annuler ouvrent la fiche
+   du rendez-vous, qui dit leur effet AVANT d'agir (« la séance revient à votre
+   formule » : depuis le 6 novembre 2026, une séance annulée ne se perd pas). */
 
 const VIVANTS = new Set(['a-confirmer', 'confirmee', 'proposee']);
 
@@ -58,7 +58,6 @@ export default function RendezVousTab({ releve, prenom, selecteur, onOpenRdv, on
       if (x.c.mode === 'cycle') return { mot: x.c.lune ? t('Incluse · lune du {date}', { date: dateDansLaPhrase(x.c.lune.du) }) : t('Incluse dans la lune'), cls: '' };
       return x.s.rang && x.s.total ? { mot: t('Incluse · séance {n} sur {total}', { n: x.s.rang, total: x.s.total }), cls: '' } : { mot: t('Incluse dans la formule'), cls: '' };
     }
-    if (x && x.s.pourquoiPas === 'rendue') return { mot: t('Rendue par la Maison'), cls: 'ab-argent--hors' };
     if (a.coveredBySub) return { mot: t('Incluse'), cls: '' };
     if (a.priceXof == null) return null;
     const net = Math.max(0, Math.round(a.priceXof * (1 - (a.discountPct ?? 0) / 100)) - (a.discountXof ?? 0));

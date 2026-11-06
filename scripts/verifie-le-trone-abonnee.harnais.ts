@@ -27,8 +27,8 @@ import { coveredRemaining } from '../src/apps/trone/routes/equipe/data';
 import { appointmentsStore, type Appointment } from '../src/shared/agenda';
 import type { Invoice } from '../src/shared/finance';
 import {
-  effetDeLaResiliation, effetDeLAnnulation, effetDuPrixRevu, effetDeLaProlongation, effetDeLaSuspension,
-  effetDeMarquerAbsente, marqueAbsente, rendLaSeance, annuleLaSeance, verseSurLAbonnement, ditLaSeance,
+  effetDeLaResiliation, effetDuPrixRevu, effetDeLaProlongation, effetDeLaSuspension,
+  effetDeMarquerAbsente, marqueAbsente, annuleLaSeance, verseSurLAbonnement, ditLaSeance,
   gardeUnVersement, versementsEnAttente, echeancierAPoser, echeancierAEcrire, effetDePoserLEcheancier, poseLEcheancier,
 } from '../src/apps/trone/routes/clients/gestes-de-l-abonnement';
 import { etatDesRelancesDeLaPiece, derniereEcheanceRelancee } from '../src/shared/relances-pur';
@@ -82,20 +82,20 @@ const ctx = { jour: JOUR, subs: [AK1], plans: PLANS, invoices: [] as Invoice[] }
 /* ══ ① LES PROJECTIONS DISENT LES CHIFFRES DU JUGE ═══════════════════ */
 const lignes = usageDetaille(AK1, SIX, RDV, ctx);
 dit('usageDetaille : 2 faites, 1 reservee, 3 disponibles sur 6 (GBEJI)',
-  { faites: 2, reservees: 1, manquees: 0, used: 3, remaining: 3, qty: 6 },
-  (({ faites, reservees, manquees, used, remaining, qty }) => ({ faites, reservees, manquees, used, remaining, qty }))(lignes[0]));
+  { faites: 2, reservees: 1, used: 3, remaining: 3, qty: 6 },
+  (({ faites, reservees, used, remaining, qty }) => ({ faites, reservees, used, remaining, qty }))(lignes[0]));
 dit('… les rendez-vous de la ligne sont ceux qui comptent, du plus recent au plus ancien', ['r3', 'r2', 'r1'], lignes[0].rdv.map((a) => a.id));
 const avecAnnulee = [...RDV, rdv('r4', '2026-11-20', { status: 'annulé', annuleeLe: '2026-11-10T09:00:00+01:00', annuleePar: 'cliente' })];
 dit('une annulee plus de 24 h avant ne prend rien', 3, usageDetaille(AK1, SIX, avecAnnulee, ctx)[0].remaining);
 const avecTardive = [...RDV, rdv('r4', '2026-11-20', { status: 'annulé', annuleeLe: '2026-11-19T20:00:00+01:00', annuleePar: 'cliente' })];
-dit('annulee a moins de 24 h par la cliente : comptee, manquee', { manquees: 1, remaining: 2 },
-  (({ manquees, remaining }) => ({ manquees, remaining }))(usageDetaille(AK1, SIX, avecTardive, ctx)[0]));
+/* UNE SÉANCE MANQUÉE NE SE PERD PAS (Yéman, 6 novembre 2026) : annulée à toute
+   heure, ou absente, elle revient à la formule. La décision 3 est levée. */
+dit('annulee la veille au soir par la cliente : rien n est compte non plus', 3, usageDetaille(AK1, SIX, avecTardive, ctx)[0].remaining);
 dit('… annulee par la Maison, a la meme heure : jamais comptee', 3,
   usageDetaille(AK1, SIX, [...RDV, rdv('r4', '2026-11-20', { status: 'annulé', annuleeLe: '2026-11-19T20:00:00+01:00', annuleePar: 'maison' })], ctx)[0].remaining);
 const absente = [...RDV, rdv('r4', '2026-10-18', { status: 'annulé', absente: { le: '2026-10-18' } })];
-dit('absente : comptee, manquee', { manquees: 1, remaining: 2 }, (({ manquees, remaining }) => ({ manquees, remaining }))(usageDetaille(AK1, SIX, absente, ctx)[0]));
-dit('… rendue par la Maison : la seance revient', 3,
-  usageDetaille(AK1, SIX, [...RDV, rdv('r4', '2026-10-18', { status: 'annulé', absente: { le: '2026-10-18' }, rendue: { le: '2026-10-19', motif: 'Maladie' } })], ctx)[0].remaining);
+dit('absente : rien n est compte, la seance revient a la formule', 3, usageDetaille(AK1, SIX, absente, ctx)[0].remaining);
+dit('… et plus aucune ligne ne porte de « manquees »', false, 'manquees' in usageDetaille(AK1, SIX, absente, ctx)[0]);
 dit('une suite de forfait ne se decompte jamais sur la formule', 3,
   usageDetaille(AK1, SIX, [...RDV, rdv('r5', '2026-10-17', { coverKind: 'forfait' })], ctx)[0].remaining);
 dit('le lien explicite suit le contrat meme pose sur une autre fiche', 2,
@@ -125,8 +125,8 @@ dit('… le lendemain, si', 70000, retardDuContrat(AK1, '2026-11-03', ctx));
 /* Les comptes : une projection du relevé, en séances (pas en prestations). */
 const comptes = comptesAbonnement({ subs: [AK1], plans: PLANS, appts: RDV, aujourdhui: JOUR, invoices: [] });
 const c0 = comptes[0].contrats[0];
-dit('comptes : en seances, pas en prestations (six seances, pas douze)', { utilises: 3, promis: 6, faites: 2, reservees: 1, manquees: 0 },
-  { utilises: c0.utilises, promis: c0.promis, faites: c0.faites, reservees: c0.reservees, manquees: c0.manquees });
+dit('comptes : en seances, pas en prestations (six seances, pas douze)', { utilises: 3, promis: 6, faites: 2, reservees: 1 },
+  { utilises: c0.utilises, promis: c0.promis, faites: c0.faites, reservees: c0.reservees });
 dit('comptes : reste et verse sont ceux du juge', { reste: 70000, verse: 70000 }, { reste: c0.resteXof, verse: c0.verseXof });
 dit('comptes : le releve du juge voyage avec le contrat', 'ABO-2026-014', c0.releve.reference);
 const mot = moteurDesAbonnements({ comptes, plans: PLANS, aujourdhui: JOUR, prixDuService: () => 10000 });
@@ -191,19 +191,25 @@ dit('consomme au-dela du regle : du a la date, relance comme une echeance', true
 dit('prolonger : la nouvelle fin se dit, avec l annee', true,
   effetDeLaProlongation(AK1, releveDuContrat(AK1, SIX, RDV, ctx), '2027-07-29').lignes[0].includes('29 juillet 2027'));
 dit('suspendre : la fin recule d autant', true, effetDeLaSuspension(AK1, SIX, '2026-10-20', '2026-11-18').lignes.some((l) => l.includes('29 juillet 2027')));
-dit('annuler a moins de 24 h pour la cliente : comptee', true,
-  effetDeLAnnulation(rdv('x', '2026-11-03'), 'cliente', new Date('2026-11-02T20:00:00+01:00')).lignes[0].includes('COMPT'));
-dit('… plus de 24 h avant : elle revient a la formule', true,
-  effetDeLAnnulation(rdv('x', '2026-11-03'), 'cliente', new Date('2026-10-30T20:00:00+01:00')).lignes[0].includes('revient'));
 const relev = releveDuContrat(AK1, SIX, RDV, ctx);
 const s3 = relev?.attribuees.find((s) => s.id === 'r3');
-dit('marquer absente : l effet nomme la seance 3 sur 6', true, !!s3 && effetDeMarquerAbsente(relev, s3).lignes[0].includes('3 sur 6'));
+const effetAbsente = s3 ? effetDeMarquerAbsente(relev, s3) : null;
+dit('marquer absente : la seance s annule et revient a la formule, reservees 1 → 0, disponibles 3 → 4', [true, true, true],
+  [!!effetAbsente && plat(effetAbsente.lignes[0]).includes('revient à la formule'), !!effetAbsente && plat(effetAbsente.lignes[0]).includes('réservées 1 → 0'),
+    !!effetAbsente && plat(effetAbsente.lignes[0]).includes('disponibles 3 → 4')]);
+dit('… rien ne dit plus « comptee », « Manquee », ni « Rendre »', [],
+  (effetAbsente ? [...effetAbsente.lignes, effetAbsente.laClienteLit ?? ''] : ['absent']).filter((l) => /compt[ée]e|manqu|Rendre/i.test(l)));
+dit('… la cliente lit que la seance revient a sa formule', 'Annulée, la séance revient à votre formule.', effetAbsente?.laClienteLit);
 
 /* Une annulée ne dit jamais « séance 0 sur 6 ». */
 const releveAnnule = releveDuContrat(AK1, SIX, avecAnnulee, ctx);
 const sAnnulee = releveAnnule?.attribuees.find((s) => s.id === 'r4');
-const ditAnnulee = releveAnnule && sAnnulee ? ditLaSeance(releveAnnule, sAnnulee, { annuleeLe: '2026-11-10T09:00:00+01:00', annuleePar: 'cliente' }) : null;
+const ditAnnulee = releveAnnule && sAnnulee ? ditLaSeance(releveAnnule, sAnnulee, { annuleePar: 'cliente' }) : null;
 dit('une annulee ne dit jamais un rang', true, !!ditAnnulee && !/séance \d+ sur/.test(ditAnnulee.titre) && ditAnnulee.titre.includes('revient'));
+dit('… une absente se dit « Absente », et revient a la formule', [true, true],
+  releveAnnule && sAnnulee
+    ? (() => { const t = ditLaSeance(releveAnnule, sAnnulee, { absente: { le: '2026-11-20' } }).titre; return [t.startsWith('Absente · '), t.includes('revient à la formule')]; })()
+    : [false, false]);
 dit('… la reservee dit Incluse, seance 3 sur 6, et reste 3 sur 6', { t: true, r: 'reste 3 sur 6' },
   relev && s3 ? { t: ditLaSeance(relev, s3, {}).titre.includes('3 sur 6'), r: ditLaSeance(relev, s3, {}).resteDit } : null);
 
@@ -212,8 +218,6 @@ appointmentsStore.set(() => [rdv('w1', '2026-10-18', { status: 'confirmé' })]);
 marqueAbsente('w1', 'Rita G.', '2026-10-18');
 const w1 = appointmentsStore.get()[0];
 dit('marquer absente ecrit le fait (et sort du calendrier)', { status: 'annulé', absente: { le: '2026-10-18', par: 'Rita G.' } }, { status: w1.status, absente: w1.absente });
-rendLaSeance('w1', 'Maladie', 'Rita G.', '2026-10-19');
-dit('rendre la seance ecrit son motif', { le: '2026-10-19', motif: 'Maladie', par: 'Rita G.' }, appointmentsStore.get()[0].rendue);
 appointmentsStore.set(() => [rdv('w2', '2026-11-03', { status: 'confirmé' })]);
 annuleLaSeance('w2', 'cliente', new Date('2026-11-02T20:00:00+01:00'));
 dit('annuler ecrit l instant et qui', { status: 'annulé', par: 'cliente', le: true },
@@ -335,21 +339,25 @@ dit('une seconde formule ne se refuse plus au comptoir', false, abo.includes('R�
 dit('le MRR ne se lit plus a l ecran', false, /m\.mrrXof|aResilier\.mrrXof/.test(abo));
 
 const carte = lis('src/apps/trone/routes/clients/CarteAbonnement.tsx');
-for (const g of ['Prolonger', 'Suspendre', 'Résilier daté', 'Rendre la séance', 'Revoir le prix après le comptage', 'Envoyer un lien MND PAY', 'Encaisser']) {
+for (const g of ['Prolonger', 'Suspendre', 'Résilier daté', 'Revoir le prix après le comptage', 'Envoyer un lien MND PAY', 'Encaisser']) {
   dit(`carte Abonnement : le geste « ${g} »`, true, carte.includes(g));
 }
-for (const f of ['effetDeLaResiliation(', 'effetDeLaProlongation(', 'effetDeLaSuspension(', 'effetDuPrixRevu(', 'effetDeRendre(']) {
+for (const f of ['effetDeLaResiliation(', 'effetDeLaProlongation(', 'effetDeLaSuspension(', 'effetDuPrixRevu(']) {
   dit(`carte Abonnement : l effet ${f.slice(0, -1)} se lit avant le geste`, true, carte.includes(f));
 }
+dit('carte Abonnement : plus de « Rendre la seance », plus de « manquee » (6 novembre 2026)', [false, false], [carte.includes('Rendre la séance'), /manqu[ée]e/i.test(carte)]);
 dit('carte Abonnement : ce que la cliente lira', true, carte.includes('La cliente lit'));
 dit('carte Abonnement : elle lit le juge, ne recompte rien', true, carte.includes('releveDeLAbonnee('));
 const seanceSrc = lis('src/apps/trone/routes/clients/SeanceDeLaFormule.tsx');
-for (const g of ['Marquer faite', 'Absente : marquer manquée', 'Rendre la séance']) {
+for (const g of ['Marquer faite', 'Absente : annuler la séance']) {
   dit(`fiche du rendez-vous : le geste « ${g} »`, true, seanceSrc.includes(g));
 }
+dit('fiche du rendez-vous : plus de « marquer manquee », plus de « Rendre la seance »', [false, false],
+  [seanceSrc.includes('marquer manquée'), /className="trc-abo__btn[^\n]*\n\s*Rendre la séance/.test(seanceSrc)]);
 const shared = lis('src/apps/trone/routes/clients/_shared.tsx');
 dit('decocher une couverture demande son motif', true, shared.includes('Décocher la couverture') && shared.includes('couvertureRetiree'));
-dit('annuler une seance de formule demande qui annule', true, shared.includes('Qui annule cette séance ?'));
+dit('annuler une seance de formule ne demande plus qui annule : elle revient a la formule', [false, true],
+  [shared.includes('Qui annule cette séance ?'), shared.includes("const parQui: 'maison' | null = appt.coveredBySub && appt.coverKind !== 'forfait' ? 'maison' : null;")]);
 dit('le reste se dit pour un paquet, sans « ce cycle »', false, shared.includes('ce cycle`'));
 const cust = lis('src/apps/trone/routes/clients/Customers.tsx');
 dit('la pastille Abonnee est devenue la carte', { pastille: false, carte: true }, { pastille: cust.includes('★ Abonnée'), carte: cust.includes('<CarteAbonnement') });

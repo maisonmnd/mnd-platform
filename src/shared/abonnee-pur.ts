@@ -14,8 +14,13 @@
    CE QUI EST RÉGLÉ ICI, ET PAR QUI (décisions du 20 octobre 2026) :
    · une séance est RÉSERVÉE à la prise, FAITE à l'honneur ; les deux se
      comptent à part (décision 1) ;
-   · annulée à moins de 24 h, ou absente : la séance est comptée, « Manquée » ;
-     la Maison peut la RENDRE (décision 3) ;
+   · UNE SÉANCE MANQUÉE NE SE PERD PAS (6 novembre 2026, Yéman : « On ne perd
+     pas les séances qu'on a manquées, donc je préfère ne même pas
+     comptabiliser. J'annule et je reprogramme seulement. ») : annulée à
+     n'importe quelle heure, ou absente, la séance revient à la formule. La
+     décision 3 du 20 octobre 2026 (« comptée, Manquée », que la Maison
+     pouvait rendre) est levée : il n'y a plus de séance manquée, ni rien à
+     rendre ;
    · une suite de forfait ne se décompte jamais sur la formule ;
    · un paquet épuisé libère la place ; plusieurs formules peuvent courir
      ensemble (« Deux en même temps », tranché au sélecteur) : à la
@@ -75,13 +80,15 @@ import { decaleLeJour } from './ia-faits-pur';
 /** Ce que l'on sait d'une séance, au-delà du rendez-vous d'aujourd'hui. */
 export type FaitsDeLaSeance = {
   /** L'INSTANT de l'annulation (ISO, avec fuseau ; sans fuseau = Cotonou).
-      Absent sur les annulations d'avant : elles ne se comptent pas. */
+      Une trace : aucune annulation ne se compte, quelle que soit l'heure. */
   annuleeLe?: string;
-  /** Qui a annulé. Une annulation de la Maison ne se compte jamais. */
+  /** Qui a annulé. Une trace, elle aussi. */
   annuleePar?: 'cliente' | 'maison';
-  /** Elle n'est pas venue : posé au comptoir (« Absente : marquer manquée »). */
+  /** Elle n'est pas venue : posé au comptoir (« Absente »). La séance revient
+      à la formule, comme une annulée. */
   absente?: { le: string; par?: string };
-  /** LA SÉANCE RENDUE : une manquée que la Maison redonne, avec son motif. */
+  /** Une trace d'avant le 6 novembre 2026 (« la séance rendue ») : plus rien
+      ne la lit, il n'y a plus de séance manquée à rendre. */
   rendue?: { le: string; motif: string; par?: string };
   /** Proposée par la Maison (la cadence posée d'avance), en attente d'elle. */
   proposeeLe?: string;
@@ -110,7 +117,7 @@ export type ContratLu = Subscriber & FaitsDuContrat;
 
 /** Les états d'une séance, les mêmes partout. « À clôturer » ne se lit que
     côté Maison : une séance passée restée confirmée n'est jamais « faite ». */
-export type EtatSeance = 'a-confirmer' | 'confirmee' | 'proposee' | 'faite' | 'annulee' | 'manquee' | 'a-cloturer';
+export type EtatSeance = 'a-confirmer' | 'confirmee' | 'proposee' | 'faite' | 'annulee' | 'a-cloturer';
 
 /** Les états d'une formule. `effacee` : une retenue jamais réglée ; elle se
     dit « Retenue non réglée, effacée le … », sans pastille. */
@@ -119,7 +126,8 @@ export type EtatFormule = 'retenue' | 'en-cours' | 'en-pause' | 'epuisee' | 'ter
 export type ReglesDeLaMaison = {
   /** Les jours après une échéance avant que la porte des réservations se ferme. */
   graceJours: number;
-  /** En deçà, une annulation de la cliente compte la séance (décision 3). */
+  /** En deçà, une séance de formule ne se déplace plus en ligne : la Maison
+      décide. L'annulation, elle, ne compte jamais (6 novembre 2026). */
   delaiAnnulationHeures: number;
   /** Les jours d'une formule retenue (décision 7). */
   retenueJours: number;
@@ -254,17 +262,12 @@ export function dernierJourDeLaResiliee(sub: ContratLu, plan: Plan | undefined):
 }
 
 /** L'ÉTAT D'UNE SÉANCE, lu sur les faits, le même partout. */
-export function etatDeLaSeance(a: SeanceLue, jour: string, regles: ReglesDeLaMaison = REGLES_DE_LA_MAISON): EtatSeance {
+export function etatDeLaSeance(a: SeanceLue, jour: string): EtatSeance {
   if (a.status === 'honoré') return 'faite';
-  if (a.absente) return 'manquee';
-  if (a.status === 'annulé') {
-    /* UNE PROPOSITION REFUSÉE N'EST PAS UNE ANNULATION : la séance revient à
-       la formule, quelle que soit l'heure. */
-    if (a.proposeeLe && !a.confirmeeParLaClienteLe) return 'annulee';
-    if (a.annuleePar === 'maison' || !a.annuleeLe) return 'annulee';
-    const heures = (debutDeLaSeance(a) - instantDe(a.annuleeLe)) / 3_600_000;
-    return heures < regles.delaiAnnulationHeures ? 'manquee' : 'annulee';
-  }
+  /* ABSENTE OU ANNULÉE, PAR QUI QUE CE SOIT ET À N'IMPORTE QUELLE HEURE : la
+     séance revient à la formule. « On ne perd pas les séances qu'on a
+     manquées » (Yéman, 6 novembre 2026). */
+  if (a.absente || a.status === 'annulé') return 'annulee';
   if (a.date < jour) return 'a-cloturer';
   if (a.proposeeLe && a.status === 'en attente' && !a.confirmeeParLaClienteLe) return 'proposee';
   return a.status === 'en attente' ? 'a-confirmer' : 'confirmee';
@@ -272,15 +275,14 @@ export function etatDeLaSeance(a: SeanceLue, jour: string, regles: ReglesDeLaMai
 
 /** UNE SÉANCE DE FORMULE SE DÉPLACE-T-ELLE EN LIGNE ? Plus de 24 h avant son
     début seulement (tranché au sélecteur le 20 octobre 2026) : à moins de
-    24 h, la Maison décide, et elle peut la déplacer sans la compter.
-    L'annulation, elle, reste possible, et se compte (décision 3). */
+    24 h, la Maison décide. L'annulation reste possible à toute heure, et
+    ne compte jamais (6 novembre 2026). */
 export const seDeplaceEnLigne = (
   a: Pick<Appointment, 'date' | 'time'>, maintenantIso: string, regles: ReglesDeLaMaison = REGLES_DE_LA_MAISON,
 ): boolean => (debutDeLaSeance(a) - instantDe(maintenantIso)) / 3_600_000 >= regles.delaiAnnulationHeures;
 
-/** Cet état prend-il un crédit ? Tout sauf l'annulée et la manquée rendue. */
-const prendUnCredit = (etat: EtatSeance, a: FaitsDeLaSeance): boolean =>
-  etat !== 'annulee' && !(etat === 'manquee' && a.rendue);
+/** Cet état prend-il un crédit ? Tout sauf l'annulée (l'absente en est une). */
+const prendUnCredit = (etat: EtatSeance): boolean => etat !== 'annulee';
 
 /** À QUEL CONTRAT APPARTIENT CETTE SÉANCE ? Une seule réponse, jamais deux.
 
@@ -304,7 +306,7 @@ export function contratDeLaSeance(
 }
 
 /** CETTE SÉANCE EST-ELLE PORTÉE PAR CE CONTRAT ? Couverte, pas par un
-    forfait, rattachée à lui, et dans sa vie. Son état (manquée, annulée) se
+    forfait, rattachée à lui, et dans sa vie. Son état (annulée ou non) se
     juge ensuite. */
 export function porteeParLeContrat(
   a: SeanceLue, sub: Subscriber, subsDeLaTete: readonly Subscriber[], plans: readonly Plan[],
@@ -322,12 +324,12 @@ export function porteeParLeContrat(
     sa résiliation (la lune réglée d'une Chaque Lune résiliée compte encore). */
 export function compteLaSeance(
   a: SeanceLue, sub: ContratLu, subsDeLaTete: readonly Subscriber[], plans: readonly Plan[],
-  jour: string, regles: ReglesDeLaMaison = REGLES_DE_LA_MAISON,
+  jour: string,
 ): boolean {
   if (!porteeParLeContrat(a, sub, subsDeLaTete, plans)) return false;
   const dernier = dernierJourDeLaResiliee(sub, plans.find((p) => p.id === sub.planId));
   if (dernier && a.date > dernier) return false;
-  return prendUnCredit(etatDeLaSeance(a, jour, regles), a);
+  return prendUnCredit(etatDeLaSeance(a, jour));
 }
 
 /* ══ L'ARGENT ═══════════════════════════════════════════════════════════ */
@@ -435,7 +437,7 @@ const jourOuLeCumulAtteint = (versements: readonly Versement[], cumulXof: number
 export type OptionsDeLArgent = {
   prixXof?: number;
   etat?: EtatFormule;
-  /** Les séances comptées au jour de la résiliation (faites et manquées). */
+  /** Les séances comptées au jour de la résiliation : les faites. */
   compteesALaResiliation?: number;
   /** Le jour de fin de la retenue (pour `pourOuvrir`). */
   retenueJusquau?: string;
@@ -621,13 +623,12 @@ export type SeanceDuContrat = {
   etat: EtatSeance;
   /** Elle prend un crédit de ce contrat. */
   compte: boolean;
-  rendue: boolean;
   /** « séance 3 sur 6 » : son rang parmi celles qui comptent, dans sa lune
       pour un cycle, dans toute la vie pour un paquet. `null` hors compte. */
   rang: number | null;
   total: number | null;
   /** Pourquoi elle ne compte pas, quand elle est portée par ce contrat. */
-  pourquoiPas?: 'annulee' | 'rendue' | 'apres-resiliation';
+  pourquoiPas?: 'annulee' | 'apres-resiliation';
 };
 
 export type LigneDeSeances = {
@@ -638,8 +639,7 @@ export type LigneDeSeances = {
   reservees: number;
   /** Dont celles passées et restées confirmées (côté Maison). */
   aCloturer: number;
-  manquees: number;
-  /** incluses − (faites + réservées + manquées). `null` : sans limite. */
+  /** incluses − (faites + réservées). `null` : sans limite. */
   disponibles: number | null;
   /** Plus de séances que vendues : une anomalie à montrer au Trône. */
   depasse: number;
@@ -797,12 +797,12 @@ export function releveDeLAbonnee(e: EntreeDuReleve): ReleveDeLAbonnee {
     const portees = appts.filter((a) => porteeParLeContrat(a, sub, siens, e.plans));
     const dernierJour = dernierJourDeLaResiliee(sub, plan);
     const lues = portees.map((a) => {
-      const etat = etatDeLaSeance(a, jour, regles);
+      const etat = etatDeLaSeance(a, jour);
       const apres = !!dernierJour && a.date > dernierJour;
-      const compte = !apres && prendUnCredit(etat, a);
+      const compte = !apres && prendUnCredit(etat);
       return {
         a, etat, compte,
-        pourquoiPas: compte ? undefined : apres ? 'apres-resiliation' as const : a.rendue ? 'rendue' as const : 'annulee' as const,
+        pourquoiPas: compte ? undefined : apres ? 'apres-resiliation' as const : 'annulee' as const,
       };
     });
     /* LA FENÊTRE D'UNE SÉANCE : toute la vie pour un paquet, sa lune pour un cycle. */
@@ -821,7 +821,7 @@ export function releveDeLAbonnee(e: EntreeDuReleve): ReleveDeLAbonnee {
         : null;
       return {
         id: l.a.id, date: l.a.date, time: l.a.time, serviceIds: [...l.a.serviceIds], etat: l.etat,
-        compte: l.compte, rendue: !!l.a.rendue, rang, total,
+        compte: l.compte, rang, total,
         ...(l.pourquoiPas ? { pourquoiPas: l.pourquoiPas } : {}),
       };
     });
@@ -845,12 +845,11 @@ export function releveDeLAbonnee(e: EntreeDuReleve): ReleveDeLAbonnee {
       const leurs = dansFenetre.filter((s) => s.serviceIds.includes(i.serviceId));
       const comptees = leurs.filter((s) => s.compte);
       const faites = comptees.filter((s) => s.etat === 'faite').length;
-      const manquees = comptees.filter((s) => s.etat === 'manquee').length;
-      const reservees = comptees.length - faites - manquees;
+      const reservees = comptees.length - faites;
       const aCloturer = comptees.filter((s) => s.etat === 'a-cloturer').length;
       const pris = comptees.length;
       return {
-        serviceId: i.serviceId, incluses: i.qty, faites, reservees, aCloturer, manquees,
+        serviceId: i.serviceId, incluses: i.qty, faites, reservees, aCloturer,
         disponibles: i.qty === null ? null : Math.max(0, i.qty - pris),
         depasse: i.qty === null ? 0 : Math.max(0, pris - i.qty),
         seances: leurs.map((s) => s.id),
@@ -865,7 +864,7 @@ export function releveDeLAbonnee(e: EntreeDuReleve): ReleveDeLAbonnee {
     /* LE CARNET ÉPUISÉ SOUS L'ANCIEN ERP : plus rien de disponible, quoi que
        dise le compte (ses séances ont été prises hors de sa vue). */
     if (etatF.epuiseeParLAncienCarnet) for (const l of lignes) l.disponibles = 0;
-    const compteesALaResiliation = attribuees.filter((s) => s.compte && (s.etat === 'faite' || s.etat === 'manquee')).length;
+    const compteesALaResiliation = attribuees.filter((s) => s.compte && s.etat === 'faite').length;
     const argent = argentDuContrat(sub, plan, e.invoices, jour, {
       prixXof, etat: etatF.etat, compteesALaResiliation, retenueJusquau: etatF.retenueJusquau, regles,
     });

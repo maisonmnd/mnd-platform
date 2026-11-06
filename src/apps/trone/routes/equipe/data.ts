@@ -1149,8 +1149,8 @@ export function ensureStarterPlanIncluded(): void {
     `excludeApptId` exclut le RDV en cours d'édition de son propre décompte.
 
     LE JUGE UNIQUE COMPTE — 20 octobre 2026. Les séances prises sont celles
-    que le relevé du contrat compte (faites, réservées, manquées ; jamais une
-    annulée, une rendue, ni une suite de forfait), dans la fenêtre de la date
+    que le relevé du contrat compte (faites, réservées ; jamais une annulée,
+    une absente, ni une suite de forfait), dans la fenêtre de la date
     du rendez-vous : toute la vie d'un paquet, la lune de la date pour un
     cycle. L'ancien compte lisait la lune du JOUR DU CLIC. */
 export const coveredRemaining = (

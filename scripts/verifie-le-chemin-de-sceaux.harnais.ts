@@ -21,7 +21,7 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
 const seance = (id: string, date: string, etat: SeanceDuContrat['etat'], compte = true): SeanceDuContrat =>
   ({ id, date, time: '09:00', serviceIds: ['svc-g'], etat, compte, rendue: false, rang: null, total: null });
 const ligne = (x: Partial<LigneDeSeances>): LigneDeSeances =>
-  ({ serviceId: 'svc-g', incluses: 6, faites: 0, reservees: 0, aCloturer: 0, manquees: 0, disponibles: 6, depasse: 0, seances: [], ...x });
+  ({ serviceId: 'svc-g', incluses: 6, faites: 0, reservees: 0, aCloturer: 0, disponibles: 6, depasse: 0, seances: [], ...x });
 const etats = (p: Pas[] | null) => (p ? p.map((x) => x.etat) : null);
 
 const trois = [seance('r1', '2026-10-06', 'faite'), seance('r2', '2026-10-16', 'faite'), seance('r3', '2026-11-03', 'confirmee')];
@@ -31,9 +31,12 @@ dit('... numérotés de 1 à 6', [1, 2, 3, 4, 5, 6], c1?.map((x) => x.n));
 dit('... les séances réelles portent leur rendez-vous et leur date, les disponibles non', [['r1', '2026-10-06'], ['r3', '2026-11-03'], [undefined, undefined]],
   [[c1?.[0].id, c1?.[0].date], [c1?.[2].id, c1?.[2].date], [c1?.[3].id, c1?.[3].date]]);
 
-const vie = [seance('a', '2026-08-08', 'faite'), seance('b', '2026-09-19', 'manquee'), seance('c', '2026-10-31', 'faite'), seance('d', '2026-12-12', 'a-confirmer')];
-dit('une manquée garde sa place dans le temps (la barre d hier la rangeait après les faites)', ['faite', 'manquee', 'faite', 'reservee', 'disponible', 'disponible'],
-  etats(cheminDeLaLigne({ attribuees: vie }, ligne({ faites: 2, manquees: 1, reservees: 1, disponibles: 2, seances: ['a', 'b', 'c', 'd'] }), false)));
+/* UNE SÉANCE MANQUÉE NE SE PERD PAS (Yéman, 6 novembre 2026 : « dans le chemin
+   des sceaux enlève Manqué ») : annulée ou absente, elle ne prend pas de sceau. */
+const vie = [seance('a', '2026-08-08', 'faite'), seance('b', '2026-09-19', 'annulee', false), seance('c', '2026-10-31', 'faite'), seance('d', '2026-12-12', 'a-confirmer')];
+const cheminDeVie = cheminDeLaLigne({ attribuees: vie }, ligne({ faites: 2, reservees: 1, disponibles: 3, seances: ['a', 'b', 'c', 'd'] }), false);
+dit('une séance annulée au milieu ne laisse aucun sceau : faite, faite, réservée, puis trois disponibles', ['faite', 'faite', 'reservee', 'disponible', 'disponible', 'disponible'], etats(cheminDeVie));
+dit('... et les séances gardent leur ordre et leur date', ['2026-08-08', '2026-10-31', '2026-12-12'], cheminDeVie?.slice(0, 3).map((x) => x.date));
 dit('proposée, à confirmer, passée restée confirmée : trois réservées', ['reservee', 'reservee', 'reservee'],
   [etatDuPas({ etat: 'proposee' }), etatDuPas({ etat: 'a-confirmer' }), etatDuPas({ etat: 'a-cloturer' })]);
 dit('une formule terminée : les séances non prises sont perdues', ['faite', 'faite', 'reservee', 'perdue', 'perdue', 'perdue'],
@@ -77,7 +80,7 @@ const l = c.seances[0];
 const chemin = cheminDeLaLigne(c, l, false);
 dit('sur le relevé du juge : faite, faite, réservée, puis trois disponibles', ['faite', 'faite', 'reservee', 'disponible', 'disponible', 'disponible'], etats(chemin));
 const combien = (e: Pas['etat']) => (chemin ?? []).filter((x) => x.etat === e).length;
-dit('... et chaque matière compte autant de sceaux que la ligne du relevé', [l.faites, l.manquees, l.reservees, l.disponibles], [combien('faite'), combien('manquee'), combien('reservee'), combien('disponible')]);
+dit('... et chaque matière compte autant de sceaux que la ligne du relevé', [l.faites, l.reservees, l.disponibles], [combien('faite'), combien('reservee'), combien('disponible')]);
 dit('... dans l ordre des dates', ['2026-10-06', '2026-10-16', '2026-11-03'], chemin?.slice(0, 3).map((x) => x.date));
 
 /* ── 3. Les branchements ── */
@@ -104,11 +107,12 @@ dit('... le résumé d une lune dit jusqu à quand elle est réglée, ou qu elle
 dit('... le résumé des séances reprend la légende du relevé', true, ses.includes('return <Legende l={l} perdue={lignePerdue(c)} />;'));
 dit('une seule alerte en haut de l accueil d une abonnée', true, tabs.includes('{soon && !(abonneeA && releveA?.alerte) && ('));
 const bloc = css.slice(css.indexOf('/* LE CHEMIN DE SCEAUX'), css.indexOf("/* Le sceau d'argent"));
-dit('les cinq matières ont leur dessin, et la formule voilée le sien', [true, true, true, true, true],
-  ['.ab-pas--faite .ab-pas__fond', '.ab-pas--manquee .ab-pas__fond', '.ab-pas--reservee .ab-pas__fond', '.ab-pas--perdue .ab-pas__fond', '.ab-chemin.is-voile .ab-pas__fond'].map((x) => bloc.includes(x)));
+dit('les matières ont leur dessin, et la formule voilée le sien', [true, true, true, true],
+  ['.ab-pas--faite .ab-pas__fond', '.ab-pas--reservee .ab-pas__fond', '.ab-pas--perdue .ab-pas__fond', '.ab-chemin.is-voile .ab-pas__fond'].map((x) => bloc.includes(x)));
+dit('pas de sceau « manquée » : ni dans le chemin, ni dans la feuille, ni dans la légende', [false, false, false],
+  [/manquee/.test(lis('src/shared/chemin-de-sceaux-pur.ts').replace(/\/\*[\s\S]*?\*\//g, '')), /ab-pas--manquee|ab-seg--manquee|is-manquee/.test(css), /manqu[ée]e/.test(abonnee.replace(/\/\*[\s\S]*?\*\//g, ''))]);
 dit('aucune couleur écrite en dur dans ces styles : le soir suit les jetons', [], bloc.match(/#[0-9A-Fa-f]{3,8}\b|rgba?\(/g) ?? []);
 dit('aucun jeton qui n existe que le soir : le chiffre d une perdue se lit aussi de jour', false, /var\(--ink-mute\)/.test(bloc));
-dit('le chiffre d une manquée suit le papier : ivoire le jour, indigo le soir', true, bloc.includes('.ab-pas--manquee .ab-pas__n { fill: var(--paper); }'));
 dit('le chiffre d une réservée garde son liseré, il se lit sur les hachures', true, /\.ab-pas--reservee \.ab-pas__n \{[^}]*paint-order: stroke; stroke: var\(--surface-card\);/.test(bloc));
 dit('ouverte, une rubrique ne répète pas son résumé', true, css.includes('.ab-rub.is-ouverte .ab-rub__resume { display: none; }'));
 dit('les trois phrases neuves ont leur anglais', [true, true, true],

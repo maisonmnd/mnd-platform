@@ -86,7 +86,7 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
   /** Les heures qui séparent maintenant du début de la séance (heure de Cotonou). */
   const heuresAvant = (a: Appointment): number =>
     (Date.parse(`${a.date}T${a.time.length === 5 ? a.time : '00:00'}:00+01:00`) - Date.now()) / 3_600_000;
-  /** Ce que l'annulation fera, dit AVANT d'agir (décision 3). */
+  /** Ce que l'annulation fera, dit AVANT d'agir. */
   const effetDeLAnnulation = (a: Appointment): { texte: string; compte: boolean } => {
     const x = seanceDe(a);
     const moins24 = heuresAvant(a) < 24;
@@ -95,11 +95,12 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
         ? { texte: t('À moins de 24 h, le créneau est déjà tenu pour vous. Écrivez à la Maison si vous ne pouvez pas venir.'), compte: false }
         : { texte: t('Plus de 24 h avant : rien n’est dû, le créneau est rendu.'), compte: false };
     }
-    if (moins24) return { texte: t('À moins de 24 h : la séance sera comptée et marquée « Manquée » ; elle ne reviendra pas à votre formule. Pour un motif justifié, la Maison peut vous la rendre : écrivez-lui.'), compte: true };
+    /* UNE SÉANCE DE FORMULE NE SE PERD PAS (6 novembre 2026) : annulée à
+       n'importe quelle heure, elle revient à la formule. */
     const ligne = x.c.seances.find((l) => a.serviceIds.includes(l.serviceId));
     return ligne && ligne.incluses !== null && ligne.disponibles !== null
-      ? { texte: t('Plus de 24 h avant : rien n’est compté. La séance revient à votre formule : {avant} → {apres} disponibles sur {total}.', { avant: ligne.disponibles, apres: ligne.disponibles + 1, total: ligne.incluses }), compte: false }
-      : { texte: t('Plus de 24 h avant : rien n’est compté, la séance revient à votre formule.'), compte: false };
+      ? { texte: t('Rien n’est compté. La séance revient à votre formule : {avant} → {apres} disponibles sur {total}.', { avant: ligne.disponibles, apres: ligne.disponibles + 1, total: ligne.incluses }), compte: false }
+      : { texte: t('Rien n’est compté, la séance revient à votre formule.'), compte: false };
   };
   /** La séance d'une formule ne se déplace pas au-delà de sa fin. */
   const finPourDeplacer = (a: Appointment): string | null => {
@@ -324,7 +325,7 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
        l'écriture d'avant prend le relais. */
     const parLaMaison = await appelleLaMaison<{ ok?: boolean; raison?: string }>('deplacer_une_seance', { p_appt_id: a.id, p_date: iso, p_time: heure });
     if (!parLaMaison.ok && !parLaMaison.absente) {
-      toast(parLaMaison.raison === 'moins_de_24_h' ? t('À moins de 24 h, écrivez à la Maison : elle peut la déplacer sans la compter.')
+      toast(parLaMaison.raison === 'moins_de_24_h' ? t('À moins de 24 h, écrivez à la Maison : elle la déplace avec vous.')
         : parLaMaison.raison === 'fin' ? t('Cette date est après la fin de votre formule.')
           : parLaMaison.raison === 'place' ? t('Ce moment vient d’être pris. Choisissez-en un autre.')
             /* LA PLACE LIMITÉE PARTIE (4 novembre 2026) : le garde des places
@@ -370,7 +371,7 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
 
   const annuler = async (a: Appointment) => {
     /* LE SERVEUR D'ABORD (20 octobre 2026) : `annuler_une_seance` date
-       l'annulation ; le juge dit ensuite si elle est comptée. Tant qu'il n'est
+       l'annulation ; le juge rend ensuite la séance à la formule. Tant qu'il n'est
        pas posé en base, l'écriture d'avant prend le relais. */
     const parLaMaison = await appelleLaMaison<{ ok?: boolean; raison?: string }>('annuler_une_seance', { p_appt_id: a.id });
     if (!parLaMaison.ok && !parLaMaison.absente) { toast(t('La Maison n’a pas pu annuler cette séance. Écrivez-lui.')); return; }
@@ -489,8 +490,8 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
               const x = seanceDe(editing);
               if (!x || !x.s.compte) return null;
               const fin = finPourDeplacer(editing);
-              /* À MOINS DE 24 H, PAS EN LIGNE : la Maison décide, et peut la
-                 déplacer sans la compter (tranché au sélecteur). */
+              /* À MOINS DE 24 H, PAS EN LIGNE : la Maison la déplace avec elle
+                 (tranché au sélecteur). Rien n'est jamais compté. */
               const enLigne = seDeplaceEnLigne(editing, new Date().toISOString());
               const numero = (branch.phone ?? '').replace(/\D/g, '');
               return (
@@ -498,7 +499,7 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
                   {!enLigne
                     ? (
                       <>
-                        {t('À moins de 24 h, écrivez à la Maison : elle peut la déplacer sans la compter.')}
+                        {t('À moins de 24 h, écrivez à la Maison : elle la déplace avec vous.')}
                         {numero && (
                           <>
                             {' '}
@@ -509,8 +510,8 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
                       </>
                     )
                     : fin
-                      ? t('Votre séance reste dans votre formule. Plus de 24 h avant, rien n’est compté ; choisissez un autre moment avant le {date}.', { date: dateDansLaPhrase(fin) })
-                      : t('Votre séance reste dans votre formule. Plus de 24 h avant, rien n’est compté.')}
+                      ? t('Votre séance reste dans votre formule ; choisissez un autre moment avant le {date}.', { date: dateDansLaPhrase(fin) })
+                      : t('Votre séance reste dans votre formule.')}
                 </div>
               );
             })()}

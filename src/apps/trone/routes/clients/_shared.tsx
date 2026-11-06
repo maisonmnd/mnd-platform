@@ -60,7 +60,6 @@ import { SeanceDeLaFormule } from './SeanceDeLaFormule';
 import { PiecesDuRendezVous } from './PiecesDuRendezVous';
 import type { PieceEnvoyee } from '../../../../shared/avant-le-fauteuil-pur';
 import { SignalDuClub } from './CarteDuClub';
-import { effetDeLAnnulation } from './gestes-de-l-abonnement';
 import './clients.css';
 import { cheminDeLaConversation, lienDuFil, lienWaMe } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
@@ -3778,22 +3777,13 @@ function RdvModalCorps({
       ? `Le rendez-vous de ${prenomIci} porte déjà ${argent(paidIci)} encaissés : l’annulation ne rembourse rien. Les places annulées sortent du calendrier et de tout chiffre, et restent visibles, barrées, au Carnet.`
       : undefined);
     if (!qui) return;
-    /* ══ UNE SÉANCE DE FORMULE : QUI ANNULE ? — 20 octobre 2026 (décision 3) ══
-       À moins de 24 h, une annulation de la CLIENTE compte la séance
-       (« Manquée ») ; une annulation de la Maison ne compte jamais. Le
-       comptoir annule souvent pour elle, au téléphone : il faut le dire. */
-    let parQui: 'cliente' | 'maison' | null = null;
-    if (appt.coveredBySub && appt.coverKind !== 'forfait') {
-      const effetCliente = effetDeLAnnulation(appt, 'cliente');
-      parQui = await demande({
-        quoi: 'Séance de sa formule',
-        titre: 'Qui annule cette séance ?',
-        dit: `Si c’est la cliente : ${effetCliente.lignes[0]}`,
-        suite: 'Si c’est la Maison : la séance ne compte jamais, elle revient à la formule.',
-        accepter: 'La cliente annule',
-        refuser: 'La Maison annule',
-      }) ? 'cliente' : 'maison';
-    }
+    /* ══ UNE SÉANCE DE FORMULE ANNULÉE NE SE PERD PAS : 6 novembre 2026 ══
+       « On ne perd pas les séances qu'on a manquées, donc je préfère ne même
+       pas comptabiliser. J'annule et je reprogramme seulement. » (Yéman.) La
+       séance revient à la formule, quelle que soit l'heure et qui que ce soit
+       qui annule : plus de question « Qui annule ? ». Le comptoir écrit
+       l'instant et son nom, pour la trace. */
+    const parQui: 'maison' | null = appt.coveredBySub && appt.coverKind !== 'forfait' ? 'maison' : null;
     const paid = appt.paidXof ?? 0;
     const msg = paid > 0
       ? `Annuler ce rendez-vous ? Il porte déjà ${argent(paid)} encaissés, l'annulation ne rembourse rien (passez par « Encaisser → Annuler l'encaissement » d'abord si besoin). Le rituel sortira du calendrier et ne comptera dans aucun chiffre.`

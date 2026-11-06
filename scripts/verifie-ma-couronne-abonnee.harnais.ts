@@ -88,11 +88,12 @@ dit('une fonction absente se dit, elle ne laisse pas l ecran blanc', [true, true
 dit('annuler et deplacer disent leur effet avant d agir (24 h)', [true, true],
   [/effetDeLAnnulation\(cancelling\)/.test(mrdv), /const enLigne = seDeplaceEnLigne\(editing, /.test(mrdv)]);
 /* Tranché au sélecteur le 20 octobre 2026 : à moins de 24 h, la séance d'une
-   formule ne se déplace pas en ligne ; la Maison décide, sans la compter. */
+   formule ne se déplace pas en ligne ; la Maison la déplace avec elle. Rien
+   n'est jamais compté (6 novembre 2026). */
 dit('a moins de 24 h, la seance d une formule ne se deplace pas d ici : le calendrier se ferme, la phrase le dit, le refus du serveur aussi', [true, true, true],
   [/const bloque = !!seanceDe\(editing\)\?\.s\.compte && !seDeplaceEnLigne\(editing, /.test(mrdv),
-    /\{t\('À moins de 24 h, écrivez à la Maison : elle peut la déplacer sans la compter\.'\)\}/.test(mrdv),
-    /parLaMaison\.raison === 'moins_de_24_h' \? t\('À moins de 24 h, écrivez à la Maison : elle peut la déplacer sans la compter\.'\)/.test(mrdv)]);
+    /\{t\('À moins de 24 h, écrivez à la Maison : elle la déplace avec vous\.'\)\}/.test(mrdv),
+    /parLaMaison\.raison === 'moins_de_24_h' \? t\('À moins de 24 h, écrivez à la Maison : elle la déplace avec vous\.'\)/.test(mrdv)]);
 dit('la seance d une formule ne se deplace pas apres sa fin', true, /\(!fin \|\| iso <= fin\)/.test(mrdv));
 
 /* ── 5bis. LES REGLES DU 20 OCTOBRE AU SOIR, LA OU ELLE LES LIT ─────────── */

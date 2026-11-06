@@ -307,7 +307,7 @@ export default function ReserverIncluse({ releve, prenom, teteId, estElle, debut
                 )}
                 <div className="ab-recap__total"><span>{t('Incluse dans votre formule')}</span><span>0 F</span></div>
               </div>
-              <p className="ab-meta">{t('Sans acompte. Plus de 24 h avant, vous la déplacez ou l’annulez sans que rien ne soit compté ; à moins de 24 h, ou absente, elle est comptée et marquée « Manquée ».')}</p>
+              <p className="ab-meta">{t('Sans acompte. Annulée ou manquée, une séance n’est jamais perdue : elle revient à votre formule.')}</p>
               {mot && <p className="ab-meta" role="status" style={{ color: 'var(--mc-error)' }}>{mot}</p>}
               <button type="button" className="mc-cta mc-cta--copper" disabled={envoi} onClick={() => void reserver()}>
                 {envoi ? t('Un instant…') : t('Réserver cette séance')}

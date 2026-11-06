@@ -85,7 +85,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const TZ = 'Africa/Porto-Novo'; // le fuseau du salon, pas celui du serveur
 
 /** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-10-29-a · jamais une relance le dimanche, elle passe au lundi';
+const VERSION = '2026-11-06-a · une séance manquée ne se perd pas : le prorata ne compte que les faites';
 
 /** Numéro béninois → format international sans « + » (copie de rappels-j1). */
 const numeroIntl = (brut: string | undefined): string | null => {
@@ -656,31 +656,17 @@ type SeanceEcrite = {
   annuleeLe?: string; annuleePar?: string; absente?: { le: string }; rendue?: { le: string };
   proposeeLe?: string; confirmeeParLaClienteLe?: string;
 };
-const DELAI_D_ANNULATION_H = 24;
-/** Un instant ISO en millisecondes ; sans fuseau, l'heure de Cotonou. */
-const instantDe = (iso: string): number => {
-  const s = iso.length <= 10 ? `${iso}T00:00:00` : iso;
-  return Date.parse(/([zZ]|[+-]\d{2}:?\d{2})$/.test(s) ? s : `${s}+01:00`);
-};
-const debutDeLaSeance = (a: { date: string; time?: string }): number => {
-  const h = /^(\d{1,2}):(\d{2})$/.exec(a.time ?? '');
-  return instantDe(`${a.date}T${h ? `${h[1].padStart(2, '0')}:${h[2]}` : '00:00'}:00`);
-};
-/** L'état d'une séance, lu sur les faits. */
+/** L'état d'une séance, lu sur les faits. UNE SÉANCE MANQUÉE NE SE PERD PAS
+    (6 novembre 2026, Yéman : « On ne perd pas les séances qu'on a manquées,
+    donc je préfère ne même pas comptabiliser ») : absente ou annulée, par qui
+    que ce soit et à n'importe quelle heure, elle revient à la formule. */
 function etatDeLaSeance(a: SeanceEcrite, jour: string): string {
   if (a.status === 'honoré') return 'faite';
-  if (a.absente) return 'manquee';
-  if (a.status === 'annulé') {
-    if (a.proposeeLe && !a.confirmeeParLaClienteLe) return 'annulee';
-    if (a.annuleePar === 'maison' || !a.annuleeLe) return 'annulee';
-    const heures = (debutDeLaSeance(a) - instantDe(a.annuleeLe)) / 3_600_000;
-    return heures < DELAI_D_ANNULATION_H ? 'manquee' : 'annulee';
-  }
+  if (a.absente || a.status === 'annulé') return 'annulee';
   if (a.date < jour) return 'a-cloturer';
   if (a.proposeeLe && a.status === 'en attente' && !a.confirmeeParLaClienteLe) return 'proposee';
   return a.status === 'en attente' ? 'a-confirmer' : 'confirmee';
 }
-const prendUnCredit = (etat: string, a: SeanceEcrite): boolean => etat !== 'annulee' && !(etat === 'manquee' && a.rendue);
 const dansLaVie = (sub: ContratEcrit, dateIso: string): boolean => {
   if (dateIso < debutDuContratLu(sub)) return false;
   const fin = finDuContratLu(sub);
@@ -718,7 +704,7 @@ function porteeParLeContrat(a: SeanceEcrite, sub: ContratEcrit, subsDeLaTete: re
   return contratDeLaSeance(a, subsDeLaTete, plans)?.id === sub.id;
 }
 /** LE PRORATA D'UN PAQUET RÉSILIÉ : les séances comptées au jour de la
-    résiliation (faites et manquées), le consommé au franc, l'avoir et le reste dû. */
+    résiliation (les faites), le consommé au franc, l'avoir et le reste dû. */
 function prorataDeLaResiliation(
   sub: ContratEcrit, plan: FormuleEcrite | undefined, invoices: readonly PieceEcrite[],
   subsDeLaTete: readonly ContratEcrit[], plans: readonly FormuleEcrite[], seances: readonly SeanceEcrite[], jour: string,
@@ -729,8 +715,7 @@ function prorataDeLaResiliation(
   if (!(vendues > 0)) return null;
   const comptees = seances.filter((a) => {
     if (a.clientId !== sub.clientId || a.date > le || !porteeParLeContrat(a, sub, subsDeLaTete, plans)) return false;
-    const e = etatDeLaSeance(a, jour);
-    return (e === 'faite' || e === 'manquee') && prendUnCredit(e, a);
+    return etatDeLaSeance(a, jour) === 'faite';
   }).length;
   const prix = prixParDefaut(sub, plan);
   const regle = versementsDuContrat(sub, invoices).reduce((s, v) => s + v.montantXof, 0);

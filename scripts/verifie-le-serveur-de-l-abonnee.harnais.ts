@@ -6,7 +6,7 @@
    `src/shared/abonnee-pur.ts` : tout ce que le serveur en recopie doit dire
    LA MÊME CHOSE que lui sur les mêmes cas, et les règles écrites par Yéman
    (deux formules en même temps, le dimanche au lundi, retenue 7 jours,
-   manquée à moins de 24 h, un seul chemin pour l'argent) se rejouent ici
+   une séance manquée ne se perd pas, un seul chemin pour l'argent) se rejouent ici
    contre le vrai SQL.
 
    1. LE TEXTE : versions, jumeaux à l'identique, aucune écriture directe
@@ -81,6 +81,10 @@ const MIGRATION = 'supabase/migrations/0138_le_parcours_de_l_abonnee.sql';
    paquet sans échéancier, l'ancien carnet épuisé) vivent dans la 0139, qui
    se pose par-dessus. Le banc lit et joue les deux, dans l'ordre. */
 const MIGRATION_DU_SOIR = 'supabase/migrations/0139_les_regles_du_20_octobre_au_soir.sql';
+/* UNE SÉANCE MANQUÉE NE SE PERD PAS (Yéman, 6 novembre 2026) : la 0169 remplace,
+   par-dessus, les deux fonctions de la copie `abo_seance` qui disaient
+   « manquée ». Le banc la joue après la 0139, avant de comparer au juge. */
+const MIGRATION_SANS_MANQUEE = 'supabase/migrations/0169_une_seance_manquee_ne_se_perd_pas.sql';
 
 /* ══ 1. LE TEXTE DES FONCTIONS EDGE ════════════════════════════════════ */
 {
@@ -174,7 +178,7 @@ const retenue = (o: Partial<ContratLu> = {}) => contrat({
 });
 const deuxPaye = [{ id: 'v1', amountXof: 70000, date: '2026-10-02' }, { id: 'v2', amountXof: 70000, date: '2026-11-02' }];
 const faitesSix = ['2026-10-06', '2026-10-16', '2026-10-30', '2026-11-13', '2026-11-27'].map((d, i) => seance({ id: `e${i}`, date: d }));
-const manqueeSix = seance({ id: 'e5', date: '2026-12-11', status: 'annulé', annuleeLe: '2026-12-10T18:00:00+01:00', annuleePar: 'cliente' });
+const annuleeLaVeille = seance({ id: 'e5', date: '2026-12-11', status: 'annulé', annuleeLe: '2026-12-10T18:00:00+01:00', annuleePar: 'cliente' });
 const quatre = contrat({ id: 'abo-q', planId: QUATRE.id, reference: 'ABO-2026-040', prixConvenuXof: 84000, priceXof: 84000,
   sinceIso: '2026-10-05', startIso: '2026-10-05', expiresIso: '2027-04-03', echeances: undefined,
   payments: [{ id: 'q1', amountXof: 84000, date: '2026-10-05' }] });
@@ -204,7 +208,8 @@ const CAS: Cas[] = [
   { nom: 'retenue prise un lundi, encore retenue le lundi suivant', e: entree({ jour: '2026-10-26', subs: [retenue({ sinceIso: '2026-10-19', startIso: '2026-10-19' })], appts: [] }), dates: ['2026-10-28'] },
   { nom: 'retenue a laquelle elle renonce', e: entree({ jour: '2026-10-22', subs: [retenue({ renonceeLe: '2026-10-21' })], appts: [] }), dates: ['2026-10-28'] },
   { nom: 'retenue reglee une fois', e: entree({ subs: [retenue({ payments: [{ id: 'k1', amountXof: 70000, date: '2026-10-19' }] })], appts: [] }), dates: ['2026-10-28'] },
-  { nom: 'epuisee, 5 faites et 1 manquee', e: entree({ jour: '2026-12-15', subs: [contrat({ payments: deuxPaye })], appts: [...faitesSix, manqueeSix] }), dates: ['2026-12-20'] },
+  { nom: 'cinq faites et une annulee la veille au soir : pas epuisee', e: entree({ jour: '2026-12-15', subs: [contrat({ payments: deuxPaye })], appts: [...faitesSix, annuleeLaVeille] }), dates: ['2026-12-20'] },
+  { nom: 'epuisee, 6 faites', e: entree({ jour: '2026-12-15', subs: [contrat({ payments: deuxPaye })], appts: [...faitesSix, seance({ id: 'e5', date: '2026-12-11' })] }), dates: ['2026-12-20'] },
   { nom: 'terminee le 30 juin 2027', e: entree({ jour: '2027-06-30' }), dates: ['2027-07-01'] },
   { nom: 'resiliee le 20 octobre 2026', e: entree({ subs: [contrat({ resilieeLe: '2026-10-20', motifDeResiliation: 'demenage', status: 'churn' })] }), dates: ['2026-10-27'] },
   { nom: 'resiliee plus tard (encore en cours)', e: entree({ subs: [contrat({ resilieeLe: '2026-11-15' })] }), dates: ['2026-11-10', '2026-11-20'] },
@@ -225,7 +230,7 @@ const CAS: Cas[] = [
   { nom: 'versement MND PAY sur la piece seule', e: entree({ jour: '2026-11-05', subs: [contrat({ invoiceId: 'inv-14' })], invoices: [pieceAvecMndPay] }), dates: ['2026-11-12'] },
   { nom: 'suspendue', e: entree({ subs: [contrat({ suspendue: { du: '2026-10-19', au: '2026-11-15', motif: 'voyage' } })] }), dates: ['2026-10-27', '2026-11-20'] },
   { nom: 'chaque lune suspendue', e: entree({ subs: [lune({ suspendue: { du: '2026-10-19', au: '2026-11-15' } })], appts: [B1] }), dates: ['2026-10-27'] },
-  { nom: 'manquees, annulees, rendue', e: entree({ appts: [A1, A2,
+  { nom: 'annulees a toute heure, absente, proposee', e: entree({ appts: [A1, A2,
     seance({ id: 'm20', date: '2026-10-22', status: 'annulé', annuleeLe: '2026-10-21T14:00:00+01:00', annuleePar: 'cliente' }),
     seance({ id: 'm49', date: '2026-10-23', status: 'annulé', annuleeLe: '2026-10-21T09:00:00+01:00', annuleePar: 'cliente' }),
     seance({ id: 'm24', date: '2026-10-24', status: 'annulé', annuleeLe: '2026-10-23T10:00:00+01:00', annuleePar: 'cliente' }),
@@ -273,7 +278,8 @@ const tousLesContrats = (r: ReturnType<typeof releveDeLAbonnee>): ReleveDuContra
 /* ══ 3. LA MIGRATION, LUE COMME UN TEXTE ══════════════════════════════ */
 const SQL_0138 = lis(MIGRATION);
 const SQL_0139 = lis(MIGRATION_DU_SOIR);
-const SQL = `${SQL_0138}\n${SQL_0139}`;
+const SQL_0169 = lis(MIGRATION_SANS_MANQUEE);
+const SQL = `${SQL_0138}\n${SQL_0139}\n${SQL_0169}`;
 const SQL_NU = SQL.replace(/--[^\n]*/g, '');
 /* La DERNIÈRE définition d'une fonction : celle de la 0139 quand elle la remplace. */
 const fonction = (nom: string): string => {
@@ -415,6 +421,15 @@ if (!PGlite) {
     controle39 && { lune_resiliee: controle39.lune_resiliee, deplacer_24_h: controle39.deplacer_24_h, sans_echeancier: controle39.sans_echeancier,
       ancien_carnet: controle39.ancien_carnet, coupe_de_la_resiliation: controle39.coupe_de_la_resiliation, souscriptions: Number(controle39.souscriptions) });
   dit('4 · la 0139 se rejoue sans danger', true, await (async () => { try { await db.exec(SQL_0139); return true; } catch { return false; } })());
+  let sansManquee = true;
+  try { await db.exec(SQL_0169); } catch (e) { sansManquee = false; console.log(`       ${sansAccent(String((e as Error).message))}`); }
+  dit('4 · la migration 0169 se pose par-dessus la 0139, d un seul tenant', true, sansManquee);
+  const controle69 = sansManquee ? (await q(SQL_0169.slice(SQL_0169.lastIndexOf('select\n'))))[0] : null;
+  dit('4 · son controle : plus d etat « manquee », absente et annulee la veille reviennent a la formule, la reservee compte toujours',
+    { plus_d_etat_manquee: true, absente: 'annulee', annulee_la_veille_au_soir: 'annulee', prend_un_credit: false, la_reservee_compte_toujours: true },
+    controle69 && { plus_d_etat_manquee: controle69.plus_d_etat_manquee, absente: controle69.absente, annulee_la_veille_au_soir: controle69.annulee_la_veille_au_soir,
+      prend_un_credit: controle69.prend_un_credit, la_reservee_compte_toujours: controle69.la_reservee_compte_toujours });
+  dit('4 · la 0169 se rejoue sans danger', true, await (async () => { try { await db.exec(SQL_0169); return true; } catch { return false; } })());
 
   /* ── 4a. LES OUTILS DU JUGE CONTRE L'ORIGINAL ── */
   const jours: string[] = [];
@@ -431,10 +446,12 @@ if (!PGlite) {
   const inclusSql = await q(`select public.abo_inclus_a_la_date($1::jsonb, $2::jsonb, d::date) as i, ord from unnest($3::text[]) with ordinality t(d, ord) order by ord`,
     [JSON.stringify(L), JSON.stringify(LUNE), jours]);
   dit('4a · le contenu vendu a la date, soin de la lune compris', jours.map((d) => inclusALaDate(L, LUNE, d)), inclusSql.map((r) => r.i));
-  const variantes: SeanceLue[] = (CAS.find((c) => c.nom === 'manquees, annulees, rendue')!.e.appts as SeanceLue[]);
+  const variantes: SeanceLue[] = (CAS.find((c) => c.nom === 'annulees a toute heure, absente, proposee')!.e.appts as SeanceLue[]);
   const etatsSql = await q(`select public.abo_etat_de_la_seance(a, $2::date) as e, ord from jsonb_array_elements($1::jsonb) with ordinality t(a, ord) order by ord`,
     [JSON.stringify(variantes), '2026-10-20']);
-  dit('4a · l etat de chaque seance (manquee a moins de 24 h, maison, absente, rendue, proposee)',
+  dit('4a · aucune seance n est « manquee » : annulee a toute heure, absente, ancienne trace rendue',
+    [], etatsSql.map((r) => r.e).filter((e) => e === 'manquee'));
+  dit('4a · l etat de chaque seance (annulee a toute heure, maison, absente, proposee)',
     variantes.map((a) => etatDeLaSeance(a, '2026-10-20')), etatsSql.map((r) => r.e));
   const grille: [number, number][] = [[140000, 168000], [84000, 112000], [37500, 41667], [100000, 100000], [150000, 140000], [99000, 132000], [0, 100]];
   const foyerSql = await q(`select public.abo_prix_du_foyer(p, v)::numeric as x, ord from unnest($1::numeric[], $2::numeric[]) with ordinality t(p, v, ord) order by ord`,
@@ -624,7 +641,7 @@ if (!PGlite) {
   const annule = async (id: string) => (await comme('cliente', `select public.annuler_une_seance($1) as r`, [id]))[0].r;
   await fige('2026-10-28', '2026-10-28T14:00:00+01:00');
   const an1 = await annule((await q(`select id from public.appointments where data->>'date' = '2026-10-29'`))[0].id);
-  dit('4c · annulee 20 h avant : comptee, « Manquee »', true, an1.compteeCommeManquee);
+  dit('4c · annulee 20 h avant : rien n est compte, la seance revient a la formule', false, an1.compteeCommeManquee);
   const id31 = (await q(`select id from public.appointments where data->>'date' = '2026-10-31'`))[0].id;
   const an2 = await annule(id31);
   const a31 = await ligne('appointments', id31);
@@ -637,14 +654,14 @@ if (!PGlite) {
     { ok: dep.ok, date: a02.date, statut: a02.status, de: a02.deplaceeDe?.date });
   const dep2 = (await comme('cliente', `select public.deplacer_une_seance($1, '2027-08-01', '11:00') as r`, [id02]))[0].r;
   dit('4c · deplacee au-dela de quatre-vingt-dix jours : refusee', 'creneau_hors_fenetre', dep2.raison);
-  /* À moins de 24 h, la séance d'une formule ne se déplace plus en ligne ; elle s'annule encore, et compte. */
+  /* À moins de 24 h, la séance d'une formule ne se déplace plus en ligne ; elle s'annule encore, et ne compte pas. */
   await fige('2026-10-29', '2026-10-29T11:00:00+01:00');
   const id30 = (await q(`select id from public.appointments where data->>'date' = '2026-10-30'`))[0].id;
   const dep3 = (await comme('cliente', `select public.deplacer_une_seance($1, '2026-11-06', '11:00') as r`, [id30]))[0].r;
   dit('4c · 23 h avant : deplacer se refuse et dit pourquoi, la seance ne bouge pas', { raison: 'moins_de_24_h', date: '2026-10-30' },
     { raison: dep3.raison, date: (await ligne('appointments', id30)).date });
   const an3 = await annule(id30);
-  dit('4c · ... mais elle s annule encore, et compte « Manquee »', { ok: true, manquee: true }, { ok: an3.ok, manquee: an3.compteeCommeManquee });
+  dit('4c · ... mais elle s annule encore, et ne compte pas', { ok: true, manquee: false }, { ok: an3.ok, manquee: an3.compteeCommeManquee });
   await fige('2026-10-28', '2026-10-28T14:00:00+01:00');
 
   /* La garde : ce qu'une cliente écrit elle-même. */

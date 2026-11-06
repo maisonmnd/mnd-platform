@@ -115,7 +115,6 @@ export const ETAT_SEANCE: Record<EtatSeance, { dit: string; cls: string }> = {
   proposee: { dit: 'Proposée par la Maison', cls: 'mc-stchip--proposee' },
   faite: { dit: 'Faite', cls: 'mc-stchip--info' },
   annulee: { dit: 'Annulée', cls: '' },
-  manquee: { dit: 'Manquée', cls: 'mc-stchip--off' },
   'a-cloturer': { dit: 'Passée', cls: '' },
 };
 

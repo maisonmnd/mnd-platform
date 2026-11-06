@@ -395,19 +395,21 @@ export type Appointment = {
      Le juge unique (`shared/abonnee-pur`) lit l'état d'une séance sur ces
      faits, jamais sur un état stocké. Tous facultatifs : absents, la séance
      se lit comme avant. */
-  /** L'INSTANT de l'annulation (ISO avec heure). À moins de 24 h, une
-      annulation de la cliente compte la séance (« Manquée »). */
+  /** L'INSTANT de l'annulation (ISO avec heure). Une trace : depuis le
+      6 novembre 2026, aucune annulation ne compte la séance. */
   annuleeLe?: string;
-  /** Qui a annulé. Une annulation de la Maison ne se compte jamais. */
+  /** Qui a annulé. Une trace, elle aussi. */
   annuleePar?: 'cliente' | 'maison';
-  /** Elle n'est pas venue : « Absente : marquer manquée », au comptoir. */
+  /** Elle n'est pas venue : « Absente », au comptoir. La séance d'une formule
+      revient à la formule. */
   absente?: { le: string; par?: string };
   /** PASSÉ « HONORÉ » PAR GRENAT (4 novembre 2026, la clôture de la journée) :
       un rendez-vous réglé en entier, encore « confirmé » après sa fin. Les
       suites (points, stock, mission, reprise) se font au Trône
       (`useLaMainDeGrenat`), par un seul poste, qui réserve `suitesLe`. */
   honoreParGrenat?: { le: string; moment?: string; suitesLe?: string };
-  /** LA SÉANCE RENDUE : une manquée que la Maison redonne, avec son motif. */
+  /** Une trace d'avant le 6 novembre 2026 (« la séance rendue ») : plus rien
+      ne la lit, il n'y a plus de séance manquée à rendre. */
   rendue?: { le: string; motif: string; par?: string };
   /** Proposée par la Maison (la cadence posée d'avance), en attente d'elle. */
   proposeeLe?: string;

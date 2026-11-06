@@ -1435,7 +1435,7 @@ export default function Abonnements() {
                             </span>
                             <span className="tre-contrat__n">
                               {x.promis > 0
-                                ? <><b>{x.faites}</b> faite{x.faites > 1 ? 's' : ''}{x.reservees > 0 ? <> · <b>{x.reservees}</b> réservée{x.reservees > 1 ? 's' : ''}</> : null}{x.manquees > 0 ? <> · <b>{x.manquees}</b> manquée{x.manquees > 1 ? 's' : ''}</> : null} · <b>{Math.max(0, x.promis - x.utilises)}</b> disponible{x.promis - x.utilises > 1 ? 's' : ''} sur {x.promis}</>
+                                ? <><b>{x.faites}</b> faite{x.faites > 1 ? 's' : ''}{x.reservees > 0 ? <> · <b>{x.reservees}</b> réservée{x.reservees > 1 ? 's' : ''}</> : null} · <b>{Math.max(0, x.promis - x.utilises)}</b> disponible{x.promis - x.utilises > 1 ? 's' : ''} sur {x.promis}</>
                                 : 'aucune prestation incluse'}
                               {x.verseXof > 0 ? ` · versé ${fmtMoney(x.verseXof, currency)}` : ''}
                             </span>
