@@ -41,7 +41,7 @@ const PANNES = [
   { nom: 'le moment du matin se lit a l envers', fichier: OP, avant: "if (s.moment === 'matin') return m < 12 * 60;", apres: "if (s.moment === 'matin') return m >= 12 * 60;" },
   { nom: 'confirmer permis avant la lecture du recapitulatif', fichier: OP, avant: '  if (Number.isFinite(premier) && premier < le) return', apres: '  if (false) return' },
   { nom: 'le webhook coupe le tour a 30 s', fichier: WH, avant: 'const AUTOMATE_EN_FOND_MS = 120_000;', apres: 'const AUTOMATE_EN_FOND_MS = 30_000;' },
-  { nom: 'les places s arretent a quatorze jours', fichier: AU, avant: 'const horizonPour = (jour?: string): number => Math.min(90, Math.max(reglage.horizonJours, 30, jour ? joursJusqua(jour) + 7 : 0));', apres: 'const horizonPour = (_jour?: string): number => reglage.horizonJours;' },
+  { nom: 'les places s arretent a quatorze jours', fichier: AU, avant: 'const horizonPour = (jour?: string): number => Math.min(joursDeLaFenetre(ms), Math.max(reglage.horizonJours, 30, jour ? joursJusqua(jour) + 7 : 0));', apres: 'const horizonPour = (_jour?: string): number => reglage.horizonJours;' },
   { nom: 'la reprise prend son mot de relais pour une reponse', fichier: AU, avant: "&& d.etape !== 'main') break;", apres: ') break;' },
   { nom: 'la consigne laisse dire deplace', fichier: OP, avant: ' : ne dis jamais qu’il a été déplacé.', apres: '.' },
   { nom: 'la consigne oublie la Maison MND', fichier: OP, avant: 'Quand tu nommes le lieu, écris « la Maison MND » en entier : « Nous vous attendons à la Maison MND ». ', apres: '' },
@@ -53,6 +53,18 @@ const PANNES = [
   { nom: 'le juge laisse saluer l enfant', fichier: AU, avant: 'questionFranche, enfants: prenomsDesEnfants });', apres: 'questionFranche });' },
   { nom: 'la consigne laisse saluer l enfant', fichier: OP, avant: 'Ne salue jamais l’enfant et ne l’appelle jamais par son prénom : ', apres: '' },
   { nom: 'la copie du bloc derive', fichier: AU, avant: 'export const MESSAGES_D_OPALE_PAR_JOUR = 40;', apres: 'export const MESSAGES_D_OPALE_PAR_JOUR = 400;' },
+  /* « J'ai terminé mon RDV » : la porte du WhatsApp (6 novembre 2026). */
+  { nom: 'un lien de reglement part sans rendez-vous du jour', fichier: AU, avant: '  if (rdvIds.length === 0) return sansRdv();\n', apres: '' },
+  { nom: 'le rendez-vous d un autre jour passe pour celui du jour', fichier: AU, avant: ".in('data->>clientId', ids).eq('data->>date', x.aujourdhui).limit(12);", apres: ".in('data->>clientId', ids).limit(12);" },
+  { nom: 'un rendez-vous annule passe pour celui du jour', fichier: AU, avant: ".filter((l) => l.data && ['confirmé', 'honoré'].includes(String(l.data.status ?? ''))).map((l) => l.id);", apres: '.filter((l) => l.data).map((l) => l.id);' },
+  { nom: 'la fin du rituel passe par Claude', fichier: AU, avant: '  if (claude && !finDuRituel) {', apres: '  if (claude) {' },
+  { nom: 'sans rendez-vous du jour, la main ne passe pas', fichier: AU, avant: '    if (finDuRituel.sansRdv) {', apres: '    if (false) {' },
+  { nom: 'la fin du rituel n ecoute plus', fichier: AU, avant: '  if (!ditQuElleATermine(x.texte)) return null;\n  const sansRdv', apres: '  if (true) return null;\n  const sansRdv' },
+  { nom: 'toute phrase passe pour « j ai termine »', fichier: AU, avant: '  if (!ditQuElleATermine(x.texte)) return null;\n  const sansRdv', apres: '  const sansRdv' },
+  { nom: 'la fin du rituel passe par une autre porte', fichier: AU, avant: "body: JSON.stringify({ action: 'terminer', porte: 'whatsapp', rdvIds }),", apres: "body: JSON.stringify({ action: 'terminer', porte: 'site', rdvIds }),", },
+  { nom: 'une fonction muette fait inventer une reponse', fichier: AU, avant: "    if (!r || r.ok !== true) { dis('fin du rituel · la fonction ne repond pas', { statut: res.status }); return null; }", apres: "    if (!r || r.ok !== true) return sansRdv();" },
+  { nom: 'le salut de la fin va a la premiere fiche du numero', fichier: AU, avant: 'await reponseALaFinDuRituel(sb, { texte: tour.texte, fiches, aujourdhui, appel: appelDeLaVoix })', apres: 'await reponseALaFinDuRituel(sb, { texte: tour.texte, fiches, aujourdhui, appel: prenomDuNomWa(fiches[0]?.nom) })' },
+  { nom: 'le montant est invente quand la fonction ne le dit pas', fichier: AU, avant: 'resteXof: r.resteXof !== null && Number.isFinite(reste) && reste > 0 ? reste : null, adresse: r.adresse', apres: 'resteXof: 12000, adresse: r.adresse' },
 ];
 
 const md5 = (rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');

@@ -86,7 +86,7 @@ const PANNES = [
   /* Les versions a deployer */
   ['la fonction du site garde sa version', SITE, "const VERSION = '2026-11-06-a · la réservation", "const VERSION = '2026-11-05-b · la réservation"],
   ['Opale cherche encore jusqu a 90 jours', WA, 'Math.min(joursDeLaFenetre(ms), Math.max(reglage.horizonJours, 30,', 'Math.min(90, Math.max(reglage.horizonJours, 30,'],
-  ['la fonction de WhatsApp garde sa version', WA, "const VERSION = '2026-11-06-a · la place jugee", "const VERSION = '2026-11-04-f · la place jugee"],
+  ['la fonction de WhatsApp garde sa version', WA, "const VERSION = '2026-11-06-b · la place jugee", "const VERSION = '2026-11-04-f · la place jugee"],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

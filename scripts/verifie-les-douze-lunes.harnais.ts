@@ -651,6 +651,8 @@ const regles: Regle[] = [
         /* Terminer et régler (6 novembre 2026) : l'honneur au règlement, recopié dans regler-la-seance et terminer-et-regler ; la porte, le code et ses quatre chiffres, le lien, recopiés dans terminer-et-regler. */
         'honneur-au-reglement': { fichier: 'src/shared/terminer-et-regler-pur.ts', extrait: (s) => entre(s, 'honneur-au-reglement') },
         'terminer-et-regler': { fichier: 'src/shared/terminer-et-regler-pur.ts', extrait: (s) => entre(s, 'terminer-et-regler') },
+        /* « J'ai terminé mon RDV » (6 novembre 2026) : la phrase libre et les mots de la Maison, recopiés dans whatsapp-automate. */
+        'j-ai-termine': { fichier: 'src/shared/terminer-et-regler-pur.ts', extrait: (s) => entre(s, 'j-ai-termine') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

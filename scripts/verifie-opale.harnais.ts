@@ -192,8 +192,15 @@ let numeroWa = 0;
     META.push(corps);
     return new Response(JSON.stringify({ messages: [{ id: `wamid.banc${++numeroWa}` }] }), { status: 200 });
   }
+  /* La fonction terminer-et-regler (6 novembre 2026) : ce que le banc lui fait répondre, et ce qu'on lui a demandé. */
+  if (String(url).includes('/functions/v1/terminer-et-regler')) {
+    FINS.push({ corps: JSON.parse(String(init?.body ?? '{}')), cle: String((init as { headers?: Record<string, string> } | undefined)?.headers?.authorization ?? '') });
+    return REPONSE_DE_LA_FIN ? new Response(JSON.stringify(REPONSE_DE_LA_FIN), { status: 200 }) : new Response('{}', { status: 500 });
+  }
   return new Response(JSON.stringify({ verdict: '' }), { status: 200 });
 };
+const FINS: { corps: any; cle: string }[] = [];
+let REPONSE_DE_LA_FIN: Record<string, unknown> | null = null;
 (globalThis as any).setTimeout = (f: () => void) => { queueMicrotask(f); return 0; };
 console.log = ((log) => (...a: unknown[]) => { if (typeof a[0] === 'string' && /^(OK|ECHEC)/.test(a[0])) log(...a); })(console.log.bind(console));
 console.error = () => {};
@@ -637,6 +644,79 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
   dit('le webhook laisse 120 s au tour d Opale', true, /const AUTOMATE_EN_FOND_MS = 120_000;/.test(w));
   const a = brut('supabase/functions/whatsapp-automate/index.ts');
   dit('la fonction importe le SDK, et sa version le dit', [true, true], [a.includes("import Anthropic from 'npm:@anthropic-ai/sdk';"), /const VERSION = '2026-11-\d{2}-[a-z] · [^']*Opale repond sur le WhatsApp de la Maison/.test(a)]);
+}
+
+/* ══ 14. « J'AI TERMINÉ MON RDV » : la porte du WhatsApp (6 novembre 2026) ══
+   « Quand le client finit son rendez-vous, il peut […] écrire "j'ai terminé
+   mon RDV", et il reçoit automatiquement le lien de paiement » (Yéman). La
+   Maison répond elle-même (sans Claude) : le rituel du jour de CE numéro, le
+   montant et le lien que rend la fonction terminer-et-regler. Sans
+   rendez-vous du jour à ce numéro : le code est demandé, AUCUN lien de
+   règlement ne part, la main passe à l'équipe. */
+{
+  const ADRESSE = 'https://maisonmnd.com/trone/payer.html?tg=r-23456789abcdef';
+  const rdv = (id: string, clientId: string, date: string, status = 'confirmé') =>
+    table('appointments').push({ id, branch_id: 'br-banc', data: { id, clientId, date, time: '08:00', status, serviceIds: ['sv-atl-ii-e'] } });
+
+  decor(); FINS.length = 0;
+  rdv('rdv-du-jour', 'cl-banc-a', AUJOURDHUI); rdv('rdv-de-demain', 'cl-banc-a', J1);
+  REPONSE_DE_LA_FIN = { ok: true, etat: 'a-regler', adresse: ADRESSE, resteXof: 12000 };
+  const w = elleEcrit(NUM, 'J’ai terminé mon RDV');
+  const r = await tour(NUM, [w]);
+  dit('« j ai termine » : la Maison repond elle-meme, Claude n est pas appele', [true, 0], [r.pris, DEMANDES.length]);
+  dit('la fonction recoit le rituel du jour de ce numero, lui seul, par la porte WhatsApp et la cle de service',
+    [{ action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-du-jour'] }, 'Bearer la-cle-de-la-maison'], [FINS[0]?.corps, FINS[0]?.cle]);
+  dit('un seul message : merci, le montant, le lien de reglement, l equipe prevenue',
+    [`Merci Mme Akouele, c'est noté. Votre rituel d'aujourd'hui, 12 000 F. Réglez depuis votre téléphone, en un toucher :\n${ADRESSE}\nL'équipe est prévenue.`], textesEnvoyes());
+  dit('la trace est signee Opale, le fil reste tenu, son message traite', [OPALE, 'besoin', true], [traces()[0]?.parQui, fil(NUM)?.etape, (fil(NUM)?.traites ?? []).includes(w)]);
+
+  decor(); FINS.length = 0;
+  rdv('rdv-de-demain', 'cl-banc-a', J1); rdv('rdv-annule', 'cl-banc-a', AUJOURDHUI, 'annulé');
+  REPONSE_DE_LA_FIN = { ok: true, etat: 'a-regler', adresse: ADRESSE, resteXof: 12000 };
+  const w2 = elleEcrit(NUM, 'j ai fini, mon code est MND-7K3Q');
+  const r2 = await tour(NUM, [w2]);
+  dit('sans rendez-vous du jour a ce numero (demain, ou annule) : la fonction n est pas appelee, AUCUN lien de reglement ne part',
+    [0, 1, false], [FINS.length, textesEnvoyes().length, /payer\.html|tg=r-/.test(textesEnvoyes().join(' '))]);
+  dit('... la Maison demande le code et ses quatre chiffres, sur la page du site, le code deja pose',
+    [true, true, true], [textesEnvoyes()[0]?.includes('code de confirmation'), textesEnvoyes()[0]?.includes('4 derniers chiffres'), textesEnvoyes()[0]?.includes('https://maisonmnd.com/mon-rendez-vous/?code=MND-7K3Q')]);
+  dit('... et la main passe a l equipe, prevenue (Claude n a pas ete appele)', ['main', true, 0], [fil(NUM)?.etape, !!r2.alerte, DEMANDES.length]);
+
+  decor(); FINS.length = 0;
+  rdv('rdv-du-jour', 'cl-banc-a', AUJOURDHUI);
+  REPONSE_DE_LA_FIN = { ok: true, etat: 'deja-regle' };
+  await tour(NUM, [elleEcrit(NUM, 'Je veux régler')]);
+  dit('deja regle : la Maison le dit, sans lien', [`Mme Akouele, votre rituel d'aujourd'hui est déjà réglé. Merci, et à très bientôt à la Maison MND.`], textesEnvoyes());
+
+  decor(); FINS.length = 0;
+  rdv('rdv-du-jour', 'cl-banc-a', AUJOURDHUI);
+  REPONSE_DE_LA_FIN = { ok: true, etat: 'a-regler', adresse: ADRESSE, resteXof: null };
+  await tour(NUM, [elleEcrit(NUM, 'Terminé')]);
+  dit('un montant que la fonction ne connait pas ne s invente pas : il l attend sur la page',
+    [`Merci Mme Akouele, c'est noté. Votre montant se prépare à la Maison : il vous attend sur la page. Réglez depuis votre téléphone, en un toucher :\n${ADRESSE}\nL'équipe est prévenue.`], textesEnvoyes());
+
+  decor(); FINS.length = 0;
+  rdv('rdv-du-jour', 'cl-banc-a', AUJOURDHUI);
+  REPONSE_DE_LA_FIN = null;
+  FILE = [{ texte: 'Merci Mme Akouele. Une personne de la Maison vous répond ici dans un instant.' }];
+  await tour(NUM, [elleEcrit(NUM, 'J’ai terminé')]);
+  dit('la fonction ne repond pas : rien d invente, la conversation suit son cours ordinaire (Claude repond)', [1, 1, false],
+    [FINS.length, DEMANDES.length, /payer\.html/.test(textesEnvoyes().join(' '))]);
+
+  /* Le rituel d'un enfant, sur le numéro de sa mère : le salut va à la mère. */
+  decor(); FINS.length = 0;
+  table('clients').unshift({ id: 'cl-enfant', data: { name: 'Sena Banc', phone: '+229 01 90 00 00 01', birthday: plusJours(AUJOURDHUI, -8 * 365) } });
+  rdv('rdv-de-l-enfant', 'cl-enfant', AUJOURDHUI);
+  REPONSE_DE_LA_FIN = { ok: true, etat: 'a-regler', adresse: ADRESSE, resteXof: 5000 };
+  await tour(NUM, [elleEcrit(NUM, 'c’est terminé')]);
+  dit('le rituel d un enfant sur le numero de sa mere : son rendez-vous est retrouve, le salut va a la mere, jamais a l enfant',
+    [['rdv-de-l-enfant'], true, false], [FINS[0]?.corps?.rdvIds, textesEnvoyes()[0]?.startsWith('Merci Mme Akouele, c\'est noté.'), /Sena/.test(textesEnvoyes().join(' '))]);
+
+  decor(); FINS.length = 0;
+  rdv('rdv-du-jour', 'cl-banc-a', AUJOURDHUI);
+  REPONSE_DE_LA_FIN = { ok: true, etat: 'a-regler', adresse: ADRESSE, resteXof: 12000 };
+  FILE = [{ texte: 'Bonjour Mme Akouele, que puis-je pour vous ?' }];
+  await tour(NUM, [elleEcrit(NUM, 'Je n’ai pas terminé, vous avez encore du monde ?')]);
+  dit('une phrase qui n est pas une declaration ne declenche rien : la fonction n est pas appelee', [0, 1], [FINS.length, DEMANDES.length]);
 }
 
 console.log(`${ko ? 'ECHEC' : 'OK   '} ${n} controles, ${ko} echec(s)`);

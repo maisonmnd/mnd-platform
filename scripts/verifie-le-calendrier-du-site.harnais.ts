@@ -296,7 +296,7 @@ dit('E10 rien ne change de ce qui tient : les places limitees dites, le repli Wh
   const wa = lis('supabase/functions/whatsapp-automate/index.ts');
   dit('F5 les deux fonctions a deployer portent la version du 6 novembre 2026', [true, true],
     [/const VERSION = '2026-11-06-a · la réservation jusqu’au dernier jour du troisième mois qui suit/.test(ds),
-      /const VERSION = '2026-11-06-a · la place jugee jusqu au dernier jour du troisieme mois qui suit/.test(wa)]);
+      /const VERSION = '2026-11-06-b · la place jugee jusqu au dernier jour du troisieme mois qui suit/.test(wa)]);
 }
 
 console.log(ko === 0 ? `\nLe calendrier du site tient (${n} controles).` : `\n${ko} controle(s) en echec sur ${n}.`);

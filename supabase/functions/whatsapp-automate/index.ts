@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-06-a · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-06-b · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » : le rituel du jour retrouve par le numero, le montant et le lien de reglement, sans rendez-vous du jour le code est demande et la main passe (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -6579,6 +6579,149 @@ async function compteDOpale(sb: Sb, usages: any[], ms: number): Promise<void> {
 
 type IssueDOpale = { texte: string; silence: boolean; issue: IssueDuTourDOpale; plan: boolean; alerte?: AlerteDeLAutomate; posee?: string; deplace?: DeplacementAPoser };
 
+/* ══ « J'AI TERMINÉ MON RDV » — 6 novembre 2026 (Terminer et régler, la
+   porte du WhatsApp de la Maison). « Quand le client finit son rendez-vous,
+   il peut aller sur le WhatsApp du Trône qui a confirmé son rendez-vous,
+   écrire "j'ai terminé mon RDV", et il reçoit automatiquement le lien de
+   paiement » (Yéman). La phrase se reconnaît ici (règle recopiée de
+   src/shared/terminer-et-regler-pur.ts, douze lunes R8) ; le rituel du jour
+   se retrouve par les fiches de CE numéro (un foyer : un seul lien) ; la
+   fonction `terminer-et-regler` juge la porte, pose la marque et le lien,
+   prévient le personnel ; la Maison répond avec le montant et le lien. Sans
+   rendez-vous du jour à ce numéro, elle demande le code : aucun lien de
+   règlement ne part au hasard, et la main passe à l'équipe. */
+
+/* ⟨j-ai-termine⟩ */
+/* LA PORTE DU WHATSAPP DE LA MAISON : « J'ai terminé mon RDV », en phrase
+   libre. La Maison reconnaît la phrase, retrouve le rituel du jour par le
+   numéro (la voix du numéro, jamais une fiche d'enfant) et répond avec le
+   montant et le lien de règlement. Sans rendez-vous du jour à ce numéro,
+   elle demande le code : aucun lien de règlement ne part au hasard. */
+
+const motsDuMessageDeFin = (texte: unknown): string =>
+  String(texte ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+/** Ce qui dit autre chose : une négation, une question, un autre achat, un
+    autre jour. Dans le doute, la conversation suit son cours ordinaire. */
+const AUTRE_CHOSE_QUE_LA_FIN = /\b(pas|jamais|quand|combien|pourquoi|comment|est ce|bientot|presque|encore|demain|hier|si|abonnement|formule|commande|acompte|avance|boutique|produit|carte|cadeau)\b/;
+/** Elle a fini : « j'ai terminé », « j'ai fini », « c'est fini », « on a terminé ». */
+const ELLE_A_FINI = /\b(j ai|jai|on a|nous avons|c est|cest|ca y est|j en ai)\b(?: \w+){0,2} (termine|terminee|termines|fini|finie|finis)\b/;
+/** La phrase tient en deux mots : « terminé », « rdv terminé », « séance finie ». */
+const FIN_EN_PEU_DE_MOTS = /^(?:(?:mon|ma|le|la|notre) )?(?:(?:rdv|rendez vous|seance|rituel|coiffure|soin) )?(?:est )?(?:termine|terminee|fini|finie)(?: merci)?$/;
+/** Elle veut régler : « je veux régler », « je voudrais payer », « le lien de paiement ». */
+const ELLE_VEUT_REGLER = /\b(?:je|j) (?:veux|voudrais|souhaite|souhaiterais|peux|vais|viens|aimerais|desire) (?:bien )?(?:regler|payer)\b|\b(?:je regle|je paie|je paye)\b|\blien (?:de|du|pour) (?:paiement|reglement|payer|regler)\b/;
+
+/** « J'AI TERMINÉ », EN PHRASE LIBRE : la casse, les accents et la
+    ponctuation ne comptent pas. Une phrase longue (plus de quatorze mots),
+    une négation ou une question ne sont pas une déclaration. */
+export function ditQuElleATermine(texte: unknown): boolean {
+  const t = motsDuMessageDeFin(texte);
+  if (!t || t.split(' ').length > 14) return false;
+  if (AUTRE_CHOSE_QUE_LA_FIN.test(t)) return false;
+  return ELLE_A_FINI.test(t) || FIN_EN_PEU_DE_MOTS.test(t) || ELLE_VEUT_REGLER.test(t);
+}
+
+/** Un code de confirmation écrit dans un message (« MND-7K3Q », « mnd 7k3q »),
+    ou null. Sans tiret, quatre lettres minuscules sans chiffre sont un mot
+    (« la Maison MND dans dix minutes »), pas un code. */
+export function codeDansLeMessage(texte: unknown): string | null {
+  const m = /\bmnd(-| ?)([abcdefghjklmnpqrstuvwxyz23456789]{4})\b/i.exec(String(texte ?? ''));
+  if (!m) return null;
+  const signes = m[2];
+  if (m[1] !== '-' && !/\d/.test(signes) && signes !== signes.toUpperCase()) return null;
+  return `MND-${signes.toUpperCase()}`;
+}
+
+/** La page du site où le code et les quatre chiffres retrouvent le rendez-vous. */
+export const PAGE_POUR_RETROUVER_SON_RDV = 'https://maisonmnd.com/mon-rendez-vous/';
+
+/** Ce que la Maison sait au moment de répondre (rendu par la fonction terminer-et-regler). */
+export type ReponseALaFin =
+  | { etat: 'a-regler'; resteXof: number | null; adresse: string; rituel?: string }
+  | { etat: 'deja-regle' | 'rien-a-regler' | 'clos' | 'comptoir' | 'sans-rdv' }
+  | { etat: 'avant-l-heure'; heure?: string };
+
+const francsDuMessageDeFin = (xof: number): string => `${String(Math.round(xof)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} F`;
+const heureDuMessageDeFin = (hhmm: unknown): string => {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(hhmm ?? ''));
+  return m ? (m[2] === '00' ? `${Number(m[1])} h` : `${Number(m[1])} h ${m[2]}`) : '';
+};
+
+/** LES MOTS DE LA MAISON, sur WhatsApp. `appel` : la civilité de la fiche et
+    le prénom quand la fiche la dit, le prénom seul sinon, rien si la Maison
+    ne la connaît pas. Jamais de numéro de pièce, jamais de tiret long. */
+export function motDeLaMaisonALaFin(o: { appel?: string; code?: string | null } & ReponseALaFin): string {
+  const appel = String(o.appel ?? '').trim();
+  const merci = appel ? `Merci ${appel}, c'est noté.` : `Merci, c'est noté.`;
+  const aElle = appel ? `${appel}, ` : '';
+  const debut = (s: string) => (appel ? `${aElle}${s}` : `${s.charAt(0).toUpperCase()}${s.slice(1)}`);
+  if (o.etat === 'a-regler') {
+    const rituel = String(o.rituel ?? '').trim();
+    const montant = o.resteXof !== null && o.resteXof > 0
+      ? `Votre rituel d'aujourd'hui${rituel ? ` : ${rituel}` : ''}, ${francsDuMessageDeFin(o.resteXof)}.`
+      : `Votre montant se prépare à la Maison : il vous attend sur la page.`;
+    return `${merci} ${montant} Réglez depuis votre téléphone, en un toucher :\n${o.adresse}\nL'équipe est prévenue.`;
+  }
+  if (o.etat === 'deja-regle') return debut(`votre rituel d'aujourd'hui est déjà réglé. Merci, et à très bientôt à la Maison MND.`);
+  if (o.etat === 'rien-a-regler') return debut(`il n'y a rien à régler pour votre rituel d'aujourd'hui. Merci, et à très bientôt à la Maison MND.`);
+  if (o.etat === 'clos') return debut(`votre rituel d'aujourd'hui est déjà clos à la Maison. Pour toute question, l'équipe vous répond ici.`);
+  if (o.etat === 'comptoir') return `${merci} Pour votre règlement, l'équipe vous attend au comptoir.`;
+  if (o.etat === 'avant-l-heure') {
+    const heure = heureDuMessageDeFin(o.heure);
+    return debut(`votre rituel est prévu aujourd'hui${heure ? ` à ${heure}` : ''}. Quand l'équipe aura fini, écrivez-nous « J'ai terminé » : votre lien de règlement arrivera aussitôt.`);
+  }
+  const lien = o.code ? `${PAGE_POUR_RETROUVER_SON_RDV}?code=${o.code}` : PAGE_POUR_RETROUVER_SON_RDV;
+  return `Merci de votre message. Nous ne trouvons pas de rendez-vous d'aujourd'hui à ce numéro. Avec votre code de confirmation (MND suivi de quatre signes, dans le message de la Maison) et les 4 derniers chiffres du numéro auquel la Maison vous a confirmé, retrouvez votre rendez-vous ici :\n${lien}\nL'équipe est prévenue et vous répond aussi.`;
+}
+/* ⟨/j-ai-termine⟩ */
+
+/** La réponse de la Maison à « j'ai terminé », ou null : la phrase n'en est
+    pas une, la fonction ne répond pas, ou le cas n'est pas des siens (la
+    conversation suit alors son cours ordinaire). `appel` : la voix du numéro,
+    jamais un enfant. */
+async function reponseALaFinDuRituel(
+  sb: Sb, x: { texte: string; fiches: readonly FicheDuNumero[]; aujourdhui: string; appel: string },
+): Promise<{ texte: string; sansRdv: boolean } | null> {
+  if (!ditQuElleATermine(x.texte)) return null;
+  const sansRdv = (): { texte: string; sansRdv: boolean } =>
+    ({ texte: motDeLaMaisonALaFin({ etat: 'sans-rdv', code: codeDansLeMessage(x.texte) }), sansRdv: true });
+  const ids = x.fiches.map((f) => f.id);
+  let rdvIds: string[] = [];
+  if (ids.length > 0) {
+    const { data, error } = await sb.from('appointments').select('id, data').in('data->>clientId', ids).eq('data->>date', x.aujourdhui).limit(12);
+    if (error) { dis('fin du rituel · rendez-vous illisibles', { motif: error.message.slice(0, 120) }); return null; }
+    /* Confirmé, ou honoré par l'équipe (sa pièce peut encore devoir) : rien d'autre n'est « du jour ». */
+    rdvIds = ((data ?? []) as Ligne[]).filter((l) => l.data && ['confirmé', 'honoré'].includes(String(l.data.status ?? ''))).map((l) => l.id);
+  }
+  if (rdvIds.length === 0) return sansRdv();
+  const base = (Deno.env.get('SUPABASE_URL') ?? '').replace(/\/$/, '');
+  const cle = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
+  if (!base || !cle) return null;
+  try {
+    const res = await fetch(`${base}/functions/v1/terminer-et-regler`, {
+      method: 'POST', signal: AbortSignal.timeout(20_000),
+      headers: { authorization: `Bearer ${cle}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'terminer', porte: 'whatsapp', rdvIds }),
+    });
+    // deno-lint-ignore no-explicit-any
+    const r: any = await res.json().catch(() => null);
+    if (!r || r.ok !== true) { dis('fin du rituel · la fonction ne repond pas', { statut: res.status }); return null; }
+    const etat = String(r.etat ?? '');
+    if (etat === 'a-regler' && typeof r.adresse === 'string' && r.adresse.startsWith('https://')) {
+      const reste = Number(r.resteXof);
+      return { texte: motDeLaMaisonALaFin({ appel: x.appel, etat: 'a-regler', resteXof: r.resteXof !== null && Number.isFinite(reste) && reste > 0 ? reste : null, adresse: r.adresse }), sansRdv: false };
+    }
+    if (etat === 'avant-l-heure') return { texte: motDeLaMaisonALaFin({ appel: x.appel, etat: 'avant-l-heure', ...(typeof r.heure === 'string' ? { heure: r.heure } : {}) }), sansRdv: false };
+    if (etat === 'deja-regle' || etat === 'rien-a-regler' || etat === 'clos' || etat === 'comptoir') return { texte: motDeLaMaisonALaFin({ appel: x.appel, etat }), sansRdv: false };
+    if (etat === 'sans-rdv') return sansRdv();
+    return null;
+  } catch (e) {
+    dis('fin du rituel · appel en echec', { motif: String((e as Error)?.message ?? e).slice(0, 120) });
+    return null;
+  }
+}
+
 async function unTourDOpale(
   // deno-lint-ignore no-explicit-any
   sb: Sb, o: Appel, docs: Map<string, any>, reglage: ReglageDeLAutomate, maison: { nom: string; itineraire: string; carte: string }, essai: number,
@@ -6896,8 +7039,27 @@ async function unTourDOpale(
   const claude = claudeDOpale();
   const usages: unknown[] = [];
   const questionFranche = estUneQuestionFrancheDOpale(nouveaux.map((m) => m.texte).join(' '));
-  let secours = !claude;
-  if (claude) {
+  /* ⑥ bis « J'AI TERMINÉ » (6 novembre 2026) : la Maison répond elle-même,
+     sans Claude, avec le montant et le lien de règlement du rituel du jour
+     de CE numéro. Le salut va à la voix du numéro, jamais à un enfant. Sans
+     rendez-vous du jour ici, elle demande le code et la main passe à
+     l'équipe. Tout autre cas : null, et Opale répond comme d'habitude. */
+  const appelDeLaVoix = voixFiche
+    ? (voixFiche.civilite ? appelDe({ name: voixFiche.name, civilite: voixFiche.civilite, auMasculin: voixFiche.auMasculin }) : prenomDuNomWa(voixFiche.name))
+    : adulteDuNumero ? (adulteDuNumero.civilite ? appelDe({ name: adulteDuNumero.nom, civilite: adulteDuNumero.civilite, auMasculin: adulteDuNumero.auMasculin }) : prenomDuNomWa(adulteDuNumero.nom)) : '';
+  const finDuRituel = !o.reprise && !o.deplacer
+    ? await reponseALaFinDuRituel(sb, { texte: tour.texte, fiches, aujourdhui, appel: appelDeLaVoix })
+    : null;
+  if (finDuRituel) {
+    issue.texte = finDuRituel.texte;
+    if (finDuRituel.sansRdv) {
+      issue.issue = { genre: 'main', motif: motifDuFilDOpale('question') };
+      issue.alerte = alerteDeLAutomate({ genre: 'main', prenom: prenomPourAlerte, numero: o.numero, motif: motifDuFilDOpale('question') });
+    }
+    dis('opale · fin du rituel', { sansRdv: finDuRituel.sansRdv });
+  }
+  let secours = !claude && !finDuRituel;
+  if (claude && !finDuRituel) {
     // deno-lint-ignore no-explicit-any
     const messages: any[] = [{ role: 'user', content: contexte }];
     let relu = false;

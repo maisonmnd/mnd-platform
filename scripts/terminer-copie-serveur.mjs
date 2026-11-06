@@ -19,6 +19,7 @@ export const COPIES = [
   { bloc: 'lien-du-rdv', source: 'src/shared/lien-du-rdv-pur.ts', cibles: [FONCTION] },
   { bloc: 'honneur-au-reglement', source: PUR, cibles: ['supabase/functions/regler-la-seance/index.ts', FONCTION] },
   { bloc: 'terminer-et-regler', source: PUR, cibles: [FONCTION] },
+  { bloc: 'j-ai-termine', source: PUR, cibles: ['supabase/functions/whatsapp-automate/index.ts'] },
 ];
 
 const lf = (s) => s.replace(/\r\n/g, '\n');
