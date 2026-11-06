@@ -118,7 +118,7 @@ export default function RituelEnCours({ nomDuRituel }: { nomDuRituel: (a: Appoin
         {enCours ? t('Un instant…') : aTermine ? t('Régler mon rituel') : t('Terminer mon rituel')}
       </button>
       {souci && <p className="mc-nextrdv__when mc-rituel__texte" role="alert">{t(souci)}</p>}
-      {!aTermine && <p className="mc-nextrdv__when mc-rituel__texte">{t('Si l’équipe ajoute une prestation ou un produit pendant le rituel, votre montant se met à jour tout seul.')}</p>}
+      {!aTermine && <p className="mc-nextrdv__when mc-rituel__texte">{t('Si l’équipe ajoute une prestation pendant le rituel, votre montant se met à jour tout seul.')}</p>}
     </div>
   );
 }

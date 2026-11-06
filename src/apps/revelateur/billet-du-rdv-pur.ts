@@ -132,7 +132,7 @@ export function reglementDuBillet(b: BilletDeLaFin): ReglementDit | null {
           sur: 'Votre rituel est en cours',
           phrase: 'Quand l’équipe a fini, terminez ici : vous réglez depuis votre téléphone et vous partez sans passer au comptoir.',
           ...(montant ? { montant } : {}), bouton: 'Terminer et régler',
-          note: 'Si l’équipe ajoute un soin ou un produit, le montant se met à jour sur la page du règlement.', leJourMeme: true,
+          note: 'Si l’équipe ajoute un soin, le montant se met à jour sur la page du règlement.', leJourMeme: true,
         };
   }
   /* Réglé d'avance, le rituel pas encore commencé : on le dit, et le rendez-vous garde Déplacer, Annuler et l'agenda. */

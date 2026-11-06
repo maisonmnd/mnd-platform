@@ -386,7 +386,7 @@ export const EN_TABS: Record<string, string> = {
   'Terminer mon rituel': 'End my ritual',
   'L’équipe est prévenue. Votre règlement vous attend.': 'The team has been told. Your payment is waiting for you.',
   'Régler mon rituel': 'Pay for my ritual',
-  'Si l’équipe ajoute une prestation ou un produit pendant le rituel, votre montant se met à jour tout seul.': 'If the team adds a service or a product during the ritual, your amount updates by itself.',
+  'Si l’équipe ajoute une prestation pendant le rituel, votre montant se met à jour tout seul.': 'If the team adds a service during the ritual, your amount updates by itself.',
   'Merci, {prenom}.': 'Thank you, {prenom}.',
   'Merci.': 'Thank you.',
   'Vous pouvez partir : la Maison est prévenue.': 'You may leave: the Maison has been told.',

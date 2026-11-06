@@ -750,7 +750,7 @@ dit('le lien du WhatsApp de la Maison mene a la page de la recherche', `https://
 const sBillet = await appelle(finir, { action: 'billet', v: sTrouve.corps.v });
 const billetDuJour = billetDeLaPageLu(sBillet.corps)!;
 dit('le billet du jour, a l heure du rituel : « Terminer et regler », le montant du serveur, plus de Deplacer ni d Annuler',
-  { sur: 'Votre rituel est en cours', phrase: 'Quand l’équipe a fini, terminez ici : vous réglez depuis votre téléphone et vous partez sans passer au comptoir.', montant: '12 000 F', bouton: 'Terminer et régler', note: 'Si l’équipe ajoute un soin ou un produit, le montant se met à jour sur la page du règlement.', leJourMeme: true },
+  { sur: 'Votre rituel est en cours', phrase: 'Quand l’équipe a fini, terminez ici : vous réglez depuis votre téléphone et vous partez sans passer au comptoir.', montant: '12 000 F', bouton: 'Terminer et régler', note: 'Si l’équipe ajoute un soin, le montant se met à jour sur la page du règlement.', leJourMeme: true },
   reglementDuBillet(billetDuJour));
 const sFin = await appelle(finir, { action: 'terminer', porte: 'site', v: sTrouve.corps.v });
 dit('« Terminer et regler » : le site ne suit que l adresse de la page « Regler » de la Maison', ['a-regler', true, 'panne', 'panne'],
@@ -848,6 +848,12 @@ dit('la carte suit la regle (ses rendez-vous a elle, « Passe au comptoir » l e
     /if \(r\.ok && r\.etat === 'a-regler' && r\.jeton\) \{ window\.location\.assign\(pageDuReglement\(r\.jeton\)\); return; \}/.test(carteMc)]);
 dit('... « vous pouvez partir » seulement quand la carte dit « regle » ; le bouton change de nom quand elle a termine', [true, true],
   [/if \(carte\.etat === 'regle'\) \{[\s\S]*t\('Vous pouvez partir : la Maison est prévenue\.'\)/.test(carteMc), /aTermine \? t\('Régler mon rituel'\) : t\('Terminer mon rituel'\)/.test(carteMc)]);
+/* LA GAMME N'EST PAS SUR SA PIECE (relecture du 6 novembre 2026) : la piece de la fin du rituel porte
+   les prestations, pas les produits. Aucun ecran ne promet qu'un produit s'ajoute a son montant. */
+const promesseDeLaCarte = /t\('(Si l’équipe ajoute[^']*)'\)/.exec(lis('src/apps/couronne/RituelEnCours.tsx'))?.[1] ?? '';
+dit('Ma Couronne ne promet que la prestation ajoutee (pas « ou un produit »), en francais comme en anglais ; le site ne promet que le soin',
+  ['Si l’équipe ajoute une prestation pendant le rituel, votre montant se met à jour tout seul.', 'If the team adds a service during the ritual, your amount updates by itself.', 'Si l’équipe ajoute un soin, le montant se met à jour sur la page du règlement.'],
+  [promesseDeLaCarte, (EN as Record<string, string>)[promesseDeLaCarte], reglementDuBillet(billetLu({ reference: 'MND-7K3Q', prenom: 'Awa', jour: JOUR, heure: '08:00', etat: 'en-cours', resteXof: 12000, porte: { ouverte: true, raison: 'ouverte' }, aTermine: false })!)?.note]);
 const pageRegler = sansCommentaires(lis('src/apps/regler/App.tsx'));
 dit('la page « Regler » : elle attend la piece en preparation (trois minutes), dit « vous pouvez partir » seulement si la fonction l a honore, et ramene a Ma Couronne',
   [true, true, true, true, true],
