@@ -2,7 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { useModelBands } from '../../shared/pricing';
 import { decaleLeJour } from '../../shared/ia-faits-pur';
 import type { LigneDeSeances, ReleveDeLAbonnee, ReleveDuContrat, SeanceDuContrat } from '../../shared/abonnee-pur';
-import { useNomDeService, Legende, type DemandeDeReglement } from './Abonnee';
+import { cheminDeLaLigne, PLUS_LONG_CHEMIN } from '../../shared/chemin-de-sceaux-pur';
+import { useNomDeService, Chemin, Legende, type DemandeDeReglement } from './Abonnee';
 import { ETAT_FORMULE, dateDansLaPhrase, dateLongue, heureDite, rangDit } from './releve';
 import { fourchetteDuModele } from './fourchette';
 import { t, prix } from './i18n';
@@ -19,20 +20,27 @@ import './abonnee.css';
    Maison a pu la prolonger, et c'est elle qui fait foi.
 
    UN SEUL PANNEAU OUVERT À LA FOIS, le résumé sur la ligne : on lit d'un coup
-   d'œil, on déplie pour le détail. */
+   d'œil, on déplie pour le détail.
+
+   TROIS RUBRIQUES REPLIÉES PAR FORMULE · 6 novembre 2026 (maquette
+   `public/maquette-l-abonnement-refait.html`, « construis ») : Mes séances,
+   Mon règlement, Ce qui est convenu. Chacune dit l'essentiel sur sa ligne ;
+   « Mes séances » s'ouvre seule à l'arrivée. Le chemin de sceaux remplace les
+   jetons : un sceau par séance, dans l'ordre où elle les vit. */
 
 const dernierJour = (au: string): string => decaleLeJour(au, -1);
 
-/** Les jetons d'une prestation : ✓ faite, × manquée, demi réservée, vide disponible. */
-function Jetons({ l, perdue }: { l: LigneDeSeances; perdue: boolean }) {
+/** La ligne ne rend plus rien de ses séances : finie, résiliée sans lune qui court, ou ancien carnet. */
+const lignePerdue = (c: ReleveDuContrat): boolean =>
+  c.etat === 'terminee' || (c.etat === 'resiliee' && !c.courtJusquau) || !!c.epuiseeParLAncienCarnet;
+
+/** Le chemin d'une prestation, dans l'en-tête de son pli ; au-delà de douze séances, le compte en mots. */
+function CheminDuPli({ c, l }: { c: ReleveDuContrat; l: LigneDeSeances }) {
   if (l.incluses === null) return null;
-  if (l.incluses > 12) return <span className="ab-pli__resume">{t('{n} prises sur {total}', { n: l.faites + l.manquees + l.reservees, total: l.incluses })}</span>;
+  if (l.incluses > PLUS_LONG_CHEMIN) return <span className="ab-pli__resume">{t('{n} prises sur {total}', { n: l.faites + l.manquees + l.reservees, total: l.incluses })}</span>;
   return (
-    <span className="ab-jetons" aria-hidden="true">
-      {Array.from({ length: l.incluses }, (_, i) => {
-        const cls = i < l.faites ? 'is-faite' : i < l.faites + l.manquees ? 'is-manquee' : i < l.faites + l.manquees + l.reservees ? 'is-reservee' : perdue ? 'is-perdue' : '';
-        return <span key={i} className={`ab-jeton ${cls}`}>{cls === 'is-faite' ? '✓' : cls === 'is-manquee' ? '×' : ''}</span>;
-      })}
+    <span className="ab-pli__chemin">
+      <Chemin pas={cheminDeLaLigne(c, l, lignePerdue(c))} grand voile={c.etat === 'retenue' || c.etat === 'en-pause'} />
     </span>
   );
 }
@@ -120,7 +128,7 @@ function LigneDePrestation({ c, l, ouvert, onBascule, onOpenRdv, onReserverInclu
   onReserverIncluse: () => void;
 }) {
   const nomDe = useNomDeService();
-  const perdue = c.etat === 'terminee' || (c.etat === 'resiliee' && !c.courtJusquau) || !!c.epuiseeParLAncienCarnet;
+  const perdue = lignePerdue(c);
   const resume = c.etat === 'retenue' ? (l.incluses ?? 0) > 1
     ? t('{n} séances, ouvertes au premier règlement', { n: l.incluses ?? 0 }) : t('{n} séance, ouverte au premier règlement', { n: l.incluses ?? 0 })
     : c.etat === 'en-pause' ? t('En pause : aucune séance incluse avant le règlement de la lune')
@@ -134,7 +142,7 @@ function LigneDePrestation({ c, l, ouvert, onBascule, onOpenRdv, onReserverInclu
         <span className="ab-pli__nom">{c.mode === 'cycle' && l.incluses !== null
           ? t('{prestation} · {n} par lune', { prestation: nomDe(l.serviceId), n: l.incluses }) : nomDe(l.serviceId)}</span>
         <span className="ab-pli__chev" aria-hidden="true">{ouvert ? '−' : '+'}</span>
-        <Jetons l={l} perdue={perdue} />
+        <CheminDuPli c={c} l={l} />
         <span className="ab-pli__resume">{resume ?? (l.incluses === null ? t('Sans limite.') : null)}</span>
         {!resume && l.incluses !== null && <span className="ab-pli__resume"><Legende l={l} perdue={perdue} /></span>}
       </button>
@@ -295,6 +303,51 @@ function Convenu({ c }: { c: ReleveDuContrat }) {
   );
 }
 
+/* ── LES RUBRIQUES REPLIÉES ───────────────────────────────────────────────
+   Le résumé se lit sans ouvrir ; il reprend les mots de la rubrique, jamais un
+   autre calcul. */
+function resumeDesSeances(c: ReleveDuContrat): ReactNode {
+  if (c.seances.length !== 1) return t('{n} prestations', { n: c.seances.length });
+  const l = c.seances[0];
+  if (c.etat === 'retenue' || c.etat === 'en-pause' || c.epuiseeParLAncienCarnet || l.incluses === null) return t(ETAT_FORMULE[c.etat].dit);
+  return <Legende l={l} perdue={lignePerdue(c)} />;
+}
+
+function resumeDuReglement(c: ReleveDuContrat): string {
+  const ar = c.argent;
+  if (c.mode === 'cycle' && !ar.echeances.length) {
+    if (c.etat === 'en-pause' && ar.luneARegler) return t('Lune à régler');
+    return c.lune ? t('Lune réglée jusqu’au {date}', { date: dateDansLaPhrase(dernierJour(c.lune.au)) }) : t('Chaque lune, avant la lune');
+  }
+  if (c.etat === 'retenue') return t('Rien n’est encore réglé');
+  if (c.etat === 'resiliee') return t('Résiliée');
+  return ar.resteXof > 0 ? t('Reste {montant}', { montant: prix(ar.resteXof) }) : t('Tout est réglé');
+}
+
+function resumeDuConvenu(c: ReleveDuContrat): string {
+  if (c.mode === 'cycle') return t('Chaque lune, avant la lune');
+  return c.finIso ? t('Valable jusqu’au {date}', { date: dateDansLaPhrase(c.finIso) }) : t('Sans date de fin');
+}
+
+function Rubrique({ titre, resume, ouverte, onBascule, children }: {
+  titre: string;
+  resume: ReactNode;
+  ouverte: boolean;
+  onBascule: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <section className={`ab-rub ${ouverte ? 'is-ouverte' : ''}`}>
+      <button type="button" className="ab-rub__tete" aria-expanded={ouverte} onClick={onBascule}>
+        <span className="ab-rub__titre">{titre}</span>
+        <span className="ab-rub__chev" aria-hidden="true">{ouverte ? '−' : '+'}</span>
+        <span className="ab-rub__resume">{resume}</span>
+      </button>
+      {ouverte && <div className="ab-rub__corps">{children}</div>}
+    </section>
+  );
+}
+
 /** Une formule passée, repliée : son état final, ses dates, ses séances faites. */
 function Passee({ c, ouvert, onBascule }: { c: ReleveDuContrat; ouvert: boolean; onBascule: () => void }) {
   const comptees = c.attribuees.filter((s) => s.compte && (s.etat === 'faite' || s.etat === 'manquee'));
@@ -342,6 +395,10 @@ export function SesFormules({ releve, prenom, selecteur, onRegler, onRenoncer, o
 }) {
   const [ouvert, setOuvert] = useState<string | null>(null);
   const bascule = (k: string) => setOuvert((o) => (o === k ? null : k));
+  /* La rubrique ouverte, une seule pour toute la page : « Mes séances » de la
+     première formule à l'arrivée. */
+  const [rubrique, setRubrique] = useState<string | null>(() => (releve.contrats[0] ? `${releve.contrats[0].sub.id}:seances` : null));
+  const basculeLaRubrique = (k: string) => setRubrique((o) => (o === k ? null : k));
   return (
     <div className="mc-fade">
       <div className="ab-tete">
@@ -353,15 +410,23 @@ export function SesFormules({ releve, prenom, selecteur, onRegler, onRenoncer, o
         {releve.contrats.map((c) => (
           <div key={c.sub.id} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <CarteDuContrat c={c} prenom={prenom} onRegler={onRegler} onRenoncer={onRenoncer} />
-            <div className="ab-lab">{prenom ? t('Ses séances') : t('Mes séances')}{c.mode === 'cycle' ? ` · ${t('cette lune')}` : ''}</div>
-            {c.seances.map((l) => (
-              <LigneDePrestation key={l.serviceId} c={c} l={l} ouvert={ouvert === `${c.sub.id}:${l.serviceId}`}
-                onBascule={() => bascule(`${c.sub.id}:${l.serviceId}`)} onOpenRdv={onOpenRdv} onReserverIncluse={onReserverIncluse} />
-            ))}
-            <div className="ab-lab">{prenom ? t('Son règlement') : t('Mon règlement')}</div>
-            <Reglement c={c} prenom={prenom} onRegler={onRegler} onSolde={onSolde} />
-            <div className="ab-lab">{t('Ce qui est convenu')}</div>
-            <Convenu c={c} />
+            <div className="ab-rubs">
+              <Rubrique titre={`${prenom ? t('Ses séances') : t('Mes séances')}${c.mode === 'cycle' ? ` · ${t('cette lune')}` : ''}`}
+                resume={resumeDesSeances(c)} ouverte={rubrique === `${c.sub.id}:seances`} onBascule={() => basculeLaRubrique(`${c.sub.id}:seances`)}>
+                {c.seances.map((l) => (
+                  <LigneDePrestation key={l.serviceId} c={c} l={l} ouvert={ouvert === `${c.sub.id}:${l.serviceId}`}
+                    onBascule={() => bascule(`${c.sub.id}:${l.serviceId}`)} onOpenRdv={onOpenRdv} onReserverIncluse={onReserverIncluse} />
+                ))}
+              </Rubrique>
+              <Rubrique titre={prenom ? t('Son règlement') : t('Mon règlement')}
+                resume={resumeDuReglement(c)} ouverte={rubrique === `${c.sub.id}:reglement`} onBascule={() => basculeLaRubrique(`${c.sub.id}:reglement`)}>
+                <Reglement c={c} prenom={prenom} onRegler={onRegler} onSolde={onSolde} />
+              </Rubrique>
+              <Rubrique titre={t('Ce qui est convenu')}
+                resume={resumeDuConvenu(c)} ouverte={rubrique === `${c.sub.id}:convenu`} onBascule={() => basculeLaRubrique(`${c.sub.id}:convenu`)}>
+                <Convenu c={c} />
+              </Rubrique>
+            </div>
           </div>
         ))}
         {!releve.contrats.length && (

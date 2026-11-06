@@ -80,6 +80,42 @@
 .ab-seg--perdue { border-color: var(--color-argile); background: repeating-linear-gradient(45deg, var(--color-argile) 0 1px, transparent 1px 5px); }
 .ab-barre3.is-voile .ab-seg { border-style: dashed; border-color: var(--color-argile); background: transparent; }
 
+/* LE CHEMIN DE SCEAUX (6 novembre 2026) : un sceau dentelé par séance, dans
+   l'ordre où elle les vit. Les matières sont celles de la légende : plein,
+   faite ; hachuré, réservée ; brique, manquée ; vide, disponible. */
+.ab-chemin { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 6px; margin-top: 9px; }
+.ab-chemin__motif { position: absolute; }
+.ab-pas { flex: none; display: block; }
+.ab-pas__fond { fill: transparent; stroke: var(--color-argile); stroke-width: 3; }
+.ab-pas__hachure { fill: var(--accent); }
+.ab-pas__n { font-family: var(--font-serif); font-size: 38px; fill: var(--ink-soft); font-variant-numeric: lining-nums; }
+.ab-pas--faite .ab-pas__fond { fill: var(--accent); stroke: var(--accent); }
+.ab-pas--faite .ab-pas__n { fill: var(--ab-sur-cuivre); }
+.ab-pas--manquee .ab-pas__fond { fill: var(--mc-error); stroke: var(--mc-error); }
+.ab-pas--manquee .ab-pas__n { fill: var(--paper); }
+.ab-pas--reservee .ab-pas__fond { stroke: var(--accent); }
+/* Le chiffre d'une réservée garde un liseré de la couleur de la carte : il se lit sur les hachures. */
+.ab-pas--reservee .ab-pas__n { fill: var(--mc-encre); font-weight: 600; paint-order: stroke; stroke: var(--surface-card); stroke-width: 10px; stroke-linejoin: round; }
+.ab-pas--perdue .ab-pas__fond { stroke-dasharray: 5 5; }
+.ab-pas--perdue .ab-pas__n { fill: var(--obsidian-300); }
+.ab-chemin.is-voile .ab-pas__fond { fill: transparent; stroke: var(--color-argile); stroke-dasharray: 5 5; }
+.ab-chemin.is-voile .ab-pas__n { fill: var(--obsidian-300); stroke: none; font-weight: 400; }
+.ab-pli__chemin { grid-column: 1 / -1; display: block; }
+.ab-pli__chemin .ab-chemin { margin-top: 5px; }
+
+/* LES RUBRIQUES REPLIÉES de « Ma formule » : le titre, son résumé, un seul panneau ouvert. */
+.ab-rubs { display: grid; }
+.ab-rub { border-top: 1px solid var(--hairline); }
+.ab-rub:last-child { border-bottom: 1px solid var(--hairline); }
+.ab-rub__tete { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; width: 100%; padding: 15px 2px; background: none; border: 0; text-align: left; cursor: pointer; font-family: var(--font-sans); color: var(--ink); }
+.ab-rub__titre { font-family: var(--font-serif); font-size: 22px; line-height: 1.15; color: var(--mc-encre); }
+.ab-rub__chev { grid-row: 1; grid-column: 2; font-size: 19px; line-height: 1; color: var(--mc-cuivre-texte); }
+.ab-rub__resume { grid-column: 1 / -1; font-size: 12px; color: var(--ink-soft); }
+.ab-rub__resume .ab-leg { margin-top: 0; }
+/* Ouverte, la rubrique dit tout dessous : son résumé ne se répète pas. */
+.ab-rub.is-ouverte .ab-rub__resume { display: none; }
+.ab-rub__corps { display: flex; flex-direction: column; gap: 12px; padding: 0 0 16px; }
+
 /* Le sceau d'argent de la carte indigo « Votre prochaine séance » */
 .ab-sceau { display: inline-block; margin-top: 11px; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; line-height: 1.5; text-transform: uppercase; color: var(--color-indigo-deep); background: var(--copper-200); border-radius: 3px; padding: 4px 9px; }
 .ab-sceau.is-hors { background: transparent; color: var(--copper-200); border: 1px solid var(--copper-300); }

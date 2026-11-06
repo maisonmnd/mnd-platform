@@ -2,6 +2,18 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## L'ABONNEMENT REFAIT, LOT 1 (LE SOCLE DANS MA COURONNE) : 6 novembre 2026
+
+« L'abonnement : à revisiter. Toutes ses pages et toutes ses rubriques […] pro, intelligente, structurée et facile à suivre […] un peu amusante pour inciter à revenir à sa prochaine séance » (Yéman). Maquette `public/maquette-l-abonnement-refait.html`, « construis » le 6 novembre 2026. Cinq lots, dans l'ordre de la maquette. Celui-ci ne touche que Ma Couronne : aucune migration, aucune fonction, le juge `abonnee-pur.ts` intact.
+
+- **Le chemin de sceaux** : `shared/chemin-de-sceaux-pur.ts` (`cheminDeLaLigne`, `etatDuPas`, `PLUS_LONG_CHEMIN` = 12). Un sceau dentelé par séance, dans l'ordre où elle les vit. Les comptes restent ceux du relevé (`LigneDeSeances`) ; les séances datées (`attribuees`) ne donnent que l'ordre et la date ; si elles ne disent pas le même compte que la ligne, l'ordre d'hier (par matière), sans dates. Jamais plus de sceaux que de séances vendues. « Perdue » n'est pas un état du juge : l'écran le dit en appelant.
+- **Les écrans** : `Chemin` (Abonnee.tsx) remplace `Barre3` sur la carte de l'accueil et les jetons de « Ma formule » ; au-delà de 12 séances, le compte en mots. « Ma formule » en trois rubriques repliées par formule (Mes séances, Mon règlement, Ce qui est convenu) : le résumé sur la ligne, une seule ouverte, « Mes séances » de la première formule à l'arrivée ; ouverte, une rubrique ne répète pas son résumé. Une seule alerte en haut de l'accueil d'une abonnée : le bandeau du rappel se tait quand le relevé porte une alerte.
+- **Le dessin** : cuivre plein, faite ; brique, manquée (chiffre couleur papier, lisible le soir) ; hachuré, réservée (chiffre à liseré couleur de la carte) ; contour, disponible ; pointillé, perdue ou formule voilée (retenue, en pause). Aucune couleur en dur.
+- **PIÈGE** : `--ink-mute` n'existe que le soir (couronne.css). De jour, `fill: var(--ink-mute)` rend NOIR dans un SVG et `color:` retombe sur la couleur héritée. Le chemin emploie `--obsidian-300`, qui existe de jour et de nuit. Des règles plus anciennes d'abonnee.css l'emploient encore (séance annulée barrée, échéance barrée, date d'un paiement, prix barré) : de jour elles ne sont pas grisées. À trancher : définir le jeton de jour, ou les passer à `--obsidian-300`.
+- **Banc** : `verifie-le-chemin-de-sceaux` (33 vérifications ; `--prouve`, 24 fautes).
+- **Regarder un écran de Ma Couronne sans navigateur connecté** : rendre le composant par `react-dom/server` avec les vraies feuilles, puis Chrome sans tête. ATTENTION : le `node_modules` d'une copie de travail est une jonction vers le dépôt principal ; un fichier d'entrée posé sous `node_modules/.cache` importe donc le `src` du dépôt principal, pas celui de la copie. Le poser dans la copie elle-même, puis l'effacer.
+- **Reste** : lot 2, l'attention (boutique des attentions, programme par formule, paniers de la semaine, liste de la veille, « Arrivée » et « Remise », « Mes attentions »), qui attend la liste simplifiée de Yéman ; lot 3, le Trône ; lot 4, les messages, par la salle d'attente ; lot 5, la page Abonnements du site.
+
 ## LA FERMETURE ANNONCÉE ET L'HEURE D'OUVERTURE : 6 novembre 2026
 
 « Il faut notifier sur le site internet et sur Ma Couronne que le salon est fermé du [vendredi] 1er au mardi 5, qu'on reprend le mercredi 6 janvier », la cadence ne tombe pas sur ces jours ; « il faut toujours regarder les jours des clients, les jours favoris » ; « personne n'a le droit d'avoir dans son calendrier 8 h 30 un samedi » (Yéman).

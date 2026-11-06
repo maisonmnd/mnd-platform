@@ -413,4 +413,8 @@ export const EN_ABONNEE: Record<string, string> = {
   'Le reste d’une formule sans échéancier : aucune date due, jamais en retard. Écrivez à la Maison pour convenir du règlement.': 'The balance of a plan without an instalment plan: no due date, never late. Write to the Maison to agree on payment.',
   'À moins de 24 h, écrivez à la Maison : elle peut la déplacer sans la compter.': 'Less than 24 h before, write to the Maison: it can move it without counting it.',
   'Écrire à la Maison': 'Write to the Maison',
+  /* Les rubriques repliées de Ma formule (6 novembre 2026) */
+  '{n} prestations': '{n} services',
+  'Lune à régler': 'Moon to pay',
+  'Lune réglée jusqu’au {date}': 'Moon paid until {date}',
 };

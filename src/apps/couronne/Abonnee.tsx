@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { useServices } from '../../shared/catalog';
@@ -7,6 +7,7 @@ import { decaleLeJour } from '../../shared/ia-faits-pur';
 import type {
   Alerte, LigneDeSeances, LigneDeSolde, ReleveDeLAbonnee, ReleveDuContrat,
 } from '../../shared/abonnee-pur';
+import { cheminDeLaLigne, type Pas } from '../../shared/chemin-de-sceaux-pur';
 import { useClient } from './lib';
 import { ETAT_FORMULE, dateCourte, dateDansLaPhrase, rangDit } from './releve';
 import { t, prix } from './i18n';
@@ -44,20 +45,45 @@ export function useNomDeService(): (id: string) => string {
 /** Le dernier jour d'une lune [du, au) : la veille de `au`. */
 const dernierJour = (au: string): string => decaleLeJour(au, -1);
 
-/* ── LA BARRE EN TROIS MATIÈRES ─────────────────────────────────────── */
-export function Barre3({ l, voile, perdue }: { l: LigneDeSeances; voile?: boolean; perdue?: boolean }) {
-  if (l.incluses === null) return null;
-  const segs: string[] = [];
-  for (let i = 0; i < l.incluses; i += 1) {
-    if (i < l.faites) segs.push('faite');
-    else if (i < l.faites + l.manquees) segs.push('manquee');
-    else if (i < l.faites + l.manquees + l.reservees) segs.push('reservee');
-    else segs.push(perdue ? 'perdue' : 'libre');
+/* ── LE CHEMIN DE SCEAUX · 6 novembre 2026 ──────────────────────────────
+   Un sceau dentelé par séance, dans l'ordre où elle les vit : il remplace la
+   barre en trois matières. Les matières restent celles de la légende (plein :
+   faite ; hachuré : réservée ; brique : manquée ; vide : disponible), et les
+   comptes sont ceux du relevé (`cheminDeLaLigne`). Le chemin se tait pour un
+   lecteur d'écran : la légende, juste dessous, le dit en mots. */
+const DENTELE = (() => {
+  const dents = 14;
+  let d = '';
+  for (let i = 0; i <= dents; i += 1) {
+    const a = (i * 2 * Math.PI) / dents - Math.PI / 2;
+    const x = (50 + 40 * Math.cos(a)).toFixed(2);
+    const y = (50 + 40 * Math.sin(a)).toFixed(2);
+    d += i === 0 ? `M${x} ${y}` : `A9.6 9.6 0 0 1 ${x} ${y}`;
   }
+  return `${d}Z`;
+})();
+
+export function Chemin({ pas, voile, grand }: { pas: Pas[] | null; voile?: boolean; grand?: boolean }) {
+  /* Les hachures d'une réservée : un motif par chemin, à son nom. */
+  const hachures = `ab-h${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  if (!pas || pas.length === 0) return null;
+  const taille = grand ? 38 : 30;
   return (
-    <div className={`ab-barre3 ${voile ? 'is-voile' : ''}`} aria-hidden="true">
-      {segs.map((s, i) => <i key={i} className={`ab-seg ab-seg--${s}`} />)}
-    </div>
+    <span className={`ab-chemin ${grand ? 'ab-chemin--grand' : ''} ${voile ? 'is-voile' : ''}`} aria-hidden="true">
+      <svg className="ab-chemin__motif" width="0" height="0" focusable="false">
+        <defs>
+          <pattern id={hachures} width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect className="ab-pas__hachure" width="3" height="7" />
+          </pattern>
+        </defs>
+      </svg>
+      {pas.map((p) => (
+        <svg key={p.n} className={`ab-pas ab-pas--${p.etat}`} viewBox="0 0 100 100" width={taille} height={taille} focusable="false">
+          <path className="ab-pas__fond" d={DENTELE} style={p.etat === 'reservee' && !voile ? { fill: `url(#${hachures})` } : undefined} />
+          <text className="ab-pas__n" x="50" y="52" textAnchor="middle" dominantBaseline="central">{p.n}</text>
+        </svg>
+      ))}
+    </span>
   );
 }
 
@@ -142,7 +168,7 @@ export function CarteFormule({ c, prenom, onFormule, onRegler, onRenoncer }: {
               : nomDe(l.serviceId)}</span>
             <b>{chiffreDeLaLigne(c, l)}</b>
           </div>
-          <Barre3 l={l} voile={voile} perdue={perdue} />
+          <Chemin pas={cheminDeLaLigne(c, l, perdue)} voile={voile} />
           {c.etat === 'retenue'
             ? <div className="ab-leg">{t('Elles s’ouvrent au premier règlement.')}</div>
             : c.etat === 'en-pause'

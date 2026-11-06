@@ -695,8 +695,11 @@ export function HomeTab({
       </div>
 
       <div className="mc-pagepad">
-        {/* rappel discret — rituel sous 48 h */}
-        {soon && (
+        {/* rappel discret, rituel sous 48 h. UNE SEULE ALERTE pour l'abonnée
+            (6 novembre 2026) : quand le relevé en porte une, c'est elle qui
+            parle, et la carte de la prochaine séance dit déjà le rituel qui
+            approche. */}
+        {soon && !(abonneeA && releveA?.alerte) && (
           <button className="mc-remindbanner" onClick={() => onOpenRdv(soon.id)}>
             <span className="mc-remindbanner__dot" aria-hidden="true" />
             <span className="mc-remindbanner__txt">
