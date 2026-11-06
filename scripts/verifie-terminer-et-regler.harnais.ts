@@ -14,6 +14,8 @@
    code éprouvé. Têtes et numéros INVENTÉS. Sortie ASCII : la console de
    Windows. */
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
   honneurAuReglement, jourDeLaFin, instantDuRituel, prixFigeDeLaFin, argentRecuDeLaFin, resteConnuDeLaFin,
   resteDeLaPieceDeLaFin, pieceDuRdvDeLaFin, porteDeLaFin, finValable, SIGNES_DU_CODE_DE_LA_FIN, codeLu, quatreChiffresLus,
@@ -21,14 +23,14 @@ import {
   SIGNES_DU_JETON_DE_LA_FIN, LONGUEUR_DU_JETON_DE_LA_FIN, jetonDeLaFin, estUnJetonDeLaFin, adresseDuReglementDeLaFin,
   lienDeLaFin, notificationDeLaFin, ditQuElleATermine, ditAutreChoseQueLaFin, nommeSonRendezVous, codeDansLeMessage, motDeLaMaisonALaFin, PAGE_POUR_RETROUVER_SON_RDV,
   aPeineCommence, ATTENTE_DE_LA_PORTE_WHATSAPP_MS, acompteAVerifier, notificationDeLAcompteAVerifier,
-  marqueDeLaFinAuCarnet, pieceAPreparer, suitesAFaire, carteDuRituelEnCours, versementsDejaRecus, gesteDeLaPiece, ATTENTE_D_UNE_RESERVATION_MS,
+  marqueDeLaFinAuCarnet, pieceAPreparer, suitesAFaire, carteDuRituelEnCours, versementsDejaRecus, gesteDeLaPiece, ATTENTE_D_UNE_RESERVATION_MS, soldeeEnLigne, PREFIXE_DU_VERSEMENT_EN_LIGNE,
   type RdvDeLaFin, type PieceDeLaFin,
 } from '../src/shared/terminer-et-regler-pur';
 import { ALPHABET_DE_LA_REFERENCE, referenceDuRendezVous, FORME_DU_JETON_DU_RDV, apptIdDuJeton } from '../src/shared/lien-du-rdv-pur';
 // @ts-expect-error module .mjs sans types
 import { ecartsDesCopies } from './terminer-copie-serveur.mjs';
 import {
-  ALPHABET_DU_JETON, LONGUEUR_DU_JETON, jetonDe, estUnJeton, parametreDuLien, resteDeLaPiece, laPieceDuRdv, type PieceLue,
+  ALPHABET_DU_JETON, LONGUEUR_DU_JETON, jetonDe, estUnJeton, parametreDuLien, resteDeLaPiece, laPieceDuRdv, PREFIXE_DU_VERSEMENT, type PieceLue,
 } from '../src/shared/regler-la-seance-pur';
 import { prixFigeLu } from '../src/shared/cloture-du-jour-pur';
 import { LIEN_TAPGO } from '../src/shared/mnd-pay-pur';
@@ -340,11 +342,29 @@ dit('la voix de la Maison : vous, ni tiret long, ni « salon », ni numero de pi
     TOUS_LES_MOTS.map((m) => m.includes('payer.html?tg=r-'))]);
 
 /* ── 13. Au Trone et dans Ma Couronne ──────────────────────────────────── */
-dit('le Carnet : rien sans declaration ; « A termine · reglement en cours » ; puis « Reglee en ligne · Depart sans caisse »',
-  [null, 'A terminé · règlement en cours', 'Réglée en ligne · Départ sans caisse', 'Réglée en ligne · Départ sans caisse', null],
-  [marqueDeLaFinAuCarnet({ status: 'confirmé' }, 12000), marqueDeLaFinAuCarnet({ status: 'confirmé', termineParElle: declare }, 12000)?.dit,
-    marqueDeLaFinAuCarnet({ status: 'honoré', termineParElle: declare, honoreAuReglement: { le: 'x' } }, 0)?.dit, marqueDeLaFinAuCarnet({ status: 'confirmé', termineParElle: declare }, 0)?.dit,
-    marqueDeLaFinAuCarnet({ status: 'annulé', termineParElle: declare }, 12000)]);
+/* LA PIECE FAIT FOI, JAMAIS LES SEULES MARQUES (relecture du 6 novembre 2026). `termineParElle` et
+   `honoreAuReglement` vivent sur le rendez-vous, qu'une cliente peut ecrire avec son compte : a eux
+   seuls ils ne disent jamais « Reglee en ligne · Depart sans caisse ». Ce qui le dit : SA PIECE,
+   soldee, avec un versement pose par la fonction regler-la-seance (kkia-…). */
+const EN_LIGNE = [{ id: 'deja-rdv-1-0' }, { id: 'kkia-tx-77' }];
+const AU_COMPTOIR = [{ id: 'v-comptoir-1' }];
+dit('une piece est « soldee en ligne » quand il ne reste rien ET qu un versement kkia-… y est ; ni soldee au comptoir, ni payee a moitie, ni sans piece',
+  [true, false, false, false, false, false],
+  [soldeeEnLigne({ resteXof: 0, versements: EN_LIGNE }), soldeeEnLigne({ resteXof: 0, versements: AU_COMPTOIR }), soldeeEnLigne({ resteXof: 4000, versements: EN_LIGNE }),
+    soldeeEnLigne({ resteXof: 0, versements: [] }), soldeeEnLigne(null), soldeeEnLigne({ resteXof: NaN, versements: EN_LIGNE })]);
+dit('le Carnet : rien sans declaration ; « A termine · reglement en cours » ; « Reglee en ligne · Depart sans caisse » quand sa piece est soldee en ligne ; rien pour un annule',
+  [null, 'A terminé · règlement en cours', 'A terminé · règlement en cours', 'Réglée en ligne · Départ sans caisse', null],
+  [marqueDeLaFinAuCarnet({ status: 'confirmé' }, { resteXof: 12000, versements: [] }), marqueDeLaFinAuCarnet({ status: 'confirmé', termineParElle: declare }, null)?.dit,
+    marqueDeLaFinAuCarnet({ status: 'confirmé', termineParElle: declare }, { resteXof: 12000, versements: [] })?.dit,
+    marqueDeLaFinAuCarnet({ status: 'honoré', termineParElle: declare }, { resteXof: 0, versements: EN_LIGNE })?.dit,
+    marqueDeLaFinAuCarnet({ status: 'annulé', termineParElle: declare }, { resteXof: 0, versements: EN_LIGNE })]);
+const MARQUES_SEULES = { status: 'honoré', termineParElle: declare, honoreAuReglement: { le: '2026-11-06T09:10:00.000Z' } } as const;
+dit('... les marques seules ne disent JAMAIS « Reglee en ligne » : sans piece, avec une piece qui doit encore (un encaissement annule), « A termine · reglement en cours »',
+  ['A terminé · règlement en cours', 'A terminé · règlement en cours', 'A terminé · règlement en cours'],
+  [marqueDeLaFinAuCarnet(MARQUES_SEULES, null)?.dit, marqueDeLaFinAuCarnet(MARQUES_SEULES, { resteXof: 12000, versements: [] })?.dit,
+    marqueDeLaFinAuCarnet(MARQUES_SEULES, { resteXof: 12000, versements: EN_LIGNE })?.dit]);
+dit('... et une piece soldee AU COMPTOIR n est pas « reglee en ligne » : aucune marque (le Carnet dit deja l encaissement)', [null, null],
+  [marqueDeLaFinAuCarnet(MARQUES_SEULES, { resteXof: 0, versements: AU_COMPTOIR }), marqueDeLaFinAuCarnet({ status: 'confirmé', termineParElle: declare }, { resteXof: 0, versements: [] })]);
 const valable = { le: new Date(aCotonou(JOUR, '09:30')).toISOString(), par: 'couronne' as const };
 dit('la piece a preparer au Trone : une declaration qui tient, un rendez-vous confirme, pas encore de piece', [true, false, false, false, false],
   [pieceAPreparer(rdv({ termineParElle: valable }), false), pieceAPreparer(rdv({ termineParElle: valable }), true), pieceAPreparer(rdv({}), false),
@@ -963,18 +983,116 @@ dit('les suites de l honneur pose au reglement : une fois (reservation de suites
     /\.eq\('id', a\.id\)\.is\('data->honoreAuReglement->>suitesLe', null\)\.select\('id'\);\s*if \(!\(prise \?\? \[\]\)\.length\) return;\s*honorAppointment\(a, byId, \{ muet: true \}\);/.test(effetSuites),
     /if \(!d \|\| d\.pointsAwarded \|\| !d\.honoreAuReglement \|\| d\.honoreAuReglement\.suitesLe\) return;/.test(effetSuites)]);
 const carnet = sansCommentaires(lis('src/apps/trone/routes/clients/Carnet.tsx'));
-dit('le Carnet porte la marque : « A termine · reglement en cours », puis « Reglee en ligne · Depart sans caisse »', [true, true],
-  [/const marque = a\.termineParElle \? marqueDeLaFinAuCarnet\(a, resteDeSaPiece\(a\.id\)\) : null;/.test(carnet), /title=\{marque\.sous\}\s*>\s*\{marque\.dit\}/.test(carnet)]);
+dit('le Carnet porte la marque, jugee sur SA PIECE (son reste et ses versements) : « A termine · reglement en cours », puis « Reglee en ligne · Depart sans caisse »', [true, true, true],
+  [/const marque = a\.termineParElle \? marqueDeLaFinAuCarnet\(a, saPiece\(a\.id\)\) : null;/.test(carnet), /title=\{marque\.sous\}\s*>\s*\{marque\.dit\}/.test(carnet),
+    /const saPiece = \(rdvId: string\): PieceAuCarnet \| null => \{\s*const p = laPieceDuRdv\(pieces as unknown as PieceLue\[\], rdvId\);\s*return p \? \{ resteXof: resteDeLaPiece\(p\), versements: p\.payments \?\? \[\] \} : null;/.test(carnet)]);
 const panneau = sansCommentaires(lis('src/apps/trone/routes/clients/ReglementEnDirect.tsx'));
 dit('le panneau « Le reglement en direct » dit sa declaration et par ou, au lieu d un message parti', [true, true],
   [/fin\s*\? \{ nom: 'A terminé', quand: heure\(fin\.le\), detail: PORTE_DITE\[fin\.par\] \?\? 'en ligne', fait: true \}\s*: \{ nom: 'Message parti'/.test(panneau),
-    /const marque = fin \? marqueDeLaFinAuCarnet\(rdv, piece \? e\.resteXof : null\) : null;/.test(panneau)]);
+    /const marque = fin \? marqueDeLaFinAuCarnet\(rdv, piece \? \{ resteXof: e\.resteXof, versements: piece\.payments \?\? \[\] \} : null\) : null;/.test(panneau)]);
 const guetteur = sansCommentaires(lis('src/apps/trone/shell/useReglementsEnLigne.ts'));
-dit('l annonce existante dit « Depart sans caisse » quand elle avait termine elle-meme et que sa piece est soldee', [true, true],
-  [/const sansCaisse = !!appts\.find\(\(a\) => a\.id === p\.apptId\)\?\.termineParElle && invoiceResteXof\(p\) <= 0;/.test(guetteur), /\$\{sansCaisse \? ' · Départ sans caisse' : ''\}/.test(guetteur)]);
+dit('l annonce existante dit « Depart sans caisse » quand elle avait termine elle-meme et que sa piece est soldee par un versement en ligne', [true, true],
+  [/const sansCaisse = !!appts\.find\(\(a\) => a\.id === p\.apptId\)\?\.termineParElle && soldeeEnLigne\(\{ resteXof: invoiceResteXof\(p\), versements: p\.payments \?\? \[\] \}\);/.test(guetteur), /\$\{sansCaisse \? ' · Départ sans caisse' : ''\}/.test(guetteur)]);
+dit('le prefixe du versement en ligne est celui que pose la fonction regler-la-seance', [PREFIXE_DU_VERSEMENT, true], [PREFIXE_DU_VERSEMENT_EN_LIGNE, /id: `\$\{PREFIXE_DU_VERSEMENT\}/.test(lis('src/shared/regler-la-seance-pur.ts'))]);
 const fiche = sansCommentaires(lis('src/apps/trone/routes/clients/Customers.tsx'));
 dit('la fiche porte la case « Passe au comptoir », qui ecrit passeAuComptoir et se retire en la decochant', [true, true, true],
   [/checked=\{client\.passeAuComptoir === true\}/.test(fiche), /onChange=\{\(e\) => patch\(\{ passeAuComptoir: e\.target\.checked \? true : undefined \}\)\}/.test(fiche), /<span style=\{\{ fontSize: 12\.5 \}\}>Passe au comptoir<\/span>/.test(fiche)]);
+
+/* ══ 19. LA GARDE DE LA BASE (0171, NON APPLIQUEE) : les deux marques ne
+   s'ecrivent que par la Maison ═══════════════════════════════════════════
+   Une cliente ecrit SA ligne de rendez-vous avec son compte (la regle
+   `own_upd`) ; la garde de 0138 ne connaissait pas `termineParElle` ni
+   `honoreAuReglement`. 0171 reprend la fonction de 0138 mot pour mot et
+   ajoute ces deux cles a ses deux listes. Son essai a blanc la rejoue a
+   l'identique, entre deux mesures, et annule tout. */
+const MIG_0171 = lis('supabase/migrations/0171_garde_terminer_et_regler.sql');
+const ESSAI_0171 = lis('supabase/essai_0171_a_blanc.sql');
+const blocDe = (sql: string): string => { const i = sql.indexOf('-- ⟨0171⟩\n'); const k = sql.indexOf('-- ⟨/0171⟩', i); return i >= 0 && k > i ? sql.slice(i + '-- ⟨0171⟩\n'.length, k) : ''; };
+/* Le SQL sans ses commentaires ni ses blancs : ce qui s'execute. */
+const nuDuSql = (sql: string): string => sql.replace(/--[^\n]*/g, '').replace(/\s+/g, '');
+const m0138 = lis('supabase/migrations/0138_le_parcours_de_l_abonnee.sql');
+const garde0138 = m0138.slice(m0138.indexOf('create or replace function public.garde_argent_cliente() returns trigger'), m0138.indexOf('drop trigger if exists garde_argent_cliente_biu on public.appointments;'));
+const AJOUT = ",'termineParElle','honoreAuReglement']loop";
+dit('0171 : la fonction de 0138 mot pour mot, avec les deux marques ajoutees a ses deux listes (la creation, la modification), et rien d autre',
+  [true, 2, true],
+  [blocDe(MIG_0171).length > 1000, nuDuSql(blocDe(MIG_0171)).split(AJOUT).length - 1, nuDuSql(blocDe(MIG_0171)).split(AJOUT).join(']loop') === nuDuSql(garde0138)]);
+dit('son essai a blanc rejoue la MEME migration, entre ses mesures d avant et d apres, et se termine par une exception qui annule tout', [true, true, true, true, false],
+  [blocDe(ESSAI_0171) === blocDe(MIG_0171), ESSAI_0171.indexOf('do $avant$') > 0 && ESSAI_0171.indexOf('do $avant$') < ESSAI_0171.indexOf('-- ⟨0171⟩'),
+    ESSAI_0171.indexOf('do $essai$') > ESSAI_0171.indexOf('-- ⟨/0171⟩'), /raise exception 'ESSAI 0171 : % \| %'[^;]*;\s*end \$essai\$;\s*$/.test(ESSAI_0171),
+    /\bcommit\b/i.test(ESSAI_0171.replace(/--[^\n]*/g, ''))]);
+dit('... il ne lit ni n ecrit aucune fiche reelle : un compte invente, trois lignes « essai-0171- », chaque tentative annulee sur-le-champ (ZZ171)', [true, true, true],
+  [/v_cliente uuid := gen_random_uuid\(\);/.test(ESSAI_0171), (ESSAI_0171.match(/'essai-0171-[abcf]'/g) ?? []).length >= 8,
+    (ESSAI_0171.match(/raise exception using errcode = 'ZZ171'/g) ?? []).length === 6 && !/from public\.clients/.test(ESSAI_0171.replace(/--[^\n]*/g, ''))]);
+/* Le vrai SQL, joue dans PGlite quand BANC_PGLITE nomme un dossier qui le porte
+   (node_modules/@electric-sql/pglite) : une maquette des regles de 0045 et de la
+   garde de 0138, l'essai, puis l'essai casse de quatre facons. Sans PGlite, cette
+   partie se SAUTE et le dit. */
+const chargePGlite = async (): Promise<any | null> => {
+  const dossier = process.env.BANC_PGLITE;
+  if (!dossier) return null;
+  try { const m = await import(pathToFileURL(path.join(dossier, 'node_modules/@electric-sql/pglite/dist/index.js')).href); return m?.PGlite ?? null; } catch { return null; }
+};
+const PGlite = await chargePGlite();
+if (!PGlite) {
+  console.log('SAUTE l essai a blanc de 0171 ne se joue pas ici, PGlite absent (BANC_PGLITE=<dossier qui porte node_modules/@electric-sql/pglite>)');
+} else {
+  const MAQUETTE = `
+    create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
+    grant anon, authenticated, service_role to current_user;
+    create schema auth;
+    create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+    create table public.staff (user_id uuid primary key, role text, created_at timestamptz default now());
+    create table public.appointments (id text primary key, branch_id text, data jsonb not null default '{}'::jsonb, updated_at timestamptz default now());
+    create table public.invoices (id text primary key, branch_id text, data jsonb not null default '{}'::jsonb, updated_at timestamptz default now());
+    create function public.is_staff() returns boolean language sql stable security definer set search_path = public as $$ select exists (select 1 from public.staff where user_id = auth.uid()) $$;
+    create function public.est_ma_tete(cible text) returns boolean language sql stable security definer set search_path = public as $$ select cible = (auth.uid())::text $$;
+    create function public.abo_iso(t timestamptz) returns text language sql immutable as $$ select to_char(t at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') $$;
+    ${m0138.slice(m0138.indexOf('create or replace function public.ecriture_de_la_maison()'), m0138.indexOf("-- UNE CLIENTE N'ÉCRIT JAMAIS UN CONTRAT"))}
+    grant usage on schema public, auth to anon, authenticated, service_role;
+    grant all on all tables in schema public to anon, authenticated, service_role;
+    grant execute on all functions in schema public to anon, authenticated, service_role;
+    grant execute on all functions in schema auth to anon, authenticated, service_role;
+    alter table public.appointments enable row level security;
+    alter table public.invoices enable row level security;
+    create policy own_sel on public.appointments for select to authenticated using (is_staff() or est_ma_tete(data->>'clientId'));
+    create policy own_ins on public.appointments for insert to authenticated with check (is_staff() or est_ma_tete(data->>'clientId'));
+    create policy own_upd on public.appointments for update to authenticated using (is_staff() or est_ma_tete(data->>'clientId')) with check (is_staff() or est_ma_tete(data->>'clientId'));
+    create policy own_sel on public.invoices for select to authenticated using (is_staff() or est_ma_tete(data->>'clientId'));
+    create policy own_upd on public.invoices for update to authenticated using (is_staff() or est_ma_tete(data->>'clientId')) with check (is_staff() or est_ma_tete(data->>'clientId'));
+    insert into public.staff (user_id, role) values (gen_random_uuid(), 'equipe');
+    insert into public.appointments (id, branch_id, data) values ('rdv-de-la-maquette', 'b1', '{"clientId":"quelqu-un","date":"2026-11-01","time":"09:00","status":"honoré"}');`;
+  const joue = async (sql: string, dabord = ''): Promise<{ message: string; reste: number; gardee: boolean }> => {
+    const base = new PGlite();
+    await base.exec(MAQUETTE);
+    if (dabord) await base.exec(dabord);
+    let message = '(aucun verdict)';
+    try { await base.exec(sql); } catch (e) { message = String((e as Error)?.message ?? e); }
+    const reste = (await base.query("select (select count(*) from public.appointments where id like 'essai-0171-%')::int + (select count(*) from public.invoices where id like 'essai-0171-%')::int as n")).rows[0].n as number;
+    const gardee = /termineParElle/.test((await base.query("select pg_get_functiondef(p.oid) as def from pg_proc p where p.proname = 'garde_argent_cliente'")).rows[0].def as string);
+    await base.close();
+    return { message, reste, gardee };
+  };
+  const casse = (avant: string, apres: string): string => (ESSAI_0171.includes(avant) ? ESSAI_0171.replace(avant, () => apres) : '');
+  const MODIF = "'annuleeLe', 'annuleePar', 'absente', 'rendue', 'proposeeLe',\n                                 'termineParElle', 'honoreAuReglement'] loop\n        new.data := new.data - cle;\n        if old.data ? cle then";
+  const avant = await joue(ESSAI_0171);
+  const apres = await joue(ESSAI_0171, MIG_0171);
+  dit('l essai a blanc, joue dans PGlite : avant 0171 la cliente pose et retire les deux marques ; apres, plus jamais ; TIENT, et rien ne reste (ni ligne d essai, ni la migration)',
+    [true, true, true, 0, false],
+    [/^ESSAI 0171 : TIENT \|/.test(avant.message), /cliente : poser avant \[1 ligne, termine pose, honneur pose, le reste ecrit\] apres \[1 ligne, termine refuse, honneur refuse, le reste ecrit\]/.test(avant.message),
+      /retirer avant \[1 ligne, termine retire, honneur retire, le reste ecrit\] apres \[1 ligne, termine garde, honneur garde, le reste ecrit\]/.test(avant.message), avant.reste, avant.gardee]);
+  dit('... l equipe et le serveur les posent et les retirent comme avant ; ce que 0138 gardait repond mot pour mot comme avant', [true, true],
+    [/equipe : poser avant \[1 ligne, termine pose, honneur pose, le reste ecrit\] apres \[1 ligne, termine pose, honneur pose, le reste ecrit\]/.test(avant.message),
+      /serveur : poser avant \[1 ligne, termine pose, honneur pose, le reste ecrit\] apres \[1 ligne, termine pose, honneur pose, le reste ecrit\]/.test(avant.message)]);
+  dit('... rejoue APRES 0171, il tient encore', [true, 0, true], [/^ESSAI 0171 : TIENT \|/.test(apres.message), apres.reste, apres.gardee]);
+  const cassees = [
+    await joue(casse(MODIF, MODIF.replace("'termineParElle', ", ''))),
+    await joue(casse("'confirmeeParLaClienteLe',\n                                 'termineParElle', 'honoreAuReglement'] loop", "'confirmeeParLaClienteLe',\n                                 'termineParElle'] loop")),
+    await joue(casse("'coverServiceId', 'priceXof',\n", "'coverServiceId',\n")),
+    await joue(casse('  if public.ecriture_de_la_maison() then\n    return new;                       -- comptoir, serveur, fonction du serveur : plein droit\n  end if;\n', '')),
+  ];
+  dit('... et une 0171 qui oublie une marque (a la modification, a la creation), qui desserre priceXof ou qui garde aussi la Maison lui fait dire NE TIENT PAS, sans rien laisser',
+    [[true, 0], [true, 0], [true, 0], [true, 0]], cassees.map((c) => [/^ESSAI 0171 : NE TIENT PAS/.test(c.message), c.reste]));
+}
 
 console.log(ko ? `\n${ko} echec(s) sur ${n}.` : `\nTout tient (${n} controles).`);
 if (ko) process.exit(1);

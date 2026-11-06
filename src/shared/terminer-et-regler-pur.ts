@@ -553,18 +553,36 @@ export function motDeLaMaisonALaFin(o: { appel?: string; code?: string | null } 
 
 /* ══ AU TRÔNE ET DANS MA COURONNE (rien de ceci ne part au serveur) ══════ */
 
+/** SA PIÈCE EST SOLDÉE PAR UN VERSEMENT EN LIGNE (relecture du 6 novembre
+    2026) : plus rien à régler, ET au moins un versement posé par la fonction
+    `regler-la-seance` (son identifiant commence par « kkia- », celui de la
+    transaction vérifiée chez KkiaPay). C'est la SEULE chose qui dit « Réglée
+    en ligne · Départ sans caisse » au Trône. Les marques du rendez-vous
+    (`termineParElle`, `honoreAuReglement`) ne le disent jamais à elles
+    seules : une marque se pose et se retire sans qu'un franc soit entré, et
+    une pièce soldée au comptoir n'est pas « réglée en ligne ». */
+export const PREFIXE_DU_VERSEMENT_EN_LIGNE = 'kkia-';
+export type PieceAuCarnet = { resteXof: number; versements: readonly { id?: string }[] };
+export function soldeeEnLigne(p: PieceAuCarnet | null | undefined): boolean {
+  return !!p && Number.isFinite(p.resteXof) && Math.round(p.resteXof) <= 0
+    && p.versements.some((v) => String(v?.id ?? '').startsWith(PREFIXE_DU_VERSEMENT_EN_LIGNE));
+}
+
 /** LA MARQUE DU CARNET : « A terminé · règlement en cours », puis « Réglée
-    en ligne · Départ sans caisse ». Rien pour un rendez-vous qu'elle n'a pas
-    terminé elle-même. `resteXof` : le reste de sa pièce, null sans pièce. */
+    en ligne · Départ sans caisse » quand SA PIÈCE est soldée par un versement
+    en ligne. Rien pour un rendez-vous qu'elle n'a pas terminé elle-même ;
+    rien non plus quand sa pièce est soldée autrement (au comptoir : le Carnet
+    le dit déjà). `piece` : sa pièce, null tant qu'elle n'est pas écrite. */
 export type MarqueAuCarnet = { etat: 'a-termine' | 'reglee-en-ligne'; dit: string; sous: string };
-export function marqueDeLaFinAuCarnet(r: Pick<RdvDeLaFin, 'status' | 'termineParElle' | 'honoreAuReglement'>, resteXof: number | null): MarqueAuCarnet | null {
+export function marqueDeLaFinAuCarnet(r: Pick<RdvDeLaFin, 'status' | 'termineParElle'>, piece: PieceAuCarnet | null): MarqueAuCarnet | null {
   if (!r.termineParElle?.le || r.status === 'annulé') return null;
-  if (r.honoreAuReglement?.le || (resteXof !== null && resteXof <= 0)) {
+  if (soldeeEnLigne(piece)) {
     return { etat: 'reglee-en-ligne', dit: 'Réglée en ligne · Départ sans caisse', sous: 'Rien à encaisser : le fauteuil est libre.' };
   }
+  if (piece && Number.isFinite(piece.resteXof) && Math.round(piece.resteXof) <= 0) return null;
   return {
     etat: 'a-termine', dit: 'A terminé · règlement en cours',
-    sous: resteXof === null ? 'Sa pièce se prépare : elle règle depuis son téléphone.' : 'Elle règle depuis son téléphone. Encaisser au comptoir reste possible.',
+    sous: piece === null ? 'Sa pièce se prépare : elle règle depuis son téléphone.' : 'Elle règle depuis son téléphone. Encaisser au comptoir reste possible.',
   };
 }
 

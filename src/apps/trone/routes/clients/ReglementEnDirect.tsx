@@ -39,7 +39,7 @@ export function ReglementEnDirect({ appt }: { appt: Appointment }) {
      message n'est parti, c'est elle qui a ouvert le règlement. La première
      étape dit sa déclaration, et par où ; la marque dit où elle en est. */
   const fin = rdv.termineParElle;
-  const marque = fin ? marqueDeLaFinAuCarnet(rdv, piece ? e.resteXof : null) : null;
+  const marque = fin ? marqueDeLaFinAuCarnet(rdv, piece ? { resteXof: e.resteXof, versements: piece.payments ?? [] } : null) : null;
   const PORTE_DITE = { couronne: 'depuis Ma Couronne', site: 'depuis le site', whatsapp: 'sur le WhatsApp de la Maison' } as const;
   const etapes: Etape[] = [
     fin

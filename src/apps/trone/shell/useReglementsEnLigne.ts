@@ -14,6 +14,7 @@ import { sonne } from '../../../shared/sonnette';
 import { useStaff } from '../routes/equipe/data';
 import { useLaPieceEnPdf } from '../routes/vente/pdf-de-la-piece';
 import { aAnnoncer, jourDuReglement, marqueLeReglement, partsDuReglement, reglementsATraiter } from '../../../shared/reglements-en-ligne-pur';
+import { soldeeEnLigne } from '../../../shared/terminer-et-regler-pur';
 
 /* ══ RÉGLÉ EN DIRECT — 25 octobre 2026 (« Régler sa séance ») ═══════════
    La cliente vient de payer sa séance depuis son téléphone : la fonction
@@ -58,7 +59,7 @@ export function useReglementsEnLigne(): void {
         const qui = p.clientName ?? clients.find((c) => c.id === p.clientId)?.name ?? 'Une cliente';
         /* DÉPART SANS CAISSE (6 novembre 2026, Terminer et régler) : elle avait
            terminé elle-même et sa pièce est soldée ; rien à encaisser au comptoir. */
-        const sansCaisse = !!appts.find((a) => a.id === p.apptId)?.termineParElle && invoiceResteXof(p) <= 0;
+        const sansCaisse = !!appts.find((a) => a.id === p.apptId)?.termineParElle && soldeeEnLigne({ resteXof: invoiceResteXof(p), versements: p.payments ?? [] });
         toast(`Réglé en direct · ${qui} · ${fmtMoney(r.montantXof, currency)}${r.moyen ? ` par ${r.moyen}` : ''}${r.pourboireXof > 0 ? ` · pourboire ${fmtMoney(r.pourboireXof, currency)} pour l’équipe` : ''}${sansCaisse ? ' · Départ sans caisse' : ''}.`, 7000);
       }
     }

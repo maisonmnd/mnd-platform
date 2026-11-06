@@ -17,7 +17,7 @@ import { monthTitle } from '../finances/_shared';
 import { appointmentsStore, apptPaidXof, type Appointment } from '../../../../shared/agenda';
 import { useInvoices } from '../../../../shared/finance';
 import { laPieceDuRdv, resteDeLaPiece, type PieceLue } from '../../../../shared/regler-la-seance-pur';
-import { marqueDeLaFinAuCarnet } from '../../../../shared/terminer-et-regler-pur';
+import { marqueDeLaFinAuCarnet, type PieceAuCarnet } from '../../../../shared/terminer-et-regler-pur';
 import { useCategories, useServices, useProducts, MAISONS, type Maison } from '../../../../shared/catalog';
 import { useModelBands, useBandSets } from '../../../../shared/pricing';
 import { useSettings, openingForIso } from '../../../../shared/settings';
@@ -385,11 +385,13 @@ export default function Carnet() {
   const [pieces] = useInvoices();
   const rdvsFactures = useMemo(() => new Set(pieces
     .filter((p) => p.apptId && p.kind === 'facture').map((p) => p.apptId as string)), [pieces]);
-  /* Le reste de la pièce d'un rendez-vous qu'elle a terminé elle-même (6
-     novembre 2026) : null tant que sa pièce n'est pas écrite. */
-  const resteDeSaPiece = (rdvId: string): number | null => {
+  /* La pièce d'un rendez-vous qu'elle a terminé elle-même (6 novembre 2026) :
+     son reste et ses versements, null tant qu'elle n'est pas écrite. C'est
+     la pièce, soldée par un versement en ligne, qui dit « Réglée en ligne » :
+     jamais les seules marques du rendez-vous. */
+  const saPiece = (rdvId: string): PieceAuCarnet | null => {
     const p = laPieceDuRdv(pieces as unknown as PieceLue[], rdvId);
-    return p ? resteDeLaPiece(p) : null;
+    return p ? { resteXof: resteDeLaPiece(p), versements: p.payments ?? [] } : null;
   };
   const lus = useMemo(() => appts.map((a): RdvLu => ({
     id: a.id, clientId: a.clientId, date: a.date, time: a.time, status: a.status, master: a.master,
@@ -888,7 +890,7 @@ export default function Carnet() {
               « A terminé · règlement en cours », puis « Réglée en ligne · Départ
               sans caisse ». Rien pour un rendez-vous qu'elle n'a pas terminé. */}
           {(() => {
-            const marque = a.termineParElle ? marqueDeLaFinAuCarnet(a, resteDeSaPiece(a.id)) : null;
+            const marque = a.termineParElle ? marqueDeLaFinAuCarnet(a, saPiece(a.id)) : null;
             return marque && (
               <span
                 className={marque.etat === 'reglee-en-ligne' ? 'trc-src trc-src--indigo' : 'trc-src'}

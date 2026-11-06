@@ -42,6 +42,8 @@ const SITE = 'src/apps/revelateur/billet-du-rdv-pur.ts';
 const ILOT = 'src/apps/revelateur/ilots/MonRendezVous.tsx';
 const CONTENU = 'src/apps/revelateur/contenu.ts';
 const GENERE = 'scripts/genere-revelateur.mjs';
+const MIG = 'supabase/migrations/0171_garde_terminer_et_regler.sql';
+const ESSAI = 'supabase/essai_0171_a_blanc.sql';
 const PANNES = [
   /* ── Le serveur : les vraies fonctions, rejouees ── */
   ['le reglement n honore plus', REG, "  return honneur ? ({ ...regle, status: 'honoré', honoreAuReglement: honneur } as RdvLu) : regle;", '  return regle;'],
@@ -113,9 +115,18 @@ const PANNES = [
   ['l acompte monte sans dire qu il est entre un autre jour', MAIN, ', depositCreditXof: (i.depositCreditXof ?? 0) + dejaXof } : i)));', ' } : i)));'],
   ['au comptoir, l acompte s ecrit une seconde fois sur la piece', ENCAISSEMENT, "      const depositCredit = depositReceived && alreadyPaid === 0 && !acompteDejaSurLaPiece ? deposit : 0;", "      const depositCredit = depositReceived && alreadyPaid === 0 ? deposit : 0;"],
   ['le comptoir ne regarde pas les « Acompte » de la piece ouverte', ENCAISSEMENT, ".some((v) => v.method === 'Acompte');\n      const depositCredit", ".some((v) => v.method === 'Avoir');\n      const depositCredit"],
-  ['le Carnet tait la marque', CARNET, 'const marque = a.termineParElle ? marqueDeLaFinAuCarnet(a, resteDeSaPiece(a.id)) : null;', 'const marque = null as ReturnType<typeof marqueDeLaFinAuCarnet>;'],
+  ['le Carnet tait la marque', CARNET, 'const marque = a.termineParElle ? marqueDeLaFinAuCarnet(a, saPiece(a.id)) : null;', 'const marque = null as ReturnType<typeof marqueDeLaFinAuCarnet>;'],
+  /* La piece fait foi, jamais les seules marques (relecture du 6 novembre 2026). */
+  ['marque : les marques seules disent « Reglee en ligne · Depart sans caisse »', PUR, "  if (soldeeEnLigne(piece)) {\n    return { etat: 'reglee-en-ligne'", "  if (soldeeEnLigne(piece) || (r as { honoreAuReglement?: { le?: string } }).honoreAuReglement?.le) {\n    return { etat: 'reglee-en-ligne'"],
+  ['marque : une piece soldee au comptoir se dit « reglee en ligne »', PUR, "\n    && p.versements.some((v) => String(v?.id ?? '').startsWith(PREFIXE_DU_VERSEMENT_EN_LIGNE));", ';'],
+  ['marque : une piece qui doit encore se dit « reglee en ligne » (un encaissement annule)', PUR, ' && Math.round(p.resteXof) <= 0\n    && p.versements', '\n    && p.versements'],
+  ['marque : le prefixe n est plus celui que pose la fonction', PUR, "export const PREFIXE_DU_VERSEMENT_EN_LIGNE = 'kkia-';", "export const PREFIXE_DU_VERSEMENT_EN_LIGNE = 'kk-';"],
+  ['marque : soldee au comptoir, le Carnet dit encore « reglement en cours »', PUR, '  if (piece && Number.isFinite(piece.resteXof) && Math.round(piece.resteXof) <= 0) return null;\n', ''],
+  ['marque : le Carnet juge sans les versements de la piece', CARNET, 'return p ? { resteXof: resteDeLaPiece(p), versements: p.payments ?? [] } : null;', 'return p ? { resteXof: resteDeLaPiece(p), versements: [] } : null;'],
+  ['marque : le panneau juge sans les versements de la piece', PANNEAU, '{ resteXof: e.resteXof, versements: piece.payments ?? [] }', '{ resteXof: e.resteXof, versements: [] }'],
+  ['marque : l annonce dit « Depart sans caisse » sans versement en ligne', GUETTEUR, '&& soldeeEnLigne({ resteXof: invoiceResteXof(p), versements: p.payments ?? [] });', '&& invoiceResteXof(p) <= 0;'],
   ['le panneau dit « Message parti » a celle qui a termine elle-meme', PANNEAU, "    fin\n      ? { nom: 'A terminé'", "    false\n      ? { nom: 'A terminé'"],
-  ['« Depart sans caisse » pour tout reglement en ligne', GUETTEUR, 'const sansCaisse = !!appts.find((a) => a.id === p.apptId)?.termineParElle && invoiceResteXof(p) <= 0;', 'const sansCaisse = true;'],
+  ['« Depart sans caisse » pour tout reglement en ligne', GUETTEUR, 'const sansCaisse = !!appts.find((a) => a.id === p.apptId)?.termineParElle && soldeeEnLigne({ resteXof: invoiceResteXof(p), versements: p.payments ?? [] });', 'const sansCaisse = true;'],
   ['la case « Passe au comptoir » n ecrit rien', FICHE, 'onChange={(e) => patch({ passeAuComptoir: e.target.checked ? true : undefined })}', 'onChange={() => patch({})}'],
   /* ── La porte de Ma Couronne, et la page « Regler » ── */
   ['l accueil de Ma Couronne ne monte pas la carte', TABS, "        <RituelEnCours nomDuRituel={(a) => serviceNames(a, services)} />\n", ''],
@@ -233,6 +244,14 @@ const PANNES = [
   ['produit : Ma Couronne promet qu un produit s ajoute au montant', CARTE, 'ajoute une prestation pendant le rituel', 'ajoute une prestation ou un produit pendant le rituel'],
   ['produit : l anglais promet qu un produit s ajoute au montant', ENTABS, 'adds a service during the ritual', 'adds a service or a product during the ritual'],
   ['produit : le site promet qu un produit s ajoute au montant', SITE, 'ajoute un soin, le montant', 'ajoute un soin ou un produit, le montant'],
+  /* La garde de la base (0171, non appliquee) et son essai a blanc. */
+  ['garde : 0171 oublie termineParElle a la modification', MIG, "'proposeeLe',\n                                 'termineParElle', 'honoreAuReglement'] loop\n        new.data := new.data - cle;\n        if old.data ? cle then", "'proposeeLe',\n                                 'honoreAuReglement'] loop\n        new.data := new.data - cle;\n        if old.data ? cle then"],
+  ['garde : 0171 oublie honoreAuReglement a la creation', MIG, "'confirmeeParLaClienteLe',\n                                 'termineParElle', 'honoreAuReglement'] loop", "'confirmeeParLaClienteLe',\n                                 'termineParElle'] loop"],
+  ['garde : 0171 desserre ce que 0138 gardait (priceXof)', MIG, "'coverServiceId', 'priceXof',\n", "'coverServiceId',\n"],
+  ['garde : 0171 garde aussi la Maison', MIG, '  if public.ecriture_de_la_maison() then\n    return new;                       -- comptoir, serveur, fonction du serveur : plein droit\n  end if;\n', ''],
+  ['garde : l essai ne rejoue pas la meme migration', ESSAI, "'confirmeeParLaClienteLe',\n                                 'termineParElle', 'honoreAuReglement'] loop", "'confirmeeParLaClienteLe',\n                                 'termineParElle'] loop"],
+  ['garde : l essai ecrit pour de bon (son verdict n annule plus rien)', ESSAI, "  raise exception 'ESSAI 0171 : % | %'", "  raise notice 'ESSAI 0171 : % | %'"],
+  ['garde : l essai lit une fiche reelle', ESSAI, '  v_cliente uuid := gen_random_uuid();', '  v_cliente uuid := (select id::uuid from public.clients limit 1);'],
   ['vingt minutes : le delai de la porte WhatsApp saute', PUR, 'export const ATTENTE_DE_LA_PORTE_WHATSAPP_MS = 20 * 60_000;', 'export const ATTENTE_DE_LA_PORTE_WHATSAPP_MS = 0;'],
   ['vingt minutes : avant l heure passe pour « a peine commence »', PUR, '  return Number.isFinite(debut) && maintenantMs >= debut && maintenantMs < debut + ATTENTE_DE_LA_PORTE_WHATSAPP_MS;', '  return Number.isFinite(debut) && maintenantMs < debut + ATTENTE_DE_LA_PORTE_WHATSAPP_MS;'],
   ['vingt minutes : WhatsApp declare un rituel qui commence a peine', TER, "      porte: porte === 'whatsapp' && laPorte.ouverte && aPeineCommence(rdv, maintenant) ? { ouverte: false, raison: 'a-peine-commence' } : laPorte,", '      porte: laPorte,'],
@@ -252,7 +271,7 @@ const PANNES = [
   ['un lien de reglement part sans rendez-vous', PUR, '  const lien = o.code ? `${PAGE_POUR_RETROUVER_SON_RDV}?code=${o.code}` : PAGE_POUR_RETROUVER_SON_RDV;', "  const lien = 'https://maisonmnd.com/trone/payer.html?tg=r-22222222222222';"],
   ['un montant invente sur WhatsApp', PUR, '    const montant = o.resteXof !== null && o.resteXof > 0\n', '    const montant = true\n'],
   ['« deja regle » ne se dit plus', PUR, "votre rituel d'aujourd'hui est déjà réglé. Merci", "votre rituel d'aujourd'hui vous attend. Merci"],
-  ['le Carnet dit « reglee » avant le reglement', PUR, "  if (r.honoreAuReglement?.le || (resteXof !== null && resteXof <= 0)) {", '  if (r.termineParElle?.le) {'],
+  ['le Carnet dit « reglee » avant le reglement', PUR, "  if (soldeeEnLigne(piece)) {\n    return { etat: 'reglee-en-ligne'", "  if (r.termineParElle?.le) {\n    return { etat: 'reglee-en-ligne'"],
   ['le Trone prepare une piece sans declaration valable', PUR, "  return !aDejaSaPiece && r.status === 'confirmé' && finValable(r);", "  return !aDejaSaPiece && r.status === 'confirmé';"],
   ['le Trone prepare deux pieces', PUR, "  return !aDejaSaPiece && r.status === 'confirmé' && finValable(r);", "  return r.status === 'confirmé' && finValable(r);"],
   ['les suites se font deux fois', PUR, ' && !r.honoreAuReglement.suitesLe;', ';'],
