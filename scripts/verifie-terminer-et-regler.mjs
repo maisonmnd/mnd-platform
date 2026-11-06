@@ -13,11 +13,14 @@ import { spawnSync } from 'node:child_process';
    seulement dans une copie propre detachee.
    `--prouve --tranche=1/3` : la preuve en plusieurs passes (une faute sur
    trois, la premiere), pour un lanceur qui coupe les commandes longues ;
-   les tranches 1/3, 2/3 et 3/3 ensemble couvrent toutes les fautes. */
+   les tranches 1/3, 2/3 et 3/3 ensemble couvrent toutes les fautes.
+   `--prouve --seulement=frein,acompte` : les seules fautes dont le nom porte
+   l'un de ces mots (la preuve d'une correction, sans rejouer les autres). */
 
 const racine = path.resolve(import.meta.dirname, '..');
 const prouve = process.argv.includes('--prouve');
 const tranche = /^--tranche=(\d+)\/(\d+)$/.exec(process.argv.find((a) => a.startsWith('--tranche=')) ?? '');
+const seulement = (process.argv.find((a) => a.startsWith('--seulement=')) ?? '').slice('--seulement='.length).split(',').filter(Boolean);
 
 const PUR = 'src/shared/terminer-et-regler-pur.ts';
 const TER = 'supabase/functions/terminer-et-regler/index.ts';
@@ -53,9 +56,21 @@ const PANNES = [
   ['la copie de la regle derive dans terminer-et-regler', TER, 'export const JOURS_APRES_DE_LA_RECHERCHE = 100;', 'export const JOURS_APRES_DE_LA_RECHERCHE = 101;'],
   ['la porte WhatsApp s ouvre sans la cle de service', TER, "    if (!parLeService(req)) return json({ ok: false, error: 'interdit' }, 403);\n", ''],
   ['Ma Couronne termine le rendez-vous d une autre', TER, "      if (!ligne || String(ligne.data?.clientId ?? '') !== ficheId) return json({ ok: false, error: 'introuvable' }, 404);", "      if (!ligne) return json({ ok: false, error: 'introuvable' }, 404);"],
-  ['un echec ne compte plus : le frein par code est mort', TER, "    if (code) await note('fin-echec', code);\n", ''],
-  ['le frein n arrete plus rien', TER, "  if (frein !== 'libre') return json({ ok: false, error: 'trop' }, 429);\n", ''],
-  ['la reponse trahit un code qui existe', TER, "    return json({ ok: false, error: 'introuvable' });", "    return json({ ok: false, error: candidats.length ? 'chiffres' : 'introuvable' });"],
+  ['un echec ne compte plus : le frein par code est mort', TER, 'echecsDuCodeDansLHeure: dansLHeure - 1, echecsDuCodeDuJour: duJour - 1 })', 'echecsDuCodeDansLHeure: 0, echecsDuCodeDuJour: 0 })'],
+  ['le frein n arrete plus rien', TER, "echecsDuCodeDuJour: duJour - 1 }) !== 'libre') {", "echecsDuCodeDuJour: duJour - 1 }) === 'jamais') {"],
+  ['la reponse trahit un code qui existe', TER, "  if (!ligne || !SECRET_DES_LIENS) return json({ ok: false, error: 'introuvable' });", "  if (!ligne || !SECRET_DES_LIENS) return json({ ok: false, error: candidats.length ? 'chiffres' : 'introuvable' });"],
+  /* Le frein tient en rafale, se ferme quand il ne se lit pas, et la recherche lit peu (relecture du 6 novembre 2026). */
+  ['frein : la recherche compte avant de noter, une rafale passe l adresse', TER, "  const essaiDeLAdresse = await note('fin-retrouver', ip);", "  const essaiDeLAdresse: Essai = 0; setTimeout(() => { void note('fin-retrouver', ip); }, 0);"],
+  ['frein : l essai du code se note apres coup, une rafale passe le code', TER, "  const essaiDuCode = code ? await note('fin-echec', code) : null;", "  const essaiDuCode: Essai = code ? 0 : null; if (code) setTimeout(() => { void note('fin-echec', code); }, 0);"],
+  ['frein : l adresse laisse passer une recherche de trop', TER, 'essaisDeLAdresse: deLAdresse - 1,', 'essaisDeLAdresse: deLAdresse - 2,'],
+  ['frein : un compte illisible passe pour zero', TER, '  return error ? null : (count ?? 0);', '  return error ? 0 : (count ?? 0);'],
+  ['frein : un essai qui ne s inscrit pas n arrete rien', TER, '  return error ? null : ((data ?? [])[0]?.id ?? null);', '  return error ? 0 : ((data ?? [])[0]?.id ?? null);'],
+  ['frein : un essai refuse reste inscrit', TER, '    await oublie(essaiDeLAdresse);\n    await oublie(essaiDuCode);\n', ''],
+  ['frein : une recherche reussie compte pour un echec', TER, '  await oublie(essaiDuCode);\n  return json({ ok: true, v:', '  return json({ ok: true, v:'],
+  ['frein : chaque essai relit cent jours de rendez-vous avec leurs donnees', TER, "admin.from('appointments').select('id')\n      .gte('data->>date', f.du)", "admin.from('appointments').select('id,branch_id,data,updated_at')\n      .gte('data->>date', f.du)"],
+  ['frein : un code inconnu fait moins de travail qu un code connu', TER, "for (const id of ids.length ? ids : ['personne'])", 'for (const id of ids)'],
+  ['frein : une porte ordinaire compte avant de noter', TER, '  const essai = await note(seau, ip);\n  const vus = await combien(seau, ip, 10);', '  const essai: Essai = 0; setTimeout(() => { void note(seau, ip); }, 0);\n  const vus = await combien(seau, ip, 10);'],
+  ['frein : une porte ordinaire laisse passer un de trop', TER, 'vus > plafond) {', 'vus > plafond + 1) {'],
   ['le personnel prevenu a chaque toucher', TER, '  if (neuve) {', '  if (true) {'],
   ['le personnel n est plus prevenu', TER, '  if (neuve) {', '  if (false) {'],
   ['une seconde porte reecrit la premiere marque', TER, '      const marque = d.termineParElle?.le ? d.termineParElle : { le, par: porte };', '      const marque = { le, par: porte };'],
@@ -199,7 +214,8 @@ const PANNES = [
 ];
 
 /** Les fautes de cette passe : toutes, ou une sur N (`--tranche=k/N`). */
-const aProuver = tranche ? PANNES.filter((_, i) => i % Number(tranche[2]) === Number(tranche[1]) - 1) : PANNES;
+const aProuver = (tranche ? PANNES.filter((_, i) => i % Number(tranche[2]) === Number(tranche[1]) - 1) : PANNES)
+  .filter((x) => seulement.length === 0 || seulement.some((mot) => x[0].includes(mot)));
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');
 
@@ -258,7 +274,7 @@ if (prouve) {
   }
   const intacts = fichiers.every((f) => md5(f) === avant.get(f));
   console.log(intacts ? 'Fichiers rendus a l identique.' : 'ATTENTION : un fichier n est pas revenu a l identique.');
-  console.log(muettes === 0 && intacts ? `\nLa preuve tient : ${aProuver.length} fautes${tranche ? ` (tranche ${tranche[1]} sur ${tranche[2]}, ${PANNES.length} en tout)` : ''}, le banc crie a chacune.` : `\n${muettes} faute(s) sans cri.`);
+  console.log(muettes === 0 && intacts ? `\nLa preuve tient : ${aProuver.length} fautes${tranche ? ` (tranche ${tranche[1]} sur ${tranche[2]}, ${PANNES.length} en tout)` : ''}${seulement.length ? ` (les seules « ${seulement.join(', ')} », ${PANNES.length} en tout)` : ''}, le banc crie a chacune.` : `\n${muettes} faute(s) sans cri.`);
   process.exit(muettes === 0 && intacts ? 0 : 1);
 }
 

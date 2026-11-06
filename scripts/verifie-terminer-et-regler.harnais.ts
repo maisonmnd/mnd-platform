@@ -340,12 +340,19 @@ const litCol = (r: Row, col: string): unknown => {
   for (const p of col.replace(/^data/, '').split(/->>?/).filter(Boolean)) x = x?.[p];
   return x;
 };
+/** Une panne de la base : une table, un geste (le compte ou l'ecriture), pour l'epreuve du frein illisible. */
+let panneDeLaBase: { table: string; geste: 'compte' | 'insert' } | null = null;
+/** Le journal des lectures : la table, les colonnes demandees, les lignes rendues. */
+const lecturesFaites: { table: string; colonnes: string; lignes: number }[] = [];
+/** L'identite des lignes du frein (`id bigint generated always as identity`, 0007). */
+let identite = 0;
 class Requete {
   filtres: ((r: Row) => boolean)[] = [];
-  mode: 'select' | 'insert' | 'update' = 'select';
-  valeur: any = null; lim = Infinity; seul = false; compte = false; rend = false; plage: [number, number] | null = null; tri = '';
+  mode: 'select' | 'insert' | 'update' | 'delete' = 'select';
+  valeur: any = null; lim = Infinity; seul = false; compte = false; rend = false; plage: [number, number] | null = null; tri = ''; colonnes = '*';
   constructor(public table: string) {}
-  select(_c?: string, o?: { count?: string; head?: boolean }) { if (this.mode !== 'select') this.rend = true; if (o?.count) this.compte = true; return this; }
+  select(c?: string, o?: { count?: string; head?: boolean }) { if (this.mode !== 'select') this.rend = true; else this.colonnes = c ?? '*'; if (o?.count) this.compte = true; return this; }
+  delete() { this.mode = 'delete'; return this; }
   eq(c: string, v: unknown) { this.filtres.push((r) => String(litCol(r, c) ?? '') === String(v)); return this; }
   gte(c: string, v: unknown) { this.filtres.push((r) => String(litCol(r, c) ?? '') >= String(v)); return this; }
   lte(c: string, v: unknown) { this.filtres.push((r) => String(litCol(r, c) ?? '') <= String(v)); return this; }
@@ -359,21 +366,29 @@ class Requete {
   fais(): any {
     const t = (db[this.table] ??= []);
     if (this.mode === 'insert') {
+      if (panneDeLaBase?.table === this.table && panneDeLaBase.geste === 'insert') return { data: null, error: { message: 'panne de la base' } };
       const row = { ...structuredClone(this.valeur), at: this.valeur.at ?? new Date(maintenant).toISOString(), updated_at: `t${++tic}` };
+      if (row.id === undefined && this.table === 'edge_rate_limits') row.id = ++identite;
       if (row.id && t.some((r) => r.id === row.id)) return { error: { code: '23505', message: 'duplicate key' } };
       t.push(row);
-      return { error: null };
+      return { data: this.rend ? [{ id: row.id }] : null, error: null };
     }
     if (this.mode === 'update' && this.table === 'appointments' && entreDeux) { const f = entreDeux; entreDeux = null; f(); }
     const lus = t.filter((r) => this.filtres.every((f) => f(r)));
+    if (this.mode === 'delete') {
+      for (const r of lus) t.splice(t.indexOf(r), 1);
+      return { data: null, error: null };
+    }
     if (this.mode === 'update') {
       for (const r of lus) { Object.assign(r, structuredClone(this.valeur)); r.updated_at = `t${++tic}`; }
       return { data: this.rend ? lus.map((r) => ({ id: r.id })) : null, error: null };
     }
-    if (this.compte) return { count: lus.length, error: null };
+    if (this.compte) return panneDeLaBase?.table === this.table && panneDeLaBase.geste === 'compte' ? { count: null, error: { message: 'panne de la base' } } : { count: lus.length, error: null };
     let rendus = this.tri ? [...lus].sort((a, b) => String(litCol(a, this.tri) ?? '').localeCompare(String(litCol(b, this.tri) ?? ''))) : lus;
     if (this.plage) rendus = rendus.slice(this.plage[0], this.plage[1] + 1);
-    const data = structuredClone(rendus.slice(0, this.lim));
+    /* Les colonnes demandees sont les seules rendues quand on ne demande que l'identifiant. */
+    const data = structuredClone(rendus.slice(0, this.lim)).map((r) => (this.colonnes === 'id' ? { id: r.id } : r));
+    lecturesFaites.push({ table: this.table, colonnes: this.colonnes, lignes: data.length });
     return { data: this.seul ? (data[0] ?? null) : data, error: null };
   }
 }
@@ -442,7 +457,7 @@ const SERVICE = 'cle-de-service';
 
 remplis();
 const sante = await appelle(finir);
-dit('GET : la version et les secrets en booleens, sans valeur', ['2026-11-06-a', 'terminer-et-regler', { service: true, liens: true }], [sante.corps.version, sante.corps.fonction, sante.corps.secrets]);
+dit('GET : la version et les secrets en booleens, sans valeur', ['2026-11-06-b', 'terminer-et-regler', { service: true, liens: true }], [sante.corps.version, sante.corps.fonction, sante.corps.secrets]);
 
 /* ── retrouver : le code ET les quatre chiffres ── */
 const CODE = referenceDuRendezVous('rdv-jour');
@@ -456,7 +471,7 @@ dit('... rien d elle que son prenom : ni nom de famille, ni numero', [false, fal
 const fauxChiffres = await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '0000' }, { ip: '5.5.5.1' });
 const codeInconnu = await appelle(finir, { action: 'retrouver', code: 'MND-ZZZZ', chiffres: '4480' }, { ip: '5.5.5.2' });
 const codeSeul = await appelle(finir, { action: 'retrouver', code: CODE }, { ip: '5.5.5.3' });
-dit('un code inconnu, des chiffres faux, le code seul : la MEME reponse, mot pour mot', [{ status: 200, corps: { version: '2026-11-06-a', ok: false, error: 'introuvable' } }, true, true],
+dit('un code inconnu, des chiffres faux, le code seul : la MEME reponse, mot pour mot', [{ status: 200, corps: { version: '2026-11-06-b', ok: false, error: 'introuvable' } }, true, true],
   [codeInconnu, JSON.stringify(fauxChiffres) === JSON.stringify(codeInconnu), JSON.stringify(codeSeul) === JSON.stringify(codeInconnu)]);
 dit('le second numero du rendez-vous (le parent qui l a pris) le retrouve aussi', [true, 'confirme', false],
   await appelle(finir, { action: 'retrouver', code: referenceDuRendezVous('rdv-parent'), chiffres: '3344' }, { ip: '5.5.5.4' }).then((r) => [r.corps.ok, r.corps.billet?.etat, r.corps.billet?.porte.ouverte]));
@@ -471,6 +486,60 @@ remplis();
 const dix: number[] = [];
 for (let i = 0; i < 11; i++) dix.push((await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '4480' }, { ip: '7.7.7.7' })).status);
 dit('le frein par adresse : dix recherches en dix minutes, la onzieme attend', [200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 429], dix);
+
+/* LE FREIN TIENT EN RAFALE (relecture du 6 novembre 2026). On comptait puis on
+   notait : des requetes lancees ensemble passaient toutes avant la premiere
+   note. Chaque essai s'inscrit maintenant AVANT d'etre compte. */
+const duFrein = (seau: string, cle: string): number => db.edge_rate_limits.filter((l) => l.bucket === seau && l.ip === cle).length;
+const CODES_INCONNUS = Array.from({ length: 15 }, (_, i) => `MND-ZZZ${'ABCDEFGHJKLMNPQ'[i]}`);
+for (let i = 0; i < 6; i++) await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '4480' }, { ip: '7.7.7.7' });
+dit('... un essai refuse ne reste pas inscrit : marteler un frein ferme ne le prolonge pas (dix lignes pour l adresse, aucune pour le code qui a reussi)', [10, 0],
+  [duFrein('fin-retrouver', '7.7.7.7'), duFrein('fin-echec', CODE)]);
+remplis();
+const rafaleDeLAdresse = await Promise.all(CODES_INCONNUS.map((code) => appelle(finir, { action: 'retrouver', code, chiffres: '4480' }, { ip: '7.7.7.8' })));
+dit('quinze recherches lancees ENSEMBLE de la meme adresse : jamais plus de dix ne passent', [true, true],
+  [rafaleDeLAdresse.filter((r) => r.status === 200).length <= 10, duFrein('fin-retrouver', '7.7.7.8') <= 10]);
+remplis();
+const rafaleDuCode = await Promise.all(Array.from({ length: 9 }, (_, i) => appelle(finir, { action: 'retrouver', code: CODE, chiffres: `111${i}` }, { ip: `7.7.8.${i}` })));
+dit('neuf essais lances ENSEMBLE sur le meme code, de neuf adresses : jamais plus de cinq ne sont juges', [true, true],
+  [rafaleDuCode.filter((r) => r.status === 200).length <= 5, duFrein('fin-echec', CODE) <= 5]);
+remplis();
+const sixReussites: unknown[] = [];
+for (let i = 0; i < 6; i++) sixReussites.push((await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '4480' }, { ip: `7.7.9.${i}` })).corps.ok);
+dit('une recherche reussie ne compte pas pour un echec : six reussites de suite sur le meme code, aucune ligne d echec', [[true, true, true, true, true, true], 0],
+  [sixReussites, duFrein('fin-echec', CODE)]);
+/* UN COMPTE ILLISIBLE FERME LE FREIN : on ne cherche pas a l'aveugle. */
+remplis();
+panneDeLaBase = { table: 'edge_rate_limits', geste: 'compte' };
+const compteIllisible = await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '4480' }, { ip: '7.7.7.9' });
+panneDeLaBase = { table: 'edge_rate_limits', geste: 'insert' };
+const noteManquee = await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '4480' }, { ip: '7.7.7.9' });
+const billetSansNote = await appelle(finir, { action: 'billet', v: String(trouve.corps.v) }, { ip: '7.7.7.9' });
+panneDeLaBase = null;
+dit('le compte du frein illisible, ou l essai qui ne s inscrit pas : la recherche se ferme (« trop »), le billet aussi ; la base revenue, elle rouvre',
+  [[429, 'trop'], [429, 'trop'], [429, 'trop'], true],
+  [[compteIllisible.status, compteIllisible.corps.error], [noteManquee.status, noteManquee.corps.error], [billetSansNote.status, billetSansNote.corps.error],
+    (await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '4480' }, { ip: '7.7.7.9' })).corps.ok]);
+/* CHAQUE ESSAI NE RELIT PLUS CENT JOURS DE RENDEZ-VOUS : les identifiants seuls, puis les candidats. */
+remplis();
+const lecturesDe = async (corps: Record<string, unknown>, ip: string) => {
+  lecturesFaites.length = 0;
+  await appelle(finir, corps, { ip });
+  return lecturesFaites.filter((l) => l.table === 'appointments' || l.table === 'clients').map((l) => `${l.table}:${l.colonnes}`);
+};
+const travailDuFaux = await lecturesDe({ action: 'retrouver', code: CODE, chiffres: '0000' }, '7.7.6.1');
+const largeur = lecturesFaites.filter((l) => l.table === 'appointments').map((l) => [l.colonnes, l.lignes]);
+const travailDeLInconnu = await lecturesDe({ action: 'retrouver', code: 'MND-ZZZZ', chiffres: '4480' }, '7.7.6.2');
+dit('la recherche lit d abord les seuls identifiants de la fenetre (huit ici), puis le contenu du seul candidat', [['id', 8], ['id,branch_id,data,updated_at', 1]], largeur);
+dit('... et fait le meme travail, code inconnu ou chiffres faux : les identifiants, un rendez-vous, une fiche',
+  [['appointments:id', 'appointments:id,branch_id,data,updated_at', 'clients:data'], true], [travailDuFaux, JSON.stringify(travailDeLInconnu) === JSON.stringify(travailDuFaux)]);
+/* Une porte ordinaire (le billet : soixante en dix minutes) tient de la meme facon. */
+remplis();
+const soixanteEtUn: number[] = [];
+for (let i = 0; i < 61; i++) soixanteEtUn.push((await appelle(finir, { action: 'billet', v: String(trouve.corps.v) }, { ip: '7.7.5.1' })).status);
+const rafaleDuBillet = await Promise.all(Array.from({ length: 70 }, () => appelle(finir, { action: 'billet', v: String(trouve.corps.v) }, { ip: '7.7.5.2' })));
+dit('le billet : soixante lectures par adresse en dix minutes, la 61e attend ; soixante-dix lancees ensemble, jamais plus de soixante ne passent', [60, 429, true],
+  [soixanteEtUn.filter((s) => s === 200).length, soixanteEtUn[60], rafaleDuBillet.filter((r) => r.status === 200).length <= 60]);
 
 /* ── billet : la page /rdv/ relit le reglement ── */
 remplis();

@@ -47,7 +47,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  * --commit <sha> --jwt non`. Vérifier : un GET rend sa version.
  */
 
-const VERSION = '2026-11-06-a';
+const VERSION = '2026-11-06-b';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -615,19 +615,36 @@ const parLeService = (req: Request): boolean => {
 };
 
 /* ── Le frein, sur la table des limites de débit (0007) : un seau, une clé
-      (l'adresse, ou le code), l'instant. ── */
-async function combien(seau: string, cle: string, minutes: number): Promise<number> {
+      (l'adresse, ou le code), l'instant.
+
+      NOTER D'ABORD, COMPTER ENSUITE (relecture du 6 novembre 2026). On
+      comptait puis on notait : des requêtes lancées ensemble passaient
+      toutes avant la première note, et le frein ne tenait pas en rafale.
+      Chaque essai s'inscrit donc AVANT d'être compté ; refusé, il se retire
+      (marteler un frein fermé ne le prolonge pas). Un compte illisible
+      FERME le frein : on ne cherche pas à l'aveugle. ── */
+type Essai = number | string | null;
+/** Le nombre de lignes du seau depuis `minutes`, ou null si le compte est illisible. */
+async function combien(seau: string, cle: string, minutes: number): Promise<number | null> {
   const depuis = new Date(Date.now() - minutes * 60_000).toISOString();
   const { count, error } = await admin.from('edge_rate_limits').select('*', { count: 'exact', head: true })
     .eq('bucket', seau).eq('ip', cle).gte('at', depuis);
-  return error ? 0 : (count ?? 0);
+  return error ? null : (count ?? 0);
 }
-async function note(seau: string, cle: string): Promise<void> {
-  await admin.from('edge_rate_limits').insert({ bucket: seau, ip: cle });
+/** Inscrit un essai et rend son identifiant, ou null si l'écriture a manqué. */
+async function note(seau: string, cle: string): Promise<Essai> {
+  const { data, error } = await admin.from('edge_rate_limits').insert({ bucket: seau, ip: cle }).select('id');
+  return error ? null : ((data ?? [])[0]?.id ?? null);
 }
+/** Retire un essai qui n'a pas à compter (refusé par le frein, ou réussi). */
+async function oublie(essai: Essai): Promise<void> {
+  if (essai !== null) await admin.from('edge_rate_limits').delete().eq('id', essai);
+}
+/** Une porte ordinaire : `plafond` passages par adresse en dix minutes, l'essai noté avant d'être compté. */
 async function permis(ip: string, seau: string, plafond: number): Promise<boolean> {
-  if ((await combien(seau, ip, 10)) >= plafond) return false;
-  await note(seau, ip);
+  const essai = await note(seau, ip);
+  const vus = await combien(seau, ip, 10);
+  if (essai === null || vus === null || vus > plafond) { await oublie(essai); return false; }
   return true;
 }
 
@@ -642,15 +659,18 @@ async function leRdv(id: string): Promise<Ligne | null> {
   return (data as Ligne | null) ?? null;
 }
 
-/** Les rendez-vous proches, par pages de mille (le plafond de Supabase). */
-async function lesRdvsProches(maintenantMs: number): Promise<Ligne[]> {
+/** Les IDENTIFIANTS des rendez-vous proches, par pages de mille (le plafond
+    de Supabase) : la référence se calcule sur l'identifiant seul, le contenu
+    ne se lit que pour les candidats. Chaque essai ne relit donc plus cent
+    jours de rendez-vous avec leurs données. */
+async function lesIdsProches(maintenantMs: number): Promise<string[]> {
   const f = fenetreDeLaRecherche(maintenantMs);
-  const tous: Ligne[] = [];
+  const tous: string[] = [];
   for (let de = 0; de < 20_000; de += 1000) {
-    const { data, error } = await admin.from('appointments').select('id,branch_id,data,updated_at')
+    const { data, error } = await admin.from('appointments').select('id')
       .gte('data->>date', f.du).lte('data->>date', f.au).order('id').range(de, de + 999);
     if (error) throw new Error(error.message);
-    const page = (data ?? []) as Ligne[];
+    const page = ((data ?? []) as { id: string }[]).map((l) => String(l.id));
     tous.push(...page);
     if (page.length < 1000) break;
   }
@@ -692,18 +712,30 @@ async function leBillet(l: Ligne, maintenantMs: number): Promise<BilletDeLaFin> 
 async function retrouver(req: Request, b: any) {
   const ip = ipOf(req);
   const code = codeLu(b.code);
-  const frein = freinDeLaRecherche({
-    essaisDeLAdresse: await combien('fin-retrouver', ip, FREIN_DE_LA_RECHERCHE.minutesDeLAdresse),
-    echecsDuCodeDansLHeure: code ? await combien('fin-echec', code, 60) : 0,
-    echecsDuCodeDuJour: code ? await combien('fin-echec', code, 24 * 60) : 0,
-  });
-  if (frein !== 'libre') return json({ ok: false, error: 'trop' }, 429);
-  await note('fin-retrouver', ip);
+  /* L'ESSAI S'INSCRIT AVANT D'ÊTRE COMPTÉ, pour l'adresse et pour le code :
+     une rafale ne passe pas le frein. L'essai du code compte comme un échec
+     tant qu'il n'a pas réussi ; réussi, il se retire. */
+  const essaiDeLAdresse = await note('fin-retrouver', ip);
+  const essaiDuCode = code ? await note('fin-echec', code) : null;
+  const deLAdresse = await combien('fin-retrouver', ip, FREIN_DE_LA_RECHERCHE.minutesDeLAdresse);
+  const dansLHeure = code ? await combien('fin-echec', code, 60) : 1;
+  const duJour = code ? await combien('fin-echec', code, 24 * 60) : 1;
+  /* Une écriture ou un compte illisible FERME le frein. Les comptes portent
+     déjà cet essai : la règle juge ceux d'avant lui (d'où le « moins un »). */
+  if (essaiDeLAdresse === null || (code !== null && essaiDuCode === null) || deLAdresse === null || dansLHeure === null || duJour === null
+    || freinDeLaRecherche({ essaisDeLAdresse: deLAdresse - 1, echecsDuCodeDansLHeure: dansLHeure - 1, echecsDuCodeDuJour: duJour - 1 }) !== 'libre') {
+    await oublie(essaiDeLAdresse);
+    await oublie(essaiDuCode);
+    return json({ ok: false, error: 'trop' }, 429);
+  }
 
   const maintenant = Date.now();
-  const proches = await lesRdvsProches(maintenant);
-  const candidats = code ? proches.filter((l) => referenceDuRendezVous(l.id) === code) : [];
-  /* Le même travail, trouvé ou non : une fiche est toujours lue. */
+  /* D'abord les seuls identifiants, puis le contenu des candidats (cinq au
+     plus : un code à quatre signes ne désigne presque jamais deux rendez-vous). */
+  const ids = code ? (await lesIdsProches(maintenant)).filter((id) => referenceDuRendezVous(id) === code).slice(0, 5) : [];
+  /* Le même travail, trouvé ou non : un rendez-vous et une fiche sont toujours lus. */
+  const candidats: Ligne[] = [];
+  for (const id of ids.length ? ids : ['personne']) { const l = await leRdv(id); if (l) candidats.push(l); }
   const fiches = new Map<string, Fiche | null>();
   for (const id of candidats.length ? [...new Set(candidats.map((l) => String(l.data?.clientId ?? '')))] : ['']) fiches.set(id, await laFiche(id));
   const trouve = retrouveLeRdv({
@@ -711,10 +743,9 @@ async function retrouver(req: Request, b: any) {
     numerosDe: (r) => numerosDuRdv(r, fiches.get(String(r.clientId ?? '')) ?? null), maintenantMs: maintenant,
   });
   const ligne = trouve ? candidats.find((l) => l.id === trouve.id) ?? null : null;
-  if (!ligne || !SECRET_DES_LIENS) {
-    if (code) await note('fin-echec', code);
-    return json({ ok: false, error: 'introuvable' });
-  }
+  /* L'échec reste inscrit (il l'était avant la lecture) ; la réponse est la même, code inconnu ou chiffres faux. */
+  if (!ligne || !SECRET_DES_LIENS) return json({ ok: false, error: 'introuvable' });
+  await oublie(essaiDuCode);
   return json({ ok: true, v: await jetonDuRendezVous(SECRET_DES_LIENS, ligne.id), billet: await leBillet(ligne, maintenant) });
 }
 
