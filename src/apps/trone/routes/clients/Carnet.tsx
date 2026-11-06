@@ -16,6 +16,8 @@ import { normName } from '../../../../shared/text';
 import { monthTitle } from '../finances/_shared';
 import { appointmentsStore, apptPaidXof, type Appointment } from '../../../../shared/agenda';
 import { useInvoices } from '../../../../shared/finance';
+import { laPieceDuRdv, resteDeLaPiece, type PieceLue } from '../../../../shared/regler-la-seance-pur';
+import { marqueDeLaFinAuCarnet } from '../../../../shared/terminer-et-regler-pur';
 import { useCategories, useServices, useProducts, MAISONS, type Maison } from '../../../../shared/catalog';
 import { useModelBands, useBandSets } from '../../../../shared/pricing';
 import { useSettings, openingForIso } from '../../../../shared/settings';
@@ -383,6 +385,12 @@ export default function Carnet() {
   const [pieces] = useInvoices();
   const rdvsFactures = useMemo(() => new Set(pieces
     .filter((p) => p.apptId && p.kind === 'facture').map((p) => p.apptId as string)), [pieces]);
+  /* Le reste de la pièce d'un rendez-vous qu'elle a terminé elle-même (6
+     novembre 2026) : null tant que sa pièce n'est pas écrite. */
+  const resteDeSaPiece = (rdvId: string): number | null => {
+    const p = laPieceDuRdv(pieces as unknown as PieceLue[], rdvId);
+    return p ? resteDeLaPiece(p) : null;
+  };
   const lus = useMemo(() => appts.map((a): RdvLu => ({
     id: a.id, clientId: a.clientId, date: a.date, time: a.time, status: a.status, master: a.master,
     depositXof: a.depositXof, depositConfirmed: a.depositConfirmed, creeLe: a.creeLe,
@@ -876,6 +884,21 @@ export default function Carnet() {
               offert par {clientOf(a.offertPar)?.name?.split(' ')[0] ?? 'une autre'}
             </span>
           )}
+          {/* ELLE A TERMINÉ ELLE-MÊME (6 novembre 2026, Terminer et régler) :
+              « A terminé · règlement en cours », puis « Réglée en ligne · Départ
+              sans caisse ». Rien pour un rendez-vous qu'elle n'a pas terminé. */}
+          {(() => {
+            const marque = a.termineParElle ? marqueDeLaFinAuCarnet(a, resteDeSaPiece(a.id)) : null;
+            return marque && (
+              <span
+                className={marque.etat === 'reglee-en-ligne' ? 'trc-src trc-src--indigo' : 'trc-src'}
+                style={marque.etat === 'reglee-en-ligne' ? undefined : { background: 'var(--copper-50)', color: 'var(--copper-700)', borderColor: 'var(--copper-300)' }}
+                title={marque.sous}
+              >
+                {marque.dit}
+              </span>
+            );
+          })()}
           {/* CE QUE LE TRÔNE VOIT (25 octobre 2026) : chaque signal porte son
               calcul en infobulle. Sur ce qui vient seulement. */}
           {(signaux.parRdv.get(a.id) ?? []).map((s) => (

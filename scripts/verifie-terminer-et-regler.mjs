@@ -19,6 +19,12 @@ const PUR = 'src/shared/terminer-et-regler-pur.ts';
 const TER = 'supabase/functions/terminer-et-regler/index.ts';
 const REG = 'supabase/functions/regler-la-seance/index.ts';
 const AU = 'supabase/functions/whatsapp-automate/index.ts';
+const SHELL = 'src/apps/trone/shell/Shell.tsx';
+const MAIN = 'src/apps/trone/shell/useLaFinDuRituel.ts';
+const CARNET = 'src/apps/trone/routes/clients/Carnet.tsx';
+const PANNEAU = 'src/apps/trone/routes/clients/ReglementEnDirect.tsx';
+const GUETTEUR = 'src/apps/trone/shell/useReglementsEnLigne.ts';
+const FICHE = 'src/apps/trone/routes/clients/Customers.tsx';
 const TABS = 'src/apps/couronne/Tabs.tsx';
 const CARTE = 'src/apps/couronne/RituelEnCours.tsx';
 const SERVEUR = 'src/shared/terminer-et-regler-serveur.ts';
@@ -54,6 +60,21 @@ const PANNES = [
   ['« Passe au comptoir » ignore par le serveur', TER, "      porte: porteDeLaFin({ rdv, maintenantMs: maintenant, passeAuComptoir: fiche?.passeAuComptoir === true,", '      porte: porteDeLaFin({ rdv, maintenantMs: maintenant, passeAuComptoir: false,'],
   ['le serveur honore a la declaration', TER, '      return { ...d, termineParElle: marque, ...avecLien };', "      return { ...d, termineParElle: marque, ...avecLien, status: 'honoré' };"],
   ['le billet dit son nom de famille', TER, "    rdv, reference: referenceDuRendezVous(l.id), prenom: String(fiche?.name ?? l.data?.clientName ?? ''),", "    rdv, reference: String(fiche?.name ?? ''), prenom: String(fiche?.name ?? l.data?.clientName ?? ''),"],
+  /* ── Le Trone ── */
+  ['le Trone ne monte pas la main de la fin du rituel', SHELL, '  useLaFinDuRituel();\n', ''],
+  ['deux postes ecrivent deux pieces', MAIN, "          if (!(prise ?? []).length) return;\n\n          /* Le prix se fige", "          /* Le prix se fige"],
+  ['la reservation de la piece sans condition', MAIN, ".eq('id', a.id).is('data->termineParElle->>pieceLe', null).select('id');", ".eq('id', a.id).select('id');"],
+  ['le Trone honore a la declaration', MAIN, '          const r = factureAEnvoyer(frais, byId, frais.branchId, tarifs.prixPlein, tarifs.gesteDe);', '          const r = factureAEnvoyer(frais, byId, frais.branchId, tarifs.prixPlein, tarifs.gesteDe); honorAppointment(frais, byId, { muet: true });'],
+  ['la piece au prix de vitrine, pas au tarif de sa tete', MAIN, 'factureAEnvoyer(frais, byId, frais.branchId, tarifs.prixPlein, tarifs.gesteDe);', 'factureAEnvoyer(frais, byId, frais.branchId);'],
+  ['le prix ne se fige pas avec la piece', MAIN, '{ ...x, ...prixAFiger(x, byId), termineParElle: { ...x.termineParElle, pieceLe } }', '{ ...x, termineParElle: { ...x.termineParElle, pieceLe } }'],
+  ['une piece pour une declaration qui ne tient pas', MAIN, "pieceAPreparer(a, invoices.some((i) => i.apptId === a.id && i.kind === 'facture'))", "!invoices.some((i) => i.apptId === a.id && i.kind === 'facture')"],
+  ['la piece s ecrit avant la lecture des tables', MAIN, "!tablePrete('appointments') || !tablePrete('invoices') || !tablePrete('clients') || byId.size === 0) return;", "byId.size === 0) return;"],
+  ['les suites de l honneur se font deux fois', MAIN, ".eq('id', a.id).is('data->honoreAuReglement->>suitesLe', null).select('id');", ".eq('id', a.id).select('id');"],
+  ['les suites de l honneur ne se font plus', MAIN, '        honorAppointment(a, byId, { muet: true });\n      })();', '      })();'],
+  ['le Carnet tait la marque', CARNET, 'const marque = a.termineParElle ? marqueDeLaFinAuCarnet(a, resteDeSaPiece(a.id)) : null;', 'const marque = null as ReturnType<typeof marqueDeLaFinAuCarnet>;'],
+  ['le panneau dit « Message parti » a celle qui a termine elle-meme', PANNEAU, "    fin\n      ? { nom: 'A terminé'", "    false\n      ? { nom: 'A terminé'"],
+  ['« Depart sans caisse » pour tout reglement en ligne', GUETTEUR, 'const sansCaisse = !!appts.find((a) => a.id === p.apptId)?.termineParElle && invoiceResteXof(p) <= 0;', 'const sansCaisse = true;'],
+  ['la case « Passe au comptoir » n ecrit rien', FICHE, 'onChange={(e) => patch({ passeAuComptoir: e.target.checked ? true : undefined })}', 'onChange={() => patch({})}'],
   /* ── La porte de Ma Couronne, et la page « Regler » ── */
   ['l accueil de Ma Couronne ne monte pas la carte', TABS, "        <RituelEnCours nomDuRituel={(a) => serviceNames(a, services)} />\n", ''],
   ['la carte montre le rituel d une autre', CARTE, '    rdvs: appts.filter((a) => a.clientId === monId),', '    rdvs: appts,'],

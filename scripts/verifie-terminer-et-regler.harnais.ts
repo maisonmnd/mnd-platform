@@ -662,5 +662,48 @@ dit('la page « Regler » : elle attend la piece en preparation (trois minutes),
     /honore: r\.honore === true \}\); return; \}/.test(pageRegler), /\{ecran\.honore && <span>Vous pouvez partir : la Maison est prévenue\.<\/span>\}/.test(pageRegler),
     /\{retourDemande\(\) && <a className="rg-autre" href=\{retourAMaCouronne\(\)\}>Revenir à Ma Couronne<\/a>\}/.test(pageRegler)]);
 
+/* ══ 18. LE TRONE : la piece ecrite au tarif de sa tete, sans honorer ; les
+   suites de l'honneur ; la marque du Carnet ; « Passe au comptoir » ═══════
+   Le crochet React ne se rejoue pas ici : ses regles sont pures (plus haut),
+   son cablage se lit dans ses sources. */
+const shell = sansCommentaires(lis('src/apps/trone/shell/Shell.tsx'));
+const mainDuTrone = sansCommentaires(lis('src/apps/trone/shell/useLaFinDuRituel.ts'));
+const effets = mainDuTrone.split('useEffect(() => {');
+dit('le Trone monte la main de la fin du rituel, a cote de celle de Grenat', [true, 4], [/useLaMainDeGrenat\(\);\s*\{?\s*useLaFinDuRituel\(\);|useLaMainDeGrenat\(\);\s*useLaFinDuRituel\(\);/.test(shell), effets.length]);
+const effetPiece = effets[2] ?? '';
+const effetSuites = effets[3] ?? '';
+dit('sa piece : seulement pour une declaration qui tient, quand aucune piece ne porte encore le rendez-vous, tables lues',
+  [true, true],
+  [/pieceAPreparer\(a, invoices\.some\(\(i\) => i\.apptId === a\.id && i\.kind === 'facture'\)\)/.test(effetPiece),
+    /!tablePrete\('appointments'\) \|\| !tablePrete\('invoices'\) \|\| !tablePrete\('clients'\) \|\| byId\.size === 0\) return;/.test(effetPiece)]);
+dit('... un seul poste l ecrit : la reservation au serveur (ecriture conditionnelle sur pieceLe) passe avant toute ecriture',
+  [true, true],
+  [/\.eq\('id', a\.id\)\.is\('data->termineParElle->>pieceLe', null\)\.select\('id'\);\s*if \(!\(prise \?\? \[\]\)\.length\) return;/.test(effetPiece),
+    effetPiece.indexOf("if (!(prise ?? []).length) return;") < effetPiece.indexOf('appointmentsStore.set(')]);
+dit('... le prix se fige avec la reservation, la piece s ecrit au tarif de sa tete (celle de « Terminer la seance »)',
+  [true, true, true],
+  [/\{ \.\.\.x, \.\.\.prixAFiger\(x, byId\), termineParElle: \{ \.\.\.x\.termineParElle, pieceLe \} \}/.test(effetPiece),
+    /const tarifs = tarifsDuRituel\(frais, \{\s*client: clients\.find\(\(c\) => c\.id === frais\.clientId\),\s*bands, sets, cats: categories, byId, tousServices: services, produits,\s*\}\);/.test(effetPiece),
+    /const r = factureAEnvoyer\(frais, byId, frais\.branchId, tarifs\.prixPlein, tarifs\.gesteDe\);/.test(effetPiece)]);
+dit('... et le rendez-vous n est JAMAIS honore a sa declaration', false, /honorAppointment|honoreSansEncaisser|honoreALEncaissement|status: 'honoré'/.test(effetPiece));
+dit('les suites de l honneur pose au reglement : une fois (reservation de suitesLe), puis les points, le stock, la mission, comme au comptoir',
+  [true, true, true],
+  [/appts\.filter\(\(a\) => a\.branchId === branch\.id && suitesAFaire\(a\) && !fait\.has\(`suite-\$\{a\.id\}`\)\)/.test(effetSuites),
+    /\.eq\('id', a\.id\)\.is\('data->honoreAuReglement->>suitesLe', null\)\.select\('id'\);\s*if \(!\(prise \?\? \[\]\)\.length\) return;\s*honorAppointment\(a, byId, \{ muet: true \}\);/.test(effetSuites),
+    /if \(!d \|\| d\.pointsAwarded \|\| !d\.honoreAuReglement \|\| d\.honoreAuReglement\.suitesLe\) return;/.test(effetSuites)]);
+const carnet = sansCommentaires(lis('src/apps/trone/routes/clients/Carnet.tsx'));
+dit('le Carnet porte la marque : « A termine · reglement en cours », puis « Reglee en ligne · Depart sans caisse »', [true, true],
+  [/const marque = a\.termineParElle \? marqueDeLaFinAuCarnet\(a, resteDeSaPiece\(a\.id\)\) : null;/.test(carnet), /title=\{marque\.sous\}\s*>\s*\{marque\.dit\}/.test(carnet)]);
+const panneau = sansCommentaires(lis('src/apps/trone/routes/clients/ReglementEnDirect.tsx'));
+dit('le panneau « Le reglement en direct » dit sa declaration et par ou, au lieu d un message parti', [true, true],
+  [/fin\s*\? \{ nom: 'A terminé', quand: heure\(fin\.le\), detail: PORTE_DITE\[fin\.par\] \?\? 'en ligne', fait: true \}\s*: \{ nom: 'Message parti'/.test(panneau),
+    /const marque = fin \? marqueDeLaFinAuCarnet\(rdv, piece \? e\.resteXof : null\) : null;/.test(panneau)]);
+const guetteur = sansCommentaires(lis('src/apps/trone/shell/useReglementsEnLigne.ts'));
+dit('l annonce existante dit « Depart sans caisse » quand elle avait termine elle-meme et que sa piece est soldee', [true, true],
+  [/const sansCaisse = !!appts\.find\(\(a\) => a\.id === p\.apptId\)\?\.termineParElle && invoiceResteXof\(p\) <= 0;/.test(guetteur), /\$\{sansCaisse \? ' · Départ sans caisse' : ''\}/.test(guetteur)]);
+const fiche = sansCommentaires(lis('src/apps/trone/routes/clients/Customers.tsx'));
+dit('la fiche porte la case « Passe au comptoir », qui ecrit passeAuComptoir et se retire en la decochant', [true, true, true],
+  [/checked=\{client\.passeAuComptoir === true\}/.test(fiche), /onChange=\{\(e\) => patch\(\{ passeAuComptoir: e\.target\.checked \? true : undefined \}\)\}/.test(fiche), /<span style=\{\{ fontSize: 12\.5 \}\}>Passe au comptoir<\/span>/.test(fiche)]);
+
 console.log(ko ? `\n${ko} echec(s) sur ${n}.` : `\nTout tient (${n} controles).`);
 if (ko) process.exit(1);

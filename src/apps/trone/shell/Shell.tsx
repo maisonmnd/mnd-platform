@@ -75,6 +75,7 @@ import { useRattacheLesReservations } from './useRattacheLesReservations';
 import { useMndPayRattache } from './useMndPayRattache';
 import { useReglementsEnLigne } from './useReglementsEnLigne';
 import { useLaMainDeGrenat } from './useLaMainDeGrenat';
+import { useLaFinDuRituel } from './useLaFinDuRituel';
 import { useLectureDesCaptures } from './useLectureDesCaptures';
 import { useLaReleveArrive } from './useLaReleveArrive';
 import { useParrainageVivant } from './useParrainageVivant';
@@ -569,6 +570,8 @@ export default function Shell() {
   useReglementsEnLigne();
   /* La main de Grenat au Trône : le papier qu'il a déposé « à-préparer » se fait ici (le PDF), et les suites d'un honneur qu'il a posé (4 novembre 2026). */
   useLaMainDeGrenat();
+  /* Terminer et régler : elle a terminé elle-même, sa pièce s'écrit ici au tarif de sa tête (sans honorer) ; réglée, les suites de l'honneur se font ici (6 novembre 2026). */
+  useLaFinDuRituel();
   /* Les captures de transfert reçues sur WhatsApp d'une cliente qui doit se lisent seules, par Claude (19 octobre 2026). */
   useLectureDesCaptures();
   /* Les dossiers de La Relève, déposés sur le site de l'Académie, entrent au Recrutement (15 octobre 2026). */

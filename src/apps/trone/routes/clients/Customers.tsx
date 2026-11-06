@@ -4065,6 +4065,27 @@ function Customer360({
                     : <>Le reçu part à l’encaissement, la facture en terminant la séance. La case de l’encaissement peut les retenir, une fois.</>}
                 </div>
               </Field>
+              {/* PASSE AU COMPTOIR — 6 novembre 2026 (Terminer et régler, son
+                  arbitrage : « toutes les clientes ; une case "Passe au comptoir"
+                  sur la fiche pour l'éteindre »). Cochée, elle ne termine ni ne
+                  règle elle-même : Ma Couronne, le site et le WhatsApp de la
+                  Maison la renvoient au comptoir. */}
+              <Field label="Terminer et régler elle-même">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={client.passeAuComptoir === true}
+                    onChange={(e) => patch({ passeAuComptoir: e.target.checked ? true : undefined })}
+                    style={{ accentColor: 'var(--color-copper)' }}
+                  />
+                  <span style={{ fontSize: 12.5 }}>Passe au comptoir</span>
+                </label>
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
+                  {client.passeAuComptoir
+                    ? <>Éteint pour elle : ni « Terminer mon rituel » dans Ma Couronne, ni « Terminer et régler » sur le site, ni lien de règlement sur WhatsApp. Elle règle au comptoir.</>
+                    : <>À la fin de son rituel, elle peut terminer et régler depuis son téléphone : Ma Couronne, son code sur le site, ou « J’ai terminé » sur le WhatsApp de la Maison.</>}
+                </div>
+              </Field>
               {/* LA REMISE DU RITUEL COMPLET — 5 novembre 2026 (« Celles que je
                   coche », Yéman) : shampoing et reprise au même rituel, 5 000 F
                   de moins sur le shampoing, tout seuls. Le geste vit au

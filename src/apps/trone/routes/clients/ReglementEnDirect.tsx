@@ -7,6 +7,7 @@ import { useInvoices } from '../../../../shared/finance';
 import { laPieceDuRdv, etatDuLien, type PieceLue } from '../../../../shared/regler-la-seance-pur';
 import { adresseDuLien } from '../../../../shared/regler-la-seance';
 import { rattrapeLeLien } from '../../../../shared/regler-la-seance-serveur';
+import { marqueDeLaFinAuCarnet } from '../../../../shared/terminer-et-regler-pur';
 
 /* ══ LE RÈGLEMENT EN DIRECT — 25 octobre 2026 (« Terminer la séance ») ══
    Ce que la cliente fait du lien, sans rafraîchir : la facture écrite, le
@@ -34,8 +35,16 @@ export function ReglementEnDirect({ appt }: { appt: Appointment }) {
   const dernier = piece?.reglementsEnLigne?.[piece.reglementsEnLigne.length - 1];
   const m = (x: number) => fmtMoney(x, currency);
 
+  /* ELLE A TERMINÉ ELLE-MÊME (6 novembre 2026, Terminer et régler) : aucun
+     message n'est parti, c'est elle qui a ouvert le règlement. La première
+     étape dit sa déclaration, et par où ; la marque dit où elle en est. */
+  const fin = rdv.termineParElle;
+  const marque = fin ? marqueDeLaFinAuCarnet(rdv, piece ? e.resteXof : null) : null;
+  const PORTE_DITE = { couronne: 'depuis Ma Couronne', site: 'depuis le site', whatsapp: 'sur le WhatsApp de la Maison' } as const;
   const etapes: Etape[] = [
-    { nom: 'Message parti', quand: heure(lien.envoyeLe), detail: 'le reste et le bouton « Régler »', fait: !!lien.envoyeLe },
+    fin
+      ? { nom: 'A terminé', quand: heure(fin.le), detail: PORTE_DITE[fin.par] ?? 'en ligne', fait: true }
+      : { nom: 'Message parti', quand: heure(lien.envoyeLe), detail: 'le reste et le bouton « Régler »', fait: !!lien.envoyeLe },
     { nom: 'Ouvert', quand: heure(lien.ouvertLe), detail: 'elle a touché « Régler »', fait: !!lien.ouvertLe },
     {
       nom: dernier ? `Réglé${dernier.moyen ? ` par ${dernier.moyen}` : ''}` : 'Réglé',
@@ -65,6 +74,12 @@ export function ReglementEnDirect({ appt }: { appt: Appointment }) {
           {e.etat === 'reglee' ? 'Soldé' : e.etat === 'a-regler' ? <>Reste <b>{m(e.resteXof)}</b> sur {m(e.totalXof)}</> : ''}
         </span>
       </div>
+      {marque && (
+        <p style={{ margin: 0, fontSize: 13 }}>
+          <strong style={{ fontWeight: 500 }}>{marque.dit}</strong>
+          <span className="mnd-muted"> · {marque.sous}</span>
+        </p>
+      )}
       <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
         {etapes.map((x) => (
           <li key={x.nom} style={{ border: `1px solid ${x.fait ? '#9FCFC5' : 'var(--line, #EDE4D6)'}`, background: x.fait ? '#EAF4F1' : 'transparent', borderRadius: 6, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 3 }}>

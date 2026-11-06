@@ -3,7 +3,8 @@ import { useAuth } from '../../../shared/auth';
 import { useBranch } from '../../../shared/branches';
 import { fmtMoney } from '../../../shared/currency';
 import { useClients } from '../../../shared/clients';
-import { invoicesStore, useInvoices } from '../../../shared/finance';
+import { invoiceResteXof, invoicesStore, useInvoices } from '../../../shared/finance';
+import { useAppointments } from '../../../shared/agenda';
 import { envoieLeRecu, MODELE_RECU } from '../../../shared/recu-whatsapp';
 import { enRouteAilleurs, marqueLaPiecePartie } from '../../../shared/une-piece-un-message-pur';
 import { quandTablePrete, tablePrete } from '../../../shared/sync';
@@ -33,6 +34,7 @@ export function useReglementsEnLigne(): void {
   const { session } = useAuth();
   const { branch, currency } = useBranch();
   const [invoices] = useInvoices();
+  const [appts] = useAppointments();
   const [clients] = useClients();
   const [team] = useStaff();
   const { buildPdfData } = useLaPieceEnPdf();
@@ -54,7 +56,10 @@ export function useReglementsEnLigne(): void {
         vus.add(r.id);
         annonce = true;
         const qui = p.clientName ?? clients.find((c) => c.id === p.clientId)?.name ?? 'Une cliente';
-        toast(`Réglé en direct · ${qui} · ${fmtMoney(r.montantXof, currency)}${r.moyen ? ` par ${r.moyen}` : ''}${r.pourboireXof > 0 ? ` · pourboire ${fmtMoney(r.pourboireXof, currency)} pour l’équipe` : ''}.`, 7000);
+        /* DÉPART SANS CAISSE (6 novembre 2026, Terminer et régler) : elle avait
+           terminé elle-même et sa pièce est soldée ; rien à encaisser au comptoir. */
+        const sansCaisse = !!appts.find((a) => a.id === p.apptId)?.termineParElle && invoiceResteXof(p) <= 0;
+        toast(`Réglé en direct · ${qui} · ${fmtMoney(r.montantXof, currency)}${r.moyen ? ` par ${r.moyen}` : ''}${r.pourboireXof > 0 ? ` · pourboire ${fmtMoney(r.pourboireXof, currency)} pour l’équipe` : ''}${sansCaisse ? ' · Départ sans caisse' : ''}.`, 7000);
       }
     }
     if (annonce) { gardeLesVus(vus); sonne(); }
@@ -117,5 +122,5 @@ export function useReglementsEnLigne(): void {
         });
       }
     }
-  }, [session, branch.id, invoices, clients, team, currency, buildPdfData]);
+  }, [session, branch.id, invoices, appts, clients, team, currency, buildPdfData]);
 }
