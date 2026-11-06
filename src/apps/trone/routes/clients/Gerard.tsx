@@ -442,8 +442,8 @@ export default function Gerard() {
   return (
     <div className={`trc-ger trc-am${vue === 'conversations' ? ' trc-am--conversations' : ''}`}>
       <PageHead
-        eyebrow="Clientèle · l’assistant des clientes"
-        title="Perle."
+        eyebrow="Clientèle · avec Perle, l’assistant des clientes"
+        title="Conversations."
         actions={(
           <div className="trc-ger__chiffres">
             <span className="trc-ger__chiffre"><b>{plan.length}</b><small>à écrire aujourd’hui</small></span>

@@ -105,10 +105,12 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          fil entre deux séances, les RDV gardés, les jours creux, les
          relances. Maquette 4bPVFik1… ; rangé sous Clientes, comme la
          maquette le montrait. Lot 1 : le plan et les réglages. */
-      /* « Assistant Maison » dans la barre le 26 octobre 2026 ; PERLE depuis le 2 novembre 2026
-         (« Gérard n'existe plus », Yéman) : le professionnel des clientes, dans la carte de la
+      /* « Assistant Maison » dans la barre le 26 octobre 2026 ; « Perle » du 2 au 6 novembre ;
+         CONVERSATIONS depuis le 6 novembre 2026 (« Renomme Perle à son nom d'origine,
+         Conversations », Yéman) : l'endroit unique où se tiennent toutes les conversations avec
+         les clientes. PERLE reste le nom de l'assistant qui leur écrit, dans la carte de la
          Maison intelligente. L'adresse `/gerard` reste : les liens des fonctions la connaissent. */
-      { path: '/gerard', label: 'Perle', icon: UserRoundCheck, Component: lazy(() => import('./clients/Gerard')) },
+      { path: '/gerard', label: 'Conversations', icon: UserRoundCheck, Component: lazy(() => import('./clients/Gerard')) },
       { path: '/carnet', label: 'Le Carnet', icon: NotebookPen, Component: lazy(() => import('./clients/Carnet')) },
       { path: '/appels', label: 'Les Appels', icon: PhoneIncoming, Component: lazy(() => import('./clients/Appels')) },
       { path: '/conversations', label: 'Conversations', icon: MessagesSquare, Component: lazy(() => import('./clients/Conversations')) },

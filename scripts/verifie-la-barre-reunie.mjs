@@ -59,6 +59,7 @@ const PANNES = [
     'horsMenu: retire || it.horsMenu, Component: EcranReuni }',
     'horsMenu: it.horsMenu, Component: EcranReuni }'],
   ['une rubrique retiree revient dans la barre', INDEX, "'/analytics', '/a-faire', '/juste-prix',", "'/analytics', '/juste-prix',"],
+  ['la rubrique reprend le nom de Perle', INDEX, "{ path: '/gerard', label: 'Conversations',", "{ path: '/gerard', label: 'Perle',"],
   ['l Audience n est plus un onglet des Clientes', INDEX, "{ path: '/audience', label: 'Audience' }, ", ''],
   ['les prestations quittent la Synthese', INDEX, ", { path: '/chiffre-des-prestations', label: 'Les prestations' }", ''],
   ['les prestataires quittent les Ressources humaines', INDEX, ", { path: '/prestataires', label: 'Les prestataires' }", ''],
