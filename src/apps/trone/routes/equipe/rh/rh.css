@@ -29,6 +29,7 @@
 .rh-planning select { min-width: 92px; }
 .rh-planning .s-fauteuil { background: var(--copper-50); }
 .rh-planning .s-conge { background: color-mix(in srgb, var(--color-indigo) 8%, transparent); }
+.rh-planning .s-inventaire { background: color-mix(in srgb, var(--color-copper) 14%, transparent); }
 .rh-cadre { overflow-x: auto; border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface-card); }
 .rh-espace { display: grid; gap: 10px; max-width: 520px; }
 .rh-tuile { border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface-card); padding: 10px 12px; display: grid; gap: 4px; }

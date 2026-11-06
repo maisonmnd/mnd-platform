@@ -174,9 +174,12 @@ export function avertissementDeLaGrille(o: {
 
 /* ══ LE PLANNING ═════════════════════════════════════════════════════ */
 
-export type Statut = 'fauteuil' | 'accueil' | 'travail' | 'academie' | 'repos' | 'conge';
+/** L'INVENTAIRE (6 novembre 2026, « mettre à jour le planning, 2 jours
+    d'inventaire en janvier ») : un jour de travail, Maison fermée aux
+    clientes ; jamais un congé, jamais un repos. */
+export type Statut = 'fauteuil' | 'accueil' | 'travail' | 'inventaire' | 'academie' | 'repos' | 'conge';
 export const STATUTS: Record<Statut, string> = {
-  fauteuil: 'fauteuil', accueil: 'accueil', travail: 'au travail', academie: 'Académie', repos: 'repos', conge: 'congé',
+  fauteuil: 'fauteuil', accueil: 'accueil', travail: 'au travail', inventaire: 'inventaire', academie: 'Académie', repos: 'repos', conge: 'congé',
 };
 /** Une semaine : sept cases, lundi d'abord ; vide = rien de prévu. */
 export type Semaine = (Statut | '')[];

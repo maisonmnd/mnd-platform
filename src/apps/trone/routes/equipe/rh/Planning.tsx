@@ -15,7 +15,7 @@ import { aujourdhuiRh } from './_ui';
    lit : un rendez-vous posé sur une main en repos se signale. Un congé
    accordé s'y pose seul. Le souverain l'écrit, toute l'équipe le lit (0130). */
 
-const ORDRE: (Statut | '')[] = ['', 'fauteuil', 'accueil', 'travail', 'academie', 'repos', 'conge'];
+const ORDRE: (Statut | '')[] = ['', 'fauteuil', 'accueil', 'travail', 'inventaire', 'academie', 'repos', 'conge'];
 
 export default function RhPlanning() {
   const { branch } = useBranch();
