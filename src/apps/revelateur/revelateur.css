@@ -809,7 +809,8 @@ p.remise-du-jour { margin-top: 4px; }
 .bandeau-fermeture__dire b { font-weight: 600; overflow-wrap: anywhere; }
 .bandeau-fermeture__dire span { overflow-wrap: anywhere; }
 .reserver .bandeau-fermeture { border-radius: 14px; margin-bottom: 18px; }
-.reserver .bandeau-fermeture__dedans { padding-inline: 18px; }
+.reserver .bandeau-fermeture__dedans { padding-inline: 18px; flex-direction: column; align-items: flex-start; gap: 10px; }
+.reserver .bandeau-fermeture__dire { flex-direction: column; gap: 4px; }
 
 /* CINQ ENTREES DANS LA BARRE — 18 septembre 2026. En passant de quatre a
    cinq, le menu peut serrer sur les ecrans moyens (860 a 1100 px), la ou il
