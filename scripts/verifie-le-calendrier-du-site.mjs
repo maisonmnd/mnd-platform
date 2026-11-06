@@ -85,6 +85,7 @@ const PANNES = [
   ['la migration repose le declencheur de l ouverture', SQL, '-- ── Contrôle', 'drop trigger if exists pas_avant_l_ouverture on public.appointments;\n\n-- ── Contrôle'],
   /* Les versions a deployer */
   ['la fonction du site garde sa version', SITE, "const VERSION = '2026-11-06-a · la réservation", "const VERSION = '2026-11-05-b · la réservation"],
+  ['Opale cherche encore jusqu a 90 jours', WA, 'Math.min(joursDeLaFenetre(ms), Math.max(reglage.horizonJours, 30,', 'Math.min(90, Math.max(reglage.horizonJours, 30,'],
   ['la fonction de WhatsApp garde sa version', WA, "const VERSION = '2026-11-06-a · la place jugee", "const VERSION = '2026-11-04-f · la place jugee"],
 ];
 

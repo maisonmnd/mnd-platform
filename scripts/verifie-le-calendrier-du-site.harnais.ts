@@ -124,6 +124,10 @@ for (const f of ['supabase/functions/demande-submit/index.ts', 'supabase/functio
   dit('B4 whatsapp-automate : les places d un maitre s arretent a la meme borne', [true, false],
     [wa.includes('const n = Math.max(1, Math.min(joursDeLaFenetre(ms), Number.isFinite(voulu) && voulu > 0 ? voulu : 14));\n  const duree = Math.max(1, Math.round(Number(sauf.dureeMin) || 60));'),
       /FENETRE_DE_RESERVATION/.test(wa)]);
+  /* Opale cherche ses places jusqu'a la meme borne : plus de « 90 au plus » (6 nov. 2026). */
+  dit('B5 whatsapp-automate : Opale cherche ses places jusqu a la borne du site, plus jusqu a 90 jours', [true, false],
+    [wa.includes('const horizonPour = (jour?: string): number => Math.min(joursDeLaFenetre(ms), Math.max(reglage.horizonJours, 30, jour ? joursJusqua(jour) + 7 : 0));'),
+      /Math\.min\(90,/.test(wa)]);
 }
 
 /* ══ C. LES ETATS D'UN JOUR ════════════════════════════════════════════ */

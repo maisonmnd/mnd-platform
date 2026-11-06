@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-06-a · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-06-a · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -6719,9 +6719,11 @@ async function unTourDOpale(
   /* LA FENÊTRE DES PLACES (4 novembre 2026) : « je serai là le samedi 28
      novembre » ne se juge pas sur les quatorze jours des listes de
      l'automate. Trente jours d'office, jusqu'au jour qu'elle demande et une
-     semaine de plus, quatre-vingt-dix au plus (la fenêtre du site). */
+     semaine de plus, jusqu'à LA BORNE DU SITE au plus : le dernier jour du
+     troisième mois qui suit (`joursDeLaFenetre`, 6 novembre 2026 ; c'était
+     quatre-vingt-dix jours, et le site proposait déjà plus loin). */
   const joursJusqua = (iso: string): number => Math.round((Date.parse(`${iso}T12:00:00Z`) - Date.parse(`${aujourdhui}T12:00:00Z`)) / JOUR_WA);
-  const horizonPour = (jour?: string): number => Math.min(90, Math.max(reglage.horizonJours, 30, jour ? joursJusqua(jour) + 7 : 0));
+  const horizonPour = (jour?: string): number => Math.min(joursDeLaFenetre(ms), Math.max(reglage.horizonJours, 30, jour ? joursJusqua(jour) + 7 : 0));
   const ficheDe = (id: string): FicheDuNumero | undefined => fiches.find((f) => f.id === id);
   // deno-lint-ignore no-explicit-any
   const prixPour = (ids: string[], tete: TeteDuPrix, fixes?: Record<string, number>): { lignes: string[]; total?: number } => {
