@@ -123,7 +123,6 @@ function RetrouverMonRendezVous({ wa }: { wa: (mot: string) => string }) {
       </div>
       {dit && <p className="rdv-cherche__dit" role="alert">{dit.texte}</p>}
       <p className="rangee"><button type="submit" className="btn btn--plein" disabled={cherche}>{cherche ? 'Un instant…' : M.bouton}</button></p>
-      <p className="legende">{M.billet}</p>
       <p className="legende"><a href={wa(M.motPourLeCode)} target="_blank" rel="noopener">{M.perdu}</a></p>
     </form>
   );

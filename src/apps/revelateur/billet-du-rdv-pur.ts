@@ -93,7 +93,6 @@ export const MOTS_DE_LA_RECHERCHE = {
   chiffres: 'Les 4 derniers chiffres de votre numéro',
   aide: 'Le numéro auquel la Maison vous a confirmé.',
   bouton: 'Retrouver mon rendez-vous',
-  billet: 'Comme la référence d’un billet d’avion : le code retrouve votre rendez-vous, vos quatre chiffres disent que c’est bien vous.',
   perdu: 'Code perdu ? Écrivez à la Maison sur WhatsApp.',
   motPourLeCode: 'Bonjour, je ne retrouve pas le code de confirmation de mon rendez-vous.',
   introuvable: 'Nous ne retrouvons pas ce rendez-vous. Vérifiez votre code et vos quatre chiffres, ou écrivez à la Maison.',
