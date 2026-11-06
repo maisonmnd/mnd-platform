@@ -20,7 +20,7 @@ import {
   finDuNumero, fenetreDeLaRecherche, retrouveLeRdv, FREIN_DE_LA_RECHERCHE, freinDeLaRecherche, billetDeLaFin,
   SIGNES_DU_JETON_DE_LA_FIN, LONGUEUR_DU_JETON_DE_LA_FIN, jetonDeLaFin, estUnJetonDeLaFin, adresseDuReglementDeLaFin,
   lienDeLaFin, notificationDeLaFin, ditQuElleATermine, ditAutreChoseQueLaFin, nommeSonRendezVous, codeDansLeMessage, motDeLaMaisonALaFin, PAGE_POUR_RETROUVER_SON_RDV,
-  aPeineCommence, ATTENTE_DE_LA_PORTE_WHATSAPP_MS,
+  aPeineCommence, ATTENTE_DE_LA_PORTE_WHATSAPP_MS, acompteAVerifier, notificationDeLAcompteAVerifier,
   marqueDeLaFinAuCarnet, pieceAPreparer, suitesAFaire, carteDuRituelEnCours, versementsDejaRecus,
   type RdvDeLaFin, type PieceDeLaFin,
 } from '../src/shared/terminer-et-regler-pur';
@@ -73,6 +73,16 @@ dit('couvert par une formule, sans reste : rien a regler, que le prix soit fige 
 dit('... mais couvert avec un supplement facture par l equipe (une piece qui doit) : la porte s ouvre', 'ouverte', porte({ coveredBySub: true, priceXof: 0 }, A_10H, { piece: 5000 }));
 dit('un rituel offert (prix fige a zero, aucun argent) : rien a regler', 'rien-a-regler', porte({ priceXof: 0 }, A_10H));
 dit('« Passe au comptoir » sur la fiche eteint la porte', ['comptoir', 'ouverte'], [porte({}, A_10H, { comptoir: true }), porte({}, A_10H, { comptoir: false })]);
+/* UN ACOMPTE DEMANDE, PAS ENCORE VERIFIE (relecture du 6 novembre 2026) : le juste reste ne se connait pas. */
+dit('un acompte demande que la Maison n a pas verifie ferme la porte en « comptoir » ; verifie, elle s ouvre ; avant l heure et deja regle se disent d abord',
+  ['comptoir', 'ouverte', 'ouverte', 'avant-l-heure', 'deja-regle', [5000, 0, 0, 0]],
+  [porte({ depositXof: 5000 }, A_10H), porte({ depositXof: 5000, depositConfirmed: true }, A_10H), porte({ depositXof: 0 }, A_10H), porte({ depositXof: 5000 }, aCotonou(JOUR, '07:00')), porte({ depositXof: 5000 }, A_10H, { piece: 0 }),
+    [acompteAVerifier({ depositXof: 5000 }), acompteAVerifier({ depositXof: 5000, depositConfirmed: true }), acompteAVerifier({}), acompteAVerifier(null)]]);
+dit('... et le personnel l apprend : le prenom, l heure, le montant, le comptoir ; aucun pronom',
+  { titre: 'Awa a terminé son rituel', corps: 'Rendez-vous de 8 h. Acompte de 5 000 F demandé, pas encore vérifié : le règlement se fait au comptoir.', url: '/trone/#/carnet' },
+  notificationDeLAcompteAVerifier({ prenom: 'Awa', heure: '08:00', acompteXof: 5000 }));
+dit('... et Ma Couronne n allume pas sa carte pour un acompte a verifier (elle regle au comptoir)', [null, 'en-cours'],
+  [carteDuRituelEnCours({ rdvs: [rdv({ depositXof: 5000 })], maintenantMs: A_10H }), carteDuRituelEnCours({ rdvs: [rdv({ depositXof: 5000, depositConfirmed: true })], maintenantMs: A_10H })?.etat ?? null]);
 dit('... mais l heure et le reglement se disent avant le comptoir', ['avant-l-heure', 'deja-regle'],
   [porte({}, aCotonou(JOUR, '07:00'), { comptoir: true }), porte({ payments: [{ amountXof: 12000 }] }, A_10H, { comptoir: true })]);
 dit('un rendez-vous en attente n est pas confirme : la porte reste fermee', 'pas-confirme', porte({ status: 'en attente' }, A_10H));
@@ -607,6 +617,21 @@ dit('la veille, la porte reste fermee : ni marque, ni lien, ni notification', ['
 dit('« Passe au comptoir » sur la fiche : la porte reste fermee', ['comptoir', undefined],
   [(await appelle(finir, { action: 'terminer', porte: 'site', v: await vDe('rdv-comptoir', '1234') })).corps.etat, rdvDe('rdv-comptoir').termineParElle]);
 dit('un rendez-vous annule ne se termine pas', 'annule', (await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-annule'] }, { cle: SERVICE })).corps.etat);
+/* UN ACOMPTE DEMANDE, PAS ENCORE VERIFIE : la porte se ferme en « comptoir », et le personnel l'apprend, une fois. */
+remplis();
+rdvDe('rdv-jour').depositXof = 5000;
+rdvDe('rdv-comptoir').depositXof = 3000;
+const acompte1 = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-jour'] }, { cle: SERVICE });
+dit('acompte demande, pas verifie : « comptoir », ni marque ni lien ; le personnel recoit « acompte a verifier, reglement au comptoir »',
+  ['comptoir', undefined, undefined, [{ titre: 'Awa a terminé son rituel', corps: 'Rendez-vous de 8 h. Acompte de 5 000 F demandé, pas encore vérifié : le règlement se fait au comptoir.', url: '/trone/#/carnet', mode: 'staff', cle: 'Bearer cle-de-service' }]],
+  [acompte1.corps.etat, rdvDe('rdv-jour').termineParElle, rdvDe('rdv-jour').lienDeReglement, [...notifications]]);
+await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-jour'] }, { cle: SERVICE });
+await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-comptoir'] }, { cle: SERVICE });
+dit('... une seule fois pour ce rendez-vous ; la case « Passe au comptoir » de la fiche, elle, ne previent personne (acompte ou non)', 1, notifications.length);
+rdvDe('rdv-jour').depositConfirmed = true;
+const acompte2 = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-jour'] }, { cle: SERVICE });
+dit('... l acompte verifie par l equipe, la porte s ouvre et le reste le compte : 12 000 moins 5 000', ['a-regler', 7000], [acompte2.corps.etat, acompte2.corps.resteXof]);
+remplis();
 /* SUR WHATSAPP, LES VINGT PREMIERES MINUTES DU RITUEL : une phrase libre n'est pas une declaration.
    Rendez-vous de 9 h 30, il est 9 h 40 : aucune marque, aucun lien, aucune notification ; le bouton
    de Ma Couronne, lui, garde l'heure du rituel. A 9 h 50, WhatsApp ouvre. */

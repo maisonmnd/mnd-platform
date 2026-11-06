@@ -106,6 +106,14 @@ export const argentRecuDeLaFin = (a: Pick<RdvDeLaFin, 'payments' | 'paidXof' | '
   (a.payments && a.payments.length > 0 ? a.payments.reduce((s, p) => s + (Number(p.amountXof) || 0), 0) : Number(a.paidXof) || 0)
   + (a.depositConfirmed ? Math.max(0, Number(a.depositXof) || 0) : 0);
 
+/** L'ACOMPTE DEMANDÉ QUE LA MAISON N'A PAS ENCORE VÉRIFIÉ (relecture du 6
+    novembre 2026) : son montant, ou zéro. Tant que l'équipe ne l'a pas
+    reconnu reçu, le serveur ne sait pas ce qu'elle doit vraiment (elle l'a
+    peut-être versé) : la porte reste fermée, son règlement se fait au
+    comptoir, et le personnel l'apprend. */
+export const acompteAVerifier = (r: Pick<RdvDeLaFin, 'depositXof' | 'depositConfirmed'> | null): number =>
+  (r && !r.depositConfirmed ? Math.max(0, Math.round(Number(r.depositXof) || 0)) : 0);
+
 /** Ce qui reste dû, quand le prix est figé ; null sinon. */
 export function resteConnuDeLaFin(a: RdvDeLaFin): number | null {
   const prix = prixFigeDeLaFin(a);
@@ -143,7 +151,8 @@ export type RaisonDeLaPorte =
     `piece` : le reste de SA pièce quand elle existe (elle fait foi) ; sans
     pièce, le reste ne se connaît que si le prix est figé. Un rendez-vous
     honoré sans pièce ouverte a été clos au comptoir. Ce qui est dit d'abord :
-    annulé, déjà réglé ; puis le jour et l'heure ; puis « Passe au comptoir ». */
+    annulé, déjà réglé ; puis le jour et l'heure ; puis « Passe au comptoir »
+    (la case de la fiche, ou un acompte demandé que la Maison n'a pas vérifié). */
 export function porteDeLaFin(o: {
   rdv: RdvDeLaFin | null;
   maintenantMs: number;
@@ -175,6 +184,8 @@ export function porteDeLaFin(o: {
   const debut = instantDuRituel(jour, r.time);
   if (!Number.isFinite(debut) || o.maintenantMs < debut) return ferme('avant-l-heure');
   if (o.passeAuComptoir === true) return ferme('comptoir');
+  /* Un acompte demandé, pas encore vérifié : le juste reste ne se connaît pas, elle règle au comptoir. */
+  if (acompteAVerifier(r) > 0) return ferme('comptoir');
   return { ouverte: true, raison: 'ouverte' };
 }
 
@@ -378,6 +389,18 @@ export function notificationDeLaFin(o: { prenoms: readonly string[]; heure?: str
   return {
     titre: `${noms} ${plusieurs ? 'ont terminé leur rituel' : 'a terminé son rituel'}`,
     corps: `${heure ? `Rendez-vous de ${heure}. ` : ''}Règlement en cours depuis son téléphone, par ${PORTE_DITE_DE_LA_FIN[o.porte]}.${reste} Un poste du Trône ouvert prépare sa pièce.`,
+    url: '/trone/#/carnet',
+  };
+}
+/** La notification du personnel quand la porte reste fermée pour un acompte
+    à vérifier : la cliente a dit avoir terminé, son règlement se fait au
+    comptoir. Aucun pronom, comme plus haut. */
+export function notificationDeLAcompteAVerifier(o: { prenom: string; heure?: string; acompteXof: number }): { titre: string; corps: string; url: string } {
+  const nom = String(o.prenom ?? '').trim() || 'Une cliente';
+  const heure = heureDiteDeLaFin(o.heure);
+  return {
+    titre: `${nom} a terminé son rituel`,
+    corps: `${heure ? `Rendez-vous de ${heure}. ` : ''}Acompte de ${francsDeLaFin(o.acompteXof)} demandé, pas encore vérifié : le règlement se fait au comptoir.`,
     url: '/trone/#/carnet',
   };
 }
