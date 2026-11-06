@@ -166,6 +166,13 @@ dit('elle a termine : « termine », la porte reste ouverte tant qu elle n a pas
   [['termine', true, true], ['regle', 0, false]],
   [[billet({ termineParElle: { le: '2026-11-06T09:02:00.000Z', par: 'site' } }, A_10H, 12000).etat, billet({ termineParElle: { le: '2026-11-06T09:02:00.000Z', par: 'site' } }, A_10H, 12000).aTermine, billet({ termineParElle: { le: '2026-11-06T09:02:00.000Z', par: 'site' } }, A_10H, 12000).porte.ouverte],
     [billet({ status: 'honoré', termineParElle: { le: '2026-11-06T09:02:00.000Z', par: 'site' } }, A_10H, 0).etat, billet({ status: 'honoré' }, A_10H, 0).resteXof, billet({ status: 'honoré' }, A_10H, 0).porte.ouverte]]);
+/* UN RENDEZ-VOUS A VENIR PAYE D'AVANCE (relecture du 6 novembre 2026) : il passait « regle », et la
+   page /rdv/ lui disait « vous pouvez partir » en lui retirant Deplacer, Annuler et l'agenda. */
+const PAYE_D_AVANCE = { time: '08:00', payments: [{ amountXof: 12000 }] };
+const duBillet = (quand: number) => { const b = billet(PAYE_D_AVANCE, quand); return [b.etat, b.porte.raison, b.resteXof]; };
+dit('paye d avance : la veille et le matin avant l heure, le billet reste « confirme » (deja regle, reste zero) ; « regle » une fois le rituel commence, et le lendemain',
+  [['confirme', 'deja-regle', 0], ['confirme', 'deja-regle', 0], ['regle', 'deja-regle', 0], ['regle', 'deja-regle', 0]],
+  [duBillet(aCotonou('2026-11-05', '18:00')), duBillet(aCotonou(JOUR, '07:59')), duBillet(aCotonou(JOUR, '08:00')), duBillet(aCotonou('2026-11-07', '09:00'))]);
 dit('annule : annule, aucun montant ; sans prix fige ni piece : le montant ne se devine pas', [['annule', null], null],
   [[billet({ status: 'annulé' }, A_10H).etat, billet({ status: 'annulé' }, A_10H).resteXof], billet({ priceXof: undefined }, A_10H).resteXof]);
 
@@ -736,6 +743,13 @@ dit('regle : « Vous pouvez partir : la Maison est prevenue », sans bouton ; un
     reglementDuBillet(billetDe({ etat: 'regle', resteXof: 0, porte: { ouverte: false, raison: 'deja-regle' } }))?.bouton,
     reglementDuBillet(billetDe({ etat: 'en-cours', resteXof: null, porte: { ouverte: true, raison: 'ouverte' } }))?.montant,
     reglementDuBillet(billetDe({ etat: 'annule', resteXof: null, porte: { ouverte: false, raison: 'annule' } }))]);
+const dAvance = reglementDuBillet(billetDe({ etat: 'confirme', resteXof: 0, porte: { ouverte: false, raison: 'deja-regle' } }));
+dit('paye d avance, a venir : « Deja regle », sans bouton ni montant, et Deplacer, Annuler et l agenda restent', ['Déjà réglé', 'Ce rendez-vous est déjà réglé. Merci.', undefined, undefined, false],
+  [dAvance?.sur, dAvance?.phrase, dAvance?.bouton, dAvance?.montant, dAvance?.leJourMeme]);
+rdvDe('rdv-demain').payments = [{ id: 'v-avance', amountXof: 12000, method: 'Espèces', date: JOUR }];
+const billetDeDemain = (await appelle(finir, { action: 'retrouver', code: referenceDuRendezVous('rdv-demain'), chiffres: '4480' }, { ip: '9.9.9.7' })).corps.billet;
+dit('... rejoue sur la vraie fonction : demain, paye d avance, le billet reste « confirme » (deja regle, reste zero) et le site garde Deplacer et Annuler',
+  ['confirme', 'deja-regle', 0, false], [billetDeDemain?.etat, billetDeDemain?.porte?.raison, billetDeDemain?.resteXof, reglementDuBillet(billetLu(billetDeDemain)!)?.leJourMeme]);
 dit('un billet abime ne se lit pas : sans porte, un montant negatif, un etat inconnu', [null, null, null],
   [billetLu({ reference: 'MND-7K3Q', jour: JOUR, etat: 'confirme' }), billetLu({ reference: 'MND-7K3Q', jour: JOUR, etat: 'confirme', resteXof: -5, porte: { ouverte: false, raison: 'x' } }),
     billetLu({ reference: 'MND-7K3Q', jour: JOUR, etat: 'gratuit', porte: { ouverte: true, raison: 'ouverte' } })]);

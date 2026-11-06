@@ -298,7 +298,14 @@ export function billetDeLaFin(o: {
   const aujourdhui = jourDeLaFin(o.maintenantMs);
   const debut = instantDuRituel(jour, r.time);
   const aTermine = !!r.termineParElle?.le;
-  const regle = porte.raison === 'deja-regle';
+  const dejaRegle = porte.raison === 'deja-regle';
+  /* « RÉGLÉ, VOUS POUVEZ PARTIR » NE SE DIT QU'UNE FOIS LE RITUEL COMMENCÉ
+     (relecture du 6 novembre 2026). Un rendez-vous À VENIR payé d'avance
+     passait « réglé » : la page /rdv/ lui disait de partir et lui retirait
+     Déplacer, Annuler et l'agenda. Réglé d'avance, il reste « confirmé »
+     (son reste vaut zéro) jusqu'à l'heure de son rituel. */
+  const commence = jour < aujourdhui || (jour === aujourdhui && Number.isFinite(debut) && o.maintenantMs >= debut);
+  const regle = dejaRegle && commence;
   const etat: EtatDuBillet = r.status === 'annulé' ? 'annule'
     : regle ? 'regle'
       : (aTermine || (r.status === 'honoré' && porte.ouverte)) && jour === aujourdhui ? 'termine'

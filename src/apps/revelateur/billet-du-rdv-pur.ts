@@ -135,6 +135,8 @@ export function reglementDuBillet(b: BilletDeLaFin): ReglementDit | null {
           note: 'Si l’équipe ajoute un soin ou un produit, le montant se met à jour sur la page du règlement.', leJourMeme: true,
         };
   }
+  /* Réglé d'avance, le rituel pas encore commencé : on le dit, et le rendez-vous garde Déplacer, Annuler et l'agenda. */
+  if (b.porte.raison === 'deja-regle') return { sur: 'Déjà réglé', phrase: 'Ce rendez-vous est déjà réglé. Merci.', leJourMeme: false };
   if (b.porte.raison === 'comptoir') return { sur: 'Votre règlement', phrase: 'Pour votre règlement, l’équipe vous attend au comptoir.', leJourMeme: b.etat === 'en-cours' };
   if (b.porte.raison === 'rien-a-regler') return { sur: 'Rien à régler', phrase: 'Il n’y a rien à régler pour ce rendez-vous.', leJourMeme: b.etat === 'en-cours' };
   if (b.porte.raison === 'avant-l-heure' || b.porte.raison === 'pas-encore-le-jour') {
