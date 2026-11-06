@@ -73,6 +73,8 @@ const PANNES = [
   ['les paiements s ouvrent au gerant', INDEX, "'/agents', '/assistants', '/paiements'];", "'/agents', '/assistants'];"],
   ['les paiements quittent les Ressources humaines', INDEX, ", { path: '/paiements', label: 'Les paiements' }", ''],
   ['la barre de validation flotte au-dessus du bord', STYLE, '.lp-pied { position: sticky; bottom: calc(-1 * var(--space-9, 96px));', '.lp-pied { position: sticky; bottom: 0;'],
+  ['la prestataire de l equipe perd ses pourboires', PUR, "    pourboiresXof: o.genre === 'prestataire' ? Math.max(0, entier(o.pourboiresDuMoisXof ?? 0)) : 0,", '    pourboiresXof: 0,'],
+  ['les pourboires des prestataires ne se comptent pas', PUR, "    if ((l.genre === 'equipe' || l.genre === 'prestataire') && l.pourboiresXof > 0) {", "    if (l.genre === 'equipe' && l.pourboiresXof > 0) {"],
   /* numero invente : le vrai ne s'ecrit nulle part dans le depot public */
   ['le numero du compte de paie revient dans l ecran', ECRAN, "const COMPTE_DE_PAIE = 'compte de paie MTN';", "const COMPTE_DE_PAIE = '01 90 00 00 00';"],
 ];

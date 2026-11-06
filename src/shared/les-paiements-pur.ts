@@ -317,6 +317,9 @@ export function ligneADate(o: {
   validation?: ValidationADate;
   payeLe?: string;
   envois: readonly EnvoiMtn[];
+  /** Une prestataire DE L'ÉQUIPE (fiche au contrat « prestataire ») garde ses
+      pourboires du mois, remis en espèces le 5 comme ceux de l'équipe. */
+  pourboiresDuMoisXof?: number;
 }): LigneDuMois {
   const runId = o.genre === 'prestataire' ? runDesPrestataires(o.periode) : runDesEntreprises(o.periode);
   const date = dateDePaie(o.periode, o.jour);
@@ -350,7 +353,7 @@ export function ligneADate(o: {
     netXof: montant, pretXof: 0,
     parMtnXof: viaMtn ? montant : 0,
     viaMtn,
-    pourboiresXof: 0,
+    pourboiresXof: o.genre === 'prestataire' ? Math.max(0, entier(o.pourboiresDuMoisXof ?? 0)) : 0,
     ...(o.msisdn ? { msisdn: o.msisdn } : {}),
     numero: o.numero.etat, nomMtn: o.numero.nomMtn,
     jour: o.jour, date,
@@ -427,7 +430,7 @@ export function chiffresDuMois(lignes: readonly LigneDuMois[], remis: Readonly<R
     horsMtn: 0, pourboiresXof: 0, pourboiresRemis: 0, pourboiresATotal: 0, partisXof: 0,
   };
   for (const l of lignes) {
-    if (l.genre === 'equipe' && l.pourboiresXof > 0) {
+    if ((l.genre === 'equipe' || l.genre === 'prestataire') && l.pourboiresXof > 0) {
       c.pourboiresXof += l.pourboiresXof;
       c.pourboiresATotal += 1;
       if (remis[l.id]) c.pourboiresRemis += 1;

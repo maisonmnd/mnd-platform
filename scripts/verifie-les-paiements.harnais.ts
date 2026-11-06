@@ -174,6 +174,13 @@ dit('... en chiffres : 165 000 - 30 000 + 20 000 + 45 000 = 200 000, 4 virements
 dit('... les pourboires a part, en especes : 3 750, 1 coche sur 2', [3750, 1, 2], [c.pourboiresXof, c.pourboiresRemis, c.pourboiresATotal]);
 dit('... hors MTN : Moov, sans prix, sans facture', [3, 2, 1, 2], [c.horsMtn, c.nbPrestatairesTotal, c.nbEntreprises, c.nbEntreprisesTotal]);
 dit('... le pont tient sur un mois vide', [true, 0], [pontTenu(chiffresDuMois([])), chiffresDuMois([]).parMtnXof]);
+/* 6 nov. 2026 : G., N. et A. passent au contrat « prestataire ». Leurs pourboires du mois
+   restent a remettre en especes le 5, sur leur ligne de prestataire ; une entreprise n'en a jamais. */
+const pp = presta({ id: 'st-g', nom: 'G. T.', pourboiresDuMoisXof: 1500 });
+const ce = chiffresDuMois([pp, e1], { 'st-g': { par: 'Y. B.' } });
+dit('une prestataire de l equipe garde ses pourboires, comptes et cochables ; jamais dans le virement', [1500, 1500, 1, 1, 20000],
+  [pp.pourboiresXof, ce.pourboiresXof, ce.pourboiresRemis, ce.pourboiresATotal, pp.parMtnXof]);
+dit('une entreprise n a pas de pourboires, meme si on lui en passe', 0, ligneADate({ genre: 'entreprise', id: 'x', nom: 'X.', periode: '2026-11', montantXof: 1000, msisdn: '2290190000099', numero: { etat: 'non-lu' }, jour: 10, envois: [], pourboiresDuMoisXof: 900 }).pourboiresXof);
 
 /* ── 4. Le numero et le nom chez MTN ── */
 const lecture: LectureMtn = { le: '2026-12-05T11:00:00.000Z', soldeXof: null, numeros: {

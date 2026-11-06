@@ -206,6 +206,7 @@ export default function LesPaiements() {
             montantXof: accepte ? lu.envoyeXof : 0, arret: accepte ? undefined : 'facture pas encore acceptée',
             msisdn: n.source === 'fiche' ? n.msisdn : undefined, numero, jour: jourLu(jours[cle]),
             validation: validations[cle], payeLe: l.payeLe, envois: envoisPresta,
+            pourboiresDuMoisXof: pourboiresDuMois(asArray(tips), l.employeeId, periode),
           }));
           ctx.set(cle, { fiche, ligne: l, lecture: lu, ...(n.source === 'repris' ? { propose: n.msisdn } : {}) });
           continue;
@@ -220,7 +221,7 @@ export default function LesPaiements() {
       }
     } else {
       for (const f of fiches) {
-        if (f.archiveeLe || f.contractType === 'prestataire') continue;
+        if (f.archiveeLe) continue; // une prestataire de l'équipe garde ses pourboires (6 nov. 2026)
         const pb = pourboiresDuMois(asArray(tips), f.id, periode);
         if (pb <= 0) continue;
         const n = numeroDeFiche(f);
@@ -1097,7 +1098,11 @@ export default function LesPaiements() {
                   <td className="lp-n">{l.netXof > 0 ? <b>{F(l.netXof)}</b> : <span className="lp-vide">{l.pourquoi === 'sans prix' ? 'sans prix' : '–'}</span>}</td>
                   <td>{numero(l)}</td>
                   <td><span className="lp-etat-ligne">{choixDuJour(l)}{pastille(l)}{seValideAPart(l) && !fige && <Button size="sm" variant="copper" onClick={() => void validerALaLigne(l)}>Valider</Button>}</span></td>
-                  <td className="lp-n lp-vide">–</td>
+                  <td className="lp-n">
+                    {l.pourboiresXof > 0
+                      ? <button type="button" className={`lp-remis${remis[l.id] ? ' lp-remis--oui' : ''}`} onClick={() => basculeRemis(l)}>{F(l.pourboiresXof)} · {remis[l.id] ? 'Remis ✓' : 'À remettre'}</button>
+                      : <span className="lp-vide">–</span>}
+                  </td>
                 </tr>
               ))}
 
