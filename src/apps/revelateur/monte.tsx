@@ -21,6 +21,8 @@ const ILOTS: Record<string, Chargeur> = {
   avis: () => import('./ilots/Avis') as unknown as ReturnType<Chargeur>,
   offres: () => import('./ilots/Offres') as unknown as ReturnType<Chargeur>,
   'bandeau-offre': () => import('./ilots/BandeauOffre') as unknown as ReturnType<Chargeur>,
+  /* La fermeture annoncée (6 novembre 2026) : l'accueil et la réservation. */
+  fermeture: () => import('./ilots/BandeauFermeture') as unknown as ReturnType<Chargeur>,
   contact: () => import('./ilots/Contact') as unknown as ReturnType<Chargeur>,
   joindre: () => import('./ilots/Joindre') as unknown as ReturnType<Chargeur>,
   offrir: () => import('./ilots/Offrir') as unknown as ReturnType<Chargeur>,

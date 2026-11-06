@@ -2338,6 +2338,25 @@
   transition: background 0.2s var(--ease-soft);
 }
 .mc-remindbanner:hover { background: var(--color-sable); }
+/* LA FERMETURE ANNONCÉE (6 novembre 2026) : la carte du rappel, sans geste. */
+.mc-fermeture {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: var(--copper-50);
+  border: 1px solid var(--copper-300);
+  border-radius: 3px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--accent-strong);
+}
+.mc-fermeture__dot { width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; background: var(--accent); flex: 0 0 auto; }
+.mc-fermeture__txt { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.mc-fermeture__txt b { font-weight: var(--weight-medium); }
+.mc-fermeture__tag { display: block; margin-bottom: 2px; font-size: 10px; font-weight: var(--weight-medium); letter-spacing: 0.16em; text-transform: uppercase; }
 .mc-remindbanner__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: 0 0 auto; }
 .mc-remindbanner__txt { flex: 1; min-width: 0; line-height: 1.4; }
 .mc-remindbanner__go {

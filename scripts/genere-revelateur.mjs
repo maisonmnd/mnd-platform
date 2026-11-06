@@ -1027,6 +1027,7 @@ function ilot(nom, p) {
     const repli = rappel ? 'Le formulaire se charge.' : 'Le calendrier se charge.';
     return `<section class="reserver serre"><div class="conteneur">
       <div>
+        ${rappel ? '' : '<div data-ilot="fermeture" data-genre="reserver"></div>'}
         <div data-ilot="${nom}" data-genre="rdv"${rappel ? '' : ` data-initiales-agenda="${attr(AGENDA_ECRIT ? 'oui' : 'non')}"`}>${rappel ? '' : agendaDansLaPage()}<p class="corps">${repli} Vous pouvez aussi nous écrire sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div>
       </div>
       <aside class="ensuite">
@@ -1288,6 +1289,9 @@ function rendAccueil(articles) {
           <div class="bande__piste">${[false, true].map((muette) => a.bande.map((m) => `<span class="bande__mot"${muette ? ' aria-hidden="true"' : ''}><img class="bande__picto" src="/assets/photos/site/mono-copper.png" alt="" width="240" height="198" loading="lazy">${echappe(m)}</span>`).join('')).join('')}</div>
         </div>
       </section>
+      <!-- LA FERMETURE ANNONCÉE (6 novembre 2026) : vide et sans hauteur tant
+           qu'aucune fermeture n'approche. -->
+      <div data-ilot="fermeture" data-genre="accueil"></div>
       <!-- LES TROIS ENTRÉES JUSTE APRÈS LE PREMIER ÉCRAN, la Maison ensuite
            (11 octobre 2026, maquette validée). -->
       <section id="portes"><div class="conteneur">

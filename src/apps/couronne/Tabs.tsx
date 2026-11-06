@@ -1,4 +1,5 @@
 import { asset } from '../../shared/asset';
+import FermetureAnnoncee from './FermetureAnnoncee';
 import { TexteFon } from '../../ds/fon';
 import { EntreDeux } from './EntreDeux';
 import { MonDiagnosticPhoto } from './MonDiagnosticPhoto';
@@ -704,6 +705,10 @@ export function HomeTab({
             <span className="mc-remindbanner__go">{t('Voir')}</span>
           </button>
         )}
+
+        {/* LA FERMETURE ANNONCÉE (6 novembre 2026) : la Maison fermée bientôt,
+            ou en ce moment, et le jour où elle rouvre. */}
+        <FermetureAnnoncee />
 
         {/* LA CITATION EST RETIRÉE (14 août — « élimine tous les textes
             inutiles ») : une phrase qui ne porte ni geste ni information

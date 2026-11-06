@@ -108,7 +108,20 @@ const prochainJourParmi = (iso: string, jours: readonly number[]): string => {
 
 export const poseLaDateSelon = (iso: string, jourPrefere: number | readonly number[] | undefined, estFerme: (iso: string) => boolean): string => {
   const jours = sesJours(jourPrefere);
-  return prochainJourOuvertSelon(jours.length === 0 ? iso : prochainJourParmi(iso, jours), estFerme);
+  if (jours.length === 0) return prochainJourOuvertSelon(iso, estFerme);
+  /* SON JOUR, MÊME APRÈS UNE FERMETURE — 6 novembre 2026. « Il faut toujours
+     regarder les jours des clients, les jours favoris » (Yéman) : sa reprise
+     du vendredi 1er janvier 2027 tombait dans la fermeture annuelle et
+     glissait au mercredi 6, premier jour ouvert, alors qu'elle travaille en
+     semaine. Une porte close POUR UNE FOIS renvoie au PROCHAIN DE SES JOURS
+     ouvert. On cherche sur trois semaines ; si aucun de ses jours n'y ouvre
+     (un jour que la Maison ferme toujours), la règle d'avant reste : le
+     premier jour ouvert après son jour. */
+  for (let i = 0; i < 21; i += 1) {
+    const d = addDaysISO(iso, i);
+    if (jours.includes(fromISO(d).getDay()) && !estFerme(d)) return d;
+  }
+  return prochainJourOuvertSelon(prochainJourParmi(iso, jours), estFerme);
 };
 
 /** Médiane entière — robuste aux visites exceptionnelles. */

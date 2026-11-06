@@ -196,7 +196,12 @@ var prochainJourParmi = (iso2, jours) => {
 };
 var poseLaDateSelon = (iso2, jourPrefere, estFerme) => {
   const jours = sesJours(jourPrefere);
-  return prochainJourOuvertSelon(jours.length === 0 ? iso2 : prochainJourParmi(iso2, jours), estFerme);
+  if (jours.length === 0) return prochainJourOuvertSelon(iso2, estFerme);
+  for (let i = 0; i < 21; i += 1) {
+    const d = addDaysISO(iso2, i);
+    if (jours.includes(fromISO(d).getDay()) && !estFerme(d)) return d;
+  }
+  return prochainJourOuvertSelon(prochainJourParmi(iso2, jours), estFerme);
 };
 var medianInt = (xs) => {
   const s = [...xs].sort((a2, b) => a2 - b);

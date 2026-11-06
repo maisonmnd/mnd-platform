@@ -2,6 +2,16 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA FERMETURE ANNONCÉE ET L'HEURE D'OUVERTURE : 6 novembre 2026
+
+« Il faut notifier sur le site internet et sur Ma Couronne que le salon est fermé du [vendredi] 1er au mardi 5, qu'on reprend le mercredi 6 janvier », la cadence ne tombe pas sur ces jours ; « il faut toujours regarder les jours des clients, les jours favoris » ; « personne n'a le droit d'avoir dans son calendrier 8 h 30 un samedi » (Yéman).
+
+- **Les cinq jours** 2027-01-01 à 2027-01-05 posés au Trône (Paramètres, « Fermer la Maison un jour », note « Fermeture annuelle ») : la réservation du site, de Ma Couronne et de WhatsApp les ferme déjà (`ouvertureDuJour`).
+- **L'annonce** : `shared/fermeture-pur.ts` (`fermetureAnnoncee`, `phraseDeLaFermeture`, `phraseDeLaFermetureEn`) ; une suite de jours fermés pour toute la Maison, recousue par les jours que la semaine ferme ; 60 jours avant (2 jours ou plus), 14 jours avant (un seul). Site : îlot `fermeture` (`ilots/BandeauFermeture.tsx`), sur l'accueil et en tête de /reserver/. Ma Couronne : `FermetureAnnoncee.tsx`, accueil et réservation.
+- **La cadence garde son jour** : `poseLaDateSelon` cherche le prochain de SES jours ouvert (trois semaines), sinon la règle d'avant. assistant-maison regroupé à nouveau.
+- **Jamais avant l'ouverture** : `raisonDeLHeure` bloque un départ avant l'heure d'ouverture d'un jour ouvert, `sansPasseDroit` (pas de « Poser quand même ») ; migration 0167 : `ouverture_du_jour(date)`, déclencheur `pas_avant_l_ouverture` (REMET à l'ouverture, ne refuse pas : un refus ferait tomber toute la tranche d'envoi du Trône) et correction des rendez-vous à venir.
+- **Bancs** : verifie-la-fermeture-annoncee (35, preuve 19 fautes).
+
 ## LES VACANCES ANNUELLES ET LA FICHE DE CONGÉS : 6 novembre 2026, EN LIGNE
 
 « Les vacances annuelles à côté de congés et absences… je dois le caler à part… générer une fiche PDF PRO quand je pose les congés du staff » (Yéman). Maquette `public/maquette-les-vacances-annuelles.html` (claude.ai 1Jc1m2bUp8rovJ5tmejBAo, v2), « Construis ». Ses choix : un seul solde ; jours calendaires ; fiche rangée seule dès l’accord ; la fermeture de la Maison pour toute l’équipe, au planning et en journée exceptionnelle fermée.

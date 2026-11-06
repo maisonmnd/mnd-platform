@@ -97,7 +97,15 @@ export function placesDuJour(o: {
   return { iso: o.iso, ferme: false, passe: false, heures };
 }
 
-export type Raison = { bloque: boolean; texte: string };
+export type Raison = {
+  bloque: boolean;
+  texte: string;
+  /** AVANT L'OUVERTURE — 6 novembre 2026 : « Personne n'a le droit d'avoir
+      dans son calendrier 8 h 30 un samedi » (Yéman). Ce blocage-là n'a pas de
+      « Poser quand même » : la main du Trône passe outre un fauteuil plein,
+      jamais l'heure d'ouverture d'un jour ouvert. */
+  sansPasseDroit?: boolean;
+};
 
 /** CE QUE L'HEURE CHOISIE DOIT DIRE. Les fauteuils pleins arrêtent la pose
     tant que la main n'a pas dit « Poser quand même » (24 octobre 2026, voir
@@ -126,10 +134,22 @@ export function raisonDeLHeure(o: {
     const issue = o.premiereLibre ? ` Première place libre ce jour-là : ${o.premiereLibre}.` : ' Plus aucune place ce jour-là.';
     return { bloque: true, texte: `${plein} le ${o.jourDit} à ${o.heure} : cette heure est pleine.${issue}` };
   }
+  /* UN JOUR OUVERT NE COMMENCE PAS AVANT SON HEURE — 6 novembre 2026. Le
+     samedi ouvre à 9 h : une reprise recopiait l'heure d'un jeudi (8 h 30)
+     sur un samedi, et deux clientes ont reçu leur confirmation à 8 h 30. Un
+     jour FERMÉ ouvert exprès garde la main (il n'a pas d'heure à respecter). */
+  if (!o.ouverture.closed && debut < o.ouverture.openMin) {
+    const ouvre = hhmmDeMinutes(o.ouverture.openMin);
+    return {
+      bloque: true,
+      sansPasseDroit: true,
+      texte: `La Maison ouvre à ${ouvre} le ${o.jourDit} : aucun rendez-vous n’y commence avant ${ouvre}. Choisissez ${ouvre} ou plus tard.`,
+    };
+  }
   const dits: string[] = [];
   if (o.ouverture.closed) {
     dits.push(`La Maison est fermée le ${o.jourDit}.`);
-  } else if (debut < o.ouverture.openMin || fin > o.ouverture.closeMin) {
+  } else if (fin > o.ouverture.closeMin) {
     dits.push(`Hors des heures d’ouverture : la Maison ouvre de ${hhmmDeMinutes(o.ouverture.openMin)} à ${hhmmDeMinutes(o.ouverture.closeMin)}, le rituel irait de ${o.heure} à ${hhmmDeMinutes(fin)}.`);
   }
   if (o.bloques.some(([s, e]) => debut < e && fin > s)) {
@@ -168,7 +188,7 @@ export function bloqueLaPose(e: {
      fauteuils de ce matin-là se déclaraient pleins, et l'enregistrement qui
      précède l'ouverture des règlements était refusé. Les fauteuils d'un
      rituel passé ne se rejugent pas. */
-  if (e.force || !e.raison?.bloque || e.statut === 'annulé' || e.statut === 'honoré') return false;
+  if ((e.force && !e.raison?.sansPasseDroit) || !e.raison?.bloque || e.statut === 'annulé' || e.statut === 'honoré') return false;
   if (!e.relu) return true;
   return e.relu.date !== e.date || e.relu.time !== e.time || e.dureeMin > e.relu.dureeMin;
 }

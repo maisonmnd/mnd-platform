@@ -5202,7 +5202,7 @@ function RdvModalCorps({
           {raison && (
             <div className={`trc-rdv3__raison${bloque ? ' is-bloque' : ''}`} role={bloque ? 'alert' : undefined}>
               {raison.texte}
-              {raison.bloque && (forcePlein ? (
+              {raison.bloque && !raison.sansPasseDroit && (forcePlein ? (
                 <span style={{ display: 'block', marginTop: 6 }}>Posé quand même, par-dessus les fauteuils : la Maison s’organise.</span>
               ) : (
                 <span style={{ display: 'block', marginTop: 8 }}>
@@ -5871,7 +5871,7 @@ function RdvModalCorps({
         {raison && rang !== 'quand' && (
           <div className={`trc-rdv3__raison${bloque ? ' is-bloque' : ''}`} role={bloque ? 'alert' : undefined}>
             {raison.texte}
-            {raison.bloque && !forcePlein && (
+            {raison.bloque && !raison.sansPasseDroit && !forcePlein && (
               <span style={{ display: 'block', marginTop: 8 }}>
                 <button type="button" className="mnd-btn mnd-btn--sm mnd-btn--ghost trc-rdv3__forcer" onClick={() => setForcePlein(true)}>
                   Poser quand même à {time}

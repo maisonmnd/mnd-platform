@@ -1,4 +1,5 @@
 import { asset } from '../../shared/asset';
+import FermetureAnnoncee from './FermetureAnnoncee';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
@@ -1524,6 +1525,8 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
       </div>
 
       <div className="mc-scroll mc-flowbody">
+        {/* LA FERMETURE ANNONCÉE (6 novembre 2026), avant le choix du jour. */}
+        {vue < 6 && <FermetureAnnoncee />}
         {/* LA DERNIÈRE PLACE VIENT DE PARTIR (4 novembre 2026) : la base a
             refusé la remise, rien n'est parti. Elle choisit : le tarif de la
             Maison, ou un autre jour. Jamais un prix changé en silence. */}
