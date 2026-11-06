@@ -54,9 +54,10 @@ begin
     execute format('create policy %1$s_ecrire on public.%1$I for insert to authenticated with check (public.is_staff())', t);
     execute format('drop policy if exists %1$s_reprendre on public.%1$I', t);
     execute format('create policy %1$s_reprendre on public.%1$I for update to authenticated using (public.is_staff()) with check (public.is_staff())', t);
-    -- Pas de politique de suppression : rien ne s'efface.
-    execute format('revoke delete, truncate on public.%1$I from anon, authenticated', t);
-    execute format('revoke all on public.%1$I from anon', t);
+    -- Pas de politique de suppression, et aucun droit d'effacer : on retire
+    -- tout, puis on ne rend à une session que lire, écrire et reprendre.
+    execute format('revoke all on public.%1$I from anon, authenticated', t);
+    execute format('grant select, insert, update on public.%1$I to authenticated', t);
     if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
        and not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
       execute format('alter publication supabase_realtime add table public.%I', t);

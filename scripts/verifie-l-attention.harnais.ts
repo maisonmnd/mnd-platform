@@ -197,7 +197,7 @@ const sql = lis('supabase/migrations/0170_l_attention.sql');
 const sqlNu = sql.replace(/--[^\n]*/g, '');
 dit('0170 : trois tables sous RLS, lues et écrites par la Maison seule, rien ne s efface', [true, true, 3, false, true],
   [sqlNu.includes("array['attention_articles', 'attention_paniers', 'attention_reglages']"), sqlNu.includes('enable row level security'),
-    (sqlNu.match(/public\.is_staff\(\)/g) ?? []).length - 1, /create policy[^;]*est_ma_tete/.test(sqlNu), sqlNu.includes("revoke delete, truncate on public.%1$I from anon, authenticated")]);
+    (sqlNu.match(/public\.is_staff\(\)/g) ?? []).length - 1, /create policy[^;]*est_ma_tete/.test(sqlNu), sqlNu.includes("revoke all on public.%1$I from anon, authenticated") && sqlNu.includes("grant select, insert, update on public.%1$I to authenticated") && !/grant[^;]*\bdelete\b/i.test(sqlNu)]);
 dit('0170 : `mes_attentions` exige une session, ne rend que SES têtes, fermée à `anon`', [true, true, true, true],
   [sqlNu.includes("if v_uid is null then raise exception 'Connexion requise.'; end if;"), sqlNu.includes("and public.est_ma_tete(coalesce(p.data->>'clientId', ''))"),
     sqlNu.includes('revoke all on function public.mes_attentions(text) from public, anon;'), sqlNu.includes('grant execute on function public.mes_attentions(text) to authenticated;')]);
