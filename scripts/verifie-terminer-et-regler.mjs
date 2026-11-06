@@ -1,4 +1,4 @@
-import { build } from 'esbuild';
+import { build, transform } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -16,7 +16,31 @@ const racine = path.resolve(import.meta.dirname, '..');
 const prouve = process.argv.includes('--prouve');
 
 const PUR = 'src/shared/terminer-et-regler-pur.ts';
+const TER = 'supabase/functions/terminer-et-regler/index.ts';
+const REG = 'supabase/functions/regler-la-seance/index.ts';
 const PANNES = [
+  /* ── Le serveur : les vraies fonctions, rejouees ── */
+  ['le reglement n honore plus', REG, "  return honneur ? ({ ...regle, status: 'honoré', honoreAuReglement: honneur } as RdvLu) : regle;", '  return regle;'],
+  ['l honneur sans la marque que le Trone suit', REG, "({ ...regle, status: 'honoré', honoreAuReglement: honneur } as RdvLu)", "({ ...regle, status: 'honoré' } as RdvLu)"],
+  ['un rejeu ne rattrape pas l honneur', REG, '    await suisLeRdv(rdv.id, null, piece.id, resteDeLaPiece(piece), new Date());\n', ''],
+  ['le foyer regle n honore pas', REG, '    await suisLeRdv(x.rdv.id, v, x.piece.id, resteDeLaPiece(neuve), quand, true);', '    await suisLeRdv(x.rdv.id, v, x.piece.id, 1, quand, true);'],
+  ['la copie de l honneur derive dans regler-la-seance', REG, '  if (!Number.isFinite(reste) || Math.round(reste) > 0) return null;', '  if (!Number.isFinite(reste) || Math.round(reste) > 1) return null;'],
+  ['la copie de la regle derive dans terminer-et-regler', TER, 'export const JOURS_APRES_DE_LA_RECHERCHE = 100;', 'export const JOURS_APRES_DE_LA_RECHERCHE = 101;'],
+  ['la porte WhatsApp s ouvre sans la cle de service', TER, "    if (!parLeService(req)) return json({ ok: false, error: 'interdit' }, 403);\n", ''],
+  ['Ma Couronne termine le rendez-vous d une autre', TER, "      if (!ligne || String(ligne.data?.clientId ?? '') !== ficheId) return json({ ok: false, error: 'introuvable' }, 404);", "      if (!ligne) return json({ ok: false, error: 'introuvable' }, 404);"],
+  ['un echec ne compte plus : le frein par code est mort', TER, "    if (code) await note('fin-echec', code);\n", ''],
+  ['le frein n arrete plus rien', TER, "  if (frein !== 'libre') return json({ ok: false, error: 'trop' }, 429);\n", ''],
+  ['la reponse trahit un code qui existe', TER, "    return json({ ok: false, error: 'introuvable' });", "    return json({ ok: false, error: candidats.length ? 'chiffres' : 'introuvable' });"],
+  ['le personnel prevenu a chaque toucher', TER, '  if (neuve) {', '  if (true) {'],
+  ['le personnel n est plus prevenu', TER, '  if (neuve) {', '  if (false) {'],
+  ['une seconde porte reecrit la premiere marque', TER, '      const marque = d.termineParElle?.le ? d.termineParElle : { le, par: porte };', '      const marque = { le, par: porte };'],
+  ['un jeton forge termine', TER, "      if (!apptId) return json({ ok: false, error: 'lien' });\n      ids = [apptId];", '      ids = [String(apptId)];'],
+  ['la marque se pose porte fermee', TER, '  const ouvertes = tetes.filter((t) => t.porte.ouverte);', '  const ouvertes = tetes;'],
+  ['le serveur ecrit sur une ligne qui a bouge', TER, "    if (frais.updated_at) q = q.eq('updated_at', frais.updated_at);\n", ''],
+  ['« Passe au comptoir » ignore par le serveur', TER, "      porte: porteDeLaFin({ rdv, maintenantMs: maintenant, passeAuComptoir: fiche?.passeAuComptoir === true,", '      porte: porteDeLaFin({ rdv, maintenantMs: maintenant, passeAuComptoir: false,'],
+  ['le serveur honore a la declaration', TER, '      return { ...d, termineParElle: marque, ...avecLien };', "      return { ...d, termineParElle: marque, ...avecLien, status: 'honoré' };"],
+  ['le billet dit son nom de famille', TER, "    rdv, reference: referenceDuRendezVous(l.id), prenom: String(fiche?.name ?? l.data?.clientName ?? ''),", "    rdv, reference: String(fiche?.name ?? ''), prenom: String(fiche?.name ?? l.data?.clientName ?? ''),"],
+  /* ── La regle pure ── */
   ['la porte s ouvre avant l heure du rituel', PUR, "  if (!Number.isFinite(debut) || o.maintenantMs < debut) return ferme('avant-l-heure');", "  if (!Number.isFinite(debut)) return ferme('avant-l-heure');"],
   ['la porte reste ouverte apres minuit', PUR, "  if (jour < aujourdhui) return ferme('jour-passe');\n", ''],
   ['la porte s ouvre la veille', PUR, "  if (jour > aujourdhui) return ferme('pas-encore-le-jour');\n", ''],
@@ -81,12 +105,23 @@ async function lanceLeBanc() {
   mkdirSync(dossier, { recursive: true });
   try {
     const sortie = path.join(dossier, 'harnais.mjs');
+    /* Les VRAIES fonctions, transpilees ici sans leur import d'esm.sh : le
+       harnais les rejoue contre une base, un KkiaPay et une horloge simules. */
+    const env = { ...process.env };
+    for (const [nom, cle] of [['terminer-et-regler', 'TER_FONCTION'], ['regler-la-seance', 'REG_FONCTION']]) {
+      const source = readFileSync(path.join(racine, `supabase/functions/${nom}/index.ts`), 'utf8')
+        .replace(/^import \{ createClient \} from 'https:\/\/esm\.sh\/@supabase\/supabase-js@2';\r?$/m, '');
+      const { code } = await transform(source, { loader: 'ts', format: 'cjs', target: 'es2022' });
+      const fichier = path.join(dossier, `${nom}.cjs`);
+      writeFileSync(fichier, code);
+      env[cle] = fichier;
+    }
     await build({
       entryPoints: [path.join(racine, 'scripts/verifie-terminer-et-regler.harnais.ts')],
       bundle: true, format: 'esm', platform: 'node', outfile: sortie, logLevel: 'error', loader: { '.css': 'empty' },
       define: { 'import.meta.env': JSON.stringify({ VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', BASE_URL: '/' }) },
     });
-    return spawnSync(process.execPath, [sortie], { cwd: racine, encoding: 'utf8' });
+    return spawnSync(process.execPath, [sortie], { cwd: racine, encoding: 'utf8', env });
   } finally {
     rmSync(dossier, { recursive: true, force: true });
   }

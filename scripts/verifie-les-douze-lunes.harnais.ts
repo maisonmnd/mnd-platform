@@ -648,6 +648,9 @@ const regles: Regle[] = [
         'voix-du-fil': { fichier: 'src/shared/voix-du-fil-pur.ts', extrait: (s) => entre(s, 'voix-du-fil') },
         /* La clôture de Grenat (4 novembre 2026) : les six règles d'une journée close, recopiées dans cloture-du-jour. */
         'cloture-du-jour': { fichier: 'src/shared/cloture-du-jour-pur.ts', extrait: (s) => entre(s, 'cloture-du-jour') },
+        /* Terminer et régler (6 novembre 2026) : l'honneur au règlement, recopié dans regler-la-seance et terminer-et-regler ; la porte, le code et ses quatre chiffres, le lien, recopiés dans terminer-et-regler. */
+        'honneur-au-reglement': { fichier: 'src/shared/terminer-et-regler-pur.ts', extrait: (s) => entre(s, 'honneur-au-reglement') },
+        'terminer-et-regler': { fichier: 'src/shared/terminer-et-regler-pur.ts', extrait: (s) => entre(s, 'terminer-et-regler') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

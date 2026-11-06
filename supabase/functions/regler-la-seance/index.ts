@@ -35,7 +35,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  * KKIAPAY_API_BASE) et SERVICE_KEY, déjà posés sur le projet : rien à ajouter.
  */
 
-const VERSION = '2026-10-28-b';
+const VERSION = '2026-11-06-a';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -336,6 +336,56 @@ export function pageDuFoyer(o: {
 }
 // ── FIN copie de shared/regler-la-seance-pur.ts
 
+/* ══ HONORÉ QUAND ELLE A RÉGLÉ — 6 novembre 2026 (« Terminer et régler ») ══
+   La cliente a déclaré avoir terminé (`termineParElle`, posé par la fonction
+   terminer-et-regler) ; le rendez-vous passe « honoré » ici, au règlement
+   qui solde sa pièce, jamais à sa déclaration. La marque `honoreAuReglement`
+   dit au Trône d'en faire les suites (points, stock, mission), comme pour un
+   honneur posé par Grenat. Sans déclaration, rien ne change : le chemin du
+   25 octobre 2026 honore au comptoir. La règle est recopiée à l'identique de
+   src/shared/terminer-et-regler-pur.ts (douze lunes, R8). */
+
+/* ⟨honneur-au-reglement⟩ */
+/** Par quelle porte elle a déclaré avoir terminé. */
+export type PorteDeLaFin = 'couronne' | 'site' | 'whatsapp';
+/** La marque posée sur le rendez-vous à sa déclaration (le serveur seul l'écrit). */
+export type MarqueDeLaFin = { le: string; par: PorteDeLaFin };
+/** La marque posée au règlement : le serveur passe « honoré », un poste du
+    Trône réserve les suites (`suitesLe`) et les fait, comme au comptoir. */
+export type MarqueDeLHonneur = { le: string; suitesLe?: string };
+/** Cotonou : UTC+1 toute l'année. */
+export const DECALAGE_DE_LA_FIN_MS = 3_600_000;
+export const jourDeLaFin = (ms: number): string => new Date(ms + DECALAGE_DE_LA_FIN_MS).toISOString().slice(0, 10);
+
+/** HONORÉ QUAND ELLE A RÉGLÉ. Rend la marque à poser, ou null : elle n'a
+    rien déclaré (le chemin d'avant ne bouge pas), le rendez-vous n'est plus
+    « confirmé », il reste à régler, ou le rituel est à venir. Un reste
+    illisible n'honore jamais. */
+export function honneurAuReglement(o: {
+  rdv: { status?: string; date?: string; termineParElle?: MarqueDeLaFin | null } | null;
+  resteXof: number;
+  maintenantMs: number;
+}): MarqueDeLHonneur | null {
+  const r = o.rdv;
+  if (!r || !r.termineParElle || !r.termineParElle.le) return null;
+  if (r.status !== 'confirmé') return null;
+  const reste = Number(o.resteXof);
+  if (!Number.isFinite(reste) || Math.round(reste) > 0) return null;
+  const jour = String(r.date ?? '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(jour) || jour > jourDeLaFin(o.maintenantMs)) return null;
+  return { le: new Date(o.maintenantMs).toISOString() };
+}
+/* ⟨/honneur-au-reglement⟩ */
+
+/** Le rendez-vous après le règlement : son versement (s'il y en a un à
+    poser), puis l'honneur si elle avait déclaré avoir terminé et que sa pièce
+    est soldée. Rend la ligne à écrire, ou `avant` si rien ne change. */
+function rdvApresLeReglement(avant: RdvLu, v: VersementLu | null, pieceId: string, resteXof: number, quand: Date, parLeFoyer = false): RdvLu {
+  const regle = v ? rdvRegle(avant, v, pieceId, parLeFoyer) : avant;
+  const honneur = honneurAuReglement({ rdv: regle as any, resteXof, maintenantMs: quand.getTime() });
+  return honneur ? ({ ...regle, status: 'honoré', honoreAuReglement: honneur } as RdvLu) : regle;
+}
+
 /* ── La limite de débit, la même table que les demandes du site (0007) ── */
 const ipOf = (req: Request): string => (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown';
 async function permis(ip: string, seau: string, plafond: number): Promise<boolean> {
@@ -423,7 +473,11 @@ async function appliquer(rdv: Ligne, t: { id: string; amountXof: number; feesXof
   const pieceLigne = await laPiece(rdv.id);
   if (!pieceLigne) return { ok: false, erreur: 'sans_piece', status: 409 };
   const piece: PieceLue = { ...(pieceLigne.data ?? {}), id: pieceLigne.id };
-  if (dejaInscrit(piece, t.id)) return { ok: true, deja: true, versementXof: 0, pourboireXof: 0 };
+  if (dejaInscrit(piece, t.id)) {
+    /* Un rejeu : l'argent est posé. Si l'honneur n'avait pas pu s'écrire, il s'écrit. */
+    await suisLeRdv(rdv.id, null, piece.id, resteDeLaPiece(piece), new Date());
+    return { ok: true, deja: true, versementXof: 0, pourboireXof: 0 };
+  }
 
   const partage = partageDuPaiement(t.amountXof, resteDeLaPiece(piece));
   if (!partage.ok) return { ok: false, erreur: partage.raison, status: 409 };
@@ -438,16 +492,20 @@ async function appliquer(rdv: Ligne, t: { id: string; amountXof: number; feesXof
   const { error: e1 } = await admin.from('invoices').update({ data: neuve }).eq('id', piece.id);
   if (e1) throw new Error(e1.message);
 
-  const { data: frais } = await admin.from('appointments').select('id,data').eq('id', rdv.id).maybeSingle();
-  if (frais) {
-    const avant: RdvLu = { ...(frais.data ?? {}), id: frais.id };
-    const apres = rdvRegle(avant, v, piece.id);
-    if (apres !== avant) {
-      const { error: e2 } = await admin.from('appointments').update({ data: apres }).eq('id', rdv.id);
-      if (e2) throw new Error(e2.message);
-    }
-  }
+  await suisLeRdv(rdv.id, v, piece.id, resteDeLaPiece(neuve), quand);
   return { ok: true, versementXof: partage.versementXof, pourboireXof: partage.pourboireXof };
+}
+
+/** LE RENDEZ-VOUS SUIT SA PIÈCE, relu à l'instant : le versement, puis
+    l'honneur quand elle avait déclaré avoir terminé (`rdvApresLeReglement`). */
+async function suisLeRdv(rdvId: string, v: VersementLu | null, pieceId: string, resteXof: number, quand: Date, parLeFoyer = false): Promise<void> {
+  const { data: frais } = await admin.from('appointments').select('id,data').eq('id', rdvId).maybeSingle();
+  if (!frais) return;
+  const avant: RdvLu = { ...(frais.data ?? {}), id: frais.id };
+  const apres = rdvApresLeReglement(avant, v, pieceId, resteXof, quand, parLeFoyer);
+  if (apres === avant) return;
+  const { error } = await admin.from('appointments').update({ data: apres }).eq('id', rdvId);
+  if (error) throw new Error(error.message);
 }
 
 /** LE FILET : les transactions du registre pour ce rendez-vous (posées par
@@ -527,15 +585,7 @@ async function appliquerAuFoyer(jeton: string, rdvs: Ligne[], t: { id: string; a
     const neuve = pieceReglee(x.piece, v, pourboire, trace);
     const { error: e1 } = await admin.from('invoices').update({ data: neuve }).eq('id', x.piece.id);
     if (e1) throw new Error(e1.message);
-    const { data: frais } = await admin.from('appointments').select('id,data').eq('id', x.rdv.id).maybeSingle();
-    if (frais) {
-      const avant: RdvLu = { ...(frais.data ?? {}), id: frais.id };
-      const apres = rdvRegle(avant, v, x.piece.id, true);
-      if (apres !== avant) {
-        const { error: e2 } = await admin.from('appointments').update({ data: apres }).eq('id', x.rdv.id);
-        if (e2) throw new Error(e2.message);
-      }
-    }
+    await suisLeRdv(x.rdv.id, v, x.piece.id, resteDeLaPiece(neuve), quand, true);
     verse += part.montantXof;
   }
   return { ok: true, versementXof: verse, pourboireXof: rep.pourboireXof };

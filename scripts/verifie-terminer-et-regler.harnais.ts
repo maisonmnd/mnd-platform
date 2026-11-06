@@ -23,7 +23,9 @@ import {
   marqueDeLaFinAuCarnet, pieceAPreparer, suitesAFaire, carteDuRituelEnCours,
   type RdvDeLaFin, type PieceDeLaFin,
 } from '../src/shared/terminer-et-regler-pur';
-import { ALPHABET_DE_LA_REFERENCE, referenceDuRendezVous } from '../src/shared/lien-du-rdv-pur';
+import { ALPHABET_DE_LA_REFERENCE, referenceDuRendezVous, FORME_DU_JETON_DU_RDV, apptIdDuJeton } from '../src/shared/lien-du-rdv-pur';
+// @ts-expect-error module .mjs sans types
+import { ecartsDesCopies } from './terminer-copie-serveur.mjs';
 import {
   ALPHABET_DU_JETON, LONGUEUR_DU_JETON, jetonDe, estUnJeton, parametreDuLien, resteDeLaPiece, laPieceDuRdv, type PieceLue,
 } from '../src/shared/regler-la-seance-pur';
@@ -280,6 +282,261 @@ const pur = lis('src/shared/terminer-et-regler-pur.ts');
 dit('le fichier pur porte ses trois blocs, chacun entre ses reperes, et n importe rien', [true, true, true, false],
   [pur.includes('/* ⟨honneur-au-reglement⟩ */\n') && pur.includes('\n/* ⟨/honneur-au-reglement⟩ */'), pur.includes('/* ⟨terminer-et-regler⟩ */\n') && pur.includes('\n/* ⟨/terminer-et-regler⟩ */'),
     pur.includes('/* ⟨j-ai-termine⟩ */\n') && pur.includes('\n/* ⟨/j-ai-termine⟩ */'), /^import /m.test(pur)]);
+
+dit('chaque fonction porte la copie EXACTE de ses blocs (terminer-copie-serveur les reecrit)', [], ecartsDesCopies(process.cwd()));
+
+/* ══ 15. LE SERVEUR, REJOUE : les VRAIES fonctions terminer-et-regler et
+   regler-la-seance, contre une base, un KkiaPay, une notification et une
+   horloge simules. Il est 10 h a Cotonou, le vendredi 6 novembre 2026. ═══ */
+type Row = { id?: string; branch_id?: string; data?: any; updated_at?: string; [k: string]: any };
+const db: Record<string, Row[]> = {};
+let tic = 0;
+let maintenant = A_10H;
+/** Une ecriture du Trone qui passe ENTRE la lecture et l'ecriture du serveur (une seule fois). */
+let entreDeux: (() => void) | null = null;
+const litCol = (r: Row, col: string): unknown => {
+  if (!col.startsWith('data')) return r[col];
+  let x: any = r.data;
+  for (const p of col.replace(/^data/, '').split(/->>?/).filter(Boolean)) x = x?.[p];
+  return x;
+};
+class Requete {
+  filtres: ((r: Row) => boolean)[] = [];
+  mode: 'select' | 'insert' | 'update' = 'select';
+  valeur: any = null; lim = Infinity; seul = false; compte = false; rend = false; plage: [number, number] | null = null; tri = '';
+  constructor(public table: string) {}
+  select(_c?: string, o?: { count?: string; head?: boolean }) { if (this.mode !== 'select') this.rend = true; if (o?.count) this.compte = true; return this; }
+  eq(c: string, v: unknown) { this.filtres.push((r) => String(litCol(r, c) ?? '') === String(v)); return this; }
+  gte(c: string, v: unknown) { this.filtres.push((r) => String(litCol(r, c) ?? '') >= String(v)); return this; }
+  lte(c: string, v: unknown) { this.filtres.push((r) => String(litCol(r, c) ?? '') <= String(v)); return this; }
+  order(c: string) { this.tri = c; return this; }
+  range(a: number, b: number) { this.plage = [a, b]; return this; }
+  limit(k: number) { this.lim = k; return this; }
+  maybeSingle() { this.seul = true; return this; }
+  insert(row: Row) { this.mode = 'insert'; this.valeur = row; return this; }
+  update(o: any) { this.mode = 'update'; this.valeur = o; return this; }
+  then(ok: (x: any) => any, kko?: (e: any) => any) { return Promise.resolve(this.fais()).then(ok, kko); }
+  fais(): any {
+    const t = (db[this.table] ??= []);
+    if (this.mode === 'insert') {
+      const row = { ...structuredClone(this.valeur), at: this.valeur.at ?? new Date(maintenant).toISOString(), updated_at: `t${++tic}` };
+      if (row.id && t.some((r) => r.id === row.id)) return { error: { code: '23505', message: 'duplicate key' } };
+      t.push(row);
+      return { error: null };
+    }
+    if (this.mode === 'update' && this.table === 'appointments' && entreDeux) { const f = entreDeux; entreDeux = null; f(); }
+    const lus = t.filter((r) => this.filtres.every((f) => f(r)));
+    if (this.mode === 'update') {
+      for (const r of lus) { Object.assign(r, structuredClone(this.valeur)); r.updated_at = `t${++tic}`; }
+      return { data: this.rend ? lus.map((r) => ({ id: r.id })) : null, error: null };
+    }
+    if (this.compte) return { count: lus.length, error: null };
+    let rendus = this.tri ? [...lus].sort((a, b) => String(litCol(a, this.tri) ?? '').localeCompare(String(litCol(b, this.tri) ?? ''))) : lus;
+    if (this.plage) rendus = rendus.slice(this.plage[0], this.plage[1] + 1);
+    const data = structuredClone(rendus.slice(0, this.lim));
+    return { data: this.seul ? (data[0] ?? null) : data, error: null };
+  }
+}
+/* Les comptes de Ma Couronne : un jeton en trois morceaux, comme un vrai. */
+const COMPTES: Record<string, string> = { 'jeton.de.awa': 'c1', 'jeton.de.sena': 'c2', 'jeton.d.adoptee': 'uid-9' };
+const admin = { from: (t: string) => new Requete(t), auth: { getUser: async (j: string) => ({ data: { user: COMPTES[j] ? { id: COMPTES[j] } : null } }) } };
+const transactions: Record<string, { status: string; amount: number; fees: number; source: string }> = {};
+const notifications: { titre: string; corps: string; url: string; mode: string; cle: string }[] = [];
+const fauxFetch = async (url: string, init?: { body?: string; headers?: Record<string, string> }) => {
+  if (String(url).includes('/functions/v1/push-notify')) {
+    const c = JSON.parse(init?.body ?? '{}');
+    notifications.push({ titre: c.title, corps: c.body, url: c.url, mode: c.mode, cle: String(init?.headers?.authorization ?? '') });
+    return new Response(JSON.stringify({ sent: 3 }), { status: 200 });
+  }
+  if (String(url).includes('/api/v1/transactions/status')) {
+    const tx = transactions[JSON.parse(init?.body ?? '{}').transactionId];
+    return tx ? new Response(JSON.stringify(tx), { status: 200 }) : new Response('{}', { status: 404 });
+  }
+  return new Response('', { status: 404 });
+};
+const env: Record<string, string> = {
+  SUPABASE_URL: 'http://base', SERVICE_KEY: 'cle-de-service', SUPABASE_SERVICE_ROLE_KEY: 'cle-de-la-plateforme',
+  KKIAPAY_PUBLIC_KEY: 'pk', KKIAPAY_PRIVATE_KEY: 'pv', KKIAPAY_SECRET_KEY: 'sk',
+};
+/* L'horloge du serveur : `new Date()` et `Date.now()` disent l'heure du banc. */
+const Horloge = class extends Date {
+  constructor(...a: any[]) { if (a.length === 0) super(maintenant); else super(...(a as [any])); }
+  static now() { return maintenant; }
+};
+const charge = (fichier: string): ((req: Request) => Promise<Response>) => {
+  let handler: ((req: Request) => Promise<Response>) | null = null;
+  const module = { exports: {} as Record<string, unknown> };
+  new Function('createClient', 'Deno', 'fetch', 'module', 'exports', 'Date', readFileSync(fichier, 'utf8'))(
+    () => admin, { env: { get: (k: string) => env[k] }, serve: (h: typeof handler) => { handler = h; } }, fauxFetch, module, module.exports, Horloge,
+  );
+  return handler!;
+};
+const finir = charge(process.env.TER_FONCTION as string);
+const regler = charge(process.env.REG_FONCTION as string);
+const appelle = async (f: typeof finir, corps?: Record<string, unknown>, o: { cle?: string; ip?: string } = {}) => {
+  const headers: Record<string, string> = { 'x-forwarded-for': o.ip ?? '1.2.3.4', ...(o.cle ? { Authorization: `Bearer ${o.cle}` } : {}) };
+  const r = await f(new Request('http://f/fonction', corps ? { method: 'POST', body: JSON.stringify(corps), headers } : { method: 'GET' }));
+  return { status: r.status, corps: await r.json() as any };
+};
+const rdvDe = (id: string) => db.appointments.find((a) => a.id === id)!.data;
+const remplis = () => {
+  db.clients = [
+    { id: 'c1', branch_id: 'b1', data: { name: 'Awa Kossou', phone: '+229 01 97 12 44 80' } },
+    { id: 'c2', branch_id: 'b1', data: { name: 'Sena Dossou', phone: '+229 01 55 00 12 34', passeAuComptoir: true } },
+    { id: 'ca', branch_id: 'b1', data: { name: 'Nael Agbo', phone: '+229 01 60 00 00 01', phoneNom: 'Maman' } },
+    { id: 'cb', branch_id: 'b1', data: { name: 'Fifa Agbo', phone: '+229 01 60 00 00 01', phoneNom: 'Maman' } },
+    { id: 'fiche-9', branch_id: 'b1', data: { name: 'Mahu Tossou', phone: '+229 01 61 00 00 09', authUserId: 'uid-9' } },
+  ];
+  const a = (id: string, clientId: string, plus: Record<string, unknown> = {}) =>
+    ({ id, branch_id: 'b1', updated_at: `t${++tic}`, data: { id, branchId: 'b1', clientId, clientName: 'X', date: JOUR, time: '08:00', status: 'confirmé', priceXof: 12000, ...plus } });
+  db.appointments = [
+    a('rdv-jour', 'c1'), a('rdv-demain', 'c1', { date: '2026-11-07', time: '09:00' }), a('rdv-comptoir', 'c2', { time: '08:30' }),
+    a('rdv-na', 'ca', { time: '09:00', priceXof: 7000 }), a('rdv-fi', 'cb', { time: '09:30', priceXof: 5000 }),
+    a('rdv-annule', 'c1', { status: 'annulé', time: '07:00' }), a('rdv-9', 'fiche-9', { time: '09:00', priceXof: undefined }),
+    a('rdv-parent', 'ca', { date: '2026-11-10', time: '10:00', numeroAPrevenir: '+229 01 62 22 33 44' }),
+  ];
+  db.invoices = []; db.payments = []; db.edge_rate_limits = [];
+  notifications.length = 0; maintenant = A_10H;
+};
+const SERVICE = 'cle-de-service';
+
+remplis();
+const sante = await appelle(finir);
+dit('GET : la version et les secrets en booleens, sans valeur', ['2026-11-06-a', 'terminer-et-regler', { service: true, liens: true }], [sante.corps.version, sante.corps.fonction, sante.corps.secrets]);
+
+/* ── retrouver : le code ET les quatre chiffres ── */
+const CODE = referenceDuRendezVous('rdv-jour');
+const trouve = await appelle(finir, { action: 'retrouver', code: CODE.toLowerCase().replace('-', ' '), chiffres: '4480' });
+dit('retrouver : le bon code et les bons chiffres rendent le billet (reference, prenom, jour, heure, en cours, 12 000 a regler, porte ouverte)',
+  [200, true, { reference: CODE, prenom: 'Awa', jour: JOUR, heure: '08:00', etat: 'en-cours', resteXof: 12000, porte: { ouverte: true, raison: 'ouverte' }, aTermine: false }],
+  [trouve.status, trouve.corps.ok, trouve.corps.billet]);
+dit('... et le jeton signe de la page /rdv/, qui ne vaut que pour ce rendez-vous (signe par la cle de la plateforme, comme demande-submit)',
+  [true, 'rdv-jour', null], [FORME_DU_JETON_DU_RDV.test(trouve.corps.v), await apptIdDuJeton('cle-de-la-plateforme', trouve.corps.v), await apptIdDuJeton('une-autre-cle', trouve.corps.v)]);
+dit('... rien d elle que son prenom : ni nom de famille, ni numero', [false, false], [JSON.stringify(trouve.corps).includes('Kossou'), /97 ?12|4480/.test(JSON.stringify(trouve.corps))]);
+const fauxChiffres = await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '0000' }, { ip: '5.5.5.1' });
+const codeInconnu = await appelle(finir, { action: 'retrouver', code: 'MND-ZZZZ', chiffres: '4480' }, { ip: '5.5.5.2' });
+const codeSeul = await appelle(finir, { action: 'retrouver', code: CODE }, { ip: '5.5.5.3' });
+dit('un code inconnu, des chiffres faux, le code seul : la MEME reponse, mot pour mot', [{ status: 200, corps: { version: '2026-11-06-a', ok: false, error: 'introuvable' } }, true, true],
+  [codeInconnu, JSON.stringify(fauxChiffres) === JSON.stringify(codeInconnu), JSON.stringify(codeSeul) === JSON.stringify(codeInconnu)]);
+dit('le second numero du rendez-vous (le parent qui l a pris) le retrouve aussi', [true, 'confirme', false],
+  await appelle(finir, { action: 'retrouver', code: referenceDuRendezVous('rdv-parent'), chiffres: '3344' }, { ip: '5.5.5.4' }).then((r) => [r.corps.ok, r.corps.billet?.etat, r.corps.billet?.porte.ouverte]));
+remplis();
+for (let i = 0; i < 5; i++) await appelle(finir, { action: 'retrouver', code: CODE, chiffres: `000${i}` }, { ip: `6.6.6.${i}` });
+const freine = await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '4480' }, { ip: '6.6.6.99' });
+dit('le frein par code : apres cinq echecs dans l heure, meme les bons chiffres attendent, d ou qu ils viennent ; un autre code reste libre', [429, 'trop', true],
+  [freine.status, freine.corps.error, (await appelle(finir, { action: 'retrouver', code: referenceDuRendezVous('rdv-parent'), chiffres: '3344' }, { ip: '6.6.6.98' })).corps.ok]);
+maintenant = A_10H + 61 * 60_000;
+dit('... une heure plus tard, le code se rouvre', true, (await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '4480' }, { ip: '6.6.6.97' })).corps.ok);
+remplis();
+const dix: number[] = [];
+for (let i = 0; i < 11; i++) dix.push((await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '4480' }, { ip: '7.7.7.7' })).status);
+dit('le frein par adresse : dix recherches en dix minutes, la onzieme attend', [200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 429], dix);
+
+/* ── billet : la page /rdv/ relit le reglement ── */
+remplis();
+const V = (await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '4480' })).corps.v as string;
+const forge = `${V.slice(0, -1)}${V.endsWith('A') ? 'B' : 'A'}`;
+dit('billet : le jeton signe rend le billet ; un jeton forge ne dit rien', [['en-cours', 12000], { ok: false, error: 'lien' }],
+  [await appelle(finir, { action: 'billet', v: V }).then((r) => [r.corps.billet?.etat, r.corps.billet?.resteXof]), await appelle(finir, { action: 'billet', v: forge }).then((r) => ({ ok: r.corps.ok, error: r.corps.error }))]);
+
+/* ── terminer : elle declare avoir termine ── */
+const fin = await appelle(finir, { action: 'terminer', porte: 'site', v: V });
+const jeton = String(rdvDe('rdv-jour').lienDeReglement?.jeton ?? '');
+dit('terminer (le site) : la marque se pose, le lien de reglement aussi, l adresse revient ; le montant est celui du prix fige, la piece n est pas encore la',
+  [200, 'a-regler', true, `https://maisonmnd.com/trone/payer.html?tg=r-${jeton}`, 12000, false, { le: new Date(A_10H).toISOString(), par: 'site' }],
+  [fin.status, fin.corps.etat, estUnJeton(jeton), fin.corps.adresse, fin.corps.resteXof, fin.corps.piecePrete, rdvDe('rdv-jour').termineParElle]);
+dit('... le rendez-vous ne passe PAS honore a sa declaration', ['confirmé', undefined], [rdvDe('rdv-jour').status, rdvDe('rdv-jour').honoreAuReglement]);
+dit('... le personnel est prevenu aussitot, par la notification existante (push-notify, mode staff, cle de service)',
+  [{ titre: 'Awa a terminé son rituel', corps: 'Rendez-vous de 8 h. Règlement en cours depuis son téléphone, par le site. Reste 12 000 F. Un poste du Trône ouvert prépare sa pièce.', url: '/trone/#/carnet', mode: 'staff', cle: 'Bearer cle-de-service' }],
+  notifications);
+maintenant = A_10H + 5 * 60_000;
+const fin2 = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-jour'] }, { cle: SERVICE });
+dit('un second toucher, par une autre porte : le meme lien, la meme marque, aucune seconde notification',
+  [true, jeton, { le: new Date(A_10H).toISOString(), par: 'site' }, 1], [fin2.corps.deja, fin2.corps.jeton, rdvDe('rdv-jour').termineParElle, notifications.length]);
+maintenant = A_10H;
+const vDe = async (id: string, chiffres: string) => (await appelle(finir, { action: 'retrouver', code: referenceDuRendezVous(id), chiffres }, { ip: `8.8.8.${id.length}` })).corps.v as string;
+const demain = await appelle(finir, { action: 'terminer', porte: 'site', v: await vDe('rdv-demain', '4480') });
+dit('la veille, la porte reste fermee : ni marque, ni lien, ni notification', ['pas-encore-le-jour', undefined, undefined, 1],
+  [demain.corps.etat, rdvDe('rdv-demain').termineParElle, rdvDe('rdv-demain').lienDeReglement, notifications.length]);
+dit('« Passe au comptoir » sur la fiche : la porte reste fermee', ['comptoir', undefined],
+  [(await appelle(finir, { action: 'terminer', porte: 'site', v: await vDe('rdv-comptoir', '1234') })).corps.etat, rdvDe('rdv-comptoir').termineParElle]);
+dit('un rendez-vous annule ne se termine pas', 'annule', (await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-annule'] }, { cle: SERVICE })).corps.etat);
+dit('un jeton forge ne termine rien', { ok: false, error: 'lien' }, await appelle(finir, { action: 'terminer', porte: 'site', v: forge }).then((r) => ({ ok: r.corps.ok, error: r.corps.error })));
+dit('la porte WhatsApp ne s ouvre qu a la cle de service ; sans rendez-vous du jour, « sans-rdv »', [403, 403, 'sans-rdv'],
+  [(await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-jour'] })).status, (await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-jour'] }, { cle: 'jeton.de.awa' })).status,
+    (await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: [] }, { cle: SERVICE })).corps.etat]);
+
+/* ── Ma Couronne : son compte, sa propre fiche seulement ── */
+remplis();
+const mc = await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-jour' }, { cle: 'jeton.de.awa' });
+dit('Ma Couronne : son compte termine SON rendez-vous', ['a-regler', 'couronne'], [mc.corps.etat, rdvDe('rdv-jour').termineParElle?.par]);
+dit('... jamais celui d une autre ; jamais sans compte ; une fiche adoptee se reconnait a son compte (authUserId)', [404, 401, 401, 'a-regler', null],
+  [(await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-comptoir' }, { cle: 'jeton.de.awa' })).status,
+    (await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-jour' })).status,
+    (await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-jour' }, { cle: 'jeton.d.inconnue' })).status,
+    await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-9' }, { cle: 'jeton.d.adoptee' }).then((r) => r.corps.etat),
+    await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-9' }, { cle: 'jeton.d.adoptee' }).then((r) => r.corps.resteXof)]);
+
+/* ── Une ecriture du Trone entre la lecture et l'ecriture ── */
+remplis();
+entreDeux = () => { const l = db.appointments.find((x) => x.id === 'rdv-jour')!; l.data = { ...l.data, noteDuTrone: 'posee entre deux' }; l.updated_at = `t${++tic}`; };
+await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-jour' }, { cle: 'jeton.de.awa' });
+dit('le serveur n ecrit jamais sur une ligne qui a bouge : l ecriture du Trone survit, la marque se pose a la relecture', ['posee entre deux', 'couronne'],
+  [rdvDe('rdv-jour').noteDuTrone, rdvDe('rdv-jour').termineParElle?.par]);
+
+/* ── Le foyer : un seul numero, un seul lien ── */
+remplis();
+await appelle(finir, { action: 'terminer', porte: 'site', v: await vDe('rdv-na', '0001') });
+const foyer = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-fi', 'rdv-na'] }, { cle: SERVICE });
+const jf = String(foyer.corps.jeton);
+dit('le foyer : un seul lien pour les deux tetes, la liste entiere sur chacune, le total des deux restes ; la premiere marque reste celle du site',
+  ['a-regler', 12000, { jeton: jf, apptIds: ['rdv-fi', 'rdv-na'] }, { jeton: jf, apptIds: ['rdv-fi', 'rdv-na'] }, 'site', 'whatsapp'],
+  [foyer.corps.etat, foyer.corps.resteXof, { jeton: rdvDe('rdv-na').lienDuFoyer?.jeton, apptIds: rdvDe('rdv-na').lienDuFoyer?.apptIds }, { jeton: rdvDe('rdv-fi').lienDuFoyer?.jeton, apptIds: rdvDe('rdv-fi').lienDuFoyer?.apptIds },
+    rdvDe('rdv-na').termineParElle?.par, rdvDe('rdv-fi').termineParElle?.par]);
+dit('... et la notification nomme les deux tetes', 'Nael et Fifa ont terminé leur rituel', notifications[notifications.length - 1]?.titre);
+
+/* ── Honore QUAND ELLE A REGLE : la vraie fonction regler-la-seance ── */
+const piece = (id: string, apptId: string, xof: number) => ({ id, branch_id: 'b1', data: { id, kind: 'facture', status: 'envoyée', apptId, date: JOUR, lines: [{ label: 'La Reprise', qty: 1, unitXof: xof, discountPct: 0 }], globalDiscountPct: 0 } });
+remplis();
+const d1 = await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-jour' }, { cle: 'jeton.de.awa' });
+const j1 = String(d1.corps.jeton);
+dit('avant la piece du Trone, la page « Regler » attend (sans-piece) ; rien ne s honore', ['sans-piece', 'confirmé'],
+  [(await appelle(regler, { action: 'lire', jeton: j1 })).corps.page?.etat, rdvDe('rdv-jour').status]);
+db.invoices.push(piece('f-jour', 'rdv-jour', 12000));
+dit('la piece ecrite par le Trone : la page dit le juste reste, et terminer dit que la piece est prete', ['a-regler', 12000, true],
+  [(await appelle(regler, { action: 'lire', jeton: j1 })).corps.page?.etat, (await appelle(regler, { action: 'lire', jeton: j1 })).corps.page?.resteXof,
+    (await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-jour' }, { cle: 'jeton.de.awa' })).corps.piecePrete]);
+maintenant = A_10H + 4 * 60_000;
+transactions.tx1 = { status: 'SUCCESS', amount: 13000, fees: 247, source: 'MTN_BENIN' };
+const paye = await appelle(regler, { action: 'regler', jeton: j1, transactionId: 'tx1' });
+dit('elle regle : 12 000 sur la piece, 1 000 de merci pour l equipe, la piece soldee', [200, 12000, 1000, 'payée', 1000],
+  [paye.status, paye.corps.versementXof, paye.corps.pourboireXof, db.invoices[0].data.status, db.invoices[0].data.tipXof]);
+dit('... et LE RENDEZ-VOUS PASSE HONORE, a l instant du reglement, avec la marque que le Trone suivra',
+  ['honoré', { le: new Date(A_10H + 4 * 60_000).toISOString() }, ['kkia-tx1']], [rdvDe('rdv-jour').status, rdvDe('rdv-jour').honoreAuReglement, rdvDe('rdv-jour').payments.map((p: any) => p.id)]);
+dit('apres le reglement : terminer dit « deja regle », le billet dit « regle », sans reste', ['deja-regle', 'regle', 0],
+  [(await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-jour' }, { cle: 'jeton.de.awa' })).corps.etat,
+    ...(await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '4480' }).then((r) => [r.corps.billet?.etat, r.corps.billet?.resteXof]))]);
+/* Un rejeu apres un honneur qui n'aurait pas pu s'ecrire. */
+Object.assign(db.appointments.find((x) => x.id === 'rdv-jour')!.data, { status: 'confirmé', honoreAuReglement: undefined });
+const rejeu = await appelle(regler, { action: 'regler', jeton: j1, transactionId: 'tx1' });
+dit('un rejeu ne double rien, et rattrape l honneur qui manquait', [true, 1, 'honoré'], [rejeu.corps.deja, db.invoices[0].data.payments.length, rdvDe('rdv-jour').status]);
+
+remplis();
+/* Le chemin du 25 octobre : le Trone a pose le lien, elle n'a rien declare. */
+Object.assign(rdvDe('rdv-jour'), { lienDeReglement: { jeton: J2, creeLe: 'x' } });
+db.invoices.push(piece('f-jour', 'rdv-jour', 12000));
+transactions.tx2 = { status: 'SUCCESS', amount: 12000, fees: 228, source: 'MOOV_BJ' };
+await appelle(regler, { action: 'regler', jeton: J2, transactionId: 'tx2' });
+dit('sans declaration, un reglement en ligne n honore rien : le chemin d avant ne bouge pas', ['payée', 'confirmé', undefined],
+  [db.invoices[0].data.status, rdvDe('rdv-jour').status, rdvDe('rdv-jour').honoreAuReglement]);
+
+remplis();
+const df = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-na', 'rdv-fi'] }, { cle: SERVICE });
+db.invoices.push(piece('f-na', 'rdv-na', 7000), piece('f-fi', 'rdv-fi', 5000));
+transactions.tx3 = { status: 'SUCCESS', amount: 12000, fees: 228, source: 'MTN_BENIN' };
+const pf = await appelle(regler, { action: 'regler', jeton: String(df.corps.jeton), transactionId: 'tx3' });
+dit('le foyer regle d un seul paiement : chaque tete passe honoree', [200, 12000, 'honoré', 'honoré', true, true],
+  [pf.status, pf.corps.versementXof, rdvDe('rdv-na').status, rdvDe('rdv-fi').status, !!rdvDe('rdv-na').honoreAuReglement?.le, !!rdvDe('rdv-fi').honoreAuReglement?.le]);
 
 console.log(ko ? `\n${ko} echec(s) sur ${n}.` : `\nTout tient (${n} controles).`);
 if (ko) process.exit(1);
