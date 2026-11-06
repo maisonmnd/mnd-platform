@@ -33,7 +33,7 @@
    réécrit pas. Le banc `verifie-les-paiements` éprouve ce fichier. */
 
 import {
-  aCotonou, lisLeNumero, moisDit, moisSuivant,
+  aCotonou, lisLeNumero, moisDit, moisSuivant, pourboiresEnEspecesXof,
   type Blocage, type LectureDeLaLigne,
 } from './paie-du-5-pur';
 import {
@@ -205,8 +205,10 @@ export type LigneDuMois = {
   parMtnXof: number;
   /** La ligne passe-t-elle par MTN ? (sinon : hors du pont, dite à part) */
   viaMtn: boolean;
-  /** En espèces, le 5 (l'équipe). */
+  /** En espèces, le 5 (l'équipe) : ceux du registre des pourboires du mois. */
   pourboiresXof: number;
+  /** Ceux que le bulletin porte et que la paie du 5 retire du virement (e6). */
+  especesDuBulletinXof?: number;
   msisdn?: string;
   numero: EtatDuNumero;
   nomMtn?: string | null;
@@ -261,9 +263,12 @@ export function ligneDeLEquipe(o: {
   const l = o.ligne;
   const lu = o.lecture;
   const pret = Math.max(0, entier(l?.deductions?.retenuePret));
-  const pourboiresDuNet = Math.max(0, entier(l?.gains?.pourboires));
+  /* La lecture de la paie du 5 retire DÉJÀ les pourboires du montant envoyé
+     (`LectureDeLaLigne.especesXof`, règle unique `pourboiresEnEspecesXof` de
+     paie-du-5-pur, e6) : on ne les retire pas une seconde fois. */
+  const especes = lu ? lu.especesXof : l ? pourboiresEnEspecesXof(l) : 0;
   const envoye = lu ? lu.envoyeXof : 0;
-  const parMtn = Math.max(0, envoye - pourboiresDuNet);
+  const parMtn = Math.max(0, envoye);
   const viaMtn = !!lu && lu.voie === 'MTN' && !!lu.msisdn && parMtn > 0;
   const { etat: parLEnvoi, envoi } = etatDeLEnvoi(o.envois, o.runId, o.employeeId);
   let etat: EtatDuPaiement;
@@ -280,7 +285,8 @@ export function ligneDeLEquipe(o: {
   if (lu && !viaMtn && !pourquoi && etat !== 'paye') pourquoi = lu.voie === 'Moov' ? 'Moov, à la main' : 'pas de numéro MTN';
   return {
     cle: cleDeLigne('equipe', o.employeeId), genre: 'equipe', id: o.employeeId, nom: o.nom,
-    netXof: viaMtn ? parMtn + pret : Math.max(0, envoye - pourboiresDuNet) + pret,
+    netXof: parMtn + pret,
+    especesDuBulletinXof: especes,
     pretXof: pret,
     parMtnXof: viaMtn ? parMtn : 0,
     viaMtn,

@@ -15,7 +15,7 @@ import { fournisseursStore, useFournisseurs, type Fournisseur } from '../../../.
 import { uid } from '../../../../shared/store';
 import {
   aCotonou, calendrierDeLaPaie, detailDuBulletin, heureDite, idDuBulletin, jourDit as jourEntierDit, libelleDesFrais, lisLeNumero, litLaLigne,
-  moisDit, moisPrecedent, moisSuivant, momentDit, netDuMoisDAvant, numeroDeLaFiche, numeroDit, phaseDuMois, phraseDuBlocage, quandDit,
+  moisDit, moisPrecedent, moisSuivant, momentDit, netDuMoisDAvant, numeroDeLaFiche, numeroDit, phaseDuMois, phraseDuBlocage, pourboiresEnEspecesXof, quandDit,
   valideLesLignes, type LectureDeLaLigne,
 } from '../../../../shared/paie-du-5-pur';
 import {
@@ -216,7 +216,7 @@ export default function LesPaiements() {
           pourboiresDuMoisXof: pourboiresDuMois(asArray(tips), l.employeeId, periode), numero, envois: envoisEquipe,
         });
         out.push(ligne);
-        ctx.set(ligne.cle, { fiche, ligne: l, lecture: lu, pourboiresDuNet: Math.max(0, Math.round(l.gains?.pourboires ?? 0)), ...(n.source === 'repris' ? { propose: n.msisdn } : {}) });
+        ctx.set(ligne.cle, { fiche, ligne: l, lecture: lu, pourboiresDuNet: lu ? lu.especesXof : pourboiresEnEspecesXof(l), ...(n.source === 'repris' ? { propose: n.msisdn } : {}) });
       }
     } else {
       for (const f of fiches) {

@@ -47,7 +47,7 @@ dit('l ecran s ouvre sur le mois qu on paie : le mois d avant (Cotonou)', ['2026
 /* ── 2. Les lignes ── */
 const lu = (o: Partial<LectureDeLaLigne> = {}): LectureDeLaLigne => ({
   etat: 'confirmee', blocages: [], voie: 'MTN', msisdn: '2290190000001', netXof: 0, fraisXof: 0, fraisRenseignes: true,
-  envoyeXof: 0, cle: 'k', depotAJour: true, enRetard: false, plafond: null, numero: null, ...o,
+  envoyeXof: 0, especesXof: 0, cle: 'k', depotAJour: true, enRetard: false, plafond: null, numero: null, ...o,
 });
 const env = (o: Partial<EnvoiMtn>): EnvoiMtn => ({
   reference: '00000000-0000-4000-8000-000000000001', genre: 'paie', run_id: 'run-11', periode: '2026-11', essai_id: null,
@@ -64,9 +64,10 @@ const TIPS = [
 dit('les pourboires du mois d une personne : ce mois-ci seulement', [2500, 1250, 0],
   [pourboiresDuMois(TIPS, 'e1', '2026-11'), pourboiresDuMois(TIPS, 'e2', '2026-11'), pourboiresDuMois(TIPS, 'e3', '2026-11')]);
 
-/* A. K. : net 87 500, dont 2 500 de pourboires dans le bulletin ; ni pret, ni frais. */
+/* A. K. : net 87 500, dont 2 500 de pourboires dans le bulletin ; ni pret, ni frais. La lecture
+   de la paie du 5 les retire DEJA du montant envoye (especesXof, e6) : 85 000 envoyes. */
 const a = ligneDeLEquipe({
-  employeeId: 'e1', nom: 'A. K.', runId: 'run-11', lecture: lu({ envoyeXof: 87500, netXof: 87500 }),
+  employeeId: 'e1', nom: 'A. K.', runId: 'run-11', lecture: lu({ envoyeXof: 85000, netXof: 87500, especesXof: 2500 }),
   ligne: { result: { net: 87500 }, gains: { pourboires: 2500 }, deductions: {} }, pourboiresDuMoisXof: pourboiresDuMois(TIPS, 'e1', '2026-11'),
   numero: verifie, envois: [],
 });
@@ -89,7 +90,7 @@ dit('sans run : la ligne ne part pas, les pourboires restent', ['ne-part-pas', f
   (() => { const x = ligneDeLEquipe({ employeeId: 'e9', nom: 'Z. Z.', runId: '', pourboiresDuMoisXof: 700, numero: { etat: 'sans' }, envois: [] }); return [x.etat, x.viaMtn, x.pourboiresXof]; })());
 
 /* L'état par l'envoi du registre. */
-const avecEnvoi = (envois: EnvoiMtn[], lecture = lu({ etat: 'payable', envoyeXof: 87500 })) => ligneDeLEquipe({
+const avecEnvoi = (envois: EnvoiMtn[], lecture = lu({ etat: 'payable', envoyeXof: 85000, netXof: 87500, especesXof: 2500 })) => ligneDeLEquipe({
   employeeId: 'e1', nom: 'A. K.', runId: 'run-11', lecture, ligne: { result: { net: 87500 }, gains: { pourboires: 2500 }, deductions: {} },
   pourboiresDuMoisXof: 2500, numero: verifie, envois,
 }).etat;

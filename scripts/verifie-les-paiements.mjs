@@ -39,7 +39,7 @@ const PANNES = [
   ['l annulation apres 18 h', PUR, '  paieMs != null && Number.isFinite(paieMs) && maintenantMs < paieMs;', '  paieMs != null && Number.isFinite(paieMs) && maintenantMs < paieMs + 3_600_000;'],
   ['l ecran ouvre le mois en cours', PUR, '  return m === 1 ? `${a - 1}-12` : `${a}-${p2(m - 1)}`;', '  return `${a}-${p2(m)}`;'],
   /* Le pont et les pourboires */
-  ['les pourboires partent par MTN', PUR, '  const parMtn = Math.max(0, envoye - pourboiresDuNet);', '  const parMtn = Math.max(0, envoye);'],
+  ['les pourboires partent par MTN', PUR, '  const parMtn = Math.max(0, envoye);', '  const parMtn = Math.max(0, envoye + especes);'],
   ['le pont oublie les prets', PUR, '      c.salairesNetsXof += l.parMtnXof + l.pretXof;', '      c.salairesNetsXof += l.parMtnXof;'],
   ['les pourboires entrent dans le total MTN', PUR, '    c.parMtnXof += l.parMtnXof;', '    c.parMtnXof += l.parMtnXof + l.pourboiresXof;'],
   ['une ligne Moov compte par MTN', PUR, "  const viaMtn = !!lu && lu.voie === 'MTN' && !!lu.msisdn && parMtn > 0;", '  const viaMtn = !!lu && parMtn > 0;'],
