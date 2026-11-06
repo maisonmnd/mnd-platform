@@ -1,12 +1,16 @@
-import { Fragment, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { COMMUN } from '../contenu';
 import { client, lienWhatsApp, maison, offresDuSite, type OffreDuSite } from '../maison';
 import { campagne, mesure } from '../mesure';
 import {
-  agendaEnCache, calendrierDuSite, creneauxOccupes, groupesDePrestations, heuresLibres,
-  isoDuJour, jourCourt, jourDit, placesDeLaRemise, placesEnLigne, prestationsReservables, prochainsJours, PLAFOND_GESTES,
+  agendaEnCache, calendrierDuSite, creneauxOccupes, groupesDePrestations, heuresLibres, horizonDuSite,
+  isoDuJour, jourCourt, jourDit, jourFermeALaMaison, placesDeLaRemise, placesEnLigne, prestationsReservables, PLAFOND_GESTES,
   type AgendaDeLaMaison, type PrestationPublique,
 } from '../agenda';
+import {
+  dateDite, etatDuJour, flechesDuMois, grilleDuMois, LETTRES_DE_LA_SEMAINE, libelleDuJour, moisAMontrer, moisApres,
+  sensDuGlisse, titreDuMois,
+} from '../calendrier-du-site-pur';
 import { porteDuBesoin, type Besoin } from '../../../shared/qualification';
 import { CIVILITES, type Civilite } from '../../../shared/civilite';
 import { gesteDitEnFrancaisWa, nomEnFrancaisWa } from '../../../shared/gestes-en-francais';
@@ -20,7 +24,7 @@ import {
 import {
   bandeauDesPlaces, BOUTON_DU_TARIF_DE_LA_MAISON, estUnCodeDesPlaces, offreDesPlacesOuverte, offreDuJourDuSite,
   PHRASE_DES_TARIFS_CONVENUS, phraseDeLaPlacePartie, phraseDeLaPlaceTenue, phraseDUneSeuleRemise, placesConnuesDe,
-  placesDites, prixConvenusDuRetour, type CarteDesRemises,
+  prixConvenusDuRetour, type CarteDesRemises,
 } from '../places-du-site-pur';
 import Demande from './Demande';
 import { raisonDuRefus } from '../refus-du-serveur';
@@ -139,9 +143,7 @@ const oublieLaCliente = (): void => {
    (prochainsJours) : « Demain » à Paris entre minuit et une heure n'est pas
    demain pour la Maison. */
 const MOIS_COURTS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
-const MOIS_LONGS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 export const moisCourt = (iso: string): string => MOIS_COURTS[Number(iso.slice(5, 7)) - 1] ?? '';
-const moisEtAnnee = (iso: string): string => `${MOIS_LONGS[Number(iso.slice(5, 7)) - 1] ?? ''} ${iso.slice(0, 4)}`;
 const jourDeCotonou = (ms: number): string => new Date(ms + 3_600_000).toISOString().slice(0, 10);
 const jourProche = (iso: string): string => {
   if (iso === jourDeCotonou(Date.now())) return 'Aujourd’hui';
@@ -161,8 +163,11 @@ const numeroMasque = (n: string): string => { const c = n.replace(/\D/g, ''); re
    UID (un second ajout remplace le premier au lieu de doubler), la
    référence dans la note, l'adresse de la Maison en lieu. */
 const adresseDAgenda = (ics: string): string => `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
+/* LE DÉFILEMENT SANS ÉLAN pour qui l'a demandé (prefers-reduced-motion). */
+const defilementDoux = (): ScrollBehavior => {
+  try { return matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'; } catch { return 'auto'; }
+};
 
-const JOURS_PROPOSES = 21;
 /* TOUS LES INDICATIFS DU MONDE — 13 octobre 2026 : « le numéro de tél. ne
    montre pas tous les indicatifs de tous les pays du monde » (Yéman). La
    même liste que le Trône (shared/geo) : les fréquents d'abord, le Bénin en
@@ -329,7 +334,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const [remisesParJour, setRemisesParJour] = useState<CarteDesRemises>({});
   /* LA DERNIÈRE PLACE EST PARTIE à l'envoi (`places_limitees`) : l'offre
      qu'on montrait, pour dire son pourcentage ; puis, si elle le choisit, le
-     tarif de la Maison, sans remise. Un autre jour ou d'autres gestes
+     tarif de la Maison, sans remise. Un jour changé ou d'autres gestes
      effacent l'un et l'autre. */
   const [placePartie, setPlacePartie] = useState<{ discountPct?: number } | null>(null);
   const [tarifDeLaMaison, setTarifDeLaMaison] = useState(false);
@@ -398,7 +403,16 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   /* LA COULEUR SEULE (30 octobre 2026) : « Une couleur ? » sous les tuiles,
      ou la page de la couleur, n'ouvrent que ses gestes. */
   const [laCouleur, setLaCouleur] = useState(laCouleurDeLAdresse);
-  const [autreJour, setAutreJour] = useState(false);
+  /* L'HORIZON DU SITE, LU UNE FOIS — 6 novembre 2026 : de demain à Cotonou au
+     dernier jour du troisième mois qui suit (`horizonDuSite`, la borne du
+     serveur), la même fenêtre que main.ts précharge. */
+  const [horizon] = useState(() => horizonDuSite());
+  /* LE MOIS MONTRÉ : celui qu'elle a tourné (AAAA-MM) ; `null`, celui du
+     jour choisi ou de la première place libre. `sensDuMois` dit d'où entre
+     la grille (1 : le suivant, -1 : le précédent, 0 : sans glissé). */
+  const [moisVu, setMoisVu] = useState<string | null>(null);
+  const [sensDuMois, setSensDuMois] = useState<-1 | 0 | 1>(0);
+  const glisse = useRef<{ x: number; y: number } | null>(null);
   const [moi, setMoi] = useState<MemoireDuSite | null>(memoireDuSite);
   /* « Bon retour » : sa dernière venue est cochée, elle n'a qu'à toucher une place. */
   const [retour, setRetour] = useState(false);
@@ -457,8 +471,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
       setWhatsapp(m?.whatsapp ?? '');
       setDevise(m?.devise ?? 'XOF');
     }).catch(() => { /* le numéro garde celui du registre */ });
-    const jours = prochainsJours(JOURS_PROPOSES);
-    void calendrierDuSite(jours[0], jours[jours.length - 1], initiales?.branchId).then(({ agenda: a, occupes: pris, places: lues, remises }) => {
+    void calendrierDuSite(horizon.du, horizon.au, initiales?.branchId).then(({ agenda: a, occupes: pris, places: lues, remises }) => {
       if (!vivant) return;
       /* Un agenda absent ne remplace pas celui de la dernière visite : il
          rendait « La réservation en ligne n'est pas disponible » par-dessus
@@ -727,7 +740,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const sesTarifsConvenus = !!offreSansSesTarifs && estAPlaces(offreSansSesTarifs);
   /** Les places qui restent le jour choisi, pour l'offre à places qui s'y pose. */
   const placesDuChoix = offreDuJour && estAPlaces(offreDuJour) ? placesConnuesDe(remisesParJour, offreDuJour.id, jour) : null;
-  /* Un autre jour, d'autres gestes : la place partie et le tarif choisi s'effacent. */
+  /* Un jour changé, d'autres gestes : la place partie et le tarif choisi s'effacent. */
   useEffect(() => { setPlacePartie(null); setTarifDeLaMaison(false); }, [jour, serviceIds]);
   const offreAppliquee = offreDuMoment ?? offreDeBienvenue ?? offreDuJour;
   /** L'offre à places posée sur cette venue : ses lignes disent « place limitée ». */
@@ -763,18 +776,25 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const prixFlou = choisies.some((s) => !prixFerme(s, ctx) || s.priceMode === 'variable');
   const plein = serviceIds.length >= PLAFOND_GESTES;
 
-  /* Les jours qui ont au moins une heure libre pour TOUS les gestes cochés. */
+  /* Les jours qui ont au moins une heure libre pour TOUS les gestes cochés,
+     sur tout l'horizon (6 novembre 2026 : ce mois et les trois suivants). */
   const jours = useMemo(() => {
     if (!agenda || serviceIds.length === 0 || occupesEtat !== 'frais') return [];
-    return prochainsJours(JOURS_PROPOSES)
+    return horizon.jours
       .map((iso) => ({ iso, heures: heuresLibres({ agenda, dateIso: iso, serviceIds, occupes, places: placesParJour }) }))
       .filter((j) => j.heures.length > 0);
   }, [agenda, serviceIds, occupes, placesParJour, occupesEtat]);
 
   const heuresDuJour = jours.find((j) => j.iso === jour)?.heures ?? [];
   /* LES SIX PROCHAINES PLACES, tous jours confondus : la cliente pressée
-     touche la première, « Un autre jour » ouvre le calendrier entier. */
+     touche la première ; le mois entier se voit dessous, en grille. */
   const places = useMemo(() => prochainesPlaces(jours, 6), [jours]);
+  /* Le nombre d'heures libres de chaque jour : la grille en tire ses états. */
+  const heuresParJour = useMemo(() => new Map(jours.map((j) => [j.iso, j.heures.length])), [jours]);
+  /* LE MOIS SUIT LE JOUR CHOISI (une place touchée, une phrase lue) ; des
+     gestes changés rendent la main à la première place libre. */
+  useEffect(() => { if (jour) { setMoisVu(jour.slice(0, 7)); setSensDuMois(0); } }, [jour]);
+  useEffect(() => { setMoisVu(null); setSensDuMois(0); }, [serviceIds]);
 
   /* LA PHRASE LUE : ses gestes se posent tout de suite ; le jour et l'heure
      attendent que les heures libres de CES gestes soient calculées (mêmes
@@ -799,7 +819,6 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     }
     setJour('');
     setHeure(null);
-    setAutreJour(false);
     setErreur(null);
     const noms = ids.map((id) => nomEnFrancaisWa(prestations.find((p) => p.id === id)?.name ?? '').francais).filter(Boolean);
     const moment = [lecture.jour ? jourDit(lecture.jour) : null, lecture.heure ? `à ${lecture.heure.replace(':', ' h ').replace(' h 00', ' h')}` : null].filter(Boolean).join(' ');
@@ -852,12 +871,14 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     if (!calibreId) setCalibreId('inconnu');
     setJour('');
     setHeure(null);
-    setAutreJour(false);
   };
   const prendreLaPlace = (iso: string, h: { heure: string; maitre: string }) => {
     setErreur(null);
     setJour(iso);
     setHeure(h);
+    /* La grille revient sur le mois de la place, même si le jour ne change pas. */
+    setMoisVu(iso.slice(0, 7));
+    setSensDuMois(0);
   };
   const autreChose = () => {
     setRetour(false);
@@ -866,7 +887,6 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     setRang(0);
     setJour('');
     setHeure(null);
-    setAutreJour(false);
   };
   /* AJOUTER UN GESTE À UNE FORMULE — 1er novembre 2026. « Sur certains
      boutons on ne peut pas sélectionner plusieurs services » (Yéman) : une
@@ -882,7 +902,6 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     setRang(0);
     setJour('');
     setHeure(null);
-    setAutreJour(false);
   };
   /* « CE N'EST PAS MOI » ROUVRE LA PORTE — 11 octobre 2026 : une autre
      personne sur le même téléphone ne sortait de l'entretien qu'en retapant
@@ -1005,7 +1024,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
              cliente confirme au tarif de la Maison si elle le veut. */
           setPlacePartie(offreDuJour ?? { discountPct: 0 });
           if (agenda) {
-            const suite = prochainsJours(JOURS_PROPOSES);
+            const suite = [horizon.du, horizon.au];
             setRemisesParJour(await placesDeLaRemise(agenda.branchId, suite[0], suite[suite.length - 1]));
           }
           return;
@@ -1014,7 +1033,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
           setErreur(code === 'creneau_pris' || code === 'creneau_plafond'
             ? 'Cette heure vient d’être prise. Choisissez-en une autre, la liste est à jour.'
             : 'Ce moment ne se réserve plus en ligne. Choisissez-en un autre, la liste est à jour.');
-          const suite = prochainsJours(JOURS_PROPOSES);
+          const suite = [horizon.du, horizon.au];
           /* Les places du jour se relisent avec les murs (2 novembre 2026) :
              un planning changé entre-temps ne repropose pas une seconde place
              que le serveur vient de refuser. */
@@ -1435,6 +1454,29 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     </div>
   ) : null;
 
+  /* LE MOIS EN GRILLE — 6 novembre 2026. Le mois montré d'abord est celui de
+     la première place libre, ou du jour déjà choisi ; les flèches et le doigt
+     tournent les pages sans jamais sortir de l'horizon. */
+  const premierMois = horizon.du.slice(0, 7);
+  const dernierMois = horizon.au.slice(0, 7);
+  const moisMontre = moisAMontrer({ vu: moisVu, jour, premierePlace: places[0]?.iso ?? null, premier: premierMois, dernier: dernierMois });
+  const fleches = flechesDuMois(moisMontre, premierMois, dernierMois);
+  const tourneLeMois = (k: -1 | 1) => {
+    const cible = moisApres(moisMontre, k);
+    if (!cible || cible < premierMois || cible > dernierMois) return;
+    setSensDuMois(k);
+    setMoisVu(cible);
+  };
+  const choisirLeJour = (iso: string) => {
+    setJour(iso);
+    setHeure(null);
+    /* Ses heures paraissent juste dessous : on les amène sous le doigt. */
+    try {
+      requestAnimationFrame(() => document.getElementById('heures-du-jour')?.scrollIntoView({ behavior: defilementDoux(), block: 'nearest' }));
+    } catch { /* sans défilement */ }
+  };
+  const uneRemiseDansLHorizon = jours.some((j) => !!remiseDuJourDe(j.iso));
+
   /* ── Les trois pas ────────────────────────────────────────────────── */
   return (
     <div className="reservation">
@@ -1746,9 +1788,11 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
             : jours.length === 0
             ? (
               <p className="corps">
+                {/* LA VRAIE BORNE, DITE — 6 novembre 2026 : plus « les trois
+                    prochaines semaines », mais le dernier jour ouvert en ligne. */}
                 {serviceIds.length > 1
-                  ? `Aucune journée des trois prochaines semaines ne peut accueillir ${dit(dureeTotale)} d’affilée. Retirez un geste, ou écrivez-nous et nous poserons votre venue sur deux fois.`
-                  : 'Aucune heure libre dans les trois prochaines semaines. Écrivez-nous, nous trouverons ensemble.'}
+                  ? `Aucune journée d’ici au ${dateDite(horizon.au)} ne peut accueillir ${dit(dureeTotale)} d’affilée. Retirez un geste, ou écrivez-nous et nous poserons votre venue sur deux fois.`
+                  : `Aucune heure libre d’ici au ${dateDite(horizon.au)}. Écrivez-nous, nous trouverons ensemble.`}
                 <br /><a className="btn btn--plein" style={{ marginTop: 12 }} href={wa} target="_blank" rel="noopener">Parler à MND sur WhatsApp</a>
               </p>
             )
@@ -1779,31 +1823,72 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                     );
                   })}
                 </div>
-                {!autreJour ? (
-                  <p><button type="button" className="btn btn--lien" onClick={() => setAutreJour(true)}>Un autre jour</button></p>
-                ) : (
-                <>
-                <div className="jours">
-                  {jours.map((j, i) => {
-                    const c = jourCourt(j.iso);
-                    /* LE MOIS EN TÊTE DE BANDE quand il change (11 octobre 2026). */
-                    const nouveauMois = i === 0 || j.iso.slice(0, 7) !== jours[i - 1].iso.slice(0, 7);
-                    const duJour = remiseDuJourDe(j.iso);
-                    const restent = duJour && estAPlaces(duJour) ? placesConnuesDe(remisesParJour, duJour.id, j.iso) : null;
-                    return (
-                      <Fragment key={j.iso}>
-                        {nouveauMois && <span className="jours__mois">{moisEtAnnee(j.iso)}</span>}
-                        <button type="button" className={`jour${jour === j.iso ? ' est-choisi' : ''}${duJour ? ' est-offre' : ''}`} aria-pressed={jour === j.iso} aria-label={restent !== null ? `${jourDit(j.iso)}, ${ditLesPlaces(restent)}` : undefined} onClick={() => { setJour(j.iso); setHeure(null); }}>
-                          <span>{c.lettre}</span><b>{c.chiffre}</b>
+                {/* LE MOIS EN GRILLE — 6 novembre 2026 (maquette « Le calendrier
+                    du site », validée) : ce mois et les trois suivants, TOUT DE
+                    SUITE sous les six places, sans bouton à ouvrir. Libre en
+                    indigo pâle, la remise du jour en cuivre avec son « −X % »,
+                    un point cuivre à deux heures ou moins, complet barré, fermé
+                    grisé et sans toucher. Le doigt glisse d'un mois à l'autre
+                    (PageUp, PageDown au clavier) ; les flèches se grisent aux
+                    bornes. Un jour touché ouvre SES heures juste dessous. */}
+                <div
+                  className="mois-du-site"
+                  onTouchStart={(e) => { const t = e.touches[0]; glisse.current = t ? { x: t.clientX, y: t.clientY } : null; }}
+                  onTouchEnd={(e) => {
+                    const d = glisse.current;
+                    glisse.current = null;
+                    const t = e.changedTouches[0];
+                    if (!d || !t) return;
+                    const k = sensDuGlisse(t.clientX - d.x, t.clientY - d.y);
+                    if (k) tourneLeMois(k);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'PageDown') { e.preventDefault(); tourneLeMois(1); }
+                    else if (e.key === 'PageUp') { e.preventDefault(); tourneLeMois(-1); }
+                  }}
+                >
+                  <div className="mois-du-site__tete">
+                    <button type="button" className="mois-du-site__fleche" aria-label="Mois précédent" disabled={!fleches.precedent} onClick={() => tourneLeMois(-1)}>‹</button>
+                    <p className="mois-du-site__titre" aria-live="polite">{titreDuMois(moisMontre)}</p>
+                    <button type="button" className="mois-du-site__fleche" aria-label="Mois suivant" disabled={!fleches.suivant} onClick={() => tourneLeMois(1)}>›</button>
+                  </div>
+                  <div className="mois-du-site__semaine" aria-hidden="true">
+                    {LETTRES_DE_LA_SEMAINE.map((l, i) => <span key={i}>{l}</span>)}
+                  </div>
+                  <div key={moisMontre} className={`mois-du-site__grille${sensDuMois > 0 ? ' vient-de-droite' : sensDuMois < 0 ? ' vient-de-gauche' : ''}`} role="group" aria-label={`Les jours de ${titreDuMois(moisMontre)}`}>
+                    {grilleDuMois(moisMontre).cases.map((iso, i) => {
+                      if (!iso) return <span key={`vide-${i}`} className="mois-du-site__vide" aria-hidden="true" />;
+                      const leJour = etatDuJour({ iso, du: horizon.du, au: horizon.au, ferme: jourFermeALaMaison(agenda, iso), heures: heuresParJour.get(iso) ?? 0 });
+                      const libre = leJour.etat === 'libre';
+                      /* La remise du jour et ses places limitées, sur un jour libre seulement. */
+                      const duJour = libre ? remiseDuJourDe(iso) : null;
+                      const restent = duJour && estAPlaces(duJour) ? placesConnuesDe(remisesParJour, duJour.id, iso) : null;
+                      return (
+                        <button
+                          type="button"
+                          key={iso}
+                          className={`mois-du-site__jour est-${leJour.etat}${duJour ? ' est-offre' : ''}${leJour.peu ? ' est-peu' : ''}${jour === iso ? ' est-choisi' : ''}`}
+                          disabled={!libre}
+                          aria-pressed={libre ? jour === iso : undefined}
+                          aria-label={libelleDuJour({ iso, du: horizon.du, jour: leJour, remise: duJour ? { titre: duJour.title, pct: Number(duJour.discountPct ?? 0) } : null, places: restent !== null ? ditLesPlaces(restent) : null })}
+                          onClick={() => choisirLeJour(iso)}
+                        >
+                          <b>{Number(iso.slice(8))}</b>
                           {duJour && <small className="remise-du-jour">−{duJour.discountPct} %</small>}
-                          {restent !== null && <small className="places-du-jour">{placesDites(restent)}</small>}
                         </button>
-                      </Fragment>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                  <p className="mois-du-site__legende">
+                    <span><i className="mois-du-site__l-libre" aria-hidden="true" />libre</span>
+                    {uneRemiseDansLHorizon && <span><i className="mois-du-site__l-offre" aria-hidden="true" />remise du jour</span>}
+                    <span><i className="mois-du-site__l-peu" aria-hidden="true" />peu de places</span>
+                    <span><i className="mois-du-site__l-plein" aria-hidden="true" />complet ou fermé</span>
+                  </p>
+                  <p className="mois-du-site__horizon">Réservations ouvertes jusqu’au {dateDite(horizon.au)}.</p>
                 </div>
                 {jour && (
-                  <div className="heures venir">
+                  <div className="heures venir" id="heures-du-jour">
                     <p className="legende" style={{ width: '100%' }}>{jourDit(jour)}</p>
                     {/* LE DÉCOMPTE DU JOUR CHOISI, en toutes lettres (4 novembre 2026). */}
                     {offreDuJour && placesDuChoix !== null && (
@@ -1815,8 +1900,6 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                       </button>
                     ))}
                   </div>
-                )}
-                </>
                 )}
                 {jour && (
                   <p className="legende" style={{ marginTop: 12 }}>

@@ -1,0 +1,322 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><title>Le calendrier du site</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@400;500;600&display=swap">
+<style>
+/* Mise en page : à gauche le téléphone (la réservation du site, étape du jour et de l'heure), à droite ce qui change et les règles ; une colonne sous 900 px. */
+:root {
+  --ivoire: #F6F1E7; --carte: #FFFDF8; --indigo: #1E2150; --indigo-doux: #3A3E7A; --cuivre: #B97A4A; --cuivre-fonce: #9E6238;
+  --encre: #1F1D26; --encre-douce: #6A6474; --trait: rgba(30, 33, 80, .14); --pale: #F1E7D9;
+  --indigo-pale: #E7E8F2; --cuivre-pale: #F3E7DB; --gris: #9A95A2; --gris-pale: #ECE8E1; --sur-indigo: #F6F1E7; --sur-cuivre: #FFFDF8; --tel: #1A1C2E;
+  --serif: "Cormorant Garamond", "Noto Serif", Georgia, serif;
+  --sans: "Jost", "Noto Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --indigo-doux: #A9ADE6; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --encre-douce: #A9A3B3; --trait: rgba(236, 231, 221, .16); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --gris: #7C7786; --gris-pale: #2A2735; --sur-indigo: #15161F; --sur-cuivre: #15161F; --tel: #0E0F17; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --indigo-doux: #A9ADE6; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --encre-douce: #A9A3B3; --trait: rgba(236, 231, 221, .16); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --gris: #7C7786; --gris-pale: #2A2735; --sur-indigo: #15161F; --sur-cuivre: #15161F; --tel: #0E0F17; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ivoire); color: var(--encre); font: 400 15px/1.55 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 56px; }
+main { max-width: 1040px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 500; color: var(--indigo); margin: 0; line-height: 1.12; text-wrap: balance; }
+h1 { font-size: clamp(34px, 6vw, 46px); }
+h2 { font-size: 24px; }
+p { margin: 0; max-width: 62ch; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.sourcil { font: 600 11px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre-fonce); }
+.doux { color: var(--encre-douce); }
+.petit { font-size: 13px; }
+.bandeau { border: 1px dashed var(--cuivre); background: var(--pale); padding: 8px 14px; border-radius: 4px; font-size: 13px; }
+.duo { display: grid; grid-template-columns: 390px minmax(0, 1fr); gap: 36px; align-items: start; }
+@media (max-width: 900px) { .duo { grid-template-columns: minmax(0, 1fr); } }
+
+/* Le téléphone */
+.tel { background: var(--tel); border-radius: 34px; padding: 12px; box-shadow: 0 16px 40px rgba(20, 20, 40, .22); width: 100%; max-width: 390px; justify-self: center; }
+.ecran { background: var(--ivoire); border-radius: 24px; overflow: hidden; height: 760px; display: flex; flex-direction: column; position: relative; }
+.ecran .barre { background: var(--indigo); color: var(--sur-indigo); padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+.ecran .barre b { font: 500 18px var(--serif); letter-spacing: .08em; text-transform: none; }
+.defile { flex: 1; overflow-y: auto; padding: 16px 16px 110px; display: grid; gap: 16px; align-content: start; }
+.etape { display: flex; align-items: baseline; gap: 10px; }
+.etape b { font: 600 13px var(--sans); color: var(--sur-cuivre); background: var(--cuivre); border-radius: 50%; width: 24px; height: 24px; display: inline-grid; place-items: center; flex: none; }
+.etape h2 { font-size: 24px; }
+
+/* Les six prochaines places */
+.places { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.place { border: 1px solid var(--trait); background: var(--carte); border-radius: 10px; padding: 8px 6px; display: grid; gap: 1px; text-align: center; color: var(--encre); }
+.place span { font-size: 12px; color: var(--encre-douce); }
+.place b { font: 600 17px var(--serif); color: var(--indigo); font-variant-numeric: tabular-nums; }
+.place small { font-size: 10.5px; color: var(--cuivre-fonce); font-weight: 600; }
+.place.est-choisie { background: var(--indigo); border-color: var(--indigo); }
+.place.est-choisie span, .place.est-choisie b, .place.est-choisie small { color: var(--sur-indigo); }
+
+/* Le mois */
+.cal { background: var(--carte); border: 1px solid var(--trait); border-radius: 14px; padding: 12px 10px 10px; touch-action: pan-y; user-select: none; }
+.cal-tete { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; margin-bottom: 6px; }
+.cal-tete h3 { text-align: center; font-size: 22px; }
+.fleche { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--trait); background: transparent; color: var(--indigo); font-size: 20px; display: grid; place-items: center; }
+.fleche:disabled { opacity: .3; cursor: default; }
+.semaine, .grille { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.semaine span { text-align: center; font: 600 10.5px var(--sans); letter-spacing: .1em; color: var(--encre-douce); padding: 4px 0; }
+.grille { transition: transform .22s ease, opacity .22s ease; }
+.grille.sort-g { transform: translateX(-24px); opacity: 0; }
+.grille.sort-d { transform: translateX(24px); opacity: 0; }
+.j { aspect-ratio: 1 / 1; border-radius: 10px; border: 0; background: transparent; display: grid; place-items: center; position: relative; font: 500 15px var(--sans); color: var(--gris); font-variant-numeric: tabular-nums; padding: 0; }
+.j.libre { color: var(--indigo); background: var(--indigo-pale); font-weight: 600; }
+.j.libre:hover { box-shadow: inset 0 0 0 1px var(--indigo); }
+.j.offre { background: var(--cuivre-pale); color: var(--cuivre-fonce); }
+.j.offre::after { content: "−15 %"; position: absolute; bottom: 3px; font-size: 8.5px; font-weight: 600; letter-spacing: 0; }
+.j.peu::before { content: ""; position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--cuivre); }
+.j.complet { text-decoration: line-through; text-decoration-color: var(--gris); }
+.j.ferme { color: var(--gris); opacity: .55; }
+.j.choisi { background: var(--indigo); color: var(--sur-indigo); }
+.j.choisi::after { color: var(--sur-indigo); }
+.j.vide { visibility: hidden; }
+.j:disabled { cursor: default; }
+.legende { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 11.5px; color: var(--encre-douce); margin-top: 10px; padding: 0 4px; }
+.legende i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; }
+.legende .l-libre { background: var(--indigo-pale); }
+.legende .l-offre { background: var(--cuivre-pale); }
+.legende .l-peu { background: var(--cuivre); border-radius: 50%; width: 7px; height: 7px; vertical-align: 1px; }
+.legende .l-plein { background: var(--gris-pale); }
+.horizon { text-align: center; font-size: 12px; color: var(--encre-douce); margin-top: 8px; }
+
+/* Les heures du jour */
+.heures { display: grid; gap: 8px; }
+.heures h4 { margin: 0; font: 500 19px var(--serif); color: var(--indigo); }
+.heures .rang { display: flex; flex-wrap: wrap; gap: 8px; }
+.heure { min-width: 74px; padding: 10px 12px; border-radius: 999px; border: 1px solid var(--indigo); background: transparent; color: var(--indigo); font: 600 15px var(--sans); font-variant-numeric: tabular-nums; }
+.heure.est-choisie { background: var(--indigo); color: var(--sur-indigo); }
+.heures .note { font-size: 12px; color: var(--encre-douce); }
+.heures .offre-note { font-size: 12.5px; color: var(--cuivre-fonce); font-weight: 500; }
+
+/* La barre du bas */
+.bas { position: absolute; left: 0; right: 0; bottom: 0; background: var(--indigo); color: var(--sur-indigo); padding: 12px 16px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.bas .choix { display: grid; }
+.bas .choix b { font: 500 19px var(--serif); }
+.bas .choix span { font-size: 12px; opacity: .8; }
+.bas button { background: var(--cuivre); border: 0; color: var(--sur-cuivre); padding: 11px 18px; border-radius: 999px; font: 600 13px var(--sans); letter-spacing: .1em; text-transform: uppercase; }
+.bas button:disabled { opacity: .45; }
+
+/* La colonne de droite */
+.droite { display: grid; gap: 20px; min-width: 0; }
+.bloc { background: var(--carte); border: 1px solid var(--trait); border-radius: 8px; padding: 16px 18px; display: grid; gap: 10px; }
+.bloc ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; }
+.avant-apres { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.avant-apres > div { display: grid; gap: 6px; font-size: 14px; }
+@media (max-width: 520px) { .avant-apres { grid-template-columns: minmax(0, 1fr); } }
+.barre-de { text-decoration: line-through; text-decoration-color: var(--cuivre); color: var(--encre-douce); }
+.arbitre { border-left: 3px solid var(--cuivre); padding: 8px 12px; background: var(--carte); border-radius: 0 6px 6px 0; font-size: 14px; }
+.arbitre strong { color: var(--indigo); }
+@media (prefers-reduced-motion: reduce) { .grille { transition: none; } }
+</style>
+
+<main>
+  <div class="bandeau">Maquette v1, construite le 6 novembre 2026 · la réservation du site, au téléphone · places d'exemple. Touchez les flèches, glissez le mois du doigt, touchez un jour puis une heure.</div>
+  <header style="display:grid; gap:8px">
+    <span class="sourcil">Site Maison MND · Réserver</span>
+    <h1>Le calendrier, jusqu'à fin février.</h1>
+    <p class="doux">Le mois en grille, comme dans Ma Couronne : ce mois et les trois suivants, de demain jusqu'au dernier jour du troisième mois qui suit. Avant, seulement 21 jours en bande.</p>
+  </header>
+
+  <div class="duo">
+    <div class="tel" aria-label="Le site au téléphone">
+      <div class="ecran">
+        <div class="barre"><b>Maison MND</b><span>Réserver</span></div>
+        <div class="defile" id="defile">
+          <div class="etape"><b>3</b><h2>Le jour et l'heure</h2></div>
+          <p class="doux petit">Rituel L'Entretien · 2 h sur place</p>
+
+          <div>
+            <p class="sourcil" style="margin-bottom:8px">Les prochaines places</p>
+            <div class="places" id="places"></div>
+          </div>
+
+          <div class="cal" id="cal">
+            <div class="cal-tete">
+              <button type="button" class="fleche" id="prec" aria-label="Mois précédent">‹</button>
+              <h3 id="titre-mois" aria-live="polite">Novembre 2026</h3>
+              <button type="button" class="fleche" id="suiv" aria-label="Mois suivant">›</button>
+            </div>
+            <div class="semaine"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+            <div class="grille" id="grille" role="grid"></div>
+            <div class="legende">
+              <span><i class="l-libre"></i>libre</span>
+              <span><i class="l-offre"></i>remise du jour</span>
+              <span><i class="l-peu"></i>peu de places</span>
+              <span><i class="l-plein"></i>complet ou fermé</span>
+            </div>
+            <p class="horizon" id="horizon">Réservations ouvertes jusqu'au 28 février 2027.</p>
+          </div>
+
+          <div class="heures" id="heures" hidden>
+            <h4 id="jour-dit"></h4>
+            <p class="offre-note" id="offre-note" hidden>Le mercredi de la Maison : −15 % sur le rituel.</p>
+            <div class="rang" id="rang"></div>
+            <p class="note">Ces heures tiennent compte de 2 h sur place.</p>
+          </div>
+        </div>
+        <div class="bas">
+          <div class="choix"><b id="bas-choix">Choisissez un moment</b><span id="bas-sous">un jour, puis une heure</span></div>
+          <button type="button" id="continuer" disabled>Continuer</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="droite">
+      <section class="bloc">
+        <h2>Ce qui change</h2>
+        <div class="avant-apres">
+          <div><span class="sourcil">Avant</span><span class="barre-de">21 jours en bande à faire glisser</span><span class="barre-de">février hors d'atteinte</span><span class="barre-de">« Un autre jour » à ouvrir d'abord</span></div>
+          <div><span class="sourcil">Maintenant</span><span>le mois en grille, ‹ › ou le doigt</span><span>ce mois et les 3 suivants</span><span>le mois visible tout de suite, sous les 6 places</span></div>
+        </div>
+      </section>
+      <section class="bloc">
+        <h2>Ce que dit chaque jour</h2>
+        <ul>
+          <li><strong>Libre</strong> : indigo pâle, un toucher ouvre ses heures juste dessous.</li>
+          <li><strong>Remise du jour</strong> : cuivre et « −X % » (le mercredi de la Maison, les places limitées) ; ses places limitées se disent sous le jour choisi.</li>
+          <li><strong>Peu de places</strong> : un point cuivre, deux heures ou moins.</li>
+          <li><strong>Complet</strong> : barré. <strong>Fermé</strong> (dimanche, lundi, journées fermées des Paramètres) : grisé, sans toucher.</li>
+          <li>Les quatre mois se chargent d'un coup, dès l'ouverture de la page, en même temps que le code : changer de mois n'attend rien.</li>
+          <li>Chaque jour se lit au lecteur d'écran : son nom, ses heures libres, sa remise, ou « complet », « fermé ».</li>
+        </ul>
+      </section>
+      <section class="bloc">
+        <h2>Ce qui ne change pas</h2>
+        <ul>
+          <li>Pas le jour même : la première place est demain.</li>
+          <li>La Maison attribue la main : la cliente choisit un moment.</li>
+          <li>Les places limitées et le décompte du jour restent dits.</li>
+          <li>Une heure touchée ouvre « Votre place » juste dessous ; en bas, la barre du total.</li>
+          <li>Le même calendrier sur ordinateur, plus large.</li>
+        </ul>
+      </section>
+      <section class="bloc">
+        <h2>Vos choix</h2>
+        <div class="arbitre"><strong>Horizon</strong> · ce mois et les trois suivants ; il avance chaque mois.</div>
+        <div class="arbitre"><strong>Forme</strong> · le mois en grille, comme Ma Couronne ; les six prochaines places restent en haut.</div>
+        <div class="arbitre"><strong>Borne</strong> · la même au site, au serveur et au verrou : un jour montré se réserve, le lendemain de la borne se refuse.</div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script>
+(() => {
+  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const MC = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+  const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const JC = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+  const AUJ = '2026-11-06';
+  const DEBUT = { a: 2026, m: 10 }; // novembre
+  const FIN = { a: 2027, m: 1 };   // février
+  const iso = (a, m, d) => `${a}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const jds = (s) => new Date(`${s}T12:00:00Z`).getUTCDay();
+  const num = (d) => (d === 1 ? '1er' : String(d));
+  /* Exemple d'agenda : fermé dimanche et lundi, du 1er au 5 janvier ; des jours complets ; des heures. */
+  const hash = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 9973; return h; };
+  const HEURES = ['09:00', '10:30', '12:00', '14:00', '15:30', '17:00'];
+  function jourDe(s) {
+    if (s <= AUJ) return { etat: 'passe', heures: [] };
+    const w = jds(s);
+    if (w === 0 || w === 1) return { etat: 'ferme', heures: [] };
+    if (s >= '2027-01-01' && s <= '2027-01-05') return { etat: 'ferme', heures: [] };
+    const h = hash(s);
+    if (h % 7 === 0) return { etat: 'complet', heures: [] };
+    const heures = HEURES.filter((_, i) => (h >> i) % 3 !== 0);
+    if (!heures.length) return { etat: 'complet', heures: [] };
+    return { etat: 'libre', heures, offre: w === 3, peu: heures.length <= 2 };
+  }
+  let vue = { ...DEBUT };
+  let choix = { jour: null, heure: null };
+  const $ = (id) => document.getElementById(id);
+
+  function places() {
+    const out = []; let d = new Date(`${AUJ}T12:00:00Z`);
+    while (out.length < 6) { d.setUTCDate(d.getUTCDate() + 1); const s = d.toISOString().slice(0, 10); const j = jourDe(s); for (const h of j.heures) { if (out.length < 6) out.push({ s, h, offre: j.offre }); } }
+    $('places').innerHTML = out.map((p) => `<button type="button" class="place${choix.jour === p.s && choix.heure === p.h ? ' est-choisie' : ''}" data-j="${p.s}" data-h="${p.h}"><span>${JC[jds(p.s)]} ${num(+p.s.slice(8))}</span><b>${p.h}</b>${p.offre ? '<small>−15 %</small>' : ''}</button>`).join('');
+  }
+  function mois(direction) {
+    const g = $('grille');
+    const dessine = () => {
+      const premier = new Date(Date.UTC(vue.a, vue.m, 1)); const n = new Date(Date.UTC(vue.a, vue.m + 1, 0)).getUTCDate();
+      const decal = (premier.getUTCDay() + 6) % 7;
+      let h = '';
+      for (let i = 0; i < decal; i++) h += '<span class="j vide"></span>';
+      for (let d = 1; d <= n; d++) {
+        const s = iso(vue.a, vue.m, d); const j = jourDe(s);
+        const cl = ['j'];
+        if (j.etat === 'libre') { cl.push('libre'); if (j.offre) cl.push('offre'); if (j.peu) cl.push('peu'); }
+        else if (j.etat === 'complet') cl.push('complet');
+        else cl.push('ferme');
+        if (choix.jour === s) cl.push('choisi');
+        const lib = `${JOURS[jds(s)]} ${num(d)} ${MOIS[vue.m]}${j.etat === 'libre' ? `, ${j.heures.length} heures libres${j.offre ? ', −15 %' : ''}` : j.etat === 'complet' ? ', complet' : j.etat === 'passe' ? ', passé' : ', fermé'}`;
+        h += `<button type="button" class="${cl.join(' ')}" data-j="${s}" ${j.etat === 'libre' ? '' : 'disabled'} aria-label="${lib}" aria-pressed="${choix.jour === s}">${d}</button>`;
+      }
+      g.innerHTML = h;
+      $('titre-mois').textContent = `${MOIS[vue.m][0].toUpperCase()}${MOIS[vue.m].slice(1)} ${vue.a}`;
+      $('prec').disabled = vue.a === DEBUT.a && vue.m === DEBUT.m;
+      $('suiv').disabled = vue.a === FIN.a && vue.m === FIN.m;
+      g.classList.remove('sort-g', 'sort-d');
+    };
+    if (!direction) { dessine(); return; }
+    g.classList.add(direction > 0 ? 'sort-g' : 'sort-d');
+    setTimeout(dessine, 160);
+  }
+  function avance(k) {
+    const t = vue.a * 12 + vue.m + k;
+    if (t < DEBUT.a * 12 + DEBUT.m || t > FIN.a * 12 + FIN.m) return;
+    vue = { a: Math.floor(t / 12), m: t % 12 }; mois(k);
+  }
+  function heures() {
+    const box = $('heures');
+    if (!choix.jour) { box.hidden = true; return; }
+    const j = jourDe(choix.jour); box.hidden = false;
+    $('jour-dit').textContent = `${JOURS[jds(choix.jour)][0].toUpperCase()}${JOURS[jds(choix.jour)].slice(1)} ${num(+choix.jour.slice(8))} ${MOIS[+choix.jour.slice(5, 7) - 1]} ${choix.jour.slice(0, 4)}`;
+    $('offre-note').hidden = !j.offre;
+    $('rang').innerHTML = j.heures.map((h) => `<button type="button" class="heure${choix.heure === h ? ' est-choisie' : ''}" data-h="${h}">${h}</button>`).join('');
+  }
+  function bas() {
+    if (choix.jour && choix.heure) { $('bas-choix').textContent = `${JC[jds(choix.jour)]} ${num(+choix.jour.slice(8))} ${MC[+choix.jour.slice(5, 7) - 1]} · ${choix.heure}`; $('bas-sous').textContent = jourDe(choix.jour).offre ? 'mercredi −15 % compris' : '2 h sur place'; $('continuer').disabled = false; }
+    else if (choix.jour) { $('bas-choix').textContent = `${JC[jds(choix.jour)]} ${num(+choix.jour.slice(8))} ${MC[+choix.jour.slice(5, 7) - 1]}`; $('bas-sous').textContent = 'choisissez une heure'; $('continuer').disabled = true; }
+    else { $('bas-choix').textContent = 'Choisissez un moment'; $('bas-sous').textContent = 'un jour, puis une heure'; $('continuer').disabled = true; }
+  }
+  const tout = () => { places(); mois(0); heures(); bas(); };
+
+  $('prec').addEventListener('click', () => avance(-1));
+  $('suiv').addEventListener('click', () => avance(1));
+  $('grille').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-j]'); if (!b || b.disabled) return;
+    choix = { jour: b.dataset.j, heure: null }; tout();
+    setTimeout(() => $('heures').scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 30);
+  });
+  $('rang').addEventListener('click', (e) => { const b = e.target.closest('button[data-h]'); if (!b) return; choix.heure = b.dataset.h; heures(); places(); bas(); });
+  $('places').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-j]'); if (!b) return;
+    choix = { jour: b.dataset.j, heure: b.dataset.h };
+    vue = { a: +b.dataset.j.slice(0, 4), m: +b.dataset.j.slice(5, 7) - 1 }; tout();
+  });
+  $('continuer').addEventListener('click', () => { $('bas-sous').textContent = 'étape suivante : votre numéro'; });
+  /* Le doigt : glisser à gauche, le mois suivant ; à droite, le précédent. */
+  let x0 = null, y0 = null;
+  const cal = $('cal');
+  cal.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  cal.addEventListener('touchend', (e) => {
+    if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; const dy = e.changedTouches[0].clientY - y0; x0 = null;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) avance(dx < 0 ? 1 : -1);
+  });
+  /* À la souris aussi, pour l'essayer sur ordinateur. */
+  let mx = null;
+  cal.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse') mx = e.clientX; });
+  cal.addEventListener('pointerup', (e) => { if (mx == null) return; const dx = e.clientX - mx; mx = null; if (Math.abs(dx) > 60) avance(dx < 0 ? 1 : -1); });
+  cal.addEventListener('keydown', (e) => { if (e.key === 'PageDown') { avance(1); e.preventDefault(); } if (e.key === 'PageUp') { avance(-1); e.preventDefault(); } });
+  tout();
+})();
+</script>

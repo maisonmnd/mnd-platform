@@ -66,8 +66,6 @@ const CONSULTATION_PAR_PARCOURS: Readonly<Partial<Record<Besoin, string>>> = {
   enfant: 'svc-doto-conseil',
 };
 
-/** Trois mois au plus : un carnet ne se remplit pas à l'aveugle. */
-const FENETRE_DE_RESERVATION = 90;
 const UN_JOUR_MS = 86_400_000;
 
 type PrestationDuServeur = {
@@ -257,6 +255,29 @@ function joursDEcart(dateIso: string, ms: number): number {
   return Math.round((Date.parse(`${dateIso}T00:00:00Z`) - Date.parse(`${jourDeCotonou(ms)}T00:00:00Z`)) / UN_JOUR_MS);
 }
 
+/* LA BORNE DE LA RÉSERVATION — 6 novembre 2026 (« Le calendrier du site »,
+   maquette validée, « construis »). Elle était de quatre-vingt-dix jours
+   glissants : le 6 novembre, février restait hors d'atteinte. Elle est
+   désormais LE DERNIER JOUR DU TROISIÈME MOIS QUI SUIT le mois de Cotonou :
+   ce mois et les trois suivants, la borne de Ma Couronne. Le 6 novembre 2026,
+   le 28 février 2027 ; le 1er décembre, le 31 mars ; elle avance seule chaque
+   mois. Le site la lit pour dessiner son calendrier, ce juge pour refuser, et
+   `pose_si_libre` (0168) porte la même, comptée à Porto-Novo. */
+/** Le dernier jour qui se réserve, vu d'`aujourdhuiIso` (le jour de Cotonou,
+    AAAA-MM-JJ). Illisible : chaîne vide. */
+function finDeLaReservation(aujourdhuiIso: string): string {
+  const m = /^(\d{4})-(\d{2})-\d{2}$/.exec(String(aujourdhuiIso ?? ''));
+  if (!m) return '';
+  /* Le jour zéro du quatrième mois qui suit est le dernier du troisième. */
+  return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1 + 4, 0)).toISOString().slice(0, 10);
+}
+
+/** Les jours d'ici (Cotonou) à la borne : de 89 à 122 selon le mois. */
+function joursDeLaFenetre(ms: number): number {
+  const n = joursDEcart(finDeLaReservation(jourDeCotonou(ms)), ms);
+  return Number.isFinite(n) ? n : 0;
+}
+
 /* ── 4. LE JUGE ─────────────────────────────────────────────────────────
    Les codes sont ceux que le site sait déjà dire (`creneau_*`, `prestation_*`),
    plus `consultation_requise`. */
@@ -278,13 +299,13 @@ type PlaceDuServeur = { iso: string; heure: string };
 
 /** LA FORME ET LA FENÊTRE, avant toute lecture : un appel mal formé ne coûte
     rien à la base. Jamais le jour même (la Maison prépare la venue), jamais
-    au-delà de trois mois. */
+    après la borne (`finDeLaReservation`). */
 function laPlaceEstRecevable(p: { date: string; time: string }, ms: number): RefusDeLaPlace | null {
   const m = /^(\d{2}):(\d{2})$/.exec(String(p.time ?? ''));
   if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return 'creneau_invalide';
   const ecart = joursDEcart(String(p.date ?? ''), ms);
   if (Number.isNaN(ecart)) return 'creneau_invalide';
-  if (ecart < 1 || ecart > FENETRE_DE_RESERVATION) return 'creneau_hors_fenetre';
+  if (ecart < 1 || ecart > joursDeLaFenetre(ms)) return 'creneau_hors_fenetre';
   return null;
 }
 
@@ -371,7 +392,7 @@ function placesLibres(
 ): PlaceDuServeur[] {
   if (lesGestesSeReservent(agenda, serviceIds)) return [];
   const voulu = Math.round(Number(horizonJours));
-  const n = Math.max(1, Math.min(FENETRE_DE_RESERVATION, Number.isFinite(voulu) && voulu > 0 ? voulu : 14));
+  const n = Math.max(1, Math.min(joursDeLaFenetre(ms), Number.isFinite(voulu) && voulu > 0 ? voulu : 14));
   const durationMin = dureeDesPrestations(serviceIds, agenda.services);
   const maitres = maitresDuRituel(agenda, serviceIds);
   const aujourdhui = jourDeCotonou(ms);
@@ -403,8 +424,8 @@ function placesLibres(
 /* ⟨/place-du-serveur⟩ */
 
 export {
-  ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS, FENETRE_DE_RESERVATION,
-  reservableSurLeSite, agendaDepuisLesLignes, jourDeCotonou, isoApresJours, joursDEcart,
+  ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS,
+  reservableSurLeSite, agendaDepuisLesLignes, jourDeCotonou, isoApresJours, joursDEcart, finDeLaReservation, joursDeLaFenetre,
   laPlaceEstRecevable, lesGestesSeReservent, maitresDuRituel, laPlaceTient, placesLibres,
 };
 export type {

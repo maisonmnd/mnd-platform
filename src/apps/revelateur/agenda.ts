@@ -5,7 +5,7 @@ import {
 } from '../../shared/agenda-pur';
 import { estUneConsultation, type MasquesDuSite } from '../../shared/catalogue-pur';
 import { porteDuBesoin, type Besoin } from '../../shared/qualification';
-import { ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS, reservableSurLeSite } from '../../shared/place-du-serveur';
+import { ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS, finDeLaReservation, reservableSurLeSite } from '../../shared/place-du-serveur';
 import type { Bande } from './prix-calibre';
 import { client } from './maison';
 import { litToutesLesPages } from '../../shared/lecture-entiere';
@@ -167,7 +167,6 @@ export function agendaDeLaMaison(branchIdDonne?: string): Promise<AgendaDeLaMais
        code du calendrier se télécharge encore. */
 const CLE_AGENDA = 'mnd_site_agenda_v1';
 const CLE_BRANCHE = 'mnd_site_branche';
-const JOURS_DU_SITE = 21;
 
 export function agendaEnCache(): AgendaDeLaMaison | null {
   try {
@@ -221,7 +220,42 @@ export function calendrierDuSite(du: string, au: string, brancheConnue?: string)
   c.catch(() => { if (calendrier === c) calendrier = null; });
   return c;
 }
-export const JOURS_DU_CALENDRIER = JOURS_DU_SITE;
+
+/* L'HORIZON DU SITE — 6 novembre 2026 (« Le calendrier du site », maquette
+   validée, « construis »). Vingt et un jours en bande devenaient ce mois et
+   les trois suivants, en grille, comme Ma Couronne : de DEMAIN à Cotonou
+   (jamais le jour même) jusqu'au dernier jour du troisième mois qui suit. Le
+   6 novembre 2026, du 7 novembre au 28 février 2027 ; l'horizon avance seul
+   chaque mois.
+
+   LA BORNE EST CELLE DU SERVEUR (`finDeLaReservation`, place-du-serveur) :
+   un jour que le site propose, le juge l'accepte, et `pose_si_libre` (0168)
+   aussi. Et c'est LA MÊME FONCTION qu'appellent main.ts, qui précharge les
+   créneaux pris dès l'ouverture, et l'îlot : la clé du préchargement
+   (`branche|du|au`) est la même des deux côtés, rien ne se lit deux fois.
+
+   TOUT L'HORIZON D'UN COUP, comme les vingt et un jours d'avant : quatre mois
+   de créneaux pris tiennent en quelques dizaines de lignes (mesuré le
+   6 novembre 2026, loin du plafond de mille), un jour par ligne pour les
+   places. Changer de mois n'attend rien. */
+export function horizonDuSite(maintenant: Date = new Date()): { du: string; au: string; jours: string[] } {
+  const aujourdhui = jourDeCotonou(maintenant.getTime());
+  const au = finDeLaReservation(aujourdhui);
+  const jours: string[] = [];
+  const d = new Date(`${aujourdhui}T12:00:00Z`);
+  for (let i = 0; i < 130; i += 1) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const iso = d.toISOString().slice(0, 10);
+    if (iso > au) break;
+    jours.push(iso);
+  }
+  return { du: jours[0] ?? au, au, jours };
+}
+
+/** Le jour est-il fermé à la Maison (dimanche, lundi, journée fermée des
+    Paramètres) ? La règle du juge (`ouvertureDuJour`). */
+export const jourFermeALaMaison = (agenda: Pick<AgendaDeLaMaison, 'semaine' | 'exceptions'>, iso: string): boolean =>
+  ouvertureDuJour(iso, agenda.semaine, agenda.exceptions).closed;
 
 /* PAR UN SIMPLE FETCH — 11 octobre 2026 (vitesse) : un appel de fonction
    anonyme n'a pas besoin de la bibliothèque Supabase (210 Ko), qui arrivait

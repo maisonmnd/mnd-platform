@@ -538,8 +538,11 @@ dit('... la page le lit', [true, false], [prixConvenusDuRetour(lu1.corps), prixC
   dit('... le code des places n est pas un code d offre', true, r.includes('const offreDuMoment = codeDesPlaces ? null : offreDuCodeTape;'));
   dit('... ses prix convenus connus ecartent la place et le disent', [true, true], [
     r.includes("...(convenus ? { prixConvenus: true } : {})"), (r.match(/\{sesTarifsConvenus && <p className="(?:code-offre__dit|legende)">\{PHRASE_DES_TARIFS_CONVENUS\}<\/p>\}/g) ?? []).length === 2]);
+  /* LE MOIS EN GRILLE (6 novembre 2026) : la case d'un jour est trop petite
+     pour « 3 places » ; elle les dit au lecteur d'ecran, et ses heures, juste
+     dessous, les disent en toutes lettres. */
   dit('... chaque jour dit ses places ; le choix dit « Remise : il reste N places »', [true, true, true], [
-    r.includes('{restent !== null && <small className="places-du-jour">{placesDites(restent)}</small>}'),
+    r.includes('places: restent !== null ? ditLesPlaces(restent) : null })'),
     r.includes('{restent !== null && <small className="places-du-jour">{ditLesPlaces(restent)}</small>}'),
     r.includes('{ditLesPlaces(placesDuChoix)} · {bandeauDesPlaces(offreDuJour)}')]);
   dit('... le bandeau quand un jour a des places', true, r.includes('{desPlacesOuvertes && <p className="bandeau-des-places" role="note">{bandeauDesPlaces(desPlacesOuvertes)}</p>}'));

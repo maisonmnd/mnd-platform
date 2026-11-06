@@ -10,7 +10,8 @@
         libre), la porte de consultation (VEKPE, FINFIN, devis, « consultation
         avant » refuses, la consultation acceptee), le maitre LIBRE et non le
         premier, le jour de Cotonou (23 h 30 UTC est deja le lendemain), la
-        duree d'un rendez-vous pose lue telle qu'elle est ecrite, J+91 refuse,
+        duree d'un rendez-vous pose lue telle qu'elle est ecrite, la borne (le
+        dernier jour du troisieme mois qui suit, 6 novembre 2026) tenue,
         les murs, les plafonds, les horaires ;
      B. LES PLACES : `placesLibres` rend, jour par jour, les heures que le
         site montre (`heuresLibres`), et `laPlaceTient` accepte exactement
@@ -25,7 +26,8 @@
         la migration 0125 pose le verrou, la duree figee, et ferme le verrou
         au public ;
      F. LES PANNES : chaque faute qu'on remet (fauteuils oublies, premier
-        maitre, horloge UTC, J+91, consultation ouverte, duree recalculee,
+        maitre, horloge UTC, la borne d un mois plus loin, le jour meme,
+        consultation ouverte, duree recalculee,
         insertion directe, verrou retire...) doit faire crier le harnais. Elles
         s'injectent EN MEMOIRE (une copie mutee, chargee depuis un dossier
         temporaire) : aucun fichier du depot n'est reecrit.
@@ -47,7 +49,7 @@ import { exigeConsultation, porteDuBesoin, type Besoin } from '../src/shared/qua
 
 type Lib = Pick<typeof depot,
   'agendaDepuisLesLignes' | 'laPlaceTient' | 'placesLibres' | 'reservableSurLeSite' | 'jourDeCotonou'
-  | 'joursDEcart' | 'isoApresJours' | 'laPlaceEstRecevable' | 'FENETRE_DE_RESERVATION'>;
+  | 'joursDEcart' | 'isoApresJours' | 'laPlaceEstRecevable' | 'finDeLaReservation' | 'joursDeLaFenetre'>;
 
 const ascii = (s: string): string => s.replace(/[«»]/g, '"').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7e]/g, '?');
 
@@ -222,8 +224,16 @@ function suite(lib: Lib, silence: boolean): number {
       erreur(tient(AG, JEU, '9:00', ['lav-1'])), erreur(tient(AG, '15/10/2026', '10:00', ['lav-1']))]);
   dit('A7 jamais le jour meme, jamais le passe', ['creneau_hors_fenetre', 'creneau_hors_fenetre'],
     [erreur(tient(AG, '2026-10-14', '15:00', ['lav-1'])), erreur(tient(AG, '2026-10-13', '15:00', ['lav-1']))]);
-  dit('A8 J+90 se reserve, J+91 non', ['ok', 'creneau_hors_fenetre'],
-    [erreur(tient(AG, '2027-01-12', '10:00', ['lav-1'])), erreur(tient(AG, '2027-01-13', '10:00', ['lav-1']))]);
+  /* LA BORNE DES TROIS MOIS PLEINS — 6 novembre 2026 : le 14 octobre, le
+     31 janvier 2027 (un dimanche, ferme) ; J+91 (le 13 janvier) est desormais
+     dedans, le 1er fevrier dehors. */
+  dit('A8 la borne : J+91 se reserve desormais, le dernier jour ouvert avant la borne aussi, le lendemain de la borne non', ['ok', 'ok', 'creneau_hors_fenetre'],
+    [erreur(tient(AG, '2027-01-13', '10:00', ['lav-1'])), erreur(tient(AG, '2027-01-30', '10:00', ['lav-1'])), erreur(tient(AG, '2027-02-01', '10:00', ['lav-1']))]);
+  dit('A8b la forme et la fenetre : la borne elle-meme est recevable, son lendemain non', [null, 'creneau_hors_fenetre'],
+    [lib.laPlaceEstRecevable({ date: '2027-01-31', time: '10:00' }, MS), lib.laPlaceEstRecevable({ date: '2027-02-01', time: '10:00' }, MS)]);
+  dit('A8c la borne : 6 nov. -> 28 fevr., 31 janv. -> 30 avr., 1er dec. -> 31 mars, une annee bissextile, l illisible', ['2027-02-28', '2027-04-30', '2027-03-31', '2028-02-29', '2027-01-31', ''],
+    ['2026-11-06', '2027-01-31', '2026-12-01', '2027-11-15', '2026-10-14', 'abc'].map((j) => lib.finDeLaReservation(j)));
+  dit('A8d les jours d ici a la borne (14 oct. -> 31 janv.)', 109, lib.joursDeLaFenetre(MS));
   /* 23 h 30 UTC le 14 : il est 0 h 30 le 15 a Cotonou. Le 15 est le jour meme. */
   const NUIT = Date.parse('2026-10-14T23:30:00.000Z');
   const VEILLE = Date.parse('2026-10-14T22:30:00.000Z');
@@ -342,8 +352,9 @@ function suite(lib: Lib, silence: boolean): number {
   const nuit = lib.placesLibres(AG, ['lav-1'], NUIT, 3);
   dit('B7 les places commencent au lendemain de Cotonou, et s arretent a l horizon', [VEN, SAM], [...new Set(nuit.map((p) => p.iso))]);
   const toutes = lib.placesLibres(AG, ['lav-1'], MS, 200);
-  dit('B8 l horizon ne passe jamais trois mois, et les places sont rangees dans le temps', [true, true],
-    [toutes.every((p) => lib.joursDEcart(p.iso, MS) >= 1 && lib.joursDEcart(p.iso, MS) <= lib.FENETRE_DE_RESERVATION),
+  dit('B8 l horizon ne passe jamais la borne, va jusqu a elle, et les places sont rangees dans le temps', [true, '2027-01-30', true],
+    [toutes.every((p) => lib.joursDEcart(p.iso, MS) >= 1 && p.iso <= lib.finDeLaReservation(lib.jourDeCotonou(MS))),
+      toutes.at(-1)?.iso,
       toutes.every((p, i) => i === 0 || `${toutes[i - 1].iso} ${toutes[i - 1].heure}` < `${p.iso} ${p.heure}`)]);
   dit('B9 jamais un maitre dans une place proposee', true, toutes.every((p) => Object.keys(p).join(',') === 'iso,heure'));
 
@@ -402,7 +413,7 @@ const ORIGINAUX: [string, string][] = [
   ['qualification', 'src/shared/qualification.ts'],
   ['place-du-serveur', 'src/shared/place-du-serveur.ts'],
 ];
-const EXPORTS = '\nexport { ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS, FENETRE_DE_RESERVATION, reservableSurLeSite, agendaDepuisLesLignes, jourDeCotonou, isoApresJours, joursDEcart, laPlaceEstRecevable, lesGestesSeReservent, maitresDuRituel, laPlaceTient, placesLibres };\n';
+const EXPORTS = '\nexport { ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS, reservableSurLeSite, agendaDepuisLesLignes, jourDeCotonou, isoApresJours, joursDEcart, finDeLaReservation, joursDeLaFenetre, laPlaceEstRecevable, lesGestesSeReservent, maitresDuRituel, laPlaceTient, placesLibres };\n';
 const { transform } = await import(pathToFileURL(path.join(process.cwd(), 'node_modules/esbuild/lib/main.js')).href) as typeof import('esbuild');
 async function charge(blocs: string[]): Promise<Lib> {
   const { code } = await transform(blocs.join('\n') + EXPORTS, { loader: 'ts', format: 'esm' });
@@ -522,7 +533,10 @@ const PANNES_DU_JUGE: Panne[] = [
   { nom: 'les fauteuils oublies par le juge', avant: 'if (agenda.sieges > 0\n    && duJour.filter', apres: 'if (false\n    && duJour.filter' },
   { nom: 'le premier maitre, libre ou non', avant: 'return { ok: true, dureeMin, maitres: libres };', apres: 'return { ok: true, dureeMin, maitres: candidats };' },
   { nom: 'le jour compte sur l horloge UTC', avant: 'new Date(ms + 3_600_000)', apres: 'new Date(ms)' },
-  { nom: 'J+91 accepte', avant: 'const FENETRE_DE_RESERVATION = 90;', apres: 'const FENETRE_DE_RESERVATION = 91;' },
+  { nom: 'la borne un mois plus loin', avant: 'Number(m[2]) - 1 + 4, 0)', apres: 'Number(m[2]) - 1 + 5, 0)' },
+  { nom: 'la borne sur quatre-vingt-dix jours glissants', avant: 'if (ecart < 1 || ecart > joursDeLaFenetre(ms)) return', apres: 'if (ecart < 1 || ecart > 90) return' },
+  { nom: 'le jour meme accepte', avant: 'if (ecart < 1 || ecart > joursDeLaFenetre(ms)) return', apres: 'if (ecart < 0 || ecart > joursDeLaFenetre(ms)) return' },
+  { nom: 'les places au-dela de la borne', avant: 'const n = Math.max(1, Math.min(joursDeLaFenetre(ms), Number.isFinite(voulu)', apres: 'const n = Math.max(1, Math.min(200, Number.isFinite(voulu)' },
   { nom: 'la porte de consultation ouverte', avant: "if (connus.some((s) => !estUneConsultation(s, cats) && exigeConsultation(s, cats))) return 'consultation_requise';", apres: '' },
   { nom: 'tous les ateliers ouverts en ligne', avant: 'return ATELIERS_RESERVABLES.includes(racine);', apres: 'return true;' },
   { nom: 'la duree ecrite d un rendez-vous pose ignoree', avant: 'duree: Number.isFinite(d) && d >= 1 ? d : 60', apres: 'duree: 60' },
@@ -568,7 +582,7 @@ const mute = (texte: string, p: Panne): string | null => {
     dit(`F panne « ${p.nom} » : le harnais crie`, true, jugeLeVerrou(mutee).length > 0);
   }
   /* Et la copie : un seul caractere change dans le bloc d'une fonction Edge. */
-  const copieAbimee = mute(porte, { nom: 'copie', avant: 'const FENETRE_DE_RESERVATION = 90;', apres: 'const FENETRE_DE_RESERVATION = 91;' });
+  const copieAbimee = mute(porte, { nom: 'copie', avant: 'Number(m[2]) - 1 + 4, 0)', apres: 'Number(m[2]) - 1 + 5, 0)' });
   dit('F panne « un caractere change dans la copie de la porte » : la confrontation crie', true,
     copieAbimee !== null && entre(copieAbimee, 'place-du-serveur')?.trimEnd() !== originaux[3]);
 }

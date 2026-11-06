@@ -198,10 +198,13 @@ if (pageDeReservation) {
       return brut ? String((JSON.parse(brut) as { branchId?: string }).branchId ?? '') : '';
     } catch { return ''; }
   })();
-  void import('./agenda').then(({ calendrierDuSite, prechargeLesOccupes, prochainsJours, JOURS_DU_CALENDRIER }) => {
-    const jours = prochainsJours(JOURS_DU_CALENDRIER);
-    if (brancheDeLaPage) prechargeLesOccupes(brancheDeLaPage, jours[0], jours[jours.length - 1]).catch(() => { /* l'îlot le dira */ });
-    void quandReactEstLa.then(() => calendrierDuSite(jours[0], jours[jours.length - 1], brancheDeLaPage)).catch(() => { /* l'îlot réessaiera */ });
+  /* LA MÊME BORNE QUE L'ÎLOT — 6 novembre 2026 : `horizonDuSite`, de demain
+     à Cotonou au dernier jour du troisième mois qui suit. Une autre fenêtre
+     ici changerait la clé du préchargement, et l'îlot relirait tout. */
+  void import('./agenda').then(({ calendrierDuSite, prechargeLesOccupes, horizonDuSite }) => {
+    const { du, au } = horizonDuSite();
+    if (brancheDeLaPage) prechargeLesOccupes(brancheDeLaPage, du, au).catch(() => { /* l'îlot le dira */ });
+    void quandReactEstLa.then(() => calendrierDuSite(du, au, brancheDeLaPage)).catch(() => { /* l'îlot réessaiera */ });
   });
 }
 /* L'ÉCLAIRCISSEMENT AU DÉFILEMENT, 8 octobre 2026. « On n'apparaît pas, on

@@ -580,20 +580,66 @@ footer .logo img { height: 34px; }
 /* LE PRIX SE LIT D'UN COUP D'OEIL, sans crier : il est ce que la visiteuse
    cherche en second, juste apres le nom du geste. */
 .geste-choix .prix { color: var(--titre); font-weight: 500; }
-/* min-width: 0 : voir la raison ecrite au-dessus de .portes. Cette rangee
-   etait deja couverte par la garde de son ancetre (.reserver .conteneur > *),
-   elle porte desormais la sienne, qui la suivra si on la deplace. */
-.jours { display: flex; gap: 8px; min-width: 0; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; }
-.jour { flex: 0 0 auto; scroll-snap-align: start; display: grid; gap: 2px; place-items: center; min-width: 58px; min-height: 62px; cursor: pointer; font: inherit; color: var(--titre); background: var(--fond); border: 1px solid var(--filet); border-radius: 4px; padding: 10px 8px; transition: border-color var(--t), background var(--t); }
-.jour:hover { border-color: var(--accent); }
-.jour span { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--texte-doux); }
-.jour b { font-family: var(--serif); font-weight: 400; font-size: 22px; }
-.jour.est-choisi { border-color: var(--accent); background: var(--accent-clair); }
+/* LE MOIS EN GRILLE — 6 novembre 2026 (maquette « Le calendrier du site »,
+   validée, « construis »). La bande des vingt et un jours devient le mois,
+   comme Ma Couronne, téléphone d'abord : ‹ mois année ›, L M M J V S D, un
+   jour libre en indigo pâle qui se touche, la remise du jour en cuivre avec
+   son « −X % », un point cuivre quand il reste deux heures ou moins, complet
+   barré, fermé grisé. Les couleurs du site, et elles seules : ni vert, ni
+   rouge, ni jaune. min-width: 0 : voir la raison écrite au-dessus de .portes. */
+.mois-du-site { min-width: 0; margin-top: 16px; padding: 12px 8px 10px; background: var(--carte); border: 1px solid var(--filet); border-radius: 12px; touch-action: pan-y; }
+.mois-du-site__tete { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 6px; margin-bottom: 6px; }
+.mois-du-site__titre { margin: 0; text-align: center; font-family: var(--serif); font-weight: 400; font-size: 23px; line-height: 1.1; color: var(--titre); }
+.mois-du-site__fleche { width: 44px; height: 44px; display: grid; place-items: center; padding: 0; cursor: pointer; font: inherit; font-size: 22px; line-height: 1; color: var(--titre); background: transparent; border: 1px solid var(--filet); border-radius: 50%; transition: border-color var(--t), opacity var(--t); }
+.mois-du-site__fleche:hover:not(:disabled) { border-color: var(--accent); }
+.mois-du-site__fleche:disabled { opacity: .3; cursor: default; }
+.mois-du-site__semaine, .mois-du-site__grille { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.mois-du-site__semaine span { padding: 4px 0; text-align: center; font-size: 11px; font-weight: 500; letter-spacing: .1em; color: var(--texte-doux); }
+.mois-du-site__vide { aspect-ratio: 1 / 1; }
+.mois-du-site__jour { position: relative; aspect-ratio: 1 / 1; min-width: 0; min-height: 40px; display: grid; place-items: center; padding: 0; font: inherit; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--texte-doux); background: transparent; border: 0; border-radius: 10px; }
+.mois-du-site__jour b { font-weight: 400; }
+.mois-du-site__jour.est-libre { cursor: pointer; color: var(--titre); background: var(--indigo-pale); }
+.mois-du-site__jour.est-libre b { font-weight: 600; }
+.mois-du-site__jour.est-libre:hover { box-shadow: inset 0 0 0 1px var(--titre); }
+.mois-du-site__jour.est-offre { color: var(--accent-profond); background: var(--accent-clair); box-shadow: inset 0 0 0 1px var(--accent); }
+.mois-du-site__jour .remise-du-jour { position: absolute; left: 0; right: 0; bottom: 3px; font-size: 9px; line-height: 1; letter-spacing: 0; text-align: center; }
+.mois-du-site__jour.est-peu::before { content: ''; position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.mois-du-site__jour.est-complet b { text-decoration: line-through; text-decoration-color: var(--texte-doux); }
+.mois-du-site__jour.est-complet, .mois-du-site__jour.est-ferme, .mois-du-site__jour.est-hors { opacity: .55; }
+.mois-du-site__jour.est-ferme { background: var(--fond-2); }
+.mois-du-site__jour.est-choisi { color: var(--fort-texte); background: var(--sombre); box-shadow: none; }
+.mois-du-site__jour.est-choisi .remise-du-jour { color: var(--fort-texte); }
+.mois-du-site__jour.est-choisi.est-peu::before { background: var(--accent-sombre); }
+.mois-du-site__jour:disabled { cursor: default; }
+.mois-du-site__jour:focus-visible, .mois-du-site__fleche:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mois-du-site__legende { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 10px 0 0; padding: 0 4px; font-size: 12px; line-height: 1.4; color: var(--texte-doux); }
+.mois-du-site__legende i { display: inline-block; width: 12px; height: 12px; margin-right: 5px; border-radius: 3px; vertical-align: -2px; }
+.mois-du-site__l-libre { background: var(--indigo-pale); box-shadow: inset 0 0 0 1px rgba(30, 33, 80, .18); }
+.mois-du-site__l-offre { background: var(--accent-clair); box-shadow: inset 0 0 0 1px var(--accent); }
+.mois-du-site__legende .mois-du-site__l-peu { width: 7px; height: 7px; border-radius: 50%; vertical-align: 1px; background: var(--accent); }
+.mois-du-site__l-plein { background: var(--fond-2); opacity: .8; }
+.mois-du-site__horizon { margin: 8px 0 0; text-align: center; font-size: 12.5px; color: var(--texte-doux); }
+/* Le mois qui entre glisse du côté d'où vient le doigt ; jamais sous
+   prefers-reduced-motion (la règle générale plus bas l'éteint aussi). */
+@keyframes mois-de-droite { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+@keyframes mois-de-gauche { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+.mois-du-site__grille.vient-de-droite { animation: mois-de-droite .22s ease both; }
+.mois-du-site__grille.vient-de-gauche { animation: mois-de-gauche .22s ease both; }
+@media (prefers-reduced-motion: reduce) { .mois-du-site__grille.vient-de-droite, .mois-du-site__grille.vient-de-gauche { animation: none; } }
+/* SUR ORDINATEUR, LE MÊME CALENDRIER, PLUS LARGE : des cases moins hautes que
+   larges, pour que le mois tienne d'un regard. */
+@media (min-width: 720px) {
+  .mois-du-site { padding: 16px 16px 14px; }
+  .mois-du-site__semaine, .mois-du-site__grille { gap: 6px; }
+  .mois-du-site__jour, .mois-du-site__vide { aspect-ratio: auto; height: 54px; }
+  .mois-du-site__jour { font-size: 16px; }
+  .mois-du-site__jour .remise-du-jour { bottom: 5px; font-size: 10px; }
+}
 .heures { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .heure { cursor: pointer; font: inherit; font-size: 15px; color: var(--titre); background: var(--fond); border: 1px solid var(--filet); border-radius: 4px; padding: 12px 16px; min-height: 46px; transition: border-color var(--t), background var(--t); }
 .heure:hover { border-color: var(--accent); background: var(--accent-clair); }
 .heure.est-choisie { border-color: var(--plein); background: var(--plein); color: var(--plein-texte); }
-.geste-choix:focus-visible, .jour:focus-visible, .heure:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.geste-choix:focus-visible, .heure:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* LA RESERVATION EN TRENTE SECONDES — 29 septembre 2026. Les formules en
    grandes cartes (la premiere, la plus reservee, en indigo), la taille des
@@ -640,7 +686,7 @@ footer .logo img { height: 34px; }
 /* LE MERCREDI DE LA MAISON — 2 novembre 2026 (maquette « Remplir les
    fauteuils ») : le jour de l'offre se marque en cuivre, sa remise dessous.
    Le choix, lui, garde ses couleurs : la place prise se lit d'abord. */
-.jour.est-offre, .place.est-offre { border-color: var(--accent); }
+.place.est-offre { border-color: var(--accent); }
 .remise-du-jour { font-size: 11.5px; font-weight: 600; letter-spacing: .02em; color: var(--accent-profond); }
 .place.est-choisie .remise-du-jour { color: var(--plein-texte); }
 p.remise-du-jour { margin-top: 4px; }
@@ -2232,13 +2278,12 @@ a.reponse { text-decoration: none; }
    que le serveur a fait. */
 body[data-ton="reservation"] { --jour: #D3D5E5; --jour-barre: rgba(211, 213, 229, .94); --chaude: var(--carte); }
 body[data-ton="reservation"] .geste, body[data-ton="reservation"] .merci, body[data-ton="reservation"] .rassure, body[data-ton="reservation"] .appel:not(:last-of-type) { background: var(--carte); }
-/* « Retirer », « J'ai un code », « Un autre jour » se lisaient comme des
+/* « Retirer », « J'ai un code », « Modifier » se lisaient comme des
    étiquettes : casse normale, soulignement cuivre. */
 .btn--lien { text-transform: none; letter-spacing: 0; font-size: 15px; color: var(--titre); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 4px; border-bottom: 0; }
 .btn--lien:hover { color: var(--accent-profond); text-decoration-color: var(--accent-profond); border-bottom: 0; }
 .changer-porte { margin: -6px 0 0; }
 .calibres:first-child { margin-top: 0; margin-bottom: 18px; }
-.jours__mois { flex: 0 0 auto; align-self: center; font-family: var(--serif); font-size: 18px; color: var(--titre); padding-right: 4px; }
 .champ__titre { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; font-weight: 400; color: var(--accent-profond); }
 .numero { display: grid; grid-template-columns: minmax(112px, auto) minmax(0, 1fr); gap: 8px; }
 .indicatif { font: inherit; font-size: 15px; color: var(--titre); background: var(--fond); border: 1px solid var(--filet); border-radius: 4px; padding: 0 10px; min-height: 48px; max-width: 170px; }

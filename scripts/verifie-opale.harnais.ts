@@ -636,7 +636,7 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
   const w = brut('supabase/functions/whatsapp-webhook/index.ts');
   dit('le webhook laisse 120 s au tour d Opale', true, /const AUTOMATE_EN_FOND_MS = 120_000;/.test(w));
   const a = brut('supabase/functions/whatsapp-automate/index.ts');
-  dit('la fonction importe le SDK, et sa version le dit', [true, true], [a.includes("import Anthropic from 'npm:@anthropic-ai/sdk';"), /const VERSION = '2026-11-04-[a-z] · Opale/.test(a)]);
+  dit('la fonction importe le SDK, et sa version le dit', [true, true], [a.includes("import Anthropic from 'npm:@anthropic-ai/sdk';"), /const VERSION = '2026-11-\d{2}-[a-z] · [^']*Opale repond sur le WhatsApp de la Maison/.test(a)]);
 }
 
 console.log(`${ko ? 'ECHEC' : 'OK   '} ${n} controles, ${ko} echec(s)`);
