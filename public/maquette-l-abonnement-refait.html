@@ -277,9 +277,9 @@ details ul { margin: 10px 0 2px; padding-left: 18px; display: grid; gap: 4px; ma
 
 <section>
   <h2>La carte, remise au fauteuil</h2>
-  <p>Le Trône sort les cartes de la semaine en un PDF, quatre par feuille, avec le prénom et le mot que vous avez validé. L’équipe signe à la main et la remet avec le présent. Au format d’une carte postale. Sous le mot, une ligne tourne d’une carte à l’autre : la signification du rituel du jour, la devise en fon, ou un épisode de l’histoire de la Maison. Le vrai dessin de cette carte de collection, de la carte de notes et de la carte mini apéro est sur <a href="https://claude.ai/artifact/MX7ch5ReX4eDdAH1kjo6eN">la page des cartes</a>.</p>
+  <p>La carte est un carton de la Collection Maison MND, imprimé d’avance : une série, un numéro, et au dos quatre lignes « Pour vous ». Le Trône dit quelle carte de la collection revient à chaque abonnée, jamais deux fois la même, et affiche le mot que vous avez validé. L’équipe le recopie à la main, signe, et remet la carte avec le présent. Le vrai dessin, avec la carte de notes et la carte mini apéro, est sur <a href="https://claude.ai/artifact/MX7ch5ReX4eDdAH1kjo6eN">la page des cartes</a>.</p>
   <div class="papiers" id="carte"></div>
-  <p class="petit doux">Sur la vraie carte, le recto porte le verrou de la Maison tel qu’il est, à la place du sceau dessiné ici.</p>
+  <p class="petit doux">Ci-dessus, un croquis qui suit le téléphone. La carte à imprimer est celle de la page des cartes.</p>
 </section>
 
 <section>
@@ -319,7 +319,7 @@ details ul { margin: 10px 0 2px; padding-left: 18px; display: grid; gap: 4px; ma
     <div><b>Le moment</b><p>À son arrivée, quand l’équipe touche « Arrivée ».</p></div>
     <div><b>Ce qu’elle contient</b><p>Un présent à chaque séance, avec un mot.</p></div>
     <div><b>Par où</b><p>Une carte remise au fauteuil. Ma Couronne en garde la trace ; rien à ouvrir sur le téléphone.</p></div>
-    <div><b>La carte</b><p>Imprimée par le Trône, signée à la main.</p></div>
+    <div><b>La carte</b><p>Un carton de la Collection Maison MND, imprimé d’avance. Le mot s’écrit et se signe à la main.</p></div>
     <div><b>Qui prépare</b><p>Perle propose le présent et le mot, vous validez la semaine.</p></div>
     <div><b>Pour qui</b><p>Toutes les abonnées, à la lune comme au carnet.</p></div>
     <div><b>Le sceau d’or</b><p>Oui : un présent plus beau à la dernière séance d’un carnet. Le T-shirt « Le sceau au cœur », qui ne se vend pas.</p></div>
@@ -355,7 +355,7 @@ details ul { margin: 10px 0 2px; padding-left: 18px; display: grid; gap: 4px; ma
   <details><summary>Cinq lots, dans cet ordre</summary>
     <ul>
       <li>Le socle : le chemin de sceaux et les pages de Ma Couronne refaites, sans l’attention.</li>
-      <li>L’attention : la boutique (articles, niveaux, stock), le programme par formule, les paniers de la semaine, la liste de la veille, les cartes en PDF, « Arrivée » et « Remise ».</li>
+      <li>L’attention : la boutique (articles, niveaux, stock), le programme par formule, les paniers de la semaine, la liste de la veille, les cartes de collection, « Arrivée » et « Remise ».</li>
       <li>Le Trône : l’onglet « Aujourd’hui », la ligne de l’abonnée, le panier sur le rendez-vous, les articles proposés à l’encaissement.</li>
       <li>Les messages : la phrase de la veille et le message d’après, puis leur branchement à la salle d’attente.</li>
       <li>La page du site.</li>
@@ -592,9 +592,9 @@ const AB = [
   ['R. B.', 'VÈKPÈ™ · Les Premières Lunes', 'f...', 'À jour', 'à réserver', 'À proposer'],
 ];
 const SEM = [
-  ['A. D.', 'sam. 12 déc. 2026 · séance 4 sur 6', 'Un foulard de nuit', 'Mi-parcours de son carnet ; son bilan du 31 octobre 2026 note des frottements la nuit.', ATT[3].mot],
-  ['M. K.', 'mar. 15 déc. 2026 · séance 4 sur 4', 'Le présent du sceau d’or', 'Dernière séance de son carnet.', 'Quatre séances, un carnet tenu jusqu’au bout. La Maison vous remercie.'],
-  ['F. H.', 'jeu. 17 déc. 2026 · séance 3 sur 8', 'Une huile de voyage', 'Sa fiche note un voyage fin décembre.', 'Pour que votre couronne voyage aussi bien que vous.'],
+  ['A. D.', 'sam. 12 déc. 2026 · séance 4 sur 6', 'Les secrets · n° 01', 'Mi-parcours de son carnet ; son bilan du 31 octobre 2026 note des frottements la nuit.', ATT[3].mot],
+  ['M. K.', 'mar. 15 déc. 2026 · séance 4 sur 4', 'La carte d’or, hors série', 'Dernière séance de son carnet.', 'Quatre séances, un carnet tenu jusqu’au bout. La Maison vous remercie.'],
+  ['F. H.', 'jeu. 17 déc. 2026 · séance 3 sur 8', 'Les rituels · n° 02', 'Sa fiche note un voyage fin décembre.', 'Pour que votre couronne voyage aussi bien que vous.'],
 ];
 const pts = (s) => `<span class="points" aria-hidden="true">${[...s].map((c) => `<i class="${c === 'f' ? 'f' : c === 'r' ? 'r' : ''}"></i>`).join('')}</span>`;
 function choix(i, slot) {
@@ -609,12 +609,12 @@ function vAttentions() {
         const p = E.paniers[i];
         const ligne = (slot) => `<div class="emplacement"><span>${RAYONS[slot]}</span><span>${nomArt(p[slot])}${art(p[slot])[5] === 'frais' ? ' <span class="petit doux">· commandé la veille</span>' : ''}</span>${E.valide[i] ? '<span></span>' : `<button class="btn mini" data-a="changer:${i}-${slot}">${E.choisit === i + '-' + slot ? 'Fermer' : 'Changer'}</button>`}</div>${E.choisit === i + '-' + slot ? choix(i, slot) : ''}`;
         return `<div class="panier"><div class="panier__tete"><span><b>${x[0]}</b> · ${x[1]}</span><span class="etat">${E.valide[i] ? 'Validé' : 'Proposé par Perle'}</span></div>
-          <div class="emplacement"><span>La carte</span><span><label class="petit doux" for="mot${i}">Le mot</label><textarea id="mot${i}"${E.valide[i] ? ' readonly' : ''}>${ech(E.mots['mot' + i] ?? x[4])}</textarea></span><span></span></div>
+          <div class="emplacement"><span>La carte</span><span style="display:grid;gap:4px"><span>${x[2]}</span><label class="petit doux" for="mot${i}">Le mot, à recopier à la main</label><textarea id="mot${i}"${E.valide[i] ? ' readonly' : ''}>${ech(E.mots['mot' + i] ?? x[4])}</textarea></span><span></span></div>
           ${ligne('boire')}${ligne('gout')}${ligne('present')}
           <p class="petit doux">Pourquoi : ${x[3]}</p>
           ${E.valide[i] ? '' : `<div><button class="btn mini plein" data-a="valider:${i}">Valider le panier</button></div>`}</div>`;
       }).join('')}
-      <div class="imprimer"><button class="btn${tout && !E.imprime ? ' plein' : ''}" data-a="imprimer"${tout ? '' : ' disabled'}>Imprimer les cartes de la semaine</button><span class="petit doux">${E.imprime ? 'PDF prêt : 3 cartes sur une feuille, à signer à la main.' : tout ? 'Les trois paniers sont validés.' : 'Validez les trois paniers pour imprimer.'}</span></div>`;
+      <div class="imprimer"><button class="btn${tout && !E.imprime ? ' plein' : ''}" data-a="imprimer"${tout ? '' : ' disabled'}>Préparer les cartes de la semaine</button><span class="petit doux">${E.imprime ? 'Liste prête : trois cartes de la collection à sortir, trois mots à recopier et à signer.' : tout ? 'Les trois paniers sont validés.' : 'Validez les trois paniers pour préparer les cartes.'}</span></div>`;
   }
   if (E.sous === 'boutique') {
     return barre + `<p class="petit doux">Vos articles, rangés par rayon. Trois niveaux : offert dans l’attention, à la carte entre 800 et 1 500 F, sceau d’or. Un article à la carte se propose en fin de rendez-vous si vous le décidez.</p>
@@ -624,13 +624,13 @@ function vAttentions() {
   }
   if (E.sous === 'programme') {
     const rangs = [['1', 'Le mot de bienvenue', 'Un petit pain', 'Pour sa couronne'], ['2', 'Un mot', 'Une bouchée', 'À sentir'], ['3', 'Un mot', 'Un petit pain', 'À porter'], ['4', 'Un mot', 'Une bouchée', 'Pour sa couronne'], ['5', 'Un mot', 'Un petit pain', 'À porter'], ['6', 'Le mot du sceau d’or', 'Une bouchée', 'Le T-shirt « Le sceau au cœur »']];
-    const regles = ['Jamais deux fois le même article à la même personne.', 'Jamais ce que sa fiche déconseille : une allergie écarte l’article.', 'Un article épuisé n’est pas proposé ; le Trône prévient quand la réserve ne couvre plus les séances à venir.', 'Le frais se commande la veille, à l’artisane du quartier.', 'Un coût visé par panier, à saisir.'];
+    const regles = ['Jamais deux fois le même article, ni la même carte de la collection, à la même personne.', 'Jamais ce que sa fiche déconseille : une allergie écarte l’article.', 'Un article épuisé n’est pas proposé ; le Trône prévient quand la réserve ne couvre plus les séances à venir.', 'Le frais se commande la veille, à l’artisane du quartier.', 'Un coût visé par panier, à saisir.'];
     return barre + `<p class="petit doux">La règle du Carnet de Six, séance par séance. Perle s’en sert pour remplir les paniers. Chaque formule a la sienne, et vous pouvez la changer.</p>
       <div class="table"><table><tr><th>Séance</th><th>La carte</th><th>À boire</th><th>À goûter</th><th>Le présent, pris au rayon</th></tr>${rangs.map((r) => `<tr><td class="num">${r[0]}</td><td>${r[1]}</td><td>Une boisson offerte</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('')}</table></div>
       <div><span class="sourcil">Les règles que Perle suit</span><div class="fil">${regles.map((r) => `<div class="ligne"><div class="ligne__quoi"><span>${r}</span></div></div>`).join('')}</div></div>`;
   }
   const pj = E.paniers[0];
-  const taches = [['c1', `Commande à l’artisane : ${bas(nomArt(pj.boire))}, ${bas(nomArt(pj.gout))}.`], ['c2', `À sortir de la réserve : ${bas(nomArt(pj.present))}.`], ['c3', 'À imprimer et à signer : la carte d’A. D.']];
+  const taches = [['c1', `Commande à l’artisane : ${bas(nomArt(pj.boire))}, ${bas(nomArt(pj.gout))}.`], ['c2', `À sortir de la réserve : ${bas(nomArt(pj.present))}.`], ['c3', 'À écrire et à signer : sa carte de collection, Les secrets n° 01.']];
   return barre + `<p class="petit doux">Vendredi 11 décembre 2026, pour demain : une séance de formule. Le Trône dresse la liste à partir des paniers validés.</p>
     <div>${taches.map((t) => `<button class="aprep" data-a="prep:${t[0]}" aria-pressed="${!!E.prep[t[0]]}"><span class="coche-p" aria-hidden="true"></span><span>${t[1]}</span></button>`).join('')}</div>
     <div class="imprimer"><button class="btn" data-a="rien">Préparer le message à l’artisane</button><span class="petit doux">Le texte se prépare ; vous l’envoyez vous-même.</span></div>`;
@@ -654,7 +654,7 @@ function rTrone() {
       : `<div class="ligne"><div class="ligne__quoi"><span><b>Lune à régler · S. A.</b> · ${F(12000)} avant le vendredi 18 décembre 2026</span><span class="petit doux">Sa prochaine séance s’ouvre au règlement.</span></div><div class="ligne__gestes"><button class="btn mini" data-a="rien">Encaisser</button><button class="btn mini" data-a="rien">Rappeler</button></div></div>
         <div class="ligne"><div class="ligne__quoi"><span><b>Fin de carnet · M. K.</b> · dernière séance le mardi 15 décembre 2026</span><span class="petit doux">Le sceau d’or est prêt. Lui proposer de reprendre un carnet.</span></div><div class="ligne__gestes"><button class="btn mini" data-a="rien">Préparer</button></div></div>
         <div class="ligne"><div class="ligne__quoi"><span><b>Sans rendez-vous · R. B.</b> · 3 séances disponibles, la suivante conseillée vers le 9 janvier 2027</span><span class="petit doux">Son jour : le samedi.</span></div><div class="ligne__gestes"><button class="btn mini" data-a="rien">Proposer une place</button></div></div>`;
-    vue = `<div class="bande"><div><b>5</b><span>abonnées en cours</span></div><div><b>3</b><span>séances de formule cette semaine</span></div><div><b class="num">${F(126000)}</b><span>à encaisser ce mois</span></div><div><b>3</b><span>cartes à imprimer cette semaine</span></div></div>
+    vue = `<div class="bande"><div><b>5</b><span>abonnées en cours</span></div><div><b>3</b><span>séances de formule cette semaine</span></div><div><b class="num">${F(126000)}</b><span>à encaisser ce mois</span></div><div><b>3</b><span>cartes à écrire cette semaine</span></div></div>
       <div><span class="sourcil">À faire, ${fin ? 'samedi 6 mars 2027' : 'samedi 12 décembre 2026'}</span><div class="fil">
         <div class="ligne"><div class="ligne__quoi"><span><b>9 h 00 · A. D.</b> · séance ${n} sur 6 ${pts(fin ? 'fffffr' : 'fffr..')}</span><span class="petit doux">${etatA}</span></div><div class="ligne__gestes">${geste}</div></div>
         ${autres}
