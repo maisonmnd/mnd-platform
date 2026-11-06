@@ -204,6 +204,7 @@ button.article.on { border-color: var(--cuivre); background: var(--cuivre-pale);
 .papier--verso { background: var(--carte); border: 1px solid var(--trait); align-content: space-between; gap: 6px; }
 .papier__nom { font: 500 20px var(--serif); color: var(--indigo); }
 .papier__mot { font: 500 17px/1.3 var(--serif); color: var(--encre); }
+.papier__ligne { font-size: 11.5px; font-style: italic; color: var(--encre-douce); max-width: none; }
 .papier__pied { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12px; }
 .papier__pied i { border-bottom: 1px solid var(--encre-douce); padding: 0 22px 2px 0; color: var(--encre-douce); font-size: 11px; }
 .papier small { font-size: 10.5px; color: var(--encre-douce); letter-spacing: .04em; }
@@ -276,7 +277,7 @@ details ul { margin: 10px 0 2px; padding-left: 18px; display: grid; gap: 4px; ma
 
 <section>
   <h2>La carte, remise au fauteuil</h2>
-  <p>Le Trône sort les cartes de la semaine en un PDF, quatre par feuille, avec le prénom et le mot que vous avez validé. L’équipe signe à la main et la remet avec le présent. Au format d’une carte postale.</p>
+  <p>Le Trône sort les cartes de la semaine en un PDF, quatre par feuille, avec le prénom et le mot que vous avez validé. L’équipe signe à la main et la remet avec le présent. Au format d’une carte postale. Sous le mot, une ligne tourne d’une carte à l’autre : la signification du rituel du jour, la devise en fon, ou un épisode de l’histoire de la Maison.</p>
   <div class="papiers" id="carte"></div>
   <p class="petit doux">Sur la vraie carte, le recto porte le verrou de la Maison tel qu’il est, à la place du sceau dessiné ici.</p>
 </section>
@@ -581,7 +582,7 @@ function rReglages() {
 function rCarte() {
   const n = duJour(), a = ATT[n - 1];
   $('carte').innerHTML = `<div class="papier papier--recto">${sceau(n === 6 ? 'or' : 'faite', '*', 72)}<b>L’attention</b><span>MAISON MND</span></div>
-    <div class="papier papier--verso"><div><p class="papier__nom">Awa,</p><p class="papier__mot">${a.mot}</p></div><div class="papier__pied"><span>La Maison MND</span><i>signée à la main</i></div><small>Séance ${n} sur 6 · ${DATES[n - 1]}</small></div>`;
+    <div class="papier papier--verso"><div><p class="papier__nom">Awa,</p><p class="papier__mot">${a.mot}</p></div><p class="papier__ligne">Ici, une ligne : ce que veut dire GBÈJÍ™, le rituel du jour.</p><div class="papier__pied"><span>La Maison MND</span><i>signée à la main</i></div><small>Séance ${n} sur 6 · ${DATES[n - 1]}</small></div>`;
 }
 const AB = [
   ['A. D.', 'GBÈJÍ™ · Carnet de Six', 'fffr..', 'À jour', 'sam. 12 déc. 2026 · 9 h', 'Un foulard de nuit'],
