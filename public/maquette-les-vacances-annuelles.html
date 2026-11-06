@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Les vacances annuelles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@400;500;600&display=swap">
+<style>
+/* Mise en page : l'écran du Trône (Ressources humaines › Temps et congés), une colonne de 980 px ; à droite, la fiche PDF telle qu'elle sortira. */
+:root {
+  --ivoire: #F6F1E7; --carte: #FFFDF8; --indigo: #1E2150; --cuivre: #B97A4A; --cuivre-fonce: #9E6238;
+  --encre: #1F1D26; --encre-douce: #6A6474; --trait: rgba(30, 33, 80, .14); --pale: #F1E7D9;
+  --indigo-pale: #E7E8F2; --cuivre-pale: #F3E1C8; --gris-pale: #ECE8E1; --sur-indigo: #F6F1E7; --sur-cuivre: #FFFDF8; --papier: #FFFFFF;
+  --serif: "Cormorant Garamond", "Noto Serif", Georgia, serif;
+  --sans: "Jost", "Noto Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --encre-douce: #A9A3B3; --trait: rgba(236, 231, 221, .16); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --gris-pale: #2A2735; --sur-indigo: #15161F; --sur-cuivre: #15161F; --papier: #FFFFFF; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --encre-douce: #A9A3B3; --trait: rgba(236, 231, 221, .16); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --gris-pale: #2A2735; --sur-indigo: #15161F; --sur-cuivre: #15161F; --papier: #FFFFFF; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ivoire); color: var(--encre); font: 400 15px/1.55 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; }
+main { max-width: 980px; margin: 0 auto; display: grid; gap: 36px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 500; color: var(--indigo); margin: 0; line-height: 1.15; text-wrap: balance; }
+h1 { font-size: clamp(34px, 7vw, 48px); }
+h2 { font-size: clamp(24px, 5vw, 30px); padding-bottom: 8px; border-bottom: 1px solid var(--trait); }
+h3 { font-size: 20px; }
+p { margin: 0; max-width: 68ch; }
+.sourcil { font: 600 11px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre-fonce); }
+.doux { color: var(--encre-douce); }
+.petit { font-size: 13px; }
+.num { font-variant-numeric: tabular-nums; }
+section { display: grid; gap: 14px; }
+.tete { display: grid; gap: 10px; background: var(--indigo); color: var(--sur-indigo); padding: 24px; border-radius: 6px; }
+.tete h1 { color: var(--sur-indigo); }
+.tete .sourcil { color: var(--cuivre); }
+.bandeau { border: 1px solid rgba(246, 241, 231, .3); padding: 9px 13px; border-radius: 4px; font-size: 13px; }
+
+/* L'écran */
+.ecran { background: var(--carte); border: 1px solid var(--trait); border-radius: 8px; overflow: hidden; }
+.onglets { display: flex; flex-wrap: wrap; gap: 4px; padding: 10px 12px 0; border-bottom: 1px solid var(--trait); }
+.onglet { border: 0; background: none; padding: 10px 14px; font: 500 13.5px var(--sans); color: var(--encre-douce); border-bottom: 2px solid transparent; cursor: pointer; }
+.onglet.actif { color: var(--indigo); border-bottom-color: var(--cuivre); }
+.onglet.neuf::after { content: "nouveau"; margin-left: 6px; font: 600 9.5px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--cuivre-fonce); }
+.onglet:focus-visible, .btn:focus-visible, .ligne-p > button:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.vue { padding: 16px; display: grid; gap: 16px; }
+.barre { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.annee { display: inline-flex; gap: 6px; align-items: center; font: 500 15px var(--sans); color: var(--indigo); }
+.annee button { border: 1px solid var(--trait); background: var(--carte); color: var(--indigo); border-radius: 4px; width: 30px; height: 30px; cursor: pointer; }
+.btn { border: 1px solid var(--indigo); background: transparent; color: var(--indigo); padding: 8px 13px; border-radius: 4px; font: 500 12.5px var(--sans); letter-spacing: .04em; cursor: pointer; white-space: nowrap; }
+.btn.plein { background: var(--cuivre); border-color: var(--cuivre); color: var(--sur-cuivre); }
+.btn.petit { padding: 5px 10px; font-size: 12px; }
+
+.fermeture { border: 1px solid var(--trait); border-left: 3px solid var(--indigo); border-radius: 4px; padding: 10px 14px; display: grid; gap: 3px; background: var(--indigo-pale); }
+.fermeture b { color: var(--indigo); font-weight: 600; }
+
+/* La frise de l'année */
+.frise { overflow-x: auto; border: 1px solid var(--trait); border-radius: 6px; }
+.frise table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 12px; }
+.frise th { font: 600 10px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--encre-douce); padding: 8px 4px; text-align: left; border-bottom: 1px solid var(--trait); }
+.frise td { padding: 6px 4px; border-bottom: 1px solid var(--trait); vertical-align: middle; }
+.frise td.nom { font-weight: 500; color: var(--indigo); white-space: nowrap; padding-left: 12px; width: 120px; }
+.mois { position: relative; height: 22px; background: var(--gris-pale); border-radius: 3px; }
+.bloc { position: absolute; top: 2px; bottom: 2px; border-radius: 3px; background: var(--cuivre); }
+.bloc.maison { background: var(--indigo); }
+.legende { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--encre-douce); }
+.legende i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+/* Une personne */
+.ligne-p { border: 1px solid var(--trait); border-radius: 6px; background: var(--carte); }
+.ligne-p > button { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 12px 14px; }
+.ligne-p .qui b { color: var(--indigo); font-weight: 600; }
+.ligne-p .qui small { display: block; color: var(--encre-douce); font-size: 12.5px; }
+.compte { display: inline-flex; gap: 14px; font-size: 12.5px; color: var(--encre-douce); flex-wrap: wrap; justify-content: flex-end; }
+.compte b { color: var(--indigo); font: 600 16px var(--serif); }
+.detail { padding: 0 14px 14px; display: grid; gap: 8px; }
+.periode { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center; border-top: 1px dashed var(--trait); padding-top: 8px; font-size: 14px; }
+.periode small { grid-column: 1 / -1; color: var(--encre-douce); font-size: 12.5px; }
+.form { border: 1px solid var(--cuivre); border-radius: 6px; padding: 12px; display: grid; gap: 10px; background: var(--cuivre-pale); }
+.form .rang { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.form input, .form select { padding: 7px 9px; border: 1px solid var(--trait); border-radius: 4px; background: var(--carte); color: var(--encre); font: inherit; font-size: 14px; }
+.pastille { display: inline-block; padding: 2px 9px; border-radius: 999px; font: 500 11.5px var(--sans); border: 1px solid var(--trait); color: var(--encre-douce); white-space: nowrap; }
+.pastille.ok { border-color: var(--indigo); color: var(--indigo); background: var(--indigo-pale); }
+.pastille.cuivre { border-color: var(--cuivre); color: var(--cuivre-fonce); background: var(--cuivre-pale); }
+
+/* La fiche PDF */
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 24px; align-items: start; }
+@media (max-width: 860px) { .duo { grid-template-columns: minmax(0, 1fr); } }
+.feuille { background: var(--papier); color: #1E2150; border-radius: 4px; box-shadow: 0 10px 30px rgba(20, 20, 40, .16); padding: 26px 26px 20px; display: grid; gap: 12px; aspect-ratio: 210 / 297; max-width: 100%; font-size: 11px; overflow: hidden; }
+.feuille .haut { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #B97A4A; padding-bottom: 10px; }
+.logo { display: flex; align-items: center; gap: 8px; }
+.logo svg { width: 38px; height: 34px; }
+.logo span { font: 500 20px var(--serif); letter-spacing: .22em; color: #1E2150; line-height: 1; }
+.logo small { display: block; font: 500 7px var(--sans); letter-spacing: .3em; color: #1E2150; }
+.f-sourcil { font: 600 7.5px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: #9E6238; }
+.f-nom { font: 500 30px/1 var(--serif); color: #1E2150; }
+.f-lead { font: 500 11px var(--sans); color: #9E6238; }
+.f-bloc { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; border-left: 3px solid #B97A4A; padding-left: 8px; }
+.f-conge { background: #F3E1C8; border: 1px solid #B97A4A; border-radius: 5px; padding: 8px; }
+.f-reprise { background: #E7E8F2; border: 1px solid #1E2150; border-radius: 5px; padding: 8px; }
+.f-conge b, .f-reprise b { display: block; font: 500 14px/1.15 var(--serif); color: #1E2150; }
+.f-conge small { color: #9E6238; font-size: 9px; }
+.f-total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid #B97A4A; border-bottom: 1px solid #B97A4A; padding: 7px 0; }
+.f-total b { font: 500 18px var(--serif); color: #1E2150; }
+.f-pied { margin-top: auto; display: flex; justify-content: space-between; border-top: 1px solid #ccc; padding-top: 8px; font-size: 9px; color: #4a4a60; }
+.f-pied i { font: italic 500 14px var(--serif); color: #1E2150; display: block; }
+
+.questions { margin: 0; padding-left: 20px; display: grid; gap: 12px; }
+.questions li b { color: var(--indigo); }
+.questions li span { display: block; color: var(--encre-douce); font-size: 14px; }
+.liste { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+footer { font-size: 12.5px; color: var(--encre-douce); border-top: 1px solid var(--trait); padding-top: 12px; }
+</style>
+
+</head>
+<body>
+<main>
+  <header class="tete">
+    <span class="sourcil">Maquette · Équipe › Ressources humaines › Temps et congés</span>
+    <h1>Les vacances annuelles.</h1>
+    <p>Un onglet à part, à côté de « Congés & absences ». Vous y calez l'année de chacun : la fermeture de la Maison et les vacances de chaque personne. Chaque congé posé sort en fiche PDF, à remettre et à faire signer.</p>
+    <p class="bandeau">Maquette du 6 novembre 2026, version 2, validée (« Construis »). Construite au Trône le 6 novembre 2026 : l'onglet, la fermeture de la Maison, caler et retirer, la fiche PDF rangée seule, et la fiche dans Mon espace. Les personnes sont des exemples, en initiales ; les dates de janvier 2027 reprennent le planning posé au Trône.</p>
+  </header>
+
+  <section aria-labelledby="t-ecran">
+    <h2 id="t-ecran">L'écran</h2>
+    <div class="ecran">
+      <div class="onglets" role="tablist">
+        <button class="onglet" type="button">Le planning</button>
+        <button class="onglet" type="button">Pointage du jour</button>
+        <button class="onglet" type="button">Congés &amp; absences</button>
+        <button class="onglet actif neuf" type="button" aria-selected="true">Vacances annuelles</button>
+      </div>
+      <div class="vue">
+        <div class="barre">
+          <span class="annee"><button type="button" aria-label="Année d'avant">‹</button> <span class="num">2027</span> <button type="button" aria-label="Année d'après">›</button></span>
+          <span style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn" type="button" id="b-fermeture">+ Fermeture de la Maison</button>
+            <button class="btn plein" type="button" id="b-caler">+ Caler des vacances</button>
+          </span>
+        </div>
+
+        <div class="fermeture">
+          <b>Fermeture de la Maison · du vendredi 1er au mardi 5 janvier 2027 inclus</b>
+          <span class="doux petit">5 jours pour toute l'équipe · inscrite aussi en journée exceptionnelle fermée : la réservation en ligne ne propose pas ces jours.</span>
+        </div>
+
+        <div class="frise" role="img" aria-label="Les vacances de l'année 2027, mois par mois">
+          <table>
+            <thead><tr><th></th><th>janv.</th><th>févr.</th><th>mars</th><th>avr.</th><th>mai</th><th>juin</th><th>juil.</th><th>août</th><th>sept.</th><th>oct.</th><th>nov.</th><th>déc.</th></tr></thead>
+            <tbody id="frise"></tbody>
+          </table>
+        </div>
+        <div class="legende"><span><i style="background:var(--indigo)"></i>Fermeture de la Maison</span><span><i style="background:var(--cuivre)"></i>Vacances calées</span></div>
+
+        <div id="form" hidden></div>
+        <div id="personnes" style="display:grid;gap:8px"></div>
+        <p class="doux petit">Les jours se comptent du premier au dernier jour inclus, dimanche et lundi compris, comme sur vos fiches de janvier 2027. La reprise est le premier jour où la Maison est ouverte après les vacances.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-fiche">
+    <h2 id="t-fiche">La fiche PDF</h2>
+    <div class="duo">
+      <div style="display:grid;gap:10px;align-content:start">
+        <p>Un bouton « Fiche PDF » sur chaque personne de l'onglet, et sur chaque congé accordé dans « Congés &amp; absences ». La fiche reprend la présentation de vos fiches de janvier 2027 :</p>
+        <ul class="liste">
+          <li>le logo de la Maison, le mois ou l'année, le prénom ;</li>
+          <li>chaque congé, du … au … inclus, « soit N jours de congé », et sa reprise ;</li>
+          <li>le total, puis ce qui reste de son droit de l'année ;</li>
+          <li>« Brice et Yéman, Maison MND », et la place de sa signature : « Remis le … Signature … ».</li>
+        </ul>
+        <p>Elle se range seule dans son dossier (Dossier › Les lettres), se télécharge, et se retrouve dans son Mon espace. La copie signée se dépose ensuite sur la même ligne.</p>
+      </div>
+      <div class="feuille" aria-label="Aperçu de la fiche PDF">
+        <div class="haut">
+          <div class="logo">
+            <svg viewBox="0 0 40 36" aria-hidden="true"><path d="M4 30 V18 a16 14 0 0 1 32 0 V30" fill="none" stroke="#1E2150" stroke-width="3"/><rect x="2" y="24" width="36" height="3" fill="#1E2150"/><path d="M20 22 V34" stroke="#1E2150" stroke-width="1.4"/></svg>
+            <span><small>MAISON</small>MND</span>
+          </div>
+          <span class="f-sourcil" id="f-quand">L'équipe · année 2027</span>
+        </div>
+        <span class="f-sourcil" id="f-titre">Vos vacances de 2027</span>
+        <span class="f-nom" id="f-nom">G. T.</span>
+        <span class="f-lead" id="f-lead">Deux congés et deux reprises en 2027.</span>
+        <div id="f-blocs" style="display:grid;gap:8px"></div>
+        <div class="f-total"><span class="f-sourcil" style="color:#1E2150">Total de vos vacances en 2027</span><b id="f-total">0 jours</b></div>
+        <span id="f-reste" style="font-size:9.5px;color:#4a4a60"></span>
+        <div class="f-pied"><span><i>Brice et Yéman</i>MAISON MND</span><span>Remis le ................................<br><br>Signature ................................</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-changent">
+    <h2 id="t-changent">Ce qui change, et ce qui ne change pas</h2>
+    <ul class="liste">
+      <li><b>Congés &amp; absences</b> garde les demandes au fil de l'année (congé, maladie), leur accord et le WhatsApp de la décision.</li>
+      <li><b>Vacances annuelles</b> sert à caler l'année d'avance : la fermeture de la Maison et les vacances de chacun. Ce qui y est calé s'inscrit au planning, comme un congé accordé.</li>
+      <li>Le solde de chacun dit d'où viennent ses jours : « pris en vacances », « pris en congés ».</li>
+      <li>Rien ne part sur WhatsApp depuis cet onglet : la fiche se remet en main propre.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="t-choix">
+    <h2 id="t-choix">Vos choix du 6 novembre 2026</h2>
+    <ol class="questions">
+      <li><b>Le solde.</b><span>Votre choix : un seul solde de congés payés. Les vacances s'y décomptent comme les congés, et la fiche dit ce qui reste.</span></li>
+      <li><b>Les jours comptés.</b><span>Votre choix : jours calendaires, du premier au dernier jour inclus, dimanche et lundi compris, comme vos fiches de janvier 2027.</span></li>
+      <li><b>La fiche PDF.</b><span>Votre choix : elle se fait et se range seule au dossier dès qu'un congé est accordé ou des vacances calées ; le bouton « Fiche PDF » la refait à la demande.</span></li>
+      <li><b>La fermeture de la Maison.</b><span>Votre choix : posée une fois dans Vacances annuelles, elle vaut pour toute l'équipe et ferme aussi la réservation en ligne ces jours-là (journée exceptionnelle fermée).</span></li>
+    </ol>
+  </section>
+
+  <footer>Maquette pour Yéman, Maison MND, 6 novembre 2026. Elle se construit dans le Trône après votre accord.</footer>
+</main>
+
+<script>
+(() => {
+  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const d = (iso) => new Date(iso + 'T12:00:00Z');
+  const dit = (iso) => { const x = d(iso); return `${JOURS[x.getUTCDay()]} ${x.getUTCDate() === 1 ? '1er' : x.getUTCDate()} ${MOIS[x.getUTCMonth()]} ${x.getUTCFullYear()}`; };
+  const jours = (a, b) => Math.round((d(b) - d(a)) / 86400000) + 1;
+  /* La Maison est fermée le dimanche et le lundi : la reprise est le premier jour ouvert. */
+  const reprise = (fin) => { const x = d(fin); do { x.setUTCDate(x.getUTCDate() + 1); } while (x.getUTCDay() === 0 || x.getUTCDay() === 1); return x.toISOString().slice(0, 10); };
+  const DROIT = 24;
+  const FERMETURE = { du: '2027-01-01', au: '2027-01-05' };
+  const gens = [
+    { id: 'gt', ini: 'G. T.', role: 'Praticien', periodes: [{ du: '2027-01-15', au: '2027-01-21' }, { du: '2027-08-03', au: '2027-08-14' }] },
+    { id: 'nm', ini: 'N. M.', role: 'Praticien', periodes: [{ du: '2027-01-06', au: '2027-01-12' }] },
+    { id: 'ah', ini: 'A. H.', role: 'Praticien', periodes: [{ du: '2027-01-18', au: '2027-01-21' }] },
+    { id: 'yb', ini: 'Y. B.', role: 'Direction', periodes: [] },
+  ];
+  const posX = (iso) => { const x = d(iso); const debut = Date.UTC(2027, 0, 1); return ((x - debut) / 86400000) / 365 * 100; };
+  const blocHtml = (p, cls) => `<span class="bloc ${cls}" style="left:${posX(p.du)}%;width:${Math.max(0.6, jours(p.du, p.au) / 365 * 100)}%" title="du ${dit(p.du)} au ${dit(p.au)}"></span>`;
+  let ouverte = null;
+  const pris = (g) => jours(FERMETURE.du, FERMETURE.au) + g.periodes.reduce((s, p) => s + jours(p.du, p.au), 0);
+
+  function frise() {
+    document.getElementById('frise').innerHTML = gens.map((g) =>
+      `<tr><td class="nom">${g.ini}</td><td colspan="12"><div class="mois">${blocHtml(FERMETURE, 'maison')}${g.periodes.map((p) => blocHtml(p, '')).join('')}</div></td></tr>`).join('');
+  }
+  function personnes() {
+    document.getElementById('personnes').innerHTML = gens.map((g) => {
+      const n = pris(g); const reste = DROIT - n;
+      const det = ouverte === g.id ? `<div class="detail">
+        <div class="periode"><span>Fermeture de la Maison, du ${dit(FERMETURE.du)} au ${dit(FERMETURE.au)} inclus</span><span class="pastille ok">${jours(FERMETURE.du, FERMETURE.au)} jours</span><small>Reprise le ${dit(reprise(FERMETURE.au))}</small></div>
+        ${g.periodes.map((p, i) => `<div class="periode"><span>Vacances ${i + 1}, du ${dit(p.du)} au ${dit(p.au)} inclus</span><span class="pastille cuivre">${jours(p.du, p.au)} jours</span><small>Reprise le ${dit(reprise(p.au))} · inscrites au planning</small></div>`).join('')}
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn petit" type="button" data-fiche="${g.id}">Fiche PDF</button><button class="btn petit" type="button" data-caler="${g.id}">+ Caler des vacances</button></div>
+      </div>` : '';
+      return `<div class="ligne-p"><button type="button" aria-expanded="${ouverte === g.id}" data-ouvre="${g.id}"><span class="qui"><b>${g.ini}</b><small>${g.role} · ${g.periodes.length ? g.periodes.length + ' période' + (g.periodes.length > 1 ? 's' : '') + ' calée' + (g.periodes.length > 1 ? 's' : '') : 'rien de calé en dehors de la fermeture'}</small></span><span class="compte"><span>droit <b class="num">${DROIT}</b></span><span>calés <b class="num">${n}</b></span><span>reste <b class="num">${reste}</b></span></span></button>${det}</div>`;
+    }).join('');
+  }
+  function fiche(id) {
+    const g = gens.find((x) => x.id === id) || gens[0];
+    const periodes = [FERMETURE, ...g.periodes];
+    document.getElementById('f-nom').textContent = g.ini;
+    const n = periodes.length;
+    const mots = ['Un congé', 'Deux congés', 'Trois congés', 'Quatre congés'];
+    document.getElementById('f-lead').textContent = `${mots[n - 1] || n + ' congés'} et ${n > 1 ? (['', '', 'deux', 'trois', 'quatre'][n] || n) + ' reprises' : 'une reprise'} en 2027.`;
+    document.getElementById('f-blocs').innerHTML = periodes.map((p) => `<div class="f-bloc"><div class="f-conge"><span class="f-sourcil">Congé</span><b>du ${dit(p.du)}<br>au ${dit(p.au)} inclus</b><small>soit ${jours(p.du, p.au)} jours de congé</small></div><div class="f-reprise"><span class="f-sourcil">Reprise</span><b>${dit(reprise(p.au))}</b></div></div>`).join('');
+    const tot = periodes.map((p) => jours(p.du, p.au));
+    document.getElementById('f-total').textContent = `${tot.join(' + ')}${tot.length > 1 ? ' = ' + tot.reduce((a, b) => a + b, 0) : ''} jours`;
+    document.getElementById('f-reste').textContent = `Reste de votre droit annuel : ${DROIT - tot.reduce((a, b) => a + b, 0)} jours sur ${DROIT}. En dehors de ces dates, vos horaires habituels ne changent pas.`;
+  }
+  function formulaire(id) {
+    const f = document.getElementById('form');
+    f.hidden = false;
+    f.innerHTML = `<div class="form" role="group" aria-label="Caler des vacances">
+      <b style="color:var(--indigo)">Caler des vacances</b>
+      <div class="rang">
+        <select id="f-qui" aria-label="Pour qui">${gens.map((g) => `<option value="${g.id}"${g.id === id ? ' selected' : ''}>${g.ini}</option>`).join('')}</select>
+        <span>du</span><input id="f-du" type="date" value="2027-04-06" aria-label="Premier jour"> <span>au</span> <input id="f-au" type="date" value="2027-04-17" aria-label="Dernier jour">
+        <span class="doux petit" id="f-calc"></span>
+      </div>
+      <div class="rang"><button class="btn plein" type="button" id="f-poser">Caler et faire la fiche</button><button class="btn" type="button" id="f-annuler">Annuler</button></div>
+    </div>`;
+    const calc = () => { const a = document.getElementById('f-du').value, b = document.getElementById('f-au').value; document.getElementById('f-calc').textContent = a && b && b >= a ? `soit ${jours(a, b)} jours, reprise le ${dit(reprise(b))}` : ''; };
+    calc();
+    f.querySelectorAll('input').forEach((i) => i.addEventListener('input', calc));
+    document.getElementById('f-annuler').onclick = () => { f.hidden = true; };
+    document.getElementById('f-poser').onclick = () => {
+      const g = gens.find((x) => x.id === document.getElementById('f-qui').value);
+      const a = document.getElementById('f-du').value, b = document.getElementById('f-au').value;
+      if (!g || !a || !b || b < a) return;
+      g.periodes.push({ du: a, au: b }); g.periodes.sort((x, y) => x.du.localeCompare(y.du));
+      f.hidden = true; ouverte = g.id; frise(); personnes(); fiche(g.id);
+      document.getElementById('t-fiche').scrollIntoView({ behavior: 'smooth' });
+    };
+    f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  document.getElementById('personnes').addEventListener('click', (e) => {
+    const o = e.target.closest('[data-ouvre]'); if (o) { ouverte = ouverte === o.dataset.ouvre ? null : o.dataset.ouvre; personnes(); return; }
+    const fi = e.target.closest('[data-fiche]'); if (fi) { fiche(fi.dataset.fiche); document.getElementById('t-fiche').scrollIntoView({ behavior: 'smooth' }); return; }
+    const c = e.target.closest('[data-caler]'); if (c) formulaire(c.dataset.caler);
+  });
+  document.getElementById('b-caler').addEventListener('click', () => formulaire(gens[0].id));
+  document.getElementById('b-fermeture').addEventListener('click', () => { const f = document.getElementById('form'); f.hidden = false; f.innerHTML = '<div class="form"><b style="color:var(--indigo)">Fermeture de la Maison</b><span class="doux petit">Du … au … : pour toute l’équipe, au planning et en journée exceptionnelle fermée (la réservation en ligne ne propose pas ces jours).</span><div class="rang"><button class="btn" type="button" onclick="this.closest(\'#form\').hidden=true">Fermer</button></div></div>'; f.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+  ouverte = 'gt'; frise(); personnes(); fiche('gt');
+})();
+</script>
+</body>
+</html>

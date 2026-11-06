@@ -547,7 +547,10 @@ export function primeDePointsDuMois(o: {
   return { total, primeXof: acquise ? o.bareme.primeXof : 0 };
 }
 
-export type LeaveType = 'conge' | 'maladie';
+/** `vacances` (6 novembre 2026) : les vacances annuelles, calées d'avance par la
+    direction (Temps et congés › Vacances annuelles). Elles se décomptent du même
+    solde que les congés (son choix). */
+export type LeaveType = 'conge' | 'maladie' | 'vacances';
 export type LeaveStatus = 'demande' | 'approuve' | 'refuse';
 export const LEAVE_STATUS_LABEL: Record<LeaveStatus, string> = { demande: 'En attente', approuve: 'Approuvé', refuse: 'Refusé' };
 export type LeaveRequest = {
@@ -568,6 +571,11 @@ export type LeaveRequest = {
   preventeParModele?: boolean;
   /** Ce qui a empêché de la prévenir, pour le dire à l'écran. */
   preventeRefus?: string;
+  /** LA FERMETURE DE LA MAISON (6 novembre 2026) : les vacances de chacun nées
+      d'une même fermeture portent son identifiant. */
+  fermeture?: string;
+  /** La fiche PDF rangée au dossier, et quand. */
+  ficheLe?: string;
 };
 export const leaveStore = createStore<LeaveRequest[]>('mnd_leave_requests', []);
 export const useLeave = (): [LeaveRequest[], typeof leaveStore.set] => {
@@ -598,7 +606,7 @@ export function daysInclusive(start: string, end: string): number {
 export function congeBalance(since: string, leaves: LeaveRequest[], employeeId: string, joursParMois: number): { acquis: number; pris: number; solde: number } {
   const acquis = monthsOfService(since) * joursParMois;
   const pris = asArray<LeaveRequest>(leaves)
-    .filter((l) => l.employeeId === employeeId && l.type === 'conge' && l.status === 'approuve')
+    .filter((l) => l.employeeId === employeeId && (l.type === 'conge' || l.type === 'vacances') && l.status === 'approuve')
     .reduce((s, l) => s + l.days, 0);
   return { acquis, pris, solde: acquis - pris };
 }

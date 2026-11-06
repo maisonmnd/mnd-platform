@@ -17,6 +17,9 @@ import { ChampDeDate } from '../../../../ds/dates';
 import { planningStore } from '../../../../shared/rh';
 import { poseLeConge } from '../../../../shared/rh-pur';
 import RhPlanning from './rh/Planning';
+import VacancesAnnuelles from './rh/VacancesAnnuelles';
+import { ficheDuConge, rangeLaFiche, telechargeLaFiche } from './rh/fiche-de-conges';
+import type { CongeLu } from '../../../../shared/vacances-pur';
 
 /* Temps & absences — pointage journalier + congés/maladie avec validation direction.
    Le planning des praticiens reste au slot engine ; ici, présence et absences. */
@@ -28,7 +31,7 @@ const frDate = (iso?: string) => {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
 };
 
-type Tab = 'planning' | 'pointage' | 'conges';
+type Tab = 'planning' | 'pointage' | 'conges' | 'vacances';
 
 export default function TempsAbsences() {
   const [tab, setTab] = useState<Tab>('planning');
@@ -38,8 +41,10 @@ export default function TempsAbsences() {
         <button className={`trc-tab ${tab === 'planning' ? 'is-active' : ''}`} onClick={() => setTab('planning')}>Le planning</button>
         <button className={`trc-tab ${tab === 'pointage' ? 'is-active' : ''}`} onClick={() => setTab('pointage')}>Pointage du jour</button>
         <button className={`trc-tab ${tab === 'conges' ? 'is-active' : ''}`} onClick={() => setTab('conges')}>Congés & absences</button>
+        {/* LES VACANCES ANNUELLES — 6 novembre 2026, maquette 1Jc1m2bU… : calées à part. */}
+        <button className={`trc-tab ${tab === 'vacances' ? 'is-active' : ''}`} onClick={() => setTab('vacances')}>Vacances annuelles</button>
       </div>
-      {tab === 'planning' ? <RhPlanning /> : tab === 'pointage' ? <Pointage /> : <Conges />}
+      {tab === 'planning' ? <RhPlanning /> : tab === 'pointage' ? <Pointage /> : tab === 'vacances' ? <VacancesAnnuelles /> : <Conges />}
     </div>
   );
 }
@@ -115,7 +120,7 @@ function Conges() {
   const team = staff.filter((m) => m.branchId === branch.id);
   const nameOf = (id: string) => staff.find((m) => m.id === id)?.name ?? 'Employé';
   const branchLeaves = leaves
-    .filter((l) => !l.branchId || l.branchId === branch.id)
+    .filter((l) => (!l.branchId || l.branchId === branch.id) && l.type !== 'vacances')
     .slice()
     .sort((a, b) => (a.status === 'demande' && b.status !== 'demande' ? -1 : b.status === 'demande' && a.status !== 'demande' ? 1 : b.startDate.localeCompare(a.startDate)));
 
@@ -174,6 +179,18 @@ function Conges() {
        est absent, sans le motif ; l'agenda le signale. */
     if (l && status === 'approuve') planningStore.set((p) => poseLeConge(p, l.employeeId, l.startDate, l.endDate));
     if (l) void previens(l, status);
+    /* LA FICHE PDF SE FAIT SEULE DÈS L'ACCORD (6 novembre 2026, son choix) : rangée au dossier. */
+    if (l && status === 'approuve' && l.type === 'conge') void ficheDuCongeAccorde({ ...l, status: 'approuve' }, false);
+  };
+  const ficheDuCongeAccorde = async (l: LeaveRequest, telecharger: boolean) => {
+    const m = staff.find((x) => x.id === l.employeeId);
+    if (!m) return;
+    const tous = leaves.map((x) => (x.id === l.id ? l : x)) as unknown as CongeLu[];
+    const { fiche, nom } = ficheDuConge({ m, conge: l as unknown as CongeLu, conges: tous, joursParMois: p.congesJoursParMois });
+    if (telecharger) await telechargeLaFiche(fiche, nom);
+    const ok = await rangeLaFiche(m.id, fiche, nom);
+    if (ok) patchDemande(l.id, { ficheLe: new Date().toISOString() });
+    toast(ok ? `Fiche de congé rangée au dossier de ${m.name}.` : `La fiche de ${m.name} n’a pas pu se ranger : touchez « Fiche PDF ».`);
   };
   const remove = (id: string) => leaveStore.set((prev) => prev.filter((l) => l.id !== id));
 
@@ -185,7 +202,7 @@ function Conges() {
         <Card style={{ overflow: 'hidden' }}>
           <div className="mnd-scroll-x">
             <table className="tre-table">
-              <thead><tr><th>Employé</th><th>Acquis</th><th>Pris</th><th>Solde</th></tr></thead>
+              <thead><tr><th>Employé</th><th>Acquis</th><th>Pris</th><th>Dont vacances</th><th>Solde</th></tr></thead>
               <tbody>
                 {team.map((m) => {
                   const b = congeBalance(m.since, leaves, m.id, p.congesJoursParMois);
@@ -194,11 +211,12 @@ function Conges() {
                       <td style={{ fontFamily: 'var(--font-serif)', color: 'var(--color-indigo)' }}>{m.name}</td>
                       <td className="mnd-muted">{b.acquis} j</td>
                       <td className="mnd-muted">{b.pris} j</td>
+                      <td className="mnd-muted">{leaves.filter((x) => x.employeeId === m.id && x.type === 'vacances' && x.status === 'approuve').reduce((s, x) => s + x.days, 0)} j</td>
                       <td><b style={{ color: b.solde < 0 ? '#8f3b30' : 'var(--color-copper)' }}>{b.solde} j</b></td>
                     </tr>
                   );
                 })}
-                {team.length === 0 && <tr><td colSpan={4} className="mnd-muted" style={{ textAlign: 'center', padding: 24 }}>Aucun employé.</td></tr>}
+                {team.length === 0 && <tr><td colSpan={5} className="mnd-muted" style={{ textAlign: 'center', padding: 24 }}>Aucun employé.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -232,6 +250,9 @@ function Conges() {
                 {l.status === 'demande' && <button className="tre-link-btn" style={{ color: 'var(--trv-success, #2f7d54)' }} onClick={() => decide(l.id, 'approuve')}>Approuver</button>}
                 {l.status === 'demande' && <button className="tre-link-btn tre-link-btn--danger" onClick={() => decide(l.id, 'refuse')}>Refuser</button>}
                 {l.status !== 'demande' && <span className="mnd-muted" style={{ fontSize: 11 }}>{LEAVE_STATUS_LABEL[l.status]}{l.decidedBy ? ` par ${l.decidedBy}` : ''}</span>}
+                {l.status === 'approuve' && l.type === 'conge' && (
+                  <button className="tre-link-btn" onClick={() => void ficheDuCongeAccorde(l, true)}>Fiche PDF{l.ficheLe ? ' · rangée' : ''}</button>
+                )}
                 {/* CE QU'ELLE EN SAIT : prévenue, ou pas, et pourquoi. */}
                 {l.status !== 'demande' && (
                   prevenirEnCours === l.id ? <span className="mnd-muted" style={{ fontSize: 11 }}>· envoi…</span>

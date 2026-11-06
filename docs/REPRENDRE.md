@@ -2,6 +2,16 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES VACANCES ANNUELLES ET LA FICHE DE CONGÉS : 6 novembre 2026, EN LIGNE
+
+« Les vacances annuelles à côté de congés et absences… je dois le caler à part… générer une fiche PDF PRO quand je pose les congés du staff » (Yéman). Maquette `public/maquette-les-vacances-annuelles.html` (claude.ai 1Jc1m2bUp8rovJ5tmejBAo, v2), « Construis ». Ses choix : un seul solde ; jours calendaires ; fiche rangée seule dès l’accord ; la fermeture de la Maison pour toute l’équipe, au planning et en journée exceptionnelle fermée.
+
+- **Règles** `src/shared/vacances-pur.ts` : `joursCalendaires`, `repriseApres` (premier jour ouvert : semaine des Paramètres et journées exceptionnelles de la Maison), `periodesDeLAnnee` (congés accordés et vacances, ni demande ni maladie), `droitDeLAnnee` (mois de service de l’année × taux), `pourquoiPasLaPeriode` (chevauchement refusé), `fermetureEnConges` / `joursAFermer`, `poseLesVacances` (un jour « inventaire » reste du travail) / `retireLesVacances`, `ficheDeConges` (Premier/Second, Deuxième…, total, `resteDit`).
+- **Données** : `LeaveType` gagne `vacances` ; `LeaveRequest.fermeture` (le groupe d’une fermeture) et `ficheLe` ; `congeBalance` compte les vacances. Le planning gagne le statut `inventaire` (rh-pur).
+- **Écrans** : onglet « Vacances annuelles » (`rh/VacancesAnnuelles.tsx`) dans Temps et congés : année, « + Fermeture de la Maison », « + Caler des vacances », frise des douze mois, une ligne par personne (droit, calés, reste, périodes, reprise, Retirer, Fiche PDF). Congés & absences : les vacances n’y paraissent plus ; « Dont vacances » au solde ; l’accord d’un congé range sa fiche ; « Fiche PDF » sur chaque congé accordé. Mon espace : « Ma fiche de congés » (téléchargée, rien de rangé).
+- **Fiche PDF** `rh/fiche-de-conges-pdf.ts` (jsPDF, dessin des fiches de janvier 2027) ; rangée au coffre `engagements`, `conges/identite/<staffId>/` (direction seule, 0099), `deposeLaFicheDeConges` / `fichesDeCongesDuPersonnel`.
+- **Banc** : `node scripts/verifie-les-vacances-annuelles.mjs` (`--prouve` 23 fautes).
+
 ## LA PAIE PAR MTN, LOT 2 DE LA PAIE : 5 novembre 2026, CONSTRUIT EN LIGNE (0163, paie-mtn 2026-11-05-a, Trône build 20261105171008 @ 7d54084f) ; PRÉVENIR CHACUN EN LIGNE (0164, paie-mtn 2026-11-05-b, build 20261105230137) ; LA PAIE SUR WHATSAPP à mettre en ligne (0165, paie-mtn 2026-11-06-a, whatsapp-webhook 2026-11-06-a)
 
 Maquette `public/maquette-la-paie-par-mtn.html` (claude.ai 6bNGeh7nyABotDAXppWRoX, version 3), validée par Yéman (« construis »). Le 5 à 18 h, après le toucher de la direction, le Trône confie chaque net au serveur, qui l’envoie par l’API MTN (Disbursement), par le relais de la Maison (seule adresse autorisée chez MTN), depuis le compte de paie MTN. Avant, un test de 100 F à chacun.

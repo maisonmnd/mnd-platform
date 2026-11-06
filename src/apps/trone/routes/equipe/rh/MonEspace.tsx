@@ -12,6 +12,8 @@ import {
 } from '../../../../../shared/rh-pur';
 import { lienDeLaPiece, repondsAuBulletin, useBulletins, useConfirmationsDePaie, usePlanning, useRegistreRh, type BulletinPublie } from '../../../../../shared/rh';
 import { LIBELLE_DES_ESPECES, duMois, jourDit, momentDit, quandDit } from '../../../../../shared/paie-du-5-pur';
+import type { CongeLu } from '../../../../../shared/vacances-pur';
+import { ficheDeLAnnee, telechargeLaFiche } from './fiche-de-conges';
 import '../paie-du-5.css';
 import type { StaffMember } from '../data';
 import {
@@ -89,6 +91,14 @@ export default function MonEspace({ moi, relie }: { moi: StaffMember | null; rel
         <b>{Math.round(solde * 10) / 10} jour{solde > 1 ? 's' : ''}</b>
         {mesConges.slice(0, 3).map((c) => <span key={c.id}>du {dateDite(c.startDate)} au {dateDite(c.endDate)} · {LEAVE_STATUS_LABEL[c.status]}{c.status === 'demande' ? <> · <button type="button" className="sad-lien" onClick={() => leaveStore.set((prev) => prev.filter((x) => x.id !== c.id))}>retirer</button></> : null}</span>)}
       </div>
+      {/* SA FICHE DE CONGÉS (6 novembre 2026) : ses congés et vacances de l'année, en PDF. */}
+      {moi && mesConges.some((c) => c.status === 'approuve' && (c.type === 'conge' || c.type === 'vacances')) && (
+        <Button variant="ghost" onClick={() => {
+          const annee = new Date().getMonth() >= 9 ? new Date().getFullYear() + 1 : new Date().getFullYear();
+          const { fiche, nom } = ficheDeLAnnee({ m: moi, annee, conges: conges as unknown as CongeLu[], joursParMois: p.congesJoursParMois });
+          void telechargeLaFiche(fiche, nom);
+        }}>Ma fiche de congés</Button>
+      )}
       {!demande ? <Button variant="copper" onClick={() => setDemande(true)}>Demander un congé</Button> : (
         <div className="rh-tuile">
           <div className="tr-grid tr-grid--3" style={{ gap: 10 }}>

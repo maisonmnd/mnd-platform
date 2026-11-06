@@ -29,6 +29,41 @@
 .rh-planning select { min-width: 92px; }
 .rh-planning .s-fauteuil { background: var(--copper-50); }
 .rh-planning .s-conge { background: color-mix(in srgb, var(--color-indigo) 8%, transparent); }
+/* LES VACANCES ANNUELLES — 6 novembre 2026. */
+.va { display: grid; gap: 14px; }
+.va-barre, .va-gestes, .va-annee, .va-form__ligne { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.va-barre { justify-content: space-between; }
+.va-annee b { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.va-form { border: 1px solid var(--color-copper); border-radius: var(--radius-md); background: var(--copper-50); padding: 12px; display: grid; gap: 10px; }
+.va-form > b { color: var(--color-indigo); font-weight: 500; }
+.va-fermeture { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: baseline; border: 1px solid var(--hairline); border-left: 3px solid var(--color-indigo); border-radius: var(--radius-md); background: var(--indigo-50); padding: 9px 12px; font-size: 13px; }
+.va-fermeture b { color: var(--color-indigo); font-weight: 500; }
+.va-frise { border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface-card); padding: 8px 10px; display: grid; gap: 4px; overflow-x: auto; }
+.va-frise__mois, .va-frise__ligne { display: grid; grid-template-columns: 84px repeat(12, minmax(0, 1fr)); gap: 0; align-items: center; min-width: 560px; }
+.va-frise__mois span { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.va-frise__ligne { grid-template-columns: 84px 1fr; }
+.va-frise__nom { font-size: 12.5px; color: var(--color-indigo); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.va-frise__piste { position: relative; height: 18px; background: var(--surface-sunken, rgba(30, 33, 80, .06)); border-radius: 3px; }
+.va-bloc { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; }
+.va-bloc--fermeture { background: var(--color-indigo); }
+.va-bloc--vacances { background: var(--color-copper); }
+.va-bloc--conge { background: color-mix(in srgb, var(--color-copper) 45%, transparent); }
+.va-legende { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--ink-soft); }
+.va-legende i { display: inline-block; position: static; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.va-personnes { display: grid; gap: 8px; }
+.va-personne { border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface-card); }
+.va-personne > button { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; }
+.va-personne > button:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.va-qui b { color: var(--color-indigo); font-weight: 500; }
+.va-qui small { display: block; color: var(--ink-soft); font-size: 12px; }
+.va-compte { display: inline-flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; font-size: 12px; color: var(--ink-soft); }
+.va-compte b { font-family: var(--font-serif); font-size: 16px; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.va-detail { padding: 0 12px 12px; display: grid; gap: 8px; }
+.va-periode { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: baseline; border-top: 1px dashed var(--hairline); padding-top: 8px; font-size: 13px; }
+.va-periode small { color: var(--ink-soft); font-size: 12px; }
+.va-periode .tre-link-btn { justify-self: start; }
+.va-jours { color: var(--copper-700); font-weight: 500; white-space: nowrap; }
+.va-doux { color: var(--ink-soft); font-size: 12.5px; }
 .rh-planning .s-inventaire { background: color-mix(in srgb, var(--color-copper) 14%, transparent); }
 .rh-cadre { overflow-x: auto; border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface-card); }
 .rh-espace { display: grid; gap: 10px; max-width: 520px; }

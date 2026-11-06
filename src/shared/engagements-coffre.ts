@@ -263,3 +263,45 @@ export async function effaceLesLettresDuPret(staffId: string): Promise<boolean> 
   if (rangees === null) return false;
   return retireDuCoffre(rangees.map((l) => l.chemin));
 }
+
+/* ══ LES FICHES DE CONGÉS, AU DOSSIER — 6 novembre 2026 ═══════════════
+   Maquette des vacances annuelles (1Jc1m2bUp8rovJ5tmejBAo) : la fiche PDF se
+   fait et se range SEULE au dossier dès qu'un congé est accordé ou des
+   vacances calées. Elle dort à côté des lettres du prêt, dans la partie
+   « identite » du coffre : la direction seule la lit (0099). Une fiche neuve
+   ne remplace pas l'ancienne : le jeton du nom les garde toutes, la plus
+   récente d'abord. */
+const DOSSIER_DES_CONGES = 'conges';
+
+/** Le dossier où dorment les fiches de congés d'un membre. */
+export const dossierDesFichesDeConges = (staffId: string): string =>
+  `${DOSSIER_DES_CONGES}/identite/${staffId}`;
+
+export type FicheRangee = { chemin: string; nom: string; deposeLe: string };
+
+/** DÉPOSER une fiche de congés fabriquée par le Trône. `null` si le dépôt échoue. */
+export async function deposeLaFicheDeConges(staffId: string, fichier: Blob, nomLisible: string): Promise<PieceJointe | null> {
+  if (!supabase) return null;
+  const propre = nomLisible.normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^A-Za-z0-9._-]+/g, '-').slice(-60);
+  const chemin = `${dossierDesFichesDeConges(staffId)}/${uid()}-${propre}`;
+  const { error } = await supabase.storage.from(COFFRE_ENGAGEMENTS).upload(chemin, fichier, {
+    contentType: fichier.type || 'application/pdf',
+    upsert: false,
+  });
+  if (error) { console.warn('[mnd-conges] fiche refusée :', error.message); return null; }
+  return { chemin, nom: propre, type: fichier.type, taille: fichier.size };
+}
+
+/** LES FICHES D'UN MEMBRE, la plus récente d'abord. `null` si la lecture a échoué. */
+export async function fichesDeCongesDuPersonnel(staffId: string): Promise<FicheRangee[] | null> {
+  if (!supabase) return null;
+  const dossier = dossierDesFichesDeConges(staffId);
+  const { data, error } = await supabase.storage.from(COFFRE_ENGAGEMENTS).list(dossier, {
+    limit: 100, sortBy: { column: 'created_at', order: 'desc' },
+  });
+  if (error) { console.warn('[mnd-conges] lecture refusée :', error.message); return null; }
+  return (data ?? [])
+    .filter((o) => o.id && o.name && o.name !== '.emptyFolderPlaceholder')
+    .map((o) => ({ chemin: `${dossier}/${o.name}`, nom: nomSansJeton(o.name), deposeLe: (o.created_at ?? '').slice(0, 10) }));
+}
