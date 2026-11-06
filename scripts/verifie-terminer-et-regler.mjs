@@ -10,10 +10,14 @@ import { spawnSync } from 'node:child_process';
    `--prouve` : chaque faute est remise une a une dans le vrai fichier (copie
    gardee, restauration dans un finally, empreintes comparees), et le banc
    doit crier a chacune. Une preuve ne tourne jamais dans l'arbre commun :
-   seulement dans une copie propre detachee. */
+   seulement dans une copie propre detachee.
+   `--prouve --tranche=1/3` : la preuve en plusieurs passes (une faute sur
+   trois, la premiere), pour un lanceur qui coupe les commandes longues ;
+   les tranches 1/3, 2/3 et 3/3 ensemble couvrent toutes les fautes. */
 
 const racine = path.resolve(import.meta.dirname, '..');
 const prouve = process.argv.includes('--prouve');
+const tranche = /^--tranche=(\d+)\/(\d+)$/.exec(process.argv.find((a) => a.startsWith('--tranche=')) ?? '');
 
 const PUR = 'src/shared/terminer-et-regler-pur.ts';
 const TER = 'supabase/functions/terminer-et-regler/index.ts';
@@ -114,7 +118,7 @@ const PANNES = [
   ['le pied de page n y mene plus', CONTENU, "          { texte: 'Retrouver mon rendez-vous', vers: '/mon-rendez-vous/' },\n", ''],
   ['la page de la recherche monte le billet vide', GENERE, '<div data-ilot="rdv" data-genre="retrouver">', '<div data-ilot="rdv" data-genre="page">'],
   /* ── La porte du WhatsApp : la copie de la phrase (ses scenarios vivent dans verifie-opale) ── */
-  ['la copie de la phrase derive dans whatsapp-automate', AU, "  if (!t || t.split(' ').length > 14) return false;", "  if (!t || t.split(' ').length > 15) return false;"],
+  ['la copie de la phrase derive dans whatsapp-automate', AU, '  if (/[?？]/.test(brut)) return false;\n', ''],
   /* ── La regle pure ── */
   ['la porte s ouvre avant l heure du rituel', PUR, "  if (!Number.isFinite(debut) || o.maintenantMs < debut) return ferme('avant-l-heure');", "  if (!Number.isFinite(debut)) return ferme('avant-l-heure');"],
   ['la porte reste ouverte apres minuit', PUR, "  if (jour < aujourdhui) return ferme('jour-passe');\n", ''],
@@ -155,11 +159,22 @@ const PANNES = [
   ['une declaration d avant l heure tient', PUR, '  return Number.isFinite(debut) && le >= debut && jourDeLaFin(le)', '  return Number.isFinite(debut) && jourDeLaFin(le)'],
   ['une declaration du lendemain tient', PUR, " && jourDeLaFin(le) === String(r.date ?? '').slice(0, 10);", ';'],
   ['la notification dit « Elle »', PUR, 'Règlement en cours depuis son téléphone, par', 'Elle règle depuis son téléphone, par'],
-  ['une negation passe pour une declaration', PUR, '/\\b(pas|jamais|quand|', '/\\b(jamais|quand|'],
-  ['un autre achat passe pour une declaration', PUR, '|abonnement|formule|commande|', '|formule|'],
-  ['une longue phrase passe pour une declaration', PUR, "  if (!t || t.split(' ').length > 14) return false;", '  if (!t) return false;'],
-  ['« je veux regler » n est plus reconnu', PUR, '  return ELLE_A_FINI.test(t) || FIN_EN_PEU_DE_MOTS.test(t) || ELLE_VEUT_REGLER.test(t);', '  return ELLE_A_FINI.test(t) || FIN_EN_PEU_DE_MOTS.test(t);'],
-  ['« termine » seul n est plus reconnu', PUR, '  return ELLE_A_FINI.test(t) || FIN_EN_PEU_DE_MOTS.test(t) || ELLE_VEUT_REGLER.test(t);', '  return ELLE_A_FINI.test(t) || ELLE_VEUT_REGLER.test(t);'],
+  /* « J'ai termine » : le message entier, et rien d'autre (relecture du 6 novembre 2026). */
+  ['une question passe pour une declaration', PUR, '  if (/[?？]/.test(brut)) return false;\n', ''],
+  ['la phrase n a plus a tenir jusqu au dernier mot (« j ai fini mes courses »)', PUR, '){0,2}$`);', '){0,2}`);'],
+  ['la phrase peut commencer par autre chose', PUR, 'new RegExp(`^(?:${ELLE_A_FINI}', 'new RegExp(`(?:${ELLE_A_FINI}'],
+  ['un determinant hors de la liste passe (mes soins)', PUR, "'(?:mon|ma|le|la|notre|nos) (?:rdv|rendez vous|seance|", "'(?:mon|ma|le|la|notre|nos|mes) (?:rdv|rendez vous|seance|"],
+  ['un nom hors de la liste passe (mon travail)', PUR, "|reprise|shampoing|resserrage)';", "|reprise|shampoing|resserrage|travail|courses)';"],
+  ['un mot de mouvement ne retient plus (en route)', PUR, '|arrivons|route|chemin|', '|arrivons|chemin|'],
+  ['« a la maison » ne retient plus', PUR, '|attendez|a la maison|chez moi)', '|attendez|chez moi)'],
+  ['le garde du mouvement n est plus interroge', PUR, '  if (MOUVEMENT_OU_ATTENTE_DE_LA_FIN.test(t)) return false;\n', ''],
+  ['la politesse n est plus retiree (merci)', PUR, '|cc|merci|svp|', '|cc|svp|'],
+  ['le salut n est plus retire (bonjour)', PUR, '|a bientot|bonjour|bonsoir|', '|a bientot|bonsoir|'],
+  ['« a bientot » passe pour une attente', PUR, '|bonne soiree|a bientot|bonjour|', '|bonne soiree|bonjour|'],
+  ['« je veux regler » n est plus reconnu', PUR, 'je (?:veux|voudrais|souhaite|peux|vais) (?:regler|payer)|je regle', 'je (?:veux|voudrais|souhaite|peux|vais) (?:reserver)|je regle'],
+  ['« termine » seul n est plus reconnu', PUR, "(?:est )?(?:termine|terminee|fini|finie)';", "(?:est )(?:termine|terminee|fini|finie)';"],
+  ['un adverbe se glisse entre « j ai » et « fini »', PUR, 'ca y est(?: j ai| jai)?) (?:termine|terminee|termines', 'ca y est(?: j ai| jai)?) (?:bien )?(?:termine|terminee|termines'],
+  ['son code ecrit avec sa declaration la casse', PUR, "  if (code) t = ` ${t} `.replace(` mnd ${code.slice(4).toLowerCase()} `, ' ').replace(` mnd${code.slice(4).toLowerCase()} `, ' ');\n", ''],
   ['un mot apres MND passe pour un code', PUR, "  if (m[1] !== '-' && !/\\d/.test(signes) && signes !== signes.toUpperCase()) return null;\n", ''],
   ['un lien de reglement part sans rendez-vous', PUR, '  const lien = o.code ? `${PAGE_POUR_RETROUVER_SON_RDV}?code=${o.code}` : PAGE_POUR_RETROUVER_SON_RDV;', "  const lien = 'https://maisonmnd.com/trone/payer.html?tg=r-22222222222222';"],
   ['un montant invente sur WhatsApp', PUR, '    const montant = o.resteXof !== null && o.resteXof > 0\n', '    const montant = true\n'],
@@ -172,6 +187,9 @@ const PANNES = [
   ['Ma Couronne dit « vous pouvez partir » avant le reglement', PUR, "    if (rdv.termineParElle?.le && (rdv.honoreAuReglement?.le || porte.raison === 'deja-regle')) return { rdv, etat: 'regle', porte };", "    if (rdv.termineParElle?.le) return { rdv, etat: 'regle', porte };"],
   ['Ma Couronne garde « termine » sur un rendez-vous d hier', PUR, "    .filter((r) => String(r.date ?? '').slice(0, 10) === aujourdhui)\n", ''],
 ];
+
+/** Les fautes de cette passe : toutes, ou une sur N (`--tranche=k/N`). */
+const aProuver = tranche ? PANNES.filter((_, i) => i % Number(tranche[2]) === Number(tranche[1]) - 1) : PANNES;
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');
 
@@ -210,7 +228,7 @@ if (prouve) {
   const avant = new Map(fichiers.map((f) => [f, md5(f)]));
   let muettes = 0;
   try {
-    for (const [nom, f, a, b] of PANNES) {
+    for (const [nom, f, a, b] of aProuver) {
       const garde = gardes.get(f);
       const brut = garde.toString('utf8');
       const crlf = brut.includes('\r\n');
@@ -230,7 +248,7 @@ if (prouve) {
   }
   const intacts = fichiers.every((f) => md5(f) === avant.get(f));
   console.log(intacts ? 'Fichiers rendus a l identique.' : 'ATTENTION : un fichier n est pas revenu a l identique.');
-  console.log(muettes === 0 && intacts ? `\nLa preuve tient : ${PANNES.length} fautes, le banc crie a chacune.` : `\n${muettes} faute(s) sans cri.`);
+  console.log(muettes === 0 && intacts ? `\nLa preuve tient : ${aProuver.length} fautes${tranche ? ` (tranche ${tranche[1]} sur ${tranche[2]}, ${PANNES.length} en tout)` : ''}, le banc crie a chacune.` : `\n${muettes} faute(s) sans cri.`);
   process.exit(muettes === 0 && intacts ? 0 : 1);
 }
 

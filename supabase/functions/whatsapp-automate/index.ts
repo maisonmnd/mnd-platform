@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-06-b · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » : le rituel du jour retrouve par le numero, le montant et le lien de reglement, sans rendez-vous du jour le code est demande et la main passe (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-06-c · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement, sans rendez-vous du jour le code est demande et la main passe (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -6599,27 +6599,57 @@ type IssueDOpale = { texte: string; silence: boolean; issue: IssueDuTourDOpale; 
    elle demande le code : aucun lien de règlement ne part au hasard. */
 
 const motsDuMessageDeFin = (texte: unknown): string =>
-  String(texte ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  String(texte ?? '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
     .replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-/** Ce qui dit autre chose : une négation, une question, un autre achat, un
-    autre jour. Dans le doute, la conversation suit son cours ordinaire. */
-const AUTRE_CHOSE_QUE_LA_FIN = /\b(pas|jamais|quand|combien|pourquoi|comment|est ce|bientot|presque|encore|demain|hier|si|abonnement|formule|commande|acompte|avance|boutique|produit|carte|cadeau)\b/;
-/** Elle a fini : « j'ai terminé », « j'ai fini », « c'est fini », « on a terminé ». */
-const ELLE_A_FINI = /\b(j ai|jai|on a|nous avons|c est|cest|ca y est|j en ai)\b(?: \w+){0,2} (termine|terminee|termines|fini|finie|finis)\b/;
-/** La phrase tient en deux mots : « terminé », « rdv terminé », « séance finie ». */
-const FIN_EN_PEU_DE_MOTS = /^(?:(?:mon|ma|le|la|notre) )?(?:(?:rdv|rendez vous|seance|rituel|coiffure|soin) )?(?:est )?(?:termine|terminee|fini|finie)(?: merci)?$/;
-/** Elle veut régler : « je veux régler », « je voudrais payer », « le lien de paiement ». */
-const ELLE_VEUT_REGLER = /\b(?:je|j) (?:veux|voudrais|souhaite|souhaiterais|peux|vais|viens|aimerais|desire) (?:bien )?(?:regler|payer)\b|\b(?:je regle|je paie|je paye)\b|\blien (?:de|du|pour) (?:paiement|reglement|payer|regler)\b/;
+/* LE MESSAGE ENTIER, ET RIEN D'AUTRE — 6 novembre 2026, relecture. La première
+   règle cherchait « j'ai fini » QUELQUE PART dans la phrase : « J'ai fini mon
+   travail, j'arrive », « c'est fini la pluie, je viens », « j'ai fini mes
+   courses » passaient pour une déclaration, et une cliente en retard, son
+   rendez-vous déjà commencé, aurait reçu un lien de règlement. Une
+   déclaration, c'est le message ENTIER, saluts et politesse retirés, qui
+   tient dans une forme FERMÉE. Dans le doute : ce n'en est pas une, et la
+   conversation suit son cours ordinaire. */
+
+/** Les saluts et la politesse : retirés avant de juger, où qu'ils soient. */
+const POLITESSE_DU_MESSAGE_DE_FIN = /\b(?:merci beaucoup|s il vous plait|bonne journee|bonne soiree|a bientot|bonjour|bonsoir|coucou|salut|cc|merci|svp|stp|madame|mme)\b/g;
+/** Un mot de mouvement ou d'attente, « à la maison », « chez moi » : elle
+    parle d'un trajet, d'un retard, d'autre chose. Jamais une déclaration. */
+const MOUVEMENT_OU_ATTENTE_DE_LA_FIN = /\b(?:arrive|arrives|arrivee|arriver|arrivons|route|chemin|viens|vient|venir|venons|viendrai|retard|bientot|minute|minutes|min|attends|attend|attendez|a la maison|chez moi)\b/;
+/** Ce qu'elle a fini, dans une liste fermée : « mon rdv », « ma séance », « le soin », « nos locks ». */
+const COMPLEMENT_DE_LA_FIN = '(?:mon|ma|le|la|notre|nos) (?:rdv|rendez vous|seance|rituel|coiffure|soin|soins|tete|locks|reprise|shampoing|resserrage)';
+/** (a) Elle a fini : « j'ai terminé », « on a fini », « c'est fini », « ça y est j'ai fini », avec ou sans ce complément. */
+const ELLE_A_FINI = `(?:j ai|jai|on a|nous avons|c est|cest|ca y est(?: j ai| jai)?) (?:termine|terminee|termines|terminees|fini|finie|finis|finies)(?: ${COMPLEMENT_DE_LA_FIN})?`;
+/** (b) En peu de mots : « terminé », « rdv terminé », « séance finie ». */
+const FIN_EN_PEU_DE_MOTS = '(?:(?:(?:mon|ma|le|la|notre) )?(?:rdv|rendez vous|seance|rituel|coiffure|soin) )?(?:est )?(?:termine|terminee|fini|finie)';
+/** (c) Elle veut régler : « je veux régler », « je paie », « le lien de paiement », avec ou sans ce complément (« d'aujourd'hui »). */
+const ELLE_VEUT_REGLER = `(?:je (?:veux|voudrais|souhaite|peux|vais) (?:regler|payer)|je regle|je paie|je paye|(?:le )?lien de paiement)(?: ${COMPLEMENT_DE_LA_FIN}(?: d aujourd hui)?)?`;
+/** Une de ces formes, ou deux ou trois à la suite (« j'ai terminé, je veux régler »), du premier mot au dernier. */
+const UNE_DECLARATION_DE_FIN = new RegExp(`^(?:${ELLE_A_FINI}|${FIN_EN_PEU_DE_MOTS}|${ELLE_VEUT_REGLER})(?: (?:${ELLE_A_FINI}|${FIN_EN_PEU_DE_MOTS}|${ELLE_VEUT_REGLER})){0,2}$`);
+
+/** Le message, saluts et politesse retirés, et le code de confirmation qu'elle a pu y écrire. */
+function coeurDuMessageDeFin(texte: unknown): string {
+  let t = motsDuMessageDeFin(texte);
+  const code = codeDansLeMessage(texte);
+  if (code) t = ` ${t} `.replace(` mnd ${code.slice(4).toLowerCase()} `, ' ').replace(` mnd${code.slice(4).toLowerCase()} `, ' ');
+  return t.replace(POLITESSE_DU_MESSAGE_DE_FIN, ' ').replace(/ +/g, ' ').trim();
+}
+
+/** Elle parle d'autre chose que de la fin de son rituel : un trajet, un retard, sa maison. */
+export const ditAutreChoseQueLaFin = (texte: unknown): boolean => MOUVEMENT_OU_ATTENTE_DE_LA_FIN.test(coeurDuMessageDeFin(texte));
 
 /** « J'AI TERMINÉ », EN PHRASE LIBRE : la casse, les accents et la
-    ponctuation ne comptent pas. Une phrase longue (plus de quatorze mots),
-    une négation ou une question ne sont pas une déclaration. */
+    ponctuation ne comptent pas. Jamais une question (un « ? » dans son
+    texte), jamais un message qui parle de venir ou d'attendre, jamais une
+    phrase qui dit autre chose en plus : le message entier tient dans une
+    forme fermée, ou ce n'est pas une déclaration. */
 export function ditQuElleATermine(texte: unknown): boolean {
-  const t = motsDuMessageDeFin(texte);
-  if (!t || t.split(' ').length > 14) return false;
-  if (AUTRE_CHOSE_QUE_LA_FIN.test(t)) return false;
-  return ELLE_A_FINI.test(t) || FIN_EN_PEU_DE_MOTS.test(t) || ELLE_VEUT_REGLER.test(t);
+  const brut = String(texte ?? '');
+  if (/[?？]/.test(brut)) return false;
+  const t = coeurDuMessageDeFin(brut);
+  if (!t) return false;
+  if (MOUVEMENT_OU_ATTENTE_DE_LA_FIN.test(t)) return false;
+  return UNE_DECLARATION_DE_FIN.test(t);
 }
 
 /** Un code de confirmation écrit dans un message (« MND-7K3Q », « mnd 7k3q »),

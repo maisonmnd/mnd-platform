@@ -65,6 +65,10 @@ const PANNES = [
   { nom: 'une fonction muette fait inventer une reponse', fichier: AU, avant: "    if (!r || r.ok !== true) { dis('fin du rituel · la fonction ne repond pas', { statut: res.status }); return null; }", apres: "    if (!r || r.ok !== true) return sansRdv();" },
   { nom: 'le salut de la fin va a la premiere fiche du numero', fichier: AU, avant: 'await reponseALaFinDuRituel(sb, { texte: tour.texte, fiches, aujourdhui, appel: appelDeLaVoix })', apres: 'await reponseALaFinDuRituel(sb, { texte: tour.texte, fiches, aujourdhui, appel: prenomDuNomWa(fiches[0]?.nom) })' },
   { nom: 'le montant est invente quand la fonction ne le dit pas', fichier: AU, avant: 'resteXof: r.resteXof !== null && Number.isFinite(reste) && reste > 0 ? reste : null, adresse: r.adresse', apres: 'resteXof: 12000, adresse: r.adresse' },
+  /* Le message entier, et rien d'autre (relecture du 6 novembre 2026) : une cliente en retard ne reçoit pas de lien. */
+  { nom: 'une cliente qui fait ses courses recoit un lien (la phrase n a plus a tenir en entier)', fichier: AU, avant: '){0,2}$`);', apres: '){0,2}`);' },
+  { nom: 'une question recoit un lien', fichier: AU, avant: '  if (/[?？]/.test(brut)) return false;\n', apres: '' },
+  { nom: 'une cliente en route recoit un lien (le message peut porter autre chose apres la forme)', fichier: AU, avant: 'const UNE_DECLARATION_DE_FIN = new RegExp(`^(?:', apres: 'const UNE_DECLARATION_DE_FIN = new RegExp(`(?:' },
 ];
 
 const md5 = (rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');

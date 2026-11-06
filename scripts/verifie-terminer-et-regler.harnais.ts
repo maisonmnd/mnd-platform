@@ -19,7 +19,7 @@ import {
   resteDeLaPieceDeLaFin, pieceDuRdvDeLaFin, porteDeLaFin, finValable, SIGNES_DU_CODE_DE_LA_FIN, codeLu, quatreChiffresLus,
   finDuNumero, fenetreDeLaRecherche, retrouveLeRdv, FREIN_DE_LA_RECHERCHE, freinDeLaRecherche, billetDeLaFin,
   SIGNES_DU_JETON_DE_LA_FIN, LONGUEUR_DU_JETON_DE_LA_FIN, jetonDeLaFin, estUnJetonDeLaFin, adresseDuReglementDeLaFin,
-  lienDeLaFin, notificationDeLaFin, ditQuElleATermine, codeDansLeMessage, motDeLaMaisonALaFin, PAGE_POUR_RETROUVER_SON_RDV,
+  lienDeLaFin, notificationDeLaFin, ditQuElleATermine, ditAutreChoseQueLaFin, codeDansLeMessage, motDeLaMaisonALaFin, PAGE_POUR_RETROUVER_SON_RDV,
   marqueDeLaFinAuCarnet, pieceAPreparer, suitesAFaire, carteDuRituelEnCours, versementsDejaRecus,
   type RdvDeLaFin, type PieceDeLaFin,
 } from '../src/shared/terminer-et-regler-pur';
@@ -208,25 +208,60 @@ dit('... un foyer se dit au pluriel, et un reste inconnu ne se dit pas',
   { titre: 'Koffi et Sena ont terminé leur rituel', corps: 'Rendez-vous de 14 h 30. Règlement en cours depuis son téléphone, par WhatsApp. Un poste du Trône ouvert prépare sa pièce.', url: '/trone/#/carnet' },
   notificationDeLaFin({ prenoms: ['Koffi', 'Sena', 'Koffi'], heure: '14:30', porte: 'whatsapp', resteXof: null }));
 
-/* ── 11. « J'ai termine », en phrase libre ─────────────────────────────── */
-const OUI = [
-  'J’ai terminé mon RDV', 'j ai termine', 'J\'AI FINI', 'jai fini', 'J’ai terminé !', 'Bonjour, j’ai terminé mon rendez-vous', 'c’est fini', 'C\'est terminé, merci',
-  'on a fini', 'Nous avons terminé', 'Terminé', 'fini', 'rdv terminé', 'Séance terminée', 'Je veux régler', 'je voudrais payer', 'Je souhaite régler ma séance',
-  'envoyez-moi le lien de paiement', 'ça y est j’ai fini', 'J ai bien fini', 'je peux régler',
-  /* Quatorze mots : la plus longue phrase qui reste une declaration. */
-  'Bonjour, j’ai terminé mon rendez-vous, je voudrais régler s’il vous plaît',
+/* ── 11. « J'ai termine », en phrase libre : le message ENTIER, et rien d'autre ──
+   Relecture du 6 novembre 2026 : la premiere regle cherchait « j'ai fini »
+   quelque part dans la phrase, et une cliente en retard (« J'ai fini mon
+   travail, j'arrive »), son rendez-vous deja commence, aurait recu un lien de
+   reglement. Chaque liste rend les phrases MAL classees : vide, elle tient. */
+/* Les treize phrases d'une cliente qui a termine : elles doivent rester reconnues. */
+const RECONNUES = [
+  'J’ai terminé mon RDV', 'j’ai fini', 'J’ai terminé', 'C’est fini merci', 'terminé', 'rdv terminé', 'Je veux régler', 'je voudrais payer',
+  'On a terminé', 'ça y est j’ai fini', 'J’ai fini ma séance, merci', 'j ai termine mon rendez-vous', 'Bonjour, j’ai terminé ma séance',
 ];
-const NON = [
-  'Je n’ai pas terminé', 'J’ai pas fini', 'c’est pas terminé', 'pas encore fini', 'Quand est-ce que ce sera terminé ?', 'j’ai presque fini', 'Bonjour', 'Merci', 'Je veux réserver',
+/* Les onze phrases d'une cliente qui dit tout autre chose, que la premiere regle prenait pour une declaration. */
+const AUTRE_CHOSE = [
+  'J’ai fini mon travail, j’arrive', 'j’ai terminé le boulot je suis en route', 'J’ai fini de manger j’arrive dans 10 min', 'On a fini la réunion, je me mets en route',
+  'c’est fini la pluie, je viens', 'j’ai fini mes courses', 'J’ai terminé mes locks à la maison', 'j’ai fini ?', 'Bonjour j’ai fini le shampoing que vous m’avez vendu',
+  'J’ai fini à la banque, j’arrive', 'nous avons terminé le déménagement',
+];
+dit('les treize phrases d une cliente qui a termine sont reconnues', [], RECONNUES.filter((p) => !ditQuElleATermine(p)));
+dit('les onze phrases d une cliente qui dit autre chose (un retard, un trajet, ses courses) ne sont JAMAIS une declaration', [], AUTRE_CHOSE.filter(ditQuElleATermine));
+const AUSSI = [
+  'J\'AI FINI', 'jai fini', 'J’ai terminé !', 'c’est fini', 'C\'est terminé, merci', 'Nous avons terminé', 'fini', 'Séance terminée', 'ma séance est terminée',
+  'Je souhaite régler ma séance', 'je peux régler', 'je vais payer', 'je règle', 'je paie', 'Je veux payer ma séance d’aujourd’hui', 'je veux régler mon rendez-vous',
+  'le lien de paiement svp', 'J’ai terminé ma coiffure', 'On a fini notre soin', 'ça y est terminé',
+  'Coucou, c’est terminé, merci beaucoup, bonne journée', 'Bonsoir Madame, j’ai fini, à bientôt',
+  /* Deux formes a la suite restent une declaration. */
+  'J’ai terminé, je veux régler', 'Bonjour, j’ai terminé mon rendez-vous, je voudrais régler s’il vous plaît',
+  /* Son code de confirmation, ecrit avec sa declaration, ne la change pas. */
+  'J’ai fini MND-7K3Q',
+];
+dit('... la casse, les accents, la ponctuation, les saluts et la politesse ne comptent pas ; deux formes a la suite et son code ecrit avec restent une declaration', [], AUSSI.filter((p) => !ditQuElleATermine(p)));
+dit('... le complement vient de la liste fermee de la relecture (le shampoing, la reprise, nos locks, ma tete) ; hors de la liste, rien (mes soins, mon travail)', [true, true, true, true, false, false],
+  [ditQuElleATermine('j’ai fini le shampoing'), ditQuElleATermine('on a terminé la reprise'), ditQuElleATermine('nous avons fini nos locks'), ditQuElleATermine('j’ai fini ma tête'),
+    ditQuElleATermine('J’ai fini mes soins'), ditQuElleATermine('j’ai fini mon travail')]);
+const JAMAIS = [
+  'Je n’ai pas terminé', 'J’ai pas fini', 'c’est pas terminé', 'pas encore fini', 'Quand est-ce que ce sera terminé ?', 'j’ai presque fini', 'Bonjour', 'Merci', 'Bonjour, merci beaucoup', 'Je veux réserver',
   'Je veux régler mon abonnement', 'je voudrais payer ma commande', 'Comment régler ?', 'Combien je dois ?', 'Est-ce que je peux régler en ligne ?',
-  'J’ai terminé le travail hier', 'si j’ai fini avant 15 h je passe', 'Je veux payer un acompte',
+  'J’ai terminé le travail hier', 'si j’ai fini avant 15 h je passe', 'Je veux payer un acompte', 'J’ai terminé, j’arrive', 'Le travail, c’est fini',
   'Bonjour, j’ai terminé ma journée de travail un peu tard et je me demandais si vous aviez encore une place pour moi ce soir',
-  /* Vingt-trois mots, sans aucun mot d ecart : trop longue pour etre jugee ici, la conversation suit son cours. */
   'Bonjour à toute l’équipe de la Maison, j’ai terminé mon rendez-vous de ce matin avec vous, merci beaucoup pour tout',
   '', 'j’ai faim',
 ];
-dit('« j ai termine » se reconnait en phrase libre, casse, accents et ponctuation indifferents', OUI.map(() => true), OUI.map(ditQuElleATermine));
-dit('une negation, une question, un autre achat, un autre jour, une longue phrase : ce n est pas une declaration', NON.map(() => false), NON.map(ditQuElleATermine));
+dit('une negation, une question, un autre achat, un mot de plus, la politesse seule : ce n est pas une declaration', [], JAMAIS.filter(ditQuElleATermine));
+/* Dans le doute, pas une declaration : ces phrases-la restent a la conversation ordinaire. */
+const DANS_LE_DOUTE = [
+  'envoyez-moi le lien de paiement', 'J ai bien fini', 'Voilà, j’ai terminé', 'Oui j’ai fini', 'Ok terminé', 'c’est bon j’ai fini', 'C’est terminé pour moi',
+  'Bonjour Maison MND, j’ai terminé', 'J’ai terminé mon rendez-vous d’aujourd’hui', 'J’ai terminé, je peux payer ?', 'j’ai fini, mon code est MND-7K3Q',
+];
+dit('dans le doute, pas une declaration : un mot de liaison, un adverbe, une adresse a la Maison, une tournure hors des formes', [], DANS_LE_DOUTE.filter(ditQuElleATermine));
+dit('un point d interrogation dans son texte n est jamais une declaration', [false, false, false, true],
+  [ditQuElleATermine('j’ai fini ?'), ditQuElleATermine('Terminé ?'), ditQuElleATermine('je peux régler ?'), ditQuElleATermine('je peux régler')]);
+const TRAJETS = ['j’arrive', 'je vais arriver', 'je suis en route', 'sur le chemin', 'je viens', 'je vais venir', 'j’ai du retard', 'bientôt là', 'dans 10 minutes', 'attends-moi', 'je suis à la maison', 'chez moi'];
+dit('un mot de mouvement ou d attente, « a la maison », « chez moi » : elle parle d autre chose', [], TRAJETS.filter((p) => !ditAutreChoseQueLaFin(p)));
+dit('... « a bientot » est une politesse, pas une attente ; une declaration n est pas un trajet', [false, false], [ditAutreChoseQueLaFin('J’ai terminé, à bientôt'), ditAutreChoseQueLaFin('j’ai terminé mon rdv')]);
+dit('... et la regle interroge ce garde, puis exige le message entier', true,
+  /if \(MOUVEMENT_OU_ATTENTE_DE_LA_FIN\.test\(t\)\) return false;\s*return UNE_DECLARATION_DE_FIN\.test\(t\);/.test(lis('src/shared/terminer-et-regler-pur.ts')));
 dit('un code de confirmation se lit dans un message ; un mot apres « MND » n en est pas un', ['MND-7K3Q', 'MND-7K3Q', 'MND-UVGM', null, null, null],
   [codeDansLeMessage('mon code : mnd 7k3q'), codeDansLeMessage('MND-7K3Q'), codeDansLeMessage('c est mnd-uvgm'), codeDansLeMessage('Bonjour MND'), codeDansLeMessage('MND-7K0Q'),
     codeDansLeMessage('je suis à la Maison MND dans dix minutes')]);

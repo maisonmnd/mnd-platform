@@ -673,7 +673,7 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
   decor(); FINS.length = 0;
   rdv('rdv-de-demain', 'cl-banc-a', J1); rdv('rdv-annule', 'cl-banc-a', AUJOURDHUI, 'annulé');
   REPONSE_DE_LA_FIN = { ok: true, etat: 'a-regler', adresse: ADRESSE, resteXof: 12000 };
-  const w2 = elleEcrit(NUM, 'j ai fini, mon code est MND-7K3Q');
+  const w2 = elleEcrit(NUM, 'J’ai fini MND-7K3Q');
   const r2 = await tour(NUM, [w2]);
   dit('sans rendez-vous du jour a ce numero (demain, ou annule) : la fonction n est pas appelee, AUCUN lien de reglement ne part',
     [0, 1, false], [FINS.length, textesEnvoyes().length, /payer\.html|tg=r-/.test(textesEnvoyes().join(' '))]);
@@ -717,6 +717,20 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
   FILE = [{ texte: 'Bonjour Mme Akouele, que puis-je pour vous ?' }];
   await tour(NUM, [elleEcrit(NUM, 'Je n’ai pas terminé, vous avez encore du monde ?')]);
   dit('une phrase qui n est pas une declaration ne declenche rien : la fonction n est pas appelee', [0, 1], [FINS.length, DEMANDES.length]);
+
+  /* LE MESSAGE ENTIER, ET RIEN D'AUTRE (relecture du 6 novembre 2026) : une
+     cliente en retard, son rendez-vous du jour déjà commencé, écrit qu'elle
+     arrive. Ce n'est pas une déclaration : ni marque, ni lien de règlement,
+     la conversation suit son cours ordinaire avec Opale. */
+  for (const phrase of ['J’ai fini mon travail, j’arrive', 'c’est fini la pluie, je viens', 'j’ai fini mes courses', 'j’ai fini ?', 'Le travail, c’est fini']) {
+    decor(); FINS.length = 0;
+    rdv('rdv-du-jour', 'cl-banc-a', AUJOURDHUI);
+    REPONSE_DE_LA_FIN = { ok: true, etat: 'a-regler', adresse: ADRESSE, resteXof: 12000 };
+    FILE = [{ texte: 'Bien noté, Mme Akouele. Nous vous attendons à la Maison MND.' }];
+    await tour(NUM, [elleEcrit(NUM, phrase)]);
+    dit(`une cliente qui dit autre chose (« ${phrase.replace(/[^\x20-\x7e]/g, ' ')} ») ne recoit aucun lien de reglement : la fonction n est pas appelee, Opale repond`,
+      [0, 1, false], [FINS.length, DEMANDES.length, /payer\.html/.test(textesEnvoyes().join(' '))]);
+  }
 }
 
 console.log(`${ko ? 'ECHEC' : 'OK   '} ${n} controles, ${ko} echec(s)`);
