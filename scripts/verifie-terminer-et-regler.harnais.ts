@@ -20,7 +20,7 @@ import {
   finDuNumero, fenetreDeLaRecherche, retrouveLeRdv, FREIN_DE_LA_RECHERCHE, freinDeLaRecherche, billetDeLaFin,
   SIGNES_DU_JETON_DE_LA_FIN, LONGUEUR_DU_JETON_DE_LA_FIN, jetonDeLaFin, estUnJetonDeLaFin, adresseDuReglementDeLaFin,
   lienDeLaFin, notificationDeLaFin, ditQuElleATermine, codeDansLeMessage, motDeLaMaisonALaFin, PAGE_POUR_RETROUVER_SON_RDV,
-  marqueDeLaFinAuCarnet, pieceAPreparer, suitesAFaire, carteDuRituelEnCours,
+  marqueDeLaFinAuCarnet, pieceAPreparer, suitesAFaire, carteDuRituelEnCours, versementsDejaRecus,
   type RdvDeLaFin, type PieceDeLaFin,
 } from '../src/shared/terminer-et-regler-pur';
 import { ALPHABET_DE_LA_REFERENCE, referenceDuRendezVous, FORME_DU_JETON_DU_RDV, apptIdDuJeton } from '../src/shared/lien-du-rdv-pur';
@@ -205,8 +205,8 @@ dit('la notification du personnel : le prenom, l heure, la porte, le reste ; auc
   { titre: 'Awa a terminé son rituel', corps: 'Rendez-vous de 8 h. Règlement en cours depuis son téléphone, par Ma Couronne. Reste 12 000 F. Un poste du Trône ouvert prépare sa pièce.', url: '/trone/#/carnet' },
   notificationDeLaFin({ prenoms: ['Awa'], heure: '08:00', porte: 'couronne', resteXof: 12000 }));
 dit('... un foyer se dit au pluriel, et un reste inconnu ne se dit pas',
-  { titre: 'Nael et Sena ont terminé leur rituel', corps: 'Rendez-vous de 14 h 30. Règlement en cours depuis son téléphone, par WhatsApp. Un poste du Trône ouvert prépare sa pièce.', url: '/trone/#/carnet' },
-  notificationDeLaFin({ prenoms: ['Nael', 'Sena', 'Nael'], heure: '14:30', porte: 'whatsapp', resteXof: null }));
+  { titre: 'Koffi et Sena ont terminé leur rituel', corps: 'Rendez-vous de 14 h 30. Règlement en cours depuis son téléphone, par WhatsApp. Un poste du Trône ouvert prépare sa pièce.', url: '/trone/#/carnet' },
+  notificationDeLaFin({ prenoms: ['Koffi', 'Sena', 'Koffi'], heure: '14:30', porte: 'whatsapp', resteXof: null }));
 
 /* ── 11. « J'ai termine », en phrase libre ─────────────────────────────── */
 const OUI = [
@@ -388,7 +388,7 @@ const remplis = () => {
   db.clients = [
     { id: 'c1', branch_id: 'b1', data: { name: 'Awa Kossou', phone: '+229 01 97 12 44 80' } },
     { id: 'c2', branch_id: 'b1', data: { name: 'Sena Dossou', phone: '+229 01 55 00 12 34', passeAuComptoir: true } },
-    { id: 'ca', branch_id: 'b1', data: { name: 'Nael Agbo', phone: '+229 01 60 00 00 01', phoneNom: 'Maman' } },
+    { id: 'ca', branch_id: 'b1', data: { name: 'Koffi Agbo', phone: '+229 01 60 00 00 01', phoneNom: 'Maman' } },
     { id: 'cb', branch_id: 'b1', data: { name: 'Fifa Agbo', phone: '+229 01 60 00 00 01', phoneNom: 'Maman' } },
     { id: 'fiche-9', branch_id: 'b1', data: { name: 'Mahu Tossou', phone: '+229 01 61 00 00 09', authUserId: 'uid-9' } },
   ];
@@ -498,7 +498,7 @@ dit('le foyer : un seul lien pour les deux tetes, la liste entiere sur chacune, 
   ['a-regler', 12000, { jeton: jf, apptIds: ['rdv-fi', 'rdv-na'] }, { jeton: jf, apptIds: ['rdv-fi', 'rdv-na'] }, 'site', 'whatsapp'],
   [foyer.corps.etat, foyer.corps.resteXof, { jeton: rdvDe('rdv-na').lienDuFoyer?.jeton, apptIds: rdvDe('rdv-na').lienDuFoyer?.apptIds }, { jeton: rdvDe('rdv-fi').lienDuFoyer?.jeton, apptIds: rdvDe('rdv-fi').lienDuFoyer?.apptIds },
     rdvDe('rdv-na').termineParElle?.par, rdvDe('rdv-fi').termineParElle?.par]);
-dit('... et la notification nomme les deux tetes', 'Nael et Fifa ont terminé leur rituel', notifications[notifications.length - 1]?.titre);
+dit('... et la notification nomme les deux tetes', 'Koffi et Fifa ont terminé leur rituel', notifications[notifications.length - 1]?.titre);
 
 /* ── Honore QUAND ELLE A REGLE : la vraie fonction regler-la-seance ── */
 const piece = (id: string, apptId: string, xof: number) => ({ id, branch_id: 'b1', data: { id, kind: 'facture', status: 'envoyée', apptId, date: JOUR, lines: [{ label: 'La Reprise', qty: 1, unitXof: xof, discountPct: 0 }], globalDiscountPct: 0 } });
@@ -686,6 +686,20 @@ dit('... le prix se fige avec la reservation, la piece s ecrit au tarif de sa te
     /const tarifs = tarifsDuRituel\(frais, \{\s*client: clients\.find\(\(c\) => c\.id === frais\.clientId\),\s*bands, sets, cats: categories, byId, tousServices: services, produits,\s*\}\);/.test(effetPiece),
     /const r = factureAEnvoyer\(frais, byId, frais\.branchId, tarifs\.prixPlein, tarifs\.gesteDe\);/.test(effetPiece)]);
 dit('... et le rendez-vous n est JAMAIS honore a sa declaration', false, /honorAppointment|honoreSansEncaisser|honoreALEncaissement|status: 'honoré'/.test(effetPiece));
+/* L'acompte et les versements d'avant montent sur la piece neuve : la page dit le juste reste. */
+const ACOMPTE = [{ date: '2026-11-01', amountXof: 5000, note: 'Acompte reçu avant le comptoir' }];
+dit('l acompte reconnu monte sur sa piece, a SA date, en « Acompte » (aucun tiroir d aujourd hui), sous un identifiant tire du rendez-vous',
+  [{ id: 'deja-rdv-1-0', date: '2026-11-01', amountXof: 5000, method: 'Acompte', note: 'Acompte reçu avant le comptoir' }],
+  versementsDejaRecus({ rdvId: 'rdv-1', totalXof: 12000, dejaRecu: ACOMPTE }));
+dit('... la page « Regler » dit alors le meme reste que le billet : 12 000 moins l acompte de 5 000', [7000, 7000],
+  [resteDeLaPieceDeLaFin({ id: 'p', status: 'envoyée', lines: [{ qty: 1, unitXof: 12000 }], payments: versementsDejaRecus({ rdvId: 'rdv-1', totalXof: 12000, dejaRecu: ACOMPTE }) }),
+    resteConnuDeLaFin(rdv({ depositXof: 5000, depositConfirmed: true }))]);
+dit('... jamais plus que le total de la piece, dans l ordre ou l argent est entre ; rien a monter, rien d ecrit', [[4000, 3000], [], []],
+  [versementsDejaRecus({ rdvId: 'r', totalXof: 7000, dejaRecu: [{ date: '2026-10-01', amountXof: 4000, note: 'a' }, { date: '2026-10-20', amountXof: 5000, note: 'b' }, { date: '2026-11-01', amountXof: 1000, note: 'c' }] }).map((v) => v.amountXof),
+    versementsDejaRecus({ rdvId: 'r', totalXof: 7000, dejaRecu: [] }), versementsDejaRecus({ rdvId: 'r', totalXof: 0, dejaRecu: ACOMPTE })]);
+dit('... le Trone les monte sur la piece NEUVE seulement, avec ce que le rendez-vous a deja recu (la regle de la Caisse, lArgentDejaRecu)', [true, true],
+  [/if \(!r\.deja\) \{\s*const deja = versementsDejaRecus\(\{ rdvId: frais\.id, totalXof: invoiceTotal\(r\.inv\), dejaRecu: lArgentDejaRecu\(frais, frais\.date\) \}\);/.test(effetPiece),
+    /if \(deja\.length > 0\) \{\s*invoicesStore\.set\(\(prev\) => prev\.map\(\(i\) => \(i\.id === r\.inv\.id \? \{ \.\.\.i, payments: \[\.\.\.\(i\.payments \?\? \[\]\), \.\.\.deja\] \} : i\)\)\);/.test(effetPiece)]);
 dit('les suites de l honneur pose au reglement : une fois (reservation de suitesLe), puis les points, le stock, la mission, comme au comptoir',
   [true, true, true],
   [/appts\.filter\(\(a\) => a\.branchId === branch\.id && suitesAFaire\(a\) && !fait\.has\(`suite-\$\{a\.id\}`\)\)/.test(effetSuites),

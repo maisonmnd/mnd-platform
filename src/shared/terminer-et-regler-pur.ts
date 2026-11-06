@@ -474,6 +474,28 @@ export function pieceAPreparer(r: Pick<RdvDeLaFin, 'id' | 'date' | 'time' | 'sta
   return !aDejaSaPiece && r.status === 'confirmé' && finValable(r);
 }
 
+/** L'ARGENT DÉJÀ REÇU MONTE SUR SA PIÈCE : l'acompte reconnu et les
+    versements d'avant, chacun à SA date, comme le ticket de la Caisse les
+    écrit (« Acompte », sans caisse : ils sont entrés un autre jour, aucun
+    tiroir d'aujourd'hui ne les reçoit). Sans eux, la page « Régler »
+    redemanderait le prix entier à une cliente qui a versé un acompte. Jamais
+    plus que le total de la pièce ; des identifiants tirés du rendez-vous,
+    pour que deux postes écrivent les mêmes lignes. */
+export function versementsDejaRecus(o: {
+  rdvId: string; totalXof: number;
+  dejaRecu: readonly { date: string; amountXof: number; note: string }[];
+}): { id: string; date: string; amountXof: number; method: 'Acompte'; note: string }[] {
+  const out: { id: string; date: string; amountXof: number; method: 'Acompte'; note: string }[] = [];
+  let reste = Math.max(0, Math.round(Number(o.totalXof) || 0));
+  o.dejaRecu.forEach((d, k) => {
+    const m = Math.min(reste, Math.max(0, Math.round(Number(d.amountXof) || 0)));
+    if (m <= 0) return;
+    out.push({ id: `deja-${o.rdvId}-${k}`, date: d.date, amountXof: m, method: 'Acompte', note: d.note });
+    reste -= m;
+  });
+  return out;
+}
+
 /** LES SUITES D'UN HONNEUR POSÉ AU RÈGLEMENT : le serveur a passé le
     rendez-vous « honoré », un poste du Trône fait les points, le stock et
     la mission, une seule fois (il réserve `suitesLe` d'abord). */

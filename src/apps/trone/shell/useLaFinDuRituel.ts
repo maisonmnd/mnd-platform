@@ -4,12 +4,13 @@ import { useBranch } from '../../../shared/branches';
 import { appointmentsStore, useAppointments } from '../../../shared/agenda';
 import { useCategories, useProducts, useServices } from '../../../shared/catalog';
 import { useClients } from '../../../shared/clients';
-import { useInvoices } from '../../../shared/finance';
+import { invoiceTotal, invoicesStore, useInvoices } from '../../../shared/finance';
 import { useBandSets, useModelBands } from '../../../shared/pricing';
 import { supabase } from '../../../shared/supabase';
 import { tablePrete } from '../../../shared/sync';
 import { sonne } from '../../../shared/sonnette';
-import { pieceAPreparer, suitesAFaire } from '../../../shared/terminer-et-regler-pur';
+import { pieceAPreparer, suitesAFaire, versementsDejaRecus } from '../../../shared/terminer-et-regler-pur';
+import { lArgentDejaRecu } from '../routes/vente/encaissement-pur';
 import { toast } from '../../../ds/components';
 import { apptDueXof, prixAFiger, tarifsDuRituel, useServicesById } from '../routes/clients/_shared';
 import { factureAEnvoyer, honorAppointment } from '../routes/clients/actions';
@@ -23,8 +24,10 @@ import { factureAEnvoyer, honorAppointment } from '../routes/clients/actions';
    ① SA PIÈCE. Le serveur ne lit pas le tarif d'une tête : un poste ouvert
       fige le prix du rendez-vous (`prixAFiger`, le premier geste d'argent)
       et écrit la facture à régler (`factureAEnvoyer`, celle de « Terminer
-      la séance »), SANS honorer. La page « Régler » de la cliente la relit
-      et dit le juste reste. Un poste RÉSERVE d'abord la pièce au serveur
+      la séance »), SANS honorer ; l'acompte reconnu et les versements
+      d'avant y montent (`versementsDejaRecus`, comme au ticket de la
+      Caisse). La page « Régler » de la cliente la relit et dit le juste
+      reste. Un poste RÉSERVE d'abord la pièce au serveur
       (écriture conditionnelle sur `termineParElle.pieceLe`) : deux postes
       ouverts n'en écrivent qu'une. Une marque qui ne tient pas (posée hors
       de la porte) n'écrit rien (`pieceAPreparer`).
@@ -113,7 +116,16 @@ export function useLaFinDuRituel(): void {
             bands, sets, cats: categories, byId, tousServices: services, produits,
           });
           const r = factureAEnvoyer(frais, byId, frais.branchId, tarifs.prixPlein, tarifs.gesteDe);
-          if (!r.ok) toast(`${prenom} a terminé son rituel, mais sa pièce n’a pas pu s’écrire (${r.erreur}) : encaissez-la au comptoir.`, 10_000);
+          if (!r.ok) { toast(`${prenom} a terminé son rituel, mais sa pièce n’a pas pu s’écrire (${r.erreur}) : encaissez-la au comptoir.`, 10_000); return; }
+          /* L'acompte reconnu et les versements d'avant montent sur la pièce
+             neuve, comme au ticket de la Caisse : la page « Régler » dit alors
+             le juste reste, pas le prix entier. Jamais sur une pièce déjà là. */
+          if (!r.deja) {
+            const deja = versementsDejaRecus({ rdvId: frais.id, totalXof: invoiceTotal(r.inv), dejaRecu: lArgentDejaRecu(frais, frais.date) });
+            if (deja.length > 0) {
+              invoicesStore.set((prev) => prev.map((i) => (i.id === r.inv.id ? { ...i, payments: [...(i.payments ?? []), ...deja] } : i)));
+            }
+          }
         } catch (err) {
           console.warn('[la fin du rituel] pièce :', err);
         }
