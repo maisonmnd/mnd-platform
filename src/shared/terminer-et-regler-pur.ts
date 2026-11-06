@@ -188,6 +188,17 @@ export function finValable(r: Pick<RdvDeLaFin, 'date' | 'time' | 'status' | 'ter
   return Number.isFinite(debut) && le >= debut && jourDeLaFin(le) === String(r.date ?? '').slice(0, 10);
 }
 
+/** SUR LA PORTE WHATSAPP SEULEMENT : pendant les vingt premières minutes
+    après l'heure du rendez-vous, une phrase libre (« c'est fini », « fini »)
+    n'est pas reçue comme une déclaration. Le rituel commence à peine : aucune
+    marque ne se pose, et la conversation suit son cours ordinaire. Ma Couronne
+    et le site portent un bouton, pas une phrase : elles gardent l'heure du rituel. */
+export const ATTENTE_DE_LA_PORTE_WHATSAPP_MS = 20 * 60_000;
+export function aPeineCommence(r: Pick<RdvDeLaFin, 'date' | 'time'>, maintenantMs: number): boolean {
+  const debut = instantDuRituel(r.date, r.time);
+  return Number.isFinite(debut) && maintenantMs >= debut && maintenantMs < debut + ATTENTE_DE_LA_PORTE_WHATSAPP_MS;
+}
+
 /* ── RETROUVER SON RENDEZ-VOUS : LE CODE ET LES QUATRE CHIFFRES ─────────── */
 
 /** L'alphabet de la référence « MND-7K3Q » (lien-du-rdv-pur.ts ; le banc compare). */
@@ -370,7 +381,10 @@ export function notificationDeLaFin(o: { prenoms: readonly string[]; heure?: str
    libre. La Maison reconnaît la phrase, retrouve le rituel du jour par le
    numéro (la voix du numéro, jamais une fiche d'enfant) et répond avec le
    montant et le lien de règlement. Sans rendez-vous du jour à ce numéro,
-   elle demande le code : aucun lien de règlement ne part au hasard. */
+   aucun lien de règlement ne part : si le message NOMME le rendez-vous (la
+   séance, le rituel, le lien de paiement, son code), elle demande le code ;
+   sinon (« c'est fini », « fini », « je veux régler ») ce n'est pas à elle de
+   répondre, et la conversation suit son cours ordinaire. */
 
 const motsDuMessageDeFin = (texte: unknown): string =>
   String(texte ?? '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
@@ -387,26 +401,44 @@ const motsDuMessageDeFin = (texte: unknown): string =>
 
 /** Les saluts et la politesse : retirés avant de juger, où qu'ils soient. */
 const POLITESSE_DU_MESSAGE_DE_FIN = /\b(?:merci beaucoup|s il vous plait|bonne journee|bonne soiree|a bientot|bonjour|bonsoir|coucou|salut|cc|merci|svp|stp|madame|mme)\b/g;
+/** L'adresse à la Maison (« Bonjour Maison MND, j'ai terminé ») : retirée elle
+    aussi, mais APRÈS le garde du trajet (« je suis à la Maison MND » reste un trajet). */
+const ADRESSE_A_LA_MAISON_DE_LA_FIN = /\b(?:la )?maison mnd\b/g;
 /** Un mot de mouvement ou d'attente, « à la maison », « chez moi » : elle
     parle d'un trajet, d'un retard, d'autre chose. Jamais une déclaration. */
 const MOUVEMENT_OU_ATTENTE_DE_LA_FIN = /\b(?:arrive|arrives|arrivee|arriver|arrivons|route|chemin|viens|vient|venir|venons|viendrai|retard|bientot|minute|minutes|min|attends|attend|attendez|a la maison|chez moi)\b/;
-/** Ce qu'elle a fini, dans une liste fermée : « mon rdv », « ma séance », « le soin », « nos locks ». */
-const COMPLEMENT_DE_LA_FIN = '(?:mon|ma|le|la|notre|nos) (?:rdv|rendez vous|seance|rituel|coiffure|soin|soins|tete|locks|reprise|shampoing|resserrage)';
-/** (a) Elle a fini : « j'ai terminé », « on a fini », « c'est fini », « ça y est j'ai fini », avec ou sans ce complément. */
-const ELLE_A_FINI = `(?:j ai|jai|on a|nous avons|c est|cest|ca y est(?: j ai| jai)?) (?:termine|terminee|termines|terminees|fini|finie|finis|finies)(?: ${COMPLEMENT_DE_LA_FIN})?`;
+/** Ce qu'elle a fini, dans une liste fermée : « mon rdv », « ma séance », « le
+    soin », « mes locks ». Pas « le shampoing » : « j'ai fini le shampoing »,
+    c'est un flacon vide. */
+const COMPLEMENT_DE_LA_FIN = '(?:mon|ma|mes|le|la|notre|nos) (?:rdv|rendez vous|seance|rituel|coiffure|soin|soins|tete|locks|reprise|resserrage)';
+/** (a) Elle a fini : « j'ai terminé », « on a fini », « c'est fini », « ça y est j'ai fini », avec ou sans ce complément (« d'aujourd'hui »). */
+const ELLE_A_FINI = `(?:j ai|jai|on a|nous avons|c est|cest|ca y est(?: j ai| jai)?) (?:termine|terminee|termines|terminees|fini|finie|finis|finies)(?: ${COMPLEMENT_DE_LA_FIN}(?: d aujourd hui)?)?`;
 /** (b) En peu de mots : « terminé », « rdv terminé », « séance finie ». */
 const FIN_EN_PEU_DE_MOTS = '(?:(?:(?:mon|ma|le|la|notre) )?(?:rdv|rendez vous|seance|rituel|coiffure|soin) )?(?:est )?(?:termine|terminee|fini|finie)';
-/** (c) Elle veut régler : « je veux régler », « je paie », « le lien de paiement », avec ou sans ce complément (« d'aujourd'hui »). */
-const ELLE_VEUT_REGLER = `(?:je (?:veux|voudrais|souhaite|peux|vais) (?:regler|payer)|je regle|je paie|je paye|(?:le )?lien de paiement)(?: ${COMPLEMENT_DE_LA_FIN}(?: d aujourd hui)?)?`;
+/** (c) Elle veut régler : « je veux régler », « je voudrais payer », « le lien
+    de paiement », avec ou sans ce complément (« d'aujourd'hui »). « Je paie »,
+    « je vais payer », « je peux payer », « je règle » ne valent QUE suivis de
+    ce complément (« je paie ma séance ») : nus, ils répondent aussi bien à une
+    relance, à une question, à tout autre chose. */
+const ELLE_VEUT_REGLER = `(?:(?:je (?:veux|voudrais|souhaite) (?:regler|payer)|(?:le )?lien de paiement)(?: ${COMPLEMENT_DE_LA_FIN}(?: d aujourd hui)?)?|(?:je (?:peux|vais) (?:regler|payer)|je regle|je paie|je paye) ${COMPLEMENT_DE_LA_FIN}(?: d aujourd hui)?)`;
+/** Un mot de liaison, en tête seulement : « oui », « voilà », « ok », « c'est bon », « bien ». */
+const LIAISON_EN_TETE_DE_LA_FIN = '(?:oui|voila|ok|c est bon|cest bon|bien)';
 /** Une de ces formes, ou deux ou trois à la suite (« j'ai terminé, je veux régler »), du premier mot au dernier. */
-const UNE_DECLARATION_DE_FIN = new RegExp(`^(?:${ELLE_A_FINI}|${FIN_EN_PEU_DE_MOTS}|${ELLE_VEUT_REGLER})(?: (?:${ELLE_A_FINI}|${FIN_EN_PEU_DE_MOTS}|${ELLE_VEUT_REGLER})){0,2}$`);
+const UNE_DECLARATION_DE_FIN = new RegExp(`^(?:${LIAISON_EN_TETE_DE_LA_FIN} ){0,2}(?:${ELLE_A_FINI}|${FIN_EN_PEU_DE_MOTS}|${ELLE_VEUT_REGLER})(?: (?:${ELLE_A_FINI}|${FIN_EN_PEU_DE_MOTS}|${ELLE_VEUT_REGLER})){0,2}$`);
+
+/** « Je viens de terminer », « on vient de finir » : la même chose que « j'ai
+    terminé » (et « viens » n'y dit aucun trajet). */
+const vientDeFinirDeLaFin = (t: string): string => t
+  .replace(/\bje viens de (terminer|finir)\b/g, (_m, v: string) => `j ai ${v === 'finir' ? 'fini' : 'termine'}`)
+  .replace(/\bon vient de (terminer|finir)\b/g, (_m, v: string) => `on a ${v === 'finir' ? 'fini' : 'termine'}`)
+  .replace(/\bnous venons de (terminer|finir)\b/g, (_m, v: string) => `nous avons ${v === 'finir' ? 'fini' : 'termine'}`);
 
 /** Le message, saluts et politesse retirés, et le code de confirmation qu'elle a pu y écrire. */
 function coeurDuMessageDeFin(texte: unknown): string {
   let t = motsDuMessageDeFin(texte);
   const code = codeDansLeMessage(texte);
   if (code) t = ` ${t} `.replace(` mnd ${code.slice(4).toLowerCase()} `, ' ').replace(` mnd${code.slice(4).toLowerCase()} `, ' ');
-  return t.replace(POLITESSE_DU_MESSAGE_DE_FIN, ' ').replace(/ +/g, ' ').trim();
+  return vientDeFinirDeLaFin(t.replace(POLITESSE_DU_MESSAGE_DE_FIN, ' ').replace(/ +/g, ' ').trim());
 }
 
 /** Elle parle d'autre chose que de la fin de son rituel : un trajet, un retard, sa maison. */
@@ -423,8 +455,17 @@ export function ditQuElleATermine(texte: unknown): boolean {
   const t = coeurDuMessageDeFin(brut);
   if (!t) return false;
   if (MOUVEMENT_OU_ATTENTE_DE_LA_FIN.test(t)) return false;
-  return UNE_DECLARATION_DE_FIN.test(t);
+  return UNE_DECLARATION_DE_FIN.test(t.replace(ADRESSE_A_LA_MAISON_DE_LA_FIN, ' ').replace(/ +/g, ' ').trim());
 }
+
+/** ELLE NOMME SON RENDEZ-VOUS : le rendez-vous, la séance, le rituel, le lien
+    de paiement, ou son code de confirmation. Sans rendez-vous du jour à ce
+    numéro, c'est la seule déclaration à laquelle la Maison répond elle-même
+    (elle demande le code) ; « c'est fini », « fini », « j'ai fini » tout
+    courts peuvent parler de n'importe quoi, et restent à la conversation. */
+const NOM_DU_RENDEZ_VOUS_DE_LA_FIN = /\b(?:rdv|rendez vous|seance|rituel|lien de paiement)\b/;
+export const nommeSonRendezVous = (texte: unknown): boolean =>
+  NOM_DU_RENDEZ_VOUS_DE_LA_FIN.test(motsDuMessageDeFin(texte)) || codeDansLeMessage(texte) !== null;
 
 /** Un code de confirmation écrit dans un message (« MND-7K3Q », « mnd 7k3q »),
     ou null. Sans tiret, quatre lettres minuscules sans chiffre sont un mot

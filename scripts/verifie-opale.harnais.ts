@@ -698,9 +698,57 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
   rdv('rdv-du-jour', 'cl-banc-a', AUJOURDHUI);
   REPONSE_DE_LA_FIN = null;
   FILE = [{ texte: 'Merci Mme Akouele. Une personne de la Maison vous répond ici dans un instant.' }];
-  await tour(NUM, [elleEcrit(NUM, 'J’ai terminé')]);
-  dit('la fonction ne repond pas : rien d invente, la conversation suit son cours ordinaire (Claude repond)', [1, 1, false],
-    [FINS.length, DEMANDES.length, /payer\.html/.test(textesEnvoyes().join(' '))]);
+  await tour(NUM, [elleEcrit(NUM, 'J’ai terminé mon RDV')]);
+  dit('la fonction ne repond pas : rien d invente, la conversation suit son cours ordinaire (Claude repond)', [1, 1, false, false],
+    [FINS.length, DEMANDES.length, /payer\.html/.test(textesEnvoyes().join(' ')), /code de confirmation/.test(textesEnvoyes().join(' '))]);
+
+  /* SANS RENDEZ-VOUS DU JOUR À CE NUMÉRO (seconde relecture du 6 novembre
+     2026) : « c'est fini », « fini », « j'ai fini », « je veux régler » tout
+     courts parlent peut-être d'autre chose. La Maison ne demande pas le code :
+     Opale répond comme d'habitude, la main ne passe pas. */
+  for (const phrase of ['C’est fini', 'Fini', 'J’ai fini', 'Je veux régler', 'On a terminé']) {
+    decor(); FINS.length = 0;
+    rdv('rdv-de-demain', 'cl-banc-a', J1);
+    REPONSE_DE_LA_FIN = { ok: true, etat: 'a-regler', adresse: ADRESSE, resteXof: 12000 };
+    FILE = [{ texte: 'Bien noté, Mme Akouele. Que puis-je pour vous ?' }];
+    await tour(NUM, [elleEcrit(NUM, phrase)]);
+    dit(`sans rendez-vous du jour, « ${phrase.replace(/[^\x20-\x7e]/g, ' ')} » ne nomme rien : ni code demande, ni main passee, Opale repond`,
+      [0, 1, false, false], [FINS.length, DEMANDES.length, /code de confirmation|payer\.html/.test(textesEnvoyes().join(' ')), fil(NUM)?.etape === 'main']);
+  }
+  decor(); FINS.length = 0;
+  rdv('rdv-de-demain', 'cl-banc-a', J1);
+  const w3 = elleEcrit(NUM, 'J’ai terminé mon RDV');
+  const r3 = await tour(NUM, [w3]);
+  dit('... mais celle qui NOMME son rendez-vous recoit la demande du code, et la main passe a l equipe (Claude n est pas appele)',
+    [0, true, 'main', true, 0], [FINS.length, textesEnvoyes()[0]?.includes('code de confirmation'), fil(NUM)?.etape, !!r3.alerte, DEMANDES.length]);
+
+  /* LES VINGT PREMIÈRES MINUTES DU RITUEL : la fonction dit « a-peine-commence »,
+     la Maison ne répond pas d'elle-même (ni lien, ni phrase toute faite), Opale répond. */
+  decor(); FINS.length = 0;
+  rdv('rdv-du-jour', 'cl-banc-a', AUJOURDHUI);
+  REPONSE_DE_LA_FIN = { ok: true, etat: 'a-peine-commence' };
+  FILE = [{ texte: 'Bien noté, Mme Akouele. Bon rituel à la Maison MND.' }];
+  await tour(NUM, [elleEcrit(NUM, 'J’ai terminé mon RDV')]);
+  dit('le rituel commence a peine (vingt premieres minutes) : la fonction est interrogee, aucune reponse toute faite ne part, Opale repond',
+    [1, 1, false], [FINS.length, DEMANDES.length, /payer\.html|code de confirmation|c'est noté/.test(textesEnvoyes().join(' '))]);
+
+  /* LES FORMES NUES « je paie / je vais payer / je peux payer » ne sont plus une déclaration. */
+  for (const phrase of ['Je vais payer', 'Je paie', 'Je peux payer']) {
+    decor(); FINS.length = 0;
+    rdv('rdv-du-jour', 'cl-banc-a', AUJOURDHUI);
+    REPONSE_DE_LA_FIN = { ok: true, etat: 'a-regler', adresse: ADRESSE, resteXof: 12000 };
+    FILE = [{ texte: 'Bien noté, Mme Akouele.' }];
+    await tour(NUM, [elleEcrit(NUM, phrase)]);
+    dit(`« ${phrase} » tout nu n est pas une declaration : la fonction n est pas appelee, Opale repond`, [0, 1, false], [FINS.length, DEMANDES.length, /payer\.html/.test(textesEnvoyes().join(' '))]);
+  }
+  /* Reconnues aussi, toujours le message entier. */
+  for (const phrase of ['Voilà, j’ai terminé', 'Bonjour Maison MND, je viens de terminer', 'Oui c’est bon, j’ai fini mes soins', 'J’ai terminé mon rendez-vous d’aujourd’hui']) {
+    decor(); FINS.length = 0;
+    rdv('rdv-du-jour', 'cl-banc-a', AUJOURDHUI);
+    REPONSE_DE_LA_FIN = { ok: true, etat: 'a-regler', adresse: ADRESSE, resteXof: 12000 };
+    await tour(NUM, [elleEcrit(NUM, phrase)]);
+    dit(`« ${phrase.replace(/[^\x20-\x7e]/g, ' ')} » est une declaration : la Maison repond elle-meme, avec le lien`, [1, 0, true], [FINS.length, DEMANDES.length, /payer\.html/.test(textesEnvoyes().join(' '))]);
+  }
 
   /* Le rituel d'un enfant, sur le numéro de sa mère : le salut va à la mère. */
   decor(); FINS.length = 0;

@@ -19,7 +19,8 @@ import {
   resteDeLaPieceDeLaFin, pieceDuRdvDeLaFin, porteDeLaFin, finValable, SIGNES_DU_CODE_DE_LA_FIN, codeLu, quatreChiffresLus,
   finDuNumero, fenetreDeLaRecherche, retrouveLeRdv, FREIN_DE_LA_RECHERCHE, freinDeLaRecherche, billetDeLaFin,
   SIGNES_DU_JETON_DE_LA_FIN, LONGUEUR_DU_JETON_DE_LA_FIN, jetonDeLaFin, estUnJetonDeLaFin, adresseDuReglementDeLaFin,
-  lienDeLaFin, notificationDeLaFin, ditQuElleATermine, ditAutreChoseQueLaFin, codeDansLeMessage, motDeLaMaisonALaFin, PAGE_POUR_RETROUVER_SON_RDV,
+  lienDeLaFin, notificationDeLaFin, ditQuElleATermine, ditAutreChoseQueLaFin, nommeSonRendezVous, codeDansLeMessage, motDeLaMaisonALaFin, PAGE_POUR_RETROUVER_SON_RDV,
+  aPeineCommence, ATTENTE_DE_LA_PORTE_WHATSAPP_MS,
   marqueDeLaFinAuCarnet, pieceAPreparer, suitesAFaire, carteDuRituelEnCours, versementsDejaRecus,
   type RdvDeLaFin, type PieceDeLaFin,
 } from '../src/shared/terminer-et-regler-pur';
@@ -228,7 +229,7 @@ dit('les treize phrases d une cliente qui a termine sont reconnues', [], RECONNU
 dit('les onze phrases d une cliente qui dit autre chose (un retard, un trajet, ses courses) ne sont JAMAIS une declaration', [], AUTRE_CHOSE.filter(ditQuElleATermine));
 const AUSSI = [
   'J\'AI FINI', 'jai fini', 'J’ai terminé !', 'c’est fini', 'C\'est terminé, merci', 'Nous avons terminé', 'fini', 'Séance terminée', 'ma séance est terminée',
-  'Je souhaite régler ma séance', 'je peux régler', 'je vais payer', 'je règle', 'je paie', 'Je veux payer ma séance d’aujourd’hui', 'je veux régler mon rendez-vous',
+  'Je souhaite régler ma séance', 'Je veux payer ma séance d’aujourd’hui', 'je veux régler mon rendez-vous',
   'le lien de paiement svp', 'J’ai terminé ma coiffure', 'On a fini notre soin', 'ça y est terminé',
   'Coucou, c’est terminé, merci beaucoup, bonne journée', 'Bonsoir Madame, j’ai fini, à bientôt',
   /* Deux formes a la suite restent une declaration. */
@@ -237,31 +238,60 @@ const AUSSI = [
   'J’ai fini MND-7K3Q',
 ];
 dit('... la casse, les accents, la ponctuation, les saluts et la politesse ne comptent pas ; deux formes a la suite et son code ecrit avec restent une declaration', [], AUSSI.filter((p) => !ditQuElleATermine(p)));
-dit('... le complement vient de la liste fermee de la relecture (le shampoing, la reprise, nos locks, ma tete) ; hors de la liste, rien (mes soins, mon travail)', [true, true, true, true, false, false],
-  [ditQuElleATermine('j’ai fini le shampoing'), ditQuElleATermine('on a terminé la reprise'), ditQuElleATermine('nous avons fini nos locks'), ditQuElleATermine('j’ai fini ma tête'),
-    ditQuElleATermine('J’ai fini mes soins'), ditQuElleATermine('j’ai fini mon travail')]);
+/* Elargi a la seconde relecture, toujours le message ENTIER : « mes », « d'aujourd'hui » apres ce
+   qu'elle a fini, un mot de liaison en tete, l'adresse a la Maison, « je viens de terminer ». */
+const ELARGIES = [
+  'J’ai fini mes soins', 'j’ai terminé mes locks', 'J’ai terminé mon rendez-vous d’aujourd’hui', 'on a fini la séance d’aujourd’hui',
+  'Voilà, j’ai terminé', 'Oui j’ai fini', 'Ok terminé', 'c’est bon j’ai fini', 'Bien, j’ai terminé', 'Oui, c’est bon, c’est fini',
+  'Bonjour Maison MND, j’ai terminé', 'Bonsoir la Maison MND, c’est terminé, merci',
+  'Je viens de terminer', 'je viens de finir ma séance', 'On vient de terminer', 'Nous venons de finir notre rituel',
+];
+dit('reconnues aussi : « mes », « d aujourd hui », un mot de liaison en tete, « Maison MND » en adresse, « je viens de terminer »', [], ELARGIES.filter((p) => !ditQuElleATermine(p)));
+/* « Je paie », « je vais payer », « je peux payer » tout nus repondent aussi bien a une relance ou a une question : jamais une declaration. */
+const NUES = ['Je vais payer', 'Je paie', 'Je peux payer', 'je paye', 'je règle', 'je peux régler', 'je vais régler', 'Bonjour, je vais payer, merci'];
+dit('les formes nues « je paie / je vais payer / je peux payer / je regle » ne sont plus une declaration ; suivies de ce qu elle regle, elles le restent', [[], [true, true, true]],
+  [NUES.filter(ditQuElleATermine), [ditQuElleATermine('je paie ma séance'), ditQuElleATermine('Je vais payer mon rendez-vous d’aujourd’hui'), ditQuElleATermine('je peux régler mon rituel')]]);
+dit('... le complement vient d une liste fermee (la reprise, nos locks, ma tete, mes soins) ; « le shampoing » n y est plus (un flacon vide), ni rien hors de la liste', [true, true, true, true, false, false, false],
+  [ditQuElleATermine('on a terminé la reprise'), ditQuElleATermine('nous avons fini nos locks'), ditQuElleATermine('j’ai fini ma tête'), ditQuElleATermine('J’ai fini mes soins'),
+    ditQuElleATermine('j’ai fini le shampoing'), ditQuElleATermine('j’ai fini mon travail'), ditQuElleATermine('j’ai fini mes courses')]);
+/* ELLE NOMME SON RENDEZ-VOUS, OU NON : sans rendez-vous du jour a son numero, la Maison ne demande le code qu'a celle qui le nomme. */
+dit('elle nomme son rendez-vous : le rendez-vous, la seance, le rituel, le lien de paiement, son code', [],
+  ['J’ai terminé mon RDV', 'rdv terminé', 'J’ai fini ma séance, merci', 'j ai termine mon rendez-vous', 'mon rituel est terminé', 'le lien de paiement svp', 'J’ai fini MND-7K3Q'].filter((p) => !nommeSonRendezVous(p)));
+dit('... « c est fini », « fini », « j ai fini », « je veux regler », « on a termine », « j ai termine ma coiffure » ne le nomment pas', [],
+  ['C’est fini', 'Fini', 'J’ai fini', 'Je veux régler', 'terminé', 'On a terminé', 'J’ai terminé ma coiffure', 'Bonjour Maison MND, j’ai terminé'].filter(nommeSonRendezVous));
+/* SUR WHATSAPP, LES VINGT PREMIERES MINUTES : le rituel commence a peine. */
+const a8h = aCotonou(JOUR, '08:00');
+dit('a peine commence : de l heure du rendez-vous a vingt minutes apres (exclu) ; ni avant l heure, ni sans heure lisible', [1200000, true, true, false, false, false],
+  [ATTENTE_DE_LA_PORTE_WHATSAPP_MS, aPeineCommence({ date: JOUR, time: '08:00' }, a8h), aPeineCommence({ date: JOUR, time: '08:00' }, a8h + 20 * 60_000 - 1),
+    aPeineCommence({ date: JOUR, time: '08:00' }, a8h + 20 * 60_000), aPeineCommence({ date: JOUR, time: '08:00' }, a8h - 1), aPeineCommence({ date: JOUR, time: '' }, a8h)]);
 const JAMAIS = [
   'Je n’ai pas terminé', 'J’ai pas fini', 'c’est pas terminé', 'pas encore fini', 'Quand est-ce que ce sera terminé ?', 'j’ai presque fini', 'Bonjour', 'Merci', 'Bonjour, merci beaucoup', 'Je veux réserver',
   'Je veux régler mon abonnement', 'je voudrais payer ma commande', 'Comment régler ?', 'Combien je dois ?', 'Est-ce que je peux régler en ligne ?',
   'J’ai terminé le travail hier', 'si j’ai fini avant 15 h je passe', 'Je veux payer un acompte', 'J’ai terminé, j’arrive', 'Le travail, c’est fini',
   'Bonjour, j’ai terminé ma journée de travail un peu tard et je me demandais si vous aviez encore une place pour moi ce soir',
   'Bonjour à toute l’équipe de la Maison, j’ai terminé mon rendez-vous de ce matin avec vous, merci beaucoup pour tout',
-  '', 'j’ai faim',
+  '', 'j’ai faim', 'Pas fini',
 ];
 dit('une negation, une question, un autre achat, un mot de plus, la politesse seule : ce n est pas une declaration', [], JAMAIS.filter(ditQuElleATermine));
 /* Dans le doute, pas une declaration : ces phrases-la restent a la conversation ordinaire. */
 const DANS_LE_DOUTE = [
-  'envoyez-moi le lien de paiement', 'J ai bien fini', 'Voilà, j’ai terminé', 'Oui j’ai fini', 'Ok terminé', 'c’est bon j’ai fini', 'C’est terminé pour moi',
-  'Bonjour Maison MND, j’ai terminé', 'J’ai terminé mon rendez-vous d’aujourd’hui', 'J’ai terminé, je peux payer ?', 'j’ai fini, mon code est MND-7K3Q',
+  'envoyez-moi le lien de paiement', 'J ai bien fini', 'C’est terminé pour moi', 'J’ai terminé, je peux payer ?', 'j’ai fini, mon code est MND-7K3Q',
+  /* Un mot de liaison seul, ou ailleurs qu'en tete ; l'adresse a la Maison seule. */
+  'c’est bon', 'Oui', 'Ok, bien', 'j’ai terminé oui', 'Maison MND', 'Bonjour Maison MND', 'j’ai fini ce soin',
+  /* « Je viens de terminer » autre chose, ou en route. */
+  'Je viens de terminer le travail', 'je viens de finir mon travail, j’arrive', 'je viens de finir, je viens',
+  /* Elle le dit DE la Maison : un lieu, pas une adresse. */
+  'J’ai terminé à la Maison MND',
 ];
-dit('dans le doute, pas une declaration : un mot de liaison, un adverbe, une adresse a la Maison, une tournure hors des formes', [], DANS_LE_DOUTE.filter(ditQuElleATermine));
+dit('dans le doute, pas une declaration : un adverbe, un mot de liaison seul ou ailleurs qu en tete, une tournure hors des formes', [], DANS_LE_DOUTE.filter(ditQuElleATermine));
 dit('un point d interrogation dans son texte n est jamais une declaration', [false, false, false, true],
-  [ditQuElleATermine('j’ai fini ?'), ditQuElleATermine('Terminé ?'), ditQuElleATermine('je peux régler ?'), ditQuElleATermine('je peux régler')]);
-const TRAJETS = ['j’arrive', 'je vais arriver', 'je suis en route', 'sur le chemin', 'je viens', 'je vais venir', 'j’ai du retard', 'bientôt là', 'dans 10 minutes', 'attends-moi', 'je suis à la maison', 'chez moi'];
+  [ditQuElleATermine('j’ai fini ?'), ditQuElleATermine('Terminé ?'), ditQuElleATermine('je veux régler ?'), ditQuElleATermine('je veux régler')]);
+const TRAJETS = ['j’arrive', 'je vais arriver', 'je suis en route', 'sur le chemin', 'je viens', 'je vais venir', 'j’ai du retard', 'bientôt là', 'dans 10 minutes', 'attends-moi', 'je suis à la maison', 'chez moi', 'je suis à la Maison MND'];
 dit('un mot de mouvement ou d attente, « a la maison », « chez moi » : elle parle d autre chose', [], TRAJETS.filter((p) => !ditAutreChoseQueLaFin(p)));
-dit('... « a bientot » est une politesse, pas une attente ; une declaration n est pas un trajet', [false, false], [ditAutreChoseQueLaFin('J’ai terminé, à bientôt'), ditAutreChoseQueLaFin('j’ai terminé mon rdv')]);
-dit('... et la regle interroge ce garde, puis exige le message entier', true,
-  /if \(MOUVEMENT_OU_ATTENTE_DE_LA_FIN\.test\(t\)\) return false;\s*return UNE_DECLARATION_DE_FIN\.test\(t\);/.test(lis('src/shared/terminer-et-regler-pur.ts')));
+dit('... « a bientot » est une politesse, pas une attente ; une declaration n est pas un trajet, « je viens de terminer » non plus', [false, false, false],
+  [ditAutreChoseQueLaFin('J’ai terminé, à bientôt'), ditAutreChoseQueLaFin('j’ai terminé mon rdv'), ditAutreChoseQueLaFin('Je viens de terminer')]);
+dit('... et la regle interroge ce garde, puis exige le message entier (l adresse a la Maison retiree apres le garde)', true,
+  /if \(MOUVEMENT_OU_ATTENTE_DE_LA_FIN\.test\(t\)\) return false;\s*return UNE_DECLARATION_DE_FIN\.test\(t\.replace\(ADRESSE_A_LA_MAISON_DE_LA_FIN, ' '\)\.replace\(\/ \+\/g, ' '\)\.trim\(\)\);/.test(lis('src/shared/terminer-et-regler-pur.ts')));
 dit('un code de confirmation se lit dans un message ; un mot apres « MND » n en est pas un', ['MND-7K3Q', 'MND-7K3Q', 'MND-UVGM', null, null, null],
   [codeDansLeMessage('mon code : mnd 7k3q'), codeDansLeMessage('MND-7K3Q'), codeDansLeMessage('c est mnd-uvgm'), codeDansLeMessage('Bonjour MND'), codeDansLeMessage('MND-7K0Q'),
     codeDansLeMessage('je suis à la Maison MND dans dix minutes')]);
@@ -570,6 +600,26 @@ dit('la veille, la porte reste fermee : ni marque, ni lien, ni notification', ['
 dit('« Passe au comptoir » sur la fiche : la porte reste fermee', ['comptoir', undefined],
   [(await appelle(finir, { action: 'terminer', porte: 'site', v: await vDe('rdv-comptoir', '1234') })).corps.etat, rdvDe('rdv-comptoir').termineParElle]);
 dit('un rendez-vous annule ne se termine pas', 'annule', (await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-annule'] }, { cle: SERVICE })).corps.etat);
+/* SUR WHATSAPP, LES VINGT PREMIERES MINUTES DU RITUEL : une phrase libre n'est pas une declaration.
+   Rendez-vous de 9 h 30, il est 9 h 40 : aucune marque, aucun lien, aucune notification ; le bouton
+   de Ma Couronne, lui, garde l'heure du rituel. A 9 h 50, WhatsApp ouvre. */
+remplis();
+maintenant = aCotonou(JOUR, '09:40');
+const aPeine = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-fi'] }, { cle: SERVICE });
+dit('WhatsApp, dix minutes apres l heure du rendez-vous : « a-peine-commence », ni marque, ni lien, ni notification', [{ version: '2026-11-06-b', ok: true, etat: 'a-peine-commence' }, undefined, undefined, 0],
+  [aPeine.corps, rdvDe('rdv-fi').termineParElle, rdvDe('rdv-fi').lienDeReglement, notifications.length]);
+const foyerAPeine = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-na', 'rdv-fi'] }, { cle: SERVICE });
+dit('... le foyer : la tete de 9 h se declare, celle de 9 h 30 qui commence a peine ne recoit aucune marque', ['a-regler', ['Koffi'], true, undefined],
+  [foyerAPeine.corps.etat, foyerAPeine.corps.prenoms, !!rdvDe('rdv-na').termineParElle?.le, rdvDe('rdv-fi').termineParElle]);
+dit('... avec une tete « Passe au comptoir » a cote, c est encore « a-peine-commence » qui se dit (Opale repond, pas « au comptoir »)', 'a-peine-commence',
+  (await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-comptoir', 'rdv-fi'] }, { cle: SERVICE })).corps.etat);
+maintenant = aCotonou(JOUR, '08:10');
+dit('... le bouton de Ma Couronne garde l heure du rituel : dix minutes apres 8 h, il ouvre', 'a-regler',
+  (await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-jour' }, { cle: 'jeton.de.awa' })).corps.etat);
+maintenant = aCotonou(JOUR, '09:50');
+dit('... vingt minutes apres l heure, WhatsApp ouvre', ['a-regler', 'whatsapp'],
+  [(await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-fi'] }, { cle: SERVICE })).corps.etat, rdvDe('rdv-fi').termineParElle?.par]);
+remplis();
 dit('un jeton forge ne termine rien', { ok: false, error: 'lien' }, await appelle(finir, { action: 'terminer', porte: 'site', v: forge }).then((r) => ({ ok: r.corps.ok, error: r.corps.error })));
 dit('la porte WhatsApp ne s ouvre qu a la cle de service ; sans rendez-vous du jour, « sans-rdv »', [403, 403, 'sans-rdv'],
   [(await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-jour'] })).status, (await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-jour'] }, { cle: 'jeton.de.awa' })).status,

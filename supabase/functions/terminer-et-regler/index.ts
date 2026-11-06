@@ -424,6 +424,17 @@ export function finValable(r: Pick<RdvDeLaFin, 'date' | 'time' | 'status' | 'ter
   return Number.isFinite(debut) && le >= debut && jourDeLaFin(le) === String(r.date ?? '').slice(0, 10);
 }
 
+/** SUR LA PORTE WHATSAPP SEULEMENT : pendant les vingt premières minutes
+    après l'heure du rendez-vous, une phrase libre (« c'est fini », « fini »)
+    n'est pas reçue comme une déclaration. Le rituel commence à peine : aucune
+    marque ne se pose, et la conversation suit son cours ordinaire. Ma Couronne
+    et le site portent un bouton, pas une phrase : elles gardent l'heure du rituel. */
+export const ATTENTE_DE_LA_PORTE_WHATSAPP_MS = 20 * 60_000;
+export function aPeineCommence(r: Pick<RdvDeLaFin, 'date' | 'time'>, maintenantMs: number): boolean {
+  const debut = instantDuRituel(r.date, r.time);
+  return Number.isFinite(debut) && maintenantMs >= debut && maintenantMs < debut + ATTENTE_DE_LA_PORTE_WHATSAPP_MS;
+}
+
 /* ── RETROUVER SON RENDEZ-VOUS : LE CODE ET LES QUATRE CHIFFRES ─────────── */
 
 /** L'alphabet de la référence « MND-7K3Q » (lien-du-rdv-pur.ts ; le banc compare). */
@@ -807,8 +818,12 @@ async function previensLePersonnel(n: { titre: string; corps: string; url: strin
   }
 }
 
+/** La raison d'une porte fermée ; `a-peine-commence` ne vaut que sur WhatsApp
+    (les vingt premières minutes du rituel : une phrase libre n'y est pas une
+    déclaration, la Maison ne pose aucune marque et Opale répond). */
+type RaisonDuRefus = RaisonDeLaPorte | 'a-peine-commence';
 /** Ce qui se dit quand aucune porte ne s'ouvre, dans l'ordre où la Maison le dirait. */
-const ORDRE_DES_REFUS: RaisonDeLaPorte[] = ['deja-regle', 'rien-a-regler', 'avant-l-heure', 'comptoir', 'clos'];
+const ORDRE_DES_REFUS: RaisonDuRefus[] = ['a-peine-commence', 'deja-regle', 'rien-a-regler', 'avant-l-heure', 'comptoir', 'clos'];
 
 async function terminer(req: Request, b: any) {
   const porte: PorteDeLaFin | null = b.porte === 'couronne' || b.porte === 'site' || b.porte === 'whatsapp' ? b.porte : null;
@@ -834,15 +849,17 @@ async function terminer(req: Request, b: any) {
   }
 
   const maintenant = Date.now();
-  const tetes: { ligne: Ligne; rdv: RdvDeLaFin; fiche: Fiche | null; reste: number | null; porte: { ouverte: boolean; raison: RaisonDeLaPorte } }[] = [];
+  const tetes: { ligne: Ligne; rdv: RdvDeLaFin; fiche: Fiche | null; reste: number | null; porte: { ouverte: boolean; raison: RaisonDuRefus } }[] = [];
   for (const id of [...new Set(ids)]) {
     const ligne = await leRdv(id);
     if (!ligne) continue;
     const rdv = rdvLu(ligne);
     const [fiche, reste] = await Promise.all([laFiche(rdv.clientId), leResteDeLaPiece(id)]);
+    const laPorte = porteDeLaFin({ rdv, maintenantMs: maintenant, passeAuComptoir: fiche?.passeAuComptoir === true, piece: reste === null ? null : { resteXof: reste } });
     tetes.push({
       ligne, rdv, fiche, reste,
-      porte: porteDeLaFin({ rdv, maintenantMs: maintenant, passeAuComptoir: fiche?.passeAuComptoir === true, piece: reste === null ? null : { resteXof: reste } }),
+      /* Sur WhatsApp, le rituel qui commence à peine ne se déclare pas terminé. */
+      porte: porte === 'whatsapp' && laPorte.ouverte && aPeineCommence(rdv, maintenant) ? { ouverte: false, raison: 'a-peine-commence' } : laPorte,
     });
   }
   /* Dans l'ordre de l'heure, comme la page du foyer : la notification et le total suivent cet ordre. */
