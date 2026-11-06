@@ -392,16 +392,16 @@ const NOTES = {
 };
 const E = { moment: 'entre', page: 'accueil', remise: false, place: null, regle: false, rub: 'seances', sel: 4, onglet: 'jour', valide: {}, imprime: false, ab: 0, mot: '',
   sous: 'semaine', rayon: 'tout', choisit: null, mots: {}, prep: {}, ticket: {}, upsell: { 'bissap-b': true, duo: true, chouchou: true },
-  paniers: [{ boire: 'bissap', gout: 'wagashi', present: 'foulard' }, { boire: 'gingembre', gout: 'ata', present: 'tshirt' }, { boire: 'ananas', gout: 'avocat', present: 'huile' }] };
+  paniers: [{ boire: 'bissap', gout: 'wagashi', present: 'foulard' }, { boire: 'gingembre', gout: 'ata', present: 'tshirt' }, { boire: 'ananas', gout: 'pate', present: 'huile' }] };
 const $ = (id) => document.getElementById(id);
 const F = (n) => n.toLocaleString('fr-FR') + ' F';
 
 /* ── La boutique des attentions : [id, nom, rayon, niveau, prix, réserve] ── */
 const ART = [
   ['bissap', 'Le bissap glacé', 'boire', 'offert', 0, 'frais'], ['ananas', 'L’ananas pain de sucre', 'boire', 'offert', 0, 'frais'],
-  ['gingembre', 'Le gingembre-citron', 'boire', 'offert', 0, 'frais'], ['adoyo', 'L’adoyo', 'boire', 'offert', 0, 'frais'],
+  ['gingembre', 'Le gingembre-citron', 'boire', 'offert', 0, 'frais'], ['citronnelle', 'La citronnelle du jardin', 'boire', 'offert', 0, 'jardin'],
   ['bissap-b', 'Le bissap, la bouteille à emporter', 'boire', 'carte', 1000, 'frais'],
-  ['wagashi', 'Le petit pain wagashi', 'gout', 'offert', 0, 'frais'], ['avocat', 'Le petit pain avocat-moyo', 'gout', 'offert', 0, 'frais'],
+  ['wagashi', 'Le petit pain wagashi', 'gout', 'offert', 0, 'frais'], ['pate', 'Le petit pâté', 'gout', 'offert', 0, 'frais'],
   ['ata', 'Les ata', 'gout', 'offert', 0, 'frais'], ['menthe', 'La pastille à la menthe', 'gout', 'offert', 0, 150],
   ['duo', 'Le duo de petits pains', 'gout', 'carte', 1500, 'frais'], ['kluiklui', 'Le kluiklui, le sachet', 'gout', 'carte', 800, 14],
   ['foulard', 'Le foulard de nuit', 'present', 'offert', 0, 2], ['bonnet', 'Le bonnet de satin', 'present', 'offert', 0, 6],
@@ -413,7 +413,7 @@ const art = (id) => ART.find((a) => a[0] === id);
 const nomArt = (id) => art(id)[1];
 const bas = (t) => t.replace(/^./, (c) => c.toLowerCase());
 const ech = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-const stockDit = (a) => (a[5] === 'frais' ? 'Frais, commandé la veille' : a[5] + ' en réserve');
+const stockDit = (a) => (a[5] === 'frais' ? 'Frais, commandé la veille' : a[5] === 'jardin' ? 'Cueillie au jardin' : a[5] + ' en réserve');
 const niveauDit = (a) => (a[3] === 'offert' ? 'Offert' : a[3] === 'or' ? 'Sceau d’or' : 'À la carte · ' + F(a[4]));
 const niveauClasse = (a) => (a[3] === 'or' ? ' niveau--or' : a[3] === 'carte' ? ' niveau--carte' : '');
 
