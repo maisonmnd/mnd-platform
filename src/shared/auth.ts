@@ -197,6 +197,9 @@ const SENSITIVE_KEYS = [
   'mnd_team_dossiers', 'mnd_rh', 'mnd_bulletins',
   /* La paie du 5 (5 novembre 2026) : les réponses aux bulletins. */
   'mnd_paie_confirmations',
+  /* L'attention (6 novembre 2026) : la boutique, les paniers des abonnées, les
+     réglages. À la Maison seule : rien n'en reste sur un poste déconnecté. */
+  'mnd_attention_articles', 'mnd_attention_paniers', 'mnd_attention_reglages',
   'mnd_primes', 'mnd_retenues', 'mnd_commission_rates', 'mnd_paie_overrides', 'mnd_paie_confirm',
   'mnd_access_codes',
   /* Les factures des prestataires : IFU, téléphone, ce qu'on gagne. */

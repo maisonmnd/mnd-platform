@@ -42,11 +42,12 @@ import { demandesFormuleStore, useDemandesFormule, type DemandeFormule } from '.
 import { ClientPicker, RdvModal, useBranchClients } from '../clients/_shared';
 import { joursDeLaTete } from '../../../../shared/clients';
 import { Bar, DeepNote, Pill, Tabs } from './ui';
+import { LesAttentions } from './LesAttentions';
 import './equipe.css';
 import { ChampDeDate } from '../../../../ds/dates';
 import { appelDe } from '../../../../shared/civilite';
 
-type Tab = 'moteur' | 'formules' | 'membres' | 'comptes';
+type Tab = 'moteur' | 'formules' | 'membres' | 'attentions' | 'comptes';
 type FiltreCompte = 'tous' | 'en-cours' | 'a-relancer' | 'retard' | 'parties';
 
 type PlanForm = {
@@ -1068,6 +1069,15 @@ export default function Abonnements() {
   );
   /* LE MOTEUR SE CALCULE SUR LES COMPTES, jamais sur un champ écrit à la vente :
      c'est ce qui l'empêche de vieillir. */
+  /* LES ATTENTIONS (6 novembre 2026) : les relevés des contrats, tels que le
+     juge les rend, et le nom de chaque tête. L'onglet ne recompte rien. */
+  const relevesDesContrats = useMemo(() => comptes.flatMap((c) => c.contrats.map((k) => k.releve)), [comptes]);
+  const nomDeLaTete = useMemo(() => {
+    const noms = new Map<string, string>();
+    for (const c of comptes) noms.set(c.clientId, c.nom);
+    for (const c of clients) if (c.name) noms.set(c.id, c.name);
+    return (id: string): string => noms.get(id) ?? 'Cliente';
+  }, [comptes, clients]);
   const moteur = useMemo(() => moteurDesAbonnements({
     comptes, plans, aujourdhui: todayISO(),
     prixDuService: (id) => services.find((sv) => sv.id === id)?.priceXof,
@@ -1120,10 +1130,14 @@ export default function Abonnements() {
       />
 
       <Tabs<Tab>
-        tabs={[{ k: 'moteur', l: 'Le moteur' }, { k: 'formules', l: 'Les formules' }, { k: 'membres', l: 'Les abonnés' }, { k: 'comptes', l: 'Les comptes' }]}
+        tabs={[{ k: 'moteur', l: 'Le moteur' }, { k: 'formules', l: 'Les formules' }, { k: 'membres', l: 'Les abonnés' }, { k: 'attentions', l: 'Les attentions' }, { k: 'comptes', l: 'Les comptes' }]}
         value={tab}
         onChange={setTab}
       />
+
+      {tab === 'attentions' && (
+        <LesAttentions releves={relevesDesContrats} plans={plans} nomDe={nomDeLaTete} branchId={branch.id} aujourdhui={jourDeCotonou()} currency={currency} />
+      )}
 
       {/* ══ LE MOTEUR, EN ARGENT RÉEL — 2 septembre 2026 ═══════════════════
           « Je ne comprends pas le montant récurrent de 18 817. Ça ne me

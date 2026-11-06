@@ -19,6 +19,7 @@ import { HomeTab, HomeEnfant, SuiviTab, GammeTab, CercleTab, ProfilTab, Notifica
 import { MaFormuleTab } from './MaFormule';
 import RendezVousTab from './RendezVousTab';
 import MonSolde from './MonSolde';
+import MesAttentions from './MesAttentions';
 import ReserverIncluse from './ReserverIncluse';
 import { FeuilleRegler, type DemandeDeReglement, type GestesDeLAbonnee } from './Abonnee';
 import { appelleLaMaison, useReleve } from './releve';
@@ -44,7 +45,7 @@ const TABS: { id: TabId; label: string; glyph: string }[] = [
 ];
 
 /** Les écrans posés par-dessus l'onglet, ouverts d'une carte ou d'un lien. */
-type Ecran = 'gamme' | 'cercle' | 'solde';
+type Ecran = 'gamme' | 'cercle' | 'solde' | 'attentions';
 
 function Shell() {
   /* Le dossier de la cliente est garanti dès l'entrée dans l'app. */
@@ -235,6 +236,7 @@ function Shell() {
       const h = window.location.hash;
       if (h === '#/formule') { setEcran(null); setTab('formule'); }
       else if (h === '#/solde') setEcran('solde');
+      else if (h === '#/attentions') setEcran('attentions');
       else if (h === '#/reserver/incluse') openIncluse();
       else return;
       try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch { /* sans historique, tant pis */ }
@@ -387,6 +389,11 @@ function Shell() {
       )}
       {ecran === 'solde' && releve && (
         <MonSolde releve={releve} prenom={prenomTete} selecteur={selecteur} onClose={() => setEcran(null)} onRegler={setRegler} />
+      )}
+      {/* MES ATTENTIONS (6 novembre 2026) : ce que la Maison lui a remis au
+          fauteuil, et le pli scellé de la prochaine. Lien `#/attentions`. */}
+      {ecran === 'attentions' && teteId && (
+        <MesAttentions teteId={teteId} prenom={prenomTete} selecteur={selecteur} onClose={() => setEcran(null)} />
       )}
       {incluse && releve && teteId && (
         <ReserverIncluse

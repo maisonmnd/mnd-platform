@@ -4,6 +4,7 @@ import { decaleLeJour } from '../../shared/ia-faits-pur';
 import type { LigneDeSeances, ReleveDeLAbonnee, ReleveDuContrat, SeanceDuContrat } from '../../shared/abonnee-pur';
 import { cheminDeLaLigne, PLUS_LONG_CHEMIN } from '../../shared/chemin-de-sceaux-pur';
 import { useNomDeService, Chemin, Legende, type DemandeDeReglement } from './Abonnee';
+import { LienVersMesAttentions } from './MesAttentions';
 import { ETAT_FORMULE, dateDansLaPhrase, dateLongue, heureDite, rangDit } from './releve';
 import { fourchetteDuModele } from './fourchette';
 import { t, prix } from './i18n';
@@ -447,6 +448,7 @@ export function SesFormules({ releve, prenom, selecteur, onRegler, onRenoncer, o
         {onAcheter && releve.contrats.length > 0 && (
           <button type="button" className="mc-cta mc-cta--quiet" onClick={onAcheter}>{t('Prendre une autre formule')}</button>
         )}
+        <LienVersMesAttentions teteId={releve.clientId} />
         <p className="ab-doute">{t('Un doute ? Écrivez à la Maison, on vous répond.')}</p>
       </div>
     </div>

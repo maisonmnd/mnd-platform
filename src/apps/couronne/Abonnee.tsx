@@ -9,6 +9,8 @@ import type {
 } from '../../shared/abonnee-pur';
 import { cheminDeLaLigne, type Pas } from '../../shared/chemin-de-sceaux-pur';
 import { useClient } from './lib';
+import { PliDeLAttention } from './MesAttentions';
+import { DENTELE } from './sceau';
 import { ETAT_FORMULE, dateCourte, dateDansLaPhrase, rangDit } from './releve';
 import { t, prix } from './i18n';
 import './abonnee.css';
@@ -51,17 +53,6 @@ const dernierJour = (au: string): string => decaleLeJour(au, -1);
    faite ; hachuré : réservée ; vide : disponible), et les
    comptes sont ceux du relevé (`cheminDeLaLigne`). Le chemin se tait pour un
    lecteur d'écran : la légende, juste dessous, le dit en mots. */
-const DENTELE = (() => {
-  const dents = 14;
-  let d = '';
-  for (let i = 0; i <= dents; i += 1) {
-    const a = (i * 2 * Math.PI) / dents - Math.PI / 2;
-    const x = (50 + 40 * Math.cos(a)).toFixed(2);
-    const y = (50 + 40 * Math.sin(a)).toFixed(2);
-    d += i === 0 ? `M${x} ${y}` : `A9.6 9.6 0 0 1 ${x} ${y}`;
-  }
-  return `${d}Z`;
-})();
 
 export function Chemin({ pas, voile, grand }: { pas: Pas[] | null; voile?: boolean; grand?: boolean }) {
   /* Les hachures d'une réservée : un motif par chemin, à son nom. */
@@ -470,6 +461,9 @@ export function TableauDeBord({ releve, prenom, onFormule, onRegler, onRenoncer,
       {releve.contrats.map((c) => (
         <CarteFormule key={c.sub.id} c={c} prenom={prenom} onFormule={onFormule} onRegler={onRegler} onRenoncer={onRenoncer} />
       ))}
+      {/* L'ATTENTION (6 novembre 2026) : le pli scellé de sa prochaine séance,
+          ou ce qu'elle a reçu aujourd'hui. Il se tait tant que rien n'est validé. */}
+      <PliDeLAttention teteId={releve.clientId} prenom={prenom} />
       {avantLeSolde}
       <CarteSolde releve={releve} prenom={prenom} onSolde={onSolde} onRegler={onRegler} />
     </>

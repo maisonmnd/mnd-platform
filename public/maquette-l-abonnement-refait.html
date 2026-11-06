@@ -662,7 +662,7 @@ function rTrone() {
   } else if (E.onglet === 'abonnees') {
     vue = `<p class="petit doux">Une ligne par abonnée, le résumé dessus. Une seule s’ouvre à la fois.</p><div class="fil">${AB.map((a, i) => `<div class="ligne"><div class="ligne__quoi"><span><b>${a[0]}</b> · ${a[1]} ${pts(a[2])}</span><span class="petit doux">${a[3]} · prochaine séance : ${a[4]}</span></div><div class="ligne__gestes"><button class="btn mini" data-a="ab:${i}" aria-expanded="${E.ab === i}">${E.ab === i ? 'Replier' : 'Ouvrir'}</button></div>
       ${E.ab === i ? `<div class="ouvert-l"><div class="lg"><span>Règlement</span><span>${a[3]}</span></div><div class="lg"><span>Prochaine séance</span><span>${a[4]}</span></div><div class="lg"><span>Attention prévue</span><span>${a[5]}</span></div>
-        <div class="ligne__gestes" style="justify-content:flex-start"><button class="btn mini plein" data-a="rien">Réserver</button><button class="btn mini" data-a="rien">Encaisser</button><button class="btn mini" data-a="rien">Prolonger</button><button class="btn mini" data-a="rien">Rendre une séance</button><button class="btn mini" data-a="rien">Résilier</button></div></div>` : ''}</div>`).join('')}</div>`;
+        <div class="ligne__gestes" style="justify-content:flex-start"><button class="btn mini plein" data-a="rien">Réserver</button><button class="btn mini" data-a="rien">Encaisser</button><button class="btn mini" data-a="rien">Prolonger</button><button class="btn mini" data-a="rien">Résilier</button></div></div>` : ''}</div>`).join('')}</div>`;
   } else if (E.onglet === 'attentions') {
     vue = vAttentions();
   } else if (E.onglet === 'formules') {

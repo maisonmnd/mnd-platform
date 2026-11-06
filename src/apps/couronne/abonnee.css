@@ -114,6 +114,34 @@
 .ab-rub.is-ouverte .ab-rub__resume { display: none; }
 .ab-rub__corps { display: flex; flex-direction: column; gap: 12px; padding: 0 0 16px; }
 
+/* L'ATTENTION (6 novembre 2026) : le pli scellé de l'accueil, la page « Mes
+   attentions ». Scellée : la carte indigo, son sceau en filet ; reçue : la
+   carte claire, le mot en italique. Le soir suit les jetons. */
+.ab-att { display: flex; gap: 14px; align-items: flex-start; padding: 16px; border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); }
+.ab-att--scellee { background: var(--ab-carte-indigo); border-color: var(--ab-carte-indigo); color: var(--ab-sur-indigo); }
+.ab-att--scellee .ab-lab { color: var(--ab-sur-indigo-pale); margin-top: 0; }
+.ab-att--scellee .ab-lien { color: var(--copper-200); align-self: flex-start; }
+.ab-att--recue { flex-direction: column; gap: 8px; }
+.ab-att--recue .ab-lab { margin-top: 0; }
+.ab-att--recue .ab-lien { align-self: flex-start; }
+.ab-att--avenir { align-items: center; border-style: dashed; background: transparent; }
+.ab-att--avenir .ab-lab { margin-top: 0; }
+.ab-att__corps { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+.ab-att__tete { display: flex; gap: 12px; align-items: center; }
+.ab-att__phrase { margin: 0; font-family: var(--font-serif); font-size: 20px; line-height: 1.25; }
+.ab-att__indice { margin: 0; font-style: italic; font-size: 13.5px; color: var(--ab-sur-indigo-doux); }
+.ab-att__titre { margin: 0; font-family: var(--font-serif); font-weight: 400; font-size: 23px; line-height: 1.15; color: var(--mc-encre); }
+.ab-att__mot { margin: 0; padding-left: 12px; border-left: 2px solid var(--accent); font-family: var(--font-serif); font-style: italic; font-size: 17px; line-height: 1.4; color: var(--ink); }
+.ab-att__sceau { flex: none; display: block; }
+.ab-att__fond { fill: var(--accent); stroke: var(--accent); stroke-width: 3; }
+.ab-att__n { font-family: var(--font-serif); font-size: 38px; fill: var(--ab-sur-cuivre); font-variant-numeric: lining-nums; }
+.ab-att__sceau--scellee .ab-att__fond { fill: transparent; stroke: var(--copper-200); }
+.ab-att__sceau--scellee .ab-att__n { fill: var(--copper-200); }
+.ab-att__sceau--or .ab-att__fond { fill: var(--copper-200); stroke: var(--copper-200); }
+.ab-att__sceau--or .ab-att__n { fill: var(--color-indigo-deep); }
+.ab-att__sceau--a-venir .ab-att__fond { fill: transparent; stroke: var(--color-argile); stroke-dasharray: 5 5; }
+.ab-att__sceau--a-venir .ab-att__n { fill: var(--ink-soft); }
+
 /* Le sceau d'argent de la carte indigo « Votre prochaine séance » */
 .ab-sceau { display: inline-block; margin-top: 11px; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; line-height: 1.5; text-transform: uppercase; color: var(--color-indigo-deep); background: var(--copper-200); border-radius: 3px; padding: 4px 9px; }
 .ab-sceau.is-hors { background: transparent; color: var(--copper-200); border: 1px solid var(--copper-300); }
