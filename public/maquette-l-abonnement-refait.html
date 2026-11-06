@@ -277,7 +277,7 @@ details ul { margin: 10px 0 2px; padding-left: 18px; display: grid; gap: 4px; ma
 
 <section>
   <h2>La carte, remise au fauteuil</h2>
-  <p>Le Trône sort les cartes de la semaine en un PDF, quatre par feuille, avec le prénom et le mot que vous avez validé. L’équipe signe à la main et la remet avec le présent. Au format d’une carte postale. Sous le mot, une ligne tourne d’une carte à l’autre : la signification du rituel du jour, la devise en fon, ou un épisode de l’histoire de la Maison.</p>
+  <p>Le Trône sort les cartes de la semaine en un PDF, quatre par feuille, avec le prénom et le mot que vous avez validé. L’équipe signe à la main et la remet avec le présent. Au format d’une carte postale. Sous le mot, une ligne tourne d’une carte à l’autre : la signification du rituel du jour, la devise en fon, ou un épisode de l’histoire de la Maison. Le vrai dessin de cette carte de collection, de la carte de notes et de la carte mini apéro est sur <a href="https://claude.ai/artifact/MX7ch5ReX4eDdAH1kjo6eN">la page des cartes</a>.</p>
   <div class="papiers" id="carte"></div>
   <p class="petit doux">Sur la vraie carte, le recto porte le verrou de la Maison tel qu’il est, à la place du sceau dessiné ici.</p>
 </section>
@@ -399,11 +399,11 @@ const F = (n) => n.toLocaleString('fr-FR') + ' F';
 
 /* ── La boutique des attentions : [id, nom, rayon, niveau, prix, réserve] ── */
 const ART = [
-  ['bissap', 'Le bissap glacé', 'boire', 'offert', 0, 'frais'], ['ananas', 'L’ananas pain de sucre', 'boire', 'offert', 0, 'frais'],
-  ['gingembre', 'Le gingembre-citron', 'boire', 'offert', 0, 'frais'], ['citronnelle', 'La citronnelle du jardin', 'boire', 'offert', 0, 'jardin'], ['orange', 'Le jus d’orange', 'boire', 'offert', 0, 'frais'], ['tapioca', 'La bouillie de tapioca', 'boire', 'offert', 0, 'frais'], ['biere', 'La bière bien glacée', 'boire', 'carte', 1000, 24],
-  ['bissap-b', 'Le bissap, la bouteille à emporter', 'boire', 'carte', 1000, 'frais'],
+  ['bissap', 'Le Velours d’hibiscus', 'boire', 'offert', 0, 'frais'], ['ananas', 'Le Soleil d’Allada', 'boire', 'offert', 0, 'frais'],
+  ['gingembre', 'La Caresse de gingembre', 'boire', 'offert', 0, 'frais'], ['citronnelle', 'La Citronnelle du jardin', 'boire', 'offert', 0, 'jardin'], ['orange', 'L’Orange en fleur', 'boire', 'offert', 0, 'frais'], ['tapioca', 'Les Perles de tapioca', 'boire', 'offert', 0, 'frais'], ['biere', 'La bière bien glacée', 'boire', 'carte', 1000, 24],
+  ['bissap-b', 'Le Velours d’hibiscus, la bouteille à emporter', 'boire', 'carte', 1000, 'frais'],
   ['wagashi', 'Le petit pain wagashi', 'gout', 'offert', 0, 'frais'], ['pate', 'Le petit pâté', 'gout', 'offert', 0, 'frais'],
-  ['ata', 'Les ata', 'gout', 'offert', 0, 'frais'], ['arachides', 'Les arachides', 'gout', 'offert', 0, 40], ['olives', 'Les mini-olives', 'gout', 'offert', 0, 25], ['kraks', 'Les mini kraks', 'gout', 'offert', 0, 30], ['menthe', 'La pastille à la menthe', 'gout', 'offert', 0, 150],
+  ['ata', 'Les ata', 'gout', 'offert', 0, 'frais'], ['arachides', 'Les Dorées', 'gout', 'offert', 0, 40], ['olives', 'Les Petites Olives', 'gout', 'offert', 0, 25], ['kraks', 'Les Mini Kraks', 'gout', 'offert', 0, 30], ['menthe', 'La pastille à la menthe', 'gout', 'offert', 0, 150],
   ['duo', 'Le duo de petits pains', 'gout', 'carte', 1500, 'frais'], ['kluiklui', 'Le kluiklui, le sachet', 'gout', 'carte', 800, 14],
   ['foulard', 'Le foulard de nuit', 'present', 'offert', 0, 2], ['bonnet', 'Le bonnet de satin', 'present', 'offert', 0, 6],
   ['huile', 'L’huile de voyage', 'present', 'offert', 0, 12], ['stylo', 'Le stylo cuivre', 'present', 'offert', 0, 20], ['serviette', 'La serviette carrée MND', 'present', 'offert', 0, 15],
