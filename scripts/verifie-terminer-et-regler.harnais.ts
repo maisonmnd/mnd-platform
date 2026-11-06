@@ -754,7 +754,21 @@ dit('... jamais plus que le total de la piece, dans l ordre ou l argent est entr
     versementsDejaRecus({ rdvId: 'r', totalXof: 7000, dejaRecu: [] }), versementsDejaRecus({ rdvId: 'r', totalXof: 0, dejaRecu: ACOMPTE })]);
 dit('... le Trone les monte sur la piece NEUVE seulement, avec ce que le rendez-vous a deja recu (la regle de la Caisse, lArgentDejaRecu)', [true, true],
   [/if \(!r\.deja\) \{\s*const deja = versementsDejaRecus\(\{ rdvId: frais\.id, totalXof: invoiceTotal\(r\.inv\), dejaRecu: lArgentDejaRecu\(frais, frais\.date\) \}\);/.test(effetPiece),
-    /if \(deja\.length > 0\) \{\s*invoicesStore\.set\(\(prev\) => prev\.map\(\(i\) => \(i\.id === r\.inv\.id \? \{ \.\.\.i, payments: \[\.\.\.\(i\.payments \?\? \[\]\), \.\.\.deja\] \} : i\)\)\);/.test(effetPiece)]);
+    /invoicesStore\.set\(\(prev\) => prev\.map\(\(i\) => \(i\.id === r\.inv\.id \? \{ \.\.\.i, payments: \[\.\.\.\(i\.payments \?\? \[\]\), \.\.\.deja\], depositCreditXof: \(i\.depositCreditXof \?\? 0\) \+ dejaXof \} : i\)\)\);/.test(effetPiece)]);
+/* L'ACOMPTE NE S'ECRIT PAS DEUX FOIS (relecture du 6 novembre 2026) : elle declare (le Trone monte
+   l'acompte sur la piece), puis regle au comptoir. L'encaissement ajoutait un second « Acompte » :
+   20 000 F, acompte 5 000 F, 15 000 F en especes, et la piece portait 25 000 F recus. */
+const encaissement = sansCommentaires(lis('src/apps/trone/routes/clients/actions.tsx'));
+dit('au comptoir, l acompte deja monte sur la piece ouverte n est pas credite une seconde fois', [true, true],
+  [/const acompteDejaSurLaPiece = !!pieceDuRituelOuverte && invoiceReglements\(pieceDuRituelOuverte\)\.some\(\(v\) => v\.method === 'Acompte'\);/.test(encaissement),
+    /const depositCredit = depositReceived && alreadyPaid === 0 && !acompteDejaSurLaPiece \? deposit : 0;/.test(encaissement)]);
+/* Le journal de la piece, rejoue a la main avec la regle du comptoir : l'existant, puis l'acompte credite (s'il l'est), puis le comptant. */
+const journalDuComptoir = (dejaSurLaPiece: { method: string; amountXof: number }[], acompte: number, comptant: number): number => {
+  const credite = dejaSurLaPiece.some((v) => v.method === 'Acompte') ? 0 : acompte;
+  return [...dejaSurLaPiece, ...(credite > 0 ? [{ method: 'Acompte', amountXof: credite }] : []), { method: 'Espèces', amountXof: comptant }].reduce((s, v) => s + v.amountXof, 0);
+};
+dit('... 20 000 F, acompte verifie 5 000 F : declaree puis reglee au comptoir, la piece porte 20 000 F recus ; sans declaration, le comptoir credite l acompte comme avant',
+  [20000, 20000], [journalDuComptoir(versementsDejaRecus({ rdvId: 'rdv-1', totalXof: 20000, dejaRecu: ACOMPTE }), 5000, 15000), journalDuComptoir([], 5000, 15000)]);
 dit('les suites de l honneur pose au reglement : une fois (reservation de suitesLe), puis les points, le stock, la mission, comme au comptoir',
   [true, true, true],
   [/appts\.filter\(\(a\) => a\.branchId === branch\.id && suitesAFaire\(a\) && !fait\.has\(`suite-\$\{a\.id\}`\)\)/.test(effetSuites),

@@ -123,7 +123,9 @@ export function useLaFinDuRituel(): void {
           if (!r.deja) {
             const deja = versementsDejaRecus({ rdvId: frais.id, totalXof: invoiceTotal(r.inv), dejaRecu: lArgentDejaRecu(frais, frais.date) });
             if (deja.length > 0) {
-              invoicesStore.set((prev) => prev.map((i) => (i.id === r.inv.id ? { ...i, payments: [...(i.payments ?? []), ...deja] } : i)));
+              /* `depositCreditXof`, comme au comptoir : cet argent est entré un autre jour, aucune caisse du jour ne le reçoit. */
+              const dejaXof = deja.reduce((s, v) => s + v.amountXof, 0);
+              invoicesStore.set((prev) => prev.map((i) => (i.id === r.inv.id ? { ...i, payments: [...(i.payments ?? []), ...deja], depositCreditXof: (i.depositCreditXof ?? 0) + dejaXof } : i)));
             }
           }
         } catch (err) {

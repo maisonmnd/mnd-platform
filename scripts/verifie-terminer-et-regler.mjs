@@ -29,6 +29,7 @@ const CARNET = 'src/apps/trone/routes/clients/Carnet.tsx';
 const PANNEAU = 'src/apps/trone/routes/clients/ReglementEnDirect.tsx';
 const GUETTEUR = 'src/apps/trone/shell/useReglementsEnLigne.ts';
 const FICHE = 'src/apps/trone/routes/clients/Customers.tsx';
+const ENCAISSEMENT = 'src/apps/trone/routes/clients/actions.tsx';
 const TABS = 'src/apps/couronne/Tabs.tsx';
 const CARTE = 'src/apps/couronne/RituelEnCours.tsx';
 const SERVEUR = 'src/shared/terminer-et-regler-serveur.ts';
@@ -80,6 +81,9 @@ const PANNES = [
   ['l acompte perd sa date', PUR, "date: d.date, amountXof: m, method: 'Acompte', note: d.note });", "date: '', amountXof: m, method: 'Acompte', note: d.note });"],
   ['le Trone remonte l acompte sur une piece deja la', MAIN, '          if (!r.deja) {', '          if (true) {'],
   ['le Trone oublie l acompte : la page redemande le prix entier', MAIN, 'dejaRecu: lArgentDejaRecu(frais, frais.date) });', 'dejaRecu: [] });'],
+  ['l acompte monte sans dire qu il est entre un autre jour', MAIN, ', depositCreditXof: (i.depositCreditXof ?? 0) + dejaXof } : i)));', ' } : i)));'],
+  ['au comptoir, l acompte s ecrit une seconde fois sur la piece', ENCAISSEMENT, "      const depositCredit = depositReceived && alreadyPaid === 0 && !acompteDejaSurLaPiece ? deposit : 0;", "      const depositCredit = depositReceived && alreadyPaid === 0 ? deposit : 0;"],
+  ['le comptoir ne regarde pas les « Acompte » de la piece ouverte', ENCAISSEMENT, ".some((v) => v.method === 'Acompte');\n      const depositCredit", ".some((v) => v.method === 'Avoir');\n      const depositCredit"],
   ['le Carnet tait la marque', CARNET, 'const marque = a.termineParElle ? marqueDeLaFinAuCarnet(a, resteDeSaPiece(a.id)) : null;', 'const marque = null as ReturnType<typeof marqueDeLaFinAuCarnet>;'],
   ['le panneau dit « Message parti » a celle qui a termine elle-meme', PANNEAU, "    fin\n      ? { nom: 'A terminé'", "    false\n      ? { nom: 'A terminé'"],
   ['« Depart sans caisse » pour tout reglement en ligne', GUETTEUR, 'const sansCaisse = !!appts.find((a) => a.id === p.apptId)?.termineParElle && invoiceResteXof(p) <= 0;', 'const sansCaisse = true;'],

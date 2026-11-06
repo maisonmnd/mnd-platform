@@ -1739,7 +1739,12 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
       /* L'ACOMPTE N'EST CONSOMME QU'UNE FOIS — a la PREMIERE facture du rituel.
          Il etait jusqu'ici reporte sur chaque reglement partiel suivant, ce qui
          faisait disparaitre le second versement du registre de caisse. */
-      const depositCredit = depositReceived && alreadyPaid === 0 ? deposit : 0;
+      /* NI DEUX FOIS SUR LA MÊME PIÈCE — 6 novembre 2026 (Terminer et régler) :
+         quand elle a déclaré avoir terminé, le Trône a déjà monté son acompte
+         sur la pièce (`useLaFinDuRituel`). Encaissée ensuite au comptoir, la
+         pièce ne le reçoit pas une seconde fois. */
+      const acompteDejaSurLaPiece = !!pieceDuRituelOuverte && invoiceReglements(pieceDuRituelOuverte).some((v) => v.method === 'Acompte');
+      const depositCredit = depositReceived && alreadyPaid === 0 && !acompteDejaSurLaPiece ? deposit : 0;
 
       /* CE QUE LA FACTURE PORTE. `settleTotal` est le seul RESTE encaisse ce
          coup-ci ; la facture doit valoir en plus l'acompte qu'elle consomme,
