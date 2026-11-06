@@ -17,6 +17,8 @@ import { invoicesStore, cashboxesStore, useCashboxes, caissesPourLaDate, invoice
 import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
 import { venteGamme, fichePourGamme, stockDe, useMouvementsStock } from '../../../../shared/stock';
+import { sortLesArticlesVendus } from '../../../../shared/attentions';
+import { AvantDePartir } from './AvantDePartir';
 import { gammePayeeSurSesPieces, graveLesLignesReglees, ligneNetteXof, lignesARegler, piecesDuRendezVous } from '../../../../shared/gamme';
 import { useLaGammePayeeRegravee } from './gamme-payee';
 import { duDuCompte, peutPartirDevant, tetesDuCompte } from '../../../../shared/compte';
@@ -1983,6 +1985,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
       for (const l of lignesGamme) {
         if (l.produitId) venteGamme(l.produitId, l.qty, inv.number, invDate, branch.id);
       }
+      /* Les articles à la carte de la boutique des attentions (6 novembre
+         2026) : ce qui vient d'être vendu sort de leur réserve comptée. */
+      sortLesArticlesVendus(lignesGamme);
       /* Avoir consommé : une écriture d'usage (−) sur le compte porteur. */
       if (avoirApplied > 0) {
         creditMovementsStore.set((prev) => [...prev, {
@@ -2649,6 +2654,12 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                 </div>
               ))}
             </div>
+          )}
+          {/* ══ AVANT DE PARTIR · 6 novembre 2026 : jusqu'à trois articles à la
+              carte, choisis dans la boutique des attentions. Un toucher les
+              met au panier de la Gamme, qui fait le reste. */}
+          {!pieceDuRituelOuverte && (
+            <AvantDePartir branchId={branch.id} produits={produitsBranche} panier={panier} auPanier={auPanier} currency={currency} />
           )}
           {/* ══ LA GAMME AU COMPTOIR — 31 août 2026 : ce qu'elle emporte
               s'ajoute à ce qu'elle doit. Replié tant qu'on n'y touche pas ;

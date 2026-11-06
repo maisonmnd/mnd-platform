@@ -9,6 +9,7 @@ import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
 import {
   effetDeMarquerFaite, effetDeMarquerAbsente, marqueAbsente, ditLaSeance, type Effet,
 } from './gestes-de-l-abonnement';
+import { PanierDeLaSeance } from './PanierDeLaSeance';
 import './abonnement.css';
 
 /* ══ LA SÉANCE DE LA FORMULE, DANS LA FICHE DU RENDEZ-VOUS — 20 octobre 2026 ══
@@ -107,6 +108,9 @@ export function SeanceDeLaFormule({ appt, onFait }: { appt: Appointment; onFait?
           Absente : annuler la séance
         </button>
       </div>
+      {/* L'ATTENTION DE LA SÉANCE (6 novembre 2026) : son panier, « Arrivée »,
+          « Remise ». Une séance annulée n'en a pas : elle revient à la formule. */}
+      {s.compte && <PanierDeLaSeance apptId={frais.id} />}
       {effet && (
         <div className={`trc-abo__effet ${geste !== 'faite' ? 'is-sensible' : ''}`}>
           <ul>

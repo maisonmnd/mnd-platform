@@ -417,6 +417,67 @@ export function remetLePanier(p: PanierDAttention, articles: readonly ArticleDAt
   };
 }
 
+/* ── LE JOUR, AU TRÔNE ────────────────────────────────────────────────── */
+
+const AVENIR: readonly string[] = ['a-confirmer', 'confirmee', 'proposee', 'a-cloturer'];
+
+/** LA PROCHAINE SÉANCE d'un contrat : la première qui compte et n'a pas eu lieu. */
+export function prochaineSeance(c: ReleveDuContrat, jour: string): { apptId: string; date: string; time: string; rang: number | null; total: number | null } | null {
+  const s = c.attribuees.find((x) => x.compte && AVENIR.includes(x.etat) && x.date >= jour);
+  return s ? { apptId: s.id, date: s.date, time: s.time, rang: s.rang, total: s.total } : null;
+}
+
+/** Les séances qu'il reste à prendre : des SÉANCES, pas des prestations (la
+    ligne la plus longue d'une formule à plusieurs prestations). `null` : sans limite. */
+export function seancesDisponibles(c: ReleveDuContrat): number | null {
+  const bornees = c.seances.filter((l) => l.incluses !== null);
+  if (bornees.length === 0) return null;
+  const longue = bornees.reduce((m, l) => ((l.incluses ?? 0) > (m.incluses ?? 0) ? l : m));
+  return longue.disponibles ?? 0;
+}
+
+export type FinDeCarnet = { clientId: string; subId: string; formule: string; apptId: string; date: string; time: string };
+/** LES FINS DE CARNET : un carnet dont la prochaine séance est la dernière.
+    C'est le moment du sceau d'or, et de proposer de reprendre. Un carnet dont
+    la dernière séance est réservée se dit « épuisé » (tout est pris) : il en
+    fait partie, c'est même le cas ordinaire. */
+export function finsDeCarnet(releves: readonly ReleveDuContrat[], jour: string): FinDeCarnet[] {
+  const out: FinDeCarnet[] = [];
+  for (const c of releves) {
+    if (c.mode !== 'pack' || (c.etat !== 'en-cours' && c.etat !== 'epuisee') || !c.sub.clientId) continue;
+    const s = prochaineSeance(c, jour);
+    if (s && estLeSceauDOr({ mode: 'pack', rang: s.rang, total: s.total })) {
+      out.push({ clientId: c.sub.clientId, subId: c.sub.id, formule: c.nom, apptId: s.apptId, date: s.date, time: s.time });
+    }
+  }
+  return out.sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0));
+}
+
+export type SansRendezVous = { clientId: string; subId: string; formule: string; disponibles: number | null };
+/** SANS RENDEZ-VOUS : une formule en cours, des séances à prendre, aucune de posée. */
+export function sansRendezVous(releves: readonly ReleveDuContrat[], jour: string): SansRendezVous[] {
+  const out: SansRendezVous[] = [];
+  for (const c of releves) {
+    if (c.etat !== 'en-cours' || !c.sub.clientId || prochaineSeance(c, jour)) continue;
+    const d = seancesDisponibles(c);
+    if (d === 0) continue;
+    out.push({ clientId: c.sub.clientId, subId: c.sub.id, formule: c.nom, disponibles: d });
+  }
+  return out;
+}
+
+/** CE QUE LE PANIER DEMANDE AU FAUTEUIL, en une phrase, selon son temps. */
+export function panierDit(p: PanierDAttention | undefined, articles: readonly ArticleDAttention[], heure: (iso: string) => string): string {
+  const nom = (id: string | undefined): string | undefined => (id ? articles.find((a) => a.id === id)?.nom : undefined);
+  const temps = tempsDuPanier(p);
+  if (!p || temps === 'a-valider') return 'Panier à valider, dans « Les attentions ».';
+  const servi = [nom(p.boire), nom(p.gout)].filter((x): x is string => !!x).map(minuscule).join(' et ');
+  const present = minuscule(nom(p.present) ?? 'son présent');
+  if (temps === 'remis') return `Panier servi et remis${p.remiseLe ? ` à ${heure(p.remiseLe)}` : ''}. L’attention se lit maintenant dans Ma Couronne.`;
+  if (temps === 'arrivee') return `Arrivée${p.arriveeLe ? ` à ${heure(p.arriveeLe)}` : ''}.${servi ? ` À servir : ${servi}.` : ''} À remettre : ${present}, et sa carte signée.`;
+  return `Panier prêt : ${servi ? `${servi}, ` : ''}${present}, et sa carte à signer.`;
+}
+
 /* ── LA VEILLE ────────────────────────────────────────────────────────── */
 
 export type LigneDeLaVeille = { article: ArticleDAttention; nombre: number };

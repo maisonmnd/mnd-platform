@@ -43,11 +43,12 @@ import { ClientPicker, RdvModal, useBranchClients } from '../clients/_shared';
 import { joursDeLaTete } from '../../../../shared/clients';
 import { Bar, DeepNote, Pill, Tabs } from './ui';
 import { LesAttentions } from './LesAttentions';
+import { Aujourdhui, LesAbonnees } from './Aujourdhui';
 import './equipe.css';
 import { ChampDeDate } from '../../../../ds/dates';
 import { appelDe } from '../../../../shared/civilite';
 
-type Tab = 'moteur' | 'formules' | 'membres' | 'attentions' | 'comptes';
+type Tab = 'jour' | 'moteur' | 'formules' | 'membres' | 'attentions' | 'comptes';
 type FiltreCompte = 'tous' | 'en-cours' | 'a-relancer' | 'retard' | 'parties';
 
 type PlanForm = {
@@ -110,7 +111,8 @@ export default function Abonnements() {
   const [plans, setPlans] = usePlans();
   const [subs, setSubs] = useSubscribers();
   const clients = useBranchClients();
-  const [tab, setTab] = useState<Tab>('moteur');
+  /* L'écran s'ouvre sur ce qu'il y a à faire aujourd'hui (6 novembre 2026). */
+  const [tab, setTab] = useState<Tab>('jour');
   const [cycle, setCycle] = useState<SubCycle>('mensuel');
   const [planModal, setPlanModal] = useState(false);
   const [planEditId, setPlanEditId] = useState<string | null>(null);
@@ -1130,11 +1132,15 @@ export default function Abonnements() {
       />
 
       <Tabs<Tab>
-        tabs={[{ k: 'moteur', l: 'Le moteur' }, { k: 'formules', l: 'Les formules' }, { k: 'membres', l: 'Les abonnés' }, { k: 'attentions', l: 'Les attentions' }, { k: 'comptes', l: 'Les comptes' }]}
+        tabs={[{ k: 'jour', l: 'Aujourd’hui' }, { k: 'membres', l: 'Les abonnés' }, { k: 'attentions', l: 'Les attentions' }, { k: 'formules', l: 'Les formules' }, { k: 'comptes', l: 'Les comptes' }, { k: 'moteur', l: 'Le moteur' }]}
         value={tab}
         onChange={setTab}
       />
 
+      {tab === 'jour' && (
+        <Aujourdhui releves={relevesDesContrats} moteur={moteur} clients={clients} nomDe={nomDeLaTete} aujourdhui={jourDeCotonou()} currency={currency}
+          onEncaisser={openPay} onSuivi={setSuiviFor} versLesAttentions={() => setTab('attentions')} />
+      )}
       {tab === 'attentions' && (
         <LesAttentions releves={relevesDesContrats} plans={plans} nomDe={nomDeLaTete} branchId={branch.id} aujourdhui={jourDeCotonou()} currency={currency} />
       )}
@@ -1704,6 +1710,10 @@ export default function Abonnements() {
             </div>
             <Button variant="copper" onClick={() => { setSubForm({ clientId: '', planId: premiereOuverte(plans)?.id ?? '', slot: '', cycle: 'mensuel', parts: null, premiere: '', dates: {}, voie: '', rythme: 'reguliere', couleurServiceId: '', prixConvenu: '', motif: '', inclus: null, validiteMois: '' }); setSubModal(true); }}>+ Nouvel abonné</Button>
           </div>
+
+          {/* LA LIGNE DE L'ABONNÉE (6 novembre 2026) : le résumé dessus, une seule
+              ouverte à la fois. Le tableau, dessous, garde tous ses gestes. */}
+          <LesAbonnees comptes={comptes} aujourdhui={jourDeCotonou()} currency={currency} onEncaisser={openPay} onSuivi={setSuiviFor} />
 
           {/* ── LES DEMANDES VENUES DE MA COURONNE — 28 août ────────────
               Le bouton de la cliente n'achète rien, il demande : c'est ici que

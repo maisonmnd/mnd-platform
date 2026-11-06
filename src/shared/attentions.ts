@@ -1,7 +1,8 @@
 import { createStore, uid, useStore } from './store';
 import { bindCollection } from './sync';
+import { categoriesStore, productsStore } from './catalog';
 import {
-  ARTICLES_DICTES, ecartesDe, marqueLArrivee, remetLePanier,
+  ARTICLES_DICTES, ecartesDe, marqueLArrivee, pourquoiPasCetArticle, remetLePanier,
   type ArticleDAttention, type PanierDAttention, type ReglageDAttention,
 } from './attentions-pur';
 
@@ -77,6 +78,58 @@ export function remiseAuFauteuil(id: string, quand: string, par?: string): boole
   ecritLePanier(r.panier);
   articlesDAttentionStore.set(() => r.articles);
   return true;
+}
+
+/* ── À LA CARTE : LE PRODUIT QUI PORTE L'ARTICLE À L'ENCAISSEMENT ─────────
+   Un article à la carte se vend : le ticket, la caisse et la pièce passent
+   par « La Gamme » de l'encaissement, qui ne connaît que les produits du
+   catalogue. Chaque article à la carte a donc SON produit, créé et tenu à
+   jour ici (nom, prix), rangé dans une catégorie « Les attentions » fermée
+   aux vitrines : Ma Couronne et le site ne la montrent pas. */
+
+export const CATEGORIE_DES_ATTENTIONS = 'attentions';
+
+function garantitLaCategorie(): void {
+  if (categoriesStore.get().some((c) => c.id === CATEGORIE_DES_ATTENTIONS)) return;
+  categoriesStore.set((prev) => [...prev, {
+    id: CATEGORIE_DES_ATTENTIONS, fon: 'Les attentions', label: 'À la carte, en fin de rendez-vous', enabled: false, produits: true,
+    order: prev.reduce((m, c) => Math.max(m, c.order ?? 0), 0) + 1,
+  }]);
+}
+
+/** L'article, avec son produit du catalogue : créé s'il manque, repris si le
+    nom ou le prix ont changé. Un article offert, ou à la carte sans prix
+    valable, n'a pas de produit. */
+export function avecSonProduit(a: ArticleDAttention): ArticleDAttention {
+  if (a.niveau !== 'carte' || a.prixXof === undefined || pourquoiPasCetArticle(a)) return a;
+  const prixXof = a.prixXof;
+  const deja = a.produitId ? productsStore.get().find((p) => p.id === a.produitId) : undefined;
+  if (deja) {
+    if (deja.name !== a.nom || deja.priceXof !== prixXof) {
+      productsStore.set((prev) => prev.map((p) => (p.id === deja.id ? { ...p, name: a.nom, priceXof: prixXof } : p)));
+    }
+    return a;
+  }
+  garantitLaCategorie();
+  const id = `prod-att-${uid()}`;
+  productsStore.set((prev) => [...prev, {
+    id, categoryId: CATEGORIE_DES_ATTENTIONS, name: a.nom, priceXof: prixXof, stock: 0,
+    order: prev.reduce((m, p) => Math.max(m, p.order ?? 0), 0) + 1,
+  }]);
+  return { ...a, produitId: id };
+}
+
+/** CE QUI VIENT D'ÊTRE VENDU À L'ENCAISSEMENT sort de la réserve comptée des
+    articles à la carte. Appelé une fois, après la vente, avec les lignes de
+    produits de la pièce. */
+export function sortLesArticlesVendus(lignes: readonly { produitId?: string; qty: number }[]): void {
+  const vendus = new Map<string, number>();
+  for (const l of lignes) if (l.produitId && l.qty > 0) vendus.set(l.produitId, (vendus.get(l.produitId) ?? 0) + l.qty);
+  if (vendus.size === 0) return;
+  const concernes = articlesDAttentionStore.get().some((a) => a.produitId && vendus.has(a.produitId) && typeof a.reserve === 'number');
+  if (!concernes) return;
+  articlesDAttentionStore.set((prev) => prev.map((a) => (a.produitId && vendus.has(a.produitId) && typeof a.reserve === 'number'
+    ? { ...a, reserve: Math.max(0, a.reserve - (vendus.get(a.produitId) ?? 0)) } : a)));
 }
 
 /** Un réglage (programme, collection, coût visé, écarts d'une tête). */

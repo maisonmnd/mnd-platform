@@ -44,6 +44,19 @@ const PANNES = [
   ['Ma Couronne embarque la liste des presents', 'src/apps/couronne/MesAttentions.tsx', "import type { AttentionLue } from '../../shared/attentions-pur';", "import { ARTICLES_DICTES, type AttentionLue } from '../../shared/attentions-pur';\nvoid ARTICLES_DICTES;"],
   ['le pli disparait de l accueil', 'src/apps/couronne/Abonnee.tsx', '      <PliDeLAttention teteId={releve.clientId} prenom={prenom} />\n', ''],
   ['le pli suppose un genre', 'src/apps/couronne/MesAttentions.tsx', "t('Bienvenue à la Maison MND. Votre attention vous est remise au fauteuil, avec sa carte.')", "t('Vous êtes arrivée. Votre attention vous est remise au fauteuil, avec sa carte.')"],
+  ['une fin de carnet invisible', PUR, "    if (s && estLeSceauDOr({ mode: 'pack', rang: s.rang, total: s.total })) {", '    if (s && s.rang === 0) {'],
+  ['une abonnee avec rendez-vous dite sans rendez-vous', PUR, "    if (c.etat !== 'en-cours' || !c.sub.clientId || prochaineSeance(c, jour)) continue;", "    if (c.etat !== 'en-cours' || !c.sub.clientId) continue;"],
+  ['le panier remis se dit au feminin', PUR, 'return `Panier servi et remis${', 'return `Servie et remise${'],
+  ['un article offert recoit un produit', 'src/shared/attentions.ts', "  if (a.niveau !== 'carte' || a.prixXof === undefined || pourquoiPasCetArticle(a)) return a;\n  const prixXof = a.prixXof;", "  if (a.niveau === 'or') return a;\n  const prixXof = a.prixXof ?? 0;"],
+  ['la categorie des attentions s ouvre aux vitrines', 'src/shared/attentions.ts', "label: 'À la carte, en fin de rendez-vous', enabled: false, produits: true,", "label: 'À la carte, en fin de rendez-vous', enabled: true, produits: true,"],
+  ['la vente ne sort rien de la reserve', 'src/shared/attentions.ts', "    ? { ...a, reserve: Math.max(0, a.reserve - (vendus.get(a.produitId) ?? 0)) } : a)));", '    ? { ...a } : a)));'],
+  ['les articles dictes se posent deux fois', 'src/shared/attentions.ts', '  if (deja) return 0;\n', ''],
+  ['l encaissement ne note plus la vente', 'src/apps/trone/routes/clients/actions.tsx', '      sortLesArticlesVendus(lignesGamme);\n', ''],
+  ['Avant de partir disparait de l encaissement', 'src/apps/trone/routes/clients/actions.tsx', '            <AvantDePartir branchId={branch.id} produits={produitsBranche} panier={panier} auPanier={auPanier} currency={currency} />\n', ''],
+  ['un article au-dessus de 1 500 F se propose a l encaissement', 'src/apps/trone/routes/clients/AvantDePartir.tsx', ' && x.produit.priceXof <= PRIX_A_LA_CARTE.max),', '),'],
+  ['le panier disparait de la fiche du rendez-vous', 'src/apps/trone/routes/clients/SeanceDeLaFormule.tsx', '      {s.compte && <PanierDeLaSeance apptId={frais.id} />}\n', ''],
+  ['Arrivee possible sur un panier non valide', 'src/apps/trone/routes/clients/PanierDeLaSeance.tsx', "{panier && temps === 'pret' && (", '{panier && ('],
+  ['l ecran ne s ouvre plus sur aujourd hui', 'src/apps/trone/routes/equipe/Abonnements.tsx', "useState<Tab>('jour')", "useState<Tab>('moteur')"],
   ['les paniers restent sur un poste deconnecte', 'src/shared/auth.ts', "  'mnd_attention_articles', 'mnd_attention_paniers', 'mnd_attention_reglages',\n", ''],
   ['l onglet Les attentions disparait', 'src/apps/trone/routes/equipe/Abonnements.tsx', "{ k: 'attentions', l: 'Les attentions' }, ", ''],
 ];
@@ -59,6 +72,13 @@ async function lanceLeBanc() {
       entryPoints: [path.join(racine, 'scripts/verifie-l-attention.harnais.ts')],
       bundle: true, format: 'esm', platform: 'node', outfile: sortie, logLevel: 'error', loader: { '.css': 'empty' },
       external: ['esbuild', '@electric-sql/pglite'],
+      banner: {
+        js: `const __m = new Map();
+globalThis.localStorage = { getItem: (k) => (__m.has(k) ? __m.get(k) : null), setItem: (k, v) => __m.set(k, String(v)), removeItem: (k) => __m.delete(k) };
+globalThis.window = { addEventListener() {}, dispatchEvent() {}, location: { href: '' }, setInterval() { return 0; }, clearInterval() {} };
+globalThis.document = { body: { dataset: {} }, addEventListener() {} };
+globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assign(this, o); } };`,
+      },
       define: { 'import.meta.env': JSON.stringify({ VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' }) },
     });
     return spawnSync(process.execPath, [sortie], { cwd: racine, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });

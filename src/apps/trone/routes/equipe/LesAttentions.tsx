@@ -13,7 +13,7 @@ import {
   type RegleDuRang, type Reserve, type SeanceAPreparer, type ViseeDesAttentions,
 } from '../../../../shared/attentions-pur';
 import {
-  ecritLePanier, ecritLeReglage, enregistreLArticle, nePlusLuiProposer, poseLesArticlesDictes, rouvreLePanier,
+  avecSonProduit, ecritLePanier, ecritLeReglage, enregistreLArticle, nePlusLuiProposer, poseLesArticlesDictes, rouvreLePanier,
   useArticlesDAttention, usePaniersDAttention, useReglagesDAttention, valideLePanier,
 } from '../../../../shared/attentions';
 import './attentions.css';
@@ -229,7 +229,10 @@ function LaBoutique({ articles, branchId, currency }: Commun & { currency: Param
     };
     const refus = pourquoiPasCetArticle(neuf);
     if (refus) { toast(refus); return; }
-    enregistreLArticle(JSON.parse(JSON.stringify(neuf)) as ArticleDAttention);
+    const ecrit = enregistreLArticle(JSON.parse(JSON.stringify(neuf)) as Omit<ArticleDAttention, 'id'> & { id?: string });
+    /* À la carte : son produit du catalogue, pour le ticket de l'encaissement. */
+    const lie = avecSonProduit(ecrit);
+    if (lie !== ecrit) enregistreLArticle(lie);
     setFiche(null);
     toast('Article enregistré.');
   };
@@ -283,7 +286,7 @@ function LaBoutique({ articles, branchId, currency }: Commun & { currency: Param
               <div className="att-article__gestes">
                 {a.niveau === 'carte' && !a.retire && (
                   <button type="button" className={`tre-mini ${a.enFinDeRdv ? 'is-cuivre' : ''}`} aria-pressed={!!a.enFinDeRdv} disabled={!!defaut}
-                    onClick={() => enregistreLArticle({ ...a, enFinDeRdv: !a.enFinDeRdv })}>{a.enFinDeRdv ? 'En fin de rendez-vous' : 'Pas proposé'}</button>
+                    onClick={() => enregistreLArticle(avecSonProduit({ ...a, enFinDeRdv: !a.enFinDeRdv }))}>{a.enFinDeRdv ? 'En fin de rendez-vous' : 'Pas proposé'}</button>
                 )}
                 <button type="button" className="tre-mini" onClick={() => setFiche(ficheDe(a))}>Modifier</button>
                 <button type="button" className="tre-mini" onClick={() => enregistreLArticle({ ...a, retire: !a.retire, ...(a.retire ? {} : { enFinDeRdv: false }) })}>{a.retire ? 'Remettre' : 'Retirer'}</button>

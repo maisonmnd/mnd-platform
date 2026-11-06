@@ -101,3 +101,21 @@
 .trc-seance-formule__t { font-weight: 600; }
 .trc-seance-formule__s { font-size: 11.5px; color: var(--ink-soft); line-height: 1.5; }
 .trc-seance-formule .trc-abo__gestes { margin-top: 2px; }
+
+/* ── L'ATTENTION SUR LA FICHE DU RENDEZ-VOUS, ET « AVANT DE PARTIR » (6 novembre 2026) ── */
+.trc-attention { border-top: 1px solid var(--copper-300, #D9B08C); margin-top: 4px; padding-top: 9px; display: grid; gap: 7px; }
+.trc-attention__t { font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--copper-700, #7A4B26); }
+.trc-attention__lignes { margin: 0; display: grid; gap: 3px; font-size: 12.5px; }
+.trc-attention__lignes div { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 8px; }
+.trc-attention__lignes dt { color: var(--ink-soft, #45454F); }
+.trc-attention__lignes dd { margin: 0; color: var(--color-indigo, #1E2150); }
+.trc-attention__mot { font-family: var(--font-serif); font-style: italic; font-size: 14.5px; }
+.trc-abo__fait { align-self: center; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--color-indigo, #1E2150); }
+.trc-avant { display: grid; gap: 8px; padding: 10px 0 6px; border-top: 1px solid var(--hairline, #E4DCCD); }
+.trc-avant__t { font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--copper-700, #7A4B26); }
+.trc-avant__choix { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.trc-avant__a { display: grid; gap: 2px; text-align: left; cursor: pointer; font: inherit; padding: 9px 11px; border: 1px solid var(--hairline, #E4DCCD); border-radius: 3px; background: var(--surface-card, #FBF8F2); color: var(--color-indigo, #1E2150); }
+.trc-avant__a b { font-weight: 500; font-size: 13px; }
+.trc-avant__a span { font-size: 11px; color: var(--ink-soft, #45454F); }
+.trc-avant__a .trc-avant__prix { font-family: var(--font-serif); font-size: 17px; color: var(--copper-700, #7A4B26); font-variant-numeric: tabular-nums; }
+.trc-avant__a.is-on { border-color: var(--color-copper, #B97A4A); background: var(--copper-50, #FBF3EA); }

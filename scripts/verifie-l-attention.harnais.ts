@@ -20,11 +20,16 @@ import {
   ARTICLES_DICTES, PRIX_A_LA_CARTE, PROPOSES_EN_FIN_DE_RDV,
   articlesEnFinDeRdv, carteSuivante, ceQuElleLit, coutDesAttentions, ecartesDe, enRayon, engages, estLeSceauDOr, heureDuFauteuil, histoireDe,
   listeDeLaVeille, marqueLArrivee, messageALArtisane, motPropose, panierDeLaSeance, pourquoiPasCetArticle, pourquoiPasValider, prenomDe,
-  programmeDe, proposeLePanier, remetLePanier, reservesCourtes, seancesAPreparer, semaineDe, tempsDuPanier,
+  finsDeCarnet, panierDit, prochaineSeance, programmeDe, proposeLePanier, remetLePanier, reservesCourtes, sansRendezVous, seancesAPreparer, seancesDisponibles, semaineDe, tempsDuPanier,
   type ArticleDAttention, type PanierDAttention, type ReglageDAttention, type SeanceAPreparer,
 } from '../src/shared/attentions-pur';
 import { releveDeLAbonnee, type ContratLu, type SeanceLue } from '../src/shared/abonnee-pur';
 import type { Plan } from '../src/shared/abonnements';
+import {
+  CATEGORIE_DES_ATTENTIONS, arriveeAuFauteuil, articlesDAttentionStore, avecSonProduit, enregistreLArticle, paniersDAttentionStore, poseLesArticlesDictes,
+  remiseAuFauteuil, sortLesArticlesVendus, valideLePanier,
+} from '../src/shared/attentions';
+import { categoriesStore, productsStore } from '../src/shared/catalog';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Any = any;
@@ -240,6 +245,82 @@ const NEUFS = ['src/shared/attentions-pur.ts', 'src/shared/attentions.ts', 'src/
 dit('les fichiers neufs : pas de tiret long, jamais « salon », aucune civilité supposée', [],
   NEUFS.filter((f) => /—|\bsalons?\b|\b(Madame|Monsieur|Mme|Mlle)\b/i.test(lis(f))));
 dit('l écran ne décide de rien : il ne recompte ni réserve ni rang', [], ['reserve - 1', 'reserve -= ', '.rang + 1'].filter((x) => sansCommentaires(lis('src/apps/trone/routes/equipe/LesAttentions.tsx')).includes(x)));
+
+/* ── 2 bis. LE LOT 3 : LE JOUR AU TRÔNE, LE FAUTEUIL, L'ENCAISSEMENT ── */
+const pl4 = { ...plan, id: 'pl4', name: 'GBÈJÍ™ · Carnet de Quatre', included: [{ serviceId: 'svc-g', qty: 4 }] } as Plan;
+const contrat = (id: string, clientId: string, planId: string): ContratLu => ({ ...sub, id, clientId, planId, reference: `ABO-${id}` }) as ContratLu;
+const rdvDe = (id: string, clientId: string, subId: string, date: string, status: SeanceLue['status']): SeanceLue =>
+  ({ ...rdv(id, date, status), clientId, subId }) as SeanceLue;
+const releveDe = (clientId: string, subs: ContratLu[], appts: SeanceLue[]) =>
+  releveDeLAbonnee({ jour: '2026-12-08', clientId, subs, plans: [plan, pl4], appts, invoices: [], restesHorsFormule: [] }).contrats;
+const tous = [
+  ...releveDe('cB', [contrat('s4', 'cB', 'pl4')], [rdvDe('b1', 'cB', 's4', '2026-10-05', 'honoré'), rdvDe('b2', 'cB', 's4', '2026-10-17', 'honoré'), rdvDe('b3', 'cB', 's4', '2026-11-14', 'honoré'), rdvDe('b4', 'cB', 's4', '2026-12-12', 'confirmé')]),
+  ...releveDe('cC', [contrat('s6', 'cC', 'pl6')], [rdvDe('c1', 'cC', 's6', '2026-10-10', 'honoré'), rdvDe('c2', 'cC', 's6', '2026-12-10', 'confirmé')]),
+  ...releveDe('cD', [contrat('s7', 'cD', 'pl6')], [rdvDe('d1', 'cD', 's7', '2026-10-10', 'honoré'), rdvDe('dx', 'cD', 's7', '2026-12-09', 'annulé')]),
+];
+dit('la prochaine séance d un contrat : la première qui compte et n a pas eu lieu', [['b4', 4, 4], ['c2', 2, 6], null],
+  tous.map((c) => { const s = prochaineSeance(c, '2026-12-08'); return s && [s.apptId, s.rang, s.total]; }));
+dit('fin de carnet : la prochaine séance est la dernière ; pas une séance de milieu de carnet', [['cB', 'b4', '2026-12-12']], finsDeCarnet(tous, '2026-12-08').map((f) => [f.clientId, f.apptId, f.date]));
+dit('sans rendez-vous : une formule en cours, des séances à prendre, aucune de posée (l annulée ne compte pas)', [['cD', 5]], sansRendezVous(tous, '2026-12-08').map((x) => [x.clientId, x.disponibles]));
+dit('les séances disponibles se comptent en séances', [0, 4, 5], tous.map(seancesDisponibles));
+const hDe = () => '9 h 04';
+dit('le panier se dit au fauteuil, selon son temps', [true, true, true, true, true],
+  [/à valider/.test(panierDit(undefined, BOUTIQUE, hDe)), /à valider/.test(panierDit(panier({ etat: 'propose' }), BOUTIQUE, hDe)),
+    panierDit(panier({ boire: 'b1', gout: 'g1', present: 'p1' }), BOUTIQUE, hDe) === 'Panier prêt : la Citronnelle du jardin et le petit pâté, le foulard, et sa carte à signer.',
+    panierDit(panier({ boire: 'b1', gout: 'g1', present: 'p1', arriveeLe: 'x' }), BOUTIQUE, hDe) === 'Arrivée à 9 h 04. À servir : la Citronnelle du jardin et le petit pâté. À remettre : le foulard, et sa carte signée.',
+    /^Panier servi et remis à 9 h 04\./.test(panierDit(panier({ present: 'p1', arriveeLe: 'x', remiseLe: 'y' }), BOUTIQUE, hDe))]);
+dit('... sans accord de genre pour ce que la Maison écrit du panier remis', false, /Servie|remise à/.test(panierDit(panier({ present: 'p1', arriveeLe: 'x', remiseLe: 'y' }), BOUTIQUE, hDe)));
+
+/* Les magasins : la boutique vide, le produit d'un article à la carte, la vente, le fauteuil. */
+dit('la boutique part vide ; un toucher pose les articles dictés, jamais deux fois', [0, ARTICLES_DICTES.length, 0, true],
+  [articlesDAttentionStore.get().length, poseLesArticlesDictes('m'), poseLesArticlesDictes('m'), articlesDAttentionStore.get().every((a) => a.branchId === 'm' && a.id.startsWith('att-'))]);
+articlesDAttentionStore.set(() => []);
+const produitsAvant = productsStore.get().length;
+const chouchou = avecSonProduit(enregistreLArticle({ branchId: 'm', nom: 'Le chouchou de satin', rayon: 'present', niveau: 'carte', prixXof: 1500, reserve: 4, enFinDeRdv: true }));
+enregistreLArticle(chouchou);
+const sonProduit = productsStore.get().find((p) => p.id === chouchou.produitId);
+dit('à la carte : l article reçoit son produit du catalogue, au même nom et au même prix', { nom: 'Le chouchou de satin', prix: 1500, categorie: CATEGORIE_DES_ATTENTIONS, neufs: 1 },
+  sonProduit && { nom: sonProduit.name, prix: sonProduit.priceXof, categorie: sonProduit.categoryId, neufs: productsStore.get().length - produitsAvant });
+dit('... rangé dans une catégorie de produits fermée aux vitrines', { enabled: false, produits: true },
+  (({ enabled, produits }) => ({ enabled, produits }))(categoriesStore.get().find((c) => c.id === CATEGORIE_DES_ATTENTIONS) as { enabled: boolean; produits?: boolean }));
+const repris = avecSonProduit({ ...chouchou, nom: 'Le chouchou', prixXof: 1200 });
+dit('... repris quand le nom ou le prix changent, jamais doublé', { memeProduit: true, nom: 'Le chouchou', prix: 1200, neufs: 1 },
+  { memeProduit: repris.produitId === chouchou.produitId, nom: productsStore.get().find((p) => p.id === chouchou.produitId)?.name,
+    prix: productsStore.get().find((p) => p.id === chouchou.produitId)?.priceXof, neufs: productsStore.get().length - produitsAvant });
+dit('un article offert, ou à la carte sans prix valable, n a pas de produit', [undefined, undefined, undefined, 1],
+  [avecSonProduit(art('o1', { niveau: 'offert' })).produitId, avecSonProduit(art('o2', { niveau: 'carte' })).produitId, avecSonProduit(art('o3', { niveau: 'carte', prixXof: 2000 })).produitId, productsStore.get().length - produitsAvant]);
+enregistreLArticle({ id: 'frais1', branchId: 'm', nom: 'Le duo de petits pains', rayon: 'gout', niveau: 'carte', prixXof: 1500, reserve: 'frais', produitId: 'prod-frais' });
+sortLesArticlesVendus([{ produitId: chouchou.produitId, qty: 2 }, { produitId: 'prod-frais', qty: 1 }, { produitId: 'un-autre-produit', qty: 5 }, { qty: 1 }]);
+dit('ce qui est vendu à l encaissement sort de la réserve comptée ; le frais ne se compte pas', [2, 'frais'],
+  [articlesDAttentionStore.get().find((a) => a.id === chouchou.id)?.reserve, articlesDAttentionStore.get().find((a) => a.id === 'frais1')?.reserve]);
+enregistreLArticle({ ...P1, branchId: 'm' });
+valideLePanier(panier({ id: 'z1', apptId: 'z1', present: 'p1' }), '2026-12-12T07:00:00Z', 'R. G.');
+arriveeAuFauteuil('z1', '2026-12-12T08:04:00Z', 'R. G.');
+dit('au fauteuil : « Arrivée » puis « Remise » écrivent le panier et sortent le présent de la réserve, une seule fois', [true, false, '2026-12-12T08:04:00Z', 'Le foulard', 1],
+  [remiseAuFauteuil('z1', '2026-12-12T08:10:00Z', 'R. G.'), remiseAuFauteuil('z1', '2026-12-12T08:11:00Z'),
+    paniersDAttentionStore.get().find((p) => p.id === 'z1')?.arriveeLe, paniersDAttentionStore.get().find((p) => p.id === 'z1')?.recu?.present,
+    articlesDAttentionStore.get().find((a) => a.id === 'p1')?.reserve]);
+
+/* Le texte du lot 3. */
+dit('Abonnements s ouvre sur « Aujourd hui », premier onglet', [true, true, true],
+  [abo.includes("const [tab, setTab] = useState<Tab>('jour');"), abo.includes("tabs={[{ k: 'jour', l: 'Aujourd’hui' }, { k: 'membres', l: 'Les abonnés' }, { k: 'attentions', l: 'Les attentions' },"),
+    abo.includes('<LesAbonnees comptes={comptes} aujourdhui={jourDeCotonou()} currency={currency} onEncaisser={openPay} onSuivi={setSuiviFor} />')]);
+const fauteuil = lis('src/apps/trone/routes/clients/PanierDeLaSeance.tsx');
+dit('« Arrivée » ne s offre que sur un panier validé, « Remise » qu après l arrivée', [true, true],
+  [fauteuil.includes("{panier && temps === 'pret' && ("), fauteuil.includes("{panier && temps === 'arrivee' && (")]);
+dit('le panier se lit sur la fiche du rendez-vous d une séance qui compte', true,
+  lis('src/apps/trone/routes/clients/SeanceDeLaFormule.tsx').includes('{s.compte && <PanierDeLaSeance apptId={frais.id} />}'));
+const caisse = lis('src/apps/trone/routes/clients/actions.tsx');
+dit('l encaissement propose « Avant de partir » avant la Gamme, et note la vente après elle', [true, true],
+  [caisse.indexOf('<AvantDePartir branchId={branch.id} produits={produitsBranche} panier={panier} auPanier={auPanier} currency={currency} />') > 0
+    && caisse.indexOf('<AvantDePartir ') < caisse.indexOf('{/* ══ LA GAMME AU COMPTOIR'),
+    /venteGamme\(l\.produitId, l\.qty, inv\.number, invDate, branch\.id\);\n      \}\n[^\n]*\n[^\n]*\n      sortLesArticlesVendus\(lignesGamme\);/.test(caisse)]);
+const avant = lis('src/apps/trone/routes/clients/AvantDePartir.tsx');
+dit('« Avant de partir » : un toucher ajoute au panier de la Gamme, un second retire ; jamais hors de la fourchette', [true, true],
+  [avant.includes('onClick={() => auPanier(produit.id, q > 0 ? -q : 1)}'), avant.includes('x.produit.priceXof >= PRIX_A_LA_CARTE.min && x.produit.priceXof <= PRIX_A_LA_CARTE.max')]);
+dit('les fichiers neufs du lot 3 : pas de tiret long, jamais « salon », aucune civilité supposée', [],
+  ['src/apps/trone/routes/equipe/Aujourdhui.tsx', 'src/apps/trone/routes/clients/PanierDeLaSeance.tsx', 'src/apps/trone/routes/clients/AvantDePartir.tsx']
+    .filter((f) => /—|\bsalons?\b|\b(Madame|Monsieur|Mme|Mlle)\b/i.test(lis(f))));
 
 /* ── 3. LE VRAI SQL, DANS PGLITE ────────────────────────────────────── */
 async function chargePGlite(): Promise<Any | null> {

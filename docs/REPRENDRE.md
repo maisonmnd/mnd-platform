@@ -2,6 +2,17 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE TRÔNE, LOT 3 DE L'ABONNEMENT REFAIT : 6 novembre 2026
+
+Suite de « construis les 2 lots » (Yéman). Aucune migration, aucune fonction : le Trône seul.
+
+- **Abonnements s'ouvre sur « Aujourd'hui »** (`equipe/Aujourdhui.tsx`) : les séances de formule du jour avec leur panier (« Arrivée », puis « Remise »), ce qui est à régler aujourd'hui ou en retard (`moteur.dues`), les fins de carnet (`finsDeCarnet` : un carnet dont la dernière séance est réservée se dit « épuisé », il en fait partie), les abonnées sans rendez-vous avec leur jour d'habitude. Onglets, dans cet ordre : Aujourd'hui, Les abonnés, Les attentions, Les formules, Les comptes, Le moteur.
+- **La ligne de l'abonnée** (`LesAbonnees`, en tête de « Les abonnés ») : une ligne par formule qui court, le résumé dessus, une seule ouverte ; le tableau d'avant reste dessous avec tous ses gestes.
+- **Le panier sur la fiche du rendez-vous** (`clients/PanierDeLaSeance.tsx`, monté dans `SeanceDeLaFormule`) : à boire, à goûter, le présent, la carte, le mot. « Arrivée » seulement sur un panier validé, « Remise » seulement après l'arrivée ; « Remise » fige les noms et sort la réserve comptée. Il n'y avait aucune « arrivée » de cliente dans le Trône : elle vit sur le panier (`arriveeLe`).
+- **« Avant de partir »** (`clients/AvantDePartir.tsx`, dans l'encaissement, juste avant « La Gamme au comptoir ») : jusqu'à trois articles à la carte marqués « En fin de rendez-vous ». RIEN DE NEUF DANS LA CAISSE : le toucher passe par `auPanier` de la Gamme (ligne de pièce, paiement, réserve). Un article à la carte reçoit donc SON produit du catalogue (`avecSonProduit`, catégorie `attentions`, `enabled: false` : fermée aux vitrines) ; après la vente, `sortLesArticlesVendus(lignesGamme)` sort sa réserve comptée. Le prix encaissé est celui du produit ; hors de 800 à 1 500 F, l'article ne se propose pas.
+- **Banc** : `verifie-l-attention` (98 épreuves avec PGlite ; `--prouve`, 38 fautes).
+- **Restent** : lot 4, les messages (la phrase de la veille « Une attention vous y attend » est un modèle à faire approuver chez Meta ; le message d'après séance ; les deux par la salle d'attente) ; lot 5, la page Abonnements du site.
+
 ## L'ATTENTION, LOT 2 DE L'ABONNEMENT REFAIT : 6 novembre 2026
 
 « construis les 2 lots » (Yéman, 6 novembre 2026) : le lot 2 (l'attention) puis le lot 3 (le Trône), dans l'ordre de la maquette `public/maquette-l-abonnement-refait.html`. Tranché au sélecteur le même jour : un présent à chaque séance avec un mot, remis au fauteuil à son arrivée avec une carte de la Collection Maison MND écrite à la main ; la Maison choisit tout, tout reste une surprise ; offert, à la carte entre 800 et 1 500 F, sceau d'or à la dernière séance d'un carnet ; le frais vient d'une artisane, commandée la veille.
@@ -12,7 +23,7 @@
 - **Le Trône** : onglet « Les attentions » d'Abonnements (`equipe/LesAttentions.tsx`, `attentions.css`) : La semaine (un panier par séance, proposé par Perle, changé article par article, « Ne plus lui proposer », validé), La boutique (rayons, niveaux, réserve, « En fin de rendez-vous »), Le programme (présent et mot voulus par rang, collection de cartes, coût visé), La veille (à commander, à cueillir, à sortir, cartes à écrire ; le message à l'artisane se copie, la Maison l'envoie).
 - **LA BOUTIQUE PART VIDE** : le bouton « Poser les 21 articles dictés le 6 novembre 2026 » y met ce que Yéman a dicté, sans prix ni réserve supposés (pièces à compter, bières sans prix donc jamais proposées). Elle simplifie ensuite, à son signal. Ne rien poser à sa place.
 - **Ma Couronne** : `MesAttentions.tsx` (`PliDeLAttention` dans `TableauDeBord`, page par `#/attentions`, lien dans « Ma formule » quand elle a quelque chose à lire). Aucun accord de genre (« Bienvenue à la Maison MND », jamais « Vous êtes arrivée »). L'accueil d'une tête portée (`HomeEnfant`, dans Tabs.tsx) n'a pas encore le pli.
-- **Banc** : `verifie-l-attention` (79 épreuves avec PGlite, `--prouve` 25 fautes) : les règles, le texte, et `mes_attentions` jouée dans PGlite contre son jumeau (`BANC_PGLITE`, sinon la partie SQL saute).
+- **Banc** : `verifie-l-attention` : les règles, le texte, et `mes_attentions` jouée dans PGlite contre son jumeau (`BANC_PGLITE`, sinon la partie SQL saute). L'outil de mise en ligne refuse un SQL qui contient le mot « truncate » : la 0170 retire tous les droits puis ne rend que lire, écrire et reprendre.
 - **À fixer avec Yéman** (liste de la maquette) : le coût visé d'un panier, le sceau d'or des formules à la lune (proposé : la sixième lune d'affilée, non construit), les séries de la collection de cartes (à saisir dans « Le programme » quand les cartes sont validées).
 - **Aperçus hors dépôt** : scratchpad `apercu-attentions.mjs` (les quatre vues du Trône) et `apercu-mes-attentions.mjs` (le pli et la page), à poser dans la copie de travail sous `.apercu-tmp/`.
 
