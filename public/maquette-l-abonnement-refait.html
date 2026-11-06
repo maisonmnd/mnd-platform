@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L’abonnement refait</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@400;500;600&display=swap">
+<style>
+/* Mise en page : une colonne de 1080 px. Deux démonstrations qu'on manipule : le téléphone de l'abonnée (Ma Couronne) avec ses réglages à côté, puis l'écran du Trône. Les deux sont reliés : « Arrivée » au Trône ouvre le sceau sur le téléphone. */
+:root {
+  --ivoire: #F6F1E7; --carte: #FFFDF8; --indigo: #1E2150; --cuivre: #B97A4A; --cuivre-fonce: #9E6238;
+  --encre: #1F1D26; --encre-douce: #6A6474; --trait: rgba(30, 33, 80, .14); --pale: #F1E7D9;
+  --indigo-pale: #E7E8F2; --cuivre-pale: #F3E1C8; --sur-indigo: #F6F1E7; --sur-cuivre: #FFFDF8;
+  --or: #C99A55; --sur-or: #1E2150; --nuit: #1E2150; --sur-nuit: #F6F1E7;
+  --serif: "Cormorant Garamond", "Noto Serif", Georgia, serif;
+  --sans: "Jost", "Noto Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --encre-douce: #A9A3B3; --trait: rgba(236, 231, 221, .16); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --sur-indigo: #15161F; --sur-cuivre: #15161F;
+  --or: #E3B877; --sur-or: #1E2150; --nuit: #272A5C; --sur-nuit: #F6F1E7; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --encre-douce: #A9A3B3; --trait: rgba(236, 231, 221, .16); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --sur-indigo: #15161F; --sur-cuivre: #15161F;
+  --or: #E3B877; --sur-or: #1E2150; --nuit: #272A5C; --sur-nuit: #F6F1E7; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ivoire); color: var(--encre); font: 400 15px/1.55 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 72px; }
+main { max-width: 1080px; margin: 0 auto; display: grid; gap: 44px; }
+h1, h2, h3, h4 { font-family: var(--serif); font-weight: 500; color: var(--indigo); margin: 0; line-height: 1.15; text-wrap: balance; }
+h1 { font-size: clamp(34px, 7vw, 50px); }
+h2 { font-size: clamp(25px, 5vw, 32px); padding-bottom: 8px; border-bottom: 1px solid var(--trait); }
+h3 { font-size: 21px; }
+h4 { font-size: 18px; }
+p { margin: 0; max-width: 68ch; }
+button { font: inherit; color: inherit; }
+.sourcil { font: 600 11px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre-fonce); }
+.doux { color: var(--encre-douce); }
+.petit { font-size: 13px; }
+.num { font-variant-numeric: tabular-nums; }
+section { display: grid; gap: 16px; }
+:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+
+.tete { display: grid; gap: 12px; background: var(--nuit); color: var(--sur-nuit); padding: 26px 24px; border-radius: 6px; }
+.tete h1 { color: var(--sur-nuit); }
+.tete .sourcil { color: var(--or); }
+.tete p { max-width: 62ch; }
+.bandeau { border: 1px solid rgba(246, 241, 231, .3); padding: 9px 13px; border-radius: 4px; font-size: 13px; justify-self: start; }
+
+/* Les trois idées */
+.idees { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--trait); }
+.idee { padding: 16px 18px 4px 0; display: grid; gap: 6px; align-content: start; }
+.idee + .idee { padding-left: 18px; border-left: 1px solid var(--trait); }
+.idee b { font: 500 21px var(--serif); color: var(--indigo); }
+@media (max-width: 720px) { .idees { grid-template-columns: 1fr; } .idee + .idee { padding-left: 0; border-left: 0; border-top: 1px solid var(--trait); } }
+
+/* La démonstration : réglages + téléphone */
+.demo { display: grid; grid-template-columns: minmax(0, 372px) minmax(0, 1fr); gap: 32px; align-items: start; }
+.demo > .tel { order: 1; } .demo > .reglages { order: 2; }
+@media (max-width: 860px) { .demo { grid-template-columns: 1fr; } .demo > .tel { order: 2; justify-self: center; } .demo > .reglages { order: 1; } }
+.reglages { display: grid; gap: 18px; min-width: 0; }
+.groupe { display: grid; gap: 8px; }
+.puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.puce { border: 1px solid var(--trait); background: var(--carte); color: var(--encre); padding: 7px 12px; border-radius: 999px; font-size: 13px; cursor: pointer; }
+.puce.on { background: var(--indigo); border-color: var(--indigo); color: var(--sur-indigo); }
+.note { border-left: 2px solid var(--cuivre); padding: 4px 0 4px 14px; display: grid; gap: 6px; }
+
+/* Le téléphone */
+.tel { width: 100%; max-width: 372px; border: 1px solid var(--trait); border-radius: 30px; background: var(--ivoire); overflow: hidden; display: grid; grid-template-rows: auto 620px auto; }
+.tel__haut { display: flex; justify-content: space-between; gap: 8px; padding: 10px 18px 8px; font-size: 11.5px; color: var(--encre-douce); border-bottom: 1px solid var(--trait); }
+.tel__corps { overflow-y: auto; padding: 16px 14px 20px; display: grid; gap: 12px; align-content: start; }
+.tel__nav { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--trait); background: var(--carte); }
+.tel__nav button { border: 0; background: none; padding: 10px 2px 12px; font-size: 10.5px; letter-spacing: .04em; color: var(--encre-douce); cursor: pointer; }
+.tel__nav button.on { color: var(--indigo); font-weight: 600; box-shadow: inset 0 2px 0 var(--cuivre); }
+.tel__nav button[disabled] { opacity: .45; cursor: default; }
+.bonjour { font: 500 27px/1.1 var(--serif); color: var(--indigo); }
+.retour { border: 0; background: none; padding: 0; color: var(--cuivre-fonce); font-size: 12.5px; cursor: pointer; justify-self: start; }
+.c { background: var(--carte); border: 1px solid var(--trait); border-radius: 6px; padding: 14px; display: grid; gap: 10px; }
+.c--nuit { background: var(--nuit); border-color: var(--nuit); color: var(--sur-nuit); }
+.c--nuit h4, .c--nuit .sourcil { color: var(--sur-nuit); } .c--nuit .sourcil { color: var(--or); } .c--nuit .doux { color: rgba(246, 241, 231, .78); }
+.alerte { display: flex; gap: 10px; align-items: center; justify-content: space-between; background: var(--cuivre-pale); border: 1px solid var(--cuivre); border-radius: 4px; padding: 10px 12px; font-size: 13px; }
+.alerte span { min-width: 0; }
+.btn { border: 1px solid var(--indigo); background: transparent; color: var(--indigo); padding: 9px 13px; border-radius: 4px; font: 500 12.5px var(--sans); letter-spacing: .04em; cursor: pointer; text-align: center; }
+.btn.plein { background: var(--cuivre); border-color: var(--cuivre); color: var(--sur-cuivre); }
+.btn.fort { background: var(--indigo); color: var(--sur-indigo); }
+.btn.mini { padding: 5px 10px; font-size: 12px; white-space: nowrap; }
+.c--nuit .btn { border-color: rgba(246, 241, 231, .6); color: var(--sur-nuit); } .c--nuit .btn.plein { background: var(--or); border-color: var(--or); color: var(--sur-or); }
+.lien { border: 0; background: none; padding: 0; color: var(--cuivre-fonce); font-size: 12.5px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; justify-self: start; }
+.deux { display: grid; gap: 8px; }
+
+/* Le chemin de sceaux */
+.chemin { display: flex; align-items: center; justify-content: space-between; gap: 2px; position: relative; padding: 2px 0; }
+.chemin::before { content: ""; position: absolute; left: 6%; right: 6%; top: 50%; border-top: 1px dashed var(--trait); }
+.chemin button { border: 0; background: none; padding: 0; cursor: pointer; position: relative; display: grid; justify-items: center; gap: 3px; border-radius: 50%; }
+.chemin button.sel .sceau { transform: scale(1.14); }
+.chemin small { font-size: 10px; color: var(--encre-douce); position: absolute; top: 100%; white-space: nowrap; }
+.chemin--grand { padding-bottom: 18px; }
+.sceau { display: block; transition: transform .2s ease; }
+.sceau--jour, .sceau--or { animation: pouls 1.8s ease-in-out infinite; }
+@keyframes pouls { 50% { transform: scale(1.08); } }
+.legende { font-size: 12.5px; color: var(--encre-douce); }
+.legende b { color: var(--encre); font-weight: 500; }
+
+/* Le pli scellé */
+.pli { position: relative; background: var(--pale); border: 1px solid var(--trait); border-radius: 6px; padding: 54px 14px 14px; display: grid; gap: 8px; justify-items: center; text-align: center; overflow: hidden; }
+.pli__rabat { position: absolute; inset: 0 0 auto 0; height: 58px; background: var(--indigo-pale); clip-path: polygon(0 0, 100% 0, 50% 100%); transform-origin: top; transition: transform .55s ease, opacity .55s ease; }
+.pli__sceau { position: absolute; top: 26px; left: 50%; margin-left: -29px; transition: transform .55s ease, opacity .55s ease; }
+.pli.ouvre .pli__rabat { transform: scaleY(0); opacity: 0; }
+.pli.ouvre .pli__sceau { transform: scale(1.5) rotate(24deg); opacity: 0; }
+.pli p { font-size: 13px; }
+.indice { font: 500 17px var(--serif); color: var(--indigo); }
+.lettre { background: var(--carte); border: 1px solid var(--cuivre); border-radius: 6px; padding: 16px 14px; display: grid; gap: 10px; animation: deplie .5s ease both; }
+@keyframes deplie { from { opacity: 0; transform: translateY(8px); } }
+.lettre blockquote { margin: 0; font: 500 19px/1.3 var(--serif); color: var(--indigo); }
+.lettre cite { font-style: normal; font-size: 12px; color: var(--encre-douce); }
+.choix { display: grid; gap: 8px; }
+.choix button { border: 1px solid var(--trait); background: var(--ivoire); border-radius: 4px; padding: 11px 12px; text-align: left; font-size: 13.5px; cursor: pointer; }
+.choix button.on { border-color: var(--cuivre); background: var(--cuivre-pale); }
+@media (prefers-reduced-motion: reduce) { .sceau--jour, .sceau--or, .lettre { animation: none; } .pli__rabat, .pli__sceau, .sceau { transition: none; } }
+
+/* Rubriques repliées */
+.rub { border-top: 1px solid var(--trait); }
+.rub:last-child { border-bottom: 1px solid var(--trait); }
+.rub > button { width: 100%; border: 0; background: none; padding: 12px 2px; display: flex; justify-content: space-between; gap: 10px; align-items: baseline; text-align: left; cursor: pointer; }
+.rub > button b { font: 500 17px var(--serif); color: var(--indigo); }
+.rub > button span { font-size: 12.5px; color: var(--encre-douce); text-align: right; min-width: 0; }
+.rub__dedans { padding: 0 2px 14px; display: grid; gap: 8px; font-size: 13.5px; }
+.lg { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 6px 0; border-top: 1px dotted var(--trait); }
+.lg:first-child { border-top: 0; }
+.lg > span:first-child { min-width: 0; }
+.etat { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--cuivre-fonce); white-space: nowrap; }
+.place { display: flex; justify-content: space-between; gap: 10px; align-items: center; border: 1px solid var(--trait); background: var(--carte); border-radius: 4px; padding: 12px; cursor: pointer; text-align: left; width: 100%; }
+.place.on { border-color: var(--cuivre); background: var(--cuivre-pale); }
+.place b { font-weight: 500; color: var(--indigo); }
+.mot-tel { font-size: 11.5px; color: var(--encre-douce); text-align: center; min-height: 16px; }
+
+/* L'écran du Trône */
+.ecran { background: var(--carte); border: 1px solid var(--trait); border-radius: 8px; overflow: hidden; }
+.ecran__titre { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between; padding: 14px 16px 4px; }
+.onglets { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px 10px 0; border-bottom: 1px solid var(--trait); }
+.onglet { border: 0; background: none; padding: 10px 12px; font: 500 13.5px var(--sans); color: var(--encre-douce); border-bottom: 2px solid transparent; cursor: pointer; }
+.onglet.on { color: var(--indigo); border-bottom-color: var(--cuivre); }
+.onglet.neuf::after { content: "nouveau"; margin-left: 6px; font: 600 9.5px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--cuivre-fonce); }
+.vue { padding: 16px; display: grid; gap: 18px; }
+.bande { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--trait); border-radius: 6px; }
+.bande > div { padding: 12px 14px; display: grid; gap: 2px; min-width: 0; }
+.bande > div + div { border-left: 1px solid var(--trait); }
+.bande b { font: 500 26px/1.1 var(--serif); color: var(--indigo); }
+.bande span { font-size: 12px; color: var(--encre-douce); }
+@media (max-width: 640px) { .bande { grid-template-columns: repeat(2, minmax(0, 1fr)); } .bande > div:nth-child(3) { border-left: 0; } .bande > div:nth-child(n+3) { border-top: 1px solid var(--trait); } }
+.fil { display: grid; }
+.ligne { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 14px; align-items: center; padding: 12px 2px; border-top: 1px solid var(--trait); }
+.ligne:first-child { border-top: 0; }
+.ligne__quoi { min-width: 0; display: grid; gap: 2px; }
+.ligne__quoi b { font-weight: 500; color: var(--indigo); }
+.ligne__gestes { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.ouvert-l { grid-column: 1 / -1; background: var(--ivoire); border: 1px solid var(--trait); border-radius: 6px; padding: 12px; display: grid; gap: 10px; }
+.points { display: inline-flex; gap: 4px; vertical-align: middle; }
+.points i { width: 9px; height: 9px; border-radius: 50%; border: 1px solid var(--cuivre); display: inline-block; }
+.points i.f { background: var(--cuivre); } .points i.r { background: var(--indigo); border-color: var(--indigo); }
+.table { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 520px; }
+th, td { text-align: left; padding: 8px 10px; border-top: 1px solid var(--trait); vertical-align: top; }
+th { font: 600 10.5px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--encre-douce); border-top: 0; }
+td.d, th.d { text-align: right; white-space: nowrap; }
+textarea { width: 100%; min-height: 62px; border: 1px solid var(--trait); border-radius: 4px; background: var(--carte); color: var(--encre); font: 400 13.5px/1.45 var(--sans); padding: 8px 10px; resize: vertical; }
+
+/* Les messages */
+.messages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 820px) { .messages { grid-template-columns: 1fr; } }
+.msg { display: grid; gap: 8px; align-content: start; }
+.bulle { background: var(--indigo-pale); border-radius: 4px 14px 14px 14px; padding: 12px 14px; font-size: 13.5px; display: grid; gap: 8px; }
+.bulle .bt { border-top: 1px solid var(--trait); padding-top: 7px; text-align: center; color: var(--cuivre-fonce); font-size: 13px; }
+
+/* Listes simples */
+.liste { display: grid; gap: 0; }
+.liste > div { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 6px 18px; padding: 12px 0; border-top: 1px solid var(--trait); }
+.liste > div:first-child { border-top: 0; }
+.liste b { font: 500 17px var(--serif); color: var(--indigo); }
+@media (max-width: 640px) { .liste > div { grid-template-columns: 1fr; } }
+.trancher { display: grid; gap: 0; counter-reset: q; }
+.trancher > div { display: grid; gap: 6px; padding: 14px 0; border-top: 1px solid var(--trait); }
+.trancher h4::before { counter-increment: q; content: counter(q) ". "; color: var(--cuivre-fonce); }
+.propose { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--cuivre-fonce); font-weight: 600; }
+details { border-top: 1px solid var(--trait); padding: 10px 0; }
+details:last-of-type { border-bottom: 1px solid var(--trait); }
+summary { cursor: pointer; font: 500 18px var(--serif); color: var(--indigo); }
+details ul { margin: 10px 0 2px; padding-left: 18px; display: grid; gap: 4px; max-width: 70ch; }
+</style>
+</head>
+<body>
+<main>
+
+<header class="tete">
+  <span class="sourcil">Maquette · à valider avant toute construction</span>
+  <h1>L’abonnement, refait</h1>
+  <p>Toutes ses pages, pour l’abonnée dans Ma Couronne et pour la Maison au Trône. Et une idée neuve : à chaque séance, une attention scellée l’attend. Elle s’ouvre quand elle arrive à la Maison MND.</p>
+  <span class="bandeau">Première version, 6 novembre 2026. Rien n’est construit. Les noms, les prix et les attentions montrés sont des exemples.</span>
+</header>
+
+<section aria-label="Les trois idées">
+  <div class="idees">
+    <div class="idee"><span class="sourcil">Structuré</span><b>Un chemin</b><p class="petit">Chaque séance est un sceau. Elle voit où elle en est sans rien compter : fait, réservé, à prendre.</p></div>
+    <div class="idee"><span class="sourcil">Amusant</span><b>Une attention</b><p class="petit">Un pli scellé à chaque séance, avec un indice. Il ne s’ouvre qu’à son arrivée, et elle garde tout ce qu’elle a reçu.</p></div>
+    <div class="idee"><span class="sourcil">Facile</span><b>Une seule chose à faire</b><p class="petit">L’écran dit toujours la prochaine étape, et une seule : réserver, venir, régler, ou reprendre.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Pour l’abonnée, dans Ma Couronne</h2>
+  <p>Changez le moment et la page : le téléphone suit. Touchez les sceaux, ouvrez le pli à son arrivée, réservez une place. L’abonnée de l’exemple s’appelle Awa ; elle a un Carnet de Six et vient le samedi vers 9 h.</p>
+  <div class="demo">
+    <div class="reglages">
+      <div class="groupe"><span class="sourcil">Le moment</span><div class="puces" id="moments"></div></div>
+      <div class="groupe"><span class="sourcil">La page</span><div class="puces" id="pages"></div></div>
+      <div class="note" id="note"></div>
+    </div>
+    <div class="tel" id="tel"></div>
+  </div>
+</section>
+
+<section>
+  <h2>Pour la Maison, au Trône</h2>
+  <p>L’écran Abonnements s’ouvre sur ce qu’il y a à faire aujourd’hui. Touchez « Arrivée » sur la ligne d’Awa : son sceau s’ouvre sur le téléphone plus haut.</p>
+  <div class="ecran" id="trone"></div>
+</section>
+
+<section>
+  <h2>Les messages qu’elle reçoit</h2>
+  <p>Trois messages au plus par séance, tous liés à son rendez-vous. Ils passent par la salle d’attente des envois ; deux modèles sont à faire approuver chez Meta.</p>
+  <div class="messages">
+    <div class="msg"><span class="sourcil">La veille</span><div class="bulle">Bonjour Awa, votre rendez-vous est prévu demain à 9 h à la Maison MND. Une attention vous y attend.</div><p class="petit doux">Le rappel d’aujourd’hui, avec une phrase de plus.</p></div>
+    <div class="msg"><span class="sourcil">À son arrivée</span><div class="bulle">Bienvenue, Awa. Votre attention du jour est ouverte.<div class="bt">Ouvrir mon attention</div></div><p class="petit doux">Dans Ma Couronne, ou par un lien sans compte pour celles qui n’ont pas l’application.</p></div>
+    <div class="msg"><span class="sourcil">Après la séance</span><div class="bulle">Merci, Awa. Votre prochaine séance : samedi 23 janvier 2027 à 9 h ?<div class="bt">Oui, je réserve</div><div class="bt">Une autre date</div></div><p class="petit doux">Son jour et son heure d’habitude, jamais avant l’ouverture.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>La page Abonnements du site</h2>
+  <div class="liste">
+    <div><b>Ce que c’est</b><p>Une phrase : votre couronne a son rythme, vos séances sont prêtes, et une attention vous attend à chacune.</p></div>
+    <div><b>Trois façons de venir</b><p>Chaque lune, par carnet, ou après une création. Sans prix sur la page : le prix dépend de la tête, il se lit dans Ma Couronne ou se dit de vive voix.</p></div>
+    <div><b>Ce que reçoit une abonnée</b><p>Ses séances au meilleur prix, sa place sur son jour, et le pli scellé de chaque séance.</p></div>
+    <div><b>Un seul geste</b><p>« Voir ma formule » pour celle qui a Ma Couronne, « En parler à la Maison » pour les autres.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Ce que l’attention ne sera pas</h2>
+  <div class="liste">
+    <div><b>Pas un jeu de hasard</b><p>Chaque attention est choisie pour elle, à partir de sa fiche. Rien n’est tiré au sort.</p></div>
+    <div><b>Pas des points</b><p>Ni compteur à gagner, ni classement entre clientes. Le Cercle reste à part.</p></div>
+    <div><b>Pas une remise</b><p>Jamais un montant en francs dans le pli, et elle ne s’ajoute pas aux remises de la formule.</p></div>
+    <div><b>Pas un message de plus</b><p>Elle voyage avec les messages de son rendez-vous. Aucune relance « venez découvrir votre surprise ».</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>À trancher</h2>
+  <p>Six décisions, chacune avec ma proposition. Les quatre premières vous arrivent au sélecteur.</p>
+  <div class="trancher">
+    <div><h4>Son nom</h4><p><span class="propose">Proposé</span> « L’attention ». Clair, chaleureux, et il dit bien un geste de la Maison. Autres : « Le pli », « La surprise de la lune ».</p></div>
+    <div><h4>Quand elle s’ouvre</h4><p><span class="propose">Proposé</span> À son arrivée, quand l’équipe touche « Arrivée ». C’est ce qui donne envie de venir. Autres : le matin de la séance ; après la séance.</p></div>
+    <div><h4>Ce qu’elle contient</h4><p><span class="propose">Proposé</span> Un mot à chaque séance, un geste ou un présent une séance sur deux, un sceau d’or à la dernière séance d’un carnet. Autres : un mot seulement ; un présent à chaque fois.</p></div>
+    <div><h4>Par où elle arrive</h4><p><span class="propose">Proposé</span> Ma Couronne, et un lien WhatsApp sans compte pour les autres. Autres : Ma Couronne seule ; une carte papier au fauteuil.</p></div>
+    <div><h4>Qui la prépare</h4><p><span class="propose">Proposé</span> Perle propose à partir de la fiche, vous validez la semaine d’un toucher et vous retouchez le mot. Autres : vous écrivez tout ; une réserve fixe qui tourne seule.</p></div>
+    <div><h4>Qui la reçoit</h4><p><span class="propose">Proposé</span> Toutes les abonnées, à la lune comme au carnet. Autre : les carnets seulement.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Ce qui ne change pas, et l’ordre de construction</h2>
+  <details><summary>Les règles convenues le 20 octobre 2026 restent</summary>
+    <ul>
+      <li>Une séance se compte « faite », « réservée » ou « disponible », avec les mêmes mots partout.</li>
+      <li>Annulée à moins de 24 h, ou absente : la séance est comptée « Manquée » ; la Maison peut la rendre.</li>
+      <li>Un carnet a une date de fin ; les séances non prises sont perdues, la Maison peut prolonger avec un motif.</li>
+      <li>Chaque Lune se règle avant la lune ; non réglée, la formule se met en pause, sans dette.</li>
+      <li>Une formule prise en ligne et non réglée est retenue sept jours, puis s’efface.</li>
+    </ul>
+  </details>
+  <details><summary>Cinq lots, dans cet ordre</summary>
+    <ul>
+      <li>Le socle : le chemin de sceaux et les pages de Ma Couronne refaites, sans l’attention.</li>
+      <li>L’attention : la réserve, la règle, la semaine à valider, le pli et son ouverture à l’arrivée.</li>
+      <li>Le Trône : l’onglet « Aujourd’hui », la ligne de l’abonnée, l’attention sur le rendez-vous.</li>
+      <li>Les messages : les deux modèles chez Meta, puis leur branchement à la salle d’attente.</li>
+      <li>La page du site.</li>
+    </ul>
+  </details>
+</section>
+
+</main>
+<script>
+/* ── L'exemple ─────────────────────────────────────────────────────────── */
+const DATES = ['samedi 8 août 2026', 'samedi 19 septembre 2026', 'samedi 31 octobre 2026', 'samedi 12 décembre 2026', 'samedi 23 janvier 2027', 'samedi 6 mars 2027'];
+const COURT = ['8 août', '19 sept.', '31 oct.', '12 déc.', '23 janv.', '6 mars'];
+const ATT = [
+  { genre: 'Le mot', titre: 'Le mot de bienvenue', texte: 'Bienvenue dans votre carnet, Awa. Votre couronne a maintenant son rythme, et nous veillons dessus avec vous.' },
+  { genre: 'Le geste', titre: 'Cinq minutes pour votre cuir chevelu', texte: 'Un massage offert au bac, parce que vous êtes revenue à l’heure de votre couronne.' },
+  { genre: 'Le regard', titre: 'Votre couronne, en deux photos', texte: 'Du 8 août au 31 octobre 2026 : regardez le chemin parcouru. Les deux photos sont dans votre Parcours.' },
+  { genre: 'Au choix', titre: 'À vous de choisir', texte: 'Quatre séances que vous nous confiez votre couronne. Merci de cette confiance.', indice: 'elle se choisit' },
+  { genre: 'Le présent', titre: 'Un présent à emporter', texte: 'Pour les semaines entre deux séances.', indice: 'elle se porte' },
+  { genre: 'Le sceau d’or', titre: 'Le sceau d’or', texte: 'Six séances, un carnet tenu jusqu’au bout. Un présent de la Maison vous attend au comptoir.', indice: 'c’est la plus belle' },
+];
+const CHOIX = ['Cinq minutes de massage du cuir chevelu, au bac', 'Une huile de voyage, à emporter'];
+const PLACES = [['samedi 23 janvier 2027', '9 h 00', 'Votre jour, votre heure'], ['samedi 23 janvier 2027', '11 h 30', ''], ['samedi 30 janvier 2027', '9 h 00', '']];
+const MOMENTS = [
+  ['entre', 'Entre deux séances', 'ven. 6 nov. 2026'], ['veille', 'La veille', 'ven. 11 déc. 2026'], ['jour', 'Le jour, avant d’arriver', 'sam. 12 déc. 2026 · 7 h 30'],
+  ['arrivee', 'À son arrivée', 'sam. 12 déc. 2026 · 9 h 04'], ['apres', 'Après la séance', 'sam. 12 déc. 2026 · 11 h 40'], ['echeance', 'Une échéance à régler', 'ven. 6 nov. 2026'],
+  ['derniere', 'La dernière séance du carnet', 'sam. 6 mars 2027 · 9 h 02'], ['sans', 'Sans formule', 'ven. 6 nov. 2026'],
+];
+const PAGES = [['accueil', 'Accueil'], ['formule', 'Ma formule'], ['attentions', 'Mes attentions'], ['reserver', 'Réserver'], ['regler', 'Régler'], ['choisir', 'Choisir une formule']];
+const NOTES = {
+  accueil: ['Aujourd’hui : deux cartes, un compteur et une barre.', 'Demain : le chemin de sceaux, une seule alerte en haut, et le pli qui attend avec son indice.'],
+  formule: ['Aujourd’hui : une longue page à faire défiler.', 'Demain : le chemin en haut, puis quatre rubriques repliées avec leur résumé sur la ligne. Toucher un sceau montre sa séance.'],
+  attentions: ['Nouveau.', 'Ce qu’elle a reçu reste ici, séance par séance. La prochaine est scellée, avec son indice : c’est ce qui donne envie de revenir.'],
+  reserver: ['Aujourd’hui : elle refait tout le parcours de réservation.', 'Demain : trois places sur son jour et son heure d’habitude, jamais avant l’ouverture. Un toucher, 0 F, sans acompte.'],
+  regler: ['Inchangé sur le fond.', 'Une somme, une date, trois façons de régler. L’alerte de l’accueil y mène d’un toucher.'],
+  choisir: ['Aujourd’hui : une liste de formules.', 'Demain : trois façons de venir, au prix de sa tête, et ce que chaque abonnée reçoit.'],
+};
+const E = { moment: 'entre', page: 'accueil', ouverte: false, choix: null, place: null, regle: false, rub: 'seances', sel: 4, onglet: 'jour', remise: false, valide: {}, ab: 0, mot: '' };
+const $ = (id) => document.getElementById(id);
+const F = (n) => n.toLocaleString('fr-FR') + ' F';
+
+/* ── Le sceau dentelé ──────────────────────────────────────────────────── */
+function sceau(etat, glyphe, taille) {
+  const t = taille || 44;
+  const c = { faite: ['var(--cuivre)', 'var(--sur-cuivre)'], reservee: ['var(--indigo)', 'var(--sur-indigo)'], dispo: ['var(--pale)', 'var(--encre-douce)'], jour: ['var(--cuivre)', 'var(--sur-cuivre)'], or: ['var(--or)', 'var(--sur-or)'], scelle: ['var(--nuit)', 'var(--or)'] }[etat];
+  let dents = '';
+  for (let i = 0; i < 14; i++) { const a = i * 2 * Math.PI / 14; dents += `<circle cx="${(50 + 41 * Math.cos(a)).toFixed(1)}" cy="${(50 + 41 * Math.sin(a)).toFixed(1)}" r="9.5"/>`; }
+  const centre = glyphe === '*'
+    ? `<path d="M50 28 L55.5 44.5 L72 50 L55.5 55.5 L50 72 L44.5 55.5 L28 50 L44.5 44.5 Z" style="fill:${c[1]}"/>`
+    : `<text x="50" y="52" text-anchor="middle" dominant-baseline="central" style="font:500 36px var(--serif);fill:${c[1]}">${glyphe}</text>`;
+  return `<svg class="sceau sceau--${etat}" viewBox="0 0 100 100" width="${t}" height="${t}" aria-hidden="true"><g style="fill:${c[0]}">${dents}<circle cx="50" cy="50" r="42"/></g><circle cx="50" cy="50" r="33" style="fill:none;stroke:${c[1]};stroke-width:1.2;opacity:.5"${etat === 'dispo' ? ' stroke-dasharray="3 4"' : ''}/>${centre}</svg>`;
+}
+
+/* ── L'état des six séances selon le moment ────────────────────────────── */
+function seances() {
+  const m = E.moment;
+  return DATES.map((d, i) => {
+    const n = i + 1;
+    let etat = n <= 3 ? 'faite' : n === 4 ? 'reservee' : 'dispo';
+    if ((m === 'jour' || m === 'arrivee') && n === 4) etat = 'jour';
+    if (m === 'apres') etat = n <= 4 ? 'faite' : 'dispo';
+    if (m === 'derniere') etat = n <= 5 ? 'faite' : 'or';
+    if (etat === 'dispo' && n === 5 && E.place !== null) etat = 'reservee';
+    return { n, etat, date: d };
+  });
+}
+const duJour = () => (E.moment === 'derniere' ? 6 : 4);
+const ouvrable = () => E.moment === 'arrivee' || E.moment === 'derniere';
+const compte = (s) => { const f = s.filter((x) => x.etat === 'faite').length, r = s.filter((x) => x.etat === 'reservee' || x.etat === 'jour' || x.etat === 'or').length; return { f, r, d: 6 - f - r }; };
+const mots = (n, un, plusieurs) => `${n} ${n > 1 ? plusieurs : un}`;
+const legende = (s) => { const k = compte(s); return `<span class="legende"><b>${mots(k.f, 'faite', 'faites')}</b> · <b>${mots(k.r, 'réservée', 'réservées')}</b> · <b>${mots(k.d, 'disponible', 'disponibles')}</b></span>`; };
+function chemin(s, grand) {
+  return `<div class="chemin${grand ? ' chemin--grand' : ''}">${s.map((x) => `<button data-a="sel:${x.n}" class="${grand && E.sel === x.n ? 'sel' : ''}" aria-label="Séance ${x.n}, ${x.etat}">${sceau(x.etat, x.n, grand ? 46 : 40)}${grand ? `<small>${COURT[x.n - 1]}</small>` : ''}</button>`).join('')}</div>`;
+}
+
+/* ── Le pli ────────────────────────────────────────────────────────────── */
+function pli() {
+  const m = E.moment, n = duJour(), a = ATT[n - 1], or = n === 6;
+  if (m === 'sans') return '';
+  if (m === 'apres') {
+    return `<div class="c"><span class="sourcil">Reçue aujourd’hui</span><p><b>${a.titre}.</b> ${E.choix !== null ? CHOIX[E.choix] + '.' : 'Votre choix est noté.'}</p>
+      <div class="pli"><div class="pli__rabat"></div><div class="pli__sceau">${sceau('scelle', '*', 58)}</div><p class="doux">La prochaine s’ouvrira à votre séance 5.</p><p class="indice">Indice : ${ATT[4].indice}.</p></div></div>`;
+  }
+  if (ouvrable() && E.ouverte) {
+    const corps = or
+      ? `<p>${a.texte.split('. ')[1]}</p><button class="btn plein" data-a="page:choisir">Reprendre un carnet</button>`
+      : `<p class="petit doux">Aujourd’hui, choisissez :</p><div class="choix">${CHOIX.map((c, i) => `<button data-a="choix:${i}" class="${E.choix === i ? 'on' : ''}">${c}</button>`).join('')}</div>${E.choix !== null ? '<p class="petit">C’est noté. L’équipe est prévenue.</p>' : ''}`;
+    return `<div class="lettre"><span class="sourcil">${or ? 'Le sceau d’or' : 'Votre attention du jour'}</span><blockquote>${or ? 'Six séances, un carnet tenu jusqu’au bout.' : a.texte}</blockquote><cite>La Maison MND</cite>${corps}</div>`;
+  }
+  const quand = { entre: `Votre prochaine attention s’ouvre le ${DATES[3]}, à votre arrivée à la Maison MND.`, echeance: `Votre prochaine attention s’ouvre le ${DATES[3]}, à votre arrivée à la Maison MND.`, veille: 'Elle s’ouvre demain, à votre arrivée à la Maison MND.', jour: 'Elle s’ouvre à votre arrivée à la Maison MND.', arrivee: 'Vous êtes arrivée : elle est à vous.', derniere: 'Vous êtes arrivée : le sceau d’or est à vous.' }[m];
+  return `<div class="pli" id="pli"><div class="pli__rabat"></div><div class="pli__sceau">${sceau(or ? 'or' : (m === 'jour' || m === 'arrivee') ? 'jour' : 'scelle', '*', 58)}</div>
+    <p>${quand}</p>${ouvrable() ? `<button class="btn plein" data-a="ouvrir">Ouvrir mon attention</button>` : `<p class="indice">Indice : ${a.indice}.</p>`}</div>`;
+}
+
+/* ── Les pages du téléphone ────────────────────────────────────────────── */
+function alerte() {
+  const m = E.moment;
+  if (m === 'echeance' && !E.regle) return `<div class="alerte"><span><b>${F(70000)}</b> à régler avant le lundi 9 novembre 2026.</span><button class="btn mini plein" data-a="page:regler">Régler</button></div>`;
+  if (m === 'veille') return `<div class="alerte"><span>Demain à 9 h : votre séance 4 sur 6.</span><button class="btn mini" data-a="page:formule">Voir</button></div>`;
+  if (m === 'jour') return `<div class="alerte"><span>Aujourd’hui à 9 h : votre séance 4 sur 6.</span><button class="btn mini" data-a="page:formule">Voir</button></div>`;
+  if (m === 'arrivee') return `<div class="alerte"><span>Bienvenue, Awa. Votre attention est prête.</span></div>`;
+  if (m === 'derniere') return `<div class="alerte"><span>Dernière séance de votre carnet. Un sceau d’or vous attend.</span></div>`;
+  if (m === 'apres' && E.place === null) return `<div class="alerte"><span>Prochaine séance conseillée : samedi 23 janvier 2027.</span><button class="btn mini plein" data-a="page:reserver">Réserver</button></div>`;
+  return '';
+}
+function pAccueil() {
+  if (E.moment === 'sans') return `<div class="bonjour">Bonjour, Awa.</div>
+    <div class="c c--nuit"><span class="sourcil">Ma formule</span><h4>Votre couronne peut avoir son rythme.</h4><p class="petit doux">Vos séances prêtes d’avance, votre place sur votre jour, et une attention scellée à chaque séance.</p><button class="btn plein" data-a="page:choisir">Découvrir les formules</button></div>
+    <div class="deux"><button class="btn" data-a="inerte">Réserver un soin</button></div>`;
+  const s = seances();
+  return `<div class="bonjour">Bonjour, Awa.</div>${alerte()}
+    <div class="c"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span class="sourcil">Ma formule</span><button class="lien" data-a="page:formule">Tout voir</button></div>
+      <h4>GBÈJÍ™ · Carnet de Six</h4>${chemin(s)}${legende(s)}</div>
+    <div class="c"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span class="sourcil">L’attention</span><button class="lien" data-a="page:attentions">Mes attentions</button></div>${pli()}</div>
+    <div class="deux"><button class="btn fort" data-a="page:reserver">Réserver une séance de ma formule</button><button class="btn" data-a="inerte">Réserver un autre soin</button></div>`;
+}
+function rub(id, titre, resume, dedans) {
+  const o = E.rub === id;
+  return `<div class="rub"><button data-a="rub:${id}" aria-expanded="${o}"><b>${titre}</b><span>${resume}</span></button>${o ? `<div class="rub__dedans">${dedans}</div>` : ''}</div>`;
+}
+function pFormule() {
+  if (E.moment === 'sans') return pChoisir();
+  const s = seances(), x = s[E.sel - 1], k = compte(s), du = E.moment === 'echeance' && !E.regle;
+  const ETATS = { faite: 'Faite', reservee: 'Réservée', dispo: 'Disponible', jour: 'Aujourd’hui', or: 'Aujourd’hui' };
+  const detail = x.etat === 'faite' ? `Faite le ${x.date}. Attention reçue : ${ATT[x.n - 1].titre.toLowerCase()}.`
+    : x.etat === 'dispo' ? 'Disponible. Elle se réserve d’un toucher.'
+    : `${x.etat === 'reservee' ? 'Réservée' : 'Aujourd’hui'}, ${x.date} à 9 h. Son attention est scellée.`;
+  return `<button class="retour" data-a="page:accueil">← Accueil</button>
+    <div><span class="sourcil">Ma formule</span><h3>GBÈJÍ™ · Carnet de Six</h3></div>
+    ${chemin(s, true)}
+    <div class="c"><span class="sourcil">Séance ${x.n} sur 6</span><p class="petit">${detail}</p>${x.etat === 'dispo' ? '<button class="btn mini plein" data-a="page:reserver">Réserver</button>' : x.etat === 'reservee' ? '<button class="lien" data-a="inerte">Annuler ou déplacer</button>' : ''}</div>
+    <div>
+      ${rub('seances', 'Mes séances', `${k.f} faites · ${k.r} réservée${k.r > 1 ? 's' : ''} · ${k.d} disponible${k.d > 1 ? 's' : ''}`, s.map((y) => `<div class="lg"><span>Séance ${y.n}${y.etat !== 'dispo' ? ' · ' + y.date : ''}</span><span class="etat">${ETATS[y.etat]}</span></div>`).join(''))}
+      ${rub('attentions', 'Mes attentions', `${k.f} reçues · la suivante scellée`, `<p>Un mot, un geste ou un présent à chaque séance.</p><button class="btn mini" data-a="page:attentions">Ouvrir mes attentions</button>`)}
+      ${rub('reglement', 'Mon règlement', du ? `Réglé ${F(70000)} sur ${F(140000)}` : 'Vous êtes à jour', `<div class="lg"><span>8 août 2026 · à la signature</span><span class="num">${F(70000)}</span></div><div class="lg"><span>${du ? 'Avant le lundi 9 novembre 2026' : '8 septembre 2026'}</span><span class="num">${F(70000)}${du ? '' : ' · réglé'}</span></div>${du ? `<button class="btn mini plein" data-a="page:regler">Régler ${F(70000)}</button>` : ''}`)}
+      ${rub('convenu', 'Ce qui est convenu', 'Valable jusqu’au 5 mai 2027', `<div class="lg"><span>Six venues GBÈJÍ™, la sixième offerte</span></div><div class="lg"><span>Annulée à moins de 24 h, ou absente : la séance est comptée</span></div><div class="lg"><span>Les séances non prises au 5 mai 2027 sont perdues ; la Maison peut prolonger</span></div><button class="lien" data-a="page:choisir">Prendre une autre formule</button>`)}
+    </div>`;
+}
+function pAttentions() {
+  if (E.moment === 'sans') return pChoisir();
+  const s = seances();
+  return `<button class="retour" data-a="page:accueil">← Accueil</button>
+    <div><span class="sourcil">Mes attentions</span><h3>Ce que la Maison vous a réservé</h3></div>
+    ${s.map((x) => {
+      const a = ATT[x.n - 1];
+      if (x.etat === 'faite') return `<div class="c"><div style="display:flex;gap:12px;align-items:center">${sceau('faite', x.n, 38)}<div style="min-width:0"><span class="sourcil">${a.genre} · ${COURT[x.n - 1]}</span><h4>${a.titre}</h4></div></div><p class="petit doux">${a.texte}</p></div>`;
+      if (x.n === duJour() || (E.moment === 'apres' && x.n === 5)) return `<div class="c"><div style="display:flex;gap:12px;align-items:center">${sceau(x.n === 6 ? 'or' : 'scelle', '*', 38)}<div style="min-width:0"><span class="sourcil">Séance ${x.n} · scellée</span><h4>Indice : ${a.indice}.</h4></div></div><p class="petit doux">Elle s’ouvre à votre arrivée à la Maison MND.</p></div>`;
+      return `<div class="lg" style="padding:6px 4px"><span class="doux">Séance ${x.n}${x.n === 6 ? ' · le sceau d’or' : ''}</span><span class="etat">À venir</span></div>`;
+    }).join('')}`;
+}
+function pReserver() {
+  if (E.moment === 'sans') return pChoisir();
+  const fait = E.place !== null;
+  return `<button class="retour" data-a="page:accueil">← Accueil</button>
+    <div><span class="sourcil">Réserver · incluse dans ma formule</span><h3>Séance 5 sur 6</h3></div>
+    <p class="petit doux">D’habitude, vous venez le samedi vers 9 h, toutes les six semaines.</p>
+    ${PLACES.map((p, i) => `<button class="place${E.place === i ? ' on' : ''}" data-a="place:${i}"><span><b>${p[0].replace(/^./, (c) => c.toUpperCase())}</b><br><span class="petit doux">${p[1]}${p[2] ? ' · ' + p[2] : ''}</span></span><span class="etat">${E.place === i ? 'Choisie' : '0 F'}</span></button>`).join('')}
+    <button class="lien" data-a="inerte">Une autre date</button>
+    ${fait ? `<div class="lettre"><span class="sourcil">C’est réservé</span><p>Séance 5 sur 6, ${PLACES[E.place][0]} à ${PLACES[E.place][1]}. Rien à régler, aucun acompte.</p><p class="petit doux">Une attention vous y attendra.</p></div>` : ''}`;
+}
+function pRegler() {
+  if (E.moment === 'sans') return pChoisir();
+  const du = E.moment === 'echeance' && !E.regle;
+  return `<button class="retour" data-a="page:accueil">← Accueil</button>
+    <div><span class="sourcil">Régler</span><h3>${du ? F(70000) : 'Rien n’est dû'}</h3></div>
+    ${du ? `<p class="petit">Seconde échéance de votre Carnet de Six, avant le lundi 9 novembre 2026. Le 8 tombe un dimanche : la Maison est fermée.</p>
+      <div class="deux"><button class="btn plein" data-a="regler">Régler en ligne, maintenant</button><button class="btn" data-a="inerte">Recevoir un lien MND PAY</button></div><p class="petit doux">Ou au comptoir de la Maison MND, à votre prochaine visite.</p>`
+      : `<div class="lettre"><p>${E.regle ? `Réglé : ${F(70000)}. Merci.` : 'Vous êtes à jour.'}</p><p class="petit doux">Réglé ${F(140000)} sur ${F(140000)}.</p></div>`}`;
+}
+function pChoisir() {
+  const fam = (titre, ligne, items) => `<div class="c"><span class="sourcil">${titre}</span><p class="petit doux">${ligne}</p>${items.map((x) => `<div class="lg"><span>${x[0]}</span><span class="num">${x[1]}</span></div>`).join('')}</div>`;
+  return `<button class="retour" data-a="page:accueil">← Accueil</button>
+    <div><span class="sourcil">Choisir une formule</span><h3>Trois façons de venir</h3></div>
+    <p class="petit doux">Prix pour votre tête : Medium, court.</p>
+    ${fam('Chaque lune', 'Réglée lune par lune, sans engagement.', [['KLƆKLƆ™ · Chaque Lune', F(12000) + ' / lune'], ['GBÈJÍ™ · Chaque Lune', F(37500) + ' / lune']])}
+    ${fam('Par carnet', 'Vos venues prêtes d’avance, la dernière offerte.', [['Carnet de Quatre', F(84000)], ['Carnet de Six', F(140000)], ['Carnet de l’Année', F(168000)]])}
+    ${fam('Après une création', 'Les quatre premières venues de votre couronne.', [['VÈKPÈ™ · Les Premières Lunes', F(84000)]])}
+    <div class="c c--nuit"><span class="sourcil">Pour toutes les abonnées</span><p class="petit">Une attention scellée à chaque séance, qui s’ouvre à votre arrivée.</p></div>
+    <button class="btn plein" data-a="inerte">Voir cette formule</button>`;
+}
+
+/* ── Rendus ────────────────────────────────────────────────────────────── */
+function rTel() {
+  const corps = { accueil: pAccueil, formule: pFormule, attentions: pAttentions, reserver: pReserver, regler: pRegler, choisir: pChoisir }[E.page]();
+  const haut = MOMENTS.find((m) => m[0] === E.moment)[2];
+  const garde = $('tel').querySelector('.tel__corps'), y = garde && garde.dataset.page === E.page ? garde.scrollTop : 0;
+  $('tel').innerHTML = `<div class="tel__haut"><span>Ma Couronne</span><span>${haut}</span></div><div class="tel__corps" data-page="${E.page}">${corps}<div class="mot-tel" aria-live="polite">${E.mot}</div></div>
+    <div class="tel__nav"><button data-a="page:accueil" class="${E.page === 'accueil' ? 'on' : ''}">Accueil</button><button disabled>Parcours</button><button data-a="page:formule" class="${E.page !== 'accueil' ? 'on' : ''}">Ma formule</button><button disabled>Boutique</button><button disabled>Profil</button></div>`;
+  $('tel').querySelector('.tel__corps').scrollTop = y;
+}
+function rReglages() {
+  $('moments').innerHTML = MOMENTS.map((m) => `<button class="puce${E.moment === m[0] ? ' on' : ''}" data-a="moment:${m[0]}" aria-pressed="${E.moment === m[0]}">${m[1]}</button>`).join('');
+  $('pages').innerHTML = PAGES.map((p) => `<button class="puce${E.page === p[0] ? ' on' : ''}" data-a="page:${p[0]}" aria-pressed="${E.page === p[0]}">${p[1]}</button>`).join('');
+  const n = NOTES[E.page];
+  $('note').innerHTML = `<span class="sourcil">Ce qui change sur cette page</span><p class="petit doux">${n[0]}</p><p>${n[1]}</p>`;
+}
+const AB = [
+  ['A. D.', 'GBÈJÍ™ · Carnet de Six', 'fffr..', 'À jour', 'sam. 12 déc. 2026 · 9 h', 'Au choix'],
+  ['M. K.', 'GBÈJÍ™ · Carnet de Quatre', 'fffr', 'À jour', 'mar. 15 déc. 2026 · 10 h', 'Le sceau d’or'],
+  ['S. A.', 'KLƆKLƆ™ · Chaque Lune', 'ffff.', 'Lune à régler avant le 18 déc. 2026', 'à réserver', 'Le mot'],
+  ['F. H.', 'GBÈJÍ™ · Carnet de l’Année', 'ff......', F(56000) + ' le 20 déc. 2026', 'jeu. 17 déc. 2026 · 14 h', 'Le regard'],
+  ['R. B.', 'VÈKPÈ™ · Les Premières Lunes', 'f...', 'À jour', 'à réserver', 'Le présent'],
+];
+const pts = (s) => `<span class="points" aria-hidden="true">${[...s].map((c) => `<i class="${c === 'f' ? 'f' : c === 'r' ? 'r' : ''}"></i>`).join('')}</span>`;
+function rTrone() {
+  const arrivee = E.moment === 'arrivee' || E.moment === 'apres';
+  const tabs = [['jour', 'Aujourd’hui', 1], ['abonnees', 'Les abonnées', 0], ['attentions', 'Les attentions', 1], ['formules', 'Les formules', 0], ['comptes', 'Les comptes', 0]];
+  let vue = '';
+  if (E.onglet === 'jour') {
+    const etatA = !arrivee ? 'Attention scellée : au choix, massage du cuir chevelu ou huile de voyage.' : !E.ouverte ? 'Arrivée à 9 h 04. Son sceau est ouvert sur son téléphone.' : E.choix === null ? 'Elle a ouvert son attention. Son choix arrive.' : `Elle a choisi : ${CHOIX[E.choix].toLowerCase()}.`;
+    vue = `<div class="bande"><div><b>5</b><span>abonnées en cours</span></div><div><b>3</b><span>séances de formule cette semaine</span></div><div><b class="num">${F(126000)}</b><span>à encaisser ce mois</span></div><div><b>2</b><span>attentions à valider</span></div></div>
+      <div><span class="sourcil">À faire, samedi 12 décembre 2026</span><div class="fil">
+        <div class="ligne"><div class="ligne__quoi"><span><b>9 h 00 · A. D.</b> · séance 4 sur 6 ${pts('fffr..')}</span><span class="petit doux">${etatA}</span></div>
+          <div class="ligne__gestes">${!arrivee ? '<button class="btn mini plein" data-a="arrivee">Arrivée</button>' : E.remise ? '<span class="etat">Remise</span>' : `<button class="btn mini plein" data-a="remise"${E.choix === null ? ' disabled' : ''}>Remise</button>`}</div></div>
+        <div class="ligne"><div class="ligne__quoi"><span><b>Lune à régler · S. A.</b> · ${F(12000)} avant le vendredi 18 décembre 2026</span><span class="petit doux">Sa prochaine séance s’ouvre au règlement.</span></div><div class="ligne__gestes"><button class="btn mini" data-a="rien">Encaisser</button><button class="btn mini" data-a="rien">Rappeler</button></div></div>
+        <div class="ligne"><div class="ligne__quoi"><span><b>Fin de carnet · M. K.</b> · dernière séance le mardi 15 décembre 2026</span><span class="petit doux">Le sceau d’or est prêt. Lui proposer de reprendre un carnet.</span></div><div class="ligne__gestes"><button class="btn mini" data-a="rien">Préparer</button></div></div>
+        <div class="ligne"><div class="ligne__quoi"><span><b>Sans rendez-vous · R. B.</b> · 3 séances disponibles, la suivante conseillée vers le 9 janvier 2027</span><span class="petit doux">Son jour : le samedi.</span></div><div class="ligne__gestes"><button class="btn mini" data-a="rien">Proposer une place</button></div></div>
+      </div></div>`;
+  } else if (E.onglet === 'abonnees') {
+    vue = `<p class="petit doux">Une ligne par abonnée, le résumé dessus. Une seule s’ouvre à la fois.</p><div class="fil">${AB.map((a, i) => `<div class="ligne"><div class="ligne__quoi"><span><b>${a[0]}</b> · ${a[1]} ${pts(a[2])}</span><span class="petit doux">${a[3]} · prochaine séance : ${a[4]}</span></div><div class="ligne__gestes"><button class="btn mini" data-a="ab:${i}" aria-expanded="${E.ab === i}">${E.ab === i ? 'Replier' : 'Ouvrir'}</button></div>
+      ${E.ab === i ? `<div class="ouvert-l"><div class="lg"><span>Règlement</span><span>${a[3]}</span></div><div class="lg"><span>Prochaine séance</span><span>${a[4]}</span></div><div class="lg"><span>Attention prévue</span><span>${a[5]}</span></div>
+        <div class="ligne__gestes" style="justify-content:flex-start"><button class="btn mini plein" data-a="rien">Réserver</button><button class="btn mini" data-a="rien">Encaisser</button><button class="btn mini" data-a="rien">Prolonger</button><button class="btn mini" data-a="rien">Rendre une séance</button><button class="btn mini" data-a="rien">Résilier</button></div></div>` : ''}</div>`).join('')}</div>`;
+  } else if (E.onglet === 'attentions') {
+    const sem = [['A. D.', 'sam. 12 déc. 2026 · séance 4 sur 6', 'Au choix : massage du cuir chevelu ou huile de voyage', 'Mi-parcours de son carnet ; son bilan du 31 octobre 2026 note un cuir chevelu sec.', 'Quatre séances que vous nous confiez votre couronne. Merci de cette confiance.'], ['M. K.', 'mar. 15 déc. 2026 · séance 4 sur 4', 'Le sceau d’or : un présent au comptoir', 'Dernière séance de son carnet.', 'Quatre séances, un carnet tenu jusqu’au bout. La Maison vous remercie.']];
+    vue = `<div><span class="sourcil">La règle</span><div class="fil">
+        <div class="ligne"><div class="ligne__quoi"><span><b>Un mot</b> à chaque séance</span></div><span class="etat">0 F</span></div>
+        <div class="ligne"><div class="ligne__quoi"><span><b>Un geste ou un présent</b> une séance sur deux</span></div><span class="etat">Plafond à fixer</span></div>
+        <div class="ligne"><div class="ligne__quoi"><span><b>Le sceau d’or</b> à la dernière séance d’un carnet, et à la sixième lune d’affilée</span></div><span class="etat">Plafond à fixer</span></div>
+      </div></div>
+      <div><span class="sourcil">La semaine à valider</span><p class="petit doux">Préparé par Perle à partir de la fiche. Vous retouchez le mot, vous validez d’un toucher.</p><div class="fil">${sem.map((x, i) => `<div class="ligne"><div class="ligne__quoi"><span><b>${x[0]}</b> · ${x[1]}</span><span>${x[2]}</span><span class="petit doux">Pourquoi : ${x[3]}</span><label class="petit doux" for="mot${i}">Le mot</label><textarea id="mot${i}">${x[4]}</textarea></div>
+        <div class="ligne__gestes">${E.valide[i] ? '<span class="etat">Validée</span>' : `<button class="btn mini plein" data-a="valider:${i}">Valider</button><button class="btn mini" data-a="rien">Changer</button>`}</div></div>`).join('')}</div></div>
+      <div><span class="sourcil">La réserve</span><div class="table"><table><tr><th>Attention</th><th>Genre</th><th>Ce qu’elle coûte</th><th class="d">En réserve</th></tr>
+        <tr><td>Un mot de la Maison</td><td>Le mot</td><td>Rien</td><td class="d">Toujours</td></tr>
+        <tr><td>Sa couronne en deux photos</td><td>Le regard</td><td>Rien, les photos du bilan</td><td class="d">Toujours</td></tr>
+        <tr><td>Cinq minutes de massage du cuir chevelu</td><td>Le geste</td><td>Cinq minutes de fauteuil</td><td class="d">Toujours</td></tr>
+        <tr><td>Huile de voyage</td><td>Le présent</td><td>À saisir</td><td class="d num">12</td></tr>
+        <tr><td>Présent du sceau d’or</td><td>Le sceau d’or</td><td>À saisir</td><td class="d num">3</td></tr></table></div>
+        <p class="petit doux">Vous composez la réserve. Une attention épuisée n’est plus proposée.</p></div>`;
+  } else if (E.onglet === 'formules') {
+    vue = `<p class="petit doux">Les sept formules en lunes, ouvertes le 1er janvier 2027. Prix pour une tête Medium, courte.</p><div class="table"><table><tr><th>Formule</th><th>Ce qu’elle contient</th><th>Validité</th><th class="d">Prix</th></tr>
+      <tr><td>KLƆKLƆ™ · Chaque Lune</td><td>Un lavage Signature par lune</td><td>Tant qu’elle la garde</td><td class="d num">${F(12000)} / lune</td></tr>
+      <tr><td>GBÈJÍ™ · Chaque Lune</td><td>Une venue par lune, le soin de la lune à −25 %</td><td>Tant qu’elle la garde</td><td class="d num">${F(37500)} / lune</td></tr>
+      <tr><td>VÈKPÈ™ · Les Premières Lunes</td><td>Quatre venues après la création, la quatrième offerte</td><td>Sept lunes</td><td class="d num">${F(84000)}</td></tr>
+      <tr><td>GBÈJÍ™ · Carnet de Quatre</td><td>Quatre venues, la quatrième offerte</td><td>Six lunes</td><td class="d num">${F(84000)}</td></tr>
+      <tr><td>GBÈJÍ™ · Carnet de Six</td><td>Six venues, la sixième offerte</td><td>Neuf lunes</td><td class="d num">${F(140000)}</td></tr>
+      <tr><td>GBÈJÍ™ · Carnet de l’Année</td><td>Huit venues, la quatrième et la huitième offertes</td><td>Douze lunes</td><td class="d num">${F(168000)}</td></tr></table></div>
+      <p class="petit doux">Les trois carnets existent aussi en Signature. Chaque formule porte désormais la même ligne : « une attention à chaque séance ».</p>`;
+  } else {
+    vue = `<div class="bande"><div><b class="num">${F(84000)}</b><span>encaissé ce mois</span></div><div><b class="num">${F(126000)}</b><span>à encaisser d’ici la fin du mois</span></div><div><b>14</b><span>séances que la Maison doit encore</span></div><div><b>À saisir</b><span>coût des attentions du mois</span></div></div>
+      <div><span class="sourcil">Qui paie, et quand</span><div class="table"><table><tr><th>Abonnée</th><th>Formule</th><th>Échéance</th><th class="d">Montant</th></tr>
+        <tr><td>S. A.</td><td>KLƆKLƆ™ · Chaque Lune</td><td>vendredi 18 décembre 2026</td><td class="d num">${F(12000)}</td></tr>
+        <tr><td>F. H.</td><td>GBÈJÍ™ · Carnet de l’Année</td><td>mardi 22 décembre 2026 (le 20 est un dimanche, le 21 un lundi)</td><td class="d num">${F(56000)}</td></tr>
+        <tr><td>A. D.</td><td>GBÈJÍ™ · Carnet de Six</td><td>réglé</td><td class="d num">${F(0)}</td></tr></table></div>
+        <p class="petit doux">Une ligne nouvelle : ce que les attentions ont coûté, à côté de ce que les formules ont rapporté.</p></div>`;
+  }
+  $('trone').innerHTML = `<div class="ecran__titre"><h3>Abonnements</h3><span class="petit doux">Exemple, chiffres inventés</span></div>
+    <div class="onglets" role="tablist">${tabs.map((t) => `<button class="onglet${E.onglet === t[0] ? ' on' : ''}${t[2] ? ' neuf' : ''}" role="tab" aria-selected="${E.onglet === t[0]}" data-a="onglet:${t[0]}">${t[1]}</button>`).join('')}</div><div class="vue">${vue}</div>`;
+}
+function rends() { rReglages(); rTel(); rTrone(); }
+
+/* ── Les gestes ────────────────────────────────────────────────────────── */
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-a]');
+  if (!b || b.disabled) return;
+  const [a, v] = b.dataset.a.split(':');
+  E.mot = '';
+  if (a === 'moment') { Object.assign(E, { moment: v, ouverte: false, choix: null, place: null, regle: false, remise: false, sel: v === 'derniere' ? 6 : v === 'apres' ? 5 : 4 }); if (v === 'sans' && E.page !== 'accueil') E.page = 'choisir'; if (v === 'echeance') E.rub = 'reglement'; }
+  else if (a === 'page') E.page = v;
+  else if (a === 'rub') E.rub = E.rub === v ? '' : v;
+  else if (a === 'sel') { E.sel = Number(v); if (E.page === 'accueil') E.page = 'formule'; }
+  else if (a === 'choix') E.choix = Number(v);
+  else if (a === 'place') E.place = Number(v);
+  else if (a === 'regler') E.regle = true;
+  else if (a === 'onglet') E.onglet = v;
+  else if (a === 'ab') E.ab = E.ab === Number(v) ? -1 : Number(v);
+  else if (a === 'valider') E.valide[v] = true;
+  else if (a === 'remise') E.remise = true;
+  else if (a === 'arrivee') { Object.assign(E, { moment: 'arrivee', page: 'accueil', ouverte: false, choix: null }); }
+  else if (a === 'inerte') E.mot = 'Ce geste garde son écran d’aujourd’hui.';
+  else if (a === 'rien') return;
+  else if (a === 'ouvrir') {
+    const p = $('pli');
+    if (p && !matchMedia('(prefers-reduced-motion: reduce)').matches) { p.classList.add('ouvre'); setTimeout(() => { E.ouverte = true; rends(); }, 600); return; }
+    E.ouverte = true;
+  }
+  rends();
+});
+rends();
+</script>
+</body>
+</html>
