@@ -31,7 +31,7 @@ import {
 } from '../src/shared/regler-la-seance-pur';
 import { prixFigeLu } from '../src/shared/cloture-du-jour-pur';
 import { LIEN_TAPGO } from '../src/shared/mnd-pay-pur';
-import { pageDuReglement, refusDeLaFin, retourAMaCouronne } from '../src/shared/terminer-et-regler-serveur';
+import { attenteDeLaPiece, pageDuReglement, refusDeLaFin, retourAMaCouronne } from '../src/shared/terminer-et-regler-serveur';
 import { EN } from '../src/apps/couronne/i18n/en';
 import {
   CHEMIN_POUR_RETROUVER, MOTS_DE_LA_RECHERCHE, billetDeLaPageLu, billetLu, codeDeLAdresse, finLue, rechercheLue, refusDit, reglementDuBillet, saisieARevoir,
@@ -693,9 +693,29 @@ dit('... « vous pouvez partir » seulement quand la carte dit « regle » ; le 
 const pageRegler = sansCommentaires(lis('src/apps/regler/App.tsx'));
 dit('la page « Regler » : elle attend la piece en preparation (trois minutes), dit « vous pouvez partir » seulement si la fonction l a honore, et ramene a Ma Couronne',
   [true, true, true, true, true],
-  [/if \(p\.etat === 'sans-piece' && p\.enPreparation\) \{\s*if \(essai < RELECTURES_DE_LA_PREPARATION\) \{/.test(pageRegler), /const RELECTURES_DE_LA_PREPARATION = 72;/.test(pageRegler),
+  [/if \(p\.etat === 'sans-piece' && p\.enPreparation\) \{\s*const delai = attenteDeLaPiece\(essai\);\s*if \(delai !== null\) \{/.test(pageRegler), /window\.setTimeout\(\(\) => \{ void lis\(essai \+ 1, true\); \}, delai\);/.test(pageRegler),
     /honore: r\.honore === true \}\); return; \}/.test(pageRegler), /\{ecran\.honore && <span>Vous pouvez partir : la Maison est prévenue\.<\/span>\}/.test(pageRegler),
     /\{retourDemande\(\) && <a className="rg-autre" href=\{retourAMaCouronne\(\)\}>Revenir à Ma Couronne<\/a>\}/.test(pageRegler)]);
+
+/* L'ATTENTE NE DOIT PAS EPUISER LE FREIN DE SA PROPRE FONCTION (relecture du 6
+   novembre 2026) : 72 relectures quand la fonction en accorde 60 par adresse
+   en dix minutes, et le Wi-Fi de la Maison est une seule adresse. */
+const delais = Array.from({ length: 80 }, (_, i) => attenteDeLaPiece(i));
+dit('l attente de la piece s espace : douze lectures a 2,5 s, puis une toutes les 10 s ; trois minutes en 27 lectures, puis elle s arrete',
+  [12, 15, 180000, 27, null], [delais.filter((d) => d === 2500).length, delais.filter((d) => d === 10000).length, delais.reduce((s: number, d) => s + (d ?? 0), 0), delais.filter((d) => d !== null).length, attenteDeLaPiece(27)]);
+remplis();
+const attendue = await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-jour' }, { cle: 'jeton.de.awa' });
+const lectures: number[] = [];
+for (let i = 0; i < 27; i++) lectures.push((await appelle(regler, { action: 'lire', jeton: String(attendue.corps.jeton) }, { ip: '4.4.4.4' })).status);
+dit('les 27 lectures d une attente entiere, de la meme adresse, passent toutes sous le frein de la fonction', [27, true], [lectures.length, lectures.every((s) => s === 200)]);
+for (let i = 27; i < 60; i++) await appelle(regler, { action: 'lire', jeton: String(attendue.corps.jeton) }, { ip: '4.4.4.4' });
+const laSoixanteEtUnieme = await appelle(regler, { action: 'lire', jeton: String(attendue.corps.jeton) }, { ip: '4.4.4.4' });
+dit('... la 61e lecture en dix minutes est refusee pour toute l adresse (« trop ») : c est ce que 72 relectures provoquaient', [429, 'trop'], [laSoixanteEtUnieme.status, laSoixanteEtUnieme.corps.error]);
+dit('la page prend ce frein pour « pas encore pret » : pendant l attente elle relit plus tard (jamais plus vite que 10 s), hors de l attente elle le dit et propose de reessayer',
+  [true, true, true],
+  [/if \(r\.error === 'trop'\) \{\s*const delai = attend \? attenteDeLaPiece\(essai\) : null;\s*if \(delai !== null\) \{/.test(pageRegler),
+    /window\.setTimeout\(\(\) => \{ void lis\(essai \+ 1, true\); \}, Math\.max\(delai, 10_000\)\);/.test(pageRegler),
+    /setEcran\(\{ k: 'erreur', dit: attend \? PAS_ENCORE_PRETE : 'Beaucoup de demandes d’un coup\. Réessayez dans un instant\.', reessayer: true \}\);/.test(pageRegler)]);
 
 /* ══ 18. LE TRONE : la piece ecrite au tarif de sa tete, sans honorer ; les
    suites de l'honneur ; la marque du Carnet ; « Passe au comptoir » ═══════

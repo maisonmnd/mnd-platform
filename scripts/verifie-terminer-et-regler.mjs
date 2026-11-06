@@ -96,6 +96,12 @@ const PANNES = [
   ['un refus se dit par son code', SERVEUR, "  if (r.ok && r.etat === 'comptoir') return 'Pour votre règlement, l’équipe vous attend au comptoir.';\n", ''],
   ['une phrase de refus sans anglais', ENTABS, "  'Il n’y a rien à régler pour ce rituel.': 'There is nothing to pay for this ritual.',\n", ''],
   ['la page Regler renonce pendant la preparation', REGLER, "    if (p.etat === 'sans-piece' && p.enPreparation) {", '    if (false) {'],
+  /* L'attente n'epuise pas le frein de sa fonction (relecture du 6 novembre 2026). */
+  ['la page relit toutes les 2,5 s, sans s espacer', SERVEUR, '  return essai < RELECTURES_RAPPROCHEES ? 2500 : 10_000;', '  return 2500;'],
+  ['la page relit 72 fois (le frein de la fonction saute a la 61e)', SERVEUR, 'export const RELECTURES_DE_LA_PREPARATION = 27;', 'export const RELECTURES_DE_LA_PREPARATION = 72;'],
+  ['le frein de la fonction passe pour une panne de la page', REGLER, "    if (r.error === 'trop') {", '    if (false) {'],
+  ['pendant le frein, la page relit sans attendre', REGLER, 'Math.max(delai, 10_000)', 'delai'],
+  ['le frein de la lecture desserre au serveur', REG, "permis(ipOf(req), 'regler-lire', 60)", "permis(ipOf(req), 'regler-lire', 6000)"],
   ['la page Regler dit « vous pouvez partir » a toutes', REGLER, 'honore: r.honore === true }); return; }', 'honore: true }); return; }'],
   ['la page Regler ne ramene pas a Ma Couronne', REGLER, '          {retourDemande() && <a className="rg-autre" href={retourAMaCouronne()}>Revenir à Ma Couronne</a>}\n', ''],
   /* ── La porte du site ── */

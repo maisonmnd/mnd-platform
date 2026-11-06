@@ -3,7 +3,7 @@ import { asset } from '../../shared/asset';
 import { payWithKkiapay } from '../../shared/kkiapay-widget';
 import { TexteFon } from '../../ds/fon';
 import { lisLeLien, regleLeLien, type PageDuLien } from '../../shared/regler-la-seance-serveur';
-import { retourAMaCouronne } from '../../shared/terminer-et-regler-serveur';
+import { attenteDeLaPiece, retourAMaCouronne } from '../../shared/terminer-et-regler-serveur';
 
 /* ══ RÉGLER SA SÉANCE — la page de la cliente (25 octobre 2026) ══════════
    Ouverte depuis le bouton « Régler » de son message (payer.html?tg=r-…).
@@ -49,10 +49,12 @@ type Ecran =
 
 const jetonDeLAdresse = (): string => (new URLSearchParams(window.location.search).get('r') ?? '').trim();
 /* TERMINER ET RÉGLER (6 novembre 2026) : elle a terminé elle-même, sa pièce
-   s'écrit au Trône dans l'instant. La page l'attend trois minutes (72
-   relectures de 2,5 s) avant de proposer le comptoir. Venue de Ma Couronne
+   s'écrit au Trône dans l'instant. La page l'attend trois minutes, en 27
+   lectures espacées (`attenteDeLaPiece` : la fonction n'en accorde que 60
+   par adresse en dix minutes, et le Wi-Fi de la Maison est une seule
+   adresse), avant de proposer le comptoir. Venue de Ma Couronne
    (`retour=couronne`), elle y revient d'un toucher une fois le règlement fait. */
-const RELECTURES_DE_LA_PREPARATION = 72;
+const PAS_ENCORE_PRETE = 'Votre montant n’est pas encore prêt : l’équipe le prépare. Réessayez dans un instant, ou réglez au comptoir.';
 const retourDemande = (): boolean => new URLSearchParams(window.location.search).get('retour') === 'couronne';
 
 export default function App() {
@@ -64,9 +66,23 @@ export default function App() {
   const [souci, setSouci] = useState('');
   const [partage, setPartage] = useState('');
 
-  const lis = useCallback(async (essai = 0): Promise<void> => {
+  const lis = useCallback(async (essai = 0, attend = false): Promise<void> => {
     if (!jeton) { setEcran({ k: 'erreur', dit: 'Ce lien est incomplet. Demandez-en un nouveau à la Maison.' }); return; }
     const r = await lisLeLien(jeton);
+    /* LE FREIN DE LA FONCTION N'EST PAS UNE PANNE (« trop », relecture du 6
+       novembre 2026) : pendant l'attente de sa pièce, c'est « pas encore
+       prêt », et la page relit plus tard, jamais plus vite que toutes les
+       10 s. Hors de l'attente, elle le dit et propose de réessayer. */
+    if (r.error === 'trop') {
+      const delai = attend ? attenteDeLaPiece(essai) : null;
+      if (delai !== null) {
+        setEcran({ k: 'preparation' });
+        window.setTimeout(() => { void lis(essai + 1, true); }, Math.max(delai, 10_000));
+        return;
+      }
+      setEcran({ k: 'erreur', dit: attend ? PAS_ENCORE_PRETE : 'Beaucoup de demandes d’un coup. Réessayez dans un instant.', reessayer: true });
+      return;
+    }
     if (!r.ok || !r.page) {
       setEcran({ k: 'erreur', dit: r.error === 'hors_ligne' || r.error === 'reseau' ? 'Pas de réseau pour l’instant. Réessayez dans un moment.' : 'La page ne répond pas. Réessayez dans un moment.' });
       return;
@@ -75,12 +91,13 @@ export default function App() {
     /* Elle a terminé elle-même : le Trône prépare sa pièce. La page attend,
        et le dit ; au bout de trois minutes, le comptoir reste là. */
     if (p.etat === 'sans-piece' && p.enPreparation) {
-      if (essai < RELECTURES_DE_LA_PREPARATION) {
+      const delai = attenteDeLaPiece(essai);
+      if (delai !== null) {
         setEcran({ k: 'preparation' });
-        window.setTimeout(() => { void lis(essai + 1); }, 2500);
+        window.setTimeout(() => { void lis(essai + 1, true); }, delai);
         return;
       }
-      setEcran({ k: 'erreur', dit: 'Votre montant n’est pas encore prêt : l’équipe le prépare. Réessayez dans un instant, ou réglez au comptoir.', reessayer: true });
+      setEcran({ k: 'erreur', dit: PAS_ENCORE_PRETE, reessayer: true });
       return;
     }
     /* Le rendez-vous vient d'être écrit au comptoir : il peut mettre quelques

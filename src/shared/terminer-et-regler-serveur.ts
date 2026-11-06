@@ -42,6 +42,21 @@ export function pageDuReglement(jeton: string, chemin: string = typeof window ==
   return `${page}?r=${encodeURIComponent(jeton)}&retour=couronne`;
 }
 
+/* L'ATTENTE DE LA PIÈCE, SUR LA PAGE « RÉGLER » — 6 novembre 2026, relecture.
+   La page relisait toutes les 2,5 s pendant trois minutes : 72 lectures,
+   quand la fonction en accorde 60 par adresse en dix minutes. Sans pièce, la
+   61e lecture était refusée, et avec elle toute l'adresse (le Wi-Fi de la
+   Maison : toutes les clientes, et le Trône). L'attente s'espace : douze
+   lectures rapprochées (30 s, le temps ordinaire d'un poste ouvert), puis une
+   toutes les 10 s ; trois minutes en 27 lectures. */
+export const RELECTURES_RAPPROCHEES = 12;
+export const RELECTURES_DE_LA_PREPARATION = 27;
+/** Le délai avant la relecture suivante, ou null quand l'attente est finie. */
+export function attenteDeLaPiece(essai: number): number | null {
+  if (essai >= RELECTURES_DE_LA_PREPARATION) return null;
+  return essai < RELECTURES_RAPPROCHEES ? 2500 : 10_000;
+}
+
 /** Ma Couronne, vue depuis la page « Régler » (le chemin du retour). */
 export function retourAMaCouronne(chemin: string = typeof window === 'undefined' ? '' : window.location.pathname): string {
   return chemin.startsWith('/trone/') ? '/couronne/' : '/couronne.html';
