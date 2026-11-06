@@ -42,6 +42,7 @@ const PANNES = [
   ['caler sans la fiche', VAC, '      const ok = await fiche(m, [...conges, l as unknown as CongeLu], true, false);', '      const ok = false;'],
   ['la fermeture sans les journees fermees', VAC, '      if (fermes.length) exceptionsHorairesStore.set((prev) => [...(prev ?? []), ...fermes]);\n', ''],
   ['retirer une fermeture laisse la Maison fermee', VAC, '    if (l.fermeture) exceptionsHorairesStore.set((prev) => (prev ?? []).filter((x) => !String(x.id ?? \'\').startsWith(`hx-${l.fermeture}-`)));\n', ''],
+  ['les prestataires hors de l onglet', VAC, "staff.filter((m) => m.branchId === branch.id && !estPartie(m, new Date().toISOString().slice(0, 10)))", "staff.filter((m) => m.branchId === branch.id && !estPartie(m, new Date().toISOString().slice(0, 10)) && m.contractType !== 'prestataire')"],
   ['la fiche dans la partie lue par tous', COFFRE, '  `${DOSSIER_DES_CONGES}/identite/${staffId}`;', '  `${DOSSIER_DES_CONGES}/pieces/${staffId}`;'],
 ];
 

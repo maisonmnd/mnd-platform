@@ -111,6 +111,7 @@ dit('la fermeture : toute l equipe, le planning, les journees fermees, une fiche
     /if \(fermes\.length\) exceptionsHorairesStore\.set\(\(prev\) => \[\.\.\.\(prev \?\? \[\]\), \.\.\.fermes\]\);/.test(vac),
     /if \(m && await fiche\(m, tous, true, false\)\) rangees \+= 1;/.test(vac)]);
 dit('retirer une fermeture rouvre ses journees, et seulement elles', true, /\.filter\(\(x\) => !String\(x\.id \?\? ''\)\.startsWith\(`hx-\$\{l\.fermeture\}-`\)\)/.test(vac));
+dit('l onglet suit l equipe du planning, contrat de prestataire compris', true, vac.includes('staff.filter((m) => m.branchId === branch.id && !estPartie(m, new Date().toISOString().slice(0, 10)))') && !/contractType !== 'prestataire'/.test(vac));
 dit('la fiche dort dans la partie privee du coffre', true, /`\$\{DOSSIER_DES_CONGES\}\/identite\/\$\{staffId\}`/.test(coffre));
 dit('Mon espace telecharge sa fiche', true, /void telechargeLaFiche\(fiche, nom\);/.test(espace));
 

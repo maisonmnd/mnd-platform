@@ -4,13 +4,14 @@ import { ChampDeDate } from '../../../../../ds/dates';
 import { useBranch } from '../../../../../shared/branches';
 import { useStaff as useMyStaff } from '../../../../../shared/auth';
 import { planningStore } from '../../../../../shared/rh';
+import { estPartie } from '../../../../../shared/rh-pur';
 import { exceptionsHorairesStore, useExceptionsHoraires, useSettings } from '../../../../../shared/settings';
 import { uid } from '../../../../../shared/store';
 import {
   droitDeLAnnee, fermetureEnConges, jourLong, joursAFermer, joursCalendaires, periodesDeLAnnee, poseLesVacances,
   pourquoiPasLaPeriode, repriseApres, retireLesVacances, totalDesJours, type CongeLu,
 } from '../../../../../shared/vacances-pur';
-import { useStaff } from '../data';
+import { ordonneEquipe, useStaff } from '../data';
 import { PAYROLL_PARAMETERS_SEED, leaveStore, useLeave, usePayrollParameters, type LeaveRequest } from '../payroll';
 import { ficheDeLAnnee, rangeLaFiche, telechargeLaFiche } from './fiche-de-conges';
 
@@ -39,7 +40,9 @@ export default function VacancesAnnuelles() {
   const [form, setForm] = useState<Formulaire | null>(null);
   const [occupe, setOccupe] = useState(false);
 
-  const equipe = useMemo(() => staff.filter((m) => m.branchId === branch.id && !m.archiveeLe && m.contractType !== 'prestataire'), [staff, branch.id]);
+  /* LA MÊME ÉQUIPE QUE LE PLANNING : qui n'est pas parti, quel que soit son contrat
+     (une praticienne payée en prestataire a ses vacances comme les autres). */
+  const equipe = useMemo(() => ordonneEquipe(staff.filter((m) => m.branchId === branch.id && !estPartie(m, new Date().toISOString().slice(0, 10)))), [staff, branch.id]);
   const conges = leaves as unknown as CongeLu[];
   const semaine = settings.hours ?? [];
   const exc = (exceptions ?? []) as { id?: string; date: string; staffId?: string; closed?: boolean; open?: string; close?: string }[];
