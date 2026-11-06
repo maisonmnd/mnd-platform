@@ -79,7 +79,7 @@ const PANNES = [
   ['un jeton forge termine', TER, "      if (!apptId) return json({ ok: false, error: 'lien' });\n      ids = [apptId];", '      ids = [String(apptId)];'],
   ['la marque se pose porte fermee', TER, '  const ouvertes = tetes.filter((t) => t.porte.ouverte);', '  const ouvertes = tetes;'],
   ['le serveur ecrit sur une ligne qui a bouge', TER, "    if (frais.updated_at) q = q.eq('updated_at', frais.updated_at);\n", ''],
-  ['« Passe au comptoir » ignore par le serveur', TER, "      porte: porteDeLaFin({ rdv, maintenantMs: maintenant, passeAuComptoir: fiche?.passeAuComptoir === true,", '      porte: porteDeLaFin({ rdv, maintenantMs: maintenant, passeAuComptoir: false,'],
+  ['« Passe au comptoir » ignore par le serveur', TER, "    const laPorte = porteDeLaFin({ rdv, maintenantMs: maintenant, passeAuComptoir: fiche?.passeAuComptoir === true,", '    const laPorte = porteDeLaFin({ rdv, maintenantMs: maintenant, passeAuComptoir: false,'],
   ['le serveur honore a la declaration', TER, '      return { ...d, termineParElle: marque, ...avecLien };', "      return { ...d, termineParElle: marque, ...avecLien, status: 'honoré' };"],
   ['le billet dit son nom de famille', TER, "    rdv, reference: referenceDuRendezVous(l.id), prenom: String(fiche?.name ?? l.data?.clientName ?? ''),", "    rdv, reference: String(fiche?.name ?? ''), prenom: String(fiche?.name ?? l.data?.clientName ?? ''),"],
   /* ── Le Trone ── */
