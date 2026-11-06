@@ -127,6 +127,8 @@ export function useLaFinDuRituel(): void {
             }
           }
         } catch (err) {
+          /* Le réseau a manqué : ce poste réessaiera au prochain changement, la réservation garde l'unicité. */
+          fait.delete(`piece-${a.id}`);
           console.warn('[la fin du rituel] pièce :', err);
         }
       })();
