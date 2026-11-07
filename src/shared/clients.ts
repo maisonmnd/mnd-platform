@@ -28,6 +28,9 @@ export type Client = {
   phoneNom?: string;
   phone2Nom?: string;
   email?: string;
+  /** SA PROFESSION — 7 novembre 2026 (« rajoute la profession aux fiches clientes », Y.) : le métier qu'elle exerce, en clair
+      (« Infirmière », « Avocate »), pour la connaître et lui parler juste. Facultative. */
+  profession?: string;
   /** D'OÙ ELLE VIENT — 17 septembre 2026. Le site public dépose des prospects
       (`shared/demandes`) ; sans provenance, la Maison ne sait pas ce qui l'a
       menée à elle : ni la page, ni la campagne, ni le jour où elle a consenti.

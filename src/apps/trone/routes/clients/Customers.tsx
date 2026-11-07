@@ -2369,6 +2369,8 @@ function Customer360({
   const [idPhone2Nom, setIdPhone2Nom] = useState(client.phone2Nom ?? '');
   const [idEmail, setIdEmail] = useState(client.email ?? '');
   const [idCity, setIdCity] = useState(client.city);
+  /* Sa profession (7 novembre 2026). */
+  const [idProfession, setIdProfession] = useState(client.profession ?? '');
   useEffect(() => {
     setIdName(client.name);
     setIdPhone(client.phone);
@@ -2377,6 +2379,7 @@ function Customer360({
     setIdPhone2Nom(client.phone2Nom ?? '');
     setIdEmail(client.email ?? '');
     setIdCity(client.city);
+    setIdProfession(client.profession ?? '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
 
@@ -2470,7 +2473,8 @@ function Customer360({
   const idDirty =
     idName !== client.name || numeroTelReel(idPhone) !== client.phone || idCity !== client.city
     || numeroTelReel(idPhone2) !== (client.phone2 ?? '') || idEmail !== (client.email ?? '')
-    || idPhoneNom.trim() !== (client.phoneNom ?? '') || idPhone2Nom.trim() !== (client.phone2Nom ?? '');
+    || idPhoneNom.trim() !== (client.phoneNom ?? '') || idPhone2Nom.trim() !== (client.phone2Nom ?? '')
+    || idProfession.trim() !== (client.profession ?? '');
   /* UN ENREGISTREMENT MUET SE LIT COMME UNE PANNE. L'écriture se faisait bien,
      mais rien ne le disait : le bouton se grisait, et l'on croyait que le clic
      n'avait servi à rien. On le dit donc, brièvement. */
@@ -2484,7 +2488,7 @@ function Customer360({
     patch({
       name: idName.trim() || client.name, phone: numeroTelReel(idPhone), phone2: numeroTelReel(idPhone2) || undefined,
       phoneNom: idPhoneNom.trim() || undefined, phone2Nom: numeroTelReel(idPhone2) ? idPhone2Nom.trim() || undefined : undefined,
-      email: idEmail.trim() || undefined, city: idCity.trim(),
+      email: idEmail.trim() || undefined, city: idCity.trim(), profession: idProfession.trim() || undefined,
     });
     setIdSaved(true);
   };
@@ -3683,6 +3687,7 @@ function Customer360({
               )}
               <div className="trc-v"><u>E-mail</u><span className={client.email ? '' : 'is-vide'}>{client.email || '—'}</span></div>
               <div className="trc-v"><u>Ville</u><span className={client.city ? '' : 'is-vide'}>{client.city || '—'}</span></div>
+              <div className="trc-v"><u>Profession</u><span className={client.profession ? '' : 'is-vide'}>{client.profession || '—'}</span></div>
               <div className="trc-v"><u>Anniv.</u><span className={client.birthday ? '' : 'is-vide'}>{client.birthday ? frBirthday(client.birthday) : '—'}</span></div>
               {/* « Comment nous avez-vous connus ? » (2 novembre 2026) : un clic
                   s'enregistre aussitôt, comme la civilité. */}
@@ -3722,6 +3727,9 @@ function Customer360({
             </Field>
             <Field label="Ville">
               <Input id="c360-city" value={idCity} onChange={(e) => setIdCity(e.target.value)} placeholder="—" />
+            </Field>
+            <Field label="Profession">
+              <Input id="c360-profession" value={idProfession} onChange={(e) => setIdProfession(e.target.value)} placeholder="Infirmière, avocate, enseignante…" autoComplete="organization-title" />
             </Field>
           </div>
           {/* ══ UN BOUTON PAR BLOC, NOMMÉ PAR CE QU'IL EMPORTE ═══════════
