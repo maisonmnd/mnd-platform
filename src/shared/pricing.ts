@@ -1,5 +1,6 @@
 import { createStore, useStore } from './store';
 import { bindDocument } from './sync';
+import { dansLaFenetreDeVenue, fenetreEncoreAtteignable } from './catalogue-pur';
 import { mondeDeCat, priceModeOf, type CatalogCategory, type GesteOffert, type LongueurId, type Service } from './catalog';
 import type { Client } from './clients';
 import { settingsStore } from './settings';
@@ -909,6 +910,12 @@ export const estProposable = (
      Par défaut « inconnu », pour que les appelants qui n'ont pas encore de tête
      ne se voient rien retirer. */
   kids: 'oui' | 'non' | 'inconnu' = 'inconnu',
+  /* LA FENÊTRE APRÈS LA DERNIÈRE VENUE — 7 novembre 2026 (`fenetreApresVenue`).
+     Absent = la règle n'est pas jugée (le comptoir, qui avertit mais
+     n'interdit pas). Posé par toute surface de la CLIENTE : sa dernière venue
+     (`null` = aucune), le rendez-vous choisi (`dateRdv`), sinon `aujourdhui`
+     pour dire si la fenêtre est encore à venir. */
+  fenetre?: { derniereVenue: string | null; dateRdv?: string | null; aujourdhui?: string | null },
 ): boolean =>
   /* ══ UN CALIBRE INCONNU NE VIDE PAS LA MAISON — 10 septembre 2026 ══
      « À chaque fois qu'un nouveau client s'inscrit sur Ma Couronne, il ne
@@ -934,7 +941,28 @@ export const estProposable = (
   && (servesBand(sv, bandForService(sv, p)) || !calibreConnu(p))
   && ouverteDesVenue(sv, venuesAcquises)
   && (!sv.reserveFamilles || aFamille)
-  && (!sv.reserveEnfants || kids !== 'non');
+  && (!sv.reserveEnfants || kids !== 'non')
+  && (!sv.fenetreApresVenue || !fenetre
+    || (fenetre.dateRdv
+      ? dansLaFenetreDeVenue(sv.fenetreApresVenue, fenetre.dateRdv, fenetre.derniereVenue)
+      : fenetreEncoreAtteignable(sv.fenetreApresVenue, fenetre.aujourdhui, fenetre.derniereVenue)));
+
+/** L'AVERTISSEMENT DU TRÔNE — 7 novembre 2026. Une personne de la Maison peut
+    toujours poser un pack hors de sa fenêtre (`fenetreApresVenue`) : elle est
+    prévenue, jamais empêchée. `null` quand le pack n'a pas de fenêtre ou que le
+    rendez-vous tombe dedans. La cliente, elle, n'a pas cette porte
+    (`estProposable` avec sa fenêtre, et le serveur qui refuse). */
+export const avertissementDeFenetre = (
+  sv: Pick<Service, 'name' | 'fenetreApresVenue'>,
+  dateRdv: string,
+  derniereVenue: string | null,
+): string | null => {
+  const f = sv.fenetreApresVenue;
+  if (!f || dansLaFenetreDeVenue(f, dateRdv, derniereVenue)) return null;
+  const jj = (iso: string) => iso.split('-').reverse().join('/');
+  return `${sv.name} : hors de la fenêtre de ${f.deSemaines} à ${f.aSemaines} semaines, `
+    + (derniereVenue ? `dernière venue le ${jj(derniereVenue)}.` : 'aucune venue honorée avant ce rendez-vous.');
+};
 
 export const personalPriceXof = (sv: Service, p: PersonalPricing, catalogue?: readonly Service[], produits?: readonly { id: string; priceXof: number }[]): number => {
   /* SON PRIX FERME PASSE AVANT TOUT — avant le forfait, le calibre, le tarif au

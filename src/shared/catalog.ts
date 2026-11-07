@@ -65,8 +65,8 @@ export const categoriesOfMaison = (cats: CatalogCategory[], m: Maison): CatalogC
     · devis    — aucun prix affiché (« sur devis »), donné au cas par cas.
     `hidePrice` (ancien booléen) est conservé et reste synchronisé avec `devis`
     pour ne rien casser du front / de la caisse ; `priceModeOf` fait le pont. */
-export type { PriceMode } from './catalogue-pur';
-import type { PriceMode } from './catalogue-pur';
+export type { PriceMode, FenetreApresVenue } from './catalogue-pur';
+import type { PriceMode, FenetreApresVenue } from './catalogue-pur';
 
 /** LES TROIS LONGUEURS. Un axe de prix distinct du calibre : le calibre compte
     les locks, la longueur mesure ce qui pend. Une tête Micro peut être courte,
@@ -245,6 +245,17 @@ export type Service = {
       11 août 2026). Absent = ouverte à toutes, comme toujours. Le compteur est
       `venuesHonorees`, le même que la marque de passage et le Cercle. */
   desVenue?: number;
+  /** LA FENÊTRE APRÈS LA DERNIÈRE VENUE — 7 novembre 2026. « Fidélité n'est
+      disponible pour un client uniquement entre 4 et 6 semaines de sa dernière
+      venue. Mais au-delà des 6 semaines ce service n'est plus disponible. »
+      (Yéman.) `{ deSemaines: 4, aSemaines: 6 }` = la prestation ne se pose que
+      si le rendez-vous choisi tombe de 28 à 42 jours (inclus) après la dernière
+      venue honorée de la cliente ; sans venue, jamais. Jugée à la date du
+      RENDEZ-VOUS, pas à aujourd'hui. Ferme pour la cliente (site, Ma Couronne,
+      WhatsApp), un avertissement seulement pour la Maison au Trône. Absent =
+      aucune règle, comme toujours. Juge : `dansLaFenetreDeVenue`
+      (shared/catalogue-pur), appelé par `estProposable` (shared/pricing). */
+  fenetreApresVenue?: FenetreApresVenue;
   /** RÉSERVÉE AUX COMPTES FAMILLE (14 août — le Pack Famille) : la prestation
       ne se propose qu'aux têtes rattachées à un compte famille. Absent =
       ouverte à toutes. Le juge est `estProposable` (shared/pricing). */

@@ -2,6 +2,10 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA FENÊTRE DE GBÈJÍ™ FIDÉLITÉ : 7 novembre 2026, CONSTRUITE, PAS EN LIGNE (branche locale `fidelite-fenetre`, rien poussé, 0183 non appliquée)
+
+« Fidélité n'est disponible pour un client uniquement entre 4 et 6 semaines de sa dernière venue. Au-delà, plus disponible. » (Yéman.) Champ `fenetreApresVenue: { deSemaines, aSemaines }` sur la ligne du catalogue (`Service`, à côté de `desVenue`). Juge pur dans ⟨catalogue-pur⟩ (`dansLaFenetreDeVenue`, `derniereVenueAvant`) : 28 à 42 jours inclus entre la dernière venue honorée (strictement avant le RDV) et la DATE DU RDV ; sans venue, jamais ; sans champ, aucune règle. Ferme pour la cliente : `estProposable` (6e paramètre, Ma Couronne : Booking, Tabs, Compose) + dernier mot de Booking avant d'écrire ; serveur `laPlaceTient`/`placesLibres` (⟨place-du-serveur⟩, `prestation_hors_fenetre` en 409) dans demande-submit (lit la venue du numéro) et whatsapp-automate (pose sous verrou ; le dialogue ne propose pas le pack) ; le site public ne le propose pas. Le Trône avertit (`avertissementDeFenetre`), n'interdit pas. Banc : `scripts/verifie-fenetre-de-fidelite.mjs` (+ `--prouve`). La ligne `sv-forfait-gbeji-fidelite` reste ARCHIVÉE en janvier dans nouvelle-grille-pur (inchangé). À faire : appliquer 0183, déployer demande-submit et whatsapp-automate, publier le Trône, Ma Couronne et le site.
+
 ## RÉGLER AVANT ET APRÈS, DANS MA COURONNE : 7 novembre 2026, CONSTRUIT, PAS EN LIGNE (branche locale `regler-avant-apres`, rien poussé, 0172 non appliquée)
 
 « Pourquoi je ne peux pas faire un paiement d'un RDV sur ma couronne à n'importe quel moment ? » (Yéman, 7 novembre 2026, 7 h 45). Tranché au sélecteur : « Avant et après ».

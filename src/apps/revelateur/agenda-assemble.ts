@@ -80,6 +80,9 @@ const CHAMPS_DE_LA_PRESTATION = [
   'id', 'name', 'categoryId', 'durationMin', 'scalesWithModel', 'priceFloors', 'bandId', 'bandIds', 'ratePerLock',
   'tarifMode', 'prixParLongueur', 'paliersDeLocks', 'priceXof', 'priceMode', 'hidePrice', 'consultationAvant',
   'enabled', 'archived', 'master',
+  /* La fenêtre de GBÈJÍ™ Fidélité (7 novembre 2026) : le site ne propose pas
+     un pack à fenêtre (il ne connaît pas la dernière venue de la visiteuse). */
+  'fenetreApresVenue',
   /* Le Rituel Sówà™ ne prend aucune remise (4 novembre 2026). */
   'sansRemise',
 ] as const;

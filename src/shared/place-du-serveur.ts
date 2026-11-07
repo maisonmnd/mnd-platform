@@ -2,7 +2,7 @@ import {
   creneauxLibres, dureeDesPrestations, estUnSinsin, MAITRE_DES_SINSIN, minutesDeHhmm, occupesDuJour, ouvertureDuJour, plagesBloquees, PLACES_EN_LIGNE,
   type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
 } from './agenda-pur';
-import { estUneConsultation, masquePourLeSite, priceModeOf, racineOf, type MasquesDuSite, type PriceMode } from './catalogue-pur';
+import { dansLaFenetreDeVenue, estUneConsultation, fenetreEnJours, masquePourLeSite, priceModeOf, racineOf, type FenetreApresVenue, type MasquesDuSite, type PriceMode } from './catalogue-pur';
 import { exigeConsultation, type Besoin } from './qualification';
 
 /* ══ LA PLACE, JUGÉE PAR LE SERVEUR · 9 octobre 2026 ═══════════════════════
@@ -80,6 +80,9 @@ type PrestationDuServeur = {
   archived?: boolean;
   /** Le maître que la prestation désigne, quand elle en désigne un. */
   master?: string;
+  /** LA FENÊTRE APRÈS LA DERNIÈRE VENUE (7 novembre 2026) : GBÈJÍ™ Fidélité,
+      de 4 à 6 semaines. Absent = aucune règle. */
+  fenetreApresVenue?: FenetreApresVenue;
 };
 
 type CategorieDuServeur = { id: string; parentId?: string };
@@ -207,6 +210,9 @@ function agendaDepuisLesLignes(l: LignesDeLAgenda): AgendaDuServeur | null {
       ...(d.enabled === false ? { enabled: false } : {}),
       ...(d.archived ? { archived: true } : {}),
       ...(chaine(d.master) ? { master: chaine(d.master) } : {}),
+      ...(fenetreEnJours(objet(d.fenetreApresVenue) as FenetreApresVenue)
+        ? { fenetreApresVenue: { deSemaines: Number(objet(d.fenetreApresVenue).deSemaines), aSemaines: Number(objet(d.fenetreApresVenue).aSemaines) } }
+        : {}),
     };
   }).filter((s) => s.id !== '');
   const categories: CategorieDuServeur[] = (l.categories ?? []).map((r) => {
@@ -284,9 +290,15 @@ function joursDeLaFenetre(ms: number): number {
 type RefusDeLaPlace =
   | 'creneau_invalide' | 'creneau_hors_fenetre' | 'creneau_ferme'
   | 'prestation_inconnue' | 'prestation_retiree' | 'consultation_requise'
-  | 'creneau_hors_ouverture' | 'creneau_plafond' | 'creneau_pris';
+  | 'creneau_hors_ouverture' | 'creneau_plafond' | 'creneau_pris'
+  | 'prestation_hors_fenetre';
 
-type DemandeDePlace = { date: string; time: string; serviceIds: readonly string[] };
+/** `derniereVenue` : le jour du rendez-vous honoré le plus récent de la cliente
+    avant `date` (`derniereVenueAvant`), `null` si elle n'en a aucun. LE JUGE NE
+    LA LIT PAS : l'appelant la lit en base. Un geste à fenêtre
+    (`fenetreApresVenue`) sans cette valeur est refusé : une cliente qu'on ne
+    sait pas situer n'a pas de venue à compter. */
+type DemandeDePlace = { date: string; time: string; serviceIds: readonly string[]; derniereVenue?: string | null };
 
 /** La place tient : sa durée, et les maîtres LIBRES à cette heure, dans
     l'ordre de la Maison (le verrou prend le premier encore libre). */
@@ -311,7 +323,12 @@ function laPlaceEstRecevable(p: { date: string; time: string }, ms: number): Ref
 
 /** LES GESTES : tous connus et actifs, aucun qui exige une consultation
     (sauf la consultation elle-même), tous ouverts à la réservation en ligne. */
-function lesGestesSeReservent(agenda: AgendaDuServeur, serviceIds: readonly string[]): RefusDeLaPlace | null {
+function lesGestesSeReservent(
+  agenda: AgendaDuServeur, serviceIds: readonly string[],
+  /* LA FENÊTRE (7 novembre 2026) : le jour du rendez-vous et la dernière venue
+     de la cliente. Sans eux, un geste à fenêtre ne se réserve pas. */
+  quand?: { date?: string; derniereVenue?: string | null },
+): RefusDeLaPlace | null {
   if (serviceIds.length === 0) return 'prestation_inconnue';
   const gestes = serviceIds.map((id) => agenda.services.find((s) => s.id === id));
   const connus = gestes.filter((s): s is PrestationDuServeur => !!s && s.enabled !== false && !s.archived);
@@ -319,6 +336,7 @@ function lesGestesSeReservent(agenda: AgendaDuServeur, serviceIds: readonly stri
   const cats = agenda.categories;
   if (connus.some((s) => !estUneConsultation(s, cats) && exigeConsultation(s, cats))) return 'consultation_requise';
   if (connus.some((s) => !reservableSurLeSite(s, cats, agenda.masques))) return 'prestation_retiree';
+  if (connus.some((s) => s.fenetreApresVenue && !dansLaFenetreDeVenue(s.fenetreApresVenue, quand?.date, quand?.derniereVenue))) return 'prestation_hors_fenetre';
   return null;
 }
 
@@ -346,7 +364,7 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number): V
      lundi ouvert que la Maison ferme. */
   const fenetre = ouvertureDuJour(p.date, agenda.semaine, agenda.exceptions);
   if (fenetre.closed) return { ok: false, erreur: 'creneau_ferme' };
-  const gestes = lesGestesSeReservent(agenda, p.serviceIds);
+  const gestes = lesGestesSeReservent(agenda, p.serviceIds, { date: p.date, derniereVenue: p.derniereVenue });
   if (gestes) return { ok: false, erreur: gestes };
 
   const dureeMin = dureeDesPrestations(p.serviceIds, agenda.services);
@@ -389,8 +407,12 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number): V
     Des gestes qui ne se réservent pas en ligne n'ont aucune place. */
 function placesLibres(
   agenda: AgendaDuServeur, serviceIds: readonly string[], ms: number, horizonJours = 14,
+  /* La dernière venue de la cliente (7 novembre 2026) : un geste à fenêtre ne
+     propose que les jours qui tombent dedans. */
+  derniereVenue?: string | null,
 ): PlaceDuServeur[] {
-  if (lesGestesSeReservent(agenda, serviceIds)) return [];
+  const sansFenetre = lesGestesSeReservent(agenda, serviceIds, { derniereVenue, date: 'avant' });
+  if (sansFenetre && sansFenetre !== 'prestation_hors_fenetre') return [];
   const voulu = Math.round(Number(horizonJours));
   const n = Math.max(1, Math.min(joursDeLaFenetre(ms), Number.isFinite(voulu) && voulu > 0 ? voulu : 14));
   const durationMin = dureeDesPrestations(serviceIds, agenda.services);
@@ -399,6 +421,7 @@ function placesLibres(
   const out: PlaceDuServeur[] = [];
   for (let i = 1; i <= n; i += 1) {
     const iso = isoApresJours(aujourdhui, i);
+    if (lesGestesSeReservent(agenda, serviceIds, { date: iso, derniereVenue })) continue;
     const opening = ouvertureDuJour(iso, agenda.semaine, agenda.exceptions);
     if (opening.closed) continue;
     const occupes = occupesDuJour(agenda.occupes, iso);

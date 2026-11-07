@@ -477,7 +477,15 @@ function jugeLaPorte(brut: string): string[] {
     && (blocDeplacer.match(/from\('appointments'\)/g) ?? []).length === 2);
   const horsJuge0 = debutHorsJuge > 0 && finHorsJuge > debutHorsJuge ? s.slice(debutHorsJuge, finHorsJuge) : '';
   const horsJuge = blocDeplacer ? horsJuge0.replace(blocDeplacer, '') : horsJuge0;
-  const pourJuger = horsJuge0 ? s.replace(horsJuge0, '') : s;
+  /* LA SEULE LECTURE PERMISE (7 novembre 2026, la fenetre de GBEJI Fidelite) : la derniere venue du numero,
+     lue par les fiches du numero et par statut « honore », seulement quand un geste a fenetre est choisi. */
+  const debutVenue = s.indexOf('async function derniereVenueDuNumero(');
+  const finVenue = s.indexOf('async function dejaCliente(');
+  const blocVenue = debutVenue > 0 && finVenue > debutVenue ? s.slice(debutVenue, finVenue) : '';
+  exige('la derniere venue se lit par les fiches du numero et le statut honore, rien d autre',
+    !!blocVenue && (blocVenue.match(/from\('appointments'\)/g) ?? []).length === 1
+    && /from\('appointments'\)\.select\('data'\)\s*\.in\('data->>clientId', ids\)\.eq\('data->>status', 'honoré'\)\.limit\(PLAFOND_D_UNE_REPONSE\)/.test(blocVenue));
+  const pourJuger = (horsJuge0 ? s.replace(horsJuge0, '') : s).replace(blocVenue, '');
   exige('plus aucune lecture directe des rendez-vous pour juger', !/from\('appointments'\)\.select\(/.test(pourJuger));
   exige('la page du rendez-vous et le retour lisent un rendez-vous par son id, ou ceux d une fiche, rien d autre',
     !!horsJuge && (horsJuge.match(/from\('appointments'\)\.select\([^)]*\)[^;]*/g) ?? []).every((l) => /\.eq\('id', apptId\)\.maybeSingle\(\)$|\.eq\('data->>clientId', f\.id\)\.limit\(500\)$/.test(l))
@@ -486,14 +494,14 @@ function jugeLaPorte(brut: string): string[] {
     && /toutesLesLignes\('catalog_categories'\)/.test(s) && /toutesLesLignes\('blocages', \[\['data->>branchId', o\.branche\.id\], \['data->>date', o\.date\]\]\)/.test(s));
   /* Le juge reçoit les places du jour de la base (0152, le second fauteuil,
      2 novembre 2026) ; c'est toujours celui du serveur. */
-  exige('le juge est celui du serveur', /laPlaceTient\(\{ \.\.\.agenda, sieges: places \}, \{ date: o\.date, time: o\.time, serviceIds: o\.serviceIds \}, maintenant\)/.test(s));
+  exige('le juge est celui du serveur', /laPlaceTient\(\{ \.\.\.agenda, sieges: places \}, \{ date: o\.date, time: o\.time, serviceIds: o\.serviceIds, derniereVenue \}, maintenant\)/.test(s));
   exige('la forme et la fenetre se jugent avant toute lecture', s.indexOf('laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant)') > -1
     && s.indexOf('laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant)') < s.indexOf("toutesLesLignes('catalog_services')"));
   exige('une lecture en panne refuse', /if \(panne \|\| pris\.length >= PLAFOND_D_UNE_REPONSE\)/.test(s) && /return \{ erreur: 'agenda_illisible' \}/.test(s));
   exige('le refus du juge part en 409, la panne en 503', /json\(\{ error: verdict\.erreur \}, verdict\.erreur === 'agenda_illisible' \? 503 : 409\)/.test(s));
   exige('jamais le premier maitre de la branche sans regarder', !/\b(?:o|branche)\.maitres\[0\]/.test(s));
   exige('le jour ne se compte plus sur l horloge du serveur', !/setHours\(0, 0, 0, 0\)/.test(s));
-  exige('la branche porte sa ligne (les fauteuils)', /ligne: \{ id, data: choisie\?\.data \?\? \{\} \}/.test(s) && /laPlaceDemandee\(\{ branche: branche\.ligne, serviceIds, date, time \}\)/.test(s));
+  exige('la branche porte sa ligne (les fauteuils)', /ligne: \{ id, data: choisie\?\.data \?\? \{\} \}/.test(s) && /laPlaceDemandee\(\{ branche: branche\.ligne, serviceIds, date, time, telephone \}\)/.test(s));
   exige('plus aucune vieille copie du calendrier hors des reperes', (s.match(/function ouvertureDuJour\(/g) ?? []).length === 1
     && (s.match(/function masquePourLeSite\(/g) ?? []).length === 1);
   return fautes;

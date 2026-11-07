@@ -1619,13 +1619,14 @@ export default function Catalogue() {
                       cela, une prestation à seuil se cherche en vain dans
                       toutes les listes : rien ne distingue « retenue par une
                       règle » de « disparue ». */}
-                  {(svc.desVenue || svc.reserveFamilles || svc.bandIds?.length) && (
+                  {(svc.desVenue || svc.reserveFamilles || svc.bandIds?.length || svc.fenetreApresVenue) && (
                     <div className="trv-svc__garde">
                       {svc.desVenue ? `◈ Paraît dès la ${svc.desVenue}ᵉ venue, invisible avant, partout` : ''}
                       {svc.desVenue && (svc.reserveFamilles || svc.bandIds?.length) ? ' · ' : ''}
                       {svc.reserveEnfants ? '◈ MND Kids' : svc.reserveFamilles ? '◈ Réservée aux comptes famille' : ''}
                       {svc.reserveFamilles && svc.bandIds?.length ? ' · ' : ''}
                       {svc.bandIds?.length ? `◈ ${svc.bandIds.length} calibre${svc.bandIds.length > 1 ? 's' : ''} seulement` : ''}
+                      {svc.fenetreApresVenue ? `${svc.desVenue || svc.reserveFamilles || svc.bandIds?.length ? ' · ' : ''}◈ Cliente : ${svc.fenetreApresVenue.deSemaines} à ${svc.fenetreApresVenue.aSemaines} semaines après la dernière venue` : ''}
                     </div>
                   )}
 

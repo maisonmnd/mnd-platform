@@ -16,6 +16,7 @@ import { enablePush, disablePush, pushState, type PushState } from '../../shared
 import { useBranch } from '../../shared/branches';
 import { signOut, useAuth } from '../../shared/auth';
 import { useAppointments, venuesHonorees, type Appointment } from '../../shared/agenda';
+import { derniereVenueAvant } from '../../shared/catalogue-pur';
 import { useCategories, useProducts, useServices } from '../../shared/catalog';
 import { clientsStore, useClients, useFamilies, usePersonas, remiseFamillePct, remiseFamillePourTetes, type Client } from '../../shared/clients';
 import { vitrineConfigStore } from '../../shared/bridges';
@@ -517,7 +518,9 @@ export function HomeTab({
        le forfait « dès la 3ᵉ venue » à une première visite, et le prefill
        entrait dans le tunnel APRÈS l'unique garde de l'étape 2. */
     const venuesTete = venuesHonorees(clientAppts, client.id);
-    const offre = servicesVisibles.filter((s) => estProposable(s, pricing, venuesTete, !!client?.familyId));
+    const derniereVenue = derniereVenueAvant(clientAppts, client.id, '9999-12-31');
+    const offre = servicesVisibles.filter((s) => estProposable(s, pricing, venuesTete, !!client?.familyId, 'inconnu',
+      { derniereVenue, aujourdhui: todayIso() }));
     return recoPourEnvie(client, client.envie, {
       offre,
       catalogue: servicesVisibles,

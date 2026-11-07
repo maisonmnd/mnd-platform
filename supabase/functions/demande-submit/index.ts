@@ -901,6 +901,94 @@ export const racineOf = <C extends { id: string; parentId?: string }>(cats: read
   }
   return cur;
 };
+
+/* ══ LA FENÊTRE APRÈS LA DERNIÈRE VENUE — 7 novembre 2026 ═════════════════
+   « Fidélité n'est disponible pour un client uniquement entre 4 et 6 semaines
+   de sa dernière venue. Mais au-delà des 6 semaines ce service n'est plus
+   disponible. » (Yéman.) Un pack qui porte `fenetreApresVenue` ne se pose que
+   si l'écart entre la DERNIÈRE VENUE de la cliente (un rendez-vous « honoré »,
+   le plus récent AVANT le rendez-vous qu'on pose) et ce rendez-vous va de
+   4 à 6 semaines : de 28 jours inclus à 42 jours inclus. Avant : pas encore.
+   Après : plus du tout. Sans aucune venue honorée : jamais.
+
+   LA FENÊTRE SE JUGE À LA DATE DU RENDEZ-VOUS CHOISI, pas à aujourd'hui : une
+   cliente qui réserve pour dans cinq semaines doit pouvoir le prendre. Les
+   jours se comptent en jours calendaires sur des dates AAAA-MM-JJ (le jour
+   de Cotonou, UTC+1, est déjà celui qu'écrit le rendez-vous) : aucune heure,
+   donc aucun fuseau à deviner. Un rendez-vous à venir, non honoré, ne compte
+   pas comme une venue ; un honoré postérieur au rendez-vous jugé est ignoré.
+   Sans le champ, aucune règle : tout se passe comme avant. */
+export type FenetreApresVenue = { deSemaines: number; aSemaines: number };
+
+/** Les jours calendaires de `depuisIso` à `versIso` (AAAA-MM-JJ) ; NaN si l'un est illisible. */
+export function joursEntreDates(depuisIso: string, versIso: string): number {
+  const lit = (s: string): number => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s ?? ''));
+    return m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : NaN;
+  };
+  return Math.round((lit(versIso) - lit(depuisIso)) / 86_400_000);
+}
+
+/** La fenêtre en jours, ou `null` quand le champ est absent ou illisible. */
+export function fenetreEnJours(f: FenetreApresVenue | null | undefined): { min: number; max: number } | null {
+  const de = Number(f?.deSemaines);
+  const a = Number(f?.aSemaines);
+  if (!f || !Number.isFinite(de) || !Number.isFinite(a) || de < 0 || a < de) return null;
+  return { min: Math.round(de * 7), max: Math.round(a * 7) };
+}
+
+/** LA DERNIÈRE VENUE de cette cliente avant `avantIso` : le jour du rendez-vous
+    « honoré » le plus récent, strictement antérieur. `null` s'il n'y en a pas. */
+export function derniereVenueAvant(
+  rdvs: readonly { clientId?: unknown; date?: unknown; status?: unknown }[],
+  clientId: string,
+  avantIso: string,
+): string | null {
+  if (!clientId) return null;
+  let meilleure: string | null = null;
+  for (const r of rdvs) {
+    if (r.status !== 'honoré' || r.clientId !== clientId) continue;
+    const j = String(r.date ?? '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(j) || j >= avantIso) continue;
+    if (meilleure === null || j > meilleure) meilleure = j;
+  }
+  return meilleure;
+}
+
+/** LE PACK SE POSE-T-IL CE JOUR-LÀ ? Sans fenêtre : toujours. Avec : seulement
+    si la dernière venue existe et que l'écart va de `min` à `max` jours inclus. */
+export function dansLaFenetreDeVenue(
+  f: FenetreApresVenue | null | undefined,
+  dateRdv: string | null | undefined,
+  derniereVenue: string | null | undefined,
+): boolean {
+  if (!f) return true;
+  const w = fenetreEnJours(f);
+  if (!w || !dateRdv || !derniereVenue) return false;
+  const ecart = joursEntreDates(derniereVenue, dateRdv);
+  return Number.isFinite(ecart) && ecart >= w.min && ecart <= w.max;
+}
+
+/** LA FENÊTRE EST-ELLE ENCORE À VENIR ? Tant qu'aucune date n'est choisie, on
+    propose le pack si un jour d'`aujourdhui` en avant peut encore tomber dedans :
+    la dernière venue existe et son dernier jour de fenêtre n'est pas passé. */
+export function fenetreEncoreAtteignable(
+  f: FenetreApresVenue | null | undefined,
+  aujourdhui: string | null | undefined,
+  derniereVenue: string | null | undefined,
+): boolean {
+  if (!f) return true;
+  const w = fenetreEnJours(f);
+  if (!w || !derniereVenue) return false;
+  if (!aujourdhui) return true;
+  const ecart = joursEntreDates(derniereVenue, aujourdhui);
+  return Number.isFinite(ecart) && ecart <= w.max;
+}
+
+/** La phrase dite à la cliente (Ma Couronne, le site, WhatsApp). */
+export function phraseDeLaFenetre(f: FenetreApresVenue): string {
+  return `Disponible entre ${f.deSemaines} et ${f.aSemaines} semaines après votre dernière venue`;
+}
 /* ⟨/catalogue-pur⟩ */
 
 /* ⟨qualification⟩ */
@@ -975,6 +1063,9 @@ type PrestationDuServeur = {
   archived?: boolean;
   /** Le maître que la prestation désigne, quand elle en désigne un. */
   master?: string;
+  /** LA FENÊTRE APRÈS LA DERNIÈRE VENUE (7 novembre 2026) : GBÈJÍ™ Fidélité,
+      de 4 à 6 semaines. Absent = aucune règle. */
+  fenetreApresVenue?: FenetreApresVenue;
 };
 
 type CategorieDuServeur = { id: string; parentId?: string };
@@ -1102,6 +1193,9 @@ function agendaDepuisLesLignes(l: LignesDeLAgenda): AgendaDuServeur | null {
       ...(d.enabled === false ? { enabled: false } : {}),
       ...(d.archived ? { archived: true } : {}),
       ...(chaine(d.master) ? { master: chaine(d.master) } : {}),
+      ...(fenetreEnJours(objet(d.fenetreApresVenue) as FenetreApresVenue)
+        ? { fenetreApresVenue: { deSemaines: Number(objet(d.fenetreApresVenue).deSemaines), aSemaines: Number(objet(d.fenetreApresVenue).aSemaines) } }
+        : {}),
     };
   }).filter((s) => s.id !== '');
   const categories: CategorieDuServeur[] = (l.categories ?? []).map((r) => {
@@ -1179,9 +1273,15 @@ function joursDeLaFenetre(ms: number): number {
 type RefusDeLaPlace =
   | 'creneau_invalide' | 'creneau_hors_fenetre' | 'creneau_ferme'
   | 'prestation_inconnue' | 'prestation_retiree' | 'consultation_requise'
-  | 'creneau_hors_ouverture' | 'creneau_plafond' | 'creneau_pris';
+  | 'creneau_hors_ouverture' | 'creneau_plafond' | 'creneau_pris'
+  | 'prestation_hors_fenetre';
 
-type DemandeDePlace = { date: string; time: string; serviceIds: readonly string[] };
+/** `derniereVenue` : le jour du rendez-vous honoré le plus récent de la cliente
+    avant `date` (`derniereVenueAvant`), `null` si elle n'en a aucun. LE JUGE NE
+    LA LIT PAS : l'appelant la lit en base. Un geste à fenêtre
+    (`fenetreApresVenue`) sans cette valeur est refusé : une cliente qu'on ne
+    sait pas situer n'a pas de venue à compter. */
+type DemandeDePlace = { date: string; time: string; serviceIds: readonly string[]; derniereVenue?: string | null };
 
 /** La place tient : sa durée, et les maîtres LIBRES à cette heure, dans
     l'ordre de la Maison (le verrou prend le premier encore libre). */
@@ -1206,7 +1306,12 @@ function laPlaceEstRecevable(p: { date: string; time: string }, ms: number): Ref
 
 /** LES GESTES : tous connus et actifs, aucun qui exige une consultation
     (sauf la consultation elle-même), tous ouverts à la réservation en ligne. */
-function lesGestesSeReservent(agenda: AgendaDuServeur, serviceIds: readonly string[]): RefusDeLaPlace | null {
+function lesGestesSeReservent(
+  agenda: AgendaDuServeur, serviceIds: readonly string[],
+  /* LA FENÊTRE (7 novembre 2026) : le jour du rendez-vous et la dernière venue
+     de la cliente. Sans eux, un geste à fenêtre ne se réserve pas. */
+  quand?: { date?: string; derniereVenue?: string | null },
+): RefusDeLaPlace | null {
   if (serviceIds.length === 0) return 'prestation_inconnue';
   const gestes = serviceIds.map((id) => agenda.services.find((s) => s.id === id));
   const connus = gestes.filter((s): s is PrestationDuServeur => !!s && s.enabled !== false && !s.archived);
@@ -1214,6 +1319,7 @@ function lesGestesSeReservent(agenda: AgendaDuServeur, serviceIds: readonly stri
   const cats = agenda.categories;
   if (connus.some((s) => !estUneConsultation(s, cats) && exigeConsultation(s, cats))) return 'consultation_requise';
   if (connus.some((s) => !reservableSurLeSite(s, cats, agenda.masques))) return 'prestation_retiree';
+  if (connus.some((s) => s.fenetreApresVenue && !dansLaFenetreDeVenue(s.fenetreApresVenue, quand?.date, quand?.derniereVenue))) return 'prestation_hors_fenetre';
   return null;
 }
 
@@ -1241,7 +1347,7 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number): V
      lundi ouvert que la Maison ferme. */
   const fenetre = ouvertureDuJour(p.date, agenda.semaine, agenda.exceptions);
   if (fenetre.closed) return { ok: false, erreur: 'creneau_ferme' };
-  const gestes = lesGestesSeReservent(agenda, p.serviceIds);
+  const gestes = lesGestesSeReservent(agenda, p.serviceIds, { date: p.date, derniereVenue: p.derniereVenue });
   if (gestes) return { ok: false, erreur: gestes };
 
   const dureeMin = dureeDesPrestations(p.serviceIds, agenda.services);
@@ -1284,8 +1390,12 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number): V
     Des gestes qui ne se réservent pas en ligne n'ont aucune place. */
 function placesLibres(
   agenda: AgendaDuServeur, serviceIds: readonly string[], ms: number, horizonJours = 14,
+  /* La dernière venue de la cliente (7 novembre 2026) : un geste à fenêtre ne
+     propose que les jours qui tombent dedans. */
+  derniereVenue?: string | null,
 ): PlaceDuServeur[] {
-  if (lesGestesSeReservent(agenda, serviceIds)) return [];
+  const sansFenetre = lesGestesSeReservent(agenda, serviceIds, { derniereVenue, date: 'avant' });
+  if (sansFenetre && sansFenetre !== 'prestation_hors_fenetre') return [];
   const voulu = Math.round(Number(horizonJours));
   const n = Math.max(1, Math.min(joursDeLaFenetre(ms), Number.isFinite(voulu) && voulu > 0 ? voulu : 14));
   const durationMin = dureeDesPrestations(serviceIds, agenda.services);
@@ -1294,6 +1404,7 @@ function placesLibres(
   const out: PlaceDuServeur[] = [];
   for (let i = 1; i <= n; i += 1) {
     const iso = isoApresJours(aujourdhui, i);
+    if (lesGestesSeReservent(agenda, serviceIds, { date: iso, derniereVenue })) continue;
     const opening = ouvertureDuJour(iso, agenda.semaine, agenda.exceptions);
     if (opening.closed) continue;
     const occupes = occupesDuJour(agenda.occupes, iso);
@@ -1344,6 +1455,8 @@ async function laPlaceDemandee(o: {
   serviceIds: string[];
   date: string;
   time: string;
+  /** Le numéro de la cliente (E.164) : sa dernière venue juge un pack à fenêtre. */
+  telephone?: string;
 }): Promise<{ erreur: string } | {
   dureeMin: number;
   /** Les maîtres libres à cette heure, dans l'ordre : le verrou prend le premier encore libre. */
@@ -1406,7 +1519,20 @@ async function laPlaceDemandee(o: {
   const places = !placesDuJour.error && Number.isInteger(lues) && lues >= PLACES_EN_LIGNE
     ? Math.min(lues, PLACES_EN_LIGNE_AU_PLUS) : PLACES_EN_LIGNE;
   if (placesDuJour.error) console.error('demande-submit: places du jour illisibles, une place', placesDuJour.error.message);
-  const verdict = laPlaceTient({ ...agenda, sieges: places }, { date: o.date, time: o.time, serviceIds: o.serviceIds }, maintenant);
+  /* LA FENÊTRE APRÈS LA DERNIÈRE VENUE — 7 novembre 2026. Un pack à fenêtre
+     (GBÈJÍ™ Fidélité : de 4 à 6 semaines) se juge sur la dernière venue
+     honorée du numéro, lue ici seulement quand un geste choisi la demande. Le
+     site ne reconnaît pas la cliente : plusieurs fiches sur un même numéro
+     (une mère et ses filles), c'est la venue la plus récente qui compte. Une
+     lecture en panne refuse, comme le reste. */
+  const aFenetre = o.serviceIds.some((id) => !!agenda.services.find((x) => x.id === id)?.fenetreApresVenue);
+  let derniereVenue: string | null = null;
+  if (aFenetre) {
+    const lue = await derniereVenueDuNumero(o.telephone ?? '', o.date);
+    if (!lue.ok) return { erreur: 'agenda_illisible' };
+    derniereVenue = lue.jour;
+  }
+  const verdict = laPlaceTient({ ...agenda, sieges: places }, { date: o.date, time: o.time, serviceIds: o.serviceIds, derniereVenue }, maintenant);
   if (!verdict.ok) return { erreur: verdict.erreur };
 
   /* Les offres de la Maison, pour résoudre un code : lues ici, avec le reste,
@@ -1942,6 +2068,26 @@ async function fichesDuNumero(telephone: string): Promise<FicheLue[] | null> {
   });
   if (error) { console.error('demande-submit: fiches illisibles', error.message); return null; }
   return (data ?? []).filter((c) => huitDerniers(c.phone ?? '') === fin || huitDerniers(c.phone2 ?? '') === fin);
+}
+/** LA DERNIÈRE VENUE DU NUMÉRO avant `dateIso` : le jour du rendez-vous honoré
+    le plus récent de ses fiches (`derniereVenueAvant`, catalogue-pur). `jour`
+    est `null` quand elle n'a aucune venue honorée ; `ok: false` quand une
+    lecture a échoué (on ne devine pas). */
+async function derniereVenueDuNumero(telephone: string, dateIso: string): Promise<{ ok: true; jour: string | null } | { ok: false }> {
+  const fiches = await fichesDuNumero(telephone);
+  if (!fiches) return { ok: false };
+  if (fiches.length === 0) return { ok: true, jour: null };
+  const ids = fiches.map((f) => f.id);
+  const { data, error } = await admin.from('appointments').select('data')
+    .in('data->>clientId', ids).eq('data->>status', 'honoré').limit(PLAFOND_D_UNE_REPONSE);
+  if (error) { console.error('demande-submit: venues illisibles', error.message); return { ok: false }; }
+  const rdvs = ((data ?? []) as { data?: { clientId?: unknown; date?: unknown; status?: unknown } }[]).map((r) => r.data ?? {});
+  let jour: string | null = null;
+  for (const id of ids) {
+    const j = derniereVenueAvant(rdvs, id, dateIso);
+    if (j && (jour === null || j > jour)) jour = j;
+  }
+  return { ok: true, jour };
 }
 async function dejaCliente(telephone: string): Promise<boolean> {
   const fiches = await fichesDuNumero(telephone);
@@ -3209,7 +3355,7 @@ Deno.serve(async (req) => {
   let uneSeuleRemise: RaisonDUneSeuleRemise | '' = '';
   let nomsDesGestes: string[] = [];
   if (avecPlace) {
-    const verdict = await laPlaceDemandee({ branche: branche.ligne, serviceIds, date, time });
+    const verdict = await laPlaceDemandee({ branche: branche.ligne, serviceIds, date, time, telephone });
     if ('erreur' in verdict) return json({ error: verdict.erreur }, verdict.erreur === 'agenda_illisible' ? 503 : 409);
     maitresLibres = verdict.maitres;
     dureeMin = verdict.dureeMin;

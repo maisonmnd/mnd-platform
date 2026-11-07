@@ -44,7 +44,8 @@ import { referenceDuRendezVous } from '../../../../shared/lien-du-rdv-pur';
 import { useStaff as useMaTeteDuRdv } from '../../../../shared/auth';
 import { momentDuRdv, poseUnRendezVous } from '../../../../shared/agenda';
 import { useRdvsDeLaMaison } from '../../../../shared/essai';
-import { modelBandsStore, bandSetsStore, prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, remiseGesteXof, francsDuGeste, type JugeDuGeste, tauxPermis, plafondDeRemisePct, plafondDeRemiseXof, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
+import { derniereVenueAvant } from '../../../../shared/catalogue-pur';
+import { modelBandsStore, bandSetsStore, prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, remiseGesteXof, francsDuGeste, type JugeDuGeste, tauxPermis, plafondDeRemisePct, plafondDeRemiseXof, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, avertissementDeFenetre, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import { gammeNetteXof, gammeBruteXof, ligneNetteXof, ligneBruteXof, poseUnProduit, retireUnProduit, remiseDeLaLigne, ecartsDeTarif, manqueALEtagere, type LigneGamme } from '../../../../shared/gamme';
 import type { CommRates } from '../equipe/payroll';
@@ -2145,6 +2146,11 @@ function RdvModalCorps({
   });
 
   const chosen = serviceIds.map((id) => byId.get(id)).filter((s): s is Service => !!s);
+  /* LA FENÊTRE DES PACKS (GBÈJÍ™ Fidélité, 7 novembre 2026) : la Maison peut
+     poser le pack hors de ses 4 à 6 semaines, mais elle est prévenue. */
+  const avertissementsDeFenetre = chosen
+    .map((sv) => avertissementDeFenetre(sv, date, derniereVenueAvant(tousLesRdv, clientId, date)))
+    .filter((m): m is string => !!m);
 
   /* ── SES RITUELS HABITUELS ────────────────────────────────────────
      Une cliente revient pour la même chose. Retaper ses quatre gestes à chaque
@@ -4277,6 +4283,9 @@ function RdvModalCorps({
             </div>
           </section>
         )}
+        {avertissementsDeFenetre.map((m) => (
+          <p key={m} className="trc-rdv3__note" role="status">{m}</p>
+        ))}
         {rdvClient && !appt && serviceIds.length > 0 && propositions.length === 0 && (
           <p className="trc-rdv3__note">Aucune place libre dans les six semaines pour {fmtDureeCourte(dureeRetenue)} : choisissez le moment à la main.</p>
         )}

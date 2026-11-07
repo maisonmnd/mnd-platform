@@ -19,6 +19,7 @@ import { pushNotifyStaff } from '../../shared/push';
 import { uid } from '../../shared/store';
 import { estKids } from '../../shared/accounts';
 import { useAppointments, venuesHonorees } from '../../shared/agenda';
+import { derniereVenueAvant } from '../../shared/catalogue-pur';
 import { useFamilies } from '../../shared/clients';
 import { fmtDuration, useAucuneRemise, useClient, useVisibleCatalog } from './lib';
 import { avantageDuSurMesure } from './places-pure';
@@ -150,6 +151,8 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
   const [familles] = useFamilies();
   const aFamille = !!(client?.familyId && familles.some((f) => f.id === client.familyId));
   const venues = client ? venuesHonorees(appts, client.id) : 0;
+  /* La fenêtre de 4 à 6 semaines (GBÈJÍ™ Fidélité) : sa dernière venue honorée. */
+  const derniereVenue = client ? derniereVenueAvant(appts, client.id, '9999-12-31') : null;
   /* L'ÂGE PASSE PAR ICI AUSSI — revue du 7 septembre 2026. Le tunnel de
      réservation demande à `estProposable` le verdict Kids ; cet onglet ne le
      demandait pas, et le défaut (« inconnu ») laisse passer. Le pack de
@@ -159,8 +162,9 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
   const verdictKids = estKids(client ?? undefined, new Date().toISOString().slice(0, 10));
   const forfaits = useMemo(
     () => services.filter((s) => !!s.includes?.length && !s.hidePrice
-      && estProposable(s, pricing, venues, aFamille, verdictKids)),
-    [services, pricing, venues, aFamille, verdictKids],
+      && estProposable(s, pricing, venues, aFamille, verdictKids,
+        { derniereVenue, aujourdhui: new Date().toISOString().slice(0, 10) })),
+    [services, pricing, venues, aFamille, verdictKids, derniereVenue],
   );
   /* Ce qu'un forfait contient, en clair. Une ligne « au choix dans l'atelier »
      se nomme par l'atelier ; un produit, par la Gamme. Une prestation que la

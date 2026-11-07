@@ -104,4 +104,92 @@ export const racineOf = <C extends { id: string; parentId?: string }>(cats: read
   }
   return cur;
 };
+
+/* ══ LA FENÊTRE APRÈS LA DERNIÈRE VENUE — 7 novembre 2026 ═════════════════
+   « Fidélité n'est disponible pour un client uniquement entre 4 et 6 semaines
+   de sa dernière venue. Mais au-delà des 6 semaines ce service n'est plus
+   disponible. » (Yéman.) Un pack qui porte `fenetreApresVenue` ne se pose que
+   si l'écart entre la DERNIÈRE VENUE de la cliente (un rendez-vous « honoré »,
+   le plus récent AVANT le rendez-vous qu'on pose) et ce rendez-vous va de
+   4 à 6 semaines : de 28 jours inclus à 42 jours inclus. Avant : pas encore.
+   Après : plus du tout. Sans aucune venue honorée : jamais.
+
+   LA FENÊTRE SE JUGE À LA DATE DU RENDEZ-VOUS CHOISI, pas à aujourd'hui : une
+   cliente qui réserve pour dans cinq semaines doit pouvoir le prendre. Les
+   jours se comptent en jours calendaires sur des dates AAAA-MM-JJ (le jour
+   de Cotonou, UTC+1, est déjà celui qu'écrit le rendez-vous) : aucune heure,
+   donc aucun fuseau à deviner. Un rendez-vous à venir, non honoré, ne compte
+   pas comme une venue ; un honoré postérieur au rendez-vous jugé est ignoré.
+   Sans le champ, aucune règle : tout se passe comme avant. */
+export type FenetreApresVenue = { deSemaines: number; aSemaines: number };
+
+/** Les jours calendaires de `depuisIso` à `versIso` (AAAA-MM-JJ) ; NaN si l'un est illisible. */
+export function joursEntreDates(depuisIso: string, versIso: string): number {
+  const lit = (s: string): number => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s ?? ''));
+    return m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : NaN;
+  };
+  return Math.round((lit(versIso) - lit(depuisIso)) / 86_400_000);
+}
+
+/** La fenêtre en jours, ou `null` quand le champ est absent ou illisible. */
+export function fenetreEnJours(f: FenetreApresVenue | null | undefined): { min: number; max: number } | null {
+  const de = Number(f?.deSemaines);
+  const a = Number(f?.aSemaines);
+  if (!f || !Number.isFinite(de) || !Number.isFinite(a) || de < 0 || a < de) return null;
+  return { min: Math.round(de * 7), max: Math.round(a * 7) };
+}
+
+/** LA DERNIÈRE VENUE de cette cliente avant `avantIso` : le jour du rendez-vous
+    « honoré » le plus récent, strictement antérieur. `null` s'il n'y en a pas. */
+export function derniereVenueAvant(
+  rdvs: readonly { clientId?: unknown; date?: unknown; status?: unknown }[],
+  clientId: string,
+  avantIso: string,
+): string | null {
+  if (!clientId) return null;
+  let meilleure: string | null = null;
+  for (const r of rdvs) {
+    if (r.status !== 'honoré' || r.clientId !== clientId) continue;
+    const j = String(r.date ?? '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(j) || j >= avantIso) continue;
+    if (meilleure === null || j > meilleure) meilleure = j;
+  }
+  return meilleure;
+}
+
+/** LE PACK SE POSE-T-IL CE JOUR-LÀ ? Sans fenêtre : toujours. Avec : seulement
+    si la dernière venue existe et que l'écart va de `min` à `max` jours inclus. */
+export function dansLaFenetreDeVenue(
+  f: FenetreApresVenue | null | undefined,
+  dateRdv: string | null | undefined,
+  derniereVenue: string | null | undefined,
+): boolean {
+  if (!f) return true;
+  const w = fenetreEnJours(f);
+  if (!w || !dateRdv || !derniereVenue) return false;
+  const ecart = joursEntreDates(derniereVenue, dateRdv);
+  return Number.isFinite(ecart) && ecart >= w.min && ecart <= w.max;
+}
+
+/** LA FENÊTRE EST-ELLE ENCORE À VENIR ? Tant qu'aucune date n'est choisie, on
+    propose le pack si un jour d'`aujourdhui` en avant peut encore tomber dedans :
+    la dernière venue existe et son dernier jour de fenêtre n'est pas passé. */
+export function fenetreEncoreAtteignable(
+  f: FenetreApresVenue | null | undefined,
+  aujourdhui: string | null | undefined,
+  derniereVenue: string | null | undefined,
+): boolean {
+  if (!f) return true;
+  const w = fenetreEnJours(f);
+  if (!w || !derniereVenue) return false;
+  if (!aujourdhui) return true;
+  const ecart = joursEntreDates(derniereVenue, aujourdhui);
+  return Number.isFinite(ecart) && ecart <= w.max;
+}
+
+/** La phrase dite à la cliente (Ma Couronne, le site, WhatsApp). */
+export function phraseDeLaFenetre(f: FenetreApresVenue): string {
+  return `Disponible entre ${f.deSemaines} et ${f.aSemaines} semaines après votre dernière venue`;
+}
 /* ⟨/catalogue-pur⟩ */

@@ -46,6 +46,10 @@ export type PrestationPublique = {
   priceFloors?: Record<string, number>;
   bandId?: string;
   bandIds?: string[];
+  /** LA FENÊTRE APRÈS LA DERNIÈRE VENUE (7 novembre 2026) : un pack qui la
+      porte (GBÈJÍ™ Fidélité, de 4 à 6 semaines) ne se propose pas sur le site
+      public, qui ne sait pas situer la visiteuse. Le serveur le refuse aussi. */
+  fenetreApresVenue?: { deSemaines: number; aSemaines: number };
   ratePerLock?: number;
   tarifMode?: 'lock' | 'calibre';
   prixParLongueur?: Partial<Record<string, number>>;
@@ -455,7 +459,7 @@ export function prestationsReservables(agenda: AgendaDeLaMaison, besoin: Besoin)
   /* CE QUE LA MAISON A DÉCOCHÉ NE SE PROPOSE PLUS (17 septembre 2026). Le
      même juge sert à `demande-submit`, qui REFUSE : sans lui, décocher ne
      serait qu'un décor. */
-  const offert = (s: PrestationPublique) => reservableSurLeSite(s, cats, agenda.masques);
+  const offert = (s: PrestationPublique) => reservableSurLeSite(s, cats, agenda.masques) && !s.fenetreApresVenue;
   if (porteDuBesoin(besoin) === 'consultation') {
     const consultations = agenda.services.filter((s) => estUneConsultation(s, cats) && offert(s));
     const sienne = CONSULTATION_PAR_PARCOURS[besoin];

@@ -7,6 +7,7 @@ import { depositForServices, depositPctFor, useSettings, useExceptionsHoraires, 
 import { useBlocages } from '../../shared/blocages';
 import { prochainesPlaces } from '../../shared/reservation-express';
 import { appointmentsStore, useAppointments, venuesHonorees, type Appointment, estampilleLesPoses } from '../../shared/agenda';
+import { derniereVenueAvant, dansLaFenetreDeVenue } from '../../shared/catalogue-pur';
 import { estUnSinsin, MAITRE_DES_SINSIN } from '../../shared/agenda-pur';
 import { sesRituelsPasses, longueurDeSaDerniereVenue } from '../../shared/ses-rituels-pur';
 import { SUCCESSEURS } from '../../shared/bascule-de-janvier-pur';
@@ -549,7 +550,15 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
      La porte s'ouvre d'un mot, et le geste reste délibéré : une mère qui
      réserve pour sa fille ne la pousse pas par mégarde. */
   const [toutLeCatalogue, setToutLeCatalogue] = useState(false);
-  const offrables = services.filter((s) => estProposable(s, pricing, venuesTete, !!familleDeLaTete, verdictKids));
+  /* LA FENÊTRE APRÈS LA DERNIÈRE VENUE — 7 novembre 2026 : GBÈJÍ™ Fidélité
+     ne paraît que pour une cliente dont le rendez-vous tombe de 4 à 6 semaines
+     après sa dernière venue honorée. La date n'est pas toujours choisie quand
+     on compose le panier : sans date, le pack paraît tant que sa fenêtre est
+     encore à venir ; avec la date, le juge est strict. Le dernier mot est au
+     moment d'écrire (plus bas). */
+  const derniereVenueTete = cible ? derniereVenueAvant(appts, cible.id, jourDeLaVenue ?? '9999-12-31') : null;
+  const offrables = services.filter((s) => estProposable(s, pricing, venuesTete, !!familleDeLaTete, verdictKids,
+    { derniereVenue: derniereVenueTete, dateRdv: jourDeLaVenue, aujourdhui: todayIso() }));
   const offre = catalogueDeLaTete(offrables, verdictKids, toutLeCatalogue);
   const misesDeCote = masqueesParLAge(offrables, verdictKids);
   const ageServie = ageDe((beneficiaire ?? client ?? undefined)?.birthday, todayIso());
@@ -889,6 +898,18 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
         toast(fermes.length > 1
           ? t('La Maison est fermée ces jours-là, choisissez d’autres dates.')
           : t('La Maison est fermée le {jour}, choisissez un autre jour.', { jour: jourDit(fermes[0]) }));
+        return;
+      }
+      /* LA FENÊTRE APRÈS LA DERNIÈRE VENUE, AU DERNIER MOT — 7 novembre 2026.
+         Un pack qui porte `fenetreApresVenue` (GBÈJÍ™ Fidélité : de 4 à 6
+         semaines après la dernière venue) ne s'écrit jamais hors de sa
+         fenêtre, même s'il était déjà dans le panier quand la date a changé.
+         Jugé séance par séance, à la date de CHAQUE séance. */
+      const horsFenetre = selected.find((sv) => sv.fenetreApresVenue
+        && sessionDates.some((sd) => !dansLaFenetreDeVenue(sv.fenetreApresVenue, sd.iso, derniereVenueAvant(appts, cibleId, sd.iso))));
+      if (horsFenetre?.fenetreApresVenue) {
+        setPaying(false);
+        toast(t('Disponible entre {de} et {a} semaines après votre dernière venue', { de: horsFenetre.fenetreApresVenue.deSemaines, a: horsFenetre.fenetreApresVenue.aSemaines }));
         return;
       }
       /* Série liée : un identifiant commun quand il y a plusieurs séances. */
@@ -1809,6 +1830,11 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                                     )}
                                     {s.sessions > 1 && (
                                       <span className="mc-pillseal">{t('Série · {n} séances · prix unique', { n: s.sessions })}</span>
+                                    )}
+                                    {s.fenetreApresVenue && (
+                                      <span className="mc-presta__meta">
+                                        {t('Disponible entre {de} et {a} semaines après votre dernière venue', { de: s.fenetreApresVenue.deSemaines, a: s.fenetreApresVenue.aSemaines })}
+                                      </span>
                                     )}
                                   </span>
                                 </button>

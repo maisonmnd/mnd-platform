@@ -206,6 +206,8 @@ export const EN_BOOKING: Record<string, string> = {
   'Les horaires de la Maison se chargent, réessayez dans un instant.': 'The Maison’s opening hours are loading. Please try again in a moment.',
   'La Maison est fermée ces jours-là, choisissez d’autres dates.': 'The Maison is closed on those days. Please choose other dates.',
   'La Maison est fermée le {jour}, choisissez un autre jour.': 'The Maison is closed on {jour}. Please choose another day.',
+  /* La fenêtre de GBÈJÍ™ Fidélité (7 novembre 2026). */
+  'Disponible entre {de} et {a} semaines après votre dernière venue': 'Available between {de} and {a} weeks after your last visit',
   'C’est réservé': 'It’s booked',
   'Réservation transmise': 'Booking sent',
   '{quoi} · {jour} à {heure}. La Maison vous attend.': '{quoi} · {jour} at {heure}. The Maison awaits you.',
