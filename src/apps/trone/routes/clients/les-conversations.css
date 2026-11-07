@@ -121,6 +121,23 @@
 .trc-bx__tient--perle i { background: #F1DDC9; color: #9E6238; }
 .trc-bx__tient--automate i { background: #E9E8E3; color: var(--ink-soft); }
 .trc-bx__tient--personne i { box-shadow: inset 0 0 0 1px #B4B2AB; color: var(--ink-soft); }
+/* LES REÇUS (6 novembre 2026) : « je ne remarque jamais quand j'ai de
+   nouveaux messages » (Yéman). En tête de la liste, avant la salle d'attente :
+   le titre en cuivre, le nom en gras, l'heure d'arrivée en cuivre, et le
+   nombre de messages dans une pastille CUIVRE PLEINE. Un filet cuivre à
+   gauche de chaque ligne, pour que l'œil tombe dessus avant tout le reste. */
+.trc-bx__recus { border-bottom: 1px solid #F1DDC9; }
+.trc-bx__groupe--recus { color: var(--copper-700, #7A4C27); padding: 12px 14px 6px; }
+.trc-bx__ligne.est-recue { border-left-color: var(--color-copper); }
+.trc-bx__ligne.est-recue.est-courante { border-left-color: var(--color-indigo); }
+.trc-bx__ligne.est-recue .trc-bx__haut b { font-weight: 700; }
+.trc-bx__ligne.est-recue .trc-bx__mot { color: var(--ink); }
+.trc-bx__arrivee { color: var(--copper-700, #7A4C27); font-weight: 600; }
+.trc-bx__recus-nombre {
+  flex: none; min-width: 20px; height: 20px; padding: 0 6px; display: inline-grid; place-items: center;
+  background: var(--color-copper); color: #FFFFFF; border-radius: 10px;
+  font: 600 11px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+}
 /* LA SALLE D'ATTENTE : en tête d'« À traiter », cuivre clair, repliable. */
 .trc-bx__salle { margin: 10px 10px 4px; border: 1px solid #F1DDC9; border-radius: 10px; background: #FAF1E9; overflow: hidden; }
 .trc-bx__salle-tete { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 12px; }

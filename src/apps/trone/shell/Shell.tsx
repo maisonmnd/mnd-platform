@@ -12,7 +12,12 @@ import BarreEquipe from './BarreEquipe';
 import { AppelRecuModal } from './AppelRecuModal';
 import { AppelQuiSonne } from './AppelQuiSonne';
 import { PastilleDeLaSalle } from './PastilleDeLaSalle';
+import { PastilleDesRecus } from './PastilleDesRecus';
+import { useRecus } from './useRecus';
+import { titreDeBase, titreDeLOnglet } from '../../../shared/recus-pur';
 import { useReprisesNuesVivant } from './useReprisesNuesVivant';
+/* La pastille ronde du menu (26 octobre 2026) : sa feuille n'était importée nulle part jusqu'au 6 novembre 2026. */
+import './shell.css';
 import { marquerAppelFait } from '../../../shared/appels';
 import { RdvModal } from '../routes/clients/_shared';
 import { RdvFoyerHote } from '../routes/clients/RdvFoyer';
@@ -595,6 +600,17 @@ export default function Shell() {
      par poste, depuis le Journal des gestes (voir useVerrouDuPoste). */
   const [postePartage] = useStore(postePartageStore);
   useVerrouDuPoste(postePartage && !!session);
+  /* ── LES CONVERSATIONS REÇUES SE VOIENT DEPUIS PARTOUT — 6 novembre 2026.
+     « Je ne remarque jamais quand j'ai de nouveaux messages qui arrivent dans
+     la conversation […] je les loupe toujours » (Yéman). Le compte des boîtes
+     reçues (recus-pur : son dernier message, que personne n'a encore ouvert)
+     vit sur l'entrée « Conversations » du menu, dans le titre de l'onglet du
+     navigateur, et dans une pastille de la barre du haut qui mène à la plus
+     récente. Ni son ni mot de plus : la sonnerie des Conversations suffit. */
+  const recus = useRecus();
+  const nbRecus = recus.length;
+  const [titreDuTrone] = useState(() => titreDeBase(document.title));
+  useEffect(() => { document.title = titreDeLOnglet(titreDuTrone, nbRecus); }, [titreDuTrone, nbRecus]);
   const today = new Date();
   const [sideOpen, setSideOpen] = useState(false);
   const [appelOpen, setAppelOpen] = useState(false);
@@ -688,6 +704,10 @@ export default function Shell() {
     >
       {/* 26 octobre 2026 : sans icône, comme la maquette des avis. */}
       <span>{it.label}</span>
+      {/* 6 novembre 2026 : les conversations reçues, que personne n'a encore ouvertes. */}
+      {it.path === '/gerard' && nbRecus > 0 && (
+        <span className="tr-nav__pastille" title={`${nbRecus} conversation${nbRecus > 1 ? 's' : ''} reçue${nbRecus > 1 ? 's' : ''}`}>{nbRecus}</span>
+      )}
       {/* 26 octobre 2026 : les réponses aux avis prêtes à relire ; sur l'Assistant Maison depuis le lot 3 (27 octobre). */}
       {it.path === '/gerard' && aRelire > 0 && (
         <span className="tr-nav__pastille" title={`${aRelire} réponse(s) à relire`}>{aRelire}</span>
@@ -940,6 +960,8 @@ export default function Shell() {
           <Recherche />
           <SyncDot />
           <PastilleDeLaSalle />
+          {/* Les conversations reçues (6 novembre 2026) : à qui voit les Conversations ; après la salle, que son banc veut collée au point de synchro. */}
+          {peutVoir(role, '/gerard', mesDomaines) && <PastilleDesRecus recus={recus} />}
           <BanniereDeVersion />
           <div className="tr-top__chip">
             {currency} · <span className="mnd-copper">{branch.country}</span>

@@ -32,6 +32,8 @@ import {
   GROUPES_A_TRAITER, GROUPE_DIT, ceQuIlFautFaire, groupeDe, pastilleDe, type GesteATraiter,
 } from '../../../../shared/a-traiter-pur';
 import { deRangeLaBoite, rangeLaBoite, useRiensARepondre } from '../../../../shared/rien-a-repondre';
+import { marqueLue, useConversationsLues } from '../../../../shared/conversations-lues';
+import { heureRecueDite, recuDe, recusDesBoites, titreDesRecus, type Recu } from '../../../../shared/recus-pur';
 import { ClientPicker, RdvModal, useBranchAppointments, useBranchClients, type RdvInitial } from './_shared';
 import { ComposeurWhatsApp, type PoigneeDuComposeur } from './ComposeurWhatsApp';
 import { PieceDuFil, attache } from './Conversations';
@@ -91,7 +93,22 @@ import { ArrowRight, CalendarPlus, Check, ChevronDown, Phone, UserRound, X } fro
    Conversations d'avant (`ComposeurWhatsApp`) : la retenue de huit secondes,
    la fenêtre de 24 heures, les modèles hors fenêtre, les dix gestes. Le
    cerveau de l'Assistant arrive en props : « Sa fiche » lit `FicheDeGerard`,
-   jamais un second calcul. */
+   jamais un second calcul.
+
+   6 NOVEMBRE 2026, 21 h 45 : « Je ne remarque jamais quand j'ai de nouveaux
+   messages qui arrivent dans la conversation. C'est toujours mélangé avec le
+   tout. J'ai vraiment besoin de voir quand un message arrive, parce que c'est
+   pas possible : je les loupe toujours. » (Yéman, sur une capture ; « Construis
+   ce soir, v0 »). « REÇUS · N » EN TÊTE de la liste, dans « À traiter » et
+   « Toutes » : les boîtes dont le dernier message est d'elle et que personne
+   de la Maison n'a encore ouvert (`recus-pur`), la plus récente en haut, le
+   nom en gras, une pastille cuivre avec le nombre de messages, l'heure
+   d'arrivée ; « Perle a répondu » quand l'assistant a écrit depuis, et la
+   boîte RESTE reçue : seule une personne qui l'ouvre la fait sortir. « Lu »
+   s'écrit dans `mnd_conversations_lues`, partagé entre les postes, quand une
+   personne a la boîte ouverte et l'onglet sous les yeux ; jamais depuis Perle,
+   l'automate ou un modèle. Le compte se voit depuis tous les écrans (Shell :
+   menu, titre de l'onglet, pastille de la barre). Aucune sonnerie de plus. */
 
 const SOURCE_DITE: Record<SourceDeBulle, string> = {
   whatsapp: 'WhatsApp', chat: 'chat du site', demande: 'site', vocal: 'vocal du site', appel: 'appel', couronne: 'Ma Couronne', comptoir: 'comptoir',
@@ -177,6 +194,17 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
   const [envois] = useEnvois();
   const [codes] = useCodesPromo();
   const [riens] = useRiensARepondre();
+  /* LES REÇUS (6 novembre 2026) : la marque « lu », partagée entre les postes. */
+  const [lues] = useConversationsLues();
+  /* « Lu » ne s'écrit que si l'onglet est sous les yeux : une boîte ouverte dans
+     un onglet caché n'a été lue par personne, et marquer en silence serait
+     reproduire exactement ce qu'elle décrit. */
+  const [sousLesYeux, setSousLesYeux] = useState(() => typeof document === 'undefined' || document.visibilityState !== 'hidden');
+  useEffect(() => {
+    const lit = () => setSousLesYeux(document.visibilityState !== 'hidden');
+    document.addEventListener('visibilitychange', lit);
+    return () => document.removeEventListener('visibilitychange', lit);
+  }, []);
   const compteDesReponses = useCompteDesReponses();
   const etroit = useEtroit();
   /* L'horloge bat : « depuis 26 h » et la fenêtre de 24 h se relisent chaque minute. */
@@ -325,10 +353,21 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
   const visibles = useMemo(() => boitesDuFiltre(boites, filtre), [boites, filtre]);
 
   /* LA LISTE DANS SON ORDRE : la recherche d'abord (dans toutes les boîtes),
-     sinon « À traiter » par groupes (maintenant, plus anciennes, un merci),
-     sinon le filtre choisi. C'est cet ordre que « Suivante » et les flèches
-     parcourent. */
+     sinon les REÇUS puis « À traiter » par groupes (maintenant, plus
+     anciennes, un merci), sinon les reçus puis le filtre choisi. C'est cet
+     ordre que « Suivante » et les flèches parcourent. */
   const recherche = plat(cherche.trim());
+  /* LES REÇUS (6 novembre 2026) : en tête d'« À traiter » et de « Toutes »,
+     la plus récente en haut ; une boîte reçue ne paraît pas une seconde fois
+     plus bas dans sa rangée. */
+  const recus = useMemo(() => recusDesBoites(boites, lues), [boites, lues]);
+  const recuDeLaBoite = useMemo(() => new Map(recus.map((r) => [r.cle, r])), [recus]);
+  const boitesRecues = useMemo(() => {
+    const parCle = new Map(boites.map((b) => [b.cle, b]));
+    return recus.map((r) => parCle.get(r.cle)).filter((b): b is Boite => !!b);
+  }, [recus, boites]);
+  const montreLesRecus = !recherche && ((onglet === 'traiter' && filtre === 'attend') || (onglet === 'toutes' && filtre === 'tout'));
+  const sansLesRecues = (liste: readonly Boite[]): Boite[] => (montreLesRecus ? liste.filter((b) => !recuDeLaBoite.has(b.cle)) : [...liste]);
   const groupes = useMemo(() => GROUPES_A_TRAITER.map((g) => ({ g, boites: boites.filter((b) => groupeDe(b, tick) === g) })), [boites, tick]);
   /* QUI TIENT CHAQUE BOÎTE (4 novembre 2026) : la prise écrite, l'automate,
      Perle, la dernière main de l'équipe (`qui-tient-pur`). « À traiter » se
@@ -337,14 +376,14 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
   const tenues = useMemo(() => new Map(boites.map((b) => [b.cle, quiTient(b, prises, tick)])), [boites, prises, tick]);
   const tenueDe = (b: Boite): Tenue => tenues.get(b.cle) ?? { qui: 'personne' };
   const aTraiter = useMemo(() => {
-    const vivantes = groupes.filter((x) => x.g !== 'merci').flatMap((x) => x.boites);
+    const vivantes = sansLesRecues(groupes.filter((x) => x.g !== 'merci').flatMap((x) => x.boites));
     return {
       salle: vivantes.filter((b) => enSalleDAttente(b, tenueDe(b))),
       tenues: vivantes.filter((b) => !enSalleDAttente(b, tenueDe(b))),
-      mercis: groupes.find((x) => x.g === 'merci')?.boites ?? [],
+      mercis: sansLesRecues(groupes.find((x) => x.g === 'merci')?.boites ?? []),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupes, tenues]);
+  }, [groupes, tenues, montreLesRecus, recuDeLaBoite]);
   /* EN ATTENTE : la Maison a écrit la dernière, il y a moins de 7 jours ; la plus récente d'abord. */
   const enAttente = useMemo(() => boites.filter((b) => enAttenteDElle(b, tick))
     .sort((x, y) => (y.derniere?.quand ?? '').localeCompare(x.derniere?.quand ?? '')), [boites, tick]);
@@ -356,10 +395,22 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
     }
     if (onglet === 'regles') return [];
     if (onglet === 'attente') return enAttente;
-    if (onglet === 'traiter' && filtre === 'attend') return [...aTraiter.salle, ...aTraiter.tenues, ...aTraiter.mercis];
-    return visibles;
-  }, [recherche, boites, onglet, filtre, aTraiter, enAttente, visibles]);
+    const tete = montreLesRecus ? boitesRecues : [];
+    if (onglet === 'traiter' && filtre === 'attend') return [...tete, ...aTraiter.salle, ...aTraiter.tenues, ...aTraiter.mercis];
+    return [...tete, ...sansLesRecues(visibles)];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recherche, boites, onglet, filtre, aTraiter, enAttente, visibles, montreLesRecus, boitesRecues]);
   const boite = boites.find((b) => b.cle === ouverte) ?? null;
+  /* « LU » : la boîte ouverte, l'onglet sous les yeux, et elle est reçue : on
+     écrit l'instant de son dernier message (recus-pur juge quoi écrire, le
+     magasin n'écrit que si c'est plus récent). Une bulle qui arrive pendant
+     que la boîte est ouverte se marque de la même façon. */
+  const cleOuverte = boite?.cle;
+  const isoRecue = boite ? recuDe(boite, lues)?.quand : undefined;
+  useEffect(() => {
+    if (!cleOuverte || !sousLesYeux || !isoRecue) return;
+    marqueLue(cleOuverte, isoRecue);
+  }, [cleOuverte, sousLesYeux, isoRecue]);
   /* Au téléphone, une conversation ouverte prend tout l'écran : la liste s'efface derrière elle. */
   const ouvertEtroit = etroit && !!boite && onglet !== 'regles';
 
@@ -692,8 +743,11 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
   const badgeDeLaBoite = (b: Boite) => badgeDe(b, { pastille: pastilleDe(b), tenue: tenueDe(b), merci: groupeDe(b, tick) === 'merci', maintenant: tick });
 
   /** UNE LIGNE DE LA LISTE : l'avatar, le nom, depuis quand, son dernier mot,
-      UN badge et qui la tient. En salle d'attente, « Je la prends » à côté. */
-  const ligneDe = (b: Boite, enSalle = false) => {
+      UN badge et qui la tient. En salle d'attente, « Je la prends » à côté.
+      REÇUE (`recu`, 6 novembre 2026) : le nom en gras, l'heure d'arrivée à la
+      place de « depuis », la pastille cuivre du nombre de messages à la place
+      du badge, et « Perle a répondu » quand l'assistant a écrit depuis. */
+  const ligneDe = (b: Boite, enSalle = false, recu?: Recu) => {
     const dernier = b.derniereDElle ?? b.derniere;
     const mot = dernier ? (dernier.texte.trim() || (dernier.source === 'chat' ? 'discussion du site' : SOURCE_DITE[dernier.source])) : 'rien encore';
     const badge = badgeDeLaBoite(b);
@@ -704,7 +758,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
       <li key={b.cle} className={enSalle ? 'trc-bx__en-salle' : undefined}>
         <button
           type="button" data-cle={b.cle}
-          className={`trc-bx__ligne${courante ? ' est-courante' : ''}${nouvelle ? ' est-nouvelle' : ''}`}
+          className={`trc-bx__ligne${courante ? ' est-courante' : ''}${nouvelle ? ' est-nouvelle' : ''}${recu ? ' est-recue' : ''}`}
           aria-current={courante ? 'true' : undefined}
           onClick={() => ouvre(b)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); ouvre(b); prendLaSaisie(); } }}
@@ -713,11 +767,20 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
           <span className="trc-bx__qui">
             <span className="trc-bx__haut">
               <b>{b.nom}</b>
-              {b.depuisMs !== undefined && <span className="trc-bx__depuis">{depuisDit(b.depuisMs)}</span>}
+              {recu
+                ? <span className="trc-bx__depuis trc-bx__arrivee">{heureRecueDite(recu.quand, tick)}</span>
+                : b.depuisMs !== undefined && <span className="trc-bx__depuis">{depuisDit(b.depuisMs)}</span>}
             </span>
             <span className="trc-bx__mot">{dernier ? `${SOURCE_DITE[dernier.source]} : ` : ''}{court(mot)}</span>
             <span className="trc-bx__pied">
-              <span className={`trc-bx__pastille trc-bx__badge--${badge.ton}`}>{badge.dit}</span>
+              {recu ? (
+                <>
+                  <span className="trc-bx__recus-nombre" title={`${recu.nombre} message${recu.nombre > 1 ? 's' : ''} reçu${recu.nombre > 1 ? 's' : ''}`}>{recu.nombre}</span>
+                  {recu.perleARepondu && <span className="trc-bx__pastille trc-bx__badge--cuivre">Perle a répondu</span>}
+                </>
+              ) : (
+                <span className={`trc-bx__pastille trc-bx__badge--${badge.ton}`}>{badge.dit}</span>
+              )}
               <span className={`trc-bx__tient trc-bx__tient--${tenue.ton}`}><i aria-hidden="true">{tenue.initiale}</i>{tenue.dit}</span>
             </span>
           </span>
@@ -726,6 +789,13 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
       </li>
     );
   };
+  /** LA RANGÉE DES REÇUS, en tête d'« À traiter » et de « Toutes » (6 novembre 2026). */
+  const rangeeDesRecus = () => (montreLesRecus && boitesRecues.length > 0 ? (
+    <div className="trc-bx__recus">
+      <h3 className="trc-bx__groupe trc-bx__groupe--recus">{titreDesRecus(boitesRecues.length)}</h3>
+      <ul className="trc-bx__lignes">{boitesRecues.map((b) => ligneDe(b, enSalleDAttente(b, tenueDe(b)), recuDeLaBoite.get(b.cle)))}</ul>
+    </div>
+  ) : null);
   /** LA RÈGLE OUVERTE, et son compte du mois. */
   const regleOuverte: AutomatisationReelle | undefined = AUTOMATISATIONS_REELLES.find((a) => a.id === regle) ?? AUTOMATISATIONS_REELLES[0];
   const etatDeLaRegle = (a: AutomatisationReelle): string => (a.allumage === 'reglage' || a.allumage === 'ici' ? (a.reglage ? `réglable · ${a.reglage.dit}` : 'réglable ici') : ALLUMAGE_DIT[a.allumage]);
@@ -1119,6 +1189,8 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
                 ? <p className="trc-ger__vide">Plus rien à traiter : chaque message, chaque demande et chaque souci a sa suite.</p>
                 : (
                   <>
+                    {/* LES REÇUS (6 novembre 2026) : ce qui vient d'arriver et que personne n'a ouvert, en tête. */}
+                    {rangeeDesRecus()}
                     {/* LA SALLE D'ATTENTE : elles attendent, et personne ne les tient encore. */}
                     {aTraiter.salle.length > 0 && (
                       <div className="trc-bx__salle">
@@ -1165,7 +1237,13 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
                 {ordre.length === 0 ? <p className="trc-ger__vide">{filtre === 'bloques' ? 'Aucun numéro bloqué.' : 'Aucune proposition.'}</p> : <ul className="trc-bx__lignes">{ordre.map((b) => ligneDe(b))}</ul>}
               </>
             ) : (
-              ordre.length === 0 ? <p className="trc-ger__vide">Aucune conversation ici.</p> : <ul className="trc-bx__lignes">{ordre.map((b) => ligneDe(b))}</ul>
+              ordre.length === 0 ? <p className="trc-ger__vide">Aucune conversation ici.</p> : (
+                <>
+                  {/* « Toutes » : les reçus en tête, puis le reste, sans les redire. */}
+                  {rangeeDesRecus()}
+                  <ul className="trc-bx__lignes">{sansLesRecues(ordre).map((b) => ligneDe(b))}</ul>
+                </>
+              )
             )}
           </div>
           {/* LE PIED DE LA LISTE : le tri des démarcheurs (29 octobre 2026), ce que Claude a rangé et ce qui est bloqué ; dans « Toutes », le site et les soucis. */}

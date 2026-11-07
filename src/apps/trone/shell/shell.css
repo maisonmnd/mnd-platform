@@ -17,3 +17,9 @@
   line-height: 1;
   font-variant-numeric: lining-nums tabular-nums;
 }
+
+/* LA PASTILLE DES REÇUS (6 novembre 2026) : la forme de la pastille de la
+   salle d'attente (cuivre plein), le point en halo pour dire « ça vient
+   d'arriver ». Jamais de vert ni de rouge : la Maison est indigo et cuivre. */
+.tr-top__recus { font-weight: var(--weight-medium); }
+.tr-top__recus::before { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35); }
