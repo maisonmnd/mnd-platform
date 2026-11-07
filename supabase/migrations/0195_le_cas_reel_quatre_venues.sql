@@ -134,7 +134,10 @@ begin
          and split_part(x.data->>'time', ':', 1)::int * 60 + split_part(x.data->>'time', ':', 2)::int < fin
          and split_part(x.data->>'time', ':', 1)::int * 60 + split_part(x.data->>'time', ':', 2)::int + coalesce(nullif(x.data->>'dureeMin', '')::int, 60) > debut
     loop
-      raise exception '0195 : la place du maître est prise le % à % (% minutes) : rendez-vous % à % ; rien n''est écrit', dates[i], heures[i], duree, occupe.id, occupe.t;
+      /* 7 novembre 2026 (Y., au sélecteur) : « 11 h quand même » le sam. 19 déc. : le chevauchement avec un autre rendez-vous
+         de la Team est ASSUMÉ (un second fauteuil le prend, elle le décide au comptoir). Il se dit, il n'arrête plus la pose.
+         Une PLAGE BLOQUÉE, elle, arrête toujours. */
+      raise notice '0195 : chevauchement assumé le % à % (% minutes) : rendez-vous % à %', dates[i], heures[i], duree, occupe.id, occupe.t;
     end loop;
     for occupe in
       select b.id, b.data->>'debut' as t0, b.data->>'fin' as t1
