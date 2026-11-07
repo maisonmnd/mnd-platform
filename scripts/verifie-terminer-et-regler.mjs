@@ -44,6 +44,12 @@ const CONTENU = 'src/apps/revelateur/contenu.ts';
 const GENERE = 'scripts/genere-revelateur.mjs';
 const MIG = 'supabase/migrations/0171_garde_terminer_et_regler.sql';
 const ESSAI = 'supabase/essai_0171_a_blanc.sql';
+/* Regler avant et apres (7 novembre 2026). */
+const ECRAN = 'src/apps/couronne/ReglerAvantApres.tsx';
+const MESRDV = 'src/apps/couronne/MesRendezVous.tsx';
+const MIG172 = 'supabase/migrations/0172_regler_avant_apres.sql';
+const ESSAI172 = 'supabase/essai_0172_a_blanc.sql';
+const LISTE_172 = "'termineParElle', 'honoreAuReglement',\n                                 'payments', 'lienDeReglement', 'lienDuFoyer'] loop";
 const PANNES = [
   /* ── Le serveur : les vraies fonctions, rejouees ── */
   ['le reglement n honore plus', REG, "  return honneur ? ({ ...regle, status: 'honoré', honoreAuReglement: honneur } as RdvLu) : regle;", '  return regle;'],
@@ -285,6 +291,81 @@ const PANNES = [
   ['Ma Couronne montre le bouton porte fermee', PUR, "    if (porte.ouverte) return { rdv, etat: 'en-cours', porte };", "    return { rdv, etat: 'en-cours', porte };"],
   ['Ma Couronne dit « vous pouvez partir » avant le reglement', PUR, "    if (rdv.termineParElle?.le && (rdv.honoreAuReglement?.le || porte.raison === 'deja-regle')) return { rdv, etat: 'regle', porte };", "    if (rdv.termineParElle?.le) return { rdv, etat: 'regle', porte };"],
   ['Ma Couronne garde « termine » sur un rendez-vous d hier', PUR, "    .filter((r) => String(r.date ?? '').slice(0, 10) === aujourdhui)\n", ''],
+  /* ── Regler avant et apres (7 novembre 2026) : la regle pure ── */
+  ['avant-apres : d avance une heure de trop (apres l heure du rituel)', PUR, "  if (maintenantMs < debut) return 'avance';", "  if (maintenantMs < debut + 3_600_000) return 'avance';"],
+  ['avant-apres : apres des le jour meme', PUR, "  return jour < jourDeLaFin(maintenantMs) ? 'apres' : 'jour-meme';", "  return 'apres';"],
+  ['avant-apres : hors de son moment, la porte s ouvre', PUR, "  if (momentDuReglement(r, o.maintenantMs) !== o.quand) return ferme('pas-le-moment');\n", ''],
+  ['avant-apres : un annule se regle', PUR, "  if (r.status === 'annulé') return ferme('annule');\n  if (momentDuReglement", '  if (momentDuReglement'],
+  ['avant-apres : une seance de formule se regle', PUR, "  if (r.coveredBySub) return ferme('couvert');\n", ''],
+  ['avant-apres : une absente se regle apres coup', PUR, "  if (r.absente) return ferme('absente');\n", ''],
+  ['avant-apres : « Passe au comptoir » n eteint plus rien', PUR, "  if (o.passeAuComptoir === true || acompteAVerifier(r) > 0) return ferme('comptoir');", "  if (acompteAVerifier(r) > 0) return ferme('comptoir');"],
+  ['avant-apres : un acompte a verifier laisse regler', PUR, "  if (o.passeAuComptoir === true || acompteAVerifier(r) > 0) return ferme('comptoir');", "  if (o.passeAuComptoir === true) return ferme('comptoir');"],
+  ['avant-apres : une piece soldee se regle encore', PUR, "    if (Math.round(reste) <= 0) return ferme('deja-regle', 0);\n", ''],
+  ['avant-apres : la piece ne fait plus foi', PUR, "  if (o.piece) {\n    const reste = Number(o.piece.resteXof);\n    if (!Number.isFinite(reste)) return ferme('clos');\n    if (Math.round(reste) <= 0) return ferme('deja-regle', 0);", "  if (false) {\n    const reste = Number(o.piece.resteXof);\n    if (!Number.isFinite(reste)) return ferme('clos');\n    if (Math.round(reste) <= 0) return ferme('deja-regle', 0);"],
+  ['avant-apres : un honore sans piece (clos au comptoir) se regle apres coup', PUR, "  if (r.status === 'honoré') return ferme('clos');\n", ''],
+  ['avant-apres : un rendez-vous en attente se regle', PUR, "  if (r.status !== 'confirmé') return ferme('pas-confirme');\n  if (r.termineParElle?.le)", '  if (r.termineParElle?.le)'],
+  ['avant-apres : une fin declaree sans piece se regle sur le rendez-vous (deux chemins pour le meme argent)', PUR, "  if (r.termineParElle?.le) return ferme('en-preparation');\n", ''],
+  ['avant-apres : sans prix fige, un montant se devine', PUR, "  if (reste === null) return ferme('sans-prix');\n", ''],
+  ['avant-apres : deja regle se regle encore', PUR, "  if (Math.round(reste) <= 0) return ferme(argentRecuDeLaFin(r) > 0 ? 'deja-regle' : 'rien-a-regler', 0);\n", ''],
+  ['avant-apres : l argent verse compte l acompte', PUR, '  (a.payments && a.payments.length > 0 ? a.payments.reduce((s, p) => s + (Number(p.amountXof) || 0), 0) : Number(a.paidXof) || 0);', '  (a.payments && a.payments.length > 0 ? a.payments.reduce((s, p) => s + (Number(p.amountXof) || 0), 0) : Number(a.paidXof) || 0) + (Number((a as { depositXof?: number }).depositXof) || 0);'],
+  ['avant-apres : regle d avance, elle annule encore elle-meme', PUR, "  (r && Math.round(argentVerseSurLeRdv(r)) > 0 ? 'ecrire-a-la-maison' : 'permise');", "  (r && Math.round(argentVerseSurLeRdv(r)) > 1e9 ? 'ecrire-a-la-maison' : 'permise');"],
+  ['avant-apres : une tete majeure passe pour une tete du foyer', PUR, '  return naissance > `${Number(jour[1]) - 18}-${jour[2]}`;', '  return naissance > `${Number(jour[1]) - 30}-${jour[2]}`;'],
+  ['avant-apres : la tete d une autre payeuse passe', PUR, '  if (!payeur || !o.parents.includes(payeur) || !jour', '  if (!payeur || !jour'],
+  ['avant-apres : une tete archivee passe', PUR, " || t.archived === true || t.archived === 'true') return false;", ') return false;'],
+  ['avant-apres : le versement nomme une piece (le Trone la croirait la)', PUR, '{ id: v.id, amountXof: montant, date: v.date, method: v.method, cashbox: v.cashbox, note:', "{ id: v.id, amountXof: montant, date: v.date, method: v.method, cashbox: v.cashbox, invoiceId: 'piece', note:"],
+  ['avant-apres : un rejeu double le versement', PUR, '  if ((r.payments ?? []).some((x) => (x as { id?: string }).id === v.id)) return r;\n', ''],
+  ['avant-apres : la page sans piece offre un merci', PUR, '    pourboire: false,\n    reference: o.reference,', '    pourboire: true,\n    reference: o.reference,'],
+  ['avant-apres : la notification dit « elle »', PUR, ' en ligne, inscrits sur le rendez-vous.`', ' en ligne, elle a réglé.`'],
+  ['avant-apres : la date perd son annee', PUR, "  return `${Number(m[3]) === 1 ? '1er' : Number(m[3])} ${MOIS_AVANT_APRES[Number(m[2]) - 1]} ${m[1]}`;", "  return `${Number(m[3]) === 1 ? '1er' : Number(m[3])} ${MOIS_AVANT_APRES[Number(m[2]) - 1]}`;"],
+  ['avant-apres : sans piece, la page regle aussi un lien du Trone', PUR, '  !!r?.lienDeReglement?.depuisLaCouronne?.le;', '  true;'],
+  ['avant-apres : « A regler » perd son ordre (le plus ancien d abord)', PUR, '  return dus.sort((a, b) => `${b.rdv.date', '  return dus.sort((b, a) => `${b.rdv.date'],
+  ['avant-apres : « A regler » ignore « Passe au comptoir » de la tete', PUR, "      passeAuComptoir: o.passeAuComptoirDe ? o.passeAuComptoirDe(String(rdv.clientId ?? '')) === true : false,", '      passeAuComptoir: false,'],
+  ['avant-apres : la copie de la regle derive dans regler-la-seance', REG, "  if (r.absente) return ferme('absente');", "  if (r.absente === true) return ferme('absente');"],
+  ['avant-apres : la copie du reste du rendez-vous derive dans terminer-et-regler', TER, '  + (a.depositConfirmed ? Math.max(0, Number(a.depositXof) || 0) : 0);', '  + (a.depositConfirmed ? Math.max(0, Number(a.depositXof) || 1) : 0);'],
+  /* ── Regler avant et apres : le serveur ── */
+  ['avant-apres serveur : le rendez-vous d une autre se regle', TER, '  if (!ligne || !clientId || (clientId !== ficheId && !(await estUneTeteDuCompte([ficheId, uid], clientId)))) {', '  if (!ligne || !clientId) {'],
+  ['avant-apres serveur : sans compte, la porte repond', TER, "  if (!uid || !ficheId) return json({ ok: false, error: 'compte' }, 401);", "  if (false) return json({ ok: false, error: 'compte' }, 401);"],
+  ['avant-apres serveur : toute tete de la famille passe (majeure, archivee)', TER, '  return teteDuCompte({ parents, tete: tete?.data ?? null, payeur: fam?.data?.payerClientId, aujourdhui: jourDeLaFin(Date.now()) });', '  return !!fam;'],
+  ['avant-apres serveur : la porte n est plus jugee', TER, '  if (!laPorte.ouverte) return json({ ok: true, etat: laPorte.raison, quand });\n', ''],
+  ['avant-apres serveur : « Passe au comptoir » ignore par la porte', TER, '  const laPorte = porteAvantApres({ quand, rdv, maintenantMs: maintenant, passeAuComptoir: fiche?.passeAuComptoir === true,', '  const laPorte = porteAvantApres({ quand, rdv, maintenantMs: maintenant, passeAuComptoir: false,'],
+  ['avant-apres serveur : la piece ignoree par la porte', TER, 'passeAuComptoir: fiche?.passeAuComptoir === true, piece: reste === null ? null : { resteXof: reste } });\n  if (!laPorte.ouverte) return json({ ok: true, etat: laPorte.raison, quand });', 'passeAuComptoir: fiche?.passeAuComptoir === true, piece: null });\n  if (!laPorte.ouverte) return json({ ok: true, etat: laPorte.raison, quand });'],
+  ['avant-apres serveur : la marque de Ma Couronne ne se pose pas', TER, ', depuisLaCouronne: { quand, le } } };', ' } };'],
+  ['avant-apres serveur : le frein de la porte desserre', TER, "permis(ipOf(req), 'fin-regler', 20)", "permis(ipOf(req), 'fin-regler', 200)"],
+  ['avant-apres serveur : avance et apres ne sont plus servis', TER, "    if (b.action === 'avance' || b.action === 'apres') return await reglerDeMaCouronne(req, b, b.action);\n", ''],
+  ['avant-apres serveur : apres se juge comme avance', TER, 'return await reglerDeMaCouronne(req, b, b.action);', "return await reglerDeMaCouronne(req, b, 'avance');"],
+  ['avant-apres serveur : la transaction d avance se pose une seconde fois sur la piece du jour', REG, ' || (r.payments ?? []).some((x: any) => x?.id === `${PREFIXE_DU_VERSEMENT}${t.id}`)) {', ') {'],
+  ['avant-apres serveur : sans piece, plus rien ne se regle', REG, '  if (!pieceLigne) return await appliquerSansPiece(rdv, t);', "  if (!pieceLigne) return { ok: false, erreur: 'sans_piece', status: 409 };"],
+  ['avant-apres serveur : la porte n est pas rejugee au reglement', REG, '    if (!sp || !sp.porte.ouverte || !sp.porte.resteXof) {', '    if (!sp) {'],
+  ['avant-apres serveur : « Passe au comptoir » ignore au reglement', REG, 'passeAuComptoir: await passeAuComptoirDe(r.clientId), piece: null });', 'passeAuComptoir: false, piece: null });'],
+  ['avant-apres serveur : un lien du Trone se regle sans piece', REG, '  if (!ouvertDepuisLaCouronne(r)) return null;\n', ''],
+  ['avant-apres serveur : le versement ecrase une ecriture du Trone', REG, "    if (frais.updated_at) q = q.eq('updated_at', frais.updated_at);\n    const { data: ecrites, error: refus }", '    const { data: ecrites, error: refus }'],
+  ['avant-apres serveur : le personnel n est pas prevenu', REG, '    await previensLePersonnel(notificationAvantApres({', '    void (notificationAvantApres({'],
+  ['avant-apres serveur : regler d avance pose « honore »', REG, '    const neuf = versementSurLeRdv(r, v, sp.moment);', "    const neuf = { ...versementSurLeRdv(r, v, sp.moment), status: 'honoré' };"],
+  ['avant-apres serveur : la page ne lit pas un rendez-vous sans piece', REG, "    if (sp && (sp.porte.ouverte || sp.porte.raison === 'deja-regle')) {", '    if (false) {'],
+  ['avant-apres serveur : reglee d avance, la page redemande sa piece', REG, "    if (sp && (sp.porte.ouverte || sp.porte.raison === 'deja-regle')) {", '    if (sp && sp.porte.ouverte) {'],
+  /* ── Regler avant et apres : Ma Couronne et la page « Regler » ── */
+  ['avant-apres Ma Couronne : l accueil ne monte pas « A regler »', TABS, '        <ARegler nomDuRituel={(a) => serviceNames(a, services)} />\n', ''],
+  ['avant-apres Ma Couronne : « A regler » montre les rendez-vous de toutes', ECRAN, '      rdvs: appts.filter((a) => miens.has(a.clientId)),', '      rdvs: appts,'],
+  ['avant-apres Ma Couronne : « Regler » sans son compte', ECRAN, "await regleDepuisMaCouronne(rdvId, quand, session?.access_token ?? '');", "await regleDepuisMaCouronne(rdvId, quand, '');"],
+  ['avant-apres Ma Couronne : la page s ouvre porte fermee', ECRAN, "    if (r.ok && r.etat === 'a-regler' && r.jeton) {", '    if (r.jeton) {'],
+  ['avant-apres Ma Couronne : « Regler d avance » des l heure du rituel', ECRAN, "  if (rdv.status === 'annulé' || momentDuReglement(rdv, maintenant) !== 'avance') return null;", "  if (rdv.status === 'annulé') return null;"],
+  ['avant-apres Ma Couronne : la fiche ne porte plus « Regler d avance »', MESRDV, '                {aVenir && <ReglerDAvance rdv={a} />}\n', ''],
+  ['avant-apres Ma Couronne : regle d avance, la feuille propose d annuler', MESRDV, "                  <button className=\"mc-cta mc-cta--quiet\" onClick={() => setCancelling(null)}>{t('Garder le rendez-vous')}</button>", "                  <button className=\"mc-cta mc-cta--danger\" onClick={confirmCancel}>{t('Annuler le rendez-vous')}</button>\n                  <button className=\"mc-cta mc-cta--quiet\" onClick={() => setCancelling(null)}>{t('Garder le rendez-vous')}</button>"],
+  ['avant-apres Ma Couronne : annuler ne regarde plus l argent verse', MESRDV, "    if (annulationParElle(a) === 'ecrire-a-la-maison') { toast(", '    if (false) { toast('],
+  ['avant-apres Ma Couronne : le refus du serveur passe pour une panne', MESRDV, "    if (!parLaMaison.ok && parLaMaison.raison === 'regle_d_avance') { toast(", '    if (false) { toast('],
+  ['avant-apres Ma Couronne : une phrase neuve sans anglais', ENTABS, "  'Déjà réglé d’avance': 'Already paid in advance',\n", ''],
+  ['avant-apres Ma Couronne : un refus sans anglais', ENTABS, "  'Le montant de ce rituel n’est pas encore fixé : la Maison vous le dira.': 'The amount for this ritual is not set yet: the Maison will tell you.',\n", ''],
+  ['avant-apres page Regler : sans piece, elle promet un recu WhatsApp', REGLER, "  apres: 'C’est inscrit sur votre rendez-vous : la Maison est prévenue.',", "  apres: 'Votre reçu arrive sur WhatsApp, la facture jointe.',"],
+  ['avant-apres page Regler : d avance, la promesse du rendez-vous confirme se perd', REGLER, "            {p.sansPiece === 'avance' && <p className=\"rg-doux rg-petit\">Le rendez-vous reste confirmé. Si l’équipe ajoute un soin pendant la séance, il se règle en plus le jour même.</p>}\n", ''],
+  /* ── La garde de la base (0172, non appliquee) et son essai a blanc ── */
+  ['garde 0172 : oublie le versement a la modification', MIG172, `${LISTE_172}\n        new.data := new.data - cle;\n        if old.data ? cle then`, `${LISTE_172.replace("'payments', ", '')}\n        new.data := new.data - cle;\n        if old.data ? cle then`],
+  ['garde 0172 : desserre ce que 0171 gardait (termineParElle a la creation)', MIG172, "                                 'termineParElle', 'honoreAuReglement',\n                                 'payments'", "                                 'honoreAuReglement',\n                                 'payments'"],
+  ['garde 0172 : oublie le refus d annuler ce qui est regle d avance', MIG172, "         and round(public.argent_verse_sur_le_rdv(old.data)) > 0 then\n        new.data := jsonb_set(new.data, '{status}', coalesce(old.data -> 'status', '\"en attente\"'::jsonb));\n      end if;\n", '         and false then\n      end if;\n'],
+  ['garde 0172 : annuler_une_seance annule ce qui est regle d avance', MIG172, "  if round(public.argent_verse_sur_le_rdv(v_a.data)) > 0 then\n    return jsonb_build_object('ok', false, 'raison', 'regle_d_avance');\n  end if;\n", ''],
+  ['garde 0172 : la base lit l argent verse autrement', MIG172, "      then coalesce((select sum(coalesce(public.abo_num(v->'amountXof'), 0)) from jsonb_array_elements(d->'payments') v), 0)", '      then 0'],
+  ['garde 0172 : l essai ne rejoue pas la meme migration', ESSAI172, "'payments', 'lienDeReglement', 'lienDuFoyer'] loop", "'payments', 'lienDeReglement'] loop"],
+  ['garde 0172 : l essai ecrit pour de bon (son verdict n annule plus rien)', ESSAI172, "  raise exception 'ESSAI 0172 : % | %'", "  raise notice 'ESSAI 0172 : % | %'"],
+  ['garde 0172 : l essai lit une fiche reelle', ESSAI172, '  v_cliente uuid := gen_random_uuid();', '  v_cliente uuid := (select id::uuid from public.clients limit 1);'],
 ];
 
 /** Les fautes de cette passe : toutes, ou une sur N (`--tranche=k/N`). */
@@ -294,7 +375,10 @@ const aProuver = (tranche ? PANNES.filter((_, i) => i % Number(tranche[2]) === N
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');
 
 async function lanceLeBanc() {
-  const dossier = path.join(racine, 'node_modules', '.cache', 'verifie-terminer-et-regler');
+  /* Un dossier par processus (7 novembre 2026) : le node_modules d'une copie
+     de travail est une jonction vers le dépôt principal, et deux sessions qui
+     lancent ce banc ensemble s'effaçaient leurs paquets l'une à l'autre. */
+  const dossier = path.join(racine, 'node_modules', '.cache', `verifie-terminer-et-regler-${process.pid}`);
   mkdirSync(dossier, { recursive: true });
   try {
     const sortie = path.join(dossier, 'harnais.mjs');

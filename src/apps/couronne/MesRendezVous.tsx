@@ -32,6 +32,8 @@ import { estLaPlacePartie, laPlaceDuJour } from './places-pure';
 import { etatDeLaSeance, seDeplaceEnLigne } from '../../shared/abonnee-pur';
 import { decaleLeJour } from '../../shared/ia-faits-pur';
 import { ETAT_SEANCE, appelleLaMaison, dateDansLaPhrase, leJour, seanceDuRelevé, useRelevesDe } from './releve';
+import { annulationParElle } from '../../shared/terminer-et-regler-pur';
+import { ReglerDAvance } from './ReglerAvantApres';
 import { t, prix } from './i18n';
 
 /* MES RENDEZ-VOUS — voir, déplacer, annuler.
@@ -370,10 +372,16 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
   const [nonTransmis, setNonTransmis] = useState<{ a: Appointment; geste: 'annulation' | 'déplacement' } | null>(null);
 
   const annuler = async (a: Appointment) => {
+    /* RÉGLÉ D'AVANCE, IL NE S'ANNULE PAS D'ICI (7 novembre 2026, « Régler
+       avant et après ») : aucun remboursement ne part tout seul ; elle écrit à
+       la Maison, qui annule au Trône et décide. La base le refuse aussi
+       (`annuler_une_seance` et la garde, 0172). */
+    if (annulationParElle(a) === 'ecrire-a-la-maison') { toast(t('Ce rendez-vous est réglé d’avance : écrivez à la Maison pour l’annuler.')); return; }
     /* LE SERVEUR D'ABORD (20 octobre 2026) : `annuler_une_seance` date
        l'annulation ; le juge rend ensuite la séance à la formule. Tant qu'il n'est
        pas posé en base, l'écriture d'avant prend le relais. */
     const parLaMaison = await appelleLaMaison<{ ok?: boolean; raison?: string }>('annuler_une_seance', { p_appt_id: a.id });
+    if (!parLaMaison.ok && parLaMaison.raison === 'regle_d_avance') { toast(t('Ce rendez-vous est réglé d’avance : écrivez à la Maison pour l’annuler.')); return; }
     if (!parLaMaison.ok && !parLaMaison.absente) { toast(t('La Maison n’a pas pu annuler cette séance. Écrivez-lui.')); return; }
     const transmis = parLaMaison.ok ? true : await ecrisRendezVous(a.id, { status: 'annulé' });
     const body = t('{rituel} du {jour} à {heure}, annulé.', { rituel: names(a), jour: dayLabelIso(a.date), heure: a.time });
@@ -632,6 +640,8 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
                     <div className="mc-recapcard__line"><span>{a.depositConfirmed ? t('Acompte reçu') : t('Acompte')}</span><span>{prix(a.depositXof, currency)}</span></div>
                   )}
                 </div>
+                {/* RÉGLER D'AVANCE (7 novembre 2026) : jusqu'à l'heure du rituel, au prix connu. */}
+                {aVenir && <ReglerDAvance rdv={a} />}
                 {aVenir ? (
                   <div className="mc-fiche__acts">
                     <button className="mc-rdvact" onClick={() => addToCalendar(a)}>{t('Calendrier')}</button>
@@ -749,7 +759,34 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
         })()}
 
         {/* -------- feuille de confirmation d'annulation -------- */}
-        {cancelling && (
+        {/* RÉGLÉ D'AVANCE (7 novembre 2026) : la feuille ne propose pas
+            d'annuler ; elle dit d'écrire à la Maison, qui annule au Trône et
+            décide du règlement. Garder le rendez-vous reste là. */}
+        {cancelling && annulationParElle(cancelling) === 'ecrire-a-la-maison' && (() => {
+          const numero = (branch.phone ?? '').replace(/\D/g, '');
+          return (
+            <div className="mc-paysheet mc-fade">
+              <div className="mc-paysheet__card mc-rise" style={{ textAlign: 'left' }}>
+                <div className="mc-micro-eyebrow">{t('Annulation')}</div>
+                <div className="mc-cancel__t">{t('Ce rendez-vous est réglé d’avance.')}</div>
+                <div className="mc-cancel__s">
+                  {t('{rituel} · {jour} à {heure}.', { rituel: names(cancelling), jour: dayLabelIso(cancelling.date), heure: cancelling.time })}
+                </div>
+                <div className="ab-effet" style={{ margin: '12px 0 0' }}>
+                  {t('Pour l’annuler, écrivez à la Maison : elle s’en occupe avec vous, et votre règlement avec.')}
+                </div>
+                <div className="mc-cancel__acts">
+                  {numero && (
+                    <a className="mc-cta mc-cta--copper" href={`https://wa.me/${numero}?text=${encodeURIComponent(`Bonjour, je voudrais annuler mon rendez-vous du ${dayLabelIsoFr(cancelling.date)} à ${cancelling.time}, réglé d’avance.`)}`}
+                      target="_blank" rel="noreferrer">{t('Écrire à la Maison')}</a>
+                  )}
+                  <button className="mc-cta mc-cta--quiet" onClick={() => setCancelling(null)}>{t('Garder le rendez-vous')}</button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+        {cancelling && annulationParElle(cancelling) === 'permise' && (
           <div className="mc-paysheet mc-fade">
             <div className="mc-paysheet__card mc-rise" style={{ textAlign: 'left' }}>
               <div className="mc-micro-eyebrow">{t('Annulation')}</div>

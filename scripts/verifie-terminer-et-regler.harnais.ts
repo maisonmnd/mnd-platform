@@ -24,6 +24,8 @@ import {
   lienDeLaFin, notificationDeLaFin, ditQuElleATermine, ditAutreChoseQueLaFin, nommeSonRendezVous, codeDansLeMessage, motDeLaMaisonALaFin, PAGE_POUR_RETROUVER_SON_RDV,
   aPeineCommence, ATTENTE_DE_LA_PORTE_WHATSAPP_MS, acompteAVerifier, notificationDeLAcompteAVerifier,
   marqueDeLaFinAuCarnet, pieceAPreparer, suitesAFaire, carteDuRituelEnCours, versementsDejaRecus, gesteDeLaPiece, ATTENTE_D_UNE_RESERVATION_MS, soldeeEnLigne, PREFIXE_DU_VERSEMENT_EN_LIGNE,
+  momentDuReglement, porteAvantApres, argentVerseSurLeRdv, annulationParElle, teteDuCompte, versementSurLeRdv, jourDitAvantApres, pageSansPiece,
+  notificationAvantApres, ouvertDepuisLaCouronne, aReglerApres,
   type RdvDeLaFin, type PieceDeLaFin,
 } from '../src/shared/terminer-et-regler-pur';
 import { ALPHABET_DE_LA_REFERENCE, referenceDuRendezVous, FORME_DU_JETON_DU_RDV, apptIdDuJeton } from '../src/shared/lien-du-rdv-pur';
@@ -34,7 +36,7 @@ import {
 } from '../src/shared/regler-la-seance-pur';
 import { prixFigeLu } from '../src/shared/cloture-du-jour-pur';
 import { LIEN_TAPGO } from '../src/shared/mnd-pay-pur';
-import { attenteDeLaPiece, pageDuReglement, refusDeLaFin, retourAMaCouronne } from '../src/shared/terminer-et-regler-serveur';
+import { attenteDeLaPiece, pageDuReglement, refusAvantApres, refusDeLaFin, retourAMaCouronne } from '../src/shared/terminer-et-regler-serveur';
 import { EN } from '../src/apps/couronne/i18n/en';
 import {
   CHEMIN_POUR_RETROUVER, MOTS_DE_LA_RECHERCHE, billetDeLaPageLu, billetLu, codeDeLAdresse, finLue, rechercheLue, refusDit, reglementDuBillet, saisieARevoir,
@@ -401,9 +403,11 @@ dit('... « termine » quand elle a declare, « regle » quand elle a paye (vous
 
 /* ── 14. Les copies : chaque bloc entre ses reperes ────────────────────── */
 const pur = lis('src/shared/terminer-et-regler-pur.ts');
-dit('le fichier pur porte ses trois blocs, chacun entre ses reperes, et n importe rien', [true, true, true, false],
+dit('le fichier pur porte ses cinq blocs, chacun entre ses reperes, et n importe rien', [true, true, true, true, true, false],
   [pur.includes('/* ⟨honneur-au-reglement⟩ */\n') && pur.includes('\n/* ⟨/honneur-au-reglement⟩ */'), pur.includes('/* ⟨terminer-et-regler⟩ */\n') && pur.includes('\n/* ⟨/terminer-et-regler⟩ */'),
-    pur.includes('/* ⟨j-ai-termine⟩ */\n') && pur.includes('\n/* ⟨/j-ai-termine⟩ */'), /^import /m.test(pur)]);
+    pur.includes('/* ⟨j-ai-termine⟩ */\n') && pur.includes('\n/* ⟨/j-ai-termine⟩ */'),
+    pur.includes('/* ⟨reste-du-rdv⟩ */\n') && pur.includes('\n/* ⟨/reste-du-rdv⟩ */'), pur.includes('/* ⟨regler-avant-apres⟩ */\n') && pur.includes('\n/* ⟨/regler-avant-apres⟩ */'),
+    /^import /m.test(pur)]);
 
 dit('chaque fonction porte la copie EXACTE de ses blocs (terminer-copie-serveur les reecrit)', [], ecartsDesCopies(process.cwd()));
 
@@ -539,7 +543,7 @@ const SERVICE = 'cle-de-service';
 
 remplis();
 const sante = await appelle(finir);
-dit('GET : la version et les secrets en booleens, sans valeur', ['2026-11-07-b · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois', 'terminer-et-regler', { service: true, liens: true }], [sante.corps.version, sante.corps.fonction, sante.corps.secrets]);
+dit('GET : la version et les secrets en booleens, sans valeur', ['2026-11-07-c · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', 'terminer-et-regler', { service: true, liens: true }], [sante.corps.version, sante.corps.fonction, sante.corps.secrets]);
 
 /* ── retrouver : le code ET les quatre chiffres ── */
 const CODE = referenceDuRendezVous('rdv-jour');
@@ -553,7 +557,7 @@ dit('... rien d elle que son prenom : ni nom de famille, ni numero', [false, fal
 const fauxChiffres = await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '0000' }, { ip: '5.5.5.1' });
 const codeInconnu = await appelle(finir, { action: 'retrouver', code: 'MND-ZZZZ', chiffres: '4480' }, { ip: '5.5.5.2' });
 const codeSeul = await appelle(finir, { action: 'retrouver', code: CODE }, { ip: '5.5.5.3' });
-dit('un code inconnu, des chiffres faux, le code seul : la MEME reponse, mot pour mot', [{ status: 200, corps: { version: '2026-11-07-b · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois', ok: false, error: 'introuvable' } }, true, true],
+dit('un code inconnu, des chiffres faux, le code seul : la MEME reponse, mot pour mot', [{ status: 200, corps: { version: '2026-11-07-c · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: false, error: 'introuvable' } }, true, true],
   [codeInconnu, JSON.stringify(fauxChiffres) === JSON.stringify(codeInconnu), JSON.stringify(codeSeul) === JSON.stringify(codeInconnu)]);
 dit('le second numero du rendez-vous (le parent qui l a pris) le retrouve aussi', [true, 'confirme', false],
   await appelle(finir, { action: 'retrouver', code: referenceDuRendezVous('rdv-parent'), chiffres: '3344' }, { ip: '5.5.5.4' }).then((r) => [r.corps.ok, r.corps.billet?.etat, r.corps.billet?.porte.ouverte]));
@@ -673,7 +677,7 @@ remplis();
 remplis();
 maintenant = aCotonou(JOUR, '09:40');
 const aPeine = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-fi'] }, { cle: SERVICE });
-dit('WhatsApp, dix minutes apres l heure du rendez-vous : « a-peine-commence », ni marque, ni lien, ni notification', [{ version: '2026-11-07-b · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois', ok: true, etat: 'a-peine-commence' }, undefined, undefined, 0],
+dit('WhatsApp, dix minutes apres l heure du rendez-vous : « a-peine-commence », ni marque, ni lien, ni notification', [{ version: '2026-11-07-c · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: true, etat: 'a-peine-commence' }, undefined, undefined, 0],
   [aPeine.corps, rdvDe('rdv-fi').termineParElle, rdvDe('rdv-fi').lienDeReglement, notifications.length]);
 const foyerAPeine = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-na', 'rdv-fi'] }, { cle: SERVICE });
 dit('... le foyer : la tete de 9 h se declare, celle de 9 h 30 qui commence a peine ne recoit aucune marque', ['a-regler', ['Koffi'], true, undefined],
@@ -726,7 +730,7 @@ const sept = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvId
 const marqueesApresSept = db.appointments.filter((x) => x.data?.termineParElle).length;
 const six = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-jour', 'rdv-na', 'rdv-fi', 'rdv-9', 'rdv-comptoir', 'rdv-demain', 'rdv-jour'] }, { cle: SERVICE });
 dit('WhatsApp, sept tetes d un coup : rien ne se pose (« trop-de-tetes », Opale et l equipe repondent) ; six (un doublon ne compte pas), la declaration passe',
-  [{ version: '2026-11-07-b · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois', ok: true, etat: 'trop-de-tetes' }, 0, 0, 'a-regler', true],
+  [{ version: '2026-11-07-c · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: true, etat: 'trop-de-tetes' }, 0, 0, 'a-regler', true],
   [sept.corps, marqueesApresSept, notifications.filter((x) => !x.corps.includes('Acompte')).length - (six.corps.etat === 'a-regler' ? 1 : 0), six.corps.etat, db.appointments.filter((x) => x.data?.termineParElle).length >= 3]);
 
 /* ── Le foyer : un seul numero, un seul lien ── */
@@ -1131,5 +1135,424 @@ if (!PGlite) {
     [[true, 0], [true, 0], [true, 0], [true, 0]], cassees.map((c) => [/^ESSAI 0171 : NE TIENT PAS/.test(c.message), c.reste]));
 }
 
-console.log(ko ? `\n${ko} echec(s) sur ${n}.` : `\nTout tient (${n} controles).`);
+/* ══ 20. REGLER AVANT ET APRES, DANS MA COURONNE · 7 novembre 2026 ═══════
+   « Pourquoi je ne peux pas faire un paiement d'un RDV sur ma couronne a
+   n'importe quel moment ? » (Yeman). Tranche au selecteur : « Avant et
+   apres ». AVANT : « Regler d'avance » le prix connu, de la reservation a
+   l'heure du rituel ; le rendez-vous reste « confirme ». APRES : un passe qui
+   doit encore reste payable, sans limite de temps ; jamais « honore » par
+   ce chemin. Le montant vient du serveur. Regle d'avance, il ne s'annule
+   plus par elle (elle ecrit a la Maison). Attentes ecrites a la main. ═══ */
+
+/* ── 20 a. La regle pure ── */
+const R10 = rdv({ id: 'r-av', date: '2026-11-12', time: '10:00' });
+const momentA = (quand: number) => momentDuReglement(R10, quand);
+dit('avant-apres : trois moments, d avance jusqu a l heure (la veille, le matin meme), le jour meme des l heure jusqu a minuit, apres des le lendemain ; rien sans date ni heure lisibles',
+  ['avance', 'avance', 'jour-meme', 'jour-meme', 'apres', 'apres', null, null],
+  [momentA(aCotonou('2026-11-11', '18:00')), momentA(aCotonou('2026-11-12', '09:59')), momentA(aCotonou('2026-11-12', '10:00')), momentA(aCotonou('2026-11-12', '23:59')),
+    momentA(aCotonou('2026-11-13', '00:00')), momentA(aCotonou('2027-11-13', '00:00')), momentDuReglement({ date: '', time: '10:00' }, A_10H), momentDuReglement({ date: '2026-11-12', time: 'matin' }, A_10H)]);
+const AV = (plus: Partial<RdvDeLaFin>, o: { comptoir?: boolean; piece?: number | null; quand?: number } = {}) => {
+  const p = porteAvantApres({ quand: 'avance', rdv: rdv({ date: '2026-11-12', time: '10:00', ...plus }), maintenantMs: o.quand ?? A_10H, passeAuComptoir: o.comptoir, piece: o.piece === undefined || o.piece === null ? null : { resteXof: o.piece } });
+  return [p.raison, p.resteXof, p.surLaPiece] as const;
+};
+dit('avant-apres : d avance, ouverte au prix fige (12 000), sur le rendez-vous ; l acompte reconnu et un premier versement se deduisent',
+  [['ouverte', 12000, false], ['ouverte', 7000, false], ['ouverte', 4000, false]],
+  [AV({}), AV({ depositXof: 5000, depositConfirmed: true }), AV({ payments: [{ amountXof: 8000 }] })]);
+dit('avant-apres : d avance, fermee sans prix fige, couverte par une formule, « Passe au comptoir », un acompte demande non verifie, en attente, annulee, deja reglee, offerte',
+  [['sans-prix', null], ['couvert', null], ['comptoir', null], ['comptoir', null], ['pas-confirme', null], ['annule', null], ['deja-regle', 0], ['rien-a-regler', 0]],
+  [AV({ priceXof: undefined }), AV({ coveredBySub: true }), AV({}, { comptoir: true }), AV({ depositXof: 5000 }), AV({ status: 'en attente' }), AV({ status: 'annulé' }), AV({ payments: [{ amountXof: 12000 }] }), AV({ priceXof: 0 })].map((x) => x.slice(0, 2)));
+dit('avant-apres : d avance, jamais des l heure du rituel (le jour meme, c est la porte de la fin), ni pour un rendez-vous passe ; une minute avant, oui',
+  ['pas-le-moment', 'pas-le-moment', 'ouverte'], [AV({}, { quand: aCotonou('2026-11-12', '10:00') })[0], AV({ date: '2026-11-02' })[0], AV({}, { quand: aCotonou('2026-11-12', '09:59') })[0]]);
+dit('avant-apres : d avance avec une piece, son reste fait foi et se regle sur la piece ; soldee, deja regle', [['ouverte', 3000, true], ['deja-regle', 0, false]], [AV({}, { piece: 3000 }), AV({}, { piece: 0 })]);
+const AP = (plus: Partial<RdvDeLaFin>, o: { comptoir?: boolean; piece?: number | null; quand?: number } = {}) => {
+  const p = porteAvantApres({ quand: 'apres', rdv: rdv({ date: '2026-11-02', time: '10:00', ...plus }), maintenantMs: o.quand ?? A_10H, passeAuComptoir: o.comptoir, piece: o.piece === undefined || o.piece === null ? null : { resteXof: o.piece } });
+  return [p.raison, p.resteXof, p.surLaPiece] as const;
+};
+dit('avant-apres : apres, un passe confirme sans piece au prix fige ; une piece qui doit encore, sur la piece, meme honore ; sans limite de temps',
+  [['ouverte', 12000, false], ['ouverte', 5000, true], ['ouverte', 5000, true], ['ouverte', 9000, false]],
+  [AP({}), AP({}, { piece: 5000 }), AP({ status: 'honoré' }, { piece: 5000 }), AP({ date: '2025-01-15', priceXof: 9000 })]);
+dit('avant-apres : apres, ferme pour un annule, un couvert (meme avec une piece qui doit), une absente, une piece soldee, un honore sans piece, une fin declaree sans piece, sans prix, en attente, « Passe au comptoir », un acompte a verifier',
+  ['annule', 'couvert', 'absente', 'deja-regle', 'clos', 'en-preparation', 'sans-prix', 'pas-confirme', 'comptoir', 'comptoir'],
+  [AP({ status: 'annulé' }), AP({ coveredBySub: true }, { piece: 5000 }), AP({ absente: { le: 'x' } }), AP({ status: 'honoré' }, { piece: 0 }), AP({ status: 'honoré' }), AP({ termineParElle: declare }),
+    AP({ priceXof: undefined }), AP({ status: 'en attente' }), AP({}, { comptoir: true }), AP({ depositXof: 3000 })].map((x) => x[0]));
+dit('avant-apres : apres, jamais le jour meme (la porte de la fin), ni un rendez-vous a venir', ['pas-le-moment', 'pas-le-moment'], [AP({ date: JOUR, time: '08:00' })[0], AP({ date: '2026-11-12' })[0]]);
+const BALAYAGE = Array.from({ length: 30 }, (_, i) => aCotonou('2026-11-11', '20:00') + i * 2 * 3_600_000);
+const portesOuvertes = BALAYAGE.map((q) => {
+  const r = rdv({ date: '2026-11-12', time: '10:00' });
+  return [porteAvantApres({ quand: 'avance', rdv: r, maintenantMs: q }).ouverte, porteDeLaFin({ rdv: r, maintenantMs: q }).ouverte, porteAvantApres({ quand: 'apres', rdv: r, maintenantMs: q }).ouverte].filter(Boolean).length;
+});
+dit('avant-apres : les trois portes ne se chevauchent jamais ; de la veille au surlendemain, a chaque instant, une seule est ouverte', [30, true], [portesOuvertes.length, portesOuvertes.every((k) => k === 1)]);
+const ARGENTS: Partial<RdvDeLaFin>[] = [{}, { payments: [{ amountXof: 5000 }, { amountXof: 2000 }] }, { paidXof: 3000 }, { payments: [], paidXof: 4000 },
+  { payments: [{ amountXof: 6000 }], paidXof: 99, depositXof: 5000, depositConfirmed: true }, { depositXof: 5000, depositConfirmed: true }, { payments: [{ amountXof: 5000 }, { amountXof: -5000 }] }];
+dit('avant-apres : l argent verse sur le rendez-vous est l argent recu, l acompte reconnu en moins, cas par cas',
+  ARGENTS.map((a) => argentRecuDeLaFin(a) - (a.depositConfirmed ? Number(a.depositXof) || 0 : 0)), ARGENTS.map((a) => argentVerseSurLeRdv(a)));
+const ACOMPTE_SEUL: RdvDeLaFin = rdv({ depositXof: 5000, depositConfirmed: true });
+dit('avant-apres : regle d avance (en ligne ou au Carnet), il ne s annule pas par elle ; sans argent verse, avec le seul acompte, ou un versement rendu, l annulation reste permise',
+  ['ecrire-a-la-maison', 'ecrire-a-la-maison', 'permise', 'permise', 'permise', 'permise'],
+  [annulationParElle({ payments: [{ amountXof: 12000 }] }), annulationParElle({ paidXof: 3000 }), annulationParElle({}), annulationParElle(ACOMPTE_SEUL), annulationParElle({ payments: [{ amountXof: 5000 }, { amountXof: -5000 }] }), annulationParElle(null)]);
+const TETE = { familyId: 'fam-awa', birthday: '2015-03-01' };
+dit('avant-apres : une tete de son foyer est un mineur de la famille dont elle est la payeuse ; 18 ans revolus ce jour, non ; la veille de ses 18 ans, oui ; archivee, d une autre payeuse, sans naissance, sans famille, non ; la payeuse dite par le compte, oui',
+  [true, false, true, false, false, false, false, true],
+  [teteDuCompte({ parents: ['c1'], tete: TETE, payeur: 'c1', aujourdhui: JOUR }), teteDuCompte({ parents: ['c1'], tete: { ...TETE, birthday: '2008-11-06' }, payeur: 'c1', aujourdhui: JOUR }),
+    teteDuCompte({ parents: ['c1'], tete: { ...TETE, birthday: '2008-11-07' }, payeur: 'c1', aujourdhui: JOUR }), teteDuCompte({ parents: ['c1'], tete: { ...TETE, archived: true }, payeur: 'c1', aujourdhui: JOUR }),
+    teteDuCompte({ parents: ['c1'], tete: TETE, payeur: 'c9', aujourdhui: JOUR }), teteDuCompte({ parents: ['c1'], tete: { ...TETE, birthday: '' }, payeur: 'c1', aujourdhui: JOUR }),
+    teteDuCompte({ parents: ['c1'], tete: { birthday: '2015-03-01' }, payeur: 'c1', aujourdhui: JOUR }), teteDuCompte({ parents: ['c1', 'uid-1'], tete: TETE, payeur: 'uid-1', aujourdhui: JOUR })]);
+const V1 = { id: 'kkia-t1', amountXof: 12000, date: '2026-11-06', time: '10:00', method: 'KkiaPay', cashbox: 'KkiaPay', note: 'Réglé en ligne par la cliente · MTN · transaction t1' };
+const avecV1 = versementSurLeRdv<RdvDeLaFin>({ id: 'r', payments: [{ amountXof: 2000 }], paidXof: 2000, lienDeReglement: { jeton: J1, creeLe: 'x' } }, V1, 'avance');
+dit('avant-apres : le versement pose sur le rendez-vous, kkia-<transaction> a sa date en caisse KkiaPay, SANS piece nommee, paidXof a jour, le lien date son reglement ; un rejeu ne double rien',
+  [[{ amountXof: 2000 }, { id: 'kkia-t1', amountXof: 12000, date: '2026-11-06', method: 'KkiaPay', cashbox: 'KkiaPay', note: 'D’avance · Réglé en ligne par la cliente · MTN · transaction t1' }], 14000, '2026-11-06T10:00', false, true],
+  [avecV1.payments, avecV1.paidXof, (avecV1.lienDeReglement as { payeLe?: string }).payeLe, JSON.stringify(avecV1.payments).includes('invoiceId'), versementSurLeRdv(avecV1, V1, 'avance') === avecV1]);
+dit('avant-apres : ... apres coup, la note le dit', 'Après le rituel · x', (versementSurLeRdv<RdvDeLaFin>({ id: 'r' }, { ...V1, note: 'x' }, 'apres').payments?.[0] as { note?: string }).note);
+const P_RDV = rdv({ id: 'rdv-p', date: '2026-11-12', payments: [{ amountXof: 2000 }] });
+dit('avant-apres : la page d un rendez-vous sans piece dit le total annonce, le deja recu, le reste du serveur, sans merci ni maitre, a sa reference', {
+  etat: 'a-regler', prenom: 'Awa', maitre: '', jour: '2026-11-12', lignes: [{ label: 'Total annoncé', montantXof: 12000 }], totalXof: 12000, recuXof: 2000, resteXof: 10000, pourboire: false, reference: 'reg-rdv-p', branchId: 'b1', sansPiece: 'avance',
+}, pageSansPiece({ rdv: P_RDV, porte: porteAvantApres({ quand: 'avance', rdv: P_RDV, maintenantMs: A_10H }), quand: 'avance', prenom: 'Awa Kossou', reference: 'reg-rdv-p', branchId: 'b1' }));
+const P_REGLE = rdv({ id: 'rdv-p', date: '2026-11-12', payments: [{ amountXof: 12000 }] });
+dit('avant-apres : ... tout regle, la page dit « reglee », reste zero', ['reglee', 0],
+  [pageSansPiece({ rdv: P_REGLE, porte: porteAvantApres({ quand: 'avance', rdv: P_REGLE, maintenantMs: A_10H }), quand: 'avance', prenom: 'Awa', reference: 'reg-rdv-p' }).etat,
+    pageSansPiece({ rdv: P_REGLE, porte: porteAvantApres({ quand: 'avance', rdv: P_REGLE, maintenantMs: A_10H }), quand: 'avance', prenom: 'Awa', reference: 'reg-rdv-p' }).resteXof]);
+const NOTES_AA = [notificationAvantApres({ prenom: 'Awa', quand: 'avance', jour: '2026-11-07', heure: '09:00', montantXof: 12000, enPlusXof: 0 }),
+  notificationAvantApres({ prenom: '', quand: 'apres', jour: '2026-11-01', heure: '14:30', montantXof: 5000, enPlusXof: 1000 })];
+dit('avant-apres : le personnel l apprend, d avance puis apres coup ; ce qui depasse le reste se dit, garde au registre', [
+  { titre: 'Awa a réglé d’avance', corps: 'Rituel du 7 novembre 2026 à 9 h : 12 000 F en ligne, inscrits sur le rendez-vous. Le rendez-vous reste confirmé ; le jour venu, ce versement compte à sa pièce.', url: '/trone/#/carnet' },
+  { titre: 'Une cliente a réglé un rituel passé', corps: 'Rituel du 1er novembre 2026 à 14 h 30 : 5 000 F en ligne, inscrits sur le rendez-vous. La pièce se fait au Trône, le versement y compte. 1 000 F de plus, gardés au registre : à rapprocher.', url: '/trone/#/carnet' },
+], NOTES_AA);
+dit('avant-apres : ... aucun pronom, aucun tiret long ; la date avec son annee', [false, false, '1er novembre 2026', '12 décembre 2026', ''],
+  [NOTES_AA.some((x) => /\b(elle|il)\b/i.test(`${x.titre} ${x.corps}`)), NOTES_AA.some((x) => /—|–/.test(`${x.titre} ${x.corps}`)), jourDitAvantApres('2026-11-01'), jourDitAvantApres('2026-12-12'), jourDitAvantApres('x')]);
+dit('avant-apres : sans piece, la page ne regle que ce que Ma Couronne a ouvert (la marque depuisLaCouronne) ; un lien du Trone attend sa piece', [true, false, false, false],
+  [ouvertDepuisLaCouronne({ lienDeReglement: { depuisLaCouronne: { le: 'x' } } }), ouvertDepuisLaCouronne({ lienDeReglement: { jeton: J2 } as never }), ouvertDepuisLaCouronne({}), ouvertDepuisLaCouronne(null)]);
+const LISTE_AA = [rdv({ id: 'a-vieux', date: '2026-11-02' }), rdv({ id: 'a-2025', date: '2025-06-01', priceXof: 9000 }), rdv({ id: 'a-piece', date: '2026-10-20', status: 'honoré' }), rdv({ id: 'a-solde', date: '2026-10-15', status: 'honoré' }),
+  rdv({ id: 'a-annule', date: '2026-10-09', status: 'annulé' }), rdv({ id: 'a-venir', date: '2026-11-12' }), rdv({ id: 'a-jour' }), rdv({ id: 'a-comptoir', date: '2026-10-01', clientId: 'c2' })];
+const PIECES_AA: Record<string, number> = { 'a-piece': 5000, 'a-solde': 0 };
+dit('avant-apres : « A regler » dans Ma Couronne, ses passes qui doivent, le plus recent d abord, sans limite de temps ; jamais une piece soldee, un annule, un a venir, le jour meme, ni une tete « Passe au comptoir »',
+  [['a-vieux', 12000, false], ['a-piece', 5000, true], ['a-2025', 9000, false]],
+  aReglerApres({ rdvs: LISTE_AA, maintenantMs: A_10H, passeAuComptoirDe: (id) => id === 'c2', resteDeLaPiece: (id) => (id in PIECES_AA ? PIECES_AA[id] : null) }).map((d) => [d.rdv.id, d.resteXof, d.surLaPiece]));
+const REFUS_AA = ['deja-regle', 'rien-a-regler', 'comptoir', 'sans-prix', 'en-preparation', 'pas-le-moment', 'couvert'].map((etat) => refusAvantApres({ ok: true, etat }))
+  .concat([refusAvantApres({ error: 'trop' }), refusAvantApres({ error: 'reseau' })]);
+dit('avant-apres : une porte restee fermee se dit en une phrase, jamais un code', [
+  'Ce rituel est déjà réglé. Merci.', 'Il n’y a rien à régler pour ce rituel.', 'Pour votre règlement, l’équipe vous attend au comptoir.',
+  'Le montant de ce rituel n’est pas encore fixé : la Maison vous le dira.', 'La Maison prépare votre montant. Réessayez dans un instant.',
+  'Le règlement en ligne n’est pas ouvert pour ce rituel. Écrivez à la Maison.', 'Le règlement en ligne n’est pas ouvert pour ce rituel. Écrivez à la Maison.',
+  'Beaucoup de demandes d’un coup. Réessayez dans un instant.', 'Le règlement ne répond pas. Réessayez dans un moment.',
+], REFUS_AA);
+dit('avant-apres : ... elle n est pas a la Maison, seule « Passe au comptoir » l envoie au comptoir ; chaque phrase a son anglais', [1, []],
+  [REFUS_AA.filter((p) => /comptoir/.test(p)).length, REFUS_AA.filter((p) => !EN[p])]);
+
+/* ── 20 b. Le serveur, rejoue : les VRAIES fonctions ── */
+const remplisAvantApres = () => {
+  remplis();
+  db.families = [{ id: 'fam-awa', branch_id: 'b1', data: { id: 'fam-awa', payerClientId: 'c1' } }];
+  db.clients.push(
+    { id: 'c-enfant', branch_id: 'b1', data: { name: 'Keli Kossou', familyId: 'fam-awa', birthday: '2015-03-01' } },
+    { id: 'c-grand', branch_id: 'b1', data: { name: 'Sossa Kossou', familyId: 'fam-awa', birthday: '2000-01-01' } },
+    { id: 'c-archive', branch_id: 'b1', data: { name: 'Tina Kossou', familyId: 'fam-awa', birthday: '2016-05-05', archived: true } },
+  );
+  const a = (id: string, clientId: string, plus: Record<string, unknown> = {}) =>
+    ({ id, branch_id: 'b1', updated_at: `t${++tic}`, data: { id, branchId: 'b1', clientId, clientName: 'X', date: '2026-11-12', time: '10:00', status: 'confirmé', priceXof: 12000, ...plus } });
+  db.appointments.push(
+    a('av-enfant', 'c-enfant', { priceXof: 7000 }), a('av-grand', 'c-grand', { priceXof: 7000 }), a('av-archive', 'c-archive', { priceXof: 7000 }),
+    a('av-comptoir', 'c2'), a('av-sans-prix', 'c1', { priceXof: undefined }), a('av-acompte', 'c1', { depositXof: 5000 }),
+    a('av-couvert', 'c1', { coveredBySub: true, priceXof: 0 }), a('av-attente', 'c1', { status: 'en attente' }),
+    a('ap-vieux', 'c1', { date: '2026-11-02' }), a('ap-2025', 'c1', { date: '2025-06-01', time: '09:00', priceXof: 9000 }),
+    a('ap-piece', 'c1', { date: '2026-10-20', status: 'honoré', priceXof: 15000 }), a('ap-solde', 'c1', { date: '2026-10-15', status: 'honoré' }),
+    a('ap-honore-sans-piece', 'c1', { date: '2026-10-10', status: 'honoré' }), a('ap-annule', 'c1', { date: '2026-10-09', status: 'annulé' }),
+    a('ap-couvert', 'c1', { date: '2026-10-08', coveredBySub: true }), a('ap-absente', 'c1', { date: '2026-10-07', absente: { le: '2026-10-07T12:00:00.000Z' } }),
+    a('ap-declare', 'c1', { date: '2026-11-05', termineParElle: { le: '2026-11-05T10:00:00.000Z', par: 'couronne' } }),
+    a('ap-confirme-piece', 'c1', { date: '2026-11-03', priceXof: 8000 }),
+  );
+  const f = (id: string, apptId: string, xof: number, plus: Record<string, unknown> = {}) =>
+    ({ id, branch_id: 'b1', data: { id, kind: 'facture', status: 'envoyée', apptId, date: '2026-10-20', lines: [{ label: 'La Reprise', qty: 1, unitXof: xof, discountPct: 0 }], globalDiscountPct: 0, ...plus } });
+  db.invoices.push(f('f-ap', 'ap-piece', 15000, { payments: [{ id: 'v-comptoir', amountXof: 10000, date: '2026-10-20', method: 'Espèces' }] }), f('f-solde', 'ap-solde', 12000, { status: 'payée' }), f('f-acp', 'ap-confirme-piece', 8000));
+};
+const ma = (action: 'avance' | 'apres', rdvId: string, cle = 'jeton.de.awa', ip = '2.2.2.2') => appelle(finir, { action, rdvId }, { cle, ip });
+remplisAvantApres();
+dit('avant-apres : les deux fonctions disent leur version', ['2026-11-07-c · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', '2026-11-07-c'], [(await appelle(finir)).corps.version, (await appelle(regler)).corps.version]);
+const av1 = await ma('avance', 'rdv-demain');
+const jAv = String(av1.corps.jeton);
+dit('avant-apres serveur : d avance, son compte, son rendez-vous de demain ; le reste du serveur, le lien pose une fois avec sa marque, et RIEN d autre ne bouge (ni statut, ni marque de fin, ni notification)',
+  [200, 'a-regler', 'avance', 12000, false, true, adresseDuReglementDeLaFin(jAv), jAv, 'avance', 'confirmé', undefined, 0],
+  [av1.status, av1.corps.etat, av1.corps.quand, av1.corps.resteXof, av1.corps.surLaPiece, estUnJetonDeLaFin(jAv), av1.corps.adresse, rdvDe('rdv-demain').lienDeReglement?.jeton,
+    rdvDe('rdv-demain').lienDeReglement?.depuisLaCouronne?.quand, rdvDe('rdv-demain').status, rdvDe('rdv-demain').termineParElle, notifications.length]);
+dit('avant-apres serveur : un second toucher garde le meme lien', jAv, String((await ma('avance', 'rdv-demain')).corps.jeton));
+const autre = await ma('avance', 'rdv-comptoir');
+dit('avant-apres serveur : le rendez-vous d une autre se dit introuvable, sans rien y ecrire ; sans compte, ou avec un faux, rien',
+  [404, 'introuvable', undefined, 401, 'compte', 401],
+  [autre.status, autre.corps.error, rdvDe('rdv-comptoir').lienDeReglement, (await appelle(finir, { action: 'avance', rdvId: 'rdv-demain' })).status, (await appelle(finir, { action: 'avance', rdvId: 'rdv-demain' })).corps.error,
+    (await appelle(finir, { action: 'avance', rdvId: 'rdv-demain' }, { cle: 'pas.un.compte' })).status]);
+const enfant = await ma('avance', 'av-enfant');
+dit('avant-apres serveur : les tetes de son foyer, oui (un mineur de la famille qu elle paie) ; une tete majeure ou archivee, non',
+  [200, 'a-regler', 7000, 404, 404], [enfant.status, enfant.corps.etat, enfant.corps.resteXof, (await ma('avance', 'av-grand')).status, (await ma('avance', 'av-archive')).status]);
+const etatsAv: unknown[] = [];
+for (const [id, cle] of [['av-comptoir', 'jeton.de.sena'], ['av-sans-prix', 'jeton.de.awa'], ['av-acompte', 'jeton.de.awa'], ['av-couvert', 'jeton.de.awa'], ['av-attente', 'jeton.de.awa'], ['rdv-jour', 'jeton.de.awa'], ['ap-vieux', 'jeton.de.awa']] as const) {
+  etatsAv.push((await ma('avance', id, cle)).corps.etat);
+}
+dit('avant-apres serveur : d avance, ferme pour « Passe au comptoir », sans prix fige, un acompte a verifier, une formule, en attente, le jour meme des l heure, un passe ; et aucun lien ne s y pose',
+  [['comptoir', 'sans-prix', 'comptoir', 'couvert', 'pas-confirme', 'pas-le-moment', 'pas-le-moment'], []],
+  [etatsAv, ['av-comptoir', 'av-sans-prix', 'av-acompte', 'av-couvert', 'av-attente', 'rdv-jour', 'ap-vieux'].filter((id) => rdvDe(id).lienDeReglement)]);
+const pageAv = (await appelle(regler, { action: 'lire', jeton: jAv })).corps.page;
+dit('avant-apres serveur : la page « Regler » lit le rendez-vous sans piece : d avance, 12 000, sans merci ni maitre, a sa reference',
+  { etat: 'a-regler', prenom: 'Awa', maitre: '', jour: '2026-11-07', lignes: [{ label: 'Total annoncé', montantXof: 12000 }], totalXof: 12000, recuXof: 0, resteXof: 12000, pourboire: false, reference: 'reg-rdv-demain', branchId: 'b1', sansPiece: 'avance' },
+  pageAv);
+transactions.tav1 = { status: 'SUCCESS', amount: 12000, fees: 228, source: 'MTN_BENIN' };
+const payeAv = await appelle(regler, { action: 'regler', jeton: jAv, transactionId: 'tav1' });
+dit('avant-apres serveur : elle regle d avance ; 12 000 sur le rendez-vous, aucun honneur', [200, true, 12000, 0, false], [payeAv.status, payeAv.corps.ok, payeAv.corps.versementXof, payeAv.corps.pourboireXof, payeAv.corps.honore]);
+dit('avant-apres serveur : ... le versement kkia- sur le rendez-vous, sans piece nommee ; le rendez-vous reste « confirme », sans marque ; aucune piece ne nait ; le registre porte la transaction a sa reference',
+  [[{ id: 'kkia-tav1', amountXof: 12000, date: '2026-11-06', method: 'KkiaPay', cashbox: 'KkiaPay', note: 'D’avance · Réglé en ligne par la cliente · MTN · transaction tav1' }], 12000, 'confirmé', undefined, undefined, 0, 'reg-rdv-demain'],
+  [rdvDe('rdv-demain').payments, rdvDe('rdv-demain').paidXof, rdvDe('rdv-demain').status, rdvDe('rdv-demain').honoreAuReglement, rdvDe('rdv-demain').termineParElle,
+    db.invoices.filter((i) => i.data?.apptId === 'rdv-demain').length, db.payments.find((p) => p.id === 'tav1')?.data?.partnerId]);
+dit('avant-apres serveur : ... le personnel l apprend une fois, par la notification du personnel',
+  [1, 'staff', 'Awa a réglé d’avance', 'Rituel du 7 novembre 2026 à 9 h : 12 000 F en ligne, inscrits sur le rendez-vous. Le rendez-vous reste confirmé ; le jour venu, ce versement compte à sa pièce.'],
+  [notifications.length, notifications[0]?.mode, notifications[0]?.titre, notifications[0]?.corps]);
+const rejeuAv = await appelle(regler, { action: 'regler', jeton: jAv, transactionId: 'tav1' });
+dit('avant-apres serveur : un rejeu ne double rien, ne previent pas deux fois', [true, 1, 1], [rejeuAv.corps.deja, rdvDe('rdv-demain').payments.length, notifications.length]);
+const apresAv = (await appelle(regler, { action: 'lire', jeton: jAv })).corps.page;
+const billetAv = (await appelle(finir, { action: 'retrouver', code: referenceDuRendezVous('rdv-demain'), chiffres: '4480' }, { ip: '2.2.3.1' })).corps.billet;
+dit('avant-apres serveur : reglee d avance, la page dit « reglee » ; Regler d avance dit « deja regle » ; le billet du site reste « confirme » a zero (Deplacer et Annuler y restent)',
+  ['reglee', 0, 'avance', 'deja-regle', 'confirme', 'deja-regle', 0],
+  [apresAv?.etat, apresAv?.resteXof, apresAv?.sansPiece, (await ma('avance', 'rdv-demain')).corps.etat, billetAv?.etat, billetAv?.porte?.raison, billetAv?.resteXof]);
+/* Le jour venu : la porte de la fin voit le reste a zero, puis le surplus d'un soin ajoute au Trone. */
+maintenant = aCotonou('2026-11-07', '09:30');
+dit('avant-apres serveur : le jour venu, des l heure, la porte de la fin dit « deja regle »', 'deja-regle', (await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-demain' }, { cle: 'jeton.de.awa' })).corps.etat);
+rdvDe('rdv-demain').priceXof = 17000;
+const surplus = await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-demain' }, { cle: 'jeton.de.awa' });
+dit('avant-apres serveur : un soin ajoute au Trone (17 000) : la porte s ouvre sur le seul surplus, 5 000', ['a-regler', 5000], [surplus.corps.etat, surplus.corps.resteXof]);
+const pendantLaPiece = (await appelle(regler, { action: 'lire', jeton: jAv })).corps.page;
+dit('avant-apres serveur : ... elle a declare, sa piece s ecrit au Trone : la page l attend (jamais un second reglement sur le rendez-vous pendant ce temps)', ['sans-piece', true, undefined],
+  [pendantLaPiece?.etat, pendantLaPiece?.enPreparation, pendantLaPiece?.sansPiece]);
+/* Le Trone ecrit la piece et y monte le versement d'avance en « Acompte » (versementsDejaRecus, sur lArgentDejaRecu). */
+db.invoices.push({ id: 'f-demain', branch_id: 'b1', data: { id: 'f-demain', kind: 'facture', status: 'envoyée', apptId: 'rdv-demain', date: '2026-11-07', lines: [{ label: 'La Reprise', qty: 1, unitXof: 17000, discountPct: 0 }], globalDiscountPct: 0,
+  payments: versementsDejaRecus({ rdvId: 'rdv-demain', totalXof: 17000, dejaRecu: [{ date: '2026-11-06', amountXof: 12000, note: 'Reçu au Carnet avant le comptoir' }] }) } });
+const filetAvance = await appelle(regler, { action: 'regler', jeton: jAv, transactionId: 'tav1' });
+dit('avant-apres serveur : la piece du jour reprend l avance en « Acompte » ; la transaction d avance, rejouee par le filet, ne s y pose JAMAIS une seconde fois',
+  [true, 1, 5000], [filetAvance.corps.deja, db.invoices.find((i) => i.id === 'f-demain')!.data.payments.length, (await appelle(regler, { action: 'lire', jeton: jAv })).corps.page?.resteXof]);
+transactions.tav2 = { status: 'SUCCESS', amount: 5000, fees: 95, source: 'MTN_BENIN' };
+const payeSurplus = await appelle(regler, { action: 'regler', jeton: jAv, transactionId: 'tav2' });
+dit('avant-apres serveur : ... elle regle le surplus le jour meme : la piece soldee, et la regle de la fin l honore (elle avait declare)', [5000, 'payée', 'honoré', true],
+  [payeSurplus.corps.versementXof, db.invoices.find((i) => i.id === 'f-demain')!.data.status, rdvDe('rdv-demain').status, payeSurplus.corps.honore]);
+/* Le filet : la page fermee trop tot, KkiaPay seul a vu le paiement (kkiapay-webhook l a inscrit au registre). */
+remplisAvantApres();
+const jEnfant = String((await ma('avance', 'av-enfant')).corps.jeton);
+db.payments.push({ id: 'tfilet', branch_id: 'b1', data: { id: 'tfilet', provider: 'kkiapay', amountXof: 7000, feesXof: 133, method: 'MOOV_BJ', partnerId: 'reg-av-enfant', status: 'success' } });
+const lueFilet = await appelle(regler, { action: 'lire', jeton: jEnfant });
+dit('avant-apres serveur : le filet pose sur le rendez-vous l argent que seul KkiaPay a vu ; la page dit « reglee », au prenom de la tete', [1, ['kkia-tfilet'], 'reglee', 'Keli'],
+  [lueFilet.corps.rattrapes, (rdvDe('av-enfant').payments ?? []).map((p: { id: string }) => p.id), lueFilet.corps.page?.etat, lueFilet.corps.page?.prenom]);
+/* Un lien pose au Trone (sans la marque de Ma Couronne) attend sa piece comme avant. */
+remplisAvantApres();
+Object.assign(rdvDe('rdv-demain'), { lienDeReglement: { jeton: J2, creeLe: 'x' } });
+transactions.tsans = { status: 'SUCCESS', amount: 12000, fees: 228, source: 'MTN_BENIN' };
+const sansMarque = await appelle(regler, { action: 'regler', jeton: J2, transactionId: 'tsans' });
+dit('avant-apres serveur : un lien du Trone, sans la marque de Ma Couronne : la page attend sa piece, le reglement est refuse (409), rien ne se pose, l argent reste au registre',
+  ['sans-piece', 409, 'sans_piece', undefined, true],
+  [(await appelle(regler, { action: 'lire', jeton: J2 })).corps.page?.etat, sansMarque.status, sansMarque.corps.error, rdvDe('rdv-demain').payments, db.payments.some((p) => p.id === 'tsans')]);
+/* La porte se rejuge au reglement : annule entre-temps, l argent reste au registre. */
+remplisAvantApres();
+const jAnnule = String((await ma('avance', 'rdv-demain')).corps.jeton);
+rdvDe('rdv-demain').status = 'annulé';
+transactions.tann = { status: 'SUCCESS', amount: 12000, fees: 228, source: 'MTN_BENIN' };
+const annuleEntreTemps = await appelle(regler, { action: 'regler', jeton: jAnnule, transactionId: 'tann' });
+dit('avant-apres serveur : la porte se rejuge au reglement ; annule entre-temps, rien ne se pose, l argent reste au registre, a rapprocher',
+  [409, 'sans_piece', undefined, true, 'annule'], [annuleEntreTemps.status, annuleEntreTemps.corps.error, rdvDe('rdv-demain').payments, db.payments.some((p) => p.id === 'tann'),
+    (await appelle(regler, { action: 'lire', jeton: jAnnule })).corps.page?.etat]);
+/* « Passe au comptoir » coche entre l'ouverture et le paiement : la porte se rejuge, rien ne se pose. */
+remplisAvantApres();
+const jComptoir = String((await ma('avance', 'rdv-demain')).corps.jeton);
+db.clients.find((c) => c.id === 'c1')!.data.passeAuComptoir = true;
+transactions.tcpt = { status: 'SUCCESS', amount: 12000, fees: 228, source: 'MTN_BENIN' };
+const auComptoir = await appelle(regler, { action: 'regler', jeton: jComptoir, transactionId: 'tcpt' });
+dit('avant-apres serveur : « Passe au comptoir » coche entre-temps, la porte se rejuge au reglement ; rien ne se pose, l argent reste au registre',
+  [409, 'sans_piece', undefined, true], [auComptoir.status, auComptoir.corps.error, rdvDe('rdv-demain').payments, db.payments.some((p) => p.id === 'tcpt')]);
+/* Une ecriture du Trone entre la lecture et l'ecriture du versement : elle n'est jamais ecrasee. */
+remplisAvantApres();
+const jCroise = String((await ma('avance', 'rdv-demain')).corps.jeton);
+transactions.tcroise = { status: 'SUCCESS', amount: 12000, fees: 228, source: 'MTN_BENIN' };
+entreDeux = () => { const l = db.appointments.find((x) => x.id === 'rdv-demain')!; l.data = { ...l.data, noteDuTrone: 'posee pendant le paiement' }; l.updated_at = `t${++tic}`; };
+const croise = await appelle(regler, { action: 'regler', jeton: jCroise, transactionId: 'tcroise' });
+dit('avant-apres serveur : une ecriture du Trone passee entre la lecture et l ecriture du versement est relue, jamais ecrasee ; le versement se pose une fois',
+  [true, 'posee pendant le paiement', 1], [croise.corps.ok, rdvDe('rdv-demain').noteDuTrone, (rdvDe('rdv-demain').payments ?? []).length]);
+/* Le montant : moins que le reste, refuse ; plus, le surplus garde au registre et dit au personnel. */
+remplisAvantApres();
+const jMontant = String((await ma('avance', 'rdv-demain')).corps.jeton);
+transactions.tmoins = { status: 'SUCCESS', amount: 11000, fees: 209, source: 'MTN_BENIN' };
+transactions.tplus = { status: 'SUCCESS', amount: 13000, fees: 247, source: 'MTN_BENIN' };
+const moins = await appelle(regler, { action: 'regler', jeton: jMontant, transactionId: 'tmoins' });
+const plus = await appelle(regler, { action: 'regler', jeton: jMontant, transactionId: 'tplus' });
+dit('avant-apres serveur : le montant vient du serveur ; 11 000 pour 12 000, refuse ; 13 000, 12 000 sur le rendez-vous, 1 000 au registre et dits au personnel',
+  [409, 'montant', 12000, 1000, [12000], true],
+  [moins.status, moins.corps.error, plus.corps.versementXof, plus.corps.pourboireXof, (rdvDe('rdv-demain').payments ?? []).map((p: { amountXof: number }) => p.amountXof),
+    /1 000 F de plus, gardés au registre : à rapprocher\.$/.test(notifications[notifications.length - 1]?.corps ?? '')]);
+/* APRES : un passe sans piece, au prix fige ; sans limite de temps. */
+remplisAvantApres();
+const ap1 = await ma('apres', 'ap-vieux');
+const jAp = String(ap1.corps.jeton);
+transactions.tap1 = { status: 'SUCCESS', amount: 12000, fees: 228, source: 'MOOV_BJ' };
+const pageAp = (await appelle(regler, { action: 'lire', jeton: jAp })).corps.page;
+const payeAp = await appelle(regler, { action: 'regler', jeton: jAp, transactionId: 'tap1' });
+dit('avant-apres serveur : apres, un passe confirme sans piece ; la page « apres », le versement sur le rendez-vous, jamais honore, le personnel prevenu',
+  ['a-regler', 12000, false, 'apres', 12000, 'Après le rituel · Réglé en ligne par la cliente · Moov · transaction tap1', 'confirmé', false, 'Awa a réglé un rituel passé'],
+  [ap1.corps.etat, ap1.corps.resteXof, ap1.corps.surLaPiece, pageAp?.sansPiece, payeAp.corps.versementXof, rdvDe('ap-vieux').payments?.[0]?.note, rdvDe('ap-vieux').status, payeAp.corps.honore, notifications[notifications.length - 1]?.titre]);
+dit('avant-apres serveur : ... sans limite de temps (juin 2025)', ['a-regler', 9000], await ma('apres', 'ap-2025').then((r) => [r.corps.etat, r.corps.resteXof]));
+const apPiece = await ma('apres', 'ap-piece');
+transactions.tap2 = { status: 'SUCCESS', amount: 5000, fees: 95, source: 'MTN_BENIN' };
+const pageApPiece = (await appelle(regler, { action: 'lire', jeton: String(apPiece.corps.jeton) })).corps.page;
+const payeApPiece = await appelle(regler, { action: 'regler', jeton: String(apPiece.corps.jeton), transactionId: 'tap2' });
+dit('avant-apres serveur : apres, la piece qui doit encore se regle sur la piece (la page d avant, son merci) ; soldee, le statut ne bouge pas, aucune marque d honneur',
+  ['a-regler', 5000, true, 'a-regler', 5000, undefined, 'payée', 'honoré', undefined, false],
+  [apPiece.corps.etat, apPiece.corps.resteXof, apPiece.corps.surLaPiece, pageApPiece?.etat, pageApPiece?.resteXof, pageApPiece?.sansPiece,
+    db.invoices.find((i) => i.id === 'f-ap')!.data.status, rdvDe('ap-piece').status, rdvDe('ap-piece').honoreAuReglement, payeApPiece.corps.honore]);
+const apConf = await ma('apres', 'ap-confirme-piece');
+transactions.tap3 = { status: 'SUCCESS', amount: 8000, fees: 152, source: 'MTN_BENIN' };
+const payeApConf = await appelle(regler, { action: 'regler', jeton: String(apConf.corps.jeton), transactionId: 'tap3' });
+dit('avant-apres serveur : regler apres ne pose JAMAIS « honore » sur un rendez-vous que l equipe n a pas marque venu : la piece soldee, le rendez-vous reste « confirme »',
+  ['payée', 'confirmé', undefined, false], [db.invoices.find((i) => i.id === 'f-acp')!.data.status, rdvDe('ap-confirme-piece').status, rdvDe('ap-confirme-piece').honoreAuReglement, payeApConf.corps.honore]);
+const etatsAp: unknown[] = [];
+for (const id of ['ap-solde', 'ap-honore-sans-piece', 'ap-annule', 'ap-couvert', 'ap-absente', 'ap-declare', 'av-enfant', 'rdv-jour']) etatsAp.push((await ma('apres', id)).corps.etat);
+dit('avant-apres serveur : apres, ferme pour une piece soldee, un honore sans piece, un annule, un couvert, une absente, une fin declaree sans piece, un a venir, le jour meme',
+  ['deja-regle', 'clos', 'annule', 'couvert', 'absente', 'en-preparation', 'pas-le-moment', 'pas-le-moment'], etatsAp);
+remplisAvantApres();
+const freinAa: number[] = [];
+for (let i = 0; i < 21; i++) freinAa.push((await ma('avance', 'rdv-demain', 'jeton.de.awa', '3.3.3.3')).status);
+dit('avant-apres serveur : le frein de la porte, vingt touchers par adresse en dix minutes, le vingt et unieme refuse', [20, 429], [freinAa.filter((s) => s === 200).length, freinAa[20]]);
+
+/* ── 20 c. Ma Couronne, la page « Regler », le Trone : le cablage, lu dans les sources ── */
+const tabsAa = sansCommentaires(lis('src/apps/couronne/Tabs.tsx'));
+const ecranAa = sansCommentaires(lis('src/apps/couronne/ReglerAvantApres.tsx'));
+const mesRdv = sansCommentaires(lis('src/apps/couronne/MesRendezVous.tsx'));
+dit('avant-apres Ma Couronne : l accueil monte « A regler » sous la prochaine seance (une ligne d import, une de rendu)', [true, true],
+  [/import ARegler from '\.\/ReglerAvantApres';/.test(tabsAa), /\{t\('Mes rendez-vous'\)\}\s*<\/button>\s*<\/div>\s*<ARegler nomDuRituel=\{\(a\) => serviceNames\(a, services\)\} \/>\s*<\/>/.test(tabsAa)]);
+dit('avant-apres Ma Couronne : « A regler » lit ses rendez-vous et ceux des tetes qu elle porte, par la regle ; « Regler » passe par le serveur avec son compte, et ne suit que le jeton d une porte ouverte',
+  [true, true, true, true],
+  [/const miens = new Set\(\[monId, \.\.\.tetes\.map\(\(x\) => x\.id\)\]\);\s*const pieces = invoices as unknown as PieceLue\[\];\s*return aReglerApres\(\{\s*rdvs: appts\.filter\(\(a\) => miens\.has\(a\.clientId\)\),/.test(ecranAa),
+    /const \{ enCours, souci, regle \} = useLeToucher\('apres'\);/.test(ecranAa),
+    /const r = await regleDepuisMaCouronne\(rdvId, quand, session\?\.access_token \?\? ''\);/.test(ecranAa),
+    /if \(r\.ok && r\.etat === 'a-regler' && r\.jeton\) \{ window\.location\.assign\(pageDuReglement\(r\.jeton\)\); return; \}/.test(ecranAa)]);
+dit('avant-apres Ma Couronne : « Regler d avance » suit la regle d avance, et rien des l heure du rituel ; la fiche d un rendez-vous a venir le porte', [true, true, true],
+  [/const porte = porteAvantApres\(\{\s*quand: 'avance', rdv, maintenantMs: maintenant,\s*passeAuComptoir: clients\.find\(\(c\) => c\.id === rdv\.clientId\)\?\.passeAuComptoir === true,/.test(ecranAa),
+    /if \(rdv\.status === 'annulé' \|\| momentDuReglement\(rdv, maintenant\) !== 'avance'\) return null;/.test(ecranAa), /\{aVenir && <ReglerDAvance rdv=\{a\} \/>\}/.test(mesRdv)]);
+const feuilleRegle = /\{cancelling && annulationParElle\(cancelling\) === 'ecrire-a-la-maison' && \(\(\) => \{[\s\S]*?\}\)\(\)\}/.exec(mesRdv)?.[0] ?? '';
+const feuilleLibre = /\{cancelling && annulationParElle\(cancelling\) === 'permise' && \([\s\S]*?\n {8}\)\}/.exec(mesRdv)?.[0] ?? '';
+dit('avant-apres Ma Couronne : regle d avance, la feuille d annulation ne propose pas d annuler (elle dit d ecrire a la Maison, en francais pour la Maison) ; sans argent, elle annule comme avant',
+  [true, false, true, true, true],
+  [feuilleRegle.length > 200, /Annuler le rendez-vous|confirmCancel/.test(feuilleRegle), /wa\.me\/\$\{numero\}\?text=\$\{encodeURIComponent\(`Bonjour, je voudrais annuler mon rendez-vous du \$\{dayLabelIsoFr\(cancelling\.date\)\}/.test(feuilleRegle),
+    /onClick=\{confirmCancel\}>\{t\('Annuler le rendez-vous'\)\}/.test(feuilleLibre), /\{t\('Garder le rendez-vous'\)\}/.test(feuilleRegle)]);
+dit('avant-apres Ma Couronne : annuler refuse un rendez-vous regle d avance avant de parler au serveur, et lit le refus du serveur (regle_d_avance)', [true, true, true],
+  [/const annuler = async \(a: Appointment\) => \{\s*if \(annulationParElle\(a\) === 'ecrire-a-la-maison'\) \{ toast\(t\('Ce rendez-vous est réglé d’avance : écrivez à la Maison pour l’annuler\.'\)\); return; \}/.test(mesRdv),
+    /if \(!parLaMaison\.ok && parLaMaison\.raison === 'regle_d_avance'\) \{ toast\(/.test(mesRdv),
+    mesRdv.indexOf("annulationParElle(a) === 'ecrire-a-la-maison'") < mesRdv.indexOf("appelleLaMaison<{ ok?: boolean; raison?: string }>('annuler_une_seance'")]);
+const PHRASES_AA = [...new Set([...(ecranAa + mesRdv).matchAll(/\bt\('([^']*(?:d’avance|réglé d’avance|rituel passé|reste confirmé|écrivez à la Maison : elle)[^']*)'/g)].map((m) => m[1]))];
+dit('avant-apres Ma Couronne : les phrases neuves ont leur anglais (l anglais reste ferme jusqu a sa relecture)', [true, []], [PHRASES_AA.length >= 7, PHRASES_AA.filter((p) => !EN[p])]);
+const pageReglerAa = sansCommentaires(lis('src/apps/regler/App.tsx'));
+dit('avant-apres page « Regler » : d avance, son titre et la promesse du rendez-vous confirme ; reglee sans piece, elle ne promet pas de recu WhatsApp ; le merci n y parait pas',
+  [true, true, true, true],
+  [/\{p\.sansPiece \? SUR_LA_PAGE\[p\.sansPiece\] : p\.tetes \? 'Régler les séances' : 'Régler la séance'\}/.test(pageReglerAa),
+    /\{p\.sansPiece === 'avance' && <p className="rg-doux rg-petit">Le rendez-vous reste confirmé\./.test(pageReglerAa),
+    /\{ecran\.page\.sansPiece\s*\? \(ecran\.paye \? APRES_LE_REGLEMENT\[ecran\.page\.sansPiece\] :/.test(pageReglerAa) && !/WhatsApp/.test(/const APRES_LE_REGLEMENT = \{[\s\S]*?\} as const;/.exec(pageReglerAa)?.[0] ?? 'WhatsApp'),
+    /\{p\.pourboire && \(/.test(pageReglerAa)]);
+const caissePure = sansCommentaires(lis('src/apps/trone/routes/vente/encaissement-pur.ts'));
+dit('avant-apres Trone : la Caisse reprend tout versement du rendez-vous (son versement d avance compris) en argent deja recu ; seul un versement qui NOMME une piece fait croire qu elle existe',
+  [true, true], [/if \(a\.payments\?\.length\) \{\s*for \(const p of a\.payments\) \{\s*const m = f\(Number\(p\.amountXof\) \|\| 0\);\s*if \(m > 0\) out\.push\(/.test(caissePure), /\(a\.payments \?\? \[\]\)\.some\(\(p\) => p\.invoiceId === i\.id\)/.test(caissePure)]);
+const m0139 = lis('supabase/migrations/0139_les_regles_du_20_octobre_au_soir.sql');
+const deplacer0139 = m0139.slice(m0139.indexOf('create or replace function public.deplacer_une_seance'), m0139.indexOf('revoke all on function public.deplacer_une_seance'));
+dit('avant-apres : deplacer garde le versement sur le rendez-vous (la base ajoute le jour et l heure a la ligne, Ma Couronne ne renvoie que le jour, l heure et le statut)', [true, true],
+  [/set data = data \|\| jsonb_build_object\(/.test(deplacer0139), /ecrisRendezVous\(a\.id, \{ date: iso, time: heure, status: 'en attente' \}\)/.test(mesRdv)]);
+
+/* ── 20 d. La garde de la base (0172, NON APPLIQUEE) et son essai a blanc ── */
+const MIG_0172 = lis('supabase/migrations/0172_regler_avant_apres.sql');
+const ESSAI_0172 = lis('supabase/essai_0172_a_blanc.sql');
+const blocDe172 = (sql: string): string => { const i = sql.indexOf('-- ⟨0172⟩\n'); const k = sql.indexOf('-- ⟨/0172⟩', i); return i >= 0 && k > i ? sql.slice(i + '-- ⟨0172⟩\n'.length, k) : ''; };
+const garde172 = (() => { const b = blocDe172(MIG_0172); return b.slice(b.indexOf('create or replace function public.garde_argent_cliente()'), b.indexOf('-- ③')); })();
+const garde171 = blocDe(MIG_0171);
+const annuler138 = m0138.slice(m0138.indexOf('create or replace function public.annuler_une_seance(p_appt_id text)'), m0138.indexOf('revoke all on function public.annuler_une_seance(text)'));
+const annuler172 = (() => { const b = blocDe172(MIG_0172); return b.slice(b.indexOf('create or replace function public.annuler_une_seance(p_appt_id text)'), b.indexOf('revoke all on function public.annuler_une_seance(text)')); })();
+const AJOUT_172 = ",'termineParElle','honoreAuReglement','payments','lienDeReglement','lienDuFoyer']loop";
+const REFUS_172 = "ifnew.data->>'status'='annulé'andcoalesce(old.data->>'status','')<>'annulé'andround(public.argent_verse_sur_le_rdv(old.data))>0thennew.data:=jsonb_set(new.data,'{status}',coalesce(old.data->'status','\"enattente\"'::jsonb));endif;";
+dit('0172 : la garde de 0171 mot pour mot, avec le versement et les deux liens ajoutes a ses deux listes, et le refus d annuler ce qui est regle d avance, rien d autre',
+  [true, 2, true],
+  [garde172.length > 1000, nuDuSql(garde172).split(AJOUT_172).length - 1,
+    nuDuSql(garde172).split(AJOUT_172).join(",'termineParElle','honoreAuReglement']loop").replace(REFUS_172, '') === nuDuSql(garde171)]);
+dit('0172 : annuler_une_seance de 0138 mot pour mot, avec le seul refus « regle_d_avance », apres « passee »', [true, true],
+  [nuDuSql(annuler172).replace("ifround(public.argent_verse_sur_le_rdv(v_a.data))>0thenreturnjsonb_build_object('ok',false,'raison','regle_d_avance');endif;", '') === nuDuSql(annuler138),
+    annuler172.indexOf("'raison', 'passee'") < annuler172.indexOf("'raison', 'regle_d_avance'")]);
+dit('0172 : son essai a blanc rejoue la MEME migration, entre ses mesures, et finit par une exception qui annule tout ; un compte invente, chaque tentative annulee sur-le-champ (ZZ172)',
+  [true, true, true, true, false, true, true],
+  [blocDe172(ESSAI_0172) === blocDe172(MIG_0172) && blocDe172(MIG_0172).length > 3000, ESSAI_0172.indexOf('do $avant$') > 0 && ESSAI_0172.indexOf('do $avant$') < ESSAI_0172.indexOf('-- ⟨0172⟩'),
+    ESSAI_0172.indexOf('do $essai$') > ESSAI_0172.indexOf('-- ⟨/0172⟩'), /raise exception 'ESSAI 0172 : % \| %'[^;]*;\s*end \$essai\$;\s*$/.test(ESSAI_0172),
+    /\bcommit\b/i.test(ESSAI_0172.replace(/--[^\n]*/g, '')), /v_cliente uuid := gen_random_uuid\(\);/.test(ESSAI_0172),
+    (ESSAI_0172.match(/raise exception using errcode = 'ZZ172'/g) ?? []).length === 7 && !/from public\.clients/.test(ESSAI_0172.replace(/--[^\n]*/g, ''))]);
+if (!PGlite) {
+  console.log('SAUTE l essai a blanc de 0172 ne se joue pas ici, PGlite absent (BANC_PGLITE=<dossier qui porte node_modules/@electric-sql/pglite>)');
+} else {
+  const MAQUETTE_0172 = `
+    create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
+    grant anon, authenticated, service_role to current_user;
+    create schema auth;
+    create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+    create table public.staff (user_id uuid primary key, role text, created_at timestamptz default now());
+    create table public.appointments (id text primary key, branch_id text, data jsonb not null default '{}'::jsonb, updated_at timestamptz default now());
+    create table public.invoices (id text primary key, branch_id text, data jsonb not null default '{}'::jsonb, updated_at timestamptz default now());
+    create function public.is_staff() returns boolean language sql stable security definer set search_path = public as $$ select exists (select 1 from public.staff where user_id = auth.uid()) $$;
+    create function public.est_ma_tete(cible text) returns boolean language sql stable security definer set search_path = public as $$ select cible = (auth.uid())::text $$;
+    create function public.abo_iso(t timestamptz) returns text language sql immutable as $$ select to_char(t at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') $$;
+    create function public.abo_aujourdhui() returns date language sql stable as $$ select current_date $$;
+    create function public.abo_maintenant() returns timestamptz language sql stable as $$ select now() $$;
+    create function public.abo_etat_de_la_seance(a jsonb, jour date) returns text language sql stable as $$ select 'a-venir'::text $$;
+    ${m0138.slice(m0138.indexOf('create or replace function public.abo_num('), m0138.indexOf('-- ── DEBUT abo_jour_ouvre'))}
+    ${m0138.slice(m0138.indexOf('create or replace function public.annuler_une_seance('), m0138.indexOf('-- DÉPLACER : la nouvelle date'))}
+    ${m0138.slice(m0138.indexOf('create or replace function public.ecriture_de_la_maison()'), m0138.indexOf("-- UNE CLIENTE N'ÉCRIT JAMAIS UN CONTRAT"))}
+    ${MIG_0171}
+    grant usage on schema public, auth to anon, authenticated, service_role;
+    grant all on all tables in schema public to anon, authenticated, service_role;
+    grant execute on all functions in schema public to anon, authenticated, service_role;
+    grant execute on all functions in schema auth to anon, authenticated, service_role;
+    alter table public.appointments enable row level security;
+    alter table public.invoices enable row level security;
+    create policy own_sel on public.appointments for select to authenticated using (is_staff() or est_ma_tete(data->>'clientId'));
+    create policy own_ins on public.appointments for insert to authenticated with check (is_staff() or est_ma_tete(data->>'clientId'));
+    create policy own_upd on public.appointments for update to authenticated using (is_staff() or est_ma_tete(data->>'clientId')) with check (is_staff() or est_ma_tete(data->>'clientId'));
+    insert into public.staff (user_id, role) values (gen_random_uuid(), 'equipe');
+    insert into public.appointments (id, branch_id, data) values ('rdv-de-la-maquette', 'b1', '{"clientId":"quelqu-un","date":"2026-11-01","time":"09:00","status":"honoré"}');`;
+  const joue172 = async (sql: string, dabord = ''): Promise<{ message: string; reste: number; posee: boolean }> => {
+    const base = new PGlite();
+    await base.exec(MAQUETTE_0172);
+    if (dabord) await base.exec(dabord);
+    let message = '(aucun verdict)';
+    try { await base.exec(sql); } catch (e) { message = String((e as Error)?.message ?? e); }
+    const reste = (await base.query("select count(*)::int as n from public.appointments where id like 'essai-0172-%'")).rows[0].n as number;
+    const posee = (await base.query("select count(*)::int as n from pg_proc where proname = 'argent_verse_sur_le_rdv'")).rows[0].n === 1;
+    await base.close();
+    return { message, reste, posee };
+  };
+  const casse172 = (avant: string, apres: string): string => (ESSAI_0172.includes(avant) ? ESSAI_0172.replace(avant, () => apres) : '');
+  const avant172 = await joue172(ESSAI_0172);
+  const apres172 = await joue172(ESSAI_0172, MIG_0172);
+  dit('0172 joue dans PGlite : avant, la cliente efface et forge le versement et le lien, et annule elle-meme un rendez-vous regle d avance ; apres, plus jamais ; TIENT, rien ne reste',
+    [true, true, true, true, true, 0, false],
+    [/^ESSAI 0172 : TIENT \|/.test(avant172.message), /cliente : retirer avant \[1 ligne, versement retire, lien retire, le reste ecrit\] apres \[1 ligne, versement garde, lien garde, le reste ecrit\]/.test(avant172.message),
+      /forger avant \[1 ligne, versement pose, lien pose, le reste ecrit\] apres \[1 ligne, versement refuse, lien refuse, le reste ecrit\]/.test(avant172.message),
+      /annuler regle avant \[1 ligne, status annulé\] apres \[1 ligne, status confirmé\]/.test(avant172.message),
+      /annuler_une_seance avant \[regle annule, libre annule\] apres \[regle regle_d_avance, libre annule\]/.test(avant172.message), avant172.reste, avant172.posee]);
+  dit('... l equipe et le serveur ecrivent comme avant ; rejoue APRES 0172, il tient encore', [true, true, true, 0, true],
+    [/equipe : retirer avant \[1 ligne, versement retire, lien retire, le reste ecrit\] apres \[1 ligne, versement retire, lien retire, le reste ecrit\]/.test(avant172.message),
+      /serveur : retirer avant \[1 ligne, versement retire, lien retire, le reste ecrit\] apres \[1 ligne, versement retire, lien retire, le reste ecrit\]/.test(avant172.message),
+      /^ESSAI 0172 : TIENT \|/.test(apres172.message), apres172.reste, apres172.posee]);
+  /* Le jumeau : la lecture de la base, cas par cas, contre argentVerseSurLeRdv. */
+  const jumeau = new PGlite();
+  await jumeau.exec(MAQUETTE_0172);
+  await jumeau.exec(MIG_0172);
+  const ECHANTILLONS_172: Partial<RdvDeLaFin>[] = [...ARGENTS, { payments: [{ amountXof: '2500' as never }, {}] }, { paidXof: '700' as never }];
+  const lusEnBase: number[] = [];
+  for (const e of ECHANTILLONS_172) lusEnBase.push(Number((await jumeau.query('select public.argent_verse_sur_le_rdv($1::jsonb) as a', [JSON.stringify(e)])).rows[0].a));
+  await jumeau.close();
+  dit('0172 : la base lit l argent verse comme Ma Couronne et les fonctions (argentVerseSurLeRdv), cas par cas', ECHANTILLONS_172.map((e) => argentVerseSurLeRdv(e)), lusEnBase);
+  const LISTE_172 = "'termineParElle', 'honoreAuReglement',\n                                 'payments', 'lienDeReglement', 'lienDuFoyer'] loop";
+  const cassees172 = [
+    await joue172(casse172(`${LISTE_172}\n        new.data := new.data - cle;\n        if old.data ? cle then`, `${LISTE_172.replace("'payments', ", '')}\n        new.data := new.data - cle;\n        if old.data ? cle then`)),
+    await joue172(casse172(`'confirmeeParLaClienteLe',\n                                 ${LISTE_172}`, `'confirmeeParLaClienteLe',\n                                 ${LISTE_172.replace(", 'lienDeReglement'", '')}`)),
+    await joue172(casse172("         and round(public.argent_verse_sur_le_rdv(old.data)) > 0 then\n        new.data := jsonb_set(new.data, '{status}', coalesce(old.data -> 'status', '\"en attente\"'::jsonb));\n      end if;\n", "         and false then\n      end if;\n")),
+    await joue172(casse172("  if round(public.argent_verse_sur_le_rdv(v_a.data)) > 0 then\n    return jsonb_build_object('ok', false, 'raison', 'regle_d_avance');\n  end if;\n", '')),
+  ];
+  dit('... et une 0172 qui oublie le versement (a la modification), le lien (a la creation), le refus de la ligne ou celui d annuler_une_seance lui fait dire NE TIENT PAS, sans rien laisser',
+    [[true, 0], [true, 0], [true, 0], [true, 0]], cassees172.map((c) => [/^ESSAI 0172 : NE TIENT PAS/.test(c.message), c.reste]));
+}
+
+console.log(ko ?`\n${ko} echec(s) sur ${n}.` : `\nTout tient (${n} controles).`);
 if (ko) process.exit(1);

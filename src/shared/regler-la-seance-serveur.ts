@@ -25,6 +25,9 @@ export type PageDuLien = {
   tetes?: { prenom: string; jour: string; lignes: { label: string; montantXof: number }[]; resteXof: number }[];
   /** Elle a terminé elle-même (6 novembre 2026) : sa pièce se prépare au Trône, la page attend. */
   enPreparation?: boolean;
+  /** Régler avant et après (7 novembre 2026) : un rendez-vous SANS PIÈCE que
+      Ma Couronne a ouvert, réglé d'avance ou après coup, sur lui-même. */
+  sansPiece?: 'avance' | 'apres';
 };
 
 export type Reponse = { ok?: boolean; error?: string; version?: string; page?: PageDuLien; [k: string]: unknown };

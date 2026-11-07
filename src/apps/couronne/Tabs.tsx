@@ -1,6 +1,7 @@
 import { asset } from '../../shared/asset';
 import FermetureAnnoncee from './FermetureAnnoncee';
 import RituelEnCours from './RituelEnCours';
+import ARegler from './ReglerAvantApres';
 import { TexteFon } from '../../ds/fon';
 import { EntreDeux } from './EntreDeux';
 import { MonDiagnosticPhoto } from './MonDiagnosticPhoto';
@@ -635,6 +636,7 @@ export function HomeTab({
             {t('Mes rendez-vous')}
           </button>
         </div>
+        <ARegler nomDuRituel={(a) => serviceNames(a, services)} />
     </>
   );
   const LE_TABLEAU_DE_BORD = abonnee && releveA && abonneeA ? (

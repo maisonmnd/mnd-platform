@@ -56,6 +56,18 @@ const jetonDeLAdresse = (): string => (new URLSearchParams(window.location.searc
    (`retour=couronne`), elle y revient d'un toucher une fois le règlement fait. */
 const PAS_ENCORE_PRETE = 'Votre montant n’est pas encore prêt : l’équipe le prépare. Réessayez dans un instant, ou réglez au comptoir.';
 const retourDemande = (): boolean => new URLSearchParams(window.location.search).get('retour') === 'couronne';
+/* RÉGLER AVANT ET APRÈS (7 novembre 2026, « pourquoi je ne peux pas faire un
+   paiement d'un RDV sur ma couronne à n'importe quel moment ? ») : un
+   rendez-vous sans pièce, ouvert depuis Ma Couronne, se règle d'avance ou
+   après coup (`sansPiece`). Le montant vient de la fonction ; aucun merci ici
+   (il se donne le jour du rituel, sur sa pièce) ; et la page ne promet pas de
+   reçu WhatsApp : le versement est inscrit sur son rendez-vous, la facture se
+   fait au Trône. */
+const SUR_LA_PAGE = { avance: 'Régler d’avance', apres: 'Régler la séance' } as const;
+const APRES_LE_REGLEMENT = {
+  avance: 'C’est inscrit sur votre rendez-vous, qui reste confirmé. Si l’équipe ajoute un soin pendant la séance, il se règle en plus le jour même.',
+  apres: 'C’est inscrit sur votre rendez-vous : la Maison est prévenue.',
+} as const;
 
 export default function App() {
   const jeton = jetonDeLAdresse();
@@ -173,8 +185,8 @@ export default function App() {
         const p = ecran.page;
         const total = p.resteXof + (p.pourboire ? pourboire : 0);
         return (
-          <section className="rg-bloc" aria-label={p.tetes ? 'Régler les séances' : 'Régler la séance'}>
-            <p className="rg-sur">{p.tetes ? 'Régler les séances' : 'Régler la séance'}</p>
+          <section className="rg-bloc" aria-label={p.sansPiece ? SUR_LA_PAGE[p.sansPiece] : p.tetes ? 'Régler les séances' : 'Régler la séance'}>
+            <p className="rg-sur">{p.sansPiece ? SUR_LA_PAGE[p.sansPiece] : p.tetes ? 'Régler les séances' : 'Régler la séance'}</p>
             {p.tetes
               ? <h1 className="rg-titre">Les séances {desTetes(p.tetes.map((x) => x.prenom))}{p.jour ? `, ${jourDit(p.jour)}` : ''}.</h1>
               : <h1 className="rg-titre">La séance {deLaCliente(p.prenom)}{p.jour ? `, ${jourDit(p.jour)}` : ''}.</h1>}
@@ -187,6 +199,7 @@ export default function App() {
               {p.recuXof > 0 && <div className="rg-ligne rg-doux"><span>Déjà reçu</span><span>− {francs(p.recuXof)}</span></div>}
               <div className="rg-ligne rg-fort"><span>Reste à régler</span><span>{francs(p.resteXof)}</span></div>
             </div>
+            {p.sansPiece === 'avance' && <p className="rg-doux rg-petit">Le rendez-vous reste confirmé. Si l’équipe ajoute un soin pendant la séance, il se règle en plus le jour même.</p>}
 
             {p.pourboire && (
               <div className="rg-merci">
@@ -243,12 +256,14 @@ export default function App() {
 
       {ecran.k === 'reglee' && (
         <section className="rg-bloc" aria-label="Séance réglée">
-          <p className="rg-sur">{ecran.page.tetes ? 'Régler les séances' : 'Régler la séance'}</p>
+          <p className="rg-sur">{ecran.page.sansPiece ? SUR_LA_PAGE[ecran.page.sansPiece] : ecran.page.tetes ? 'Régler les séances' : 'Régler la séance'}</p>
           <div className="rg-ok">
             <strong>{ecran.paye ? `Réglé, ${francs(ecran.paye)}.` : 'Déjà réglée.'}{ecran.page.prenom ? ` Merci, ${ecran.page.prenom}.` : ' Merci.'}</strong>
-            <span>{ecran.page.tetes
-              ? (ecran.paye ? 'Vos reçus arrivent sur WhatsApp, chaque facture jointe.' : 'Il n’y a plus rien à régler pour ces séances.')
-              : (ecran.paye ? 'Votre reçu arrive sur WhatsApp, la facture jointe.' : 'Il n’y a plus rien à régler pour cette séance.')}</span>
+            <span>{ecran.page.sansPiece
+              ? (ecran.paye ? APRES_LE_REGLEMENT[ecran.page.sansPiece] : 'Il n’y a plus rien à régler pour cette séance.')
+              : ecran.page.tetes
+                ? (ecran.paye ? 'Vos reçus arrivent sur WhatsApp, chaque facture jointe.' : 'Il n’y a plus rien à régler pour ces séances.')
+                : (ecran.paye ? 'Votre reçu arrive sur WhatsApp, la facture jointe.' : 'Il n’y a plus rien à régler pour cette séance.')}</span>
             {/* Elle avait terminé elle-même : réglé, le rendez-vous est honoré (6 novembre 2026). */}
             {ecran.honore && <span>Vous pouvez partir : la Maison est prévenue.</span>}
           </div>

@@ -262,7 +262,7 @@ const remplis = () => {
 };
 remplis();
 const sante = await appelle();
-dit('GET : la version et les secrets en booleens, sans valeur', ['2026-11-06-a', { public: true, private: true, secret: true, service: true }], [sante.corps.version, sante.corps.secrets]);
+dit('GET : la version et les secrets en booleens, sans valeur', ['2026-11-07-c', { public: true, private: true, secret: true, service: true }], [sante.corps.version, sante.corps.secrets]);
 const lu = await appelle({ action: 'lire', jeton: j });
 dit('lire : le juste reste et le prenom, et la premiere ouverture se note sur le rendez-vous',
   [200, 'a-regler', 23500, 'Awa', true], [lu.status, lu.corps.page?.etat, lu.corps.page?.resteXof, lu.corps.page?.prenom, !!db.appointments[0].data.lienDeReglement.ouvertLe]);

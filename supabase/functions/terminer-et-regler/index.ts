@@ -42,6 +42,18 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  * (billet-regle-pur.ts). Jamais la caisse, la main, le thème, un
  * identifiant. Le site construit le PDF lui-même, avec la règle du Trône.
  * « Mes RDV » remonte douze mois (choix de Yéman, 7 novembre 2026).
+ *   avance    — RÉGLER D'AVANCE (7 novembre 2026, « Régler avant et après ») :
+ *               Ma Couronne, par son compte, sur SON rendez-vous ou celui
+ *               d'une tête qu'elle porte (un mineur de sa famille, la règle
+ *               `est_ma_tete`), de sa réservation jusqu'à l'heure du rituel.
+ *               La règle (⟨regler-avant-apres⟩) juge : prix figé, reste connu,
+ *               pas de formule, pas « Passe au comptoir », pas d'acompte à
+ *               vérifier, « confirmé ». Ouverte : le lien de règlement se pose
+ *               ou se relit, et son adresse revient avec le reste du serveur.
+ *               Le rendez-vous ne bouge pas : il reste « confirmé ».
+ *   apres     — RÉGLER APRÈS (7 novembre 2026) : la même porte, dès le
+ *               lendemain du rituel, sans limite de temps, sur un rendez-vous
+ *               qui doit encore (sa pièce, sinon son prix figé). Jamais honoré.
  *
  * LA PIÈCE ne s'écrit pas ici : le serveur ne lit pas le tarif d'une tête.
  * Un poste du Trône ouvert l'écrit dès la marque (la main du Trône, comme
@@ -57,7 +69,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  * --commit <sha> --jwt non`. Vérifier : un GET rend sa version.
  */
 
-const VERSION = '2026-11-07-b · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois';
+const VERSION = '2026-11-07-c · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -315,7 +327,13 @@ export function honneurAuReglement(o: {
 }
 /* ⟨/honneur-au-reglement⟩ */
 
-/* ⟨terminer-et-regler⟩ */
+/* ⟨reste-du-rdv⟩ */
+/* CE QUE LE RENDEZ-VOUS ET SA PIÈCE DISENT DE L'ARGENT. Sorti de
+   ⟨terminer-et-regler⟩ le 7 novembre 2026, mot pour mot, pour servir aussi à
+   ⟨regler-avant-apres⟩ : régler d'avance ou après coup se juge sur le même
+   reste que la porte de la fin. Recopié dans terminer-et-regler et dans
+   regler-la-seance. */
+
 /** Le rendez-vous tel que la règle le lit. */
 export type RdvDeLaFin = {
   id: string; date?: string; time?: string; status?: string; clientId?: string; numeroAPrevenir?: string;
@@ -326,6 +344,8 @@ export type RdvDeLaFin = {
   termineParElle?: MarqueDeLaFin | null; honoreAuReglement?: MarqueDeLHonneur | null;
   lienDeReglement?: { jeton?: string; creeLe?: string } | null;
   lienDuFoyer?: { jeton?: string; apptIds?: string[]; creeLe?: string } | null;
+  /** Elle n'est pas venue (le Trône le marque) : rien ne se règle après coup. */
+  absente?: unknown;
 };
 
 /** L'instant du rituel, à l'heure de Cotonou ; NaN si la date ou l'heure ne se lisent pas. */
@@ -387,7 +407,9 @@ export function pieceDuRdvDeLaFin<P extends PieceDeLaFin>(pieces: readonly P[], 
   if (!siennes.length) return null;
   return [...siennes].sort((a, b) => (resteDeLaPieceDeLaFin(b) > 0 ? 1 : 0) - (resteDeLaPieceDeLaFin(a) > 0 ? 1 : 0) || String(b.date ?? '').localeCompare(String(a.date ?? '')))[0];
 }
+/* ⟨/reste-du-rdv⟩ */
 
+/* ⟨terminer-et-regler⟩ */
 /** Pourquoi la porte est ouverte, ou fermée. */
 export type RaisonDeLaPorte =
   | 'ouverte' | 'introuvable' | 'annule' | 'deja-regle' | 'rien-a-regler' | 'clos' | 'pas-confirme'
@@ -826,6 +848,209 @@ export function factureDuBillet(o: {
   return { piece, cliente, maison, regleLe: regleLeDuBillet(p) };
 }
 /* ⟨/billet-regle⟩ */
+/* ⟨regler-avant-apres⟩ */
+/* RÉGLER AVANT ET APRÈS, DANS MA COURONNE — 7 novembre 2026.
+   « Pourquoi je ne peux pas faire un paiement d'un RDV sur ma couronne à
+   n'importe quel moment ? » (Yéman, 7 h 45). Tranché au sélecteur : « Avant
+   et après ».
+
+   TROIS MOMENTS, SANS CHEVAUCHEMENT (`momentDuReglement`) :
+   · D'AVANCE, de sa réservation jusqu'à l'heure du rituel : « Régler
+     d'avance » le prix connu. Le rendez-vous reste « confirmé » : il n'est
+     honoré que quand elle vient. Un soin ajouté pendant la séance se règle
+     en plus le jour même (la porte de la fin relit le reste).
+   · LE JOUR MÊME, dès l'heure : la porte de la fin (⟨terminer-et-regler⟩),
+     qui ne change pas.
+   · APRÈS, dès le lendemain : un rendez-vous passé qui doit encore reste
+     payable, sans limite de temps. Régler après ne pose JAMAIS « honoré » :
+     on règle la pièce (ou, sans pièce, le rendez-vous) ; l'honneur reste au
+     comptoir, ou à la règle de la fin quand elle avait déclaré avoir terminé.
+
+   LE MONTANT VIENT TOUJOURS DU SERVEUR : le reste de SA pièce quand elle
+   existe (elle fait foi), sinon le prix figé moins l'argent déjà reçu
+   (⟨reste-du-rdv⟩). Sans pièce, le versement s'inscrit sur le rendez-vous
+   (kkia-…, comme tout versement en ligne), sans nommer de pièce : la pièce du
+   jour venu le reprend en « Acompte », à sa date, comme la Caisse le fait
+   pour l'argent reçu au Carnet. Les noms portent « AvantApres ». */
+
+/** Le moment du règlement : d'avance (avant l'heure du rituel), le jour même
+    (dès l'heure, jusqu'à minuit à Cotonou), ou après (un jour d'après). Rien
+    quand la date ou l'heure ne se lisent pas. */
+export type MomentDuReglement = 'avance' | 'jour-meme' | 'apres';
+export function momentDuReglement(r: Pick<RdvDeLaFin, 'date' | 'time'>, maintenantMs: number): MomentDuReglement | null {
+  const jour = String(r.date ?? '').slice(0, 10);
+  const debut = instantDuRituel(jour, r.time);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(jour) || !Number.isFinite(debut)) return null;
+  if (maintenantMs < debut) return 'avance';
+  return jour < jourDeLaFin(maintenantMs) ? 'apres' : 'jour-meme';
+}
+
+/** Pourquoi « Régler d'avance » ou « Régler » (après) est ouvert, ou fermé. */
+export type RaisonAvantApres =
+  | 'ouverte' | 'introuvable' | 'annule' | 'pas-le-moment' | 'couvert' | 'absente' | 'comptoir'
+  | 'pas-confirme' | 'clos' | 'en-preparation' | 'sans-prix' | 'deja-regle' | 'rien-a-regler';
+/** `resteXof` : ce qu'elle réglera, quand la porte est ouverte (zéro quand
+    tout est réglé) ; `surLaPiece` : il se règle sur sa pièce, sinon sur le
+    rendez-vous. */
+export type PorteAvantApres = { ouverte: boolean; raison: RaisonAvantApres; resteXof: number | null; surLaPiece: boolean };
+
+/** LA PORTE D'AVANT ET D'APRÈS. Fermée, dans cet ordre : un annulé ; hors de
+    son moment ; couvert par une formule ; absente ; « Passe au comptoir » sur
+    sa fiche, ou un acompte demandé que la Maison n'a pas vérifié (le juste
+    reste ne se connaît pas). Avec une pièce : son reste fait foi (soldée,
+    « déjà réglé ») ; le rendez-vous doit être confirmé ou honoré. Sans pièce :
+    seulement un rendez-vous « confirmé » (un honoré sans pièce a été clos au
+    comptoir), dont elle n'a pas déclaré la fin (sa pièce se prépare au
+    Trône), au prix FIGÉ ; sans prix figé, rien ne se devine. */
+export function porteAvantApres(o: {
+  quand: 'avance' | 'apres';
+  rdv: RdvDeLaFin | null;
+  maintenantMs: number;
+  passeAuComptoir?: boolean;
+  piece?: { resteXof: number } | null;
+}): PorteAvantApres {
+  const ferme = (raison: RaisonAvantApres, resteXof: number | null = null): PorteAvantApres => ({ ouverte: false, raison, resteXof, surLaPiece: false });
+  const r = o.rdv;
+  if (!r) return ferme('introuvable');
+  if (r.status === 'annulé') return ferme('annule');
+  if (momentDuReglement(r, o.maintenantMs) !== o.quand) return ferme('pas-le-moment');
+  if (r.coveredBySub) return ferme('couvert');
+  if (r.absente) return ferme('absente');
+  if (o.passeAuComptoir === true || acompteAVerifier(r) > 0) return ferme('comptoir');
+  if (o.piece) {
+    const reste = Number(o.piece.resteXof);
+    if (!Number.isFinite(reste)) return ferme('clos');
+    if (Math.round(reste) <= 0) return ferme('deja-regle', 0);
+    if (r.status !== 'confirmé' && r.status !== 'honoré') return ferme('pas-confirme');
+    return { ouverte: true, raison: 'ouverte', resteXof: Math.round(reste), surLaPiece: true };
+  }
+  if (r.status === 'honoré') return ferme('clos');
+  if (r.status !== 'confirmé') return ferme('pas-confirme');
+  if (r.termineParElle?.le) return ferme('en-preparation');
+  const reste = resteConnuDeLaFin(r);
+  if (reste === null) return ferme('sans-prix');
+  if (Math.round(reste) <= 0) return ferme(argentRecuDeLaFin(r) > 0 ? 'deja-regle' : 'rien-a-regler', 0);
+  return { ouverte: true, raison: 'ouverte', resteXof: Math.round(reste), surLaPiece: false };
+}
+
+/** SANS PIÈCE, SEULEMENT CE QUE MA COURONNE A OUVERT. La page « Régler » ne
+    règle un rendez-vous sans pièce (sur lui-même) que si son lien a été
+    ouvert depuis Ma Couronne (`depuisLaCouronne`, posé par la fonction
+    terminer-et-regler, que la base garde, 0172). Un lien posé au Trône
+    (« Terminer la séance », « Envoyer le lien ») attend sa pièce comme avant :
+    une cliente qui l'ouvre dans les secondes où la pièce voyage encore ne
+    règle pas deux fois. */
+export const ouvertDepuisLaCouronne = (r: { lienDeReglement?: { depuisLaCouronne?: { le?: string } | null } | null } | null): boolean =>
+  !!r?.lienDeReglement?.depuisLaCouronne?.le;
+
+/** L'ARGENT VERSÉ SUR LE RENDEZ-VOUS LUI-MÊME : son journal, sinon `paidXof`,
+    sans l'acompte (la lecture d'`argentRecuDeLaFin`, l'acompte en moins). La
+    base porte la même lecture (`argent_verse_sur_le_rdv`, 0172). */
+export const argentVerseSurLeRdv = (a: Pick<RdvDeLaFin, 'payments' | 'paidXof'>): number =>
+  (a.payments && a.payments.length > 0 ? a.payments.reduce((s, p) => s + (Number(p.amountXof) || 0), 0) : Number(a.paidXof) || 0);
+
+/** RÉGLÉ D'AVANCE, IL NE S'ANNULE PAS PAR ELLE (7 novembre 2026). Un
+    rendez-vous qui porte de l'argent versé (en ligne ou au Carnet) ne
+    s'annule pas depuis Ma Couronne : aucun remboursement ne part tout seul.
+    Elle écrit à la Maison, qui annule au Trône et décide. L'acompte seul ne
+    change rien (il reste acquis, comme avant). Déplacer, lui, reste permis :
+    le versement suit le rendez-vous. */
+export const annulationParElle = (r: Pick<RdvDeLaFin, 'payments' | 'paidXof'> | null): 'permise' | 'ecrire-a-la-maison' =>
+  (r && Math.round(argentVerseSurLeRdv(r)) > 0 ? 'ecrire-a-la-maison' : 'permise');
+
+/** UNE TÊTE DE SON FOYER : la fiche d'un mineur de la famille dont elle est
+    la payeuse, jamais archivée. La règle de la base (`est_ma_tete`, 0036),
+    qui ouvre déjà ces rendez-vous dans Ma Couronne : moins de dix-huit ans
+    révolus, une date de naissance lisible (la minorité ne se présume pas). */
+export function teteDuCompte(o: {
+  parents: readonly string[];
+  tete: { familyId?: unknown; birthday?: unknown; archived?: unknown } | null;
+  payeur: unknown;
+  aujourdhui: string;
+}): boolean {
+  const t = o.tete;
+  const payeur = String(o.payeur ?? '');
+  const naissance = String(t?.birthday ?? '').slice(0, 10);
+  const jour = /^(\d{4})-(\d{2}-\d{2})$/.exec(String(o.aujourdhui ?? '').slice(0, 10));
+  if (!t || !String(t.familyId ?? '') || t.archived === true || t.archived === 'true') return false;
+  if (!payeur || !o.parents.includes(payeur) || !jour || !/^\d{4}-\d{2}-\d{2}$/.test(naissance)) return false;
+  return naissance > `${Number(jour[1]) - 18}-${jour[2]}`;
+}
+
+/** LE VERSEMENT POSÉ SUR LE RENDEZ-VOUS, quand il n'a pas de pièce : celui de
+    la transaction vérifiée chez KkiaPay (kkia-…), à sa date, sans nommer de
+    pièce (la pièce du jour venu le reprend en « Acompte » ; un versement qui
+    nommerait une pièce ferait croire au Trône qu'elle existe), `paidXof` à
+    jour, et le lien qui dit quand il a servi. Un rejeu ne double rien. */
+export function versementSurLeRdv<R extends Pick<RdvDeLaFin, 'payments' | 'paidXof' | 'lienDeReglement'>>(
+  r: R,
+  v: { id: string; amountXof: number; date: string; time?: string; method?: string; cashbox?: string; note?: string },
+  quand: 'avance' | 'apres',
+): R {
+  if ((r.payments ?? []).some((x) => (x as { id?: string }).id === v.id)) return r;
+  const montant = Math.round(Number(v.amountXof) || 0);
+  const dit = quand === 'avance' ? 'D’avance' : 'Après le rituel';
+  return {
+    ...r,
+    paidXof: Math.round(argentVerseSurLeRdv(r)) + montant,
+    payments: [...(r.payments ?? []), { id: v.id, amountXof: montant, date: v.date, method: v.method, cashbox: v.cashbox, note: v.note ? `${dit} · ${v.note}` : dit }],
+    ...(r.lienDeReglement ? { lienDeReglement: { ...r.lienDeReglement, payeLe: `${v.date}T${v.time ?? '00:00'}` } } : {}),
+  } as R;
+}
+
+/** La date d'une page ou d'une notification : « 12 novembre 2026 », l'année toujours. */
+const MOIS_AVANT_APRES = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+export function jourDitAvantApres(iso: unknown): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso ?? ''));
+  if (!m || Number(m[2]) < 1 || Number(m[2]) > 12) return '';
+  return `${Number(m[3]) === 1 ? '1er' : Number(m[3])} ${MOIS_AVANT_APRES[Number(m[2]) - 1]} ${m[1]}`;
+}
+const francsAvantApres = (xof: number): string => `${String(Math.round(xof)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} F`;
+
+/** LA PAGE « RÉGLER » D'UN RENDEZ-VOUS SANS PIÈCE (d'avance, ou passé au prix
+    figé) : la forme de la page qui existe, le total annoncé, ce qui est déjà
+    reçu, le reste. Aucun merci pour l'équipe ici : il se donne le jour du
+    rituel, sur sa pièce. Aucun nom de maître : la Maison choisit qui
+    s'occupe d'elle. Tout réglé : « réglée ». */
+export function pageSansPiece(o: {
+  rdv: RdvDeLaFin; porte: PorteAvantApres; quand: 'avance' | 'apres';
+  prenom: string; reference: string; branchId?: string;
+}) {
+  const prix = prixFigeDeLaFin(o.rdv) ?? 0;
+  const reste = o.porte.ouverte ? Math.max(0, Math.round(o.porte.resteXof ?? 0)) : 0;
+  return {
+    etat: (o.porte.ouverte && reste > 0 ? 'a-regler' : 'reglee') as 'a-regler' | 'reglee',
+    prenom: String(o.prenom ?? '').trim().split(/\s+/)[0] ?? '',
+    maitre: '',
+    jour: String(o.rdv.date ?? '').slice(0, 10),
+    lignes: [{ label: 'Total annoncé', montantXof: prix }],
+    totalXof: prix,
+    recuXof: Math.round(argentRecuDeLaFin(o.rdv)),
+    resteXof: reste,
+    pourboire: false,
+    reference: o.reference,
+    branchId: o.branchId ?? '',
+    sansPiece: o.quand,
+  };
+}
+
+/** LE PERSONNEL L'APPREND, une fois par versement : le prénom, le rituel, le
+    montant ; et ce qui dépasse le reste, gardé au registre, à rapprocher.
+    Aucun pronom : la civilité ne se suppose pas. */
+export function notificationAvantApres(o: { prenom: string; quand: 'avance' | 'apres'; jour: string; heure?: string; montantXof: number; enPlusXof: number }): { titre: string; corps: string; url: string } {
+  const nom = String(o.prenom ?? '').trim() || 'Une cliente';
+  const h = /^(\d{1,2}):(\d{2})/.exec(String(o.heure ?? ''));
+  const heure = h ? (h[2] === '00' ? ` à ${Number(h[1])} h` : ` à ${Number(h[1])} h ${h[2]}`) : '';
+  const plus = o.enPlusXof > 0 ? ` ${francsAvantApres(o.enPlusXof)} de plus, gardés au registre : à rapprocher.` : '';
+  return {
+    titre: o.quand === 'avance' ? `${nom} a réglé d’avance` : `${nom} a réglé un rituel passé`,
+    corps: `Rituel du ${jourDitAvantApres(o.jour)}${heure} : ${francsAvantApres(o.montantXof)} en ligne, inscrits sur le rendez-vous.`
+      + (o.quand === 'avance' ? ' Le rendez-vous reste confirmé ; le jour venu, ce versement compte à sa pièce.' : ' La pièce se fait au Trône, le versement y compte.')
+      + plus,
+    url: '/trone/#/carnet',
+  };
+}
+/* ⟨/regler-avant-apres⟩ */
 
 const SECRET_DES_LIENS = (Deno.env.get(NOM_DU_SECRET_DES_LIENS) ?? '').trim();
 
@@ -1180,6 +1405,60 @@ async function terminer(req: Request, b: any) {
   });
 }
 
+/* ══ avance, apres : RÉGLER AVANT ET APRÈS, depuis Ma Couronne ═══════════
+   7 novembre 2026. « Pourquoi je ne peux pas faire un paiement d'un RDV sur
+   ma couronne à n'importe quel moment ? » (Yéman). Par son compte
+   seulement : SON rendez-vous, ou celui d'une tête qu'elle porte (le compte
+   de Ma Couronne les lit déjà, la règle `est_ma_tete`). La règle juge la
+   porte (⟨regler-avant-apres⟩) ; le montant est le reste du serveur ; le
+   lien est celui du règlement qui existe (la page « Régler »,
+   regler-la-seance), posé une fois et gardé. Rien d'autre ne s'écrit : ni
+   marque, ni statut ; l'équipe l'apprend au règlement. */
+
+/** Une tête qu'elle porte : un mineur de la famille dont elle est la payeuse, jamais archivé. */
+async function estUneTeteDuCompte(parents: string[], clientId: string): Promise<boolean> {
+  if (!/^[A-Za-z0-9_-]{1,120}$/.test(clientId)) return false;
+  const { data: tete } = await admin.from('clients').select('data').eq('id', clientId).maybeSingle();
+  const famille = String(tete?.data?.familyId ?? '');
+  if (!famille) return false;
+  const { data: fam } = await admin.from('families').select('data').eq('id', famille).maybeSingle();
+  return teteDuCompte({ parents, tete: tete?.data ?? null, payeur: fam?.data?.payerClientId, aujourdhui: jourDeLaFin(Date.now()) });
+}
+
+async function reglerDeMaCouronne(req: Request, b: any, quand: 'avance' | 'apres') {
+  if (!(await permis(ipOf(req), 'fin-regler', 20))) return json({ ok: false, error: 'trop' }, 429);
+  const uid = await compteDeLaRequete(req);
+  const ficheId = uid ? await ficheDuCompte(uid) : null;
+  if (!uid || !ficheId) return json({ ok: false, error: 'compte' }, 401);
+  const ligne = await leRdv(String(b.rdvId ?? ''));
+  const clientId = String(ligne?.data?.clientId ?? '');
+  /* Le rendez-vous d'une autre se dit introuvable, comme celui qui n'existe pas. */
+  if (!ligne || !clientId || (clientId !== ficheId && !(await estUneTeteDuCompte([ficheId, uid], clientId)))) {
+    return json({ ok: false, error: 'introuvable' }, 404);
+  }
+  const maintenant = Date.now();
+  const rdv = rdvLu(ligne);
+  const [fiche, reste] = await Promise.all([laFiche(clientId), leResteDeLaPiece(ligne.id)]);
+  const laPorte = porteAvantApres({ quand, rdv, maintenantMs: maintenant, passeAuComptoir: fiche?.passeAuComptoir === true, piece: reste === null ? null : { resteXof: reste } });
+  if (!laPorte.ouverte) return json({ ok: true, etat: laPorte.raison, quand });
+  /* Le lien : celui que le rendez-vous porte déjà (un second toucher, le Trône), sinon un neuf. */
+  const lien = lienDeLaFin({ rdvs: [rdv], aleas: crypto.getRandomValues(new Uint32Array(LONGUEUR_DU_JETON_DE_LA_FIN)) });
+  if (!lien) return json({ ok: false, error: 'lien' }, 500);
+  const le = new Date(maintenant).toISOString();
+  /* LA MARQUE `depuisLaCouronne` : la page « Régler » ne règle un rendez-vous
+     sans pièce que si Ma Couronne l'a ouvert (ouvertDepuisLaCouronne). Le
+     jeton d'avant se garde ; la marque se pose une fois. */
+  const ecrit = await ecrisLeRdv(ligne.id, (d) => {
+    const garde = estUnJetonDeLaFin(d.lienDeReglement?.jeton);
+    if (garde && d.lienDeReglement?.depuisLaCouronne?.le) return null;
+    return { ...d, lienDeReglement: { ...(d.lienDeReglement ?? {}), ...(garde ? {} : { jeton: lien.jeton, creeLe: le }), depuisLaCouronne: { quand, le } } };
+  });
+  if (ecrit === null) return json({ ok: false, error: 'ecriture' }, 409);
+  const jeton = String(ecrit.lienDeReglement?.jeton ?? '');
+  if (!estUnJetonDeLaFin(jeton)) return json({ ok: false, error: 'lien' }, 500);
+  return json({ ok: true, etat: 'a-regler', quand, jeton, adresse: adresseDuReglementDeLaFin(jeton), resteXof: laPorte.resteXof, surLaPiece: laPorte.surLaPiece });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method === 'GET') {
@@ -1190,6 +1469,7 @@ Deno.serve(async (req) => {
     if (b.action === 'retrouver') return await retrouver(req, b);
     if (b.action === 'billet') return await billet(req, b);
     if (b.action === 'terminer') return await terminer(req, b);
+    if (b.action === 'avance' || b.action === 'apres') return await reglerDeMaCouronne(req, b, b.action);
     return json({ ok: false, error: 'action' }, 400);
   } catch (e) {
     console.error('terminer-et-regler:', String((e as Error)?.message ?? e).slice(0, 200));

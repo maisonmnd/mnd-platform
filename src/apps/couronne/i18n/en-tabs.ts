@@ -402,4 +402,20 @@ export const EN_TABS: Record<string, string> = {
   'Le règlement ne répond pas. Réessayez dans un moment, ou passez au comptoir.': 'Payment is not responding. Try again in a moment, or stop at the counter.',
   'Les produits': 'Products',
   'Les produits Maison MND, chez vous.': 'Maison MND products, at home.',
+  // Régler avant et après (7 novembre 2026) : « Régler d'avance » sur la fiche d'un
+  // rendez-vous à venir, « À régler » sur l'accueil, l'annulation d'un rendez-vous
+  // réglé d'avance. À relire par Yéman avec le reste de l'anglais (ANGLAIS_OUVERT).
+  'Réglé d’avance': 'Paid in advance',
+  'Déjà réglé d’avance': 'Already paid in advance',
+  'Régler d’avance · {montant}': 'Pay in advance · {montant}',
+  'Le rendez-vous reste confirmé. Si l’équipe ajoute un soin pendant la séance, il se règle en plus le jour même.': 'Your appointment stays confirmed. If the team adds a treatment during the session, it is paid on top, on the day.',
+  'Un rituel passé qui doit encore se règle ici, quand vous voulez.': 'A past ritual that is still due can be paid here, whenever you like.',
+  'Ce rendez-vous est réglé d’avance : écrivez à la Maison pour l’annuler.': 'This appointment is paid in advance: write to the Maison to cancel it.',
+  'Ce rendez-vous est réglé d’avance.': 'This appointment is paid in advance.',
+  'Pour l’annuler, écrivez à la Maison : elle s’en occupe avec vous, et votre règlement avec.': 'To cancel it, write to the Maison: the team will handle it with you, payment included.',
+  'Le montant de ce rituel n’est pas encore fixé : la Maison vous le dira.': 'The amount for this ritual is not set yet: the Maison will tell you.',
+  'La Maison prépare votre montant. Réessayez dans un instant.': 'The Maison is preparing your amount. Try again in a moment.',
+  'Le règlement en ligne n’est pas ouvert pour ce rituel. Écrivez à la Maison.': 'Online payment is not open for this ritual. Write to the Maison.',
+  'Beaucoup de demandes d’un coup. Réessayez dans un instant.': 'Too many requests at once. Try again in a moment.',
+  'Le règlement ne répond pas. Réessayez dans un moment.': 'Payment is not responding. Try again in a moment.',
 };

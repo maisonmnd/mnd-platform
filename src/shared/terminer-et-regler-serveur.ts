@@ -14,7 +14,46 @@ export type ReponseDeLaFin = {
   /** « a-regler » quand la porte s'est ouverte ; sinon pourquoi elle est restée fermée. */
   etat?: string;
   jeton?: string; adresse?: string; resteXof?: number | null; piecePrete?: boolean;
+  /** Régler avant et après (7 novembre 2026) : le moment, et si le reste se règle sur sa pièce. */
+  quand?: 'avance' | 'apres'; surLaPiece?: boolean;
 };
+
+/* RÉGLER AVANT ET APRÈS — 7 novembre 2026. « Pourquoi je ne peux pas faire
+   un paiement d'un RDV sur ma couronne à n'importe quel moment ? » (Yéman).
+   Ma Couronne demande à la fonction le lien de règlement de SON rendez-vous
+   (ou celui d'une tête qu'elle porte), d'avance ou après coup ; la fonction
+   juge la porte, dit le reste et rend le jeton de la page « Régler ». Le
+   montant se décide au serveur, jamais ici. */
+export async function regleDepuisMaCouronne(rdvId: string, quand: 'avance' | 'apres', jetonDeSession: string): Promise<ReponseDeLaFin> {
+  if (!URL_PROJET) return { error: 'hors_ligne' };
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return { error: 'hors_ligne' };
+  if (!jetonDeSession) return { error: 'compte' };
+  try {
+    const r = await fetch(`${URL_PROJET}/functions/v1/${FONCTION_DE_LA_FIN}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: CLE_ANON, Authorization: `Bearer ${jetonDeSession}` },
+      body: JSON.stringify({ action: quand, rdvId }),
+    });
+    return (await r.json().catch(() => ({ error: `http_${r.status}` }))) as ReponseDeLaFin;
+  } catch {
+    return { error: 'reseau' };
+  }
+}
+
+/** Ce qu'elle lit quand « Régler d'avance » ou « Régler » reste fermé : jamais
+    un code. Elle n'est pas à la Maison : aucune phrase ne l'envoie au comptoir,
+    sauf celle de « Passe au comptoir », qui le veut. La phrase française est la
+    clé de `t()` dans Ma Couronne. */
+export function refusAvantApres(r: ReponseDeLaFin): string {
+  if (r.ok && r.etat === 'deja-regle') return 'Ce rituel est déjà réglé. Merci.';
+  if (r.ok && r.etat === 'rien-a-regler') return 'Il n’y a rien à régler pour ce rituel.';
+  if (r.ok && r.etat === 'comptoir') return 'Pour votre règlement, l’équipe vous attend au comptoir.';
+  if (r.ok && r.etat === 'sans-prix') return 'Le montant de ce rituel n’est pas encore fixé : la Maison vous le dira.';
+  if (r.ok && r.etat === 'en-preparation') return 'La Maison prépare votre montant. Réessayez dans un instant.';
+  if (r.ok && r.etat) return 'Le règlement en ligne n’est pas ouvert pour ce rituel. Écrivez à la Maison.';
+  if (r.error === 'trop') return 'Beaucoup de demandes d’un coup. Réessayez dans un instant.';
+  return 'Le règlement ne répond pas. Réessayez dans un moment.';
+}
 
 /** Elle déclare avoir terminé SON rendez-vous. `jetonDeSession` : le jeton de son compte. */
 export async function termineMonRituel(rdvId: string, jetonDeSession: string): Promise<ReponseDeLaFin> {

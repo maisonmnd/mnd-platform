@@ -13,12 +13,17 @@ import path from 'node:path';
 const racine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUR = 'src/shared/terminer-et-regler-pur.ts';
 const FONCTION = 'supabase/functions/terminer-et-regler/index.ts';
+const REGLER = 'supabase/functions/regler-la-seance/index.ts';
 
-/** Chaque bloc, son original, et les fonctions qui le portent. */
+/** Chaque bloc, son original, et les fonctions qui le portent. Régler avant
+    et après (7 novembre 2026) : ⟨reste-du-rdv⟩ (sorti de ⟨terminer-et-regler⟩)
+    et ⟨regler-avant-apres⟩ vont dans les deux fonctions. */
 export const COPIES = [
   { bloc: 'lien-du-rdv', source: 'src/shared/lien-du-rdv-pur.ts', cibles: [FONCTION] },
-  { bloc: 'honneur-au-reglement', source: PUR, cibles: ['supabase/functions/regler-la-seance/index.ts', FONCTION] },
+  { bloc: 'honneur-au-reglement', source: PUR, cibles: [REGLER, FONCTION] },
+  { bloc: 'reste-du-rdv', source: PUR, cibles: [REGLER, FONCTION] },
   { bloc: 'terminer-et-regler', source: PUR, cibles: [FONCTION] },
+  { bloc: 'regler-avant-apres', source: PUR, cibles: [REGLER, FONCTION] },
   { bloc: 'j-ai-termine', source: PUR, cibles: ['supabase/functions/whatsapp-automate/index.ts'] },
   /* Le billet réglé porte sa facture (7 novembre 2026). */
   { bloc: 'billet-regle', source: 'src/shared/billet-regle-pur.ts', cibles: [FONCTION] },

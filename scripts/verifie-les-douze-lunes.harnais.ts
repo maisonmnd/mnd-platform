@@ -651,6 +651,9 @@ const regles: Regle[] = [
         /* Terminer et régler (6 novembre 2026) : l'honneur au règlement, recopié dans regler-la-seance et terminer-et-regler ; la porte, le code et ses quatre chiffres, le lien, recopiés dans terminer-et-regler. */
         'honneur-au-reglement': { fichier: 'src/shared/terminer-et-regler-pur.ts', extrait: (s) => entre(s, 'honneur-au-reglement') },
         'terminer-et-regler': { fichier: 'src/shared/terminer-et-regler-pur.ts', extrait: (s) => entre(s, 'terminer-et-regler') },
+        /* Régler avant et après (7 novembre 2026) : le reste du rendez-vous (sorti de terminer-et-regler) et la porte d'avant et d'après, recopiés dans regler-la-seance et terminer-et-regler. */
+        'reste-du-rdv': { fichier: 'src/shared/terminer-et-regler-pur.ts', extrait: (s) => entre(s, 'reste-du-rdv') },
+        'regler-avant-apres': { fichier: 'src/shared/terminer-et-regler-pur.ts', extrait: (s) => entre(s, 'regler-avant-apres') },
         /* « J'ai terminé mon RDV » (6 novembre 2026) : la phrase libre et les mots de la Maison, recopiés dans whatsapp-automate. */
         'j-ai-termine': { fichier: 'src/shared/terminer-et-regler-pur.ts', extrait: (s) => entre(s, 'j-ai-termine') },
         /* Le billet réglé porte sa facture (7 novembre 2026) : quand la joindre et ce qu'elle porte, recopiés dans terminer-et-regler. */
@@ -691,6 +694,8 @@ const regles: Regle[] = [
       { nom: 'une copie sans original connu', mute: [P(EDGE, '/* ⟨/code-actif⟩ */', '/* ⟨/code-actif⟩ */\n/* ⟨inconnu⟩ */\nconst x = 1;\n/* ⟨/inconnu⟩ */')] },
       { nom: 'la forme du code change dans l Edge', mute: [P(EDGE, 'const FORME_DU_CODE = /^[A-Z]{1,6}-', 'const FORME_DU_CODE = /^[A-Z]{1,7}-')] },
       { nom: 'un caractere change dans la copie automate-wa de whatsapp-automate', mute: [P('supabase/functions/whatsapp-automate/index.ts', 'const PLAFOND_DE_L_AUTOMATE = 10;', 'const PLAFOND_DE_L_AUTOMATE = 11;')] },
+      /* Régler avant et après (7 novembre 2026) : la porte d'avant et d'après, copiée dans regler-la-seance. */
+      { nom: 'un caractere change dans la copie regler-avant-apres de regler-la-seance', mute: [P('supabase/functions/regler-la-seance/index.ts', "  if (r.absente) return ferme('absente');", "  if (r.absente === true) return ferme('absente');")] },
       { nom: 'l original de prochaines-places change seul', mute: [P('src/shared/reservation-express.ts', 'export const PLACES_PAR_JOUR = 2;', 'export const PLACES_PAR_JOUR = 3;')] },
       { nom: 'un caractere change dans la copie ce-qui-tombe de push-notify', mute: [P('supabase/functions/push-notify/index.ts', 'const JOURS_DE_NOTIFICATION = [7, 1];', 'const JOURS_DE_NOTIFICATION = [7, 2];')] },
       { nom: 'un caractere change dans la copie ia-maison de la porte vers Claude', mute: [P('supabase/functions/ia-maison/index.ts', 'export const PLAFOND_DES_HUIT_USD = 120;', 'export const PLAFOND_DES_HUIT_USD = 121;')] },
