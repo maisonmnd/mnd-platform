@@ -1,3 +1,4 @@
+import { useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Field, Select, Textarea, toast } from '../../../../ds/components';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
@@ -57,7 +58,7 @@ export default function EntreDeuxSeances() {
 function LaFile({ moi }: { moi: string }) {
   const signalements = useSignalements();
   const [clients] = useClients();
-  const [appts] = useAppointments();
+  const [appts] = useRdvsDeLaMaison();
   const [mienne, setMienne] = useState(false);
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [nouveau, setNouveau] = useState(false);

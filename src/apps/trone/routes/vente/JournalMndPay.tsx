@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useState } from 'react';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients } from '../../../../shared/clients';
@@ -19,7 +20,7 @@ export function JournalMndPay({ branchId, jour, currency }: { branchId: string; 
   const [settings] = useSettings();
   const actif = mndPayOuvert(settings.mndPay);
   const demandes = useDemandesMndPay(branchId, actif);
-  const [invoices, setInvoices] = useInvoices();
+  const [invoices, setInvoices] = usePiecesDeLaMaison();
   const [clients] = useClients();
   const [fait, setFait] = useState<string | null>(null);
   if (!actif) return null;

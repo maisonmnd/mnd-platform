@@ -1,3 +1,4 @@
+import { useRdvsDeLaMaison } from '../../../../shared/essai';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
@@ -282,7 +283,7 @@ export default function Catalogue() {
      plusieurs prestations — la somme des parts égale toujours le net). Toutes
      branches confondues : le catalogue est celui de la maison entière. */
   const navigate = useNavigate();
-  const [allAppts] = useAppointments();
+  const [allAppts] = useRdvsDeLaMaison();
   const [clients] = useClients();
   const svcById = useServicesById();
   const clientNameOf = (id: string) => clients.find((c) => c.id === id)?.name ?? 'Cliente de passage';

@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { Fragment, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useEstDirection } from '../_vie';
@@ -114,7 +115,7 @@ export default function AFaire() {
      Maquette « Les relances » : rien n'est réglé le lendemain de la
      dernière relance, la voix prend le relais. La direction seule voit la
      liste ; une pause posée au comptoir la retire. */
-  const [factures] = useInvoices();
+  const [factures] = usePiecesDeLaMaison();
   const [envoisDuJournal] = useEnvois();
   const [reglagesMaison] = useSettings();
   const [contrats] = useSubscribers();

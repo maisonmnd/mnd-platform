@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
@@ -108,9 +109,9 @@ export default function Coffre() {
   const navigate = useNavigate();
   const { branch, currency } = useBranch();
   const [allMoves] = useCoffre();
-  const [appts] = useAppointments();
+  const [appts] = useRdvsDeLaMaison();
   const [clients] = useClients();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const byId = useServicesById();
 
   const moves = useMemo(

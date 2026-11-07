@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../../../shared/store';
@@ -66,7 +67,7 @@ export default function Tableau() {
      demande comme les autres ; sa carte dit seulement de quel projet elle est. */
   const [projets] = useProjets();
   const [equipe] = useStaff();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const monProfil = useMonProfil();
   const [acces] = useStore(staffAccessStore);
 

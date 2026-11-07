@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { attendEncore } from '../../../../shared/salle-des-envois';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -154,7 +155,7 @@ function TableauDeLaDirection() {
      recomptée, barème) : les totaux qui lisent les rendez-vous à venir se
      refont sur cette clef (9 octobre 2026). */
   const clefDuTarif = useClefDuTarif();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const [lesPrets] = usePrets();
   const pretsAVeiller = pretsASurveiller(lesPrets, branch.id, todayISO());
   /* LES JALONS D’ÉPARGNE QUI PRESSENT — 23 août 2026, arbitrage de Yéman :

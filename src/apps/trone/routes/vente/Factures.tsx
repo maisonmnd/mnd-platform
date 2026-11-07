@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { asset } from '../../../../shared/asset';
 import { TexteFon } from '../../../../ds/fon';
 import { useSearchParams } from 'react-router-dom';
@@ -145,7 +146,7 @@ export default function Factures() {
   const maTete = useMaTete();
   const souverain = maTete?.role === 'souverain';
   const peutSupprimer = (d: Invoice): boolean => souverain || !pieceAPaye(d as unknown as PieceLue);
-  const [invoices, setInvoices] = useInvoices();
+  const [invoices, setInvoices] = usePiecesDeLaMaison();
   const [clients] = useClients();
   /* LA PAYEUSE DU FOYER, pour le lien commun : c'est elle qui règle. */
   const [families] = useFamilies();
@@ -233,7 +234,7 @@ export default function Factures() {
      deux nombres. Le filtre se lève d'un clic, « Tout voir ». */
   /* LES DEUX LECTURES REMONTENT ICI : le juge des factures à régler les lit
      avant la liste, et un hook ne se déplace pas sous condition. */
-  const [appointments] = useAppointments();
+  const [appointments] = useRdvsDeLaMaison();
   const byId = useServicesById();
   const filtre = params.get('filtre');
   /* « AVEC UN RESTE » (5 novembre 2026, tableau de bord en quatre bandes) :

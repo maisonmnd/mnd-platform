@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { prestationRepond } from '../../../../shared/recherche';
 import { Eyebrow, Modal, Button, Field, Input, Select, toast, alerte, demande, demandeUnTexte } from '../../../../ds/components';
@@ -228,7 +229,7 @@ export default function Depenses() {
   const [clientes] = useClients();
   const [familles] = useFamilies();
   const [categories, setCategories] = useExpenseCategories();
-  const [invoices, setInvoices] = useInvoices();
+  const [invoices, setInvoices] = usePiecesDeLaMaison();
   const appts = useBranchAppointments();
   const byId = useServicesById();
   const [apprenants] = useApprenants();

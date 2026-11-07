@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useBranch } from '../../../../shared/branches';
@@ -71,7 +72,7 @@ export default function OffresEtRemises({ cerveau, reglages, moi }: PropsDUneVue
   const [codes] = useCodesPromo();
   const [offres] = useOffers();
   const [envois] = useEnvois();
-  const [pieces] = useInvoices();
+  const [pieces] = usePiecesDeLaMaison();
   const [demandes] = useDemandes();
   const [cartes] = useCartesCadeaux();
   const appts = useBranchAppointments();

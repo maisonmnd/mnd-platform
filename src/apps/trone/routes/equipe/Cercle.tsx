@@ -1,3 +1,4 @@
+import { useClientsDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { asset } from '../../../../shared/asset';
 import { useMemo, useState } from 'react';
 import { PageHead, WaLien } from '../_ui';
@@ -36,9 +37,9 @@ type Tab = 'ambassadrices' | 'membres' | 'archive';
 
 export default function Cercle() {
   const { branch, currency } = useBranch();
-  const [clients] = useClients();
+  const [clients] = useClientsDeLaMaison();
   const [families] = useFamilies();
-  const [appts] = useAppointments();
+  const [appts] = useRdvsDeLaMaison();
   const [services] = useServices();
   const [foyerTiers] = useFoyerTiers();
   const [history] = useStore(pointsHistoryStore);

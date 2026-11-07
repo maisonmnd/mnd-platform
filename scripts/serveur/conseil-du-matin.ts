@@ -74,6 +74,13 @@ async function parPages(requete: (de: number, a: number) => PromiseLike<{ data: 
   return tout;
 }
 
+/* LES FICHES D'ESSAI (7 novembre 2026, src/shared/essai-pur.ts) : la page du matin
+   compte les rendez-vous de la Maison, pas ceux d'une fiche d'essai ni du service
+   des essais. */
+const SERVICE_D_ESSAI = 'doiqyq0g0m';
+const rdvDEssai = (d: Record<string, unknown> | null | undefined, essais: ReadonlySet<string>): boolean =>
+  (Array.isArray(d?.serviceIds) && (d?.serviceIds as unknown[]).includes(SERVICE_D_ESSAI)) || essais.has(String(d?.clientId ?? ''));
+
 /** Ce que Saphir lit, chaque lecture à part : une lecture manquée ne tue pas la page, elle se dit. */
 async function litLesFaits(sb: Base, maintenantMs: number): Promise<FaitsDuConseil> {
   const lacunes: string[] = [];
@@ -87,6 +94,8 @@ async function litLesFaits(sb: Base, maintenantMs: number): Promise<FaitsDuConse
   const debutJour = minuitDe(jour);
   const maintenant = new Date(maintenantMs).toISOString();
 
+  const essais = await essaie('essais', new Set<string>(), async () => new Set((await parPages((de, a) =>
+    sb.from('clients').select('id').eq('data->>essai', 'true').order('id').range(de, a))).map((l) => String(l.id))));
   const documents = await essaie('compteurs', {} as Record<string, unknown>, async () => {
     const { data, error } = await sb.from('documents').select('key, data').in('key', ['mnd_settings', ...CLES_DES_COMPTEURS]);
     if (error) throw new Error(error.message);
@@ -127,6 +136,8 @@ async function litLesFaits(sb: Base, maintenantMs: number): Promise<FaitsDuConse
     }),
     essaie('rdv', [] as FaitsDuConseil['rdvDuJour'], async () => (await parPages((de, a) =>
       sb.from('appointments').select('id, data').eq('data->>date', jour).order('id').range(de, a)))
+      /* Les fiches d'essai ne comptent pas (7 novembre 2026, essai-pur.ts). */
+      .filter((r) => !rdvDEssai(r.data, essais))
       /* Seuls l'heure, le maître et le statut sortent d'ici : jamais le nom de la cliente. */
       .map((r) => ({ time: r.data?.time, master: r.data?.master, status: r.data?.status }))),
     essaie('equipe', {} as Record<string, string>, async () => Object.fromEntries((await parPages((de, a) =>
@@ -146,7 +157,7 @@ async function litLesFaits(sb: Base, maintenantMs: number): Promise<FaitsDuConse
     actives90 = await essaie('actives', null as number | null, async () => {
       const lignes = await parPages((de, a) =>
         sb.from('appointments').select('id, data').eq('data->>status', 'honoré').gt('data->>date', moinsDesJours(jour, 90)).lte('data->>date', jour).order('id').range(de, a));
-      return new Set(lignes.map((r) => String(r.data?.clientId ?? '')).filter(Boolean)).size;
+      return new Set(lignes.filter((r) => !rdvDEssai(r.data, essais)).map((r) => String(r.data?.clientId ?? '')).filter(Boolean)).size;
     });
   }
 

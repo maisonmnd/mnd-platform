@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
+import { useFichesParId, useMontrerLesEssais } from '../../../../shared/essai';
+import { MONTRER_LES_ESSAIS, estUnRdvDEssai, nombreDEssais, rdvsDuCalendrier } from '../../../../shared/essai-pur';
+import { BadgeEssai } from './BadgeEssai';
 import { Button, Segs } from '../../../../ds/components';
 import { useBranch, maitreParDefaut } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { bornesDuSalon, appointmentsStore, type Appointment } from '../../../../shared/agenda';
 import {
   PayStatusPill, RdvModal, ReminderBell, addDaysISO, apptDueXof, apptDurationMin, apptLabel, apptPayState, frShort, fromISO, pad2, timeToMin, toISO, todayISO,
-  useBranchAppointments, useBranchClients, useServicesById, useClefDuTarif, type RdvInitial,
+  useBranchAppointmentsAvecEssais, useBranchClients, useServicesById, useClefDuTarif, type RdvInitial,
 } from './_shared';
 import { PayAppointmentModal } from './actions';
 import { deplaceAvecLeFoyer, quiSuit } from './foyer-gestes';
@@ -53,8 +56,16 @@ export default function Calendrier() {
   const mesDomaines = useStore(staffAccessStore)[0][moi?.user_id ?? ''] ?? {};
   const estMaitre = !voitLesPrix(moi?.role, mesDomaines);
   const { branch, currency } = useBranch();
-  const appts = useBranchAppointments();
+  const tousLesRdv = useBranchAppointmentsAvecEssais();
   const clients = useBranchClients();
+  /* LES ESSAIS (7 novembre 2026, fiches d'essai) : les rendez-vous d'une fiche
+     d'essai n'y paraissent pas, sauf si on les demande ; ils occupent pourtant
+     le fauteuil (`tousLesRdv` juge les chevauchements). */
+  const fichesDuCalendrier = useFichesParId();
+  const [montrerLesEssais, setMontrerLesEssais] = useMontrerLesEssais();
+  const appts = useMemo(() => rdvsDuCalendrier(tousLesRdv, fichesDuCalendrier, montrerLesEssais), [tousLesRdv, fichesDuCalendrier, montrerLesEssais]);
+  const nombreDEssaisCaches = useMemo(() => nombreDEssais(tousLesRdv, fichesDuCalendrier), [tousLesRdv, fichesDuCalendrier]);
+  const estEssai = (a: Appointment) => estUnRdvDEssai(a, fichesDuCalendrier);
   const byId = useServicesById();
   /* LA PASTILLE DE PAIEMENT SUIT LE TARIF DE LA TÊTE (10 octobre 2026).
      `apptPayState` se lit au rendu, aucun mémo ne le garde : il suffit que
@@ -133,7 +144,7 @@ export default function Calendrier() {
   const collides = (moved: Appointment, date: string, time: string, master: string): boolean => {
     const start = timeToMin(time);
     const end = start + apptDurationMin(moved, byId);
-    return appts.some((a) => {
+    return tousLesRdv.some((a) => {
       if (a.id === moved.id || a.date !== date || a.master !== master || a.status === 'annulé') return false;
       const s2 = timeToMin(a.time);
       return start < s2 + apptDurationMin(a, byId) && s2 < end;
@@ -438,6 +449,15 @@ export default function Calendrier() {
               value={view}
               onChange={setView}
             />
+            {(nombreDEssaisCaches > 0 || montrerLesEssais) && (
+              <label
+                title="Les rendez-vous des fiches d’essai ne comptent nulle part ; ils occupent pourtant le fauteuil."
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--ink-soft)', cursor: 'pointer' }}
+              >
+                <input type="checkbox" checked={montrerLesEssais} onChange={(e) => setMontrerLesEssais(e.target.checked)} style={{ accentColor: 'var(--color-copper)' }} />
+                {MONTRER_LES_ESSAIS}
+              </label>
+            )}
             <Button variant="copper" onClick={() => setCreateInit({ date: anchor })}>+ Nouveau RDV</Button>
           </>
         }
@@ -481,6 +501,7 @@ export default function Calendrier() {
                       >
                         {nomDuRdv(a)}
                       </span>
+                      {estEssai(a) && <BadgeEssai />}
                       {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
                       {marqueWhatsApp(a)}
                       {honoreDu(a) && <span className="trc-cal__reste">{resteDit(a)}</span>}
@@ -587,6 +608,7 @@ export default function Calendrier() {
                         >
                           {nomDuRdv(a)}
                         </button>
+                        {estEssai(a) && <BadgeEssai />}
                         {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
                         {marqueWhatsApp(a)}
                         {honoreDu(a) && <span className="trc-cal__reste">{resteDit(a)}</span>}
@@ -649,6 +671,7 @@ export default function Calendrier() {
                       <span className="trc-agenda__main">
                         <span className="trc-agenda__client">
                           {nomDuRdv(a)}
+                          {estEssai(a) && <BadgeEssai />}
                           {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
                           {marqueWhatsApp(a)}
                         </span>
@@ -709,7 +732,7 @@ export default function Calendrier() {
                         <i className="trc-week__who">{nomDuRdv(a)}</i>
                         <i>
                           {a.master[0]} · {first?.name ?? 'Rituel'}
-                          {serieMark(a) ? ` · ${serieMark(a)}` : ''}{a.source === 'whatsapp' ? ' · WhatsApp' : ''}
+                          {estEssai(a) ? ' · Essai' : ''}{serieMark(a) ? ` · ${serieMark(a)}` : ''}{a.source === 'whatsapp' ? ' · WhatsApp' : ''}
                         </i>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
                           <span style={{ pointerEvents: 'none', display: 'inline-flex' }}>

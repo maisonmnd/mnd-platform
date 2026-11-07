@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useState } from 'react';
 import { Button, Modal, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -25,7 +26,7 @@ export function usePointDuCompte(teteId: string | undefined): { payeurId: string
   const { branch } = useBranch();
   const [clients] = useClients();
   const [families] = useFamilies();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   return useMemo(() => {
     if (!teteId) return { payeurId: '', pieces: [], totalXof: 0, ouvert: false };
     const payeurId = payeurDuCompte(teteId, clients, families);

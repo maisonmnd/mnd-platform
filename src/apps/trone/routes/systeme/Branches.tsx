@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Seal, Select, demande } from '../../../../ds/components';
@@ -50,8 +51,8 @@ const emptyForm = (): BranchForm => ({
 
 export default function Branches() {
   const { branch, branches, setBranch } = useBranch();
-  const [appointments] = useAppointments();
-  const [invoices] = useInvoices();
+  const [appointments] = useRdvsDeLaMaison();
+  const [invoices] = usePiecesDeLaMaison();
   const byId = useServicesById();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);

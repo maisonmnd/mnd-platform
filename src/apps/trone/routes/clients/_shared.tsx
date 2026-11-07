@@ -43,6 +43,7 @@ import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDe
 import { referenceDuRendezVous } from '../../../../shared/lien-du-rdv-pur';
 import { useStaff as useMaTeteDuRdv } from '../../../../shared/auth';
 import { momentDuRdv, poseUnRendezVous } from '../../../../shared/agenda';
+import { useRdvsDeLaMaison } from '../../../../shared/essai';
 import { modelBandsStore, bandSetsStore, prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, remiseGesteXof, francsDuGeste, type JugeDuGeste, tauxPermis, plafondDeRemisePct, plafondDeRemiseXof, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import { gammeNetteXof, gammeBruteXof, ligneNetteXof, ligneBruteXof, poseUnProduit, retireUnProduit, remiseDeLaLigne, ecartsDeTarif, manqueALEtagere, type LigneGamme } from '../../../../shared/gamme';
@@ -1477,7 +1478,20 @@ export function useBranchClients(): Client[] {
   return useMemo(() => clients.filter((c) => c.branchId === branch.id && !c.archived), [clients, branch.id]);
 }
 
+/** LES RENDEZ-VOUS QUE LA MAISON COMPTE ET LISTE — sans les fiches d'essai
+    (7 novembre 2026, shared/essai-pur.ts). Toute la gestion passe par cette
+    porte : chiffres, compteurs, listes d'équipe, envois à l'équipe. Pour
+    ouvrir ou servir une fiche d'essai (le calendrier qui les montre à la
+    demande, la fiche de la cliente, la conversation), `useBranchAppointmentsAvecEssais`. */
 export function useBranchAppointments(): Appointment[] {
+  const { branch } = useBranch();
+  const [appointments] = useRdvsDeLaMaison();
+  return useMemo(() => appointments.filter((a) => a.branchId === branch.id), [appointments, branch.id]);
+}
+
+/** Le registre entier de la branche, essais compris : pour écrire, pour LA
+    cliente, et pour montrer un essai à l'équipe sur demande. */
+export function useBranchAppointmentsAvecEssais(): Appointment[] {
   const { branch } = useBranch();
   const [appointments] = useAppointments();
   return useMemo(() => appointments.filter((a) => a.branchId === branch.id), [appointments, branch.id]);

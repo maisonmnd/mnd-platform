@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useState } from 'react';
 import { useBranch } from '../../../../shared/branches';
 import { aUnPrixConvenu, useClients } from '../../../../shared/clients';
@@ -49,7 +50,7 @@ export function useClotureDuJour(jour: string): ClotureLue {
   const { branch } = useBranch();
   const appts = useBranchAppointments();
   const byId = useServicesById();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const [clients] = useClients();
   const [offres] = useOffers();
   const [envois] = useEnvois();

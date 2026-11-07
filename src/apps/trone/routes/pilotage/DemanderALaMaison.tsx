@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useState } from 'react';
 import { useBranch } from '../../../../shared/branches';
 import { useStaff as useMonProfil } from '../../../../shared/auth';
@@ -29,7 +30,7 @@ const SANS_TIRET = new RegExp(`\\s*${String.fromCharCode(8212)}\\s*`, 'g');
 export function DemanderALaMaison({ prevision, jour }: { prevision: DonneesDeLaPrevision; jour: string }) {
   const { branch, currency } = useBranch();
   const monProfil = useMonProfil();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const [fil] = useFil();
   const [projets] = useProjets();
   const { processus, passages } = useLesProcessus();

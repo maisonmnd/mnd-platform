@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../../../shared/store';
@@ -43,7 +44,7 @@ export default function MesTaches() {
   const { session } = useAuth();
   const monProfil = useMonProfil();
   const [tous] = useFil();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const [equipe] = useStaff();
   const [annuaire] = useAnnuaire();
   const [acces] = useStore(staffAccessStore);

@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { asset } from '../../../../shared/asset';
 import { useEffect, useMemo, useState } from 'react';
 import { normName, sameName } from '../../../../shared/text';
@@ -96,7 +97,7 @@ export function PaieRuns() {
   const [params] = usePayrollParameters();
   const appts = useBranchAppointments();
   const byId = useServicesById();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const [rates] = useCommRates();
   const [factures] = useFacturesPrestataires();
   /* LES VARIABLES DU MOIS — 14 octobre 2026 : primes inscrites, prime de

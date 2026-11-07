@@ -1,3 +1,4 @@
+import { useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useState } from 'react';
 import { Button } from '../../../../ds/components';
 import { useStaff as useMaTete } from '../../../../shared/auth';
@@ -73,7 +74,7 @@ export function FicheDuJour({ appt, client, byId, resteDu }: {
   const acces = useStore(staffAccessStore)[0][moi?.user_id ?? ''];
   const sait = useSaitIaMaison();
   const [equipe] = useEquipe();
-  const [appts] = useAppointments();
+  const [appts] = useRdvsDeLaMaison();
   const [bilans] = useBilans();
   const signalements = useSignalements();
   const [messagesWa] = useMessagesWa();

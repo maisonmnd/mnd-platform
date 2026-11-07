@@ -7,6 +7,8 @@ import { signeLeMessage } from '../../../../shared/identite';
 import { useBranch } from '../../../../shared/branches';
 import { RYTHMES_ABO, cadenceObservee, diraLeJourFavori, litSonJour, diraPourquoiPasDeJour, rythmeDeReprise } from '../../../../shared/cadence';
 import { fmtMoney } from '../../../../shared/currency';
+import { CASE_DE_LA_FICHE, PHRASE_DE_LA_CASE, estUneFicheDEssai } from '../../../../shared/essai-pur';
+import { BadgeEssai } from './BadgeEssai';
 import { maisonNom, maisonRaison, maisonRaisonDuPdfAu, maisonVille } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
 import { aAccorde, aDefaitSesLocks, clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, sortiesDeLaMaison, MOIS_AVANT_SORTIE, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, depuisQuandALaMaison, joursDeLaTete, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
@@ -66,7 +68,7 @@ import { Camera, Search } from 'lucide-react';
 import {
   Avatar, ClientPicker, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
   addDaysISO, apptDueXof, apptLabel, apptResume, apptServices, apptNetXof, cadenceLabel, dureeEnClair, frLongAn,
-  fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById, useClefDuTarif,
+  fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointmentsAvecEssais, useBranchClients, useServicesById, useClefDuTarif,
   type Cadence, frJourAn, frShortAn, PortesWhatsApp } from './_shared';
 import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, soldeDuCompte, tetesDuCompte, rendezVousAVenirDuFoyer } from '../../../../shared/compte';
 import { survivantDe, fusionnerFiches } from '../../../../shared/fusion';
@@ -475,7 +477,7 @@ function FusionModal({ client, onClose, onDone }: {
   onDone: (survivantId: string) => void;
 }) {
   const tetes = useBranchClients();
-  const appts = useBranchAppointments();
+  const appts = useBranchAppointmentsAvecEssais();
   const [autreId, setAutreId] = useState('');
   const autre = autreId && autreId !== client.id ? tetes.find((c) => c.id === autreId) : undefined;
   const duo = autre ? survivantDe(client, autre) : null;
@@ -548,7 +550,7 @@ export default function Customers() {
   const navigate = useNavigate();
   const { branch, currency } = useBranch();
   const clients = useBranchClients();
-  const appts = useBranchAppointments();
+  const appts = useBranchAppointmentsAvecEssais();
   const [invoices] = useInvoices();
   const [sessions] = useClientSessions();
   const byId = useServicesById();
@@ -1671,7 +1673,7 @@ function PanneauCompte({
      Il lit désormais LUI-MÊME les rendez-vous de la branche, comme il lit
      déjà les factures et les avoirs, et filtre sur les têtes du compte. Un
      écran qui décide de sa portée ne doit pas la recevoir de son parent. */
-  const appts = useBranchAppointments();
+  const appts = useBranchAppointmentsAvecEssais();
   const [invoices] = useInvoices();
   const [credits] = useCredits();
   const [clients] = useStore(clientsStore);
@@ -2082,7 +2084,7 @@ function Customer360({
   onClose: () => void;
   /** Passer à la fiche d'un autre membre du compte sans refermer le tiroir. */
   onOpen: (id: string) => void;
-  appts: ReturnType<typeof useBranchAppointments>;
+  appts: ReturnType<typeof useBranchAppointmentsAvecEssais>;
   byId: ReturnType<typeof useServicesById>;
   predicted: Cadence;
 }) {
@@ -2610,7 +2612,7 @@ function Customer360({
   /* LE STATUT DE FIDÉLITÉ (25 août) : Cercle par SES venues, ou prix convenu, ou
      Foyer. Un seul juge, `statutFidelite`, partagé avec Ma Couronne. Il faut TOUT
      le carnet de la branche pour la dépense du foyer. */
-  const branchAppts = useBranchAppointments();
+  const branchAppts = useBranchAppointmentsAvecEssais();
   const clientsBranche = useBranchClients();
   const [seuilCercle] = useStore(cercleSeuilStore);
   const [seuilFoyer] = useStore(foyerSeuilStore);
@@ -2644,7 +2646,7 @@ function Customer360({
      offert ne compte pas dans sa dépense ; un rituel qu'elle a offert à une
      autre, si — et il ne figure pas dans `appts`, qui ne contient que ses
      rendez-vous à elle. On relit donc tout le carnet de la branche. */
-  const carnetBranche = useBranchAppointments();
+  const carnetBranche = useBranchAppointmentsAvecEssais();
   const tetesBranche = useBranchClients();
   /* Les têtes qu'elle porte — ses mineurs, si elle est le parent payeur. */
   const [famillesFiche] = useFamilies();
@@ -2672,7 +2674,7 @@ function Customer360({
   const estLePayeur = clientFamily?.payerClientId === client.id;
   /* LES RENDEZ-VOUS DU FOYER, sur la fiche de celle qui règle et qui amène.
      Les siens sont déjà listés plus haut ; ici, ceux des autres membres. */
-  const tousLesRdv = useBranchAppointments();
+  const tousLesRdv = useBranchAppointmentsAvecEssais();
   const rdvDuFoyer = useMemo(
     () => (estLePayeur
       ? rendezVousAVenirDuFoyer(tousLesRdv, membresDuCompte.map((m) => m.id), today)
@@ -3015,7 +3017,7 @@ function Customer360({
             {onlineNow && <span className="trc-dot-online" title="En ligne sur Ma Couronne" />}
           </span>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 26, color: 'var(--color-ivoire)', lineHeight: 1 }}>{client.name}</div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 26, color: 'var(--color-ivoire)', lineHeight: 1 }}>{client.name}{estUneFicheDEssai(client) && <BadgeEssai />}</div>
             {/* LE CALIBRE SOUS SON NOM — 5 septembre 2026 (maquette validée).
                 C'est ce qui commande son prix, et on le cherchait dans Profil à
                 chaque fois. Absent tant qu'on n'a pas compté : inventer un
@@ -4127,6 +4129,26 @@ function Customer360({
                     : <>À la fin de son rituel, elle peut terminer et régler depuis son téléphone : Ma Couronne, son code sur le site, ou « J’ai terminé » sur le WhatsApp de la Maison.</>}
                 </div>
               </Field>
+              {/* FICHE D'ESSAI — 7 novembre 2026 (« des RDV test qui ne vont pas
+                  dans notre liste de RDV, ni dans le chiffre d'affaires »,
+                  Yéman). La direction seule la coche : tout ce qui appartient à
+                  cette cliente marche comme pour une vraie, mais ne compte nulle
+                  part (shared/essai-pur.ts). */}
+              {estDirection && (
+                <Field label="Fiche d’essai">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: estDirection ? 'pointer' : 'default' }}>
+                    <input
+                      type="checkbox"
+                      checked={client.essai === true}
+                      disabled={!estDirection}
+                      onChange={(e) => patch({ essai: e.target.checked ? true : undefined })}
+                      style={{ accentColor: 'var(--color-copper)' }}
+                    />
+                    <span style={{ fontSize: 12.5 }}>{CASE_DE_LA_FICHE}</span>
+                  </label>
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>{PHRASE_DE_LA_CASE}</div>
+                </Field>
+              )}
               {/* LA REMISE DU RITUEL COMPLET — 5 novembre 2026 (« Celles que je
                   coche », Yéman) : shampoing et reprise au même rituel, 5 000 F
                   de moins sur le shampoing, tout seuls. Le geste vit au

@@ -175,7 +175,10 @@ const valeur = (r: Row, col: string): unknown => {
   const [chemin, feuille] = col.includes('->>') ? [col.slice(0, col.lastIndexOf('->>')), col.slice(col.lastIndexOf('->>') + 3)] : [col, null];
   let v: unknown = r;
   for (const k of chemin.split('->')) v = (v as Row | null)?.[k];
-  return feuille === null ? v : (v as Row | null)?.[feuille];
+  /* `->>` rend du TEXTE chez PostgREST : un booleen vrai se lit « true » (fiches d'essai). */
+  if (feuille === null) return v;
+  const f = (v as Row | null)?.[feuille];
+  return typeof f === 'boolean' ? String(f) : f;
 };
 const cmp = (a: unknown, b: unknown) => String(a ?? '').localeCompare(String(b ?? ''));
 const enIso = (ms: number) => new Date(ms).toISOString();
@@ -203,6 +206,8 @@ const tables: Record<string, Row[]> = {
   ],
   assistants_bilans: [{ assistant: 'opale', jour: '2026-11-01', comptes: { lus: 7 }, mot: 'Awa Banc 2290197000001' }],
   journal_gestes: [], appointments: [],
+  /* Une fiche d'essai (7 novembre 2026) : ses rendez-vous ne comptent pas dans la page. */
+  clients: [{ id: 'cl-essai', data: { essai: true } }],
   team: [{ id: 'st-b', data: { name: 'Brice Ahouansou' } }, { id: 'st-n', data: { name: 'Nassim Maliki' } }],
   expenses: [
     { id: 'x1', data: { validation: { etat: 'attente' } } }, { id: 'x2', data: { validation: { etat: 'attente' } } },
@@ -222,6 +227,7 @@ tables.appointments.push(
   { id: 'a1', data: { date: '2026-11-02', time: '10:30', master: 'st-b', status: 'confirmé', clientName: 'Awa Banc', clientId: 'cl-x' } },
   { id: 'a2', data: { date: '2026-11-02', time: '09:00', master: 'st-n', status: 'confirmé', clientName: 'Awa Banc', clientId: 'cl-x' } },
   { id: 'a3', data: { date: '2026-11-02', time: '08:00', master: 'st-b', status: 'annulé', clientName: 'Codjo Banc', clientId: 'cl-y' } },
+  { id: 'a4-essai', data: { date: '2026-11-02', time: '07:00', master: 'st-b', status: 'confirmé', clientName: 'Fiche Essai', clientId: 'cl-essai' } },
 );
 for (let i = 0; i < 1300; i += 1) {
   const jour = new Date(Date.UTC(2026, 10, 1) - (i % 89) * 86_400_000).toISOString().slice(0, 10);

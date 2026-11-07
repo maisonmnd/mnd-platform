@@ -2,6 +2,7 @@
    partagés par les trois écrans. Plus le registre des encaissements, lu par
    Encaissements ET par Dépenses (voir `useRegistreEncaissements`, en bas). */
 
+import { usePaiementsDeLaMaison, usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useState } from 'react';
 import { useBranch } from '../../../../shared/branches';
 import { useInvoices, usePayments, useCredits, type PieceJointe, useEntreesHorsActivite } from '../../../../shared/finance';
@@ -137,9 +138,9 @@ export function MonthNav({ month, onChange }: { month: string; onChange: (mk: st
     Les deux écrans lisent désormais la même chose, par la même porte. */
 export function useRegistreEncaissements(): Receipt[] {
   const { branch } = useBranch();
-  const [invoices] = useInvoices();
-  const [online] = usePayments();
-  const [appointments] = useAppointments();
+  const [invoices] = usePiecesDeLaMaison();
+  const [online] = usePaiementsDeLaMaison();
+  const [appointments] = useRdvsDeLaMaison();
   const [credits] = useCredits();
   const [apprenants] = useApprenants();
   const [subscribers] = useSubscribers();

@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
@@ -279,8 +280,8 @@ export default function Personnel() {
   /* Reprise de l'ancien magasin de pourboires (document unique) : idempotent par
      id, re-tourne après l'hydratation pour rattraper d'éventuelles lignes locales. */
   useEffect(() => { importLegacyTips(); }, [tips]);
-  const [appts] = useAppointments();
-  const [invoices] = useInvoices();
+  const [appts] = useRdvsDeLaMaison();
+  const [invoices] = usePiecesDeLaMaison();
   const [services] = useServices();
   const [adjustFor, setAdjustFor] = useState<StaffMember | null>(null);
   const [adjustForm, setAdjustForm] = useState({ presta: '', produit: '' });

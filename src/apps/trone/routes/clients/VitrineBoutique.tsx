@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Segs, toast, demande } from '../../../../ds/components';
@@ -66,7 +67,7 @@ export function VitrineBoutique() {
   const [cfg] = useStore(vitrineConfigStore);
   const [categories] = useCategories();
   const [products, setProducts] = useProducts();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const [payments] = usePayments();
   const [prevenir] = usePrevenir();
   const clients = useBranchClients();

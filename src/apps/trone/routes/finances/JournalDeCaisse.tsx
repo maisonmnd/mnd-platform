@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { Fragment, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '../../../../ds/components';
@@ -92,7 +93,7 @@ export function JournalDeCaisse({ jour, onJour, aujourdhui, clotureOuverteAuxGes
   pourquoiPasEncore: string;
 }) {
   const { branch, currency, branchBoxes, boxMoves, horsActiviteJusquAu, depuis } = useCaisses(monthKey(jour));
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const [depenses] = useExpenses();
   const [clotures] = useClotures();
   const [horsActivite] = useEntreesHorsActivite();

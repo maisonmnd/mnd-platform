@@ -14,6 +14,7 @@
 
    Toutes les fiches de la Maison, toutes branches : un code vaut pour toute
    la Maison. Aucune exclusion (décision de la direction, 9 octobre 2026). */
+import { rdvsDeLaMaison } from '../../../../shared/essai';
 import { clientsStore, type Client } from '../../../../shared/clients';
 import { appointmentsStore } from '../../../../shared/agenda';
 import { demandesStore } from '../../../../shared/demandes';
@@ -48,7 +49,7 @@ export function planDeLaMaison(
 
 /** LE MÊME PLAN, relu dans les magasins au moment du geste. */
 export const planDesMagasins = (aujourdhui = jourDeLaMaison()): PlanDuLancement =>
-  planDeLaMaison(clientsStore.get(), rdvsDesLunes(appointmentsStore.get()), demandesStore.get() as DemandeParrainee[], douzeLunesStore.get(), aujourdhui);
+  planDeLaMaison(clientsStore.get(), rdvsDesLunes(rdvsDeLaMaison()), demandesStore.get() as DemandeParrainee[], douzeLunesStore.get(), aujourdhui);
 
 /** L'EMPREINTE DE CE QUE LE PLAN ÉCRIT, fiche par fiche. Si elle change
     entre l'aperçu et le clic (un autre poste a écrit pendant la question),

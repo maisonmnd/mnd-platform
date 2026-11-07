@@ -40,7 +40,7 @@ import type { Appointment } from '../../../../shared/agenda';
 import { envoisStore, useAutoConfig, useEnvois } from '../equipe/data';
 import { fabriqueLeCodeDe, useCerveauDeGerard, useLePassageDeGerard, type CerveauDeGerard } from './gerard-donnees';
 import { gesteDeLaSalle } from './SalleDesEnvois';
-import { RdvModal, apptTotalXof, tarifDeLaTeteXof, useBranchAppointments, useBranchClients, useServicesById } from './_shared';
+import { RdvModal, apptTotalXof, tarifDeLaTeteXof, useBranchAppointmentsAvecEssais, useBranchClients, useServicesById } from './_shared';
 import { PageHead } from '../_ui';
 import { GerardEntreDeux } from './GerardEntreDeux';
 import LesConversations from './LesConversations';
@@ -194,7 +194,7 @@ export default function Gerard() {
   /* Ce que la vue Aujourd'hui lit autour du plan : les RDV (les francs en
      jeu), les fils (le juge WhatsApp), les soucis, les demandes, les appels,
      les bilans, les brouillons d'avis, et la salle. */
-  const appts = useBranchAppointments();
+  const appts = useBranchAppointmentsAvecEssais();
   const clients = useBranchClients();
   const byId = useServicesById();
   const [cfg] = useAutoConfig();

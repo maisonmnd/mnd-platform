@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
@@ -85,8 +86,8 @@ export default function Fil() {
   const { session } = useAuth();
   const [tous] = useFil();
   const [equipe] = useStaff();
-  const [invoices] = useInvoices();
-  const [appts] = useAppointments();
+  const [invoices] = usePiecesDeLaMaison();
+  const [appts] = useRdvsDeLaMaison();
   const [clients] = useClients();
   const [cats] = useCategories();
   const byId = useServicesById();

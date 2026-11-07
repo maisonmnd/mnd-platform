@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useState } from 'react';
 import '../finances/finances.css';
 import { PageHead } from '../_ui';
@@ -60,8 +61,8 @@ const payISOLocal = (d: string): string => {
 
 export default function BilanMensuel() {
   const { branch, currency } = useBranch();
-  const [appts] = useAppointments();
-  const [invoices] = useInvoices();
+  const [appts] = useRdvsDeLaMaison();
+  const [invoices] = usePiecesDeLaMaison();
   /* Les caisses écartées des bilans — leur nom sert de clé partout. */
   const [cashboxes] = useCashboxes();
   const exclues = useMemo(() => caissesHorsBilan(cashboxes, branch.id), [cashboxes, branch.id]);

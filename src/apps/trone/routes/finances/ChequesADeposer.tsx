@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useState } from 'react';
 import { Select, toast } from '../../../../ds/components';
 import { uid } from '../../../../shared/store';
@@ -18,7 +19,7 @@ import { chequesADeposer, traceDite, virementDuDepot } from '../../../../shared/
    s'ils ont été déposés. */
 export function ChequesADeposer() {
   const { branch, currency } = useBranch();
-  const [pieces] = useInvoices();
+  const [pieces] = usePiecesDeLaMaison();
   const [clients] = useClients();
   const [ecartes, setEcartes] = useState<Set<string>>(new Set());
   const [caisses] = useCashboxes();

@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useState } from 'react';
 import { useSettings } from '../../../../shared/settings';
 import { invoiceResteXof, useInvoices, type Invoice } from '../../../../shared/finance';
@@ -35,7 +36,7 @@ export function BlocRelances({ facture, qui, pose }: {
 }) {
   const [settings] = useSettings();
   const [envois] = useEnvois();
-  const [factures, setFactures] = useInvoices();
+  const [factures, setFactures] = usePiecesDeLaMaison();
   const [clients] = useClients();
   const [familles] = useFamilies();
   const [contrats] = useSubscribers();

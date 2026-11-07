@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
@@ -120,7 +121,7 @@ export default function Pourboires() {
   const { branch, currency } = useBranch();
   const [team] = useStaff();
   const [tips] = useTips();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const [membreOuvert, setMembreOuvert] = useState<string | null>(null);
   const [moisChoisi, setMoisChoisi] = useState<string | null>(null);
   const [filEntier, setFilEntier] = useState(false);

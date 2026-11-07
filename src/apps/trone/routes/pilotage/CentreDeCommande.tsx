@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
@@ -101,7 +102,7 @@ export default function CentreDeCommande() {
   const [demandes] = useDemandes();
   const [envois] = useEnvois();
   const [offres] = useOffers();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const byId = useServicesById();
   const [apprenants] = useApprenants();
   const [abonnes] = useSubscribers();

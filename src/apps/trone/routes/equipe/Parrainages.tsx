@@ -1,3 +1,4 @@
+import { useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { PageHead } from '../_ui';
 import { asset } from '../../../../shared/asset';
@@ -90,7 +91,7 @@ export default function Parrainages({ dansLeCercle = false }: { dansLeCercle?: b
   const [foyerOuvert, setFoyerOuvert] = useStore(foyerActifStore);
   const [sceaux, setSceaux] = useFoyerTiers();
   const [demandes] = useDemandes();
-  const [rdvs] = useAppointments();
+  const [rdvs] = useRdvsDeLaMaison();
   const [clients] = useClients();
   const [services] = useServices();
   const [categories] = useCategories();

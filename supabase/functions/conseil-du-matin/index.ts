@@ -711,6 +711,8 @@ async function parPages(requete) {
   }
   return tout;
 }
+var SERVICE_D_ESSAI = "doiqyq0g0m";
+var rdvDEssai = (d, essais) => Array.isArray(d?.serviceIds) && (d?.serviceIds).includes(SERVICE_D_ESSAI) || essais.has(String(d?.clientId ?? ""));
 async function litLesFaits(sb, maintenantMs) {
   const lacunes = [];
   const essaie = async (cle, defaut, f) => {
@@ -728,6 +730,7 @@ async function litLesFaits(sb, maintenantMs) {
   const debutHier = minuitDe(hier2);
   const debutJour = minuitDe(jour);
   const maintenant = new Date(maintenantMs).toISOString();
+  const essais = await essaie("essais", /* @__PURE__ */ new Set(), async () => new Set((await parPages((de2, a) => sb.from("clients").select("id").eq("data->>essai", "true").order("id").range(de2, a))).map((l) => String(l.id))));
   const documents = await essaie("compteurs", {}, async () => {
     const { data, error } = await sb.from("documents").select("key, data").in("key", ["mnd_settings", ...CLES_DES_COMPTEURS]);
     if (error) throw new Error(error.message);
@@ -765,7 +768,7 @@ async function litLesFaits(sb, maintenantMs) {
       }
       return parPorte;
     }),
-    essaie("rdv", [], async () => (await parPages((de2, a) => sb.from("appointments").select("id, data").eq("data->>date", jour).order("id").range(de2, a))).map((r) => ({ time: r.data?.time, master: r.data?.master, status: r.data?.status }))),
+    essaie("rdv", [], async () => (await parPages((de2, a) => sb.from("appointments").select("id, data").eq("data->>date", jour).order("id").range(de2, a))).filter((r) => !rdvDEssai(r.data, essais)).map((r) => ({ time: r.data?.time, master: r.data?.master, status: r.data?.status }))),
     essaie("equipe", {}, async () => Object.fromEntries((await parPages((de2, a) => sb.from("team").select("id, data").order("id").range(de2, a))).map((t) => [String(t.id), String(t.data?.name ?? "")]))),
     essaie("depenses", 0, async () => (await parPages((de2, a) => sb.from("expenses").select("id").eq("data->validation->>etat", "attente").order("id").range(de2, a))).length),
     essaie("taches", [], async () => {
@@ -778,7 +781,7 @@ async function litLesFaits(sb, maintenantMs) {
   if (c.jour === 1) {
     actives90 = await essaie("actives", null, async () => {
       const lignes = await parPages((de2, a) => sb.from("appointments").select("id, data").eq("data->>status", "honoré").gt("data->>date", moinsDesJours(jour, 90)).lte("data->>date", jour).order("id").range(de2, a));
-      return new Set(lignes.map((r) => String(r.data?.clientId ?? "")).filter(Boolean)).size;
+      return new Set(lignes.filter((r) => !rdvDEssai(r.data, essais)).map((r) => String(r.data?.clientId ?? "")).filter(Boolean)).size;
     });
   }
   return {

@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
@@ -310,7 +311,7 @@ function DossierPanel({
   /* Le calibre se déduit du comptage — le style à la main est retiré (13 août). */
   const [bandsModeles] = useModelBands();
   const [queue] = useStore(consultationsQueueStore);
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const [bookOpen, setBookOpen] = useState(false);
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
 

@@ -11,6 +11,7 @@
     sont le MÊME fichier, et l'écran écraserait le module sans un
    mot. Un nom distinct vaut mieux qu'une casse à laquelle on se fie. */
 
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../../ds/components';
@@ -152,7 +153,7 @@ export function useCaisses(month: string) {
   /* CE QUI ATTEND UN OUI N'EST PAS ENCORE UNE DÉPENSE — 31 août 2026.
      Voir `compteDansLesChiffres` dans `shared/finance.ts`. */
   const expenses = useDepensesComptees();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const [coffre] = useCoffre();
   const [creditMvts] = useCredits();
   const [prets] = usePrets();

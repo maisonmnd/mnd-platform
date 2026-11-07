@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
@@ -60,8 +61,8 @@ const payISOLocal = (d: string): string => {
 
 export default function Analytics() {
   const { branch, branches, currency } = useBranch();
-  const [appointments] = useAppointments();
-  const [invoices] = useInvoices();
+  const [appointments] = useRdvsDeLaMaison();
+  const [invoices] = usePiecesDeLaMaison();
   const [clients] = useClients();
   const [apprenants] = useApprenants();
   const [abonnes] = useSubscribers();

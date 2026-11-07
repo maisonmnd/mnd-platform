@@ -18,7 +18,7 @@ import { CLE_DU_SERVEUR, lignesDuPassage, lignesNeuves, remisesAFabriquer, serve
 import { reglagesDeGerardStore, reglagesLus, useReglagesDeGerard } from '../../../../shared/gerard';
 import { envoisStore, useEnvois } from '../equipe/data';
 import { useAbonnesAuxNotifications } from '../equipe/useAudiences';
-import { todayISO, useBranchAppointments, useBranchClients, useServicesById } from './_shared';
+import { todayISO, useBranchAppointmentsAvecEssais, useBranchClients, useServicesById } from './_shared';
 
 export type { CerveauDeGerard };
 
@@ -41,7 +41,7 @@ export type { CerveauDeGerard };
 /** LES FICHES QUE L'ASSISTANT LIT, prises sur les magasins du Trône. */
 export function useCerveauDeGerard(): CerveauDeGerard {
   const { branch } = useBranch();
-  const appts = useBranchAppointments();
+  const appts = useBranchAppointmentsAvecEssais();
   const clients = useBranchClients();
   const byId = useServicesById();
   const signalements = useSignalements();

@@ -1,3 +1,4 @@
+import { usePaiementsDeLaMaison, usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { Fragment, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea, alerte, demande, demandeUnTexte } from '../../../../ds/components';
@@ -153,9 +154,9 @@ export default function SalonFoyer() {
 
   /* Les sources du REVENU — les mêmes que l'écran Encaissements, à l'identique :
      deux assemblages qui différeraient diraient deux revenus pour le même mois. */
-  const [invoices] = useInvoices();
-  const [online] = usePayments();
-  const [appointments] = useAppointments();
+  const [invoices] = usePiecesDeLaMaison();
+  const [online] = usePaiementsDeLaMaison();
+  const [appointments] = useRdvsDeLaMaison();
   const [credits] = useCredits();
   const [apprenants] = useApprenants();
   const [subscribers] = useSubscribers();

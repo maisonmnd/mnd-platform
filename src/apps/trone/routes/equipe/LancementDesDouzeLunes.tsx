@@ -1,3 +1,4 @@
+import { useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Modal, demande, toast } from '../../../../ds/components';
 import { clientsStore, useClients } from '../../../../shared/clients';
@@ -105,7 +106,7 @@ export function AccordDesGraines({ graines, seuil, nouveauSeuil, direction, onRe
   onRenonce?: () => void;
 }) {
   const [clients] = useClients();
-  const [rdvs] = useAppointments();
+  const [rdvs] = useRdvsDeLaMaison();
   const [demandes] = useDemandes();
   const [reglage] = useParrainage();
   const [lunes] = useDouzeLunes();
@@ -164,7 +165,7 @@ export function AccordDesGraines({ graines, seuil, nouveauSeuil, direction, onRe
 /* ══ LA FENÊTRE DU LANCEMENT ════════════════════════════════════════════ */
 export function LancementDesDouzeLunes({ onClose }: { onClose: () => void }) {
   const [clients] = useClients();
-  const [rdvs] = useAppointments();
+  const [rdvs] = useRdvsDeLaMaison();
   const [demandes] = useDemandes();
   const [lunes] = useDouzeLunes();
   const [reglage] = useParrainage();

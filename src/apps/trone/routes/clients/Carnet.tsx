@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Search } from 'lucide-react';
@@ -382,7 +383,7 @@ export default function Carnet() {
      sur son historique, les têtes au-delà des fauteuils, l'anniversaire. */
   /* Les rendez-vous qui portent une facture : un passé encaissé ou facturé
      est une venue, même jamais cliqué « honoré » (26 octobre 2026). */
-  const [pieces] = useInvoices();
+  const [pieces] = usePiecesDeLaMaison();
   const rdvsFactures = useMemo(() => new Set(pieces
     .filter((p) => p.apptId && p.kind === 'facture').map((p) => p.apptId as string)), [pieces]);
   /* La pièce d'un rendez-vous qu'elle a terminé elle-même (6 novembre 2026) :

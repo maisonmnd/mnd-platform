@@ -1106,7 +1106,7 @@ Deno.serve(async (req) => {
     /* ② LA JOURNÉE : ses rendez-vous, ses pièces (du jour, réglées ce jour,
        ou d'un rendez-vous du jour), ses fiches, le catalogue, les pièces
        effacées, les décisions de la direction, les papiers en salle. */
-    const lignesRdv = await parPages((de, a) => sb.from('appointments').select('id, branch_id, data, updated_at').eq('data->>date', jour).order('id').range(de, a));
+    let lignesRdv = await parPages((de, a) => sb.from('appointments').select('id, branch_id, data, updated_at').eq('data->>date', jour).order('id').range(de, a));
     const idsRdv = lignesRdv.map((l) => l.id);
     const pieces = new Map<string, Ligne>();
     for (const l of await parPages((de, a) => sb.from('invoices').select('id, branch_id, data, updated_at').eq('data->>date', jour).order('id').range(de, a))) pieces.set(l.id, l);
@@ -1114,6 +1114,20 @@ Deno.serve(async (req) => {
     for (const l of await parTranches(idsRdv, async (t) => (await sb.from('invoices').select('id, branch_id, data, updated_at').in('data->>apptId', t)).data ?? [])) pieces.set(l.id, l);
     const idsFiches = [...lignesRdv.map((l) => String(l.data?.clientId ?? '')), ...[...pieces.values()].flatMap((l) => [String(l.data?.clientId ?? ''), String(l.data?.forClientId ?? '')])];
     const lignesFiches = await parTranches(idsFiches, async (t) => (await sb.from('clients').select('id, data').in('id', t)).data ?? []);
+    /* LES FICHES D'ESSAI (7 novembre 2026, src/shared/essai-pur.ts) : la clôture
+       compte la caisse de la Maison. Les rendez-vous d'une fiche d'essai (ou qui
+       portent le service des essais) et leurs pièces n'y entrent pas : ni dans
+       les montants, ni dans les pièces à rattacher, ni dans les écarts. Le même
+       jugement que le Trône (`estUnRdvDEssai`, `estUnePieceDEssai`). */
+    const SERVICE_D_ESSAI = 'doiqyq0g0m';
+    const fichesDEssai = new Set(lignesFiches.filter((l) => l.data?.essai === true).map((l) => String(l.id)));
+    const rdvEssai = (d: Record<string, unknown> | undefined): boolean =>
+      (Array.isArray(d?.serviceIds) && (d?.serviceIds as unknown[]).includes(SERVICE_D_ESSAI)) || fichesDEssai.has(String(d?.clientId ?? ''));
+    const idsRdvEssai = new Set(lignesRdv.filter((l) => rdvEssai(l.data)).map((l) => String(l.id)));
+    lignesRdv = lignesRdv.filter((l) => !idsRdvEssai.has(String(l.id)));
+    for (const [id, l] of [...pieces.entries()]) {
+      if (fichesDEssai.has(String(l.data?.clientId ?? '')) || idsRdvEssai.has(String(l.data?.apptId ?? ''))) pieces.delete(id);
+    }
     const prestations = new Map<string, Prestation>();
     for (const l of await parPages((de, a) => sb.from('catalog_services').select('id, data').order('id').range(de, a))) prestations.set(l.id, (l.data ?? {}) as Prestation);
     const traces = await parPages((de, a) => sb.from('traces').select('id, piece_id, fait_le, compte_nom, porte, avant')

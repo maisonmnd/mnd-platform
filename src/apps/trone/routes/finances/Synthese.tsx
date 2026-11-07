@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eyebrow } from '../../../../ds/components';
@@ -55,11 +56,11 @@ const moisCourt = (mk: string): string => `${monthShort(mk)} ${mk.slice(2, 4)}`;
 export default function Synthese() {
   const navigate = useNavigate();
   const { branch, currency } = useBranch();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   /* CE QUI ATTEND UN OUI N'EST PAS ENCORE UNE DÉPENSE — 31 août 2026.
      Voir `compteDansLesChiffres` dans `shared/finance.ts`. */
   const expenses = useDepensesComptees();
-  const [appts] = useAppointments();
+  const [appts] = useRdvsDeLaMaison();
   const [clients] = useClients();
   const [categories] = useCategories();
   const [apprenants] = useApprenants();

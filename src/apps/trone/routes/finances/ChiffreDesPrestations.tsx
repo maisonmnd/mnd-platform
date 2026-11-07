@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card, Input } from '../../../../ds/components';
@@ -40,10 +41,10 @@ const MOIS_COURTS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 
 export default function ChiffreDesPrestations() {
   const { branch, branches, currency } = useBranch();
   const navigate = useNavigate();
-  const [rdvs] = useAppointments();
+  const [rdvs] = useRdvsDeLaMaison();
   const [clients] = useClients();
   const [cats] = useCategories();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const byId = useServicesById();
   const jour = todayISO();
   const [choix, setChoix] = useState<ChoixDePeriode>('mois');

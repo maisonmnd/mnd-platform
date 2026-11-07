@@ -1,3 +1,4 @@
+import { useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
@@ -116,7 +117,7 @@ export default function MonMois() {
   const me = useMyStaff();
   const { session } = useAuth();
   const [corrige, setCorrige] = useState<string | null>(null);
-  const [appts] = useAppointments();
+  const [appts] = useRdvsDeLaMaison();
   const [services] = useServices();
   const svcById = useMemo(() => new Map(services.map((sv) => [sv.id, sv])), [services]);
 

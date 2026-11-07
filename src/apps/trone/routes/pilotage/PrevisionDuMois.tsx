@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useState } from 'react';
 import { allerALaSection } from '../../../../ds/ancre';
 import { useNavigate } from 'react-router-dom';
@@ -113,7 +114,7 @@ function creancesDesSixMois(factures: readonly Invoice[], mk: string, jour: numb
     prévision et « Demander à la Maison » lisent le même. */
 export function usePrevisionDuMois(): DonneesDeLaPrevision {
   const { branch, currency } = useBranch();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const appts = useBranchAppointments();
   const clients = useBranchClients();
   const byId = useServicesById();

@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useBranch } from '../../../../shared/branches';
@@ -50,7 +51,7 @@ const leJourDit = (j: string) => `${Number(j.slice(8, 10)) === 1 ? '1er' : Numbe
     et la facture (la règle du Carnet, `estUneVenue`). */
 function useLesRdvs(): RdvDesPrevisions[] {
   const appts = useBranchAppointments();
-  const [pieces] = useInvoices();
+  const [pieces] = usePiecesDeLaMaison();
   return useMemo(() => {
     const factures = new Set(pieces.filter((p) => p.apptId && p.kind === 'facture').map((p) => p.apptId as string));
     return appts.map((a) => ({

@@ -11,7 +11,7 @@ import { personalPriceXof, pricingOf, useBandSets, useModelBands } from '../../.
 import { useInvoices } from '../../../../shared/finance';
 import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, tetesDuCompte } from '../../../../shared/compte';
 import type { Fil } from '../../../../shared/conversations';
-import { apptDueXof, apptNetXof, todayISO, useBranchAppointments, useServicesById } from './_shared';
+import { apptDueXof, apptNetXof, todayISO, useBranchAppointmentsAvecEssais, useServicesById } from './_shared';
 import {
   SCHEMA_DE_LA_REPONSE, consigneDeLaReponse, contextePourClaude, derniereVenueDe, etatDeLaZone, filOuvertAClaude,
   lectureDeLaReponse, lignesDuCataloguePourClaude, paliersDeLocks, prochainRdvDe, zoneAProteger,
@@ -59,7 +59,7 @@ export function ReponseProposee({ fil, texte, occupe, surProposition }: {
   const sait = useSaitIaMaison();
   const [clients] = useClients();
   const [familles] = useFamilies();
-  const rendezVous = useBranchAppointments();
+  const rendezVous = useBranchAppointmentsAvecEssais();
   const byId = useServicesById();
   const [services] = useServices();
   const [categories] = useCategories();

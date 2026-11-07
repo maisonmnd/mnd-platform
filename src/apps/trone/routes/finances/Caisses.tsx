@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useState, type CSSProperties } from 'react';
 import { ClotureDuTiroir } from './ClotureDuTiroir';
 import { RemiseAZero } from './RemiseAZero';
@@ -60,7 +61,7 @@ export default function Caisses() {
 
   const { branch, currency, branchBoxes, boxBalance, boxMonthFlux, tresorerieVisible, anciennesTotal, discretesFermees, horsBilan, ouvertes, depuis } = useCaisses(month);
   const [, setCashboxes] = useCashboxes();
-  const [invoices, setInvoices] = useInvoices();
+  const [invoices, setInvoices] = usePiecesDeLaMaison();
   const [transferts, setTransferts] = useTransferts();
   const [, setCoffre] = useCoffre();
   const [, setCreditMvts] = useCredits();

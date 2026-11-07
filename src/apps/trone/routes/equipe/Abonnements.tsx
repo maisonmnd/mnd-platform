@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OptionsPrestations, PageHead, WaLien } from '../_ui';
@@ -129,7 +130,7 @@ export default function Abonnements() {
   );
   const calibres = useMemo(() => sortedBands(calibresAbo), [calibresAbo]);
   const [services] = useServices();
-  const [allAppts] = useAppointments();
+  const [allAppts] = useRdvsDeLaMaison();
   const navigate = useNavigate();
   const [suiviFor, setSuiviFor] = useState<Subscriber | null>(null);
   /* ══ LA VALIDITÉ SE CORRIGE OÙ ELLE SE LIT — 1er septembre 2026 ═════
@@ -199,7 +200,7 @@ export default function Abonnements() {
   /* QUI COURT, QUI EST PARTI — 20 octobre 2026 : l'état du juge unique, plus
      le statut stocké. Une retenue jamais réglée s'efface ; une résiliation
      datée part à sa date ; un paquet passé sa fin est terminé. */
-  const [toutesLesPieces] = useInvoices();
+  const [toutesLesPieces] = usePiecesDeLaMaison();
   const etatDe = (m: Subscriber) => releveDuContrat(m, plans.find((p) => p.id === m.planId), [], { subs, plans, invoices: toutesLesPieces })?.etat ?? 'en-cours';
   const members = useMemo(() => branchSubs.filter((m) => ETATS_QUI_COURENT.includes(etatDe(m))), [branchSubs, subs, plans, toutesLesPieces]);
   /* LE VERSÉ D'UN CONTRAT : le sien ET celui de sa pièce, réunis par

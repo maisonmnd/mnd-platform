@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useState } from 'react';
 import { Card, toast } from '../../../../ds/components';
 import { Toggle } from '../equipe/ui';
@@ -24,7 +25,7 @@ import { useEstDirection } from '../_vie';
    créé : « Vérifier » demande à la fonction ce qu'elle voit. */
 export function CarteRelances() {
   const [settings, setSettings] = useSettings();
-  const [factures] = useInvoices();
+  const [factures] = usePiecesDeLaMaison();
   const [clients] = useClients();
   const estDirection = useEstDirection();
   const r: ReglagesRelances = settings.relances ?? {};

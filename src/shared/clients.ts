@@ -408,6 +408,12 @@ export type Client = {
       ni le bouton de Ma Couronne, ni celui du site, ni le lien du WhatsApp de
       la Maison. La règle : shared/terminer-et-regler-pur.ts (`porteDeLaFin`). */
   passeAuComptoir?: boolean;
+  /** FICHE D'ESSAI : 7 novembre 2026 (« des RDV test qui ne vont pas dans
+      notre liste de RDV, ni dans le chiffre d'affaires », Yéman). Cochée par la
+      direction : tout ce qui appartient à cette cliente (rendez-vous, pièces,
+      versements, abonnements, avis) marche comme pour une vraie, mais ne compte
+      nulle part dans la gestion. La règle : shared/essai-pur.ts. */
+  essai?: boolean;
   /** LA REMISE DU RITUEL COMPLET — 5 novembre 2026 (« Celles que je coche »,
       Yéman) : quand elle fait le shampoing et la reprise au même rituel, le
       geste de la Maison réservé aux fiches cochées s'applique (5 000 F sur le

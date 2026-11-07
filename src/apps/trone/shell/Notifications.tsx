@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../shared/essai';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -106,8 +107,8 @@ const relTime = (iso: string): string => {
 /** Dérive la liste des notifications pertinentes pour la branche courante. */
 function useNotifications(): Notif[] {
   const { branch, currency } = useBranch();
-  const [appointments] = useAppointments();
-  const [invoices] = useInvoices();
+  const [appointments] = useRdvsDeLaMaison();
+  const [invoices] = usePiecesDeLaMaison();
   const [products] = useProducts();
   const [clients] = useClients();
   const [queue] = useStore(consultationsQueueStore);
@@ -404,7 +405,7 @@ function useFinsDePaquet(): void {
 
 /* ---------- Veille Ma Couronne — alerte active à l'arrivée d'une réservation ---------- */
 function useCouronneAlerts(): Notif[] {
-  const [appointments] = useAppointments();
+  const [appointments] = useRdvsDeLaMaison();
   const [clients] = useClients();
   const [alerts, setAlerts] = useState<Notif[]>([]);
   const seenRef = useRef<Map<string, string> | null>(null);

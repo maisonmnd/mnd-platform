@@ -34,7 +34,9 @@ import {
 import { deRangeLaBoite, rangeLaBoite, useRiensARepondre } from '../../../../shared/rien-a-repondre';
 import { marqueLue, useConversationsLues } from '../../../../shared/conversations-lues';
 import { heureRecueDite, recuDe, recusDesBoites, titreDesRecus, type Recu } from '../../../../shared/recus-pur';
-import { ClientPicker, RdvModal, useBranchAppointments, useBranchClients, type RdvInitial } from './_shared';
+import { BadgeEssai } from './BadgeEssai';
+import { estUneFicheDEssai } from '../../../../shared/essai-pur';
+import { ClientPicker, RdvModal, useBranchAppointmentsAvecEssais, useBranchClients, type RdvInitial } from './_shared';
 import { ComposeurWhatsApp, type PoigneeDuComposeur } from './ComposeurWhatsApp';
 import { PieceDuFil, attache } from './Conversations';
 import { CaptureLue } from './CaptureLue';
@@ -179,7 +181,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
   const [params, setParams] = useSearchParams();
   const estDirection = moi?.role === 'souverain' || moi?.role === 'gerant';
   const clients = useBranchClients();
-  const appts = useBranchAppointments();
+  const appts = useBranchAppointmentsAvecEssais();
   const [messages] = useMessagesWa();
   const [prives] = useFilsPrives();
   const [archives, setArchives] = useFilsArchives();
@@ -791,7 +793,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
           <span className={`trc-bx__avatar${nouvelle ? ' est-nouvelle' : ''}`} aria-hidden="true">{b.initiales}</span>
           <span className="trc-bx__qui">
             <span className="trc-bx__haut">
-              <b>{b.nom}</b>
+              <b>{b.nom}</b>{b.clientId && estUneFicheDEssai(clients.find((c) => c.id === b.clientId)) && <BadgeEssai />}
               {recu
                 ? <span className="trc-bx__depuis trc-bx__arrivee">{heureRecueDite(recu.quand, tick)}</span>
                 : b.depuisMs !== undefined && <span className="trc-bx__depuis">{depuisDit(b.depuisMs)}</span>}
@@ -995,7 +997,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
         <div className={etroit ? 'trc-am__tete trc-bx__tete' : 'trc-bx__tete'}>
           {etroit && <button type="button" className="trc-am__retour" onClick={() => ouvre(null)} aria-label="Revenir à la liste des conversations">←</button>}
           <span className="trc-bx__nom">
-            <b>{b.nom}</b>
+            <b>{b.nom}</b>{b.clientId && estUneFicheDEssai(clients.find((c) => c.id === b.clientId)) && <BadgeEssai />}
             <span>{sous}</span>
           </span>
           <span className="trc-bx__geree">

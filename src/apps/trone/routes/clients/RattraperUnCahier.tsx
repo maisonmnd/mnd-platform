@@ -1,3 +1,4 @@
+import { useRdvsDeLaMaison } from '../../../../shared/essai';
 import { Fragment, useMemo, useRef, useState } from 'react';
 import { Button, Field, Input, Modal, Select, alerte, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -56,7 +57,7 @@ const pastille = (fond: string, encre: string, bord: string): React.CSSPropertie
 export function RattraperUnCahier({ onClose }: { onClose: () => void }) {
   const { branch, currency } = useBranch();
   const [tousLesClients] = useClients();
-  const [tousLesRdv] = useAppointments();
+  const [tousLesRdv] = useRdvsDeLaMaison();
   const [services] = useServices();
   const byId = useServicesById();
   const [caisses] = useCashboxes();

@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead, WaLien } from '../_ui';
@@ -238,8 +239,8 @@ export default function Comptes() {
      solder directement par l'avoir. */
   const [unpaidFor, setUnpaidFor] = useState<CreditHolder | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
-  const [appts] = useAppointments();
-  const [invoices] = useInvoices();
+  const [appts] = useRdvsDeLaMaison();
+  const [invoices] = usePiecesDeLaMaison();
   const byId = useServicesById();
   /* `unpaidOfHolder` additionne au rendu, sans mémo, des restes dus lus au
      tarif de la tête : l'écran se redessine quand ce tarif change

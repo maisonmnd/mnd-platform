@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -256,8 +257,8 @@ export default function Encaissements() {
   /* Ce que l'écran lit ENCORE en propre : les factures (pointage du relevé,
      reconstruction des parts) et les fiches (noms). Le reste de l'assemblage
      du registre est passé derrière `useRegistreEncaissements`. */
-  const [invoices] = useInvoices();
-  const [appointments] = useAppointments();
+  const [invoices] = usePiecesDeLaMaison();
+  const [appointments] = useRdvsDeLaMaison();
   const [clients] = useClients();
   /* Les dépenses disent quels revenus ont déjà servi — voir `etatDe`. */
   /* CE QUI ATTEND UN OUI N'EST PAS ENCORE UNE DÉPENSE — 31 août 2026.
@@ -436,7 +437,7 @@ export default function Encaissements() {
      caisse. On n'édite pas un versement en place : l'argent se rejoue, il ne
      se rature pas. */
   const [rdvAOuvrir, setRdvAOuvrir] = useState<string | null>(null);
-  const [tousLesRdv] = useAppointments();
+  const [tousLesRdv] = useRdvsDeLaMaison();
   const servicesParId = useServicesById();
   /* ══ LES RITUELS RÉGLÉS QUI N'ONT PAS LEUR PIÈCE — 7 septembre 2026 ══
      « J'ai toujours des rituels sans pièce en janvier, février, mars…

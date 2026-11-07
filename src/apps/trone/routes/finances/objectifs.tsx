@@ -21,6 +21,7 @@
    restés au coffre : c'est en regardant un objectif qu'on décide de
    l'alimenter. Les deux modales vivent donc ici, et le Coffre les importe. */
 
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useState } from 'react';
 import { Button, Card, Field, Input, Modal, Select, Textarea, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -265,7 +266,7 @@ export function LesObjectifs() {
   const [tousMoves] = useCoffre();
   const [objectifs, setObjectifs] = useObjectifs();
   const [clients] = useClients();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const aujourdhui = todayISO();
 
   const moves = tousMoves.filter((m) => m.branchId === branch.id);

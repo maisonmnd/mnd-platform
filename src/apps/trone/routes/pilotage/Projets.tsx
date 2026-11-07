@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
@@ -64,7 +65,7 @@ export default function Projets() {
   const { session } = useAuth();
   const monProfil = useMonProfil();
   const [tous] = useFil();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const [equipe] = useStaff();
   const [annuaire] = useAnnuaire();
   const [projetsDeTous] = useProjets();

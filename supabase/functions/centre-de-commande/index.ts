@@ -1798,12 +1798,21 @@ async function previensLesFondateurs(titre: string, corps: string): Promise<numb
 }
 
 /* ── Les faits, lus dans la base, sans aucun nom ────────────────────────── */
-type Rdv = { date?: string; time?: string; status?: string };
+type Rdv = { date?: string; time?: string; status?: string; clientId?: string; serviceIds?: string[] };
+
+/* LES ESSAIS (7 novembre 2026, src/shared/essai-pur.ts) : le briefing de la
+   direction compte les rendez-vous de la Maison. Cette fonction ne lit JAMAIS la
+   table des clientes (règle de son banc : aucun nom ne part vers Claude) : elle
+   ne peut donc pas juger une fiche d'essai, seulement le service des essais
+   (« Essai de paiement · 100 F »), qui rend un rendez-vous d'essai à lui seul.
+   Les rendez-vous d'une fiche d'essai sur un autre service restent comptés ici. */
+const SERVICE_D_ESSAI = 'doiqyq0g0m';
 
 async function rdvEntre(du: string, au: string): Promise<Rdv[]> {
   const { data, error } = await admin.from('appointments').select('data').gte('data->>date', du).lte('data->>date', au).limit(1000);
   if (error) throw new Error(`rendez-vous : ${error.message}`);
-  return (data ?? []).map((l: { data: Rdv }) => l.data ?? {});
+  return (data ?? []).map((l: { data: Rdv }) => l.data ?? {})
+    .filter((r: Rdv) => !(r.serviceIds ?? []).includes(SERVICE_D_ESSAI));
 }
 
 async function lesFaits(jour: string, genre: GenreDeBriefing): Promise<FaitsDuJour> {

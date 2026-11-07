@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
@@ -143,7 +144,7 @@ export default function Caisse() {
   const [subs] = useSubscribers();
   const [plans] = usePlans();
   const [credits] = useCredits();
-  const [invoices, setInvoices] = useInvoices();
+  const [invoices, setInvoices] = usePiecesDeLaMaison();
   const [cashboxes] = useCashboxes();
   const [methods] = usePaymentMethods();
 

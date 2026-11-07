@@ -5,6 +5,7 @@
    prépare le même contexte, une seule fois écrit : les venues honorées, les
    rendez-vous à venir, les formules qui courent, et les têtes qui ont allumé
    les notifications de Ma Couronne. */
+import { useClientsDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useState } from 'react';
 import { useBranch } from '../../../../shared/branches';
 import { useClients, estDePassage, type Client } from '../../../../shared/clients';
@@ -41,8 +42,8 @@ export function useAbonnesAuxNotifications(): ReadonlySet<string> {
 /** La base (branche, pas archivée, pas de passage) et le contexte du jour. */
 export function useAudiences(): { base: Client[]; ctx: ContexteDAudience } {
   const { branch } = useBranch();
-  const [clients] = useClients();
-  const [appointments] = useAppointments();
+  const [clients] = useClientsDeLaMaison();
+  const [appointments] = useRdvsDeLaMaison();
   const [subs] = useSubscribers();
   const aujourdhui = jourDeCotonou();
 

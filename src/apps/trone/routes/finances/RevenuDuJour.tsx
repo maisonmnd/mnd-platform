@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../../ds/components';
@@ -56,7 +57,7 @@ export function RevenuDuJour({ iso, onClose, onOpenAppt }: {
   const [pointages, setPointages] = usePointages();
   const [clotures] = useClotures();
   const appts = useBranchAppointments();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const [clientes] = useClients();
   const nomDe = (a: Appointment) => a.clientName || clientes.find((c) => c.id === a.clientId)?.name || 'Cliente';
   const byId = useServicesById();

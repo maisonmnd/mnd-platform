@@ -14,7 +14,7 @@ import {
   type BriefingAvantLeFauteuil, type CarnetLu, type ClienteLue, type EntreeAvantLeFauteuil, type MessageLu, type RdvLu,
 } from '../../../../shared/avant-le-fauteuil-pur';
 import {
-  apptDueXof, apptDurationMin, apptLabel, apptNetXof, timeToMin, todayISO, useBranchAppointments, useClefDuTarif, useServicesById,
+  apptDueXof, apptDurationMin, apptLabel, apptNetXof, timeToMin, todayISO, useBranchAppointmentsAvecEssais, useClefDuTarif, useServicesById,
 } from './_shared';
 
 /* ══ CE QU'« AVANT LE FAUTEUIL » LIT DANS LES MAGASINS — 31 octobre 2026 ══
@@ -159,7 +159,7 @@ export function useLecteurAvantLeFauteuil(): { aujourdhui: string; lis: (rdv: Ap
        compte. Le téléphone et la fiche doivent dire le même chiffre.
 
        LES RENDEZ-VOUS DE SA BRANCHE, comme la fiche : `CompteDeLaCliente` lit
-       `useBranchAppointments`, et la fiche ne s'ouvre que depuis sa branche
+       `useBranchAppointmentsAvecEssais`, et la fiche ne s'ouvre que depuis sa branche
        (`useBranchClients`). Lire ici toutes les branches ferait annoncer au
        téléphone une dette que la fiche ne montre pas.
 
@@ -261,7 +261,7 @@ export function useLecteurAvantLeFauteuil(): { aujourdhui: string; lis: (rdv: Ap
     qu'il montre. La LISTE est par branche (le Carnet l'est) ; chaque lecture,
     elle, voit toute la vie de la cliente. */
 export function useEntreesAvantLeFauteuil(jour: string): LectureAvantLeFauteuil[] {
-  const appts = useBranchAppointments();
+  const appts = useBranchAppointmentsAvecEssais();
   const { lis } = useLecteurAvantLeFauteuil();
   return useMemo(() => rendezVousAVenirDu(appts, jour).map((a) => lis(a)), [appts, jour, lis]);
 }

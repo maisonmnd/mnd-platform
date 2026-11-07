@@ -13,6 +13,7 @@
      Clientes, qui s'ouvre sur l'audience par « Voir » ;
    · Campagnes : déposées dans la salle d'attente des envois, retenues, et
      portées par le facteur au feu vert (`campagnes-pur`). */
+import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
 import { Fragment, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea, demande, toast } from '../../../../ds/components';
@@ -277,7 +278,7 @@ export function OngletAudience({ abonnes, onEcrire }: { abonnes: ReadonlySet<str
   const { currency } = useBranch();
   const navigate = useNavigate();
   const { base, ctx } = useAudiences();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const [segmentList] = useSegments();
   const [segNotes, setSegNotes] = useStore(segmentNotesStore);
   const [segEdit, setSegEdit] = useState<string | null>(null);
@@ -466,7 +467,7 @@ export function OngletCampagnes({ abonnes, brouillon, onBrouillon }: {
   const navigate = useNavigate();
   const [campagnes, setCampagnes] = useCampaigns();
   const [envois] = useEnvois();
-  const [rdvs] = useAppointments();
+  const [rdvs] = useRdvsDeLaMaison();
   const { base, ctx } = useAudiences();
 
   const lignesPar = useMemo(() => {

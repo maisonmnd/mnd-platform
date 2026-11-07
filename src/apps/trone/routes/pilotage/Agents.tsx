@@ -1,3 +1,4 @@
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
@@ -261,7 +262,7 @@ function AgentDesEncaissements() {
   const { branch, currency } = useBranch();
   const [captures] = useCapturesLues();
   const [reglages] = useSettings();
-  const [invoices] = useInvoices();
+  const [invoices] = usePiecesDeLaMaison();
   const appts = useBranchAppointments();
   const byId = useServicesById();
   const lues = capturesAInscrire(captures).length;
