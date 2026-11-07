@@ -20,6 +20,7 @@ import { useInvoices } from '../../../../shared/finance';
 import { laPieceDuRdv, resteDeLaPiece, type PieceLue } from '../../../../shared/regler-la-seance-pur';
 import { marqueDeLaFinAuCarnet, type PieceAuCarnet } from '../../../../shared/terminer-et-regler-pur';
 import { useCategories, useServices, useProducts, MAISONS, type Maison } from '../../../../shared/catalog';
+import { detailDuService } from '../../../../shared/le-moment-detail-pur';
 import { useModelBands, useBandSets } from '../../../../shared/pricing';
 import { useSettings, openingForIso } from '../../../../shared/settings';
 import { tauxDit } from '../../../../shared/agents-maison-pur';
@@ -826,6 +827,15 @@ export default function Carnet() {
           )}
         <span className="trc-carnet__svc">
           <span className="trc-rdv__rituel">{apptLabel(a, byId)}</span>
+          {/* AU PROGRAMME DE CE JOUR (7 novembre 2026, Y.) : le staff lit ce qu'il doit faire à CETTE venue d'un Moment en plusieurs venues. */}
+          {a.momentEnTrois && (() => {
+            const lignes = detailDuService(byId.get(a.serviceIds[0]), byId, {}, a.momentEnTrois.rang).lignes;
+            return lignes.length > 0 ? (
+              <span className="mnd-muted" style={{ display: 'block', fontSize: 11.5, marginTop: 2 }}>
+                Au programme : {lignes.map((l) => `${l.nom.split(' · ')[0]}${l.offert ? ' (offert)' : ''}`).join(' + ')}
+              </span>
+            ) : null;
+          })()}
           {a.serviceIds.length > 1 && <span className="trc-src trc-src--indigo">{a.serviceIds.length} services</span>}
           {/* CE QU'ELLE EMPORTE SE VOIT AU CARNET — 5 septembre 2026. Une
               Gamme posee a la reservation et invisible ici serait une promesse

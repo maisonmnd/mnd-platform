@@ -3054,7 +3054,8 @@ function RdvModalCorps({
   const prixDeLaCarte = (s: { id: string }) => { const sv = byId.get(s.id); return sv ? prixDeBase(sv, pricing) : undefined; };
   const leMomentLu = contientLeMoment(serviceIds) ? byId.get(serviceIds[0]) : undefined;
   /* Un rendez-vous d'un plan en plusieurs venues montre CE QUE SA VENUE CONSOMME (son rang), jamais le prix de la carte du Moment : « je ne veux surtout pas voir 218000 » (Yéman, 7 novembre 2026). */
-  const detailDuMomentIci = leMomentLu ? detailDuService(leMomentLu, byId, { prixDe: prixDeLaCarte }, appt?.momentEnTrois?.rang) : null;
+  /* « Je veux ce qui est compris pour la journée d'aujourd'hui, sinon le staff ne saura pas ce qu'il doit faire » (Yéman) : la venue du rendez-vous, jamais tout le Moment en bloc (la venue 1 à la pose). */
+  const detailDuMomentIci = leMomentLu ? detailDuService(leMomentLu, byId, { prixDe: prixDeLaCarte }, appt?.momentEnTrois?.rang ?? 1) : null;
   const detailsDesVenues = enTrois
     ? detailParVenue([serviceIds[0], ...Array.from({ length: nVenues - 1 }, () => venueDEntretien)], byId, { prixDe: prixDeLaCarte })
     : undefined;
@@ -5377,7 +5378,7 @@ function RdvModalCorps({
           {detailDuMomentIci && detailDuMomentIci.lignes.length > 0 && (
             <DetailDuMoment
               detail={detailDuMomentIci}
-              titre={appt?.momentEnTrois ? `Ce que comprend cette venue · ${appt.momentEnTrois.rang} sur ${appt.momentEnTrois.tiers.length}` : undefined}
+              titre={appt?.momentEnTrois ? `Au programme aujourd’hui · venue ${appt.momentEnTrois.rang} sur ${appt.momentEnTrois.tiers.length}` : 'Au programme aujourd’hui'}
               totalXof={appt ? undefined : totalDuMoment}
               replie={!!appt && !appt.momentEnTrois}
               avecValeurs={false}
