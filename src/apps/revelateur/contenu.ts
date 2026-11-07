@@ -114,6 +114,11 @@ export const COMMUN: Commun = {
        aussi, et c'est par là qu'on l'atteint depuis un téléphone. */
     { texte: 'Galerie', vers: '/galerie/' },
     { texte: 'Journal', vers: '/journal/' },
+    /* « METTRE ÇA DANS LA BARRE DE NAVIGATION : MES RDV » (Yéman, 7 novembre
+       2026). La porte du code de confirmation (Terminer et régler, lot 1) :
+       retrouver son rendez-vous, le terminer et le régler. En dernier, juste
+       avant « Réserver » ; au téléphone, dans le menu à trois traits. */
+    { texte: 'Mes RDV', vers: '/mon-rendez-vous/' },
   ],
   pied: {
     phrase: 'La Maison MND, Cotonou. Locks créées, réparées, entretenues, depuis 2010.',
