@@ -49,6 +49,9 @@ export function restesHorsFormuleDe(
   }
   for (const i of invoices) {
     if (i.kind !== 'facture' || i.status === 'payée' || i.clientId !== teteId) continue;
+    /* UNE PIÈCE RATTACHÉE À UN CONTRAT DE LA CLIENTE se compte dans ce contrat (ses versements), jamais en plus
+       comme reste hors formule : 7 novembre 2026, trois factures d'une formule épuisée, payées au contrat, comptaient 150 000 F dus. */
+    if (i.subId && subs.some((s) => s.id === i.subId)) continue;
     if (piecesDeContrat.has(i.id) || (i.apptId && rituels.has(i.apptId))) continue;
     const reste = invoiceTotal(i) - (i.payments ?? []).reduce((s, p) => s + (Number(p.amountXof) || 0), 0) - (i.avoirXof ?? 0);
     if (reste > 0) out.push({ id: i.id, genre: 'piece', date: i.date, resteXof: reste, libelle: i.lines[0]?.label });

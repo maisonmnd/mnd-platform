@@ -182,6 +182,8 @@ export type Invoice = {
   master?: string;
   /** RDV créé automatiquement à l’acceptation d’un devis (évite les doublons). */
   apptId?: string;
+  /** Le contrat (abonnement) dont cette pièce est la facture : ses versements la portent, jamais un reste en plus. */
+  subId?: string;
   /** LA PIÈCE DE POURBOIRE SEUL d'un rituel déjà soldé (23 octobre 2026) : le
       rituel qu'elle remercie. Pas `apptId`, qui désigne LA pièce du rituel
       et que l'encaissement relit pour son journal de versements. Voir
