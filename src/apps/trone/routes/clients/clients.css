@@ -3929,3 +3929,10 @@ label.trc-foyer--lier { justify-content: flex-start; cursor: pointer; }
 .trc-foyer__choix { display: flex; gap: 8px; flex-wrap: wrap; }
 .trc-rdv5__foyer { display: flex; flex-direction: column; border-top: 1px solid var(--hairline); padding-top: 8px; }
 .trc-rdv5__foyer .trc-rdv5__total b { font-size: 24px; }
+
+/* Le code MND du rendez-vous, en haut de la fenêtre (7 novembre 2026). */
+.tr-code-rdv { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; font-family: var(--font-sans); }
+.tr-code-rdv > span { font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--copper-700); }
+.tr-code-rdv > b { font-size: 15px; letter-spacing: .08em; font-weight: 600; color: var(--color-indigo); }
+.tr-code-rdv__copie { font: inherit; font-size: 12px; padding: 3px 10px; border: 1px solid var(--hairline); border-radius: var(--radius-sm, 3px); background: var(--surface-card); color: var(--ink); cursor: pointer; }
+.tr-code-rdv__copie:hover { border-color: var(--copper-300); }

@@ -40,6 +40,7 @@ import { familleDe } from '../equipe/rh/familles';
 import { enPause } from '../../../../shared/formules-en-lunes-pur';
 import { regardADeduire, remiseAvecLeRegard, type RegardADeduire } from '../../../../shared/regard-deduit-pur';
 import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDeGestes } from '../_vie';
+import { referenceDuRendezVous } from '../../../../shared/lien-du-rdv-pur';
 import { useStaff as useMaTeteDuRdv } from '../../../../shared/auth';
 import { momentDuRdv, poseUnRendezVous } from '../../../../shared/agenda';
 import { modelBandsStore, bandSetsStore, prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, remiseGesteXof, francsDuGeste, type JugeDuGeste, tauxPermis, plafondDeRemisePct, plafondDeRemiseXof, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
@@ -3820,6 +3821,16 @@ function RdvModalCorps({
   const montreSiens = !!clientId && sesRdv.some((a) => a.id !== appt?.id);
   return (
     <Modal title={title ?? (appt ? 'Modifier le rendez-vous.' : 'Nouveau rendez-vous.')} onClose={onClose} width={1120}>
+      {/* LE CODE MND DU RENDEZ-VOUS — 7 novembre 2026 : « où sur le RDV je peux
+          retrouver le code MND ». C'est la référence dite à la cliente (site,
+          WhatsApp) ; elle se recalcule de l'identifiant, rien n'est écrit. */}
+      {appt && (
+        <div className="tr-code-rdv">
+          <span>Code du rendez-vous</span>
+          <b>{referenceDuRendezVous(appt.id)}</b>
+          <button type="button" className="tr-code-rdv__copie" onClick={() => { const c = referenceDuRendezVous(appt.id); void navigator.clipboard?.writeText(c).then(() => toast('Code copié.')).catch(() => toast(c)); }}>Copier</button>
+        </div>
+      )}
       {(montreSaVie || montreSiens) && (
         <div className="tvie-entete">
           {montreSaVie && appt && (
