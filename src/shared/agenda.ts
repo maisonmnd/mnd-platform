@@ -224,9 +224,11 @@ export type Appointment = {
       sans rien savoir du plan). Voir shared/le-moment-en-trois-pur.ts. */
   momentEnTrois?: {
     planId: string;
-    rang: 1 | 2 | 3;
+    rang: number;
     total: number;
     tiers: number[];
+    /** Le plafond d'une venue (Moment cuir chevelu : 45 000 F), remise comprise. 7 novembre 2026. */
+    plafondParVenueXof?: number;
   };
   /** CE QU'ELLE EMPORTE — la Gamme DÒDÒ posée dès la prise du rendez-vous
       (5 septembre 2026, maquette validée).

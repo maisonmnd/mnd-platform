@@ -68,10 +68,12 @@ import './clients.css';
 import { cheminDeLaConversation, lienDuFil, lienWaMe } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
 import {
-  SERVICE_LE_MOMENT, contientLeMoment, datesDuPlanValides, forfaitDuTiers, momentEnTroisDuRang, phraseEncaisserLeTiers,
+  SERVICE_LE_MOMENT, VENUES_DU_MOMENT_CUIR_CHEVELU, venuesDuMomentPour, serviceDesVenuesSuivantes, PLAFOND_PAR_VENUE_CUIR_CHEVELU_XOF, tiersPlafonnes, enLettres, enNVenues, contientLeMoment, datesDuPlanValides, forfaitDuTiers, momentEnTroisDuRang, phraseEncaisserLeTiers,
   tiersAEncaisser, tiersDuMoment, venueDEntretienDuMoment,
 } from '../../../../shared/le-moment-en-trois-pur';
 import { MomentEnTroisChoix, type VenueChoisie } from './MomentEnTroisChoix';
+import { DetailDuMoment } from './DetailDuMoment';
+import { detailDuService, detailParVenue } from '../../../../shared/le-moment-detail-pur';
 import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 import { LeBilanDeLaSeance } from './LeBilanDeLaSeance';
 import { FicheDuJour } from './FicheDuJour';
@@ -2929,7 +2931,7 @@ function RdvModalCorps({
   /* LE MOMENT EN TROIS VENUES (7 novembre 2026) : comment le règle-t-elle, et
      les dates des deux venues d'entretien (rangs 2 et 3). */
   const [reglementDuMoment, setReglementDuMoment] = useState<'comptant' | 'trois'>('comptant');
-  const [venuesDuMoment, setVenuesDuMoment] = useState<VenueChoisie[]>([{ date: '', time: '' }, { date: '', time: '' }]);
+  const [venuesDuMoment, setVenuesDuMoment] = useState<VenueChoisie[]>(() => Array.from({ length: VENUES_DU_MOMENT_CUIR_CHEVELU - 1 }, () => ({ date: '', time: '' })));
   /* Les prénoms des sœurs posées avec elle (le parcours du foyer, 4 novembre 2026). */
   const [foyerPose, setFoyerPose] = useState('');
   /* Son rituel habituel se pose une fois par cliente choisie, jamais par-dessus une saisie. */
@@ -3030,12 +3032,33 @@ function RdvModalCorps({
      JOUR de la première venue, FIGÉ ici. Les règles : shared/le-moment-en-trois-pur.ts. */
   const leMomentSeul = !appt && serviceIds.length === 1 && contientLeMoment(serviceIds) && !effCovered;
   const totalDuMoment = needsAmount ? effGross : grossBase;
-  const tiersDuMomentIci = leMomentSeul && !forfaitPose ? tiersDuMoment(totalDuMoment) : null;
+  /* Quatre venues pour le Moment cuir chevelu SEULEMENT, trois pour le Moment Signature (Yéman, 7 novembre 2026). */
+  const nVenues = venuesDuMomentPour(serviceIds[0]);
+  const venuesActives = venuesDuMoment.slice(0, nVenues - 1);
+  /* LE PLAFOND (Moment cuir chevelu) : « Il faut que, avec la remise, la cliente ne paie pas plus de 45 000 F » (Yéman). UNE remise
+     (celle que cette fenêtre a retenue) baisse les parts, jamais ne les monte ; chaque part est ramenée au plafond. */
+  const plafondDuMoment = nVenues === VENUES_DU_MOMENT_CUIR_CHEVELU ? PLAFOND_PAR_VENUE_CUIR_CHEVELU_XOF : undefined;
+  const tiersDuMomentIci = leMomentSeul && !forfaitPose
+    ? (plafondDuMoment
+      ? tiersPlafonnes(totalDuMoment, nVenues, { plafondXof: plafondDuMoment, remisePct: discountPctEcrit, remiseXof: discountXofEcrit })
+      : tiersDuMoment(totalDuMoment, nVenues))
+    : null;
+  /* `enTrois` : le nom date du plan à trois venues ; il dit aujourd'hui « en plusieurs venues », au nombre de
+     `VENUES_DU_MOMENT` (quatre depuis le 7 novembre 2026 : « Il faut mettre 4 venues au total », Yéman). */
   const enTrois = !!tiersDuMomentIci && reglementDuMoment === 'trois';
-  const venueDEntretien = venueDEntretienDuMoment(byId.get(serviceIds[0] ?? SERVICE_LE_MOMENT)?.includes);
+  /* Les venues suivantes : le Moment cuir chevelu lui-même, ou la venue d'entretien du Moment Signature. */
+  const venueDEntretien = serviceDesVenuesSuivantes(serviceIds[0] ?? SERVICE_LE_MOMENT, byId.get(serviceIds[0] ?? SERVICE_LE_MOMENT)?.includes);
   const dureeDeLaVenue = byId.get(venueDEntretien)?.durationMin ?? 150;
+  /* CE QUE LE MOMENT COMPREND, ET CE QUE CHAQUE VENUE CONSOMME (7 novembre 2026) : lu de `includes` du service en base,
+     dans son ordre ; la valeur de carte au prix de cette tête. Lecture seule. */
+  const prixDeLaCarte = (s: { id: string }) => { const sv = byId.get(s.id); return sv ? prixDeBase(sv, pricing) : undefined; };
+  const leMomentLu = contientLeMoment(serviceIds) ? byId.get(serviceIds[0]) : undefined;
+  const detailDuMomentIci = leMomentLu ? detailDuService(leMomentLu, byId, { prixDe: prixDeLaCarte }) : null;
+  const detailsDesVenues = enTrois
+    ? detailParVenue([serviceIds[0], ...Array.from({ length: nVenues - 1 }, () => venueDEntretien)], byId, { prixDe: prixDeLaCarte })
+    : undefined;
   const heuresDeLaVenue = (i: number): string[] => {
-    const iso = venuesDuMoment[i]?.date;
+    const iso = venuesActives[i]?.date;
     if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return [];
     const m = new Date();
     return placesDuJour({
@@ -3044,7 +3067,7 @@ function RdvModalCorps({
     }).heures;
   };
   const raisonDeLaVenue = (i: number) => {
-    const v = venuesDuMoment[i];
+    const v = venuesActives[i];
     if (!v?.date || !v.time) return null;
     return raisonDeLHeure({
       heure: v.time, durationMin: dureeDeLaVenue, maitre: master, ouverture: openingForIso(v.date), occupes: occupesDe(v.date),
@@ -3359,16 +3382,16 @@ function RdvModalCorps({
     /* LE MOMENT EN TROIS VENUES : les trois dates se choisissent AU DÉPART
        (7 novembre 2026), dans l'ordre, sur des places libres. */
     if (enTrois && chosenStatus !== 'annulé') {
-      const dates = [date, ...venuesDuMoment.map((v) => v.date)];
-      if (venuesDuMoment.some((v) => !v.date || !v.time)) {
-        setError('Le Moment en trois venues : choisissez le jour et l’heure des deux venues d’entretien.');
+      const dates = [date, ...venuesActives.map((v) => v.date)];
+      if (venuesActives.some((v) => !v.date || !v.time)) {
+        setError(`Le Moment ${enNVenues(nVenues)} : choisissez le jour et l’heure des ${enLettres(nVenues - 1)} autres venues.`);
         return false;
       }
-      if (!datesDuPlanValides(dates)) {
-        setError('Les trois venues se posent dans l’ordre : chaque date vient après la précédente.');
+      if (!datesDuPlanValides(dates, nVenues)) {
+        setError('Les venues se posent dans l’ordre : chaque date vient après la précédente.');
         return false;
       }
-      const plein = [0, 1].map((i) => raisonDeLaVenue(i)).find((r) => r?.bloque);
+      const plein = venuesActives.map((_, i) => raisonDeLaVenue(i)).find((r) => r?.bloque);
       if (plein) { setError(plein.texte); return false; }
     }
     /* LE RÉGLAGE STRICT : la Maison a choisi de refuser plutôt que d'avertir. */
@@ -3678,15 +3701,15 @@ function RdvModalCorps({
       if (enTrois && tiersDuMomentIci) {
         const planId = `mt-${uid()}`;
         const jour = todayISO();
-        const plan = (rang: 1 | 2 | 3) => momentEnTroisDuRang(planId, rang, totalDuMoment)!;
+        const plan = (rang: number) => momentEnTroisDuRang(planId, rang, totalDuMoment, plafondDuMoment ? tiersDuMomentIci : undefined, nVenues, plafondDuMoment)!;
         Object.assign(created, {
           remisesLignes: undefined, codeOffre: undefined, offreId: undefined, horsOffreDuJour: true,
           discountPct: undefined, discountXof: undefined, remiseFamille: undefined, remiseFamilleXof: undefined,
           depositServiceIds: [], depositXof: 0,
           momentEnTrois: plan(1), forfait: forfaitDuTiers(plan(1), jour), priceXof: tiersDuMomentIci[0],
         });
-        venuesDuMoment.forEach((v, i) => {
-          const rang = (i + 2) as 2 | 3;
+        venuesActives.forEach((v, i) => {
+          const rang = i + 2;
           suitesDuMoment.push({
             id: uid(), branchId: branch.id, clientId, serviceIds: [venueDEntretien],
             numeroAPrevenir: created.numeroAPrevenir, longueur: longueurPertinente ? longueur : undefined,
@@ -4016,7 +4039,7 @@ function RdvModalCorps({
           {poseLe.momentEnTrois && onEncaisser && (
             <div className="trc-rdv3__boutons">
               <Button variant="copper" onClick={() => onEncaisser(appointmentsStore.get().find((x) => x.id === poseLe.id) ?? poseLe)}>
-                {phraseEncaisserLeTiers(appelDe(rdvClient, undefined), tiersAEncaisser(poseLe))}
+                {phraseEncaisserLeTiers(appelDe(rdvClient, undefined), tiersAEncaisser(poseLe), poseLe.momentEnTrois.tiers.length)}
               </Button>
             </div>
           )}
@@ -5350,16 +5373,21 @@ function RdvModalCorps({
           )}
           {/* LE MOMENT SE RÈGLE EN TROIS VENUES (7 novembre 2026) : le choix et les
               trois dates, juste sous le créneau du Moment. */}
+          {detailDuMomentIci && detailDuMomentIci.lignes.length > 0 && (
+            <DetailDuMoment detail={detailDuMomentIci} totalXof={totalDuMoment} replie={!!appt} />
+          )}
           {tiersDuMomentIci && (
             <MomentEnTroisChoix
               mode={reglementDuMoment}
               onMode={setReglementDuMoment}
-              total={totalDuMoment}
+              total={tiersDuMomentIci.reduce((s, x) => s + x, 0)}
               tiers={tiersDuMomentIci}
               appel={appelDe(rdvClient, undefined)}
               dateDuMoment={date}
               heureDuMoment={time}
-              venues={venuesDuMoment}
+              venues={venuesActives}
+              memeMoment={venueDEntretien === serviceIds[0]}
+              details={detailsDesVenues}
               onVenue={(i, patch) => setVenuesDuMoment((prev) => prev.map((v, k) => (k === i ? { ...v, ...patch } : v)))}
               entretien={byId.get(venueDEntretien)?.name ?? 'Venue d’entretien'}
               heuresLibres={heuresDeLaVenue}

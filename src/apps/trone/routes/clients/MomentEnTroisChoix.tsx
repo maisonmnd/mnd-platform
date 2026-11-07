@@ -1,6 +1,8 @@
 import { Select } from '../../../../ds/components';
+import { DetailDuMoment } from './DetailDuMoment';
+import type { DetailDuService } from '../../../../shared/le-moment-detail-pur';
 import { ChampDeDate } from '../../../../ds/dates';
-import { francsDuTiers, jourDuTiers, type MomentEnTrois } from '../../../../shared/le-moment-en-trois-pur';
+import { enNVenues, francsDuTiers, jourDuTiers, type MomentEnTrois } from '../../../../shared/le-moment-en-trois-pur';
 
 /* ══ LE MOMENT EN TROIS VENUES, AU COMPTOIR — 7 novembre 2026 ═══════════════
    « Le Moment se paie en 3 fois, il faut diviser le paiement en 3 venues »
@@ -16,7 +18,7 @@ import { francsDuTiers, jourDuTiers, type MomentEnTrois } from '../../../../shar
 
 export type VenueChoisie = { date: string; time: string };
 
-export function MomentEnTroisChoix({ mode, onMode, total, tiers, appel, dateDuMoment, heureDuMoment, venues, onVenue, entretien, heuresLibres, raisons, joursFermes }: {
+export function MomentEnTroisChoix({ mode, onMode, total, tiers, appel, dateDuMoment, heureDuMoment, venues, onVenue, entretien, memeMoment, details, heuresLibres, raisons, joursFermes }: {
   mode: 'comptant' | 'trois';
   onMode: (m: 'comptant' | 'trois') => void;
   total: number;
@@ -25,10 +27,14 @@ export function MomentEnTroisChoix({ mode, onMode, total, tiers, appel, dateDuMo
   appel: string;
   dateDuMoment: string;
   heureDuMoment: string;
-  /** Les deux venues d'entretien : rang 2 puis rang 3. */
+  /** Les venues d'entretien : rang 2 à N (N = tiers.length). */
   venues: VenueChoisie[];
   onVenue: (index: number, patch: Partial<VenueChoisie>) => void;
   entretien: string;
+  /** Les venues suivantes sont aussi Le Moment (cuir chevelu) et non des venues d'entretien. */
+  memeMoment?: boolean;
+  /** Ce que chaque venue consomme (venue 1 à N), lu de `includes` du catalogue. */
+  details?: DetailDuService[];
   /** Les heures libres de chaque venue, lues sur les places de la Maison. */
   heuresLibres: (index: number) => string[];
   /** Pourquoi une heure ne se pose pas, ou null. */
@@ -46,20 +52,21 @@ export function MomentEnTroisChoix({ mode, onMode, total, tiers, appel, dateDuMo
             className={`mnd-btn mnd-btn--sm ${mode === m ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
             onClick={() => onMode(m)}
           >
-            {m === 'comptant' ? 'Comptant' : '3 venues'}
+            {m === 'comptant' ? 'Comptant' : `${tiers.length} venues`}
           </button>
         ))}
       </div>
       {trois && (
         <div>
           <p className="trc-rdv3__note" style={{ margin: '4px 0 8px' }}>
-            Un tiers à chaque venue, la première comprise. Le Moment se vit en une fois, à la première venue ; les deux autres sont
-            des venues d’entretien. Aucune remise sur un Moment réglé en trois venues.
+            Une part à chaque venue, la première comprise. Le Moment se vit en une fois, à la première venue ; {memeMoment ? 'les autres sont aussi Le Moment' : 'les autres sont des venues d’entretien'}. Aucune remise sur un Moment réglé {enNVenues(tiers.length)}.
           </p>
           <Ligne n={1} titre={`${jourDuTiers(dateDuMoment)} · ${heureDuMoment}`} sous="Le Moment, au complet" montant={tiers[0]} />
+          {details?.[0] && <DetailDuMoment detail={details[0]} titre="Ce que comprend cette venue" replie avecValeurs={false} />}
           {venues.map((v, i) => (
             <div key={i} style={{ marginTop: 8 }}>
               <Ligne n={i + 2} titre={v.date ? `${jourDuTiers(v.date)}${v.time ? ` · ${v.time}` : ''}` : 'Une date à choisir'} sous={entretien} montant={tiers[i + 1]} />
+              {details?.[i + 1] && <DetailDuMoment detail={details[i + 1]} titre="Ce que comprend cette venue" replie avecValeurs={false} />}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
                 <ChampDeDate
                   value={v.date}
@@ -67,7 +74,7 @@ export function MomentEnTroisChoix({ mode, onMode, total, tiers, appel, dateDuMo
                   ariaLabel={`Le jour de la venue ${i + 2}`}
                   sens="avant"
                   compact
-                  min={i === 0 ? dateDuMoment : venues[0]?.date || dateDuMoment}
+                  min={i === 0 ? dateDuMoment : venues[i - 1]?.date || dateDuMoment}
                   joursFermes={joursFermes}
                 />
                 <Select
@@ -84,7 +91,7 @@ export function MomentEnTroisChoix({ mode, onMode, total, tiers, appel, dateDuMo
             </div>
           ))}
           <p className="trc-rdv3__petit" style={{ margin: '8px 0 0' }}>
-            À encaisser aujourd’hui, pour {appel} : {francsDuTiers(tiers[0])}. Un tiers non réglé met le Moment en pause : rien ne s’ajoute.
+            À encaisser aujourd’hui, pour {appel} : {francsDuTiers(tiers[0])}. Une part non réglée met le Moment en pause : rien ne s’ajoute.
           </p>
         </div>
       )}

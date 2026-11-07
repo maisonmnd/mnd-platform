@@ -7,8 +7,17 @@
    · LES TROIS DATES SONT CHOISIES AU DÉPART : trois rendez-vous posés
      ensemble, un tiers attaché à chacun.
 
-   Les deux autres venues sont des venues d'entretien ordinaires (GBÈJÍ™
-   Essentiel ou Signature) qui n'encaissent que leur tiers.
+   Les autres venues sont des venues d'entretien ordinaires (GBÈJÍ™
+   Essentiel ou Signature) qui n'encaissent que leur part.
+
+   ⟨QUATRE VENUES — 7 novembre 2026⟩ « Il faut mettre 4 venues au total.
+   Changer le Moment en 4 venues » (Yéman). Tout NOUVEAU plan a quatre venues
+   (`VENUES_DU_MOMENT`) ; le nombre d'un plan existant est celui de ses tiers
+   (`tiers.length`), un plan à trois venues se lit et s'encaisse comme avant.
+   Les commentaires ci-dessous parlent de « trois » et de « tiers » par
+   histoire : lire « N venues » et « part ». Un PRIX CONVENU (`tiersConvenus`,
+   « mettre chaque venue à 45 000 F ») se pose à la main, sans passer par la
+   grille ni l'arrondi.
 
    ON RÉUTILISE L'ÉCHÉANCIER DE LA MAISON (`echeancier.ts`), on ne le réécrit
    pas : les échéances d'ici sont des `Echeance`, leur état se dérive des
@@ -41,6 +50,7 @@
    reste de chaque rendez-vous (son prix figé, son argent reçu) est lu par les
    blocs ⟨reste-du-rdv⟩ de la fin, inchangés. */
 import { etatDesEcheances, resteDeLEcheancier, type Echeance } from './echeancier';
+import { arrondiAuCinqCents, prixApresRemisePct } from './arrondi-des-remises-pur';
 
 /** Le service du Moment, et les deux venues d'entretien (catalogue, cat-venue). */
 export const SERVICE_LE_MOMENT = 'sv-le-moment';
@@ -49,18 +59,42 @@ export const VENUE_SIGNATURE = 'sv-venue-gbeji-sig';
 /** SÍNSIN™ Essentiel : le geste qui distingue la venue Essentielle de la Signature. */
 const SINSIN_ESSENTIEL = 'sv-atl-ii-e';
 
+/** LE NOMBRE DE VENUES DÉPEND DU MOMENT (7 novembre 2026) : « Il faut mettre 4 venues au total. Changer le Moment en
+    4 venues », précisé par « Les 4 venues sont sur le Moment cuir chevelu uniquement » (Yéman). Le Moment cuir
+    chevelu se pose et se règle en QUATRE venues ; le Moment Signature reste à TROIS, comme livré. Le nombre de venues
+    d'un plan existant vient du PLAN (`tiers.length`), jamais d'une constante : un plan à trois venues se lit et
+    s'encaisse comme avant. Le NOM du champ `momentEnTrois` (sur le rendez-vous) et celui de ce fichier restent tels
+    quels : ce sont des données et des liens déjà écrits. Seuls les MOTS lus par la cliente et l'équipe suivent le
+    nombre (`enNVenues`). */
 export const VENUES_DU_MOMENT = 3;
+export const VENUES_DU_MOMENT_CUIR_CHEVELU = 4;
+/** Le nombre de venues d'un NOUVEAU plan, selon le Moment choisi. */
+export const venuesDuMomentPour = (serviceId: string | undefined): number =>
+  serviceId === SERVICE_LE_MOMENT_CUIR_CHEVELU ? VENUES_DU_MOMENT_CUIR_CHEVELU : VENUES_DU_MOMENT;
+/** LES VENUES SUIVANTES : pour le Moment cuir chevelu, ce sont AUSSI le Moment cuir chevelu (même geste, même durée,
+    à son prix) ; pour le Moment Signature, la venue d'entretien qui lui correspond. */
+export const serviceDesVenuesSuivantes = (momentId: string, inclus: readonly { serviceId?: string }[] | undefined): string =>
+  momentId === SERVICE_LE_MOMENT_CUIR_CHEVELU ? momentId : venueDEntretienDuMoment(inclus);
+/** Le nombre de venues dit en lettres, pour ce que la cliente et l'équipe lisent. */
+export const NOMBRE_EN_LETTRES: Record<number, string> = { 2: 'deux', 3: 'trois', 4: 'quatre', 5: 'cinq' };
+export const enLettres = (n: number): string => NOMBRE_EN_LETTRES[n] ?? String(n);
+/** « en quatre venues ». */
+export const enNVenues = (n: number): string => `en ${enLettres(n)} venues`;
 /** Chaque tiers se compte en pièces de 500 F. */
 export const ARRONDI_DU_TIERS_XOF = 500;
 /** En dessous, un tiers tomberait à zéro : rien ne se découpe. */
-export const TOTAL_MINIMUM_EN_TROIS_XOF = VENUES_DU_MOMENT * ARRONDI_DU_TIERS_XOF;
+export const totalMinimumXof = (n: number = VENUES_DU_MOMENT): number => n * ARRONDI_DU_TIERS_XOF;
 
 /** Ce que chaque rendez-vous du plan porte, écrit une fois à la pose :
     de quoi relire le plan depuis n'importe lequel des trois. */
 export type MomentEnTrois = {
   planId: string;
   /** La venue, de 1 à 3 : 1 = Le Moment. */
-  rang: 1 | 2 | 3;
+  /** La venue, de 1 à N (N = tiers.length) : 1 = Le Moment. */
+  rang: number;
+  /** Le plafond d'une venue (Moment cuir chevelu : 45 000 F) : aucune part ne le dépasse, remise comprise. Absent :
+      pas de plafond. Les parts écrites sont déjà plafonnées ; ce champ le DIT. */
+  plafondParVenueXof?: number;
   /** Le prix du Moment, FIGÉ le jour de la première venue. */
   total: number;
   /** Les trois tiers, écrits : une parole donnée ne se recalcule pas. */
@@ -86,27 +120,57 @@ export const venueDEntretienDuMoment = (inclus: readonly { serviceId?: string }[
     tiers entier en dessous), le premier prend ce qui reste : sa somme vaut
     exactement le total. Un total inconnu, nul, négatif ou trop petit pour
     trois pièces de 500 F ne se règle pas en trois : `null`. */
-export function tiersDuMoment(total: unknown): number[] | null {
+export function tiersDuMoment(total: unknown, n: number = VENUES_DU_MOMENT): number[] | null {
   if (typeof total !== 'number' || !Number.isFinite(total)) return null;
   const t = Math.round(total);
-  if (t < TOTAL_MINIMUM_EN_TROIS_XOF) return null;
-  const part = Math.floor(t / VENUES_DU_MOMENT / ARRONDI_DU_TIERS_XOF) * ARRONDI_DU_TIERS_XOF;
-  return [t - part * (VENUES_DU_MOMENT - 1), part, part];
+  if (n < 2 || t < totalMinimumXof(n)) return null;
+  const part = Math.floor(t / n / ARRONDI_DU_TIERS_XOF) * ARRONDI_DU_TIERS_XOF;
+  return [t - part * (n - 1), ...Array.from({ length: n - 1 }, () => part)];
 }
 
 /** Le Moment peut-il se régler en trois venues ? Seulement si son total est connu et assez grand. */
-export const momentSeRegleEnTrois = (total: unknown): boolean => tiersDuMoment(total) !== null;
+export const momentSeRegleEnTrois = (total: unknown, n: number = VENUES_DU_MOMENT): boolean => tiersDuMoment(total, n) !== null;
 
-/** Les trois dates sont-elles valides et dans l'ordre ? La première est le jour du Moment. */
-export const datesDuPlanValides = (dates: readonly string[]): boolean =>
-  dates.length === VENUES_DU_MOMENT
+/** LE PLAFOND PAR VENUE DU MOMENT CUIR CHEVELU — 7 novembre 2026. « Il faut que, avec la remise, la cliente ne paie
+    pas plus de 45 000 F. Réajuster au besoin » (Yéman). Lecture retenue : 45 000 F est un PLAFOND PAR VENUE, posé sur
+    le plan (`plafondParVenueXof`). Une remise ne peut que BAISSER une part, jamais la monter au-dessus ; une part de
+    la grille qui dépasse le plafond est ramenée au plafond. */
+export const PLAFOND_PAR_VENUE_CUIR_CHEVELU_XOF = 45_000;
+
+/** LES PARTS D'UN PLAN À PLAFOND : la part de la grille (`tiersDuMoment`), UNE remise (pourcentage arrondi au 500 F
+    supérieur par `prixApresRemisePct`, puis francs répartis à parts égales), arrondie au 500 F, puis le plafond, et
+    jamais moins de 500 F. La somme des parts est le total réel du plan. `null` si la grille ne découpe pas. */
+export function tiersPlafonnes(total: unknown, n: number, o: { plafondXof: number; remisePct?: number; remiseXof?: number }): number[] | null {
+  const grille = tiersDuMoment(total, n);
+  if (!grille) return null;
+  const enFrancs = Math.max(0, Math.floor((o.remiseXof ?? 0) / n / ARRONDI_DU_TIERS_XOF) * ARRONDI_DU_TIERS_XOF);
+  return grille.map((t) => Math.max(ARRONDI_DU_TIERS_XOF,
+    Math.min(Math.max(ARRONDI_DU_TIERS_XOF, Math.floor(o.plafondXof / ARRONDI_DU_TIERS_XOF) * ARRONDI_DU_TIERS_XOF),
+      arrondiAuCinqCents(prixApresRemisePct(t, o.remisePct ?? 0) - enFrancs))));
+}
+
+/** UN PRIX CONVENU (7 novembre 2026) : « Mettre chaque venue à 45 000 F ». Des tiers posés à la main, chacun un
+    multiple de 500 F au moins égal à 500 F : leur somme EST le total convenu, chaque tiers est son prix figé ;
+    ni la grille ni l'arrondi ne les ramènent au prix de la tête. Invalide : `null`. */
+export function tiersConvenus(tiers: unknown): number[] | null {
+  if (!Array.isArray(tiers) || tiers.length < 2) return null;
+  return tiers.every((x) => typeof x === 'number' && Number.isInteger(x) && x >= ARRONDI_DU_TIERS_XOF && x % ARRONDI_DU_TIERS_XOF === 0)
+    ? [...tiers] : null;
+}
+
+/** Les N dates sont-elles valides et dans l'ordre ? La première est le jour du Moment. */
+export const datesDuPlanValides = (dates: readonly string[], n: number = VENUES_DU_MOMENT): boolean =>
+  dates.length === n
   && dates.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
-  && dates[0] <= dates[1] && dates[1] <= dates[2];
+  && dates.every((d, i) => i === 0 || dates[i - 1] <= d);
 
-/** CE QU'ÉCRIT CHAQUE RENDEZ-VOUS à la pose du plan. */
-export function momentEnTroisDuRang(planId: string, rang: 1 | 2 | 3, total: number): MomentEnTrois | null {
-  const tiers = tiersDuMoment(total);
-  return tiers ? { planId, rang, total: Math.round(total), tiers } : null;
+/** CE QU'ÉCRIT CHAQUE RENDEZ-VOUS à la pose du plan. Des tiers `convenus` (prix convenu) font foi : le total est
+    leur somme ; sinon la grille, en `VENUES_DU_MOMENT` venues. */
+export function momentEnTroisDuRang(planId: string, rang: number, total: number, convenus?: readonly number[], n: number = VENUES_DU_MOMENT, plafondXof?: number): MomentEnTrois | null {
+  const tiers = convenus ? tiersConvenus([...convenus]) : tiersDuMoment(total, n);
+  if (!tiers || rang < 1 || rang > tiers.length) return null;
+  if (plafondXof !== undefined && tiers.some((x) => x > plafondXof)) return null;
+  return { planId, rang, total: convenus ? tiers.reduce((s, x) => s + x, 0) : Math.round(total), tiers, ...(plafondXof !== undefined ? { plafondParVenueXof: plafondXof } : {}) };
 }
 
 /** LE FORFAIT QUE PORTE CHAQUE RENDEZ-VOUS : son tiers, et rien d'autre. C'est
@@ -115,7 +179,7 @@ export function momentEnTroisDuRang(planId: string, rang: 1 | 2 | 3, total: numb
     tiers n'est pas un prix consenti, c'est une part d'un prix entier. */
 export function forfaitDuTiers(m: Pick<MomentEnTrois, 'rang' | 'tiers'>, jourIso: string): { nom: string; totalXof: number; baseXof: number; poseAt: string } {
   const tiers = m.tiers[m.rang - 1] ?? 0;
-  return { nom: `Le Moment en trois venues · venue ${m.rang} sur ${VENUES_DU_MOMENT}`, totalXof: tiers, baseXof: tiers, poseAt: jourIso };
+  return { nom: `Le Moment ${enNVenues(m.tiers.length)} · venue ${m.rang} sur ${m.tiers.length}`, totalXof: tiers, baseXof: tiers, poseAt: jourIso };
 }
 
 /** Le plan écrit une fois : l'échéancier de la Maison, une échéance par
@@ -127,7 +191,7 @@ export function echeancierDuPlan(m: Pick<MomentEnTrois, 'tiers'>, dates: readonl
 export type EtatDuTiers = 'regle' | 'prochaine' | 'a-venir' | 'en-pause';
 
 export type LigneDuPlan = {
-  rang: 1 | 2 | 3;
+  rang: number;
   rdvId: string | null;
   dateIso: string;
   montantXof: number;
@@ -198,16 +262,18 @@ export function lisLePlan(rdvsDuPlanLus: readonly RdvDuPlan[], aujourdhui: strin
   if (!ref) return null;
   const parRang = new Map<number, RdvDuPlan>();
   for (const r of rdvsDuPlanLus) if (r.momentEnTrois?.planId === ref.planId) parRang.set(r.momentEnTrois.rang, r);
-  const dates = [1, 2, 3].map((k) => parRang.get(k)?.date ?? '');
+  /* LE NOMBRE DE VENUES VIENT DU PLAN (ses tiers), pas d'un nombre figé : un plan à trois venues reste à trois. */
+  const rangs = Array.from({ length: ref.tiers.length }, (_, i) => i + 1);
+  const dates = rangs.map((k) => parRang.get(k)?.date ?? '');
   /* Une date manquante (venue effacée) se range avec la plus proche : le tiers
      reste dû, il ne disparaît pas avec le rendez-vous. */
   const datesLues = dates.map((d, i) => d || dates.slice(0, i).reverse().find(Boolean) || dates.find(Boolean) || aujourdhui);
-  const verse = [1, 2, 3].reduce((s, k) => { const r = parRang.get(k); return s + (r ? regleDuTiers(r) : 0); }, 0);
+  const verse = rangs.reduce((s, k) => { const r = parRang.get(k); return s + (r ? regleDuTiers(r) : 0); }, 0);
   const etats = etatDesEcheances(echeancierDuPlan(ref, datesLues), verse, aujourdhui);
   /* UNE VENUE EN PAUSE PREND LA PLACE DE LA PROCHAINE : tant que ce tiers n'est pas réglé, aucune autre venue ne passe devant lui. */
   let prochaineVue = false;
   const lignes: LigneDuPlan[] = etats.map((e) => {
-    const rang = e.numero as 1 | 2 | 3;
+    const rang = e.numero;
     let etat: EtatDuTiers;
     if (e.soldee) etat = 'regle';
     else if (e.dueIso < aujourdhui) { etat = 'en-pause'; prochaineVue = true; }
@@ -240,8 +306,12 @@ export const francsDuTiers = (xof: number): string =>
   `${Math.round(xof).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} F`;
 
 /** LA PHRASE DU BOUTON, à la caisse et sur la fiche : le tiers, jamais le total. */
-export const phraseEncaisserLeTiers = (appel: string, montantXof: number): string =>
-  `Encaisser le tiers de ${appel} : ${francsDuTiers(montantXof)}`;
+export const phraseEncaisserLeTiers = (appel: string, montantXof: number, n: number = VENUES_DU_MOMENT): string =>
+  `Encaisser ${ditLaPart(n)} de ${appel} : ${francsDuTiers(montantXof)}`;
+
+/** LA PART D'UNE VENUE, DITE JUSTE : « le tiers » à trois venues, « le quart » à quatre, « la part » sinon.
+    Ce que lit l'équipe et la cliente suit le nombre de venues du plan (7 novembre 2026). */
+export const ditLaPart = (n: number): string => (n === 3 ? 'le tiers' : n === 4 ? 'le quart' : 'la part');
 
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 /** « 26 décembre 2026 » : la date avec son année, pour une cliente. */

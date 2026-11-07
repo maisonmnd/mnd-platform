@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
 import { useAppointments } from '../../shared/agenda';
 import { useBranch } from '../../shared/branches';
-import { lisLesPlansDeLaCliente, jourDuTiers } from '../../shared/le-moment-en-trois-pur';
+import { enNVenues, lisLesPlansDeLaCliente, jourDuTiers } from '../../shared/le-moment-en-trois-pur';
 import { momentDuReglement, resteDAvanceConfirme } from '../../shared/terminer-et-regler-pur';
 import { useDusDuServeur, useLeToucher, useMaintenant } from './ReglerAvantApres';
 import { prix, t } from './i18n';
+import { useServices } from '../../shared/catalog';
+import { detailDuService, dureeDite } from '../../shared/le-moment-detail-pur';
 
 /* ══ « VOTRE MOMENT · EN TROIS VENUES » — 7 novembre 2026 ════════════════════
    « Le Moment se paie en 3 fois, il faut diviser le paiement en 3 venues »
@@ -24,6 +26,8 @@ import { prix, t } from './i18n';
 export default function MomentEnTrois({ clientId, nomDuRituel }: { clientId: string; nomDuRituel?: string }) {
   const { currency } = useBranch();
   const [appts] = useAppointments();
+  const [services] = useServices();
+  const catalogue = useMemo(() => new Map(services.map((s) => [s.id, s] as const)), [services]);
   const maintenant = useMaintenant();
   const duServeur = useDusDuServeur();
   const { enCours, souci, regle } = useLeToucher('avance');
@@ -47,11 +51,16 @@ export default function MomentEnTrois({ clientId, nomDuRituel }: { clientId: str
         return (
           <div key={planId} className="mc-nextrdv mc-rituel">
             <div className="mc-nextrdv__row">
-              <span className="mc-nextrdv__label">{t('Votre Moment · en trois venues')}</span>
+              <span className="mc-nextrdv__label">{t('Votre Moment · {venues}', { venues: enNVenues(lecture.lignes.length) })}</span>
             </div>
             {nomDuRituel && <div className="mc-nextrdv__service">{nomDuRituel}</div>}
-            {lecture.lignes.map((l) => (
-              <div className="mc-rituel__ligne mc-nextrdv__when" key={l.rang}>
+            {lecture.lignes.map((l) => {
+              /* CE QUE CHAQUE VENUE COMPREND : le nom du catalogue, « Offert » quand il l'est, jamais un code. */
+              const rdvDeLaVenue = l.rdvId ? appts.find((a) => a.id === l.rdvId) : undefined;
+              const detail = detailDuService(rdvDeLaVenue ? catalogue.get(rdvDeLaVenue.serviceIds[0]) : undefined, catalogue, {}, l.rang);
+              return (
+              <div key={l.rang}>
+              <div className="mc-rituel__ligne mc-nextrdv__when">
                 <span>
                   {l.rang}. {jourDuTiers(l.dateIso)}
                   {' · '}
@@ -59,16 +68,30 @@ export default function MomentEnTrois({ clientId, nomDuRituel }: { clientId: str
                 </span>
                 <span>{prix(l.montantXof, currency)}</span>
               </div>
-            ))}
+              {detail.lignes.length > 0 && (
+                <details className="mc-nextrdv__when">
+                  <summary>{t('Ce que comprend cette venue')}</summary>
+                  {detail.lignes.map((d, k) => (
+                    <div key={`${d.serviceId}-${k}`}>
+                      {d.retire ? t('Un geste de la Maison') : d.nom}
+                      {d.offert ? ` · ${t('Offert')}` : ''}
+                      {d.dureeMin ? ` · ${dureeDite(d.dureeMin)}` : ''}
+                    </div>
+                  ))}
+                </details>
+              )}
+              </div>
+              );
+            })}
             <p className="mc-nextrdv__when mc-rituel__texte">
-              {t('Le jour de votre venue, « Terminer et régler » règle le tiers du jour. Vous pouvez aussi le régler à l’avance.')}
+              {t('Le jour de votre venue, « Terminer et régler » règle la part du jour. Vous pouvez aussi la régler à l’avance.')}
             </p>
             {cible && rdv && duBase !== null && (
               <button
                 type="button" className="mc-cta mc-cta--copper" disabled={toucher.enCours !== null}
                 onClick={() => { void toucher.regle(rdv.id); }}
               >
-                {toucher.enCours === rdv.id ? t('Un instant…') : t('Régler le tiers du {jour} · {montant}', { jour: jourDuTiers(cible.dateIso), montant: prix(duBase, currency) })}
+                {toucher.enCours === rdv.id ? t('Un instant…') : t('Régler la part du {jour} · {montant}', { jour: jourDuTiers(cible.dateIso), montant: prix(duBase, currency) })}
               </button>
             )}
             {toucher.souci && <p className="mc-nextrdv__when mc-rituel__texte" role="alert">{t(toucher.souci)}</p>}

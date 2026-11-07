@@ -62,7 +62,7 @@ export default function RendezVousTab({ releve, prenom, selecteur, onOpenRdv, on
     }
     if (a.coveredBySub) return { mot: t('Incluse'), cls: '' };
     /* Le tiers du Moment en trois venues (7 novembre 2026) : sa part, jamais « à la carte ». */
-    if (a.momentEnTrois && a.status !== 'annulé') return { mot: t('Tiers {n} sur 3 · {montant}', { n: a.momentEnTrois.rang, montant: francsDuTiers(a.momentEnTrois.tiers[a.momentEnTrois.rang - 1] ?? 0) }), cls: 'ab-argent--hors' };
+    if (a.momentEnTrois && a.status !== 'annulé') return { mot: t('Part {n} sur {total} · {montant}', { n: a.momentEnTrois.rang, total: a.momentEnTrois.tiers.length, montant: francsDuTiers(a.momentEnTrois.tiers[a.momentEnTrois.rang - 1] ?? 0) }), cls: 'ab-argent--hors' };
     if (a.priceXof == null) return null;
     const net = Math.max(0, Math.round(a.priceXof * (1 - (a.discountPct ?? 0) / 100)) - (a.discountXof ?? 0));
     const reste = apptDueXof(a, net);

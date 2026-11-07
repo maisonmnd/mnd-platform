@@ -49,6 +49,8 @@ import {
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { appelDe, prenomDUsage } from '../../../../shared/civilite';
 import { phraseEncaisserLeTiers } from '../../../../shared/le-moment-en-trois-pur';
+import { detailDuService } from '../../../../shared/le-moment-detail-pur';
+import { DetailDuMoment } from './DetailDuMoment';
 import { RattacherUneCarte } from '../vente/RattacherUneCarte';
 import { PanneauMndPay } from '../vente/MndPay';
 import { CAISSE_MND_PAY, moyenDeLaPiece, type DemandeMndPay } from '../../../../shared/mnd-pay-pur';
@@ -2839,13 +2841,22 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                     /* LE TIERS DU JOUR, JAMAIS LE TOTAL (7 novembre 2026) : le Moment
                        en trois venues n'encaisse à chaque venue que son tiers. */
                     : appt.momentEnTrois && totalGamme <= 0 && fullyPaid
-                      ? phraseEncaisserLeTiers(appelDe(payerClient ?? client, appt.clientName), settleTotal)
+                      ? phraseEncaisserLeTiers(appelDe(payerClient ?? client, appt.clientName), settleTotal, appt.momentEnTrois.tiers.length)
                       : `Encaisser ${fmtMoney(settleTotal, currency)}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}${fullyPaid ? '' : ' (partiel)'}`}
           </Button>
         </div>
         </aside>
 
         <div className="trc-enc2__gauche">
+          {/* LES SERVICES DE LA VENUE, EN LECTURE SEULE (7 novembre 2026) : « je dois voir lesquels des services je consomme à
+              chaque séance » (Yéman). Rien ne se modifie ici : le prix reste la part figée de la venue. */}
+          {appt.momentEnTrois && (
+            <DetailDuMoment
+              detail={detailDuService(byId.get(appt.serviceIds[0]), byId, {}, appt.momentEnTrois.rang)}
+              titre={`Ce que comprend cette venue · ${appt.momentEnTrois.rang} sur ${appt.momentEnTrois.tiers.length}`}
+              avecValeurs={false}
+            />
+          )}
         {/* ② COMMENT ELLE PAIE — les parts, chacune sa tuile, son montant, et
             la caisse que sa décision nomme. Le pourboire vient avec l'argent. */}
         <EtapeEnc n={2} titre="Comment elle paie" resume={resumePaie} ouvert={etape === 'paie'} onBascule={() => bascule('paie')}>

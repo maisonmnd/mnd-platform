@@ -32,32 +32,57 @@ const CAISSE = 'src/apps/trone/routes/clients/actions.tsx';
 const RDV = 'src/apps/trone/routes/clients/_shared.tsx';
 const COURONNE = 'src/apps/couronne/MomentEnTrois.tsx';
 const TER = 'supabase/functions/terminer-et-regler/index.ts';
+const DETAIL = 'src/shared/le-moment-detail-pur.ts';
+const M194 = 'supabase/migrations/0194_le_moment_cuir_chevelu_quatre_venues.sql';
+const M195 = 'supabase/migrations/0195_le_cas_reel_quatre_venues.sql';
 const PANNES = [
   /* ── La regle pure ── */
-  ['le tiers n est plus arrondi au 500 F', PUR, '  const part = Math.floor(t / VENUES_DU_MOMENT / ARRONDI_DU_TIERS_XOF) * ARRONDI_DU_TIERS_XOF;', '  const part = Math.floor(t / VENUES_DU_MOMENT);'],
-  ['le premier tiers n absorbe plus l arrondi', PUR, '  return [t - part * (VENUES_DU_MOMENT - 1), part, part];', '  return [part, part, t - part * 2];'],
-  ['la somme des tiers ne vaut plus le total', PUR, '  return [t - part * (VENUES_DU_MOMENT - 1), part, part];', '  return [part, part, part];'],
-  ['un total trop petit se regle en trois', PUR, '  if (t < TOTAL_MINIMUM_EN_TROIS_XOF) return null;', '  if (t < 0) return null;'],
+  ['le tiers n est plus arrondi au 500 F', PUR, '  const part = Math.floor(t / n / ARRONDI_DU_TIERS_XOF) * ARRONDI_DU_TIERS_XOF;', '  const part = Math.floor(t / n);'],
+  ['le premier tiers n absorbe plus l arrondi', PUR, '  return [t - part * (n - 1), ...Array.from({ length: n - 1 }, () => part)];', '  return [...Array.from({ length: n - 1 }, () => part), t - part * (n - 1)];'],
+  ['la somme des tiers ne vaut plus le total', PUR, '  return [t - part * (n - 1), ...Array.from({ length: n - 1 }, () => part)];', '  return Array.from({ length: n }, () => part);'],
+  ['un total trop petit se regle en trois', PUR, '  if (n < 2 || t < totalMinimumXof(n)) return null;', '  if (t < 0) return null;'],
   ['un tiers non regle ne met pas le Moment en pause', PUR, "    else if (e.dueIso < aujourdhui) { etat = 'en-pause'; prochaineVue = true; }", "    else if (false) { etat = 'en-pause'; prochaineVue = true; }"],
   ['la pause ajoute une dette', PUR, '    resteXof: resteDeLEcheancier(etats),', "    resteXof: resteDeLEcheancier(etats) + (lignes.some((l) => l.etat === 'en-pause') ? 5000 : 0),"],
   ['les versements ne s imputent plus dans l ordre', PUR, '  const etats = etatDesEcheances(echeancierDuPlan(ref, datesLues), verse, aujourdhui);', '  const etats = etatDesEcheances(echeancierDuPlan(ref, datesLues).reverse().map((e, i) => ({ ...e, numero: i + 1 })), verse, aujourdhui);'],
-  ['une venue deplacee garde son ancienne date', PUR, "  const dates = [1, 2, 3].map((k) => parRang.get(k)?.date ?? '');", "  const dates = [1, 2, 3].map(() => rdvsDuPlanLus[0]?.date ?? '');"],
+  ['une venue deplacee garde son ancienne date', PUR, "  const dates = rangs.map((k) => parRang.get(k)?.date ?? '');", "  const dates = rangs.map(() => rdvsDuPlanLus[0]?.date ?? '');"],
   ['un tiers se regle plus d une fois', PUR, '  return m ? Math.min(Math.max(0, argentDeLaVenue(r)), m.tiers[m.rang - 1] ?? 0) : 0;', '  return m ? Math.max(0, argentDeLaVenue(r)) : 0;'],
   ['la caisse propose le total au lieu du tiers', PUR, '  return m ? Math.max(0, (m.tiers[m.rang - 1] ?? 0) - regleDuTiers(r)) : 0;', '  return m ? Math.max(0, m.total - regleDuTiers(r)) : 0;'],
-  ['le forfait du tiers porte une remise', PUR, '  return { nom: `Le Moment en trois venues · venue ${m.rang} sur ${VENUES_DU_MOMENT}`, totalXof: tiers, baseXof: tiers, poseAt: jourIso };', '  return { nom: `Le Moment en trois venues · venue ${m.rang} sur ${VENUES_DU_MOMENT}`, totalXof: tiers, baseXof: m.tiers.reduce((a, b) => a + b, 0), poseAt: jourIso };'],
+  ['le forfait du tiers porte une remise', PUR, '  return { nom: `Le Moment ${enNVenues(m.tiers.length)} · venue ${m.rang} sur ${m.tiers.length}`, totalXof: tiers, baseXof: tiers, poseAt: jourIso };', '  return { nom: `Le Moment ${enNVenues(m.tiers.length)} · venue ${m.rang} sur ${m.tiers.length}`, totalXof: tiers, baseXof: m.tiers.reduce((a, b) => a + b, 0), poseAt: jourIso };'],
   ['la venue d entretien du Moment n est plus la Signature', PUR, '.some((i) => i.serviceId === SINSIN_ESSENTIEL) ? VENUE_ESSENTIEL : VENUE_SIGNATURE;', '.some((i) => i.serviceId === SINSIN_ESSENTIEL) ? VENUE_SIGNATURE : VENUE_ESSENTIEL;'],
   ['un venue passee ne garde pas son tiers quand son rendez-vous est efface', PUR, "  const datesLues = dates.map((d, i) => d || dates.slice(0, i).reverse().find(Boolean) || dates.find(Boolean) || aujourdhui);", "  const datesLues = dates.map((d) => d || '2000-01-01');"],
+  /* ── Quatre venues, prix convenu ── */
+  ['un plan a quatre venues se lit a trois', PUR, '  const rangs = Array.from({ length: ref.tiers.length }, (_, i) => i + 1);', '  const rangs = [1, 2, 3];'],
+  ['le nombre de venues ne suit plus le Moment', PUR, '  serviceId === SERVICE_LE_MOMENT_CUIR_CHEVELU ? VENUES_DU_MOMENT_CUIR_CHEVELU : VENUES_DU_MOMENT;', '  serviceId === SERVICE_LE_MOMENT_CUIR_CHEVELU ? VENUES_DU_MOMENT : VENUES_DU_MOMENT_CUIR_CHEVELU;'],
+  ['les venues suivantes du cuir chevelu ne sont plus le Moment', PUR, '  momentId === SERVICE_LE_MOMENT_CUIR_CHEVELU ? momentId : venueDEntretienDuMoment(inclus);', '  venueDEntretienDuMoment(inclus);'],
+  ['le total convenu est ramene a la grille', PUR, 'total: convenus ? tiers.reduce((s, x) => s + x, 0) : Math.round(total), tiers, ...(plafondXof', 'total: Math.round(total), tiers, ...(plafondXof'],
+  ['une part convenue non multiple de 500 F est acceptee', PUR, '&& x >= ARRONDI_DU_TIERS_XOF && x % ARRONDI_DU_TIERS_XOF === 0)', '&& x >= ARRONDI_DU_TIERS_XOF)'],
+  ['le bouton dit toujours le tiers', PUR, "(n === 3 ? 'le tiers' : n === 4 ? 'le quart' : 'la part');", "'le tiers';"],
+  ['le comptoir propose quatre venues au Moment Signature', RDV, '  const nVenues = venuesDuMomentPour(serviceIds[0]);', '  const nVenues = 4;'],
+  /* ── Le detail, le plafond, les migrations ── */
+  ['un service retire disparait du detail au lieu de se dire', DETAIL, "if (!s) return { serviceId: i.serviceId, nom: SERVICE_RETIRE_DIT, offert, retire: true, ...apres };", "if (!s) return { serviceId: i.serviceId, nom: '', offert, retire: true, ...apres };"],
+  ['les offerts ne sont plus marques', DETAIL, '    const offert = i.offert === true;', '    const offert = false;'],
+  ['le detail ignore la venue (tout partout)', DETAIL, '  const choisis = rang !== undefined && reparti ? inclus.filter((i) => (i.venue ?? 1) === rang) : inclus;', '  const choisis = inclus;'],
+  ['le plafond n est plus tenu', PUR, '    Math.min(Math.max(ARRONDI_DU_TIERS_XOF, Math.floor(o.plafondXof / ARRONDI_DU_TIERS_XOF) * ARRONDI_DU_TIERS_XOF),', '    Math.min(1_000_000_000,'],
+  ['la remise ne baisse plus les parts', PUR, 'arrondiAuCinqCents(prixApresRemisePct(t, o.remisePct ?? 0) - enFrancs)', 'arrondiAuCinqCents(prixApresRemisePct(t, 0) - enFrancs)'],
+  ['une part peut tomber a zero', PUR, '  return grille.map((t) => Math.max(ARRONDI_DU_TIERS_XOF,', '  return grille.map((t) => Math.max(0,'],
+  ['la fiche ne detaille plus les venues', FICHE, '<DetailDuMoment detail={detail} titre="Ce que comprend cette venue" replie avecValeurs={false} />', ''],
+  ['la caisse ne liste plus les services de la venue', CAISSE, '          {appt.momentEnTrois && (\n            <DetailDuMoment', '          {false && (\n            <DetailDuMoment'],
+  ['Ma Couronne montre la valeur des services', COURONNE, "                      {d.offert ? ` · ${t('Offert')}` : ''}", "                      {d.offert ? ` · ${t('Offert')}` : ''}{d.valeurXof ? prix(d.valeurXof, currency) : ''}"],
+  ['la migration du cas reel laisse passer une facture', M195, "or nullif(x.data->>'invoiceId', '') is not null)", 'or false)'],
+  ['la migration du cas reel ne refuse plus', M195, "raise exception '0195 : un des trois rendez-vous porte déjà", "raise notice '0195 : un des trois rendez-vous porte déjà"],
+  ['la migration du cas reel remet 31 500 F', M195, "tiers jsonb := '[45000,45000,45000,45000]'::jsonb;", "tiers jsonb := '[31500,31500,31500,31500]'::jsonb;"],
+  ['le catalogue perd une reprise', M194, '    {"serviceId": "sv-atl-ii-l", "afterWeeks": 8, "venue": 3},\n', ''],
   /* ── Le comptoir ── */
   ['le Moment cuir chevelu ne se regle plus en trois', PUR, '  (serviceIds ?? []).some((id) => LES_MOMENTS.includes(id));', '  (serviceIds ?? []).includes(SERVICE_LE_MOMENT);'],
   ['les seances +8 et +12 semaines se posent en plus des deux venues', RDV, '          if (!inc.afterWeeks || inc.afterWeeks <= 0 || enTrois) continue;', '          if (!inc.afterWeeks || inc.afterWeeks <= 0) continue;'],
-  ['les dates ne se choisissent plus au depart', RDV, '      if (venuesDuMoment.some((v) => !v.date || !v.time)) {', '      if (false) {'],
+  ['les dates ne se choisissent plus au depart', RDV, '      if (venuesActives.some((v) => !v.date || !v.time)) {', '      if (false) {'],
   ['les trois rendez-vous ne se posent plus ensemble', RDV, '      suites.push(...suitesDuMoment);\n', ''],
   ['les remises se cumulent au tiers', RDV, '          remisesLignes: undefined, codeOffre: undefined, offreId: undefined, horsOffreDuJour: true,\n', '          horsOffreDuJour: true,\n'],
   ['le premier rendez-vous garde le total comme prix', RDV, '          momentEnTrois: plan(1), forfait: forfaitDuTiers(plan(1), jour), priceXof: tiersDuMomentIci[0],', '          momentEnTrois: plan(1), forfait: forfaitDuTiers(plan(1), jour), priceXof: totalDuMoment,'],
   ['la venue d entretien est un autre geste', RDV, '            id: uid(), branchId: branch.id, clientId, serviceIds: [venueDEntretien],', '            id: uid(), branchId: branch.id, clientId, serviceIds: serviceIds,'],
   ['le choix 3 venues s offre a tout rendez-vous', RDV, '  const leMomentSeul = !appt && serviceIds.length === 1 && contientLeMoment(serviceIds) && !effCovered;', '  const leMomentSeul = !appt;'],
   ['l ecran pose n encaisse pas le premier tiers', RDV, '          {poseLe.momentEnTrois && onEncaisser && (', '          {false && (',],
-  ['le bouton de la caisse dit le total', CAISSE, '                      ? phraseEncaisserLeTiers(appelDe(payerClient ?? client, appt.clientName), settleTotal)', '                      ? `Encaisser ${fmtMoney(grossActuel, currency)}`'],
+  ['le bouton de la caisse dit le total', CAISSE, '                      ? phraseEncaisserLeTiers(appelDe(payerClient ?? client, appt.clientName), settleTotal, appt.momentEnTrois.tiers.length)', '                      ? `Encaisser ${fmtMoney(grossActuel, currency)}`'],
   ['la piece du tiers ventile sur les prix pleins', CAISSE, '        if (appt.momentEnTrois) return [ligneFacture(nomForfait || apptLabel(appt, byId), net)];\n', ''],
   ['la note « au lieu de » revient sur la piece du tiers', CAISSE, '        ? (appt.momentEnTrois ? nomForfait : `${nomForfait}', '        ? (false ? nomForfait : `${nomForfait}'],
   /* ── La fiche ── */

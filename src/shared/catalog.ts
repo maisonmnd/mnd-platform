@@ -456,6 +456,12 @@ export type ServiceInclus = {
       Le Moment offre le VÍVÍVÓ™ et la sortie Signature. Un pourcentage sur
       tout le forfait ne dirait pas la même chose à toutes les têtes. */
   offert?: boolean;
+  /** LA VENUE DU PLAN QUI CONSOMME CETTE LIGNE — 7 novembre 2026 (« Quand je prends Le Moment, je dois voir
+      lesquels des services je consomme à chaque séance », Yéman). Pour Le Moment cuir chevelu en quatre venues :
+      1 à 4, la répartition lue par l'écran (le détail venue par venue). `afterWeeks` reste le guide du délai ; une
+      ligne sans `venue` est consommée à la première venue. N'agit que sur l'AFFICHAGE : le prix, la pose des séances
+      et la facture ne le lisent pas. */
+  venue?: number;
 };
 
 /** LA PRESTATION EST-ELLE ARCHIVÉE ? Le juge unique : fermée à la vente,
