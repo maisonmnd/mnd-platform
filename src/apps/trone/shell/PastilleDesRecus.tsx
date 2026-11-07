@@ -20,7 +20,8 @@ export function PastilleDesRecus({ recus }: { recus: readonly Recu[] }) {
     <button
       type="button"
       className="tr-top__salle tr-top__recus"
-      onClick={() => navigate(`/gerard?vue=conversations${premiere.adresse ? `&${premiere.adresse}` : ''}`)}
+      /* `ouvre=1` (7 novembre 2026) : ce clic est une ouverture de la main, la conversation se dit lue. */
+      onClick={() => navigate(`/gerard?vue=conversations${premiere.adresse ? `&${premiere.adresse}` : ''}&ouvre=1`)}
       title={`Ouvrir la conversation reçue la plus récente : ${premiere.nom}`}
     >
       {motDeLaPastille(recus, Date.now())}

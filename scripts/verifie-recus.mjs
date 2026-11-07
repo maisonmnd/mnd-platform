@@ -94,8 +94,16 @@ const PANNES = [
   ['le document n est plus partage', MAGASIN, "bindDocument(conversationsLuesStore, 'mnd_conversations_lues');\n", ''],
   ['le magasin ecrit sans juger', MAGASIN, '  if (!aMarquer(conversationsLuesStore.get(), cle, iso) || !iso) return;\n', '  if (!iso) return;\n'],
   /* ── L ecran ── */
-  ['« lu » marque dans un onglet cache', ECRAN, '    if (!cleOuverte || !sousLesYeux || !isoRecue) return;', '    if (!cleOuverte || !isoRecue) return;'],
-  ['« lu » ne suit plus la bulle qui arrive boite ouverte', ECRAN, '  }, [cleOuverte, sousLesYeux, isoRecue]);', '  }, [cleOuverte, sousLesYeux]);'],
+  ['« lu » marque dans un onglet cache', ECRAN, '    if (!cleOuverte || !sousLesYeux || !isoRecue || ouverteALaMain !== cleOuverte) return;', '    if (!cleOuverte || !isoRecue || ouverteALaMain !== cleOuverte) return;'],
+  ['« lu » ne suit plus la bulle qui arrive boite ouverte', ECRAN, '  }, [cleOuverte, sousLesYeux, isoRecue, ouverteALaMain]);', '  }, [cleOuverte, sousLesYeux, ouverteALaMain]);'],
+  /* Le premier matin (7 novembre 2026) : la premiere de la liste s ouvrait seule et se disait lue. */
+  ['matin : la recue qui s ouvre seule se dit lue (le defaut du 7 novembre)', ECRAN, ' || !isoRecue || ouverteALaMain !== cleOuverte) return;', ' || !isoRecue) return;'],
+  ['matin : l ouverture automatique passe pour une ouverture de la main', ECRAN, '    if (premiere) setOuverte(premiere.cle);', '    if (premiere) { setOuverte(premiere.cle); setOuverteALaMain(premiere.cle); }'],
+  ['matin : un lien reste dans l adresse se dit lu au rechargement', ECRAN, '  useEffect(() => {\n    if (!cleDemandee) return;\n    setOuverte(cleDemandee);\n', '  useEffect(() => {\n    if (!cleDemandee) return;\n    setOuverte(cleDemandee);\n    setOuverteALaMain(cleDemandee);\n'],
+  ['matin : le clic sur la ligne ne fait plus lu', ECRAN, '    setOuverteALaMain(b?.cle ?? null);\n', ''],
+  ['matin : un geste dans la conversation ne vaut plus ouverture', ECRAN, '        onPointerDownCapture={() => setOuverteALaMain(b.cle)}\n', ''],
+  ['matin : « ouvre=1 » reste dans l adresse', ECRAN, "    suivants.delete('ouvre');\n", ''],
+  ['matin : la pastille n ouvre plus de la main', PASTILLE, ' : \'\'}&ouvre=1`)}', " : ''}`)}"],
   ['les recus ne sont plus en tete d A traiter', ECRAN, 'return [...tete, ...aTraiter.salle, ...aTraiter.tenues, ...aTraiter.mercis];', 'return [...aTraiter.salle, ...aTraiter.tenues, ...aTraiter.mercis];'],
   ['Toutes sans ses recus', ECRAN, " || (onglet === 'toutes' && filtre === 'tout'));", ');'],
   ['la rangee des recus disparait de Toutes', ECRAN, "                  {/* « Toutes » : les reçus en tête, puis le reste, sans les redire. */}\n                  {rangeeDesRecus()}\n", ''],
@@ -108,7 +116,7 @@ const PANNES = [
   ['la pastille du haut n est plus montee', SHELL, "{peutVoir(role, '/gerard', mesDomaines) && <PastilleDesRecus recus={recus} />}", '{null}'],
   ['la feuille de la pastille ronde n est plus chargee', SHELL, "import './shell.css';\n", ''],
   ['la pastille sonne une seconde fois', PASTILLE, '  const premiere = plusRecente(recus);\n', '  const premiere = plusRecente(recus);\n  if (premiere) sonne();\n'],
-  ['la pastille mene a l ecran sans la conversation', PASTILLE, "navigate(`/gerard?vue=conversations${premiere.adresse ? `&${premiere.adresse}` : ''}`)", "navigate('/gerard?vue=conversations')"],
+  ['la pastille mene a l ecran sans la conversation', PASTILLE, "navigate(`/gerard?vue=conversations${premiere.adresse ? `&${premiere.adresse}` : ''}&ouvre=1`)", "navigate('/gerard?vue=conversations&ouvre=1')"],
   ['le Shell compte aussi les tiroirs de la direction', CROCHET, "tiroirs: ['clientes'],", ''],
 ];
 

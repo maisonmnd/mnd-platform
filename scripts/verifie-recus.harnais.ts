@@ -21,6 +21,7 @@ import {
   motDeLaPastille, plusRecente, recuDe, recusDesBoites, titreDeBase, titreDeLOnglet, titreDesRecus,
 } from '../src/shared/recus-pur';
 import { boitesDeLaMaison, type Boite } from '../src/shared/boite-unique-pur';
+import { filsDeLaMaison, tetesDeLaMaison, type MessageWa } from '../src/shared/conversations';
 
 let ko = 0; let n = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -144,6 +145,34 @@ const vraies = boitesDeLaMaison({
 dit('le chat du site et le vocal du site arrivent en recus, le vocal d abord ; l appel note, non', ['n:22990000031', 'n:22990000021'], cles(recusDesBoites(vraies, {})));
 dit('la boite qui s ouvre par `n=` porte le numero du message', 'n=22990000031', plusRecente(recusDesBoites(vraies, {}))?.adresse);
 
+/* ── 8 bis. LE PREMIER MATIN, REJOUE (7 novembre 2026) ───────────────
+   Le cas releve en ligne a 7 h 55 : une cliente a fiche ecrit « Termine »
+   sur WhatsApp a 06:20:53Z, Opale (l automate) repond a 06:21:20Z ; la
+   veille, elle 20:39:35Z, Opale 20:39:59Z ; aucune main de l equipe ;
+   aucun document de lecture. Memes instants, memes auteurs, memes champs
+   que la trace d Opale (`auto: 'automate'`, `parQui: 'Opale'`) ; la tete et
+   le numero sont INVENTES. Par la vraie chaine : les fils, puis les boites. */
+const NUM_MATIN = '22990000077';
+const msg = (id: string, sens: 'entrant' | 'sortant', quand: string, texte: string, o: Partial<MessageWa> = {}): MessageWa =>
+  ({ id, sens, numero: NUM_MATIN, texte, quand, type: 'text', branchId: 'br', ...o } as MessageWa);
+const opale = { auto: 'automate', parQui: 'Opale', clientId: 'fiche-matin' } as Partial<MessageWa>;
+const messagesDuMatin: MessageWa[] = [
+  msg('m1', 'entrant', '2026-11-06T20:39:35Z', 'Bonsoir'), msg('m2', 'sortant', '2026-11-06T20:39:59Z', 'Bonsoir, ici la Maison MND.', opale),
+  msg('m3', 'entrant', '2026-11-07T06:20:53Z', 'Terminé'), msg('m4', 'sortant', '2026-11-07T06:21:20Z', 'Merci, voici le lien pour régler.', opale),
+];
+const ficheDuMatin = { id: 'fiche-matin', name: 'Y. B.', phone: NUM_MATIN, branchId: 'br' };
+const maintenantDuMatin = Date.parse('2026-11-07T06:55:00Z');
+const filsDuMatin = filsDeLaMaison(messagesDuMatin, tetesDeLaMaison({ clientes: [ficheDuMatin] as never }), [], maintenantDuMatin, 'br');
+const boitesDuMatin = boitesDeLaMaison({ fils: filsDuMatin, clientes: [ficheDuMatin], maintenant: maintenantDuMatin, branchId: 'br', tiroirs: ['clientes'] });
+const recuDuMatin = recusDesBoites(boitesDuMatin, {})[0];
+dit('le premier matin : la boite de la fiche est recue, depuis « Termine », deux messages d elle, « Perle a repondu »',
+  { cle: 'c:fiche-matin', quand: '2026-11-07T06:20:53Z', nombre: 2, perleARepondu: true, adresse: `n=${NUM_MATIN}` },
+  recuDuMatin && { cle: recuDuMatin.cle, quand: recuDuMatin.quand, nombre: recuDuMatin.nombre, perleARepondu: recuDuMatin.perleARepondu, adresse: recuDuMatin.adresse });
+dit('... la trace d Opale est l automate, jamais une main de l equipe', ['elle', 'automate', 'elle', 'automate'],
+  boitesDuMatin.find((b) => b.cle === 'c:fiche-matin')?.bulles.map((x) => x.auteur));
+dit('... a 7 h 55, la pastille dit « 1 recu · 7 h 20 » et l onglet « (1) »', ['1 reçu · 7 h 20', '(1) Le Trône — Maison MND'],
+  [motDeLaPastille(recusDesBoites(boitesDuMatin, {}), maintenantDuMatin), titreDeLOnglet('Le Trône — Maison MND', recusDesBoites(boitesDuMatin, {}).length)]);
+
 /* ── 9. La lettre : le magasin, l ecran, le Shell, la pastille ──────── */
 const pur = lis('src/shared/recus-pur.ts');
 const magasin = lis('src/shared/conversations-lues.ts');
@@ -165,12 +194,25 @@ const ecrivains = [...sources('src'), ...sources('supabase/functions')].filter((
   .map((f) => f.replace(/\\/g, '/')).sort();
 dit('« lu » ne s ecrit que depuis l ecran des Conversations (et son magasin) ; aucune fonction du serveur ne le touche',
   ['src/apps/trone/routes/clients/LesConversations.tsx', 'src/shared/conversations-lues.ts'], ecrivains);
-dit('l ecran marque lu la boite ouverte, l onglet sous les yeux, a l instant de son dernier message recu', [true, true, true], [
-  ecran.includes('if (!cleOuverte || !sousLesYeux || !isoRecue) return;'), ecran.includes('marqueLue(cleOuverte, isoRecue);'),
+dit('l ecran marque lu la boite ouverte DE LA MAIN, l onglet sous les yeux, a l instant de son dernier message recu', [true, true, true], [
+  ecran.includes('if (!cleOuverte || !sousLesYeux || !isoRecue || ouverteALaMain !== cleOuverte) return;'), ecran.includes('marqueLue(cleOuverte, isoRecue);'),
   ecran.includes('const isoRecue = boite ? recuDe(boite, lues)?.quand : undefined;'),
 ]);
 dit('... et la marque suit une bulle qui arrive pendant que la boite est ouverte (l instant est une dependance)', true,
-  ecran.includes('}, [cleOuverte, sousLesYeux, isoRecue]);'));
+  ecran.includes('}, [cleOuverte, sousLesYeux, isoRecue, ouverteALaMain]);'));
+/* LE PREMIER MATIN (7 novembre 2026) : la premiere de la liste s ouvre seule sur grand ecran ; elle ne se dit pas lue. */
+const ouvertureSeule = (ecran.match(/if \(etroit \|\| cleDemandee\) return;[\s\S]*?\}, \[etroit, cleDemandee, ouverte, boites, ordre\]\);/) ?? [''])[0];
+dit('la conversation qui s ouvre seule n est pas ouverte de la main ; le geste « ouvrir » l est', [true, false, true], [
+  ouvertureSeule.includes('setOuverte(premiere.cle)'), ouvertureSeule.includes('setOuverteALaMain'),
+  /setOuverte\(b\?\.cle \?\? null\);\s*setOuverteALaMain\(b\?\.cle \?\? null\);/.test(ecran),
+]);
+dit('un geste dans la conversation ouverte vaut ouverture de la main', true, ecran.includes('onPointerDownCapture={() => setOuverteALaMain(b.cle)}'));
+dit('la pastille ouvre de la main (`ouvre=1`), et le mot quitte l adresse : un rechargement ne marque rien', [true, true, true], [
+  pastille.includes('&ouvre=1`)'), ecran.includes("const ouvreParLaPastille = params.get('ouvre') === '1';"),
+  /setOuverteALaMain\(cleDemandee\);\s*const suivants = new URLSearchParams\(params\);\s*suivants\.delete\('ouvre'\);/.test(ecran),
+]);
+dit('un lien resté dans l adresse (`?n=`) ouvre sans dire lu', false,
+  (ecran.match(/useEffect\(\(\) => \{\s*if \(!cleDemandee\) return;[\s\S]*?\}, \[cleDemandee\]\);/) ?? [''])[0].includes('setOuverteALaMain'));
 dit('l ecran lit le pur et le document, et met les recus EN TETE d « A traiter » et de « Toutes »', [true, true, true, true, true], [
   ecran.includes('recusDesBoites(boites, lues)'),
   ecran.includes("const montreLesRecus = !recherche && ((onglet === 'traiter' && filtre === 'attend') || (onglet === 'toutes' && filtre === 'tout'));"),
@@ -199,7 +241,7 @@ dit('le titre de l onglet du navigateur suit le compte', [true, true],
   [shell.includes('useEffect(() => { document.title = titreDeLOnglet(titreDuTrone, nbRecus); }, [titreDuTrone, nbRecus]);'), shell.includes('useState(() => titreDeBase(document.title))')]);
 dit('la pastille de la barre du haut, sur tous les ecrans, a qui voit les Conversations, et elle mene a la plus recente', [true, true, true], [
   shell.includes("{peutVoir(role, '/gerard', mesDomaines) && <PastilleDesRecus recus={recus} />}"),
-  pastille.includes('const premiere = plusRecente(recus);'), pastille.includes("navigate(`/gerard?vue=conversations${premiere.adresse ? `&${premiere.adresse}` : ''}`)"),
+  pastille.includes('const premiere = plusRecente(recus);'), pastille.includes("navigate(`/gerard?vue=conversations${premiere.adresse ? `&${premiere.adresse}` : ''}&ouvre=1`)"),
 ]);
 dit('UNE SEULE SONNERIE : ni la pastille ni le compte du Shell ne sonnent', [false, false, false],
   [/sonne|sonnette/.test(pastille), /sonne|sonnette/.test(crochet), /sonne|sonnette/.test(sansCommentaires(pur))]);

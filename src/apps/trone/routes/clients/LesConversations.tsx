@@ -234,6 +234,14 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
   const [cherche, setCherche] = useState('');
   /* UNE CONVERSATION OUVERTE À LA FOIS : la clé de la boîte. */
   const [ouverte, setOuverte] = useState<string | null>(null);
+  /* OUVERTE DE LA MAIN D'UNE PERSONNE (7 novembre 2026, premier matin des
+     Reçus) : sur grand écran, la première conversation de la liste s'ouvre
+     seule, et depuis les Reçus la première est la reçue la plus récente.
+     Elle se marquait « lue » au chargement, sans que personne la choisisse :
+     la rangée et le « (n) » de l'onglet s'éteignaient dans la seconde. Seule
+     cette clé, posée par un geste (la ligne, les flèches, « Suivante », un
+     geste dans la conversation, la pastille de la barre), fait « lu ». */
+  const [ouverteALaMain, setOuverteALaMain] = useState<string | null>(null);
   const [texte, setTexte] = useState('');
   const [cite, setCite] = useState<MessageWa | null>(null);
   const [souciOuvert, setSouciOuvert] = useState<string | null>(null);
@@ -326,6 +334,19 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
     if (b && (onglet === 'regles' || (onglet === 'attente' && !enAttenteDElle(b, tick)) || !b.filtres.includes(filtre))) { setFiltre('tout'); setOnglet('toutes'); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cleDemandee]);
+  /* LA PASTILLE DES REÇUS OUVRE DE LA MAIN (`&ouvre=1`, 7 novembre 2026) :
+     son clic vaut ouverture ; le mot s'efface aussitôt de l'adresse, pour
+     qu'un rechargement de la page ne marque rien à sa place. Un autre lien
+     (`?n=` resté dans l'adresse) ouvre la boîte sans la dire lue. */
+  const ouvreParLaPastille = params.get('ouvre') === '1';
+  useEffect(() => {
+    if (!ouvreParLaPastille || !cleDemandee) return;
+    setOuverteALaMain(cleDemandee);
+    const suivants = new URLSearchParams(params);
+    suivants.delete('ouvre');
+    setParams(suivants, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ouvreParLaPastille, cleDemandee]);
   /* LE MESSAGE PRÉ-ÉCRIT QUI ARRIVE D'AILLEURS (`?t=`) se pose dans la zone, à
      relire, et s'efface de l'adresse aussitôt : un rafraîchissement ne doit
      pas le reposer par-dessus ce qu'on écrit. */
@@ -401,21 +422,23 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recherche, boites, onglet, filtre, aTraiter, enAttente, visibles, montreLesRecus, boitesRecues]);
   const boite = boites.find((b) => b.cle === ouverte) ?? null;
-  /* « LU » : la boîte ouverte, l'onglet sous les yeux, et elle est reçue : on
-     écrit l'instant de son dernier message (recus-pur juge quoi écrire, le
-     magasin n'écrit que si c'est plus récent). Une bulle qui arrive pendant
-     que la boîte est ouverte se marque de la même façon. */
+  /* « LU » : la boîte ouverte DE LA MAIN d'une personne (jamais celle qui
+     s'ouvre seule), l'onglet sous les yeux, et elle est reçue : on écrit
+     l'instant de son dernier message (recus-pur juge quoi écrire, le magasin
+     n'écrit que si c'est plus récent). Une bulle qui arrive pendant que la
+     boîte est ouverte se marque de la même façon. */
   const cleOuverte = boite?.cle;
   const isoRecue = boite ? recuDe(boite, lues)?.quand : undefined;
   useEffect(() => {
-    if (!cleOuverte || !sousLesYeux || !isoRecue) return;
+    if (!cleOuverte || !sousLesYeux || !isoRecue || ouverteALaMain !== cleOuverte) return;
     marqueLue(cleOuverte, isoRecue);
-  }, [cleOuverte, sousLesYeux, isoRecue]);
+  }, [cleOuverte, sousLesYeux, isoRecue, ouverteALaMain]);
   /* Au téléphone, une conversation ouverte prend tout l'écran : la liste s'efface derrière elle. */
   const ouvertEtroit = etroit && !!boite && onglet !== 'regles';
 
   /* SUR UN GRAND ÉCRAN, LA PREMIÈRE CONVERSATION S'OUVRE SEULE : la colonne
-     de droite n'est jamais vide quand il y a quelqu'un à qui répondre. */
+     de droite n'est jamais vide quand il y a quelqu'un à qui répondre. Elle
+     s'ouvre, elle n'est pas LUE (`ouverteALaMain` n'y est pas posée). */
   useEffect(() => {
     if (etroit || cleDemandee) return;
     if (ouverte && boites.some((b) => b.cle === ouverte)) return;
@@ -558,6 +581,8 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
       if (b.numero) suivants.set('n', b.numero); else if (b.clientId) suivants.set('c', b.clientId); else if (b.discussionId) suivants.set('d', b.discussionId);
     }
     setOuverte(b?.cle ?? null);
+    /* Ouvrir par ce geste, c'est l'ouvrir de sa main : la boîte peut se dire lue. */
+    setOuverteALaMain(b?.cle ?? null);
     setTexte('');
     setParams(suivants, { replace: true });
     if (b) ameneLaBoite();
@@ -962,6 +987,9 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
         className={`trc-bx__conv${ouvertEtroit ? ' trc-am__plein' : ''}`}
         aria-label={`La conversation avec ${b.nom}`}
         onKeyDown={echapDansLaConversation}
+        /* Un geste dans la conversation ouverte seule (la lire, y écrire) vaut ouverture de la main. */
+        onPointerDownCapture={() => setOuverteALaMain(b.cle)}
+        onKeyDownCapture={() => setOuverteALaMain(b.cle)}
       >
         {/* LA TÊTE : au téléphone le retour à la liste ; partout le nom, ses canaux, QUI LA TIENT, et une barre d'outils compacte. */}
         <div className={etroit ? 'trc-am__tete trc-bx__tete' : 'trc-bx__tete'}>
