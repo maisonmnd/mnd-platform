@@ -45,6 +45,7 @@ import { BilanModal, RegistreDesBilans } from './BilanModal';
 import { CarteDeMarrainePanneau } from './CarteDeMarrainePanneau';
 import { SonAvisGoogle } from './SonAvisGoogle';
 import { CarteAbonnement } from './CarteAbonnement';
+import { MomentEnTroisFiche } from './MomentEnTroisFiche';
 import { CarteDuClub } from './CarteDuClub';
 import { releveDeLAbonnee } from '../../../../shared/abonnee-pur';
 import { AvantLeFauteuil } from './AvantLeFauteuil';
@@ -3208,6 +3209,9 @@ function Customer360({
         {/* ══ ①bis SA FORMULE — 20 octobre 2026 : la carte Abonnement, sous ce
             qui presse. Elle ne paraît que pour une tête qui a ou a eu une formule. */}
         {aDesFormules && <CarteAbonnement client={client} appts={appts} invoices={invoices} />}
+        {/* ══ ①bis-bis LE MOMENT EN TROIS VENUES — 7 novembre 2026 : l'échéancier
+            de ses trois tiers, seulement tant qu'il reste dû. */}
+        <MomentEnTroisFiche client={client} appts={appts} onEncaisser={setPayAppt} />
         {/* ══ ①ter LE CLUB DES PETITES COURONNES — 21 octobre 2026 : le
             collier de cauris d'un enfant (MND Kids). Rien pour un adulte. */}
         <CarteDuClub client={client} appts={appts} />

@@ -5,6 +5,8 @@ import { etatDeLaSeance, type ReleveDeLAbonnee } from '../../shared/abonnee-pur'
 import { MONTHS } from './lib';
 import { ETAT_SEANCE, dateCourte, dateDansLaPhrase, heureDite, seanceDuRelevé } from './releve';
 import { t, prix } from './i18n';
+import MomentEnTrois from './MomentEnTrois';
+import { francsDuTiers } from '../../shared/le-moment-en-trois-pur';
 import './abonnee.css';
 
 /* ══ L'ONGLET RENDEZ-VOUS — 20 octobre 2026 ══════════════════════════════
@@ -59,6 +61,8 @@ export default function RendezVousTab({ releve, prenom, selecteur, onOpenRdv, on
       return x.s.rang && x.s.total ? { mot: t('Incluse · séance {n} sur {total}', { n: x.s.rang, total: x.s.total }), cls: '' } : { mot: t('Incluse dans la formule'), cls: '' };
     }
     if (a.coveredBySub) return { mot: t('Incluse'), cls: '' };
+    /* Le tiers du Moment en trois venues (7 novembre 2026) : sa part, jamais « à la carte ». */
+    if (a.momentEnTrois && a.status !== 'annulé') return { mot: t('Tiers {n} sur 3 · {montant}', { n: a.momentEnTrois.rang, montant: francsDuTiers(a.momentEnTrois.tiers[a.momentEnTrois.rang - 1] ?? 0) }), cls: 'ab-argent--hors' };
     if (a.priceXof == null) return null;
     const net = Math.max(0, Math.round(a.priceXof * (1 - (a.discountPct ?? 0) / 100)) - (a.discountXof ?? 0));
     const reste = apptDueXof(a, net);
@@ -125,6 +129,8 @@ export default function RendezVousTab({ releve, prenom, selecteur, onOpenRdv, on
       </div>
       <div className="ab-page">
         {selecteur}
+        {/* Votre Moment · en trois venues (7 novembre 2026) : seulement tant qu'il reste dû. */}
+        <MomentEnTrois clientId={releve.clientId} />
         <div className="ab-segs" role="group" aria-label={t('À venir ou passés')}>
           <button type="button" className={`ab-segs__opt ${vue === 'avenir' ? 'is-on' : ''}`} aria-pressed={vue === 'avenir'} onClick={() => setVue('avenir')}>
             {t('À venir · {n}', { n: aVenir.length })}

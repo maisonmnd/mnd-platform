@@ -215,6 +215,19 @@ export type Appointment = {
     /** Jour où il a été consenti (ISO). */
     poseAt: string;
   };
+  /** LE MOMENT EN TROIS VENUES — 7 novembre 2026. « Le Moment se paie en 3
+      fois, il faut diviser le paiement en 3 venues » (Yéman). Trois
+      rendez-vous posés ensemble (le Moment, puis deux venues d'entretien), un
+      tiers attaché à chacun : le plan, le rang, le prix figé et les trois
+      tiers. Le tiers de CE rendez-vous est aussi son `forfait` (c'est lui qui
+      commande son net, donc l'encaissement, la fin et Ma Couronne le lisent
+      sans rien savoir du plan). Voir shared/le-moment-en-trois-pur.ts. */
+  momentEnTrois?: {
+    planId: string;
+    rang: 1 | 2 | 3;
+    total: number;
+    tiers: number[];
+  };
   /** CE QU'ELLE EMPORTE — la Gamme DÒDÒ posée dès la prise du rendez-vous
       (5 septembre 2026, maquette validée).
 

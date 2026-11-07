@@ -30,7 +30,7 @@ import { prix, t } from './i18n';
    le jeton de la page « Régler » (KkiaPay), la même que le jour même. */
 
 /** L'heure avance : une fiche ou un accueil restés ouverts changent de moment sans rouvrir l'app. */
-function useMaintenant(): number {
+export function useMaintenant(): number {
   const [maintenant, setMaintenant] = useState(() => Date.now());
   useEffect(() => {
     const id = window.setInterval(() => setMaintenant(Date.now()), 60_000);
@@ -45,7 +45,7 @@ function useMaintenant(): number {
    copie de ses rendez-vous gardée dans le téléphone, périmée. Il demande donc
    à la fonction ce qu'elle peut régler (action `dus`, la même règle, la base)
    et ne montre que cela, au montant du serveur. Sans réponse : rien. */
-function useDusDuServeur(): DusDuServeur | null {
+export function useDusDuServeur(): DusDuServeur | null {
   const { session } = useAuth();
   const jeton = session?.access_token ?? '';
   const [dus, setDus] = useState<DusDuServeur | null>(null);
@@ -58,7 +58,7 @@ function useDusDuServeur(): DusDuServeur | null {
 }
 
 /** Le toucher : la fonction juge, puis la page « Régler » s'ouvre ; sinon une phrase, jamais un code. */
-function useLeToucher(quand: 'avance' | 'apres') {
+export function useLeToucher(quand: 'avance' | 'apres') {
   const { session } = useAuth();
   const [enCours, setEnCours] = useState<string | null>(null);
   const [souci, setSouci] = useState('');

@@ -48,6 +48,7 @@ import {
 } from './_shared';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { appelDe, prenomDUsage } from '../../../../shared/civilite';
+import { phraseEncaisserLeTiers } from '../../../../shared/le-moment-en-trois-pur';
 import { RattacherUneCarte } from '../vente/RattacherUneCarte';
 import { PanneauMndPay } from '../vente/MndPay';
 import { CAISSE_MND_PAY, moyenDeLaPiece, type DemandeMndPay } from '../../../../shared/mnd-pay-pur';
@@ -1774,6 +1775,12 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
          rabotant les lignes. */
       const lignesDuRituel = (): InvoiceLine[] => {
         if (services.length === 0) return [ligneFacture(nomForfait || apptLabel(appt, byId), net)];
+        /* LE TIERS DU MOMENT SE FACTURE EN UNE LIGNE (7 novembre 2026) : « Le
+           Moment se paie en 3 fois ». Ventilé sur les prix pleins des gestes,
+           il se lirait comme un Moment remisé des deux tiers : or le tiers est
+           une part d'un prix entier, jamais une remise. Sa pièce porte donc
+           une ligne, au montant du tiers, et aucune remise globale. */
+        if (appt.momentEnTrois) return [ligneFacture(nomForfait || apptLabel(appt, byId), net)];
         /* LA REMISE DE LIGNE RESTE SUR SA LIGNE — 18 août 2026 : « je dois
            voir la remise de 20 000 F sur la ligne de la prestation, avec les
            60 000 F barrés ». Elle était fondue dans la remise globale de la
@@ -1890,8 +1897,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
       /* Le forfait se dit sur la pièce, avec le prix plein en regard : une
          remise consentie et tue n'est pas un cadeau, c'est un prix qu'on
          n'explique pas. */
+      /* UN TIERS DU MOMENT N'EST PAS UN PRIX CONSENTI (7 novembre 2026) : la
+         note « au lieu de » se lirait comme une remise. Le nom du tiers suffit. */
       const forfaitNote = forfaitPose
-        ? `${nomForfait} · ${fmtMoney(forfaitNum, currency)} au lieu de ${fmtMoney(grossActuel, currency)}`
+        ? (appt.momentEnTrois ? nomForfait : `${nomForfait} · ${fmtMoney(forfaitNum, currency)} au lieu de ${fmtMoney(grossActuel, currency)}`)
         : '';
       /* LA PIÈCE DU RITUEL, S'IL EN A DÉJÀ UNE. Un second règlement s'y INSCRIT
          au lieu d'ouvrir une pièce jumelle le même jour. Le lien se lit des
@@ -2827,7 +2836,11 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                   ? `Enregistrer le pourboire ${fmtMoney(tip, currency)}`
                   : settleTotal <= 0 && depositJustConfirmed
                     ? 'Confirmer l’acompte reçu'
-                    : `Encaisser ${fmtMoney(settleTotal, currency)}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}${fullyPaid ? '' : ' (partiel)'}`}
+                    /* LE TIERS DU JOUR, JAMAIS LE TOTAL (7 novembre 2026) : le Moment
+                       en trois venues n'encaisse à chaque venue que son tiers. */
+                    : appt.momentEnTrois && totalGamme <= 0 && fullyPaid
+                      ? phraseEncaisserLeTiers(appelDe(payerClient ?? client, appt.clientName), settleTotal)
+                      : `Encaisser ${fmtMoney(settleTotal, currency)}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}${fullyPaid ? '' : ' (partiel)'}`}
           </Button>
         </div>
         </aside>
