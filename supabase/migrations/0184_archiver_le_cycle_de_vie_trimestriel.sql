@@ -1,4 +1,4 @@
--- 0183 · ARCHIVER « GBÈJÍ™ TRIMESTRIEL · LE CYCLE DE VIE, 3 MOIS » · 7 novembre 2026
+-- 0184 · ARCHIVER « GBÈJÍ™ TRIMESTRIEL · LE CYCLE DE VIE, 3 MOIS » · 7 novembre 2026
 --
 -- « Annuler dans Catalogue Abonnement : GBÈJÍ™ Trimestriel · Le Cycle de
 -- Vie, 3 mois » (Y.). La nouvelle grille le retirait en janvier (« remplacé
