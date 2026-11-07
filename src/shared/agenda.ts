@@ -222,6 +222,11 @@ export type Appointment = {
       tiers. Le tiers de CE rendez-vous est aussi son `forfait` (c'est lui qui
       commande son net, donc l'encaissement, la fin et Ma Couronne le lisent
       sans rien savoir du plan). Voir shared/le-moment-en-trois-pur.ts. */
+  /** LA MARQUE D'UN MOMENT PROGRAMMÉ EN « COMPTANT » — 7 novembre 2026. « Quand je prends Le Moment pour un client, ça
+      doit automatiquement programmer les séances à venir » (Yéman). Les venues d'un Moment réglé comptant se posent
+      aussi (à 0 F, déjà réglées), avec la marque du plan : le même `planId`, le `rang` (1 à N) et `n`. SANS ARGENT :
+      aucun tiers, aucun forfait (c'est `momentEnTrois` qui porte les parts d'un plan payé en plusieurs venues). */
+  momentProgramme?: { planId: string; rang: number; n: number };
   momentEnTrois?: {
     planId: string;
     rang: number;

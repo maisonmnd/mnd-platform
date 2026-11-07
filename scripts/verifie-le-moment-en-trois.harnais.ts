@@ -23,6 +23,7 @@ import {
 import { rituelDeLaPiece, versementsDeLaPiece, type PieceLue } from '../src/shared/cloture-du-jour-pur';
 import { CLE_DE_LA_PIECE, decisionDEnvoi } from '../src/shared/une-piece-un-message-pur';
 import { restesHorsFormuleDe } from '../src/apps/couronne/releve';
+import { delaisDesVenues, heureDite, jourCourt, phraseMomentEnCours, planOuvertDeLaCliente, proposeLesDatesDesVenues, venueDuPlan } from '../src/shared/le-moment-seances-pur';
 import { SERVICE_RETIRE_DIT, detailDuService, detailParVenue, dureeDite, type ServiceLu } from '../src/shared/le-moment-detail-pur';
 import { PLAFOND_PAR_VENUE_CUIR_CHEVELU_XOF, tiersPlafonnes } from '../src/shared/le-moment-en-trois-pur';
 // @ts-expect-error module .mjs sans types
@@ -213,7 +214,7 @@ dit('le reste connu de la fin pour une venue est son tiers : 45 000 F, jamais 13
   dit('le comptoir : comptant ou 3 venues, les trois dates demandees au depart, dans l ordre, sur des places libres', [true, true, true],
     [/venuesActives\.some\(\(v\) => !v\.date \|\| !v\.time\)/.test(rdvSrc), /datesDuPlanValides\(dates, nVenues\)/.test(rdvSrc), /venuesActives\.map\(\(_, i\) => raisonDeLaVenue\(i\)\)\.find\(\(r\) => r\?\.bloque\)/.test(rdvSrc)]);
   dit('les trois rendez-vous se posent d un seul geste (poseUnRendezVous, suites), le premier est le Moment', [true, true],
-    [/suites\.push\(\.\.\.suitesDuMoment\);/.test(rdvSrc) && /suites: \[\.\.\.suites, \.\.\.desCompagnes\],/.test(rdvSrc), /serviceIds: \[venueDEntretien\]/.test(rdvSrc)]);
+    [/suites\.push\(\.\.\.suitesDuMoment\);/.test(rdvSrc) && /suites: \[\.\.\.suites, \.\.\.desCompagnes\],/.test(rdvSrc), (rdvSrc.match(/serviceIds: \[venueDEntretien\]/g) ?? []).length === 2]);
   dit('JAMAIS DE REMISE sur le Moment en trois : remises de ligne, code, mercredi, famille, acompte tous ecartes ; le prix de chaque venue est son tiers', [true, true, true],
     [/remisesLignes: undefined, codeOffre: undefined, offreId: undefined, horsOffreDuJour: true,\s*\n\s*discountPct: undefined, discountXof: undefined, remiseFamille: undefined, remiseFamilleXof: undefined/.test(rdvSrc),
       /priceXof: tiersDuMomentIci\[0\]/.test(rdvSrc), /priceXof: tiersDuMomentIci\[rang - 1\]/.test(rdvSrc)]);
@@ -221,7 +222,7 @@ dit('le reste connu de la fin pour une venue est son tiers : 45 000 F, jamais 13
     [/momentEnTrois: plan\(1\), forfait: forfaitDuTiers\(plan\(1\), jour\)/.test(rdvSrc), /momentEnTrois: plan\(rang\), forfait: forfaitDuTiers\(plan\(rang\), jour\)/.test(rdvSrc)]);
   dit('le comptoir : quatre venues pour le Moment cuir chevelu seulement (le nombre vient du Moment), les venues suivantes sont celles du Moment', [true, true],
     [/const nVenues = venuesDuMomentPour\(serviceIds\[0\]\);/.test(rdvSrc), /serviceDesVenuesSuivantes\(serviceIds\[0\] \?\? SERVICE_LE_MOMENT/.test(rdvSrc)]);
-  dit('en trois venues, les seances « +8 et +12 semaines » du Moment ne se posent pas en plus (jamais deux fois la meme venue)', true, /inc\.afterWeeks <= 0 \|\| enTrois\) continue;/.test(rdvSrc));
+  dit('en trois venues, les seances « +8 et +12 semaines » du Moment ne se posent pas en plus (jamais deux fois la meme venue)', true, /inc\.afterWeeks <= 0 \|\| momentAProgrammer\) continue;/.test(rdvSrc));
   dit('le seul Moment, seul, sur un rendez-vous neuf, hors forfait pose a la main, hors formule', true,
     /const leMomentSeul = !appt && serviceIds\.length === 1 && contientLeMoment\(serviceIds\) && !effCovered;/.test(rdvSrc) && /const tiersDuMomentIci = leMomentSeul && !forfaitPose\s*\n\s*\? \(plafondDuMoment\s*\n\s*\? tiersPlafonnes\(totalDuMoment, nVenues, \{ plafondXof: plafondDuMoment, remisePct: discountPctEcrit, remiseXof: discountXofEcrit \}\)\s*\n\s*: tiersDuMoment\(totalDuMoment, nVenues\)\)/.test(rdvSrc));
   dit('l ecran « pose » propose d encaisser le premier tiers', true, /poseLe\.momentEnTrois && onEncaisser/.test(rdvSrc) && /phraseEncaisserLeTiers\(appelDe\(rdvClient, undefined\), tiersAEncaisser\(poseLe\), poseLe\.momentEnTrois\.tiers\.length\)/.test(rdvSrc));
@@ -320,11 +321,75 @@ dit('les blocs copies de terminer-et-regler et regler-la-seance sont identiques 
   dit('la ligne d un Moment ne liste plus TOUTE sa composition avec ses prix : « Au programme aujourd hui » (sa venue), sans prix', [true, true],
     [/\{contientLeMoment\(\[sv\.id\]\) && \(\(\) => \{\s*\n\s*const jour = detailDuService\(sv, byId, \{\}, appt\?\.momentEnTrois\?\.rang \?\? 1\)/.test(rdvSrc), /\{!contientLeMoment\(\[sv\.id\]\) && \(sv\.includes\?\.length \?\? 0\) > 0/.test(rdvSrc)]);
   dit('au Carnet : « Au programme » = les services de CETTE venue (son rang), jamais tout le Moment en bloc ; au nouveau RDV, la venue 1', [true, true],
-    [/Au programme : \{lignes\.map/.test(lis('src/apps/trone/routes/clients/Carnet.tsx')) && /detailDuService\(byId\.get\(a\.serviceIds\[0\]\), byId, \{\}, a\.momentEnTrois\.rang\)/.test(lis('src/apps/trone/routes/clients/Carnet.tsx')), /appt\?\.momentEnTrois\?\.rang \?\? 1\)/.test(rdvSrc)]);
+    [/Au programme : \{lignes\.map/.test(lis('src/apps/trone/routes/clients/Carnet.tsx')) && /detailDuService\(byId\.get\(a\.serviceIds\[0\]\), byId, \{\}, venueDuPlan\(a\)!\.rang\)/.test(lis('src/apps/trone/routes/clients/Carnet.tsx')), /\(appt \? venueDuPlan\(appt\)\?\.rang : undefined\) \?\? 1\)/.test(rdvSrc)]);
   dit('sur la fiche : le detail repliable par venue, lu du service de chaque rendez-vous', true, /detailDuService\(rdvDeLaVenue \? catalogue\.get\(rdvDeLaVenue\.serviceIds\[0\]\) : undefined, catalogue, \{\}, l\.rang\)/.test(fiche) && /<DetailDuMoment detail=\{detail\} titre="Ce que comprend cette venue" replie/.test(fiche));
   dit('Ma Couronne : le detail par venue, noms lisibles, « Offert », duree ; jamais un code, jamais un prix', [true, false, false], [/detailDuService\(rdvDeLaVenue \? catalogue\.get/.test(couronne) && /t\('Offert'\)/.test(couronne), /valeurXof|serviceId\}<|\{d\.serviceId\}/.test(couronne.replace(/key=\{[^}]*\}/g, '')), /prix\(d\./.test(couronne)]);
   dit('le plafond au comptoir : le Moment cuir chevelu seulement, une remise baisse les parts, les parts reelles sont celles du plan', [true, true],
     [/const plafondDuMoment = nVenues === VENUES_DU_MOMENT_CUIR_CHEVELU \? PLAFOND_PAR_VENUE_CUIR_CHEVELU_XOF : undefined;/.test(rdvSrc), /momentEnTroisDuRang\(planId, rang, totalDuMoment, plafondDuMoment \? tiersDuMomentIci : undefined, nVenues, plafondDuMoment\)/.test(rdvSrc)]);
+}
+
+
+/* ══ 14. LE MOMENT PROGRAMME SES SEANCES A VENIR (7 novembre 2026) ══ */
+{
+  const tous = (_iso: string) => ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '14:00', '15:00'];
+  const base = { dateVenue1: '2026-11-28', heureVenue1: '11:00', aujourdhui: '2026-11-07', ferme: () => false, heuresLibres: tous };
+  const cuir = (o: object = {}) => proposeLesDatesDesVenues({ ...base, delaisSemaines: [4, 8, 12], ...o });
+  dit('delais lus du catalogue : le cuir chevelu 4/8/12 semaines (repere venue), Signature selon son includes (8/12), le defaut quand rien n est ecrit',
+    [[4, 8, 12], [8, 12], [4, 8, 12], [8, 12]],
+    [delaisDesVenues([{ venue: 1 }, { venue: 2, afterWeeks: 4 }, { venue: 2 }, { venue: 3, afterWeeks: 8 }, { venue: 4, afterWeeks: 12 }], 4), delaisDesVenues([{}, { afterWeeks: 12 }, { afterWeeks: 8 }], 3),
+      delaisDesVenues([{ afterWeeks: 8 }, { afterWeeks: 12 }], 4).length === 3 ? [4, 8, 12] : [], delaisDesVenues(undefined, 3)]);
+  dit('le catalogue d avant la repartition (8 et 12 semaines seulement) se complete par le defaut pour la 3e venue du cuir chevelu', [8, 12, 12], delaisDesVenues([{ afterWeeks: 8 }, { afterWeeks: 12 }], 4));
+  const t1 = cuir();
+  dit('TABLEAU : samedi 28 nov. 2026 11 h, cuir chevelu : +4, +8, +12 semaines, meme jour de la semaine (samedi), meme heure, aucune raison',
+    [['2026-12-26', '11:00', false], ['2027-01-23', '11:00', false], ['2027-02-20', '11:00', false]], t1.map((p) => [p.date, p.time, p.deplacee]));
+  dit('Signature : trois venues, 8 et 12 semaines (23 janv. et 20 fevr. 2027), meme heure', [['2027-01-23', '11:00'], ['2027-02-20', '11:00']],
+    proposeLesDatesDesVenues({ ...base, delaisSemaines: [8, 12] }).map((p) => [p.date, p.time]));
+  const ferme26 = cuir({ ferme: (iso: string) => iso === '2026-12-26' || iso === '2026-12-27' });
+  dit('jour ferme : le jour libre le plus proche de la MEME semaine (le vendredi 25 dec., a 11 h), avec sa raison', ['2026-12-25', '11:00', '28 nov. + 4 semaines : le 26 déc. était fermé, le 25 déc. à 11 h'], [ferme26[0].date, ferme26[0].time, ferme26[0].raison]);
+  dit('les venues suivantes ne se decalent pas en chaine : 8 et 12 semaines gardent leur date', ['2027-01-23', '2027-02-20'], [ferme26[1].date, ferme26[2].date]);
+  const pris = cuir({ heuresLibres: (iso: string) => (iso === '2026-12-26' ? ['09:30', '12:30'] : tous(iso)) });
+  dit('place prise a 11 h ce jour-la : meme jour, l heure libre la plus proche (12 h 30), et la raison le dit', ['2026-12-26', '12:30', '28 nov. + 4 semaines : le 26 déc. à 11 h était pris, le 26 déc. à 12 h 30'], [pris[0].date, pris[0].time, pris[0].raison]);
+  const favori = cuir({ ferme: (iso: string) => iso === '2026-12-26', joursPreferes: [4] });
+  dit('jour favori (jeudi) prefere dans la meme semaine : le jeudi 24 dec. plutot que le vendredi 25', '2026-12-24', favori[0].date);
+  dit('sans favori, le plus proche (vendredi 25) ; a egalite le plus tot', '2026-12-25', cuir({ ferme: (iso: string) => iso === '2026-12-26' })[0].date);
+  const tot = cuir({ heuresLibres: (iso: string) => (iso === '2026-12-26' ? ['08:00', '08:30'] : tous(iso)) });
+  dit('jamais avant 9 h le samedi : les places de 8 h le samedi sont ecartees, la venue prend un autre jour', [true, '2026-12-25'], [tot[0].deplacee, tot[0].date]);
+  dit('toute la semaine fermee : la semaine voisine, jamais en silence (la raison dit le deplacement)', true, (() => { const p = cuir({ ferme: (iso: string) => iso >= '2026-12-21' && iso <= '2026-12-27' })[0]; return p.deplacee && p.date > '2026-12-27' && !!p.raison; })());
+  dit('aucune place du tout : pas de date, une raison qui le dit', [true, ''], [cuir({ ferme: () => true }).every((p) => p.date === '' && !!p.raison), cuir({ ferme: () => true })[0].time]);
+  const passe = proposeLesDatesDesVenues({ ...base, aujourdhui: '2027-01-01', delaisSemaines: [4, 8, 12] });
+  dit('une venue dans le passe ne se pose jamais en silence : marquee passee, avec sa raison', [true, false, false], [passe[0].passee === true && /déjà passé/.test(passe[0].raison ?? ''), !!passe[1].passee, !!passe[2].passee]);
+  dit('chaque venue vient apres la precedente : jamais une date avant la venue 1', true, cuir({ ferme: (iso: string) => iso === '2026-12-26' }).every((p, i, l) => p.date > (i === 0 ? '2026-11-28' : l[i - 1].date)));
+  dit('un tiers-ferme de 21 jours : la venue du 26 dec. fermee et ses voisines aussi, la plus proche libre est choisie (jamais plus de trois semaines)', true,
+    (() => { const p = cuir({ ferme: (iso: string) => iso >= '2026-12-14' && iso <= '2027-01-09' })[0]; return !p.date || (Math.abs(Date.parse(p.date) - Date.parse('2026-12-26')) <= 21 * 86_400_000); })());
+
+  /* UN PLAN DEJA OUVERT : pas de second plan */
+  const rd = (o: object) => ({ clientId: 'c-ae', date: '2026-12-01', status: 'confirmé', ...o });
+  dit('plan deja ouvert : la prochaine venue non annulee, a venir, de la cliente (comptant ou plusieurs venues), jamais celle d une autre ni une annulee', [{ planId: 'mt-1', rang: 2, n: 4, date: '2026-12-26' }, null, null],
+    [(() => { const p = planOuvertDeLaCliente([rd({ date: '2026-11-01', momentProgramme: { planId: 'mt-1', rang: 1, n: 4 } }), rd({ date: '2026-12-26', time: undefined, momentProgramme: { planId: 'mt-1', rang: 2, n: 4 } }), rd({ date: '2027-01-23', momentEnTrois: { planId: 'mt-1', rang: 3, tiers: [1, 1, 1, 1] } })], 'c-ae', '2026-11-07'); return p ? { planId: p.planId, rang: p.rang, n: p.n, date: p.date } : null; })(),
+      planOuvertDeLaCliente([rd({ clientId: 'c-zz', momentProgramme: { planId: 'mt-2', rang: 1, n: 3 } })], 'c-ae', '2026-11-07'),
+      planOuvertDeLaCliente([rd({ status: 'annulé', momentProgramme: { planId: 'mt-3', rang: 1, n: 3 } }), rd({ date: '2026-10-01', momentProgramme: { planId: 'mt-3', rang: 2, n: 3 } })], 'c-ae', '2026-11-07')]);
+  dit('la phrase : « Cette cliente a déjà un Moment en cours : venue 2 sur 4 le 26 déc. »', 'Cette cliente a déjà un Moment en cours : venue 2 sur 4 le 26 déc.', phraseMomentEnCours({ planId: 'x', rang: 2, n: 4, date: '2026-12-26' }));
+  dit('la venue d un plan, payee comptant ou en plusieurs venues : son rang et le nombre de venues', [{ rang: 3, n: 4 }, { rang: 2, n: 3 }, null], [venueDuPlan({ momentProgramme: { planId: 'x', rang: 3, n: 4 } }), venueDuPlan({ momentEnTrois: { rang: 2, tiers: [1, 1, 1] } }), venueDuPlan({})]);
+  dit('les dates se disent courtes : « 19 déc. », « 11 h », « 12 h 30 »', ['19 déc.', '11 h', '12 h 30'], [jourCourt('2026-12-19'), heureDite('11:00'), heureDite('12:30')]);
+
+  /* LA POSE : les sources */
+  const rdvSrc = lis(RDV);
+  dit('la pose : « Comptant » programme aussi (a 0 F, couvertes par le Moment, marque du plan), un seul chemin suites.push, pas de doublon avec les +8/+12 semaines', [true, true, true, true],
+    [/if \(programme && !enTrois\) \{/.test(rdvSrc), /coveredBySub: true, coverKind: 'forfait', coverServiceId: serviceIds\[0\], priceXof: 0,/.test(rdvSrc),
+      /momentProgramme: \{ planId: planComptant, rang: i \+ 2, n: nVenues \}/.test(rdvSrc) && /Object\.assign\(created, \{ momentProgramme: \{ planId: planComptant, rang: 1, n: nVenues \} \}\)/.test(rdvSrc),
+      /suites\.push\(\.\.\.suitesDuMoment\);/.test(rdvSrc) && /inc\.afterWeeks <= 0 \|\| momentAProgrammer\) continue;/.test(rdvSrc)]);
+  dit('la pose en plusieurs venues cree N rendez-vous lies (rangs 1 a N) : le premier porte plan(1), les suivants plan(i + 2)', true,
+    /momentEnTrois: plan\(1\),/.test(rdvSrc) && /const rang = i \+ 2;/.test(rdvSrc) && /momentEnTrois: plan\(rang\),/.test(rdvSrc));
+  dit('les dates proposees d office : delais du catalogue, jours favoris de la fiche, memes juges que le choix de date (places, jours fermes)', [true, true, true],
+    [/delaisSemaines: delaisDesVenues\(byId\.get\(serviceIds\[0\]\)\?\.includes, nVenues\)/.test(rdvSrc), /joursPreferes: rdvClient \? joursDeLaTete\(rdvClient\) : \[\]/.test(rdvSrc), /ferme: jourFermeLe, heuresLibres: heuresLibresLe/.test(rdvSrc)]);
+  dit('modifiables : ce que la main choisit prime sur la proposition', true, /venuesDuMoment\[i\]\?\.date\s*\n?\s*\? venuesDuMoment\[i\]/.test(rdvSrc));
+  dit('plan deja ouvert : le second ne se programme pas, l ecran le dit ; une venue passee ou sans place ne se pose pas en silence', [true, true, true],
+    [/const momentAProgrammer = leMomentSeul && !forfaitPose && !planDejaOuvert;/.test(rdvSrc), /phraseMomentEnCours\(planDejaOuvert\)/.test(rdvSrc), /if \(passee >= 0 \|\| venuesActives\.some\(\(v\) => v\.date && v\.date < aujourdhui\)\) \{/.test(rdvSrc)]);
+  dit('un RDV existant (fenetre de modification) n ajoute rien : la programmation ne vaut que pour un rendez-vous neuf', true, /const leMomentSeul = !appt && /.test(rdvSrc));
+  dit('le Carnet et la fenetre lisent la venue du plan, comptant comme plusieurs venues (venueDuPlan)', [true, true],
+    [/venueDuPlan\(a\)!\.rang/.test(lis('src/apps/trone/routes/clients/Carnet.tsx')), /venue \$\{venueDuPlan\(appt\)!\.rang\} sur \$\{venueDuPlan\(appt\)!\.n\}/.test(rdvSrc)]);
+  dit('un seul message par venue : les nouveaux fichiers n envoient rien (aucun WhatsApp, aucune confirmation ecrite ici)', false, /whatsapp|envoie|confirmation-rdv/i.test(sansCommentaires(lis('src/shared/le-moment-seances-pur.ts'))));
+  dit('aucun « — », aucun « salon » dans ce que l ecran dit', [false, false], [/ — /.test(sansCommentaires(lis('src/shared/le-moment-seances-pur.ts'))), /salon/i.test(sansCommentaires(lis('src/shared/le-moment-seances-pur.ts')))]);
 }
 
 /* ══ 11. LE PLAFOND DE 45 000 F PAR VENUE (Moment cuir chevelu), AVEC OU SANS REMISE ══ */

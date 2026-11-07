@@ -15,7 +15,7 @@ import { maisonNom, houseSignature } from '../../../../shared/identite';
 import { momentCourt, texteDuRappel } from '../../../../shared/rappel';
 import {
   clientsStore, clienteDePassage, ensureInitiePersona, estDePassage, useClients, useFamilies,
-  remiseFamillePct, tetesRegulieres, aUnPrixConvenu, type Client,
+  remiseFamillePct, tetesRegulieres, aUnPrixConvenu, joursDeLaTete, type Client,
 } from '../../../../shared/clients';
 import { apptPaidXof,
   appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey, venuesHonorees,
@@ -73,6 +73,7 @@ import {
 } from '../../../../shared/le-moment-en-trois-pur';
 import { MomentEnTroisChoix, type VenueChoisie } from './MomentEnTroisChoix';
 import { DetailDuMoment } from './DetailDuMoment';
+import { delaisDesVenues, phraseMomentEnCours, planOuvertDeLaCliente, proposeLesDatesDesVenues, venueDuPlan } from '../../../../shared/le-moment-seances-pur';
 import { detailDuService, detailParVenue } from '../../../../shared/le-moment-detail-pur';
 import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 import { LeBilanDeLaSeance } from './LeBilanDeLaSeance';
@@ -3035,7 +3036,6 @@ function RdvModalCorps({
   const totalDuMoment = needsAmount ? effGross : grossBase;
   /* Quatre venues pour le Moment cuir chevelu SEULEMENT, trois pour le Moment Signature (Yéman, 7 novembre 2026). */
   const nVenues = venuesDuMomentPour(serviceIds[0]);
-  const venuesActives = venuesDuMoment.slice(0, nVenues - 1);
   /* LE PLAFOND (Moment cuir chevelu) : « Il faut que, avec la remise, la cliente ne paie pas plus de 45 000 F » (Yéman). UNE remise
      (celle que cette fenêtre a retenue) baisse les parts, jamais ne les monte ; chaque part est ramenée au plafond. */
   const plafondDuMoment = nVenues === VENUES_DU_MOMENT_CUIR_CHEVELU ? PLAFOND_PAR_VENUE_CUIR_CHEVELU_XOF : undefined;
@@ -3050,24 +3050,44 @@ function RdvModalCorps({
   /* Les venues suivantes : le Moment cuir chevelu lui-même, ou la venue d'entretien du Moment Signature. */
   const venueDEntretien = serviceDesVenuesSuivantes(serviceIds[0] ?? SERVICE_LE_MOMENT, byId.get(serviceIds[0] ?? SERVICE_LE_MOMENT)?.includes);
   const dureeDeLaVenue = byId.get(venueDEntretien)?.durationMin ?? 150;
+  /* ══ LE MOMENT PROGRAMME SES SÉANCES À VENIR — 7 novembre 2026 ═══════════════
+     « Quand je prends Le Moment pour un client, ça doit automatiquement programmer les séances à venir » (Yéman).
+     Les dates des venues suivantes se PROPOSENT d'office (la venue 1 + le délai du catalogue, même jour, même heure ;
+     sinon le jour libre le plus proche, avec sa raison), « Comptant » comme « plusieurs venues », et restent
+     modifiables. Une cliente qui a déjà un Moment en cours n'en reçoit pas un second : l'écran le dit. */
+  const heuresLibresLe = (iso: string): string[] => {
+    const m = new Date();
+    return placesDuJour({
+      iso, aujourdhui, maintenantMin: m.getHours() * 60 + m.getMinutes(), ouverture: openingForIso(iso), durationMin: dureeDeLaVenue,
+      occupes: occupesDe(iso), bloques: plagesBloquees(blocages, branch.id, iso, master), sieges,
+    }).heures;
+  };
+  const jourFermeLe = (iso: string): boolean => joursFermes.includes(new Date(`${iso}T12:00:00Z`).getUTCDay()) || openingForIso(iso).closed;
+  const planDejaOuvert = leMomentSeul && clientId ? planOuvertDeLaCliente(tousLesRdv, clientId, aujourdhui) : null;
+  const momentAProgrammer = leMomentSeul && !forfaitPose && !planDejaOuvert;
+  const propositionsDesVenues = momentAProgrammer && /^\d{4}-\d{2}-\d{2}$/.test(date) && momentChoisi
+    ? proposeLesDatesDesVenues({
+      dateVenue1: date, heureVenue1: time, delaisSemaines: delaisDesVenues(byId.get(serviceIds[0])?.includes, nVenues),
+      joursPreferes: rdvClient ? joursDeLaTete(rdvClient) : [], aujourdhui, ferme: jourFermeLe, heuresLibres: heuresLibresLe,
+    })
+    : [];
+  /* Ce que la main a choisi prime ; sinon la proposition d'office. */
+  const venuesActives: VenueChoisie[] = Array.from({ length: nVenues - 1 }, (_, i) => (venuesDuMoment[i]?.date
+    ? venuesDuMoment[i]
+    : { date: propositionsDesVenues[i]?.date ?? '', time: propositionsDesVenues[i]?.time ?? '' }));
   /* CE QUE LE MOMENT COMPREND, ET CE QUE CHAQUE VENUE CONSOMME (7 novembre 2026) : lu de `includes` du service en base,
      dans son ordre ; la valeur de carte au prix de cette tête. Lecture seule. */
   const prixDeLaCarte = (s: { id: string }) => { const sv = byId.get(s.id); return sv ? prixDeBase(sv, pricing) : undefined; };
   const leMomentLu = contientLeMoment(serviceIds) ? byId.get(serviceIds[0]) : undefined;
   /* Un rendez-vous d'un plan en plusieurs venues montre CE QUE SA VENUE CONSOMME (son rang), jamais le prix de la carte du Moment : « je ne veux surtout pas voir 218000 » (Yéman, 7 novembre 2026). */
   /* « Je veux ce qui est compris pour la journée d'aujourd'hui, sinon le staff ne saura pas ce qu'il doit faire » (Yéman) : la venue du rendez-vous, jamais tout le Moment en bloc (la venue 1 à la pose). */
-  const detailDuMomentIci = leMomentLu ? detailDuService(leMomentLu, byId, { prixDe: prixDeLaCarte }, appt?.momentEnTrois?.rang ?? 1) : null;
-  const detailsDesVenues = enTrois
+  const detailDuMomentIci = leMomentLu ? detailDuService(leMomentLu, byId, { prixDe: prixDeLaCarte }, (appt ? venueDuPlan(appt)?.rang : undefined) ?? 1) : null;
+  const detailsDesVenues = momentAProgrammer
     ? detailParVenue([serviceIds[0], ...Array.from({ length: nVenues - 1 }, () => venueDEntretien)], byId, { prixDe: prixDeLaCarte })
     : undefined;
   const heuresDeLaVenue = (i: number): string[] => {
     const iso = venuesActives[i]?.date;
-    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return [];
-    const m = new Date();
-    return placesDuJour({
-      iso, aujourdhui, maintenantMin: m.getHours() * 60 + m.getMinutes(), ouverture: openingForIso(iso), durationMin: dureeDeLaVenue,
-      occupes: occupesDe(iso), bloques: plagesBloquees(blocages, branch.id, iso, master), sieges,
-    }).heures;
+    return iso && /^\d{4}-\d{2}-\d{2}$/.test(iso) ? heuresLibresLe(iso) : [];
   };
   const raisonDeLaVenue = (i: number) => {
     const v = venuesActives[i];
@@ -3382,12 +3402,17 @@ function RdvModalCorps({
       setError(raison?.texte ?? 'Tous les fauteuils sont occupés à cette heure.');
       return false;
     }
-    /* LE MOMENT EN TROIS VENUES : les trois dates se choisissent AU DÉPART
-       (7 novembre 2026), dans l'ordre, sur des places libres. */
-    if (enTrois && chosenStatus !== 'annulé') {
+    /* LE MOMENT PROGRAMME SES VENUES (7 novembre 2026) : proposées d'office, modifiables, dans l'ordre, sur des places
+       libres ; une venue dans le passé ou sans place ne se pose jamais en silence. */
+    if (momentAProgrammer && chosenStatus !== 'annulé') {
       const dates = [date, ...venuesActives.map((v) => v.date)];
+      const passee = propositionsDesVenues.findIndex((p, i) => p.passee && !venuesDuMoment[i]?.date);
+      if (passee >= 0 || venuesActives.some((v) => v.date && v.date < aujourdhui)) {
+        setError(propositionsDesVenues[passee]?.raison ?? 'Une des venues tombe dans le passé : choisissez une autre date.');
+        return false;
+      }
       if (venuesActives.some((v) => !v.date || !v.time)) {
-        setError(`Le Moment ${enNVenues(nVenues)} : choisissez le jour et l’heure des ${enLettres(nVenues - 1)} autres venues.`);
+        setError(`Le Moment : choisissez le jour et l’heure des ${enLettres(nVenues - 1)} autres venues.`);
         return false;
       }
       if (!datesDuPlanValides(dates, nVenues)) {
@@ -3701,7 +3726,27 @@ function RdvModalCorps({
          tiers (« une seule remise »). Le prix du Moment se fige ICI, à la
          première venue. */
       const suitesDuMoment: Appointment[] = [];
-      if (enTrois && tiersDuMomentIci) {
+      const programme = momentAProgrammer && chosenStatus !== 'annulé';
+      /* « COMPTANT » PROGRAMME AUSSI (7 novembre 2026, « ça doit automatiquement programmer les séances à venir ») : les
+         venues suivantes se posent à 0 F, couvertes par le Moment (déjà réglé), avec la marque du plan. Un seul chemin
+         (`suites.push`), jamais doublé par les séances « +8 et +12 semaines » des forfaits. */
+      if (programme && !enTrois) {
+        const planComptant = `mt-${uid()}`;
+        Object.assign(created, { momentProgramme: { planId: planComptant, rang: 1, n: nVenues } });
+        venuesActives.forEach((v, i) => {
+          suitesDuMoment.push({
+            id: uid(), branchId: branch.id, clientId, serviceIds: [venueDEntretien],
+            numeroAPrevenir: created.numeroAPrevenir, longueur: longueurPertinente ? longueur : undefined,
+            dureeMin: dureeDeLaVenue, date: v.date, time: v.time, master, status: chosenStatus, source: 'trone',
+            sansConfirmation: created.sansConfirmation,
+            note: `Inclus au Moment · venue ${i + 2} sur ${nVenues}`,
+            coveredBySub: true, coverKind: 'forfait', coverServiceId: serviceIds[0], priceXof: 0,
+            momentProgramme: { planId: planComptant, rang: i + 2, n: nVenues },
+            depositServiceIds: [], depositXof: 0,
+          });
+        });
+      }
+      if (programme && enTrois && tiersDuMomentIci) {
         const planId = `mt-${uid()}`;
         const jour = todayISO();
         const plan = (rang: number) => momentEnTroisDuRang(planId, rang, totalDuMoment, plafondDuMoment ? tiersDuMomentIci : undefined, nVenues, plafondDuMoment)!;
@@ -3740,7 +3785,7 @@ function RdvModalCorps({
         for (const inc of byId.get(sid)?.includes ?? []) {
           /* EN TROIS VENUES, LES DEUX VENUES SONT CELLES DU PLAN (7 novembre 2026) : les séances
              « +8 et +12 semaines » du Moment ne se posent pas EN PLUS (jamais deux fois la même venue). */
-          if (!inc.afterWeeks || inc.afterWeeks <= 0 || enTrois) continue;
+          if (!inc.afterWeeks || inc.afterWeeks <= 0 || momentAProgrammer) continue;
           /* « SELON LE CALIBRE » se resout ICI, au moment ou une tete est en
              face : la ligne designe un atelier, on y prend la prestation qui
              sert le modele de la cliente. Sans cela il aurait fallu cinq
@@ -5384,25 +5429,32 @@ function RdvModalCorps({
           {detailDuMomentIci && detailDuMomentIci.lignes.length > 0 && (
             <DetailDuMoment
               detail={detailDuMomentIci}
-              titre={appt?.momentEnTrois ? `Au programme aujourd’hui · venue ${appt.momentEnTrois.rang} sur ${appt.momentEnTrois.tiers.length}` : 'Au programme aujourd’hui'}
+              titre={appt && venueDuPlan(appt) ? `Au programme aujourd’hui · venue ${venueDuPlan(appt)!.rang} sur ${venueDuPlan(appt)!.n}` : 'Au programme aujourd’hui'}
               totalXof={appt ? undefined : totalDuMoment}
-              replie={!!appt && !appt.momentEnTrois}
+              replie={!!appt && !venueDuPlan(appt)}
               avecValeurs={false}
             />
           )}
-          {tiersDuMomentIci && (
+          {leMomentSeul && planDejaOuvert && (
+            <p className="trc-rdv3__note" role="status" style={{ marginTop: 10 }}>
+              {phraseMomentEnCours(planDejaOuvert)}. Un second Moment ne se programme pas par-dessus.
+            </p>
+          )}
+          {momentAProgrammer && (
             <MomentEnTroisChoix
               mode={reglementDuMoment}
               onMode={setReglementDuMoment}
-              total={tiersDuMomentIci.reduce((s, x) => s + x, 0)}
+              total={tiersDuMomentIci ? tiersDuMomentIci.reduce((s, x) => s + x, 0) : totalDuMoment}
               tiers={tiersDuMomentIci}
+              n={nVenues}
+              propositions={propositionsDesVenues}
               appel={appelDe(rdvClient, undefined)}
               dateDuMoment={date}
               heureDuMoment={time}
               venues={venuesActives}
               memeMoment={venueDEntretien === serviceIds[0]}
               details={detailsDesVenues}
-              onVenue={(i, patch) => setVenuesDuMoment((prev) => prev.map((v, k) => (k === i ? { ...v, ...patch } : v)))}
+              onVenue={(i, patch) => setVenuesDuMoment((prev) => prev.map((v, k) => (k === i ? { ...(v.date ? v : venuesActives[i] ?? v), ...patch } : v)))}
               entretien={byId.get(venueDEntretien)?.name ?? 'Venue d’entretien'}
               heuresLibres={heuresDeLaVenue}
               raisons={(i) => raisonDeLaVenue(i)?.texte ?? null}

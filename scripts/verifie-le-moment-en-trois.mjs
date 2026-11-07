@@ -33,6 +33,7 @@ const RDV = 'src/apps/trone/routes/clients/_shared.tsx';
 const COURONNE = 'src/apps/couronne/MomentEnTrois.tsx';
 const TER = 'supabase/functions/terminer-et-regler/index.ts';
 const DETAIL = 'src/shared/le-moment-detail-pur.ts';
+const SEANCES = 'src/shared/le-moment-seances-pur.ts';
 const M194 = 'supabase/migrations/0194_le_moment_cuir_chevelu_quatre_venues.sql';
 const M195 = 'supabase/migrations/0195_le_cas_reel_quatre_venues.sql';
 const PANNES = [
@@ -58,6 +59,21 @@ const PANNES = [
   ['une part convenue non multiple de 500 F est acceptee', PUR, '&& x >= ARRONDI_DU_TIERS_XOF && x % ARRONDI_DU_TIERS_XOF === 0)', '&& x >= ARRONDI_DU_TIERS_XOF)'],
   ['le bouton dit toujours le tiers', PUR, "(n === 3 ? 'le tiers' : n === 4 ? 'le quart' : 'la part');", "'le tiers';"],
   ['le comptoir propose quatre venues au Moment Signature', RDV, '  const nVenues = venuesDuMomentPour(serviceIds[0]);', '  const nVenues = 4;'],
+  /* ── Les seances a venir se programment d office ── */
+  ['le delai ne vient plus du catalogue', SEANCES, '      if (premiere) return premiere.afterWeeks as number;', '      if (premiere) return 99;'],
+  ['un jour ferme garde sa date', SEANCES, '    const direct = bon(cible) && !o.ferme(cible) &&', '    const direct = bon(cible) &&'],
+  ['une place prise est ignoree', SEANCES, ' && o.heuresLibres(cible).includes(o.heureVenue1) && heureValable(cible, o.heureVenue1);', ' && heureValable(cible, o.heureVenue1);'],
+  ['le jour favori est ignore', SEANCES, '(favoris.has(jourDeLaSemaine(a)) ? 0 : 1) - (favoris.has(jourDeLaSemaine(b)) ? 0 : 1) ||', ''],
+  ['le samedi s ouvre avant 9 h', SEANCES, '!(jourDeLaSemaine(iso) === 6 && minutes(t) < minutes(OUVERTURE_DU_SAMEDI));', 'true;'],
+  ['la raison du deplacement se tait', SEANCES, '...(raison ? { raison } : {}) });', '});'],
+  ['une venue passee se pose en silence', SEANCES, '    if (cible < o.aujourdhui) {', '    if (false) {'],
+  ['un plan annule compte comme ouvert', SEANCES, "r.clientId === clientId && r.status !== 'annulé' && r.date >= aujourdhui", "r.clientId === clientId && r.date >= aujourdhui"],
+  ['Comptant ne programme plus', RDV, '      if (programme && !enTrois) {', '      if (false) {'],
+  ['une seance comptant se facture', RDV, "coveredBySub: true, coverKind: 'forfait', coverServiceId: serviceIds[0], priceXof: 0,", "coveredBySub: true, coverKind: 'forfait', coverServiceId: serviceIds[0], priceXof: 5000,"],
+  ['les seances +8 et +12 semaines se posent en plus (doublon)', RDV, ' || momentAProgrammer) continue;', ') continue;'],
+  ['un second plan se programme par-dessus', RDV, 'const momentAProgrammer = leMomentSeul && !forfaitPose && !planDejaOuvert;', 'const momentAProgrammer = leMomentSeul && !forfaitPose;'],
+  ['une venue passee se pose en silence au comptoir', RDV, '      if (passee >= 0 || venuesActives.some((v) => v.date && v.date < aujourdhui)) {', '      if (false) {'],
+  ['les jours favoris ne sont pas lus', RDV, 'joursPreferes: rdvClient ? joursDeLaTete(rdvClient) : [],', 'joursPreferes: [],'],
   /* ── Le detail, le plafond, les migrations ── */
   ['un service retire disparait du detail au lieu de se dire', DETAIL, "if (!s) return { serviceId: i.serviceId, nom: SERVICE_RETIRE_DIT, offert, retire: true, ...apres };", "if (!s) return { serviceId: i.serviceId, nom: '', offert, retire: true, ...apres };"],
   ['les offerts ne sont plus marques', DETAIL, '    const offert = i.offert === true;', '    const offert = false;'],
@@ -74,7 +90,7 @@ const PANNES = [
   ['le catalogue perd une reprise', M194, '    {"serviceId": "sv-atl-ii-l", "afterWeeks": 8, "venue": 3},\n', ''],
   /* ── Le comptoir ── */
   ['le Moment cuir chevelu ne se regle plus en trois', PUR, '  (serviceIds ?? []).some((id) => LES_MOMENTS.includes(id));', '  (serviceIds ?? []).includes(SERVICE_LE_MOMENT);'],
-  ['les seances +8 et +12 semaines se posent en plus des deux venues', RDV, '          if (!inc.afterWeeks || inc.afterWeeks <= 0 || enTrois) continue;', '          if (!inc.afterWeeks || inc.afterWeeks <= 0) continue;'],
+  ['les seances +8 et +12 semaines se posent en plus des deux venues', RDV, '          if (!inc.afterWeeks || inc.afterWeeks <= 0 || momentAProgrammer) continue;', '          if (!inc.afterWeeks || inc.afterWeeks <= 0) continue;'],
   ['les dates ne se choisissent plus au depart', RDV, '      if (venuesActives.some((v) => !v.date || !v.time)) {', '      if (false) {'],
   ['les trois rendez-vous ne se posent plus ensemble', RDV, '      suites.push(...suitesDuMoment);\n', ''],
   ['les remises se cumulent au tiers', RDV, '          remisesLignes: undefined, codeOffre: undefined, offreId: undefined, horsOffreDuJour: true,\n', '          horsOffreDuJour: true,\n'],
