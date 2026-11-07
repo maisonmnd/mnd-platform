@@ -199,12 +199,24 @@ end $avant$;
 -- ── 2. LA MIGRATION 0172, à l'identique ──────────────────────────────────
 -- ⟨0172⟩
 -- ① L'argent versé sur le rendez-vous lui-même, sans l'acompte.
+-- LA GARDE TOURNE AVEC LES DROITS DE LA CLIENTE (security invoker) : cette
+-- fonction n'appelle donc AUCUNE fonction que 0138 a retirée à `authenticated`
+-- (`abo_num` en fait partie). Elle lit le nombre elle-même ; sinon la garde
+-- refusait (42501) toute annulation par la cliente, même d'un rendez-vous sans
+-- argent.
 create or replace function public.argent_verse_sur_le_rdv(d jsonb) returns numeric
 language sql immutable set search_path = public as $$
   select case
     when jsonb_typeof(d->'payments') = 'array' and jsonb_array_length(d->'payments') > 0
-      then coalesce((select sum(coalesce(public.abo_num(v->'amountXof'), 0)) from jsonb_array_elements(d->'payments') v), 0)
-    else coalesce(public.abo_num(d->'paidXof'), 0)
+      then coalesce((select sum(case jsonb_typeof(p->'amountXof')
+                                  when 'number' then ((p->'amountXof') #>> '{}')::numeric
+                                  when 'string' then case when btrim((p->'amountXof') #>> '{}') ~ '^-?\d+(\.\d+)?$' then btrim((p->'amountXof') #>> '{}')::numeric end
+                                end)
+                       from jsonb_array_elements(d->'payments') p), 0)
+    else coalesce(case jsonb_typeof(d->'paidXof')
+                    when 'number' then ((d->'paidXof') #>> '{}')::numeric
+                    when 'string' then case when btrim((d->'paidXof') #>> '{}') ~ '^-?\d+(\.\d+)?$' then btrim((d->'paidXof') #>> '{}')::numeric end
+                  end, 0)
   end;
 $$;
 
@@ -293,7 +305,7 @@ begin
   return new;
 end $$;
 
--- ③ Annuler côté cliente (0138), et le refus d'un rendez-vous réglé d'avance.
+-- ③ Annuler côté cliente (0138, réponse de 0169 : plus jamais « manquée », `compteeCommeManquee` est toujours false), et le refus d'un rendez-vous réglé d'avance.
 create or replace function public.annuler_une_seance(p_appt_id text)
 returns jsonb
 language plpgsql
@@ -389,7 +401,7 @@ begin
         fautes := fautes || 'la cliente forge encore un versement ou un lien, ou n ecrit plus sa ligne; ';
       end if;
       if (ap ->> 'annule') is distinct from '1 ligne, status confirmé' then
-        fautes := fautes || 'la cliente annule encore elle-meme un rendez-vous regle d avance; ';
+        fautes := fautes || 'la cliente annule encore ce qui est regle d avance, OU la garde est refusee (droit manquant sur une fonction) au lieu de garder le statut; ';
       end if;
       if (ap ->> 'rpc') is distinct from 'regle regle_d_avance, libre annule' then
         fautes := fautes || 'annuler_une_seance annule encore un rendez-vous regle d avance, ou n annule plus les autres; ';

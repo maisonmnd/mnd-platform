@@ -1498,8 +1498,11 @@ dit('0172 : la garde de 0171 mot pour mot, avec le versement et les deux liens a
   [true, 2, true],
   [garde172.length > 1000, nuDuSql(garde172).split(AJOUT_172).length - 1,
     nuDuSql(garde172).split(AJOUT_172).join(",'termineParElle','honoreAuReglement']loop").replace(REFUS_172, '') === nuDuSql(garde171)]);
-dit('0172 : annuler_une_seance de 0138 mot pour mot, avec le seul refus « regle_d_avance », apres « passee »', [true, true],
-  [nuDuSql(annuler172).replace("ifround(public.argent_verse_sur_le_rdv(v_a.data))>0thenreturnjsonb_build_object('ok',false,'raison','regle_d_avance');endif;", '') === nuDuSql(annuler138),
+/* annuler_une_seance de 0138, avec la reponse de 0169 (plus jamais « manquee » : compteeCommeManquee vaut false) et le refus de 0172. */
+const annuler138en0169 = nuDuSql(annuler138).split(nuDuSql("public.abo_vrai(v_a.data->'coveredBySub') and public.abo_etat_de_la_seance(v_a.data, v_jour) = 'manquee'")).join('false')
+  .split(nuDuSql("public.abo_vrai(v_neuf->'coveredBySub') and public.abo_etat_de_la_seance(v_neuf, v_jour) = 'manquee'")).join('false');
+dit('0172 : annuler_une_seance de 0138 (reponse de 0169) mot pour mot, avec le seul refus « regle_d_avance », apres « passee »', [true, true],
+  [nuDuSql(annuler172).replace("ifround(public.argent_verse_sur_le_rdv(v_a.data))>0thenreturnjsonb_build_object('ok',false,'raison','regle_d_avance');endif;", '') === annuler138en0169,
     annuler172.indexOf("'raison', 'passee'") < annuler172.indexOf("'raison', 'regle_d_avance'")]);
 dit('0172 : son essai a blanc rejoue la MEME migration, entre ses mesures, et finit par une exception qui annule tout ; un compte invente, chaque tentative annulee sur-le-champ (ZZ172)',
   [true, true, true, true, false, true, true],
@@ -1532,6 +1535,8 @@ if (!PGlite) {
     grant all on all tables in schema public to anon, authenticated, service_role;
     grant execute on all functions in schema public to anon, authenticated, service_role;
     grant execute on all functions in schema auth to anon, authenticated, service_role;
+    -- COMME LA VRAIE BASE (0138 retire ces fonctions a la cliente) : la garde tourne avec ses droits, elle ne peut pas les appeler.
+    revoke all on function public.abo_num(jsonb), public.abo_vrai(jsonb), public.abo_aujourdhui(), public.abo_maintenant(), public.abo_etat_de_la_seance(jsonb, date) from public, anon, authenticated;
     alter table public.appointments enable row level security;
     alter table public.invoices enable row level security;
     create policy own_sel on public.appointments for select to authenticated using (is_staff() or est_ma_tete(data->>'clientId'));
@@ -1563,6 +1568,9 @@ if (!PGlite) {
     [/equipe : retirer avant \[1 ligne, versement retire, lien retire, le reste ecrit\] apres \[1 ligne, versement retire, lien retire, le reste ecrit\]/.test(avant172.message),
       /serveur : retirer avant \[1 ligne, versement retire, lien retire, le reste ecrit\] apres \[1 ligne, versement retire, lien retire, le reste ecrit\]/.test(avant172.message),
       /^ESSAI 0172 : TIENT \|/.test(apres172.message), apres172.reste, apres172.posee]);
+  /* LE CAS DE LA VRAIE BASE (7 novembre 2026) : un rendez-vous SANS argent, annule par la cliente par UPDATE direct, s'annule comme avant (annule, annulee par cliente, date), jamais refuse (42501 : la garde appelait abo_num, retire a la cliente). */
+  dit('0172 : le rendez-vous sans argent s annule comme avant, par la cliente, sans refus de droit (la maquette retire abo_num a la cliente comme 0138) ; regle d avance, le statut reste',
+    [true, false, true], [/cliente : [^|]*comme avant \[1 ligne, status annulé, annulee par cliente, datee ;/.test(apres172.message), /refus 42501/.test(apres172.message), /annuler regle avant \[1 ligne, status annulé\] apres \[1 ligne, status confirmé\]/.test(avant172.message)]);
   /* Le jumeau : la lecture de la base, cas par cas, contre argentVerseSurLeRdv. */
   const jumeau = new PGlite();
   await jumeau.exec(MAQUETTE_0172);
