@@ -19,7 +19,7 @@
    si elles n'existent pas encore : un second passage ne double rien et ne
    remet jamais « en attente » une ligne déjà partie. */
 import { DECALAGE_DU_SALON_H, heureDeDepart, type ReglesDeLaSalle } from './salle-des-envois';
-import { prenomSeul } from './civilite';
+import { prenomDUsage } from './civilite';
 import { numeroWa } from './numero-wa-pur';
 import { ligneDeNotification, ligneWhatsApp, partSeule, reglagesLus, type CodeAFaire, type LigneDeGerard, type Situation } from './gerard-pur';
 import type { CerveauDeGerard } from './assistant-lecture-pur';
@@ -68,7 +68,7 @@ export function lignesDuPassage(o: {
     const depart = s.genre === 'anniversaire' ? departDesCartes : departCommun;
     const c = o.cerveau.clientDe(s.clientId);
     const outils = {
-      branchId: o.branchId, aujourdhui, maintenantIso, prenom: prenomSeul(c?.name),
+      branchId: o.branchId, aujourdhui, maintenantIso, prenom: prenomDUsage(c),
       rdv: s.genre === 'garder' ? o.cerveau.rdvAGarder(s.clientId) : undefined,
     };
     if (s.canal === 'couronne') {

@@ -8,7 +8,7 @@ import { invoicesStore } from './finance';
 import { clientsStore } from './clients';
 import { numeroWa, MODELE_FIN_DE_PAQUET } from './conversations';
 import { envoieSurWhatsApp, jourDit } from './whatsapp';
-import { appelDe } from './civilite';
+import { appelDe, prenomDUsage } from './civilite';
 import { EN_ATTENTE, REGLES_PAR_DEFAUT, facteurVivant, heureDeDepart } from './salle-des-envois';
 
 /* ══ LA FIN DE PAQUET, ENVOYÉE PAR LE TRÔNE — 15 septembre 2026 ═══════
@@ -157,7 +157,7 @@ export async function previensLesFinsDePaquet(o: { branchId: string }): Promise<
     const socle = {
       id, branchId: o.branchId, type: 'fin-de-paquet', canal: 'whatsapp',
       clientId: f.clientId, subId: f.sub.id, motif: f.motif, reste: f.reste, jusquau: f.jusquau,
-      prenom: (fiche?.name ?? f.nom ?? '').trim().split(/\s+/)[0] ?? '',
+      prenom: prenomDUsage(fiche, f.nom),
     };
 
     /* ── PAR LA SALLE D'ATTENTE : déposé, le facteur le porte ────────── */

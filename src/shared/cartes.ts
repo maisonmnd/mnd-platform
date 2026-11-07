@@ -25,6 +25,7 @@
 import { maisonNom, signeLeMessage } from './identite';
 import { deLaMaison } from './rappel';
 import { estMineur } from './clients-pur';
+import { prenomDUsage } from './civilite';
 
 /* ══ À QUEL NUMÉRO PART LA CARTE — 27 octobre 2026 ═══════════════════════
    « Pour le compte d'un enfant, envoyer la carte sur le numéro du parent
@@ -94,8 +95,10 @@ const accords = (g: Genre) => (g === 'homme' ? H : F);
 
 /** Le prénom seul — c'est lui qu'on écrit sur une carte, jamais l'état civil.
     Un nom vide rend une chaîne vide : la carte le dira, plutôt que d'écrire
-    « undefined » sur une image qu'on envoie à quelqu'un. */
-export const prenomDe = (nom: string): string => (nom ?? '').trim().split(/\s+/)[0] ?? '';
+    « undefined » sur une image qu'on envoie à quelqu'un. TOUT LE PRÉNOM
+    COMPOSÉ (7 novembre 2026) : le prénom d'usage de la fiche (`usage`),
+    sinon celui que le Trône devine (`prenomDUsage`, « Anne Marie »). */
+export const prenomDe = (nom: string, usage?: string): string => prenomDUsage({ name: nom, prenomUsage: usage });
 
 /** LES CARTES, DANS L'ORDRE OÙ ELLES SE PROPOSENT. */
 export const CARTES_DE_LA_MAISON: { cle: CleCarte; mot: string }[] = [

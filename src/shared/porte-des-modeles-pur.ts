@@ -45,8 +45,11 @@
    scripts/verifie-la-porte-des-modeles éprouve chaque règle dans les deux
    sens. Module PUR : ni Supabase, ni DOM, ni horloge (l'heure se donne).
    Il lit les têtes nommées par `tetesNommees` et `fichesNommees`, du bloc
-   ⟨message-du-foyer⟩ : envois-partent porte les deux copies. */
+   ⟨message-du-foyer⟩ : envois-partent porte les deux copies. Depuis le
+   7 novembre 2026, il écrit le prénom d'usage par `prenomDUsage` (le bloc
+   ⟨prenom-d-usage⟩ de shared/civilite), qu'envois-partent porte aussi. */
 import { fichesNommees, tetesNommees } from './message-du-foyer-pur';
+import { prenomDUsage } from './civilite';
 
 /* ⟨porte-des-modeles⟩ */
 /** La marque d'une ligne retenue par la porte. Le Trône la montre dans le
@@ -444,13 +447,17 @@ export function civiliteEcrite(appel: string): { mot: string | null; reste: stri
 export function appelJuste(ecrit: string, fiche: FicheALaPorte | null | undefined): string | null {
   if (!fiche) return null;
   const { mot, reste } = civiliteEcrite(ecrit);
-  const prenom = String(fiche.name ?? '').trim().split(/\s+/)[0] ?? '';
-  if (reste !== prenom) return null;
+  /* TOUT LE PRÉNOM COMPOSÉ (7 novembre 2026) : la porte écrit le prénom
+     d'usage (`prenomDUsage`) ; un message déposé avant ce jour, qui dit le
+     premier mot seul, la nomme encore, et prend tout son prénom. */
+  const prenom = prenomDUsage(fiche);
+  const premierMot = String(fiche.name ?? '').trim().split(/\s+/)[0] ?? '';
+  if (reste !== prenom && reste !== premierMot) return null;
   const civ = typeof fiche.civilite === 'string' && ABREGEE[fiche.civilite] ? fiche.civilite : null;
   let juste: string;
   if (civ) juste = prenom ? `${ABREGEE[civ]} ${prenom}` : ENTIERE[civ];
-  else if (!mot) juste = String(ecrit ?? '').replace(/\s+/g, ' ').trim();
-  else if (fiche.auMasculin === true && MASCULINES.has(mot)) juste = String(ecrit ?? '').replace(/\s+/g, ' ').trim();
+  else if (!mot) juste = prenom || String(ecrit ?? '').replace(/\s+/g, ' ').trim();
+  else if (fiche.auMasculin === true && MASCULINES.has(mot)) juste = prenom ? `${mot} ${prenom}` : mot;
   else juste = prenom || 'Madame, Monsieur';
   return juste === String(ecrit ?? '').replace(/\s+/g, ' ').trim() ? null : juste;
 }

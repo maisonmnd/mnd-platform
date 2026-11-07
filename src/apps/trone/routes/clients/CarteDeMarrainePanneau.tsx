@@ -13,7 +13,7 @@ import { jourDuSalon } from '../../../../shared/envois';
 import { MODELES_DE_CARTE, genreEffectif, nomDuRang, prenomDuNom, rangSuivant, soinsEnAttente, type ModeleDeCarte, type SoinOffert } from '../../../../shared/parrainage-pur';
 import { useDouzeLunes } from '../../../../shared/douze-lunes';
 import { attendLeLancement, codeActifDe, resteAvantLaGraine, seuilDeLaGraine, visitesDesLunes } from '../../../../shared/douze-lunes-pur';
-import { appelDe } from '../../../../shared/civilite';
+import { appelDe, prenomDUsage } from '../../../../shared/civilite';
 
 /* ══ SA CARTE DE MARRAINE, DANS SA FICHE — 28 septembre 2026 ════════════
    Maquette validée (« Au Trône, la fiche cliente »). La carte à son prénom,
@@ -194,7 +194,8 @@ export function CarteDeMarrainePanneau({ client }: { client: Client }) {
     );
   }
   const donnees: DonneesDeCarte = {
-    prenom: prenomDuNom(client.name) || client.name,
+    /* La carte qu'elle reçoit : tout le prénom composé (7 novembre 2026). */
+    prenom: prenomDUsage(client) || client.name,
     code,
     depuis: (client.since ?? '').slice(0, 4) || String(new Date().getFullYear()),
     modele: client.carteModele ?? 'indigo',

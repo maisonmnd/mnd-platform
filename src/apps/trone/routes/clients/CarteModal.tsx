@@ -52,7 +52,7 @@ export function CarteModal({ client, onClose, numero, mot, onEnvoye }: {
      c'est se tromper une fois sur dix, et une carte au mauvais genre ne se
      rattrape pas. Absent = féminin, le cas de presque toutes les têtes. */
   const [genre, setGenre] = useState<Genre>(client.auMasculin ? 'homme' : 'femme');
-  const [prenom, setPrenom] = useState(prenomDe(client.name));
+  const [prenom, setPrenom] = useState(prenomDe(client.name, client.prenomUsage));
   const [occupe, setOccupe] = useState(false);
   /* NOTÉE UNE FOIS : partager puis ouvrir WhatsApp ne note pas deux envois (ni deux remises). */
   const [signalee, setSignalee] = useState(false);

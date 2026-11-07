@@ -4,7 +4,7 @@ import { toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { useStaff, type Staff } from '../../../../shared/auth';
 import { DEVISE_COMPLETE } from '../../../../shared/identite';
-import { CIVILITES, appelDe, estMuette, ficheAvecCivilite, prenomSeul, type Civilite } from '../../../../shared/civilite';
+import { CIVILITES, appelDe, estMuette, ficheAvecCivilite, prenomDUsage, type Civilite } from '../../../../shared/civilite';
 import { clientsStore, useFamilies, type Client } from '../../../../shared/clients';
 import {
   automatesDesFils, cheminDeLaConversation, estArchive, filsDeLaMaison, lienWaMe, tetesDeLaMaison,
@@ -346,7 +346,7 @@ export default function Gerard() {
     const maintenant = Date.now();
     const codePromo = fabriqueLeCodeDe(s, { branchId: branch.id, nom: c?.name ?? '', maintenantMs: maintenant });
     const ligne = ligneALaMain(s, {
-      branchId: branch.id, aujourdhui: ctx.aujourdhui, maintenantIso: new Date(maintenant).toISOString(), prenom: prenomSeul(c?.name),
+      branchId: branch.id, aujourdhui: ctx.aujourdhui, maintenantIso: new Date(maintenant).toISOString(), prenom: prenomDUsage(c),
       rdv: s.genre === 'garder' ? cerveau.rdvAGarder(s.clientId) : undefined, codePromo,
     });
     envoisStore.set((prev) => [...prev.filter((e) => e.id !== ligne.id), ligne as unknown as (typeof prev)[number]]);

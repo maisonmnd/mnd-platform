@@ -25,6 +25,7 @@ import { useFournisseurs } from '../../../../shared/stock';
 import { useEngagements } from '../../../../shared/engagements';
 import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
 import { useSettings } from '../../../../shared/settings';
+import { prenomDUsage } from '../../../../shared/civilite';
 import { useStaff as useEquipe, useEnvois, useAutoConfig } from '../equipe/data';
 import { EnvoisAutomatiques } from './EnvoisAutomatiques';
 import { compteDuJournal, envoisDeLaPeriode, jourDuSalon, estEnvoiAutomatique, modeleDit } from '../../../../shared/envois';
@@ -495,7 +496,8 @@ export function ConversationsDAvant() {
     setReecrit(null);
     /* ET LA CLIENTE L'APPREND, sinon la Maison serait seule à savoir. Le mot
        se relit avant de partir, comme tout le reste. */
-    const prenom = fil && !fil.sansFiche ? fil.nom.split(/\s+/)[0] : undefined;
+    /* Tout le prénom composé (7 novembre 2026) : celui de sa fiche. */
+    const prenom = fil && !fil.sansFiche ? prenomDUsage(clients.find((c) => c.id === fil.clientId), fil.nom) : undefined;
     setTexte(texteDeLaCorrection(t, prenom));
     toast('Le fil est corrigé. Relisez le mot de correction avant de l’envoyer.');
   };

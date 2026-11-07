@@ -52,13 +52,14 @@
    LE BLOC ENTRE LES REPÈRES ⟨automate-wa⟩ SE RECOPIE TEL QUEL dans la
    fonction Edge `whatsapp-automate` (une fonction Edge ne lit rien du dépôt).
    Il n'a donc ni `import` ni `export` dedans : il s'appuie, PAR LEUR NOM, sur
-   `appelDe` (la copie compacte des fonctions Edge) et sur les blocs
+   `appelDe` (la copie compacte des fonctions Edge), sur `prenomDUsage` (le
+   bloc ⟨prenom-d-usage⟩, 7 novembre 2026) et sur les blocs
    ⟨agenda-pur⟩, ⟨catalogue-pur⟩, ⟨qualification⟩ et ⟨prochaines-places⟩.
    Ses propres noms ne doivent croiser aucun des leurs (d'où les suffixes
    « Wa » de ses petites aides). Le harnais confrontera les deux copies,
    caractère pour caractère. */
 
-import { appelDe } from './civilite';
+import { appelDe, prenomDUsage } from './civilite';
 import { GESTES_EN_FRANCAIS, gesteDitEnFrancaisWa, litLaMarqueWa } from './gestes-en-francais';
 import { dureeDesPrestations, ouvertureDuJour, type ExceptionDHoraire, type HeureDeLaSemaine } from './agenda-pur';
 import { estUneConsultation, priceModeOf, type PriceMode } from './catalogue-pur';
@@ -817,7 +818,15 @@ const coupeWa = (t: string, n: number): string => {
   return s.length <= n ? s : `${s.slice(0, n - 1).trimEnd()}…`;
 };
 
+/** Le premier mot du nom : il nomme une fiche dans les alertes de l'équipe
+    et sert au juge des enfants. À ELLE, la Maison écrit tout le prénom
+    composé (7 novembre 2026) : `prenomDeLaFicheWa`. */
 const prenomDuNomWa = (nom: string | undefined): string => String(nom ?? '').trim().split(/\s+/)[0] ?? '';
+/** SON PRÉNOM D'USAGE (7 novembre 2026, `prenomDUsage`, la copie compacte
+    des fonctions Edge) : « quand on leur écrit, on écrive toujours […] tout
+    le prénom composé » (Yéman). */
+const prenomDeLaFicheWa = (f: { nom?: string; prenomUsage?: string } | undefined): string =>
+  prenomDUsage(f ? { name: f.nom, prenomUsage: f.prenomUsage } : null);
 
 /** Les choix du message, tels qu'elle les lit : le fil du Trône les montre. */
 function choixDuMessage(m: MessageSortant): string[] {
@@ -1107,6 +1116,8 @@ const leConseilParle = (texte: string, conseil: ConseilDeLaMaison | undefined): 
 type FicheDuNumero = {
   id: string;
   nom: string;
+  /** Son prénom d'usage, noté sur la fiche (7 novembre 2026, fiches_du_numero, 0172). */
+  prenomUsage?: string;
   civilite?: CiviliteDuFil;
   auMasculin?: boolean;
   branchId?: string;
@@ -1834,7 +1845,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       (sa civilité, son prénom, sa demande). */
   const pourMoiPossible = !fiches.some((f) => f.parPhone && !mineureWa(f.naissance, aujourdhui));
   const appel = (): string => {
-    if (titulaire) return appelDe({ name: titulaire.nom, civilite: titulaire.civilite, auMasculin: titulaire.auMasculin });
+    if (titulaire) return appelDe({ name: titulaire.nom, prenomUsage: titulaire.prenomUsage, civilite: titulaire.civilite, auMasculin: titulaire.auMasculin });
     if (base.panier.civilite) return appelDe({ name: base.panier.prenom ?? '', civilite: base.panier.civilite });
     /* PERSONNE DE CONNU (13 octobre 2026) : ni fiche ni civilité choisie. On
        ne suppose plus Madame : la phrase se dit sans appel (`sansAppelVide`). */
@@ -2117,7 +2128,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     passe('qui');
     const lignes = fiches.slice(0, pourMoiPossible ? 7 : 8).map((f) => ({
       id: choix('qui', f.id),
-      titre: coupeWa(f === titulaire ? `Pour moi, ${prenomDuNomWa(f.nom)}` : `Pour ${prenomDuNomWa(f.nom)}`, 24),
+      titre: coupeWa(f === titulaire ? `Pour moi, ${prenomDeLaFicheWa(f)}` : `Pour ${prenomDeLaFicheWa(f)}`, 24),
     }));
     const corps = relance ? relanceDite()
       : avecSalut ? `${salut()} ${appel()}, merci de votre message. Pour qui est ce rendez-vous ?`
@@ -2680,7 +2691,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     base.panier.clientId = f.id;
     /* Sans titulaire, celle qui écrit n'est pas cette fiche : on parle
        « de Kemi », jamais « de votre » dernière venue. */
-    base.panier.pourQui = f.id !== titulaire?.id ? prenomDuNomWa(f.nom) : undefined;
+    base.panier.pourQui = f.id !== titulaire?.id ? prenomDeLaFicheWa(f) : undefined;
     return dire(msgDits(avecSalut) ?? msgMeme(false, avecSalut) ?? msgBesoin(false, avecSalut));
   };
 
@@ -2697,7 +2708,7 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
     const r = ctx.deplacement;
     const sienne = r ? fiches.find((f) => f.id === r.clientId) : undefined;
     if (r && sienne && agenda?.placesDuMaitre && ['confirmé', 'en attente'].includes(r.status) && r.date >= aujourdhui) {
-      const pourQui = sienne.id !== titulaire?.id ? prenomDuNomWa(sienne.nom) : undefined;
+      const pourQui = sienne.id !== titulaire?.id ? prenomDeLaFicheWa(sienne) : undefined;
       /* « Décaler mon rendez-vous de samedi 10 h » : ce jour et cette heure
          nomment le rendez-vous, pas la place voulue. */
       const leSien = (j: string): boolean => j === r.date || (!/^\d{4}-\d{2}-\d{2}$/.test(j) && JOURS_LONGS_WA[dowDeIsoWa(r.date)] === j);

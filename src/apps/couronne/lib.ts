@@ -29,6 +29,7 @@ import {
   type CarteDesPlacesDeLaRemise, type TeteALaRemise,
 } from './places-pure';
 import { boutiqueOuverte } from '../../shared/boutique-pur';
+import { prenomDevine } from '../../shared/civilite';
 
 /* Ma Couronne — bibliothèque locale : cliente, visibilité, dates, créneaux, offres. */
 
@@ -346,8 +347,9 @@ export function useCompteMaison(): boolean {
   return (verdict?.uid === uid && verdict.statut === 'staff') || !!staff;
 }
 
+/** Tout le prénom composé (7 novembre 2026, `prenomDevine`) : « Anne Marie ». */
 export function firstName(name: string | undefined): string {
-  return (name ?? t('Bienvenue')).split(' ')[0];
+  return name === undefined ? t('Bienvenue') : prenomDevine(name);
 }
 
 /* ---------- Suivi de présence — temps passé sur Ma Couronne ---------- */

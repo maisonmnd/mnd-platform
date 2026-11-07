@@ -8,6 +8,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { libelleFourchette } from '../../../../shared/abonnements';
 import { usePersonas, clientsStore, useFamilies } from '../../../../shared/clients';
+import { prenomDUsage } from '../../../../shared/civilite';
 import { ageDe, tetesPortees } from '../../../../shared/accounts';
 import { declarationsDe, nomPropose, useEnfantsDeclares } from '../../../../shared/enfants';
 import { useCategories, useProducts, useServices, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel } from '../../../../shared/catalog';
@@ -1046,7 +1047,8 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
     .filter((a) => a.clientId === client.id && a.status === 'honoré')
     .sort((a, b) => b.date.localeCompare(a.date))[0];
   const reco = products.find((p) => p.id === client.recoProductId);
-  const first = client.name.split(' ')[0];
+  /* Ce que Ma Couronne lui dit : tout le prénom composé (7 novembre 2026). */
+  const first = prenomDUsage(client);
 
   const screenOff = (k: 'suivi' | 'cercle') => (isOff(k) ? (
     <div style={{ margin: '30px 14px', padding: '18px 16px', textAlign: 'center', border: '1px dashed var(--copper-300)', borderRadius: 4, color: 'var(--copper-700)', fontSize: 12.5, lineHeight: 1.5 }}>

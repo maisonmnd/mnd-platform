@@ -1,9 +1,12 @@
 import type { Client } from './clients';
 import {
-  FORME_DU_CODE, prenomDuNom, rangDe,
+  FORME_DU_CODE, rangDe,
   type ClassementAmbassade, type EtatDeLaFilleule, type ResumeParrainage, type SoinOffert,
 } from './parrainage-pur';
 import { codeActifDe } from './douze-lunes-pur';
+/* Tout le prénom composé (7 novembre 2026) : la carte, le merci et les amies
+   disent le prénom d'usage ; seul le CODE garde le premier mot (prenomDuNom). */
+import { prenomDevine, prenomDUsage } from './civilite';
 
 /* ══ LES AMBASSADRICES DE LA MAISON — 28 septembre 2026 ══════════════════
    Maquette validée (canvas « La carte de marraine MND », page « Les
@@ -174,7 +177,7 @@ export function lignees(clients: readonly FicheAmb[], demandes: readonly Demande
   for (const c of clients) {
     const code = codeActifDe(c);
     if (!c || !code) continue;
-    res.set(code, { code, clientId: c.id, prenom: prenomDuNom(c.name), telephone: c.phone, depuis: c.since, filleules: [] });
+    res.set(code, { code, clientId: c.id, prenom: prenomDUsage(c), telephone: c.phone, depuis: c.since, filleules: [] });
   }
   /* ① Les fiches rattachées à la main (ou depuis leur réservation), par le
      code actif ou par l'ancien code de la même fiche. */
@@ -182,7 +185,7 @@ export function lignees(clients: readonly FicheAmb[], demandes: readonly Demande
     if (!c || c.archived || !c.parraineePar) continue;
     const l = res.get(vers.get(c.parraineePar) ?? '');
     if (!l || l.clientId === c.id) continue;
-    l.filleules.push({ cle: `c:${c.id}`, prenom: prenomDuNom(c.name) || 'Une amie', clientId: c.id, ...etatDeLaFiche(c.id, rdvs), recompenseId: `parr-c-${c.id}` });
+    l.filleules.push({ cle: `c:${c.id}`, prenom: prenomDUsage(c) || 'Une amie', clientId: c.id, ...etatDeLaFiche(c.id, rdvs), recompenseId: `parr-c-${c.id}` });
   }
   /* ② Les réservations du site faites avec le code (actif, ou ancien code
      de la même fiche : l'amie invitée avant le lancement). Une demande de
@@ -212,7 +215,7 @@ export function lignees(clients: readonly FicheAmb[], demandes: readonly Demande
         : appt && appt.status !== 'annulé' ? { etat: 'a-venir' as const, dateRdv: appt.date }
           : { etat: (appt ? 'annulee' : 'sans-rdv') as EtatDeLaFilleule, dateRdv: appt?.date };
     l.filleules.push({
-      cle, prenom: prenomDuNom(cid ? parId.get(cid)?.name : d.prenom) || 'Une amie',
+      cle, prenom: (cid ? prenomDUsage(parId.get(cid)) : prenomDevine(d.prenom)) || 'Une amie',
       ...(cid ? { clientId: cid } : {}), demandeId: d.id, ...etat, recompenseId: `parr-${d.id}`,
       ...(d.cadeauMarraineRemisLe ? { remisALaMain: true } : {}),
     });
@@ -320,7 +323,7 @@ export function recompensesAPoser(
         ...(merci ? { merciLe: aujourdhui } : {}),
       });
       if (f.demandeId) poses.demandesMarquees.push(f.demandeId);
-      if (merci) poses.mercis.push({ clientId: c.id, telephone: c.phone, prenomMarraine: prenomDuNom(c.name), prenomFilleule: f.prenom, libelle: 'un soin offert ou une remise, à votre choix' });
+      if (merci) poses.mercis.push({ clientId: c.id, telephone: c.phone, prenomMarraine: prenomDUsage(c), prenomFilleule: f.prenom, libelle: 'un soin offert ou une remise, à votre choix' });
     }
     if (neuves.length) poses.parFiche.set(c.id, neuves);
   }

@@ -1,6 +1,6 @@
 import type { Bilan } from './bilans';
 import type { BilanPdfData } from './pdf';
-import { appelDe, civiliteDe, prenomSeul } from './civilite';
+import { appelDe, civiliteDe, prenomDUsage } from './civilite';
 import { maisonNom, signeLeMessage } from './identite';
 import { envoieSurWhatsApp, jourDit, type ResultatDEnvoi } from './whatsapp';
 import { pushToClient } from './push';
@@ -13,7 +13,7 @@ import { INGREDIENTS } from '../apps/revelateur/communaute';
    Ma Couronne). Le Trône et Ma Couronne lisent le même document : un seul
    endroit dit ce qu'il porte. */
 
-type Porteuse = { name: string; civilite?: 'madame' | 'mademoiselle' | 'monsieur'; auMasculin?: boolean };
+type Porteuse = { name: string; prenomUsage?: string; civilite?: 'madame' | 'mademoiselle' | 'monsieur'; auMasculin?: boolean };
 
 /** « 4 octobre 2026 ». */
 export const dateDite = (iso: string): string => {
@@ -28,7 +28,8 @@ export function pourQuiDuBilan(c: Porteuse): string {
   const mots = (c.name ?? '').trim().split(/\s+/).filter(Boolean);
   const civ = { madame: 'Madame', mademoiselle: 'Mademoiselle', monsieur: 'Monsieur' }[civiliteDe(c)];
   const initiale = mots.length > 1 ? ` ${mots[mots.length - 1][0].toUpperCase()}.` : '';
-  return `${civ} ${prenomSeul(c.name)}${initiale}`.trim();
+  /* Tout le prénom composé (7 novembre 2026) : « Madame Anne Marie G. ». */
+  return `${civ} ${prenomDUsage(c)}${initiale}`.trim();
 }
 
 const nomDe = (slug: string) => INGREDIENTS.find((i) => i.slug === slug)?.nom ?? slug;

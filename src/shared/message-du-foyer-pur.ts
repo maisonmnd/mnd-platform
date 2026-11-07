@@ -30,12 +30,16 @@
    famille, sans civilité dès deux têtes (« Jade et Faith », « Jade, Faith et
    Maëlle »). Une fiche seule garde l'appel de sa fiche (« Mme Jade »), comme
    avant. Deux rendez-vous d'une même fiche la nomment une fois.
+   Depuis le 7 novembre 2026, tout le prénom composé (« Anne Marie et
+   Jade ») : le bloc s'appuie, PAR SON NOM, sur `prenomDUsage` (le bloc
+   ⟨prenom-d-usage⟩ de shared/civilite, recopié dans les mêmes fonctions).
 
    Ce bloc vit à l'identique dans confirmation-rdv, rappels-j1 et
    envois-partent, qui n'importent rien du dépôt ; le banc des douze lunes
    compare les copies, scripts/verifie-le-message-du-foyer éprouve chaque
    règle dans les deux sens (J. K. et F. K., deux sœurs, un numéro). Module
    PUR : ni Supabase, ni DOM, ni horloge. */
+import { prenomDUsage } from './civilite';
 
 /* ⟨message-du-foyer⟩ */
 /** Une tête à prévenir : son rendez-vous, et le numéro où on la prévient. */
@@ -43,8 +47,10 @@ export type TeteAPrevenir = { id: string; clientId?: string; foyerId?: string; d
 /** Un foyer à prévenir : la tête qui porte le message (la plus tôt), puis toutes, dans l'ordre. */
 export type FoyerAPrevenir<T extends TeteAPrevenir> = { cle: string; porteur: T; tetes: T[] };
 
-/** Le prénom d'une fiche : le premier mot de son nom, jamais le nom de famille. */
-export const prenomDeLaTete = (nom: unknown): string => String(nom ?? '').trim().split(/\s+/)[0] ?? '';
+/** Le prénom d'une fiche, jamais le nom de famille. TOUT LE PRÉNOM COMPOSÉ
+    (7 novembre 2026) : son prénom d'usage (`usage`), sinon celui que le Trône
+    devine du nom (`prenomDUsage`, la copie ⟨prenom-d-usage⟩ des fonctions). */
+export const prenomDeLaTete = (nom: unknown, usage?: unknown): string => prenomDUsage({ name: nom, prenomUsage: usage });
 
 /** Les prénoms dits en français : « Jade », « Jade et Faith », « Jade, Faith et Maëlle ». */
 export function prenomsDits(prenoms: readonly string[]): string {

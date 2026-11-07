@@ -107,8 +107,9 @@ dit('le serveur lit le nom et le garde sur la demande', true,
   EDGE.includes('const nom = texte(d.nom, 60);') && EDGE.includes("const nomEntier = [prenom, nom].filter(Boolean).join(' ');") && EDGE.includes('...(nom ? { nom } : {}),'));
 dit('... le rendez-vous, le fil et l alerte portent le nom entier', true,
   EDGE.includes("clientName: nomEntier || 'Demande du site',") && EDGE.includes('...(nomEntier ? { nomProfil: nomEntier } : {}),') && EDGE.includes("`${nomEntier || 'Une visiteuse'} · ${besoin}${quand}`,"));
+/* 7 novembre 2026 : le prenom seul, mais tout le prenom compose (prenomDevine). */
 dit('... les messages, eux, appellent par le prenom seul', true,
-  EDGE.includes('apptId, demandeId: id, branchId, prenom, telephone,') && EDGE.includes('prenomAmie: premierMot(prenom),'));
+  EDGE.includes('apptId, demandeId: id, branchId, prenom, telephone,') && EDGE.includes('prenomAmie: prenomDevine(prenom),'));
 
 const demande = (x: Partial<Demande>): Demande => ({
   id: 'd1', genre: 'rdv', createdAt: '2026-10-15T10:00:00Z', branchId: 'maison', prenom: 'Awa', telephone: '+22990000000',

@@ -5,7 +5,7 @@
    Le harnais tient la regle, la copie a l'identique dans chaque fonction
    Edge, et les ecrans qui ecrivent a une cliente. */
 import { readFileSync } from 'node:fs';
-import { appelDe, civiliteDe, civiliteNotee, civilitesAPoser, estMuette, ficheAvecCivilite, prenomSeul } from '../src/shared/civilite';
+import { appelDe, civiliteDe, civiliteNotee, civilitesAPoser, estMuette, ficheAvecCivilite, prenomDUsage, prenomSeul } from '../src/shared/civilite';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -73,12 +73,15 @@ dit('muette : rien de note ; une ancienne marque au masculin ne l est pas', [tru
   const copies = FONCTIONS.map(copie);
   dit('chaque fonction porte appelDe', [], FONCTIONS.filter((_, i) => !copies[i]));
   dit('... la meme, mot pour mot', 1, new Set(copies).size);
-  /* La copie se juge sur des cas, pas sur son texte : on l'execute. */
+  /* La copie se juge sur des cas, pas sur son texte : on l'execute. Depuis
+     le 7 novembre 2026, elle s'appuie sur `prenomDUsage` (le bloc
+     ⟨prenom-d-usage⟩, recopie a l'identique : verifie-le-prenom-d-usage le
+     tient) ; on lui donne celui du depot. */
   // deno-lint-ignore no-explicit-any
   const sansTypes = (copies[0] ?? '').replace(/\(d: [\s\S]*?\): string =>/, '(d, repli) =>');
   // deno-lint-ignore no-explicit-any
-  const appelEdge = new Function(`${sansTypes}
-return appelDe;`)() as any;
+  const appelEdge = new Function('prenomDUsage', `${sansTypes}
+return appelDe;`)(prenomDUsage) as any;
   const cas: [unknown, unknown, string][] = [
     [{ name: 'Naffi Morou' }, undefined, 'Naffi'],
     [{ name: 'Naffi Morou', civilite: 'madame' }, undefined, 'Mme Naffi'],
@@ -87,6 +90,9 @@ return appelDe;`)() as any;
     [null, 'Awa Kossou', 'Awa'],
     [null, undefined, 'Madame, Monsieur'],
     [{ civilite: 'monsieur' }, 'Ola', 'M. Ola'],
+    /* Le prenom compose (7 novembre 2026). */
+    [{ name: 'Awa Reine KOSSI', civilite: 'madame' }, undefined, 'Mme Awa Reine'],
+    [{ name: 'Awa Reine KOSSI', prenomUsage: 'Reine', civilite: 'madame' }, undefined, 'Mme Reine'],
   ];
   dit('la copie Edge rend ce que rend le depot', cas.map((c) => c[2]), cas.map(([d, r]) => appelEdge(d, r)));
   for (const f of ['confirmation-rdv', 'rappels-j1', 'avis-google']) {
@@ -110,7 +116,8 @@ return appelDe;`)() as any;
        civilité qu'elle a choisie, sinon Madame. Depuis la relecture du même
        jour, la civilité choisie vaut aussi sur un numéro qui porte d'autres
        fiches (« Pour moi » : celle qui écrit n'en a pas). */
-    ['src/shared/automate-wa.ts', /if \(titulaire\) return appelDe\(\{ name: titulaire\.nom, civilite: titulaire\.civilite, auMasculin: titulaire\.auMasculin \}\);\s*if \(base\.panier\.civilite\) return appelDe\(\{ name: base\.panier\.prenom \?\? '', civilite: base\.panier\.civilite \}\);\s*(?:\/\*[^]*?\*\/\s*)?return '';/],
+    /* 7 novembre 2026 : le prenom d'usage de la fiche voyage avec elle. */
+    ['src/shared/automate-wa.ts', /if \(titulaire\) return appelDe\(\{ name: titulaire\.nom, prenomUsage: titulaire\.prenomUsage, civilite: titulaire\.civilite, auMasculin: titulaire\.auMasculin \}\);\s*if \(base\.panier\.civilite\) return appelDe\(\{ name: base\.panier\.prenom \?\? '', civilite: base\.panier\.civilite \}\);\s*(?:\/\*[^]*?\*\/\s*)?return '';/],
   ];
   dit('les messages du Trone disent la civilite', [], ECRANS.filter(([f, m]) => !m.test(lit(f))).map(([f]) => f));
   const fiche = lit('src/apps/trone/routes/clients/Customers.tsx');

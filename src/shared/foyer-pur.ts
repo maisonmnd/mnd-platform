@@ -29,7 +29,13 @@
 
    AUCUN IMPORT, et c'est voulu : une fonction Edge (Opale, les messages)
    peut le recopier tel quel, comme `telDuRdv` ou `appelDe`. Éprouvé par
-   `scripts/verifie-le-parcours-du-foyer.mjs` (et `--prouve`). */
+   `scripts/verifie-le-parcours-du-foyer.mjs` (et `--prouve`).
+
+   UN SEUL, depuis le 7 novembre 2026 : `prenomDUsage` (le prénom composé,
+   shared/civilite, pur lui aussi). Les fonctions Edge qui recopient
+   ⟨prenom-de⟩ portent déjà sa copie ⟨prenom-d-usage⟩, et s'appuient sur
+   elle PAR SON NOM. */
+import { prenomDUsage } from './civilite';
 
 /** Le verdict de l'âge, au sens du tarif (`estKids`, shared/accounts). */
 export type VerdictDeLAge = 'oui' | 'non' | 'inconnu';
@@ -49,7 +55,7 @@ export type RdvDuFoyer = {
 };
 
 /** Ce qu'elles lisent d'une fiche. */
-export type TeteDuCompte = { id: string; name?: string; familyId?: string; archived?: boolean; phone?: string };
+export type TeteDuCompte = { id: string; name?: string; prenomUsage?: string; familyId?: string; archived?: boolean; phone?: string };
 
 /** Ce qu'elles lisent du compte famille. */
 export type CompteDuFoyer = { id: string; payerClientId?: string; toujoursEnsemble?: boolean };
@@ -78,13 +84,15 @@ const parHeure = <T extends RdvDuFoyer>(a: T, b: T): number =>
 /* ⟨prenom-de⟩ */
 const CIVILITES = /^(m\.?|mr\.?|mme\.?|mlle\.?|madame|mademoiselle|monsieur|dr\.?)$/i;
 
-/** LE PRÉNOM SEUL, le premier mot du nom : jamais le nom de famille, et
-    jamais une civilité (la Maison ne la suppose pas ; une civilité écrite
-    en tête du nom se saute). Sans nom : une chaîne vide. */
-export const prenomDe = (nom?: string | null): string => {
+/** LE PRÉNOM SEUL : jamais le nom de famille, et jamais une civilité (la
+    Maison ne la suppose pas ; une civilité écrite en tête du nom se saute).
+    Sans nom : une chaîne vide. TOUT LE PRÉNOM COMPOSÉ (7 novembre 2026) :
+    le prénom d'usage noté sur la fiche (`usage`), sinon celui que le Trône
+    devine (« Anne Marie GAYE » donne « Anne Marie »), plus le premier mot. */
+export const prenomDe = (nom?: string | null, usage?: string | null): string => {
   const mots = String(nom ?? '').trim().split(/\s+/).filter(Boolean);
   while (mots.length > 1 && CIVILITES.test(mots[0])) mots.shift();
-  return mots[0] ?? '';
+  return prenomDUsage({ name: mots.join(' '), prenomUsage: usage });
 };
 
 /** « A. et B. », « A., B. et C. » : les prénoms du foyer, dits ensemble. */
@@ -157,7 +165,7 @@ export function foyerDuRdv<T extends RdvDuFoyer>(rdv: T, rdvs: readonly T[], fic
   const ceux = rdvsDuFoyer(rdv, rdvs);
   const parId = new Map(fiches.map((f) => [f.id, f]));
   const tetes = ceux.map((a) => ({
-    clientId: a.clientId, apptId: a.id, prenom: prenomDe(parId.get(a.clientId)?.name ?? a.clientName),
+    clientId: a.clientId, apptId: a.id, prenom: prenomDe(parId.get(a.clientId)?.name ?? a.clientName, parId.get(a.clientId)?.prenomUsage),
   }));
   const comptes = new Map<string, { numero: string; n: number; rang: number }>();
   ceux.forEach((a, rang) => {
@@ -256,7 +264,8 @@ export function questionDAnnulation<T extends RdvDuFoyer>(
   const autres = autresDuFoyer(rdv, rdvs).filter(bouge);
   if (autres.length === 0) return null;
   const n = autres.length + 1;
-  const prenom = prenomDe(fiches.find((f) => f.id === rdv.clientId)?.name ?? rdv.clientName) || 'elle';
+  const fiche = fiches.find((f) => f.id === rdv.clientId);
+  const prenom = prenomDe(fiche?.name ?? rdv.clientName, fiche?.prenomUsage) || 'elle';
   const combien = EN_LETTRES[n];
   return {
     titre: `Annuler ${combien ? `les ${combien}` : 'tout le foyer'}, ou seulement ${prenom} ?`,
@@ -385,7 +394,7 @@ export function compagnesAPoser<C extends TeteDuCompte, T extends RdvDuFoyer>(o:
   const out: CeQueLeFoyerAjoute = { ensemble: true, aPoser: [], dejaLa: [] };
   for (const t of tetesDuFoyer(elle, o.fiches)) {
     if (t.id === o.clientId || o.exclues?.has(t.id)) continue;
-    const prenom = prenomDe(t.name);
+    const prenom = prenomDe(t.name, t.prenomUsage);
     const sien = o.rdvs.find((a) => a.clientId === t.id && a.date === o.date && vit(a)
       && (a.branchId ?? '') === (o.branchId ?? ''));
     if (sien) {

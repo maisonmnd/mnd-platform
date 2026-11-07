@@ -12,7 +12,7 @@ import {
   sensDuGlisse, titreDuMois,
 } from '../calendrier-du-site-pur';
 import { porteDuBesoin, type Besoin } from '../../../shared/qualification';
-import { CIVILITES, type Civilite } from '../../../shared/civilite';
+import { CIVILITES, prenomDevine, type Civilite } from '../../../shared/civilite';
 import { gesteDitEnFrancaisWa, nomEnFrancaisWa } from '../../../shared/gestes-en-francais';
 import { TELEPHONE_MONDE, TELEPHONE_PAYS } from '../../../shared/geo';
 import { fmtMoney } from '../../../shared/currency';
@@ -1106,7 +1106,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
             la seconde. Si le serveur n'a pas pu poser le rendez-vous, la
             demande vit quand même et la Maison rappelle : on le dit. */}
         <p className="sur">{recu.confirme ? 'Réservé' : 'Demande reçue'}</p>
-        <h2>{recu.confirme ? `C’est réservé${prenom.trim() ? `, ${prenom.trim().split(' ')[0]}` : ''}.` : 'Votre place est demandée.'}</h2>
+        <h2>{recu.confirme ? `C’est réservé${prenomDevine(prenom) ? `, ${prenomDevine(prenom)}` : ''}.` : 'Votre place est demandée.'}</h2>
         <p className="merci__place">{jourDit(recu.date)}, à {recu.heure}.</p>
         {recu.resume && <p className="merci__resume">{recu.resume}</p>}
         {/* LA RÉFÉRENCE, AVANT WHATSAPP — 3 novembre 2026 : « On-screen
@@ -1546,7 +1546,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         /* BON RETOUR : sa dernière venue, cochée ; elle touche une place. */
         <div className="bloc-reservation bon-retour">
           <p className="sur">Bon retour</p>
-          <h3>{moi?.prenom ? `Bon retour, ${moi.prenom.split(' ')[0]}.` : 'Bon retour.'}</h3>
+          <h3>{moi?.prenom ? `Bon retour, ${prenomDevine(moi.prenom)}.` : 'Bon retour.'}</h3>
           <p className="corps">Refaire votre dernière venue ? <b>{recapitulatif}</b></p>
           {moi?.numero && <p className="legende">Votre numéro : <b>{numeroMasque(moi.numero)}</b>, en entier une fois votre place choisie.</p>}
           <p className="bon-retour__liens">

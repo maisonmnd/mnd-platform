@@ -66,12 +66,61 @@ const numeroIntl = (brut: string | undefined): string | null => {
   return d;
 };
 
+/* ══ LE PRÉNOM COMPOSÉ — 7 novembre 2026 ══════════════════════════════════
+   « Quand on leur écrit, on écrive toujours, dans leur rendez-vous et dans
+   leur messagerie WhatsApp, tout le prénom composé » (Yéman) : le prénom
+   d'usage de la fiche, sinon celui que le Trône devine du nom. Recopié de
+   `src/shared/civilite.ts` entre ses repères ; verifie-le-prenom-d-usage
+   et le banc des douze lunes tiennent la copie. */
+/* ⟨prenom-d-usage⟩ */
+/** LES PRÉNOMS QUI SE COMPOSENT (liste du 7 novembre 2026) : en tête d'un nom
+    de trois mots ou plus sans NOM en capitales, ils prennent le mot suivant. */
+const PRENOMS_QUI_SE_COMPOSENT: readonly string[] = ['Marie', 'Anne', 'Jean', 'Paul', 'Pierre', 'Louis'];
+/** Les particules d'un nom de famille : « de », « da », « d'Agbo »… */
+const PARTICULE_DU_NOM = /^(?:de|da|do|dos|das|du|des|di|del|della|van|von|le|la|d['’]\S*)$/i;
+/** Un mot tout en capitales : au moins deux lettres, accents compris, l'apostrophe et le trait d'union admis. */
+const motEnCapitales = (m: string): boolean => /^[\p{Lu}'’-]+$/u.test(m) && (m.match(/\p{Lu}/gu) ?? []).length >= 2;
+/** La capitale d'un second prénom écrit en minuscules ; rien d'autre ne bouge. */
+const capitaleDuSecond = (m: string): string => (/^\p{Ll}/u.test(m) ? `${m.charAt(0).toUpperCase()}${m.slice(1)}` : m);
+
+/** LE PRÉNOM QUE LE TRÔNE DEVINE d'un nom complet (les règles 2 à 5). Le
+    trait d'union se recolle dans le prénom, jamais vers un NOM en capitales
+    (« Awa - KOSSI » reste deux mots). */
+const prenomDevine = (nom: unknown): string => {
+  const mots = String(nom ?? '').trim().replace(/\s+/g, ' ')
+    .replace(/(\S+) ?- ?(?=(\S+))/g, (tout: string, g: string, d: string) => (motEnCapitales(g) || motEnCapitales(d) ? tout : `${g}-`))
+    .split(' ').filter(Boolean);
+  if (mots.length === 0) return '';
+  const nomDeFamille = mots.findIndex((m, i) => i > 0 && motEnCapitales(m));
+  if (nomDeFamille > 0) {
+    const fin = mots.findIndex((m, i) => i > 0 && (i >= nomDeFamille || !/^\p{L}/u.test(m)));
+    const prenoms = mots.slice(0, fin);
+    while (prenoms.length > 1 && PARTICULE_DU_NOM.test(prenoms[prenoms.length - 1])) prenoms.pop();
+    return prenoms.map((m, i) => (i > 0 && !PARTICULE_DU_NOM.test(m) ? capitaleDuSecond(m) : m)).join(' ');
+  }
+  const premier = mots[0].toLowerCase();
+  const second = mots[1] ?? '';
+  if (mots.length >= 3 && PRENOMS_QUI_SE_COMPOSENT.some((p) => p.toLowerCase() === premier) && /^\p{L}/u.test(second) && !PARTICULE_DU_NOM.test(second)) {
+    return `${mots[0]} ${capitaleDuSecond(second)}`;
+  }
+  return mots[0];
+};
+
+/** LE PRÉNOM D'USAGE d'une cliente : celui de sa fiche, sinon celui que le
+    Trône devine de son nom. `repli` sert quand la fiche manque mais qu'un nom
+    est connu ailleurs (le rendez-vous, la demande du site). */
+const prenomDUsage = (c: { name?: unknown; prenomUsage?: unknown } | null | undefined, repli?: unknown): string => {
+  const note = String(c?.prenomUsage ?? '').trim().replace(/\s+/g, ' ');
+  return note || prenomDevine(c?.name ?? repli);
+};
+/* ⟨/prenom-d-usage⟩ */
 /* La Maison écrit « Madame Naffi ». Recopié de `src/shared/civilite.ts` ;
    `verifie-civilite` tient la copie. */
-const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown } | null | undefined, repli?: unknown): string => {
+const appelDe = (d: { name?: unknown; prenomUsage?: unknown; civilite?: unknown; auMasculin?: unknown } | null | undefined, repli?: unknown): string => {
   const civ = d?.civilite === 'monsieur' || d?.civilite === 'mademoiselle' || d?.civilite === 'madame'
     ? d.civilite : d?.auMasculin === true ? 'monsieur' : '';
-  const prenom = String(d?.name ?? repli ?? '').trim().split(/\s+/)[0] ?? '';
+  /* Tout le prénom composé (7 novembre 2026) : « Mme Anne Marie », jamais « Mme Anne ». */
+  const prenom = prenomDUsage(d, repli);
   /* La civilité inconnue ne se suppose plus (13 octobre 2026) : le prénom seul. */
   if (!civ) return prenom || 'Madame, Monsieur';
   /* Abrégée devant le prénom (28 octobre 2026) : « M. Jean-Luc », « Mme Shadé » ; seule, en entier. */
@@ -330,7 +379,7 @@ const calibreEtFourchette = (id: string | undefined, calibres: readonly Calibre[
 
 /** Le prénom de la tête, quand on écrit à celle qui paie pour elle. */
 const prenomDe = (fiche: { name?: unknown } | undefined, repli?: string): string =>
-  String(fiche?.name ?? repli ?? '').trim().split(/\s+/)[0] ?? '';
+  prenomDUsage(fiche, repli);
 
 /** LES CINQ VARIABLES DU MODÈLE `rappel_echeance_veille` : son appel, le jour
     dû avec l'année, ce qui arrive, la formule (et pour qui), le montant. */

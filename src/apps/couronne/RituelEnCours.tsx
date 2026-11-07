@@ -6,6 +6,7 @@ import { useInvoices } from '../../shared/finance';
 import { laPieceDuRdv, lignesDites, resteDeLaPiece, type PieceLue } from '../../shared/regler-la-seance-pur';
 import { carteDuRituelEnCours, resteConnuDeLaFin } from '../../shared/terminer-et-regler-pur';
 import { pageDuReglement, refusDeLaFin, termineMonRituel } from '../../shared/terminer-et-regler-serveur';
+import { prenomDUsage } from '../../shared/civilite';
 import { useClient, useClientId } from './lib';
 import { prix, t } from './i18n';
 
@@ -56,7 +57,8 @@ export default function RituelEnCours({ nomDuRituel }: { nomDuRituel: (a: Appoin
   const piece = laPieceDuRdv(pieces, rdv.id);
   const reste = piece ? resteDeLaPiece(piece) : resteConnuDeLaFin(rdv);
   const nom = nomDuRituel(rdv) || t('Votre rituel');
-  const brut = (client?.name ?? '').trim().split(/\s+/)[0] ?? '';
+  /* Tout le prénom composé (7 novembre 2026) : « Anne Marie ». */
+  const brut = prenomDUsage(client);
   const prenom = brut && !/[0-9@_.]/.test(brut) ? brut : '';
 
   const termine = async () => {

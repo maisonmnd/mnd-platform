@@ -17,6 +17,7 @@
 import { fmtMoney } from '../../shared/currency';
 import { FORME_DE_LA_REFERENCE, referenceDuRendezVous } from '../../shared/lien-du-rdv-pur';
 import type { Besoin } from '../../shared/qualification';
+import { prenomDevine } from '../../shared/civilite';
 
 /** Une durée dite comme on parle : « 45 min », « 1 h », « 2 h 30 ». */
 export const dureeDite = (min?: number): string => {
@@ -136,7 +137,8 @@ export function coordonneesLues(r: unknown): CoordonneesDuRetour | null {
 /** « Mme A. », « M. Jean », ou le prénom seul quand la civilité manque : la
     Maison ne la suppose jamais. */
 export const appelDuRetour = (c: Pick<CoordonneesDuRetour, 'prenom' | 'civilite'>): string => {
-  const prenom = c.prenom.split(' ')[0] ?? '';
+  /* Tout le prénom composé (7 novembre 2026) : « Mme Anne-Marie ». */
+  const prenom = prenomDevine(c.prenom);
   const titre = c.civilite === 'madame' ? 'Mme' : c.civilite === 'mademoiselle' ? 'Mlle' : c.civilite === 'monsieur' ? 'M.' : '';
   return [titre, prenom].filter(Boolean).join(' ');
 };

@@ -3,7 +3,7 @@ import type { Invoice } from './finance';
 import type { Appointment } from './agenda';
 import type { Bilan } from './bilans';
 import type { CodePromo } from './promos';
-import { appelDe } from './civilite';
+import { appelDe, prenomDevine } from './civilite';
 import { lienMapsWa, ligneGoogleMapsWa } from './automate-wa';
 
 /* ══ LES GESTES D'UNE CONVERSATION — 14 septembre 2026 ════════════════
@@ -114,9 +114,9 @@ export const jourEtHeureDits = (iso: string, hhmm: string | undefined): string =
 
 /** LE PRÉNOM SEUL, pour s'adresser à elle. « Akouavi Kossou » donne
     « Akouavi ». Un message qui commence par le nom entier sonne comme une
-    convocation. */
-export const prenomDe = (nom: string | undefined): string =>
-  (nom ?? '').trim().split(/\s+/)[0] ?? '';
+    convocation. Tout le prénom composé (7 novembre 2026, `prenomDevine`) :
+    « Anne Marie GAYE » donne « Anne Marie ». */
+export const prenomDe = (nom: string | undefined): string => prenomDevine(nom);
 
 /* ══ CHOISIR LA BONNE PIÈCE ══════════════════════════════════════════ */
 

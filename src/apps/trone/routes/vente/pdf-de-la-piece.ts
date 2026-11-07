@@ -7,7 +7,7 @@ import { useSubscribers, usePlans, libellesInclus, type Plan, type Subscriber } 
 import { detailDuForfait } from '../../../../shared/kids';
 import { invoiceTotal, ligneNetXof, invoiceReglements, invoiceResteXof, type Invoice, type InvoiceLine } from '../../../../shared/finance';
 import { detailPorte, donneesDuPdfDeLaPiece, fmtDateFr, ligneSousLeVerrou, motDuPapierParDefaut } from '../../../../shared/pdf-de-la-piece-pur';
-import { appelDe } from '../../../../shared/civilite';
+import { appelDe, prenomDUsage } from '../../../../shared/civilite';
 import { useSettings } from '../../../../shared/settings';
 import { paiementTapGoDeLaPiece, type ReglagesMndPay } from '../../../../shared/mnd-pay-pur';
 import { montantMomopayFraisCompris, TAUX_MOMOPAY_PCT } from '../../../../shared/momopay-de-la-maison-pur';
@@ -231,7 +231,8 @@ export function useLaPieceEnPdf() {
   const payeurDe = (d: Invoice) => clients.find((c) => c.id === d.clientId);
   const clientOf = (d: Invoice) => clients.find((c) => c.id === (d.forClientId ?? d.clientId));
   const clientNameOf = (d: Invoice) => clientOf(d)?.name ?? d.clientName ?? 'Walk-in';
-  const prenomOf = (d: Invoice) => clientNameOf(d).split(' ')[0];
+  /** Sur la pièce, tout le prénom composé (7 novembre 2026) : « Pour Anne Marie, ». */
+  const prenomOf = (d: Invoice) => prenomDUsage(clientOf(d), clientNameOf(d));
   /** Dans un MESSAGE, la Maison dit « Madame Naffi » (2 octobre 2026) ; sur la pièce, le prénom seul. */
   const appelOf = (d: Invoice) => appelDe(clientOf(d), clientNameOf(d));
   /** Le nom de la payeuse, seulement quand ce n'est pas la tête soignée. */

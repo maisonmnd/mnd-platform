@@ -47,7 +47,7 @@ import {
   ChampDeDate, frShortAn, tarifsDuRituel, prixAFiger, rituelDeshonore,
 } from './_shared';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
-import { appelDe } from '../../../../shared/civilite';
+import { appelDe, prenomDUsage } from '../../../../shared/civilite';
 import { RattacherUneCarte } from '../vente/RattacherUneCarte';
 import { PanneauMndPay } from '../vente/MndPay';
 import { CAISSE_MND_PAY, moyenDeLaPiece, type DemandeMndPay } from '../../../../shared/mnd-pay-pur';
@@ -2168,7 +2168,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
          « merci pour votre passage » arrivé des jours après ferait voir le
          retard (18 octobre 2026). */
       if (tel && lien && dejaReglees === 0 && autoConfigStore.get().avisAuto !== true && appt.date >= addDaysISO(todayISO(), -1)) {
-        const prenom = (tete?.name ?? '').trim().split(/\s+/)[0];
+        /* Tout le prénom composé (7 novembre 2026). */
+        const prenom = prenomDUsage(tete);
         const mot = `Merci pour votre passage à la Maison MND${prenom ? `, ${prenom}` : ''}. `
           + `Si le cœur vous en dit, un avis nous aiderait beaucoup : ${lien}`;
         /* ON NE SORT PAS DU TRÔNE (14 septembre) : la demande d'avis

@@ -17,8 +17,9 @@
    compte famille, sinon elle-même. Le point va au payeur d'AUJOURD'HUI, pas à
    celui qu'une vieille facture nomme : le père ajouté au compte reçoit le
    point des factures écrites quand sa fille payait encore. */
+import { prenomDUsage } from './civilite';
 
-export type TeteDuPoint = { id: string; name?: string; familyId?: string; phone?: string; archived?: boolean };
+export type TeteDuPoint = { id: string; name?: string; prenomUsage?: string; familyId?: string; phone?: string; archived?: boolean };
 export type CompteDuPoint = { id: string; name?: string; payerClientId?: string };
 
 /** Il n'y a de point qu'à partir de deux factures : une seule part comme avant. */
@@ -103,7 +104,8 @@ export function prenomsDuPoint(pieces: readonly PieceDuPoint[], tetes: readonly 
   const vus: string[] = [];
   for (const p of pieces) {
     const t = tetes.find((x) => x.id === (p.forClientId ?? p.clientId));
-    const prenom = (t?.name ?? '').trim().split(/\s+/)[0];
+    /* Tout le prénom composé (7 novembre 2026) : « le compte d'Anne Marie et Jade ». */
+    const prenom = prenomDUsage(t);
     if (prenom && !vus.includes(prenom)) vus.push(prenom);
   }
   return vus;

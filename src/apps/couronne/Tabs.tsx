@@ -50,6 +50,7 @@ import { ETAT_SEANCE } from './releve';
 import { etatDeLaSeance } from '../../shared/abonnee-pur';
 import { jourDeCotonou } from '../../shared/ia-faits-pur';
 import { createStore, uid, useStore } from '../../shared/store';
+import { prenomDUsage } from '../../shared/civilite';
 import {
   ensureClient,
   moduleHidden,
@@ -470,8 +471,9 @@ export function HomeTab({
 
   /* LE PRÉNOM VRAI — jamais un identifiant (chantier ④). « Yemanboya1 » est
      un login, pas elle : un prénom ne porte ni chiffre ni arobase. À défaut,
-     « Bonjour. » tout court — sobre vaut mieux que faux. */
-  const brut = (client?.name ?? '').trim().split(/\s+/)[0] ?? '';
+     « Bonjour. » tout court — sobre vaut mieux que faux. Tout le prénom
+     composé (7 novembre 2026) : « Bonjour Anne Marie ». */
+  const brut = prenomDUsage(client);
   const prenom = brut && !/[0-9@_.]/.test(brut) ? brut : '';
 
   /* LA PROCHAINE SÉANCE, PRÉDITE quand rien n'est pris — le MÊME juge que la
@@ -1040,7 +1042,7 @@ export function HomeEnfant({ enfant, onOpenBooking, onRevenir, onOpenRdv, abonne
   const [bands] = useModelBands();
   const appts = useClientAppointments(enfant.id);
   const next = useNextAppointment(enfant.id);
-  const prenom = enfant.name.split(' ')[0] || enfant.name;
+  const prenom = prenomDUsage(enfant) || enfant.name;
   const age = ageDe(enfant.birthday, todayIso());
   const bandeEnfant = calibreDeLaTete(enfant.lockCount, bands, enfant.margeCalibre);
   const cal = bandeEnfant?.name?.trim() || undefined;
@@ -1286,7 +1288,7 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
     if (lastAppt) onOpenBooking({ serviceId: lastAppt.serviceIds[0], pourId: regard?.id });
   };
 
-  const prenomRegard = regard ? (regard.name.split(' ')[0] || regard.name) : '';
+  const prenomRegard = regard ? (prenomDUsage(regard) || regard.name) : '';
 
   return (
     <div className="mc-pagepad mc-pagepad--top mc-fade">
@@ -1719,7 +1721,7 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
           const r = await corrigerNaissance(e.id, dateCorrigee, aujourdhui);
           if (!r.ok) { setErrCorrige(r.erreur ? t(r.erreur) : t('La correction n’a pas pu passer.')); return; }
           setCorrigeId(''); setDateCorrigee(''); setErrCorrige('');
-          toast(t('La date de naissance de {prenom} est corrigée.', { prenom: e.name.split(' ')[0] }));
+          toast(t('La date de naissance de {prenom} est corrigée.', { prenom: prenomDUsage(e) }));
         };
         return (
           <div key={e.id} className="mc-crownstatus" style={{ marginTop: 8 }}>

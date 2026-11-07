@@ -367,16 +367,65 @@ const jourDeLaReprise = (iso: string): string => {
   } catch { return iso; }
 };
 
+/* ══ LE PRÉNOM COMPOSÉ — 7 novembre 2026 ══════════════════════════════════
+   « Quand on leur écrit, on écrive toujours, dans leur rendez-vous et dans
+   leur messagerie WhatsApp, tout le prénom composé » (Yéman) : le prénom
+   d'usage de la fiche, sinon celui que le Trône devine du nom. Recopié de
+   `src/shared/civilite.ts` entre ses repères ; verifie-le-prenom-d-usage
+   et le banc des douze lunes tiennent la copie. */
+/* ⟨prenom-d-usage⟩ */
+/** LES PRÉNOMS QUI SE COMPOSENT (liste du 7 novembre 2026) : en tête d'un nom
+    de trois mots ou plus sans NOM en capitales, ils prennent le mot suivant. */
+const PRENOMS_QUI_SE_COMPOSENT: readonly string[] = ['Marie', 'Anne', 'Jean', 'Paul', 'Pierre', 'Louis'];
+/** Les particules d'un nom de famille : « de », « da », « d'Agbo »… */
+const PARTICULE_DU_NOM = /^(?:de|da|do|dos|das|du|des|di|del|della|van|von|le|la|d['’]\S*)$/i;
+/** Un mot tout en capitales : au moins deux lettres, accents compris, l'apostrophe et le trait d'union admis. */
+const motEnCapitales = (m: string): boolean => /^[\p{Lu}'’-]+$/u.test(m) && (m.match(/\p{Lu}/gu) ?? []).length >= 2;
+/** La capitale d'un second prénom écrit en minuscules ; rien d'autre ne bouge. */
+const capitaleDuSecond = (m: string): string => (/^\p{Ll}/u.test(m) ? `${m.charAt(0).toUpperCase()}${m.slice(1)}` : m);
+
+/** LE PRÉNOM QUE LE TRÔNE DEVINE d'un nom complet (les règles 2 à 5). Le
+    trait d'union se recolle dans le prénom, jamais vers un NOM en capitales
+    (« Awa - KOSSI » reste deux mots). */
+const prenomDevine = (nom: unknown): string => {
+  const mots = String(nom ?? '').trim().replace(/\s+/g, ' ')
+    .replace(/(\S+) ?- ?(?=(\S+))/g, (tout: string, g: string, d: string) => (motEnCapitales(g) || motEnCapitales(d) ? tout : `${g}-`))
+    .split(' ').filter(Boolean);
+  if (mots.length === 0) return '';
+  const nomDeFamille = mots.findIndex((m, i) => i > 0 && motEnCapitales(m));
+  if (nomDeFamille > 0) {
+    const fin = mots.findIndex((m, i) => i > 0 && (i >= nomDeFamille || !/^\p{L}/u.test(m)));
+    const prenoms = mots.slice(0, fin);
+    while (prenoms.length > 1 && PARTICULE_DU_NOM.test(prenoms[prenoms.length - 1])) prenoms.pop();
+    return prenoms.map((m, i) => (i > 0 && !PARTICULE_DU_NOM.test(m) ? capitaleDuSecond(m) : m)).join(' ');
+  }
+  const premier = mots[0].toLowerCase();
+  const second = mots[1] ?? '';
+  if (mots.length >= 3 && PRENOMS_QUI_SE_COMPOSENT.some((p) => p.toLowerCase() === premier) && /^\p{L}/u.test(second) && !PARTICULE_DU_NOM.test(second)) {
+    return `${mots[0]} ${capitaleDuSecond(second)}`;
+  }
+  return mots[0];
+};
+
+/** LE PRÉNOM D'USAGE d'une cliente : celui de sa fiche, sinon celui que le
+    Trône devine de son nom. `repli` sert quand la fiche manque mais qu'un nom
+    est connu ailleurs (le rendez-vous, la demande du site). */
+const prenomDUsage = (c: { name?: unknown; prenomUsage?: unknown } | null | undefined, repli?: unknown): string => {
+  const note = String(c?.prenomUsage ?? '').trim().replace(/\s+/g, ' ');
+  return note || prenomDevine(c?.name ?? repli);
+};
+/* ⟨/prenom-d-usage⟩ */
 /* ══ MADAME NAFFI — 2 octobre 2026 ═════════════════════════════════════
    La Maison écrit « Madame Naffi » : la civilité de la fiche, puis le prénom.
    Une fiche qui ne dit rien est une dame ; une fiche au masculin d'avant ce
    jour est « Monsieur ». Recopié de `src/shared/civilite.ts` (une fonction
    Edge ne lit rien du dépôt) ; `verifie-civilite` tient la copie. Le
    9 octobre 2026, la reprise disait encore « C'est noté, Naffi ». */
-const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown } | null | undefined, repli?: unknown): string => {
+const appelDe = (d: { name?: unknown; prenomUsage?: unknown; civilite?: unknown; auMasculin?: unknown } | null | undefined, repli?: unknown): string => {
   const civ = d?.civilite === 'monsieur' || d?.civilite === 'mademoiselle' || d?.civilite === 'madame'
     ? d.civilite : d?.auMasculin === true ? 'monsieur' : '';
-  const prenom = String(d?.name ?? repli ?? '').trim().split(/\s+/)[0] ?? '';
+  /* Tout le prénom composé (7 novembre 2026) : « Mme Anne Marie », jamais « Mme Anne ». */
+  const prenom = prenomDUsage(d, repli);
   /* La civilité inconnue ne se suppose plus (13 octobre 2026) : le prénom seul. */
   if (!civ) return prenom || 'Madame, Monsieur';
   /* Abrégée devant le prénom (28 octobre 2026) : « M. Jean-Luc », « Mme Shadé » ; seule, en entier. */
@@ -770,7 +819,7 @@ async function rattrapeLesRefus(
    SANS 0125 (la RPC absente ou en panne), on lit la table PAR PAGES : le
    plafond de mille ne revient pas par la porte de secours, et l'oreille
    rattache toujours. Le journal le dit. */
-type FicheDuNumero = { id: string; nom?: string; civilite?: string; auMasculin?: boolean; branchId?: string; numeros: string[] };
+type FicheDuNumero = { id: string; nom?: string; prenomUsage?: string; civilite?: string; auMasculin?: boolean; branchId?: string; numeros: string[] };
 
 /* TOUTE LA TABLE, PAGE PAR PAGE. Recopié TEL QUEL de
    `src/shared/lecture-entiere.ts`, de `PAGE_DE_LECTURE` à la fin du fichier
@@ -1081,13 +1130,15 @@ export const estMineur = (client: { birthday?: string }, aujourdhui: string): bo
 /* ⟨prenom-de⟩ */
 const CIVILITES = /^(m\.?|mr\.?|mme\.?|mlle\.?|madame|mademoiselle|monsieur|dr\.?)$/i;
 
-/** LE PRÉNOM SEUL, le premier mot du nom : jamais le nom de famille, et
-    jamais une civilité (la Maison ne la suppose pas ; une civilité écrite
-    en tête du nom se saute). Sans nom : une chaîne vide. */
-export const prenomDe = (nom?: string | null): string => {
+/** LE PRÉNOM SEUL : jamais le nom de famille, et jamais une civilité (la
+    Maison ne la suppose pas ; une civilité écrite en tête du nom se saute).
+    Sans nom : une chaîne vide. TOUT LE PRÉNOM COMPOSÉ (7 novembre 2026) :
+    le prénom d'usage noté sur la fiche (`usage`), sinon celui que le Trône
+    devine (« Anne Marie GAYE » donne « Anne Marie »), plus le premier mot. */
+export const prenomDe = (nom?: string | null, usage?: string | null): string => {
   const mots = String(nom ?? '').trim().split(/\s+/).filter(Boolean);
   while (mots.length > 1 && CIVILITES.test(mots[0])) mots.shift();
-  return mots[0] ?? '';
+  return prenomDUsage({ name: mots.join(' '), prenomUsage: usage });
 };
 
 /** « A. et B. », « A., B. et C. » : les prénoms du foyer, dits ensemble. */
@@ -1407,6 +1458,7 @@ function lecteurDesFiches(sb: SupabaseClient): (n: string) => Promise<FicheDuNum
         .map((r) => ({
           id: String(r.id),
           nom: typeof r.data?.name === 'string' ? r.data.name : undefined,
+          prenomUsage: typeof r.data?.prenomUsage === 'string' ? r.data.prenomUsage : undefined,
           civilite: typeof r.data?.civilite === 'string' ? r.data.civilite : undefined,
           auMasculin: r.data?.auMasculin === true,
           branchId: typeof r.data?.branchId === 'string' ? r.data.branchId : undefined,
@@ -1427,6 +1479,7 @@ function lecteurDesFiches(sb: SupabaseClient): (n: string) => Promise<FicheDuNum
           return (data as Record<string, unknown>[]).map((f) => ({
             id: String(f.id ?? ''),
             nom: typeof f.nom === 'string' ? f.nom : undefined,
+            prenomUsage: typeof f.prenomUsage === 'string' ? f.prenomUsage : undefined,
             civilite: typeof f.civilite === 'string' ? f.civilite : undefined,
             auMasculin: f.auMasculin === true,
             branchId: typeof f.branchId === 'string' ? f.branchId : undefined,
@@ -2245,7 +2298,7 @@ Deno.serve(async (req) => {
     dis('reprise · réponse', { geste: m[1] });
     if (!jetonMeta || !phoneIdMeta) continue;
     /* « Madame Naffi », jamais le premier mot seul (9 octobre 2026). */
-    const appel = appelDe({ name: fiche.nom, civilite: fiche.civilite, auMasculin: fiche.auMasculin }, rdv.clientName);
+    const appel = appelDe({ name: fiche.nom, prenomUsage: fiche.prenomUsage, civilite: fiche.civilite, auMasculin: fiche.auMasculin }, rdv.clientName);
     const quand = `${jourDeLaReprise(rdv.date ?? '')} à ${heureDeLaReprise(rdv.time)}`;
     const couronne = (Deno.env.get('COURONNE_URL') ?? 'https://maisonmnd.com/couronne/').trim();
     await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, ok
@@ -2285,7 +2338,7 @@ Deno.serve(async (req) => {
     const rdv = ligne.data as { clientId?: string; clientName?: string; date?: string; branchId?: string; master?: string };
     const fiche = fiches.find((f) => f.id === rdv.clientId);
     if (!fiche || !fiche.numeros.some((n) => cleWa(n) === cleWa(e.numero))) { dis('point · numéro étranger à la séance'); continue; }
-    const appel = appelDe({ name: fiche.nom, civilite: fiche.civilite, auMasculin: fiche.auMasculin }, rdv.clientName);
+    const appel = appelDe({ name: fiche.nom, prenomUsage: fiche.prenomUsage, civilite: fiche.civilite, auMasculin: fiche.auMasculin }, rdv.clientName);
     const branchId = rdv.branchId ?? fiche.branchId;
 
     if (p.geste === 'avant') {
@@ -2479,7 +2532,7 @@ Deno.serve(async (req) => {
       if (rdvLigne && rdv && rdv.status !== 'annulé' && rdv.status !== 'honoré') {
         quand = `${jourDeLaReprise(rdv.date ?? '')} à ${heureDeLaReprise(rdv.time)}`;
         rdvAGarder = rdvLigne.id;
-        suite = suiteDuGarder(b.geste, { quandIso: e.quand, prenom: prenomDe(String(fiche.nom ?? '')), quand });
+        suite = suiteDuGarder(b.geste, { quandIso: e.quand, prenom: prenomDe(String(fiche.nom ?? ''), fiche.prenomUsage), quand });
         if (suite) {
           const { error: errRdv } = await sb.from('appointments').update({ data: { ...rdv, ...suite.marques } }).eq('id', rdvLigne.id);
           if (errRdv) dis('assistant · rendez-vous refusé', { motif: errRdv.message.slice(0, 120) });
@@ -2500,7 +2553,7 @@ Deno.serve(async (req) => {
     const alerteDuGarder: Alerte | null = suite?.alerte
       ? { titre: suite.alerte.titre, corps: suite.alerte.corps, url: `/trone/#/conversations?n=${e.numero}` }
       : null;
-    const appel = appelDe({ name: fiche.nom, civilite: fiche.civilite, auMasculin: fiche.auMasculin });
+    const appel = appelDe({ name: fiche.nom, prenomUsage: fiche.prenomUsage, civilite: fiche.civilite, auMasculin: fiche.auMasculin });
     const retour = retourDuBouton({ geste: b.geste, garder, appel, quand, couronneUrl, offrirUrl });
     if (suite?.deplacer && rdvAGarder && service && urlBase) {
       /* « CHANGER L'HEURE » VA À L'AUTOMATE (choix de Yéman, 2 novembre 2026) :

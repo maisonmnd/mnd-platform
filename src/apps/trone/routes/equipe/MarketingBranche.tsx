@@ -23,7 +23,7 @@ import { useInvoices, invoiceTotal } from '../../../../shared/finance';
 import { useAppointments } from '../../../../shared/agenda';
 import { useStore, uid } from '../../../../shared/store';
 import { settingsStore } from '../../../../shared/settings';
-import { appelDe, prenomSeul } from '../../../../shared/civilite';
+import { appelDe, prenomDUsage } from '../../../../shared/civilite';
 import { numeroWa } from '../../../../shared/conversations';
 import { identiteCourante } from '../../../../shared/journal';
 import { typeDit } from '../../../../shared/envois';
@@ -592,7 +592,7 @@ function FenetreDeLaCampagne({ initiale, base, ctx, abonnes, onClose, onGarde }:
     maintenantIso: new Date().toISOString(),
     qui: qui(),
     appel: (t: Client) => appelDe(t),
-    prenom: (t: Client) => prenomSeul(t.name),
+    prenom: (t: Client) => prenomDUsage(t),
     numero: (t: Client) => numeroWa(t.phone),
     abonnesAuxNotifications: abonnes,
   }), [abonnes]);

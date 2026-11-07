@@ -17,6 +17,7 @@
      formules, produits) ;
    — il reçoit le MINIMUM : la civilité et le prénom, et ce qui touche à ses
      cheveux. Jamais son téléphone, jamais son courriel, jamais son nom. */
+import { prenomDUsage } from './civilite';
 
 /* ══ CE QUE LE MAÎTRE COCHE ══════════════════════════════════════════ */
 
@@ -156,6 +157,8 @@ export function brouillonDeLaMain(
 
 export type FicheMinimale = {
   name: string;
+  /** Son prénom d'usage (7 novembre 2026) : tout le prénom composé. */
+  prenomUsage?: string;
   civilite?: 'madame' | 'mademoiselle' | 'monsieur';
   auMasculin?: boolean;
   crownStyle?: string;
@@ -205,7 +208,8 @@ export function contexteDuBilan(o: {
 }): ContexteDuBilan {
   const f = o.fiche;
   const civ = f.civilite && DIT_CIV[f.civilite] ? DIT_CIV[f.civilite] : f.auMasculin ? 'Monsieur' : 'Madame';
-  const prenom = (f.name ?? '').trim().split(/\s+/)[0] ?? '';
+  /* Tout le prénom composé (7 novembre 2026) : « Madame Anne Marie ». */
+  const prenom = prenomDUsage(f);
   return {
     appel: prenom ? `${civ} ${prenom}` : civ,
     seance: { date: o.seance.date, prestations: o.seance.prestations.slice(0, 6), praticien: o.seance.praticien },

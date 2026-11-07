@@ -889,9 +889,33 @@ var CLES_DES_COMPTEURS = COMPTEURS_DU_LIVRE.map((c) => c.cle);
 var DIT = { madame: "Madame", mademoiselle: "Mademoiselle", monsieur: "Monsieur" };
 var ABREGE = { madame: "Mme", mademoiselle: "Mlle", monsieur: "M." };
 var civiliteDe = (c) => c?.civilite && DIT[c.civilite] ? c.civilite : c?.auMasculin ? "monsieur" : "madame";
-var prenomSeul = (nom) => (nom ?? "").trim().split(/\s+/)[0] ?? "";
+var PRENOMS_QUI_SE_COMPOSENT = ["Marie", "Anne", "Jean", "Paul", "Pierre", "Louis"];
+var PARTICULE_DU_NOM = /^(?:de|da|do|dos|das|du|des|di|del|della|van|von|le|la|d['’]\S*)$/i;
+var motEnCapitales = (m) => /^[\p{Lu}'’-]+$/u.test(m) && (m.match(/\p{Lu}/gu) ?? []).length >= 2;
+var capitaleDuSecond = (m) => /^\p{Ll}/u.test(m) ? `${m.charAt(0).toUpperCase()}${m.slice(1)}` : m;
+var prenomDevine = (nom) => {
+  const mots = String(nom ?? "").trim().replace(/\s+/g, " ").replace(/(\S+) ?- ?(?=(\S+))/g, (tout, g, d) => motEnCapitales(g) || motEnCapitales(d) ? tout : `${g}-`).split(" ").filter(Boolean);
+  if (mots.length === 0) return "";
+  const nomDeFamille = mots.findIndex((m, i) => i > 0 && motEnCapitales(m));
+  if (nomDeFamille > 0) {
+    const fin = mots.findIndex((m, i) => i > 0 && (i >= nomDeFamille || !/^\p{L}/u.test(m)));
+    const prenoms = mots.slice(0, fin);
+    while (prenoms.length > 1 && PARTICULE_DU_NOM.test(prenoms[prenoms.length - 1])) prenoms.pop();
+    return prenoms.map((m, i) => i > 0 && !PARTICULE_DU_NOM.test(m) ? capitaleDuSecond(m) : m).join(" ");
+  }
+  const premier = mots[0].toLowerCase();
+  const second = mots[1] ?? "";
+  if (mots.length >= 3 && PRENOMS_QUI_SE_COMPOSENT.some((p) => p.toLowerCase() === premier) && /^\p{L}/u.test(second) && !PARTICULE_DU_NOM.test(second)) {
+    return `${mots[0]} ${capitaleDuSecond(second)}`;
+  }
+  return mots[0];
+};
+var prenomDUsage = (c, repli) => {
+  const note = String(c?.prenomUsage ?? "").trim().replace(/\s+/g, " ");
+  return note || prenomDevine(c?.name ?? repli);
+};
 var appelDe = (c, repli) => {
-  const prenom = prenomSeul(c?.name ?? repli);
+  const prenom = prenomDUsage(c, repli);
   const connue = !!c?.civilite && !!DIT[c.civilite] || !!c?.auMasculin;
   if (!connue) return prenom || "Madame, Monsieur";
   const civ = civiliteDe(c);

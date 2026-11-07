@@ -11,6 +11,7 @@ import { supabase } from '../../shared/supabase';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { branchesStore } from '../../shared/branches';
 import { createStore, uid, useStore } from '../../shared/store';
+import { prenomDevine } from '../../shared/civilite';
 import {
   ANALYSE_LINES, ANALYSE_STEPS, CURRENCY_CHOICES, DOW_NAMES, DOW_SHORT, ETAT_CREATION, ETAT_SOS,
   FEE_XOF, HAIR_CHIPS, HORIZON_CHIPS, INSPO_CHIPS, LEN_CHIPS, LIFE_CHIPS, MILESTONES, MOMO_ACCOUNT,
@@ -185,7 +186,8 @@ export default function App() {
   /* Le crédit sur la première séance n'existe que si le serveur a vu l'argent. */
   const credit = access.paid ? access.amountXof : 0;
   const diag = useMemo(() => computeDiag(answers, parcours), [answers, parcours]);
-  const prenom = answers.nom.trim().split(/\s+/)[0] || '';
+  /* Tout le prénom composé (7 novembre 2026) : « Bienvenue à la Maison, Anne Marie ». */
+  const prenom = prenomDevine(answers.nom);
 
   const go = (s: Scene) => {
     setSceneRaw(s);

@@ -2,9 +2,10 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { CarteDeMarraine } from '../../ds/CarteDeMarraine';
 import { carteDeMarraineEnBlob, lienDeLaCarte, lienDeLaCarteEcrit, messageDeLaCarte, type DonneesDeCarte } from '../../ds/carte-marraine';
 import {
-  genreEffectif, prenomDuNom, rangDe, rangSuivant, soinsEnAttente, RANGS,
+  genreEffectif, rangDe, rangSuivant, soinsEnAttente, RANGS,
   type ChoixDeRecompense, type SoinOffert,
 } from '../../shared/parrainage-pur';
+import { prenomDUsage } from '../../shared/civilite';
 import { codeDeLaCarte, resteAvantLaGraine, seuilDeLaGraine, visitesDesLunes, DEBUT_DES_LUNES } from '../../shared/douze-lunes-pur';
 import { useDouzeLunes } from '../../shared/douze-lunes';
 import { useAppointments } from '../../shared/agenda';
@@ -93,7 +94,8 @@ export function donneesDeMaCarte(client: ReturnType<typeof useClient>, lance: bo
   const code = codeDeLaCarte(client, lance);
   if (!client || !code) return null;
   return {
-    prenom: prenomDuNom(client.name) || client.name,
+    /* Tout le prénom composé (7 novembre 2026) ; le CODE garde le premier mot. */
+    prenom: prenomDUsage(client) || client.name,
     code,
     depuis: (client.since ?? '').slice(0, 4) || String(new Date().getFullYear()),
     modele: client.carteModele ?? 'indigo',

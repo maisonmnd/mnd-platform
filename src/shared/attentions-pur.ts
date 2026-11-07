@@ -26,6 +26,7 @@
    pour les bancs. */
 
 import type { ReleveDuContrat } from './abonnee-pur';
+import { prenomDevine } from './civilite';
 
 export type Rayon = 'boire' | 'gout' | 'present';
 export type Niveau = 'offert' | 'carte' | 'or';
@@ -193,9 +194,10 @@ export const heureDuFauteuil = (t: string): string => {
   return m ? `${Number(m[1])} h ${m[2]}` : t;
 };
 
-/** Le prénom à écrire sur une carte : le premier mot du nom, s'il en est un. */
+/** Le prénom à écrire sur une carte, s'il en est un : tout le prénom composé
+    (7 novembre 2026, `prenomDevine` : « Anne Marie GAYE » donne « Anne Marie »). */
 export const prenomDe = (nom: string | undefined): string => {
-  const brut = (nom ?? '').trim().split(/\s+/)[0] ?? '';
+  const brut = prenomDevine(nom);
   return brut && !/[0-9@_.]/.test(brut) ? brut : '';
 };
 

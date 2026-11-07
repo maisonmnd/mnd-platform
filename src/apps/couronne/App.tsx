@@ -11,6 +11,7 @@ import type { ReleveDuContrat } from '../../shared/abonnee-pur';
 import { useEnsureClient, useActivityTracker, useClientId, useClient, useCompteEnDouble, useCompteMaison, useCouronneFermee, useModuleFerme, todayIso, type BookingPrefill } from './lib';
 import { registerSW, ensurePush, clearAppNotifications } from '../../shared/push';
 import { poseLIdentite } from '../../shared/journal';
+import { prenomDUsage } from '../../shared/civilite';
 import Onboarding from './Onboarding';
 import Booking from './Booking';
 import Compose from './Compose';
@@ -126,7 +127,7 @@ function Shell() {
      l'abonnée, le même que le Trône. Tous les écrans de la formule le lisent. */
   const teteId = enfant?.id ?? (clientId && clientId !== 'c-local' ? clientId : me?.id);
   const releve = useReleve(teteId);
-  const prenomTete = enfant ? (enfant.name.split(' ')[0] || enfant.name) : undefined;
+  const prenomTete = enfant ? (prenomDUsage(enfant) || enfant.name) : undefined;
 
   /* LA VITRINE DES FORMULES EST-ELLE OUVERTE POUR ELLE ? Même juge que
      l'onglet Ma formule (`formulesVisiblesPour`). */
@@ -296,7 +297,7 @@ function Shell() {
             className={`mc-pourqui__chip ${tete === tt.id ? 'is-on' : ''}`}
             onClick={() => setTete(tt.id)}
           >
-            {tt.name.split(' ')[0]}{a !== undefined ? <> · {t('{age} ans', { age: a })}</> : ''}
+            {prenomDUsage(tt)}{a !== undefined ? <> · {t('{age} ans', { age: a })}</> : ''}
           </button>
         );
       })}

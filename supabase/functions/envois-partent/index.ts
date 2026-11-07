@@ -41,6 +41,55 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+/* ══ LE PRÉNOM COMPOSÉ — 7 novembre 2026 ══════════════════════════════════
+   « Quand on leur écrit, on écrive toujours, dans leur rendez-vous et dans
+   leur messagerie WhatsApp, tout le prénom composé » (Yéman) : le prénom
+   d'usage de la fiche, sinon celui que le Trône devine du nom. Recopié de
+   `src/shared/civilite.ts` entre ses repères ; verifie-le-prenom-d-usage
+   et le banc des douze lunes tiennent la copie. */
+/* ⟨prenom-d-usage⟩ */
+/** LES PRÉNOMS QUI SE COMPOSENT (liste du 7 novembre 2026) : en tête d'un nom
+    de trois mots ou plus sans NOM en capitales, ils prennent le mot suivant. */
+const PRENOMS_QUI_SE_COMPOSENT: readonly string[] = ['Marie', 'Anne', 'Jean', 'Paul', 'Pierre', 'Louis'];
+/** Les particules d'un nom de famille : « de », « da », « d'Agbo »… */
+const PARTICULE_DU_NOM = /^(?:de|da|do|dos|das|du|des|di|del|della|van|von|le|la|d['’]\S*)$/i;
+/** Un mot tout en capitales : au moins deux lettres, accents compris, l'apostrophe et le trait d'union admis. */
+const motEnCapitales = (m: string): boolean => /^[\p{Lu}'’-]+$/u.test(m) && (m.match(/\p{Lu}/gu) ?? []).length >= 2;
+/** La capitale d'un second prénom écrit en minuscules ; rien d'autre ne bouge. */
+const capitaleDuSecond = (m: string): string => (/^\p{Ll}/u.test(m) ? `${m.charAt(0).toUpperCase()}${m.slice(1)}` : m);
+
+/** LE PRÉNOM QUE LE TRÔNE DEVINE d'un nom complet (les règles 2 à 5). Le
+    trait d'union se recolle dans le prénom, jamais vers un NOM en capitales
+    (« Awa - KOSSI » reste deux mots). */
+const prenomDevine = (nom: unknown): string => {
+  const mots = String(nom ?? '').trim().replace(/\s+/g, ' ')
+    .replace(/(\S+) ?- ?(?=(\S+))/g, (tout: string, g: string, d: string) => (motEnCapitales(g) || motEnCapitales(d) ? tout : `${g}-`))
+    .split(' ').filter(Boolean);
+  if (mots.length === 0) return '';
+  const nomDeFamille = mots.findIndex((m, i) => i > 0 && motEnCapitales(m));
+  if (nomDeFamille > 0) {
+    const fin = mots.findIndex((m, i) => i > 0 && (i >= nomDeFamille || !/^\p{L}/u.test(m)));
+    const prenoms = mots.slice(0, fin);
+    while (prenoms.length > 1 && PARTICULE_DU_NOM.test(prenoms[prenoms.length - 1])) prenoms.pop();
+    return prenoms.map((m, i) => (i > 0 && !PARTICULE_DU_NOM.test(m) ? capitaleDuSecond(m) : m)).join(' ');
+  }
+  const premier = mots[0].toLowerCase();
+  const second = mots[1] ?? '';
+  if (mots.length >= 3 && PRENOMS_QUI_SE_COMPOSENT.some((p) => p.toLowerCase() === premier) && /^\p{L}/u.test(second) && !PARTICULE_DU_NOM.test(second)) {
+    return `${mots[0]} ${capitaleDuSecond(second)}`;
+  }
+  return mots[0];
+};
+
+/** LE PRÉNOM D'USAGE d'une cliente : celui de sa fiche, sinon celui que le
+    Trône devine de son nom. `repli` sert quand la fiche manque mais qu'un nom
+    est connu ailleurs (le rendez-vous, la demande du site). */
+const prenomDUsage = (c: { name?: unknown; prenomUsage?: unknown } | null | undefined, repli?: unknown): string => {
+  const note = String(c?.prenomUsage ?? '').trim().replace(/\s+/g, ' ');
+  return note || prenomDevine(c?.name ?? repli);
+};
+/* ⟨/prenom-d-usage⟩ */
+
 /* ══ LE MESSAGE DU FOYER, 4 novembre 2026 ══════════════════════════════
    « Un seul message par foyer, au numéro du foyer, qui nomme toutes les
    têtes » (maquette du parcours du foyer, arbitrage 3). Recopié À
@@ -53,8 +102,10 @@ export type TeteAPrevenir = { id: string; clientId?: string; foyerId?: string; d
 /** Un foyer à prévenir : la tête qui porte le message (la plus tôt), puis toutes, dans l'ordre. */
 export type FoyerAPrevenir<T extends TeteAPrevenir> = { cle: string; porteur: T; tetes: T[] };
 
-/** Le prénom d'une fiche : le premier mot de son nom, jamais le nom de famille. */
-export const prenomDeLaTete = (nom: unknown): string => String(nom ?? '').trim().split(/\s+/)[0] ?? '';
+/** Le prénom d'une fiche, jamais le nom de famille. TOUT LE PRÉNOM COMPOSÉ
+    (7 novembre 2026) : son prénom d'usage (`usage`), sinon celui que le Trône
+    devine du nom (`prenomDUsage`, la copie ⟨prenom-d-usage⟩ des fonctions). */
+export const prenomDeLaTete = (nom: unknown, usage?: unknown): string => prenomDUsage({ name: nom, prenomUsage: usage });
 
 /** Les prénoms dits en français : « Jade », « Jade et Faith », « Jade, Faith et Maëlle ». */
 export function prenomsDits(prenoms: readonly string[]): string {
@@ -561,13 +612,17 @@ export function civiliteEcrite(appel: string): { mot: string | null; reste: stri
 export function appelJuste(ecrit: string, fiche: FicheALaPorte | null | undefined): string | null {
   if (!fiche) return null;
   const { mot, reste } = civiliteEcrite(ecrit);
-  const prenom = String(fiche.name ?? '').trim().split(/\s+/)[0] ?? '';
-  if (reste !== prenom) return null;
+  /* TOUT LE PRÉNOM COMPOSÉ (7 novembre 2026) : la porte écrit le prénom
+     d'usage (`prenomDUsage`) ; un message déposé avant ce jour, qui dit le
+     premier mot seul, la nomme encore, et prend tout son prénom. */
+  const prenom = prenomDUsage(fiche);
+  const premierMot = String(fiche.name ?? '').trim().split(/\s+/)[0] ?? '';
+  if (reste !== prenom && reste !== premierMot) return null;
   const civ = typeof fiche.civilite === 'string' && ABREGEE[fiche.civilite] ? fiche.civilite : null;
   let juste: string;
   if (civ) juste = prenom ? `${ABREGEE[civ]} ${prenom}` : ENTIERE[civ];
-  else if (!mot) juste = String(ecrit ?? '').replace(/\s+/g, ' ').trim();
-  else if (fiche.auMasculin === true && MASCULINES.has(mot)) juste = String(ecrit ?? '').replace(/\s+/g, ' ').trim();
+  else if (!mot) juste = prenom || String(ecrit ?? '').replace(/\s+/g, ' ').trim();
+  else if (fiche.auMasculin === true && MASCULINES.has(mot)) juste = prenom ? `${mot} ${prenom}` : mot;
   else juste = prenom || 'Madame, Monsieur';
   return juste === String(ecrit ?? '').replace(/\s+/g, ' ').trim() ? null : juste;
 }

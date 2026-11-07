@@ -17,6 +17,7 @@ import { motDuFoyer, nomsDuFoyer, pdfDuFoyer, useLaPieceEnPdf } from './pdf-de-l
 import { adresseDuLien, noteLEnvoiDuFoyer, noteLEnvoiDuLien, poseLeLienDeReglement, poseLeLienDuFoyer } from '../../../../shared/regler-la-seance';
 import { saitRegler, saitReglerLeFoyer, saitReglerLePoint, versionDuReglement } from '../../../../shared/regler-la-seance-serveur';
 import { parametreDuLien } from '../../../../shared/regler-la-seance-pur';
+import { prenomDUsage } from '../../../../shared/civilite';
 
 /* ══ LA PIÈCE PART SEULE CHEZ ELLE — 17 octobre 2026 ═════════════════════
    « Cette facture doit aller instantanément chez le client » (Yéman). Deux
@@ -203,7 +204,8 @@ export function useEnvoiDeLaPiece() {
     if (!o?.renvoi && destinataire.sansPapiersWa === true) { toast('Facture du foyer : pas de papier par WhatsApp, sa fiche le demande.'); return; }
     const prenomDe = (p: typeof p0) => {
       const tete = clients.find((c) => c.id === (p.forClientId ?? p.clientId));
-      return (tete?.name ?? 'Une tête').split(' ')[0];
+      /* Tout le prénom composé (7 novembre 2026) : « Anne Marie : 5 000 F ». */
+      return prenomDUsage(tete) || 'Une tête';
     };
     const totalXof = ouvertes.reduce((n, p) => n + invoiceResteXof(p), 0);
     const tg = paiementTapGoDeLaPiece(totalXof, settings.mndPay);

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Modal, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { prenomSeul } from '../../../../shared/civilite';
+import { prenomDUsage } from '../../../../shared/civilite';
 import { useSettings } from '../../../../shared/settings';
 import {
   archiveLeFil, automatesDesFils, desarchiveLeFil, estArchive, estReserve, filNeuf, filsDeLaMaison, lienWaMe, messagesQuiSonnent,
@@ -672,7 +672,7 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
   const proposeDAvancer = (b: Boite) => {
     const f = b.clientId ? ficheDe.get(b.clientId) : undefined;
     /* Sans fiche de l'Assistant, le prénom de la fiche cliente d'abord (comme `appelDe`) ; « Madame, Monsieur » en dernier recours, jamais une civilité supposée. */
-    const appel = f?.appel ?? ((b.clientId ? prenomSeul(b.nom) : '') || 'Madame, Monsieur');
+    const appel = f?.appel ?? ((b.clientId ? prenomDUsage(cerveau.clientDe(b.clientId), b.nom) : '') || 'Madame, Monsieur');
     const mot = `Bonjour ${appel}, ici la Maison MND. Pour vos locks, nous vous proposons d’avancer votre rendez-vous. Choisissez l’heure qui vous va dans Ma Couronne, ou répondez-nous ici.`;
     if (b.fil?.fenetre.ouverte) { setTexte(mot); toast('Message posé dans la zone : relisez-le avant de l’envoyer.'); return; }
     const lien = lienWaMe(b.numero ?? cerveau.clientDe(b.clientId ?? '')?.phone, mot);

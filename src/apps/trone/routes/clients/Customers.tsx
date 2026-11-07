@@ -82,7 +82,7 @@ import { contratPdf } from '../../../../shared/pdf';
 import { ChampDeDate, DateEnClair } from '../../../../ds/dates';
 import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
-import { CIVILITES, civiliteNotee, estMuette, ficheAvecCivilite, type Civilite } from '../../../../shared/civilite';
+import { CIVILITES, civiliteNotee, estMuette, ficheAvecCivilite, prenomDevine, type Civilite } from '../../../../shared/civilite';
 
 /* Customers — le CRM 360 : recherche, tri, indicateurs, segments, persona attribué,
    prochain RDV prédit, fiche complète (finances, présence Ma Couronne, commandes,
@@ -320,6 +320,42 @@ function LocksCell({ client }: { client: Client }) {
       onBlur={commit}
       onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
       style={{ width: '100%', maxWidth: 84, textAlign: 'center', padding: '5px 6px', fontSize: 13 }}
+    />
+  );
+}
+
+/** LE PRÉNOM D'USAGE — 7 novembre 2026. « C'est important que, quand on leur
+    écrit, on écrive toujours, dans leur rendez-vous et dans leur messagerie
+    WhatsApp, tout le prénom composé » (Yéman, au sélecteur : deviné,
+    corrigeable). Vide, le champ montre en gris ce que le Trône devine du nom ;
+    écrit, il fait foi partout (shared/civilite `prenomDUsage`). Même geste que
+    la cellule des locks : le brouillon reste local pendant la frappe, et
+    s'enregistre sur la fiche au blur ou à Entrée. */
+function ChampDuPrenomDUsage({ client, onPose }: { client: Client; onPose: (v: string | undefined) => void }) {
+  const [draft, setDraft] = useState(client.prenomUsage ?? '');
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) setDraft(client.prenomUsage ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id, client.prenomUsage, focused]);
+  const commit = () => {
+    setFocused(false);
+    const net = draft.trim().replace(/\s+/g, ' ');
+    setDraft(net);
+    if (net !== (client.prenomUsage ?? '')) onPose(net || undefined);
+  };
+  const devine = prenomDevine(client.name);
+  return (
+    <input
+      className="trc-v__champ"
+      value={draft}
+      placeholder={devine ? `Deviné : ${devine}` : 'Son prénom'}
+      title="Le prénom que la Maison écrit dans ses messages, son rendez-vous et Ma Couronne"
+      aria-label={`Prénom d’usage de ${client.name}`}
+      onFocus={() => setFocused(true)}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
     />
   );
 }
@@ -3633,6 +3669,11 @@ function Customer360({
                     onClick={() => patch(ficheAvecCivilite(x.cle))}>{x.dit}</button>
                 ))}
               </span></div>
+              {/* LE PRÉNOM D'USAGE (7 novembre 2026) : « tout le prénom composé »
+                  dans ses messages. Vide, le gris dit ce que le Trône devine. */}
+              <div className="trc-v trc-v--champ"><u>Prénom d’usage</u>
+                <ChampDuPrenomDUsage client={client} onPose={(v) => patch({ prenomUsage: v })} />
+              </div>
               <div className="trc-v"><u>Tél.</u><span className={client.phone ? '' : 'is-vide'}>{client.phone ? `${client.phoneNom ? `${client.phoneNom} · ` : ''}${client.phone}` : '—'}</span></div>
               {client.phone2 && (
                 <div className="trc-v"><u>Tél. 2</u><span>{`${client.phone2Nom ? `${client.phone2Nom} · ` : ''}${client.phone2}`}</span></div>

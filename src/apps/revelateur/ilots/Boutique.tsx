@@ -6,6 +6,7 @@ import {
 import { commanderALaBoutique, motDuRefus, prevenirALArrivee, reglerLaCommande } from '../../../shared/boutique-serveur';
 import { PUBLIC_KEY, payWithKkiapay } from '../../../shared/kkiapay-widget';
 import { mesure } from '../mesure';
+import { prenomDevine } from '../../../shared/civilite';
 
 /* LA BOUTIQUE DE LA MAISON — 22 octobre 2026, maquette validée
    (https://claude.ai/artifact/8dE2BEatDd94pn2CfWZRaP). « Construis la boutique
@@ -465,7 +466,8 @@ function Panier({ lignes, parId, vitrine, onAjoute, onRetire, onVide, onFerme }:
     lignes: lignes.map((l) => ({ id: l.id, qte: l.qte, ...(l.taille ? { taille: l.taille } : {}), ...(l.perso ? { perso: l.perso } : {}) })),
     remise, adresse: remise === 'livraison' ? adresse.trim() : undefined, nom: nom.trim(), numero: numero.trim(), paiement, origine: 'site',
   });
-  const prenom = nom.trim().split(/\s+/)[0] ?? '';
+  /* Tout le prénom composé (7 novembre 2026) : « Bonjour Anne Marie, ». */
+  const prenom = prenomDevine(nom);
 
   const auRetrait = async () => {
     if (envoi) return;

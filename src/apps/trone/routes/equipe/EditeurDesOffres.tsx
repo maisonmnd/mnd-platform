@@ -8,7 +8,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useCategories, useServices } from '../../../../shared/catalog';
 import { uid } from '../../../../shared/store';
 import { jourAn } from '../../../../shared/calendrier';
-import { prenomSeul } from '../../../../shared/civilite';
+import { prenomDUsage } from '../../../../shared/civilite';
 import { contientUnPrix } from '../../../../shared/campagnes-pur';
 import { RETENU, attendEncore, reglesDepuis } from '../../../../shared/salle-des-envois';
 import { devenuDe } from '../../../../shared/envois';
@@ -145,7 +145,7 @@ export function lignesDeLaNotification(
     if (dejaLa.has(id)) continue;
     lignes.push({
       id, branchId: o.branchId, type: 'campagne', canal: 'push', statut: RETENU, offreId: o.id,
-      clientId: t.id, prenom: prenomSeul(t.name), apptId: '', dateRdv: '',
+      clientId: t.id, prenom: prenomDUsage(t), apptId: '', dateRdv: '',
       partA: outils.maintenantIso, deposeLe: outils.maintenantIso, retenuPar: outils.qui, retenuLe: outils.maintenantIso, quand: outils.maintenantIso,
       colis: { genre: 'push', clientId: parLeCompte ? (t.authUserId as string) : t.id, titre, corps, url: '/couronne/' },
     });

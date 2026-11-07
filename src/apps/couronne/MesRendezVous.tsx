@@ -31,6 +31,7 @@ import { codeNormalise, estAPlaces } from '../../shared/offres-pur';
 import { estLaPlacePartie, laPlaceDuJour } from './places-pure';
 import { etatDeLaSeance, seDeplaceEnLigne } from '../../shared/abonnee-pur';
 import { decaleLeJour } from '../../shared/ia-faits-pur';
+import { prenomDUsage } from '../../shared/civilite';
 import { ETAT_SEANCE, appelleLaMaison, dateDansLaPhrase, leJour, seanceDuRelevé, useRelevesDe } from './releve';
 import { annulationParElle } from '../../shared/terminer-et-regler-pur';
 import { ReglerDAvance } from './ReglerAvantApres';
@@ -181,7 +182,7 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
     /* Le rituel d'une tête portée se nomme : « — pour Keli ». */
     const tete = a.clientId !== clientId ? tetes.find((x) => x.id === a.clientId) : undefined;
     if (!tete) return base;
-    const prenom = tete.name.split(' ')[0];
+    const prenom = prenomDUsage(tete);
     return pourLaMaison ? `${base}, pour ${prenom}` : t('{rituel}, pour {prenom}', { rituel: base, prenom });
   };
 
@@ -607,7 +608,7 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
                   <span>{fmtDuration(durationOf(a))} · {branch.name}</span>
                 </div>
                 <div className="mc-recapcard" style={{ textAlign: 'left' }}>
-                  {tete && <div className="mc-recapcard__meta">{t('Pour {prenom}', { prenom: tete.name.split(' ')[0] })}</div>}
+                  {tete && <div className="mc-recapcard__meta">{t('Pour {prenom}', { prenom: prenomDUsage(tete) })}</div>}
                   {a.serviceIds.map((id, i) => {
                     const s = services.find((x) => x.id === id);
                     return (

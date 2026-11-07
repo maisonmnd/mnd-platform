@@ -1,5 +1,6 @@
 import { createStore, useStore, uid } from './store';
 import { bindDocument } from './sync';
+import { prenomDevine } from './civilite';
 
 /* ── LE JOURNAL DES APPELS (25 août) ──────────────────────────────────
    Une cliente appelle pour un rendez-vous, on raccroche, on oublie. On ne peut
@@ -48,6 +49,7 @@ export const reporterAppel = (id: string, quand: string): void =>
 /** Le message WhatsApp pré-écrit pour rappeler une cliente suite à son appel.
     À signer par `signeLeMessage` avant de le passer à `wa.me`. */
 export const messageAppel = (a: Pick<AppelRecu, 'nom' | 'motif'>): string => {
-  const prenom = a.nom.trim().split(/\s+/)[0] || a.nom.trim();
+  /* Tout le prénom composé (7 novembre 2026) : « Bonjour Anne Marie ». */
+  const prenom = prenomDevine(a.nom) || a.nom.trim();
   return `Bonjour ${prenom}, la Maison MND a bien reçu votre appel${a.motif ? ` au sujet de « ${a.motif} »` : ''}. Quand vous conviendrait-il de passer ?`;
 };

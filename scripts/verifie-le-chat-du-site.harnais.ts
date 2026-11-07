@@ -118,6 +118,8 @@ type Msg = { id: number; discussion_id: string; de: string; texte: string; genre
 function serveur(o: { presents?: string[]; claude?: (s: string) => string } = {}) {
   const src = lis(SERVEUR);
   const code = [
+    /* Le prénom composé (7 novembre 2026) : appelDe s'appuie sur le bloc ⟨prenom-d-usage⟩. */
+    morceau(src, '/* ⟨prenom-d-usage⟩ */', '/* ⟨/prenom-d-usage⟩ */'),
     morceau(src, 'const appelDe = (', '\n};\n'),
     bloc(src).replace(/^export /gm, ''),
     morceau(src, 'function telephoneNormalise(', '\n}\n'),

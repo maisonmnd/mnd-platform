@@ -18,7 +18,7 @@ import { pointsHistoryStore } from './data';
 import { Bar, Pill, Tabs } from './ui';
 import Parrainages from './Parrainages';
 import './equipe.css';
-import { appelDe } from '../../../../shared/civilite';
+import { appelDe, prenomDUsage } from '../../../../shared/civilite';
 
 /* ══ LE CERCLE MND, RÉUNI — 29 septembre 2026 (maquette « Le Cercle réuni »,
    validée) ══════════════════════════════════════════════════════════════
@@ -94,7 +94,7 @@ export default function Cercle() {
       const depense = depenseFoyerXof(payeur, clients, families, appts);
       const palier = meilleurPalierFoyer(depense, foyerTiers);
       const prochain = sortedFoyerTiers.find((t) => depense < t.seuilXof) ?? null;
-      acc.push({ famId: fam.id, nom: fam.name, depense, palier, prochain, phone: payeur.phone, prenom: payeur.name.split(' ')[0] });
+      acc.push({ famId: fam.id, nom: fam.name, depense, palier, prochain, phone: payeur.phone, prenom: prenomDUsage(payeur) });
       return acc;
     }, [] as { famId: string; nom: string; depense: number; palier: FoyerTier | null; prochain: FoyerTier | null; phone?: string; prenom: string }[])
     .sort((a, b) => b.depense - a.depense),

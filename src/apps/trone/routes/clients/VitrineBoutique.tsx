@@ -21,6 +21,7 @@ import { reglerLaCommande, motDuRefus } from '../../../../shared/boutique-serveu
 import { usePrevenir, prevenirStore, estDeLaBoutique, type PieceDeBoutique, type EtatDeCommande } from '../../../../shared/boutique-store';
 import { BandeDeVitrine, Pastille } from './VitrineSite';
 import { frShortAn, dayOf, todayISO, useBranchClients } from './_shared';
+import { prenomDevine } from '../../../../shared/civilite';
 import './vitrine-boutique.css';
 
 /* ══ LA BOUTIQUE, AU TRÔNE — 22 octobre 2026 ═════════════════════════════
@@ -55,7 +56,8 @@ function instantEnClair(ouverture: string | undefined): string {
 
 const ETAT_MOTS: Record<EtatDeCommande, string> = { 'a-preparer': 'À préparer', prete: 'Prête', remise: 'Remise' };
 const etatDe = (p: PieceDeBoutique): EtatDeCommande => p.boutique.etat ?? 'a-preparer';
-const prenomDe = (nom: string | undefined) => (nom ?? '').trim().split(/\s+/)[0] ?? '';
+/** Tout le prénom composé (7 novembre 2026) : « Bonjour Anne Marie, ». */
+const prenomDe = (nom: string | undefined) => prenomDevine(nom);
 
 export function VitrineBoutique() {
   const { branch, currency } = useBranch();

@@ -40,7 +40,6 @@ import {
   dayLabelIso,
   ensureClient,
   fermeLaPlaceIci,
-  firstName,
   fmtDuration,
   freeSlots,
   grilleDuJour,
@@ -58,6 +57,7 @@ import {
 import { t, locale, langue, prix } from './i18n';
 import { heureHabituelle, issueDeLaPlace, naitConfirme, relisLesMurs, verdictDeLEcriture } from './reservation-pure';
 import { supabase } from '../../shared/supabase';
+import { prenomDUsage } from '../../shared/civilite';
 
 /* LE JOUR DIT DANS SA LANGUE : « Sam. 5 juil » en français (le libellé de
    toujours), « Sat 5 Jul » en anglais. Ce qui part au Trône garde
@@ -1578,7 +1578,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                 className={`mc-pourqui__chip ${pourId === t.id ? 'is-on' : ''}`}
                 onClick={() => { setPourId(t.id); if (vue === EXPRESS) choisisLesGestes([]); }}
               >
-                {t.name.split(' ')[0]}
+                {prenomDUsage(t)}
               </button>
             ))}
           </div>
@@ -1676,7 +1676,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
             {envie && elan && (
               <div className="mc-quizreco mc-rise">
                 <div className="mc-quizreco__eyebrow">
-                  {client?.name ? t('Pour vous, {prenom}', { prenom: firstName(client.name) }) : t('Pour vous')}
+                  {client?.name ? t('Pour vous, {prenom}', { prenom: prenomDUsage(client) }) : t('Pour vous')}
                 </div>
                 {recoSvc && motEnvie ? (
                   <>
