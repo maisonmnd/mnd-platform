@@ -23,6 +23,7 @@ import { racineOf, sousArbreOf, LONGUEURS, suitLongueur, type LongueurId, type S
   type CatalogCategory, type Service, type Product, type PriceMode, type Maison,
 } from '../../../../shared/catalog';
 import { uid } from '../../../../shared/store';
+import { deplaceLaLigne } from '../../../../shared/ordre-des-lignes-pur';
 import { appointmentsStore, useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import { apptNetXof, useServicesById, DrillModal, dayOf, todayISO, type Drill } from '../clients/_shared';
@@ -2314,9 +2315,10 @@ export default function Catalogue() {
                 </div>
               )}
               {svcForm.includes.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 84px 26px', gap: 8, marginBottom: 4 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 84px 52px 26px', gap: 8, marginBottom: 4 }}>
                   <span className="mnd-muted" style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase' }}>Prestation</span>
                   <span className="mnd-muted" style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase' }}>Semaines</span>
+                  <span />
                   <span />
                 </div>
               )}
@@ -2325,7 +2327,7 @@ export default function Catalogue() {
                    `<select>` dont le libelle est long refuse de se retrecir et
                    pousse les colonnes suivantes hors du cadre — c'est ce qui
                    faisait deborder la fenetre et sortir la colonne semaines. */
-                <div key={`inc-${i}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 84px 26px', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                <div key={`inc-${i}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 84px 52px 26px', gap: 8, alignItems: 'center', marginBottom: 6 }}>
                   <select
                     className="ds-select"
                     style={{ minWidth: 0, width: '100%' }}
@@ -2414,6 +2416,29 @@ export default function Catalogue() {
                     })}
                     placeholder="semaines"
                   />
+                  {/* 7 novembre 2026 (Y.) : « mets-moi des onglets up and down » : monter ou descendre une ligne du forfait. */}
+                  <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 3 }}>
+                    <button
+                      type="button"
+                      disabled={i === 0}
+                      onClick={() => setSvcForm({ ...svcForm, includes: deplaceLaLigne(svcForm.includes, i, -1) })}
+                      style={{ cursor: 'pointer', background: 'none', border: '1px solid var(--hairline)', borderRadius: 3, color: 'var(--ink-soft)', fontSize: 11, lineHeight: 1, padding: '3px 0', width: 24, opacity: (i === 0) ? 0.3 : 1 }}
+                      aria-label="Monter cette ligne"
+                      title="Monter cette ligne"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      disabled={i === svcForm.includes.length - 1}
+                      onClick={() => setSvcForm({ ...svcForm, includes: deplaceLaLigne(svcForm.includes, i, 1) })}
+                      style={{ cursor: 'pointer', background: 'none', border: '1px solid var(--hairline)', borderRadius: 3, color: 'var(--ink-soft)', fontSize: 11, lineHeight: 1, padding: '3px 0', width: 24, opacity: (i === svcForm.includes.length - 1) ? 0.3 : 1 }}
+                      aria-label="Descendre cette ligne"
+                      title="Descendre cette ligne"
+                    >
+                      ▼
+                    </button>
+                  </span>
                   <button
                     type="button"
                     onClick={() => setSvcForm({ ...svcForm, includes: svcForm.includes.filter((_, j) => j !== i) })}
