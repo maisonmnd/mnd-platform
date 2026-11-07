@@ -4636,7 +4636,12 @@ function RdvModalCorps({
                   donne : le parent lit un prix, pas un geste, et un geste qu'on
                   ne voit pas n'est pas reçu. Le prix barré ne sert qu'à DIRE,
                   il n'entre dans aucun total. */}
-              {(sv.includes?.length ?? 0) > 0 && (() => {
+              {/* LE MOMENT NE SE MONTRE PAS EN BLOC (7 novembre 2026, Y.) : « je ne veux pas tout le détail en bloc du Moment, je veux ce qui est compris pour la journée d'aujourd'hui, sinon le staff ne saura pas ce qu'il doit faire ». Ses services de CETTE venue, sans prix de carte. */}
+              {contientLeMoment([sv.id]) && (() => {
+                const jour = detailDuService(sv, byId, {}, appt?.momentEnTrois?.rang ?? 1);
+                return jour.lignes.length > 0 ? <DetailDuMoment detail={jour} titre="Au programme aujourd’hui" avecValeurs={false} /> : null;
+              })()}
+              {!contientLeMoment([sv.id]) && (sv.includes?.length ?? 0) > 0 && (() => {
                 const compo = compositionDuForfait(sv, services, pricing.lockCount);
                 if (compo.length === 0) return null;
                 /* LE PRIX DE CETTE TÊTE, pas celui de la fiche : au-delà de
