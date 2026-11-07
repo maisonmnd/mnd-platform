@@ -171,6 +171,7 @@
 .ab-boutons { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
 .ab-court { min-height: 44px; padding: 12px; margin-top: 12px; font-size: 11px; }
 .ab-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ab-duo--seul { grid-template-columns: 1fr; }
 .ab-mini { background: var(--paper-2); border: 1px solid var(--ab-filet-doux); border-radius: 4px; padding: 13px; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 4px; font-family: var(--font-sans); color: var(--ink); }
 .ab-mini b { font-family: var(--font-serif); font-size: 18px; font-weight: 400; line-height: 1.15; color: var(--mc-encre); }
 .ab-mini span:last-child { font-size: 11.5px; color: var(--ink-soft); line-height: 1.4; }

@@ -40,6 +40,7 @@ import { remiseFamilleDeLaTete } from '../../shared/offres-pur';
 import { deliveryFee, useSettings } from '../../shared/settings';
 import { palierDuCarnet, pasSuivant, jourLocal, PALIER_DIT } from '../../shared/paliers';
 import { ProchaineMarche } from './ProchaineMarche';
+import { pastilleDeLaCouronne } from './pastille-pure';
 import {
   AlerteUnique, BoutonsDeLAccueil, CarteFormule, CarteSolde, Cloche, TableauDeBord, aUneFormule, sceauDeLaSeance,
   type GestesDeLAbonnee,
@@ -497,6 +498,8 @@ export function HomeTab({
   const [bilans] = useBilans();
   const monBilan = client ? dernierBilanDe(bilans, client.id) : undefined;
   const [lireBilan, setLireBilan] = useState(false);
+  /* LA PASTILLE DE LA COURONNE (7 novembre 2026) : le détail de l'ancienne carte. */
+  const [statutOuvert, setStatutOuvert] = useState(false);
   const [personas] = usePersonas();
   const [cats] = useCategories();
   const [produits] = useProducts();
@@ -696,10 +699,114 @@ export function HomeTab({
         <div className="mc-homehero__text">
           <div className="mc-micro-eyebrow">{t('Votre couronne')}</div>
           <div className="mc-homehero__greet">{prenom ? t('Bonjour, {prenom}.', { prenom }) : t('Bonjour.')}</div>
+          {(() => {
+            /* La cliente lit son calibre et sa fourchette, jamais son compte exact (16 octobre 2026). */
+            const b = calibreDeLaTete(client?.lockCount, bands, client?.margeCalibre);
+            const p = pastilleDeLaCouronne(b?.name, b ? fourchetteDuModele(b, bands) : '');
+            return (
+              <button type="button" className="mc-crownpill" aria-expanded={statutOuvert} aria-controls="mc-statut-couronne" onClick={() => setStatutOuvert((v) => !v)}>
+                {p ? t('Couronne {calibre} · {fourchette}', { calibre: p.calibre, fourchette: p.fourchette }) : t('Votre couronne')}
+                <span aria-hidden="true" className="mc-crownpill__chev">{statutOuvert ? '–' : '+'}</span>
+              </button>
+            );
+          })()}
         </div>
       </div>
 
       <div className="mc-pagepad">
+        {/* LA COURONNE, EN PASTILLE (7 novembre 2026) : la carte du statut
+            s'ouvre ici, au toucher de la pastille du haut. Rien n'est perdu :
+            calibre, fourchette, passages, Graine, rang. */}
+        {statutOuvert && (
+          <div id="mc-statut-couronne">
+          <div className="mc-crownstatus">
+            <span className="mc-crownstatus__filet" />
+            <div className="mc-crownstatus__top">
+              <div className="mc-crownstatus__id">
+                {/* LE CALIBRE SE COMPTE (13 août) : le style choisi à la main est
+                    retiré — la couronne se nomme par son calibre, déduit du
+                    comptage de la Maison. */}
+                <span className="mc-crownstatus__style">
+                  {(() => {
+                    /* La cliente lit son calibre et sa fourchette, jamais son compte exact (16 octobre 2026). */
+                    const b = calibreDeLaTete(client?.lockCount, bands, client?.margeCalibre);
+                    return b?.name?.trim() ? t('Couronne {calibre} · {fourchette}', { calibre: b.name.trim(), fourchette: fourchetteDuModele(b, bands) }) : t('Votre couronne');
+                  })()}
+                </span>
+              </div>
+              {/* LE CERCLE RÉUNI (29 septembre) : plus de sceau à points, son rang
+                  d'ambassadrice. Depuis De main en main (9 octobre 2026), dès
+                  sa Graine : le rang se gagne, Graine comprise. */}
+              {maCarte && (
+                <span className="mc-pillseal">{t(nomDuRang(maCarte.rang))}</span>
+              )}
+            </div>
+            {/* AVANT LE CERCLE, ON COMPTE DES PASSAGES, PAS DES POINTS. Montrer une
+                barre de paliers figée à zéro à qui n'y a pas encore droit fait
+                croire que rien ne compte — alors que ses venues, elles, comptent. */}
+            {!cercle.membre && cercle.cercleOuvert ? (
+              /* LE CERCLE EN CHIFFRES (chantier ④). La barre muette disait
+                 « presque » sans dire où l'on en est ; les points se comptent
+                 d'un regard — un par passage, remplis au fil des venues. Au-delà
+                 de dix, la barre reprend : trente points ne se lisent plus. */
+              <div className="mc-crownstatus__progress">
+                {cercle.seuil <= 10 ? (
+                  <div className="mc-dots" aria-hidden="true">
+                    {Array.from({ length: cercle.seuil }, (_, i) => (
+                      <i key={i} className={i < Math.min(cercle.venues, cercle.seuil) ? 'is-fait' : ''} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mc-bar">
+                    <div style={{ width: `${Math.min(100, Math.round((cercle.venues / Math.max(1, cercle.seuil)) * 100))}%` }} />
+                  </div>
+                )}
+                <span>
+                  {cercle.venues > 1
+                    ? t('{n} passages sur {seuil}', { n: cercle.venues, seuil: cercle.seuil })
+                    : t('{n} passage sur {seuil}', { n: cercle.venues, seuil: cercle.seuil })}
+                  {cercle.venues === 0
+                    ? t(', le Cercle s’ouvre au {seuil}ᵉ', { seuil: cercle.seuil })
+                    : cercle.reste > 0
+                      ? t(', encore {n} avant le Cercle', { n: cercle.reste })
+                      : ''}
+                </span>
+              </div>
+            ) : !maCarte ? (
+              /* MEMBRE DU CERCLE, PAS ENCORE GRAINE (9 octobre 2026) : la ligne
+                 de la Graine, à la place des amies qu'elle ne peut pas encore
+                 inviter. */
+              <div className="mc-crownstatus__progress">
+                <div className="mc-bar"><div style={{ width: `${Math.min(100, Math.round((maGraine.visites / Math.max(1, maGraine.seuil)) * 100))}%` }} /></div>
+                {/* UNE SEULE HORLOGE (10 octobre 2026) : le Cercle fermé, la
+                    Graine se dit seule, sans « Membre du Cercle ». */}
+                <span>{maGraine.reste > 0
+                  ? maGraine.reste > 1
+                    ? (cercle.cercleOuvert ? t('Membre du Cercle · votre Graine dans {n} visites', { n: maGraine.reste }) : t('Votre Graine dans {n} visites', { n: maGraine.reste }))
+                    : (cercle.cercleOuvert ? t('Membre du Cercle · votre Graine dans {n} visite', { n: maGraine.reste }) : t('Votre Graine dans {n} visite', { n: maGraine.reste }))
+                  : (cercle.cercleOuvert ? t('Membre du Cercle · votre carte se prépare à la Maison') : t('Votre carte se prépare à la Maison'))}</span>
+              </div>
+            ) : (() => {
+              const venues = client?.parrainage?.venues ?? 0;
+              const suivant = rangSuivant(venues);
+              if (!suivant) return null;
+              const base = rangDe(venues).seuil;
+              const pct = Math.round(((venues - base) / Math.max(1, suivant.seuil - base)) * 100);
+              return (
+                <div className="mc-crownstatus__progress">
+                  <div className="mc-bar"><div style={{ width: `${pct}%` }} /></div>
+                  <span>{venues === 0
+                    ? (cercle.cercleOuvert ? t('Membre du Cercle · votre première amie vous fera Pousse') : t('Votre première amie vous fera Pousse'))
+                    : suivant.seuil - venues > 1
+                      ? t('Encore {n} amies pour devenir {rang}', { n: suivant.seuil - venues, rang: t(suivant.nom) })
+                      : t('Encore {n} amie pour devenir {rang}', { n: suivant.seuil - venues, rang: t(suivant.nom) })}</span>
+                </div>
+              );
+            })()}
+          </div>
+          </div>
+        )}
+
         {/* rappel discret, rituel sous 48 h. UNE SEULE ALERTE pour l'abonnée
             (6 novembre 2026) : quand le relevé en porte une, c'est elle qui
             parle, et la carte de la prochaine séance dit déjà le rituel qui
@@ -727,93 +834,6 @@ export function HomeTab({
         {/* VOTRE PROCHAINE MARCHE (1er janvier 2027, la genèse des prix) :
             une seule carte, la première marche qui s'applique à sa couronne. */}
         <ProchaineMarche appts={clientAppts} onOpenBooking={onOpenBooking} goFormule={goFormule} />
-
-        {/* statut couronne */}
-        <div className="mc-crownstatus">
-          <span className="mc-crownstatus__filet" />
-          <div className="mc-crownstatus__top">
-            <div className="mc-crownstatus__id">
-              {/* LE CALIBRE SE COMPTE (13 août) : le style choisi à la main est
-                  retiré — la couronne se nomme par son calibre, déduit du
-                  comptage de la Maison. */}
-              <span className="mc-crownstatus__style">
-                {(() => {
-                  /* La cliente lit son calibre et sa fourchette, jamais son compte exact (16 octobre 2026). */
-                  const b = calibreDeLaTete(client?.lockCount, bands, client?.margeCalibre);
-                  return b?.name?.trim() ? t('Couronne {calibre} · {fourchette}', { calibre: b.name.trim(), fourchette: fourchetteDuModele(b, bands) }) : t('Votre couronne');
-                })()}
-              </span>
-            </div>
-            {/* LE CERCLE RÉUNI (29 septembre) : plus de sceau à points, son rang
-                d'ambassadrice. Depuis De main en main (9 octobre 2026), dès
-                sa Graine : le rang se gagne, Graine comprise. */}
-            {maCarte && (
-              <span className="mc-pillseal">{t(nomDuRang(maCarte.rang))}</span>
-            )}
-          </div>
-          {/* AVANT LE CERCLE, ON COMPTE DES PASSAGES, PAS DES POINTS. Montrer une
-              barre de paliers figée à zéro à qui n'y a pas encore droit fait
-              croire que rien ne compte — alors que ses venues, elles, comptent. */}
-          {!cercle.membre && cercle.cercleOuvert ? (
-            /* LE CERCLE EN CHIFFRES (chantier ④). La barre muette disait
-               « presque » sans dire où l'on en est ; les points se comptent
-               d'un regard — un par passage, remplis au fil des venues. Au-delà
-               de dix, la barre reprend : trente points ne se lisent plus. */
-            <div className="mc-crownstatus__progress">
-              {cercle.seuil <= 10 ? (
-                <div className="mc-dots" aria-hidden="true">
-                  {Array.from({ length: cercle.seuil }, (_, i) => (
-                    <i key={i} className={i < Math.min(cercle.venues, cercle.seuil) ? 'is-fait' : ''} />
-                  ))}
-                </div>
-              ) : (
-                <div className="mc-bar">
-                  <div style={{ width: `${Math.min(100, Math.round((cercle.venues / Math.max(1, cercle.seuil)) * 100))}%` }} />
-                </div>
-              )}
-              <span>
-                {cercle.venues > 1
-                  ? t('{n} passages sur {seuil}', { n: cercle.venues, seuil: cercle.seuil })
-                  : t('{n} passage sur {seuil}', { n: cercle.venues, seuil: cercle.seuil })}
-                {cercle.venues === 0
-                  ? t(', le Cercle s’ouvre au {seuil}ᵉ', { seuil: cercle.seuil })
-                  : cercle.reste > 0
-                    ? t(', encore {n} avant le Cercle', { n: cercle.reste })
-                    : ''}
-              </span>
-            </div>
-          ) : !maCarte ? (
-            /* MEMBRE DU CERCLE, PAS ENCORE GRAINE (9 octobre 2026) : la ligne
-               de la Graine, à la place des amies qu'elle ne peut pas encore
-               inviter. */
-            <div className="mc-crownstatus__progress">
-              <div className="mc-bar"><div style={{ width: `${Math.min(100, Math.round((maGraine.visites / Math.max(1, maGraine.seuil)) * 100))}%` }} /></div>
-              {/* UNE SEULE HORLOGE (10 octobre 2026) : le Cercle fermé, la
-                  Graine se dit seule, sans « Membre du Cercle ». */}
-              <span>{maGraine.reste > 0
-                ? maGraine.reste > 1
-                  ? (cercle.cercleOuvert ? t('Membre du Cercle · votre Graine dans {n} visites', { n: maGraine.reste }) : t('Votre Graine dans {n} visites', { n: maGraine.reste }))
-                  : (cercle.cercleOuvert ? t('Membre du Cercle · votre Graine dans {n} visite', { n: maGraine.reste }) : t('Votre Graine dans {n} visite', { n: maGraine.reste }))
-                : (cercle.cercleOuvert ? t('Membre du Cercle · votre carte se prépare à la Maison') : t('Votre carte se prépare à la Maison'))}</span>
-            </div>
-          ) : (() => {
-            const venues = client?.parrainage?.venues ?? 0;
-            const suivant = rangSuivant(venues);
-            if (!suivant) return null;
-            const base = rangDe(venues).seuil;
-            const pct = Math.round(((venues - base) / Math.max(1, suivant.seuil - base)) * 100);
-            return (
-              <div className="mc-crownstatus__progress">
-                <div className="mc-bar"><div style={{ width: `${pct}%` }} /></div>
-                <span>{venues === 0
-                  ? (cercle.cercleOuvert ? t('Membre du Cercle · votre première amie vous fera Pousse') : t('Votre première amie vous fera Pousse'))
-                  : suivant.seuil - venues > 1
-                    ? t('Encore {n} amies pour devenir {rang}', { n: suivant.seuil - venues, rang: t(suivant.nom) })
-                    : t('Encore {n} amie pour devenir {rang}', { n: suivant.seuil - venues, rang: t(suivant.nom) })}</span>
-              </div>
-            );
-          })()}
-        </div>
 
         {/* offres de saison, créées au Trône (Assistant Maison › Offres et remises), fenêtre jour/heure vivante ; « Offres instantanées » jusqu'au 27 octobre 2026 */}
         {offers.length > 0 && !moduleHidden(client, 'offres') && (
@@ -965,24 +985,29 @@ export function HomeTab({
         ) : null}
         {/* LA GAMME ET LE CERCLE, EN CARTES (décision 8) : ils quittent la
             barre du bas, ils restent à une touche d'ici et du Profil. */}
-        {(abonnee?.goGamme || abonnee?.goCercle) && (
+        {/* « POUR VOUS » SE COUPE (7 novembre 2026) : la page était trop
+            chargée. Deux rubriques à part, chacune sous son titre : Les
+            produits (« la Gamme, c'est les produits », Yéman) et Le Cercle,
+            qui reste distinct de la carte De main en main plus haut. */}
+        {abonnee?.goGamme && (
           <>
-            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('Pour vous')}</div>
-            <div className="ab-duo">
-              {abonnee.goGamme && (
-                <button type="button" className="ab-mini" onClick={abonnee.goGamme}>
-                  <span className="mc-micro-eyebrow">{t('La Gamme')}</span>
-                  <b>{t('Les soins Maison MND, chez vous.')}</b>
-                  <span>{t('Ce que la Maison emploie, à emporter.')}</span>
-                </button>
-              )}
-              {abonnee.goCercle && (
-                <button type="button" className="ab-mini" onClick={abonnee.goCercle}>
-                  <span className="mc-micro-eyebrow">{t('Le Cercle')}</span>
-                  <b>{t('De main en main.')}</b>
-                  <span>{t('Offrez une première séance à une proche.')}</span>
-                </button>
-              )}
+            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('Les produits')}</div>
+            <div className="ab-duo ab-duo--seul">
+              <button type="button" className="ab-mini" onClick={abonnee.goGamme}>
+                <b>{t('Les produits Maison MND, chez vous.')}</b>
+                <span>{t('Ce que la Maison emploie, à emporter.')}</span>
+              </button>
+            </div>
+          </>
+        )}
+        {abonnee?.goCercle && (
+          <>
+            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('Le Cercle')}</div>
+            <div className="ab-duo ab-duo--seul">
+              <button type="button" className="ab-mini" onClick={abonnee.goCercle}>
+                <b>{t('De main en main.')}</b>
+                <span>{t('Offrez une première séance à une proche.')}</span>
+              </button>
             </div>
           </>
         )}

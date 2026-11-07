@@ -400,4 +400,6 @@ export const EN_TABS: Record<string, string> = {
   'Pour votre règlement, l’équipe vous attend au comptoir.': 'For your payment, the team is waiting for you at the counter.',
   'Le règlement en ligne n’est pas ouvert pour ce rituel. L’équipe vous répond au comptoir.': 'Online payment is not open for this ritual. The team will help you at the counter.',
   'Le règlement ne répond pas. Réessayez dans un moment, ou passez au comptoir.': 'Payment is not responding. Try again in a moment, or stop at the counter.',
+  'Les produits': 'Products',
+  'Les produits Maison MND, chez vous.': 'Maison MND products, at home.',
 };
