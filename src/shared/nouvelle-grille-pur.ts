@@ -226,8 +226,8 @@ export const RETOUCHES: readonly Retouche[] = [
     'la cure recomposée, la composition moins 10 % : 245 / 310 / 370 000 F', 'janvier'),
   ARCHIVE('sv-fft-iv-02', 'FÍNFÍN™ × GBÈJÍ™ · La Renaissance + 6 Mois d’Entretien', 'remplacé par FÍNFÍN™ puis le Carnet de Six', 'janvier'),
 
-  /* Les forfaits et abonnements d'avant : les formules en lunes les remplacent. */
-  ARCHIVE('sv-forfait-gbeji-fidelite', 'GBÈJÍ™ Fidélité · Reprise & Shampoing Signature', 'remplacé par la venue nommée', 'janvier'),
+  /* Les forfaits et abonnements d'avant : les formules en lunes les remplacent.
+     `sv-forfait-gbeji-fidelite` n'y est PLUS : c'est le nouveau Fidélité (7 novembre 2026), il reste en vente. */
   ARCHIVE('sv-forfait-sv-fft-ii-01', 'Abonnement : GBÈJÍ™ Trimestriel · Le Cycle de Vie, 3 mois', 'remplacé par les Carnets en lunes', 'janvier'),
   ARCHIVE('sv-forfait-sv-fft-ii-02', 'Abonnement : GBÈJÍ™ Annuel · Le Cycle de Vie, 12 mois', 'doublait le Carnet de l’Année', 'janvier'),
   ARCHIVE('sv-forfait-sv-fft-i-01', 'Forfait VÈKPÈ™ Initiation · La Naissance + Trousse MND™', 'remplacé par VÈKPÈ™ · Les Premières Lunes', 'janvier'),

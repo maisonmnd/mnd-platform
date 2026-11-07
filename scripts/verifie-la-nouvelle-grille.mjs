@@ -42,6 +42,7 @@ globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assig
 }
 
 const PANNES = [
+  ['la grille archive de nouveau le pack Fidelite', 'src/shared/nouvelle-grille-pur.ts', "  ARCHIVE('sv-forfait-sv-fft-ii-01'", "  ARCHIVE('sv-forfait-gbeji-fidelite', 'Fidelite', 'ancien', 'janvier'),\n  ARCHIVE('sv-forfait-sv-fft-ii-01'"],
   ['le juge touche une ligne changee a la main', 'src/shared/nouvelle-grille-pur.ts', '    if (i < 0 || deja(l[i], r.pose) || !porte(l[i], r.si)) continue;', '    if (i < 0 || deja(l[i], r.pose)) continue;'],
   ['un champ a effacer reste pose', 'src/shared/nouvelle-grille-pur.ts', '    if (v === undefined) delete g[k]; else g[k] = v;', '    g[k] = v;'],
   ['une archivee sans date', 'src/shared/nouvelle-grille-pur.ts', '  if (pose.archived === true && !g.archivedLe) g.archivedLe = jour;', '  void jour;'],

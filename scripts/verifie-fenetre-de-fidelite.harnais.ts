@@ -241,8 +241,8 @@ dit('F2 l anglais de la phrase est dans en-booking.ts', true,
 dit('F3 aucun tiret long dans ce qui est dit a la cliente ou a la Maison', true,
   ![phraseDeLaFenetre(FEN), aver ?? '', avertissementDeFenetre(fid, D, null) ?? '', EN.match(/'Disponible entre[^\n]*/)?.[0] ?? ''].some((s) => s.includes('—')));
 const NG = lit('src/shared/nouvelle-grille-pur.ts');
-dit('F4 la grille de janvier n est pas touchee : le pack y reste archive', true,
-  /ARCHIVE\('sv-forfait-gbeji-fidelite', 'GBÈJÍ™ Fidélité · Reprise & Shampoing Signature', 'remplacé par la venue nommée', 'janvier'\)/.test(NG));
+dit('F4 la grille de janvier n archive plus le pack (meme identifiant que le nouveau Fidelite)', false,
+  NG.includes("ARCHIVE('sv-forfait-gbeji-fidelite'"));
 const CAT = lit('src/shared/catalog.ts');
 dit('F5 le champ vit sur le type Service, a cote de desVenue', true,
   /desVenue\?: number;[\s\S]{0,1400}fenetreApresVenue\?: FenetreApresVenue;/.test(CAT));

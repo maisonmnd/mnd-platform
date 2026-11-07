@@ -50,6 +50,7 @@ const svcs = [
   { id: 'sv-atl-iv-ala-c', name: 'ÀLÀLÀ™', prixParLongueur: { long: 200000, court: 110000, 'mi-long': 150000 },
     description: 'Le rituel. Engagement 3 séances minimum. Fin.' },
   { id: 'sv-atl-iii-lum-c', name: 'YÈKPÈ™ Couleur Lumière · La Brillance Signature', priceXof: 30000 }, // recotée à la main
+  { id: 'sv-forfait-gbeji-fidelite', name: 'Fidelite 20 %' },
 ];
 const cats = [
   { id: 'cat-defaisage', fon: 'GBÀTÀ™', label: 'Le Défaisage', parentId: 'atl-iv-finfin' },
@@ -64,6 +65,7 @@ dit('une regle posee absente devient vraie', true, sv('sv-plt-45-std')?.consulta
 dit('une regle posee a false par la main reste', false, sv('sv-plt-45-int')?.consultationAvant);
 dit('archivee, datee du jour', [true, JOUR], [sv('aqua-locks-ritual')?.archived, sv('aqua-locks-ritual')?.archivedLe]);
 dit('retablie a la main : on ne la rearchive pas', false, sv('sv-stu-a-nat-m')?.archived);
+dit('le pack Fidelite (meme identifiant que l ancien) n est pas archive par la grille', [undefined, false], [sv('sv-forfait-gbeji-fidelite')?.archived, readFileSync('src/shared/nouvelle-grille-pur.ts', 'utf8').includes("ARCHIVE('sv-forfait-gbeji-fidelite'")]);
 dit('ALALA : le long passe a 180 000, ordre des cles indifferent', 180000, (sv('sv-atl-iv-ala-c')?.prixParLongueur as Record<string, number>)?.long);
 dit('ALALA : la phrase des seances change une fois', 'Le rituel. En deux séances. Fin.', sv('sv-atl-iv-ala-c')?.description);
 dit('une ligne recotee a la main garde son prix', 30000, sv('sv-atl-iii-lum-c')?.priceXof);
