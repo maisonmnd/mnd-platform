@@ -2779,9 +2779,10 @@ function RdvModalCorps({
      figé est INFÉRIEUR au prix du jour, l'écart est une remise explicite — le RDV
      et la facture montrent les mêmes prix pleins + la même remise. Ne vaut que pour
      les rituels tout-en-prix-fixe (variable/devis : montant saisi au fauteuil). */
-  const frozenRemiseXof = !needsAmount && keepFrozen && grossBase + arrondiDuCode > effGross ? grossBase + arrondiDuCode - effGross : 0;
+  /* UN MOMENT EN PLUSIEURS VENUES EST UN FORFAIT, PAS UNE REMISE : « je ne veux pas voir de remise pour la facture, je veux juste voir forfait 45 000 » (Yéman, 7 novembre 2026). Sa part est son prix convenu : ni « prix d'origine conservé », ni « au tarif du jour », ni écart en remise. */
+  const frozenRemiseXof = !needsAmount && keepFrozen && !appt?.momentEnTrois && grossBase + arrondiDuCode > effGross ? grossBase + arrondiDuCode - effGross : 0;
   /* Information « prix d'origine ≠ tarif du jour » — ne vaut que pour les prix FIXES. */
-  const frozenDiffers = !needsAmount && typeof frozenXof === 'number' && Math.round(frozenXof) !== Math.round(grossBase + arrondiDuCode);
+  const frozenDiffers = !needsAmount && !appt?.momentEnTrois && typeof frozenXof === 'number' && Math.round(frozenXof) !== Math.round(grossBase + arrondiDuCode);
   /* Pourcentage d'abord, puis remise en CFA — jamais sous zéro. Même ordre que
      `apptNetXof`, sinon l'aperçu de la modale mentirait sur le net encaissé.
      Rituel couvert par l'abonnement → rien à facturer (0). */
@@ -6012,7 +6013,13 @@ function RdvModalCorps({
                 </div>
               </>
             )}
-            {forfaitPose && (
+            {forfaitPose && appt?.momentEnTrois && (
+              <div className="trc-total__row">
+                <span>Forfait · venue {appt.momentEnTrois.rang} sur {appt.momentEnTrois.tiers.length}</span>
+                <span className="trc-total__num">{argent(forfaitNum)}</span>
+              </div>
+            )}
+            {forfaitPose && !appt?.momentEnTrois && (
               <div className="trc-total__row">
                 <span>{forfaitNom.trim() || 'Forfait'} · au lieu de {argent(effGross)}</span>
                 <span className="trc-total__num" style={{ color: 'var(--copper-700)' }}>
