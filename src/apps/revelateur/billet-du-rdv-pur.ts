@@ -15,8 +15,21 @@
 
    Ce fichier est PUR : ce que la fonction `terminer-et-regler` rend, relu
    avant d'être cru, et les mots que la cliente lit. Le montant vient
-   toujours du serveur. La règle vit dans shared/terminer-et-regler-pur.ts. */
+   toujours du serveur. La règle vit dans shared/terminer-et-regler-pur.ts.
+
+   LE RENDEZ-VOUS PASSÉ ET RÉGLÉ — 7 novembre 2026. « Il faut avoir une
+   autre façon d'écrire les rendez-vous qui sont déjà passés et qui sont déjà
+   réglés, pouvoir télécharger le PDF » (Yéman). La page disait encore, des
+   jours après, « Vous pouvez partir » et « Votre reçu arrive sur WhatsApp ».
+   Un rituel d'un jour passé, réglé, se dit maintenant « Réglé le 4 novembre
+   2026. Merci, Anne. », avec son montant et « Télécharger ma facture
+   (PDF) » ; le jour même, la phrase d'avant garde sa note et gagne le même
+   bouton. Passé et non réglé : rien sur l'argent, comme avant (un retard de
+   saisie ne se montre jamais à une cliente). La facture vient du billet
+   (shared/billet-regle-pur.ts), relue avant d'être crue. */
 import { codeLu, quatreChiffresLus, type BilletDeLaFin, type EtatDuBillet, type RaisonDeLaPorte } from '../../shared/terminer-et-regler-pur';
+import { factureLue, totalDeLaFactureDuBillet, type FactureDuBillet } from '../../shared/billet-regle-pur';
+import { dateDite } from './calendrier-du-site-pur';
 
 export const FONCTION_DE_LA_FIN = 'terminer-et-regler';
 /** La page où le code et les quatre chiffres retrouvent le rendez-vous. */
@@ -24,8 +37,14 @@ export const CHEMIN_POUR_RETROUVER = 'mon-rendez-vous/';
 
 const ETATS: readonly EtatDuBillet[] = ['confirme', 'en-cours', 'termine', 'regle', 'annule', 'passe'];
 
-/** Le billet tel que la fonction le rend, ou null s'il n'a pas sa forme. */
-export function billetLu(brut: unknown): BilletDeLaFin | null {
+/** Le billet du site : celui de la règle, et la facture d'un rendez-vous
+    réglé quand le serveur la joint (7 novembre 2026). */
+export type BilletDuSite = BilletDeLaFin & { facture?: FactureDuBillet };
+
+/** Le billet tel que la fonction le rend, ou null s'il n'a pas sa forme.
+    Sa facture n'est gardée que si elle a la sienne (`factureLue`) : une
+    facture mal formée s'ignore, le billet reste. */
+export function billetLu(brut: unknown): BilletDuSite | null {
   const b = brut as Record<string, unknown> | null;
   if (!b || typeof b !== 'object') return null;
   const porte = b.porte as { ouverte?: unknown; raison?: unknown } | null;
@@ -33,17 +52,19 @@ export function billetLu(brut: unknown): BilletDeLaFin | null {
   if (!ETATS.includes(b.etat as EtatDuBillet) || !porte || typeof porte.ouverte !== 'boolean' || typeof porte.raison !== 'string') return null;
   const reste = b.resteXof === null || b.resteXof === undefined ? null : Number(b.resteXof);
   if (reste !== null && (!Number.isFinite(reste) || reste < 0)) return null;
+  const facture = b.facture === undefined ? null : factureLue(b.facture);
   return {
     reference: b.reference, prenom: typeof b.prenom === 'string' ? b.prenom : '', jour: b.jour, heure: typeof b.heure === 'string' ? b.heure : '',
     etat: b.etat as EtatDuBillet, resteXof: reste === null ? null : Math.round(reste),
     porte: { ouverte: porte.ouverte, raison: porte.raison as RaisonDeLaPorte }, aTermine: b.aTermine === true,
+    ...(facture ? { facture } : {}),
   };
 }
 
 /** CE QUE LA RECHERCHE A RENDU. `introuvable` dit la même chose pour un code
     inconnu et pour des chiffres faux : le serveur ne les distingue pas, la
     page non plus. */
-export type RechercheDuRdv = { etat: 'trouve'; v: string; billet: BilletDeLaFin } | { etat: 'introuvable' } | { etat: 'trop' } | { etat: 'panne' };
+export type RechercheDuRdv = { etat: 'trouve'; v: string; billet: BilletDuSite } | { etat: 'introuvable' } | { etat: 'trop' } | { etat: 'panne' };
 export function rechercheLue(r: unknown, statut?: number): RechercheDuRdv {
   const x = r as { ok?: unknown; error?: unknown; v?: unknown; billet?: unknown } | null;
   if (statut === 429 || x?.error === 'trop') return { etat: 'trop' };
@@ -55,7 +76,7 @@ export function rechercheLue(r: unknown, statut?: number): RechercheDuRdv {
 }
 
 /** Le billet relu par son jeton signé (la page /rdv/). */
-export function billetDeLaPageLu(r: unknown): BilletDeLaFin | null {
+export function billetDeLaPageLu(r: unknown): BilletDuSite | null {
   const x = r as { ok?: unknown; billet?: unknown } | null;
   return x && typeof x === 'object' && x.ok === true ? billetLu(x.billet) : null;
 }
@@ -111,18 +132,35 @@ export type ReglementDit = {
   montant?: string;
   /** Le bouton, seulement quand la porte est ouverte. */
   bouton?: 'Terminer et régler' | 'Régler mon rituel';
+  /** Télécharger la facture : seulement un rendez-vous réglé dont le billet porte la facture. */
+  telecharger?: typeof TELECHARGER_LA_FACTURE;
   note?: string;
   /** Le jour même, le rituel a commencé : Déplacer et Annuler n'ont plus lieu d'être. */
   leJourMeme: boolean;
 };
 
+/** Le bouton de la facture d'un rendez-vous réglé, et la phrase calme d'un échec. */
+export const TELECHARGER_LA_FACTURE = 'Télécharger ma facture (PDF)';
+export const FACTURE_EN_PANNE = 'La facture ne se prépare pas. Réessayez, ou écrivez à la Maison.';
+
 /** CE QUE LE BILLET DIT DU RÈGLEMENT, ou null quand il n'y a rien à en dire
-    (annulé, passé, clos au comptoir). Le bouton ne paraît que porte ouverte. */
-export function reglementDuBillet(b: BilletDeLaFin): ReglementDit | null {
+    (annulé, passé sans être réglé, clos au comptoir). Le bouton ne paraît
+    que porte ouverte. `aujourdhui` : le jour de Cotonou (`jourDeLaFin`), qui
+    sépare un rituel réglé d'un jour passé de celui réglé le jour même. */
+export function reglementDuBillet(b: BilletDuSite, aujourdhui?: string): ReglementDit | null {
   const montant = b.resteXof !== null && b.resteXof > 0 ? francsDits(b.resteXof) : undefined;
   const merci = b.prenom ? `Merci, ${b.prenom}.` : 'Merci.';
   if (b.etat === 'regle') {
-    return { sur: 'Réglé', phrase: `${merci} Vous pouvez partir : la Maison est prévenue.`, note: 'Votre reçu arrive sur WhatsApp, la facture jointe.', leJourMeme: true };
+    const facture: Pick<ReglementDit, 'telecharger'> = b.facture ? { telecharger: TELECHARGER_LA_FACTURE } : {};
+    /* UN RITUEL D'UN JOUR PASSÉ, RÉGLÉ (7 novembre 2026) : ni « vous pouvez
+       partir », ni « votre reçu arrive » ; le jour du règlement, avec son
+       année, le montant réglé, et sa facture. */
+    if (aujourdhui && b.jour < aujourdhui) {
+      return b.facture
+        ? { sur: 'Réglé', montant: francsDits(totalDeLaFactureDuBillet(b.facture)), phrase: `Réglé le ${dateDite(b.facture.regleLe)}. ${merci}`, ...facture, leJourMeme: false }
+        : { sur: 'Réglé', phrase: `Ce rendez-vous est réglé. ${merci}`, leJourMeme: false };
+    }
+    return { sur: 'Réglé', phrase: `${merci} Vous pouvez partir : la Maison est prévenue.`, ...facture, note: 'Votre reçu arrive sur WhatsApp, la facture jointe.', leJourMeme: true };
   }
   if (b.porte.ouverte) {
     return b.aTermine || b.etat === 'termine'

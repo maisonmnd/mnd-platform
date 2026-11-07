@@ -127,14 +127,17 @@ dit('ce qui n est pas un code : trop court, trop long, un signe hors de l alphab
 dit('l alphabet du code est celui de la reference du rendez-vous', ALPHABET_DE_LA_REFERENCE, SIGNES_DU_CODE_DE_LA_FIN);
 dit('quatre chiffres, ni plus ni moins ; la fin d un vrai numero seulement', ['4480', null, null, '4480', ''],
   [quatreChiffresLus('44 80'), quatreChiffresLus('448'), quatreChiffresLus('44801'), finDuNumero('+229 01 97 12 44 80'), finDuNumero('4480')]);
-dit('la recherche est bornee : d hier a cent jours', { du: '2026-11-05', au: '2027-02-14' }, fenetreDeLaRecherche(A_10H));
+/* DOUZE MOIS EN ARRIERE (choix de Yeman, 7 novembre 2026) : « Mes RDV » rend aussi un rituel passe, pour sa facture. */
+dit('la recherche est bornee : douze mois en arriere, cent jours en avant', { du: '2025-11-06', au: '2027-02-14' }, fenetreDeLaRecherche(A_10H));
 
 type Tete = { id: string; date: string; time: string; status: string; numeros: string[] };
 const tetes: Tete[] = [
   { id: 'rdv-aaa', date: JOUR, time: '08:00', status: 'confirmé', numeros: ['+229 01 97 12 44 80'] },
   { id: 'rdv-bbb', date: JOUR, time: '11:00', status: 'confirmé', numeros: ['+229 01 55 00 12 34', '+33 6 11 22 33 44'] },
   { id: 'rdv-loin', date: '2027-03-01', time: '09:00', status: 'confirmé', numeros: ['+229 01 97 12 44 80'] },
-  { id: 'rdv-vieux', date: '2026-11-04', time: '09:00', status: 'confirmé', numeros: ['+229 01 97 12 44 80'] },
+  { id: 'rdv-vieux', date: '2025-11-05', time: '09:00', status: 'honoré', numeros: ['+229 01 97 12 44 80'] },
+  { id: 'rdv-onze-mois', date: '2025-12-06', time: '09:00', status: 'honoré', numeros: ['+229 01 97 12 44 80'] },
+  { id: 'rdv-un-an-pile', date: '2025-11-06', time: '09:00', status: 'honoré', numeros: ['+229 01 97 12 44 80'] },
   { id: 'rdv-hier', date: '2026-11-05', time: '09:00', status: 'honoré', numeros: ['+229 01 97 12 99 99'] },
 ];
 const cherche = (code: unknown, chiffres: unknown, liste: Tete[] = tetes, referenceDe = referenceDuRendezVous) =>
@@ -146,15 +149,27 @@ dit('le code seul n ouvre rien : sans chiffres, avec des chiffres faux, avec les
 dit('les chiffres seuls n ouvrent rien : sans code, avec le code d une autre', [null, null], [cherche('', '4480'), cherche(codeDe('rdv-bbb'), '4480')]);
 dit('un code inconnu et des chiffres faux rendent la meme chose : rien', [null, null], [cherche('MND-ZZZZ', '4480'), cherche(codeDe('rdv-aaa'), '0000')]);
 dit('le second numero de la fiche (le parent qui a pris le rendez-vous) vaut aussi', 'rdv-bbb', cherche(codeDe('rdv-bbb'), '3344'));
-dit('hors des rendez-vous proches, rien : dans quatre mois, il y a deux jours ; hier se retrouve encore', [null, null, 'rdv-hier'],
-  [cherche(codeDe('rdv-loin'), '4480'), cherche(codeDe('rdv-vieux'), '4480'), cherche(codeDe('rdv-hier'), '9999')]);
+dit('hors des rendez-vous proches, rien : dans quatre mois, il y a douze mois et un jour ; hier, il y a onze mois, il y a douze mois pile se retrouvent',
+  [null, null, 'rdv-hier', 'rdv-onze-mois', 'rdv-un-an-pile'],
+  [cherche(codeDe('rdv-loin'), '4480'), cherche(codeDe('rdv-vieux'), '4480'), cherche(codeDe('rdv-hier'), '9999'), cherche(codeDe('rdv-onze-mois'), '4480'), cherche(codeDe('rdv-un-an-pile'), '4480')]);
+dit('... vieux de onze mois, le code seul, des chiffres faux, les chiffres d une autre n ouvrent toujours rien', [null, null, null],
+  [cherche(codeDe('rdv-onze-mois'), ''), cherche(codeDe('rdv-onze-mois'), '0000'), cherche(codeDe('rdv-onze-mois'), '9999')]);
 const jumeaux: Tete[] = [
   { id: 'j-annule', date: JOUR, time: '10:00', status: 'annulé', numeros: ['+229 01 00 00 77 77'] },
   { id: 'j-decembre', date: '2026-12-11', time: '08:00', status: 'confirmé', numeros: ['+229 01 00 00 77 77'] },
   { id: 'j-jour', date: JOUR, time: '15:00', status: 'confirmé', numeros: ['+229 01 00 00 77 77'] },
+  { id: 'j-onze-mois', date: '2025-12-06', time: '10:00', status: 'honoré', numeros: ['+229 01 00 00 77 77'] },
 ];
 dit('deux rendez-vous sous le meme code (il n est pas unique) : le plus proche de maintenant, un vivant avant un annule', 'j-jour',
   cherche('MND-AAAA', '7777', jumeaux, () => 'MND-AAAA'));
+/* A EGALE DISTANCE DE MAINTENANT (relecture du 7 novembre 2026, douze mois en arriere) : l identifiant
+   tranche, jamais l ordre de la lecture. */
+const egaux: Tete[] = [
+  { id: 'j-z-midi', date: JOUR, time: '12:00', status: 'confirmé', numeros: ['+229 01 00 00 77 77'] },
+  { id: 'j-a-huit', date: JOUR, time: '08:00', status: 'honoré', numeros: ['+229 01 00 00 77 77'] },
+];
+dit('deux rendez-vous a egale distance de maintenant : l identifiant tranche, dans un ordre comme dans l autre', ['j-a-huit', 'j-a-huit'],
+  [cherche('MND-AAAA', '7777', egaux, () => 'MND-AAAA'), cherche('MND-AAAA', '7777', [...egaux].reverse(), () => 'MND-AAAA')]);
 
 /* ── 6. Le frein aux essais repetes ────────────────────────────────────── */
 dit('le frein : dix recherches par adresse en dix minutes, cinq echecs par code dans l heure, douze dans la journee',
@@ -524,7 +539,7 @@ const SERVICE = 'cle-de-service';
 
 remplis();
 const sante = await appelle(finir);
-dit('GET : la version et les secrets en booleens, sans valeur', ['2026-11-06-b', 'terminer-et-regler', { service: true, liens: true }], [sante.corps.version, sante.corps.fonction, sante.corps.secrets]);
+dit('GET : la version et les secrets en booleens, sans valeur', ['2026-11-07-b · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois', 'terminer-et-regler', { service: true, liens: true }], [sante.corps.version, sante.corps.fonction, sante.corps.secrets]);
 
 /* ── retrouver : le code ET les quatre chiffres ── */
 const CODE = referenceDuRendezVous('rdv-jour');
@@ -538,7 +553,7 @@ dit('... rien d elle que son prenom : ni nom de famille, ni numero', [false, fal
 const fauxChiffres = await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '0000' }, { ip: '5.5.5.1' });
 const codeInconnu = await appelle(finir, { action: 'retrouver', code: 'MND-ZZZZ', chiffres: '4480' }, { ip: '5.5.5.2' });
 const codeSeul = await appelle(finir, { action: 'retrouver', code: CODE }, { ip: '5.5.5.3' });
-dit('un code inconnu, des chiffres faux, le code seul : la MEME reponse, mot pour mot', [{ status: 200, corps: { version: '2026-11-06-b', ok: false, error: 'introuvable' } }, true, true],
+dit('un code inconnu, des chiffres faux, le code seul : la MEME reponse, mot pour mot', [{ status: 200, corps: { version: '2026-11-07-b · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois', ok: false, error: 'introuvable' } }, true, true],
   [codeInconnu, JSON.stringify(fauxChiffres) === JSON.stringify(codeInconnu), JSON.stringify(codeSeul) === JSON.stringify(codeInconnu)]);
 dit('le second numero du rendez-vous (le parent qui l a pris) le retrouve aussi', [true, 'confirme', false],
   await appelle(finir, { action: 'retrouver', code: referenceDuRendezVous('rdv-parent'), chiffres: '3344' }, { ip: '5.5.5.4' }).then((r) => [r.corps.ok, r.corps.billet?.etat, r.corps.billet?.porte.ouverte]));
@@ -658,7 +673,7 @@ remplis();
 remplis();
 maintenant = aCotonou(JOUR, '09:40');
 const aPeine = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-fi'] }, { cle: SERVICE });
-dit('WhatsApp, dix minutes apres l heure du rendez-vous : « a-peine-commence », ni marque, ni lien, ni notification', [{ version: '2026-11-06-b', ok: true, etat: 'a-peine-commence' }, undefined, undefined, 0],
+dit('WhatsApp, dix minutes apres l heure du rendez-vous : « a-peine-commence », ni marque, ni lien, ni notification', [{ version: '2026-11-07-b · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois', ok: true, etat: 'a-peine-commence' }, undefined, undefined, 0],
   [aPeine.corps, rdvDe('rdv-fi').termineParElle, rdvDe('rdv-fi').lienDeReglement, notifications.length]);
 const foyerAPeine = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-na', 'rdv-fi'] }, { cle: SERVICE });
 dit('... le foyer : la tete de 9 h se declare, celle de 9 h 30 qui commence a peine ne recoit aucune marque', ['a-regler', ['Koffi'], true, undefined],
@@ -711,7 +726,7 @@ const sept = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvId
 const marqueesApresSept = db.appointments.filter((x) => x.data?.termineParElle).length;
 const six = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-jour', 'rdv-na', 'rdv-fi', 'rdv-9', 'rdv-comptoir', 'rdv-demain', 'rdv-jour'] }, { cle: SERVICE });
 dit('WhatsApp, sept tetes d un coup : rien ne se pose (« trop-de-tetes », Opale et l equipe repondent) ; six (un doublon ne compte pas), la declaration passe',
-  [{ version: '2026-11-06-b', ok: true, etat: 'trop-de-tetes' }, 0, 0, 'a-regler', true],
+  [{ version: '2026-11-07-b · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois', ok: true, etat: 'trop-de-tetes' }, 0, 0, 'a-regler', true],
   [sept.corps, marqueesApresSept, notifications.filter((x) => !x.corps.includes('Acompte')).length - (six.corps.etat === 'a-regler' ? 1 : 0), six.corps.etat, db.appointments.filter((x) => x.data?.termineParElle).length >= 3]);
 
 /* ── Le foyer : un seul numero, un seul lien ── */
@@ -829,7 +844,7 @@ dit('la page parle a la fonction terminer-et-regler : retrouver (code et chiffre
 dit('... trouve, elle mene au billet /rdv/?v= ; a regler, a la seule adresse relue ; elle ne decide d aucun montant', [true, true, false],
   [/location\.assign\(`\$\{import\.meta\.env\.BASE_URL\}rdv\/\?v=\$\{encodeURIComponent\(r\.v\)\}`\)/.test(ilot), /if \(r\.etat === 'a-regler'\) \{ location\.assign\(r\.adresse\); return; \}/.test(ilot), /resteXof\s*[=+*-]/.test(ilot)]);
 dit('... le jour meme, Deplacer et Annuler laissent la place au reglement ; la page de l agenda ne porte pas le reglement', [true, true],
-  [/const changer = aVenir && !reglement\?\.leJourMeme;/.test(ilot), /const reglement = !agendaSeul && billet \? reglementDuBillet\(billet\) : null;/.test(ilot)]);
+  [/const changer = aVenir && !reglement\?\.leJourMeme;/.test(ilot), /const reglement = !agendaSeul && billet \? reglementDuBillet\(billet, aujourdhui\) : null;/.test(ilot)]);
 const contenuDuSite = lis('src/apps/revelateur/contenu.ts');
 const pageDuCode = /\{\s*chemin: '\/mon-rendez-vous\/',[\s\S]*?\n  \},/.exec(contenuDuSite)?.[0] ?? '';
 dit('la page /mon-rendez-vous/ existe, monte l ilot du rendez-vous, et reste hors des moteurs et du plan', [true, true, true],

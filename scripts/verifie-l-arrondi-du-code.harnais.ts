@@ -39,7 +39,10 @@ const source = (rel: string): string => {
 };
 const caisse = source('src/apps/trone/routes/vente/Caisse.tsx');
 const pdf = source('src/shared/pdf.ts');
-const pdfDeLaPiece = source('src/apps/trone/routes/vente/pdf-de-la-piece.ts');
+/* 7 novembre 2026 : le corps du PDF de la pièce et ses remises vivent dans
+   shared/pdf-de-la-piece-pur.ts (le site construit la même facture) ; le
+   crochet du Trône le lui tend. La règle se lit dans les deux fichiers. */
+const pdfDeLaPiece = source('src/apps/trone/routes/vente/pdf-de-la-piece.ts') + source('src/shared/pdf-de-la-piece-pur.ts');
 
 const sans = { remisePct: 0, remiseXof: 0, remiseDuRendezVousXof: 0, dejaRecuXof: 0, nomDuCode: 'ROSE15' };
 

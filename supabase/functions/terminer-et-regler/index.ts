@@ -20,7 +20,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  *               la page /rdv/ et ce que le billet dit du règlement.
  *   billet    — la page /rdv/?v=<jeton signé> : ce qui reste à régler et si
  *               la porte « Terminer et régler » est ouverte. Rien d'elle que
- *               son prénom.
+ *               son prénom, sauf la facture d'un rendez-vous réglé (le nom
+ *               et le numéro que porte déjà son PDF).
  *   terminer  — elle déclare avoir terminé : par le jeton signé (le site),
  *               par son compte (Ma Couronne, sa propre fiche seulement), ou
  *               par la clé de service (le WhatsApp de la Maison, qui a
@@ -32,6 +33,15 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  *               personnel est prévenu (une fois), et l'adresse de règlement
  *               revient. Le rendez-vous ne passe PAS honoré ici : il le
  *               devient quand elle a réglé (regler-la-seance).
+ *
+ * LE BILLET RÉGLÉ PORTE SA FACTURE (7 novembre 2026) : « pouvoir
+ * télécharger le PDF » d'un rendez-vous passé et réglé (Yéman). Quand SA
+ * pièce est soldée avec de l'argent reçu et que le rituel a commencé, le
+ * billet (`billet` et `retrouver`) joint `facture` : les seuls champs que
+ * le PDF imprime, la tête soignée, la branche, le jour du règlement
+ * (billet-regle-pur.ts). Jamais la caisse, la main, le thème, un
+ * identifiant. Le site construit le PDF lui-même, avec la règle du Trône.
+ * « Mes RDV » remonte douze mois (choix de Yéman, 7 novembre 2026).
  *
  * LA PIÈCE ne s'écrit pas ici : le serveur ne lit pas le tarif d'une tête.
  * Un poste du Trône ouvert l'écrit dès la marque (la main du Trône, comme
@@ -47,7 +57,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  * --commit <sha> --jwt non`. Vérifier : un GET rend sa version.
  */
 
-const VERSION = '2026-11-06-b';
+const VERSION = '2026-11-07-b · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -469,9 +479,13 @@ export function finDuNumero(numero: unknown): string {
   return c.length >= 8 ? c.slice(-4) : '';
 }
 
-/** LES RENDEZ-VOUS PROCHES : d'hier à l'horizon de la réservation. Un code à
-    quatre signes n'est ni secret ni unique : on ne cherche jamais plus loin. */
-export const JOURS_AVANT_DE_LA_RECHERCHE = 1;
+/** LES RENDEZ-VOUS PROCHES : de douze mois en arrière à l'horizon de la
+    réservation. Un code à quatre signes n'est ni secret ni unique : on ne
+    cherche jamais plus loin. Douze mois et non plus la veille (choix de
+    Yéman, 7 novembre 2026) : « Mes RDV » rend aussi un rituel passé, pour
+    qu'une cliente y reprenne sa facture. Le code ET les quatre chiffres,
+    et le frein, tiennent la recherche comme avant. */
+export const JOURS_AVANT_DE_LA_RECHERCHE = 365;
 export const JOURS_APRES_DE_LA_RECHERCHE = 100;
 export function fenetreDeLaRecherche(maintenantMs: number): { du: string; au: string } {
   const jour = 86_400_000;
@@ -642,6 +656,177 @@ export function notificationDeLAcompteAVerifier(o: { prenom: string; heure?: str
 }
 /* ⟨/terminer-et-regler⟩ */
 
+/* ══ LE BILLET RÉGLÉ PORTE SA FACTURE (7 novembre 2026), recopié à
+   l'identique de src/shared/billet-regle-pur.ts ; il s'appuie sur les blocs
+   qui précèdent. ══ */
+/* ⟨billet-regle⟩ */
+/** Une ligne de la facture, telle que le PDF la lit. */
+export type LigneDeLaFactureDuBillet = { label: string; qty: number; unitXof: number; discountPct: number; discountXof?: number; detail?: string[] };
+/** Un versement : son jour, son moyen, sa part, la devise reçue. Ni caisse, ni main, ni trace. */
+export type VersementDeLaFactureDuBillet = { date: string; method: string; amountXof: number; fx?: { code: string; rate: number; amount: number } };
+export type PieceDeLaFactureDuBillet = {
+  number: string; date: string; kind: 'facture';
+  lines: LigneDeLaFactureDuBillet[];
+  globalDiscountPct: number; globalDiscountXof?: number; discountLabel?: string;
+  payments: VersementDeLaFactureDuBillet[];
+  payment?: string; fx?: { code: string; rate: number; amount: number };
+  tipXof?: number; status: string; master?: string; note?: string;
+};
+/** La tête soignée (son nom sur le papier, son numéro), celle qui a réglé si
+    c'est une autre, et ce que `appelDe` lit pour le mot par défaut. */
+export type ClienteDeLaFactureDuBillet = {
+  nom: string; payeuse?: string; telephone?: string;
+  name: string; civilite?: string; auMasculin?: boolean;
+};
+/** La branche (son nom, sa ville, sa devise), la raison de la Maison, et le
+    premier maître quand la pièce n'en nomme aucun ni ne porte de mot. */
+export type MaisonDeLaFactureDuBillet = { nom: string; ville?: string; devise?: string; raison?: string; maitre?: string };
+export type FactureDuBillet = {
+  piece: PieceDeLaFactureDuBillet;
+  cliente: ClienteDeLaFactureDuBillet;
+  maison: MaisonDeLaFactureDuBillet;
+  /** Le jour du dernier versement. */
+  regleLe: string;
+};
+
+const nombreDuBillet = (x: unknown): number => (Number.isFinite(Number(x)) ? Number(x) : 0);
+const texteDuBillet = (x: unknown): string | undefined => (typeof x === 'string' && x.trim() ? x : undefined);
+const JOUR_DU_BILLET = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Le total de la pièce : les calculs de finance.ts (`invoiceTotal`). */
+export function totalDeLaPieceDuBillet(p: PieceDeLaFin): number {
+  const sous = (p.lines ?? []).reduce((s, l) => s + Math.max(0, nombreDuBillet(l.qty) * nombreDuBillet(l.unitXof) * (1 - nombreDuBillet(l.discountPct) / 100) - nombreDuBillet(l.discountXof)), 0);
+  return Math.max(0, Math.round(sous * (1 - nombreDuBillet(p.globalDiscountPct) / 100)) - nombreDuBillet(p.globalDiscountXof));
+}
+/** L'argent reçu sur la pièce : ses versements, sinon son total si elle est
+    « payée » sans journal (une pièce d'avant le 17 août, `invoiceReglements`). */
+export const argentDeLaPieceDuBillet = (p: PieceDeLaFin): number =>
+  (p.payments && p.payments.length > 0 ? p.payments.reduce((s, v) => s + nombreDuBillet(v.amountXof), 0) : p.status === 'payée' ? totalDeLaPieceDuBillet(p) : 0);
+
+/** QUAND LE BILLET JOINT SA FACTURE : la pièce du rendez-vous existe, n'est
+    ni un devis ni annulée, est soldée avec de l'argent reçu, le rendez-vous
+    n'est pas annulé, et son rituel a commencé (un jour passé, ou aujourd'hui
+    dès son heure, à Cotonou). Jamais d'avance : un rendez-vous payé d'avance
+    garde Déplacer, Annuler et l'agenda jusqu'à son heure. */
+export function factureAJoindreAuBillet(o: {
+  rdv: { date?: string; time?: string; status?: string };
+  piece: PieceDeLaFin | null;
+  maintenantMs: number;
+}): boolean {
+  const p = o.piece;
+  if (!p || (p.kind ?? 'facture') !== 'facture' || p.status === 'annulée' || o.rdv.status === 'annulé') return false;
+  if (resteDeLaPieceDeLaFin(p) > 0 || argentDeLaPieceDuBillet(p) <= 0) return false;
+  const jour = String(o.rdv.date ?? '').slice(0, 10);
+  if (!JOUR_DU_BILLET.test(jour)) return false;
+  const aujourdhui = jourDeLaFin(o.maintenantMs);
+  const debut = instantDuRituel(jour, o.rdv.time);
+  return jour < aujourdhui || (jour === aujourdhui && Number.isFinite(debut) && o.maintenantMs >= debut);
+}
+
+/** Le jour où elle a fini de régler : celui du dernier versement qui porte de
+    l'argent, sinon le jour de la pièce. */
+export function regleLeDuBillet(p: { date?: unknown; payments?: unknown }): string {
+  const jours = (Array.isArray(p.payments) ? p.payments as { date?: unknown; amountXof?: unknown }[] : [])
+    .filter((v) => nombreDuBillet(v?.amountXof) > 0)
+    .map((v) => String(v?.date ?? '').slice(0, 10))
+    .filter((j) => JOUR_DU_BILLET.test(j))
+    .sort();
+  return jours.length ? jours[jours.length - 1] : String(p.date ?? '').slice(0, 10);
+}
+
+/** Les fiches à lire : la tête soignée (`forClientId`, sinon `clientId`), et
+    celle qui a réglé quand c'est une autre (un parent pour son enfant). */
+export function fichesDeLaFactureDuBillet(p: { clientId?: unknown; forClientId?: unknown }): { tete: string; payeuse: string | null } {
+  return {
+    tete: String(p.forClientId ?? p.clientId ?? ''),
+    payeuse: !p.forClientId || p.forClientId === p.clientId ? null : String(p.clientId ?? ''),
+  };
+}
+
+const fxDuBillet = (x: unknown): { code: string; rate: number; amount: number } | undefined => {
+  const f = x as { code?: unknown; rate?: unknown; amount?: unknown } | null;
+  return f && typeof f === 'object' && typeof f.code === 'string' && /^[A-Z]{3}$/.test(f.code) && Number.isFinite(Number(f.rate)) && Number.isFinite(Number(f.amount))
+    ? { code: f.code, rate: Number(f.rate), amount: Number(f.amount) } : undefined;
+};
+/** Ce que la ligne porte, toujours en tableau (la règle de `detailPorte`). */
+const detailDuBillet = (d: unknown): string[] => (Array.isArray(d)
+  ? d.filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+  : typeof d === 'string' && d.trim() ? [d.trim()] : []);
+
+/** LA FACTURE QUE LE BILLET PORTE : les seuls champs que le PDF imprime, lus
+    un par un dans la pièce (jamais recopiée en bloc), la tête soignée, la
+    branche, le jour du règlement. null si la pièce n'a pas de quoi faire un
+    papier (sans numéro, sans jour, sans lignes) ou si la branche manque. */
+export function factureDuBillet(o: {
+  piece: Record<string, unknown>;
+  tete: Record<string, unknown> | null;
+  payeuse: Record<string, unknown> | null;
+  branche: Record<string, unknown> | null;
+  raison?: unknown;
+}): FactureDuBillet | null {
+  const p = o.piece;
+  const number = texteDuBillet(p.number);
+  const date = String(p.date ?? '').slice(0, 10);
+  const nomDeLaBranche = texteDuBillet(o.branche?.name);
+  if (!number || !JOUR_DU_BILLET.test(date) || !Array.isArray(p.lines) || p.lines.length === 0 || !nomDeLaBranche) return null;
+  const lines: LigneDeLaFactureDuBillet[] = (p.lines as unknown[]).map((brute) => {
+    const l = (brute ?? {}) as Record<string, unknown>;
+    const remise = nombreDuBillet(l.discountXof);
+    const detail = detailDuBillet(l.detail);
+    return {
+      label: String(l.label ?? ''), qty: nombreDuBillet(l.qty), unitXof: nombreDuBillet(l.unitXof), discountPct: nombreDuBillet(l.discountPct),
+      ...(remise !== 0 ? { discountXof: remise } : {}), ...(detail.length > 0 ? { detail } : {}),
+    };
+  });
+  const payments: VersementDeLaFactureDuBillet[] = (Array.isArray(p.payments) ? p.payments as unknown[] : []).map((brut) => {
+    const v = (brut ?? {}) as Record<string, unknown>;
+    const fx = fxDuBillet(v.fx);
+    return { date: String(v.date ?? '').slice(0, 10), method: String(v.method ?? ''), amountXof: nombreDuBillet(v.amountXof), ...(fx ? { fx } : {}) };
+  });
+  const fx = fxDuBillet(p.fx);
+  const remiseGlobale = nombreDuBillet(p.globalDiscountXof);
+  const piece: PieceDeLaFactureDuBillet = {
+    number, date, kind: 'facture', lines,
+    globalDiscountPct: nombreDuBillet(p.globalDiscountPct),
+    ...(remiseGlobale !== 0 ? { globalDiscountXof: remiseGlobale } : {}),
+    ...(typeof p.discountLabel === 'string' ? { discountLabel: p.discountLabel } : {}),
+    payments,
+    ...(typeof p.payment === 'string' ? { payment: p.payment } : {}),
+    ...(fx ? { fx } : {}),
+    ...(nombreDuBillet(p.tipXof) > 0 ? { tipXof: nombreDuBillet(p.tipXof) } : {}),
+    status: String(p.status ?? ''),
+    ...(typeof p.master === 'string' ? { master: p.master } : {}),
+    ...(texteDuBillet(p.note) ? { note: String(p.note) } : {}),
+  };
+  /* La tête soignée : son nom de fiche, sinon le nom libre de la pièce, sinon
+     « Cliente de passage » (`clientNameForPdf`) ; l'appel lit le même nom
+     que le Trône (`clientNameOf`). */
+  const t = o.tete;
+  const libre = typeof p.clientName === 'string' ? p.clientName : undefined;
+  const nom = t ? String(t.name ?? '') : (libre?.trim() && libre.trim().toLowerCase() !== 'walk-in' ? libre.trim() : 'Cliente de passage');
+  const cliente: ClienteDeLaFactureDuBillet = {
+    nom,
+    ...(texteDuBillet(o.payeuse?.name) ? { payeuse: String(o.payeuse?.name) } : {}),
+    ...(texteDuBillet(t?.phone) ? { telephone: String(t?.phone) } : {}),
+    name: t && typeof t.name === 'string' ? t.name : libre ?? 'Walk-in',
+    ...(texteDuBillet(t?.civilite) ? { civilite: String(t?.civilite) } : {}),
+    ...(t?.auMasculin === true ? { auMasculin: true } : {}),
+  };
+  const b = o.branche;
+  const maitres = Array.isArray(b?.masters) ? b?.masters as unknown[] : [];
+  const maison: MaisonDeLaFactureDuBillet = {
+    nom: nomDeLaBranche,
+    ...(texteDuBillet(b?.city) ? { ville: String(b?.city) } : {}),
+    ...(typeof b?.currency === 'string' && /^[A-Z]{3}$/.test(b.currency) ? { devise: b.currency } : {}),
+    ...(texteDuBillet(o.raison) ? { raison: String(o.raison) } : {}),
+    /* Le premier maître ne sert qu'au mot par défaut : il ne part que si la
+       pièce ne nomme aucune main et ne porte aucun mot. */
+    ...(typeof p.master !== 'string' && !texteDuBillet(p.note) && typeof maitres[0] === 'string' ? { maitre: maitres[0] as string } : {}),
+  };
+  return { piece, cliente, maison, regleLe: regleLeDuBillet(p) };
+}
+/* ⟨/billet-regle⟩ */
+
 const SECRET_DES_LIENS = (Deno.env.get(NOM_DU_SECRET_DES_LIENS) ?? '').trim();
 
 /* ── Les portes ────────────────────────────────────────────────────────── */
@@ -740,13 +925,46 @@ const numerosDuRdv = (rdv: { numeroAPrevenir?: string }, fiche: Fiche | null): (
 
 const rdvLu = (l: Ligne): RdvDeLaFin => ({ ...(l.data ?? {}), id: l.id });
 
-async function leBillet(l: Ligne, maintenantMs: number): Promise<BilletDeLaFin> {
+/** SA pièce entière (la même que `leResteDeLaPiece` choisit), ou null : le
+    billet en lit le reste, et la projette en facture quand elle est soldée. */
+async function laPieceDuBillet(rdvId: string): Promise<PieceDeLaFin | null> {
+  const { data, error } = await admin.from('invoices').select('id,data').eq('data->>apptId', rdvId).limit(20);
+  if (error) throw new Error(error.message);
+  const pieces = ((data ?? []) as { id: string; data: any }[]).map((l) => ({ ...(l.data ?? {}), id: l.id })) as PieceDeLaFin[];
+  return pieceDuRdvDeLaFin(pieces, rdvId);
+}
+/** La branche de la pièce (son nom, sa ville, sa devise, ses maîtres) et la
+    raison de la Maison (le document de l'identité, celui du Trône). */
+async function laMaisonDuBillet(branchId: string): Promise<{ branche: Record<string, unknown> | null; raison: unknown }> {
+  const [{ data: b }, { data: identite }] = await Promise.all([
+    admin.from('branches').select('data').eq('id', branchId || 'aucune').maybeSingle(),
+    admin.from('documents').select('data').eq('key', 'mnd_house_identity').maybeSingle(),
+  ]);
+  return { branche: (b?.data as Record<string, unknown> | undefined) ?? null, raison: (identite?.data as { raison?: unknown } | undefined)?.raison };
+}
+
+async function leBillet(l: Ligne, maintenantMs: number): Promise<BilletDeLaFin & { facture?: FactureDuBillet }> {
   const rdv = rdvLu(l);
-  const [fiche, reste] = await Promise.all([laFiche(rdv.clientId), leResteDeLaPiece(l.id)]);
-  return billetDeLaFin({
+  const [fiche, piece] = await Promise.all([laFiche(rdv.clientId), laPieceDuBillet(l.id)]);
+  const billet = billetDeLaFin({
     rdv, reference: referenceDuRendezVous(l.id), prenom: String(fiche?.name ?? l.data?.clientName ?? ''),
-    maintenantMs, passeAuComptoir: fiche?.passeAuComptoir === true, piece: reste === null ? null : { resteXof: reste },
+    maintenantMs, passeAuComptoir: fiche?.passeAuComptoir === true, piece: piece === null ? null : { resteXof: resteDeLaPieceDeLaFin(piece) },
   });
+  /* LA FACTURE, seulement pièce soldée, argent reçu, rituel commencé : la
+     tête soignée et la payeuse sont lues pour elle, rien de plus. */
+  if (!piece || !factureAJoindreAuBillet({ rdv, piece, maintenantMs })) return billet;
+  const brute = piece as unknown as Record<string, unknown>;
+  const qui = fichesDeLaFactureDuBillet(brute);
+  const [tete, payeuse, maison] = await Promise.all([
+    qui.tete === String(rdv.clientId ?? '') ? Promise.resolve(fiche) : laFiche(qui.tete),
+    qui.payeuse ? laFiche(qui.payeuse) : Promise.resolve(null),
+    laMaisonDuBillet(String(brute.branchId ?? l.branch_id ?? '')),
+  ]);
+  const facture = factureDuBillet({
+    piece: brute, tete: tete as Record<string, unknown> | null, payeuse: payeuse as Record<string, unknown> | null,
+    branche: maison.branche, raison: maison.raison,
+  });
+  return facture ? { ...billet, facture } : billet;
 }
 
 /* ══ retrouver : le code ET les quatre chiffres ══════════════════════════ */

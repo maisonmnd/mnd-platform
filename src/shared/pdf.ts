@@ -5,10 +5,18 @@
    chat pré-rempli pour que l'utilisateur joigne le fichier en un geste. */
 
 import qrcode from 'qrcode-generator';
-import { maisonNom, DEVISE_COMPLETE, estLaMaisonMND } from './identite';
+import { identiteDuPapier } from './identite-du-papier';
 import { ligneLegaleSousLeNom } from './registre';
 import { DEVISE_FON_B64 } from './devise-fon-b64';
 import { estIdentifiantMomo } from './momo';
+
+/* LE NOM, LA DEVISE ET LA RÈGLE « EST-CE LA MAISON ? » — 7 novembre 2026 :
+   lus dans identite-du-papier.ts, que identite.ts nourrit, et non plus dans
+   identite.ts, qui branche la synchronisation du Trône. Le site public
+   (maisonmnd.com/rdv/) construit ainsi la facture d'un rendez-vous réglé
+   sans charger la synchronisation. Au Trône, la même identité qu'avant. */
+const maisonNom = (): string => identiteDuPapier().nom();
+const estLaMaisonMND = (nom: unknown): boolean => identiteDuPapier().estLaMaison(nom);
 
 const INDIGO = '#1E2150';
 const COPPER = '#B97A4A';
@@ -512,6 +520,7 @@ export async function pieDeLaMaison(
 ): Promise<void> {
   const taille = o.taille ?? 8;
   const couleur = o.couleur ?? SOFT;
+  const DEVISE_COMPLETE = identiteDuPapier().devise;
   /* L'apostrophe typographique ’ (U+2019) n'est PAS dans le sous-ensemble de la
      police : « L'atelier MND » sortirait en carré. On la ramène à l'apostrophe
      droite ' (U+0027), qui, elle, y est. */

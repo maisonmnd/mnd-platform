@@ -233,9 +233,13 @@ export function finDuNumero(numero: unknown): string {
   return c.length >= 8 ? c.slice(-4) : '';
 }
 
-/** LES RENDEZ-VOUS PROCHES : d'hier à l'horizon de la réservation. Un code à
-    quatre signes n'est ni secret ni unique : on ne cherche jamais plus loin. */
-export const JOURS_AVANT_DE_LA_RECHERCHE = 1;
+/** LES RENDEZ-VOUS PROCHES : de douze mois en arrière à l'horizon de la
+    réservation. Un code à quatre signes n'est ni secret ni unique : on ne
+    cherche jamais plus loin. Douze mois et non plus la veille (choix de
+    Yéman, 7 novembre 2026) : « Mes RDV » rend aussi un rituel passé, pour
+    qu'une cliente y reprenne sa facture. Le code ET les quatre chiffres,
+    et le frein, tiennent la recherche comme avant. */
+export const JOURS_AVANT_DE_LA_RECHERCHE = 365;
 export const JOURS_APRES_DE_LA_RECHERCHE = 100;
 export function fenetreDeLaRecherche(maintenantMs: number): { du: string; au: string } {
   const jour = 86_400_000;

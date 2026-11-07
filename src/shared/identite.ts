@@ -238,6 +238,13 @@ export const estLaMaisonMND = (nom: unknown): boolean =>
   (corrigeLAncienNom(nom) ?? String(nom ?? '')).trim().toLowerCase()
     === DEFAULT_IDENTITY.nom.toLowerCase();
 
+/* LE PAPIER LIT LE NOM, LA DEVISE ET LA RÈGLE SANS TIRER LA SYNCHRONISATION
+   — 7 novembre 2026 (identite-du-papier.ts) : pdf.ts ne charge plus ce
+   module, le site public construit une facture sans lui. Ici, on les lui
+   confie : partout où ce module vit, le papier signe du nom synchronisé. */
+import { confieLIdentiteAuPapier } from './identite-du-papier';
+confieLIdentiteAuPapier({ nom: maisonNom, devise: DEVISE_COMPLETE, estLaMaison: estLaMaisonMND });
+
 const MARQUEUR_NOM = 'mnd_nom_maison_2026_09';
 const EXPIRE_LE = Date.parse('2026-12-31T23:59:59+01:00');
 const dejaMigre = (marqueur = MARQUEUR_NOM): boolean => { try { return !!localStorage.getItem(marqueur); } catch { return false; } };

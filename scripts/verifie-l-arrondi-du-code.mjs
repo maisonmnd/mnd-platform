@@ -24,7 +24,10 @@ const prouve = process.argv.includes('--prouve');
 const P = 'src/apps/trone/routes/vente/encaissement-pur.ts';
 const C = 'src/apps/trone/routes/vente/Caisse.tsx';
 const S = 'src/apps/trone/routes/clients/_shared.tsx';
-const D = 'src/apps/trone/routes/vente/pdf-de-la-piece.ts';
+/* Les remises du papier vivent depuis le 7 novembre 2026 avec le corps du PDF
+   de la pièce (shared/pdf-de-la-piece-pur.ts), que routes/vente/pdf-de-la-piece.ts
+   réexporte : la faute se pose là où vit la règle. */
+const D = 'src/shared/pdf-de-la-piece-pur.ts';
 const F = 'src/shared/pdf.ts';
 
 const FAUTES = [

@@ -11,10 +11,11 @@ import {
 } from '../reservation-du-site-pure';
 import { Chargeur, RepliDuChargement } from './Chargeur';
 import {
-  CHEMIN_POUR_RETROUVER, FONCTION_DE_LA_FIN, MOTS_DE_LA_RECHERCHE, billetDeLaPageLu, codeDeLAdresse, finLue, rechercheLue, refusDit,
-  reglementDuBillet, saisieARevoir,
+  CHEMIN_POUR_RETROUVER, FACTURE_EN_PANNE, FONCTION_DE_LA_FIN, MOTS_DE_LA_RECHERCHE, billetDeLaPageLu, codeDeLAdresse, finLue, rechercheLue, refusDit,
+  reglementDuBillet, saisieARevoir, type BilletDuSite,
 } from '../billet-du-rdv-pur';
-import type { BilletDeLaFin } from '../../../shared/terminer-et-regler-pur';
+import { jourDeLaFin } from '../../../shared/terminer-et-regler-pur';
+import { telechargeLaFactureDuBillet } from '../facture-du-billet';
 
 /* LA PAGE DU RENDEZ-VOUS — 3 novembre 2026. « Add a "Déplacer/Annuler"
    WhatsApp link to the confirmation message » et « an .ics calendar link »
@@ -40,7 +41,14 @@ import type { BilletDeLaFin } from '../../../shared/terminer-et-regler-pur';
      dit le reste et si la porte est ouverte) : avant le jour, ce qui sera à
      régler ; le jour même, dès l'heure du rituel, « Terminer et régler »,
      qui mène à la page « Régler ». Le montant vient du serveur, jamais d'ici.
-   Les mots et la lecture des réponses vivent dans billet-du-rdv-pur.ts. */
+   Les mots et la lecture des réponses vivent dans billet-du-rdv-pur.ts.
+
+   LE RENDEZ-VOUS RÉGLÉ ET SA FACTURE — 7 novembre 2026. « Pouvoir
+   télécharger le PDF » (Yéman). Quand le billet porte la facture, « Télécharger
+   ma facture (PDF) » charge à la demande la règle du papier
+   (pdf-de-la-piece-pur.ts, celle du Trône) et le constructeur (pdf.ts), puis
+   le fichier part sous le même nom qu'au Trône. Rien ne se charge tant
+   qu'elle n'a pas touché le bouton ; un échec se dit en une phrase. */
 
 const LIEU = `${COMMUN.nom}, ${COMMUN.editeur.adresseComplete}`;
 const quandDuRdv = (r: RendezVousLu): string => `${jourDit(r.date)} à ${heureDite(r.heure)}`;
@@ -138,8 +146,10 @@ export default function MonRendezVous({ genre }: { genre?: string }) {
   const [whatsapp, setWhatsapp] = useState(COMMUN.editeur.telephone.replace(/\D/g, ''));
   const [telecharge1, setTelecharge1] = useState(false);
   /* Le règlement du billet (6 novembre 2026) : relu au serveur, jamais décidé ici. */
-  const [billet, setBillet] = useState<BilletDeLaFin | null>(null);
+  const [billet, setBillet] = useState<BilletDuSite | null>(null);
   const [fin, setFin] = useState<{ enCours: boolean; dit: string }>({ enCours: false, dit: '' });
+  /* La facture d'un rendez-vous réglé (7 novembre 2026) : en préparation, ou la phrase d'un échec. */
+  const [papier, setPapier] = useState<{ enCours: boolean; dit: string }>({ enCours: false, dit: '' });
 
   useEffect(() => {
     let vivant = true;
@@ -212,6 +222,21 @@ export default function MonRendezVous({ genre }: { genre?: string }) {
     }
   };
 
+  /* « TÉLÉCHARGER MA FACTURE (PDF) » : la règle du papier du Trône et son
+     constructeur, chargés seulement maintenant (facture-du-billet.ts) ; le
+     fichier porte le nom qu'il a au Trône (« Facture-<numéro>.pdf »). */
+  const telechargeLaFacture = async () => {
+    const facture = billet?.facture;
+    if (!facture || papier.enCours) return;
+    setPapier({ enCours: true, dit: '' });
+    try {
+      await telechargeLaFactureDuBillet(facture);
+      setPapier({ enCours: false, dit: '' });
+    } catch {
+      setPapier({ enCours: false, dit: FACTURE_EN_PANNE });
+    }
+  };
+
   if (retrouver) return <RetrouverMonRendezVous wa={(mot) => lienWhatsApp(whatsapp, mot)} />;
 
   if (!lu) {
@@ -248,8 +273,10 @@ export default function MonRendezVous({ genre }: { genre?: string }) {
   const quand = quandDuRdv(r);
   const aVenir = r.statut === 'a-venir';
   const ics = fichierDuRdv(r, apptId);
-  /* Le règlement : seulement sur la page du billet, jamais sur celle de l'agenda. */
-  const reglement = !agendaSeul && billet ? reglementDuBillet(billet) : null;
+  /* Le règlement : seulement sur la page du billet, jamais sur celle de l'agenda.
+     Le jour de Cotonou sépare un rituel réglé d'un jour passé de celui du jour. */
+  const aujourdhui = jourDeLaFin(Date.now());
+  const reglement = !agendaSeul && billet ? reglementDuBillet(billet, aujourdhui) : null;
   /* Le jour même, le rituel a commencé : Déplacer et Annuler n'ont plus lieu d'être. */
   const changer = aVenir && !reglement?.leJourMeme;
   const blocDuReglement = reglement && (
@@ -262,8 +289,14 @@ export default function MonRendezVous({ genre }: { genre?: string }) {
           <button type="button" className="btn btn--plein" disabled={fin.enCours} onClick={() => { void termine(); }}>{fin.enCours ? 'Un instant…' : reglement.bouton}</button>
         </p>
       )}
+      {reglement.telecharger && (
+        <p className="rangee">
+          <button type="button" className="btn btn--fort" disabled={papier.enCours} onClick={() => { void telechargeLaFacture(); }}>{papier.enCours ? 'La facture se prépare…' : reglement.telecharger}</button>
+        </p>
+      )}
       {reglement.note && <p className="legende">{reglement.note}</p>}
       {fin.dit && <p className="legende" role="alert">{fin.dit}</p>}
+      {papier.dit && <p className="legende" role="alert">{papier.dit}</p>}
     </div>
   );
   return (

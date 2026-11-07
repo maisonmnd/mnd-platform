@@ -20,6 +20,8 @@ export const COPIES = [
   { bloc: 'honneur-au-reglement', source: PUR, cibles: ['supabase/functions/regler-la-seance/index.ts', FONCTION] },
   { bloc: 'terminer-et-regler', source: PUR, cibles: [FONCTION] },
   { bloc: 'j-ai-termine', source: PUR, cibles: ['supabase/functions/whatsapp-automate/index.ts'] },
+  /* Le billet réglé porte sa facture (7 novembre 2026). */
+  { bloc: 'billet-regle', source: 'src/shared/billet-regle-pur.ts', cibles: [FONCTION] },
 ];
 
 const lf = (s) => s.replace(/\r\n/g, '\n');
