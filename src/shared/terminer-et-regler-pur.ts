@@ -893,6 +893,27 @@ export function carteDuRituelEnCours<T extends RdvDeLaFin>(o: {
   return null;
 }
 
+/** CE QUE LA BASE CONFIRME (hotfix du 7 novembre 2026). Ma Couronne juge sur
+    la COPIE de ses rendez-vous gardée dans le téléphone, qui peut être
+    périmée : une vraie cliente a vu « À régler 34 000 F » sur un rendez-vous
+    annulé et « 40 000 F » sur un passé couvert par sa formule. L'écran ne
+    montre donc QUE ce que la fonction (la base, la même règle) a rendu : un
+    rendez-vous que le serveur ne cite pas ne paraît pas, et le montant est le
+    sien. Sans réponse du serveur (null : panne, hors ligne, pas encore lu),
+    rien ne paraît : mieux vaut un rituel dû qu'on ne montre pas qu'un montant
+    faux qu'on montre. */
+export type DuDuServeur = { rdvId: string; resteXof: number; surLaPiece: boolean };
+export function duConfirmeParLeServeur<T extends { rdv: { id: string } }>(locaux: readonly (T & { resteXof: number; surLaPiece: boolean })[], serveur: readonly DuDuServeur[] | null): (T & { resteXof: number; surLaPiece: boolean })[] {
+  if (!serveur) return [];
+  const parId = new Map(serveur.map((d) => [d.rdvId, d]));
+  return locaux.filter((d) => parId.has(d.rdv.id)).map((d) => ({ ...d, resteXof: Math.round(parId.get(d.rdv.id)!.resteXof), surLaPiece: parId.get(d.rdv.id)!.surLaPiece }));
+}
+/** Le reste d'avance que le serveur confirme pour ce rendez-vous, ou null. */
+export function resteDAvanceConfirme(rdvId: string, serveur: readonly DuDuServeur[] | null): number | null {
+  const d = serveur?.find((x) => x.rdvId === rdvId);
+  return d && Number.isFinite(d.resteXof) && d.resteXof > 0 ? Math.round(d.resteXof) : null;
+}
+
 /** « À RÉGLER », DANS MA COURONNE (7 novembre 2026) : ses rendez-vous PASSÉS
     qui doivent encore (et ceux des têtes qu'elle porte), sans limite de
     temps, le plus récent d'abord. La règle est `porteAvantApres` (« après ») :

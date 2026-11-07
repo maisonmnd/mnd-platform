@@ -6,8 +6,8 @@ import { useClients, useFamilies } from '../../shared/clients';
 import { tetesPortees } from '../../shared/accounts';
 import { useInvoices } from '../../shared/finance';
 import { laPieceDuRdv, resteDeLaPiece, type PieceLue } from '../../shared/regler-la-seance-pur';
-import { aReglerApres, argentVerseSurLeRdv, momentDuReglement, porteAvantApres } from '../../shared/terminer-et-regler-pur';
-import { pageDuReglement, refusAvantApres, regleDepuisMaCouronne } from '../../shared/terminer-et-regler-serveur';
+import { aReglerApres, argentVerseSurLeRdv, duConfirmeParLeServeur, momentDuReglement, porteAvantApres, resteDAvanceConfirme } from '../../shared/terminer-et-regler-pur';
+import { mesDusDuServeur, pageDuReglement, refusAvantApres, regleDepuisMaCouronne, type DusDuServeur } from '../../shared/terminer-et-regler-serveur';
 import { dayLabelIso, todayIso, useClientId } from './lib';
 import { prix, t } from './i18n';
 
@@ -39,6 +39,24 @@ function useMaintenant(): number {
   return maintenant;
 }
 
+/* LA BASE CONFIRME, L'ÉCRAN NE JUGE PAS SEUL (hotfix du 7 novembre 2026). Une
+   vraie cliente a vu « À régler 34 000 F » sur un rendez-vous annulé et
+   « 40 000 F » sur un passé couvert par sa formule : l'écran jugeait sur la
+   copie de ses rendez-vous gardée dans le téléphone, périmée. Il demande donc
+   à la fonction ce qu'elle peut régler (action `dus`, la même règle, la base)
+   et ne montre que cela, au montant du serveur. Sans réponse : rien. */
+function useDusDuServeur(): DusDuServeur | null {
+  const { session } = useAuth();
+  const jeton = session?.access_token ?? '';
+  const [dus, setDus] = useState<DusDuServeur | null>(null);
+  useEffect(() => {
+    let vivant = true;
+    void mesDusDuServeur(jeton).then((r) => { if (vivant) setDus(r); });
+    return () => { vivant = false; };
+  }, [jeton]);
+  return dus;
+}
+
 /** Le toucher : la fonction juge, puis la page « Régler » s'ouvre ; sinon une phrase, jamais un code. */
 function useLeToucher(quand: 'avance' | 'apres') {
   const { session } = useAuth();
@@ -63,6 +81,7 @@ export function ReglerDAvance({ rdv }: { rdv: Appointment }) {
   const [clients] = useClients();
   const maintenant = useMaintenant();
   const { enCours, souci, regle } = useLeToucher('avance');
+  const duServeur = useDusDuServeur();
   if (rdv.status === 'annulé' || momentDuReglement(rdv, maintenant) !== 'avance') return null;
   const piece = laPieceDuRdv(invoices as unknown as PieceLue[], rdv.id);
   const porte = porteAvantApres({
@@ -71,7 +90,10 @@ export function ReglerDAvance({ rdv }: { rdv: Appointment }) {
     piece: piece ? { resteXof: resteDeLaPiece(piece) } : null,
   });
   const verse = Math.round(argentVerseSurLeRdv(rdv));
-  if (!porte.ouverte) {
+  /* Le bouton n'existe que si la base le confirme, et au montant de la base. */
+  const resteDuServeur = resteDAvanceConfirme(rdv.id, duServeur?.avance ?? null);
+  if (porte.ouverte && resteDuServeur === null) return null;
+  if (!porte.ouverte || resteDuServeur === null) {
     if (verse <= 0) return null;
     return (
       <div className="mc-recapcard" style={{ textAlign: 'left' }}>
@@ -84,7 +106,7 @@ export function ReglerDAvance({ rdv }: { rdv: Appointment }) {
     <div className="mc-stack" style={{ gap: 8 }}>
       {verse > 0 && <div className="mc-recapcard__line"><span>{t('Déjà réglé d’avance')}</span><span>{prix(verse, currency)}</span></div>}
       <button type="button" className="mc-cta mc-cta--copper" disabled={enCours !== null} onClick={() => { void regle(rdv.id); }}>
-        {enCours ? t('Un instant…') : t('Régler d’avance · {montant}', { montant: prix(porte.resteXof ?? 0, currency) })}
+        {enCours ? t('Un instant…') : t('Régler d’avance · {montant}', { montant: prix(resteDuServeur ?? 0, currency) })}
       </button>
       <div className="mc-footnote" style={{ textAlign: 'left' }}>{t('Le rendez-vous reste confirmé. Si l’équipe ajoute un soin pendant la séance, il se règle en plus le jour même.')}</div>
       {souci && <div className="mc-footnote" role="alert" style={{ textAlign: 'left' }}>{t(souci)}</div>}
@@ -102,10 +124,11 @@ export default function ARegler({ nomDuRituel }: { nomDuRituel: (a: Appointment)
   const [familles] = useFamilies();
   const maintenant = useMaintenant();
   const { enCours, souci, regle } = useLeToucher('apres');
+  const duServeur = useDusDuServeur();
 
   const moi = tousClients.find((c) => c.id === monId);
   const tetes = useMemo(() => (moi ? tetesPortees(moi, tousClients, familles, todayIso()) : []), [moi, tousClients, familles]);
-  const dus = useMemo(() => {
+  const locaux = useMemo(() => {
     const miens = new Set([monId, ...tetes.map((x) => x.id)]);
     const pieces = invoices as unknown as PieceLue[];
     return aReglerApres({
@@ -115,6 +138,7 @@ export default function ARegler({ nomDuRituel }: { nomDuRituel: (a: Appointment)
       resteDeLaPiece: (rdvId) => { const p = laPieceDuRdv(pieces, rdvId); return p ? resteDeLaPiece(p) : null; },
     });
   }, [appts, invoices, monId, tetes, tousClients, maintenant]);
+  const dus = duConfirmeParLeServeur(locaux, duServeur?.apres ?? null);
   if (dus.length === 0) return null;
 
   const total = dus.reduce((s, d) => s + d.resteXof, 0);

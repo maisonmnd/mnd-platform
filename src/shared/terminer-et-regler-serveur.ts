@@ -5,6 +5,8 @@
    compte : le rendez-vous d'une autre ne se termine pas. Le montant se
    décide au serveur, jamais ici. Voir terminer-et-regler-pur.ts. */
 
+import type { DuDuServeur } from './terminer-et-regler-pur';
+
 const URL_PROJET = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? '';
 const CLE_ANON = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ?? '';
 export const FONCTION_DE_LA_FIN = 'terminer-et-regler';
@@ -39,6 +41,33 @@ export async function regleDepuisMaCouronne(rdvId: string, quand: 'avance' | 'ap
     return { error: 'reseau' };
   }
 }
+
+/** CE QUE LA BASE CONFIRME (hotfix du 7 novembre 2026) : ses rendez-vous
+    qu'elle peut régler après coup (`apres`) ou d'avance (`avance`), avec le
+    reste du serveur. Gardé une minute ; null quand la fonction ne répond pas
+    (l'écran ne montre alors rien). */
+export type DusDuServeur = { apres: DuDuServeur[]; avance: DuDuServeur[] };
+let dusEnMemoire: { at: number; jeton: string; promesse: Promise<DusDuServeur | null> } | null = null;
+export function mesDusDuServeur(jetonDeSession: string, force = false): Promise<DusDuServeur | null> {
+  if (!URL_PROJET || !jetonDeSession || (typeof navigator !== 'undefined' && navigator.onLine === false)) return Promise.resolve(null);
+  if (!force && dusEnMemoire && dusEnMemoire.jeton === jetonDeSession && Date.now() - dusEnMemoire.at < 60_000) return dusEnMemoire.promesse;
+  const promesse = (async (): Promise<DusDuServeur | null> => {
+    try {
+      const r = await fetch(`${URL_PROJET}/functions/v1/${FONCTION_DE_LA_FIN}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: CLE_ANON, Authorization: `Bearer ${jetonDeSession}` },
+        body: JSON.stringify({ action: 'dus' }),
+      });
+      const j = (await r.json().catch(() => null)) as { ok?: boolean; apres?: DuDuServeur[]; avance?: DuDuServeur[] } | null;
+      return j?.ok === true && Array.isArray(j.apres) && Array.isArray(j.avance) ? { apres: j.apres, avance: j.avance } : null;
+    } catch { return null; }
+  })();
+  dusEnMemoire = { at: Date.now(), jeton: jetonDeSession, promesse };
+  void promesse.then((v) => { if (v === null && dusEnMemoire?.promesse === promesse) dusEnMemoire = null; });
+  return promesse;
+}
+/** Un paiement vient d'être tenté : la prochaine lecture redemande. */
+export const oublieLesDus = (): void => { dusEnMemoire = null; };
 
 /** Ce qu'elle lit quand « Régler d'avance » ou « Régler » reste fermé : jamais
     un code. Elle n'est pas à la Maison : aucune phrase ne l'envoie au comptoir,

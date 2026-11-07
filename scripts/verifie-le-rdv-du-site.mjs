@@ -87,7 +87,7 @@ export const PANNES = [
   ['regler lit un montant envoye par la page', TER, "return await poseLeLienAvantApres({ ligne, rdv, quand: 'avance', laPorte, maintenant, par: 'site' });", "return await poseLeLienAvantApres({ ligne, rdv, quand: 'avance', laPorte: { ...laPorte, resteXof: Number(b.montant) || laPorte.resteXof }, maintenant, par: 'site' });"],
   ['regler ne prend aucun frein par jeton', TER, "if (!(await permis(apptId, 'fin-regler-jeton', 12)))", "if (false)"],
   ['regler ne prend aucun frein par adresse', TER, "if (!(await permis(ipOf(req), 'fin-regler-site', 20)))", "if (false)"],
-  ['la version de terminer-et-regler ne monte pas', TER, "const VERSION = '2026-11-07-d ·", "const VERSION = '2026-11-07-c ·"],
+  ['la version de terminer-et-regler ne monte pas', TER, "const VERSION = '2026-11-07-e ·", "const VERSION = '2026-11-07-c ·"],
   /* ── La page : les mots et la lecture ── */
   ['le bouton « Regler » paraît sans que le serveur l ait dit', SITE, '    if (b.avance?.ouverte) {', '    if (b.avance?.ouverte !== false) {'],
   ['le bouton « Regler » vient d un montant de la page', SITE, "return { sur: 'À régler', ...(montant ? { montant } : {}), phrase: PHRASE_REGLER_DES_MAINTENANT, bouton: REGLER_DES_MAINTENANT, leJourMeme: false };", "return { sur: 'À régler', montant: '1 F', phrase: PHRASE_REGLER_DES_MAINTENANT, bouton: REGLER_DES_MAINTENANT, leJourMeme: false };"],

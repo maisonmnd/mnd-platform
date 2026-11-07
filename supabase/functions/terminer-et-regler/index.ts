@@ -75,7 +75,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  * --commit <sha> --jwt non`. Vérifier : un GET rend sa version.
  */
 
-const VERSION = '2026-11-07-d · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après';
+const VERSION = '2026-11-07-e · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -1518,6 +1518,58 @@ async function reglerDepuisLeSite(req: Request, b: any) {
   return await poseLeLienAvantApres({ ligne, rdv, quand: 'avance', laPorte, maintenant, par: 'site' });
 }
 
+/* ══ dus : CE QUE LA BASE DIT QU'ELLE PEUT RÉGLER (7 novembre 2026, hotfix) ═
+   Une vraie cliente a vu « À régler 34 000 F » sur un rendez-vous annulé et
+   « 40 000 F » sur un passé couvert par sa formule : Ma Couronne jugeait sur
+   la COPIE de ses rendez-vous gardée dans le téléphone, périmée. L'écran ne
+   juge plus seul : il demande ici, et ne montre que ce que la base confirme,
+   par la même règle (⟨regler-avant-apres⟩) et au montant du serveur. Lecture
+   seule ; rien d'autre que les identifiants et les restes. */
+async function mesDus(req: Request) {
+  if (!(await permis(ipOf(req), 'fin-dus', 60))) return json({ ok: false, error: 'trop' }, 429);
+  const uid = await compteDeLaRequete(req);
+  const ficheId = uid ? await ficheDuCompte(uid) : null;
+  if (!uid || !ficheId) return json({ ok: false, error: 'compte' }, 401);
+  const parents = [ficheId, uid];
+  /* Elle et les têtes qu'elle porte (les mineurs de la famille dont elle est la payeuse). */
+  const { data: familles } = await admin.from('families').select('id,data').in('data->>payerClientId', parents).limit(20);
+  const payeurs = new Map(((familles ?? []) as { id: string; data: any }[]).map((f) => [String(f.id), f.data?.payerClientId]));
+  const idsFamilles = [...payeurs.keys()];
+  const { data: membres } = idsFamilles.length
+    ? await admin.from('clients').select('id,data').in('data->>familyId', idsFamilles).limit(200)
+    : { data: [] as { id: string; data: any }[] };
+  const fiches = new Map<string, Fiche | null>();
+  const ids = [ficheId];
+  for (const m of (membres ?? []) as { id: string; data: any }[]) {
+    if (String(m.id) !== ficheId && teteDuCompte({ parents, tete: m.data ?? null, payeur: payeurs.get(String(m.data?.familyId ?? '')), aujourdhui: jourDeLaFin(Date.now()) })) {
+      ids.push(String(m.id)); fiches.set(String(m.id), m.data ?? null);
+    }
+  }
+  fiches.set(ficheId, await laFiche(ficheId));
+  const { data: lignes, error } = await admin.from('appointments').select('id,branch_id,data').in('data->>clientId', ids).limit(1000);
+  if (error) throw new Error(error.message);
+  const rdvs = ((lignes ?? []) as Ligne[]).filter((l) => l.data?.status !== 'annulé');
+  const pieces: PieceDeLaFin[] = [];
+  for (let i = 0; i < rdvs.length; i += 60) {
+    const { data: lot, error: e2 } = await admin.from('invoices').select('id,data').in('data->>apptId', rdvs.slice(i, i + 60).map((l) => l.id)).limit(1000);
+    if (e2) throw new Error(e2.message);
+    pieces.push(...((lot ?? []) as { id: string; data: any }[]).map((l) => ({ ...(l.data ?? {}), id: l.id }) as PieceDeLaFin));
+  }
+  const maintenant = Date.now();
+  const apres: { rdvId: string; resteXof: number; surLaPiece: boolean }[] = [];
+  const avance: { rdvId: string; resteXof: number; surLaPiece: boolean }[] = [];
+  for (const l of rdvs) {
+    const rdv = rdvLu(l);
+    const piece = pieceDuRdvDeLaFin(pieces, l.id);
+    const comptoir = fiches.get(String(rdv.clientId ?? ''))?.passeAuComptoir === true;
+    for (const quand of ['avance', 'apres'] as const) {
+      const p = porteAvantApres({ quand, rdv, maintenantMs: maintenant, passeAuComptoir: comptoir, piece: piece ? { resteXof: resteDeLaPieceDeLaFin(piece) } : null });
+      if (p.ouverte && p.resteXof !== null && p.resteXof > 0) (quand === 'apres' ? apres : avance).push({ rdvId: l.id, resteXof: p.resteXof, surLaPiece: p.surLaPiece });
+    }
+  }
+  return json({ ok: true, apres, avance });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method === 'GET') {
@@ -1528,6 +1580,7 @@ Deno.serve(async (req) => {
     if (b.action === 'retrouver') return await retrouver(req, b);
     if (b.action === 'billet') return await billet(req, b);
     if (b.action === 'terminer') return await terminer(req, b);
+    if (b.action === 'dus') return await mesDus(req);
     if (b.action === 'avance' || b.action === 'apres') return await reglerDeMaCouronne(req, b, b.action);
     if (b.action === 'regler') return await reglerDepuisLeSite(req, b);
     return json({ ok: false, error: 'action' }, 400);

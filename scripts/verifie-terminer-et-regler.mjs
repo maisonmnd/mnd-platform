@@ -360,6 +360,17 @@ const PANNES = [
   ['cas reel : honore au reglement, la carte ferme sa porte malgre le reste', PUR, "!porte.ouverte && (rdv.honoreAuReglement?.le", "(rdv.honoreAuReglement?.le"],
   ['cas reel : honore, la carte ne se rouvre pas en « termine »', PUR, "(rdv.status === 'confirmé' || porte.ouverte)) return { rdv, etat: 'termine'", "rdv.status === 'confirmé') return { rdv, etat: 'termine'"],
   /* ── La garde de la base (0172, non appliquee) et son essai a blanc ── */
+  /* ── Hotfix du 7 novembre 2026 : la base confirme, l ecran ne juge pas seul ── */
+  ['hotfix : l ecran « A regler » montre sa copie du telephone sans demander a la base', ECRAN, 'const dus = duConfirmeParLeServeur(locaux, duServeur?.apres ?? null);', 'const dus = locaux;'],
+  ['hotfix : « Regler d avance » parait sans que la base le confirme', ECRAN, '  if (porte.ouverte && resteDuServeur === null) return null;\n', ''],
+  ['hotfix : le bouton d avance garde le montant du telephone', ECRAN, 'prix(resteDuServeur ?? 0, currency)', 'prix(porte.resteXof ?? 0, currency)'],
+  ['hotfix : sans reponse de la base, l ecran montre tout', PUR, '  if (!serveur) return [];\n  const parId', '  if (!serveur) return [...locaux];\n  const parId'],
+  ['hotfix : l ecran garde le montant du telephone', PUR, 'resteXof: Math.round(parId.get(d.rdv.id)!.resteXof), surLaPiece', 'resteXof: d.resteXof, surLaPiece'],
+  ['hotfix : le reste d avance ne vient plus de la base', PUR, '  const d = serveur?.find((x) => x.rdvId === rdvId);\n  return d &&', '  const d = serveur?.find((x) => x.rdvId === rdvId) ?? { rdvId, resteXof: 1, surLaPiece: false };\n  return d &&'],
+  ['hotfix : dus repond sans compte', TER, "  if (!uid || !ficheId) return json({ ok: false, error: 'compte' }, 401);\n  const parents = [", '  const parents = ['],
+  ['hotfix : dus ignore la piece du rendez-vous', TER, 'passeAuComptoir: comptoir, piece: piece ? { resteXof: resteDeLaPieceDeLaFin(piece) } : null });', 'passeAuComptoir: comptoir, piece: null });'],
+  ['hotfix : dus liste aussi la tete majeure', TER, 'payeur: payeurs.get(String(m.data?.familyId ?? \'\')), aujourdhui: jourDeLaFin(Date.now()) })) {', 'payeur: payeurs.get(String(m.data?.familyId ?? \'\')), aujourdhui: \'2000-01-01\' })) {'],
+  ['hotfix : dus liste les rendez-vous de toutes', TER, ".in('data->>clientId', ids).limit(1000);", ".limit(1000);"],
   ['garde 0172 : oublie le versement a la modification', MIG172, `${LISTE_172}\n        new.data := new.data - cle;\n        if old.data ? cle then`, `${LISTE_172.replace("'payments', ", '')}\n        new.data := new.data - cle;\n        if old.data ? cle then`],
   ['garde 0172 : desserre ce que 0171 gardait (termineParElle a la creation)', MIG172, "                                 'termineParElle', 'honoreAuReglement',\n                                 'payments'", "                                 'honoreAuReglement',\n                                 'payments'"],
   ['garde 0172 : oublie le refus d annuler ce qui est regle d avance', MIG172, "         and round(public.argent_verse_sur_le_rdv(old.data)) > 0 then\n        new.data := jsonb_set(new.data, '{status}', coalesce(old.data -> 'status', '\"en attente\"'::jsonb));\n      end if;\n", '         and false then\n      end if;\n'],

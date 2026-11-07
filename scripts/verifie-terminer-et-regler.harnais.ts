@@ -25,7 +25,7 @@ import {
   aPeineCommence, ATTENTE_DE_LA_PORTE_WHATSAPP_MS, acompteAVerifier, notificationDeLAcompteAVerifier,
   marqueDeLaFinAuCarnet, pieceAPreparer, suitesAFaire, carteDuRituelEnCours, versementsDejaRecus, gesteDeLaPiece, ATTENTE_D_UNE_RESERVATION_MS, soldeeEnLigne, PREFIXE_DU_VERSEMENT_EN_LIGNE,
   momentDuReglement, porteAvantApres, argentVerseSurLeRdv, annulationParElle, teteDuCompte, versementSurLeRdv, jourDitAvantApres, pageSansPiece,
-  notificationAvantApres, ouvertDepuisLaCouronne, aReglerApres,
+  notificationAvantApres, ouvertDepuisLaCouronne, aReglerApres, duConfirmeParLeServeur, resteDAvanceConfirme,
   type RdvDeLaFin, type PieceDeLaFin,
 } from '../src/shared/terminer-et-regler-pur';
 import { ALPHABET_DE_LA_REFERENCE, referenceDuRendezVous, FORME_DU_JETON_DU_RDV, apptIdDuJeton } from '../src/shared/lien-du-rdv-pur';
@@ -441,6 +441,7 @@ class Requete {
   delete() { this.mode = 'delete'; return this; }
   eq(c: string, v: unknown) { this.filtres.push((r) => String(litCol(r, c) ?? '') === String(v)); return this; }
   gte(c: string, v: unknown) { this.filtres.push((r) => String(litCol(r, c) ?? '') >= String(v)); return this; }
+  in(c: string, vs: unknown[]) { this.filtres.push((r) => vs.map(String).includes(String(litCol(r, c) ?? ''))); return this; }
   lte(c: string, v: unknown) { this.filtres.push((r) => String(litCol(r, c) ?? '') <= String(v)); return this; }
   order(c: string) { this.tri = c; return this; }
   range(a: number, b: number) { this.plage = [a, b]; return this; }
@@ -543,7 +544,7 @@ const SERVICE = 'cle-de-service';
 
 remplis();
 const sante = await appelle(finir);
-dit('GET : la version et les secrets en booleens, sans valeur', ['2026-11-07-d · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', 'terminer-et-regler', { service: true, liens: true }], [sante.corps.version, sante.corps.fonction, sante.corps.secrets]);
+dit('GET : la version et les secrets en booleens, sans valeur', ['2026-11-07-e · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', 'terminer-et-regler', { service: true, liens: true }], [sante.corps.version, sante.corps.fonction, sante.corps.secrets]);
 
 /* ── retrouver : le code ET les quatre chiffres ── */
 const CODE = referenceDuRendezVous('rdv-jour');
@@ -557,7 +558,7 @@ dit('... rien d elle que son prenom : ni nom de famille, ni numero', [false, fal
 const fauxChiffres = await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '0000' }, { ip: '5.5.5.1' });
 const codeInconnu = await appelle(finir, { action: 'retrouver', code: 'MND-ZZZZ', chiffres: '4480' }, { ip: '5.5.5.2' });
 const codeSeul = await appelle(finir, { action: 'retrouver', code: CODE }, { ip: '5.5.5.3' });
-dit('un code inconnu, des chiffres faux, le code seul : la MEME reponse, mot pour mot', [{ status: 200, corps: { version: '2026-11-07-d · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: false, error: 'introuvable' } }, true, true],
+dit('un code inconnu, des chiffres faux, le code seul : la MEME reponse, mot pour mot', [{ status: 200, corps: { version: '2026-11-07-e · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: false, error: 'introuvable' } }, true, true],
   [codeInconnu, JSON.stringify(fauxChiffres) === JSON.stringify(codeInconnu), JSON.stringify(codeSeul) === JSON.stringify(codeInconnu)]);
 dit('le second numero du rendez-vous (le parent qui l a pris) le retrouve aussi', [true, 'confirme', false],
   await appelle(finir, { action: 'retrouver', code: referenceDuRendezVous('rdv-parent'), chiffres: '3344' }, { ip: '5.5.5.4' }).then((r) => [r.corps.ok, r.corps.billet?.etat, r.corps.billet?.porte.ouverte]));
@@ -677,7 +678,7 @@ remplis();
 remplis();
 maintenant = aCotonou(JOUR, '09:40');
 const aPeine = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-fi'] }, { cle: SERVICE });
-dit('WhatsApp, dix minutes apres l heure du rendez-vous : « a-peine-commence », ni marque, ni lien, ni notification', [{ version: '2026-11-07-d · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: true, etat: 'a-peine-commence' }, undefined, undefined, 0],
+dit('WhatsApp, dix minutes apres l heure du rendez-vous : « a-peine-commence », ni marque, ni lien, ni notification', [{ version: '2026-11-07-e · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: true, etat: 'a-peine-commence' }, undefined, undefined, 0],
   [aPeine.corps, rdvDe('rdv-fi').termineParElle, rdvDe('rdv-fi').lienDeReglement, notifications.length]);
 const foyerAPeine = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-na', 'rdv-fi'] }, { cle: SERVICE });
 dit('... le foyer : la tete de 9 h se declare, celle de 9 h 30 qui commence a peine ne recoit aucune marque', ['a-regler', ['Koffi'], true, undefined],
@@ -730,7 +731,7 @@ const sept = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvId
 const marqueesApresSept = db.appointments.filter((x) => x.data?.termineParElle).length;
 const six = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-jour', 'rdv-na', 'rdv-fi', 'rdv-9', 'rdv-comptoir', 'rdv-demain', 'rdv-jour'] }, { cle: SERVICE });
 dit('WhatsApp, sept tetes d un coup : rien ne se pose (« trop-de-tetes », Opale et l equipe repondent) ; six (un doublon ne compte pas), la declaration passe',
-  [{ version: '2026-11-07-d · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: true, etat: 'trop-de-tetes' }, 0, 0, 'a-regler', true],
+  [{ version: '2026-11-07-e · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: true, etat: 'trop-de-tetes' }, 0, 0, 'a-regler', true],
   [sept.corps, marqueesApresSept, notifications.filter((x) => !x.corps.includes('Acompte')).length - (six.corps.etat === 'a-regler' ? 1 : 0), six.corps.etat, db.appointments.filter((x) => x.data?.termineParElle).length >= 3]);
 
 /* ── Le foyer : un seul numero, un seul lien ── */
@@ -1266,7 +1267,7 @@ const remplisAvantApres = () => {
 };
 const ma = (action: 'avance' | 'apres', rdvId: string, cle = 'jeton.de.awa', ip = '2.2.2.2') => appelle(finir, { action, rdvId }, { cle, ip });
 remplisAvantApres();
-dit('avant-apres : les deux fonctions disent leur version', ['2026-11-07-d · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', '2026-11-07-c'], [(await appelle(finir)).corps.version, (await appelle(regler)).corps.version]);
+dit('avant-apres : les deux fonctions disent leur version', ['2026-11-07-e · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', '2026-11-07-c'], [(await appelle(finir)).corps.version, (await appelle(regler)).corps.version]);
 const av1 = await ma('avance', 'rdv-demain');
 const jAv = String(av1.corps.jeton);
 dit('avant-apres serveur : d avance, son compte, son rendez-vous de demain ; le reste du serveur, le lien pose une fois avec sa marque, et RIEN d autre ne bouge (ni statut, ni marque de fin, ni notification)',
@@ -1441,6 +1442,47 @@ dit('cas reel serveur : elle regle 2 000 F ; la piece porte 2 100 F recus, solde
   [2000, 2, 'payée', 'honoré', true, 2], [payeReel.corps.versementXof, db.invoices.find((x) => x.id === 'inv-asqq6m8zkp')!.data.payments.length, db.invoices.find((x) => x.id === 'inv-asqq6m8zkp')!.data.status, rdvDe('rdv-jour').status,
     (await appelle(regler, { action: 'regler', jeton: String(reelTer.corps.jeton), transactionId: 'treel' })).corps.deja, db.invoices.find((x) => x.id === 'inv-asqq6m8zkp')!.data.payments.length]);
 dit('cas reel serveur : soldee, la porte se referme (« deja regle »)', 'deja-regle', (await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-jour' }, { cle: 'jeton.de.awa' })).corps.etat);
+
+/* ── 20 b ter. LE DEFAUT DU 7 NOVEMBRE 2026 (hotfix) : « A regler 34 000 F » sur un annule, « 40 000 F » sur un passe couvert ──
+   Une vraie cliente (formule L'Annee Sereine Duo). En base : le 4 novembre ANNULE (prix null, sans piece), le 10 septembre
+   HONORE (prix 0, couvert par sa formule, sans piece), huit autres honores couverts a zero. L'ecran jugeait sur la copie
+   de ses rendez-vous gardee dans le telephone (periodee : confirme, au prix du catalogue). Il demande maintenant a la base. */
+remplisAvantApres();
+COMPTES['jeton.de.diane'] = 'cd';
+db.clients.push({ id: 'cd', branch_id: 'b1', data: { name: 'Diane D', phone: '+229 01 99 00 11 22' } });
+const DIANE_BASE: [string, Record<string, unknown>][] = [
+  ['dvbwz', { date: '2026-11-04', time: '16:00', status: 'annulé', priceXof: null }],
+  ['dwwrm', { date: '2026-09-10', time: '08:00', status: 'honoré', priceXof: 0, coveredBySub: true }],
+  ...[1, 2, 3, 4, 5, 6, 7, 8].map((k): [string, Record<string, unknown>] => [`dh${k}`, { date: `2026-0${k}-15`, time: '09:00', status: 'honoré', priceXof: 0, coveredBySub: true }]),
+];
+for (const [id, d] of DIANE_BASE) db.appointments.push({ id, branch_id: 'b1', updated_at: `t${++tic}`, data: { id, branchId: 'b1', clientId: 'cd', clientName: 'Diane D', serviceIds: ['s1'], ...d } });
+const rdvsDiane = DIANE_BASE.map(([id, d]) => ({ id, clientId: 'cd', ...d }) as RdvDeLaFin);
+dit('Diane (en base) : ses dix rendez-vous donnent ZERO ligne « A regler » (l annule est ferme, le couvert est ferme, les honores couverts a zero aussi)', [0, 'annule', 'couvert'],
+  [aReglerApres({ rdvs: rdvsDiane, maintenantMs: A_10H }).length, porteAvantApres({ quand: 'apres', rdv: rdvsDiane[0], maintenantMs: A_10H }).raison, porteAvantApres({ quand: 'apres', rdv: rdvsDiane[1], maintenantMs: A_10H }).raison]);
+const dusDiane = await appelle(finir, { action: 'dus' }, { cle: 'jeton.de.diane' });
+dit('Diane, serveur : l action « dus » rend zero a regler apres, zero d avance (la base dit annule et couvert)', [200, true, [], []], [dusDiane.status, dusDiane.corps.ok, dusDiane.corps.apres, dusDiane.corps.avance]);
+/* La copie du telephone, periee : confirme, au prix du catalogue, sans formule. */
+const PERIMEES = [{ id: 'dvbwz', clientId: 'cd', date: '2026-11-04', time: '16:00', status: 'confirmé', priceXof: 34000 }, { id: 'dwwrm', clientId: 'cd', date: '2026-09-10', time: '08:00', status: 'confirmé', priceXof: 40000 }] as RdvDeLaFin[];
+const localesPerimees = aReglerApres({ rdvs: PERIMEES, maintenantMs: A_10H });
+dit('copie perimee du telephone : l ecran seul montrait 34 000 F et 40 000 F ; confirmes par la base de Diane, il n en reste AUCUNE ; sans reponse du serveur, rien non plus',
+  [[34000, 40000], 0, 0], [localesPerimees.map((d) => d.resteXof).sort(), duConfirmeParLeServeur(localesPerimees, dusDiane.corps.apres).length, duConfirmeParLeServeur(localesPerimees, null).length]);
+/* Une cliente SANS formule garde son « A regler » legitime, au montant du serveur. */
+remplisAvantApres();
+const dusAwa = await appelle(finir, { action: 'dus' }, { cle: 'jeton.de.awa' });
+const apresAwa = (dusAwa.corps.apres as { rdvId: string; resteXof: number; surLaPiece: boolean }[]).map((d) => [d.rdvId, d.resteXof, d.surLaPiece]).sort();
+dit('une cliente sans formule : son « A regler » legitime reste (le passe au prix fige, la piece qui doit, la piece d un confirme, juin 2025), ni l annule, ni le couvert, ni le solde, ni l absente',
+  [['ap-2025', 9000, false], ['ap-confirme-piece', 8000, true], ['ap-piece', 5000, true], ['ap-vieux', 12000, false]], apresAwa);
+const avanceAwa = (dusAwa.corps.avance as { rdvId: string; resteXof: number }[]).map((d) => [d.rdvId, d.resteXof]).sort();
+dit('... et son « Regler d avance » legitime : le rendez-vous de demain et la tete mineure de son foyer, jamais la tete majeure ni l archivee, ni le comptoir, ni l acompte a verifier',
+  [['av-enfant', 7000], ['rdv-demain', 12000]], avanceAwa);
+dit('... l ecran garde ces lignes quand la base les confirme, au montant de la base', [4, [9000, 8000, 5000, 12000]],
+  [duConfirmeParLeServeur(apresAwa.map(([id, , p]) => ({ rdv: { id: id as string }, resteXof: 1, surLaPiece: !!p })), dusAwa.corps.apres).length,
+    duConfirmeParLeServeur(apresAwa.map(([id, , p]) => ({ rdv: { id: id as string }, resteXof: 1, surLaPiece: !!p })), dusAwa.corps.apres).map((d) => d.resteXof)]);
+dit('... le reste d avance se lit de la base ; un rendez-vous que la base ne cite pas n a pas de bouton', [12000, null, null], [resteDAvanceConfirme('rdv-demain', dusAwa.corps.avance), resteDAvanceConfirme('dvbwz', dusAwa.corps.avance), resteDAvanceConfirme('rdv-demain', null)]);
+dit('« dus » : sans compte, rien ; avec un faux, rien ; le frein tient (60 par adresse en dix minutes)', [401, 401], [(await appelle(finir, { action: 'dus' })).status, (await appelle(finir, { action: 'dus' }, { cle: 'pas.un.compte' })).status]);
+const ecranDus = sansCommentaires(lis('src/apps/couronne/ReglerAvantApres.tsx'));
+dit('Ma Couronne : l ecran ne montre que ce que la base confirme (« A regler » et « Regler d avance »), sans reponse rien', [true, true, true],
+  [/const dus = duConfirmeParLeServeur\(locaux, duServeur\?\.apres \?\? null\);/.test(ecranDus), /if \(porte\.ouverte && resteDuServeur === null\) return null;/.test(ecranDus), /prix\(resteDuServeur \?\? 0, currency\)/.test(ecranDus)]);
 
 /* ── 20 c. Ma Couronne, la page « Regler », le Trone : le cablage, lu dans les sources ── */
 const tabsAa = sansCommentaires(lis('src/apps/couronne/Tabs.tsx'));
