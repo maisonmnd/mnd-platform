@@ -236,7 +236,8 @@ const pieceDu = (t: ReturnType<typeof leTicket>, lignes: number[]): number => in
   dit('ticket : le Sowa et un produit, -10 % : sur le produit seul ; la part des prestations reste 15 000 F', [24_000, 15_000, 24_000],
     [produit.netXof, produit.partNetteXof, pieceDu(produit, [SOWA, 10_000])]);
   const sans = leTicket(entree({ sousTotalXof: 80_000, prestationsXof: 80_000, sansRemiseXof: 0, remisePct: 10, remiseXof: 2_000 }));
-  dit('ticket sans Sowa : le calcul d hier (80 000 F, -10 %, 2 000 F : 70 000 F, le pourcentage ecrit tel quel)', [70_000, 10, 2_000], [sans.netXof, sans.remisePct, sans.remiseXof]);
+  /* 7 novembre 2026 (arrondi des remises en %) : le net est celui d hier (70 000 F, un multiple de 500 F) ; le pourcentage s ecrit desormais en FRANCS (8 000 + 2 000 F), jamais en pourcentage. */
+  dit('ticket sans Sowa : 80 000 F, -10 %, 2 000 F : 70 000 F, le pourcentage ecrit en francs (10 000 F)', [70_000, 0, 10_000], [sans.netXof, sans.remisePct, sans.remiseXof]);
   const code = leTicket(entree({ promoBrutXof: 1_500, nomDuCode: 'ROSE15' }));
   dit('ticket : un code sur le shampoing seul (sa base exclut le Sowa) : le Sowa entier', [true, 24_000], [code.cumul.codeConsomme, code.netXof]);
   dit('la ligne du Sowa ne garde aucune remise de ligne ; les autres gardent la leur', [0, 0, 15, 100], [

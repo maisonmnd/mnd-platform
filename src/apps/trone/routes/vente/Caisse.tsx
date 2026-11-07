@@ -1,4 +1,5 @@
 import { usePiecesDeLaMaison } from '../../../../shared/essai';
+import { prixApresRemisePct, figeLaLigne } from '../../../../shared/arrondi-des-remises-pur';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
@@ -583,7 +584,8 @@ export default function Caisse() {
       /* `disc` reste la remise posée sur la ligne ; `discEff` y ajoute la
          remise gamme pour un produit (la plus forte des deux). */
       const discEff = remiseDeLaLigneDuTicket(it.kind, v.disc, remiseGamme);
-      const netXof = unit * v.qty * (1 - discEff / 100);
+      /* 7 novembre 2026 : une remise de ligne en % monte au 500 F supérieur. */
+      const netXof = prixApresRemisePct(unit * v.qty, discEff);
       return { key: k, ...it, ...v, unit, discEff, netXof, sansRemise };
     });
   const subXof = lines.reduce((s, l) => s + l.netXof, 0);
@@ -917,7 +919,8 @@ export default function Caisse() {
       clientName: client ? undefined : 'Walk-in',
       forClientId: posPayerId && posPayerId !== clientId ? clientId : undefined,
       date: dateVente,
-      lines: lines.map((l) => ligneFacture(l.n, l.unit, l.qty, l.discEff)),
+      /* La remise de ligne en % s'écrit en francs, arrondie (7 novembre 2026). */
+      lines: lines.map((l) => figeLaLigne(ligneFacture(l.n, l.unit, l.qty, l.discEff), null)),
       /* LES REMISES QUI S'APPLIQUENT, ET ELLES SEULES (10 octobre 2026) : le
          code qui gagne a écarté la remise posée, la pièce ne la porte plus. */
       globalDiscountPct: ticket.remisePct,
@@ -928,6 +931,7 @@ export default function Caisse() {
       globalDiscountXof: (ticket.remiseXof + ticket.remiseDuRendezVousXof + promoXof) || undefined,
       /* « ROSE15 · 15 % hors gamme, arrondi au millier » : la cliente lit sur
          quoi porte le code (23 octobre 2026). */
+      ...(promoXof === 0 && globalDisc > 0 && ticket.remisePct === 0 ? { discountLabel: `Remise ${globalDisc} %` } : {}),
       ...(promoXof > 0 && codePromo ? { discountLabel: libelleDuCode(codePromo.code, codePromo.remisePct ?? 0, ticket.arrondiXof) }
         : promoXof > 0 && offreCodee ? { discountLabel: libelleDuCode(offreCodee.code ?? normaliseLeCode(codeTape), offreCodee.discountPct ?? 0, ticket.arrondiXof) } : {}),
       fx: !mndPay && fxOnEff && fxAmount > 0 ? { code: fxCodeEff, rate: fxRateNum, amount: fxAmount } : undefined,

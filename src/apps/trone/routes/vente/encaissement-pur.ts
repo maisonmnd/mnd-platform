@@ -20,6 +20,7 @@
       l'argent au jour de la facture, sans caisse, et taisait le reste d'une
       pièce déjà réglée en partie. */
 
+import { prixApresRemisePct, remiseEnFrancsArrondie } from '../../../../shared/arrondi-des-remises-pur';
 import { laMeilleureEnFrancs, type CumulEnFrancs } from '../../../../shared/promos';
 import {
   invoiceReglements, invoiceResteXof,
@@ -102,7 +103,7 @@ export function leTicket(e: EntreeDuTicket): Ticket {
   /* La remise du rendez-vous ne dépasse jamais ce que ses prestations valent
      au ticket : une ligne retirée n'emporte pas un geste plus grand qu'elle. */
   const rdv = Math.min(f(e.remiseDuRendezVousXof), Math.round(prest));
-  const dejaPose = Math.round((sous - sans) * (pct / 100)) + xof + rdv;
+  const dejaPose = remiseEnFrancsArrondie(Math.round(sous - sans), pct) + xof + rdv;
   /* LE NET DU CODE MONTE AU MILLIER SUIVANT. Le code qui gagne écarte tout ce
      qui était posé : son net est le sous-total moins sa remise, et c'est ce
      net qui s'arrondit ; la remise rend la différence, jamais plus qu'elle ne
@@ -122,18 +123,26 @@ export function leTicket(e: EntreeDuTicket): Ticket {
      pourcentage se prend sur ce qui n'est pas lui ; les francs de la main
      s'arrêtent où il commence. Sans ligne sans remise (`sans` à zéro), le
      calcul est exactement celui d'hier. */
-  const resteApresPct = Math.round((sous - sans) * (1 - pctEff / 100));
+  /* L'ARRONDI DES REMISES EN % (7 novembre 2026) : « arrondis au franc rond
+     suivant », au 500 F supérieur. Le net après le pourcentage monte au
+     palier (jamais au-delà du prix avant remise) et la pièce l'écrit en
+     FRANCS (`enFrancs`) : aucune lecture d'une pièce d'avant ne bouge. */
+  const resteApresPct = prixApresRemisePct(Math.round(sous - sans), pctEff);
+  const remisePctXof = Math.round(sous - sans) - resteApresPct;
   const xofTenu = sans > 0 ? Math.min(xofEff, Math.max(0, resteApresPct - rdvEff)) : xofEff;
   const netXof = Math.max(0, sans + resteApresPct - xofTenu - rdvEff - promoXof);
-  const partNetteXof = Math.max(0, sans + Math.round((prest - sans) * (1 - pctEff / 100)) - xofTenu - rdvEff - promoXof);
+  /* La part des prestations : sa tranche de la remise du pourcentage, l'arrondi
+     compris (tout le ticket en prestations : toute la remise). */
+  const partPctXof = sous - sans > 0 ? Math.round((remisePctXof * Math.max(0, prest - sans)) / (sous - sans)) : 0;
+  const partNetteXof = Math.max(0, sans + (Math.round(prest - sans) - partPctXof) - xofTenu - rdvEff - promoXof);
   const acompteXof = Math.min(f(e.dejaRecuXof), partNetteXof, netXof);
   /* LA PIÈCE ÉCRIT LE POURCENTAGE EN FRANCS quand le ticket porte une ligne
      sans remise : `invoiceTotal` l'appliquerait à toutes les lignes, Sówà
      compris. En francs exacts, la pièce dit le même net que le ticket. */
-  const enFrancs = sans > 0 && pctEff > 0;
+  const enFrancs = pctEff > 0;
   return {
     cumul, remisePct: enFrancs ? 0 : pctEff,
-    remiseXof: enFrancs ? Math.max(0, Math.round(sous - sans) - resteApresPct) + xofTenu : xofTenu,
+    remiseXof: enFrancs ? remisePctXof + xofTenu : xofTenu,
     remiseDuRendezVousXof: rdvEff, promoXof,
     netXof, partNetteXof, acompteXof, aPayerXof: Math.max(0, netXof - acompteXof),
     arrondiXof: cumul.codeConsomme ? arrondi : 0,

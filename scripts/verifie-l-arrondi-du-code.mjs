@@ -45,7 +45,7 @@ const FAUTES = [
   { n: 5, fichier: P, avant: "return genre === 'product' ? Math.max(ligne, Math.max(0, Math.min(100, remiseGammePct || 0))) : ligne;", apres: "return genre === 'product' ? Math.min(100, ligne + Math.max(0, remiseGammePct || 0)) : ligne;" },
   /* #6 : la Caisse ne cable pas la remise gamme, ou le code mord sur la gamme. */
   { n: 6, fichier: C, avant: 'ligneFacture(l.n, l.unit, l.qty, l.discEff)', apres: 'ligneFacture(l.n, l.unit, l.qty, l.disc)' },
-  { n: 6, fichier: C, avant: 'const netXof = unit * v.qty * (1 - discEff / 100);', apres: 'const netXof = unit * v.qty * (1 - v.disc / 100);' },
+  { n: 6, fichier: C, avant: 'const netXof = prixApresRemisePct(unit * v.qty, discEff);', apres: 'const netXof = unit * v.qty * (1 - v.disc / 100);' },
   { n: 6, fichier: C, avant: '    setRemiseGamme(0);\n', apres: '' },
   { n: 6, fichier: C, avant: "  const lignesRemisables = lines\n    .filter((l) => l.kind === 'service')", apres: "  const lignesRemisables = lines\n    .filter((l) => l.kind !== 'formation')" },
   /* #7 : le rendez-vous reserve avec un code ne s'arrondit pas, ou le passe bouge. */

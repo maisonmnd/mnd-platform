@@ -30,6 +30,7 @@ import { apptNetXof, useServicesById, DrillModal, dayOf, todayISO, type Drill } 
 import { scalesWithModel, suitLeModeleRegle, useModelBands, useBandSets, bandRange, sortedBands, forfaitPriceXof, regimeTarifaire, gestesDe, type PersonalPricing, type ModelBand } from '../../../../shared/pricing';
 import { FILL_DESCRIPTIONS, REWRITE_DESCRIPTIONS, DESC_REV } from './serviceDescriptions';
 import { bougerStockGamme, corrigerStockGamme, litQuantite } from '../../../../shared/stock';
+import { prixApresRemisePct } from '../../../../shared/arrondi-des-remises-pur';
 import './vente.css';
 
 /* Catalogue — double nomenclature fon™. Catégories réordonnables, activables,
@@ -777,10 +778,10 @@ export default function Catalogue() {
     ? Math.max(0, Math.min(100, parseInt(svcForm.forfaitRemise.replace(/[^0-9]/g, ''), 10) || 0))
     : undefined;
   const inclusPrix = remisePct !== undefined
-    ? Math.round(inclusValeur * (1 - remisePct / 100))
+    ? prixApresRemisePct(inclusValeur, remisePct)
     : inclusSaisi;
   const inclusPrixHaut = remisePct !== undefined
-    ? Math.round(inclusValeurHaute * (1 - remisePct / 100))
+    ? prixApresRemisePct(inclusValeurHaute, remisePct)
     : inclusSaisi;
   const inclusEcart = inclusValeur - inclusPrix;
 
@@ -812,7 +813,7 @@ export default function Catalogue() {
       const p: PersonalPricing = { band: b, lockCount: rep, clientCoef: 1, sets: bandSets, cats: categories };
       const compo = forfaitPriceXof(virtuel, p, services, products);
       if (compo === undefined) return { b, valeur: 0, prix: null as number | null };
-      return { b, valeur: compo, prix: Math.round(compo * (1 - remisePct / 100)) };
+      return { b, valeur: compo, prix: prixApresRemisePct(compo, remisePct) };
     });
     /* Un seul montant distinct = rien à tabuler ; le récapitulatif suffit. */
     return new Set(rows.filter((r) => r.prix != null).map((r) => r.prix)).size > 1 ? rows : [];
@@ -2531,7 +2532,7 @@ export default function Catalogue() {
                         somme entière de ses prestations. Saisis un pourcentage, ou un prix plus haut.</span>
                       : svcForm.forfaitRemise.trim()
                       ? <>Somme des prestations au prix de la cliente, moins {parseInt(svcForm.forfaitRemise.replace(/[^0-9]/g, ''), 10) || 0} %,
-                        chaque tête a son montant exact, ta marge reste la même.</>
+                        arrondi aux 500 F supérieurs (pas de monnaie), chaque tête a son montant exact.</>
                       : <>Prix fixe, le même pour toutes : une tête dense reçoit plus de valeur qu’une tête légère.</>}
                   </div>
                 </Field>

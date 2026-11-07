@@ -12,6 +12,7 @@
    liés par `foyerId`, exactement comme les séances d'une série. Chacun se
    déplace, s'annule et se facture seul — une fille malade ne fait pas tomber
    le rendez-vous de sa mère. */
+import { remiseEnFrancsArrondie } from '../../../../shared/arrondi-des-remises-pur';
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Field, Modal, Select, toast } from '../../../../ds/components';
 import { OptionsPrestations } from '../_ui';
@@ -138,7 +139,7 @@ export function RdvFoyerModal({ clientId, onClose }: { clientId: string; onClose
       prixConvenus: aUnPrixConvenu(l.tete),
       abonnee: !!contratPourLaDate(subs, l.tete.id, date, plans),
     });
-    const famXof = !g && famPct > 0 ? Math.round(Math.max(0, l.prixXof - l.forfaitXof) * famPct / 100) : 0;
+    const famXof = !g && famPct > 0 ? remiseEnFrancsArrondie(Math.max(0, l.prixXof - l.forfaitXof), famPct) : 0;
     return { id: l.tete.id, gestes: g, gesteXof, famXof };
   });
   const remisesXof = chiffres.reduce((n, c) => n + c.gesteXof + c.famXof, 0);

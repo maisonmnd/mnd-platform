@@ -1,4 +1,5 @@
 import { asset } from '../../shared/asset';
+import { prixApresRemisePct } from '../../shared/arrondi-des-remises-pur';
 import FermetureAnnoncee from './FermetureAnnoncee';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useBranch } from '../../shared/branches';
@@ -1025,7 +1026,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
             ? {
               priceXof: knownTotal - (poseDeLaPlace ? chiffre.remisePlace : 0),
               ...(chiffre.retenue === 'offre'
-                ? (chiffre.sansRemiseXof > 0 ? { discountXof: chiffre.remiseOffre } : { discountPct: chiffre.pctOffre })
+                ? { discountXof: chiffre.remiseOffre }
                 : {}),
             }
             : {}),
@@ -1422,7 +1423,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
       return `${prix(prixIci(s), currency)} · −${francs > 0 ? prix(francs, currency) : `${geste} %`}`;
     }
     /* Le prix affiché est LE SIEN — modèle + Juste Prix — pas celui du catalogue. */
-    const amount = prix(Math.round(personalPriceXof(s, pricing, tousServices, produits) * (1 - pct / 100)), currency);
+    const amount = prix(prixApresRemisePct(personalPriceXof(s, pricing, tousServices, produits), pct), currency);
     return mode === 'variable' ? t('à partir de {montant}', { montant: amount }) : amount;
   };
 

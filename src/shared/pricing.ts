@@ -5,6 +5,7 @@ import { mondeDeCat, priceModeOf, type CatalogCategory, type GesteOffert, type L
 import type { Client } from './clients';
 import { settingsStore } from './settings';
 import { avecLesPrixTenus } from './bascule-de-janvier-pur';
+import { prixApresRemisePct } from './arrondi-des-remises-pur';
 
 /** Le jour local (AAAA-MM-JJ) : un prix tenu se lit au jour de Cotonou. */
 const jourLocal = (): string => {
@@ -745,7 +746,9 @@ export const forfaitPriceXof = (
     somme += forfaitPriceXof(cible, p, catalogue, produits, profondeur + 1) ?? personalPriceXof(cible, p);
   }
   if (somme <= 0) return undefined;
-  return Math.max(0, Math.round(somme * (1 - remise / 100)));
+  /* 7 novembre 2026 : le prix du forfait monte au 500 F supérieur (pas de
+     monnaie), jamais au-delà de sa composition. */
+  return prixApresRemisePct(somme, remise);
 };
 
 /** LA PRESTATION EST-ELLE PROPOSABLE À CETTE TÊTE ? Le juge UNIQUE de

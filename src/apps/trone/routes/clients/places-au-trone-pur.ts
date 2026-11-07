@@ -16,6 +16,7 @@
    la nourrissent depuis le carnet, et comment la carte des Paramètres écrit
    l'offre. Il est PUR (aucun magasin, aucun React) pour s'éprouver sans écran :
    `node scripts/verifie-les-places-au-trone.mjs --prouve`. */
+import { remiseEnFrancsArrondie } from '../../../../shared/arrondi-des-remises-pur';
 import {
   codeNormalise, ditLesPlaces, estAPlaces, isoDuJour, joursEntre, laVenueTombeBien, occupationDuJour, offreDuJourDeLaVenue,
   placesRestantes, remiseFamilleDeLaTete, remisesDeLaMainSeules, JOURS_DES_OFFRES,
@@ -235,7 +236,7 @@ export const baseDeLaRemiseFamille = (lignes: readonly { net: number; forfait?: 
 
 /** La remise famille en francs exacts, sur cette part. */
 export const remiseFamilleEnFrancs = (lignes: readonly { net: number; forfait?: boolean; sansRemise?: boolean }[], pct: number): number =>
-  pct > 0 ? Math.round(baseDeLaRemiseFamille(lignes) * (pct / 100)) : 0;
+  pct > 0 ? remiseEnFrancsArrondie(baseDeLaRemiseFamille(lignes), pct) : 0;
 
 /* ── LA REMISE SUR TOUT, JAMAIS SUR LE RITUEL SÓWÀ™ ─────────────────────
    4 novembre 2026, au sélecteur (Yéman) : « Le Rituel Sówà™ ne prend AUCUNE
@@ -265,14 +266,20 @@ export function laRemiseSurTout(e: {
   /** La part que prend le pourcentage, quand elle est plus petite que « tout
       sauf le Sówà » (la remise famille épargne aussi les forfaits). */
   basePctXof?: number;
+  /** L'ARRONDI DES REMISES EN % (7 novembre 2026) : le pourcentage qu'on
+      POSE maintenant monte au 500 F supérieur et s'écrit en francs. Faux
+      pour un pourcentage déjà enregistré, laissé tel quel à la réouverture
+      (le passé ne bouge pas). Absent : faux. */
+  arrondi?: boolean;
 }): RemiseSurTout {
   const brut = Math.max(0, Math.round(e.brutXof));
   const sans = Math.min(brut, Math.max(0, Math.round(e.sansRemiseXof)));
   const base = Math.min(brut - sans, Math.max(0, Math.round(e.basePctXof ?? brut - sans)));
-  const pctXof = Math.round(base * (Math.max(0, Math.min(100, e.pct || 0)) / 100));
+  const pct = Math.max(0, Math.min(100, e.pct || 0));
+  const pctXof = e.arrondi ? remiseEnFrancsArrondie(base, pct) : Math.round(base * (pct / 100));
   const saisi = Math.max(0, Math.round(e.xof || 0));
   const xof = sans > 0 ? Math.min(saisi, Math.max(0, brut - sans - pctXof)) : saisi;
-  return { pctXof, xof, netXof: Math.max(0, brut - pctXof - xof), enFrancs: sans > 0 && pctXof > 0 };
+  return { pctXof, xof, netXof: Math.max(0, brut - pctXof - xof), enFrancs: (sans > 0 || !!e.arrondi) && pctXof > 0 };
 }
 
 /** LES REMISES DE LIGNE, CELLE D'UN GESTE SANS REMISE ÔTÉE : posée avant le

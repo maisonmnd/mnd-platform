@@ -42,6 +42,7 @@
 
    Cet écran parle à l'équipe : le nom du maître s'y lit. Ce qui part vers
    la cliente se montre dans « Ce qu'elle reçoit ». */
+import { remiseEnFrancsArrondie } from '../../../../shared/arrondi-des-remises-pur';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Modal, toast } from '../../../../ds/components';
 import { maitreParDefaut, useBranch } from '../../../../shared/branches';
@@ -350,7 +351,7 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
   const familleXof = (iso: string): number => {
     if (!tarif || imposee) return 0;
     const pct = tarif.gesteAuPanier || tarif.baseFamilleXof <= 0 ? 0 : famPctA(iso);
-    return pct > 0 ? Math.round(tarif.baseFamilleXof * (pct / 100)) : 0;
+    return pct > 0 ? remiseEnFrancsArrondie(tarif.baseFamilleXof, pct) : 0;
   };
 
   /* ══ LES PLACES LIMITÉES SUR UNE PLACE — 4 novembre 2026 ══════════════════

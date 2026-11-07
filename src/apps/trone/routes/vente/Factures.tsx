@@ -1,4 +1,5 @@
 import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai';
+import { figeLesRemisesDeLaPiece } from '../../../../shared/arrondi-des-remises-pur';
 import { asset } from '../../../../shared/asset';
 import { TexteFon } from '../../../../ds/fon';
 import { useSearchParams } from 'react-router-dom';
@@ -729,9 +730,13 @@ export default function Factures() {
        les ventes au comptoir venaient s'empiler. La Caisse, elle, le traduit
        depuis toujours (`clientId: ''` + `clientName`) — on fait pareil ici.
        Une cliente de passage, elle, a désormais une vraie fiche. */
-    const d = editing.draft.clientId === 'walkin'
+    const dBrut = editing.draft.clientId === 'walkin'
       ? { ...editing.draft, clientId: '', clientName: editing.draft.clientName ?? 'Walk-in' }
       : editing.draft;
+    /* L'ARRONDI DES REMISES EN % (7 novembre 2026) : un pourcentage posé ici
+       monte au 500 F supérieur et s'écrit en francs ; ceux que la pièce portait
+       déjà, inchangés, restent tels quels (le passé ne bouge pas). */
+    const d = figeLesRemisesDeLaPiece(dBrut, editing.mode === 'edit' ? invoices.find((i) => i.id === dBrut.id) : null);
     if (editing.mode === 'new') setInvoices((prev) => [d, ...prev]);
     else {
       const avant = invoices.find((i) => i.id === d.id);
@@ -861,16 +866,20 @@ export default function Factures() {
       return next;
     });
 
-  const totals = active
+  /* Le brouillon se montre tel qu'il sera enregistré : remises en % arrondies. */
+  const apercu = editing
+    ? figeLesRemisesDeLaPiece(editing.draft, editing.mode === 'edit' ? invoices.find((i) => i.id === editing.draft.id) : null)
+    : active;
+  const totals = apercu
     ? (() => {
-        const gross = active.lines.reduce((s, l) => s + l.qty * l.unitXof, 0);
+        const gross = apercu.lines.reduce((s, l) => s + l.qty * l.unitXof, 0);
         /* ligneNetXof — la remise de ligne en FRANCS comptait pour zéro ici :
            l'écran annonçait des remises qui ne se recoupaient pas avec le total. */
-        const afterLines = active.lines.reduce((s, l) => s + ligneNetXof(l), 0);
+        const afterLines = apercu.lines.reduce((s, l) => s + ligneNetXof(l), 0);
         const lineDisc = gross - afterLines;
-        const globalDisc = afterLines * (active.globalDiscountPct / 100);
-        const manualDisc = active.globalDiscountXof ?? 0;
-        return { gross, lineDisc, globalDisc, manualDisc, net: invoiceTotal(active) };
+        const globalDisc = afterLines * (apercu.globalDiscountPct / 100);
+        const manualDisc = apercu.globalDiscountXof ?? 0;
+        return { gross, lineDisc, globalDisc, manualDisc, net: invoiceTotal(apercu) };
       })()
     : null;
 

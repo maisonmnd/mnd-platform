@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { remiseEnFrancsArrondie } from '../../../../shared/arrondi-des-remises-pur';
 import { ENVIES_AVANT } from '../../../../shared/entre-deux-pur';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
@@ -668,7 +669,7 @@ export function chiffreDeLaCompagne(o: {
   /* Ni les forfaits ni un geste sans remise (le Rituel Sówà™, 4 novembre 2026). */
   const forfaits = lignes.filter((l) => regimeTarifaire(l.sv, o.ctx.cats).k === 'forfait' || gesteSansRemise(l.sv)).reduce((n, l) => n + l.net, 0);
   const pct = unGesteDansLePanier(tarifs.chosen, tarifs.pricing) ? 0 : Math.max(0, o.famPct);
-  const remiseFamilleXof = Math.round(Math.max(0, brutXof - forfaits) * (pct / 100));
+  const remiseFamilleXof = remiseEnFrancsArrondie(Math.max(0, brutXof - forfaits), pct);
   const duree = tarifs.chosen.reduce((n, sv) => n + personalDurationMin(sv, tarifs.pricing), 0);
   return {
     brutXof,
@@ -2814,6 +2815,10 @@ function RdvModalCorps({
   const surTout = laRemiseSurTout({
     brutXof: effGross, sansRemiseXof, pct: discountPct, xof: discountXof,
     ...(remiseEstFamille ? { basePctXof: baseRemisePct } : {}),
+    /* L'ARRONDI DES REMISES EN % (7 novembre 2026) : un pourcentage qu'on pose
+       aujourd'hui monte au 500 F supérieur et s'écrit en francs ; celui que le
+       rendez-vous porte déjà, rouvert sans y toucher, reste ce qu'il était. */
+    arrondi: !(appt && (appt.discountPct ?? 0) === discountPct),
   });
   /* En francs exacts — c'est CE montant que l'enregistrement fige. */
   const remiseFamilleXof = remiseEstFamille ? surTout.pctXof : 0;

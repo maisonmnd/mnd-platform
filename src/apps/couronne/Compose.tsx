@@ -1,4 +1,5 @@
 import { asset } from '../../shared/asset';
+import { remiseEnFrancsArrondie } from '../../shared/arrondi-des-remises-pur';
 import { useMemo, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
@@ -274,7 +275,8 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
   /* UN SEUL RÉGIME COMPOSE DÉSORMAIS : le taux ne se demande plus. Aux prix
      convenus ou abonnée, aucun avantage, ni affiché ni transmis au Trône. */
   const discountPct = avantageDuSurMesure(sm.aboPct, aucuneRemise);
-  const discount = Math.round((subtotal * discountPct) / 100);
+  /* 7 novembre 2026 : le prix après le pourcentage monte au 500 F supérieur. */
+  const discount = remiseEnFrancsArrondie(subtotal, discountPct);
   const total = subtotal - discount;
   const aboBlocked = mode === 'abonnement' && count < sm.aboMin;
   const canCompose = count > 0 && !aboBlocked;

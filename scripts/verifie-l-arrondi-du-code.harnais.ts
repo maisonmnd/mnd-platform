@@ -104,7 +104,7 @@ const sans = { remisePct: 0, remiseXof: 0, remiseDuRendezVousXof: 0, dejaRecuXof
 /* ══ #6 — LE CABLAGE DE LA CAISSE ══ */
 dit(6, 'Caisse : la remise gamme passe par la ligne, la piece l ecrit, le ticket neuf la remet a zero', [true, true, true, true, true], [
   /const discEff = remiseDeLaLigneDuTicket\(it\.kind, v\.disc, remiseGamme\);/.test(caisse),
-  /const netXof = unit \* v\.qty \* \(1 - discEff \/ 100\);/.test(caisse),
+  /const netXof = prixApresRemisePct\(unit \* v\.qty, discEff\);/.test(caisse),
   /ligneFacture\(l\.n, l\.unit, l\.qty, l\.discEff\)/.test(caisse),
   /setGlobalDiscXof\(0\);\n\s*setRemiseGamme\(0\);/.test(caisse),
   /onClick=\{\(\) => setRemiseGamme\(taux\)\}/.test(caisse),

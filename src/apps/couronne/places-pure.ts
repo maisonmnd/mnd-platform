@@ -19,6 +19,7 @@
 
    PUR : ni magasin, ni réseau, ni React. Son banc :
    `node scripts/verifie-les-places-a-la-couronne.mjs --prouve`. */
+import { remiseEnFrancsArrondie } from '../../shared/arrondi-des-remises-pur';
 import {
   arrondiDuNet, ceQueLeCodeRetire, codeNormalise, estAPlaces, joursEntre, lignesDuCode, offreDuJourDeLaVenue,
   type OffreCodee,
@@ -275,13 +276,15 @@ export function leChiffreDuPanier(e: {
 
   const pctFamille = Math.max(0, Math.round(e.famillePct));
   const baseFamille = somme((l) => !l.forfait && !l.sansRemise);
-  const remiseFamille = pctFamille > 0 ? Math.round(baseFamille * (pctFamille / 100)) : 0;
+  /* L'ARRONDI DES REMISES EN % (7 novembre 2026) : le prix annoncé après le
+     pourcentage monte au 500 F supérieur, pas de monnaie. */
+  const remiseFamille = pctFamille > 0 ? remiseEnFrancsArrondie(baseFamille, pctFamille) : 0;
   if (remiseFamille > 0) return { ...zero, pctFamille, remiseFamille, retenue: 'famille', prix: Math.max(0, connu - remiseFamille) };
 
   const pctOffre = Math.max(0, Math.min(90, Math.round(e.offreDeSaisonPct ?? 0)));
   if (pctOffre > 0) {
     const base = connu - sansRemiseXof;
-    const remiseOffre = base - Math.round(base * (1 - pctOffre / 100));
+    const remiseOffre = remiseEnFrancsArrondie(base, pctOffre);
     if (remiseOffre > 0) return { ...zero, pctOffre, remiseOffre, retenue: 'offre', prix: Math.max(0, connu - remiseOffre) };
   }
 
