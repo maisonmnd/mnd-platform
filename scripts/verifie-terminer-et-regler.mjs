@@ -289,7 +289,7 @@ const PANNES = [
   ['le Trone prepare deux pieces', PUR, "  return !aDejaSaPiece && r.status === 'confirmé' && finValable(r);", "  return r.status === 'confirmé' && finValable(r);"],
   ['les suites se font deux fois', PUR, ' && !r.honoreAuReglement.suitesLe;', ';'],
   ['Ma Couronne montre le bouton porte fermee', PUR, "    if (porte.ouverte) return { rdv, etat: 'en-cours', porte };", "    return { rdv, etat: 'en-cours', porte };"],
-  ['Ma Couronne dit « vous pouvez partir » avant le reglement', PUR, "    if (rdv.termineParElle?.le && (rdv.honoreAuReglement?.le || porte.raison === 'deja-regle')) return { rdv, etat: 'regle', porte };", "    if (rdv.termineParElle?.le) return { rdv, etat: 'regle', porte };"],
+  ['Ma Couronne dit « vous pouvez partir » avant le reglement', PUR, "    if (rdv.termineParElle?.le && !porte.ouverte && (rdv.honoreAuReglement?.le || porte.raison === 'deja-regle')) return { rdv, etat: 'regle', porte };", "    if (rdv.termineParElle?.le) return { rdv, etat: 'regle', porte };"],
   ['Ma Couronne garde « termine » sur un rendez-vous d hier', PUR, "    .filter((r) => String(r.date ?? '').slice(0, 10) === aujourdhui)\n", ''],
   /* ── Regler avant et apres (7 novembre 2026) : la regle pure ── */
   ['avant-apres : d avance une heure de trop (apres l heure du rituel)', PUR, "  if (maintenantMs < debut) return 'avance';", "  if (maintenantMs < debut + 3_600_000) return 'avance';"],
