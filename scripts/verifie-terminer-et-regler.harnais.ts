@@ -1413,6 +1413,35 @@ const freinAa: number[] = [];
 for (let i = 0; i < 21; i++) freinAa.push((await ma('avance', 'rdv-demain', 'jeton.de.awa', '3.3.3.3')).status);
 dit('avant-apres serveur : le frein de la porte, vingt touchers par adresse en dix minutes, le vingt et unieme refuse', [20, 429], [freinAa.filter((s) => s === 200).length, freinAa[20]]);
 
+/* ── 20 b bis. LE CAS REEL DU 7 NOVEMBRE 2026 : regle 100 F, honore, puis un soin de 2 000 F ajoute ── */
+remplisAvantApres();
+Object.assign(rdvDe('rdv-jour'), {
+  status: 'honoré', priceXof: 2100, time: '08:00', termineParElle: { le: new Date(aCotonou(JOUR, '08:02')).toISOString(), par: 'couronne' },
+  honoreAuReglement: { le: new Date(aCotonou(JOUR, '08:04')).toISOString() }, paidXof: 100,
+  payments: [{ id: 'kkia-4104885771935475', amountXof: 100, date: JOUR, method: 'KkiaPay', cashbox: 'KkiaPay', invoiceId: 'inv-asqq6m8zkp' }],
+  lienDeReglement: { jeton: J2, creeLe: 'x', payeLe: `${JOUR}T09:04`, depuisLaCouronne: { quand: 'avance', le: 'x' } },
+});
+const PIECE_REEL = (extra: Record<string, unknown> = {}) => ({ id: 'inv-asqq6m8zkp', branch_id: 'b1', data: { id: 'inv-asqq6m8zkp', kind: 'facture', status: 'envoyée', apptId: 'rdv-jour', date: JOUR,
+  lines: [{ label: 'Essai', qty: 1, unitXof: 100, discountPct: 0 }, { label: 'La sortie soignée', qty: 1, unitXof: 2000, discountPct: 0 }], globalDiscountPct: 0,
+  payments: [{ id: 'kkia-4104885771935475', amountXof: 100, date: JOUR, method: 'KkiaPay' }], ...extra } });
+db.invoices.push(PIECE_REEL());
+const rdvReel = { ...rdvDe('rdv-jour'), id: 'rdv-jour' } as RdvDeLaFin;
+const carteReel = carteDuRituelEnCours({ rdvs: [rdvReel], maintenantMs: A_10H, resteDeLaPiece: () => 2000 });
+dit('cas reel : regle 100 F, honore, puis +2 000 F : la carte du jour se rouvre (« termine », porte ouverte), elle ne dit pas « vous pouvez partir »',
+  ['termine', true, 'regle'], [carteReel?.etat, carteReel?.porte.ouverte, carteDuRituelEnCours({ rdvs: [rdvReel], maintenantMs: A_10H, resteDeLaPiece: () => 0 })?.etat]);
+const apresReel = aReglerApres({ rdvs: [{ ...rdvReel, date: '2026-11-05' }], maintenantMs: A_10H, resteDeLaPiece: () => 2000 });
+dit('cas reel : le lendemain, « A regler » porte 2 000 F sur sa piece, meme honore et meme lien paye', [[2000, true]], apresReel.map((d) => [d.resteXof, d.surLaPiece]));
+const reelTer = await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-jour' }, { cle: 'jeton.de.awa' });
+dit('cas reel serveur : la fonction ouvre le reglement sur le reste relu de la piece, 2 000 F (jamais 2 100 ni 100), meme honore', ['a-regler', 2000, true], [reelTer.corps.etat, reelTer.corps.resteXof, estUnJetonDeLaFin(reelTer.corps.jeton)]);
+const pageReel = (await appelle(regler, { action: 'lire', jeton: String(reelTer.corps.jeton) })).corps.page;
+dit('cas reel serveur : la page « Regler » dit 2 000 F a regler, 100 F deja recus (deduits, jamais recomptes)', ['a-regler', 2100, 100, 2000], [pageReel?.etat, pageReel?.totalXof, pageReel?.recuXof, pageReel?.resteXof]);
+transactions.treel = { status: 'SUCCESS', amount: 2000, fees: 38, source: 'MTN_BENIN' };
+const payeReel = await appelle(regler, { action: 'regler', jeton: String(reelTer.corps.jeton), transactionId: 'treel' });
+dit('cas reel serveur : elle regle 2 000 F ; la piece porte 2 100 F recus, soldee ; le rendez-vous reste honore ; un rejeu ne double rien',
+  [2000, 2, 'payée', 'honoré', true, 2], [payeReel.corps.versementXof, db.invoices.find((x) => x.id === 'inv-asqq6m8zkp')!.data.payments.length, db.invoices.find((x) => x.id === 'inv-asqq6m8zkp')!.data.status, rdvDe('rdv-jour').status,
+    (await appelle(regler, { action: 'regler', jeton: String(reelTer.corps.jeton), transactionId: 'treel' })).corps.deja, db.invoices.find((x) => x.id === 'inv-asqq6m8zkp')!.data.payments.length]);
+dit('cas reel serveur : soldee, la porte se referme (« deja regle »)', 'deja-regle', (await appelle(finir, { action: 'terminer', porte: 'couronne', rdvId: 'rdv-jour' }, { cle: 'jeton.de.awa' })).corps.etat);
+
 /* ── 20 c. Ma Couronne, la page « Regler », le Trone : le cablage, lu dans les sources ── */
 const tabsAa = sansCommentaires(lis('src/apps/couronne/Tabs.tsx'));
 const ecranAa = sansCommentaires(lis('src/apps/couronne/ReglerAvantApres.tsx'));

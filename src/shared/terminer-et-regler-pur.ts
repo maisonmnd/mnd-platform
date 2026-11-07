@@ -882,8 +882,12 @@ export function carteDuRituelEnCours<T extends RdvDeLaFin>(o: {
   for (const rdv of duJour) {
     const reste = o.resteDeLaPiece ? o.resteDeLaPiece(rdv.id) : null;
     const porte = porteDeLaFin({ rdv, maintenantMs: o.maintenantMs, passeAuComptoir: o.passeAuComptoir, piece: reste === null ? null : { resteXof: reste } });
-    if (rdv.termineParElle?.le && (rdv.honoreAuReglement?.le || porte.raison === 'deja-regle')) return { rdv, etat: 'regle', porte };
-    if (rdv.termineParElle?.le && rdv.status === 'confirmé') return { rdv, etat: 'termine', porte };
+    /* UN RESTE SUR SA PIÈCE ROUVRE LA CARTE (7 novembre 2026, cas réel : réglé
+       100 F, honoré au règlement, puis l'équipe ajoute « La sortie soignée »
+       2 000 F). « Honoré » et « payé une fois » ne ferment pas la porte tant
+       que sa pièce doit encore : `porte.ouverte` juge d'abord le reste. */
+    if (rdv.termineParElle?.le && !porte.ouverte && (rdv.honoreAuReglement?.le || porte.raison === 'deja-regle')) return { rdv, etat: 'regle', porte };
+    if (rdv.termineParElle?.le && (rdv.status === 'confirmé' || porte.ouverte)) return { rdv, etat: 'termine', porte };
     if (porte.ouverte) return { rdv, etat: 'en-cours', porte };
   }
   return null;
