@@ -297,7 +297,7 @@ export const NAISSANCES: readonly Naissance[] = [
     description: 'KLƆKLƆ™ Essentiel et SÍNSIN™ Signature, la sortie soignée comprise. La reprise longue durée, au prix de la carte.',
   }) },
   { quoi: 'service', temps: 'maintenant', pourquoi: 'le soin et le temps (question 3)', fiche: PRESTATION({
-    id: 'sv-le-moment', categoryId: 'cat-venue', name: 'Le Moment · le soin et le temps', code: 'ATL·II·VEN·M', order: 3,
+    id: 'sv-le-moment', categoryId: 'cat-venue', name: 'Le Moment Signature', code: 'ATL·II·VEN·M', order: 3,
     priceXof: 0, forfaitRemisePct: 0, durationMin: 300, durationMaxMin: 420,
     includes: [
       { serviceId: 'sv-plt-05-sig-c' }, { serviceId: 'sv-atl-ii-l' }, { serviceId: 'sv-plt-10-m' },
