@@ -1241,42 +1241,6 @@ export default function Carnet() {
         }
       />
 
-      <div className="trc-toolbar trc-carnet-barre" ref={barreRef}>
-        <div className="trc-searchwrap">
-          <Search size={17} aria-hidden="true" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Une cliente, ou une phrase : « impayés de septembre », « Team samedi »…"
-            aria-label="Rechercher un rendez-vous, par cliente ou par une phrase"
-          />
-        </div>
-        {/* LA BASCULE DES DEUX MAISONS. Le 3 août 2026, un rendez-vous du
-            Studio saisi depuis l'Atelier restait introuvable : il était au bon
-            endroit — une seule branche — mais rien ne permettait de le
-            retrouver par sa maison. */}
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} role="group" aria-label="Filtrer par maison">
-          {([['', 'Tout'], ...MAISONS.map((m) => [m.k, m.fon] as const)] as ReadonlyArray<readonly [string, string]>).map(
-            ([id, label]) => {
-              const actif = maison === id;
-              return (
-                <FiltreChip key={id || 'tout'} actif={actif} onClick={() => setMaison(id as Maison | '')}>
-                  {label}
-                </FiltreChip>
-              );
-            },
-          )}
-        </div>
-      </div>
-
-      {query.trim() && phrase.compris.length > 0 && (
-        <div className="trc-compris" role="status">
-          <span className="trc-compris__dit">Le Carnet comprend :</span>
-          {phrase.compris.map((x) => <span key={x} className="trc-compris__puce">{x}</span>)}
-          <span className="trc-compris__dit">· {upcoming.length + past.length} rendez-vous</span>
-        </div>
-      )}
-
       {/* CE QU'ON VIENT CHERCHER. Chaque pastille porte son compte : on voit
           combien d'impayés il y a AVANT de cliquer, et le comptoir sait s'il a
           du travail sans avoir à explorer. Les comptes se lisent sur ce que la
@@ -1414,6 +1378,43 @@ export default function Carnet() {
           </div>
         );
       })()}
+
+      {/* 7 novembre 2026 (Y.) : « mettre la barre de recherche juste au-dessus de Rendez-vous à venir, en dessous de ce qui presse ». */}
+      <div className="trc-toolbar trc-carnet-barre" ref={barreRef}>
+        <div className="trc-searchwrap">
+          <Search size={17} aria-hidden="true" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Une cliente, ou une phrase : « impayés de septembre », « Team samedi »…"
+            aria-label="Rechercher un rendez-vous, par cliente ou par une phrase"
+          />
+        </div>
+        {/* LA BASCULE DES DEUX MAISONS. Le 3 août 2026, un rendez-vous du
+            Studio saisi depuis l'Atelier restait introuvable : il était au bon
+            endroit — une seule branche — mais rien ne permettait de le
+            retrouver par sa maison. */}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} role="group" aria-label="Filtrer par maison">
+          {([['', 'Tout'], ...MAISONS.map((m) => [m.k, m.fon] as const)] as ReadonlyArray<readonly [string, string]>).map(
+            ([id, label]) => {
+              const actif = maison === id;
+              return (
+                <FiltreChip key={id || 'tout'} actif={actif} onClick={() => setMaison(id as Maison | '')}>
+                  {label}
+                </FiltreChip>
+              );
+            },
+          )}
+        </div>
+      </div>
+
+      {query.trim() && phrase.compris.length > 0 && (
+        <div className="trc-compris" role="status">
+          <span className="trc-compris__dit">Le Carnet comprend :</span>
+          {phrase.compris.map((x) => <span key={x} className="trc-compris__puce">{x}</span>)}
+          <span className="trc-compris__dit">· {upcoming.length + past.length} rendez-vous</span>
+        </div>
+      )}
 
       <div className="trc-sheet trc-carnet" style={{ '--carnet-barre': `${hautBarre}px` } as CSSProperties}>
         <div className="trc-sheet__head" style={{ gridTemplateColumns: GRID }}>

@@ -1266,6 +1266,60 @@ export default function Customers() {
         </div>
       )}
 
+      {view === 'maison' && (
+        <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
+          {segments.map((s) => (
+            <button key={s.label} className={`trc-chip ${seg === s.label ? 'is-active' : ''}`} onClick={() => setSeg(s.label)}>
+              {s.label} <span className="count">{s.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {view === 'maison' && (
+        <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span className="mnd-muted" style={{ fontSize: 11.5, letterSpacing: '.06em', textTransform: 'uppercase' }}>Palier</span>
+          {chipsDePalier.map((p) => (
+            <button key={p.label} className={`trc-chip ${palierFiltre === p.label ? 'is-active' : ''}`} onClick={() => setPalierFiltre(p.label)}>
+              {p.label} <span className="count">{p.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Registre Diaspora : constituer la liste par recherche, sans ouvrir les fiches. */}
+      {view === 'diaspora' && (
+        <div style={{ marginBottom: 18 }}>
+          <div className="trc-searchwrap" style={{ maxWidth: 480 }}>
+            <Input
+              value={diaQ}
+              onChange={(e) => setDiaQ(e.target.value)}
+              placeholder="Ajouter une cliente à la liste Diaspora (nom, téléphone)…"
+              aria-label="Ajouter une cliente à la liste Diaspora"
+            />
+          </div>
+          {diaCandidates.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              {diaCandidates.map((c) => (
+                <button
+                  key={c.id}
+                  className="trc-chip"
+                  onClick={() => addToDiaspora(c)}
+                  title={`Ajouter ${c.name} à la liste Diaspora`}
+                >
+                  + {c.name}
+                </button>
+              ))}
+            </div>
+          )}
+          {diaQ.trim() !== '' && diaCandidates.length === 0 && (
+            <div className="trc-sub" style={{ marginTop: 10 }}>
+              Aucune cliente hors Diaspora ne répond à cette recherche.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 7 novembre 2026 (Y.) : « dans Clientes, descendre la barre de recherche juste au-dessus de la liste des clientes ». */}
       {/* Recherche & tri */}
       <div className="trc-toolbar">
         {/* LA RECHERCHE SE VOIT (25 août). Elle se fondait dans la page, entre
@@ -1331,59 +1385,6 @@ export default function Customers() {
               Marquer « de passage »
             </Button>
           </span>
-        </div>
-      )}
-
-      {view === 'maison' && (
-        <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
-          {segments.map((s) => (
-            <button key={s.label} className={`trc-chip ${seg === s.label ? 'is-active' : ''}`} onClick={() => setSeg(s.label)}>
-              {s.label} <span className="count">{s.count}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {view === 'maison' && (
-        <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span className="mnd-muted" style={{ fontSize: 11.5, letterSpacing: '.06em', textTransform: 'uppercase' }}>Palier</span>
-          {chipsDePalier.map((p) => (
-            <button key={p.label} className={`trc-chip ${palierFiltre === p.label ? 'is-active' : ''}`} onClick={() => setPalierFiltre(p.label)}>
-              {p.label} <span className="count">{p.count}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Registre Diaspora : constituer la liste par recherche, sans ouvrir les fiches. */}
-      {view === 'diaspora' && (
-        <div style={{ marginBottom: 18 }}>
-          <div className="trc-searchwrap" style={{ maxWidth: 480 }}>
-            <Input
-              value={diaQ}
-              onChange={(e) => setDiaQ(e.target.value)}
-              placeholder="Ajouter une cliente à la liste Diaspora (nom, téléphone)…"
-              aria-label="Ajouter une cliente à la liste Diaspora"
-            />
-          </div>
-          {diaCandidates.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-              {diaCandidates.map((c) => (
-                <button
-                  key={c.id}
-                  className="trc-chip"
-                  onClick={() => addToDiaspora(c)}
-                  title={`Ajouter ${c.name} à la liste Diaspora`}
-                >
-                  + {c.name}
-                </button>
-              ))}
-            </div>
-          )}
-          {diaQ.trim() !== '' && diaCandidates.length === 0 && (
-            <div className="trc-sub" style={{ marginTop: 10 }}>
-              Aucune cliente hors Diaspora ne répond à cette recherche.
-            </div>
-          )}
         </div>
       )}
 
@@ -3734,25 +3735,6 @@ function Customer360({
 
               Il descend donc à la fin de SON bloc, il nomme ce qu'il emporte,
               et ce qui s'écrit tout seul le dit en clair. */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--hairline)' }}>
-            <span className="trc-sub" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              {/* « Retirer la photo » VIVAIT ICI, à côté d'une date d'ancienneté,
-                  et n'y était trouvé par personne. Il est remonté sur le
-                  portrait, avec « Changer la photo » : deux gestes sur la même
-                  chose se cherchent au même endroit. */}
-              Cliente depuis le {client.since ? frLongAn(client.since) : '—'}
-            </span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-              {idSaved && !idDirty && (
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--trv-success, var(--color-indigo))' }}>
-                  Enregistré.
-                </span>
-              )}
-              <Button variant="indigo" size="sm" disabled={!idDirty} onClick={saveIdentity}>
-                Enregistrer ses coordonnées
-              </Button>
-            </span>
-          </div>
           <div className="trc-bday">
             <div className="trc-bday__field">
               <Field label="Anniversaire">
@@ -3778,6 +3760,26 @@ function Customer360({
               </Button>
             </div>
           )}
+          {/* 7 novembre 2026 (Y.) : « mettre le bouton Enregistrer ses coordonnées en dessous de Anniversaire ». Il ferme le bloc, après la date de naissance et le cadeau. */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--hairline)' }}>
+            <span className="trc-sub" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              {/* « Retirer la photo » VIVAIT ICI, à côté d'une date d'ancienneté,
+                  et n'y était trouvé par personne. Il est remonté sur le
+                  portrait, avec « Changer la photo » : deux gestes sur la même
+                  chose se cherchent au même endroit. */}
+              Cliente depuis le {client.since ? frLongAn(client.since) : '—'}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+              {idSaved && !idDirty && (
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--trv-success, var(--color-indigo))' }}>
+                  Enregistré.
+                </span>
+              )}
+              <Button variant="indigo" size="sm" disabled={!idDirty} onClick={saveIdentity}>
+                Enregistrer ses coordonnées
+              </Button>
+            </span>
+          </div>
           </>)}
         </div>
 
