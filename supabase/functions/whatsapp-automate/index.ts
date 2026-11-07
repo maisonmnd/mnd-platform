@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -6803,7 +6803,12 @@ async function unTourDOpale(
   const versionLue = Number(brutDuFil?.version ?? 0) || 0;
   const main = (((lignesDuFil ?? []) as Ligne[]).find((l) => l.id === `main-${o.numero}`)?.data ?? null) as MainDuFil | null;
   if (pauseActive(main, ms)) { dis('opale · l equipe a la main'); return { pris: false }; }
-  if (fil && etapeCourante(fil, main, ms, reglage.pauseHeures) === 'main' && !o.reprise) { dis('opale · la main est passee, pas encore rendue'); return { pris: false }; }
+  /* LA MAIN PASSÉE N'ÉTEINT PAS « J'AI TERMINÉ » (7 novembre 2026, essai de
+     Yéman : un « Terminé » à 7 h 20 fit passer la main, « Bonjour » à 8 h 19
+     resta sans réponse, et la phrase de 9 h n'aurait pas eu son lien). Main
+     passée, le tour ne parle QUE pour cette phrase ; la pause d'une personne
+     qui a pris le fil (`pauseActive`, plus haut) tient toujours. */
+  const laMainEstPassee = !!fil && etapeCourante(fil, main, ms, reglage.pauseHeures) === 'main' && !o.reprise;
 
   /* ② LE TOUR : une rafale, un seul tour ; le bouton « Changer l'heure » de
      Perle fait le sien ; une reprise prend ce qui attend depuis le dernier mot de la Maison. */
@@ -6825,6 +6830,7 @@ async function unTourDOpale(
     tour = lu;
     entrants = (await litLesEntrants(sb, o.numero, ms)) ?? [];
   }
+  if (laMainEstPassee && !ditQuElleATermine(tour.texte)) { dis('opale · la main est passee, pas encore rendue'); return { pris: false }; }
 
   /* ③ LES FICHES, SON PLAFOND. */
   const fiches = await lesFichesDuNumero(sb, o.numero);
@@ -7115,6 +7121,7 @@ async function unTourDOpale(
   const finDuRituel = !o.reprise && !o.deplacer
     ? await reponseALaFinDuRituel(sb, { texte: tour.texte, fiches, aujourdhui, appel: appelDeLaVoix })
     : null;
+  if (laMainEstPassee && !finDuRituel) { dis('opale · la main est passee, « j ai termine » sans rendez-vous nomme'); return { pris: false }; }
   if (finDuRituel) {
     issue.texte = finDuRituel.texte;
     if (finDuRituel.sansRdv) {
