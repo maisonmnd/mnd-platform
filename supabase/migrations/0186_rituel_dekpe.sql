@@ -1,7 +1,7 @@
 -- 0186 · RITUEL DEKPE · 7 novembre 2026
 --
 -- « Non, je préfère rituel dekpe », « dekpe comme le slogan », « jamais le D
--- avec la barre » (Y.) : le mot s'écrit avec un D ordinaire, jamais Ɖ ni ɖ. La
+-- avec la barre » (Y.) : le mot s'écrit avec un D ordinaire. La
 -- catégorie née en 0185 (Express et Fidélité, hors de la venue) s'appelle
 -- « Rituel Dekpe ». « Endekpe Fidélité, et Dekpe Express » : les deux
 -- services prennent ces noms à la place de « GBÈJÍ™ » ; le reste de leur nom
