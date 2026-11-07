@@ -3053,7 +3053,8 @@ function RdvModalCorps({
      dans son ordre ; la valeur de carte au prix de cette tête. Lecture seule. */
   const prixDeLaCarte = (s: { id: string }) => { const sv = byId.get(s.id); return sv ? prixDeBase(sv, pricing) : undefined; };
   const leMomentLu = contientLeMoment(serviceIds) ? byId.get(serviceIds[0]) : undefined;
-  const detailDuMomentIci = leMomentLu ? detailDuService(leMomentLu, byId, { prixDe: prixDeLaCarte }) : null;
+  /* Un rendez-vous d'un plan en plusieurs venues montre CE QUE SA VENUE CONSOMME (son rang), jamais le prix de la carte du Moment : « je ne veux surtout pas voir 218000 » (Yéman, 7 novembre 2026). */
+  const detailDuMomentIci = leMomentLu ? detailDuService(leMomentLu, byId, { prixDe: prixDeLaCarte }, appt?.momentEnTrois?.rang) : null;
   const detailsDesVenues = enTrois
     ? detailParVenue([serviceIds[0], ...Array.from({ length: nVenues - 1 }, () => venueDEntretien)], byId, { prixDe: prixDeLaCarte })
     : undefined;
@@ -5374,7 +5375,13 @@ function RdvModalCorps({
           {/* LE MOMENT SE RÈGLE EN TROIS VENUES (7 novembre 2026) : le choix et les
               trois dates, juste sous le créneau du Moment. */}
           {detailDuMomentIci && detailDuMomentIci.lignes.length > 0 && (
-            <DetailDuMoment detail={detailDuMomentIci} totalXof={totalDuMoment} replie={!!appt} />
+            <DetailDuMoment
+              detail={detailDuMomentIci}
+              titre={appt?.momentEnTrois ? `Ce que comprend cette venue · ${appt.momentEnTrois.rang} sur ${appt.momentEnTrois.tiers.length}` : undefined}
+              totalXof={appt ? undefined : totalDuMoment}
+              replie={!!appt && !appt.momentEnTrois}
+              avecValeurs={false}
+            />
           )}
           {tiersDuMomentIci && (
             <MomentEnTroisChoix
@@ -6088,7 +6095,7 @@ function RdvModalCorps({
                     {l.sv.name}
                     <small>
                       {fmtDureeCourte(l.sv.durationMin ?? 0)}
-                      {!sansPrix && !effCovered && !estSuite && (
+                      {!sansPrix && !effCovered && !estSuite && !appt?.momentEnTrois && (
                         <>
                           {' · '}
                           <button type="button" className="trc-rdv5__lien" onClick={() => ouvreLeVolet('quoi')}>
@@ -6100,8 +6107,11 @@ function RdvModalCorps({
                   </span>
                   {!sansPrix && (
                     <span className="trc-rdv5__mt">
-                      {l.net < l.plein && <s>{argent(l.plein)}</s>}
-                      {priceModeOf(l.sv) === 'devis' ? 'sur devis' : argent(l.net)}
+                      {/* La part de la venue (prix figé), jamais le prix de la carte du Moment. */}
+                      {appt?.momentEnTrois ? argent(appt.priceXof ?? l.net) : (<>
+                        {l.net < l.plein && <s>{argent(l.plein)}</s>}
+                        {priceModeOf(l.sv) === 'devis' ? 'sur devis' : argent(l.net)}
+                      </>)}
                     </span>
                   )}
                 </div>

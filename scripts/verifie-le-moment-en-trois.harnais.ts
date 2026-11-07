@@ -312,7 +312,7 @@ dit('les blocs copies de terminer-et-regler et regler-la-seance sont identiques 
 {
   const rdvSrc = lis(RDV); const caisse = lis(CAISSE); const couronne = lis(COURONNE); const fiche = lis(FICHE);
   dit('au nouveau RDV : le bloc « Ce que comprend Le Moment » (lu de includes, au prix de la tete, avec le total), et le detail de CHAQUE venue du plan', [true, true, true],
-    [/<DetailDuMoment detail=\{detailDuMomentIci\} totalXof=\{totalDuMoment\}/.test(rdvSrc), /detailParVenue\(\[serviceIds\[0\], \.\.\.Array\.from\(\{ length: nVenues - 1 \}, \(\) => venueDEntretien\)\], byId/.test(rdvSrc), /details=\{detailsDesVenues\}/.test(rdvSrc)]);
+    [/<DetailDuMoment\s+detail=\{detailDuMomentIci\}[\s\S]{0,260}totalXof=\{appt \? undefined : totalDuMoment\}[\s\S]{0,120}avecValeurs=\{false\}/.test(rdvSrc), /detailParVenue\(\[serviceIds\[0\], \.\.\.Array\.from\(\{ length: nVenues - 1 \}, \(\) => venueDEntretien\)\], byId/.test(rdvSrc), /details=\{detailsDesVenues\}/.test(rdvSrc)]);
   dit('a la caisse : la liste des services de la venue, en lecture seule (aucune saisie : un composant sans champ), le prix reste la part figee', [true, false],
     [/\{appt\.momentEnTrois && \(\s*\n\s*<DetailDuMoment\s*\n\s*detail=\{detailDuService\(byId\.get\(appt\.serviceIds\[0\]\), byId, \{\}, appt\.momentEnTrois\.rang\)\}/.test(caisse), /<input|<Select|onChange/.test(lis('src/apps/trone/routes/clients/DetailDuMoment.tsx'))]);
   dit('sur la fiche : le detail repliable par venue, lu du service de chaque rendez-vous', true, /detailDuService\(rdvDeLaVenue \? catalogue\.get\(rdvDeLaVenue\.serviceIds\[0\]\) : undefined, catalogue, \{\}, l\.rang\)/.test(fiche) && /<DetailDuMoment detail=\{detail\} titre="Ce que comprend cette venue" replie/.test(fiche));
