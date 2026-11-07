@@ -140,7 +140,7 @@ begin
   return new;
 end $$;
 
--- ③ Annuler côté cliente (0138), et le refus d'un rendez-vous réglé d'avance.
+-- ③ Annuler côté cliente (0138, réponse de 0169 : plus jamais « manquée », `compteeCommeManquee` est toujours false), et le refus d'un rendez-vous réglé d'avance.
 create or replace function public.annuler_une_seance(p_appt_id text)
 returns jsonb
 language plpgsql
@@ -166,7 +166,7 @@ begin
   end if;
   if v_a.data->>'status' = 'annulé' then
     return jsonb_build_object('ok', true, 'dejaAnnulee', true,
-      'compteeCommeManquee', public.abo_vrai(v_a.data->'coveredBySub') and public.abo_etat_de_la_seance(v_a.data, v_jour) = 'manquee');
+      'compteeCommeManquee', false);
   end if;
   if v_a.data->>'status' = 'honoré' then
     return jsonb_build_object('ok', false, 'raison', 'deja_faite');
@@ -182,7 +182,7 @@ begin
     'annuleeLe', public.abo_iso(public.abo_maintenant()), 'annuleePar', 'cliente');
   update public.appointments set data = v_neuf, updated_at = now() where id = v_a.id;
   return jsonb_build_object('ok', true,
-    'compteeCommeManquee', public.abo_vrai(v_neuf->'coveredBySub') and public.abo_etat_de_la_seance(v_neuf, v_jour) = 'manquee');
+    'compteeCommeManquee', false);
 end;
 $$;
 
