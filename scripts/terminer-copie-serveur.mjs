@@ -27,6 +27,8 @@ export const COPIES = [
   { bloc: 'j-ai-termine', source: PUR, cibles: ['supabase/functions/whatsapp-automate/index.ts'] },
   /* Le billet réglé porte sa facture (7 novembre 2026). */
   { bloc: 'billet-regle', source: 'src/shared/billet-regle-pur.ts', cibles: [FONCTION] },
+  /* Déplacer depuis le site (7 novembre 2026) : la règle des 24 heures, jugée par demande-submit. */
+  { bloc: 'deplacer-du-site', source: 'src/shared/deplacer-du-site-pur.ts', cibles: ['supabase/functions/demande-submit/index.ts'] },
 ];
 
 const lf = (s) => s.replace(/\r\n/g, '\n');

@@ -39,7 +39,13 @@ const ETATS: readonly EtatDuBillet[] = ['confirme', 'en-cours', 'termine', 'regl
 
 /** Le billet du site : celui de la règle, et la facture d'un rendez-vous
     réglé quand le serveur la joint (7 novembre 2026). */
-export type BilletDuSite = BilletDeLaFin & { facture?: FactureDuBillet };
+export type BilletDuSite = BilletDeLaFin & {
+  facture?: FactureDuBillet;
+  /** RÉGLER DÈS MAINTENANT (7 novembre 2026) : avant l'heure du rituel, la
+      porte d'avance est-elle ouverte, et sinon pourquoi. Absent : un billet
+      d'une ancienne fonction, ou un rituel commencé. */
+  avance?: { ouverte: boolean; raison: string };
+};
 
 /** Le billet tel que la fonction le rend, ou null s'il n'a pas sa forme.
     Sa facture n'est gardée que si elle a la sienne (`factureLue`) : une
@@ -53,11 +59,14 @@ export function billetLu(brut: unknown): BilletDuSite | null {
   const reste = b.resteXof === null || b.resteXof === undefined ? null : Number(b.resteXof);
   if (reste !== null && (!Number.isFinite(reste) || reste < 0)) return null;
   const facture = b.facture === undefined ? null : factureLue(b.facture);
+  const av = b.avance as { ouverte?: unknown; raison?: unknown } | null | undefined;
+  const avance = av && typeof av === 'object' && typeof av.ouverte === 'boolean' && typeof av.raison === 'string' ? { ouverte: av.ouverte, raison: av.raison } : null;
   return {
     reference: b.reference, prenom: typeof b.prenom === 'string' ? b.prenom : '', jour: b.jour, heure: typeof b.heure === 'string' ? b.heure : '',
     etat: b.etat as EtatDuBillet, resteXof: reste === null ? null : Math.round(reste),
     porte: { ouverte: porte.ouverte, raison: porte.raison as RaisonDeLaPorte }, aTermine: b.aTermine === true,
     ...(facture ? { facture } : {}),
+    ...(avance ? { avance } : {}),
   };
 }
 
@@ -93,6 +102,11 @@ export function finLue(r: unknown, statut?: number): FinDemandee {
   return typeof x.adresse === 'string' && /^https:\/\/maisonmnd\.com\/trone\/payer\.html\?tg=r-[23456789a-z]{14}$/.test(x.adresse)
     ? { etat: 'a-regler', adresse: x.adresse } : { etat: 'panne' };
 }
+
+/** CE QUE « RÉGLER DÈS MAINTENANT » A RENDU (7 novembre 2026) : la même forme
+    que « terminer », donc la même relecture, et la même vérification de
+    l'adresse (celle de la page « Régler » de la Maison, jamais une autre). */
+export const reglerLue = finLue;
 
 /* ── Le formulaire « Retrouver mon rendez-vous » ───────────────────────── */
 
@@ -131,13 +145,25 @@ export type ReglementDit = {
   /** Le montant, quand le serveur le connaît. */
   montant?: string;
   /** Le bouton, seulement quand la porte est ouverte. */
-  bouton?: 'Terminer et régler' | 'Régler mon rituel';
+  bouton?: 'Terminer et régler' | 'Régler mon rituel' | typeof REGLER_DES_MAINTENANT;
   /** Télécharger la facture : seulement un rendez-vous réglé dont le billet porte la facture. */
   telecharger?: typeof TELECHARGER_LA_FACTURE;
   note?: string;
   /** Le jour même, le rituel a commencé : Déplacer et Annuler n'ont plus lieu d'être. */
   leJourMeme: boolean;
 };
+
+/* RÉGLER DÈS MAINTENANT — 7 novembre 2026. « Permettre à la cliente de RÉGLER
+   son RDV directement sur le site » (Yéman), avant le jour du rituel. Le
+   bouton ne paraît que si le serveur dit la porte d'avance ouverte (le billet
+   porte `avance`) ; le montant est celui du serveur. Sinon, une phrase
+   calme : le règlement en ligne s'ouvre le jour du rituel, ou la Maison
+   accueille au comptoir (« Passe au comptoir », un acompte à vérifier). */
+export const REGLER_DES_MAINTENANT = 'Régler dès maintenant';
+export const PHRASE_REGLER_DES_MAINTENANT = 'Réglez dès maintenant depuis votre téléphone, ou le jour de votre rituel.';
+export const PHRASE_REGLER_LE_JOUR_VENU = 'Le règlement en ligne s’ouvre le jour de votre rituel.';
+export const PHRASE_REGLER_AU_COMPTOIR = 'Pour votre règlement, la Maison vous accueille au comptoir.';
+export const REGLEMENT_EN_PANNE = 'Le règlement ne répond pas. Réessayez dans un moment, ou passez au comptoir.';
 
 /** Le bouton de la facture d'un rendez-vous réglé, et la phrase calme d'un échec. */
 export const TELECHARGER_LA_FACTURE = 'Télécharger ma facture (PDF)';
@@ -177,6 +203,18 @@ export function reglementDuBillet(b: BilletDuSite, aujourdhui?: string): Regleme
   if (b.porte.raison === 'comptoir') return { sur: 'Votre règlement', phrase: 'Pour votre règlement, l’équipe vous attend au comptoir.', leJourMeme: b.etat === 'en-cours' };
   if (b.porte.raison === 'rien-a-regler') return { sur: 'Rien à régler', phrase: 'Il n’y a rien à régler pour ce rendez-vous.', leJourMeme: b.etat === 'en-cours' };
   if (b.porte.raison === 'avant-l-heure' || b.porte.raison === 'pas-encore-le-jour') {
+    /* AVANT LE JOUR : le serveur a jugé la porte d'avance (`avance`). Ouverte :
+       le montant et le bouton ; sinon, ni bouton ni montant promis, et UNE
+       phrase calme. Un billet sans `avance` garde la phrase d'avant. */
+    if (b.avance?.ouverte) {
+      return { sur: 'À régler', ...(montant ? { montant } : {}), phrase: PHRASE_REGLER_DES_MAINTENANT, bouton: REGLER_DES_MAINTENANT, leJourMeme: false };
+    }
+    if (b.avance) {
+      return {
+        sur: 'À régler', ...(montant ? { montant } : {}),
+        phrase: b.avance.raison === 'comptoir' ? PHRASE_REGLER_AU_COMPTOIR : PHRASE_REGLER_LE_JOUR_VENU, leJourMeme: false,
+      };
+    }
     return {
       sur: 'À régler', ...(montant ? { montant } : {}),
       phrase: 'Le jour de votre rituel, dès son heure, le bouton « Terminer et régler » paraît ici : vous réglez depuis votre téléphone.', leJourMeme: false,
@@ -192,5 +230,7 @@ export function refusDit(raison: string): string {
   if (raison === 'comptoir') return 'Pour votre règlement, l’équipe vous attend au comptoir.';
   if (raison === 'avant-l-heure' || raison === 'pas-encore-le-jour') return 'Ce bouton s’allume à l’heure de votre rituel.';
   if (raison === 'annule') return 'Ce rendez-vous est annulé : il n’y a rien à régler.';
+  /* « Régler dès maintenant » (7 novembre 2026) : les raisons de la porte d'avance. */
+  if (raison === 'pas-le-moment') return PHRASE_REGLER_LE_JOUR_VENU;
   return 'Le règlement en ligne n’est pas ouvert pour ce rendez-vous. L’équipe vous répond au comptoir ou sur WhatsApp.';
 }

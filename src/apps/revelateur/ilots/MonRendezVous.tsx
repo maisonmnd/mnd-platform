@@ -11,10 +11,12 @@ import {
 } from '../reservation-du-site-pure';
 import { Chargeur, RepliDuChargement } from './Chargeur';
 import {
-  CHEMIN_POUR_RETROUVER, FACTURE_EN_PANNE, FONCTION_DE_LA_FIN, MOTS_DE_LA_RECHERCHE, billetDeLaPageLu, codeDeLAdresse, finLue, rechercheLue, refusDit,
-  reglementDuBillet, saisieARevoir, type BilletDuSite,
+  CHEMIN_POUR_RETROUVER, FACTURE_EN_PANNE, FONCTION_DE_LA_FIN, MOTS_DE_LA_RECHERCHE, REGLEMENT_EN_PANNE, REGLER_DES_MAINTENANT, billetDeLaPageLu, codeDeLAdresse,
+  finLue, rechercheLue, refusDit, reglementDuBillet, reglerLue, saisieARevoir, type BilletDuSite,
 } from '../billet-du-rdv-pur';
 import { jourDeLaFin } from '../../../shared/terminer-et-regler-pur';
+import { MOTS_DU_DEPLACEMENT, leBoutonDeplacer, suiteDuDeplacementDite } from '../deplacer-du-site-pur';
+import DeplacerLeRendezVous from './DeplacerLeRendezVous';
 import { telechargeLaFactureDuBillet } from '../facture-du-billet';
 
 /* LA PAGE DU RENDEZ-VOUS — 3 novembre 2026. « Add a "Déplacer/Annuler"
@@ -43,6 +45,20 @@ import { telechargeLaFactureDuBillet } from '../facture-du-billet';
      qui mène à la page « Régler ». Le montant vient du serveur, jamais d'ici.
    Les mots et la lecture des réponses vivent dans billet-du-rdv-pur.ts.
 
+   RÉGLER DÈS MAINTENANT ET DÉPLACER SUR LE SITE — 7 novembre 2026.
+   « Permettre à la cliente de RÉGLER son RDV directement sur le site » et
+   « DÉPLACER son RDV depuis le site, ouvrir le calendrier et changer de
+   date » (Yéman) :
+   · avant le jour, sous « À régler », « Régler dès maintenant » paraît quand
+     le serveur dit la porte d'avance ouverte (`avance` dans le billet) ; il
+     demande `{ action: 'regler', v }` (jamais un montant) et mène à la même
+     page « Régler » ; sinon une phrase calme, sans bouton ;
+   · « Déplacer » ouvre le calendrier en mois dans la page
+     (DeplacerLeRendezVous) jusqu'à 24 h avant l'heure du rituel ; au-delà,
+     il écrit à la Maison sur WhatsApp comme avant. Déplacé aussitôt, l'écran
+     « Rendez-vous déplacé » dit le prénom d'usage du serveur (`appel`) ;
+   · Annuler reste un mot à la Maison sur WhatsApp.
+
    LE RENDEZ-VOUS RÉGLÉ ET SA FACTURE — 7 novembre 2026. « Pouvoir
    télécharger le PDF » (Yéman). Quand le billet porte la facture, « Télécharger
    ma facture (PDF) » charge à la demande la règle du papier
@@ -55,7 +71,7 @@ const quandDuRdv = (r: RendezVousLu): string => `${jourDit(r.date)} à ${heureDi
 const fichierDuRdv = (r: RendezVousLu, apptId: string): string => ficheAgendaICS({
   apptId, date: r.date, heure: r.heure, dureeMin: r.dureeMin || 60,
   titre: `Maison MND · ${r.gestes.map((n) => nomEnFrancaisWa(n).francais).join(', ') || 'votre venue'}`,
-  note: `${r.reference ? `Réf. ${r.reference}. ` : ''}Pour déplacer ou annuler, un mot sur WhatsApp suffit.`,
+  note: `${r.reference ? `Réf. ${r.reference}. ` : ''}Pour déplacer, rouvrez la page de votre rendez-vous ; pour annuler, un mot sur WhatsApp suffit.`,
   lieu: LIEU,
 });
 
@@ -150,6 +166,10 @@ export default function MonRendezVous({ genre }: { genre?: string }) {
   const [fin, setFin] = useState<{ enCours: boolean; dit: string }>({ enCours: false, dit: '' });
   /* La facture d'un rendez-vous réglé (7 novembre 2026) : en préparation, ou la phrase d'un échec. */
   const [papier, setPapier] = useState<{ enCours: boolean; dit: string }>({ enCours: false, dit: '' });
+  /* Déplacer avec le calendrier (7 novembre 2026) : le calendrier ouvert, puis
+     le rendez-vous à sa nouvelle place (l'écran « Rendez-vous déplacé »). */
+  const [calendrierOuvert, setCalendrierOuvert] = useState(false);
+  const [deplace, setDeplace] = useState<{ rdv: RendezVousLu; confirmation: 'envoyee' | 'plus-tard' | 'sans' | 'deja' } | null>(null);
 
   useEffect(() => {
     let vivant = true;
@@ -222,6 +242,29 @@ export default function MonRendezVous({ genre }: { genre?: string }) {
     }
   };
 
+  /* « RÉGLER DÈS MAINTENANT » : la fonction rejuge la porte d'avance, pose le
+     lien et rend l'adresse de la page « Régler ». Elle ne reçoit que le jeton :
+     le montant se relit au serveur, la page n'en envoie aucun. */
+  const regle = async () => {
+    if (fin.enCours) return;
+    setFin({ enCours: true, dit: '' });
+    try {
+      const { data, statut } = await demandeALaFin({ action: 'regler', v: jeton });
+      const r = reglerLue(data, statut);
+      if (r.etat === 'a-regler') { location.assign(r.adresse); return; }
+      setFin({
+        enCours: false,
+        dit: r.etat === 'ferme' ? refusDit(r.raison)
+          : r.etat === 'trop' ? 'Beaucoup de demandes d’un coup. Réessayez dans un moment.'
+            : REGLEMENT_EN_PANNE,
+      });
+      /* Fermée depuis l'affichage : la page relit le billet et le dit. */
+      if (r.etat === 'ferme') reessayer();
+    } catch {
+      setFin({ enCours: false, dit: REGLEMENT_EN_PANNE });
+    }
+  };
+
   /* « TÉLÉCHARGER MA FACTURE (PDF) » : la règle du papier du Trône et son
      constructeur, chargés seulement maintenant (facture-du-billet.ts) ; le
      fichier porte le nom qu'il a au Trône (« Facture-<numéro>.pdf »). */
@@ -267,12 +310,39 @@ export default function MonRendezVous({ genre }: { genre?: string }) {
     );
   }
 
+  /* « RENDEZ-VOUS DÉPLACÉ » : le serveur a déplacé aussitôt ; l'écran dit la
+     nouvelle place (celle qu'il rend), le prénom d'usage du serveur, et la
+     même référence. « Ajouter à mon agenda » reprend le même fichier (même
+     identifiant : l'agenda met l'ancien événement à jour). */
+  if (deplace) {
+    const nr = { ...deplace.rdv, reference: deplace.rdv.reference || (apptId ? referenceDuRendezVous(apptId) : '') };
+    return (
+      <div className="rdv-page rdv-page__fait">
+        <span className="rdv-page__coche" aria-hidden="true">&#10003;</span>
+        <p className="sur">{MOTS_DU_DEPLACEMENT.surFait}</p>
+        <h2>{nr.appel ? `${nr.appel}, c’est noté.` : 'C’est noté.'}</h2>
+        <p className="merci__place">{jourDit(nr.date)}, à {heureDite(nr.heure)}.</p>
+        <p className="merci__resume">{['Mêmes soins', dureeDite(nr.dureeMin)].filter(Boolean).join(' · ')}</p>
+        <p className="legende">{suiteDuDeplacementDite({ confirmation: deplace.confirmation, reference: nr.reference })}</p>
+        <div className="rangee">
+          <a className="btn btn--fort" href={`data:text/calendar;charset=utf-8,${encodeURIComponent(fichierDuRdv(nr, apptId))}`} download={nomDuFichierAgenda(nr.date)}>Ajouter à mon agenda</a>
+        </div>
+        <p className="rangee">
+          <button type="button" className="btn btn--lien" onClick={() => { setDeplace(null); reessayer(); }}>{MOTS_DU_DEPLACEMENT.revenir}</button>
+        </p>
+      </div>
+    );
+  }
+
   /* La référence manque d'une ancienne fonction : la même règle la calcule
      d'après l'identifiant que porte le jeton. */
   const r = { ...lu.rdv, reference: lu.rdv.reference || (apptId ? referenceDuRendezVous(apptId) : '') };
   const quand = quandDuRdv(r);
   const aVenir = r.statut === 'a-venir';
   const ics = fichierDuRdv(r, apptId);
+  /* DÉPLACER : le calendrier s'ouvre jusqu'à 24 h avant l'heure du rituel (le
+     serveur seul juge ; ici, seulement le bouton à montrer d'après l'horloge). */
+  const boutonDeplacer = leBoutonDeplacer(r, Date.now());
   /* Le règlement : seulement sur la page du billet, jamais sur celle de l'agenda.
      Le jour de Cotonou sépare un rituel réglé d'un jour passé de celui du jour. */
   const aujourdhui = jourDeLaFin(Date.now());
@@ -286,7 +356,7 @@ export default function MonRendezVous({ genre }: { genre?: string }) {
       <p className="legende">{reglement.phrase}</p>
       {reglement.bouton && (
         <p className="rangee">
-          <button type="button" className="btn btn--plein" disabled={fin.enCours} onClick={() => { void termine(); }}>{fin.enCours ? 'Un instant…' : reglement.bouton}</button>
+          <button type="button" className={`btn ${reglement.bouton === REGLER_DES_MAINTENANT ? 'btn--fort' : 'btn--plein'}`} disabled={fin.enCours} onClick={() => { void (reglement.bouton === REGLER_DES_MAINTENANT ? regle() : termine()); }}>{fin.enCours ? 'Un instant…' : reglement.bouton}</button>
         </p>
       )}
       {reglement.telecharger && (
@@ -325,13 +395,23 @@ export default function MonRendezVous({ genre }: { genre?: string }) {
               <div className="rangee">
                 <a className="btn btn--fort" href={`data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`} download={nomDuFichierAgenda(r.date)}>Ajouter à mon agenda</a>
               </div>
-              <div className="rdv-page__changer">
-                <p className="legende">Un empêchement ? Un mot à la Maison suffit, votre référence est déjà dedans.</p>
-                <p className="rangee">
-                  <a className="btn" href={lienWhatsApp(whatsapp, motPourDeplacer(quand, r.reference))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { chemin: 'deplacer', page: '/rdv/' })}>Déplacer</a>
-                  <a className="btn btn--lien" href={lienWhatsApp(whatsapp, motPourAnnuler(quand, r.reference))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { chemin: 'annuler', page: '/rdv/' })}>Annuler</a>
-                </p>
-              </div>
+              {calendrierOuvert && !agendaSeul ? (
+                <DeplacerLeRendezVous
+                  rdv={r} wa={waMaison}
+                  surGarder={() => setCalendrierOuvert(false)}
+                  surDeplace={(neuf, confirmation) => { setCalendrierOuvert(false); setDeplace({ rdv: neuf, confirmation }); }}
+                />
+              ) : (
+                <div className="rdv-page__changer">
+                  <p className="legende">{boutonDeplacer === 'ecrire' ? MOTS_DU_DEPLACEMENT.trop_tard : (boutonDeplacer === 'ouvert' && !agendaSeul ? 'Un empêchement ? Déplacez votre rendez-vous ici. Pour l’annuler, un mot à la Maison suffit, votre référence est déjà dedans.' : 'Un empêchement ? Un mot à la Maison suffit, votre référence est déjà dedans.')}</p>
+                  <p className="rangee">
+                    {boutonDeplacer === 'ouvert' && !agendaSeul
+                      ? <button type="button" className="btn" onClick={() => setCalendrierOuvert(true)}>Déplacer</button>
+                      : <a className="btn" href={lienWhatsApp(whatsapp, motPourDeplacer(quand, r.reference))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { chemin: 'deplacer', page: '/rdv/' })}>{boutonDeplacer === 'ecrire' ? MOTS_DU_DEPLACEMENT.ecrire : 'Déplacer'}</a>}
+                    <a className="btn btn--lien" href={lienWhatsApp(whatsapp, motPourAnnuler(quand, r.reference))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { chemin: 'annuler', page: '/rdv/' })}>Annuler</a>
+                  </p>
+                </div>
+              )}
             </>
           )}
           {blocDuReglement}

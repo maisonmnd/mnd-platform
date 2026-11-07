@@ -543,7 +543,7 @@ const SERVICE = 'cle-de-service';
 
 remplis();
 const sante = await appelle(finir);
-dit('GET : la version et les secrets en booleens, sans valeur', ['2026-11-07-c · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', 'terminer-et-regler', { service: true, liens: true }], [sante.corps.version, sante.corps.fonction, sante.corps.secrets]);
+dit('GET : la version et les secrets en booleens, sans valeur', ['2026-11-07-d · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', 'terminer-et-regler', { service: true, liens: true }], [sante.corps.version, sante.corps.fonction, sante.corps.secrets]);
 
 /* ── retrouver : le code ET les quatre chiffres ── */
 const CODE = referenceDuRendezVous('rdv-jour');
@@ -557,7 +557,7 @@ dit('... rien d elle que son prenom : ni nom de famille, ni numero', [false, fal
 const fauxChiffres = await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '0000' }, { ip: '5.5.5.1' });
 const codeInconnu = await appelle(finir, { action: 'retrouver', code: 'MND-ZZZZ', chiffres: '4480' }, { ip: '5.5.5.2' });
 const codeSeul = await appelle(finir, { action: 'retrouver', code: CODE }, { ip: '5.5.5.3' });
-dit('un code inconnu, des chiffres faux, le code seul : la MEME reponse, mot pour mot', [{ status: 200, corps: { version: '2026-11-07-c · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: false, error: 'introuvable' } }, true, true],
+dit('un code inconnu, des chiffres faux, le code seul : la MEME reponse, mot pour mot', [{ status: 200, corps: { version: '2026-11-07-d · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: false, error: 'introuvable' } }, true, true],
   [codeInconnu, JSON.stringify(fauxChiffres) === JSON.stringify(codeInconnu), JSON.stringify(codeSeul) === JSON.stringify(codeInconnu)]);
 dit('le second numero du rendez-vous (le parent qui l a pris) le retrouve aussi', [true, 'confirme', false],
   await appelle(finir, { action: 'retrouver', code: referenceDuRendezVous('rdv-parent'), chiffres: '3344' }, { ip: '5.5.5.4' }).then((r) => [r.corps.ok, r.corps.billet?.etat, r.corps.billet?.porte.ouverte]));
@@ -677,7 +677,7 @@ remplis();
 remplis();
 maintenant = aCotonou(JOUR, '09:40');
 const aPeine = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-fi'] }, { cle: SERVICE });
-dit('WhatsApp, dix minutes apres l heure du rendez-vous : « a-peine-commence », ni marque, ni lien, ni notification', [{ version: '2026-11-07-c · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: true, etat: 'a-peine-commence' }, undefined, undefined, 0],
+dit('WhatsApp, dix minutes apres l heure du rendez-vous : « a-peine-commence », ni marque, ni lien, ni notification', [{ version: '2026-11-07-d · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: true, etat: 'a-peine-commence' }, undefined, undefined, 0],
   [aPeine.corps, rdvDe('rdv-fi').termineParElle, rdvDe('rdv-fi').lienDeReglement, notifications.length]);
 const foyerAPeine = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-na', 'rdv-fi'] }, { cle: SERVICE });
 dit('... le foyer : la tete de 9 h se declare, celle de 9 h 30 qui commence a peine ne recoit aucune marque', ['a-regler', ['Koffi'], true, undefined],
@@ -730,7 +730,7 @@ const sept = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvId
 const marqueesApresSept = db.appointments.filter((x) => x.data?.termineParElle).length;
 const six = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-jour', 'rdv-na', 'rdv-fi', 'rdv-9', 'rdv-comptoir', 'rdv-demain', 'rdv-jour'] }, { cle: SERVICE });
 dit('WhatsApp, sept tetes d un coup : rien ne se pose (« trop-de-tetes », Opale et l equipe repondent) ; six (un doublon ne compte pas), la declaration passe',
-  [{ version: '2026-11-07-c · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: true, etat: 'trop-de-tetes' }, 0, 0, 'a-regler', true],
+  [{ version: '2026-11-07-d · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: true, etat: 'trop-de-tetes' }, 0, 0, 'a-regler', true],
   [sept.corps, marqueesApresSept, notifications.filter((x) => !x.corps.includes('Acompte')).length - (six.corps.etat === 'a-regler' ? 1 : 0), six.corps.etat, db.appointments.filter((x) => x.data?.termineParElle).length >= 3]);
 
 /* ── Le foyer : un seul numero, un seul lien ── */
@@ -1266,7 +1266,7 @@ const remplisAvantApres = () => {
 };
 const ma = (action: 'avance' | 'apres', rdvId: string, cle = 'jeton.de.awa', ip = '2.2.2.2') => appelle(finir, { action, rdvId }, { cle, ip });
 remplisAvantApres();
-dit('avant-apres : les deux fonctions disent leur version', ['2026-11-07-c · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', '2026-11-07-c'], [(await appelle(finir)).corps.version, (await appelle(regler)).corps.version]);
+dit('avant-apres : les deux fonctions disent leur version', ['2026-11-07-d · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', '2026-11-07-c'], [(await appelle(finir)).corps.version, (await appelle(regler)).corps.version]);
 const av1 = await ma('avance', 'rdv-demain');
 const jAv = String(av1.corps.jeton);
 dit('avant-apres serveur : d avance, son compte, son rendez-vous de demain ; le reste du serveur, le lien pose une fois avec sa marque, et RIEN d autre ne bouge (ni statut, ni marque de fin, ni notification)',

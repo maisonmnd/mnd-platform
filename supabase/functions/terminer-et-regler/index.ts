@@ -54,6 +54,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  *   apres     — RÉGLER APRÈS (7 novembre 2026) : la même porte, dès le
  *               lendemain du rituel, sans limite de temps, sur un rendez-vous
  *               qui doit encore (sa pièce, sinon son prix figé). Jamais honoré.
+ *   regler    — RÉGLER DÈS MAINTENANT (7 novembre 2026), la page du rendez-vous :
+ *               le jeton signé (le site), la même règle « avance » que Ma
+ *               Couronne, le même lien, le même reste entier relu ici. Le
+ *               billet (`billet`, `retrouver`) joint `avance` { ouverte,
+ *               raison } avant l'heure du rituel : la page n'en tire que son
+ *               bouton ou sa phrase. Aucun argent ne bouge ici.
  *
  * LA PIÈCE ne s'écrit pas ici : le serveur ne lit pas le tarif d'une tête.
  * Un poste du Trône ouvert l'écrit dès la marque (la main du Trône, comme
@@ -69,7 +75,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  * --commit <sha> --jwt non`. Vérifier : un GET rend sa version.
  */
 
-const VERSION = '2026-11-07-c · le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après';
+const VERSION = '2026-11-07-d · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -1168,13 +1174,27 @@ async function laMaisonDuBillet(branchId: string): Promise<{ branche: Record<str
   return { branche: (b?.data as Record<string, unknown> | undefined) ?? null, raison: (identite?.data as { raison?: unknown } | undefined)?.raison };
 }
 
-async function leBillet(l: Ligne, maintenantMs: number): Promise<BilletDeLaFin & { facture?: FactureDuBillet }> {
+async function leBillet(l: Ligne, maintenantMs: number): Promise<BilletDeLaFin & { facture?: FactureDuBillet; avance?: { ouverte: boolean; raison: string } }> {
   const rdv = rdvLu(l);
   const [fiche, piece] = await Promise.all([laFiche(rdv.clientId), laPieceDuBillet(l.id)]);
-  const billet = billetDeLaFin({
+  const laPiece = piece === null ? null : { resteXof: resteDeLaPieceDeLaFin(piece) };
+  const billetDeBase = billetDeLaFin({
     rdv, reference: referenceDuRendezVous(l.id), prenom: String(fiche?.name ?? l.data?.clientName ?? ''),
-    maintenantMs, passeAuComptoir: fiche?.passeAuComptoir === true, piece: piece === null ? null : { resteXof: resteDeLaPieceDeLaFin(piece) },
+    maintenantMs, passeAuComptoir: fiche?.passeAuComptoir === true, piece: laPiece,
   });
+  /* RÉGLER DÈS MAINTENANT (7 novembre 2026, la page du rendez-vous) : avant
+     l'heure du rituel, le billet dit si la porte d'avance est ouverte et, sinon,
+     pourquoi (la page n'en garde qu'une phrase calme). C'est la règle de
+     Ma Couronne (⟨regler-avant-apres⟩) ; le montant reste celui du billet, relu
+     ici, jamais décidé par la page. */
+  const billet = momentDuReglement(rdv, maintenantMs) === 'avance'
+    ? {
+      ...billetDeBase,
+      avance: (({ ouverte, raison }) => ({ ouverte, raison }))(
+        porteAvantApres({ quand: 'avance', rdv, maintenantMs, passeAuComptoir: fiche?.passeAuComptoir === true, piece: laPiece }),
+      ),
+    }
+    : billetDeBase;
   /* LA FACTURE, seulement pièce soldée, argent reçu, rituel commencé : la
      tête soignée et la payeuse sont lues pour elle, rien de plus. */
   if (!piece || !factureAJoindreAuBillet({ rdv, piece, maintenantMs })) return billet;
@@ -1441,22 +1461,61 @@ async function reglerDeMaCouronne(req: Request, b: any, quand: 'avance' | 'apres
   const [fiche, reste] = await Promise.all([laFiche(clientId), leResteDeLaPiece(ligne.id)]);
   const laPorte = porteAvantApres({ quand, rdv, maintenantMs: maintenant, passeAuComptoir: fiche?.passeAuComptoir === true, piece: reste === null ? null : { resteXof: reste } });
   if (!laPorte.ouverte) return json({ ok: true, etat: laPorte.raison, quand });
+  return await poseLeLienAvantApres({ ligne, rdv, quand, laPorte, maintenant });
+}
+
+/** LE LIEN D'AVANT ET D'APRÈS, posé ou relu : la fin commune de Ma Couronne
+    (`reglerDeMaCouronne`) et de la page du rendez-vous (`reglerDepuisLeSite`,
+    7 novembre 2026). La porte est déjà ouverte, le montant déjà relu ; ici,
+    seulement le lien. `par: 'site'` signe la marque de la page du rendez-vous. */
+async function poseLeLienAvantApres(o: {
+  ligne: Ligne; rdv: RdvDeLaFin; quand: 'avance' | 'apres'; laPorte: PorteAvantApres; maintenant: number; par?: 'site';
+}) {
+  const { ligne, rdv, quand, laPorte, maintenant, par } = o;
   /* Le lien : celui que le rendez-vous porte déjà (un second toucher, le Trône), sinon un neuf. */
   const lien = lienDeLaFin({ rdvs: [rdv], aleas: crypto.getRandomValues(new Uint32Array(LONGUEUR_DU_JETON_DE_LA_FIN)) });
   if (!lien) return json({ ok: false, error: 'lien' }, 500);
   const le = new Date(maintenant).toISOString();
   /* LA MARQUE `depuisLaCouronne` : la page « Régler » ne règle un rendez-vous
      sans pièce que si Ma Couronne l'a ouvert (ouvertDepuisLaCouronne). Le
-     jeton d'avant se garde ; la marque se pose une fois. */
+     jeton d'avant se garde ; la marque se pose une fois. La page du rendez-vous
+     pose la même marque (la page « Régler » n'en lit que `le`), signée `par`. */
   const ecrit = await ecrisLeRdv(ligne.id, (d) => {
     const garde = estUnJetonDeLaFin(d.lienDeReglement?.jeton);
     if (garde && d.lienDeReglement?.depuisLaCouronne?.le) return null;
-    return { ...d, lienDeReglement: { ...(d.lienDeReglement ?? {}), ...(garde ? {} : { jeton: lien.jeton, creeLe: le }), depuisLaCouronne: { quand, le } } };
+    return { ...d, lienDeReglement: { ...(d.lienDeReglement ?? {}), ...(garde ? {} : { jeton: lien.jeton, creeLe: le }), depuisLaCouronne: { quand, le, ...(par ? { par } : {}) } } };
   });
   if (ecrit === null) return json({ ok: false, error: 'ecriture' }, 409);
   const jeton = String(ecrit.lienDeReglement?.jeton ?? '');
   if (!estUnJetonDeLaFin(jeton)) return json({ ok: false, error: 'lien' }, 500);
   return json({ ok: true, etat: 'a-regler', quand, jeton, adresse: adresseDuReglementDeLaFin(jeton), resteXof: laPorte.resteXof, surLaPiece: laPorte.surLaPiece });
+}
+
+/* ══ regler : RÉGLER DÈS MAINTENANT, depuis la page du rendez-vous ═══════
+   7 novembre 2026. « Permettre à la cliente de RÉGLER son RDV directement sur
+   le site » (Yéman), avant le jour du rituel : le bouton « Régler dès
+   maintenant » de /rdv/?v=. Par le jeton signé, comme `billet` et `terminer`
+   (le site n'a pas de compte). La règle est celle de Ma Couronne,
+   ⟨regler-avant-apres⟩, moment « avance » : prix figé, pas de formule, pas
+   « Passe au comptoir », pas d'acompte à vérifier, « confirmé », pas déjà
+   soldé. Toujours le RESTE ENTIER, jamais un montant partiel ; il vient d'ici,
+   la page n'envoie aucun montant. Ouverte : le lien se pose comme pour Ma
+   Couronne et l'adresse de la page « Régler » revient. Aucun argent ne se
+   déplace ici : c'est la page « Régler » (regler-la-seance) qui encaisse. */
+async function reglerDepuisLeSite(req: Request, b: any) {
+  /* Même frein que `terminer` (vingt par adresse en dix minutes), et un par jeton. */
+  if (!(await permis(ipOf(req), 'fin-regler-site', 20))) return json({ ok: false, error: 'trop' }, 429);
+  const apptId = await apptIdDuJeton(SECRET_DES_LIENS, b.v);
+  if (!apptId) return json({ ok: false, error: 'lien' });
+  if (!(await permis(apptId, 'fin-regler-jeton', 12))) return json({ ok: false, error: 'trop' }, 429);
+  const ligne = await leRdv(apptId);
+  if (!ligne) return json({ ok: false, error: 'lien' });
+  const maintenant = Date.now();
+  const rdv = rdvLu(ligne);
+  const [fiche, reste] = await Promise.all([laFiche(rdv.clientId), leResteDeLaPiece(ligne.id)]);
+  const laPorte = porteAvantApres({ quand: 'avance', rdv, maintenantMs: maintenant, passeAuComptoir: fiche?.passeAuComptoir === true, piece: reste === null ? null : { resteXof: reste } });
+  if (!laPorte.ouverte) return json({ ok: true, etat: laPorte.raison, quand: 'avance' });
+  return await poseLeLienAvantApres({ ligne, rdv, quand: 'avance', laPorte, maintenant, par: 'site' });
 }
 
 Deno.serve(async (req) => {
@@ -1470,6 +1529,7 @@ Deno.serve(async (req) => {
     if (b.action === 'billet') return await billet(req, b);
     if (b.action === 'terminer') return await terminer(req, b);
     if (b.action === 'avance' || b.action === 'apres') return await reglerDeMaCouronne(req, b, b.action);
+    if (b.action === 'regler') return await reglerDepuisLeSite(req, b);
     return json({ ok: false, error: 'action' }, 400);
   } catch (e) {
     console.error('terminer-et-regler:', String((e as Error)?.message ?? e).slice(0, 200));

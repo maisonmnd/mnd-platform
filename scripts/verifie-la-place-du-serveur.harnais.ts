@@ -464,8 +464,20 @@ function jugeLaPorte(brut: string): string[] {
      ce qu'elle lit est tenu : jamais par jour, jamais toute la table. */
   const debutHorsJuge = s.indexOf('async function litLeRendezVous(');
   const finHorsJuge = s.indexOf('const RATE_MAX_VOCAL');
-  const horsJuge = debutHorsJuge > 0 && finHorsJuge > debutHorsJuge ? s.slice(debutHorsJuge, finHorsJuge) : '';
-  const pourJuger = horsJuge ? s.replace(horsJuge, '') : s;
+  /* 7 novembre 2026 : « Deplacer » depuis la page du rendez-vous (`places`, `deplacer`) vit entre la page
+     du rendez-vous et la cliente qui revient. Il juge, lui, SUR `creneaux_occupes` (rien de lu directement
+     pour juger) ; il ne lit et n'ecrit que le rendez-vous qu'on deplace, par son identifiant (verifie-le-rdv-du-site
+     le rejoue). Sa section est mise de cote a son tour. */
+  const debutDeplacer = s.indexOf('type RdvDuSite = ');
+  const finDeplacer = s.indexOf('function prepareLeRetour(');
+  const blocDeplacer = debutDeplacer > 0 && finDeplacer > debutDeplacer ? s.slice(debutDeplacer, finDeplacer) : '';
+  exige('le deplacement juge sur creneaux_occupes, et ne touche que le rendez-vous qu il deplace, par son id (lecture et ecriture sous condition)',
+    !!blocDeplacer && /admin\.rpc\('creneaux_occupes', \{ p_branch: branche\.id, p_du: du, p_au: au \}\)/.test(blocDeplacer)
+    && (blocDeplacer.replace(/\s+/g, ' ').match(/from\('appointments'\)[^;]*/g) ?? []).every((l) => /^from\('appointments'\)\.select\('id, branch_id, data, updated_at'\)\.eq\('id', apptId\)\.maybeSingle\(\)$|^from\('appointments'\)\.update\(\{ data: apres \}\) \.eq\('id', apptId\)\.eq\('updated_at', ligne\.updatedAt\)\.select\('id'\)$/.test(l.trim()))
+    && (blocDeplacer.match(/from\('appointments'\)/g) ?? []).length === 2);
+  const horsJuge0 = debutHorsJuge > 0 && finHorsJuge > debutHorsJuge ? s.slice(debutHorsJuge, finHorsJuge) : '';
+  const horsJuge = blocDeplacer ? horsJuge0.replace(blocDeplacer, '') : horsJuge0;
+  const pourJuger = horsJuge0 ? s.replace(horsJuge0, '') : s;
   exige('plus aucune lecture directe des rendez-vous pour juger', !/from\('appointments'\)\.select\(/.test(pourJuger));
   exige('la page du rendez-vous et le retour lisent un rendez-vous par son id, ou ceux d une fiche, rien d autre',
     !!horsJuge && (horsJuge.match(/from\('appointments'\)\.select\([^)]*\)[^;]*/g) ?? []).every((l) => /\.eq\('id', apptId\)\.maybeSingle\(\)$|\.eq\('data->>clientId', f\.id\)\.limit\(500\)$/.test(l))

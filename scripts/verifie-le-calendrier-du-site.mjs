@@ -84,7 +84,7 @@ const PANNES = [
   ['la migration ouvre le verrou au public', SQL, 'revoke all on function public.pose_si_libre(jsonb, text[], jsonb, jsonb) from public, anon, authenticated;', 'revoke all on function public.pose_si_libre(jsonb, text[], jsonb, jsonb) from public;'],
   ['la migration repose le declencheur de l ouverture', SQL, '-- ── Contrôle', 'drop trigger if exists pas_avant_l_ouverture on public.appointments;\n\n-- ── Contrôle'],
   /* Les versions a deployer */
-  ['la fonction du site garde sa version', SITE, "const VERSION = '2026-11-06-a · la réservation", "const VERSION = '2026-11-05-b · la réservation"],
+  ['la fonction du site garde sa version', SITE, "const VERSION = '2026-11-07-a ·", "const VERSION = '2026-11-05-b ·"],
   ['Opale cherche encore jusqu a 90 jours', WA, 'Math.min(joursDeLaFenetre(ms), Math.max(reglage.horizonJours, 30,', 'Math.min(90, Math.max(reglage.horizonJours, 30,'],
   ['la fonction de WhatsApp garde sa version', WA, "const VERSION = '2026-11-06-d · la place jugee", "const VERSION = '2026-11-04-f · la place jugee"],
 ];

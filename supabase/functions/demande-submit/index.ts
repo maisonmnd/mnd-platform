@@ -197,7 +197,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-06-a · la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
+const VERSION = '2026-11-07-a · déplacer son rendez-vous depuis le site (les places de son maître, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
 
 /** LE SECOND FAUTEUIL, PAS DAVANTAGE (2 novembre 2026, 0152) : la copie de
     `PLACES_EN_LIGNE_AU_PLUS` (src/shared/agenda-pur.ts), hors des repères. */
@@ -2388,10 +2388,21 @@ async function envoieLAccuse(o: {
 async function litLeRendezVous(v: unknown): Promise<Response> {
   const apptId = await apptIdDuJeton(SECRET_DES_LIENS, v);
   if (!apptId) return json({ ok: false, error: 'lien' });
+  const rdv = await rdvPourLaPage(apptId);
+  return rdv ? json({ ok: true, rdv }) : json({ ok: false, error: 'introuvable' });
+}
+
+/** Le rendez-vous tel que la page le lit : la lecture de `{ rdv: 'lire' }`,
+    et la même que rend `{ rdv: 'deplacer' }` (7 novembre 2026) pour que
+    l'écran « Rendez-vous déplacé » dise ce que la page dira ensuite. `null` :
+    illisible ou introuvable. */
+async function rdvPourLaPage(apptId: string): Promise<{
+  reference: string; date: string; heure: string; dureeMin: number; gestes: string[]; appel: string; statut: EtatDuRdv;
+} | null> {
   const { data: row, error } = await admin.from('appointments').select('id, data').eq('id', apptId).maybeSingle();
-  if (error) { console.error('demande-submit: rendez-vous illisible', error.message); return json({ ok: false, error: 'introuvable' }); }
+  if (error) { console.error('demande-submit: rendez-vous illisible', error.message); return null; }
   const a = (row?.data ?? null) as { date?: string; time?: string; dureeMin?: number; serviceIds?: unknown; status?: string; clientId?: string; clientName?: string } | null;
-  if (!a || !a.date || !a.time) return json({ ok: false, error: 'introuvable' });
+  if (!a || !a.date || !a.time) return null;
   const ids = Array.isArray(a.serviceIds) ? (a.serviceIds as unknown[]).map(String).slice(0, 6) : [];
   const [{ data: sv }, { data: fiche }, { data: dem }] = await Promise.all([
     ids.length ? admin.from('services').select('id, data').in('id', ids) : Promise.resolve({ data: [] as { id: string; data: { name?: string } }[] }),
@@ -2405,15 +2416,409 @@ async function litLeRendezVous(v: unknown): Promise<Response> {
   const appel = fiche?.data
     ? appelDe(fiche.data as { name?: unknown; civilite?: unknown; auMasculin?: unknown }, a.clientName)
     : appelDe(laDemande?.civilite ? { civilite: laDemande.civilite } : null, laDemande?.prenom ?? a.clientName);
-  return json({
-    ok: true,
-    rdv: {
-      reference: referenceDuRendezVous(apptId), date: a.date, heure: a.time,
-      dureeMin: Math.max(15, Math.round(Number(a.dureeMin) || 60)),
-      gestes: ids.map((id) => noms.get(id) ?? '').filter(Boolean),
-      appel, statut: etatDuRendezVous(a, aujourdhuiACotonou()),
-    },
+  return {
+    reference: referenceDuRendezVous(apptId), date: a.date, heure: a.time,
+    dureeMin: Math.max(15, Math.round(Number(a.dureeMin) || 60)),
+    gestes: ids.map((id) => noms.get(id) ?? '').filter(Boolean),
+    appel, statut: etatDuRendezVous(a, aujourdhuiACotonou()),
+  };
+}
+
+/* ══ DÉPLACER SON RENDEZ-VOUS DEPUIS LE SITE — 7 novembre 2026 ═══════════
+   « DÉPLACER son RDV depuis le site, ouvrir le calendrier et changer de
+   date » (Yéman). La page /rdv/?v= (le jeton signé) demande les places libres
+   (`{ rdv: 'places', v }`) puis déplace (`{ rdv: 'deplacer', v, date, time }`).
+   Elles vivent ICI, avec le juge des places et le verrou, pas dans
+   `terminer-et-regler` : c'est cette fonction qui lit l'agenda de la Maison.
+
+   LES MÊMES GARANTIES QUE LA PORTE WHATSAPP (`deplaceSousVerrou`,
+   whatsapp-automate, 2 novembre 2026) : la place est rejugée pour SON maître,
+   pour la même durée, sur un instantané frais du jour, son propre créneau
+   rendu libre ; puis l'écriture se fait SOUS CONDITION (`updated_at`
+   inchangé : une ligne que le Trône a bougée entre-temps se relit et se
+   rejuge, trois essais au plus). Jamais un statut changé, jamais un nouveau
+   rendez-vous, jamais un autre maître, jamais une autre durée, jamais un
+   autre soin, jamais un autre prix : le rendez-vous garde son identifiant,
+   donc sa référence MND-XXXX et son jeton. LES 24 HEURES (⟨deplacer-du-site⟩) :
+   l'heure d'origine ET la place d'arrivée doivent être à plus de 24 h.
+
+   LE PRIX NE BOUGE PAS. Déplacer n'applique aucune remise du jour et n'en
+   retire aucune : la page ne montre donc pas les remises, et le rendez-vous
+   garde son prix figé (jamais deux remises, jamais d'argent déplacé).
+
+   APRÈS L'ÉCRITURE, une fois : le journal du Trône, le WhatsApp de
+   confirmation (le modèle de la confirmation, la nouvelle date ; sa ligne
+   `depl-<rdv>-<jour><heure>-site` se RÉSERVE avant l'envoi, un double
+   toucher ou un rejeu ne le double jamais), l'équipe prévenue. Un rendez-vous
+   « en attente » n'est pas dit confirmé : sa confirmation, à venir, portera
+   la nouvelle date. `deplaceLe` fait aussi retenir par le facteur ce que la
+   salle d'attente tenait pour l'ancienne heure. */
+/* ⟨deplacer-du-site⟩ */
+/** Vingt-quatre heures : le délai pour déplacer, dans les deux sens. */
+export const DELAI_POUR_DEPLACER_MS = 24 * 3_600_000;
+
+/** L'instant d'un rendez-vous (date et heure de Cotonou), ou NaN si l'un
+    des deux ne se lit pas. */
+export function instantDuRdvDuSite(date: unknown, time: unknown): number {
+  const d = String(date ?? '').slice(0, 10);
+  const h = String(time ?? '').slice(0, 5);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !/^\d{2}:\d{2}$/.test(h)) return Number.NaN;
+  return Date.parse(`${d}T${h}:00+01:00`);
+}
+
+/** Ce que la règle dit d'un rendez-vous qu'on voudrait déplacer. */
+export type VerdictDuDeplacement = 'permis' | 'annule' | 'passe' | 'trop-tard' | 'illisible';
+
+/** SE DÉPLACE-T-IL ? Seul un rendez-vous « confirmé » ou « en attente » se
+    déplace ; annulé se dit annulé ; honoré ou clos se dit passé ; une heure
+    déjà venue aussi ; à 24 h ou moins, c'est « trop tard » ; plus de 24 h,
+    c'est permis. */
+export function deplacementPermis(r: { status?: unknown; date?: unknown; time?: unknown } | null | undefined, maintenantMs: number): VerdictDuDeplacement {
+  if (!r) return 'illisible';
+  if (r.status === 'annulé') return 'annule';
+  if (r.status !== 'confirmé' && r.status !== 'en attente') return 'passe';
+  const debut = instantDuRdvDuSite(r.date, r.time);
+  if (!Number.isFinite(debut) || !Number.isFinite(maintenantMs)) return 'illisible';
+  if (debut <= maintenantMs) return 'passe';
+  return debut - maintenantMs > DELAI_POUR_DEPLACER_MS ? 'permis' : 'trop-tard';
+}
+
+/** LA PLACE D'ARRIVÉE, avant toute lecture : à plus de 24 h d'ici aussi.
+    `creneau_trop_proche` est le code que le serveur rend ; le jour même, la
+    fenêtre et l'ouverture se jugent ailleurs (`laPlaceEstRecevable`). */
+export function arriveeRecevable(p: { date: unknown; time: unknown }, maintenantMs: number): 'creneau_invalide' | 'creneau_trop_proche' | null {
+  const debut = instantDuRdvDuSite(p.date, p.time);
+  if (!Number.isFinite(debut) || !Number.isFinite(maintenantMs)) return 'creneau_invalide';
+  return debut - maintenantMs > DELAI_POUR_DEPLACER_MS ? null : 'creneau_trop_proche';
+}
+/* ⟨/deplacer-du-site⟩ */
+
+/** Un rendez-vous relu frais, avec de quoi écrire sous condition. */
+type RdvDuSite = { id: string; branchId: string; updatedAt: string; data: any };
+async function leRdvDuSite(apptId: string): Promise<RdvDuSite | null> {
+  const { data, error } = await admin.from('appointments').select('id, branch_id, data, updated_at').eq('id', apptId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data?.data) return null;
+  return { id: String(data.id), branchId: String(data.branch_id ?? data.data?.branchId ?? ''), updatedAt: String(data.updated_at ?? ''), data: data.data };
+}
+
+/** L'agenda de la Maison, jour par jour, de `du` à `au` : ce que le juge lit
+    (la branche, les réglages, les murs, le catalogue, les créneaux pris),
+    lu à neuf. `null` quand une lecture manque ou qu'une tranche de mille
+    créneaux pourrait cacher un rendez-vous : mieux vaut refuser. */
+async function lisLAgendaDuSite(brancheId: string, du: string, au: string): Promise<AgendaDuServeur | null> {
+  const branche = (await brancheParDefaut(brancheId)).ligne;
+  const [docs, services, categories, blocages, occupes] = await Promise.all([
+    admin.from('documents').select('key, data').in('key', ['mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config']),
+    toutesLesLignes('catalog_services'),
+    toutesLesLignes('catalog_categories'),
+    litToutesLesPages<LigneDeTable>((apres, taille) => {
+      let page = admin.from('blocages').select('id, data').eq('data->>branchId', branche.id).gte('data->>date', du).lte('data->>date', au);
+      if (apres !== null) page = page.gt('id', apres);
+      return page.order('id', { ascending: true }).limit(taille) as unknown as PromiseLike<ReponseDePage<LigneDeTable>>;
+    }),
+    admin.rpc('creneaux_occupes', { p_branch: branche.id, p_du: du, p_au: au }),
+  ]);
+  const lectureManquee = docs.error ?? services.error ?? categories.error ?? blocages.error ?? occupes.error;
+  const pris = (Array.isArray(occupes.data) ? occupes.data : []) as unknown[];
+  if (lectureManquee || pris.length >= PLAFOND_D_UNE_REPONSE) {
+    console.error('demande-submit: agenda du deplacement illisible', lectureManquee?.message ?? 'une tranche de mille créneaux');
+    return null;
+  }
+  const doc = (cle: string): any => ((docs.data ?? []) as { key: string; data?: any }[]).find((d) => d.key === cle)?.data;
+  return agendaDepuisLesLignes({
+    branche, reglages: doc('mnd_settings'), exceptions: doc('mnd_horaires_exceptions'), vitrine: doc('mnd_vitrine_config'),
+    services: services.data ?? [], categories: categories.data ?? [], blocages: blocages.data ?? [], occupes: pris,
   });
+}
+
+/** LE RENDEZ-VOUS QU'ON DÉPLACE, rendu libre : son créneau (ce maître, ce
+    jour, cette heure) retiré une fois de l'agenda. */
+function agendaSansLeRdvDuSite(agenda: AgendaDuServeur, maitre: string, sauf: { date: string; time: string }): AgendaDuServeur {
+  let retire = false;
+  const debut = minutesDeHhmm(sauf.time);
+  const occupes = agenda.occupes.filter((c) => {
+    if (retire) return true;
+    if (c.jour === sauf.date && (c.maitre ?? '') === maitre && minutesDeHhmm(c.debut) === debut) { retire = true; return false; }
+    return true;
+  });
+  return { ...agenda, occupes };
+}
+
+/** LES PLACES D'UN SEUL MAÎTRE, pour cette durée, de demain à la borne de la
+    réservation : fauteuils, plafonds et murs compris, sa propre place rendue
+    libre, la place d'origine écartée, et jamais une arrivée à moins de 24 h.
+    Les jours fermés se disent à part (la grille les grise). */
+function placesDeLaMaisonPourDeplacer(
+  agenda: AgendaDuServeur, maitre: string, sauf: { date: string; time: string; dureeMin: number }, ms: number,
+): { jours: Record<string, string[]>; fermes: string[] } {
+  const duree = Math.max(1, Math.round(Number(sauf.dureeMin) || 60));
+  const sans = agendaSansLeRdvDuSite(agenda, maitre, sauf);
+  const aujourdhui = jourDeCotonou(ms);
+  const jours: Record<string, string[]> = {};
+  const fermes: string[] = [];
+  for (let i = 1; i <= joursDeLaFenetre(ms); i += 1) {
+    const iso = isoApresJours(aujourdhui, i);
+    const opening = ouvertureDuJour(iso, sans.semaine, sans.exceptions);
+    if (opening.closed) { fermes.push(iso); continue; }
+    const libres = creneauxLibres({
+      opening, durationMin: duree, occupes: occupesDuJour(sans.occupes, iso),
+      bloques: plagesBloquees(sans.murs, sans.branchId, iso, maitre), master: maitre,
+      capMaison: sans.capMaison, capMaitre: sans.capMaitre, capSimultane: sans.sieges, maintenantMin: null,
+    });
+    const heures = [...libres].sort()
+      .filter((h) => arriveeRecevable({ date: iso, time: h }, ms) === null && !(iso === sauf.date && h === sauf.time));
+    if (heures.length > 0) jours[iso] = heures;
+  }
+  return { jours, fermes };
+}
+
+/** LA PLACE TIENT-ELLE POUR CE MAÎTRE ? La forme et la fenêtre, l'ouverture,
+    le plafond de la Maison, les places en ligne, puis le maître lui-même (son
+    plafond, ses rendez-vous, ses murs), le rendez-vous déplacé rendu libre. Un
+    autre maître libre à cette heure ne compte pas. LES 24 HEURES de l'arrivée
+    et « la même place » se jugent avant, une fois (`deplaceDepuisLeSite`) :
+    ici, seulement ce que l'agenda dit. */
+function laPlaceTientPourDeplacer(
+  agenda: AgendaDuServeur, maitre: string, p: { date: string; time: string; dureeMin: number }, sauf: { date: string; time: string }, ms: number,
+): { ok: true } | { ok: false; erreur: RefusDeLaPlace } {
+  const recevable = laPlaceEstRecevable(p, ms);
+  if (recevable) return { ok: false, erreur: recevable };
+  const fenetre = ouvertureDuJour(p.date, agenda.semaine, agenda.exceptions);
+  if (fenetre.closed) return { ok: false, erreur: 'creneau_ferme' };
+  const debut = minutesDeHhmm(p.time);
+  const fin = debut + Math.max(1, Math.round(Number(p.dureeMin) || 60));
+  if (debut < fenetre.openMin || fin > fenetre.closeMin) return { ok: false, erreur: 'creneau_hors_ouverture' };
+  const sans = agendaSansLeRdvDuSite(agenda, maitre, sauf);
+  const duJour = occupesDuJour(sans.occupes, p.date);
+  if (sans.capMaison > 0 && duJour.length >= sans.capMaison) return { ok: false, erreur: 'creneau_plafond' };
+  const chevauche = (s: number, e: number): boolean => debut < e && fin > s;
+  if (sans.sieges > 0 && duJour.filter((a) => chevauche(a.debutMin, a.debutMin + a.dureeMin)).length >= sans.sieges) return { ok: false, erreur: 'creneau_pris' };
+  const siens = duJour.filter((a) => a.maitre === maitre);
+  if (sans.capMaitre > 0 && siens.length >= sans.capMaitre) return { ok: false, erreur: 'creneau_plafond' };
+  const occupe = [
+    ...siens.map((a): [number, number] => [a.debutMin, a.debutMin + a.dureeMin]),
+    ...plagesBloquees(sans.murs, sans.branchId, p.date, maitre),
+  ].some(([s, e]) => chevauche(s, e));
+  return occupe ? { ok: false, erreur: 'creneau_pris' } : { ok: true };
+}
+
+/** Son maître, sa durée figée et ses soins : ce que le rendez-vous porte déjà. */
+function enteteDuRdvDuSite(a: any, agenda: AgendaDuServeur): { maitre: string; dureeMin: number; serviceIds: string[] } {
+  const serviceIds = Array.isArray(a.serviceIds) ? (a.serviceIds as unknown[]).map(String).filter(Boolean) : [];
+  const e = Number(a.dureeMin);
+  return {
+    maitre: String(a.master ?? ''), serviceIds,
+    dureeMin: Number.isFinite(e) && e >= 1 ? Math.round(e) : dureeDesPrestations(serviceIds, agenda.services),
+  };
+}
+
+/** Pourquoi un rendez-vous ne se déplace pas (la règle des 24 heures), en code. */
+const refusDuDeplacement = (v: 'annule' | 'passe' | 'trop-tard' | 'illisible'): string =>
+  v === 'trop-tard' ? 'trop_tard' : v === 'illisible' ? 'introuvable' : v;
+
+/** { rdv: 'places', v } : les places libres de SON maître, pour SA durée. */
+async function placesPourDeplacer(ip: string, v: unknown): Promise<Response> {
+  /* Le frein de l'adresse d'abord : un jeton qu'on invente ne coûte rien à la base. */
+  if (!(await allowRate(ip, 'rdv_places', 30))) return json({ error: 'rate_limited' }, 429);
+  const apptId = await apptIdDuJeton(SECRET_DES_LIENS, v);
+  if (!apptId) return json({ ok: false, error: 'lien' });
+  if (!(await allowRate(apptId, 'rdv_places_jeton', 40))) return json({ error: 'rate_limited' }, 429);
+  const ligne = await leRdvDuSite(apptId);
+  if (!ligne) return json({ ok: false, error: 'introuvable' });
+  const ms = Date.now();
+  const verdict = deplacementPermis(ligne.data, ms);
+  if (verdict !== 'permis') return json({ ok: true, deplacable: false, raison: refusDuDeplacement(verdict) });
+  const a = ligne.data;
+  const horizon = finDeLaReservation(jourDeCotonou(ms));
+  const agenda = await lisLAgendaDuSite(ligne.branchId, isoApresJours(jourDeCotonou(ms), 1), horizon);
+  if (!agenda) return json({ ok: false, error: 'agenda_illisible' });
+  const { maitre, dureeMin } = enteteDuRdvDuSite(a, agenda);
+  const { jours, fermes } = placesDeLaMaisonPourDeplacer(agenda, maitre, { date: String(a.date), time: String(a.time), dureeMin }, ms);
+  return json({
+    ok: true, deplacable: true, du: isoApresJours(jourDeCotonou(ms), 1), au: horizon, dureeMin,
+    actuel: { date: String(a.date), heure: String(a.time) }, jours, fermes,
+  });
+}
+
+/** Le numéro et l'appel de la cliente, pour son message : celui à prévenir
+    (le parent qui a pris le rendez-vous), sinon sa fiche, sinon la demande du
+    site qui l'a posé. */
+async function coordonneesPourLeDeplacement(a: any, apptId: string): Promise<{ appel: string; numero: string }> {
+  const [{ data: fiche }, { data: dem }] = await Promise.all([
+    a.clientId ? admin.from('clients').select('data').eq('id', String(a.clientId)).maybeSingle() : Promise.resolve({ data: null }),
+    a.clientId ? Promise.resolve({ data: [] as { data: { prenom?: string; civilite?: string; telephone?: string } }[] })
+      : admin.from('demandes').select('data').eq('data->>apptId', apptId).limit(1),
+  ]);
+  const laDemande = ((dem ?? []) as { data?: { prenom?: string; civilite?: string; telephone?: string } }[])[0]?.data;
+  const appel = fiche?.data
+    ? appelDe(fiche.data as { name?: unknown; prenomUsage?: unknown; civilite?: unknown; auMasculin?: unknown }, a.clientName)
+    : appelDe(laDemande?.civilite ? { civilite: laDemande.civilite } : null, laDemande?.prenom ?? a.clientName);
+  const numero = String(a.numeroAPrevenir ?? '').trim() || String(fiche?.data?.phone ?? '').trim() || String(laDemande?.telephone ?? '').trim();
+  return { appel, numero: numero.replace(/\D/g, '') };
+}
+
+/** LE WHATSAPP DE CONFIRMATION D'UN DÉPLACEMENT, une fois. La ligne
+    `depl-<rdv>-<jour><heure>-site` se réserve AVANT l'envoi (une insertion
+    qui ne remplace rien) : qui la perd ne l'envoie pas. Le modèle de la
+    confirmation, avec ses liens quand ils sont posés, le même jeton (la même
+    page, la même référence) ; un refus du modèle neuf renvoie l'ancien.
+    Rend le statut : envoyé, échec, deja, sans-modele, sans-cles, sans-numero. */
+async function confirmeLeDeplacement(o: {
+  apptId: string; branchId: string; clientId: string; appel: string; numero: string; date: string; time: string; de: { date: string; time: string };
+}): Promise<string> {
+  const WA_TOKEN = Deno.env.get('WA_TOKEN');
+  const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');
+  const MODELE = modeleDeLAccuse('confirmation', { conf: Deno.env.get('WA_TEMPLATE_CONF') });
+  if (!WA_TOKEN || !WA_PHONE_ID) return 'sans-cles';
+  if (!o.numero) return 'sans-numero';
+  const id = `depl-${o.apptId}-${o.date.replace(/-/g, '')}${o.time.replace(':', '')}-site`;
+  const maintenant = new Date().toISOString();
+  const quand = `${jourEnClair(o.date)} à ${heureLisible(o.time)}`;
+  const reference = referenceDuRendezVous(o.apptId);
+  /* RÉSERVER LA LIGNE : une ligne qui existe déjà (un double toucher, un
+     rejeu) se garde telle quelle, et rien ne repart. */
+  const { data: reservee, error: errReserve } = await admin.from('envois').upsert({
+    id, branch_id: o.branchId || null,
+    data: {
+      id, ...(o.branchId ? { branchId: o.branchId } : {}), type: 'confirmation', canal: 'whatsapp', apptId: o.apptId,
+      ...(o.clientId ? { clientId: o.clientId } : {}), prenom: o.appel, numero: `+${o.numero}`, dateRdv: o.date, heure: o.time,
+      moment: quand, deplacement: { de: o.de, par: 'site' }, statut: 'en cours', detail: 'le déplacement, dit depuis la page du rendez-vous', reference, quand: maintenant,
+    },
+  }, { onConflict: 'id', ignoreDuplicates: true }).select('id');
+  if (errReserve) { console.error('demande-submit: ligne du deplacement', errReserve.message); return 'échec'; }
+  if (!Array.isArray(reservee) || reservee.length === 0) return 'deja';
+
+  const LIENS = (Deno.env.get('WA_TEMPLATE_CONF_LIENS') ?? '').trim();
+  const jeton = LIENS && SECRET_DES_LIENS ? await jetonDuRendezVous(SECRET_DES_LIENS, o.apptId).catch(() => '') : '';
+  let statut = 'échec';
+  let detail: string | undefined;
+  let codeMeta: number | undefined;
+  let waId = '';
+  let avecLiens = false;
+  let repliDuModele: number | undefined;
+  try {
+    for (const liens of jeton ? [true, false] : [false]) {
+      const garde = new AbortController();
+      const minuterie = setTimeout(() => garde.abort(), 8000);
+      const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp', to: o.numero, type: 'template',
+          template: { name: liens ? LIENS : MODELE, language: { code: 'fr' }, components: composantsDeLaConfirmation({ avecLiens: liens, prenom: o.appel, quand, reference, jeton }) },
+        }),
+        signal: garde.signal,
+      });
+      clearTimeout(minuterie);
+      const rep = await r.json().catch(() => ({})) as { messages?: { id?: string }[]; error?: { code?: number; message?: string } };
+      waId = String(rep?.messages?.[0]?.id ?? '');
+      avecLiens = liens;
+      if (r.ok) { statut = 'envoyé'; detail = waId ? undefined : 'accepté sans identifiant Meta'; codeMeta = undefined; break; }
+      codeMeta = Number(rep?.error?.code) || undefined;
+      detail = String(rep?.error?.message ?? `HTTP ${r.status}`);
+      if (!liens || !refusDuModele(codeMeta)) break;
+      repliDuModele = codeMeta;
+    }
+  } catch (e) {
+    detail = String(e);
+  }
+  const modeleParti = avecLiens ? LIENS : MODELE;
+  /* Le verdict s'écrit sur SA ligne, réservée plus haut : elle ne se réécrit qu'une fois. */
+  await admin.from('envois').update({
+    data: {
+      id, ...(o.branchId ? { branchId: o.branchId } : {}), type: 'confirmation', canal: 'whatsapp', apptId: o.apptId,
+      ...(o.clientId ? { clientId: o.clientId } : {}), prenom: o.appel, numero: `+${o.numero}`, dateRdv: o.date, heure: o.time,
+      moment: quand, deplacement: { de: o.de, par: 'site' }, statut, ...(detail ? { detail: detail.slice(0, 300) } : {}),
+      ...(codeMeta ? { codeMeta } : {}), ...(waId ? { waMessageId: waId } : {}), modele: modeleParti, reference,
+      ...(repliDuModele ? { repliDuModele } : {}), quand: new Date().toISOString(),
+    },
+  }).eq('id', id).eq('data->>statut', 'en cours');
+  if (waId) {
+    const idFil = `wa-${waId}`;
+    const { error } = await admin.from('messages_wa').upsert({
+      id: idFil, branch_id: o.branchId || null,
+      data: {
+        id: idFil, waId, ...(o.branchId ? { branchId: o.branchId } : {}), sens: 'sortant', numero: o.numero, clientId: o.clientId,
+        texte: texteDeLaConfirmation({ avecLiens, prenom: o.appel, quand, reference }),
+        type: 'text', quand: new Date().toISOString(), etat: 'en-route', modele: modeleParti, parQui: 'Le Trône',
+      },
+    }, { onConflict: 'id' });
+    if (error) console.error('demande-submit: fil du deplacement', error.message);
+  }
+  return statut;
+}
+
+/** { rdv: 'deplacer', v, date, time } : le rendez-vous change de place, AUSSITÔT. */
+async function deplaceDepuisLeSite(ip: string, body: Record<string, unknown>): Promise<Response> {
+  if (!(await allowRate(ip, 'rdv_deplacer', 10))) return json({ error: 'rate_limited' }, 429);
+  const apptId = await apptIdDuJeton(SECRET_DES_LIENS, body.v);
+  if (!apptId) return json({ ok: false, error: 'lien' });
+  if (!(await allowRate(apptId, 'rdv_deplacer_jeton', 8))) return json({ error: 'rate_limited' }, 429);
+  const date = texte(body.date, 10);
+  const time = texte(body.time, 5);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return json({ ok: false, error: 'creneau_invalide' });
+
+  for (let essai = 0; essai < 3; essai += 1) {
+    const ligne = await leRdvDuSite(apptId);
+    if (!ligne) return json({ ok: false, error: 'introuvable' });
+    const a = ligne.data;
+    /* REJOUÉ APRÈS COUP : déjà à sa nouvelle place, par le site. Rien ne se
+       réécrit et rien ne repart (la ligne du message est réservée). */
+    if (a.date === date && a.time === time && a.deplacePar === 'site') {
+      return json({ ok: true, verdict: 'deja', rdv: await rdvPourLaPage(apptId), confirmation: 'deja' });
+    }
+    const ms = Date.now();
+    const permis = deplacementPermis(a, ms);
+    if (permis !== 'permis') return json({ ok: false, error: refusDuDeplacement(permis) });
+    const avant = { date: String(a.date), time: String(a.time) };
+    /* La forme, la fenêtre et les 24 heures d'abord : un appel mal formé ne coûte rien à la base. */
+    const recevable = laPlaceEstRecevable({ date, time }, ms) ?? arriveeRecevable({ date, time }, ms);
+    if (recevable) return json({ ok: false, error: recevable });
+    if (date === avant.date && time === avant.time) return json({ ok: false, error: 'meme_place' });
+    const agenda = await lisLAgendaDuSite(ligne.branchId, date, date);
+    if (!agenda) return json({ ok: false, error: 'agenda_illisible' });
+    const { maitre, dureeMin } = enteteDuRdvDuSite(a, agenda);
+    const place = laPlaceTientPourDeplacer(agenda, maitre, { date, time, dureeMin }, avant, ms);
+    if (!place.ok) return json({ ok: false, error: place.erreur });
+
+    const le = new Date(ms).toISOString();
+    const { autreMomentDemandeLe: _marque, ...reste } = a;
+    const apres = { ...reste, date, time, deplaceLe: le, deplacePar: 'site', deplaceDe: { date: avant.date, time: avant.time } };
+    const { data: ecrit, error: errEcrit } = await admin.from('appointments').update({ data: apres })
+      .eq('id', apptId).eq('updated_at', ligne.updatedAt).select('id');
+    if (errEcrit) { console.error('demande-submit: deplacement refuse par la base', errEcrit.message); return json({ ok: false, error: 'panne' }, 500); }
+    /* La ligne a bougé entre la lecture et l'écriture : on relit et on rejuge. */
+    if (!Array.isArray(ecrit) || ecrit.length === 0) continue;
+
+    /* ── Après l'écriture : le journal, le WhatsApp, l'équipe. Un échec ici ne défait rien : le rendez-vous est à sa place. ── */
+    const gesteId = `geste-site-depl-${apptId}-${date.replace(/-/g, '')}${time.replace(':', '')}`;
+    const { error: errJ } = await admin.from('journal_gestes').upsert({
+      id: gesteId, branch_id: ligne.branchId || null,
+      data: {
+        id: gesteId, ...(ligne.branchId ? { branchId: ligne.branchId } : {}), quand: le, parNom: 'La cliente', porte: 'consultation',
+        verbe: 'modifie', table: 'appointments', ecran: 'Page du rendez-vous (maisonmnd.com)', pieceId: apptId,
+        piece: `Rendez-vous déplacé depuis le site, ${jourEnClair(date)} à ${heureLisible(time)}`,
+        champs: [{ champ: 'Date', avant: avant.date, apres: date }, { champ: 'Heure', avant: avant.time, apres: time }],
+      },
+    }, { onConflict: 'id', ignoreDuplicates: true });
+    if (errJ) console.error('demande-submit: journal du deplacement', errJ.message);
+
+    const { appel, numero } = await coordonneesPourLeDeplacement(a, apptId).catch(() => ({ appel: '', numero: '' }));
+    /* « En attente » n'est pas dit confirmé : sa confirmation, à venir, portera la nouvelle date. */
+    const envoi = a.status === 'confirmé'
+      ? confirmeLeDeplacement({ apptId, branchId: ligne.branchId, clientId: String(a.clientId ?? ''), appel, numero, date, time, de: { date: avant.date, time: avant.time } })
+        .catch((e) => { console.error('demande-submit: confirmation du deplacement', String(e)); return 'échec'; })
+      : Promise.resolve('plus-tard');
+    const confirmation = await auPlus(envoi, 2500, 'en-cours');
+    await auPlus(alerteLePersonnel(
+      'Rendez-vous déplacé depuis le site',
+      `${appel || 'Une cliente'}, du ${jourEnClair(avant.date)} à ${heureLisible(avant.time)} au ${jourEnClair(date)} à ${heureLisible(time)}`,
+      '/trone/#/calendrier',
+    ).catch(() => 0), 1500, 0);
+    return json({ ok: true, verdict: 'deplace', rdv: await rdvPourLaPage(apptId), confirmation });
+  }
+  return json({ ok: false, error: 'modifie' });
 }
 
 /* ══ LA CLIENTE QUI REVIENT — 3 novembre 2026 ═════════════════════════════
@@ -2695,6 +3100,17 @@ Deno.serve(async (req) => {
   if (body.rdv === 'lire') {
     if (!(await allowRate(ip, 'rdv_lire', 30))) return json({ error: 'rate_limited' }, 429);
     return await litLeRendezVous(body.v);
+  }
+  /* DÉPLACER DEPUIS LE SITE — 7 novembre 2026 : les places libres de SON
+     maître, puis le déplacement aussitôt. Chacun son seau, par adresse et par
+     jeton ; un appel qui tombe en panne se dit en une ligne, jamais en trace. */
+  if (body.rdv === 'places' || body.rdv === 'deplacer') {
+    try {
+      return body.rdv === 'places' ? await placesPourDeplacer(ip, body.v) : await deplaceDepuisLeSite(ip, body);
+    } catch (e) {
+      console.error('demande-submit: deplacer', String((e as Error)?.message ?? e).slice(0, 200));
+      return json({ ok: false, error: 'panne' }, 500);
+    }
   }
   if (body.cliente === 'retour') {
     if (!(await allowRate(ip, 'cliente_retour', 5))) return json({ error: 'rate_limited' }, 429);

@@ -660,6 +660,8 @@ const regles: Regle[] = [
         'billet-regle': { fichier: 'src/shared/billet-regle-pur.ts', extrait: (s) => entre(s, 'billet-regle') },
         /* Le prénom composé (7 novembre 2026) : le prénom d'usage, deviné ou noté, recopié à côté de chaque copie d'appelDe et dans envois-partent. */
         'prenom-d-usage': { fichier: 'src/shared/civilite.ts', extrait: (s) => entre(s, 'prenom-d-usage') },
+        /* Déplacer depuis le site (7 novembre 2026) : la règle des 24 heures, recopiée dans demande-submit. */
+        'deplacer-du-site': { fichier: 'src/shared/deplacer-du-site-pur.ts', extrait: (s) => entre(s, 'deplacer-du-site') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

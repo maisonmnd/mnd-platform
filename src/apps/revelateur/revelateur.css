@@ -2741,6 +2741,19 @@ footer ul { gap: 12px; }
    recherche par le code de confirmation (/mon-rendez-vous/). */
 .rdv-page__reglement { display: grid; gap: 8px; padding-top: 12px; border-top: 1px dashed var(--accent); }
 .rdv-page__montant { font-family: var(--serif); font-size: clamp(28px, 4vw, 36px); line-height: 1.1; color: var(--titre); font-variant-numeric: tabular-nums; }
+/* DÉPLACER AVEC LE CALENDRIER (7 novembre 2026) : le mois de la réservation
+   (`.mois-du-site*`, plus haut) dans la page du rendez-vous, sa date en
+   pointillés, et l'écran « Rendez-vous déplacé ». Rien ne dépasse à 390 px. */
+.rdv-page__deplacer { display: grid; gap: 10px; min-width: 0; padding-top: 12px; border-top: 1px solid var(--filet); }
+.rdv-page__deplacer h3 { margin: 0; }
+.rdv-page__deplacer .mois-du-site { margin-top: 4px; }
+.rdv-page__heures { display: grid; gap: 4px; min-width: 0; }
+.rdv-page__heures .heures { margin-top: 4px; }
+.mois-du-site__jour.est-actuel { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.mois-du-site__jour.est-actuel:disabled { opacity: .85; }
+.mois-du-site__legende .mois-du-site__l-actuel { background: transparent; box-shadow: inset 0 0 0 1.5px var(--accent); }
+.rdv-page__fait { display: grid; gap: 8px; }
+.rdv-page__coche { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; font-size: 22px; line-height: 1; color: var(--plein-texte); background: var(--plein); }
 .rdv-cherche .champ { max-width: 360px; }
 .rdv-cherche .champ input { font-size: 20px; letter-spacing: .12em; font-variant-numeric: tabular-nums; }
 .rdv-cherche__dit { padding-left: 10px; border-left: 3px solid var(--accent); color: var(--titre); }
