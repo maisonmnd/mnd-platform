@@ -799,7 +799,7 @@
 }
 .mc-offer__deal { font-family: var(--font-serif); font-size: 22px; line-height: 1; }
 .mc-offer__title { font-family: var(--font-serif); font-size: 17px; margin-top: 11px; line-height: 1.15; }
-.mc-offer__sub { font-size: 11px; margin-top: 3px; }
+.mc-offer__sub { font-size: 12.5px; line-height: 1.4; margin-top: 6px; }
 .mc-offer__cta {
   display: flex;
   align-items: center;
@@ -813,7 +813,8 @@
 
 .mc-offer--copper { background: linear-gradient(135deg, var(--copper-600), var(--color-copper)); }
 .mc-offer--copper .mc-offer__deal, .mc-offer--copper .mc-offer__title, .mc-offer--copper .mc-offer__cta { color: var(--color-ivoire); }
-.mc-offer--copper .mc-offer__sub { color: var(--copper-100); }
+/* 7 nov. 2026 : le texte de l'offre était en cuivre translucide SUR le cuivre, illisible (« on n'arrive pas à lire les offres », Y.). Ivoire plein. */
+.mc-offer--copper .mc-offer__sub { color: var(--color-ivoire); opacity: 0.94; }
 .mc-offer--copper .mc-offer__tag { color: var(--color-ivoire); background: rgba(246, 241, 231, 0.18); }
 
 .mc-offer--indigo { background: linear-gradient(135deg, var(--color-indigo-deep), var(--color-indigo)); }
