@@ -19,10 +19,12 @@
    applique la panne du moment en memoire (variable PANNE_TEXTE) : jamais une
    panne n'est ecrite dans le depot. */
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
   MOIS_DITS, FICHE_RETIREE, ajouteJours, detailDuMembre, filDesPourboires, francsDits, jourDit, lundiDe, mesPourboires,
   moisAvant, moisDit, notificationDuPourboire, partDite, partageDit, partsDeLaMaison, pourboireArriveDit, prenomDeLaCliente,
-  quandDit, serieMoisParMois, tableauDeLEquipe, taPartDite, totauxDe, vientDArriver,
+  periodeAvant, periodeDesPourboires, periodeDite, quandDit, serieMoisParMois, tableauDeLEquipe, taPartDite, totauxDe, vientDArriver,
   type MembreDuPartage, type PartDePourboire,
 } from '../src/shared/pourboires-de-l-equipe-pur';
 
@@ -155,11 +157,21 @@ dit('une part d hier, inscrite il y a une heure, arrive encore (le rituel d hier
   vientDArriver(pourboire('2026-11-03', 4000, 'Ranti Exemple', 'inv-n4', '2026-11-04T15:40:00.000Z'), 'st-aimer', AUJ, T0)?.amountXof ?? null);
 
 /* ── 5. LA NOTIFICATION : SA PART, LE PRENOM, JAMAIS LA PIECE ─────────── */
-dit('la notification d Aimer pour le pourboire de Ranti', { titre: F('+1 000 F de pourboire · Ranti'), corps: F('Tes pourboires de novembre 2026 : 1 750 F.') },
+/* 8 novembre 2026 : le total est celui de la PERIODE (du 6 au 4), dite en clair. */
+dit('la notification d Aimer pour le pourboire de Ranti', { titre: F('+1 000 F de pourboire · Ranti'), corps: F('Tes pourboires du 6 nov. au 4 déc. : 1 750 F.') },
   notificationDuPourboire(1000, 'Ranti Exemple', 1750, '2026-11'));
 dit('... sans prenom lisible : la part seule', '+500 F de pourboire', notificationDuPourboire(500, '+229 01 97 00 00 01', 500, '2026-11').titre);
 dit('... ni le nom entier, ni le montant de la piece (4 000 F)', [false, false],
   [JSON.stringify(notificationDuPourboire(1000, 'Ranti Exemple', 1750, '2026-11')).includes('Exemple'), JSON.stringify(notificationDuPourboire(1000, 'Ranti Exemple', 1750, '2026-11')).includes(F('4 000'))]);
+/* Les bornes : la periode du jour du pourboire donne le corps (meme table que la base, jouee plus bas). */
+const BORNES_NOTIF: [string, string][] = [
+  ['2026-11-04', 'du 6 oct. au 4 nov.'], ['2026-11-05', 'du 6 oct. au 4 nov.'], ['2026-11-06', 'du 6 nov. au 4 déc.'],
+  ['2026-12-05', 'du 6 nov. au 4 déc.'], ['2026-12-06', 'du 6 déc. au 4 janv.'],
+  ['2026-12-31', 'du 6 déc. au 4 janv.'], ['2027-01-01', 'du 6 déc. au 4 janv.'], ['2027-01-05', 'du 6 déc. au 4 janv.'], ['2027-01-06', 'du 6 janv. au 4 févr.'],
+  ['2027-02-05', 'du 6 janv. au 4 févr.'], ['2027-02-06', 'du 6 févr. au 4 mars'],
+];
+dit('la notification dit la periode du jour du pourboire, aux bornes (4/5/6, 31 dec./1er janv.)', BORNES_NOTIF.map(([, d]) => F(`Tes pourboires ${d} : 1 750 F.`)),
+  BORNES_NOTIF.map(([j]) => notificationDuPourboire(1000, 'Ranti', 1750, periodeDesPourboires(j)).corps));
 
 /* ── 6. LE TABLEAU DE L'EQUIPE ────────────────────────────────────────── */
 const tab = tableauDeLEquipe(TIPS, EQUIPE, AUJ);
@@ -223,27 +235,45 @@ dit('le detail de Nassim : 11 000 F, ses trois periodes, sa derniere part', [110
 
 /* ── 9. LA NOTIFICATION EN BASE (0157), MOT POUR MOT ──────────────────── */
 const SQL = 'supabase/migrations/0157_les_pourboires_de_l_equipe.sql';
-const sql = lis(SQL);
-const corpsSql = sql.replace(/^[ \t]*--.*\n/gm, '');
+const SQL2 = 'supabase/migrations/0196_la_notification_du_pourboire_dit_sa_periode.sql';
+const sansCommentairesSql = (t: string) => t.replace(/^[ \t]*--.*\n/gm, '');
+const sql0157 = lis(SQL);
+const corps0157 = sansCommentairesSql(sql0157); // les mots, le journal, le declencheur (0157, jamais modifiee)
+const corpsSql = sansCommentairesSql(lis(SQL2)); // la fonction previens_du_pourboire et la periode (0196)
 dit('la direction n est pas prevenue (le souverain saute, issue « direction »)', true,
   /if exists \(select 1 from public\.staff s where s\.user_id = compte and s\.role = 'souverain'\) then\s*update public\.pourboires_prevenus set issue = 'direction'/.test(corpsSql));
 const PUR = lis('src/shared/pourboires-de-l-equipe-pur.ts');
 const civ = (t: string) => /CIVILITES = \/(\^\(m[^/]*\$)\/i/.exec(t)?.[1] ?? null;
-const civSql = /mots\[1\] ~\* '([^']+)'/.exec(corpsSql)?.[1] ?? null;
+const civSql = /mots\[1\] ~\* '([^']+)'/.exec(corps0157)?.[1] ?? null;
 dit('les civilites : la meme liste dans la regle, dans foyer-pur et dans la base', [true, true],
   [civ(PUR) !== null && civ(PUR) === civ(lis('src/shared/foyer-pur.ts')), civ(PUR) === civSql]);
 dit('ce qu un prenom ne contient pas : la meme classe, la meme longueur', [true, true],
-  [/PAS_UN_PRENOM = \/\[0-9@\+\/_:;\]\//.test(PUR) && corpsSql.includes("p ~ '[0-9@+/_:;]'"), PUR.includes('p.length > 30') && corpsSql.includes('char_length(p) > 30')]);
-const moisSql = /array\[('janvier'[^\]]+)\]/.exec(corpsSql)?.[1]?.split(',').map((m) => m.trim().replace(/'/g, '')) ?? [];
+  [/PAS_UN_PRENOM = \/\[0-9@\+\/_:;\]\//.test(PUR) && corps0157.includes("p ~ '[0-9@+/_:;]'"), PUR.includes('p.length > 30') && corps0157.includes('char_length(p) > 30')]);
+const moisSql = /array\[('janvier'[^\]]+)\]/.exec(corps0157)?.[1]?.split(',').map((m) => m.trim().replace(/'/g, '')) ?? [];
 dit('les mois de la base sont ceux de la regle', [...MOIS_DITS], moisSql);
-dit('les francs de la base : l espace fine (U+202F), puis « F »', true, /replace\(to_char\(n, 'FM999,999,999,990'\), ',', chr\(8239\)\) \|\| ' F'/.test(corpsSql));
-dit('le titre et le corps de la base sont ceux de la regle', [true, true],
+dit('les francs de la base : l espace fine (U+202F), puis « F »', true, /replace\(to_char\(n, 'FM999,999,999,990'\), ',', chr\(8239\)\) \|\| ' F'/.test(corps0157));
+dit('le titre de la base est celui de la regle ; le corps dit la PERIODE (0196), plus le mois civil', [true, true, true],
   [corpsSql.includes("titre := '+' || public.francs_dits(part) || ' de pourboire' || case when prenom <> '' then ' · ' || prenom else '' end;"),
-    corpsSql.includes("corps := 'Tes pourboires de ' || public.mois_dit(jour) || ' : ' || public.francs_dits(total) || '.';")]);
+    corpsSql.includes("corps := 'Tes pourboires ' || public.periode_dite(periode) || ' : ' || public.francs_dits(total) || '.';"),
+    !corpsSql.includes('mois_dit') && !/left\(x\.data ->> 'date', 7\)/.test(corpsSql)]);
+/* La periode en SQL = le juge TypeScript. */
+dit('la base juge la periode comme periodeDesPourboires (JJ >= 6 : le mois ; sinon le mois d avant, janvier → decembre)', true,
+  corpsSql.includes("case when extract(day from jour) >= 6 then jour\n         else (date_trunc('month', jour) - interval '1 month')::date end,\n    'YYYY-MM')")
+  && corpsSql.includes("periode := public.periode_des_pourboires(jour);\n    debut := (periode || '-06')::date;"));
+dit('le total de la base : les parts de la personne dont la date tombe dans [debut, debut + 1 mois[', true,
+  corpsSql.includes("and left(x.data ->> 'date', 10) >= debut::text\n       and left(x.data ->> 'date', 10) < (debut + interval '1 month')::date::text"));
+const courtsSql = [...(/'du 6 ' \|\| \(array\[([^\]]+)\]\)\[substr\(periode, 6, 2\)::int\]\s*\|\| ' au 4 ' \|\| \(array\[([^\]]+)\]\)\[\(substr\(periode, 6, 2\)::int % 12\) \+ 1\]/.exec(corpsSql) ?? []).slice(1)]
+  .map((l) => l.split(',').map((m) => m.trim().replace(/'/g, '')));
+dit('periode_dite en base : les memes mois courts, la meme fin (le 4 du mois d apres) que periodeDite', [true, true],
+  [courtsSql.length === 2 && courtsSql[0].join() === courtsSql[1].join(),
+    Array.from({ length: 12 }, (_, i) => `du 6 ${courtsSql[0]?.[i]} au 4 ${courtsSql[1]?.[(i + 1) % 12]}`).join('|')
+      === Array.from({ length: 12 }, (_, i) => periodeDite(`2026-${String(i + 1).padStart(2, '0')}`)).join('|')]);
+
 dit('la base ne lit la cliente que par son prenom', [1, true],
   [(corpsSql.match(/new\.data ->> 'note'/g) ?? []).length, corpsSql.includes("prenom := public.prenom_de_la_cliente(new.data ->> 'note');")]);
 dit('chaque part entre une fois : apres insertion seulement, ligne par ligne', true,
-  /create trigger tips_previent after insert on public\.tips\n  for each row execute function public\.previens_du_pourboire\(\);/.test(corpsSql));
+  /create trigger tips_previent after insert on public\.tips\n  for each row execute function public\.previens_du_pourboire\(\);/.test(corps0157)
+  && !/create trigger/.test(corpsSql));
 dit('une part ne se dit qu une fois (journal, la ligne prise d abord)', true,
   /on conflict \(tip_id\) do nothing;\n    if not found then\n      return new;\n    end if;/.test(corpsSql));
 dit('le jour de la part juge : plus de deux jours, elle ne sonne pas', true, corpsSql.includes('if jour < aujourdhui - 2 or jour > aujourdhui + 1 then'));
@@ -257,8 +287,93 @@ dit('le compte se trouve comme est_ma_fiche (compteMail, sinon email), et doit e
   [corpsSql.includes("lower(coalesce(nullif(trim(t.data ->> 'compteMail'), ''), trim(t.data ->> 'email')))"),
     corpsSql.includes('not exists (select 1 from public.staff s where s.user_id = compte)')]);
 dit('le journal a sa RLS aussitot, la direction seule le lit', [true, true],
-  [corpsSql.includes('alter table public.pourboires_prevenus enable row level security;'), corpsSql.includes('using (public.est_direction());')]);
+  [corps0157.includes('alter table public.pourboires_prevenus enable row level security;'), corps0157.includes('using (public.est_direction());')]);
 dit('le clic mene a Mon mois', true, corpsSql.includes("'url', '/trone/#/mon-mois',"));
+
+/* ── 9 bis. LE VRAI SQL, JOUE DANS PGLITE (BANC_PGLITE) ───────────────── */
+/* Quand BANC_PGLITE nomme un dossier qui porte node_modules/@electric-sql/pglite :
+   les vrais mots de 0157 (prenom, francs, journal, declencheur), la vraie
+   fonction de 0196, un appelle_fonction_edge qui NOTE au lieu d envoyer : rien
+   ne part. Des parts aux bornes de la periode, le total et le corps lus. */
+const chargePGlite = async (): Promise<any | null> => {
+  const dossier = process.env.BANC_PGLITE;
+  if (!dossier) return null;
+  try { const m = await import(pathToFileURL(path.join(dossier, 'node_modules/@electric-sql/pglite/dist/index.js')).href); return m?.PGlite ?? null; } catch { return null; }
+};
+const PGlite = await chargePGlite();
+if (!PGlite) {
+  console.log('SAUTE la notification de 0196 ne se joue pas en SQL ici, PGlite absent (BANC_PGLITE=<dossier qui porte node_modules/@electric-sql/pglite>)');
+} else {
+  const entre = (t: string, debut: string, fin: string) => { const a = t.indexOf(debut); return t.slice(a, t.indexOf(fin, a)); };
+  const mots0157 = entre(sql0157, 'create or replace function public.prenom_de_la_cliente', '-- ⟨mois-dits⟩');
+  const journal0157 = entre(sql0157, 'create table if not exists public.pourboires_prevenus', '-- ── 2. LES MOTS');
+  const declencheur0157 = sql0157.slice(sql0157.indexOf('drop trigger if exists tips_previent'), sql0157.indexOf('-- ── Contrôle'));
+  const bd = new PGlite();
+  await bd.exec(`
+    create role authenticated nologin; create role anon nologin;
+    create schema auth;
+    create table auth.users (id uuid primary key, email text);
+    create table public.team (id text primary key, data jsonb not null default '{}'::jsonb);
+    create table public.staff (user_id uuid primary key, role text);
+    create table public.tips (id text primary key, data jsonb not null default '{}'::jsonb);
+    create function public.est_direction() returns boolean language sql as $$ select true $$;
+    create table public.envois (n serial primary key, corps jsonb);
+    create function public.appelle_fonction_edge(nom text, corps jsonb) returns void language sql as $$ insert into public.envois (corps) values (corps) $$;
+    ${journal0157}
+    ${mots0157}
+    ${sansCommentairesSql(lis(SQL2))}
+    ${declencheur0157}
+    insert into auth.users values ('00000000-0000-0000-0000-0000000000a1', 'aimer@exemple.test'), ('00000000-0000-0000-0000-0000000000d1', 'direction@exemple.test');
+    insert into public.staff values ('00000000-0000-0000-0000-0000000000a1', 'staff'), ('00000000-0000-0000-0000-0000000000d1', 'souverain');
+    insert into public.team values ('st-aimer', '{"email":"aimer@exemple.test"}'), ('st-dir', '{"email":"direction@exemple.test"}');
+  `);
+  const envois = async (): Promise<string[]> => (await bd.query("select corps ->> 'body' as b from public.envois order by n")).rows.map((r: any) => r.b);
+  const issue = async (id: string) => (await bd.query('select issue from public.pourboires_prevenus where tip_id = $1', [id])).rows[0]?.issue ?? null;
+  const ajoute = (id: string, date: string, montant: number, staff = 'st-aimer') =>
+    bd.query("insert into public.tips (id, data) values ($1, jsonb_build_object('staffId', $2::text, 'amountXof', $3::int, 'date', $4::text, 'note', 'Ranti Exemple'))", [id, staff, montant, date]);
+  const ajoutJours = (iso: string, n: number) => new Date(Date.parse(iso + 'T00:00:00Z') + n * 86_400_000).toISOString().slice(0, 10);
+
+  /* La periode et sa phrase, en SQL, contre le juge TypeScript : chaque jour de deux ans. */
+  const jours: string[] = [];
+  for (let d = Date.UTC(2026, 9, 1); d < Date.UTC(2028, 9, 1); d += 86_400_000) jours.push(new Date(d).toISOString().slice(0, 10));
+  const sqlPeriodes = (await bd.query('select j, public.periode_des_pourboires(j::date) as p from unnest($1::text[]) as j', [jours])).rows;
+  dit('PGlite : periode_des_pourboires = periodeDesPourboires, chaque jour de deux ans', 0, sqlPeriodes.filter((r: any) => r.p !== periodeDesPourboires(r.j)).length);
+  const dites = (await bd.query("select p, public.periode_dite(p) as d from unnest(array['2026-01','2026-11','2026-12','2027-01']) as p")).rows;
+  dit('PGlite : periode_dite = periodeDite (janvier, novembre, decembre)', dites.map((r: any) => periodeDite(r.p)), dites.map((r: any) => r.d));
+
+  /* La part du jour (Cotonou) sonne ; son total est celui de SA periode, aux bornes. */
+  const AUJOURDHUI = (await bd.query("select (now() at time zone 'Africa/Porto-Novo')::date::text as d")).rows[0].d as string;
+  const periode = periodeDesPourboires(AUJOURDHUI);
+  const debut = periode + '-06';
+  const finExclue = (await bd.query("select ($1::date + interval '1 month')::date::text as d", [debut])).rows[0].d as string;
+  await ajoute('t-avant', ajoutJours(debut, -1), 700);       // veille du debut : periode d avant, ne compte pas
+  await ajoute('t-debut', debut, 1000);                      // le 6 : compte
+  await ajoute('t-fin', ajoutJours(finExclue, -1), 400);     // le 5 d apres : compte (juge : JJ < 6 = mois d avant)
+  await ajoute('t-apres', finExclue, 5000);                  // le 6 d apres : periode suivante, ne compte pas
+  await ajoute('t-autre', debut, 9999, 'st-gerard');         // une autre personne : ne compte pas
+  await ajoute('t-nulle', debut, 0);                         // part nulle : ne compte pas
+  await ajoute('t-illisible', 'pas-une-date-lisible', 10);   // date illisible : ne casse pas le total
+  const coherent = [ajoutJours(debut, -1), debut, ajoutJours(finExclue, -1), finExclue].map(periodeDesPourboires);
+  dit('PGlite : les quatre bornes du scenario sont bien rangees par le juge TypeScript', [periodeAvant(periode), periode, periode, periodeDesPourboires(finExclue)], coherent);
+  await bd.exec('truncate public.envois; delete from public.pourboires_prevenus');
+  const part = 250;
+  await ajoute('t-jour', AUJOURDHUI, part);
+  const dansLaPeriode = AUJOURDHUI >= debut && AUJOURDHUI < finExclue ? part : 0; // la part du jour est dans sa periode, par construction
+  const attendu = F(`Tes pourboires ${periodeDite(periode)} : ${francsDits(1000 + 400 + dansLaPeriode)}.`);
+  dit('PGlite : la part du jour sonne (issue « parti »), corps = le total de sa PERIODE, dit en clair', ['parti', [attendu]], [await issue('t-jour'), await envois()]);
+  dit('PGlite : le titre dit la part et le prenom, jamais le nom entier', true,
+    (await bd.query("select corps ->> 'title' as t from public.envois")).rows[0]?.t === F('+250 F de pourboire · Ranti'));
+  /* Une part deja dite ne sonne pas deux fois (le journal), meme reinseree. */
+  await bd.query("delete from public.tips where id = 't-jour'");
+  await ajoute('t-jour', AUJOURDHUI, part);
+  dit('PGlite : la meme part, reinseree, ne sonne pas deux fois', [attendu], await envois());
+  /* Un pourboire de plus de deux jours ne sonne pas ; la direction n est pas prevenue. */
+  await ajoute('t-vieux', ajoutJours(AUJOURDHUI, -5), 300);
+  await ajoute('t-dir', AUJOURDHUI, 100, 'st-dir');
+  dit('PGlite : une part de plus de deux jours ne sonne pas (« ancien »), la direction non plus (« direction »)', ['ancien', 'direction', 1],
+    [await issue('t-vieux'), await issue('t-dir'), (await envois()).length]);
+  await bd.close();
+}
 
 /* ── 10. LES ECRANS ───────────────────────────────────────────────────── */
 const index = sansCommentaires(lis('src/apps/trone/routes/index.tsx'));

@@ -39,7 +39,7 @@ export type PartDePourboire = {
 export type MembreDuPartage = { id: string; name: string; partPourboire?: number; archiveeLe?: string };
 export type PieceDuFil = { id: string; number?: string };
 
-import { periodeDesPourboires } from './periode-des-pourboires-pur';
+import { periodeDesPourboires, periodeDite } from './periode-des-pourboires-pur';
 export { periodeDesPourboires, periodeAvant, periodeTitre, periodeDite, pourboiresDuDit, payesLeDit, periodeCourte } from './periode-des-pourboires-pur';
 
 /* ── Les jours et les mois ────────────────────────────────────────────── */
@@ -248,13 +248,15 @@ export function quandDit(depuisMs: number, aMs: number): string {
 export const pourboireArriveDit = (amountXof: number, prenom: string): string =>
   `+${francsDits(amountXof)} de pourboire${prenom ? ` · ${prenom}` : ''}`;
 
-/** LA NOTIFICATION, telle que la base l'écrit (0157, `previens_du_pourboire`) :
-    le titre dit sa part et le prénom ; le corps, son total du mois de ce
-    pourboire. Rien d'autre : ni le montant de la pièce, ni le nom entier. */
-export function notificationDuPourboire(part: number, note: string | undefined, totalDuMois: number, mois: string): { titre: string; corps: string } {
+/** LA NOTIFICATION, telle que la base l'écrit (0196, `previens_du_pourboire`) :
+    le titre dit sa part et le prénom ; le corps, son total de la PÉRIODE de ce
+    pourboire (du 6 au 4, payée le 5 ; `periode` = la clé 'AAAA-MM' de
+    `periodeDesPourboires`). Rien d'autre : ni le montant de la pièce, ni le
+    nom entier. */
+export function notificationDuPourboire(part: number, note: string | undefined, totalDeLaPeriode: number, periode: string): { titre: string; corps: string } {
   return {
     titre: pourboireArriveDit(part, prenomDeLaCliente(note)),
-    corps: `Tes pourboires de ${moisDit(mois)} : ${francsDits(totalDuMois)}.`,
+    corps: `Tes pourboires ${periodeDite(periode)} : ${francsDits(totalDeLaPeriode)}.`,
   };
 }
 

@@ -9,8 +9,9 @@
    Un seul juge, pur : `periodeDesPourboires`. La Paie, le bulletin, la page
    Les paiements, Mon mois, Les pourboires et le Personnel l'appellent tous ;
    aucun ne recoupe plus `.slice(0, 7)` pour des pourboires.
-   (Seule la notification SQL de 0157 garde le mois civil : copie serveur,
-   non modifiée.) */
+   La notification serveur (0196, `previens_du_pourboire`) dit la même période :
+   `periode_des_pourboires` et `periode_dite` en SQL, gardées par le banc
+   verifie-les-pourboires-de-l-equipe. */
 
 /** Le jour où commence une période, et celui où elle est payée (le 5). */
 export const JOUR_DEBUT_PERIODE = 6;

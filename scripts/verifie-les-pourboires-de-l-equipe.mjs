@@ -21,11 +21,12 @@ import { spawnSync } from 'node:child_process';
 const racine = path.resolve(import.meta.dirname, '..');
 const P = 'src/shared/pourboires-de-l-equipe-pur.ts';
 const S = 'supabase/migrations/0157_les_pourboires_de_l_equipe.sql';
+const N = 'supabase/migrations/0196_la_notification_du_pourboire_dit_sa_periode.sql';
 const E = 'src/apps/trone/routes/equipe/';
 
 const PANNES = [
   /* Son choix du 5 novembre 2026 : la direction n'est pas prevenue. */
-  { nom: 'la direction est prevenue', fichier: 'supabase/migrations/0157_les_pourboires_de_l_equipe.sql', avant: "s.user_id = compte and s.role = 'souverain'", apres: "s.user_id = compte and s.role = 'jamais'" },
+  { nom: 'la direction est prevenue', fichier: N, avant: "s.user_id = compte and s.role = 'souverain'", apres: "s.user_id = compte and s.role = 'jamais'" },
   /* La regle. */
   { nom: 'la semaine commence le dimanche', fichier: P,
     avant: 'return ajouteJours(jour, -((d.getUTCDay() + 6) % 7));', apres: 'return ajouteJours(jour, -(d.getUTCDay() % 7));' },
@@ -59,24 +60,34 @@ const PANNES = [
   { nom: 'le fil melange les jours', fichier: P,
     avant: 'return fil.sort((a, b) => b.jour.localeCompare(a.jour) ||', apres: 'return fil.sort((a, b) => a.jour.localeCompare(b.jour) ||' },
   /* La base (0157). */
-  { nom: 'la base dit le nom entier', fichier: S,
+  { nom: 'la base dit le nom entier', fichier: N,
     avant: "prenom := public.prenom_de_la_cliente(new.data ->> 'note');", apres: "prenom := new.data ->> 'note';" },
-  { nom: 'une panne de notification refuse le pourboire', fichier: S,
+  { nom: 'une panne de notification refuse le pourboire', fichier: N,
     avant: "    raise warning 'pourboire % : la notification ne part pas (%)', new.id, sqlerrm;", apres: '    raise;' },
-  { nom: 'le refus de la fonction remonte', fichier: S,
+  { nom: 'le refus de la fonction remonte', fichier: N,
     avant: "    exception when others then\n      update public.pourboires_prevenus set issue = 'refuse : ' || left(sqlerrm, 120) where tip_id = new.id;\n    end;",
     apres: '    end;' },
-  { nom: 'une part sonne deux fois', fichier: S,
+  { nom: 'une part sonne deux fois', fichier: N,
     avant: '      on conflict (tip_id) do nothing;\n    if not found then\n      return new;\n    end if;', apres: '      on conflict (tip_id) do nothing;' },
-  { nom: 'un repartage d aout sonne', fichier: S, avant: 'if jour < aujourdhui - 2 or jour > aujourdhui + 1 then', apres: 'if false then' },
-  { nom: 'pas de plafond', fichier: S, avant: ">= 5 then", apres: '>= 5000 then' },
+  { nom: 'un repartage d aout sonne', fichier: N, avant: 'if jour < aujourdhui - 2 or jour > aujourdhui + 1 then', apres: 'if false then' },
+  { nom: 'pas de plafond', fichier: N, avant: ">= 5 then", apres: '>= 5000 then' },
   { nom: 'la civilite de la base differe', fichier: S, avant: '|monsieur|dr\\.?)$', apres: '|monsieur)$' },
+  /* La periode du 6 au 4 (0196). */
+  { nom: 'la base totalise encore au mois civil', fichier: N,
+    avant: "left(x.data ->> 'date', 10) >= debut::text", apres: "left(x.data ->> 'date', 7) = to_char(jour, 'YYYY-MM') and true" },
+  { nom: 'la periode de la base commence le 5', fichier: N, avant: 'case when extract(day from jour) >= 6 then jour', apres: 'case when extract(day from jour) >= 5 then jour' },
+  { nom: 'janvier ne recule pas en decembre', fichier: N, avant: "date_trunc('month', jour) - interval '1 month')", apres: "date_trunc('month', jour))" },
+  { nom: 'la base dit le mois civil', fichier: N, avant: "'Tes pourboires ' || public.periode_dite(periode)", apres: "'Tes pourboires de ' || public.mois_dit(jour)" },
+  { nom: 'la periode dite finit le 5', fichier: N, avant: "' au 4 '", apres: "' au 5 '" },
+  { nom: 'la fin de la periode dite ne passe pas au mois suivant', fichier: N, avant: '% 12) + 1]', apres: '% 12)]' },
+  { nom: 'la notification TypeScript dit le mois civil', fichier: P,
+    avant: 'Tes pourboires ${periodeDite(periode)} :', apres: 'Tes pourboires de ${moisDit(periode)} :' },
   { nom: 'les mois de la base sans accent', fichier: S, avant: "'janvier', 'février',", apres: "'janvier', 'fevrier'," },
   { nom: 'le declencheur sonne aussi a chaque mise a jour', fichier: S, avant: 'after insert on public.tips', apres: 'after insert or update on public.tips' },
   { nom: 'le journal sans RLS', fichier: S, avant: 'alter table public.pourboires_prevenus enable row level security;\n', apres: '' },
   { nom: 'la base ecrit le montant sans espace fine', fichier: S, avant: "',', chr(8239))", apres: "',', ' ')" },
-  { nom: 'la base pousse a toute l equipe', fichier: S, avant: "'mode', 'to-staff',", apres: "'mode', 'staff'," },
-  { nom: 'la base prend n importe quel compte', fichier: S,
+  { nom: 'la base pousse a toute l equipe', fichier: N, avant: "'mode', 'to-staff',", apres: "'mode', 'staff'," },
+  { nom: 'la base prend n importe quel compte', fichier: N,
     avant: 'if compte is null or not exists (select 1 from public.staff s where s.user_id = compte) then', apres: 'if compte is null then' },
   /* Les ecrans. */
   { nom: 'la page s ouvre a tout le personnel', fichier: 'src/apps/trone/routes/index.tsx',
