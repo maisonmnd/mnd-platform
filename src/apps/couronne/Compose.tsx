@@ -26,6 +26,8 @@ import { fmtDuration, useAucuneRemise, useClient, useVisibleCatalog } from './li
 import { avantageDuSurMesure } from './places-pure';
 import Cycle, { semainesDuForfait } from './Cycle';
 import AchatFormule from './AchatFormule';
+import { CompositionDeLaFormule, CompositionDuForfait } from './VoirLaComposition';
+import { compositionDeLaFormule, compositionDuForfait } from '../../shared/composition-pur';
 import { priceModeOf, sousArbreOf, useCategories, useServices, useProducts, type Service, type ServiceInclus } from '../../shared/catalog';
 import { t, prix } from './i18n';
 
@@ -537,6 +539,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                         </>
                       );
                     })()}
+                    <CompositionDeLaFormule lignes={compositionDeLaFormule(pl.included, (id) => tousServices.find((x) => x.id === id)?.name ?? t('Une prestation de la Maison'))} mode={pl.mode === 'pack' ? 'pack' : 'cycle'} />
                     {/* ELLE PREND, ELLE NE DEMANDE PLUS. « Je ne veux pas
                         qu'on envoie une demande au Trône » (29 août) : le
                         bouton ouvre l'achat en trois temps. */}
@@ -588,6 +591,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                   <div className="mc-pack__quoi">
                     {noms.join(' · ')}{reste > 0 ? ` · ${reste > 1 ? t('et {n} autres', { n: reste }) : t('et {n} autre', { n: reste })}` : ''}
                   </div>
+                  <CompositionDuForfait groupes={compositionDuForfait(lignes, nomInclus)} />
                   {s.description && <div className="mc-pack__mot">{s.description}</div>}
                   <button
                     className="mc-cta mc-cta--copper mc-pack__cta"

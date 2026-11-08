@@ -20,6 +20,8 @@ import { useAucuneRemise, useClient } from './lib';
 import { rangDuFoyerPourElle } from './places-pure';
 import { dateDansLaPhrase, leJour, useReleve } from './releve';
 import { t, prix } from './i18n';
+import { CompositionDeLaFormule } from './VoirLaComposition';
+import { compositionDeLaFormule } from '../../shared/composition-pur';
 import './couronne.css';
 import './abonnee.css';
 
@@ -268,6 +270,7 @@ export default function AchatFormule({
                     {plan.perks.slice(0, 5).map((av) => <li key={av}><i>◆</i><span>{av}</span></li>)}
                   </ul>
                 )}
+                <CompositionDeLaFormule lignes={compositionDeLaFormule(plan.included, (id) => services.find((x) => x.id === id)?.name ?? t('Une prestation de la Maison'))} mode={plan.mode === 'pack' ? 'pack' : 'cycle'} />
                 <div className="cma-somme">
                   <span>{doitDemander && !calibreDit ? t('À partir de') : t('Pour votre tête')}</span>
                   <b>{foyer.foyerJoue && foyer.foyerXof > 0 ? <s style={{ fontSize: '0.6em', marginRight: 8, color: 'var(--ink-mute)' }}>{prix(prixTete, currency)}</s> : null}{prix(total, currency)}</b>
