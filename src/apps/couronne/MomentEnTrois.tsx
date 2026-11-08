@@ -51,7 +51,7 @@ export default function MomentEnTrois({ clientId, nomDuRituel }: { clientId: str
         return (
           <div key={planId} className="mc-nextrdv mc-rituel">
             <div className="mc-nextrdv__row">
-              <span className="mc-nextrdv__label">{t('Votre Moment · {venues}', { venues: enNVenues(lecture.lignes.length) })}</span>
+              <span className="mc-nextrdv__label">{t('Votre Moment · {venues}', { venues: t(enNVenues(lecture.lignes.length)) })}</span>
             </div>
             {nomDuRituel && <div className="mc-nextrdv__service">{nomDuRituel}</div>}
             {lecture.lignes.map((l) => {
