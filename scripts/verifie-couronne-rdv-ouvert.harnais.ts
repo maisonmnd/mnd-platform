@@ -32,7 +32,9 @@ const lib = lis(`${D}lib.ts`);
 
 /* ── 1. TOUTES LES PORTES ─────────────────────────────────────────────── */
 dit('accueil : la prochaine séance ouvre SA fiche', true, /className="mc-nextrdv__ouvrir" onClick=\{\(\) => onOpenRdv\(next\.id\)\}/.test(tabs));
-dit('accueil : le rappel des 48 h aussi', true, /className="mc-remindbanner" onClick=\{\(\) => onOpenRdv\(soon\.id\)\}/.test(tabs));
+/* 8 novembre 2026 : le rappel des 48 h n'est plus un bandeau, c'est une pastille DANS la
+   carte de la séance, qui ouvre déjà sa fiche. */
+dit('accueil : le rappel des 48 h est une pastille dans la carte, plus un bandeau', [true, false], [/mc-nextrdv__pastille/.test(tabs), /mc-remindbanner/.test(tabs)]);
 dit('enfant : son rituel ouvre sa fiche', true, /onClick=\{\(\) => onOpenRdv\?\.\(next\.id\)\}/.test(tabs) && /<HomeEnfant[^\n]{0,200}onOpenRdv=\{openRdv\} \/>/.test(app));
 dit('suivi : chaque passage et le prochain ouvrent leur fiche', [true, true, true],
   [/id: a\.id,/.test(tabs), /id: next\.id,/.test(tabs), /onClick=\{\(\) => onOpenRdv\(ev\.id\)\}/.test(tabs)]);

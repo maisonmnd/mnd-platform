@@ -19,9 +19,12 @@ try {
   dit('fourchette absente tolérée', { calibre: 'Fine', fourchette: '' }, p('Fine', undefined));
   const tabs = readFileSync(path.join(racine, 'src/apps/couronne/Tabs.tsx'), 'utf8');
   const home = tabs.slice(tabs.indexOf('export function HomeTab('), tabs.indexOf('export function HomeEnfant('));
-  dit('la pastille est dans le hero', true, /mc-homehero__greet[\s\S]{0,900}mc-crownpill/.test(home));
+  /* 8 novembre 2026 : plus de photo en haut de l'accueil (maquette validee) ; la pastille
+     vit sous le bonjour de l'en-tete compact, et « Pour vous » revient comme titre de la
+     liste qui range le reste (une ligne par rubrique). */
+  dit('la pastille est sous le bonjour de l en-tete', true, /mc-homehead__greet[\s\S]{0,900}mc-crownpill/.test(home));
   dit('la carte pleine ne vit qu au toucher', true, /\{statutOuvert && \(\s*<div id="mc-statut-couronne">/.test(home));
-  dit('Pour vous disparait de l accueil', false, home.includes("t('Pour vous')"));
+  dit('Pour vous ne titre que la liste, une fois', 1, home.split("t('Pour vous')").length - 1);
   dit('trois rubriques distinctes', true, ['Les produits', 'Le Cercle'].every((k) => home.includes(`>{t('${k}')}</div>`)) && home.includes("t('De main en main'"));
   dit('plus de La Gamme dans les rubriques', false, home.includes("t('La Gamme')"));
 } finally { rmSync(dossier, { recursive: true, force: true }); }

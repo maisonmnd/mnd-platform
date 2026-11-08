@@ -672,37 +672,41 @@
    ACCUEIL
    ============================================================ */
 
-.mc-homehero { position: relative; height: clamp(300px, 40vh, 360px); overflow: hidden; }
-.mc-homehero__photo { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
-.mc-homehero__veil { position: absolute; inset: 0; background: linear-gradient(to top, var(--color-obsidian) 2%, rgba(20, 20, 27, 0.1) 56%); }
-/* Grand sceau centré — couronne le portrait sans jamais toucher le prénom,
-   qui vit en bas à gauche sous le voile. */
-.mc-homehero__seal { position: absolute; top: calc(14px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: 160px; opacity: 0.9; height: auto; }
-.mc-homehero__text { position: absolute; left: 22px; right: 22px; bottom: 20px; }
-.mc-homehero__greet {
+/* ══ L'ACCUEIL RÉORGANISÉ — 8 novembre 2026 (maquette validée par « construis »).
+   « Il y a trop d'informations, trop condensées » (Yéman). Plus de grande photo
+   (« elle prenait un tiers de l'écran sans rien dire ») : un en-tête compact,
+   prénom, cloche, pastille de la couronne ; 16 px de gouttière ; une carte qui
+   parle en premier ; deux gestes côte à côte ; le reste en liste. Jetons du
+   jour et du soir seulement : rien n'est écrit en dur. ══ */
+.mc-homehead { padding: calc(14px + env(safe-area-inset-top)) 16px 0; }
+.mc-homehead__row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.mc-homehead__salut { min-width: 0; }
+.mc-homehead__greet {
   font-family: var(--font-serif);
   font-weight: 400;
-  font-size: clamp(30px, 9.5vw, 40px);
-  line-height: 1;
-  color: var(--color-ivoire);
-  margin-top: 6px;
+  font-size: clamp(26px, 7vw, 30px);
+  line-height: 1.1;
+  color: var(--mc-encre);
+  margin-top: 4px;
+  text-wrap: balance;
 }
+.mc-homehead .mc-crownpill { margin-top: 10px; }
+.mc-pagepad--accueil { padding: 14px 16px 0; }
+.mc-pagepad--accueil .mc-offersrail { margin: 0 -16px; padding: 0 16px 4px; }
 
 .mc-bell {
-  position: absolute;
-  top: calc(18px + env(safe-area-inset-top));
-  right: 20px;
+  position: relative;
+  flex: 0 0 auto;
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: rgba(246, 241, 231, 0.16);
-  border: 1px solid var(--hairline-invert);
-  backdrop-filter: blur(6px);
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-ivoire);
+  color: var(--mc-encre);
   font-size: 15px;
 }
 .mc-bell__count {
@@ -721,8 +725,42 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1.5px solid var(--color-obsidian);
+  border: 1.5px solid var(--paper);
 }
+
+/* Deux gestes côte à côte : « Réserver un rituel » plein cuivre, « Sur-mesure »
+   bord cuivre ; seul, un geste prend toute la largeur. */
+.mc-gestes { display: grid; grid-template-columns: 1.25fr 1fr; gap: 10px; margin-top: 12px; }
+.mc-gestes--seul { grid-template-columns: 1fr; }
+.mc-gestes .mc-cta { min-height: 48px; padding: 15px 10px; font-size: 11.5px; letter-spacing: 0.14em; }
+.mc-gestes .mc-cta--outline { border-color: var(--accent); color: var(--mc-cuivre-texte); }
+
+/* Le reste en liste « Pour vous » : une ligne par rubrique, icône, titre,
+   sous-titre, chevron. */
+.mc-liste { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 4px; overflow: hidden; }
+.mc-liste__rang {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 14px;
+  background: none;
+  border: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: default;
+}
+button.mc-liste__rang { cursor: pointer; }
+button.mc-liste__rang:hover { background: var(--hover-veil); }
+.mc-liste__rang + .mc-liste__rang { border-top: 1px solid var(--mc-hairline-soft); }
+.mc-liste__pt { width: 34px; height: 34px; border-radius: 10px; background: var(--copper-50); color: var(--mc-cuivre-texte); display: grid; place-items: center; flex: 0 0 auto; }
+.mc-liste__tx { flex: 1; min-width: 0; }
+.mc-liste__t { font-size: 14px; font-weight: var(--weight-medium); color: var(--mc-encre); line-height: 1.3; }
+.mc-liste__s { font-size: 12px; color: var(--ink-soft); margin-top: 2px; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-liste__fl { color: var(--mc-cuivre-texte); font-size: 18px; line-height: 1; flex: 0 0 auto; }
+/* ══ fin de l'accueil réorganisé ══ */
 
 .mc-quote {
   display: flex;
@@ -777,7 +815,8 @@
 }
 .mc-offer {
   scroll-snap-align: start;
-  flex: 0 0 76%;
+  /* 8 novembre 2026 : plus large (84 %), la carte se lit d'un regard. */
+  flex: 0 0 84%;
   text-align: left;
   cursor: pointer;
   position: relative;
@@ -836,7 +875,21 @@
   border-radius: 4px;
   padding: 18px;
 }
-.mc-nextrdv__row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.mc-nextrdv__row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 10px; }
+/* L'état et la pastille du rituel qui approche (8 novembre 2026 : « Aujourd’hui »,
+   « Demain », « Dans 2 jours » à la place du bandeau), à droite de l'étiquette. */
+.mc-nextrdv__chips { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; margin-left: auto; }
+.mc-nextrdv__pastille {
+  font-size: 9.5px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-obsidian);
+  background: var(--copper-200);
+  border-radius: 999px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
 .mc-nextrdv__label {
   font-size: 10px;
   font-weight: var(--weight-medium);
@@ -854,7 +907,7 @@
   padding: 4px 10px;
   white-space: nowrap;
 }
-.mc-nextrdv__service { font-family: var(--font-serif); font-size: 25px; color: var(--color-ivoire); margin-top: 8px; line-height: 1.1; }
+.mc-nextrdv__service { font-family: var(--font-serif); font-size: 25px; color: var(--color-ivoire); margin-top: 8px; line-height: 1.1; text-wrap: balance; }
 .mc-nextrdv__when { font-size: 13px; font-weight: 400; color: var(--indigo-100); margin-top: 2px; }
 .mc-nextrdv__seal {
   display: inline-block;
@@ -2231,24 +2284,16 @@
   .mc-appbody > * { width: 100%; max-width: 640px; margin: 0 auto; }
   .mc-appbody > .mc-page--wide { max-width: 1040px; }
 
-  /* Le héros d'accueil devient un PORTRAIT ENCADRÉ sur bureau — comme la
-     maquette : marges autour, coins doux, jamais une bannière étirée. */
-  .mc-app--shell .mc-homehero {
-    margin: 28px 0 0;
-    border-radius: 5px;
-    overflow: hidden;
-  }
+  /* L'en-tête compact de l'accueil (8 novembre 2026) : les marges du bureau. */
+  .mc-app--shell .mc-homehead { padding: 28px 40px 0; }
 
   /* Plus d'air : rythme et respiration agrandis sur les pages internes. */
   .mc-pagepad { padding: 32px 40px 0; }
   .mc-pagepad--top { padding: 40px 40px 32px; }
-
-  /* Hero d'accueil plus ample. */
-  .mc-homehero { height: clamp(320px, 34vh, 400px); }
-  .mc-homehero__seal { width: 190px; }
+  .mc-pagepad--accueil { padding: 20px 40px 0; }
 
   /* Offres : rangée fluide au lieu du carrousel. */
-  .mc-offersrail {
+  .mc-offersrail, .mc-pagepad--accueil .mc-offersrail {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 14px;
@@ -2319,26 +2364,9 @@
 .mc-stchip--off { color: var(--mc-error); border-color: rgba(155, 74, 69, 0.4); }
 .mc-stchip--info { color: var(--mc-encre); border-color: rgba(46, 51, 120, 0.3); }
 
-/* Bannière de rappel discrète — rituel sous 48 h (Accueil). */
-.mc-remindbanner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 48px;
-  margin-bottom: 14px;
-  padding: 12px 14px;
-  text-align: left;
-  background: var(--copper-50);
-  border: 1px solid var(--copper-300);
-  border-radius: 3px;
-  font-family: var(--font-sans);
-  font-size: 12.5px;
-  color: var(--accent-strong);
-  cursor: pointer;
-  transition: background 0.2s var(--ease-soft);
-}
-.mc-remindbanner:hover { background: var(--color-sable); }
+/* Le bandeau « Votre rituel approche » (rituel sous 48 h) a quitté l'accueil le
+   8 novembre 2026 : il est devenu une pastille sur la carte de la séance
+   (.mc-nextrdv__pastille). */
 /* LA FERMETURE ANNONCÉE (6 novembre 2026) : la carte du rappel, sans geste. */
 .mc-fermeture {
   display: flex;
@@ -2358,36 +2386,53 @@
 .mc-fermeture__txt { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .mc-fermeture__txt b { font-weight: var(--weight-medium); }
 .mc-fermeture__tag { display: block; margin-bottom: 2px; font-size: 10px; font-weight: var(--weight-medium); letter-spacing: 0.16em; text-transform: uppercase; }
-.mc-remindbanner__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: 0 0 auto; }
-.mc-remindbanner__txt { flex: 1; min-width: 0; line-height: 1.4; }
-.mc-remindbanner__go {
-  flex: 0 0 auto;
-  font-size: 10px;
-  font-weight: var(--weight-medium);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
 
-/* Gérer ses rendez-vous depuis la carte « Prochain rituel ». */
-.mc-nextrdv__manage {
-  display: block;
-  width: 100%;
+/* Les gestes sous la carte « Votre prochaine séance » (8 novembre 2026) :
+   « Ouvrir » (ou « Réserver ») en plein cuivre, « Mes rendez-vous » et « Un
+   autre moment » en lien, sur la même ligne. */
+.mc-nextrdv__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
   min-height: 44px;
   margin-top: 14px;
-  padding: 12px;
-  background: transparent;
-  border: 1px solid var(--ink-invert-soft);
+  padding: 12px 20px;
+  background: var(--accent);
+  border: 0;
   border-radius: 2px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-weight: var(--weight-medium);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-ivoire);
+  transition: background 0.2s var(--ease-soft);
+}
+.mc-nextrdv__cta:hover { background: var(--copper-600); }
+.mc-nextrdv__manage {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  min-height: 44px;
+  margin-top: 14px;
+  padding: 12px 2px;
+  background: transparent;
+  border: 0;
   cursor: pointer;
   font-family: var(--font-sans);
   font-weight: var(--weight-medium);
   font-size: 10.5px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--color-ivoire);
-  transition: background 0.2s var(--ease-soft);
+  color: var(--copper-200);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s var(--ease-soft);
 }
-.mc-nextrdv__manage:hover { background: rgba(246, 241, 231, 0.1); }
+.mc-nextrdv__cta + .mc-nextrdv__manage, .mc-nextrdv__manage + .mc-nextrdv__manage { margin-left: 16px; }
+.mc-nextrdv__manage:hover { color: var(--color-ivoire); }
 
 /* VOTRE RITUEL · EN COURS (6 novembre 2026, Terminer et régler) : la carte
    de la séance, ses couleurs comprises ; ici, seulement l'espace. */
@@ -3328,15 +3373,16 @@
 .mc-phrase__doute .mc-textbtn { margin-right: 10px; }
 
 /* LA PASTILLE DE LA COURONNE (7 novembre 2026) : la carte du statut, repliée en
-   une ligne sous « Bonjour », filet fin cuivre, petit corps. */
+   une ligne sous « Bonjour », filet fin cuivre, petit corps. Depuis le 8 novembre
+   2026 elle vit sur le papier de l'en-tête compact, plus sur la photo. */
 .mc-crownpill {
   display: inline-flex; align-items: center; gap: 8px; margin-top: 8px;
   padding: 4px 10px; min-height: 28px; border-radius: 999px;
-  background: rgba(20, 20, 27, 0.35); border: 1px solid var(--copper-700, #b8743c);
-  color: var(--color-ivoire); font-family: var(--font-sans); font-size: 11px; letter-spacing: .02em;
-  cursor: pointer; -webkit-tap-highlight-color: transparent; backdrop-filter: blur(4px);
+  background: var(--copper-50); border: 1px solid var(--copper-300);
+  color: var(--mc-encre); font-family: var(--font-sans); font-size: 11px; letter-spacing: .02em;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
-.mc-crownpill__chev { color: var(--copper-300, #d9a679); font-size: 12px; line-height: 1; }
+.mc-crownpill__chev { color: var(--mc-cuivre-texte); font-size: 12px; line-height: 1; }
 #mc-statut-couronne .mc-crownstatus { margin-top: 0; margin-bottom: 14px; }
 
 /* « VOIR LA COMPOSITION » — 8 novembre 2026. Sur chaque carte de formule ou de

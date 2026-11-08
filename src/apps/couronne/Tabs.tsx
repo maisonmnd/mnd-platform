@@ -6,23 +6,22 @@ import { TexteFon } from '../../ds/fon';
 import { EntreDeux } from './EntreDeux';
 import { MonDiagnosticPhoto } from './MonDiagnosticPhoto';
 import { DEVISE_MAISON } from '../../shared/identite';
-import { CarteDeMarraine } from '../../ds/CarteDeMarraine';
-import { graineDansDite, MonAmbassade, useMaCarte, useMaGraine, visitesDites } from './MaCarte';
+import { graineDansDite, MonAmbassade, useMaCarte, useMaGraine } from './MaCarte';
 import { nomDuRang, rangDe, rangSuivant, soinsEnAttente } from '../../shared/parrainage-pur';
-import { MapPin } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { FileText, Heart, Leaf, MapPin, Moon, ShoppingBag, Sparkles, Users } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { notifyLocal } from '../../shared/ics';
 import { enablePush, disablePush, pushState, type PushState } from '../../shared/push';
 import { useBranch } from '../../shared/branches';
 import { signOut, useAuth } from '../../shared/auth';
 import { useAppointments, venuesHonorees, type Appointment } from '../../shared/agenda';
+import { dureeDuRendezVous } from '../../shared/agenda-pur';
 import { derniereVenueAvant } from '../../shared/catalogue-pur';
-import { useCategories, useProducts, useServices } from '../../shared/catalog';
+import { useCategories, useServices } from '../../shared/catalog';
 import { clientsStore, useClients, useFamilies, usePersonas, remiseFamillePct, remiseFamillePourTetes, type Client } from '../../shared/clients';
 import { vitrineConfigStore } from '../../shared/bridges';
 import { recoPourEnvie } from '../../shared/reco';
-import { envieLabel, type EnvieKey } from '../../shared/quiz';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable, calibreDe, calibreDeLaTete } from '../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, estProposable, calibreDe, calibreDeLaTete } from '../../shared/pricing';
 import { fourchetteDuModele } from './fourchette';
 import { predictNextVisit, cadenceLabel } from '../../shared/cadence';
 import { dernierBilanDe, useBilans, type Bilan } from '../../shared/bilans';
@@ -55,9 +54,11 @@ import { prenomDUsage } from '../../shared/civilite';
 import {
   ensureClient,
   moduleHidden,
+  dateOfIso,
   dayLabelIso,
   daysSince,
   firstName,
+  fmtDuration,
   productMeta,
   todayIso,
   useClient,
@@ -114,12 +115,6 @@ const rythmeDit = (days: number): string => {
    (le PDF Maison MND) aussi. Un bilan d'avant, sans résumé, s'ouvre entier,
    comme il l'a toujours fait. La signature du maître reste : un bilan est un
    document signé. */
-
-/** La première phrase d'un résumé : la ligne de la carte d'accueil. */
-const premierePhrase = (s: string): string => {
-  const m = s.match(/^.+?[.!?](?=\s|$)/);
-  return (m ? m[0] : s).trim();
-};
 
 export function BilanLecteur({ bilan, porteuse, onClose, onReserver }: {
   bilan: Bilan;
@@ -391,16 +386,6 @@ function useNotifCount(): number {
     + bilans.filter((b) => !d.has(`bilan-${b.id}`)).length;
 }
 
-/* LA PHRASE DU POURQUOI (maquette accueil, repère 5) : la recommandation dit
-   sa raison en toutes lettres — l'envie qu'ELLE a déclarée au quiz, jamais un
-   fait inventé sur sa fibre. Une par envie, dans les mots de la maison. */
-const PHRASE_ENVIE: Record<EnvieKey, string> = {
-  longueur: 'Pour les centimètres que vous êtes venue chercher, la longueur se gagne à la racine, séance après séance.',
-  eclat: 'Pour l’éclat que vous êtes venue chercher, la lumière se scelle mèche après mèche.',
-  protection: 'Pour protéger ce qui pousse, la saison ne doit rien prendre à votre couronne.',
-  transformation: 'Pour la transformation que vous êtes venue chercher, sans rien sacrifier de votre couronne.',
-};
-
 function serviceNames(a: Appointment, services: { id: string; name: string }[]): string {
   return a.serviceIds
     .map((id) => services.find((s) => s.id === id)?.name)
@@ -418,6 +403,45 @@ function birthdayLabel(iso: string): string {
   if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
   const date = d.toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' });
   return age > 1 ? t('{date} · {age} ans', { date, age }) : t('{date} · {age} an', { date, age });
+}
+
+/* L'ACCUEIL RÉORGANISÉ — 8 novembre 2026, maquette validée par « construis ».
+   « Il faut réorganiser un peu la première page de Ma Couronne. Il y a trop
+   d'informations, trop condensées. Il faut faire une meilleure interface avec
+   un meilleur UI » (Yéman). Une carte parle en premier, deux gestes, la
+   formule, les offres lisibles, le reste en liste. */
+
+/* « Aujourd’hui », « Demain », « Dans 2 jours » : la pastille du rituel qui
+   approche (sous 48 h), à la place du bandeau d'hier. Les jours se comptent
+   en calendrier local, comme `todayIso`. */
+const dansCombienDit = (iso: string): string => {
+  const n = Math.round((dateOfIso(iso).getTime() - dateOfIso(todayIso()).getTime()) / 86_400_000);
+  if (n <= 0) return t('Aujourd’hui');
+  if (n === 1) return t('Demain');
+  return t('Dans {n} jours', { n });
+};
+
+/* « 9 h », « 9 h 30 » : l'heure comme la Maison l'écrit. En anglais, « 09:00 »
+   reste tel quel. */
+const heureDite = (hhmm: string): string => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm ?? '');
+  if (!m || langue() === 'en') return hhmm ?? '';
+  return m[2] === '00' ? `${Number(m[1])} h` : `${Number(m[1])} h ${m[2]}`;
+};
+
+/* UNE LIGNE DE LA LISTE « POUR VOUS » : icône discrète, titre et sous-titre
+   (les enfants), chevron. Sans geste, la ligne se lit mais ne se touche pas. */
+function Rang({ icone, onClick, children }: { icone: ReactNode; onClick?: () => void; children: ReactNode }) {
+  const corps = (
+    <>
+      <span className="mc-liste__pt" aria-hidden="true">{icone}</span>
+      <div className="mc-liste__tx">{children}</div>
+      {onClick && <span className="mc-liste__fl" aria-hidden="true">›</span>}
+    </>
+  );
+  return onClick
+    ? <button type="button" className="mc-liste__rang" onClick={onClick}>{corps}</button>
+    : <div className="mc-liste__rang">{corps}</div>;
 }
 
 /* ================= ACCUEIL ================= */
@@ -506,7 +530,6 @@ export function HomeTab({
   const [statutOuvert, setStatutOuvert] = useState(false);
   const [personas] = usePersonas();
   const [cats] = useCategories();
-  const [produits] = useProducts();
   const [bands] = useModelBands();
   const [sets] = useBandSets();
   const pricing = pricingOf(client ?? undefined, bands, sets, cats);
@@ -532,7 +555,11 @@ export function HomeTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, servicesVisibles, personas, cfgVitrine, clientAppts, bands, sets, cats]);
 
-  /* Rituel sous 48 h : bannière discrète + une notification locale, une seule fois. */
+  /* LE RITUEL QUI APPROCHE (sous 48 h) : une notification locale, une seule
+     fois, et depuis le 8 novembre 2026 une PASTILLE sur la carte de la séance
+     (« Aujourd’hui », « Demain », « Dans 2 jours ») à la place du bandeau
+     « Votre rituel approche » : « Il y a trop d'informations, trop
+     condensées » (Yéman, 8 novembre 2026). Plus de doublon avec la carte. */
   const soon = useMemo(() => {
     if (!next) return null;
     const start = new Date(`${next.date}T${next.time}:00`).getTime();
@@ -549,46 +576,70 @@ export function HomeTab({
     notifyLocal(t('Votre rituel approche'), t('{jour} · {heure}, la maison vous attend.', { jour: jourDit(soon.date), heure: soon.time }));
   }, [soon]);
 
-  /* LE TABLEAU DE BORD (20 octobre 2026) : une seule alerte, une carte par
-     formule, la prochaine séance, le solde, deux boutons. Sans formule ni
-     formule passée, l'accueil d'avant, la carte de la prochaine séance en tête. */
   const releveA = abonnee?.releve;
   const abonneeA = aUneFormule(releveA);
+  /* UNE SEULE ALERTE pour l'abonnée (6 novembre 2026) : quand le relevé en
+     porte une, c'est elle qui parle, et la carte dit déjà la séance qui
+     approche. La pastille se tait alors. */
+  const pastilleQuiApproche = (
+    <>
+        {soon && !(abonneeA && releveA?.alerte) && (
+          <span className="mc-nextrdv__pastille">{dansCombienDit(soon.date)}</span>
+        )}
+    </>
+  );
+
+  /* LA DURÉE DU RITUEL, lue comme le Trône la lit (shared/agenda-pur) : ce qui
+     est écrit sur le rendez-vous, sinon le catalogue à sa longueur. */
+  const dureesParPrestation = useMemo(
+    () => new Map(services.map((s) => [s.id, { durationMin: s.durationMin, dureeParLongueur: s.dureeParLongueur }])),
+    [services],
+  );
+
+  /* UNE SEULE CARTE PARLE EN PREMIER (8 novembre 2026, maquette validée par
+     « construis ») : la prochaine séance, la date et l'heure en grand, les
+     gestes et la durée dessous, « Ouvrir » et « Mes rendez-vous ». Les trois
+     cas d'hier restent : la séance prise, la séance PRÉDITE (≈), aucune. */
   const carteProchaine = (
     <>
         {/* VOTRE RITUEL · EN COURS (6 novembre 2026, Terminer et régler) : à
             l'heure du rituel, le jour même, « Terminer mon rituel », puis le
             règlement, puis « vous pouvez partir ». Rien hors de ce moment. */}
         <RituelEnCours nomDuRituel={(a) => serviceNames(a, services)} />
-        {/* VOTRE PROCHAINE SÉANCE — EN TÊTE (maquette accueil, repère 2) : la
-            séance prise, ou la séance PRÉDITE avec ses deux gestes. Le vide
-            n'ouvre plus l'écran. */}
+        {/* VOTRE PROCHAINE SÉANCE — EN TÊTE (maquette accueil, repère 2 ; refaite
+            le 8 novembre 2026) : la séance prise s'ouvre d'un toucher (7 octobre
+            2026), ou la séance PRÉDITE avec ses deux gestes. Aucun nom de maître. */}
         <div className="mc-nextrdv">
           <div className="mc-nextrdv__row">
             <span className="mc-nextrdv__label">{t('Votre prochaine séance')}</span>
-            {next && <span className="mc-nextrdv__status">{t(ETAT_SEANCE[etatDeLaSeance(next, jourDeCotonou())].dit)}</span>}
+            <span className="mc-nextrdv__chips">
+              {next && <span className="mc-nextrdv__status">{t(ETAT_SEANCE[etatDeLaSeance(next, jourDeCotonou())].dit)}</span>}
+              {pastilleQuiApproche}
+            </span>
           </div>
           {next ? (
-            /* LA CARTE S'OUVRE — 7 octobre 2026 (maquette validée) : toute la
-               séance se touche et ouvre SA fiche. Aucun nom de maître. */
-            <button type="button" className="mc-nextrdv__ouvrir" onClick={() => onOpenRdv(next.id)}>
-              <div className="mc-nextrdv__service">{serviceNames(next, services)}</div>
-              <div className="mc-nextrdv__when">{jourDit(next.date)} · {next.time}</div>
-              {next.seriesTotal && (
-                <span className="mc-nextrdv__seal" style={{ marginRight: 8 }}>
-                  {t('Séance {i}/{n}', { i: next.seriesIndex ?? '', n: next.seriesTotal })}
-                </span>
-              )}
-              {next.depositXof != null && (
-                <span className="mc-nextrdv__seal">{next.depositConfirmed ? t('Acompte reçu') : t('Acompte')} · {prix(next.depositXof, currency)}</span>
-              )}
-              {/* LE SCEAU DE LA FORMULE (20 octobre 2026) : « Incluse · séance 3
-                  sur 6 de votre formule », lu au relevé. */}
-              {sceauDeLaSeance(abonnee?.releve, next.id) && (
-                <span className="ab-sceau" style={{ display: 'block', width: 'fit-content' }}>{sceauDeLaSeance(abonnee?.releve, next.id)}</span>
-              )}
-              <span className="mc-nextrdv__voir">{t('Ouvrir')} →</span>
-            </button>
+            <>
+              <button type="button" className="mc-nextrdv__ouvrir" onClick={() => onOpenRdv(next.id)}>
+                <div className="mc-nextrdv__service">{jourDit(next.date)} · {heureDite(next.time)}</div>
+                <div className="mc-nextrdv__when">
+                  {serviceNames(next, services) || t('Rituel de la maison')} · {fmtDuration(dureeDuRendezVous(next, dureesParPrestation))}
+                </div>
+                {next.seriesTotal && (
+                  <span className="mc-nextrdv__seal" style={{ marginRight: 8 }}>
+                    {t('Séance {i}/{n}', { i: next.seriesIndex ?? '', n: next.seriesTotal })}
+                  </span>
+                )}
+                {next.depositXof != null && (
+                  <span className="mc-nextrdv__seal">{next.depositConfirmed ? t('Acompte reçu') : t('Acompte')} · {prix(next.depositXof, currency)}</span>
+                )}
+                {/* LE SCEAU DE LA FORMULE (20 octobre 2026) : « Incluse · séance 3
+                    sur 6 de votre formule », lu au relevé. */}
+                {sceauDeLaSeance(abonnee?.releve, next.id) && (
+                  <span className="ab-sceau" style={{ display: 'block', width: 'fit-content' }}>{sceauDeLaSeance(abonnee?.releve, next.id)}</span>
+                )}
+              </button>
+              <button type="button" className="mc-nextrdv__cta" onClick={() => onOpenRdv(next.id)}>{t('Ouvrir')}</button>
+            </>
           ) : predite ? (
             /* RIEN N'EST PRIS, MAIS LA MAISON SAIT — le ≈ dit l'estimation, la
                phrase dit le rythme, et DEUX gestes répondent (13 août) :
@@ -601,7 +652,7 @@ export function HomeTab({
                   habituelle et TOUS les gestes de sa dernière venue. Le
                   tunnel s'ouvre le moment déjà posé ; « Réserver » suffit. La
                   Maison choisit qui s'occupe d'elle : aucun nom ici. */}
-              <div className="mc-nextrdv__service">≈ {jourDit(predite.iso!)}{predite.template?.time ? ` · ${predite.template.time}` : ''}</div>
+              <div className="mc-nextrdv__service">≈ {jourDit(predite.iso!)}{predite.template?.time ? ` · ${heureDite(predite.template.time)}` : ''}</div>
               {predite.template && predite.template.serviceIds.length > 0 && (
                 <div className="mc-nextrdv__when">{serviceNames(predite.template, services)}</div>
               )}
@@ -635,6 +686,9 @@ export function HomeTab({
             <>
               <div className="mc-nextrdv__service">{t('Aucun rituel à venir')}</div>
               <div className="mc-nextrdv__when">{t('La maison vous attend.')}</div>
+              {!moduleHidden(client, 'reserver') && (
+                <button type="button" className="mc-nextrdv__cta" onClick={() => onOpenBooking()}>{t('Réserver')}</button>
+              )}
             </>
           )}
           <button className="mc-nextrdv__manage" onClick={() => onOpenRdv()}>
@@ -644,6 +698,36 @@ export function HomeTab({
         <ARegler nomDuRituel={(a) => serviceNames(a, services)} />
     </>
   );
+
+  /* DEUX GESTES, CÔTE À CÔTE (8 novembre 2026) : « Réserver un rituel » en
+     plein cuivre, « Sur-mesure » en bord cuivre, juste sous la séance, et
+     plus en bas de page. Une abonnée réserve depuis sa formule
+     (BoutonsDeLAccueil) : le premier geste ne se répète pas pour elle. Les
+     modules coupés par la Maison disparaissent (les gardes d'App.tsx couvrent
+     de toute façon tous les autres chemins). */
+  const reserveIci = !moduleHidden(client, 'reserver') && !abonneeA;
+  const composeIci = !moduleHidden(client, 'compose');
+  const lesGestes = reserveIci || composeIci ? (
+    <div className={`mc-gestes${reserveIci && composeIci ? '' : ' mc-gestes--seul'}`}>
+      {reserveIci && (
+        <button className="mc-cta mc-cta--copper" onClick={() => onOpenBooking()}>
+          {t('Réserver un rituel')}
+        </button>
+      )}
+      {composeIci && (
+        <button className="mc-cta mc-cta--outline" onClick={onOpenCompose}>
+          {t('Sur-mesure')}
+        </button>
+      )}
+    </div>
+  ) : null;
+
+  /* LE TABLEAU DE BORD DE L'ABONNÉE (20 octobre 2026) : une seule alerte, une
+     carte par formule (le chemin de sceaux, le pli de l'attention), le solde,
+     ses deux boutons. Depuis le 8 novembre 2026 il vient APRÈS la séance et
+     les gestes : « la formule tient sur une carte ». La carte de la séance ne
+     s'y glisse plus (`avantLeSolde`) : elle parle en premier, au-dessus. Sans
+     formule, rien ici : la pastille de la couronne, en haut, suffit. */
   const LE_TABLEAU_DE_BORD = abonnee && releveA && abonneeA ? (
     <div className="ab-pile">
       <TableauDeBord
@@ -655,7 +739,6 @@ export function HomeTab({
         onOpenRdv={(id) => onOpenRdv(id)}
         onReserverIncluse={abonnee.onReserverIncluse}
         onAcheter={abonnee.onAcheter}
-        avantLeSolde={carteProchaine}
       />
       {!moduleHidden(client, 'reserver') && (
         <BoutonsDeLAccueil
@@ -668,19 +751,7 @@ export function HomeTab({
         />
       )}
     </div>
-  ) : (
-    <>
-      {carteProchaine}
-      {abonnee?.peutAcheter && (
-        <div className="ab-card" style={{ marginTop: 12 }}>
-          <div className="mc-micro-eyebrow">{t('Ma formule')}</div>
-          <div className="ab-mcf__nom">{t('Pas encore de formule.')}</div>
-          <p className="ab-meta">{t('Une formule, ce sont vos séances d’avance, à un prix qui tient une fois votre calibre compté.')}</p>
-          <button type="button" className="ab-lien" onClick={abonnee.onAcheter}>{t('Voir les formules →')}</button>
-        </div>
-      )}
-    </>
-  );
+  ) : null;
 
   const pickOffer = (o: Offer) => {
     if (o.act === 'invite') {
@@ -693,34 +764,125 @@ export function HomeTab({
     else onOpenBooking();
   };
 
+  /* LES OFFRES LISIBLES (8 novembre 2026) : « Offres de saison » à gauche,
+     « Expire dans » à droite, sur une ligne ; le rail en dessous. Créées au
+     Trône (Assistant Maison › Offres et remises), fenêtre jour/heure vivante.
+     Sans offre, pas de section. */
+  const lesOffres = offers.length > 0 && !moduleHidden(client, 'offres') ? (
+    <>
+      <div className="mc-offershead">
+        <span className="mc-offershead__label">{t('Offres de saison')}</span>
+        {countdown && <span className="mc-offershead__timer">{t('Expire dans {temps}', { temps: countdown })}</span>}
+      </div>
+      <div className="mc-scroll mc-offersrail">
+        {offers.map((o) => (
+          <button key={o.id} className={`mc-offer mc-offer--${o.theme}`} onClick={() => pickOffer(o)}>
+            <div className="mc-offer__top">
+              <span className="mc-offer__tag">{o.tag}</span>
+              <span className="mc-offer__deal">{o.deal}</span>
+            </div>
+            <div className="mc-offer__title">{o.title}</div>
+            <div className="mc-offer__sub">{o.sub}</div>
+            <div className="mc-offer__cta">{o.cta} <span>→</span></div>
+          </button>
+        ))}
+      </div>
+    </>
+  ) : null;
+
+  /* LE RESTE EN LISTE « POUR VOUS » (8 novembre 2026) : une ligne par
+     rubrique, icône, titre, sous-titre, chevron. Une ligne ne paraît que si sa
+     donnée existe, et chaque geste est celui d'hier : le bilan se lit, la
+     carte De main en main s'ouvre (la récompense qui attend se dit en
+     premier, 9 octobre 2026), la recommandation se réserve (le juge du quiz,
+     jamais un produit inventé), le produit prescrit mène aux produits, la
+     formule qu'elle n'a pas encore mène aux formules, puis Les produits et
+     Le Cercle (7 novembre 2026). */
+  const peutReserver = !moduleHidden(client, 'reserver');
+  const soinQuiAttend = soinsQuiAttendent.length ? t('Un soin vous attend : {soin}', { soin: soinsQuiAttendent[0].libelle }) : '';
+  const rangs = [
+    monBilan && (
+      <Rang key="bilan" icone={<FileText size={16} />} onClick={() => setLireBilan(true)}>
+        <div className="mc-liste__t">{t('Votre dernier bilan')}</div>
+        <div className="mc-liste__s">{t('Séance du {date}', { date: jourDit(monBilan.date) })}</div>
+      </Rang>
+    ),
+    onOpenCarte && (
+      <Rang key="carte" icone={<Sparkles size={16} />} onClick={onOpenCarte}>
+        <div className="mc-liste__t">{maCarte ? t('De main en main · {rang}', { rang: t(nomDuRang(maCarte.rang)) }) : t('De main en main')}</div>
+        <div className="mc-liste__s">
+          {soinQuiAttend || (maCarte ? t('Offrez la Maison à une amie.') : maGraine.reste > 0 ? graineDansDite(maGraine.reste) : t('Votre carte se prépare à la Maison.'))}
+        </div>
+      </Rang>
+    ),
+    recoPresta && (
+      <Rang key="reco" icone={<Heart size={16} />} onClick={peutReserver ? () => onOpenBooking({ serviceId: recoPresta.service.id }) : undefined}>
+        <div className="mc-liste__t">{t('La Maison vous recommande')}</div>
+        <div className="mc-liste__s">{recoPresta.service.name}</div>
+      </Rang>
+    ),
+    chosenReco && (
+      <Rang key="carnet" icone={<Leaf size={16} />} onClick={goGamme}>
+        <div className="mc-liste__t">{t('Du Carnet de Suivi')}</div>
+        <div className="mc-liste__s">{chosenReco.name}</div>
+      </Rang>
+    ),
+    !abonneeA && abonnee?.peutAcheter && (
+      <Rang key="formule" icone={<Moon size={16} />} onClick={abonnee.onAcheter}>
+        <div className="mc-liste__t">{t('Ma formule')}</div>
+        <div className="mc-liste__s">{t('Pas encore de formule.')}</div>
+      </Rang>
+    ),
+    abonnee?.goGamme && (
+      <Rang key="produits" icone={<ShoppingBag size={16} />} onClick={abonnee.goGamme}>
+        <div className="mc-liste__t">{t('Les produits')}</div>
+        <div className="mc-liste__s">{t('Les produits Maison MND, chez vous.')}</div>
+      </Rang>
+    ),
+    abonnee?.goCercle && (
+      <Rang key="cercle" icone={<Users size={16} />} onClick={abonnee.goCercle}>
+        <div className="mc-liste__t">{t('Le Cercle')}</div>
+        <div className="mc-liste__s">{t('Offrez une première séance à une proche.')}</div>
+      </Rang>
+    ),
+  ].filter(Boolean);
+  const laListe = rangs.length > 0 ? (
+    <>
+      <div className="mc-sectionlabel">{t('Pour vous')}</div>
+      <div className="mc-liste">{rangs}</div>
+    </>
+  ) : null;
+
   return (
     <div className="mc-fade">
-      {/* hero photographique + voile obsidienne */}
-      <div className="mc-homehero">
-        <img className="mc-homehero__photo" src={asset("/assets/photos/model-microlocks.jpg")} alt="" />
-        <div className="mc-homehero__veil" />
-        <img className="mc-homehero__seal" src={asset("/assets/monograms/mono-ivoire.png")} alt="" />
-        <button className="mc-bell" aria-label={t('Notifications')} onClick={onOpenNotif}>
-          <Cloche />{notifCount > 0 && <span className="mc-bell__count">{notifCount}</span>}
-        </button>
-        <div className="mc-homehero__text">
-          <div className="mc-micro-eyebrow">{t('Votre couronne')}</div>
-          <div className="mc-homehero__greet">{prenom ? t('Bonjour, {prenom}.', { prenom }) : t('Bonjour.')}</div>
-          {(() => {
-            /* La cliente lit son calibre et sa fourchette, jamais son compte exact (16 octobre 2026). */
-            const b = calibreDeLaTete(client?.lockCount, bands, client?.margeCalibre);
-            const p = pastilleDeLaCouronne(b?.name, b ? fourchetteDuModele(b, bands) : '');
-            return (
-              <button type="button" className="mc-crownpill" aria-expanded={statutOuvert} aria-controls="mc-statut-couronne" onClick={() => setStatutOuvert((v) => !v)}>
-                {p ? t('Couronne {calibre} · {fourchette}', { calibre: p.calibre, fourchette: p.fourchette }) : t('Votre couronne')}
-                <span aria-hidden="true" className="mc-crownpill__chev">{statutOuvert ? '–' : '+'}</span>
-              </button>
-            );
-          })()}
+      {/* L'EN-TÊTE COMPACT (8 novembre 2026, maquette validée) : plus de grande
+          photo, « elle prenait un tiers de l'écran sans rien dire ». Le prénom,
+          la cloche, et la pastille de la couronne (7 novembre 2026) qui ouvre
+          la carte du statut. */}
+      <div className="mc-homehead">
+        <div className="mc-homehead__row">
+          <div className="mc-homehead__salut">
+            <div className="mc-micro-eyebrow">{t('Votre couronne')}</div>
+            <div className="mc-homehead__greet">{prenom ? t('Bonjour, {prenom}.', { prenom }) : t('Bonjour.')}</div>
+          </div>
+          <button className="mc-bell" aria-label={t('Notifications')} onClick={onOpenNotif}>
+            <Cloche />{notifCount > 0 && <span className="mc-bell__count">{notifCount}</span>}
+          </button>
         </div>
+        {(() => {
+          /* La cliente lit son calibre et sa fourchette, jamais son compte exact (16 octobre 2026). */
+          const b = calibreDeLaTete(client?.lockCount, bands, client?.margeCalibre);
+          const p = pastilleDeLaCouronne(b?.name, b ? fourchetteDuModele(b, bands) : '');
+          return (
+            <button type="button" className="mc-crownpill" aria-expanded={statutOuvert} aria-controls="mc-statut-couronne" onClick={() => setStatutOuvert((v) => !v)}>
+              {p ? t('Couronne {calibre} · {fourchette}', { calibre: p.calibre, fourchette: p.fourchette }) : t('Votre couronne')}
+              <span aria-hidden="true" className="mc-crownpill__chev">{statutOuvert ? '–' : '+'}</span>
+            </button>
+          );
+        })()}
       </div>
 
-      <div className="mc-pagepad">
+      <div className="mc-pagepad mc-pagepad--accueil">
         {/* LA COURONNE, EN PASTILLE (7 novembre 2026) : la carte du statut
             s'ouvre ici, au toucher de la pastille du haut. Rien n'est perdu :
             calibre, fourchette, passages, Graine, rang. */}
@@ -814,210 +976,25 @@ export function HomeTab({
           </div>
         )}
 
-        {/* rappel discret, rituel sous 48 h. UNE SEULE ALERTE pour l'abonnée
-            (6 novembre 2026) : quand le relevé en porte une, c'est elle qui
-            parle, et la carte de la prochaine séance dit déjà le rituel qui
-            approche. */}
-        {soon && !(abonneeA && releveA?.alerte) && (
-          <button className="mc-remindbanner" onClick={() => onOpenRdv(soon.id)}>
-            <span className="mc-remindbanner__dot" aria-hidden="true" />
-            <span className="mc-remindbanner__txt">
-              {t('Votre rituel approche, {jour} · {heure}', { jour: jourDit(soon.date), heure: soon.time })}
-            </span>
-            <span className="mc-remindbanner__go">{t('Voir')}</span>
-          </button>
-        )}
-
         {/* LA FERMETURE ANNONCÉE (6 novembre 2026) : la Maison fermée bientôt,
-            ou en ce moment, et le jour où elle rouvre. */}
+            ou en ce moment, et le jour où elle rouvre. En haut du contenu. */}
         <FermetureAnnoncee />
 
-        {/* LA CITATION EST RETIRÉE (14 août — « élimine tous les textes
-            inutiles ») : une phrase qui ne porte ni geste ni information
-            occupait une carte entière à chaque ouverture. */}
-
+        {/* L'ORDRE DE L'ACCUEIL (8 novembre 2026) : la séance, les deux gestes,
+            la formule, la prochaine marche, les offres, le reste en liste. */}
+        {carteProchaine}
+        {lesGestes}
         {LE_TABLEAU_DE_BORD}
 
         {/* VOTRE PROCHAINE MARCHE (1er janvier 2027, la genèse des prix) :
             une seule carte, la première marche qui s'applique à sa couronne. */}
         <ProchaineMarche appts={clientAppts} onOpenBooking={onOpenBooking} goFormule={goFormule} />
 
-        {/* offres de saison, créées au Trône (Assistant Maison › Offres et remises), fenêtre jour/heure vivante ; « Offres instantanées » jusqu'au 27 octobre 2026 */}
-        {offers.length > 0 && !moduleHidden(client, 'offres') && (
-          <>
-        <div className="mc-offershead">
-          <span className="mc-offershead__label">{t('Offres de saison')}</span>
-          {countdown && <span className="mc-offershead__timer">{t('Expire dans {temps}', { temps: countdown })}</span>}
-        </div>
-        <div className="mc-scroll mc-offersrail">
-          {offers.map((o) => (
-            <button key={o.id} className={`mc-offer mc-offer--${o.theme}`} onClick={() => pickOffer(o)}>
-              <div className="mc-offer__top">
-                <span className="mc-offer__tag">{o.tag}</span>
-                <span className="mc-offer__deal">{o.deal}</span>
-              </div>
-              <div className="mc-offer__title">{o.title}</div>
-              <div className="mc-offer__sub">{o.sub}</div>
-              <div className="mc-offer__cta">{o.cta} <span>→</span></div>
-            </button>
-          ))}
-        </div>
-          </>
-        )}
+        {lesOffres}
+        {laListe}
 
-        {/* Modules coupés par la Maison : les gestes fermés disparaissent (les
-            gardes d'App.tsx couvrent de toute façon tous les autres chemins). */}
-        {!moduleHidden(client, 'reserver') && !abonneeA && (
-          <button className="mc-cta mc-cta--copper" style={{ marginTop: 16 }} onClick={() => onOpenBooking()}>
-            {t('Réserver un rituel')}
-          </button>
-        )}
-        {!moduleHidden(client, 'compose') && (
-          <button className="mc-cta mc-cta--outline" style={{ marginTop: 10 }} onClick={onOpenCompose}>
-            {t('✦ Rituel sur-mesure')}
-          </button>
-        )}
-
-        {/* VOTRE DERNIER BILAN — le Carnet de Suivi remis par la maison. */}
-        {monBilan && (
-          <>
-            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('Votre dernier bilan')}</div>
-            <button className="mc-recocard" style={{ width: '100%', textAlign: 'left', cursor: 'pointer', border: '1px solid var(--hairline)', background: 'var(--surface-card)' }} onClick={() => setLireBilan(true)}>
-              <div className="mc-recocard__body">
-                <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>{t('Le Carnet de Suivi')}</div>
-                <div className="mc-recocard__name">{t('Séance du {date}', { date: jourDit(monBilan.date) })}</div>
-                <div className="mc-recocard__line">{monBilan.resume ? premierePhrase(monBilan.resume) : monBilan.prestation ?? t('Rituel de la maison')}</div>
-              </div>
-              <span className="mc-arrowbtn" aria-hidden="true">→</span>
-            </button>
-          </>
-        )}
         {lireBilan && monBilan && client && <BilanLecteur bilan={monBilan} porteuse={client} onClose={() => setLireBilan(false)} onReserver={moduleHidden(client, 'reserver') ? undefined : (serviceId) => { setLireBilan(false); onOpenBooking({ serviceId }); }} />}
 
-        {/* LA MAISON RECOMMANDE — une PRESTATION désignée (le juge du quiz),
-            au prix de la cliente, et la flèche RÉSERVE. Le produit prescrit
-            sur sa fiche garde sa carte. Sans désignation : rien du tout —
-            l'ancien repli sur `products[0]` présentait le premier flacon de
-            la Gamme en recommandation de la maison. */}
-        {/* ══ SA CARTE DE MARRAINE — 28 septembre 2026 ══════════════
-            Le recto à son prénom, en petit ; une touche ouvre la carte
-            entière, son QR et ses filleules. Un soin qui l'attend se dit
-            ici, en premier. */}
-        {/* DE MAIN EN MAIN — 9 octobre 2026. La carte est celle de la
-            Graine ; sans elle, une petite carte dit le chemin et ouvre le
-            Cercle. Une récompense qui attend (le Foyer compris) se dit dans
-            les deux cas, en premier. */}
-        {!maCarte && onOpenCarte && (
-          <>
-            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('De main en main')}</div>
-            <button type="button" onClick={onOpenCarte}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: 12, borderRadius: 16, border: '1px solid var(--mc-filet-12)', background: 'var(--mc-blanc)', cursor: 'pointer', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
-              <span aria-hidden="true" style={{ position: 'relative', width: 64, height: 64, flex: 'none' }}>
-                <svg viewBox="0 0 64 64" style={{ position: 'absolute', inset: 0 }}>
-                  <circle cx={32} cy={32} r={28} fill="none" style={{ stroke: 'var(--mc-piste)' }} strokeWidth={4} />
-                  <circle cx={32} cy={32} r={28} fill="none" style={{ stroke: 'var(--copper-700)' }} strokeWidth={4} strokeLinecap="round"
-                    strokeDasharray={`${(2 * Math.PI * 28 * Math.max(0.02, Math.min(1, maGraine.visites / Math.max(1, maGraine.seuil)))).toFixed(1)} ${(2 * Math.PI * 28).toFixed(1)}`} transform="rotate(-90 32 32)" />
-                </svg>
-                <img src={asset('/assets/motifs/medaillon-seul-cuivre.png')} alt="" style={{ position: 'absolute', left: 13, top: 13, width: 38, height: 38 }} />
-              </span>
-              <span style={{ display: 'grid', gap: 4, flexGrow: 1 }}>
-                <span style={{ fontFamily: 'var(--font-serif, Georgia)', fontSize: 19, color: 'var(--mc-encre)', lineHeight: 1.15 }}>
-                  {soinsQuiAttendent.length ? t('Une récompense vous attend.') : maGraine.reste > 0 ? graineDansDite(maGraine.reste) : t('Votre carte se prépare à la Maison.')}
-                </span>
-                <span style={{ fontSize: 12.5, color: soinsQuiAttendent.length ? 'var(--copper-700)' : 'var(--mc-doux)' }}>
-                  {soinsQuiAttendent.length ? t('Un soin vous attend : {soin}', { soin: soinsQuiAttendent[0].libelle }) : visitesDites(maGraine)}
-                </span>
-              </span>
-              <span aria-hidden style={{ color: 'var(--copper-700)', fontSize: 18 }}>→</span>
-            </button>
-          </>
-        )}
-        {maCarte && onOpenCarte && (
-          <>
-            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('De main en main · {rang}', { rang: t(nomDuRang(maCarte.rang)) })}</div>
-            <button type="button" onClick={onOpenCarte}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: 12, borderRadius: 16, border: '1px solid var(--mc-filet-12)', background: 'var(--mc-blanc)', cursor: 'pointer', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
-              <CarteDeMarraine donnees={maCarte} largeur={120} retournable={false} />
-              <span style={{ display: 'grid', gap: 4, flexGrow: 1 }}>
-                <span style={{ fontFamily: 'var(--font-serif, Georgia)', fontSize: 19, color: 'var(--mc-encre)', lineHeight: 1.15 }}>{soinsQuiAttendent.length ? t('Une récompense vous attend.') : t('Offrez la Maison à une amie.')}</span>
-                <span style={{ fontSize: 12.5, color: soinsQuiAttendent.length ? 'var(--copper-700)' : 'var(--mc-doux)' }}>
-                  {soinsQuiAttendent.length ? t('Un soin vous attend : {soin}', { soin: soinsQuiAttendent[0].libelle }) : t('Votre code {code}', { code: maCarte.code })}
-                </span>
-              </span>
-              <span aria-hidden style={{ color: 'var(--copper-700)', fontSize: 18 }}>→</span>
-            </button>
-          </>
-        )}
-        {recoPresta ? (
-          <>
-            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('La maison vous recommande')}</div>
-            <div className="mc-recocard">
-              <div className="mc-productvisual"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
-              <div className="mc-recocard__body">
-                <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>
-                  {client?.envie ? t('Pour votre envie · {envie}', { envie: t(envieLabel(client.envie) ?? '') }) : t('Choisie pour votre couronne')}
-                </div>
-                <div className="mc-recocard__name">{recoPresta.service.name}</div>
-                <div className="mc-recocard__line">
-                  {recoPresta.service.hidePrice
-                    ? t('Prix au fauteuil, la maison vous dira')
-                    : (() => { const p = personalPriceXof(recoPresta.service, pricing, services, produits); return p > 0 ? t('{prix} · votre prix', { prix: prix(p, currency) }) : t('Sur devis'); })()}
-                </div>
-                {client?.envie && (
-                  <div className="mc-recocard__why">{t(PHRASE_ENVIE[client.envie])}</div>
-                )}
-              </div>
-              {!moduleHidden(client, 'reserver') && (
-                <button className="mc-arrowbtn" aria-label={t('Réserver cette prestation')} onClick={() => onOpenBooking({ serviceId: recoPresta.service.id })}>→</button>
-              )}
-            </div>
-          </>
-        ) : chosenReco ? (
-          <>
-            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('Du Carnet de Suivi')}</div>
-            <div className="mc-recocard">
-              <div className="mc-productvisual"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
-              <div className="mc-recocard__body">
-                <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>
-                  {client?.preferredMaster ? t('Recommandé par {nom}', { nom: client.preferredMaster }) : t('La maison recommande')}
-                </div>
-                <div className="mc-recocard__name">{chosenReco.name}</div>
-                <div className="mc-recocard__line">
-                  {productMeta(chosenReco.id).line} · {prix(chosenReco.priceXof, currency)}
-                </div>
-              </div>
-              {goGamme && <button className="mc-arrowbtn" aria-label={t('Voir la gamme')} onClick={goGamme}>→</button>}
-            </div>
-          </>
-        ) : null}
-        {/* LA GAMME ET LE CERCLE, EN CARTES (décision 8) : ils quittent la
-            barre du bas, ils restent à une touche d'ici et du Profil. */}
-        {/* « POUR VOUS » SE COUPE (7 novembre 2026) : la page était trop
-            chargée. Deux rubriques à part, chacune sous son titre : Les
-            produits (« la Gamme, c'est les produits », Yéman) et Le Cercle,
-            qui reste distinct de la carte De main en main plus haut. */}
-        {abonnee?.goGamme && (
-          <>
-            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('Les produits')}</div>
-            <div className="ab-duo ab-duo--seul">
-              <button type="button" className="ab-mini" onClick={abonnee.goGamme}>
-                <b>{t('Les produits Maison MND, chez vous.')}</b>
-                <span>{t('Ce que la Maison emploie, à emporter.')}</span>
-              </button>
-            </div>
-          </>
-        )}
-        {abonnee?.goCercle && (
-          <>
-            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('Le Cercle')}</div>
-            <div className="ab-duo ab-duo--seul">
-              <button type="button" className="ab-mini" onClick={abonnee.goCercle}>
-                <b>{t('De main en main.')}</b>
-                <span>{t('Offrez une première séance à une proche.')}</span>
-              </button>
-            </div>
-          </>
-        )}
         <p className="ab-devise">{t('mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là')}</p>
         <div style={{ height: 26 }} />
       </div>

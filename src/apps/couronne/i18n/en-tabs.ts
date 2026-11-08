@@ -77,6 +77,13 @@ export const EN_TABS: Record<string, string> = {
   'Expire dans {temps}': 'Ends in {temps}',
   'Réserver un rituel': 'Book a ritual',
   '✦ Rituel sur-mesure': '✦ Bespoke ritual',
+  // L'accueil réorganisé (8 novembre 2026, « trop d'informations, trop condensées ») :
+  // la pastille du rituel qui approche, le geste « Sur-mesure », la liste « Pour vous ».
+  // À relire par Yéman avec le reste de l'anglais (ANGLAIS_OUVERT).
+  'Demain': 'Tomorrow',
+  'Dans {n} jours': 'In {n} days',
+  'Sur-mesure': 'Bespoke',
+  'La Maison vous recommande': 'The Maison recommends',
   'Votre dernier bilan': 'Your latest session report',
   'De main en main · {rang}': 'Hand in hand · {rang}',
   'Votre carte se prépare à la Maison.': 'Your card is being prepared at the Maison.',
