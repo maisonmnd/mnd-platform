@@ -44,6 +44,7 @@ import { useFacturesPrestataires, estPrestataire, factureDe, totalAccepte } from
 import TempsAbsences from './TempsAbsences';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
+import { periodeDesPourboires, periodeDite, payesLeDit } from '../../../../shared/periode-des-pourboires-pur';
 import { useTips, importLegacyTips, type Tip } from '../../../../shared/tips';
 import {
   useOverrides, usePrimes, useConfirm, useRetenues, PRIME_LABEL, PRIME_TYPES, RETENUE_LABEL, RETENUE_TYPES,
@@ -470,8 +471,8 @@ export default function Personnel() {
   /* Primes typées d'un maître pour un mois. */
   const primesForMonth = (id: string, month: string) => (primes[id] ?? []).filter((p) => p.date.slice(0, 7) === month);
   const primeTotalMonth = (id: string, month: string) => primesForMonth(id, month).reduce((a, p) => a + p.amountXof, 0);
-  /* Pourboires d'un maître pour un mois. */
-  const tipsForMonth = (id: string, month: string) => tips.filter((t) => t.staffId === id && t.date.slice(0, 7) === month);
+  /* Pourboires d'un maître pour une période (du 6 au 4, payée le 5) : clé AAAA-MM du mois où elle commence. */
+  const tipsForMonth = (id: string, month: string) => tips.filter((t) => t.staffId === id && periodeDesPourboires(t.date) === month);
   const tipTotalMonth = (id: string, month: string) => tipsForMonth(id, month).reduce((a, t) => a + t.amountXof, 0);
   /* Retenues d'un maître pour un mois. */
   const retenuesForMonth = (id: string, month: string) => (retenues[id] ?? []).filter((r) => r.date.slice(0, 7) === month);
@@ -767,7 +768,7 @@ export default function Personnel() {
         rows: [
           { label: facturee !== undefined ? `Facture ${f?.numero ?? ''} acceptée` : 'Facture non acceptée', value: pdfMoney(facturee ?? 0) },
           { label: 'Bonus, hors facture', value: pdfMoney(primeTotalMonth(m.id, month)) },
-          { label: 'Pourboires', value: pdfMoney(tip) },
+          { label: `Pourboires ${periodeDite(month)}`, value: pdfMoney(tip) },
           { label: 'Avances déduites', value: av > 0 ? `- ${pdfMoney(av)}` : pdfMoney(0) },
           { label: 'Retenues', value: ret > 0 ? `- ${pdfMoney(ret)}` : pdfMoney(0) },
         ],
@@ -801,7 +802,7 @@ export default function Personnel() {
       { label: 'Commission produits', value: pdfMoney(produit) },
       { label: 'Primes', value: pdfMoney(prime) },
       ...prList.map((p) => ({ label: `— ${PRIME_LABEL[p.type]}${p.note ? ` · ${p.note}` : ''}`, value: pdfMoney(p.amountXof), sub: true })),
-      { label: 'Pourboires', value: pdfMoney(tip) },
+      { label: `Pourboires ${periodeDite(month)}`, value: pdfMoney(tip) },
       ...(pr.cnssSalariale > 0 ? [{ label: 'CNSS (part salariale)', value: `- ${pdfMoney(pr.cnssSalariale)}` }] : []),
       ...(pr.its > 0 ? [{ label: 'ITS (impôt sur le salaire)', value: `- ${pdfMoney(pr.its)}` }] : []),
       { label: 'Avances déduites', value: av > 0 ? `- ${pdfMoney(av)}` : pdfMoney(0) },
@@ -1232,7 +1233,7 @@ export default function Personnel() {
       {tab === 'paie' && sousPaie === 'variables' && (
         <div>
           <div className="mnd-muted" style={{ fontSize: 12, marginBottom: 10 }}>
-            {monthLabel()} · ce qui s’inscrit ici arrive seul dans le run du mois, avec sa provenance. Le net de cette page est une estimation ; le run fait foi.
+            {monthLabel()} · pourboires {periodeDite(M)}, {payesLeDit(M)} · ce qui s’inscrit ici arrive seul dans le run du mois, avec sa provenance. Le net de cette page est une estimation ; le run fait foi.
           </div>
 
           <Card style={{ overflow: 'hidden' }}>
@@ -2135,7 +2136,7 @@ export default function Personnel() {
         <Modal title="Pourboire." onClose={() => setTipFor(null)} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="mnd-muted" style={{ fontSize: 12.5 }}>
-              Pour <strong style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{tipFor.name}</strong> · ajouté au net à verser du mois de la date choisie.
+              Pour <strong style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{tipFor.name}</strong> · ajouté au net à verser de la période de la date choisie (du 6 au 4, payée le 5).
             </div>
             <div className="tr-grid tr-grid--2">
               <Field label={`Montant · ${currency === 'XOF' ? 'F' : 'XOF'}`}>
@@ -2151,7 +2152,7 @@ export default function Personnel() {
             {tipTotalMonth(tipFor.id, M) > 0 && (
               <div className="tre-inline-note">
                 <span className="mark">✦</span>
-                <span>Déjà reçu ce mois, {fmtMoney(tipTotalMonth(tipFor.id, M), currency)}.</span>
+                <span>Déjà reçu {periodeDite(M)}, {fmtMoney(tipTotalMonth(tipFor.id, M), currency)}.</span>
               </div>
             )}
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>

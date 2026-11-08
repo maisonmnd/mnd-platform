@@ -9,7 +9,7 @@ import { useTips } from '../../../../shared/tips';
 import { useEstDirection } from '../_vie';
 import { useStaff, adresseDe, type StaffMember } from './data';
 import {
-  mesPourboires, moisDit, moisTitre, pourboireArriveDit, quandDit, taPartDite, vientDArriver,
+  mesPourboires, payesLeDit, periodeDite, pourboireArriveDit, pourboiresDuDit, quandDit, taPartDite, vientDArriver,
 } from '../../../../shared/pourboires-de-l-equipe-pur';
 import './pourboires.css';
 
@@ -136,16 +136,16 @@ export function MesPourboiresEnDirect({ moi }: { moi: StaffMember | null }) {
         </p>
       )}
       <div className="tpb__tete">
-        <p className="tpb__sur" id="tpb-titre">Mes pourboires · {moisDit(mes.mois)}</p>
+        <p className="tpb__sur" id="tpb-titre">Mes pourboires · {periodeDite(mes.mois)}, {payesLeDit(mes.mois)}</p>
         <p className="tpb__chiffre" data-pourboires="mois">{argent(mes.totaux.mois)}</p>
       </div>
       <div className="tpb__trois">
         <p className="tpb__case" data-pourboires="aujourdhui"><b>{argent(mes.totaux.aujourdhui)}</b><span>Aujourd’hui</span></p>
         <p className="tpb__case" data-pourboires="semaine"><b>{argent(mes.totaux.semaine)}</b><span>Cette semaine</span></p>
-        <p className="tpb__case" data-pourboires="mois-precedent"><b>{argent(mes.totaux.moisPrecedent)}</b><span>{moisTitre(mes.moisPrecedent)}</span></p>
+        <p className="tpb__case" data-pourboires="mois-precedent"><b>{argent(mes.totaux.moisPrecedent)}</b><span>{pourboiresDuDit(mes.moisPrecedent)}</span></p>
       </div>
       {mes.duMois.length === 0 ? (
-        <p className="tpb__doux">Aucun pourboire inscrit en {moisDit(mes.mois)} pour l’instant.</p>
+        <p className="tpb__doux">Aucun pourboire inscrit {periodeDite(mes.mois)} pour l’instant.</p>
       ) : (
         <ul className="tpb__liste" data-pourboires="liste">
           {liste.map((l) => (
@@ -158,7 +158,7 @@ export function MesPourboiresEnDirect({ moi }: { moi: StaffMember | null }) {
       )}
       {mes.duMois.length > LISTE_COURTE && (
         <button type="button" className="tre-link-btn tpb__plus" onClick={() => setTout((v) => !v)}>
-          {tout ? 'Voir les plus récents seulement' : `Voir les ${mes.duMois.length} pourboires du mois`}
+          {tout ? 'Voir les plus récents seulement' : `Voir les ${mes.duMois.length} pourboires de la période`}
         </button>
       )}
       <p className="tpb__doux">

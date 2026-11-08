@@ -56,12 +56,15 @@ const env = (o: Partial<EnvoiMtn>): EnvoiMtn => ({
 });
 const verifie = { etat: 'verifie' as const, nomMtn: 'KOSSOU A' };
 const TIPS = [
-  { staffId: 'e1', amountXof: 1500, date: '2026-11-03' },
+  /* 8 nov. 2026 : la periode '2026-11' va du 6 nov. au 4 dec. (payee le 5 dec.). */
+  { staffId: 'e1', amountXof: 1500, date: '2026-12-04' },
   { staffId: 'e1', amountXof: 1000, date: '2026-11-21' },
   { staffId: 'e1', amountXof: 9000, date: '2026-10-30' },
+  { staffId: 'e1', amountXof: 700, date: '2026-11-05' },
+  { staffId: 'e1', amountXof: 400, date: '2026-12-06' },
   { staffId: 'e2', amountXof: 1250, date: '2026-11-12' },
 ];
-dit('les pourboires du mois d une personne : ce mois-ci seulement', [2500, 1250, 0],
+dit('les pourboires de la periode d une personne : du 6 nov. au 4 dec. seulement', [2500, 1250, 0],
   [pourboiresDuMois(TIPS, 'e1', '2026-11'), pourboiresDuMois(TIPS, 'e2', '2026-11'), pourboiresDuMois(TIPS, 'e3', '2026-11')]);
 
 /* A. K. : net 87 500, dont 2 500 de pourboires dans le bulletin ; ni pret, ni frais. La lecture

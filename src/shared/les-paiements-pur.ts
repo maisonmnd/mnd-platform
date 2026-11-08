@@ -32,6 +32,7 @@
    (`paie-par-mtn-pur`) restent les leurs : on les appelle, on ne les
    réécrit pas. Le banc `verifie-les-paiements` éprouve ce fichier. */
 
+import { periodeDesPourboires } from './periode-des-pourboires-pur';
 import {
   aCotonou, lisLeNumero, moisDit, moisSuivant, pourboiresEnEspecesXof,
   type Blocage, type LectureDeLaLigne,
@@ -461,10 +462,10 @@ export function chiffresDuMois(lignes: readonly LigneDuMois[], remis: Readonly<R
 export const pontTenu = (c: ChiffresDuMois): boolean =>
   c.salairesNetsXof - c.pretsXof + c.prestatairesXof + c.entreprisesXof === c.parMtnXof;
 
-/** Les pourboires du mois d'une personne : ce que le registre a inscrit. */
+/** Les pourboires de la période d'une personne (du 6 au 4, payés le 5) : ce que le registre a inscrit. */
 export function pourboiresDuMois(parts: readonly { staffId: string; amountXof: number; date: string }[], staffId: string, periode: string): number {
   return parts
-    .filter((p) => p && p.staffId === staffId && String(p.date ?? '').slice(0, 7) === periode)
+    .filter((p) => p && p.staffId === staffId && periodeDesPourboires(p.date) === periode)
     .reduce((n, p) => n + Math.max(0, entier(p.amountXof)), 0);
 }
 

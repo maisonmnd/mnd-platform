@@ -105,10 +105,10 @@ const v = variablesDuMois({
   staffId: 'a', period: '2026-10',
   primes: { a: [{ id: 'p1', type: 'performance', amountXof: 5000, date: '2026-10-01', note: 'Seuil shampoings' }, { id: 'p2', type: 'nuit', amountXof: 9000, date: '2026-09-30' }] },
   retenues: { a: [{ id: 'r1', type: 'absence_non_rem', amountXof: 6000, date: '2026-10-09', days: 1 }] },
-  tips: [{ id: 't1', staffId: 'a', amountXof: 2000, date: '2026-10-03' }, { id: 't2', staffId: 'b', amountXof: 7000, date: '2026-10-03' }, { id: 't3', staffId: 'a', amountXof: 1500, date: '2026-10-20' }],
+  tips: [{ id: 't1', staffId: 'a', amountXof: 2000, date: '2026-10-06' }, { id: 't2', staffId: 'b', amountXof: 7000, date: '2026-10-06' }, { id: 't4', staffId: 'a', amountXof: 800, date: '2026-10-03' }, { id: 't3', staffId: 'a', amountXof: 1500, date: '2026-10-20' }],
   primeDePointsXof: 10000,
 });
-dit('primes du mois et prime de points, pourboires à elle, retenues : rien d un autre mois', [15000, 3500, 6000], [v.prime, v.pourboires, v.retenues]);
+dit('primes du mois et prime de points, pourboires à elle (période du 6 au 4 : le 3 octobre est de septembre), retenues : rien d un autre mois', [15000, 3500, 6000], [v.prime, v.pourboires, v.retenues]);
 dit('chaque chiffre garde sa provenance', ['prime', 'points', 'pourboires', 'retenue'], v.origines.map((o) => o.quoi));
 dit('le run lit les variables et les pose sur la ligne', [true, true, true], [
   paie.includes('const v = variablesDuMois({ staffId: s.id, period, primes, retenues, tips: asArray(tips), primeDePointsXof: points.primeXof });'),

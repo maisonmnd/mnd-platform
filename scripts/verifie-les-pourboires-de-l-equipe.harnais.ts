@@ -114,19 +114,21 @@ dit('... plus de trente lettres : pas un prenom', '', prenomDeLaCliente('A'.repe
 
 /* ── 3. CE QUE CHACUN VOIT (Aimer, le 4 novembre 2026 au soir) ────────── */
 const aimer = mesPourboires(TIPS, 'st-aimer', AUJ);
-dit('Aimer : aujourd hui 1 750 F, semaine 1 750 F, novembre 1 750 F, octobre 500 F, depuis aout 11 000 F',
-  { aujourdhui: 1750, semaine: 1750, mois: 1750, moisPrecedent: 500, depuisLeDebut: 11000 },
+/* 8 nov. 2026 : on compte par PERIODE du 6 au 4, payee le 5. Au 4 novembre on est encore dans la periode
+   du 6 oct. au 4 nov. ('2026-10') : le 23 octobre (500 F) et le 4 novembre (1 750 F) ensemble ; celle d avant ('2026-09'), 1 000 F. */
+dit('Aimer : aujourd hui 1 750 F, semaine 1 750 F, periode 6 oct. au 4 nov. 2 250 F, periode d avant 1 000 F, depuis aout 11 000 F',
+  { aujourdhui: 1750, semaine: 1750, mois: 2250, moisPrecedent: 1000, depuisLeDebut: 11000 },
   { aujourdhui: aimer.totaux.aujourdhui, semaine: aimer.totaux.semaine, mois: aimer.totaux.mois, moisPrecedent: aimer.totaux.moisPrecedent, depuisLeDebut: aimer.totaux.depuisLeDebut });
-dit('... sa liste du mois : ses deux parts, la plus recente d abord, la cliente par son prenom',
-  [['4 nov. 2026', 'Akouvi', 750], ['4 nov. 2026', 'Ranti', 1000]], aimer.duMois.map((l) => [l.jourDit, l.prenom, l.amountXof]));
+dit('... sa liste de la periode : ses trois parts, la plus recente d abord, la cliente par son prenom',
+  [['4 nov. 2026', 'Akouvi', 750], ['4 nov. 2026', 'Ranti', 1000], ['23 oct. 2026', 'Nadia', 500]], aimer.duMois.map((l) => [l.jourDit, l.prenom, l.amountXof]));
 dit('... jamais le nom entier dans ce que l equipe lit', false, JSON.stringify(aimer).includes('Exemple') || JSON.stringify(aimer).includes('Témoin'));
 const brice = mesPourboires(TIPS, 'st-brice', AUJ);
-dit('Brice (une demi-part) : 875 F aujourd hui et ce mois, 250 F en octobre, 5 500 F depuis aout', [875, 875, 250, 5500],
+dit('Brice (une demi-part) : 875 F aujourd hui, 1 125 F la periode, 500 F celle d avant, 5 500 F depuis aout', [875, 1125, 500, 5500],
   [brice.totaux.aujourdhui, brice.totaux.mois, brice.totaux.moisPrecedent, brice.totaux.depuisLeDebut]);
 dit('Kabirou (aucune part) : rien', [0, 0], [mesPourboires(TIPS, 'st-kabirou', AUJ).totaux.depuisLeDebut, mesPourboires(TIPS, 'st-kabirou', AUJ).duMois.length]);
 const DIMANCHE: PartDePourboire = { id: 'tp-dim', staffId: 'st-aimer', amountXof: 600, date: '2026-11-01' };
 const avecDimanche = totauxDe([...TIPS.filter((t) => t.staffId === 'st-aimer'), DIMANCHE], AUJ);
-dit('le dimanche 1er novembre compte dans le mois, pas dans la semaine (elle commence le lundi 2)', [2350, 1750], [avecDimanche.mois, avecDimanche.semaine]);
+dit('le dimanche 1er novembre compte dans la periode (6 oct. au 4 nov.), pas dans la semaine (elle commence le lundi 2)', [2850, 1750], [avecDimanche.mois, avecDimanche.semaine]);
 dit('une part a zero ou illisible ne compte pas', 1750, totauxDe([...TIPS.filter((t) => t.staffId === 'st-aimer'), { id: 'x', staffId: 'st-aimer', amountXof: 0, date: AUJ }, { id: 'y', staffId: 'st-aimer', amountXof: Number.NaN, date: AUJ }], AUJ).aujourdhui);
 
 /* ── 4. « +1 000 F DE POURBOIRE · RANTI, A L'INSTANT » ────────────────── */
@@ -161,17 +163,17 @@ dit('... ni le nom entier, ni le montant de la piece (4 000 F)', [false, false],
 
 /* ── 6. LE TABLEAU DE L'EQUIPE ────────────────────────────────────────── */
 const tab = tableauDeLEquipe(TIPS, EQUIPE, AUJ);
-dit('les colonnes : novembre, octobre, septembre, aout 2026 ; depuis aout', [['2026-11', '2026-10', '2026-09', '2026-08'], '2026-08'], [tab.colonnes, tab.premierMois]);
+dit('les colonnes (periodes) : 6 oct., 6 sept., 6 aout 2026 ; depuis aout', [['2026-10', '2026-09', '2026-08'], '2026-08'], [tab.colonnes, tab.premierMois]);
 const ligne = (id: string) => tab.lignes.find((l) => l.id === id);
-dit('Aimer, Gerard, Nassim : 1 750 / 1 750 / 500 / 1 000 / 7 750 / 11 000',
-  [[1, 1750, [1750, 500, 1000, 7750], 11000], [1, 1750, [1750, 500, 1000, 7750], 11000], [1, 1750, [1750, 500, 1000, 7750], 11000]],
+dit('Aimer, Gerard, Nassim : 1 750 / 2 250 / 1 000 / 7 750 / 11 000',
+  [[1, 1750, [2250, 1000, 7750], 11000], [1, 1750, [2250, 1000, 7750], 11000], [1, 1750, [2250, 1000, 7750], 11000]],
   ['st-aimer', 'st-gerard', 'st-nassim'].map((id) => [ligne(id)?.part, ligne(id)?.aujourdhui, ligne(id)?.parMois, ligne(id)?.depuisLeDebut]));
-dit('Brice, Yeman : ½, 875 / 875 / 250 / 500 / 3 875 / 5 500',
-  [[0.5, 875, [875, 250, 500, 3875], 5500], [0.5, 875, [875, 250, 500, 3875], 5500]],
+dit('Brice, Yeman : ½, 875 / 1 125 / 500 / 3 875 / 5 500',
+  [[0.5, 875, [1125, 500, 3875], 5500], [0.5, 875, [1125, 500, 3875], 5500]],
   ['st-brice', 'st-yeman'].map((id) => [ligne(id)?.part, ligne(id)?.aujourdhui, ligne(id)?.parMois, ligne(id)?.depuisLeDebut]));
 dit('Kabirou et Olivier : une seule ligne « pas de part »', [['Kabirou', 'Olivier'], false], [tab.sansPart.map((m) => m.nom), tab.lignes.some((l) => l.id === 'st-kabirou')]);
-dit('l equipe : 4 parts, 7 000 F aujourd hui, 7 000 / 2 000 / 4 000 / 31 000, 44 000 F depuis aout',
-  { part: 4, aujourdhui: 7000, parMois: [7000, 2000, 4000, 31000], depuisLeDebut: 44000 },
+dit('l equipe : 4 parts, 7 000 F aujourd hui, 9 000 / 4 000 / 31 000, 44 000 F depuis aout',
+  { part: 4, aujourdhui: 7000, parMois: [9000, 4000, 31000], depuisLeDebut: 44000 },
   { part: tab.total.part, aujourdhui: tab.total.aujourdhui, parMois: tab.total.parMois, depuisLeDebut: tab.total.depuisLeDebut });
 dit('l ordre des lignes est celui de l equipe', ['st-aimer', 'st-gerard', 'st-nassim', 'st-brice', 'st-yeman'], tab.lignes.map((l) => l.id));
 const ARCHIVES: MembreDuPartage[] = [...EQUIPE, { id: 'st-partie', name: 'Partie Avant', partPourboire: 1, archiveeLe: '2026-09-30' }, { id: 'st-vide', name: 'Partie Sans', partPourboire: 1, archiveeLe: '2026-09-30' }];
@@ -190,24 +192,25 @@ dit('... la fiche effacee a sa ligne « Fiche retiree », et le total dit tout l
   [tabE.lignes.some((l) => l.id === FICHE_RETIREE && l.nom === 'Fiche retirée'), tabE.total.aujourdhui]);
 
 /* ── 7. L'EVOLUTION, MOIS PAR MOIS ────────────────────────────────────── */
-dit('aout 31 000 F (6 pourboires), septembre 4 000 F (2), octobre 2 000 F (1), novembre 7 000 F (2, en cours)',
-  [['2026-08', 31000, 6, false], ['2026-09', 4000, 2, false], ['2026-10', 2000, 1, false], ['2026-11', 7000, 2, true]],
+dit('periodes : aout 31 000 F (6 pourboires), septembre 4 000 F (2), du 6 oct. au 4 nov. 9 000 F (3, en cours)',
+  [['2026-08', 31000, 6, false], ['2026-09', 4000, 2, false], ['2026-10', 9000, 3, true]],
   serieMoisParMois(TIPS, AUJ).map((s) => [s.mois, s.total, s.nbPourboires, s.enCours]));
-dit('« septembre et octobre ne comptent que 3 pourboires inscrits »', 3, serieMoisParMois(TIPS, AUJ).filter((s) => s.mois === '2026-09' || s.mois === '2026-10').reduce((k, s) => k + s.nbPourboires, 0));
+dit('les periodes de septembre et d octobre comptent 5 pourboires inscrits', 5, serieMoisParMois(TIPS, AUJ).filter((s) => s.mois === '2026-09' || s.mois === '2026-10').reduce((k, s) => k + s.nbPourboires, 0));
 const TROU = [...pourboire('2026-06-10', 800, 'Afi Exemple', 'inv-j1'), ...pourboire('2026-08-10', 800, 'Afi Exemple', 'inv-j2')];
 dit('un mois sans pourboire se voit, a zero (juillet entre juin et aout)', [['2026-06', 800], ['2026-07', 0], ['2026-08', 800]],
   serieMoisParMois(TROU, '2026-08-20').map((s) => [s.mois, s.total]));
-dit('sans aucun pourboire : le mois en cours, a zero', [['2026-11', 0, true]], serieMoisParMois([], AUJ).map((s) => [s.mois, s.total, s.enCours]));
+dit('sans aucun pourboire : la periode en cours, a zero', [['2026-10', 0, true]], serieMoisParMois([], AUJ).map((s) => [s.mois, s.total, s.enCours]));
 dit('douze mois au plus', 12, serieMoisParMois([...pourboire('2024-01-10', 800, 'Afi', 'inv-x')], AUJ).length);
 
 /* ── 8. LE FIL ────────────────────────────────────────────────────────── */
-const filNov = filDesPourboires(TIPS, EQUIPE, PIECES, { mois: '2026-11' });
-dit('novembre : deux pourboires, le plus recent d abord, avec leur piece et leur montant',
-  [['4 nov. 2026', 'F-2026-0774', 'Mme Akouvi Témoin', 3000], ['4 nov. 2026', 'F-2026-0773', 'Ranti Exemple', 4000]],
+const filNov = filDesPourboires(TIPS, EQUIPE, PIECES, { mois: '2026-10' });
+dit('periode du 6 oct. au 4 nov. : trois pourboires, le plus recent d abord, avec leur piece et leur montant',
+  [['4 nov. 2026', 'F-2026-0774', 'Mme Akouvi Témoin', 3000], ['4 nov. 2026', 'F-2026-0773', 'Ranti Exemple', 4000], ['23 oct. 2026', 'F-2026-0748', 'Nadia Exemple', 2000]],
   filNov.map((p) => [p.jourDit, p.numero, p.cliente, p.montant]));
 dit('... et leur partage : « Aimer, Gerard, Nassim 1 000 F chacun · Brice, Yeman 500 F chacun »',
   F('Aimer, Gérard, Nassim 1 000 F chacun · Brice, Yéman 500 F chacun'), filNov[1]?.partageDit);
-dit('octobre : N. M., le 23, 2 000 F', [['23 oct. 2026', 'F-2026-0748', 2000]], filDesPourboires(TIPS, EQUIPE, PIECES, { mois: '2026-10' }).map((p) => [p.jourDit, p.numero, p.montant]));
+dit('la periode qui commence le 6 novembre est vide', 0, filDesPourboires(TIPS, EQUIPE, PIECES, { mois: '2026-11' }).length);
+dit('periode de septembre : le 26 puis le 12, 2 000 F chacun', [['26 sept. 2026', 'F-2026-0701', 2000], ['12 sept. 2026', 'F-2026-0688', 2000]], filDesPourboires(TIPS, EQUIPE, PIECES, { mois: '2026-09' }).map((p) => [p.jourDit, p.numero, p.montant]));
 const tout = filDesPourboires(TIPS, EQUIPE, PIECES);
 dit('le fil entier : 11 pourboires, le premier d aout sans piece', [11, undefined, 'Afi Exemple'], [tout.length, tout[tout.length - 1]?.numero, tout[tout.length - 1]?.cliente]);
 dit('un arrondi se dit tel quel : « Aimer, Gerard, Nassim 625 F chacun · Brice 313 F · Yeman 312 F »',
@@ -215,7 +218,7 @@ dit('un arrondi se dit tel quel : « Aimer, Gerard, Nassim 625 F chacun · Brice
   partageDit([{ prenom: 'Aimer', amountXof: 625 }, { prenom: 'Gérard', amountXof: 625 }, { prenom: 'Nassim', amountXof: 625 }, { prenom: 'Brice', amountXof: 313 }, { prenom: 'Yéman', amountXof: 312 }]));
 dit('le fil d un membre : les pourboires qui l ont credite', 11, filDesPourboires(TIPS, EQUIPE, PIECES, { staffId: 'st-brice' }).length);
 const det = detailDuMembre(TIPS, 'st-nassim', AUJ);
-dit('le detail de Nassim : 11 000 F, ses quatre mois, sa derniere part', [11000, [7750, 1000, 500, 1750], 750],
+dit('le detail de Nassim : 11 000 F, ses trois periodes, sa derniere part', [11000, [7750, 1000, 2250], 750],
   [det.totaux.depuisLeDebut, det.serie.map((s) => s.total), det.lignes[0]?.amountXof]);
 
 /* ── 9. LA NOTIFICATION EN BASE (0157), MOT POUR MOT ──────────────────── */
@@ -291,7 +294,7 @@ const dash = sansCommentaires(lis('src/apps/trone/routes/pilotage/Dashboard.tsx'
 dit('le Tableau de bord : plus le grand bloc ; l equipe y lit ses pourboires, la direction ceux de l equipe', [false, true, true],
   [/<MesPourboiresEnDirect\b/.test(dash),
     dash.includes('const mes = useMemo(() => (maFiche ? mesPourboires(tips, maFiche.id, today) : null), [tips, maFiche, today]);'),
-    dash.includes("onClick={() => navigate('/pourboires')}><span>Pourboires (équipe)</span><b>{fmt(pourboiresEquipe.mois)}</b>")]);
+    dash.includes("onClick={() => navigate('/pourboires')}><span>{pourboiresDuDit(periodeDesPourboires(today))} (équipe)</span><b>{fmt(pourboiresEquipe.mois)}</b>")]);
 const caisse = sansCommentaires(lis('src/apps/trone/routes/vente/Caisse.tsx'));
 dit('la Caisse y mene, apres le lien de La journee', true,
   /navigate\('\/la-journee'\)\}>[^<]*<\/button>\s*\{voitLesPourboires && \(\s*<button type="button" className="trv-linkbtn" data-lien="pourboires" onClick=\{\(\) => navigate\('\/pourboires'\)\}>/.test(caisse));

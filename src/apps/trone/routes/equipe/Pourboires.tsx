@@ -10,7 +10,7 @@ import { useInvoices } from '../../../../shared/finance';
 import { useStaff, ordonneEquipe } from './data';
 import { useVoitLesPourboiresDeLEquipe } from './MesPourboires';
 import {
-  FICHE_RETIREE, detailDuMembre, filDesPourboires, moisCourt, moisDit, moisTitre, partDite, partsDeLaMaison,
+  FICHE_RETIREE, detailDuMembre, filDesPourboires, partDite, partsDeLaMaison, payesLeDit, periodeCourte, periodeDesPourboires, periodeDite, periodeTitre, pourboiresDuDit,
   serieMoisParMois, tableauDeLEquipe, taPartDite, type MoisDeLaSerie,
 } from '../../../../shared/pourboires-de-l-equipe-pur';
 import './pourboires.css';
@@ -73,14 +73,13 @@ function BarresDuMois({ serie, choisi, onChoisis, argent, jourDuMoisEnCours }: {
   const max = Math.max(1, ...serie.map((s) => s.total));
   const court = n > 6 || L < 520 || pas < 96;
   const etiquette = (s: MoisDeLaSerie, i: number): string => {
-    const mot = moisDit(s.mois).split(' ')[0];
-    const nom = court ? moisCourt(s.mois) : mot.charAt(0).toUpperCase() + mot.slice(1);
+    const nom = court ? periodeCourte(s.mois) : periodeTitre(s.mois);
     const avecAnnee = i === 0 || s.mois.endsWith('-01');
     return `${nom}${avecAnnee ? ` ${s.mois.slice(0, 4)}` : ''}${s.enCours && !court ? ` (au ${jourDuMoisEnCours})` : ''}`;
   };
   return (
     <div ref={cadre} className="tpp-barres__cadre">
-    <svg viewBox={`0 0 ${L} ${H}`} width={L} height={H} role="group" aria-label="Les pourboires de l’équipe, mois par mois" className="tpp-barres">
+    <svg viewBox={`0 0 ${L} ${H}`} width={L} height={H} role="group" aria-label="Les pourboires de l’équipe, période par période" className="tpp-barres">
       <line className="tpp-barres__axe" x1={20} y1={base} x2={L - 20} y2={base} />
       {serie.map((s, i) => {
         const h = s.total > 0 ? Math.max(2, ((base - haut) * s.total) / max) : 0;
@@ -88,7 +87,7 @@ function BarresDuMois({ serie, choisi, onChoisis, argent, jourDuMoisEnCours }: {
         const y = base - h;
         const r = Math.min(4, h, large / 2);
         const d = h > 0 ? `M${x},${base} V${y + r} Q${x},${y} ${x + r},${y} H${x + large - r} Q${x + large},${y} ${x + large},${y + r} V${base} Z` : '';
-        const dit = `${moisTitre(s.mois)}${s.enCours ? `, en cours (au ${jourDuMoisEnCours})` : ''} : ${argent(s.total)}, ${s.nbPourboires} pourboire${s.nbPourboires > 1 ? 's' : ''}`;
+        const dit = `${pourboiresDuDit(s.mois)}${s.enCours ? `, en cours (au ${jourDuMoisEnCours})` : ''} : ${argent(s.total)}, ${s.nbPourboires} pourboire${s.nbPourboires > 1 ? 's' : ''}`;
         return (
           <g
             key={s.mois}
@@ -188,10 +187,10 @@ export default function Pourboires() {
                       aria-pressed={moisChoisi === c}
                       onClick={() => choisisLeMois(c)}
                       data-mois={c}
-                    >{moisTitre(c)}</button>
+                    >{periodeTitre(c)}</button>
                   </th>
                 ))}
-                <th className="num">{premier ? `Depuis ${moisDit(premier)}` : 'Depuis le début'}</th>
+                <th className="num">{premier ? `Depuis le ${periodeCourte(premier)} ${premier.slice(0, 4)}` : 'Depuis le début'}</th>
               </tr>
             </thead>
             <tbody>
@@ -235,7 +234,7 @@ export default function Pourboires() {
             </tbody>
           </table>
         </div>
-        <p className="tpp-doux">Un toucher sur un nom ouvre son détail ; un toucher sur un mois, les pourboires de ce mois.</p>
+        <p className="tpp-doux">Un toucher sur un nom ouvre son détail ; un toucher sur une période, les pourboires de cette période.</p>
 
         {/* LE DÉTAIL D'UN MEMBRE : un panneau ouvert à la fois. */}
         {detail && membreOuvert && (
@@ -248,11 +247,11 @@ export default function Pourboires() {
             <div className="tpp-detail__chiffres">
               <p><b>{argent(detail.totaux.aujourdhui)}</b><span>Aujourd’hui</span></p>
               <p><b>{argent(detail.totaux.semaine)}</b><span>Cette semaine</span></p>
-              <p><b>{argent(detail.totaux.mois)}</b><span>{moisTitre(aujourdhui.slice(0, 7))}</span></p>
+              <p><b>{argent(detail.totaux.mois)}</b><span>{pourboiresDuDit(periodeDesPourboires(aujourdhui))}</span></p>
               <p><b>{argent(detail.totaux.depuisLeDebut)}</b><span>Depuis le début</span></p>
             </div>
             <p className="tpp-doux">
-              Mois par mois : {detail.serie.map((s) => `${moisDit(s.mois)} ${argent(s.total)}`).join(' · ')}.
+              Période par période : {detail.serie.map((s) => `${periodeTitre(s.mois)} ${argent(s.total)}`).join(' · ')}.
             </p>
             <ul className="tpp-detail__liste">
               {detail.lignes.slice(0, 40).map((l) => (
@@ -266,7 +265,7 @@ export default function Pourboires() {
 
       {/* ── 2. L'ÉVOLUTION ────────────────────────────────────────────── */}
       <section className="tpp-section" aria-labelledby="tpp-t-evolution">
-        <h3 id="tpp-t-evolution" className="tpp-h">Mois par mois, pour toute l’équipe</h3>
+        <h3 id="tpp-t-evolution" className="tpp-h">Période par période, pour toute l’équipe</h3>
         <div className="tpp-graphe" data-pourboires="barres">
           <BarresDuMois serie={serie} choisi={moisChoisi} onChoisis={choisisLeMois} argent={argent} jourDuMoisEnCours={jourDuMois} />
           <p className="tpp-doux">
@@ -280,12 +279,12 @@ export default function Pourboires() {
       <section className="tpp-section" aria-labelledby="tpp-t-fil">
         <div className="tpp-fil__tete">
           <h3 id="tpp-t-fil" className="tpp-h">
-            {moisChoisi ? `Les pourboires de ${moisDit(moisChoisi)}` : 'Chaque pourboire, et son partage'}
+            {moisChoisi ? `${pourboiresDuDit(moisChoisi)}, ${payesLeDit(moisChoisi)}` : 'Chaque pourboire, et son partage'}
           </h3>
-          {moisChoisi && <button type="button" className="tre-link-btn" onClick={() => setMoisChoisi(null)}>Tous les mois</button>}
+          {moisChoisi && <button type="button" className="tre-link-btn" onClick={() => setMoisChoisi(null)}>Toutes les périodes</button>}
         </div>
         {fil.length === 0 ? (
-          <p className="tpp-doux">Aucun pourboire inscrit{moisChoisi ? ` en ${moisDit(moisChoisi)}` : ''}.</p>
+          <p className="tpp-doux">Aucun pourboire inscrit{moisChoisi ? ` ${periodeDite(moisChoisi)}` : ''}.</p>
         ) : (
           <div className="tpp-fil" data-pourboires="fil">
             {filMontre.map((p) => (

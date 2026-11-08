@@ -50,10 +50,15 @@ if (!existsSync(path.join(construit, 'trone.html'))) {
 const ici = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 const maintenant = new Date();
 const AUJ = ici(maintenant);
-const moisAvant = (n) => { const d = new Date(maintenant.getFullYear(), maintenant.getMonth() - n, 10); return ici(d).slice(0, 7); };
-const M0 = AUJ.slice(0, 7); const M1 = moisAvant(1); const M2 = moisAvant(2); const M3 = moisAvant(3);
+/* 8 nov. 2026 : on compte par PERIODE du 6 au 4, payee le 5 (cle AAAA-MM du mois ou elle commence). M0..M3 sont donc
+   les quatre periodes, la courante d abord ; les pourboires du banc sont dates le 14 ou plus dans leur periode. */
+const periodeDe = (jour) => { const [a, m, j] = jour.split('-').map(Number); return j >= 6 ? jour.slice(0, 7) : (m === 1 ? `${a - 1}-12` : `${a}-${String(m - 1).padStart(2, '0')}`); };
+const periodeAvant = (p, n) => { const [a, m] = p.split('-').map(Number); const t = a * 12 + (m - 1) - n; return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, '0')}`; };
+const M0 = periodeDe(AUJ); const M1 = periodeAvant(M0, 1); const M2 = periodeAvant(M0, 2); const M3 = periodeAvant(M0, 3);
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-const titre = (m) => { const t = `${MOIS[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`; return t.charAt(0).toUpperCase() + t.slice(1); };
+const COURTS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+const titre = (m) => `6 ${COURTS[Number(m.slice(5, 7)) - 1]} au 4 ${COURTS[Number(m.slice(5, 7)) % 12]}`;
+const depuis = (m) => `Depuis le 6 ${COURTS[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
 const F = (s) => s.replace(/(\d) (\d)/g, '$1\u202f$2');
 
 const EQUIPE = [
@@ -146,8 +151,8 @@ async function lanceLeBanc({ panne }) {
   dit('« Les pourboires » s ouvre', /Les pourboires\./.test(t ?? '') && !!(await evalue(`!!document.querySelector('[data-pourboires="equipe"]')`)), (t ?? '').slice(0, 300).replace(/\n/g, ' '));
   const cellules = (membre) => evalue(`(() => { const b = document.querySelector('[data-membre="${membre}"]'); const tr = b?.closest('tr'); return tr ? [...tr.querySelectorAll('td')].map((td) => td.innerText.trim()) : null; })()`);
   const enTete = await evalue(`[...document.querySelectorAll('[data-pourboires="tableau"] thead th')].map((th) => th.innerText.trim())`);
-  dit('les colonnes : Membre, Part, Aujourd hui, les quatre mois, Depuis', JSON.stringify(enTete) === JSON.stringify(['MEMBRE', 'PART', 'AUJOURD’HUI', titre(M0).toUpperCase(), titre(M1).toUpperCase(), titre(M2).toUpperCase(), titre(M3).toUpperCase(), `DEPUIS ${MOIS[Number(M3.slice(5, 7)) - 1].toUpperCase()} ${M3.slice(0, 4)}`])
-    || JSON.stringify(enTete) === JSON.stringify(['Membre', 'Part', 'Aujourd’hui', titre(M0), titre(M1), titre(M2), titre(M3), `Depuis ${MOIS[Number(M3.slice(5, 7)) - 1]} ${M3.slice(0, 4)}`]), JSON.stringify(enTete));
+  dit('les colonnes : Membre, Part, Aujourd hui, les quatre mois, Depuis', JSON.stringify(enTete) === JSON.stringify(['MEMBRE', 'PART', 'AUJOURD’HUI', titre(M0).toUpperCase(), titre(M1).toUpperCase(), titre(M2).toUpperCase(), titre(M3).toUpperCase(), depuis(M3).toUpperCase()])
+    || JSON.stringify(enTete) === JSON.stringify(['Membre', 'Part', 'Aujourd’hui', titre(M0), titre(M1), titre(M2), titre(M3), depuis(M3)]), JSON.stringify(enTete));
   const aimer = await cellules('st-aimer');
   dit('Aimer : 1, 1 750 F aujourd hui, 1 750 / 500 / 1 000 / 7 750, 11 000 F', JSON.stringify(aimer) === JSON.stringify(['Aimer H.', '1', F('1 750 F'), F('1 750 F'), '500 F', F('1 000 F'), F('7 750 F'), F('11 000 F')]), JSON.stringify(aimer));
   const brice = await cellules('st-brice');
@@ -173,7 +178,7 @@ async function lanceLeBanc({ panne }) {
   await evalue(`document.querySelector('[data-pourboires="barres"] [data-mois="${M2}"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
   await attend(500);
   const lignesM2 = await evalue(`[...document.querySelectorAll('[data-pourboires="fil"] .tpp-fil__ligne')].map((l) => l.getAttribute('data-piece'))`);
-  dit(`un toucher sur ${titre(M2)} : ses deux pourboires`, JSON.stringify(lignesM2) === JSON.stringify(['F-BANC-0701', 'F-BANC-0688']) && new RegExp(`Les pourboires de ${MOIS[Number(M2.slice(5, 7)) - 1]} ${M2.slice(0, 4)}`).test(await evalue('document.body.innerText') ?? ''), JSON.stringify(lignesM2));
+  dit(`un toucher sur ${titre(M2)} : ses deux pourboires`, JSON.stringify(lignesM2) === JSON.stringify(['F-BANC-0701', 'F-BANC-0688']) && new RegExp(`Pourboires du ${titre(M2)}`).test(await evalue('document.body.innerText') ?? ''), JSON.stringify(lignesM2));
   await evalue(`document.querySelector('[data-mois="${M3}"].tpp-mois')?.click()`);
   await attend(400);
   dit(`... un toucher sur l en-tete ${titre(M3)} : ses six pourboires`, (await evalue(`document.querySelectorAll('[data-pourboires="fil"] .tpp-fil__ligne').length`)) === 6);

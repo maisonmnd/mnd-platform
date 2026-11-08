@@ -39,10 +39,15 @@ export type PartDePourboire = {
 export type MembreDuPartage = { id: string; name: string; partPourboire?: number; archiveeLe?: string };
 export type PieceDuFil = { id: string; number?: string };
 
+import { periodeDesPourboires } from './periode-des-pourboires-pur';
+export { periodeDesPourboires, periodeAvant, periodeTitre, periodeDite, pourboiresDuDit, payesLeDit, periodeCourte } from './periode-des-pourboires-pur';
+
 /* ── Les jours et les mois ────────────────────────────────────────────── */
 
 export const jourDe = (d: string | undefined): string => String(d ?? '').slice(0, 10);
-export const moisDe = (d: string | undefined): string => String(d ?? '').slice(0, 7);
+/** La PÉRIODE d'un pourboire (8 nov. 2026) : du 6 au 4, payée le 5. Clé AAAA-MM du mois où elle commence ;
+    le juge est shared/periode-des-pourboires-pur. Ce nom reste pour les appels d'avant. */
+export const moisDe = (d: string | undefined): string => periodeDesPourboires(d);
 
 /** Le jour décalé de n jours (midi UTC : aucun fuseau ne fait sauter le jour). */
 export function ajouteJours(jour: string, n: number): string {

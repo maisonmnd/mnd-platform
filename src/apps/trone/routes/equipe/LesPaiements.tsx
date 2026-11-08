@@ -18,6 +18,7 @@ import {
   moisDit, moisPrecedent, moisSuivant, momentDit, netDuMoisDAvant, numeroDeLaFiche, numeroDit, phaseDuMois, phraseDuBlocage, pourboiresEnEspecesXof, quandDit,
   valideLesLignes, type LectureDeLaLigne,
 } from '../../../../shared/paie-du-5-pur';
+import { payesLeDit, periodeDite, pourboiresDuDit } from '../../../../shared/periode-des-pourboires-pur';
 import {
   ETAT_DE_L_ENVOI_DIT, MONTANT_ESSAI_MAX, appliqueLesRecus, bilanDeLEssai, ceQuiManque, depenseDeLEssai, heureDeDepart, idDeLEssai,
   raisonDite, type EnvoiMtn, type LectureMtn, type NomMtnVu,
@@ -845,7 +846,7 @@ export default function LesPaiements() {
           {lu.fraisXof > 0 && <div><span>{libelleDesFrais(lu.voie)}</span><span>− {F(lu.fraisXof)}</span></div>}
           {(x?.pourboiresDuNet ?? 0) > 0 && <div><span>Dont pourboires, en espèces</span><span>− {F(x?.pourboiresDuNet ?? 0)}</span></div>}
           <div className="lp-bulletin__mtn"><span>Par MTN</span><span>{l.viaMtn ? F(l.parMtnXof) : '–'}</span></div>
-          <div><span>Pourboires du mois · espèces le 5</span><span>{F(l.pourboiresXof)}</span></div>
+          <div><span>{pourboiresDuDit(periode)} · espèces, {payesLeDit(periode)}</span><span>{F(l.pourboiresXof)}</span></div>
           <div><span>{avant != null ? moisDit(moisPrecedent(periode)) : 'Mois d’avant'}</span><span>{avant != null ? F(avant) : '–'}</span></div>
           {l.envoi && <div><span>Référence MTN</span><span>{l.envoi.reference.slice(0, 8)}</span></div>}
         </div>
@@ -988,7 +989,7 @@ export default function LesPaiements() {
           <div className="lp-chiffre"><span className="lp-sourcil">Salaires nets</span><b>{F(c.salairesNetsXof)}</b><span className="lp-op">{c.bulletins} bulletin{c.bulletins > 1 ? 's' : ''}{run ? '' : ' · pas encore de run'}</span></div>
           <div className="lp-chiffre"><span className="lp-sourcil">Retenues de prêt</span><b className="lp-moins">{c.pretsXof ? `− ${F(c.pretsXof)}` : F(0)}</b><span className="lp-op">{c.nbPrets} prêt{c.nbPrets > 1 ? 's' : ''} en cours</span></div>
           <div className="lp-chiffre"><span className="lp-sourcil">Prestataires · entreprises</span><b>+ {F(c.prestatairesXof + c.entreprisesXof)}</b><span className="lp-op">{c.nbPrestataires} prestataire{c.nbPrestataires > 1 ? 's' : ''} sur {c.nbPrestatairesTotal} · {c.nbEntreprises} facture{c.nbEntreprises > 1 ? 's' : ''}</span></div>
-          <div className="lp-chiffre lp-chiffre--hors"><span className="lp-sourcil">Pourboires · espèces</span><b>{F(c.pourboiresXof)}</b><span className="lp-op">remis le 5 · {c.pourboiresRemis} / {c.pourboiresATotal} cochés</span></div>
+          <div className="lp-chiffre lp-chiffre--hors"><span className="lp-sourcil">Pourboires {periodeDite(periode)} · espèces</span><b>{F(c.pourboiresXof)}</b><span className="lp-op">{payesLeDit(periode)} · {c.pourboiresRemis} / {c.pourboiresATotal} cochés</span></div>
         </div>
         {c.horsMtn > 0 && <p className="lp-doux lp-petit">{c.horsMtn} ligne{c.horsMtn > 1 ? 's' : ''} hors MTN (Moov, sans numéro, sans prix ou sans facture) : hors du total.</p>}
       </section>

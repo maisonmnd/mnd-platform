@@ -38,7 +38,7 @@ import { useProducts } from '../../../../shared/catalog';
 import { supabase } from '../../../../shared/supabase';
 import { sameName } from '../../../../shared/text';
 import { useTips } from '../../../../shared/tips';
-import { mesPourboires } from '../../../../shared/pourboires-de-l-equipe-pur';
+import { mesPourboires, periodeDesPourboires, periodeTitre, pourboiresDuDit } from '../../../../shared/pourboires-de-l-equipe-pur';
 import { useMaFicheDansLEquipe } from '../equipe/MesPourboires';
 import { useEstDirection } from '../_vie';
 import './pilotage.css';
@@ -976,7 +976,7 @@ function TableauDeLaDirection() {
           <div className="tdb-lignes">
             <button type="button" className="tdb-ligne" onClick={() => navigate('/chiffre-des-prestations')}><span>Gagné {nomMois}</span><b>{fmt(chiffres.honores.xof)}</b></button>
             <button type="button" className="tdb-ligne" onClick={() => navigate('/encaissements')}><span>Encaissé pour {prevMonthName} et avant</span><b>{fmt(chiffres.pourAvant.xof)}</b></button>
-            <button type="button" className="tdb-ligne" onClick={() => navigate('/pourboires')}><span>Pourboires (équipe)</span><b>{fmt(pourboiresEquipe.mois)}</b></button>
+            <button type="button" className="tdb-ligne" onClick={() => navigate('/pourboires')}><span>{pourboiresDuDit(periodeDesPourboires(today))} (équipe)</span><b>{fmt(pourboiresEquipe.mois)}</b></button>
             <button type="button" className="tdb-ligne" onClick={() => navigate('/depenses')}><span>Dépenses</span><b className={zeroDepenseDuMois ? 'est-ko' : ''}>{fmt(spent)}</b></button>
             {/* LA PRÉVISION, EN FOURCHETTE SEULEMENT : son calcul vit aux Prévisions. */}
             <button type="button" className="tdb-ligne" data-ligne="prevision" onClick={() => navigate('/previsions?vue=francs')}><span>Prévision fin de mois</span><b>{fourchette}</b></button>
@@ -1547,7 +1547,6 @@ function TableauDeLEquipe() {
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const today = todayISO();
   const fmt = (x: number) => fmtMoney(x, currency);
-  const prevMonthName = nomDuMois(moisAvant(today.slice(0, 7)));
 
   const duJour = useMemo(
     () => appts.filter((a) => a.date === today && a.status !== 'annulé').sort((a, b) => timeToMin(a.time) - timeToMin(b.time)),
@@ -1567,7 +1566,7 @@ function TableauDeLEquipe() {
     { k: 'mes-rdv', l: 'Mes rendez-vous', v: String(mesDuJour), c: `aujourd’hui · ${nombreDe(duJour.length, 'à la Maison', 'à la Maison')}`, go: () => navigate('/calendrier') },
     { k: 'mes-sept', l: '7 jours', v: String(mesSeptJours), c: 'mes rendez-vous', go: () => navigate('/calendrier') },
     { k: 'mes-pourboires-jour', l: 'Mes pourboires', v: fmt(mes?.totaux.aujourdhui ?? 0), c: `aujourd’hui · semaine ${fmt(mes?.totaux.semaine ?? 0)}`, go: () => navigate('/mon-mois') },
-    { k: 'mes-pourboires-mois', l: `Pourboires ${nomDuMois(today.slice(0, 7))}`, v: fmt(mes?.totaux.mois ?? 0), c: `${prevMonthName} : ${fmt(mes?.totaux.moisPrecedent ?? 0)}`, go: () => navigate('/mon-mois') },
+    { k: 'mes-pourboires-mois', l: pourboiresDuDit(periodeDesPourboires(today)), v: fmt(mes?.totaux.mois ?? 0), c: `${periodeTitre(mes?.moisPrecedent ?? periodeDesPourboires(today))} : ${fmt(mes?.totaux.moisPrecedent ?? 0)}`, go: () => navigate('/mon-mois') },
   ];
 
   return (

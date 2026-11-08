@@ -99,7 +99,7 @@ const PANNES = [
   { nom: 'l equipe ne lit plus ses pourboires', fichier: 'src/apps/trone/routes/pilotage/Dashboard.tsx',
     avant: '(maFiche ? mesPourboires(tips, maFiche.id, today) : null)', apres: '(null as ReturnType<typeof mesPourboires> | null)' },
   { nom: 'la direction perd les pourboires de l equipe', fichier: 'src/apps/trone/routes/pilotage/Dashboard.tsx',
-    avant: "onClick={() => navigate('/pourboires')}><span>Pourboires (équipe)</span>", apres: "onClick={() => navigate('/encaissements')}><span>Pourboires (équipe)</span>" },
+    avant: "onClick={() => navigate('/pourboires')}><span>{pourboiresDuDit(", apres: "onClick={() => navigate('/encaissements')}><span>{pourboiresDuDit(" },
   { nom: 'la Caisse perd son lien', fichier: 'src/apps/trone/routes/vente/Caisse.tsx', avant: "onClick={() => navigate('/pourboires')}", apres: "onClick={() => navigate('/encaissements')}" },
   { nom: 'Encaissements perd son lien', fichier: 'src/apps/trone/routes/finances/Encaissements.tsx',
     avant: "{kind === 'pourboire' && voitLesPourboires && (", apres: "{kind === 'tout' && voitLesPourboires && (" },

@@ -1,6 +1,7 @@
 import { createStore, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
 import type { Tip } from '../../../../shared/tips';
+import { periodeDesPourboires } from '../../../../shared/periode-des-pourboires-pur';
 
 /* ══ LES VARIABLES DU MOIS — 14 octobre 2026 (direction des RH) ══════════
 
@@ -77,9 +78,9 @@ export function variablesDuMois(o: {
   if (o.primeDePointsXof && o.primeDePointsXof > 0) {
     origines.push({ quoi: 'points', libelle: 'Prime de points (seuil du mois atteint)', montantXof: o.primeDePointsXof });
   }
-  const tips = o.tips.filter((t) => t && t.staffId === o.staffId && duMois(t.date, o.period) && t.amountXof > 0);
+  const tips = o.tips.filter((t) => t && t.staffId === o.staffId && periodeDesPourboires(t.date) === o.period && t.amountXof > 0);
   const pourboires = tips.reduce((n, t) => n + t.amountXof, 0);
-  if (pourboires > 0) origines.push({ quoi: 'pourboires', libelle: `${tips.length} pourboire${tips.length > 1 ? 's' : ''} du mois`, montantXof: pourboires });
+  if (pourboires > 0) origines.push({ quoi: 'pourboires', libelle: `${tips.length} pourboire${tips.length > 1 ? 's' : ''} de la période`, montantXof: pourboires });
   for (const r of enListe<Retenue>(o.retenues?.[o.staffId])) {
     if (!duMois(r.date, o.period) || !(r.amountXof > 0)) continue;
     origines.push({ quoi: 'retenue', libelle: `${RETENUE_LABEL[r.type] ?? 'Retenue'}${r.days ? `, ${r.days} j` : ''}${r.note ? ` · ${r.note}` : ''}`, montantXof: r.amountXof, le: r.date });

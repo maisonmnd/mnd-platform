@@ -100,6 +100,8 @@
   font-size: 9.5px;
   font-weight: var(--weight-medium);
   color: var(--indigo-100, rgba(246, 241, 231, 0.75));
+  /* 8 nov. 2026 : « 6 sept. au 4 oct. » est plus long qu'un mois, il passe à la ligne. */
+  white-space: normal;
 }
 .tpp-tableau td:first-child { white-space: nowrap; }
 .tpp-nom, .tpp-mois {
