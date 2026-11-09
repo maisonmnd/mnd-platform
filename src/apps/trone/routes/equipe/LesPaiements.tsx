@@ -20,8 +20,8 @@ import {
 } from '../../../../shared/paie-du-5-pur';
 import { payesLeDit, periodeDite, pourboiresDuDit } from '../../../../shared/periode-des-pourboires-pur';
 import {
-  ETAT_DE_L_ENVOI_DIT, MONTANT_ESSAI_MAX, appliqueLesRecus, bilanDeLEssai, ceQuiManque, depenseDeLEssai, heureDeDepart, idDeLEssai,
-  raisonDite, type EnvoiMtn, type LectureMtn, type NomMtnVu,
+  CE_QUE_CLORE_UN_TEST, ETAT_DE_L_ENVOI_DIT, MONTANT_ESSAI_MAX, appliqueLesRecus, bilanDeLEssai, ceQuiManque, depenseDeLEssai,
+  heureDeDepart, idDeLEssai, lePlusEnSouffrance, raisonDite, type EnvoiMtn, type LectureMtn, type NomMtnVu,
 } from '../../../../shared/paie-par-mtn-pur';
 import {
   ETAT_DIT, JOURS_POSSIBLES, JOUR_PAR_DEFAUT, arretDeLEntreprise, chiffresDuMois, cleDeLigne, dateDePaie, departDeLaLigne,
@@ -36,7 +36,7 @@ import {
   asArray, jourLocalDe, ligneEstPayee, parametersFor, payrollRunsStore, usePayrollParameters, usePayrollRuns,
   type PayrollLine, type PayrollRun,
 } from './payroll';
-import { annule, lisChezMtn, renvoie, teste, useEnvoisMtn, useServeurMtn } from './paie-par-mtn';
+import { annule, clore, lisChezMtn, renvoie, teste, useEnvoisMtn, useServeurMtn } from './paie-par-mtn';
 import { derniersParPersonne } from './PaieParMtn';
 import { ChampPieceJointe } from '../finances/_shared';
 import {
@@ -138,6 +138,8 @@ export default function LesPaiements() {
   /** La saisie ouverte : l'entreprise (un fournisseur), ou la facture du mois. */
   const [saisie, setSaisie] = useState<{ quoi: 'entreprise'; fournisseur?: Fournisseur } | { quoi: 'facture'; fournisseur: Fournisseur; facture?: FactureDEntreprise } | null>(null);
   const [part, setPart] = useState(false);
+  /* Le geste de clôture d'un test que MTN laisse sans réponse (9 novembre 2026). */
+  const [fermeture, setFermeture] = useState(false);
 
   const [runs] = usePayrollRuns();
   const [fichesBrutes] = useStaff();
@@ -747,6 +749,35 @@ export default function LesPaiements() {
     relisEssai();
   };
 
+  /* CLORE UN TEST QUE MTN LAISSE SANS RÉPONSE — 9 novembre 2026. « Annuler »
+     ne touche que ce qui n'est pas parti ; un envoi resté sans réponse finale
+     fermait le bloc du test pour toujours, et le bouton éteint ne disait rien.
+     La direction clôt, à son nom, et CE_QUE_CLORE_UN_TEST dit ce que cela veut
+     dire avant le geste. */
+  const muet = lePlusEnSouffrance(duDernierEssai);
+  const depuisMuet = muet ? quandDit(muet.envoye_le ?? muet.programme_le, true) : '';
+  const cloreLeTest = async () => {
+    if (!dernierEssai) return;
+    if (!await demande({
+      quoi: 'Le test MTN',
+      titre: `Clore le test · ${bilan.enCours} envoi${bilan.enCours > 1 ? 's' : ''} sans réponse ?`,
+      dit: `Ils seront marqués « annulé », au nom de ${qui || 'la direction'}, avec la date.`,
+      suite: CE_QUE_CLORE_UN_TEST,
+      accepter: 'Clore le test',
+      refuser: 'Attendre MTN',
+      dur: true,
+    })) return;
+    setFermeture(true);
+    try {
+      const r = await clore(dernierEssai);
+      if (r.erreur) { alerte(r.erreur); return; }
+      toast(`Test clos : ${r.clos ?? 0} envoi${(r.clos ?? 0) > 1 ? 's' : ''} sans réponse.`);
+    } finally {
+      setFermeture(false);
+      relisEssai();
+    }
+  };
+
   /* ── LES PRÊTS DE L'ÉQUIPE (jamais ceux du foyer ni des associés) ── */
   const pretsDeLEquipe = useMemo(() => {
     const lignesPrets = asArray(prets).filter((p) => p && p.branchId === branch.id && p.genre === 'equipe');
@@ -1035,10 +1066,25 @@ export default function LesPaiements() {
             })}
             <div className="lp-test__pied">
               <span><b>{F(totalDuTest(lignesTest))}</b> <span className="lp-doux lp-petit">offerts par la Maison · dépense « Essai de paie MTN » · bulletins inchangés</span></span>
-              <Button variant="copper" disabled={part || !serveur.pret || (bilan.enCours > 0)} onClick={() => void envoyerLeTest()}>
-                {part ? 'Envoi…' : !serveur.pret ? 'Le test attend les clés MTN' : bilan.enCours > 0 ? `En cours · ${bilan.recus} / ${bilan.nombre}` : 'Envoyer le test'}
-              </Button>
+              <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {/* Un envoi que MTN laisse sans réponse retient le bloc : la
+                    direction peut le clore, à son nom (9 novembre 2026). */}
+                {bilan.enCours > 0 && dernierEssai && (
+                  <Button size="sm" variant="ghost" disabled={fermeture} onClick={() => void cloreLeTest()}>
+                    {fermeture ? 'On clôt…' : 'Clore ce test'}
+                  </Button>
+                )}
+                <Button variant="copper" disabled={part || !serveur.pret || (bilan.enCours > 0)} onClick={() => void envoyerLeTest()}>
+                  {part ? 'Envoi…' : !serveur.pret ? 'Le test attend les clés MTN' : bilan.enCours > 0 ? `En cours · ${bilan.recus} / ${bilan.nombre}` : 'Envoyer le test'}
+                </Button>
+              </span>
             </div>
+            {bilan.enCours > 0 && (
+              <p className="lp-doux lp-petit">
+                {bilan.enCours} envoi{bilan.enCours > 1 ? 's' : ''} sans réponse de MTN{depuisMuet ? ` depuis le ${depuisMuet}` : ''} :
+                le prochain test attend qu’ils soient clos.
+              </p>
+            )}
           </div>
           <p className="lp-doux lp-petit">MTN refuse un montant : « Relancer à {F(MONTANT_ESSAI_MAX)} ». Pas de test réussi : le 5, la paie passe par le fichier du portail (Réglages).</p>
         </section>

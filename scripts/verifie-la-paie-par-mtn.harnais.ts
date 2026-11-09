@@ -3,8 +3,9 @@
    Les personnes, les numéros et les montants sont inventés pour le banc. */
 import { readFileSync } from 'node:fs';
 import {
-  appliqueLesRecus, bilanDeLEssai, ceQuiManque, depenseDeLEssai, depenseDeLEssaiId, envoiActif, equipeDeLEssai,
-  heureDeDepart, idDeLEssai, itemsDuRun, nomConcorde, notificationDeLaPaie, pourquoiPasLEssai, raisonDite, triDesEnvois,
+  appliqueLesRecus, bilanDeLEssai, ceQuiManque, depenseDeLEssai, depenseDeLEssaiId, envoiActif, envoisEnSouffrance,
+  equipeDeLEssai, heureDeDepart, idDeLEssai, itemsDuRun, lePlusEnSouffrance, nomConcorde, notificationDeLaPaie,
+  pourquoiPasLEssai, raisonDite, triDesEnvois,
   type EnvoiMtn, type LectureMtn,
 } from '../src/shared/paie-par-mtn-pur';
 import { calendrierDeLaPaie, type LectureDeLaLigne } from '../src/shared/paie-du-5-pur';
@@ -107,6 +108,8 @@ const fiches = [
 const eq = equipeDeLEssai(fiches, 100);
 dit('le test : l equipe salariee sur MTN ; ni prestataire, ni fiche archivee, ni Moov ; les sans-numero se disent',
   [[{ employeeId: 'e1', nom: 'Aïcha Kossou', msisdn: '2290190000001', montantXof: 100 }], ['Léa Sossa']], [eq.partent, eq.sansNumero]);
+dit('une fiche dont le numero est chez Moov se nomme, au lieu de disparaitre du decompte',
+  [{ nom: 'Rose Dah', operateur: 'Moov' }], eq.pasMtn);
 dit('le test refuse plus de 500 F, un montant non entier, une equipe sans numero', [true, true, true, false],
   [!!pourquoiPasLEssai(501, 3), !!pourquoiPasLEssai(99.5, 3), !!pourquoiPasLEssai(100, 0), !!pourquoiPasLEssai(500, 3)]);
 dit('l identifiant du test suit ce que le serveur accepte', true, /^essai-\d{12}$/.test(idDeLEssai(ms('2026-12-01T17:00:00Z'))));
@@ -119,6 +122,19 @@ const dep = depenseDeLEssai({ essaiId: 'essai-202612011800', branchId: 'b', bila
 dit('la depense du test : les recus seulement, une seule par test, la Maison a paye',
   [depenseDeLEssaiId('essai-202612011800'), 200, 'Essai de paie MTN · 2 envois', true], [dep?.id, dep?.amountXof, dep?.label, dep?.laMaisonAPaye]);
 dit('un solde inconnu ne couvre rien ; un solde court dit ce qui manque', [null, 0, 5000], [ceQuiManque(null, 100), ceQuiManque(10000, 10000), ceQuiManque(5000, 10000)]);
+
+/* ── 7 ter. Clore un test que MTN laisse sans reponse (9 novembre 2026) ── */
+dit('ce qui retient un test : les envois sans reponse finale', [1, ['e2']],
+  [envoisEnSouffrance([e1, e2, e3]).length, envoisEnSouffrance([e1, e2, e3]).map((x) => x.employee_id)]);
+dit('le plus ancien d abord : c est depuis celui-la que MTN se tait', 'a',
+  lePlusEnSouffrance([
+    { ...e2, reference: 'b', programme_le: '2026-12-01T19:00:00.000Z' },
+    { ...e2, reference: 'a', programme_le: '2026-12-01T17:00:00.000Z' },
+  ])?.reference);
+dit('un test clos ne retient plus rien, et le bilan le dit fini', [0, true, 2],
+  [envoisEnSouffrance([e1, { ...e2, etat: 'annule' }, e3]).length,
+    bilanDeLEssai([e1, { ...e2, etat: 'annule' }, e3]).fini,
+    bilanDeLEssai([e1, { ...e2, etat: 'annule' }, e3]).refuses]);
 
 /* ── 7 bis. Prevenir chacun (0164) ── */
 dit('la notification de la paie, avec l annee, les francs et l elision',
@@ -159,6 +175,22 @@ dit('le texte du declencheur est celui du Trone : l elision des mois a voyelle, 
 dit('jamais une reponse de MTN refusee pour une notification ; le declencheur sur l etat seul', [true, true],
   [/exception when others then\n\s*-- Jamais une réponse de MTN refusée pour une notification\.\n\s*raise warning/.test(previent), /after update of etat on public\.paie_envois_mtn/.test(previent)]);
 dit('la paie du mois previent l equipe', [true, true], [/prevenir: true,\r?\n\s*\}\);/.test(p5), /vus, prevenir: true \}\)/.test(bloc)]);
+
+/* ── 8 bis. Ce que les ecrans doivent dire, et ne plus taire (9 novembre) ── */
+const essai = lis('src/apps/trone/routes/equipe/EssaiMtn.tsx');
+const paiements = lis('src/apps/trone/routes/equipe/LesPaiements.tsx');
+const fonction = lis('supabase/functions/paie-mtn/index.ts');
+dit('le bouton du test ne s eteint plus devant une equipe vide : le clic dit pourquoi', [true, true],
+  [/disabled=\{part\}/.test(essai), !/disabled=\{part \|\| equipe\.partent\.length === 0\}/.test(essai)]);
+dit('la fiche au numero Moov se nomme a l ecran, au lieu de disparaitre du decompte', true, /equipe\.pasMtn\.length > 0/.test(essai));
+dit('un test que MTN laisse sans reponse se clôt, dans les deux ecrans, a la main de la direction', [true, true],
+  [/const cloreLeTest = async \(\) =>/.test(essai), /const cloreLeTest = async \(\) =>/.test(paiements)]);
+dit('le geste de clôture dit ce qu il fait avant de le faire', [true, true],
+  [/suite: CE_QUE_CLORE_UN_TEST/.test(essai), /suite: CE_QUE_CLORE_UN_TEST/.test(paiements)]);
+dit('le serveur sait clore un test : un identifiant lisible, les envois sans reponse finale, au nom de qui clôt', [true, true, true],
+  [/action === 'clore'/.test(fonction),
+    /paie_envois_mtn\?essai_id=eq\.\$\{encodeURIComponent\(essaiId\)\}&etat=in\.\(programme,envoi,envoye,sans-reponse\)/.test(fonction),
+    /note: `test clos par \$\{qui\.par\}`/.test(fonction)]);
 
 const webhook = lis('supabase/functions/whatsapp-webhook/index.ts').replace(/\r\n/g, '\n');
 const surWhatsapp = lis('supabase/migrations/0165_la_paie_sur_whatsapp.sql').replace(/\r\n/g, '\n');

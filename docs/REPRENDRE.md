@@ -2,6 +2,17 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE TEST MTN QUI NE DISAIT RIEN, ET QUI SE VERROUILLAIT : 9 novembre 2026, CONSTRUIT, PAS EN LIGNE (branche `paie-test-mtn`, `paie-mtn` **2026-11-09-a** à déployer, le Trône à republier, aucun SQL)
+
+« Pourquoi la paie ne marche pas et quand je lance les tests de 100 F et de 500 F rien ne se passe ? » (Yéman). Le serveur était prêt — `paie-mtn` répondait `pret: true` (trois clés + relais). Deux chants muets, tous les deux dans le Trône :
+
+- **Le bouton éteint ne parlait pas.** L'essai de 100 F (`EssaiMtn.tsx`) éteignait son bouton dès qu'aucune fiche de la branche n'avait de numéro MTN ; il affichait « Envoyer le test à 0 personne », et un bouton éteint ne dit rien quand on clique — d'où « rien ne se passe ». Le message qui l'explique (`pourquoiPasLEssai`) existait déjà mais était inatteignable. Le bouton reste désormais allumé ; le clic dit la raison, et l'écran l'écrit aussi sous le bouton. Et une fiche dont le numéro est chez **Moov** ne disparaît plus du décompte sans un mot : `equipeDeLEssai` rend `pasMtn` (nom + opérateur), affiché « Jamais par MTN : … ».
+- **Un test muet verrouillait le bloc pour toujours.** Un envoi que MTN ne prend pas (relais muet, 5xx) reste `sans-reponse`, et rien ne le clôt : `bilanDeLEssai` le compte « en cours » indéfiniment, or les deux écrans interdisent un nouveau test tant qu'il y en a un. Le premier test (100 F) condamnait donc le second (500 F). La direction clôt maintenant le test, d'un geste et à son nom : action `clore` de `paie-mtn` (les envois `programme/envoi/envoye/sans-reponse` du test passent `annule`, `annule_par`, `annule_le`, `repondu_le`, note « test clos par … »), bouton « Clore ce test » dans La paie et dans Les paiements, et `CE_QUE_CLORE_UN_TEST` dit avant le geste que ce que MTN aurait versé malgré tout ne comptera pas dans la dépense. Le nombre d'envois sans réponse et la date du plus ancien se lisent à l'écran (`lePlusEnSouffrance`).
+- **Règles** : `src/shared/paie-par-mtn-pur.ts` (`pasMtn`, `envoisEnSouffrance`, `lePlusEnSouffrance`, `CE_QUE_CLORE_UN_TEST`) ; client `paie-par-mtn.ts` (`clore`).
+- **Banc** : `node scripts/verifie-la-paie-par-mtn.mjs` (le harnais du Trône et le vrai serveur contre un faux relais, dont un relais **sourd** qui ne répond rien) ; `--prouve` : 61 fautes, le banc crie à chacune, dont les quatre neuves (la fiche Moov qui disparaît, l'envoi sans réponse qui ne retient plus, la clôture sans date, la clôture sans identifiant lisible). `verifie-les-paiements` et `verifie-la-paie-du-5` verts. `verifie-la-periode-des-pourboires` ne tourne pas ici (`Access is denied` sur son dossier temporaire, avant toute compilation : environnement, pas le code).
+- **Reste, pour que le vrai test parte** : le numéro MTN sur chaque fiche (Équipe › Personnel, « Numéro mobile money (paie) », opérateur MTN, dix chiffres commençant par 01). La paie réelle, elle, retient un numéro posé ou changé depuis moins de sept jours jusqu'à « C'est bien son numéro » (`gardeDuNumero`).
+
+
 ## L'ARRONDI DES REMISES EN POURCENTAGE : 7 novembre 2026, CONSTRUIT, PAS EN LIGNE (branche locale `arrondi-des-remises`, rien poussé, aucun SQL)
 
 « Arrondis les pourcentages, pas de monnaie, arrondis au franc rond suivant » (Yéman, sur le forfait à 20 % du Catalogue : 93 600 F, 95 200 F…). Au sélecteur : AU 500 F SUPÉRIEUR, toutes les remises en %.

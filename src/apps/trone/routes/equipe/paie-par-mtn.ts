@@ -74,6 +74,14 @@ export const teste = (essaiId: string, items: ItemAEnvoyer[]) =>
 export const annule = (references: string[]) =>
   appelle<{ annules: number }>({ action: 'annuler', references });
 
+/** CLORE UN TEST MUET — 9 novembre 2026. Les envois d'un test qui n'ont pas
+    de réponse finale passent « annulé », au nom de qui clôt : sans cela, un
+    envoi que MTN laisse sans réponse retenait le bloc du test pour toujours
+    (`bilanDeLEssai` le compte « en cours »), et aucun autre test ne partait.
+    Le serveur décide (action `clore`), et ne touche qu'un test lisible. */
+export const clore = (essaiId: string) =>
+  appelle<{ clos: number }>({ action: 'clore', essaiId });
+
 export const renvoie = (reference: string, msisdn?: string) =>
   appelle<{ inscrits: string[] }>({ action: 'renvoyer', reference, nouvelle: nouvelleReference(), ...(msisdn ? { msisdn } : {}) });
 

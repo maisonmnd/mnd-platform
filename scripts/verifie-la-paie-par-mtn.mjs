@@ -65,6 +65,10 @@ const PANNES = [
   ['un prestataire recoit le test', PUR, "    if (f.contractType === 'prestataire' || f.archiveeLe) continue;", '    if (f.archiveeLe) continue;'],
   ['le test a 1 000 F', PUR, 'export const MONTANT_ESSAI_MAX = 500;', 'export const MONTANT_ESSAI_MAX = 1000;'],
   ['la depense avant la fin du test', PUR, '  if (!o.bilan.fini || o.bilan.recuXof <= 0) return null;', '  if (o.bilan.recuXof <= 0) return null;'],
+  ['la fiche au numero Moov disparait encore du decompte', PUR, '    pasMtn.push({ nom: f.name, operateur: mm.operateur });\n', ''],
+  ['un envoi sans reponse ne retient plus le test', PUR, '  envois.filter((e) => !estFinal(e.etat));', '  envois.filter(() => false);'],
+  ['la cloture ne date pas son geste', FONCTION, "        etat: 'annule', annule_par: qui.par, annule_le: maintenant, repondu_le: maintenant,", "        etat: 'annule', annule_par: qui.par, annule_le: maintenant,"],
+  ['la cloture sans identifiant lisible', FONCTION, "    if (!/^essai-\\d{12}$/.test(essaiId)) return json({ erreur: 'test illisible' }, 400);", "    if (false) return json({ erreur: 'test illisible' }, 400);"],
   /* Les ecrans et la base */
   ['la validation ne programme plus', P5, '    const res = await programmeLeRun({', '    const res = await Promise.resolve({ tri: { attendent: [] }, inscrits: [], refuses: [], erreur: undefined }) ?? programmeLeRun({'],
   ['le portail disparait', P5, "        ) : portailMtn}\n", '        ) : null}\n'],
@@ -172,7 +176,7 @@ const JWT_EQUIPE = 'jwt-equipe';
 const COMPTES = { [JWT_DIRECTION]: '11111111-1111-4111-8111-111111111111', [JWT_EQUIPE]: '22222222-2222-4222-8222-222222222222' };
 const STAFF = { [COMPTES[JWT_DIRECTION]]: { role: 'souverain', name: 'Y. B.' }, [COMPTES[JWT_EQUIPE]]: { role: 'coiffeuse', name: 'A. K.' } };
 
-const N = { bon: '2290190000001', refuse: '2290190000002', lent: '2290190000003', perdu: '2290190000004', inactif: '2290190000005', deja: '2290190000006', muet: '2290190000007', oublie: '2290190000008', jamais: '2290190000009' };
+const N = { bon: '2290190000001', refuse: '2290190000002', lent: '2290190000003', perdu: '2290190000004', inactif: '2290190000005', deja: '2290190000006', muet: '2290190000007', oublie: '2290190000008', jamais: '2290190000009', sourd: '2290190000010' };
 const NOMS = { [N.bon]: ['AICHA', 'KOSSOU'], [N.refuse]: ['PAULIN', 'AHO'] };
 
 let registre = [];
@@ -184,7 +188,10 @@ let transferts = new Map();  // ref -> { msisdn, montant, posts, lu, statut }
 let journal = [];
 let soldeMtn = 1_000_000;
 let perduUneFois = new Set();
-const remiseAZero = () => { envoisDeposes = new Map(); envoisPostes = []; registre = []; transferts = new Map(); journal = []; soldeMtn = 1_000_000; perduUneFois = new Set(); };
+/* Les references que MTN ne prend jamais ET sur lesquelles il ne repond rien :
+   le relais muet. Le Trone les laisse « sans-reponse », et rien ne les clôt. */
+let sourds = new Set();
+const remiseAZero = () => { envoisDeposes = new Map(); envoisPostes = []; registre = []; transferts = new Map(); journal = []; soldeMtn = 1_000_000; perduUneFois = new Set(); sourds = new Set(); };
 
 const rep = (status, corps) => new Response(corps === undefined ? '' : JSON.stringify(corps), { status, headers: { 'content-type': 'application/json' } });
 const valeurs = (v) => v.replace(/^in\.\(|\)$/g, '').split(',').map((x) => x.replace(/^"|"$/g, ''));
@@ -264,6 +271,8 @@ function mtn(url, methode, h, corps) {
     const msisdn = corps.payee.partyId;
     if (msisdn === N.perdu && !perduUneFois.has(ref)) { perduUneFois.add(ref); return rep(500, { code: 'INTERNAL_PROCESSING_ERROR' }); }
     if (msisdn === N.jamais) return rep(500, { code: 'INTERNAL_PROCESSING_ERROR' });
+    /* Le relais muet : l'envoi n'est jamais pris, et la relecture ne repond rien. */
+    if (msisdn === N.sourd) { sourds.add(ref); return rep(500, { code: 'INTERNAL_PROCESSING_ERROR' }); }
     const montant = Number(corps.amount);
     const statut = msisdn === N.refuse ? { status: 'FAILED', reason: 'PAYEE_NOT_ALLOWED_TO_RECEIVE' } : { status: 'SUCCESSFUL', financialTransactionId: String(41270000 + transferts.size) };
     if (statut.status === 'SUCCESSFUL') soldeMtn -= montant;
@@ -273,6 +282,7 @@ function mtn(url, methode, h, corps) {
     return rep(202);
   }
   if (methode === 'GET' && (m = p.match(/^\/disbursement\/v1_0\/transfer\/([^/]+)$/))) {
+    if (sourds.has(m[1])) return rep(503, { code: 'SERVICE_UNAVAILABLE' });
     const t = transferts.get(m[1]); if (!t) return rep(404, { code: 'RESOURCE_NOT_FOUND' });
     t.lu++;
     /* MTN a accepte l'envoi mais ne le montre pas encore : 404 deux fois. */
@@ -547,6 +557,33 @@ const postsTransfert = () => journal.filter((j) => j.methode === 'POST' && j.url
   const r2 = await direction({ action: 'tester', essaiId: 'pas-un-essai', envois: [{ reference: ref(), employeeId: 'e1', nom: 'A', msisdn: N.bon, montantXof: 100 }] });
   dit('un test sans identifiant lisible n entre pas', r2.o?.inscrits?.length === 0, r2.t);
   dit('aucune reponse ne montre une cle', sansSecret(r.t) && sansSecret(r2.t), r.t);
+}
+
+/* Clore un test que MTN laisse sans reponse (9 novembre 2026) */
+{
+  remiseAZero();
+  const essaiId = 'essai-202612011900';
+  const r = await direction({ action: 'tester', essaiId, envois: [
+    { reference: ref(), employeeId: 'e1', nom: 'Aïcha Kossou', msisdn: N.sourd, montantXof: 100 },
+    { reference: ref(), employeeId: 'e2', nom: 'Paulin Aho', msisdn: N.bon, montantXof: 100 },
+  ] });
+  const muet = () => registre.find((x) => x.essai_id === essaiId && x.msisdn === N.sourd);
+  dit('un test que MTN ne prend pas reste « sans reponse »', r.o?.inscrits?.length === 2 && muet()?.etat === 'sans-reponse', JSON.stringify({ r: r.o, l: muet() }));
+  await cron(); await cron();
+  dit('... et le passage le relit sans le clore : rien ne l arrete tout seul', muet()?.etat === 'sans-reponse', JSON.stringify(muet()));
+  const avant = postsTransfert().length;
+  const c = await direction({ action: 'clore', essaiId });
+  dit('clore : le test s arrete, au nom de qui clot, avec sa date et sa note',
+    c.o?.clos === 1 && muet()?.etat === 'annule' && muet()?.annule_par === 'Y. B.' && !!muet()?.repondu_le && muet()?.note === 'test clos par Y. B.',
+    JSON.stringify({ r: c.o, l: muet() }));
+  await cron();
+  dit('un test clos ne se relit plus chez MTN', postsTransfert().length === avant, `${postsTransfert().length} / ${avant}`);
+  const autre = await direction({ action: 'tester', essaiId: 'essai-202612011901', envois: [{ reference: ref(), employeeId: 'e1', nom: 'Aïcha Kossou', msisdn: N.bon, montantXof: 500 }] });
+  dit('un nouveau test repart apres la cloture', autre.o?.inscrits?.length === 1, autre.t);
+  const illisible = await direction({ action: 'clore', essaiId: 'pas-un-essai' });
+  dit('clore refuse un identifiant illisible, et le dit', illisible.status === 400 && /test illisible/.test(illisible.t), illisible.t);
+  const equipe = await poste(JWT_EQUIPE, { action: 'clore', essaiId });
+  dit('l equipe ne clot pas un test : la direction seule', equipe.status === 403, equipe.t);
 }
 
 /* Tout le journal : jamais MTN en direct */

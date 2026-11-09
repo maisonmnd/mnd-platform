@@ -225,25 +225,39 @@ export const notificationDeLaPaie = (periode: string, montantXof: number): strin
    Un bouton dans La paie, avant le 5 : 100 F vers le numéro MTN de chaque
    fiche de l'équipe salariée (pas les prestataires, pas les fiches
    archivées). Offerts par la Maison : une dépense « Essai de paie MTN »,
-   les bulletins ne bougent pas. Jamais plus de 500 F par personne. */
+   les bulletins ne bougent pas. Jamais plus de 500 F par personne.
+
+   TOUTES LES FICHES SE DISENT — 9 novembre 2026. Une fiche dont le numéro
+   est chez Moov n'était ni comptée ni nommée : elle disparaissait du
+   décompte sans un mot, et l'écran pouvait dire « 0 fiche avec un numéro
+   MTN » sans jamais dire qui manquait ni pourquoi. Elle a désormais sa
+   liste (`pasMtn`), à côté des sans-numéro. Et le bouton ne s'éteint plus
+   devant une équipe vide : un bouton éteint ne dit rien, alors que la
+   raison, elle, est écrite (`pourquoiPasLEssai`). */
 export const MONTANT_ESSAI = 100;
 export const MONTANT_ESSAI_MAX = 500;
 export type FichePourLEssai = { id: string; name: string; contractType?: string; archiveeLe?: string; mobileMoney?: { numero: string; operateur: string } };
-export function equipeDeLEssai(fiches: readonly FichePourLEssai[], montantXof: number): { partent: ItemAEnvoyer[]; sansNumero: string[] } {
+export function equipeDeLEssai(
+  fiches: readonly FichePourLEssai[], montantXof: number,
+): { partent: ItemAEnvoyer[]; sansNumero: string[]; pasMtn: { nom: string; operateur: string }[] } {
   const partent: ItemAEnvoyer[] = [];
   const sansNumero: string[] = [];
+  const pasMtn: { nom: string; operateur: string }[] = [];
   for (const f of fiches) {
     if (f.contractType === 'prestataire' || f.archiveeLe) continue;
     const mm = f.mobileMoney;
-    if (mm?.operateur === 'MTN' && RE_MSISDN.test(mm.numero)) partent.push({ employeeId: f.id, nom: f.name, msisdn: mm.numero, montantXof });
-    else if (!mm || mm.operateur === 'MTN') sansNumero.push(f.name);
+    if (mm?.operateur === 'MTN' && RE_MSISDN.test(mm.numero)) { partent.push({ employeeId: f.id, nom: f.name, msisdn: mm.numero, montantXof }); continue; }
+    if (!mm || mm.operateur === 'MTN') { sansNumero.push(f.name); continue; }
+    /* Un numéro chez Moov, ou chez un opérateur que la paie MTN ne connaît
+       pas : rien ne part, mais la fiche se nomme. */
+    pasMtn.push({ nom: f.name, operateur: mm.operateur });
   }
-  return { partent, sansNumero };
+  return { partent, sansNumero, pasMtn };
 }
 export function pourquoiPasLEssai(montantXof: number, nombre: number): string | null {
   if (!Number.isInteger(montantXof) || montantXof < 1) return 'Le montant du test est un nombre entier de francs.';
   if (montantXof > MONTANT_ESSAI_MAX) return `Le test ne dépasse pas ${MONTANT_ESSAI_MAX} F par personne.`;
-  if (nombre === 0) return 'Aucune fiche de l’équipe n’a de numéro MTN : tapez-les d’abord sur les fiches.';
+  if (nombre === 0) return 'Aucune fiche de l’équipe n’a de numéro MTN : tapez-le sur leur fiche, avec l’opérateur MTN.';
   return null;
 }
 /** L'identifiant d'un test : son heure de départ à Cotonou. */
@@ -270,3 +284,21 @@ export function depenseDeLEssai(o: { essaiId: string; branchId: string; bilan: B
     laMaisonAPaye: true,
   };
 }
+
+/* ── 7 bis. CLORE UN TEST QUE MTN LAISSE SANS RÉPONSE — 9 novembre 2026 ──
+   Un envoi que MTN ne prend pas (relais muet, erreur 5xx) reste
+   « sans-réponse », et aucune règle ne le clôt : le bilan du test le compte
+   comme « en cours » pour toujours. Or l'écran interdit un nouveau test
+   tant qu'un envoi est en cours — un premier test muet condamnait donc le
+   bloc, et le second (500 F, après un refus à 100 F) ne partait jamais.
+   La direction peut désormais clore le test, d'un geste et à son nom : ce
+   que cela veut dire est écrit ici, une seule fois, pour les deux écrans. */
+export const envoisEnSouffrance = (envois: readonly EnvoiMtn[]): EnvoiMtn[] =>
+  envois.filter((e) => !estFinal(e.etat));
+/** Le plus ancien envoi sans réponse finale : depuis quand MTN se tait. */
+export const lePlusEnSouffrance = (envois: readonly EnvoiMtn[]): EnvoiMtn | undefined =>
+  envoisEnSouffrance(envois).sort((a, b) => (a.programme_le ?? '').localeCompare(b.programme_le ?? ''))[0];
+export const CE_QUE_CLORE_UN_TEST =
+  'Les envois sans réponse finale seront marqués « annulé », au nom de qui clôt, avec la date. '
+  + 'Si MTN a versé l’argent malgré tout, il ne comptera pas dans la dépense « Essai de paie MTN » : '
+  + 'regardez le solde du compte MTN avant de clore.';

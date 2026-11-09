@@ -28,7 +28,7 @@
 
    QUI APPELLE.
    · La direction (souverain, gérant), avec son jeton : etat, lire,
-     programmer, tester, annuler, renvoyer, relire.
+     programmer, tester, annuler, clore, renvoyer, relire.
    · Le passage de la base (cron, clé de service) : les envois dus et les
      réponses attendues, rien d'autre.
 
@@ -45,7 +45,7 @@
    POST  { action, … } : voir plus bas.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-11-06-a';
+const VERSION = '2026-11-09-a';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -503,6 +503,31 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ etat: 'annule', annule_par: qui.par, annule_le: maintenant, updated_at: maintenant }),
     });
     return json({ annules: Array.isArray(r.corps) ? r.corps.length : 0 });
+  }
+
+  /* CLORE UN TEST QUE MTN LAISSE SANS RÉPONSE — 9 novembre 2026.
+     « Annuler » ne touche que ce qui n'est pas parti : un envoi confié à MTN
+     et resté sans réponse (relais muet, 5xx) ne se fermait par aucun geste.
+     Or le Trône interdit un nouveau test tant qu'un envoi est « en cours » :
+     un premier test muet condamnait donc le bloc, et le second (500 F, après
+     un refus à 100 F) ne partait jamais. Ici, la direction clôt le test : ses
+     envois sans réponse finale passent « annulé », à son nom et à l'heure
+     dite. Ce qui est déjà parti chez MTN peut encore être versé : le registre
+     ne le comptera pas comme reçu — le solde du compte MTN reste la preuve,
+     et le Trône le dit avant le geste (CE_QUE_CLORE_UN_TEST). */
+  if (action === 'clore') {
+    const essaiId = String(corps.essaiId ?? '');
+    if (!/^essai-\d{12}$/.test(essaiId)) return json({ erreur: 'test illisible' }, 400);
+    const r = await base(`paie_envois_mtn?essai_id=eq.${encodeURIComponent(essaiId)}&etat=in.(programme,envoi,envoye,sans-reponse)`, {
+      method: 'PATCH', headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({
+        etat: 'annule', annule_par: qui.par, annule_le: maintenant, repondu_le: maintenant,
+        note: `test clos par ${qui.par}`, updated_at: maintenant,
+      }),
+    });
+    const clos = Array.isArray(r.corps) ? r.corps.length : 0;
+    console.log('[paie-mtn]', action, { par: qui.par, clos });
+    return json({ clos });
   }
 
   if (action === 'renvoyer') {

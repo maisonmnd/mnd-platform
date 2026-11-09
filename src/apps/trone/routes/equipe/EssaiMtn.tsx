@@ -6,12 +6,12 @@ import { useAuth, useStaff as useMaTete } from '../../../../shared/auth';
 import { expensesStore, type Expense } from '../../../../shared/finance';
 import { numeroDit, quandDit } from '../../../../shared/paie-du-5-pur';
 import {
-  ETAT_DE_L_ENVOI_DIT, MONTANT_ESSAI, MONTANT_ESSAI_MAX, bilanDeLEssai, depenseDeLEssai, equipeDeLEssai, idDeLEssai,
-  nomConcorde, pourquoiPasLEssai, raisonDite, type EnvoiMtn, type LectureMtn,
+  CE_QUE_CLORE_UN_TEST, ETAT_DE_L_ENVOI_DIT, MONTANT_ESSAI, MONTANT_ESSAI_MAX, bilanDeLEssai, depenseDeLEssai,
+  equipeDeLEssai, idDeLEssai, lePlusEnSouffrance, nomConcorde, pourquoiPasLEssai, raisonDite, type EnvoiMtn, type LectureMtn,
 } from '../../../../shared/paie-par-mtn-pur';
 import { useStaff } from './data';
 import { asArray, jourLocalDe } from './payroll';
-import { lisChezMtn, renvoie, teste, useEnvoisMtn, useServeurMtn } from './paie-par-mtn';
+import { clore, lisChezMtn, renvoie, teste, useEnvoisMtn, useServeurMtn } from './paie-par-mtn';
 import { ceQuiSeDitDeLEnvoi, derniersParPersonne } from './PaieParMtn';
 import './paie-du-5.css';
 
@@ -37,6 +37,7 @@ export default function EssaiMtn() {
   const [montant, setMontant] = useState(String(MONTANT_ESSAI));
   const [noms, setNoms] = useState<LectureMtn | null>(null);
   const [part, setPart] = useState(false);
+  const [fermeture, setFermeture] = useState(false);
   const { envois, relis: relisLeRegistre } = useEnvoisMtn({ essais: true, actif: serveur.pret });
 
   const m = Number.parseInt(montant, 10);
@@ -107,6 +108,35 @@ export default function EssaiMtn() {
     relisLeRegistre();
   };
 
+  /* MTN SE TAIT : LE BLOC SE FERME, ET SE ROUVRE D'UN GESTE NOMMÉ — 9 novembre
+     2026. Un envoi sans réponse finale comptait « en cours » pour toujours :
+     aucun second test (les 500 F après un refus à 100 F) ne partait plus, et
+     le bouton éteint ne disait rien. La direction clôt le test, à son nom. */
+  const muet = lePlusEnSouffrance(duDernier);
+  const depuis = muet ? quandDit(muet.envoye_le ?? muet.programme_le, true) : '';
+
+  const cloreLeTest = async () => {
+    if (!dernierId) return;
+    if (!await demande({
+      quoi: 'Le test de la paie MTN',
+      titre: `Clore le test · ${bilan.enCours} envoi${bilan.enCours > 1 ? 's' : ''} sans réponse ?`,
+      dit: `Ils seront marqués « annulé », au nom de ${qui || 'la direction'}, avec la date.`,
+      suite: CE_QUE_CLORE_UN_TEST,
+      accepter: 'Clore le test',
+      refuser: 'Attendre MTN',
+      dur: true,
+    })) return;
+    setFermeture(true);
+    try {
+      const r = await clore(dernierId);
+      if (r.erreur) { alerte(r.erreur); return; }
+      toast(`Test clos : ${r.clos ?? 0} envoi${(r.clos ?? 0) > 1 ? 's' : ''} sans réponse.`);
+    } finally {
+      setFermeture(false);
+      relisLeRegistre();
+    }
+  };
+
   const nomDit = (e: EnvoiMtn) => {
     const nom = noms?.numeros?.[e.msisdn]?.nom;
     if (!nom) return '';
@@ -129,6 +159,7 @@ export default function EssaiMtn() {
           <div className="p5__soldes">
             <span><b>{equipe.partent.length}</b> fiche{equipe.partent.length > 1 ? 's' : ''} avec un numéro MTN</span>
             {equipe.sansNumero.length > 0 && <span>Sans numéro MTN : {equipe.sansNumero.join(', ')} (à taper sur leur fiche)</span>}
+            {equipe.pasMtn.length > 0 && <span>Jamais par MTN : {equipe.pasMtn.map((x) => `${x.nom} (${x.operateur})`).join(', ')}</span>}
             {noms?.soldeXof != null && <span>Compte de paie MTN : {F(noms.soldeXof)}, lu le {quandDit(noms.le)}</span>}
           </div>
           <div className="p5__pied">
@@ -136,10 +167,28 @@ export default function EssaiMtn() {
               <Field label="Montant par personne (F)">
                 <Input id="essai-mtn-montant" inputMode="numeric" value={montant} onChange={(e) => setMontant(e.target.value.replace(/\D/g, ''))} style={{ maxWidth: 120 }} />
               </Field>
-              <Button variant="copper" disabled={part || equipe.partent.length === 0} onClick={() => void envoyer()}>
+              {/* LE BOUTON NE S'ÉTEINT PLUS DEVANT UNE ÉQUIPE VIDE : un bouton
+                  éteint ne dit rien, et c'est exactement ce qu'on a lu comme
+                  « rien ne se passe ». Le clic dit pourquoi (pourquoiPasLEssai). */}
+              <Button variant="copper" disabled={part} onClick={() => void envoyer()}>
                 {part ? 'Le test part…' : `Envoyer le test à ${equipe.partent.length} personne${equipe.partent.length > 1 ? 's' : ''}`}
               </Button>
             </div>
+            {equipe.partent.length === 0 && !part && (
+              <p className="p5__doux" style={{ marginTop: 8 }}>
+                Rien ne peut partir : aucune fiche de cette branche n’a de numéro MTN. Il se tape sur la fiche
+                (Équipe › Personnel), champ « Numéro mobile money (paie) », opérateur MTN.
+              </p>
+            )}
+            {bilan.enCours > 0 && dernierId && (
+              <p className="p5__doux" style={{ marginTop: 8 }}>
+                {bilan.enCours} envoi{bilan.enCours > 1 ? 's' : ''} sans réponse de MTN{depuis ? ` depuis le ${depuis}` : ''}.
+                Le prochain test attend qu’ils soient clos.{' '}
+                <Button size="sm" variant="ghost" disabled={fermeture} onClick={() => void cloreLeTest()}>
+                  {fermeture ? 'On clôt…' : 'Clore ce test'}
+                </Button>
+              </p>
+            )}
             {duDernier.length > 0 && (
               <>
                 <p className="p5__doux">
