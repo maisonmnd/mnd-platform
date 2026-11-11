@@ -9,7 +9,7 @@ import {
   etatDuNumero, factureDuMois, itemDeLaLigne, itemsDuTest, jourLu, ligneADate, ligneDeLEquipe, lignesDuTest, periodeParDefaut,
   peutAnnuler, peutPrendre, pointsARegarder, pontTenu, pourboiresDuMois, pourquoiPasLeTest, seRelanceA500, seValideAPart, testReussi,
   totalDuTest, validationDe, entreprisesDuCarnet,
-  ARRET_GARDE, HEURES_POSSIBLES, depenseDeLEmploye, employesDuMois, gardeDeLEmploye, heureDePaieDite, heureLue, montantDeLEmploye,
+  HEURES_POSSIBLES, depenseDeLEmploye, employesDuMois, heureDePaieDite, heureLue, montantDeLEmploye,
   type EmployeDEntreprise, type FactureDEntreprise, type LigneDuMois, type ValidationADate,
 } from '../src/shared/les-paiements-pur';
 import { calendrierDeLaPaie, type LectureDeLaLigne } from '../src/shared/paie-du-5-pur';
@@ -331,16 +331,16 @@ dit('les employes du mois : arrives a leur periode, retires apres la leur', [['e
   [employesDuMois(emps, '2026-10').map((e) => e.id), employesDuMois(emps, '2026-11').map((e) => e.id), employesDuMois(emps, '2026-12').map((e) => e.id), employesDuMois(undefined, '2026-11')]);
 dit('le montant du mois : pose pour le mois, sinon le mensuel ; 0 se pose', [60000, 30000, 0],
   [montantDeLEmploye(emps[0]), montantDeLEmploye(emps[0], { 'entreprise:ee-1': 30000 }), montantDeLEmploye(emps[0], { 'entreprise:ee-1': 0 })]);
-const neuf = { mobileMoney: mm('2026-12-05T10:00:00Z') };
-dit('la garde de l employe : jugee au depart ; sept jours ce jour-la, il part ; revalide, il part', [true, false, false, true],
-  [gardeDeLEmploye(neuf, ms('2026-12-09T08:30:00Z'), ms('2026-12-06T00:00:00Z')), gardeDeLEmploye(neuf, ms('2026-12-12T17:00:00Z'), ms('2026-12-06T00:00:00Z')),
-    gardeDeLEmploye({ mobileMoney: mm('2026-12-05T10:00:00Z', '2026-12-06T09:00:00Z') }, ms('2026-12-09T08:30:00Z'), ms('2026-12-06T10:00:00Z')),
-    gardeDeLEmploye(neuf, undefined, ms('2026-12-06T00:00:00Z'))]);
-const gardee = ligneADate({ genre: 'entreprise', id: 'ee-2', entrepriseId: 'fr-9', nom: 'S. D.', periode: '2026-11', montantXof: 45000, msisdn: '2290190000052', numero: { etat: 'verifie' }, jour: 9, arret: ARRET_GARDE, envois: [] });
 const differe = ligneADate({ genre: 'entreprise', id: 'ee-4', entrepriseId: 'fr-9', nom: 'R. Z.', periode: '2026-11', montantXof: 45000, msisdn: '2290190000063', numero: { etat: 'differe', nomMtn: 'AUTRE' }, jour: 9, envois: [] });
-const ptsE = pointsARegarder({ lignes: [aHeure(), gardee, differe], soldeXof: 1_000_000, aCouvrirXof: 0 });
-dit('la garde et le nom chez MTN arretent l employe seul ; les autres partent', [['nom-differe', 'numero-garde'], ['entreprise:ee-2'], 'confirme', true, false],
-  [ptsE.map((p) => p.code), ptsE.find((p) => p.code === 'numero-garde')?.cles, aHeure().etat, aHeure().aValider, gardee.aValider]);
+const ptsE = pointsARegarder({ lignes: [aHeure(), differe], soldeXof: 1_000_000, aCouvrirXof: 0 });
+dit('le nom chez MTN arrete l employe seul ; les autres partent', [['nom-differe'], ['entreprise:ee-4'], 'confirme', true, false],
+  [ptsE.map((p) => p.code), ptsE.find((p) => p.code === 'nom-differe')?.cles, aHeure().etat, aHeure().aValider, differe.aValider]);
+/* 11 nov. 2026 : « Enleve cette restriction » (Yeman) : pas de garde des sept
+   jours pour un employe d'entreprise ; l'ecran ne lui pose aucun arret de garde. */
+const ECRAN_E = lis('src/apps/trone/routes/equipe/LesPaiements.tsx');
+const PUR_E = lis('src/shared/les-paiements-pur.ts');
+dit('pas de garde des sept jours pour les employes d entreprise ; l equipe garde la sienne', [false, false, true],
+  [/gardeDuNumero|gardeDeLEmploye|ARRET_GARDE/.test(PUR_E), /gardeDeLEmploye|ARRET_GARDE|gardeDuNumero\(e\./.test(ECRAN_E), PUR_E.includes("pose('numero-garde', de((l) => l.genre === 'equipe' && !!o.lectures?.get(l.id)?.blocages.some((b) => b.code === 'numero-recent')), true);")]);
 const ch = chiffresDuMois([aHeure(), { ...aHeure(), id: 'ee-5', cle: 'entreprise:ee-5' }, e1]);
 dit('une entreprise a employes compte une entreprise, et chacun un virement', [2, 2, 3, 165000], [ch.nbEntreprises, ch.nbEntreprisesTotal, ch.virements, ch.entreprisesXof]);
 dit('le pont tient avec des employes d entreprise', true, pontTenu(chiffresDuMois([a, b, aHeure(), e1])));

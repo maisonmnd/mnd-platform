@@ -35,7 +35,7 @@
 
 import { periodeDesPourboires } from './periode-des-pourboires-pur';
 import {
-  aCotonou, gardeDuNumero, lisLeNumero, moisDit, moisSuivant, pourboiresEnEspecesXof,
+  aCotonou, lisLeNumero, moisDit, moisSuivant, pourboiresEnEspecesXof,
   type Blocage, type LectureDeLaLigne, type MobileMoney,
 } from './paie-du-5-pur';
 import {
@@ -553,8 +553,7 @@ export function pointsARegarder(o: {
   pose('nom-differe', de((l) => l.numero === 'differe'), true);
   pose('numero-inactif', de((l) => l.numero === 'inactif'), true);
   pose('plafond', de((l) => l.genre === 'equipe' && !!o.lectures?.get(l.id)?.blocages.some((b) => b.code === 'plafond')), true);
-  pose('numero-garde', de((l) => (l.genre === 'equipe' && !!o.lectures?.get(l.id)?.blocages.some((b) => b.code === 'numero-recent'))
-    || (l.genre !== 'equipe' && l.pourquoi === ARRET_GARDE)), true);
+  pose('numero-garde', de((l) => l.genre === 'equipe' && !!o.lectures?.get(l.id)?.blocages.some((b) => b.code === 'numero-recent')), true);
   pose('sans-prix', de((l) => l.genre === 'prestataire' && l.pourquoi === 'sans prix'), true);
   pose('sans-montant', de((l) => l.genre === 'entreprise' && /montant du mois/.test(l.pourquoi ?? '')), true);
   pose('confirmation', de((l) => l.etat === 'attend'), false);
@@ -686,14 +685,17 @@ export type PieceDeFacture = { chemin: string; nom: string; type: string; taille
    MTN, à la date et à l'heure de l'entreprise, sous le run des entreprises.
    Le montant de l'entreprise est la somme de leurs montants mensuels ; un
    montant se change pour un mois seulement. Dès qu'elle a un employé pour le
-   mois, son propre numéro ne reçoit plus rien. La garde des sept jours et le
-   nom chez MTN valent pour chacun, comme pour l'équipe ; les autres partent
-   sans attendre. Pas de WhatsApp à l'employé. Un retrait vaut à partir du
-   mois qui suit la période où il est fait. */
+   mois, son propre numéro ne reçoit plus rien. Le nom chez MTN vaut pour
+   chacun, comme pour l'équipe ; les autres partent sans attendre. PAS DE
+   GARDE DES SEPT JOURS pour eux : « Enlève cette restriction » (Yéman, 11 nov.
+   2026, le jour où elle a posé les employés d'ACIA1) ; un numéro posé part au
+   prochain envoi. L'équipe garde la sienne. Pas de WhatsApp à l'employé. Un
+   retrait vaut à partir du mois qui suit la période où il est fait. */
 export type EmployeDEntreprise = {
   id: string;
   nom: string;
-  /** Son numéro MTN, avec la date du dernier changement (la garde). */
+  /** Son numéro MTN, avec la date du dernier changement (pour l'histoire ;
+      aucune garde ne s'applique aux employés d'entreprise). */
   mobileMoney: MobileMoney;
   mensuelXof: number;
   /** La première période payée, AAAA-MM. */
@@ -704,8 +706,6 @@ export type EmployeDEntreprise = {
   creePar: string;
 };
 
-export const ARRET_GARDE = 'numéro de moins de 7 jours';
-
 /** Les employés payés pour cette période. */
 export const employesDuMois = (employes: readonly EmployeDEntreprise[] | undefined, periode: string): EmployeDEntreprise[] =>
   (employes ?? []).filter((e) => e && (!e.dePeriode || e.dePeriode <= periode) && (!e.retireApres || periode <= e.retireApres));
@@ -715,13 +715,6 @@ export const montantDeLEmploye = (e: Pick<EmployeDEntreprise, 'id' | 'mensuelXof
   const pose = montantsDuMois?.[cleDeLigne('entreprise', e.id)];
   return Number.isInteger(pose) && (pose as number) >= 0 ? pose as number : Math.max(0, entier(e.mensuelXof));
 };
-
-/** La garde de l'employé, jugée à l'heure où l'argent part (ou maintenant, si
-    elle est passée) : un numéro qui aura sept jours ce jour-là part. */
-export function gardeDeLEmploye(e: Pick<EmployeDEntreprise, 'mobileMoney'>, departMs: number | undefined, maintenantMs: number): boolean {
-  if (!e.mobileMoney) return false;
-  return gardeDuNumero(e.mobileMoney, Math.max(maintenantMs, departMs ?? maintenantMs)).bloque;
-}
 
 /** La dépense d'un employé payé : une dépense de l'entreprise (Sous-traitance,
     son compte fournisseur), une par employé, jamais « Salaires ». */

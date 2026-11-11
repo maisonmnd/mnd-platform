@@ -24,8 +24,8 @@ import {
   heureDeDepart, idDeLEssai, lePlusEnSouffrance, raisonDite, type EnvoiMtn, type LectureMtn, type NomMtnVu,
 } from '../../../../shared/paie-par-mtn-pur';
 import {
-  ARRET_GARDE, ETAT_DIT, HEURES_POSSIBLES, HEURE_PAR_DEFAUT, JOURS_POSSIBLES, JOUR_PAR_DEFAUT, arretDeLEntreprise, chiffresDuMois, cleDeLigne, dateDePaie, departDeLaLigne,
-  depenseDeLEmploye, depenseDeLEntreprise, echeancierDuPret, employesDuMois, entreprisesDuCarnet, etatDuNumero, factureDuMois, gardeDeLEmploye,
+  ETAT_DIT, HEURES_POSSIBLES, HEURE_PAR_DEFAUT, JOURS_POSSIBLES, JOUR_PAR_DEFAUT, arretDeLEntreprise, chiffresDuMois, cleDeLigne, dateDePaie, departDeLaLigne,
+  depenseDeLEmploye, depenseDeLEntreprise, echeancierDuPret, employesDuMois, entreprisesDuCarnet, etatDuNumero, factureDuMois,
   heureDePaieDite, heureLue, itemDeLaLigne, jourDit, jourLu, ligneADate, ligneDeLEquipe, lignesDuTest, montantDeLEmploye, numeroPropose, periodeParDefaut,
   peutAnnuler, peutPrendre, pointsARegarder, pourboiresDuMois, pourquoiPasLeTest, runDesEntreprises, runDesPrestataires, seRelanceA500, seValideAPart,
   testReussi, totalDuTest, validationDe,
@@ -282,15 +282,14 @@ export default function LesPaiements() {
          de l'entreprise ; elle-même ne reçoit alors rien (11 nov. 2026). */
       const siens = employesDuMois(pmt.employes, periode);
       if (siens.length) {
-        const date = dateDePaie(periode, jour, heure);
         for (const e of siens) {
           const cle = cleDeLigne('entreprise', e.id);
           const msisdn = lisLeNumero(e.mobileMoney?.numero ?? '').msisdn;
           const numero = etatDuNumero({ nom: e.nom, msisdn, source: msisdn ? 'saisi' : 'sans', lecture, vu: vusDuRegistre[cle] });
           out.push(ligneADate({
             genre: 'entreprise', id: e.id, entrepriseId: f.id, nom: e.nom, periode,
+            /* Pas de garde des sept jours pour un employé d'entreprise (Yéman, 11 nov. 2026). */
             montantXof: montantDeLEmploye(e, montantsDuMois),
-            arret: gardeDeLEmploye(e, date?.ms, maintenant) ? ARRET_GARDE : undefined,
             msisdn, numero, jour, heure, validation: validations[cle], envois: envoisEnt,
           }));
           ctx.set(cle, { fournisseur: f, employe: e, ...(fac ? { facture: fac } : {}) });
@@ -715,24 +714,6 @@ export default function LesPaiements() {
 
   const revalide = async (l: LigneDuMois) => {
     const x = ctx.get(l.cle);
-    /* L'employé d'une entreprise : sa garde se lève sur la fiche de l'entreprise. */
-    if (x?.employe && x.fournisseur && qui) {
-      const emp = x.employe;
-      const fid = x.fournisseur.id;
-      if (!await demande({
-        quoi: 'Numéro mobile money',
-        titre: `Revalider le ${numeroDit(emp.mobileMoney.numero)} de ${emp.nom} ?`,
-        dit: `Il a été posé le ${quandDit(emp.mobileMoney.changeLe)}. Vous confirmez qu’il est bien le sien.`,
-        suite: `Revalidé par ${qui}.`,
-        accepter: 'Revalider ce numéro',
-        refuser: 'Ne rien faire',
-      })) return;
-      const le = nowIso();
-      fournisseursStore.set((prev) => asArray<Fournisseur>(prev).map((f) => (f.id === fid && f.paiement
-        ? { ...f, paiement: { ...f.paiement, employes: (f.paiement.employes ?? []).map((y) => (y.id === emp.id ? { ...y, mobileMoney: { ...y.mobileMoney, revalidePar: qui, revalideLe: le } } : y)) } }
-        : f)));
-      return;
-    }
     const fiche = x?.fiche;
     const mm = fiche?.mobileMoney;
     if (!fiche || !mm || !qui) return;
@@ -1579,7 +1560,7 @@ function SaisieDeLEntreprise({ branchId, fournisseur, periode, qui, ligne, ligne
               {emp.id && <Button size="sm" variant="ghost" onClick={() => { setEmp({ nom: '', numero: '', mensuel: '' }); setSouciEmp(''); }}>Laisser</Button>}
             </div>
             {souciEmp && <div className="lp-souci" role="alert">{souciEmp}</div>}
-            <p className="lp-doux lp-petit">MTN dira le nom du titulaire au prochain « Lire chez MTN ». Un numéro nouveau ou changé attend sept jours, sauf revalidation. Un retrait vaut à partir du mois suivant : {moisDit(periode)} se paie encore. Rien n’est écrit avant « Enregistrer ».</p>
+            <p className="lp-doux lp-petit">MTN dira le nom du titulaire au prochain « Lire chez MTN ». Un numéro posé part au prochain envoi, sans attendre. Un retrait vaut à partir du mois suivant : {moisDit(periode)} se paie encore. Rien n’est écrit avant « Enregistrer ».</p>
           </div>
         </div>
         {souci && <div className="lp-souci" role="alert">{souci}</div>}
