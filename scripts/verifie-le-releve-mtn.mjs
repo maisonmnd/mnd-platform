@@ -35,6 +35,12 @@ const PANNES = [
   ['le decaissement sans releve', PAGE, '      <ReleveMtn compte="decaissement" />\n', ''],
   ['la collecte sans releve', COL, '      <ReleveMtn compte="collecte" />\n', ''],
   ['le numero de decaissement ne s affiche plus', PAGE, "{numero ?? 'numéro à poser'}", "{'numéro à poser'}"],
+  ['un montant avec espaces se coupe en deux', PUR, "  if (/^[\\d\\s.]+$/.test(t)) return [t.replace(/[\\s.]/g, '')];\n", ''],
+  ['la recherche tient aux accents', PUR, "const sansAccent = (s: string): string => s.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();", "const sansAccent = (s: string): string => s.toLowerCase();"],
+  ['un bout de numero ne se retrouve plus', PUR, '  const nombres = [chiffres(x.msisdn), String(x.montantXof), chiffres(x.transaction), chiffres(x.reference)];', '  const nombres = [String(x.montantXof)];'],
+  ['un annule se retrouve', PUR, "  return mouvements.filter((x) => x.etat !== 'annule' && mouvementTrouve(x, mots))", '  return mouvements.filter((x) => mouvementTrouve(x, mots))'],
+  ['la page perd sa recherche', PAGE, '            <RechercheMtn />\n', ''],
+  ['le mode de couleur ne se garde plus', PAGE, '    try { localStorage.setItem(CLE_DU_MODE, m); }', '    try { void m; }'],
   ['paie-mtn ne rend plus le numero', FN, ', numeros: sortie, numero: numeroDuCompte() });', ', numeros: sortie });'],
   ['le numero se montre a tous (GET)', FN, 'numero: !!numeroDuCompte() },', 'numero: numeroDuCompte() },'],
 ];

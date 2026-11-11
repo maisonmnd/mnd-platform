@@ -9,7 +9,7 @@ import { supabase } from '../../../../shared/supabase';
 import { ETAT_DE_L_ENVOI_DIT, type EnvoiMtn } from '../../../../shared/paie-par-mtn-pur';
 import { PageHead } from '../_ui';
 import { CompteDeCollecteMtn } from './CompteDeCollecteMtn';
-import { ReleveMtn } from './ReleveMtn';
+import { RechercheMtn, ReleveMtn } from './ReleveMtn';
 import { PayAppointmentModal } from '../clients/actions';
 import { lisChezMtn } from '../equipe/paie-par-mtn';
 import './finances.css';
@@ -116,7 +116,28 @@ function CompteDeDecaissementMtn() {
   );
 }
 
+/* LES COULEURS DE LA CHARTE — 12 novembre 2026 (« mets-moi plusieurs modes
+   de couleur de la charte », Yéman). Quatre fonds de la Maison : indigo (la
+   nuit, d'origine), ivoire, cuivre, sable ; jamais d'obsidienne. Le choix
+   reste sur l'appareil (préférence de lecture, pas une donnée de la Maison). */
+type ModeDeCouleur = 'indigo' | 'ivoire' | 'cuivre' | 'sable';
+const MODES_DE_COULEUR: readonly { cle: ModeDeCouleur; dit: string; pastille: string }[] = [
+  { cle: 'indigo', dit: 'Indigo', pastille: '#1E2150' },
+  { cle: 'ivoire', dit: 'Ivoire', pastille: '#F6F1E7' },
+  { cle: 'cuivre', dit: 'Cuivre', pastille: '#B97A4A' },
+  { cle: 'sable', dit: 'Sable', pastille: '#E7D7C2' },
+];
+const CLE_DU_MODE = 'mnd_mtn_couleurs';
+const modeGarde = (): ModeDeCouleur => {
+  try { const v = localStorage.getItem(CLE_DU_MODE); return MODES_DE_COULEUR.some((m) => m.cle === v) ? v as ModeDeCouleur : 'indigo'; } catch { return 'indigo'; }
+};
+
 export default function MtnMoMo() {
+  const [mode, setMode] = useState<ModeDeCouleur>(modeGarde);
+  const choisisLeMode = (m: ModeDeCouleur) => {
+    setMode(m);
+    try { localStorage.setItem(CLE_DU_MODE, m); } catch { /* sans stockage, le choix vaut pour la visite */ }
+  };
   const moi = useStaff();
   const direction = moi?.role === 'souverain' || moi?.role === 'gerant';
   const [rdvs] = useAppointments();
@@ -129,10 +150,22 @@ export default function MtnMoMo() {
       {!direction ? (
         <p style={{ fontSize: 14, color: 'var(--ink-soft)' }}>Cette page est réservée à la direction.</p>
       ) : (
-        <>
+        <div className={`trf-mtn trf-mtn--${mode}`}>
+          {/* Les couleurs de la charte, au choix, gardées sur cet appareil (12 nov. 2026). */}
+          <div className="trf-mtn__outils">
+            <div className="trf-mtn__modes" role="group" aria-label="Les couleurs de la page">
+              <span>Couleurs</span>
+              {MODES_DE_COULEUR.map((m) => (
+                <button key={m.cle} type="button" aria-pressed={mode === m.cle} onClick={() => choisisLeMode(m.cle)} title={m.dit}>
+                  <i style={{ background: m.pastille }} aria-hidden="true" />{m.dit}
+                </button>
+              ))}
+            </div>
+            <RechercheMtn />
+          </div>
           <CompteDeCollecteMtn onOuvreLeRdv={setRdvAOuvrir} />
           <CompteDeDecaissementMtn />
-        </>
+        </div>
       )}
       {rdvOuvert && <PayAppointmentModal appt={rdvOuvert} onClose={() => setRdvAOuvrir(null)} />}
     </div>

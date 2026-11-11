@@ -225,6 +225,41 @@ export function releveEnCsv(r: Pick<Releve, 'lignes'>): string {
   return [tete, ...corps].map((l) => l.map(cellule).join(';')).join('\r\n');
 }
 
+/* ── 5. RETROUVER UNE TRANSACTION ─────────────────────────────────────
+   « Un bouton de recherche si je veux retrouver une transaction
+   rapidement » (Yéman, 12 nov. 2026). Un nom (sans accents ni majuscules),
+   un bout de numéro, un montant (« 25 000 » ou « 25000 »), une référence,
+   une transaction MTN, un jour (« 2026-11-05 » ou « 05/11 ») : chaque mot
+   doit se trouver quelque part dans le mouvement. */
+const sansAccent = (s: string): string => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const chiffres = (s: unknown): string => String(s ?? '').replace(/\D/g, '');
+
+/** Ce que l'on cherche, en mots ; un texte fait de chiffres et d'espaces
+    (« 25 000 ») reste un seul nombre. */
+export function motsDeLaRecherche(texte: string): string[] {
+  const t = sansAccent(String(texte ?? '').trim());
+  if (!t) return [];
+  if (/^[\d\s.]+$/.test(t)) return [t.replace(/[\s.]/g, '')];
+  return t.split(/\s+/).filter(Boolean);
+}
+
+export function mouvementTrouve(x: MouvementMtn, mots: readonly string[]): boolean {
+  if (!mots.length) return true;
+  const jour = Number.isFinite(Date.parse(x.quand)) ? jourACotonou(Date.parse(x.quand)) : '';
+  const jourCourt = jour ? `${jour.slice(8, 10)}/${jour.slice(5, 7)}` : '';
+  const texte = sansAccent([x.qui, x.nature, x.reference, x.transaction ?? '', ETAT_DIT[x.etat], jour, jourCourt].join(' '));
+  const nombres = [chiffres(x.msisdn), String(x.montantXof), chiffres(x.transaction), chiffres(x.reference)];
+  return mots.every((m) => texte.includes(m) || (/^\d+$/.test(m) && nombres.some((n) => n.includes(m))));
+}
+
+/** Les mouvements trouvés, du plus récent au plus ancien, `max` au plus. */
+export function chercheDansLesMouvements<M extends MouvementMtn>(mouvements: readonly M[], texte: string, max = 50): M[] {
+  const mots = motsDeLaRecherche(texte);
+  if (!mots.length) return [];
+  return mouvements.filter((x) => x.etat !== 'annule' && mouvementTrouve(x, mots))
+    .sort((p, q) => q.quand.localeCompare(p.quand)).slice(0, max);
+}
+
 /** Le jour le plus ancien qu'il faut lire au registre pour une période : le
     filtre se fait sur la date de demande, et une réponse arrive au plus tard
     quelques jours après (marge de 7 jours). */

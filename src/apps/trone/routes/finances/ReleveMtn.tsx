@@ -5,7 +5,7 @@ import { supabase } from '../../../../shared/supabase';
 import { fraisDeMtn } from '../../../../shared/collecte-mtn-pur';
 import {
   PERIODES_DU_RELEVE, bornesDites, bornesDuReleve, etatDuMouvementDit, jourACotonou, lireDepuisIso, mouvementsDeLaCollecte,
-  mouvementsDuDecaissement, releveDeLaPeriode, releveEnCsv,
+  mouvementsDuDecaissement, releveDeLaPeriode, releveEnCsv, chercheDansLesMouvements,
   type CollectePourLeReleve, type EnvoiPourLeReleve, type MouvementMtn, type PeriodeDuReleve,
 } from '../../../../shared/releve-mtn-pur';
 
@@ -146,5 +146,89 @@ export function ReleveMtn({ compte }: { compte: 'collecte' | 'decaissement' }) {
         </>
       )}
     </div>
+  );
+}
+
+/* ══ RETROUVER UNE TRANSACTION · 12 novembre 2026 ══════════════════════
+   « Un bouton de recherche si je veux retrouver une transaction
+   rapidement » (Yéman). Un champ, en tête de la page : il cherche dans les
+   DEUX comptes, depuis le début, par nom, bout de numéro, montant,
+   référence, transaction MTN ou jour. Les règles : `chercheDansLesMouvements`. */
+type Trouve = MouvementMtn & { compte: 'Collecte' | 'Décaissement' };
+const DEBUT_DU_REGISTRE = '2026-01-01T00:00:00Z';
+
+export function RechercheMtn() {
+  const { currency } = useBranch();
+  const F = (n: number) => fmtMoney(n, currency);
+  const [ouverte, setOuverte] = useState(false);
+  const [texte, setTexte] = useState('');
+  const [tous, setTous] = useState<Trouve[]>([]);
+  const [etat, setEtat] = useState<{ charge: boolean; erreur?: string }>({ charge: false });
+
+  useEffect(() => {
+    if (!ouverte) return;
+    let vivant = true;
+    setEtat({ charge: true });
+    void (async () => {
+      const [d, c] = await Promise.all([
+        litTout<EnvoiPourLeReleve>('paie_envois_mtn', 'updated_at', DEBUT_DU_REGISTRE),
+        litTout<CollectePourLeReleve>('collectes_mtn', 'demande_le', DEBUT_DU_REGISTRE),
+      ]);
+      if (!vivant) return;
+      setTous([
+        ...mouvementsDuDecaissement(d.lignes).map((x) => ({ ...x, compte: 'Décaissement' as const })),
+        ...mouvementsDeLaCollecte(c.lignes, fraisDeMtn).map((x) => ({ ...x, compte: 'Collecte' as const })),
+      ]);
+      setEtat({ charge: false, erreur: d.erreur ?? c.erreur });
+    })();
+    return () => { vivant = false; };
+  }, [ouverte]);
+
+  const trouves = useMemo(() => chercheDansLesMouvements(tous, texte), [tous, texte]);
+
+  if (!ouverte) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+        <button type="button" className="trf-recherche__bouton" onClick={() => setOuverte(true)}>
+          <span aria-hidden="true">⌕</span> Rechercher une transaction
+        </button>
+      </div>
+    );
+  }
+  return (
+    <section className="trf-obsidian trf-recherche" aria-label="Rechercher une transaction MTN" style={{ marginBottom: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+        <span className="trf-obsidian__eyebrow">Rechercher une transaction · collecte et décaissement</span>
+        <button type="button" className="trf-releve__lien" onClick={() => { setOuverte(false); setTexte(''); }}>Fermer</button>
+      </div>
+      <input
+        className="trf-recherche__champ" type="search" autoFocus value={texte} onChange={(e) => setTexte(e.target.value)}
+        placeholder="Un nom, un numéro (4 derniers chiffres), un montant, une référence, une transaction MTN, un jour (05/11)"
+        aria-label="Rechercher une transaction"
+      />
+      {etat.charge && <span style={PETIT}>Lecture des deux registres…</span>}
+      {etat.erreur && <span role="alert" style={{ fontSize: 13, color: 'var(--copper-200)' }}>{etat.erreur}</span>}
+      {!etat.charge && texte.trim() && trouves.length === 0 && <span style={PETIT}>Rien trouvé pour « {texte.trim()} ».</span>}
+      {trouves.length > 0 && (
+        <>
+          <span style={PETIT}>{trouves.length === 50 ? 'Les 50 plus récentes' : `${trouves.length} trouvée${trouves.length > 1 ? 's' : ''}`}</span>
+          <div className="trf-releve__lignes">
+            {trouves.map((x) => (
+              <div key={`${x.compte}-${x.reference}`} className={`trf-releve__ligne${x.etat !== 'recu' ? ' trf-releve__ligne--autre' : ''}`}>
+                <span style={PETIT}>{heureCourte(x.quand)}</span>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.qui} · <span style={PETIT}>{x.compte} · {x.nature} · {etatDuMouvementDit(x.etat)}</span></span>
+                  <span style={{ ...PETIT, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{[masque(x.msisdn), x.transaction ? `transaction ${x.transaction}` : '', `réf. ${x.reference.slice(0, 8)}`].filter(Boolean).join(' · ')}</span>
+                </span>
+                <span style={{ textAlign: 'right' }}>
+                  <b style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, fontSize: 16 }}>{x.compte === 'Décaissement' ? '− ' : '+ '}{F(x.montantXof)}</b>
+                  {x.fraisXof > 0 && <span style={{ ...PETIT, display: 'block' }}>frais {F(x.fraisXof)}</span>}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
   );
 }

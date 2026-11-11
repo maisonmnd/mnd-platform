@@ -2403,3 +2403,48 @@
 .trf-releve__ligne { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 7px 0; border-top: 1px solid var(--hairline-invert); font-size: 13.5px; color: var(--color-ivoire); }
 .trf-releve__ligne--autre { opacity: .6; }
 @media (max-width: 560px) { .trf-releve__ligne { grid-template-columns: minmax(0, 1fr) auto; } .trf-releve__ligne > :first-child { grid-column: 1 / -1; } }
+
+/* RETROUVER UNE TRANSACTION, ET LES COULEURS DE LA CHARTE — 12 novembre 2026
+   (Finances › MTN MoMo). Les modes redéfinissent, dans la page seulement, les
+   jetons que lisent les blocs : fond, encre, accents, filets, boutons. */
+.trf-mtn__outils { display: flex; justify-content: space-between; align-items: center; gap: 10px 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.trf-mtn__outils > div:last-child { margin-bottom: 0 !important; }
+.trf-mtn__outils > .trf-recherche { flex-basis: 100%; margin-bottom: 4px !important; }
+.trf-mtn__modes { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; color: var(--ink-soft); }
+.trf-mtn__modes > span { letter-spacing: .14em; text-transform: uppercase; font-size: 10.5px; margin-right: 4px; }
+.trf-mtn__modes button { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12.5px; color: var(--color-indigo); background: var(--surface-card, #FFFDF8); border: 1px solid var(--hairline); border-radius: 999px; padding: 4px 11px; cursor: pointer; }
+.trf-mtn__modes button[aria-pressed="true"] { border-color: var(--color-copper); box-shadow: inset 0 0 0 1px var(--color-copper); }
+.trf-mtn__modes button:focus-visible, .trf-recherche__bouton:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.trf-mtn__modes i { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(30, 33, 80, .25); }
+.trf-recherche__bouton { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 13px; font-weight: 500; color: var(--color-ivoire); background: var(--color-indigo); border: 0; border-radius: 999px; padding: 8px 16px; cursor: pointer; }
+.trf-recherche__bouton span { font-size: 16px; line-height: 1; }
+.trf-recherche__champ { font: inherit; font-size: 15px; color: var(--color-ivoire); background: transparent; border: 1px solid var(--hairline-invert); border-radius: 6px; padding: 10px 12px; width: 100%; box-sizing: border-box; }
+.trf-recherche__champ::placeholder { color: var(--indigo-200); }
+.trf-recherche__champ:focus { outline: 2px solid var(--copper-200); outline-offset: 1px; }
+
+.trf-mtn--ivoire {
+  --grad-indigo: linear-gradient(160deg, #FFFDF8 0%, #F6F1E7 100%);
+  --color-ivoire: #1E2150; --color-indigo: #F6F1E7;
+  --indigo-100: #2C3470; --indigo-200: #4E5790;
+  --copper-200: #9E6238; --copper-300: #7C4C2C;
+  --hairline-invert: rgba(30, 33, 80, 0.16); --ink-invert: #1E2150;
+}
+.trf-mtn--sable {
+  --grad-indigo: linear-gradient(160deg, #E7D7C2 0%, #E3DACB 100%);
+  --color-ivoire: #191B43; --color-indigo: #F6F1E7;
+  --indigo-100: #2C3470; --indigo-200: #5A3720;
+  --copper-200: #7C4C2C; --copper-300: #5A3720;
+  --hairline-invert: rgba(58, 36, 21, 0.18); --ink-invert: #191B43;
+}
+.trf-mtn--cuivre {
+  --grad-indigo: linear-gradient(160deg, #9E6238 0%, #5A3720 100%);
+  --indigo-100: #F1DDC9; --indigo-200: #E4BE9C;
+  --copper-200: #E7D7C2; --copper-300: #F1DDC9;
+  --hairline-invert: rgba(246, 241, 231, 0.26);
+}
+/* Les fonds clairs gardent un filet, et leurs boutons et pastilles changent d'encre. */
+.trf-mtn--ivoire .trf-obsidian, .trf-mtn--sable .trf-obsidian { border: 1px solid rgba(30, 33, 80, 0.12); }
+.trf-mtn--ivoire .trf-mtn__modes button, .trf-mtn--sable .trf-mtn__modes button { color: #1E2150; }
+.trf-mtn--ivoire .trf-recherche__bouton, .trf-mtn--sable .trf-recherche__bouton { color: #F6F1E7; background: #1E2150; }
+.trf-mtn--ivoire .trf-releve__date, .trf-mtn--sable .trf-releve__date { color-scheme: light; }
+.trf-mtn--ivoire .trf-releve__periodes button[aria-pressed="true"], .trf-mtn--sable .trf-releve__periodes button[aria-pressed="true"] { background: #1E2150; color: #F6F1E7; border-color: #1E2150; }

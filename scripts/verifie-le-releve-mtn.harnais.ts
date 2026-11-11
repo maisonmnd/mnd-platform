@@ -4,7 +4,8 @@
    (Yeman). Personnes et numeros inventes. */
 import { readFileSync } from 'node:fs';
 import {
-  bornesDites, bornesDuReleve, jourACotonou, lireDepuisIso, mouvementsDeLaCollecte, mouvementsDuDecaissement, releveDeLaPeriode, releveEnCsv,
+  bornesDites, bornesDuReleve, chercheDansLesMouvements, jourACotonou, lireDepuisIso, motsDeLaRecherche, mouvementsDeLaCollecte, mouvementsDuDecaissement,
+  releveDeLaPeriode, releveEnCsv,
   type CollectePourLeReleve, type EnvoiPourLeReleve,
 } from '../src/shared/releve-mtn-pur';
 
@@ -77,6 +78,16 @@ dit('le CSV : une tete, une ligne par mouvement, heure de Cotonou, numero masque
   [csv.length, csv[0], csv[1].startsWith('2026-11-11 10:01;'), /2290190000052|0190000052/.test(csv.join('\n'))]);
 dit('le CSV n ecrit jamais un numero entier', true, csv.slice(1).every((l) => /01 •• •• •• \d\d$/.test(l)));
 
+/* ── 4 bis. Retrouver une transaction ── */
+const tout = [...dec, ...mc];
+const refs = (t: string) => chercheDansLesMouvements(tout, t).map((x) => x.reference);
+dit('les mots : un montant avec espaces reste un nombre ; un nom se coupe en mots', [['25000'], ['n.', 'm.'], []], [motsDeLaRecherche(' 25 000 '), motsDeLaRecherche('N. M.'), motsDeLaRecherche('   ')]);
+dit('par nom, sans accents ni majuscules ; par plusieurs mots', [['r1'], ['r3']], [refs('a. k.'), refs('essai y.')]);
+dit('par montant (avec ou sans espace), par bout de numero, par transaction', [['c1'], ['c1'], ['c1', 'c2', 'c3', 'c4', 'c5'], ['r3', 'r2', 'r1', 'r5']], [refs('25 000'), refs('25000'), refs('0052'), refs('1334')]);
+dit('par jour (05/11 ou 2026-11-05), par etat', [['r2', 'r1'], ['r2', 'r1'], ['c4', 'r2']], [refs('05/11'), refs('2026-11-05'), refs('refuse')]);
+dit('un annule ne se retrouve pas ; rien a chercher, rien de trouve', [[], []], [refs('B. A.'), refs('')]);
+dit('au plus cinquante, les plus recents d abord', [2, 'r3'], [chercheDansLesMouvements(tout, '1334', 2).length, chercheDansLesMouvements(tout, '1334', 2)[0].reference]);
+
 /* ── 5. Le cablage ── */
 const page = lis('src/apps/trone/routes/finances/MtnMoMo.tsx');
 const panneau = lis('src/apps/trone/routes/finances/CompteDeCollecteMtn.tsx');
@@ -86,6 +97,9 @@ dit('le numero de decaissement ecrit comme celui de la collecte, rendu par le se
   [page.includes("{numero ?? 'numéro à poser'}"), page.includes("<span style={PETIT}>Numéro de décaissement</span>"), fn.includes(', numeros: sortie, numero: numeroDuCompte() });')]);
 dit('le numero vient d un secret, jamais du depot ; le GET public ne dit que oui ou non', [true, true, false],
   [fn.includes("env('MOMO_PROD_DISBURSEMENT_NUMERO')"), fn.includes('numero: !!numeroDuCompte() },'), /0?1 ?9\d ?\d\d ?\d\d ?\d\d|2290\d{9}/.test(page + panneau + fn)]);
+dit('la recherche en tete de la page, et quatre couleurs de la charte gardees sur l appareil', [true, 4, true, true, false],
+  [page.includes('<RechercheMtn />'), (page.match(/\{ cle: '(indigo|ivoire|cuivre|sable)', dit:/g) ?? []).length, page.includes('<div className={`trf-mtn trf-mtn--${mode}`}>'),
+    page.includes("try { localStorage.setItem(CLE_DU_MODE, m); }"), /cle: 'obsid/.test(page)]);
 /* Supabase plafonne a mille lignes : le releve d une annee se lit par pages. */
 const vue = lis('src/apps/trone/routes/finances/ReleveMtn.tsx');
 dit('le releve lit le registre par pages de mille, jusqu a la derniere', [true, true],
