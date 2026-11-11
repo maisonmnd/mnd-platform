@@ -7,7 +7,7 @@
    cause lisible, ce qui se retente, et l'espacement des reprises. */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DELAIS_DE_REPRISE_MS, LOT_PRECIEUX, delaiDeReprise, estPassager, plusGrosLotDuMemeInstant, raisonLisible, suppressionRefusee } from '../src/shared/sync';
+import { DELAIS_DE_REPRISE_MS, LOT_PRECIEUX, delaiDeReprise, estJetonExpire, estPassager, plusGrosLotDuMemeInstant, raisonLisible, seRattrape, suppressionRefusee } from '../src/shared/sync';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -54,7 +54,18 @@ dit('… les deux ne se confondent plus', false,
     === raisonLisible('PGRST204: could not find the column'));
 dit('… et ne se retente pas', false, estPassager('PGRST205'));
 dit('une contrainte violée ne se retente pas', false, estPassager('insert violates foreign key constraint'));
-dit('une session expirée ne se retente pas', false, estPassager('JWT expired'));
+/* UN JETON EXPIRÉ (11 novembre 2026) n'est pas une panne de réseau, mais il
+   se rattrape : la synchro le fait renouveler et retente. Seul le message du
+   jeton expiré y a droit, pas une signature invalide ni une phrase voisine. */
+dit('un jeton expiré n’est pas une panne de réseau', false, estPassager('JWT expired'));
+dit('… mais il se rattrape (renouvellement du jeton)', true, seRattrape('JWT expired'));
+dit('« JWT expired » et « PGRST303: JWT expired » sont des jetons expirés', [true, true],
+  [estJetonExpire('JWT expired'), estJetonExpire('PGRST303: JWT expired')]);
+dit('une signature invalide ou « Session expired » n’en sont pas', [false, false],
+  [estJetonExpire('invalid JWT: unable to parse or verify signature'), estJetonExpire('Session expired')]);
+dit('ce qui ne guérit pas en attendant ne se rattrape pas', [false, false, false],
+  [seRattrape('PGRST205'), seRattrape('insert violates foreign key constraint'), seRattrape(undefined)]);
+dit('le réseau se rattrape toujours', true, seRattrape('TypeError: Failed to fetch'));
 dit('un refus sans message ne se retente pas', false, estPassager(undefined));
 dit('… et se lit quand même', 'refus du serveur, sans message', raisonLisible(''));
 

@@ -201,6 +201,83 @@ const estRefusDeDroit = (msg: string | undefined): boolean => {
    reconnexion. Sans session, le geste attend : la connexion le rejouera. */
 const refusSansSession = async (): Promise<boolean> =>
   !supabase || !(await supabase.auth.getSession()).data.session;
+
+/* ══ UN JETON EXPIRÉ SE RENOUVELLE, IL NE ROUGIT PAS — 11 novembre 2026 ══
+   « Synchro en échec · academy_enrollments, leave_requests, session
+   expirée, reconnectez-vous » (Yéman), rouge à vie, et un réglage resté
+   « 1 geste » dans la file depuis 17 h 58.
+
+   LE POSTE SORT DE VEILLE AVEC UN JETON D'UNE HEURE DÉPASSÉ. Le serveur
+   répond « JWT expired » avant que supabase-js n'ait renouvelé le jeton, et
+   ce refus était jugé DÉFINITIF : la table passait au rouge sans reprise,
+   le geste attendait qu'on le refasse à la main.
+
+   CE N'EST PAS UN REFUS, C'EST UN JETON À RENOUVELER. On le demande à
+   supabase-js (un seul renouvellement à la fois, et pas plus d'un par
+   demi-minute : pas de tempête quand cinquante tables tombent ensemble), et
+   la table attend comme pour une coupure de réseau : reprise programmée,
+   rouge seulement si cela dure. Le renouvellement annonce
+   « TOKEN_REFRESHED », qui relit chaque table et repousse ses gestes.
+
+   SEUL UN RENOUVELLEMENT REFUSÉ (jeton de rafraîchissement mort) rend juste
+   le rouge « session expirée, reconnectez-vous ». Les gestes restent alors
+   dans la file : la connexion suivante les emporte. */
+export const estJetonExpire = (msg: string | undefined): boolean =>
+  /\bjwt\b.*\bexpired\b/.test((msg ?? '').toLowerCase());
+/** Le renouvellement a été refusé : la session est vraiment perdue. */
+let sessionPerdue = false;
+/** Ce qui se rattrape tout seul : une coupure, ou un jeton à renouveler. */
+export const seRattrape = (msg: string | undefined): boolean =>
+  estPassager(msg) || (estJetonExpire(msg) && !sessionPerdue);
+const PAUSE_ENTRE_RENOUVELLEMENTS_MS = 30_000;
+let jetonEnRenouvellement: Promise<void> | null = null;
+let dernierRenouvellement = 0;
+/** Les tables refusées pour un jeton expiré, table → message du serveur. */
+const attendentLeJeton = new Map<string, string>();
+const renouvelleLeJeton = (): void => {
+  const sb = supabase;
+  if (!sb || jetonEnRenouvellement) return;
+  if (Date.now() - dernierRenouvellement < PAUSE_ENTRE_RENOUVELLEMENTS_MS) return;
+  dernierRenouvellement = Date.now();
+  console.info('[mnd-sync] jeton expiré : renouvellement de la session.');
+  jetonEnRenouvellement = (async () => {
+    let issue: 'ok' | 'passager' | 'perdue';
+    try {
+      const { data, error } = await sb.auth.refreshSession();
+      if (!error && data?.session) issue = 'ok';
+      else if (error && (error.name === 'AuthRetryableFetchError' || estPassager(error.message))) issue = 'passager';
+      else issue = 'perdue';
+    } catch {
+      issue = 'passager';
+    }
+    const tables = [...attendentLeJeton];
+    attendentLeJeton.clear();
+    if (issue === 'ok') { sessionPerdue = false; return; }
+    /* UNE COUPURE PENDANT LE RENOUVELLEMENT : les reprises déjà programmées
+       retenteront, et le prochain refus redemandera le jeton. */
+    if (issue === 'passager') return;
+    sessionPerdue = true;
+    console.warn('[mnd-sync] renouvellement du jeton refusé : la session est perdue, reconnectez-vous.');
+    for (const [t, msg] of tables) {
+      annuleLaReprise(t);
+      const sursis = sursisDEcriture.get(t);
+      if (sursis) { clearTimeout(sursis); sursisDEcriture.delete(t); }
+      dirtyTables.delete(t);
+      failedTables.set(t, msg);
+    }
+    bumpSync();
+  })().finally(() => { jetonEnRenouvellement = null; });
+};
+/* UNE SESSION RENDUE (connexion, jeton renouvelé par supabase-js lui-même)
+   lève la perte. L'écoute se pose au premier branchement, une seule fois. */
+let jetonEcoute = false;
+const ecouteLeJeton = (): void => {
+  if (jetonEcoute || !supabase) return;
+  jetonEcoute = true;
+  supabase.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') sessionPerdue = false;
+  });
+};
 /** Les tables en échec ET le message brut du serveur, table → message. */
 const failedTables = new Map<string, string>();
 /** Les canaux temps réel à terre — voir `SyncState.directEnPanne`. */
@@ -363,13 +440,24 @@ const syncMark = {
     const sursis = sursisDEcriture.get(t);
     if (sursis) { clearTimeout(sursis); sursisDEcriture.delete(t); }
     dirtyTables.delete(t); failedTables.delete(t); lastOkAt = Date.now();
-    essaisDeReprise.delete(t); annuleLaReprise(t);
+    essaisDeReprise.delete(t); annuleLaReprise(t); attendentLeJeton.delete(t);
     bumpSync();
+  },
+  /* UNE RELECTURE RÉUSSIE, RIEN EN ATTENTE : le rouge ou l'attente qui
+     restent sont périmés. L'appelant garantit qu'aucun geste n'attend. */
+  effaceLeRouge(t: string) {
+    if (failedTables.has(t) || dirtyTables.has(t) || reprises.has(t) || sursisDEcriture.has(t)) this.ok(t);
   },
   /* Le message du serveur voyage avec l'échec : sans lui, la pastille nomme une
      table et laisse deviner la cause — ce qui envoie ouvrir la console. */
   fail(t: string, msg?: string) {
-    if (!estPassager(msg)) {
+    /* UN JETON EXPIRÉ : on le fait renouveler, et la table attend comme
+       pour une coupure (11 novembre 2026, voir `estJetonExpire`). */
+    if (estJetonExpire(msg) && !sessionPerdue) {
+      attendentLeJeton.set(t, msg ?? '');
+      renouvelleLeJeton();
+    }
+    if (!seRattrape(msg)) {
       dirtyTables.delete(t); failedTables.set(t, msg ?? '');
       bumpSync();
       return;
@@ -405,6 +493,7 @@ const syncMark = {
     dirtyTables.delete(t);
     failedTables.delete(t);
     annuleLaReprise(t);
+    attendentLeJeton.delete(t);
     if (!horsPortee.has(t)) {
       horsPortee.add(t);
       console.info(`[mnd-sync] ${t} : hors de portée de ce compte, les droits l'y refusent, ce n'est pas une panne.`);
@@ -803,8 +892,16 @@ export function bindCollection<T extends WithId>(
      donc la première lecture réussie — le serveur fait foi, y compris sur
      l'ordre des choses. */
   let lu = false;
+  /* LE ROUGE VIENT D'UNE LECTURE — 11 novembre 2026. Une première lecture
+     ratée (jeton expiré au réveil, réseau) rougissait la table, et aucune
+     relecture réussie ne l'effaçait : seule une ÉCRITURE réussie disait
+     « ok ». Une table rarement écrite restait rouge à vie. Ce drapeau dit
+     que le rouge est celui d'une lecture : la prochaine lecture réussie
+     l'efface, si aucun geste n'attend. */
+  let rougeDeLecture = false;
+  ecouteLeJeton();
 
-  const snapshot = (items: readonly T[]): Map<string, string> => {
+  const snapshot =(items: readonly T[]): Map<string, string> => {
     const m = new Map<string, string>();
     for (const it of items) m.set(it.id, JSON.stringify(it));
     return m;
@@ -1143,7 +1240,7 @@ export function bindCollection<T extends WithId>(
            série retirée volontairement était jugée « en masse », et
            revenait du serveur. Une panne passagère n'a rien effacé : la
            reprise a droit au même laissez-passer, et à lui seul. */
-        if (error && purgeVoulue && estPassager(error.message)) purgesAutorisees.add(table);
+        if (error && purgeVoulue && seRattrape(error.message)) purgesAutorisees.add(table);
         if (error) { ok = false; refus ??= error.message; console.warn(`[mnd-sync] ${table} delete:`, error.message); }
       }
     }
@@ -1249,6 +1346,8 @@ export function bindCollection<T extends WithId>(
     pousseesEnVol += 1;
     try {
       if (await pushDiff(prev, next, items)) {
+        /* L'envoi réussi a dit « ok » : le rouge de lecture n'est plus. */
+        rougeDeLecture = false;
         lastPushed = next;
         /* Ce que le serveur vient de recevoir sort de la file ; un geste
            posé pendant l'envoi y reste et partira au tour suivant. */
@@ -1265,7 +1364,15 @@ export function bindCollection<T extends WithId>(
   /* LA REPRISE REPASSE PAR LE MÊME CHEMIN QU'UNE ÉCRITURE : le diff se
      recalcule depuis `lastPushed`, resté en arrière tant que rien n'est parti,
      et rien n'est envoyé deux fois. */
-  syncMark.relance(table, planifiePoussee);
+  /* ── UNE LECTURE RATÉE SE RETENTE EN RELISANT — 11 novembre 2026 ──
+     La reprise d'une table JAMAIS LUE poussait : `lastPushed` vide, tout le
+     cache du poste passait pour neuf, et la poussée pouvait réécrire au
+     serveur la copie d'hier. Une première lecture ratée se reprend en
+     relisant ; la lecture rejoue alors la file, et les gestes partent. */
+  syncMark.relance(table, () => {
+    if (!lu || (rougeDeLecture && attente.size === 0)) { void refetch(true); return; }
+    planifiePoussee();
+  });
 
   /* LA PREMIÈRE LECTURE NE REMPLACE PLUS — ELLE REJOUE. Le serveur fait foi
      sur tout ce que ce poste n'a pas touché dans cette session ; les gestes
@@ -1332,6 +1439,7 @@ export function bindCollection<T extends WithId>(
          sur ce qu'il a. */
       if (estRefusDeDroit(error.message)) { syncMark.horsPortee(table); marqueTableResolue(table); return; }
       console.warn(`[mnd-sync] ${table} hydrate:`, error.message);
+      rougeDeLecture = true;
       syncMark.fail(table, error.message);
       marqueTableResolue(table);
       return;
@@ -1396,12 +1504,17 @@ export function bindCollection<T extends WithId>(
     if (lu && pousseesEnVol > 0) { relectureDue = true; return; }
     const generationAuDepart = generation;
     const { data, error } = await litTouteLaTable();
-    if (error || !data) return;
+    if (error || !data) {
+      /* UNE TABLE DÉJÀ ROUGE D'UNE LECTURE garde sa reprise : sans ce
+         rappel, la première relecture ratée arrêtait les essais. */
+      if (error && rougeDeLecture && !estRefusDeDroit(error.message)) syncMark.fail(table, error.message);
+      return;
+    }
     const items = data.map((r) => (r as { data: T }).data);
     /* Le refetch vaut lecture : c'est souvent LUI qui hydrate pour de bon,
        quand la session arrive apres le chargement du module — et il rejoue
        alors les gestes de la fenêtre froide comme l'hydratation. */
-    if (!lu) { await premiereLecture(items); return; }
+    if (!lu) { await premiereLecture(items); lectureReussie(); return; }
     /* LA LECTURE EST DÉPASSÉE : un geste ou une poussée l'a doublée pendant
        qu'elle volait. On la jette ; elle se refait après la poussée en
        cours, ou tout de suite s'il n'y en a plus. */
@@ -1421,17 +1534,28 @@ export function bindCollection<T extends WithId>(
       applyingRemote = false;
       lastPushed = snapshot(items);
       if (aPousser) planifiePoussee();
+      lectureReussie();
       return;
     }
     const next = snapshot(items);
     const cur = snapshot(store.get());
     const same = next.size === cur.size && [...next].every(([k, v]) => cur.get(k) === v);
-    if (same) return;
+    if (same) { lectureReussie(); return; }
     applyingRemote = true;
     store.set(items);
     applyingRemote = false;
     lastPushed = next;
+    lectureReussie();
   };
+  /* LA RELECTURE RÉUSSIE EFFACE LE ROUGE D'UNE LECTURE — 11 novembre 2026,
+     voir `rougeDeLecture`. JAMAIS celui d'une écriture : un geste en file,
+     une poussée en vol ou une poussée planifiée gardent la table telle
+     quelle, et c'est leur propre issue qui dira « ok » ou « échec ». */
+  function lectureReussie(): void {
+    if (!rougeDeLecture || attente.size > 0 || pousseesEnVol > 0 || timer) return;
+    rougeDeLecture = false;
+    syncMark.effaceLeRouge(table);
+  }
   /* RETOUR DU RESEAU : on relance une poussee. Sans cela, les ecritures faites
      hors ligne attendaient qu'on les re-modifie a la main pour repartir.
      DEPUIS LE 4 OCTOBRE, ON RELIT D'ABORD : pendant la coupure, un autre poste
@@ -1731,6 +1855,7 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
 
   let applyingRemote = false;
   let lastPushed: string | undefined;
+  ecouteLeJeton();
   magasinsParTable.set(`documents:${key}`, store as Store<any>); // eslint-disable-line @typescript-eslint/no-explicit-any
   /* La file d'attente du document : une seule entrée, sa clé (4 octobre 2026). */
   const attenteDoc = lisLaFile(`doc:${key}`);
@@ -1777,6 +1902,9 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
     if (error) {
       if (estRefusDeDroit(error.message)) { syncMark.horsPortee(`doc:${key}`); return; }
       console.warn(`[mnd-sync] doc ${key} hydrate:`, error.message);
+      /* Un jeton expiré se renouvelle (11 novembre 2026) : « TOKEN_REFRESHED »
+         relira ce réglage et repoussera son geste en file. */
+      if (estJetonExpire(error.message) && !sessionPerdue) renouvelleLeJeton();
       return;
     }
     /* UN RÉGLAGE CHANGÉ HORS LIGNE (4 octobre 2026) : la file le garde, et le
@@ -1820,8 +1948,13 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
       const local = store.get();
       lastPushed = JSON.stringify(local);
       const { error: upErr } = await upsert(local);
-      if (upErr) console.warn(`[mnd-sync] doc ${key} seed:`, upErr.message);
+      if (upErr) { console.warn(`[mnd-sync] doc ${key} seed:`, upErr.message); return; }
     }
+    /* LA RELECTURE RÉUSSIE, RIEN EN ATTENTE — 11 novembre 2026 : le poste
+       porte ce que porte le serveur, un rouge ou une reprise qui restent
+       sont périmés. Jamais quand un geste attend, ou qu'un envoi vole ou
+       se prépare : leur issue parlera. */
+    if (!attenteDoc.has(key) && !timer && !envoiEnVol) syncMark.effaceLeRouge(`doc:${key}`);
     } finally { registre(key).tenir(); }
   };
   /* MÊME RÈGLE QU'AUX COLLECTIONS : sans session, une lecture vide ne prouve

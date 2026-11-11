@@ -29,12 +29,12 @@
 
    Sortie en ASCII (console Windows). */
 import './faux-stockage';
-import { faux } from './faux-supabase';
+import { faux, ecritAilleurs } from './faux-supabase';
 import { supabase as fauxSb } from './faux-supabase';
 import { readFileSync, readdirSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { createStore } from '../src/shared/store';
-import { bindCollection, bindDocument, autoriserLaPurge } from '../src/shared/sync';
+import { bindCollection, bindDocument, autoriserLaPurge, getSyncState } from '../src/shared/sync';
 import { laPorteARepondu, signOut } from '../src/shared/auth';
 import { arbitre, champsQuiDifferent, gestesEntre, gestesEnAttente, lisLesConflits, type Entree } from '../src/shared/file-d-attente';
 import { contenuCanonique } from '../src/shared/meme-contenu';
@@ -72,6 +72,16 @@ const reglages = {
   /* Un envoi qui traîne (18 octobre 2026, le téléphone de Brice) : les
      prochains envois de cette table arrivent après ces délais, dans l'ordre. */
   upsertsLents: null as { table: string; delais: number[] } | null,
+  /* LE JETON EXPIRÉ (11 novembre 2026) : tant qu'il l'est, chaque requête
+     répond « JWT expired », comme PostgREST au réveil du poste. Le
+     renouvellement réussit (`ok` : le jeton revient, TOKEN_REFRESHED est
+     annoncé), bute sur le réseau (`reseau`), ou est refusé pour de bon
+     (`mort` : jeton de rafraîchissement mort, la session part). */
+  jetonExpire: false,
+  renouvellement: 'ok' as 'ok' | 'reseau' | 'mort',
+  renouvellements: 0,
+  /* Un réglage que le serveur refuse pour de bon (contrainte), tant qu'il est posé. */
+  refusDocument: null as string | null,
 };
 const ecrits: { table: string; lignes: unknown[] }[] = [];
 const HORS_LIGNE = { data: null, error: { message: 'TypeError: Failed to fetch' } };
@@ -82,6 +92,8 @@ sb.from = (t: string) => {
     const rend = (v: unknown, ms = 1) => new Promise((r) => setTimeout(() => r(v), ms)).then(ok, ko2);
     if (!faux.enLigne) return thenDOrigine(ok, ko2);
     if (q.op === 'upsert') ecrits.push({ table: t, lignes: Array.isArray(q.charge) ? q.charge : [q.charge] });
+    if (reglages.jetonExpire) return rend({ data: null, error: { message: 'JWT expired' } });
+    if (q.op === 'upsert' && t === 'documents' && reglages.refusDocument) return rend({ data: null, error: { message: reglages.refusDocument } });
     /* Sans session, la RLS : écriture refusée, suppression sans effet, lecture vide. */
     if (!faux.session && PROTEGEES.has(t)) {
       if (q.op === 'upsert') return rend({ data: null, error: { message: 'new row violates row-level security policy' } });
@@ -113,7 +125,22 @@ sb.auth = {
   getSession: async () => ({ data: { session: faux.session }, error: null }),
   onAuthStateChange: (f: (e: string, s: unknown) => void) => { ecoutesAuth.add(f); return { data: { subscription: { unsubscribe() { ecoutesAuth.delete(f); } } } }; },
   signOut: async () => { faux.session = null; annonceAuth('SIGNED_OUT'); return { error: null }; },
-  refreshSession: async () => ({ data: { session: faux.session }, error: null }),
+  refreshSession: async () => {
+    reglages.renouvellements += 1;
+    await attend(5);
+    if (reglages.renouvellement === 'reseau') {
+      return { data: { session: null, user: null }, error: { name: 'AuthRetryableFetchError', message: 'Failed to fetch', status: 0 } };
+    }
+    if (reglages.renouvellement === 'mort') {
+      /* supabase-js retire alors la session et annonce SIGNED_OUT. */
+      faux.session = null;
+      setTimeout(() => annonceAuth('SIGNED_OUT'), 1);
+      return { data: { session: null, user: null }, error: { name: 'AuthApiError', message: 'Invalid Refresh Token: Refresh Token Not Found', status: 400 } };
+    }
+    reglages.jetonExpire = false;
+    setTimeout(() => annonceAuth('TOKEN_REFRESHED'), 1);
+    return { data: { session: faux.session, user: (faux.session as { user?: unknown } | null)?.user ?? null }, error: null };
+  },
   getUser: async () => ({ data: { user: (faux.session as { user?: unknown } | null)?.user ?? null }, error: null }),
 };
 const seConnecte = () => { faux.session = SESSION; annonceAuth('SIGNED_IN'); };
@@ -649,6 +676,153 @@ if (scene === 'conflit-supprime') {
   dit('72 ecran : la suppression se date de l heure ou on l a vue, jamais de notre geste', true,
     new RegExp(String.raw`\{supprimee \? \x60[^\x60]*heure\(c\.vuLe\)[^\x60]*\x60 : `).test(shell)
     && new RegExp(String.raw`const notreGagne = !supprimee && `).test(shell));
+  fin();
+}
+
+/* ═════ LE JETON EXPIRÉ (11 novembre 2026) ══════════════════════════════
+   « Synchro en échec · academy_enrollments, leave_requests, session
+   expirée, reconnectez-vous » (Yéman), rouge à vie, et « Réglages · 1
+   geste » resté dans la file. Le poste sort de veille, le jeton d'une heure
+   est dépassé, le serveur répond « JWT expired ». */
+const pastille = (t: string) => {
+  const e = getSyncState();
+  return { rouge: e.failedNames.includes(t), attente: e.pendingNames.includes(t), reprise: e.reprises.includes(t) };
+};
+const VERT = { rouge: false, attente: false, reprise: false };
+
+/* LECTURE RATÉE À L'HYDRATATION, PUIS TOKEN_REFRESHED. Promesse : la table
+   attend sans rougir, un seul renouvellement est demandé pour toutes, et la
+   relecture réussie remet la pastille au vert. */
+if (scene === 'jeton-lecture') {
+  faux.session = SESSION;
+  poseAuServeur('academy_enrollments', 'e1', ligne('e1', 'Inscrite'));
+  poseAuServeur('leave_requests', 'l1', ligne('l1', 'Conge'));
+  reglages.jetonExpire = true;
+  /* Le renouvellement demandé bute sur le réseau du réveil : c'est
+     supabase-js qui le refera plus tard, de lui-même. */
+  reglages.renouvellement = 'reseau';
+  const inscriptions = createStore<Ligne[]>('mnd_academy_enrollments', []);
+  const conges = createStore<Ligne[]>('mnd_leave_requests', []);
+  bindCollection(inscriptions, 'academy_enrollments');
+  bindCollection(conges, 'leave_requests');
+  await attend(900);
+  dit('jeton lecture : deux lectures ratees « JWT expired », un seul renouvellement demande', 1, reglages.renouvellements);
+  const attendSansRougir = { rouge: false, attente: true, reprise: true };
+  dit('jeton lecture : les deux tables attendent leur reprise, sans rouge', [attendSansRougir, attendSansRougir],
+    [pastille('academy_enrollments'), pastille('leave_requests')]);
+  reglages.jetonExpire = false;
+  annonceAuth('TOKEN_REFRESHED');
+  await attend(600);
+  dit('jeton lecture : apres TOKEN_REFRESHED, la pastille repasse au vert', [VERT, VERT],
+    [pastille('academy_enrollments'), pastille('leave_requests')]);
+  dit('jeton lecture : ... et le poste a lu les deux tables', [{ e1: 'Inscrite' }, { l1: 'Conge' }], [local(inscriptions), local(conges)]);
+  dit('jeton lecture : ... rien n a ete ecrit au serveur', 0, ecrits.length);
+  fin();
+}
+
+/* UN GESTE EN FILE REFUSÉ « JWT expired ». Promesse : le jeton se
+   renouvelle (une fois pour la collection et le réglage), TOKEN_REFRESHED
+   relit, les deux gestes partent et sortent de la file, la pastille est
+   verte. Le rouge « session expirée » ne se montre jamais. */
+if (scene === 'jeton-ecriture') {
+  faux.session = SESSION;
+  poseAuServeur('leave_requests', 'l1', ligne('l1', 'Conge'));
+  poseAuServeur('documents', 'reglage_essai', { seuil: 1 });
+  const conges = createStore<Ligne[]>('mnd_leave_requests', []);
+  const reglage = createStore<{ seuil: number }>('mnd_reglage_essai', { seuil: 0 });
+  bindCollection(conges, 'leave_requests');
+  bindDocument(reglage, 'reglage_essai');
+  await attend(900);
+  reglages.jetonExpire = true;
+  ecrits.length = 0;
+  conges.set((p) => p.map((r) => (r.id === 'l1' ? { ...r, nom: 'Conge modifie' } : r)));
+  reglage.set({ seuil: 2 });
+  await attend(100);
+  dit('jeton ecriture : deux gestes en file', 2, gestesEnAttente());
+  await attend(1500);
+  dit('jeton ecriture : refuses « JWT expired » une premiere fois', true,
+    ecrits.filter((e) => e.table === 'leave_requests').length >= 2 && ecrits.filter((e) => e.table === 'documents').length >= 2);
+  dit('jeton ecriture : un seul renouvellement pour la table et le reglage', 1, reglages.renouvellements);
+  dit('jeton ecriture : les gestes sont arrives au serveur', [{ l1: 'Conge modifie' }, 2],
+    [serveur('leave_requests'), (faux.base.get('documents')?.get('reglage_essai')?.data as { seuil?: number } | undefined)?.seuil]);
+  dit('jeton ecriture : ... et sont sortis de la file', 0, gestesEnAttente());
+  dit('jeton ecriture : ... la pastille est verte', [VERT, VERT], [pastille('leave_requests'), pastille('doc:reglage_essai')]);
+  fin();
+}
+
+/* LE RENOUVELLEMENT REFUSÉ (jeton de rafraîchissement mort). Promesse :
+   alors seulement le rouge « session expirée, reconnectez-vous », sans
+   reprise ; le geste reste en file, rien ne part en anonyme ; la connexion
+   suivante l'emporte et la pastille repasse au vert. */
+if (scene === 'jeton-perdu') {
+  faux.session = SESSION;
+  poseAuServeur('leave_requests', 'l1', ligne('l1', 'Conge'));
+  const conges = createStore<Ligne[]>('mnd_leave_requests', []);
+  bindCollection(conges, 'leave_requests');
+  await attend(900);
+  reglages.jetonExpire = true;
+  reglages.renouvellement = 'mort';
+  conges.set((p) => p.map((r) => (r.id === 'l1' ? { ...r, nom: 'Conge modifie' } : r)));
+  await attend(800);
+  dit('jeton perdu : un seul renouvellement, refuse', 1, reglages.renouvellements);
+  dit('jeton perdu : alors seulement le rouge « session expiree », sans reprise',
+    [{ rouge: true, attente: false, reprise: false }, 'session expirée, reconnectez-vous'],
+    [pastille('leave_requests'), getSyncState().failedWhy.find((f) => f.table === 'leave_requests')?.raison]);
+  dit('jeton perdu : le geste reste en file, rien n a bouge au serveur', [1, 'Conge'], [gestesEnAttente(), serveur('leave_requests').l1]);
+  reglages.jetonExpire = false;
+  reglages.renouvellement = 'ok';
+  seConnecte();
+  await attend(1500);
+  dit('jeton perdu : apres reconnexion, le geste part et sort de la file', ['Conge modifie', 0], [serveur('leave_requests').l1, gestesEnAttente()]);
+  dit('jeton perdu : ... et la pastille repasse au vert', VERT, pastille('leave_requests'));
+  fin();
+}
+
+/* LA REPRISE D'UNE TABLE JAMAIS LUE RELIT, ELLE NE POUSSE PAS. Le poste
+   porte la copie d'hier (« Vieux ») ; la première lecture bute sur le
+   jeton, le renouvellement sur le réseau ; le serveur redevient joignable
+   sans annonce. Promesse : la reprise relit, la copie d'hier n'écrase pas
+   le serveur, et la pastille repasse au vert. */
+if (scene === 'jeton-reprise-relit') {
+  faux.session = SESSION;
+  poseAuServeur('essais', 'r1', ligne('r1', 'Neuf'));
+  reglages.jetonExpire = true;
+  reglages.renouvellement = 'reseau';
+  const s = createStore<Ligne[]>('mnd_essais', [ligne('r1', 'Vieux')]);
+  bindCollection(s, 'essais');
+  await attend(900);
+  dit('jeton reprise : la lecture a rate, la table attend sa reprise', { rouge: false, attente: true, reprise: true }, pastille('essais'));
+  reglages.jetonExpire = false;
+  await attend(5600);
+  dit('jeton reprise : la copie d hier n a pas ecrase le serveur', ['Neuf', 0], [serveur('essais').r1, ecrits.filter((e) => e.table === 'essais').length]);
+  dit('jeton reprise : ... le poste a lu le serveur, la pastille est verte', ['Neuf', VERT], [local(s).r1, pastille('essais')]);
+  fin();
+}
+
+/* UN RÉGLAGE ROUGE, PUIS SON GESTE TRANCHÉ AILLEURS. Promesse : tant que le
+   geste attend, aucune relecture n'efface le rouge de son écriture ; une
+   fois le geste sorti de la file (un autre poste a écrit plus tard, le
+   nôtre est gardé en conflit), la relecture réussie remet le vert. */
+if (scene === 'doc-relecture') {
+  faux.session = SESSION;
+  poseAuServeur('documents', 'reglage_essai', { seuil: 1 });
+  const reglage = createStore<{ seuil: number }>('mnd_reglage_essai', { seuil: 0 });
+  bindDocument(reglage, 'reglage_essai');
+  await attend(900);
+  reglages.refusDocument = 'new row for relation "documents" violates check constraint "documents_seuil_check"';
+  reglage.set({ seuil: 2 });
+  await attend(600);
+  const rouge = { rouge: true, attente: false, reprise: false };
+  dit('doc relecture : l ecriture refusee rougit le reglage, le geste attend', [rouge, 1], [pastille('doc:reglage_essai'), gestesEnAttente()]);
+  annonceAuth('TOKEN_REFRESHED');
+  await attend(600);
+  dit('doc relecture : une relecture n efface pas le rouge d une ecriture encore en file', [rouge, 1], [pastille('doc:reglage_essai'), gestesEnAttente()]);
+  ecritAilleurs('documents', 'reglage_essai', { seuil: 5 });
+  await attend(100);
+  dit('doc relecture : le reglage ecrit ailleurs plus tard l emporte, notre geste sort de la file', [5, 0], [reglage.get().seuil, gestesEnAttente()]);
+  annonceAuth('TOKEN_REFRESHED');
+  await attend(400);
+  dit('doc relecture : ... et la relecture reussie remet la pastille au vert', VERT, pastille('doc:reglage_essai'));
   fin();
 }
 

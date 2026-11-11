@@ -30,7 +30,9 @@ const SCENES = ['appels', 'purge', 'purge-hors-ligne', 'relecture-ratee', 'laiss
   /* La reprise apres relecture (10 octobre 2026). */
   'verrou-hors-ligne', 'reprise-sans-session', 'poussee-sans-geste', 'conflit-supprime',
   /* L'ordre des envois (18 octobre 2026). */
-  'ordre-des-envois'];
+  'ordre-des-envois',
+  /* Le jeton expire (11 novembre 2026). */
+  'jeton-lecture', 'jeton-ecriture', 'jeton-perdu', 'jeton-reprise-relit', 'doc-relecture'];
 
 const LOT = [
   'src/shared/appels-en-attente.ts', 'src/shared/sync.ts', 'src/shared/store.ts', 'src/shared/file-d-attente.ts',
@@ -70,7 +72,7 @@ const FAUTES = [
     ['        if (lecture) { syncMark.fail(table, lecture.message); return false; }\n        const items2', '        const items2'],
   ] },
   { n: 33, nom: 'laissez-passer perdu sur une coupure', fichier: 'src/shared/sync.ts', scenes: ['laissez-passer'], subs: [
-    ['        if (error && purgeVoulue && estPassager(error.message)) purgesAutorisees.add(table);\n', ''],
+    ['        if (error && purgeVoulue && seRattrape(error.message)) purgesAutorisees.add(table);\n', ''],
   ] },
   { n: 33, nom: 'le realignement rend vrai', fichier: 'src/shared/sync.ts', scenes: ['realignement-faux'], subs: [
     ['        if (aPousser) planifiePoussee();\n        return false;', '        if (aPousser) planifiePoussee();\n        return true;'],
@@ -130,6 +132,34 @@ const FAUTES = [
   ] },
   { n: 72, nom: 'reprise : la suppression datee de notre geste', fichier: 'src/apps/trone/shell/Shell.tsx', disque: true, scenes: ['conflit-supprime'], subs: [
     ["{supprimee ? `Gardée · supprimée ailleurs · constatée le ${heure(c.vuLe)}` : `${notreGagne ? 'Écartée' : 'Gardée'} · ailleurs · ${heure(c.leurAt)}`}", "{notreGagne ? 'Écartée' : 'Gardée'} · ailleurs · {heure(c.leurAt)}"],
+  ] },
+  /* ── LE JETON EXPIRE (11 novembre 2026) ── */
+  { n: 86, nom: 'jeton expire : refus definitif, ni renouvellement ni reprise (le code d avant)', fichier: 'src/shared/sync.ts', scenes: ['jeton-lecture', 'jeton-ecriture'], subs: [
+    ["    if (estJetonExpire(msg) && !sessionPerdue) {\n      attendentLeJeton.set(t, msg ?? '');\n      renouvelleLeJeton();\n    }\n    if (!seRattrape(msg)) {", '    if (!estPassager(msg)) {'],
+  ] },
+  { n: 86, nom: 'jeton expire : renouvele, mais la table rougit sans reprise', fichier: 'src/shared/sync.ts', scenes: ['jeton-lecture'], subs: [
+    ['    if (!seRattrape(msg)) {', '    if (!estPassager(msg)) {'],
+  ] },
+  { n: 86, nom: 'jeton expire : un renouvellement par table (tempete)', fichier: 'src/shared/sync.ts', scenes: ['jeton-lecture', 'jeton-ecriture'], subs: [
+    ['  if (!sb || jetonEnRenouvellement) return;\n  if (Date.now() - dernierRenouvellement < PAUSE_ENTRE_RENOUVELLEMENTS_MS) return;\n', '  if (!sb) return;\n'],
+  ] },
+  { n: 86, nom: 'jeton perdu : la reprise continue, le rouge ne se dit pas', fichier: 'src/shared/sync.ts', scenes: ['jeton-perdu'], subs: [
+    ['    sessionPerdue = true;\n', '    return;\n'],
+  ] },
+  { n: 86, nom: 'la relecture reussie n efface pas le rouge de lecture (collection)', fichier: 'src/shared/sync.ts', scenes: ['jeton-lecture', 'jeton-reprise-relit'], subs: [
+    ['    if (!rougeDeLecture || attente.size > 0 || pousseesEnVol > 0 || timer) return;\n', '    return;\n'],
+  ] },
+  { n: 86, nom: 'la relecture reussie n efface pas le rouge (document)', fichier: 'src/shared/sync.ts', scenes: ['doc-relecture'], subs: [
+    ['    if (!attenteDoc.has(key) && !timer && !envoiEnVol) syncMark.effaceLeRouge(`doc:${key}`);\n', ''],
+  ] },
+  { n: 86, nom: 'la reprise d une table jamais lue pousse la copie d hier', fichier: 'src/shared/sync.ts', scenes: ['jeton-reprise-relit'], subs: [
+    ['    if (!lu || (rougeDeLecture && attente.size === 0)) { void refetch(true); return; }\n', ''],
+  ] },
+  { n: 86, nom: 'TOKEN_REFRESHED ne repousse pas la file (collection)', fichier: 'src/shared/sync.ts', scenes: ['jeton-ecriture'], subs: [
+    ['      if (aPousser) planifiePoussee();\n      lectureReussie();\n      return;', '      lectureReussie();\n      return;'],
+  ] },
+  { n: 86, nom: 'TOKEN_REFRESHED ne repousse pas le reglage en file', fichier: 'src/shared/sync.ts', scenes: ['jeton-ecriture'], subs: [
+    ['        lastPushed = leur?.data !== undefined ? JSON.stringify(leur.data) : undefined;\n        planifieLEnvoi();\n', '        lastPushed = leur?.data !== undefined ? JSON.stringify(leur.data) : undefined;\n'],
   ] },
   { n: 38, nom: 'tiret cadratin pour une valeur absente', fichier: 'src/apps/trone/shell/Shell.tsx', disque: true, scenes: ['tirets'], subs: [
     ["if (v === undefined || v === null || v === '') return 'vide';", "if (v === undefined || v === null || v === '') return '—';"],
