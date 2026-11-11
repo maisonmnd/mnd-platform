@@ -35,6 +35,7 @@ writeFileSync(entree, `export * from '${path.join(racine, 'src/apps/revelateur/c
 export { DEVISE_COMPLETE } from '${path.join(racine, 'src/shared/identite.ts').replace(/\\/g, '/')}';
 export { appliqueLesRetouches } from '${path.join(racine, 'src/shared/site-retouches.ts').replace(/\\/g, '/')}';
 export { TONS, tonDe } from '${path.join(racine, 'src/apps/revelateur/tons.ts').replace(/\\/g, '/')}';
+export { faconsDuSite } from '${path.join(racine, 'src/apps/revelateur/formules-du-site-pur.ts').replace(/\\/g, '/')}';
 `);
 const module_ = path.join(dossierTmp, 'contenu.mjs');
 let contenu;
@@ -54,6 +55,11 @@ globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assig
   rmSync(dossierTmp, { recursive: true, force: true });
 }
 const { COMMUN, ACCUEIL, PAGES, GALERIE, DEVISE_COMPLETE, COMMUNAUTE, PARRAINAGE, INGREDIENTS, INGREDIENTS_TETE, AVANT_APRES, ENGAGEMENTS, TONS, tonDe } = contenu;
+/* LES FORMULES DE LA PAGE ABONNEMENTS — 8 novembre 2026 (lot 5 de
+   l'abonnement refait) : les NOMS des formules ouvertes à la vente, par façon
+   de venir, écrits à la construction. Jamais un prix, et rien de cette liste
+   dans le paquet du navigateur. */
+const FACONS_DU_SITE = contenu.faconsDuSite();
 
 /* ══ LES RETOUCHES DU TRÔNE — 4 octobre 2026 ═════════════════════════
    L'éditeur du site (Les vitrines › Le site public) écrit ses retouches
@@ -611,6 +617,17 @@ function rendSection(s) {
     }
     case 'pas':
       return `<section class="serre"><div class="conteneur">${tete}<ol class="pas${s.liste ? ' pas--liste' : ''}">${s.items.map(([t, l]) => `<li><div><b>${echappe(t)}</b><span>${echappe(l)}</span></div></li>`).join('')}</ol></div></section>`;
+    case 'facons': {
+      /* Les trois façons de venir (8 novembre 2026) : la même grille que les
+         autres cartes, les noms des formules ouvertes en légende, et la
+         ligne du prix sous les cartes. Aucun chiffre n'entre ici. */
+      const cartes = s.items.map((it) => {
+        const noms = (FACONS_DU_SITE[it.cle] ?? []).filter((n) => !/\d/.test(n));
+        /* Un nom par ligne : les noms portent déjà leur « · » (« GBÈJÍ™ · Chaque Lune »). */
+        return `<div class="grille-item"><b>${echappe(it.titre)}</b><p>${echappe(it.texte)}</p>${noms.length ? `<p class="legende">${noms.map(echappe).join('<br>')}</p>` : ''}</div>`;
+      }).join('');
+      return `<section class="serre"><div class="conteneur">${tete}<div class="grille">${cartes}</div><p class="ligne" style="margin-top:22px">${echappe(s.ligne)}</p></div></section>`;
+    }
     case 'faq':
       return `<section class="serre"><div class="conteneur">${tete}<div class="faq">${s.items.map(([q, r], i) => `<details${i === 0 ? ' open' : ''}><summary>${echappe(q)}</summary><p>${echappe(r)}</p></details>`).join('')}</div></div></section>`;
     case 'citation':

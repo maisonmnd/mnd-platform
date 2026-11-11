@@ -69,6 +69,16 @@ export type Section =
     type: 'club-parents'; sur: string; titre: string;
     promesses: [string, string][];
     items: { titre: string; texte: string; liste?: string[] }[];
+  }
+  /* LES TROIS FAÇONS DE VENIR — 8 novembre 2026 (lot 5 de l'abonnement
+     refait). Une carte par façon (chaque lune, par carnet, après une
+     création) ; le générateur y écrit les NOMS des formules ouvertes à la
+     vente (`faconsDuSite`, revelateur/formules-du-site-pur.ts), jamais un
+     prix : « le prix dépend de la tête, il se lit dans Ma Couronne ou se dit
+     de vive voix » (`ligne`, sous les cartes). */
+  | {
+    type: 'facons'; sur?: string; titre?: string; ligne: string;
+    items: { cle: 'lune' | 'carnet' | 'creation'; titre: string; texte: string }[];
   };
 
 export type Page = {

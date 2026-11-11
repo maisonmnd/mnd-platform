@@ -824,48 +824,69 @@ export const PAGES: Page[] = [
     jsonld: 'service',
     court: 'MND Kids',
   },
+  /* LA PAGE ABONNEMENTS, REFAITE — 8 novembre 2026 (lot 5 de l'abonnement
+     refait ; maquette `public/maquette-l-abonnement-refait.html`, « La page
+     Abonnements du site », et « Ce que l'attention ne sera pas »). Quatre
+     blocs, peu de mots, le ton de la Maison : ce que c'est, trois façons de
+     venir (les noms des formules ouvertes, JAMAIS UN PRIX : « le prix dépend
+     de la tête, il se lit dans Ma Couronne ou se dit de vive voix »), ce que
+     reçoit une abonnée, un seul geste (« Voir ma formule » vers Ma Couronne,
+     « En parler à la Maison » vers WhatsApp). Puis ce que l'attention ne
+     sera pas. Aucune photo nouvelle : la photo d'avant, déjà au registre.
+     « Une petite surprise à chaque fois » (Yéman). */
   {
     chemin: '/abonnements/',
     titre: "Abonnements d'entretien des locks · Maison MND",
-    description: "Choisissez une cadence d'entretien pour vos locks avec la Maison MND à Cotonou : reprise des racines et soins à intervalles réguliers, sans y repenser.",
+    description: 'Découvrez les formules d’entretien des locks de la Maison MND à Cotonou : vos séances prêtes, votre place sur votre jour, une attention à chaque séance.',
     h1: 'Les abonnements : une cadence pour votre couronne',
     sur: 'Entre deux visites',
     besoin: 'entretien',
     sections: [
       {
         type: 'texte',
-        titre: 'Ma couronne mérite une attention régulière.',
-        corps: "Une couronne ne se soigne pas une fois. Elle se suit. L'abonnement MND est une continuité de soin : vos rendez-vous pensés à l'avance, un rythme qui vous convient.",
+        sur: 'Ce que c’est',
+        titre: 'Votre couronne a son rythme.',
+        corps: 'Vos séances sont prêtes, à votre jour et à votre heure, et une attention vous attend à chacune.',
         image: 'cliente-14.jpg',
       },
       {
-        type: 'grille',
-        sur: "Ce que l'abonnement vous apporte",
+        type: 'facons',
+        sur: 'Trois façons de venir',
+        titre: 'Chaque lune, par carnet, ou après une création.',
+        ligne: 'Sans prix sur cette page : le prix dépend de la tête. Il se lit dans Ma Couronne, ou se dit de vive voix à la Maison MND.',
         items: [
-          { titre: 'Un rythme', texte: 'La fréquence de vos entretiens, fixée ensemble, selon votre couronne et votre vie.' },
-          { titre: 'Une mémoire', texte: 'Votre espace Ma Couronne garde ce qui a été fait et ce qui reste à faire.' },
-          { titre: 'Une place', texte: "Vos rendez-vous sont prévus à l'avance. Vous n'avez plus à y penser." },
-          { titre: 'Une présence', texte: 'Entre deux rendez-vous, vous pouvez nous écrire.' },
+          { cle: 'lune', titre: 'Chaque lune', texte: 'Votre venue chaque lune, réglée lune par lune, sans engagement.' },
+          { cle: 'carnet', titre: 'Par carnet', texte: 'Vos venues prises d’avance, la dernière offerte.' },
+          { cle: 'creation', titre: 'Après une création', texte: 'Les premières venues d’une couronne qui vient de naître.' },
         ],
       },
       {
-        type: 'pas',
-        sur: 'Les paliers',
-        titre: "Trois paliers, un seul chemin",
-        liste: true,
+        type: 'grille',
+        sur: 'Ce que reçoit une abonnée',
         items: [
-          ['Fondation', 'Quand la couronne se construit.'],
-          ['Élévation', 'Quand elle prend de la longueur et de la tenue.'],
-          ['Souveraineté', "Quand elle est pleinement vôtre et demande d'être préservée."],
+          { titre: 'Ses séances au meilleur prix', texte: 'Les mêmes gestes, les mêmes mains : le prix d’une abonnée.' },
+          { titre: 'Sa place sur son jour', texte: 'Votre jour, votre heure, gardés d’une séance à l’autre.' },
+          { titre: 'Une attention à chaque séance', texte: 'Un présent et sa carte, remis au fauteuil dès votre arrivée. Dans Ma Couronne, le pli reste scellé jusque-là.' },
+        ],
+      },
+      {
+        type: 'grille',
+        sur: 'Ce que l’attention ne sera pas',
+        style: 'lignes',
+        items: [
+          { titre: 'Pas un jeu de hasard', texte: 'Chaque attention est choisie pour vous, à partir de ce que la Maison sait de votre couronne. Rien n’est tiré au sort.' },
+          { titre: 'Pas des points', texte: 'Ni compteur à gagner, ni classement entre clientes.' },
+          { titre: 'Pas une remise', texte: 'Jamais un montant sur la carte, et elle ne s’ajoute pas aux avantages de votre formule.' },
+          { titre: 'Pas un message de plus', texte: 'Elle voyage avec les messages de votre rendez-vous. Aucune relance.' },
         ],
       },
       {
         type: 'appel',
-        titre: "L'abonnement n'est pas une obligation.",
-        ligne: 'Nous vous le proposons quand il a du sens pour vous. Les formules vous sont expliquées de vive voix.',
+        titre: 'Un seul geste',
+        ligne: 'Vous avez Ma Couronne : votre formule vous y attend. Sinon, parlons-en.',
         boutons: [
-          { texte: 'Découvrir les abonnements', vers: 'message:entretien:Bonjour MND, je souhaite en savoir plus sur les abonnements.' },
-          { texte: 'Trouver mon parcours', vers: '/mon-parcours/' },
+          { texte: 'Voir ma formule', vers: 'soeur:couronne' },
+          { texte: 'En parler à la Maison', vers: 'message:entretien:Bonjour Maison MND, je souhaite en savoir plus sur les formules d’entretien pour ma couronne.' },
         ],
       },
     ],
