@@ -231,9 +231,10 @@ export default function LesPaiements() {
         const ligne = ligneDeLEquipe({
           employeeId: f.id, nom: f.name, runId: '', pourboiresDuMoisXof: pb,
           numero: etatDuNumero({ nom: f.name, msisdn: n.msisdn, source: n.source, lecture }), envois: [],
+          msisdn: n.source === 'fiche' ? n.msisdn : undefined,
         });
         out.push(ligne);
-        ctx.set(ligne.cle, { fiche: f });
+        ctx.set(ligne.cle, { fiche: f, ...(n.source === 'repris' ? { propose: n.msisdn } : {}) });
       }
     }
 

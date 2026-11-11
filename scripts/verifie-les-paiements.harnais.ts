@@ -91,6 +91,11 @@ const r = ligneDeLEquipe({
 dit('Moov : hors du virement MTN, dit a part', [false, 0, 'Moov, à la main'], [r.viaMtn, r.parMtnXof, r.pourquoi]);
 dit('sans run : la ligne ne part pas, les pourboires restent', ['ne-part-pas', false, 700],
   (() => { const x = ligneDeLEquipe({ employeeId: 'e9', nom: 'Z. Z.', runId: '', pourboiresDuMoisXof: 700, numero: { etat: 'sans' }, envois: [] }); return [x.etat, x.viaMtn, x.pourboiresXof]; })());
+/* 11 nov. 2026 : sans run, la ligne garde le numéro de la fiche, pour que « Lire chez MTN » demande son nom. */
+dit('sans run : le numéro de la fiche reste sur la ligne', '2290190000009',
+  ligneDeLEquipe({ employeeId: 'e9', nom: 'Z. Z.', runId: '', pourboiresDuMoisXof: 700, numero: { etat: 'non-lu' }, envois: [], msisdn: '2290190000009' }).msisdn);
+dit('avec un run : la lecture de la paie du 5 l emporte sur la fiche', '2290190000002',
+  ligneDeLEquipe({ employeeId: 'e2', nom: 'N. M.', runId: 'run-11', lecture: lu({ envoyeXof: 50000, netXof: 50000, msisdn: '2290190000002' }), ligne: { result: { net: 50000 } }, pourboiresDuMoisXof: 0, numero: verifie, envois: [], msisdn: '2290190000009' }).msisdn);
 
 /* L'état par l'envoi du registre. */
 const avecEnvoi = (envois: EnvoiMtn[], lecture = lu({ etat: 'payable', envoyeXof: 85000, netXof: 87500, especesXof: 2500 })) => ligneDeLEquipe({

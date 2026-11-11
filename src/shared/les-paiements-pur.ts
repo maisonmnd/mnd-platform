@@ -260,9 +260,15 @@ export function ligneDeLEquipe(o: {
   pourboiresDuMoisXof: number;
   numero: { etat: EtatDuNumero; nomMtn?: string | null };
   envois: readonly EnvoiMtn[];
+  /** Le numéro MTN de la fiche, quand il n'y a pas encore de run (11 nov.
+      2026) : sans lui, « Lire chez MTN » ne demandait jamais le nom de
+      l'équipe entre deux paies, et la ligne disait « nom pas encore lu »
+      pour toujours. Avec un run, la lecture de la paie du 5 l'emporte. */
+  msisdn?: string;
 }): LigneDuMois {
   const l = o.ligne;
   const lu = o.lecture;
+  const msisdn = lu?.msisdn ?? o.msisdn;
   const pret = Math.max(0, entier(l?.deductions?.retenuePret));
   /* La lecture de la paie du 5 retire DÉJÀ les pourboires du montant envoyé
      (`LectureDeLaLigne.especesXof`, règle unique `pourboiresEnEspecesXof` de
@@ -292,7 +298,7 @@ export function ligneDeLEquipe(o: {
     parMtnXof: viaMtn ? parMtn : 0,
     viaMtn,
     pourboiresXof: Math.max(0, entier(o.pourboiresDuMoisXof)),
-    ...(lu?.msisdn ? { msisdn: lu.msisdn } : {}),
+    ...(msisdn ? { msisdn } : {}),
     numero: o.numero.etat, nomMtn: o.numero.nomMtn,
     etat, ...(pourquoi ? { pourquoi } : {}),
     runId: o.runId, ...(envoi ? { envoi } : {}),
