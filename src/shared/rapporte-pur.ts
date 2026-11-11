@@ -544,7 +544,7 @@ function caseDeLAllumage(v: Voix, etat: EtatLu, secret: Case): Case {
     case 'trone-ouvert': return { etat: 'ok', dit: 'quand un Trône est ouvert' };
     case 'relances': {
       const c = ouiNon(etat.relancesActives, 'oui', 'éteint');
-      return c.etat === 'ok' && etat.mndPayActif === false ? { etat: 'doux', dit: 'oui, sans MND PAY' } : c;
+      return c.etat === 'ok' && etat.mndPayActif === false ? { etat: 'doux', dit: 'oui, sans FedaPay' } : c;
     }
     case 'avis': return ouiNon(etat.avisAuto, 'oui', 'éteint');
     case 'avec-son-modele':

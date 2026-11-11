@@ -383,7 +383,7 @@ export function FeuilleRegler({ demande, onClose, toast }: {
   const enLigne = kkiapayEnabled() && serveurPret && !!demande.subId;
   const numero = (branch.phone ?? '').replace(/\D/g, '');
   const avant = demande.avantIso ? dateDansLaPhrase(demande.avantIso) : '';
-  const texteMaison = `Bonjour, je souhaite recevoir un lien MND PAY pour régler ${fmtMoney(demande.montantXof)} : ${demande.objet}${avant ? `, avant le ${avant}` : ''}.`;
+  const texteMaison = `Bonjour, je souhaite recevoir un lien FedaPay pour régler ${fmtMoney(demande.montantXof)} : ${demande.objet}${avant ? `, avant le ${avant}` : ''}.`;
 
   const reglerEnLigne = async () => {
     if (!demande.subId || paie === 'en_cours') return;
@@ -422,7 +422,7 @@ export function FeuilleRegler({ demande, onClose, toast }: {
         )}
         {numero && (
           <a className="ab-choix" href={`https://wa.me/${numero}?text=${encodeURIComponent(texteMaison)}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-            <span className="ab-choix__n">{t('Recevoir un lien MND PAY')}</span>
+            <span className="ab-choix__n">{t('Recevoir un lien FedaPay')}</span>
             <span className="ab-choix__s">{avant
               ? t('La Maison vous l’envoie sur WhatsApp ; à régler avant le {date}.', { date: avant })
               : t('La Maison vous l’envoie sur WhatsApp.')}</span>

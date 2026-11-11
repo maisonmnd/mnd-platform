@@ -158,7 +158,7 @@ export function contexteDeLaReception(o: ContexteDeLaReception): string {
       ? '- En ce moment, la Maison est ouverte : une personne de l’équipe peut répondre dans la journée.'
       : `- En ce moment, la Maison est fermée, et tu réponds pour elle ; si la suite revient à l’équipe, une personne lui répondra ${reouverture}.`,
     ...((o.paiements ?? []).length > 0 ? [`- Moyens de paiement à la Maison : ${(o.paiements ?? []).join(', ')}.`] : []),
-    ...(o.paiementEnLigne ? ['- Paiement à distance : la Maison envoie un lien de paiement en ligne (MND PAY), sur demande.'] : []),
+    ...(o.paiementEnLigne ? ['- Paiement à distance : la Maison envoie un lien de paiement en ligne (FedaPay), sur demande.'] : []),
     o.premiereReponse
       ? '- C’est ta première réponse dans cette conversation : présente-toi comme l’assistant de la Maison.'
       : '- La Maison a déjà répondu dans cette conversation : ne te présente pas de nouveau, ne salue pas une seconde fois.',

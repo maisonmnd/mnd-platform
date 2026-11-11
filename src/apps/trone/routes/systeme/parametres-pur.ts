@@ -123,7 +123,7 @@ export function etatWhatsApp(automate: string): Etat {
 }
 
 export function resumePaiements(nbModes: number, mndPay: boolean, relances: boolean): string {
-  return `${nbModes} mode${nbModes > 1 ? 's' : ''} · MND PAY ${mndPay ? 'allumé' : 'éteint'} · relances ${relances ? 'allumées' : 'éteintes'}`;
+  return `${nbModes} mode${nbModes > 1 ? 's' : ''} · FedaPay ${mndPay ? 'allumé' : 'éteint'} · relances ${relances ? 'allumées' : 'éteintes'}`;
 }
 export function etatPaiements(mndPay: boolean, relances: boolean): Etat {
   return mndPay && relances ? { ton: 'ok', dit: 'tout allumé' } : { ton: 'neutre', dit: `${[mndPay, relances].filter(Boolean).length} sur 2 allumés` };

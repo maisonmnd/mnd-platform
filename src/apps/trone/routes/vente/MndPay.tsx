@@ -166,13 +166,13 @@ export function PanneauMndPay(p: {
   return (
     <div style={boite} data-mnd-pay="panneau">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>MND PAY</span>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>FedaPay</span>
         <span style={{ ...petit, fontSize: 11 }}>confirmé par FedaPay</span>
       </div>
 
       {!demande && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: 6 }} role="radiogroup" aria-label="Moyen MND PAY">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: 6 }} role="radiogroup" aria-label="Moyen FedaPay">
             {moyens.map((x) => (
               <button key={x.id} type="button" role="radio" aria-checked={moyen === x.id}
                 className={`trv-pay ${moyen === x.id ? 'is-active' : ''}`} onClick={() => setMoyen(x.id)}>
@@ -198,7 +198,7 @@ export function PanneauMndPay(p: {
             {compte.pourboireXof > 0 ? ` + pourboire ${m(compte.pourboireXof)}` : ''}
             {offre ? ` · frais ${m(compte.fraisOffertsXof ?? 0)} offerts par la Maison` : ` + frais ${m(compte.fraisXof)}`}
             {' = '}<b style={{ color: 'var(--color-indigo)' }}>{m(compte.totalXof)}</b>
-            {sansTauxCarte && <span style={{ display: 'block', color: 'var(--copper-700)' }}>Taux de la carte non posé : frais au taux du mobile money (Paramètres › MND PAY).</span>}
+            {sansTauxCarte && <span style={{ display: 'block', color: 'var(--copper-700)' }}>Taux de la carte non posé : frais au taux du mobile money (Paramètres › FedaPay).</span>}
           </div>
           {peutOffrir && dus > 0 && (
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', ...petit }}>

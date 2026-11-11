@@ -1653,7 +1653,7 @@ export default function Parametres() {
     const liste: [string, string, (c: Record<string, unknown>) => string][] = [
       ['L’automate WhatsApp', 'whatsapp-automate', (c) => `répond${version(c)}.`],
       ['L’assistant qui répond', 'reception-wa', (c) => `répond${version(c)}, clé de Claude ${c.claude === 'oui' ? 'posée' : 'absente'}.`],
-      ['MND PAY', 'mnd-pay', (c) => `répond${version(c)}, clé FedaPay ${(c.secrets as { fedapay?: boolean } | undefined)?.fedapay ? 'posée' : 'pas posée'}.`],
+      ['FedaPay', 'mnd-pay', (c) => `répond${version(c)}, clé FedaPay ${(c.secrets as { fedapay?: boolean } | undefined)?.fedapay ? 'posée' : 'pas posée'}.`],
       ['Les relances', 'relances-factures', (c) => `répond${version(c)}.`],
       ['Le diagnostic photo', 'diagnostic-locks', (c) => `répond${version(c)}.`],
     ];

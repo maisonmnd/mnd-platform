@@ -2,7 +2,7 @@ import { invoiceReglements } from './finance-pur';
 import type { Cashbox, Invoice } from './finance';
 import { attenduDuTiroir, nouvelleCloture, pourquoiPasCeJour, type Cloture } from './caisse-du-soir-pur';
 import { laCaisseDuPaiement } from './caisses-des-caissiers-pur';
-import { CAISSE_MND_PAY } from './mnd-pay-pur';
+import { estLaCaisseFedaPay } from './mnd-pay-pur';
 
 /* ══ LA CAISSE DU JOUR, CAISSE PAR CAISSE — 5 novembre 2026 ═══════════════
    « Dans la caisse du jour je veux pouvoir cocher les caisses pour voir quoi
@@ -141,7 +141,7 @@ export function caissesDuComptoir<B extends Pick<Cashbox, 'id' | 'branchId' | 'n
   ajoute(ici.find((b) => b.id === `cb-kkiapay-${branchId}`) ?? ici.find((b) => b.name === 'KkiaPay'));
   ajoute(laCaisseDuPaiement(ici, branchId, 'carte'));
   ajoute(laCaisseDuPaiement(ici, branchId, 'cheque'));
-  ajoute(ici.find((b) => b.name === CAISSE_MND_PAY));
+  ajoute(ici.find((b) => estLaCaisseFedaPay(b.name)));
   return out;
 }
 

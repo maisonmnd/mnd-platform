@@ -21,7 +21,13 @@ import type { Invoice, InvoicePayment } from './finance';
 
 /** La caisse où dort l'argent reçu par MND PAY, jusqu'au reversement de
     FedaPay sur le compte de la Maison : ce n'est pas le tiroir. */
-export const CAISSE_MND_PAY = 'MND PAY';
+export const CAISSE_MND_PAY = 'FedaPay';
+/** SON NOM D'AVANT LE 12 NOVEMBRE 2026 (« Enlève MND PAY et remplace par
+    FedaPay », Y.) : la caisse garde son identifiant et son passé, seul son
+    nom change ; un poste resté sur l'ancien Trône peut le porter encore, et
+    il vaut la caisse FedaPay. */
+export const ANCIEN_NOM_MND_PAY = 'MND PAY';
+export const estLaCaisseFedaPay = (nom: unknown): boolean => nom === CAISSE_MND_PAY || nom === ANCIEN_NOM_MND_PAY;
 /** La caisse de Zelle : un compte aux États-Unis, en dollars. */
 export const CAISSE_ZELLE = 'Zelle';
 export const MOYEN_ZELLE = 'Zelle';
@@ -305,7 +311,7 @@ export function moyenDeLaPiece(d: Pick<DemandeMndPay, 'moyen' | 'modeReel'>): st
   if (d.moyen === 'moov') return 'Moov';
   if (d.moyen === 'celtiis') return 'Celtiis';
   if (d.moyen === 'carte') return 'Carte';
-  return 'MND PAY';
+  return 'FedaPay';
 }
 
 /** LE VERSEMENT QUE LA PIÈCE REÇOIT. Son identifiant EST celui de la demande :
@@ -323,7 +329,7 @@ export function versementDeLaDemande(d: DemandeMndPay, encaissePar?: string): In
     ...(heure && !Number.isNaN(heure.getTime())
       ? { time: `${String(heure.getHours()).padStart(2, '0')}:${String(heure.getMinutes()).padStart(2, '0')}` }
       : {}),
-    note: `MND PAY${d.reference ? ` · réf. ${d.reference}` : ''}${d.fraisXof > 0 ? ` · frais ${f(d.fraisXof)} F payés par la cliente` : ''}${f(d.fraisOffertsXof ?? 0) > 0 ? ` · frais offerts par la Maison` : ''}`,
+    note: `FedaPay${d.reference ? ` · réf. ${d.reference}` : ''}${d.fraisXof > 0 ? ` · frais ${f(d.fraisXof)} F payés par la cliente` : ''}${f(d.fraisOffertsXof ?? 0) > 0 ? ` · frais offerts par la Maison` : ''}`,
     ...(encaissePar ? { encaissePar } : {}),
   };
 }
@@ -542,7 +548,7 @@ export function depensesDesFraisOfferts(
     const cliente = nomDe(d.clientId);
     out.push({
       id, branchId: d.branchId,
-      label: `Frais MND PAY offerts${qui ? ` par ${qui}` : ''}${cliente ? ` · ${cliente}` : ''}`,
+      label: `Frais FedaPay offerts${qui ? ` par ${qui}` : ''}${cliente ? ` · ${cliente}` : ''}`,
       amountXof: commission > 0 ? commission : offerts,
       date: jourLocal(d.payeeLe ?? d.creeLe),
       cashbox: CAISSE_MND_PAY,

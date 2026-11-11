@@ -586,7 +586,7 @@ function contexteDeLaReception(o) {
     heures.length ? `- Heures d’ouverture : ${heures.join(" ; ")}.` : "- Heures d’ouverture : non communiquées ; ne donne aucune heure.",
     reouverture === null ? "- En ce moment, la Maison est ouverte : une personne de l’équipe peut répondre dans la journée." : `- En ce moment, la Maison est fermée, et tu réponds pour elle ; si la suite revient à l’équipe, une personne lui répondra ${reouverture}.`,
     ...(o.paiements ?? []).length > 0 ? [`- Moyens de paiement à la Maison : ${(o.paiements ?? []).join(", ")}.`] : [],
-    ...o.paiementEnLigne ? ["- Paiement à distance : la Maison envoie un lien de paiement en ligne (MND PAY), sur demande."] : [],
+    ...o.paiementEnLigne ? ["- Paiement à distance : la Maison envoie un lien de paiement en ligne (FedaPay), sur demande."] : [],
     o.premiereReponse ? "- C’est ta première réponse dans cette conversation : présente-toi comme l’assistant de la Maison." : "- La Maison a déjà répondu dans cette conversation : ne te présente pas de nouveau, ne salue pas une seconde fois."
   ];
   return lignes.join("\n");
@@ -865,7 +865,7 @@ function prixSelonLeCalibre(s, ctx) {
 }
 
 // scripts/serveur/reception-wa.ts
-var VERSION = "2026-11-02-a";
+var VERSION = "2026-11-12-a";
 var MODELES = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 var TARIFS = {
   "claude-haiku-5-5": { entree: 1, sortie: 5 },

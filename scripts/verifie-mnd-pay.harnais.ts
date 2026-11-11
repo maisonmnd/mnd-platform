@@ -24,11 +24,13 @@ import {
   aRattacher, codeUssdTapGo, compteDeLaDemande, saitTapGo, parametreTapGo, motTapGo, variablesTapGo, MODELE_TAPGO, LIEN_TAPGO,
   paiementTapGoDeLaPiece, rendezVousRegles, saitLesFactures, fraisPour, instantDe, moyenDeLaPiece, numeroMasque, numeroPourFedaPay,
   piecesReglees, rapprocheTapGo, resteDuTicket, statutDepuisFedaPay, tapGoOuvert, tauxDe, versementDeLaDemande, versementsDesParts,
-  CAISSE_MND_PAY, DELAI_DU_TICKET_MS, type DemandeMndPay,
+  ANCIEN_NOM_MND_PAY, CAISSE_MND_PAY, DELAI_DU_TICKET_MS, estLaCaisseFedaPay, type DemandeMndPay,
   depensesDesFraisOfferts, idDesFraisOfferts, saitLesFraisOfferts,
 } from '../src/shared/mnd-pay-pur';
 import type { Invoice } from '../src/shared/finance';
 import { saitLEcheanceSuivante } from '../src/shared/kkiapay';
+import { familleDuMoyen, caissesAuChoix, HORS_CLOTURE } from '../src/shared/caisses-des-caissiers-pur';
+import { readdirSync } from 'node:fs';
 import { envoieLeNumeroTapGo } from '../src/shared/tapgo-whatsapp';
 import { envoieLaFactureARegler, variablesDeLaFacture, MODELE_FACTURE, refusDuModele } from '../src/shared/facture-whatsapp';
 import { motDuRecu, recuAEnvoyer } from '../src/shared/recu-whatsapp';
@@ -72,7 +74,7 @@ dit('la case attend le serveur 2026-10-18-a', [false, false, true, true], ['', '
   };
   const deps = depensesDesFraisOfferts([payeeOfferte, { ...payeeOfferte, id: 'mp-att', statut: 'en_attente' }, { ...payeeOfferte, id: 'mp-sans', fraisOffertsXof: undefined, fraisXof: 540 }], [], () => 'Awa A.');
   dit('une demande payée sans ses frais écrit sa dépense dans MND PAY : qui a offert, à qui, combien (en attente ou frais payés : rien)', [{
-    id: 'dep-frais-mp-off', branchId: 'b1', label: 'Frais MND PAY offerts par Gérard · Awa A.', amountXof: 540, date: '2026-10-18',
+    id: 'dep-frais-mp-off', branchId: 'b1', label: 'Frais FedaPay offerts par Gérard · Awa A.', amountXof: 540, date: '2026-10-18',
     cashbox: CAISSE_MND_PAY, category: 'Frais bancaires', subcategory: 'Commissions Mobile Money' }], deps);
   dit('une seule fois : la dépense déjà là ne se réécrit pas', [], depensesDesFraisOfferts([payeeOfferte], [{ id: idDesFraisOfferts('mp-off') }]));
   dit('la commission dite par FedaPay prime sur le calcul', 556, depensesDesFraisOfferts([{ ...payeeOfferte, commissionXof: 556 }], [])[0]?.amountXof);
@@ -236,7 +238,7 @@ const iRelue = corpsDuWebhook.indexOf('/transactions/${fedapayId}');
 dit('le webhook redemande la transaction à FedaPay avant d écrire', true,
   iRelue > 0 && iRelue < corpsDuWebhook.indexOf(".update({ data: suite })"));
 dit('la caisse MND PAY ne se choisit pas à la main (Caisse et rituel)', [true, true],
-  [/\.filter\(\(c\) => c\.name !== CAISSE_MND_PAY\)/.test(caisse), /const eligibleBoxes = boxesDuJour\.filter\(\(c\) => [^;]*c\.name !== CAISSE_MND_PAY\);/.test(actions)]);
+  [/\.filter\(\(c\) => !estLaCaisseFedaPay\(c\.name\)\)/.test(caisse), /const eligibleBoxes = boxesDuJour\.filter\(\(c\) => [^;]*!estLaCaisseFedaPay\(c\.name\)\);/.test(actions)]);
 dit('le versement du rituel payé par MND PAY garde l identifiant de sa demande', true,
   /const mnd = pt\.tuile === 'mndpay' \? mndPayRef\.current : null;[\s\S]{0,500}id: mnd\?\.id \?\? `ip-\$\{uid\(\)\}`/.test(actions));
 dit('la Caisse ferme le ticket avec le versement de la demande', true, /versementDeLaDemande\(mndPay, piece\.encaissePar\)/.test(caisse));
@@ -485,7 +487,7 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
   const dLien = { ...base, id: 'mp-lien', genre: 'lien', moyen: 'tapgo', montantXof: 9_900, fraisXof: 159, totalXof: 10_059, pieceId: 'inv-r', statut: 'payee', modeReel: 'mtn_open', payeeLe: '2026-10-27T10:00:00.000Z' } as DemandeMndPay;
   const rdv = { id: 'rdv-1', paidXof: 100, payments: [{ id: 'pay-1', amountXof: 100 }] };
   const r1 = rendezVousRegles([rdv], [{ id: 'inv-r', apptId: 'rdv-1' }], [dLien], ['mp-lien']);
-  dit('le rendez-vous reçoit le même versement, sous le même identifiant, et son payé monte', [1, 10_000, 'mp-lien', 'MND PAY', 'inv-r'],
+  dit('le rendez-vous reçoit le même versement, sous le même identifiant, et son payé monte', [1, 10_000, 'mp-lien', 'FedaPay', 'inv-r'],
     [r1.length, r1[0]?.paidXof, r1[0]?.payments?.[1]?.id, (r1[0]?.payments?.[1] as { cashbox?: string })?.cashbox, (r1[0]?.payments?.[1] as { invoiceId?: string })?.invoiceId]);
   dit('... une seule fois (un second passage ne rajoute rien)', 0, rendezVousRegles(r1, [{ id: 'inv-r', apptId: 'rdv-1' }], [dLien], ['mp-lien']).length);
   dit('... et une pièce sans rendez-vous ne touche aucun rendez-vous', 0, rendezVousRegles([rdv], [{ id: 'inv-r' }], [dLien], ['mp-lien']).length);
@@ -626,5 +628,31 @@ dit('l envoi transporte le paramètre du bouton jusqu à la fonction', true, /\.
       /const tapgo = tg \? \{ parametre: parametreTapGo\(tg\.totalXof, settings\.mndPay\), lien: tg\.qr, totalDit: fmtMoney\(tg\.totalXof, currency\) \} : undefined;/.test(env),
       /tapgo: lien \?\? tapgo, enLigne: !!lien/.test(env)]);
 }
-console.log(ko === 0 ? '\nMND PAY tient ses regles.' : `\n${ko} controle(s) en echec.`);
+/* « ENLÈVE MND PAY ET REMPLACE PAR FEDAPAY » (Y., 12 novembre 2026). La
+   caisse, la tuile, le panneau, les liens, Ma Couronne et le serveur disent
+   FedaPay. L'ancien nom vaut encore la caisse FedaPay (un poste resté sur
+   l'ancien Trône, une ligne pas encore renommée), et plus aucun écran ne
+   l'affiche. */
+{
+  dit('la caisse s appelle FedaPay ; l ancien nom la vaut encore, rien d autre', ['FedaPay', 'MND PAY', true, true, false, false],
+    [CAISSE_MND_PAY, ANCIEN_NOM_MND_PAY, estLaCaisseFedaPay('FedaPay'), estLaCaisseFedaPay('MND PAY'), estLaCaisseFedaPay('KkiaPay'), estLaCaisseFedaPay(undefined)]);
+  dit('un paiement sans reseau connu se dit FedaPay ; la famille reconnait les deux noms', ['FedaPay', 'mndpay', 'mndpay', 'paypal'],
+    [moyenDeLaPiece({ moyen: 'tapgo', modeReel: '' } as Parameters<typeof moyenDeLaPiece>[0]), familleDuMoyen('FedaPay'), familleDuMoyen('MND PAY'), familleDuMoyen('PayPal')]);
+  dit('ni l une ni l autre ne se choisit a la main, ni ne se compte le soir', [['Terrasse'], true, true],
+    [caissesAuChoix([{ name: 'FedaPay' }, { name: 'MND PAY' }, { name: 'Terrasse' }] as { name: string }[], { estDirection: true, anneePassee: false }).map((b) => b.name),
+      HORS_CLOTURE.includes('FedaPay'), HORS_CLOTURE.includes('MND PAY')]);
+  const mp = lis('src/shared/mnd-pay.ts');
+  dit('une caisse encore sous l ancien nom se renomme au passage, meme identifiant ; une neuve nait FedaPay', [true, true],
+    [/const ancienne = boxes\.find\(\(b\) => b\.branchId === branchId && b\.name === ANCIEN_NOM_MND_PAY\);\s*if \(ancienne && !boxes\.some\(\(b\) => b\.branchId === branchId && b\.name === CAISSE_MND_PAY\)\) \{\s*cashboxesStore\.set\(\(prev\) => prev\.map\(\(b\) => \(b\.id === ancienne\.id \? \{ \.\.\.b, name: CAISSE_MND_PAY/.test(mp),
+      /!boxes\.some\(\(b\) => b\.branchId === branchId && estLaCaisseFedaPay\(b\.name\)\)\) \{\s*a\.push\(\{ id: \x60cb-mndpay-\$\{branchId\}\x60, branchId, name: CAISSE_MND_PAY,/.test(mp)]);
+  dit('le serveur ecrit la caisse FedaPay (mnd-pay et son webhook)', [true, true],
+    ['supabase/functions/mnd-pay/index.ts', 'supabase/functions/mnd-pay-webhook/index.ts'].map((f) => /cashbox: 'FedaPay', source: 'mnd-pay', note: \x60FedaPay\$\{/.test(lis(f))));
+  const sansCommentaires = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/ANCIEN_NOM_MND_PAY = 'MND PAY'/g, '');
+  const sources = ['src/apps/trone', 'src/apps/couronne', 'src/shared'].flatMap((d) =>
+    (readdirSync(path.join(racine, d), { recursive: true }) as string[]).filter((f) => /\.tsx?$/.test(f)).map((f) => d + '/' + String(f).replace(/\\/g, '/')));
+  const serveur = readdirSync(path.join(racine, 'supabase/functions')).map((d) => 'supabase/functions/' + d + '/index.ts').filter((f) => { try { lis(f); return true; } catch { return false; } });
+  dit('aucun ecran du Trone, de Ma Couronne ni du serveur n affiche plus MND PAY', [],
+    [...sources, ...serveur].filter((f) => /MND PAY/.test(sansCommentaires(lis(f)))));
+}
+console.log(ko === 0 ? '\nFedaPay tient ses regles.' : `\n${ko} controle(s) en echec.`);
 process.exitCode = ko === 0 ? 0 : 1;

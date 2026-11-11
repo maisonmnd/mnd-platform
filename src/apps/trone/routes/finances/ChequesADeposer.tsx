@@ -7,7 +7,7 @@ import { useClients } from '../../../../shared/clients';
 import { fmtMoney } from '../../../../shared/currency';
 import { invoicesStore, quiEncaisse, transfertsStore, useCashboxes, useInvoices } from '../../../../shared/finance';
 import { CAISSE_ANNEES_PASSEES, laCaisseDuPaiement, nomDeLaCaisse, type FamilleDeCaisse } from '../../../../shared/caisses-des-caissiers-pur';
-import { CAISSE_MND_PAY } from '../../../../shared/mnd-pay-pur';
+import { ANCIEN_NOM_MND_PAY, CAISSE_MND_PAY } from '../../../../shared/mnd-pay-pur';
 import { jourDit } from '../../../../shared/gestes-conversation';
 import { jourLocal } from '../../../../shared/mnd-pay-pur';
 import { chequesADeposer, traceDite, virementDuDepot } from '../../../../shared/trace-du-moyen-pur';
@@ -37,7 +37,7 @@ export function ChequesADeposer() {
   const comptes = caisses.filter((c) => c.branchId === branch.id && !c.archiveeLe && !c.caissierId
     && (!c.currency || c.currency === currency)
     && !desPaiements.has(c.id)
-    && ![CAISSE_CHEQUES, CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY].includes(c.name));
+    && ![CAISSE_CHEQUES, CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY, ANCIEN_NOM_MND_PAY].includes(c.name));
   const parDefaut = (comptes.find((c) => c.role === 'banque') ?? comptes.find((c) => /biic|banque|bank/i.test(c.name)))?.name ?? '';
   const [vers, setVers] = useState('');
   const compte = vers || parDefaut;

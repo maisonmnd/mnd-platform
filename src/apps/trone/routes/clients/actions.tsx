@@ -55,7 +55,7 @@ import { detailDuService } from '../../../../shared/le-moment-detail-pur';
 import { DetailDuMoment } from './DetailDuMoment';
 import { RattacherUneCarte } from '../vente/RattacherUneCarte';
 import { PanneauMndPay } from '../vente/MndPay';
-import { CAISSE_MND_PAY, moyenDeLaPiece, type DemandeMndPay } from '../../../../shared/mnd-pay-pur';
+import { CAISSE_MND_PAY, estLaCaisseFedaPay, moyenDeLaPiece, type DemandeMndPay } from '../../../../shared/mnd-pay-pur';
 import { mndPayOuvert } from '../../../../shared/mnd-pay';
 import { useEnvoiDeLaPiece } from '../vente/envoi-de-la-piece';
 import { ditLaPiecePartie, pieceDejaPartie } from '../../../../shared/une-piece-un-message-pur';
@@ -901,7 +901,7 @@ const TUILES_ENC: { id: TuileEnc; nom: string; sous: string }[] = [
   { id: 'kkiapay', nom: 'KkiaPay', sous: 'QR Chap Chap, tous réseaux' },
   { id: 'carte', nom: 'Carte', sous: 'à la banque' },
   { id: 'cheque', nom: 'Chèque', sous: 'à déposer' },
-  { id: 'mndpay', nom: 'MND PAY', sous: 'confirmé par FedaPay' },
+  { id: 'mndpay', nom: 'FedaPay', sous: 'se confirme seul' },
   { id: 'avoir', nom: 'Avoir', sous: 'crédit du compte' },
   { id: 'autre', nom: 'Autres', sous: 'les autres moyens' },
 ];
@@ -926,13 +926,13 @@ function methodeDeLaTuile(t: TuileEnc, methods: readonly string[], autre?: strin
     case 'carte': return methods.find(estCarte) ?? 'Carte';
     case 'cheque': return methods.find(estCheque) ?? 'Chèque';
     case 'avoir': return 'Avoir';
-    case 'mndpay': return 'MND PAY';
+    case 'mndpay': return 'FedaPay';
     case 'mtn': return 'MTN Collection';
     default: return autre || premierAutre(autresMethodes(methods)) || 'Virement bancaire';
   }
 }
 const DIT_LA_TUILE: Record<TuileEnc, string> = {
-  especes: 'en espèces', mtn: 'par MTN', momo: 'en MTN MoMoPay', momoPrive: 'en MoMo Privé', kkiapay: 'par KkiaPay', carte: 'par carte', cheque: 'par chèque', mndpay: 'par MND PAY', avoir: 'sur l’avoir', autre: '',
+  especes: 'en espèces', mtn: 'par MTN', momo: 'en MTN MoMoPay', momoPrive: 'en MoMo Privé', kkiapay: 'par KkiaPay', carte: 'par carte', cheque: 'par chèque', mndpay: 'par FedaPay', avoir: 'sur l’avoir', autre: '',
 };
 /** UNE PART DU RÈGLEMENT : sa tuile, son montant, et la caisse qu'une main
     de la direction a choisie à la place de celle qui se propose. `mnd` : la
@@ -1567,7 +1567,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
   const boxesDuJour = caissesPourLaDate(branchBoxes, payDate);
   /* Les caisses où cet argent PEUT entrer : la branche, la date, la devise.
      MND PAY n'en fait pas partie à la main (seul FedaPay y fait entrer). */
-  const eligibleBoxes = boxesDuJour.filter((c) => cashboxCurrency(c) === payCurrency && c.name !== CAISSE_MND_PAY);
+  const eligibleBoxes = boxesDuJour.filter((c) => cashboxCurrency(c) === payCurrency && !estLaCaisseFedaPay(c.name));
 
   /* ── QUI ENCAISSE, ET OÙ VA CHAQUE PART — 17 octobre 2026 ─────────────
      Le compte connecté, retrouvé à sa fiche par l'adresse qui fait foi
@@ -1585,7 +1585,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
     if (pt.tuile === 'avoir') return { methode: 'Avoir', caisse: '', proposee: { pourquoi: 'L’avoir ne passe par aucune caisse.' }, peutChanger: false };
     if (pt.tuile === 'mndpay') {
       return {
-        methode: pt.mnd?.methode ?? 'MND PAY', caisse: pt.mnd ? CAISSE_MND_PAY : '',
+        methode: pt.mnd?.methode ?? 'FedaPay', caisse: pt.mnd ? CAISSE_MND_PAY : '',
         proposee: { caisse: CAISSE_MND_PAY, pourquoi: 'L’argent est chez FedaPay jusqu’au reversement.' }, peutChanger: false,
       };
     }
@@ -1622,7 +1622,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
   /* La Gamme se règle toujours en francs, et jamais par la demande MND PAY
      du rituel (elle ne porte que le rituel) : « comme le rituel » prend le
      moyen de la première part hors MND PAY. */
-  const gammeBoxes = boxesDuJour.filter((c) => cashboxCurrency(c) === currency && c.name !== CAISSE_MND_PAY);
+  const gammeBoxes = boxesDuJour.filter((c) => cashboxCurrency(c) === currency && !estLaCaisseFedaPay(c.name));
   const payHorsMnd: PaymentMethod = (() => {
     const i = parts.findIndex((pt) => pt.tuile !== 'avoir' && pt.tuile !== 'mndpay');
     return i >= 0 ? lesCaisses[i].methode : especesParDefaut;
@@ -1885,7 +1885,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
           id: mnd?.id ?? `ip-${uid()}`, date: payDate, amountXof: x,
           method: c.methode, cashbox: c.caisse || undefined,
           ...(trace ? { trace } : {}),
-          ...(mnd ? { note: `${mnd.moyen === 'tapgo' ? 'MND PAY · Tap & Go' : 'MND PAY'}${mnd.reference ? ` · réf. ${mnd.reference}` : ''}${mnd.fraisXof > 0 ? ` · frais ${mnd.fraisXof} F payés par la cliente` : ''}` } : pt.note ? { note: pt.note } : {}),
+          ...(mnd ? { note: `${mnd.moyen === 'tapgo' ? 'FedaPay · Tap & Go' : 'FedaPay'}${mnd.reference ? ` · réf. ${mnd.reference}` : ''}${mnd.fraisXof > 0 ? ` · frais ${mnd.fraisXof} F payés par la cliente` : ''}` } : pt.note ? { note: pt.note } : {}),
           time: new Date().toTimeString().slice(0, 5),
           ...(quiEncaisse() ? { encaissePar: quiEncaisse() } : {}),
           /* LA DEVISE VIT SUR LE VERSEMENT — les 100 € de Stevie A., 18 août.
@@ -2363,7 +2363,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
     : avoirTropHaut
       ? `L’avoir disponible n’est que de ${fmtMoney(avoirBal, currency)}.`
       : mndEnAttente
-        ? 'La part MND PAY s’encaisse seule au vert de FedaPay : demandez-la dans « Comment elle paie ».'
+        ? 'La part FedaPay s’encaisse seule quand FedaPay confirme : demandez-la dans « Comment elle paie ».'
         : caisseManquante
           ? 'Choisissez la caisse où entre cet argent.'
           : caisseGammeManquante
@@ -3086,7 +3086,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
             </Field>
           )}
           {tip > 0 && partMnd && !partMnd.mnd && (
-            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: -6 }}>Il part avec la demande MND PAY.</div>
+            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: -6 }}>Il part avec la demande FedaPay.</div>
           )}
           {tip > 0 && partage.length > 0 && (
             <div style={{ marginTop: -4, padding: '9px 12px', background: 'var(--color-sable)', borderRadius: 4 }}>

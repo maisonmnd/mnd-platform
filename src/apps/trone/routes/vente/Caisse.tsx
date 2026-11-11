@@ -56,7 +56,7 @@ import { DeposerUneCapture } from './DeposerUneCapture';
 import { methodeDuMoyenLu } from '../../../../shared/ia-capture-pur';
 import { addTipPartage, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
 import {
-  CAISSE_MND_PAY, MOYEN_ZELLE, moyenDeLaPiece, resteDuTicket, versementDeLaDemande, versementsDesParts,
+  CAISSE_MND_PAY, MOYEN_ZELLE, estLaCaisseFedaPay, moyenDeLaPiece, resteDuTicket, versementDeLaDemande, versementsDesParts,
   type DemandeMndPay, type ReglementDuTicket,
 } from '../../../../shared/mnd-pay-pur';
 import { assureLesCaissesMndPay, mndPayOuvert } from '../../../../shared/mnd-pay';
@@ -68,7 +68,7 @@ import { DepenseEnUnePhrase } from '../finances/DepenseEnUnePhrase';
 
 /** La tuile MND PAY dans la grille des moyens : un moyen à part, qui ne
     s'encaisse pas d'un bouton mais par la confirmation du prestataire. */
-const MND = 'MND PAY';
+const MND = 'FedaPay';
 
 /* Caisse POS — encaissement au fauteuil. Chaque encaissement crée une facture
    payée dans le registre des finances et crédite la caisse choisie. */
@@ -400,7 +400,7 @@ export default function Caisse() {
      caisses d'octobre, la Terrasse en tête. La caisse MND PAY ne se choisit
      jamais à la main : seul un paiement confirmé par FedaPay y entre. */
   const eligibleBoxes = caissesPourLaDate(branchCashboxes, dateVente, cashbox)
-    .filter((c) => c.name !== CAISSE_MND_PAY)
+    .filter((c) => !estLaCaisseFedaPay(c.name))
     .filter((c) => cashboxCurrency(c) === payCurrency)
     .sort((a, b) => Number(b.role === 'terrasse') - Number(a.role === 'terrasse'));
   /* ══ LA CAISSE DU PAIEMENT — 17 puis 21 octobre 2026 ══════════════════
@@ -1862,7 +1862,7 @@ export default function Caisse() {
               {mndOn && (
                 <button type="button" className={`trv-pay ${pay === MND ? 'is-active' : ''}`} style={{ width: '100%', marginBottom: 10, borderColor: 'var(--copper-300)' }}
                   onClick={() => { payTouche.current = true; setPay(MND); }} aria-pressed={pay === MND}>
-                  <div className="n">MND PAY</div>
+                  <div className="n">FedaPay</div>
                   <div className="s">mobile money au téléphone · carte par QR · confirmé seul</div>
                 </button>
               )}
@@ -1918,7 +1918,7 @@ export default function Caisse() {
                 <div style={{ marginTop: 12, border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 12px', fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--copper-700)', lineHeight: 1.55 }}>
                   {reglagesMnd?.zelle?.adresse
                     ? <>À envoyer par Zelle à <b style={{ color: 'var(--color-indigo)' }}>{reglagesMnd.zelle.adresse}</b>{reglagesMnd.zelle.titulaire ? ` (${reglagesMnd.zelle.titulaire})` : ''}, en dollars.</>
-                    : <>L’adresse Zelle de la Maison n’est pas posée (Paramètres › MND PAY).</>}
+                    : <>L’adresse Zelle de la Maison n’est pas posée (Paramètres › FedaPay).</>}
                   {' '}Encaissez seulement quand le relevé du compte américain montre l’argent.
                 </div>
               )}
@@ -2090,7 +2090,7 @@ export default function Caisse() {
               {/* Ce pied promettait une « réconciliation MoMo automatique » qui
                   n'existait pas (16 octobre 2026) : il dit désormais ce qui est vrai. */}
               <div style={{ textAlign: 'center', marginTop: 10, fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
-                {mndOn ? 'Reçu WhatsApp · MND PAY se rapproche seul, le code MoMo se rapproche au relevé.' : 'Reçu WhatsApp · le code MoMo se rapproche au relevé.'}
+                {mndOn ? 'Reçu WhatsApp · FedaPay se rapproche seul, le code MoMo se rapproche au relevé.' : 'Reçu WhatsApp · le code MoMo se rapproche au relevé.'}
               </div>
             </TempsDeLaCaisse>
               {pay === MND && (
@@ -2118,7 +2118,7 @@ export default function Caisse() {
                 <span className="m">{pay ? `${pay}${pay !== MND && activeCashbox ? ` · caisse ${activeCashbox}` : ''}` : (lines.length && resteApresParts > 0 ? 'choisissez le moyen' : '')}{remisesXof > 0 ? ` · remises −${fmtMoney(remisesXof, currency)}` : ''}</span>
               </div>
               {pay === MND ? (
-                <span className="trv-ticket__pied-mnd">La demande MND PAY ferme le ticket dès que FedaPay confirme.</span>
+                <span className="trv-ticket__pied-mnd">La demande FedaPay ferme le ticket dès que FedaPay confirme.</span>
               ) : (
               <Button
                 variant="copper"
@@ -2170,7 +2170,7 @@ export default function Caisse() {
                   void checkout();
                 }}
               >
-                {pay === MND ? 'MND PAY' : 'Encaisser'}
+                {pay === MND ? 'FedaPay' : 'Encaisser'}
               </button>
             </div>
           )}

@@ -39,7 +39,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* 20 octobre 2026 (le parcours de l'abonnée) : une demande payée qui règle
    un contrat s'inscrit au contrat ET à sa pièce (`verse_sur_l_abonnement`). */
-const VERSION = '2026-10-20-a';
+const VERSION = '2026-11-12-a';
 
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
@@ -277,7 +277,7 @@ function moyenDeLaPiece(d: any): string {
   if (d.moyen === 'moov') return 'Moov';
   if (d.moyen === 'celtiis') return 'Celtiis';
   if (d.moyen === 'carte') return 'Carte';
-  return 'MND PAY';
+  return 'FedaPay';
 }
 // ── FIN moyenDeLaPiece
 
@@ -312,7 +312,7 @@ async function verseSurLeContratDeLaDemande(admin: any, d: any): Promise<string>
     p_sub_id: contrat.id,
     p_versement: {
       id: String(d.id), montantXof: Math.round(Number(d.montantXof ?? 0)), date: jour, moyen: moyenDeLaPiece(d),
-      cashbox: 'MND PAY', source: 'mnd-pay', note: `MND PAY${d.reference ? ` · réf. ${d.reference}` : ''}`,
+      cashbox: 'FedaPay', source: 'mnd-pay', note: `FedaPay${d.reference ? ` · réf. ${d.reference}` : ''}`,
     },
   });
   if (error) throw new Error(error.message);

@@ -328,7 +328,7 @@ export function CarteAbonnement({ client, appts, invoices }: {
                     Encaisser {fmtMoney(montantDu, currency)}
                   </button>
                   <button type="button" className="trc-abo__btn" aria-pressed={g === 'lien'} onClick={() => ouvre(c.sub.id, 'lien')}>
-                    Envoyer un lien MND PAY
+                    Envoyer un lien FedaPay
                   </button>
                 </>
               )}
@@ -383,7 +383,7 @@ export function CarteAbonnement({ client, appts, invoices }: {
               return (
                 <PanneauDEffet effet={{
                   lignes: [
-                    `Un lien MND PAY de ${fmtMoney(montantDu, currency)} part sur son WhatsApp : le message dit le montant, jamais le numéro de la pièce.`,
+                    `Un lien FedaPay de ${fmtMoney(montantDu, currency)} part sur son WhatsApp : le message dit le montant, jamais le numéro de la pièce.`,
                     'Réglé, il s’inscrit au contrat et sur sa pièce, comme au comptoir.',
                   ],
                 }}>

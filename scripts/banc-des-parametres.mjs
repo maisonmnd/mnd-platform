@@ -130,7 +130,7 @@ try {
   dit('dix tuiles', (await evalue(`document.querySelectorAll('.prm-tuile').length`)) === 10, await evalue(`document.querySelectorAll('.prm-tuile').length`));
   dit('cinq gestes rapides', (await evalue(`document.querySelectorAll('.prm-geste').length`)) === 5);
   dit('la tuile des heures dit la semaine', t.includes('mar. au ven. 8 h à 20 h 30 · sam. 9 h à 20 h · fermée lundi et dimanche'), t.match(/Heures et jours[^·]*·[^·]*/)?.[0]);
-  dit('la tuile des paiements compte les modes', t.includes('8 modes · MND PAY allumé · relances allumées'));
+  dit('la tuile des paiements compte les modes', t.includes('8 modes · FedaPay allumé · relances allumées'));
   dit('rien « à venir », ni les contrôles retirés', !/À venir|À VENIR|Double authentification|Durée standard|Accès ERP du personnel/.test(t));
   dit('ce qui efface ne se voit pas', !/Tout réinitialiser|Annuler \d+ factures|Vider \d+ rendez-vous|Remplacer toute la Maison/.test(t));
   await capture('parametres-1280-repos.png');
@@ -139,7 +139,7 @@ try {
   dit('la tuile Paiements s ouvre', await clique('.prm-tuile', 'Paiements'));
   await attend(900);
   t = await texte();
-  dit('… son panneau porte les modes, MND PAY et les relances', /Les modes de paiement/.test(t) && /Allumer MND PAY/.test(t) && /Allumées depuis le/.test(t));
+  dit('… son panneau porte les modes, FedaPay et les relances', /Les modes de paiement/.test(t) && /Allumer FedaPay/.test(t) && /Allumées depuis le/.test(t));
   dit('… et l adresse le dit', (await evalue('location.hash')).includes('ouvre=paiements'), await evalue('location.hash'));
   await capture('parametres-1280-paiements.png');
   dit('elle se referme d un toucher', await clique('.prm-tuile', 'Paiements'));

@@ -226,7 +226,7 @@ export default function MonSolde({ releve, prenom, selecteur, onClose, onRegler 
               {hors.map((l) => (
                 <div key={`${l.genre}-${l.id}`} className="ab-pai">
                   {l.dueIso && <span className="ab-pai__d">{dateCourte(l.dueIso)}</span>}
-                  <span className="ab-pai__o">{objetDeLaLigne(l, !prenom)}<small>{l.statut === 'a-venir' ? t('à venir') : t('à régler au comptoir ou par un lien MND PAY')}</small></span>
+                  <span className="ab-pai__o">{objetDeLaLigne(l, !prenom)}<small>{l.statut === 'a-venir' ? t('à venir') : t('à régler au comptoir ou par un lien FedaPay')}</small></span>
                   <b>{prix(l.montantXof)}</b>
                 </div>
               ))}

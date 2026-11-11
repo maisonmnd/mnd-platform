@@ -49,9 +49,9 @@ export function JournalMndPay({ branchId, jour, currency }: { branchId: string; 
     const piece = nouvelleFacture({
       branchId, serie: 'MND', status: 'payée',
       clientId: d.clientId ?? '',
-      clientName: d.clientId ? undefined : 'Cliente MND PAY',
+      clientName: d.clientId ? undefined : 'Cliente FedaPay',
       date: jourLocal(d.payeeLe ?? d.creeLe),
-      lines: [ligneFacture(`Règlement ${d.moyen === 'tapgo' ? 'Tap & Go' : 'MND PAY'}${d.reference ? ` · réf. ${d.reference}` : ''}`, d.montantXof, 1, 0)],
+      lines: [ligneFacture(`Règlement ${d.moyen === 'tapgo' ? 'Tap & Go' : 'FedaPay'}${d.reference ? ` · réf. ${d.reference}` : ''}`, d.montantXof, 1, 0)],
       payment: moyenDeLaPiece(d),
       cashbox: CAISSE_MND_PAY,
     });
@@ -64,10 +64,10 @@ export function JournalMndPay({ branchId, jour, currency }: { branchId: string; 
   return (
     <div style={{ border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--surface-card)', padding: '14px 16px', marginBottom: 18 }} data-mnd-pay="journal">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
-        <span className="trv-sec-label trv-sec-label--copper">MND PAY · ce jour</span>
+        <span className="trv-sec-label trv-sec-label--copper">FedaPay · ce jour</span>
         <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)' }}>confirmé par FedaPay, rapproché seul</span>
       </div>
-      {payees.length === 0 && <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink-soft)', padding: '6px 0' }}>Aucun paiement MND PAY ce jour{enAttente ? `, ${enAttente} en attente` : ''}.</div>}
+      {payees.length === 0 && <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink-soft)', padding: '6px 0' }}>Aucun paiement FedaPay ce jour{enAttente ? `, ${enAttente} en attente` : ''}.</div>}
       {[...parMoyen.entries()].map(([k, v]) => (
         <div key={k} style={ligne}><span>{k} <span style={{ color: 'var(--ink-soft)', fontSize: 11.5 }}>{v.n} paiement{v.n > 1 ? 's' : ''}</span></span><span>{fmtMoney(v.xof, currency)}</span></div>
       ))}

@@ -48,11 +48,11 @@ export function CarteMndPay() {
 
   return (
     <Card className="sys-section" style={{ marginTop: 18 }}>
-      <div className="sys-section__title">MND PAY</div>
+      <div className="sys-section__title">FedaPay</div>
       <div className="sys-section__cap">La caisse qui demande le paiement au téléphone de la cliente, ou par un QR pour la carte, et le voit confirmé par FedaPay.</div>
       <div className="sys-row">
         <div>
-          <div className="sys-row__label">Allumer MND PAY</div>
+          <div className="sys-row__label">Allumer FedaPay</div>
           <div className="sys-row__sub">
             Une fois le compte FedaPay ouvert, la migration 0133 passée et les fonctions mnd-pay et mnd-pay-webhook déployées.
             Éteint, la Caisse reste ce qu’elle était.

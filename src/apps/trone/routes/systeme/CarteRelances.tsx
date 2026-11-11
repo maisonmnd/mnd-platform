@@ -106,7 +106,7 @@ export function CarteRelances() {
             {r.actives && r.depuis
               ? `Allumées depuis le ${jourDit(r.depuis)} : les factures de ce jour et après se relancent d’office.`
               : 'Éteintes. Allumées, seules les factures du jour et après se relancent ; les trente jours d’avant attendent votre liste.'}
-            {!tapGoPret && ' Le bouton « Régler » a besoin de MND PAY et de Tap & Go allumés : sans eux, rien ne part.'}
+            {!tapGoPret && ' Le bouton « Régler » a besoin de FedaPay et de Tap & Go allumés : sans eux, rien ne part.'}
           </div>
         </div>
         <Toggle on={!!r.actives} onToggle={bascule} />

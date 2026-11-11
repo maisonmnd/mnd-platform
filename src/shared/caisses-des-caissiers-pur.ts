@@ -88,7 +88,10 @@ export const ANCIEN_NOM_CHEQUES = 'Chèques à déposer';
 export const ANCIEN_NOM_MOMOPAY = 'MoMoPay Maison MND';
 export const ANCIEN_NOM_TIROIR = 'Tiroir espèces';
 export const CAISSE_TIROIR_COMMUN = 'Terrasse · Tiroir espèces';
-const CAISSE_MND_PAY = 'MND PAY';
+const CAISSE_MND_PAY = 'FedaPay';
+/* Son nom d'avant le 12 novembre 2026 (« Enlève MND PAY et remplace par
+   FedaPay ») : il vaut la caisse FedaPay. */
+const ANCIEN_NOM_MND_PAY = 'MND PAY';
 const CAISSE_KKIAPAY = 'KkiaPay';
 
 /* LES DEUX MOYENS NOUVEAUX — 21 octobre 2026. Ils s'ajoutent à SA liste
@@ -145,7 +148,7 @@ export function familleDuMoyen(methode: string): FamilleDeMoyen {
   const m = plat(methode ?? '');
   if (!m) return 'autre';
   if (m === 'avoir') return 'avoir';
-  if (/mnd ?pay/.test(m)) return 'mndpay';
+  if (/mnd ?pay|feda ?pay/.test(m)) return 'mndpay';
   if (/zelle/.test(m)) return 'zelle';
   if (/interac/.test(m)) return 'interac';
   if (/revolut/.test(m)) return 'revolut';
@@ -369,8 +372,8 @@ export function caisseProposee(o: {
 
   if (famille === 'avoir') return { pourquoi: 'L’avoir est un crédit du compte : il ne passe par aucune caisse.' };
   if (famille === 'mndpay') {
-    const c = nommee(CAISSE_MND_PAY);
-    return c ? { caisse: c, pourquoi: 'Payé par MND PAY : l’argent est chez FedaPay jusqu’au reversement.' } : { pourquoi: 'La caisse MND PAY n’est pas ouverte.' };
+    const c = nommee(CAISSE_MND_PAY) ?? nommee(ANCIEN_NOM_MND_PAY);
+    return c ? { caisse: c, pourquoi: 'Payé par FedaPay : l’argent y reste jusqu’au reversement.' } : { pourquoi: 'La caisse FedaPay n’est pas ouverte.' };
   }
   /* ZELLE, INTERAC, REVOLUT, PAYPAL — 21 octobre 2026 : sa caisse à son nom,
      dans sa devise, même pour un rendez-vous d'une année antérieure (comme un
@@ -453,7 +456,7 @@ export function caissesAuChoix<B extends Boite>(boxes: readonly B[], o: {
 }): B[] {
   return boxes.filter((b) => {
     if (b.name === o.garder) return true;
-    if (b.name === CAISSE_MND_PAY) return false;
+    if (b.name === CAISSE_MND_PAY || b.name === ANCIEN_NOM_MND_PAY) return false;
     /* L'épargne, jamais au comptoir (le tri du 19 octobre 2026) : la
        direction non plus ne l'y choisit. */
     if (b.horsEncaissement) return false;
@@ -472,7 +475,7 @@ export function caissesAuChoix<B extends Boite>(boxes: readonly B[], o: {
     (11 novembre 2026, « Régler par MTN, QR ») : l'argent est sur le compte
     de collecte, chez MTN, vérifié par le serveur ; rien au tiroir. */
 export const HORS_CLOTURE: readonly string[] = [
-  CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY, CAISSE_CHEQUE, ANCIEN_NOM_CHEQUES, CAISSE_CARTE, CAISSE_AUTRES,
+  CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY, ANCIEN_NOM_MND_PAY, CAISSE_CHEQUE, ANCIEN_NOM_CHEQUES, CAISSE_CARTE, CAISSE_AUTRES,
   ...FAMILLES_EN_DEVISE.map((f) => MOYENS_EN_DEVISE[f].nom),
   CAISSE_MTN_COLLECTION,
 ];

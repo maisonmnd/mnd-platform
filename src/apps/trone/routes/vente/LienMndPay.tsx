@@ -60,7 +60,7 @@ export function LienMndPay({ branchId, pieceId, pieceNumero, clientId, telephone
   return (
     <div className="trv-doc-actions__row" style={{ display: 'grid', gap: 6 }}>
       <button type="button" className="trv-wa-btn" style={{ border: 'none', cursor: 'pointer' }} disabled={occupe} onClick={() => void envoie()}>
-        {occupe ? 'Création du lien…' : `Lien MND PAY · carte ou mobile money · ${fmtMoney(c.totalXof, currency)}`}
+        {occupe ? 'Création du lien…' : `Lien FedaPay · carte ou mobile money · ${fmtMoney(c.totalXof, currency)}`}
       </button>
       {peutOffrir && dus > 0 && (
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12 }}>

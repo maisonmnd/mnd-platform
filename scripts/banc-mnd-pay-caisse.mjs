@@ -94,7 +94,7 @@ await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/trone.html#/caisse` 
 await attend(8000);
 
 dit('la caisse s ouvre', await evalue(`!!document.querySelector('.trv-pick')`));
-dit('hors ligne, pas de tuile MND PAY (pas de connexion, pas de demande)', (await evalue(`[...document.querySelectorAll('.trv-pay .n')].some((x) => x.textContent.trim() === 'MND PAY')`)) === false);
+dit('hors ligne, pas de tuile FedaPay (pas de connexion, pas de demande)', (await evalue(`[...document.querySelectorAll('.trv-pay .n')].some((x) => x.textContent.trim() === 'FedaPay')`)) === false);
 dit('le produit entre au ticket', await clique('.trv-pick', 'Brume d’aloès du banc'));
 await attend(700);
 dit('rien n est choisi d avance pour une vente sans historique', (await evalue(`[...document.querySelectorAll('.trv-pay.is-active')].length`)) === 0);

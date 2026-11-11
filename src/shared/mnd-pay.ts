@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 import { motifDuRefus } from './whatsapp';
 import { cashboxesStore } from './finance';
 import {
-  CAISSE_MND_PAY, CAISSE_ZELLE, compteDeLaDemande, modeFedaPay, saitLesFraisOfferts, saitTapGo,
+  ANCIEN_NOM_MND_PAY, CAISSE_MND_PAY, CAISSE_ZELLE, compteDeLaDemande, estLaCaisseFedaPay, modeFedaPay, saitLesFraisOfferts, saitTapGo,
   type DemandeMndPay, type MoyenMndPay, type ReglagesMndPay,
 } from './mnd-pay-pur';
 
@@ -161,9 +161,17 @@ export async function annuleLaDemande(id: string): Promise<DemandeMndPay | null>
 export function assureLesCaissesMndPay(branchId: string, r: ReglagesMndPay | undefined): void {
   if (!branchId) return;
   const boxes = cashboxesStore.get();
+  /* « Enlève MND PAY et remplace par FedaPay » (12 novembre 2026) : la
+     caisse garde son identifiant et son passé, seul son nom change. Un poste
+     resté sur l'ancien Trône qui la reposerait sous l'ancien nom est
+     corrigé ici au passage suivant. */
+  const ancienne = boxes.find((b) => b.branchId === branchId && b.name === ANCIEN_NOM_MND_PAY);
+  if (ancienne && !boxes.some((b) => b.branchId === branchId && b.name === CAISSE_MND_PAY)) {
+    cashboxesStore.set((prev) => prev.map((b) => (b.id === ancienne.id ? { ...b, name: CAISSE_MND_PAY, sub: 'Avant le reversement' } : b)));
+  }
   const a: typeof boxes = [];
-  if (r?.actif && !boxes.some((b) => b.branchId === branchId && b.name === CAISSE_MND_PAY)) {
-    a.push({ id: `cb-mndpay-${branchId}`, branchId, name: CAISSE_MND_PAY, sub: 'FedaPay · avant le reversement', glyph: '◈', openingXof: 0 });
+  if (r?.actif && !boxes.some((b) => b.branchId === branchId && estLaCaisseFedaPay(b.name))) {
+    a.push({ id: `cb-mndpay-${branchId}`, branchId, name: CAISSE_MND_PAY, sub: 'Avant le reversement', glyph: '◈', openingXof: 0 });
   }
   if (r?.zelle?.actif && !boxes.some((b) => b.branchId === branchId && b.name === CAISSE_ZELLE)) {
     a.push({ id: `cb-zelle-${branchId}`, branchId, name: CAISSE_ZELLE, sub: 'Compte aux États-Unis', glyph: '$', openingXof: 0, currency: 'USD' });

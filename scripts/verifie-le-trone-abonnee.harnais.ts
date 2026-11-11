@@ -339,7 +339,7 @@ dit('une seconde formule ne se refuse plus au comptoir', false, abo.includes('R�
 dit('le MRR ne se lit plus a l ecran', false, /m\.mrrXof|aResilier\.mrrXof/.test(abo));
 
 const carte = lis('src/apps/trone/routes/clients/CarteAbonnement.tsx');
-for (const g of ['Prolonger', 'Suspendre', 'Résilier daté', 'Revoir le prix après le comptage', 'Envoyer un lien MND PAY', 'Encaisser']) {
+for (const g of ['Prolonger', 'Suspendre', 'Résilier daté', 'Revoir le prix après le comptage', 'Envoyer un lien FedaPay', 'Encaisser']) {
   dit(`carte Abonnement : le geste « ${g} »`, true, carte.includes(g));
 }
 for (const f of ['effetDeLaResiliation(', 'effetDeLaProlongation(', 'effetDeLaSuspension(', 'effetDuPrixRevu(']) {

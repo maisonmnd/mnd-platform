@@ -319,9 +319,9 @@ dit('... les prix de chaque calibre, la creation sans prix, et jamais son numero
   [/SÍNSIN™ Essentiel, selon le nombre de locks : jusqu’à 80 locks, 35 000 F ; 81 à 150 locks, 40 000 F/.test(envoye?.messages[0]?.content ?? ''),
     /VÈKPÈ™ Création : consultation d’abord/.test(envoye?.messages[0]?.content ?? ''), JSON.stringify(envoye).includes(NUM)]);
 /* Le 30 octobre 2026, la banque : « Can i pay with a card ». */
-dit('... les moyens de paiement des Parametres (des mots seulement), et le lien en ligne quand MND PAY est allume', [true, true],
+dit('... les moyens de paiement des Parametres (des mots seulement), et le lien en ligne quand FedaPay est allume', [true, true],
   [(envoye?.messages[0]?.content ?? '').includes('- Moyens de paiement à la Maison : Espèces, MTN MoMo, Carte.'),
-    (envoye?.messages[0]?.content ?? '').includes('- Paiement à distance : la Maison envoie un lien de paiement en ligne (MND PAY), sur demande.')]);
+    (envoye?.messages[0]?.content ?? '').includes('- Paiement à distance : la Maison envoie un lien de paiement en ligne (FedaPay), sur demande.')]);
 dit('le compte du mois : un appel, ses jetons, son cout', [1, 2000, 100], (() => {
   const d = db.documents.find((x) => x.key === 'mnd_assistant_wa_compte')?.data ?? {};
   const m = Object.values(d)[0] as { appels?: number; entree?: number; sortie?: number } | undefined;
@@ -329,7 +329,7 @@ dit('le compte du mois : un appel, ses jetons, son cout', [1, 2000, 100], (() =>
 })());
 db.documents = db.documents.map((x: { key: string; data: unknown }) => (x.key === 'mnd_settings' ? { ...x, data: { hours: SEMAINE, mndPay: { actif: false } } } : x));
 await appelle({ corps: demande });
-dit('... MND PAY eteint : aucun lien en ligne promis', false, (recus[recus.length - 1]?.messages[0]?.content ?? '').includes('Paiement à distance'));
+dit('... FedaPay eteint : aucun lien en ligne promis', false, (recus[recus.length - 1]?.messages[0]?.content ?? '').includes('Paiement à distance'));
 remplis();
 
 /* W. N., le 30 octobre 2026 : son vocal et le shampoing du 21 septembre,

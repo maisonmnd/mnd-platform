@@ -124,7 +124,7 @@ dit('la photo vit sous le compte qui l a prise ; la direction la voit, qui l a p
     [/if \(virement\) transfertsStore\.set\(\(prev\) => \[\.\.\.prev, virement\]\);/.test(depot),
       /disabled=\{choisis\.length === 0 \|\| \(aVirer && !virement\)\}/.test(depot),
       /!c\.caissierId[\s\S]{0,80}\(!c\.currency \|\| c\.currency === currency\)/.test(depot),
-      /!\[CAISSE_CHEQUES, CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY\]\.includes\(c\.name\)/.test(depot),
+      /!\[CAISSE_CHEQUES, CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY, ANCIEN_NOM_MND_PAY\]\.includes\(c\.name\)/.test(depot),
       /const comptes = caisses\.filter\([^;]*(horsBilan|horsEncaissement)/.test(depot)]);
   /* Depuis le 21 octobre 2026 la règle est générale : chaque paiement a sa
      caisse, qui naît au premier argent (le chèque comme les autres). */

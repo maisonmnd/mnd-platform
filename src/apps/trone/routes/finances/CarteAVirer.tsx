@@ -5,7 +5,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { transfertsStore, useCashboxes } from '../../../../shared/finance';
 import { CAISSE_ANNEES_PASSEES, CAISSES_DES_PAIEMENTS, laCaisseDuPaiement, type FamilleDeCaisse } from '../../../../shared/caisses-des-caissiers-pur';
-import { CAISSE_MND_PAY, jourLocal } from '../../../../shared/mnd-pay-pur';
+import { ANCIEN_NOM_MND_PAY, CAISSE_MND_PAY, jourLocal } from '../../../../shared/mnd-pay-pur';
 import { jourDit } from '../../../../shared/gestes-conversation';
 import { useCaisses } from './tiroirs';
 import { monthKey, todayISO } from './_shared';
@@ -33,7 +33,7 @@ export function CarteAVirer() {
   const comptes = caisses.filter((c) => c.branchId === branch.id && !c.archiveeLe && !c.caissierId
     && (!c.currency || c.currency === currency)
     && !desPaiements.has(c.id)
-    && ![CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY].includes(c.name));
+    && ![CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY, ANCIEN_NOM_MND_PAY].includes(c.name));
   const parDefaut = (comptes.find((c) => c.role === 'banque') ?? comptes.find((c) => /biic|banque|bank/i.test(c.name)))?.name ?? '';
   const compte = vers || parDefaut;
   const aujourdhui = jourLocal(new Date().toISOString());
