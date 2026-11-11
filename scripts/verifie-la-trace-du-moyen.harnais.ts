@@ -93,7 +93,7 @@ dit('la photo vit sous le compte qui l a prise ; la direction la voit, qui l a p
 {
   const act = sansCommentaires(lis('src/apps/trone/routes/clients/actions.tsx'));
   dit('l encaissement du rituel : la trace retient le bouton et la ceinture, se dit, s écrit, et ses champs paraissent', [true, true, true, true, true],
-    [/const empecheTout = horsCarnet > 0 \|\| !!traceQuiManque \|\|/.test(act),
+    [/const empecheTout = (?:partMtn \|\| )?horsCarnet > 0 \|\| !!traceQuiManque \|\|/.test(act),
       /\|\| horsCarnet > 0 \|\| traceQuiManque\) return;/.test(act),
       /: traceQuiManque\s*\? ditCeQuiManque\(traceQuiManque\)/.test(act),
       /const trace = famTrace \? traceAEcrire\(famTrace, pt\.trace\) : undefined;[\s\S]{0,400}\.\.\.\(trace \? \{ trace \} : \{\}\),/.test(act),

@@ -111,7 +111,7 @@ const PANNES = [
   /* Le Trône et les pages */
   ['le bandeau montre le solde a toute l equipe', BANDEAU, '  if (!direction) return null;\n', ''],
   ['le solde ne se relit plus chaque minute', CLIENT, '    const t = window.setInterval(() => { if (document.visibilityState === \'visible\') relire(); }, 60_000);', '    const t = window.setInterval(() => { if (document.visibilityState === \'visible\') relire(); }, 600_000);'],
-  ['le bandeau quitte les encaissements', ENCAISSEMENTS, '      <CompteDeCollecteMtn onOuvreLeRdv={setRdvAOuvrir} />\n', ''],
+  ['le bandeau quitte sa page MTN MoMo', PAGE_MTN, '<CompteDeCollecteMtn onOuvreLeRdv={setRdvAOuvrir} />', ''],
   ['« Confirme par MTN » quitte le rendez-vous', ACTIONS, '          <ConfirmeParMtn appt={appt} />\n', ''],
   ['MTN propose sur le foyer et l avance', PAGE, '            {!p.sansPiece && !p.tetes && (', '            {('],
   ['KkiaPay ouvert pendant l attente MTN', PAGE, "disabled={ecran.k === 'paiement' || mtnOccupe}", "disabled={ecran.k === 'paiement'}"],
