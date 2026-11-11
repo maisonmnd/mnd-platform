@@ -174,8 +174,11 @@ dit('... Bons a preparer, au Stock & Achats : le calcul de l agent du stock, la 
   [stock.includes('reappro(produits, mouvements, branch.id)'), stock.includes('gammeAReassortir(gamme, SEUIL)'),
     /<small>Bons à préparer<\/small>/.test(stock) && /onClick=\{\(\) => setOnglet\('achats'\)\}[^>]*title="Ouvre les Achats/.test(stock)]);
 dit('... Les 14 prochains jours, aux Previsions : l ordinaire par reperesParJour, le jour creux du Carnet, pas de Proposer aux reprises', [true, true, true, false],
-  [previsions.includes('<h3>Les 14 prochains jours <span>posés sur ordinaire</span></h3>'), /chargeSurObjectif\(poses, r\)\.ton === 'creux'/.test(previsions),
-    /<th>Jour<\/th><th className="d">Posés<\/th><th className="d">Ordinaire<\/th><th className="d">Manque<\/th>/.test(previsions), previsions.includes('Proposer aux reprises')]);
+  /* 11 novembre 2026, prévisions refaites (Y.) : le tableau devient une bande
+     de quatorze cases ; chacune dit ses posés, et l'ordinaire ou le manque. */
+  [previsions.includes('<h3>Les 14 prochains jours</h3>'), /chargeSurObjectif\(poses, r\)\.ton === 'creux'/.test(previsions),
+    previsions.includes("<b>{j.ferme ? '·' : j.poses}</b> <em>{sousTexteDuJour(j)}</em>") && previsions.includes('ordinaire: ferme ? 0 : r.ordinaire, creux, manque: creux ? r.ordinaire - poses : 0'),
+    previsions.includes('Proposer aux reprises')]);
 dit('chez Claude, jamais le texte d une tache (il pourrait nommer une cliente)', true, demander.includes("texte: '', projetId: m.projetId"));
 dit('la fonction se dit 2026-10-24-a et connait les trois chantiers', [true, true],
   [fonction.includes("const VERSION = '2026-10-24-a';"), fonction.includes("'fiche-du-jour', 'lettre', 'prevision', 'question', 'processus'] as const;")]);

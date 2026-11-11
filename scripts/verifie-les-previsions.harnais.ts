@@ -205,7 +205,11 @@ dit('l écran calcule par le module, une place par cliente, les deux mesures ré
 dit('l écran compte les venues comme le Carnet, et rejoue chaque mois au 1er', [true, true, true, true],
   [ecran.includes('encaisse: apptPaidXof(a) > 0, facture: !!a.invoiceId || factures.has(a.id),'), /rdvsConnusLe\(appts, premier\)/.test(ecran),
     /predictNextVisit\(siens, \[c\], c\.id, premier\)/.test(ecran), /rejoueLeMois\(\{ mois, rdvs, ouvertLe, reprises,/.test(ecran)]);
-dit('... le quatrième bouton : 12 derniers mois', true, />\s*12 derniers mois\s*</.test(ecran));
+/* 11 novembre 2026, prévisions refaites (Y.) : « 12 derniers mois » n'est plus
+   un quatrième bouton parmi les horizons mais un onglet de vue, à part. */
+const affichage = readFileSync('src/apps/trone/routes/pilotage/previsions-affichage-pur.ts', 'utf8');
+dit('... la vue « 12 derniers mois », un onglet qui rejoue', [true, true, true],
+  [/\{ cle: 'passe', nom: '12 derniers mois' \}/.test(affichage), ecran.includes('VUES_DES_PREVISIONS.map((v) =>'), ecran.includes("useRejeu(vue === 'passe', rdvs)")]);
 dit('... « Préparer » ouvre une campagne adressée, sans rien envoyer', [true, false], [/navigate\('\/marketing\?ecrire=dormantes'\)/.test(ecran), /feuVert\(|envoisStore/.test(ecran)]);
 const routes = readFileSync('src/apps/trone/routes/index.tsx', 'utf8');
 const direction = routes.slice(routes.indexOf("group: 'Direction'"), routes.indexOf('group:', routes.indexOf("group: 'Direction'") + 10));

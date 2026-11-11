@@ -50,7 +50,8 @@ const PANNES = [
   ['un jour sans plafond en ligne', PUR, '(l): l is JourDuPlafond => !!l && l.rdv > 0', '(l): l is JourDuPlafond => !!l'],
   ['le mois toujours en cours', PUR, 'Number(aujourdhui.slice(8, 10)) <= 15 ?', 'Number(aujourdhui.slice(8, 10)) <= 31 ?'],
   ['l ecran mesure le mauvais envoi', ECRAN, "e.type === 'reprise-j3'", "e.type === 'rappel-j1'"],
-  ['la rubrique oubliee des ecrans nes apres', ROUTES, "'/avis-google', '/previsions'];", "'/avis-google'];"],
+  /* 11 novembre 2026 : la liste a grandi apres '/previsions' ; l'ancre suit. */
+  ['la rubrique oubliee des ecrans nes apres', ROUTES, "'/avis-google', '/previsions', '/gerard',", "'/avis-google', '/gerard',"],
   ['le rejeu regarde l avenir', PUR, "else if (a.creeLe && a.creeLe.slice(0, 10) < premier) out.push({ ...a, status: 'confirmé' } as T);", "else out.push({ ...a, status: 'confirmé' } as T);"],
   ['le rejeu garde le sort d aujourd hui', PUR, "out.push({ ...a, status: 'confirmé' } as T);", 'out.push(a);'],
   ['une venue sans la regle du Carnet', PUR, "(a.date < aujourdhui && a.status !== 'annulé' && (!!a.encaisse || !!a.facture))", 'false'],

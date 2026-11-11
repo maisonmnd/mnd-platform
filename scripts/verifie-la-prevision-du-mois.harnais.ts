@@ -127,7 +127,10 @@ const previsions = sansCommentaires('src/apps/trone/routes/pilotage/Previsions.t
    mène. Jamais le chiffre exact au tableau de bord. */
 dit('la prevision vit aux Previsions (Le mois en francs), calculee une fois pour le bloc et l assistant', [true, true, true],
   [/function LeMoisEnFrancs\(\) \{[\s\S]*const prevDuMois = usePrevisionDuMois\(\);[\s\S]*<PrevisionDuMois donnees=\{prevDuMois\} \/>/.test(previsions),
-    previsions.includes("params.get('vue') === 'francs' ? 'francs' : '4s'"), previsions.includes("{vue === 'francs' ? <LeMoisEnFrancs /> :")]);
+    /* 11 novembre 2026, prévisions refaites (Y.) : la vue vit à part de
+       l'horizon ; `?vue=francs` est lu par `vueDeLAdresse`, éprouvée par
+       `verifie-les-previsions-refaites`. */
+    previsions.includes("useState<VueDesPrevisions>(() => vueDeLAdresse(params.get('vue')))"), previsions.includes("{vue === 'francs' ? <LeMoisEnFrancs /> :")]);
 dit('le tableau de bord n en garde que la fourchette, et y mene', [false, true, true, false],
   [/<PrevisionDuMois\b/.test(tableau),
     tableau.includes('const fourchette = `${fmt(prevDuMois.prevision.basXof)} à ${fmt(prevDuMois.prevision.hautXof)}`;'),
