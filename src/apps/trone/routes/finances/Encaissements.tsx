@@ -39,6 +39,7 @@ import type { Pointage } from '../../../../shared/caisse-du-soir-pur';
 import { ChampDeDate } from '../../../../ds/dates';
 import { appelDe } from '../../../../shared/civilite';
 import { useVoitLesPourboiresDeLEquipe } from '../equipe/MesPourboires';
+import { CompteDeCollecteMtn } from './CompteDeCollecteMtn';
 
 /* Encaissements — le registre de TOUT ce qui entre, par toutes les portes :
    factures réglées au comptoir, acomptes (en ligne ou remis à la Maison),
@@ -627,6 +628,10 @@ export default function Encaissements() {
           </>
         }
       />
+
+      {/* LE COMPTE DE COLLECTE MTN (11 novembre 2026, maquette « Régler par
+          MTN, QR ») : la direction seule, le solde chez MTN en direct. */}
+      <CompteDeCollecteMtn />
 
       {/* ── Le pointage du relevé MoMo — la seule vue complète du compte
           marchand (QR du salon compris) rapprochée du registre, ligne à
