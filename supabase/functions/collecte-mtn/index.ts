@@ -46,6 +46,9 @@
      interrupteur ouvert pour les deux premières).
    · La direction (souverain, gérant), avec son jeton : 'solde', 'essai',
      'essai-paiement', 'interrupteur', 'relire'.
+   · Toute personne du personnel, avec son jeton : 'demander-trone' (le
+     « Payer par MTN » de la fenêtre Encaisser, 11 novembre 2026), sous
+     interrupteur ouvert, sur un rendez-vous qui porte sa pièce.
    · Le passage de la base (cron) et le rappel de MTN, par la clé de
      service : la relecture des demandes vivantes, rien d'autre.
    Verify JWT : ÉTEINT ; la direction se vérifie ici, action par action.
@@ -62,7 +65,7 @@
    sont posés d'office.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-11-11-b';
+const VERSION = '2026-11-11-c';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -777,6 +780,21 @@ const leCompte = () => ({
 });
 
 /* ── Qui appelle ── */
+/** LE PERSONNEL, QUEL QUE SOIT SON RÔLE (11 novembre 2026) : la fenêtre
+    Encaisser du Trône demande au téléphone de la cliente. Même lecture que
+    la direction, sans exiger le rôle. */
+async function personnel(req: Request): Promise<{ par: string } | null> {
+  const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearers+/i, '').trim();
+  if (!jwt || CLES_DE_SERVICE().includes(jwt)) return null;
+  const u = await fetch(`${PROJET()}/auth/v1/user`, { headers: { apikey: SERVICE(), Authorization: `Bearer ${jwt}` } }).catch(() => null);
+  if (!u || !u.ok) return null;
+  const uid = (await u.json().catch(() => null))?.id;
+  if (typeof uid !== 'string' || !/^[0-9a-f-]{36}$/i.test(uid)) return null;
+  const s = await base(`staff?user_id=eq.${uid}&select=role,name&limit=1`);
+  const moi = Array.isArray(s.corps) ? s.corps[0] : null;
+  if (!moi) return null;
+  return { par: String(moi.name ?? '').trim() || 'L’équipe' };
+}
 async function direction(req: Request): Promise<{ par: string } | null> {
   const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
   if (!jwt || CLES_DE_SERVICE().includes(jwt)) return null;
@@ -1043,6 +1061,12 @@ async function demander(req: Request, corps: any) {
     rdv = j.lignes.get(t.rdvId) ?? null;
     if (!rdv) return json({ erreur: 'introuvable' }, 404);
   }
+  return demandePourLeRdv(rdv, msisdn, origine, corps, reglage.rappel);
+}
+
+/** LA DEMANDE, UNE FOIS LE RENDEZ-VOUS TROUVÉ : par le lien, au comptoir, ou
+    depuis la fenêtre Encaisser du Trône (`par` : qui l'a envoyée). */
+async function demandePourLeRdv(rdv: Ligne, msisdn: unknown, origine: 'lien' | 'comptoir', corps: any, rappel: boolean, par?: string) {
   if (!msisdnDe(msisdn)) return json({ erreur: 'numero' }, 400);
   if (rdv.data?.status === 'annulé') return json({ erreur: 'annule' }, 409);
   const piece = await laPieceDe(rdv.id);
@@ -1056,12 +1080,32 @@ async function demander(req: Request, corps: any) {
     msisdn, resteXof: reste, pourboireXof: pourboireLu(corps.pourboireXof, !((Number(piece.tipXof) || 0) > 0)),
   });
   if (typeof c === 'string') return json({ erreur: c }, 400);
+  if (par) c.demande_par = `${par}, au Trône`.slice(0, 80);
   /* LA RÉFÉRENCE AU REGISTRE AVANT L'APPEL. */
   const ins = await base('collectes_mtn', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(c) });
   if (!ins.ok) return json({ erreur: 'registre' }, 503);
-  const apres = await demandeAMtn(c, reglage.rappel);
-  console.log('[collecte-mtn] demande', { reference: c.reference.slice(0, 8), origine, etat: apres.etat });
+  const apres = await demandeAMtn(c, rappel);
+  console.log('[collecte-mtn] demande', { reference: c.reference.slice(0, 8), origine, trone: !!par, etat: apres.etat });
   return json({ ok: true, reference: c.reference, ...statutPourLaPage(apres) });
+}
+
+/** « PAYER PAR MTN » DANS LA FENÊTRE ENCAISSER (11 novembre 2026, « il faut
+    mettre Payer par MTN », Yéman) : le personnel envoie la demande au numéro
+    MTN de la cliente, pour CE rendez-vous. Mêmes gardes que la page :
+    interrupteur ouvert, pièce émise, reste figé au serveur, une demande
+    vivante à la fois. L'argent se pose sur la pièce à la réponse de MTN. */
+async function demanderDuTrone(req: Request, corps: any) {
+  if (!(await permis(req, 'collecte-trone', 60))) return json({ erreur: 'trop' }, 429);
+  const qui = await personnel(req);
+  if (!qui) return json({ erreur: 'personnel' }, 403);
+  const reglage = await leReglage();
+  if (!reglage.ouverte) return json({ erreur: 'fermee' }, 503);
+  if (!pret()) return json({ erreur: 'indisponible' }, 503);
+  const rdvId = String(corps.rdvId ?? '').trim();
+  if (!/^[A-Za-z0-9_-]{1,120}$/.test(rdvId)) return json({ erreur: 'introuvable' }, 400);
+  const rdv = premiere(await base(`appointments?id=eq.${enc(rdvId)}&select=id,branch_id,data&limit=1`)) as Ligne | null;
+  if (!rdv) return json({ erreur: 'introuvable' }, 404);
+  return demandePourLeRdv(rdv, corps.numero, 'comptoir', { pourboireXof: corps.pourboireXof }, reglage.rappel, qui.par);
 }
 
 async function statut(req: Request, corps: any) {
@@ -1118,6 +1162,7 @@ async function repond(req: Request): Promise<Response> {
   if (action === 'sante') return json({ ...sante(), ouverte: (await leReglage()).ouverte });
   if (action === 'comptoir') return comptoir(req, corps);
   if (action === 'demander') return demander(req, corps);
+  if (action === 'demander-trone') return demanderDuTrone(req, corps);
   if (action === 'statut') return statut(req, corps);
 
   if (['solde', 'essai', 'essai-paiement', 'interrupteur', 'relire'].includes(action)) {

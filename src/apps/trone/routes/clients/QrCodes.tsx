@@ -460,6 +460,25 @@ export default function QrCodes() {
     ariaQr: 'QR MoMoPay de la maison',
   }));
 
+  /* LE QR DU COMPTOIR « RÉGLER PAR MTN » — 11 novembre 2026. « Le QR n'est
+     pas dans les QR codes du Trône » (Yéman). Un QR FIXE : il ouvre la page
+     Régler en mode comptoir, la cliente tape son numéro MTN et retrouve son
+     rendez-vous du jour (sa pièce émise). Ni montant ni numéro de compte dans
+     le carré : la fonction collecte-mtn calcule tout au serveur. */
+  const lienComptoirMtn = `${lienAbsolu('regler.html')}?comptoir`;
+  const imprimerMtn = () => imprime(carteA5({
+    verrou: verrouDeLaMaison(),
+    titre: 'Régler par MTN.',
+    sous: 'Scannez, tapez votre numéro MTN, validez sur votre téléphone. Aucun frais pour vous.',
+    qr: lienComptoirMtn,
+    etapes: [
+      'Ouvrez l’appareil photo du téléphone, visez le carré',
+      'Tapez votre numéro MTN : votre rendez-vous s’affiche',
+      'Validez la demande sur votre téléphone, avec votre code secret',
+    ],
+    ariaQr: 'QR du comptoir, régler par MTN',
+  }));
+
   /* LA CARTE A5 KKIAPAY — 23 octobre 2026. Le lien de paiement KkiaPay
      s'ouvre avec l'appareil photo de n'importe quel téléphone : pas besoin
      d'une application d'opérateur, contrairement au QR MoMoPay. */
@@ -516,6 +535,7 @@ export default function QrCodes() {
   ];
   const sansPlan = 'Renseignez l’adresse dans Système › Branches';
   const sansAvis = 'Renseignez le lien dans Paramètres › Automatisations';
+  const afficheMtn: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Régler par MTN.', phrase: 'Scannez, tapez votre numéro MTN, validez sur votre téléphone.', valeur: lienComptoirMtn }) };
   const afficheSite: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: `${maisonNom()}.`, phrase: 'Scannez, la Maison s’ouvre sur votre téléphone.', valeur: lienSite }) };
   const afficheCarte: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Notre carte.', phrase: 'Scannez, tous nos prix s’ouvrent sur votre téléphone.', valeur: lienCarte }) };
   const affichePlan: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Nous trouver.', phrase: adresseComplete, valeur: lienPlan }), empeche: lienPlan ? undefined : sansPlan };
@@ -538,6 +558,26 @@ export default function QrCodes() {
   const avecCompte = (id: IdDuCode, g: Geste): Geste => ({ ...g, faire: () => { compte(id); g.faire(); } });
 
   const codes: CodeDef[] = [
+    {
+      /* LE QR DU COMPTOIR « RÉGLER PAR MTN » — 11 novembre 2026 : la demande
+         part de la Maison, au bon montant, et se pointe seule (caisse
+         « MTN Collection »). Le rendez-vous doit avoir sa pièce. */
+      id: 'mtn', court: 'MTN', groupe: 'payer', pret: true, principal: afficheMtn,
+      resume: 'Son numéro MTN, son rendez-vous du jour, aucun frais pour elle',
+      motsCles: 'mtn momo mobile money collecte comptoir payer paiement argent régler rendez-vous qr',
+      carte: {
+        signe: Smartphone, nom: 'Payer par MTN.', qui: 'La cliente scanne · elle règle son rendez-vous',
+        dit: <>Elle scanne et tape son numéro MTN : son rendez-vous du jour s’affiche avec le reste à payer, et elle valide sur son téléphone. Rien à saisir à l’encaissement : le règlement se pointe seul dans la caisse <b>MTN Collection</b>.</>,
+        valeur: lienComptoirMtn,
+        champ: { lab: 'Ouvre', val: <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>la page Régler, au comptoir</b>, lab2: 'frais', val2: 'à la charge de la Maison' },
+        gestes: [
+          { ...afficheMtn, texte: 'Afficher le QR seul' },
+          { texte: 'L’affiche', faire: () => setGrand({ titre: 'Régler par MTN.', phrase: 'Scannez, tapez votre numéro MTN, validez sur votre téléphone.', valeur: lienComptoirMtn, affiche: 'mtn-comptoir-affiche.png', afficheAlt: 'Régler par MTN : scannez, tapez votre numéro MTN, validez sur votre téléphone' }) },
+          { texte: 'Carte A5', faire: imprimerMtn },
+          { texte: 'Copier le lien', faire: () => copier(lienComptoirMtn, 'du comptoir MTN') },
+        ],
+      },
+    },
     {
       /* LE PAIEMENT KKIAPAY « CHAP CHAP » — 23 octobre 2026. « Redessine le QR
          code dans les paiements Kkiapay pour MND avec le code USSD » (Yéman).

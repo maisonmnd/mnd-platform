@@ -59,6 +59,12 @@ export type ReponseDeLaDemande = { reference?: string; etat?: 'attente' | 'recu'
     vraie demande MTN, qu'elle valide elle-même sur son téléphone. */
 export const demandeLEssai = (numero: string, montantXof = 100) =>
   appelleLaCollecte<ReponseDeLaDemande>({ action: 'essai-paiement', numero, montantXof });
+/** « PAYER PAR MTN » DE LA FENÊTRE ENCAISSER (11 novembre 2026) : le personnel
+    envoie la demande au numéro MTN de la cliente, pour ce rendez-vous ; le
+    serveur prend le reste de la pièce. `sans_piece` : la pièce n'est pas
+    encore montée, on redemande. */
+export const demandeDuTrone = (rdvId: string, numero: string, pourboireXof: number) =>
+  appelleLaCollecte<ReponseDeLaDemande>({ action: 'demander-trone', rdvId, numero, pourboireXof: Math.max(0, Math.round(pourboireXof)) });
 /** Où en est une demande (la même relecture que la page de la cliente). */
 export const statutDeLaCollecte = (reference: string) => appelleLaCollecte<ReponseDeLaDemande>({ action: 'statut', reference });
 /** Ouvrir ou fermer le règlement par MTN aux clientes ; le serveur n'ouvre qu'après un essai reçu. */

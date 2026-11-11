@@ -379,8 +379,8 @@ if (!PGlite) {
 const index = sansCommentaires(lis('src/apps/trone/routes/index.tsx'));
 dit('Equipe › Les pourboires : la rubrique, a la direction seule, nee apres les departements', [true, true, true],
   [index.includes("{ path: '/pourboires', label: 'Les pourboires', icon: Coins, Component: lazy(() => import('./equipe/Pourboires')) },"),
-    index.includes("export const ROUTES_DIRECTION = ['/journal', '/pourboires'];"),
-    /ECRANS_NES_APRES_LES_DEPARTEMENTS[^;]*'\/pourboires'\];/.test(index)]);
+    /export const ROUTES_DIRECTION = \[[^\]]*'\/pourboires'[^\]]*\];/.test(index),
+    /ECRANS_NES_APRES_LES_DEPARTEMENTS[^;]*'\/pourboires'[^;]*\];/.test(index)]);
 const page = sansCommentaires(lis('src/apps/trone/routes/equipe/Pourboires.tsx'));
 const corpsDe = (t: string, debut: string) => t.slice(t.indexOf(debut));
 const apresLaGarde = (t: string, fonction: string, garde: string) => {

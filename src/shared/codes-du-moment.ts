@@ -22,7 +22,7 @@
    Pur : ni magasin ni horloge. L'écran passe le jour, la minute et les
    rendez-vous déjà lus ; `verifie-les-codes-du-moment` le rejoue. */
 
-export type IdDuCode = 'site' | 'carte' | 'plan' | 'wifi' | 'momo' | 'kkiapay' | 'avis' | 'couronne' | 'academie' | 'jour';
+export type IdDuCode = 'site' | 'carte' | 'plan' | 'wifi' | 'mtn' | 'momo' | 'kkiapay' | 'avis' | 'couronne' | 'academie' | 'jour';
 
 export type RdvDuMoment = {
   id: string;

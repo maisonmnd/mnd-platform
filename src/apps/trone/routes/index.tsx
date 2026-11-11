@@ -1,5 +1,5 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
-import { Coins, Compass, Bot, TrendingUp, UserRoundCheck, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardCheck, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, Mic, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, Radio, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Star, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
+import { Smartphone, Coins, Compass, Bot, TrendingUp, UserRoundCheck, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardCheck, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, Mic, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, Radio, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Star, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
 /* Registre des routes du Trône, groupées par DÉPARTEMENT.
    Le module d'un écran (routes/<dossier>/) dit d'où il vient, pas où il se range :
@@ -168,6 +168,8 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          la journée se ferme. */
       { path: '/la-journee', label: 'La journée', icon: ClipboardCheck, Component: lazy(() => import('./finances/LaJournee')) },
       { path: '/caisses', label: 'Les caisses', icon: Wallet, Component: lazy(() => import('./finances/Caisses')) },
+      /* MTN MOMO, UNE PAGE À PART (11 novembre 2026, Yéman) : la collecte et le décaissement, hors d'Encaissements ; la direction seule. */
+      { path: '/mtn', label: 'MTN MoMo', icon: Smartphone, Component: lazy(() => import('./finances/MtnMoMo')) },
       { path: '/coffre', label: 'Coffre-fort', icon: Landmark, Component: lazy(() => import('./finances/Coffre')) },
       /* LES CRÉANCES (26 août) — ce que la Maison attend, rangé par ÂGE. Le dû
          se lisait rituel par rituel dans le Carnet : on savait qu'on attendait
@@ -499,7 +501,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires', '/mtn'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>
@@ -544,7 +546,7 @@ export const ROUTES_SOUVERAIN = ['/salon-foyer', '/centre-de-commande', '/atelie
    lisible du souverain seul (0070). */
 /* LES POURBOIRES DE L'ÉQUIPE (5 novembre 2026) : « réservé à la direction »,
    le choix de Yéman ; chacun lit SA part en tête de Mon mois. */
-export const ROUTES_DIRECTION = ['/journal', '/pourboires'];
+export const ROUTES_DIRECTION = ['/journal', '/pourboires', '/mtn'];
 
 export const peutVoir = (
   role: string | undefined,

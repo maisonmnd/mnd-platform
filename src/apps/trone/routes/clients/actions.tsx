@@ -36,6 +36,7 @@ import { LIEN_CHAPCHAP, MARCHAND_CHAPCHAP, RESEAUX_CHAPCHAP } from '../../../../
 import { AuComptoir, type Grand } from './AuComptoir';
 import { ReglementEnDirect } from './ReglementEnDirect';
 import { ConfirmeParMtn } from './ConfirmeParMtn';
+import { PayerParMtnAuTrone } from './PayerParMtnAuTrone';
 import { signeLeMessage } from '../../../../shared/identite';
 import { consommerPourRituel, rembobinerRituel, retirerParReferences } from '../../../../shared/stock';
 import { detacherFacture } from '../../../../shared/laboratoire';
@@ -884,9 +885,13 @@ function EtapeEnc({ n, titre, resume, alerte, ouvert, onBascule, children }: {
     rajouter Momo Privé » (21 octobre 2026). Le reste de la liste des moyens
     (Paramètres, la sienne, plus « Reprise d'une année passée ») passe par
     « Autres ». Chaque tuile a sa caisse, à son nom, choisie d'office. */
-type TuileEnc = 'especes' | 'momo' | 'momoPrive' | 'kkiapay' | 'carte' | 'cheque' | 'mndpay' | 'avoir' | 'autre';
+type TuileEnc = 'especes' | 'mtn' | 'momo' | 'momoPrive' | 'kkiapay' | 'carte' | 'cheque' | 'mndpay' | 'avoir' | 'autre';
 const TUILES_ENC: { id: TuileEnc; nom: string; sous: string }[] = [
   { id: 'especes', nom: 'Espèces', sous: 'au comptoir' },
+  /* « PAYER PAR MTN » (11 novembre 2026, « il faut mettre Payer par MTN »,
+     Yéman) : la demande part sur le téléphone de la cliente et se pose seule
+     sur la pièce à la réponse de MTN, caisse « MTN Collection ». */
+  { id: 'mtn', nom: 'Payer par MTN', sous: 'demande sur son téléphone' },
   { id: 'momo', nom: 'MTN MoMoPay', sous: 'compte de la Maison' },
   { id: 'momoPrive', nom: 'MoMo Privé', sous: 'numéro personnel' },
   /* LE QR KKIAPAY DU COMPTOIR (24 octobre 2026) : tous réseaux, l'argent va
@@ -922,11 +927,12 @@ function methodeDeLaTuile(t: TuileEnc, methods: readonly string[], autre?: strin
     case 'cheque': return methods.find(estCheque) ?? 'Chèque';
     case 'avoir': return 'Avoir';
     case 'mndpay': return 'MND PAY';
+    case 'mtn': return 'MTN Collection';
     default: return autre || premierAutre(autresMethodes(methods)) || 'Virement bancaire';
   }
 }
 const DIT_LA_TUILE: Record<TuileEnc, string> = {
-  especes: 'en espèces', momo: 'en MTN MoMoPay', momoPrive: 'en MoMo Privé', kkiapay: 'par KkiaPay', carte: 'par carte', cheque: 'par chèque', mndpay: 'par MND PAY', avoir: 'sur l’avoir', autre: '',
+  especes: 'en espèces', mtn: 'par MTN', momo: 'en MTN MoMoPay', momoPrive: 'en MoMo Privé', kkiapay: 'par KkiaPay', carte: 'par carte', cheque: 'par chèque', mndpay: 'par MND PAY', avoir: 'sur l’avoir', autre: '',
 };
 /** UNE PART DU RÈGLEMENT : sa tuile, son montant, et la caisse qu'une main
     de la direction a choisie à la place de celle qui se propose. `mnd` : la
@@ -2367,9 +2373,16 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
               : fxOn && fxAmount <= 0
                 ? 'Indiquez le taux de la devise, dans « Et ensuite ».'
                 : '';
-  const empecheTout = horsCarnet > 0 || !!traceQuiManque || partsTropHautes || avoirTropHaut || mndEnAttente || (fxOn && fxAmount <= 0) || fxBlocked || ditLaCaisse;
+  /* UNE PART « PAYER PAR MTN » NE S'ENCAISSE PAS ICI : le serveur pose
+     l'argent sur la pièce à la réponse de MTN (11 novembre 2026). */
+  const partMtn = parts.some((pt) => pt.tuile === 'mtn');
+  const empecheTout = partMtn || horsCarnet > 0 || !!traceQuiManque || partsTropHautes || avoirTropHaut || mndEnAttente || (fxOn && fxAmount <= 0) || fxBlocked || ditLaCaisse;
   const lesAutres = autresMethodes(methods);
   const tuilesOffertes = TUILES_ENC.filter((t) => (t.id !== 'mndpay' || (mndOn && !fxOn))
+    && (t.id !== 'mtn' || !fxOn)
+    /* « Remove MTN privé from there » (Yéman, 11 novembre 2026) : la tuile
+       MoMo Privé ne s'offre plus à l'encaissement du rituel. */
+    && t.id !== 'momoPrive'
     && (t.id !== 'avoir' || avoirBal > 0)
     && (t.id !== 'autre' || lesAutres.length > 0));
   /* UN AUTRE MOYEN EN DEVISE (Zelle, Interac, Revolut, PayPal) : une seule
@@ -2958,7 +2971,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                   <div style={{ fontSize: 11.5, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
                     Disponible {fmtMoney(avoirBal, currency)}. Crédit prépayé du compte{account.type === 'family' ? ' famille' : ''}, déduit sans passer par la caisse.
                   </div>
-                ) : p.tuile !== 'mndpay' && (
+                ) : p.tuile !== 'mndpay' && p.tuile !== 'mtn' && (
                   <div style={{ display: 'grid', gap: 6 }}>
                     <div style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--ink-soft)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
                       <span>
@@ -2980,7 +2993,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                     )}
                   </div>
                 )}
-                {familleDeTrace(c.methode) && x > 0 && (
+                {p.tuile !== 'mtn' && familleDeTrace(c.methode) && x > 0 && (
                   <ChampsDeLaTrace
                     famille={familleDeTrace(c.methode)!}
                     valeur={p.trace}
@@ -3018,6 +3031,23 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                   ) : (
                     <div style={{ fontSize: 11.5, color: 'var(--ink-soft)' }}>Indiquez le montant de cette part, puis demandez-le.</div>
                   )
+                )}
+                {p.tuile === 'mtn' && (
+                  <PayerParMtnAuTrone
+                    rdvId={appt.id}
+                    telephone={payerClient?.phone ?? client?.phone}
+                    resteXof={due}
+                    pourboireXof={tip}
+                    currency={currency}
+                    emetLaPiece={() => {
+                      const t = tarifsDuRituel(appt, {
+                        client, bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsCatalogue,
+                      });
+                      const r = factureAEnvoyer(appt, byId, appt.branchId, t.prixPlein, t.gesteDe);
+                      return r.ok ? { ok: true } : { ok: false, erreur: r.erreur };
+                    }}
+                    onRegle={onClose}
+                  />
                 )}
               </div>
             );

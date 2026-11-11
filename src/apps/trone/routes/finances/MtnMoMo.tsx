@@ -1,0 +1,129 @@
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '../../../../ds/components';
+import { useStaff } from '../../../../shared/auth';
+import { useBranch } from '../../../../shared/branches';
+import { fmtMoney } from '../../../../shared/currency';
+import { useAppointments } from '../../../../shared/agenda';
+import { supabase } from '../../../../shared/supabase';
+import { ETAT_DE_L_ENVOI_DIT, type EnvoiMtn } from '../../../../shared/paie-par-mtn-pur';
+import { PageHead } from '../_ui';
+import { CompteDeCollecteMtn } from './CompteDeCollecteMtn';
+import { PayAppointmentModal } from '../clients/actions';
+import { lisChezMtn } from '../equipe/paie-par-mtn';
+import './finances.css';
+
+/* ══ MTN MOMO, UNE PAGE À PART — 11 novembre 2026 ══════════════════════
+   « Je préfère une page à part pour MTN collecte et disbursement. Je ne
+   veux pas ça dans Encaissements » (Yéman). La direction seule.
+
+   · LA COLLECTE (encaisser) : le compte de collecte, son solde en direct,
+     les essais, l'interrupteur, les règlements MTN du jour ; le panneau qui
+     vivait en tête d'Encaissements, inchangé.
+   · LE DÉCAISSEMENT (payer l'équipe) : le solde du compte de décaissement
+     chez MTN, relu par la fonction paie-mtn, et les derniers envois. La paie
+     elle-même se programme toujours dans Les paiements.
+
+   Aucun numéro de compte dans le code (dépôt public) : les serveurs les
+   rendent, à la direction seule. */
+
+const PHRASE = { fontSize: 13, color: 'var(--indigo-100)', lineHeight: 1.5 } as const;
+const PETIT = { fontSize: 12, color: 'var(--indigo-200)' } as const;
+
+const jourCourt = (iso: string): string => {
+  const d = new Date(iso);
+  return Number.isFinite(d.getTime()) ? d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'Africa/Porto-Novo' }) : '';
+};
+
+function CompteDeDecaissementMtn() {
+  const navigate = useNavigate();
+  const { currency } = useBranch();
+  const [solde, setSolde] = useState<{ xof: number | null; souci?: string } | null>(null);
+  const [luLe, setLuLe] = useState<number | null>(null);
+  const [enCours, setEnCours] = useState(false);
+  const [envois, setEnvois] = useState<EnvoiMtn[]>([]);
+  const [erreur, setErreur] = useState<string | undefined>();
+
+  const relire = useCallback(async () => {
+    setEnCours(true);
+    const r = await lisChezMtn([]);
+    setEnCours(false);
+    setSolde({ xof: typeof r.soldeXof === 'number' ? r.soldeXof : null, souci: r.erreur });
+    setLuLe(Date.now());
+  }, []);
+
+  useEffect(() => {
+    void relire();
+    const t = window.setInterval(() => { if (document.visibilityState === 'visible') void relire(); }, 60_000);
+    return () => window.clearInterval(t);
+  }, [relire]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    let vivant = true;
+    void supabase.from('paie_envois_mtn').select('*').order('programme_le', { ascending: false }).limit(12)
+      .then(({ data, error }) => {
+        if (!vivant) return;
+        if (error) { setErreur('Le registre des envois MTN n’a pas pu être lu.'); return; }
+        setErreur(undefined);
+        setEnvois((data ?? []) as EnvoiMtn[]);
+      });
+    return () => { vivant = false; };
+  }, [luLe]);
+
+  return (
+    <section className="trf-obsidian" aria-label="Compte de décaissement MTN" style={{ marginBottom: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
+        <div className="trf-obsidian__eyebrow">Compte de décaissement MTN · payer l’équipe</div>
+        <span style={PETIT}>{enCours && !luLe ? 'Lecture chez MTN…' : luLe ? `relu à ${new Date(luLe).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : 'Pas encore lu'}</span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 24, flexWrap: 'wrap' }}>
+        <span style={PHRASE}>La paie, les avances et les pourboires partent de ce compte, par MTN, vers le numéro de chaque personne.</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+          <span style={PETIT}>Solde disponible chez MTN</span>
+          <span className="trf-obsidian__value" style={{ fontSize: 40 }}>{solde?.xof != null ? fmtMoney(solde.xof, currency) : '·'}</span>
+        </div>
+      </div>
+      {solde?.souci && <p role="alert" style={{ margin: 0, fontSize: 13, color: 'var(--copper-200)' }}>{solde.souci}</p>}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <Button size="sm" variant="ghost-invert" disabled={enCours} onClick={() => { void relire(); }}>{enCours ? 'Lecture…' : 'Relire maintenant'}</Button>
+        <Button size="sm" variant="ghost-invert" onClick={() => navigate('/paiements')}>Les paiements ›</Button>
+      </div>
+      <div style={{ borderTop: '1px solid var(--hairline-invert)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="trf-obsidian__eyebrow">Les derniers envois</div>
+        {erreur && <span style={PHRASE}>{erreur}</span>}
+        {!erreur && envois.length === 0 && <span style={PHRASE}>Aucun envoi MTN pour l’instant.</span>}
+        {envois.map((e) => (
+          <div key={e.reference} style={{ display: 'grid', gridTemplateColumns: '64px minmax(0, 1fr) auto', gap: 12, alignItems: 'baseline', fontSize: 13, color: 'var(--color-ivoire)' }}>
+            <span style={PETIT}>{jourCourt(e.programme_le)}</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.nom}{e.genre === 'essai' ? ' · essai' : ''} · <span style={PETIT}>{ETAT_DE_L_ENVOI_DIT[e.etat] ?? e.etat}</span></span>
+            <b style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(e.montant_xof, currency)}</b>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export default function MtnMoMo() {
+  const moi = useStaff();
+  const direction = moi?.role === 'souverain' || moi?.role === 'gerant';
+  const [rdvs] = useAppointments();
+  const [rdvAOuvrir, setRdvAOuvrir] = useState<string | null>(null);
+  const rdvOuvert = rdvAOuvrir ? rdvs.find((a) => a.id === rdvAOuvrir) ?? null : null;
+
+  return (
+    <div className="mnd-rise">
+      <PageHead eyebrow="Finances · trésorerie" title="MTN MoMo." sub="Encaisser par MTN, payer l’équipe par MTN : les deux comptes, en direct." />
+      {!direction ? (
+        <p style={{ fontSize: 14, color: 'var(--ink-soft)' }}>Cette page est réservée à la direction.</p>
+      ) : (
+        <>
+          <CompteDeCollecteMtn onOuvreLeRdv={setRdvAOuvrir} />
+          <CompteDeDecaissementMtn />
+        </>
+      )}
+      {rdvOuvert && <PayAppointmentModal appt={rdvOuvert} onClose={() => setRdvAOuvrir(null)} />}
+    </div>
+  );
+}

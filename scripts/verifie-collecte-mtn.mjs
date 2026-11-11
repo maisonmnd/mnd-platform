@@ -35,6 +35,8 @@ const PUR = 'src/shared/collecte-mtn-pur.ts';
 const BANDEAU = 'src/apps/trone/routes/finances/CompteDeCollecteMtn.tsx';
 const CLIENT = 'src/apps/trone/routes/finances/collecte-mtn.ts';
 const ENCAISSEMENTS = 'src/apps/trone/routes/finances/Encaissements.tsx';
+const PAGE_MTN = 'src/apps/trone/routes/finances/MtnMoMo.tsx';
+const ROUTES_DU_TRONE = 'src/apps/trone/routes/index.tsx';
 const SQL = 'supabase/migrations/0200_regler_par_mtn.sql';
 const PAGE = 'src/apps/regler/App.tsx';
 const MTN_PAGE = 'src/apps/regler/Mtn.tsx';
@@ -890,8 +892,10 @@ let refLien;
   dit('le QR mene au comptoir : regler.html?comptoir, l adresse lue chez GitHub, jamais ecrite', /has\('comptoir'\)/.test(lis(MAIN)) && /const CHEMIN_DU_COMPTOIR = '\/trone\/regler\.html\?comptoir';/.test(lis(QR)) && /origineDuCompte/.test(lis(QR)) && !/\b[\w-]+\.(?:com|bj|net|org|io)\b/i.test(sansCommentaires(lis(QR)).replace(/www\.w3\.org/g, '')), '');
   const bandeau = lis(BANDEAU);
   const client = lis(CLIENT);
-  dit('le bandeau est en tete des Encaissements (Vente & Caisse), et chaque reglement du jour ouvre son rendez-vous',
-    /<CompteDeCollecteMtn onOuvreLeRdv=\{setRdvAOuvrir\} \/>/.test(lis(ENCAISSEMENTS)) && /import \{ CompteDeCollecteMtn \} from '\.\/CompteDeCollecteMtn';/.test(lis(ENCAISSEMENTS)) && /onOuvreLeRdv\(c\.rdv_id\)/.test(bandeau), '');
+  /* 11 novembre 2026 au soir : « une page à part pour MTN collecte et disbursement, je ne veux pas ça dans Encaissements » (Yéman). */
+  dit('le bandeau vit sur sa page Finances › MTN MoMo (direction seule), plus dans Encaissements, et chaque reglement du jour ouvre son rendez-vous',
+    /<CompteDeCollecteMtn onOuvreLeRdv=\{setRdvAOuvrir\} \/>/.test(lis(PAGE_MTN)) && !/<CompteDeCollecteMtn/.test(lis(ENCAISSEMENTS))
+      && /path: '\/mtn', label: 'MTN MoMo'/.test(lis(ROUTES_DU_TRONE)) && /export const ROUTES_DIRECTION = \[[^\]]*'\/mtn'/.test(lis(ROUTES_DU_TRONE)) && /onOuvreLeRdv\(c\.rdv_id\)/.test(bandeau), '');
   dit('la direction seule le voit (souverain, gerant)', /const direction = moi\?\.role === 'souverain' \|\| moi\?\.role === 'gerant';/.test(bandeau) && /  if \(!direction\) return null;\n/.test(bandeau), '');
   dit('le solde se relit chaque minute ecran ouvert, au retour sur l ecran, et d un geste', /relire\(\); \}, 60_000\);/.test(client) && /visibilitychange/.test(client) && /Relire maintenant/.test(bandeau), '');
   dit('sans numero, le bandeau dit « numero a poser » ; il dit l heure de la derniere lecture et le souci en clair',
