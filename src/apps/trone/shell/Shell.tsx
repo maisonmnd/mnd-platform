@@ -6,6 +6,7 @@ import { staffAccessStore } from '../routes/equipe/data';
 import { createStore, useStore } from '../../../shared/store';
 import NotificationsBell from './Notifications';
 import Trouver from './Trouver';
+import MenuCreer from './MenuCreer';
 import Recherche from './Recherche';
 import BoutonDictee from './BoutonDictee';
 import BarreEquipe from './BarreEquipe';
@@ -93,7 +94,7 @@ import { useBranch } from '../../../shared/branches';
 import { useBrouillonsDAvis } from '../../../shared/ia-avis';
 import { reponsesARelire } from '../../../shared/avis-rubrique-pur';
 import { useHouseIdentity, fuseauIana } from '../../../shared/identite';
-import { Seal, Button, Modal, toast } from '../../../ds/components';
+import { Seal, Modal, toast } from '../../../ds/components';
 import { useAuth, useMaTete, signOut } from '../../../shared/auth';
 import { cashboxesStore, useToutesLesCaisses } from '../../../shared/finance';
 import { decisionsDesCaisses } from '../../../shared/decisions-des-caisses-pur';
@@ -963,20 +964,11 @@ export default function Shell() {
           {/* Les conversations reçues (6 novembre 2026) : à qui voit les Conversations ; après la salle, que son banc veut collée au point de synchro. */}
           {peutVoir(role, '/gerard', mesDomaines) && <PastilleDesRecus recus={recus} />}
           <BanniereDeVersion />
-          <div className="tr-top__chip">
-            {currency} · <span className="mnd-copper">{branch.country}</span>
-          </div>
           <NotificationsBell />
-          {/* + DÉPENSE (20 octobre 2026, au soir) — remplace « + Cliente », qui
-              avait lui-même remplacé « Appel reçu » (posé désormais depuis le
-              Journal des Appels). La fiche d'une nouvelle dépense s'ouvre sur
-              l'écran des Dépenses ; le bouton ne paraît qu'à qui voit cet écran.
-              Une nouvelle cliente s'inscrit depuis le registre des Clientes. */}
-          {peutVoir(role, '/depenses', mesDomaines) && (
-            <Button variant="ghost" onClick={() => navigate('/depenses?nouvelle=1')} title="Inscrire une nouvelle dépense">+ Dépense</Button>
-          )}
-          <Button variant="ghost" onClick={() => setRdvNouveau(true)} title="Poser un rendez-vous">+ RDV</Button>
-          <Button onClick={() => navigate('/caisse')}>+ Encaisser</Button>
+          {/* + CRÉER (10 novembre 2026) — un seul bouton pour tout créer, à la
+              place des trois boutons « + Dépense », « + RDV » et « + Encaisser ».
+              Chaque ligne du menu respecte les accès de la personne. */}
+          <MenuCreer onRendezVous={() => setRdvNouveau(true)} onAppelRecu={() => setAppelOpen(true)} />
           {session && <BoutonDesCles className="tr-top__bell" />}
           {session && (
             <button

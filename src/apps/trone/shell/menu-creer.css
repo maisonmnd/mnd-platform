@@ -1,0 +1,45 @@
+/* LE BOUTON « + CRÉER » — 10 novembre 2026.
+   Un bouton cuivré, un menu groupé, une ligne par création. Charte Maison MND :
+   indigo, ivoire, cuivre, obsidienne ; rayons 2–4 px, Jost. */
+
+.trc-creer { position: relative; }
+.trc-creer__bouton {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--color-copper); color: #fff;
+  border: 0; border-radius: 4px; padding: 8px 15px;
+  font: 600 12.5px var(--font-sans); letter-spacing: .05em; text-transform: uppercase;
+  cursor: pointer;
+}
+.trc-creer__bouton:hover { background: var(--copper-600, #9E6238); }
+.trc-creer__bouton:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+.trc-creer__menu {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 220;
+  width: min(340px, 88vw); background: var(--surface-card);
+  border: 1px solid var(--hairline); border-radius: 4px;
+  box-shadow: var(--shadow-md); padding: 6px;
+  animation: trc-creer-pop 120ms var(--ease-soft);
+}
+@keyframes trc-creer-pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+.trc-creer__groupe {
+  font: 600 10px var(--font-sans); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-soft); padding: 10px 10px 4px;
+}
+.trc-creer__item {
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  text-align: left; border: 0; background: none; border-radius: 4px;
+  padding: 9px 10px; cursor: pointer; font-size: 13.5px; color: var(--ink);
+}
+.trc-creer__item:hover { background: var(--indigo-50, #EDEEF4); }
+.trc-creer__item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.trc-creer__ic {
+  display: inline-grid; place-items: center; width: 30px; height: 30px;
+  border-radius: 4px; background: var(--copper-50, #FAF1E9); color: var(--copper-700, #7C4C2C);
+  flex: none;
+}
+.trc-creer__txt { display: flex; flex-direction: column; min-width: 0; }
+.trc-creer__txt b { font-weight: 500; color: var(--color-indigo); font-size: 14px; }
+.trc-creer__txt span { font-size: 12px; color: var(--ink-soft); }
+
+@media (prefers-reduced-motion: reduce) { .trc-creer__menu { animation: none; } }

@@ -714,6 +714,21 @@ export default function Factures() {
   };
   const cancelEdit = () => setEditing(null);
 
+  /* « CRÉER » VENU DE LA BARRE — 10 novembre 2026. Le bouton « + Créer » de la
+     barre envoie ici avec `?nouveau=facture` ou `?nouveau=devis` : l'éditeur neuf
+     s'ouvre, une fois, sans second éditeur ni page muette. */
+  const dejaCreePour = useRef<string | null>(null);
+  useEffect(() => {
+    const k = params.get('nouveau');
+    if (k === 'facture' || k === 'devis') {
+      if (dejaCreePour.current !== k) {
+        dejaCreePour.current = k;
+        openNew(k);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
+
   /* Enregistre : ajoute (création) ou remplace par id (modification). */
   const saveDraft = () => {
     if (!editing) return;
