@@ -93,9 +93,31 @@ export function oublieLeHorsLigne(): void {
 
 /** Le serveur est-il vraiment hors d'atteinte ? Le navigateur peut se croire
     en ligne sur un réseau qui ne mène nulle part : on frappe à la porte
-    d'authentification, cinq secondes au plus. Toute réponse dit « joignable ». */
-export async function serveurInjoignable(): Promise<boolean> {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+    d'authentification, cinq secondes au plus. Toute réponse dit « joignable ».
+
+    UNE SEULE SONDE À LA FOIS — 11 novembre 2026. Chaque document lié
+    (`bindDocument`) encore vide après quatre secondes posait SA question :
+    plus de soixante sondes au même instant, sur une connexion déjà lente,
+    chacune jusqu'à cinq secondes (mesuré le soir du 11 : le Trône mettait 30
+    à 45 s à reconnaître Yéman). Une question en cours sert à tous ceux qui la
+    posent, et sa réponse vaut encore cinq secondes. */
+let sondeEnCours: Promise<boolean> | null = null;
+let derniereReponse: { a: number; hors: boolean } | null = null;
+const SONDE_VALABLE_MS = 5000;
+
+export function serveurInjoignable(): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return Promise.resolve(true);
+  if (derniereReponse && Date.now() - derniereReponse.a < SONDE_VALABLE_MS) return Promise.resolve(derniereReponse.hors);
+  if (sondeEnCours) return sondeEnCours;
+  sondeEnCours = sonde().then((hors) => {
+    derniereReponse = { a: Date.now(), hors };
+    sondeEnCours = null;
+    return hors;
+  });
+  return sondeEnCours;
+}
+
+async function sonde(): Promise<boolean> {
   const base = (supabase as unknown as { supabaseUrl?: string } | null)?.supabaseUrl ?? (import.meta.env.VITE_SUPABASE_URL as string | undefined);
   if (!base) return false;
   try {

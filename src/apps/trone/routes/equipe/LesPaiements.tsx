@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Field, Input, Modal, Select, alerte, demande, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { useAuth, useStaff as useMaTete } from '../../../../shared/auth';
+import { useAuth, useMaTete as useLaTete } from '../../../../shared/auth';
 import { bulletinsStore, useConfirmationsDePaie, type BulletinPublie } from '../../../../shared/rh';
 import { useTips } from '../../../../shared/tips';
 import { providersStore, useProviders, type Provider } from '../../../../shared/prestataires';
@@ -132,7 +132,10 @@ export default function LesPaiements() {
   const navigate = useNavigate();
   const { branch, currency } = useBranch();
   const F = (n: number) => fmtMoney(n, currency);
-  const maTete = useMaTete();
+  /* « Je ne sais pas encore » n'est pas « ce n'est pas la direction » (11 nov.
+     2026) : tant que la Maison ne l'a pas reconnue, l'écran attend au lieu de
+     dire « Réservés à la direction ». */
+  const { tete: maTete, pret: teteConnue } = useLaTete();
   const { session } = useAuth();
   const qui = (maTete?.name ?? '').trim() || (session?.user?.email ?? '').trim();
   const estSouverain = maTete?.role === 'souverain';
@@ -914,7 +917,7 @@ export default function LesPaiements() {
   if (!estSouverain) {
     return (
       <div className="lp mnd-rise">
-        <div className="lp-tete"><div><span className="lp-sourcil">Équipe · Les paiements</span><h1>Les paiements.</h1><span className="lp-doux">Réservés à la direction.</span></div></div>
+        <div className="lp-tete"><div><span className="lp-sourcil">Équipe · Les paiements</span><h1>Les paiements.</h1><span className="lp-doux">{teteConnue ? 'Réservés à la direction.' : 'Un instant, la Maison vous reconnaît.'}</span></div></div>
       </div>
     );
   }

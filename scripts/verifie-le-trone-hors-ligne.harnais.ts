@@ -99,5 +99,12 @@ dit('... et ne garde une page qu avec son code', true, /A_GARDER\.includes\(entr
 const mainTrone = readFileSync('src/apps/trone/main.tsx', 'utf8');
 dit('chaque ecran du Trone a son ecran d erreur', true, /errorElement: <ErreurDEcran \/>/.test(mainTrone));
 
+/* 11 nov. 2026 : une seule sonde a la fois. Chaque document encore vide apres 4 s posait
+   sa question (plus de 60 sondes d'un coup) ; une question en cours sert a tous, sa
+   reponse vaut cinq secondes. */
+const hl = readFileSync('src/shared/hors-ligne.ts', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+dit('la sonde du serveur est partagee : une question en cours sert a tous, sa reponse vaut cinq secondes', [true, true, true],
+  [/if \(sondeEnCours\) return sondeEnCours;/.test(hl), /Date\.now\(\) - derniereReponse\.a < SONDE_VALABLE_MS/.test(hl), /sondeEnCours = null;/.test(hl)]);
+
 console.log(ko === 0 ? '\nLe Trone sait s ouvrir sans reseau.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);
