@@ -22,7 +22,8 @@
      Une date changée après le toucher annule l'envoi programmé, et la ligne
      attend un nouveau toucher, elle seule ;
    · une entreprise est payée À L'ENTREPRISE, sur sa facture, par MTN, sur
-     son numéro ; sans facture jointe, rien ne part ; la dépense est celle
+     son numéro ; la facture est facultative depuis le 11 nov. 2026, seul le
+     montant du mois arrête la ligne ; la dépense est celle
      d'un fournisseur, jamais « Salaires » ;
    · avant le premier mois par l'API, un test : 500 F à Yéman, 500 F à Brice,
      100 F à Gérard, montants modifiables, sous toucher.
@@ -316,7 +317,7 @@ export function ligneADate(o: {
   periode: string;
   /** `null` : une mission sans prix. */
   montantXof: number | null;
-  /** Ce qui l'arrête avant tout (sans facture jointe, facture pas acceptée…). */
+  /** Ce qui l'arrête avant tout (montant du mois à poser, facture pas acceptée…). */
   arret?: string;
   msisdn?: string;
   numero: { etat: EtatDuNumero; nomMtn?: string | null };
@@ -478,7 +479,7 @@ export function pourboiresDuMois(parts: readonly { staffId: string; amountXof: n
 /* ── 6. CE QUE LE TRÔNE A REPÉRÉ ─────────────────────────────────────── */
 export type CodeDuPoint =
   | 'numero-repris' | 'nom-differe' | 'numero-inactif' | 'plafond' | 'numero-garde' | 'sans-prix'
-  | 'sans-facture' | 'confirmation' | 'erreur' | 'solde-court' | 'solde-inconnu' | 'avant-le-5'
+  | 'sans-montant' | 'confirmation' | 'erreur' | 'solde-court' | 'solde-inconnu' | 'avant-le-5'
   | 'date-changee' | 'change' | 'refuse' | 'sans-numero' | 'pourboires-ecart';
 
 export type PointARegarder = {
@@ -511,7 +512,7 @@ export function pointsARegarder(o: {
   pose('plafond', de((l) => l.genre === 'equipe' && !!o.lectures?.get(l.id)?.blocages.some((b) => b.code === 'plafond')), true);
   pose('numero-garde', de((l) => l.genre === 'equipe' && !!o.lectures?.get(l.id)?.blocages.some((b) => b.code === 'numero-recent')), true);
   pose('sans-prix', de((l) => l.genre === 'prestataire' && l.pourquoi === 'sans prix'), true);
-  pose('sans-facture', de((l) => l.genre === 'entreprise' && /facture/.test(l.pourquoi ?? '')), true);
+  pose('sans-montant', de((l) => l.genre === 'entreprise' && /montant du mois/.test(l.pourquoi ?? '')), true);
   pose('confirmation', de((l) => l.etat === 'attend'), false);
   pose('erreur', de((l) => l.etat === 'erreur'), true);
   pose('refuse', de((l) => l.etat === 'refuse'), true);
@@ -629,8 +630,8 @@ export function echeancierDuPret(o: {
    des fournisseurs (`mnd_fournisseurs_depenses`), avec son bloc `paiement`
    (numéro MTN, jour, agent). Chaque mois, sa facture (n°, montant, pièce)
    vit à part (`mnd_paiements_factures`) et pointe le fournisseur.
-   L'entreprise est payée, pas son agent : par MTN, sur son numéro. Sans
-   facture jointe, rien ne part. La dépense porte `fournisseurId` et le nom
+   L'entreprise est payée, pas son agent : par MTN, sur son numéro. La
+   facture est facultative (11 nov. 2026). La dépense porte `fournisseurId` et le nom
    de la maison : elle tombe dans le compte du fournisseur, jamais en
    « Salaires ». */
 export type PieceDeFacture = { chemin: string; nom: string; type: string; taille: number };
@@ -659,10 +660,12 @@ export const factureDuMois = (factures: readonly FactureDEntreprise[], fournisse
   factures.filter((x) => x && x.fournisseurId === fournisseurId && x.periode === periode)
     .sort((a, b) => (b.creeLe ?? '').localeCompare(a.creeLe ?? ''))[0];
 
-export function arretDeLEntreprise(facture: Pick<FactureDEntreprise, 'facture' | 'piece' | 'montantXof'> | undefined, msisdn: string | undefined): string | undefined {
-  if (!facture) return 'sans facture ce mois';
-  if (!String(facture.facture ?? '').trim() || !facture.piece) return 'sans facture jointe';
-  if (!(Number.isInteger(facture.montantXof) && facture.montantXof > 0)) return 'montant nul';
+/* 11 nov. 2026 (Yéman) : « Je ne veux pas que ce soit une obligation de
+   soumettre ». La facture d'une entreprise devient FACULTATIVE : son n° et sa
+   pièce, quand ils existent, vont dans la dépense comme justificatif ; seul le
+   montant du mois arrête la ligne. */
+export function arretDeLEntreprise(facture: Pick<FactureDEntreprise, 'montantXof'> | undefined, msisdn: string | undefined): string | undefined {
+  if (!facture || !(Number.isInteger(facture.montantXof) && facture.montantXof > 0)) return 'montant du mois à poser';
   if (!msisdn || !lisLeNumero(msisdn).msisdn) return 'numéro MTN illisible';
   return undefined;
 }

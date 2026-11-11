@@ -274,7 +274,7 @@ export default function LesPaiements() {
       const numero = etatDuNumero({ nom: f.nom, msisdn, source: msisdn ? 'saisi' : 'sans', lecture, vu: vusDuRegistre[cle] });
       out.push(ligneADate({
         genre: 'entreprise', id: f.id, nom: f.nom,
-        detail: [pmt.agent, fac ? `facture ${fac.facture || 'sans numéro'}${fac.piece ? ' · jointe' : ''}` : 'pas de facture ce mois'].filter(Boolean).join(' · '),
+        detail: [pmt.agent, !fac ? 'montant du mois à poser' : fac.facture?.trim() ? `facture ${fac.facture}${fac.piece ? ' · jointe' : ''}` : fac.piece ? 'facture jointe' : 'sans facture'].filter(Boolean).join(' · '),
         periode, montantXof: fac?.montantXof ?? 0, arret: arretDeLEntreprise(fac, msisdn), msisdn, numero, jour: jourLu(pmt.jour),
         validation: validations[cle], envois: envoisEnt,
       }));
@@ -934,9 +934,9 @@ export default function LesPaiements() {
           : <Button size="sm" variant="copper" onClick={() => setPrixAPoser({ missionId: m.x.id, valeur: '' })}>Poser le prix</Button>) : null;
         break;
       }
-      case 'sans-facture':
-        corps = <><strong>{noms(p)} · facture manquante</strong> · <span className="lp-doux">sans facture jointe, rien ne part</span></>;
-        gestes = <>{ls.map((l) => { const x = ctx.get(l.cle); return x?.fournisseur ? <Button key={l.cle} size="sm" variant="copper" onClick={() => setSaisie({ quoi: 'facture', fournisseur: x.fournisseur as Fournisseur, facture: x.facture })}>{x.facture ? `Joindre la facture${ls.length > 1 ? ` · ${l.nom}` : ''}` : `+ Facture${ls.length > 1 ? ` · ${l.nom}` : ''}`}</Button> : null; })}</>;
+      case 'sans-montant':
+        corps = <><strong>{noms(p)} · montant du mois à poser</strong> · <span className="lp-doux">la facture est facultative</span></>;
+        gestes = <>{ls.map((l) => { const x = ctx.get(l.cle); return x?.fournisseur ? <Button key={l.cle} size="sm" variant="copper" onClick={() => setSaisie({ quoi: 'facture', fournisseur: x.fournisseur as Fournisseur, facture: x.facture })}>{`Poser le montant${ls.length > 1 ? ` · ${l.nom}` : ''}`}</Button> : null; })}</>;
         break;
       case 'confirmation': {
         const depot = ls.some((l) => /déposé|dépôt|déposez/.test(lectures.get(l.id)?.attente ?? ''));
@@ -1023,7 +1023,7 @@ export default function LesPaiements() {
           <div className="lp-chiffre"><span className="lp-sourcil">Prestataires · entreprises</span><b>+ {F(c.prestatairesXof + c.entreprisesXof)}</b><span className="lp-op">{c.nbPrestataires} prestataire{c.nbPrestataires > 1 ? 's' : ''} sur {c.nbPrestatairesTotal} · {c.nbEntreprises} facture{c.nbEntreprises > 1 ? 's' : ''}</span></div>
           <div className="lp-chiffre lp-chiffre--hors"><span className="lp-sourcil">Pourboires {periodeDite(periode)} · espèces</span><b>{F(c.pourboiresXof)}</b><span className="lp-op">{payesLeDit(periode)} · {c.pourboiresRemis} / {c.pourboiresATotal} cochés</span></div>
         </div>
-        {c.horsMtn > 0 && <p className="lp-doux lp-petit">{c.horsMtn} ligne{c.horsMtn > 1 ? 's' : ''} hors MTN (Moov, sans numéro, sans prix ou sans facture) : hors du total.</p>}
+        {c.horsMtn > 0 && <p className="lp-doux lp-petit">{c.horsMtn} ligne{c.horsMtn > 1 ? 's' : ''} hors MTN (Moov, sans numéro, sans prix ou sans montant) : hors du total.</p>}
       </section>
 
       {/* Le mois en cinq temps. */}
@@ -1170,7 +1170,7 @@ export default function LesPaiements() {
                     </td>
                     <td className="lp-doux" colSpan={2}>
                       {l.detail}
-                      {x?.fournisseur && libre && <button type="button" className="lp-lien lp-modifie" onClick={() => setSaisie({ quoi: 'facture', fournisseur: x.fournisseur as Fournisseur, facture: x.facture })}>{x.facture ? 'la facture' : '+ Facture'}</button>}
+                      {x?.fournisseur && libre && <button type="button" className="lp-lien lp-modifie" onClick={() => setSaisie({ quoi: 'facture', fournisseur: x.fournisseur as Fournisseur, facture: x.facture })}>{x.facture ? 'le montant' : '+ Montant'}</button>}
                     </td>
                     <td className="lp-n">{l.netXof > 0 ? <b>{F(l.netXof)}</b> : <span className="lp-vide">–</span>}</td>
                     <td>{numero(l)}</td>
@@ -1334,8 +1334,9 @@ function SaisieDeLEntreprise({ branchId, fournisseur, ligne, onClose }: { branch
   );
 }
 
-/** « + FACTURE » : la facture du mois d'une entreprise, son n°, son montant
-    et sa pièce. Sans pièce jointe, rien ne part. */
+/** LE MONTANT DU MOIS d'une entreprise, et sa facture si elle existe : n° et
+    pièce FACULTATIFS depuis le 11 nov. 2026 (« je ne veux pas que ce soit une
+    obligation »). Jointe, la pièce va dans la dépense comme justificatif. */
 function SaisieDeLaFacture({ fournisseur, facture, periode, qui, ligne, onClose }: {
   fournisseur: Fournisseur; facture?: FactureDEntreprise; periode: string; qui: string; ligne?: LigneDuMois; onClose: () => void;
 }) {
@@ -1343,8 +1344,7 @@ function SaisieDeLaFacture({ fournisseur, facture, periode, qui, ligne, onClose 
   const [souci, setSouci] = useState('');
   const enregistre = async () => {
     const montant = Number.parseInt(f.montant.replace(/\D/g, ''), 10);
-    if (!f.numero.trim()) { setSouci('Le n° de la facture.'); return; }
-    if (!(montant > 0)) { setSouci('Le montant de la facture, en francs.'); return; }
+    if (!(montant > 0)) { setSouci('Le montant du mois, en francs.'); return; }
     if (facture && facture.montantXof !== montant && !await annuleSiProgramme(ligne)) return;
     const neuve: FactureDEntreprise = facture
       ? { ...facture, facture: f.numero.trim(), montantXof: montant, piece: f.piece }
@@ -1354,22 +1354,22 @@ function SaisieDeLaFacture({ fournisseur, facture, periode, qui, ligne, onClose 
   };
   const retire = async () => {
     if (!facture) return;
-    if (!await demande({ quoi: 'Les entreprises', titre: `Retirer la facture ${facture.facture} de ${fournisseur.nom} ?`, dit: `Elle ne sera pas payée pour ${moisDit(periode)}.`, accepter: 'Retirer la facture', refuser: 'Garder' })) return;
+    if (!await demande({ quoi: 'Les entreprises', titre: `Retirer le montant de ${fournisseur.nom} pour ${moisDit(periode)} ?`, dit: `L'entreprise ne sera pas payée pour ${moisDit(periode)}.`, accepter: 'Retirer', refuser: 'Garder' })) return;
     if (!await annuleSiProgramme(ligne)) return;
     facturesDEntreprisesStore.set((prev) => asArray<FactureDEntreprise>(prev).filter((x) => x.id !== facture.id));
     onClose();
   };
   return (
-    <Modal title={`${fournisseur.nom} · facture de ${moisDit(periode)}`} onClose={onClose} width={480}>
+    <Modal title={`${fournisseur.nom} · ${moisDit(periode)}`} onClose={onClose} width={480}>
       <div className="lp-form">
-        <Field label="N° de facture"><Input value={f.numero} onChange={(e) => setF({ ...f, numero: e.target.value })} /></Field>
-        <Field label="Montant (F)"><Input inputMode="numeric" value={f.montant} onChange={(e) => setF({ ...f, montant: e.target.value.replace(/[^\d ]/g, '') })} /></Field>
+        <Field label="Montant du mois (F)"><Input inputMode="numeric" value={f.montant} onChange={(e) => setF({ ...f, montant: e.target.value.replace(/[^\d ]/g, '') })} /></Field>
+        <Field label="N° de facture (facultatif)"><Input value={f.numero} onChange={(e) => setF({ ...f, numero: e.target.value })} /></Field>
         <ChampPieceJointe branchId={fournisseur.branchId} dossier="facture-entreprise" valeur={f.piece} onChange={(p) => setF({ ...f, piece: p })} />
-        {!f.piece && <p className="lp-doux lp-petit">Sans facture jointe, rien ne part.</p>}
+        <p className="lp-doux lp-petit">La facture est facultative : jointe, elle accompagne la dépense.</p>
         {souci && <div className="lp-souci" role="alert">{souci}</div>}
         <div className="lp-gestes">
           <Button variant="copper" onClick={() => void enregistre()}>Enregistrer</Button>
-          {facture && <Button variant="ghost" onClick={() => void retire()}>Retirer la facture</Button>}
+          {facture && <Button variant="ghost" onClick={() => void retire()}>Retirer le montant</Button>}
         </div>
       </div>
     </Modal>

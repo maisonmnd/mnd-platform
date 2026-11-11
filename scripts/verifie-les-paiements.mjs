@@ -12,8 +12,9 @@ import { spawnSync } from 'node:child_process';
    - la date de chacun : le 10 par defaut, 1 a 28 ou dernier jour, dimanche
      au lundi, 18 h de Cotonou ; avant le 5, un toucher a part ; une date
      changee apres le toucher, la ligne attend son toucher ;
-   - l'entreprise : un fournisseur, payee sur sa facture jointe, en depense
-     de fournisseur ; sans facture jointe, rien ne part ;
+   - l'entreprise : un fournisseur, payee sur son montant du mois, en depense
+     de fournisseur ; la facture est facultative (11 nov. 2026), sans
+     montant rien ne part ;
    - le nom chez MTN (null tenu : « nom pas encore lu »), le solde inconnu
      dit sans chiffre invente ;
    - le test : 500 F, 500 F, 100 F, jamais plus de 500 F, relance a 500 F ;
@@ -51,7 +52,7 @@ const PANNES = [
   ['une mission sans prix part', PUR, "  else if (o.montantXof == null) { etat = 'ne-part-pas'; pourquoi = 'sans prix'; }\n", ''],
   ['un numero repris part sans « Prendre »', PUR, "  else if (o.numero.etat === 'repris') { etat = 'ne-part-pas'; pourquoi = 'numéro repris, à prendre'; }\n", ''],
   /* L'entreprise */
-  ['une entreprise part sans facture jointe', PUR, "  if (!String(facture.facture ?? '').trim() || !facture.piece) return 'sans facture jointe';", "  if (!String(facture.facture ?? '').trim()) return 'sans facture jointe';"],
+  ['une entreprise part sans montant', PUR, "  if (!facture || !(Number.isInteger(facture.montantXof) && facture.montantXof > 0)) return 'montant du mois à poser';", "  if (!facture) return 'montant du mois à poser';"],
   ['la depense d entreprise en Salaires', PUR, "export const CATEGORIE_DES_ENTREPRISES = 'Sous-traitance';", "export const CATEGORIE_DES_ENTREPRISES = 'Salaires';"],
   ['la depense d entreprise sans son fournisseur', PUR, '    fournisseurId: fournisseur.id,\n', ''],
   ['une entreprise archivee se paie encore', PUR, '  carnet.filter((f) => f && f.branchId === branchId && !f.archived && !!f.paiement);', '  carnet.filter((f) => f && f.branchId === branchId && !!f.paiement);'],

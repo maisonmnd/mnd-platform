@@ -156,18 +156,22 @@ const piece = { chemin: 'b1/facture-entreprise/x.pdf', nom: 'x.pdf', type: 'appl
 const fac: FactureDEntreprise = { id: 'fe-1', branchId: 'b1', fournisseurId: 'fr-1', periode: '2026-11', facture: '2026-118', montantXof: 45000, piece, creeLe: '2026-12-01T09:00:00.000Z', creePar: 'Y. B.' };
 dit('la facture du mois : celle de la periode, la plus recente', ['fe-2', undefined],
   [factureDuMois([fac, { ...fac, id: 'fe-2', creeLe: '2026-12-02T09:00:00.000Z' }], 'fr-1', '2026-11')?.id, factureDuMois([fac], 'fr-1', '2026-10')?.id]);
-dit('sans facture, sans piece jointe, rien ne part', ['sans facture ce mois', 'sans facture jointe', 'sans facture jointe', undefined, 'numéro MTN illisible'], [
-  arretDeLEntreprise(undefined, '2290190000021'), arretDeLEntreprise({ ...fac, piece: undefined }, '2290190000021'),
-  arretDeLEntreprise({ ...fac, facture: ' ' }, '2290190000021'), arretDeLEntreprise(fac, '2290190000021'), arretDeLEntreprise(fac, '97000000'),
+/* 11 nov. 2026 : la facture est facultative ; seul le montant du mois arrete la ligne. */
+dit('sans montant rien ne part ; sans piece ni numero de facture, elle part', ['montant du mois à poser', 'montant du mois à poser', undefined, undefined, undefined, 'numéro MTN illisible'], [
+  arretDeLEntreprise(undefined, '2290190000021'), arretDeLEntreprise({ ...fac, montantXof: 0 }, '2290190000021'),
+  arretDeLEntreprise({ ...fac, piece: undefined }, '2290190000021'), arretDeLEntreprise({ ...fac, facture: ' ', piece: undefined }, '2290190000021'),
+  arretDeLEntreprise(fac, '2290190000021'), arretDeLEntreprise(fac, '97000000'),
 ]);
 const ent = (facture?: FactureDEntreprise) => ligneADate({
   genre: 'entreprise', id: 'fr-1', nom: 'Gardiennage S.', periode: '2026-11', montantXof: facture?.montantXof ?? 0,
   arret: arretDeLEntreprise(facture, '2290190000021'), msisdn: '2290190000021', numero: { etat: 'verifie', nomMtn: 'GARDIENNAGE S' }, jour: 10, envois: [],
 });
 const e1 = ent(fac);
-const e2 = ent({ ...fac, piece: undefined });
-dit('une entreprise avec sa facture jointe part a sa date, sous son run', ['confirme', 45000, 'entreprises-2026-11'], [e1.etat, e1.parMtnXof, e1.runId]);
-dit('... sans facture jointe : ne part pas, hors du pont', ['ne-part-pas', 'sans facture jointe', false], [e2.etat, e2.pourquoi, e2.viaMtn]);
+const e2 = ent(undefined);
+const e3 = ent({ ...fac, facture: '', piece: undefined });
+dit('une entreprise avec son montant part a sa date, sous son run', ['confirme', 45000, 'entreprises-2026-11'], [e1.etat, e1.parMtnXof, e1.runId]);
+dit('... sans facture ni piece, elle part quand meme', ['confirme', 45000, true], [e3.etat, e3.parMtnXof, e3.viaMtn]);
+dit('... sans montant du mois : ne part pas, hors du pont', ['ne-part-pas', 'montant du mois à poser', false], [e2.etat, e2.pourquoi, e2.viaMtn]);
 const recu = env({ run_id: 'entreprises-2026-11', employee_id: 'fr-1', montant_xof: 45000, etat: 'recu', repondu_le: '2026-12-10T17:02:00.000Z' });
 const dep = depenseDeLEntreprise(carnet[0], fac, recu);
 dit('la depense de l entreprise : une depense de fournisseur, jamais « Salaires », au jour de Cotonou', [CATEGORIE_DES_ENTREPRISES, 'fr-1', 45000, '2026-12-10', 'Gardiennage S. - novembre 2026', true, null],
@@ -180,7 +184,7 @@ dit('le pont : salaires nets - prets + prestataires + entreprises = par MTN', tr
 dit('... en chiffres : 165 000 - 30 000 + 20 000 + 45 000 = 200 000, 4 virements', [165000, 30000, 20000, 45000, 200000, 4],
   [c.salairesNetsXof, c.pretsXof, c.prestatairesXof, c.entreprisesXof, c.parMtnXof, c.virements]);
 dit('... les pourboires a part, en especes : 3 750, 1 coche sur 2', [3750, 1, 2], [c.pourboiresXof, c.pourboiresRemis, c.pourboiresATotal]);
-dit('... hors MTN : Moov, sans prix, sans facture', [3, 2, 1, 2], [c.horsMtn, c.nbPrestatairesTotal, c.nbEntreprises, c.nbEntreprisesTotal]);
+dit('... hors MTN : Moov, sans prix, sans montant', [3, 2, 1, 2], [c.horsMtn, c.nbPrestatairesTotal, c.nbEntreprises, c.nbEntreprisesTotal]);
 dit('... le pont tient sur un mois vide', [true, 0], [pontTenu(chiffresDuMois([])), chiffresDuMois([]).parMtnXof]);
 /* 6 nov. 2026 : G., N. et A. passent au contrat « prestataire ». Leurs pourboires du mois
    restent a remettre en especes le 5, sur leur ligne de prestataire ; une entreprise n'en a jamais. */
@@ -221,8 +225,8 @@ dit('« Prendre » : nom conforme ou pas encore lu oui ; nom different, son mot 
 /* ── 5. Ce que le Trone a repere ── */
 const codes = (p: ReturnType<typeof pointsARegarder>) => p.map((x) => x.code);
 const pts = pointsARegarder({ lignes: [a, b, sansPrix, avant5, changee, e2, repris], soldeXof: null, aCouvrirXof: 135000 });
-dit('les points : repris, sans prix, sans facture, confirmation, avant le 5, date changee, solde inconnu',
-  ['numero-repris', 'sans-prix', 'sans-facture', 'confirmation', 'avant-le-5', 'date-changee', 'solde-inconnu'], codes(pts));
+dit('les points : repris, sans prix, sans montant, confirmation, avant le 5, date changee, solde inconnu',
+  ['numero-repris', 'sans-prix', 'sans-montant', 'confirmation', 'avant-le-5', 'date-changee', 'solde-inconnu'], codes(pts));
 dit('un solde inconnu se dit, sans chiffre invente, et ne bloque pas', [false, undefined],
   [pts.find((x) => x.code === 'solde-inconnu')?.bloque, pts.find((x) => x.code === 'solde-inconnu')?.manqueXof]);
 const court = pointsARegarder({ lignes: [], soldeXof: 100000, aCouvrirXof: 300000 });
