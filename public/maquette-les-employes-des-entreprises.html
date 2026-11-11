@@ -66,6 +66,8 @@ th.m { text-align: right; }
 .coche { color: var(--indigo); font-weight: 600; }
 .mtn { font-size: 12.5px; color: var(--cuivre-fonce); }
 .lien { background: none; border: 0; padding: 0; color: var(--cuivre-fonce); text-decoration: underline; text-underline-offset: 3px; font-size: 13px; }
+.quand { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.quand select { padding: 4px 6px; border: 1px solid var(--cuivre); border-radius: 4px; background: var(--carte); color: var(--encre); font: inherit; font-size: 13.5px; }
 .montant-du-mois { width: 96px; text-align: right; padding: 4px 8px; border: 1px solid var(--cuivre); border-radius: 4px; background: var(--carte); color: var(--encre); }
 
 /* La fiche de l'entreprise */
@@ -118,7 +120,7 @@ label input { padding: 9px 11px; border: 1px solid var(--trait); border-radius: 
         <tbody id="corps"></tbody>
       </table>
     </div>
-    <p class="doux petit">Le montant d'un employé se change pour ce mois seulement (touchez « modifier ») ; son montant mensuel, lui, reste sur la fiche. La ligne de l'entreprise n'est pas un virement : elle dit le total.</p>
+    <p class="doux petit">La date et l'heure se règlent sur la ligne de l'entreprise et valent pour tous ses employés : le jour, du 1er au 28 ou le dernier jour du mois qui suit, et l'heure, par demi-heure de 7 h à 21 h. Si vous les changez après votre toucher du mois, les envois programmés s'annulent et la ligne attend un nouveau toucher, elle seule. Le montant d'un employé se change pour ce mois seulement (touchez « modifier ») ; son montant mensuel, lui, reste sur la fiche. La ligne de l'entreprise n'est pas un virement : elle dit le total.</p>
   </section>
 
   <section>
@@ -128,7 +130,7 @@ label input { padding: 9px 11px; border: 1px solid var(--trait); border-radius: 
         <h3>ACIA1 · ses employés</h3>
         <div class="liste" id="liste"></div>
         <div class="total"><span>Chaque mois</span><span class="num" id="total-fiche"></span></div>
-        <p class="doux petit">Payés le 9 du mois suivant, à 18 h. Dépense : « Sous-traitance », dans le compte d'ACIA1, une ligne par employé.</p>
+        <p class="doux petit">Payés à la date et à l'heure de l'entreprise, réglées sur sa ligne. Dépense : « Sous-traitance », dans le compte d'ACIA1, une ligne par employé.</p>
       </div>
       <form class="carte" id="ajout" novalidate>
         <h3>Ajouter un employé</h3>
@@ -148,6 +150,12 @@ label input { padding: 9px 11px; border: 1px solid var(--trait); border-radius: 
       <div class="arbitrage"><h3>Le numéro de l'entreprise</h3>
         <p>Dès qu'une entreprise a des employés, son propre numéro ne reçoit plus rien : l'argent va aux employés seulement.</p>
         <p class="propose">oui. Une entreprise sans employé reste payée sur son numéro, comme aujourd'hui.</p></div>
+      <div class="arbitrage"><h3>L'heure, pour qui</h3>
+        <p>Aujourd'hui tout part à 18 h. L'heure réglable vaut-elle aussi pour les prestataires et les entreprises sans employés, qui ont déjà leur jour ?</p>
+        <p class="propose">oui, chaque ligne à sa date porte aussi son heure, 18 h par défaut. L'équipe reste le 5 à 18 h, comme la paie du 5.</p></div>
+      <div class="arbitrage"><h3>Une date par employé</h3>
+        <p>Faut-il pouvoir payer un employé à une autre date que son entreprise ?</p>
+        <p class="propose">non : une date et une heure par entreprise. Pour un cas à part, son montant du mois se met à 0 et il se paie à la main.</p></div>
       <div class="arbitrage"><h3>La garde des sept jours</h3>
         <p>Un employé nouveau, ou dont le numéro change, doit-il attendre sept jours avant de recevoir, comme l'équipe ?</p>
         <p class="propose">oui, avec le même « Revalider » qu'aujourd'hui pour passer outre.</p></div>
@@ -184,6 +192,23 @@ let employes = [
 ];
 const duMois = {};
 let ouvert = true;
+/* La date et l'heure de l'entreprise : le jour (1 à 28 ou dernier) du mois qui suit novembre 2026, et l'heure, par demi-heure de 7 h à 21 h (Cotonou). Un dimanche passe au lundi. */
+let jour = 9;
+let heure = '18:00';
+const JOURS_FR = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+const MOIS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const heureDite = (h) => { const [hh, mm] = h.split(':'); return `${Number(hh)} h${mm === '00' ? '' : ` ${mm}`}`; };
+function dateDite() {
+  const a = 2026, m = 11; /* décembre 2026, mois qui suit la période de novembre */
+  const dernier = new Date(Date.UTC(a, m + 1, 0)).getUTCDate();
+  let d = new Date(Date.UTC(a, m, jour === 'dernier' ? dernier : jour));
+  const dimanche = d.getUTCDay() === 0;
+  if (dimanche) d = new Date(d.getTime() + 86400000);
+  return `${JOURS_FR[d.getUTCDay()]} ${d.getUTCDate() === 1 ? '1er' : d.getUTCDate()} ${MOIS_FR[d.getUTCMonth()]} ${d.getUTCFullYear()} à ${heureDite(heure)}${dimanche ? ' (dimanche passé au lundi)' : ''}`;
+}
+const optionsJour = () => [...Array.from({ length: 28 }, (_, i) => i + 1), 'dernier'].map((j) => `<option value="${j}"${String(j) === String(jour) ? ' selected' : ''}>${j === 'dernier' ? 'dernier jour' : `le ${j === 1 ? '1er' : j}`}</option>`).join('');
+const optionsHeure = () => Array.from({ length: 29 }, (_, i) => { const t = 7 * 60 + i * 30; return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; })
+  .map((h) => `<option value="${h}"${h === heure ? ' selected' : ''}>${heureDite(h)}</option>`).join('');
 let enEdition = null;
 const montantDe = (e) => (duMois[e.id] ?? e.mensuel);
 const etatDit = (e) => e.etat === 'verifie' ? '<span class="pastille ok">Prêt</span>'
@@ -201,8 +226,12 @@ function rend() {
   g.className = 'groupe';
   g.setAttribute('aria-expanded', String(ouvert));
   g.innerHTML = `<td><button class="nom" type="button" aria-label="Déplier ACIA1"><span class="chevron">›</span> ACIA1</button> <span class="doux petit">· ${employes.length} employé${employes.length > 1 ? 's' : ''} · sans facture</span></td>
-    <td class="m">${F(total)}</td><td class="doux petit">chacun sur son numéro</td><td>le 9 · 18 h</td><td><span class="pastille">${prets} / ${employes.length} prêt${prets > 1 ? 's' : ''}</span></td>`;
+    <td class="m">${F(total)}</td><td class="doux petit">chacun sur son numéro</td>
+    <td><span class="quand"><select data-jour aria-label="Jour du paiement d'ACIA1">${optionsJour()}</select><select data-heure aria-label="Heure du paiement d'ACIA1">${optionsHeure()}</select></span><br><span class="doux petit">${dateDite()}</span></td>
+    <td><span class="pastille">${prets} / ${employes.length} prêt${prets > 1 ? 's' : ''}</span></td>`;
   g.querySelector('button').onclick = () => { ouvert = !ouvert; rend(); };
+  g.querySelector('[data-jour]').onchange = (ev) => { jour = ev.target.value === 'dernier' ? 'dernier' : Number(ev.target.value); rend(); };
+  g.querySelector('[data-heure]').onchange = (ev) => { heure = ev.target.value; rend(); };
   corps.appendChild(g);
   for (const e of employes) {
     const tr = document.createElement('tr');
@@ -212,7 +241,7 @@ function rend() {
     const montant = enEdition === e.id
       ? `<input class="montant-du-mois" inputmode="numeric" value="${montantDe(e)}" aria-label="Montant du mois de ${e.nom}"> <button class="lien" type="button" data-ok>Poser</button>`
       : `${F(montantDe(e))}${change ? `<br><span class="doux petit">mensuel ${F(e.mensuel)}</span>` : ''} <button class="lien" type="button" data-modifie>modifier</button>`;
-    tr.innerHTML = `<td>${e.nom}</td><td class="m">${montant}</td><td>${numeroDit(e)}</td><td class="doux">le 9</td><td>${etatDit(e)}</td>`;
+    tr.innerHTML = `<td>${e.nom}</td><td class="m">${montant}</td><td>${numeroDit(e)}</td><td class="doux petit">avec ACIA1</td><td>${etatDit(e)}</td>`;
     const mod = tr.querySelector('[data-modifie]');
     if (mod) mod.onclick = () => { enEdition = e.id; rend(); tr.ownerDocument.querySelector('.montant-du-mois')?.focus(); };
     const ok = tr.querySelector('[data-ok]');
