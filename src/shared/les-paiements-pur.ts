@@ -35,7 +35,7 @@
 
 import { periodeDesPourboires } from './periode-des-pourboires-pur';
 import {
-  aCotonou, lisLeNumero, moisDit, moisSuivant, pourboiresEnEspecesXof,
+  aCotonou, lisLeNumero, moisDit, moisPrecedent, moisSuivant, pourboiresEnEspecesXof,
   type Blocage, type LectureDeLaLigne, type MobileMoney,
 } from './paie-du-5-pur';
 import {
@@ -144,6 +144,9 @@ export type ValidationADate = {
   /** L'heure validée (absente avant le 11 nov. 2026 : 18 h). */
   heure?: string;
   msisdn: string;
+  /** Les mois que paie cet envoi (entreprise, employé d'entreprise ; 11 nov.
+      2026) ; absent : la période de la ligne seule. */
+  periodes?: string[];
   /** Les missions payées par cet envoi (prestataire extérieur). */
   missions?: string[];
   /** Validée par un toucher à part (date avant le 5, date changée). */
@@ -244,6 +247,8 @@ export type LigneDuMois = {
   date?: DateDePaie | null;
   /** L'employé d'une entreprise : l'entreprise qui le porte (11 nov. 2026). */
   entrepriseId?: string;
+  /** Les mois que paie la ligne (entreprises) ; absent : sa période. */
+  periodes?: string[];
   etat: EtatDuPaiement;
   pourquoi?: string;
   runId: string;
@@ -354,6 +359,8 @@ export function ligneADate(o: {
   heure?: string;
   /** L'employé d'une entreprise : l'id de l'entreprise. */
   entrepriseId?: string;
+  /** Les mois que paie la ligne (déjà comptés dans `montantXof`). */
+  periodes?: string[];
   validation?: ValidationADate;
   payeLe?: string;
   envois: readonly EnvoiMtn[];
@@ -399,6 +406,7 @@ export function ligneADate(o: {
     numero: o.numero.etat, nomMtn: o.numero.nomMtn,
     jour: o.jour, heure, date,
     ...(o.entrepriseId ? { entrepriseId: o.entrepriseId } : {}),
+    ...(o.periodes ? { periodes: [...o.periodes] } : {}),
     etat, ...(pourquoi ? { pourquoi } : {}),
     runId, ...(envoi ? { envoi } : {}),
     aValider: etat === 'confirme' && numeroOk,
@@ -417,6 +425,7 @@ export function validationDe(l: LigneDuMois, par: string, le: string, missions?:
   if (l.genre === 'equipe' || !l.msisdn || l.parMtnXof <= 0 || l.jour == null) return null;
   return {
     par, le, montantXof: l.parMtnXof, jour: l.jour, heure: heureLue(l.heure), msisdn: l.msisdn,
+    ...(l.periodes?.length ? { periodes: [...l.periodes] } : {}),
     ...(missions?.length ? { missions: [...missions] } : {}),
     ...(l.etat !== 'confirme' ? { aPart: true } : {}),
   };
@@ -716,6 +725,69 @@ export const montantDeLEmploye = (e: Pick<EmployeDEntreprise, 'id' | 'mensuelXof
   return Number.isInteger(pose) && (pose as number) >= 0 ? pose as number : Math.max(0, entier(e.mensuelXof));
 };
 
+/* ── 9 ter. PLUSIEURS PÉRIODES D'UN COUP — 11 novembre 2026 ─────────────
+   « Parfois je peux payer 2 ou 3 périodes de paiement car j'ai des employés
+   qui ne se sont pas fait payer 2 ou 3 mois d'affilée » (Yéman). Ses choix :
+   on COCHE les mois, UN SEUL virement par personne, et cela vaut pour les
+   employés d'entreprise comme pour une entreprise payée sur son numéro.
+   Un mois pris par le toucher d'une autre période (programmé ou payé) ne se
+   recoche jamais : pas de double paiement. Annuler un toucher le libère. */
+export const MOIS_EN_ARRIERE = 5;
+
+/** Les mois qu'une ligne de la période peut payer : les cinq d'avant et elle. */
+export function moisProposes(periode: string): string[] {
+  const out = [periode];
+  for (let i = 0; i < MOIS_EN_ARRIERE; i += 1) out.unshift(moisPrecedent(out[0]));
+  return out;
+}
+
+/** Les mois d'une ligne : ceux cochés pour cette période (sa période par
+    défaut), moins ceux qu'une autre période a déjà pris. `prisAilleurs` dit,
+    pour chaque mois pris, la période dont le toucher le paie. */
+export function periodesDeLaLigne(
+  cle: string,
+  periode: string,
+  registreDesMois: Readonly<Record<string, { validations?: Readonly<Record<string, Pick<ValidationADate, 'periodes'>>>; periodes?: Readonly<Record<string, readonly string[]>> } | undefined>>,
+): { choisies: string[]; prisAilleurs: Record<string, string> } {
+  const prisAilleurs: Record<string, string> = {};
+  for (const [x, m] of Object.entries(registreDesMois ?? {})) {
+    if (x === periode) continue;
+    const v = m?.validations?.[cle];
+    if (!v) continue;
+    for (const p of v.periodes?.length ? v.periodes : [x]) prisAilleurs[p] = x;
+  }
+  const cochees = registreDesMois?.[periode]?.periodes?.[cle];
+  const base = cochees ? [...cochees] : [periode];
+  const choisies = [...new Set(base)].filter((p) => /^\d{4}-\d{2}$/.test(p) && !prisAilleurs[p]).sort();
+  return { choisies, prisAilleurs };
+}
+
+/** Le montant sur plusieurs mois : le montant de la période (montant posé
+    pour le mois compris) si elle est cochée, plus le mensuel pour chacun des
+    autres mois. */
+export function montantSurPeriodes(o: { periode: string; choisies: readonly string[]; montantDeLaPeriode: number; mensuel: number }): number {
+  const autres = o.choisies.filter((p) => p !== o.periode).length;
+  const ici = o.choisies.includes(o.periode) ? Math.max(0, entier(o.montantDeLaPeriode)) : 0;
+  return ici + autres * Math.max(0, entier(o.mensuel));
+}
+
+/** « septembre et octobre 2026 », « décembre 2026 et janvier 2027 ». */
+export function periodesDites(periodes: readonly string[]): string {
+  const ps = [...periodes].sort();
+  if (!ps.length) return '';
+  const annees = new Set(ps.map((p) => p.slice(0, 4)));
+  const dits = annees.size === 1 ? ps.map((p) => moisDit(p).replace(/ \d{4}$/, '')) : ps.map(moisDit);
+  const fin = annees.size === 1 ? ` ${ps[0].slice(0, 4)}` : '';
+  return dits.length === 1 ? `${dits[0]}${fin}` : `${dits.slice(0, -1).join(', ')} et ${dits[dits.length - 1]}${fin}`;
+}
+
+/** Pourquoi une ligne sans mois ne part pas. */
+export function arretDesPeriodes(periode: string, choisies: readonly string[], prisAilleurs: Readonly<Record<string, string>>): string | undefined {
+  if (choisies.length) return undefined;
+  const par = prisAilleurs[periode];
+  return par ? `déjà payé avec ${moisDit(par)}` : 'aucun mois coché';
+}
+
 /** La dépense d'un employé payé : une dépense de l'entreprise (Sous-traitance,
     son compte fournisseur), une par employé, jamais « Salaires ». */
 export const depenseDeLEmployeId = (periode: string, employeId: string): string => `exp-ent-${periode}-${employeId}`;
@@ -724,13 +796,15 @@ export function depenseDeLEmploye(
   employe: Pick<EmployeDEntreprise, 'id' | 'nom'>,
   envoi: Pick<EnvoiMtn, 'etat' | 'repondu_le' | 'envoye_le' | 'programme_le' | 'montant_xof' | 'periode'>,
   facture?: Pick<FactureDEntreprise, 'piece'>,
+  /** Les mois payés par cet envoi (la validation) ; absent : sa période. */
+  periodes?: readonly string[],
 ) {
   if (envoi.etat !== 'recu' || !envoi.periode) return null;
   const jour = aCotonou(Date.parse(envoi.repondu_le ?? envoi.envoye_le ?? envoi.programme_le)).slice(0, 10);
   return {
     id: depenseDeLEmployeId(envoi.periode, employe.id),
     branchId: fournisseur.branchId,
-    label: `${fournisseur.nom} - ${employe.nom} - ${moisDit(envoi.periode)}`,
+    label: `${fournisseur.nom} - ${employe.nom} - ${periodesDites(periodes?.length ? periodes : [envoi.periode])}`,
     amountXof: envoi.montant_xof,
     date: jour,
     cashbox: '',
@@ -790,6 +864,8 @@ export function depenseDeLEntreprise(
   fournisseur: Pick<FournisseurAPayer, 'id' | 'nom'>,
   facture: FactureDEntreprise,
   envoi: Pick<EnvoiMtn, 'etat' | 'repondu_le' | 'envoye_le' | 'programme_le' | 'montant_xof'>,
+  /** Les mois payés par cet envoi (11 nov. 2026) ; absent : la période de la facture. */
+  periodes?: readonly string[],
 ) {
   if (envoi.etat !== 'recu') return null;
   const jour = aCotonou(Date.parse(envoi.repondu_le ?? envoi.envoye_le ?? envoi.programme_le)).slice(0, 10);
@@ -798,7 +874,7 @@ export function depenseDeLEntreprise(
     branchId: facture.branchId,
     /* « <maison> - <mois> » : le carnet retrouve la maison par ce libellé
        (beneficiaireDuLibelle), et d'abord par fournisseurId. */
-    label: `${fournisseur.nom} - ${moisDit(facture.periode)}`,
+    label: `${fournisseur.nom} - ${periodesDites(periodes?.length ? periodes : [facture.periode])}`,
     amountXof: envoi.montant_xof,
     date: jour,
     cashbox: '',

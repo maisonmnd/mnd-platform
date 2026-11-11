@@ -9,7 +9,8 @@ import {
   etatDuNumero, factureDuMois, itemDeLaLigne, itemsDuTest, jourLu, ligneADate, ligneDeLEquipe, lignesDuTest, periodeParDefaut,
   peutAnnuler, peutPrendre, pointsARegarder, pontTenu, pourboiresDuMois, pourquoiPasLeTest, seRelanceA500, seValideAPart, testReussi,
   totalDuTest, validationDe, entreprisesDuCarnet,
-  HEURES_POSSIBLES, depenseDeLEmploye, employesDuMois, heureDePaieDite, heureLue, montantDeLEmploye,
+  HEURES_POSSIBLES, depenseDeLEmploye, employesDuMois, heureDePaieDite,
+  arretDesPeriodes, moisProposes, montantSurPeriodes, periodesDeLaLigne, periodesDites, heureLue, montantDeLEmploye,
   type EmployeDEntreprise, type FactureDEntreprise, type LigneDuMois, type ValidationADate,
 } from '../src/shared/les-paiements-pur';
 import { calendrierDeLaPaie, type LectureDeLaLigne } from '../src/shared/paie-du-5-pur';
@@ -348,6 +349,39 @@ const recuE = env({ run_id: 'entreprises-2026-11', employee_id: 'ee-1', montant_
 const depE = depenseDeLEmploye({ id: 'fr-9', nom: 'ACIA1', branchId: 'b1' }, emps[0], recuE, { piece });
 dit('la depense de l employe : Sous-traitance, au compte de l entreprise, une par employe, la facture jointe si elle existe', [CATEGORIE_DES_ENTREPRISES, 'fr-9', 'exp-ent-2026-11-ee-1', 'ACIA1 - K. A. - novembre 2026', 60000, '2026-12-09', true, null],
   [depE?.category, depE?.fournisseurId, depE?.id, depE?.label, depE?.amountXof, depE?.date, !!depE?.fichier, depenseDeLEmploye({ id: 'fr-9', nom: 'ACIA1', branchId: 'b1' }, emps[0], { ...recuE, etat: 'programme' })]);
+
+/* ── PLUSIEURS MOIS D'UN COUP · 11 novembre 2026 ──
+   « Parfois je peux payer 2 ou 3 periodes » : on coche les mois, un seul
+   virement, employes d'entreprise et entreprises ; jamais deux fois un mois. */
+dit('les mois proposes : les cinq d avant et la periode, a travers l annee', ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11'], moisProposes('2026-11'));
+dit('... a cheval sur deux annees', ['2026-10', '2027-03'], [moisProposes('2027-03')[0], moisProposes('2027-03')[5]]);
+const K = 'entreprise:ee-1';
+dit('sans rien coche : la periode seule', ['2026-10'], periodesDeLaLigne(K, '2026-10', {}).choisies);
+dit('les mois coches, ranges', ['2026-08', '2026-09', '2026-10'], periodesDeLaLigne(K, '2026-10', { '2026-10': { periodes: { [K]: ['2026-10', '2026-08', '2026-09'] } } }).choisies);
+const pris = { '2026-11': { validations: { [K]: { periodes: ['2026-09', '2026-10', '2026-11'] } } }, '2026-10': { periodes: { [K]: ['2026-08', '2026-09', '2026-10'] } } };
+const pl = periodesDeLaLigne(K, '2026-10', pris);
+dit('un mois pris par le toucher d une autre periode ne se recoche pas', [['2026-08'], '2026-11', '2026-11'], [pl.choisies, pl.prisAilleurs['2026-09'], pl.prisAilleurs['2026-10']]);
+dit('... une validation sans mois prend sa periode', { '2026-09': '2026-09' }, periodesDeLaLigne(K, '2026-10', { '2026-09': { validations: { [K]: {} } } }).prisAilleurs);
+dit('... sa propre validation ne la bloque pas', ['2026-10'], periodesDeLaLigne(K, '2026-10', { '2026-10': { validations: { [K]: { periodes: ['2026-10'] } } } }).choisies);
+dit('le montant : la periode (montant du mois) plus le mensuel pour chaque autre mois', [90000, 70000, 60000, 0],
+  [montantSurPeriodes({ periode: '2026-10', choisies: ['2026-08', '2026-09', '2026-10'], montantDeLaPeriode: 30000, mensuel: 30000 }),
+    montantSurPeriodes({ periode: '2026-10', choisies: ['2026-09', '2026-10'], montantDeLaPeriode: 40000, mensuel: 30000 }),
+    montantSurPeriodes({ periode: '2026-10', choisies: ['2026-08', '2026-09'], montantDeLaPeriode: 40000, mensuel: 30000 }),
+    montantSurPeriodes({ periode: '2026-10', choisies: [], montantDeLaPeriode: 40000, mensuel: 30000 })]);
+dit('les mois dits : une annee, deux annees, un seul', ['août, septembre et octobre 2026', 'décembre 2026 et janvier 2027', 'octobre 2026', ''],
+  [periodesDites(['2026-10', '2026-08', '2026-09']), periodesDites(['2027-01', '2026-12']), periodesDites(['2026-10']), periodesDites([])]);
+dit('sans mois : deja paye avec une autre periode, ou rien de coche', ['déjà payé avec novembre 2026', 'aucun mois coché', undefined],
+  [arretDesPeriodes('2026-10', [], pl.prisAilleurs), arretDesPeriodes('2026-10', [], {}), arretDesPeriodes('2026-10', ['2026-10'], {})]);
+const trois = ligneADate({ genre: 'entreprise', id: 'ee-1', entrepriseId: 'fr-9', nom: 'K. A.', periode: '2026-10', montantXof: 90000, periodes: ['2026-08', '2026-09', '2026-10'], msisdn: '2290190000041', numero: { etat: 'verifie' }, jour: 9, envois: [] });
+const vTrois = validationDe(trois, 'Y. B.', '2026-11-11T16:00:00.000Z');
+dit('un seul virement pour trois mois ; le toucher garde les mois', [90000, 1, ['2026-08', '2026-09', '2026-10'], 90000],
+  [trois.parMtnXof, chiffresDuMois([trois]).virements, vTrois?.periodes, itemDeLaLigne(trois)?.montantXof]);
+dit('un mois de plus coche apres le toucher : la ligne attend son toucher', 'change',
+  ligneADate({ genre: 'entreprise', id: 'ee-1', entrepriseId: 'fr-9', nom: 'K. A.', periode: '2026-10', montantXof: 120000, periodes: ['2026-07', '2026-08', '2026-09', '2026-10'], msisdn: '2290190000041', numero: { etat: 'verifie' }, jour: 9, heure: vTrois?.heure, validation: vTrois ?? undefined, envois: [] }).etat);
+const recuT = env({ run_id: 'entreprises-2026-10', employee_id: 'ee-1', montant_xof: 90000, etat: 'recu', periode: '2026-10', repondu_le: '2026-11-11T17:01:00.000Z' });
+dit('la depense dit les mois payes', ['ACIA1 - K. A. - août, septembre et octobre 2026', 'Gardiennage S. - septembre et octobre 2026'],
+  [depenseDeLEmploye({ id: 'fr-9', nom: 'ACIA1', branchId: 'b1' }, emps[0], recuT, undefined, ['2026-08', '2026-09', '2026-10'])?.label,
+    depenseDeLEntreprise(carnet[0], { ...fac, periode: '2026-10' }, recu, ['2026-09', '2026-10'])?.label]);
 
 console.log(ko ? `\n${ko} ECHEC.` : '\nLes paiements tiennent leurs promesses.');
 if (ko) process.exitCode = 1;

@@ -30,6 +30,9 @@ export type MoisDesPaiements = {
   /** Le montant d'un employé d'entreprise pour CE mois, par clé de ligne
       (11 nov. 2026) ; son mensuel ne bouge pas. */
   montants?: Record<string, number>;
+  /** Les mois cochés pour une ligne d'entreprise ou d'employé, par clé de
+      ligne (11 nov. 2026) ; absent : la période seule. */
+  periodes?: Record<string, string[]>;
 };
 export type RegistreDesPaiements = {
   /** La date de chaque prestataire, par clé de ligne : le 10 par défaut. */

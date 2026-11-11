@@ -183,3 +183,9 @@
 .lp-employes__droite { display: inline-flex; gap: 10px; align-items: baseline; }
 .lp-employes__ajout { display: grid; gap: 10px; background: var(--indigo-50); border-radius: 4px; padding: 12px; }
 @media (max-width: 560px) { .lp-form__deux { grid-template-columns: 1fr; } }
+
+/* PLUSIEURS MOIS D'UN COUP — 11 novembre 2026. */
+.lp-periodes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 4px 0 4px 34px; }
+.lp-periode { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; cursor: pointer; }
+.lp-periode input { accent-color: var(--color-copper); width: 16px; height: 16px; }
+.lp-periode--pris { cursor: default; color: var(--ink-soft); }
