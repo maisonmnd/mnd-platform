@@ -14,7 +14,7 @@ import { projectionDeLaRetenue, soldesParEmprunteur, usePrets } from '../../../.
 import { fournisseursStore, useFournisseurs, type Fournisseur } from '../../../../shared/fournisseurs';
 import { uid } from '../../../../shared/store';
 import {
-  aCotonou, calendrierDeLaPaie, detailDuBulletin, heureDite, idDuBulletin, jourDit as jourEntierDit, libelleDesFrais, lisLeNumero, litLaLigne,
+  aCotonou, calendrierDeLaPaie, decalageDit, detailDuBulletin, heureDite, idDuBulletin, jourDit as jourEntierDit, libelleDesFrais, lisLeNumero, litLaLigne,
   moisDit, moisPrecedent, moisSuivant, momentDit, netDuMoisDAvant, numeroDeLaFiche, numeroDit, phaseDuMois, phraseDuBlocage, pourboiresEnEspecesXof, quandDit,
   valideLesLignes, type LectureDeLaLigne,
 } from '../../../../shared/paie-du-5-pur';
@@ -509,7 +509,7 @@ export default function LesPaiements() {
         nP ? `${nP} prestataire${nP > 1 ? 's' : ''} à leur date et à leur heure` : '',
         nEnt ? `${nEnt} paiement${nEnt > 1 ? 's' : ''} d’entreprise à leur date et à leur heure` : '',
       ].filter(Boolean).join(' ; ') + `. Depuis le ${COMPTE_DE_PAIE}. Validé par ${qui}.`,
-      suite: `Pourboires en espèces le 5 : ${F(c.pourboiresXof)}.${cal ? ` Annulable jusqu’au ${jourEntierDit(cal.paie.local, false)} à 17 h 59.` : ''}`,
+      suite: `Pourboires en espèces le ${cal ? jourCourt(cal.jourDePaie) : "5"} : ${F(c.pourboiresXof)}.${cal ? ` Annulable jusqu’au ${jourEntierDit(cal.paie.local, false)} à 17 h 59.` : ''}`,
       accepter: 'Valider le mois',
       refuser: 'Pas encore',
     })) return;
@@ -1068,7 +1068,7 @@ export default function LesPaiements() {
         break;
       case 'confirmation': {
         const depot = ls.some((l) => /déposé|dépôt|déposez/.test(lectures.get(l.id)?.attente ?? ''));
-        corps = <><strong>{ls.length} confirmation{ls.length > 1 ? 's' : ''} attendue{ls.length > 1 ? 's' : ''}</strong> · {noms(p)} · <span className="lp-doux">{depot ? 'bulletin à déposer dans Mon espace (Réglages)' : 'dans Mon espace, jusqu’au 5 à 12 h'}</span></>;
+        corps = <><strong>{ls.length} confirmation{ls.length > 1 ? 's' : ''} attendue{ls.length > 1 ? 's' : ''}</strong> · {noms(p)} · <span className="lp-doux">{depot ? 'bulletin à déposer dans Mon espace (Réglages)' : `dans Mon espace, jusqu’au ${cal ? jourCourt(cal.jourDePaie) : '5'} à 12 h`}</span></>;
         if (depot) gestes = <Button size="sm" variant="ghost" onClick={() => navigate('/personnel')}>Réglages</Button>;
         break;
       }
@@ -1231,7 +1231,7 @@ export default function LesPaiements() {
             <button type="button" className="lp-mois" aria-label="Mois suivant" onClick={() => setPeriode(moisSuivant(periode))}>›</button>
           </h1>
           <span className="lp-doux">
-            {cal ? `Versé le ${jourDeLaPaie}${cal.reporteAuLundi ? ' (le 5 est un dimanche)' : ''}` : ''} · prestataires et entreprises à leur date · par MTN depuis le {COMPTE_DE_PAIE} · pourboires en espèces
+            {cal ? `Versé le ${jourDeLaPaie}${cal.decalage ? ` (${decalageDit(cal)})` : ''}` : ''} · prestataires et entreprises à leur date · par MTN depuis le {COMPTE_DE_PAIE} · pourboires en espèces
           </span>
         </div>
         <div className="lp-tete__droite">
@@ -1272,9 +1272,9 @@ export default function LesPaiements() {
       {cal && (
         <section aria-label="Le calendrier du mois" className="lp-frise">
           <div className={pas(maintenant >= cal.depot.ms, phase === 'avant-le-depot')}><b>1er · 8 h</b><span>Bulletins prêts</span></div>
-          <div className={pas(maintenant >= cal.finDesConfirmations.ms, phase === 'confirmation')}><b>1er → {cal.reporteAuLundi ? '6' : '5'} · 12 h</b><span>Chacun confirme · {confirmees} / {equipe.length}</span></div>
-          <div className={pas(valide, !valide && phase !== 'avant-le-depot')}><b>{cal.reporteAuLundi ? '6' : '5'} · 12 h → 18 h</b><span>Votre toucher</span></div>
-          <div className={pas(maintenant >= cal.paie.ms, valide && maintenant < cal.paie.ms)}><b>{cal.reporteAuLundi ? '6' : '5'} · 18 h</b><span>Salaires par MTN · pourboires en espèces</span></div>
+          <div className={pas(maintenant >= cal.finDesConfirmations.ms, phase === 'confirmation')}><b>1er → {cal.jourDuMois} · 12 h</b><span>Chacun confirme · {confirmees} / {equipe.length}</span></div>
+          <div className={pas(valide, !valide && phase !== 'avant-le-depot')}><b>{cal.jourDuMois} · 12 h → 18 h</b><span>Votre toucher</span></div>
+          <div className={pas(maintenant >= cal.paie.ms, valide && maintenant < cal.paie.ms)}><b>{cal.jourDuMois} · 18 h</b><span>Salaires par MTN · pourboires en espèces</span></div>
           <div className={pas([...prestataires, ...entreprises].length > 0 && aDateTousPayes, maintenant >= cal.paie.ms && !aDateTousPayes)}><b>À leur date et heure</b><span>Prestataires · entreprises</span></div>
         </section>
       )}

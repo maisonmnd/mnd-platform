@@ -120,7 +120,7 @@ export function dateDePaie(periode: string, jour: JourDePaie, heure: string = HE
   };
 }
 
-/** Le toucher du mois s'annule jusqu'au 5 (ou au lundi 6) à 17 h 59. */
+/** Le toucher du mois s'annule jusqu'au jour de paie (5, samedi 4 ou mardi 6) à 17 h 59. */
 export const peutAnnuler = (paieMs: number | undefined, maintenantMs: number): boolean =>
   paieMs != null && Number.isFinite(paieMs) && maintenantMs < paieMs;
 

@@ -143,7 +143,7 @@ export type LectureMtn = {
 export type NomMtnVu = { par: string; le: string; msisdn: string; nomMtn: string };
 
 /* ── 4. LE DÉPART ─────────────────────────────────────────────────────
-   Avant l'heure de paie : l'heure de paie (le 5, ou le lundi 6, à 18 h).
+   Avant l'heure de paie : l'heure de paie (le 5, le samedi 4 ou le mardi 6, à 18 h).
    Après : le prochain 18 h de Cotonou (« le passage suivant »). */
 const HEURE_MS = 60 * 60 * 1000;
 const JOUR_MS = 24 * HEURE_MS;

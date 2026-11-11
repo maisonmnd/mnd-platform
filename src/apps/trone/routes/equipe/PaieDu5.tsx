@@ -418,7 +418,7 @@ export default function PaieDu5({ run, bulletinFor }: { run: PayrollRun; bulleti
           <p className="p5__doux">
             L’équipe, Maison MND. Bulletins dans Mon espace le {momentDit(cal.depot.local, false)} ; chacun confirme jusqu’au {momentDit(cal.finDesConfirmations.local)} ;
             {' '}vous ou Brice validez de 12 h à 18 h ; la paie part à 18 h.
-            {cal.reporteAuLundi ? ' Le 5 tombe un dimanche : tout passe au lundi 6, aux mêmes heures.' : ''}
+            {cal.decalage === 'samedi-4' ? ' Le 5 tombe un dimanche : tout passe au samedi 4, aux mêmes heures.' : cal.decalage === 'mardi-6' ? ' Le 5 tombe un lundi : tout passe au mardi 6, aux mêmes heures.' : ''}
           </p>
         )}
       </div>

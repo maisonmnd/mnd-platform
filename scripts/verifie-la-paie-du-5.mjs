@@ -48,7 +48,9 @@ const SQL = 'supabase/migrations/0161_la_paie_du_5.sql';
 const AUTH = 'src/shared/auth.ts';
 const PANNES = [
   /* Le calendrier */
-  ['le dimanche n est plus reporte au lundi', PUR, 'const jour = dimanche ? 6 : 5;', 'const jour = 5;'],
+  ['le dimanche n est plus avance au samedi 4', PUR, "  const decalage = jourDeLaSemaine === 0 ? 'samedi-4' : jourDeLaSemaine === 1 ? 'mardi-6' : null;", "  const decalage = jourDeLaSemaine === 1 ? 'mardi-6' : null;"],
+  ['le lundi n est plus reporte au mardi 6', PUR, "  const decalage = jourDeLaSemaine === 0 ? 'samedi-4' : jourDeLaSemaine === 1 ? 'mardi-6' : null;", "  const decalage = jourDeLaSemaine === 0 ? 'samedi-4' : null;"],
+  ['le samedi 4 devient le lundi 6', PUR, "  const jour = decalage === 'samedi-4' ? 4 : decalage === 'mardi-6' ? 6 : 5;", "  const jour = decalage === 'samedi-4' ? 6 : decalage === 'mardi-6' ? 6 : 5;"],
   ['la paie part a 17 h', PUR, 'paie: momentDe(a, m, jour, 18),', 'paie: momentDe(a, m, jour, 17),'],
   ['les confirmations courent jusqu a 14 h', PUR, 'finDesConfirmations: momentDe(a, m, jour, 12),', 'finDesConfirmations: momentDe(a, m, jour, 14),'],
   ['l heure de Cotonou devient l heure UTC', PUR, 'const COTONOU_MS = 60 * 60 * 1000;', 'const COTONOU_MS = 0;'],

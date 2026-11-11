@@ -3,7 +3,7 @@
 
    Ce que Yéman a choisi au sélecteur le 5 novembre 2026, et que la règle
    doit tenir : le calendrier (le 1er à 8 h, le 5 à 12 h et à 18 h, le
-   dimanche passé au lundi 6), l'état de chaque ligne (à confirmer,
+   dimanche payé le samedi 4, lundi le mardi 6), l'état de chaque ligne (à confirmer,
    confirmée, erreur signalée, bloquée, validée, payée), le plafond du mois
    d'avant plus 25 %, le numéro changé depuis moins de 7 jours, le fichier
    du portail MTN au format de ses essais (montant = net moins les frais),
@@ -39,18 +39,24 @@ const aCot = (local: string) => Date.parse(`${local}:00+01:00`);
 /* ── 1. LE CALENDRIER ── */
 const nov = calendrierDeLaPaie('2026-11');
 dit('la paie de novembre 2026 : dépôt le 1er décembre à 8 h, confirmations jusqu’au 5 à 12 h, paie le 5 à 18 h',
-  ['2026-12', '2026-12-01T08:00', '2026-12-05T12:00', '2026-12-05T18:00', '2026-12-05', false],
-  [nov?.moisDePaie, nov?.depot.local, nov?.finDesConfirmations.local, nov?.paie.local, nov?.jourDePaie, nov?.reporteAuLundi]);
+  ['2026-12', '2026-12-01T08:00', '2026-12-05T12:00', '2026-12-05T18:00', '2026-12-05', null, 5],
+  [nov?.moisDePaie, nov?.depot.local, nov?.finDesConfirmations.local, nov?.paie.local, nov?.jourDePaie, nov?.decalage, nov?.jourDuMois]);
 dit('18 h à Cotonou, c’est 17 h UTC, quel que soit le fuseau de l’appareil',
   [Date.UTC(2026, 11, 5, 17, 0), Date.UTC(2026, 11, 1, 7, 0)], [nov?.paie.ms, nov?.depot.ms]);
 const mars = calendrierDeLaPaie('2026-03');
 const juin = calendrierDeLaPaie('2026-06');
-dit('un 5 dimanche (avril et juillet 2026) passe au lundi 6, aux mêmes heures ; le dépôt reste le 1er',
-  ['2026-04-06T12:00', '2026-04-06T18:00', '2026-04-01T08:00', true, '2026-07-06T18:00', true],
-  [mars?.finDesConfirmations.local, mars?.paie.local, mars?.depot.local, mars?.reporteAuLundi, juin?.paie.local, juin?.reporteAuLundi]);
+/* 11 nov. 2026 (Yéman) : « lundi = mardi, dimanche 5 = samedi 4 ». */
+dit('un 5 dimanche (avril et juillet 2026) se paie le samedi 4, aux mêmes heures ; le dépôt reste le 1er',
+  ['2026-04-04T12:00', '2026-04-04T18:00', '2026-04-01T08:00', 'samedi-4', 4, '2026-07-04T18:00', 'samedi-4'],
+  [mars?.finDesConfirmations.local, mars?.paie.local, mars?.depot.local, mars?.decalage, mars?.jourDuMois, juin?.paie.local, juin?.decalage]);
+const sept = calendrierDeLaPaie('2026-09');
+const mars27 = calendrierDeLaPaie('2027-03');
+dit('un 5 lundi (octobre 2026, avril 2027) se paie le mardi 6, aux mêmes heures',
+  ['2026-10-06T12:00', '2026-10-06T18:00', 'mardi-6', 6, '2027-04-06T18:00', '2027-04-06'],
+  [sept?.finDesConfirmations.local, sept?.paie.local, sept?.decalage, sept?.jourDuMois, mars27?.paie.local, mars27?.jourDePaie]);
 const dec = calendrierDeLaPaie('2026-12');
-dit('décembre 2026 se paie en janvier 2027 (le 5, un mardi)', ['2027-01', '2027-01-01T08:00', '2027-01-05T18:00', false],
-  [dec?.moisDePaie, dec?.depot.local, dec?.paie.local, dec?.reporteAuLundi]);
+dit('décembre 2026 se paie en janvier 2027 (le 5, un mardi)', ['2027-01', '2027-01-01T08:00', '2027-01-05T18:00', true],
+  [dec?.moisDePaie, dec?.depot.local, dec?.paie.local, dec?.decalage === null]);
 dit('un mois illisible n’a pas de calendrier', [null, null], [calendrierDeLaPaie('2026-13'), calendrierDeLaPaie('nov')]);
 dit('les quatre temps du mois, aux bornes exactes',
   ['avant-le-depot', 'confirmation', 'confirmation', 'validation', 'validation', 'apres-la-paie'],

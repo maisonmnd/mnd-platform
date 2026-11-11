@@ -8,7 +8,9 @@
    · chacun touche « Je confirme mon bulletin » ou « Je signale une erreur »
      (avec un mot) jusqu'au 5 à 12 h ;
    · Yéman ou Brice valide de 12 h à 18 h, et la paie part le 5 à 18 h ;
-   · un 5 qui tombe un dimanche passe au lundi 6, aux mêmes heures ;
+   · un 5 qui tombe un dimanche se paie le samedi 4, un 5 qui tombe un
+     lundi le mardi 6, aux mêmes heures (11 nov. 2026 ; avant : dimanche →
+     lundi 6) ;
    · une fiche confirmée en retard est payée dès qu'elle est confirmée et
      validée ;
    · un numéro MTN part par le portail MTN entreprise (aucune API : le Trône
@@ -89,23 +91,31 @@ export type CalendrierDeLaPaie = {
   moisDePaie: string;
   /** Le 1er à 8 h : les bulletins arrivent dans Mon espace. */
   depot: Moment;
-  /** Le 5 (ou le lundi 6) à 12 h : fin des confirmations, début de la validation. */
+  /** Le jour de paie (4, 5 ou 6) à 12 h : fin des confirmations, début de la validation. */
   finDesConfirmations: Moment;
   /** Le même jour à 18 h : fin de la validation, la paie part. */
   paie: Moment;
   /** AAAA-MM-JJ du jour de paie. */
   jourDePaie: string;
-  /** Le 5 tombait un dimanche : tout passe au lundi 6, aux mêmes heures. */
-  reporteAuLundi: boolean;
+  /** Le quantième du jour de paie : 5, ou 4 (5 dimanche), ou 6 (5 lundi). */
+  jourDuMois: number;
+  /** Le 5 ne se paie pas ce jour-là : `samedi-4` (5 dimanche) ou
+      `mardi-6` (5 lundi) ; `null` : le 5. Aux mêmes heures. */
+  decalage: 'samedi-4' | 'mardi-6' | null;
 };
 
+/* LE JOUR DE PAIE — 11 novembre 2026 (Yéman, au sélecteur : « lundi = mardi,
+   dimanche 5 = samedi 4 »). Un 5 qui tombe un dimanche se paie la VEILLE, le
+   samedi 4 ; un 5 qui tombe un lundi, le LENDEMAIN, le mardi 6. Jusque-là, le
+   dimanche passait au lundi 6. Le dépôt reste le 1er à 8 h. */
 export function calendrierDeLaPaie(periode: string): CalendrierDeLaPaie | null {
   const suivant = moisSuivant(periode);
   const l = lisLeMois(suivant);
   if (!l) return null;
   const [a, m] = l;
-  const dimanche = new Date(Date.UTC(a, m - 1, 5)).getUTCDay() === 0;
-  const jour = dimanche ? 6 : 5;
+  const jourDeLaSemaine = new Date(Date.UTC(a, m - 1, 5)).getUTCDay();
+  const decalage = jourDeLaSemaine === 0 ? 'samedi-4' : jourDeLaSemaine === 1 ? 'mardi-6' : null;
+  const jour = decalage === 'samedi-4' ? 4 : decalage === 'mardi-6' ? 6 : 5;
   return {
     periode,
     moisDePaie: suivant,
@@ -113,9 +123,14 @@ export function calendrierDeLaPaie(periode: string): CalendrierDeLaPaie | null {
     finDesConfirmations: momentDe(a, m, jour, 12),
     paie: momentDe(a, m, jour, 18),
     jourDePaie: `${a}-${p2(m)}-${p2(jour)}`,
-    reporteAuLundi: dimanche,
+    jourDuMois: jour,
+    decalage,
   };
 }
+
+/** « (le 5 est un dimanche) », « (le 5 est un lundi) », sinon rien. */
+export const decalageDit = (cal: Pick<CalendrierDeLaPaie, 'decalage'>): string =>
+  cal.decalage === 'samedi-4' ? 'le 5 est un dimanche : samedi 4' : cal.decalage === 'mardi-6' ? 'le 5 est un lundi : mardi 6' : '';
 
 export type PhaseDuMois = 'avant-le-depot' | 'confirmation' | 'validation' | 'apres-la-paie';
 /** Où en est le mois : avant le dépôt, le temps des confirmations, celui de
