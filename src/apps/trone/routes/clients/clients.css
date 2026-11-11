@@ -3997,3 +3997,10 @@ label.trc-foyer--lier { justify-content: flex-start; cursor: pointer; }
   .trc-avenir__gestes { grid-column: 2; flex-direction: row; align-items: center; flex-wrap: wrap; }
   .trc-avenir__texte, .trc-avenir__dit { grid-column: 1 / -1; }
 }
+
+/* Fiches de soin (11 novembre 2026) : une ligne par PDF, le titre, à qui, Ouvrir. */
+.trc-fiches { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.trc-fiches__ligne { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "titre bouton" "qui bouton"; align-items: center; gap: 2px 12px; padding: 10px 0; border-bottom: 1px solid var(--hairline); }
+.trc-fiches__titre { grid-area: titre; font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.trc-fiches__qui { grid-area: qui; font-size: 13px; color: var(--ink-soft); }
+.trc-fiches__ligne > button { grid-area: bouton; }

@@ -82,6 +82,7 @@ import { CarteModal } from './CarteModal';
 import { DroitImageModal } from './DroitImageModal';
 import { ditLAccord, estMineure, exemplaireDe } from '../../../../shared/droit-image';
 import { contratPdf } from '../../../../shared/pdf';
+import FichesDeSoin from './FichesDeSoin';
 import { ChampDeDate, DateEnClair } from '../../../../ds/dates';
 import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
@@ -4977,6 +4978,8 @@ function Customer360({
 
         {tab === 'docs' && (
         <div className="trc-docs-onglet">
+        {/* Les fiches de soin en PDF, en tête (11 novembre 2026, « ranger les fiches de M. G. »). */}
+        <FichesDeSoin clientId={client.id} />
         {/* ══ TROIS RUBRIQUES, CHACUNE SON TITRE ET SON TOTAL — 26 octobre 2026 ══
             « J'ai besoin de mieux voir chaque rubrique et que tout soit mieux
             écrit » (Yéman, sur cet onglet). Factures & devis, Factures du
