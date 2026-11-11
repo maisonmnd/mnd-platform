@@ -46,7 +46,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  * KKIAPAY_API_BASE) et SERVICE_KEY, déjà posés sur le projet : rien à ajouter.
  */
 
-const VERSION = '2026-11-07-c';
+const VERSION = '2026-11-11-a';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -268,7 +268,7 @@ export const maitreDit = (master: unknown): string => {
 export const lignesDites = (p: PieceLue): { label: string; montantXof: number }[] =>
   (p.lines ?? []).filter((l) => String(l.label ?? '').trim()).map((l) => ({ label: String(l.label).trim(), montantXof: Math.round(netDeLaLigne(l)) }));
 
-export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDeLaCliente?: string; branchId?: string; maintenant: Date }) {
+export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDeLaCliente?: string; prenom?: string; branchId?: string; maintenant: Date }) {
   const e = etatDuLien(o.rdv, o.piece);
   const lien = o.rdv?.lienDeReglement;
   const tapgo = lien?.tapgo && e.etat === 'a-regler' && Math.round(n(lien.tapgo.resteXof)) === e.resteXof
@@ -276,7 +276,9 @@ export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDe
     : undefined;
   return {
     etat: e.etat,
-    prenom: prenomDe(o.nomDeLaCliente ?? o.rdv?.clientName),
+    /* Le prénom d'usage que le serveur a lu sur sa fiche (11 novembre 2026),
+       sinon le premier mot, comme avant. */
+    prenom: String(o.prenom ?? '').trim().replace(/\s+/g, ' ') || prenomDe(o.nomDeLaCliente ?? o.rdv?.clientName),
     maitre: maitreDit(o.rdv?.master),
     jour: o.rdv?.date ?? '',
     lignes: o.piece ? lignesDites(o.piece) : [],
@@ -316,7 +318,7 @@ export function jourCourtDit(iso: string): string {
 export type TeteDuFoyer = { prenom: string; jour: string; lignes: { label: string; montantXof: number }[]; resteXof: number };
 
 export function pageDuFoyer(o: {
-  tetes: readonly { rdv: RdvLu; piece: PieceLue | null; nom?: string }[]; jeton: string; branchId?: string; maintenant: Date;
+  tetes: readonly { rdv: RdvLu; piece: PieceLue | null; nom?: string; prenom?: string }[]; jeton: string; branchId?: string; maintenant: Date;
 }) {
   const vivantes = o.tetes.filter((t) => t.rdv.status !== 'annulé');
   const avecPiece = vivantes.filter((t) => !!t.piece);
@@ -333,7 +335,7 @@ export function pageDuFoyer(o: {
       : avecPiece.length === 0 || enPreparation ? 'sans-piece'
         : resteXof > 0 ? 'a-regler' : 'reglee';
   const tetes: TeteDuFoyer[] = avecPiece.map((t, i) => ({
-    prenom: prenomDe(t.nom ?? t.rdv.clientName), jour: t.rdv.date ?? '', lignes: lignesDites(t.piece!), resteXof: etats[i].resteXof,
+    prenom: String(t.prenom ?? '').trim().replace(/\s+/g, ' ') || prenomDe(t.nom ?? t.rdv.clientName), jour: t.rdv.date ?? '', lignes: lignesDites(t.piece!), resteXof: etats[i].resteXof,
   }));
   const jours = [...new Set(tetes.map((t) => t.jour).filter(Boolean))];
   /* Plusieurs jours (le point d'un compte, 28 octobre 2026) : chaque ligne dit le sien. */
@@ -663,7 +665,7 @@ export function pageSansPiece(o: {
   const reste = o.porte.ouverte ? Math.max(0, Math.round(o.porte.resteXof ?? 0)) : 0;
   return {
     etat: (o.porte.ouverte && reste > 0 ? 'a-regler' : 'reglee') as 'a-regler' | 'reglee',
-    prenom: String(o.prenom ?? '').trim().split(/\s+/)[0] ?? '',
+    prenom: String(o.prenom ?? '').trim().replace(/\s+/g, ' '),
     maitre: '',
     jour: String(o.rdv.date ?? '').slice(0, 10),
     lignes: [{ label: 'Total annoncé', montantXof: prix }],
@@ -739,10 +741,58 @@ async function laPiece(rdvId: string): Promise<Ligne | null> {
   return choisie ? lignes.find((l) => l.id === choisie.id) ?? null : null;
 }
 
-async function nomDe(clientId: unknown): Promise<string> {
-  if (!clientId) return '';
+/* LE PRÉNOM D'USAGE (11 novembre 2026, « écrire tout le prénom Anne-Marie »,
+   Y.) : la page du rendez-vous disait « Merci, Anne ». Copie du bloc de
+   `src/shared/civilite.ts` entre ses repères ; verifie-le-prenom-d-usage
+   la compare, caractère pour caractère. */
+/* ⟨prenom-d-usage⟩ */
+/** LES PRÉNOMS QUI SE COMPOSENT (liste du 7 novembre 2026) : en tête d'un nom
+    de trois mots ou plus sans NOM en capitales, ils prennent le mot suivant. */
+const PRENOMS_QUI_SE_COMPOSENT: readonly string[] = ['Marie', 'Anne', 'Jean', 'Paul', 'Pierre', 'Louis'];
+/** Les particules d'un nom de famille : « de », « da », « d'Agbo »… */
+const PARTICULE_DU_NOM = /^(?:de|da|do|dos|das|du|des|di|del|della|van|von|le|la|d['’]\S*)$/i;
+/** Un mot tout en capitales : au moins deux lettres, accents compris, l'apostrophe et le trait d'union admis. */
+const motEnCapitales = (m: string): boolean => /^[\p{Lu}'’-]+$/u.test(m) && (m.match(/\p{Lu}/gu) ?? []).length >= 2;
+/** La capitale d'un second prénom écrit en minuscules ; rien d'autre ne bouge. */
+const capitaleDuSecond = (m: string): string => (/^\p{Ll}/u.test(m) ? `${m.charAt(0).toUpperCase()}${m.slice(1)}` : m);
+
+/** LE PRÉNOM QUE LE TRÔNE DEVINE d'un nom complet (les règles 2 à 5). Le
+    trait d'union se recolle dans le prénom, jamais vers un NOM en capitales
+    (« Awa - KOSSI » reste deux mots). */
+const prenomDevine = (nom: unknown): string => {
+  const mots = String(nom ?? '').trim().replace(/\s+/g, ' ')
+    .replace(/(\S+) ?- ?(?=(\S+))/g, (tout: string, g: string, d: string) => (motEnCapitales(g) || motEnCapitales(d) ? tout : `${g}-`))
+    .split(' ').filter(Boolean);
+  if (mots.length === 0) return '';
+  const nomDeFamille = mots.findIndex((m, i) => i > 0 && motEnCapitales(m));
+  if (nomDeFamille > 0) {
+    const fin = mots.findIndex((m, i) => i > 0 && (i >= nomDeFamille || !/^\p{L}/u.test(m)));
+    const prenoms = mots.slice(0, fin);
+    while (prenoms.length > 1 && PARTICULE_DU_NOM.test(prenoms[prenoms.length - 1])) prenoms.pop();
+    return prenoms.map((m, i) => (i > 0 && !PARTICULE_DU_NOM.test(m) ? capitaleDuSecond(m) : m)).join(' ');
+  }
+  const premier = mots[0].toLowerCase();
+  const second = mots[1] ?? '';
+  if (mots.length >= 3 && PRENOMS_QUI_SE_COMPOSENT.some((p) => p.toLowerCase() === premier) && /^\p{L}/u.test(second) && !PARTICULE_DU_NOM.test(second)) {
+    return `${mots[0]} ${capitaleDuSecond(second)}`;
+  }
+  return mots[0];
+};
+
+/** LE PRÉNOM D'USAGE d'une cliente : celui de sa fiche, sinon celui que le
+    Trône devine de son nom. `repli` sert quand la fiche manque mais qu'un nom
+    est connu ailleurs (le rendez-vous, la demande du site). */
+const prenomDUsage = (c: { name?: unknown; prenomUsage?: unknown } | null | undefined, repli?: unknown): string => {
+  const note = String(c?.prenomUsage ?? '').trim().replace(/\s+/g, ' ');
+  return note || prenomDevine(c?.name ?? repli);
+};
+/* ⟨/prenom-d-usage⟩ */
+
+/** Son prénom d'usage : celui de sa fiche, sinon deviné de son nom ou du nom du rendez-vous. */
+async function prenomDUsageDe(clientId: unknown, repli: unknown): Promise<string> {
+  if (!clientId) return prenomDUsage(null, repli);
   const { data } = await admin.from('clients').select('data').eq('id', String(clientId)).maybeSingle();
-  return String(data?.data?.name ?? '');
+  return prenomDUsage((data?.data as { name?: unknown; prenomUsage?: unknown } | undefined) ?? null, repli);
 }
 
 /* ── RÉGLER AVANT ET APRÈS (7 novembre 2026) : un rendez-vous sans pièce ── */
@@ -815,7 +865,7 @@ async function appliquerSansPiece(rdv: Ligne, t: { id: string; amountXof: number
     /* La ligne a bougé entre la lecture et l'écriture : on relit, on rejuge. */
     if (!(ecrites ?? []).length) continue;
     await previensLePersonnel(notificationAvantApres({
-      prenom: prenomDe((await nomDe(r.clientId)) || r.clientName), quand: sp.moment, jour: String(r.date ?? ''), heure: String(r.time ?? ''),
+      prenom: await prenomDUsageDe(r.clientId, r.clientName), quand: sp.moment, jour: String(r.date ?? ''), heure: String(r.time ?? ''),
       montantXof: partage.versementXof, enPlusXof: partage.pourboireXof,
     }));
     return { ok: true, versementXof: partage.versementXof, pourboireXof: partage.pourboireXof, honore: false };
@@ -1027,11 +1077,11 @@ async function lireLeFoyer(jeton: string, rdvsLus: Ligne[], noteLOuverture: bool
       if (lien && !lien.ouvertLe) await admin.from('appointments').update({ data: { ...(rdv.data ?? {}), lienDuFoyer: { ...lien, ouvertLe: ouvert } } }).eq('id', rdv.id);
     }
   }
-  const tetes: { rdv: RdvLu; piece: PieceLue | null; nom?: string }[] = [];
+  const tetes: { rdv: RdvLu; piece: PieceLue | null; prenom?: string }[] = [];
   for (const rdv of rdvs) {
     const r: RdvLu = { ...(rdv.data ?? {}), id: rdv.id };
     const pl = await laPiece(rdv.id);
-    tetes.push({ rdv: r, piece: pl ? { ...(pl.data ?? {}), id: pl.id } : null, nom: (await nomDe(r.clientId)) || r.clientName || '' });
+    tetes.push({ rdv: r, piece: pl ? { ...(pl.data ?? {}), id: pl.id } : null, prenom: await prenomDUsageDe(r.clientId, r.clientName) });
   }
   return json({ ok: true, rattrapes, page: pageDuFoyer({ tetes, jeton, branchId: rdvs[0]?.branch_id, maintenant: new Date() }) });
 }
@@ -1055,17 +1105,17 @@ async function lire(req: Request, b: any, noteLOuverture: boolean) {
   }
   const pieceLigne = await laPiece(rdv.id);
   const piece: PieceLue | null = pieceLigne ? { ...(pieceLigne.data ?? {}), id: pieceLigne.id } : null;
-  const nom = (await nomDe(r.clientId)) || r.clientName || '';
+  const prenom = await prenomDUsageDe(r.clientId, r.clientName);
   /* RÉGLER AVANT ET APRÈS (7 novembre 2026) : sans pièce, un rendez-vous que
      Ma Couronne a ouvert se règle sur lui-même, au reste du serveur ; tout
      réglé, la page dit « réglée ». Sinon, la page d'avant (elle attend sa pièce). */
   if (!piece) {
     const sp = await laPorteSansPiece(rdv, Date.now());
     if (sp && (sp.porte.ouverte || sp.porte.raison === 'deja-regle')) {
-      return json({ ok: true, rattrapes, page: pageSansPiece({ rdv: r as any, porte: sp.porte, quand: sp.moment, prenom: nom, reference: referenceDuRdv(rdv.id), branchId: rdv.branch_id }) });
+      return json({ ok: true, rattrapes, page: pageSansPiece({ rdv: r as any, porte: sp.porte, quand: sp.moment, prenom, reference: referenceDuRdv(rdv.id), branchId: rdv.branch_id }) });
     }
   }
-  return json({ ok: true, rattrapes, page: pageDuLien({ rdv: r, piece, nomDeLaCliente: nom, branchId: rdv.branch_id, maintenant: new Date() }) });
+  return json({ ok: true, rattrapes, page: pageDuLien({ rdv: r, piece, prenom, branchId: rdv.branch_id, maintenant: new Date() }) });
 }
 
 async function regler(req: Request, b: any) {

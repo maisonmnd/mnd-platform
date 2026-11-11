@@ -108,7 +108,8 @@ dit('civilite.ts porte le bloc, sans import ni export dedans (des bancs le rejou
   [!!ORIGINAL && ORIGINAL.length > 400, /^\s*import /m.test(ORIGINAL ?? ''), /^\s*export /m.test(ORIGINAL ?? '')]);
 dit('... et en exporte les trois noms juste après', true, CIVILITE.includes('/* ⟨/prenom-d-usage⟩ */\nexport { PRENOMS_QUI_SE_COMPOSENT, prenomDevine, prenomDUsage };'));
 const AVEC_APPEL = ['avis-google', 'confirmation-rdv', 'demande-submit', 'discussion', 'fete-de-couronne', 'rappels-d-echeance', 'rappels-j1', 'relances-factures', 'whatsapp-automate', 'whatsapp-webhook'];
-const AVEC_BLOC = [...AVEC_APPEL, 'envois-partent'];
+/* La page du rendez-vous et la page « Régler » (11 novembre 2026). */
+const AVEC_BLOC = [...AVEC_APPEL, 'envois-partent', 'terminer-et-regler', 'regler-la-seance'];
 const sources = new Map(AVEC_BLOC.map((f) => [f, lis(`supabase/functions/${f}/index.ts`)]));
 dit('chaque fonction porte le bloc ⟨prenom-d-usage⟩, caractère pour caractère', [], AVEC_BLOC.filter((f) => bloc(sources.get(f)!) !== ORIGINAL));
 const copieDAppel = (t: string): string | null => {
@@ -174,6 +175,19 @@ for (const s of ['assistant-maison', 'assistants-maison', 'reception-wa']) {
     [dem.includes('prenom: prenomDUsage(fiche.data), telephone:'),
       dem.includes('const prenom = appelDe({ ...(ficheMarraine ?? {}), prenomUsage: o.prenomMarraine || ficheMarraine?.prenomUsage });'),
       dem.includes('prenomAmie: prenomDevine(prenom),')]);
+  /* « Merci, Anne » sur la page du rendez-vous (11 novembre 2026) : le billet et
+     la page « Régler » reçoivent le prénom d'usage, plus le premier mot. */
+  const fin = sources.get('terminer-et-regler')!;
+  const reg = sources.get('regler-la-seance')!;
+  dit('terminer-et-regler : le billet et l’équipe par le prénom d’usage, le billet ne le coupe plus', [true, 2, 0],
+    [fin.includes('prenom: prenomDUsage(fiche, l.data?.clientName),'),
+      (fin.match(/prenomDUsage\(t\.fiche, t\.ligne\.data\?\.clientName\)/g) ?? []).length,
+      (fin.match(/prenom: String\(o\.prenom \?\? ''\)\.trim\(\)\.split\(/g) ?? []).length]);
+  dit('regler-la-seance : la page du lien, du foyer et sans pièce par le prénom d’usage', [true, true, true, false],
+    [reg.includes('pageDuLien({ rdv: r, piece, prenom, branchId:'),
+      reg.includes('prenom: await prenomDUsageDe(r.clientId, r.clientName) });'),
+      reg.includes('quand: sp.moment, prenom, reference:'),
+      /\bnomDe\(/.test(reg)]);
   dit('rappels-d-echeance et fete-de-couronne : le prénom de la tête, d’usage', [true, true],
     [sources.get('rappels-d-echeance')!.includes('const prenomDe = (fiche: { name?: unknown } | undefined, repli?: string): string =>\n  prenomDUsage(fiche, repli);'),
       sources.get('fete-de-couronne')!.includes('const prenomDe = (fiche: { name?: unknown } | undefined): string =>\n  prenomDUsage(fiche);')]);

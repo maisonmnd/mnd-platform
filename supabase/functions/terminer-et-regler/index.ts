@@ -75,7 +75,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  * --commit <sha> --jwt non`. Vérifier : un GET rend sa version.
  */
 
-const VERSION = '2026-11-07-e · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après';
+const VERSION = '2026-11-11-a · le prénom d’usage entier sur le billet (« Merci, Anne-Marie ») ; régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -566,7 +566,9 @@ export function freinDeLaRecherche(o: { essaisDeLAdresse: number; echecsDuCodeDa
 export type EtatDuBillet = 'confirme' | 'en-cours' | 'termine' | 'regle' | 'annule' | 'passe';
 export type BilletDeLaFin = {
   reference: string;
-  /** Son prénom d'appel, et rien d'autre d'elle. */
+  /** Son prénom d'usage (la fiche, sinon le prénom deviné, composé compris :
+      « Anne-Marie », « Marie Gisèle ») et rien d'autre d'elle. Le serveur
+      le tire de sa fiche ; le billet ne le coupe plus (11 novembre 2026). */
   prenom: string;
   jour: string;
   heure: string;
@@ -604,7 +606,7 @@ export function billetDeLaFin(o: {
   const reste = o.piece ? Math.max(0, Math.round(Number(o.piece.resteXof) || 0)) : r.status === 'annulé' || r.coveredBySub ? null : resteConnuDeLaFin(r);
   return {
     reference: o.reference,
-    prenom: String(o.prenom ?? '').trim().split(/\s+/)[0] ?? '',
+    prenom: String(o.prenom ?? '').trim().replace(/\s+/g, ' '),
     jour, heure: String(r.time ?? '').slice(0, 5), etat,
     resteXof: regle ? 0 : reste,
     porte, aTermine,
@@ -1026,7 +1028,7 @@ export function pageSansPiece(o: {
   const reste = o.porte.ouverte ? Math.max(0, Math.round(o.porte.resteXof ?? 0)) : 0;
   return {
     etat: (o.porte.ouverte && reste > 0 ? 'a-regler' : 'reglee') as 'a-regler' | 'reglee',
-    prenom: String(o.prenom ?? '').trim().split(/\s+/)[0] ?? '',
+    prenom: String(o.prenom ?? '').trim().replace(/\s+/g, ' '),
     maitre: '',
     jour: String(o.rdv.date ?? '').slice(0, 10),
     lignes: [{ label: 'Total annoncé', montantXof: prix }],
@@ -1107,7 +1109,54 @@ async function permis(ip: string, seau: string, plafond: number): Promise<boolea
 
 /* ── La base ───────────────────────────────────────────────────────────── */
 type Ligne = { id: string; branch_id?: string; data: any; updated_at?: string };
-type Fiche = { name?: string; phone?: string; phone2?: string; passeAuComptoir?: boolean; authUserId?: string };
+/* LE PRÉNOM D'USAGE (11 novembre 2026, « écrire tout le prénom Anne-Marie »,
+   Y.) : la page du rendez-vous disait « Merci, Anne ». Copie du bloc de
+   `src/shared/civilite.ts` entre ses repères ; verifie-le-prenom-d-usage
+   la compare, caractère pour caractère. */
+/* ⟨prenom-d-usage⟩ */
+/** LES PRÉNOMS QUI SE COMPOSENT (liste du 7 novembre 2026) : en tête d'un nom
+    de trois mots ou plus sans NOM en capitales, ils prennent le mot suivant. */
+const PRENOMS_QUI_SE_COMPOSENT: readonly string[] = ['Marie', 'Anne', 'Jean', 'Paul', 'Pierre', 'Louis'];
+/** Les particules d'un nom de famille : « de », « da », « d'Agbo »… */
+const PARTICULE_DU_NOM = /^(?:de|da|do|dos|das|du|des|di|del|della|van|von|le|la|d['’]\S*)$/i;
+/** Un mot tout en capitales : au moins deux lettres, accents compris, l'apostrophe et le trait d'union admis. */
+const motEnCapitales = (m: string): boolean => /^[\p{Lu}'’-]+$/u.test(m) && (m.match(/\p{Lu}/gu) ?? []).length >= 2;
+/** La capitale d'un second prénom écrit en minuscules ; rien d'autre ne bouge. */
+const capitaleDuSecond = (m: string): string => (/^\p{Ll}/u.test(m) ? `${m.charAt(0).toUpperCase()}${m.slice(1)}` : m);
+
+/** LE PRÉNOM QUE LE TRÔNE DEVINE d'un nom complet (les règles 2 à 5). Le
+    trait d'union se recolle dans le prénom, jamais vers un NOM en capitales
+    (« Awa - KOSSI » reste deux mots). */
+const prenomDevine = (nom: unknown): string => {
+  const mots = String(nom ?? '').trim().replace(/\s+/g, ' ')
+    .replace(/(\S+) ?- ?(?=(\S+))/g, (tout: string, g: string, d: string) => (motEnCapitales(g) || motEnCapitales(d) ? tout : `${g}-`))
+    .split(' ').filter(Boolean);
+  if (mots.length === 0) return '';
+  const nomDeFamille = mots.findIndex((m, i) => i > 0 && motEnCapitales(m));
+  if (nomDeFamille > 0) {
+    const fin = mots.findIndex((m, i) => i > 0 && (i >= nomDeFamille || !/^\p{L}/u.test(m)));
+    const prenoms = mots.slice(0, fin);
+    while (prenoms.length > 1 && PARTICULE_DU_NOM.test(prenoms[prenoms.length - 1])) prenoms.pop();
+    return prenoms.map((m, i) => (i > 0 && !PARTICULE_DU_NOM.test(m) ? capitaleDuSecond(m) : m)).join(' ');
+  }
+  const premier = mots[0].toLowerCase();
+  const second = mots[1] ?? '';
+  if (mots.length >= 3 && PRENOMS_QUI_SE_COMPOSENT.some((p) => p.toLowerCase() === premier) && /^\p{L}/u.test(second) && !PARTICULE_DU_NOM.test(second)) {
+    return `${mots[0]} ${capitaleDuSecond(second)}`;
+  }
+  return mots[0];
+};
+
+/** LE PRÉNOM D'USAGE d'une cliente : celui de sa fiche, sinon celui que le
+    Trône devine de son nom. `repli` sert quand la fiche manque mais qu'un nom
+    est connu ailleurs (le rendez-vous, la demande du site). */
+const prenomDUsage = (c: { name?: unknown; prenomUsage?: unknown } | null | undefined, repli?: unknown): string => {
+  const note = String(c?.prenomUsage ?? '').trim().replace(/\s+/g, ' ');
+  return note || prenomDevine(c?.name ?? repli);
+};
+/* ⟨/prenom-d-usage⟩ */
+
+type Fiche = { name?: string; prenomUsage?: string; phone?: string; phone2?: string; passeAuComptoir?: boolean; authUserId?: string };
 
 async function leRdv(id: string): Promise<Ligne | null> {
   if (!/^[A-Za-z0-9_-]{1,120}$/.test(id)) return null;
@@ -1179,7 +1228,7 @@ async function leBillet(l: Ligne, maintenantMs: number): Promise<BilletDeLaFin &
   const [fiche, piece] = await Promise.all([laFiche(rdv.clientId), laPieceDuBillet(l.id)]);
   const laPiece = piece === null ? null : { resteXof: resteDeLaPieceDeLaFin(piece) };
   const billetDeBase = billetDeLaFin({
-    rdv, reference: referenceDuRendezVous(l.id), prenom: String(fiche?.name ?? l.data?.clientName ?? ''),
+    rdv, reference: referenceDuRendezVous(l.id), prenom: prenomDUsage(fiche, l.data?.clientName),
     maintenantMs, passeAuComptoir: fiche?.passeAuComptoir === true, piece: laPiece,
   });
   /* RÉGLER DÈS MAINTENANT (7 novembre 2026, la page du rendez-vous) : avant
@@ -1372,7 +1421,7 @@ async function terminer(req: Request, b: any) {
     if (deja !== null && deja > 0) continue;
     await note('fin-acompte', t.ligne.id);
     await previensLePersonnel(notificationDeLAcompteAVerifier({
-      prenom: String(t.fiche?.name ?? t.ligne.data?.clientName ?? '').trim().split(/\s+/)[0] ?? '', heure: String(t.rdv.time ?? ''), acompteXof: acompteAVerifier(t.rdv),
+      prenom: prenomDUsage(t.fiche, t.ligne.data?.clientName), heure: String(t.rdv.time ?? ''), acompteXof: acompteAVerifier(t.rdv),
     }));
   }
   const ouvertes = tetes.filter((t) => t.porte.ouverte);
@@ -1413,7 +1462,7 @@ async function terminer(req: Request, b: any) {
 
   const restes = ouvertes.map((t) => (t.reste !== null ? t.reste : resteConnuDeLaFin(t.rdv)));
   const resteXof = restes.every((r) => r !== null) ? restes.reduce((s: number, r) => s + (r as number), 0) : null;
-  const prenoms = ouvertes.map((t) => String(t.fiche?.name ?? t.ligne.data?.clientName ?? '').trim().split(/\s+/)[0] ?? '').filter(Boolean);
+  const prenoms = ouvertes.map((t) => prenomDUsage(t.fiche, t.ligne.data?.clientName)).filter(Boolean);
   if (neuve) {
     await previensLePersonnel(notificationDeLaFin({ prenoms, heure: String(ouvertes[0].rdv.time ?? ''), porte, resteXof }));
   }

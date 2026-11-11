@@ -185,8 +185,11 @@ dit('le frein : dix recherches par adresse en dix minutes, cinq echecs par code 
 
 /* ── 7. Le billet ──────────────────────────────────────────────────────── */
 const billet = (plus: Partial<RdvDeLaFin>, quand: number, piece?: number) =>
-  billetDeLaFin({ rdv: rdv(plus), reference: 'MND-7K3Q', prenom: 'Awa Kossou', maintenantMs: quand, piece: piece === undefined ? null : { resteXof: piece } });
+  billetDeLaFin({ rdv: rdv(plus), reference: 'MND-7K3Q', prenom: 'Awa', maintenantMs: quand, piece: piece === undefined ? null : { resteXof: piece } });
 dit('le billet ne dit d elle que son prenom', 'Awa', billet({}, A_10H).prenom);
+/* 11 novembre 2026 : « Merci, Anne » pour Anne Marie. Le serveur donne le prénom d'usage, le billet le garde entier. */
+dit('... et le prenom compose reste entier (Anne Marie, Marie Gisele)', ['Anne Marie', 'Marie Gisèle'],
+  ['Anne  Marie', ' Marie Gisèle '].map((p) => billetDeLaFin({ rdv: rdv({}), reference: 'MND-7K3Q', prenom: p, maintenantMs: A_10H, piece: null }).prenom));
 dit('la veille : confirme, a regler 12 000, porte fermee ; le jour a l heure : en cours, porte ouverte',
   [['confirme', 12000, false], ['en-cours', 12000, true]],
   [[billet({}, aCotonou('2026-11-05', '18:00')).etat, billet({}, aCotonou('2026-11-05', '18:00')).resteXof, billet({}, aCotonou('2026-11-05', '18:00')).porte.ouverte],
@@ -544,7 +547,7 @@ const SERVICE = 'cle-de-service';
 
 remplis();
 const sante = await appelle(finir);
-dit('GET : la version et les secrets en booleens, sans valeur', ['2026-11-07-e · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', 'terminer-et-regler', { service: true, liens: true }], [sante.corps.version, sante.corps.fonction, sante.corps.secrets]);
+dit('GET : la version et les secrets en booleens, sans valeur', ['2026-11-11-a · le prénom d’usage entier sur le billet (« Merci, Anne-Marie ») ; régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', 'terminer-et-regler', { service: true, liens: true }], [sante.corps.version, sante.corps.fonction, sante.corps.secrets]);
 
 /* ── retrouver : le code ET les quatre chiffres ── */
 const CODE = referenceDuRendezVous('rdv-jour');
@@ -558,7 +561,7 @@ dit('... rien d elle que son prenom : ni nom de famille, ni numero', [false, fal
 const fauxChiffres = await appelle(finir, { action: 'retrouver', code: CODE, chiffres: '0000' }, { ip: '5.5.5.1' });
 const codeInconnu = await appelle(finir, { action: 'retrouver', code: 'MND-ZZZZ', chiffres: '4480' }, { ip: '5.5.5.2' });
 const codeSeul = await appelle(finir, { action: 'retrouver', code: CODE }, { ip: '5.5.5.3' });
-dit('un code inconnu, des chiffres faux, le code seul : la MEME reponse, mot pour mot', [{ status: 200, corps: { version: '2026-11-07-e · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: false, error: 'introuvable' } }, true, true],
+dit('un code inconnu, des chiffres faux, le code seul : la MEME reponse, mot pour mot', [{ status: 200, corps: { version: '2026-11-11-a · le prénom d’usage entier sur le billet (« Merci, Anne-Marie ») ; régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: false, error: 'introuvable' } }, true, true],
   [codeInconnu, JSON.stringify(fauxChiffres) === JSON.stringify(codeInconnu), JSON.stringify(codeSeul) === JSON.stringify(codeInconnu)]);
 dit('le second numero du rendez-vous (le parent qui l a pris) le retrouve aussi', [true, 'confirme', false],
   await appelle(finir, { action: 'retrouver', code: referenceDuRendezVous('rdv-parent'), chiffres: '3344' }, { ip: '5.5.5.4' }).then((r) => [r.corps.ok, r.corps.billet?.etat, r.corps.billet?.porte.ouverte]));
@@ -678,7 +681,7 @@ remplis();
 remplis();
 maintenant = aCotonou(JOUR, '09:40');
 const aPeine = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-fi'] }, { cle: SERVICE });
-dit('WhatsApp, dix minutes apres l heure du rendez-vous : « a-peine-commence », ni marque, ni lien, ni notification', [{ version: '2026-11-07-e · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: true, etat: 'a-peine-commence' }, undefined, undefined, 0],
+dit('WhatsApp, dix minutes apres l heure du rendez-vous : « a-peine-commence », ni marque, ni lien, ni notification', [{ version: '2026-11-11-a · le prénom d’usage entier sur le billet (« Merci, Anne-Marie ») ; régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: true, etat: 'a-peine-commence' }, undefined, undefined, 0],
   [aPeine.corps, rdvDe('rdv-fi').termineParElle, rdvDe('rdv-fi').lienDeReglement, notifications.length]);
 const foyerAPeine = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-na', 'rdv-fi'] }, { cle: SERVICE });
 dit('... le foyer : la tete de 9 h se declare, celle de 9 h 30 qui commence a peine ne recoit aucune marque', ['a-regler', ['Koffi'], true, undefined],
@@ -731,7 +734,7 @@ const sept = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvId
 const marqueesApresSept = db.appointments.filter((x) => x.data?.termineParElle).length;
 const six = await appelle(finir, { action: 'terminer', porte: 'whatsapp', rdvIds: ['rdv-jour', 'rdv-na', 'rdv-fi', 'rdv-9', 'rdv-comptoir', 'rdv-demain', 'rdv-jour'] }, { cle: SERVICE });
 dit('WhatsApp, sept tetes d un coup : rien ne se pose (« trop-de-tetes », Opale et l equipe repondent) ; six (un doublon ne compte pas), la declaration passe',
-  [{ version: '2026-11-07-e · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: true, etat: 'trop-de-tetes' }, 0, 0, 'a-regler', true],
+  [{ version: '2026-11-11-a · le prénom d’usage entier sur le billet (« Merci, Anne-Marie ») ; régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', ok: true, etat: 'trop-de-tetes' }, 0, 0, 'a-regler', true],
   [sept.corps, marqueesApresSept, notifications.filter((x) => !x.corps.includes('Acompte')).length - (six.corps.etat === 'a-regler' ? 1 : 0), six.corps.etat, db.appointments.filter((x) => x.data?.termineParElle).length >= 3]);
 
 /* ── Le foyer : un seul numero, un seul lien ── */
@@ -1207,7 +1210,7 @@ dit('avant-apres : ... apres coup, la note le dit', 'Après le rituel · x', (ve
 const P_RDV = rdv({ id: 'rdv-p', date: '2026-11-12', payments: [{ amountXof: 2000 }] });
 dit('avant-apres : la page d un rendez-vous sans piece dit le total annonce, le deja recu, le reste du serveur, sans merci ni maitre, a sa reference', {
   etat: 'a-regler', prenom: 'Awa', maitre: '', jour: '2026-11-12', lignes: [{ label: 'Total annoncé', montantXof: 12000 }], totalXof: 12000, recuXof: 2000, resteXof: 10000, pourboire: false, reference: 'reg-rdv-p', branchId: 'b1', sansPiece: 'avance',
-}, pageSansPiece({ rdv: P_RDV, porte: porteAvantApres({ quand: 'avance', rdv: P_RDV, maintenantMs: A_10H }), quand: 'avance', prenom: 'Awa Kossou', reference: 'reg-rdv-p', branchId: 'b1' }));
+}, pageSansPiece({ rdv: P_RDV, porte: porteAvantApres({ quand: 'avance', rdv: P_RDV, maintenantMs: A_10H }), quand: 'avance', prenom: 'Awa', reference: 'reg-rdv-p', branchId: 'b1' }));
 const P_REGLE = rdv({ id: 'rdv-p', date: '2026-11-12', payments: [{ amountXof: 12000 }] });
 dit('avant-apres : ... tout regle, la page dit « reglee », reste zero', ['reglee', 0],
   [pageSansPiece({ rdv: P_REGLE, porte: porteAvantApres({ quand: 'avance', rdv: P_REGLE, maintenantMs: A_10H }), quand: 'avance', prenom: 'Awa', reference: 'reg-rdv-p' }).etat,
@@ -1267,7 +1270,7 @@ const remplisAvantApres = () => {
 };
 const ma = (action: 'avance' | 'apres', rdvId: string, cle = 'jeton.de.awa', ip = '2.2.2.2') => appelle(finir, { action, rdvId }, { cle, ip });
 remplisAvantApres();
-dit('avant-apres : les deux fonctions disent leur version', ['2026-11-07-e · régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', '2026-11-07-c'], [(await appelle(finir)).corps.version, (await appelle(regler)).corps.version]);
+dit('avant-apres : les deux fonctions disent leur version', ['2026-11-11-a · le prénom d’usage entier sur le billet (« Merci, Anne-Marie ») ; régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', '2026-11-11-a'], [(await appelle(finir)).corps.version, (await appelle(regler)).corps.version]);
 const av1 = await ma('avance', 'rdv-demain');
 const jAv = String(av1.corps.jeton);
 dit('avant-apres serveur : d avance, son compte, son rendez-vous de demain ; le reste du serveur, le lien pose une fois avec sa marque, et RIEN d autre ne bouge (ni statut, ni marque de fin, ni notification)',

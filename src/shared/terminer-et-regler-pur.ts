@@ -313,7 +313,9 @@ export function freinDeLaRecherche(o: { essaisDeLAdresse: number; echecsDuCodeDa
 export type EtatDuBillet = 'confirme' | 'en-cours' | 'termine' | 'regle' | 'annule' | 'passe';
 export type BilletDeLaFin = {
   reference: string;
-  /** Son prénom d'appel, et rien d'autre d'elle. */
+  /** Son prénom d'usage (la fiche, sinon le prénom deviné, composé compris :
+      « Anne-Marie », « Marie Gisèle ») et rien d'autre d'elle. Le serveur
+      le tire de sa fiche ; le billet ne le coupe plus (11 novembre 2026). */
   prenom: string;
   jour: string;
   heure: string;
@@ -351,7 +353,7 @@ export function billetDeLaFin(o: {
   const reste = o.piece ? Math.max(0, Math.round(Number(o.piece.resteXof) || 0)) : r.status === 'annulé' || r.coveredBySub ? null : resteConnuDeLaFin(r);
   return {
     reference: o.reference,
-    prenom: String(o.prenom ?? '').trim().split(/\s+/)[0] ?? '',
+    prenom: String(o.prenom ?? '').trim().replace(/\s+/g, ' '),
     jour, heure: String(r.time ?? '').slice(0, 5), etat,
     resteXof: regle ? 0 : reste,
     porte, aTermine,
@@ -603,7 +605,7 @@ export function pageSansPiece(o: {
   const reste = o.porte.ouverte ? Math.max(0, Math.round(o.porte.resteXof ?? 0)) : 0;
   return {
     etat: (o.porte.ouverte && reste > 0 ? 'a-regler' : 'reglee') as 'a-regler' | 'reglee',
-    prenom: String(o.prenom ?? '').trim().split(/\s+/)[0] ?? '',
+    prenom: String(o.prenom ?? '').trim().replace(/\s+/g, ' '),
     maitre: '',
     jour: String(o.rdv.date ?? '').slice(0, 10),
     lignes: [{ label: 'Total annoncé', montantXof: prix }],

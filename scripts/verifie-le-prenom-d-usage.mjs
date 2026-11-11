@@ -54,6 +54,11 @@ const CIV = 'src/shared/civilite.ts';
 const FICHE = 'src/apps/trone/routes/clients/Customers.tsx';
 /* [nom, fichier, chaine exacte (fins de ligne LF), remplacement] : chaque panne doit faire crier le banc. */
 const PANNES = [
+  ['le billet de la page du rdv revient au nom de la fiche (11 nov.)', 'supabase/functions/terminer-et-regler/index.ts',
+    'prenom: prenomDUsage(fiche, l.data?.clientName),', "prenom: String(fiche?.name ?? l.data?.clientName ?? ''),"],
+  ['la page Regler revient au premier mot (11 nov.)', 'supabase/functions/regler-la-seance/index.ts',
+    'pageDuLien({ rdv: r, piece, prenom, branchId:', 'pageDuLien({ rdv: r, piece, branchId:'],
+  ['terminer-et-regler perd le bloc (11 nov.)', 'supabase/functions/terminer-et-regler/index.ts', "'Paul', 'Pierre', 'Louis'];", "'Paul', 'Pierre'];"],
   ['la liste des prenoms qui se composent perd Marie', CIV,
     "const PRENOMS_QUI_SE_COMPOSENT: readonly string[] = ['Marie', 'Anne',", "const PRENOMS_QUI_SE_COMPOSENT: readonly string[] = ['Anne',"],
   ['un NOM en capitales n arrete plus le prenom', CIV, '  if (nomDeFamille > 0) {', '  if (nomDeFamille > 99) {'],

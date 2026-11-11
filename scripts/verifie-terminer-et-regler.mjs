@@ -87,7 +87,7 @@ const PANNES = [
   ['le serveur ecrit sur une ligne qui a bouge', TER, "    if (frais.updated_at) q = q.eq('updated_at', frais.updated_at);\n", ''],
   ['« Passe au comptoir » ignore par le serveur', TER, "    const laPorte = porteDeLaFin({ rdv, maintenantMs: maintenant, passeAuComptoir: fiche?.passeAuComptoir === true,", '    const laPorte = porteDeLaFin({ rdv, maintenantMs: maintenant, passeAuComptoir: false,'],
   ['le serveur honore a la declaration', TER, '      return { ...d, termineParElle: marque, ...avecLien };', "      return { ...d, termineParElle: marque, ...avecLien, status: 'honoré' };"],
-  ['le billet dit son nom de famille', TER, "    rdv, reference: referenceDuRendezVous(l.id), prenom: String(fiche?.name ?? l.data?.clientName ?? ''),", "    rdv, reference: String(fiche?.name ?? ''), prenom: String(fiche?.name ?? l.data?.clientName ?? ''),"],
+  ['le billet dit son nom de famille', TER, "    rdv, reference: referenceDuRendezVous(l.id), prenom: prenomDUsage(fiche, l.data?.clientName),", "    rdv, reference: referenceDuRendezVous(l.id), prenom: String(fiche?.name ?? l.data?.clientName ?? ''),"],
   /* ── Le Trone ── */
   ['le Trone ne monte pas la main de la fin du rituel', SHELL, '  useLaFinDuRituel();\n', ''],
   ['deux postes ecrivent deux pieces', MAIN, "          if (!(prise ?? []).length) { fait.delete(`piece-${cle}`); return; }\n\n          /* Le prix se fige", "          /* Le prix se fige"],
@@ -205,7 +205,7 @@ const PANNES = [
   ['le frein par code leve', PUR, "  if (o.echecsDuCodeDansLHeure >= FREIN_DE_LA_RECHERCHE.echecsParHeure || o.echecsDuCodeDuJour >= FREIN_DE_LA_RECHERCHE.echecsParJour) return 'code';\n", ''],
   ['le frein par adresse leve', PUR, "  if (o.essaisDeLAdresse >= FREIN_DE_LA_RECHERCHE.parAdresse) return 'adresse';\n", ''],
   ['le frein desserre', PUR, 'echecsParHeure: 5, echecsParJour: 12', 'echecsParHeure: 500, echecsParJour: 1200'],
-  ['le billet dit son nom entier', PUR, "    prenom: String(o.prenom ?? '').trim().split(/\\s+/)[0] ?? '',", "    prenom: String(o.prenom ?? '').trim(),"],
+  ['le billet coupe le prenom compose (Merci, Anne)', PUR, "    prenom: String(o.prenom ?? '').trim().replace(/\\s+/g, ' '),", "    prenom: String(o.prenom ?? '').trim().split(/\\s+/)[0] ?? '',"],
   ['le billet invente un montant sans prix fige', PUR, "  return prix === undefined ? null : Math.max(0, prix - argentRecuDeLaFin(a));", '  return Math.max(0, (prix ?? 0) - argentRecuDeLaFin(a));'],
   ['un jeton que la page Regler ne reconnait pas', PUR, "export const SIGNES_DU_JETON_DE_LA_FIN = '23456789abcdefghjkmnpqrstuvwxyz';", "export const SIGNES_DU_JETON_DE_LA_FIN = '0123456789abcdefghjkmnpqrstuvwxyz';"],
   ['l adresse du reglement mene ailleurs', PUR, "'https://maisonmnd.com/trone/payer.html?tg=r-'", "'https://maisonmnd.com/trone/payer.html?tg='"],

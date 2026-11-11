@@ -55,7 +55,7 @@ const PANNES = [
   ['le billet joint la facture sans juger', TER, '  if (!piece || !factureAJoindreAuBillet({ rdv, piece, maintenantMs })) return billet;', '  if (!piece) return billet;'],
   ['le billet recopie la piece en bloc', TER, '  return facture ? { ...billet, facture } : billet;', '  return facture ? { ...billet, facture: { ...facture, piece: brute as never } } : billet;'],
   ['le billet lit une autre piece que la sienne', TER, '  return pieceDuRdvDeLaFin(pieces, rdvId);\n}\n/** La branche', '  return (pieces[0] ?? null) as PieceDeLaFin | null;\n}\n/** La branche'],
-  ['la version ne monte pas', TER, "const VERSION = '2026-11-07-b ·", "const VERSION = '2026-11-06-b ·"],
+  ['la version ne monte pas', TER, "const VERSION = '2026-11-11-a ·", "const VERSION = '2026-11-06-b ·"],
   ['la copie de la regle derive dans la fonction', TER, '  if (!JOUR_DU_BILLET.test(jour)) return false;', '  if (!JOUR_DU_BILLET.test(jour)) return true;'],
   ['« Mes RDV » ne remonte plus douze mois', [TPUR, TER], 'export const JOURS_AVANT_DE_LA_RECHERCHE = 365;', 'export const JOURS_AVANT_DE_LA_RECHERCHE = 1;'],
   /* ── Le site : la lecture et les mots ── */

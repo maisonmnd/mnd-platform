@@ -535,7 +535,7 @@ db.invoices = [
 db.edge_rate_limits = [];
 
 const sante = await appelle();
-dit('la version monte : 2026-11-07-b ou apres', true, /^2026-11-07-[b-z] · /.test(String(sante.corps.version)));
+dit('la version monte : 2026-11-07-b ou apres', true, /^2026-\d\d-\d\d-[a-z] · /.test(String(sante.corps.version)) && String(sante.corps.version) >= '2026-11-07-b');
 const passe = await billetDe('rdv-passe');
 dit('billet d un jour passe, regle : le billet d avant, et SA facture', {
   ok: true,

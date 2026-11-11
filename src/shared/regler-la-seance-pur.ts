@@ -257,7 +257,7 @@ export const lignesDites = (p: PieceLue): { label: string; montantXof: number }[
   (p.lines ?? []).filter((l) => String(l.label ?? '').trim()).map((l) => ({ label: String(l.label).trim(), montantXof: Math.round(netDeLaLigne(l)) }));
 
 /** CE QUE LA PAGE REÇOIT, et rien de plus : ni numéro, ni nom de famille. */
-export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDeLaCliente?: string; branchId?: string; maintenant: Date }) {
+export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDeLaCliente?: string; prenom?: string; branchId?: string; maintenant: Date }) {
   const e = etatDuLien(o.rdv, o.piece);
   const lien = o.rdv?.lienDeReglement;
   const tapgo = lien?.tapgo && e.etat === 'a-regler' && Math.round(n(lien.tapgo.resteXof)) === e.resteXof
@@ -265,7 +265,9 @@ export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDe
     : undefined;
   return {
     etat: e.etat,
-    prenom: prenomDe(o.nomDeLaCliente ?? o.rdv?.clientName),
+    /* Le prénom d'usage que le serveur a lu sur sa fiche (11 novembre 2026),
+       sinon le premier mot, comme avant. */
+    prenom: String(o.prenom ?? '').trim().replace(/\s+/g, ' ') || prenomDe(o.nomDeLaCliente ?? o.rdv?.clientName),
     maitre: maitreDit(o.rdv?.master),
     jour: o.rdv?.date ?? '',
     lignes: o.piece ? lignesDites(o.piece) : [],
@@ -318,7 +320,7 @@ export type TeteDuFoyer = { prenom: string; jour: string; lignes: { label: strin
 /** CE QUE LA PAGE DU FOYER REÇOIT : les têtes dont la pièce existe, le tout
     en un montant, et la référence du foyer. Ni numéro, ni nom de famille. */
 export function pageDuFoyer(o: {
-  tetes: readonly { rdv: RdvLu; piece: PieceLue | null; nom?: string }[]; jeton: string; branchId?: string; maintenant: Date;
+  tetes: readonly { rdv: RdvLu; piece: PieceLue | null; nom?: string; prenom?: string }[]; jeton: string; branchId?: string; maintenant: Date;
 }) {
   const vivantes = o.tetes.filter((t) => t.rdv.status !== 'annulé');
   const avecPiece = vivantes.filter((t) => !!t.piece);
@@ -335,7 +337,7 @@ export function pageDuFoyer(o: {
       : avecPiece.length === 0 || enPreparation ? 'sans-piece'
         : resteXof > 0 ? 'a-regler' : 'reglee';
   const tetes: TeteDuFoyer[] = avecPiece.map((t, i) => ({
-    prenom: prenomDe(t.nom ?? t.rdv.clientName), jour: t.rdv.date ?? '', lignes: lignesDites(t.piece!), resteXof: etats[i].resteXof,
+    prenom: String(t.prenom ?? '').trim().replace(/\s+/g, ' ') || prenomDe(t.nom ?? t.rdv.clientName), jour: t.rdv.date ?? '', lignes: lignesDites(t.piece!), resteXof: etats[i].resteXof,
   }));
   const jours = [...new Set(tetes.map((t) => t.jour).filter(Boolean))];
   /* Plusieurs jours (le point d'un compte, 28 octobre 2026) : chaque ligne dit le sien. */
