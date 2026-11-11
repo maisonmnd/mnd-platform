@@ -9,7 +9,8 @@ import {
   etatDuNumero, factureDuMois, itemDeLaLigne, itemsDuTest, jourLu, ligneADate, ligneDeLEquipe, lignesDuTest, periodeParDefaut,
   peutAnnuler, peutPrendre, pointsARegarder, pontTenu, pourboiresDuMois, pourquoiPasLeTest, seRelanceA500, seValideAPart, testReussi,
   totalDuTest, validationDe, entreprisesDuCarnet,
-  type FactureDEntreprise, type LigneDuMois, type ValidationADate,
+  ARRET_GARDE, HEURES_POSSIBLES, depenseDeLEmploye, employesDuMois, gardeDeLEmploye, heureDePaieDite, heureLue, montantDeLEmploye,
+  type EmployeDEntreprise, type FactureDEntreprise, type LigneDuMois, type ValidationADate,
 } from '../src/shared/les-paiements-pur';
 import { calendrierDeLaPaie, type LectureDeLaLigne } from '../src/shared/paie-du-5-pur';
 import { bilanDeLEssai, type EnvoiMtn, type LectureMtn } from '../src/shared/paie-par-mtn-pur';
@@ -299,6 +300,54 @@ dit('le compte de paie est nomme dans l en-tete, sans son numero ni aucune cle',
 dit('la reponse de chacun au WhatsApp de la paie (0165) se lit sur sa ligne, sobrement', [true, true],
   [ECRAN.includes("l.envoi?.reponse_employe === 'bien-recu' ? <span className=\"lp-reponse\">Bien reçu ✓</span>"), ECRAN.includes("l.envoi?.reponse_employe === 'pas-encore' ? <span className=\"lp-reponse lp-reponse--pas\">Pas encore reçu</span>")]);
 dit('la regle reste pure : ni magasin, ni horloge', [false, false], [/from '\.\/store'|createStore|useStore/.test(PUR), /Date\.now\(\)/.test(PUR)]);
+
+/* ── L'HEURE ET LES EMPLOYES DES ENTREPRISES · 11 novembre 2026 ──
+   « Je veux pouvoir modifier la date du 9 et l'heure » ; « chaque employe »
+   sur son numero, montant = somme des employes, facture facultative. */
+dit('l heure : de 7 h a 21 h par demi-heure, 18 h par defaut, dite en francais', [29, '07:00', '21:00', '18:00', '18:00', '9 h 30', '18 h'],
+  [HEURES_POSSIBLES.length, HEURES_POSSIBLES[0], HEURES_POSSIBLES[28], heureLue('25:00'), heureLue(undefined), heureDePaieDite('09:30'), heureDePaieDite(undefined)]);
+const d9 = dateDePaie('2026-11', 9, '09:30');
+dit('novembre, le 9 a 9 h 30 : mercredi 9 decembre, 8 h 30 UTC', ['2026-12-09', '2026-12-09T08:30:00.000Z', '09:30'], [d9?.jour, d9?.partA, d9?.heure]);
+dit('sans heure, toujours 18 h', '2026-12-10T17:00:00.000Z', dateDePaie('2026-11', 10)?.partA);
+const aHeure = (heure?: string, v?: ValidationADate) => ligneADate({
+  genre: 'entreprise', id: 'ee-1', entrepriseId: 'fr-9', nom: 'K. A.', periode: '2026-11', montantXof: 60000, msisdn: '2290190000041',
+  numero: { etat: 'verifie' }, jour: 9, heure, validation: v, envois: [],
+});
+const valH = validationDe(aHeure('09:30'), 'Y. B.', '2026-12-01T10:00:00.000Z');
+dit('le toucher garde l heure ; une heure changee apres, la ligne attend son toucher', ['09:30', 'valide', 'date-changee', 'date-changee'],
+  [valH?.heure, aHeure('09:30', valH ?? undefined).etat, aHeure('10:00', valH ?? undefined).etat, aHeure('09:30', { ...(valH as ValidationADate), heure: undefined }).etat]);
+dit('un toucher d avant l heure (sans heure) vaut 18 h', 'valide', aHeure(undefined, { ...(valH as ValidationADate), heure: undefined }).etat);
+dit('la date passee : la ligne repart a SON heure, le jour meme ou le lendemain', ['2026-12-11T08:30:00.000Z', '2026-12-12T08:30:00.000Z'],
+  [departDeLaLigne(aHeure('09:30'), 'X', ms('2026-12-11T07:00:00Z')), departDeLaLigne(aHeure('09:30'), 'X', ms('2026-12-11T09:00:00Z'))]);
+dit('l employe porte son entreprise, et le serveur recoit l employe', ['fr-9', 'ee-1', 'K. A.'], [aHeure().entrepriseId, itemDeLaLigne(aHeure())?.employeeId, itemDeLaLigne(aHeure())?.nom]);
+
+const mm = (changeLe: string, revalideLe?: string) => ({ numero: '2290190000041', operateur: 'MTN' as const, changeLe, ...(revalideLe ? { revalideLe } : {}) });
+const emps: EmployeDEntreprise[] = [
+  { id: 'ee-1', nom: 'K. A.', mobileMoney: mm('2026-10-01T10:00:00Z'), mensuelXof: 60000, dePeriode: '2026-10', creeLe: 'x', creePar: 'Y. B.' },
+  { id: 'ee-2', nom: 'S. D.', mobileMoney: mm('2026-10-01T10:00:00Z'), mensuelXof: 45000, dePeriode: '2026-11', creeLe: 'x', creePar: 'Y. B.' },
+  { id: 'ee-3', nom: 'M. H.', mobileMoney: mm('2026-10-01T10:00:00Z'), mensuelXof: 45000, dePeriode: '2026-10', retireApres: '2026-11', creeLe: 'x', creePar: 'Y. B.' },
+];
+dit('les employes du mois : arrives a leur periode, retires apres la leur', [['ee-1', 'ee-3'], ['ee-1', 'ee-2', 'ee-3'], ['ee-1', 'ee-2'], []],
+  [employesDuMois(emps, '2026-10').map((e) => e.id), employesDuMois(emps, '2026-11').map((e) => e.id), employesDuMois(emps, '2026-12').map((e) => e.id), employesDuMois(undefined, '2026-11')]);
+dit('le montant du mois : pose pour le mois, sinon le mensuel ; 0 se pose', [60000, 30000, 0],
+  [montantDeLEmploye(emps[0]), montantDeLEmploye(emps[0], { 'entreprise:ee-1': 30000 }), montantDeLEmploye(emps[0], { 'entreprise:ee-1': 0 })]);
+const neuf = { mobileMoney: mm('2026-12-05T10:00:00Z') };
+dit('la garde de l employe : jugee au depart ; sept jours ce jour-la, il part ; revalide, il part', [true, false, false, true],
+  [gardeDeLEmploye(neuf, ms('2026-12-09T08:30:00Z'), ms('2026-12-06T00:00:00Z')), gardeDeLEmploye(neuf, ms('2026-12-12T17:00:00Z'), ms('2026-12-06T00:00:00Z')),
+    gardeDeLEmploye({ mobileMoney: mm('2026-12-05T10:00:00Z', '2026-12-06T09:00:00Z') }, ms('2026-12-09T08:30:00Z'), ms('2026-12-06T10:00:00Z')),
+    gardeDeLEmploye(neuf, undefined, ms('2026-12-06T00:00:00Z'))]);
+const gardee = ligneADate({ genre: 'entreprise', id: 'ee-2', entrepriseId: 'fr-9', nom: 'S. D.', periode: '2026-11', montantXof: 45000, msisdn: '2290190000052', numero: { etat: 'verifie' }, jour: 9, arret: ARRET_GARDE, envois: [] });
+const differe = ligneADate({ genre: 'entreprise', id: 'ee-4', entrepriseId: 'fr-9', nom: 'R. Z.', periode: '2026-11', montantXof: 45000, msisdn: '2290190000063', numero: { etat: 'differe', nomMtn: 'AUTRE' }, jour: 9, envois: [] });
+const ptsE = pointsARegarder({ lignes: [aHeure(), gardee, differe], soldeXof: 1_000_000, aCouvrirXof: 0 });
+dit('la garde et le nom chez MTN arretent l employe seul ; les autres partent', [['nom-differe', 'numero-garde'], ['entreprise:ee-2'], 'confirme', true, false],
+  [ptsE.map((p) => p.code), ptsE.find((p) => p.code === 'numero-garde')?.cles, aHeure().etat, aHeure().aValider, gardee.aValider]);
+const ch = chiffresDuMois([aHeure(), { ...aHeure(), id: 'ee-5', cle: 'entreprise:ee-5' }, e1]);
+dit('une entreprise a employes compte une entreprise, et chacun un virement', [2, 2, 3, 165000], [ch.nbEntreprises, ch.nbEntreprisesTotal, ch.virements, ch.entreprisesXof]);
+dit('le pont tient avec des employes d entreprise', true, pontTenu(chiffresDuMois([a, b, aHeure(), e1])));
+const recuE = env({ run_id: 'entreprises-2026-11', employee_id: 'ee-1', montant_xof: 60000, etat: 'recu', periode: '2026-11', repondu_le: '2026-12-09T08:31:00.000Z' });
+const depE = depenseDeLEmploye({ id: 'fr-9', nom: 'ACIA1', branchId: 'b1' }, emps[0], recuE, { piece });
+dit('la depense de l employe : Sous-traitance, au compte de l entreprise, une par employe, la facture jointe si elle existe', [CATEGORIE_DES_ENTREPRISES, 'fr-9', 'exp-ent-2026-11-ee-1', 'ACIA1 - K. A. - novembre 2026', 60000, '2026-12-09', true, null],
+  [depE?.category, depE?.fournisseurId, depE?.id, depE?.label, depE?.amountXof, depE?.date, !!depE?.fichier, depenseDeLEmploye({ id: 'fr-9', nom: 'ACIA1', branchId: 'b1' }, emps[0], { ...recuE, etat: 'programme' })]);
 
 console.log(ko ? `\n${ko} ECHEC.` : '\nLes paiements tiennent leurs promesses.');
 if (ko) process.exitCode = 1;

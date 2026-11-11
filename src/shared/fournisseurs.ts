@@ -21,7 +21,7 @@ import { createStore, useStore } from './store';
 import { bindDocument } from './sync';
 import { normName } from './text';
 import { compteDansLesChiffres, expenseTotal, type Expense, type ExpenseItem } from './finance';
-import type { JourDePaie } from './les-paiements-pur';
+import type { PaiementDuFournisseur } from './les-paiements-pur';
 
 export type Fournisseur = {
   id: string;
@@ -42,8 +42,10 @@ export type Fournisseur = {
       l'ENTREPRISE est payée, par MTN, sur son numéro, à sa date (le 10 par
       défaut, 1 à 28 ou dernier jour). Sa facture du mois vit à part
       (`mnd_paiements_factures`) ; sa dépense porte `fournisseurId`, jamais
-      « Salaires ». Voir `shared/les-paiements-pur`. */
-  paiement?: { msisdn: string; jour: JourDePaie; agent?: string };
+      « Salaires ». Voir `shared/les-paiements-pur`.
+      11 nov. 2026 : son heure (18 h par défaut) et SES EMPLOYÉS, payés chacun
+      sur leur numéro MTN (`employes`) ; elle-même ne reçoit alors plus rien. */
+  paiement?: PaiementDuFournisseur;
 };
 
 /* ══ SON PROPRE TIROIR — 18 septembre 2026 ════════════════════════════

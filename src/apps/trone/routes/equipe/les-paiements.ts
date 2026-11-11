@@ -27,10 +27,15 @@ export type MoisDesPaiements = {
   validations?: Record<string, ValidationADate>;
   touchers?: { par: string; le: string; cles: string[]; annuleLe?: string; annulePar?: string }[];
   lectureMtn?: LectureMtn;
+  /** Le montant d'un employé d'entreprise pour CE mois, par clé de ligne
+      (11 nov. 2026) ; son mensuel ne bouge pas. */
+  montants?: Record<string, number>;
 };
 export type RegistreDesPaiements = {
   /** La date de chaque prestataire, par clé de ligne : le 10 par défaut. */
   jours?: Record<string, JourDePaie>;
+  /** L'heure de chaque prestataire, par clé de ligne : 18 h par défaut (11 nov. 2026). */
+  heures?: Record<string, string>;
   /** « C'est bien son numéro », pour un prestataire (clé de ligne). */
   nomsVus?: Record<string, NomMtnVu>;
   mois?: Record<string, MoisDesPaiements>;

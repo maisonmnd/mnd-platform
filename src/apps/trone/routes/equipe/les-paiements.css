@@ -163,3 +163,23 @@
   .lp-pied { bottom: -40px; }
   .tr-shell--barre .lp-pied { bottom: -78px; }
 }
+
+/* LES EMPLOYÉS DES ENTREPRISES ET L'HEURE — 11 novembre 2026 (maquette
+   maquette-les-employes-des-entreprises.html). */
+.lp-quand { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.lp-heure { width: auto !important; padding: 3px 6px !important; font-size: 12.5px !important; min-height: 0 !important; border-color: var(--color-copper) !important; }
+.lp-sousgroupe td { background: var(--copper-50); }
+.lp-deplie { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--color-indigo); cursor: pointer; display: inline-flex; align-items: center; }
+.lp-deplie:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.lp-deplie[aria-expanded="true"] .lp-chev { transform: rotate(90deg); }
+.lp-employe td:first-child { padding-left: 34px; }
+.lp-employe .lp-nom { font-weight: 400; }
+.lp-pose { display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end; }
+.lp-form__deux { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.lp-employes { display: grid; gap: 8px; border-top: 1px solid var(--hairline); padding-top: 12px; }
+.lp-employes__tete { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.lp-employes__tete strong { color: var(--color-indigo); font-weight: 600; }
+.lp-employes__ligne { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 7px 0; border-bottom: 1px solid var(--hairline); }
+.lp-employes__droite { display: inline-flex; gap: 10px; align-items: baseline; }
+.lp-employes__ajout { display: grid; gap: 10px; background: var(--indigo-50); border-radius: 4px; padding: 12px; }
+@media (max-width: 560px) { .lp-form__deux { grid-template-columns: 1fr; } }

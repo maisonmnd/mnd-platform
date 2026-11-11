@@ -35,8 +35,8 @@
 
 import { periodeDesPourboires } from './periode-des-pourboires-pur';
 import {
-  aCotonou, lisLeNumero, moisDit, moisSuivant, pourboiresEnEspecesXof,
-  type Blocage, type LectureDeLaLigne,
+  aCotonou, gardeDuNumero, lisLeNumero, moisDit, moisSuivant, pourboiresEnEspecesXof,
+  type Blocage, type LectureDeLaLigne, type MobileMoney,
 } from './paie-du-5-pur';
 import {
   MONTANT_ESSAI_MAX, ceQuiManque, dernierEnvoi, envoiActif, nomConcorde,
@@ -68,11 +68,30 @@ export function jourLu(v: unknown): JourDePaie {
 /** « le 1er », « le 10 », « dernier jour ». */
 export const jourDit = (j: JourDePaie): string => (j === 'dernier' ? 'dernier jour' : j === 1 ? 'le 1er' : `le ${j}`);
 
+/* L'HEURE DE CHACUN — 11 novembre 2026 (Yéman : « je veux pouvoir modifier la
+   date du 9 et l'heure »). Une ligne à sa date (prestataire, entreprise) porte
+   aussi son heure, par demi-heure de 7 h à 21 h, 18 h par défaut. L'équipe
+   reste payée le 5 à 18 h (la paie du 5). */
+export const HEURE_PAR_DEFAUT = '18:00';
+export const HEURES_POSSIBLES: readonly string[] = Array.from({ length: 29 }, (_, i) => {
+  const t = 7 * 60 + i * 30;
+  return `${p2(Math.floor(t / 60))}:${p2(t % 60)}`;
+});
+/** Une heure lue d'un magasin : une des heures possibles, sinon 18 h. */
+export const heureLue = (v: unknown): string => (typeof v === 'string' && HEURES_POSSIBLES.includes(v) ? v : HEURE_PAR_DEFAUT);
+/** « 18 h », « 9 h 30 ». */
+export const heureDePaieDite = (h: string | undefined): string => {
+  const [hh, mm] = heureLue(h).split(':');
+  return `${Number(hh)} h${mm === '00' ? '' : ` ${mm}`}`;
+};
+
 export type DateDePaie = {
   /** Le jour où l'argent part, AAAA-MM-JJ (Cotonou). */
   jour: string;
-  /** L'heure de départ, ISO (18 h de Cotonou). */
+  /** L'heure de départ, ISO (à l'heure réglée, de Cotonou). */
   partA: string;
+  /** L'heure réglée, « HH:MM » de Cotonou. */
+  heure: string;
   ms: number;
   /** Le jour réglé tombait un dimanche : le lundi. */
   decaleAuLundi: boolean;
@@ -80,7 +99,7 @@ export type DateDePaie = {
   avantLe5: boolean;
 };
 
-export function dateDePaie(periode: string, jour: JourDePaie): DateDePaie | null {
+export function dateDePaie(periode: string, jour: JourDePaie, heure: string = HEURE_PAR_DEFAUT): DateDePaie | null {
   const m = /^(\d{4})-(\d{2})$/.exec(moisSuivant(periode));
   if (!m) return null;
   const a = Number(m[1]); const mo = Number(m[2]);
@@ -88,10 +107,13 @@ export function dateDePaie(periode: string, jour: JourDePaie): DateDePaie | null
   const j = jour === 'dernier' ? dernier : Math.min(Math.max(1, Math.round(jour)), 28);
   const dimanche = new Date(Date.UTC(a, mo - 1, j)).getUTCDay() === 0;
   const d = new Date(Date.UTC(a, mo - 1, j + (dimanche ? 1 : 0)));
-  const ms = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 18) - HEURE_MS;
+  const h = heureLue(heure);
+  const [hh, mn] = h.split(':').map(Number);
+  const ms = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), hh, mn) - HEURE_MS;
   return {
     jour: `${d.getUTCFullYear()}-${p2(d.getUTCMonth() + 1)}-${p2(d.getUTCDate())}`,
     partA: new Date(ms).toISOString(),
+    heure: h,
     ms,
     decaleAuLundi: dimanche,
     avantLe5: jour !== 'dernier' && j < 5,
@@ -119,6 +141,8 @@ export type ValidationADate = {
   le: string;
   montantXof: number;
   jour: JourDePaie;
+  /** L'heure validée (absente avant le 11 nov. 2026 : 18 h). */
+  heure?: string;
   msisdn: string;
   /** Les missions payées par cet envoi (prestataire extérieur). */
   missions?: string[];
@@ -215,7 +239,11 @@ export type LigneDuMois = {
   numero: EtatDuNumero;
   nomMtn?: string | null;
   jour?: JourDePaie;
+  /** L'heure de départ réglée, « HH:MM » (lignes à leur date). */
+  heure?: string;
   date?: DateDePaie | null;
+  /** L'employé d'une entreprise : l'entreprise qui le porte (11 nov. 2026). */
+  entrepriseId?: string;
   etat: EtatDuPaiement;
   pourquoi?: string;
   runId: string;
@@ -322,6 +350,10 @@ export function ligneADate(o: {
   msisdn?: string;
   numero: { etat: EtatDuNumero; nomMtn?: string | null };
   jour: JourDePaie;
+  /** L'heure de départ, « HH:MM » ; 18 h par défaut. */
+  heure?: string;
+  /** L'employé d'une entreprise : l'id de l'entreprise. */
+  entrepriseId?: string;
   validation?: ValidationADate;
   payeLe?: string;
   envois: readonly EnvoiMtn[];
@@ -330,7 +362,8 @@ export function ligneADate(o: {
   pourboiresDuMoisXof?: number;
 }): LigneDuMois {
   const runId = o.genre === 'prestataire' ? runDesPrestataires(o.periode) : runDesEntreprises(o.periode);
-  const date = dateDePaie(o.periode, o.jour);
+  const heure = heureLue(o.heure);
+  const date = dateDePaie(o.periode, o.jour, heure);
   const montant = o.montantXof == null ? 0 : Math.max(0, entier(o.montantXof));
   const numeroOk = !!o.msisdn && (o.numero.etat === 'verifie' || o.numero.etat === 'non-lu');
   const { etat: parLEnvoi, envoi } = etatDeLEnvoi(o.envois, runId, o.id);
@@ -339,7 +372,7 @@ export function ligneADate(o: {
   const v = o.validation;
   /* Une date changée après le toucher se dit avant l'envoi encore vivant :
      l'écran l'annule, et la ligne attend son toucher, elle seule. */
-  const dateChangee = !!v && v.jour !== o.jour;
+  const dateChangee = !!v && (v.jour !== o.jour || heureLue(v.heure) !== heure);
   if (o.payeLe) etat = 'paye';
   else if (dateChangee && parLEnvoi !== 'paye' && parLEnvoi !== 'envoi') etat = 'date-changee';
   else if (parLEnvoi) etat = parLEnvoi;
@@ -364,7 +397,8 @@ export function ligneADate(o: {
     pourboiresXof: o.genre === 'prestataire' ? Math.max(0, entier(o.pourboiresDuMoisXof ?? 0)) : 0,
     ...(o.msisdn ? { msisdn: o.msisdn } : {}),
     numero: o.numero.etat, nomMtn: o.numero.nomMtn,
-    jour: o.jour, date,
+    jour: o.jour, heure, date,
+    ...(o.entrepriseId ? { entrepriseId: o.entrepriseId } : {}),
     etat, ...(pourquoi ? { pourquoi } : {}),
     runId, ...(envoi ? { envoi } : {}),
     aValider: etat === 'confirme' && numeroOk,
@@ -382,7 +416,7 @@ export const seValideAPart = (l: LigneDuMois): boolean =>
 export function validationDe(l: LigneDuMois, par: string, le: string, missions?: readonly string[]): ValidationADate | null {
   if (l.genre === 'equipe' || !l.msisdn || l.parMtnXof <= 0 || l.jour == null) return null;
   return {
-    par, le, montantXof: l.parMtnXof, jour: l.jour, msisdn: l.msisdn,
+    par, le, montantXof: l.parMtnXof, jour: l.jour, heure: heureLue(l.heure), msisdn: l.msisdn,
     ...(missions?.length ? { missions: [...missions] } : {}),
     ...(l.etat !== 'confirme' ? { aPart: true } : {}),
   };
@@ -394,13 +428,14 @@ export const itemDeLaLigne = (l: LigneDuMois): ItemAEnvoyer | null =>
   l.msisdn && l.parMtnXof > 0 ? { employeeId: l.id, nom: l.nom, msisdn: l.msisdn, montantXof: l.parMtnXof } : null;
 
 /** L'heure de départ d'une ligne : l'heure de paie pour l'équipe (donnée par
-    l'appelant, `heureDeDepart`), sa date à 18 h pour les autres — ou le
-    prochain 18 h si la date est passée. */
+    l'appelant, `heureDeDepart`), sa date à son heure pour les autres — ou la
+    prochaine fois que sonne son heure si la date est passée. */
 export function departDeLaLigne(l: LigneDuMois, departDeLEquipe: string, maintenantMs: number): string {
   if (l.genre === 'equipe' || !l.date) return departDeLEquipe;
   if (l.date.ms > maintenantMs) return l.date.partA;
   const minuitLocal = Math.floor((maintenantMs + HEURE_MS) / (24 * HEURE_MS)) * 24 * HEURE_MS - HEURE_MS;
-  let depart = minuitLocal + 18 * HEURE_MS;
+  const [hh, mn] = heureLue(l.heure ?? l.date.heure).split(':').map(Number);
+  let depart = minuitLocal + hh * HEURE_MS + mn * 60_000;
   if (depart <= maintenantMs) depart += 24 * HEURE_MS;
   return new Date(depart).toISOString();
 }
@@ -437,6 +472,10 @@ export function chiffresDuMois(lignes: readonly LigneDuMois[], remis: Readonly<R
     prestatairesXof: 0, nbPrestataires: 0, nbPrestatairesTotal: 0, entreprisesXof: 0, nbEntreprises: 0, nbEntreprisesTotal: 0,
     horsMtn: 0, pourboiresXof: 0, pourboiresRemis: 0, pourboiresATotal: 0, partisXof: 0,
   };
+  /* Une entreprise à employés compte UNE entreprise, quel que soit le nombre
+     de ses employés (11 nov. 2026) ; chacun reste un virement. */
+  const groupes = new Set<string>();
+  const groupesParMtn = new Set<string>();
   for (const l of lignes) {
     if ((l.genre === 'equipe' || l.genre === 'prestataire') && l.pourboiresXof > 0) {
       c.pourboiresXof += l.pourboiresXof;
@@ -444,7 +483,10 @@ export function chiffresDuMois(lignes: readonly LigneDuMois[], remis: Readonly<R
       if (remis[l.id]) c.pourboiresRemis += 1;
     }
     if (l.genre === 'prestataire') c.nbPrestatairesTotal += 1;
-    if (l.genre === 'entreprise') c.nbEntreprisesTotal += 1;
+    if (l.genre === 'entreprise') {
+      if (!l.entrepriseId) c.nbEntreprisesTotal += 1;
+      else if (!groupes.has(l.entrepriseId)) { groupes.add(l.entrepriseId); c.nbEntreprisesTotal += 1; }
+    }
     if (!l.viaMtn) { c.horsMtn += 1; continue; }
     c.parMtnXof += l.parMtnXof;
     c.virements += 1;
@@ -459,7 +501,8 @@ export function chiffresDuMois(lignes: readonly LigneDuMois[], remis: Readonly<R
       c.nbPrestataires += 1;
     } else {
       c.entreprisesXof += l.parMtnXof;
-      c.nbEntreprises += 1;
+      if (!l.entrepriseId) c.nbEntreprises += 1;
+      else if (!groupesParMtn.has(l.entrepriseId)) { groupesParMtn.add(l.entrepriseId); c.nbEntreprises += 1; }
     }
   }
   return c;
@@ -510,7 +553,8 @@ export function pointsARegarder(o: {
   pose('nom-differe', de((l) => l.numero === 'differe'), true);
   pose('numero-inactif', de((l) => l.numero === 'inactif'), true);
   pose('plafond', de((l) => l.genre === 'equipe' && !!o.lectures?.get(l.id)?.blocages.some((b) => b.code === 'plafond')), true);
-  pose('numero-garde', de((l) => l.genre === 'equipe' && !!o.lectures?.get(l.id)?.blocages.some((b) => b.code === 'numero-recent')), true);
+  pose('numero-garde', de((l) => (l.genre === 'equipe' && !!o.lectures?.get(l.id)?.blocages.some((b) => b.code === 'numero-recent'))
+    || (l.genre !== 'equipe' && l.pourquoi === ARRET_GARDE)), true);
   pose('sans-prix', de((l) => l.genre === 'prestataire' && l.pourquoi === 'sans prix'), true);
   pose('sans-montant', de((l) => l.genre === 'entreprise' && /montant du mois/.test(l.pourquoi ?? '')), true);
   pose('confirmation', de((l) => l.etat === 'attend'), false);
@@ -635,7 +679,84 @@ export function echeancierDuPret(o: {
    de la maison : elle tombe dans le compte du fournisseur, jamais en
    « Salaires ». */
 export type PieceDeFacture = { chemin: string; nom: string; type: string; taille: number };
-export type PaiementDuFournisseur = { msisdn: string; jour: JourDePaie; agent?: string };
+
+/* ── 9 bis. LES EMPLOYÉS D'UNE ENTREPRISE — 11 novembre 2026 ────────────
+   Maquette public/maquette-les-employes-des-entreprises.html, « construis »
+   (Yéman). Une entreprise porte ses employés ; CHACUN est payé sur SON numéro
+   MTN, à la date et à l'heure de l'entreprise, sous le run des entreprises.
+   Le montant de l'entreprise est la somme de leurs montants mensuels ; un
+   montant se change pour un mois seulement. Dès qu'elle a un employé pour le
+   mois, son propre numéro ne reçoit plus rien. La garde des sept jours et le
+   nom chez MTN valent pour chacun, comme pour l'équipe ; les autres partent
+   sans attendre. Pas de WhatsApp à l'employé. Un retrait vaut à partir du
+   mois qui suit la période où il est fait. */
+export type EmployeDEntreprise = {
+  id: string;
+  nom: string;
+  /** Son numéro MTN, avec la date du dernier changement (la garde). */
+  mobileMoney: MobileMoney;
+  mensuelXof: number;
+  /** La première période payée, AAAA-MM. */
+  dePeriode: string;
+  /** La dernière période payée, AAAA-MM ; absente : toujours. */
+  retireApres?: string;
+  creeLe: string;
+  creePar: string;
+};
+
+export const ARRET_GARDE = 'numéro de moins de 7 jours';
+
+/** Les employés payés pour cette période. */
+export const employesDuMois = (employes: readonly EmployeDEntreprise[] | undefined, periode: string): EmployeDEntreprise[] =>
+  (employes ?? []).filter((e) => e && (!e.dePeriode || e.dePeriode <= periode) && (!e.retireApres || periode <= e.retireApres));
+
+/** Le montant d'un employé ce mois : celui posé pour le mois, sinon son mensuel. */
+export const montantDeLEmploye = (e: Pick<EmployeDEntreprise, 'id' | 'mensuelXof'>, montantsDuMois?: Readonly<Record<string, number>>): number => {
+  const pose = montantsDuMois?.[cleDeLigne('entreprise', e.id)];
+  return Number.isInteger(pose) && (pose as number) >= 0 ? pose as number : Math.max(0, entier(e.mensuelXof));
+};
+
+/** La garde de l'employé, jugée à l'heure où l'argent part (ou maintenant, si
+    elle est passée) : un numéro qui aura sept jours ce jour-là part. */
+export function gardeDeLEmploye(e: Pick<EmployeDEntreprise, 'mobileMoney'>, departMs: number | undefined, maintenantMs: number): boolean {
+  if (!e.mobileMoney) return false;
+  return gardeDuNumero(e.mobileMoney, Math.max(maintenantMs, departMs ?? maintenantMs)).bloque;
+}
+
+/** La dépense d'un employé payé : une dépense de l'entreprise (Sous-traitance,
+    son compte fournisseur), une par employé, jamais « Salaires ». */
+export const depenseDeLEmployeId = (periode: string, employeId: string): string => `exp-ent-${periode}-${employeId}`;
+export function depenseDeLEmploye(
+  fournisseur: Pick<FournisseurAPayer, 'id' | 'nom' | 'branchId'>,
+  employe: Pick<EmployeDEntreprise, 'id' | 'nom'>,
+  envoi: Pick<EnvoiMtn, 'etat' | 'repondu_le' | 'envoye_le' | 'programme_le' | 'montant_xof' | 'periode'>,
+  facture?: Pick<FactureDEntreprise, 'piece'>,
+) {
+  if (envoi.etat !== 'recu' || !envoi.periode) return null;
+  const jour = aCotonou(Date.parse(envoi.repondu_le ?? envoi.envoye_le ?? envoi.programme_le)).slice(0, 10);
+  return {
+    id: depenseDeLEmployeId(envoi.periode, employe.id),
+    branchId: fournisseur.branchId,
+    label: `${fournisseur.nom} - ${employe.nom} - ${moisDit(envoi.periode)}`,
+    amountXof: envoi.montant_xof,
+    date: jour,
+    cashbox: '',
+    category: CATEGORIE_DES_ENTREPRISES,
+    laMaisonAPaye: true,
+    fournisseurId: fournisseur.id,
+    ...(facture?.piece ? { fichier: facture.piece } : {}),
+  };
+}
+
+export type PaiementDuFournisseur = {
+  /** Le numéro de l'entreprise ; vide quand elle ne paie que ses employés. */
+  msisdn: string;
+  jour: JourDePaie;
+  /** « HH:MM », 18 h par défaut. */
+  heure?: string;
+  agent?: string;
+  employes?: EmployeDEntreprise[];
+};
 export type FournisseurAPayer = { id: string; branchId: string; nom: string; archived?: boolean; paiement?: PaiementDuFournisseur };
 export type FactureDEntreprise = {
   id: string;

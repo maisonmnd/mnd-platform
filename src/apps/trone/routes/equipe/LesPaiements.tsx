@@ -24,11 +24,12 @@ import {
   heureDeDepart, idDeLEssai, lePlusEnSouffrance, raisonDite, type EnvoiMtn, type LectureMtn, type NomMtnVu,
 } from '../../../../shared/paie-par-mtn-pur';
 import {
-  ETAT_DIT, JOURS_POSSIBLES, JOUR_PAR_DEFAUT, arretDeLEntreprise, chiffresDuMois, cleDeLigne, dateDePaie, departDeLaLigne,
-  depenseDeLEntreprise, echeancierDuPret, entreprisesDuCarnet, etatDuNumero, factureDuMois, itemDeLaLigne, jourDit, jourLu, ligneADate,
-  ligneDeLEquipe, lignesDuTest, numeroPropose, periodeParDefaut, peutAnnuler, peutPrendre, pointsARegarder, pourboiresDuMois,
-  pourquoiPasLeTest, runDesEntreprises, runDesPrestataires, seRelanceA500, seValideAPart, testReussi, totalDuTest, validationDe,
-  type FactureDEntreprise, type JourDePaie, type LigneDuMois, type PointARegarder, type SourceDuNumero,
+  ARRET_GARDE, ETAT_DIT, HEURES_POSSIBLES, HEURE_PAR_DEFAUT, JOURS_POSSIBLES, JOUR_PAR_DEFAUT, arretDeLEntreprise, chiffresDuMois, cleDeLigne, dateDePaie, departDeLaLigne,
+  depenseDeLEmploye, depenseDeLEntreprise, echeancierDuPret, employesDuMois, entreprisesDuCarnet, etatDuNumero, factureDuMois, gardeDeLEmploye,
+  heureDePaieDite, heureLue, itemDeLaLigne, jourDit, jourLu, ligneADate, ligneDeLEquipe, lignesDuTest, montantDeLEmploye, numeroPropose, periodeParDefaut,
+  peutAnnuler, peutPrendre, pointsARegarder, pourboiresDuMois, pourquoiPasLeTest, runDesEntreprises, runDesPrestataires, seRelanceA500, seValideAPart,
+  testReussi, totalDuTest, validationDe,
+  type EmployeDEntreprise, type FactureDEntreprise, type JourDePaie, type LigneDuMois, type PointARegarder, type SourceDuNumero,
 } from '../../../../shared/les-paiements-pur';
 import { staffStore, useStaff, type StaffMember } from './data';
 import { factureDe, totalAccepte, useFacturesPrestataires } from './facture';
@@ -112,6 +113,8 @@ type Contexte = {
   /** L'entreprise : un fournisseur avec son bloc `paiement`, et sa facture du mois. */
   fournisseur?: Fournisseur;
   facture?: FactureDEntreprise;
+  /** L'employé d'une entreprise, payé sur son numéro (11 nov. 2026). */
+  employe?: EmployeDEntreprise;
   ligne?: PayrollLine;
   lecture?: LectureDeLaLigne;
   /** Le numéro proposé (téléphone de la fiche), pas encore pris. */
@@ -138,6 +141,8 @@ export default function LesPaiements() {
   /** La saisie ouverte : l'entreprise (un fournisseur), ou la facture du mois. */
   const [saisie, setSaisie] = useState<{ quoi: 'entreprise'; fournisseur?: Fournisseur } | { quoi: 'facture'; fournisseur: Fournisseur; facture?: FactureDEntreprise } | null>(null);
   const [part, setPart] = useState(false);
+  /** Les entreprises dont on a replié les employés (ouvertes par défaut). */
+  const [replies, setReplies] = useState<Set<string>>(() => new Set());
   /* Le geste de clôture d'un test que MTN laisse sans réponse (9 novembre 2026). */
   const [fermeture, setFermeture] = useState(false);
 
@@ -179,6 +184,8 @@ export default function LesPaiements() {
     const lectures = new Map<string, LectureDeLaLigne>();
     const out: LigneDuMois[] = [];
     const jours = registre?.jours ?? {};
+    const heures = registre?.heures ?? {};
+    const montantsDuMois = mois.montants ?? {};
     const validations = mois.validations ?? {};
     const vusDuRegistre = registre?.nomsVus ?? {};
 
@@ -207,7 +214,7 @@ export default function LesPaiements() {
           out.push(ligneADate({
             genre: 'prestataire', id: l.employeeId, nom: l.name, detail: 'Sa facture du mois', periode,
             montantXof: accepte ? lu.envoyeXof : 0, arret: accepte ? undefined : 'facture pas encore acceptée',
-            msisdn: n.source === 'fiche' ? n.msisdn : undefined, numero, jour: jourLu(jours[cle]),
+            msisdn: n.source === 'fiche' ? n.msisdn : undefined, numero, jour: jourLu(jours[cle]), heure: heureLue(heures[cle]),
             validation: validations[cle], payeLe: l.payeLe, envois: envoisPresta,
             pourboiresDuMoisXof: pourboiresDuMois(asArray(tips), l.employeeId, periode),
           }));
@@ -255,7 +262,7 @@ export default function LesPaiements() {
       out.push(ligneADate({
         genre: 'prestataire', id: p.id, nom: p.name, detail, periode,
         montantXof: sansPrix ? null : total, msisdn: n.source === 'fiche' ? n.msisdn : undefined, numero,
-        jour: jourLu(jours[cle] ?? JOUR_PAR_DEFAUT), validation: v,
+        jour: jourLu(jours[cle] ?? JOUR_PAR_DEFAUT), heure: heureLue(heures[cle]), validation: v,
         payeLe: siennes.every((m) => m.paidAt && m.method === 'MTN') ? siennes[0].paidAt : undefined,
         envois: envoisPresta,
       }));
@@ -268,21 +275,42 @@ export default function LesPaiements() {
     for (const f of entreprisesDuCarnet(asArray<Fournisseur>(carnet), branch.id)) {
       const pmt = f.paiement;
       if (!pmt) continue;
-      const cle = cleDeLigne('entreprise', f.id);
       const fac = factureDuMois(lesFactures, f.id, periode);
+      const jour = jourLu(pmt.jour);
+      const heure = heureLue(pmt.heure);
+      /* Ses employés du mois : chacun sur son numéro, à la date et à l'heure
+         de l'entreprise ; elle-même ne reçoit alors rien (11 nov. 2026). */
+      const siens = employesDuMois(pmt.employes, periode);
+      if (siens.length) {
+        const date = dateDePaie(periode, jour, heure);
+        for (const e of siens) {
+          const cle = cleDeLigne('entreprise', e.id);
+          const msisdn = lisLeNumero(e.mobileMoney?.numero ?? '').msisdn;
+          const numero = etatDuNumero({ nom: e.nom, msisdn, source: msisdn ? 'saisi' : 'sans', lecture, vu: vusDuRegistre[cle] });
+          out.push(ligneADate({
+            genre: 'entreprise', id: e.id, entrepriseId: f.id, nom: e.nom, periode,
+            montantXof: montantDeLEmploye(e, montantsDuMois),
+            arret: gardeDeLEmploye(e, date?.ms, maintenant) ? ARRET_GARDE : undefined,
+            msisdn, numero, jour, heure, validation: validations[cle], envois: envoisEnt,
+          }));
+          ctx.set(cle, { fournisseur: f, employe: e, ...(fac ? { facture: fac } : {}) });
+        }
+        continue;
+      }
+      const cle = cleDeLigne('entreprise', f.id);
       const msisdn = lisLeNumero(pmt.msisdn).msisdn;
       const numero = etatDuNumero({ nom: f.nom, msisdn, source: msisdn ? 'saisi' : 'sans', lecture, vu: vusDuRegistre[cle] });
       out.push(ligneADate({
         genre: 'entreprise', id: f.id, nom: f.nom,
         detail: [pmt.agent, !fac ? 'montant du mois à poser' : fac.facture?.trim() ? `facture ${fac.facture}${fac.piece ? ' · jointe' : ''}` : fac.piece ? 'facture jointe' : 'sans facture'].filter(Boolean).join(' · '),
-        periode, montantXof: fac?.montantXof ?? 0, arret: arretDeLEntreprise(fac, msisdn), msisdn, numero, jour: jourLu(pmt.jour),
+        periode, montantXof: fac?.montantXof ?? 0, arret: arretDeLEntreprise(fac, msisdn), msisdn, numero, jour, heure,
         validation: validations[cle], envois: envoisEnt,
       }));
       ctx.set(cle, { fournisseur: f, ...(fac ? { facture: fac } : {}) });
     }
     return { lignes: out, ctx, lectures };
   }, [run, runs, params, parFiche, fiches, confirmations, factures, cal, maintenant, lecture, tips, periode, envoisEquipe, envoisPresta, envoisEnt,
-    providersBruts, missionsBrutes, carnet, facturesBrutes, branch.id, registre, mois.validations]);
+    providersBruts, missionsBrutes, carnet, facturesBrutes, branch.id, registre, mois.validations, mois.montants]);
 
   const equipe = lignes.filter((l) => l.genre === 'equipe');
   const prestataires = lignes.filter((l) => l.genre === 'prestataire');
@@ -378,16 +406,28 @@ export default function LesPaiements() {
   useEffect(() => {
     const neuves: Expense[] = [];
     const deja = new Set(asArray<Expense>(expensesStore.get()).map((x) => x.id));
+    const lesFournisseurs = asArray<Fournisseur>(fournisseursStore.get());
+    const lesFactures = asArray<FactureDEntreprise>(facturesDEntreprisesStore.get());
     for (const e of envoisEnt.filter((x) => x.etat === 'recu')) {
-      const f = asArray<Fournisseur>(fournisseursStore.get()).find((x) => x.id === e.employee_id);
-      const fac = f && e.periode ? factureDuMois(asArray<FactureDEntreprise>(facturesDEntreprisesStore.get()), f.id, e.periode) : undefined;
-      const d = f && fac ? depenseDeLEntreprise(f, fac, e) : null;
-      if (d && !deja.has(d.id)) neuves.push(d as Expense);
+      const f = lesFournisseurs.find((x) => x.id === e.employee_id);
+      if (f) {
+        const fac = e.periode ? factureDuMois(lesFactures, f.id, e.periode) : undefined;
+        const d = fac ? depenseDeLEntreprise(f, fac, e) : null;
+        if (d && !deja.has(d.id)) { neuves.push(d as Expense); deja.add(d.id); }
+        continue;
+      }
+      /* Un employé d'entreprise : sa dépense tombe dans le compte de l'entreprise. */
+      const sienne = lesFournisseurs.find((x) => x.paiement?.employes?.some((y) => y.id === e.employee_id));
+      const emp = sienne?.paiement?.employes?.find((y) => y.id === e.employee_id);
+      if (!sienne || !emp) continue;
+      const fac = e.periode ? factureDuMois(lesFactures, sienne.id, e.periode) : undefined;
+      const d = depenseDeLEmploye(sienne, emp, e, fac);
+      if (d && !deja.has(d.id)) { neuves.push(d as Expense); deja.add(d.id); }
     }
     if (!neuves.length) return;
     expensesStore.set((prev) => [...neuves, ...asArray<Expense>(prev)]);
     expenseCategoriesStore.set((prev) => (prev.some((x) => x.name === CHARGE_CATEGORY) ? prev : [...prev, { id: ID_CATEGORIE_CHARGE, name: CHARGE_CATEGORY, subs: [] }]));
-    toast(`${neuves.length} facture${neuves.length > 1 ? 's' : ''} d’entreprise payée${neuves.length > 1 ? 's' : ''} : en Dépenses.`);
+    toast(`${neuves.length} paiement${neuves.length > 1 ? 's' : ''} d’entreprise reçu${neuves.length > 1 ? 's' : ''} : en Dépenses.`);
   }, [envoisEnt]);
 
   /* ── LES GESTES ─────────────────────────────────────────────────────── */
@@ -441,8 +481,8 @@ export default function LesPaiements() {
       titre: `Valider ${moisDit(periode)} : ${F(total)} par MTN ?`,
       dit: [
         nE ? `${nE} salaire${nE > 1 ? 's' : ''}${cal ? ` le ${momentDit(cal.paie.local)}` : ''}` : '',
-        nP ? `${nP} prestataire${nP > 1 ? 's' : ''} à leur date, à 18 h` : '',
-        nEnt ? `${nEnt} entreprise${nEnt > 1 ? 's' : ''} à leur date, à 18 h` : '',
+        nP ? `${nP} prestataire${nP > 1 ? 's' : ''} à leur date et à leur heure` : '',
+        nEnt ? `${nEnt} paiement${nEnt > 1 ? 's' : ''} d’entreprise à leur date et à leur heure` : '',
       ].filter(Boolean).join(' ; ') + `. Depuis le ${COMPTE_DE_PAIE}. Validé par ${qui}.`,
       suite: `Pourboires en espèces le 5 : ${F(c.pourboiresXof)}.${cal ? ` Annulable jusqu’au ${jourEntierDit(cal.paie.local, false)} à 17 h 59.` : ''}`,
       accepter: 'Valider le mois',
@@ -485,7 +525,7 @@ export default function LesPaiements() {
     if (!await demande({
       quoi: l.etat === 'toucher-a-part' ? 'Toucher à part' : 'Nouveau toucher',
       titre: `Valider ${F(l.parMtnXof)} pour ${l.nom} ?`,
-      dit: `${l.date ? `Part le ${jourCourt(l.date.jour)} à 18 h` : 'Part à sa date'}, par MTN, sur le ${numeroDit(l.msisdn ?? '')}. Validé par ${qui}.`,
+      dit: `${l.date ? `Part le ${jourCourt(l.date.jour)} à ${heureDePaieDite(l.heure)}` : 'Part à sa date'}, par MTN, sur le ${numeroDit(l.msisdn ?? '')}. Validé par ${qui}.`,
       accepter: 'Valider cette ligne',
       refuser: 'Pas encore',
     })) return;
@@ -538,24 +578,56 @@ export default function LesPaiements() {
     toast('Toucher annulé : rien de programmé ne part.');
   };
 
-  const changeLeJour = async (l: LigneDuMois, jour: JourDePaie) => {
-    if (l.jour === jour) return;
-    const vivant = l.envoi && l.envoi.etat === 'programme' ? l.envoi : undefined;
-    if (vivant) {
+  /** LA DATE ET L'HEURE d'une ligne (prestataire, entreprise), ou de toute
+      une entreprise et de ses employés (11 nov. 2026). Un envoi déjà
+      programmé s'annule ; la ligne attend votre toucher, elle seule. */
+  const changeLeQuand = async (ls: readonly LigneDuMois[], change: { jour?: JourDePaie; heure?: string }, entrepriseId?: string) => {
+    const touchees = ls.filter((l) => (change.jour != null && l.jour !== change.jour) || (change.heure != null && heureLue(l.heure) !== change.heure));
+    if (!touchees.length) return;
+    const vivants = touchees.map((l) => (l.envoi && l.envoi.etat === 'programme' ? l.envoi : undefined)).filter((e): e is EnvoiMtn => !!e);
+    if (vivants.length) {
+      const sujet = (entrepriseId ? ctx.get(touchees[0].cle)?.fournisseur?.nom : undefined) ?? touchees[0].nom;
       if (!await demande({
         quoi: 'Date de paie',
-        titre: `Changer la date de ${l.nom} ?`,
-        dit: `L’envoi programmé (${F(vivant.montant_xof)}) est annulé ; la ligne attend votre toucher, elle seule.`,
-        accepter: 'Changer la date',
-        refuser: 'Garder la date',
+        titre: `Changer ${change.heure != null ? 'l’heure' : 'la date'} de ${sujet} ?`,
+        dit: `${vivants.length > 1 ? `Les ${vivants.length} envois programmés` : 'L’envoi programmé'} (${F(vivants.reduce((s, e) => s + e.montant_xof, 0))}) ${vivants.length > 1 ? 'sont annulés' : 'est annulé'} ; ${vivants.length > 1 ? 'les lignes attendent' : 'la ligne attend'} votre toucher.`,
+        accepter: 'Changer',
+        refuser: 'Garder',
       })) return;
-      const r = await annule([vivant.reference]);
+      const r = await annule(vivants.map((e) => e.reference));
       if (r.erreur) { alerte(r.erreur); return; }
       relisTout();
     }
-    if (l.genre === 'entreprise') {
-      fournisseursStore.set((prev) => asArray<Fournisseur>(prev).map((f) => (f.id === l.id && f.paiement ? { ...f, paiement: { ...f.paiement, jour } } : f)));
-    } else ecrisLeRegistre((r) => ({ ...r, jours: { ...(r.jours ?? {}), [l.cle]: jour } }));
+    const fid = entrepriseId ?? (touchees[0].genre === 'entreprise' ? touchees[0].id : undefined);
+    if (fid) {
+      fournisseursStore.set((prev) => asArray<Fournisseur>(prev).map((f) => (f.id === fid && f.paiement
+        ? { ...f, paiement: { ...f.paiement, ...(change.jour != null ? { jour: change.jour } : {}), ...(change.heure != null ? { heure: change.heure } : {}) } }
+        : f)));
+    } else {
+      const l = touchees[0];
+      ecrisLeRegistre((r) => ({
+        ...r,
+        ...(change.jour != null ? { jours: { ...(r.jours ?? {}), [l.cle]: change.jour } } : {}),
+        ...(change.heure != null ? { heures: { ...(r.heures ?? {}), [l.cle]: change.heure } } : {}),
+      }));
+    }
+  };
+
+  /** LE MONTANT D'UN EMPLOYÉ POUR CE MOIS SEULEMENT (son mensuel ne bouge pas). */
+  const [montantAPoser, setMontantAPoser] = useState<{ cle: string; valeur: string } | null>(null);
+  const poseLeMontantDuMois = async (l: LigneDuMois) => {
+    if (!montantAPoser || montantAPoser.cle !== l.cle) return;
+    const v = Number.parseInt(montantAPoser.valeur.replace(/\D/g, ''), 10);
+    if (!Number.isInteger(v) || v < 0) { alerte('Le montant est un nombre entier de francs (0 : rien ce mois).'); return; }
+    const e = ctx.get(l.cle)?.employe;
+    if (v !== l.netXof && !await annuleSiProgramme(l)) return;
+    ecrisLeMois(periode, (m) => {
+      const montants = { ...(m.montants ?? {}) };
+      if (e && v === e.mensuelXof) delete montants[l.cle]; else montants[l.cle] = v;
+      return { ...m, montants };
+    });
+    setMontantAPoser(null);
+    relisTout();
   };
 
   const basculeRemis = (l: LigneDuMois) => {
@@ -642,7 +714,26 @@ export default function LesPaiements() {
   };
 
   const revalide = async (l: LigneDuMois) => {
-    const fiche = ctx.get(l.cle)?.fiche;
+    const x = ctx.get(l.cle);
+    /* L'employé d'une entreprise : sa garde se lève sur la fiche de l'entreprise. */
+    if (x?.employe && x.fournisseur && qui) {
+      const emp = x.employe;
+      const fid = x.fournisseur.id;
+      if (!await demande({
+        quoi: 'Numéro mobile money',
+        titre: `Revalider le ${numeroDit(emp.mobileMoney.numero)} de ${emp.nom} ?`,
+        dit: `Il a été posé le ${quandDit(emp.mobileMoney.changeLe)}. Vous confirmez qu’il est bien le sien.`,
+        suite: `Revalidé par ${qui}.`,
+        accepter: 'Revalider ce numéro',
+        refuser: 'Ne rien faire',
+      })) return;
+      const le = nowIso();
+      fournisseursStore.set((prev) => asArray<Fournisseur>(prev).map((f) => (f.id === fid && f.paiement
+        ? { ...f, paiement: { ...f.paiement, employes: (f.paiement.employes ?? []).map((y) => (y.id === emp.id ? { ...y, mobileMoney: { ...y.mobileMoney, revalidePar: qui, revalideLe: le } } : y)) } }
+        : f)));
+      return;
+    }
+    const fiche = x?.fiche;
     const mm = fiche?.mobileMoney;
     if (!fiche || !mm || !qui) return;
     if (!await demande({
@@ -833,8 +924,8 @@ export default function LesPaiements() {
       case 'programme': return <span className="lp-pastille lp-pastille--ok">Programmé{e ? ` · ${aLaMinute(e.part_a)}` : ''}</span>;
       case 'refuse': return <span className="lp-pastille lp-pastille--attend" title={raisonDite(e?.raison)}>Refusé par MTN</span>;
       case 'valide': return <span className="lp-pastille lp-pastille--ok">Validé{serveur.pret ? '' : ' · envoi à brancher'}</span>;
-      case 'confirme': return <span className="lp-pastille lp-pastille--ok">{l.genre === 'equipe' ? 'Confirmé' : `Prêt · ${l.date ? jourCourt(l.date.jour) : ''}${l.date?.decaleAuLundi ? ' (dimanche → lundi)' : ''}`}</span>;
-      case 'toucher-a-part': return <span className="lp-pastille lp-pastille--attend">Toucher à part · {l.date ? jourCourt(l.date.jour) : ''}</span>;
+      case 'confirme': return <span className="lp-pastille lp-pastille--ok">{l.genre === 'equipe' ? 'Confirmé' : `Prêt · ${l.date ? `${jourCourt(l.date.jour)} · ${heureDePaieDite(l.heure)}` : ''}${l.date?.decaleAuLundi ? ' (dimanche → lundi)' : ''}`}</span>;
+      case 'toucher-a-part': return <span className="lp-pastille lp-pastille--attend">Toucher à part · {l.date ? `${jourCourt(l.date.jour)} · ${heureDePaieDite(l.heure)}` : ''}</span>;
       case 'ne-part-pas': return <span className="lp-pastille lp-pastille--non">Ne part pas{l.pourquoi ? ` · ${l.pourquoi}` : ''}</span>;
       default: return <span className="lp-pastille lp-pastille--attend">{ETAT_DIT[l.etat]}</span>;
     }
@@ -853,15 +944,30 @@ export default function LesPaiements() {
       </span>
     );
   };
-  const choixDuJour = (l: LigneDuMois) => (
-    <Select
-      className="lp-jour" aria-label={`Date de paie de ${l.nom}`} value={String(l.jour ?? JOUR_PAR_DEFAUT)}
-      disabled={fige || l.etat === 'paye' || l.etat === 'envoi'}
-      onChange={(e) => void changeLeJour(l, jourLu(e.target.value))}
-    >
-      {JOURS_POSSIBLES.map((j) => <option key={String(j)} value={String(j)}>{jourDit(j)}</option>)}
-    </Select>
-  );
+  /** Le jour et l'heure d'une ligne, ou d'une entreprise et de tous ses
+      employés (`ls` : ses lignes ; `entrepriseId` : l'entreprise). */
+  const choixDuQuand = (ls: readonly LigneDuMois[], nom: string, entrepriseId?: string) => {
+    const l0 = ls[0];
+    if (!l0) return null;
+    const fermes = fige || ls.every((l) => l.etat === 'paye' || l.etat === 'envoi');
+    return (
+      <span className="lp-quand">
+        <Select
+          className="lp-jour" aria-label={`Date de paie de ${nom}`} value={String(l0.jour ?? JOUR_PAR_DEFAUT)} disabled={fermes}
+          onChange={(e) => void changeLeQuand(ls.filter((l) => l.etat !== 'paye' && l.etat !== 'envoi'), { jour: jourLu(e.target.value) }, entrepriseId)}
+        >
+          {JOURS_POSSIBLES.map((j) => <option key={String(j)} value={String(j)}>{jourDit(j)}</option>)}
+        </Select>
+        <Select
+          className="lp-heure" aria-label={`Heure de paie de ${nom}`} value={heureLue(l0.heure)} disabled={fermes}
+          onChange={(e) => void changeLeQuand(ls.filter((l) => l.etat !== 'paye' && l.etat !== 'envoi'), { heure: heureLue(e.target.value) }, entrepriseId)}
+        >
+          {HEURES_POSSIBLES.map((h) => <option key={h} value={h}>{heureDePaieDite(h)}</option>)}
+        </Select>
+      </span>
+    );
+  };
+  const choixDuJour = (l: LigneDuMois) => choixDuQuand([l], l.nom);
 
   const bulletin = (l: LigneDuMois) => {
     const x = ctx.get(l.cle);
@@ -1020,7 +1126,7 @@ export default function LesPaiements() {
           <div className="lp-chiffre"><span className="lp-sourcil">Par MTN</span><b>{F(c.parMtnXof)}</b><span className="lp-op">{c.virements} virement{c.virements > 1 ? 's' : ''} · frais MTN 0 F</span></div>
           <div className="lp-chiffre"><span className="lp-sourcil">Salaires nets</span><b>{F(c.salairesNetsXof)}</b><span className="lp-op">{c.bulletins} bulletin{c.bulletins > 1 ? 's' : ''}{run ? '' : ' · pas encore de run'}</span></div>
           <div className="lp-chiffre"><span className="lp-sourcil">Retenues de prêt</span><b className="lp-moins">{c.pretsXof ? `− ${F(c.pretsXof)}` : F(0)}</b><span className="lp-op">{c.nbPrets} prêt{c.nbPrets > 1 ? 's' : ''} en cours</span></div>
-          <div className="lp-chiffre"><span className="lp-sourcil">Prestataires · entreprises</span><b>+ {F(c.prestatairesXof + c.entreprisesXof)}</b><span className="lp-op">{c.nbPrestataires} prestataire{c.nbPrestataires > 1 ? 's' : ''} sur {c.nbPrestatairesTotal} · {c.nbEntreprises} facture{c.nbEntreprises > 1 ? 's' : ''}</span></div>
+          <div className="lp-chiffre"><span className="lp-sourcil">Prestataires · entreprises</span><b>+ {F(c.prestatairesXof + c.entreprisesXof)}</b><span className="lp-op">{c.nbPrestataires} prestataire{c.nbPrestataires > 1 ? 's' : ''} sur {c.nbPrestatairesTotal} · {c.nbEntreprises} entreprise{c.nbEntreprises > 1 ? 's' : ''}</span></div>
           <div className="lp-chiffre lp-chiffre--hors"><span className="lp-sourcil">Pourboires {periodeDite(periode)} · espèces</span><b>{F(c.pourboiresXof)}</b><span className="lp-op">{payesLeDit(periode)} · {c.pourboiresRemis} / {c.pourboiresATotal} cochés</span></div>
         </div>
         {c.horsMtn > 0 && <p className="lp-doux lp-petit">{c.horsMtn} ligne{c.horsMtn > 1 ? 's' : ''} hors MTN (Moov, sans numéro, sans prix ou sans montant) : hors du total.</p>}
@@ -1033,7 +1139,7 @@ export default function LesPaiements() {
           <div className={pas(maintenant >= cal.finDesConfirmations.ms, phase === 'confirmation')}><b>1er → {cal.reporteAuLundi ? '6' : '5'} · 12 h</b><span>Chacun confirme · {confirmees} / {equipe.length}</span></div>
           <div className={pas(valide, !valide && phase !== 'avant-le-depot')}><b>{cal.reporteAuLundi ? '6' : '5'} · 12 h → 18 h</b><span>Votre toucher</span></div>
           <div className={pas(maintenant >= cal.paie.ms, valide && maintenant < cal.paie.ms)}><b>{cal.reporteAuLundi ? '6' : '5'} · 18 h</b><span>Salaires par MTN · pourboires en espèces</span></div>
-          <div className={pas([...prestataires, ...entreprises].length > 0 && aDateTousPayes, maintenant >= cal.paie.ms && !aDateTousPayes)}><b>À leur date · 18 h</b><span>Prestataires · entreprises</span></div>
+          <div className={pas([...prestataires, ...entreprises].length > 0 && aDateTousPayes, maintenant >= cal.paie.ms && !aDateTousPayes)}><b>À leur date et heure</b><span>Prestataires · entreprises</span></div>
         </section>
       )}
 
@@ -1155,13 +1261,70 @@ export default function LesPaiements() {
               ))}
 
               <tr className="lp-groupe">
-                <td colSpan={7}>Entreprises<span>chacune à sa date · payées à l’entreprise, sur facture · {F(total(entreprises))}</span>
+                <td colSpan={7}>Entreprises<span>chacune à sa date et à son heure · à l’entreprise, ou à chacun de ses employés · {F(total(entreprises))}</span>
                   <button type="button" className="lp-lien lp-ajoute" onClick={() => setSaisie({ quoi: 'entreprise' })}>+ Entreprise</button>
                 </td>
               </tr>
-              {!entreprises.length && <tr><td colSpan={7} className="lp-vide">Aucune entreprise payée sur facture : « + Entreprise ».</td></tr>}
-              {entreprises.map((l) => {
+              {!entreprises.length && <tr><td colSpan={7} className="lp-vide">Aucune entreprise : « + Entreprise ».</td></tr>}
+              {entreprises.filter((l) => !l.entrepriseId || entreprises.find((y) => y.entrepriseId === l.entrepriseId) === l).map((l) => {
                 const x = ctx.get(l.cle);
+                /* UNE ENTREPRISE ET SES EMPLOYÉS (11 nov. 2026) : une ligne qui
+                   dit le total, la date et l'heure ; dessous, chacun sur son
+                   numéro. La ligne de l'entreprise n'est pas un virement. */
+                if (l.entrepriseId && x?.fournisseur) {
+                  const f = x.fournisseur;
+                  const siens = entreprises.filter((y) => y.entrepriseId === f.id);
+                  const replie = replies.has(f.id);
+                  const prets = siens.filter((y) => y.etat === 'paye' || y.etat === 'programme' || y.etat === 'valide' || y.etat === 'confirme' || y.etat === 'envoi').length;
+                  const fac = x.facture;
+                  const libreG = !fige && siens.some((y) => y.etat !== 'paye' && y.etat !== 'envoi');
+                  return (
+                    <Fragment key={`ent-${f.id}`}>
+                      <tr className="lp-sousgroupe">
+                        <td className="lp-nom">
+                          <button type="button" className="lp-deplie" aria-expanded={!replie} onClick={() => setReplies((s) => { const n = new Set(s); if (n.has(f.id)) n.delete(f.id); else n.add(f.id); return n; })}>
+                            <span className="lp-chev" aria-hidden>›</span>{f.nom}
+                          </button>
+                          {libreG && <button type="button" className="lp-lien lp-modifie" onClick={() => setSaisie({ quoi: 'entreprise', fournisseur: f })}>modifier</button>}
+                        </td>
+                        <td className="lp-doux" colSpan={2}>
+                          {siens.length} employé{siens.length > 1 ? 's' : ''} · {fac?.facture?.trim() ? `facture ${fac.facture}${fac.piece ? ' · jointe' : ''}` : fac?.piece ? 'facture jointe' : 'sans facture'}
+                          {libreG && <button type="button" className="lp-lien lp-modifie" onClick={() => setSaisie({ quoi: 'facture', fournisseur: f, facture: fac })}>{fac ? 'la facture' : '+ Facture'}</button>}
+                        </td>
+                        <td className="lp-n"><b>{F(siens.reduce((s, y) => s + y.netXof, 0))}</b></td>
+                        <td className="lp-doux lp-petit">chacun sur son numéro</td>
+                        <td><span className="lp-etat-ligne">{choixDuQuand(siens, f.nom, f.id)}<span className="lp-pastille">{prets} / {siens.length} prêt{prets > 1 ? 's' : ''}</span></span></td>
+                        <td className="lp-n lp-vide">–</td>
+                      </tr>
+                      {!replie && siens.map((y) => {
+                        const ex = ctx.get(y.cle);
+                        const emp = ex?.employe;
+                        const libreE = y.etat !== 'paye' && y.etat !== 'envoi' && !fige;
+                        const pose = montantAPoser?.cle === y.cle;
+                        return (
+                          <tr key={y.cle} className="lp-employe">
+                            <td className="lp-nom">{y.nom}</td>
+                            <td className="lp-doux" colSpan={2}>{emp && y.netXof !== emp.mensuelXof ? `ce mois seulement · mensuel ${F(emp.mensuelXof)}` : 'montant mensuel'}</td>
+                            <td className="lp-n">
+                              {pose ? (
+                                <span className="lp-pose">
+                                  <Input className="lp-prix" inputMode="numeric" autoFocus value={montantAPoser.valeur} aria-label={`Montant de ${y.nom} pour ${moisDit(periode)}`} onChange={(e) => setMontantAPoser({ cle: y.cle, valeur: e.target.value })} />
+                                  <Button size="sm" variant="copper" onClick={() => void poseLeMontantDuMois(y)}>Poser</Button>
+                                </span>
+                              ) : (
+                                <>{y.netXof > 0 ? <b>{F(y.netXof)}</b> : <span className="lp-vide">0 F</span>}
+                                  {libreE && <button type="button" className="lp-lien lp-modifie" onClick={() => setMontantAPoser({ cle: y.cle, valeur: String(y.netXof) })}>modifier</button>}</>
+                              )}
+                            </td>
+                            <td>{numero(y)}</td>
+                            <td><span className="lp-etat-ligne">{pastille(y)}{seValideAPart(y) && !fige && <Button size="sm" variant="copper" onClick={() => void validerALaLigne(y)}>Valider</Button>}</span></td>
+                            <td className="lp-n lp-vide">–</td>
+                          </tr>
+                        );
+                      })}
+                    </Fragment>
+                  );
+                }
                 const libre = l.etat !== 'paye' && l.etat !== 'envoi' && !fige;
                 return (
                   <tr key={l.cle}>
@@ -1191,7 +1354,7 @@ export default function LesPaiements() {
             </tbody>
           </table>
         </div>
-        <p className="lp-doux lp-petit">Date d’un prestataire ou d’une entreprise : le 10 par défaut, 1 à 28 ou dernier jour, sur sa ligne. Dimanche : le lundi. Avant le 5 : un toucher à part ce jour-là. Changée après votre toucher : la ligne attend votre toucher.</p>
+        <p className="lp-doux lp-petit">Date et heure d’un prestataire ou d’une entreprise : le 10 à 18 h par défaut, 1 à 28 ou dernier jour, de 7 h à 21 h, sur sa ligne ; pour une entreprise à employés, sur sa ligne à elle, pour tous. Dimanche : le lundi. Avant le 5 : un toucher à part ce jour-là. Changées après votre toucher : la ligne attend votre toucher.</p>
       </section>
 
       {/* Les prêts de l'équipe. */}
@@ -1238,8 +1401,9 @@ export default function LesPaiements() {
 
       {saisie?.quoi === 'entreprise' && (
         <SaisieDeLEntreprise
-          branchId={branch.id} fournisseur={saisie.fournisseur}
+          branchId={branch.id} fournisseur={saisie.fournisseur} periode={periode} qui={qui}
           ligne={saisie.fournisseur ? ligneParCle(cleDeLigne('entreprise', saisie.fournisseur.id)) : undefined}
+          lignesDesEmployes={saisie.fournisseur ? entreprises.filter((y) => y.entrepriseId === saisie.fournisseur?.id) : []}
           onClose={() => setSaisie(null)}
         />
       )}
@@ -1247,6 +1411,7 @@ export default function LesPaiements() {
         <SaisieDeLaFacture
           fournisseur={saisie.fournisseur} facture={saisie.facture} periode={periode} qui={qui}
           ligne={ligneParCle(cleDeLigne('entreprise', saisie.fournisseur.id))}
+          sansMontant={entreprises.some((y) => y.entrepriseId === saisie.fournisseur.id)}
           onClose={() => setSaisie(null)}
         />
       )}
@@ -1268,45 +1433,103 @@ async function annuleSiProgramme(ligne: LigneDuMois | undefined): Promise<boolea
     On choisit une maison du carnet des fournisseurs, ou on en crée une, et
     on lui pose son bloc `paiement` : numéro MTN, agent, jour de paie. Tout
     s'écrit au carnet (`fournisseursStore`). */
-function SaisieDeLEntreprise({ branchId, fournisseur, ligne, onClose }: { branchId: string; fournisseur?: Fournisseur; ligne?: LigneDuMois; onClose: () => void }) {
+function SaisieDeLEntreprise({ branchId, fournisseur, periode, qui, ligne, lignesDesEmployes, onClose }: {
+  branchId: string; fournisseur?: Fournisseur; periode: string; qui: string; ligne?: LigneDuMois; lignesDesEmployes: readonly LigneDuMois[]; onClose: () => void;
+}) {
   const [carnet] = useFournisseurs();
   const lesFournisseurs = asArray<Fournisseur>(carnet).filter((x) => x && x.branchId === branchId && !x.archived);
   const [choisi, setChoisi] = useState(fournisseur?.id ?? '');
   const [f, setF] = useState({
     nom: fournisseur?.nom ?? '', numero: fournisseur?.paiement?.msisdn ? numeroDit(fournisseur.paiement.msisdn) : '',
     agent: fournisseur?.paiement?.agent ?? '', jour: (fournisseur?.paiement?.jour ?? JOUR_PAR_DEFAUT) as JourDePaie,
+    heure: heureLue(fournisseur?.paiement?.heure),
   });
+  /* SES EMPLOYÉS (11 nov. 2026) : la liste se modifie ici et s'écrit avec
+     l'entreprise, d'un seul « Enregistrer ». */
+  const [employes, setEmployes] = useState<EmployeDEntreprise[]>(() => [...(fournisseur?.paiement?.employes ?? [])]);
+  const [emp, setEmp] = useState<{ id?: string; nom: string; numero: string; mensuel: string }>({ nom: '', numero: '', mensuel: '' });
+  const [souciEmp, setSouciEmp] = useState('');
   const [souci, setSouci] = useState('');
+  const visibles = employesDuMois(employes, periode);
   const choisis = (id: string) => {
     setChoisi(id);
     const x = lesFournisseurs.find((y) => y.id === id);
-    if (x) setF({ nom: x.nom, numero: x.paiement?.msisdn ? numeroDit(x.paiement.msisdn) : (x.telephone ?? ''), agent: x.paiement?.agent ?? '', jour: x.paiement?.jour ?? JOUR_PAR_DEFAUT });
+    if (x) {
+      setF({ nom: x.nom, numero: x.paiement?.msisdn ? numeroDit(x.paiement.msisdn) : (x.telephone ?? ''), agent: x.paiement?.agent ?? '', jour: x.paiement?.jour ?? JOUR_PAR_DEFAUT, heure: heureLue(x.paiement?.heure) });
+      setEmployes([...(x.paiement?.employes ?? [])]);
+    }
+  };
+  const garderLEmploye = () => {
+    const nom = emp.nom.trim();
+    const mensuel = Number.parseInt(emp.mensuel.replace(/\D/g, ''), 10);
+    if (!nom) { setSouciEmp('Le prénom et le nom de l’employé.'); return; }
+    const avant = emp.id ? employes.find((x) => x.id === emp.id) : undefined;
+    const r = numeroDeLaFiche(avant?.mobileMoney, emp.numero, 'MTN', nowIso(), qui || 'La direction');
+    if (r.erreur || !r.mobileMoney) { setSouciEmp(`Son numéro MTN : ${r.erreur ?? 'un numéro mobile du Bénin, dix chiffres commençant par 01.'}`); return; }
+    if (!(mensuel > 0)) { setSouciEmp('Son montant mensuel, en francs.'); return; }
+    const mm = r.mobileMoney;
+    if (avant) setEmployes((ls) => ls.map((x) => (x.id === avant.id ? { ...x, nom, mobileMoney: mm, mensuelXof: mensuel } : x)));
+    else setEmployes((ls) => [...ls, { id: `ee-${uid()}`, nom, mobileMoney: mm, mensuelXof: mensuel, dePeriode: periode, creeLe: nowIso(), creePar: qui || 'La direction' }]);
+    setEmp({ nom: '', numero: '', mensuel: '' });
+    setSouciEmp('');
+  };
+  /** Retirer : payé jusqu'à cette période comprise ; jamais payé ni programmé
+      et ajouté pour cette période, il disparaît tout à fait. */
+  const retireLEmploye = (x: EmployeDEntreprise) => {
+    const l = lignesDesEmployes.find((y) => y.id === x.id);
+    const jamais = x.dePeriode === periode && !l?.envoi;
+    setEmployes((ls) => (jamais ? ls.filter((y) => y.id !== x.id) : ls.map((y) => (y.id === x.id ? { ...y, retireApres: periode } : y))));
+    if (emp.id === x.id) setEmp({ nom: '', numero: '', mensuel: '' });
   };
   const enregistre = async () => {
-    const lu = lisLeNumero(f.numero);
     if (!f.nom.trim()) { setSouci('Le nom de l’entreprise.'); return; }
-    if (lu.erreur !== undefined) { setSouci(`Le numéro MTN de l’entreprise : ${lu.erreur}`); return; }
-    const paiement = { msisdn: lu.msisdn, jour: f.jour, ...(f.agent.trim() ? { agent: f.agent.trim() } : {}) };
+    const actifs = employesDuMois(employes, periode).length + employes.filter((x) => x.dePeriode > periode).length;
+    /* Le numéro de l'entreprise : facultatif dès qu'elle a des employés. */
+    let msisdn = '';
+    if (f.numero.trim() || !actifs) {
+      const lu = lisLeNumero(f.numero);
+      if (lu.erreur !== undefined) { setSouci(actifs ? `Le numéro MTN de l’entreprise : ${lu.erreur}` : `Le numéro MTN de l’entreprise (ou ajoutez ses employés) : ${lu.erreur}`); return; }
+      msisdn = lu.msisdn;
+    }
+    const paiement = {
+      msisdn, jour: f.jour, heure: f.heure, ...(f.agent.trim() ? { agent: f.agent.trim() } : {}),
+      ...(employes.length ? { employes } : {}),
+    };
     const avant = lesFournisseurs.find((x) => x.id === choisi);
-    if (avant?.paiement && (avant.paiement.msisdn !== paiement.msisdn || avant.paiement.jour !== paiement.jour) && !await annuleSiProgramme(ligne)) return;
+    const quandChange = !!avant?.paiement && (avant.paiement.jour !== paiement.jour || heureLue(avant.paiement.heure) !== paiement.heure);
+    /* L'entreprise payée sur son numéro : un numéro ou une date changés, ou des
+       employés arrivés pour ce mois (elle ne reçoit plus rien), annulent son
+       envoi programmé. */
+    if (avant?.paiement && (avant.paiement.msisdn !== paiement.msisdn || quandChange || visibles.length > 0) && !await annuleSiProgramme(ligne)) return;
+    /* Un employé : supprimé, numéro changé, mensuel changé (sans montant posé
+       pour le mois) ou date de l'entreprise changée, son envoi s'annule. Un
+       retrait seul ne l'annule pas : le mois en cours se paie. */
+    for (const l of lignesDesEmployes) {
+      const a = avant?.paiement?.employes?.find((x) => x.id === l.id);
+      const b = employes.find((x) => x.id === l.id);
+      const change = !b || !a || quandChange || a.mobileMoney?.numero !== b.mobileMoney?.numero || (a.mensuelXof !== b.mensuelXof && l.netXof === a.mensuelXof);
+      if (change && !await annuleSiProgramme(l)) return;
+    }
     if (avant) fournisseursStore.set((prev) => asArray<Fournisseur>(prev).map((x) => (x.id === avant.id ? { ...x, nom: f.nom.trim() || x.nom, paiement } : x)));
     else fournisseursStore.set((prev) => [...asArray<Fournisseur>(prev), { id: `fr-${uid()}`, branchId, nom: f.nom.trim(), famille: 'Entreprise', paiement }]);
-    toast(`${f.nom.trim()} : au carnet des fournisseurs, payée sur facture.`);
+    toast(`${f.nom.trim()} : enregistrée${employes.length ? `, ${visibles.length} employé${visibles.length > 1 ? 's' : ''} payé${visibles.length > 1 ? 's' : ''} pour ${moisDit(periode)}` : ''}.`);
     onClose();
   };
   const retire = async () => {
     const avant = lesFournisseurs.find((x) => x.id === choisi);
     if (!avant?.paiement) return;
-    if (!await demande({ quoi: 'Les entreprises', titre: `Ne plus payer ${avant.nom} ici ?`, dit: 'Elle reste au carnet des fournisseurs, sans numéro de paie.', accepter: 'Retirer de Les paiements', refuser: 'Garder' })) return;
+    if (!await demande({ quoi: 'Les entreprises', titre: `Ne plus payer ${avant.nom} ici ?`, dit: `Elle reste au carnet des fournisseurs, sans numéro de paie${avant.paiement.employes?.length ? ', ni ses employés' : ''}. Ce qui est programmé ne part pas.`, accepter: 'Retirer de Les paiements', refuser: 'Garder' })) return;
     if (!await annuleSiProgramme(ligne)) return;
+    for (const l of lignesDesEmployes) if (!await annuleSiProgramme(l)) return;
     fournisseursStore.set((prev) => asArray<Fournisseur>(prev).map((x) => (x.id === avant.id ? { ...x, paiement: undefined } : x)));
     onClose();
   };
-  const date = dateDePaie(periodeParDefaut(Date.now()), f.jour);
+  const date = dateDePaie(periode, f.jour, f.heure);
+  const totalMensuel = visibles.reduce((s, x) => s + x.mensuelXof, 0);
   return (
-    <Modal title={fournisseur ? fournisseur.nom : 'Une entreprise payée sur facture'} onClose={onClose} width={520}>
+    <Modal title={fournisseur ? fournisseur.nom : 'Une entreprise'} onClose={onClose} width={560}>
       <div className="lp-form">
-        <p className="lp-doux lp-petit">L’entreprise est payée, pas son agent : sur sa facture, par MTN, sur son numéro. Elle vit au carnet des fournisseurs ; sa dépense y tombe, jamais en « Salaires ».</p>
+        <p className="lp-doux lp-petit">Sans employé, l’entreprise est payée sur son numéro, du montant du mois. Avec des employés, chacun est payé sur son numéro MTN, à la date et à l’heure de l’entreprise, et l’entreprise ne reçoit plus rien. Elle vit au carnet des fournisseurs ; ses dépenses y tombent, jamais en « Salaires ». La facture est facultative.</p>
         {!fournisseur && lesFournisseurs.length > 0 && (
           <Field label="Au carnet des fournisseurs">
             <Select value={choisi} onChange={(e) => choisis(e.target.value)}>
@@ -1316,14 +1539,49 @@ function SaisieDeLEntreprise({ branchId, fournisseur, ligne, onClose }: { branch
           </Field>
         )}
         <Field label="Entreprise"><Input value={f.nom} onChange={(e) => setF({ ...f, nom: e.target.value })} /></Field>
-        <Field label="Son numéro MTN (au nom de l’entreprise)"><Input inputMode="tel" value={f.numero} placeholder="01 00 00 00 00" onChange={(e) => setF({ ...f, numero: e.target.value })} /></Field>
-        <Field label="Son agent chez nous"><Input value={f.agent} onChange={(e) => setF({ ...f, agent: e.target.value })} placeholder="agent D." /></Field>
-        <Field label="Jour de paie">
-          <Select value={String(f.jour)} onChange={(e) => setF({ ...f, jour: jourLu(e.target.value) })}>
-            {JOURS_POSSIBLES.map((j) => <option key={String(j)} value={String(j)}>{jourDit(j)}</option>)}
-          </Select>
-        </Field>
-        {date && <p className="lp-doux lp-petit">Le mois prochain : {jourCourt(date.jour)} à 18 h{date.decaleAuLundi ? ' (dimanche, passé au lundi)' : ''}{date.avantLe5 ? ' · avant le 5 : un toucher à part' : ''}.</p>}
+        <Field label={visibles.length ? 'Son numéro MTN (facultatif : ses employés sont payés)' : 'Son numéro MTN (au nom de l’entreprise)'}><Input inputMode="tel" value={f.numero} placeholder="01 00 00 00 00" onChange={(e) => setF({ ...f, numero: e.target.value })} /></Field>
+        {!visibles.length && <Field label="Son agent chez nous"><Input value={f.agent} onChange={(e) => setF({ ...f, agent: e.target.value })} placeholder="agent D." /></Field>}
+        <div className="lp-form__deux">
+          <Field label="Jour de paie">
+            <Select value={String(f.jour)} onChange={(e) => setF({ ...f, jour: jourLu(e.target.value) })}>
+              {JOURS_POSSIBLES.map((j) => <option key={String(j)} value={String(j)}>{jourDit(j)}</option>)}
+            </Select>
+          </Field>
+          <Field label="Heure">
+            <Select value={f.heure} onChange={(e) => setF({ ...f, heure: heureLue(e.target.value) })}>
+              {HEURES_POSSIBLES.map((h) => <option key={h} value={h}>{heureDePaieDite(h)}</option>)}
+            </Select>
+          </Field>
+        </div>
+        {date && <p className="lp-doux lp-petit">Pour {moisDit(periode)} : {jourCourt(date.jour)} à {heureDePaieDite(f.heure)}{date.decaleAuLundi ? ' (dimanche, passé au lundi)' : ''}{date.avantLe5 ? ' · avant le 5 : un toucher à part' : ''}.</p>}
+
+        {/* SES EMPLOYÉS — 11 novembre 2026. */}
+        <div className="lp-employes">
+          <div className="lp-employes__tete"><strong>Ses employés</strong><span className="lp-doux lp-petit">{visibles.length ? `${visibles.length} pour ${moisDit(periode)} · ${fmtMoney(totalMensuel, 'XOF')} par mois` : 'aucun : l’entreprise est payée sur son numéro'}</span></div>
+          {employes.filter((x) => !x.retireApres || x.retireApres >= periode).map((x) => (
+            <div key={x.id} className="lp-employes__ligne">
+              <span>{x.nom} <span className="lp-doux lp-petit">· 01 •• •• •• {x.mobileMoney.numero.slice(-2)}{x.retireApres === periode ? ` · dernier mois : ${moisDit(periode)}` : ''}{x.dePeriode > periode ? ` · à partir de ${moisDit(x.dePeriode)}` : ''}</span></span>
+              <span className="lp-employes__droite">
+                <span className="lp-num">{fmtMoney(x.mensuelXof, 'XOF')}</span>
+                {!x.retireApres && <button type="button" className="lp-lien" onClick={() => setEmp({ id: x.id, nom: x.nom, numero: numeroDit(x.mobileMoney.numero), mensuel: String(x.mensuelXof) })}>modifier</button>}
+                {!x.retireApres
+                  ? <button type="button" className="lp-lien" onClick={() => retireLEmploye(x)}>retirer</button>
+                  : <button type="button" className="lp-lien" onClick={() => setEmployes((ls) => ls.map((y) => (y.id === x.id ? { ...y, retireApres: undefined } : y)))}>garder</button>}
+              </span>
+            </div>
+          ))}
+          <div className="lp-employes__ajout">
+            <Field label="Prénom et nom"><Input value={emp.nom} placeholder="Le prénom en entier, puis le nom" onChange={(e) => setEmp({ ...emp, nom: e.target.value })} /></Field>
+            <Field label="Numéro MTN"><Input inputMode="tel" value={emp.numero} placeholder="01 00 00 00 00" onChange={(e) => setEmp({ ...emp, numero: e.target.value })} /></Field>
+            <Field label="Montant mensuel (F)"><Input inputMode="numeric" value={emp.mensuel} onChange={(e) => setEmp({ ...emp, mensuel: e.target.value.replace(/[^\d ]/g, '') })} /></Field>
+            <div className="lp-gestes">
+              <Button size="sm" variant="copper" onClick={garderLEmploye}>{emp.id ? 'Garder les changements' : 'Ajouter l’employé'}</Button>
+              {emp.id && <Button size="sm" variant="ghost" onClick={() => { setEmp({ nom: '', numero: '', mensuel: '' }); setSouciEmp(''); }}>Laisser</Button>}
+            </div>
+            {souciEmp && <div className="lp-souci" role="alert">{souciEmp}</div>}
+            <p className="lp-doux lp-petit">MTN dira le nom du titulaire au prochain « Lire chez MTN ». Un numéro nouveau ou changé attend sept jours, sauf revalidation. Un retrait vaut à partir du mois suivant : {moisDit(periode)} se paie encore. Rien n’est écrit avant « Enregistrer ».</p>
+          </div>
+        </div>
         {souci && <div className="lp-souci" role="alert">{souci}</div>}
         <div className="lp-gestes">
           <Button variant="copper" onClick={() => void enregistre()}>Enregistrer</Button>
@@ -1337,15 +1595,19 @@ function SaisieDeLEntreprise({ branchId, fournisseur, ligne, onClose }: { branch
 /** LE MONTANT DU MOIS d'une entreprise, et sa facture si elle existe : n° et
     pièce FACULTATIFS depuis le 11 nov. 2026 (« je ne veux pas que ce soit une
     obligation »). Jointe, la pièce va dans la dépense comme justificatif. */
-function SaisieDeLaFacture({ fournisseur, facture, periode, qui, ligne, onClose }: {
-  fournisseur: Fournisseur; facture?: FactureDEntreprise; periode: string; qui: string; ligne?: LigneDuMois; onClose: () => void;
+function SaisieDeLaFacture({ fournisseur, facture, periode, qui, ligne, sansMontant, onClose }: {
+  fournisseur: Fournisseur; facture?: FactureDEntreprise; periode: string; qui: string; ligne?: LigneDuMois;
+  /** L'entreprise paie ses employés : la facture n'est qu'un justificatif, sans montant. */
+  sansMontant?: boolean;
+  onClose: () => void;
 }) {
   const [f, setF] = useState({ numero: facture?.facture ?? '', montant: facture?.montantXof ? String(facture.montantXof) : '', piece: facture?.piece });
   const [souci, setSouci] = useState('');
   const enregistre = async () => {
-    const montant = Number.parseInt(f.montant.replace(/\D/g, ''), 10);
-    if (!(montant > 0)) { setSouci('Le montant du mois, en francs.'); return; }
-    if (facture && facture.montantXof !== montant && !await annuleSiProgramme(ligne)) return;
+    const montant = sansMontant ? 0 : Number.parseInt(f.montant.replace(/\D/g, ''), 10);
+    if (sansMontant && !f.numero.trim() && !f.piece) { setSouci('Le n° de la facture, ou sa pièce.'); return; }
+    if (!sansMontant && !(montant > 0)) { setSouci('Le montant du mois, en francs.'); return; }
+    if (!sansMontant && facture && facture.montantXof !== montant && !await annuleSiProgramme(ligne)) return;
     const neuve: FactureDEntreprise = facture
       ? { ...facture, facture: f.numero.trim(), montantXof: montant, piece: f.piece }
       : { id: `fe-${uid()}`, branchId: fournisseur.branchId, fournisseurId: fournisseur.id, periode, facture: f.numero.trim(), montantXof: montant, ...(f.piece ? { piece: f.piece } : {}), creeLe: new Date().toISOString(), creePar: qui || 'La direction' };
@@ -1354,22 +1616,26 @@ function SaisieDeLaFacture({ fournisseur, facture, periode, qui, ligne, onClose 
   };
   const retire = async () => {
     if (!facture) return;
-    if (!await demande({ quoi: 'Les entreprises', titre: `Retirer le montant de ${fournisseur.nom} pour ${moisDit(periode)} ?`, dit: `L'entreprise ne sera pas payée pour ${moisDit(periode)}.`, accepter: 'Retirer', refuser: 'Garder' })) return;
-    if (!await annuleSiProgramme(ligne)) return;
+    if (!await demande(sansMontant
+      ? { quoi: 'Les entreprises', titre: `Retirer la facture de ${fournisseur.nom} pour ${moisDit(periode)} ?`, dit: 'Ses employés restent payés ; la facture ne sera plus jointe à leurs dépenses.', accepter: 'Retirer', refuser: 'Garder' }
+      : { quoi: 'Les entreprises', titre: `Retirer le montant de ${fournisseur.nom} pour ${moisDit(periode)} ?`, dit: `L'entreprise ne sera pas payée pour ${moisDit(periode)}.`, accepter: 'Retirer', refuser: 'Garder' })) return;
+    if (!sansMontant && !await annuleSiProgramme(ligne)) return;
     facturesDEntreprisesStore.set((prev) => asArray<FactureDEntreprise>(prev).filter((x) => x.id !== facture.id));
     onClose();
   };
   return (
     <Modal title={`${fournisseur.nom} · ${moisDit(periode)}`} onClose={onClose} width={480}>
       <div className="lp-form">
-        <Field label="Montant du mois (F)"><Input inputMode="numeric" value={f.montant} onChange={(e) => setF({ ...f, montant: e.target.value.replace(/[^\d ]/g, '') })} /></Field>
+        {sansMontant
+          ? <p className="lp-doux lp-petit">Ses employés sont payés chacun sur leur montant : la facture n’est qu’un justificatif, jointe à leurs dépenses.</p>
+          : <Field label="Montant du mois (F)"><Input inputMode="numeric" value={f.montant} onChange={(e) => setF({ ...f, montant: e.target.value.replace(/[^\d ]/g, '') })} /></Field>}
         <Field label="N° de facture (facultatif)"><Input value={f.numero} onChange={(e) => setF({ ...f, numero: e.target.value })} /></Field>
         <ChampPieceJointe branchId={fournisseur.branchId} dossier="facture-entreprise" valeur={f.piece} onChange={(p) => setF({ ...f, piece: p })} />
         <p className="lp-doux lp-petit">La facture est facultative : jointe, elle accompagne la dépense.</p>
         {souci && <div className="lp-souci" role="alert">{souci}</div>}
         <div className="lp-gestes">
           <Button variant="copper" onClick={() => void enregistre()}>Enregistrer</Button>
-          {facture && <Button variant="ghost" onClick={() => void retire()}>Retirer le montant</Button>}
+          {facture && <Button variant="ghost" onClick={() => void retire()}>{sansMontant ? 'Retirer la facture' : 'Retirer le montant'}</Button>}
         </div>
       </div>
     </Modal>
