@@ -137,6 +137,8 @@ export type LectureMtn = {
   /** Le solde du compte de paie MTN ; `null` quand MTN ne l'a pas donné. */
   soldeXof: number | null;
   numeros: Record<string, { actif: boolean | null; nom: string | null }>;
+  /** Le numéro du compte de décaissement, « 01 91 … » (paie-mtn ≥ 2026-11-12-a). */
+  numero?: string | null;
   erreur?: string;
 };
 /** « C'est bien son numéro » : pour ce numéro-là, et ce nom-là. */

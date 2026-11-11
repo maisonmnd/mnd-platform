@@ -2388,3 +2388,18 @@
 .tsy-titre-section { margin-top: 30px; }
 .tsy-colonnes-2 .tsy-classement { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; }
 @media (max-width: 760px) { .tsy-colonnes-2 .tsy-classement { grid-template-columns: minmax(0, 1fr); } }
+
+/* LE RELEVÉ DES COMPTES MTN — 12 novembre 2026 (Finances › MTN MoMo). */
+.trf-releve__lien { font: inherit; font-size: 12.5px; color: var(--copper-200); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.trf-releve__lien:focus-visible, .trf-releve__periodes button:focus-visible { outline: 2px solid var(--copper-200); outline-offset: 2px; }
+.trf-releve__periodes { display: flex; gap: 6px; flex-wrap: wrap; }
+.trf-releve__periodes button { font: inherit; font-size: 12.5px; color: var(--indigo-100); background: transparent; border: 1px solid var(--hairline-invert); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.trf-releve__periodes button[aria-pressed="true"] { background: var(--color-ivoire); color: var(--color-indigo); border-color: var(--color-ivoire); }
+.trf-releve__date { font: inherit; font-size: 12.5px; color: var(--color-ivoire); background: transparent; border: 1px solid var(--hairline-invert); border-radius: 4px; padding: 3px 6px; color-scheme: dark; }
+.trf-releve__chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 24px; }
+.trf-releve__chiffres > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.trf-releve__chiffres b { font: 400 26px/1.15 var(--font-serif); color: var(--color-ivoire); font-variant-numeric: lining-nums tabular-nums; }
+.trf-releve__lignes { display: flex; flex-direction: column; max-height: 420px; overflow-y: auto; }
+.trf-releve__ligne { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 7px 0; border-top: 1px solid var(--hairline-invert); font-size: 13.5px; color: var(--color-ivoire); }
+.trf-releve__ligne--autre { opacity: .6; }
+@media (max-width: 560px) { .trf-releve__ligne { grid-template-columns: minmax(0, 1fr) auto; } .trf-releve__ligne > :first-child { grid-column: 1 / -1; } }

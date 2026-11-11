@@ -13,6 +13,7 @@ import {
   basculeLaCollecte, demandeLEssai, essaieLeCompteDeCollecte, relisLesCollectes, statutDeLaCollecte, useCollectesMtn, useCompteDeCollecte,
   type EssaiDuCompte,
 } from './collecte-mtn';
+import { ReleveMtn } from './ReleveMtn';
 
 /* ══ LE COMPTE DE COLLECTE MTN · 11 novembre 2026 ═══════════════════════
    Maquette « Régler par MTN, QR » (AdAaYXGStQetsXHFkZzUW5), vue « Au
@@ -268,6 +269,8 @@ export function CompteDeCollecteMtn({ onOuvreLeRdv }: { onOuvreLeRdv?: (rdvId: s
           );
         })}
       </div>
+      {/* Le relevé du compte de collecte, à la période choisie (12 nov. 2026). */}
+      <ReleveMtn compte="collecte" />
     </section>
   );
 }

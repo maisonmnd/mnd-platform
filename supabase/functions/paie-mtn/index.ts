@@ -38,14 +38,16 @@
 
    SECRETS : MOMO_PROD_DISBURSEMENT_USER, MOMO_PROD_DISBURSEMENT_KEY,
    MOMO_PROD_DISBURSEMENT_SUBSCRIPTION, MOMO_TARGET_ENV (mtnbenin),
-   MOMO_RELAIS_URL, MOMO_RELAIS_CLE. SUPABASE_URL et
+   MOMO_RELAIS_URL, MOMO_RELAIS_CLE, MOMO_PROD_DISBURSEMENT_NUMERO (le numéro
+   du compte de décaissement, rendu à la direction par « lire » ; 12 nov. 2026,
+   jamais dans le dépôt). SUPABASE_URL et
    SUPABASE_SERVICE_ROLE_KEY sont posés d'office.
 
    GET   la version, et ce qui est posé (oui / non), jamais une valeur.
    POST  { action, … } : voir plus bas.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-11-09-a';
+const VERSION = '2026-11-12-a';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -184,6 +186,12 @@ const cles = () => ({
   relaisCle: env('MOMO_RELAIS_CLE'),
   cible: env('MOMO_TARGET_ENV') || 'mtnbenin',
 });
+/** Le numéro du compte de décaissement (secret), dit « 01 00 00 00 00 », sinon null. */
+const numeroDuCompte = (): string | null => {
+  let c = env('MOMO_PROD_DISBURSEMENT_NUMERO').replace(/\D/g, '');
+  if (c.startsWith('229') && c.length === 13) c = c.slice(3);
+  return /^01\d{8}$/.test(c) ? c.replace(/(\d{2})(?=\d)/g, '$1 ') : null;
+};
 const pret = () => { const k = cles(); return !!(k.utilisateur && k.cle && k.abonnement && k.relais && k.relaisCle); };
 
 async function mtn(chemin: string, init: { method?: string; headers?: Record<string, string>; body?: string } = {}): Promise<{ http: number; corps: any }> {
@@ -434,7 +442,7 @@ const etat = () => {
   const k = cles();
   return {
     version: VERSION, pret: pret(), environnement: k.cible,
-    cles: { utilisateur: !!k.utilisateur, cle: !!k.cle, abonnement: !!k.abonnement },
+    cles: { utilisateur: !!k.utilisateur, cle: !!k.cle, abonnement: !!k.abonnement, numero: !!numeroDuCompte() },
     relais: !!(k.relais && k.relaisCle),
   };
 };
@@ -475,7 +483,7 @@ Deno.serve(async (req) => {
       const b = await mtnAuth(`/disbursement/v1_0/accountholder/msisdn/${n}/basicuserinfo`);
       sortie[n] = { actif: a.http === 200 ? a.corps?.result === true : null, nom: b.http === 200 ? nomDeMtn(b.corps) : null };
     }
-    return json({ le: maintenant, soldeXof: await solde(), numeros: sortie });
+    return json({ le: maintenant, soldeXof: await solde(), numeros: sortie, numero: numeroDuCompte() });
   }
 
   if (action === 'programmer' || action === 'tester') {

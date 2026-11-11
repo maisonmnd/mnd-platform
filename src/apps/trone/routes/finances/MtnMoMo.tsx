@@ -9,6 +9,7 @@ import { supabase } from '../../../../shared/supabase';
 import { ETAT_DE_L_ENVOI_DIT, type EnvoiMtn } from '../../../../shared/paie-par-mtn-pur';
 import { PageHead } from '../_ui';
 import { CompteDeCollecteMtn } from './CompteDeCollecteMtn';
+import { ReleveMtn } from './ReleveMtn';
 import { PayAppointmentModal } from '../clients/actions';
 import { lisChezMtn } from '../equipe/paie-par-mtn';
 import './finances.css';
@@ -39,6 +40,8 @@ function CompteDeDecaissementMtn() {
   const navigate = useNavigate();
   const { currency } = useBranch();
   const [solde, setSolde] = useState<{ xof: number | null; souci?: string } | null>(null);
+  /* Le numéro du compte, rendu par paie-mtn (secret MOMO_PROD_DISBURSEMENT_NUMERO), jamais écrit ici. */
+  const [numero, setNumero] = useState<string | null>(null);
   const [luLe, setLuLe] = useState<number | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [envois, setEnvois] = useState<EnvoiMtn[]>([]);
@@ -49,6 +52,7 @@ function CompteDeDecaissementMtn() {
     const r = await lisChezMtn([]);
     setEnCours(false);
     setSolde({ xof: typeof r.soldeXof === 'number' ? r.soldeXof : null, souci: r.erreur });
+    if (typeof r.numero === 'string' && r.numero) setNumero(r.numero);
     setLuLe(Date.now());
   }, []);
 
@@ -78,16 +82,22 @@ function CompteDeDecaissementMtn() {
         <span style={PETIT}>{enCours && !luLe ? 'Lecture chez MTN…' : luLe ? `relu à ${new Date(luLe).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : 'Pas encore lu'}</span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 24, flexWrap: 'wrap' }}>
-        <span style={PHRASE}>La paie, les avances et les pourboires partent de ce compte, par MTN, vers le numéro de chaque personne.</span>
+        {/* Le numéro, écrit comme celui de la collecte (Yéman, 12 nov. 2026). */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={PETIT}>Numéro de décaissement</span>
+          <span style={{ fontSize: 22, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--color-ivoire)' }}>{numero ?? 'numéro à poser'}</span>
+          <span style={PETIT}>MAISON MND</span>
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
           <span style={PETIT}>Solde disponible chez MTN</span>
           <span className="trf-obsidian__value" style={{ fontSize: 40 }}>{solde?.xof != null ? fmtMoney(solde.xof, currency) : '·'}</span>
         </div>
       </div>
       {solde?.souci && <p role="alert" style={{ margin: 0, fontSize: 13, color: 'var(--copper-200)' }}>{solde.souci}</p>}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <Button size="sm" variant="ghost-invert" disabled={enCours} onClick={() => { void relire(); }}>{enCours ? 'Lecture…' : 'Relire maintenant'}</Button>
         <Button size="sm" variant="ghost-invert" onClick={() => navigate('/paiements')}>Les paiements ›</Button>
+        <span style={PHRASE}>La paie, les avances et les pourboires partent de ce compte, par MTN, vers le numéro de chaque personne.</span>
       </div>
       <div style={{ borderTop: '1px solid var(--hairline-invert)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div className="trf-obsidian__eyebrow">Les derniers envois</div>
@@ -101,6 +111,7 @@ function CompteDeDecaissementMtn() {
           </div>
         ))}
       </div>
+      <ReleveMtn compte="decaissement" />
     </section>
   );
 }
