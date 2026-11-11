@@ -30,6 +30,7 @@ import './caisse-du-soir.css';
 
 const PUCE: Record<EtatDuPointage, { texte: string; classe: string }> = {
   kkiapay: { texte: 'pointé · KkiaPay', classe: 'is-auto' },
+  mtn: { texte: 'pointé · MTN', classe: 'is-auto' },
   releve: { texte: 'pointé · relevé', classe: 'is-ok' },
   main: { texte: 'pointé', classe: 'is-ok' },
   comptage: { texte: 'pointé · comptage', classe: 'is-ok' },
@@ -42,6 +43,7 @@ const POURQUOI_DU_GROUPE: Record<string, string> = {
   'MTN MoMo': 'relevé MTN ou coche après vérification',
   'Moov Money': 'se pointe à la main',
   'KkiaPay, en ligne': 'vérifié par le serveur',
+  'MTN Collection, en ligne': 'confirmé par MTN au serveur',
 };
 
 export function RevenuDuJour({ iso, onClose, onOpenAppt }: {

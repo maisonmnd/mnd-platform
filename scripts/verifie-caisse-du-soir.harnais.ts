@@ -59,6 +59,14 @@ dit('... ni par une cloture de la veille', 'au-comptage', etatDuPointage(registr
 const bilan = bilanDuPointage(jour, (x) => etatDuPointage(x, pointages, []));
 dit('les tuiles : recu, pointe, a pointer, au comptage', { recuXof: 118000, pointeXof: 43000, aPointerXof: 0, auComptageXof: 75000 }, bilan);
 dit('le revenu se range par moyen, especes d abord', ['Espèces', 'MTN MoMo', 'KkiaPay, en ligne'], parMoyen(jour).map((g) => g.famille));
+/* MTN Collection (11 novembre 2026, « se pointe seul ») : confirme par MTN au
+   serveur, il vaut KkiaPay ; le MoMoPay 909099 (« MTN MoMo ») reste au releve. */
+const mtnC = r({ id: 'r-mtn-c', amountXof: 32000, method: 'MTN Collection', cashbox: 'MTN Collection' });
+dit('MTN Collection se pointe seul', 'mtn', etatDuPointage(mtnC, new Map(), []));
+dit('... meme par sa seule caisse', 'mtn', etatDuPointage(r({ id: 'r-mtn-d', amountXof: 1, method: 'Autre', cashbox: 'MTN Collection' }), new Map(), []));
+dit('... sans prendre le MoMoPay de la Maison, qui reste a pointer', 'a-pointer', etatDuPointage(r({ id: 'r-mtn-e', amountXof: 1, method: 'MTN MoMo', cashbox: 'MoMo' }), new Map(), []));
+dit('... compte pointe dans les tuiles', { recuXof: 32000, pointeXof: 32000, aPointerXof: 0, auComptageXof: 0 }, bilanDuPointage([mtnC], (x) => etatDuPointage(x, new Map(), [])));
+dit('... et se range a part, apres KkiaPay', ['Espèces', 'KkiaPay, en ligne', 'MTN Collection, en ligne'], parMoyen([mtnC, registre[2], registre[0]]).map((g) => g.famille));
 
 /* 3. L'attendu du tiroir, de soir en soir. */
 dit('sans cloture precedente, le livre fait foi', 113500, attenduDuTiroir({ livreMaintenantXof: 113500 }));

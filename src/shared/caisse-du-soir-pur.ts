@@ -104,12 +104,20 @@ export function revenuDuJour(registre: readonly Receipt[], iso: string): Receipt
 export const estEnLigne = (r: Pick<Receipt, 'method' | 'cashbox'>): boolean =>
   r.cashbox === 'KkiaPay' || /^kkiapay/i.test(r.method ?? '');
 
+/** MTN COLLECTION — 11 novembre 2026 (« Régler par MTN », Yéman : « se pointe
+    seul »). Le versement n'est posé qu'une fois MTN relu « SUCCESSFUL » au
+    serveur (collecte-mtn) : il vaut KkiaPay, et ne se coche jamais à la main.
+    À part du MoMoPay 909099 (« MTN MoMo »), qui se pointe au relevé. */
+export const estMtnCollection = (r: Pick<Receipt, 'method' | 'cashbox'>): boolean =>
+  r.cashbox === 'MTN Collection' || /^mtn collection$/i.test((r.method ?? '').trim());
+
 /** Les espèces se pointent au comptage du tiroir, jamais une à une. */
 export const estEnEspeces = (r: Pick<Receipt, 'method'>): boolean => /esp[eè]ces|cash|liquide/i.test(r.method ?? '');
 
 /** La famille d'un moyen, pour ranger le revenu : « MTN MoMo », « Moov »… */
 export function familleDuMoyen(r: Pick<Receipt, 'method' | 'cashbox'>): string {
   if (estEnLigne(r)) return 'KkiaPay, en ligne';
+  if (estMtnCollection(r)) return 'MTN Collection, en ligne';
   if (estEnEspeces(r)) return 'Espèces';
   const m = (r.method ?? '').trim();
   /* MoMo Privé (21 octobre 2026) : un MoMo reçu sur un numéro personnel, à
@@ -120,10 +128,11 @@ export function familleDuMoyen(r: Pick<Receipt, 'method' | 'cashbox'>): string {
   if (/^mobile money$/i.test(m)) return 'Mobile Money';
   return m || 'Autre';
 }
-const ORDRE_DES_FAMILLES = ['Espèces', 'MTN MoMo', 'MoMo Privé', 'Moov Money', 'Mobile Money', 'Carte', 'Virement bancaire', 'KkiaPay, en ligne'];
+const ORDRE_DES_FAMILLES = ['Espèces', 'MTN MoMo', 'MoMo Privé', 'Moov Money', 'Mobile Money', 'Carte', 'Virement bancaire', 'KkiaPay, en ligne', 'MTN Collection, en ligne'];
 
 export type EtatDuPointage =
   | 'kkiapay'      // vérifié par le serveur
+  | 'mtn'          // confirmé par MTN au serveur (MTN Collection)
   | 'releve'       // retrouvé au relevé MTN
   | 'main'         // pointé à la main
   | 'comptage'     // espèces d'un tiroir clôturé
@@ -131,7 +140,7 @@ export type EtatDuPointage =
   | 'a-pointer';
 
 export const ETAT_POINTE: Record<EtatDuPointage, boolean> = {
-  kkiapay: true, releve: true, main: true, comptage: true, 'au-comptage': false, 'a-pointer': false,
+  kkiapay: true, mtn: true, releve: true, main: true, comptage: true, 'au-comptage': false, 'a-pointer': false,
 };
 
 /** Ce que l'écran sait des clôtures : « ce tiroir a été clôturé ce jour-là
@@ -144,6 +153,7 @@ export function etatDuPointage(
   clotures: readonly Pick<Cloture, 'cashbox' | 'date'>[],
 ): EtatDuPointage {
   if (estEnLigne(r)) return 'kkiapay';
+  if (estMtnCollection(r)) return 'mtn';
   const p = pointages.get(r.id);
   if (p) return p.comment;
   if (estEnEspeces(r)) {
