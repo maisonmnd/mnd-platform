@@ -1,0 +1,245 @@
+<title>Les employés des entreprises</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@400;500;600&display=swap">
+<style>
+/* Maquette du 11 novembre 2026. Équipe › Les paiements : une entreprise porte ses employés, chacun payé sur son numéro MTN, à la date de l'entreprise. Personnes dites par leurs initiales, numéros et montants inventés. */
+:root {
+  --ivoire: #F6F1E7; --carte: #FFFDF8; --indigo: #1E2150; --cuivre: #B97A4A; --cuivre-fonce: #9E6238;
+  --encre: #1F1D26; --encre-douce: #6A6474; --trait: rgba(30, 33, 80, .14); --pale: #F1E7D9;
+  --indigo-pale: #E7E8F2; --cuivre-pale: #F3E7DB; --sur-indigo: #F6F1E7; --sur-cuivre: #FFFDF8;
+  --serif: "Cormorant Garamond", "Noto Serif", Georgia, serif;
+  --sans: "Jost", "Noto Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --encre-douce: #A9A3B3; --trait: rgba(236, 231, 221, .16); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --sur-indigo: #15161F; --sur-cuivre: #15161F; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --encre-douce: #A9A3B3; --trait: rgba(236, 231, 221, .16); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --sur-indigo: #15161F; --sur-cuivre: #15161F; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ivoire); color: var(--encre); font: 400 15px/1.55 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 80px; }
+main { max-width: 1040px; margin: 0 auto; display: grid; gap: 40px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 500; color: var(--indigo); text-wrap: balance; margin: 0; line-height: 1.12; }
+h1 { font-size: clamp(36px, 7vw, 52px); }
+h2 { font-size: clamp(24px, 4.6vw, 30px); }
+h3 { font-size: 20px; }
+p { margin: 0; max-width: 65ch; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+.sourcil { font: 600 11px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--cuivre-fonce); }
+.doux { color: var(--encre-douce); }
+.petit { font-size: 13px; }
+section { display: grid; gap: 14px; }
+.titre-de-bloc { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--trait); padding-bottom: 8px; }
+.bandeau { border: 1px dashed var(--cuivre); background: var(--pale); padding: 8px 14px; border-radius: 4px; font-size: 13px; }
+.tete { display: grid; gap: 10px; }
+
+/* Ce que vous avez dit */
+.dit { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.dit div { background: var(--carte); border: 1px solid var(--trait); border-radius: 6px; padding: 14px 16px; display: grid; gap: 4px; min-width: 0; }
+.dit b { font: 500 19px/1.2 var(--serif); color: var(--indigo); }
+
+/* Le tableau */
+.tableau { border: 1px solid var(--trait); border-radius: 6px; background: var(--carte); overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 720px; }
+th { text-align: left; font: 600 11px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--indigo); padding: 12px 14px; border-bottom: 1px solid var(--trait); background: var(--indigo-pale); }
+td { padding: 11px 14px; border-bottom: 1px solid var(--trait); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+td.m { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+th.m { text-align: right; }
+.groupe td { background: var(--pale); font-weight: 500; }
+.groupe .nom { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; color: var(--indigo); font-weight: 600; }
+.groupe .chevron { display: inline-block; transition: transform .15s; }
+.groupe[aria-expanded="true"] .chevron { transform: rotate(90deg); }
+.employe td:first-child { padding-left: 38px; }
+.employe[hidden] { display: none; }
+.pastille { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; border: 1px solid var(--trait); white-space: nowrap; }
+.pastille.ok { border-color: var(--indigo); color: var(--indigo); }
+.pastille.attend { border-color: var(--cuivre); color: var(--cuivre-fonce); background: var(--cuivre-pale); }
+.coche { color: var(--indigo); font-weight: 600; }
+.mtn { font-size: 12.5px; color: var(--cuivre-fonce); }
+.lien { background: none; border: 0; padding: 0; color: var(--cuivre-fonce); text-decoration: underline; text-underline-offset: 3px; font-size: 13px; }
+.montant-du-mois { width: 96px; text-align: right; padding: 4px 8px; border: 1px solid var(--cuivre); border-radius: 4px; background: var(--carte); color: var(--encre); }
+
+/* La fiche de l'entreprise */
+.fiche { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.carte { background: var(--carte); border: 1px solid var(--trait); border-radius: 6px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.liste { display: grid; gap: 0; }
+.liste div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--trait); flex-wrap: wrap; }
+.liste div:last-child { border-bottom: 0; }
+.total { display: flex; justify-content: space-between; gap: 12px; padding-top: 10px; border-top: 2px solid var(--indigo); font-weight: 600; color: var(--indigo); }
+form { display: grid; gap: 10px; }
+label { display: grid; gap: 4px; font-size: 13px; color: var(--encre-douce); }
+label input { padding: 9px 11px; border: 1px solid var(--trait); border-radius: 4px; background: var(--ivoire); color: var(--encre); font-size: 15px; }
+.bouton { justify-self: start; background: var(--cuivre); color: var(--sur-cuivre); border: 0; border-radius: 4px; padding: 10px 18px; font: 600 12px var(--sans); letter-spacing: .14em; text-transform: uppercase; }
+.souci { color: var(--cuivre-fonce); font-size: 13px; }
+
+/* Les arbitrages */
+.arbitrages { display: grid; gap: 12px; counter-reset: a; }
+.arbitrage { background: var(--carte); border: 1px solid var(--trait); border-left: 3px solid var(--cuivre); border-radius: 6px; padding: 14px 18px; display: grid; gap: 6px; }
+.arbitrage h3 { font-size: 19px; }
+.arbitrage h3::before { counter-increment: a; content: counter(a) ". "; color: var(--cuivre-fonce); }
+.propose { font-weight: 500; }
+.propose::before { content: "Proposition : "; color: var(--cuivre-fonce); font-weight: 600; }
+.non { display: grid; gap: 6px; padding-left: 18px; margin: 0; }
+
+@media (max-width: 760px) { .dit, .fiche { grid-template-columns: 1fr; } }
+</style>
+
+<main>
+  <header class="tete">
+    <span class="sourcil">Équipe › Les paiements · maquette du 11 novembre 2026</span>
+    <h1>Les employés des entreprises</h1>
+    <p class="doux">Une entreprise qui travaille pour la Maison porte ses employés. Chacun reçoit sa part sur son propre numéro MTN, à la date de l'entreprise, dans le même toucher du mois.</p>
+    <div class="bandeau">Maquette à valider : rien n'est construit. Les gestes se manipulent (déplier, ajouter un employé, changer un montant du mois). Initiales et numéros inventés.</div>
+  </header>
+
+  <section>
+    <div class="titre-de-bloc"><h2>Ce que vous avez tranché</h2><span class="doux petit">le 11 novembre 2026</span></div>
+    <div class="dit">
+      <div><span class="sourcil">Qui reçoit</span><b>Chaque employé</b><span class="doux petit">sur son numéro MTN ; l'entreprise regroupe ses employés.</span></div>
+      <div><span class="sourcil">Le montant</span><b>La somme des employés</b><span class="doux petit">chacun a son montant mensuel ; le total de l'entreprise se calcule.</span></div>
+      <div><span class="sourcil">La facture</span><b>Facultative</b><span class="doux petit">jointe, elle accompagne la dépense ; sans elle, l'argent part. Déjà fait, en ligne avec la prochaine publication.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="titre-de-bloc"><h2>Qui reçoit quoi</h2><span class="doux petit">Touchez la ligne de l'entreprise</span></div>
+    <div class="tableau">
+      <table>
+        <thead><tr><th>Personne</th><th class="m">Ce mois</th><th>Numéro MTN</th><th>Date</th><th>État</th></tr></thead>
+        <tbody id="corps"></tbody>
+      </table>
+    </div>
+    <p class="doux petit">Le montant d'un employé se change pour ce mois seulement (touchez « modifier ») ; son montant mensuel, lui, reste sur la fiche. La ligne de l'entreprise n'est pas un virement : elle dit le total.</p>
+  </section>
+
+  <section>
+    <div class="titre-de-bloc"><h2>La fiche de l'entreprise</h2><span class="doux petit">Équipe › Les paiements › ACIA1 › modifier</span></div>
+    <div class="fiche">
+      <div class="carte">
+        <h3>ACIA1 · ses employés</h3>
+        <div class="liste" id="liste"></div>
+        <div class="total"><span>Chaque mois</span><span class="num" id="total-fiche"></span></div>
+        <p class="doux petit">Payés le 9 du mois suivant, à 18 h. Dépense : « Sous-traitance », dans le compte d'ACIA1, une ligne par employé.</p>
+      </div>
+      <form class="carte" id="ajout" novalidate>
+        <h3>Ajouter un employé</h3>
+        <label>Prénom et nom<input name="nom" autocomplete="off" placeholder="Prénom en entier, puis nom"></label>
+        <label>Numéro MTN<input name="numero" inputmode="numeric" autocomplete="off" placeholder="01 .. .. .. .."></label>
+        <label>Montant mensuel (F)<input name="montant" inputmode="numeric" autocomplete="off" placeholder="45 000"></label>
+        <p class="doux petit">MTN dira le nom du titulaire au premier « Lire chez MTN ». Un numéro nouveau ou changé attend sept jours, comme pour l'équipe.</p>
+        <div class="souci" id="souci" role="alert"></div>
+        <button class="bouton" type="submit">Ajouter</button>
+      </form>
+    </div>
+  </section>
+
+  <section>
+    <div class="titre-de-bloc"><h2>À trancher</h2><span class="doux petit">une proposition ferme pour chacun</span></div>
+    <div class="arbitrages">
+      <div class="arbitrage"><h3>Le numéro de l'entreprise</h3>
+        <p>Dès qu'une entreprise a des employés, son propre numéro ne reçoit plus rien : l'argent va aux employés seulement.</p>
+        <p class="propose">oui. Une entreprise sans employé reste payée sur son numéro, comme aujourd'hui.</p></div>
+      <div class="arbitrage"><h3>La garde des sept jours</h3>
+        <p>Un employé nouveau, ou dont le numéro change, doit-il attendre sept jours avant de recevoir, comme l'équipe ?</p>
+        <p class="propose">oui, avec le même « Revalider » qu'aujourd'hui pour passer outre.</p></div>
+      <div class="arbitrage"><h3>Le nom chez MTN</h3>
+        <p>Un nom différent chez MTN arrête l'employé jusqu'à votre « C'est bien son numéro », comme pour l'équipe.</p>
+        <p class="propose">oui, les autres employés de l'entreprise partent sans l'attendre.</p></div>
+      <div class="arbitrage"><h3>Prévenir l'employé</h3>
+        <p>Un WhatsApp « Ton paiement de novembre 2026 est parti : 60 000 F » quand MTN dit reçu, comme l'équipe ?</p>
+        <p class="propose">non pour commencer : ces personnes n'ont pas donné leur accord WhatsApp à la Maison. Le reçu MTN leur arrive de toute façon par SMS.</p></div>
+      <div class="arbitrage"><h3>Un employé qui s'arrête</h3>
+        <p>« Retirer » le sort des mois suivants ; ce qui est déjà parti reste dans l'historique et dans la dépense.</p>
+        <p class="propose">un retrait prend effet le mois suivant ; le mois en cours se paie, sauf si vous mettez son montant du mois à 0.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="titre-de-bloc"><h2>Ce que ça ne fera pas</h2></div>
+    <ul class="non">
+      <li>Pas de bulletin, pas de confirmation dans Mon espace : ce ne sont pas des salariés de la Maison.</li>
+      <li>Pas d'accès au Trône, pas de fiche dans Personnel ni dans les ressources humaines.</li>
+      <li>Pas de pourboires, pas de prêt : ils restent l'affaire de l'entreprise.</li>
+      <li>Pas de contrat ni de papier à leur nom : la facture, si elle existe, reste celle de l'entreprise.</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+const F = (n) => `${Math.round(n).toLocaleString('fr-FR').replace(/ | /g, ' ')} F`;
+const masque = (n) => { const d = n.replace(/\D/g, ''); return d.length === 10 ? `${d.slice(0, 2)} •• •• •• ${d.slice(8)}` : n; };
+let employes = [
+  { id: 1, nom: 'K. A.', numero: '0190000041', mensuel: 60000, etat: 'verifie' },
+  { id: 2, nom: 'S. D.', numero: '0190000052', mensuel: 45000, etat: 'differe', nomMtn: 'SENAN DOSSOU-YOVO' },
+  { id: 3, nom: 'M. H.', numero: '0190000063', mensuel: 45000, etat: 'garde' },
+];
+const duMois = {};
+let ouvert = true;
+let enEdition = null;
+const montantDe = (e) => (duMois[e.id] ?? e.mensuel);
+const etatDit = (e) => e.etat === 'verifie' ? '<span class="pastille ok">Prêt</span>'
+  : e.etat === 'differe' ? '<span class="pastille attend">Attend « C\'est bien son numéro »</span>'
+  : e.etat === 'garde' ? '<span class="pastille attend">Numéro de moins de 7 jours</span>'
+  : '<span class="pastille">Nom pas encore lu</span>';
+const numeroDit = (e) => `${masque(e.numero)} ${e.etat === 'verifie' ? '<span class="coche">✓</span>' : e.etat === 'differe' ? `<span class="mtn">MTN : ${e.nomMtn}</span>` : e.etat === 'nouveau' ? '<span class="doux petit">pas encore lu</span>' : ''}`;
+
+function rend() {
+  const total = employes.reduce((s, e) => s + montantDe(e), 0);
+  const prets = employes.filter((e) => e.etat === 'verifie').length;
+  const corps = document.getElementById('corps');
+  corps.innerHTML = '';
+  const g = document.createElement('tr');
+  g.className = 'groupe';
+  g.setAttribute('aria-expanded', String(ouvert));
+  g.innerHTML = `<td><button class="nom" type="button" aria-label="Déplier ACIA1"><span class="chevron">›</span> ACIA1</button> <span class="doux petit">· ${employes.length} employé${employes.length > 1 ? 's' : ''} · sans facture</span></td>
+    <td class="m">${F(total)}</td><td class="doux petit">chacun sur son numéro</td><td>le 9 · 18 h</td><td><span class="pastille">${prets} / ${employes.length} prêt${prets > 1 ? 's' : ''}</span></td>`;
+  g.querySelector('button').onclick = () => { ouvert = !ouvert; rend(); };
+  corps.appendChild(g);
+  for (const e of employes) {
+    const tr = document.createElement('tr');
+    tr.className = 'employe';
+    tr.hidden = !ouvert;
+    const change = duMois[e.id] != null && duMois[e.id] !== e.mensuel;
+    const montant = enEdition === e.id
+      ? `<input class="montant-du-mois" inputmode="numeric" value="${montantDe(e)}" aria-label="Montant du mois de ${e.nom}"> <button class="lien" type="button" data-ok>Poser</button>`
+      : `${F(montantDe(e))}${change ? `<br><span class="doux petit">mensuel ${F(e.mensuel)}</span>` : ''} <button class="lien" type="button" data-modifie>modifier</button>`;
+    tr.innerHTML = `<td>${e.nom}</td><td class="m">${montant}</td><td>${numeroDit(e)}</td><td class="doux">le 9</td><td>${etatDit(e)}</td>`;
+    const mod = tr.querySelector('[data-modifie]');
+    if (mod) mod.onclick = () => { enEdition = e.id; rend(); tr.ownerDocument.querySelector('.montant-du-mois')?.focus(); };
+    const ok = tr.querySelector('[data-ok]');
+    if (ok) ok.onclick = () => { const v = parseInt(tr.querySelector('input').value.replace(/\D/g, ''), 10); if (Number.isFinite(v)) duMois[e.id] = v; enEdition = null; rend(); };
+    corps.appendChild(tr);
+  }
+  const liste = document.getElementById('liste');
+  liste.innerHTML = employes.map((e) => `<div><span>${e.nom} <span class="doux petit">· ${masque(e.numero)}</span></span><span class="num">${F(e.mensuel)} <button class="lien" type="button" data-retire="${e.id}">retirer</button></span></div>`).join('');
+  liste.querySelectorAll('[data-retire]').forEach((b) => { b.onclick = () => { employes = employes.filter((x) => String(x.id) !== b.dataset.retire); rend(); }; });
+  document.getElementById('total-fiche').textContent = F(employes.reduce((s, e) => s + e.mensuel, 0));
+}
+
+document.getElementById('ajout').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const f = ev.target;
+  const nom = f.nom.value.trim();
+  const numero = f.numero.value.replace(/\D/g, '');
+  const montant = parseInt(f.montant.value.replace(/\D/g, ''), 10);
+  const souci = document.getElementById('souci');
+  if (!nom) { souci.textContent = 'Le prénom et le nom.'; return; }
+  if (!/^01\d{8}$/.test(numero)) { souci.textContent = 'Un numéro mobile du Bénin a dix chiffres et commence par 01.'; return; }
+  if (!(montant > 0)) { souci.textContent = 'Le montant mensuel, en francs.'; return; }
+  souci.textContent = '';
+  employes.push({ id: Date.now(), nom, numero, mensuel: montant, etat: 'nouveau' });
+  f.reset();
+  ouvert = true;
+  rend();
+});
+rend();
+</script>
