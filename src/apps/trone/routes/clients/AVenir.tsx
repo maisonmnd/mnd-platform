@@ -12,7 +12,13 @@
    la porte d'Opale et la fonction qui dépose le sautent ; « Remettre » le rend
    tant que son heure n'est pas passée. La règle vit dans
    `shared/ce-qui-va-partir-pur.ts`, la clé et la porte d'avance dans
-   `shared/arret-d-avance-pur.ts` ; cet écran ne fait que montrer et demander. */
+   `shared/arret-d-avance-pur.ts` ; cet écran ne fait que montrer et demander.
+
+   REPRISE DU 8 NOVEMBRE 2026 (« construis aussi Ce qui va partir ») : tout ce
+   qui attend en salle paraît, quel que soit son genre (un genre inconnu sous
+   son nom technique) ; les fiches d'essai n'y sont pas ; Opale relit chaque
+   message et dit son doute en cuivre, « Opale : à vérifier », avec la raison ;
+   indigo et cuivre seulement, plus de brique. */
 
 import { useMemo, useState } from 'react';
 import { useAuth, useMaTete } from '../../../../shared/auth';
@@ -22,7 +28,7 @@ import { supabase } from '../../../../shared/supabase';
 import { arreteLeMessage, remetLeMessage } from '../../../../shared/arrets-d-avance';
 import { heureDeDepart, reglesDepuis } from '../../../../shared/salle-des-envois';
 import {
-  SORTES_DITES, arretDit, compteDeCeQuiVaPartir, heureDite, parJour, peutSeRemettre, quiDit,
+  arretDit, compteDeCeQuiVaPartir, heureDite, parJour, peutSeRemettre, quiDit, sortesAFiltrer,
   type MessagePrevu, type SorteDeMessage,
 } from '../../../../shared/ce-qui-va-partir-pur';
 import { envoisStore, useAutoConfig, type Envoi } from '../equipe/data';
@@ -64,15 +70,18 @@ export function AVenir() {
   const jours = parJour(visibles, maintenantMs);
   const calmeDe = Number(cfg.calmeDe ?? 20);
   const calmeA = Number(cfg.calmeA ?? 8);
+  /* Les quatre sortes de la maquette ; « Autre » seulement si la liste en a. */
+  const sortes = sortesAFiltrer(liste);
 
   const arrete = (m: MessagePrevu) => arreteLeMessage({ cle: m.cle, par: qui, branchId: branch.id, quoi: `${m.modeleDit} · ${m.jour}` });
   const remets = (m: MessagePrevu) => {
     remetLeMessage({ cle: m.cle, par: qui });
     void rendsLaLigne(m.cle, Date.now(), Number(cfg.salleMin ?? 10));
   };
+  /* À qui : les fiches nommées ; sinon le prénom que la ligne porte (un membre de l'équipe pour sa paie). */
   const nomPour = (m: MessagePrevu): string => {
     const noms = [m.clientId, ...(m.clientIds ?? [])].filter((x, i, t) => !!x && t.indexOf(x) === i).map((id) => quiDit(nomDe.get(id), direction));
-    return noms.join(', ') || 'Une cliente';
+    return noms.join(', ') || (m.qui ? quiDit(m.qui, direction) : 'Une cliente');
   };
 
   return (
@@ -84,10 +93,11 @@ export function AVenir() {
             <span><b>{compte.partiront}</b> {compte.partiront > 1 ? 'partiront' : 'partira'}</span>
             <span><b>{compte.arretes}</b> arrêté{compte.arretes > 1 ? 's' : ''}</span>
             {compte.enPause > 0 && <span><b>{compte.enPause}</b> en pause</span>}
+            {compte.aVerifier > 0 && <span style={{ color: 'var(--copper-700)' }}><b style={{ color: 'inherit' }}>{compte.aVerifier}</b> à vérifier</span>}
             <span>des 7 jours à venir</span>
           </div>
           <div className="trc-avenir__filtres" role="group" aria-label="Sorte de message">
-            {([['', 'Tout'], ...Object.entries(SORTES_DITES)] as [string, string][]).map(([k, mot]) => (
+            {([['', 'Tout'], ...sortes] as [string, string][]).map(([k, mot]) => (
               <button key={k || 'tout'} type="button" aria-pressed={filtre === k} onClick={() => setFiltre(k as '' | SorteDeMessage)}>{mot}</button>
             ))}
           </div>
@@ -107,15 +117,20 @@ export function AVenir() {
               const arretee = m.etat === 'arrete';
               const ouvert = !!ouverts[m.cle];
               return (
-                <div key={m.cle} className={`trc-avenir__envoi${arretee ? ' trc-avenir__envoi--arrete' : ''}`} data-cle={m.cle}>
+                <div
+                  key={m.cle}
+                  className={`trc-avenir__envoi${arretee ? ' trc-avenir__envoi--arrete' : ''}${m.aVerifier ? ' trc-avenir__envoi--doute' : ''}`}
+                  data-cle={m.cle}
+                >
                   <div className="trc-avenir__heure">{heureDite(m.partA)}</div>
                   <div style={{ minWidth: 0 }}>
                     <span className="trc-avenir__qui">{nomPour(m)}</span>
                     {m.etat === 'en-salle' && <span className="trc-avenir__pastille">en salle</span>}
-                    <span className="trc-avenir__modele">{m.modeleDit} · <code>{m.modele}</code></span>
+                    <span className="trc-avenir__modele">{m.modeleDit}{m.modele ? <> · <code>{m.modele}</code></> : null}</span>
                     <span className="trc-avenir__pourquoi">{m.raison}</span>
+                    {m.aVerifier && <span className="trc-avenir__opale">Opale : à vérifier · {m.aVerifier}.</span>}
                     {m.etat === 'en-pause' && (
-                      <span className="trc-avenir__pourquoi" style={{ color: 'var(--color-brique, #96412E)' }}>Modèle en pause : il ne partira pas tant qu’il n’est pas repris.</span>
+                      <span className="trc-avenir__pourquoi" style={{ color: 'var(--copper-700)' }}>Modèle en pause : il ne partira pas tant qu’il n’est pas repris.</span>
                     )}
                     {m.etat === 'repli' && (
                       <span className="trc-avenir__pourquoi">Modèle en pause : <code>{m.pause}</code> partira à sa place.</span>
@@ -144,9 +159,11 @@ export function AVenir() {
       </div>
       <p className="mnd-muted trc-avenir__note">
         Dedans : le rappel de la veille, le petit rappel deux jours avant et la carte d’anniversaire de l’Assistant Maison, ses autres messages
-        approuvés chez Meta, les relances de facture (jamais le dimanche). La confirmation, la demande d’avis, le rappel d’échéance, la fête de
-        couronne et la fin de paquet naissent d’un geste ou d’un règlement : ils paraissent dans la salle d’attente dix minutes avant de partir.
-        Les réponses dans une conversation ouverte et les messages écrits à la main ne passent pas par ici.
+        approuvés chez Meta, les relances de facture (jamais le dimanche), et tout ce qui attend déjà en salle, quel que soit son genre. La
+        confirmation, la demande d’avis, le rappel d’échéance, la fête de couronne et la fin de paquet naissent d’un geste ou d’un règlement :
+        ils paraissent dans la salle d’attente dix minutes avant de partir. Les fiches d’essai n’y sont pas. Les réponses dans une conversation
+        ouverte et les messages écrits à la main ne passent pas par ici. Un doute d’Opale se dit en cuivre : le message partira quand même si
+        personne ne l’arrête.
         {direction ? '' : ' Seule la direction arrête un message.'}
       </p>
     </div>

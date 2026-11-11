@@ -40,11 +40,14 @@ export type { CerveauDeGerard };
 
 /** CE QUE L'ASSISTANT LIT, sans le jour : les mêmes entrées servent au
     passage d'aujourd'hui et à « Ce qui va partir » (5 novembre 2026), qui
-    rejoue le même cerveau jour par jour. */
+    rejoue le même cerveau jour par jour. Reprise du 8 novembre 2026 : Perle
+    sert LA cliente, elle lit le registre entier, essais compris, comme
+    `useCerveauDeGerard` et la fonction serveur ; « Ce qui va partir » écarte
+    ensuite les fiches d'essai de sa liste (shared/ce-qui-va-partir-pur). */
 export type EntreesSansLeJour = Omit<EntreesDeLAssistant, 'aujourdhui' | 'maintenantMs'>;
 export function useEntreesDeLAssistant(): EntreesSansLeJour {
   const { branch } = useBranch();
-  const appts = useBranchAppointments();
+  const appts = useBranchAppointmentsAvecEssais();
   const clients = useBranchClients();
   const byId = useServicesById();
   const signalements = useSignalements();

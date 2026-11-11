@@ -5,7 +5,7 @@ import type { ArretDAvance, PauseDuModele } from './arret-d-avance-pur';
 /* ══ CE QUI VA PARTIR, AU TRÔNE — 5 novembre 2026 ═══════════════════════
    La règle vit dans `arret-d-avance-pur.ts` (la clé d'un message, la porte
    d'avance) et `ce-qui-va-partir-pur.ts` (la prévision des sept jours). Ici,
-   ce que le Trône lit et écrit de la base (0158) :
+   ce que le Trône lit et écrit de la base (0197, renumérotée le 8 novembre 2026) :
      · LES MESSAGES ARRÊTÉS D'AVANCE (`envois_arretes`) : « Ne pas envoyer »
        pose `arreteLe` ; « Remettre » pose `remisLe`. Rien ne s'efface : la
        ligne dit toujours qui a arrêté et quand ;

@@ -91,7 +91,7 @@ dit('la base (0169) : les deux fonctions remplacées, sans « manquee », absent
 const relances = sansCommentaires(lis('supabase/functions/relances-factures/index.ts'));
 dit('la fonction des relances : même règle, le prorata ne compte que les faites, la version le dit', [false, true, true, true],
   [/'manquee'/.test(relances), relances.includes("if (a.absente || a.status === 'annulé') return 'annulee';"),
-    relances.includes("return etatDeLaSeance(a, jour) === 'faite';"), /const VERSION = '2026-11-06-[a-z] · /.test(relances)]);
+    relances.includes("return etatDeLaSeance(a, jour) === 'faite';"), /const VERSION = '2026-11-(?:0[6-9]|1[0-9])-[a-z] · .*une séance manquée ne se perd pas : le prorata ne compte que les faites/.test(relances)]);
 
 /* ── 3. CE QUE LA CLIENTE LIT ───────────────────────────────────────── */
 const C = 'src/apps/couronne/';

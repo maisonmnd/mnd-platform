@@ -133,8 +133,10 @@ const blocDesPoints = rj.slice(rj.indexOf('async function poseLesPointsDEtape(')
 const payloadsEnvoyes = [...blocDesPoints.matchAll(/payload: `(POINT_[A-Z]+):\$\{a\.id\}(?::([a-z]+))?`/g)].map((m) => m[2] ? `${m[1]}:a1:${m[2]}` : `${m[1]}:a1`);
 dit('rappels-j1 : chaque bouton envoyé se relit au webhook, dans l ordre du modèle', ['POINT_BIEN:a1', 'POINT_SOUCI:a1', ...ENVIES_AVANT.map((e) => `POINT_AVANT:a1:${e.cle}`)], payloadsEnvoyes);
 dit('... et aucun n est refusé par la lecture', [], payloadsEnvoyes.filter((c) => !lisLaReponseAuPoint(c)));
+/* Trois lignes portent le rendez-vous du point : celle que la porte d'avance
+   juge (ce qui va partir, 5 novembre 2026), celle de la salle, celle du direct. */
 dit('rappels-j1 : le point d après ne nomme pas sa séance comme rendez-vous (le facteur le jetterait)', true,
-  /const rdvDuPoint = p\.type === 'avant' \? \{ apptId: a\.id, heure: a\.time \} : \{ apptId: '' \};/.test(blocDesPoints) && (blocDesPoints.match(/\.\.\.rdvDuPoint/g) ?? []).length === 2);
+  /const rdvDuPoint = p\.type === 'avant' \? \{ apptId: a\.id, heure: a\.time \} : \{ apptId: '' \};/.test(blocDesPoints) && (blocDesPoints.match(/\.\.\.rdvDuPoint/g) ?? []).length === 3);
 dit('rappels-j1 : un identifiant fixe par séance et par point, une borne par passage', [true, true],
   [/const idDe = \(p: APoser\) => `pe-\$\{p\.seance\.id\}-\$\{p\.type\}-whatsapp`;/.test(blocDesPoints), /if \(parties >= BORNE_DES_POINTS\) \{ bornee = true; break; \}/.test(blocDesPoints)]);
 dit('rappels-j1 : chaque modèle a son secret, et rien ne part sans', true,

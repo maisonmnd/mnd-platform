@@ -12,11 +12,11 @@
    une ligne en salle ou une ligne que le facteur prend en main :
    `rappel-j1:<rdv>`, `garder:<rdv>`, `anniv:<fiche>:<année>`,
    `relance:<pièce>:<rang>`… La direction arrête une clé (table
-   `envois_arretes`, 0158) ; « Remettre » pose `remisLe`, rien ne s'efface.
+   `envois_arretes`, 0197) ; « Remettre » pose `remisLe`, rien ne s'efface.
 
    LA PAUSE EST CHEZ NOUS. Meta ne permet pas à une entreprise de mettre
    elle-même un modèle en pause (seul Meta le fait, quand la qualité baisse).
-   La pause vit donc dans `modeles_en_pause` (0158) : la porte d'Opale la
+   La pause vit donc dans `modeles_en_pause` (0197) : la porte d'Opale la
    refuse partout, et un modèle qui a un repli (la confirmation à liens)
    part sous son repli.
 

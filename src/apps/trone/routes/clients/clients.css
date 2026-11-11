@@ -3970,12 +3970,16 @@ label.trc-foyer--lier { justify-content: flex-start; cursor: pointer; }
 .trc-avenir__pourquoi { display: block; font-size: 12.5px; color: var(--ink-soft, #4b4f72); }
 .trc-avenir__gestes { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
 .trc-avenir__lire { font: inherit; font-size: 12.5px; background: none; border: none; padding: 0; color: var(--copper-700); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.trc-avenir__stop { font: inherit; font-size: 12.5px; white-space: nowrap; background: transparent; border: 1px solid var(--color-brique, #96412E); color: var(--color-brique, #96412E); border-radius: 3px; padding: 4px 10px; cursor: pointer; }
+/* Reprise du 8 novembre 2026 : indigo et cuivre seulement, plus de brique (le choix du 5 novembre 2026 pour Perle et les Conversations). */
+.trc-avenir__stop { font: inherit; font-size: 12.5px; white-space: nowrap; background: transparent; border: 1px solid var(--copper-700, #7C4C2C); color: var(--copper-700, #7C4C2C); border-radius: 3px; padding: 4px 10px; cursor: pointer; }
 .trc-avenir__remettre { font: inherit; font-size: 12.5px; white-space: nowrap; background: transparent; border: 1px solid var(--hairline); color: var(--ink-soft, #4b4f72); border-radius: 3px; padding: 4px 10px; cursor: pointer; }
 .trc-avenir__texte { grid-column: 2 / -1; background: var(--ivoire, #F6F1E7); border-radius: 3px; padding: 9px 11px; font-size: 13px; color: var(--ink); white-space: pre-line; margin: 0; }
-.trc-avenir__envoi--arrete { background: var(--brique-faible, #FBF0ED); }
+.trc-avenir__envoi--arrete { background: var(--copper-50, #FAF1E9); }
+/* Opale : à vérifier (8 novembre 2026) : la ligne prend un filet de cuivre et dit sa raison. */
+.trc-avenir__envoi--doute { box-shadow: inset 3px 0 0 var(--color-copper, #B97A4A); }
+.trc-avenir__opale { display: block; font-size: 12.5px; color: var(--copper-700, #7C4C2C); font-weight: 500; }
 .trc-avenir__envoi--arrete .trc-avenir__heure, .trc-avenir__envoi--arrete .trc-avenir__qui { text-decoration: line-through; color: var(--ink-soft, #8a8270); }
-.trc-avenir__dit { grid-column: 2 / -1; font-size: 12.5px; color: var(--color-brique, #96412E); margin: 0; }
+.trc-avenir__dit { grid-column: 2 / -1; font-size: 12.5px; color: var(--copper-700, #7C4C2C); margin: 0; }
 .trc-avenir__pastille { display: inline-block; margin-left: 6px; font-size: 10.5px; letter-spacing: .06em; padding: 1px 7px; border-radius: 3px; background: var(--color-copper); color: #fff; vertical-align: 2px; }
 .trc-avenir__note { font-size: 11.5px; line-height: 1.6; margin: 10px 2px 0; }
 .trc-modeles { overflow-x: auto; border: 1px solid var(--hairline); border-radius: var(--radius-md, 6px); background: var(--paper, #fff); }
@@ -3984,10 +3988,10 @@ label.trc-foyer--lier { justify-content: flex-start; cursor: pointer; }
 .trc-modeles th { font-weight: 500; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft, #8a8270); }
 .trc-modeles td code { font-size: 12px; font-family: ui-monospace, Consolas, monospace; }
 .trc-modeles .num { text-align: right; font-variant-numeric: tabular-nums; }
-.trc-modeles tr.trc-modeles--alerte td { background: var(--brique-faible, #FBF0ED); }
-.trc-modeles tr.trc-modeles--alerte td.trc-modeles__nonremis { color: var(--color-brique, #96412E); font-weight: 500; }
+.trc-modeles tr.trc-modeles--alerte td { background: var(--copper-50, #FAF1E9); }
+.trc-modeles tr.trc-modeles--alerte td.trc-modeles__nonremis { color: var(--copper-700, #7C4C2C); font-weight: 500; }
 .trc-modeles__bascule { font: inherit; font-size: 12px; white-space: nowrap; border-radius: 999px; padding: 3px 10px; cursor: pointer; border: 1px solid var(--hairline); background: transparent; color: var(--ink); }
-.trc-modeles__bascule[aria-pressed="true"] { border-color: var(--color-brique, #96412E); color: var(--color-brique, #96412E); }
+.trc-modeles__bascule[aria-pressed="true"] { border-color: var(--copper-700, #7C4C2C); color: var(--copper-700, #7C4C2C); }
 @media (max-width: 640px) {
   .trc-avenir__envoi { grid-template-columns: 48px minmax(0, 1fr); }
   .trc-avenir__gestes { grid-column: 2; flex-direction: row; align-items: center; flex-wrap: wrap; }

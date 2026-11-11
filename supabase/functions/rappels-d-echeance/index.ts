@@ -53,7 +53,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const TZ = 'Africa/Porto-Novo'; // le fuseau de la Maison, pas celui du serveur
 
 /** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-11-05-a · ce qui va partir : un rappel arrêté d’avance, ou d’un modèle en pause, ne se dépose pas ; M. et Mme devant le prénom';
+const VERSION = '2026-11-11-a · ce qui va partir : un rappel arrêté d’avance, ou d’un modèle en pause, ne se dépose pas ; M. et Mme devant le prénom';
 
 /** Numéro béninois → format international sans « + » (copie de rappels-j1). */
 const numeroIntl = (brut: string | undefined): string | null => {

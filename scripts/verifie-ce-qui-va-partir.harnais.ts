@@ -24,8 +24,9 @@ import {
 } from '../src/shared/arret-d-avance-pur';
 import { retenuParOpale } from '../src/shared/porte-des-modeles-pur';
 import {
-  JOURS_A_VENIR, arretDit, ceQuiVaPartir, chiffresDesModeles, compteDeCeQuiVaPartir, dernierPassageDePerle, heureDite, lignesDePerleAVenir,
-  messagesDePerle, parJour, peutSeRemettre, quiDit, rappelsDeLaVeille, relancesAVenir, relancesEnService, jourEnTitre,
+  GENRES_PREVUS, JOURS_A_VENIR, arretDit, ceQuiVaPartir, chiffresDesModeles, compteDeCeQuiVaPartir, dejaAuJournal, dernierPassageDePerle,
+  estUnMessageDEssai, genrePrevu, heureDite, lignesDePerleAVenir, messagesDePerle, messagesSansLesEssais, modeleDit, parJour, peutSeRemettre,
+  quiDit, rappelsDeLaVeille, relancesAVenir, relancesEnService, jourEnTitre, sortesAFiltrer,
   type EntreesDeCeQuiVaPartir, type MessagePrevu,
 } from '../src/shared/ce-qui-va-partir-pur';
 import { messagesMetaDuJour } from '../src/shared/conseil-du-matin-pur';
@@ -268,7 +269,7 @@ dit('l ordre des heures tient', true, tout.every((m, i) => i === 0 || tout[i - 1
 const arretee = tout.find((m) => m.cle === 'rappel-j1:r-awa');
 dit('arretee : qui, quand, ce que l ecran dit ; se remet tant que son heure n est pas passee', ['Yéman', 'Ne partira pas · arrêté par Yéman, mercredi 4 novembre 2026 à 21 h 40.', true, false],
   [arretee?.arret?.par, arretDit(arretee?.arret), arretee ? peutSeRemettre(arretee, MAINTENANT) : null, arretee ? peutSeRemettre(arretee, cot('2026-11-05', 18, 11)) : null]);
-dit('le compte de l en-tete', { partiront: 7, arretes: 2, enPause: 1 }, compteDeCeQuiVaPartir(tout));
+dit('le compte de l en-tete', { partiront: 7, arretes: 2, enPause: 1, aVerifier: 0 }, compteDeCeQuiVaPartir(tout));
 const jours = parJour(tout, MAINTENANT);
 dit('sept jours, meme vides, dits avec l annee', [7, 'Aujourd’hui, mercredi 4 novembre 2026', 'Demain, jeudi 5 novembre 2026', 'Mardi 10 novembre 2026', 0],
   [jours.length, jours[0].titre, jours[1].titre, jours[6].titre, jours[0].messages.length]);
@@ -303,6 +304,87 @@ dit('le mot d Opale dans le Conseil du matin', [
   enPause: [{ modele: 'fin_de_paquet', parOpale: true }, { modele: 'Awa Koffi 0197' }],
 }));
 
+/* ══ 9 bis. LA REPRISE DU 8 NOVEMBRE 2026 : tout ce qui attend en salle, le registre des genres,
+   les fiches d'essai ecartees, Opale relit, le prenom d'usage, un modele inconnu compte ══ */
+dit('le registre declare d avance le lot 4 de l abonnement refait : libelle, modele, sorte', [
+  ['Rappel de la veille · l’attention', 'rappel_rdv_attention', 'rdv'], ['Après la séance · prochaine séance', 'prochaine_seance', 'avis'],
+], [
+  [GENRES_PREVUS['veille-attention'].dit, GENRES_PREVUS['veille-attention'].modele, GENRES_PREVUS['veille-attention'].sorte],
+  [GENRES_PREVUS['apres-seance'].dit, GENRES_PREVUS['apres-seance'].modele, GENRES_PREVUS['apres-seance'].sorte],
+]);
+dit('un genre inconnu : son nom technique, la sorte « autre », jamais une erreur ; un genre du journal, son mot', ['genre-neuf', 'autre', 'Déposé dans la salle d’attente.', 'Papier de la pièce, par Grenat'],
+  [genrePrevu('genre-neuf').dit, genrePrevu('genre-neuf').sorte, genrePrevu('genre-neuf').raison({ id: 'x' }), genrePrevu('papier-de-la-piece').dit]);
+dit('les filtres : les quatre sortes de la maquette, « Autre » seulement quand la liste en a', [['rdv', 'avis', 'argent', 'fidelite'], ['rdv', 'avis', 'argent', 'fidelite', 'autre']],
+  [sortesAFiltrer([{ sorte: 'rdv' }]).map(([k]) => k), sortesAFiltrer([{ sorte: 'rdv' }, { sorte: 'autre' }]).map(([k]) => k)]);
+const EN_SALLE_DE_TOUT_GENRE = [
+  { id: 'conf-r-awa-push', type: 'confirmation', canal: 'push', apptId: 'r-awa', clientId: 'c-awa', statut: 'en-attente', dateRdv: '2026-11-06', heure: '14:00', partA: iso(cot('2026-11-05', 8, 10)), colis: { genre: 'push' } },
+  { id: 'paie-ref1-whatsapp', type: 'paie-recue', canal: 'whatsapp', statut: 'en-attente', prenom: 'Nadia', partA: iso(cot('2026-11-05', 9)), colis: { genre: 'whatsapp', modele: 'versement_engagement', texteAuFil: 'Bonjour, la Maison vous a versé votre paie.' } },
+  { id: 'neuf-1', type: 'genre-neuf', canal: 'whatsapp', clientId: 'c-awa', statut: 'retenu', partA: iso(cot('2026-11-05', 9, 30)), colis: { genre: 'whatsapp', modele: 'modele_neuf' } },
+  { id: 'va-r-jade-whatsapp', type: 'veille-attention', canal: 'whatsapp', apptId: 'r-jade', clientId: 'c-jade', statut: 'en-attente', dateRdv: '2026-11-07', heure: '10:00', partA: iso(cot('2026-11-06', 18, 10)), colis: { genre: 'whatsapp', modele: 'rappel_rdv_attention' } },
+  { id: 'env-piece-inv8', type: 'papier-de-la-piece', canal: 'whatsapp', invoiceId: 'inv8', clientId: 'c-hon', statut: 'à-préparer', papier: 'facture', partA: iso(cot('2026-11-05', 10)), colis: { genre: 'whatsapp', modele: 'facture_du_rituel' } },
+  { id: 'sms-r-awa', type: 'rappel-j1', canal: 'sms', apptId: 'r-awa', clientId: 'c-awa', statut: 'en-attente', dateRdv: '2026-11-06', heure: '14:00', partA: iso(cot('2026-11-05', 18, 10)), colis: { genre: 'sms' } },
+  { id: 'gerard-2026-11-05-c-awa-whatsapp', type: 'gerard', genre: 'garder', canal: 'whatsapp', apptId: 'r-awa', clientId: 'c-awa', statut: 'en-attente', dateRdv: '2026-11-06', heure: '14:00', partA: iso(cot('2026-11-05', 8, 10)), colis: { genre: 'whatsapp', modele: 'assistant_maison_garder' } },
+  { id: 'parti-1', type: 'confirmation', canal: 'whatsapp', apptId: 'r-x', clientId: 'c-awa', statut: 'envoyé', partA: iso(cot('2026-11-05', 8, 10)), colis: { genre: 'whatsapp', modele: 'confirmation_rdv' } },
+];
+dit('la salle, quel que soit le genre : notification, paie, genre inconnu, lot 4, papier de Grenat, SMS, Perle (le modele dit mieux) ; ce qui est parti n y est pas', [
+  ['confirmation:r-awa', 'Confirmation du rendez-vous · Ma Couronne', '', 'rdv', 'Son rendez-vous du vendredi 6 novembre 2026 à 14 h.', 'c-awa', null, 'en-salle'],
+  ['ligne:paie-ref1-whatsapp', 'Paie versée (équipe)', 'versement_engagement', 'autre', 'Sa paie est partie : lui demander s’il l’a bien reçue.', '', 'Nadia', 'en-salle'],
+  ['ligne:neuf-1', 'genre-neuf', 'modele_neuf', 'autre', 'Déposé dans la salle d’attente.', 'c-awa', null, 'en-salle'],
+  ['ligne:va-r-jade-whatsapp', 'Rappel de la veille · l’attention', 'rappel_rdv_attention', 'rdv', 'Son rendez-vous du samedi 7 novembre 2026 à 10 h ; une attention l’y attend.', 'c-jade', null, 'en-salle'],
+  ['papier:inv8', 'Papier de la pièce, par Grenat', 'facture_du_rituel', 'argent', 'Sa facture à régler, préparée par Grenat.', 'c-hon', null, 'en-salle'],
+  ['rappel-j1:r-awa', 'Rappel de la veille · SMS', '', 'rdv', 'Son rendez-vous du vendredi 6 novembre 2026 à 14 h.', 'c-awa', null, 'en-salle'],
+  ['garder:r-awa', 'Petit rappel, deux jours avant', 'assistant_maison_garder', 'rdv', 'L’Assistant Maison.', 'c-awa', null, 'en-salle'],
+], dejaAuJournal(base({ envois: EN_SALLE_DE_TOUT_GENRE })).map((m) => [m.cle, m.modeleDit, m.modele, m.sorte, m.raison, m.clientId, m.qui ?? null, m.etat]));
+dit('a l ecran, qui recoit sans fiche : le prenom de la ligne, en initiale pour l equipe', ['Nadia', 'N.'], [quiDit('Nadia', true), quiDit('Nadia', false)]);
+/* Les fiches d'essai : par la fiche (Eve), par le rendez-vous (celui d'Awa). */
+const ESSAIS = { fiches: new Set(['c-eve']), rdvs: new Set(['r-awa']) };
+const sansEssais = ceQuiVaPartir(base({
+  envois: [...JOURNAL, SALLE, PARTIE],
+  relances: { enService: true, reglages: REGLAGES.relances, pieces: [facture('inv-1', 'c-awa', '2026-11-04'), facture('inv-2', 'c-eve', '2026-11-07')], familles: [], resteDe: () => 10000 },
+  perle: PERLE, essais: ESSAIS,
+}));
+dit('les fiches d essai n y sont pas : ni le rappel d Eve, ni sa carte, ni sa relance, ni le rendez-vous d essai d Awa', [
+  'confirmation:r-x', 'garder:r-g', 'relance:inv-1:1', 'perle:envie:c-awa:2026-11-06', 'rappel-j1:r-jade', 'relance:inv-1:2',
+], sansEssais.map((m) => m.cle));
+dit('... la regle, seule : la fiche, une tete du foyer, le rendez-vous ; rien sans essais declares', [true, true, true, false, false], [
+  estUnMessageDEssai({ clientId: 'c-eve' }, ESSAIS), estUnMessageDEssai({ clientId: 'c-jade', clientIds: ['c-eve'] }, ESSAIS), estUnMessageDEssai({ clientId: 'c-awa', apptId: 'r-awa' }, ESSAIS),
+  estUnMessageDEssai({ clientId: 'c-awa', apptId: 'r-jade' }, ESSAIS), estUnMessageDEssai({ clientId: 'c-eve' }, undefined)]);
+dit('le fil sans les fiches d essai : par la fiche, ou par son numero ecrit autrement', ['wa-ok'], messagesSansLesEssais([
+  { id: 'wa-ok', sens: 'sortant', modele: 'rappel_rdv', numero: '22901970000001' },
+  { id: 'wa-fiche', sens: 'sortant', modele: 'rappel_rdv', clientId: 'c-eve' },
+  { id: 'wa-numero', sens: 'sortant', modele: 'rappel_rdv', numero: '+229 01 97 00 00 06' },
+], [{ id: 'c-eve', phone: '0197000006' }]).map((m) => m.id));
+/* Opale relit : le rendez-vous d'une ligne en salle, la confirmation deja recue, le meme modele depuis moins de 20 h. */
+const DOUTES = [
+  { id: 'env-r-awa-whatsapp', type: 'rappel-j1', canal: 'whatsapp', apptId: 'r-awa', clientId: 'c-awa', statut: 'en-attente', dateRdv: '2026-11-05', heure: '14:00', partA: iso(cot('2026-11-05', 18, 10)), colis: { genre: 'whatsapp', modele: 'rappel_rdv' } },
+  { id: 'env-r-conf-whatsapp', type: 'rappel-j1', canal: 'whatsapp', apptId: 'r-conf', clientId: 'c-conf', statut: 'en-attente', dateRdv: '2026-11-08', heure: '11:00', partA: iso(cot('2026-11-07', 18, 10)), colis: { genre: 'whatsapp', modele: 'rappel_rdv' } },
+  { id: 'conf-r-annule-whatsapp', type: 'confirmation', canal: 'whatsapp', apptId: 'r-annule', clientId: 'c-awa', statut: 'en-attente', dateRdv: '2026-11-08', heure: '09:00', partA: iso(cot('2026-11-05', 8, 10)), colis: { genre: 'whatsapp', modele: 'confirmation_rdv' } },
+  { id: 'env-r-jade2-whatsapp', type: 'rappel-j1', canal: 'whatsapp', apptId: 'r-jade2', clientId: 'c-jade', statut: 'envoyé', quand: iso(cot('2026-11-06', 16)), colis: { genre: 'whatsapp', modele: 'rappel_rdv' } },
+];
+const doutes = ceQuiVaPartir(base({ envois: [...JOURNAL, ...DOUTES] }));
+const douteDe = (cle: string) => doutes.find((m) => m.cle === cle)?.aVerifier ?? null;
+dit('Opale relit : le rendez-vous a bouge, elle a deja confirme, le rendez-vous ne tient plus, le meme modele parti depuis moins de 20 h ; rien sur les autres', [
+  'le rendez-vous a bougé : vendredi 6 novembre 2026 à 14 h', 'elle a déjà confirmé sa venue', 'le rendez-vous ne tient plus (annulé)', 'le même modèle lui est parti depuis moins de 20 h', null,
+], [douteDe('rappel-j1:r-awa'), douteDe('rappel-j1:r-conf'), douteDe('confirmation:r-annule'), douteDe('rappel-j1:r-jade'), douteDe('rappel-j1:r-echec')]);
+dit('... un doute n arrete rien : la ligne reste prevue ou en salle, et l en-tete les compte', [['en-salle', 'prevu'], 4],
+  [[doutes.find((m) => m.cle === 'rappel-j1:r-awa')?.etat, doutes.find((m) => m.cle === 'rappel-j1:r-jade')?.etat], compteDeCeQuiVaPartir(doutes).aVerifier]);
+/* Le prenom d'usage (7 novembre 2026), note ou devine, en entier. */
+const FICHES_PRENOM = [
+  { id: 'c-am', name: 'Anne Marie Dossou', prenomUsage: 'Anne-Marie', civilite: 'madame', phone: '0197000011' },
+  { id: 'c-mg', name: 'Marie Gisèle Koffi', civilite: 'madame', phone: '0197000012' },
+];
+const RDVS_PRENOM = [
+  { id: 'r-am', clientId: 'c-am', date: '2026-11-06', time: '09:00', status: 'confirmé' },
+  { id: 'r-mg', clientId: 'c-mg', date: '2026-11-06', time: '11:00', status: 'confirmé' },
+];
+dit('le prenom d usage, note ou devine, ecrit en entier dans le rappel', [
+  'Bonjour Mme Anne-Marie, petit rappel de la maison : votre rendez-vous est prévu demain à 9 h.',
+  'Bonjour Mme Marie Gisèle, petit rappel de la maison : votre rendez-vous est prévu demain à 11 h.',
+], rappelsDeLaVeille(base({ fiches: FICHES_PRENOM, rdvs: RDVS_PRENOM, envois: [] })).map((m) => m.texte));
+/* Un modele que le code ne connait pas encore se compte depuis le fil, sous son nom. */
+dit('un modele inconnu du code se compte depuis le fil, sous son nom technique', [['modele_inconnu_du_code', 1, 'modele_inconnu_du_code']],
+  chiffresDesModeles([{ sens: 'sortant', modele: 'modele_inconnu_du_code', etat: 'remis', quand: '2026-11-04T10:00:00Z' }], MAINTENANT).map((l) => [l.modele, l.envoyes, modeleDit(l.modele)]));
+
 /* ══ 10. LE FACTEUR (envois-partent), lu a ses ancres ══ */
 const EP = 'supabase/functions/envois-partent/index.ts';
 const ep = source(EP);
@@ -321,8 +403,8 @@ dit('Opale met en pause au 5e non remis de suite, depuis sa reprise', [true, tru
   ep.includes("const pause: PauseDuModele = { id: m, modele: m, enPause: true, par: 'Opale', le: new Date().toISOString(), parOpale: true,"),
   ep.includes('const depuis = Math.max(Date.now() - VEILLE_DES_NON_REMIS_MS, Number.isFinite(reprise) ? reprise : 0);'),
 ]);
-dit('une table encore absente (0158 pas passee) laisse porter comme avant', true, ep.includes("e.code === '42P01' || e.code === 'PGRST205'"));
-dit('la version du facteur le dit', true, /const VERSION = '2026-11-05-a [^']*ce qui va partir : arrêté d’avance, modèle en pause/.test(ep));
+dit('une table encore absente (0197 pas passee) laisse porter comme avant', true, ep.includes("e.code === '42P01' || e.code === 'PGRST205'"));
+dit('la version du facteur le dit', true, /const VERSION = '2026-11-11-a [^']*ce qui va partir : arrêté d’avance, modèle en pause/.test(ep));
 
 /* ══ 11. CHAQUE FONCTION QUI DEPOSE : la copie, la lecture, le geste avant la salle ══ */
 const BLOC = '/* ⟨arret-d-avance⟩ */';
@@ -353,8 +435,8 @@ for (const [f, geste, ecrit] of DEPOSANTES) {
   ]);
 }
 
-/* ══ 12. LA MIGRATION 0158 ══ */
-const SQL = source('supabase/migrations/0158_ce_qui_va_partir.sql');
+/* ══ 12. LA MIGRATION 0197 (0158 le 5 novembre 2026, renumerotee a la reprise du 8 novembre 2026) ══ */
+const SQL = source('supabase/migrations/0197_ce_qui_va_partir.sql');
 for (const t of ['envois_arretes', 'modeles_en_pause']) {
   dit(`${t} : sous RLS, lue par le personnel, ecrite par la direction seule, jamais effacee`, [true, true, true, true, true, false], [
     SQL.includes(`alter table public.${t} enable row level security;`),
@@ -383,6 +465,31 @@ const MM = source('src/apps/trone/routes/clients/ModelesMeta.tsx');
 dit('les modeles : l interrupteur et « Reprendre chez Meta » a la direction seule ; l etat lu par la fonction', [true, true, true], [
   MM.includes('{direction ? ( <button'), MM.includes('{meta && direction && repriseChezMetaPossible(meta.etat) && ('),
   MM.includes("sb.functions.invoke('modeles-meta', { body: { geste: 'lire' } })"),
+]);
+/* La reprise du 8 novembre 2026, a l'ecran et a la prise. */
+dit('A venir : les filtres par la regle, le doute d Opale dit en cuivre, le prenom de la ligne sans fiche', [true, true, true], [
+  AV.includes('const sortes = sortesAFiltrer(liste);'),
+  AV.includes('{m.aVerifier && <span className="trc-avenir__opale">Opale : à vérifier · {m.aVerifier}.</span>}'),
+  AV.includes("return noms.join(', ') || (m.qui ? quiDit(m.qui, direction) : 'Une cliente');"),
+]);
+dit('les modeles : le fil sans les fiches d essai, les modeles declares d avance a zero', [true, true], [
+  MM.includes('chiffresDesModeles(messagesSansLesEssais(messages, essais), maintenantMs, connus)'),
+  MM.includes('...REGISTRE_DES_MODELES.flatMap((e) => e.modeles), ...Object.keys(MODELES_CONNUS)'),
+]);
+const DN = source('src/apps/trone/routes/clients/ce-qui-va-partir-donnees.ts');
+const GD = source('src/apps/trone/routes/clients/gerard-donnees.ts');
+dit('la prise : les pieces par la porte de la Maison, les essais nommes a la regle ; Perle rejouee lit tout, comme au serveur', [true, true, true, true], [
+  DN.includes('const [factures] = usePiecesDeLaMaison();'),
+  DN.includes('rdvs: new Set(avecEssais.filter((a) => estUnRdvDEssai(a, parId)).map((a) => a.id)),'),
+  DN.includes('arrets, pauses, essais, };'),
+  /export function useEntreesDeLAssistant\(\): EntreesSansLeJour \{ const \{ branch \} = useBranch\(\); const appts = useBranchAppointmentsAvecEssais\(\);/.test(GD),
+]);
+const CSS = brut('src/apps/trone/routes/clients/clients.css');
+const blocCss = CSS.slice(CSS.indexOf('/* CE QUI VA PARTIR (5 novembre 2026)'), CSS.indexOf('.trc-avenir__texte, .trc-avenir__dit { grid-column: 1 / -1; }'));
+const BRIQUE = /--color-brique|--brique-faible|#96412E|#FBF0ED/i;
+dit('indigo et cuivre seulement : plus de brique dans les styles de l onglet ni dans ses ecrans ; le doute en cuivre', [false, false, false, true], [
+  BRIQUE.test(blocCss), BRIQUE.test(brut('src/apps/trone/routes/clients/AVenir.tsx')), BRIQUE.test(brut('src/apps/trone/routes/clients/ModelesMeta.tsx')),
+  blocCss.length > 1000 && blocCss.includes('.trc-avenir__opale { display: block; font-size: 12.5px; color: var(--copper-700, #7C4C2C); font-weight: 500; }'),
 ]);
 const FM = source('supabase/functions/modeles-meta/index.ts');
 dit('modeles-meta : lit chez Meta, reprend pour la direction seule, ne rend jamais le jeton', [true, true, true, false], [

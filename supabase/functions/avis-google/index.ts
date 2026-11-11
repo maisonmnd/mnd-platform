@@ -265,7 +265,7 @@ const numeroIntl = (brut: string | undefined): string | null => {
   return d;
 };
 
-const VERSION = '2026-11-05-a · ce qui va partir : une demande arrêtée d’avance, ou d’un modèle en pause, ne se dépose pas ; M. et Mme devant le prénom';
+const VERSION = '2026-11-11-a · ce qui va partir : une demande arrêtée d’avance, ou d’un modèle en pause, ne se dépose pas ; M. et Mme devant le prénom';
 /* ══ ARRÊTÉ D'AVANCE, MODÈLE EN PAUSE — 5 novembre 2026 (ce qui va partir) ══
    « Ne pas envoyer » (la direction, depuis l'onglet « À venir ») et
    l'interrupteur « En service / En pause » d'un modèle. Recopié À

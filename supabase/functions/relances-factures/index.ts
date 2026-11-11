@@ -85,7 +85,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const TZ = 'Africa/Porto-Novo'; // le fuseau du salon, pas celui du serveur
 
 /** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-11-08-a · ce qui va partir : une relance arrêtée d’avance, ou d’un modèle en pause, ne se dépose pas ; jamais une relance le dimanche, elle passe au lundi';
+const VERSION = '2026-11-11-a · ce qui va partir : une relance arrêtée d’avance, ou d’un modèle en pause, ne se dépose pas ; jamais une relance le dimanche, elle passe au lundi ; une séance manquée ne se perd pas : le prorata ne compte que les faites';
 
 /** Numéro béninois → format international sans « + » (copie de rappels-j1). */
 const numeroIntl = (brut: string | undefined): string | null => {

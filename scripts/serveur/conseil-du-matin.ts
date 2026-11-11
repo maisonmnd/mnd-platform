@@ -37,8 +37,8 @@ declare const Deno: {
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-/* 2026-11-05-a : ce qui va partir, le mot d'Opale (les rappels du soir, ce qu'elle a retenu, les modèles en pause). */
-const VERSION = '2026-11-05-a';
+/* 2026-11-11-a : ce qui va partir (reprise du chantier du 5 novembre 2026) : le mot d'Opale (les rappels du soir, ce qu'elle a retenu, les modèles en pause). */
+const VERSION = '2026-11-11-a';
 const ADRESSE = '/trone/#/assistants';
 const ETIQUETTE = 'mnd-conseil';
 /** Un appel à push-notify ne pend jamais au-delà. */

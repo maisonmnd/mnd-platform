@@ -16,7 +16,7 @@
         direction seule : souverain ou gérant) : demande à Meta de reprendre
         un modèle QUE META A MIS EN PAUSE (POST /{id}/unpause). Meta ne
         permet pas à une entreprise de mettre elle-même un modèle en pause :
-        la pause « chez nous » vit au Trône (`modeles_en_pause`, 0158) et la
+        la pause « chez nous » vit au Trône (`modeles_en_pause`, 0197) et la
         porte d'Opale la fait respecter ; elle ne passe pas par ici.
    LE JETON META NE QUITTE JAMAIS LE SERVEUR : le Trône ne voit que la liste.
 
@@ -29,7 +29,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const VERSION = '2026-11-05-a · l’état des modèles chez Meta, lu ; reprendre un modèle que Meta a mis en pause, par la direction seule';
+const VERSION = '2026-11-11-a · l’état des modèles chez Meta, lu ; reprendre un modèle que Meta a mis en pause, par la direction seule';
 const GRAPH = 'https://graph.facebook.com/v20.0';
 const APPEL_MAX_MS = 10_000;
 const PAGES_AU_PLUS = 10;

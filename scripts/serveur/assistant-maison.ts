@@ -35,9 +35,9 @@ declare const Deno: {
 
 /* 30-a (30 octobre 2026) : le SÍNSIN™ se dit « Reprise des racines »
    (shared/gestes-en-francais), rien d'autre. */
-/* 2026-11-05-a : ce qui va partir, une ligne arrêtée d'avance ou d'un modèle en pause s'écrit « écarté » ou « périmé ». */
+/* 2026-11-11-a : ce qui va partir (reprise du chantier du 5 novembre 2026) : une ligne arrêtée d'avance ou d'un modèle en pause s'écrit « écarté » ou « périmé ». */
 /* 2026-11-02-b : « garder » dès J-3 pour toutes (de passage, diaspora, locks défaits ; l'enfant par son parent), choix de Yéman au sélecteur. */
-const VERSION = '2026-11-05-a';
+const VERSION = '2026-11-11-a';
 
 type Ligne = { id: string; branch_id?: string | null; data: Record<string, unknown> };
 // deno-lint-ignore no-explicit-any

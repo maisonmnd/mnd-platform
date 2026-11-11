@@ -12,7 +12,11 @@
    permet pas à une entreprise de mettre elle-même un modèle en pause : la
    pause vit chez nous ; quand Meta en a mis un en pause, « Reprendre chez
    Meta » le relance. Opale signale un modèle au deuxième « non remis » de
-   suite et le met en pause au cinquième. */
+   suite et le met en pause au cinquième.
+
+   REPRISE DU 8 NOVEMBRE 2026 : un modèle que le code ne connaît pas encore
+   paraît quand même, compté depuis le fil, sous son nom technique ; les
+   messages des fiches d'essai ne se comptent pas ; cuivre, plus de brique. */
 
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth, useMaTete } from '../../../../shared/auth';
@@ -22,10 +26,11 @@ import { basculeLeModele, usePauses } from '../../../../shared/arrets-d-avance';
 import { REGISTRE_DES_MODELES } from '../../../../shared/porte-des-modeles-pur';
 import { NON_REMIS_EN_PAUSE_AU, NON_REMIS_SIGNALE_AU } from '../../../../shared/arret-d-avance-pur';
 import {
-  MODELES_CONNUS, QUALITE_DITE, chiffresDesModeles, etatMetaDit, jourDeCotonou, modeleDit, repriseChezMetaPossible,
+  MODELES_CONNUS, QUALITE_DITE, chiffresDesModeles, etatMetaDit, jourDeCotonou, messagesSansLesEssais, modeleDit, repriseChezMetaPossible,
 } from '../../../../shared/ce-qui-va-partir-pur';
 import { jourDit } from '../../../../shared/gerard-pur';
 import { useEstDirection } from '../_vie';
+import { useFichesDEssai } from './ce-qui-va-partir-donnees';
 
 type ModeleChezMeta = { id: string; nom: string; etat: string; categorie?: string; qualite?: string; motifDuRefus?: string };
 type LectureMeta = { lusLe?: string; modeles: ModeleChezMeta[]; erreur?: string };
@@ -65,6 +70,7 @@ export function ModelesMeta() {
   const direction = useEstDirection();
   const [messages] = useMessagesWa();
   const [pauses] = usePauses();
+  const essais = useFichesDEssai();
   const { lecture, relis, enCours } = useEtatChezMeta();
   const [mot, setMot] = useState('');
   const maintenantMs = Date.now();
@@ -72,15 +78,17 @@ export function ModelesMeta() {
     || (session?.user?.email ?? '').split('@')[0] || 'la direction';
 
   const chezMeta = useMemo(() => new Map((lecture?.modeles ?? []).map((m) => [m.nom, m])), [lecture]);
-  /* Les approuvés jamais partis paraissent à zéro : ceux de Meta quand on les lit, sinon ceux que le code connaît. */
+  /* Les approuvés jamais partis paraissent à zéro : ceux de Meta quand on les lit, sinon ceux que le code connaît
+     (le registre de la porte d'Opale et les modèles déclarés d'avance, 8 novembre 2026). */
   const connus = useMemo(() => {
     const deMeta = (lecture?.modeles ?? []).filter((m) => m.etat === 'APPROVED' || m.etat === 'PAUSED').map((m) => m.nom);
     if (deMeta.length) return deMeta;
-    return [...new Set(REGISTRE_DES_MODELES.flatMap((e) => e.modeles))];
+    return [...new Set([...REGISTRE_DES_MODELES.flatMap((e) => e.modeles), ...Object.keys(MODELES_CONNUS)])];
   }, [lecture]);
-  const lignes = useMemo(() => chiffresDesModeles(messages as never, maintenantMs, connus),
+  /* Lu du fil, sans les fiches d'essai (8 novembre 2026) ; un modèle inconnu du code se compte sous son nom. */
+  const lignes = useMemo(() => chiffresDesModeles(messagesSansLesEssais(messages, essais), maintenantMs, connus),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-    [messages, connus]);
+    [messages, connus, essais]);
   const pauseDe = useMemo(() => new Map(pauses.filter((p) => p.enPause === true).map((p) => [p.modele, p])), [pauses]);
   const moisDit = MOIS[Number(jourDeCotonou(maintenantMs).slice(5, 7)) - 1] ?? 'ce mois';
   const signales = lignes.filter((l) => l.veille !== 'rien');
@@ -156,7 +164,7 @@ export function ModelesMeta() {
                       </span>
                     )}
                     {!pause && l.veille === 'signale' && (
-                      <span style={{ display: 'block', fontSize: 11.5, color: 'var(--color-brique, #96412E)' }}>Opale : {l.serie} non remis de suite</span>
+                      <span style={{ display: 'block', fontSize: 11.5, color: 'var(--copper-700)' }}>Opale : {l.serie} non remis de suite</span>
                     )}
                   </td>
                 </tr>
@@ -177,6 +185,7 @@ export function ModelesMeta() {
             {(lecture?.modeles ?? []).length > 0 ? 'Approuvés chez Meta' : 'Connus du code (l’état chez Meta n’est pas lu)'}, jamais encore partis : {jamais.map((l) => l.modele).join(', ')}.
           </p>
         )}
+        {essais.length > 0 && <p style={{ margin: 0 }}>Les messages des fiches d’essai ne sont pas comptés.</p>}
         <p style={{ margin: 0 }}>
           En pause chez nous, plus rien ne part avec ce modèle, d’aucune porte : la porte d’Opale le refuse ; la confirmation à liens part alors sous l’ancien modèle.
           Meta ne permet pas à une entreprise de mettre elle-même un modèle en pause : seul Meta le fait, quand la qualité baisse ; « Reprendre chez Meta » le relance.

@@ -29,6 +29,15 @@ export const COPIES = [
   { bloc: 'billet-regle', source: 'src/shared/billet-regle-pur.ts', cibles: [FONCTION] },
   /* Déplacer depuis le site (7 novembre 2026) : la règle des 24 heures, jugée par demande-submit. */
   { bloc: 'deplacer-du-site', source: 'src/shared/deplacer-du-site-pur.ts', cibles: ['supabase/functions/demande-submit/index.ts'] },
+  /* Ce qui va partir (5 novembre 2026, repris le 8) : la clé d'un message, l'arrêt
+     d'avance, la pause d'un modèle et la veille d'Opale, dans le facteur et
+     chaque fonction qui dépose. « Contrôler chaque message qui part, à qui, et
+     pouvoir arrêter le message au besoin » (Yéman). */
+  { bloc: 'arret-d-avance', source: 'src/shared/arret-d-avance-pur.ts', cibles: [
+    'supabase/functions/envois-partent/index.ts', 'supabase/functions/rappels-j1/index.ts', 'supabase/functions/confirmation-rdv/index.ts',
+    'supabase/functions/avis-google/index.ts', 'supabase/functions/relances-factures/index.ts', 'supabase/functions/rappels-d-echeance/index.ts',
+    'supabase/functions/fete-de-couronne/index.ts',
+  ] },
 ];
 
 const lf = (s) => s.replace(/\r\n/g, '\n');

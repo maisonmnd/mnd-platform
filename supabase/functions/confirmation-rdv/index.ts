@@ -133,7 +133,7 @@ const confirmationEstNeuve = (
 /** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-05-a · ce qui va partir : une confirmation arrêtée d’avance, ou d’un modèle en pause, ne part pas ; le modèle à liens en pause, l’ancien part à sa place ; un message par foyer, qui nomme chaque tête ; un périmé retenu par Opale ne se redépose pas';
+const VERSION = '2026-11-11-a · ce qui va partir : une confirmation arrêtée d’avance, ou d’un modèle en pause, ne part pas ; le modèle à liens en pause, l’ancien part à sa place ; un message par foyer, qui nomme chaque tête ; un périmé retenu par Opale ne se redépose pas';
 
 /* LE LIEN DU RENDEZ-VOUS — 3 novembre 2026. Bloc RECOPIÉ tel quel de
    `src/shared/lien-du-rdv-pur.ts` (ses choix y sont écrits) ;

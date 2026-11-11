@@ -1,5 +1,6 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- 0158 · CE QUI VA PARTIR — 5 novembre 2026
+-- 0197 · CE QUI VA PARTIR — 5 novembre 2026 (écrite 0158 ce jour-là ; renumérotée
+-- 0197 le 8 novembre 2026 à la reprise du chantier : 0158 avait été pris entre-temps)
 --
 -- « Est-ce possible d'avoir tous les modèles Meta qui doivent partir pour le
 -- Trône, quelque part dans le Trône, pour qu'on puisse contrôler chaque

@@ -1610,7 +1610,7 @@ async function litLesArretsEtLesPauses(sb) {
 }
 
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-11-05-a";
+var VERSION = "2026-11-11-a";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {

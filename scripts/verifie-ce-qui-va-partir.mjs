@@ -27,11 +27,14 @@ const RF = 'supabase/functions/relances-factures/index.ts';
 const RE = 'supabase/functions/rappels-d-echeance/index.ts';
 const FC = 'supabase/functions/fete-de-couronne/index.ts';
 const AM = 'supabase/functions/assistant-maison/index.ts';
-const SQL = 'supabase/migrations/0158_ce_qui_va_partir.sql';
+const SQL = 'supabase/migrations/0197_ce_qui_va_partir.sql';
 const AV = 'src/apps/trone/routes/clients/AVenir.tsx';
 const EA = 'src/apps/trone/routes/clients/EnvoisAutomatiques.tsx';
 const MM = 'src/apps/trone/routes/clients/ModelesMeta.tsx';
 const FM = 'supabase/functions/modeles-meta/index.ts';
+const DN = 'src/apps/trone/routes/clients/ce-qui-va-partir-donnees.ts';
+const GD = 'src/apps/trone/routes/clients/gerard-donnees.ts';
+const CSS = 'src/apps/trone/routes/clients/clients.css';
 
 const PANNES = [
   /* La cle */
@@ -101,6 +104,18 @@ const PANNES = [
   { nom: 'le jeton Meta rendu au Trone', fichier: FM, avant: 'return json({ version: VERSION, lusLe, modeles });', apres: 'return json({ version: VERSION, lusLe, modeles, jeton: WA_TOKEN });' },
   /* Les mots */
   { nom: 'un tiret long a l ecran', fichier: AV, avant: '>Rien de prévu.<', apres: '>Rien de prévu — vraiment.<' },
+  /* La reprise du 8 novembre 2026 */
+  { nom: 'les fiches d essai paraissent', fichier: C, avant: '    .filter((m) => !estUnMessageDEssai(m, e.essais))\n', apres: '' },
+  { nom: 'le doute d Opale se tait', fichier: C, avant: 'return doute ? { ...m, aVerifier: doute } : m;', apres: 'return m;' },
+  { nom: 'un genre inconnu fait planter la liste', fichier: C, avant: "  return GENRES_PREVUS[t] ?? { dit: TYPE_DIT[t] ?? (t || 'Message'), sorte: 'autre', raison: () => 'Déposé dans la salle d’attente.' };", apres: '  return GENRES_PREVUS[t];' },
+  { nom: 'la salle ne montre que les WhatsApp', fichier: C, avant: "    const enSalle = ATTEND_ENCORE.has(String(l.statut ?? ''));", apres: "    const enSalle = ATTEND_ENCORE.has(String(l.statut ?? '')) && l.colis?.genre === 'whatsapp';" },
+  { nom: 'le lot 4 oublie du registre', fichier: C, avant: "  'veille-attention': { dit: 'Rappel de la veille · l’attention'", apres: "  'veille-attention-x': { dit: 'Rappel de la veille · l’attention'" },
+  { nom: 'le fil compte les essais par leur numero', fichier: C, avant: '  const numeros = new Set(fichesDEssai.map((f) => numeroWa(f.phone)).filter(Boolean));\n  return messages.filter((m): m is M => !!m && !(m.clientId && ids.has(m.clientId)) && !(m.numero && numeros.has(numeroWa(m.numero))));', apres: '  return messages.filter((m): m is M => !!m && !(m.clientId && ids.has(m.clientId)));' },
+  { nom: 'le prenom d usage ignore', fichier: C, avant: 'appel: appelDe((fiche ?? null) as Parameters<typeof appelDe>[0], a.clientName)', apres: 'appel: `Mme ${prenomDeLaTete(fiche?.name ?? a.clientName)}`' },
+  { nom: 'le filtre Autre toujours la', fichier: C, avant: ".filter(([k]) => k !== 'autre' || liste.some((m) => m.sorte === 'autre'));", apres: ';' },
+  { nom: 'la prise lit les factures d essai', fichier: DN, avant: 'const [factures] = usePiecesDeLaMaison();', apres: 'const [factures] = useInvoices();' },
+  { nom: 'Perle rejouee sans les essais (elle ne dirait plus ce que dit le serveur)', fichier: GD, avant: 'export function useEntreesDeLAssistant(): EntreesSansLeJour {\n  const { branch } = useBranch();\n  const appts = useBranchAppointmentsAvecEssais();', apres: 'export function useEntreesDeLAssistant(): EntreesSansLeJour {\n  const { branch } = useBranch();\n  const appts = useBranchAppointments();' },
+  { nom: 'la brique revient', fichier: CSS, avant: '.trc-avenir__dit { grid-column: 2 / -1; font-size: 12.5px; color: var(--copper-700, #7C4C2C); margin: 0; }', apres: '.trc-avenir__dit { grid-column: 2 / -1; font-size: 12.5px; color: var(--color-brique, #96412E); margin: 0; }' },
 ];
 
 const md5 = (rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');

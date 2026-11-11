@@ -30,12 +30,31 @@
    que le facteur lira sur la ligne en salle. « Ne pas envoyer » arrête cette
    clé ; la porte d'Opale et chaque fonction qui dépose la lisent.
 
+   REPRISE DU 8 NOVEMBRE 2026 (« construis aussi Ce qui va partir », Yéman) :
+     · TOUT CE QUI ATTEND EN SALLE paraît, quel que soit son genre (un WhatsApp
+       avec son modèle, une notification Ma Couronne, un SMS, la paie versée
+       à un membre de l'équipe) : un genre inconnu paraît sous son nom
+       technique, jamais une erreur. Le registre `GENRES_PREVUS` est le point
+       d'extension : un genre neuf s'y déclare (libellé, modèle, raison) sans
+       toucher au reste ; les deux genres du lot 4 de l'abonnement refait
+       (`veille-attention`, `apres-seance`) y sont déjà déclarés ;
+     · LES FICHES D'ESSAI (essai-pur, 7 novembre 2026) : leurs messages ne se
+       montrent pas et ne se comptent pas ici (ils partent bien chez ELLE, la
+       chaîne d'essai lit tout) ;
+     · OPALE RELIT chaque message prévu (maquette, § 3) : le rendez-vous d'une
+       ligne en salle qui a bougé ou ne tient plus, la cliente qui a déjà
+       confirmé, le même modèle parti depuis moins de vingt heures. Un doute
+       se dit en cuivre « Opale : à vérifier », avec sa raison ; l'erreur sûre
+       est retenue par la porte d'Opale au serveur, comme avant.
+
    Module PUR : ni Supabase, ni DOM, ni horloge (l'heure se donne). */
 import { DECALAGE_DU_SALON_H, heureDeDepart, heureDuMessage, type ReglesDeLaSalle } from './salle-des-envois';
 import { rappelDeLaVeilleSeTait, type HeuresDesRappels } from './heures-des-rappels-pur';
 import { appelDuFoyer, foyersAPrevenir, prenomDeLaTete, tetesNommees, type TeteAPrevenir } from './message-du-foyer-pur';
 import { telDuRdv } from './numero-a-prevenir-pur';
 import { numeroWa } from './numero-wa-pur';
+import { JAMAIS_DEUX_FOIS_MS } from './porte-des-modeles-pur';
+import { CANAL_DIT, TYPE_DIT } from './envois';
 import { appelDe } from './civilite';
 import { jourDit } from './gerard-pur';
 import {
@@ -79,9 +98,13 @@ export function jourEnTitre(jour: string, aujourdhui: string): string {
 }
 
 /* ── CE QUE L'ÉCRAN MONTRE D'UN MESSAGE ─────────────────────────────────── */
-export type SorteDeMessage = 'rdv' | 'avis' | 'argent' | 'fidelite';
+/** Les quatre sortes de la maquette ; « autre » (8 novembre 2026) pour ce qui
+    n'est pas un message à une cliente (la paie d'un membre de l'équipe, un
+    genre que le code ne connaît pas encore) : l'écran ne montre ce filtre que
+    s'il a quelque chose à filtrer. */
+export type SorteDeMessage = 'rdv' | 'avis' | 'argent' | 'fidelite' | 'autre';
 export const SORTES_DITES: Record<SorteDeMessage, string> = {
-  rdv: 'Rendez-vous', avis: 'Après la séance', argent: 'Argent', fidelite: 'Fidélité',
+  rdv: 'Rendez-vous', avis: 'Après la séance', argent: 'Argent', fidelite: 'Fidélité', autre: 'Autre',
 };
 
 /** CHAQUE MODÈLE META QUE LE CODE CONNAÎT : son nom lisible, à quoi il sert, sa sorte. */
@@ -118,9 +141,81 @@ export const MODELES_CONNUS: Record<string, { dit: string; sert: string; sorte: 
   assistant_maison_fetes: { dit: 'Les fêtes', sert: 'Les fêtes de fin d’année', sorte: 'fidelite' },
   assistant_maison_endormie: { dit: 'Une cliente endormie', sert: 'Une cliente qui n’est pas revenue', sorte: 'fidelite' },
   nouvelles_de_la_maison: { dit: 'Nouvelles de la Maison', sert: 'Les nouvelles de la Maison', sorte: 'fidelite' },
+  /* 8 novembre 2026 : la paie sur WhatsApp (paie-mtn, 0165) et le point du compte. */
+  bulletin_du_mois: { dit: 'Bulletin de paie', sert: 'Le bulletin de paie du mois, à un membre de l’équipe', sorte: 'autre' },
+  point_du_compte: { dit: 'Point du compte', sert: 'Le point du compte d’une famille', sorte: 'argent' },
+  /* 8 novembre 2026 : les deux modèles du lot 4 de l'abonnement refait (en construction à part). */
+  rappel_rdv_attention: { dit: 'Rappel de la veille · l’attention', sert: 'Le rappel de la veille quand une attention l’attend', sorte: 'rdv' },
+  prochaine_seance: { dit: 'Après la séance · prochaine séance', sert: 'Après la séance, proposer la prochaine', sorte: 'avis' },
 };
 export const modeleDit = (nom: string): string => MODELES_CONNUS[nom]?.dit ?? nom;
 export const sorteDuModele = (nom: string, repli: SorteDeMessage = 'fidelite'): SorteDeMessage => MODELES_CONNUS[nom]?.sorte ?? repli;
+
+/* ── LE REGISTRE DES GENRES PRÉVUS (point d'extension, 8 novembre 2026) ───
+   Chaque `type` d'une ligne de la salle d'attente : son libellé lisible, le
+   modèle Meta attendu (quand la ligne n'en porte pas), sa sorte, et la raison
+   dite à l'écran. Un genre neuf se déclare ici, et seulement ici ; un genre
+   qui n'y est pas paraît quand même, sous son nom technique (`TYPE_DIT` du
+   journal, sinon le mot tel quel). Ne dépend d'aucun autre chantier : le lot 4
+   de l'abonnement refait (`veille-attention`, `apres-seance`) y est déclaré
+   d'avance, ses fichiers viendront à part. */
+export type GenrePrevu = {
+  dit: string;
+  modele?: string;
+  sorte: SorteDeMessage;
+  /** Pourquoi il part, en une phrase, l'année toujours sur une date. */
+  raison: (l: LigneDuJournal) => string;
+  /** Le modèle de la ligne dit mieux que le genre (Perle, une campagne) : son nom lisible l'emporte. */
+  leModeleDit?: boolean;
+};
+const sonRdv = (l: LigneDuJournal, debut = 'Son rendez-vous'): string =>
+  (l.dateRdv ? `${debut} du ${jourDit(l.dateRdv)}${l.heure ? ` à ${heureDuMessage(l.heure)}` : ''}.` : 'Déposé dans la salle d’attente.');
+const saSeance = (l: LigneDuJournal): string => (l.dateRdv ? `Sa séance du ${jourDit(l.dateRdv)}.` : 'Déposé dans la salle d’attente.');
+export const GENRES_PREVUS: Record<string, GenrePrevu> = {
+  'rappel-j1': { dit: 'Rappel de la veille', modele: 'rappel_rdv', sorte: 'rdv', raison: (l) => sonRdv(l) },
+  confirmation: { dit: 'Confirmation du rendez-vous', modele: 'confirmation_rdv', sorte: 'rdv', raison: (l) => sonRdv(l) },
+  'reprise-j3': { dit: 'Reprise proposée', modele: 'reprise_proposee', sorte: 'rdv', raison: (l) => sonRdv(l, 'Sa reprise') },
+  'point-avant': { dit: 'Point d’avant séance', modele: 'point_avant_seance', sorte: 'rdv', raison: (l) => sonRdv(l, 'Sa séance') },
+  'point-apres': { dit: 'Point d’après séance', modele: 'point_apres_seance', sorte: 'avis', raison: saSeance },
+  'avis-google': { dit: 'Demande d’avis Google', modele: 'avis_google', sorte: 'avis', raison: () => 'Sa première venue, soldée.' },
+  'relance-facture': { dit: 'Relance de facture', modele: 'rappel_de_reglement', sorte: 'argent', raison: () => 'Une facture à régler.' },
+  'rappel-echeance': { dit: 'Rappel d’échéance de la formule', modele: 'rappel_echeance_veille', sorte: 'argent', raison: () => 'La veille d’une échéance de sa formule.' },
+  'prix-revu': { dit: 'Prix revu après le comptage', modele: 'prix_revu_apres_comptage', sorte: 'argent', raison: () => 'Le prix de sa formule, revu après le comptage.' },
+  'papier-de-la-piece': { dit: 'Papier de la pièce, par Grenat', sorte: 'argent', raison: (l) => (l.papier === 'facture' ? 'Sa facture à régler, préparée par Grenat.' : 'Son reçu, préparé par Grenat.') },
+  'fete-de-couronne': { dit: 'Fête de couronne', modele: 'fete_de_couronne', sorte: 'fidelite', raison: () => 'L’anniversaire de sa première couronne.' },
+  'fin-de-paquet': { dit: 'Fin de paquet', modele: 'fin_de_paquet', sorte: 'fidelite', raison: () => 'Son paquet de séances touche à sa fin.' },
+  'merci-marraine': { dit: 'Merci à la marraine', modele: 'parrainage_merci', sorte: 'fidelite', raison: () => 'Une filleule est venue grâce à elle.' },
+  parrainage: { dit: 'Marraine prévenue', modele: 'carte_marraine', sorte: 'fidelite', raison: () => 'Sa filleule a demandé un rendez-vous.' },
+  campagne: { dit: 'Campagne', sorte: 'fidelite', raison: () => 'Une campagne de la Maison.', leModeleDit: true },
+  gerard: { dit: 'Assistant Maison', sorte: 'fidelite', raison: () => 'L’Assistant Maison.', leModeleDit: true },
+  accuse: { dit: 'Accusé de demande', modele: 'demande_recue', sorte: 'rdv', raison: () => 'Sa demande, reçue sur le site.' },
+  'paie-recue': { dit: 'Paie versée (équipe)', modele: 'versement_engagement', sorte: 'autre', raison: () => 'Sa paie est partie : lui demander s’il l’a bien reçue.' },
+  /* Le lot 4 de l'abonnement refait (8 novembre 2026), déclaré d'avance. */
+  'veille-attention': { dit: 'Rappel de la veille · l’attention', modele: 'rappel_rdv_attention', sorte: 'rdv', raison: (l) => `${sonRdv(l).replace(/\.$/, '')} ; une attention l’y attend.` },
+  'apres-seance': { dit: 'Après la séance · prochaine séance', modele: 'prochaine_seance', sorte: 'avis', raison: (l) => `${saSeance(l).replace(/\.$/, '')} ; sa prochaine séance proposée.` },
+};
+/** Le genre d'une ligne : déclaré, ou dit par son nom technique. */
+export function genrePrevu(type: unknown): GenrePrevu {
+  const t = String(type ?? '').trim();
+  return GENRES_PREVUS[t] ?? { dit: TYPE_DIT[t] ?? (t || 'Message'), sorte: 'autre', raison: () => 'Déposé dans la salle d’attente.' };
+}
+/** CE QUE L'ÉCRAN DIT D'UNE LIGNE EN SALLE : pour un WhatsApp, le genre
+    déclaré (sinon le modèle que le code connaît, sinon le nom technique) et
+    le modèle Meta porté ; sinon le canal (Ma Couronne, SMS) derrière le genre. */
+export function libelleDeLaLigne(l: LigneDuJournal): { modele: string; modeleDit: string; sorte: SorteDeMessage } {
+  const t = String(l.type ?? '').trim();
+  const declare = GENRES_PREVUS[t];
+  const g = genrePrevu(t);
+  const genreDuColis = String(l.colis?.genre ?? l.canal ?? '');
+  if (genreDuColis === 'whatsapp' || genreDuColis === 'wa-main') {
+    const modele = String(l.colis?.modele ?? '') || g.modele || '';
+    const connu = modele ? MODELES_CONNUS[modele] : undefined;
+    const parLeGenre = !!declare && !(declare.leModeleDit && connu);
+    return { modele, modeleDit: parLeGenre ? g.dit : (connu?.dit ?? g.dit), sorte: parLeGenre ? g.sorte : (connu?.sorte ?? g.sorte) };
+  }
+  const canal = CANAL_DIT[genreDuColis] ?? genreDuColis;
+  return { modele: '', modeleDit: canal ? `${g.dit} · ${canal}` : g.dit, sorte: g.sorte };
+}
 
 /** QUI, À L'ÉCRAN : le nom entier pour la direction, les initiales pour l'équipe. */
 export function quiDit(nom: unknown, direction: boolean): string {
@@ -142,13 +237,17 @@ export type MessagePrevu = {
   sorte: SorteDeMessage;
   /** La famille de la porte d'Opale (rappel-j1, perle-garder, relance-facture…). */
   famille: string;
-  /** Le nom technique chez Meta, et son nom lisible. */
+  /** Le nom technique chez Meta (vide quand ce n'est pas un modèle : une
+      notification, un SMS), et son nom lisible. */
   modele: string;
   modeleDit: string;
-  /** La fiche qui reçoit (le parent pour un enfant, le payeur pour une facture). */
+  /** La fiche qui reçoit (le parent pour un enfant, le payeur pour une facture) ;
+      vide quand la ligne n'a pas de fiche (la paie d'un membre de l'équipe). */
   clientId: string;
   /** Les fiches qu'il nomme (un foyer). */
   clientIds?: string[];
+  /** Qui reçoit, quand la ligne le dit sans fiche (son prénom). */
+  qui?: string;
   apptId?: string;
   /** Pourquoi il part, en une phrase, l'année toujours. */
   raison: string;
@@ -159,6 +258,8 @@ export type MessagePrevu = {
   arret?: { par: string; le: string };
   /** Le modèle en pause, ou le repli qui part à sa place. */
   pause?: string;
+  /** OPALE : À VÉRIFIER (8 novembre 2026) : un doute et sa raison ; le message partira quand même si personne ne l'arrête. */
+  aVerifier?: string;
 };
 
 /* ── LES ENTRÉES ───────────────────────────────────────────────────────── */
@@ -166,10 +267,13 @@ export type RdvAVenir = {
   id: string; clientId: string; clientName?: string; date: string; time?: string; status?: string;
   numeroAPrevenir?: string; foyerId?: string; confirmeeParLaClienteLe?: unknown; branchId?: string;
 };
-export type FicheAVenir = { id: string; name?: string; phone?: string; civilite?: unknown; auMasculin?: unknown; archived?: boolean; familyId?: string };
+/** La fiche telle que la prévision la lit ; `prenomUsage` (7 novembre 2026) :
+    le prénom composé, deviné ou noté, que `appelDe` écrit en entier. */
+export type FicheAVenir = { id: string; name?: string; prenomUsage?: unknown; phone?: string; civilite?: unknown; auMasculin?: unknown; archived?: boolean; familyId?: string };
 export type LigneDuJournal = {
   id: string; type?: string; canal?: string; statut?: string; detail?: string; apptId?: string; apptIds?: unknown; clientId?: string;
   genre?: string; partA?: string; quand?: string; prenom?: string; dateRdv?: string; heure?: string; invoiceId?: string; rang?: unknown;
+  papier?: string;
   arretDAvance?: { cle?: string; par?: string; le?: string }; colis?: { genre?: string; modele?: string; texteAuFil?: string; repli?: { modele?: string } };
   [k: string]: unknown;
 };
@@ -209,6 +313,9 @@ export type EntreesDeCeQuiVaPartir = {
   arrets?: readonly ArretDAvance[];
   pauses?: readonly PauseDuModele[];
   jours?: number;
+  /** LES FICHES D'ESSAI (8 novembre 2026) : les fiches cochées « d'essai » et
+      les rendez-vous d'essai (essai-pur). Leurs messages ne paraissent pas. */
+  essais?: { fiches?: ReadonlySet<string>; rdvs?: ReadonlySet<string> };
 };
 
 /* ── LES RÈGLES ────────────────────────────────────────────────────────── */
@@ -249,7 +356,7 @@ export function rappelsDeLaVeille(e: EntreesDeCeQuiVaPartir): MessagePrevu[] {
       const numero = numeroWa(telDuRdv(a, fiche));
       if (!numero) continue;
       tetes.push({ id: a.id, clientId: a.clientId, foyerId: a.foyerId, date: a.date, time: a.time, status: a.status, numero,
-        appel: appelDe((fiche ?? null) as Parameters<typeof appelDe>[0], a.clientName), prenomSeul: prenomDeLaTete(fiche?.name ?? a.clientName), rdv: a });
+        appel: appelDe((fiche ?? null) as Parameters<typeof appelDe>[0], a.clientName), prenomSeul: prenomDeLaTete(fiche?.name ?? a.clientName, fiche?.prenomUsage), rdv: a });
     }
     /* Une tête que couvre déjà une ligne qui verrouille n'est plus à rappeler. */
     const couvertes = new Set<string>();
@@ -407,29 +514,92 @@ export function relancesAVenir(e: EntreesDeCeQuiVaPartir): MessagePrevu[] {
   return out;
 }
 
-/** CE QUI EST DÉJÀ EN SALLE pour les jours qui viennent (un modèle WhatsApp
-    qui attend ou qu'une main retient), et ce qui a été arrêté d'avance et
-    dont l'heure n'est pas passée. */
+/** Les statuts d'une ligne qui attend encore de partir : en salle, retenue
+    par une main, ou déposée par Grenat et que le Trône prépare. */
+const ATTEND_ENCORE = new Set(['en-attente', 'retenu', 'à-préparer']);
+
+/** CE QUI EST DÉJÀ EN SALLE pour les jours qui viennent, QUEL QUE SOIT SON
+    GENRE (8 novembre 2026 : un WhatsApp et son modèle, une notification Ma
+    Couronne, un SMS, la paie d'un membre de l'équipe ; un genre que le code ne
+    connaît pas paraît sous son nom technique), et ce qui a été arrêté
+    d'avance et dont l'heure n'est pas passée. */
 export function dejaAuJournal(e: EntreesDeCeQuiVaPartir): MessagePrevu[] {
   const out: MessagePrevu[] = [];
   for (const l of e.envois) {
-    if (!l || l.colis?.genre !== 'whatsapp') continue;
+    if (!l || !l.id) continue;
     const partA = Date.parse(String(l.partA ?? ''));
-    const enSalle = l.statut === 'en-attente' || l.statut === 'retenu';
+    const enSalle = ATTEND_ENCORE.has(String(l.statut ?? ''));
     const arretee = l.statut === 'écarté' && !!l.arretDAvance && Number.isFinite(partA) && partA > e.maintenantMs;
     if (!enSalle && !arretee) continue;
-    const modele = String(l.colis?.modele ?? '');
     const quand = Number.isFinite(partA) ? partA : e.maintenantMs;
+    const { modele, modeleDit: dit, sorte } = libelleDeLaLigne(l);
+    const clientId = String(l.pourId ?? l.clientId ?? '');
+    const tetes = Array.isArray(l.clientIds) ? (l.clientIds as unknown[]).map(String).filter((x) => x && x !== clientId) : [];
+    const prenom = String(l.prenom ?? '').trim();
     out.push({
-      cle: cleDuMessage(l), idDeLigne: l.id, partA: quand, jour: jourDeCotonou(quand), sorte: sorteDuModele(modele), famille: String(l.type ?? ''),
-      modele, modeleDit: modeleDit(modele), clientId: String(l.pourId ?? l.clientId ?? ''), ...(l.apptId ? { apptId: l.apptId } : {}),
-      raison: l.dateRdv && l.type !== 'avis-google' ? `Son rendez-vous du ${jourDit(l.dateRdv)}${l.heure ? ` à ${heureDuMessage(l.heure)}` : ''}.` : 'Déposé dans la salle d’attente.',
+      cle: cleDuMessage(l), idDeLigne: l.id, partA: quand, jour: jourDeCotonou(quand), sorte, famille: String(l.type ?? ''),
+      modele, modeleDit: dit, clientId, ...(tetes.length ? { clientIds: tetes } : {}), ...(!clientId && prenom ? { qui: prenom } : {}),
+      ...(l.apptId ? { apptId: l.apptId } : {}),
+      raison: genrePrevu(l.type).raison(l),
       ...(l.colis?.texteAuFil ? { texte: l.colis.texteAuFil } : {}),
       etat: arretee ? 'arrete' : 'en-salle',
       ...(arretee ? { arret: { par: String(l.arretDAvance?.par ?? ''), le: String(l.arretDAvance?.le ?? '') } } : {}),
     });
   }
   return out;
+}
+
+/* ── LES FICHES D'ESSAI N'Y SONT PAS (8 novembre 2026) ─────────────────────
+   « Des RDV fictifs, comme en sandbox, ni dans notre liste de RDV ni dans le
+   chiffre d'affaires » (Yéman, 7 novembre 2026, essai-pur). Un message à une
+   fiche d'essai, ou pour un rendez-vous d'essai, ne se montre pas et ne se
+   compte pas ici ; il part bien chez elle, la chaîne d'essai lit tout. */
+export function estUnMessageDEssai(m: Pick<MessagePrevu, 'clientId' | 'clientIds' | 'apptId'>, essais: EntreesDeCeQuiVaPartir['essais']): boolean {
+  if (!essais) return false;
+  const fiches = essais.fiches;
+  if (fiches && (fiches.has(m.clientId) || (m.clientIds ?? []).some((id) => fiches.has(id)))) return true;
+  return !!(m.apptId && essais.rdvs?.has(m.apptId));
+}
+/** Les messages du fil sans ceux des fiches d'essai : par leur fiche, ou par
+    le numéro d'une fiche d'essai (le fil ne nomme pas toujours la fiche). */
+export function messagesSansLesEssais<M extends MessageDuFil & { clientId?: string; numero?: string }>(
+  messages: readonly (M | null | undefined)[],
+  fichesDEssai: readonly { id: string; phone?: string }[],
+): M[] {
+  if (fichesDEssai.length === 0) return messages.filter((m): m is M => !!m);
+  const ids = new Set(fichesDEssai.map((f) => f.id));
+  const numeros = new Set(fichesDEssai.map((f) => numeroWa(f.phone)).filter(Boolean));
+  return messages.filter((m): m is M => !!m && !(m.clientId && ids.has(m.clientId)) && !(m.numero && numeros.has(numeroWa(m.numero))));
+}
+
+/* ── OPALE RELIT CHAQUE MESSAGE PRÉVU (8 novembre 2026, maquette § 3) ──────
+   « Le rendez-vous existe encore, à la même date, à la même heure ; la cliente
+   n'a pas déjà confirmé ; elle n'a rien reçu de pareil depuis 20 h. » Un doute
+   se dit en cuivre, avec sa raison ; il n'arrête rien ici : l'erreur sûre est
+   retenue au serveur par la porte d'Opale, à l'heure du départ. */
+export function douteDOpale(m: MessagePrevu, e: Pick<EntreesDeCeQuiVaPartir, 'rdvs' | 'envois' | 'maintenantMs'>, ligne?: LigneDuJournal): string | null {
+  if (m.etat === 'arrete' || m.etat === 'en-pause') return null;
+  /* Une ligne en salle est jugée sur ce qu'elle dit de son rendez-vous. */
+  if (ligne && m.apptId) {
+    const rdv = e.rdvs.find((a) => a && a.id === m.apptId);
+    if (rdv) {
+      if (rdv.status === 'annulé' || rdv.status === 'honoré') return `le rendez-vous ne tient plus (${rdv.status})`;
+      if (ligne.dateRdv && (ligne.dateRdv !== rdv.date || (ligne.heure && rdv.time && ligne.heure !== rdv.time))) {
+        return `le rendez-vous a bougé : ${jourDit(rdv.date)}${rdv.time ? ` à ${heureDuMessage(rdv.time)}` : ''}`;
+      }
+      if ((m.famille === 'rappel-j1' || m.famille === 'veille-attention') && rappelDeLaVeilleSeTait(rdv)) return 'elle a déjà confirmé sa venue';
+    }
+  }
+  /* Le même modèle, à la même fiche, parti depuis moins de vingt heures. */
+  if (m.modele && m.clientId) {
+    for (const l of e.envois) {
+      if (!l || l.id === m.idDeLigne || l.statut !== 'envoyé' || String(l.colis?.modele ?? '') !== m.modele) continue;
+      if (String(l.pourId ?? l.clientId ?? '') !== m.clientId) continue;
+      const parti = Date.parse(String(l.partiLe ?? l.quand ?? ''));
+      if (Number.isFinite(parti) && m.partA - parti < JAMAIS_DEUX_FOIS_MS && parti <= m.partA) return 'le même modèle lui est parti depuis moins de 20 h';
+    }
+  }
+  return null;
 }
 
 /** CE QUI VA PARTIR : la liste entière des sept jours, triée par heure, chaque
@@ -450,7 +620,11 @@ export function ceQuiVaPartir(e: EntreesDeCeQuiVaPartir): MessagePrevu[] {
   }
   return [...parCle.values()]
     .filter((m) => m.partA > e.maintenantMs - 60_000 && m.partA < fin)
+    /* Les fiches d'essai n'y sont pas (8 novembre 2026). */
+    .filter((m) => !estUnMessageDEssai(m, e.essais))
     .map((m) => avecLaPorteDAvance(m, e))
+    /* Opale relit (8 novembre 2026) : un doute se dit, il n'arrête rien. */
+    .map((m) => { const doute = douteDOpale(m, e, auJournal.get(m.idDeLigne)); return doute ? { ...m, aVerifier: doute } : m; })
     .sort((a, b) => a.partA - b.partA || a.cle.localeCompare(b.cle));
 }
 
@@ -468,15 +642,22 @@ export function avecLaPorteDAvance(m: MessagePrevu, e: { arrets?: readonly Arret
   return m;
 }
 
-/** « 9 partiront · 1 arrêté » : le compte de l'en-tête. */
-export function compteDeCeQuiVaPartir(liste: readonly MessagePrevu[]): { partiront: number; arretes: number; enPause: number } {
-  let partiront = 0; let arretes = 0; let enPause = 0;
+/** « 9 partiront · 1 arrêté · 2 à vérifier » : le compte de l'en-tête. */
+export function compteDeCeQuiVaPartir(liste: readonly MessagePrevu[]): { partiront: number; arretes: number; enPause: number; aVerifier: number } {
+  let partiront = 0; let arretes = 0; let enPause = 0; let aVerifier = 0;
   for (const m of liste) {
     if (m.etat === 'arrete') arretes += 1;
     else if (m.etat === 'en-pause') enPause += 1;
     else partiront += 1;
+    if (m.aVerifier) aVerifier += 1;
   }
-  return { partiront, arretes, enPause };
+  return { partiront, arretes, enPause, aVerifier };
+}
+
+/** LES FILTRES DE L'ONGLET : les quatre sortes de la maquette, et « Autre »
+    seulement quand la liste en a (8 novembre 2026). */
+export function sortesAFiltrer(liste: readonly Pick<MessagePrevu, 'sorte'>[]): [SorteDeMessage, string][] {
+  return (Object.entries(SORTES_DITES) as [SorteDeMessage, string][]).filter(([k]) => k !== 'autre' || liste.some((m) => m.sorte === 'autre'));
 }
 
 /** LES JOURS DE L'ONGLET : chacun avec ses messages, même vide. */

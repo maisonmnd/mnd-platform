@@ -34,7 +34,7 @@ const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. 10 octobre 2026 : le passage du soir ne dépose plus
     un rappel que les heures calmes retiendraient jusqu'au jour même. */
-const VERSION = '2026-11-05-a · ce qui va partir : un rappel, une reprise ou un point arrêtés d’avance, ou d’un modèle en pause, ne se déposent pas ; un rappel par foyer, qui nomme chaque tête ; la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
+const VERSION = '2026-11-11-a · ce qui va partir : un rappel, une reprise ou un point arrêtés d’avance, ou d’un modèle en pause, ne se déposent pas ; un rappel par foyer, qui nomme chaque tête ; la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
 
 type Rdv = {
   id: string;

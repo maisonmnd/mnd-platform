@@ -902,7 +902,7 @@ async function litLesArretsEtLesPauses(sb: BaseDAvance): Promise<{ arrets: Arret
 /* ⟨/arret-d-avance⟩ */
 
 
-const VERSION = '2026-11-05-a · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi ; le papier d’une pièce déposé par Grenat : la pièce relue, sa clé réservée, sa marque posée ; ce qui va partir : arrêté d’avance, modèle en pause, cinq non remis de suite et Opale le met en pause';
+const VERSION = '2026-11-11-a · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi ; le papier d’une pièce déposé par Grenat : la pièce relue, sa clé réservée, sa marque posée ; ce qui va partir : arrêté d’avance, modèle en pause, cinq non remis de suite et Opale le met en pause';
 
 /* ── LE CALCUL DES HEURES, recopié de src/shared/salle-des-envois.ts ── */
 const DECALAGE_DU_SALON_H = 1;
@@ -1075,10 +1075,10 @@ async function faitsDeLaPorte(sb: Sb, l: LigneALaPorte, rdv: RdvALaPorte | null,
    « Qu'on puisse arrêter le message au besoin », « mettre des modèles en
    pause » (Yéman, 4 novembre 2026). Deux lectures par réveil, une fois pour
    toutes les lignes portées : les messages arrêtés d'avance par la direction
-   (`envois_arretes`) et les modèles en pause (`modeles_en_pause`, 0158). Une
+   (`envois_arretes`) et les modèles en pause (`modeles_en_pause`, 0197). Une
    lecture qui échoue ne laisse rien partir sans elles : `null`, et chaque
    ligne redevient un échec que sa fonction retentera. Seule une table encore
-   absente (0158 pas encore passée) laisse le facteur porter comme avant.
+   absente (0197 pas encore passée) laisse le facteur porter comme avant.
 
    OPALE VEILLE : avant de porter un modèle WhatsApp, la série de ses « non
    remis » les plus récents (depuis quatorze jours, et depuis qu'une main l'a

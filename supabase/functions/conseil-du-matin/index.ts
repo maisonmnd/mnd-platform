@@ -754,7 +754,7 @@ function rappelDeLaVeilleSeTait(a) {
 }
 
 // scripts/serveur/conseil-du-matin.ts
-var VERSION = "2026-11-05-a";
+var VERSION = "2026-11-11-a";
 var ADRESSE = "/trone/#/assistants";
 var ETIQUETTE = "mnd-conseil";
 var ENVOI_MAX_MS = 8e3;
