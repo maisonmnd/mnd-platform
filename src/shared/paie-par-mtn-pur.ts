@@ -90,7 +90,10 @@ const RAISONS: Record<string, string> = {
   NOT_ENOUGH_FUNDS: 'le solde du compte de paie MTN ne suffit pas',
   PAYER_LIMIT_REACHED: 'le compte de paie MTN a atteint sa limite',
   PAYEE_LIMIT_REACHED: 'le compte qui reçoit a atteint sa limite',
-  NOT_ALLOWED: 'MTN n’autorise pas cet envoi',
+  /* 9 novembre 2026 : l'adresse autorisée, MTN répond NOT_ALLOWED au transfert
+     (« Authorization failed. Insufficient permissions ») : le droit d'envoyer n'est
+     pas ouvert sur l'accès Disbursement, cela se règle chez MTN. */
+  NOT_ALLOWED: 'MTN refuse l’envoi à cet accès (droit d’envoyer non ouvert chez MTN)',
   NOT_ALLOWED_TARGET_ENVIRONMENT: 'MTN n’a pas encore ouvert les envois sur ce compte (profil Disbursement)',
   INVALID_CURRENCY: 'MTN refuse la monnaie',
   INVALID_AMOUNT: 'MTN refuse ce montant',
