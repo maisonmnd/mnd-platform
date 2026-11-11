@@ -194,3 +194,46 @@
 .lp-solde { display: grid; justify-items: end; gap: 2px; text-align: right; }
 .lp-solde b { font: 400 24px/1.1 var(--font-serif); color: var(--color-indigo); font-variant-numeric: lining-nums tabular-nums; }
 .lp-solde .lp-lien { font-size: 12px; }
+
+/* LA PAGE RANGÉE — 11 novembre 2026 (maquette maquette-les-paiements-ranges.html) :
+   quatre onglets, une carte par entreprise, une ligne courte, le détail en panneau. */
+.lp-onglets { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--hairline); position: sticky; top: 0; z-index: 2; background: var(--surface-page, var(--color-ivoire)); }
+.lp-onglet { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 16px 8px; display: grid; gap: 0; text-align: left; cursor: pointer; color: var(--ink-soft); }
+.lp-onglet b { font: 400 22px/1.15 var(--font-serif); color: var(--color-indigo); font-variant-numeric: lining-nums tabular-nums; }
+.lp-onglet[aria-selected="true"] { border-bottom-color: var(--color-copper); }
+.lp-onglet:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.lp-onglet__dit { font-size: 12px; }
+.lp-onglet__dit--a-valider { color: var(--copper-700); font-weight: 500; }
+.lp-vue { display: grid; gap: 12px; }
+.lp-carte { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 4px; }
+.lp-carte__tete { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 16px; background: var(--indigo-50); border-radius: 4px 4px 0 0; }
+.lp-carte__nom { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; min-width: 0; }
+.lp-carte__nom strong { font: 400 22px/1.15 var(--font-serif); color: var(--color-indigo); }
+.lp-carte__droite { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+.lp-carte__total { font: 400 22px/1.1 var(--font-serif); color: var(--color-indigo); }
+.lp-grille { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.6fr) minmax(0, .9fr) minmax(0, .9fr) minmax(0, 1.3fr) minmax(0, 1.3fr); gap: 0 14px; align-items: center; }
+.lp-entetes { padding: 8px 16px; border-bottom: 1px solid var(--hairline); font: 600 10.5px var(--font-sans, 'Jost', sans-serif); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.lp-d { text-align: right; justify-self: end; }
+.lp-rang { padding: 10px 16px; border-bottom: 1px solid var(--hairline); cursor: pointer; }
+.lp-rang:last-child { border-bottom: 0; }
+.lp-rang:hover { background: var(--copper-50); }
+.lp-rang:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.lp-rang--ouvert { background: var(--copper-50); }
+.lp-rang--ouvert .lp-chev { transform: rotate(90deg); }
+.lp-coupe { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lp-puces { display: flex; gap: 4px; flex-wrap: wrap; }
+.lp-puce { font-size: 11.5px; padding: 1px 7px; border-radius: 999px; background: var(--indigo-50); color: var(--color-indigo); }
+.lp-panneau { padding: 12px 16px 14px; background: var(--copper-50); border-bottom: 1px solid var(--hairline); display: grid; gap: 10px; }
+.lp-mois { display: flex; gap: 6px; flex-wrap: wrap; }
+.lp-mois button { border: 1px solid var(--hairline); background: var(--surface-card); color: inherit; border-radius: 999px; padding: 4px 12px; font: 400 13px var(--font-sans, 'Jost', sans-serif); cursor: pointer; }
+.lp-mois button[aria-pressed="true"] { background: var(--color-indigo); color: var(--color-ivoire); border-color: var(--color-indigo); }
+.lp-mois button:disabled { opacity: .5; cursor: default; }
+.lp-mois button:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.lp-calcul { display: flex; gap: 18px; flex-wrap: wrap; align-items: baseline; }
+.lp-calcul b { font: 400 22px var(--font-serif); color: var(--color-indigo); }
+@media (max-width: 760px) {
+  .lp-carte__tete { grid-template-columns: 1fr; } .lp-carte__droite { justify-content: flex-start; }
+  .lp-entetes { display: none; }
+  .lp-grille { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; }
+  .lp-grille > :nth-child(2), .lp-grille > :nth-child(3), .lp-grille > :nth-child(5) { display: none; }
+}

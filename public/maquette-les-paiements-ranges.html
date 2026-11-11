@@ -1,0 +1,329 @@
+<title>Les paiements rangés</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@400;500;600&display=swap">
+<style>
+/* Maquette du 11 novembre 2026 : Équipe › Les paiements, toute la page rangée. Initiales et numéros inventés. */
+:root {
+  --ivoire: #F6F1E7; --carte: #FFFDF8; --indigo: #1E2150; --cuivre: #B97A4A; --cuivre-fonce: #9E6238;
+  --encre: #1F1D26; --doux: #6A6474; --trait: rgba(30, 33, 80, .13); --pale: #F3EBDF;
+  --indigo-pale: #E9EAF3; --cuivre-pale: #F5E9DC; --sur-indigo: #F6F1E7; --sur-cuivre: #FFFDF8;
+  --serif: "Cormorant Garamond", Georgia, serif; --sans: "Jost", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --doux: #A9A3B3; --trait: rgba(236, 231, 221, .15); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --sur-indigo: #15161F; --sur-cuivre: #15161F; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --doux: #A9A3B3; --trait: rgba(236, 231, 221, .15); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --sur-indigo: #15161F; --sur-cuivre: #15161F; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ivoire); color: var(--encre); font: 400 14.5px/1.5 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 40px; }
+main { max-width: 1080px; margin: 0 auto; display: grid; gap: 22px; }
+h1, h2 { font-family: var(--serif); font-weight: 500; color: var(--indigo); margin: 0; line-height: 1.1; }
+h1 { font-size: clamp(34px, 6vw, 46px); } h2 { font-size: 22px; }
+button, select, input { font: inherit; } button { cursor: pointer; }
+.num { font-variant-numeric: tabular-nums; } .doux { color: var(--doux); } .petit { font-size: 12.5px; }
+.sourcil { font: 600 10.5px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--cuivre-fonce); }
+.bandeau { border: 1px dashed var(--cuivre); background: var(--pale); padding: 8px 14px; border-radius: 4px; font-size: 13px; }
+.lien { background: none; border: 0; padding: 0; color: var(--cuivre-fonce); text-decoration: underline; text-underline-offset: 3px; font-size: 12.5px; }
+.bouton { background: var(--cuivre); color: var(--sur-cuivre); border: 0; border-radius: 4px; padding: 7px 14px; font: 600 11px var(--sans); letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
+.bouton.leger { background: none; color: var(--cuivre-fonce); border: 1px solid var(--cuivre); }
+
+/* 1. La tête */
+.tete { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.tete > div { display: grid; gap: 4px; min-width: 0; }
+.mois-nav { display: flex; align-items: baseline; gap: 10px; }
+.mois-nav button { background: none; border: 0; color: var(--cuivre); font: 400 28px var(--serif); }
+.droite { display: flex; gap: 22px; align-items: flex-end; flex-wrap: wrap; }
+.statut { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--cuivre); color: var(--cuivre-fonce); background: var(--cuivre-pale); font-size: 13px; font-weight: 500; }
+.statut i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.solde { text-align: right; display: grid; gap: 1px; } .solde b { font: 500 26px var(--serif); color: var(--indigo); }
+
+/* 2. Les chiffres et le mois */
+.chiffres { display: grid; grid-template-columns: 1.3fr repeat(4, minmax(0, 1fr)); background: var(--carte); border: 1px solid var(--trait); border-radius: 6px; overflow: hidden; }
+.chiffre { padding: 12px 16px; display: grid; gap: 2px; border-left: 1px solid var(--trait); min-width: 0; }
+.chiffre:first-child { border-left: 0; background: var(--indigo); color: var(--sur-indigo); }
+.chiffre:first-child .sourcil { color: var(--cuivre); }
+.chiffre b { font: 500 24px/1.1 var(--serif); color: var(--indigo); }
+.chiffre:first-child b { color: var(--sur-indigo); font-size: 30px; }
+.chiffre span:last-child { font-size: 12px; color: var(--doux); }
+.chiffre:first-child span:last-child { color: var(--sur-indigo); opacity: .75; }
+.frise { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; }
+.pas { padding-top: 8px; border-top: 3px solid var(--trait); display: grid; font-size: 12.5px; padding-right: 8px; }
+.pas b { font: 500 15px var(--serif); color: var(--indigo); }
+.pas.passe { border-top-color: var(--indigo); } .pas.ici { border-top-color: var(--cuivre); }
+.pas span { color: var(--doux); }
+.test { font-size: 13px; color: var(--doux); }
+.test b { color: var(--indigo); }
+
+/* 3. À regarder */
+.points { background: var(--carte); border: 1px solid var(--trait); border-radius: 6px; }
+.point { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--trait); font-size: 13.5px; }
+.point:first-child { border-top: 0; }
+.point i { width: 9px; height: 9px; border-radius: 50%; background: var(--cuivre-fonce); }
+.point strong { color: var(--indigo); font-weight: 600; }
+
+/* 4. Les onglets */
+.onglets { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--trait); position: sticky; top: 0; background: var(--ivoire); z-index: 2; }
+.onglet { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px 8px; color: var(--doux); display: grid; text-align: left; gap: 0; }
+.onglet b { font: 500 20px var(--serif); color: var(--indigo); }
+.onglet[aria-selected="true"] { border-bottom-color: var(--cuivre); }
+.onglet .pastille { font-size: 11px; color: var(--cuivre-fonce); }
+.vue[hidden] { display: none; }
+.vue { display: grid; gap: 14px; }
+.vue-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+
+/* Les tableaux en grille */
+.carte { background: var(--carte); border: 1px solid var(--trait); border-radius: 6px; overflow: hidden; }
+.g { display: grid; gap: 0 14px; align-items: center; }
+.g-equipe { grid-template-columns: minmax(0, 2fr) 0.9fr 0.8fr 0.9fr 1.3fr 1.3fr 1.2fr; }
+.g-presta { grid-template-columns: minmax(0, 2fr) minmax(0, 1.6fr) 0.9fr 1.3fr 1.2fr 1fr; }
+.g-emp { grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.6fr) 0.9fr 0.9fr 1.2fr 0.9fr; }
+.entetes { padding: 8px 16px; border-bottom: 1px solid var(--trait); font: 600 10px var(--sans); letter-spacing: .13em; text-transform: uppercase; color: var(--doux); }
+.d { text-align: right; justify-self: end; }
+.ligne { padding: 10px 16px; border: 0; border-bottom: 1px solid var(--trait); width: 100%; background: none; text-align: left; color: inherit; }
+.ligne:last-child { border-bottom: 0; }
+button.ligne:hover { background: var(--pale); }
+.ligne[aria-expanded="true"] { background: var(--cuivre-pale); }
+.nom { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; color: var(--indigo); }
+.etat { font-size: 12px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--indigo); color: var(--indigo); white-space: nowrap; justify-self: start; }
+.etat.attend { border-color: var(--cuivre); color: var(--cuivre-fonce); background: var(--cuivre-pale); }
+.etat.non { border-style: dashed; border-color: var(--doux); color: var(--doux); }
+.ok { color: var(--indigo); font-weight: 600; }
+.remis { font-size: 12px; padding: 2px 9px; border-radius: 999px; border: 1px dashed var(--cuivre); background: none; color: var(--cuivre-fonce); white-space: nowrap; }
+.remis[aria-pressed="true"] { border-style: solid; background: var(--indigo); color: var(--sur-indigo); border-color: var(--indigo); }
+.vide { padding: 14px 16px; color: var(--doux); }
+.panneau { padding: 12px 16px 14px; background: var(--cuivre-pale); border-bottom: 1px solid var(--trait); display: grid; gap: 10px; font-size: 13.5px; }
+.panneau h3 { margin: 0; font: 600 10.5px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre-fonce); }
+.bulletin { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 4px 24px; }
+.bulletin div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dotted var(--trait); padding: 2px 0; }
+
+/* Une entreprise : une carte */
+.carte__tete { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 16px; background: var(--indigo-pale); }
+.carte__nom { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; min-width: 0; }
+.carte__nom strong { font: 500 22px var(--serif); color: var(--indigo); }
+.carte__droite { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+.carte__total { font: 500 22px var(--serif); color: var(--indigo); }
+.quand { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--cuivre); border-radius: 999px; padding: 1px 4px 1px 10px; background: var(--carte); }
+.quand select { border: 0; background: none; color: var(--encre); font-size: 12.5px; padding: 2px; }
+.quand span { color: var(--doux); font-size: 12px; }
+.puces { display: flex; gap: 4px; flex-wrap: wrap; }
+.puce { font-size: 11.5px; padding: 1px 7px; border-radius: 999px; background: var(--indigo-pale); color: var(--indigo); }
+.mois { display: flex; gap: 6px; flex-wrap: wrap; }
+.mois button { border: 1px solid var(--trait); background: var(--carte); color: var(--encre); border-radius: 999px; padding: 4px 12px; font-size: 13px; }
+.mois button[aria-pressed="true"] { background: var(--indigo); color: var(--sur-indigo); border-color: var(--indigo); }
+.mois button:disabled { opacity: .45; cursor: default; }
+.calcul { display: flex; gap: 18px; flex-wrap: wrap; align-items: baseline; }
+.calcul b { font: 500 22px var(--serif); color: var(--indigo); }
+.champ { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.champ input { width: 100px; padding: 4px 8px; border: 1px solid var(--cuivre); border-radius: 4px; background: var(--carte); color: var(--encre); text-align: right; }
+
+/* Les prêts */
+.pret { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 2fr) auto; gap: 16px; align-items: center; padding: 12px 16px; }
+.jauge { height: 5px; background: var(--indigo-pale); border-radius: 3px; overflow: hidden; } .jauge i { display: block; height: 100%; background: var(--indigo); }
+
+/* Arbitrages et pied */
+.arbitrages { display: grid; gap: 8px; }
+.arbitrage { background: var(--carte); border: 1px solid var(--trait); border-left: 3px solid var(--cuivre); border-radius: 6px; padding: 10px 14px; display: grid; gap: 2px; font-size: 13.5px; }
+.arbitrage b { color: var(--indigo); }
+.pied { position: sticky; bottom: 12px; background: var(--indigo); color: var(--sur-indigo); border-radius: 6px; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; z-index: 3; }
+.pied b { font: 500 24px var(--serif); }
+.pied .bouton { padding: 11px 20px; font-size: 12px; }
+@media (max-width: 760px) {
+  .chiffres { grid-template-columns: 1fr 1fr; } .chiffre:first-child { grid-column: 1 / -1; }
+  .frise { grid-template-columns: 1fr; gap: 6px; }
+  .entetes { display: none; }
+  .g-equipe, .g-presta, .g-emp { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; }
+  .g-equipe > :nth-child(n+3):not(:nth-child(6)), .g-presta > :nth-child(n+3):not(:nth-child(5)), .g-emp > :nth-child(2), .g-emp > :nth-child(3), .g-emp > :nth-child(5) { display: none; }
+  .carte__tete { grid-template-columns: 1fr; } .carte__droite { justify-content: flex-start; }
+  .pret { grid-template-columns: 1fr; }
+}
+</style>
+
+<main>
+  <div class="bandeau">Maquette validée le 11 novembre 2026 (« construis ») : toute la page Équipe › Les paiements, rangée, construite dans le Trône. Touchez les onglets, une ligne, des mois. Initiales et numéros inventés.</div>
+
+  <!-- 1. LA TÊTE : le mois, son état, le solde -->
+  <header class="tete">
+    <div>
+      <span class="sourcil">Équipe · Les paiements</span>
+      <div class="mois-nav"><button aria-label="Mois précédent">‹</button><h1>Octobre 2026.</h1><button aria-label="Mois suivant">›</button></div>
+      <span class="doux petit">Équipe le 5 à 18 h · prestataires et entreprises à leur date · pourboires en espèces</span>
+    </div>
+    <div class="droite">
+      <span class="statut"><i></i>À valider · 2 points</span>
+      <div class="solde"><span class="sourcil">Compte de paie MTN</span><b class="num">1 800 F</b><span class="doux petit">lu à 17 h 21 · <button class="lien">lire</button> · <button class="lien">masquer</button></span></div>
+      <button class="lien">Réglages</button>
+    </div>
+  </header>
+
+  <!-- 2. LES CHIFFRES, LE MOIS, LE TEST -->
+  <section style="display:grid; gap:12px" aria-label="Le mois en chiffres">
+    <div class="chiffres">
+      <div class="chiffre"><span class="sourcil">Par MTN</span><b class="num" id="c-mtn">110 000 F</b><span>2 virements · frais 0 F</span></div>
+      <div class="chiffre"><span class="sourcil">Salaires nets</span><b class="num">0 F</b><span>pas encore de run</span></div>
+      <div class="chiffre"><span class="sourcil">Retenues de prêt</span><b class="num">0 F</b><span>1 prêt en cours</span></div>
+      <div class="chiffre"><span class="sourcil">Prestataires · entreprises</span><b class="num" id="c-ent">+ 110 000 F</b><span>0 prestataire · 1 entreprise</span></div>
+      <div class="chiffre"><span class="sourcil">Pourboires · espèces</span><b class="num">9 000 F</b><span>le 5 · 0 / 5 remis</span></div>
+    </div>
+    <div class="frise">
+      <div class="pas passe"><b>1er · 8 h</b><span>Bulletins prêts</span></div>
+      <div class="pas passe"><b>1er → 5 · 12 h</b><span>Chacun confirme · 0 / 5</span></div>
+      <div class="pas ici"><b>5 · 12 h → 18 h</b><span>Votre toucher</span></div>
+      <div class="pas"><b>5 · 18 h</b><span>Salaires · pourboires</span></div>
+      <div class="pas"><b>À leur date et heure</b><span>Prestataires · entreprises</span></div>
+    </div>
+    <div class="test"><b>Test MTN</b> · réussi le 11 nov. 2026 à 14 h 41 · 2 / 2 · 200 F en dépense</div>
+  </section>
+
+  <!-- 3. À REGARDER : au-dessus des onglets, toujours visible -->
+  <section style="display:grid; gap:8px">
+    <div class="vue-tete"><h2>À regarder</h2><span class="doux petit">2 points · <button class="lien">Lire chez MTN</button></span></div>
+    <div class="points">
+      <div class="point"><i></i><span><strong>Nom différent chez MTN</strong> · A. H. : MTN dit E. A. H.</span><button class="bouton">C'est bien son numéro</button></div>
+      <div class="point"><i></i><span><strong>Compte de paie · 1 800 F</strong> · il manque <b class="num" id="manque">108 200 F</b> avant 18 h</span><button class="bouton leger">Lire à nouveau</button></div>
+    </div>
+  </section>
+
+  <!-- 4. LES ONGLETS -->
+  <nav class="onglets" role="tablist" aria-label="Qui reçoit quoi">
+    <button class="onglet" role="tab" data-vue="equipe" aria-selected="false"><span class="sourcil">Équipe</span><b class="num">0 F</b><span class="pastille">5 · 9 000 F à remettre</span></button>
+    <button class="onglet" role="tab" data-vue="presta" aria-selected="false"><span class="sourcil">Prestataires</span><b class="num">0 F</b><span class="pastille doux">aucune mission</span></button>
+    <button class="onglet" role="tab" data-vue="ent" aria-selected="true"><span class="sourcil">Entreprises</span><b class="num" id="o-ent">110 000 F</b><span class="pastille">1 · 2 virements</span></button>
+    <button class="onglet" role="tab" data-vue="prets" aria-selected="false"><span class="sourcil">Prêts</span><b class="num">200 000 F</b><span class="pastille doux">1 en cours</span></button>
+  </nav>
+
+  <!-- Équipe -->
+  <section class="vue" id="vue-equipe" hidden>
+    <div class="vue-tete"><h2>L'équipe · le 5 à 18 h</h2><span class="doux petit">Touchez une ligne : son bulletin</span></div>
+    <div class="carte">
+      <div class="g g-equipe entetes"><span>Personne</span><span class="d">Net</span><span class="d">Prêt</span><span class="d">Par MTN</span><span>Numéro MTN</span><span>État</span><span class="d">Pourboires</span></div>
+      <div id="equipe"></div>
+    </div>
+  </section>
+
+  <!-- Prestataires -->
+  <section class="vue" id="vue-presta" hidden>
+    <div class="vue-tete"><h2>Prestataires · à leur date</h2></div>
+    <div class="carte">
+      <div class="g g-presta entetes"><span>Prestataire</span><span>Missions</span><span class="d">Montant</span><span>Numéro MTN</span><span>Quand</span><span>État</span></div>
+      <div class="vide">Aucune mission ni facture de prestataire pour octobre 2026.</div>
+    </div>
+  </section>
+
+  <!-- Entreprises -->
+  <section class="vue" id="vue-ent">
+    <div class="vue-tete"><h2>Entreprises · à leur date</h2><button class="lien">+ Entreprise</button></div>
+    <article class="carte">
+      <div class="carte__tete">
+        <div class="carte__nom"><strong>ACIA1</strong><span class="doux petit">2 employés · facture 1 · <button class="lien">la facture</button> · <button class="lien">modifier</button></span></div>
+        <div class="carte__droite">
+          <span class="quand"><span>payé</span><select id="jour" aria-label="Jour"></select><select id="heure" aria-label="Heure"></select></span>
+          <span class="etat">2 / 2 prêts</span>
+          <span class="carte__total num" id="c-total">110 000 F</span>
+        </div>
+      </div>
+      <div class="g g-emp entetes"><span>Employé</span><span>Mois</span><span class="d">Par mois</span><span class="d">À payer</span><span>Numéro MTN</span><span>État</span></div>
+      <div id="employes"></div>
+    </article>
+  </section>
+
+  <!-- Prêts -->
+  <section class="vue" id="vue-prets" hidden>
+    <div class="vue-tete"><h2>Les prêts</h2><button class="lien">+ Prêter à un membre</button></div>
+    <div class="carte">
+      <div class="pret">
+        <div><span class="nom">N. M.</span><br><span class="doux petit">200 000 F prêtés le 1er oct. 2026</span></div>
+        <div style="display:grid; gap:6px"><span class="petit">Retenu <b class="num">0 F</b> · reste <b class="num">200 000 F</b> · dernière retenue –</span><div class="jauge"><i style="width:0%"></i></div></div>
+        <button class="bouton leger">Le prêt</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. À TRANCHER -->
+  <section style="display:grid; gap:8px">
+    <h2>À trancher</h2>
+    <div class="arbitrages">
+      <div class="arbitrage"><b>1. L'ordre : tête, chiffres, « À regarder », puis les onglets</b><span>Proposition : le solde et l'état du mois en tête ; le calendrier en une ligne ; le test MTN réussi replié en une ligne ; « À regarder » toujours visible au-dessus des onglets.</span></div>
+      <div class="arbitrage"><b>2. Quatre onglets : Équipe, Prestataires, Entreprises, Prêts</b><span>Chacun avec son total et son colonnage propre ; les prêts quittent le bas de la page. Proposition : l'onglet qui a quelque chose à valider s'ouvre seul ; les onglets restent collés en haut quand on défile.</span></div>
+      <div class="arbitrage"><b>3. Une ligne courte, le détail dans un panneau, un seul ouvert</b><span>Équipe : le bulletin ; entreprises : les mois et le montant du mois. Proposition : oui partout.</span></div>
+      <div class="arbitrage"><b>4. Une carte par entreprise, le jour et l'heure dans sa tête</b><span>Proposition : oui, même sans employé (une ligne dans la carte).</span></div>
+    </div>
+  </section>
+
+  <div class="pied"><div><b class="num" id="p-total">110 000 F · 2 virements</b><br><span class="petit">Votre toucher ou celui de Brice · annulable jusqu'au 5 à 17 h 59</span></div><button class="bouton">Valider le mois</button></div>
+</main>
+
+<script>
+const F = (n) => `${Math.round(n).toLocaleString('fr-FR').replace(/ | /g, ' ')} F`;
+const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+const court = (p) => MOIS[Number(p.slice(5)) - 1];
+const proposes = ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'];
+
+/* Les onglets */
+document.querySelectorAll('.onglet').forEach((o) => { o.onclick = () => {
+  document.querySelectorAll('.onglet').forEach((x) => x.setAttribute('aria-selected', String(x === o)));
+  document.querySelectorAll('.vue').forEach((v) => { v.hidden = v.id !== `vue-${o.dataset.vue}`; });
+}; });
+
+/* L'équipe : une ligne, le bulletin dans un panneau */
+const equipe = [
+  { nom: 'G. T.', numero: null, pb: 2250 }, { nom: 'N. M.', numero: '15', pb: 2250 }, { nom: 'A. H.', numero: '94', pb: 2250, differe: true },
+  { nom: 'Y. B.', numero: '22', pb: 1125 }, { nom: 'B. A.', numero: '62', pb: 1125 },
+];
+let ouvertE = null; const remis = {};
+function rendEquipe() {
+  const el = document.getElementById('equipe'); el.innerHTML = '';
+  equipe.forEach((p, i) => {
+    const b = document.createElement('div');
+    b.className = 'g g-equipe ligne'; b.setAttribute('role', 'button'); b.tabIndex = 0; b.setAttribute('aria-expanded', String(ouvertE === i)); b.style.cursor = 'pointer';
+    b.innerHTML = `<span class="nom">${p.nom}</span><span class="d num">0 F</span><span class="d doux">–</span><span class="d num">–</span>
+      <span class="num">${p.numero ? `01 •• •• •• ${p.numero} ${p.differe ? '<span class="petit" style="color:var(--cuivre-fonce)">nom différent</span>' : '<span class="ok">✓</span>'}` : '<span class="doux">sans numéro</span>'}</span>
+      <span class="etat non">Pas encore de run</span>
+      <button class="remis d" aria-pressed="${!!remis[i]}">${F(p.pb)} · ${remis[i] ? 'remis ✓' : 'à remettre'}</button>`;
+    b.onclick = (ev) => { if (ev.target.closest('.remis')) { remis[i] = !remis[i]; rendEquipe(); return; } ouvertE = ouvertE === i ? null : i; rendEquipe(); };
+    el.appendChild(b);
+    if (ouvertE === i) {
+      const pn = document.createElement('div'); pn.className = 'panneau';
+      pn.innerHTML = `<h3>Bulletin d'octobre 2026</h3><div class="bulletin"><div><span>Net du bulletin</span><span class="num">–</span></div><div><span>Par MTN</span><span class="num">–</span></div><div><span>Pourboires du 6 au 4 · espèces</span><span class="num">${F(p.pb)}</span></div><div><span>Septembre 2026</span><span class="num">–</span></div></div><span class="doux petit">Pas encore de bulletin ce mois : le run se crée dans Réglages.</span>`;
+      el.appendChild(pn);
+    }
+  });
+}
+
+/* Les entreprises */
+const emps = [
+  { id: 1, nom: 'C. T. M. D. L.', numero: '19', mensuel: 10000, mois: ['2026-08', '2026-09', '2026-10'], pris: {} },
+  { id: 2, nom: 'H. C. S.', numero: '05', mensuel: 40000, mois: ['2026-09', '2026-10'], pris: { '2026-07': 'nov.' } },
+];
+let ouvert = null;
+document.getElementById('jour').innerHTML = [...Array.from({ length: 28 }, (_, i) => i + 1), 'dernier'].map((j) => `<option ${j === 9 ? 'selected' : ''}>${j === 'dernier' ? 'dernier jour' : 'le ' + (j === 1 ? '1er' : j)}</option>`).join('');
+document.getElementById('heure').innerHTML = Array.from({ length: 29 }, (_, i) => { const t = 420 + i * 30; return `${Math.floor(t / 60)} h${t % 60 ? ' 30' : ''}`; }).map((h) => `<option ${h === '18 h' ? 'selected' : ''}>${h}</option>`).join('');
+const total = (e) => e.mensuel * e.mois.length;
+function rendEntreprises() {
+  const el = document.getElementById('employes'); el.innerHTML = '';
+  for (const e of emps) {
+    const b = document.createElement('button');
+    b.className = 'g g-emp ligne'; b.setAttribute('aria-expanded', String(ouvert === e.id));
+    b.innerHTML = `<span class="nom">${e.nom}</span><span class="puces">${e.mois.map((m) => `<span class="puce">${court(m)}</span>`).join('') || '<span class="doux petit">aucun mois</span>'}</span><span class="d num doux">${F(e.mensuel)}</span><span class="d num"><b>${F(total(e))}</b></span><span class="num">01 •• •• •• ${e.numero} <span class="ok">✓</span></span><span class="etat">Prêt</span>`;
+    b.onclick = () => { ouvert = ouvert === e.id ? null : e.id; rendEntreprises(); };
+    el.appendChild(b);
+    if (ouvert === e.id) {
+      const p = document.createElement('div'); p.className = 'panneau';
+      p.innerHTML = `<h3>Mois payés par ce virement</h3><div class="mois">${proposes.map((m) => `<button data-m="${m}" aria-pressed="${e.mois.includes(m)}" ${e.pris[m] ? 'disabled' : ''}>${court(m)} 2026${e.pris[m] ? ' · payé avec ' + e.pris[m] : ''}</button>`).join('')}</div>
+        <div class="calcul"><span class="doux">${e.mois.length} mois × ${F(e.mensuel)}</span><b class="num">${F(total(e))}</b><span class="champ">Octobre seulement <input inputmode="numeric" value="${e.mensuel}"> F</span><button class="lien">modifier l'employé</button></div>`;
+      p.querySelectorAll('[data-m]').forEach((x) => { x.onclick = () => { const m = x.dataset.m; e.mois = e.mois.includes(m) ? e.mois.filter((y) => y !== m) : [...e.mois, m].sort(); rendEntreprises(); }; });
+      el.appendChild(p);
+    }
+  }
+  const t = emps.reduce((s, e) => s + total(e), 0);
+  for (const id of ['c-total', 'o-ent', 'c-mtn']) document.getElementById(id).textContent = F(t);
+  document.getElementById('c-ent').textContent = `+ ${F(t)}`;
+  document.getElementById('p-total').textContent = `${F(t)} · ${emps.length} virements`;
+  document.getElementById('manque').textContent = F(Math.max(0, t - 1800));
+}
+rendEquipe(); rendEntreprises();
+</script>

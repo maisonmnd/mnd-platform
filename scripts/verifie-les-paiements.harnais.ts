@@ -355,6 +355,15 @@ dit('le solde du compte de paie se lit en tete, et se masque', [true, true, true
   [ECRAN_E.includes("{soldeMasque ? '•••••• F' : dernierSolde?.soldeXof != null ? F(dernierSolde.soldeXof) : 'pas encore lu'}"),
     ECRAN_E.includes("const CLE_SOLDE_MASQUE = 'mnd_paiements_solde_masque';"), ECRAN_E.includes("{!soldeMasque && dernierSolde?.le ? `lu le ${quandDit(dernierSolde.le)}` : ''}")]);
 
+/* La page rangee (11 nov. 2026, maquette maquette-les-paiements-ranges.html) : quatre onglets,
+   une carte par entreprise, un seul panneau ouvert sur toute la page. */
+dit('la page rangee : quatre onglets, une carte par entreprise, un seul panneau', [true, 4, true, true, true],
+  [ECRAN_E.includes('<nav className="lp-onglets" role="tablist" aria-label="Qui reçoit quoi">'),
+    (ECRAN_E.match(/\{ cle: '(equipe|presta|ent|prets)', titre:/g) ?? []).length,
+    ECRAN_E.includes('if (deja) deja.ls.push(l); else cartes.push({ f, ls: [l], avecEmployes: !!l.entrepriseId });'),
+    ECRAN_E.includes('const ouvre = (cle: string) => setOuverte(ouverte === cle ? null : cle);'),
+    ECRAN_E.includes("const vue = onglet ?? (aValiderDans(equipe) ? 'equipe' : aValiderDans(entreprises) ? 'ent' : aValiderDans(prestataires) ? 'presta' : 'equipe');")]);
+
 /* ── PLUSIEURS MOIS D'UN COUP · 11 novembre 2026 ──
    « Parfois je peux payer 2 ou 3 periodes » : on coche les mois, un seul
    virement, employes d'entreprise et entreprises ; jamais deux fois un mois. */

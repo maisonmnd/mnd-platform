@@ -152,8 +152,9 @@ export default function LesPaiements() {
     try { if (m) localStorage.removeItem(CLE_SOLDE_MASQUE); else localStorage.setItem(CLE_SOLDE_MASQUE, '1'); } catch { /* sans stockage, le choix vaut pour la visite */ }
     return !m;
   });
-  /** Les entreprises dont on a replié les employés (ouvertes par défaut). */
-  const [replies, setReplies] = useState<Set<string>>(() => new Set());
+  /** L'ONGLET OUVERT (maquette maquette-les-paiements-ranges.html, 11 nov.
+      2026) : `null`, celui qui a quelque chose à valider. */
+  const [onglet, setOnglet] = useState<'equipe' | 'presta' | 'ent' | 'prets' | null>(null);
   /* Le geste de clôture d'un test que MTN laisse sans réponse (9 novembre 2026). */
   const [fermeture, setFermeture] = useState(false);
 
@@ -637,7 +638,6 @@ export default function LesPaiements() {
   /** LES MOIS QUE PAIE UNE LIGNE D'ENTREPRISE (11 nov. 2026) : cocher ou
       décocher un mois ; un envoi programmé s'annule, la ligne attend votre
       toucher. Un mois pris par une autre période ne se coche pas. */
-  const [periodesOuvertes, setPeriodesOuvertes] = useState<string | null>(null);
   const basculeLeMois = async (l: LigneDuMois, m: string) => {
     if (ctx.get(l.cle)?.prisAilleurs?.[m]) return;
     const avant = l.periodes ?? [periode];
@@ -650,30 +650,6 @@ export default function LesPaiements() {
     });
     relisTout();
   };
-  const choixDesPeriodes = (l: LigneDuMois) => {
-    const pris = ctx.get(l.cle)?.prisAilleurs ?? {};
-    const libre = !fige && l.etat !== 'paye' && l.etat !== 'envoi';
-    return (
-      <tr className="lp-detail"><td colSpan={7}>
-        <div className="lp-periodes" role="group" aria-label={`Les mois payés à ${l.nom}`}>
-          <span className="lp-doux lp-petit">Mois payés par ce virement :</span>
-          {moisProposes(periode).map((m) => (
-            <label key={m} className={`lp-periode${pris[m] ? ' lp-periode--pris' : ''}`}>
-              <input type="checkbox" checked={(l.periodes ?? [periode]).includes(m)} disabled={!libre || !!pris[m]} onChange={() => void basculeLeMois(l, m)} />
-              {capitale(moisDit(m))}{pris[m] ? <span className="lp-doux"> · payé avec {moisDit(pris[m])}</span> : null}
-            </label>
-          ))}
-          <button type="button" className="lp-lien" onClick={() => setPeriodesOuvertes(null)}>Fermer</button>
-        </div>
-      </td></tr>
-    );
-  };
-  const lienDesPeriodes = (l: LigneDuMois) => (
-    <button type="button" className="lp-lien lp-modifie" aria-expanded={periodesOuvertes === l.cle} onClick={() => setPeriodesOuvertes(periodesOuvertes === l.cle ? null : l.cle)}>
-      {(l.periodes?.length ?? 1) > 1 ? `${l.periodes?.length} mois` : 'mois'}
-    </button>
-  );
-
   /** LE MONTANT D'UN EMPLOYÉ POUR CE MOIS SEULEMENT (son mensuel ne bouge pas). */
   const [montantAPoser, setMontantAPoser] = useState<{ cle: string; valeur: string } | null>(null);
   const poseLeMontantDuMois = async (l: LigneDuMois) => {
@@ -1136,6 +1112,108 @@ export default function LesPaiements() {
     );
   };
 
+  /* ── LES ENTREPRISES, RANGÉES — 11 novembre 2026 ─────────────────────
+     Maquette maquette-les-paiements-ranges.html (« construis ») : une carte
+     par entreprise (nom, jour et heure, total), une ligne courte par
+     bénéficiaire, le détail dans un panneau ; un seul panneau ouvert sur
+     toute la page (`ouverte`). */
+  const ouvre = (cle: string) => setOuverte(ouverte === cle ? null : cle);
+  const panneauDEntreprise = (y: LigneDuMois) => {
+    const x = ctx.get(y.cle);
+    const emp = x?.employe;
+    const pris = x?.prisAilleurs ?? {};
+    const libre = !fige && y.etat !== 'paye' && y.etat !== 'envoi';
+    const ms = y.periodes ?? [periode];
+    const parMois = emp ? emp.mensuelXof : x?.facture?.montantXof ?? 0;
+    const duMois = emp ? montantDeLEmploye(emp, mois.montants) : parMois;
+    return (
+      <div className="lp-panneau">
+        <span className="lp-sourcil">Mois payés par ce virement</span>
+        <div className="lp-mois" role="group" aria-label={`Les mois payés à ${y.nom}`}>
+          {moisProposes(periode).map((m) => (
+            <button key={m} type="button" aria-pressed={ms.includes(m)} disabled={!libre || !!pris[m]} onClick={() => void basculeLeMois(y, m)}>
+              {capitale(moisDit(m))}{pris[m] ? ` · payé avec ${moisDit(pris[m])}` : ''}
+            </button>
+          ))}
+        </div>
+        <div className="lp-calcul">
+          <span className="lp-doux">{ms.length ? `${ms.length} mois${ms.length > 1 && parMois ? ` × ${F(parMois)}` : ''}` : 'aucun mois'}{emp && duMois !== parMois && ms.includes(periode) ? ` · ${moisDit(periode)} : ${F(duMois)}` : ''}</span>
+          <b className="lp-num">{F(y.netXof)}</b>
+          {emp && libre && (montantAPoser?.cle === y.cle ? (
+            <span className="lp-pose">
+              <Input className="lp-prix" inputMode="numeric" autoFocus value={montantAPoser.valeur} aria-label={`Montant de ${y.nom} pour ${moisDit(periode)}`} onChange={(e) => setMontantAPoser({ cle: y.cle, valeur: e.target.value })} />
+              <Button size="sm" variant="copper" onClick={() => void poseLeMontantDuMois(y)}>Poser</Button>
+            </span>
+          ) : <button type="button" className="lp-lien" onClick={() => setMontantAPoser({ cle: y.cle, valeur: String(duMois) })}>Montant de {moisDit(periode)} seulement</button>)}
+          {!emp && libre && x?.fournisseur && <button type="button" className="lp-lien" onClick={() => setSaisie({ quoi: 'facture', fournisseur: x.fournisseur as Fournisseur, facture: x.facture })}>{x.facture ? 'Le montant du mois' : '+ Montant du mois'}</button>}
+          {emp && libre && x?.fournisseur && <button type="button" className="lp-lien" onClick={() => setSaisie({ quoi: 'entreprise', fournisseur: x.fournisseur as Fournisseur })}>Modifier l’employé</button>}
+        </div>
+        {y.envoi && <p className="lp-doux lp-petit">MTN : {ETAT_DE_L_ENVOI_DIT[y.envoi.etat]}{y.envoi.transaction_mtn ? ` · transaction ${y.envoi.transaction_mtn}` : ''}{y.envoi.etat === 'refuse' ? ` · ${raisonDite(y.envoi.raison)}` : ''}.</p>}
+        {y.etat === 'refuse' && !fige && <div className="lp-gestes"><Button size="sm" variant="ghost" onClick={() => void renvoyer(y)}>Renvoyer avec votre toucher</Button></div>}
+      </div>
+    );
+  };
+  const ligneDEntreprise = (y: LigneDuMois) => {
+    const o = ouverte === y.cle;
+    const x = ctx.get(y.cle);
+    const parMois = x?.employe ? x.employe.mensuelXof : x?.facture?.montantXof ?? 0;
+    const ms = y.periodes ?? [periode];
+    return (
+      <Fragment key={y.cle}>
+        <div
+          role="button" tabIndex={0} aria-expanded={o} className={`lp-grille lp-grille--ent lp-rang${o ? ' lp-rang--ouvert' : ''}`}
+          onClick={() => ouvre(y.cle)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ouvre(y.cle); } }}
+        >
+          <span className="lp-nom lp-coupe" title={y.nom}><span className="lp-chev" aria-hidden>›</span>{y.nom}</span>
+          <span className="lp-puces">{ms.length ? ms.map((m) => <span key={m} className="lp-puce" title={moisDit(m)}>{moisCourt(m)}</span>) : <span className="lp-doux lp-petit">{y.pourquoi ?? 'aucun mois'}</span>}</span>
+          <span className="lp-d lp-num lp-doux">{parMois ? F(parMois) : '–'}</span>
+          <span className="lp-d lp-num"><b>{y.netXof > 0 ? F(y.netXof) : '–'}</b></span>
+          <span>{numero(y)}</span>
+          <span className="lp-etat-ligne" onClick={(e) => e.stopPropagation()}>{pastille(y)}{seValideAPart(y) && !fige && <Button size="sm" variant="copper" onClick={() => void validerALaLigne(y)}>Valider</Button>}</span>
+        </div>
+        {o && panneauDEntreprise(y)}
+      </Fragment>
+    );
+  };
+  const carteDEntreprise = (f: Fournisseur, ls: LigneDuMois[], avecEmployes: boolean) => {
+    const fac = ctx.get(ls[0].cle)?.facture;
+    const libre = !fige && ls.some((y) => y.etat !== 'paye' && y.etat !== 'envoi');
+    const prets = ls.filter((y) => y.etat === 'paye' || y.etat === 'programme' || y.etat === 'valide' || y.etat === 'confirme' || y.etat === 'envoi').length;
+    const factureDite = fac?.facture?.trim() ? `facture ${fac.facture}${fac.piece ? ' · jointe' : ''}` : fac?.piece ? 'facture jointe' : avecEmployes ? 'sans facture' : fac ? 'sans facture' : 'montant du mois à poser';
+    return (
+      <article key={f.id} className="lp-carte">
+        <div className="lp-carte__tete">
+          <div className="lp-carte__nom">
+            <strong>{f.nom}</strong>
+            <span className="lp-doux lp-petit">
+              {avecEmployes ? `${ls.length} employé${ls.length > 1 ? 's' : ''}` : (f.paiement?.agent ? `agent ${f.paiement.agent}` : 'payée sur son numéro')} · {factureDite}
+              {libre && <> · <button type="button" className="lp-lien" onClick={() => setSaisie({ quoi: 'facture', fournisseur: f, facture: fac })}>{avecEmployes ? (fac ? 'la facture' : '+ Facture') : (fac ? 'le montant' : '+ Montant')}</button></>}
+              {libre && <> · <button type="button" className="lp-lien" onClick={() => setSaisie({ quoi: 'entreprise', fournisseur: f })}>modifier</button></>}
+            </span>
+          </div>
+          <div className="lp-carte__droite">
+            {choixDuQuand(ls, f.nom, avecEmployes ? f.id : undefined)}
+            <span className="lp-pastille">{prets} / {ls.length} prêt{prets > 1 ? 's' : ''}</span>
+            <b className="lp-carte__total lp-num">{F(ls.reduce((s, y) => s + y.netXof, 0))}</b>
+          </div>
+        </div>
+        <div className="lp-grille lp-grille--ent lp-entetes"><span>{avecEmployes ? 'Employé' : 'Bénéficiaire'}</span><span>Mois</span><span className="lp-d">Par mois</span><span className="lp-d">À payer</span><span>Numéro MTN</span><span>État</span></div>
+        {ls.map(ligneDEntreprise)}
+      </article>
+    );
+  };
+  /* Les cartes : une par entreprise, dans l'ordre des lignes. */
+  const cartes: { f: Fournisseur; ls: LigneDuMois[]; avecEmployes: boolean }[] = [];
+  for (const l of entreprises) {
+    const f = ctx.get(l.cle)?.fournisseur;
+    if (!f) continue;
+    const deja = cartes.find((k) => k.f.id === f.id);
+    if (deja) deja.ls.push(l); else cartes.push({ f, ls: [l], avecEmployes: !!l.entrepriseId });
+  }
+
+  /* Les onglets : chacun son total ; celui qui a quelque chose à valider s'ouvre seul. */
+  const aValiderDans = (ls: readonly LigneDuMois[]) => ls.some((l) => l.aValider || seValideAPart(l));
+  const vue = onglet ?? (aValiderDans(equipe) ? 'equipe' : aValiderDans(entreprises) ? 'ent' : aValiderDans(prestataires) ? 'presta' : 'equipe');
   const totalEquipe = equipe.filter((l) => l.viaMtn).reduce((s, l) => s + l.parMtnXof, 0);
   const total = (ls: LigneDuMois[]) => ls.filter((l) => l.viaMtn).reduce((s, l) => s + l.parMtnXof, 0);
 
@@ -1264,189 +1342,132 @@ export default function LesPaiements() {
         {points.length > 0 && <div className="lp-points">{points.map(point)}</div>}
       </section>
 
-      {/* Qui reçoit quoi. */}
-      <section>
-        <div className="lp-titre-de-bloc"><h2>Qui reçoit quoi</h2><span className="lp-doux lp-petit">Touchez une ligne de l’équipe : son bulletin</span></div>
-        <div className="lp-defile">
-          <table className="lp-table">
-            <thead><tr><th>Personne</th><th className="lp-n">Net</th><th className="lp-n">Prêt</th><th className="lp-n">Par MTN</th><th>Numéro MTN</th><th>État</th><th className="lp-n">Pourboires · espèces</th></tr></thead>
-            <tbody>
-              <tr className="lp-groupe"><td colSpan={7}>L’équipe<span>{cal ? `le ${jourDeLaPaie} à 18 h` : ''} · {F(totalEquipe)}</span></td></tr>
-              {!equipe.length && <tr><td colSpan={7} className="lp-vide">{run ? 'Aucune ligne dans le run.' : `Pas encore de run pour ${moisDit(periode)} : il se crée dans Réglages.`}</td></tr>}
-              {equipe.map((l) => {
-                const o = ouverte === l.cle;
-                return (
-                  <Fragment key={l.cle}>
-                    <tr className={`lp-ligne${o ? ' lp-ligne--ouverte' : ''}`} onClick={() => setOuverte(o ? null : l.cle)}>
-                      <td><span className="lp-chev" aria-hidden>›</span>{l.nom}</td>
-                      <td className="lp-n">{F(l.netXof)}</td>
-                      <td className={`lp-n ${l.pretXof ? 'lp-moins' : 'lp-vide'}`}>{l.pretXof ? `− ${F(l.pretXof)}` : '–'}</td>
-                      <td className="lp-n"><b>{l.viaMtn ? F(l.parMtnXof) : '–'}</b></td>
-                      <td>{numero(l)}</td>
-                      <td>
-                        {/* Sa réponse au WhatsApp de la paie (0165), si elle existe. */}
-                        <span className="lp-etat-ligne">{pastille(l)}{l.envoi?.reponse_employe === 'bien-recu' ? <span className="lp-reponse">Bien reçu ✓</span> : l.envoi?.reponse_employe === 'pas-encore' ? <span className="lp-reponse lp-reponse--pas">Pas encore reçu</span> : null}</span>
-                      </td>
-                      <td className="lp-n">
-                        {l.pourboiresXof > 0
-                          ? <button type="button" className={`lp-remis${remis[l.id] ? ' lp-remis--oui' : ''}`} onClick={(e) => { e.stopPropagation(); basculeRemis(l); }}>{F(l.pourboiresXof)} · {remis[l.id] ? 'Remis ✓' : 'À remettre'}</button>
-                          : <span className="lp-vide">–</span>}
-                      </td>
-                    </tr>
-                    {o && <tr className="lp-detail"><td colSpan={7}>{bulletin(l)}</td></tr>}
-                  </Fragment>
-                );
-              })}
+      {/* QUI REÇOIT QUOI, EN QUATRE ONGLETS — 11 novembre 2026 (maquette
+          maquette-les-paiements-ranges.html, « construis »). */}
+      <nav className="lp-onglets" role="tablist" aria-label="Qui reçoit quoi">
+        {([
+          { cle: 'equipe', titre: 'Équipe', total: F(totalEquipe), dit: `${equipe.length} personne${equipe.length > 1 ? 's' : ''}${c.pourboiresATotal ? ` · pourboires ${c.pourboiresRemis} / ${c.pourboiresATotal}` : ''}`, aValider: aValiderDans(equipe) },
+          { cle: 'presta', titre: 'Prestataires', total: F(total(prestataires)), dit: prestataires.length ? `${prestataires.length} prestataire${prestataires.length > 1 ? 's' : ''}` : 'aucune mission', aValider: aValiderDans(prestataires) },
+          { cle: 'ent', titre: 'Entreprises', total: F(total(entreprises)), dit: cartes.length ? `${cartes.length} entreprise${cartes.length > 1 ? 's' : ''} · ${entreprises.filter((l) => l.viaMtn).length} virement${entreprises.filter((l) => l.viaMtn).length > 1 ? 's' : ''}` : 'aucune', aValider: aValiderDans(entreprises) },
+          { cle: 'prets', titre: 'Prêts', total: F(pretsDeLEquipe.reduce((s, p) => s + p.resteApresXof, 0)), dit: pretsDeLEquipe.length ? `${pretsDeLEquipe.length} en cours` : 'aucun', aValider: false },
+        ] as const).map((o) => (
+          <button key={o.cle} type="button" role="tab" aria-selected={vue === o.cle} className="lp-onglet" onClick={() => { setOnglet(o.cle); setOuverte(null); }}>
+            <span className="lp-sourcil">{o.titre}</span>
+            <b className="lp-num">{o.total}</b>
+            <span className={`lp-onglet__dit${o.aValider ? ' lp-onglet__dit--a-valider' : ''}`}>{o.aValider ? 'à valider · ' : ''}{o.dit}</span>
+          </button>
+        ))}
+      </nav>
 
-              <tr className="lp-groupe"><td colSpan={7}>Prestataires<span>chacun à sa date · {F(total(prestataires))}</span></td></tr>
-              {!prestataires.length && <tr><td colSpan={7} className="lp-vide">Aucune mission ni facture de prestataire pour {moisDit(periode)}.</td></tr>}
-              {prestataires.map((l) => (
-                <tr key={l.cle}>
-                  <td className="lp-nom">{l.nom}</td>
-                  <td className="lp-doux" colSpan={2}>{l.detail}</td>
-                  <td className="lp-n">{l.netXof > 0 ? <b>{F(l.netXof)}</b> : <span className="lp-vide">{l.pourquoi === 'sans prix' ? 'sans prix' : '–'}</span>}</td>
-                  <td>{numero(l)}</td>
-                  <td><span className="lp-etat-ligne">{choixDuJour(l)}{pastille(l)}{seValideAPart(l) && !fige && <Button size="sm" variant="copper" onClick={() => void validerALaLigne(l)}>Valider</Button>}</span></td>
-                  <td className="lp-n">
-                    {l.pourboiresXof > 0
-                      ? <button type="button" className={`lp-remis${remis[l.id] ? ' lp-remis--oui' : ''}`} onClick={() => basculeRemis(l)}>{F(l.pourboiresXof)} · {remis[l.id] ? 'Remis ✓' : 'À remettre'}</button>
-                      : <span className="lp-vide">–</span>}
-                  </td>
-                </tr>
-              ))}
-
-              <tr className="lp-groupe">
-                <td colSpan={7}>Entreprises<span>chacune à sa date et à son heure · à l’entreprise, ou à chacun de ses employés · {F(total(entreprises))}</span>
-                  <button type="button" className="lp-lien lp-ajoute" onClick={() => setSaisie({ quoi: 'entreprise' })}>+ Entreprise</button>
-                </td>
-              </tr>
-              {!entreprises.length && <tr><td colSpan={7} className="lp-vide">Aucune entreprise : « + Entreprise ».</td></tr>}
-              {entreprises.filter((l) => !l.entrepriseId || entreprises.find((y) => y.entrepriseId === l.entrepriseId) === l).map((l) => {
-                const x = ctx.get(l.cle);
-                /* UNE ENTREPRISE ET SES EMPLOYÉS (11 nov. 2026) : une ligne qui
-                   dit le total, la date et l'heure ; dessous, chacun sur son
-                   numéro. La ligne de l'entreprise n'est pas un virement. */
-                if (l.entrepriseId && x?.fournisseur) {
-                  const f = x.fournisseur;
-                  const siens = entreprises.filter((y) => y.entrepriseId === f.id);
-                  const replie = replies.has(f.id);
-                  const prets = siens.filter((y) => y.etat === 'paye' || y.etat === 'programme' || y.etat === 'valide' || y.etat === 'confirme' || y.etat === 'envoi').length;
-                  const fac = x.facture;
-                  const libreG = !fige && siens.some((y) => y.etat !== 'paye' && y.etat !== 'envoi');
+      {/* L'équipe : une ligne par personne, son bulletin dans un panneau. */}
+      {vue === 'equipe' && (
+        <section className="lp-vue" role="tabpanel" aria-label="L’équipe">
+          <div className="lp-titre-de-bloc"><h2>L’équipe{cal ? ` · le ${jourDeLaPaie} à 18 h` : ''}</h2><span className="lp-doux lp-petit">Touchez une ligne : son bulletin</span></div>
+          <div className="lp-defile">
+            <table className="lp-table">
+              <thead><tr><th>Personne</th><th className="lp-n">Net</th><th className="lp-n">Prêt</th><th className="lp-n">Par MTN</th><th>Numéro MTN</th><th>État</th><th className="lp-n">Pourboires · espèces</th></tr></thead>
+              <tbody>
+                {!equipe.length && <tr><td colSpan={7} className="lp-vide">{run ? 'Aucune ligne dans le run.' : `Pas encore de run pour ${moisDit(periode)} : il se crée dans Réglages.`}</td></tr>}
+                {equipe.map((l) => {
+                  const o = ouverte === l.cle;
                   return (
-                    <Fragment key={`ent-${f.id}`}>
-                      <tr className="lp-sousgroupe">
-                        <td className="lp-nom">
-                          <button type="button" className="lp-deplie" aria-expanded={!replie} onClick={() => setReplies((s) => { const n = new Set(s); if (n.has(f.id)) n.delete(f.id); else n.add(f.id); return n; })}>
-                            <span className="lp-chev" aria-hidden>›</span>{f.nom}
-                          </button>
-                          {libreG && <button type="button" className="lp-lien lp-modifie" onClick={() => setSaisie({ quoi: 'entreprise', fournisseur: f })}>modifier</button>}
+                    <Fragment key={l.cle}>
+                      <tr className={`lp-ligne${o ? ' lp-ligne--ouverte' : ''}`} onClick={() => setOuverte(o ? null : l.cle)}>
+                        <td><span className="lp-chev" aria-hidden>›</span>{l.nom}</td>
+                        <td className="lp-n">{F(l.netXof)}</td>
+                        <td className={`lp-n ${l.pretXof ? 'lp-moins' : 'lp-vide'}`}>{l.pretXof ? `− ${F(l.pretXof)}` : '–'}</td>
+                        <td className="lp-n"><b>{l.viaMtn ? F(l.parMtnXof) : '–'}</b></td>
+                        <td>{numero(l)}</td>
+                        <td>
+                          {/* Sa réponse au WhatsApp de la paie (0165), si elle existe. */}
+                          <span className="lp-etat-ligne">{pastille(l)}{l.envoi?.reponse_employe === 'bien-recu' ? <span className="lp-reponse">Bien reçu ✓</span> : l.envoi?.reponse_employe === 'pas-encore' ? <span className="lp-reponse lp-reponse--pas">Pas encore reçu</span> : null}</span>
                         </td>
-                        <td className="lp-doux" colSpan={2}>
-                          {siens.length} employé{siens.length > 1 ? 's' : ''} · {fac?.facture?.trim() ? `facture ${fac.facture}${fac.piece ? ' · jointe' : ''}` : fac?.piece ? 'facture jointe' : 'sans facture'}
-                          {libreG && <button type="button" className="lp-lien lp-modifie" onClick={() => setSaisie({ quoi: 'facture', fournisseur: f, facture: fac })}>{fac ? 'la facture' : '+ Facture'}</button>}
+                        <td className="lp-n">
+                          {l.pourboiresXof > 0
+                            ? <button type="button" className={`lp-remis${remis[l.id] ? ' lp-remis--oui' : ''}`} onClick={(e) => { e.stopPropagation(); basculeRemis(l); }}>{F(l.pourboiresXof)} · {remis[l.id] ? 'Remis ✓' : 'À remettre'}</button>
+                            : <span className="lp-vide">–</span>}
                         </td>
-                        <td className="lp-n"><b>{F(siens.reduce((s, y) => s + y.netXof, 0))}</b></td>
-                        <td className="lp-doux lp-petit">chacun sur son numéro</td>
-                        <td><span className="lp-etat-ligne">{choixDuQuand(siens, f.nom, f.id)}<span className="lp-pastille">{prets} / {siens.length} prêt{prets > 1 ? 's' : ''}</span></span></td>
-                        <td className="lp-n lp-vide">–</td>
                       </tr>
-                      {!replie && siens.map((y) => {
-                        const ex = ctx.get(y.cle);
-                        const emp = ex?.employe;
-                        const libreE = y.etat !== 'paye' && y.etat !== 'envoi' && !fige;
-                        const pose = montantAPoser?.cle === y.cle;
-                        const duMoisPose = emp ? montantDeLEmploye(emp, mois.montants) : 0;
-                        return (
-                          <Fragment key={y.cle}>
-                          <tr className="lp-employe">
-                            <td className="lp-nom">{y.nom}</td>
-                            <td className="lp-doux" colSpan={2}>
-                              {periodesDites(y.periodes?.length ? y.periodes : [periode]) || 'aucun mois'}
-                              {emp && (y.periodes?.length ?? 1) > 1 ? ` · ${F(emp.mensuelXof)} par mois` : ''}
-                              {emp && duMoisPose !== emp.mensuelXof ? ` · ${moisDit(periode)} : ${F(duMoisPose)} ce mois seulement` : ''}
-                              {libreE && lienDesPeriodes(y)}
-                            </td>
-                            <td className="lp-n">
-                              {pose ? (
-                                <span className="lp-pose">
-                                  <Input className="lp-prix" inputMode="numeric" autoFocus value={montantAPoser.valeur} aria-label={`Montant de ${y.nom} pour ${moisDit(periode)}`} onChange={(e) => setMontantAPoser({ cle: y.cle, valeur: e.target.value })} />
-                                  <Button size="sm" variant="copper" onClick={() => void poseLeMontantDuMois(y)}>Poser</Button>
-                                </span>
-                              ) : (
-                                <>{y.netXof > 0 ? <b>{F(y.netXof)}</b> : <span className="lp-vide">0 F</span>}
-                                  {libreE && <button type="button" className="lp-lien lp-modifie" title={`Le montant de ${moisDit(periode)} seulement`} onClick={() => setMontantAPoser({ cle: y.cle, valeur: String(duMoisPose) })}>modifier</button>}</>
-                              )}
-                            </td>
-                            <td>{numero(y)}</td>
-                            <td><span className="lp-etat-ligne">{pastille(y)}{seValideAPart(y) && !fige && <Button size="sm" variant="copper" onClick={() => void validerALaLigne(y)}>Valider</Button>}</span></td>
-                            <td className="lp-n lp-vide">–</td>
-                          </tr>
-                          {periodesOuvertes === y.cle && choixDesPeriodes(y)}
-                          </Fragment>
-                        );
-                      })}
+                      {o && <tr className="lp-detail"><td colSpan={7}>{bulletin(l)}</td></tr>}
                     </Fragment>
                   );
-                }
-                const libre = l.etat !== 'paye' && l.etat !== 'envoi' && !fige;
-                return (
-                  <Fragment key={l.cle}>
-                  <tr>
-                    <td className="lp-nom">{l.nom}
-                      {x?.fournisseur && libre && <button type="button" className="lp-lien lp-modifie" onClick={() => setSaisie({ quoi: 'entreprise', fournisseur: x.fournisseur })}>modifier</button>}
-                    </td>
-                    <td className="lp-doux" colSpan={2}>
-                      {l.detail}
-                      {x?.facture && (l.periodes?.length ?? 1) > 1 ? ` · ${periodesDites(l.periodes ?? [])}, ${F(x.facture.montantXof)} par mois` : ''}
-                      {x?.fournisseur && libre && <button type="button" className="lp-lien lp-modifie" onClick={() => setSaisie({ quoi: 'facture', fournisseur: x.fournisseur as Fournisseur, facture: x.facture })}>{x.facture ? 'le montant' : '+ Montant'}</button>}
-                      {x?.facture && libre && lienDesPeriodes(l)}
-                    </td>
-                    <td className="lp-n">{l.netXof > 0 ? <b>{F(l.netXof)}</b> : <span className="lp-vide">–</span>}</td>
+                })}
+                <tr className="lp-total">
+                  <td>Total</td>
+                  <td className="lp-n">{F(c.salairesNetsXof)}</td>
+                  <td className="lp-n lp-moins">{c.pretsXof ? `− ${F(c.pretsXof)}` : '–'}</td>
+                  <td className="lp-n">{F(totalEquipe)}</td>
+                  <td colSpan={2}>{equipe.filter((l) => l.viaMtn).length} virement{equipe.filter((l) => l.viaMtn).length > 1 ? 's' : ''} · frais 0 F</td>
+                  <td className="lp-n">{F(c.pourboiresXof)} · {c.pourboiresRemis} / {c.pourboiresATotal}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* Les prestataires, à leur date et à leur heure. */}
+      {vue === 'presta' && (
+        <section className="lp-vue" role="tabpanel" aria-label="Les prestataires">
+          <div className="lp-titre-de-bloc"><h2>Prestataires · à leur date</h2></div>
+          <div className="lp-defile">
+            <table className="lp-table">
+              <thead><tr><th>Prestataire</th><th>Missions</th><th className="lp-n">Montant</th><th>Numéro MTN</th><th>Quand · état</th><th className="lp-n">Pourboires · espèces</th></tr></thead>
+              <tbody>
+                {!prestataires.length && <tr><td colSpan={6} className="lp-vide">Aucune mission ni facture de prestataire pour {moisDit(periode)}.</td></tr>}
+                {prestataires.map((l) => (
+                  <tr key={l.cle}>
+                    <td className="lp-nom">{l.nom}</td>
+                    <td className="lp-doux">{l.detail}</td>
+                    <td className="lp-n">{l.netXof > 0 ? <b>{F(l.netXof)}</b> : <span className="lp-vide">{l.pourquoi === 'sans prix' ? 'sans prix' : '–'}</span>}</td>
                     <td>{numero(l)}</td>
                     <td><span className="lp-etat-ligne">{choixDuJour(l)}{pastille(l)}{seValideAPart(l) && !fige && <Button size="sm" variant="copper" onClick={() => void validerALaLigne(l)}>Valider</Button>}</span></td>
-                    <td className="lp-n lp-vide">–</td>
+                    <td className="lp-n">
+                      {l.pourboiresXof > 0
+                        ? <button type="button" className={`lp-remis${remis[l.id] ? ' lp-remis--oui' : ''}`} onClick={() => basculeRemis(l)}>{F(l.pourboiresXof)} · {remis[l.id] ? 'Remis ✓' : 'À remettre'}</button>
+                        : <span className="lp-vide">–</span>}
+                    </td>
                   </tr>
-                  {periodesOuvertes === l.cle && choixDesPeriodes(l)}
-                  </Fragment>
-                );
-              })}
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
-              <tr className="lp-total">
-                <td>Total</td>
-                <td className="lp-n">{F(c.salairesNetsXof)}</td>
-                <td className="lp-n lp-moins">{c.pretsXof ? `− ${F(c.pretsXof)}` : '–'}</td>
-                <td className="lp-n">{F(c.parMtnXof)}</td>
-                <td colSpan={2}>{c.virements} virement{c.virements > 1 ? 's' : ''} · frais 0 F</td>
-                <td className="lp-n">{F(c.pourboiresXof)} · {c.pourboiresRemis} / {c.pourboiresATotal}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p className="lp-doux lp-petit">Date et heure d’un prestataire ou d’une entreprise : le 10 à 18 h par défaut, 1 à 28 ou dernier jour, de 7 h à 21 h, sur sa ligne ; pour une entreprise à employés, sur sa ligne à elle, pour tous. Dimanche : le lundi. Avant le 5 : un toucher à part ce jour-là. Changées après votre toucher : la ligne attend votre toucher.</p>
-      </section>
+      {/* Les entreprises : une carte chacune. */}
+      {vue === 'ent' && (
+        <section className="lp-vue" role="tabpanel" aria-label="Les entreprises">
+          <div className="lp-titre-de-bloc"><h2>Entreprises · à leur date</h2><button type="button" className="lp-lien" onClick={() => setSaisie({ quoi: 'entreprise' })}>+ Entreprise</button></div>
+          {!cartes.length && <p className="lp-doux lp-petit">Aucune entreprise : « + Entreprise ».</p>}
+          {cartes.map((k) => carteDEntreprise(k.f, k.ls, k.avecEmployes))}
+          <p className="lp-doux lp-petit">Jour et heure sur la carte, pour toute l’entreprise. Dimanche : le lundi. Changés après votre toucher : la ligne attend votre toucher.</p>
+        </section>
+      )}
 
       {/* Les prêts de l'équipe. */}
-      <section>
-        <div className="lp-titre-de-bloc"><h2>Les prêts</h2><button type="button" className="lp-lien" onClick={() => navigate('/prets-personnel')}>+ Prêter à un membre</button></div>
-        {!pretsDeLEquipe.length && <p className="lp-doux lp-petit">Aucun prêt en cours dans l’équipe.</p>}
-        {pretsDeLEquipe.map((p) => (
-          <div key={p.nom} className="lp-pret">
-            <div className="lp-pret__qui"><strong>{p.nom}</strong><span className="lp-doux lp-petit">{F(p.prete)} prêtés{p.premier ? ` le ${jourCourt(p.premier)}` : ''}{p.mens ? ` · ${F(p.mens)} par bulletin` : ''}</span></div>
-            <div>
-              <div className="lp-pret__chiffres">
-                <span>Retenu <b>{F(p.retenuXof)}</b></span><span>Reste après ce mois <b>{F(p.resteApresXof)}</b></span>
-                <span>Dernière retenue <b>{p.derniereRetenue ? moisDit(p.derniereRetenue) : '–'}</b></span>
+      {vue === 'prets' && (
+        <section className="lp-vue" role="tabpanel" aria-label="Les prêts">
+          <div className="lp-titre-de-bloc"><h2>Les prêts</h2><button type="button" className="lp-lien" onClick={() => navigate('/prets-personnel')}>+ Prêter à un membre</button></div>
+          {!pretsDeLEquipe.length && <p className="lp-doux lp-petit">Aucun prêt en cours dans l’équipe.</p>}
+          {pretsDeLEquipe.map((p) => (
+            <div key={p.nom} className="lp-pret">
+              <div className="lp-pret__qui"><strong>{p.nom}</strong><span className="lp-doux lp-petit">{F(p.prete)} prêtés{p.premier ? ` le ${jourCourt(p.premier)}` : ''}{p.mens ? ` · ${F(p.mens)} par bulletin` : ''}</span></div>
+              <div>
+                <div className="lp-pret__chiffres">
+                  <span>Retenu <b>{F(p.retenuXof)}</b></span><span>Reste après ce mois <b>{F(p.resteApresXof)}</b></span>
+                  <span>Dernière retenue <b>{p.derniereRetenue ? moisDit(p.derniereRetenue) : '–'}</b></span>
+                </div>
+                <div className="lp-jauge" aria-label={`${Math.round(p.partRemboursee * 100)} % remboursés`}><i style={{ width: `${Math.round(p.partRemboursee * 100)}%` }} /></div>
+                <div className="lp-echeances">
+                  {p.echeances.map((e) => <span key={e.mois} className={e.etat === 'faite' ? 'lp-faite' : e.etat === 'ce-mois' ? 'lp-cemois' : ''}>{moisCourt(e.mois)} {F(e.montantXof)}</span>)}
+                </div>
               </div>
-              <div className="lp-jauge" aria-label={`${Math.round(p.partRemboursee * 100)} % remboursés`}><i style={{ width: `${Math.round(p.partRemboursee * 100)}%` }} /></div>
-              <div className="lp-echeances">
-                {p.echeances.map((e) => <span key={e.mois} className={e.etat === 'faite' ? 'lp-faite' : e.etat === 'ce-mois' ? 'lp-cemois' : ''}>{moisCourt(e.mois)} {F(e.montantXof)}</span>)}
-              </div>
+              <div><Button size="sm" variant="ghost" onClick={() => navigate('/prets-personnel')}>Le prêt</Button></div>
             </div>
-            <div><Button size="sm" variant="ghost" onClick={() => navigate('/prets-personnel')}>Le prêt</Button></div>
-          </div>
-        ))}
-      </section>
+          ))}
+        </section>
+      )}
 
       {/* La validation, en pied collant. */}
       <div className="lp-pied" role="region" aria-label="Validation du mois">
