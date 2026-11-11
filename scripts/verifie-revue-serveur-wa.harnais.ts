@@ -374,8 +374,9 @@ reprise();
   const nues = boucles.filter((b) => !/^for \(const e of entrants\) \{ (if \(!estNeuf\(e\)|if \(!neufs\.has\(`wa-\$\{e\.waId\}`\))/.test(b));
   /* 27 octobre 2026 : trois boucles de plus, l'Assistant Maison entend (ses boutons, STOP, la question franche).
      2 novembre 2026 : une de plus, la réponse à la question de l'accord des nouvelles (lot 3 de Perle).
-     6 novembre 2026 : une de plus, les boutons de la paie (« Oui, bien reçu », « Pas encore »). */
-  dit('n4 chaque boucle de gestes ne joue que les messages neufs (11 boucles)', boucles.length === 11 && nues.length === 0, { boucles: boucles.length, nues });
+     6 novembre 2026 : une de plus, les boutons de la paie (« Oui, bien reçu », « Pas encore »).
+     11 novembre 2026 : une de plus, les boutons de la prochaine séance (lot 4 de l'abonnement refait). */
+  dit('n4 chaque boucle de gestes ne joue que les messages neufs (12 boucles)', boucles.length === 12 && nues.length === 0, { boucles: boucles.length, nues });
 }
 
 /* ── n79 · la cle d'unicite ────────────────────────────────────────── */

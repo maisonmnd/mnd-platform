@@ -127,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-06-a · les boutons de la paie (PAIE_RECU, PAIE_PASENCORE) s écrivent sur le registre des envois MTN, venus du seul numéro à qui le message est parti, sans automate ni sonnerie ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero : le message et l appel portent l adulte, le payeur, ou personne ; les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour';
+const VERSION = '2026-11-11-a · les boutons de la paie (PAIE_RECU, PAIE_PASENCORE) s écrivent sur le registre des envois MTN, venus du seul numéro à qui le message est parti, sans automate ni sonnerie ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero : le message et l appel portent l adulte, le payeur, ou personne ; les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour ; la prochaine séance de l abonnée (PROCHAINE_OK, PROCHAINE_AUTRE) : « Oui, je réserve » pose la séance couverte par sa formule sous le verrou du serveur (reserver_une_seance_incluse_par_la_maison, 0198) et la confirme en une phrase, la ligne conf-<rdv>-whatsapp taisant le modèle de confirmation-rdv sauf si la phrase ne part pas ; une suite déjà posée ne se pose pas deux fois ; « Une autre date » passe la main à la conversation sans rien poser ; venus du seul numéro à qui le message est parti';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -441,6 +441,148 @@ const heureDeLaReprise = (hhmm: string | undefined): string => {
     : `${Number(h)} h`;
 };
 
+/* ══ LA PROCHAINE SÉANCE DE L'ABONNÉE — 8 novembre 2026 (lot 4 de l'abonnement refait) ══
+   « Merci, Awa. Votre prochaine séance : samedi 23 janvier 2027 à 9 h ? »,
+   déposé en salle par le Trône quand sa séance de formule est marquée faite
+   (shared/messages-de-l-abonnee.ts). Ses deux boutons reviennent ici :
+   « Oui, je réserve » (PROCHAINE_OK:<séance>) pose la place proposée,
+   couverte par sa formule, sous le verrou du serveur ; « Une autre date »
+   (PROCHAINE_AUTRE:<séance>) passe la main à la conversation, sans rien
+   poser. Les mots et les clés sont RECOPIÉS tels quels de
+   `src/shared/messages-de-l-abonnee-pur.ts` (`node scripts/terminer-copie-
+   serveur.mjs` ; verifie-les-douze-lunes R8 et verifie-les-messages-de-la-
+   seance les comparent). NE RIEN RETOUCHER ENTRE LES REPÈRES. */
+/* ⟨prochaine-seance⟩ */
+/** Le modèle Meta du message d'après la séance (deux boutons). Son nom est
+    FIXE : le Trône le dépose quand la direction l'a noté « approuvé » dans le
+    registre des modèles (shared/modeles-meta). */
+const MODELE_PROCHAINE_SEANCE = 'prochaine_seance';
+/** Le `type` et le `genre` de la ligne d'envoi déposée en salle. */
+const TYPE_APRES_SEANCE = 'apres-seance';
+const GENRE_APRES_SEANCE = 'apres-seance';
+const BOUTONS_DE_LA_PROCHAINE_SEANCE = ['Oui, je réserve', 'Une autre date'] as const;
+type GesteDeLaProchaineSeance = 'oui' | 'autre';
+
+/** LA CLÉ D'UNICITÉ : une ligne par séance honorée, pour toujours. */
+const idDeLaProchaineSeance = (rdvId: string): string => `prochaine-seance-${rdvId}`;
+/** Ce que chaque bouton rapporte au webhook : la séance honorée qu'il suit. */
+const chargeDuBoutonDeLaProchaineSeance = (rdvId: string, geste: GesteDeLaProchaineSeance): string =>
+  `PROCHAINE_${geste === 'oui' ? 'OK' : 'AUTRE'}:${rdvId}`;
+/** Le bouton touché, relu ; `null` si ce n'est pas un bouton de la prochaine séance. */
+function lisLeBoutonDeLaProchaineSeance(id: unknown): { rdvId: string; geste: GesteDeLaProchaineSeance } | null {
+  const m = /^PROCHAINE_(OK|AUTRE):([A-Za-z0-9_-]{1,80})$/.exec(String(id ?? ''));
+  return m ? { rdvId: m[2], geste: m[1] === 'OK' ? 'oui' : 'autre' } : null;
+}
+
+/** Les mots du modèle, variables posées : {{1}} l'appel, {{2}} le moment
+    (« samedi 23 janvier 2027 à 9 h », l'année toujours). */
+const texteDeLaProchaineSeance = (appel: string, moment: string): string => `Merci, ${appel}. Votre prochaine séance : ${moment} ?`;
+/** Ce que le fil du Trône garde : le texte et ses deux boutons, entre crochets. */
+const texteAuFilDeLaProchaineSeance = (appel: string, moment: string): string =>
+  `${texteDeLaProchaineSeance(appel, moment)} [${BOUTONS_DE_LA_PROCHAINE_SEANCE[0]}] [${BOUTONS_DE_LA_PROCHAINE_SEANCE[1]}]`;
+/** Les composants du modèle : le corps, puis les deux réponses rapides. */
+const composantsDeLaProchaineSeance = (appel: string, moment: string, rdvId: string): unknown[] => [
+  { type: 'body', parameters: [{ type: 'text', text: appel }, { type: 'text', text: moment }] },
+  { type: 'button', sub_type: 'quick_reply', index: '0', parameters: [{ type: 'payload', payload: chargeDuBoutonDeLaProchaineSeance(rdvId, 'oui') }] },
+  { type: 'button', sub_type: 'quick_reply', index: '1', parameters: [{ type: 'payload', payload: chargeDuBoutonDeLaProchaineSeance(rdvId, 'autre') }] },
+];
+
+/** CE QUE « OUI » POSE : la place proposée, gardée sur la ligne d'envoi (le
+    bouton ne porte que la séance ; la ligne porte le reste). */
+type PropositionDeSeance = { subId: string; serviceId: string; date: string; time: string; clientId: string };
+/** La proposition relue sans confiance : chaque champ présent et bien formé, sinon rien. */
+function propositionLisible(x: unknown): PropositionDeSeance | null {
+  if (!x || typeof x !== 'object') return null;
+  const p = x as Record<string, unknown>;
+  const texte = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+  const subId = texte(p.subId); const serviceId = texte(p.serviceId); const date = texte(p.date); const time = texte(p.time); const clientId = texte(p.clientId);
+  if (!subId || !serviceId || !clientId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return null;
+  return { subId, serviceId, date, time, clientId };
+}
+
+/** « Oui, je réserve » : LA confirmation, dite dans la conversation (comme
+    l'automate) ; la ligne `conf-<rdv>-whatsapp`, posée avec la séance, tait
+    le modèle de confirmation-rdv, qui ne reprend la main que si cette phrase
+    ne part pas. Un rendez-vous se dit « confirmé pour le … ». */
+const reponseAuOui = (appel: string, moment: string): string =>
+  `C’est noté, ${appel} : votre séance est confirmée pour le ${moment} à la Maison MND.`;
+/** « Oui » quand un rendez-vous suivant a été posé depuis le message (le
+    comptoir, Ma Couronne) : rien ne se pose une seconde fois. */
+const reponseDejaReservee = (appel: string, moment: string): string =>
+  `C’est déjà fait, ${appel} : votre prochaine séance est confirmée pour le ${moment} à la Maison MND.`;
+/** « Une autre date » : la main passe à la conversation, rien n'est posé. */
+const reponseALAutreDate = (appel: string): string =>
+  `Bien sûr, ${appel}. Dites-nous ici le jour qui vous va : la Maison MND vous propose une heure.`;
+/** « Oui » sur une place que le serveur ne peut plus poser (prise entre-temps,
+    formule qui ne porte plus) : la main passe, comme pour une autre date. */
+const reponseALaPlacePrise = (appel: string): string =>
+  `Cette place vient d’être prise, ${appel}. Dites-nous ici le jour qui vous va : la Maison MND vous propose une heure.`;
+/* ⟨/prochaine-seance⟩ */
+/* LE RENDEZ-VOUS SUIVANT, RELU AU « OUI » (11 novembre 2026) : posé depuis le
+   message (le comptoir, Ma Couronne), rien ne se pose une seconde fois. Bloc
+   RECOPIÉ de `src/shared/messages-de-l-abonnee-pur.ts`, comme le précédent.
+   NE RIEN RETOUCHER ENTRE LES REPÈRES. */
+/* ⟨deja-un-suivant⟩ */
+/** Un rendez-vous de la tête, pour savoir si un suivant est déjà posé. */
+type RdvDeLaTete = { id: string; clientId: string; date: string; time?: string; status: string };
+/** LE RENDEZ-VOUS SUIVANT, S'IL EST DÉJÀ POSÉ : le plus proche rendez-vous
+    de la même tête, ni annulé ni honoré, après la séance (le même jour plus
+    tard compris). `null` : elle n'a pas encore sa place. Jugé trois fois :
+    au dépôt (le Trône), au départ (le facteur : la carte « Son prochain
+    rituel » pose souvent la suite pendant les dix minutes de salle), et au
+    « Oui » (le webhook : rien ne se pose une seconde fois). */
+function leSuivant<R extends RdvDeLaTete>(rdvs: readonly R[], seance: { id: string; clientId: string; date: string; time?: string }): R | null {
+  let mieux: R | null = null;
+  for (const a of rdvs) {
+    if (!a || a.id === seance.id || a.clientId !== seance.clientId || a.status === 'annulé' || a.status === 'honoré') continue;
+    const apres = a.date > seance.date || (a.date === seance.date && String(a.time ?? '') > String(seance.time ?? ''));
+    if (!apres) continue;
+    if (!mieux || a.date < mieux.date || (a.date === mieux.date && String(a.time ?? '') < String(mieux.time ?? ''))) mieux = a;
+  }
+  return mieux;
+}
+/** Un rendez-vous suivant existe-t-il déjà ? Alors pas de message : elle a déjà sa place. */
+const dejaUnSuivant = (rdvs: readonly RdvDeLaTete[], seance: { id: string; clientId: string; date: string; time?: string }): boolean =>
+  leSuivant(rdvs, seance) !== null;
+/* ⟨/deja-un-suivant⟩ */
+
+/** LA SUITE DE LA SÉANCE, relue en base : la séance (sa date, son heure) et
+    les rendez-vous de sa tête depuis ce jour. `null` : aucune suite, ou une
+    lecture impossible (le serveur jugera seul, sur un crédit libre). */
+async function suivantDeLaSeance(sb: ReturnType<typeof createClient>, seanceId: string, clientId: string): Promise<RdvDeLaTete | null> {
+  if (!seanceId || !clientId) return null;
+  const { data: s, error: errS } = await sb.from('appointments').select('id, data').eq('id', seanceId).limit(1);
+  const seance = ((s ?? [])[0] as { id: string; data?: Partial<RdvDeLaTete> } | undefined)?.data;
+  if (errS || !seance?.date) return null;
+  const { data: siens, error } = await sb.from('appointments').select('id, data')
+    .eq('data->>clientId', clientId).gte('data->>date', seance.date).limit(500);
+  if (error) return null;
+  const rdvs = ((siens ?? []) as { id: string; data?: Partial<RdvDeLaTete> }[]).map((r) => ({
+    id: r.id, clientId: String(r.data?.clientId ?? ''), date: String(r.data?.date ?? ''), time: r.data?.time, status: String(r.data?.status ?? ''),
+  }));
+  return leSuivant(rdvs, { id: seanceId, clientId, date: seance.date, time: seance.time });
+}
+
+/** LA LIGNE DE CONFIRMATION de la séance posée par « Oui »
+    (`conf-<rdv>-whatsapp`, posée « en cours » avec elle par 0198) : la
+    phrase partie, « envoyé » ; sinon « échec », et le modèle de
+    confirmation-rdv prend le relais. Comme `ditLaConfirmation` de
+    whatsapp-automate : un verdict déjà tombé ne se réécrit pas. */
+async function ditLaConfirmationDeLaSeance(sb: ReturnType<typeof createClient>, apptId: string, dit: DitDuTrone): Promise<void> {
+  const id = `conf-${apptId}-whatsapp`;
+  const { data, error } = await sb.from('envois').select('id, data').eq('id', id).limit(1);
+  if (error) { dis('prochaine séance · confirmation illisible', { motif: error.message.slice(0, 120) }); return; }
+  const ligne = ((data ?? []) as { id: string; data: Record<string, unknown> }[])[0];
+  if (!ligne || ligne.data?.statut !== 'en cours') return;
+  const maintenant = new Date().toISOString();
+  const neuf = dit?.waId
+    ? { ...ligne.data, statut: 'envoyé', waMessageId: dit.waId, detail: 'dit dans la conversation, après la séance', quand: maintenant }
+    : { ...ligne.data, statut: 'échec', detail: String(dit?.detail ?? 'la phrase n’est pas partie dans la conversation').slice(0, 300), quand: maintenant };
+  const { error: errEcrit } = await sb.from('envois').update({ data: neuf, updated_at: maintenant })
+    .eq('id', id).eq('data->>statut', 'en cours');
+  if (errEcrit) dis('prochaine séance · confirmation refusée', { motif: errEcrit.message.slice(0, 120) });
+}
+
 /* ══ LES DEUX MESSAGES QUI PARTENT SEULS ═════════════════════════════
    Ils partent dans la fenêtre qu'elle vient d'ouvrir en écrivant, donc sans
    modèle. Chacun laisse une ligne dans le fil, comme tout ce que la Maison
@@ -451,19 +593,26 @@ const heureDeLaReprise = (hhmm: string | undefined): string => {
 type AutoDuTrone = 'accuse' | 'formulaire' | 'transmis' | 'reprise-ok' | 'reprise-autre' | 'point-bien' | 'point-souci' | 'point-recu' | 'point-avant'
   | 'assistant-oui' | 'assistant-autre' | 'assistant-non' | 'assistant-empechee' | 'assistant-carte' | 'stop' | 'franche'
   | 'accord-demande' | 'accord-oui' | 'accord-non';
+/** La prochaine séance de l'abonnée (8 et 11 novembre 2026) : posée, une autre date, une place prise entre-temps, une suite déjà posée. */
+type AutoDeLaProchaineSeance = 'prochaine-oui' | 'prochaine-autre' | 'prochaine-prise' | 'prochaine-deja';
+
+/** Ce que la phrase est devenue (11 novembre 2026, pour la ligne de
+    confirmation de la prochaine séance) : `null` quand rien n'est parti
+    d'ici (déjà dite dans les 24 heures, ou prise par une autre livraison). */
+type DitDuTrone = { waId: string; etat: string; detail?: string } | null;
 
 async function ditDepuisLeTrone(
   sb: ReturnType<typeof createClient>, jeton: string, phoneId: string,
   o: {
-    numero: string; texte: string; auto: AutoDuTrone;
+    numero: string; texte: string; auto: AutoDuTrone | AutoDeLaProchaineSeance;
     branchId?: string; interactive?: Record<string, unknown>;
   },
-): Promise<void> {
+): Promise<DitDuTrone> {
   const depuis = new Date(Date.now() - FENETRE_MS).toISOString();
   const { data: deja } = await sb.from('messages_wa').select('id')
     .eq('data->>numero', o.numero).eq('data->>sens', 'sortant').eq('data->>auto', o.auto)
     .gte('data->>quand', depuis).limit(1);
-  if ((deja ?? []).length > 0) return;
+  if ((deja ?? []).length > 0) return null;
 
   /* ── LA PLACE SE RÉSERVE AVANT DE PARLER · 10 octobre 2026 ───────────
      Revue de code : la garde ci-dessus est une lecture, et la ligne qui
@@ -489,8 +638,8 @@ async function ditDepuisLeTrone(
   });
   const { data: reservee, error: errReserve } = await sb.from('messages_wa')
     .upsert(ligne('', 'en-route'), { onConflict: 'id', ignoreDuplicates: true }).select('id');
-  if (errReserve) { console.error(`whatsapp-webhook · AUTO · ${errReserve.message}`); return; }
-  if (!(reservee ?? []).length) { dis('deja parti par une autre livraison', { auto: o.auto }); return; }
+  if (errReserve) { console.error(`whatsapp-webhook · AUTO · ${errReserve.message}`); return null; }
+  if (!(reservee ?? []).length) { dis('deja parti par une autre livraison', { auto: o.auto }); return null; }
 
   const charge = o.interactive
     ? { messaging_product: 'whatsapp', to: o.numero, type: 'interactive', interactive: o.interactive }
@@ -516,6 +665,7 @@ async function ditDepuisLeTrone(
   const { error } = await sb.from('messages_wa').upsert(ligne(waId, etat, detail), { onConflict: 'id' });
   if (error) console.error(`whatsapp-webhook · AUTO · ${error.message}`);
   else dis('parti tout seul', { auto: o.auto, etat });
+  return { waId, etat, ...(detail ? { detail } : {}) };
 }
 
 /** « 2026-11-03 » depuis ce qu'un Flow rend : une date ISO, ou un instant
@@ -1434,6 +1584,11 @@ const estUnBoutonDePerle = (id: string | undefined): boolean => !!lisLeBoutonDeL
     sous le WhatsApp que paie-mtn dépose quand MTN dit le salaire reçu. */
 const RE_BOUTON_DE_LA_PAIE = /^PAIE_(RECU|PASENCORE):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const estUnBoutonDeLaPaie = (id: string | undefined): boolean => RE_BOUTON_DE_LA_PAIE.test(String(id ?? ''));
+/** LES BOUTONS DE LA PROCHAINE SÉANCE (8 novembre 2026) : « Oui, je réserve » et
+    « Une autre date » sous le message que le Trône dépose après une séance de
+    formule. Ni l'automate ni l'alerte générique ne les prennent : ⑤ bis·5
+    les traite, et prévient l'équipe lui-même quand la main passe. */
+const estUnBoutonDeLaProchaineSeance = (id: string | undefined): boolean => !!lisLeBoutonDeLaProchaineSeance(id);
 
 /** UN LECTEUR DE FICHES POUR UN APPEL : une RPC par numéro, gardée ; la
     table par pages une seule fois, si la RPC manque. Ne lève jamais : une
@@ -2191,6 +2346,9 @@ Deno.serve(async (req) => {
         if (estUnBoutonDePerle(e.bouton?.id)) continue;
         /* Les boutons de la paie (⑤ bis·1) : une réponse au registre, pas une conversation. */
         if (estUnBoutonDeLaPaie(e.bouton?.id)) continue;
+        /* Les boutons de la prochaine séance (⑤ bis·5, 8 novembre 2026) : une
+           place posée ou la main passée, pas un tour de l'automate. */
+        if (estUnBoutonDeLaProchaineSeance(e.bouton?.id)) continue;
         const tiroir = tiroirDe(e.numero);
         if (tiroir !== 'clientes' && tiroir !== 'equipe') continue;
         const c = confies.get(e.numero) ?? { numero: e.numero, tiroir, waIds: [], nom: nomDe(e) };
@@ -2207,7 +2365,7 @@ Deno.serve(async (req) => {
       }
 
       const arrivees: Arrivee[] = entrants
-        .filter((e) => estNeuf(e) && !confies.has(e.numero) && !estUnBoutonDePerle(e.bouton?.id) && !estUnBoutonDeLaPaie(e.bouton?.id))
+        .filter((e) => estNeuf(e) && !confies.has(e.numero) && !estUnBoutonDeLaProchaineSeance(e.bouton?.id) && !estUnBoutonDePerle(e.bouton?.id) && !estUnBoutonDeLaPaie(e.bouton?.id))
         .map((e) => ({
           numero: e.numero,
           tiroir: tiroirDe(e.numero),
@@ -2407,6 +2565,113 @@ Deno.serve(async (req) => {
         numero: e.numero, branchId, auto: bien ? 'point-bien' : 'point-recu', texte: reponse.join('\n'),
       });
     }
+  }
+
+  /* ── ⑤ bis·5 LA PROCHAINE SÉANCE DE L'ABONNÉE — 8 novembre 2026 ─────────
+     Lot 4 de l'abonnement refait. Sous « Merci, Awa. Votre prochaine séance :
+     samedi 23 janvier 2027 à 9 h ? », déposé en salle par le Trône quand sa
+     séance de formule a été marquée faite :
+       · « Oui, je réserve » (PROCHAINE_OK:<séance>) : la place gardée sur la
+         ligne d'envoi (`proposition`) se pose par le serveur, couverte par sa
+         formule, sous le même verrou que Ma Couronne
+         (`reserver_une_seance_incluse_par_la_maison`, migration 0198 : la
+         formule à elle, en vie ce jour-là, sur une lune réglée, un crédit
+         libre, la place libre). Posée : UNE phrase, qui est sa confirmation ;
+         la ligne `conf-<rdv>-whatsapp`, posée avec la séance, tait le modèle
+         de confirmation-rdv, qui ne reprend la main que si la phrase ne part
+         pas (comme l'automate, 11 novembre 2026). Refusée (une autre main a
+         pris la place, la formule ne porte plus) : la main passe, l'équipe
+         est prévenue. Une suite déjà posée depuis le message (le comptoir,
+         Ma Couronne) : rien ne se pose, elle lit sa date (⟨deja-un-suivant⟩).
+       · « Une autre date » (PROCHAINE_AUTRE:<séance>) : rien n'est posé ; la
+         réponse s'écrit sur la ligne, l'équipe est prévenue (son prénom,
+         jamais un texte), et la cliente est invitée à dire son jour ici.
+     UNE SEULE RÉPONSE COMPTE par ligne ; SEUL LE NUMÉRO À QUI LE MESSAGE EST
+     PARTI RÉPOND POUR ELLE (son colis : le numéro de sa fiche, ou le numéro
+     à prévenir de sa séance, celui du parent d'une enfant), comparé sous sa
+     forme courte (cleWa), comme les boutons de la paie (11 novembre 2026). */
+  for (const e of entrants) {
+    if (!estNeuf(e)) continue;
+    const b = lisLeBoutonDeLaProchaineSeance(e.bouton?.id);
+    if (!b) continue;
+    const { data: l } = await sb.from('envois').select('id, branch_id, data').eq('id', idDeLaProchaineSeance(b.rdvId)).limit(1);
+    const ligne = (l ?? [])[0] as { id: string; branch_id?: string; data: Record<string, any> } | undefined;
+    if (!ligne || ligne.data?.type !== TYPE_APRES_SEANCE) { dis('prochaine séance · ligne introuvable'); continue; }
+    const numeroParti = cleWa(String(ligne.data.colis?.numero ?? ''));
+    if (!numeroParti || numeroParti !== cleWa(e.numero)) { dis('prochaine séance · numéro étranger à la ligne'); continue; }
+    if (ligne.data.reponse) { dis('prochaine séance · déjà répondu'); continue; }
+    const fiche = fiches.find((f) => f.id === ligne.data.clientId);
+    /* L'appel du {{1}} que le message a dit (`appel`, posé au dépôt). */
+    const appel = String(ligne.data.appel ?? '').trim()
+      || (fiche ? appelDe({ name: fiche.nom, prenomUsage: fiche.prenomUsage, civilite: fiche.civilite, auMasculin: fiche.auMasculin }) : '')
+      || String(ligne.data.prenom ?? '').trim() || 'Madame, Monsieur';
+    const branchId = (ligne.data.branchId as string | undefined) ?? fiche?.branchId;
+    const proposition = propositionLisible(ligne.data.proposition);
+    const repond = async (reponse: Record<string, unknown>): Promise<boolean> => {
+      const { error } = await sb.from('envois').update({
+        data: { ...ligne.data, reponse: { le: e.quand, ...reponse } }, updated_at: new Date().toISOString(),
+      }).eq('id', ligne.id);
+      if (error) dis('prochaine séance · réponse refusée', { motif: error.message.slice(0, 120) });
+      return !error;
+    };
+    const laMainPasse = async (geste: 'autre' | 'oui', texte: string, auto: AutoDeLaProchaineSeance, refus?: string) => {
+      if (!(await repond({ geste, ...(refus ? { refus } : {}) }))) return;
+      /* Le personnel lit son prénom, jamais un texte (un écran verrouillé se
+         lit par-dessus l'épaule) ; « oui » sur une place qui ne se pose plus
+         se dit tel quel, pour que l'équipe rappelle vite. */
+      const qui = String(ligne.data.prenom ?? '').trim() || (fiche ? prenomDe(String(fiche.nom ?? ''), fiche.prenomUsage) : '') || 'Une abonnée';
+      const alerte: Alerte = {
+        titre: geste === 'autre' ? `${qui} souhaite une autre date` : `${qui} a dit oui : la place ne s’est pas posée`,
+        corps: 'Sa prochaine séance de formule : proposez-lui une heure dans la conversation.',
+        url: `/trone/#/conversations?n=${e.numero}`,
+      };
+      await previensLesTelephones(sb, alerte, alerte, 1);
+      if (jetonMeta && phoneIdMeta) await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, { numero: e.numero, branchId, auto, texte });
+    };
+    if (b.geste === 'autre' || !proposition) {
+      dis('prochaine séance · une autre date', { proposition: !!proposition });
+      await laMainPasse('autre', reponseALAutreDate(appel), 'prochaine-autre', proposition ? undefined : 'proposition illisible');
+      continue;
+    }
+    /* UNE SUITE DÉJÀ POSÉE DEPUIS LE MESSAGE : rien ne se pose une seconde
+       fois, elle lit la date qu'elle a. Une lecture impossible laisse juger
+       le serveur (il ne pose que sur un crédit libre). */
+    const suivant = await suivantDeLaSeance(sb, String(ligne.data.seanceId ?? b.rdvId), proposition.clientId);
+    if (suivant) {
+      dis('prochaine séance · une suite est déjà posée');
+      if ((await repond({ geste: 'oui', refus: 'deja-un-suivant', apptId: suivant.id })) && jetonMeta && phoneIdMeta) {
+        await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, {
+          numero: e.numero, branchId, auto: 'prochaine-deja',
+          texte: reponseDejaReservee(appel, `${jourDeLaReprise(suivant.date)} à ${heureDeLaReprise(suivant.time)}`),
+        });
+      }
+      continue;
+    }
+    /* « OUI » : le serveur juge et pose, sous verrou ; rien n'est écrit ici
+       avant son verdict. La ligne de confirmation voyage avec la pose. */
+    const moment = `${jourDeLaReprise(proposition.date)} à ${heureDeLaReprise(proposition.time)}`;
+    const { data: pose, error: errPose } = await sb.rpc('reserver_une_seance_incluse_par_la_maison', {
+      p_client_id: proposition.clientId, p_sub_id: proposition.subId, p_service_id: proposition.serviceId,
+      p_date: proposition.date, p_time: proposition.time, p_source: 'whatsapp',
+      p_envoi: {
+        branchId, type: 'confirmation', canal: 'whatsapp', clientId: proposition.clientId, prenom: appel, numero: `+${e.numero}`,
+        dateRdv: proposition.date, heure: proposition.time, moment, statut: 'en cours',
+        detail: 'dit dans la conversation, après la séance', quand: new Date().toISOString(),
+      },
+    });
+    const verdict = (pose ?? null) as { ok?: boolean; raison?: string; apptId?: string } | null;
+    if (errPose || !verdict?.ok || !verdict.apptId) {
+      const raison = errPose ? String(errPose.message ?? 'refus').slice(0, 120) : String(verdict?.raison ?? 'refus');
+      dis('prochaine séance · la place ne se pose pas', { raison });
+      await laMainPasse('oui', reponseALaPlacePrise(appel), 'prochaine-prise', raison);
+      continue;
+    }
+    await repond({ geste: 'oui', apptId: verdict.apptId });
+    dis('prochaine séance · posée');
+    const dit = jetonMeta && phoneIdMeta
+      ? await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, { numero: e.numero, branchId, auto: 'prochaine-oui', texte: reponseAuOui(appel, moment) })
+      : null;
+    await ditLaConfirmationDeLaSeance(sb, verdict.apptId, dit);
   }
 
   /* ── ⑤ ter LE FORMULAIRE DE CONGÉ — 15 septembre 2026 ───────────────

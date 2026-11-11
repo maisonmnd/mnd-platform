@@ -902,7 +902,7 @@ async function litLesArretsEtLesPauses(sb: BaseDAvance): Promise<{ arrets: Arret
 /* ⟨/arret-d-avance⟩ */
 
 
-const VERSION = '2026-11-11-a · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi ; le papier d’une pièce déposé par Grenat : la pièce relue, sa clé réservée, sa marque posée ; ce qui va partir : arrêté d’avance, modèle en pause, cinq non remis de suite et Opale le met en pause';
+const VERSION = '2026-11-11-b · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi ; le papier d’une pièce déposé par Grenat : la pièce relue, sa clé réservée, sa marque posée ; ce qui va partir : arrêté d’avance, modèle en pause, cinq non remis de suite et Opale le met en pause ; la prochaine séance de l’abonnée (apres-seance) relue avant de partir : une suite posée pendant l’attente, ou une séance qui n’est plus marquée faite, et elle ne part pas';
 
 /* ── LE CALCUL DES HEURES, recopié de src/shared/salle-des-envois.ts ── */
 const DECALAGE_DU_SALON_H = 1;
@@ -1154,6 +1154,61 @@ async function reserveLePapier(sb: Sb, l: Ligne, colis: { numero: string; modele
   return (reprise ?? []).length ? { id, data } : { refus: 'déjà parti d’un autre poste : la clé de la pièce est prise' };
 }
 
+/* ══ LA PROCHAINE SÉANCE DE L'ABONNÉE, RELUE AVANT DE PARTIR — 11 novembre 2026 ══
+   Lot 4 de l'abonnement refait. « Merci, Awa. Votre prochaine séance :
+   samedi 23 janvier 2027 à 9 h ? » (`apres-seance`) se dépose au Trône quand
+   sa séance de formule est marquée faite, et attend dix minutes en salle :
+   c'est justement le moment où le comptoir pose la suite (la carte « Son
+   prochain rituel », la fenêtre du rendez-vous). Une suite posée pendant
+   l'attente, ou une séance qui n'est plus marquée faite, et la ligne ne part
+   pas (« aucun message si le rendez-vous suivant existe déjà »). La règle du
+   suivant est RECOPIÉE telle quelle de `src/shared/messages-de-l-abonnee-
+   pur.ts` (`node scripts/terminer-copie-serveur.mjs` ; douze lunes R8). NE
+   RIEN RETOUCHER ENTRE LES REPÈRES. */
+/* ⟨deja-un-suivant⟩ */
+/** Un rendez-vous de la tête, pour savoir si un suivant est déjà posé. */
+type RdvDeLaTete = { id: string; clientId: string; date: string; time?: string; status: string };
+/** LE RENDEZ-VOUS SUIVANT, S'IL EST DÉJÀ POSÉ : le plus proche rendez-vous
+    de la même tête, ni annulé ni honoré, après la séance (le même jour plus
+    tard compris). `null` : elle n'a pas encore sa place. Jugé trois fois :
+    au dépôt (le Trône), au départ (le facteur : la carte « Son prochain
+    rituel » pose souvent la suite pendant les dix minutes de salle), et au
+    « Oui » (le webhook : rien ne se pose une seconde fois). */
+function leSuivant<R extends RdvDeLaTete>(rdvs: readonly R[], seance: { id: string; clientId: string; date: string; time?: string }): R | null {
+  let mieux: R | null = null;
+  for (const a of rdvs) {
+    if (!a || a.id === seance.id || a.clientId !== seance.clientId || a.status === 'annulé' || a.status === 'honoré') continue;
+    const apres = a.date > seance.date || (a.date === seance.date && String(a.time ?? '') > String(seance.time ?? ''));
+    if (!apres) continue;
+    if (!mieux || a.date < mieux.date || (a.date === mieux.date && String(a.time ?? '') < String(mieux.time ?? ''))) mieux = a;
+  }
+  return mieux;
+}
+/** Un rendez-vous suivant existe-t-il déjà ? Alors pas de message : elle a déjà sa place. */
+const dejaUnSuivant = (rdvs: readonly RdvDeLaTete[], seance: { id: string; clientId: string; date: string; time?: string }): boolean =>
+  leSuivant(rdvs, seance) !== null;
+/* ⟨/deja-un-suivant⟩ */
+const TYPE_DE_LA_PROCHAINE_SEANCE = 'apres-seance';
+/** Pourquoi la prochaine séance ne part plus, ou `null`. Lève quand la base ne se lit pas. */
+async function pourquoiLaProchaineSeanceNePartPlus(sb: Sb, l: { seanceId?: unknown; clientId?: unknown }): Promise<string | null> {
+  const seanceId = String(l.seanceId ?? '');
+  const clientId = String(l.clientId ?? '');
+  if (!seanceId || !clientId) return 'la séance n’est plus nommée';
+  const { data: s, error: errS } = await sb.from('appointments').select('id, data').eq('id', seanceId).limit(1);
+  if (errS) throw new Error(errS.message);
+  const seance = ((s ?? [])[0] as { data?: Partial<RdvDeLaTete> } | undefined)?.data;
+  if (!seance || seance.status !== 'honoré' || !seance.date) return 'la séance n’est plus marquée faite';
+  const { data: siens, error } = await sb.from('appointments').select('id, data')
+    .eq('data->>clientId', clientId).gte('data->>date', seance.date).limit(500);
+  if (error) throw new Error(error.message);
+  const rdvs = ((siens ?? []) as { id: string; data?: Partial<RdvDeLaTete> }[]).map((r) => ({
+    id: r.id, clientId: String(r.data?.clientId ?? ''), date: String(r.data?.date ?? ''), time: r.data?.time, status: String(r.data?.status ?? ''),
+  }));
+  return dejaUnSuivant(rdvs, { id: seanceId, clientId, date: seance.date, time: seance.time })
+    ? 'un rendez-vous suivant est déjà posé : elle a sa place'
+    : null;
+}
+
 Deno.serve(async (req) => {
   const service = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
   const urlBase = Deno.env.get('SUPABASE_URL') ?? '';
@@ -1319,6 +1374,15 @@ Deno.serve(async (req) => {
         const motifDuFoyer = foyerQuiNeTientPlus({ apptId: l.data.apptId, apptIds: l.data.apptIds, dateRdv: base.dateRdv }, relus);
         if (motifDuFoyer) { await ecris({ statut: 'périmé', detail: motifDuFoyer }); perimes++; continue; }
       }
+    }
+    /* LA PROCHAINE SÉANCE DE L'ABONNÉE (11 novembre 2026) : relue avant de
+       partir ; la suite posée pendant l'attente la tait. */
+    if (l.data.type === TYPE_DE_LA_PROCHAINE_SEANCE) {
+      let motifDeLaSuite: string | null = null;
+      try { motifDeLaSuite = await pourquoiLaProchaineSeanceNePartPlus(sb, l.data); } catch (e) {
+        await ecris({ statut: 'échec', detail: `la séance n’a pas pu être relue : ${String(e).slice(0, 160)}` }); echecs++; continue;
+      }
+      if (motifDeLaSuite) { await ecris({ statut: 'périmé', detail: motifDeLaSuite }); perimes++; continue; }
     }
     if (!colis) { await ecris({ statut: 'échec', detail: 'déposé sans colis' }); echecs++; continue; }
 

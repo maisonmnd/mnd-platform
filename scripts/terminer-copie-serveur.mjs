@@ -38,6 +38,13 @@ export const COPIES = [
     'supabase/functions/avis-google/index.ts', 'supabase/functions/relances-factures/index.ts', 'supabase/functions/rappels-d-echeance/index.ts',
     'supabase/functions/fete-de-couronne/index.ts',
   ] },
+  /* Les messages de l'abonnée (8 novembre 2026, lot 4 de l'abonnement refait) :
+     la veille avec l'attention dans rappels-j1, les boutons de la prochaine
+     séance dans whatsapp-webhook, le rendez-vous suivant relu au « Oui » et
+     au départ (whatsapp-webhook, envois-partent). */
+  { bloc: 'veille-attention', source: 'src/shared/messages-de-l-abonnee-pur.ts', cibles: ['supabase/functions/rappels-j1/index.ts'] },
+  { bloc: 'prochaine-seance', source: 'src/shared/messages-de-l-abonnee-pur.ts', cibles: ['supabase/functions/whatsapp-webhook/index.ts'] },
+  { bloc: 'deja-un-suivant', source: 'src/shared/messages-de-l-abonnee-pur.ts', cibles: ['supabase/functions/whatsapp-webhook/index.ts', 'supabase/functions/envois-partent/index.ts'] },
 ];
 
 const lf = (s) => s.replace(/\r\n/g, '\n');

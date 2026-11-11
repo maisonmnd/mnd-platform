@@ -404,7 +404,8 @@ dit('Opale met en pause au 5e non remis de suite, depuis sa reprise', [true, tru
   ep.includes('const depuis = Math.max(Date.now() - VEILLE_DES_NON_REMIS_MS, Number.isFinite(reprise) ? reprise : 0);'),
 ]);
 dit('une table encore absente (0197 pas passee) laisse porter comme avant', true, ep.includes("e.code === '42P01' || e.code === 'PGRST205'"));
-dit('la version du facteur le dit', true, /const VERSION = '2026-11-11-a [^']*ce qui va partir : arrêté d’avance, modèle en pause/.test(ep));
+/* La version du 11 novembre 2026 ou une suivante du même jour (2026-11-11-b : la prochaine séance de l'abonnée relue au départ). */
+dit('la version du facteur le dit', true, /const VERSION = '2026-11-11-[a-z] [^']*ce qui va partir : arrêté d’avance, modèle en pause/.test(ep));
 
 /* ══ 11. CHAQUE FONCTION QUI DEPOSE : la copie, la lecture, le geste avant la salle ══ */
 const BLOC = '/* ⟨arret-d-avance⟩ */';

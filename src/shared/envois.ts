@@ -19,7 +19,12 @@ export type TypeDEnvoi = 'accuse' | 'confirmation' | 'rappel-j1' | 'avis-google'
      depuis le 27 octobre 2026 (lot 3 de l'Assistant Maison). */
   | 'fete-de-couronne'
   /* Le papier d'une pièce que Grenat envoie seul, par la salle (4 novembre 2026). */
-  | 'papier-de-la-piece';
+  | 'papier-de-la-piece'
+  /* La prochaine séance proposée à l'abonnée, déposée par le Trône quand sa
+     séance de formule est marquée faite (8 novembre 2026, lot 4 de
+     l'abonnement refait). La veille avec l'attention reste un `rappel-j1`,
+     de genre `veille-attention`. */
+  | 'apres-seance';
 
 /** Ce que le journal lit d'une ligne `envois`. Les champs viennent de
     fonctions différentes, écrites à des dates différentes : tous facultatifs
@@ -108,6 +113,8 @@ export const TYPE_DIT: Record<string, string> = {
   'fete-de-couronne': 'Fête de couronne',
   /* La clôture de Grenat (4 novembre 2026) : le reçu ou la facture pas encore partis. */
   'papier-de-la-piece': 'Papier de la pièce, par Grenat',
+  /* Les messages de l'abonnée (8 novembre 2026) : « Merci, Awa. Votre prochaine séance : … ? » */
+  'apres-seance': 'Prochaine séance proposée',
 };
 export const typeDit = (t: string): string => TYPE_DIT[t] ?? t;
 
@@ -248,5 +255,8 @@ const MODELE_DIT: Record<string, string> = {
   rappel_de_reglement: 'relance de facture',
   rappel_du_point: 'rappel du point',
   point_du_compte: 'point du compte',
+  /* Les messages de l'abonnée (8 novembre 2026, lot 4 de l'abonnement refait). */
+  rappel_rdv_attention: 'rappel de la veille, avec l’attention',
+  prochaine_seance: 'prochaine séance proposée',
 };
 export const modeleDit = (nom: string): string => MODELE_DIT[nom] ?? nom;

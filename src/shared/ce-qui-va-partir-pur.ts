@@ -199,11 +199,21 @@ export function genrePrevu(type: unknown): GenrePrevu {
   const t = String(type ?? '').trim();
   return GENRES_PREVUS[t] ?? { dit: TYPE_DIT[t] ?? (t || 'Message'), sorte: 'autre', raison: () => 'Déposé dans la salle d’attente.' };
 }
+/** LE GENRE QUE L'ÉCRAN LIT D'UNE LIGNE (11 novembre 2026, lot 4 de
+    l'abonnement refait) : son `genre` quand le registre le déclare, sinon son
+    `type`. La veille avec l'attention reste une ligne `rappel-j1` (le
+    facteur, la porte d'Opale et l'arrêt d'avance la jugent comme tout
+    rappel) mais se dit « veille-attention ». Aucun genre de Perle n'est une
+    clé du registre : ses lignes se lisent toujours par `gerard`. */
+export function genreDeLaLigne(l: Pick<LigneDuJournal, 'type' | 'genre'>): string {
+  const g = String(l.genre ?? '').trim();
+  return g && Object.prototype.hasOwnProperty.call(GENRES_PREVUS, g) ? g : String(l.type ?? '').trim();
+}
 /** CE QUE L'ÉCRAN DIT D'UNE LIGNE EN SALLE : pour un WhatsApp, le genre
     déclaré (sinon le modèle que le code connaît, sinon le nom technique) et
     le modèle Meta porté ; sinon le canal (Ma Couronne, SMS) derrière le genre. */
 export function libelleDeLaLigne(l: LigneDuJournal): { modele: string; modeleDit: string; sorte: SorteDeMessage } {
-  const t = String(l.type ?? '').trim();
+  const t = genreDeLaLigne(l);
   const declare = GENRES_PREVUS[t];
   const g = genrePrevu(t);
   const genreDuColis = String(l.colis?.genre ?? l.canal ?? '');
@@ -537,10 +547,10 @@ export function dejaAuJournal(e: EntreesDeCeQuiVaPartir): MessagePrevu[] {
     const tetes = Array.isArray(l.clientIds) ? (l.clientIds as unknown[]).map(String).filter((x) => x && x !== clientId) : [];
     const prenom = String(l.prenom ?? '').trim();
     out.push({
-      cle: cleDuMessage(l), idDeLigne: l.id, partA: quand, jour: jourDeCotonou(quand), sorte, famille: String(l.type ?? ''),
+      cle: cleDuMessage(l), idDeLigne: l.id, partA: quand, jour: jourDeCotonou(quand), sorte, famille: genreDeLaLigne(l),
       modele, modeleDit: dit, clientId, ...(tetes.length ? { clientIds: tetes } : {}), ...(!clientId && prenom ? { qui: prenom } : {}),
       ...(l.apptId ? { apptId: l.apptId } : {}),
-      raison: genrePrevu(l.type).raison(l),
+      raison: genrePrevu(genreDeLaLigne(l)).raison(l),
       ...(l.colis?.texteAuFil ? { texte: l.colis.texteAuFil } : {}),
       etat: arretee ? 'arrete' : 'en-salle',
       ...(arretee ? { arret: { par: String(l.arretDAvance?.par ?? ''), le: String(l.arretDAvance?.le ?? '') } } : {}),

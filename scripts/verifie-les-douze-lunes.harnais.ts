@@ -664,6 +664,10 @@ const regles: Regle[] = [
         'deplacer-du-site': { fichier: 'src/shared/deplacer-du-site-pur.ts', extrait: (s) => entre(s, 'deplacer-du-site') },
         /* Ce qui va partir (5 novembre 2026) : la clé d'un message, l'arrêt d'avance, la pause d'un modèle et la veille d'Opale, recopiés dans envois-partent et chaque fonction qui dépose. */
         'arret-d-avance': { fichier: 'src/shared/arret-d-avance-pur.ts', extrait: (s) => entre(s, 'arret-d-avance') },
+        /* Les messages de l'abonnée (8 novembre 2026, lot 4 de l'abonnement refait) : la veille avec l'attention, recopiée dans rappels-j1 ; les boutons de la prochaine séance, recopiés dans whatsapp-webhook ; le rendez-vous suivant, recopié dans whatsapp-webhook et envois-partent. */
+        'veille-attention': { fichier: 'src/shared/messages-de-l-abonnee-pur.ts', extrait: (s) => entre(s, 'veille-attention') },
+        'prochaine-seance': { fichier: 'src/shared/messages-de-l-abonnee-pur.ts', extrait: (s) => entre(s, 'prochaine-seance') },
+        'deja-un-suivant': { fichier: 'src/shared/messages-de-l-abonnee-pur.ts', extrait: (s) => entre(s, 'deja-un-suivant') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

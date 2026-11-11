@@ -55,6 +55,16 @@ export const AUTOMATISATIONS_REELLES: readonly AutomatisationReelle[] = [
   { id: 'push-rappels', groupe: 'avant', quand: '22 h puis 2 h avant', quoi: 'Rappel sur Ma Couronne', modeles: [], types: [], allumage: 'toujours', pasCompte: 'compté par le serveur seulement' },
   { id: 'point-apres', groupe: 'entre', quand: '7 jours après une séance', quoi: 'Point d’étape, la tête répond d’un toucher', modeles: ['point_apres_seance'], types: ['point-apres'], allumage: 'avec-son-modele' },
   { id: 'point-avant', groupe: 'entre', quand: '7 jours avant la séance suivante', quoi: 'Point d’étape avant la séance', modeles: ['point_avant_seance'], types: ['point-avant'], allumage: 'avec-son-modele' },
+  /* LES MESSAGES DE L'ABONNÉE (8 novembre 2026, lot 4 de l'abonnement refait,
+     shared/messages-de-l-abonnee-pur) : la veille d'une séance de formule au
+     panier validé, le rappel dit « Une attention vous y attend » (une ligne
+     rappel-j1 de genre veille-attention : comptée avec le rappel) ; la séance
+     marquée faite, « Votre prochaine séance : … ? » avec deux boutons (type
+     apres-seance, déposé par le Trône). Tous deux par la salle d'attente. Leurs
+     deux modèles paraissent ainsi dans « Les autres modèles de la Maison », où
+     la direction note ce qu'en dit Meta. */
+  { id: 'veille-attention', groupe: 'avant', quand: 'La veille d’une séance de formule dont le panier d’attention est validé', quoi: 'Le rappel de la veille dit « Une attention vous y attend »', modeles: ['rappel_rdv_attention'], types: [], allumage: 'avec-son-modele', pasCompte: 'compté avec le rappel de la veille (genre veille-attention)' },
+  { id: 'prochaine-seance', groupe: 'apres', quand: 'Une séance de formule marquée faite, sans rendez-vous suivant', quoi: 'Sa prochaine séance proposée, deux boutons : « Oui, je réserve », « Une autre date »', modeles: ['prochaine_seance'], types: ['apres-seance'], allumage: 'avec-son-modele' },
   { id: 'avis-google', groupe: 'apres', quand: 'Première facture réglée', quoi: 'Demande d’avis Google', modeles: ['avis_google'], types: ['avis-google'], allumage: 'reglage', reglage: { vers: '/parametres', dit: 'Paramètres › Automatisations' } },
   { id: 'avis-premiere-venue', groupe: 'apres', quand: 'Au comptoir, à l’encaissement d’une première venue', quoi: 'Demande d’avis préparée dans la conversation, envoyée à la main', modeles: [], types: [], allumage: 'ici', pasCompte: 'envoyée à la main, non comptée' },
   { id: 'relance-facture', groupe: 'argent', quand: 'Facture à régler · J+1, 3, 7 et 14, à 10 h, jamais le dimanche', quoi: 'Rappel de règlement, avec le bouton « Régler »', modeles: ['rappel_de_reglement'], types: ['relance-facture'], allumage: 'reglage', reglage: { vers: '/parametres', dit: 'Paramètres › L’encaissement' } },

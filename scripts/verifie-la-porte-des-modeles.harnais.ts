@@ -131,7 +131,10 @@ const DEJA_JOURNAL = 'déjà parti : le même message est au journal depuis moin
   ]);
   /* L'appel au {{1}} : le premier parametre du corps, dans chaque depot. */
   dit('l appel est le {{1}} du corps, dans le code de chaque depot', Array(14).fill(true), [
-    source(RJ).includes("composants: [{ type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: heureLisible(a.time) }] }]"),
+    /* Depuis le lot 4 de l'abonnement refait (8 novembre 2026), le corps du rappel de la veille
+       est écrit par la règle recopiée ⟨veille-attention⟩ (rappelDeLaVeille), l'appel en {{1}}. */
+    source(RJ).includes("const corps = (): unknown[] => [{ type: 'body', parameters: [{ type: 'text', text: o.appel }, { type: 'text', text: o.heure }] }];")
+      && source(RJ).includes("appel: prenom, heure: heureLisible(a.time),"),
     source(RJ).includes("{ type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: quand }, { type: 'text', text: gestes }] }"),
     (source(RJ).match(/\{ type: 'body', parameters: \[\{ type: 'text', text: prenom \}, \{ type: 'text', text: jour \}\] \}/g) ?? []).length === 2,
     source('supabase/functions/confirmation-rdv/index.ts').includes("const corps = [{ type: 'text', text: o.prenom }, { type: 'text', text: o.quand }];"),

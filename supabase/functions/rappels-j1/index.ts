@@ -34,7 +34,7 @@ const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. 10 octobre 2026 : le passage du soir ne dépose plus
     un rappel que les heures calmes retiendraient jusqu'au jour même. */
-const VERSION = '2026-11-11-a · ce qui va partir : un rappel, une reprise ou un point arrêtés d’avance, ou d’un modèle en pause, ne se déposent pas ; un rappel par foyer, qui nomme chaque tête ; la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
+const VERSION = '2026-11-11-b · la veille d’une séance de formule dit « Une attention vous y attend » quand son panier est validé et que le modèle rappel_rdv_attention est posé (WA_TEMPLATE_RAPPEL_ATTENTION), sinon le rappel d’hier mot pour mot ; ce qui va partir : un rappel, une reprise ou un point arrêtés d’avance, ou d’un modèle en pause, ne se déposent pas ; un rappel par foyer, qui nomme chaque tête ; la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
 
 type Rdv = {
   id: string;
@@ -48,6 +48,11 @@ type Rdv = {
   status: string;
   /** Le foyer qui vient ensemble : un rappel pour tous (4 novembre 2026). */
   foyerId?: string;
+  /** Une séance de formule (8 novembre 2026) : la veille peut dire l'attention. */
+  coveredBySub?: boolean;
+  coverKind?: string;
+  /** Posé sans confirmation : le rappel d'hier, mot pour mot, jamais l'attention (11 novembre 2026). */
+  sansConfirmation?: boolean;
 };
 
 type Fiche = { id: string; name?: string; prenomUsage?: string; phone?: string };
@@ -599,6 +604,87 @@ async function litLesArretsEtLesPauses(sb: BaseDAvance): Promise<{ arrets: Arret
 /* ⟨/arret-d-avance⟩ */
 
 
+/* ══ L'ATTENTION DE LA VEILLE — 8 novembre 2026 (lot 4 de l'abonnement refait) ══
+   « Bonjour Awa, votre rendez-vous est prévu demain à 9 h à la Maison MND.
+   Une attention vous y attend. » : le rappel d'aujourd'hui, avec une phrase
+   de plus, quand la séance du lendemain est une séance de formule et que son
+   panier d'attention est VALIDÉ (« une petite surprise à chaque fois »,
+   Yéman). C'est un modèle Meta neuf, `rappel_rdv_attention`, posé par le
+   secret WA_TEMPLATE_RAPPEL_ATTENTION : tant qu'il n'est pas approuvé et
+   posé, le rappel d'hier part exactement tel qu'il est, sans bruit (la règle
+   de WA_TEMPLATE_REPRISE). Le rappel d'un foyer ne dit l'attention que si
+   chaque tête qu'il nomme a la sienne. Bloc RECOPIÉ tel quel de
+   `src/shared/messages-de-l-abonnee-pur.ts` (`node scripts/terminer-copie-
+   serveur.mjs` le réécrit ; verifie-les-douze-lunes R8 et
+   verifie-les-messages-de-la-seance le comparent). NE RIEN RETOUCHER ENTRE
+   LES REPÈRES. */
+/* ⟨veille-attention⟩ */
+/** Le modèle Meta de la veille avec l'attention. Son nom est FIXE ; le secret
+    WA_TEMPLATE_RAPPEL_ATTENTION de `rappels-j1` le pose, et rien ne part tant
+    qu'il n'est pas posé. */
+const MODELE_RAPPEL_ATTENTION = 'rappel_rdv_attention';
+/** Le genre de la ligne d'envoi, pour « Ce qui va partir » et le journal. */
+const GENRE_VEILLE_ATTENTION = 'veille-attention';
+
+type RdvDeLaVeille = { id: string; clientId?: string; date?: string; status?: string; coveredBySub?: boolean; coverKind?: string; sansConfirmation?: boolean };
+/** Un panier d'attention tel que la table `attention_paniers` le porte (son
+    identifiant est celui du rendez-vous ; `apptId` le redit). */
+type PanierDeLaVeille = { id?: unknown; apptId?: unknown; clientId?: unknown; date?: unknown; etat?: unknown; remiseLe?: unknown };
+
+/** LES RENDEZ-VOUS QU'UNE ATTENTION ATTEND. Une séance de formule (couverte,
+    pas par un forfait), non annulée, dont le panier est VALIDÉ et pas encore
+    remis, à sa tête et à sa date. C'est ce que `ceQuElleLit`
+    (attentions-pur) montre à l'abonnée comme « scellée » ou « à venir » : un
+    panier seulement proposé, remis, ou d'une séance annulée ne compte pas.
+    UN RENDEZ-VOUS POSÉ SANS CONFIRMATION (`sansConfirmation`) garde le rappel
+    d'hier, mot pour mot : ce lot ne change rien à ce qu'il reçoit (garde
+    demandée le 11 novembre 2026). */
+function attentionsAttendues(rdvs: readonly RdvDeLaVeille[], paniers: readonly PanierDeLaVeille[]): Set<string> {
+  const out = new Set<string>();
+  for (const a of rdvs) {
+    if (!a || !a.id || a.status === 'annulé' || a.coveredBySub !== true || a.coverKind === 'forfait' || a.sansConfirmation === true) continue;
+    const p = paniers.find((x) => !!x && String(x.apptId ?? x.id ?? '') === a.id);
+    if (!p || p.etat !== 'valide' || p.remiseLe) continue;
+    if (a.clientId && p.clientId && String(p.clientId) !== a.clientId) continue;
+    if (a.date && p.date && String(p.date) !== a.date) continue;
+    out.add(a.id);
+  }
+  return out;
+}
+
+/** La phrase de la veille avec l'attention : les mots du modèle approuvé,
+    variables posées. « à la Maison MND », jamais un montant. */
+const phraseDeLaVeilleAvecAttention = (appel: string, heure: string): string =>
+  `Bonjour ${appel}, votre rendez-vous est prévu demain à ${heure} à la Maison MND. Une attention vous y attend.`;
+/** Le rappel d'hier, mot pour mot (le texte que `rappels-j1` écrit au fil). */
+const phraseDeLaVeille = (appel: string, heure: string): string => `${appel}, votre rendez-vous est demain à ${heure}.`;
+
+type RappelChoisi = {
+  modele: string; texteAuFil: string; composants: unknown[]; attention: boolean; genre?: string;
+  repli?: { modele: string; composants: unknown[]; texteAuFil: string };
+};
+
+/** LE RAPPEL DE LA VEILLE, CHOISI : la phrase de l'attention seulement si le
+    modèle est posé ET que chaque tête que le message nomme a son attention
+    (le rappel d'un foyer nomme plusieurs têtes) ; sinon le rappel d'hier,
+    exactement tel qu'il est. Les deux portent les mêmes deux variables.
+    AVEC L'ATTENTION, LE RAPPEL D'HIER VOYAGE EN REPLI : si Meta refuse le
+    modèle neuf (pas approuvé, en pause), le facteur le fait partir à sa
+    place dans la même minute (la règle du 3 novembre 2026). */
+function rappelDeLaVeille(o: {
+  modeleDuRappel: string; modeleAttention: string; appel: string; heure: string;
+  tetes: readonly string[]; attendues: ReadonlySet<string>;
+}): RappelChoisi {
+  const corps = (): unknown[] => [{ type: 'body', parameters: [{ type: 'text', text: o.appel }, { type: 'text', text: o.heure }] }];
+  const avecAttention = !!o.modeleAttention && o.tetes.length > 0 && o.tetes.every((id) => o.attendues.has(id));
+  if (!avecAttention) return { modele: o.modeleDuRappel, texteAuFil: phraseDeLaVeille(o.appel, o.heure), composants: corps(), attention: false };
+  return {
+    modele: o.modeleAttention, texteAuFil: phraseDeLaVeilleAvecAttention(o.appel, o.heure), composants: corps(), attention: true, genre: GENRE_VEILLE_ATTENTION,
+    repli: { modele: o.modeleDuRappel, composants: corps(), texteAuFil: phraseDeLaVeille(o.appel, o.heure) },
+  };
+}
+/* ⟨/veille-attention⟩ */
+
 /* ══ LA REPRISE PROPOSÉE, TROIS JOURS AVANT — 29 septembre 2026 ═══════════
    « And for renewal appointments even faster » (Yéman), maquette « La
    réservation en 30 secondes » validée. À la caisse, la Maison pose d'office
@@ -1116,6 +1202,16 @@ Deno.serve(async (req) => {
     (cliRows ?? []).map((r) => [r.id as string, { id: r.id, ...(r.data as object) } as Fiche]),
   );
 
+  /* ── L'ATTENTION DE LA VEILLE (8 novembre 2026) : les paniers validés des
+     séances de formule de demain, lus seulement si le modèle est posé. Sans
+     secret, aucune lecture de plus et le rappel d'hier part tel quel. ── */
+  const MODELE_ATTENTION = (Deno.env.get('WA_TEMPLATE_RAPPEL_ATTENTION') ?? '').trim();
+  let attendues = new Set<string>();
+  if (MODELE_ATTENTION) {
+    const { data: paniers } = await sb.from('attention_paniers').select('id, data').in('id', rdvs.map((a) => a.id));
+    attendues = attentionsAttendues(rdvs, ((paniers ?? []) as { id: string; data: PanierDeLaVeille }[]).map((p) => ({ ...(p.data ?? {}), id: p.id })));
+  }
+
   /* ── Le journal du jour — l'idempotence ─────────────────────────── */
   /* ══ UN RATÉ SE RETENTE, UN ENVOI RÉUSSI JAMAIS — 11 septembre 2026 ══
      Le journal servait de verrou SANS REGARDER LE VERDICT : une tentative
@@ -1191,7 +1287,13 @@ Deno.serve(async (req) => {
   const depuisVingtHeures = new Date(Date.now() - 20 * 3_600_000).toISOString();
   const { data: dejaAuFil } = await sb.from('messages_wa').select('data')
     .eq('data->>modele', WA_TEMPLATE).eq('data->>sens', 'sortant').gte('data->>quand', depuisVingtHeures).limit(1000);
-  const dejaRemis = new Set(((dejaAuFil ?? []) as { data?: { numero?: string; texte?: string; etat?: string; clientId?: string; clientIds?: unknown } }[])
+  /* Le rappel avec l'attention (8 novembre 2026) est un autre modèle : le fil
+     se relit aussi sous son nom, pour la même garde. */
+  const { data: dejaAuFilAttention } = MODELE_ATTENTION
+    ? await sb.from('messages_wa').select('data')
+      .eq('data->>modele', MODELE_ATTENTION).eq('data->>sens', 'sortant').gte('data->>quand', depuisVingtHeures).limit(1000)
+    : { data: [] as { data?: Record<string, unknown> }[] };
+  const dejaRemis = new Set(([...(dejaAuFil ?? []), ...(dejaAuFilAttention ?? [])] as { data?: { numero?: string; texte?: string; etat?: string; clientId?: string; clientIds?: unknown } }[])
     .filter((r) => r.data?.etat !== 'non-remis')
     .filter((r) => !!cleDuNumero(r.data?.numero))
     .flatMap((r) => [
@@ -1251,7 +1353,7 @@ Deno.serve(async (req) => {
     });
   };
 
-  let nWa = 0, nSms = 0, nDeposes = 0, foyersReunis = 0;
+  let nWa = 0, nSms = 0, nDeposes = 0, foyersReunis = 0, nAttentions = 0;
 
   /* ① LES TÊTES À RAPPELER, une à une : la garde du fil d'abord. */
   type TeteDuRappel = Rdv & { numero: string | null; appel: string; prenomSeul: string };
@@ -1291,27 +1393,45 @@ Deno.serve(async (req) => {
       const a = fWa.porteur;
       const prenom = appelDuFoyer(fWa, (t) => t.appel, (t) => t.prenomSeul);
       const tel = a.numero;
+      /* L'ATTENTION DE LA VEILLE (8 novembre 2026), POUR LA SALLE D'ATTENTE
+         SEULEMENT : le modèle et les mots choisis par la règle recopiée ;
+         sans modèle posé ou sans panier validé pour chaque tête nommée,
+         c'est le rappel d'hier, mot pour mot. Avec l'attention, le rappel
+         d'hier voyage en repli (Meta refuse le neuf, ou il est en pause : le
+         facteur fait partir l'ancien). La ligne dit son genre
+         (« veille-attention ») pour « Ce qui va partir ». L'envoi direct
+         d'en dessous (le facteur muet depuis cinq minutes, la règle du
+         2 octobre 2026) ne connaît pas l'attention : il part comme avant,
+         et rien de ce lot ne quitte la salle d'attente (11 novembre 2026). */
+      const rappel = rappelDeLaVeille({
+        modeleDuRappel: WA_TEMPLATE, modeleAttention: MODELE_ATTENTION, appel: prenom, heure: heureLisible(a.time),
+        tetes: fWa.tetes.map((t) => t.id), attendues,
+      });
+      const ditSonGenre = () => {
+        if (rappel.genre) champsParLigne.set(`env-${a.id}-whatsapp`, { ...(champsParLigne.get(`env-${a.id}-whatsapp`) ?? {}), genre: rappel.genre });
+      };
       /* ARRÊTÉ D'AVANCE, OU SON MODÈLE EN PAUSE (5 novembre 2026, ce qui va
-         partir) : consigné tel qu'il partirait, mais « écarté » ou « périmé ». */
+         partir) : consigné tel qu'il partirait, mais « écarté » ou « périmé ».
+         Le colis jugé est celui que la salle recevrait (11 novembre 2026). */
       const colisDuRappel = {
-        genre: 'whatsapp', numero: tel ?? '', modele: WA_TEMPLATE, parQui: 'la Maison, automatiquement',
-        texteAuFil: `${prenom}, votre rendez-vous est demain à ${heureLisible(a.time)}.`,
-        composants: [{ type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: heureLisible(a.time) }] }],
+        genre: 'whatsapp', numero: tel ?? '', modele: rappel.modele, parQui: 'la Maison, automatiquement',
+        texteAuFil: rappel.texteAuFil,
+        composants: rappel.composants,
+        ...(rappel.repli ? { repli: rappel.repli } : {}),
       };
       const dAvanceWa = !partiraitLeJourMeme && WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)
         ? laPorteDAvance({ id: `env-${a.id}-whatsapp`, type: 'rappel-j1', apptId: a.id, colis: colisDuRappel }, avanceDuDepot) : null;
       if (dAvanceWa && dAvanceWa.verdict !== 'repli') {
         const retenue = ligneRetenueDAvance(dAvanceWa, new Date().toISOString()) ?? {};
+        ditSonGenre();
         consigne('whatsapp', a, String(retenue.statut), String(retenue.detail ?? ''), undefined, { ...depot(Date.now(), regles, colisDuRappel, prenom), ...retenue });
       } else if (partiraitLeJourMeme) {
         if (WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)) consigne('whatsapp', a, 'périmé', motif);
       } else if (salleOuverte && WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)) {
-        consigne('whatsapp', a, 'en-attente', undefined, undefined, depot(Date.now(), regles, {
-          genre: 'whatsapp', numero: tel, modele: WA_TEMPLATE, parQui: 'la Maison, automatiquement',
-          texteAuFil: `${prenom}, votre rendez-vous est demain à ${heureLisible(a.time)}.`,
-          composants: [{ type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: heureLisible(a.time) }] }],
-        }, prenom));
+        ditSonGenre();
+        consigne('whatsapp', a, 'en-attente', undefined, undefined, depot(Date.now(), regles, colisDuRappel, prenom));
         nDeposes++;
+        if (rappel.attention) nAttentions++;
       } else if (WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`env-${a.id}-whatsapp`)) {
         try {
           const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
@@ -1418,7 +1538,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ version: VERSION, jour: demain, rdv: rdvs.length, confirmeesTues, dejaRemisTus, push: 'au job mnd-push-rappels', salle: salleOuverte, partiraitLeJourMeme, deposes: nDeposes, foyersReunis, whatsapp: nWa, sms: nSms, ...reprises, ...points }),
+    JSON.stringify({ version: VERSION, jour: demain, rdv: rdvs.length, confirmeesTues, dejaRemisTus, push: 'au job mnd-push-rappels', salle: salleOuverte, partiraitLeJourMeme, deposes: nDeposes, foyersReunis, whatsapp: nWa, sms: nSms, attentions: MODELE_ATTENTION ? nAttentions : 'sans-modele', ...reprises, ...points }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 });

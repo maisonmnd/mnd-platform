@@ -156,7 +156,8 @@ for (const s of ['assistant-maison', 'assistants-maison', 'reception-wa']) {
     [wh.includes("            prenomUsage: typeof f.prenomUsage === 'string' ? f.prenomUsage : undefined,\n"),
       wh.includes("          prenomUsage: typeof r.data?.prenomUsage === 'string' ? r.data.prenomUsage : undefined,\n"),
       /type FicheDuNumero = \{ id: string; nom\?: string; prenomUsage\?: string;/.test(wh)]);
-  dit('... ses trois appels et la réponse « garder » le passent', [3, true],
+  /* 11 novembre 2026 : un quatrième appel, la réponse aux boutons de la prochaine séance (lot 4 de l'abonnement refait). */
+  dit('... ses quatre appels et la réponse « garder » le passent', [4, true],
     [(wh.match(/appelDe\(\{ name: fiche\.nom, prenomUsage: fiche\.prenomUsage, civilite: fiche\.civilite, auMasculin: fiche\.auMasculin \}/g) ?? []).length,
       wh.includes("prenom: prenomDe(String(fiche.nom ?? ''), fiche.prenomUsage), quand })")]);
   dit('whatsapp-automate : la fiche du numéro porte prenomUsage, Opale et le récapitulatif le disent', [true, true, 4],

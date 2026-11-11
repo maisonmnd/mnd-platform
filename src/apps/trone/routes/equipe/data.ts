@@ -636,7 +636,12 @@ export type Envoi = {
     /* LE PAPIER D'UNE PIÈCE QUE GRENAT ENVOIE SEUL (4 novembre 2026, la
        clôture de la journée) : déposé « à-préparer » par le serveur, préparé
        au Trône (le PDF), porté par le facteur. */
-    | 'papier-de-la-piece';
+    | 'papier-de-la-piece'
+    /* LA PROCHAINE SÉANCE PROPOSÉE À L'ABONNÉE (8 novembre 2026, lot 4 de
+       l'abonnement refait) : déposée par le Trône quand sa séance de formule
+       est marquée faite (shared/messages-de-l-abonnee). La ligne nomme sa
+       séance par `seanceId`, jamais par `apptId`. */
+    | 'apres-seance';
   /** Le papier de Grenat : le reçu ou la facture à régler, son montant, le jour du dépôt. */
   papier?: 'recu' | 'facture';
   montantXof?: number;

@@ -28,6 +28,7 @@ import {
   type FicheDeGerard, type Situation,
 } from '../../../../shared/gerard-pur';
 import { changeLePlafond, estActif, jamaisPourElle, metEnPause, reglagesLus, useReglagesDeGerard, type ReglagesDeGerard } from '../../../../shared/gerard';
+import { FICHES_DES_MODELES_DE_L_ABONNEE } from '../../../../shared/messages-de-l-abonnee-pur';
 import {
   GENRE_D_ATTENTE_DIT, attendUnHumain, detailDuParti, fourchetteDite, francsEnJeu, fusionnePlanEtSalle, partiAujourdhui, porteeParCanal, tuilesDuJour,
   type EnvoiDuJour, type FrancsEnJeu, type LigneDuJour,
@@ -895,6 +896,28 @@ export default function Gerard() {
                   return (
                     <li key={cle}>
                       <div><b>{m.nom}</b><small>{m.categorie === 'UTILITY' ? 'Utilitaire' : 'Marketing'}{m.enTete === 'image' ? ' · en-tête image, la carte' : ''} · {m.boutons.join(' · ')}</small></div>
+                      <p className="trc-ger__texte">{m.corps}</p>
+                      <button type="button" className="trc-ger__btn" onClick={() => copier(cle, bloc)}>{copie === cle ? 'Copié' : 'Copier'}</button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {/* LES DEUX MODÈLES DE L'ABONNÉE — 8 novembre 2026 (lot 4 de l'abonnement
+                  refait, docs/modeles-whatsapp-abonnement.md). Ce ne sont pas des
+                  messages de Perle, mais ils se déposent au même endroit, de la même
+                  façon : la veille avec l'attention (rappels-j1, secret
+                  WA_TEMPLATE_RAPPEL_ATTENTION) et la prochaine séance proposée après la
+                  séance (déposée par le Trône quand la direction a noté ce modèle
+                  « approuvé » dans « Ce que ça rapporte » › Les autres modèles de la
+                  Maison). Le pied est DEVISE_COMPLETE, jamais recopié. */}
+              <p className="trc-ger__doux">Les deux modèles de l’abonnée (8 novembre 2026) : la veille d’une séance de formule, et sa prochaine séance proposée après la séance. Utilitaires, le même pied. Le premier part dès que son secret est posé (WA_TEMPLATE_RAPPEL_ATTENTION) ; le second, dès que la direction le note « approuvé » dans « Ce que ça rapporte » › Ses modèles chez Meta › Les autres modèles de la Maison.</p>
+              <ul className="trc-ger__modeles">
+                {FICHES_DES_MODELES_DE_L_ABONNEE.map((m) => {
+                  const cle = `abonnee-${m.nom}`;
+                  const bloc = `${m.nom}\n${m.categorie}\n\n${m.corps}\n\n${piedDeGerard}${m.boutons.length ? `\n\nBoutons : ${m.boutons.join(' · ')}` : ''}${m.secret ? `\n\nSecret de fonction : ${m.secret} = ${m.nom}` : ''}`;
+                  return (
+                    <li key={cle}>
+                      <div><b>{m.nom}</b><small>Utilitaire{m.boutons.length ? ` · ${m.boutons.join(' · ')}` : ' · sans bouton'}{m.secret ? ` · secret ${m.secret}` : ''}</small></div>
                       <p className="trc-ger__texte">{m.corps}</p>
                       <button type="button" className="trc-ger__btn" onClick={() => copier(cle, bloc)}>{copie === cle ? 'Copié' : 'Copier'}</button>
                     </li>

@@ -73,6 +73,7 @@ import { DeposerUneCapture } from '../vente/DeposerUneCapture';
 import { SonProchainRituel } from '../vente/SonProchainRituel';
 import { jourEnLettres } from '../../../../shared/calendrier';
 import { heureDuMessage } from '../../../../shared/salle-des-envois';
+import { proposeLaProchaineSeanceApresLHonneur } from '../../../../shared/messages-de-l-abonnee';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
 
@@ -277,6 +278,18 @@ export function honorAppointment(
      shared/missions-prestataires-pur.ts. */
   const missions = poseLesMissionsDuRituel(appt, (id) => byId.get(id)?.name, { caisse: opts.caisse });
   if (missions.dit) toast(missions.dit);
+
+  /* ══ LA PROCHAINE SÉANCE PROPOSÉE À L'ABONNÉE — 8 novembre 2026 (lot 4 de
+     l'abonnement refait). « Merci, Awa. Votre prochaine séance : samedi
+     23 janvier 2027 à 9 h ? » avec « Oui, je réserve » et « Une autre date » :
+     « un message qui vient ce jour-là parce qu'ils nous font confiance »
+     (Yéman). Pour une séance de FORMULE seulement, DÉPOSÉ en salle d'attente
+     (jamais un envoi direct), une seule fois par séance quel que soit le
+     chemin de l'honneur (`prochaine-seance-<rdvId>`), et seulement si le
+     modèle `prochaine_seance` est noté approuvé. La règle : shared/messages-
+     de-l-abonnee-pur.ts ; le dépôt : shared/messages-de-l-abonnee.ts. Rien
+     n'attend ce dépôt : le comptoir continue. */
+  proposeLaProchaineSeanceApresLHonneur(appt);
 
   /* LA REPRISE NE SE POSE PLUS ICI (4 novembre 2026) : la clôture se tait,
      et la carte « Son prochain rituel » propose la suite, validée d'un
