@@ -731,7 +731,7 @@ console.log(ko === 0 ? '\nTout est juste.' : `\n${ko} vérification(s) en échec
       !!agendaEcrit.branchId && (agendaEcrit.services?.length ?? 0) > 0 && Array.isArray(agendaEcrit.semaine) && agendaEcrit.semaine.length > 0);
     dit('… sans les murs, qui se lisent en vif', [], agendaEcrit.murs ?? ['absents']);
     dit('… élagué : aucune description, aucun champ du Trône dans une prestation', [],
-      (agendaEcrit.services ?? []).flatMap((s) => Object.keys(s)).filter((k, i, a) => a.indexOf(k) === i && !['id', 'name', 'categoryId', 'durationMin', 'scalesWithModel', 'priceFloors', 'bandId', 'bandIds', 'ratePerLock', 'tarifMode', 'prixParLongueur', 'paliersDeLocks', 'priceXof', 'priceMode', 'hidePrice', 'consultationAvant', 'enabled', 'archived', 'master', 'sansRemise'].includes(k)));
+      (agendaEcrit.services ?? []).flatMap((s) => Object.keys(s)).filter((k, i, a) => a.indexOf(k) === i && !['id', 'name', 'categoryId', 'durationMin', 'scalesWithModel', 'priceFloors', 'bandId', 'bandIds', 'ratePerLock', 'tarifMode', 'prixParLongueur', 'paliersDeLocks', 'priceXof', 'priceMode', 'hidePrice', 'consultationAvant', 'enabled', 'archived', 'master', 'fenetreApresVenue', 'sansRemise'].includes(k)));
   }
 }
 /* LA SUITE DU RAPPEL N'EST PAS CELLE DE LA RÉSERVATION (11 octobre 2026). */
