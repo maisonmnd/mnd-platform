@@ -35,6 +35,7 @@ import { autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT, lienPaieme
 import { LIEN_CHAPCHAP, MARCHAND_CHAPCHAP, RESEAUX_CHAPCHAP } from '../../../../shared/kkiapay-chapchap-pur';
 import { AuComptoir, type Grand } from './AuComptoir';
 import { ReglementEnDirect } from './ReglementEnDirect';
+import { ConfirmeParMtn } from './ConfirmeParMtn';
 import { signeLeMessage } from '../../../../shared/identite';
 import { consommerPourRituel, rembobinerRituel, retirerParReferences } from '../../../../shared/stock';
 import { detacherFacture } from '../../../../shared/laboratoire';
@@ -3366,6 +3367,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
           })()}
           {/* Le lien « Régler sa séance », suivi en direct (25 octobre 2026). */}
           <ReglementEnDirect appt={appt} />
+          {/* Confirmé par MTN (11 novembre 2026, « Régler par MTN, QR »). */}
+          <ConfirmeParMtn appt={appt} />
         </EtapeEnc>
 
         </div>

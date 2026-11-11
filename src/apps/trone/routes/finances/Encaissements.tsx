@@ -630,8 +630,9 @@ export default function Encaissements() {
       />
 
       {/* LE COMPTE DE COLLECTE MTN (11 novembre 2026, maquette « Régler par
-          MTN, QR ») : la direction seule, le solde chez MTN en direct. */}
-      <CompteDeCollecteMtn />
+          MTN, QR ») : la direction seule, le solde chez MTN en direct, et
+          les règlements MTN du jour, chacun ouvrant son rendez-vous. */}
+      <CompteDeCollecteMtn onOuvreLeRdv={setRdvAOuvrir} />
 
       {/* ── Le pointage du relevé MoMo — la seule vue complète du compte
           marchand (QR du salon compris) rapprochée du registre, ligne à

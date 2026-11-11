@@ -668,6 +668,8 @@ const regles: Regle[] = [
         'veille-attention': { fichier: 'src/shared/messages-de-l-abonnee-pur.ts', extrait: (s) => entre(s, 'veille-attention') },
         'prochaine-seance': { fichier: 'src/shared/messages-de-l-abonnee-pur.ts', extrait: (s) => entre(s, 'prochaine-seance') },
         'deja-un-suivant': { fichier: 'src/shared/messages-de-l-abonnee-pur.ts', extrait: (s) => entre(s, 'deja-un-suivant') },
+        /* Régler par MTN (11 novembre 2026) : les règles de la collecte (numéro, demande, relecture, pose, comptoir), recopiées dans collecte-mtn. */
+        'collecte-mtn': { fichier: 'src/shared/collecte-mtn-pur.ts', extrait: (s) => entre(s, 'collecte-mtn') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

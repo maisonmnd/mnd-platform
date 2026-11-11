@@ -148,3 +148,53 @@ body {
   text-align: center;
 }
 button:focus-visible, a:focus-visible { outline: 2px solid var(--rg-cuivre-clair); outline-offset: 2px; }
+
+/* RÉGLER PAR MTN (11 novembre 2026, maquette « Régler par MTN, QR ») :
+   le bloc du numéro sur la page du lien, l'attente de la validation, le
+   choix au comptoir. Indigo et cuivre, sans vert : « réglé » se dit en
+   indigo plein, comme la maquette. */
+.rg-mtn { display: flex; flex-direction: column; gap: 10px; }
+.rg-mtn-titre {
+  margin: 0;
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-weight: 300;
+  font-size: 24px;
+  line-height: 1.1;
+  color: var(--rg-indigo);
+}
+.rg-ou { margin: 4px 0 0; text-align: center; font-size: 12px; letter-spacing: .28em; text-transform: uppercase; color: var(--rg-doux); }
+.rg-mtn-attente { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 8px 0; }
+.rg-anneau {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 4px solid var(--rg-filet);
+  border-top-color: var(--rg-cuivre-clair);
+  animation: rg-veille 1.6s ease-in-out infinite;
+}
+@keyframes rg-veille { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .rg-anneau { animation: none; } }
+.rg-mtn-ok {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 6px;
+  background: var(--rg-indigo);
+  color: var(--rg-ivoire);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.rg-mtn-ok strong { font-weight: 600; color: #E4BE9C; }
+.rg-choix {
+  font: inherit;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--rg-filet);
+  background: transparent;
+  color: var(--rg-indigo);
+  cursor: pointer;
+  min-height: 44px;
+  text-align: left;
+}
+.rg-lien { font: inherit; border: 0; padding: 0; background: none; color: var(--rg-cuivre); text-decoration: underline; cursor: pointer; }

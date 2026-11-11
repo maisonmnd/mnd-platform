@@ -4,6 +4,7 @@ import { payWithKkiapay } from '../../shared/kkiapay-widget';
 import { TexteFon } from '../../ds/fon';
 import { lisLeLien, regleLeLien, type PageDuLien } from '../../shared/regler-la-seance-serveur';
 import { attenteDeLaPiece, retourAMaCouronne } from '../../shared/terminer-et-regler-serveur';
+import { PayerParMtn } from './Mtn';
 
 /* ══ RÉGLER SA SÉANCE — la page de la cliente (25 octobre 2026) ══════════
    Ouverte depuis le bouton « Régler » de son message (payer.html?tg=r-…).
@@ -77,6 +78,8 @@ export default function App() {
   const [saisie, setSaisie] = useState('');
   const [souci, setSouci] = useState('');
   const [partage, setPartage] = useState('');
+  /* Une demande MTN attend sa validation : KkiaPay se tient à l'écart (11 novembre 2026). */
+  const [mtnOccupe, setMtnOccupe] = useState(false);
 
   const lis = useCallback(async (essai = 0, attend = false): Promise<void> => {
     if (!jeton) { setEcran({ k: 'erreur', dit: 'Ce lien est incomplet. Demandez-en un nouveau à la Maison.' }); return; }
@@ -237,7 +240,16 @@ export default function App() {
               </div>
             )}
 
-            <button type="button" className="rg-regler" disabled={ecran.k === 'paiement'} onClick={() => { void regle(p); }}>
+            {/* RÉGLER PAR MTN (11 novembre 2026, maquette AdAaYXGS…) : une
+                séance avec sa pièce, quand la Maison l'a ouvert ; le montant
+                vient de la fonction collecte-mtn, la page ne donne que le
+                numéro et le merci. Le foyer et le règlement d'avance restent
+                à KkiaPay. */}
+            {!p.sansPiece && !p.tetes && (
+              <PayerParMtn jeton={jeton} totalXof={total} pourboireXof={p.pourboire ? pourboire : 0} onOccupe={setMtnOccupe}
+                onRegle={(paye, honore) => setEcran({ k: 'reglee', page: { ...p, resteXof: 0 }, paye, honore })} />
+            )}
+            <button type="button" className="rg-regler" disabled={ecran.k === 'paiement' || mtnOccupe} onClick={() => { void regle(p); }}>
               {ecran.k === 'paiement' ? 'Paiement en cours…' : `Régler ${francs(total)}`}
             </button>
             <p className="rg-doux rg-petit rg-centre">MTN, Moov, Celtiis ou carte, par KkiaPay. Les frais de KkiaPay s’ajoutent au paiement (1,9 % Mobile Money, 4 % carte).</p>

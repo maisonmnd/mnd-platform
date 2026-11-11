@@ -68,6 +68,7 @@
 import type { Cashbox, RoleDeCaisse } from './finance';
 import { reecritLEcriture, rendsLEcriture, casesDe, type Sorte } from './bascule-des-caisses-pur';
 import { TRI_DU_19_OCTOBRE } from './tri-des-caisses-pur';
+import { CAISSE_MTN_COLLECTION } from './collecte-mtn-pur';
 
 export const CAISSE_ANNEES_PASSEES = 'Années passées';
 /* LES NOMS DES PAIEMENTS — 21 octobre 2026 : chaque caisse porte le nom de
@@ -467,10 +468,13 @@ export function caissesAuChoix<B extends Boite>(boxes: readonly B[], o: {
     chèques, pas des billets, sous leur nom d'avant et d'aujourd'hui), la
     carte (l'argent est chez la banque), les autres moyens (Wave, un virement…
     rien qui se compte au tiroir), et les comptes en devise de Zelle,
-    Interac, Revolut et PayPal (21 octobre 2026). */
+    Interac, Revolut et PayPal (21 octobre 2026). Le règlement par MTN
+    (11 novembre 2026, « Régler par MTN, QR ») : l'argent est sur le compte
+    de collecte, chez MTN, vérifié par le serveur ; rien au tiroir. */
 export const HORS_CLOTURE: readonly string[] = [
   CAISSE_ANNEES_PASSEES, CAISSE_MND_PAY, CAISSE_CHEQUE, ANCIEN_NOM_CHEQUES, CAISSE_CARTE, CAISSE_AUTRES,
   ...FAMILLES_EN_DEVISE.map((f) => MOYENS_EN_DEVISE[f].nom),
+  CAISSE_MTN_COLLECTION,
 ];
 
 /* ══ FONDRE UNE CAISSE DANS UNE AUTRE — 17 octobre 2026 ═════════════════
