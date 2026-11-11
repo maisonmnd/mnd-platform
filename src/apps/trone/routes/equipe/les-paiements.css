@@ -189,3 +189,8 @@
 .lp-periode { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; cursor: pointer; }
 .lp-periode input { accent-color: var(--color-copper); width: 16px; height: 16px; }
 .lp-periode--pris { cursor: default; color: var(--ink-soft); }
+
+/* LE SOLDE DU COMPTE DE PAIE, MASQUABLE — 11 novembre 2026. */
+.lp-solde { display: grid; justify-items: end; gap: 2px; text-align: right; }
+.lp-solde b { font: 400 24px/1.1 var(--font-serif); color: var(--color-indigo); font-variant-numeric: lining-nums tabular-nums; }
+.lp-solde .lp-lien { font-size: 12px; }

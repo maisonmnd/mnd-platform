@@ -69,6 +69,7 @@ import './les-paiements.css';
 
 /** Le compte d'où part la paie : le compte Disbursement MTN de la Maison. */
 const COMPTE_DE_PAIE = 'compte de paie MTN';
+const CLE_SOLDE_MASQUE = 'mnd_paiements_solde_masque';
 const DEUX_HEURES = 2 * 60 * 60 * 1000;
 const nowIso = () => new Date().toISOString();
 const MOIS_COURTS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
@@ -144,6 +145,13 @@ export default function LesPaiements() {
   /** La saisie ouverte : l'entreprise (un fournisseur), ou la facture du mois. */
   const [saisie, setSaisie] = useState<{ quoi: 'entreprise'; fournisseur?: Fournisseur } | { quoi: 'facture'; fournisseur: Fournisseur; facture?: FactureDEntreprise } | null>(null);
   const [part, setPart] = useState(false);
+  /** LE SOLDE DU COMPTE DE PAIE, masquable (11 nov. 2026, « je le masque au
+      besoin ») : le choix reste sur cet appareil. */
+  const [soldeMasque, setSoldeMasque] = useState<boolean>(() => { try { return localStorage.getItem(CLE_SOLDE_MASQUE) === '1'; } catch { return false; } });
+  const basculeLeSolde = () => setSoldeMasque((m) => {
+    try { if (m) localStorage.removeItem(CLE_SOLDE_MASQUE); else localStorage.setItem(CLE_SOLDE_MASQUE, '1'); } catch { /* sans stockage, le choix vaut pour la visite */ }
+    return !m;
+  });
   /** Les entreprises dont on a replié les employés (ouvertes par défaut). */
   const [replies, setReplies] = useState<Set<string>>(() => new Set());
   /* Le geste de clôture d'un test que MTN laisse sans réponse (9 novembre 2026). */
@@ -172,6 +180,10 @@ export default function LesPaiements() {
   const cal = calendrierDeLaPaie(periode);
   const mois = leMois(registre, periode);
   const lecture: LectureMtn | undefined = mois.lectureMtn;
+  /** La dernière lecture du solde chez MTN, quel que soit le mois affiché. */
+  const dernierSolde: LectureMtn | undefined = useMemo(() => Object.values(registre?.mois ?? {})
+    .map((m) => m?.lectureMtn).filter((x): x is LectureMtn => !!x && typeof x.le === 'string')
+    .sort((a, b) => b.le.localeCompare(a.le))[0], [registre]);
   const runPresta = runDesPrestataires(periode);
   const runEnt = runDesEntreprises(periode);
   const { envois: envoisEquipe, relis: relisEquipe } = useEnvoisMtn({ runId: run?.id, actif: serveur.pret && !!run });
@@ -1143,6 +1155,18 @@ export default function LesPaiements() {
         </div>
         <div className="lp-tete__droite">
           <span className={`lp-etat${etatDuMois.fait ? ' lp-etat--fait' : ''}`}><i />{etatDuMois.texte}</span>
+          {/* Le solde du compte de paie : la dernière lecture chez MTN, tous mois confondus. */}
+          <div className="lp-solde" aria-live="polite">
+            <span className="lp-sourcil">Compte de paie MTN</span>
+            <b className="lp-num">{soldeMasque ? '•••••• F' : dernierSolde?.soldeXof != null ? F(dernierSolde.soldeXof) : 'pas encore lu'}</b>
+            <span className="lp-doux lp-petit">
+              {!soldeMasque && dernierSolde?.le ? `lu le ${quandDit(dernierSolde.le)}` : ''}
+              {!soldeMasque && dernierSolde?.le && serveur.pret ? ' · ' : ''}
+              {!soldeMasque && serveur.pret && <button type="button" className="lp-lien" onClick={() => void lire()}>lire</button>}
+              {!soldeMasque ? ' · ' : ''}
+              <button type="button" className="lp-lien" aria-pressed={soldeMasque} onClick={basculeLeSolde}>{soldeMasque ? 'afficher' : 'masquer'}</button>
+            </span>
+          </div>
           <button type="button" className="lp-lien" onClick={() => navigate('/personnel')}>Réglages</button>
         </div>
       </header>

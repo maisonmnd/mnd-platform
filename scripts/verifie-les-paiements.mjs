@@ -46,6 +46,7 @@ const PANNES = [
   ['un employe ajoute paie les mois d avant', PUR, '(!e.dePeriode || e.dePeriode <= periode)', 'true'],
   ['le montant du mois oublie, le mensuel part', PUR, '  return Number.isInteger(pose) && (pose as number) >= 0 ? pose as number : Math.max(0, entier(e.mensuelXof));', '  return Math.max(0, entier(e.mensuelXof));'],
   ['la garde revient sur les employes d entreprise', ECRAN, '            arret: arretDesPeriodes(periode, choisies, prisAilleurs), periodes: choisies,\n', "            arret: e.mobileMoney && gardeDuNumero(e.mobileMoney, maintenant).bloque ? 'garde' : arretDesPeriodes(periode, choisies, prisAilleurs), periodes: choisies,\n"],
+  ['le solde masque se montre quand meme', ECRAN, "{soldeMasque ? '•••••• F' : dernierSolde?.soldeXof", "{false ? '•••••• F' : dernierSolde?.soldeXof"],
   /* Plusieurs mois d'un coup (11 nov. 2026) */
   ['un mois pris ailleurs se recoche', PUR, "  const choisies = [...new Set(base)].filter((p) => /^\\d{4}-\\d{2}$/.test(p) && !prisAilleurs[p]).sort();", "  const choisies = [...new Set(base)].filter((p) => /^\\d{4}-\\d{2}$/.test(p)).sort();"],
   ['les mois coches ne multiplient pas', PUR, '  return ici + autres * Math.max(0, entier(o.mensuel));', '  return ici;'],

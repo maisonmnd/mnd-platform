@@ -350,6 +350,11 @@ const depE = depenseDeLEmploye({ id: 'fr-9', nom: 'ACIA1', branchId: 'b1' }, emp
 dit('la depense de l employe : Sous-traitance, au compte de l entreprise, une par employe, la facture jointe si elle existe', [CATEGORIE_DES_ENTREPRISES, 'fr-9', 'exp-ent-2026-11-ee-1', 'ACIA1 - K. A. - novembre 2026', 60000, '2026-12-09', true, null],
   [depE?.category, depE?.fournisseurId, depE?.id, depE?.label, depE?.amountXof, depE?.date, !!depE?.fichier, depenseDeLEmploye({ id: 'fr-9', nom: 'ACIA1', branchId: 'b1' }, emps[0], { ...recuE, etat: 'programme' })]);
 
+/* Le solde du compte de paie, masquable (11 nov. 2026, « je le masque au besoin »). */
+dit('le solde du compte de paie se lit en tete, et se masque', [true, true, true],
+  [ECRAN_E.includes("{soldeMasque ? '•••••• F' : dernierSolde?.soldeXof != null ? F(dernierSolde.soldeXof) : 'pas encore lu'}"),
+    ECRAN_E.includes("const CLE_SOLDE_MASQUE = 'mnd_paiements_solde_masque';"), ECRAN_E.includes("{!soldeMasque && dernierSolde?.le ? `lu le ${quandDit(dernierSolde.le)}` : ''}")]);
+
 /* ── PLUSIEURS MOIS D'UN COUP · 11 novembre 2026 ──
    « Parfois je peux payer 2 ou 3 periodes » : on coche les mois, un seul
    virement, employes d'entreprise et entreprises ; jamais deux fois un mois. */
