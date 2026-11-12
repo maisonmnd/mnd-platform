@@ -9,6 +9,7 @@ import { FusionDesCaisses } from './FusionDesCaisses';
 import { TriDesCaisses } from './TriDesCaisses';
 import { CaissesAuNom } from './CaissesAuNom';
 import { CarteAVirer } from './CarteAVirer';
+import { ArgentDesComptes } from './ArgentDesComptes';
 import { AncienMomopay } from './AncienMomopay';
 import { ChequesADeposer } from './ChequesADeposer';
 import { gardeToutSonPasse } from '../../../../shared/finance';
@@ -389,6 +390,9 @@ export default function Caisses() {
       <ChequesADeposer />
       {/* LA CARTE À VIRER À LA BANQUE (21 octobre 2026). */}
       <CarteAVirer />
+      {/* L'ARGENT DES COMPTES (12 novembre 2026, « Le choix du moyen ») : la
+          paie du 5 d'abord, le surplus à la banque le lundi. Direction seule. */}
+      <ArgentDesComptes />
 
       <div className="trf-toolbar">
         <MonthNav month={month} onChange={setMonth} />

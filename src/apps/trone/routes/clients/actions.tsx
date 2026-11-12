@@ -34,7 +34,7 @@ import { Link } from 'react-router-dom';
 import { autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT, lienPaiementMomo, MOMO_QR_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
 import { AuComptoir, type Grand } from './AuComptoir';
 import { RAILS, autresMoyens, leChoixDuMoyen, type LeChoix, type Rail, type Voie } from '../../../../shared/choix-du-moyen-pur';
-import { estUnNumeroMtn, msisdnDe } from '../../../../shared/collecte-mtn-pur';
+import { CAISSE_MTN_COLLECTION, estUnNumeroMtn, msisdnDe } from '../../../../shared/collecte-mtn-pur';
 import { signaleMtnFerme, signaleUnePanne, signaleUneReussite, useLaSanteDesMoyens } from './sante-des-moyens';
 import { ReglementEnDirect } from './ReglementEnDirect';
 import { ConfirmeParMtn } from './ConfirmeParMtn';
@@ -1626,6 +1626,16 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
       return {
         methode: pt.mnd?.methode ?? 'FedaPay', caisse: pt.mnd ? CAISSE_MND_PAY : '',
         proposee: { caisse: CAISSE_MND_PAY, pourquoi: 'L’argent est chez FedaPay jusqu’au reversement.' }, peutChanger: false,
+      };
+    }
+    /* « PAYER PAR MTN » : le serveur pose lui-même l'argent dans « MTN
+       Collection » à la réponse de MTN. La barre le disait « → MoMoPay
+       Maison MND » (la caisse que le nom du moyen évoquait) : vu à l'essai
+       réel du 12 novembre 2026, quand Mobile money a proposé MTN d'office. */
+    if (pt.tuile === 'mtn') {
+      return {
+        methode: 'MTN Collection', caisse: CAISSE_MTN_COLLECTION,
+        proposee: { caisse: CAISSE_MTN_COLLECTION, pourquoi: 'MTN pose l’argent lui-même, à sa réponse.' }, peutChanger: false,
       };
     }
     const methode = methodeDeLaTuile(pt.tuile, methods, pt.autre);
