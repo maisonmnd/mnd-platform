@@ -7,6 +7,7 @@ import {
   isoDuJour, jourCourt, jourDit, jourFermeALaMaison, placesDeLaRemise, placesEnLigne, prestationsReservables, PLAFOND_GESTES,
   type AgendaDeLaMaison, type PrestationPublique,
 } from '../agenda';
+import { minutesDeCotonou } from '../../../shared/place-du-serveur';
 import {
   dateDite, etatDuJour, flechesDuMois, grilleDuMois, LETTRES_DE_LA_SEMAINE, libelleDuJour, moisAMontrer, moisApres,
   sensDuGlisse, titreDuMois,
@@ -407,6 +408,21 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
      dernier jour du troisième mois qui suit (`horizonDuSite`, la borne du
      serveur), la même fenêtre que main.ts précharge. */
   const [horizon] = useState(() => horizonDuSite());
+  /* L'HEURE QUI PASSE, PAGE OUVERTE — 12 novembre 2026. Le jour même s'ouvre
+     (« les horaires d'aujourd'hui qui sont déjà passés, il ne faut plus les
+     montrer », Yéman) : une page chargée à 11 h 59 montrait encore 12 h à
+     12 h 01, et le serveur l'aurait refusée. La minute bat ici (toutes les
+     vingt secondes, et au retour sur l'onglet) : les heures d'aujourd'hui se
+     recalculent, celle qui commence tombe, et un jour passé après minuit
+     quitte la liste. */
+  const [minute, setMinute] = useState(() => Math.floor(Date.now() / 60_000));
+  useEffect(() => {
+    const bat = () => setMinute(Math.floor(Date.now() / 60_000));
+    const t = window.setInterval(bat, 20_000);
+    const auRetour = () => { if (document.visibilityState === 'visible') bat(); };
+    document.addEventListener('visibilitychange', auRetour);
+    return () => { window.clearInterval(t); document.removeEventListener('visibilitychange', auRetour); };
+  }, []);
   /* LE MOIS MONTRÉ : celui qu'elle a tourné (AAAA-MM) ; `null`, celui du
      jour choisi ou de la première place libre. `sensDuMois` dit d'où entre
      la grille (1 : le suivant, -1 : le précédent, 0 : sans glissé). */
@@ -780,12 +796,27 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
      sur tout l'horizon (6 novembre 2026 : ce mois et les trois suivants). */
   const jours = useMemo(() => {
     if (!agenda || serviceIds.length === 0 || occupesEtat !== 'frais') return [];
+    /* À la minute qui bat : aujourd'hui sans ses heures commencées, et aucun
+       jour déjà passé (une page restée ouverte après minuit). */
+    const maintenant = new Date(minute * 60_000);
+    const aujourdhui = jourDeCotonou(maintenant.getTime());
     return horizon.jours
-      .map((iso) => ({ iso, heures: heuresLibres({ agenda, dateIso: iso, serviceIds, occupes, places: placesParJour }) }))
+      .filter((iso) => iso >= aujourdhui)
+      .map((iso) => ({ iso, heures: heuresLibres({ agenda, dateIso: iso, serviceIds, occupes, places: placesParJour, maintenant }) }))
       .filter((j) => j.heures.length > 0);
-  }, [agenda, serviceIds, occupes, placesParJour, occupesEtat]);
+  }, [agenda, serviceIds, occupes, placesParJour, occupesEtat, minute]);
 
   const heuresDuJour = jours.find((j) => j.iso === jour)?.heures ?? [];
+  /* L'HEURE CHOISIE QUI VIENT DE COMMENCER (12 novembre 2026) : elle quitte
+     la réservation en cours, et la page le dit, plutôt que de la laisser
+     partir vers un refus du serveur. */
+  useEffect(() => {
+    if (!heure || jour !== jourDeCotonou(minute * 60_000)) return;
+    const [h, m] = heure.heure.split(':').map(Number);
+    if (h * 60 + m > minutesDeCotonou(minute * 60_000)) return;
+    setHeure(null);
+    setErreur('Cette heure vient de commencer. Choisissez-en une autre, la liste est à jour.');
+  }, [minute, jour, heure]);
   /* LES SIX PROCHAINES PLACES, tous jours confondus : la cliente pressée
      touche la première ; le mois entier se voit dessous, en grille. */
   const places = useMemo(() => prochainesPlaces(jours, 6), [jours]);

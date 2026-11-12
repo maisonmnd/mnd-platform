@@ -165,8 +165,11 @@ const libre = etat('2026-11-11', false, 2);
 dit('C8 les mots d un jour libre : ses heures, peu de places, sa remise, ses places limitees',
   'mercredi 11 novembre 2026, 2 heures libres, peu de places, Le mercredi de la Maison, −15 %, il reste 3 places',
   libelleDuJour({ iso: '2026-11-11', du: DU, jour: libre, remise: { titre: 'Le mercredi de la Maison', pct: 15 }, places: 'il reste 3 places' }));
-dit('C9 ... complet, ferme, le jour meme, la veille, une heure seule',
-  ['jeudi 12 novembre 2026, complet', 'dimanche 8 novembre 2026, fermé', 'vendredi 6 novembre 2026, aujourd’hui : pas de réservation le jour même',
+/* LE JOUR MEME S OUVRE (12 novembre 2026) : le premier jour de l horizon est
+   aujourd hui ; la veille de DU est donc un jour PASSE, plus « aujourd hui :
+   pas de reservation le jour meme » (le lecteur d ecran le disait d hier). */
+dit('C9 ... complet, ferme, la veille du premier jour (passe), un jour d avant, une heure seule',
+  ['jeudi 12 novembre 2026, complet', 'dimanche 8 novembre 2026, fermé', 'vendredi 6 novembre 2026, passé',
     'lundi 2 novembre 2026, passé', 'mardi 10 novembre 2026, 1 heure libre, peu de places'],
   [libelleDuJour({ iso: '2026-11-12', du: DU, jour: etat('2026-11-12', false, 0) }),
     libelleDuJour({ iso: '2026-11-08', du: DU, jour: etat('2026-11-08', true, 0) }),
@@ -208,8 +211,17 @@ dit('E1 main.ts precharge sur horizonDuSite, et rien d autre', [true, true, true
     main.includes('calendrierDuSite(du, au, brancheDeLaPage)'), /prochainsJours|JOURS_DU_CALENDRIER|JOURS_DU_SITE/.test(main)]);
 dit('E2 l ilot lit le meme horizon, pour charger, pour ses jours et pour relire apres un refus', [true, true, true, 2],
   [r.includes('const [horizon] = useState(() => horizonDuSite());'), r.includes('void calendrierDuSite(horizon.du, horizon.au, initiales?.branchId)'),
-    r.includes('return horizon.jours\n      .map((iso) => ({ iso, heures: heuresLibres({ agenda, dateIso: iso, serviceIds, occupes, places: placesParJour }) }))'),
+    r.includes('return horizon.jours\n      .filter((iso) => iso >= aujourdhui)\n      .map((iso) => ({ iso, heures: heuresLibres({ agenda, dateIso: iso, serviceIds, occupes, places: placesParJour, maintenant }) }))'),
     (r.match(/const suite = \[horizon\.du, horizon\.au\];/g) ?? []).length]);
+/* L HEURE QUI PASSE, PAGE OUVERTE — 12 novembre 2026 : une page chargee a
+   11 h 59 montrait encore 12 h a 12 h 01. La minute bat, les heures se
+   recalculent avec elle, l heure choisie qui commence quitte la reservation. */
+dit('E2b la page suit l heure : la minute bat (20 s et retour sur l onglet), les heures se recalculent avec elle, l heure choisie qui commence tombe',
+  [true, true, true, true, true],
+  [r.includes('const t = window.setInterval(bat, 20_000);'), r.includes("document.addEventListener('visibilitychange', auRetour);"),
+    r.includes('const maintenant = new Date(minute * 60_000);') && r.includes('}, [agenda, serviceIds, occupes, placesParJour, occupesEtat, minute]);'),
+    r.includes('if (h * 60 + m > minutesDeCotonou(minute * 60_000)) return;') && r.includes('}, [minute, jour, heure]);'),
+    r.includes("setErreur('Cette heure vient de commencer. Choisissez-en une autre, la liste est à jour.');")]);
 dit('E3 agenda.ts : l horizon tient la borne du serveur, compte a Cotonou ; plus de vingt et un jours', [true, true, true, false],
   [agendaTs.includes("import { ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS, finDeLaReservation, minutesDeCotonou, reservableSurLeSite } from '../../shared/place-du-serveur';"),
     agendaTs.includes('const aujourdhui = jourDeCotonou(maintenant.getTime());\n  const au = finDeLaReservation(aujourdhui);'),

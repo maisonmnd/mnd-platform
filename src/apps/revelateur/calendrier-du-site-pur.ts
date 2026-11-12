@@ -37,11 +37,6 @@ const lisLeMois = (mois: string): { a: number; m: number } | null => {
   return m >= 1 && m <= 12 ? { a: Number(r[1]), m } : null;
 };
 const jourDeLaSemaine = (iso: string): number => new Date(`${iso}T12:00:00Z`).getUTCDay();
-const veilleDe = (iso: string): string => {
-  const d = new Date(`${iso}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().slice(0, 10);
-};
 
 /** Le mois `k` mois après `mois` (AAAA-MM). Illisible : chaîne vide. */
 export function moisApres(mois: string, k: number): string {
@@ -147,5 +142,8 @@ export function libelleDuJour(o: {
   if (etat === 'complet') return `${tete}, complet`;
   if (etat === 'ferme') return `${tete}, fermé`;
   if (o.iso >= o.du) return `${tete}, hors des réservations en ligne`;
-  return o.iso === veilleDe(o.du) ? `${tete}, aujourd’hui : pas de réservation le jour même` : `${tete}, passé`;
+  /* LE JOUR MÊME S'OUVRE (12 novembre 2026) : l'horizon commence aujourd'hui,
+     et la veille de son premier jour est HIER. Elle se disait « aujourd'hui :
+     pas de réservation le jour même » ; tout jour d'avant est passé. */
+  return `${tete}, passé`;
 }

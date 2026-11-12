@@ -2,7 +2,9 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE JOUR MÊME SUR LE SITE — 12 novembre 2026 (SQL 0203, demande-submit et whatsapp-automate 2026-11-12-a, site public)
+## LE JOUR MÊME SUR LE SITE — 12 novembre 2026, EN LIGNE (SQL 0203 passée ; demande-submit v60 et whatsapp-automate v61 « 2026-11-12-a » ; site public build 20261112105547 @ 3715acbe, 388/388)
+
+Essai réel à 12 h 01 (Cotonou) : le jeudi 12 touchable, 13 h, 14 h, 16 h à 19 h, rien avant. L'essai a montré deux défauts, corrigés ensuite (voir le dernier point).
 
 « Sur le site de réservation, les horaires d'aujourd'hui qui sont déjà passés il ne faut plus les montrer » (Yéman, capture du 12 novembre à 11 h 16 : le jeudi 12 n'était pas proposé, le site commençait à demain, vendredi 13 choisi d'office). Au sélecteur : « Ouvrir le jour même », « Aucun délai ». Le site propose désormais aujourd'hui, ses heures pas encore commencées à Cotonou ; WhatsApp et l'Assistant Maison gardent « jamais le jour même ».
 
@@ -11,6 +13,7 @@
 - **demande-submit 2026-11-12-a** : `laPlaceDemandee` passe `true` aux deux appels. Le déplacement depuis le site n'est pas touché : son arrivée à moins de 24 h est déjà refusée.
 - **SQL `0203_le_jour_meme_sur_le_site.sql`** : `pose_si_libre` = 0168 avec la seule règle de la fenêtre changée : le jour même passe si `p_rdv->>'source' = 'site'` (seul demande-submit l'écrit ; WhatsApp 'whatsapp', l'Assistant Maison 'assistant') et que l'heure n'a pas commencé à Porto-Novo. Avant de la passer : la base doit porter la définition de 0168.
 - **whatsapp-automate 2026-11-12-a** : la copie du bloc seulement, aucun comportement changé.
+- **Les deux défauts de l'essai réel, corrigés (site seulement)** : (1) une page chargée à 11 h 59 montrait encore 12 h à 12 h 01 : `Reserver.tsx` bat la minute (toutes les 20 s et au retour sur l'onglet), recalcule les heures avec elle (`maintenant` passé à `heuresLibres`, aucun jour passé après minuit), et une heure choisie qui commence quitte la réservation avec « Cette heure vient de commencer… » ; (2) le lecteur d'écran disait « aujourd'hui : pas de réservation le jour même » sur HIER (`calendrier-du-site-pur.ts`, `veilleDe` retiré : tout jour d'avant l'horizon est « passé »). Bancs : calendrier-du-site C9 et E2b.
 - **Bancs** : `verifie-la-place-du-serveur` (A11b à A11e, B0, B0b, panne « le jour même du site accepte une heure déjà commencée » ; 117+ contrôles), `verifie-le-calendrier-du-site` (horizon d'aujourd'hui, G1 à G4 sur 0203), `verifie-fenetre-de-fidelite` et `verifie-le-rdv-du-site` (versions et appels avec `true`). Restent rouges SANS ce chantier (même échec avant et après, sur origin/main 2be527b2) : verifie-le-parrainage (pages des ingrédients et testeuse), verifie-le-second-fauteuil (« le juge du serveur les reçoit »), verifie-les-douze-lunes (R12, la page /m/).
 
 ## LE CHOIX DU MOYEN, LOT B (l'argent des comptes) — 12 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
