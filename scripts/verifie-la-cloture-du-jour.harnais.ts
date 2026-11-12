@@ -68,8 +68,15 @@ dit('dureeLue = dureeDuRendezVous (agenda-pur)', cas.map((c) => dureeDuRendezVou
 const moyens = [
   { method: 'Espèces' }, { method: 'cash' }, { method: 'MTN MoMo' }, { method: 'MoMo Privé' }, { method: 'Moov' }, { method: 'Mobile Money' },
   { method: 'Carte' }, { method: 'Kkiapay' }, { method: 'Lien WhatsApp', cashbox: 'KkiaPay' }, { method: 'Virement bancaire' }, { method: '' },
+  { method: 'MTN Collection', cashbox: 'MTN Collection' }, { method: 'MTN Collection' }, { method: 'MTN MoMo', cashbox: 'FedaPay' }, { method: 'Moov', cashbox: 'MND PAY' },
 ];
 dit('familleLue = familleDuMoyen (caisse-du-soir-pur)', moyens.map((m) => familleDuMoyen(m)), moyens.map((m) => familleLue(m)));
+/* MTN Collection et FedaPay à part dans la clôture de Grenat (12 novembre 2026) :
+   ni l'un ni l'autre ne se range plus sous « MTN MoMo » par son moyen. */
+dit('la cloture range MTN Collection et FedaPay a part, pas sous MTN MoMo',
+  ['MTN Collection, en ligne', 'MTN Collection, en ligne', 'FedaPay, en ligne', 'FedaPay, en ligne', 'MTN MoMo'],
+  [familleLue({ method: 'MTN Collection', cashbox: 'MTN Collection' }), familleLue({ method: 'MTN Collection' }), familleLue({ method: 'MTN MoMo', cashbox: 'FedaPay' }),
+    familleLue({ method: 'Moov', cashbox: 'MND PAY' }), familleLue({ method: 'MTN MoMo', cashbox: 'MTN MoMoPay' })]);
 const quinzeJours = Array.from({ length: 14 }, (_, i) => new Date(Date.parse('2026-11-01T12:00:00Z') + i * 86_400_000).toISOString().slice(0, 10));
 const exceptions = [{ date: '2026-11-07', closed: true }, { date: '2026-11-11', staffId: 'st-1', closed: true }];
 dit('laMaisonEstFermee = ouvertureDuJour(...).closed, quatorze jours',

@@ -68,6 +68,30 @@ dit('... sans prendre le MoMoPay de la Maison, qui reste a pointer', 'a-pointer'
 dit('... compte pointe dans les tuiles', { recuXof: 32000, pointeXof: 32000, aPointerXof: 0, auComptageXof: 0 }, bilanDuPointage([mtnC], (x) => etatDuPointage(x, new Map(), [])));
 dit('... et se range a part, apres KkiaPay', ['Espèces', 'KkiaPay, en ligne', 'MTN Collection, en ligne'], parMoyen([mtnC, registre[2], registre[0]]).map((g) => g.famille));
 
+/* « FEDAPAY SE COCHE SEUL » ET « CHAP CHAP À POINTER » (Y., 12 novembre 2026).
+   La caisse FedaPay ne reçoit qu'un versement que FedaPay a confirmé au
+   serveur : pointé de lui-même, sous son nom. KkiaPay ne se pointe seul que
+   relu par le serveur ; le QR Chap Chap du comptoir, déclaré à la main, se
+   pointe comme le Mobile Money. */
+const fed = r({ id: 'r-inv-f-mp-abc', amountXof: 10000, method: 'MTN MoMo', cashbox: 'FedaPay' });
+dit('FedaPay se pointe seul, sous son nom et pas sous MTN MoMo', ['fedapay', ['FedaPay, en ligne']],
+  [etatDuPointage(fed, new Map(), []), parMoyen([fed]).map((g) => g.famille)]);
+dit('... meme sous l ancien nom de sa caisse', 'fedapay', etatDuPointage(r({ id: 'r-inv-f-mp-x', amountXof: 1, method: 'Moov', cashbox: 'MND PAY' }), new Map(), []));
+dit('... compte pointe dans les tuiles', { recuXof: 10000, pointeXof: 10000, aPointerXof: 0, auComptageXof: 0 }, bilanDuPointage([fed], (x) => etatDuPointage(x, new Map(), [])));
+dit('le KkiaPay relu par le serveur se pointe seul : acompte, Regler et Boutique (piece et rendez-vous), abonnement, carte cadeau',
+  ['kkiapay', 'kkiapay', 'kkiapay', 'kkiapay', 'kkiapay'],
+  [r({ id: 'r-pay-998', amountXof: 1, method: 'KkiaPay · Mobile Money', cashbox: 'KkiaPay' }),
+    r({ id: 'r-inv-inv-1-kkia-998-inv-1', amountXof: 1, method: 'KkiaPay', cashbox: 'KkiaPay' }),
+    r({ id: 'r-rdv-kkia-998', amountXof: 1, method: 'KkiaPay', cashbox: 'KkiaPay' }),
+    r({ id: 'r-abo-4478859679730984', amountXof: 1, method: 'KkiaPay' }),
+    r({ id: 'r-cre-cre-cc-1', amountXof: 1, method: 'KkiaPay', cashbox: 'KkiaPay' })].map((x) => etatDuPointage(x, new Map(), [])));
+const chap = r({ id: 'r-inv-c-ip-abc', amountXof: 20000, method: 'KkiaPay', cashbox: 'KkiaPay' });
+dit('le QR Chap Chap du comptoir reste a pointer, dans la famille KkiaPay', ['a-pointer', ['KkiaPay, en ligne']],
+  [etatDuPointage(chap, new Map(), []), parMoyen([chap]).map((g) => g.famille)]);
+dit('... un abonnement encaisse a la main par KkiaPay aussi', 'a-pointer', etatDuPointage(r({ id: 'r-abo-p-abc', amountXof: 1, method: 'KkiaPay' }), new Map(), []));
+dit('... et se pointe a la main comme le Mobile Money', 'main',
+  etatDuPointage(chap, new Map([[chap.id, { id: chap.id, comment: 'main' } as unknown as Pointage]]), []));
+
 /* 3. L'attendu du tiroir, de soir en soir. */
 dit('sans cloture precedente, le livre fait foi', 113500, attenduDuTiroir({ livreMaintenantXof: 113500 }));
 const soir1 = nouvelleCloture({

@@ -37,7 +37,7 @@
    l'écran « La journée » et le serveur jugent avec la même règle. */
 
 /* ⟨cloture-du-jour⟩ */
-export const VERSION_DE_LA_CLOTURE = '2026-11-05-c';
+export const VERSION_DE_LA_CLOTURE = '2026-11-12-a';
 
 /** Cotonou vit à UTC + 1, toute l'année. */
 export const DECALAGE_DE_COTONOU_MIN = 60;
@@ -216,9 +216,16 @@ export const piecesDuRdv = (a: RdvLu, pieces: readonly PieceLue[]): PieceLue[] =
 
 /* ── LE MOYEN ET LE TIROIR ────────────────────────────────────────────── */
 
+/** Le nom de la caisse FedaPay avant le 12 novembre 2026. */
+const ANCIEN_NOM_MND_PAY = 'MND PAY';
+
 /** LA FAMILLE D'UN MOYEN, la même que `familleDuMoyen` (caisse-du-soir-pur). */
 export function familleLue(r: { method?: string; cashbox?: string }): string {
   if (r.cashbox === 'KkiaPay' || /^kkiapay/i.test(r.method ?? '')) return 'KkiaPay, en ligne';
+  /* MTN Collection et FedaPay à part (12 novembre 2026) : avant la règle
+     du MoMo, qui les rangeait sous « MTN MoMo » par leur moyen. */
+  if (r.cashbox === 'MTN Collection' || /^mtn collection$/i.test((r.method ?? '').trim())) return 'MTN Collection, en ligne';
+  if (r.cashbox === 'FedaPay' || r.cashbox === ANCIEN_NOM_MND_PAY) return 'FedaPay, en ligne';
   if (/esp[eè]ces|cash|liquide/i.test(r.method ?? '')) return 'Espèces';
   const m = (r.method ?? '').trim();
   if (/mtn|momo/i.test(m) && /priv[ée]|perso/i.test(m)) return 'MoMo Privé';
@@ -227,7 +234,7 @@ export function familleLue(r: { method?: string; cashbox?: string }): string {
   if (/^mobile money$/i.test(m)) return 'Mobile Money';
   return m || 'Autre';
 }
-const ORDRE_DES_MOYENS = ['Espèces', 'MTN MoMo', 'MoMo Privé', 'Moov Money', 'Mobile Money', 'Carte', 'Virement bancaire', 'KkiaPay, en ligne'];
+const ORDRE_DES_MOYENS = ['Espèces', 'MTN MoMo', 'MoMo Privé', 'Moov Money', 'Mobile Money', 'Carte', 'Virement bancaire', 'KkiaPay, en ligne', 'MTN Collection, en ligne', 'FedaPay, en ligne'];
 const rangDuMoyen = (f: string): number => { const i = ORDRE_DES_MOYENS.indexOf(f); return i < 0 ? 50 : i; };
 
 /** Le tiroir d'un versement, la même règle que le journal de caisse. */

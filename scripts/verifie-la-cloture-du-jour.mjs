@@ -126,7 +126,7 @@ const PANNES = [
   { nom: 'Depenses n ecrit plus le lien de l ecart', fichier: DEP, avant: '...(form.ecartDe ? { ecartDe: form.ecartDe } : {}),', apres: '', disque: true },
   { nom: 'Depenses n ecrit plus « La Maison elle-meme »', fichier: DEP, avant: 'const laMaisonAPaye = voitToutesLesDepenses && form.porteurChoisi && !form.porteur.trim();', apres: 'const laMaisonAPaye = false;', disque: true },
   /* La copie, la fonction, la migration. */
-  { nom: 'un caractere change dans la copie de la fonction', fichier: FN, avant: "export const VERSION_DE_LA_CLOTURE = '2026-11-05-c';", apres: "export const VERSION_DE_LA_CLOTURE = '2026-11-05-d';", disque: true },
+  { nom: 'un caractere change dans la copie de la fonction', fichier: FN, avant: "export const VERSION_DE_LA_CLOTURE = '2026-11-12-a';", apres: "export const VERSION_DE_LA_CLOTURE = '2026-11-12-b';", disque: true },
   { nom: 'le maitre qui a pose un rendez-vous est prevenu', fichier: FN, avant: ".eq('table_name', 'invoices').eq('porte', 'trone')", apres: ".in('table_name', ['invoices', 'appointments']).eq('porte', 'trone')", disque: true },
   { nom: 'la porte de secours ouverte a toute l equipe', fichier: 'src/apps/trone/routes/finances/Caisses.tsx', avant: '{estDirection && (', apres: '{(true) && (', disque: true },
   { nom: 'la fonction ecrit sans relire', fichier: FN, avant: 'if (!gesteToujoursValable(', apres: 'if (false && !gesteToujoursValable(', disque: true },

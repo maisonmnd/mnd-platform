@@ -1,5 +1,6 @@
 import { EST_ACTIVITE, CAISSE_POURBOIRES, type Receipt } from './receipts';
 import { HORS_CLOTURE } from './caisses-des-caissiers-pur';
+import { estLaCaisseFedaPay } from './mnd-pay-pur';
 
 /* ══ LE POINTAGE DU JOUR ET LA CAISSE DU SOIR — 3 octobre 2026 ══════════
    « Comment pointer les revenus du jour ? et faciliter le contrôle des
@@ -100,9 +101,20 @@ export function revenuDuJour(registre: readonly Receipt[], iso: string): Receipt
   return registre.filter((r) => r.date === iso && EST_ACTIVITE[r.kind] && r.amountXof > 0);
 }
 
-/** KkiaPay : vérifié par le serveur, pointé de lui-même. */
+/** Un versement KkiaPay, en ligne ou par le QR Chap Chap du comptoir : sa
+    famille. Seul `estKkiaPayDuServeur` se pointe de lui-même. */
 export const estEnLigne = (r: Pick<Receipt, 'method' | 'cashbox'>): boolean =>
   r.cashbox === 'KkiaPay' || /^kkiapay/i.test(r.method ?? '');
+
+/** LE KKIAPAY QUE LE SERVEUR A RELU — 12 novembre 2026 (« Chap Chap à
+    pointer », Y.). Se pointe de lui-même ce que le serveur a vu chez KkiaPay :
+    l'acompte en ligne (`r-pay-<transaction>`), le versement que
+    `regler-la-seance` ou la Boutique pose (`kkia-…`), le règlement
+    d'abonnement sous le numéro de sa transaction, la carte cadeau
+    (`cre-cc-…`). Le QR Chap Chap du comptoir, déclaré à la main, se pointe
+    comme le Mobile Money : au relevé, ou à la main. */
+export const estKkiaPayDuServeur = (r: Pick<Receipt, 'id' | 'method' | 'cashbox'>): boolean =>
+  estEnLigne(r) && (/^r-pay-/.test(r.id) || /-kkia-/.test(r.id) || /^r-abo-\d+$/.test(r.id) || /^r-cre-cre-cc-/.test(r.id));
 
 /** MTN COLLECTION — 11 novembre 2026 (« Régler par MTN », Yéman : « se pointe
     seul »). Le versement n'est posé qu'une fois MTN relu « SUCCESSFUL » au
@@ -111,6 +123,12 @@ export const estEnLigne = (r: Pick<Receipt, 'method' | 'cashbox'>): boolean =>
 export const estMtnCollection = (r: Pick<Receipt, 'method' | 'cashbox'>): boolean =>
   r.cashbox === 'MTN Collection' || /^mtn collection$/i.test((r.method ?? '').trim());
 
+/** FEDAPAY — 12 novembre 2026 (« FedaPay se coche seul », Y.). Sa caisse ne
+    reçoit qu'un versement que FedaPay a confirmé au serveur (la demande
+    passée « payée » par mnd-pay-webhook) : il se pointe de lui-même, comme
+    KkiaPay et MTN Collection, sous son nom et non plus sous « MTN MoMo ». */
+export const estFedaPay = (r: Pick<Receipt, 'cashbox'>): boolean => estLaCaisseFedaPay(r.cashbox);
+
 /** Les espèces se pointent au comptage du tiroir, jamais une à une. */
 export const estEnEspeces = (r: Pick<Receipt, 'method'>): boolean => /esp[eè]ces|cash|liquide/i.test(r.method ?? '');
 
@@ -118,6 +136,7 @@ export const estEnEspeces = (r: Pick<Receipt, 'method'>): boolean => /esp[eè]ce
 export function familleDuMoyen(r: Pick<Receipt, 'method' | 'cashbox'>): string {
   if (estEnLigne(r)) return 'KkiaPay, en ligne';
   if (estMtnCollection(r)) return 'MTN Collection, en ligne';
+  if (estFedaPay(r)) return 'FedaPay, en ligne';
   if (estEnEspeces(r)) return 'Espèces';
   const m = (r.method ?? '').trim();
   /* MoMo Privé (21 octobre 2026) : un MoMo reçu sur un numéro personnel, à
@@ -128,11 +147,12 @@ export function familleDuMoyen(r: Pick<Receipt, 'method' | 'cashbox'>): string {
   if (/^mobile money$/i.test(m)) return 'Mobile Money';
   return m || 'Autre';
 }
-const ORDRE_DES_FAMILLES = ['Espèces', 'MTN MoMo', 'MoMo Privé', 'Moov Money', 'Mobile Money', 'Carte', 'Virement bancaire', 'KkiaPay, en ligne', 'MTN Collection, en ligne'];
+const ORDRE_DES_FAMILLES = ['Espèces', 'MTN MoMo', 'MoMo Privé', 'Moov Money', 'Mobile Money', 'Carte', 'Virement bancaire', 'KkiaPay, en ligne', 'MTN Collection, en ligne', 'FedaPay, en ligne'];
 
 export type EtatDuPointage =
   | 'kkiapay'      // vérifié par le serveur
   | 'mtn'          // confirmé par MTN au serveur (MTN Collection)
+  | 'fedapay'      // confirmé par FedaPay au serveur
   | 'releve'       // retrouvé au relevé MTN
   | 'main'         // pointé à la main
   | 'comptage'     // espèces d'un tiroir clôturé
@@ -140,7 +160,7 @@ export type EtatDuPointage =
   | 'a-pointer';
 
 export const ETAT_POINTE: Record<EtatDuPointage, boolean> = {
-  kkiapay: true, mtn: true, releve: true, main: true, comptage: true, 'au-comptage': false, 'a-pointer': false,
+  kkiapay: true, mtn: true, fedapay: true, releve: true, main: true, comptage: true, 'au-comptage': false, 'a-pointer': false,
 };
 
 /** Ce que l'écran sait des clôtures : « ce tiroir a été clôturé ce jour-là
@@ -152,8 +172,9 @@ export function etatDuPointage(
   pointages: ReadonlyMap<string, Pointage>,
   clotures: readonly Pick<Cloture, 'cashbox' | 'date'>[],
 ): EtatDuPointage {
-  if (estEnLigne(r)) return 'kkiapay';
+  if (estKkiaPayDuServeur(r)) return 'kkiapay';
   if (estMtnCollection(r)) return 'mtn';
+  if (estFedaPay(r)) return 'fedapay';
   const p = pointages.get(r.id);
   if (p) return p.comment;
   if (estEnEspeces(r)) {
