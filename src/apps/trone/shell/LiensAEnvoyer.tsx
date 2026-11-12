@@ -131,7 +131,11 @@ export default function LiensAEnvoyer({ appel = '', numero = '', choisi: choisiA
           <Field label="Son prénom · facultatif">
             <Input value={salut} placeholder="Awa" autoComplete="off" onChange={(e) => setSalut(e.target.value)} />
           </Field>
-          <Field label="Son numéro · pour « WhatsApp »">
+          {/* Une étiquette courte, de la longueur de sa voisine : la longue
+              (« pour « WhatsApp » ») passait sur deux lignes et décalait le
+              champ (vu au Trône publié, 12 novembre 2026). La ligne d'aide
+              dessous dit déjà que « WhatsApp » attend le numéro. */}
+          <Field label="Son numéro · facultatif">
             <Input value={tel} placeholder="01 97 00 00 00" type="tel" inputMode="tel" autoComplete="off" onChange={(e) => setTel(e.target.value)} />
           </Field>
         </div>
