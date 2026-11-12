@@ -29,15 +29,23 @@ dit('le code USSD est celui de l affiche', '*616*41*8552*montant#', USSD_CHAPCHA
 dit('le nom que la page affiche', 'MND', MARCHAND_CHAPCHAP);
 dit('les trois reseaux', ['MTN MoMo', 'Moov Money', 'Celtiis Cash'], [...RESEAUX_CHAPCHAP]);
 
-/* ── L'écran QR codes ─────────────────────────────────────────────────── */
+/* ── RETIRÉ DES ÉCRANS · 12 novembre 2026 ────────────────────────────────
+   « Le choix du moyen » (maquette DnRyTv95…, « construis ») : l'affiche Chap
+   Chap se pointait à la main ; « Payer par MTN » et Tap & Go la remplacent et
+   se confirment seuls. La règle reste (elle dit ce que portait l'affiche
+   collée au mur) ; aucun écran ne la propose plus. */
 const ecran = sansCommentaires('src/apps/trone/routes/clients/QrCodes.tsx');
-dit('l ecran lit la regle', true, ecran.includes("from '../../../../shared/kkiapay-chapchap-pur'"));
-dit('l ecran ne recopie ni le lien ni le code', [false, false], [ecran.includes('chapchap.kkiapay.me'), ecran.includes('*616*')]);
-dit('la carte KkiaPay est sur la page, dans Payer', true, /id: 'kkiapay', court: 'KkiaPay', groupe: 'payer'/.test(ecran));
-dit('son QR, sa carte A5 et son lien copie disent le lien de la regle', [true, true, true],
-  [/valeur: LIEN_CHAPCHAP,/.test(ecran), /qr: LIEN_CHAPCHAP,/.test(ecran), /copier\(LIEN_CHAPCHAP,/.test(ecran)]);
-dit('l affiche de la Maison est montree, et dite a qui ne la voit pas', [true, true, true],
-  [/affiche: 'kkiapay-affiche\.png'/.test(ecran), /alt=\{g\.afficheAlt \?\?/.test(sansCommentaires('src/apps/trone/routes/clients/AuComptoir.tsx')), existsSync('public/kkiapay-affiche.png')]);
+const encaisser = sansCommentaires('src/apps/trone/routes/clients/actions.tsx');
+const liens = [sansCommentaires('src/shared/liens-a-envoyer-pur.ts'), sansCommentaires('src/apps/trone/routes/clients/liens-des-qr-codes.ts'), sansCommentaires('src/apps/trone/shell/LiensAEnvoyer.tsx')].join('\n');
+const moment = sansCommentaires('src/shared/codes-du-moment.ts');
+dit('les QR de la Maison ne proposent plus Chap Chap (ni carte, ni affiche, ni message)', [false, false, false, false],
+  [ecran.includes('kkiapay-chapchap-pur'), /id: 'kkiapay'/.test(ecran), ecran.includes('LIEN_CHAPCHAP'), /case 'kkiapay':/.test(ecran)]);
+dit('Encaisser n a plus de tuile KkiaPay, ni de QR Chap Chap', [false, false],
+  [/nom: 'KkiaPay'/.test(encaisser), encaisser.includes('LIEN_CHAPCHAP')]);
+dit('les liens a envoyer et les codes du moment ne le proposent plus', [false, false, false],
+  [/kkiapay/i.test(liens), /'kkiapay'/.test(moment), moment.includes("PAR_DEFAUT: readonly IdDuCode[] = ['kkiapay'")]);
+dit('l affiche du mur reste dans public (archive), la fenetre plein ecran sait toujours dire une affiche', [true, true],
+  [existsSync('public/kkiapay-affiche.png'), /alt=\{g\.afficheAlt \?\?/.test(sansCommentaires('src/apps/trone/routes/clients/AuComptoir.tsx'))]);
 
 /* ── La fabrique des affiches ─────────────────────────────────────────── */
 const fabrique = sansCommentaires('scripts/fabrique-les-affiches-kkiapay.mjs');

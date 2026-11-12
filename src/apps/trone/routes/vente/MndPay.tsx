@@ -83,12 +83,22 @@ export function PanneauMndPay(p: {
   reglages: ReglagesMndPay | undefined;
   onPayee: (d: DemandeMndPay) => void;
   style?: CSSProperties;
+  /* LE CHOIX DU MOYEN (12 novembre 2026) : l'encaissement du rituel ouvre le
+     panneau sur le moyen que la règle propose, et ne montre que ceux de sa
+     tuile (« Mobile money » ou « Carte »). Il apprend aussi quand le panneau
+     est occupé (on ne bascule jamais en pleine demande), quand FedaPay n'a
+     pas répondu, et quand une demande est passée. */
+  moyenDeDepart?: MoyenMndPay;
+  moyensPermis?: readonly MoyenMndPay[];
+  onOccupe?: (occupe: boolean) => void;
+  onPanne?: () => void;
+  onReussite?: () => void;
 }) {
   const demandes = useDemandesMndPay(p.branchId, true);
   /* La tuile attend un serveur qui sait Tap & Go (recollé le jour venu). */
   const tapGoPret = useSaitTapGo(tapGoOuvert(p.reglages));
-  const moyens = MOYENS.filter((x) => x.id !== 'tapgo' || (tapGoOuvert(p.reglages) && tapGoPret));
-  const [moyen, setMoyen] = useState<MoyenMndPay>('mtn');
+  const moyens = MOYENS.filter((x) => (x.id !== 'tapgo' || (tapGoOuvert(p.reglages) && tapGoPret)) && (!p.moyensPermis || p.moyensPermis.includes(x.id)));
+  const [moyen, setMoyen] = useState<MoyenMndPay>(p.moyenDeDepart ?? 'mtn');
   const [tel, setTel] = useState(p.telephone ?? '');
   const [demandeId, setDemandeId] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -119,6 +129,16 @@ export function PanneauMndPay(p: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demande?.statut, demande?.id]);
 
+  /* La règle propose un autre moyen (un autre numéro, une panne) : le
+     panneau suit tant que rien n'est demandé. */
+  useEffect(() => {
+    if (p.moyenDeDepart && !demandeId) setMoyen(p.moyenDeDepart);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.moyenDeDepart]);
+  /* Occupé : une demande envoyée, en attente ou payée. */
+  const occupe_ = occupe || (!!demande && (demande.statut === 'en_attente' || demande.statut === 'payee'));
+  useEffect(() => { p.onOccupe?.(occupe_); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [occupe_]);
+
   const dus = compteDeLaDemande({ montantXof: p.montantXof, pourboireXof: p.pourboireXof, moyen, reglages: p.reglages }).fraisXof;
   const offre = peutOffrir && offerts && dus > 0;
   const compte = compteDeLaDemande({ montantXof: p.montantXof, pourboireXof: p.pourboireXof, moyen, reglages: p.reglages, fraisOfferts: offre });
@@ -139,7 +159,12 @@ export function PanneauMndPay(p: {
       ...(offre ? { fraisOfferts: true, offertsPar: quiEncaisse() } : {}),
     });
     setOccupe(false);
-    if (!r.ok) { setErreur(r.erreur); return; }
+    if (!r.ok) {
+      setErreur(r.erreur);
+      if (r.panne) p.onPanne?.();
+      return;
+    }
+    p.onReussite?.();
     signale.current = null;
     setDemandeId(r.id);
     /* TAP & GO, AUTOMATIQUE (sa décision du 17 octobre) : le numéro part sur

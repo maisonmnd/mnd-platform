@@ -32,8 +32,10 @@ import { poseLesMissionsDuRituel, retireLesMissionsDuRituel } from '../../../../
 import { ditLesMissionsRetirees } from '../../../../shared/missions-prestataires-pur';
 import { Link } from 'react-router-dom';
 import { autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT, lienPaiementMomo, MOMO_QR_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
-import { LIEN_CHAPCHAP, MARCHAND_CHAPCHAP, RESEAUX_CHAPCHAP } from '../../../../shared/kkiapay-chapchap-pur';
 import { AuComptoir, type Grand } from './AuComptoir';
+import { RAILS, autresMoyens, leChoixDuMoyen, type LeChoix, type Rail, type Voie } from '../../../../shared/choix-du-moyen-pur';
+import { estUnNumeroMtn, msisdnDe } from '../../../../shared/collecte-mtn-pur';
+import { signaleMtnFerme, signaleUnePanne, signaleUneReussite, useLaSanteDesMoyens } from './sante-des-moyens';
 import { ReglementEnDirect } from './ReglementEnDirect';
 import { ConfirmeParMtn } from './ConfirmeParMtn';
 import { PayerParMtnAuTrone } from './PayerParMtnAuTrone';
@@ -55,8 +57,8 @@ import { detailDuService } from '../../../../shared/le-moment-detail-pur';
 import { DetailDuMoment } from './DetailDuMoment';
 import { RattacherUneCarte } from '../vente/RattacherUneCarte';
 import { PanneauMndPay } from '../vente/MndPay';
-import { CAISSE_MND_PAY, estLaCaisseFedaPay, moyenDeLaPiece, type DemandeMndPay } from '../../../../shared/mnd-pay-pur';
-import { mndPayOuvert } from '../../../../shared/mnd-pay';
+import { CAISSE_MND_PAY, estLaCaisseFedaPay, moyenDeLaPiece, tapGoOuvert, type DemandeMndPay, type MoyenMndPay } from '../../../../shared/mnd-pay-pur';
+import { mndPayOuvert, useSaitTapGo } from '../../../../shared/mnd-pay';
 import { useEnvoiDeLaPiece } from '../vente/envoi-de-la-piece';
 import { ditLaPiecePartie, pieceDejaPartie } from '../../../../shared/une-piece-un-message-pur';
 import { rdvsDuFoyerLeJour } from '../../../../shared/facture-du-foyer-pur';
@@ -884,27 +886,51 @@ function EtapeEnc({ n, titre, resume, alerte, ouvert, onBascule, children }: {
     MoMoPay », « rajouter chèque » (17 octobre 2026), « Il faut également
     rajouter Momo Privé » (21 octobre 2026). Le reste de la liste des moyens
     (Paramètres, la sienne, plus « Reprise d'une année passée ») passe par
-    « Autres ». Chaque tuile a sa caisse, à son nom, choisie d'office. */
+    « Autres ». Chaque tuile a sa caisse, à son nom, choisie d'office.
+    « Payer par MTN » (`mtn`, 11 novembre 2026) se pose seul sur la pièce à
+    la réponse de MTN, caisse « MTN Collection ». Le QR KkiaPay du comptoir
+    (`kkiapay`, 24 octobre 2026) est retiré le 12 novembre ; la tuile reste
+    connue pour les écritures d'avant. Depuis le 12 novembre, ces tuiles ne
+    se voient plus : elles vivent derrière « Mobile money » et « Carte ». */
 type TuileEnc = 'especes' | 'mtn' | 'momo' | 'momoPrive' | 'kkiapay' | 'carte' | 'cheque' | 'mndpay' | 'avoir' | 'autre';
-const TUILES_ENC: { id: TuileEnc; nom: string; sous: string }[] = [
+/* ══ LES TUILES QU'ON VOIT · LE CHOIX DU MOYEN, 12 novembre 2026 ═══════
+   Maquette « Le choix du moyen » (DnRyTv95…), « construis » : six tuiles au
+   lieu de neuf. « Mobile money » remplace Payer par MTN, MTN MoMoPay, KkiaPay
+   (le QR Chap Chap, retiré) et FedaPay : le Trône propose le moyen
+   (`leChoixDuMoyen`), la caissière peut changer d'un toucher. « Carte »
+   propose le QR de FedaPay, puis le terminal de la banque. Derrière, chaque
+   part garde sa tuile d'avant (`TuileEnc`) : caisses, traces et versements
+   ne changent pas. */
+type TuileVue = 'especes' | 'mobile' | 'carte' | 'cheque' | 'avoir' | 'autre';
+const TUILES_VUES: { id: TuileVue; nom: string; sous: string }[] = [
   { id: 'especes', nom: 'Espèces', sous: 'au comptoir' },
-  /* « PAYER PAR MTN » (11 novembre 2026, « il faut mettre Payer par MTN »,
-     Yéman) : la demande part sur le téléphone de la cliente et se pose seule
-     sur la pièce à la réponse de MTN, caisse « MTN Collection ». */
-  { id: 'mtn', nom: 'Payer par MTN', sous: 'demande sur son téléphone' },
-  { id: 'momo', nom: 'MTN MoMoPay', sous: 'compte de la Maison' },
-  { id: 'momoPrive', nom: 'MoMo Privé', sous: 'numéro personnel' },
-  /* LE QR KKIAPAY DU COMPTOIR (24 octobre 2026) : tous réseaux, l'argent va
-     dans la caisse KkiaPay. Il s'appelait « Mobile Money » ; « corriger le nom
-     en KkiaPay partout sur le Trône » (Yéman, le même jour) : MoMoPay est
-     aussi du Mobile Money, le nom du canal le distingue. */
-  { id: 'kkiapay', nom: 'KkiaPay', sous: 'QR Chap Chap, tous réseaux' },
-  { id: 'carte', nom: 'Carte', sous: 'à la banque' },
+  { id: 'mobile', nom: 'Mobile money', sous: 'le Trône choisit' },
+  { id: 'carte', nom: 'Carte', sous: 'QR ou terminal' },
   { id: 'cheque', nom: 'Chèque', sous: 'à déposer' },
-  { id: 'mndpay', nom: 'FedaPay', sous: 'se confirme seul' },
   { id: 'avoir', nom: 'Avoir', sous: 'crédit du compte' },
   { id: 'autre', nom: 'Autres', sous: 'les autres moyens' },
 ];
+/** La tuile d'avant que porte un moyen de la règle. */
+const tuileDuRail = (r: Rail): TuileEnc => (r === 'mtn' ? 'mtn' : r === 'momopay' ? 'momo' : r === 'terminal' ? 'carte' : 'mndpay');
+/** Le moyen que le panneau FedaPay ouvre : la carte, Tap & Go, ou le
+    réseau de son numéro (MTN quand l'API MTN est fermée, Moov sinon :
+    Celtiis se touche dans le panneau). */
+const moyenFedaPayDuRail = (r: Rail, telephone?: string | null): MoyenMndPay | undefined => {
+  if (r === 'carteFedapay') return 'carte';
+  if (r === 'tapgo') return 'tapgo';
+  if (r !== 'fedapay') return undefined;
+  const m = msisdnDe(telephone ?? '');
+  return !m || estUnNumeroMtn(m) ? 'mtn' : 'moov';
+};
+const MOYENS_FEDAPAY_MOBILE: readonly MoyenMndPay[] = ['mtn', 'moov', 'celtiis', 'tapgo'];
+const MOYENS_FEDAPAY_CARTE: readonly MoyenMndPay[] = ['carte'];
+/** La tuile qu'on voit allumée pour une part. */
+const vueDeLaPart = (p: PartEnc): TuileVue => {
+  if (p.voie) return p.voie;
+  if (p.tuile === 'mtn' || p.tuile === 'momo' || p.tuile === 'momoPrive' || p.tuile === 'kkiapay' || p.tuile === 'mndpay') return 'mobile';
+  return p.tuile;
+};
+
 const estCarte = (m: string) => familleDuMoyen(m) === 'carte';
 const estCheque = (m: string) => familleDuMoyen(m) === 'cheque';
 /** Les moyens de sa liste qu'aucune tuile ne porte, plus « Reprise d'une
@@ -937,7 +963,18 @@ const DIT_LA_TUILE: Record<TuileEnc, string> = {
 /** UNE PART DU RÈGLEMENT : sa tuile, son montant, et la caisse qu'une main
     de la direction a choisie à la place de celle qui se propose. `mnd` : la
     part MND PAY payée (le vert de FedaPay est venu). */
-type PartEnc = { id: string; tuile: TuileEnc; montantStr: string; autre?: string; caisseChoisie?: string; choixOuvert?: boolean; mnd?: { id: string; methode: string }; trace?: TraceDuMoyen; note?: string };
+type PartEnc = {
+  id: string; tuile: TuileEnc; montantStr: string; autre?: string; caisseChoisie?: string; choixOuvert?: boolean; mnd?: { id: string; methode: string }; trace?: TraceDuMoyen; note?: string;
+  /** LE CHOIX DU MOYEN (12 novembre 2026) : la tuile touchée (« Mobile
+      money » ou « Carte ») ; la règle en tire la tuile d'avant. */
+  voie?: Voie;
+  /** Le moyen que la caissière a touché sous la proposition. */
+  aLaMain?: Rail;
+  /** Une demande est partie (MTN ou FedaPay) : la part ne bascule plus. */
+  engage?: boolean;
+  /** Le moyen que le panneau FedaPay ouvre. */
+  moyenFeda?: MoyenMndPay;
+};
 const partNeuve = (tuile: TuileEnc, montant: number | ''): PartEnc =>
   ({ id: `pt-${uid()}`, tuile, montantStr: montant === '' ? '' : String(Math.max(0, Math.round(montant))) });
 /** LA CAPTURE LUE PRÉREMPLIT L'ÉCRAN (19 octobre 2026, chantier `capture`) :
@@ -950,7 +987,9 @@ const partNeuve = (tuile: TuileEnc, montant: number | ''): PartEnc =>
 export type PreremplissageEnc = { montantXof: number; moyen: MoyenLu; jourDuPaiement: string; reference?: string };
 const partDeLaLecture = (l: PreremplissageEnc, methods: readonly string[]): PartEnc => {
   const autre = l.moyen === 'mtn' ? undefined : methodeDuMoyenLu(l.moyen, methods);
-  return { ...partNeuve(l.moyen === 'mtn' ? 'momo' : 'autre', l.montantXof), ...(autre ? { autre } : {}), note: noteDeLaCapture(l.reference) };
+  /* L'argent est déjà arrivé par MTN : « Mobile money », MoMoPay touché à la main. */
+  const mtn = l.moyen === 'mtn' ? { voie: 'mobile' as const, aLaMain: 'momopay' as const } : {};
+  return { ...partNeuve(l.moyen === 'mtn' ? 'momo' : 'autre', l.montantXof), ...mtn, ...(autre ? { autre } : {}), note: noteDeLaCapture(l.reference) };
 };
 /** Où va l'argent d'une part : son moyen écrit, sa caisse, ce que la règle
     proposait, et si la main présente peut la changer. */
@@ -2225,7 +2264,12 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
     if (garderOuvert) {
       submitting.current = false;
       const t0 = parts[0]?.tuile;
-      setParts([partNeuve(t0 && t0 !== 'mndpay' && t0 !== 'avoir' ? t0 : 'especes', '')]);
+      const v0 = parts[0]?.voie;
+      /* Le second règlement repart de la même tuile ; « Mobile money » et
+         « Carte » repartent de la règle, sans le moyen touché à la main. */
+      setParts([v0
+        ? { ...partNeuve(v0 === 'carte' ? 'carte' : 'momo', ''), voie: v0 }
+        : partNeuve(t0 && t0 !== 'mndpay' && t0 !== 'avoir' ? t0 : 'especes', '')]);
       setTipStr('0');
     } else if (montreLeRegle) {
       /* Le ticket réglé en bref : la pièce que ce geste vient d'écrire, les
@@ -2311,6 +2355,49 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
   }, [mndPret]);
   const mndOn = mndPayOuvert(settings.mndPay);
 
+  /* ══ LE CHOIX DU MOYEN · 12 novembre 2026 ═══════════════════════════
+     Chaque part posée sur « Mobile money » ou « Carte » reçoit le moyen de
+     la règle (`leChoixDuMoyen`), selon le numéro de sa fiche et ce que le
+     Trône sait de MTN et de FedaPay (relus chaque minute, fenêtre ouverte).
+     Les parts se jugent DANS L'ORDRE : FedaPay pris par une part l'est pour
+     les suivantes, jamais l'inverse (sinon deux parts se le renverraient). */
+  const sante = useLaSanteDesMoyens(true, mndOn);
+  const tapGoServeur = useSaitTapGo(mndOn && tapGoOuvert(settings.mndPay));
+  const telDuChoix = payerClient?.phone ?? client?.phone ?? null;
+  const lesChoix: (LeChoix | null)[] = (() => {
+    const tuiles: TuileEnc[] = [];
+    return parts.map((p, i) => {
+      const voie = p.voie;
+      if (!voie) { tuiles.push(p.tuile); return null; }
+      const fedapayPris = tuiles.some((t) => t === 'mndpay')
+        || parts.some((q, j) => j > i && q.tuile === 'mndpay' && (q.engage || !!q.mnd || !q.voie || (q.aLaMain && RAILS[q.aLaMain].prestataire === 'fedapay')));
+      const ch = leChoixDuMoyen({
+        voie, telephone: telDuChoix, montantXof: montantDe(p) || resteAPartager, sante,
+        tapGoOuvert: mndOn && tapGoOuvert(settings.mndPay) && tapGoServeur,
+        fedapayPris, plusieursParts: parts.length > 1, enDevise: fxOn, aLaMain: p.aLaMain,
+      });
+      tuiles.push(ch.rail && !p.engage && !p.mnd ? tuileDuRail(ch.rail) : p.tuile);
+      return ch;
+    });
+  })();
+  /* LA BASCULE : une part qui n'a rien demandé suit le moyen de la règle ;
+     une demande partie (MTN ou FedaPay) ne bascule jamais. */
+  const signatureDuChoix = lesChoix.map((ch, i) => `${parts[i]?.id}:${ch?.rail ?? ''}`).join('|');
+  useEffect(() => {
+    let change = false;
+    const suivantes = parts.map((p, i) => {
+      const ch = lesChoix[i];
+      if (!ch || !ch.rail || p.engage || p.mnd) return p;
+      const tuile = tuileDuRail(ch.rail);
+      const moyenFeda = moyenFedaPayDuRail(ch.rail, telDuChoix);
+      if (tuile === p.tuile && moyenFeda === p.moyenFeda) return p;
+      change = true;
+      return { ...p, tuile, moyenFeda, caisseChoisie: undefined, choixOuvert: false };
+    });
+    if (change) setParts(suivantes);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signatureDuChoix, telDuChoix]);
+
   /* ── CE QUE LES TROIS TEMPS DISENT REPLIÉS ─────────────────────────
      Le résumé sur la ligne : on lit sans ouvrir. Un acompte à vérifier, un
      forfait qui a bougé, une remise à reporter se disent en cuivre. */
@@ -2378,11 +2465,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
   const partMtn = parts.some((pt) => pt.tuile === 'mtn');
   const empecheTout = partMtn || horsCarnet > 0 || !!traceQuiManque || partsTropHautes || avoirTropHaut || mndEnAttente || (fxOn && fxAmount <= 0) || fxBlocked || ditLaCaisse;
   const lesAutres = autresMethodes(methods);
-  const tuilesOffertes = TUILES_ENC.filter((t) => (t.id !== 'mndpay' || (mndOn && !fxOn))
-    && (t.id !== 'mtn' || !fxOn)
-    /* « Remove MTN privé from there » (Yéman, 11 novembre 2026) : la tuile
-       MoMo Privé ne s'offre plus à l'encaissement du rituel. */
-    && t.id !== 'momoPrive'
+  /* « Remove MTN privé from there » (Yéman, 11 novembre 2026) : MoMo Privé ne
+     s'offre plus. Depuis le 12 novembre, « Mobile money » porte MTN, FedaPay,
+     Tap & Go et MoMoPay ; en devise, il ne s'offre pas (tous en francs). */
+  const tuilesOffertes = TUILES_VUES.filter((t) => (t.id !== 'mobile' || !fxOn)
     && (t.id !== 'avoir' || avoirBal > 0)
     && (t.id !== 'autre' || lesAutres.length > 0));
   /* UN AUTRE MOYEN EN DEVISE (Zelle, Interac, Revolut, PayPal) : une seule
@@ -2394,23 +2480,42 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
     setFxRate(String(rateToXof(d) || ''));
     setParts([{ ...p, tuile: 'autre', autre: m, montantStr: String(Math.max(0, Math.min(due, amount))), caisseChoisie: undefined, choixOuvert: false }]);
   };
-  const choisirTuile = (p: PartEnc, t: TuileEnc) => {
-    if (p.mnd) return;
-    if (t === 'autre') { poseLAutre(p, p.autre || premierAutre(lesAutres) || ''); return; }
+  const choisirTuile = (p: PartEnc, t: TuileVue) => {
+    if (p.mnd || p.engage) return;
+    if (t === 'autre') { poseLAutre({ ...p, voie: undefined, aLaMain: undefined }, p.autre || premierAutre(lesAutres) || ''); return; }
+    if (t === 'mobile' || t === 'carte') {
+      /* Le moyen de la règle tout de suite (la bascule suivra seule). */
+      const ch = leChoixDuMoyen({
+        voie: t, telephone: telDuChoix, montantXof: montantDe(p) || resteAPartager, sante,
+        tapGoOuvert: mndOn && tapGoOuvert(settings.mndPay) && tapGoServeur,
+        fedapayPris: parts.some((q) => q.id !== p.id && q.tuile === 'mndpay'), plusieursParts: parts.length > 1, enDevise: fxOn,
+      });
+      const tuile = ch.rail ? tuileDuRail(ch.rail) : (t === 'carte' ? 'carte' : 'momo');
+      majPart(p.id, { voie: t, aLaMain: undefined, tuile, moyenFeda: ch.rail ? moyenFedaPayDuRail(ch.rail, telDuChoix) : undefined, caisseChoisie: undefined, choixOuvert: false });
+      return;
+    }
     majPart(p.id, {
-      tuile: t, caisseChoisie: undefined, choixOuvert: false,
+      tuile: t, voie: undefined, aLaMain: undefined, moyenFeda: undefined, caisseChoisie: undefined, choixOuvert: false,
       ...(t === 'avoir' ? { montantStr: String(Math.min(avoirBal, montantDe(p) || resteAPartager)) } : {}),
     });
   };
+  /* Toucher un autre moyen sous la proposition, ou revenir à elle. */
+  const prendLeMoyen = (p: PartEnc, r: Rail | undefined) => {
+    if (p.mnd || p.engage) return;
+    const rail = r ?? null;
+    majPart(p.id, {
+      aLaMain: r,
+      ...(rail ? { tuile: tuileDuRail(rail), moyenFeda: moyenFedaPayDuRail(rail, telDuChoix) } : {}),
+      caisseChoisie: undefined, choixOuvert: false,
+    });
+  };
   const quiNom = prenomDe(quiEncaisse() ?? maFiche?.name ?? '');
-  /* MTN MoMoPay montre le QR MoMoPay (caisse MoMoPay) ; KkiaPay montre son QR
-     Chap Chap, tous réseaux (caisse KkiaPay). Le montant se dit : la cliente
-     le tape. */
-  const qrDeLaTuile = (t: TuileEnc, montant: number): Grand => {
+  /* MTN MoMoPay montre le QR MoMoPay (caisse MoMoPay). Le montant se dit :
+     la cliente le tape. Le QR Chap Chap de KkiaPay est retiré (12 novembre
+     2026, « Le choix du moyen ») : Tap & Go et « Payer par MTN » le
+     remplacent et se confirment seuls. */
+  const qrDeLaTuile = (montant: number): Grand => {
     const aRegler = montant > 0 ? ` À régler : ${fmtMoney(montant, currency)}.` : '';
-    if (t === 'kkiapay') {
-      return { titre: 'Régler par KkiaPay.', phrase: `${RESEAUX_CHAPCHAP.join(', ')}. La page s’ouvre au nom de ${MARCHAND_CHAPCHAP}.${aRegler}`, valeur: LIEN_CHAPCHAP };
-    }
     const cfg = autoConfigStore.get();
     return { titre: 'Régler par MoMo.', phrase: `Marchand ${cfg.momoMarchand || MOMO_MARCHAND_DEFAUT}.${aRegler}`, valeur: cfg.momoQr || MOMO_QR_DEFAUT };
   };
@@ -2904,27 +3009,66 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                 )}
                 <div role="radiogroup" aria-label={`Moyen de la part ${i + 1}`} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(104px, 1fr))', gap: 6 }}>
                   {tuilesOffertes.map((t) => {
-                    const prise = (t.id === 'mndpay' || t.id === 'avoir') && parts.some((q) => q.id !== p.id && q.tuile === t.id);
+                    const prise = t.id === 'avoir' && parts.some((q) => q.id !== p.id && q.tuile === 'avoir');
+                    const allumee = vueDeLaPart(p) === t.id;
+                    const ch = lesChoix[i];
+                    const sous = allumee && ch?.rail && (t.id === 'mobile' || t.id === 'carte') ? RAILS[ch.rail].nom.replace(/^Carte, /, '') : t.sous;
                     return (
                       <button
                         key={t.id}
                         type="button"
                         role="radio"
-                        aria-checked={p.tuile === t.id}
-                        disabled={prise || !!p.mnd}
-                        className={`trv-pay ${p.tuile === t.id ? 'is-active' : ''}`}
+                        aria-checked={allumee}
+                        disabled={prise || !!p.mnd || !!p.engage}
+                        className={`trv-pay ${allumee ? 'is-active' : ''}`}
                         style={{ padding: '9px 10px', opacity: prise ? 0.45 : 1 }}
                         onClick={() => choisirTuile(p, t.id)}
                       >
                         <div className="n">{t.nom}</div>
-                        <div className="s">{t.sous}</div>
+                        <div className="s">{sous}</div>
                       </button>
                     );
                   })}
                 </div>
-                {(p.tuile === 'momo' || p.tuile === 'kkiapay') && !p.mnd && (
+                {/* LE MOYEN PROPOSÉ (12 novembre 2026) : lequel, pourquoi, la panne
+                    s'il y en a une, et les autres moyens à un toucher. */}
+                {lesChoix[i] && !p.mnd && (() => {
+                  const ch = lesChoix[i]!;
+                  const fiche = ch.rail ? RAILS[ch.rail] : null;
+                  const autres = autresMoyens(ch);
+                  const pourquoi = p.note && p.aLaMain === 'momopay' ? 'Lu sur la capture : l’argent est déjà arrivé par MoMo.' : ch.pourquoi;
+                  return (
+                    <div data-choix-du-moyen={ch.rail ?? 'aucun'} style={{ display: 'grid', gap: 5, fontFamily: 'var(--font-sans)', fontSize: 12, lineHeight: 1.5, color: 'var(--ink-soft)' }}>
+                      {ch.panne && (
+                        <div role="status" style={{ borderLeft: '3px solid var(--color-brique, #96412E)', background: '#F6E6E1', color: '#6B2D20', padding: '6px 10px', borderRadius: '0 4px 4px 0' }}>{ch.panne}</div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                        <span>
+                          <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{fiche ? fiche.nom : 'Aucun moyen'}</b>
+                          {fiche ? ` · ${fiche.sous}` : ''}
+                        </span>
+                        {fiche && (
+                          <span style={{ fontSize: 11, color: fiche.seConfirmeSeul ? '#1F4D37' : 'var(--copper-700)' }}>
+                            {fiche.seConfirmeSeul ? 'se confirme seul' : 'à pointer le soir'}
+                          </span>
+                        )}
+                      </div>
+                      <span>{pourquoi}</span>
+                      {!p.engage && (autres.length > 0 || ch.aLaMain) && (
+                        <div style={{ display: 'flex', gap: '2px 12px', flexWrap: 'wrap', alignItems: 'baseline' }}>
+                          {autres.length > 0 && <span>Autre moyen :</span>}
+                          {autres.map((r) => (
+                            <button key={r} type="button" className="tre-link-btn" onClick={() => prendLeMoyen(p, r)}>{RAILS[r].nom}</button>
+                          ))}
+                          {ch.aLaMain && <button type="button" className="tre-link-btn" onClick={() => prendLeMoyen(p, undefined)}>Revenir à la proposition</button>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+                {p.tuile === 'momo' && !p.mnd && (
                   <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ justifySelf: 'start' }}
-                    onClick={() => setQrAuComptoir(qrDeLaTuile(p.tuile, x || resteAPartager))}>
+                    onClick={() => setQrAuComptoir(qrDeLaTuile(x || resteAPartager))}>
                     Montrer le QR à la cliente
                   </button>
                 )}
@@ -3022,6 +3166,11 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                       libelle={`Maison MND · ${(client?.name ?? appt.clientName ?? 'rituel').split(' ')[0]}`}
                       currency={currency}
                       reglages={settings.mndPay}
+                      moyenDeDepart={p.moyenFeda}
+                      moyensPermis={p.voie === 'carte' ? MOYENS_FEDAPAY_CARTE : p.voie === 'mobile' ? MOYENS_FEDAPAY_MOBILE : undefined}
+                      onOccupe={(o) => { if (!!p.engage !== o) majPart(p.id, { engage: o }); }}
+                      onPanne={() => signaleUnePanne('fedapay')}
+                      onReussite={() => signaleUneReussite('fedapay')}
                       onPayee={(d) => {
                         majPart(p.id, { montantStr: String(d.montantXof), mnd: { id: d.id, methode: moyenDeLaPiece(d) } });
                         setTipStr(String(d.pourboireXof ?? 0));
@@ -3047,6 +3196,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                       return r.ok ? { ok: true } : { ok: false, erreur: r.erreur };
                     }}
                     onRegle={onClose}
+                    onOccupe={(o) => { if (!!p.engage !== o) majPart(p.id, { engage: o }); }}
+                    onPanne={() => signaleUnePanne('mtn')}
+                    onFerme={signaleMtnFerme}
+                    onReussite={() => signaleUneReussite('mtn')}
                   />
                 )}
               </div>
@@ -3059,7 +3212,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
               type="button"
               className="tre-link-btn"
               style={{ alignSelf: 'flex-start' }}
-              onClick={() => setParts((prev) => [...prev, partNeuve(prev.some((q) => q.tuile === 'momo') ? 'especes' : 'momo', resteAPartager)])}
+              onClick={() => setParts((prev) => [...prev, prev.some((q) => vueDeLaPart(q) === 'mobile') || fxOn
+                ? partNeuve('especes', resteAPartager)
+                : { ...partNeuve('momo', resteAPartager), voie: 'mobile' as const }])}
             >
               + Un autre moyen pour les {fmtMoney(resteAPartager, currency)} qui restent
             </button>

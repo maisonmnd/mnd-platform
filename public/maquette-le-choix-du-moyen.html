@@ -1,0 +1,714 @@
+<title>Le choix du moyen</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500;600&display=swap">
+<style>
+/* Maquette du 12 novembre 2026 : le choix du moyen de paiement. Une colonne : l'essai (réglages à gauche, la fenêtre Encaisser à droite), la règle entière, les comptes et l'argent du lundi, ce qui part, puis les choix. Chiffres, initiales et numéros inventés. */
+:root {
+  --ivoire: #F6F1E7; --carte: #FFFDF8; --indigo: #1E2150; --cuivre: #B97A4A; --cuivre-fonce: #9E6238;
+  --encre: #1F1D26; --doux: #6A6474; --trait: rgba(30, 33, 80, .13); --pale: #F3EBDF;
+  --indigo-pale: #E9EAF3; --cuivre-pale: #F5E9DC; --sur-indigo: #F6F1E7; --sur-cuivre: #FFFDF8;
+  --vert: #3F6B4E; --vert-pale: #E4EEE6; --rouge: #9A3B2E; --rouge-pale: #F5E2DD;
+  --serif: "Cormorant Garamond", Georgia, serif; --sans: "Jost", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --doux: #A9A3B3; --trait: rgba(236, 231, 221, .15); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --sur-indigo: #15161F; --sur-cuivre: #15161F;
+  --vert: #8FC09E; --vert-pale: #1F3127; --rouge: #E09A8C; --rouge-pale: #3A221E; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --doux: #A9A3B3; --trait: rgba(236, 231, 221, .15); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --sur-indigo: #15161F; --sur-cuivre: #15161F;
+  --vert: #8FC09E; --vert-pale: #1F3127; --rouge: #E09A8C; --rouge-pale: #3A221E; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ivoire); color: var(--encre); font: 400 15px/1.55 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 56px; }
+main { max-width: 1080px; margin: 0 auto; display: grid; gap: 40px; }
+section { display: grid; gap: 14px; min-width: 0; }
+h1, h2 { font-family: var(--serif); font-weight: 300; color: var(--indigo); margin: 0; line-height: 1.05; text-wrap: balance; }
+h1 { font-size: clamp(40px, 7vw, 58px); }
+h2 { font-size: clamp(26px, 4vw, 32px); }
+h3 { margin: 0; font: 600 10.5px var(--sans); letter-spacing: .15em; text-transform: uppercase; color: var(--doux); }
+p { margin: 0; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+.doux { color: var(--doux); } .petit { font-size: 12.5px; }
+.sourcil { font: 600 10.5px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--cuivre-fonce); }
+.chapeau { max-width: 66ch; font-size: 16.5px; font-weight: 300; }
+.bandeau { border: 1px dashed var(--cuivre); background: var(--pale); padding: 8px 14px; border-radius: 4px; font-size: 13px; }
+.tete { display: grid; gap: 10px; }
+.lien { background: none; border: 0; padding: 0; color: var(--cuivre-fonce); text-decoration: underline; text-underline-offset: 3px; font-size: 12.5px; }
+.bouton { background: var(--cuivre); color: var(--sur-cuivre); border: 0; border-radius: 4px; padding: 10px 16px; font: 600 11.5px var(--sans); letter-spacing: .12em; text-transform: uppercase; }
+.pastilles { display: flex; gap: 6px; flex-wrap: wrap; }
+.pastille { font-size: 11.5px; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--trait); color: var(--doux); white-space: nowrap; }
+.pastille.seul { border-color: var(--vert); color: var(--vert); background: var(--vert-pale); }
+.pastille.pointer { border-style: dashed; border-color: var(--cuivre); color: var(--cuivre-fonce); background: var(--cuivre-pale); }
+.pastille.panne { border-color: var(--rouge); color: var(--rouge); background: var(--rouge-pale); }
+.pastille.main { border-color: var(--indigo); color: var(--indigo); }
+
+/* ── 1. L'ESSAI ── */
+.essai { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.reglages { background: var(--carte); border: 1px solid var(--trait); border-radius: 4px; padding: 16px; display: grid; gap: 18px; }
+.groupe { display: grid; gap: 7px; }
+.segments { display: flex; flex-wrap: wrap; gap: 4px; }
+.segments button { border: 1px solid var(--trait); background: var(--carte); border-radius: 4px; padding: 6px 10px; font-size: 13px; }
+.segments button[aria-pressed="true"] { background: var(--indigo); border-color: var(--indigo); color: var(--sur-indigo); }
+.champ-montant { display: flex; align-items: center; gap: 8px; }
+.champ-montant input { width: 140px; padding: 6px 10px; border: 1px solid var(--cuivre); border-radius: 4px; background: var(--carte); text-align: right; font-variant-numeric: tabular-nums; }
+.rails { display: grid; }
+.rail { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--trait); font-size: 13.5px; cursor: pointer; }
+.rail:first-child { border-top: 0; }
+.rail small { display: block; color: var(--doux); font-size: 12px; }
+.interrupteur { appearance: none; -webkit-appearance: none; flex: none; width: 36px; height: 20px; border-radius: 999px; background: var(--rouge-pale); border: 1px solid var(--rouge); position: relative; margin: 0; cursor: pointer; transition: background .2s, border-color .2s; }
+.interrupteur::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--rouge); transition: transform .2s, background .2s; }
+.interrupteur:checked { background: var(--vert-pale); border-color: var(--vert); }
+.interrupteur:checked::after { transform: translateX(16px); background: var(--vert); }
+.scene { display: grid; gap: 14px; min-width: 0; }
+
+/* La fenêtre Encaisser du Trône */
+.fenetre { background: var(--carte); border: 1px solid var(--trait); border-radius: 4px; overflow: hidden; }
+.fenetre__tete { background: var(--indigo); color: var(--sur-indigo); padding: 12px 16px; display: flex; justify-content: space-between; gap: 6px 14px; flex-wrap: wrap; align-items: baseline; }
+.fenetre__tete b { font: 300 23px var(--serif); }
+.fenetre__tete span { font-size: 13px; opacity: .85; }
+.fenetre__corps { padding: 14px 16px 16px; display: grid; gap: 12px; }
+.fiche { font-size: 13px; color: var(--doux); }
+.fiche b { color: var(--encre); font-weight: 500; }
+.panne { border-left: 3px solid var(--rouge); background: var(--rouge-pale); padding: 8px 12px; font-size: 13px; border-radius: 0 4px 4px 0; }
+.tuiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.tuile { border: 1px solid var(--trait); border-radius: 4px; padding: 9px 11px; display: grid; gap: 1px; background: var(--carte); text-align: left; min-width: 0; }
+.tuile b { font-weight: 500; font-size: 14px; color: var(--indigo); }
+.tuile span { font-size: 11.5px; color: var(--doux); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tuile[aria-pressed="true"] { border-color: var(--cuivre); box-shadow: inset 0 0 0 1px var(--cuivre); background: var(--cuivre-pale); }
+.detail { border: 1px solid var(--trait); border-radius: 4px; padding: 12px 14px; display: grid; gap: 10px; background: var(--pale); animation: fondu .25s ease-out; }
+.detail__moyen { display: flex; justify-content: space-between; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; }
+.detail__moyen b { font: 300 26px/1.1 var(--serif); color: var(--indigo); }
+.ussd { font: 500 17px var(--sans); letter-spacing: .04em; color: var(--indigo); background: var(--carte); border: 1px dashed var(--cuivre); border-radius: 4px; padding: 6px 10px; justify-self: start; overflow-wrap: anywhere; }
+.autres { font-size: 12.5px; color: var(--doux); display: flex; gap: 4px 12px; flex-wrap: wrap; align-items: baseline; }
+@keyframes fondu { from { opacity: .35; } to { opacity: 1; } }
+
+/* Le téléphone de la cliente (à distance) */
+.telephone { width: 100%; max-width: 360px; justify-self: center; border: 1px solid var(--trait); border-radius: 4px; background: var(--carte); overflow: hidden; }
+.telephone__tete { background: var(--indigo); color: var(--sur-indigo); padding: 14px 16px; text-align: center; display: grid; gap: 2px; }
+.telephone__tete b { font: 300 24px var(--serif); }
+.telephone__tete span { font-size: 12px; opacity: .8; letter-spacing: .12em; text-transform: uppercase; }
+.telephone__corps { padding: 16px; display: grid; gap: 12px; animation: fondu .25s ease-out; }
+.reste { display: grid; text-align: center; gap: 0; }
+.reste b { font: 300 34px var(--serif); color: var(--indigo); }
+.choix-tel { display: grid; gap: 4px; }
+.choix-tel button { width: 100%; border-radius: 4px; padding: 11px 12px; border: 1px solid var(--cuivre); background: none; color: var(--cuivre-fonce); font: 500 14px var(--sans); }
+.choix-tel.premier button { background: var(--cuivre); color: var(--sur-cuivre); }
+.choix-tel small { font-size: 12px; color: var(--doux); text-align: center; }
+.bulle { background: var(--vert-pale); border-radius: 4px; padding: 10px 12px; font-size: 13.5px; display: grid; gap: 6px; }
+
+/* L'ordre du cas */
+.ordre { list-style: none; margin: 0; padding: 0; background: var(--carte); border: 1px solid var(--trait); border-radius: 4px; }
+.ordre li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 4px 10px; padding: 10px 14px; border-top: 1px solid var(--trait); align-items: center; }
+.ordre li:first-child { border-top: 0; }
+.ordre .rang { font: 300 22px/1 var(--serif); color: var(--cuivre-fonce); }
+.ordre .nom { font-weight: 500; color: var(--indigo); }
+.ordre .sous { display: block; font-size: 12.5px; color: var(--doux); }
+.ordre li.hors .nom { text-decoration: line-through; text-decoration-color: var(--rouge); }
+.ordre li.hors .rang { color: var(--doux); }
+.ordre .frais { font-size: 12.5px; text-align: right; color: var(--doux); }
+
+/* ── 2. LA RÈGLE ── */
+.regle { overflow-x: auto; background: var(--carte); border: 1px solid var(--trait); border-radius: 4px; }
+.regle table { width: 100%; border-collapse: collapse; min-width: 640px; font-size: 13.5px; }
+.regle th, .regle td { text-align: left; padding: 10px 14px; border-top: 1px solid var(--trait); vertical-align: top; }
+.regle thead th { border-top: 0; font: 600 10px var(--sans); letter-spacing: .13em; text-transform: uppercase; color: var(--doux); }
+.regle tbody th { font-weight: 500; color: var(--indigo); white-space: nowrap; }
+.regle .groupe-ligne th { background: var(--indigo-pale); font: 600 10.5px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--indigo); }
+.regle td b { font-weight: 500; }
+.regle td span { display: block; font-size: 12px; color: var(--doux); }
+.regle .secours b { color: var(--cuivre-fonce); }
+.note-frais { border-left: 3px solid var(--cuivre); padding: 4px 0 4px 12px; font-size: 14px; max-width: 72ch; }
+
+/* ── 3. LES COMPTES ── */
+.parts { display: grid; gap: 9px; background: var(--carte); border: 1px solid var(--trait); border-radius: 4px; padding: 14px 16px; }
+.part { display: grid; grid-template-columns: minmax(0, 170px) minmax(0, 1fr) minmax(0, 210px); gap: 12px; align-items: center; font-size: 13.5px; }
+.part .qui { font-weight: 500; color: var(--indigo); }
+.barre { height: 8px; background: var(--indigo-pale); border-radius: 2px; overflow: hidden; }
+.barre i { display: block; height: 100%; background: var(--indigo); }
+.barre i.secours { background: var(--cuivre); }
+.part .chiffre { text-align: right; }
+.comptes { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.compte { background: var(--carte); border: 1px solid var(--trait); border-radius: 4px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.compte__nom { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.compte__nom strong { font-weight: 500; color: var(--indigo); }
+.compte .solde { font: 300 32px/1 var(--serif); color: var(--indigo); }
+.compte .vers { border-top: 1px solid var(--trait); padding-top: 8px; font-size: 13px; }
+.compte .vers b { color: var(--indigo); font-weight: 500; }
+.banque { background: var(--indigo); color: var(--sur-indigo); border-radius: 4px; padding: 16px 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.banque .sourcil { color: var(--cuivre); }
+.banque b { font: 300 34px/1 var(--serif); }
+.banque .calc { font-size: 12.5px; opacity: .8; }
+.pannes { background: var(--carte); border: 1px solid var(--trait); border-radius: 4px; }
+.pannes div { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 9px 14px; border-top: 1px solid var(--trait); font-size: 13.5px; }
+.pannes div:first-child { border-top: 0; }
+.pannes i { width: 8px; height: 8px; border-radius: 50%; background: var(--rouge); }
+.pannes i.ok { background: var(--vert); }
+
+/* ── 4. CE QUI PART ── */
+.avant-apres { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.colonne { background: var(--carte); border: 1px solid var(--trait); border-radius: 4px; padding: 14px 16px; display: grid; gap: 10px; align-content: start; }
+.puces { display: flex; gap: 5px; flex-wrap: wrap; }
+.puce { font-size: 12.5px; padding: 3px 10px; border-radius: 4px; border: 1px solid var(--trait); background: var(--carte); }
+.puce.part { text-decoration: line-through; color: var(--doux); border-style: dashed; }
+.puce.neuve { border-color: var(--cuivre); background: var(--cuivre-pale); }
+.liste { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 14px; }
+.liste li { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 12px; }
+.liste li > span:first-child { font: 600 10px var(--sans); letter-spacing: .13em; text-transform: uppercase; color: var(--doux); padding-top: 4px; }
+
+/* ── 5. LES CHOIX ── */
+.avance { display: grid; gap: 6px; }
+.avance .jauge { height: 6px; border-radius: 2px; background: var(--trait); overflow: hidden; }
+.avance .jauge span { display: block; height: 100%; width: 0; background: var(--cuivre); transition: width .3s; }
+#decisions { display: grid; gap: 10px; }
+.decision { background: var(--carte); border: 1px solid var(--trait); border-radius: 4px; padding: 14px 16px; display: grid; gap: 6px; }
+.decision.tranchee { border-color: var(--cuivre); }
+.decision h4 { margin: 0; font: 300 22px var(--serif); color: var(--indigo); }
+.decision .pq { font-size: 14px; color: var(--doux); }
+.choix-ligne { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 8px 0; border-top: 1px solid var(--trait); cursor: pointer; font-size: 15px; }
+.choix-ligne:first-of-type { border-top: 0; }
+.choix-ligne input { margin-top: 5px; accent-color: var(--cuivre); }
+.choix-ligne em { font-style: normal; font-size: 11.5px; color: var(--cuivre-fonce); border: 1px solid var(--cuivre); border-radius: 999px; padding: 0 7px; margin-left: 6px; white-space: nowrap; }
+.choix-ligne small { display: block; font-size: 13px; color: var(--doux); }
+.decision .etat-d { font-size: 12.5px; color: var(--vert); min-height: 1em; }
+.mot { display: grid; gap: 6px; }
+.mot textarea { font: 300 15px/1.5 var(--sans); background: var(--carte); border: 1px solid var(--trait); border-radius: 4px; padding: 10px 12px; min-height: 90px; resize: vertical; }
+
+@media (max-width: 880px) { .essai { grid-template-columns: 1fr; } }
+@media (max-width: 700px) {
+  .avant-apres { grid-template-columns: 1fr; }
+  .part { grid-template-columns: minmax(0, 1fr) auto; }
+  .part .barre { grid-column: 1 / -1; grid-row: 2; }
+}
+@media (max-width: 520px) {
+  .tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ordre li { grid-template-columns: 22px minmax(0, 1fr); }
+  .ordre .frais { grid-column: 2; text-align: left; }
+  .liste li { grid-template-columns: 1fr; gap: 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<main>
+  <div class="bandeau">Maquette du 12 novembre 2026, à valider. Touchez les réglages de l’essai : la fenêtre Encaisser et l’ordre changent. Chiffres, initiales et numéros inventés.</div>
+
+  <header class="tete">
+    <span class="sourcil">Le Trône · Vente &amp; Caisse et Finances</span>
+    <h1>Le choix du moyen.</h1>
+    <p class="chapeau">Quatre prestataires, une seule règle. La caissière touche « Mobile money » et le Trône choisit pour elle : le moyen le moins cher qui se confirme seul, d’après le numéro de la cliente. Si ce moyen ne répond pas, le Trône passe au suivant sans la faire attendre. Et chaque compte paie d’abord ce qui sort sur son réseau, avant que le reste parte à la banque.</p>
+  </header>
+
+  <!-- 1. L'ESSAI -->
+  <section aria-labelledby="t-essai">
+    <span class="sourcil">1 · L’essai</span>
+    <h2 id="t-essai">Une cliente règle 25 000 F.</h2>
+    <div class="essai">
+      <div class="reglages">
+        <div class="groupe">
+          <h3>Où</h3>
+          <div class="segments" role="group" aria-label="Où" id="g-ou">
+            <button type="button" data-v="comptoir" aria-pressed="true">Au comptoir</button>
+            <button type="button" data-v="distance" aria-pressed="false">À distance</button>
+          </div>
+        </div>
+        <div class="groupe">
+          <h3>Elle paie</h3>
+          <div class="segments" role="group" aria-label="Elle paie" id="g-reseau">
+            <button type="button" data-v="mtn" aria-pressed="true">Numéro MTN</button>
+            <button type="button" data-v="moov" aria-pressed="false">Moov</button>
+            <button type="button" data-v="celtiis" aria-pressed="false">Celtiis</button>
+            <button type="button" data-v="sansnet" aria-pressed="false">Sans internet</button>
+            <button type="button" data-v="carte" aria-pressed="false">Carte</button>
+          </div>
+        </div>
+        <div class="groupe">
+          <h3><label for="montant">Le montant</label></h3>
+          <div class="champ-montant"><input id="montant" inputmode="numeric" value="25 000" aria-describedby="montant-aide"> <span>F</span></div>
+          <span class="doux petit" id="montant-aide">Au-delà de 2 000 000 F, la demande MTN ne se propose pas.</span>
+        </div>
+        <div class="groupe">
+          <h3>Qui répond</h3>
+          <div class="rails">
+            <label class="rail" for="up-mtn"><span>API MTN<small>« Payer par MTN »</small></span><input type="checkbox" class="interrupteur" id="up-mtn" checked></label>
+            <label class="rail" for="up-feda"><span>FedaPay<small>demande, Tap &amp; Go, carte, liens</small></span><input type="checkbox" class="interrupteur" id="up-feda" checked></label>
+            <label class="rail" for="up-kkia"><span>KkiaPay<small>site, Ma Couronne, page Régler</small></span><input type="checkbox" class="interrupteur" id="up-kkia" checked></label>
+          </div>
+          <span class="doux petit">Éteignez MTN : la bascule se voit dans la fenêtre.</span>
+        </div>
+      </div>
+
+      <div class="scene">
+        <div id="scene"></div>
+        <div class="groupe">
+          <h3>L’ordre, pour ce cas</h3>
+          <ol class="ordre" id="ordre"></ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. LA RÈGLE -->
+  <section aria-labelledby="t-regle">
+    <span class="sourcil">2 · La règle entière</span>
+    <h2 id="t-regle">D’abord, puis, en secours.</h2>
+    <p class="note-frais">La Maison ne paie que les 1,2 % de MTN : c’est votre choix du 12 novembre, et au comptoir il se dit « Par MTN, sans frais ». Partout ailleurs, les frais s’ajoutent pour la cliente, et la caissière peut les offrir sur FedaPay comme aujourd’hui.</p>
+    <div class="regle"><table>
+      <thead><tr><th scope="col">Elle paie</th><th scope="col">D’abord</th><th scope="col">Puis</th><th scope="col">En secours</th></tr></thead>
+      <tbody id="regle"></tbody>
+    </table></div>
+  </section>
+
+  <!-- 3. LES COMPTES -->
+  <section aria-labelledby="t-comptes">
+    <span class="sourcil">3 · Les comptes · Finances</span>
+    <h2 id="t-comptes">Où dort l’argent, et où il va.</h2>
+    <div class="parts" aria-label="Novembre jusqu’au 12, par moyen">
+      <h3>Novembre, jusqu’au 12 · 596 600 F encaissés hors espèces</h3>
+      <div class="part"><span class="qui">API MTN</span><div class="barre"><i style="width:69%"></i></div><span class="chiffre num">412 500 F · 69 %<br><span class="doux petit">frais 4 950 F, la Maison</span></span></div>
+      <div class="part"><span class="qui">FedaPay</span><div class="barre"><i style="width:16%"></i></div><span class="chiffre num">96 100 F · 16 %<br><span class="doux petit">frais 1 730 F, les clientes</span></span></div>
+      <div class="part"><span class="qui">KkiaPay</span><div class="barre"><i style="width:10%"></i></div><span class="chiffre num">58 000 F · 10 %<br><span class="doux petit">frais 1 102 F, les clientes</span></span></div>
+      <div class="part"><span class="qui">MoMoPay · secours</span><div class="barre"><i class="secours" style="width:5%"></i></div><span class="chiffre num">30 000 F · 5 %<br><span class="doux petit">2 encaissements à pointer</span></span></div>
+    </div>
+
+    <div class="comptes">
+      <article class="compte">
+        <div class="compte__nom"><strong>MTN Collection</strong><span class="pastille seul">se confirme seul</span></div>
+        <span class="solde num">407 550 F</span>
+        <span class="doux petit">solde chez MTN, lu à 17 h 21 · frais déjà retenus</span>
+        <div class="vers">D’abord <b class="num">178 200 F</b> vers le compte de paie MTN, avant le 5 à 18 h.</div>
+      </article>
+      <article class="compte">
+        <div class="compte__nom"><strong>Compte de paie MTN</strong><span class="pastille pointer">à demander à MTN</span></div>
+        <span class="solde num">1 800 F</span>
+        <span class="doux petit">la paie du 5 demande 180 000 F</span>
+        <div class="vers">Rempli depuis MTN Collection, si le contrat permet ce virement. Sinon, par la banque, comme aujourd’hui.</div>
+      </article>
+      <article class="compte">
+        <div class="compte__nom"><strong>FedaPay</strong><span class="pastille seul">se confirme seul</span></div>
+        <span class="solde num">96 100 F</span>
+        <span class="doux petit">en attente de reversement</span>
+        <div class="vers">D’abord <b class="num">45 000 F</b> pour la paie Moov du 5 (lot 2 de la paie).</div>
+      </article>
+      <article class="compte">
+        <div class="compte__nom"><strong>KkiaPay</strong><span class="pastille seul">se confirme seul</span></div>
+        <span class="solde num">58 000 F</span>
+        <span class="doux petit">en attente de reversement</span>
+        <div class="vers">Rien à payer sur ce compte : tout part lundi.</div>
+      </article>
+      <article class="compte">
+        <div class="compte__nom"><strong>MoMoPay Maison MND</strong><span class="pastille pointer">à pointer</span></div>
+        <span class="solde num">30 000 F</span>
+        <span class="doux petit">code 909099 · 2 encaissements à retrouver sur le relevé</span>
+        <div class="vers">Pointé d’abord, versé ensuite avec le reste.</div>
+      </article>
+    </div>
+
+    <div class="banque">
+      <div><span class="sourcil">Lundi 16 novembre · vers la banque</span><br><b class="num">338 450 F</b></div>
+      <span class="calc num">MTN Collection 229 350 F + FedaPay 51 100 F + KkiaPay 58 000 F, une fois la paie du 5 mise de côté</span>
+    </div>
+
+    <div class="groupe">
+      <h3>Les pannes du jour · aussi dans La journée</h3>
+      <div class="pannes">
+        <div><i></i><span><b>MTN muet de 14 h 02 à 14 h 31.</b> 3 règlements sont passés par FedaPay à sa place, aucun perdu. La direction est prévenue une fois, pas à chaque règlement.</span></div>
+        <div><i class="ok"></i><span><b>FedaPay et KkiaPay</b> ont répondu toute la journée.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. CE QUI PART -->
+  <section aria-labelledby="t-part">
+    <span class="sourcil">4 · Ce qui change à la caisse</span>
+    <h2 id="t-part">Six tuiles au lieu de neuf.</h2>
+    <div class="avant-apres">
+      <div class="colonne">
+        <h3>Aujourd’hui · 9 tuiles</h3>
+        <div class="puces">
+          <span class="puce">Espèces</span><span class="puce part">Payer par MTN</span><span class="puce part">MTN MoMoPay</span><span class="puce part">KkiaPay · QR Chap Chap</span><span class="puce">Carte</span><span class="puce">Chèque</span><span class="puce part">FedaPay</span><span class="puce">Avoir</span><span class="puce">Autres</span>
+        </div>
+        <p class="doux petit">La caissière choisit entre quatre tuiles de mobile money, dont deux à pointer à la main le soir.</p>
+      </div>
+      <div class="colonne">
+        <h3>Demain · 6 tuiles</h3>
+        <div class="puces">
+          <span class="puce">Espèces</span><span class="puce neuve">Mobile money · le Trône choisit</span><span class="puce">Carte</span><span class="puce">Chèque</span><span class="puce">Avoir</span><span class="puce">Autres</span>
+        </div>
+        <p class="doux petit">Elle ne choisit plus le prestataire. Elle peut toujours changer, d’un toucher, sous le moyen proposé.</p>
+      </div>
+    </div>
+    <ul class="liste">
+      <li><span>Retirée</span><span><b>L’affiche Chap Chap de KkiaPay</b> (QR et code *616*41*8552*montant#). Tap &amp; Go et « Payer par MTN » font la même chose et se confirment seuls : plus de pointage à la main pour elle.</span></li>
+      <li><span>En secours</span><span><b>MTN MoMoPay 909099.</b> Proposé seulement quand l’API MTN et FedaPay ne répondent pas. L’affiche reste au salon pour une coupure d’internet.</span></li>
+      <li><span>Inchangé</span><span>Espèces, chèque, avoir, le terminal de la banque sous la tuile Carte, et le partage du pourboire selon les parts.</span></li>
+      <li><span>Nouveau</span><span>Le Trône relit chaque prestataire toutes les minutes pendant que la caisse est ouverte. Une panne se dit en une ligne dans la fenêtre, et une seule fois à la direction.</span></li>
+    </ul>
+  </section>
+
+  <!-- 5. LES CHOIX -->
+  <section aria-labelledby="t-decisions">
+    <span class="sourcil">5 · À trancher</span>
+    <h2 id="t-decisions">Vos choix.</h2>
+    <p class="doux">Mes propositions sont marquées. Vos choix s’enregistrent ici, et je les relis avant de construire.</p>
+    <div class="avance"><span class="petit" id="compte-decisions">0 sur 6 tranchées</span><div class="jauge"><span id="barre-decisions"></span></div></div>
+    <div id="decisions"></div>
+    <div class="mot">
+      <label for="d-note"><h3>Un mot, si besoin</h3></label>
+      <textarea id="d-note" placeholder="Ce que la maquette ne dit pas, ou ce que vous voulez autrement."></textarea>
+      <span class="petit doux" id="d-note-etat"></span>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  /* ── Les nombres ── */
+  var F = function (n) { return Math.round(n).toLocaleString('fr-FR').replace(/[  \s]/g, ' ') + ' F'; };
+  var pc = function (p) { return String(p).replace('.', ',') + ' %'; };
+  var PLAFOND_MTN = 2000000;
+  var CODE_TAPGO = '51166';
+  /* Le code MoMoPay porte ses frais : le reste ÷ 0,988, aux 50 F du dessus (règle du Trône, 2 novembre 2026). */
+  var momopay = function (m) { return Math.ceil(m / 0.988 / 50 - 1e-9) * 50; };
+  var ajoute = function (p) { return function (m) { var f = Math.round(m * p / 100); return { elle: m + f, dit: F(f) + ' ajoutés pour elle (' + pc(p) + ')' }; }; };
+
+  /* ── Les moyens ── */
+  var R = {
+    mtnApi: { nom: 'Payer par MTN', tuile: 'mm', seul: true,
+      sous: function () { return 'la demande part sur son téléphone'; },
+      frais: function (m) { return { elle: m, dit: 'sans frais pour elle · ' + F(m * 0.012) + ' pour la Maison (1,2 %)' }; },
+      hors: function (s) { return !s.up.mtn ? 'MTN ne répond pas' : s.montant > PLAFOND_MTN ? 'au-delà de 2 000 000 F' : ''; },
+      geste: function (t) { return 'Envoyer la demande · ' + F(t); } },
+    fedaDemande: { nom: 'FedaPay', tuile: 'mm', seul: true,
+      sous: function () { return 'la demande part sur son téléphone'; },
+      frais: ajoute(1.8), hors: function (s) { return s.up.feda ? '' : 'FedaPay ne répond pas'; },
+      geste: function (t) { return 'Envoyer la demande · ' + F(t); } },
+    tapgo: { nom: 'Tap & Go', tuile: 'mm', seul: true, ussd: true,
+      sous: function () { return 'elle compose le code, tous réseaux, sans internet'; },
+      frais: ajoute(1.6), hors: function (s) { return s.up.feda ? '' : 'FedaPay ne répond pas'; },
+      code: function (t) { return '*601*14*' + CODE_TAPGO + '*' + t + '#'; },
+      geste: function (t) { return 'J’attends son paiement · ' + F(t); } },
+    momopay: { nom: 'MTN MoMoPay', tuile: 'mm', seul: false, secours: true, ussd: true,
+      sous: function () { return 'code 909099, si elle est chez MTN'; },
+      frais: function (m) { return { elle: momopay(m), dit: 'frais dans le code : elle paie ' + F(momopay(m)) }; },
+      hors: function () { return ''; },
+      code: function (t) { return '*880*41*909099*' + t + '#'; },
+      geste: function (t) { return 'Noter MoMoPay · ' + F(t); } },
+    fedaCarte: { nom: 'Carte, par FedaPay', tuile: 'carte', seul: true,
+      sous: function () { return 'un QR à l’écran, elle paie sur son téléphone'; },
+      frais: function (m) { return { elle: null, dit: 'taux du contrat FedaPay, ajouté pour elle' }; },
+      hors: function (s) { return s.up.feda ? '' : 'FedaPay ne répond pas'; },
+      geste: function () { return 'Afficher le QR'; } },
+    kkiaCarte: { nom: 'Carte, par KkiaPay', tuile: 'carte', seul: true,
+      sous: function (s) { return s.ou === 'comptoir' ? 'sur sa page Régler, ouverte au comptoir' : 'sur sa page Régler'; },
+      frais: ajoute(4), hors: function (s) { return s.up.kkia ? '' : 'KkiaPay ne répond pas'; },
+      geste: function () { return 'Ouvrir sa page Régler'; } },
+    tpe: { nom: 'Terminal de la banque', tuile: 'carte', seul: false, secours: true,
+      sous: function () { return 'sous la tuile Carte'; },
+      frais: function () { return { elle: null, dit: 'commission de la banque' }; },
+      hors: function () { return ''; },
+      geste: function (t) { return 'Noter la carte · ' + F(t); } },
+    kkiaMomo: { nom: 'KkiaPay', tuile: 'mm', seul: true,
+      sous: function (s) { return s.ou === 'comptoir' ? 'sur sa page Régler, ouverte au comptoir' : 'sur sa page Régler, tous réseaux'; },
+      frais: ajoute(1.9), hors: function (s) { return s.up.kkia ? '' : 'KkiaPay ne répond pas'; },
+      geste: function () { return 'Ouvrir sa page Régler'; } },
+    fedaLien: { nom: 'Lien FedaPay', tuile: 'mm', seul: true,
+      sous: function () { return 'envoyé sur son WhatsApp'; },
+      frais: ajoute(1.8), hors: function (s) { return s.up.feda ? '' : 'FedaPay ne répond pas'; } },
+    tapgoMsg: { nom: 'Code Tap & Go', tuile: 'mm', seul: true, ussd: true,
+      sous: function () { return 'dans son message WhatsApp, déjà rempli'; },
+      frais: ajoute(1.6), hors: function (s) { return s.up.feda ? '' : 'FedaPay ne répond pas'; },
+      code: function (t) { return '*601*14*' + CODE_TAPGO + '*' + t + '#'; } },
+    momopayMsg: { nom: 'Code MoMoPay', tuile: 'mm', seul: false, secours: true, ussd: true,
+      sous: function () { return 'dans son message, si elle est chez MTN'; },
+      frais: function (m) { return { elle: momopay(m), dit: 'frais dans le code : elle paie ' + F(momopay(m)) }; },
+      hors: function () { return ''; },
+      code: function (t) { return '*880*41*909099*' + t + '#'; } },
+    especes: { nom: 'Espèces', tuile: 'especes', seul: false,
+      sous: function () { return 'au tiroir, compté le soir'; },
+      frais: function (m) { return { elle: m, dit: 'aucun frais' }; },
+      hors: function () { return ''; },
+      geste: function (t) { return 'Encaisser · ' + F(t); } },
+  };
+
+  /* ── L'ordre : d'abord, puis, en secours ── */
+  var ORDRES = {
+    comptoir: {
+      mtn: ['mtnApi', 'fedaDemande', 'momopay'],
+      moov: ['fedaDemande', 'kkiaMomo', 'especes'],
+      celtiis: ['fedaDemande', 'kkiaMomo', 'especes'],
+      sansnet: ['tapgo', 'momopay', 'especes'],
+      carte: ['fedaCarte', 'kkiaCarte', 'tpe'],
+    },
+    distance: {
+      mtn: ['mtnApi', 'kkiaMomo', 'fedaLien'],
+      moov: ['kkiaMomo', 'fedaLien'],
+      celtiis: ['kkiaMomo', 'fedaLien'],
+      sansnet: ['tapgoMsg', 'momopayMsg'],
+      carte: ['kkiaCarte', 'fedaLien'],
+    },
+  };
+  var RESEAU_DIT = { mtn: 'Numéro MTN', moov: 'Numéro Moov', celtiis: 'Numéro Celtiis', sansnet: 'Sans internet', carte: 'Carte' };
+  var FICHE = {
+    mtn: '<b>01 97 ·· ·· 12</b>, chez MTN',
+    moov: '<b>01 ·· ·· ·· 40</b>, chez Moov',
+    celtiis: '<b>01 ·· ·· ·· 07</b>, chez Celtiis',
+    sansnet: '<b>01 97 ·· ·· 12</b> · elle n’a pas de données ce matin',
+    carte: '<b>carte Visa</b> · de passage, depuis Paris',
+  };
+  var RAISON = {
+    comptoir: {
+      mtn: 'Son numéro est chez MTN : la demande MTN est la moins chère, sans frais pour elle, et MTN confirme seul.',
+      moov: 'Son numéro est chez Moov : FedaPay lui envoie la demande et confirme seul.',
+      celtiis: 'Son numéro est chez Celtiis : FedaPay lui envoie la demande et confirme seul.',
+      sansnet: 'Pas d’internet : elle compose le code Tap & Go, sur n’importe quel réseau. Le Trône reconnaît son paiement au montant.',
+      carte: 'Carte : un QR à l’écran, elle paie sur son téléphone, FedaPay confirme seul. Rien à brancher.',
+    },
+    distance: {
+      mtn: 'Sur sa page Régler, « Payer par MTN » vient en premier : son numéro est chez MTN.',
+      moov: 'Sur sa page Régler, KkiaPay prend Moov, Celtiis et la carte.',
+      celtiis: 'Sur sa page Régler, KkiaPay prend Moov, Celtiis et la carte.',
+      sansnet: 'Le message WhatsApp porte le code Tap & Go déjà rempli : elle compose, sans internet.',
+      carte: 'Sur sa page Régler, la carte passe par KkiaPay.',
+    },
+  };
+
+  var s = { ou: 'comptoir', reseau: 'mtn', montant: 25000, up: { mtn: true, feda: true, kkia: true }, force: null };
+
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function pastilles(r, extra) {
+    var h = r.seul ? '<span class="pastille seul">se confirme seul</span>' : r.tuile === 'especes' ? '<span class="pastille">compté le soir</span>' : '<span class="pastille pointer">à pointer sur le relevé</span>';
+    return '<div class="pastilles">' + h + (extra || '') + '</div>';
+  }
+  function lignesDuCas() {
+    return ORDRES[s.ou][s.reseau].map(function (id) { return { id: id, r: R[id], hors: R[id].hors(s) }; });
+  }
+
+  function rendScene() {
+    var lignes = lignesDuCas();
+    var dispo = lignes.filter(function (l) { return !l.hors; });
+    var forceOk = s.force && dispo.some(function (l) { return l.id === s.force; });
+    var choisi = forceOk ? dispo.filter(function (l) { return l.id === s.force; })[0] : dispo[0];
+    var m = s.montant;
+    var pannes = [];
+    if (!s.up.mtn) pannes.push('<b>MTN ne répond pas depuis 14 h 02.</b>');
+    if (!s.up.feda) pannes.push('<b>FedaPay ne répond pas depuis 14 h 10.</b>');
+    if (!s.up.kkia) pannes.push('<b>KkiaPay ne répond pas depuis 13 h 55.</b>');
+    var panneHtml = pannes.length ? '<div class="panne">' + pannes.join(' ') + ' Le Trône le relit chaque minute et le reprend dès qu’il répond.</div>' : '';
+
+    var pourquoi = '';
+    if (choisi) {
+      if (forceOk && choisi !== dispo[0]) pourquoi = 'Choisi à la main par la caissière. Le Trône proposait ' + esc(dispo[0].r.nom) + '.';
+      else if (choisi.id === lignes[0].id) pourquoi = RAISON[s.ou][s.reseau];
+      else pourquoi = esc(lignes[0].r.nom) + ' n’est pas proposé : ' + esc(lignes[0].hors) + '. ' + esc(choisi.r.nom) + ' prend sa place' + (choisi.r.secours ? ', à pointer le soir sur le relevé.' : '.');
+    }
+
+    var el = document.getElementById('scene');
+    if (s.ou === 'comptoir') {
+      var tuileActive = choisi ? choisi.r.tuile : 'mm';
+      var sousMm = tuileActive === 'mm' && choisi ? 'proposé : ' + choisi.r.nom : 'le Trône choisit';
+      var sousCarte = tuileActive === 'carte' && choisi ? choisi.r.nom.replace('Carte, ', '') : 'QR ou terminal';
+      var tuiles = [
+        ['especes', 'Espèces', 'au comptoir'], ['mm', 'Mobile money', sousMm], ['carte', 'Carte', sousCarte],
+        ['cheque', 'Chèque', 'à déposer'], ['avoir', 'Avoir', 'crédit du compte'], ['autre', 'Autres', 'les autres moyens'],
+      ].map(function (t) { return '<button type="button" class="tuile" aria-pressed="' + (t[0] === tuileActive) + '"><b>' + t[1] + '</b><span>' + esc(t[2]) + '</span></button>'; }).join('');
+      var detail = '';
+      if (choisi) {
+        var f = choisi.r.frais(m);
+        var total = f.elle || m;
+        var autres = dispo.filter(function (l) { return l.id !== choisi.id; });
+        detail = '<div class="detail" id="detail">' +
+          '<div class="detail__moyen"><b>' + esc(choisi.r.nom) + '</b><span class="doux petit">' + esc(choisi.r.sous(s)) + '</span></div>' +
+          '<p class="petit">' + pourquoi + '</p>' +
+          pastilles(choisi.r, '<span class="pastille">' + esc(f.dit) + '</span>' + (forceOk && choisi !== dispo[0] ? '<span class="pastille main">choisi à la main</span>' : '')) +
+          (choisi.r.code ? '<span class="ussd num">' + esc(choisi.r.code(total)) + '</span>' : '') +
+          '<div><button type="button" class="bouton">' + esc(choisi.r.geste(total)) + '</button></div>' +
+          (autres.length ? '<div class="autres"><span>Autre moyen :</span>' + autres.map(function (l) { return '<button type="button" class="lien" data-force="' + l.id + '">' + esc(l.r.nom) + '</button>'; }).join('') +
+            (forceOk && choisi !== dispo[0] ? '' : '') + '</div>' : '') +
+          (forceOk && choisi !== dispo[0] ? '<div class="autres"><button type="button" class="lien" data-force="">Revenir à la proposition</button></div>' : '') +
+          '</div>';
+      } else {
+        detail = '<div class="detail"><p>Aucun moyen ne répond pour ce cas. La caissière encaisse en espèces, ou note un règlement à venir.</p></div>';
+      }
+      el.innerHTML = '<div class="fenetre" role="group" aria-label="La fenêtre Encaisser du Trône">' +
+        '<div class="fenetre__tete"><b>Encaisser le rituel</b><span>A. K. · Retwist et soin profond · <span class="num">' + F(m) + '</span></span></div>' +
+        '<div class="fenetre__corps"><p class="fiche">Sa fiche : ' + FICHE[s.reseau] + '</p>' + panneHtml +
+        '<div class="tuiles">' + tuiles + '</div>' + detail + '</div></div>';
+    } else {
+      var corps = '';
+      if (s.reseau === 'sansnet') {
+        var t = choisi ? (choisi.r.frais(m).elle || m) : m;
+        corps = choisi
+          ? '<div class="bulle"><span>Bonjour A., votre rituel du 12 novembre : <b class="num">' + F(m) + '</b>. Sans internet, composez ce code sur votre téléphone :</span><span class="ussd num">' + esc(choisi.r.code(t)) + '</span><span class="doux petit">' + esc(choisi.r.frais(m).dit) + '</span></div>' +
+            '<p class="petit doux">' + pourquoi + '</p>'
+          : '<p>Aucun code ne peut partir : FedaPay ne répond pas et elle n’est pas chez MTN.</p>';
+      } else {
+        corps = '<div class="reste"><span class="doux petit">A., votre rituel du 12 novembre</span><b class="num">' + F(m) + '</b><span class="doux petit">reste à régler</span></div>';
+        if (!dispo.length) corps += '<p class="petit">Le règlement en ligne est indisponible pour l’instant. Vous pourrez régler au comptoir.</p>';
+        dispo.forEach(function (l, i) {
+          var f = l.r.frais(m);
+          var libelle = l.id === 'mtnApi' ? 'Payer par MTN · ' + F(m)
+            : l.id === 'kkiaMomo' ? 'MTN, Moov, Celtiis ou carte'
+            : l.id === 'kkiaCarte' ? 'Payer par carte · ' + F(f.elle)
+            : l.id === 'fedaLien' ? 'Payer par FedaPay' : l.r.nom;
+          var aide = l.id === 'mtnApi' ? 'Aucun frais pour vous.'
+            : l.id === 'kkiaMomo' || l.id === 'kkiaCarte' ? 'Les frais de KkiaPay s’ajoutent (1,9 % Mobile Money, 4 % carte).'
+            : l.id === 'fedaLien' ? 'Les frais de FedaPay s’ajoutent (1,8 %).' : '';
+          corps += '<div class="choix-tel' + (i === 0 ? ' premier' : '') + '"><button type="button">' + esc(libelle) + '</button>' + (aide ? '<small>' + esc(aide) + '</small>' : '') + '</div>';
+        });
+        if (dispo.length) corps += '<p class="petit doux">' + pourquoi + '</p>';
+      }
+      el.innerHTML = '<div class="telephone" role="group" aria-label="Le téléphone de la cliente">' +
+        '<div class="telephone__tete"><span>Maison MND</span><b>' + (s.reseau === 'sansnet' ? 'Son message WhatsApp' : 'Régler votre rituel') + '</b></div>' +
+        '<div class="telephone__corps">' + corps + '</div></div>';
+    }
+
+    document.getElementById('ordre').innerHTML = lignes.map(function (l, i) {
+      var f = l.r.frais(m);
+      var etat = l.hors ? '<span class="pastille panne">' + esc(l.hors) + '</span>' : (choisi && l.id === choisi.id ? '<span class="pastille main">proposé</span>' : '');
+      return '<li class="' + (l.hors ? 'hors' : '') + '"><span class="rang">' + (i + 1) + '</span><span><span class="nom">' + esc(l.r.nom) + '</span> ' + etat +
+        '<span class="sous">' + esc(l.r.sous(s)) + (l.r.secours ? ' · secours, à pointer' : '') + '</span></span><span class="frais">' + esc(f.dit) + '</span></li>';
+    }).join('');
+
+    el.querySelectorAll('[data-force]').forEach(function (b) {
+      b.addEventListener('click', function () { s.force = b.getAttribute('data-force') || null; rendScene(); });
+    });
+  }
+
+  function rendRegle() {
+    var html = '';
+    [['comptoir', 'Au comptoir'], ['distance', 'À distance · lien ou message']].forEach(function (g) {
+      html += '<tr class="groupe-ligne"><th colspan="4" scope="colgroup">' + g[1] + '</th></tr>';
+      ['mtn', 'moov', 'celtiis', 'sansnet', 'carte'].forEach(function (res) {
+        if (res === 'celtiis') return; /* même ordre que Moov */
+        var ids = ORDRES[g[0]][res];
+        var cases = [0, 1, 2].map(function (i) {
+          var id = ids[i];
+          if (!id) return '<td class="doux">—</td>';
+          var r = R[id];
+          var f = r.frais(25000);
+          return '<td class="' + (r.secours ? 'secours' : '') + '"><b>' + esc(r.nom) + '</b><span>' + esc(f.dit.replace(/^frais dans le code : elle paie .*$/, 'frais dans le code')) + (r.seul ? ' · se confirme seul' : r.tuile === 'especes' ? '' : ' · à pointer') + '</span></td>';
+        }).join('');
+        html += '<tr><th scope="row">' + (res === 'moov' ? 'Moov ou Celtiis' : RESEAU_DIT[res]) + '</th>' + cases + '</tr>';
+      });
+    });
+    document.getElementById('regle').innerHTML = html;
+  }
+
+  /* ── Les réglages ── */
+  function segments(id, cle) {
+    var g = document.getElementById(id);
+    g.querySelectorAll('button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        s[cle] = b.getAttribute('data-v'); s.force = null;
+        g.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+        rendScene();
+      });
+    });
+  }
+  segments('g-ou', 'ou');
+  segments('g-reseau', 'reseau');
+  var champ = document.getElementById('montant');
+  champ.addEventListener('input', function () {
+    var v = parseInt(champ.value.replace(/\D/g, ''), 10);
+    s.montant = Number.isFinite(v) && v > 0 ? Math.min(v, 9999999) : 0;
+    s.force = null; rendScene();
+  });
+  champ.addEventListener('blur', function () { champ.value = s.montant ? s.montant.toLocaleString('fr-FR').replace(/[  ]/g, ' ') : ''; });
+  [['up-mtn', 'mtn'], ['up-feda', 'feda'], ['up-kkia', 'kkia']].forEach(function (p) {
+    var c = document.getElementById(p[0]);
+    c.addEventListener('change', function () { s.up[p[1]] = c.checked; s.force = null; rendScene(); });
+  });
+  rendScene();
+  rendRegle();
+
+  /* ── Les choix, enregistrés ── */
+  var DECISIONS = [
+    { id: 'tuile', titre: 'La tuile du mobile money', pq: 'Ce que la caissière touche à l’encaissement.', options: [
+      ['une', 'Une seule tuile « Mobile money » : le Trône choisit, la caissière peut changer', 'elle ne choisit plus entre MTN, FedaPay, KkiaPay et MoMoPay', true],
+      ['chacune', 'Une tuile par moyen, la bonne présélectionnée', 'elle voit tout, et peut encore se tromper de tuile'],
+      ['comme', 'Comme aujourd’hui, sans présélection', 'rien ne change à la caisse'] ] },
+    { id: 'bascule', titre: 'Quand un moyen ne répond pas', pq: 'Le Trône relit chaque prestataire toutes les minutes, caisse ouverte.', options: [
+      ['seule', 'Le Trône passe seul au suivant, et le dit en une ligne', 'la cliente n’attend pas ; la direction voit la panne dans La journée', true],
+      ['demande', 'Le Trône propose le suivant, la caissière confirme d’un toucher', 'un geste de plus, mais rien ne change sans elle'],
+      ['rien', 'Pas de bascule : la caissière choisit', 'la panne se dit, la tuile reste grisée'] ] },
+    { id: 'chapchap', titre: 'L’affiche Chap Chap de KkiaPay', pq: 'Aujourd’hui déclarée à la main et pointée le soir.', options: [
+      ['retiree', 'Retirée : Tap & Go et le QR « Payer par MTN » la remplacent', 'plus rien à pointer à la main pour le mobile money', true],
+      ['gardee', 'Gardée, pointée à la main comme aujourd’hui', 'une affiche de plus au comptoir'] ] },
+    { id: 'momopay', titre: 'MTN MoMoPay 909099', pq: 'Le seul moyen qui ne se confirme pas seul.', options: [
+      ['secours', 'En secours : proposé seulement quand l’API MTN et FedaPay ne répondent pas', 'l’affiche reste au salon pour une coupure d’internet', true],
+      ['dernier', 'Toujours proposé, en dernier', 'la caissière peut le choisir à tout moment'],
+      ['retire', 'Retiré du Trône et du salon', 'les clientes qui l’utilisent passent par « Payer par MTN »'] ] },
+    { id: 'distance', titre: 'À distance, pour Moov, Celtiis et la carte', pq: 'Deux passerelles font la même chose en ligne.', options: [
+      ['deux', 'KkiaPay sur le site, Ma Couronne et Régler ; FedaPay dans les liens de la Maison ; chacun secours de l’autre', 'rien à rebrancher : seule la bascule s’ajoute', true],
+      ['feda', 'Tout par FedaPay, KkiaPay en secours seulement', 'un seul compte à suivre ; le site et Ma Couronne sont à rebrancher'],
+      ['kkia', 'Tout par KkiaPay hors comptoir, FedaPay au comptoir seulement', 'les liens envoyés par la Maison changent de prestataire'] ] },
+    { id: 'tresorerie', titre: 'L’argent des comptes', pq: 'Ce que le Trône prépare, la direction vire.', options: [
+      ['lundi', 'La paie du 5 d’abord (MTN Collection pour la paie MTN, FedaPay pour la paie Moov), le surplus à la banque chaque lundi', 'à demander à MTN : le virement du compte de collecte vers le compte de paie', true],
+      ['main', 'Le Trône dit seulement combien est disponible ; la direction décide quand', 'aucun rythme fixe'],
+      ['soir', 'Chaque soir, tout à la banque', 'la paie se remplit ensuite depuis la banque, comme aujourd’hui'] ] },
+  ];
+  var choix = {};
+  var CLE = 'le-choix-du-moyen-choix';
+  try { var vu = JSON.parse(localStorage.getItem(CLE) || '{}') || {}; Object.keys(vu).forEach(function (k) { choix[k] = vu[k]; }); } catch (e) { /* sans mémoire */ }
+  var docRef = null, file = Promise.resolve();
+  function garde() {
+    try { localStorage.setItem(CLE, JSON.stringify(choix)); } catch (e) { /* sans mémoire */ }
+    if (!docRef) return;
+    var corps = {}; Object.keys(choix).forEach(function (k) { if (choix[k]) corps[k] = choix[k]; });
+    corps.enregistre = new Date().toISOString();
+    file = file.then(function () { return docRef.set(corps); }).catch(function () { /* hors ligne */ });
+  }
+  function txt(tag, cls, t) { var e = document.createElement(tag); if (cls) e.className = cls; if (t !== undefined) e.textContent = t; return e; }
+  var boite = document.getElementById('decisions');
+  function dessineDecisions() {
+    boite.textContent = '';
+    DECISIONS.forEach(function (d) {
+      var c = txt('div', 'decision' + (choix[d.id] ? ' tranchee' : ''));
+      c.appendChild(txt('h4', '', d.titre));
+      c.appendChild(txt('p', 'pq', d.pq));
+      var g = document.createElement('div'); g.setAttribute('role', 'radiogroup'); g.setAttribute('aria-label', d.titre);
+      d.options.forEach(function (o) {
+        var l = txt('label', 'choix-ligne');
+        var i = document.createElement('input'); i.type = 'radio'; i.name = 'd-' + d.id; i.id = 'd-' + d.id + '-' + o[0]; i.value = o[0]; i.checked = choix[d.id] === o[0];
+        i.addEventListener('change', function () { choix[d.id] = o[0]; garde(); dessineDecisions(); });
+        var sp = document.createElement('span');
+        sp.appendChild(document.createTextNode(o[1]));
+        if (o[3]) sp.appendChild(txt('em', '', 'ma proposition'));
+        sp.appendChild(txt('small', '', o[2]));
+        l.appendChild(i); l.appendChild(sp); g.appendChild(l);
+      });
+      c.appendChild(g);
+      c.appendChild(txt('span', 'etat-d', choix[d.id] ? 'Choix enregistré.' : ''));
+      boite.appendChild(c);
+    });
+    var k = DECISIONS.filter(function (d) { return choix[d.id]; }).length;
+    document.getElementById('compte-decisions').textContent = k + ' sur ' + DECISIONS.length + ' tranchées';
+    document.getElementById('barre-decisions').style.width = Math.round((k / DECISIONS.length) * 100) + '%';
+  }
+  var note = document.getElementById('d-note');
+  if (choix.note) note.value = choix.note;
+  var minuterie = null;
+  note.addEventListener('input', function () { clearTimeout(minuterie); minuterie = setTimeout(function () { choix.note = note.value.trim(); garde(); document.getElementById('d-note-etat').textContent = 'Mot enregistré.'; }, 600); });
+  dessineDecisions();
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/le-choix-du-moyen');
+      return docRef.get().then(function (snap) {
+        if (!snap || !snap.exists) return;
+        var v = snap.data() || {};
+        Object.keys(v).forEach(function (k) { if (k !== 'enregistre' && typeof v[k] === 'string') choix[k] = v[k]; });
+        if (choix.note) note.value = choix.note;
+        dessineDecisions();
+      });
+    }).catch(function () { /* sans base : les choix restent sur cet appareil */ });
+  }
+})();
+</script>

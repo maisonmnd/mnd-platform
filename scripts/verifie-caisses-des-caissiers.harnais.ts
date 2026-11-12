@@ -224,8 +224,11 @@ dit('la caisse qui manque naît AVANT que l argent s écrive', true, iConfirm > 
 dit('une année antérieure date l argent du rituel par défaut', true, /useState\(\(\) => \(estAnneeAnterieure\(appt\.date, todayISO\(\)\) && appt\.date \? appt\.date : (initial\?\.jourDuPaiement \|\| )?todayISO\(\)\)\)/.test(actions));
 dit('le bandeau dit qui encaisse, et l année antérieure seulement quand elle l est', [true, true],
   [/Encaissé par \$\{quiNom\}/.test(actions), /\{anneePassee \? ` · rendez-vous de \$\{anneeDe\(appt\.date\)\}/.test(actions)]);
-dit('les tuiles : MTN MoMoPay, MoMo Privé, Chèque, et pas de Moov', [true, true, true, false],
-  [/nom: 'MTN MoMoPay'/.test(actions), /nom: 'MoMo Privé'/.test(actions), /nom: 'Chèque'/.test(actions), /nom: 'Moov/.test(actions)]);
+/* 12 novembre 2026 (« Le choix du moyen ») : six tuiles ; « Mobile money »
+   porte MTN, FedaPay, Tap & Go et MoMoPay (la règle choisit), « Carte » le QR
+   FedaPay puis le terminal ; MoMo Privé ne s'offre plus depuis le 11. */
+dit('les tuiles : Mobile money, Carte, Chèque ; ni Moov ni MoMo Privé en tuile', [true, true, true, false, false],
+  [/nom: 'Mobile money'/.test(actions), /nom: 'Carte'/.test(actions), /nom: 'Chèque'/.test(actions), /nom: 'Moov/.test(actions), /nom: 'MoMo Privé'/.test(actions)]);
 dit('« Autres » offre la reprise d une année passée (la liste passe par la règle)', true, /avecLesMoyensDeLaMaison\(methods\)\.filter/.test(actions));
 dit('la Caisse suit la même règle, offre les deux moyens neufs, fait naître la caisse, et cache la liste à qui ne peut pas changer', [true, true, true, true],
   [/caisseProposee\(\{/.test(caisse), /avecLesMoyensDeLaMaison\(/.test(caisse), /poseLaCaisse\(prev, caisseANaitre\)/.test(caisse), /hasCashbox && !peutChangerPos \?/.test(caisse)]);

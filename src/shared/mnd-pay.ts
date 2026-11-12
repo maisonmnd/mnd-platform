@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { supabase } from './supabase';
 import { motifDuRefus } from './whatsapp';
 import { cashboxesStore } from './finance';
+import { estUnePanne } from './choix-du-moyen-pur';
 import {
   ANCIEN_NOM_MND_PAY, CAISSE_MND_PAY, CAISSE_ZELLE, compteDeLaDemande, estLaCaisseFedaPay, modeFedaPay, saitLesFraisOfferts, saitTapGo,
   type DemandeMndPay, type MoyenMndPay, type ReglagesMndPay,
@@ -92,7 +93,17 @@ export type Demande = {
 
 export type ReponseDeLaDemande =
   | { ok: true; id: string; url: string; directe: boolean; raison?: string; demande: DemandeMndPay }
-  | { ok: false; erreur: string };
+  /** `panne` : FedaPay ou sa fonction n'a pas répondu (pas un refus) ; le
+      choix du moyen passe alors au suivant (12 novembre 2026). */
+  | { ok: false; erreur: string; panne?: boolean };
+
+/** UN ÉCHEC QUI EST UNE PANNE : la fonction injoignable alors que le
+    réseau est là, ou une réponse 5xx (FedaPay en erreur rend 502). */
+function estUnePanneDeFedaPay(error: unknown): boolean {
+  const nom = (error as { name?: string } | null)?.name ?? '';
+  if (nom === 'FunctionsFetchError' || nom === 'FunctionsRelayError') return typeof navigator === 'undefined' || navigator.onLine !== false;
+  return estUnePanne({ status: (error as { context?: { status?: number } } | null)?.context?.status });
+}
 
 /** DEMANDER LE PAIEMENT. Les frais (sa décision : ajoutés pour la cliente) se
     calculent ICI, avec les réglages de la Maison, et voyagent en clair : le
@@ -115,7 +126,7 @@ export async function demandeLePaiement(e: Demande): Promise<ReponseDeLaDemande>
       ...(auTel ? { mode: modeFedaPay(e.moyen as 'mtn' | 'moov' | 'celtiis', e.reglages) } : {}),
     },
   });
-  if (error) return { ok: false, erreur: await motifDuRefus(error) };
+  if (error) return { ok: false, erreur: await motifDuRefus(error), ...(estUnePanneDeFedaPay(error) ? { panne: true } : {}) };
   const r = data as { id: string; url: string; directe: boolean; raison?: string };
   /* La demande s'affiche tout de suite ; la lecture et le temps réel la
      remplaceront par la ligne du serveur. */

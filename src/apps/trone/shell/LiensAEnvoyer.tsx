@@ -67,7 +67,6 @@ export default function LiensAEnvoyer({ appel = '', numero = '', choisi: choisiA
 
   const adresseDuQr: Record<CleDuQr, string> = {
     mtn: qr.lienComptoirMtn,
-    kkiapay: qr.lienChapchap,
     momo: qr.codeMarchand ? qr.lienMomo : '',
     site: qr.lienSite,
     carte: qr.lienCarte,

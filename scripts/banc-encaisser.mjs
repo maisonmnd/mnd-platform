@@ -161,7 +161,10 @@ dit('le Carnet ouvre l encaissement d Awa', await ouvreLEncaissement('Awa'));
 let t = await texteModale();
 dit('trois temps : ce qu elle doit, comment elle paie, et ensuite', ['Ce qu’elle doit', 'Comment elle paie', 'Et ensuite'].every((x) => t.includes(x)));
 const tuiles = await evalue(`[...${modale}.querySelectorAll('.trv-pay .n')].map((x) => x.textContent.trim())`);
-dit('les tuiles : Espèces, MTN MoMoPay, Carte, Chèque, Autres, et pas de Moov', ['Espèces', 'MTN MoMoPay', 'Carte', 'Chèque', 'Autres'].every((x) => tuiles.includes(x)) && !tuiles.some((x) => /moov/i.test(x)), JSON.stringify(tuiles));
+/* 12 novembre 2026, « Le choix du moyen » : six tuiles ; « Mobile money »
+   porte MTN, FedaPay, Tap & Go et MoMoPay, et la règle choisit. */
+dit('les tuiles : Espèces, Mobile money, Carte, Chèque, Autres ; ni Moov, ni MTN MoMoPay, KkiaPay, FedaPay ou Payer par MTN en tuile',
+  ['Espèces', 'Mobile money', 'Carte', 'Chèque', 'Autres'].every((x) => tuiles.includes(x)) && !tuiles.some((x) => /moov|^MTN MoMoPay$|^KkiaPay$|^FedaPay$|^Payer par MTN$/i.test(x)), JSON.stringify(tuiles));
 dit('« Ce qu elle doit » est le ticket, toujours ouvert ; à gauche, « Comment elle paie » ouvert', /Total\s*30/.test(t) && (await evalue(`[...${modale}.querySelectorAll('section > button[aria-expanded]')].map((b) => b.getAttribute('aria-expanded')).join(',')`)) === 'true,false');
 dit('la barre dit où vont les 30 000 F', /30\s?000\s?F en espèces → Terrasse · Tiroir espèces/u.test(t), t.match(/[^.]*en espèces[^.]*/u)?.[0]);
 await capture('encaisser-bureau', 1280, 900, false);
@@ -170,18 +173,27 @@ await capture('encaisser-telephone', 390, 844, true);
 /* ── A0. CHAQUE TUILE CHOISIT SA CAISSE (21 octobre 2026) ─────────── */
 const caisseDeLaPart = () => evalue(`(() => { const s = [...document.querySelectorAll('.mnd-modal span')].find((x) => x.textContent.trim().startsWith('→') && x.querySelector('b')); return s ? s.querySelector('b').textContent.trim() : null; })()`);
 const sansChoix = () => evalue(`!/caisse à choisir|Choisissez la caisse/.test(document.querySelector('.mnd-modal')?.innerText || '')`);
-dit('la tuile MoMo Privé est là', tuiles.includes('MoMo Privé'), JSON.stringify(tuiles));
-const ATTENDUES = [['Espèces', 'Terrasse · Tiroir espèces'], ['MTN MoMoPay', 'MoMoPay Maison MND'], ['MoMo Privé', 'MoMo Privé'], ['Carte', 'Carte'], ['Chèque', 'Chèque'], ['Autres', 'Autres']];
+dit('plus de tuile MoMo Privé (11 novembre 2026) ni KkiaPay (12 novembre 2026)', !tuiles.includes('MoMo Privé') && !tuiles.includes('KkiaPay'), JSON.stringify(tuiles));
+/* Hors ligne, ni MTN ni FedaPay ne peuvent demander : « Mobile money »
+   propose MoMoPay, en secours ; « Carte », le terminal de la banque. */
+const ATTENDUES = [['Espèces', 'Terrasse · Tiroir espèces'], ['Mobile money', 'MoMoPay Maison MND'], ['Carte', 'Carte'], ['Chèque', 'Chèque'], ['Autres', 'Autres']];
 const vues = [];
+let ligneDuMoyen = null;
 for (const [tuile] of ATTENDUES) {
   await clique('.mnd-modal .trv-pay', tuile);
   await attend(350);
   vues.push([tuile, await caisseDeLaPart(), await sansChoix()]);
-  if (tuile === 'MoMo Privé' && captures) {
-    await capture('caisse-momo-prive-bureau', 1280, 900, false);
-    await capture('caisse-momo-prive-telephone', 390, 844, true);
+  if (tuile === 'Mobile money') {
+    ligneDuMoyen = await evalue(`(() => { const d = document.querySelector('.mnd-modal [data-choix-du-moyen]'); return d ? [d.getAttribute('data-choix-du-moyen'), d.innerText.replace(/\\s+/g, ' ')] : null; })()`);
+    if (captures) {
+      await capture('mobile-money-hors-ligne-bureau', 1280, 900, false);
+      await capture('mobile-money-hors-ligne-telephone', 390, 844, true);
+    }
   }
 }
+dit('Mobile money, hors ligne : MoMoPay proposé, la ligne dit le réseau et que c est à pointer le soir',
+  !!ligneDuMoyen && ligneDuMoyen[0] === 'momopay' && ligneDuMoyen[1].includes('Le Trône est hors ligne : les demandes MTN et FedaPay attendent le retour du réseau.')
+    && ligneDuMoyen[1].includes('MTN MoMoPay') && ligneDuMoyen[1].includes('à pointer le soir'), JSON.stringify(ligneDuMoyen));
 dit('chaque tuile montre sa caisse d elle-même, jamais « caisse à choisir »', JSON.stringify(vues) === JSON.stringify(ATTENDUES.map(([a, b]) => [a, b, true])), JSON.stringify(vues));
 const repriseOk = await evalue(`(() => { const s = document.querySelector('.mnd-modal select[aria-label="Le moyen"]'); if (!s) return false;
   const o = [...s.options].find((x) => /^Reprise d.une année passée$/.test(x.value)); if (!o) return false;

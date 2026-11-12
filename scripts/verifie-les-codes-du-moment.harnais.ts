@@ -28,7 +28,9 @@ const sansCommentaires = (f: string) => readFileSync(f, 'utf8').replace(/\/\*[\s
 
 /* ── La règle ─────────────────────────────────────────────────────────── */
 const JOUR = '2026-10-24';
-const TOUS: IdDuCode[] = ['site', 'carte', 'plan', 'wifi', 'momo', 'kkiapay', 'avis', 'couronne', 'academie', 'jour'];
+/* 12 novembre 2026 (« Le choix du moyen ») : Chap Chap retiré, « Payer par
+   MTN » (le QR du comptoir) prend sa place en tête du paiement. */
+const TOUS: IdDuCode[] = ['site', 'carte', 'plan', 'wifi', 'mtn', 'momo', 'avis', 'couronne', 'academie', 'jour'];
 const rdv = (o: Partial<RdvDuMoment>): RdvDuMoment => ({
   id: 'r1', qui: 'A. K.', maitre: 'Gérard', date: JOUR, time: '13:00', dureeMin: 90, status: 'confirmé',
   resteXof: 45000, payeAujourdhui: false, premiereVenue: false, aCouronne: true, ...o,
@@ -68,7 +70,7 @@ dit('l ordre : paiement, avis, code du jour, itineraire, Ma Couronne, wifi ; qua
   sortes(moment([rdv({ id: 'a' }), rdv({ id: 'b', time: '13:10' }), rdv({ id: 'c', time: '15:00' }), rdv({ id: 'd', time: '14:00', aCouronne: false })], '14:25')));
 dit('rien de tout cela : les codes que ce poste montre le plus, deux au plus', [{ sorte: 'habitude', code: 'site' }, { sorte: 'habitude', code: 'plan' }],
   moment([], '17:00', { usage: { plan: 3, site: 5, carte: 1 } }));
-dit('... sans habitude : le paiement Mobile Money et le wifi ; sans wifi regle, le paiement seul', [['kkiapay', 'wifi'], ['kkiapay']], [
+dit('... sans habitude : Payer par MTN et le wifi ; sans wifi regle, le paiement seul', [['mtn', 'wifi'], ['mtn']], [
   moment([], '17:00').map((s) => (s as { code: string }).code),
   moment([], '17:00', { prets: TOUS.filter((c) => c !== 'wifi') }).map((s) => (s as { code: string }).code)]);
 dit('les plus montres d abord, a egalite l ordre de la page', ['b', 'c', 'a', 'd'], ordreParUsage(['a', 'b', 'c', 'd'], { b: 4, c: 4, a: 1 }));
@@ -103,7 +105,7 @@ dit('KkiaPay est dans la liste des moyens, une fois, juste apres MoMo Prive', [1
     r('2026-10-22', '15:00', 'annulé', 10_000),    // annule : rien
   ];
   dit('une cliente : son reste (honore seulement), son prochain rendez-vous, Ma Couronne, l avis de la venue du jour', [
-    { code: 'kkiapay', raison: 'reste', resteXof: 25_000 }, { code: 'momo', raison: 'reste', resteXof: 25_000 },
+    { code: 'momo', raison: 'reste', resteXof: 25_000 },
     { code: 'plan', raison: 'rendez-vous', date: '2026-10-28', time: '10:00' },
     { code: 'couronne', raison: 'sans-couronne' }, { code: 'avis', raison: 'venue-recente', date: JOUR },
   ], besoinsDeLaCliente({ rdvs: sesRdvs, aCouronne: false, aujourdhui: JOUR, minutes: 14 * 60, prets: tous }));
@@ -116,10 +118,10 @@ dit('KkiaPay est dans la liste des moyens, une fois, juste apres MoMo Prive', [1
   ]);
   dit('rien qui presse : compte deja la, rien du, derniere venue il y a 30 jours', [],
     besoinsDeLaCliente({ rdvs: [r('2026-09-24', '10:00', 'honoré')], aCouronne: true, aujourdhui: JOUR, minutes: 600, prets: tous }));
-  dit('un code qui n est pas pret ne se propose pas (ni MoMoPay ni avis)', ['kkiapay', 'couronne'],
-    besoinsDeLaCliente({ rdvs: sesRdvs, aCouronne: false, aujourdhui: JOUR, minutes: 600, prets: new Set<IdDuCode>(['kkiapay', 'couronne']) }).map((x) => x.code));
-  dit('ses autres codes : les codes des clientes moins ses besoins, jamais le code du jour', ['wifi', 'site', 'carte', 'couronne', 'avis', 'academie'],
-    autresCodesDeLaCliente([{ code: 'kkiapay', raison: 'reste', resteXof: 1 }, { code: 'momo', raison: 'reste', resteXof: 1 }, { code: 'plan', raison: 'rendez-vous', date: JOUR, time: '16:00' }], tous));
+  dit('un code qui n est pas pret ne se propose pas (ni MoMoPay ni avis)', ['couronne'],
+    besoinsDeLaCliente({ rdvs: sesRdvs, aCouronne: false, aujourdhui: JOUR, minutes: 600, prets: new Set<IdDuCode>(['mtn', 'couronne']) }).map((x) => x.code));
+  dit('ses autres codes : les codes des clientes moins ses besoins, jamais le code du jour', ['mtn', 'wifi', 'site', 'carte', 'couronne', 'avis', 'academie'],
+    autresCodesDeLaCliente([{ code: 'momo', raison: 'reste', resteXof: 1 }, { code: 'plan', raison: 'rendez-vous', date: JOUR, time: '16:00' }], tous));
   dit('le code du jour n est jamais aux clientes ; le wifi ne s envoie pas', [false, false, false, true],
     [CODES_DES_CLIENTES.includes('jour'), CODES_ENVOYABLES.includes('jour'), CODES_ENVOYABLES.includes('wifi'), CODES_DES_CLIENTES.includes('wifi')]);
 }
@@ -145,10 +147,10 @@ dit('l itineraire part par WhatsApp sur SON numero, sans date dans le message', 
 
 /* ── Encaisser ────────────────────────────────────────────────────────── */
 const enc = sansCommentaires('src/apps/trone/routes/clients/actions.tsx');
-dit('la tuile KkiaPay ecrit le moyen KkiaPay', [true, true],
-  [enc.includes("{ id: 'kkiapay', nom: 'KkiaPay', sous: 'QR Chap Chap, tous réseaux' }"), enc.includes("case 'kkiapay': return methods.find((m) => familleDuMoyen(m) === 'kkiapay') ?? MOYEN_KKIAPAY;")]);
-dit('le QR montre a la cliente suit le moyen : MoMoPay pour MTN, KkiaPay pour KkiaPay', [true, true, true],
-  [enc.includes("(p.tuile === 'momo' || p.tuile === 'kkiapay') && !p.mnd"), /if \(t === 'kkiapay'\) \{ return \{ titre: 'Régler par KkiaPay\.'.*?valeur: LIEN_CHAPCHAP \};/.test(enc), enc.includes('valeur: cfg.momoQr || MOMO_QR_DEFAUT')]);
+dit('plus de tuile KkiaPay a l encaissement (12 novembre 2026) ; une ecriture d avant garde son moyen KkiaPay', [false, true],
+  [/nom: 'KkiaPay'/.test(enc), enc.includes("case 'kkiapay': return methods.find((m) => familleDuMoyen(m) === 'kkiapay') ?? MOYEN_KKIAPAY;")]);
+dit('le QR montre a la cliente : MoMoPay seulement, quand MoMoPay est le moyen de la part', [true, false, true],
+  [enc.includes("p.tuile === 'momo' && !p.mnd"), enc.includes('LIEN_CHAPCHAP'), enc.includes('valeur: cfg.momoQr || MOMO_QR_DEFAUT')]);
 const comptoir = sansCommentaires('src/apps/trone/routes/clients/AuComptoir.tsx');
 dit('le plein ecran passe par-dessus Encaisser, et Echap ne ferme que lui', [true, true, true],
   [comptoir.includes('return createPortal('), comptoir.includes("window.addEventListener('keydown', surTouche, true)"), comptoir.includes('e.stopPropagation(); onClose();')]);

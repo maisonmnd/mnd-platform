@@ -1,7 +1,6 @@
 import { asset } from '../../../../shared/asset';
 import { useBranch } from '../../../../shared/branches';
 import { useStore } from '../../../../shared/store';
-import { LIEN_CHAPCHAP } from '../../../../shared/kkiapay-chapchap-pur';
 import { autoConfigStore, MOMO_MARCHAND_DEFAUT, MOMO_USSD_DEFAUT, REVIEW_LINK_DEFAUT } from '../equipe/data';
 
 /* ══ LES LIENS DES QR CODES, UNE SEULE SOURCE — 12 novembre 2026 ═════════
@@ -25,7 +24,6 @@ export const lienMaCouronne = () =>
   `${window.location.origin}${window.location.pathname.startsWith('/trone') ? '/couronne/' : '/couronne.html'}`;
 
 export type LiensDesQrCodes = {
-  lienChapchap: string;
   /** Le QR fixe du comptoir « Régler par MTN » (11 novembre 2026). */
   lienComptoirMtn: string;
   /** La page payer.html au marchand ; ne s'envoie que si `codeMarchand` est lu. */
@@ -97,7 +95,7 @@ export function useLiensDesQrCodes(): LiensDesQrCodes {
   ).href;
 
   return {
-    lienChapchap: LIEN_CHAPCHAP, lienComptoirMtn,
+    lienComptoirMtn,
     lienMomo: momo.href, codeMarchand, momoUssd, momoMarchand,
     lienSite, lienCarte, lienPlan, planPrecis: !!branch.mapsUrl?.trim(), adresseComplete,
     lienCouronne: lienMaCouronne(), lienAvis, lienAcademie,

@@ -22,7 +22,10 @@
    Pur : ni magasin ni horloge. L'écran passe le jour, la minute et les
    rendez-vous déjà lus ; `verifie-les-codes-du-moment` le rejoue. */
 
-export type IdDuCode = 'site' | 'carte' | 'plan' | 'wifi' | 'mtn' | 'momo' | 'kkiapay' | 'avis' | 'couronne' | 'academie' | 'jour';
+/* « kkiapay » (le QR Chap Chap) est retiré le 12 novembre 2026 (« Le choix du
+   moyen ») : il se pointait à la main. « Payer par MTN » (le QR du comptoir)
+   prend sa place en tête du paiement. */
+export type IdDuCode = 'site' | 'carte' | 'plan' | 'wifi' | 'mtn' | 'momo' | 'avis' | 'couronne' | 'academie' | 'jour';
 
 export type RdvDuMoment = {
   id: string;
@@ -68,7 +71,7 @@ export const CODE_DU_JOUR_AVANT_OUVERTURE_MIN = 90;
 export const CODE_DU_JOUR_APRES_OUVERTURE_MIN = 120;
 export const AU_PLUS = 4;
 /** Sans moment ni habitude : le paiement et le wifi. */
-export const PAR_DEFAUT: readonly IdDuCode[] = ['kkiapay', 'wifi'];
+export const PAR_DEFAUT: readonly IdDuCode[] = ['mtn', 'wifi'];
 
 /** « 14:20 » → 860. Illisible : NaN, et le rendez-vous ne propose rien. */
 export const minutesDe = (hhmm: string): number => {
@@ -106,7 +109,7 @@ export function codesDuMoment(o: {
     .map((a) => ({ a, debut: minutesDe(a.time), fin: minutesDe(a.time) + Math.max(0, a.dureeMin || 0) }))
     .filter((x) => Number.isFinite(x.debut));
 
-  const payer: Suggestion[] = (o.prets.has('kkiapay') || o.prets.has('momo'))
+  const payer: Suggestion[] = (o.prets.has('mtn') || o.prets.has('momo'))
     ? duJour
       .filter(({ a, debut, fin }) => a.resteXof > 0 && debut <= m && m >= fin - FIN_PROCHE_MIN && m <= fin + PAYER_APRES_MIN)
       .sort((x, y) => x.fin - y.fin)
@@ -164,22 +167,22 @@ export function codesDuMoment(o: {
    Le bandeau montre d'abord LES CODES DES CLIENTES, jamais le code du jour
    (celui de l'équipe). Une cliente choisie, il met devant ce dont ELLE a
    besoin, lu sur ses rendez-vous :
-     · un reste à régler (rituels honorés, ou du jour) : KkiaPay et MoMoPay,
-       au montant ;
+     · un reste à régler (rituels honorés, ou du jour) : MoMoPay, au montant
+       (KkiaPay Chap Chap retiré le 12 novembre 2026) ;
      · un prochain rendez-vous : l'itinéraire, sa date dite ;
      · pas encore de compte : Ma Couronne ;
      · une venue honorée ces quatorze derniers jours : l'avis Google.
    Tout code qui a un lien s'envoie ; le wifi, non : ses mots de passe
    s'affichent au comptoir le temps d'un scan (18 août 2026). Un rendez-vous
    passé jamais honoré ne crée pas de dette : c'est souvent une absence. */
-export const CODES_DES_CLIENTES: readonly IdDuCode[] = ['kkiapay', 'momo', 'wifi', 'site', 'carte', 'plan', 'couronne', 'avis', 'academie'];
-export const CODES_ENVOYABLES: readonly IdDuCode[] = ['kkiapay', 'momo', 'site', 'carte', 'plan', 'couronne', 'avis', 'academie'];
+export const CODES_DES_CLIENTES: readonly IdDuCode[] = ['mtn', 'momo', 'wifi', 'site', 'carte', 'plan', 'couronne', 'avis', 'academie'];
+export const CODES_ENVOYABLES: readonly IdDuCode[] = ['momo', 'site', 'carte', 'plan', 'couronne', 'avis', 'academie'];
 export const AVIS_SOUS_JOURS = 14;
 
 export type RdvDeLaCliente = { date: string; time: string; status: string; resteXof: number };
 
 export type Besoin =
-  | { code: 'kkiapay' | 'momo'; raison: 'reste'; resteXof: number }
+  | { code: 'momo'; raison: 'reste'; resteXof: number }
   | { code: 'plan'; raison: 'rendez-vous'; date: string; time: string }
   | { code: 'couronne'; raison: 'sans-couronne' }
   | { code: 'avis'; raison: 'venue-recente'; date: string };
@@ -206,7 +209,6 @@ export function besoinsDeLaCliente(o: {
   const derniere = vivants.filter((a) => a.status === 'honoré' && a.date <= o.aujourdhui).map((a) => a.date).sort().pop();
   const out: Besoin[] = [];
   if (reste > 0) {
-    if (o.prets.has('kkiapay')) out.push({ code: 'kkiapay', raison: 'reste', resteXof: reste });
     if (o.prets.has('momo')) out.push({ code: 'momo', raison: 'reste', resteXof: reste });
   }
   if (prochain && o.prets.has('plan')) out.push({ code: 'plan', raison: 'rendez-vous', date: prochain.date, time: prochain.time });

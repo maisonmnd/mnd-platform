@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Input } from '../../../../ds/components';
 import { fmtMoney } from '../../../../shared/currency';
 import { estUnNumeroMtn, msisdnDe, raisonDiteALaCliente } from '../../../../shared/collecte-mtn-pur';
-import { demandeDuTrone, statutDeLaCollecte } from '../finances/collecte-mtn';
+import { SANS_SERVEUR, demandeDuTrone, statutDeLaCollecte } from '../finances/collecte-mtn';
 
 /* ══ « PAYER PAR MTN » DANS LA FENÊTRE ENCAISSER — 11 novembre 2026 ═════
    « Il faut mettre Payer par MTN » (Yéman, devant « Encaisser le rituel »).
@@ -48,7 +48,13 @@ const numeroDeDepart = (tel: string | undefined): string => {
   return local.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
 };
 
-export function PayerParMtnAuTrone({ rdvId, telephone, resteXof, pourboireXof, currency, emetLaPiece, onRegle }: {
+/** LE CHOIX DU MOYEN (12 novembre 2026) : un serveur muet ou « indisponible »
+    est une panne, le choix passe alors à FedaPay ; « fermée » dit que le
+    règlement par MTN n'est pas ouvert. Un refus de la cliente n'est ni l'un
+    ni l'autre. */
+const PANNES_MTN = new Set(['indisponible', SANS_SERVEUR]);
+
+export function PayerParMtnAuTrone({ rdvId, telephone, resteXof, pourboireXof, currency, emetLaPiece, onRegle, onOccupe, onPanne, onFerme, onReussite }: {
   rdvId: string;
   telephone?: string;
   resteXof: number;
@@ -57,11 +63,18 @@ export function PayerParMtnAuTrone({ rdvId, telephone, resteXof, pourboireXof, c
   /** Émet la pièce du rendez-vous si elle manque ; faux quand elle ne peut pas naître. */
   emetLaPiece: () => { ok: boolean; erreur?: string };
   onRegle: () => void;
+  /** Une demande est partie (ou part) : on ne bascule plus. */
+  onOccupe?: (occupe: boolean) => void;
+  onPanne?: () => void;
+  onFerme?: () => void;
+  onReussite?: () => void;
 }) {
   const [numero, setNumero] = useState(() => numeroDeDepart(telephone));
   const [etat, setEtat] = useState<Etat>({ k: 'pret' });
   const vivant = useRef(true);
   useEffect(() => () => { vivant.current = false; }, []);
+  const occupeLa = etat.k === 'piece' || etat.k === 'envoi' || etat.k === 'attente' || etat.k === 'delai' || etat.k === 'recu';
+  useEffect(() => { onOccupe?.(occupeLa); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [occupeLa]);
 
   const lu = msisdnDe(numero);
   const mtn = !!lu && estUnNumeroMtn(lu);
@@ -90,13 +103,19 @@ export function PayerParMtnAuTrone({ rdvId, telephone, resteXof, pourboireXof, c
       const r = await demandeDuTrone(rdvId, lu, pourboireXof);
       if (!vivant.current) return;
       if (r.reference) {
+        onReussite?.();
         if (r.etat === 'refuse') { setEtat({ k: 'refuse', dit: raisonDiteALaCliente(r.raison) }); return; }
         setEtat({ k: 'attente', reference: r.reference, montantXof: r.montantXof ?? total });
         void relis(r.reference);
         return;
       }
       const code = r.erreur ?? '';
-      if (code !== 'sans_piece' && code !== 'introuvable') { setEtat({ k: 'erreur', dit: ERREURS[code] ?? code ?? 'La demande n’a pas pu partir.' }); return; }
+      if (code !== 'sans_piece' && code !== 'introuvable') {
+        setEtat({ k: 'erreur', dit: ERREURS[code] ?? code ?? 'La demande n’a pas pu partir.' });
+        if (PANNES_MTN.has(code)) onPanne?.();
+        if (code === 'fermee') onFerme?.();
+        return;
+      }
       setEtat({ k: 'envoi' });
       await new Promise((ok) => window.setTimeout(ok, ATTENTE_PIECE_MS));
     }

@@ -261,7 +261,7 @@ dit('le code à composer porte le code de la Maison et le montant', ['*601*14*51
 dit('la tuile attend un mnd-pay qui sait Tap & Go (version comparée)', [false, false, true, true],
   ['', '2026-10-16-a', '2026-10-17-a', '2026-11-02-a'].map(saitTapGo));
 dit('le panneau ne montre la tuile qu à un serveur prêt', true,
-  /const moyens = MOYENS\.filter\(\(x\) => x\.id !== 'tapgo' \|\| \(tapGoOuvert\(p\.reglages\) && tapGoPret\)\);/.test(lis('src/apps/trone/routes/vente/MndPay.tsx')));
+  /const moyens = MOYENS\.filter\(\(x\) => \(x\.id !== 'tapgo' \|\| \(tapGoOuvert\(p\.reglages\) && tapGoPret\)\) && \(!p\.moyensPermis \|\| p\.moyensPermis\.includes\(x\.id\)\)\);/.test(lis('src/apps/trone/routes/vente/MndPay.tsx')));
 dit('Tap & Go s offre avec MND PAY, sauf éteint', [true, true, false], [tapGoOuvert(undefined), tapGoOuvert({ tapgo: {} }), tapGoOuvert({ tapgo: { actif: false } })]);
 dit('sa commission : 1,6 % par défaut, au franc supérieur, réglable', [1.6, 400, 2, 500], [tauxDe('tapgo', undefined), fraisPour(25_000, 'tapgo', undefined),
   tauxDe('tapgo', { tapgo: { tauxPct: 2 } }), fraisPour(25_000, 'tapgo', { tapgo: { tauxPct: 2 } })]);

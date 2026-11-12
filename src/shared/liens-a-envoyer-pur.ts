@@ -112,9 +112,12 @@ export function messageDuLienAEnvoyer(site: string, cle: CleDuLien, appel = ''):
    endroit (`routes/clients/liens-des-qr-codes.ts`), pour la page QR codes et
    pour cette fenêtre. Ici, seulement leurs mots.
    Le wifi et le code du jour n'y sont pas, exprès (18 août 2026) : un mot de
-   passe et un code de pointage ne voyagent pas dans une conversation. */
+   passe et un code de pointage ne voyagent pas dans une conversation.
+   Le lien Chap Chap de KkiaPay non plus, depuis le même jour (« Le choix du
+   moyen », 12 novembre 2026) : il se pointait à la main ; « Payer par MTN »
+   et Tap & Go le remplacent et se confirment seuls. */
 
-export type CleDuQr = 'mtn' | 'kkiapay' | 'momo' | 'site' | 'carte' | 'plan' | 'couronne' | 'avis' | 'academie';
+export type CleDuQr = 'mtn' | 'momo' | 'site' | 'carte' | 'plan' | 'couronne' | 'avis' | 'academie';
 export type LienDuQr = { cle: CleDuQr; nom: string; sous: string; objet: string; suite: string };
 
 export const GROUPE_DES_QR_CODES = 'Les liens des QR codes';
@@ -124,8 +127,6 @@ const REGLER = 'Saisissez le montant en francs, puis validez sur votre télépho
 export const LIENS_DES_QR_CODES: readonly LienDuQr[] = [
   { cle: 'mtn', nom: 'Payer par MTN', sous: 'son numéro MTN, son rendez-vous du jour',
     objet: 'le lien pour régler par MTN', suite: 'Tapez votre numéro MTN : votre rendez-vous s’affiche. Validez ensuite sur votre téléphone, sans frais pour vous.' },
-  { cle: 'kkiapay', nom: 'Payer par KkiaPay', sous: 'tous réseaux, avec l’appareil photo',
-    objet: 'le lien pour régler par KkiaPay', suite: `MTN MoMo, Moov Money ou Celtiis Cash. ${REGLER}` },
   { cle: 'momo', nom: 'Payer par MoMoPay', sous: 'MTN seulement',
     objet: 'le lien pour régler par MoMo', suite: REGLER },
   { cle: 'site', nom: 'Le site de la Maison', sous: 'nos gestes, nos parcours, le rendez-vous',

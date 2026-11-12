@@ -28,7 +28,8 @@ export type EssaiDuCompte = LectureDuCompte & {
   numeroIllisible?: boolean;
 };
 
-const SANS_SERVEUR = 'La fonction collecte-mtn ne répond pas (est-elle posée dans Supabase ?).';
+/** Exporté pour le choix du moyen (12 novembre 2026) : ce silence est une panne. */
+export const SANS_SERVEUR = 'La fonction collecte-mtn ne répond pas (est-elle posée dans Supabase ?).';
 
 type Reponse<T> = Partial<T> & { erreur?: string };
 export async function appelleLaCollecte<T extends object>(corps: Record<string, unknown>): Promise<Reponse<T>> {
