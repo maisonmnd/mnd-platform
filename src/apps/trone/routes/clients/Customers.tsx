@@ -86,6 +86,8 @@ import FichesDeSoin from './FichesDeSoin';
 import { ChampDeDate, DateEnClair } from '../../../../ds/dates';
 import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
+import { LIBELLE_PARENTAL } from '../../../../shared/voix-du-numero-pur';
+import LiensAEnvoyer from '../../shell/LiensAEnvoyer';
 import { CIVILITES, civiliteNotee, estMuette, ficheAvecCivilite, prenomDevine, type Civilite } from '../../../../shared/civilite';
 
 /* Customers — le CRM 360 : recherche, tri, indicateurs, segments, persona attribué,
@@ -2223,6 +2225,14 @@ function Customer360({
      boutons ; on la range en quatre panneaux focalisés, faciles à parcourir. */
   const [tab, setTab] = useState<C360Tab>('apercu');
   const [bookOpen, setBookOpen] = useState(false);
+  /* LE LIEN DE RÉSERVATION DEPUIS SA FICHE (12 novembre 2026) : la fenêtre
+     des liens à envoyer, son appel et son numéro déjà remplis. Une fiche
+     d'enfant ne prête pas son prénom au numéro d'un parent (règle du
+     4 novembre 2026, `voix-du-numero-pur`) : le message dit « Bonjour, » et
+     la fenêtre s'ouvre sur MND Kids. */
+  const [liensOuverts, setLiensOuverts] = useState(false);
+  const ficheDEnfant = estMineur(client, todayISO()) || LIBELLE_PARENTAL.test(client.phoneNom ?? '');
+  const appelDuLien = ficheDEnfant ? '' : appelDe(client);
   const [photoBusy, setPhotoBusy] = useState(false);
   /* ══ LA PHOTO SE CHANGE ET SE RETIRE AU MÊME ENDROIT — 11 sept. 2026 ══
      « Avoir la possibilité de supprimer les photos sur le profil des clients
@@ -3121,6 +3131,17 @@ function Customer360({
               ) : (
                 <button type="button" className="trc-cover-act trc-cover-act--off" title="Ajoutez une ville dans l’identité" onClick={() => { setTab('profil'); focusField('c360-city'); }}>Itinéraire</button>
               )}
+
+              {/* LE LIEN DE RÉSERVATION (12 novembre 2026) : les parcours du
+                  site et le chemin du salon, par WhatsApp ou par l'App. */}
+              <button
+                type="button"
+                className="trc-cover-act trc-cover-act--btn"
+                title="Envoyer un lien pour réserver, ou le chemin du salon"
+                onClick={() => setLiensOuverts(true)}
+              >
+                Lien de réservation
+              </button>
             </div>
           </div>
         </div>
@@ -5856,6 +5877,14 @@ function Customer360({
       </div>
 
       {bookOpen && <RdvModal onClose={() => setBookOpen(false)} initial={{ clientId: client.id }} title={`Rendez-vous · ${client.name.split(' ')[0]}.`} />}
+      {liensOuverts && (
+        <LiensAEnvoyer
+          appel={appelDuLien === 'Madame, Monsieur' ? '' : appelDuLien}
+          numero={client.phone ?? ''}
+          choisi={ficheDEnfant ? 'enfant' : 'tout'}
+          surFermer={() => setLiensOuverts(false)}
+        />
+      )}
       {adjust && <RdvModal onClose={() => setAdjust(null)} initial={adjust} title={`Rendez-vous · ${client.name.split(' ')[0]}.`} />}
       {editAppt && <RdvModal onClose={() => setEditAppt(null)} appt={editAppt} />}
       {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}

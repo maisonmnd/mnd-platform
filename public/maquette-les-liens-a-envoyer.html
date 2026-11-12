@@ -1,0 +1,559 @@
+<title>Les liens à envoyer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=EB+Garamond:wght@400&family=Jost:wght@300;400;500;600&display=swap">
+<style>
+/* LES LIENS À ENVOYER — maquette du 12 novembre 2026.
+   « Peux-tu designer quelque part dans le Trône où j'accède rapidement à ces
+   liens que je peux envoyer par WhatsApp app directement », puis « rajouter
+   à côté de WhatsApp, app aussi » (Yéman).
+   Mise en page : un bandeau indigo, puis le geste en deux temps côte à côte
+   (le menu Créer, la fenêtre), puis les deux portes, puis ce qui est tranché.
+   Charte Maison MND : indigo pour les surfaces sombres, ivoire, cuivre en
+   accent seulement (boutons, filets), Cormorant Garamond 300 + Jost (EB
+   Garamond pour les seules lettres fon), rayons 2 à 4 px, pas d'émoji. */
+:root {
+  --fond: #F6F1E7;
+  --surface: #FFFDF8;
+  --encre: #1E2150;
+  --texte: #23243A;
+  --doux: #55566A;
+  --filet: rgba(30, 33, 80, .14);
+  --filet-fort: rgba(30, 33, 80, .30);
+  --bande: #1E2150;
+  --sur-bande: #F6F1E7;
+  --sur-bande-doux: #A7ACC9;
+  --pale: #EDEEF4;
+  --cuivre: #B97A4A;
+  --cuivre-plein: #9E6238;
+  --cuivre-pale: #FAF1E9;
+  --cuivre-icone: #7C4C2C;
+  --sur-cuivre: #FFFFFF;
+  --ombre: 0 18px 44px rgba(20, 22, 58, .16);
+  --serif: "Cormorant Garamond", "EB Garamond", Georgia, serif;
+  --sans: "Jost", "EB Garamond", "Futura", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fond: #14163A; --surface: #1C1F4A;
+    --encre: #F1EBDD; --texte: #E6E0D3; --doux: #A7ACC9;
+    --filet: rgba(246, 241, 231, .13); --filet-fort: rgba(246, 241, 231, .28);
+    --bande: #262A63; --sur-bande: #F6F1E7; --sur-bande-doux: #B5B9D6;
+    --pale: #272B5E; --cuivre: #C98A58; --cuivre-plein: #B97A4A;
+    --cuivre-pale: rgba(201, 138, 88, .16); --cuivre-icone: #E2B48A; --sur-cuivre: #FFFFFF;
+    --ombre: 0 18px 44px rgba(0, 0, 0, .40);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --fond: #14163A; --surface: #1C1F4A;
+  --encre: #F1EBDD; --texte: #E6E0D3; --doux: #A7ACC9;
+  --filet: rgba(246, 241, 231, .13); --filet-fort: rgba(246, 241, 231, .28);
+  --bande: #262A63; --sur-bande: #F6F1E7; --sur-bande-doux: #B5B9D6;
+  --pale: #272B5E; --cuivre: #C98A58; --cuivre-plein: #B97A4A;
+  --cuivre-pale: rgba(201, 138, 88, .16); --cuivre-icone: #E2B48A; --sur-cuivre: #FFFFFF;
+  --ombre: 0 18px 44px rgba(0, 0, 0, .40);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 400 15px/1.6 var(--sans); font-variant-numeric: lining-nums tabular-nums; }
+.int { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); min-width: 0; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 300; color: var(--encre); margin: 0; line-height: 1.1; text-wrap: balance; }
+h1 { font-size: clamp(40px, 7vw, 62px); color: var(--sur-bande); }
+h2 { font-size: clamp(28px, 4vw, 36px); }
+h3 { font-size: 24px; }
+p { margin: 0; max-width: 64ch; }
+ul { margin: 0; padding: 0; list-style: none; }
+button, input { font: inherit; color: inherit; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.sur { font: 600 11px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--doux); }
+.sections { display: flex; flex-direction: column; gap: 60px; padding-block: 44px 72px; }
+section { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.tete { display: flex; flex-direction: column; gap: 8px; }
+.tete p { font-size: 16px; color: var(--doux); }
+
+/* ── Le bandeau ── */
+.hero { background: var(--bande); color: var(--sur-bande); position: relative; }
+.hero::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--cuivre); }
+.hero .int { padding-block: 44px 38px; display: flex; flex-direction: column; gap: 18px; }
+.hero .sur { color: var(--sur-bande-doux); }
+.hero p { color: var(--sur-bande-doux); font-size: 17px; max-width: 56ch; }
+.hero p b { color: var(--sur-bande); font-weight: 500; }
+.sommaire { display: flex; flex-wrap: wrap; gap: 8px; }
+.sommaire a { border: 1px solid rgba(246, 241, 231, .3); border-radius: 999px; padding: 6px 14px; font-size: 13px; color: var(--sur-bande); text-decoration: none; }
+.sommaire a:hover { background: rgba(246, 241, 231, .1); }
+
+/* ── Le geste : deux colonnes ── */
+.demo { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 860px) { .demo { grid-template-columns: minmax(0, 1fr); } }
+.colonne { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.etape { font-size: 13px; color: var(--doux); }
+.etape b { color: var(--encre); font-weight: 500; }
+
+/* La barre du haut du Trône (indigo dans les deux thèmes) */
+.barre { display: flex; align-items: center; gap: 10px; background: var(--bande); border-radius: 4px; padding: 9px 10px 9px 14px; min-width: 0; }
+.barre__cherche { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; background: rgba(246, 241, 231, .1); border: 1px solid rgba(246, 241, 231, .2); border-radius: 4px; padding: 7px 10px; color: var(--sur-bande-doux); font-size: 13px; white-space: nowrap; overflow: hidden; }
+.barre__cherche svg { flex: none; }
+.creer { display: inline-flex; align-items: center; gap: 7px; flex: none; background: var(--cuivre); color: var(--sur-cuivre); border: 0; border-radius: 4px; padding: 8px 14px; font: 600 12.5px var(--sans); letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
+.creer:hover { background: var(--cuivre-plein); }
+
+/* Le menu Créer */
+.menu { background: var(--surface); border: 1px solid var(--filet-fort); border-radius: 4px; box-shadow: var(--ombre); padding: 6px; animation: monte .14s ease; }
+@keyframes monte { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.menu__groupe { font: 600 10px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--doux); padding: 10px 10px 4px; }
+.item { display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; border: 0; background: none; border-radius: 4px; padding: 9px 10px; cursor: pointer; }
+.item:hover { background: var(--pale); }
+.item .ic { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 4px; background: var(--cuivre-pale); color: var(--cuivre-icone); flex: none; }
+.item .txt { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.item .txt b { font-weight: 500; color: var(--encre); font-size: 14px; }
+.item .txt span { font-size: 12px; color: var(--doux); }
+.item--neuf { background: var(--pale); box-shadow: inset 2px 0 0 var(--cuivre); }
+.marque { font: 600 9.5px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--encre); border: 1px solid var(--cuivre); border-radius: 2px; padding: 1px 6px; flex: none; }
+.menu__reste { font-size: 12px; color: var(--doux); padding: 8px 10px 6px; border-top: 1px solid var(--filet); margin-top: 6px; }
+
+/* La fiche d'une cliente (l'autre entrée) */
+.fiche { background: var(--surface); border: 1px solid var(--filet); border-radius: 4px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.fiche__nom { font-family: var(--serif); font-size: 24px; color: var(--encre); line-height: 1.1; }
+.fiche__sous { font-size: 12.5px; color: var(--doux); }
+.fiche__gestes { display: flex; flex-wrap: wrap; gap: 6px; }
+.fiche__geste { border: 1px solid var(--filet-fort); background: none; border-radius: 3px; padding: 6px 10px; font-size: 12.5px; color: var(--encre); cursor: pointer; }
+.fiche__geste--neuf { border-color: var(--cuivre); box-shadow: inset 0 -2px 0 var(--cuivre); }
+.fiche__geste:hover { background: var(--pale); }
+
+/* La fenêtre */
+.fenetre { background: var(--surface); border: 1px solid var(--filet-fort); border-radius: 4px; box-shadow: var(--ombre); padding: 20px; display: flex; flex-direction: column; gap: 16px; min-width: 0; transition: box-shadow .3s; }
+.fenetre.eclaire { box-shadow: 0 0 0 2px var(--cuivre), var(--ombre); }
+.fenetre__tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.fermer { border: 0; background: none; color: var(--doux); width: 32px; height: 32px; border-radius: 4px; cursor: pointer; display: inline-grid; place-items: center; flex: none; }
+.fermer:hover { background: var(--pale); }
+.champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.champ { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.champ label { font-size: 12.5px; color: var(--doux); }
+.champ input { width: 100%; min-width: 0; background: var(--fond); border: 1px solid var(--filet-fort); border-radius: 3px; padding: 9px 11px; font-size: 14.5px; color: var(--texte); }
+.champ input::placeholder { color: var(--doux); opacity: .7; }
+.aide { font-size: 12.5px; color: var(--doux); margin-top: -6px; }
+
+.liens { display: flex; flex-direction: column; border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; }
+.liens__groupe { font: 600 10px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--doux); padding: 10px 12px 4px; background: var(--fond); }
+.lien { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 9px 8px 9px 12px; border-top: 1px solid var(--filet); min-width: 0; }
+.liens__groupe + .lien { border-top: 0; }
+.lien.choisi { background: var(--pale); box-shadow: inset 2px 0 0 var(--cuivre); }
+.lien__choix { flex: 1 1 210px; min-width: 0; border: 0; background: none; text-align: left; cursor: pointer; padding: 2px 0; display: flex; flex-direction: column; gap: 1px; }
+.lien__choix b { font-weight: 500; color: var(--encre); font-size: 14.5px; }
+.lien__choix span { font-size: 12px; color: var(--doux); }
+.lien__choix .adresse { font-size: 11.5px; opacity: .85; overflow-wrap: anywhere; }
+.lien__gestes { display: flex; gap: 6px; margin-left: auto; flex: none; }
+.copier { display: inline-grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--filet-fort); background: var(--surface); color: var(--encre); border-radius: 4px; cursor: pointer; }
+.copier:hover { background: var(--pale); }
+.copier.fait { border-color: var(--cuivre); }
+.porte { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 4px; font: 600 12px var(--sans); letter-spacing: .05em; text-transform: uppercase; text-decoration: none; cursor: pointer; white-space: nowrap; }
+.porte--trone { background: var(--cuivre); color: var(--sur-cuivre); border: 0; }
+.porte--trone:hover { background: var(--cuivre-plein); }
+.porte--trone[aria-disabled="true"] { background: var(--filet); color: var(--doux); cursor: not-allowed; }
+.porte--app { background: var(--surface); color: var(--encre); border: 1px solid var(--cuivre); }
+.porte--app:hover { background: var(--cuivre-pale); }
+
+.statut { font-size: 13px; color: var(--encre); background: var(--pale); border-radius: 3px; padding: 9px 12px; }
+.apercu { display: flex; flex-direction: column; gap: 6px; }
+.apercu pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 400 14px/1.55 var(--sans); color: var(--texte); background: var(--fond); border: 1px solid var(--filet); border-left: 2px solid var(--cuivre); border-radius: 3px; padding: 12px 14px; }
+.legende { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; font-size: 12.5px; color: var(--doux); align-items: baseline; }
+.legende b { font: 600 10.5px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--encre); }
+.ferme { border: 1px dashed var(--filet-fort); border-radius: 4px; padding: 28px 20px; text-align: center; color: var(--doux); font-size: 14px; }
+
+/* ── Les deux portes ── */
+.deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.liste { background: var(--surface); border: 1px solid var(--filet); border-radius: 4px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.liste h3 { font-size: 23px; }
+.liste .chapeau { font-size: 13px; color: var(--doux); margin-top: -6px; }
+.liste li { position: relative; padding-left: 16px; font-size: 14.5px; }
+.liste li + li { margin-top: 8px; }
+.liste li::before { content: ""; position: absolute; left: 0; top: .72em; width: 7px; height: 1px; background: var(--cuivre); }
+.liste li b { font-weight: 500; color: var(--encre); }
+.pourquoi { border-left: 2px solid var(--cuivre); padding: 4px 0 4px 18px; display: flex; flex-direction: column; gap: 8px; }
+.pourquoi h3 { font-size: 22px; }
+.pourquoi p { font-size: 15px; color: var(--doux); }
+
+/* ── Tranché ── */
+.arbitrages { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.arb { background: var(--surface); border: 1px solid var(--filet); border-radius: 4px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.arb h3 { font-size: 21px; }
+.arb p { font-size: 14px; }
+.arb p b { font-weight: 500; color: var(--encre); }
+.pied { font-size: 12.5px; color: var(--doux); border-top: 1px solid var(--filet); padding-top: 16px; }
+</style>
+
+<header class="hero">
+  <div class="int">
+    <p class="sur">Maquette du Trône · 12 novembre 2026</p>
+    <h1>Les liens à envoyer</h1>
+    <p>Une cliente vous demande le lien pour réserver, ou le chemin du salon. <b>Depuis n’importe quel écran du Trône, ou depuis sa fiche</b>, une fenêtre donne les liens du site et ceux des QR codes. Chacun part par l’une des deux portes : <b>WhatsApp</b>, dans le Trône, ou <b>App</b>, l’application de votre téléphone.</p>
+    <nav class="sommaire" aria-label="Sommaire">
+      <a href="#geste">Le geste</a>
+      <a href="#portes">Les deux portes</a>
+      <a href="#tranche">Ce qui est tranché</a>
+    </nav>
+  </div>
+</header>
+
+<main class="int sections">
+
+  <section id="geste">
+    <div class="tete">
+      <p class="sur">Le geste</p>
+      <h2>Créer, puis le lien.</h2>
+      <p>Une ligne de plus dans le menu Créer, en tête de Clientèle, et un bouton sur la fiche de chaque cliente. Les deux ouvrent la même fenêtre. Tout fonctionne ici : « App » ouvre vraiment WhatsApp avec le message.</p>
+    </div>
+
+    <div class="demo">
+      <div class="colonne">
+        <p class="etape"><b>1.</b> La barre du haut, la même sur tous les écrans</p>
+        <div class="barre">
+          <div class="barre__cherche">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            Chercher une cliente, une facture…
+          </div>
+          <button class="creer" id="creer" type="button" aria-expanded="true" aria-controls="menu">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            Créer
+          </button>
+        </div>
+        <div class="menu" id="menu" role="menu" aria-label="Créer">
+          <div class="menu__groupe">Clientèle</div>
+          <button class="item item--neuf" id="ouvre-liens" type="button" role="menuitem">
+            <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+            <span class="txt"><b>Lien de réservation</b><span>réserver, ou venir au salon</span></span>
+            <span class="marque">Nouveau</span>
+          </button>
+          <button class="item" type="button" role="menuitem" tabindex="-1">
+            <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/></svg></span>
+            <span class="txt"><b>Rendez-vous</b><span>poser une venue au Carnet</span></span>
+          </button>
+          <button class="item" type="button" role="menuitem" tabindex="-1">
+            <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
+            <span class="txt"><b>Cliente</b><span>une nouvelle fiche</span></span>
+          </button>
+          <button class="item" type="button" role="menuitem" tabindex="-1">
+            <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg></span>
+            <span class="txt"><b>Appel reçu</b><span>noter un appel WhatsApp</span></span>
+          </button>
+          <p class="menu__reste">Argent, Comptoir et catalogue : inchangés.</p>
+        </div>
+
+        <p class="etape" style="margin-top: 10px"><b>Ou</b> depuis la fiche d’une cliente</p>
+        <div class="fiche">
+          <div>
+            <div class="fiche__nom">A. K.</div>
+            <div class="fiche__sous">Dernière venue le 28 octobre 2026 · Entretien</div>
+          </div>
+          <div class="fiche__gestes">
+            <button class="fiche__geste" type="button" tabindex="-1">Appeler</button>
+            <button class="fiche__geste" type="button" tabindex="-1">WhatsApp</button>
+            <button class="fiche__geste fiche__geste--neuf" id="depuis-fiche" type="button">Lien de réservation</button>
+          </div>
+          <p class="fiche__sous">Son prénom et son numéro arrivent déjà remplis.</p>
+        </div>
+      </div>
+
+      <div class="colonne">
+        <p class="etape"><b>2.</b> La fenêtre</p>
+        <div class="fenetre" id="fenetre" role="dialog" aria-labelledby="f-titre">
+          <div class="fenetre__tete">
+            <h3 id="f-titre">Un lien à envoyer.</h3>
+            <button class="fermer" id="fermer" type="button" aria-label="Fermer la fenêtre">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div class="champs">
+            <div class="champ">
+              <label for="prenom">Son prénom · facultatif</label>
+              <input id="prenom" type="text" autocomplete="off" value="Awa" placeholder="Awa">
+            </div>
+            <div class="champ">
+              <label for="numero">Son numéro · pour « WhatsApp »</label>
+              <input id="numero" type="tel" inputmode="tel" autocomplete="off" placeholder="01 97 00 00 00">
+            </div>
+          </div>
+          <p class="aide" id="aide">Sans numéro, « App » vous laisse choisir la conversation ; « WhatsApp » attend son numéro.</p>
+
+          <div class="liens" id="liens"></div>
+
+          <p class="statut" id="statut" hidden></p>
+
+          <div class="apercu">
+            <p class="sur" id="apercu-titre">Le message</p>
+            <pre id="message"></pre>
+          </div>
+          <div class="legende">
+            <b>WhatsApp</b><span>Conversations s’ouvre sur son fil, le message posé dans la zone de saisie. Il part du numéro de la Maison.</span>
+            <b>App</b><span>L’application WhatsApp de cet appareil s’ouvre, le message écrit. Il n’entre pas dans le fil de la Maison.</span>
+          </div>
+        </div>
+        <div class="ferme" id="ferme" hidden>Fenêtre fermée. Touchez « Lien de réservation » dans le menu Créer, ou sur la fiche, pour la rouvrir.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="portes">
+    <div class="tete">
+      <p class="sur">Les deux portes</p>
+      <h2>WhatsApp, ou App.</h2>
+      <p>Les mêmes mots que partout ailleurs dans le Trône, sur les factures comme sur les fiches.</p>
+    </div>
+    <div class="deux">
+      <div class="liste">
+        <h3>WhatsApp</h3>
+        <p class="chapeau">Dans le Trône, par le numéro de la Maison</p>
+        <ul>
+          <li><b>Conversations s’ouvre sur son fil</b>, le message déjà posé : vous le relisez, vous l’envoyez.</li>
+          <li><b>Il reste dans le fil de la Maison</b> : toute l’équipe voit ce qui est parti, et sa réponse arrive au Trône.</li>
+          <li><b>Il demande son numéro.</b> Sans numéro, le bouton reste gris.</li>
+          <li><b>Si elle n’a pas écrit depuis 24 heures</b>, Meta n’accepte pas un message libre : Conversations le dit. Passez alors par App, ou par le lien préparé de Conversations, qui part par un modèle approuvé.</li>
+        </ul>
+      </div>
+      <div class="liste">
+        <h3>App</h3>
+        <p class="chapeau">L’application WhatsApp de l’appareil en main</p>
+        <ul>
+          <li><b>Au téléphone, l’application ; à l’ordinateur, WhatsApp Web</b> ou l’application installée. Le message est écrit, le lien dedans.</li>
+          <li><b>Avec son numéro</b>, sa conversation s’ouvre directement. Sans numéro, WhatsApp vous laisse choisir.</li>
+          <li><b>Il part du WhatsApp de cet appareil</b>, pas du numéro de la Maison. La cliente voit ce numéro-là, et si elle répond, elle répond là.</li>
+          <li><b>Il n’entre pas dans Conversations.</b> WhatsApp ne dit rien au Trône de ce qu’on y envoie.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="pourquoi">
+      <h3>Ce qui ne change pas, quelle que soit la porte</h3>
+      <p>Les adresses sont écrites par le Trône depuis sa propre adresse : si le site change un jour de nom, les liens suivent. Quand elle réserve, tout se passe comme pour une réservation du site : le rendez-vous arrive au Carnet et la confirmation part du numéro de la Maison. La fenêtre ne coche ni gestes ni calibre ; pour une réservation préparée, le lien préparé de Conversations reste là, inchangé.</p>
+    </div>
+  </section>
+
+  <section id="tranche">
+    <div class="tete">
+      <p class="sur">Tranché le 12 novembre 2026</p>
+      <h2>Vos réponses.</h2>
+    </div>
+    <div class="arbitrages">
+      <article class="arb">
+        <h3>Où le ranger</h3>
+        <p><b>Dans le menu Créer</b>, en tête de Clientèle : sur tous les écrans, au téléphone comme à l’ordinateur.</p>
+      </article>
+      <article class="arb">
+        <h3>Sur sa fiche</h3>
+        <p><b>Oui, un bouton « Lien de réservation »</b> qui ouvre la même fenêtre, son prénom et son numéro déjà remplis.</p>
+      </article>
+      <article class="arb">
+        <h3>Quels liens</h3>
+        <p><b>Les cinq parcours et l’itinéraire</b> : la page « venir » du site, qui ouvre Google Maps sur la porte du salon.</p>
+      </article>
+      <article class="arb">
+        <h3>Le message</h3>
+        <p><b>Une phrase d’accueil, le lien, une phrase de suite</b>, signé de la Maison comme tout message du Trône.</p>
+      </article>
+      <article class="arb">
+        <h3>Les portes</h3>
+        <p><b>WhatsApp et App, côte à côte</b> sur chaque lien (« rajouter à côté de WhatsApp, app aussi »).</p>
+      </article>
+      <article class="arb">
+        <h3>Les QR codes</h3>
+        <p><b>Les neuf codes qui ont un lien</b>, lus à la même source que la page QR codes (« ajoute dans les liens la liste des liens des QR codes »). Ni le wifi ni le code du jour : un mot de passe et un code de pointage ne voyagent pas dans une conversation.</p>
+      </article>
+    </div>
+    <p class="pied">Maquette sans donnée de cliente : « Awa » et « A. K. » sont des exemples. Dans le Trône, l’adresse des liens vient de celle du Trône lui-même, jamais écrite à la main.</p>
+  </section>
+
+</main>
+
+<script>
+/* L'adresse du site. Au Trône, elle viendra de window.location.origin, comme
+   pour le lien préparé de Conversations : jamais écrite à la main. */
+const SITE = 'https://maisonmnd.com/';
+/* La signature que le Trône pose sous un message pré-écrit (signeLeMessage). */
+const SIGNATURE = '◈ Maison MND · mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là';
+
+const GROUPES = [
+  { titre: 'Réserver', liens: [
+    { k: 'tout', chemin: 'reserver/', nom: 'La réservation', sous: 'elle choisit son parcours sur le site',
+      objet: 'le lien pour réserver à la Maison MND', suite: 'Vous y choisissez votre parcours, votre jour et votre heure. La confirmation arrive ensuite sur WhatsApp.' },
+  ] },
+  { titre: 'Les consultations', liens: [
+    { k: 'creation', chemin: 'reserver/?besoin=creation', nom: 'Consultation Première Couronne', sous: 'créer ses premières locks',
+      objet: 'le lien pour réserver votre consultation Première Couronne à la Maison MND', suite: 'Vous y choisissez votre jour et votre heure. La confirmation arrive ensuite sur WhatsApp.' },
+    { k: 'reparation', chemin: 'reserver/?besoin=reparation', nom: 'Consultation Réparation', sous: 'des locks à restaurer',
+      objet: 'le lien pour réserver votre consultation Réparation à la Maison MND', suite: 'Vous y choisissez votre jour et votre heure. La confirmation arrive ensuite sur WhatsApp.' },
+  ] },
+  { titre: 'Les soins', liens: [
+    { k: 'entretien', chemin: 'reserver/?besoin=entretien', nom: 'Entretien', sous: 'des locks déjà suivies',
+      objet: 'le lien pour réserver votre entretien à la Maison MND', suite: 'Vous y choisissez vos soins, votre jour et votre heure. La confirmation arrive ensuite sur WhatsApp.' },
+    { k: 'enfant', chemin: 'reserver/?besoin=enfant', nom: 'MND Kids', sous: 'le rendez-vous d’un enfant',
+      objet: 'le lien pour réserver le rendez-vous MND Kids de votre enfant', suite: 'Vous y choisissez son jour et son heure. La confirmation arrive ensuite sur WhatsApp.' },
+  ] },
+  { titre: 'Pour venir', liens: [
+    { k: 'venir', chemin: 'venir/', nom: 'L’itinéraire', sous: 'Google Maps, jusqu’à la porte du salon',
+      objet: 'le chemin pour venir à la Maison MND', suite: 'La page ouvre Google Maps sur notre porte.' },
+  ] },
+  /* Les liens des QR codes : au Trône, leurs adresses viennent de la page QR
+     codes (une seule source). La maquette ne les recopie pas. */
+  { titre: 'Les liens des QR codes', liens: [
+    { k: 'mtn', qr: true, nom: 'Payer par MTN', sous: 'son numéro MTN, son rendez-vous du jour', objet: 'le lien pour régler par MTN', suite: 'Tapez votre numéro MTN : votre rendez-vous s’affiche. Validez ensuite sur votre téléphone, sans frais pour vous.' },
+    { k: 'kkiapay', qr: true, nom: 'Payer par KkiaPay', sous: 'tous réseaux, avec l’appareil photo', objet: 'le lien pour régler par KkiaPay', suite: 'MTN MoMo, Moov Money ou Celtiis Cash. Saisissez le montant en francs, puis validez sur votre téléphone.' },
+    { k: 'momo', qr: true, nom: 'Payer par MoMoPay', sous: 'MTN seulement', objet: 'le lien pour régler par MoMo', suite: 'Saisissez le montant en francs, puis validez sur votre téléphone.' },
+    { k: 'site', qr: true, nom: 'Le site de la Maison', sous: 'nos gestes, nos parcours, le rendez-vous', objet: 'le site de la Maison MND', suite: 'Nos gestes, nos parcours, et la prise de rendez-vous.' },
+    { k: 'carte', qr: true, nom: 'La carte des prix', sous: 'rituels, formules et gamme, au franc près', objet: 'la carte de la Maison MND', suite: 'Tous nos rituels et nos formules, à jour au franc près.' },
+    { k: 'plan', qr: true, nom: 'Nous trouver', sous: 'la porte de la Maison, sur Google Maps', objet: 'la Maison MND sur Google Maps', suite: 'Google Maps vous guide jusqu’à nous.' },
+    { k: 'couronne', qr: true, nom: 'Ma Couronne', sous: 'son application : rendez-vous, parcours, Cercle', objet: 'Ma Couronne, votre espace à la Maison MND', suite: 'Créez votre compte, puis « Ajouter à l’écran d’accueil » l’installe comme une application.' },
+    { k: 'avis', qr: true, nom: 'Un avis Google', sous: 'le formulaire d’avis s’ouvre directement', objet: 'le lien pour laisser un avis à la Maison MND', suite: 'Si le cœur vous en dit, deux phrases nous aident beaucoup. Merci pour votre passage.' },
+    { k: 'academie', qr: true, nom: 'Académie MND', sous: 'neuf parcours, leurs prix et la réservation', objet: 'l’Académie MND, qui forme au métier du lock', suite: 'Neuf parcours sur des têtes réelles à Cotonou : le programme, les prix et l’inscription.' },
+  ] },
+];
+const TOUS = GROUPES.flatMap((g) => g.liens);
+let choisi = 'creation';
+
+const $ = (id) => document.getElementById(id);
+const prenom = $('prenom');
+const numero = $('numero');
+
+const adresse = (l) => (l.qr ? '[le lien de la page QR codes]' : SITE + l.chemin);
+const message = (l) => {
+  const p = prenom.value.trim();
+  return 'Bonjour' + (p ? ' ' + p : '') + ', voici ' + l.objet + ' :\n' + adresse(l) + '\n' + l.suite + '\n\n' + SIGNATURE;
+};
+/* Le numéro tel que wa.me l'attend. Au Trône : numeroWa de shared/conversations. */
+const numeroWa = (v) => {
+  let d = String(v || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.length === 10 && d.startsWith('01')) d = '229' + d;
+  else if (d.length === 8) d = '22901' + d;
+  return d;
+};
+const lienApp = (l) => 'https://wa.me/' + numeroWa(numero.value) + '?text=' + encodeURIComponent(message(l));
+
+const ICONE_COPIER = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const ICONE_FAIT = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const GLYPHE_WA = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.5 14.4c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.66.15-.2.29-.76.96-.93 1.16-.17.2-.34.22-.63.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.06-.17-.3-.02-.46.13-.6.13-.13.3-.34.44-.51.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.66-1.6-.9-2.18-.24-.57-.48-.5-.66-.5l-.56-.01c-.2 0-.51.07-.78.36-.27.29-1.02 1-1.02 2.42s1.05 2.8 1.19 3c.15.2 2.06 3.14 4.99 4.4.7.3 1.24.48 1.66.62.7.22 1.34.19 1.84.11.56-.08 1.75-.71 1.99-1.4.25-.69.25-1.28.17-1.4-.07-.12-.26-.19-.55-.34zM12.03 21.3a9.2 9.2 0 0 1-4.68-1.28l-.34-.2-3.48.91.93-3.39-.22-.35a9.15 9.15 0 0 1-1.4-4.87 9.19 9.19 0 0 1 9.2-9.17 9.14 9.14 0 0 1 9.17 9.19 9.19 9.19 0 0 1-9.18 9.16zm7.82-16.99A11.1 11.1 0 0 0 12.02.99C5.94.99 1 5.93.99 12a11 11 0 0 0 1.47 5.5L.9 23.2l5.84-1.53a11.1 11.1 0 0 0 5.28 1.35h.01c6.07 0 11.02-4.94 11.02-11.01a10.94 10.94 0 0 0-3.2-7.7z"/></svg>';
+
+function dessine() {
+  const liens = $('liens');
+  liens.innerHTML = '';
+  for (const g of GROUPES) {
+    const t = document.createElement('div');
+    t.className = 'liens__groupe';
+    t.textContent = g.titre;
+    liens.appendChild(t);
+    for (const l of g.liens) {
+      const r = document.createElement('div');
+      r.className = 'lien' + (l.k === choisi ? ' choisi' : '');
+      r.dataset.k = l.k;
+      r.innerHTML =
+        '<button class="lien__choix" type="button" aria-pressed="' + (l.k === choisi) + '"><b></b><span></span><span class="adresse"></span></button>' +
+        '<div class="lien__gestes">' +
+          '<button class="copier" type="button" title="Copier le message" aria-label="Copier le message">' + ICONE_COPIER + '</button>' +
+          '<button class="porte porte--trone" type="button">' + GLYPHE_WA + 'WhatsApp</button>' +
+          '<a class="porte porte--app" target="_blank" rel="noopener">App</a>' +
+        '</div>';
+      r.querySelector('b').textContent = l.nom;
+      r.querySelector('span').textContent = l.sous;
+      r.querySelector('.adresse').textContent = l.qr ? 'l’adresse de la page QR codes' : adresse(l).replace(/^https:\/\//, '');
+      const app = r.querySelector('.porte--app');
+      if (l.qr) app.dataset.qr = '1';
+      app.setAttribute('aria-label', 'Ouvrir l’application WhatsApp avec ' + l.nom);
+      app.title = 'Ouvrir l’application WhatsApp. Ce qui s’y écrit n’entre pas dans le fil de la Maison.';
+      r.querySelector('.lien__choix').addEventListener('click', () => choisis(l.k));
+      app.addEventListener('click', (e) => {
+        choisis(l.k);
+        if (l.qr) { e.preventDefault(); dit('Au Trône : l’application WhatsApp s’ouvre, le message écrit avec le lien de la page QR codes.'); return; }
+        dit('App : l’application WhatsApp s’ouvre dans un nouvel onglet, le message écrit.');
+      });
+      r.querySelector('.porte--trone').addEventListener('click', (e) => {
+        choisis(l.k);
+        if (e.currentTarget.getAttribute('aria-disabled') === 'true') { dit('WhatsApp attend son numéro : Conversations s’ouvre sur un fil, et un fil, c’est un numéro.'); numero.focus(); return; }
+        dit('Au Trône : Conversations s’ouvre sur le fil du +' + numeroWa(numero.value) + ', ce message posé dans la zone de saisie. Vous le relisez et l’envoyez.');
+      });
+      r.querySelector('.copier').addEventListener('click', (e) => { choisis(l.k); copie(l, e.currentTarget); });
+      liens.appendChild(r);
+    }
+  }
+}
+
+function dit(texte) { const s = $('statut'); s.textContent = texte; s.hidden = false; }
+
+function choisis(k) {
+  choisi = k;
+  document.querySelectorAll('.lien').forEach((r) => {
+    const oui = r.dataset.k === k;
+    r.classList.toggle('choisi', oui);
+    r.querySelector('.lien__choix').setAttribute('aria-pressed', String(oui));
+  });
+  apercu();
+}
+
+function apercu() {
+  const l = TOUS.find((x) => x.k === choisi);
+  $('apercu-titre').textContent = 'Le message · ' + l.nom;
+  $('message').textContent = message(l);
+}
+
+function rafraichit() {
+  const n = numeroWa(numero.value);
+  document.querySelectorAll('.lien').forEach((r) => {
+    const l = TOUS.find((x) => x.k === r.dataset.k);
+    r.querySelector('.porte--app').href = l.qr ? '#' : lienApp(l);
+    const t = r.querySelector('.porte--trone');
+    t.setAttribute('aria-disabled', n ? 'false' : 'true');
+    t.title = n ? 'Ouvrir son fil dans Conversations, le message posé.' : 'Son numéro d’abord.';
+  });
+  $('aide').textContent = n
+    ? 'Les deux portes s’ouvrent sur sa conversation (+' + n + ').'
+    : 'Sans numéro, « App » vous laisse choisir la conversation ; « WhatsApp » attend son numéro.';
+  apercu();
+}
+
+function copie(l, bouton) {
+  const texte = message(l);
+  const fini = () => {
+    bouton.classList.add('fait');
+    bouton.innerHTML = ICONE_FAIT;
+    bouton.setAttribute('aria-label', 'Message copié');
+    setTimeout(() => { bouton.classList.remove('fait'); bouton.innerHTML = ICONE_COPIER; bouton.setAttribute('aria-label', 'Copier le message'); }, 1600);
+  };
+  const repli = () => {
+    const range = document.createRange();
+    range.selectNodeContents($('message'));
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    dit('Le message est sélectionné : copiez-le avec le menu de l’appareil.');
+  };
+  try { navigator.clipboard.writeText(texte).then(fini, repli); } catch (e) { repli(); }
+}
+
+/* Le menu, la fiche et la fenêtre de la démonstration */
+const menu = $('menu');
+const fenetre = $('fenetre');
+const ferme = $('ferme');
+function ouvre(depuisLaFiche) {
+  fenetre.hidden = false;
+  ferme.hidden = true;
+  if (depuisLaFiche) { prenom.value = 'Awa'; numero.value = '01 97 00 00 00'; choisis('entretien'); rafraichit(); }
+  fenetre.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest' });
+  fenetre.classList.add('eclaire');
+  setTimeout(() => fenetre.classList.remove('eclaire'), 900);
+}
+$('creer').addEventListener('click', (e) => {
+  const ouvert = menu.hidden;
+  menu.hidden = !ouvert;
+  e.currentTarget.setAttribute('aria-expanded', String(ouvert));
+});
+$('ouvre-liens').addEventListener('click', () => ouvre(false));
+$('depuis-fiche').addEventListener('click', () => ouvre(true));
+$('fermer').addEventListener('click', () => { fenetre.hidden = true; ferme.hidden = false; });
+prenom.addEventListener('input', rafraichit);
+numero.addEventListener('input', rafraichit);
+
+dessine();
+rafraichit();
+</script>

@@ -2,6 +2,16 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES LIENS À ENVOYER — 12 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
+
+« Une cliente voudrait passer au salon et voudrait le lien pour réserver », puis « designer quelque part dans le Trône où j'accède rapidement à ces liens que je peux envoyer par WhatsApp app directement », « rajouter à côté de WhatsApp, app aussi », « ajoute dans les liens la liste des liens des QR codes » (Yéman). Maquette `public/maquette-les-liens-a-envoyer.html` (artefact K8wcYo5viXERs1Q8jvtD7E), quatre choix au sélecteur : menu Créer, oui sur la fiche, les parcours + l'itinéraire, une phrase + le lien.
+
+- **La fenêtre** `shell/LiensAEnvoyer.tsx` (+ `liens-a-envoyer.css`) : son prénom et son numéro (facultatifs), puis par groupe (Réserver, Les consultations, Les soins, Pour venir, Les liens des QR codes) chaque lien avec trois gestes : copier le message, **WhatsApp** (Conversations, `cheminDeLaConversation`, le message posé ; exige un numéro) et **App** (`lienWaMe`, ou `wa.me/?text=` sans numéro). Message signé par `signeLeMessage`. Un code non réglé (MoMo sans code marchand, plan sans adresse, avis sans lien) dit où le régler.
+- **Ouverte par** « Créer › Lien de réservation » (en tête de Clientèle, toute l'équipe ; montée dans `Shell.tsx`) et par le bouton « Lien de réservation » de la fiche (`Customer360`), appel et numéro remplis. Une fiche d'enfant (mineure, ou numéro nommé « Maman »/« Papa ») ne prête pas son prénom : « Bonjour, » et MND Kids choisi.
+- **Les mots** `shared/liens-a-envoyer-pur.ts` (pur, aucune adresse écrite) : six liens du site (`reserver/`, `?besoin=creation|reparation|entretien|enfant`, `venir/`, depuis `window.location.origin`) et les neuf liens des QR codes (MTN au comptoir, KkiaPay, MoMoPay, site, carte, Nous trouver, Ma Couronne, avis, Académie ; ni wifi ni code du jour, règle du 18 août).
+- **Une seule source pour les adresses des QR codes** : `routes/clients/liens-des-qr-codes.ts` (`useLiensDesQrCodes`, `lienMaCouronne`), sorties de `QrCodes.tsx` qui les lit désormais ; `Vitrine.tsx` réexporte `lienMaCouronne`. `lienMomo` est une valeur, plus une fonction ; le QR du comptoir MTN (`lienComptoirMtn`, 11 novembre) y vit aussi.
+- **Banc** `scripts/verifie-les-liens-a-envoyer.mjs` (30 contrôles contre Reserver.tsx, Triage.tsx, genere-revelateur, QrCodes.tsx et les branchements ; `--prouve` 9 pannes sur 9, sur des copies en dossier temporaire, aucun fichier du dépôt touché).
+
 ## L'ABONNEMENT REFAIT, LOTS 4 ET 5 : 11 novembre 2026, CONSTRUIT, PAS EN LIGNE (branche locale `abonnement-lots-4-5` sur main 00b396be, rien poussé, 0198 non appliquée)
 
 « Construis le reste des lots de l'abonnement refait » (Yéman, 8 novembre 2026), lots cédés par le-trone-15 avec leur définition exacte : lot 4, deux envois par la salle d'attente (la veille avec l'attention, le message d'après séance), rien à l'arrivée ; lot 5, la page Abonnements du site, sans aucun prix. Deux agents coupés par les limites du compte (8 et 11 novembre), le travail repris et fini le 11 novembre 2026, rebasé sur main après « Ce qui va partir ».

@@ -29,6 +29,7 @@ import { VitrineSite, BandeDeVitrine, Pastille } from './VitrineSite';
 import { VitrineBoutique } from './VitrineBoutique';
 import { boutiqueOuverte } from '../../../../shared/boutique-pur';
 import { tapisDuSite } from './tapis-du-site';
+import { lienMaCouronne } from './liens-des-qr-codes';
 import './clients.css';
 
 /* Les vitrines — le site public, Ma Couronne, la carte du comptoir : trois
@@ -201,9 +202,10 @@ function VitrineCouronne() {
    l'écran d'accueil », elle s'installe comme une application. */
 /* L'ADRESSE DE MA COURONNE. Sur le site déployé, le Trône vit sous /trone/ et
    sa sœur sous /couronne/ ; en développement (une seule origine), l'entrée est
-   couronne.html. Jamais de domaine en dur : changer de compte ne casse rien. */
-export const lienMaCouronne = () =>
-  `${window.location.origin}${window.location.pathname.startsWith('/trone') ? '/couronne/' : '/couronne.html'}`;
+   couronne.html. Jamais de domaine en dur : changer de compte ne casse rien.
+   Elle vit depuis le 12 novembre 2026 avec les autres liens des QR codes
+   (`liens-des-qr-codes.ts`), que la fenêtre des liens à envoyer lit aussi. */
+export { lienMaCouronne };
 
 /* LA CARTE A5 DE L'INVITATION, PARTAGÉE — 27 août. La page QR Codes la
    réclame aussi ; deux gabarits imprimés pour une seule carte finiraient par

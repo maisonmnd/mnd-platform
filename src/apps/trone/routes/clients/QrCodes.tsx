@@ -8,12 +8,13 @@ import { toast, demandeUnTexte } from '../../../../ds/components';
 import { PageHead } from '../_ui';
 import { createStore, useStore } from '../../../../shared/store';
 import { maisonNom, DEVISE_COMPLETE, signeLeMessage, estLaMaisonMND } from '../../../../shared/identite';
-import { autoConfigStore, MOMO_QR_DEFAUT, REVIEW_LINK_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT, lienPaiementMomo } from '../equipe/data';
+import { autoConfigStore, MOMO_QR_DEFAUT, lienPaiementMomo } from '../equipe/data';
+import { useLiensDesQrCodes } from './liens-des-qr-codes';
 import { CODE_MOMOPAY } from '../../../../shared/momopay-de-la-maison-pur';
 import { LIEN_CHAPCHAP, USSD_CHAPCHAP, MARCHAND_CHAPCHAP, RESEAUX_CHAPCHAP } from '../../../../shared/kkiapay-chapchap-pur';
 import { usePointageConfig } from '../equipe/payroll';
 import { QrSvg, qrMatrice, lienDuJour } from '../equipe/Comptoir';
-import { imprimeCarteCouronne, lienMaCouronne } from './Vitrine';
+import { imprimeCarteCouronne } from './Vitrine';
 import { todayISO, useBranchAppointments, useBranchClients, useServicesById, apptDurationMin, apptDueXof, ClientPicker } from './_shared';
 import { apptCashOnDay, bornesDuSalon } from '../../../../shared/agenda';
 import { useSettings } from '../../../../shared/settings';
@@ -315,15 +316,19 @@ export default function QrCodes() {
   const navigate = useNavigate();
   const [autoRaw, setAuto] = useStore(autoConfigStore);
   const momoQr = autoRaw.momoQr || MOMO_QR_DEFAUT;
-  const lienAvis = (autoRaw.reviewLink || REVIEW_LINK_DEFAUT).trim();
-  const momoUssd = autoRaw.momoUssd || MOMO_USSD_DEFAUT;
-  const momoMarchand = autoRaw.momoMarchand || MOMO_MARCHAND_DEFAUT;
+  /* LES LIENS DES CODES — sortis dans `liens-des-qr-codes.ts` le 12 novembre
+     2026 : la fenêtre « Créer › Lien de réservation » les donne aussi, et deux
+     calculs d'une même adresse finiraient par diverger. */
+  const {
+    lienAvis, momoUssd, momoMarchand, codeMarchand, lienMomo, lienComptoirMtn,
+    adresseComplete, lienPlan, planPrecis, lienCouronne, lienCarte, lienSite, lienAcademie,
+  } = useLiensDesQrCodes();
   /* Le code du jour ne se FABRIQUE pas ici — c'est le geste du Comptoir. On
      montre celui d'aujourd'hui s'il existe, sinon on mène au Comptoir. */
   const [preuve] = usePointageConfig();
   const codeJour = preuve.codeDate === todayISO() ? (preuve.codeValeur ?? '') : '';
 
-  const { branch, currency } = useBranch();
+  const { currency } = useBranch();
   const [usage, setUsage] = useStore(usageDesCodes);
   const rdvsDeLaBranche = useBranchAppointments();
   const clientsDeLaBranche = useBranchClients();
@@ -349,44 +354,8 @@ export default function QrCodes() {
      dans une conversation. Le code du jour non plus — il sert à pointer, et un
      lien qui pointe pour vous n'est plus une preuve de présence.
 
-     L'adresse se construit sur l'origine COURANTE : jamais de domaine écrit en
-     dur, changer de compte ne casse rien. */
-  const lienAbsolu = (chemin: string) => new URL(asset(chemin), window.location.href).href;
-  /* LE CODE MARCHAND SE LIT DANS LE CODE USSD — il n'a pas de champ à lui, et
-     lui en inventer un ferait deux vérités à tenir d'accord. Dans
-     « *880*41*909099*montant# », c'est le dernier groupe de chiffres : le
-     préfixe de l'opérateur passe avant, le montant vient après. */
-  const codeMarchand = (momoUssd.match(/\d{4,}/g) ?? []).slice(-1)[0] ?? '';
-  const lienMomo = () => {
-    const u = new URL(lienAbsolu('payer.html'));
-    if (momoMarchand) u.searchParams.set('m', momoMarchand);
-    u.searchParams.set('c', codeMarchand);
-    return u.href;
-  };
-  const adresseComplete = [branch.address, branch.city, branch.country].filter(Boolean).join(', ');
-  /* LE LIEN DE LA FICHE PRIME SUR L'ADRESSE ÉCRITE — 18 août 2026. Chercher
-     « Cotonou, Bénin » posait le point au centre de la ville : une cliente qui
-     suit ce carré arrive dans le bon quartier et cherche encore. Le lien court
-     de la fiche Google, lui, désigne la porte. L'adresse reste le repli quand
-     aucun lien n'est saisi — mieux vaut la ville que rien. */
-  const lienPlan = branch.mapsUrl?.trim()
-    || (adresseComplete ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adresseComplete)}` : '');
-  const planPrecis = !!branch.mapsUrl?.trim();
-  const lienCouronne = lienMaCouronne();
-  /* LA CARTE DU COMPTOIR — construite sur l'origine COURANTE, jamais un
-     domaine en dur : elle vit sous /trone/ en ligne, à la racine en
-     développement. Changer de compte GitHub ne doit rien casser. */
-  const lienCarte = new URL(`${window.location.pathname.includes('/trone') ? '/trone/' : '/'}carte.html`, window.location.origin).href;
-
-  /* ── LE SITE PUBLIC — 23 septembre 2026 ────────────────────────
-     La RACINE du domaine, pas /revelateur/ : elle y renvoie d'elle-même, et
-     c'est la valeur la plus courte, donc le carré le plus lisible une fois
-     imprimé. En développement le site vit à côté, sous son nom de fichier.
-     Jamais de domaine en dur, l'origine se lit sur la fenêtre. */
-  const lienSite = new URL(
-    window.location.pathname.includes('/trone') ? '/' : '/revelateur.html',
-    window.location.origin,
-  ).href;
+     Les adresses se calculent dans `liens-des-qr-codes.ts` (lues plus haut),
+     sur l'origine COURANTE : jamais de domaine écrit en dur. */
   /* LE MESSAGE EST SIGNÉ PAR LE CODE, comme tout ce qui sort de la Maison :
      la devise ne se recopie pas à la main, sinon elle finit par différer
      d'un message à l'autre. */
@@ -431,15 +400,10 @@ export default function QrCodes() {
   /* ── LE SITE DE L'ACADÉMIE — 17 septembre 2026 ──────────────────
      « On y va pour le moteur » (Yéman). Le carré le moins cher de tous : une
      cliente contente scanne au comptoir, et le monde entier apprend que la
-     Maison forme. Sœur du Trône, donc adresse voisine — jamais un domaine en
-     dur : sous /trone/ en ligne, à la racine en développement.
+     Maison forme. Son adresse vient de `liens-des-qr-codes.ts`.
 
      LE MESSAGE EST PRÊT À COLLER, et sa devise est posée PAR LE CODE
      (`signeLeMessage`), comme tout ce qui sort de la Maison. */
-  const lienAcademie = new URL(
-    `${window.location.pathname.includes('/trone') ? '/academie/' : '/academie.html'}`,
-    window.location.origin,
-  ).href;
   const messageAcademie = signeLeMessage(
     `La ${maisonNom()} forme au métier du lock : neuf parcours, de la Fondation à L’Œuvre, `
     + `sur des têtes réelles à Cotonou. Le programme, les prix et l’inscription sont ici : ${lienAcademie}`,
@@ -464,8 +428,8 @@ export default function QrCodes() {
      pas dans les QR codes du Trône » (Yéman). Un QR FIXE : il ouvre la page
      Régler en mode comptoir, la cliente tape son numéro MTN et retrouve son
      rendez-vous du jour (sa pièce émise). Ni montant ni numéro de compte dans
-     le carré : la fonction collecte-mtn calcule tout au serveur. */
-  const lienComptoirMtn = `${lienAbsolu('regler.html')}?comptoir`;
+     le carré : la fonction collecte-mtn calcule tout au serveur. Son
+     adresse vient de `liens-des-qr-codes.ts` (lue plus haut). */
   const imprimerMtn = () => imprime(carteA5({
     verrou: verrouDeLaMaison(),
     titre: 'Régler par MTN.',
@@ -612,7 +576,7 @@ export default function QrCodes() {
           { ...afficheMomo, texte: 'Afficher le QR seul' },
           { texte: 'L’affiche', faire: () => setGrand({ titre: 'Régler par MoMo.', phrase: `Marchand ${momoMarchand}, le montant en francs.`, valeur: momoQr, affiche: 'momopay-affiche.png' }) },
           { texte: 'Carte A5', faire: imprimerMomo },
-          { texte: 'Copier le lien', faire: () => copier(lienMomo(), 'de paiement'), empeche: codeMarchand ? undefined : 'Renseignez le code MoMo dans Paramètres › L’encaissement' },
+          { texte: 'Copier le lien', faire: () => copier(lienMomo, 'de paiement'), empeche: codeMarchand ? undefined : 'Renseignez le code MoMo dans Paramètres › L’encaissement' },
         ],
       },
     },

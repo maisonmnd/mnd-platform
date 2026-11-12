@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, CalendarPlus, ClipboardList, FileText, Gift, PhoneIncoming, Plus, ReceiptText, Repeat, UserRound, Wallet, type LucideIcon } from 'lucide-react';
+import { BookOpen, CalendarPlus, ClipboardList, FileText, Gift, Link2, PhoneIncoming, Plus, ReceiptText, Repeat, UserRound, Wallet, type LucideIcon } from 'lucide-react';
 import { peutVoir } from '../routes/index';
 import { staffAccessStore } from '../routes/equipe/data';
 import { useStore } from '../../../shared/store';
@@ -16,13 +16,18 @@ import './menu-creer.css';
    LES ACCÈS SONT RESPECTÉS, ligne par ligne : chaque entrée qui ouvre un écran
    passe par `peutVoir` — le même juge que la barre latérale. Rendez-vous, appel
    reçu et encaisser restent toujours proposés, comme l'étaient les anciens
-   boutons (la garde d'écran et la RLS les protègent ensuite). */
+   boutons (la garde d'écran et la RLS les protègent ensuite).
+
+   LE LIEN DE RÉSERVATION (12 novembre 2026) : en tête de Clientèle, pour
+   toute l'équipe (un lien du site public n'a rien de privé). Il ouvre la
+   fenêtre des liens à envoyer (`LiensAEnvoyer`). */
 
 type Entree = { id: string; label: string; sub: string; Icon: LucideIcon; act: () => void; ou?: string };
 
-export default function MenuCreer({ onRendezVous, onAppelRecu }: {
+export default function MenuCreer({ onRendezVous, onAppelRecu, onLiens }: {
   onRendezVous: () => void;
   onAppelRecu: () => void;
+  onLiens: () => void;
 }) {
   const navigate = useNavigate();
   const staff = useStaff();
@@ -39,6 +44,7 @@ export default function MenuCreer({ onRendezVous, onAppelRecu }: {
     {
       nom: 'Clientèle',
       entrees: [
+        { id: 'liens', label: 'Lien de réservation', sub: 'réserver, ou venir au salon', Icon: Link2, act: onLiens },
         { id: 'rdv', label: 'Rendez-vous', sub: 'poser une venue au Carnet', Icon: CalendarPlus, act: onRendezVous },
         { id: 'cliente', label: 'Cliente', sub: 'une nouvelle fiche', Icon: UserRound, act: () => navigate('/customers?nouvelle=1'), ou: '/customers' },
         { id: 'appel', label: 'Appel reçu', sub: 'noter un appel WhatsApp', Icon: PhoneIncoming, act: onAppelRecu },

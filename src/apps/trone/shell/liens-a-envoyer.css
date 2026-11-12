@@ -1,0 +1,69 @@
+/* LES LIENS À ENVOYER — 12 novembre 2026.
+   Une liste par groupe, trois gestes par lien (copier, WhatsApp, App), un
+   aperçu du message. Charte Maison MND : indigo pour le texte, cuivre en
+   accent (boutons, filets), rayons 2–4 px, Jost. */
+
+.trc-liens { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.trc-liens__aide { margin: -4px 0 0; font-size: 12.5px; color: var(--ink-soft); }
+
+.trc-liens__liste { display: flex; flex-direction: column; border: 1px solid var(--hairline); border-radius: 4px; overflow: hidden; }
+.trc-liens__groupe {
+  font: 600 10px var(--font-sans); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-soft); padding: 10px 12px 4px; background: var(--color-ivoire);
+}
+.trc-liens__lien {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;
+  padding: 9px 8px 9px 12px; border-top: 1px solid var(--hairline); min-width: 0;
+}
+.trc-liens__groupe + .trc-liens__lien { border-top: 0; }
+.trc-liens__lien.is-choisi { background: var(--indigo-50, #EDEEF4); box-shadow: inset 2px 0 0 var(--color-copper); }
+
+.trc-liens__choix {
+  flex: 1 1 210px; min-width: 0; display: flex; flex-direction: column; gap: 1px;
+  border: 0; background: none; text-align: left; cursor: pointer; padding: 2px 0;
+  font-family: var(--font-sans); color: var(--ink);
+}
+.trc-liens__choix b { font-weight: 500; font-size: 14.5px; color: var(--color-indigo); }
+.trc-liens__choix span { font-size: 12px; color: var(--ink-soft); }
+.trc-liens__adresse { font-size: 11.5px !important; overflow-wrap: anywhere; opacity: .85; }
+.trc-liens__choix:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 2px; }
+/* Un code pas encore réglé : il dit où le régler, sans geste. */
+.trc-liens__lien.is-manque .trc-liens__choix { cursor: default; }
+.trc-liens__lien.is-manque .trc-liens__choix b { color: var(--ink-soft); }
+
+.trc-liens__gestes { display: flex; gap: 6px; margin-left: auto; flex: none; }
+.trc-liens__copier {
+  display: inline-grid; place-items: center; width: 36px; height: 36px;
+  border: 1px solid var(--hairline); background: var(--surface-card); color: var(--color-indigo);
+  border-radius: 4px; cursor: pointer;
+}
+.trc-liens__copier:hover { background: var(--indigo-50, #EDEEF4); }
+.trc-liens__copier.is-fait { border-color: var(--color-copper); }
+.trc-liens__porte {
+  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px;
+  border-radius: 4px; font: 600 12px var(--font-sans); letter-spacing: .05em; text-transform: uppercase;
+  text-decoration: none; white-space: nowrap; cursor: pointer;
+}
+.trc-liens__porte--trone { background: var(--color-copper); color: #fff; border: 0; }
+.trc-liens__porte--trone:hover { background: var(--copper-600, #9E6238); }
+.trc-liens__porte--trone[aria-disabled="true"] { background: var(--hairline); color: var(--ink-soft); cursor: not-allowed; }
+.trc-liens__porte--app { background: var(--surface-card); color: var(--color-indigo); border: 1px solid var(--color-copper); }
+.trc-liens__porte--app:hover { background: var(--copper-50, #FAF1E9); }
+.trc-liens__copier:focus-visible, .trc-liens__porte:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+.trc-liens__apercu { display: flex; flex-direction: column; gap: 6px; }
+.trc-liens__titre { font: 600 10.5px var(--font-sans); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-liens__apercu pre {
+  margin: 0; white-space: pre-wrap; overflow-wrap: anywhere;
+  font: 400 13.5px/1.55 var(--font-sans); color: var(--ink);
+  background: var(--color-ivoire); border: 1px solid var(--hairline); border-left: 2px solid var(--color-copper);
+  border-radius: 3px; padding: 11px 13px;
+}
+.trc-liens__legende { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; margin: 0; font-size: 12px; color: var(--ink-soft); align-items: baseline; }
+.trc-liens__legende dt { font: 600 10.5px var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--color-indigo); }
+.trc-liens__legende dd { margin: 0; }
+
+@media (max-width: 480px) {
+  .trc-liens__gestes { margin-left: 0; width: 100%; }
+  .trc-liens__porte { flex: 1; justify-content: center; }
+}
