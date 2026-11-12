@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, CalendarPlus, ClipboardList, FileText, Gift, Link2, PhoneIncoming, Plus, ReceiptText, Repeat, UserRound, Wallet, type LucideIcon } from 'lucide-react';
 import { peutVoir } from '../routes/index';
@@ -20,7 +21,16 @@ import './menu-creer.css';
 
    LE LIEN DE RÉSERVATION (12 novembre 2026) : en tête de Clientèle, pour
    toute l'équipe (un lien du site public n'a rien de privé). Il ouvre la
-   fenêtre des liens à envoyer (`LiensAEnvoyer`). */
+   fenêtre des liens à envoyer (`LiensAEnvoyer`).
+
+   LE MENU S'OUVRE PAR-DESSUS LA PAGE (12 novembre 2026, « le bouton Créer
+   ne marche pas sur la version mobile téléphone », Yéman). Au téléphone, la
+   barre du haut est une rangée qui glisse au doigt (`overflow-x: auto`,
+   `overflow-y: hidden`, trone.css, 5 novembre 2026) : un menu posé SOUS le
+   bouton, à l'intérieur de la barre, était coupé net, invisible. Le toucher
+   l'ouvrait pour rien. Comme la Recherche et Trouver, il passe désormais par
+   un portail, en position fixe, placé sous le bouton au moment de l'ouvrir ;
+   au téléphone, il prend la largeur de l'écran. */
 
 type Entree = { id: string; label: string; sub: string; Icon: LucideIcon; act: () => void; ou?: string };
 
@@ -36,6 +46,16 @@ export default function MenuCreer({ onRendezVous, onAppelRecu, onLiens }: {
   const role = staff?.role;
   const [ouvert, setOuvert] = useState(false);
   const racine = useRef<HTMLDivElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  /* Où poser le menu : sous le bouton, aligné sur son bord droit. */
+  const [place, setPlace] = useState({ haut: 64, droite: 12 });
+  const bascule = () => {
+    if (!ouvert) {
+      const r = racine.current?.getBoundingClientRect();
+      if (r) setPlace({ haut: Math.round(r.bottom + 8), droite: Math.max(12, Math.round(window.innerWidth - r.right)) });
+    }
+    setOuvert((v) => !v);
+  };
 
   const peut = (p: string) => peutVoir(role, p, mesDomaines);
   const lance = (act: () => void) => { setOuvert(false); act(); };
@@ -75,11 +95,30 @@ export default function MenuCreer({ onRendezVous, onAppelRecu, onLiens }: {
 
   useEffect(() => {
     if (!ouvert) return;
-    const auClic = (e: MouseEvent) => { if (racine.current && !racine.current.contains(e.target as Node)) setOuvert(false); };
+    /* Le menu vit hors du bouton (portail) : un toucher DANS le menu ne le
+       ferme pas, un toucher ailleurs, oui. */
+    const dedans = (t: EventTarget | null) => !!t && ((racine.current?.contains(t as Node) ?? false) || (menu.current?.contains(t as Node) ?? false));
+    const auClic = (e: MouseEvent) => { if (!dedans(e.target)) setOuvert(false); };
     const auTouche = (e: KeyboardEvent) => { if (e.key === 'Escape') setOuvert(false); };
+    /* Posé en position fixe, il ne suivrait pas la page qui défile ni la barre
+       qui glisse : il se referme plutôt que de flotter ailleurs. Défiler DANS
+       le menu (long, au téléphone) ne le ferme pas. */
+    const auDefilement = (e: Event) => { if (!dedans(e.target)) setOuvert(false); };
+    /* La barre d'adresse du téléphone qui se replie redimensionne aussi la
+       fenêtre, en hauteur seulement : seul un vrai changement de largeur
+       (téléphone tourné, fenêtre élargie) le referme. */
+    const largeur = window.innerWidth;
+    const auRedimensionnement = () => { if (window.innerWidth !== largeur) setOuvert(false); };
     document.addEventListener('mousedown', auClic);
     document.addEventListener('keydown', auTouche);
-    return () => { document.removeEventListener('mousedown', auClic); document.removeEventListener('keydown', auTouche); };
+    document.addEventListener('scroll', auDefilement, true);
+    window.addEventListener('resize', auRedimensionnement);
+    return () => {
+      document.removeEventListener('mousedown', auClic);
+      document.removeEventListener('keydown', auTouche);
+      document.removeEventListener('scroll', auDefilement, true);
+      window.removeEventListener('resize', auRedimensionnement);
+    };
   }, [ouvert]);
 
   return (
@@ -90,13 +129,19 @@ export default function MenuCreer({ onRendezVous, onAppelRecu, onLiens }: {
         aria-haspopup="menu"
         aria-expanded={ouvert}
         title="Créer : rendez-vous, cliente, facture, devis, dépense…"
-        onClick={() => setOuvert((v) => !v)}
+        onClick={bascule}
       >
         <Plus size={15} />
         Créer
       </button>
-      {ouvert && (
-        <div className="trc-creer__menu" role="menu" aria-label="Créer">
+      {ouvert && createPortal(
+        <div
+          ref={menu}
+          className="trc-creer__menu"
+          role="menu"
+          aria-label="Créer"
+          style={{ '--trc-creer-haut': `${place.haut}px`, '--trc-creer-droite': `${place.droite}px` } as CSSProperties}
+        >
           {visibles.map((g) => (
             <div key={g.nom}>
               <div className="trc-creer__groupe">{g.nom}</div>
@@ -111,7 +156,8 @@ export default function MenuCreer({ onRendezVous, onAppelRecu, onLiens }: {
               })}
             </div>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
