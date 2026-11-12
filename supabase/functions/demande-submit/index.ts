@@ -197,7 +197,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
+const VERSION = '2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
 
 /** LE SECOND FAUTEUIL, PAS DAVANTAGE (2 novembre 2026, 0152) : la copie de
     `PLACES_EN_LIGNE_AU_PLUS` (src/shared/agenda-pur.ts), hors des repères. */
@@ -1292,15 +1292,24 @@ type VerdictDeLaPlace =
 /** Une place proposée : un jour et une heure, jamais un maître. */
 type PlaceDuServeur = { iso: string; heure: string };
 
+/** Les minutes écoulées depuis minuit, à Cotonou (UTC+1, sans heure d'été). */
+const minutesDeCotonou = (ms: number): number => Math.floor((((ms + 3_600_000) % UN_JOUR_MS) + UN_JOUR_MS) % UN_JOUR_MS / 60_000);
+
 /** LA FORME ET LA FENÊTRE, avant toute lecture : un appel mal formé ne coûte
-    rien à la base. Jamais le jour même (la Maison prépare la venue), jamais
-    après la borne (`finDeLaReservation`). */
-function laPlaceEstRecevable(p: { date: string; time: string }, ms: number): RefusDeLaPlace | null {
+    rien à la base. Jamais après la borne (`finDeLaReservation`).
+
+    LE JOUR MÊME, SUR LE SITE SEULEMENT (12 novembre 2026, Yéman au
+    sélecteur : « Ouvrir le jour même », « Aucun délai ») : le site propose
+    aujourd'hui les heures pas encore commencées à Cotonou, et `jourMeme` les
+    laisse passer. Sans lui (WhatsApp, l'Assistant Maison), jamais le jour
+    même : la Maison prépare la venue. */
+function laPlaceEstRecevable(p: { date: string; time: string }, ms: number, jourMeme = false): RefusDeLaPlace | null {
   const m = /^(\d{2}):(\d{2})$/.exec(String(p.time ?? ''));
   if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return 'creneau_invalide';
   const ecart = joursDEcart(String(p.date ?? ''), ms);
   if (Number.isNaN(ecart)) return 'creneau_invalide';
-  if (ecart < 1 || ecart > joursDeLaFenetre(ms)) return 'creneau_hors_fenetre';
+  const aujourdhuiPasEncoreCommence = jourMeme && ecart === 0 && Number(m[1]) * 60 + Number(m[2]) > minutesDeCotonou(ms);
+  if ((ecart < 1 && !aujourdhuiPasEncoreCommence) || ecart > joursDeLaFenetre(ms)) return 'creneau_hors_fenetre';
   return null;
 }
 
@@ -1339,9 +1348,10 @@ function maitresDuRituel(agenda: AgendaDuServeur, serviceIds: readonly string[])
 
 /** LA PLACE TIENT-ELLE ? Tout ce que le site montrait, revérifié sur
     l'instantané que la fonction vient de lire. Le verrou (`pose_si_libre`)
-    rejoue le plafond, les fauteuils et les maîtres sous verrou. */
-function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number): VerdictDeLaPlace {
-  const recevable = laPlaceEstRecevable(p, ms);
+    rejoue le plafond, les fauteuils et les maîtres sous verrou. `jourMeme` :
+    le site seul (`laPlaceEstRecevable`). */
+function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jourMeme = false): VerdictDeLaPlace {
+  const recevable = laPlaceEstRecevable(p, ms, jourMeme);
   if (recevable) return { ok: false, erreur: recevable };
   /* Sans semaine connue, le jour est fermé : mieux vaut un rappel qu'un
      lundi ouvert que la Maison ferme. */
@@ -1470,8 +1480,10 @@ async function laPlaceDemandee(o: {
   placesDeLaRemise: LigneDesPlaces[] | null;
 }> {
   const maintenant = Date.now();
-  /* La forme et la fenêtre d'abord : un appel mal formé ne coûte rien à la base. */
-  const recevable = laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant);
+  /* La forme et la fenêtre d'abord : un appel mal formé ne coûte rien à la base.
+     LE JOUR MÊME (12 novembre 2026) : le site le propose, ses heures pas
+     encore commencées à Cotonou ; `true` le laisse passer, ici seulement. */
+  const recevable = laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant, true);
   if (recevable) return { erreur: recevable };
 
   const [docs, services, categories, blocages, occupes, placesDuJour, placesDeLaRemise] = await Promise.all([
@@ -1532,7 +1544,7 @@ async function laPlaceDemandee(o: {
     if (!lue.ok) return { erreur: 'agenda_illisible' };
     derniereVenue = lue.jour;
   }
-  const verdict = laPlaceTient({ ...agenda, sieges: places }, { date: o.date, time: o.time, serviceIds: o.serviceIds, derniereVenue }, maintenant);
+  const verdict = laPlaceTient({ ...agenda, sieges: places }, { date: o.date, time: o.time, serviceIds: o.serviceIds, derniereVenue }, maintenant, true);
   if (!verdict.ok) return { erreur: verdict.erreur };
 
   /* Les offres de la Maison, pour résoudre un code : lues ici, avec le reste,

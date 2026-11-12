@@ -202,7 +202,7 @@ for (const nom of ['catalogue-pur', 'place-du-serveur']) {
 }
 dit('E3 demande-submit lit la derniere venue du numero avant de juger, et la donne au juge', true,
   /const lue = await derniereVenueDuNumero\(o\.telephone \?\? '', o\.date\);\s*if \(!lue\.ok\) return \{ erreur: 'agenda_illisible' \};\s*derniereVenue = lue\.jour;/.test(DS)
-  && /laPlaceTient\(\{ \.\.\.agenda, sieges: places \}, \{ date: o\.date, time: o\.time, serviceIds: o\.serviceIds, derniereVenue \}, maintenant\)/.test(DS)
+  && /laPlaceTient\(\{ \.\.\.agenda, sieges: places \}, \{ date: o\.date, time: o\.time, serviceIds: o\.serviceIds, derniereVenue \}, maintenant(, true)?\)/.test(DS)
   && /laPlaceDemandee\(\{ branche: branche\.ligne, serviceIds, date, time, telephone \}\)/.test(DS));
 dit('E4 demande-submit : le refus du juge part en 409 (la fenetre comprise)', true, /json\(\{ error: verdict\.erreur \}, verdict\.erreur === 'agenda_illisible' \? 503 : 409\)/.test(DS));
 dit('E5 whatsapp-automate : la pose sous verrou lit la derniere venue de la fiche et la donne au juge', true,

@@ -5,7 +5,7 @@ import {
 } from '../../shared/agenda-pur';
 import { estUneConsultation, type MasquesDuSite } from '../../shared/catalogue-pur';
 import { porteDuBesoin, type Besoin } from '../../shared/qualification';
-import { ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS, finDeLaReservation, reservableSurLeSite } from '../../shared/place-du-serveur';
+import { ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS, finDeLaReservation, minutesDeCotonou, reservableSurLeSite } from '../../shared/place-du-serveur';
 import type { Bande } from './prix-calibre';
 import { client } from './maison';
 import { litToutesLesPages } from '../../shared/lecture-entiere';
@@ -241,17 +241,23 @@ export function calendrierDuSite(du: string, au: string, brancheConnue?: string)
    TOUT L'HORIZON D'UN COUP, comme les vingt et un jours d'avant : quatre mois
    de créneaux pris tiennent en quelques dizaines de lignes (mesuré le
    6 novembre 2026, loin du plafond de mille), un jour par ligne pour les
-   places. Changer de mois n'attend rien. */
+   places. Changer de mois n'attend rien.
+
+   LE JOUR MÊME (12 novembre 2026, Yéman au sélecteur : « Ouvrir le jour
+   même », « Aucun délai ») : l'horizon commence AUJOURD'HUI à Cotonou. Ses
+   heures déjà commencées tombent dans `heuresLibres` ; le juge du serveur
+   (`laPlaceEstRecevable`, `jourMeme`) et `pose_si_libre` (0203) acceptent
+   les autres, pour le site seulement. */
 export function horizonDuSite(maintenant: Date = new Date()): { du: string; au: string; jours: string[] } {
   const aujourdhui = jourDeCotonou(maintenant.getTime());
   const au = finDeLaReservation(aujourdhui);
   const jours: string[] = [];
   const d = new Date(`${aujourdhui}T12:00:00Z`);
   for (let i = 0; i < 130; i += 1) {
-    d.setUTCDate(d.getUTCDate() + 1);
     const iso = d.toISOString().slice(0, 10);
     if (iso > au) break;
     jours.push(iso);
+    d.setUTCDate(d.getUTCDate() + 1);
   }
   return { du: jours[0] ?? au, au, jours };
 }
@@ -361,9 +367,13 @@ export function heuresLibres(o: {
   if (opening.closed) return [];
   const durationMin = dureeDesPrestations(serviceIds, agenda.services);
   const occupes = occupesDuJour(o.occupes, dateIso);
+  /* AUJOURD'HUI ET L'HEURE, À COTONOU (12 novembre 2026) : le jour même
+     s'ouvre, et ses heures déjà commencées tombent. L'horloge de la visiteuse
+     ne compte pas : à Paris ou à Abidjan, le salon garde son heure. Une heure
+     qui commence à l'instant même est déjà passée (`creneauxLibres`). */
   const maintenant = o.maintenant ?? new Date();
-  const aujourdHui = dateIso === isoDuJour(maintenant);
-  const maintenantMin = aujourdHui ? maintenant.getHours() * 60 + maintenant.getMinutes() : null;
+  const aujourdHui = dateIso === jourDeCotonou(maintenant.getTime());
+  const maintenantMin = aujourdHui ? minutesDeCotonou(maintenant.getTime()) : null;
 
   const demandes = serviceIds.map((id) => agenda.services.find((s) => s.id === id)?.master).filter(Boolean) as string[];
   /* Les SÍNSIN chez Team, seul (24 octobre 2026). */

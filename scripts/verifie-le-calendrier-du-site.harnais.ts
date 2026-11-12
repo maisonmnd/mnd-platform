@@ -60,7 +60,9 @@ dit('A3 ... une annee bissextile : 15 nov. 2027 -> 29 fevr. 2028, 31 janv. 2028 
   ['2028-02-29', '2028-04-30', '2028-03-31'], ['2027-11-15', '2028-01-31', '2027-12-01'].map((j) => place.finDeLaReservation(j)));
 dit('A4 ... une date illisible ne borne rien', ['', ''], ['', '06/11/2026'].map((j) => place.finDeLaReservation(j)));
 const h6 = horizonDuSite(new Date(SIX_NOV));
-dit('A5 l horizon du site le 6 nov. : de demain au 28 fevr., jour par jour (114 jours)', ['2026-11-07', '2027-02-28', 114, '2026-11-07', '2027-02-28'],
+/* LE JOUR MEME — 12 novembre 2026 (Yeman au selecteur : « Ouvrir le jour
+   meme ») : l horizon commence AUJOURD HUI a Cotonou, plus demain. */
+dit('A5 l horizon du site le 6 nov. : d aujourd hui au 28 fevr., jour par jour (115 jours)', ['2026-11-06', '2027-02-28', 115, '2026-11-06', '2027-02-28'],
   [h6.du, h6.au, h6.jours.length, h6.jours[0], h6.jours.at(-1)]);
 dit('A6 ... sans trou ni doublon', true, h6.jours.every((j, i) => i === 0 || place.joursDEcart(j, SIX_NOV) === place.joursDEcart(h6.jours[i - 1], SIX_NOV) + 1));
 /* 23 h 30 UTC le 30 novembre : il est 0 h 30 le 1er decembre a Cotonou. */
@@ -68,13 +70,13 @@ const NUIT = ms('2026-11-30T23:30:00Z');
 const VEILLE = ms('2026-11-30T22:30:00Z');
 const hNuit = horizonDuSite(new Date(NUIT));
 const hVeille = horizonDuSite(new Date(VEILLE));
-dit('A7 Cotonou a 23 h 30 UTC le 30 nov. : deja le 1er dec., l horizon va du 2 dec. au 31 mars', ['2026-12-02', '2027-03-31'], [hNuit.du, hNuit.au]);
-dit('A8 ... et a 22 h 30 UTC (23 h 30 a Cotonou), encore le 30 nov. : du 1er dec. au 28 fevr.', ['2026-12-01', '2027-02-28'], [hVeille.du, hVeille.au]);
-dit('A9 l horizon du site suit la borne du serveur, mois apres mois', true,
+dit('A7 Cotonou a 23 h 30 UTC le 30 nov. : deja le 1er dec., l horizon va du 1er dec. au 31 mars', ['2026-12-01', '2027-03-31'], [hNuit.du, hNuit.au]);
+dit('A8 ... et a 22 h 30 UTC (23 h 30 a Cotonou), encore le 30 nov. : du 30 nov. au 28 fevr.', ['2026-11-30', '2027-02-28'], [hVeille.du, hVeille.au]);
+dit('A9 l horizon du site suit la borne du serveur, mois apres mois, du jour meme a la borne', true,
   ['2026-01-15T09:00:00Z', '2026-02-28T12:00:00Z', '2026-06-30T23:30:00Z', '2027-12-31T22:59:00Z'].every((t) => {
     const h = horizonDuSite(new Date(t));
-    return h.au === place.finDeLaReservation(place.jourDeCotonou(ms(t))) && place.joursDEcart(h.du, ms(t)) === 1
-      && h.jours.length === place.joursDeLaFenetre(ms(t));
+    return h.au === place.finDeLaReservation(place.jourDeCotonou(ms(t))) && place.joursDEcart(h.du, ms(t)) === 0
+      && h.jours.length === place.joursDeLaFenetre(ms(t)) + 1;
   }));
 dit('A10 les jours d ici a la borne : 114 le 6 nov., 89 le 31 janv. 2027 (le moins), 92 le 30 juin, 122 le 1er juillet (le plus)', [114, 89, 92, 122],
   [place.joursDeLaFenetre(SIX_NOV), place.joursDeLaFenetre(ms('2027-01-31T10:00:00Z')), place.joursDeLaFenetre(ms('2027-06-30T10:00:00Z')),
@@ -209,7 +211,7 @@ dit('E2 l ilot lit le meme horizon, pour charger, pour ses jours et pour relire 
     r.includes('return horizon.jours\n      .map((iso) => ({ iso, heures: heuresLibres({ agenda, dateIso: iso, serviceIds, occupes, places: placesParJour }) }))'),
     (r.match(/const suite = \[horizon\.du, horizon\.au\];/g) ?? []).length]);
 dit('E3 agenda.ts : l horizon tient la borne du serveur, compte a Cotonou ; plus de vingt et un jours', [true, true, true, false],
-  [agendaTs.includes("import { ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS, finDeLaReservation, reservableSurLeSite } from '../../shared/place-du-serveur';"),
+  [agendaTs.includes("import { ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS, finDeLaReservation, minutesDeCotonou, reservableSurLeSite } from '../../shared/place-du-serveur';"),
     agendaTs.includes('const aujourdhui = jourDeCotonou(maintenant.getTime());\n  const au = finDeLaReservation(aujourdhui);'),
     agendaTs.includes('ouvertureDuJour(iso, agenda.semaine, agenda.exceptions).closed'), /JOURS_DU_SITE|JOURS_DU_CALENDRIER/.test(agendaTs)]);
 dit('E4 plus de « Un autre jour », ni de JOURS_PROPOSES, ni de bande de jours, ni de « trois prochaines semaines »', [false, false, false, false, false],
@@ -264,6 +266,38 @@ dit('E10 rien ne change de ce qui tient : les places limitees dites, le repli Wh
     [lis('scripts/genere-revelateur.mjs').includes('\'<div data-ilot="fermeture" data-genre="reserver"></div>\''), css.includes('.reserver .bandeau-fermeture { border-radius: 14px; margin-bottom: 18px; }')]);
 }
 
+/* ══ G. LA MIGRATION 0203 : LE JOUR MEME, POUR LE SITE SEUL ═════════════
+   12 novembre 2026 (Yeman au selecteur : « Ouvrir le jour meme », « Aucun
+   delai »). 0168 avec la seule regle de la fenetre changee : le jour meme
+   passe quand le rendez-vous vient du site et que son heure n a pas commence
+   a Porto-Novo ; WhatsApp ('whatsapp') et l Assistant Maison ('assistant')
+   gardent « jamais le jour meme ». */
+{
+  const m0168 = lis('supabase/migrations/0168_la_reservation_jusqu_a_trois_mois_pleins.sql');
+  const m0203 = lis('supabase/migrations/0203_le_jour_meme_sur_le_site.sql');
+  const fonction = (s: string): string => {
+    const i = s.indexOf('create or replace function public.pose_si_libre(');
+    const fin = 'grant execute on function public.pose_si_libre(jsonb, text[], jsonb, jsonb) to service_role;';
+    const k = s.indexOf(fin, i);
+    return i < 0 || k < 0 ? '' : s.slice(i, k + fin.length);
+  };
+  const sansCom = (s: string) => s.replace(/--[^\n]*/g, '');
+  const avant = '  -- Jamais le jour même, jamais après le dernier jour du troisième mois qui\n  -- suit (ce mois et les trois suivants), comptés à Cotonou.\n  if jour <= aujourdhui or jour > borne then';
+  const apres = "  -- Jamais après le dernier jour du troisième mois qui suit (ce mois et les\n  -- trois suivants), comptés à Cotonou. Jamais le jour même, SAUF pour le site\n  -- (source 'site', 0203) à une heure pas encore commencée à Porto-Novo.\n  if jour < aujourdhui or jour > borne\n     or (jour = aujourdhui and not (\n           coalesce(p_rdv->>'source', '') = 'site'\n           and coalesce(public.minutes_de_l_heure(heure), -1)\n               > (extract(hour from now() at time zone 'Africa/Porto-Novo') * 60\n                  + extract(minute from now() at time zone 'Africa/Porto-Novo'))::int)) then";
+  const neuve = fonction(m0203);
+  dit('G1 0203 : 0168 avec la seule regle de la fenetre changee (le jour meme, le site seul), les droits compris', true,
+    neuve.length > 5000 && fonction(m0168).split(avant).length === 2 && neuve === fonction(m0168).replace(avant, apres));
+  dit('G2 ... la veille et au-dela de la borne restent refusees, la borne des trois mois reste', [true, true],
+    [neuve.includes('if jour < aujourdhui or jour > borne'), neuve.includes("interval '4 months' - interval '1 day'")]);
+  dit('G3 ... rien d autre : une seule fonction, aucun declencheur, aucune ecriture hors du verrou', [1, false, false],
+    [(sansCom(m0203).match(/create or replace function/g) ?? []).length, /create trigger|drop trigger/.test(sansCom(m0203)),
+      /\b(insert into|update public\.|delete from|alter |drop )/i.test(sansCom(m0203.replace(neuve, '')))]);
+  dit('G4 ... seul le site ecrit source « site » : WhatsApp ecrit « whatsapp », l Assistant Maison « assistant »', [true, false, false],
+    [/source: 'site',/.test(lis('supabase/functions/demande-submit/index.ts')),
+      /source: ['"]site['"]/.test(lis('supabase/functions/whatsapp-automate/index.ts')),
+      /source: ['"]site['"]/.test(lis('supabase/functions/assistants-maison/index.ts'))]);
+}
+
 /* ══ F. LA MIGRATION 0168, ET LES VERSIONS A DEPLOYER ══════════════════ */
 {
   const m0168 = lis('supabase/migrations/0168_la_reservation_jusqu_a_trois_mois_pleins.sql');
@@ -295,7 +329,7 @@ dit('E10 rien ne change de ce qui tient : les places limitees dites, le repli Wh
   const ds = lis('supabase/functions/demande-submit/index.ts');
   const wa = lis('supabase/functions/whatsapp-automate/index.ts');
   dit('F5 les deux fonctions a deployer portent la version du 6 novembre 2026', [true, true],
-    [/const VERSION = '2026-11-0[67]-[a-z] · [^']*la réservation jusqu’au dernier jour du troisième mois qui suit/.test(ds),
+    [/const VERSION = '2026-\d\d-\d\d-[a-z] · [^']*la réservation jusqu’au dernier jour du troisième mois qui suit/.test(ds),
       /const VERSION = '[^']*la place jugee jusqu au dernier jour du troisieme mois qui suit/.test(wa)]);
 }
 

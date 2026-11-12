@@ -242,6 +242,21 @@ function suite(lib: Lib, silence: boolean): number {
   dit('A10 ... et a 22 h 30 UTC (23 h 30 a Cotonou), le 15 est encore demain', 'ok', erreur(tient(AG, JEU, '11:00', ['lav-1'], VEILLE)));
   dit('A11 le jour de Cotonou et l ecart en jours', ['2026-10-15', 1, 0, Number.NaN].map(String),
     [lib.jourDeCotonou(NUIT), lib.joursDEcart(VEN, NUIT), lib.joursDEcart(JEU, NUIT), lib.joursDEcart('2026-02-30', NUIT)].map(String));
+  /* LE JOUR MEME, SUR LE SITE SEULEMENT — 12 novembre 2026 (Yeman au
+     selecteur : « Ouvrir le jour meme », « Aucun delai »). MS : le mercredi
+     14 octobre, 11 h a Cotonou. Sans `jourMeme` (WhatsApp, l Assistant
+     Maison), jamais le jour meme ; avec lui, les heures pas encore commencees,
+     et l heure qui commence a l instant meme est deja passee. */
+  const AUJ = '2026-10-14';
+  const recoit = (date: string, time: string, ms = MS, jourMeme?: boolean) => lib.laPlaceEstRecevable({ date, time }, ms, jourMeme);
+  dit('A11b sans jourMeme (WhatsApp), le jour meme reste refuse, meme a une heure a venir', 'creneau_hors_fenetre', recoit(AUJ, '15:00'));
+  dit('A11c le site, le jour meme : 15 h et 11 h 01 passent ; 10 h, 11 h pile et la veille non',
+    [null, null, 'creneau_hors_fenetre', 'creneau_hors_fenetre', 'creneau_hors_fenetre'],
+    [recoit(AUJ, '15:00', MS, true), recoit(AUJ, '11:01', MS, true), recoit(AUJ, '10:00', MS, true), recoit(AUJ, '11:00', MS, true), recoit('2026-10-13', '15:00', MS, true)]);
+  dit('A11d le juge entier : le site pose 15 h le jour meme, WhatsApp non', ['ok', 'creneau_hors_fenetre'],
+    [erreur(lib.laPlaceTient(AG, { date: AUJ, time: '15:00', serviceIds: ['lav-1'] }, MS, true)), erreur(tient(AG, AUJ, '15:00', ['lav-1']))]);
+  dit('A11e a 0 h 30 a Cotonou (23 h 30 UTC la veille), le jour meme du site est le jour de Cotonou', [null, 'creneau_hors_fenetre'],
+    [recoit(JEU, '11:00', NUIT, true), recoit(AUJ, '15:00', NUIT, true)]);
 
   /* ── Les jours et les heures d'ouverture ── */
   dit('A12 un dimanche, une fermeture exceptionnelle : creneau_ferme', ['creneau_ferme', 'creneau_ferme'],
@@ -324,6 +339,19 @@ function suite(lib: Lib, silence: boolean): number {
 
   /* ══ B. LES PLACES ══════════════════════════════════════════════════ */
   const site = agendaDuSite();
+  /* LE JOUR MEME — 12 novembre 2026 : « les horaires d aujourd hui qui sont
+     deja passes, il ne faut plus les montrer » (Yeman). MS : 11 h a Cotonou.
+     Le site ne montre aujourd hui que des heures APRES 11 h, et le juge du
+     site (jourMeme) accepte exactement celles-la, ni plus ni moins. */
+  let jourMemeVu = 0;
+  for (const ids of GESTES) {
+    const auj = heuresLibres({ agenda: site.agenda, dateIso: '2026-10-14', serviceIds: ids, occupes: site.occupes, maintenant: new Date(MS) }).map((h) => h.heure);
+    const tenuesAuj = GRILLE.filter((h) => lib.laPlaceTient(AG, { date: '2026-10-14', time: h, serviceIds: ids }, MS, true).ok);
+    jourMemeVu += auj.length;
+    dit(`B0 [${ids.join('+')}] le jour meme : le site ne montre que des heures pas encore commencees, et le juge du site accepte exactement celles-la`,
+      [true, auj], [auj.every((h) => h > '11:00'), tenuesAuj]);
+  }
+  dit('B0b le jour meme, le site propose bien des heures (le mercredi 14 apres 11 h)', true, jourMemeVu > 0);
   for (const ids of GESTES) {
     const places = lib.placesLibres(AG, ids, MS, 14);
     const jours = [...new Set(places.map((p) => p.iso))];
@@ -494,9 +522,11 @@ function jugeLaPorte(brut: string): string[] {
     && /toutesLesLignes\('catalog_categories'\)/.test(s) && /toutesLesLignes\('blocages', \[\['data->>branchId', o\.branche\.id\], \['data->>date', o\.date\]\]\)/.test(s));
   /* Le juge reçoit les places du jour de la base (0152, le second fauteuil,
      2 novembre 2026) ; c'est toujours celui du serveur. */
-  exige('le juge est celui du serveur', /laPlaceTient\(\{ \.\.\.agenda, sieges: places \}, \{ date: o\.date, time: o\.time, serviceIds: o\.serviceIds, derniereVenue \}, maintenant\)/.test(s));
-  exige('la forme et la fenetre se jugent avant toute lecture', s.indexOf('laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant)') > -1
-    && s.indexOf('laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant)') < s.indexOf("toutesLesLignes('catalog_services')"));
+  /* LE SITE OUVRE LE JOUR MÊME (12 novembre 2026) : la porte du site passe
+     `jourMeme` (true) au juge, aux deux endroits. */
+  exige('le juge est celui du serveur', /laPlaceTient\(\{ \.\.\.agenda, sieges: places \}, \{ date: o\.date, time: o\.time, serviceIds: o\.serviceIds, derniereVenue \}, maintenant, true\)/.test(s));
+  exige('la forme et la fenetre se jugent avant toute lecture', s.indexOf('laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant, true)') > -1
+    && s.indexOf('laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant, true)') < s.indexOf("toutesLesLignes('catalog_services')"));
   exige('une lecture en panne refuse', /if \(panne \|\| pris\.length >= PLAFOND_D_UNE_REPONSE\)/.test(s) && /return \{ erreur: 'agenda_illisible' \}/.test(s));
   exige('le refus du juge part en 409, la panne en 503', /json\(\{ error: verdict\.erreur \}, verdict\.erreur === 'agenda_illisible' \? 503 : 409\)/.test(s));
   exige('jamais le premier maitre de la branche sans regarder', !/\b(?:o|branche)\.maitres\[0\]/.test(s));
@@ -554,8 +584,13 @@ const PANNES_DU_JUGE: Panne[] = [
   { nom: 'le premier maitre, libre ou non', avant: 'return { ok: true, dureeMin, maitres: libres };', apres: 'return { ok: true, dureeMin, maitres: candidats };' },
   { nom: 'le jour compte sur l horloge UTC', avant: 'new Date(ms + 3_600_000)', apres: 'new Date(ms)' },
   { nom: 'la borne un mois plus loin', avant: 'Number(m[2]) - 1 + 4, 0)', apres: 'Number(m[2]) - 1 + 5, 0)' },
-  { nom: 'la borne sur quatre-vingt-dix jours glissants', avant: 'if (ecart < 1 || ecart > joursDeLaFenetre(ms)) return', apres: 'if (ecart < 1 || ecart > 90) return' },
-  { nom: 'le jour meme accepte', avant: 'if (ecart < 1 || ecart > joursDeLaFenetre(ms)) return', apres: 'if (ecart < 0 || ecart > joursDeLaFenetre(ms)) return' },
+  { nom: 'la borne sur quatre-vingt-dix jours glissants', avant: '|| ecart > joursDeLaFenetre(ms)) return', apres: '|| ecart > 90) return' },
+  /* Sans `jourMeme` (WhatsApp, l'Assistant Maison), le jour même reste refusé ;
+     avec lui (le site, 12 novembre 2026), seulement ses heures pas encore
+     commencées. Les deux pannes : le jour même ouvert à tous, et ouvert au
+     site même pour une heure déjà commencée. */
+  { nom: 'le jour meme accepte', avant: 'if ((ecart < 1 && !aujourdhuiPasEncoreCommence)', apres: 'if ((ecart < 0 && !aujourdhuiPasEncoreCommence)' },
+  { nom: 'le jour meme du site accepte une heure deja commencee', avant: 'Number(m[1]) * 60 + Number(m[2]) > minutesDeCotonou(ms)', apres: 'Number(m[1]) * 60 + Number(m[2]) >= 0' },
   { nom: 'les places au-dela de la borne', avant: 'const n = Math.max(1, Math.min(joursDeLaFenetre(ms), Number.isFinite(voulu)', apres: 'const n = Math.max(1, Math.min(200, Number.isFinite(voulu)' },
   { nom: 'la porte de consultation ouverte', avant: "if (connus.some((s) => !estUneConsultation(s, cats) && exigeConsultation(s, cats))) return 'consultation_requise';", apres: '' },
   { nom: 'tous les ateliers ouverts en ligne', avant: 'return ATELIERS_RESERVABLES.includes(racine);', apres: 'return true;' },

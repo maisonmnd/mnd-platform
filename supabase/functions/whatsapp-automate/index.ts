@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -851,15 +851,24 @@ type VerdictDeLaPlace =
 /** Une place proposée : un jour et une heure, jamais un maître. */
 type PlaceDuServeur = { iso: string; heure: string };
 
+/** Les minutes écoulées depuis minuit, à Cotonou (UTC+1, sans heure d'été). */
+const minutesDeCotonou = (ms: number): number => Math.floor((((ms + 3_600_000) % UN_JOUR_MS) + UN_JOUR_MS) % UN_JOUR_MS / 60_000);
+
 /** LA FORME ET LA FENÊTRE, avant toute lecture : un appel mal formé ne coûte
-    rien à la base. Jamais le jour même (la Maison prépare la venue), jamais
-    après la borne (`finDeLaReservation`). */
-function laPlaceEstRecevable(p: { date: string; time: string }, ms: number): RefusDeLaPlace | null {
+    rien à la base. Jamais après la borne (`finDeLaReservation`).
+
+    LE JOUR MÊME, SUR LE SITE SEULEMENT (12 novembre 2026, Yéman au
+    sélecteur : « Ouvrir le jour même », « Aucun délai ») : le site propose
+    aujourd'hui les heures pas encore commencées à Cotonou, et `jourMeme` les
+    laisse passer. Sans lui (WhatsApp, l'Assistant Maison), jamais le jour
+    même : la Maison prépare la venue. */
+function laPlaceEstRecevable(p: { date: string; time: string }, ms: number, jourMeme = false): RefusDeLaPlace | null {
   const m = /^(\d{2}):(\d{2})$/.exec(String(p.time ?? ''));
   if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return 'creneau_invalide';
   const ecart = joursDEcart(String(p.date ?? ''), ms);
   if (Number.isNaN(ecart)) return 'creneau_invalide';
-  if (ecart < 1 || ecart > joursDeLaFenetre(ms)) return 'creneau_hors_fenetre';
+  const aujourdhuiPasEncoreCommence = jourMeme && ecart === 0 && Number(m[1]) * 60 + Number(m[2]) > minutesDeCotonou(ms);
+  if ((ecart < 1 && !aujourdhuiPasEncoreCommence) || ecart > joursDeLaFenetre(ms)) return 'creneau_hors_fenetre';
   return null;
 }
 
@@ -898,9 +907,10 @@ function maitresDuRituel(agenda: AgendaDuServeur, serviceIds: readonly string[])
 
 /** LA PLACE TIENT-ELLE ? Tout ce que le site montrait, revérifié sur
     l'instantané que la fonction vient de lire. Le verrou (`pose_si_libre`)
-    rejoue le plafond, les fauteuils et les maîtres sous verrou. */
-function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number): VerdictDeLaPlace {
-  const recevable = laPlaceEstRecevable(p, ms);
+    rejoue le plafond, les fauteuils et les maîtres sous verrou. `jourMeme` :
+    le site seul (`laPlaceEstRecevable`). */
+function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jourMeme = false): VerdictDeLaPlace {
+  const recevable = laPlaceEstRecevable(p, ms, jourMeme);
   if (recevable) return { ok: false, erreur: recevable };
   /* Sans semaine connue, le jour est fermé : mieux vaut un rappel qu'un
      lundi ouvert que la Maison ferme. */

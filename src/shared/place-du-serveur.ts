@@ -309,15 +309,24 @@ type VerdictDeLaPlace =
 /** Une place proposée : un jour et une heure, jamais un maître. */
 type PlaceDuServeur = { iso: string; heure: string };
 
+/** Les minutes écoulées depuis minuit, à Cotonou (UTC+1, sans heure d'été). */
+const minutesDeCotonou = (ms: number): number => Math.floor((((ms + 3_600_000) % UN_JOUR_MS) + UN_JOUR_MS) % UN_JOUR_MS / 60_000);
+
 /** LA FORME ET LA FENÊTRE, avant toute lecture : un appel mal formé ne coûte
-    rien à la base. Jamais le jour même (la Maison prépare la venue), jamais
-    après la borne (`finDeLaReservation`). */
-function laPlaceEstRecevable(p: { date: string; time: string }, ms: number): RefusDeLaPlace | null {
+    rien à la base. Jamais après la borne (`finDeLaReservation`).
+
+    LE JOUR MÊME, SUR LE SITE SEULEMENT (12 novembre 2026, Yéman au
+    sélecteur : « Ouvrir le jour même », « Aucun délai ») : le site propose
+    aujourd'hui les heures pas encore commencées à Cotonou, et `jourMeme` les
+    laisse passer. Sans lui (WhatsApp, l'Assistant Maison), jamais le jour
+    même : la Maison prépare la venue. */
+function laPlaceEstRecevable(p: { date: string; time: string }, ms: number, jourMeme = false): RefusDeLaPlace | null {
   const m = /^(\d{2}):(\d{2})$/.exec(String(p.time ?? ''));
   if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return 'creneau_invalide';
   const ecart = joursDEcart(String(p.date ?? ''), ms);
   if (Number.isNaN(ecart)) return 'creneau_invalide';
-  if (ecart < 1 || ecart > joursDeLaFenetre(ms)) return 'creneau_hors_fenetre';
+  const aujourdhuiPasEncoreCommence = jourMeme && ecart === 0 && Number(m[1]) * 60 + Number(m[2]) > minutesDeCotonou(ms);
+  if ((ecart < 1 && !aujourdhuiPasEncoreCommence) || ecart > joursDeLaFenetre(ms)) return 'creneau_hors_fenetre';
   return null;
 }
 
@@ -356,9 +365,10 @@ function maitresDuRituel(agenda: AgendaDuServeur, serviceIds: readonly string[])
 
 /** LA PLACE TIENT-ELLE ? Tout ce que le site montrait, revérifié sur
     l'instantané que la fonction vient de lire. Le verrou (`pose_si_libre`)
-    rejoue le plafond, les fauteuils et les maîtres sous verrou. */
-function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number): VerdictDeLaPlace {
-  const recevable = laPlaceEstRecevable(p, ms);
+    rejoue le plafond, les fauteuils et les maîtres sous verrou. `jourMeme` :
+    le site seul (`laPlaceEstRecevable`). */
+function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jourMeme = false): VerdictDeLaPlace {
+  const recevable = laPlaceEstRecevable(p, ms, jourMeme);
   if (recevable) return { ok: false, erreur: recevable };
   /* Sans semaine connue, le jour est fermé : mieux vaut un rappel qu'un
      lundi ouvert que la Maison ferme. */
@@ -448,7 +458,7 @@ function placesLibres(
 
 export {
   ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS,
-  reservableSurLeSite, agendaDepuisLesLignes, jourDeCotonou, isoApresJours, joursDEcart, finDeLaReservation, joursDeLaFenetre,
+  reservableSurLeSite, agendaDepuisLesLignes, jourDeCotonou, minutesDeCotonou, isoApresJours, joursDEcart, finDeLaReservation, joursDeLaFenetre,
   laPlaceEstRecevable, lesGestesSeReservent, maitresDuRituel, laPlaceTient, placesLibres,
 };
 export type {

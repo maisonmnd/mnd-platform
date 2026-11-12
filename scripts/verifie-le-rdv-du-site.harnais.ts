@@ -710,7 +710,7 @@ await attendsLeFond();
   const versionFin = (await serviFin.json() as any).version as string;
   const serviDemande = await servirDemande(new Request('http://f/', { method: 'GET' }));
   const versionDemande = (await serviDemande.json() as any).version as string;
-  dit('S15 les deux fonctions disent leur version : terminer-et-regler 2026-11-07-d ou apres, demande-submit 2026-11-07-a', [true, true], [/^2026-\d\d-\d\d-[a-z] · /.test(versionFin) && versionFin >= '2026-11-07-d', /^2026-11-07-a · /.test(versionDemande)]);
+  dit('S15 les deux fonctions disent leur version : terminer-et-regler 2026-11-07-d ou apres, demande-submit 2026-11-07-a ou apres', [true, true], [/^2026-\d\d-\d\d-[a-z] · /.test(versionFin) && versionFin >= '2026-11-07-d', /^2026-\d\d-\d\d-[a-z] · /.test(versionDemande) && versionDemande >= '2026-11-07-a']);
 }
 
 console.log(`\n${n - ko}/${n} epreuves tenues${ko ? `, ${ko} en echec` : ''}.`);
