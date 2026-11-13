@@ -21,6 +21,7 @@ import {
   todayISO, useBranchAppointments, useBranchClients, useServicesById,
 } from './_shared';
 import './clients.css';
+import { ConsultationsGratuites } from './ConsultationsGratuites';
 import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
 import { ChampDeDate } from '../../../../ds/dates';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
@@ -996,7 +997,9 @@ function OnlineSection() {
 
   const open = queue.filter((o) => o.status !== 'fermée');
   const closed = queue.filter((o) => o.status === 'fermée');
-  const live = open.find((o) => o.status === 'nouvelle');
+  /* La consultation gratuite (lot 2) a sa file à elle, au-dessus : la carte
+     « arrivée en ligne » reste celle de La Consultation payée. */
+  const live = open.find((o) => o.status === 'nouvelle' && o.modalite !== 'auto');
 
   const whenAgo = (iso: string) => {
     const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -1021,6 +1024,8 @@ function OnlineSection() {
           Ouvrir La Consultation →
         </a>
       </div>
+
+      <ConsultationsGratuites />
 
       {/* Carte live · dernier diagnostic reçu */}
       {live && (

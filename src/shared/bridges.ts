@@ -55,6 +55,24 @@ export type OnlineConsultation = {
   /** La Maison qui reçoit la demande, lue dans `branches` par le tunnel. */
   branchId?: string;
   status: 'nouvelle' | 'traitée' | 'fermée';
+  /* ── LA CONSULTATION GRATUITE — 13 novembre 2026 (la Consultation, lot 2) ──
+     Une lecture faite sur le site, sans paiement : les besoins cochés, la
+     lecture du moteur, l'estimation. Absents sur les consultations d'avant. */
+  /** A · la consultation gratuite du site ; B · la visio ; C · la privée. */
+  modalite?: 'auto' | 'visio' | 'privee';
+  /** Les besoins cochés (identifiants de `mnd_besoins`) et leurs mots, pour
+      que le Trône les lise même si le document change ensuite. */
+  besoins?: { id: string; mots: string; points: number }[];
+  /** Ce qu'elle a dit de sa couronne. */
+  couronne?: { locks?: number; calibreId?: string; calibreDit?: string; longueur?: string; nees?: 'maison' | 'ailleurs' | 'aucune'; pour?: 'moi' | 'enfant'; sensibilites?: string };
+  /** La lecture du moteur et l'estimation retenue, au catalogue du jour. */
+  estimation?: {
+    lignes: { serviceId: string; nom: string; min: number | null; max: number | null; retenue: boolean }[];
+    aConfirmer: { serviceId: string; nom: string; pourquoi: string }[];
+    min: number; max: number; aChiffrer: number;
+  };
+  /** La garde médicale levée (plaques, psoriasis). */
+  garde?: 'peau';
 };
 
 /* ── LA CARTE DU COMPTOIR — ce qu'on y montre, 28 août 2026 ───────────

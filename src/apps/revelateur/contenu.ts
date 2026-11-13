@@ -334,7 +334,10 @@ export const ACCUEIL: Accueil = {
      qu'elle est, et la personne conclut » (Yéman, avec le récit). */
   bande: ['Locks créées', 'Locks réparées', 'Locks soignées', 'Une maison de famille pour les locks, à Cotonou'],
   boutons: [
-    { texte: 'Faire mon diagnostic', vers: '/mon-parcours/' },
+    /* LA CONSULTATION GRATUITE PREND LA PREMIÈRE PLACE — 13 novembre 2026 (la
+       Consultation, lot 2) : besoins, lecture, estimation, sans payer. Le
+       diagnostic en cinq questions reste en ligne, la consultation y renvoie. */
+    { texte: 'Ma consultation gratuite', vers: '/consultation/' },
     { texte: 'Réserver', vers: '/reserver/' },
   ],
   /* 11 OCTOBRE 2026, maquette de l'accueil à trois entrées validée par
@@ -536,6 +539,22 @@ export const GALERIE: Galerie = {
 };
 
 export const PAGES: Page[] = [
+  {
+    /* LA CONSULTATION GRATUITE — 13 novembre 2026 (maquette « La Consultation
+       MND », écrans S1 à S5). Ses mots viennent du Trône (Besoins et règles),
+       ses prix du catalogue. */
+    chemin: '/consultation/',
+    titre: 'Ma consultation gratuite · Maison MND Cotonou',
+    description: 'Dites ce que vous voulez pour vos locks : la Maison MND vous propose les soins qui y répondent et une estimation au tarif du jour. Gratuit, sans engagement, à Cotonou.',
+    h1: 'Ma consultation gratuite',
+    sur: 'Consultation',
+    ligne: 'Vos envies, vos besoins, votre couronne. Une lecture et une estimation, sans rien payer.',
+    besoin: 'inconnu',
+    ilot: 'consultation',
+    ton: 'reservation',
+    jsonld: 'aucun',
+    court: 'Consultation',
+  },
   {
     chemin: '/mon-parcours/',
     titre: 'Le diagnostic locks · Maison MND Cotonou',

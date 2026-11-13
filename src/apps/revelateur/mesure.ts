@@ -32,7 +32,12 @@ export type Evenement =
   | 'boutique_prevenir'
   /* Le chat de la Maison (19 octobre 2026) : une discussion ouverte, un message écrit. */
   | 'chat_ouvert'
-  | 'chat_message';
+  | 'chat_message'
+  /* La consultation gratuite (13 novembre 2026, la Consultation, lot 2) :
+     commencée, lue (la lecture et l'estimation affichées), déposée au Trône. */
+  | 'consultation_commencee'
+  | 'consultation_lue'
+  | 'consultation_deposee';
 
 export type Parametres = { parcours?: string; page?: string; sortie?: string; genre?: string; chemin?: string };
 

@@ -7,6 +7,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useStaff } from '../../../../shared/auth';
 import { useBesoins, prixDAppelDe } from '../../../../shared/besoins';
 import { PALIERS_DITS, besoinsDe, palierDe, relie } from '../../../../shared/besoins-pur';
+import { useEstDirection } from '../_vie';
 
 /* ══ LA FICHE TECHNIQUE D'UNE PRESTATION — 13 novembre 2026 ═══════════════
    La Consultation, lot 1 (maquette, écran T3). Ce que la prestation soigne,
@@ -46,6 +47,8 @@ export function FicheTechniqueDuVolet({ serviceId, fiche, onChange, services, cu
 }) {
   const [r, ecris] = useBesoins();
   const moi = useStaff();
+  /* Les liens et le « sans seuil » s'écrivent dans `mnd_besoins` : la direction seule (0207). */
+  const estDirection = useEstDirection();
   const nom = (id: string) => services.find((s) => s.id === id)?.name ?? 'prestation introuvable';
   const champ = (k: 'indications' | 'eligibilite' | 'contreIndications' | 'actifs', titre: string, aide: string) => (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -88,7 +91,8 @@ export function FicheTechniqueDuVolet({ serviceId, fiche, onChange, services, cu
         {!serviceId ? (
           <span className="mnd-muted" style={{ fontSize: 12.5 }}>Enregistrez d’abord la prestation : elle pourra alors recevoir ses besoins.</span>
         ) : (
-          <>
+          <fieldset disabled={!estDirection} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {!estDirection && <span className="mnd-muted" style={{ fontSize: 12 }}>Lecture seule : seule la direction relie les besoins.</span>}
             <span className="mnd-muted" style={{ fontSize: 12 }}>
               Palier {PALIERS_DITS[palier]}{prix !== undefined ? ` (prix d’appel ${fmtMoney(prix, currency)})` : ' (prix au comptage ou au forfait)'} ·{' '}
               {libre ? 'prestation courante, sans seuil de points' : `${r.seuils[palier]} points demandés`}
@@ -122,7 +126,7 @@ export function FicheTechniqueDuVolet({ serviceId, fiche, onChange, services, cu
             <span className="mnd-muted" style={{ fontSize: 11.5 }}>
               Les liens s’enregistrent tout de suite. Pour créer un besoin : <Link to="/besoins">Système › Besoins et règles</Link>.
             </span>
-          </>
+          </fieldset>
         )}
       </div>
     </div>

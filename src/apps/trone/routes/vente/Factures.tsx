@@ -24,6 +24,8 @@ import { adresseDe, lienPaiementMomo } from '../equipe/data';
 import { LienMndPay } from './LienMndPay';
 import { BlocRelances } from './BlocRelances';
 import AssistantDuDevis, { type BrouillonDuDevis } from './AssistantDuDevis';
+import { consultationsQueueStore } from '../../../../shared/bridges';
+import { clienteDeLaConsultation, lignesDuDevisEstime, motDuDevisEstime } from '../../../../shared/devis-de-la-consultation-pur';
 import { fmtDateFr, useLaPieceEnPdf, detailPorte } from './pdf-de-la-piece';
 import { BoutonDuPoint, FenetreDuPoint } from './FenetreDuPoint';
 import { filStore, nouveauMessage } from '../../../../shared/fil';
@@ -796,9 +798,31 @@ export default function Factures() {
   const dejaCreePour = useRef<string | null>(null);
   useEffect(() => {
     const k = params.get('nouveau');
-    if (k === 'facture' || k === 'devis') {
-      if (dejaCreePour.current !== k) {
-        dejaCreePour.current = k;
+    /* LE DEVIS ESTIMÉ NÉ D'UNE CONSULTATION — 13 novembre 2026 (lot 2) :
+       `?nouveau=devis&consultation=<id>` ouvre le brouillon pré-rempli. */
+    const cid = params.get('consultation');
+    const cle = cid ? `${k}:${cid}` : k;
+    if ((k === 'facture' || k === 'devis') && dejaCreePour.current !== cle) {
+      dejaCreePour.current = cle;
+      const c = cid && k === 'devis' ? consultationsQueueStore.get().find((o) => o.id === cid) : undefined;
+      if (c) {
+        const cliente = clienteDeLaConsultation(c, clients);
+        setOnglet('devis');
+        setStatusFilter('tous');
+        setQ('');
+        setEditing({
+          mode: 'new',
+          draft: {
+            ...blankDraft('devis'),
+            status: 'estimé',
+            clientId: cliente?.id ?? '',
+            ...(cliente ? {} : { clientName: c.client.name }),
+            lines: lignesDuDevisEstime(c).map((l) => ligneFacture(l.label, l.unitXof)),
+            note: motDuDevisEstime(c, (n) => fmtMoney(n, currency)),
+          },
+        });
+        setWaHint('Brouillon préparé depuis la consultation gratuite : chaque ligne au bas de sa fourchette, à ajuster avant de créer.');
+      } else {
         openNew(k);
       }
     }

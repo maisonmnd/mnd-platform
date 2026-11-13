@@ -1080,6 +1080,11 @@ function ilot(nom, p) {
     return `<section class="serre"><div class="conteneur"><div data-ilot="offrir"><p class="corps">La carte se compose ici : un modèle, un geste ou un montant, un prénom, un mot. Si rien ne s’affiche, écrivez-nous, la Maison la prépare avec vous.</p><p style="margin-top:12px">${bouton({ texte: 'Commander sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div></div></section>`;
   }
   if (nom === 'parrainer') return sectionParrainage(false);
+  /* LA CONSULTATION GRATUITE — 13 novembre 2026 (la Consultation, lot 2) : sans
+     script, la page dit quoi faire plutôt que de rester vide. */
+  if (nom === 'consultation') {
+    return `<section class="serre"><div class="conteneur"><div data-ilot="consultation"><p class="corps">La consultation se prépare. Si rien ne s’affiche, écrivez à la Maison sur WhatsApp : elle vous pose les mêmes questions.</p><p style="margin-top:12px">${bouton({ texte: 'Écrire à la Maison', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div></div></section>`;
+  }
   if (nom === 'ingredients') return grilleDesIngredients();
   if (nom === 'engagements') return grilleDesEngagements();
   /* LA TESTEUSE : le formulaire de la demande, profil posé d'avance. Elle
@@ -1215,7 +1220,9 @@ function rendLibre(p, supplement = '') {
     /* La réservation et le rappel SONT la page (11 octobre 2026). */
     || p.ilot === 'reserver' || p.ilot === 'demande'
     /* La page du rendez-vous l'est aussi (3 novembre 2026). */
-    || p.ilot === 'rdv';
+    || p.ilot === 'rdv'
+    /* La consultation gratuite l'est aussi (13 novembre 2026). */
+    || p.ilot === 'consultation';
   /* La première image de la page part en priorité, comme sur les pages de service (11 octobre 2026). */
   const visuel = p.image ? `<div>${image(p.image, '', ' fetchpriority="high"').replace(' loading="lazy"', '')}</div>` : '';
   /* L'OUVERTURE PLEIN ÉCRAN (1er octobre 2026) : le surtitre, le titre, la ligne, un

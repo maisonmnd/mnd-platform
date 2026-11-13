@@ -7,6 +7,7 @@ import { useServices, type Service } from '../../../../shared/catalog';
 import { useStaff } from '../../../../shared/auth';
 import { uid } from '../../../../shared/store';
 import { useBesoins, prixDAppelDe, etatDe } from '../../../../shared/besoins';
+import { useEstDirection } from '../_vie';
 import {
   AUCUNE_PREUVE, PALIERS_DITS, POINTS_PERMIS, SENS_DES_POINTS, defautsDes, palierDe, qualifie,
   type Besoin, type Palier, type Preuves, type Qualification, type ReglagesDesBesoins,
@@ -34,6 +35,9 @@ export default function BesoinsEtRegles() {
   const [services] = useServices();
   const moi = useStaff();
   const [r, ecris] = useBesoins();
+  /* SEULE LA DIRECTION ÉCRIT LES BESOINS — 0207 (13 novembre 2026). L'écran le
+     dit au lieu de laisser la base refuser sans bruit. */
+  const estDirection = useEstDirection();
   const [onglet, setOnglet] = useState<Onglet>('besoins');
   const [edite, setEdite] = useState<Besoin | null>(null);
   const [famille, setFamille] = useState<string>('toutes');
@@ -90,7 +94,7 @@ export default function BesoinsEtRegles() {
         eyebrow="Système · la consultation"
         title="Besoins et règles."
         sub="Ce que la cliente peut dire, et ce que la Maison lui propose en retour."
-        actions={<Button onClick={() => { setOnglet('besoins'); setEdite(vide(famille !== 'toutes' && famille !== 'a-relier' ? famille : r.familles[0]?.id ?? '')); }}>+ Nouveau besoin</Button>}
+        actions={estDirection ? <Button onClick={() => { setOnglet('besoins'); setEdite(vide(famille !== 'toutes' && famille !== 'a-relier' ? famille : r.familles[0]?.id ?? '')); }}>+ Nouveau besoin</Button> : undefined}
       />
 
       <div className="trv-tabs" role="tablist">
@@ -98,6 +102,8 @@ export default function BesoinsEtRegles() {
         <button role="tab" aria-selected={onglet === 'essayer'} className={`trv-tab ${onglet === 'essayer' ? 'is-active' : ''}`} onClick={() => setOnglet('essayer')}>Essayer</button>
         <button role="tab" aria-selected={onglet === 'seuils'} className={`trv-tab ${onglet === 'seuils' ? 'is-active' : ''}`} onClick={() => setOnglet('seuils')}>Seuils et preuves</button>
       </div>
+
+      {!estDirection && <p className="tbs-garde">Lecture seule : seule la direction modifie les besoins, leurs points et les seuils. « Essayer » reste ouvert.</p>}
 
       {r.modifieLe && (
         <p className="mnd-muted tbs-signe">
@@ -136,7 +142,7 @@ export default function BesoinsEtRegles() {
             {visibles.map((b) => {
               const f = r.familles.find((x) => x.id === b.famille);
               return (
-                <button key={b.id} type="button" className={`tbs-besoin${edite?.id === b.id ? ' is-ouvert' : ''}`} onClick={() => setEdite({ ...b, prestations: [...b.prestations] })}>
+                <button key={b.id} type="button" className={`tbs-besoin${edite?.id === b.id ? ' is-ouvert' : ''}`} onClick={() => { if (estDirection) setEdite({ ...b, prestations: [...b.prestations] }); }}>
                   <span className="tbs-besoin__mots">
                     {b.mots}
                     <small>
@@ -160,7 +166,9 @@ export default function BesoinsEtRegles() {
       {onglet === 'essayer' && <Essai r={r} nomDe={nomDe} prixDit={prixDit} prixDe={prixDe} />}
 
       {onglet === 'seuils' && (
+        <fieldset disabled={!estDirection} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <Seuils r={r} services={vendables} currency={currency} nomDe={nomDe} prixDe={prixDe} ecris={(fn) => ecris(fn, par)} />
+        </fieldset>
       )}
     </div>
   );

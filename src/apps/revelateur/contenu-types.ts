@@ -135,6 +135,8 @@ export type Page = {
   /** `contact` est la petite carte WhatsApp de la page de réservation ;
       `joindre` les trois cartes de la page contact (écrire, trouver, venir). */
   ilot?: 'triage' | 'demande' | 'contact' | 'joindre' | 'reserver' | 'offres' | 'offrir'
+    /* La consultation gratuite (13 novembre 2026). */
+    | 'consultation'
     /* 28 septembre 2026 : la communauté. `engagements` et `ingredients` ne
        montent pas de React, ils se rendent à la construction. */
     | 'parrainer' | 'testeuse' | 'engagements' | 'ingredients'
