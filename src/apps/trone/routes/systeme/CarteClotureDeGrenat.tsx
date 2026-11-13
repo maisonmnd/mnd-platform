@@ -76,7 +76,7 @@ export function CarteClotureDeGrenat() {
 
       <div className="sys-section__title" style={{ marginTop: 18 }} data-carte="le-caissier">Le caissier</div>
       <div className="sys-section__cap">
-        Entre deux clôtures, Grenat passe toutes les cinq minutes. Seul : il honore un rendez-vous réglé en entier, relie une facture, envoie le reçu quinze minutes après l’encaissement. Quinze minutes après la fin d’un rituel où rien n’est encaissé, il prévient le comptoir ; au délai choisi, la facture s’écrit au tarif de sa tête et part sur son WhatsApp, jamais après 19 h 30, jamais à une cliente « passe au comptoir ». Il n’encaisse jamais d’espèces.
+        Entre deux clôtures, Grenat passe toutes les cinq minutes. Seul : il honore un rendez-vous réglé en entier, relie une facture, envoie le reçu quinze minutes après l’encaissement. Quinze minutes après la fin d’un rituel où rien n’est encaissé, il prévient le comptoir ; au délai choisi, la facture s’écrit au tarif de sa tête et part sur son WhatsApp, même après la fermeture, jamais après 23 h, jamais à une cliente « passe au comptoir ». Il n’encaisse jamais d’espèces.
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }} role="group" aria-label="Le caissier">
         <button

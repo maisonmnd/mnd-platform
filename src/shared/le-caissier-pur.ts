@@ -41,7 +41,10 @@ import { aCotonouLe, acompteRecu, argentDuCarnet, francsDits, heureEnClair, rest
         « Terminer et régler » : le serveur ne connaît pas le tarif d'une
         tête), puis le passage suivant la dépose en salle d'attente (la
         facture avec son bouton de règlement, celle de Grenat). Jamais après
-        19 h 30 (la salle se tait à 20 h) ; jamais pour une fiche « passe au
+        23 h ; le soir, elle passe les heures calmes de la salle (« parfois
+        nous sommes sur les clients jusqu'à 21 h 30 », Yéman, 13 novembre
+        2026 : elle vient de quitter la Maison, sa facture ne la réveille
+        pas ; `useLaMainDeGrenat` la pose « maintenant ») ; jamais pour une fiche « passe au
         comptoir », sans numéro, ou « pas de papiers par WhatsApp » ; jamais
         quand un acompte attend sa vérification ou qu'une partie est déjà
         encaissée (une main s'en occupe) ; jamais un rendez-vous que la
@@ -62,7 +65,7 @@ import { aCotonouLe, acompteRecu, argentDuCarnet, francsDits, heureEnClair, rest
    l'importe tel quel. */
 
 /* ⟨le-caissier⟩ */
-export const VERSION_DU_CAISSIER = '2026-11-13-a';
+export const VERSION_DU_CAISSIER = '2026-11-13-b';
 
 /** Le caissier passe toutes les cinq minutes (le cron de 0207). */
 export const RYTHME_DU_CAISSIER_MIN = 5;
@@ -74,8 +77,20 @@ export const FACTURE_SEULE_APRES_MIN_PAR_DEFAUT = 60;
 export const DELAIS_DE_LA_FACTURE: readonly number[] = [0, 30, 60, 120];
 /** Le reçu d'une pièce payée part quand la pièce n'a plus bougé depuis quinze minutes. */
 export const RECU_APRES_MIN = 15;
-/** Jamais une facture seule après 19 h 30 : la salle des envois se tait de 20 h à 8 h. */
-export const DERNIERE_FACTURE_SEULE_MIN = 19 * 60 + 30;
+/** LA DERNIÈRE FACTURE SEULE, 23 h (13 novembre 2026, d'abord 19 h 30) : « il
+    faut que le caissier agisse à la fin de tous les RDV même si c'est après
+    l'heure de fermeture car parfois nous sommes sur les clients jusqu'à
+    21 h 30 » (Yéman). Un rituel fini à 21 h 30 a sa facture vers 22 h 30 ;
+    après 23 h, rien ne part seul la nuit (le comptoir, lui, est prévenu
+    jusqu'au dernier passage, 23 h 55). Le soir, la facture du caissier
+    passe les heures calmes de la salle (20 h à 8 h). */
+export const DERNIERE_FACTURE_SEULE_MIN = 23 * 60;
+/** LA FENÊTRE DE LA FACTURE SEULE : trente minutes après son heure. Le
+    caissier passe toutes les cinq minutes ; s'il n'a pas pu passer (éteint,
+    rallumé le soir, appels de la base en panne), il ne rattrape pas une
+    facture du matin le soir venu : le retard ne se voit pas, le comptoir a
+    été prévenu et la clôture le redit. */
+export const FENETRE_DE_LA_FACTURE_MIN = 30;
 
 /** Les réglages du caissier (`mnd_settings.caissier`) : allumé par défaut, une heure par défaut. */
 export type ReglagesDuCaissier = { actif: boolean; factureApresMin: number };
@@ -186,7 +201,8 @@ export function decisionsDuCaissier(f: FaitsDuCaissier): DecisionDuCaissier[] {
       const n = notificationDuComptoir(c, s.reste, c.pieceId || marque.pieceDemandeeLe ? null : factureVers);
       sorties.push({ genre: 'prevenir-le-comptoir', cle: `comptoir:${s.a.id}`, rdvId: s.a.id, ...n, factureVersMin: factureVers });
     }
-    if (!marque.pieceDemandeeLe && factureVers !== null && ici.minutes >= factureVers && ici.minutes <= DERNIERE_FACTURE_SEULE_MIN) {
+    if (!marque.pieceDemandeeLe && factureVers !== null && ici.minutes >= factureVers
+      && ici.minutes <= Math.min(factureVers + FENETRE_DE_LA_FACTURE_MIN, DERNIERE_FACTURE_SEULE_MIN)) {
       sorties.push({ genre: 'demander-la-piece', cle: `piece:${s.a.id}`, rdvId: s.a.id,
         dit: `${c.qui} · ${c.heure} : rien encaissé ${f.reglages.factureApresMin} min après la fin ; sa facture s’écrit au Trône, puis part.` });
     }

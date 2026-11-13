@@ -23,15 +23,18 @@ const MAIN = 'src/apps/trone/shell/useLeCaissier.ts';
 const SHELL = 'src/apps/trone/shell/Shell.tsx';
 const LJ = 'src/apps/trone/routes/finances/LaJournee.tsx';
 const CARTE = 'src/apps/trone/routes/systeme/CarteClotureDeGrenat.tsx';
-const LUS = [P, FN, SQL, MAIN, SHELL, LJ, CARTE];
+const MAINGR = 'src/apps/trone/shell/useLaMainDeGrenat.ts';
+const LUS = [P, FN, SQL, MAIN, SHELL, LJ, CARTE, MAINGR];
 
 const PANNES = [
   /* La regle : quand prevenir, quand demander. */
   { nom: 'le comptoir est prevenu a la fin, sans les quinze minutes', fichier: P, avant: 'if (!marque.demandeLe && ici.minutes >= c.finMin + COMPTOIR_PREVENU_APRES_MIN) {', apres: 'if (!marque.demandeLe && ici.minutes >= c.finMin) {' },
   { nom: 'le comptoir est prevenu a chaque passage', fichier: P, avant: 'if (!marque.demandeLe && ici.minutes >= c.finMin + COMPTOIR_PREVENU_APRES_MIN) {', apres: 'if (ici.minutes >= c.finMin + COMPTOIR_PREVENU_APRES_MIN) {' },
   { nom: 'la facture est redemandee a chaque passage', fichier: P, avant: 'if (!marque.pieceDemandeeLe && factureVers !== null', apres: 'if (factureVers !== null' },
-  { nom: 'la facture est demandee avant son heure', fichier: P, avant: '&& ici.minutes >= factureVers && ici.minutes <= DERNIERE_FACTURE_SEULE_MIN) {\n      sorties.push', apres: '&& ici.minutes <= DERNIERE_FACTURE_SEULE_MIN) {\n      sorties.push' },
-  { nom: 'la facture part seule apres 19 h 30', fichier: P, avant: 'return a <= DERNIERE_FACTURE_SEULE_MIN ? a : null;', apres: 'return a;' },
+  { nom: 'la facture est demandee avant son heure', fichier: P, avant: 'factureVers !== null && ici.minutes >= factureVers\n', apres: 'factureVers !== null\n' },
+  { nom: 'la facture part seule apres 23 h', fichier: P, avant: 'return a <= DERNIERE_FACTURE_SEULE_MIN ? a : null;', apres: 'return a;' },
+  { nom: 'la facture du matin se rattrape le soir', fichier: P, avant: '&& ici.minutes <= Math.min(factureVers + FENETRE_DE_LA_FACTURE_MIN, DERNIERE_FACTURE_SEULE_MIN)) {', apres: '&& ici.minutes <= DERNIERE_FACTURE_SEULE_MIN) {' },
+  { nom: 'la derniere facture seule revient a 19 h 30', fichier: P, avant: 'export const DERNIERE_FACTURE_SEULE_MIN = 23 * 60;', apres: 'export const DERNIERE_FACTURE_SEULE_MIN = 19 * 60 + 30;' },
   { nom: 'une facture du comptoir est doublee', fichier: P, avant: 'const factureVers = pourquoiPas || c.pieceId ? null', apres: 'const factureVers = pourquoiPas ? null' },
   { nom: 'le lendemain, le caissier travaille encore', fichier: P, avant: "  if (ici.jour !== f.jour) return [];\n  const sorties", apres: '  const sorties' },
   { nom: 'eteint, le caissier decide encore', fichier: P, avant: "export function decisionsDuCaissier(f: FaitsDuCaissier): DecisionDuCaissier[] {\n  if (!f.reglages.actif) return [];", apres: 'export function decisionsDuCaissier(f: FaitsDuCaissier): DecisionDuCaissier[] {' },
@@ -66,6 +69,8 @@ const PANNES = [
   { nom: 'deux postes ecrivent la piece', fichier: MAIN, avant: "? ecriture.is('data->caissier->>pieceLe', null)", apres: '? ecriture', disque: true },
   { nom: 'la main du caissier ne relit pas la ligne', fichier: MAIN, avant: 'if (!d || !pieceDuCaissierAEcrire(d as never, false)) return;', apres: 'if (!d) return;', disque: true },
   { nom: 'le Shell ne monte pas la main du caissier', fichier: SHELL, avant: '  useLeCaissier();', apres: '', disque: true },
+  { nom: 'le papier du caissier attend le matin', fichier: MAINGR, avant: '? { partA: Date.now() + REGLES_PAR_DEFAUT.salleMin * 60_000, calme: false }', apres: '? heureDeDepart(Date.now(), REGLES_PAR_DEFAUT)', disque: true },
+  { nom: 'le facteur retient la nuit le papier du caissier', fichier: MAINGR, avant: "...(duCaissier ? { parLaMain: true } : {})", apres: '', disque: true },
   { nom: 'retenir ne dit plus qui', fichier: LJ, avant: 'retenueLe: new Date().toISOString(), retenuePar: moi', apres: 'retenueLe: new Date().toISOString()', disque: true },
 ];
 

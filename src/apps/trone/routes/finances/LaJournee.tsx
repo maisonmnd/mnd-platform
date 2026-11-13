@@ -422,7 +422,7 @@ export default function LaJournee() {
                 </span>
               </div>
             ))}
-            <p className="lj-regle">Entre deux clôtures, le caissier passe toutes les cinq minutes. Seul : il honore un rendez-vous réglé en entier, relie une facture, envoie le reçu quinze minutes après l’encaissement. Quinze minutes après la fin d’un rituel où rien n’est encaissé, il prévient le comptoir ; à l’heure dite, la facture s’écrit au tarif de sa tête et part sur son WhatsApp avec son bouton de règlement, jamais après 19 h 30. Jamais seul : des espèces, un MoMoPay, un prix, une absence.</p>
+            <p className="lj-regle">Entre deux clôtures, le caissier passe toutes les cinq minutes. Seul : il honore un rendez-vous réglé en entier, relie une facture, envoie le reçu quinze minutes après l’encaissement. Quinze minutes après la fin d’un rituel où rien n’est encaissé, il prévient le comptoir ; à l’heure dite, la facture s’écrit au tarif de sa tête et part sur son WhatsApp avec son bouton de règlement, même après la fermeture, jamais après 23 h. Jamais seul : des espèces, un MoMoPay, un prix, une absence.</p>
           </div>
         )}
 

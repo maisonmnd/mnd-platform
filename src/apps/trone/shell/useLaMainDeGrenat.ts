@@ -122,8 +122,19 @@ export function useLaMainDeGrenat(): void {
               repli: { modele: MODELE_TAPGO, composants: [corps(variablesTapGo(appelDe(destinataire), fmtMoney(tg.totalXof, currency))), bouton(param)] },
             };
           }
-          const depart = heureDeDepart(Date.now(), REGLES_PAR_DEFAUT);
-          await ecris({ statut: EN_ATTENTE, partA: new Date(depart.partA).toISOString(), calme: depart.calme, numero, colis, preparePar: 'le Trône' });
+          /* LE PAPIER DU CAISSIER PASSE LES HEURES CALMES (13 novembre 2026) :
+             « parfois nous sommes sur les clients jusqu'à 21 h 30 » (Yéman).
+             Le caissier ne dépose qu'un papier du jour, au plus tard à 23 h,
+             pour une cliente qui vient de quitter la Maison : il part après
+             les dix minutes de la salle, pas au matin. `parLaMain` est la
+             marque que le facteur laisse déjà passer la nuit (envois-partent
+             n'a pas à changer) ; les papiers des clôtures gardent les heures
+             calmes. */
+          const duCaissier = (ligne as { parLeCaissier?: boolean }).parLeCaissier === true;
+          const depart = duCaissier
+            ? { partA: Date.now() + REGLES_PAR_DEFAUT.salleMin * 60_000, calme: false }
+            : heureDeDepart(Date.now(), REGLES_PAR_DEFAUT);
+          await ecris({ statut: EN_ATTENTE, partA: new Date(depart.partA).toISOString(), calme: depart.calme, numero, colis, preparePar: 'le Trône', ...(duCaissier ? { parLaMain: true } : {}) });
         }
       } catch (err) {
         console.warn('[la main de Grenat] papier :', err);

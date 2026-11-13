@@ -43,11 +43,14 @@ dit('les reglages par defaut : allume, une heure', { actif: true, factureApresMi
 dit('eteint seulement quand c est dit', [false, true], [reglagesDuCaissier({ actif: false }).actif, reglagesDuCaissier({ actif: 'non' }).actif]);
 dit('un delai hors de la liste revient a une heure', 60, reglagesDuCaissier({ factureApresMin: 45 }).factureApresMin);
 dit('jamais seule (0), deux heures (120)', [0, 120], [reglagesDuCaissier({ factureApresMin: 0 }).factureApresMin, reglagesDuCaissier({ factureApresMin: 120 }).factureApresMin]);
-dit('les constantes : 15 min, 60 min, 15 min, 19 h 30', [15, 60, 15, 1170], [COMPTOIR_PREVENU_APRES_MIN, FACTURE_SEULE_APRES_MIN_PAR_DEFAUT, RECU_APRES_MIN, DERNIERE_FACTURE_SEULE_MIN]);
+dit('les constantes : 15 min, 60 min, 15 min, 23 h', [15, 60, 15, 1380], [COMPTOIR_PREVENU_APRES_MIN, FACTURE_SEULE_APRES_MIN_PAR_DEFAUT, RECU_APRES_MIN, DERNIERE_FACTURE_SEULE_MIN]);
 const R: ReglagesDuCaissier = reglagesDuCaissier(undefined);
 dit('fini a 16 h 00 : la facture part a 17 h 00', 1020, heureDeLaFactureSeule(960, R));
-dit('fini a 18 h 45 : jamais seule (apres 19 h 30)', null, heureDeLaFactureSeule(1125, R));
-dit('fini a 18 h 30 : 19 h 30 tout juste', 1170, heureDeLaFactureSeule(1110, R));
+/* « parfois nous sommes sur les clients jusqu'a 21 h 30 » (Yeman, 13 novembre 2026) : la derniere facture seule passe de 19 h 30 a 23 h. */
+dit('fini a 21 h 30 (apres la fermeture) : la facture part a 22 h 30', 1350, heureDeLaFactureSeule(1290, R));
+dit('fini a 22 h 00 : 23 h tout juste', 1380, heureDeLaFactureSeule(1320, R));
+dit('fini a 22 h 15 : jamais seule (apres 23 h)', null, heureDeLaFactureSeule(1335, R));
+dit('deux heures de delai, fini a 21 h 30 : jamais seule', null, heureDeLaFactureSeule(1290, { actif: true, factureApresMin: 120 }));
 dit('delai « jamais » : jamais seule', null, heureDeLaFactureSeule(600, { actif: true, factureApresMin: 0 }));
 dit('caissier eteint : jamais seule', null, heureDeLaFactureSeule(600, { actif: false, factureApresMin: 60 }));
 
@@ -115,7 +118,10 @@ dit('payeuse avec un numero (offert) : sa facture part a 12 h 00', ['demander-la
 
 /* ── 4. Ce qui retient le caissier ── */
 const tard = faits(a('21:00'), { rdvs: RDVS.map((r) => ({ ...r, caissier: { demandeLe: iso('10:30') } })) });
-dit('a 21 h, tous deja prevenus : aucune facture demandee (trop tard)', [], genres(tard));
+/* La fenetre de trente minutes : a 21 h, seule celle finie a 19 h 45 (sa facture a 20 h 45) ; celles du matin ne se rattrapent pas le soir. */
+dit('a 21 h, tous deja prevenus : seule celle de 19 h 45 a sa facture (dans sa fenetre)', ['demander-la-piece:r7'], genres(tard));
+dit('rallume a 12 h 00 : la facture de 11 h 15 (fenetre passee a 11 h 45) ne se rattrape pas', [], genres(faits(a('12:00'), { rdvs: r1Prevenu })).filter((g) => g.endsWith(':r1')));
+dit('a 11 h 45, encore dans sa fenetre', ['demander-la-piece:r1'], genres(faits(a('11:45'), { rdvs: r1Prevenu })).filter((g) => g.endsWith(':r1')));
 dit('passe au comptoir : prevenue, jamais de facture', ['prevenir-le-comptoir:r4'], genres(faits(a('14:00'))).filter((g) => g.endsWith(':r4')));
 dit('pourquoi : elle passe toujours au comptoir', 'elle passe toujours au comptoir', pourquoiPasDeFactureSeule(RDVS.find((r) => r.id === 'r4')!, FICHES));
 dit('pourquoi : un acompte attend', 'un acompte attend d’être vérifié', pourquoiPasDeFactureSeule(RDVS.find((r) => r.id === 'r5')!, FICHES));
@@ -127,8 +133,8 @@ dit('payeuse avec un numero : rien ne retient', null, pourquoiPasDeFactureSeule(
 dit('terminee par elle : ni notification ni facture, toute la journee', [], [...genres(faits(a('15:30'))), ...genres(faits(a('16:30')))].filter((g) => g.endsWith(':r6')));
 dit('l acompte a verifier : prevenue, jamais de facture', ['prevenir-le-comptoir:r5'], genres(faits(a('15:30'))).filter((g) => g.endsWith(':r5')));
 dit('reglee en entier : rien a encaisser', [], genres(faits(a('15:30'))).filter((g) => g.endsWith(':r3')));
-dit('finie a 19 h 45 : prevenue a 20 h 00, sans facture seule',
-  ['prevenir-le-comptoir:r7', `Fini vers 19 h 45 · ${F(12000)}. Encaissez-la au comptoir, ou dites ce qui s’est passé dans La journée.`],
+dit('finie a 19 h 45, apres la fermeture : prevenue a 20 h 00, sa facture a 20 h 45',
+  ['prevenir-le-comptoir:r7', `Fini vers 19 h 45 · ${F(12000)}. Sans encaissement d’ici là, sa facture partira seule vers 20 h 45.`],
   (() => { const d = decisionsDuCaissier(faits(a('20:00'))).find((x) => x.rdvId === 'r7'); return d && d.genre === 'prevenir-le-comptoir' ? [`${d.genre}:${d.rdvId}`, d.corps] : null; })());
 dit('le lendemain : jamais (un jour passe est l affaire de la cloture)', [], genres(faits(a('10:30', '2026-11-13'))));
 dit('eteint : rien', [], genres(faits(a('16:30'), { reglages: { actif: false, factureApresMin: 60 } })));
@@ -163,7 +169,8 @@ const DEMANDEE = { demandeLe: iso('10:30'), pieceDemandeeLe: iso('11:15'), piece
 dit('sa facture ecrite, a 11 h 20 : elle part', 'facture:true', factureA('11:20', DEMANDEE));
 dit('une facture du comptoir (pas demandee par lui) : laissee aux clotures', 'facture:false', factureA('11:20', { demandeLe: iso('10:30') }));
 dit('retenue : elle ne part pas', 'facture:false', factureA('11:20', { ...DEMANDEE, retenueLe: iso('11:18') }));
-dit('apres 19 h 30 : elle ne part pas seule', 'facture:false', factureA('19:31', DEMANDEE));
+dit('a 22 h 50 (apres la fermeture) : elle part encore', 'facture:true', factureA('22:50', DEMANDEE));
+dit('apres 23 h : elle ne part pas seule', 'facture:false', factureA('23:01', DEMANDEE));
 dit('delai change a « jamais » entre-temps : elle ne part pas', 'facture:false', factureA('11:20', DEMANDEE, { actif: true, factureApresMin: 0 }));
 dit('eteint : aucun geste', false, !!honore && gesteDuCaissier(honore, { ...f15, reglages: { actif: false, factureApresMin: 60 } }));
 dit('un autre jour : aucun geste', false, !!honore && gesteDuCaissier(honore, { ...f15, maintenantMs: a('10:00', '2026-11-13') }));
@@ -227,6 +234,11 @@ vrai('le Shell la monte', lis('src/apps/trone/shell/Shell.tsx').includes('  useL
 const LJ = lis('src/apps/trone/routes/finances/LaJournee.tsx');
 vrai('La journee dit le caissier', LJ.includes('data-lj="caissier"') && LJ.includes('data-geste="retenir-sa-facture"'));
 vrai('retenir pose la marque et qui', LJ.includes('retenueLe: new Date().toISOString(), retenuePar: moi'));
+const MAINGR = lis('src/apps/trone/shell/useLaMainDeGrenat.ts');
+vrai('le papier du caissier part apres la salle, pas au matin', MAINGR.includes('? { partA: Date.now() + REGLES_PAR_DEFAUT.salleMin * 60_000, calme: false }'));
+vrai('le papier du caissier porte la marque que le facteur laisse passer la nuit', MAINGR.includes("...(duCaissier ? { parLaMain: true } : {})"));
+vrai('les papiers des clotures gardent les heures calmes', MAINGR.includes(': heureDeDepart(Date.now(), REGLES_PAR_DEFAUT);'));
+vrai('la fonction marque les papiers du caissier', FN.includes('...(caisse ? { parLeCaissier: true } : {}),'));
 vrai('Parametres regle le caissier (direction)', lis('src/apps/trone/routes/systeme/CarteClotureDeGrenat.tsx').includes('data-carte="le-caissier"'));
 
 console.log(ko ? `\n${ko} echec(s).` : '\nLe caissier tient.');
