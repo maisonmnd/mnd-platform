@@ -43,6 +43,10 @@
    elle LIT les dépenses du jour, celles qui attendent un oui, celles
    écrites pour l'écart d'un comptage, et les comptages de tiroir du jour ;
    la règle les met sous les yeux. Elle n'écrit JAMAIS une dépense.
+   LES PANNES DU JOUR (12 novembre 2026, le choix du moyen, lot D) : elle lit
+   les épisodes de `pannes_des_moyens` (0204) nés ce jour et les DIT, au
+   compte rendu et dans sa notification (« MTN muet de 14 h 02 à 14 h 31 ») ;
+   elle n'en écrit aucun, et une panne ne retient jamais la journée.
    Jamais : dire venue, absente, annulée ; toucher un prix, une remise, un
    paiement ; effacer une pièce ; encaisser.
 
@@ -61,7 +65,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
    dépôt). Le banc `verifie-la-cloture-du-jour` et celui des douze lunes (R8)
    comparent la copie à l'original, caractère pour caractère. ══ */
 /* ⟨cloture-du-jour⟩ */
-export const VERSION_DE_LA_CLOTURE = '2026-11-12-a';
+export const VERSION_DE_LA_CLOTURE = '2026-11-12-b';
 
 /** Cotonou vit à UTC + 1, toute l'année. */
 export const DECALAGE_DE_COTONOU_MIN = 60;
@@ -322,6 +326,9 @@ export type FaitsDeLaJournee = {
   comptages?: readonly ComptageLu[];
   /** L'heure de la relecture des dépenses : la dernière clôture du jour (19 h par défaut). */
   heureDesDepenses?: number;
+  /** Les pannes de MTN et de FedaPay (12 novembre 2026, 0204). Absentes : la
+      clôture n'en dit rien. */
+  pannes?: readonly PanneLue[];
 };
 
 /** Le type de la ligne d'envoi du papier d'une pièce, et son identifiant :
@@ -389,6 +396,8 @@ export type ClotureDuJour = {
   verdict: { close: boolean; dit: string; reste: string[] };
   /** Les dépenses du jour, relues (absentes des comptes rendus d'avant le 5 novembre 2026). */
   depenses?: DepensesDuJour;
+  /** Les pannes du jour, dites (absentes quand elles n'ont pas été lues). */
+  pannes?: PanneDuJour[];
 };
 
 const nombreDit = (n: number, un: string, plusieurs: string): string => `${n} ${n > 1 ? plusieurs : un}`;
@@ -639,6 +648,48 @@ export function depensesDuJour(o: {
     comptes.ecarts ? nombreDit(comptes.ecarts, 'écart de tiroir sans dépense', 'écarts de tiroir sans dépense') : '',
   ].filter(Boolean) : [];
   return { lues: true, relues, constats, saisies: saisies.length, totalXof: saisies.reduce((s, e) => s + montantDeLaDepense(e), 0), comptes, aDire };
+}
+
+/* ── LES PANNES DU JOUR (12 novembre 2026, le choix du moyen, lot D) ──── */
+
+/** Une panne de MTN ou de FedaPay telle que la base la tient (0204) : un
+    épisode, une ligne, quel que soit le nombre de postes qui l'ont vue. */
+export type PanneLue = {
+  id: string; prestataire: string; branchId?: string;
+  debut: string; derniereVue: string; fin?: string | null; finPar?: string | null; vues?: number;
+};
+/** Une panne dite : « MTN muet de 14 h 02 à 14 h 31 ». */
+export type PanneDuJour = { id: string; prestataire: string; nom: string; debut: string; de: string; a?: string; enCours: boolean; dit: string };
+
+/** Une panne vit dix minutes après son dernier échec : la mesure de
+    `PANNE_RETENUE_MS` (choix-du-moyen-pur), confrontée au banc. */
+export const PANNE_RETENUE_DE_LA_CLOTURE_MS = 10 * 60_000;
+const NOM_DE_LA_PANNE: Record<string, string> = { mtn: 'MTN', fedapay: 'FedaPay' };
+
+/** LES PANNES D'UN JOUR, dites : celles de cette maison, nées ce jour à
+    Cotonou, dans l'ordre. Finie, « de 14 h 02 à 14 h 31 » (sa fin, ou son
+    dernier échec) ; vue en une seule minute, « à 14 h 02 » ; encore vive,
+    « depuis 14 h 02 ». Sans pannes lues, rien. */
+export function pannesDuJour(o: { jour: string; maintenantMs: number; branchId?: string; pannes?: readonly PanneLue[] }): PanneDuJour[] | undefined {
+  if (!o.pannes) return undefined;
+  const heureDe = (ms: number) => heureEnClair(aCotonouLe(ms).minutes);
+  return o.pannes
+    .filter((p) => (!o.branchId || !p.branchId || p.branchId === o.branchId)
+      && Number.isFinite(Date.parse(p.debut)) && aCotonouLe(Date.parse(p.debut)).jour === o.jour)
+    .slice()
+    .sort((a, b) => Date.parse(a.debut) - Date.parse(b.debut) || a.id.localeCompare(b.id))
+    .map((p) => {
+      const nom = NOM_DE_LA_PANNE[p.prestataire] ?? p.prestataire;
+      const debut = Date.parse(p.debut);
+      const vue = Date.parse(p.derniereVue);
+      const derniere = Number.isFinite(vue) ? Math.max(vue, debut) : debut;
+      const finMs = p.fin ? Date.parse(p.fin) : NaN;
+      const enCours = !p.fin && o.maintenantMs - derniere < PANNE_RETENUE_DE_LA_CLOTURE_MS;
+      const de = heureDe(debut);
+      const a = enCours ? undefined : heureDe(Number.isFinite(finMs) ? finMs : derniere);
+      const dit = enCours ? `${nom} muet depuis ${de}` : a === de ? `${nom} muet à ${de}` : `${nom} muet de ${de} à ${a}`;
+      return { id: p.id, prestataire: p.prestataire, nom, debut: p.debut, de, ...(a !== undefined ? { a } : {}), enCours, dit };
+    });
 }
 
 /** LA CLÔTURE D'UNE JOURNÉE. Pure : les mêmes faits rendent toujours la
@@ -932,25 +983,32 @@ export function clotureDuJour(f: FaitsDeLaJournee): ClotureDuJour {
     ? (ferme && constats.length === 0 && total === 0 ? 'La Maison est fermée ce jour : rien à clore.' : 'La journée est close : la caisse peut se compter.')
     : alarmesOuvertes && !aClore ? (alarmesOuvertes > 1 ? `${alarmesOuvertes} factures payées ont été effacées` : 'Une facture payée a été effacée')
       : `${reste[0].charAt(0).toUpperCase()}${reste[0].slice(1)}, la caisse ne se compte pas encore`;
+  /* LES PANNES DU JOUR : dites, jamais retenues (rien à clore pour elles). */
+  const pannes = pannesDuJour({ jour, maintenantMs: f.maintenantMs, branchId: f.branchId, pannes: f.pannes });
   return {
     version: VERSION_DE_LA_CLOTURE, jour, ecriteA: new Date(f.maintenantMs).toISOString(), ferme,
     rdvs: constats, pieces: lesPieces, gestes, alarmes, caisse, comptes, verdict: { close, dit, reste }, depenses,
+    ...(pannes ? { pannes } : {}),
   };
 }
 
 /** LA NOTIFICATION DE LA CLÔTURE : « Clôture de 19 h : 6 rendez-vous à clore,
     1 facture à revoir. » Des nombres, jamais une cliente. À l'heure de la
-    relecture, les dépenses s'y disent aussi, en nombres (5 novembre 2026). */
+    relecture, les dépenses s'y disent aussi, en nombres (5 novembre 2026) ;
+    les pannes du jour en dernier, « Pannes du jour : MTN muet de 14 h 02 à
+    14 h 31. » (12 novembre 2026). */
 export function notificationDeLaCloture(
-  c: Pick<ClotureDuJour, 'verdict' | 'comptes' | 'alarmes'> & { depenses?: Pick<DepensesDuJour, 'aDire'> },
+  c: Pick<ClotureDuJour, 'verdict' | 'comptes' | 'alarmes'> & { depenses?: Pick<DepensesDuJour, 'aDire'>; pannes?: readonly Pick<PanneDuJour, 'dit'>[] },
   heure: number | 'matin',
 ): { titre: string; corps: string } {
   const titre = heure === 'matin' ? 'La clôture d’hier' : `Clôture de ${heure} h`;
   const aDire = c.depenses?.aDire ?? [];
+  const pannesDites = (c.pannes ?? []).map((p) => p.dit);
+  const enDernier = pannesDites.length ? ` Pannes du jour : ${pannesDites.join(', ')}.` : '';
   if (c.verdict.close) {
-    return { titre, corps: aDire.length ? `La journée est close : la caisse peut se compter. À voir aussi : ${aDire.join(', ')}.` : 'La journée est close : la caisse peut se compter.' };
+    return { titre, corps: `${aDire.length ? `La journée est close : la caisse peut se compter. À voir aussi : ${aDire.join(', ')}.` : 'La journée est close : la caisse peut se compter.'}${enDernier}` };
   }
-  return { titre, corps: `${[...c.verdict.reste, ...aDire].join(', ')}.`.replace(/^./, (x) => x.toUpperCase()) };
+  return { titre, corps: `${`${[...c.verdict.reste, ...aDire].join(', ')}.`.replace(/^./, (x) => x.toUpperCase())}${enDernier}` };
 }
 
 /** L'ÉTAT DU RENDEZ-VOUS APRÈS UN GESTE DE GRENAT, relu juste avant
@@ -962,7 +1020,7 @@ export function gesteToujoursValable(g: GesteSur, f: FaitsDeLaJournee): boolean 
 }
 /* ⟨/cloture-du-jour⟩ */
 
-const VERSION = '2026-11-12-a';
+const VERSION = '2026-11-12-b';
 const ADRESSE = '/trone/#/la-journee';
 const ETIQUETTE = 'mnd-cloture';
 /** Mille lignes par page : le plafond de Supabase. Au-delà de vingt pages, on s'arrête. */
@@ -1150,6 +1208,22 @@ Deno.serve(async (req) => {
     for (const l of await parPages((de, a) => sb.from('expenses').select('id, branch_id, data').eq('data->>date', jour).order('id').range(de, a))) lignesDepenses.set(l.id, l);
     for (const l of await parPages((de, a) => sb.from('expenses').select('id, branch_id, data').eq('data->validation->>etat', 'attente').order('id').range(de, a))) lignesDepenses.set(l.id, l);
     for (const l of await parTranches(lignesComptages.map((l) => l.id), async (t) => (await sb.from('expenses').select('id, branch_id, data').in('data->>ecartDe', t)).data ?? [])) lignesDepenses.set(l.id, l);
+    /* LES PANNES DU JOUR (12 novembre 2026, le choix du moyen, lot D ; 0204) :
+       MTN ou FedaPay muets, un épisode par ligne, nés ce jour à Cotonou. Lues,
+       jamais écrites. Une table absente (0204 pas encore passée) ou illisible
+       ne retient pas la clôture : les pannes ne se disent pas, c'est tout. */
+    let pannes: PanneLue[] | undefined;
+    try {
+      const lignesPannes = await parPages((de, a) => sb.from('pannes_des_moyens').select('id, prestataire, branch_id, debut, derniere_vue, fin, fin_par, vues')
+        .gte('debut', minuitDe(jour)).lt('debut', minuitDe(lendemain(jour))).order('id').range(de, a));
+      pannes = lignesPannes.map((l) => ({
+        id: String(l.id), prestataire: String(l.prestataire ?? ''), branchId: (l.branch_id as string | null | undefined) ?? undefined,
+        debut: String(l.debut ?? ''), derniereVue: String(l.derniere_vue ?? l.debut ?? ''),
+        fin: (l.fin as string | null | undefined) ?? null, finPar: (l.fin_par as string | null | undefined) ?? null, vues: Number(l.vues) || 1,
+      }));
+    } catch (e) {
+      dis('pannes illisibles', { motif: String((e as Error)?.message ?? e).slice(0, 80) });
+    }
 
     const fiches: FicheLue[] = lignesFiches.map((l) => {
       const d = (l.data ?? {}) as { name?: string; sansPapiersWa?: boolean; phone?: string; prixFixes?: Record<string, unknown> };
@@ -1187,7 +1261,7 @@ Deno.serve(async (req) => {
     const total = { rdv: 0, clos: 0, aClore: 0, aRevoir: 0, alarmes: 0, papiers: 0, honores: 0, relies: 0 };
     let pourLaNotification: ClotureDuJour | null = null;
     for (const branche of branches) {
-      const faitsDe = (): FaitsDeLaJournee => ({ jour, maintenantMs, branchId: branche, ferme, rdvs, pieces: lesPieces, fiches, offres, effacements, decisions, envois, depenses, comptages, heureDesDepenses });
+      const faitsDe = (): FaitsDeLaJournee => ({ jour, maintenantMs, branchId: branche, ferme, pannes, rdvs, pieces: lesPieces, fiches, offres, effacements, decisions, envois, depenses, comptages, heureDesDepenses });
       const premiere = clotureDuJour(faitsDe());
       const faits: { genre: string; cle: string; dit: string }[] = [];
       const passes: { cle: string; pourquoi: string }[] = [];

@@ -373,6 +373,22 @@ export default function LaJournee() {
           <p className="lj-regle">Seul, Grenat envoie le papier pas encore parti (par la salle d’attente), passe « honoré » un rendez-vous réglé en entier encore « confirmé », et relie une facture à son rendez-vous quand il n’y a qu’un candidat. Jamais seul : une absence, un prix, une remise, un paiement, un effacement.</p>
         </div>
 
+        {/* LES PANNES DU JOUR (12 novembre 2026, le choix du moyen, lot D) :
+            MTN ou FedaPay muets, un épisode par ligne, dits une fois à la direction. */}
+        {(cloture.pannes?.length ?? 0) > 0 && (
+          <div className="lj-bloc" data-lj="pannes">
+            <p className="lj-bloc__tete"><span>Les pannes du jour</span><span>{cloture.pannes!.length > 1 ? `${cloture.pannes!.length} pannes` : '1 panne'}</span></p>
+            {cloture.pannes!.map((p) => (
+              <div className="lj-ligne" key={p.id} data-lj-panne={p.prestataire}>
+                <span className="lj-heure">{p.de}</span>
+                <span className="lj-qui-dit"><span className="lj-qui">{p.nom}</span><span className="lj-dit">{p.dit}</span></span>
+                <span className={`lj-etat ${p.enCours ? 'ko' : 'ok'}`}>{p.enCours ? 'En cours' : 'Finie'}</span>
+              </div>
+            ))}
+            <p className="lj-regle">Pendant une panne, le Trône propose le moyen suivant à la caisse. La direction est prévenue une fois par panne ; Grenat les redit à chaque clôture.</p>
+          </div>
+        )}
+
         <div className="lj-bloc" data-lj="caisse-resume">
           <p className="lj-bloc__tete"><span>La caisse du jour</span><span>par moyen et par tiroir</span></p>
           <div className="lj-caisse">

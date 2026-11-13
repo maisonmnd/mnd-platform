@@ -21,7 +21,9 @@ import {
   remisesDuRdv, totalDeLaPiece, versementsDeLaPiece,
   ceQuiManqueALaDepense, cleDeLEcart, cleDuJourSansDepense, dateDite, depenseEnAttente, heuresDAttente, montantDeLaDepense,
   type ComptageLu, type DepenseLue, type FaitsDeLaJournee, type FicheLue, type PieceLue, type RdvLu,
+  PANNE_RETENUE_DE_LA_CLOTURE_MS, pannesDuJour, type PanneLue,
 } from '../src/shared/cloture-du-jour-pur';
+import { PANNE_RETENUE_MS } from '../src/shared/choix-du-moyen-pur';
 import { dureeDuRendezVous, ouvertureDuJour } from '../src/shared/agenda-pur';
 import { familleDuMoyen } from '../src/shared/caisse-du-soir-pur';
 import { recuAEnvoyer } from '../src/shared/recu-whatsapp';
@@ -526,6 +528,45 @@ vrai('Depenses : « C etait une depense » ecrit le lien de l ecart, « La Maiso
 /* NE PAS ENVOYER CE PAPIER (5 novembre 2026) : le geste de la direction pose la ligne de salle
    ecartee de CETTE piece, que la regle 4 lit ; la fiche n'est pas touchee. */
 vrai('La journee : « Ne pas envoyer ce papier » pose la ligne de salle ecartee de la piece', /Ne pas envoyer ce papier/.test(journee) && /id = idDuPapier\(g\.pieceId\)/.test(journee) && /type: TYPE_DU_PAPIER, canal: 'whatsapp', statut: 'écarté'/.test(journee) && !/sansPapiersWa/.test(journee.slice(journee.indexOf('const nePasEnvoyer'), journee.indexOf('const appts'))));
+
+/* ── 11. Les pannes du jour (12 novembre 2026, le choix du moyen, lot D) ──
+   « Une panne de MTN ou de FedaPay dite une seule fois a la direction, et
+   inscrite dans La journee » (Yeman). Grenat les DIT, a l ecran, au compte
+   rendu et dans sa notification ; elles ne retiennent jamais la journee.
+   Scenario fictif : MTN muet de 14 h 02 a 14 h 31 (une demande est repassee),
+   FedaPay vu muet une seule minute a 16 h 10, MTN encore muet a 19 h depuis
+   18 h 40 ; une panne d une autre maison et une d hier ne se disent pas. */
+const PANNES_LUES: PanneLue[] = [
+  { id: 'p-fedapay', prestataire: 'fedapay', branchId: 'maison', debut: '2026-11-04T15:10:00Z', derniereVue: '2026-11-04T15:10:20Z', fin: null, vues: 1 },
+  { id: 'p-mtn-1', prestataire: 'mtn', branchId: 'maison', debut: '2026-11-04T13:02:00Z', derniereVue: '2026-11-04T13:25:00Z', fin: '2026-11-04T13:31:00Z', finPar: 'demande', vues: 6 },
+  { id: 'p-mtn-2', prestataire: 'mtn', branchId: 'maison', debut: '2026-11-04T17:40:00Z', derniereVue: '2026-11-04T17:55:00Z', fin: null, vues: 3 },
+  { id: 'p-ailleurs', prestataire: 'mtn', branchId: 'ailleurs', debut: '2026-11-04T13:00:00Z', derniereVue: '2026-11-04T13:20:00Z', fin: null, vues: 2 },
+  { id: 'p-hier', prestataire: 'mtn', branchId: 'maison', debut: '2026-11-03T13:00:00Z', derniereVue: '2026-11-03T13:20:00Z', fin: '2026-11-03T13:30:00Z', finPar: 'demande', vues: 2 },
+];
+const pj = clotureDuJour({ jour: JOUR, maintenantMs: a('19:00'), branchId: 'maison', rdvs: [], pieces: [], fiches, pannes: PANNES_LUES });
+dit('les pannes du jour, dites dans l ordre : de... a..., a..., depuis... ; ni l autre maison ni hier',
+  ['MTN muet de 14 h 02 à 14 h 31', 'FedaPay muet à 16 h 10', 'MTN muet depuis 18 h 40'], pj.pannes?.map((p) => p.dit));
+dit('... la panne encore vive se dit en cours, les autres finies', [false, false, true], pj.pannes?.map((p) => p.enCours));
+dit('... la fin d une demande repassee (14 h 31), pas son dernier echec (14 h 25)', '14 h 31', pj.pannes?.[0]?.a);
+dit('... une panne ne retient jamais la journee', { close: true, dit: 'La journée est close : la caisse peut se compter.' }, { close: pj.verdict.close, dit: pj.verdict.dit });
+dit('... la notification les dit en dernier',
+  'La journée est close : la caisse peut se compter. Pannes du jour : MTN muet de 14 h 02 à 14 h 31, FedaPay muet à 16 h 10, MTN muet depuis 18 h 40.', notificationDeLaCloture(pj, 19).corps);
+dit('... et apres ce qui reste a clore', '2 rendez-vous à clore. Pannes du jour : MTN muet de 14 h 02 à 14 h 31.',
+  notificationDeLaCloture({ verdict: { close: false, dit: '', reste: ['2 rendez-vous à clore'] }, comptes: q19.comptes, alarmes: [], pannes: [{ dit: 'MTN muet de 14 h 02 à 14 h 31' }] }, 19).corps);
+dit('... a 19 h 06, onze minutes sans echec : la panne de 18 h 40 est finie a son dernier echec',
+  ['MTN muet de 18 h 40 à 18 h 55'], pannesDuJour({ jour: JOUR, maintenantMs: a('19:06'), branchId: 'maison', pannes: [PANNES_LUES[2]] })?.map((p) => p.dit));
+dit('sans pannes lues, la cloture n en dit rien (ni cle, ni phrase)', [false, 'La journée est close : la caisse peut se compter.'],
+  ((c) => ['pannes' in c, notificationDeLaCloture(c, 19).corps])(clotureDuJour({ jour: JOUR, maintenantMs: a('19:00'), branchId: 'maison', rdvs: [], pieces: [], fiches })));
+dit('aucune panne ce jour : une liste vide, et la notification se tait', [[], 'La journée est close : la caisse peut se compter.'],
+  ((c) => [c.pannes, notificationDeLaCloture(c, 19).corps])(clotureDuJour({ jour: JOUR, maintenantMs: a('19:00'), branchId: 'maison', rdvs: [], pieces: [], fiches, pannes: [] })));
+dit('la panne vit dix minutes apres son dernier echec, comme a la fenetre Encaisser (PANNE_RETENUE_MS)', PANNE_RETENUE_MS, PANNE_RETENUE_DE_LA_CLOTURE_MS);
+vrai('la fonction lit les pannes du jour (0204), sans jamais les ecrire, et une table absente ne retient pas la cloture',
+  /try \{\s*const lignesPannes = await parPages\(\(de, a\) => sb\.from\('pannes_des_moyens'\)\.select\('id, prestataire, branch_id, debut, derniere_vue, fin, fin_par, vues'\)\s*\.gte\('debut', minuitDe\(jour\)\)\.lt\('debut', minuitDe\(lendemain\(jour\)\)\)/.test(horsDuBloc)
+  && /\} catch \(e\) \{\s*dis\('pannes illisibles'/.test(horsDuBloc)
+  && !/from\('pannes_des_moyens'\)[^;]*\.(insert|update|upsert|delete)\(/.test(fonction));
+vrai('la fonction passe les pannes a la regle', /branchId: branche, ferme, pannes, rdvs,/.test(horsDuBloc));
+vrai('La journee : les pannes du jour avant la caisse du jour', journee.includes('data-lj="pannes"') && journee.indexOf('data-lj="pannes"') < journee.indexOf('data-lj="caisse-resume"'));
+vrai('le Trone juge avec les pannes du jour (usePannesDuJour)', prise.includes('const pannes = usePannesDuJour(jour, branch.id);') && prise.includes('      pannes,\n    });'));
 
 if (ko) console.log(`\n${ko} controle(s) en echec.`);
 else console.log('\nLa cloture de Grenat tient ses six regles, et relit les depenses du jour.');

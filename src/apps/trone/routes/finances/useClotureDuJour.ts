@@ -14,6 +14,7 @@ import {
   dernierPassage, effacementsDuJour, useComptesRendusDeGrenat, useDecisionsDeCloture, type CompteRenduDeGrenat,
 } from '../../../../shared/cloture-du-jour';
 import { useEnvois } from '../equipe/data';
+import { usePannesDuJour } from '../../../../shared/pannes-des-moyens';
 import { apptDurationMin, apptLabel, apptNetXof, useBranchAppointments, useServicesById } from '../clients/_shared';
 
 /* ══ LA CLÔTURE D'UN JOUR, LUE AU TRÔNE — 4 novembre 2026 ══════════════
@@ -26,6 +27,10 @@ import { apptDurationMin, apptLabel, apptNetXof, useBranchAppointments, useServi
    LES DÉPENSES (5 novembre 2026, « Oui, il les relit à 19 h ») : le registre
    brut des dépenses (en attente comprises) et les comptages de tiroir, et
    l'heure de la relecture, la dernière heure de clôture réglée.
+
+   LES PANNES DU JOUR (12 novembre 2026, le choix du moyen, lot D) : les
+   épisodes de MTN et de FedaPay de cette maison (`pannes_des_moyens`, 0204),
+   dits par la même règle que Grenat (`pannesDuJour`).
 
    Les pièces effacées se lisent dans la trace, que la base ne montre qu'à
    la direction ; pour les autres, les alarmes du dernier passage de Grenat,
@@ -59,6 +64,7 @@ export function useClotureDuJour(jour: string): ClotureLue {
   const [depenses] = useExpenses();
   const [comptages] = useClotures();
   const [settings] = useSettings();
+  const pannes = usePannesDuJour(jour, branch.id);
   const heureDesDepenses = Math.max(...heuresDeLaCloture(settings.cloture?.heures));
   /* L'heure qui passe : un rendez-vous finit pendant qu'on regarde l'écran. */
   const [maintenantMs, setMaintenantMs] = useState(() => Date.now());
@@ -94,8 +100,9 @@ export function useClotureDuJour(jour: string): ClotureLue {
       depenses: depenses as unknown as DepenseLue[],
       comptages: comptages as unknown as ComptageLu[],
       heureDesDepenses,
+      pannes,
     });
-  }, [appts, jour, maintenantMs, branch.id, invoices, clients, offres, effaces, decisions, envois, byId, depenses, comptages, heureDesDepenses]);
+  }, [appts, jour, maintenantMs, branch.id, invoices, clients, offres, effaces, decisions, envois, byId, depenses, comptages, heureDesDepenses, pannes]);
 
   const passage = dernierPassage(crs, branch.id, jour);
   const tranchees = new Set(decisions.filter((d) => d.branchId === branch.id).map((d) => d.cle));
