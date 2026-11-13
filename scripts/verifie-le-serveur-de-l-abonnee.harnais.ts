@@ -119,8 +119,17 @@ const MIGRATION_SANS_MANQUEE = 'supabase/migrations/0169_une_seance_manquee_ne_s
   /* AUCUNE ÉCRITURE DIRECTE de l'argent d'un contrat ou d'une pièce. */
   const ecritContrat = /from\(\s*'subscribers'\s*\)[\s\S]{0,160}?\.(update|insert|upsert|delete)\(/;
   const ecritPiece = /from\(\s*'invoices'\s*\)[\s\S]{0,160}?\.(update|insert|upsert|delete)\(/;
-  dit('aucune des quatre n ecrit un contrat ni une piece directement', [false, false, false, false],
-    QUATRE_FONCTIONS.map((f) => { const t = sansCommentaires(lis(f)); return ecritContrat.test(t) || ecritPiece.test(t); }));
+  /* 12 novembre 2026 (le choix du moyen, lot C) : une seule exception, la pose
+     d'une séance réglée par la page « Régler » (`poseLeReglementDuLien`, dans
+     mnd-pay et son webhook), comme regler-la-seance le fait pour KkiaPay ;
+     elle ne touche jamais une pièce de contrat (verifie-regler-par-fedapay le
+     tient). Hors de ce bloc, rien ne change. */
+  const horsDeLaPose = (t: string) => {
+    const a = t.indexOf('// ── DEBUT poseLeReglementDuLien'); const z = t.indexOf('// ── FIN poseLeReglementDuLien');
+    return a >= 0 && z > a ? t.slice(0, a) + t.slice(z) : t;
+  };
+  dit('aucune des quatre n ecrit un contrat ni une piece directement (hors la pose du lien Regler)', [false, false, false, false],
+    QUATRE_FONCTIONS.map((f) => ecritContrat.test(sansCommentaires(lis(f))) || ecritPiece.test(sansCommentaires(horsDeLaPose(lis(f))))));
   dit('l ancien juge du du (duDeLAbonnement) a disparu des quatre', [false, false, false, false],
     QUATRE_FONCTIONS.map((f) => /duDeLAbonnement/.test(sansCommentaires(lis(f)))));
   const w = lis(MW);

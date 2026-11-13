@@ -44,8 +44,19 @@ export type DemandeMndPay = {
   id: string;
   branchId: string;
   /** Au comptoir, la pièce n'existe pas encore (le ticket se finit quand
-      l'argent est là) ; à distance, elle existe et le lien la règle. */
-  genre: 'comptoir' | 'lien';
+      l'argent est là) ; à distance, elle existe et le lien la règle.
+      `regler` (12 novembre 2026, le choix du moyen, lot C) : née sur la page
+      « Régler » de son rendez-vous quand KkiaPay ne s'ouvrait pas ; c'est le
+      SERVEUR qui la pose sur sa pièce (regler-par-fedapay-pur.ts), le Trône
+      ne l'inscrit jamais lui-même. */
+  genre: 'comptoir' | 'lien' | 'regler';
+  /** Le rendez-vous de la page Régler (genre `regler`). */
+  rdvId?: string;
+  /** Le serveur l'a posée sur sa pièce et son rendez-vous (genre `regler`). */
+  poseLe?: string;
+  /** Payée, mais la pièce ne l'attendait plus (réglée entre-temps, reste
+      changé, pièce disparue) : à rapprocher à la main. */
+  aRapprocher?: string;
   moyen: MoyenMndPay;
   /** Ce qui règle la pièce : le reste dû, ou la part choisie. */
   montantXof: number;
@@ -416,6 +427,10 @@ export function rendezVousRegles<A extends { id: string; payments?: { id: string
     minutes) ; passé ce délai, le ticket a été abandonné et l'argent attend
     qu'on le range. On ne perd jamais un franc reçu. */
 export const DELAI_DU_TICKET_MS = 5 * 60_000;
+/** Même valeur que `DELAI_DU_LIEN_REGLER_MS` de regler-par-fedapay-pur.ts
+    (le banc verifie-regler-par-fedapay les compare) : ce fichier ne l'importe
+    pas, l'autre l'importe déjà. */
+export const DELAI_DU_LIEN_REGLER_MS = 10 * 60_000;
 export function aRattacher(
   demandes: readonly DemandeMndPay[],
   pieces: readonly Pick<Invoice, 'id' | 'payments'>[],
@@ -426,6 +441,14 @@ export function aRattacher(
   return demandes.filter((d) => {
     if (d.statut !== 'payee' || deja.has(d.id)) return false;
     if (d.genre === 'lien') return !ids.has(d.pieceId);
+    /* LA PAGE RÉGLER (12 novembre 2026, lot C) : le serveur la pose ; elle
+       n'attend une main que s'il l'a dite « à rapprocher », ou si dix minutes
+       ont passé sans pose (une panne entre les deux). */
+    if (d.genre === 'regler') {
+      if (d.aRapprocher) return true;
+      const t = Date.parse(d.payeeLe ?? d.creeLe);
+      return Number.isFinite(t) ? maintenant - t > DELAI_DU_LIEN_REGLER_MS : true;
+    }
     const t = Date.parse(d.payeeLe ?? d.creeLe);
     return Number.isFinite(t) ? maintenant - t > DELAI_DU_TICKET_MS : true;
   });

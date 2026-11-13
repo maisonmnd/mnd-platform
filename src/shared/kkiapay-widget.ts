@@ -13,6 +13,22 @@ export const SANDBOX = (import.meta.env.VITE_KKIAPAY_SANDBOX as string | undefin
 
 const SCRIPT_URL = 'https://cdn.kkiapay.me/k.js';
 
+/* ══ QUAND KKIAPAY NE PEUT PAS S'OUVRIR — 12 novembre 2026 ═══════════════
+   Le choix du moyen, lot C : sur la page « Régler », FedaPay prend le relais
+   quand KkiaPay est EN PANNE : pas de clé publique, son script injoignable,
+   le widget absent ou qui lève, ou un échec sans motif de la cliente. Jamais
+   quand elle annule, ni quand l'opérateur refuse (solde, numéro, fraude), ni
+   hors ligne : FedaPay n'y ferait rien de mieux. L'erreur le porte
+   (`panne`) ; son message reste celui d'avant. */
+export class PanneDeKkiapay extends Error {
+  readonly panne = true as const;
+}
+/** L'échec vient-il de KkiaPay lui-même (et non d'elle ou de son opérateur) ? */
+export const estUnePanneDeKkiapay = (e: unknown): boolean =>
+  e instanceof PanneDeKkiapay || (!!e && typeof e === 'object' && (e as { panne?: unknown }).panne === true);
+/** KkiaPay peut-il seulement s'ouvrir ici ? (sa clé publique est posée au build) */
+export const kkiapayPeutSOuvrir = (): boolean => PUBLIC_KEY !== '';
+
 type SuccessResponse = { transactionId?: string } | string;
 type KkiapayWindow = Window & {
   openKkiapayWidget?: (opts: Record<string, unknown>) => void;
@@ -33,7 +49,7 @@ function loadWidget(): Promise<void> {
     el.src = SCRIPT_URL;
     el.async = true;
     el.onload = () => { wireListeners(); resolve(); };
-    el.onerror = () => { scriptPromise = null; reject(new Error('Le service de paiement est injoignable.')); };
+    el.onerror = () => { scriptPromise = null; reject(new PanneDeKkiapay('Le service de paiement est injoignable.')); };
     document.head.appendChild(el);
   });
   return scriptPromise;
@@ -59,7 +75,9 @@ function wireListeners(): void {
   w.addFailedListener?.((r) => {
     const p = pending;
     pending = null;
-    p?.reject(new Error(failureMessage(r)));
+    const message = failureMessage(r);
+    /* Un échec que rien ne nomme (ni elle, ni son opérateur) est une panne de KkiaPay. */
+    p?.reject(message === ECHEC_SANS_MOTIF ? new PanneDeKkiapay(message) : new Error(message));
   });
   wired = true;
 }
@@ -73,8 +91,9 @@ function failureMessage(r: unknown): string {
   if (raw.includes('declined')) return 'Paiement refusé par l’opérateur.';
   if (raw.includes('fraud')) return 'Paiement bloqué par l’opérateur.';
   if (raw.includes('cancel')) return 'Paiement annulé.';
-  return 'Le paiement n’a pas abouti, réessayez ou envoyez l’acompte vous-même.';
+  return ECHEC_SANS_MOTIF;
 }
+const ECHEC_SANS_MOTIF = 'Le paiement n’a pas abouti, réessayez ou envoyez l’acompte vous-même.';
 
 export type PayRequest = {
   /** Montant à débiter, en XOF (la Maison encaisse en XOF). */
@@ -102,23 +121,31 @@ export function payWithKkiapay(req: PayRequest): Promise<{ transactionId: string
      réseau, rien ne s'ouvre, et la cliente lit pourquoi. Le comptant et le
      Mobile Money déclaré au comptoir restent possibles. */
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return Promise.reject(new Error(KKIAPAY_HORS_LIGNE));
+  /* Sans clé publique, le widget ne s'ouvrirait que pour dire une erreur (12 novembre 2026). */
+  if (!kkiapayPeutSOuvrir()) return Promise.reject(new PanneDeKkiapay('Le service de paiement est injoignable.'));
   return loadWidget().then(() => new Promise<{ transactionId: string }>((resolve, reject) => {
     const w = window as KkiapayWindow;
-    if (!w.openKkiapayWidget) { reject(new Error('Le service de paiement est injoignable.')); return; }
+    if (!w.openKkiapayWidget) { reject(new PanneDeKkiapay('Le service de paiement est injoignable.')); return; }
     pending?.reject(new Error('Paiement remplacé.'));
     pending = { resolve, reject };
-    w.openKkiapayWidget({
-      amount: Math.round(req.amountXof),
-      key: PUBLIC_KEY,
-      sandbox: SANDBOX,
-      position: 'center',
-      theme: '#B97A4A', // cuivre de la Maison
-      partnerId: req.partnerId,
-      ...(req.phone ? { phone: req.phone.replace(/\D/g, '') } : {}),
-      ...(req.name ? { name: req.name } : {}),
-      ...(req.email ? { email: req.email } : {}),
-      data: JSON.stringify({ partnerId: req.partnerId, branchId: req.branchId, clientId: req.clientId }),
-    });
+    try {
+      w.openKkiapayWidget({
+        amount: Math.round(req.amountXof),
+        key: PUBLIC_KEY,
+        sandbox: SANDBOX,
+        position: 'center',
+        theme: '#B97A4A', // cuivre de la Maison
+        partnerId: req.partnerId,
+        ...(req.phone ? { phone: req.phone.replace(/\D/g, '') } : {}),
+        ...(req.name ? { name: req.name } : {}),
+        ...(req.email ? { email: req.email } : {}),
+        data: JSON.stringify({ partnerId: req.partnerId, branchId: req.branchId, clientId: req.clientId }),
+      });
+    } catch {
+      /* Le widget lève en s'ouvrant : une panne de KkiaPay (12 novembre 2026). */
+      pending = null;
+      reject(new PanneDeKkiapay('Le service de paiement est injoignable.'));
+    }
   }));
 }
 

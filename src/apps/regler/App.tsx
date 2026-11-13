@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
-import { payWithKkiapay } from '../../shared/kkiapay-widget';
+import { estUnePanneDeKkiapay, kkiapayPeutSOuvrir, payWithKkiapay } from '../../shared/kkiapay-widget';
 import { TexteFon } from '../../ds/fon';
 import { lisLeLien, regleLeLien, type PageDuLien } from '../../shared/regler-la-seance-serveur';
 import { attenteDeLaPiece, retourAMaCouronne } from '../../shared/terminer-et-regler-serveur';
+import { RE_DEMANDE_DU_LIEN } from '../../shared/regler-par-fedapay-pur';
+import { ATTENTE_FEDAPAY_LECTURES, ATTENTE_FEDAPAY_MS, statutFedaPay } from '../../shared/regler-par-fedapay-serveur';
 import { PayerParMtn } from './Mtn';
+import { PayerParFedaPay } from './FedaPay';
 
 /* ══ RÉGLER SA SÉANCE — la page de la cliente (25 octobre 2026) ══════════
    Ouverte depuis le bouton « Régler » de son message (payer.html?tg=r-…).
@@ -49,6 +52,27 @@ type Ecran =
   | { k: 'reglee'; page: PageDuLien; paye?: number; honore?: boolean };
 
 const jetonDeLAdresse = (): string => (new URLSearchParams(window.location.search).get('r') ?? '').trim();
+/* LE RETOUR DE FEDAPAY (12 novembre 2026, le choix du moyen, lot C) : le
+   serveur a écrit l'adresse de retour, ?r=<jeton>&fp=<sa demande> ; ce que
+   FedaPay y ajoute (id, status) ne prouve rien : la page relit l'état de SA
+   demande au serveur, qui le relit chez FedaPay. */
+const demandeFedaPayDeLAdresse = (): string => {
+  const v = (new URLSearchParams(window.location.search).get('fp') ?? '').trim();
+  return RE_DEMANDE_DU_LIEN.test(v) ? v : '';
+};
+type RetourFedaPay = 'lecture' | 'delai' | 'refusee' | 'expiree' | 'annulee';
+const RETOUR_FEDAPAY_DIT: Record<Exclude<RetourFedaPay, 'lecture'>, string> = {
+  delai: 'FedaPay n’a pas encore confirmé votre paiement. Si vous avez payé, inutile de payer une seconde fois : la Maison le verra.',
+  refusee: 'FedaPay dit que le paiement n’a pas abouti. Vous pouvez recommencer, ou régler autrement.',
+  expiree: 'Le paiement FedaPay a expiré avant d’être fait. Vous pouvez recommencer.',
+  annulee: 'Ce paiement FedaPay a été remplacé ou annulé. Vous pouvez recommencer.',
+};
+/** L'adresse à partager : la page de la séance, sans ce que FedaPay a laissé. */
+const adresseAPartager = (): string => {
+  const u = new URL(window.location.href);
+  for (const k of ['fp', 'id', 'status']) u.searchParams.delete(k);
+  return u.toString();
+};
 /* TERMINER ET RÉGLER (6 novembre 2026) : elle a terminé elle-même, sa pièce
    s'écrit au Trône dans l'instant. La page l'attend trois minutes, en 27
    lectures espacées (`attenteDeLaPiece` : la fonction n'en accorde que 60
@@ -80,6 +104,14 @@ export default function App() {
   const [partage, setPartage] = useState('');
   /* Une demande MTN attend sa validation : KkiaPay se tient à l'écart (11 novembre 2026). */
   const [mtnOccupe, setMtnOccupe] = useState(false);
+  /* LE SECOURS FEDAPAY (12 novembre 2026, lot C) : KkiaPay ne peut pas
+     s'ouvrir (sans clé, d'emblée ; script injoignable ou erreur technique,
+     au toucher). Elle annule elle-même : rien ne change. */
+  const [kkiaEnPanne, setKkiaEnPanne] = useState(() => !kkiapayPeutSOuvrir());
+  const demandeFp = demandeFedaPayDeLAdresse();
+  const [retourFp, setRetourFp] = useState<RetourFedaPay | null>(() => (demandeFp ? 'lecture' : null));
+  /** Ce que FedaPay a confirmé, gardé pour la lecture du lien qui arriverait après. */
+  const payeParFedaPay = useRef<{ paye: number; honore: boolean } | null>(null);
 
   const lis = useCallback(async (essai = 0, attend = false): Promise<void> => {
     if (!jeton) { setEcran({ k: 'erreur', dit: 'Ce lien est incomplet. Demandez-en un nouveau à la Maison.' }); return; }
@@ -121,7 +153,11 @@ export default function App() {
       window.setTimeout(() => { void lis(essai + 1); }, 2500);
       return;
     }
-    if (p.etat === 'reglee') setEcran({ k: 'reglee', page: p });
+    /* FedaPay a confirmé son paiement (lot C) : « Réglé », même si la Maison
+       doit encore le rapprocher de sa pièce ; jamais une seconde demande. */
+    const fp = payeParFedaPay.current;
+    if (p.etat === 'reglee') setEcran({ k: 'reglee', page: p, ...(fp ? { paye: fp.paye, honore: fp.honore } : {}) });
+    else if (p.etat === 'a-regler' && fp) setEcran({ k: 'reglee', page: { ...p, resteXof: 0 }, paye: fp.paye, honore: fp.honore });
     else if (p.etat === 'a-regler') setEcran({ k: 'page', page: p });
     else if (p.etat === 'annule') setEcran({ k: 'erreur', dit: p.tetes ? 'Ces rendez-vous ont été annulés : il n’y a rien à régler.' : 'Ce rendez-vous a été annulé : il n’y a rien à régler.' });
     else if (p.etat === 'sans-piece') setEcran({ k: 'erreur', dit: 'Votre facture n’est pas encore prête. Réessayez dans un instant.' });
@@ -129,6 +165,34 @@ export default function App() {
   }, [jeton]);
 
   useEffect(() => { void lis(); }, [lis]);
+
+  /* AU RETOUR DE FEDAPAY : l'état de SA demande, relu toutes les quatre
+     secondes, trois minutes au plus. Payée : « Réglé » ; refusée, expirée,
+     remplacée : la page le dit et laisse recommencer ; rien encore : la page
+     le dit, sans faire payer deux fois. */
+  useEffect(() => {
+    if (!jeton || !demandeFp) return;
+    let vivant = true;
+    void (async () => {
+      for (let i = 0; i < ATTENTE_FEDAPAY_LECTURES && vivant; i++) {
+        if (i > 0) await new Promise((ok) => window.setTimeout(ok, ATTENTE_FEDAPAY_MS));
+        if (!vivant) return;
+        const s = await statutFedaPay(jeton, demandeFp);
+        if (!vivant) return;
+        if (s.erreur === 'introuvable' || s.erreur === 'lien') { setRetourFp(null); return; }
+        if (s.etat === 'payee') {
+          const fait = { paye: Number(s.regleXof) || 0, honore: s.honore === true };
+          payeParFedaPay.current = fait;
+          setRetourFp(null);
+          setEcran((e) => ('page' in e ? { k: 'reglee', page: { ...e.page, resteXof: 0 }, paye: fait.paye, honore: fait.honore } : e));
+          return;
+        }
+        if (s.etat === 'refusee' || s.etat === 'expiree' || s.etat === 'annulee') { setRetourFp(s.etat); return; }
+      }
+      if (vivant) setRetourFp('delai');
+    })();
+    return () => { vivant = false; };
+  }, [jeton, demandeFp]);
 
   const regle = async (p: PageDuLien) => {
     setSouci('');
@@ -139,6 +203,8 @@ export default function App() {
       transactionId = (await payWithKkiapay({ amountXof: montant, partnerId: p.reference, branchId: p.branchId })).transactionId;
     } catch (e) {
       setEcran({ k: 'page', page: p });
+      /* KkiaPay en panne (pas elle, pas son opérateur) : FedaPay prend le relais. */
+      if (estUnePanneDeKkiapay(e)) { setKkiaEnPanne(true); setSouci('KkiaPay ne répond pas pour l’instant.'); return; }
       setSouci(e instanceof Error ? e.message : 'Le paiement n’a pas abouti.');
       return;
     }
@@ -156,7 +222,7 @@ export default function App() {
   };
 
   const partager = async () => {
-    const adresse = window.location.href;
+    const adresse = adresseAPartager();
     const mot = ecran.k === 'page' && ecran.page.tetes ? 'Peux-tu régler nos séances à la Maison MND ? Le lien :' : 'Peux-tu régler ma séance à la Maison MND ? Le lien :';
     try {
       if (navigator.share) { await navigator.share({ title: 'Maison MND', text: mot, url: adresse }); return; }
@@ -249,11 +315,26 @@ export default function App() {
               <PayerParMtn jeton={jeton} totalXof={total} pourboireXof={p.pourboire ? pourboire : 0} onOccupe={setMtnOccupe}
                 onRegle={(paye, honore) => setEcran({ k: 'reglee', page: { ...p, resteXof: 0 }, paye, honore })} />
             )}
-            <button type="button" className="rg-regler" disabled={ecran.k === 'paiement' || mtnOccupe} onClick={() => { void regle(p); }}>
-              {ecran.k === 'paiement' ? 'Paiement en cours…' : `Régler ${francs(total)}`}
-            </button>
-            <p className="rg-doux rg-petit rg-centre">MTN, Moov, Celtiis ou carte, par KkiaPay. Les frais de KkiaPay s’ajoutent au paiement (1,9 % Mobile Money, 4 % carte).</p>
+            {/* LE RETOUR DE FEDAPAY (12 novembre 2026, lot C) : tant que sa
+                demande se relit, aucun autre bouton ne fait payer une seconde fois. */}
+            {retourFp === 'lecture' && <p className="rg-doux rg-centre" aria-live="polite">FedaPay confirme votre paiement. Un instant…</p>}
+            {retourFp && retourFp !== 'lecture' && <p className="rg-souci" role="status">{RETOUR_FEDAPAY_DIT[retourFp]}</p>}
+            {kkiapayPeutSOuvrir() && retourFp !== 'lecture' && (
+              <>
+                <button type="button" className="rg-regler" disabled={ecran.k === 'paiement' || mtnOccupe} onClick={() => { void regle(p); }}>
+                  {ecran.k === 'paiement' ? 'Paiement en cours…' : `Régler ${francs(total)}`}
+                </button>
+                <p className="rg-doux rg-petit rg-centre">MTN, Moov, Celtiis ou carte, par KkiaPay. Les frais de KkiaPay s’ajoutent au paiement (1,9 % Mobile Money, 4 % carte).</p>
+              </>
+            )}
             {souci && <p className="rg-souci" role="alert">{souci}</p>}
+            {/* KKIAPAY NE S'OUVRE PAS : FedaPay prend le relais, pour une séance
+                avec sa pièce (le foyer et le règlement d'avance restent à
+                KkiaPay, comme pour MTN). Rien ne paraît quand KkiaPay marche. */}
+            {(kkiaEnPanne || (!!retourFp && retourFp !== 'lecture')) && (!p.sansPiece && !p.tetes
+              ? <PayerParFedaPay jeton={jeton} reste={p.resteXof} merciXof={p.pourboire ? pourboire : 0} merciPermis={p.pourboire}
+                  bloque={mtnOccupe || ecran.k === 'paiement' || retourFp === 'lecture'} />
+              : <p className="rg-doux rg-petit rg-centre">Le paiement en ligne ne répond pas pour l’instant. Réessayez dans un moment, ou réglez à l’accueil.</p>)}
 
             {/* PLUS DE TAP & GO ICI — 25 octobre 2026 (« le Tap & Go n'est
                 vraiment pas nécessaire sur cette page ») : KkiaPay prend déjà

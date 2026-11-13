@@ -7,7 +7,16 @@ import { ligneFacture, nouvelleFacture, useInvoices } from '../../../../shared/f
 import {
   CAISSE_MND_PAY, aRattacher, jourLocal, moyenDeLaPiece, versementDeLaDemande,
 } from '../../../../shared/mnd-pay-pur';
-import { mndPayOuvert, useDemandesMndPay } from '../../../../shared/mnd-pay';
+import { mndPayOuvert, relisLaDemande, useDemandesMndPay } from '../../../../shared/mnd-pay';
+
+/* LA PAGE RÉGLER (12 novembre 2026, le choix du moyen, lot C) : ce que le
+   serveur n'a pas pu poser sur la pièce de sa séance, dit en clair. */
+const RAPPROCHER_DIT: Record<string, string> = {
+  deja_reglee: 'sa séance était déjà réglée',
+  reste_change: 'le reste de sa pièce avait changé',
+  piece_introuvable: 'sa pièce a disparu',
+  contrat: 'sa pièce est celle d’un contrat',
+};
 
 /* ══ MND PAY AU JOURNAL DE LA CAISSE — 16 octobre 2026 ═════════════════
    « Le soir : rien à rapprocher » (maquette UigU1Rr5…). Ce que MND PAY a
@@ -94,10 +103,14 @@ export function JournalMndPay({ branchId, jour, currency }: { branchId: string; 
               <span>
                 {nomDe(d.clientId) ?? 'Sans fiche'} · {fmtMoney(d.montantXof, currency)} · {moyenDeLaPiece(d)}
                 <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-soft)' }}>
-                  {jourLocal(d.payeeLe ?? d.creeLe)}{d.reference ? ` · réf. ${d.reference}` : ''}{d.genre === 'lien' ? ' · lien dont la pièce a disparu' : d.moyen === 'tapgo' && !d.pieceId ? ` · Tap & Go, aucun ticket ne l’attendait${d.raison ? ` (${d.raison})` : ''}` : ' · ticket fermé sans lui'}
+                  {jourLocal(d.payeeLe ?? d.creeLe)}{d.reference ? ` · réf. ${d.reference}` : ''}{d.genre === 'regler' ? ` · page Régler de sa séance${d.aRapprocher ? ` : ${RAPPROCHER_DIT[d.aRapprocher] ?? d.aRapprocher}, à rapprocher` : ' : pas encore posée sur sa pièce'}` : d.genre === 'lien' ? ' · lien dont la pièce a disparu' : d.moyen === 'tapgo' && !d.pieceId ? ` · Tap & Go, aucun ticket ne l’attendait${d.raison ? ` (${d.raison})` : ''}` : ' · ticket fermé sans lui'}
                 </span>
               </span>
-              <button type="button" className="mnd-btn mnd-btn--copper mnd-btn--sm" onClick={() => faisLaPiece(d.id)}>Créer sa pièce</button>
+              {/* Pas encore posée par le serveur : la relire la pose sur SA pièce
+                  (l'action « statut » de mnd-pay) ; jamais une seconde pièce. */}
+              {d.genre === 'regler' && !d.aRapprocher
+                ? <button type="button" className="mnd-btn mnd-btn--copper mnd-btn--sm" onClick={() => { void relisLaDemande(d.id).then((r) => setFait(r?.poseLe ? 'Posée sur la pièce de sa séance.' : 'Pas encore posée : réessayez dans un instant.')); }}>La poser sur sa pièce</button>
+                : <button type="button" className="mnd-btn mnd-btn--copper mnd-btn--sm" onClick={() => faisLaPiece(d.id)}>Créer sa pièce</button>}
             </div>
           ))}
         </div>

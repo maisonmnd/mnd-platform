@@ -1762,6 +1762,7 @@ export default function Factures() {
                   appel={appelOf(selected)}
                   resteXof={invoiceResteXof(selected)}
                   currency={currency}
+                  apptId={selected.apptId}
                 />
               )}
               {/* LES RELANCES (18 octobre 2026) : où elles en sont, et la pause
