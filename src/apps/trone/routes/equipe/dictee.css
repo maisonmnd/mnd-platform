@@ -3,6 +3,7 @@
    s'écrit, les modes en chips indigo. Pensé pour le téléphone d'abord. */
 
 .dct-page { display: grid; gap: 16px; max-width: 720px; }
+.dct-sante { margin: 0; font-size: 13px; line-height: 1.5; color: var(--copper-700, #7C4C2C); border-left: 2px solid var(--color-copper, #B97A4A); padding: 7px 12px; background: var(--copper-50, #FAF1E9); border-radius: 3px; }
 .dct-modes { display: flex; flex-wrap: wrap; gap: 6px; }
 .dct-mode { border: 1px solid var(--hairline); background: #fff; color: var(--ink-soft); border-radius: 999px; padding: 7px 14px; font: 400 13px var(--font-sans, inherit); cursor: pointer; }
 .dct-mode[aria-pressed="true"] { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire, #F6F1E7); }

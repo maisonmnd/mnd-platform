@@ -3,7 +3,7 @@ import { Mic } from 'lucide-react';
 import { PageHead } from '../_ui';
 import { Card, toast } from '../../../../ds/components';
 import { useSettings } from '../../../../shared/settings';
-import { metsAuPropre } from '../../../../shared/dictee';
+import { metsAuPropre, santeDeLaDictee } from '../../../../shared/dictee';
 import { MODES_DICTEE, auPropreIci, estMode, nomDuMode, type ModeDictee } from '../../../../shared/dictee-pur';
 import './dictee.css';
 
@@ -58,6 +58,7 @@ export default function Dictee() {
   const [voirEntendu, setVoirEntendu] = useState(false);
   const [sansMicro, setSansMicro] = useState(() => fabriqueDOreille() === null);
   const [tape, setTape] = useState('');
+  const [sante, setSante] = useState<string | null>(null);
 
   const oreille = useRef<Oreille | null>(null);
   const tenue = useRef(false);
@@ -145,6 +146,33 @@ export default function Dictee() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* ── LE DIAGNOSTIC, DÈS L'ARRIVÉE — 13 novembre 2026 ─────────────────
+     « Le bouton Dicter ne marche pas » : sans un mot d'état, on ne sait pas
+     si c'est le navigateur (pas d'oreille), le micro (refusé) ou la fonction
+     (pas en ligne). On le dit tout de suite, en clair, avant le premier geste. */
+  useEffect(() => {
+    if (fabriqueDOreille() === null) {
+      setSante('Ce navigateur ne lit pas la voix : ouvrez le Trône dans Chrome ou Edge pour dicter, ou tapez ci-dessous.');
+      return;
+    }
+    const micro = navigator.permissions?.query
+      ? navigator.permissions.query({ name: 'microphone' as PermissionName }).then((p) => p.state).catch(() => 'inconnu')
+      : Promise.resolve('inconnu');
+    void Promise.all([micro, santeDeLaDictee()]).then(([etatMicro, s]) => {
+      if (etatMicro === 'denied') {
+        setSante('Le micro est bloqué pour ce site : autorisez-le dans les réglages du navigateur, puis revenez dicter.');
+        return;
+      }
+      setSante(
+        s === null
+          ? 'La mise au propre ne répond pas pour l’instant : vos mots resteront tels quels.'
+          : s.claude
+            ? 'Micro prêt, Claude posée : tenez le bouton, parlez, relâchez.'
+            : 'Micro prêt, mais la clé de Claude manque : vos mots resteront bruts.',
+      );
+    });
+  }, []);
+
   const changeDeMode = (m: ModeDictee) => {
     setMode(m);
     if (phase === 'fini' && entendu) void metsLeTexteAuPropre(entendu, m);
@@ -186,6 +214,8 @@ export default function Dictee() {
         title="Dictée MND"
         sub="Tenez le bouton, parlez, relâchez : Claude met au propre avec les mots de la Maison. Rien n’est gardé."
       />
+
+      {sante && <p className="dct-sante">{sante}</p>}
 
       <div className="dct-modes" role="group" aria-label="Mode">
         {MODES_DICTEE.map((m) => (
@@ -235,7 +265,17 @@ export default function Dictee() {
           disabled={phase === 'propre'}
           onPointerDown={(e) => { e.preventDefault(); try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* vieux navigateur */ } demarre(); }}
           onPointerUp={relache}
-          onPointerCancel={relache}
+          onPointerCancel={() => {
+            /* Le geste a été coupé (le micro s'est demandé à l'écran, par
+               exemple) : on n'envoie pas une dictée vide, on invite à
+               recommencer. */
+            if (tenue.current) {
+              tenue.current = false;
+              try { oreille.current?.abort(); } catch { /* rien */ }
+              setPhase('repos');
+              setAide('Le geste a été interrompu. Tenez à nouveau le bouton pour dicter.');
+            }
+          }}
           onContextMenu={(e) => e.preventDefault()}
           onKeyDown={(e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); demarre(); } }}
           onKeyUp={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); relache(); } }}
