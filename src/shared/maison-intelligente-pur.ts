@@ -223,6 +223,8 @@ export const CHANTIER_VERS_PROFESSIONNEL: Readonly<Record<string, string>> = {
   lettre: 'cristal',
   prevision: 'saphir', question: 'saphir', processus: 'saphir',
   achat: 'jade',
+  /* Le devis par description (13 novembre 2026) : un devis est d'abord de l'argent. */
+  devis: 'grenat',
 };
 
 /** Les compteurs des fonctions qui appellent Claude, dans `documents` (tous

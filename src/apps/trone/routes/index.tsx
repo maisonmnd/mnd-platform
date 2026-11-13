@@ -271,6 +271,9 @@ const NAV_DES_ECRANS: TroneGroup[] = [
     group: 'Système',
     items: [
       { path: '/parametres', label: 'Paramètres', icon: Settings, Component: lazy(() => import('./systeme/Parametres')) },
+      /* BESOINS ET RÈGLES — 13 novembre 2026 (la Consultation, lot 1) : les
+         besoins de la cliente, leurs points, leurs prestations, les seuils. */
+      { path: '/besoins', label: 'Besoins et règles', icon: ListChecks, Component: lazy(() => import('./systeme/BesoinsEtRegles')) },
       /* LES TEXTES DE LA MAISON — hors menu, comme le Comptoir. On y va depuis
          Paramètres et depuis Personnel & paie, là où l'on tient les fiches et
          où l'on remet le règlement ; une barre de vingt-cinq entrées ne gagne
@@ -502,7 +505,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires', '/mtn'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires', '/mtn', '/besoins'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>

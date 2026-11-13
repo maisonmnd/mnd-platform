@@ -107,7 +107,19 @@ function Motif({ theme, size, color }: { theme: ThemeKey; size: number; color: s
    LE 30 SURVIT PARCE QUE DES PIECES LE PORTENT. Le retirer laisserait leur
    selecteur vide sans rien dire, sur des factures deja emises. */
 const DISC_OPTIONS = [0, ...TAUX_DE_REMISE, 30].sort((a, b) => a - b);
-const STATUSES: Invoice['status'][] = ['brouillon', 'envoyée', 'payée', 'acceptée'];
+/* LES ÉTATS PAR REGISTRE — 13 novembre 2026 (la Consultation, lot 1). Un devis
+   vit « estimé », « à valider », « accepté » puis « confirmé » ; une facture ne
+   connaît que brouillon, envoyée, payée. L'état présent d'une pièce reste
+   toujours dans la liste, même s'il n'appartient plus à son registre. */
+const ETATS_DU_DEVIS: Invoice['status'][] = ['brouillon', 'estimé', 'à valider', 'envoyée', 'acceptée', 'confirmé'];
+const ETATS_DE_LA_FACTURE: Invoice['status'][] = ['brouillon', 'envoyée', 'payée'];
+const etatsPour = (kind: Invoice['kind'], present: Invoice['status']): Invoice['status'][] => {
+  const l = kind === 'devis' ? ETATS_DU_DEVIS : ETATS_DE_LA_FACTURE;
+  return l.includes(present) ? l : [...l, present];
+};
+/** LE RENDEZ-VOUS NAÎT À « CONFIRMÉ » : accepter dit oui à la proposition,
+    confirmer prend le créneau (maquette, livrable 10). */
+const ouvreLeRendezVous = (s: Invoice['status']): boolean => s === 'confirmé';
 
 
 /** Aplati pour la recherche : sans casse, sans accent — « Aicha » doit trouver « Aïcha ». */
@@ -278,7 +290,7 @@ export default function Factures() {
   const nbFactures = branchDocs.filter((d) => d.kind === 'facture').length;
   const nbDevis = branchDocs.filter((d) => d.kind === 'devis').length;
   /* Les statuts de chaque registre : un devis n'est jamais « payé », une facture jamais « acceptée ». */
-  const statutsDeLOnglet: Invoice['status'][] = onglet === 'devis' ? ['brouillon', 'envoyée', 'acceptée'] : ['brouillon', 'envoyée', 'payée'];
+  const statutsDeLOnglet: Invoice['status'][] = onglet === 'devis' ? ETATS_DU_DEVIS : ETATS_DE_LA_FACTURE;
 
   /* AUCUN document par défaut : on arrive sur le registre nu. Un repli sur la
      première facture affichait un document que personne n'avait demandé, et
@@ -639,7 +651,7 @@ export default function Factures() {
   const patchSelected = (patch: Partial<Invoice>) => {
     if (!selected) return;
     setInvoices((prev) => prev.map((i) => (i.id === selected.id ? { ...i, ...patch } : i)));
-    if (patch.status === 'acceptée' && selected.kind === 'devis' && !selected.apptId) {
+    if (patch.status && ouvreLeRendezVous(patch.status) && selected.kind === 'devis') {
       convertDevisToAppt({ ...selected, ...patch });
     }
   };
@@ -647,12 +659,30 @@ export default function Factures() {
   const patchDraft = (patch: Partial<Invoice>) =>
     setEditing((e) => (e ? { ...e, draft: { ...e.draft, ...patch } } : e));
 
-  /* Devis accepté → rendez-vous dans le Carnet. Les lignes dont le libellé correspond
+  /* Devis confirmé → rendez-vous dans le Carnet. Les lignes dont le libellé correspond
      à une prestation du catalogue deviennent les services du RDV (qté comprise) ; il
      est posé à un créneau par défaut (aujourd’hui 09:00, « en attente » à planifier).
-     Idempotent : le devis mémorise l’apptId créé, on ne convertit jamais deux fois. */
+
+     UN SEUL RENDEZ-VOUS PAR DEVIS, LU DES DEUX CÔTÉS — 13 novembre 2026. Le devis
+     mémorise `apptId`, le rendez-vous mémorise `devisId`. Le 13 novembre, un devis
+     accepté a perdu son `apptId` (cause non trouvée) : le réenregistrer aurait
+     ouvert un second rendez-vous. On regarde donc les deux sens, et pour les
+     rendez-vous nés avant ce jour, la note qu'ils portent (« Devis MND-D-… »). */
+  const rendezVousDuDevis = (devis: Invoice): Appointment | undefined => {
+    const tous = appointmentsStore.get();
+    return (devis.apptId ? tous.find((a) => a.id === devis.apptId) : undefined)
+      ?? tous.find((a) => a.devisId === devis.id)
+      ?? tous.find((a) => a.clientId === devis.clientId && !!devis.number && (a.note ?? '').includes(`Devis ${devis.number} `));
+  };
   const convertDevisToAppt = (devis: Invoice) => {
     if (!devis.clientId) { setWaHint('Rattachez une cliente au devis pour créer le rendez-vous.'); return; }
+    const deja = rendezVousDuDevis(devis);
+    if (deja) {
+      /* Le lien perdu se repose ; aucun second rendez-vous. */
+      if (devis.apptId !== deja.id) setInvoices((prev) => prev.map((i) => (i.id === devis.id ? { ...i, apptId: deja.id } : i)));
+      if (deja.devisId !== devis.id) appointmentsStore.set((prev) => prev.map((a) => (a.id === deja.id ? { ...a, devisId: devis.id } : a)));
+      return;
+    }
     const svcIds: string[] = [];
     devis.lines.forEach((l) => {
       const svc = services.find((s) => s.name === l.label);
@@ -672,12 +702,13 @@ export default function Factures() {
       status: 'en attente',
       discountPct: devis.globalDiscountPct || undefined,
       discountXof: devis.globalDiscountXof || undefined, // la remise en CFA suit le devis
-      note: `Devis ${devis.number} accepté, à planifier${svcIds.length === 0 ? ' (prestations à préciser)' : ''}.`,
+      note: `Devis ${devis.number} confirmé, à planifier${svcIds.length === 0 ? ' (prestations à préciser)' : ''}.`,
       source: 'trone',
+      devisId: devis.id,
     };
     appointmentsStore.set((prev) => [...prev, estampilleLaPose(appt)]);
     setInvoices((prev) => prev.map((i) => (i.id === devis.id ? { ...i, apptId: appt.id } : i)));
-    setWaHint('Devis accepté → rendez-vous créé dans le Carnet. Planifiez le créneau, puis finalisez le paiement.');
+    setWaHint('Devis confirmé → rendez-vous créé dans le Carnet. Planifiez le créneau, puis finalisez le paiement.');
   };
 
   const {
@@ -812,7 +843,7 @@ export default function Factures() {
     /* Un devis accepté sans RDV encore rattaché → Carnet. L'idempotence tient à
        `apptId` (pas à la transition de statut) : si la conversion a été sautée faute
        de cliente, elle se rattrape dès qu'on ré-enregistre avec une cliente. */
-    if (d.kind === 'devis' && d.status === 'acceptée' && !d.apptId) {
+    if (d.kind === 'devis' && ouvreLeRendezVous(d.status)) {
       convertDevisToAppt(d);
     }
   };
@@ -1001,7 +1032,8 @@ export default function Factures() {
   };
 
   const statusClass = (s: Invoice['status']) =>
-    s === 'payée' ? 'trv-status--payee' : s === 'envoyée' ? 'trv-status--envoyee' : s === 'acceptée' ? 'trv-status--acceptee' : '';
+    s === 'payée' ? 'trv-status--payee' : s === 'envoyée' ? 'trv-status--envoyee' : s === 'acceptée' ? 'trv-status--acceptee'
+      : s === 'estimé' ? 'trv-status--estime' : s === 'à valider' ? 'trv-status--avalider' : s === 'confirmé' ? 'trv-status--confirme' : '';
 
   const draft = editing?.draft ?? null;
 
@@ -1594,11 +1626,20 @@ export default function Factures() {
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Statut</span>
                     <Select value={draft.status} onChange={(e) => patchDraft({ status: e.target.value as Invoice['status'] })} style={{ fontSize: 12 }}>
-                      {STATUSES.map((s) => (
+                      {etatsPour(draft.kind, draft.status).map((s) => (
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </Select>
                   </label>
+                  {draft.kind === 'devis' && draft.status === 'à valider' && (
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>À valider par</span>
+                      <Select value={draft.aValiderPar ?? 'maison'} onChange={(e) => patchDraft({ aValiderPar: e.target.value as Invoice['aValiderPar'] })} style={{ fontSize: 12 }}>
+                        <option value="maison">la Maison (vérification)</option>
+                        <option value="cliente">la cliente (choix de la formule)</option>
+                      </Select>
+                    </label>
+                  )}
                   {invoiceReglements(draft as Invoice).length === 0 && (
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Moyen de paiement</span>
@@ -1857,6 +1898,15 @@ export default function Factures() {
                 <Button variant="ghost" style={{ flex: 1 }} size="sm" onClick={() => void downloadPdf()}>PDF</Button>
               </div>
               {waHint && <div className="trv-pdf-hint">{waHint}</div>}
+              {selected.kind === 'devis' && selected.status !== 'confirmé' && (
+                /* CONFIRMER — 13 novembre 2026 : le rendez-vous naît ici, plus à
+                   l'acceptation. Accepter dit oui à la proposition ; confirmer
+                   prend le créneau. Un seul rendez-vous par devis (voir
+                   `rendezVousDuDevis`). */
+                <Button variant="ghost" size="sm" onClick={() => patchSelected({ status: 'confirmé' })}>
+                  Confirmer et créer le rendez-vous
+                </Button>
+              )}
               {selected.kind === 'devis' ? (
                 <Button
                   variant="copper"

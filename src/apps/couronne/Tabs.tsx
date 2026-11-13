@@ -2169,6 +2169,10 @@ export function ProfilTab({ toast, entrees }: {
     vu par la maison — envoyée → « Reçue », acceptée → « Confirmée », payée → « Réglée ». */
 const ORDER_STATUS: Record<Invoice['status'], { label: string; cls: string }> = {
   brouillon: { label: 'Brouillon', cls: '' },
+  /* Les états du devis de la Consultation (13 novembre 2026). */
+  'estimé': { label: 'Estimé, sans engagement', cls: 'mc-stchip--wait' },
+  'à valider': { label: 'En vérification par la Maison', cls: 'mc-stchip--wait' },
+  'confirmé': { label: 'Rendez-vous pris', cls: 'mc-stchip--ok' },
   'envoyée': { label: 'Reçue par la maison', cls: 'mc-stchip--wait' },
   'acceptée': { label: 'Confirmée', cls: 'mc-stchip--info' },
   'payée': { label: 'Réglée', cls: 'mc-stchip--ok' },

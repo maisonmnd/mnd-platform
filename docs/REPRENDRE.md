@@ -2,6 +2,18 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA CONSULTATION, LOT 1 : LES FONDATIONS — 13 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
+
+« Construis » (Yéman), après la maquette « La Consultation MND » (artefact 26Auc7ps9wBxRPbqpjn1TQ, fichier `public/maquette-la-consultation.html` de l’arbre principal, non commité). Dix livrables, quatre lots ; celui-ci est le premier. Décisions inscrites dans l’onglet Construire de la maquette : nom du niveau 3 gardé « ÀLÀLÀ™ · Repose partielle et reconstruction complète » ; extensions naturelles de locks à créer (prix et durées à fixer par Yéman) ; le reste ouvert.
+
+- **Les besoins** `shared/besoins-pur.ts` (pur) et `shared/besoins.ts` (document `mnd_besoins`, amorcé par le premier poste) : 104 besoins en 11 familles, reliés aux identifiants du catalogue vérifiés le 13 novembre ; quatre prestations archivées ce jour-là écartées (Retouches Post Création, AQUA LOCKS RITUAL™, Vanilles, Nattes). Un besoin ne donne ses points qu’à ses prestations. Paliers par le prix (15 000 / 40 000 / 100 000 F), seuils 0 / 20 / 40 / 70, preuves photo 10, visio 15, privée 25 ; palier III : une preuve, palier IV : la consultation privée. Les prestations courantes (soins, lavages, finitions, coiffures) sont sans seuil : c’était le défaut relevé sur « mes locks sont sèches ». **Garde médicale** (plaques, psoriasis) : détox, décapant, décoloration et Le Moment Cuir chevelu écartés tant que la Maison n’a pas vu.
+- **L’écran** Système › Besoins et règles (`/besoins`, `systeme/BesoinsEtRegles.tsx`) : ajouter un besoin (mots, famille, points 5 à 30, prestations, garde) avec un aperçu de ce qu’il fait proposer ; « Essayer » rejoue le calcul ; « Seuils et preuves » règle tout. Un besoin sans prestation est dit « à relier » (aujourd’hui : « Je veux des locks plus longues, tout de suite », en attendant les extensions).
+- **La fiche technique** (Catalogue › une prestation › rubrique 7) : indications, éligibilité, contre-indications, actifs, compléments (`Service.fiche`), et dessous les besoins qui y mènent, le palier, « sans seuil ». Le lien besoin ↔ prestation est un seul lien, posé d’ici ou de Besoins et règles.
+- **Les états du devis** : `estimé`, `à valider` (+ `aValiderPar` maison / cliente), `confirmé`. Chaque registre ne propose que les siens. **Le rendez-vous naît à « confirmé »**, plus à « acceptée » ; bouton « Confirmer et créer le rendez-vous » sur un devis.
+- **Le lien devis ↔ rendez-vous** se lit des deux côtés (`Appointment.devisId`) ; avant de créer, on cherche `apptId`, puis `devisId`, puis la note « Devis MND-D-… » des rendez-vous nés avant ce jour : plus jamais de second rendez-vous. La cause de l’`apptId` perdu le 13 novembre (devis de Faïza Kora) n’a pas été trouvée.
+- Banc : `node scripts/verifie-les-besoins.mjs` (33).
+- **Reste au lot 1** : le questionnaire conditionnel et les règles de niveau de réparation (pris au lot 2, avec le site qui les exécute). **Lot 2** : le document `mnd_besoins` devra être lisible par le site (SQL) et l’écriture réservée à la direction.
+
 ## LES ENVOIS PROGRAMMÉS — 13 novembre 2026, CONSTRUIT, PAS EN LIGNE (branche `les-envois-programmes` sur main 4ddf33e8 ; 0206 NON PASSÉE ; envois-partent « 2026-11-13-a » à déployer ; le modèle `un_message_pour_vous` à déposer chez Meta)
 
 « Programmer un WhatsApp » remplace « Appel reçu », partout (maquette `public/maquette-les-envois-programmes.html`, artefact 5FHHHAQRACAjcsnkeL9bSD, validée le 13 novembre 2026, « construis »). On écrit le WhatsApp maintenant, avec sa pièce jointe si besoin, on choisit l'heure, et l'assistant du sujet l'envoie seul à l'heure dite ; ou bien « par l'app » : à l'heure dite, le téléphone sonne et WhatsApp s'ouvre, le message écrit.

@@ -31,6 +31,11 @@ export type Appointment = {
   id: string;
   branchId: string;
   clientId: string;
+  /** LE DEVIS QUI L'A FAIT NAÎTRE — 13 novembre 2026. Le lien se lit aussi de
+      ce côté : le 13 novembre, un devis accepté a perdu son `apptId` et
+      l'enregistrer de nouveau aurait ouvert un second rendez-vous. Avec les
+      deux sens, la création vérifie l'un ou l'autre avant d'agir. */
+  devisId?: string;
   /** Nom de la cliente au moment du RDV — porté depuis Ma Couronne pour que Le Trône
       l'affiche même si la fiche n'est pas (encore) synchronisée, et pour l'auto-réparation. */
   clientName?: string;

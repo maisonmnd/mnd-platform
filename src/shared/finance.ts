@@ -159,7 +159,13 @@ export type Invoice = {
       `rate` = 1 unité de `code` en XOF, au taux du jour saisi par le maître. */
   fx?: { code: string; rate: number; amount: number };
   theme: 'Rose' | 'Arbre' | 'Oiseau' | 'Voyage' | 'Aube' | 'Souffle';
-  status: 'brouillon' | 'envoyée' | 'payée' | 'acceptée';
+  /* LES ÉTATS DU DEVIS — 13 novembre 2026 (la Consultation, lot 1). Trois de
+     plus, pour les devis seulement : « estimé » (une fourchette, sans
+     engagement), « à valider » (la Maison vérifie, puis la cliente choisit) et
+     « confirmé » (le créneau est pris : c'est là que naît le rendez-vous). */
+  status: 'brouillon' | 'estimé' | 'à valider' | 'envoyée' | 'acceptée' | 'confirmé' | 'payée';
+  /** Qui doit agir sur un devis « à valider » : la Maison vérifie, ou la cliente choisit. */
+  aValiderPar?: 'maison' | 'cliente';
   payment?: PaymentMethod;
   /** LE JOURNAL DES RÈGLEMENTS — plusieurs versements sur UNE pièce, chacun
       avec sa date, son moyen et sa caisse. Absent sur les pièces d'avant le

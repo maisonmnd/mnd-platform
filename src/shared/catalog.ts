@@ -101,6 +101,19 @@ export type GesteOffert = {
   fichesCochees?: boolean;
 };
 
+/** LA FICHE TECHNIQUE D'UNE PRESTATION. Les textes s'écrivent une idée par
+    ligne : c'est ainsi qu'ils se lisent au Trône, à la consultation et au devis. */
+export type FicheTechnique = {
+  indications?: string;
+  eligibilite?: string;
+  contreIndications?: string;
+  /** Les actifs et ingrédients : c'est ce qui permet d'écarter un soin pour une
+      allergie, une intolérance aux huiles essentielles ou une peau à vif. */
+  actifs?: string;
+  /** Les prestations proposées avec elle, par identifiant. */
+  complements?: string[];
+};
+
 export type Service = {
   id: string;
   categoryId: string;
@@ -168,6 +181,11 @@ export type Service = {
   tarifMode?: TarifMode;
   /** Prestations reellement couvertes par ce forfait. Voir ServiceInclus. */
   includes?: ServiceInclus[];
+  /** LA FICHE TECHNIQUE — 13 novembre 2026 (la Consultation, lot 1). Ce que la
+      prestation soigne, pour qui, quand ne pas la faire, avec quoi la proposer.
+      Elle nourrit la lecture de la consultation et le devis ; elle ne change
+      aucun prix. Absente sur toutes les fiches d'avant. */
+  fiche?: FicheTechnique;
   /** REMISE DU FORFAIT, en pourcentage de sa composition.
 
       Un forfait a prix fixe fait payer la meme somme a toutes : une tete Jumbo

@@ -56,9 +56,10 @@ const dansLaBarre = items.filter((it) => !it.horsMenu);
    choix de Yéman : Équipe › Les pourboires, réservé à la direction), sous
    les Ressources humaines. */
 /* 32 depuis le 11 novembre 2026 : Finances › MTN MoMo, la page à part de la collecte et du décaissement. */
-dit('la barre montre 32 rubriques', 32, dansLaBarre.length);
-dit('... par département : Direction 6, Clientèle 4, Atelier 2, Vente & Caisse 4, Finances 6, Marketing & Fidélité 2, Équipe 4, Académie 1, Système 3',
-  { Direction: 6, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 4, Finances: 6, 'Marketing & Fidélité': 2, 'Équipe': 4, 'Académie': 1, 'Système': 3 },
+/* 33 depuis le 13 novembre 2026 : Système › Besoins et règles (la Consultation, lot 1). */
+dit('la barre montre 33 rubriques', 33, dansLaBarre.length);
+dit('... par département : Direction 6, Clientèle 4, Atelier 2, Vente & Caisse 4, Finances 6, Marketing & Fidélité 2, Équipe 4, Académie 1, Système 4',
+  { Direction: 6, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 4, Finances: 6, 'Marketing & Fidélité': 2, 'Équipe': 4, 'Académie': 1, 'Système': 4 },
   Object.fromEntries(NAV.map((g) => [g.group, g.items.filter((it) => !it.horsMenu).length])));
 dit('... dont Les prévisions, en Direction', ['Direction', false], [item('/previsions')?.groupe, !!item('/previsions')?.horsMenu]);
 dit('... dont Conversations (ex-Perle, ex-Assistant Maison : l endroit unique des conversations), en Clientèle, juste sous Clientes', ['Clientèle', false, 'Conversations', true],

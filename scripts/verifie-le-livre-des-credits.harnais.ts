@@ -142,10 +142,10 @@ dit('les cles du livre sont uniques', CLES_DES_COMPTEURS.length, new Set(CLES_DE
 /* La carte des chantiers et des compteurs, épinglée telle que le socle l'a
    rendue le 2 novembre 2026 : un chantier qui change de professionnel change
    ses crédits et son plafond, il se change ici exprès. */
-dit('chaque chantier chez le sien : la capture et le recu a Grenat, la clientele a Perle, la lettre a Cristal, le tableau de bord a Saphir, l achat a Jade', {
+dit('chaque chantier chez le sien : la capture, le recu et le devis a Grenat, la clientele a Perle, la lettre a Cristal, le tableau de bord a Saphir, l achat a Jade', {
   capture: 'grenat', recu: 'grenat',
   cahier: 'perle', 'reponse-wa': 'perle', avis: 'perle', diagnostic: 'perle', 'fiche-du-jour': 'perle',
-  lettre: 'cristal', prevision: 'saphir', question: 'saphir', processus: 'saphir', achat: 'jade',
+  lettre: 'cristal', prevision: 'saphir', question: 'saphir', processus: 'saphir', achat: 'jade', devis: 'grenat',
 }, Object.fromEntries(Object.entries(CHANTIER_VERS_PROFESSIONNEL).sort(([a], [b]) => CHANTIERS_IA.indexOf(a as never) - CHANTIERS_IA.indexOf(b as never))));
 dit('chaque compteur chez le sien', [
   ['mnd_ia_compteur_huit', RESERVE], ['mnd_assistant_wa_compte', 'perle'], ['mnd_variantes_wa_compte', 'perle'], ['mnd_tri_compte', 'perle'],

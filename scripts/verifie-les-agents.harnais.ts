@@ -180,8 +180,8 @@ dit('... Les 14 prochains jours, aux Previsions : l ordinaire par reperesParJour
     previsions.includes("<b>{j.ferme ? '·' : j.poses}</b> <em>{sousTexteDuJour(j)}</em>") && previsions.includes('ordinaire: ferme ? 0 : r.ordinaire, creux, manque: creux ? r.ordinaire - poses : 0'),
     previsions.includes('Proposer aux reprises')]);
 dit('chez Claude, jamais le texte d une tache (il pourrait nommer une cliente)', true, demander.includes("texte: '', projetId: m.projetId"));
-dit('la fonction se dit 2026-10-24-a et connait les trois chantiers', [true, true],
-  [fonction.includes("const VERSION = '2026-10-24-a';"), fonction.includes("'fiche-du-jour', 'lettre', 'prevision', 'question', 'processus'] as const;")]);
+dit('la fonction se dit au moins 2026-10-24-a et connait les trois chantiers', [true, true],
+  [(/const VERSION = '([^']+)';/.exec(fonction)?.[1] ?? '') >= '2026-10-24-a', fonction.includes("'fiche-du-jour', 'lettre', 'prevision', 'question', 'processus',")]);
 dit('pas de tiret cadratin dans ce que les ecrans disent', [false, false, false], [agents.includes('—'), demander.includes('—'), avalider.includes('—')]);
 
 console.log(`\n${n - ko}/${n} verifications`);

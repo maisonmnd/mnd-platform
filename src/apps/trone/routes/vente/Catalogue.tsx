@@ -32,6 +32,7 @@ import { FILL_DESCRIPTIONS, REWRITE_DESCRIPTIONS, DESC_REV } from './serviceDesc
 import { bougerStockGamme, corrigerStockGamme, litQuantite } from '../../../../shared/stock';
 import { prixApresRemisePct } from '../../../../shared/arrondi-des-remises-pur';
 import './vente.css';
+import { FicheTechniqueDuVolet, ficheAEcrire, ficheDuService, ficheRemplie, ficheVide, type FicheForm } from './FicheTechnique';
 
 /* Catalogue — double nomenclature fon™. Catégories réordonnables, activables,
    éditables et supprimables ; prestations et produits Maison éditables au fauteuil.
@@ -109,12 +110,16 @@ type SvcForm = {
   /* — LE TARIF AU LOCK, PAR LONGUEUR (16 août) — renseigné, il prime sur le
        tarif unique, et `prixLong` devient le PLANCHER de chaque longueur. */
   tarifLong: Partial<Record<LongueurId, string>>;
+  /** LA FICHE TECHNIQUE (13 novembre 2026, la Consultation) — indications,
+      éligibilité, contre-indications, actifs, compléments. */
+  fiche: FicheForm;
 };
 
 const emptySvcForm = (categoryId: string, master: string, estForfait = false): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
   code: '', rate: '', tarifMode: '', includes: [], forfaitRemise: '', estForfait, floors: {}, durationMax: '', priceTo: '',
   prixLong: {}, dureeLong: {}, tarifLong: {}, modele: 'fixe', bandIds: [], reserveFamilles: false, reserveEnfants: false, desVenue: '', gestes: [], privatise: false, maxTetes: '2',
+  fiche: ficheVide(),
 });
 
 /** Le modèle de prix ACTUEL d'une prestation — dérivé du même juge que les
@@ -179,6 +184,7 @@ const RUBRIQUES = [
   { k: 'contient', t: 'Ce qu’elle contient' },
   { k: 'tetes', t: 'Qui peut la prendre' },
   { k: 'gestes', t: 'Les gestes' },
+  { k: 'fiche', t: 'Fiche technique' },
 ] as const;
 type Rubrique = (typeof RUBRIQUES)[number]['k'];
 
@@ -695,6 +701,7 @@ export default function Catalogue() {
         xof: Number(g.xof) > 0 ? String(Math.round(Number(g.xof))) : '',
         fichesCochees: !!g.fichesCochees,
       })),
+      fiche: ficheDuService(svc.fiche),
     });
 
   /* LE COMPTE DU FORFAIT. Valeur des prestations retenues au prix catalogue,
@@ -859,6 +866,7 @@ export default function Catalogue() {
         : svcForm.reserveFamilles ? 'familles'
         : svcForm.bandIds.length ? `${svcForm.bandIds.length} calibres` : 'toutes';
       case 'gestes': return svcForm.gestes.length ? String(svcForm.gestes.length) : '—';
+      case 'fiche': { const n = ficheRemplie(svcForm.fiche); return n ? `${n}/5` : '—'; }
     }
   };
 
@@ -992,6 +1000,9 @@ export default function Catalogue() {
           });
         return gardes.length ? gardes : undefined;
       })(),
+      /* LA FICHE TECHNIQUE — vide, elle disparaît de la fiche plutôt que d'y
+         laisser une coquille. */
+      fiche: ficheAEcrire(svcForm.fiche),
     };
     if (svcForm.id) {
       /* LE PALIER CHANGÉ À LA MAIN EST POSÉ — 16 septembre 2026 : « quand je
@@ -2713,6 +2724,17 @@ export default function Catalogue() {
                 </Bloc>
               )}
 
+              {rubrique === 'fiche' && (
+                <Bloc titre="La fiche technique" aide="ce qu'elle soigne, pour qui, quand ne pas la faire, et les besoins qui y mènent">
+                  <FicheTechniqueDuVolet
+                    serviceId={svcForm.id}
+                    fiche={svcForm.fiche}
+                    onChange={(fiche) => setSvcForm({ ...svcForm, fiche })}
+                    services={services}
+                    currency={currency}
+                  />
+                </Bloc>
+              )}
               {rubrique === 'gestes' && (
                 <Bloc titre="Les gestes de la maison" aide="quand son prix baisse parce qu'une autre est au même rituel">
             <Field label="Les gestes de la maison">

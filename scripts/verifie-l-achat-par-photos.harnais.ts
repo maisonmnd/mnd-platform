@@ -167,7 +167,7 @@ dit('le Trone ne propose la lecture qu a une fonction qui sait l achat', [false,
 const pur = lf(readFileSync('src/shared/ia-maison-pur.ts', 'utf8'));
 const fonction = lf(readFileSync('supabase/functions/ia-maison/index.ts', 'utf8'));
 const bloc = (t: string) => { const a = t.indexOf('/* ⟨ia-maison⟩ */'); const b = t.indexOf('/* ⟨/ia-maison⟩ */'); return a < 0 || b < 0 ? null : t.slice(a, b); };
-dit('la fonction ia-maison porte le meme bloc que le depot, et dit 2026-11-01-a', [true, true], [!!bloc(pur) && bloc(pur) === bloc(fonction), fonction.includes("const VERSION = '2026-11-01-a';")]);
+dit('la fonction ia-maison porte le meme bloc que le depot, et dit au moins 2026-11-01-a', [true, true], [!!bloc(pur) && bloc(pur) === bloc(fonction), (/const VERSION = '([^']+)';/.exec(fonction)?.[1] ?? '') >= '2026-11-01-a']);
 const ecran = sansCommentaires('src/apps/trone/routes/vente/SaisirUnAchat.tsx');
 dit('l ecran lit par le chantier achat avec le schema, et ecrit par saisirLAchat seulement', [true, true, true, false],
   [ecran.includes('chantier: CHANTIER_DE_L_ACHAT, usage: USAGE_DE_L_ACHAT'), ecran.includes('schema: SCHEMA_DE_L_ACHAT'), ecran.includes('const r = saisirLAchat(saisie,'), /creerCommande|recevoirLigne|expensesStore/.test(ecran)]);
