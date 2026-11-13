@@ -11,7 +11,9 @@ import { useModelBands, useBandSets } from '../../../../shared/pricing';
 import { jourPropose } from '../../../../shared/caisse-du-soir-pur';
 import { francsDits, idDuPapier, TYPE_DU_PAPIER, type ConstatDeDepense, type GesteDeDepense, type GesteDuComptoir, type GesteSur } from '../../../../shared/cloture-du-jour-pur';
 import { decideLaDepense, momentDit, tranche } from '../../../../shared/cloture-du-jour';
-import { peutValider, useExpenses } from '../../../../shared/finance';
+import { lignesDuCaissier, reglagesDuCaissier, type RdvDuCaissier } from '../../../../shared/le-caissier-pur';
+import { useSettings } from '../../../../shared/settings';
+import { peutValider, useExpenses, useInvoices } from '../../../../shared/finance';
 import { useStore } from '../../../../shared/store';
 import { sameName } from '../../../../shared/text';
 import { envoisStore, staffAccessStore } from '../equipe/data';
@@ -215,6 +217,28 @@ export default function LaJournee() {
     toast('Tranché : le constat est fermé, il reste au compte rendu.');
   };
 
+  /* ── LE CAISSIER DE GRENAT (13 novembre 2026) : ce qu'il suit aujourd'hui ── */
+  const [settings] = useSettings();
+  const [pieces] = useInvoices();
+  const reglagesCaissier = reglagesDuCaissier(settings.caissier);
+  const lignesCaissier = jour === aujourdhui ? lignesDuCaissier({
+    jour, maintenantMs: Date.now(), constats: cloture.rdvs,
+    rdvs: appts.filter((a) => a.date === jour) as unknown as RdvDuCaissier[],
+    fiches: clients.map((c) => ({ id: c.id, nom: c.name, sansPapiersWa: c.sansPapiersWa === true, aUnNumero: !!c.phone?.trim(), passeAuComptoir: c.passeAuComptoir === true })),
+    pieces: pieces.filter((p) => appts.some((a) => a.id === p.apptId && a.date === jour)) as never,
+    reglages: reglagesCaissier,
+    facturesParties: new Set(pieces.filter((p) => !!p.whatsapp?.partieLe).map((p) => p.id)),
+  }) : [];
+  /** « Retenir sa facture » : elle ne part pas seule ; « La laisser partir » défait le geste. */
+  const retiens = (rdvId: string, oui: boolean) => {
+    appointmentsStore.set((prev) => prev.map((x) => {
+      if (x.id !== rdvId) return x;
+      const { retenueLe: _r, retenuePar: _p, ...reste } = x.caissier ?? {};
+      return { ...x, caissier: oui ? { ...reste, retenueLe: new Date().toISOString(), retenuePar: moi } : reste };
+    }));
+    toast(oui ? 'Sa facture ne partira pas seule : le comptoir s’en occupe.' : 'Le caissier peut de nouveau envoyer sa facture, à son heure.');
+  };
+
   const jourDit = (() => {
     const s = new Date(`${jour}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     return s.charAt(0).toUpperCase() + s.slice(1);
@@ -372,6 +396,35 @@ export default function LaJournee() {
           )}
           <p className="lj-regle">Seul, Grenat envoie le papier pas encore parti (par la salle d’attente), passe « honoré » un rendez-vous réglé en entier encore « confirmé », et relie une facture à son rendez-vous quand il n’y a qu’un candidat. Jamais seul : une absence, un prix, une remise, un paiement, un effacement.</p>
         </div>
+
+        {/* LE CAISSIER DE GRENAT — 13 novembre 2026 (« Le Trône n'a pas de
+            caissier… un robot caissier qui se déclenche automatiquement »).
+            Le jour même seulement : un jour passé est l'affaire de la clôture. */}
+        {jour === aujourdhui && (
+          <div className="lj-bloc" data-lj="caissier">
+            <p className="lj-bloc__tete">
+              <span>Le caissier</span>
+              <span>{!reglagesCaissier.actif ? 'éteint' : `toutes les 5 minutes${reglagesCaissier.factureApresMin > 0 ? ` · facture seule ${reglagesCaissier.factureApresMin} min après la fin` : ' · jamais de facture seule'}`}</span>
+            </p>
+            {!reglagesCaissier.actif && <p className="lj-vide">Le caissier est éteint (Système › Paramètres › Heures et jours). Grenat garde ses clôtures.</p>}
+            {reglagesCaissier.actif && lignesCaissier.length === 0 && <p className="lj-vide">Rien à suivre pour l’instant : aucun rituel fini sans encaissement.</p>}
+            {reglagesCaissier.actif && lignesCaissier.map((l) => (
+              <div className="lj-ligne" key={l.rdvId} data-lj-caissier={l.etat}>
+                <span className="lj-heure">{l.heure}</span>
+                <span className="lj-qui-dit"><span className="lj-qui">{l.qui}</span><span className="lj-dit">{l.dit}</span></span>
+                <span className={`lj-etat ${l.etat === 'honore-seul' ? 'ok' : l.etat === 'retenue' ? 'cuivre' : 'ko'}`}>
+                  {l.etat === 'honore-seul' ? 'Fini seul' : l.etat === 'retenue' ? 'Retenue' : l.etat === 'facture-ecrite' ? 'Facture' : l.etat === 'prevenu' ? 'Prévenu' : 'À suivre'}
+                </span>
+                <span className="lj-gestes">
+                  {l.etat !== 'honore-seul' && l.etat !== 'retenue' && <button type="button" className="lj-g plein" onClick={() => fais(l.rdvId, 'encaisser')}>Encaisser</button>}
+                  {l.peutRetenir && <button type="button" className="lj-g" data-geste="retenir-sa-facture" onClick={() => retiens(l.rdvId, true)}>Retenir sa facture</button>}
+                  {l.etat === 'retenue' && <button type="button" className="lj-g" data-geste="laisser-partir" onClick={() => retiens(l.rdvId, false)}>La laisser partir</button>}
+                </span>
+              </div>
+            ))}
+            <p className="lj-regle">Entre deux clôtures, le caissier passe toutes les cinq minutes. Seul : il honore un rendez-vous réglé en entier, relie une facture, envoie le reçu quinze minutes après l’encaissement. Quinze minutes après la fin d’un rituel où rien n’est encaissé, il prévient le comptoir ; à l’heure dite, la facture s’écrit au tarif de sa tête et part sur son WhatsApp avec son bouton de règlement, jamais après 19 h 30. Jamais seul : des espèces, un MoMoPay, un prix, une absence.</p>
+          </div>
+        )}
 
         {/* LES PANNES DU JOUR (12 novembre 2026, le choix du moyen, lot D) :
             MTN ou FedaPay muets, un épisode par ligne, dits une fois à la direction. */}

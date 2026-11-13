@@ -332,10 +332,12 @@ vrai('la fonction ne pousse jamais un nom de cliente dans la notification', /not
 vrai('la fonction lit les pieces effacees dans traces (operation efface sur invoices)', /from\('traces'\)[\s\S]{0,200}eq\('table_name', 'invoices'\)[\s\S]{0,120}eq\('operation', 'efface'\)/.test(fonction));
 const horsDuBloc = fonction.slice(fonction.indexOf('/* ⟨/cloture-du-jour⟩ */'));
 vrai('la fonction relit avant d ecrire (gesteToujoursValable sur la ligne fraiche) et ecrit sous condition (updated_at)',
-  horsDuBloc.includes('if (!gesteToujoursValable(g, { ...faitsDe(), rdvs: rdvsFrais, pieces: piecesFraiches })) {') && (horsDuBloc.match(/\.eq\('updated_at', fra[a-z]+\.updated_at\)/g) ?? []).length >= 3);
+  /* Quatre ecritures sous condition depuis le caissier (13 novembre 2026) : les trois de la cloture, et la marque du caissier. */
+  horsDuBloc.includes('if (!gesteToujoursValable(g, { ...faitsDe(), rdvs: rdvsFrais, pieces: piecesFraiches })) {') && (horsDuBloc.match(/\.eq\('updated_at', fra[a-z]+\.updated_at\)/g) ?? []).length >= 4);
 vrai('le mot du matin n envoie aucun papier (le papier d hier ne part pas le lendemain)', /if \(matin && g\.genre === 'envoyer-le-papier'\)/.test(horsDuBloc));
 vrai('la fonction ne notifie ni a l essai ni au mot du matin, et une fois par passage', /if \(!essai && !matin && !dejaDit && pourLaNotification\)/.test(horsDuBloc));
-vrai('la fonction ne travaille qu aux heures reglees', /if \(!matin && !essai && !heures\.includes\(ici\.heure\)\)/.test(horsDuBloc));
+/* Le caissier (13 novembre 2026) passe a toute heure de son cron : la cloture garde les siennes. */
+vrai('la fonction ne travaille qu aux heures reglees (le caissier a part)', /if \(!matin && !caisse && !essai && !heures\.includes\(ici\.heure\)\)/.test(horsDuBloc));
 vrai('la fonction lit par pages de mille', /PAGE = 1000/.test(fonction) && /\.range\(/.test(fonction));
 vrai('la fonction ne parle jamais a la cliente en direct (pas de graph.facebook.com)', !/graph\.facebook\.com/.test(fonction));
 vrai('la fonction lit les heures reglees (heuresDeLaCloture) et les horaires (laMaisonEstFermee)', /heuresDeLaCloture\(/.test(fonction) && /laMaisonEstFermee\(/.test(fonction));

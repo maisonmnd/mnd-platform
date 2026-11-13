@@ -148,7 +148,7 @@ const PANNES = [
   { nom: 'la fonction ecrit sans condition', fichier: FN, avant: ".eq('id', frais.id).eq('updated_at', frais.updated_at).select('id');", apres: ".eq('id', frais.id).select('id');", disque: true },
   { nom: 'le mot du matin envoie le papier d hier', fichier: FN, avant: "if (matin && g.genre === 'envoyer-le-papier')", apres: "if (false && g.genre === 'envoyer-le-papier')", disque: true },
   { nom: 'la fonction notifie a chaque relance', fichier: FN, avant: 'if (!essai && !matin && !dejaDit && pourLaNotification) {', apres: 'if (!essai && !matin && pourLaNotification) {', disque: true },
-  { nom: 'la fonction travaille a toute heure', fichier: FN, avant: 'if (!matin && !essai && !heures.includes(ici.heure)) {', apres: 'if (false) {', disque: true },
+  { nom: 'la fonction travaille a toute heure', fichier: FN, avant: 'if (!matin && !caisse && !essai && !heures.includes(ici.heure)) {', apres: 'if (false) {', disque: true },
   { nom: 'la fonction ne lit plus les pieces effacees', fichier: FN, avant: ".eq('operation', 'efface')", apres: ".eq('operation', 'modifie')", disque: true },
   { nom: '0156 : le compte rendu sans RLS', fichier: SQL, avant: 'alter table public.clotures_de_grenat enable row level security;', apres: '', disque: true },
   { nom: '0156 : plus de garde des pieces payees', fichier: SQL, avant: 'before delete on public.invoices', apres: 'before update on public.invoices', disque: true },

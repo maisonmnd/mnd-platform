@@ -50,6 +50,9 @@ export const COPIES = [
      voie, la fenêtre, la fois suivante, la consigne à Opale). */
   { bloc: 'porte-des-modeles', source: 'src/shared/porte-des-modeles-pur.ts', cibles: ['supabase/functions/envois-partent/index.ts'] },
   { bloc: 'envois-programmes', source: 'src/shared/envois-programmes-pur.ts', cibles: ['supabase/functions/envois-partent/index.ts'] },
+  /* Le caissier de la Maison (13 novembre 2026) : Grenat tient la caisse
+     entre ses deux clôtures, dans la même fonction, après ⟨cloture-du-jour⟩. */
+  { bloc: 'le-caissier', source: 'src/shared/le-caissier-pur.ts', cibles: ['supabase/functions/cloture-du-jour/index.ts'] },
 ];
 
 const lf = (s) => s.replace(/\r\n/g, '\n');

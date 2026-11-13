@@ -674,6 +674,8 @@ const regles: Regle[] = [
         'envois-programmes': { fichier: 'src/shared/envois-programmes-pur.ts', extrait: (s) => entre(s, 'envois-programmes') },
         /* Le choix du moyen, lot C (13 novembre 2026, déjà sur main) : régler par FedaPay, recopié dans mnd-pay et mnd-pay-webhook. */
         'regler-par-fedapay': { fichier: 'src/shared/regler-par-fedapay-pur.ts', extrait: (s) => entre(s, 'regler-par-fedapay') },
+        /* Le caissier de Grenat (13 novembre 2026) : prévenir le comptoir, demander la facture, ses gestes sûrs, recopiés dans cloture-du-jour. */
+        'le-caissier': { fichier: 'src/shared/le-caissier-pur.ts', extrait: (s) => entre(s, 'le-caissier') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

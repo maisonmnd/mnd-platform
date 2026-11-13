@@ -18,7 +18,16 @@
      - le cron `cloture-de-grenat-matin`, à 6 h 45 : la veille relue en
        entier (un rendez-vous fini après 19 h), pour le Conseil de Saphir ;
      - un essai, clé service et {"source":"essai"} : la clôture s'écrit,
-       personne n'est prévenu.
+       personne n'est prévenu ;
+     - LE CAISSIER (13 novembre 2026, cron `le-caissier-de-grenat` de 0207,
+       toutes les cinq minutes de 7 h à 23 h), {"moment":"caisse"} : entre
+       deux clôtures, les gestes sûrs dès qu'ils sont vrais, le comptoir
+       prévenu d'un rituel fini sans encaissement, la facture demandée au
+       Trône quand rien n'est venu (bloc ⟨le-caissier⟩, l'original est
+       src/shared/le-caissier-pur.ts). Ni compte rendu de clôture, ni bilan :
+       ses marques sont sur les rendez-vous (`caissier`, `honoreParGrenat`
+       au moment « caisse »). Avec {"source":"essai"}, il dit ce qu'il ferait
+       et n'écrit rien.
 
    CE QU'ELLE FAIT, et rien d'autre :
      ① lire la journée (par pages de mille : le plafond de Supabase) ;
@@ -1020,7 +1029,223 @@ export function gesteToujoursValable(g: GesteSur, f: FaitsDeLaJournee): boolean 
 }
 /* ⟨/cloture-du-jour⟩ */
 
-const VERSION = '2026-11-12-b';
+/* ⟨le-caissier⟩ */
+export const VERSION_DU_CAISSIER = '2026-11-13-a';
+
+/** Le caissier passe toutes les cinq minutes (le cron de 0207). */
+export const RYTHME_DU_CAISSIER_MIN = 5;
+/** Le comptoir est prévenu quinze minutes après la fin prévue d'un rituel où rien n'est encaissé. */
+export const COMPTOIR_PREVENU_APRES_MIN = 15;
+/** La facture part seule une heure après la fin prévue, quand rien n'est réglé. */
+export const FACTURE_SEULE_APRES_MIN_PAR_DEFAUT = 60;
+/** Les délais que Paramètres propose ; 0 : jamais seule (le comptoir est seulement prévenu). */
+export const DELAIS_DE_LA_FACTURE: readonly number[] = [0, 30, 60, 120];
+/** Le reçu d'une pièce payée part quand la pièce n'a plus bougé depuis quinze minutes. */
+export const RECU_APRES_MIN = 15;
+/** Jamais une facture seule après 19 h 30 : la salle des envois se tait de 20 h à 8 h. */
+export const DERNIERE_FACTURE_SEULE_MIN = 19 * 60 + 30;
+
+/** Les réglages du caissier (`mnd_settings.caissier`) : allumé par défaut, une heure par défaut. */
+export type ReglagesDuCaissier = { actif: boolean; factureApresMin: number };
+
+export function reglagesDuCaissier(brut: unknown): ReglagesDuCaissier {
+  const r = (brut && typeof brut === 'object' ? brut : {}) as { actif?: unknown; factureApresMin?: unknown };
+  const delai = Number(r.factureApresMin);
+  return {
+    actif: r.actif !== false,
+    factureApresMin: r.factureApresMin !== undefined && DELAIS_DE_LA_FACTURE.includes(delai) ? delai : FACTURE_SEULE_APRES_MIN_PAR_DEFAUT,
+  };
+}
+
+/** LA MARQUE DU CAISSIER sur un rendez-vous : ce qu'il a fait, et quand.
+    `demandeLe` (le comptoir prévenu) et `pieceDemandeeLe` (la facture à
+    écrire) sont posés par le serveur ; `pieceLe` par le poste qui l'écrit ;
+    `retenueLe` par une main au comptoir. */
+export type MarqueDuCaissier = {
+  demandeLe?: string;
+  pieceDemandeeLe?: string;
+  pieceLe?: string;
+  retenueLe?: string;
+  retenuePar?: string;
+};
+
+/** Ce que le caissier lit d'un rendez-vous, en plus de ce que lit la clôture. */
+export type RdvDuCaissier = RdvLu & { offertPar?: string; termineParElle?: unknown; caissier?: MarqueDuCaissier | null };
+/** Une fiche, et la case « Passe au comptoir ». */
+export type FicheDuCaissier = FicheLue & { passeAuComptoir?: boolean };
+/** Une pièce, et l'heure de sa dernière écriture (`updated_at` de la base). */
+export type PieceDuCaissier = PieceLue & { modifieeLe?: string };
+
+export type FaitsDuCaissier = {
+  jour: string;
+  maintenantMs: number;
+  /** Les constats de la clôture du même instant (`clotureDuJour(...).rdvs`). */
+  constats: readonly ConstatDuRdv[];
+  rdvs: readonly RdvDuCaissier[];
+  fiches: readonly FicheDuCaissier[];
+  pieces: readonly PieceDuCaissier[];
+  reglages: ReglagesDuCaissier;
+};
+
+export type DecisionDuCaissier =
+  | { genre: 'prevenir-le-comptoir'; cle: string; rdvId: string; titre: string; corps: string; factureVersMin: number | null }
+  | { genre: 'demander-la-piece'; cle: string; rdvId: string; dit: string };
+
+/** L'HEURE OÙ LA FACTURE D'UN RITUEL PART SEULE, en minutes depuis minuit à
+    Cotonou ; `null` : jamais seule pour lui (caissier éteint, délai « jamais »,
+    ou trop tard dans la journée). */
+export function heureDeLaFactureSeule(finMin: number, reglages: ReglagesDuCaissier): number | null {
+  if (!reglages.actif || !(reglages.factureApresMin > 0)) return null;
+  const a = finMin + reglages.factureApresMin;
+  return a <= DERNIERE_FACTURE_SEULE_MIN ? a : null;
+}
+
+/** POURQUOI SA FACTURE NE PART PAS SEULE, en clair ; `null` : elle peut
+    partir. La destinataire est celle de la clôture : la payeuse si elle a un
+    numéro, sinon la cliente du rituel. */
+export function pourquoiPasDeFactureSeule(a: RdvDuCaissier, fiches: readonly FicheDuCaissier[]): string | null {
+  if (a.caissier?.retenueLe) return 'retenue au comptoir';
+  if (a.termineParElle) return 'elle a terminé elle-même : sa porte a sa pièce';
+  const soignee = fiches.find((x) => x.id === a.clientId);
+  const payeuse = a.offertPar ? fiches.find((x) => x.id === a.offertPar) : soignee;
+  const destinataire = payeuse?.aUnNumero ? payeuse : soignee;
+  if (!soignee || !destinataire) return 'sans fiche';
+  if (soignee.passeAuComptoir || (payeuse && payeuse.passeAuComptoir)) return 'elle passe toujours au comptoir';
+  if (destinataire.sansPapiersWa) return 'pas de facture par WhatsApp (sa fiche le dit)';
+  if (!destinataire.aUnNumero) return 'pas de numéro sur sa fiche';
+  if ((Number(a.depositXof) || 0) > 0 && !a.depositConfirmed) return 'un acompte attend d’être vérifié';
+  if (argentDuCarnet(a) + acompteRecu(a) > 0) return 'une partie est déjà encaissée';
+  return null;
+}
+
+/** LA NOTIFICATION DU COMPTOIR : des initiales et un montant, jamais un nom. */
+export function notificationDuComptoir(c: Pick<ConstatDuRdv, 'qui' | 'finDite'>, resteXof: number, factureVersMin: number | null): { titre: string; corps: string } {
+  const suite = factureVersMin === null
+    ? 'Encaissez-la au comptoir, ou dites ce qui s’est passé dans La journée.'
+    : `Sans encaissement d’ici là, sa facture partira seule vers ${heureEnClair(factureVersMin)}.`;
+  return { titre: `À encaisser · ${c.qui || 'une cliente'}`, corps: `Fini vers ${c.finDite} · ${francsDits(resteXof)}. ${suite}` };
+}
+
+/** Le rituel que le caissier suit : passé, encore « confirmé », un reste dû,
+    et pas terminé par elle (sa porte a déjà prévenu l'équipe et écrit sa pièce). */
+function suivi(c: ConstatDuRdv, f: FaitsDuCaissier): { a: RdvDuCaissier; reste: number } | null {
+  if (c.etat !== 'a-encaisser') return null;
+  const a = f.rdvs.find((r) => r.id === c.id);
+  if (!a || a.status !== 'confirmé' || a.termineParElle) return null;
+  const reste = resteDuRdv(a);
+  return typeof reste === 'number' && reste > 0 ? { a, reste } : null;
+}
+
+/** ② ET ③ : CE QUE LE CAISSIER DÉCIDE À CE PASSAGE. Seulement le jour
+    même (un jour passé est l'affaire de la clôture et de la direction). */
+export function decisionsDuCaissier(f: FaitsDuCaissier): DecisionDuCaissier[] {
+  if (!f.reglages.actif) return [];
+  const ici = aCotonouLe(f.maintenantMs);
+  if (ici.jour !== f.jour) return [];
+  const sorties: DecisionDuCaissier[] = [];
+  for (const c of f.constats) {
+    const s = suivi(c, f);
+    if (!s) continue;
+    const marque = s.a.caissier ?? {};
+    const pourquoiPas = pourquoiPasDeFactureSeule(s.a, f.fiches);
+    /* Une pièce existe déjà (écrite au comptoir, ou demandée par lui) : il ne la redemande pas. */
+    const factureVers = pourquoiPas || c.pieceId ? null : heureDeLaFactureSeule(c.finMin, f.reglages);
+    if (!marque.demandeLe && ici.minutes >= c.finMin + COMPTOIR_PREVENU_APRES_MIN) {
+      const n = notificationDuComptoir(c, s.reste, c.pieceId || marque.pieceDemandeeLe ? null : factureVers);
+      sorties.push({ genre: 'prevenir-le-comptoir', cle: `comptoir:${s.a.id}`, rdvId: s.a.id, ...n, factureVersMin: factureVers });
+    }
+    if (!marque.pieceDemandeeLe && factureVers !== null && ici.minutes >= factureVers && ici.minutes <= DERNIERE_FACTURE_SEULE_MIN) {
+      sorties.push({ genre: 'demander-la-piece', cle: `piece:${s.a.id}`, rdvId: s.a.id,
+        dit: `${c.qui} · ${c.heure} : rien encaissé ${f.reglages.factureApresMin} min après la fin ; sa facture s’écrit au Trône, puis part.` });
+    }
+  }
+  return sorties;
+}
+
+/** ① LES GESTES SÛRS DE LA CLÔTURE QUE LE CAISSIER FAIT ENTRE DEUX CLÔTURES.
+    Honorer un rendez-vous réglé et relier une pièce : toujours. Le reçu
+    d'une pièce payée : quand elle n'a plus bougé depuis quinze minutes. La
+    facture à régler : seulement celle qu'il a fait écrire, à son heure. */
+export function gesteDuCaissier(g: GesteSur, f: FaitsDuCaissier): boolean {
+  if (!f.reglages.actif) return false;
+  const ici = aCotonouLe(f.maintenantMs);
+  if (ici.jour !== f.jour) return false;
+  if (g.genre === 'passer-honore' || g.genre === 'relier-la-piece') return true;
+  const p = f.pieces.find((x) => x.id === g.pieceId);
+  if (!p) return false;
+  if (g.papier === 'recu') {
+    const calme = Date.parse(p.modifieeLe ?? '');
+    return Number.isFinite(calme) && f.maintenantMs - calme >= RECU_APRES_MIN * 60_000;
+  }
+  const a = f.rdvs.find((r) => r.id === p.apptId);
+  if (!a || a.id !== g.rdvId || !a.caissier?.pieceDemandeeLe || a.status !== 'confirmé') return false;
+  if (pourquoiPasDeFactureSeule(a, f.fiches)) return false;
+  const c = f.constats.find((x) => x.id === a.id);
+  if (!c) return false;
+  const factureVers = heureDeLaFactureSeule(c.finMin, f.reglages);
+  return factureVers !== null && ici.minutes >= factureVers && ici.minutes <= DERNIERE_FACTURE_SEULE_MIN;
+}
+
+/** LA PIÈCE DEMANDÉE, AU TRÔNE : à écrire seulement si le rendez-vous la
+    réclame encore (demandée, pas retenue, toujours « confirmé », pas terminé
+    par elle) et qu'aucune pièce ne le porte déjà. */
+export function pieceDuCaissierAEcrire(a: { status?: string; caissier?: MarqueDuCaissier | null; termineParElle?: unknown }, aDejaUnePiece: boolean): boolean {
+  return !!a.caissier?.pieceDemandeeLe && !a.caissier.retenueLe && a.status === 'confirmé' && !a.termineParElle && !aDejaUnePiece;
+}
+
+/** CE QUE L'ÉCRAN DIT DU CAISSIER, rendez-vous par rendez-vous (La journée). */
+export type LigneDuCaissier = {
+  rdvId: string; qui: string; heure: string; finDite: string;
+  etat: 'a-venir' | 'prevenu' | 'facture-ecrite' | 'retenue' | 'honore-seul';
+  dit: string;
+  /** « Retenir sa facture » a un sens : elle n'est ni partie, ni retenue. */
+  peutRetenir: boolean;
+};
+
+export function lignesDuCaissier(f: FaitsDuCaissier & { facturesParties?: ReadonlySet<string> }): LigneDuCaissier[] {
+  const lignes: LigneDuCaissier[] = [];
+  const heureDe = (iso?: string): string => {
+    const ms = Date.parse(iso ?? '');
+    return Number.isFinite(ms) ? heureEnClair(aCotonouLe(ms).minutes) : '';
+  };
+  for (const c of f.constats) {
+    const a = f.rdvs.find((r) => r.id === c.id);
+    if (!a) continue;
+    const base = { rdvId: a.id, qui: c.qui, heure: c.heure, finDite: c.finDite };
+    const honore = a.honoreParGrenat as { le?: string; moment?: string } | null | undefined;
+    if (honore?.moment === 'caisse') {
+      lignes.push({ ...base, etat: 'honore-seul', dit: `Réglé en entier : passé honoré seul à ${heureDe(honore.le)}.`, peutRetenir: false });
+      continue;
+    }
+    const s = suivi(c, f);
+    if (!s) continue;
+    const marque = a.caissier ?? {};
+    if (marque.retenueLe) {
+      lignes.push({ ...base, etat: 'retenue', dit: `Facture retenue${marque.retenuePar ? ` par ${marque.retenuePar}` : ''} à ${heureDe(marque.retenueLe)} : elle ne part pas seule.`, peutRetenir: false });
+      continue;
+    }
+    const pourquoiPas = pourquoiPasDeFactureSeule(a, f.fiches);
+    const factureVers = pourquoiPas ? null : heureDeLaFactureSeule(c.finMin, f.reglages);
+    const partie = !!c.pieceId && !!f.facturesParties?.has(c.pieceId);
+    if (marque.pieceDemandeeLe || (c.pieceId && marque.pieceLe)) {
+      lignes.push({ ...base, etat: 'facture-ecrite', peutRetenir: !partie,
+        dit: partie ? 'Sa facture est partie sur son WhatsApp, avec son bouton de règlement.'
+          : c.pieceId ? `Sa facture est écrite${factureVers !== null ? ` ; elle part vers ${heureEnClair(Math.max(factureVers, aCotonouLe(f.maintenantMs).minutes))}` : ''}.`
+            : 'Sa facture attend un Trône ouvert pour s’écrire au tarif de sa tête.' });
+      continue;
+    }
+    const prevenuA = heureDe(marque.demandeLe);
+    const suite = c.pieceId ? 'une facture est déjà écrite au comptoir' : factureVers !== null ? `sa facture partira seule vers ${heureEnClair(factureVers)}` : `pas de facture seule : ${pourquoiPas ?? (f.reglages.actif && f.reglages.factureApresMin > 0 ? 'trop tard dans la journée' : 'réglage « jamais »')}`;
+    lignes.push({ ...base, etat: marque.demandeLe ? 'prevenu' : 'a-venir', peutRetenir: !c.pieceId && factureVers !== null,
+      dit: marque.demandeLe ? `Comptoir prévenu à ${prevenuA} ; ${suite}.` : `Le comptoir sera prévenu vers ${heureEnClair(c.finMin + COMPTOIR_PREVENU_APRES_MIN)} ; ${suite}.` });
+  }
+  return lignes;
+}
+/* ⟨/le-caissier⟩ */
+
+const VERSION = '2026-11-13-a';
+/** Le caissier dit ses rendez-vous à La journée, comme la clôture. */
+const ETIQUETTE_DU_CAISSIER = 'mnd-caissier';
 const ADRESSE = '/trone/#/la-journee';
 const ETIQUETTE = 'mnd-cloture';
 /** Mille lignes par page : le plafond de Supabase. Au-delà de vingt pages, on s'arrête. */
@@ -1099,8 +1324,10 @@ async function lesComptesDuComptoir(sb: Base, jour: string): Promise<string[]> {
   return [...new Set(lignes.map((t) => String(t.compte ?? '')).filter(Boolean))];
 }
 
-/** Une notification par compte, des nombres seulement : le titre et le corps viennent de `notificationDeLaCloture`. */
-async function previens(sb: Base, url: string, service: string, jour: string, note: { titre: string; corps: string }): Promise<number> {
+/** Une notification par compte, des nombres seulement : le titre et le corps
+    viennent de `notificationDeLaCloture` (ou, pour le caissier, de
+    `notificationDuComptoir` : des initiales et un montant). */
+async function previens(sb: Base, url: string, service: string, jour: string, note: { titre: string; corps: string }, etiquette = ETIQUETTE): Promise<number> {
   const { data: souverains } = await sb.from('staff').select('user_id').eq('role', 'souverain');
   const direction = ((souverains ?? []) as Ligne[]).map((s) => String(s.user_id ?? '')).filter(Boolean);
   let comptoir: string[] = [];
@@ -1113,7 +1340,7 @@ async function previens(sb: Base, url: string, service: string, jour: string, no
       const r = await fetch(`${url}/functions/v1/push-notify`, {
         method: 'POST', signal: AbortSignal.timeout(ENVOI_MAX_MS),
         headers: { 'content-type': 'application/json', authorization: `Bearer ${service}` },
-        body: JSON.stringify({ mode: 'to-staff', userId, title: note.titre, body: note.corps, url: ADRESSE, tag: ETIQUETTE }),
+        body: JSON.stringify({ mode: 'to-staff', userId, title: note.titre, body: note.corps, url: ADRESSE, tag: etiquette }),
       });
       envoyes += Number(((await r.json().catch(() => ({}))) as { sent?: number }).sent ?? 0) || 0;
     } catch (e) {
@@ -1137,7 +1364,7 @@ async function laPorte(sb: Base, req: Request, service: string): Promise<'cron' 
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (req.method === 'GET') return json({ ok: true, fonction: 'cloture-du-jour', version: VERSION, regle: VERSION_DE_LA_CLOTURE });
+  if (req.method === 'GET') return json({ ok: true, fonction: 'cloture-du-jour', version: VERSION, regle: VERSION_DE_LA_CLOTURE, caissier: VERSION_DU_CAISSIER });
   if (req.method !== 'POST') return json({ ok: false, motif: 'POST seulement', version: VERSION }, 405);
   const url = (Deno.env.get('SUPABASE_URL') ?? '').trim();
   const service = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
@@ -1149,6 +1376,8 @@ Deno.serve(async (req) => {
     const corps = (await req.json().catch(() => ({}))) as { source?: string; moment?: string };
     const essai = porte === 'souverain' || corps.source === 'essai';
     const matin = corps.moment === 'matin';
+    /* LE CAISSIER (13 novembre 2026) : le passage des cinq minutes. */
+    const caisse = corps.moment === 'caisse';
 
     const maintenantMs = Date.now();
     const ici = aCotonouLe(maintenantMs);
@@ -1157,12 +1386,16 @@ Deno.serve(async (req) => {
     /* ① LES RÉGLAGES : les heures de la clôture, les horaires de la Maison. */
     const { data: docs } = await sb.from('documents').select('key, data').in('key', ['mnd_settings', 'mnd_horaires_exceptions', 'mnd_offers']);
     const doc = (k: string): unknown => ((docs ?? []) as { key: string; data: unknown }[]).find((d) => d.key === k)?.data ?? null;
-    const reglages = (doc('mnd_settings') ?? {}) as { hours?: HeuresDuJourLues[]; cloture?: { heures?: unknown } };
+    const reglages = (doc('mnd_settings') ?? {}) as { hours?: HeuresDuJourLues[]; cloture?: { heures?: unknown }; caissier?: unknown };
     const heures = heuresDeLaCloture(reglages.cloture?.heures);
-    if (!matin && !essai && !heures.includes(ici.heure)) {
+    const reglagesCaissier = reglagesDuCaissier(reglages.caissier);
+    if (caisse && !reglagesCaissier.actif) {
+      return json({ ok: true, version: VERSION, moment: 'caisse', rien: 'le caissier est éteint (Paramètres)' });
+    }
+    if (!matin && !caisse && !essai && !heures.includes(ici.heure)) {
       return json({ ok: true, version: VERSION, rien: 'pas une heure de clôture', heure: ici.heure, heures });
     }
-    const moment = matin ? 'matin' : String(ici.heure);
+    const moment = matin ? 'matin' : caisse ? 'caisse' : String(ici.heure);
     const exceptionsBrutes = doc('mnd_horaires_exceptions');
     const ferme = laMaisonEstFermee(jour, Array.isArray(reglages.hours) ? reglages.hours : [], Array.isArray(exceptionsBrutes) ? exceptionsBrutes as ExceptionLue[] : []);
     const offresBrutes = doc('mnd_offers');
@@ -1195,7 +1428,9 @@ Deno.serve(async (req) => {
     }
     const prestations = new Map<string, Prestation>();
     for (const l of await parPages((de, a) => sb.from('catalog_services').select('id, data').order('id').range(de, a))) prestations.set(l.id, (l.data ?? {}) as Prestation);
-    const traces = await parPages((de, a) => sb.from('traces').select('id, piece_id, fait_le, compte_nom, porte, avant')
+    /* Le caissier ne lit ni la trace des effacements, ni les dépenses, ni
+       les comptages, ni les pannes : ce sont les affaires de la clôture. */
+    const traces = caisse ? [] : await parPages((de, a) => sb.from('traces').select('id, piece_id, fait_le, compte_nom, porte, avant')
       .eq('table_name', 'invoices').eq('operation', 'efface')
       .gte('fait_le', minuitDe(jour)).lt('fait_le', minuitDe(lendemain(jour))).order('id').range(de, a));
     const decisionsBrutes = await parPages((de, a) => sb.from('cloture_decisions').select('id, branch_id, data').order('id').range(de, a));
@@ -1203,17 +1438,19 @@ Deno.serve(async (req) => {
     /* LES DÉPENSES (5 novembre 2026), LUES ET JAMAIS ÉCRITES : celles du
        jour, celles qui attendent un oui, et celles écrites pour l'écart d'un
        comptage du jour ; les comptages de tiroir du jour. */
-    const lignesComptages = await parPages((de, a) => sb.from('clotures_caisse').select('id, branch_id, data').eq('data->>date', jour).order('id').range(de, a));
+    const lignesComptages = caisse ? [] : await parPages((de, a) => sb.from('clotures_caisse').select('id, branch_id, data').eq('data->>date', jour).order('id').range(de, a));
     const lignesDepenses = new Map<string, Ligne>();
-    for (const l of await parPages((de, a) => sb.from('expenses').select('id, branch_id, data').eq('data->>date', jour).order('id').range(de, a))) lignesDepenses.set(l.id, l);
-    for (const l of await parPages((de, a) => sb.from('expenses').select('id, branch_id, data').eq('data->validation->>etat', 'attente').order('id').range(de, a))) lignesDepenses.set(l.id, l);
-    for (const l of await parTranches(lignesComptages.map((l) => l.id), async (t) => (await sb.from('expenses').select('id, branch_id, data').in('data->>ecartDe', t)).data ?? [])) lignesDepenses.set(l.id, l);
+    if (!caisse) {
+      for (const l of await parPages((de, a) => sb.from('expenses').select('id, branch_id, data').eq('data->>date', jour).order('id').range(de, a))) lignesDepenses.set(l.id, l);
+      for (const l of await parPages((de, a) => sb.from('expenses').select('id, branch_id, data').eq('data->validation->>etat', 'attente').order('id').range(de, a))) lignesDepenses.set(l.id, l);
+      for (const l of await parTranches(lignesComptages.map((l) => l.id), async (t) => (await sb.from('expenses').select('id, branch_id, data').in('data->>ecartDe', t)).data ?? [])) lignesDepenses.set(l.id, l);
+    }
     /* LES PANNES DU JOUR (12 novembre 2026, le choix du moyen, lot D ; 0204) :
        MTN ou FedaPay muets, un épisode par ligne, nés ce jour à Cotonou. Lues,
        jamais écrites. Une table absente (0204 pas encore passée) ou illisible
        ne retient pas la clôture : les pannes ne se disent pas, c'est tout. */
     let pannes: PanneLue[] | undefined;
-    try {
+    if (!caisse) try {
       const lignesPannes = await parPages((de, a) => sb.from('pannes_des_moyens').select('id, prestataire, branch_id, debut, derniere_vue, fin, fin_par, vues')
         .gte('debut', minuitDe(jour)).lt('debut', minuitDe(lendemain(jour))).order('id').range(de, a));
       pannes = lignesPannes.map((l) => ({
@@ -1225,14 +1462,17 @@ Deno.serve(async (req) => {
       dis('pannes illisibles', { motif: String((e as Error)?.message ?? e).slice(0, 80) });
     }
 
-    const fiches: FicheLue[] = lignesFiches.map((l) => {
-      const d = (l.data ?? {}) as { name?: string; sansPapiersWa?: boolean; phone?: string; prixFixes?: Record<string, unknown> };
+    const fiches: FicheDuCaissier[] = lignesFiches.map((l) => {
+      const d = (l.data ?? {}) as { name?: string; sansPapiersWa?: boolean; phone?: string; prixFixes?: Record<string, unknown>; passeAuComptoir?: boolean };
       return { id: l.id, nom: d.name, sansPapiersWa: d.sansPapiersWa === true, aUnNumero: !!String(d.phone ?? '').trim(),
-        prixConvenus: Object.values(d.prixFixes ?? {}).some((v) => typeof v === 'number' && v > 0) };
+        prixConvenus: Object.values(d.prixFixes ?? {}).some((v) => typeof v === 'number' && v > 0),
+        /* « Passe au comptoir » (6 novembre 2026) : le caissier ne lui envoie jamais sa facture seul. */
+        passeAuComptoir: d.passeAuComptoir === true };
     });
     const nomDe = (id?: string) => (id ? fiches.find((c) => c.id === id)?.nom : undefined);
     let rdvs: RdvLu[] = lignesRdv.map((l) => rdvDe(l, prestations, nomDe));
-    let lesPieces: PieceLue[] = [...pieces.values()].map((l) => ({ ...((l.data ?? {}) as PieceLue), id: l.id, branchId: (l.data?.branchId as string | undefined) ?? (l.branch_id ?? undefined) }));
+    /* `modifieeLe` : la dernière écriture de la pièce, que le caissier lit pour laisser le reçu au comptoir quinze minutes. */
+    let lesPieces: PieceDuCaissier[] = [...pieces.values()].map((l) => ({ ...((l.data ?? {}) as PieceLue), id: l.id, branchId: (l.data?.branchId as string | undefined) ?? (l.branch_id ?? undefined), modifieeLe: l.updated_at }));
     const effacements: EffacementLu[] = traces.map((t) => ({
       traceId: String(t.id), pieceId: String(t.piece_id ?? ''), faitLe: String(t.fait_le ?? ''), par: (t.compte_nom as string | undefined) ?? undefined,
       porte: (t.porte as string | undefined) ?? undefined, avant: t.avant ? { ...(t.avant as PieceLue), id: String(t.piece_id ?? '') } : null,
@@ -1258,19 +1498,28 @@ Deno.serve(async (req) => {
     }
 
     const resultats: Record<string, unknown>[] = [];
-    const total = { rdv: 0, clos: 0, aClore: 0, aRevoir: 0, alarmes: 0, papiers: 0, honores: 0, relies: 0 };
+    const total = { rdv: 0, clos: 0, aClore: 0, aRevoir: 0, alarmes: 0, papiers: 0, honores: 0, relies: 0, prevenus: 0, piecesDemandees: 0 };
     let pourLaNotification: ClotureDuJour | null = null;
+    let notifiesParLeCaissier = 0;
     for (const branche of branches) {
       const faitsDe = (): FaitsDeLaJournee => ({ jour, maintenantMs, branchId: branche, ferme, pannes, rdvs, pieces: lesPieces, fiches, offres, effacements, decisions, envois, depenses, comptages, heureDesDepenses });
       const premiere = clotureDuJour(faitsDe());
       const faits: { genre: string; cle: string; dit: string }[] = [];
       const passes: { cle: string; pourquoi: string }[] = [];
+      /* Ce que le caissier lit, à l'instant (les constats de la clôture de cet instant). */
+      const faitsDuCaissier = (constats = clotureDuJour(faitsDe()).rdvs, lesRdvs = rdvs): FaitsDuCaissier => ({
+        jour, maintenantMs, constats, rdvs: lesRdvs as RdvDuCaissier[], fiches, pieces: lesPieces, reglages: reglagesCaissier,
+      });
 
       /* ③ LES TROIS GESTES SÛRS, chacun relu et écrit sous condition. */
       for (const g of premiere.gestes) {
         /* Le mot du matin n'envoie aucun papier : celui d'hier ne part pas
            aujourd'hui (le retard reste invisible). */
         if (matin && g.genre === 'envoyer-le-papier') { passes.push({ cle: g.cle, pourquoi: 'le papier d’hier ne part pas le lendemain' }); continue; }
+        /* LE CAISSIER ne fait que ceux de sa règle : le reçu après quinze
+           minutes de calme, la facture qu'il a fait écrire, à son heure. */
+        if (caisse && !gesteDuCaissier(g, faitsDuCaissier(premiere.rdvs))) continue;
+        if (caisse && essai) { faits.push({ genre: g.genre, cle: g.cle, dit: `(essai, rien écrit) ${g.dit}` }); continue; }
         const idRdv = g.rdvId;
         const idPiece = g.genre === 'passer-honore' ? undefined : g.pieceId;
         const frais = idRdv ? (await sb.from('appointments').select('id, branch_id, data, updated_at').eq('id', idRdv).maybeSingle()).data as Ligne | null : null;
@@ -1285,7 +1534,7 @@ Deno.serve(async (req) => {
           const data = { ...(frais.data ?? {}), status: 'honoré', honoreParGrenat: { le, moment } };
           const { data: ecrit } = await sb.from('appointments').update({ data }).eq('id', frais.id).eq('updated_at', frais.updated_at).select('id');
           if (!(ecrit ?? []).length) { passes.push({ cle: g.cle, pourquoi: 'la donnée a bougé' }); continue; }
-          rdvs = rdvs.map((r) => (r.id === frais.id ? { ...r, status: 'honoré', honoreParGrenat: { le } } : r));
+          rdvs = rdvs.map((r) => (r.id === frais.id ? { ...r, status: 'honoré', honoreParGrenat: { le, moment } } : r));
           faits.push({ genre: g.genre, cle: g.cle, dit: g.dit }); total.honores += 1;
         } else if (g.genre === 'relier-la-piece' && frais && fraiche) {
           const { data: ecrit } = await sb.from('invoices').update({ data: { ...(fraiche.data ?? {}), apptId: frais.id } })
@@ -1307,6 +1556,7 @@ Deno.serve(async (req) => {
             id, branchId: d.branchId ?? branche, type: TYPE_DU_PAPIER, canal: 'whatsapp', statut: A_PREPARER,
             invoiceId: fraiche.id, ...(g.rdvId ? { apptId: g.rdvId } : {}), clientId: d.clientId, papier: g.papier, montantXof: g.montantXof,
             jour, prenom: initialesDe(nomDe(d.forClientId ?? d.clientId)), deposeLe: le, quand: le, parQui: 'Grenat',
+            ...(caisse ? { parLeCaissier: true } : {}),
           };
           const { error } = await sb.from('envois').insert({ id, branch_id: d.branchId ?? branche, data: ligne });
           if (error && (error as { code?: string }).code === '23505') {
@@ -1316,6 +1566,39 @@ Deno.serve(async (req) => {
           envois = [...envois.filter((e) => e.id !== id), { id, type: TYPE_DU_PAPIER, statut: A_PREPARER, invoiceId: fraiche.id }];
           faits.push({ genre: g.genre, cle: g.cle, dit: g.dit }); total.papiers += 1;
         }
+      }
+
+      /* ⑥ LE CAISSIER (13 novembre 2026) : le comptoir prévenu, la facture
+         demandée. Chaque décision se rejuge sur la ligne FRAÎCHE du
+         rendez-vous (une main a pu encaisser entre-temps) et sa marque
+         s'écrit SOUS CONDITION (`updated_at`) ; la notification ne part
+         qu'après la marque écrite : une fois par rendez-vous. */
+      if (caisse) {
+        for (const d of decisionsDuCaissier(faitsDuCaissier())) {
+          const ditLa = d.genre === 'prevenir-le-comptoir' ? `${d.titre} : ${d.corps}` : d.dit;
+          if (essai) { faits.push({ genre: d.genre, cle: d.cle, dit: `(essai, rien écrit) ${ditLa}` }); continue; }
+          const frais = (await sb.from('appointments').select('id, branch_id, data, updated_at').eq('id', d.rdvId).maybeSingle()).data as Ligne | null;
+          if (!frais) { passes.push({ cle: d.cle, pourquoi: 'la ligne n’existe plus' }); continue; }
+          const rdvsFrais = rdvs.map((r) => (r.id === frais.id ? rdvDe(frais, prestations, nomDe) : r));
+          const constatsFrais = clotureDuJour({ ...faitsDe(), rdvs: rdvsFrais }).rdvs;
+          if (!decisionsDuCaissier(faitsDuCaissier(constatsFrais, rdvsFrais)).some((x) => x.cle === d.cle)) { passes.push({ cle: d.cle, pourquoi: 'la donnée a bougé' }); continue; }
+          const le = new Date().toISOString();
+          const avant = ((frais.data ?? {}) as { caissier?: MarqueDuCaissier | null }).caissier ?? {};
+          const caissier: MarqueDuCaissier = { ...avant, ...(d.genre === 'prevenir-le-comptoir' ? { demandeLe: le } : { pieceDemandeeLe: le }) };
+          const { data: ecrit } = await sb.from('appointments').update({ data: { ...(frais.data ?? {}), caissier } })
+            .eq('id', frais.id).eq('updated_at', frais.updated_at).select('id, branch_id, data, updated_at');
+          if (!(ecrit ?? []).length) { passes.push({ cle: d.cle, pourquoi: 'la donnée a bougé' }); continue; }
+          rdvs = rdvs.map((r) => (r.id === frais.id ? rdvDe((ecrit as Ligne[])[0], prestations, nomDe) : r));
+          faits.push({ genre: d.genre, cle: d.cle, dit: ditLa });
+          if (d.genre === 'prevenir-le-comptoir') {
+            total.prevenus += 1;
+            notifiesParLeCaissier += await previens(sb, url, service, jour, { titre: d.titre, corps: d.corps }, `${ETIQUETTE_DU_CAISSIER}-${frais.id}`);
+          } else {
+            total.piecesDemandees += 1;
+          }
+        }
+        resultats.push({ branche, faits, passes });
+        continue;
       }
 
       /* La journée rejugée après les gestes : c'est elle que le compte rendu dit. */
@@ -1336,6 +1619,13 @@ Deno.serve(async (req) => {
       const { error: errCr } = await sb.from('clotures_de_grenat').upsert({ id: idCr, branch_id: branche, data: compteRendu }, { onConflict: 'id' });
       if (errCr) dis('compte rendu non écrit', { branche, motif: String(errCr.message ?? '').slice(0, 80) });
       resultats.push({ branche, verdict: finale.verdict.dit, gestes: faits.length, passes: passes.length, dejaNotifie: !!notifieLe });
+    }
+
+    /* Le caissier s'arrête ici : ni compte rendu de clôture, ni bilan, ni
+       notification de clôture (ses marques sont sur les rendez-vous). */
+    if (caisse) {
+      dis('caisse', { jour, branches: branches.length, essai, notifies: notifiesParLeCaissier, total });
+      return json({ ok: true, version: VERSION, regle: VERSION_DU_CAISSIER, jour, moment, essai, resultats, total, notifies: notifiesParLeCaissier });
     }
 
     /* Le bilan pour Saphir : des compteurs, jamais un nom. */

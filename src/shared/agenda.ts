@@ -4,6 +4,7 @@ import type { LigneGamme } from './gamme';
 import type { LienDeReglement, LienDuFoyer } from './regler-la-seance-pur';
 import type { PieceEnvoyee } from './avant-le-fauteuil-pur';
 import type { MarqueDeLaFin, MarqueDeLHonneur } from './terminer-et-regler-pur';
+import type { MarqueDuCaissier } from './le-caissier-pur';
 
 /* Le Carnet — rendez-vous multi-services, 08:00–18:00.
    Les semences sont générées autour d'aujourd'hui : le carnet vit toujours. */
@@ -434,6 +435,12 @@ export type Appointment = {
       suites (points, stock, mission, reprise) se font au Trône
       (`useLaMainDeGrenat`), par un seul poste, qui réserve `suitesLe`. */
   honoreParGrenat?: { le: string; moment?: string; suitesLe?: string };
+  /** LE CAISSIER DE GRENAT (13 novembre 2026, shared/le-caissier-pur.ts) :
+      le comptoir prévenu (`demandeLe`), la facture demandée au Trône
+      (`pieceDemandeeLe`, posés par la fonction `cloture-du-jour`), la pièce
+      réservée par le poste qui l'écrit (`pieceLe`, `useLeCaissier`), et
+      « Retenir sa facture » au comptoir (`retenueLe`, `retenuePar`). */
+  caissier?: MarqueDuCaissier;
   /** ELLE A TERMINÉ ELLE-MÊME — 6 novembre 2026 (« Terminer et régler »). La
       cliente a déclaré avoir terminé, par Ma Couronne, le site ou le WhatsApp
       de la Maison : la fonction `terminer-et-regler` pose cette marque, le
