@@ -92,7 +92,8 @@ const PANNES = [
   ['la liste « Pour moi » de l automate dit le premier mot', 'src/shared/automate-wa.ts', '`Pour moi, ${prenomDeLaFicheWa(f)}`', '`Pour moi, ${prenomDuNomWa(f.nom)}`'],
   ['le foyer revient au premier mot', 'src/shared/foyer-pur.ts', "  return prenomDUsage({ name: mots.join(' '), prenomUsage: usage });", "  return mots[0] ?? '';"],
   ['la porte ne reconnait plus un message d avant', 'src/shared/porte-des-modeles-pur.ts', 'if (reste !== prenom && reste !== premierMot) return null;', 'if (reste !== prenom) return null;'],
-  ['le rappel d un appel revient au premier mot', 'src/shared/appels.ts', '  const prenom = prenomDevine(a.nom) || a.nom.trim();', "  const prenom = a.nom.trim().split(/\\s+/)[0] || a.nom.trim();"],
+  /* Le texte de `messageAppel` vit depuis le 13 novembre 2026 dans la règle des envois programmés (`texteSuiteASonAppel`). */
+  ['le rappel d un appel revient au premier mot', 'src/shared/envois-programmes-pur.ts', "  const prenom = prenomDevine(nom) || String(nom ?? '').trim();", "  const prenom = String(nom ?? '').trim().split(/\\s+/)[0] || String(nom ?? '').trim();"],
   ['la piece dit le premier mot', 'src/apps/trone/routes/vente/pdf-de-la-piece.ts',
     'const prenomOf = (d: Invoice) => prenomDUsage(clientOf(d), clientNameOf(d));', "const prenomOf = (d: Invoice) => clientNameOf(d).split(' ')[0];"],
 ];

@@ -16,6 +16,7 @@ import { useBranch } from '../../../shared/branches';
 import { sonne } from '../../../shared/sonnette';
 import { EN_ATTENTE, RETENU, resumeDeLaSalle } from '../../../shared/salle-des-envois';
 import { useEnvois } from '../routes/equipe/data';
+import { programmeDansLaSalle } from '../../../shared/envois-programmes-pur';
 import { useRecolleLesEnvois } from '../routes/clients/SalleDesEnvois';
 
 export function PastilleDeLaSalle() {
@@ -28,7 +29,8 @@ export function PastilleDeLaSalle() {
   const [, bat] = useState(0);
 
   const enSalle = useMemo(
-    () => envois.filter((e) => !!e && (!e.branchId || e.branchId === branch.id) && (e.statut === EN_ATTENTE || e.statut === RETENU)),
+    /* Un envoi programmé ne compte que dans l'heure qui vient (13 novembre 2026). */
+    () => envois.filter((e) => !!e && (!e.branchId || e.branchId === branch.id) && (e.statut === EN_ATTENTE || e.statut === RETENU) && programmeDansLaSalle(e, Date.now())),
     [envois, branch.id],
   );
   const cleDesAttentes = enSalle.filter((e) => e.statut === EN_ATTENTE).map((e) => e.id).sort().join('|');

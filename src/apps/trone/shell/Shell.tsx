@@ -11,7 +11,8 @@ import LiensAEnvoyer from './LiensAEnvoyer';
 import Recherche from './Recherche';
 import BoutonDictee from './BoutonDictee';
 import BarreEquipe from './BarreEquipe';
-import { AppelRecuModal } from './AppelRecuModal';
+import ProgrammerUnWhatsApp from './ProgrammerUnWhatsApp';
+import { useLaMainDesEnvoisProgrammes } from '../routes/clients/envois-programmes-donnees';
 import { AppelQuiSonne } from './AppelQuiSonne';
 import { PastilleDeLaSalle } from './PastilleDeLaSalle';
 import { PastilleDesRecus } from './PastilleDesRecus';
@@ -579,6 +580,8 @@ export default function Shell() {
   useLaMainDeGrenat();
   /* Terminer et régler : elle a terminé elle-même, sa pièce s'écrit ici au tarif de sa tête (sans honorer) ; réglée, les suites de l'honneur se font ici (6 novembre 2026). */
   useLaFinDuRituel();
+  /* Les envois programmés (13 novembre 2026) : les appels convertis, les pièces tirées à l'envoi. */
+  useLaMainDesEnvoisProgrammes();
   /* Les captures de transfert reçues sur WhatsApp d'une cliente qui doit se lisent seules, par Claude (19 octobre 2026). */
   useLectureDesCaptures();
   /* Les dossiers de La Relève, déposés sur le site de l'Académie, entrent au Recrutement (15 octobre 2026). */
@@ -615,8 +618,9 @@ export default function Shell() {
   useEffect(() => { document.title = titreDeLOnglet(titreDuTrone, nbRecus); }, [titreDuTrone, nbRecus]);
   const today = new Date();
   const [sideOpen, setSideOpen] = useState(false);
-  const [appelOpen, setAppelOpen] = useState(false);
-  const [appelInitial, setAppelInitial] = useState<{ phone?: string; nom?: string } | null>(null);
+  /* PROGRAMMER UN WHATSAPP (13 novembre 2026) : il remplace « Appel reçu ». */
+  const [programmerOuvert, setProgrammerOuvert] = useState(false);
+  const [programmerInitial, setProgrammerInitial] = useState<{ phone?: string; nom?: string } | null>(null);
   const [rdvPour, setRdvPour] = useState<{ clientId: string; appelId: string; avant: number } | null>(null);
   /* + RDV — poser un rendez-vous depuis N'IMPORTE OÙ, comme on encaisse depuis
      n'importe où : le geste du comptoir ne doit pas dépendre de l'écran où l'on
@@ -626,7 +630,8 @@ export default function Shell() {
 
   /* PARTAGER → LE TRÔNE (25 août). Depuis les appels récents du téléphone,
      « Partager » vers l'app installée arrive ici avec le numéro (share_target du
-     manifest). On ouvre « Appel reçu » pré-rempli, puis on nettoie l'URL pour
+     manifest). On ouvre « Programmer un WhatsApp » (13 novembre 2026 ; avant :
+     « Appel reçu »), le numéro posé, puis on nettoie l'URL pour
      qu'un rafraîchissement ne rouvre pas le modale. */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -634,8 +639,8 @@ export default function Shell() {
     if (!texte) return;
     const m = texte.match(/\+?\d[\d\s().-]{5,}\d/);
     const phone = m ? m[0].replace(/[().-]/g, '').trim() : undefined;
-    setAppelInitial({ phone, nom: phone ? undefined : texte.slice(0, 60) });
-    setAppelOpen(true);
+    setProgrammerInitial({ phone, nom: phone ? undefined : texte.slice(0, 60) });
+    setProgrammerOuvert(true);
     window.history.replaceState({}, '', window.location.pathname + window.location.hash);
   }, []);
   const closeSide = () => setSideOpen(false);
@@ -970,7 +975,7 @@ export default function Shell() {
           {/* + CRÉER (10 novembre 2026) — un seul bouton pour tout créer, à la
               place des trois boutons « + Dépense », « + RDV » et « + Encaisser ».
               Chaque ligne du menu respecte les accès de la personne. */}
-          <MenuCreer onRendezVous={() => setRdvNouveau(true)} onAppelRecu={() => setAppelOpen(true)} onLiens={() => setLiensOuverts(true)} />
+          <MenuCreer onRendezVous={() => setRdvNouveau(true)} onProgrammer={() => { setProgrammerInitial(null); setProgrammerOuvert(true); }} onLiens={() => setLiensOuverts(true)} />
           {session && <BoutonDesCles className="tr-top__bell" />}
           {session && (
             <button
@@ -990,12 +995,13 @@ export default function Shell() {
             du salon. Il ne rend rien tant qu'aucun appel ne sonne. */}
         <AppelQuiSonne />
 
-        <AppelRecuModal
-          open={appelOpen}
-          initial={appelInitial}
-          onClose={() => { setAppelOpen(false); setAppelInitial(null); }}
+        {programmerOuvert && (
+        <ProgrammerUnWhatsApp
+          initial={programmerInitial}
+          surFermer={() => { setProgrammerOuvert(false); setProgrammerInitial(null); }}
           onPoserRdv={(clientId, appelId) => setRdvPour({ clientId, appelId, avant: appointmentsStore.get().filter((x) => x.clientId === clientId).length })}
         />
+        )}
         {/* L'HÔTE DU FOYER, monté une fois pour toute l'application : c'est lui
             qui ouvre « Elles viennent à N » depuis n'importe quelle modale de
             rendez-vous, sans que chacune ait à le câbler. */}

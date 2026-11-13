@@ -628,6 +628,9 @@ function TableauDeLaDirection() {
   /* LES RÉSUMÉS DES LIGNES REPLIÉES — 27 octobre 2026 : chaque ligne dit, en
      chiffres, ce que son panneau contient ; le panneau lit les mêmes. */
   const appelsEnRetard = appelsAFaire.filter((a) => a.suite === 'rappel' && !!a.quand && a.quand < today).length;
+  /* LES WHATSAPP PROGRAMMÉS QUI ATTENDENT UNE MAIN (13 novembre 2026) : un oui
+     (« me demander avant », les anciens appels convertis) ou un envoi par l'app. */
+  const envoisAValider = envois.filter((e) => !!e && e.type === 'programme' && (e.statut === 'à-valider' || e.statut === 'par-l-app') && (!e.branchId || e.branchId === branch.id)).length;
   const rappelsALaMain = demainRows.filter((a) => {
     /* Le rappel d'un foyer nomme chaque tête (`apptIds`, 4 novembre 2026) : il compte pour chacune. */
     const e = etatDeLaTournee(envois.filter((x) => nommeLeRendezVous(x, a.id) && x.type === 'rappel-j1' && !attendEncore(x)));
@@ -788,6 +791,7 @@ function TableauDeLaDirection() {
       dit: `${appelsAFaire.length > 1 ? 'appels à traiter' : 'appel à traiter'}${appelsEnRetard ? ` · ${appelsEnRetard} en retard` : ''}`,
       geste: 'Appeler', go: () => ouvreLeDetail('appels'),
     }] : []),
+    ...(envoisAValider > 0 ? [{ k: 'envois-a-valider', n: envoisAValider, dit: accorde(envoisAValider, 'WhatsApp programmé attend une main', 'WhatsApp programmés attendent une main'), geste: 'Voir', go: () => navigate('/appels') }] : []),
     ...(compoNouvelles.length > 0 ? [{ k: 'compositions', n: compoNouvelles.length, dit: accorde(compoNouvelles.length, 'rituel sur-mesure à sceller', 'rituels sur-mesure à sceller'), geste: 'Sceller', go: () => setCompoOpen(true) }] : []),
     ...(anniversaires.length > 0 ? [{
       k: 'anniversaires', n: anniversaires.length, dit: anniversaires.length > 1 ? 'anniversaires sous 2 jours' : 'anniversaire sous 2 jours',

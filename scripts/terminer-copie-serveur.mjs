@@ -45,6 +45,11 @@ export const COPIES = [
   { bloc: 'veille-attention', source: 'src/shared/messages-de-l-abonnee-pur.ts', cibles: ['supabase/functions/rappels-j1/index.ts'] },
   { bloc: 'prochaine-seance', source: 'src/shared/messages-de-l-abonnee-pur.ts', cibles: ['supabase/functions/whatsapp-webhook/index.ts'] },
   { bloc: 'deja-un-suivant', source: 'src/shared/messages-de-l-abonnee-pur.ts', cibles: ['supabase/functions/whatsapp-webhook/index.ts', 'supabase/functions/envois-partent/index.ts'] },
+  /* Les envois programmés (13 novembre 2026) : la porte d'Opale porte le
+     modèle d'ouverture, et le facteur la règle des envois programmés (la
+     voie, la fenêtre, la fois suivante, la consigne à Opale). */
+  { bloc: 'porte-des-modeles', source: 'src/shared/porte-des-modeles-pur.ts', cibles: ['supabase/functions/envois-partent/index.ts'] },
+  { bloc: 'envois-programmes', source: 'src/shared/envois-programmes-pur.ts', cibles: ['supabase/functions/envois-partent/index.ts'] },
 ];
 
 const lf = (s) => s.replace(/\r\n/g, '\n');

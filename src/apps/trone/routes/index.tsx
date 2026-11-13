@@ -1,5 +1,5 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
-import { Smartphone, Coins, Compass, Bot, TrendingUp, UserRoundCheck, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardCheck, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, Mic, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, Radio, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Star, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
+import { Smartphone, Coins, Compass, Bot, TrendingUp, UserRoundCheck, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardCheck, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, Mic, MonitorPlay, NotebookPen, Palette, PieChart, CalendarClock, PiggyBank, QrCode, Radio, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Star, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
 /* Registre des routes du Trône, groupées par DÉPARTEMENT.
    Le module d'un écran (routes/<dossier>/) dit d'où il vient, pas où il se range :
@@ -112,7 +112,8 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          Maison intelligente. L'adresse `/gerard` reste : les liens des fonctions la connaissent. */
       { path: '/gerard', label: 'Conversations', icon: UserRoundCheck, Component: lazy(() => import('./clients/Gerard')) },
       { path: '/carnet', label: 'Le Carnet', icon: NotebookPen, Component: lazy(() => import('./clients/Carnet')) },
-      { path: '/appels', label: 'Les Appels', icon: PhoneIncoming, Component: lazy(() => import('./clients/Appels')) },
+      /* LES ENVOIS PROGRAMMÉS (13 novembre 2026) : « Les appels » devient la file des WhatsApp programmés ; l'adresse `/appels` reste. */
+      { path: '/appels', label: 'Les envois programmés', icon: CalendarClock, Component: lazy(() => import('./clients/Appels')) },
       { path: '/conversations', label: 'Conversations', icon: MessagesSquare, Component: lazy(() => import('./clients/Conversations')) },
       /* LE CHAT DU SITE (19 octobre 2026, maquette BPWmpyyw… validée) : la bulle de maisonmnd.com, à qui l'on répond en direct. */
       { path: '/discussions', label: 'Discussions', icon: MessageCircle, Component: lazy(() => import('./clients/Discussions')) },
@@ -329,7 +330,7 @@ export const REUNIONS: readonly Reunion[] = [
   /* LES CLIENTES (27 octobre 2026) : le registre, l'audience, les ambassadrices. */
   { hote: '/customers', titre: 'Clientes', onglets: [{ path: '/customers', label: 'Les clientes' }, { path: '/audience', label: 'Audience' }, { path: '/parrainages', label: 'Ambassadrices' }] },
   /* LE CHAT DU SITE (19 octobre 2026) entre dans Conversations, sans rubrique de plus : tout ce que les clientes écrivent au même endroit. */
-  { hote: '/conversations', titre: 'Conversations', onglets: [{ path: '/conversations', label: 'WhatsApp' }, { path: '/discussions', label: 'Le chat du site' }, { path: '/appels', label: 'Les appels' }] },
+  { hote: '/conversations', titre: 'Conversations', onglets: [{ path: '/conversations', label: 'WhatsApp' }, { path: '/discussions', label: 'Le chat du site' }, { path: '/appels', label: 'Les envois programmés' }] },
   { hote: '/demandes', titre: 'Demandes & consultations', onglets: [{ path: '/demandes', label: 'Les demandes' }, { path: '/consultations', label: 'Les consultations' }] },
   { hote: '/home-rituals', titre: 'Stock & Achats', onglets: [{ path: '/home-rituals', label: 'Stock & achats' }, { path: '/fournisseurs', label: 'Les fournisseurs' }] },
   { hote: '/comptes', titre: 'Avoirs & cartes cadeaux', onglets: [{ path: '/comptes', label: 'Comptes & avoirs' }, { path: '/cartes-cadeaux', label: 'Les cartes cadeaux' }] },

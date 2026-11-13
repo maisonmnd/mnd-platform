@@ -256,7 +256,8 @@ dit('le soir du 2, elles finissent le 3 a 8 h', iso(salon('2026-10-03', '08:00')
   dit('le facteur dit qu il est vivant', true, /upsert\(\{ key: 'mnd_facteur', data: \{ vuLe: maintenant/.test(facteur));
   dit('le facteur ne lit que ce qui est « en-attente » : un message retenu lui est invisible', true, /\.eq\('data->>statut', 'en-attente'\)\.limit\(300\)/.test(facteur));
   dit('le facteur prend en main par une ecriture conditionnelle', true, /statut: 'en-envoi' \} \}\) \.eq\('id', l\.id\)\.eq\('data->>statut', 'en-attente'\)\.select\('id'\)/.test(facteur));
-  dit('le facteur ne porte rien pendant les heures calmes, sauf a la main', true, /partAde\(l\) <= maintenantMs && \(!calme \|\| l\.data\.parLaMain === true\)/.test(facteur));
+  /* Sauf un envoi programmé (13 novembre 2026) : l'heure exacte, même la nuit (verifie-les-envois-programmes). */
+  dit('le facteur ne porte rien pendant les heures calmes, sauf a la main ou un envoi programme', true, /partAde\(l\) <= maintenantMs && \(!calme \|\| l\.data\.parLaMain === true \|\| l\.data\.type === TYPE_PROGRAMME\)/.test(facteur));
   dit('le facteur relit le rendez-vous avant de porter', true, facteur.includes('const rdv = (rdvRow?.data ?? null)') && facteur.includes('pourquoiIlNePartPlus(repris ?? l.data, rdv, Date.now())') && /statut: 'périmé', detail: motif/.test(facteur));
   const confirmation = egalise('supabase/functions/confirmation-rdv/index.ts');
   /* Depuis le 9 octobre 2026, WhatsApp aussi : elle a touche « Je confirme ». */

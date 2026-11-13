@@ -1,0 +1,89 @@
+/* PROGRAMMER UN WHATSAPP, ET LA FILE DES ENVOIS PROGRAMMÉS — 13 novembre 2026.
+   La maquette validée (public/maquette-les-envois-programmes.html) : un
+   formulaire à gauche, ce qui partira à droite ; puis la file, en trois
+   onglets. Charte Maison MND : indigo pour le texte, cuivre en accent
+   (boutons, filets), rayons 2 à 4 px, Jost, Cormorant 300 pour les titres. */
+
+.trc-prog { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; align-items: start; min-width: 0; }
+@media (max-width: 880px) { .trc-prog { grid-template-columns: minmax(0, 1fr); } }
+.trc-prog__form { display: grid; gap: 16px; min-width: 0; }
+.trc-prog__champ { display: grid; gap: 7px; min-width: 0; }
+.trc-prog__titre { margin: 0; font: 600 10.5px var(--font-sans); letter-spacing: .15em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-prog__aide { font-size: 12.5px; color: var(--ink-soft); }
+.trc-prog__puces { display: flex; flex-wrap: wrap; gap: 5px; }
+.trc-prog__puce {
+  border: 1px solid var(--hairline); background: var(--surface-card, #fff); color: var(--ink);
+  border-radius: 4px; padding: 6px 10px; font: 400 13px var(--font-sans); text-align: left; cursor: pointer;
+}
+.trc-prog__puce small { display: block; font-size: 11px; color: var(--ink-soft); }
+.trc-prog__puce[aria-pressed="true"] { background: var(--color-indigo); border-color: var(--color-indigo); color: #fff; }
+.trc-prog__puce[aria-pressed="true"] small { color: #fff; opacity: .8; }
+.trc-prog__puce:disabled { opacity: .5; cursor: not-allowed; }
+.trc-prog__puce:focus-visible, .trc-prog__lien:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.trc-prog__dest { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--color-indigo); border-radius: 4px; padding: 4px 6px 4px 10px; font-size: 13px; color: var(--color-indigo); }
+.trc-prog__dest button { border: 0; background: none; color: var(--ink-soft); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 2px; }
+.trc-prog__dest.is-sans-numero { border-color: var(--color-brique, #96412E); color: var(--color-brique, #96412E); }
+.trc-prog textarea {
+  width: 100%; min-height: 110px; resize: vertical; box-sizing: border-box;
+  border: 1px solid var(--hairline); border-radius: 4px; background: var(--color-ivoire); color: var(--ink);
+  padding: 10px 12px; font: 400 14px/1.5 var(--font-sans);
+}
+.trc-prog__ligne { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.trc-prog__nouvelle { display: grid; gap: 8px; min-width: 0; }
+.trc-prog__nouvelle > * { min-width: 0; }
+.trc-prog__nouvelle .trc-prog__lien { justify-self: start; }
+.trc-prog .trc-clientpick, .trc-prog .trc-clientpick > .mnd-input { width: 100%; box-sizing: border-box; }
+.trc-prog__ligne input[type="time"] { border: 1px solid var(--hairline); border-radius: 4px; background: var(--color-ivoire); padding: 5px 8px; font: 400 13px var(--font-sans); color: var(--ink); }
+.trc-prog__bascule { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13.5px; cursor: pointer; }
+.trc-prog__bascule small { display: block; color: var(--ink-soft); font-size: 12px; }
+.trc-prog__bascule input { width: 18px; height: 18px; accent-color: var(--color-copper); flex: none; }
+.trc-prog__pied { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--hairline); padding-top: 12px; }
+.trc-prog__mot { font-size: 12.5px; color: var(--copper-700, #8A5A32); }
+
+/* Ce qui partira */
+.trc-prog__apercu { display: grid; gap: 12px; position: sticky; top: 0; min-width: 0; }
+@media (max-width: 880px) { .trc-prog__apercu { position: static; } }
+.trc-prog__tel { border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card, #fff); overflow: hidden; }
+.trc-prog__tel-tete { background: var(--color-indigo); color: #fff; padding: 10px 14px; display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.trc-prog__tel-corps { padding: 14px; display: grid; gap: 8px; min-height: 110px; }
+.trc-prog__bulle {
+  justify-self: end; max-width: 92%; background: #E7F2E3; color: #1F1D26; border-radius: 4px 4px 0 4px;
+  padding: 8px 11px; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; animation: trc-prog-fondu .25s ease-out;
+}
+.trc-prog__bulle.is-porte { background: var(--copper-50, #FAF1E9); }
+.trc-prog__bulle small { display: block; text-align: right; font-size: 11px; color: #6A6474; margin-top: 4px; }
+.trc-prog__voie { border-left: 3px solid var(--color-copper); background: var(--surface-card, #fff); padding: 8px 12px; font-size: 13.5px; display: grid; gap: 4px; border-radius: 0 4px 4px 0; }
+.trc-prog__voie b { color: var(--color-indigo); font-weight: 500; }
+.trc-prog__voie.is-nuit { border-left-color: var(--color-indigo); }
+.trc-prog__resume { font-size: 12.5px; color: var(--ink-soft); }
+@keyframes trc-prog-fondu { from { opacity: .35; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .trc-prog__bulle { animation: none; } }
+
+/* La file */
+.trc-file__onglets { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--hairline); margin: 18px 0 12px; }
+.trc-file__onglet { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px 6px; color: var(--ink-soft); display: grid; text-align: left; cursor: pointer; font: 400 13px var(--font-sans); }
+.trc-file__onglet b { font: 300 24px/1.1 var(--font-serif); color: var(--color-indigo); font-variant-numeric: lining-nums; }
+.trc-file__onglet[aria-selected="true"] { border-bottom-color: var(--color-copper); }
+.trc-file__liste { background: var(--surface-card, #fff); border: 1px solid var(--hairline); border-radius: 4px; }
+.trc-file__envoi { display: grid; grid-template-columns: 132px minmax(0, 1fr) auto; gap: 6px 14px; padding: 12px 16px; border-top: 1px solid var(--hairline); align-items: start; }
+.trc-file__envoi:first-child { border-top: 0; }
+.trc-file__envoi.is-choisi { background: var(--indigo-50, #EDEEF4); box-shadow: inset 2px 0 0 var(--color-copper); }
+@media (max-width: 640px) {
+  .trc-file__envoi { grid-template-columns: minmax(0, 1fr); }
+  .trc-file__gestes { justify-content: flex-start !important; }
+}
+.trc-file__quand { font-size: 13px; color: var(--color-indigo); font-weight: 500; }
+.trc-file__quand small { display: block; font-weight: 400; color: var(--ink-soft); font-size: 11.5px; }
+.trc-file__qui { font-weight: 500; color: var(--ink); }
+.trc-file__extrait { display: block; font-size: 13px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trc-file__etat { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.trc-file__pastille { font-size: 11.5px; padding: 1px 9px; border-radius: 4px; border: 1px solid var(--hairline); color: var(--ink-soft); white-space: nowrap; }
+.trc-file__pastille.is-agent { border-color: var(--color-indigo); color: var(--color-indigo); }
+.trc-file__pastille.is-ok { border-color: #3F6B4E; color: #3F6B4E; background: #E4EEE6; }
+.trc-file__pastille.is-attend { border-style: dashed; border-color: var(--color-copper); color: var(--copper-700, #8A5A32); background: var(--copper-50, #FAF1E9); }
+.trc-file__pastille.is-ko { border-color: var(--color-brique, #96412E); color: var(--color-brique, #96412E); background: #F5E2DD; white-space: normal; }
+.trc-file__gestes { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.trc-prog__lien { background: none; border: 0; padding: 0; color: var(--copper-700, #8A5A32); text-decoration: underline; text-underline-offset: 3px; font: 400 12.5px var(--font-sans); cursor: pointer; }
+.trc-prog__lien:disabled { opacity: .5; cursor: not-allowed; }
+.trc-file__vide { padding: 14px 16px; color: var(--ink-soft); font-size: 13px; }
+.trc-file__mot { margin: 8px 0; font-size: 12.5px; color: var(--copper-700, #8A5A32); }

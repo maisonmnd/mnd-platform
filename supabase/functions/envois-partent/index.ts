@@ -238,7 +238,9 @@ export const PAR_QUI_DES_CAMPAGNES: readonly string[] = ['Le Trône · campagne'
 export type FamilleDeModele =
   | 'rappel-j1' | 'confirmation' | 'reprise-j3' | 'point-apres' | 'point-avant' | 'avis-google'
   | 'rappel-echeance' | 'prix-revu' | 'relance-facture' | 'fete-de-couronne' | 'fin-de-paquet'
-  | 'merci-marraine' | 'perle-garder' | 'perle-avant' | 'perle' | 'campagne';
+  | 'merci-marraine' | 'perle-garder' | 'perle-avant' | 'perle' | 'campagne'
+  /* Le modèle d'ouverture d'un envoi programmé (13 novembre 2026). */
+  | 'ouverture';
 
 export type EntreeDuRegistre = {
   famille: FamilleDeModele;
@@ -372,6 +374,17 @@ export const REGISTRE_DES_MODELES: readonly EntreeDuRegistre[] = [
     quand: 'À l’heure dite par la campagne, après le feu vert.',
     appel: 1, rdv: false, rappel: false, unParTete: true, porte: 'jamais-deux-fois',
   },
+  /* LES ENVOIS PROGRAMMÉS (13 novembre 2026) : elle n'a pas écrit depuis 24 h,
+     le modèle d'ouverture part d'abord, le message programmé à sa réponse.
+     Seul ce modèle passe la porte : le message lui-même est écrit par
+     l'équipe, comme un envoi de Conversations. */
+  {
+    famille: 'ouverture', type: 'programme', modeles: ['un_message_pour_vous'], secrets: ['WA_TEMPLATE_OUVERTURE'],
+    depose: 'le Trône (Programmer un WhatsApp), porté par envois-partent',
+    pourQuoi: 'Le modèle d’ouverture d’un envoi programmé : « Bonjour {{1}}, la Maison MND a un message pour vous. » {{1}} l’appel ; le message programmé part à sa réponse.',
+    quand: 'À l’heure dite d’un envoi programmé, quand elle n’a pas écrit depuis 24 h ; un seul par numéro tant qu’il attend sa réponse.',
+    appel: 1, rdv: false, rappel: false, unParTete: true, porte: 'toutes',
+  },
 ];
 
 /** CE QUI NE PASSE PAS PAR LA PORTE, dit honnêtement : ces envois partent
@@ -382,6 +395,7 @@ export const SORTIES_HORS_DE_LA_PORTE: readonly { qui: string; quoi: string }[] 
   { qui: 'demande-submit', quoi: 'l’accusé et la confirmation d’une réservation du site, tout de suite' },
   { qui: 'whatsapp-automate, whatsapp-webhook', quoi: 'les réponses dans une conversation ouverte' },
   { qui: 'le Trône', quoi: 'les envois de l’équipe (composer, tournée du matin, « à la main ») : jamais jugés' },
+  { qui: 'envois-partent (les envois programmés)', quoi: 'le message programmé lui-même, fenêtre ouverte ou à sa réponse : un texte écrit par l’équipe, jamais jugé ; seul son modèle d’ouverture passe la porte' },
   { qui: 'cloture-du-jour (Grenat)', quoi: 'le papier d’une pièce : il passe par la salle, gardé par la marque de la pièce et sa clé au serveur (une pièce, un seul WhatsApp), pas par la porte' },
 ];
 
@@ -901,8 +915,352 @@ async function litLesArretsEtLesPauses(sb: BaseDAvance): Promise<{ arrets: Arret
 }
 /* ⟨/arret-d-avance⟩ */
 
+/* ══ LES ENVOIS PROGRAMMÉS — 13 novembre 2026 ══════════════════════════
+   « Programmer un WhatsApp » (maquette validée, « construis »). La règle est
+   RECOPIÉE de `src/shared/envois-programmes-pur.ts`
+   (`node scripts/terminer-copie-serveur.mjs` ; douze lunes R8 et
+   verifie-les-envois-programmes). NE RIEN RETOUCHER ENTRE LES REPÈRES. */
+/* ⟨envois-programmes⟩ */
+/** Le type des lignes d'envoi programmées. */
+export const TYPE_PROGRAMME = 'programme';
+/** « Me demander avant » : l'heure est venue, la ligne attend le oui. Aussi
+    les appels convertis : rien ne part sans le oui. */
+export const A_VALIDER = 'à-valider';
+/** Le modèle d'ouverture est parti : la ligne attend sa réponse. */
+export const ATTEND_SA_REPONSE = 'attend-sa-réponse';
+/** Message privé, fenêtre fermée : une consigne à Opale (WhatsApp Web). */
+export const CONFIE_A_OPALE = 'confié-à-opale';
+/** Par l'app : le téléphone a sonné, une main l'envoie de son WhatsApp. */
+export const PAR_L_APP = 'par-l-app';
+/** Une pièce du Trône (sa facture, son reçu) à tirer par un Trône ouvert. */
+export const PIECE_A_TIRER = 'à-préparer';
+/** « À revoir » : rien n'est parti, la ligne dit pourquoi. Le même mot que
+    le journal (« échec ») : aucune fonction ne retente une ligne programmée. */
+export const A_REVOIR = 'échec';
 
-const VERSION = '2026-11-11-b · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi ; le papier d’une pièce déposé par Grenat : la pièce relue, sa clé réservée, sa marque posée ; ce qui va partir : arrêté d’avance, modèle en pause, cinq non remis de suite et Opale le met en pause ; la prochaine séance de l’abonnée (apres-seance) relue avant de partir : une suite posée pendant l’attente, ou une séance qui n’est plus marquée faite, et elle ne part pas';
+export type Repetition = 'jamais' | 'jour' | 'semaine' | 'mois' | 'annee';
+export const REPETITIONS: readonly Repetition[] = ['jamais', 'jour', 'semaine', 'mois', 'annee'];
+export type AgentDuProgramme = 'perle' | 'grenat';
+export const NOM_DE_L_AGENT: Record<AgentDuProgramme, string> = { perle: 'Perle', grenat: 'Grenat' };
+export type ModeDuProgramme = 'seul' | 'app';
+export type TelephoneDuProgramme = 'moi' | 'comptoir';
+
+/** La pièce jointe. Un fichier de l'appareil se garde dans le compartiment
+    privé `envois-programmes` (0206) ; une pièce du Trône (facture, reçu) se
+    TIRE au moment d'envoyer : un Trône ouvert fait son PDF et le range au
+    même endroit (`chemin`), juste avant que le facteur la porte. */
+export type PieceDuProgramme =
+  | { genre: 'fichier'; chemin: string; nom: string; type: string; octets: number }
+  | { genre: 'facture' | 'recu'; invoiceId?: string; chemin?: string; nom?: string; type?: string; octets?: number; tireeLe?: string };
+
+export type ColisProgramme = {
+  genre: 'programme';
+  /** Le numéro au moment de programmer ; la fiche relue l'emporte. */
+  numero: string;
+  /** Le message, son prénom posé et la devise de la Maison au bout. */
+  texte: string;
+  piece?: PieceDuProgramme;
+  agent: AgentDuProgramme;
+  /** Le nom au journal et au fil : « Perle », « Grenat ». */
+  parQui: string;
+  /** Un message personnel, au nom de Yéman : fenêtre fermée, Opale l'envoie
+      par WhatsApp Web, sans modèle. */
+  prive?: boolean;
+  mode: ModeDuProgramme;
+  telephone?: TelephoneDuProgramme;
+  demander?: boolean;
+  repeter: Repetition;
+  /** Le {{1}} du modèle d'ouverture : « Mme Awa ». */
+  appel: string;
+};
+
+/** Ce que le facteur et le Trône lisent d'une ligne programmée. */
+export type LigneProgrammee = {
+  id: string;
+  type: string;
+  canal: string;
+  statut: string;
+  branchId?: string;
+  clientId?: string;
+  prenom?: string;
+  numero?: string;
+  /** Le rendez-vous dont parle le message : relu avant de partir. */
+  apptId?: string;
+  dateRdv?: string;
+  heure?: string;
+  serieId: string;
+  /** La première fois de la série : les suivantes se comptent depuis elle. */
+  serieA?: string;
+  occurrence: number;
+  lotId?: string;
+  /** L'instant voulu, et celui où il pourra partir. */
+  prevuA: string;
+  partA?: string;
+  calme?: boolean;
+  parLaMain?: boolean;
+  modele?: string;
+  auteur?: string;
+  auteurUserId?: string;
+  deposeLe?: string;
+  quand?: string;
+  depuisUnAppel?: string;
+  ouiLe?: string;
+  ouiPar?: string;
+  porteLe?: string;
+  porteDe?: string;
+  waOuvertureId?: string;
+  consigneId?: string;
+  confieLe?: string;
+  sonneLe?: string;
+  prevenuLe?: string;
+  parLApp?: boolean;
+  parOpale?: boolean;
+  suivanteId?: string;
+  waMessageId?: string;
+  detail?: string;
+  colis: ColisProgramme;
+  [k: string]: unknown;
+};
+
+/* ── Le temps, à Cotonou : UTC + 1, toute l'année ── */
+const DECALAGE_DU_PROGRAMME_MS = 3_600_000;
+/** L'instant d'un jour et d'une heure de Cotonou. */
+export const instantDuProgramme = (jour: string, hhmm: string): number => {
+  const h = /^\d{1,2}:\d{2}$/.test(hhmm ?? '') ? hhmm.padStart(5, '0') : '09:00';
+  return Date.parse(`${jour}T${h}:00+01:00`);
+};
+/** Le jour de Cotonou d'un instant. */
+export const jourDuProgramme = (ms: number): string => new Date(ms + DECALAGE_DU_PROGRAMME_MS).toISOString().slice(0, 10);
+const joursDuMois = (annee: number, mois: number): number => new Date(Date.UTC(annee, mois + 1, 0)).getUTCDate();
+
+/** LA FOIS SUIVANTE d'une série, après `apresMs`, comptée depuis sa première
+    fois (`ancreIso`) : le 31 janvier chaque mois donne le 28 février puis le
+    31 mars, jamais le 28 mars ; le 29 février chaque année, le 28 les
+    autres années. `null` : une fois seulement. */
+export function prochaineFois(ancreIso: string, r: Repetition, apresMs: number): string | null {
+  if (r === 'jamais') return null;
+  const t0 = Date.parse(ancreIso);
+  if (!Number.isFinite(t0)) return null;
+  const l = new Date(t0 + DECALAGE_DU_PROGRAMME_MS);
+  const Y = l.getUTCFullYear(); const M = l.getUTCMonth(); const D = l.getUTCDate();
+  const h = l.getUTCHours(); const mi = l.getUTCMinutes();
+  for (let n = 1; n <= 40_000; n += 1) {
+    let ms: number;
+    if (r === 'jour') ms = Date.UTC(Y, M, D + n, h, mi);
+    else if (r === 'semaine') ms = Date.UTC(Y, M, D + 7 * n, h, mi);
+    else if (r === 'mois') {
+      const y = Y + Math.floor((M + n) / 12); const m = (M + n) % 12;
+      ms = Date.UTC(y, m, Math.min(D, joursDuMois(y, m)), h, mi);
+    } else ms = Date.UTC(Y + n, M, Math.min(D, joursDuMois(Y + n, M)), h, mi);
+    ms -= DECALAGE_DU_PROGRAMME_MS;
+    if (ms > apresMs) return new Date(ms).toISOString();
+  }
+  return null;
+}
+
+/** LA LIGNE DE LA FOIS SUIVANTE : un envoi répété se reprogramme seul, UNE
+    fois (son identifiant est fixe, `<série>-<n+1>` : l'écrire deux fois ne
+    crée rien de plus). Elle repart du début : ni oui, ni porte, ni consigne ;
+    une pièce du Trône se tirera de nouveau, un fichier se garde. */
+export function ligneSuivante(l: LigneProgrammee, maintenantMs: number): LigneProgrammee | null {
+  const c = l.colis;
+  if (!c || c.genre !== 'programme') return null;
+  const ancre = l.serieA ?? l.prevuA;
+  const prevu = Date.parse(l.prevuA);
+  const suivant = prochaineFois(ancre, c.repeter, Math.max(Number.isFinite(prevu) ? prevu : 0, maintenantMs));
+  if (!suivant) return null;
+  const iso = new Date(maintenantMs).toISOString();
+  const piece: PieceDuProgramme | undefined = !c.piece ? undefined
+    : c.piece.genre === 'fichier' ? c.piece
+      : { genre: c.piece.genre, ...(c.piece.invoiceId ? { invoiceId: c.piece.invoiceId } : {}) };
+  return {
+    id: `${l.serieId}-${l.occurrence + 1}`, type: TYPE_PROGRAMME, canal: 'whatsapp', statut: 'en-attente',
+    ...(l.branchId ? { branchId: l.branchId } : {}), ...(l.clientId ? { clientId: l.clientId } : {}),
+    ...(l.prenom ? { prenom: l.prenom } : {}), ...(l.numero ? { numero: l.numero } : {}),
+    serieId: l.serieId, serieA: ancre, occurrence: l.occurrence + 1, ...(l.lotId ? { lotId: l.lotId } : {}),
+    prevuA: suivant, partA: suivant, calme: false, ...(l.modele ? { modele: l.modele } : {}),
+    ...(l.auteur ? { auteur: l.auteur } : {}), ...(l.auteurUserId ? { auteurUserId: l.auteurUserId } : {}),
+    deposeLe: iso, quand: iso, apptId: '', dateRdv: '',
+    colis: { ...c, ...(piece ? { piece } : {}) },
+  };
+}
+
+/* ── Le numéro, sa clé, la fenêtre ── */
+/** Le numéro au format de Meta : 229 et ses chiffres (la règle de `numeroWa`). */
+export const numeroDuProgramme = (brut: unknown): string => {
+  const d = String(brut ?? '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.startsWith('00229')) return d.slice(2);
+  if (d.startsWith('229')) return d;
+  if (d.length === 10 && d.startsWith('01')) return `229${d}`;
+  if (d.length === 8) return `22901${d}`;
+  return d;
+};
+/** Ce qu'on relit de la fiche avant d'envoyer. */
+export type FicheDuProgramme = {
+  name?: unknown; phone?: unknown; phone2?: unknown; archived?: unknown;
+  nouvelles?: { oui?: unknown; par?: unknown } | null;
+  [k: string]: unknown;
+};
+/** LE NUMÉRO OÙ L'ENVOYER, relu : celui de la fiche d'aujourd'hui (le premier,
+    sinon le second), sinon celui noté en programmant. */
+export const numeroDeLEnvoi = (l: Pick<LigneProgrammee, 'clientId' | 'colis'>, fiche: FicheDuProgramme | null | undefined): string =>
+  numeroDuProgramme(fiche?.phone) || numeroDuProgramme(fiche?.phone2) || numeroDuProgramme(l.colis?.numero);
+
+/** Un message du fil, tel qu'on le lit pour la fenêtre. */
+export type MessageDuProgramme = { sens?: unknown; canal?: unknown; quand?: unknown; [k: string]: unknown };
+export const FENETRE_DU_PROGRAMME_MS = 24 * 3_600_000;
+const entrantVrai = (m: MessageDuProgramme | null | undefined): boolean =>
+  !!m && m.sens === 'entrant' && m.canal !== 'site';
+/** ELLE A ÉCRIT DANS LES 24 HEURES : seul ce qu'ELLE envoie ouvre la fenêtre,
+    jamais nos messages ; une demande du site n'ouvre rien (la règle de
+    `whatsapp-envoi` et de `fenetreDe`). `messages` : le fil de son numéro. */
+export function fenetreOuverte(messages: readonly (MessageDuProgramme | null | undefined)[], maintenantMs: number): boolean {
+  return messages.some((m) => {
+    if (!entrantVrai(m)) return false;
+    const t = Date.parse(String(m?.quand ?? ''));
+    return Number.isFinite(t) && t > maintenantMs - FENETRE_DU_PROGRAMME_MS && t <= maintenantMs + 5 * 60_000;
+  });
+}
+/** ELLE A RÉPONDU au modèle d'ouverture : un message d'elle après son départ. */
+export function aReponduDepuis(messages: readonly (MessageDuProgramme | null | undefined)[], depuisIso: string | undefined): boolean {
+  const d = Date.parse(String(depuisIso ?? ''));
+  if (!Number.isFinite(d)) return false;
+  return messages.some((m) => entrantVrai(m) && Date.parse(String(m?.quand ?? '')) > d);
+}
+
+/* ── Ce que le facteur relit avant de porter ── */
+export const MOTIF_FICHE_DISPARUE = 'la fiche n’existe plus';
+export const MOTIF_SANS_NUMERO = 'pas de numéro WhatsApp sur la fiche';
+export const MOTIF_STOP = 'elle a écrit STOP : la Maison ne lui écrit plus seule';
+export const MOTIF_OPALE_ENDORMIE = 'message privé, elle n’a pas écrit depuis 24 h, et Opale n’était pas éveillée pour l’envoyer par WhatsApp Web';
+export const MOTIF_MODELE_PAS_APPROUVE = 'elle n’a pas écrit depuis 24 h, et le modèle d’ouverture n’est pas encore approuvé chez Meta : rien n’est parti';
+export const MOTIF_SANS_REPONSE = 'elle n’a pas répondu au modèle d’ouverture en sept jours : le message n’est pas parti';
+export const MOTIF_SANS_AUTEUR = 'message privé sans auteur connecté : Opale ne reçoit une consigne qu’au nom de la direction';
+export const MOTIF_CONSIGNE_TROP_LONGUE = 'le message et sa pièce dépassent les mille signes d’une consigne à Opale';
+/** Sans réponse au modèle d'ouverture en sept jours, la ligne passe à revoir. */
+export const ATTENTE_DE_LA_REPONSE_MS = 7 * 86_400_000;
+
+/** POURQUOI IL NE PART PAS, relu à l'heure dite : la fiche existe encore, le
+    numéro aussi, elle n'a pas écrit STOP, et le rendez-vous dont parle le
+    message n'a été ni annulé ni déplacé. `null` : tout tient. */
+export function pourquoiLeProgrammeNePartPas(
+  l: Pick<LigneProgrammee, 'clientId' | 'colis' | 'apptId' | 'dateRdv' | 'heure'>,
+  o: { fiche?: FicheDuProgramme | null; rdv?: { date?: string; time?: string; status?: string } | null; maintenantMs: number },
+): string | null {
+  if (l.clientId && !o.fiche) return MOTIF_FICHE_DISPARUE;
+  if (!numeroDeLEnvoi(l, o.fiche)) return MOTIF_SANS_NUMERO;
+  if (o.fiche?.nouvelles && o.fiche.nouvelles.oui === false && o.fiche.nouvelles.par === 'stop') return MOTIF_STOP;
+  if (l.apptId) {
+    const r = o.rdv;
+    if (!r) return 'le rendez-vous dont parle le message n’existe plus';
+    if (r.status === 'annulé') return 'le rendez-vous dont parle le message a été annulé';
+    if ((r.date ?? '') !== (l.dateRdv ?? '') || (r.time ?? '') !== (l.heure ?? '')) return 'le rendez-vous dont parle le message a été déplacé';
+    const h = /^\d{1,2}:\d{2}$/.test(r.time ?? '') ? (r.time as string).padStart(5, '0') : '23:59';
+    const moment = Date.parse(`${r.date}T${h}:00+01:00`);
+    if (Number.isFinite(moment) && moment <= o.maintenantMs) return 'l’heure du rendez-vous dont parle le message est passée';
+  }
+  return null;
+}
+
+/* ── La voie ── */
+/** Opale veille : son guetteur a regardé depuis trois minutes, ou elle est
+    passée au Trône depuis quarante-cinq (son tour du soir est de trente). */
+export function opaleEveillee(a: { empreinte?: unknown; vu_le?: unknown; guette_le?: unknown } | null | undefined, maintenantMs: number): boolean {
+  if (!a || !a.empreinte) return false;
+  const g = Date.parse(String(a.guette_le ?? ''));
+  const v = Date.parse(String(a.vu_le ?? ''));
+  return (Number.isFinite(g) && maintenantMs - g <= 3 * 60_000) || (Number.isFinite(v) && maintenantMs - v <= 45 * 60_000);
+}
+/** Une pièce du Trône pas encore tirée. */
+export const pieceATirer = (p: PieceDuProgramme | undefined): boolean => !!p && p.genre !== 'fichier' && !p.chemin;
+
+export type FaitsDeLaVoie = {
+  fenetreOuverte: boolean;
+  opaleEveillee: boolean;
+  /** Le nom du modèle d'ouverture approuvé (le secret `WA_TEMPLATE_OUVERTURE`) ; vide : pas encore approuvé. */
+  modeleDOuverture: string;
+  /** Une autre ligne a déjà ouvert la porte à ce numéro et attend sa réponse. */
+  porteOuverteDe: string | null;
+};
+export type VoieDuProgramme =
+  | { voie: 'app' } | { voie: 'demander' } | { voie: 'tirer' } | { voie: 'texte' } | { voie: 'opale' }
+  | { voie: 'ouverture' } | { voie: 'rejoint'; de: string } | { voie: 'revoir'; motif: string };
+
+/** PAR OÙ IL PART, à l'heure dite. Par l'app : le téléphone de qui l'a
+    programmé sonne, pas de règle des 24 h. « Me demander avant » : rien sans
+    le oui. Une pièce du Trône se tire d'abord. Elle a écrit dans les 24 h :
+    le message part tel quel, par le WhatsApp de la Maison. Sinon : privé,
+    Opale l'envoie par WhatsApp Web ; sinon le modèle d'ouverture (un seul
+    par numéro : une porte déjà ouverte, on l'attend avec elle). */
+export function voieDuProgramme(l: Pick<LigneProgrammee, 'colis' | 'ouiLe'>, f: FaitsDeLaVoie): VoieDuProgramme {
+  const c = l.colis;
+  if (c.mode === 'app') return { voie: 'app' };
+  if (c.demander === true && !l.ouiLe) return { voie: 'demander' };
+  if (pieceATirer(c.piece)) return { voie: 'tirer' };
+  if (f.fenetreOuverte) return { voie: 'texte' };
+  if (c.prive === true) return f.opaleEveillee ? { voie: 'opale' } : { voie: 'revoir', motif: MOTIF_OPALE_ENDORMIE };
+  if (f.porteOuverteDe) return { voie: 'rejoint', de: f.porteOuverteDe };
+  if (!f.modeleDOuverture) return { voie: 'revoir', motif: MOTIF_MODELE_PAS_APPROUVE };
+  return { voie: 'ouverture' };
+}
+
+/* ── Le modèle d'ouverture (docs/modeles-whatsapp-envois-programmes.md) ── */
+/** Le nom proposé chez Meta ; le secret `WA_TEMPLATE_OUVERTURE` le pose,
+    APRÈS l'approbation. */
+export const MODELE_D_OUVERTURE = 'un_message_pour_vous';
+/** Le corps exact déposé chez Meta, {{1}} l'appel. */
+export const CORPS_D_OUVERTURE = 'Bonjour {{1}}, la Maison MND a un message pour vous. Touchez « Lire le message », ou répondez simplement, pour le recevoir ici.';
+export const texteDOuverture = (appel: string): string => CORPS_D_OUVERTURE.replace('{{1}}', String(appel ?? '').trim() || 'Madame, Monsieur');
+export const composantsDOuverture = (appel: string): unknown[] =>
+  [{ type: 'body', parameters: [{ type: 'text', text: String(appel ?? '').replace(/\s+/g, ' ').trim() || 'Madame, Monsieur' }] }];
+
+/* ── Ce qui part chez Meta ── */
+export type FamilleDuFichier = 'image' | 'video' | 'audio' | 'document';
+export const familleDuFichier = (type: string): FamilleDuFichier => {
+  const m = String(type ?? '').toLowerCase();
+  if (m === 'image/jpeg' || m === 'image/png') return 'image';
+  if (m === 'video/mp4' || m === 'video/3gpp') return 'video';
+  if (m.startsWith('audio/')) return 'audio';
+  return 'document';
+};
+/** Les messages à porter : le texte seul, ou la pièce avec sa légende (1 024
+    signes au plus, jamais sur un son), ou la pièce puis le texte. */
+export function messagesAPorter(numero: string, texte: string, media?: { id: string; famille: FamilleDuFichier; nom: string } | null): Record<string, unknown>[] {
+  const t = String(texte ?? '').trim();
+  const leTexte = { messaging_product: 'whatsapp', recipient_type: 'individual', to: numero, type: 'text', text: { body: t, preview_url: true } };
+  if (!media) return [leTexte];
+  const legende = media.famille !== 'audio' && t.length > 0 && t.length <= 1024;
+  const corps: Record<string, unknown> = { id: media.id };
+  if (media.famille === 'document') corps.filename = media.nom;
+  if (legende) corps.caption = t;
+  const laPiece = { messaging_product: 'whatsapp', recipient_type: 'individual', to: numero, type: media.famille, [media.famille]: corps };
+  return legende || !t ? [laPiece] : [laPiece, leTexte];
+}
+
+/** LA CLÉ D'UNE PHASE (réservée au fil avant de parler, comme la clé d'une
+    pièce) : la même ligne, la même phase, un seul message, même si le facteur
+    est coupé au milieu et reprend. */
+export const cleDuProgramme = (id: string, phase: 'ouverture' | 'message'): string => `programme-${id}-${phase}`;
+
+/* ── La consigne à Opale (charte, section 22) ── */
+export const DEBUT_DE_LA_CONSIGNE = 'Envoi programmé';
+/** LA CONSIGNE : qui l'a programmé, le numéro, le texte mot pour mot, la pièce
+    (un lien signé de vingt-quatre heures), et la réponse attendue. `null` :
+    plus de mille signes, la consigne ne la porterait pas. */
+export function texteDeLaConsigne(o: { auteur: string; numero: string; prenom?: string; texte: string; piece?: { nom: string; lien: string } | null }): string | null {
+  const t = [
+    `${DEBUT_DE_LA_CONSIGNE} par ${o.auteur || 'la direction'} : à envoyer maintenant depuis WhatsApp Web, au +${o.numero}${o.prenom ? ` (${o.prenom})` : ''}, une seule fois.`,
+    'Le message, mot pour mot :',
+    String(o.texte ?? '').trim(),
+    ...(o.piece ? [`La pièce jointe à joindre (${o.piece.nom}) : ${o.piece.lien}`] : []),
+    'Parti : consigne repondre --statut faite. Impossible : --statut en-attente, et pourquoi.',
+  ].join('\n');
+  return t.length <= 1000 ? t : null;
+}
+/* ⟨/envois-programmes⟩ */
+
+const VERSION = '2026-11-13-a · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi ; le papier d’une pièce déposé par Grenat : la pièce relue, sa clé réservée, sa marque posée ; ce qui va partir : arrêté d’avance, modèle en pause, cinq non remis de suite et Opale le met en pause ; la prochaine séance de l’abonnée (apres-seance) relue avant de partir : une suite posée pendant l’attente, ou une séance qui n’est plus marquée faite, et elle ne part pas ; les envois programmés (13 novembre 2026) : l’heure exacte, même la nuit, relus avant de partir, le texte et sa pièce dans la fenêtre, sinon le modèle d’ouverture puis le message à sa réponse, ou Opale par WhatsApp Web pour un message privé, me demander avant, par l’app, la fois suivante posée une fois';
 
 /* ── LE CALCUL DES HEURES, recopié de src/shared/salle-des-envois.ts ── */
 const DECALAGE_DU_SALON_H = 1;
@@ -1025,7 +1383,7 @@ const EN_ENVOI_PERIME_MS = 10 * 60_000;
 
 const TYPE_DIT: Record<string, string> = {
   confirmation: 'Confirmation', 'rappel-j1': 'Rappel de la veille', 'reprise-j3': 'Reprise proposée',
-  'avis-google': 'Demande d’avis', 'fin-de-paquet': 'Fin de paquet',
+  'avis-google': 'Demande d’avis', 'fin-de-paquet': 'Fin de paquet', programme: 'Envoi programmé',
 };
 
 /* ══ CE QUE LA PORTE D'OPALE LIT — 4 novembre 2026 ══════════════════════
@@ -1209,6 +1567,357 @@ async function pourquoiLaProchaineSeanceNePartPlus(sb: Sb, l: { seanceId?: unkno
     : null;
 }
 
+/* ══ LES ENVOIS PROGRAMMÉS, PORTÉS — 13 novembre 2026 ═══════════════════
+   « Programmer un WhatsApp » : une ligne `programme` de la salle, écrite au
+   Trône, avec son heure exacte (même la nuit), son colis, son auteur et son
+   assistant. À l'heure dite, le facteur la prend en main (l'écriture
+   conditionnelle de toujours), la RELIT (la fiche, le numéro, STOP, le
+   rendez-vous dont elle parle), puis suit sa voie (`voieDuProgramme`) :
+     · par l'app : le téléphone de qui l'a programmée sonne (« prêt ») ;
+     · « me demander avant » : il sonne aussi, et rien ne part sans le oui ;
+     · une pièce du Trône (sa facture, son reçu) : « à-préparer », un Trône
+       ouvert la tire, puis elle revient ici ;
+     · elle a écrit dans les 24 h : le message part tel quel, par le WhatsApp
+       de la Maison, sa pièce avec lui, signé au nom de l'assistant ;
+     · sinon, privé : une consigne à Opale, qui l'envoie par WhatsApp Web ;
+     · sinon : le MODÈLE D'OUVERTURE (passé par la porte d'Opale), puis le
+       message à sa réponse (« attend-sa-réponse », relu chaque minute) ;
+       un seul modèle par numéro, les autres lignes l'attendent avec lui.
+   Une seule fois : la ligne prise en main par condition, et chaque phase
+   réserve sa clé au fil avant de parler. Un envoi répété se reprogramme
+   seul, une fois (`ligneSuivante`, identifiant fixe). Un échec se dit une
+   fois au téléphone de qui l'a programmé. */
+const COMPARTIMENT_DES_ENVOIS = 'envois-programmes';
+type LigneDuProgramme = { id: string; branch_id: string | null; data: LigneProgrammee };
+
+/** Une notification, au téléphone de qui l'a programmé (le comptoir : toute
+    l'équipe ; sans auteur connu : la direction). Jamais un extrait. */
+async function previensDuProgramme(urlBase: string, service: string, l: LigneProgrammee, titre: string, corps: string): Promise<void> {
+  const cible = l.colis?.mode === 'app' && l.colis?.telephone === 'comptoir'
+    ? { mode: 'staff' }
+    : l.auteurUserId ? { mode: 'to-staff', userId: l.auteurUserId } : { mode: 'direction' };
+  try {
+    await fetch(`${urlBase}/functions/v1/push-notify`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(ENVOI_MAX_MS),
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${service}` },
+      body: JSON.stringify({ ...cible, title: titre, body: corps, url: `/trone/#/appels?envoi=${encodeURIComponent(l.id)}`, tag: `mnd-envoi-${l.id}` }),
+    });
+  } catch (e) {
+    console.error('envois-partent: notification du programme', String(e).slice(0, 160));
+  }
+}
+
+/** La clé d'une phase, réservée au fil avant de parler (la règle de
+    `whatsapp-envoi`) : prise ici, ou déjà là. Un essai refusé par Meta
+    (« non-remis ») ou abandonné en route se reprend. */
+async function reserveLaCleDuProgramme(sb: Sb, cle: string, data: Record<string, unknown>, branchId: string | null): Promise<{ id: string; data: Record<string, unknown> } | { deja: string }> {
+  const id = await idDeLaCle(cle);
+  const ligne = { ...data, id, cleUnique: cle, quand: new Date().toISOString(), etat: 'en-route' };
+  const { data: prise } = await sb.from('messages_wa').upsert({ id, branch_id: branchId, data: ligne }, { onConflict: 'id', ignoreDuplicates: true }).select('id');
+  if ((prise ?? []).length) return { id, data: ligne };
+  const { data: lu } = await sb.from('messages_wa').select('id, data').eq('id', id).limit(1);
+  const avant = (((lu ?? [])[0] as { data?: Record<string, unknown> } | undefined)?.data ?? {}) as { waId?: string; etat?: string; quand?: string };
+  const depuis = Date.parse(String(avant.quand ?? ''));
+  const reprenable = avant.etat === 'non-remis' || (!avant.waId && avant.etat === 'en-route' && Number.isFinite(depuis) && Date.now() - depuis > RESERVATION_ABANDONNEE_MS);
+  if (!reprenable) return { deja: String(avant.waId ?? '') };
+  const { data: reprise } = await sb.from('messages_wa').update({ data: ligne })
+    .eq('id', id).eq('data->>etat', String(avant.etat)).eq('data->>quand', String(avant.quand)).select('id');
+  return (reprise ?? []).length ? { id, data: ligne } : { deja: String(avant.waId ?? '') };
+}
+
+/** La pièce, du compartiment privé jusqu'à Meta (déposée, jamais un lien public). */
+async function laPieceChezMeta(sb: Sb, p: PieceDuProgramme, token: string, phoneId: string): Promise<{ id: string; famille: FamilleDuFichier; nom: string } | { refus: string }> {
+  const chemin = String(p.chemin ?? '');
+  if (!chemin) return { refus: 'la pièce n’a pas été tirée' };
+  const { data: blob, error } = await sb.storage.from(COMPARTIMENT_DES_ENVOIS).download(chemin);
+  if (error || !blob) return { refus: `la pièce n’a pas pu être relue : ${String(error?.message ?? 'absente').slice(0, 120)}` };
+  const type = String(p.type ?? 'application/pdf');
+  const nom = String(p.nom ?? 'piece.pdf');
+  try {
+    const fd = new FormData();
+    fd.append('messaging_product', 'whatsapp');
+    fd.append('type', type);
+    fd.append('file', new Blob([await blob.arrayBuffer()], { type }), nom);
+    const r = await fetch(`https://graph.facebook.com/v20.0/${phoneId}/media`, {
+      method: 'POST', headers: { authorization: `Bearer ${token}` }, body: fd, signal: AbortSignal.timeout(30_000),
+    });
+    const rep = await r.json().catch(() => ({})) as { id?: string; error?: { message?: string } };
+    if (!r.ok || !rep?.id) return { refus: `Meta n’a pas pris la pièce : ${String(rep?.error?.message ?? `HTTP ${r.status}`).slice(0, 160)}` };
+    return { id: String(rep.id), famille: familleDuFichier(type), nom };
+  } catch (e) {
+    return { refus: `le dépôt de la pièce a échoué : ${String(e).slice(0, 160)}` };
+  }
+}
+
+/** Le fil d'un numéro, sous toutes ses formes, depuis cet instant. `null` : illisible. */
+async function filDuProgramme(sb: Sb, numero: string, depuisIso: string): Promise<MessageDuProgramme[] | null> {
+  const variantes = variantesDuNumero(numero);
+  if (!variantes.length) return [];
+  const { data, error } = await sb.from('messages_wa').select('data').in('data->>numero', variantes).gte('data->>quand', depuisIso).limit(500);
+  if (error) return null;
+  return ((data ?? []) as { data: MessageDuProgramme }[]).map((r) => r.data ?? {});
+}
+
+type ContexteDuProgramme = { sb: Sb; urlBase: string; service: string; token: string; phoneId: string; modeleDOuverture: string; avance: AvanceDuReveil };
+type IssueDuProgramme = 'parti' | 'ouvert' | 'attend' | 'revoir' | 'ecarte';
+
+/** La ligne réécrite en entier (on la tient : elle est « en-envoi »). */
+const ecrisLeProgramme = async (sb: Sb, id: string, data: LigneProgrammee): Promise<void> => {
+  await sb.from('envois').update({ data: { ...data, quand: new Date().toISOString() } }).eq('id', id);
+};
+/** À REVOIR : rien n'est parti ; la ligne dit pourquoi, et l'auteur le sait une fois. */
+async function aRevoirDuProgramme(c: ContexteDuProgramme, row: LigneDuProgramme, l: LigneProgrammee, motif: string, plus: Record<string, unknown> = {}): Promise<'revoir'> {
+  const deja = !!l.prevenuLe;
+  await ecrisLeProgramme(c.sb, row.id, { ...l, ...plus, statut: A_REVOIR, detail: motif.slice(0, 300), ...(deja ? {} : { prevenuLe: new Date().toISOString() }) });
+  if (!deja) await previensDuProgramme(c.urlBase, c.service, l, `Votre WhatsApp à ${l.prenom || 'une cliente'} n’est pas parti`, motif.slice(0, 140));
+  return 'revoir';
+}
+/** LA FOIS SUIVANTE, posée une fois (identifiant fixe, l'écrire deux fois ne fait rien). */
+async function laSuiteDuProgramme(c: ContexteDuProgramme, row: LigneDuProgramme, l: LigneProgrammee): Promise<string | undefined> {
+  const s = ligneSuivante(l, Date.now());
+  if (!s) return undefined;
+  await c.sb.from('envois').upsert({ id: s.id, branch_id: row.branch_id, data: s }, { onConflict: 'id', ignoreDuplicates: true });
+  return s.id;
+}
+
+/** LE MESSAGE LUI-MÊME, fenêtre ouverte : sa pièce, puis son texte (ou la
+    pièce et sa légende), par le WhatsApp de la Maison, au nom de l'assistant. */
+async function porteLeMessageProgramme(c: ContexteDuProgramme, row: LigneDuProgramme, l: LigneProgrammee, numero: string): Promise<IssueDuProgramme> {
+  const colis = l.colis;
+  const fil = { branchId: l.branchId, sens: 'sortant', numero, clientId: l.clientId, texte: colis.texte, type: 'text', parQui: colis.parQui, envoiId: l.id };
+  const cle = await reserveLaCleDuProgramme(c.sb, cleDuProgramme(l.id, 'message'), fil, row.branch_id);
+  if ('deja' in cle) {
+    await ecrisLeProgramme(c.sb, row.id, { ...l, statut: 'envoyé', detail: 'déjà parti : la clé du message est au fil', ...(cle.deja ? { waMessageId: cle.deja } : {}) });
+    return 'parti';
+  }
+  const rends = async (pourquoi: string) => { await c.sb.from('messages_wa').update({ data: { ...cle.data, etat: 'non-remis', detail: pourquoi.slice(0, 300) } }).eq('id', cle.id); };
+  let media: { id: string; famille: FamilleDuFichier; nom: string } | null = null;
+  if (colis.piece) {
+    const m = await laPieceChezMeta(c.sb, colis.piece, c.token, c.phoneId);
+    if ('refus' in m) { await rends(m.refus); return aRevoirDuProgramme(c, row, l, `la pièce jointe n’a pas pu partir : ${m.refus}`); }
+    media = m;
+  }
+  const ids: string[] = [];
+  const charges = messagesAPorter(numero, colis.texte, media);
+  for (const charge of charges) {
+    let r: Response | null = null;
+    let rep: { messages?: { id?: string }[]; error?: { code?: number; message?: string } } = {};
+    try {
+      r = await fetch(`https://graph.facebook.com/v20.0/${c.phoneId}/messages`, {
+        method: 'POST', signal: AbortSignal.timeout(ENVOI_MAX_MS),
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${c.token}` }, body: JSON.stringify(charge),
+      });
+      rep = await r.json().catch(() => ({}));
+    } catch (e) {
+      if (!ids.length) { await rends(String(e)); return aRevoirDuProgramme(c, row, l, `coupure en route : ${String(e).slice(0, 160)}`); }
+      break;
+    }
+    if (!r || !r.ok) {
+      const motif = String(rep?.error?.message ?? `HTTP ${r?.status ?? 0}`).slice(0, 300);
+      if (!ids.length) { await rends(motif); return aRevoirDuProgramme(c, row, l, motif, Number(rep?.error?.code) ? { codeMeta: Number(rep?.error?.code) } : {}); }
+      break;
+    }
+    ids.push(String(rep?.messages?.[0]?.id ?? ''));
+  }
+  const waId = ids.find(Boolean) ?? '';
+  await c.sb.from('messages_wa').update({ data: {
+    ...cle.data, ...(waId ? { waId } : {}), ...(media ? { type: media.famille, piece: { nom: media.nom, type: String(colis.piece?.type ?? '') } } : {}),
+  } }).eq('id', cle.id);
+  /* La Maison a parlé : l'automate se tait sur ce fil (0125), comme pour un envoi de l'équipe. */
+  try { await c.sb.rpc('pause_le_fil', { p_numero: numero, p_par: colis.parQui, p_motif: 'envoi-programme' }); } catch { /* sans 0125, rien */ }
+  await ecrisLeProgramme(c.sb, row.id, {
+    ...l, statut: 'envoyé', ...(waId ? { waMessageId: waId } : { detail: 'accepté sans identifiant Meta' }),
+    ...(ids.length < charges.length ? { detail: 'la pièce est partie, le texte n’a pas suivi' } : {}),
+  });
+  /* Un fichier d'une seule fois, ou une pièce tirée pour cette fois : il quitte le compartiment. */
+  if (colis.piece?.chemin && (colis.piece.genre !== 'fichier' || colis.repeter === 'jamais')) {
+    try { await c.sb.storage.from(COMPARTIMENT_DES_ENVOIS).remove([colis.piece.chemin]); } catch { /* il restera, privé */ }
+  }
+  return 'parti';
+}
+
+/** UNE LIGNE PROGRAMMÉE, PRISE EN MAIN : relue, puis sa voie. */
+async function porteLeProgramme(c: ContexteDuProgramme, row: LigneDuProgramme): Promise<IssueDuProgramme> {
+  const l = { ...row.data, id: row.id } as LigneProgrammee;
+  const maintenantMs = Date.now();
+  if (!l.colis || l.colis.genre !== 'programme') return aRevoirDuProgramme(c, row, l, 'déposé sans colis');
+  /* RELU AVANT DE PARTIR. */
+  let fiche: FicheDuProgramme | null = null;
+  if (l.clientId) {
+    const { data, error } = await c.sb.from('clients').select('id, data').eq('id', l.clientId).maybeSingle();
+    if (error) { await ecrisLeProgramme(c.sb, row.id, { ...l, statut: 'en-attente', partA: new Date(maintenantMs + 60_000).toISOString(), detail: 'la fiche n’a pas pu être relue : il repasse dans une minute' }); return 'attend'; }
+    fiche = ((data as { data?: FicheDuProgramme } | null)?.data ?? null);
+  }
+  let rdv: { date?: string; time?: string; status?: string } | null | undefined;
+  if (l.apptId) {
+    const { data } = await c.sb.from('appointments').select('id, data').eq('id', l.apptId).maybeSingle();
+    rdv = ((data as { data?: { date?: string; time?: string; status?: string } } | null)?.data ?? null);
+  }
+  const motif = pourquoiLeProgrammeNePartPas(l, { fiche, rdv, maintenantMs });
+  if (motif) { await laSuiteDuProgramme(c, row, l); return aRevoirDuProgramme(c, row, l, motif); }
+  const numero = numeroDeLEnvoi(l, fiche);
+  /* « Ne pas envoyer » de la direction (Ce qui va partir) : écarté, comme les autres. */
+  const arret = laPorteDAvance({ id: l.id, type: l.type, clientId: l.clientId }, c.avance);
+  if (arret && arret.verdict === 'arrete') {
+    await ecrisLeProgramme(c.sb, row.id, { ...l, statut: 'écarté', ecartePar: arret.par, ecarteLe: new Date().toISOString(), detail: arret.motif, arretDAvance: { cle: arret.cle, par: arret.par, le: arret.le } });
+    return 'ecarte';
+  }
+  const suivanteId = await laSuiteDuProgramme(c, row, l);
+  const avecSuite: LigneProgrammee = { ...l, numero, ...(suivanteId ? { suivanteId } : {}) };
+  /* LES FAITS DE LA VOIE. */
+  const voieSansFil = l.colis.mode === 'app' || (l.colis.demander === true && !l.ouiLe) || pieceATirer(l.colis.piece);
+  const lefil = voieSansFil ? [] : await filDuProgramme(c.sb, numero, new Date(maintenantMs - FENETRE_DU_PROGRAMME_MS).toISOString());
+  if (lefil === null) { await ecrisLeProgramme(c.sb, row.id, { ...avecSuite, statut: 'en-attente', partA: new Date(maintenantMs + 60_000).toISOString(), detail: 'le fil n’a pas pu être relu : il repasse dans une minute' }); return 'attend'; }
+  const ouverte = fenetreOuverte(lefil, maintenantMs);
+  let opale = false;
+  if (!voieSansFil && !ouverte && l.colis.prive === true) {
+    const { data } = await c.sb.from('assistants').select('id, empreinte, vu_le, guette_le').eq('id', 'opale').maybeSingle();
+    opale = opaleEveillee(data as { empreinte?: unknown; vu_le?: unknown; guette_le?: unknown } | null, maintenantMs);
+  }
+  let porteOuverteDe: string | null = null;
+  let porteLeDeLAutre = '';
+  if (!voieSansFil && !ouverte && l.colis.prive !== true) {
+    const { data } = await c.sb.from('envois').select('id, data').eq('data->>statut', ATTEND_SA_REPONSE).in('data->>numero', variantesDuNumero(numero)).limit(20);
+    const autre = ((data ?? []) as { id: string; data: LigneProgrammee }[]).find((r) => r.id !== row.id && Date.parse(String(r.data?.porteLe ?? '')) > maintenantMs - ATTENTE_DE_LA_REPONSE_MS);
+    if (autre) { porteOuverteDe = autre.id; porteLeDeLAutre = String(autre.data.porteLe ?? ''); }
+  }
+  const voie = voieDuProgramme(l, { fenetreOuverte: ouverte, opaleEveillee: opale, modeleDOuverture: c.modeleDOuverture, porteOuverteDe });
+  const qui = l.prenom || 'une cliente';
+  if (voie.voie === 'app') {
+    await ecrisLeProgramme(c.sb, row.id, { ...avecSuite, statut: PAR_L_APP, sonneLe: new Date().toISOString() });
+    await previensDuProgramme(c.urlBase, c.service, l, `Votre WhatsApp à ${qui} est prêt`, 'Un toucher l’ouvre dans WhatsApp, le message déjà écrit.');
+    return 'attend';
+  }
+  if (voie.voie === 'demander') {
+    await ecrisLeProgramme(c.sb, row.id, { ...avecSuite, statut: A_VALIDER, sonneLe: new Date().toISOString() });
+    await previensDuProgramme(c.urlBase, c.service, l, `Votre WhatsApp à ${qui} attend votre oui`, 'Envoyer ou Retenir, dans Les envois programmés.');
+    return 'attend';
+  }
+  if (voie.voie === 'tirer') { await ecrisLeProgramme(c.sb, row.id, { ...avecSuite, statut: PIECE_A_TIRER }); return 'attend'; }
+  if (voie.voie === 'revoir') return aRevoirDuProgramme(c, row, avecSuite, voie.motif);
+  if (voie.voie === 'texte') return porteLeMessageProgramme(c, row, avecSuite, numero);
+  if (voie.voie === 'rejoint') {
+    await ecrisLeProgramme(c.sb, row.id, { ...avecSuite, statut: ATTEND_SA_REPONSE, porteDe: voie.de, porteLe: porteLeDeLAutre });
+    return 'ouvert';
+  }
+  if (voie.voie === 'opale') {
+    if (!l.auteurUserId) return aRevoirDuProgramme(c, row, avecSuite, MOTIF_SANS_AUTEUR);
+    let piece: { nom: string; lien: string } | null = null;
+    if (l.colis.piece?.chemin) {
+      const { data: signe, error } = await c.sb.storage.from(COMPARTIMENT_DES_ENVOIS).createSignedUrl(l.colis.piece.chemin, 86_400);
+      if (error || !signe?.signedUrl) return aRevoirDuProgramme(c, row, avecSuite, 'la pièce jointe n’a pas pu se confier à Opale');
+      piece = { nom: String(l.colis.piece.nom ?? 'la pièce'), lien: String(signe.signedUrl) };
+    }
+    const texte = texteDeLaConsigne({ auteur: String(l.auteur ?? ''), numero, prenom: l.prenom, texte: l.colis.texte, piece });
+    if (!texte) return aRevoirDuProgramme(c, row, avecSuite, MOTIF_CONSIGNE_TROP_LONGUE);
+    const consigneId = `consigne-${l.id}`;
+    const { error } = await c.sb.from('assistants_consignes').upsert({
+      id: consigneId, de: String(l.auteur ?? '').slice(0, 80) || 'la direction', de_user_id: l.auteurUserId, pour: 'opale',
+      texte, statut: 'envoyee', ...(l.branchId ? { branch_id: l.branchId } : {}),
+    }, { onConflict: 'id', ignoreDuplicates: true });
+    if (error) return aRevoirDuProgramme(c, row, avecSuite, `la consigne à Opale n’a pas pu s’écrire : ${String(error.message ?? '').slice(0, 120)}`);
+    await ecrisLeProgramme(c.sb, row.id, { ...avecSuite, statut: CONFIE_A_OPALE, consigneId, confieLe: new Date().toISOString() });
+    return 'attend';
+  }
+  /* LE MODÈLE D'OUVERTURE, passé par la porte d'Opale (jamais deux fois, la civilité de la fiche). */
+  const devant: LigneALaPorte = {
+    ...(l as unknown as LigneALaPorte), id: row.id, parLaMain: false,
+    colis: { genre: 'whatsapp', numero, modele: c.modeleDOuverture, composants: composantsDOuverture(l.colis.appel), texteAuFil: texteDOuverture(l.colis.appel), parQui: l.colis.parQui },
+  };
+  const faits = await faitsDeLaPorte(c.sb, devant, null, Date.now());
+  if (!faits) { await ecrisLeProgramme(c.sb, row.id, { ...avecSuite, statut: 'en-attente', partA: new Date(maintenantMs + 60_000).toISOString(), detail: 'la porte d’Opale n’a pas pu lire le fil : il repasse dans une minute' }); return 'attend'; }
+  const vp = laPorte(devant, faits);
+  if (vp.verdict === 'retenu') return aRevoirDuProgramme(c, row, avecSuite, detailDOpale(vp.motif));
+  const composants = vp.verdict === 'corrige' ? vp.composants : (devant.colis?.composants ?? []);
+  const texteAuFil = vp.verdict === 'corrige' && vp.texteAuFil ? vp.texteAuFil : String(devant.colis?.texteAuFil ?? '');
+  const cle = await reserveLaCleDuProgramme(c.sb, cleDuProgramme(l.id, 'ouverture'), {
+    branchId: l.branchId, sens: 'sortant', numero, clientId: l.clientId, texte: texteAuFil, type: 'text', modele: c.modeleDOuverture, parQui: l.colis.parQui, envoiId: l.id,
+  }, row.branch_id);
+  if ('deja' in cle) {
+    await ecrisLeProgramme(c.sb, row.id, { ...avecSuite, statut: ATTEND_SA_REPONSE, porteLe: new Date().toISOString(), detail: 'le modèle d’ouverture était déjà au fil' });
+    return 'ouvert';
+  }
+  let r: Response;
+  let rep: { messages?: { id?: string }[]; error?: { code?: number; message?: string } } = {};
+  try {
+    r = await fetch(`https://graph.facebook.com/v20.0/${c.phoneId}/messages`, {
+      method: 'POST', signal: AbortSignal.timeout(ENVOI_MAX_MS),
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${c.token}` },
+      body: JSON.stringify({ messaging_product: 'whatsapp', to: numero, type: 'template', template: { name: c.modeleDOuverture, language: { code: 'fr' }, components: composants } }),
+    });
+    rep = await r.json().catch(() => ({}));
+  } catch (e) {
+    await c.sb.from('messages_wa').update({ data: { ...cle.data, etat: 'non-remis', detail: String(e).slice(0, 300) } }).eq('id', cle.id);
+    return aRevoirDuProgramme(c, row, avecSuite, `coupure en route : ${String(e).slice(0, 160)}`);
+  }
+  if (!r.ok) {
+    const code = Number(rep?.error?.code);
+    const dit = String(rep?.error?.message ?? `HTTP ${r.status}`).slice(0, 200);
+    await c.sb.from('messages_wa').update({ data: { ...cle.data, etat: 'non-remis', detail: dit } }).eq('id', cle.id);
+    const motifMeta = code >= 132000 && code < 133000 ? `le modèle d’ouverture n’est pas accepté par Meta (${dit}) : rien n’est parti` : dit;
+    return aRevoirDuProgramme(c, row, avecSuite, motifMeta, Number.isFinite(code) && code ? { codeMeta: code } : {});
+  }
+  const waId = String(rep?.messages?.[0]?.id ?? '');
+  await c.sb.from('messages_wa').update({ data: { ...cle.data, ...(waId ? { waId } : {}) } }).eq('id', cle.id);
+  try { await c.sb.rpc('pause_le_fil', { p_numero: numero, p_par: l.colis.parQui, p_motif: 'envoi-programme' }); } catch { /* sans 0125, rien */ }
+  await ecrisLeProgramme(c.sb, row.id, { ...avecSuite, statut: ATTEND_SA_REPONSE, porteLe: new Date().toISOString(), ...(waId ? { waOuvertureId: waId } : {}), ...(vp.verdict === 'corrige' ? { corrigeParOpale: vp.motif } : {}) });
+  return 'ouvert';
+}
+
+/** CE QUI ATTEND SA SUITE, relu chaque minute : sa réponse au modèle
+    d'ouverture (le message part alors), ou la réponse d'Opale à sa consigne. */
+async function suisLesProgrammes(c: ContexteDuProgramme): Promise<{ partisASaReponse: number; sansReponse: number; parOpale: number; opaleEmpechee: number }> {
+  const bilan = { partisASaReponse: 0, sansReponse: 0, parOpale: 0, opaleEmpechee: 0 };
+  const maintenantMs = Date.now();
+  const { data: attente } = await c.sb.from('envois').select('id, branch_id, data').eq('data->>statut', ATTEND_SA_REPONSE).limit(200);
+  for (const row of (attente ?? []) as LigneDuProgramme[]) {
+    const l = { ...row.data, id: row.id } as LigneProgrammee;
+    if (l.type !== TYPE_PROGRAMME || !l.colis) continue;
+    const numero = numeroDuProgramme(l.numero ?? l.colis.numero);
+    const porte = Date.parse(String(l.porteLe ?? ''));
+    const fil = await filDuProgramme(c.sb, numero, new Date((Number.isFinite(porte) ? porte : maintenantMs) - 60_000).toISOString());
+    if (fil === null) continue;
+    if (aReponduDepuis(fil, l.porteLe)) {
+      const { data: pris } = await c.sb.from('envois').update({ data: { ...l, statut: 'en-envoi', prisLe: new Date().toISOString() } })
+        .eq('id', row.id).eq('data->>statut', ATTEND_SA_REPONSE).select('id');
+      if (!(pris ?? []).length) continue;
+      const issue = await porteLeMessageProgramme(c, row, { ...l, statut: 'en-envoi' }, numero);
+      if (issue === 'parti') bilan.partisASaReponse += 1;
+      continue;
+    }
+    if (Number.isFinite(porte) && maintenantMs - porte > ATTENTE_DE_LA_REPONSE_MS) {
+      const { data: pris } = await c.sb.from('envois').update({ data: { ...l, statut: 'en-envoi', prisLe: new Date().toISOString() } })
+        .eq('id', row.id).eq('data->>statut', ATTEND_SA_REPONSE).select('id');
+      if (!(pris ?? []).length) continue;
+      await aRevoirDuProgramme(c, row, l, MOTIF_SANS_REPONSE);
+      bilan.sansReponse += 1;
+    }
+  }
+  const { data: confies } = await c.sb.from('envois').select('id, branch_id, data').eq('data->>statut', CONFIE_A_OPALE).limit(200);
+  const lignes = ((confies ?? []) as LigneDuProgramme[]).filter((r) => !!r.data?.consigneId);
+  if (lignes.length) {
+    const { data: consignes } = await c.sb.from('assistants_consignes').select('id, statut, reponse').in('id', lignes.map((r) => String(r.data.consigneId)));
+    const parId = new Map(((consignes ?? []) as { id: string; statut: string; reponse: string | null }[]).map((k) => [k.id, k]));
+    for (const row of lignes) {
+      const l = { ...row.data, id: row.id } as LigneProgrammee;
+      const k = parId.get(String(l.consigneId));
+      if (!k || (k.statut !== 'faite' && k.statut !== 'en-attente')) continue;
+      const { data: pris } = await c.sb.from('envois').update({ data: { ...l, statut: 'en-envoi', prisLe: new Date().toISOString() } })
+        .eq('id', row.id).eq('data->>statut', CONFIE_A_OPALE).select('id');
+      if (!(pris ?? []).length) continue;
+      if (k.statut === 'faite') {
+        await ecrisLeProgramme(c.sb, row.id, { ...l, statut: 'envoyé', parOpale: true, detail: `envoyé par Opale, depuis WhatsApp Web${k.reponse ? ` : ${String(k.reponse).slice(0, 200)}` : ''}` });
+        bilan.parOpale += 1;
+      } else {
+        await aRevoirDuProgramme(c, row, l, `Opale n’a pas pu l’envoyer${k.reponse ? ` : ${String(k.reponse).slice(0, 200)}` : ''}`);
+        bilan.opaleEmpechee += 1;
+      }
+    }
+  }
+  return bilan;
+}
+
 Deno.serve(async (req) => {
   const service = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
   const urlBase = Deno.env.get('SUPABASE_URL') ?? '';
@@ -1264,12 +1973,25 @@ Deno.serve(async (req) => {
     if ((rendue ?? []).length > 0) { if (auFil) retrouves++; else interrompus++; }
   }
 
+  /* ⑦ LES ENVOIS PROGRAMMÉS QUI ATTENDENT LEUR SUITE (13 novembre 2026) : sa
+     réponse au modèle d'ouverture, ou celle d'Opale à sa consigne. */
+  const WA_TOKEN = Deno.env.get('WA_TOKEN');
+  const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');
+  const programme: ContexteDuProgramme = {
+    sb, urlBase, service, token: WA_TOKEN ?? '', phoneId: WA_PHONE_ID ?? '',
+    modeleDOuverture: (Deno.env.get('WA_TEMPLATE_OUVERTURE') ?? '').trim(), avance: { arrets: [], pauses: [] },
+  };
+  let suites = { partisASaReponse: 0, sansReponse: 0, parOpale: 0, opaleEmpechee: 0 };
+  if (WA_TOKEN && WA_PHONE_ID) {
+    try { suites = await suisLesProgrammes(programme); } catch (e) { console.error('envois-partent: suite des programmes', String(e).slice(0, 200)); }
+  }
+
   const { data: rows, error } = await sb.from('envois').select('id, branch_id, data')
     .eq('data->>statut', 'en-attente').limit(300);
   if (error) return new Response(JSON.stringify({ version: VERSION, erreur: error.message }), { status: 500 });
   const enSalle = (rows ?? []) as Ligne[];
   if (enSalle.length === 0) {
-    return new Response(JSON.stringify({ version: VERSION, enSalle: 0, partis: 0, interrompus, retrouves }), { headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ version: VERSION, enSalle: 0, partis: 0, interrompus, retrouves, ...suites }), { headers: { 'content-type': 'application/json' } });
   }
 
   const partAde = (l: Ligne): number => Date.parse(l.data.partA ?? '');
@@ -1277,7 +1999,14 @@ Deno.serve(async (req) => {
   /* ② LE TÉLÉPHONE DU PERSONNEL, une fois par message, pour ce qui part
      dans les dix minutes. Un message né la nuit s'annonce donc au matin, dix
      minutes avant huit heures, et ne réveille personne à minuit. */
-  const aAnnoncer = enSalle.filter((l) => !l.data.annonceLe && Number.isFinite(partAde(l)) && partAde(l) - maintenantMs <= ANNONCE_MS);
+  /* Un envoi programmé « par l'app » ou « me demander avant » ne part pas
+     seul : il sonne chez qui l'a programmé, à son heure, pas chez l'équipe. */
+  const partSeul = (l: Ligne): boolean => {
+    if (l.data.type !== TYPE_PROGRAMME) return true;
+    const c = l.data.colis as unknown as ColisProgramme | undefined;
+    return c?.mode !== 'app' && !(c?.demander === true && !l.data.ouiLe);
+  };
+  const aAnnoncer = enSalle.filter((l) => !l.data.annonceLe && partSeul(l) && Number.isFinite(partAde(l)) && partAde(l) - maintenantMs <= ANNONCE_MS);
   let annonces = 0;
   if (aAnnoncer.length > 0) {
     const premier = aAnnoncer[0].data;
@@ -1312,18 +2041,20 @@ Deno.serve(async (req) => {
   /* ③ CE DONT L'HEURE EST VENUE. */
   const calme = dansLesHeuresCalmes(maintenantMs, regles);
   const aPorter = enSalle
-    .filter((l) => Number.isFinite(partAde(l)) && partAde(l) <= maintenantMs && (!calme || l.data.parLaMain === true))
+    /* L'HEURE EXACTE, MÊME LA NUIT (13 novembre 2026) : un envoi programmé
+       traverse les heures calmes, comme un « maintenant » d'une main. */
+    .filter((l) => Number.isFinite(partAde(l)) && partAde(l) <= maintenantMs && (!calme || l.data.parLaMain === true || l.data.type === TYPE_PROGRAMME))
     .sort((a, b) => partAde(a) - partAde(b))
     .slice(0, PAR_REVEIL);
 
-  const WA_TOKEN = Deno.env.get('WA_TOKEN');
-  const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');
   const SMS_SID = Deno.env.get('SMS_TWILIO_SID');
   const SMS_TOKEN = Deno.env.get('SMS_TWILIO_TOKEN');
   const SMS_FROM = Deno.env.get('SMS_FROM');
 
   let partis = 0, perimes = 0, echecs = 0, dejaPris = 0, retenusParOpale = 0, corrigesParOpale = 0;
   let arretesDAvance = 0, enPause = 0, replisCarEnPause = 0;
+  let programmesPartis = 0, programmesOuverts = 0;
+  let avanceProgramme: AvanceDuReveil | null = null;
   const misEnPauseParOpale: string[] = [];
   /* LA PORTE D'AVANCE (5 novembre 2026) : les arrêts et les pauses, lus une fois pour ce réveil. */
   const avance = aPorter.length > 0 ? await litLAvance(sb) : { arrets: [], pauses: [] };
@@ -1337,6 +2068,24 @@ Deno.serve(async (req) => {
       .update({ data: { ...l.data, prisLe: maintenant, statut: 'en-envoi' } })
       .eq('id', l.id).eq('data->>statut', 'en-attente').select('id');
     if ((pris ?? []).length === 0) { dejaPris++; continue; }
+
+    /* ⑧ UN ENVOI PROGRAMMÉ (13 novembre 2026) : sa règle à lui, relu, puis sa voie. */
+    if (l.data.type === TYPE_PROGRAMME) {
+      if (!avanceProgramme) avanceProgramme = await litLAvance(sb);
+      if (!avanceProgramme || !WA_TOKEN || !WA_PHONE_ID) {
+        await sb.from('envois').update({ data: { ...l.data, statut: 'en-attente', partA: new Date(Date.now() + 60_000).toISOString(), detail: !WA_TOKEN || !WA_PHONE_ID ? 'clés Meta absentes : il repasse dans une minute' : 'les arrêts n’ont pas pu être lus : il repasse dans une minute' } }).eq('id', l.id);
+        echecs++;
+        continue;
+      }
+      try {
+        const issue = await porteLeProgramme({ ...programme, avance: avanceProgramme }, { id: l.id, branch_id: l.branch_id, data: { ...(l.data as unknown as LigneProgrammee), statut: 'en-envoi' } });
+        if (issue === 'parti') { partis++; programmesPartis++; } else if (issue === 'ouvert') programmesOuverts++; else if (issue === 'revoir') echecs++;
+      } catch (e) {
+        await sb.from('envois').update({ data: { ...l.data, statut: A_REVOIR, detail: String(e).slice(0, 300), quand: new Date().toISOString() } }).eq('id', l.id).eq('data->>statut', 'en-envoi');
+        echecs++;
+      }
+      continue;
+    }
 
     const { colis: colisDepose, partA: _p, parLaMain: _m, calme: _c, ...base } = l.data as Ligne['data'] & { calme?: boolean };
     let colis = colisDepose;
@@ -1544,7 +2293,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ version: VERSION, enSalle: enSalle.length, heuresCalmes: calme, annonces, partis, perimes, echecs, dejaPris, interrompus, retrouves, retenusParOpale, corrigesParOpale, arretesDAvance, enPause, replisCarEnPause, misEnPauseParOpale }),
+    JSON.stringify({ version: VERSION, enSalle: enSalle.length, heuresCalmes: calme, annonces, partis, programmesPartis, programmesOuverts, ...suites, perimes, echecs, dejaPris, interrompus, retrouves, retenusParOpale, corrigesParOpale, arretesDAvance, enPause, replisCarEnPause, misEnPauseParOpale }),
     { headers: { 'content-type': 'application/json' } },
   );
 });

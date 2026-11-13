@@ -641,7 +641,10 @@ export type Envoi = {
        l'abonnement refait) : déposée par le Trône quand sa séance de formule
        est marquée faite (shared/messages-de-l-abonnee). La ligne nomme sa
        séance par `seanceId`, jamais par `apptId`. */
-    | 'apres-seance';
+    | 'apres-seance'
+    /* LES ENVOIS PROGRAMMÉS (13 novembre 2026, shared/envois-programmes-pur) :
+       « Programmer un WhatsApp », écrit au Trône, porté par le facteur. */
+    | 'programme';
   /** Le papier de Grenat : le reçu ou la facture à régler, son montant, le jour du dépôt. */
   papier?: 'recu' | 'facture';
   montantXof?: number;
@@ -674,7 +677,10 @@ export type Envoi = {
        prend en main, et un rendez-vous qui a bougé le périme. */
     | 'en-attente' | 'retenu' | 'écarté' | 'périmé' | 'en-envoi'
     /* Grenat l'a déposé, le Trône en fait le PDF (4 novembre 2026). */
-    | 'à-préparer';
+    | 'à-préparer'
+    /* Les envois programmés (13 novembre 2026) : le oui attendu, la réponse au
+       modèle d'ouverture, la consigne à Opale, la main par l'app. */
+    | 'à-valider' | 'attend-sa-réponse' | 'confié-à-opale' | 'par-l-app';
   /** L'instant où il pourra partir, et s'il attend la fin des heures calmes. */
   partA?: string;
   calme?: boolean;

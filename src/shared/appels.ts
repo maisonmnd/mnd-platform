@@ -1,6 +1,6 @@
 import { createStore, useStore, uid } from './store';
 import { bindDocument } from './sync';
-import { prenomDevine } from './civilite';
+import { texteSuiteASonAppel } from './envois-programmes-pur';
 
 /* ── LE JOURNAL DES APPELS (25 août) ──────────────────────────────────
    Une cliente appelle pour un rendez-vous, on raccroche, on oublie. On ne peut
@@ -20,6 +20,10 @@ export type AppelRecu = {
   quand?: string;      // ISO (jour) — quand se le rappeler
   fait: boolean;
   at: string;          // ISO de création
+  /** L'ENVOI PROGRAMMÉ qui a pris sa suite (13 novembre 2026, « Programmer un
+      WhatsApp » remplace « Appel reçu ») : l'appel « à rappeler » est devenu un
+      envoi à valider d'un toucher, il ne se relance plus ici. */
+  envoiId?: string;
 };
 
 export const appelsStore = createStore<AppelRecu[]>('mnd_appels', []);
@@ -30,7 +34,7 @@ bindDocument(appelsStore, 'mnd_appels');
     plus proche (ou passée), puis les plus anciens. */
 export function appelsAActer(appels: AppelRecu[], branchId: string): AppelRecu[] {
   return appels
-    .filter((a) => !a.fait && a.branchId === branchId)
+    .filter((a) => !a.fait && !a.envoiId && a.branchId === branchId)
     .sort((a, b) => (a.quand ?? '9999-99').localeCompare(b.quand ?? '9999-99') || a.at.localeCompare(b.at));
 }
 
@@ -47,9 +51,7 @@ export const reporterAppel = (id: string, quand: string): void =>
   appelsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, quand } : a)));
 
 /** Le message WhatsApp pré-écrit pour rappeler une cliente suite à son appel.
-    À signer par `signeLeMessage` avant de le passer à `wa.me`. */
-export const messageAppel = (a: Pick<AppelRecu, 'nom' | 'motif'>): string => {
-  /* Tout le prénom composé (7 novembre 2026) : « Bonjour Anne Marie ». */
-  const prenom = prenomDevine(a.nom) || a.nom.trim();
-  return `Bonjour ${prenom}, la Maison MND a bien reçu votre appel${a.motif ? ` au sujet de « ${a.motif} »` : ''}. Quand vous conviendrait-il de passer ?`;
-};
+    À signer par `signeLeMessage`. Le même texte que le premier modèle de
+    « Programmer un WhatsApp » (13 novembre 2026) : une seule source,
+    `texteSuiteASonAppel` (shared/envois-programmes-pur). */
+export const messageAppel = (a: Pick<AppelRecu, 'nom' | 'motif'>): string => texteSuiteASonAppel(a.nom, a.motif);

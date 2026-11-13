@@ -115,6 +115,8 @@ export type EnvoiEnSalle = {
   ecartePar?: string;
   ecarteLe?: string;
   deposeLe?: string;
+  /** L'heure voulue d'un envoi programmé (13 novembre 2026) : relâché, il la garde. */
+  prevuA?: string;
 };
 
 export const estEnSalle = (e: Pick<EnvoiEnSalle, 'statut'>): boolean => e.statut === EN_ATTENTE || e.statut === RETENU;
@@ -142,8 +144,14 @@ export function retiens<T extends EnvoiEnSalle>(e: T, qui: string, quandIso: str
 }
 export function relache<T extends EnvoiEnSalle>(e: T, maintenantMs: number, r: ReglesDeLaSalle): T | null {
   if (e.statut !== RETENU) return null;
-  const { partA, calme } = heureDeDepart(maintenantMs, r);
   const { retenuPar: _p, retenuLe: _l, parLaMain: _m, ...reste } = e;
+  /* UN ENVOI PROGRAMMÉ (13 novembre 2026) garde son heure, même la nuit :
+     relâché avant elle, il part à elle ; après, tout de suite. */
+  const prevu = Date.parse(String(e.prevuA ?? ''));
+  if (Number.isFinite(prevu)) {
+    return { ...(reste as T), statut: EN_ATTENTE, partA: new Date(Math.max(prevu, maintenantMs)).toISOString(), calme: false };
+  }
+  const { partA, calme } = heureDeDepart(maintenantMs, r);
   return { ...(reste as T), statut: EN_ATTENTE, partA: new Date(partA).toISOString(), calme };
 }
 export function envoieMaintenant<T extends EnvoiEnSalle>(e: T, maintenantMs: number): T | null {

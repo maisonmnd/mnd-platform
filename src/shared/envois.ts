@@ -24,7 +24,9 @@ export type TypeDEnvoi = 'accuse' | 'confirmation' | 'rappel-j1' | 'avis-google'
      séance de formule est marquée faite (8 novembre 2026, lot 4 de
      l'abonnement refait). La veille avec l'attention reste un `rappel-j1`,
      de genre `veille-attention`. */
-  | 'apres-seance';
+  | 'apres-seance'
+  /* Les envois programmés (13 novembre 2026) : « Programmer un WhatsApp ». */
+  | 'programme';
 
 /** Ce que le journal lit d'une ligne `envois`. Les champs viennent de
     fonctions différentes, écrites à des dates différentes : tous facultatifs
@@ -63,6 +65,9 @@ export const devenuDe = (e: Pick<EnvoiLu, 'statut' | 'etat'>): DevenuDeLEnvoi =>
   /* GRENAT L'A DÉPOSÉ, LE TRÔNE LE PRÉPARE (4 novembre 2026) : pas encore en
      salle, pas encore parti. */
   if (e.statut === 'à-préparer') return 'en-cours';
+  /* UN ENVOI PROGRAMMÉ QUI ATTEND (13 novembre 2026) : un oui, sa réponse au
+     modèle d'ouverture, Opale, une main par l'app. Pas encore parti. */
+  if (e.statut === 'à-valider' || e.statut === 'attend-sa-réponse' || e.statut === 'confié-à-opale' || e.statut === 'par-l-app') return 'en-cours';
   if (e.etat === 'lu') return 'lu';
   if (e.etat === 'remis') return 'remis';
   if (e.etat === 'non-remis') return 'non-remis';
@@ -115,6 +120,8 @@ export const TYPE_DIT: Record<string, string> = {
   'papier-de-la-piece': 'Papier de la pièce, par Grenat',
   /* Les messages de l'abonnée (8 novembre 2026) : « Merci, Awa. Votre prochaine séance : … ? » */
   'apres-seance': 'Prochaine séance proposée',
+  /* « Programmer un WhatsApp » (13 novembre 2026). */
+  programme: 'Envoi programmé',
 };
 export const typeDit = (t: string): string => TYPE_DIT[t] ?? t;
 
@@ -123,6 +130,8 @@ export const CANAL_DIT: Record<string, string> = {
      toute la rubrique de l'Assistant (Aujourd'hui disait « Ma Couronne », le
      journal « Notification » ; relecture du 27 octobre 2026). */
   whatsapp: 'WhatsApp', push: 'Ma Couronne', sms: 'SMS', 'wa-main': 'WhatsApp, à un toucher',
+  /* Le colis d'un envoi programmé (13 novembre 2026) : un WhatsApp. */
+  programme: 'WhatsApp',
 };
 export const canalDit = (c: string): string => CANAL_DIT[c] ?? c;
 

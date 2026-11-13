@@ -670,6 +670,10 @@ const regles: Regle[] = [
         'deja-un-suivant': { fichier: 'src/shared/messages-de-l-abonnee-pur.ts', extrait: (s) => entre(s, 'deja-un-suivant') },
         /* Régler par MTN (11 novembre 2026) : les règles de la collecte (numéro, demande, relecture, pose, comptoir), recopiées dans collecte-mtn. */
         'collecte-mtn': { fichier: 'src/shared/collecte-mtn-pur.ts', extrait: (s) => entre(s, 'collecte-mtn') },
+        /* Les envois programmés (13 novembre 2026) : la voie, la fenêtre, la fois suivante, la consigne à Opale, recopiées dans envois-partent. */
+        'envois-programmes': { fichier: 'src/shared/envois-programmes-pur.ts', extrait: (s) => entre(s, 'envois-programmes') },
+        /* Le choix du moyen, lot C (13 novembre 2026, déjà sur main) : régler par FedaPay, recopié dans mnd-pay et mnd-pay-webhook. */
+        'regler-par-fedapay': { fichier: 'src/shared/regler-par-fedapay-pur.ts', extrait: (s) => entre(s, 'regler-par-fedapay') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

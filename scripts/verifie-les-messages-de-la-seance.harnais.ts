@@ -745,7 +745,8 @@ dit('VI9 l ecran des modeles montre les deux fiches avec « Copier », le pied l
 dit('VI10 les versions des fonctions disent ce lot (rappels-j1 et envois-partent apres « Ce qui va partir », en -b)', [true, true, true],
   [/const VERSION = '2026-11-11-b · [^']*la veille d’une séance de formule dit « Une attention vous y attend »/.test(lis(RJ)),
     /const VERSION = '2026-11-11-a · [^']*la prochaine séance de l abonnée \(PROCHAINE_OK, PROCHAINE_AUTRE\)/.test(lis(WH)),
-    /const VERSION = '2026-11-11-b · [^']*la prochaine séance de l’abonnée \(apres-seance\) relue avant de partir/.test(lis(EP))]);
+    /* 2026-11-13-a : les envois programmés (13 novembre 2026), le texte d'avant gardé. */
+    /const VERSION = '2026-11-1(?:1-b|3-a) · [^']*la prochaine séance de l’abonnée \(apres-seance\) relue avant de partir/.test(lis(EP))]);
 
 /* ══ VII. CE QUI VA PARTIR ═════════════════════════════════════════════ */
 const ligneVeille = { id: 'env-t1-whatsapp', type: 'rappel-j1', genre: 'veille-attention', canal: 'whatsapp', apptId: 't1', clientId: 'cA', dateRdv: '2026-12-12', heure: '09:00',

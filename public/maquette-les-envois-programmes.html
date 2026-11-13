@@ -1,0 +1,618 @@
+<title>Les envois programmés</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500;600&display=swap">
+<style>
+/* Maquette du 13 novembre 2026 : « Appel reçu » devient « Programmer un WhatsApp ». Une colonne : le formulaire à essayer (gauche) et ce qui partira (droite), la file des envois, l'heure dite, ce que devient le bouton, puis les choix. Initiales et numéros inventés. */
+:root {
+  --ivoire: #F6F1E7; --carte: #FFFDF8; --indigo: #1E2150; --cuivre: #B97A4A; --cuivre-fonce: #9E6238;
+  --encre: #1F1D26; --doux: #6A6474; --trait: rgba(30, 33, 80, .13); --pale: #F3EBDF;
+  --indigo-pale: #E9EAF3; --cuivre-pale: #F5E9DC; --sur-indigo: #F6F1E7; --sur-cuivre: #FFFDF8;
+  --vert: #3F6B4E; --vert-pale: #E4EEE6; --rouge: #9A3B2E; --rouge-pale: #F5E2DD; --bulle: #E7F2E3;
+  --serif: "Cormorant Garamond", Georgia, serif; --sans: "Jost", system-ui, sans-serif;
+  --fon: "Noto Serif", "EB Garamond", Georgia, "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --doux: #A9A3B3; --trait: rgba(236, 231, 221, .15); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --sur-indigo: #15161F; --sur-cuivre: #15161F;
+  --vert: #8FC09E; --vert-pale: #1F3127; --rouge: #E09A8C; --rouge-pale: #3A221E; --bulle: #20352A; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ivoire: #15161F; --carte: #1E2030; --indigo: #C9CCF2; --cuivre: #D39A6B; --cuivre-fonce: #E0AE83;
+  --encre: #ECE7DD; --doux: #A9A3B3; --trait: rgba(236, 231, 221, .15); --pale: #2A2735;
+  --indigo-pale: #2A2D4A; --cuivre-pale: #3A2C22; --sur-indigo: #15161F; --sur-cuivre: #15161F;
+  --vert: #8FC09E; --vert-pale: #1F3127; --rouge: #E09A8C; --rouge-pale: #3A221E; --bulle: #20352A; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ivoire); color: var(--encre); font: 400 15px/1.55 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 56px; }
+main { max-width: 1080px; margin: 0 auto; display: grid; gap: 40px; }
+section { display: grid; gap: 14px; min-width: 0; }
+h1, h2 { font-family: var(--serif); font-weight: 300; color: var(--indigo); margin: 0; line-height: 1.05; text-wrap: balance; }
+h1 { font-size: clamp(40px, 7vw, 58px); }
+h2 { font-size: clamp(26px, 4vw, 32px); }
+h3 { margin: 0; font: 600 10.5px var(--sans); letter-spacing: .15em; text-transform: uppercase; color: var(--doux); }
+p { margin: 0; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+.doux { color: var(--doux); } .petit { font-size: 12.5px; }
+.sourcil { font: 600 10.5px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--cuivre-fonce); }
+.chapeau { max-width: 66ch; font-size: 16.5px; font-weight: 300; }
+.bandeau { border: 1px dashed var(--cuivre); background: var(--pale); padding: 8px 14px; border-radius: 4px; font-size: 13px; }
+.tete { display: grid; gap: 10px; }
+.lien { background: none; border: 0; padding: 0; color: var(--cuivre-fonce); text-decoration: underline; text-underline-offset: 3px; font-size: 12.5px; }
+.bouton { background: var(--cuivre); color: var(--sur-cuivre); border: 0; border-radius: 4px; padding: 10px 16px; font: 600 11.5px var(--sans); letter-spacing: .12em; text-transform: uppercase; }
+.bouton.leger { background: none; color: var(--cuivre-fonce); border: 1px solid var(--cuivre); }
+.pastille { font-size: 11.5px; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--trait); color: var(--doux); white-space: nowrap; }
+.pastille.ok { border-color: var(--vert); color: var(--vert); background: var(--vert-pale); }
+.pastille.attend { border-style: dashed; border-color: var(--cuivre); color: var(--cuivre-fonce); background: var(--cuivre-pale); }
+.pastille.ko { border-color: var(--rouge); color: var(--rouge); background: var(--rouge-pale); }
+.pastille.agent { border-color: var(--indigo); color: var(--indigo); }
+
+/* 1. Programmer */
+.atelier { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.fenetre { background: var(--carte); border: 1px solid var(--trait); border-radius: 4px; overflow: hidden; }
+.fenetre__tete { background: var(--indigo); color: var(--sur-indigo); padding: 12px 16px; display: flex; justify-content: space-between; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; }
+.fenetre__tete b { font: 300 23px var(--serif); }
+.fenetre__tete span { font-size: 12.5px; opacity: .85; }
+.fenetre__corps { padding: 14px 16px 16px; display: grid; gap: 16px; }
+.champ { display: grid; gap: 7px; }
+.puces { display: flex; flex-wrap: wrap; gap: 5px; }
+.puce { border: 1px solid var(--trait); background: var(--carte); border-radius: 4px; padding: 6px 10px; font-size: 13px; text-align: left; }
+.puce small { display: block; font-size: 11px; color: var(--doux); }
+.puce[aria-pressed="true"] { background: var(--indigo); border-color: var(--indigo); color: var(--sur-indigo); }
+.puce[aria-pressed="true"] small { color: var(--sur-indigo); opacity: .8; }
+textarea { width: 100%; min-height: 96px; resize: vertical; border: 1px solid var(--trait); border-radius: 4px; background: var(--ivoire); padding: 10px 12px; font-size: 14px; line-height: 1.5; }
+.ligne-champ { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ligne-champ input[type="datetime-local"] { border: 1px solid var(--trait); border-radius: 4px; background: var(--ivoire); padding: 5px 8px; font-size: 13px; }
+.bascule { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13.5px; cursor: pointer; }
+.bascule small { display: block; color: var(--doux); font-size: 12px; }
+.interrupteur { appearance: none; -webkit-appearance: none; flex: none; width: 36px; height: 20px; border-radius: 999px; background: var(--pale); border: 1px solid var(--trait); position: relative; margin: 0; cursor: pointer; transition: background .2s; }
+.interrupteur::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--doux); transition: transform .2s, background .2s; }
+.interrupteur:checked { background: var(--cuivre-pale); border-color: var(--cuivre); }
+.interrupteur:checked::after { transform: translateX(16px); background: var(--cuivre); }
+.pied-form { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--trait); padding-top: 12px; }
+
+/* Ce qui partira */
+.apercu { display: grid; gap: 12px; position: sticky; top: max(12px, env(safe-area-inset-top, 0px)); }
+.telephone { border: 1px solid var(--trait); border-radius: 4px; background: var(--carte); overflow: hidden; }
+.telephone__tete { background: var(--indigo); color: var(--sur-indigo); padding: 10px 14px; display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.telephone__corps { padding: 14px; display: grid; gap: 8px; min-height: 120px; }
+.bulle { justify-self: end; max-width: 92%; background: var(--bulle); border-radius: 4px 4px 0 4px; padding: 8px 11px; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; animation: fondu .25s ease-out; }
+.bulle.porte { background: var(--pale); }
+.bulle .heure { display: block; text-align: right; font-size: 11px; color: var(--doux); margin-top: 4px; }
+.devise { font-family: var(--fon); font-style: italic; }
+.voie { border-left: 3px solid var(--cuivre); background: var(--carte); padding: 8px 12px; font-size: 13.5px; display: grid; gap: 4px; border-radius: 0 4px 4px 0; }
+.voie.nuit { border-left-color: var(--indigo); }
+.voie b { color: var(--indigo); font-weight: 500; }
+@keyframes fondu { from { opacity: .35; } to { opacity: 1; } }
+.piece { display: flex; gap: 10px; align-items: center; background: var(--carte); border: 1px solid var(--trait); border-radius: 4px; padding: 7px 9px; margin-bottom: 6px; font-size: 12.5px; white-space: normal; }
+.piece i { flex: none; width: 30px; height: 36px; border-radius: 2px; background: var(--cuivre-pale); border: 1px solid var(--cuivre); display: grid; place-items: center; font: 600 9px var(--sans); font-style: normal; color: var(--cuivre-fonce); letter-spacing: .06em; }
+.piece small { display: block; color: var(--doux); font-size: 11px; }
+.notif { background: var(--indigo); color: var(--sur-indigo); border-radius: 4px; padding: 9px 11px; font-size: 13px; display: grid; gap: 6px; }
+.notif small { opacity: .8; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+.notif span.geste { justify-self: start; background: var(--cuivre); color: var(--sur-cuivre); border-radius: 4px; padding: 4px 10px; font: 600 10.5px var(--sans); letter-spacing: .1em; text-transform: uppercase; }
+.compose { display: flex; gap: 8px; align-items: flex-end; }
+.compose .bulle { justify-self: auto; flex: 1; border-radius: 4px; background: var(--pale); }
+.compose span.envoyer { flex: none; background: var(--vert); color: var(--sur-cuivre); border-radius: 999px; padding: 6px 10px; font: 600 10.5px var(--sans); letter-spacing: .08em; text-transform: uppercase; }
+.fichier { font-size: 12.5px; }
+
+/* 2. La file */
+.onglets { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--trait); }
+.onglet { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px 6px; color: var(--doux); display: grid; text-align: left; }
+.onglet b { font: 400 18px var(--serif); color: var(--indigo); }
+.onglet[aria-selected="true"] { border-bottom-color: var(--cuivre); }
+.file { background: var(--carte); border: 1px solid var(--trait); border-radius: 4px; }
+.envoi { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 6px 14px; padding: 12px 16px; border-top: 1px solid var(--trait); align-items: start; }
+.envoi:first-child { border-top: 0; }
+.envoi .quand { font-size: 13px; color: var(--indigo); font-weight: 500; }
+.envoi .quand small { display: block; font-weight: 400; color: var(--doux); font-size: 11.5px; }
+.envoi .qui { font-weight: 500; }
+.envoi .extrait { font-size: 13px; color: var(--doux); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.envoi .etat { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.envoi .gestes { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.vide { padding: 14px 16px; color: var(--doux); }
+
+/* 3. L'heure dite */
+.frise { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.frise li { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 14px; padding: 10px 0; border-top: 1px solid var(--trait); }
+.frise li:first-child { border-top: 0; }
+.frise .moment { font: 400 18px/1.2 var(--serif); color: var(--cuivre-fonce); }
+.frise b { color: var(--indigo); font-weight: 500; }
+
+/* 4. Le bouton */
+.avant-apres { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.colonne { background: var(--carte); border: 1px solid var(--trait); border-radius: 4px; padding: 14px 16px; display: grid; gap: 10px; align-content: start; }
+.menu-item { display: flex; gap: 10px; align-items: baseline; padding: 8px 10px; border: 1px solid var(--trait); border-radius: 4px; }
+.menu-item b { color: var(--indigo); font-weight: 500; }
+.menu-item.neuf { border-color: var(--cuivre); background: var(--cuivre-pale); }
+.menu-item.part b { text-decoration: line-through; color: var(--doux); }
+
+/* 5. Les choix */
+.avance { display: grid; gap: 6px; }
+.avance .jauge { height: 6px; border-radius: 2px; background: var(--trait); overflow: hidden; }
+.avance .jauge span { display: block; height: 100%; width: 0; background: var(--cuivre); transition: width .3s; }
+#decisions { display: grid; gap: 10px; }
+.decision { background: var(--carte); border: 1px solid var(--trait); border-radius: 4px; padding: 14px 16px; display: grid; gap: 6px; }
+.decision.tranchee { border-color: var(--cuivre); }
+.decision h4 { margin: 0; font: 300 22px var(--serif); color: var(--indigo); }
+.decision .pq { font-size: 14px; color: var(--doux); }
+.choix-ligne { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 8px 0; border-top: 1px solid var(--trait); cursor: pointer; font-size: 15px; }
+.choix-ligne:first-of-type { border-top: 0; }
+.choix-ligne input { margin-top: 5px; accent-color: var(--cuivre); }
+.choix-ligne em { font-style: normal; font-size: 11.5px; color: var(--cuivre-fonce); border: 1px solid var(--cuivre); border-radius: 999px; padding: 0 7px; margin-left: 6px; white-space: nowrap; }
+.choix-ligne small { display: block; font-size: 13px; color: var(--doux); }
+.decision .etat-d { font-size: 12.5px; color: var(--vert); min-height: 1em; }
+.mot { display: grid; gap: 6px; }
+.mot textarea { min-height: 90px; background: var(--carte); }
+
+@media (max-width: 880px) { .atelier { grid-template-columns: 1fr; } .apercu { position: static; } }
+@media (max-width: 640px) {
+  .avant-apres { grid-template-columns: 1fr; }
+  .envoi { grid-template-columns: minmax(0, 1fr); }
+  .envoi .gestes { justify-content: flex-start; }
+  .frise li { grid-template-columns: 1fr; gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<main>
+  <div class="bandeau">Maquette du 13 novembre 2026, validée le 13 novembre 2026 (« construis »). Remplissez le formulaire : l’aperçu et la façon dont le message partira changent. Initiales, numéros et messages inventés.</div>
+
+  <header class="tete">
+    <span class="sourcil">Le Trône · Créer et Conversations</span>
+    <h1>Les envois programmés.</h1>
+    <p class="chapeau">Comme SKEDit : vous écrivez le WhatsApp maintenant, avec sa pièce jointe si besoin, vous choisissez l’heure, et l’assistant responsable l’envoie à l’heure dite, seul. Ou bien, « par l’app » : à l’heure dite, votre téléphone sonne et WhatsApp s’ouvre, le message écrit. Le bouton « Appel reçu » devient « Programmer un WhatsApp » : rappeler une cliente qui a appelé n’est plus qu’un envoi programmé parmi d’autres.</p>
+  </header>
+
+  <!-- 1. PROGRAMMER -->
+  <section aria-labelledby="t-prog">
+    <span class="sourcil">1 · Créer › Programmer un WhatsApp</span>
+    <h2 id="t-prog">Écrire maintenant, envoyer plus tard.</h2>
+    <div class="atelier">
+      <form class="fenetre" id="formulaire" aria-label="Programmer un WhatsApp">
+        <div class="fenetre__tete"><b>Programmer un WhatsApp</b><span>part seul à l’heure dite</span></div>
+        <div class="fenetre__corps">
+          <div class="champ">
+            <h3>À qui</h3>
+            <div class="puces" id="g-dest" role="group" aria-label="À qui"></div>
+            <span class="doux petit">Plusieurs clientes : un message chacune, à son prénom.</span>
+          </div>
+          <div class="champ">
+            <h3>Le modèle</h3>
+            <div class="puces" id="g-modele" role="group" aria-label="Le modèle"></div>
+          </div>
+          <div class="champ">
+            <h3><label for="message">Le message</label></h3>
+            <textarea id="message" aria-describedby="message-aide"></textarea>
+            <span class="doux petit" id="message-aide">« {prénom} » se remplace par le prénom de chaque cliente. La devise de la Maison se pose seule à la fin.</span>
+          </div>
+          <div class="champ">
+            <h3>Pièce jointe</h3>
+            <div class="puces" id="g-piece" role="group" aria-label="Pièce jointe"></div>
+            <div class="ligne-champ"><label class="doux petit" for="fichier">Ou un fichier de l’appareil (photo, PDF, document) :</label><input type="file" id="fichier" class="fichier" accept="image/*,application/pdf,.doc,.docx"></div>
+          </div>
+          <div class="champ">
+            <h3>Comment il part</h3>
+            <div class="puces" id="g-mode" role="group" aria-label="Comment il part"></div>
+          </div>
+          <div class="champ">
+            <h3>Quand</h3>
+            <div class="puces" id="g-quand" role="group" aria-label="Quand"></div>
+            <div class="ligne-champ"><label class="doux petit" for="autre-heure">Ou le jour et l’heure :</label><input type="datetime-local" id="autre-heure" value="2026-11-14T10:00"></div>
+          </div>
+          <div class="champ">
+            <h3>Répéter</h3>
+            <div class="puces" id="g-repeter" role="group" aria-label="Répéter"></div>
+          </div>
+          <div class="champ" id="champ-agent">
+            <h3>Qui l’envoie</h3>
+            <div class="puces" id="g-agent" role="group" aria-label="Qui l’envoie"></div>
+          </div>
+          <div class="champ" id="champ-tel" hidden>
+            <h3>Sur quel téléphone</h3>
+            <div class="puces" id="g-tel" role="group" aria-label="Sur quel téléphone"></div>
+          </div>
+          <label class="bascule" for="demander"><span>Me demander avant d’envoyer<small>À l’heure dite, une notification : « Envoyer » ou « Retenir ».</small></span><input type="checkbox" class="interrupteur" id="demander"></label>
+          <div class="pied-form">
+            <span class="doux petit" id="resume"></span>
+            <button type="submit" class="bouton">Programmer</button>
+          </div>
+        </div>
+      </form>
+
+      <aside class="apercu" aria-label="Ce qui partira">
+        <h3>Ce qui partira</h3>
+        <div class="telephone">
+          <div class="telephone__tete"><span id="tel-qui">A. K.</span><span id="tel-quand">Aujourd’hui · 16 h 30</span></div>
+          <div class="telephone__corps" id="tel-corps"></div>
+        </div>
+        <div class="voie" id="voie"></div>
+        <div class="voie nuit" id="voie-nuit" hidden></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- 2. LA FILE -->
+  <section aria-labelledby="t-file">
+    <span class="sourcil">2 · Conversations › Les envois programmés</span>
+    <h2 id="t-file">La file, comme dans SKEDit.</h2>
+    <p class="doux">L’onglet « Les appels » de Conversations devient « Les envois programmés ». Chaque ligne dit quand, à qui, quoi, qui l’envoie et où il en est ; elle se modifie, part tout de suite, se retient ou s’écarte jusqu’à la dernière minute.</p>
+    <nav class="onglets" role="tablist" aria-label="Les envois">
+      <button class="onglet" role="tab" data-vue="avenir" aria-selected="true"><span class="sourcil">À venir</span><b class="num" id="n-avenir">0</b></button>
+      <button class="onglet" role="tab" data-vue="partis" aria-selected="false"><span class="sourcil">Partis</span><b class="num" id="n-partis">0</b></button>
+      <button class="onglet" role="tab" data-vue="revoir" aria-selected="false"><span class="sourcil">À revoir</span><b class="num" id="n-revoir">0</b></button>
+    </nav>
+    <div class="file" id="file"></div>
+  </section>
+
+  <!-- 3. L'HEURE DITE -->
+  <section aria-labelledby="t-heure">
+    <span class="sourcil">3 · Ce que fait l’assistant</span>
+    <h2 id="t-heure">À l’heure dite.</h2>
+    <ol class="frise">
+      <li><span class="moment">−10 min</span><span><b>La salle d’attente le montre</b> et le téléphone de l’équipe sonne : « part dans 10 min, à A. K. ». Un toucher le retient, le modifie ou l’envoie tout de suite.</span></li>
+      <li><span class="moment">À l’heure</span><span><b>L’assistant relit avant d’envoyer :</b> la fiche existe encore, le numéro aussi, elle n’a pas écrit STOP, et le rendez-vous dont parle le message n’a été ni annulé ni déplacé. Sinon, rien ne part et la ligne passe « À revoir » en disant pourquoi.</span></li>
+      <li><span class="moment">La voie</span><span><b>Elle a écrit dans les 24 h :</b> le message part tel quel. <b>Sinon</b>, WhatsApp n’accepte qu’un modèle approuvé par Meta : la Maison envoie d’abord le modèle d’ouverture, puis votre message à sa réponse. <b>Opale ou Onyx</b> l’envoient depuis WhatsApp Web, sur l’ordinateur de leur porteur, sans cette règle.</span></li>
+      <li><span class="moment">Par l’app</span><span><b>Si l’envoi est « par l’app »,</b> c’est vous qui envoyez : à l’heure dite, votre téléphone sonne (« Votre WhatsApp à A. K. est prêt »). Un toucher ouvre WhatsApp sur sa conversation, le message déjà écrit ; vous appuyez sur Envoyer. Pas de règle des 24 h, puisque c’est votre WhatsApp. Une pièce jointe se joint d’un second geste, par le partage du téléphone : WhatsApp ne laisse pas un lien poser un fichier tout seul. Le Trône le note « envoyé par l’app » quand vous revenez.</span></li>
+      <li><span class="moment">Envoyé</span><span><b>Une seule fois.</b> Le journal le signe au nom de l’assistant (« Perle, 16 h 30 ») et la conversation l’affiche dans son fil. La réponse de la cliente arrive dans Conversations, comme toujours.</span></li>
+      <li><span class="moment">Ensuite</span><span><b>Un envoi qui se répète</b> se reprogramme seul pour la fois suivante. Un échec (numéro sans WhatsApp, Opale endormie, refus de Meta) se dit une fois, sur le téléphone de qui l’a programmé.</span></li>
+    </ol>
+  </section>
+
+  <!-- 4. LE BOUTON -->
+  <section aria-labelledby="t-bouton">
+    <span class="sourcil">4 · Ce que devient « Appel reçu »</span>
+    <h2 id="t-bouton">Un bouton, plus large.</h2>
+    <div class="avant-apres">
+      <div class="colonne">
+        <h3>Aujourd’hui · le menu Créer</h3>
+        <div class="menu-item part"><b>Appel reçu</b><span class="doux petit">noter un appel WhatsApp</span></div>
+        <p class="doux petit">On note l’appel, puis on rappelle à la main : le Tableau de bord relance jusqu’à ce que ce soit fait.</p>
+      </div>
+      <div class="colonne">
+        <h3>Demain</h3>
+        <div class="menu-item neuf"><b>Programmer un WhatsApp</b><span class="doux petit">comme SKEDit, à l’heure dite</span></div>
+        <p class="doux petit">« Suite à son appel » est le premier modèle : le motif de l’appel s’écrit dans le message, l’heure du rappel devient l’heure d’envoi. Un rendez-vous à caler garde son geste « Poser le rendez-vous ». Le partage « Partager › Le Trône » depuis les appels du téléphone ouvre ce même formulaire, le numéro déjà posé.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. LES CHOIX -->
+  <section aria-labelledby="t-decisions">
+    <span class="sourcil">5 · À trancher</span>
+    <h2 id="t-decisions">Vos choix.</h2>
+    <p class="doux">Mes propositions sont marquées. Vos choix s’enregistrent ici, et je les relis avant de construire.</p>
+    <div class="avance"><span class="petit" id="compte-decisions">0 sur 10 tranchées</span><div class="jauge"><span id="barre-decisions"></span></div></div>
+    <div id="decisions"></div>
+    <div class="mot">
+      <label for="d-note"><h3>Un mot, si besoin</h3></label>
+      <textarea id="d-note" placeholder="Ce que la maquette ne dit pas, ou ce que vous voulez autrement."></textarea>
+      <span class="petit doux" id="d-note-etat"></span>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  var DEVISE = 'mi nyɔ́ ɖɛkpɛ · la maison veille';
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  /* ── Les données de l'essai (inventées) ── */
+  var CLIENTES = [
+    { id: 'ak', nom: 'A. K.', prenom: 'Awa', ecrit: 'a écrit il y a 3 h', ouverte: true },
+    { id: 'fb', nom: 'F. B.', prenom: 'Fifamè', ecrit: 'dernier message il y a 6 jours', ouverte: false },
+    { id: 'cm', nom: 'C. M.', prenom: 'Chloé', ecrit: 'n’a jamais écrit', ouverte: false },
+  ];
+  var MODELES = [
+    { id: 'appel', nom: 'Suite à son appel', agent: 'perle', repeter: 'jamais', texte: 'Bonjour {prénom}, la Maison MND a bien reçu votre appel au sujet de votre retwist. Quand vous conviendrait-il de passer ?' },
+    { id: 'rdv', nom: 'Rappel de rendez-vous', agent: 'perle', repeter: 'jamais', texte: 'Bonjour {prénom}, un petit rappel : votre rituel est demain à 10 h à la Maison MND. À demain.' },
+    { id: 'relance', nom: 'Relance d’un paiement', agent: 'grenat', repeter: 'jamais', texte: 'Bonjour {prénom}, il reste 15 000 F à régler pour votre rituel du 4 novembre. Votre lien pour régler en un geste vous attend sur votre page.' },
+    { id: 'anniv', nom: 'Anniversaire', agent: 'perle', repeter: 'annee', texte: 'Joyeux anniversaire {prénom}. Toute la Maison MND pense à vous aujourd’hui.' },
+    { id: 'libre', nom: 'Message libre', agent: 'perle', repeter: 'jamais', texte: '' },
+  ];
+  var QUAND = [
+    { id: 'h1', nom: 'Dans 1 h', dit: 'Aujourd’hui · 16 h 30', nuit: false },
+    { id: 'soir', nom: 'Ce soir 18 h', dit: 'Aujourd’hui · 18 h 00', nuit: false },
+    { id: 'demain9', nom: 'Demain 9 h', dit: 'Demain · 9 h 00', nuit: false },
+    { id: 'demain21', nom: 'Demain 21 h', dit: 'Demain · 21 h 00', nuit: true },
+    { id: 'autre', nom: 'Le jour choisi', dit: '', nuit: false },
+  ];
+  var REPETER = [['jamais', 'Une fois'], ['jour', 'Chaque jour'], ['semaine', 'Chaque semaine'], ['mois', 'Chaque mois'], ['annee', 'Chaque année']];
+  var AGENTS = [
+    { id: 'perle', nom: 'Perle', sous: 'les clientes · WhatsApp de la Maison', voie: 'api' },
+    { id: 'grenat', nom: 'Grenat', sous: 'l’argent · WhatsApp de la Maison', voie: 'api' },
+    { id: 'opale', nom: 'Opale', sous: 'au nom de Yéman · WhatsApp Web', voie: 'web', porteur: 'Yéman' },
+    { id: 'onyx', nom: 'Onyx', sous: 'au nom de Brice · WhatsApp Web', voie: 'web', porteur: 'Brice' },
+  ];
+
+  var PIECES = [
+    { id: 'aucune', nom: 'Aucune' },
+    { id: 'facture', nom: 'Sa facture', type: 'PDF', titre: 'Facture F-2026-0769', sous: 'PDF · 1 page · tirée du Trône' },
+    { id: 'recu', nom: 'Son reçu', type: 'PDF', titre: 'Reçu du 12 novembre 2026', sous: 'PDF · 1 page · tiré du Trône' },
+    { id: 'carte', nom: 'La carte des prix', type: 'PDF', titre: 'La carte de la Maison MND', sous: 'PDF · 4 pages' },
+    { id: 'photo', nom: 'Une photo', type: 'JPG', titre: 'Photo de son retwist', sous: 'image · 1,2 Mo' },
+    { id: 'itineraire', nom: 'L’itinéraire', type: 'PLAN', titre: 'L’itinéraire jusqu’à la Maison MND', sous: 'Google Maps · jusqu’à la porte de la Maison', lien: true },
+  ];
+  var MODES = [
+    { id: 'seul', nom: 'Seul, par l’assistant', sous: 'à l’heure dite, sans vous' },
+    { id: 'app', nom: 'Par l’app, d’un toucher', sous: 'WhatsApp s’ouvre sur votre téléphone' },
+  ];
+  var TELEPHONES = [
+    { id: 'moi', nom: 'Le vôtre', sous: 'qui programmez' },
+    { id: 'comptoir', nom: 'Le téléphone du comptoir', sous: 'celui de la Maison' },
+  ];
+  var s = { dest: ['ak'], modele: 'appel', quand: 'h1', repeter: 'jamais', agent: 'perle', demander: false, piece: 'aucune', fichier: '', mode: 'seul', tel: 'moi' };
+  var champMessage = document.getElementById('message');
+  champMessage.value = MODELES[0].texte;
+
+  function puces(id, items, cle, multi, rendu) {
+    var g = document.getElementById(id);
+    g.textContent = '';
+    items.forEach(function (it) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'puce';
+      var on = multi ? s[cle].indexOf(it.id) >= 0 : s[cle] === it.id;
+      b.setAttribute('aria-pressed', String(on));
+      b.innerHTML = rendu(it);
+      b.addEventListener('click', function () {
+        if (multi) {
+          var i = s[cle].indexOf(it.id);
+          if (i >= 0 && s[cle].length > 1) s[cle].splice(i, 1); else if (i < 0) s[cle].push(it.id);
+        } else {
+          s[cle] = it.id;
+          if (cle === 'modele') {
+            champMessage.value = it.texte; s.agent = it.agent; s.repeter = it.repeter;
+          }
+        }
+        tout();
+      });
+      g.appendChild(b);
+    });
+  }
+
+  function heureChoisie() {
+    var q = QUAND.filter(function (x) { return x.id === s.quand; })[0];
+    if (q.id !== 'autre') return { dit: q.dit, nuit: q.nuit };
+    var v = document.getElementById('autre-heure').value;
+    if (!v) return { dit: 'le jour choisi', nuit: false };
+    var h = Number(v.slice(11, 13));
+    var j = v.slice(8, 10) + '/' + v.slice(5, 7);
+    return { dit: j + ' · ' + h + ' h ' + v.slice(14, 16), nuit: h >= 20 || h < 8 };
+  }
+
+  function rendApercu() {
+    var cible = CLIENTES.filter(function (c) { return c.id === s.dest[0]; })[0];
+    var agent = AGENTS.filter(function (a) { return a.id === s.agent; })[0];
+    var h = heureChoisie();
+    var texte = (champMessage.value || '').trim();
+    var corps = texte ? texte.replace(/\{prénom\}/g, cible.prenom) : '(votre message)';
+    document.getElementById('tel-qui').textContent = cible.nom + (s.dest.length > 1 ? ' et ' + (s.dest.length - 1) + ' autre' + (s.dest.length > 2 ? 's' : '') : '');
+    document.getElementById('tel-quand').textContent = h.nuit ? h.dit.replace(/· .*$/, '· 8 h 00 (heures calmes)') : h.dit;
+    var tel = document.getElementById('tel-corps');
+    var p = pieceChoisie();
+    var carte = p ? '<div class="piece"><i>' + esc(p.type) + '</i><span>' + esc(p.titre) + '<small>' + esc(p.sous) + '</small></span></div>' : '';
+    var bulle = '<div class="bulle">' + carte + esc(corps) + '\n<span class="devise">' + esc(DEVISE) + '</span><span class="heure">' + esc(s.mode === 'app' ? 'par l’app' : agent.nom) + '</span></div>';
+    var voie = document.getElementById('voie');
+    if (s.mode === 'app') {
+      var leTel = TELEPHONES.filter(function (t) { return t.id === s.tel; })[0];
+      tel.innerHTML = '<div class="notif"><small>Le Trône · ' + esc(h.nuit ? '8 h 00' : h.dit.replace(/^.*· /, '')) + '</small>Votre WhatsApp à ' + esc(cible.nom) + ' est prêt.<span class="geste">Ouvrir WhatsApp</span></div>'
+        + '<div class="compose"><div class="bulle">' + esc(corps) + '\n<span class="devise">' + esc(DEVISE) + '</span></div><span class="envoyer">Envoyer</span></div>'
+        + (p ? '<div class="piece"><i>' + esc(p.type) + '</i><span>' + esc(p.titre) + '<small>' + (p.lien ? 'déjà dans le message : c’est un lien, il s’ouvre d’un toucher chez elle' : 'à joindre d’un second geste : « Partager » sur la notification, puis WhatsApp') + '</small></span></div>' : '');
+      voie.innerHTML = '<b>Par l’app, sur ' + esc(leTel.nom.toLowerCase()) + '</b><span>À l’heure dite, le téléphone sonne. Un toucher ouvre WhatsApp sur la conversation de ' + esc(cible.nom) + ', le message déjà écrit : vous appuyez sur Envoyer. Pas de règle des 24 h, c’est votre WhatsApp.'
+        + (p && p.lien ? ' L’itinéraire est un lien : il est déjà dans le message, rien à joindre.' : p ? ' La pièce jointe ne peut pas se poser seule par un lien : elle se partage d’un second geste.' : '') + (s.dest.length > 1 ? ' Plusieurs clientes : une notification chacune, l’une après l’autre.' : '') + '</span>';
+    } else if (agent.voie === 'web') {
+      tel.innerHTML = bulle;
+      voie.innerHTML = '<b>' + esc(agent.nom) + ' l’envoie depuis WhatsApp Web</b><span>Sur l’ordinateur de ' + esc(agent.porteur) + ', depuis son WhatsApp : pas de règle des 24 h, mais l’ordinateur doit être allumé et ' + esc(agent.nom) + ' éveillée à l’heure dite. Sinon, la ligne passe « À revoir ».</span>';
+    } else if (cible.ouverte) {
+      tel.innerHTML = bulle;
+      voie.innerHTML = '<b>Le message part tel quel</b><span>' + esc(cible.nom) + ' ' + esc(cible.ecrit) + ' : la conversation est ouverte, ' + esc(agent.nom) + ' l’envoie par le WhatsApp de la Maison, sans modèle.</span>';
+    } else {
+      tel.innerHTML = '<div class="bulle porte">Bonjour ' + esc(cible.prenom) + ', la Maison MND a un message pour vous. Répondez à ce message pour le lire.<span class="heure">modèle d’ouverture · approuvé par Meta</span></div>' + bulle.replace('<span class="heure">', '<span class="heure">à sa réponse · ');
+      voie.innerHTML = '<b>Elle n’a pas écrit depuis 24 h</b><span>' + esc(cible.nom) + ' ' + esc(cible.ecrit) + '. WhatsApp n’accepte alors qu’un modèle approuvé par Meta : ' + esc(agent.nom) + ' envoie d’abord le modèle d’ouverture, puis votre message' + (p ? ' et sa pièce jointe' : '') + ' dès qu’elle répond.</span>';
+    }
+    if (s.mode !== 'app' && p && p.lien) {
+      voie.innerHTML += '<span>L’itinéraire part avec le message : le lien Google Maps de la Maison, jusqu’à sa porte, qui s’ouvre d’un toucher chez elle (le lien de la fiche Google, réglé dans Système › Branches).</span>';
+    } else if (s.mode !== 'app' && p && (agent.voie === 'web' || cible.ouverte)) {
+      voie.innerHTML += '<span>La pièce jointe part avec le message, dans la même bulle (photo, PDF ou document, 16 Mo au plus pour WhatsApp).</span>';
+    }
+    var nuit = document.getElementById('voie-nuit');
+    nuit.hidden = !h.nuit;
+    if (h.nuit) nuit.innerHTML = '<b>Heures calmes, de 20 h à 8 h</b><span>Rien ne part seul la nuit : il partira à 8 h, sauf si vous choisissez « Envoyer quand même la nuit » sur la ligne.</span>';
+    var rep = REPETER.filter(function (r) { return r[0] === s.repeter; })[0][1].toLowerCase();
+    document.getElementById('resume').textContent = s.dest.length + ' cliente' + (s.dest.length > 1 ? 's' : '') + ' · ' + h.dit.toLowerCase() + ' · ' + rep + ' · ' + (s.mode === 'app' ? 'par l’app' : agent.nom) + (p ? ' · ' + p.titre : '') + (s.demander && s.mode !== 'app' ? ' · vous demande avant' : '');
+  }
+  function pieceChoisie() {
+    if (s.piece === 'fichier' && s.fichier) return { type: (s.fichier.split('.').pop() || 'FICHIER').slice(0, 4).toUpperCase(), titre: s.fichier, sous: 'de l’appareil' };
+    var p = PIECES.filter(function (x) { return x.id === s.piece; })[0];
+    return p && p.id !== 'aucune' ? p : null;
+  }
+
+  function tout() {
+    puces('g-dest', CLIENTES, 'dest', true, function (c) { return esc(c.nom) + '<small>' + esc(c.ecrit) + '</small>'; });
+    puces('g-modele', MODELES, 'modele', false, function (m) { return esc(m.nom); });
+    puces('g-quand', QUAND, 'quand', false, function (q) { return esc(q.nom); });
+    puces('g-repeter', REPETER.map(function (r) { return { id: r[0], nom: r[1] }; }), 'repeter', false, function (r) { return esc(r.nom); });
+    puces('g-agent', AGENTS, 'agent', false, function (a) { return esc(a.nom) + '<small>' + esc(a.sous) + '</small>'; });
+    puces('g-piece', PIECES.concat(s.fichier ? [{ id: 'fichier', nom: s.fichier }] : []), 'piece', false, function (x) { return esc(x.nom); });
+    puces('g-mode', MODES, 'mode', false, function (m) { return esc(m.nom) + '<small>' + esc(m.sous) + '</small>'; });
+    puces('g-tel', TELEPHONES, 'tel', false, function (t) { return esc(t.nom) + '<small>' + esc(t.sous) + '</small>'; });
+    document.getElementById('champ-agent').hidden = s.mode === 'app';
+    document.getElementById('champ-tel').hidden = s.mode !== 'app';
+    document.querySelector('label[for="demander"]').hidden = s.mode === 'app';
+    rendApercu();
+  }
+  champMessage.addEventListener('input', rendApercu);
+  document.getElementById('fichier').addEventListener('change', function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    s.fichier = f.name; s.piece = 'fichier'; tout();
+  });
+  document.getElementById('autre-heure').addEventListener('input', function () { s.quand = 'autre'; tout(); });
+  document.getElementById('demander').addEventListener('change', function (e) { s.demander = e.target.checked; rendApercu(); });
+
+  /* ── La file ── */
+  var FILE = {
+    avenir: [
+      { quand: 'Aujourd’hui · 16 h 30', sous: 'part dans 8 min', qui: 'A. K.', quoi: 'Suite à son appel : « Bonjour Awa, la Maison MND a bien reçu votre appel… »', agent: 'Perle', etats: [['part dans 8 min', 'attend']] },
+      { quand: 'Demain · 9 h 00', sous: 'une fois', qui: 'F. B. et C. M.', quoi: 'Rappel de rendez-vous : « Bonjour {prénom}, un petit rappel… »', agent: 'Perle', etats: [['programmé', ''], ['2 clientes, un message chacune', '']] },
+      { quand: 'Demain · 11 h 00', sous: 'une fois', qui: 'R. A.', quoi: 'Message libre : « Bonjour Rachida, voici la carte de la Maison… »', agent: 'Par l’app', etats: [['par l’app, sur votre téléphone', 'attend'], ['PDF · la carte des prix', '']] },
+      { quand: 'Ven. 15 nov. · 10 h 00', sous: 'une fois', qui: 'B. O.', quoi: 'Relance d’un paiement : « il reste 15 000 F à régler… »', agent: 'Grenat', etats: [['attend votre oui', 'attend'], ['PDF · facture F-2026-0769', '']] },
+      { quand: 'Chaque 3 décembre · 9 h', sous: 'chaque année', qui: 'M. A.', quoi: 'Anniversaire : « Joyeux anniversaire Mariam… »', agent: 'Perle', etats: [['chaque année', '']] },
+    ],
+    partis: [
+      { quand: 'Aujourd’hui · 11 h 02', sous: 'tel quel', qui: 'S. D.', quoi: 'Suite à son appel : « Bonjour Sika, la Maison MND a bien reçu votre appel… »', agent: 'Perle', etats: [['parti, lu', 'ok']] },
+      { quand: 'Hier · 18 h 00', sous: 'par le modèle d’ouverture', qui: 'K. T.', quoi: 'Relance d’un paiement : « il reste 8 000 F… »', agent: 'Grenat', etats: [['parti à sa réponse, 18 h 40', 'ok'], ['PDF · sa facture', '']] },
+      { quand: 'Hier · 15 h 00', sous: 'par l’app', qui: 'N. G.', quoi: 'Suite à son appel : « Bonjour Nadège, la Maison MND a bien reçu… »', agent: 'Par l’app', etats: [['envoyé par vous, 15 h 02', 'ok']] },
+    ],
+    revoir: [
+      { quand: 'Mer. 13 nov. · 13 h 00', sous: 'pas parti', qui: 'J. H.', quoi: 'Message libre : « Bonjour Joëlle, votre commande est prête… »', agent: 'Perle', etats: [['ce numéro n’a pas WhatsApp', 'ko']] },
+      { quand: 'Hier · 9 h 00', sous: 'pas parti', qui: 'L. A.', quoi: 'Message libre : « Bonjour Laure… »', agent: 'Opale', etats: [['Opale n’était pas éveillée', 'ko']] },
+    ],
+  };
+  var vue = 'avenir';
+  function rendFile() {
+    ['avenir', 'partis', 'revoir'].forEach(function (k) { document.getElementById('n-' + k).textContent = FILE[k].length; });
+    var el = document.getElementById('file');
+    var l = FILE[vue];
+    if (!l.length) { el.innerHTML = '<div class="vide">Rien ici pour l’instant.</div>'; return; }
+    el.innerHTML = l.map(function (e, i) {
+      var gestes = vue === 'avenir'
+        ? '<button type="button" class="lien">Modifier</button><button type="button" class="lien">Envoyer maintenant</button><button type="button" class="lien">Retenir</button><button type="button" class="lien" data-ecarter="' + i + '">Écarter</button>'
+        : vue === 'revoir' ? '<button type="button" class="lien">Corriger et reprogrammer</button>' : '<button type="button" class="lien">Ouvrir la conversation</button>';
+      return '<div class="envoi"><span class="quand">' + esc(e.quand) + '<small>' + esc(e.sous) + '</small></span>'
+        + '<span style="min-width:0"><span class="qui">' + esc(e.qui) + '</span><span class="extrait" style="display:block">' + esc(e.quoi) + '</span>'
+        + '<span class="etat"><span class="pastille agent">' + esc(e.agent) + '</span>' + e.etats.map(function (x) { return '<span class="pastille ' + x[1] + '">' + esc(x[0]) + '</span>'; }).join('') + '</span></span>'
+        + '<span class="gestes">' + gestes + '</span></div>';
+    }).join('');
+    el.querySelectorAll('[data-ecarter]').forEach(function (b) {
+      b.addEventListener('click', function () { FILE.avenir.splice(Number(b.getAttribute('data-ecarter')), 1); rendFile(); });
+    });
+  }
+  document.querySelectorAll('.onglet').forEach(function (o) {
+    o.addEventListener('click', function () {
+      vue = o.getAttribute('data-vue');
+      document.querySelectorAll('.onglet').forEach(function (x) { x.setAttribute('aria-selected', String(x === o)); });
+      rendFile();
+    });
+  });
+  document.getElementById('formulaire').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var agent = AGENTS.filter(function (a) { return a.id === s.agent; })[0];
+    var m = MODELES.filter(function (x) { return x.id === s.modele; })[0];
+    var qui = s.dest.map(function (id) { return CLIENTES.filter(function (c) { return c.id === id; })[0].nom; }).join(', ');
+    var h = heureChoisie();
+    var rep = REPETER.filter(function (r) { return r[0] === s.repeter; })[0][1].toLowerCase();
+    var p = pieceChoisie();
+    var etats = s.mode === 'app' ? [['par l’app, sur votre téléphone', 'attend']] : [[s.demander ? 'attend votre oui' : 'programmé', s.demander ? 'attend' : '']];
+    if (p) etats.push([p.type + ' · ' + p.titre, '']);
+    etats.push(['vient d’être programmé', 'ok']);
+    FILE.avenir.unshift({ quand: h.nuit ? h.dit.replace(/· .*$/, '· 8 h 00') : h.dit, sous: rep, qui: qui, quoi: m.nom + ' : « ' + (champMessage.value || '').slice(0, 60) + '… »', agent: s.mode === 'app' ? 'Par l’app' : agent.nom, etats: etats });
+    vue = 'avenir';
+    document.querySelectorAll('.onglet').forEach(function (x) { x.setAttribute('aria-selected', String(x.getAttribute('data-vue') === 'avenir')); });
+    rendFile();
+    document.getElementById('file').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  tout();
+  rendFile();
+
+  /* ── Les choix, enregistrés ── */
+  var DECISIONS = [
+    { id: 'bouton', titre: 'Le bouton « Appel reçu »', pq: 'Dans le menu Créer et en tête de Conversations › Les appels.', options: [
+      ['remplace', '« Programmer un WhatsApp » le remplace ; « Suite à son appel » devient le premier modèle', 'un seul bouton ; noter un appel, c’est programmer le rappel', true],
+      ['cote', 'Les deux boutons, côte à côte', '« Appel reçu » reste tel quel, « Programmer un WhatsApp » s’ajoute'],
+      ['renomme', 'Renommer seulement', 'le même formulaire, sans heure d’envoi'] ] },
+    { id: 'qui', titre: 'Qui envoie', pq: 'L’assistant responsable de l’envoi.', options: [
+      ['sujet', 'L’assistant du sujet, choisi d’office et modifiable : Perle pour les clientes, Grenat pour l’argent', 'par le WhatsApp de la Maison, au serveur, jour et nuit', true],
+      ['perle', 'Toujours Perle', 'un seul nom au journal'],
+      ['porteur', 'L’assistant de qui programme : Opale pour Yéman, Onyx pour Brice', 'par WhatsApp Web sur son ordinateur, qui doit être allumé'] ] },
+    { id: 'fenetre', titre: 'Elle n’a pas écrit depuis 24 h', pq: 'WhatsApp n’accepte alors qu’un modèle approuvé par Meta sur le numéro de la Maison.', options: [
+      ['porte', 'Un modèle d’ouverture approuvé (« la Maison MND a un message pour vous »), puis le message à sa réponse', 'un modèle à faire approuver chez Meta, une fois ; la session le dépose et le suit', true],
+      ['attendre', 'Le message attend qu’elle écrive, et la ligne le dit', 'rien ne part sans qu’elle ait écrit'],
+      ['web', 'Opale l’envoie par WhatsApp Web', 'sans modèle, mais l’ordinateur de Yéman doit être allumé'] ] },
+    { id: 'avant', titre: 'Avant d’envoyer', pq: 'SKEDit propose « Me demander avant ».', options: [
+      ['seul', 'Il part seul ; « Me demander avant » se coche pour un envoi', 'la salle d’attente le montre 10 min avant, comme les autres envois', true],
+      ['toujours', 'Toujours me demander', 'rien ne part sans un toucher'],
+      ['jamais', 'Jamais de question', 'pas de case à cocher'] ] },
+    { id: 'nuit', titre: 'La nuit', pq: 'Les heures calmes de la salle d’attente : de 20 h à 8 h.', options: [
+      ['calme', 'Un message programmé la nuit part à 8 h, sauf « Envoyer quand même la nuit » sur la ligne', 'la règle de tous les envois de la Maison', true],
+      ['exact', 'L’heure exacte, même la nuit', 'comme SKEDit'] ] },
+    { id: 'repeter', titre: 'Répéter', pq: 'Pour un rappel régulier ou un anniversaire.', options: [
+      ['oui', 'Une fois, chaque jour, chaque semaine, chaque mois, chaque année', 'un envoi qui se répète se reprogramme seul', true],
+      ['non', 'Une fois seulement', 'plus simple'] ] },
+    { id: 'appels', titre: 'Les appels déjà notés', pq: 'Ceux qui attendent encore un rappel.', options: [
+      ['convertir', 'Ils deviennent des envois programmés à leur date, à valider d’un toucher', 'rien ne part sans votre oui pour ces anciens appels', true],
+      ['garder', 'Ils restent dans une liste à part, jusqu’à ce qu’ils soient faits', 'les nouveaux seulement passent par les envois programmés'],
+      ['archiver', 'Ils s’archivent', 'on repart de zéro'] ] },
+    { id: 'piece', titre: 'La pièce jointe', pq: 'Une photo, un PDF, un document, avec le message.', options: [
+      ['tout', 'Un fichier de l’appareil, ou une pièce du Trône (sa facture, son reçu, la carte des prix, l’itinéraire jusqu’à la Maison), tirée au moment d’envoyer', 'la facture jointe est celle du jour d’envoi, pas celle du jour où l’on programme ; l’itinéraire est le lien Google Maps de la porte', true],
+      ['fichier', 'Un fichier de l’appareil, et l’itinéraire', 'photo, PDF ou document ; l’itinéraire en plus, sans les pièces du Trône'],
+      ['non', 'Pas de pièce jointe', 'le texte seul'] ] },
+    { id: 'app', titre: 'Envoyer par l’app', pq: 'À l’heure dite, une notification ; un toucher ouvre WhatsApp, le message écrit ; vous appuyez sur Envoyer.', options: [
+      ['choix', 'Un choix à chaque envoi : « Seul, par l’assistant » d’office, « Par l’app » d’un toucher', 'par l’app : pas de règle des 24 h, mais il faut quelqu’un à l’heure dite', true],
+      ['defaut', '« Par l’app » d’office, l’assistant au choix', 'rien ne part sans une main'],
+      ['non', 'Pas d’envoi par l’app', 'tout part seul, par les assistants'] ] },
+    { id: 'plusieurs', titre: 'Plusieurs clientes', pq: 'Un même message pour plusieurs personnes.', options: [
+      ['chacune', 'Un message chacune, à son prénom, chacune sa ligne dans la file', 'jamais de groupe, jamais de numéros visibles entre elles', true],
+      ['une', 'Une seule cliente par envoi', 'plus simple, plus lent'] ] },
+  ];
+  var choix = {};
+  var CLE = 'les-envois-programmes-choix';
+  try { var vu = JSON.parse(localStorage.getItem(CLE) || '{}') || {}; Object.keys(vu).forEach(function (k) { choix[k] = vu[k]; }); } catch (e) { /* sans mémoire */ }
+  var docRef = null, attente = Promise.resolve();
+  function garde() {
+    try { localStorage.setItem(CLE, JSON.stringify(choix)); } catch (e) { /* sans mémoire */ }
+    if (!docRef) return;
+    var corps = {}; Object.keys(choix).forEach(function (k) { if (choix[k]) corps[k] = choix[k]; });
+    corps.enregistre = new Date().toISOString();
+    attente = attente.then(function () { return docRef.set(corps); }).catch(function () { /* hors ligne */ });
+  }
+  function txt(tag, cls, t) { var e = document.createElement(tag); if (cls) e.className = cls; if (t !== undefined) e.textContent = t; return e; }
+  var boite = document.getElementById('decisions');
+  function dessineDecisions() {
+    boite.textContent = '';
+    DECISIONS.forEach(function (d) {
+      var c = txt('div', 'decision' + (choix[d.id] ? ' tranchee' : ''));
+      c.appendChild(txt('h4', '', d.titre));
+      c.appendChild(txt('p', 'pq', d.pq));
+      var g = document.createElement('div'); g.setAttribute('role', 'radiogroup'); g.setAttribute('aria-label', d.titre);
+      d.options.forEach(function (o) {
+        var l = txt('label', 'choix-ligne');
+        var i = document.createElement('input'); i.type = 'radio'; i.name = 'd-' + d.id; i.id = 'd-' + d.id + '-' + o[0]; i.value = o[0]; i.checked = choix[d.id] === o[0];
+        i.addEventListener('change', function () { choix[d.id] = o[0]; garde(); dessineDecisions(); });
+        var sp = document.createElement('span');
+        sp.appendChild(document.createTextNode(o[1]));
+        if (o[3]) sp.appendChild(txt('em', '', 'ma proposition'));
+        sp.appendChild(txt('small', '', o[2]));
+        l.appendChild(i); l.appendChild(sp); g.appendChild(l);
+      });
+      c.appendChild(g);
+      c.appendChild(txt('span', 'etat-d', choix[d.id] ? 'Choix enregistré.' : ''));
+      boite.appendChild(c);
+    });
+    var k = DECISIONS.filter(function (d) { return choix[d.id]; }).length;
+    document.getElementById('compte-decisions').textContent = k + ' sur ' + DECISIONS.length + ' tranchées';
+    document.getElementById('barre-decisions').style.width = Math.round((k / DECISIONS.length) * 100) + '%';
+  }
+  var note = document.getElementById('d-note');
+  if (choix.note) note.value = choix.note;
+  var minuterie = null;
+  note.addEventListener('input', function () { clearTimeout(minuterie); minuterie = setTimeout(function () { choix.note = note.value.trim(); garde(); document.getElementById('d-note-etat').textContent = 'Mot enregistré.'; }, 600); });
+  dessineDecisions();
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('db').then(function (db) {
+      if (!db) return;
+      docRef = db.doc('maquette/les-envois-programmes');
+      return docRef.get().then(function (snap) {
+        if (!snap || !snap.exists) return;
+        var v = snap.data() || {};
+        Object.keys(v).forEach(function (k) { if (k !== 'enregistre' && typeof v[k] === 'string') choix[k] = v[k]; });
+        if (choix.note) note.value = choix.note;
+        dessineDecisions();
+      });
+    }).catch(function () { /* sans base : les choix restent sur cet appareil */ });
+  }
+})();
+</script>

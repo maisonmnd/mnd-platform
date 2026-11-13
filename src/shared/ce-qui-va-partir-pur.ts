@@ -193,6 +193,8 @@ export const GENRES_PREVUS: Record<string, GenrePrevu> = {
   /* Le lot 4 de l'abonnement refait (8 novembre 2026), déclaré d'avance. */
   'veille-attention': { dit: 'Rappel de la veille · l’attention', modele: 'rappel_rdv_attention', sorte: 'rdv', raison: (l) => `${sonRdv(l).replace(/\.$/, '')} ; une attention l’y attend.` },
   'apres-seance': { dit: 'Après la séance · prochaine séance', modele: 'prochaine_seance', sorte: 'avis', raison: (l) => `${saSeance(l).replace(/\.$/, '')} ; sa prochaine séance proposée.` },
+  /* « Programmer un WhatsApp » (13 novembre 2026) : écrit au Trône, à son heure exacte. */
+  programme: { dit: 'Envoi programmé', sorte: 'autre', raison: () => 'Programmé au Trône, à son heure.' },
 };
 /** Le genre d'une ligne : déclaré, ou dit par son nom technique. */
 export function genrePrevu(type: unknown): GenrePrevu {

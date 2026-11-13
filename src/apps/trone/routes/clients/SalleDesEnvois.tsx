@@ -31,6 +31,7 @@ import {
   EN_ATTENTE, RETENU, reglesDepuis, retiens, relache, envoieMaintenant, ecarte,
   quandIlPart, facteurVivant, heureDuSalon, recolleLeColis, type ReglesDeLaSalle,
 } from '../../../../shared/salle-des-envois';
+import { programmeDansLaSalle } from '../../../../shared/envois-programmes-pur';
 import { envoisStore, useEnvois, useAutoConfig, type Envoi } from '../equipe/data';
 
 type Geste = 'retenir' | 'relacher' | 'envoyer' | 'ecarter';
@@ -160,7 +161,8 @@ export function SalleDesEnvois() {
   const ficheDe = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
   const enSalle = useMemo(
     () => envois
-      .filter((e): e is Envoi => !!e && (!e.branchId || e.branchId === branch.id) && (e.statut === EN_ATTENTE || e.statut === RETENU))
+      /* Un envoi programmé y paraît dans l'heure qui vient (13 novembre 2026) : la file des envois programmés les montre tous. */
+      .filter((e): e is Envoi => !!e && (!e.branchId || e.branchId === branch.id) && (e.statut === EN_ATTENTE || e.statut === RETENU) && programmeDansLaSalle(e, Date.now()))
       .sort((a, b) => (a.statut === b.statut ? (a.partA ?? '').localeCompare(b.partA ?? '') : a.statut === EN_ATTENTE ? -1 : 1)),
     [envois, branch.id],
   );

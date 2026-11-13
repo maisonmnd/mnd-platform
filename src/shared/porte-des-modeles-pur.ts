@@ -73,7 +73,9 @@ export const PAR_QUI_DES_CAMPAGNES: readonly string[] = ['Le Trône · campagne'
 export type FamilleDeModele =
   | 'rappel-j1' | 'confirmation' | 'reprise-j3' | 'point-apres' | 'point-avant' | 'avis-google'
   | 'rappel-echeance' | 'prix-revu' | 'relance-facture' | 'fete-de-couronne' | 'fin-de-paquet'
-  | 'merci-marraine' | 'perle-garder' | 'perle-avant' | 'perle' | 'campagne';
+  | 'merci-marraine' | 'perle-garder' | 'perle-avant' | 'perle' | 'campagne'
+  /* Le modèle d'ouverture d'un envoi programmé (13 novembre 2026). */
+  | 'ouverture';
 
 export type EntreeDuRegistre = {
   famille: FamilleDeModele;
@@ -207,6 +209,17 @@ export const REGISTRE_DES_MODELES: readonly EntreeDuRegistre[] = [
     quand: 'À l’heure dite par la campagne, après le feu vert.',
     appel: 1, rdv: false, rappel: false, unParTete: true, porte: 'jamais-deux-fois',
   },
+  /* LES ENVOIS PROGRAMMÉS (13 novembre 2026) : elle n'a pas écrit depuis 24 h,
+     le modèle d'ouverture part d'abord, le message programmé à sa réponse.
+     Seul ce modèle passe la porte : le message lui-même est écrit par
+     l'équipe, comme un envoi de Conversations. */
+  {
+    famille: 'ouverture', type: 'programme', modeles: ['un_message_pour_vous'], secrets: ['WA_TEMPLATE_OUVERTURE'],
+    depose: 'le Trône (Programmer un WhatsApp), porté par envois-partent',
+    pourQuoi: 'Le modèle d’ouverture d’un envoi programmé : « Bonjour {{1}}, la Maison MND a un message pour vous. » {{1}} l’appel ; le message programmé part à sa réponse.',
+    quand: 'À l’heure dite d’un envoi programmé, quand elle n’a pas écrit depuis 24 h ; un seul par numéro tant qu’il attend sa réponse.',
+    appel: 1, rdv: false, rappel: false, unParTete: true, porte: 'toutes',
+  },
 ];
 
 /** CE QUI NE PASSE PAS PAR LA PORTE, dit honnêtement : ces envois partent
@@ -217,6 +230,7 @@ export const SORTIES_HORS_DE_LA_PORTE: readonly { qui: string; quoi: string }[] 
   { qui: 'demande-submit', quoi: 'l’accusé et la confirmation d’une réservation du site, tout de suite' },
   { qui: 'whatsapp-automate, whatsapp-webhook', quoi: 'les réponses dans une conversation ouverte' },
   { qui: 'le Trône', quoi: 'les envois de l’équipe (composer, tournée du matin, « à la main ») : jamais jugés' },
+  { qui: 'envois-partent (les envois programmés)', quoi: 'le message programmé lui-même, fenêtre ouverte ou à sa réponse : un texte écrit par l’équipe, jamais jugé ; seul son modèle d’ouverture passe la porte' },
   { qui: 'cloture-du-jour (Grenat)', quoi: 'le papier d’une pièce : il passe par la salle, gardé par la marque de la pièce et sa clé au serveur (une pièce, un seul WhatsApp), pas par la porte' },
 ];
 

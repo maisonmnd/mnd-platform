@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, CalendarPlus, ClipboardList, FileText, Gift, Link2, PhoneIncoming, Plus, ReceiptText, Repeat, UserRound, Wallet, type LucideIcon } from 'lucide-react';
+import { BookOpen, CalendarClock, CalendarPlus, ClipboardList, FileText, Gift, Link2, Plus, ReceiptText, Repeat, UserRound, Wallet, type LucideIcon } from 'lucide-react';
 import { peutVoir } from '../routes/index';
 import { staffAccessStore } from '../routes/equipe/data';
 import { useStore } from '../../../shared/store';
@@ -9,14 +9,14 @@ import { useStaff } from '../../../shared/auth';
 import './menu-creer.css';
 
 /* ══ LE BOUTON « + CRÉER » — 10 novembre 2026 ══════════════════════════
-   Un seul bouton pour tout créer : rendez-vous, cliente, appel reçu, facture,
+   Un seul bouton pour tout créer : rendez-vous, cliente, WhatsApp programmé, facture,
    devis, encaisser, dépense, carte cadeau, abonnement, prestation. Il remplace
    les trois boutons « + Dépense », « + RDV » et « + Encaisser » éparpillés dans
    la barre du haut.
 
    LES ACCÈS SONT RESPECTÉS, ligne par ligne : chaque entrée qui ouvre un écran
-   passe par `peutVoir` — le même juge que la barre latérale. Rendez-vous, appel
-   reçu et encaisser restent toujours proposés, comme l'étaient les anciens
+   passe par `peutVoir` — le même juge que la barre latérale. Rendez-vous,
+   WhatsApp programmé et encaisser restent toujours proposés, comme l'étaient les anciens
    boutons (la garde d'écran et la RLS les protègent ensuite).
 
    LE LIEN DE RÉSERVATION (12 novembre 2026) : en tête de Clientèle, pour
@@ -34,9 +34,10 @@ import './menu-creer.css';
 
 type Entree = { id: string; label: string; sub: string; Icon: LucideIcon; act: () => void; ou?: string };
 
-export default function MenuCreer({ onRendezVous, onAppelRecu, onLiens }: {
+export default function MenuCreer({ onRendezVous, onProgrammer, onLiens }: {
   onRendezVous: () => void;
-  onAppelRecu: () => void;
+  /** « Programmer un WhatsApp » (13 novembre 2026) : il remplace « Appel reçu ». */
+  onProgrammer: () => void;
   onLiens: () => void;
 }) {
   const navigate = useNavigate();
@@ -67,7 +68,9 @@ export default function MenuCreer({ onRendezVous, onAppelRecu, onLiens }: {
         { id: 'liens', label: 'Lien de réservation', sub: 'réserver, ou venir au salon', Icon: Link2, act: onLiens },
         { id: 'rdv', label: 'Rendez-vous', sub: 'poser une venue au Carnet', Icon: CalendarPlus, act: onRendezVous },
         { id: 'cliente', label: 'Cliente', sub: 'une nouvelle fiche', Icon: UserRound, act: () => navigate('/customers?nouvelle=1'), ou: '/customers' },
-        { id: 'appel', label: 'Appel reçu', sub: 'noter un appel WhatsApp', Icon: PhoneIncoming, act: onAppelRecu },
+        /* PROGRAMMER UN WHATSAPP (13 novembre 2026, maquette validée) : il remplace
+           « Appel reçu » ; « Suite à son appel » est son premier modèle. */
+        { id: 'programmer', label: 'Programmer un WhatsApp', sub: 'écrire maintenant, envoyer à l’heure dite', Icon: CalendarClock, act: onProgrammer },
       ],
     },
     {

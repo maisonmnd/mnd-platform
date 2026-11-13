@@ -96,9 +96,10 @@ const DEJA_JOURNAL = 'déjà parti : le même message est au journal depuis moin
 
 /* ══ 1. Le registre, lu dans le code qui depose ══ */
 {
-  dit('seize familles de modeles automatiques, chacune une fois',
+  /* Dix-sept depuis le 13 novembre 2026 : le modèle d'ouverture des envois programmés. */
+  dit('dix-sept familles de modeles automatiques, chacune une fois',
     ['rappel-j1', 'confirmation', 'reprise-j3', 'point-apres', 'point-avant', 'avis-google', 'rappel-echeance', 'prix-revu', 'relance-facture',
-      'fete-de-couronne', 'fin-de-paquet', 'merci-marraine', 'perle-garder', 'perle-avant', 'perle', 'campagne'],
+      'fete-de-couronne', 'fin-de-paquet', 'merci-marraine', 'perle-garder', 'perle-avant', 'perle', 'campagne', 'ouverture'],
     REGISTRE_DES_MODELES.map((e) => e.famille));
   dit('chacune dit a quoi elle sert et quand elle part, et l appel au {{1}}', [],
     REGISTRE_DES_MODELES.filter((e) => e.pourQuoi.length < 30 || e.quand.length < 15 || e.appel !== 1).map((e) => e.famille));
@@ -118,6 +119,8 @@ const DEJA_JOURNAL = 'déjà parti : le même message est au journal depuis moin
     'avis-google': 'supabase/functions/avis-google/index.ts', 'rappel-echeance': 'supabase/functions/rappels-d-echeance/index.ts',
     'prix-revu': 'supabase/functions/rappels-d-echeance/index.ts', 'relance-facture': 'supabase/functions/relances-factures/index.ts',
     'fete-de-couronne': 'supabase/functions/fete-de-couronne/index.ts',
+    /* Le modèle d'ouverture (13 novembre 2026) : le Trône dépose, le facteur lit le secret. */
+    ouverture: EP,
   };
   dit('chaque secret du registre est lu par la fonction qui depose', [],
     REGISTRE_DES_MODELES.flatMap((e) => e.secrets.filter((s) => !source(parFonction[e.famille] ?? PUR).includes(`Deno.env.get('${s}')`)).map((s) => `${e.famille}:${s}`)));
