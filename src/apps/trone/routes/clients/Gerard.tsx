@@ -470,6 +470,13 @@ export default function Gerard() {
           );
         })}
       </div>
+      {/* LES ENVOIS PROGRAMMÉS (13 novembre 2026) : « Conversations » de la barre
+          mène ici, et la file des envois programmés vivait seulement sous la
+          barre WhatsApp · Le chat du site (#/appels) : Yéman ne la trouvait pas
+          pour envoyer « par l'app ». Un lien, hors des onglets de Perle. */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '6px 0 0' }}>
+        <Link to="/appels" className="tre-link-btn" style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5 }}>Les envois programmés →</Link>
+      </div>
 
       <div className="trc-am__vue" role="tabpanel" id={`am-vue-${vue}`} aria-labelledby={`am-ong-${vue}`}>
         {vue === 'conversations' && <LesConversations {...propsDesVues} />}
