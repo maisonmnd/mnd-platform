@@ -410,7 +410,7 @@ async function vraisOutils() {
 const structure = () => {
   const brut = lis(FONCTION);
   const f = sansCommentaires(brut);
-  dit('la fonction dit sa version et répond 405 à un GET avec elle', [true, true], [/const VERSION = '2026-11-01-a';/.test(f), /if \(req\.method !== 'POST'\) return json\(\{ error: 'method', version: VERSION \}, 405\);/.test(f)]);
+  dit('la fonction dit sa version et répond 405 à un GET avec elle', [true, true], [/const VERSION = '2026-11-13-a';/.test(f), /if \(req\.method !== 'POST'\) return json\(\{ error: 'method', version: VERSION \}, 405\);/.test(f)]);
   dit('l en-tête dit Verify JWT ALLUMÉ, et les secrets qui existent déjà', [true, true, true], [/Verify JWT ALLUMÉ/.test(brut), /ANTHROPIC_API_KEY et CLE_SERVICE/.test(brut), /aucun secret nouveau/.test(brut)]);
   dit('la porte lit la personne du jeton, puis sa ligne staff (rôle)', [true, true],
     [/await admin\.auth\.getUser\(jwt\)/.test(f), /from\('staff'\)\.select\('user_id, role'\)\.eq\('user_id', uid\)\.maybeSingle\(\)/.test(f)]);

@@ -756,7 +756,11 @@
 .trv-doc__verse { font-family: var(--font-serif); font-style: italic; font-size: 19px; line-height: 1.5; color: var(--copper-700); white-space: pre-line; margin: 14px 0 4px; max-width: 330px; }
 .trv-doc__sep { text-align: center; font-family: var(--font-sans); font-size: 11px; letter-spacing: 0.3em; color: var(--color-argile); margin: 22px 0; }
 .trv-doc__passage { font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft); }
-.trv-doc__item { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--hairline); }
+.trv-doc__item { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 0; gap: 18px; border-bottom: 1px solid var(--hairline); }
+/* LE PRIX NE SE COLLE JAMAIS AU NOM — 13 novembre 2026. Le nom long d'une prestation (« ÀLÀLÀ™ · Repose partielle et reconstruction complète ») passait à la ligne et son prix se serrait contre le dernier mot, illisible. Le nom prend la place qui reste, le prix garde la sienne et ne se coupe pas. */
+.trv-doc__item > div:first-child { flex: 1 1 auto; min-width: 0; }
+.trv-doc__item .amt { white-space: nowrap; }
+.trv-doc__item > div:last-child { min-width: 92px; }
 .trv-doc__item .lbl { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); }
 .trv-doc__item .temps { font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--copper-600); margin-top: 3px; }
 .trv-doc__item .amt { font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); }
@@ -1625,3 +1629,71 @@
    jour, qui vit dans Finances › La journée. */
 .trv-lien-journee { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px 18px; margin: -6px 0 14px; }
 .trv-lien-journee .trv-linkbtn { font-size: 12px; }
+
+/* ---------- Onglets Devis / Factures : le compte à côté du nom ---------- */
+.trv-tab__n {
+  margin-left: 6px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.trv-tab.is-active .trv-tab__n { color: var(--copper-700); }
+
+/* ---------- L'assistant des devis (13 novembre 2026) ----------
+   Un cadre calme au-dessus du registre des devis : on décrit, il propose, on relit.
+   Le cuivre reste un accent (filet, bouton), jamais le texte courant. */
+.trv-assistant {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-left: 2px solid var(--color-copper);
+  border-radius: 3px;
+  padding: 18px 20px 20px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.trv-assistant--muet { opacity: 0.8; }
+.trv-assistant__titre {
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--color-indigo);
+}
+.trv-assistant__titre svg { color: var(--color-copper); }
+.trv-assistant__aide { margin: 0; font-family: var(--font-sans); font-size: 12px; line-height: 1.55; color: var(--ink-soft); max-width: 62ch; }
+.trv-assistant__cliente { max-width: 420px; }
+.trv-assistant__champ { position: relative; }
+.trv-assistant__texte { width: 100%; resize: vertical; min-height: 96px; font-size: 13px; line-height: 1.55; padding-right: 44px; }
+.trv-assistant__micro {
+  position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 3px;
+  border: 1px solid var(--hairline); background: var(--surface-card); color: var(--color-indigo); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; transition: var(--transition-base);
+}
+.trv-assistant__micro:hover { background: var(--hover-veil); }
+.trv-assistant__micro.is-actif { background: var(--color-indigo); color: var(--color-ivoire); border-color: var(--color-indigo); }
+.trv-assistant__actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.trv-assistant__mot { font-family: var(--font-sans); font-size: 12px; color: var(--ink-soft); }
+.trv-assistant__sous-titre { font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); }
+.trv-assistant__resultat { display: flex; flex-direction: column; gap: 12px; }
+.trv-assistant__lignes { list-style: none; margin: 0; padding: 0; }
+.trv-assistant__lignes li {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 18px;
+  padding: 9px 0; border-bottom: 1px solid var(--hairline);
+}
+.trv-assistant__ligne-nom { font-family: var(--font-serif); font-size: 16px; color: var(--color-indigo); min-width: 0; flex: 1 1 auto; }
+.trv-assistant__ligne-nom em { font-family: var(--font-sans); font-style: normal; font-size: 11px; color: var(--ink-soft); }
+.trv-assistant__ligne-nom small { display: block; margin-top: 2px; font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft); }
+.trv-assistant__ligne-prix { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); white-space: nowrap; }
+.trv-assistant__totaux { margin: 0; display: flex; flex-direction: column; gap: 4px; max-width: 360px; align-self: flex-end; width: 100%; }
+.trv-assistant__totaux > div { display: flex; justify-content: space-between; font-family: var(--font-sans); font-size: 12.5px; color: var(--ink-soft); }
+.trv-assistant__totaux dt, .trv-assistant__totaux dd { margin: 0; }
+.trv-assistant__total { color: var(--color-indigo) !important; font-family: var(--font-serif) !important; font-size: 24px !important; font-weight: var(--weight-light); }
+.trv-assistant__avertissements {
+  margin: 0; padding: 10px 14px 10px 28px; border-radius: 3px;
+  background: var(--color-sable); font-family: var(--font-sans); font-size: 12px; line-height: 1.55; color: var(--ink);
+}
+@media (max-width: 720px) {
+  .trv-assistant { padding: 14px 14px 16px; }
+  .trv-assistant__totaux { max-width: none; }
+}

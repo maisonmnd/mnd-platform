@@ -23,6 +23,7 @@ import { retirerPourboiresDesFactures, repointerPourboires } from '../../../../s
 import { adresseDe, lienPaiementMomo } from '../equipe/data';
 import { LienMndPay } from './LienMndPay';
 import { BlocRelances } from './BlocRelances';
+import AssistantDuDevis, { type BrouillonDuDevis } from './AssistantDuDevis';
 import { fmtDateFr, useLaPieceEnPdf, detailPorte } from './pdf-de-la-piece';
 import { BoutonDuPoint, FenetreDuPoint } from './FenetreDuPoint';
 import { filStore, nouveauMessage } from '../../../../shared/fil';
@@ -155,6 +156,16 @@ export default function Factures() {
   const [methods] = usePaymentMethods();
 
   const [statusFilter, setStatusFilter] = useState<'tous' | Invoice['status']>('tous');
+  /* LES DEVIS ET LES FACTURES NE SE MÉLANGENT PLUS — 13 novembre 2026. Deux
+     onglets, chacun son registre, ses statuts et ses boutons : « Tout est
+     mélangé » (Yéman). L'onglet se lit dans l'adresse (`?onglet=devis`) pour
+     qu'un lien ou un rechargement retombe sur le bon registre. */
+  type Onglet = 'factures' | 'devis';
+  const [onglet, setOnglet] = useState<Onglet>(() => {
+    const p = new URLSearchParams(window.location.hash.split('?')[1] ?? '');
+    return p.get('onglet') === 'devis' || p.get('nouveau') === 'devis' ? 'devis' : 'factures';
+  });
+  const changeOnglet = (o: Onglet) => { setOnglet(o); setStatusFilter('tous'); };
   /* Le mois choisi, ou « tous ». Il coupe le registre avant le rangement :
      choisir août ne laisse qu'août, et le total en tête devient celui d'août. */
   const [moisFilter, setMoisFilter] = useState('tous');
@@ -261,15 +272,26 @@ export default function Factures() {
       const c = clients.find((x) => x.id === d.clientId);
       return [d.number, c?.name, d.clientName, c?.phone].some((v) => fold(v).includes(needle));
     });
-  /* Les factures d'abord, les devis en dessous — deux registres, une seule feuille. */
+  /* Deux registres, deux onglets : on ne montre que celui qu'on a ouvert. */
   const factures = filtered.filter((d) => d.kind === 'facture');
   const devis = filtered.filter((d) => d.kind === 'devis');
+  const nbFactures = branchDocs.filter((d) => d.kind === 'facture').length;
+  const nbDevis = branchDocs.filter((d) => d.kind === 'devis').length;
+  /* Les statuts de chaque registre : un devis n'est jamais « payé », une facture jamais « acceptée ». */
+  const statutsDeLOnglet: Invoice['status'][] = onglet === 'devis' ? ['brouillon', 'envoyée', 'acceptée'] : ['brouillon', 'envoyée', 'payée'];
 
   /* AUCUN document par défaut : on arrive sur le registre nu. Un repli sur la
      première facture affichait un document que personne n'avait demandé, et
      poussait la liste vers le bas dès l'ouverture de l'écran. Un document ne
      s'ouvre que sur un geste — un clic, ou une arrivée par `?id=`. */
   const selected = selectedId ? branchDocs.find((d) => d.id === selectedId) ?? null : null;
+  /* Une pièce ouverte (`?id=`, la recherche globale, un devis converti en
+     facture) amène son onglet avec elle : on ne la cherche pas dans l'autre registre. */
+  useEffect(() => {
+    if (!selected) return;
+    const voulu: Onglet = selected.kind === 'devis' ? 'devis' : 'factures';
+    setOnglet((o) => (o === voulu ? o : voulu));
+  }, [selected?.id, selected?.kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Document affiché dans l’aperçu vivant : le brouillon en cours d’édition, sinon la sélection. */
   const active = editing ? editing.draft : selected;
@@ -699,6 +721,7 @@ export default function Factures() {
 
   /* Ouvre l’éditeur — mode création (document neuf, non enregistré). */
   const openNew = (kind: Invoice['kind']) => {
+    setOnglet(kind === 'devis' ? 'devis' : 'factures');
     setEditing({ mode: 'new', draft: blankDraft(kind) });
     setStatusFilter('tous');
     setQ('');
@@ -713,6 +736,28 @@ export default function Factures() {
     revealDetail();
   };
   const cancelEdit = () => setEditing(null);
+
+  /* LE BROUILLON DE L'ASSISTANT S'OUVRE DANS L'ÉDITEUR, jamais ailleurs : un
+     devis n'existe qu'une fois « Créer le document » pressé, après relecture.
+     Les locks comptés se lisent sous la ligne (« 100 locks »), sans prix. */
+  const ouvrirLeBrouillonDuDevis = ({ clientId, propose }: BrouillonDuDevis) => {
+    setOnglet('devis');
+    setStatusFilter('tous');
+    setQ('');
+    setEditing({
+      mode: 'new',
+      draft: {
+        ...blankDraft('devis'),
+        clientId,
+        lines: propose.lignes.map((l) => ({
+          ...ligneFacture(l.label, l.unitXof, l.qty),
+          ...(l.locks > 0 ? { detail: [`${l.locks} locks`] } : {}),
+        })),
+        globalDiscountXof: propose.remiseXof > 0 ? propose.remiseXof : undefined,
+      },
+    });
+    revealDetail();
+  };
 
   /* « CRÉER » VENU DE LA BARRE — 10 novembre 2026. Le bouton « + Créer » de la
      barre envoie ici avec `?nouveau=facture` ou `?nouveau=devis` : l'éditeur neuf
@@ -1149,12 +1194,32 @@ export default function Factures() {
         eyebrow="Vente · documents de marque"
         title="Factures & devis."
         actions={
-          <>
-            <Button variant="ghost" onClick={() => openNew('devis')}>+ Devis</Button>
-            <Button onClick={() => openNew('facture')}>+ Nouvelle facture</Button>
-          </>
+          onglet === 'devis' ? (
+            <>
+              <Button variant="ghost" onClick={() => openNew('facture')}>+ Nouvelle facture</Button>
+              <Button onClick={() => openNew('devis')}>+ Nouveau devis</Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => openNew('devis')}>+ Devis</Button>
+              <Button onClick={() => openNew('facture')}>+ Nouvelle facture</Button>
+            </>
+          )
         }
       />
+
+      {/* ===== Deux registres, deux onglets ===== */}
+      <div className="trv-tabs" role="tablist" aria-label="Devis et factures">
+        <button role="tab" aria-selected={onglet === 'devis'} className={`trv-tab ${onglet === 'devis' ? 'is-active' : ''}`} onClick={() => changeOnglet('devis')}>
+          Devis <span className="trv-tab__n">{nbDevis}</span>
+        </button>
+        <button role="tab" aria-selected={onglet === 'factures'} className={`trv-tab ${onglet === 'factures' ? 'is-active' : ''}`} onClick={() => changeOnglet('factures')}>
+          Factures <span className="trv-tab__n">{nbFactures}</span>
+        </button>
+      </div>
+
+      {/* ===== L'assistant des devis : on décrit, il propose, on relit ===== */}
+      {onglet === 'devis' && !editing && <AssistantDuDevis onOuvrir={ouvrirLeBrouillonDuDevis} />}
 
       {/* ===== Chercher une cliente ===== */}
       <div className="trv-search">
@@ -1191,10 +1256,9 @@ export default function Factures() {
         </Select>
         <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} style={{ fontSize: 12, maxWidth: 200 }}>
           <option value="tous">Tous les statuts</option>
-          <option value="brouillon">Brouillon</option>
-          <option value="envoyée">Envoyée</option>
-          <option value="payée">Payée</option>
-          <option value="acceptée">Acceptée</option>
+          {statutsDeLOnglet.map((s) => (
+            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+          ))}
         </Select>
       </div>
 
@@ -2149,17 +2213,23 @@ export default function Factures() {
           <span style={{ textAlign: 'right' }}>Statut</span>
         </div>
 
-        <div className="trc-sheet__group">Factures ({factures.length})</div>
-        {factures.length === 0 && (
-          <div className="trc-empty">{q || statusFilter !== 'tous' ? 'Aucune facture pour cette recherche.' : 'Aucune facture, la maison attend son premier encaissement.'}</div>
+        {onglet === 'factures' ? (
+          <>
+            <div className="trc-sheet__group">Factures ({factures.length})</div>
+            {factures.length === 0 && (
+              <div className="trc-empty">{q || statusFilter !== 'tous' ? 'Aucune facture pour cette recherche.' : 'Aucune facture, la maison attend son premier encaissement.'}</div>
+            )}
+            {renderParMois(factures)}
+          </>
+        ) : (
+          <>
+            <div className="trc-sheet__group">Devis ({devis.length})</div>
+            {devis.length === 0 && (
+              <div className="trc-empty">{q || statusFilter !== 'tous' ? 'Aucun devis pour cette recherche.' : 'Aucun devis en attente. Décrivez une situation à l’assistant ci-dessus, ou écrivez-le à la main.'}</div>
+            )}
+            {renderParMois(devis, false)}
+          </>
         )}
-        {renderParMois(factures)}
-
-        <div className="trc-sheet__group">Devis ({devis.length})</div>
-        {devis.length === 0 && (
-          <div className="trc-empty">{q || statusFilter !== 'tous' ? 'Aucun devis pour cette recherche.' : 'Aucun devis en attente.'}</div>
-        )}
-        {renderParMois(devis, false)}
       </div>
 
       {/* LA MODALE DU CARNET, OUVERTE DEPUIS LA PIÈCE. Même composant, mêmes
