@@ -3,6 +3,8 @@ import { supabase } from '../../shared/supabase';
 import { asset } from '../../shared/asset';
 import { fmtMoney } from '../../shared/currency';
 import { DEVISE_COMPLETE } from '../../shared/identite';
+import { TexteFon } from '../../ds/fon';
+import { t } from './i18n';
 import {
   AVANT_L_ENTREE_MIN, COMPTE_A_REBOURS_S, DUREE_MIN, SUITES,
   anneauAllume, attenteDite, creneauDit, ecouleDit, lectureDite, minutesSecondes, phaseDe, resteS, resumeSur, suiteRetenue,
@@ -101,12 +103,12 @@ export default function SalleDeVisio({ id, jeton }: { id: string; jeton: string 
       const r = await appelle({ geste: 'entrer', id, jeton });
       recale(r);
       if (r.ok && typeof r.url === 'string') setEntree(r.url);
-      else if (r.motif === 'trop-tot') setMot(`La salle s’ouvre ${AVANT_L_ENTREE_MIN} minutes avant votre créneau.`);
+      else if (r.motif === 'trop-tot') setMot(t('La salle s’ouvre {n} minutes avant votre créneau.', { n: AVANT_L_ENTREE_MIN }));
       else if (r.motif === 'fermee') { setMot(null); void litLEtat(); }
       else if (r.motif === 'annulee') void litLEtat();
-      else setMot('La salle ne s’ouvre pas pour l’instant. Écrivez à la Maison sur WhatsApp : elle vous répond.');
+      else setMot(t('La salle ne s’ouvre pas pour l’instant. Écrivez à la Maison sur WhatsApp : elle vous répond.'));
     } catch {
-      setMot('La salle ne répond pas. Vérifiez votre connexion, puis réessayez.');
+      setMot(t('La salle ne répond pas. Vérifiez votre connexion, puis réessayez.'));
     } finally {
       setEntre(false);
     }
@@ -116,30 +118,30 @@ export default function SalleDeVisio({ id, jeton }: { id: string; jeton: string 
     try {
       const r = await appelle({ geste: 'annuler', id, jeton });
       if (r.ok) void litLEtat();
-      else setMot('Il est trop tard pour annuler en ligne. Écrivez à la Maison.');
+      else setMot(t('Il est trop tard pour annuler en ligne. Écrivez à la Maison.'));
     } catch {
-      setMot('L’annulation n’a pas abouti. Réessayez, ou écrivez à la Maison.');
+      setMot(t('L’annulation n’a pas abouti. Réessayez, ou écrivez à la Maison.'));
     } finally {
       setAnnuler(false);
     }
   };
 
-  const pied = <p className="mv-devise">{DEVISE_COMPLETE}</p>;
+  const pied = <p className="mv-devise"><TexteFon texte={DEVISE_COMPLETE} penche /></p>;
   const sceau = <img className="mv-sceau" src={asset('/assets/monograms/mono-copper.png')} alt="" />;
 
   if (inconnue) {
     return (
       <main className="mv-page"><section className="mv-carte">{sceau}
-        <h1 className="mv-titre">Ce lien de visio n’est pas reconnu.</h1>
-        <p className="mv-texte">Vérifiez qu’il est complet, tel que la Maison vous l’a donné. Sinon, écrivez-nous sur WhatsApp.</p>
-        <a className="mv-bouton mv-bouton--lien" href="/couronne/">Ouvrir Ma Couronne</a>
+        <h1 className="mv-titre">{t('Ce lien de visio n’est pas reconnu.')}</h1>
+        <p className="mv-texte">{t('Vérifiez qu’il est complet, tel que la Maison vous l’a donné. Sinon, écrivez-nous sur WhatsApp.')}</p>
+        <a className="mv-bouton mv-bouton--lien" href="/couronne/">{t('Ouvrir Ma Couronne')}</a>
       </section>{pied}</main>
     );
   }
   if (!etat) {
     return (
       <main className="mv-page"><section className="mv-carte">{sceau}
-        <p className="mv-texte">{panne ? 'La salle ne répond pas pour l’instant. Rechargez la page dans un moment.' : 'Votre visio se prépare…'}</p>
+        <p className="mv-texte">{panne ? t('La salle ne répond pas pour l’instant. Rechargez la page dans un moment.') : t('Votre visio se prépare…')}</p>
       </section>{pied}</main>
     );
   }
@@ -148,10 +150,10 @@ export default function SalleDeVisio({ id, jeton }: { id: string; jeton: string 
   if (etat.statut === 'annulée') {
     return (
       <main className="mv-page"><section className="mv-carte">{sceau}
-        <p className="mv-sur">Visio · {creneauDit(etat.debut)}</p>
-        <h1 className="mv-titre">Cette visio est annulée.</h1>
-        <p className="mv-texte">Vous pouvez en réserver une autre depuis votre consultation, ou écrire à la Maison.</p>
-        <a className="mv-bouton" href="/consultation/">Ma consultation</a>
+        <p className="mv-sur">{t('Visio')} · {creneauDit(etat.debut)}</p>
+        <h1 className="mv-titre">{t('Cette visio est annulée.')}</h1>
+        <p className="mv-texte">{t('Vous pouvez en réserver une autre depuis votre consultation, ou écrire à la Maison.')}</p>
+        <a className="mv-bouton" href="/consultation/">{t('Ma consultation')}</a>
       </section>{pied}</main>
     );
   }
@@ -163,26 +165,26 @@ export default function SalleDeVisio({ id, jeton }: { id: string; jeton: string 
     const privee = suite === 'privee';
     return (
       <main className="mv-page"><section className="mv-carte mv-fin">
-        <p className="mv-sur">{minutesSecondes(DUREE_MIN * 60)} · la visio est terminée</p>
-        <h1 className="mv-titre">Merci{etat.prenom ? `, ${etat.prenom}` : ''}.</h1>
+        <p className="mv-sur">{minutesSecondes(DUREE_MIN * 60)} · {t('la visio est terminée')}</p>
+        <h1 className="mv-titre">{etat.prenom ? t('Merci, {prenom}.', { prenom: etat.prenom }) : t('Merci.')}</h1>
         {r ? (
           <dl className="mv-resume">
-            {lectureDite(r) && <><dt>Lecture confirmée</dt><dd>{lectureDite(r)}</dd></>}
-            {r.estimationXof && <><dt>Estimation ajustée</dt><dd>{fmtMoney(r.estimationXof, 'XOF')}</dd></>}
-            {suite && <><dt>La suite</dt><dd>{SUITES.find((s) => s.id === suite)?.pourElle}</dd></>}
-            {r.mot && <><dt>Le mot de la Maison</dt><dd>{r.mot}</dd></>}
+            {lectureDite(r) && <><dt>{t('Lecture confirmée')}</dt><dd>{lectureDite(r)}</dd></>}
+            {r.estimationXof && <><dt>{t('Estimation ajustée')}</dt><dd>{fmtMoney(r.estimationXof, 'XOF')}</dd></>}
+            {suite && <><dt>{t('La suite')}</dt><dd>{SUITES.find((s) => s.id === suite)?.pourElle}</dd></>}
+            {r.mot && <><dt>{t('Le mot de la Maison')}</dt><dd>{r.mot}</dd></>}
           </dl>
         ) : (
-          <p className="mv-texte">La salle est fermée. La Maison écrit votre résumé : il paraît ici dans quelques minutes, et elle vous l’envoie sur WhatsApp.</p>
+          <p className="mv-texte">{t('La salle est fermée. La Maison écrit votre résumé : il paraît ici dans quelques minutes, et elle vous l’envoie sur WhatsApp.')}</p>
         )}
         <div className="mv-rangee">
           {(privee || !r) && (
             <a className="mv-bouton" href={`/consultation/${etat.consultationId ? `?privee=${encodeURIComponent(etat.consultationId)}` : ''}`}>
-              Réserver la consultation privée
+              {t('Réserver la consultation privée')}
             </a>
           )}
-          {r && suite === 'soins' && <a className="mv-bouton" href="/reserver/?besoin=entretien">Réserver mon rituel</a>}
-          <a className="mv-bouton mv-bouton--lien" href="/couronne/">Ma Couronne</a>
+          {r && suite === 'soins' && <a className="mv-bouton" href="/reserver/?besoin=entretien">{t('Réserver mon rituel')}</a>}
+          <a className="mv-bouton mv-bouton--lien" href="/couronne/">{t('Ma Couronne')}</a>
         </div>
       </section>{pied}</main>
     );
@@ -196,10 +198,10 @@ export default function SalleDeVisio({ id, jeton }: { id: string; jeton: string 
       <main className="mv-scene">
         <header className="mv-barre">
           <span className="mv-horloge">{ecouleDit(debutMs, maintenant)} <span className="mv-horloge__sur">/ {minutesSecondes(DUREE_MIN * 60)}</span></span>
-          <span className="mv-qui">Visio gratuite · Maison MND</span>
+          <span className="mv-qui">{t('Visio gratuite')} · Maison MND</span>
         </header>
         <div className={`mv-cadre ${rebours ? 'is-rebours' : ''}`}>
-          <iframe className="mv-video" src={entree} title="La visio avec la Maison" allow="camera; microphone; fullscreen; speaker; display-capture; autoplay" />
+          <iframe className="mv-video" src={entree} title={t('La visio avec la Maison')} allow="camera; microphone; fullscreen; speaker; display-capture; autoplay" />
           {/* L'anneau des deux dernières minutes court autour de l'image. */}
           <svg className="mv-anneau" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
             <rect x="0.6" y="0.6" width="98.8" height="98.8" rx="1.2" pathLength={1}
@@ -208,11 +210,11 @@ export default function SalleDeVisio({ id, jeton }: { id: string; jeton: string 
           {rebours && (
             <div className="mv-rebours" role="status" aria-live="polite">
               <b>{minutesSecondes(reste)}</b>
-              <span>la Maison résume et vous propose la suite</span>
+              <span>{t('la Maison résume et vous propose la suite')}</span>
             </div>
           )}
         </div>
-        <p className="mv-note">À {minutesSecondes(DUREE_MIN * 60 - COMPTE_A_REBOURS_S)}, un compte à rebours de deux minutes s’allume. À {minutesSecondes(DUREE_MIN * 60)}, la salle se ferme d’elle-même.</p>
+        <p className="mv-note">{t('À {a}, un compte à rebours de deux minutes s’allume. À {b}, la salle se ferme d’elle-même.', { a: minutesSecondes(DUREE_MIN * 60 - COMPTE_A_REBOURS_S), b: minutesSecondes(DUREE_MIN * 60) })}</p>
       </main>
     );
   }
@@ -221,32 +223,32 @@ export default function SalleDeVisio({ id, jeton }: { id: string; jeton: string 
   const peutEntrer = phase !== 'attente';
   return (
     <main className="mv-page"><section className="mv-carte">{sceau}
-      <p className="mv-sur">Visio gratuite · {DUREE_MIN} minutes</p>
+      <p className="mv-sur">{t('Visio gratuite · {n} minutes', { n: DUREE_MIN })}</p>
       <h1 className="mv-titre">{creneauDit(etat.debut)}</h1>
       <p className="mv-texte">
         {phase === 'attente'
-          ? `Votre visio commence ${attenteDite(debutMs - maintenant)}. La salle s’ouvre ${AVANT_L_ENTREE_MIN} minutes avant.`
-          : phase === 'ouverte' ? `Votre visio commence ${attenteDite(debutMs - maintenant)}. Vous pouvez entrer.` : 'Votre visio a commencé. Entrez : la fin reste fixée à l’heure prévue.'}
+          ? t('Votre visio commence {quand}. La salle s’ouvre {n} minutes avant.', { quand: attenteDite(debutMs - maintenant), n: AVANT_L_ENTREE_MIN })
+          : phase === 'ouverte' ? t('Votre visio commence {quand}. Vous pouvez entrer.', { quand: attenteDite(debutMs - maintenant) }) : t('Votre visio a commencé. Entrez : la fin reste fixée à l’heure prévue.')}
       </p>
       <ol className="mv-deroule">
-        <li><b>0 à 13 min</b><span>On regarde vos locks ensemble.</span></li>
-        <li><b>13 à 15 min</b><span>Le compte à rebours : on résume, on vous propose la suite.</span></li>
-        <li><b>15 min</b><span>La salle se ferme d’elle-même. Votre résumé arrive ici.</span></li>
+        <li><b>{t('0 à 13 min')}</b><span>{t('On regarde vos locks ensemble.')}</span></li>
+        <li><b>{t('13 à 15 min')}</b><span>{t('Le compte à rebours : on résume, on vous propose la suite.')}</span></li>
+        <li><b>{t('15 min')}</b><span>{t('La salle se ferme d’elle-même. Votre résumé arrive ici.')}</span></li>
       </ol>
-      <p className="mv-legende">Votre téléphone vous demandera la caméra et le micro en entrant : acceptez-les. Un endroit calme et bien éclairé aide la Maison à bien voir vos racines.</p>
-      {!etat.actif && <p className="mv-legende">La salle n’est pas encore ouverte côté Maison. Si rien ne change à l’heure dite, écrivez-nous sur WhatsApp.</p>}
+      <p className="mv-legende">{t('Votre téléphone vous demandera la caméra et le micro en entrant : acceptez-les. Un endroit calme et bien éclairé aide la Maison à bien voir vos racines.')}</p>
+      {!etat.actif && <p className="mv-legende">{t('La salle n’est pas encore ouverte côté Maison. Si rien ne change à l’heure dite, écrivez-nous sur WhatsApp.')}</p>}
       <div className="mv-rangee">
         <button type="button" className="mv-bouton" disabled={!peutEntrer || entre} onClick={() => void entrer()}>
-          {entre ? 'Ouverture de la salle' : 'Entrer dans la salle'}
+          {entre ? t('Ouverture de la salle') : t('Entrer dans la salle')}
         </button>
-        {phase === 'attente' && !annuler && <button type="button" className="mv-bouton mv-bouton--lien" onClick={() => setAnnuler(true)}>Je ne pourrai pas venir</button>}
+        {phase === 'attente' && !annuler && <button type="button" className="mv-bouton mv-bouton--lien" onClick={() => setAnnuler(true)}>{t('Je ne pourrai pas venir')}</button>}
       </div>
       {annuler && (
         <div className="mv-confirme">
-          <p>Annuler votre visio du {creneauDit(etat.debut)} ?</p>
+          <p>{t('Annuler votre visio du {quand} ?', { quand: creneauDit(etat.debut) })}</p>
           <div className="mv-rangee">
-            <button type="button" className="mv-bouton" onClick={() => void annule()}>Oui, l’annuler</button>
-            <button type="button" className="mv-bouton mv-bouton--lien" onClick={() => setAnnuler(false)}>Non, je viens</button>
+            <button type="button" className="mv-bouton" onClick={() => void annule()}>{t('Oui, l’annuler')}</button>
+            <button type="button" className="mv-bouton mv-bouton--lien" onClick={() => setAnnuler(false)}>{t('Non, je viens')}</button>
           </div>
         </div>
       )}

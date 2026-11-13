@@ -53,7 +53,7 @@ dit('les liens : #/rdv/<id> garde, #/formule, #/solde, #/reserver/incluse ajoute
   /h === '#\/solde'\) setEcran\('solde'\)/.test(app),
   /h === '#\/reserver\/incluse'\) openIncluse\(\)/.test(app),
 ]);
-dit('... a l ouverture comme en route', 2, (app.match(/window\.addEventListener\('hashchange', /g) ?? []).length);
+dit('... a l ouverture comme en route (et la salle de visio, lot 3 de la Consultation)', 3, (app.match(/window\.addEventListener\('hashchange', /g) ?? []).length);
 
 /* ── 3. UN SEUL JUGE ───────────────────────────────────────────────────── */
 const releveTs = lis('releve.ts');
