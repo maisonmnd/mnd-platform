@@ -364,7 +364,27 @@ export type Expense = {
       ceux-là se retrouvent par leur libellé exact. Voir `defaitUneEcheance`. */
   empruntId?: string;
   echeance?: number;
+  /** ── UNE PART D'UN PAIEMENT PARTAGÉ — 13 novembre 2026 ─────────────
+      « Dans Dépenses, permets-moi de split a payment » (Yéman). Un ticket payé
+      d'une seule carte se coupe en parts : chacune est une dépense à part
+      entière (son objet, sa catégorie, son montant), et toutes portent le même
+      `paiement` (son identifiant, le total payé, le libellé du paiement). La
+      date, la caisse, le reçu, le porteur et la validation sont communs. La
+      caisse bouge donc de la somme des parts, qui est le total. ABSENT sur
+      toute dépense non partagée. Voir `shared/partage-du-paiement-pur.ts`. */
+  paiement?: { id: string; totalXof: number; libelle: string };
+  /** ── HORS DE LA MAISON — 13 novembre 2026 ──────────────────────────
+      Cette dépense (en pratique, la part d'un paiement partagé) n'est pas une
+      charge du salon : l'achat de la famille payé avec le reste. Elle sort
+      bien de sa caisse, mais ne compte ni dans les dépenses du mois, ni dans
+      les catégories, ni dans le partage du foyer (`estUneCharge`). */
+  horsMaison?: boolean;
 };
+
+/** UNE CHARGE DU SALON ? Tout ce qui compte les dépenses de la Maison (le
+    mois, les catégories, les budgets, le partage du foyer) passe par ici ; les
+    relevés de caisse, eux, gardent tout ce qui en est sorti. */
+export const estUneCharge = (e: Pick<Expense, 'horsMaison'>): boolean => !e.horsMaison;
 
 /** L'ÉTAT D'UNE DÉPENSE SOUMISE, et la trace de la décision.
 
@@ -560,7 +580,8 @@ export const depensesDuMois = (
   expenses: readonly Expense[], branchId: string, mk: string, cut?: string,
 ): number =>
   expenses
-    .filter((e) => e.branchId === branchId && !e.stopped)
+    /* Une part hors de la Maison n'est pas une charge (13 novembre 2026). */
+    .filter((e) => e.branchId === branchId && !e.stopped && estUneCharge(e))
     .reduce((s, e) => {
       const occ = expenseOccurrences(e, mk);
       if (occ === 0) return s;

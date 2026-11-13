@@ -1,6 +1,6 @@
 import { createStore, uid, useStore } from './store';
 import { bindCollection } from './sync';
-import { coffreStore, expenseOccurrences, expenseTotal, type CoffreMovement, type Expense } from './finance';
+import { coffreStore, estUneCharge, expenseOccurrences, expenseTotal, type CoffreMovement, type Expense } from './finance';
 import type { Receipt } from './receipts';
 
 /* ═══════ SALON & FOYER — la séparation entreprise / foyer ═══════
@@ -220,7 +220,8 @@ export function occurrencesDepuis(e: Expense, mk: string, debut?: string): numbe
 }
 export const chargesDuPartage = (expenses: Expense[], branchId: string, mk: string, debut?: string): number =>
   expenses
-    .filter((e) => e.branchId === branchId && !e.stopped)
+    /* Une part hors de la Maison n'est pas une charge du salon (13 novembre 2026). */
+    .filter((e) => e.branchId === branchId && !e.stopped && estUneCharge(e))
     .reduce((s, e) => s + expenseTotal(e) * occurrencesDepuis(e, mk, debut), 0);
 
 /* ---------- Prélèvements associés — l'annexe du foyer ---------- */

@@ -13,7 +13,7 @@ import { Eyebrow, Modal, Button, Field, Input } from '../../../../ds/components'
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
-import { useExpenses, expenseTotal, type PieceJointe } from '../../../../shared/finance';
+import { useExpenses, expenseTotal, estUneCharge, type PieceJointe } from '../../../../shared/finance';
 import { adresseSignee } from '../../../../shared/fil';
 import { summaryPdf } from '../../../../shared/pdf';
 import { maisonNom } from '../../../../shared/identite';
@@ -64,7 +64,8 @@ export default function Fournisseurs() {
   /* Ce que la Maison a dépensé sur douze mois, pour dire la PART de chacun :
      un million chez Super U ne veut rien dire sans son dénominateur. */
   const totalDesDepenses = useMemo(() => expenses
-    .filter((e) => e.branchId === branch.id && !e.stopped && e.date >= du)
+    /* Ce que la Maison a dépensé : sans les parts hors de la Maison (13 novembre 2026). */
+    .filter((e) => e.branchId === branch.id && !e.stopped && estUneCharge(e) && e.date >= du)
     .reduce((n, e) => n + expenseTotal(e), 0), [expenses, branch.id, du]);
 
   const familles = useMemo(

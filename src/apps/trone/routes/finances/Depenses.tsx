@@ -5,11 +5,13 @@ import { Eyebrow, Modal, Button, Field, Input, Select, toast, alerte, demande, d
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn, convertFromXof } from '../../../../shared/currency';
 import { uid, HOUSE_BLANK } from '../../../../shared/store';
+import { groupeLesPaiements, lesPartsDe, pourquoiPasDePartage, reunisLesParts } from '../../../../shared/partage-du-paiement-pur';
+import { PartagerLePaiement } from './PartagerLePaiement';
 import { CURRENCIES } from '../../../../shared/geo';
 import { ensureKkiapayCashbox } from '../../../../shared/kkiapay';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { expenseOccurrences,
-  useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, useCoffre, useCredits, invoiceTotal, invoiceRegleAu, invoiceReglements, expenseTotal,
+  useExpenses, useBudgets, useCashboxes, useExpenseCategories, useInvoices, useCoffre, useCredits, invoiceTotal, invoiceRegleAu, invoiceReglements, expenseTotal, estUneCharge,
   partsPrisesParRevenu, partNonNommee, entameLeRevenu, sourcesDe,
   type CoffreMovement, type CreditMovement, type DepenseSource,
   cashboxCurrency, EXPENSE_CATEGORIES_SEED,
@@ -527,7 +529,10 @@ export default function Depenses() {
   const beneficiaires = (liste: Expense[]) => {
     const par = new Map<string, { nom: string; total: number; n: number; dernier: string }>();
     for (const e of liste) {
-      const nom = beneficiaireDe(e.label);
+      /* UN PAIEMENT PARTAGÉ A UN SEUL BÉNÉFICIAIRE, celui du paiement ; sa
+         part hors de la Maison n'est pas de l'argent du salon (13 novembre 2026). */
+      if (!estUneCharge(e)) continue;
+      const nom = beneficiaireDe(e.paiement?.libelle || e.label);
       const cle = normName(nom);
       const d = par.get(cle);
       if (d) {
@@ -570,7 +575,10 @@ export default function Depenses() {
     }
     return { lignes: [...par.values()].sort((a, b) => b.total - a.total), sansNom };
   }, [monthExp]);
-  const live = monthExp.filter((e) => !e.stopped);
+  /* LES CHARGES DU SALON : une part hors de la Maison sort de sa caisse,
+     mais ne compte ni au total, ni aux catégories, ni aux budgets
+     (13 novembre 2026, `estUneCharge`). La liste, elle, la montre. */
+  const live = monthExp.filter((e) => !e.stopped && estUneCharge(e));
   /* CE QUE CHAQUE CAISSE PORTE — 24 août 2026. « Quand je choisis n’importe
      quelle caisse, les données ne changent pas d’une caisse à l’autre. » Le
      filtre marchait ; c’est la BARRE qui ne disait rien. Toutes les caisses de
@@ -772,6 +780,9 @@ export default function Depenses() {
   }, [toutesLesDepenses]);
 
   const openEdit = (e: Expense) => {
+    /* UNE PART SE CORRIGE AVEC LES AUTRES (13 novembre 2026) : changer son
+       montant seul ferait mentir le total du paiement. */
+    if (e.paiement) { ouvreLePartage(e); return; }
     setSaveErr(null);
     setEditingId(e.id);
     setVenusDeLaPhoto(new Set()); avantLaPhoto.current = null;
@@ -1058,7 +1069,11 @@ export default function Depenses() {
         validation: jeSoumets ? soumission(monNom || 'Sans nom', new Date().toISOString()) : undefined,
       };
       setExpenses((prev) => [e, ...prev]);
+      /* PARTAGER À LA SAISIE (13 novembre 2026) : la dépense s'écrit entière,
+         puis la fenêtre des parts s'ouvre sur elle. */
+      if (partagerApres && !pourquoiPasDePartage(e)) setAPartager({ base: e });
     }
+    setPartagerApres(false);
     setOpen(false);
   };
   /* ══ DIRE OUI, DIRE NON — 31 août 2026 ═════════════════════════════
@@ -1068,7 +1083,10 @@ export default function Depenses() {
      tout le reste. */
   const trancher = (e: Expense, fait: (v: ValidationDepense) => ValidationDepense) => {
     if (!e.validation) return;
-    setExpenses((prev) => prev.map((x) => (x.id === e.id && x.validation
+    /* UN PAIEMENT PARTAGÉ SE TRANCHE EN ENTIER (13 novembre 2026) : toutes
+       ses parts ensemble, comme Yéman l'a choisi. */
+    const ids = new Set(partsDuMemePaiement(e).map((x) => x.id));
+    setExpenses((prev) => prev.map((x) => (ids.has(x.id) && x.validation
       ? { ...x, validation: fait(x.validation) }
       : x)));
   };
@@ -1110,20 +1128,73 @@ export default function Depenses() {
     /* MÊME CEINTURE POUR L'EFFACEMENT, et elle importe davantage : une dépense
        validée qu'on efface disparaît des comptes sans laisser de trace, et le
        tiroir cesse de correspondre aux livres. */
-    if (figeePour(monProfil?.role, e)) {
+    /* UNE PART NE S'EFFACE PAS SEULE (13 novembre 2026) : le paiement part
+       entier, sinon la caisse ne correspondrait plus au relevé de la banque. */
+    const parts = partsDuMemePaiement(e);
+    if (parts.some((x) => figeePour(monProfil?.role, x))) {
       alerte('Cette dépense a été tranchée. Elle ne se supprime plus : seul un souverain peut y revenir.');
       return;
     }
+    const totalDuPaiement = parts.reduce((n, x) => n + expenseTotal(x), 0);
     if (!await demande({
       quoi: 'Suppression définitive',
-      titre: `Supprimer la dépense « ${e.label} » ?`,
-      dit: `${fmtMoney(expenseTotal(e), currency)} quittent le registre des Dépenses, et le résultat du salon remonte d’autant.`,
+      titre: parts.length > 1 ? `Supprimer le paiement « ${e.paiement?.libelle ?? e.label} » et ses ${parts.length} parts ?` : `Supprimer la dépense « ${e.label} » ?`,
+      dit: `${fmtMoney(totalDuPaiement, currency)} quittent le registre des Dépenses, et le résultat du salon remonte d’autant.`,
       scelle: 'Rien ne pourra la rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
       accepter: 'Supprimer la dépense',
       refuser: 'Garder la dépense',
       dur: true,
     })) return;
-    setExpenses((prev) => prev.filter((x) => x.id !== e.id));
+    const aEffacer = new Set(parts.map((x) => x.id));
+    setExpenses((prev) => prev.filter((x) => !aEffacer.has(x.id)));
+  };
+
+  /* ══ PARTAGER UN PAIEMENT — 13 novembre 2026 ═════════════════════════
+     « Dans Dépenses, permets-moi de split a payment » (Yéman). Les parts
+     sont des dépenses à part entière, liées par `paiement` ; la règle vit
+     dans `shared/partage-du-paiement-pur.ts`. Tout s'écrit dans le magasin
+     COMPLET, jamais dans la vue filtrée de l'écran. */
+  const [aPartager, setAPartager] = useState<{ base: Expense; parts?: Expense[] } | null>(null);
+  const [partagerApres, setPartagerApres] = useState(false);
+  const partsDuMemePaiement = (e: Expense): Expense[] => {
+    if (!e.paiement) return [e];
+    const parts = lesPartsDe(toutesLesDepenses, e.paiement.id);
+    return parts.length > 0 ? parts : [e];
+  };
+  const ouvreLePartage = (e: Expense) => {
+    if (e.paiement) { const parts = partsDuMemePaiement(e); setAPartager({ base: parts[0], parts }); return; }
+    const pourquoi = pourquoiPasDePartage(e);
+    if (pourquoi) { alerte(pourquoi); return; }
+    setAPartager({ base: e });
+  };
+  /** Les nouvelles lignes prennent la place de celles qu'elles remplacent. */
+  const remplaceLesLignes = (nouvelles: Expense[], remplacees: Expense[]) => {
+    const vieilles = new Set(remplacees.map((x) => x.id));
+    setExpenses((prev) => {
+      const i = prev.findIndex((x) => vieilles.has(x.id));
+      const reste = prev.filter((x) => !vieilles.has(x.id));
+      const at = i < 0 ? 0 : Math.min(i, reste.length);
+      return [...reste.slice(0, at), ...nouvelles, ...reste.slice(at)];
+    });
+  };
+  const enregistreLesParts = (nouvelles: Expense[], remplacees: Expense[]) => {
+    remplaceLesLignes(nouvelles, remplacees);
+    setAPartager(null);
+    toast(`Paiement partagé en ${nouvelles.length} parts.`);
+  };
+  const reunirLePaiement = async (e: Expense) => {
+    const parts = partsDuMemePaiement(e);
+    const une = reunisLesParts(parts);
+    if (!une || parts.length < 2) return;
+    if (!await demande({
+      quoi: 'Un paiement partagé',
+      titre: `Réunir les ${parts.length} parts ?`,
+      dit: `Elles redeviennent une seule dépense de ${fmtMoney(une.amountXof, currency)}, « ${une.label} », en ${une.category}. Une part hors de la Maison recompte alors dans les dépenses du salon.`,
+      accepter: 'Réunir',
+      refuser: 'Garder les parts',
+    })) return;
+    remplaceLesLignes([une], parts);
+    toast('Le paiement est réuni.');
   };
 
   /* ── LA LIGNE DE PROVENANCE ─────────────────────────────────────────
@@ -1395,7 +1466,7 @@ export default function Depenses() {
     lastMonths(month, 3).map((mk) => ({
       mk,
       n: expenses
-        .filter((e) => e.branchId === branch.id && !e.stopped && e.category === cat && monthKey(e.date) === mk)
+        .filter((e) => e.branchId === branch.id && !e.stopped && estUneCharge(e) && e.category === cat && monthKey(e.date) === mk)
         .reduce((s, e) => s + expenseTotal(e), 0),
     }));
 
@@ -1914,8 +1985,35 @@ export default function Depenses() {
                 <span>{g.lignes.length} dépense{g.lignes.length > 1 ? 's' : ''} · {fmtMoney(g.total, currency)}</span>
               </div>
               <div className="trf-jour-groupe">
-              {g.lignes.map((e) => (
-              <div key={e.id}>
+              {/* UN PAIEMENT, SES PARTS DESSOUS (13 novembre 2026) : l'en-tête du
+                  paiement précède sa première part ; chaque part garde sa
+                  rangée, en retrait. */}
+              {groupeLesPaiements(g.lignes)
+                .flatMap((l) => (l.sorte === 'depense'
+                  ? [{ e: l.depense, paiement: null as null | { libelle: string; totalXof: number } }]
+                  : l.parts.map((e, i) => ({ e, paiement: i === 0 ? { libelle: l.libelle, totalXof: l.totalXof } : null }))))
+                .map(({ e, paiement }) => (
+              <Fragment key={e.id}>
+              {paiement && (
+                <div className="trf-paiement">
+                  <div className="trf-paiement__quoi">
+                    <b>{paiement.libelle}</b>
+                    <span>
+                      Un paiement en {partsDuMemePaiement(e).length} parts{e.cashbox ? ` · ${e.cashbox}` : ''}
+                      {e.validation?.etat === 'attente' ? ' · à valider' : ''}
+                    </span>
+                  </div>
+                  <span className="trf-paiement__pastille">Partagé</span>
+                  <span className="trf-exprow__amt">{fmtMoney(paiement.totalXof, currency)}</span>
+                  {!partsDuMemePaiement(e).some((x) => figeePour(monProfil?.role, x)) && (
+                    <div className="trf-exprow__gestes">
+                      <button className="trf-geste trf-geste--premier" onClick={() => ouvreLePartage(e)}>Modifier les parts</button>
+                      <button className="trf-geste" onClick={() => void reunirLePaiement(e)}>Réunir</button>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className={e.paiement ? 'trf-part' : undefined}>
                 {/* ── LA RANGÉE D’UNE DÉPENSE — revue le 24 août 2026 ─────
                     « Le nom des caisses est disproportionnellement écrit. » Il
                     l’était : une pastille indigo pleine, en capitales, sur
@@ -1931,7 +2029,7 @@ export default function Depenses() {
                     dit leur fréquence. */}
                 <div className={`trf-exprow ${e.stopped ? 'is-stopped' : ''}`}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="trf-exprow__vendor">{e.label}</div>
+                    <div className="trf-exprow__vendor">{e.label}{e.horsMaison ? <span className="trf-part__hors">Hors Maison</span> : null}</div>
                     <div className="trf-exprow__meta">
                       {e.category}{e.subcategory ? ` · ${e.subcategory}` : ''}{e.recurring ? ` · ${e.recurring}` : ''}
                       {/* LE NOM DE LA CAISSE N'EST PLUS UNE PORTE POUR TOUT LE
@@ -1988,6 +2086,9 @@ export default function Depenses() {
                   ) : (
                   <div className="trf-exprow__gestes">
                     <button className="trf-geste trf-geste--premier" onClick={() => openEdit(e)}>Modifier</button>
+                    {!e.paiement && !pourquoiPasDePartage(e) && (
+                      <button className="trf-geste" onClick={() => ouvreLePartage(e)} title="Couper ce paiement en parts : chacune son objet, sa catégorie, son montant">Partager</button>
+                    )}
                     {/* « SIGNALER » A ÉTÉ RETIRÉ — 22 août 2026. Le signal ne
                         se lisait plus nulle part depuis que l'arbitrage a quitté
                         l'écran : un bouton dont l'effet est invisible ment. */}
@@ -2028,6 +2129,7 @@ export default function Depenses() {
                 ) : null}
                 <Provenance dep={e} />
               </div>
+              </Fragment>
               ))}
               </div>
               </Fragment>
@@ -2953,6 +3055,12 @@ export default function Depenses() {
               )}
             </div>
 
+            {!editingId && (
+              <label className="trf-partage__hors" style={{ display: 'flex', margin: '4px 0 10px' }}>
+                <input type="checkbox" checked={partagerApres} onChange={(ev) => setPartagerApres(ev.target.checked)} />
+                <span>Partager ce paiement en plusieurs parts, après l’enregistrement</span>
+              </label>
+            )}
             <div className="trf-pied">
               {/* CE QUI MANQUE SE LIT AVANT DE CLIQUER ; le bouton pâlit tant
                   qu'il manque quelque chose, et reste cliquable : un clic dit
@@ -3373,6 +3481,17 @@ export default function Depenses() {
           Un non sans raison se rejoue le lendemain à l'identique. Le motif
           part chez celui qui a saisi, alors on le lui écrit comme on le lui
           dirait. */}
+      {aPartager && (
+        <PartagerLePaiement
+          base={aPartager.base}
+          partsExistantes={aPartager.parts}
+          categories={catNames}
+          currency={currency}
+          nouvelId={uid}
+          surEnregistrer={enregistreLesParts}
+          surFermer={() => setAPartager(null)}
+        />
+      )}
       {aRefuser && (
         <Modal title="Refuser cette dépense" onClose={() => setARefuser(null)} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

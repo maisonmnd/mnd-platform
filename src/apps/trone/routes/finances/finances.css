@@ -2448,3 +2448,67 @@
 .trf-mtn--ivoire .trf-recherche__bouton, .trf-mtn--sable .trf-recherche__bouton { color: #F6F1E7; background: #1E2150; }
 .trf-mtn--ivoire .trf-releve__date, .trf-mtn--sable .trf-releve__date { color-scheme: light; }
 .trf-mtn--ivoire .trf-releve__periodes button[aria-pressed="true"], .trf-mtn--sable .trf-releve__periodes button[aria-pressed="true"] { background: #1E2150; color: #F6F1E7; border-color: #1E2150; }
+
+/* ══ PARTAGER UN PAIEMENT — 13 novembre 2026 ══════════════════════════════
+   La fenêtre (le paiement en tête, une ligne par part, le reste à répartir)
+   et, dans la liste, un paiement partagé avec ses parts dessous. Charte :
+   indigo pour le texte, cuivre en accent, rayons 2 à 4 px. */
+.trf-partage { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.trf-partage__paiement {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 14px;
+  background: var(--indigo-50, #EDEEF4); border-radius: 3px; padding: 12px 14px;
+}
+.trf-partage__paiement > div { display: flex; flex-direction: column; }
+.trf-partage__paiement > div > span { font-size: 12px; color: var(--ink-soft); }
+.trf-partage__paiement b { font-family: var(--font-serif); font-weight: 400; font-size: 28px; color: var(--color-indigo); }
+.trf-partage__paiement > span { font-size: 12.5px; color: var(--ink-soft); }
+.trf-partage__parts { display: flex; flex-direction: column; gap: 10px; }
+.trf-partage__part {
+  display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, .9fr) auto; gap: 8px; align-items: end;
+  border: 1px solid var(--hairline); border-radius: 4px; padding: 10px 10px 8px;
+}
+.trf-partage__part label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.trf-partage__part label > span { font-size: 11.5px; color: var(--ink-soft); }
+.trf-partage__part input:not([type="checkbox"]), .trf-partage__part select {
+  width: 100%; min-width: 0; background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 3px;
+  padding: 8px 10px; font: 400 14px var(--font-sans); color: var(--ink);
+}
+.trf-partage__retirer {
+  border: 0; background: none; color: var(--ink-soft); font-size: 18px; line-height: 1; width: 34px; height: 36px;
+  border-radius: 3px; cursor: pointer;
+}
+.trf-partage__retirer:hover:not(:disabled) { background: var(--indigo-50, #EDEEF4); }
+.trf-partage__retirer:disabled { opacity: .35; cursor: not-allowed; }
+.trf-partage__hors { grid-column: 1 / -1; flex-direction: row !important; align-items: center; gap: 8px !important; }
+.trf-partage__hors > span { font-size: 12.5px !important; color: var(--ink) !important; }
+.trf-partage__ajouts { display: flex; gap: 8px; flex-wrap: wrap; }
+.trf-partage__reste { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-radius: 3px; padding: 10px 12px; font-size: 14px; }
+.trf-partage__reste b { font-family: var(--font-serif); font-weight: 400; font-size: 21px; }
+.trf-partage__reste.is-ok { background: var(--indigo-50, #EDEEF4); color: var(--color-indigo); }
+.trf-partage__reste.is-ko { background: var(--copper-50, #FAF1E9); color: var(--copper-700, #7C4C2C); }
+.trf-partage__mot { margin: 0; font-size: 12.5px; color: var(--ink-soft); }
+.trf-partage__gestes { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+@media (max-width: 620px) {
+  .trf-partage__part { grid-template-columns: 1fr 1fr; }
+  .trf-partage__objet { grid-column: 1 / -1; }
+  .trf-partage__retirer { justify-self: end; }
+}
+
+/* Dans la liste : l'en-tête du paiement, ses parts dessous, en retrait. */
+.trf-paiement {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 0 6px;
+  border-top: 1px solid var(--hairline);
+}
+.trf-paiement__quoi { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; }
+.trf-paiement__quoi b { font-weight: 500; color: var(--color-indigo); }
+.trf-paiement__quoi span { font-size: 12.5px; color: var(--ink-soft); }
+.trf-paiement__pastille {
+  font: 600 10px var(--font-sans); letter-spacing: .1em; text-transform: uppercase; border: 1px solid var(--color-copper);
+  border-radius: 2px; padding: 2px 7px; color: var(--color-indigo); white-space: nowrap;
+}
+.trf-part { margin-left: 22px; padding-left: 12px; border-left: 2px solid var(--copper-200, #E7C6A6); }
+.trf-part .trf-exprow { padding-top: 9px; padding-bottom: 9px; }
+.trf-part__hors {
+  font: 600 9.5px var(--font-sans); letter-spacing: .1em; text-transform: uppercase; border: 1px solid var(--hairline);
+  border-radius: 2px; padding: 1px 6px; color: var(--ink-soft); margin-left: 6px;
+}

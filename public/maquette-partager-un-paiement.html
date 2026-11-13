@@ -1,0 +1,281 @@
+<title>Partager un paiement</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500;600&display=swap">
+<style>
+/* PARTAGER UN PAIEMENT — maquette du 13 novembre 2026.
+   « Dans Dépenses, permets-moi de split a payment » (Yéman), après un ticket
+   de supermarché payé d'une seule carte, dont une part n'était pas pour le
+   salon. Un paiement, plusieurs parts : chacune son objet, sa catégorie, son
+   montant ; le relevé de la caisse garde UN seul mouvement.
+   Mise en page : un bandeau indigo, la démonstration (la ligne, la fenêtre,
+   le résultat), ce qui ne change pas, puis les arbitrages.
+   Charte Maison MND : indigo, ivoire, cuivre en accent, Cormorant Garamond
+   300 + Jost, rayons 2 à 4 px, pas d'émoji. Chiffres d'exemple seulement. */
+:root {
+  --fond: #F6F1E7; --surface: #FFFDF8; --encre: #1E2150; --texte: #23243A; --doux: #55566A;
+  --filet: rgba(30, 33, 80, .14); --filet-fort: rgba(30, 33, 80, .30);
+  --bande: #1E2150; --sur-bande: #F6F1E7; --sur-bande-doux: #A7ACC9;
+  --pale: #EDEEF4; --cuivre: #B97A4A; --cuivre-plein: #9E6238; --cuivre-pale: #FAF1E9; --sur-cuivre: #FFFFFF;
+  --bon: #2F6B4F; --bon-pale: #E7F1EB; --alerte: #9A3B2E; --alerte-pale: #F7E6E2;
+  --ombre: 0 18px 44px rgba(20, 22, 58, .16);
+  --serif: "Cormorant Garamond", Georgia, serif; --sans: "Jost", "Futura", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond: #14163A; --surface: #1C1F4A; --encre: #F1EBDD; --texte: #E6E0D3; --doux: #A7ACC9;
+  --filet: rgba(246, 241, 231, .13); --filet-fort: rgba(246, 241, 231, .28);
+  --bande: #262A63; --sur-bande: #F6F1E7; --sur-bande-doux: #B5B9D6;
+  --pale: #272B5E; --cuivre: #C98A58; --cuivre-plein: #B97A4A; --cuivre-pale: rgba(201, 138, 88, .16);
+  --bon: #8FD1AE; --bon-pale: rgba(143, 209, 174, .14); --alerte: #F0A394; --alerte-pale: rgba(240, 163, 148, .14);
+  --ombre: 0 18px 44px rgba(0, 0, 0, .4); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --fond: #14163A; --surface: #1C1F4A; --encre: #F1EBDD; --texte: #E6E0D3; --doux: #A7ACC9;
+  --filet: rgba(246, 241, 231, .13); --filet-fort: rgba(246, 241, 231, .28);
+  --bande: #262A63; --sur-bande: #F6F1E7; --sur-bande-doux: #B5B9D6;
+  --pale: #272B5E; --cuivre: #C98A58; --cuivre-plein: #B97A4A; --cuivre-pale: rgba(201, 138, 88, .16);
+  --bon: #8FD1AE; --bon-pale: rgba(143, 209, 174, .14); --alerte: #F0A394; --alerte-pale: rgba(240, 163, 148, .14);
+  --ombre: 0 18px 44px rgba(0, 0, 0, .4); color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 400 15px/1.6 var(--sans); font-variant-numeric: lining-nums tabular-nums; }
+.int { max-width: 1060px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); min-width: 0; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 300; color: var(--encre); margin: 0; line-height: 1.1; text-wrap: balance; }
+h1 { font-size: clamp(40px, 7vw, 60px); color: var(--sur-bande); }
+h2 { font-size: clamp(28px, 4vw, 36px); }
+h3 { font-size: 23px; }
+p { margin: 0; max-width: 64ch; }
+ul { margin: 0; padding: 0; list-style: none; }
+button, input, select { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.sur { font: 600 11px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--doux); }
+.sections { display: flex; flex-direction: column; gap: 56px; padding-block: 44px 72px; }
+section { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.tete { display: flex; flex-direction: column; gap: 8px; }
+.tete p { font-size: 16px; color: var(--doux); }
+.hero { background: var(--bande); position: relative; }
+.hero::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--cuivre); }
+.hero .int { padding-block: 44px 38px; display: flex; flex-direction: column; gap: 16px; }
+.hero .sur { color: var(--sur-bande-doux); }
+.hero p { color: var(--sur-bande-doux); font-size: 17px; max-width: 58ch; }
+.hero p b { color: var(--sur-bande); font-weight: 500; }
+
+/* La liste des dépenses */
+.carte { background: var(--surface); border: 1px solid var(--filet); border-radius: 4px; }
+.jour { font: 600 10.5px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--doux); padding: 12px 16px 6px; }
+.ligne { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-top: 1px solid var(--filet); flex-wrap: wrap; }
+.ligne .quoi { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; }
+.ligne .quoi b { font-weight: 500; color: var(--encre); }
+.ligne .quoi span { font-size: 12.5px; color: var(--doux); }
+.ligne .montant { font-family: var(--serif); font-size: 22px; color: var(--encre); white-space: nowrap; }
+.pastille { font: 600 10px var(--sans); letter-spacing: .1em; text-transform: uppercase; border: 1px solid var(--filet-fort); border-radius: 2px; padding: 2px 7px; color: var(--doux); white-space: nowrap; }
+.pastille--cuivre { border-color: var(--cuivre); color: var(--encre); }
+.btn { border: 1px solid var(--filet-fort); background: var(--surface); color: var(--encre); border-radius: 4px; padding: 7px 12px; font: 600 11.5px var(--sans); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; white-space: nowrap; }
+.btn:hover { background: var(--pale); }
+.btn--plein { background: var(--cuivre); border-color: var(--cuivre); color: var(--sur-cuivre); }
+.btn--plein:hover { background: var(--cuivre-plein); }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.parts { padding: 0 16px 10px 40px; display: flex; flex-direction: column; }
+.part { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px dashed var(--filet); flex-wrap: wrap; }
+.part .quoi { flex: 1 1 200px; min-width: 0; }
+.part .quoi b { font-weight: 500; color: var(--encre); font-size: 14px; }
+.part .quoi span { display: block; font-size: 12px; color: var(--doux); }
+.part .montant { font-size: 18px; font-family: var(--serif); color: var(--encre); }
+
+/* La fenêtre */
+.voile { background: rgba(20, 22, 58, .06); border: 1px dashed var(--filet-fort); border-radius: 4px; padding: 18px; }
+.fenetre { background: var(--surface); border: 1px solid var(--filet-fort); border-radius: 4px; box-shadow: var(--ombre); padding: 20px; display: flex; flex-direction: column; gap: 14px; max-width: 720px; }
+.paiement { display: flex; gap: 14px; flex-wrap: wrap; align-items: baseline; justify-content: space-between; background: var(--pale); border-radius: 3px; padding: 12px 14px; }
+.paiement .total { font-family: var(--serif); font-size: 28px; color: var(--encre); }
+.paiement span { font-size: 12.5px; color: var(--doux); }
+.table { display: flex; flex-direction: column; gap: 8px; }
+.rangee { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, .9fr) auto; gap: 8px; align-items: end; }
+@media (max-width: 620px) { .rangee { grid-template-columns: 1fr 1fr; } .rangee .retirer { justify-self: end; } }
+.rangee label { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--doux); min-width: 0; }
+.rangee input, .rangee select { width: 100%; min-width: 0; background: var(--fond); border: 1px solid var(--filet-fort); border-radius: 3px; padding: 8px 10px; font-size: 14px; color: var(--texte); }
+.retirer { border: 0; background: none; color: var(--doux); cursor: pointer; padding: 8px; border-radius: 3px; }
+.retirer:hover { background: var(--pale); }
+.reste { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; border-radius: 3px; padding: 10px 12px; font-size: 14px; }
+.reste.ok { background: var(--bon-pale); color: var(--bon); }
+.reste.ko { background: var(--alerte-pale); color: var(--alerte); }
+.reste b { font-family: var(--serif); font-size: 20px; font-weight: 400; }
+.actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.note { font-size: 12.5px; color: var(--doux); }
+
+.deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.liste { background: var(--surface); border: 1px solid var(--filet); border-radius: 4px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.liste li { position: relative; padding-left: 16px; font-size: 14.5px; }
+.liste li + li { margin-top: 6px; }
+.liste li::before { content: ""; position: absolute; left: 0; top: .72em; width: 7px; height: 1px; background: var(--cuivre); }
+.liste li b { font-weight: 500; color: var(--encre); }
+.arbitrages { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.arb { background: var(--surface); border: 1px solid var(--filet); border-radius: 4px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.arb h3 { font-size: 21px; }
+.arb .propose { font-size: 14px; }
+.arb .propose b { font-weight: 500; color: var(--encre); }
+.arb .propose::before { content: "Choisi"; display: block; font: 600 10px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--doux); margin-bottom: 3px; }
+.arb .autres { font-size: 13px; color: var(--doux); border-top: 1px solid var(--filet); padding-top: 8px; }
+.pied { font-size: 12.5px; color: var(--doux); border-top: 1px solid var(--filet); padding-top: 14px; }
+</style>
+
+<header class="hero">
+  <div class="int">
+    <p class="sur">Maquette du Trône · Finances › Dépenses · 13 novembre 2026</p>
+    <h1>Partager un paiement</h1>
+    <p>Un seul paiement, plusieurs dépenses. Un ticket de supermarché réglé d’une carte contient les courses du salon et un achat qui n’est pas pour lui : <b>« Partager » le coupe en parts</b>, chacune avec son objet, sa catégorie et son montant. Le relevé de la caisse garde un seul mouvement, celui de la banque.</p>
+  </div>
+</header>
+
+<main class="int sections">
+  <section>
+    <div class="tete">
+      <p class="sur">Le geste</p>
+      <h2>La ligne, « Partager », les parts.</h2>
+      <p>Tout se manipule ici. Les montants sont des exemples.</p>
+    </div>
+
+    <div class="carte" id="liste">
+      <div class="jour">Jeudi 12 novembre 2026</div>
+      <div class="ligne" id="ligne-unique">
+        <div class="quoi"><b>Supermarché · courses</b><span>Carte · caisse « Compte privé » · à valider</span></div>
+        <span class="montant">120 000 F</span>
+        <button class="btn" id="ouvrir" type="button">Partager</button>
+      </div>
+      <div id="ligne-partagee" hidden>
+        <div class="ligne">
+          <div class="quoi"><b>Supermarché · un paiement</b><span>Carte · caisse « Compte privé » · à valider · <span id="nb-parts">2 parts</span></span></div>
+          <span class="pastille pastille--cuivre">Partagé</span>
+          <span class="montant">120 000 F</span>
+          <button class="btn" id="rouvrir" type="button">Modifier les parts</button>
+        </div>
+        <div class="parts" id="parts-vues"></div>
+      </div>
+    </div>
+
+    <div class="voile" id="voile">
+      <div class="fenetre" role="dialog" aria-labelledby="f-titre">
+        <h3 id="f-titre">Partager ce paiement.</h3>
+        <div class="paiement">
+          <div><span>Le paiement</span><div class="total">120 000 F</div></div>
+          <span>12 novembre 2026 · carte · caisse « Compte privé » · le reçu reste joint</span>
+        </div>
+        <div class="table" id="table"></div>
+        <button class="btn" id="ajouter" type="button" style="align-self: flex-start">+ Une part</button>
+        <div class="reste" id="reste"></div>
+        <div class="actions">
+          <button class="btn" id="annuler" type="button">Annuler</button>
+          <button class="btn btn--plein" id="enregistrer" type="button">Enregistrer les parts</button>
+        </div>
+        <p class="note">Le total des parts doit faire exactement le paiement : le bouton attend que le reste soit à 0 F.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="tete">
+      <p class="sur">Ce qui change, ce qui ne change pas</p>
+      <h2>Des parts, un seul mouvement.</h2>
+    </div>
+    <div class="deux">
+      <div class="liste">
+        <h3>Ce que chaque part porte</h3>
+        <ul>
+          <li><b>Son objet</b> : « Courses du salon », « Achat pour la maison de famille ».</li>
+          <li><b>Sa catégorie</b> : Local, Matières premières, Divers…</li>
+          <li><b>Son montant</b>, et le reste à répartir se compte en direct.</li>
+          <li><b>Hors de la Maison, si vous le cochez</b> : la part ne compte pas dans les dépenses du salon (voir l’arbitrage).</li>
+        </ul>
+      </div>
+      <div class="liste">
+        <h3>Ce qui reste commun</h3>
+        <ul>
+          <li><b>La date, la caisse et le reçu</b> : un seul ticket, payé une seule fois.</li>
+          <li><b>Le relevé de la caisse</b> montre un seul mouvement du montant total, comme le relevé de la banque.</li>
+          <li><b>La validation</b> : les parts se valident ensemble, en un geste.</li>
+          <li><b>Défaire</b> : « Réunir » remet un seul paiement, sans rien perdre.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="tete">
+      <p class="sur">Tranché le 13 novembre 2026 · construit</p>
+      <h2>Vos quatre choix, tous ceux proposés.</h2>
+      <p>Construit le 13 novembre 2026 dans Finances › Dépenses : « Partager » sur une dépense, la case « Partager ce paiement » à la saisie.</p>
+    </div>
+    <div class="arbitrages">
+      <article class="arb"><h3>Où partager</h3><p class="propose"><b>Sur une dépense déjà posée</b> (bouton « Partager ») <b>et à la saisie</b> (« Partager ce paiement » dans la fenêtre d’une nouvelle dépense).</p><p class="autres">Sinon : seulement sur une dépense déjà posée.</p></article>
+      <article class="arb"><h3>Hors de la Maison, par part</h3><p class="propose"><b>Oui, une case par part</b> : la part de la famille sort des dépenses du salon, la part du salon y reste, même payées ensemble.</p><p class="autres">Sinon : une seule règle pour tout le paiement, celle de sa caisse.</p></article>
+      <article class="arb"><h3>Dans la liste</h3><p class="propose"><b>Un paiement, ses parts dessous</b>, le total en face.</p><p class="autres">Sinon : chaque part comme une dépense à part, avec une pastille « Partagé ».</p></article>
+      <article class="arb"><h3>La validation</h3><p class="propose"><b>Toutes les parts ensemble</b>, en un geste.</p><p class="autres">Sinon : chaque part se valide seule.</p></article>
+    </div>
+    <p class="pied">Maquette sans donnée réelle : montants et libellés d’exemple. Le dépôt est public.</p>
+  </section>
+</main>
+
+<script>
+const TOTAL = 120000;
+const CATEGORIES = ['Local', 'Matières premières', 'Divers', 'Logistique', 'Équipement'];
+let parts = [
+  { objet: 'Courses du salon', categorie: 'Local', montant: 90000, hors: false },
+  { objet: 'Achat pour la maison de famille', categorie: 'Divers', montant: 30000, hors: true },
+];
+const $ = (id) => document.getElementById(id);
+const f = (n) => `${Math.round(n).toLocaleString('fr-FR').replace(/ /g, ' ')} F`;
+
+function dessine() {
+  const t = $('table');
+  t.innerHTML = '';
+  parts.forEach((p, i) => {
+    const r = document.createElement('div');
+    r.className = 'rangee';
+    r.innerHTML = `
+      <label>Objet<input type="text" value=""></label>
+      <label>Catégorie<select>${CATEGORIES.map((c) => `<option${c === p.categorie ? ' selected' : ''}>${c}</option>`).join('')}</select></label>
+      <label>Montant (F)<input type="number" min="0" step="1" value="${p.montant}"></label>
+      <button class="retirer" type="button" aria-label="Retirer cette part" title="Retirer cette part">✕</button>`;
+    const [objet, montant] = r.querySelectorAll('input');
+    objet.value = p.objet;
+    objet.addEventListener('input', () => { p.objet = objet.value; });
+    r.querySelector('select').addEventListener('change', (e) => { p.categorie = e.target.value; });
+    montant.addEventListener('input', () => { p.montant = Number(montant.value) || 0; reste(); });
+    const retirer = r.querySelector('.retirer');
+    retirer.disabled = parts.length <= 2;
+    retirer.addEventListener('click', () => { parts.splice(i, 1); dessine(); });
+    const hors = document.createElement('label');
+    hors.style.cssText = 'grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 8px; font-size: 13px; color: var(--texte)';
+    hors.innerHTML = `<input type="checkbox" style="width:auto"${p.hors ? ' checked' : ''}> Hors de la Maison : cette part ne compte pas dans les dépenses du salon`;
+    hors.querySelector('input').addEventListener('change', (e) => { p.hors = e.target.checked; });
+    t.appendChild(r);
+    t.appendChild(hors);
+  });
+  reste();
+}
+function reste() {
+  const somme = parts.reduce((s, p) => s + (p.montant || 0), 0);
+  const r = TOTAL - somme;
+  const el = $('reste');
+  el.className = 'reste ' + (r === 0 ? 'ok' : 'ko');
+  el.innerHTML = r === 0
+    ? `<span>Tout est réparti</span><b>0 F</b>`
+    : r > 0 ? `<span>Reste à répartir</span><b>${f(r)}</b>` : `<span>Les parts dépassent le paiement de</span><b>${f(-r)}</b>`;
+  $('enregistrer').disabled = r !== 0 || parts.some((p) => !p.objet.trim() || !(p.montant > 0));
+}
+$('ajouter').addEventListener('click', () => { parts.push({ objet: '', categorie: 'Divers', montant: 0, hors: false }); dessine(); });
+$('annuler').addEventListener('click', () => { $('voile').hidden = true; });
+$('ouvrir').addEventListener('click', () => { $('voile').hidden = false; dessine(); });
+$('rouvrir').addEventListener('click', () => { $('voile').hidden = false; dessine(); });
+$('enregistrer').addEventListener('click', () => {
+  $('ligne-unique').hidden = true;
+  $('ligne-partagee').hidden = false;
+  $('nb-parts').textContent = `${parts.length} parts`;
+  $('parts-vues').innerHTML = parts.map((p) => `
+    <div class="part"><div class="quoi"><b></b><span>${p.categorie}${p.hors ? ' · hors de la Maison' : ''}</span></div>
+    ${p.hors ? '<span class="pastille">Hors Maison</span>' : ''}<span class="montant">${f(p.montant)}</span></div>`).join('');
+  $('parts-vues').querySelectorAll('.part b').forEach((b, i) => { b.textContent = parts[i].objet; });
+  $('voile').hidden = true;
+});
+dessine();
+</script>

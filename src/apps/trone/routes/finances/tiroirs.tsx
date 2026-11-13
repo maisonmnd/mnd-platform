@@ -432,7 +432,7 @@ export function useCaisses(month: string) {
         expense: undefined as Expense | undefined,
       }));
 
-    const out = boxExpenses(name)
+    const sorties = boxExpenses(name)
       .filter((e) => dansLaPeriode(monthKey(e.date)))
       .map((e) => ({
         date: e.date,
@@ -455,6 +455,10 @@ export function useCaisses(month: string) {
         expense: e as Expense | undefined,
         transfertId: undefined as string | undefined,
       }));
+    /* UN PAIEMENT PARTAGÉ, UN SEUL MOUVEMENT — 13 novembre 2026. Ses parts
+       sont des dépenses à part, mais la caisse n'a vu qu'un paiement : le relevé
+       le montre comme la banque, une ligne au total, ses parts dites dessous. */
+    const out = unMouvementParPaiement(sorties);
 
     /* Les avoirs du mois — l'entrée dit son porteur, la sortie aussi : « être
        retracé », c'est pouvoir répondre « c'est l'avoir de qui ? » en lisant. */
@@ -592,6 +596,32 @@ export function useCaisses(month: string) {
     tresorerieVisible, anciennesTotal, discretesFermees, horsBilan, ouvertes: ouvertesMaintenant,
     exclues: caissesHorsBilan(branchBoxes, branch.id),
   };
+}
+
+/** Les sorties d'un relevé, les parts d'un même paiement réunies en une ligne
+    (la première part en garde la fiche, la somme des parts en fait le montant). */
+function unMouvementParPaiement<M extends { label: string; sub: string; delta: number; expense?: Expense }>(sorties: M[]): M[] {
+  const out: M[] = [];
+  const vus = new Map<string, { ligne: M; n: number; cats: string[] }>();
+  for (const m of sorties) {
+    const p = m.expense?.paiement;
+    if (!p?.id) { out.push(m); continue; }
+    const deja = vus.get(p.id);
+    const cat = m.expense?.category ?? '';
+    if (!deja) {
+      const ligne = { ...m, label: p.libelle || m.label } as M;
+      vus.set(p.id, { ligne, n: 1, cats: cat ? [cat] : [] });
+      out.push(ligne);
+      continue;
+    }
+    deja.n += 1;
+    if (cat && !deja.cats.includes(cat)) deja.cats.push(cat);
+    deja.ligne.delta += m.delta;
+  }
+  for (const { ligne, n, cats } of vus.values()) {
+    if (n > 1) ligne.sub = [`un paiement en ${n} parts`, cats.join(', ')].filter(Boolean).join(' · ');
+  }
+  return out;
 }
 
 /* ── LE NOM ET LE SOLDE D’UNE CAISSE, EN LISTE — 23 août 2026 ──────

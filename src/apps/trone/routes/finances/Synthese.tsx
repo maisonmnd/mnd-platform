@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Eyebrow } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, convertFromXof } from '../../../../shared/currency';
-import { depensesDuMois, useInvoices, useDepensesComptees, invoiceRegleAu, invoiceReglements, expenseTotal, cashboxLabel, invoiceRegleAuSauf, caissesHorsBilan, useCashboxes, useEntreesHorsActivite, horsActiviteXof, horsActiviteParMotif, useEmprunts, detteDeLaMaison } from '../../../../shared/finance';
+import { depensesDuMois, estUneCharge, useInvoices, useDepensesComptees, invoiceRegleAu, invoiceReglements, expenseTotal, cashboxLabel, invoiceRegleAuSauf, caissesHorsBilan, useCashboxes, useEntreesHorsActivite, horsActiviteXof, horsActiviteParMotif, useEmprunts, detteDeLaMaison } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { splitByWeights } from '../../../../shared/pricing';
@@ -99,7 +99,8 @@ export default function Synthese() {
     const honored = appts.filter(
       (a) => a.branchId === branch.id && a.status === 'honoré' && !a.invoiceId,
     );
-    const liveExp = expenses.filter((e) => e.branchId === branch.id && !e.stopped);
+    /* Une part hors de la Maison n'est pas une charge du salon (13 novembre 2026). */
+    const liveExp = expenses.filter((e) => e.branchId === branch.id && !e.stopped && estUneCharge(e));
 
     // Règlements de formation (Académie) — revenus de la Maison. Les apprenant·e·s
     // ne sont pas rattaché·e·s à une branche : la formation compte comme revenu
@@ -427,7 +428,7 @@ export default function Synthese() {
       for (const p of ap.payments ?? []) { ajoute(caisses, 'Académie · formations', p.amountXof); ajoute(modes, 'Académie · formation', p.amountXof); }
     }
     for (const e of expenses) {
-      if (e.branchId === branch.id && !e.stopped) ajoute(cats, e.category || 'Sans catégorie', expenseTotal(e));
+      if (e.branchId === branch.id && !e.stopped && estUneCharge(e)) ajoute(cats, e.category || 'Sans catégorie', expenseTotal(e));
     }
     return { caisses: rangsStables(caisses), modes: rangsStables(modes), categories: rangsStables(cats) };
   }, [invoices, appts, apprenants, expenses, branch.id, byId]);

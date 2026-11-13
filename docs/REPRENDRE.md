@@ -2,6 +2,21 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## PARTAGER UN PAIEMENT — 13 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
+
+« Dans Dépenses, permets-moi de split a payment » (Yéman, après le ticket Super U du 12 novembre payé d'une carte Ecobank, dont une part n'était pas pour le salon). Maquette `public/maquette-partager-un-paiement.html` (artefact Fvfv2s6PDoPv57KwcH6jRM), les quatre choix proposés pris au sélecteur, puis « construis ».
+
+- **La forme** : une part = une dépense à part entière (objet, catégorie, montant), toutes liées par `Expense.paiement` `{ id, totalXof, libelle }` ; date, caisse, reçu, porteur, fournisseur et validation communs. La caisse bouge de la somme des parts, donc du total. `Expense.horsMaison` : la part sort de sa caisse mais n'est pas une charge du salon.
+- **La règle** `shared/partage-du-paiement-pur.ts` : `pourquoiPasDePartage` (ni mensuelle, ni devise, ni articles, ni revenus désignés, ni salaire, ni intérêts, ni arrêtée), `resteARepartir`, `refusDuPartage` (2 à 8 parts, objet, catégorie, montant entier, somme exacte), `partsDuPaiement` (la 1re part garde l'identifiant de la dépense), `reunisLesParts` (identifiant de la 1re, libellé du paiement, catégorie de la plus grosse part), `groupeLesPaiements`.
+- **Les charges** (`estUneCharge`, finance.ts) écartent `horsMaison` : `depensesDuMois` (tableau de bord, Synthèse, Centre de commande), `chargesDuPartage` (foyer), Synthèse (catégories, détail), Dépenses (`live` : total, catégories, budgets, « Où va l'argent », qui range aussi les parts sous le libellé du paiement), Fournisseurs (total des douze mois). Les relevés de caisse, la clôture, le journal et les avances la gardent ; le relevé (`tiroirs.tsx`, `unMouvementParPaiement`) montre un paiement partagé en une ligne au total. Les fonctions du serveur (conseils, centre de commande côté serveur) ne connaissent pas encore `horsMaison`.
+- **L'écran** (`Depenses.tsx`, `PartagerLePaiement.tsx`, styles `finances.css` `trf-partage*`, `trf-paiement*`, `trf-part*`) : « Partager » sur une dépense qui s'y prête ; la case « Partager ce paiement » à la saisie ; dans la liste, l'en-tête du paiement (« Partagé », total, « Modifier les parts », « Réunir ») et les parts dessous, pastille « Hors Maison ». Modifier une part ouvre les parts ; effacer une part efface le paiement ; trancher (oui, non) prend toutes les parts.
+- **Bancs** : `verifie-le-partage-du-paiement.mjs` (41 contrôles, `--prouve` 9 pannes sur 9, copies en dossier temporaire) ; `banc-partager-un-paiement.mjs` (Chrome réel, Trône construit hors ligne : partager 120 000 F en 90 000 + 30 000 F hors Maison, charges du mois à 90 000 F, puis Réunir).
+- **À savoir** : une dépense dans une caisse HORS BILAN compte encore dans les charges (Synthèse, tableau de bord) : `depensesDuMois` ne lit pas `horsBilan`, contrairement à ce que promet la fiche de la caisse. Non touché ici, à trancher par Yéman (la dépense Super U du 12 novembre, 214 698 F, est « à valider » dans la caisse hors bilan « Ecobank privée », créée le 13 novembre).
+
+## LE CHOIX DU MOYEN, LOT D (les pannes dites) — 12 novembre 2026, CONSTRUIT, PAS EN LIGNE (branche locale `lot-d-pannes-dites` sur main c216bd50, rien poussé ; 0204 NON appliquée, cloture-du-jour 2026-11-12-b pas déployée, Trône pas publié)
+
+## LE CHOIX DU MOYEN, LOT C (la bascule à distance) — 12 novembre 2026, CONSTRUIT, PAS EN LIGNE (branche locale `lot-c-bascule-distance` sur origin/main c216bd50 ; rien poussé, rien déployé)
+
 ## LA CONSULTATION, LOT 1 : LES FONDATIONS — 13 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
 
 « Construis » (Yéman), après la maquette « La Consultation MND » (artefact 26Auc7ps9wBxRPbqpjn1TQ, fichier `public/maquette-la-consultation.html` de l’arbre principal, non commité). Dix livrables, quatre lots ; celui-ci est le premier. Décisions inscrites dans l’onglet Construire de la maquette : nom du niveau 3 gardé « ÀLÀLÀ™ · Repose partielle et reconstruction complète » ; extensions naturelles de locks à créer (prix et durées à fixer par Yéman) ; le reste ouvert.
