@@ -70,6 +70,17 @@ Jocelyne S. (parente de trois filles d’un même foyer) ne voyait pas ses fille
 - Banc : `node scripts/verifie-les-besoins.mjs` (33).
 - **Reste au lot 1** : le questionnaire conditionnel et les règles de niveau de réparation (pris au lot 2, avec le site qui les exécute). **Lot 2** : le document `mnd_besoins` devra être lisible par le site (SQL) et l’écriture réservée à la direction.
 
+## LA CONSULTATION, LOT 4 : LES GESTES DE LA CLIENTE, L’ACOMPTE, LA MESURE — 13 novembre 2026 (Trône + Ma Couronne : aucune fonction, aucun SQL)
+
+« Construis le reste des lots » (Yéman). Le dernier lot de la maquette : « On sait ce que la consultation rapporte. »
+
+- **Les gestes de la cliente, dans la cloche de Ma Couronne** (`shared/devis-de-la-cliente-pur.ts`, seul juge) : elle voit ses devis estimés, à valider, envoyés, acceptés, confirmés (jamais un brouillon, plus une pièce payée). Un geste par état : estimé → « Faire confirmer » (il passe à valider par la Maison) ; à valider par elle → « Valider le devis » (acceptée) ; envoyé → « Accepter le devis » (acceptée, comme avant). **La Maison seule confirme** (le rendez-vous naît là, lot 1). La pastille ne compte que ce qui attend son geste. Anglais : `i18n/en-devis.ts`. La base le permettait déjà (la cliente modifie ses propres pièces, règle `own_upd`).
+- **L’acompte** : « Confirmer et créer le rendez-vous » pose sur le rendez-vous un acompte DEMANDÉ (`depositXof`, jamais confirmé) : chaque ligne du devis reconnue au catalogue à SON taux d’acompte (Paramètres), au prix écrit sur le devis, remises répercutées (`acompteDuDevis`). La cliente le règle ensuite par le chemin existant du rendez-vous.
+- **Le lien devis ↔ consultation** : `Invoice.consultationId`, posé sur tout devis préparé depuis une consultation (estimé ou ferme).
+- **La mesure** (`shared/mesure-de-la-consultation-pur.ts`, tuile `clients/ConsultationsMesure.tsx` en tête de Consultations, 90 jours) : A gratuites, B visios (réservées, tenues, manquées), C privées réglées et leur encaissement ; l’entonnoir des devis nés d’une consultation (estimés, confirmés, payés, **compté par consultation**) ; **l’écart** entre le milieu de la fourchette du site et le prix ferme (la consultation déduite rajoutée), et combien tombent dans la fourchette. Des filets SVG faits main.
+- Banc : `node scripts/verifie-les-gestes-et-la-mesure.mjs` (19).
+- **Pas construit** (à décider) : le lien PUBLIC du devis pour une cliente sans compte Ma Couronne (fonction `devis-public` de la maquette) ; les variantes « plus douce » et « plus loin » d’un devis (le modèle des pièces n’a pas de variantes) ; le créneau de la privée en ligne (il dépend du Carnet).
+
 ## LA CONSULTATION, LOT 3 : LA VISIO DE QUINZE MINUTES ET LA PRIVÉE RÉGLÉE APRÈS LA LECTURE — 13 novembre 2026 (site + Ma Couronne + Trône, SQL 0209, fonction visio-salle)
 
 « Construis le reste des lots » (Yéman). Les deux portes de confirmation de la maquette (S6, S7, V1 à V4, T1).

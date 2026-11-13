@@ -24,6 +24,7 @@ import './clients.css';
 import { ConsultationsGratuites } from './ConsultationsGratuites';
 import { ConsultationsVisios } from './ConsultationsVisios';
 import { ConsultationsReglees } from './ConsultationsReglees';
+import { ConsultationsMesure } from './ConsultationsMesure';
 import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
 import { ChampDeDate } from '../../../../ds/dates';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
@@ -1027,7 +1028,8 @@ function OnlineSection() {
         </a>
       </div>
 
-      {/* La Consultation, lots 2 et 3 : A les gratuites à relire, B les visios, C les privées réglées. */}
+      {/* La Consultation, lots 2 à 4 : la mesure, puis A les gratuites à relire, B les visios, C les privées réglées. */}
+      <ConsultationsMesure />
       <ConsultationsGratuites />
       <ConsultationsVisios />
       <ConsultationsReglees />

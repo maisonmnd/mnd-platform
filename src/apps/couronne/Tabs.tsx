@@ -36,6 +36,7 @@ import { derniereCouleur, ouvertureDuProgramme, suivreLeProtocole, useProtocoles
 import { ageDe, tetesPortees, statutFidelite, type StatutFidelite } from '../../shared/accounts';
 import { corrigerNaissance, declarationsDe, rattacherEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
+import { apresLeGeste, attendElle, boutonDuGeste, gesteDeLaCliente, motPourElle, visiblePourElle, type GesteDeLaCliente } from '../../shared/devis-de-la-cliente-pur';
 import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useFoyerTiers, cercleActifStore, foyerActifStore } from '../../shared/offers';
 import { remiseFamilleDeLaTete } from '../../shared/offres-pur';
 import { deliveryFee, useSettings } from '../../shared/settings';
@@ -324,14 +325,15 @@ function useCercle(): StatutFidelite & { membre: boolean } {
 
 /* ---------- devis — le pont Factures du Trône ---------- */
 
-/** Devis adressés à la cliente : envoyés (à accepter) et acceptés (informatifs). */
+/** Devis adressés à la cliente : estimés, à valider, envoyés (son geste), acceptés et confirmés (informatifs).
+    La Consultation, lot 4 (13 novembre 2026) : `devis-de-la-cliente-pur` en est le seul juge. */
 function useClientDevis(): Invoice[] {
   const [invoices] = useInvoices();
   const clientId = useClientId();
   return useMemo(
     () =>
       invoices
-        .filter((i) => i.clientId === clientId && i.kind === 'devis' && (i.status === 'envoyée' || i.status === 'acceptée'))
+        .filter((i) => i.clientId === clientId && i.kind === 'devis' && visiblePourElle(i))
         .slice()
         .sort((a, b) => b.date.localeCompare(a.date)),
     [invoices, clientId]
@@ -381,7 +383,7 @@ function useNotifCount(): number {
   const bilans = useBilansRecents();
   const [dismissed] = useStore(dismissedMcStore);
   const d = new Set(dismissed);
-  return devis.filter((x) => x.status === 'envoyée' && !d.has(`devis-${x.id}`)).length
+  return devis.filter((x) => attendElle(x) && !d.has(`devis-${x.id}`)).length
     + upcoming.filter((a) => !d.has(`resa-${a.id}`)).length
     + bilans.filter((b) => !d.has(`bilan-${b.id}`)).length;
 }
@@ -2265,9 +2267,14 @@ export function Notifications({ onClose, onOpenRdv }: { onClose: () => void; onO
       return [...s];
     });
 
-  /* Le pont devis → ERP : accepter ici rend le devis « accepté » au Trône (Factures). */
-  const acceptDevis = (id: string) => {
-    invoicesStore.set((prev) => prev.map((i) => (i.id === id && i.status === 'envoyée' ? { ...i, status: 'acceptée' } : i)));
+  /* Le pont devis → ERP : son geste (faire confirmer, valider, accepter) change l'état au Trône (Factures),
+     et rien d'autre. Le juge est `devis-de-la-cliente-pur` (lot 4 de la Consultation). */
+  const gesteSurLeDevis = (id: string, g: GesteDeLaCliente) => {
+    invoicesStore.set((prev) => prev.map((i) => {
+      if (i.id !== id) return i;
+      const apres = apresLeGeste(i, g);
+      return apres ? { ...i, ...apres } : i;
+    }));
   };
 
   const empty = devisV.length === 0 && upcomingV.length === 0 && !showRappel && bilansV.length === 0;
@@ -2309,30 +2316,26 @@ export function Notifications({ onClose, onOpenRdv }: { onClose: () => void; onO
           </div>
         ))}
 
-        {/* devis — envoyés par le Trône, acceptés ici */}
-        {devisV.map((d) => (
+        {/* devis — estimés, à valider, envoyés par le Trône : son geste ici */}
+        {devisV.map((d) => { const geste = gesteDeLaCliente(d); return (
           <div key={d.id} className="mc-notif" style={{ position: 'relative', paddingRight: 34 }}>
             <button type="button" aria-label={t('Effacer')} onClick={() => dismiss(`devis-${d.id}`)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 12 }}>✕</button>
-            <span className={`mc-notif__dot ${d.status === 'acceptée' ? 'mc-notif__dot--success' : 'mc-notif__dot--copper'}`} />
+            <span className={`mc-notif__dot ${d.status === 'acceptée' || d.status === 'confirmé' ? 'mc-notif__dot--success' : 'mc-notif__dot--copper'}`} />
             <div className="mc-notif__body">
               <div className="mc-notif__head">
                 <span className="mc-notif__kind">{t('Devis · {numero}', { numero: d.number })}</span>
                 <span className="mc-notif__time">{jourDit(d.date)}</span>
               </div>
-              <div className="mc-notif__msg">
-                {d.status === 'acceptée'
-                  ? t('Devis accepté, la maison prépare votre rituel.')
-                  : t('La maison vous propose un devis, à accepter pour sceller le rituel.')}
-              </div>
+              <div className="mc-notif__msg">{t(motPourElle(d))}</div>
               <div className="mc-notif__total">{prix(invoiceTotal(d), currency)}</div>
-              {d.status === 'envoyée' && (
-                <button className="mc-smallcta" style={{ marginTop: 10 }} onClick={() => acceptDevis(d.id)}>
-                  {t('Accepter le devis')}
+              {geste && (
+                <button className="mc-smallcta" style={{ marginTop: 10 }} onClick={() => gesteSurLeDevis(d.id, geste)}>
+                  {t(boutonDuGeste[geste])}
                 </button>
               )}
             </div>
           </div>
-        ))}
+        ); })}
 
         {/* rappel du prochain rituel */}
         {showRappel && next && (

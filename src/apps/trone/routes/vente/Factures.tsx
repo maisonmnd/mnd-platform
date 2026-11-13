@@ -25,6 +25,8 @@ import { LienMndPay } from './LienMndPay';
 import { BlocRelances } from './BlocRelances';
 import AssistantDuDevis, { type BrouillonDuDevis } from './AssistantDuDevis';
 import { consultationsQueueStore } from '../../../../shared/bridges';
+import { acompteDuDevis } from '../../../../shared/devis-de-la-cliente-pur';
+import { depositRateFor } from '../../../../shared/settings';
 import { clienteDeLaConsultation, deductionDeLaConsultation, lignesDuDevisEstime, motDuDevisEstime, motDuDevisFerme } from '../../../../shared/devis-de-la-consultation-pur';
 import { fmtDateFr, useLaPieceEnPdf, detailPorte } from './pdf-de-la-piece';
 import { BoutonDuPoint, FenetreDuPoint } from './FenetreDuPoint';
@@ -690,6 +692,7 @@ export default function Factures() {
       const svc = services.find((s) => s.name === l.label);
       if (svc) for (let n = 0; n < Math.max(1, l.qty); n++) svcIds.push(svc.id);
     });
+    const acompte = acompteDuDevis(devis.lines, (nom) => services.find((s) => s.name === nom)?.id, depositRateFor, devis.globalDiscountPct);
     const t = new Date();
     const todayIso = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
     const appt: Appointment = {
@@ -704,13 +707,18 @@ export default function Factures() {
       status: 'en attente',
       discountPct: devis.globalDiscountPct || undefined,
       discountXof: devis.globalDiscountXof || undefined, // la remise en CFA suit le devis
+      /* L'ACOMPTE (la Consultation, lot 4) : chaque ligne reconnue à SON taux, au prix du devis.
+         Demandé, jamais « reçu » : seul le serveur ou le comptoir le confirme. */
+      ...(acompte > 0 ? { depositXof: acompte } : {}),
       note: `Devis ${devis.number} confirmé, à planifier${svcIds.length === 0 ? ' (prestations à préciser)' : ''}.`,
       source: 'trone',
       devisId: devis.id,
     };
     appointmentsStore.set((prev) => [...prev, estampilleLaPose(appt)]);
     setInvoices((prev) => prev.map((i) => (i.id === devis.id ? { ...i, apptId: appt.id } : i)));
-    setWaHint('Devis confirmé → rendez-vous créé dans le Carnet. Planifiez le créneau, puis finalisez le paiement.');
+    setWaHint(acompte > 0
+      ? `Devis confirmé → rendez-vous créé dans le Carnet, avec un acompte de ${fmtMoney(acompte, currency)} à recevoir. Planifiez le créneau.`
+      : 'Devis confirmé → rendez-vous créé dans le Carnet. Planifiez le créneau, puis finalisez le paiement.');
   };
 
   const {
@@ -820,6 +828,7 @@ export default function Factures() {
             ...blankDraft('devis'),
             status: ferme ? 'à valider' : 'estimé',
             ...(ferme ? { aValiderPar: 'cliente' as const } : {}),
+            consultationId: c.id,
             clientId: cliente?.id ?? '',
             ...(cliente ? {} : { clientName: c.client.name }),
             lines: lignesDuDevisEstime(c).map((l) => ligneFacture(l.label, l.unitXof)),

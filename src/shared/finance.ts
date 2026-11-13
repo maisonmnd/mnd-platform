@@ -166,6 +166,8 @@ export type Invoice = {
   status: 'brouillon' | 'estimé' | 'à valider' | 'envoyée' | 'acceptée' | 'confirmé' | 'payée';
   /** Qui doit agir sur un devis « à valider » : la Maison vérifie, ou la cliente choisit. */
   aValiderPar?: 'maison' | 'cliente';
+  /** La consultation d'où vient ce devis (la Consultation, lot 4) : la mesure compare l'estimation au prix ferme. */
+  consultationId?: string;
   payment?: PaymentMethod;
   /** LE JOURNAL DES RÈGLEMENTS — plusieurs versements sur UNE pièce, chacun
       avec sa date, son moyen et sa caisse. Absent sur les pièces d'avant le
