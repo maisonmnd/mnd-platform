@@ -22,6 +22,8 @@ import {
 } from './_shared';
 import './clients.css';
 import { ConsultationsGratuites } from './ConsultationsGratuites';
+import { ConsultationsVisios } from './ConsultationsVisios';
+import { ConsultationsReglees } from './ConsultationsReglees';
 import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
 import { ChampDeDate } from '../../../../ds/dates';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
@@ -1025,7 +1027,10 @@ function OnlineSection() {
         </a>
       </div>
 
+      {/* La Consultation, lots 2 et 3 : A les gratuites à relire, B les visios, C les privées réglées. */}
       <ConsultationsGratuites />
+      <ConsultationsVisios />
+      <ConsultationsReglees />
 
       {/* Carte live · dernier diagnostic reçu */}
       {live && (

@@ -1,0 +1,132 @@
+/* ══ LA SALLE DE VISIO — 13 novembre 2026 (la Consultation, lot 3) ══════════
+   Charte : Cormorant Garamond 300 et Jost, rayons de 2 à 4 px, l'indigo pour
+   la scène (jamais l'obsidienne), le cuivre en accent seulement (l'anneau,
+   le bouton, les filets). Fondus, sans rebond. */
+
+.mv-page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 28px 16px calc(28px + env(safe-area-inset-bottom));
+  background: var(--color-ivoire);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  box-sizing: border-box;
+}
+.mv-carte {
+  width: 100%;
+  max-width: 520px;
+  box-sizing: border-box;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-top: 2px solid var(--copper-500);
+  border-radius: 3px;
+  padding: 26px 22px;
+  display: grid;
+  gap: 14px;
+  animation: mv-fondu 0.4s ease-out;
+}
+.mv-sceau { width: 34px; height: 34px; object-fit: contain; opacity: 0.9; }
+.mv-sur {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+.mv-titre {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 300;
+  font-size: clamp(26px, 6vw, 34px);
+  line-height: 1.15;
+  color: var(--color-indigo);
+}
+.mv-texte, .mv-legende { margin: 0; font-size: 15px; line-height: 1.55; }
+.mv-legende { font-size: 13px; color: var(--ink-soft); }
+.mv-erreur { margin: 0; font-size: 14px; color: var(--mc-error, #9b4a45); }
+
+.mv-deroule { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; border-top: 1px solid var(--hairline); padding-top: 12px; }
+.mv-deroule li { display: grid; grid-template-columns: 96px 1fr; gap: 10px; font-size: 14px; }
+.mv-deroule b { font-weight: 500; color: var(--color-indigo); }
+
+.mv-rangee { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.mv-bouton {
+  appearance: none;
+  border: 1px solid var(--color-indigo);
+  background: var(--color-indigo);
+  color: var(--color-ivoire);
+  border-radius: 2px;
+  padding: 12px 18px;
+  font: 500 14px/1.2 var(--font-sans);
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+.mv-bouton:hover { background: var(--indigo-700); }
+.mv-bouton:disabled { opacity: 0.45; cursor: default; }
+.mv-bouton--lien { background: transparent; color: var(--color-indigo); border-color: var(--hairline); }
+.mv-bouton--lien:hover { background: var(--indigo-50); }
+.mv-confirme { border: 1px solid var(--hairline); border-radius: 2px; padding: 12px; display: grid; gap: 10px; font-size: 14px; }
+.mv-confirme p { margin: 0; }
+
+.mv-resume { margin: 0; display: grid; gap: 4px 0; border-top: 1px solid var(--hairline); padding-top: 12px; }
+.mv-resume dt { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); font-weight: 500; margin-top: 8px; }
+.mv-resume dd { margin: 0; font-size: 15px; line-height: 1.5; }
+
+.mv-devise { margin: 0; font-family: var(--font-serif); font-weight: 300; font-style: italic; font-size: 15px; color: var(--ink-soft); }
+
+/* ── La scène de l'appel : indigo, l'image au centre ── */
+.mv-scene {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+  background: var(--color-indigo);
+  color: var(--color-ivoire);
+  font-family: var(--font-sans);
+  box-sizing: border-box;
+}
+.mv-barre { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 0 4px; }
+.mv-horloge { font-family: var(--font-serif); font-weight: 300; font-size: 28px; font-variant-numeric: tabular-nums; }
+.mv-horloge__sur { font-size: 18px; opacity: 0.6; }
+.mv-qui { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.75; }
+.mv-cadre { position: relative; flex: 1; min-height: 60dvh; border-radius: 3px; overflow: hidden; background: var(--indigo-900); }
+.mv-video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.mv-anneau { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: opacity 0.6s ease; }
+.mv-anneau rect { fill: none; stroke: var(--copper-400); stroke-width: 4px; vector-effect: non-scaling-stroke; stroke-dasharray: 1; transition: stroke-dashoffset 0.25s linear; }
+.mv-cadre.is-rebours .mv-anneau { opacity: 1; }
+.mv-rebours {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 2px;
+  background: rgba(20, 22, 48, 0.72);
+  pointer-events: none;
+  animation: mv-fondu 0.6s ease-out;
+  white-space: nowrap;
+}
+.mv-rebours b { font-family: var(--font-serif); font-weight: 300; font-size: 26px; font-variant-numeric: tabular-nums; color: var(--copper-300); }
+.mv-rebours span { font-size: 13px; }
+.mv-note { margin: 0; font-size: 12px; opacity: 0.7; text-align: center; }
+
+@keyframes mv-fondu { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .mv-carte, .mv-rebours { animation: none; }
+  .mv-anneau, .mv-anneau rect { transition: none; }
+}
+@media (max-width: 420px) {
+  .mv-rebours { flex-direction: column; align-items: center; gap: 2px; white-space: normal; text-align: center; }
+  .mv-deroule li { grid-template-columns: 80px 1fr; }
+}

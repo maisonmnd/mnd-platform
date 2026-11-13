@@ -29,6 +29,20 @@ export function clienteDeLaConsultation<C extends { id: string; phone?: string }
     ?? clientes.find((x) => x.id === `prospect-${c.id}`);
 }
 
+/* LE DEVIS FERME — 13 novembre 2026 (lot 3). Après la consultation privée
+   réglée en ligne (file C du Trône) : les mêmes lignes, à ajuster devant les
+   témoins, et le règlement de la consultation DÉDUIT (remise nommée, en
+   francs, jamais une ligne négative). */
+export function deductionDeLaConsultation(c: OnlineConsultation): { globalDiscountXof: number; discountLabel: string } | null {
+  const n = Math.max(0, Math.round(Number(c.paidXof) || 0));
+  return n > 0 ? { globalDiscountXof: n, discountLabel: 'Consultation privée, déduite' } : null;
+}
+
+export function motDuDevisFerme(c: OnlineConsultation, argent: (n: number) => string): string {
+  const d = deductionDeLaConsultation(c);
+  return `Votre devis ferme, établi à la consultation privée, devant vos locks témoins.${d ? ` Les ${argent(d.globalDiscountXof)} de la consultation sont déduits.` : ''}`;
+}
+
 /** Le mot qui accompagne le brouillon : la fourchette et ce qui reste à confirmer. */
 export function motDuDevisEstime(c: OnlineConsultation, argent: (n: number) => string): string {
   const e = c.estimation;

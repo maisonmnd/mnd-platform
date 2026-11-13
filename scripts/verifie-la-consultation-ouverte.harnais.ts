@@ -90,7 +90,7 @@ dit('0208 recopie la liste blanche de 0127 entiere', true,
   ['mnd_settings', 'mnd_brand', 'mnd_offers', 'mnd_cercle_tiers', 'mnd_points_rate', 'mnd_crown_styles', 'mnd_couronne_compose', 'mnd_vitrine_config', 'mnd_model_bands', 'mnd_model_band_sets', 'mnd_cercle_seuil', 'mnd_horaires_exceptions', 'mnd_avis_google', 'mnd_site_publie', 'mnd_cercle_actif', 'mnd_foyer_actif'].every((k) => sql.includes(`'${k}'`)));
 dit('la file A est au Trone, et le devis estime s ouvre depuis elle', [true, true], [
   /<ConsultationsGratuites \/>/.test(lf('src/apps/trone/routes/clients/Consultations.tsx')),
-  /params\.get\('consultation'\)[\s\S]{0,900}status: 'estimé'/.test(lf('src/apps/trone/routes/vente/Factures.tsx')),
+  /params\.get\('consultation'\)[\s\S]{0,1200}status:[^,\n]*'estimé'/.test(lf('src/apps/trone/routes/vente/Factures.tsx')),
 ]);
 dit('l ecran des besoins et la fiche technique se ferment a qui n est pas de la direction', [true, true], [
   /<fieldset disabled=\{!estDirection\}/.test(lf('src/apps/trone/routes/systeme/BesoinsEtRegles.tsx')),

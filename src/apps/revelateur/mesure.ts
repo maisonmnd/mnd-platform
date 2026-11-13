@@ -37,7 +37,11 @@ export type Evenement =
      commencée, lue (la lecture et l'estimation affichées), déposée au Trône. */
   | 'consultation_commencee'
   | 'consultation_lue'
-  | 'consultation_deposee';
+  | 'consultation_deposee'
+  /* Les deux portes de confirmation (13 novembre 2026, lot 3) : la visio
+     gratuite réservée, la consultation privée réglée (vérifiée serveur). */
+  | 'visio_reservee'
+  | 'consultation_reglee';
 
 export type Parametres = { parcours?: string; page?: string; sortie?: string; genre?: string; chemin?: string };
 

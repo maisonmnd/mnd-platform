@@ -16,7 +16,8 @@ export function ConsultationsGratuites() {
   const [queue] = useStore(consultationsQueueStore);
   const { currency } = useBranch();
   const navigate = useNavigate();
-  const aRelire = queue.filter((o) => o.modalite === 'auto' && o.status !== 'fermée')
+  /* Réglée en ligne, elle passe en file C (lot 3). */
+  const aRelire = queue.filter((o) => o.modalite === 'auto' && o.status !== 'fermée' && !(o.paidXof > 0))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   if (!aRelire.length) return null;
   const argent = (n: number) => fmtMoney(n, currency);
@@ -44,7 +45,7 @@ export function ConsultationsGratuites() {
               <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {o.status === 'nouvelle' && <span className="trv-status trv-status--avalider">à relire</span>}
                 {o.garde === 'peau' && <span className="trv-status trv-status--envoyee">garde médicale</span>}
-                {o.paidXof > 0 && <span className="trv-status trv-status--payee">{argent(o.paidXof)} réglés</span>}
+                {o.visio && <span className="trv-status trv-status--envoyee">visio · {new Date(o.visio.debut).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
               </span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>

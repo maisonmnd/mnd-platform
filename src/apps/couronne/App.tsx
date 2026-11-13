@@ -25,6 +25,8 @@ import ReserverIncluse from './ReserverIncluse';
 import { FeuilleRegler, type DemandeDeReglement, type GestesDeLAbonnee } from './Abonnee';
 import { appelleLaMaison, useReleve } from './releve';
 import { t, useLangue, adopteLaLangueDeLaFiche } from './i18n';
+import SalleDeVisio from './SalleDeVisio';
+import { salleDuFragment } from '../../shared/visio-pur';
 
 /* Ma Couronne — l'app cliente de la Maison MND.
    Une vraie app web : plein écran sur mobile (100dvh, safe-areas) ;
@@ -468,7 +470,21 @@ function Shell() {
   );
 }
 
+/* ══ LA SALLE DE VISIO, AVANT LA PORTE — 13 novembre 2026 (la Consultation,
+   lot 3). Le lien reçu à la réservation (`#/visio/<id>.<jeton>`) ouvre la
+   salle SANS COMPTE : le jeton suffit. Il se lit avant la connexion : la
+   salle ne demande ni session ni fiche cliente. */
 export default function App() {
+  const [salle, setSalle] = useState(() => salleDuFragment(window.location.hash));
+  useEffect(() => {
+    const lis = () => setSalle(salleDuFragment(window.location.hash));
+    window.addEventListener('hashchange', lis);
+    return () => window.removeEventListener('hashchange', lis);
+  }, []);
+  return salle ? <SalleDeVisio id={salle.id} jeton={salle.jeton} /> : <LaCouronne />;
+}
+
+function LaCouronne() {
   const { session, loading } = useAuth();
   const { fermee, mot } = useCouronneFermee();
   /* Cette session est-elle la SECONDE porte ouverte sur une même adresse ?

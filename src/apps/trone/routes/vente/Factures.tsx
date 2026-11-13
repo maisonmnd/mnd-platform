@@ -25,7 +25,7 @@ import { LienMndPay } from './LienMndPay';
 import { BlocRelances } from './BlocRelances';
 import AssistantDuDevis, { type BrouillonDuDevis } from './AssistantDuDevis';
 import { consultationsQueueStore } from '../../../../shared/bridges';
-import { clienteDeLaConsultation, lignesDuDevisEstime, motDuDevisEstime } from '../../../../shared/devis-de-la-consultation-pur';
+import { clienteDeLaConsultation, deductionDeLaConsultation, lignesDuDevisEstime, motDuDevisEstime, motDuDevisFerme } from '../../../../shared/devis-de-la-consultation-pur';
 import { fmtDateFr, useLaPieceEnPdf, detailPorte } from './pdf-de-la-piece';
 import { BoutonDuPoint, FenetreDuPoint } from './FenetreDuPoint';
 import { filStore, nouveauMessage } from '../../../../shared/fil';
@@ -807,6 +807,10 @@ export default function Factures() {
       const c = cid && k === 'devis' ? consultationsQueueStore.get().find((o) => o.id === cid) : undefined;
       if (c) {
         const cliente = clienteDeLaConsultation(c, clients);
+        /* LE DEVIS FERME (lot 3) : `&ferme=1`, depuis la file C. À valider par
+           elle, la consultation réglée déduite en remise nommée. */
+        const ferme = params.get('ferme') === '1';
+        const deduction = ferme ? deductionDeLaConsultation(c) : null;
         setOnglet('devis');
         setStatusFilter('tous');
         setQ('');
@@ -814,14 +818,18 @@ export default function Factures() {
           mode: 'new',
           draft: {
             ...blankDraft('devis'),
-            status: 'estimé',
+            status: ferme ? 'à valider' : 'estimé',
+            ...(ferme ? { aValiderPar: 'cliente' as const } : {}),
             clientId: cliente?.id ?? '',
             ...(cliente ? {} : { clientName: c.client.name }),
             lines: lignesDuDevisEstime(c).map((l) => ligneFacture(l.label, l.unitXof)),
-            note: motDuDevisEstime(c, (n) => fmtMoney(n, currency)),
+            ...(deduction ?? {}),
+            note: ferme ? motDuDevisFerme(c, (n) => fmtMoney(n, currency)) : motDuDevisEstime(c, (n) => fmtMoney(n, currency)),
           },
         });
-        setWaHint('Brouillon préparé depuis la consultation gratuite : chaque ligne au bas de sa fourchette, à ajuster avant de créer.');
+        setWaHint(ferme
+          ? 'Devis ferme préparé depuis la consultation privée : ajustez les lignes devant les témoins ; la consultation réglée est déduite.'
+          : 'Brouillon préparé depuis la consultation gratuite : chaque ligne au bas de sa fourchette, à ajuster avant de créer.');
       } else {
         openNew(k);
       }

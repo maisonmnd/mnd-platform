@@ -13,6 +13,8 @@ import {
   type CalibreBrut, type Fourchette, type LongueurDite, type PrestationBrute,
 } from '../../../shared/estimation-pur';
 import type { OnlineConsultation } from '../../../shared/bridges';
+import { FORME_DE_LA_CONSULTATION } from '../../../shared/visio-pur';
+import { PortesDeLaConsultation, type Depot as DepotFait } from './PortesDeLaConsultation';
 
 /* ══ LA CONSULTATION GRATUITE — 13 novembre 2026 (la Consultation, lot 2) ═══
    Maquette « La Consultation MND », écrans S1 à S5. « Le problème c'est
@@ -95,6 +97,9 @@ export default function Consultation() {
   const [longueur, setLongueur] = useState<LongueurDite | 'inconnue' | ''>('');
   const [sensibilites, setSensibilites] = useState('');
   const [retenues, setRetenues] = useState<string[] | null>(null);
+  /* Lot 3 : la consultation déposée (pour réserver la visio ou régler la privée), et l'arrivée par `?privee=<id>` après la visio. */
+  const [depot, setDepot] = useState<DepotFait | null>(null);
+  const privee = useMemo(() => { try { const p = new URLSearchParams(location.search).get('privee') ?? ''; return FORME_DE_LA_CONSULTATION.test(p) ? p : ''; } catch { return ''; } }, []);
   const titre = useRef<HTMLHeadingElement>(null);
   const aBouge = useRef(false);
 
@@ -146,6 +151,21 @@ export default function Consultation() {
     );
   }
   if (!d || !r) return <div className="triage"><p className="sur">La consultation se prépare…</p></div>;
+
+  /* ── APRÈS LA VISIO : LA CONSULTATION PRIVÉE, DIRECTEMENT ── */
+  if (privee && etape === 'qui') {
+    return (
+      <div className="triage">
+        <div className="merci">
+          <p className="sur">Votre consultation privée</p>
+          <h2>La Maison vous reçoit, devant vos locks.</h2>
+          <p>Votre lecture et votre visio sont à la Maison. Il reste à réserver la consultation privée.</p>
+        </div>
+        <PortesDeLaConsultation depot={{ id: privee, prenom: '', tel: '' }} branchId={d.branchId} devise={d.devise} whatsapp={d.whatsapp} atelier seulementPrivee />
+        <p className="legende" style={{ marginTop: 14 }}>Une nouvelle lecture ? <a href={base('/consultation/')}>Recommencer la consultation gratuite</a>.</p>
+      </div>
+    );
+  }
 
   const idx = RAIL.findIndex((x) => x.e === etape);
   const rail = (
@@ -326,7 +346,7 @@ export default function Consultation() {
             </div>
           )}
           <Depot d={d} r={r} etat={{ pour, nees, familles, choisis, nLocks, calibre, lon, sensibilites, proposees, aConfirmer, retenues: retenuesEffectives, total, peau: !!q?.peau }}
-            fourchette={fourchette} nom={nom} onDepose={() => va('deposee')} />
+            fourchette={fourchette} nom={nom} onDepose={(x) => { setDepot(x); va('deposee'); }} />
           {nav('couronne', null, true)}
         </div>
       </div>
@@ -336,18 +356,20 @@ export default function Consultation() {
   /* ── APRÈS LE DÉPÔT ── */
   const porte = familles.includes('creer') ? 'creation' : familles.includes('enfants') ? 'enfant'
     : familles.some((f) => ['reparer', 'structure', 'volume'].includes(f)) ? 'reparation' : 'entretien';
+  const atelier = familles.some((f) => ['creer', 'reparer', 'structure', 'volume'].includes(f)) || !!q?.peau;
   const resume = `Bonjour, je viens de faire ma consultation gratuite sur le site : ${r.besoins.filter((b) => choisis.includes(b.id)).map((b) => b.mots.toLowerCase()).join(' ; ')}.`;
   return (
     <div className="triage">{rail}
       <div className="merci">
         <p className="sur">Votre lecture est à la Maison</p>
         <h2 ref={titre} tabIndex={-1}>Merci. La Maison la relit et vous écrit sur WhatsApp.</h2>
-        <p>Pour la confirmer et passer à votre rituel, la Maison vous reçoit en consultation. Pour une création ou une réparation, c’est l’étape qui ouvre l’atelier : diagnostic devant vos locks, locks témoins faites devant vous, devis ferme, et le prix de la consultation déduit de votre rituel.</p>
-        <div className="rangee" style={{ marginTop: 14 }}>
-          <a className="btn btn--plein" href={base(`/reserver/?besoin=${porte}`)} onClick={() => mesure('parcours_choisi', { parcours: porte, genre: 'consultation' })}>Réserver ma consultation à la Maison</a>
+        <p>Pour la confirmer et passer à votre rituel, choisissez comment la Maison la regarde avec vous.</p>
+        <div className="rangee" style={{ marginTop: 10 }}>
           <a className="btn btn--lien" href={lienWhatsApp(d.whatsapp, resume)} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: porte, genre: 'consultation' })}>Écrire à la Maison</a>
+          <a className="btn btn--lien" href={base(`/reserver/?besoin=${porte}`)} onClick={() => mesure('parcours_choisi', { parcours: porte, genre: 'consultation' })}>Réserver un rituel directement</a>
         </div>
       </div>
+      {depot && <PortesDeLaConsultation depot={depot} branchId={d.branchId} devise={d.devise} whatsapp={d.whatsapp} atelier={atelier} />}
       <p className="legende" style={{ marginTop: 14 }}>Vous voulez seulement une routine de soins ? <a href={base('/mon-parcours/')}>Le diagnostic en cinq questions</a>.</p>
     </div>
   );
@@ -359,7 +381,7 @@ type Etat = {
   proposees: LigneQualifiee[]; aConfirmer: LigneQualifiee[]; retenues: string[]; total: { min: number; max: number; aChiffrer: number }; peau: boolean;
 };
 function Depot({ d, r, etat, fourchette, nom, onDepose }: {
-  d: Donnees; r: ReglagesDesBesoins; etat: Etat; fourchette: (id: string) => Fourchette | null; nom: (id: string) => string; onDepose: () => void;
+  d: Donnees; r: ReglagesDesBesoins; etat: Etat; fourchette: (id: string) => Fourchette | null; nom: (id: string) => string; onDepose: (x: DepotFait) => void;
 }) {
   const f = COMMUN.formulaire;
   const [prenom, setPrenom] = useState('');
@@ -418,7 +440,7 @@ function Depot({ d, r, etat, fourchette, nom, onDepose }: {
         return;
       }
       mesure('consultation_deposee', { genre: etat.familles.join(',') });
-      onDepose();
+      onDepose({ id, prenom: prenom.trim(), tel: tel.trim() });
     } catch {
       setErreur('L’envoi n’a pas abouti. Réessayez, ou écrivez-nous sur WhatsApp.');
     } finally {

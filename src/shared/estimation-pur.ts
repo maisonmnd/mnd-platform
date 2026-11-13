@@ -14,6 +14,13 @@
    Module PUR : le site public l'importe sans rien charger d'autre (ni
    magasin, ni synchronisation). Les champs lus sont ceux de `catalog_services`. */
 
+/** LE PRIX DE LA CONSULTATION PRIVÉE — 13 novembre 2026 (lot 3), décision
+    du 13 novembre : 15 000 F pour toutes, locks témoins incluses, déduits du
+    rituel. Le même nombre que `FEE_XOF` (consultation/data.ts) et que la barre
+    du serveur (`CONSULTATION_FEE_XOF`, kkiapay-verify) : `verifie-la-visio`
+    compare les trois. Le serveur seul dit ce qui est reçu. */
+export const PRIX_DE_LA_CONSULTATION_PRIVEE_XOF = 15000;
+
 export type LongueurDite = 'court' | 'mi-long' | 'long' | '';
 
 /** Ce que l'estimation lit d'une prestation du catalogue. */

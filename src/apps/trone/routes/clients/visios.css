@@ -1,0 +1,90 @@
+/* ══ B · LES VISIOS AU TRÔNE — 13 novembre 2026 (la Consultation, lot 3) ══
+   Préfixe `tvz-`. Rayons de 2 à 4 px ; la salle sur l'indigo, jamais
+   l'obsidienne ; le cuivre pour l'anneau et les filets. Fondus sans rebond. */
+
+.tvz-carte {
+  border: 1px solid var(--hairline);
+  border-left: 2px solid var(--hairline);
+  border-radius: 3px;
+  background: var(--surface-card);
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+}
+.tvz-carte.is-en-cours { border-left-color: var(--copper-500); }
+
+.tvz-lab { font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); font-weight: 600; display: block; margin-bottom: 4px; }
+.tvz-note { font-size: 12px; color: var(--ink-soft); margin: 4px 0 0; }
+.tvz-resume { display: grid; gap: 12px; border-top: 1px solid var(--hairline); padding-top: 12px; }
+.tvz-puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.tvz-puce {
+  appearance: none;
+  border: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--color-indigo);
+  border-radius: 2px;
+  padding: 6px 10px;
+  font: 500 13px/1.2 var(--font-sans);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.tvz-puce.is-on { background: var(--color-indigo); color: var(--color-ivoire); border-color: var(--color-indigo); }
+.tvz-ligne { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.tvz-champ {
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  padding: 7px 9px;
+  font: 14px/1.4 var(--font-sans);
+  background: var(--surface-card);
+  color: var(--ink);
+  width: 100%;
+  max-width: 320px;
+  box-sizing: border-box;
+}
+textarea.tvz-champ { max-width: 100%; resize: vertical; }
+
+/* Le résumé posé sur la salle sombre */
+.tvz-resume.is-sombre { border-top-color: rgba(255, 255, 255, 0.14); }
+.tvz-resume.is-sombre .tvz-lab, .tvz-resume.is-sombre .tvz-note { color: var(--indigo-200); }
+.tvz-resume.is-sombre .tvz-puce { color: var(--color-ivoire); border-color: rgba(255, 255, 255, 0.24); }
+.tvz-resume.is-sombre .tvz-puce.is-on { background: var(--copper-500); border-color: var(--copper-500); color: var(--color-indigo); }
+.tvz-resume.is-sombre .tvz-champ { background: rgba(255, 255, 255, 0.06); color: var(--color-ivoire); border-color: rgba(255, 255, 255, 0.24); }
+
+/* ── La salle, côté Maison ── */
+.tvz-salle {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-indigo);
+  color: var(--color-ivoire);
+  font-family: var(--font-sans);
+  animation: tvz-fondu 0.3s ease-out;
+}
+.tvz-salle__barre { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); flex-wrap: wrap; }
+.tvz-horloge { font-family: var(--font-serif); font-weight: 300; font-size: 26px; font-variant-numeric: tabular-nums; }
+.tvz-horloge small { font-size: 16px; opacity: 0.6; }
+.tvz-salle__corps { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; padding: 14px; min-height: 0; }
+.tvz-salle__cote { overflow: auto; display: grid; align-content: start; gap: 8px; }
+.tvz-cadre { position: relative; border-radius: 3px; overflow: hidden; background: var(--indigo-900); min-height: 50vh; }
+.tvz-video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.tvz-attente { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: 20px; text-align: center; font-family: var(--font-serif); font-weight: 300; font-size: 22px; }
+.tvz-anneau { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: opacity 0.6s ease; }
+.tvz-anneau rect { fill: none; stroke: var(--copper-400); stroke-width: 4px; vector-effect: non-scaling-stroke; stroke-dasharray: 1; transition: stroke-dashoffset 0.25s linear; }
+.tvz-cadre.is-rebours .tvz-anneau { opacity: 1; }
+.tvz-rebours {
+  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+  padding: 8px 14px; border-radius: 2px; background: rgba(20, 22, 48, 0.72);
+  font-size: 13px; white-space: nowrap; pointer-events: none; animation: tvz-fondu 0.6s ease-out;
+}
+.tvz-rebours b { font-family: var(--font-serif); font-weight: 300; font-size: 24px; color: var(--copper-300); margin-right: 8px; font-variant-numeric: tabular-nums; }
+
+@keyframes tvz-fondu { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 860px) {
+  .tvz-salle__corps { grid-template-columns: 1fr; overflow: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tvz-salle, .tvz-rebours { animation: none; }
+  .tvz-anneau, .tvz-anneau rect { transition: none; }
+}

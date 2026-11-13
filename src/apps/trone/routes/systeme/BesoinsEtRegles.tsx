@@ -8,6 +8,7 @@ import { useStaff } from '../../../../shared/auth';
 import { uid } from '../../../../shared/store';
 import { useBesoins, prixDAppelDe, etatDe } from '../../../../shared/besoins';
 import { useEstDirection } from '../_vie';
+import { ReglagesDeLaVisio } from './ReglagesDeLaVisio';
 import {
   AUCUNE_PREUVE, PALIERS_DITS, POINTS_PERMIS, SENS_DES_POINTS, defautsDes, palierDe, qualifie,
   type Besoin, type Palier, type Preuves, type Qualification, type ReglagesDesBesoins,
@@ -26,7 +27,7 @@ import './besoins.css';
    main. « Seuils et preuves » règle les paliers. Tout s'écrit dans le
    document `mnd_besoins`, signé (qui, quand). */
 
-type Onglet = 'besoins' | 'essayer' | 'seuils';
+type Onglet = 'besoins' | 'essayer' | 'seuils' | 'visio';
 const vide = (famille: string): Besoin => ({ id: '', famille, mots: '', points: 10, prestations: [] });
 const plie = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -101,6 +102,7 @@ export default function BesoinsEtRegles() {
         <button role="tab" aria-selected={onglet === 'besoins'} className={`trv-tab ${onglet === 'besoins' ? 'is-active' : ''}`} onClick={() => setOnglet('besoins')}>Les besoins <span className="trv-tab__n">{r.besoins.length}</span></button>
         <button role="tab" aria-selected={onglet === 'essayer'} className={`trv-tab ${onglet === 'essayer' ? 'is-active' : ''}`} onClick={() => setOnglet('essayer')}>Essayer</button>
         <button role="tab" aria-selected={onglet === 'seuils'} className={`trv-tab ${onglet === 'seuils' ? 'is-active' : ''}`} onClick={() => setOnglet('seuils')}>Seuils et preuves</button>
+        <button role="tab" aria-selected={onglet === 'visio'} className={`trv-tab ${onglet === 'visio' ? 'is-active' : ''}`} onClick={() => setOnglet('visio')}>La visio</button>
       </div>
 
       {!estDirection && <p className="tbs-garde">Lecture seule : seule la direction modifie les besoins, leurs points et les seuils. « Essayer » reste ouvert.</p>}
@@ -164,6 +166,8 @@ export default function BesoinsEtRegles() {
       )}
 
       {onglet === 'essayer' && <Essai r={r} nomDe={nomDe} prixDit={prixDit} prixDe={prixDe} />}
+
+      {onglet === 'visio' && <ReglagesDeLaVisio estDirection={estDirection} />}
 
       {onglet === 'seuils' && (
         <fieldset disabled={!estDirection} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>

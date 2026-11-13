@@ -73,6 +73,12 @@ export type OnlineConsultation = {
   };
   /** La garde médicale levée (plaques, psoriasis). */
   garde?: 'peau';
+  /** LOT 3 (13 novembre 2026). La visio réservée depuis cette consultation (posée par `visio-salle`). */
+  visio?: { id: string; debut: string };
+  /** Les photos des locks témoins, chemins dans le compartiment `temoins` (0209). */
+  temoins?: string[];
+  /** Le moment de la consultation privée, fixé avec elle (texte libre de la Maison). */
+  momentFixe?: string;
 };
 
 /* ── LA CARTE DU COMPTOIR — ce qu'on y montre, 28 août 2026 ───────────
