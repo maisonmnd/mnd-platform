@@ -3,7 +3,7 @@
    13 novembre 2026 (la Consultation, lot 2). Les fourchettes de l'estimation
    (estimation-pur), le devis estimé né d'une consultation
    (devis-de-la-consultation-pur), et les branchements : la page du site,
-   l'îlot, le dépôt par push-notify, la file A du Trône, la migration 0207.
+   l'îlot, le dépôt par push-notify, la file A du Trône, la migration 0208.
    Les prix sont des exemples. Sortie ASCII : la console de Windows. */
 import { bornesDesCalibres, calibreDuNombre, fourchetteDe, somme, proposableEnLigne, type PrestationBrute } from '../src/shared/estimation-pur';
 import { clienteDeLaConsultation, lignesDuDevisEstime, motDuDevisEstime } from '../src/shared/devis-de-la-consultation-pur';
@@ -83,10 +83,10 @@ dit('l ilot depose par push-notify (tunnel-submit), jamais en base directe', [tr
   [/functions\.invoke\('push-notify'[\s\S]{0,120}mode: 'tunnel-submit'/.test(ilot), /from\('consultations_queue'\)\.(insert|upsert)/.test(ilot)]);
 dit('l ilot n importe ni magasin ni synchronisation', false, /from '\.\.\/\.\.\/\.\.\/shared\/(besoins|sync|store|pricing|catalog)'/.test(ilot));
 dit('l ilot ne parle jamais de points ni de palier a la cliente', false, /'[^']*\b(points|palier)\b[^']*'/.test(ilot.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter((l) => /<|\{`|'.*'/.test(l) && !/import|manques\.|startsWith|includes\(/.test(l)).join('\n')));
-const sql = lf('supabase/migrations/0207_la_consultation_ouverte.sql');
-dit('0207 : mnd_besoins lisible par le site, ecrit par la direction seule (creer, modifier, retirer)', [true, 3, false],
+const sql = lf('supabase/migrations/0208_la_consultation_ouverte.sql');
+dit('0208 : mnd_besoins lisible par le site, ecrit par la direction seule (creer, modifier, retirer)', [true, 3, false],
   [/'mnd_besoins'\n  \]\)\);/.test(sql), (sql.match(/as restrictive for (insert|update|delete)/g) ?? []).length, /as restrictive for (all|select)/.test(sql)]);
-dit('0207 recopie la liste blanche de 0127 entiere', true,
+dit('0208 recopie la liste blanche de 0127 entiere', true,
   ['mnd_settings', 'mnd_brand', 'mnd_offers', 'mnd_cercle_tiers', 'mnd_points_rate', 'mnd_crown_styles', 'mnd_couronne_compose', 'mnd_vitrine_config', 'mnd_model_bands', 'mnd_model_band_sets', 'mnd_cercle_seuil', 'mnd_horaires_exceptions', 'mnd_avis_google', 'mnd_site_publie', 'mnd_cercle_actif', 'mnd_foyer_actif'].every((k) => sql.includes(`'${k}'`)));
 dit('la file A est au Trone, et le devis estime s ouvre depuis elle', [true, true], [
   /<ConsultationsGratuites \/>/.test(lf('src/apps/trone/routes/clients/Consultations.tsx')),

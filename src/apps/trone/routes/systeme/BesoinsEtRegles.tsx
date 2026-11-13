@@ -35,7 +35,7 @@ export default function BesoinsEtRegles() {
   const [services] = useServices();
   const moi = useStaff();
   const [r, ecris] = useBesoins();
-  /* SEULE LA DIRECTION ÉCRIT LES BESOINS — 0207 (13 novembre 2026). L'écran le
+  /* SEULE LA DIRECTION ÉCRIT LES BESOINS — 0208 (13 novembre 2026). L'écran le
      dit au lieu de laisser la base refuser sans bruit. */
   const estDirection = useEstDirection();
   const [onglet, setOnglet] = useState<Onglet>('besoins');

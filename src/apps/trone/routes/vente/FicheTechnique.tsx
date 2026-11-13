@@ -47,7 +47,7 @@ export function FicheTechniqueDuVolet({ serviceId, fiche, onChange, services, cu
 }) {
   const [r, ecris] = useBesoins();
   const moi = useStaff();
-  /* Les liens et le « sans seuil » s'écrivent dans `mnd_besoins` : la direction seule (0207). */
+  /* Les liens et le « sans seuil » s'écrivent dans `mnd_besoins` : la direction seule (0208). */
   const estDirection = useEstDirection();
   const nom = (id: string) => services.find((s) => s.id === id)?.name ?? 'prestation introuvable';
   const champ = (k: 'indications' | 'eligibilite' | 'contreIndications' | 'actifs', titre: string, aide: string) => (

@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- 0207 — LA CONSULTATION OUVERTE (13 novembre 2026, la Consultation, lot 2)
+-- 0208 — LA CONSULTATION OUVERTE (13 novembre 2026, la Consultation, lot 2)
 --
 -- « Construis le reste des lots » (Yéman), après la maquette « La
 -- Consultation MND ». La consultation gratuite du site (/consultation/) lit
@@ -22,7 +22,7 @@
 -- `repli_` nécessaire. Rejouable : `create or replace`, `drop … if exists`.
 -- ═══════════════════════════════════════════════════════════════════════════
 
--- ⟨0207⟩
+-- ⟨0208⟩
 -- ── ① LE SITE LIT LES BESOINS ─────────────────────────────────────────
 drop policy if exists docs_pub_read on public.documents;
 create policy docs_pub_read on public.documents for select to anon, authenticated
@@ -43,7 +43,7 @@ create policy docs_pub_read on public.documents for select to anon, authenticate
     'mnd_site_publie',
     'mnd_cercle_actif',
     'mnd_foyer_actif',
-    -- 0207 :
+    -- 0208 :
     'mnd_besoins'
   ]));
 
@@ -68,7 +68,7 @@ drop policy if exists docs_ecrits_par_la_direction_retirer on public.documents;
 create policy docs_ecrits_par_la_direction_retirer on public.documents
   as restrictive for delete to anon, authenticated
   using (not (key = any(public.cles_ecrites_par_la_direction())) or public.est_direction());
--- ⟨/0207⟩
+-- ⟨/0208⟩
 
 
 -- ── Contrôle ──────────────────────────────────────────────────────────
