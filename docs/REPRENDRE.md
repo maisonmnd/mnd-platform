@@ -45,6 +45,19 @@
 - Banc : `node scripts/verifie-les-besoins.mjs` (33).
 - **Reste au lot 1** : le questionnaire conditionnel et les règles de niveau de réparation (pris au lot 2, avec le site qui les exécute). **Lot 2** : le document `mnd_besoins` devra être lisible par le site (SQL) et l’écriture réservée à la direction.
 
+## LA CONSULTATION, LOT 2 : LA CONSULTATION GRATUITE EN LIGNE — 13 novembre 2026 (site public + Trône, SQL 0207, une fonction refaite)
+
+« Construis le reste des lots » (Yéman). Le parcours A de la maquette : la cliente décrit sa couronne et ses besoins sur le site, la Maison lit, estime, et prépare le devis « estimé » d’un geste.
+
+- **Le site** : page `/consultation/` (îlot `consultation`, `revelateur/ilots/Consultation.tsx`), le bouton de l’accueil « Faire mon diagnostic » devient « Ma consultation gratuite ». Cinq étapes : qui, envies, besoins (les familles de `mnd_besoins`), la couronne (enfant ou soi, déjà des locks ou pas, nombre ou calibre, longueur, sensibilités), la lecture. La lecture dit les prestations proposées avec une fourchette, celles « à confirmer » (seuil ou garde) en cartes grises non cliquables, et jamais de points ni de palier. Le dépôt passe par `push-notify` mode `tunnel-submit` (identifiant `cg-…`, `modalite: 'auto'`). Repli : sans `mnd_besoins` lisible, le site prend `BESOINS_DE_DEPART()`.
+- **L’estimation** `shared/estimation-pur.ts` (pur, importé par le site) : `fourchetteDe` lit le catalogue tel quel (prix par longueur, au lock avec tranches et plancher, calibre quand le nombre manque) ; un paramètre qui manque élargit la fourchette au lieu de mentir ; « sur devis » ne donne pas de nombre.
+- **Le Trône** : Consultations, en tête, « A · Consultations gratuites à relire » (`clients/ConsultationsGratuites.tsx`) : ce qu’elle a coché, sa couronne, l’estimation, la garde ; « Préparer le devis estimé » ouvre Factures › nouveau devis à l’état `estimé` (`shared/devis-de-la-consultation-pur.ts` : lignes au bas de la fourchette, la cliente par ses huit derniers chiffres sinon `prospect-<id>`, le mot de l’estimation), « Marquer relue », « Fermer ». La carte « en direct » ne prend plus les consultations `auto`.
+- **SQL 0207** `0207_la_consultation_ouverte.sql` : `mnd_besoins` rejoint `docs_pub_read` (liste de 0127 recopiée) ; trois règles restrictives : seule la direction (`est_direction()`) crée, modifie ou retire `mnd_besoins`. Besoins et règles et la fiche technique passent en lecture seule hors direction.
+- **Fonction refaite** : `conseil-du-matin` n’avait pas été regroupée après le chantier « devis » (couleur grenat, `maison-intelligente-pur`) ; refaite, à redéployer.
+- Mesure : `consultation_commencee`, `consultation_lue`, `consultation_deposee`.
+- Banc : `node scripts/verifie-la-consultation-ouverte.mjs` (26). Tous les bancs : aucun échec neuf (40, contre 45 au témoin).
+- **Lot 3** : la visio (table, fonction de salle, page avec le compte à rebours des 120 dernières secondes et la coupure à 15 min, file B au Trône) et la consultation privée payée dans la foulée de la lecture. **Lot 4** : les gestes de la cliente sur le devis dans Ma Couronne (accepter, valider, plus doux, plus loin), l’acompte au devis confirmé, la mesure A/B/C.
+
 ## LES ENVOIS PROGRAMMÉS — 13 novembre 2026, CONSTRUIT, PAS EN LIGNE (branche `les-envois-programmes` sur main 4ddf33e8 ; 0206 NON PASSÉE ; envois-partent « 2026-11-13-a » à déployer ; le modèle `un_message_pour_vous` à déposer chez Meta)
 
 « Programmer un WhatsApp » remplace « Appel reçu », partout (maquette `public/maquette-les-envois-programmes.html`, artefact 5FHHHAQRACAjcsnkeL9bSD, validée le 13 novembre 2026, « construis »). On écrit le WhatsApp maintenant, avec sa pièce jointe si besoin, on choisit l'heure, et l'assistant du sujet l'envoie seul à l'heure dite ; ou bien « par l'app » : à l'heure dite, le téléphone sonne et WhatsApp s'ouvre, le message écrit.

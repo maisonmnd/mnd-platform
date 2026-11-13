@@ -340,7 +340,9 @@ var CHANTIER_VERS_PROFESSIONNEL = {
   prevision: "saphir",
   question: "saphir",
   processus: "saphir",
-  achat: "jade"
+  achat: "jade",
+  /* Le devis par description (13 novembre 2026) : un devis est d'abord de l'argent. */
+  devis: "grenat"
 };
 var COMPTEURS_DU_LIVRE = [
   { cle: "mnd_ia_compteur_huit", parChantier: true, professionnel: RESERVE, dit: "ia-maison" },
