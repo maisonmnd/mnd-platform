@@ -2,7 +2,9 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE CAISSIER DE GRENAT — 13 novembre 2026, CONSTRUIT (SQL 0207 à passer ; `cloture-du-jour` 2026-11-13-a à déployer ; le Trône à publier)
+## LE CAISSIER DE GRENAT — 13 novembre 2026, EN LIGNE (commit efb8ba32 ; `cloture-du-jour` v23 « 2026-11-13-a » à 12:59 UTC ; SQL 0207 PASSÉE à 12:59 UTC, NE PAS RELANCER ; Trône build 20261113130255 @ efb8ba32, 533/533 identiques)
+
+- **Mise en ligne du 13 novembre 2026** (fonction AVANT le SQL, voulu : l'ancienne aurait fait une clôture complète toutes les cinq minutes à 15 h et 19 h) : GET `version 2026-11-13-a`, `regle 2026-11-12-b`, `caissier 2026-11-13-a` ; trois crons de Grenat actifs. Essai sans écrire (`{"source":"essai","moment":"caisse"}` par `appelle_fonction_edge`, 14 h 01 à Cotonou) : 200, rien à faire ; cron vu passer six fois ; aucune ligne `data->caissier` ni honneur « caisse » écrite. Premier geste réel attendu : le rendez-vous de 20 h, prévenu vers 21 h 15 s'il n'est pas encaissé (pas de facture seule après 19 h 30). De 14 h 04 à 14 h 22 (Cotonou), tous les appels de la base vers les fonctions ont dépassé leur délai (envois-partent compris), revenus seuls à 14 h 23 ; non attribué au caissier.
 
 « Le Trône n'a pas de caissier. J'aimerais créer un robot caissier qui se déclenche automatiquement pour finaliser un paiement ou une facture. Crée-le », puis « construis » AVANT la maquette (Yéman). Aucun choix coché : ce sont les propositions prudentes ci-dessous, à relire avec elle.
 
