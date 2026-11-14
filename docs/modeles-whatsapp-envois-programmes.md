@@ -20,7 +20,7 @@ et le facteur ensemble. À reporter dans le document vivant des modèles
 | Champ | À saisir chez Meta |
 | --- | --- |
 | Nom | `un_message_pour_vous` |
-| Catégorie | Utilitaire (UTILITY) |
+| Catégorie | Marketing (MARKETING) : Meta a refusé l'Utilitaire, voir plus bas |
 | Langue | Français (fr) |
 | En-tête | aucun |
 | Corps | voir ci-dessous, mot pour mot |
@@ -68,6 +68,18 @@ exemple : « Bonjour {{1}}, la Maison MND vous a écrit au sujet de votre suivi.
 Touchez « Lire le message » pour le recevoir ici. » et garder le même nom ; si
 le nom change, poser le secret au nouveau nom (le code ne connaît que le
 secret).
+
+**État chez Meta (14 novembre 2026)** : DÉPOSÉ et APPROUVÉ, catégorie
+MARKETING, sur le compte WhatsApp « Maison MND » (WABA 1891057041532944,
+portefeuille 2031981230728230), ID du modèle 1888935439219635. Meta refusait
+l'Utilitaire pour le corps ci-dessus comme pour la reformulation « au sujet de
+votre suivi » (« Category does not match », refus annoncé) : choix de Yéman,
+« repli, sinon Marketing ». Chaque ouverture se paie donc au tarif marketing,
+et Meta peut la retenir pour une cliente qui reçoit déjà beaucoup de messages
+marketing. Secret `WA_TEMPLATE_OUVERTURE` POSÉ le 14 novembre 2026. Le pied a
+d'abord été déposé « mi nyɔ́ ɖɛkpɛ · la maison veille » (une règle de marque
+périmée) ; Yéman a confirmé la devise du code le même jour : le pied est à
+modifier chez Meta pour « mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là ».
 
 **Ce que fait sa réponse** : rien de plus que d'ouvrir la fenêtre.
 `whatsapp-webhook` range la réponse dans son fil comme toute réponse ; le

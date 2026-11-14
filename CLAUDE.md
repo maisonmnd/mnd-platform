@@ -75,12 +75,13 @@ Ne jamais coder en dur une clé de service, un secret, ni un nom de domaine.
 - Animations fondues, sans rebond.
 - Graphiques SVG faits main (pas de librairie de charts).
 - La marque s'écrit **MND** — le ɖ appartient à *mi nyɔ́ ɖɛkpɛ* seulement.
-- **La devise s'écrit `mi nyɔ́ ɖɛkpɛ · la maison veille`** — une seule source,
-  `DEVISE_COMPLETE` dans `shared/identite.ts`. Jamais recopiée à la main :
-  chaque copie finissait par diverger (« · nous sommes beaux », « — la maison
-  veille. »). Point médian, comme tout ce qui sort de la Maison : un seul
-  séparateur partout (décision d’harmonisation du 24 août, l’ancienne puce ronde
-  jurait dans les pieds de page).
+- **La devise s'écrit `mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là`** — une seule
+  source, `DEVISE_COMPLETE` dans `shared/identite.ts`. Jamais recopiée à la
+  main : chaque copie finissait par diverger (« · nous sommes beaux », « — la
+  maison veille. »). L'écho français est « votre beauté est déjà là » depuis le
+  30 septembre 2026 (commit 204369c2), confirmé par Yéman le 14 novembre 2026 ;
+  l'ancienne forme « · la maison veille » ne s'écrit plus nulle part. Le pied
+  d'un modèle WhatsApp chez Meta porte la même devise, mot pour mot.
 - **Les lettres fon ne se translittèrent JAMAIS.** Ni Cormorant ni Jost ne
   portent ɔ, ɖ, ɛ : la police `MND Fon` (EB Garamond, sous-ensemble OFL) les
   sert à l'écran par `unicode-range`, et `pieDeLaMaison()` l'embarque dans les
