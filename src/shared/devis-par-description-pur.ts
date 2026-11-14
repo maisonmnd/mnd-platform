@@ -4,7 +4,7 @@ import type { Service, LongueurId } from './catalog';
 /* ══ LE DEVIS ÉCRIT PAR L'ASSISTANT — 13 novembre 2026 ═══════════════════
    « Je veux construire dans devis l'assistant qui crée les devis des clientes
    à partir d'une description ou d'un résumé de la situation » (Yéman), après
-   avoir bâti à la main le devis de Faïza Kora : consultation, défaisage,
+   avoir bâti à la main le devis de Faïza K. : consultation, défaisage,
    réparation intensive, recréation de 100 locks, puis une remise pour tomber
    sur 160 000 F. Trois choix au sélecteur : une page à deux onglets, un
    BROUILLON À RELIRE (rien ne part sans elle), du texte ou de la dictée.

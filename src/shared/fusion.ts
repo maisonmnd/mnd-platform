@@ -26,6 +26,15 @@ import { enfantsDeclaresStore } from './enfants';
 export function survivantDe(ouverte: Client, autre: Client):
   | { survivant: Client; absorbee: Client }
   | { erreur: string } {
+  /* LE MÊME COMPTE SUR DEUX FICHES (14 novembre 2026, Jocelyne S.) : ce n'est
+     pas deux personnes, c'est un doublon né d'une course au téléphone. On les
+     fond : la fiche dont l'identifiant EST le compte reste (la base y range
+     ses droits), l'autre lui apporte son histoire. */
+  if (ouverte.authUserId && ouverte.authUserId === autre.authUserId) {
+    return ouverte.id === ouverte.authUserId || autre.id !== autre.authUserId
+      ? { survivant: ouverte, absorbee: autre }
+      : { survivant: autre, absorbee: ouverte };
+  }
   if (ouverte.authUserId && autre.authUserId) {
     return {
       erreur: 'Ces deux fiches portent chacune un compte de connexion, elles ne peuvent pas se fondre d’ici. Il faut d’abord supprimer l’un des deux comptes (Supabase → Authentication → Users), puis refaire ce geste.',

@@ -2,6 +2,18 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+
+## UN COMPTE, UNE FICHE — 14 novembre 2026 (Ma Couronne + Trône, SQL 0210)
+
+Jocelyne S. (parente de trois filles d’un même foyer) ne voyait pas ses filles dans Ma Couronne. Sa fiche du comptoir (payeuse de sa famille, ses rendez-vous) portait DÉJÀ son compte ; une fiche neuve était née le 14 novembre au même compte, à l’identifiant du compte, sans famille, et Ma Couronne lisait celle-là. Réparé à la main le 14 novembre (fusion au Trône, la fiche du compte reste, l’ancienne lui apporte famille, téléphone, naissance, 8 rendez-vous et 8 factures). Puis « que Ma Couronne ne la laisse plus ouvrir un second compte et qu’elle ne perde plus ses RDV » (Yéman) :
+
+- **Ma Couronne** (`couronne/lib.ts`) : le verdict `ok` d’`adopter_ma_fiche` nomme la fiche qui porte le compte (`ficheId`) ; s’il ne s’agit pas de celle que l’app allait créer, **rien ne naît** (`ficheDejaPortee`), et si le carnet local ne l’a pas encore, la page se relit une fois par session (`relisUneFoisPour`). Ceinture dans `ensureClient` : jamais de création quand une autre fiche du carnet porte déjà ce compte.
+- **La base** (`0210_un_compte_une_fiche.sql`) : déclencheur `une_fiche_par_compte` avant chaque création de fiche par une cliente (pas le personnel) : une seconde fiche au même `authUserId` est ignorée en silence (`return null`, sans casser sa synchronisation). Contrôle : la liste des comptes qui portent encore plusieurs fiches.
+- **Le Trône, la fusion** (`shared/fusion.ts`, `survivantDe`) : deux fiches au MÊME compte se fondent (elle refusait : « deux comptes ») ; la fiche dont l’identifiant est le compte reste.
+- **Le Trône, le réparateur** (`shell/useReconcileClients.ts`) : il ne crée une fiche « orpheline » que pour un identifiant que les rendez-vous ou factures portent ENCORE, maintenant. Après la fusion du 14 novembre, il lisait les rendez-vous d’avant la fusion et a fait renaître la fiche effacée (effacée de nouveau à la main).
+- Banc : `node scripts/verifie-un-compte-une-fiche.mjs` (12).
+- **Pas couvert** : une cliente qui s’inscrit avec une AUTRE adresse que celle de sa fiche du comptoir (ou sans adresse sur la fiche) ouvre toujours une fiche neuve : rien ne prouve que c’est elle. La fusion au Trône reste le geste ; l’adresse sur la fiche du comptoir l’évite.
+
 ## AUCUNE FACTURE NON RÉGLÉE NE PART SANS LA DIRECTION — 14 novembre 2026 (`cloture-du-jour` 2026-11-14-a, règle de la clôture 2026-11-14-a ; le Trône ; aucun SQL)
 
 « non aucune facture part s'il n'est pas encaissé je dois autoriser cela » (Yéman, 14 novembre 2026), puis au sélecteur « Oui, toutes » (celles du caissier ET celles que Grenat envoyait aux clôtures de 15 h et 19 h). Le 13 novembre au soir, le caissier avait demandé la facture du rendez-vous de 20 h (`pieceDemandeeLe` 22 h) ; un Trône l'a écrite à 23 h 01 (MND-2026-0173, « envoyée ») mais elle n'est PAS partie (après 23 h) ; les relances des factures sont éteintes (`mnd_settings.relances.actives` faux), aucun rappel ne part. Elle se voit « à autoriser » dans La journée du 13 novembre.
@@ -54,7 +66,7 @@
 - **L’écran** Système › Besoins et règles (`/besoins`, `systeme/BesoinsEtRegles.tsx`) : ajouter un besoin (mots, famille, points 5 à 30, prestations, garde) avec un aperçu de ce qu’il fait proposer ; « Essayer » rejoue le calcul ; « Seuils et preuves » règle tout. Un besoin sans prestation est dit « à relier » (aujourd’hui : « Je veux des locks plus longues, tout de suite », en attendant les extensions).
 - **La fiche technique** (Catalogue › une prestation › rubrique 7) : indications, éligibilité, contre-indications, actifs, compléments (`Service.fiche`), et dessous les besoins qui y mènent, le palier, « sans seuil ». Le lien besoin ↔ prestation est un seul lien, posé d’ici ou de Besoins et règles.
 - **Les états du devis** : `estimé`, `à valider` (+ `aValiderPar` maison / cliente), `confirmé`. Chaque registre ne propose que les siens. **Le rendez-vous naît à « confirmé »**, plus à « acceptée » ; bouton « Confirmer et créer le rendez-vous » sur un devis.
-- **Le lien devis ↔ rendez-vous** se lit des deux côtés (`Appointment.devisId`) ; avant de créer, on cherche `apptId`, puis `devisId`, puis la note « Devis MND-D-… » des rendez-vous nés avant ce jour : plus jamais de second rendez-vous. La cause de l’`apptId` perdu le 13 novembre (devis de Faïza Kora) n’a pas été trouvée.
+- **Le lien devis ↔ rendez-vous** se lit des deux côtés (`Appointment.devisId`) ; avant de créer, on cherche `apptId`, puis `devisId`, puis la note « Devis MND-D-… » des rendez-vous nés avant ce jour : plus jamais de second rendez-vous. La cause de l’`apptId` perdu le 13 novembre (devis de Faïza K.) n’a pas été trouvée.
 - Banc : `node scripts/verifie-les-besoins.mjs` (33).
 - **Reste au lot 1** : le questionnaire conditionnel et les règles de niveau de réparation (pris au lot 2, avec le site qui les exécute). **Lot 2** : le document `mnd_besoins` devra être lisible par le site (SQL) et l’écriture réservée à la direction.
 
@@ -175,7 +187,7 @@ Choix ⑥ de la maquette « Le choix du moyen » : la paie du 5 d'abord, le surp
 - **Reste** : le sous-titre de la caisse KkiaPay dit encore « Paiements en ligne et QR Chap Chap » (`caisses-des-caissiers-pur.ts`), laissé tel quel (les caisses d'avant ne bougent pas).
 ## LE DEVIS ÉCRIT PAR L'ASSISTANT, ET LES DEVIS À PART — 13 novembre 2026 (Trône + fonction ia-maison 2026-11-13-a)
 
-« Je veux construire dans devis l'assistant qui crée les devis à partir d'une description. Je veux retrouver les devis à part et les factures à part. Revois l'UI, l'UX » (Yéman), après le devis de Faïza Kora bâti à la main. Sélecteur : une page à deux onglets, un brouillon à relire, du texte ou de la dictée.
+« Je veux construire dans devis l'assistant qui crée les devis à partir d'une description. Je veux retrouver les devis à part et les factures à part. Revois l'UI, l'UX » (Yéman), après le devis de Faïza K. bâti à la main. Sélecteur : une page à deux onglets, un brouillon à relire, du texte ou de la dictée.
 
 - **Deux onglets** dans Factures & devis (`Factures.tsx`) : Devis et Factures, chacun son registre, ses statuts (un devis n'est jamais « payé »), ses boutons ; `?onglet=devis` ; une pièce ouverte amène son onglet.
 - **L'assistant** `vente/AssistantDuDevis.tsx` (onglet Devis) : une zone de texte (dictée du navigateur si elle existe), une cliente facultative, « Préparer le brouillon », puis ce qui a été compris (lignes, raison, remise, total, doutes) et « Ouvrir le brouillon à relire » → l'éditeur ; rien n'est enregistré avant « Créer le document ».

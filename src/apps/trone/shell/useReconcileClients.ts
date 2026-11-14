@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
-import { useAppointments } from '../../../shared/agenda';
-import { useInvoices } from '../../../shared/finance';
+import { appointmentsStore, useAppointments } from '../../../shared/agenda';
+import { invoicesStore, useInvoices } from '../../../shared/finance';
 import { clientsStore, useClients, ensureInitiePersona, joursDeLaTete, type Client } from '../../../shared/clients';
 import { useAuth } from '../../../shared/auth';
 import { useStore } from '../../../shared/store';
@@ -99,6 +99,19 @@ export function useReconcileClients(): void {
         for (const r of data ?? []) missing.delete((r as { id: string }).id);
         if (missing.size === 0) return;
       }
+      /* L'ÉTAT DU MOMENT, PAS CELUI D'AVANT (14 novembre 2026, fusion de
+         Jocelyne S.). Cet effet lit les rendez-vous et les factures du rendu
+         qui l'a lancé ; une fusion venait de les déplacer vers la fiche gardée
+         et d'effacer l'autre. Le serveur, interrogé juste après l'effacement,
+         ne la connaissait plus : la fiche effacée renaissait, vide. On ne crée
+         donc que pour un identifiant que les magasins portent ENCORE, et qui
+         n'a toujours pas de fiche, maintenant. */
+      const portes = new Set<string>();
+      for (const a of appointmentsStore.get()) if (a.clientId) portes.add(a.clientId);
+      for (const i of invoicesStore.get()) if (i.clientId) portes.add(i.clientId);
+      const connues = new Set(clientsStore.get().map((c) => c.id));
+      for (const id of [...missing.keys()]) if (!portes.has(id) || connues.has(id)) missing.delete(id);
+      if (missing.size === 0) return;
       gardeLEcriture('fiches', clientsStore).set((prev) => {
         const have = new Set(prev.map((c) => c.id));
         const created = [...missing.entries()]

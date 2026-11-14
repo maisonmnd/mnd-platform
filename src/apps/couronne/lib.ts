@@ -118,6 +118,10 @@ export function ensureClient(clientId: string, email?: string | null, branchId?:
      pendant que la vraie couronne restait au premier compte. On ne crée JAMAIS
      de fiche quand l'adresse est déjà portée par la fiche d'un autre compte :
      l'écran de la porte déjà ouverte (App.tsx) le dira, un doublon jamais. */
+  /* UN COMPTE, UNE FICHE (14 novembre 2026) : une fiche du carnet porte déjà
+     ce compte, sous un autre identifiant. On n'en crée jamais une seconde. */
+  const compte = authUserId ?? clientId;
+  if (clientsStore.get().some((c) => c.id !== clientId && c.authUserId === compte)) return;
   const dejaPortee = mailBas
     ? clientsStore.get().some((c) =>
         (c.email ?? '').trim().toLowerCase() === mailBas
@@ -156,19 +160,48 @@ export function ensureClient(clientId: string, email?: string | null, branchId?:
    est au compte d'un autre : porte déjà ouverte), staff (compte de la
    maison), aucune. Le verdict se garde par compte, une demande par session. */
 export const adoptionStore = createStore<{ uid: string; statut: string } | null>('mnd_mc_adoption', null);
-const verdictsAdoption = new Map<string, Promise<string>>();
-function adopterMaFiche(uid: string): Promise<string> {
-  if (!supabase) return Promise.resolve('aucune');
+type VerdictDAdoption = { statut: string; ficheId?: string };
+const verdictsAdoption = new Map<string, Promise<VerdictDAdoption>>();
+function adopterMaFiche(uid: string): Promise<VerdictDAdoption> {
+  if (!supabase) return Promise.resolve({ statut: 'aucune' });
   if (!verdictsAdoption.has(uid)) {
     verdictsAdoption.set(uid, Promise.resolve(supabase.rpc('adopter_ma_fiche')).then(({ data, error }) => {
       /* 0045 pas encore collée dans Supabase → comportement d'avant. */
-      if (error) return 'aucune';
-      const statut = ((data as { statut?: string } | null)?.statut) ?? 'aucune';
+      if (error) return { statut: 'aucune' };
+      const d = (data as { statut?: string; ficheId?: string } | null) ?? {};
+      const statut = d.statut ?? 'aucune';
       adoptionStore.set({ uid, statut });
-      return statut;
+      return { statut, ...(typeof d.ficheId === 'string' && d.ficheId ? { ficheId: d.ficheId } : {}) };
     }));
   }
   return verdictsAdoption.get(uid)!;
+}
+
+/* ══ UN COMPTE, UNE FICHE — 14 novembre 2026 (Jocelyne S.) ══════════════
+   « Quand une cliente crée un compte sur Ma Couronne, qu'elle ne puisse plus
+   ouvrir un second compte au même nom et qu'elle ne perde plus ses RDV »
+   (Yéman). Sa fiche du comptoir portait DÉJÀ son compte (adoptée un jour
+   passé) ; un téléphone dont le carnet ne la montrait pas encore a résolu
+   l'identifiant du compte, et une fiche neuve est née à côté : vide, sans
+   famille, sans ses trois filles, sans ses rendez-vous.
+   Le serveur le savait : son verdict « ok » nomme la fiche qui porte le
+   compte (`ficheId`). On l'écoute : quand cette fiche n'est pas celle que
+   l'app s'apprêtait à créer, on NE CRÉE RIEN. Si le carnet local ne l'a pas
+   encore, on le relit une fois (la page se recharge, une seule fois par
+   session et par compte) ; la règle de la base (0210) refuse de toute façon
+   une seconde fiche au même compte. */
+export const ficheDejaPortee = (verdict: VerdictDAdoption, clientId: string): string | null =>
+  verdict.statut === 'ok' && verdict.ficheId && verdict.ficheId !== clientId ? verdict.ficheId : null;
+
+const CLE_RELU = 'mnd_mc_fiche_relue';
+function relisUneFoisPour(uid: string): void {
+  try {
+    if (sessionStorage.getItem(CLE_RELU) === uid) return;
+    sessionStorage.setItem(CLE_RELU, uid);
+  } catch {
+    return; /* sans stockage de session, pas de rechargement : pas de boucle possible */
+  }
+  window.location.reload();
 }
 
 /** Garantit l'existence du dossier client dès qu'une session est ouverte.
@@ -201,7 +234,16 @@ export function useEnsureClient(): string {
     if (!tablePrete('clients')) return;
     void (async () => {
       if (uid && supabase) {
-        const statut = await adopterMaFiche(uid);
+        const verdict = await adopterMaFiche(uid);
+        const statut = verdict.statut;
+        /* UN COMPTE, UNE FICHE : le serveur connaît déjà ma fiche, et ce n'est
+           pas celle que j'allais créer. Rien ne naît ; le carnet se relit s'il
+           ne l'a pas encore. */
+        const portee = ficheDejaPortee(verdict, clientId);
+        if (portee) {
+          if (!clientsStore.get().some((c) => c.id === portee)) relisUneFoisPour(uid);
+          return;
+        }
         /* LA MAISON N'OUVRE PAS D'ESPACE CLIENTE : le Trône est sa porte, et
            un compte du personnel ne doit jamais se marquer « cliente ». */
         if (statut === 'staff') return;
