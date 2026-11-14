@@ -11,7 +11,8 @@ import { useClients } from '../../../shared/clients';
 import { useInvoices, invoiceTotal } from '../../../shared/finance';
 import { useServices, useCategories } from '../../../shared/catalog';
 import { useStaff } from '../../../shared/auth';
-import { frShort } from '../routes/clients/_shared';
+import { frShort, todayISO } from '../routes/clients/_shared';
+import { dateDite, distanceDite, estUneDateSure } from '../routes/clients/aller-a-pur';
 
 /* TROUVER — la recherche globale du Trône (chantier ② de la refonte validée).
 
@@ -92,6 +93,27 @@ export default function Trouver() {
        tout matche et la palette crie au lieu de proposer. */
     if (needle.length < 2 && tel.length < 4) return [];
     const gs: Groupe[] = [];
+
+    /* TROUVER COMPREND LES DATES — 14 novembre 2026 (maquette « Dans trois
+       semaines », arbitrage 3). « dans 3 semaines », « 12/12 », « samedi en
+       huit » ouvrent le Calendrier sur ce jour. Seulement une phrase qui ne
+       peut être qu'une date : « mar » reste le début de Mariette. */
+    if (peutVoir(role, '/calendrier', mesDomaines)) {
+      const aujourdhui = todayISO();
+      const lu = estUneDateSure(needle, aujourdhui);
+      if (lu) {
+        const dite = dateDite(lu.iso);
+        gs.push({
+          nom: 'Calendrier',
+          items: [{
+            k: `d-${lu.iso}`,
+            label: `Ouvrir le Calendrier au ${dite}`,
+            sub: lu.avertit ?? distanceDite(lu.iso, aujourdhui),
+            go: () => navigate(`/calendrier?jour=${lu.iso}`),
+          }],
+        });
+      }
+    }
 
     if (peutVoir(role, '/customers', mesDomaines)) {
       const tetes = clients

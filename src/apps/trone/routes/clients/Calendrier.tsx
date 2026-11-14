@@ -19,6 +19,8 @@ import { useSettings } from '../../../../shared/settings';
 import { staffAccessStore } from '../equipe/data';
 import { useStore } from '../../../../shared/store';
 import { voitLesPrix } from '../index';
+import { BarreDeSaut } from './AllerA';
+import { distanceDeLaSemaine, distanceDite, distanceDuMois, lundiDe } from './aller-a-pur';
 
 /* Calendrier — la journée par Maître, la semaine d'un regard. 08:00 → 18:00.
    Déplacer un rendez-vous : glisser le bloc vers un autre créneau (jour) ou un
@@ -100,6 +102,16 @@ export default function Calendrier() {
   const jourDemande = /^\d{4}-\d{2}-\d{2}$/.test(params.get('jour') ?? '') ? (params.get('jour') as string) : null;
   const [view, setView] = useState<'jour' | 'semaine' | 'mois'>('jour');
   const [anchor, setAnchor] = useState(jourDemande ?? today);
+  /* LE JOUR DEMANDÉ SUIT L'ADRESSE — 14 novembre 2026. Trouver mène ici
+     (« dans 3 semaines ») même quand le Calendrier est déjà ouvert : sans ce
+     suivi, l'écran gardait son jour et l'adresse disait autre chose. */
+  useEffect(() => {
+    if (!jourDemande) return;
+    setAnchor(jourDemande);
+    setView('jour');
+  }, [jourDemande]);
+  /* ALLER À — 14 novembre 2026, maquette « Dans trois semaines ». */
+  const [allerOuvert, setAllerOuvert] = useState(false);
   /* Prise de RDV : pré-remplissage du nouveau rendez-vous (jour touché, et en vue
      jour l'heure + le maître de la colonne). null = pas de création en cours. */
   const [createInit, setCreateInit] = useState<RdvInitial | null>(null);
@@ -419,6 +431,14 @@ export default function Calendrier() {
       : view === 'semaine'
         ? `${frShort(week[0].iso)} → ${frShort(week[6].iso)}`
         : fromISO(anchor).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  /* LA DISTANCE, SOUS LA DATE : on sait toujours où l'on est. « Aujourd'hui »
+     paraît dès qu'on s'en éloigne, au même endroit. */
+  const distance = view === 'jour'
+    ? distanceDite(anchor, today)
+    : view === 'semaine' ? distanceDeLaSemaine(anchor, today) : distanceDuMois(anchor, today);
+  const surAujourdhui = view === 'jour'
+    ? anchor === today
+    : view === 'semaine' ? lundiDe(anchor) === lundiDe(today) : anchor.slice(0, 7) === today.slice(0, 7);
 
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
 
@@ -434,12 +454,17 @@ export default function Calendrier() {
               <button
                 onClick={() => setAnchor(today)}
                 title="Revenir à aujourd’hui"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, letterSpacing: '.06em', color: 'var(--color-indigo)' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, letterSpacing: '.06em', color: 'var(--color-indigo)', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.25 }}
               >
-                {navLabel}
+                <span>{navLabel}</span>
+                <span className="tr-distance">{distance}</span>
               </button>
               <button onClick={() => shift(1)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 13 }} aria-label="Suivant">›</button>
             </div>
+            {!surAujourdhui && (
+              <Button variant="ghost" size="sm" onClick={() => setAnchor(today)}>Aujourd’hui</Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={() => setAllerOuvert((o) => !o)} aria-expanded={allerOuvert}>Aller à…</Button>
             <Segs<'jour' | 'semaine' | 'mois'>
               options={[
                 { value: 'jour', label: 'Jour' },
@@ -462,6 +487,18 @@ export default function Calendrier() {
           </>
         }
       />
+
+      {allerOuvert && (
+        <div className="tr-aller-pop">
+          <BarreDeSaut
+            id="calendrier-aller-a"
+            aujourdhui={today}
+            choisi={anchor}
+            autoFocus
+            onSaut={(iso) => { setAnchor(iso); setAllerOuvert(false); }}
+          />
+        </div>
+      )}
 
       {/* Vue JOUR · téléphone — agenda vertical, tous maîtres confondus */}
       {view === 'jour' && isPhone && (

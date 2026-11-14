@@ -1,0 +1,723 @@
+<title>Dans trois semaines</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500;600&display=swap">
+<style>
+/* DANS TROIS SEMAINES — maquette du 14 novembre 2026.
+   « Besoin de designer comme un expert un calendrier rapide et intelligent.
+   Jump to a date from today et se retrouver facilement pour la cliente qui a
+   besoin de programmer son prochain RDV rapidement » (Yéman).
+   Mise en page : un bandeau indigo, la démonstration vivante (la barre
+   « Aller à », le fil des semaines, la semaine des places), puis comment on
+   se retrouve, ce que le champ comprend, où le geste vit, ce qui ne change
+   pas, les arbitrages.
+   Charte Maison MND : indigo, ivoire, cuivre en accent, Cormorant Garamond
+   300 + Jost, rayons 2 à 4 px, pas d'émoji. Cliente et places d'exemple. */
+:root {
+  --fond: #F6F1E7; --surface: #FFFDF8; --encre: #1E2150; --texte: #23243A; --doux: #55566A;
+  --filet: rgba(30, 33, 80, .14); --filet-fort: rgba(30, 33, 80, .30);
+  --bande: #1E2150; --sur-bande: #F6F1E7; --sur-bande-doux: #A7ACC9;
+  --pale: #EDEEF4; --barre: #B9BDD8; --cuivre: #B97A4A; --cuivre-plein: #9E6238; --cuivre-pale: #FAF1E9; --sur-cuivre: #FFFFFF;
+  --bon: #2F6B4F; --bon-pale: #E7F1EB; --alerte: #9A3B2E; --alerte-pale: #F7E6E2;
+  --ombre: 0 18px 44px rgba(20, 22, 58, .16);
+  --serif: "Cormorant Garamond", Georgia, serif; --sans: "Jost", "Futura", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond: #14163A; --surface: #1C1F4A; --encre: #F1EBDD; --texte: #E6E0D3; --doux: #A7ACC9;
+  --filet: rgba(246, 241, 231, .13); --filet-fort: rgba(246, 241, 231, .28);
+  --bande: #262A63; --sur-bande: #F6F1E7; --sur-bande-doux: #B5B9D6;
+  --pale: #272B5E; --barre: #4A5096; --cuivre: #C98A58; --cuivre-plein: #B97A4A; --cuivre-pale: rgba(201, 138, 88, .16); --sur-cuivre: #FFFFFF;
+  --bon: #8FD1AE; --bon-pale: rgba(143, 209, 174, .14); --alerte: #F0A394; --alerte-pale: rgba(240, 163, 148, .14);
+  --ombre: 0 18px 44px rgba(0, 0, 0, .4); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --fond: #14163A; --surface: #1C1F4A; --encre: #F1EBDD; --texte: #E6E0D3; --doux: #A7ACC9;
+  --filet: rgba(246, 241, 231, .13); --filet-fort: rgba(246, 241, 231, .28);
+  --bande: #262A63; --sur-bande: #F6F1E7; --sur-bande-doux: #B5B9D6;
+  --pale: #272B5E; --barre: #4A5096; --cuivre: #C98A58; --cuivre-plein: #B97A4A; --cuivre-pale: rgba(201, 138, 88, .16); --sur-cuivre: #FFFFFF;
+  --bon: #8FD1AE; --bon-pale: rgba(143, 209, 174, .14); --alerte: #F0A394; --alerte-pale: rgba(240, 163, 148, .14);
+  --ombre: 0 18px 44px rgba(0, 0, 0, .4); color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 400 15px/1.6 var(--sans); font-variant-numeric: lining-nums tabular-nums; }
+.int { max-width: 1060px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); min-width: 0; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 300; color: var(--encre); margin: 0; line-height: 1.1; text-wrap: balance; }
+h1 { font-size: clamp(40px, 7vw, 60px); color: var(--sur-bande); }
+h2 { font-size: clamp(28px, 4vw, 36px); }
+h3 { font-size: 22px; }
+p { margin: 0; max-width: 66ch; }
+ul { margin: 0; padding: 0; list-style: none; }
+button, input, select { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+.sur { font: 600 11px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--doux); }
+.sections { display: flex; flex-direction: column; gap: 56px; padding-block: 44px 72px; }
+section { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.tete { display: flex; flex-direction: column; gap: 8px; }
+.tete p { font-size: 16px; color: var(--doux); }
+.hero { background: var(--bande); position: relative; }
+.hero::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--cuivre); }
+.hero .int { padding-block: 44px 38px; display: flex; flex-direction: column; gap: 16px; }
+.hero .sur { color: var(--sur-bande-doux); }
+.hero p { color: var(--sur-bande-doux); font-size: 17px; max-width: 60ch; }
+.hero p b { color: var(--sur-bande); font-weight: 500; }
+
+.btn { border: 1px solid var(--filet-fort); background: var(--surface); color: var(--encre); border-radius: 4px; padding: 7px 12px; font: 600 11.5px var(--sans); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; white-space: nowrap; }
+.btn:hover { background: var(--pale); }
+.btn--plein { background: var(--cuivre); border-color: var(--cuivre); color: var(--sur-cuivre); }
+.btn--plein:hover { background: var(--cuivre-plein); }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.note { font-size: 12.5px; color: var(--doux); }
+
+/* La fenêtre de démonstration : le « Quand ? » du « + RDV » */
+.voile { background: rgba(20, 22, 58, .05); border: 1px dashed var(--filet-fort); border-radius: 4px; padding: 18px; min-width: 0; }
+.fenetre { background: var(--surface); border: 1px solid var(--filet-fort); border-radius: 4px; box-shadow: var(--ombre); padding: 20px; display: flex; flex-direction: column; gap: 18px; max-width: 900px; min-width: 0; }
+@media (max-width: 520px) { .voile { padding: 8px; } .fenetre { padding: 14px; } }
+.fenetre__titre { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--filet); padding-bottom: 12px; }
+.fenetre__titre h3 { font-size: 26px; }
+.cliente { display: flex; gap: 6px 18px; flex-wrap: wrap; font-size: 13px; color: var(--doux); }
+.cliente b { color: var(--encre); font-weight: 500; }
+
+.props { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+.prop { text-align: left; background: var(--fond); border: 1px solid var(--filet); border-radius: 3px; padding: 9px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 1px; }
+.prop:hover { border-color: var(--filet-fort); }
+.prop small { font: 600 10px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--doux); }
+.prop b { font-weight: 500; color: var(--encre); font-size: 14px; }
+.prop span { font-size: 12px; color: var(--doux); }
+.prop[aria-pressed="true"] { border-color: var(--encre); box-shadow: inset 0 0 0 1px var(--encre); }
+
+.saut { display: flex; flex-direction: column; gap: 8px; }
+.saut__ligne { display: flex; gap: 8px; }
+.saut__ligne input { flex: 1 1 auto; min-width: 0; background: var(--fond); border: 1px solid var(--filet-fort); border-radius: 3px; padding: 9px 12px; font-size: 15px; color: var(--texte); }
+.saut__ligne input::placeholder { color: var(--doux); opacity: .8; }
+.saut__lecture { font-size: 13.5px; color: var(--doux); min-height: 1.6em; }
+.saut__lecture b { color: var(--encre); font-weight: 500; }
+.saut__lecture .dist { color: var(--encre); border-bottom: 1px solid var(--cuivre); }
+.saut__lecture.ko { color: var(--alerte); }
+.saut__lecture .avert { display: block; color: var(--alerte); }
+.puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.puce { border: 1px solid var(--filet-fort); background: var(--surface); color: var(--encre); border-radius: 2px; padding: 5px 10px; font: 500 12.5px var(--sans); cursor: pointer; white-space: nowrap; }
+.puce:hover { background: var(--pale); }
+.puce[aria-pressed="true"] { background: var(--encre); border-color: var(--encre); color: var(--fond); }
+.puce--sienne { border-color: var(--cuivre); background: var(--cuivre-pale); }
+.puce--sienne::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 1px; background: var(--cuivre); margin-right: 7px; vertical-align: 1px; }
+
+/* Le fil des semaines */
+.fil-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.legende { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--doux); }
+.legende i { display: inline-block; width: 10px; height: 10px; border-radius: 1px; margin-right: 5px; vertical-align: -1px; }
+.fil-cadre { overflow-x: auto; padding-bottom: 6px; scroll-behavior: smooth; }
+.fil { display: flex; gap: 4px; width: max-content; }
+.sem { flex: none; width: 60px; border: 1px solid transparent; background: none; border-radius: 3px; padding: 4px 3px 5px; cursor: pointer; display: flex; flex-direction: column; align-items: stretch; gap: 3px; text-align: center; }
+.sem:hover { background: var(--pale); }
+.sem[aria-pressed="true"] { border-color: var(--encre); background: var(--pale); }
+.sem__mois { font: 600 10px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--doux); height: 14px; text-align: left; padding-left: 2px; }
+.sem__barre { position: relative; height: 54px; background: var(--fond); border: 1px solid var(--filet); border-radius: 2px; overflow: hidden; }
+.sem__barre i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--barre); }
+.sem__barre i.plein { background: var(--cuivre); }
+.sem__barre.is-auj::after { content: ""; position: absolute; top: 4px; left: 50%; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--encre); }
+.sem__date { font-family: var(--serif); font-size: 20px; line-height: 1; color: var(--encre); }
+.sem__rang { font-size: 10.5px; color: var(--doux); line-height: 1.2; }
+.sem__libre { font-size: 10.5px; color: var(--texte); line-height: 1.2; }
+.sem__note { font: 600 9.5px var(--sans); letter-spacing: .06em; text-transform: uppercase; height: 15px; line-height: 15px; color: var(--doux); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sem__note.sienne { color: var(--encre); background: var(--cuivre-pale); border: 1px solid var(--cuivre); border-radius: 2px; }
+
+/* La semaine des places */
+.semaine-tete { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.semaine-tete b { font-weight: 500; color: var(--encre); }
+.semaine-tete .dist { color: var(--doux); }
+.nav { display: flex; gap: 6px; flex-wrap: wrap; }
+.semaine { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.jour { border: 1px solid var(--filet); background: var(--fond); border-radius: 3px; padding: 7px 2px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; }
+.jour small { font-size: 10.5px; color: var(--doux); line-height: 1.25; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jour b { font-family: var(--serif); font-weight: 400; font-size: 22px; line-height: 1.05; color: var(--encre); }
+.jour:hover:not([disabled]) { border-color: var(--filet-fort); }
+.jour[aria-pressed="true"] { border-color: var(--encre); box-shadow: inset 0 0 0 1px var(--encre); background: var(--surface); }
+.jour[disabled] { opacity: .45; cursor: not-allowed; }
+.jour .sienne { color: var(--encre); border-bottom: 1px solid var(--cuivre); }
+.jour.is-auj b { text-decoration: underline; text-decoration-color: var(--cuivre); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.heures { display: flex; flex-wrap: wrap; gap: 6px; }
+.heure { border: 1px solid var(--filet-fort); background: var(--surface); border-radius: 2px; padding: 6px 11px; cursor: pointer; font-size: 13.5px; color: var(--encre); }
+.heure:hover { background: var(--pale); }
+.heure[aria-pressed="true"] { background: var(--encre); color: var(--fond); border-color: var(--encre); }
+.heure.sienne { border-color: var(--cuivre); }
+.vide { font-size: 13px; color: var(--doux); }
+
+.resume { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--pale); border-radius: 3px; padding: 12px 14px; }
+.resume div { display: flex; flex-direction: column; min-width: 0; }
+.resume b { font-family: var(--serif); font-weight: 400; font-size: 22px; color: var(--encre); line-height: 1.2; }
+.resume span { font-size: 12.5px; color: var(--doux); }
+.pose { font-size: 13px; color: var(--bon); min-height: 1.4em; }
+
+/* Le haut du Calendrier */
+.cal { background: var(--surface); border: 1px solid var(--filet); border-radius: 4px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.barre-cal { display: flex; gap: 8px 10px; flex-wrap: wrap; align-items: center; }
+.cal-nav { display: flex; align-items: center; gap: 4px; border: 1px solid var(--filet-fort); border-radius: 2px; padding: 4px 6px; min-width: 0; }
+.cal-nav button { background: none; border: 0; cursor: pointer; color: var(--doux); padding: 2px 6px; font-size: 15px; }
+.cal-nav .lib { display: flex; flex-direction: column; line-height: 1.2; padding: 0 4px; min-width: 0; }
+.cal-nav .lib b { font: 500 12.5px var(--sans); letter-spacing: .04em; color: var(--encre); }
+.cal-nav .lib span { font-size: 11px; color: var(--doux); }
+.segs { display: inline-flex; border: 1px solid var(--filet-fort); border-radius: 2px; overflow: hidden; }
+.segs span { padding: 6px 10px; font: 600 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--doux); }
+.segs span.on { background: var(--encre); color: var(--fond); }
+.pop { border-top: 1px dashed var(--filet-fort); padding-top: 12px; }
+
+.deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.bloc { background: var(--surface); border: 1px solid var(--filet); border-radius: 4px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.bloc h3 { font-size: 21px; }
+.bloc p { font-size: 14px; }
+.exemple { font-size: 13px; color: var(--encre); background: var(--pale); border-radius: 2px; padding: 4px 8px; align-self: flex-start; }
+
+.tableau { overflow-x: auto; background: var(--surface); border: 1px solid var(--filet); border-radius: 4px; }
+table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 14px; }
+th { text-align: left; font: 600 10.5px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--doux); padding: 10px 14px; border-bottom: 1px solid var(--filet-fort); }
+td { padding: 9px 14px; border-top: 1px solid var(--filet); vertical-align: top; }
+td:first-child { font-weight: 500; color: var(--encre); white-space: nowrap; }
+td .avert { display: block; font-size: 12.5px; color: var(--alerte); }
+td.dist { color: var(--doux); white-space: nowrap; }
+
+.liste { background: var(--surface); border: 1px solid var(--filet); border-radius: 4px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; }
+.liste li { position: relative; padding-left: 16px; font-size: 14.5px; }
+.liste li::before { content: ""; position: absolute; left: 0; top: .72em; width: 7px; height: 1px; background: var(--cuivre); }
+.liste li b { font-weight: 500; color: var(--encre); }
+.arbitrages { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.arb { background: var(--surface); border: 1px solid var(--filet); border-radius: 4px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.arb h3 { font-size: 21px; }
+.arb .propose { font-size: 14px; }
+.arb .propose b { font-weight: 500; color: var(--encre); }
+.arb .propose::before { content: "Choisi"; display: block; font: 600 10px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--doux); margin-bottom: 3px; }
+.arb .autres { font-size: 13px; color: var(--doux); border-top: 1px solid var(--filet); padding-top: 8px; }
+.pied { font-size: 12.5px; color: var(--doux); border-top: 1px solid var(--filet); padding-top: 14px; }
+</style>
+
+<header class="hero">
+  <div class="int">
+    <p class="sur">Maquette du Trône · Calendrier et « + RDV » · 14 novembre 2026</p>
+    <h1>Dans trois semaines</h1>
+    <p>La cliente est devant vous, son rituel terminé. Elle dit « dans trois semaines, un samedi », ou « fin janvier ». <b>Le Trône y va d’un geste</b> : on tape ce qu’elle dit, ou on touche « +3 sem ». La semaine s’ouvre avec ses places libres, et chaque date dit à quelle distance d’aujourd’hui elle se trouve.</p>
+  </div>
+</header>
+
+<main class="int sections">
+  <section>
+    <div class="tete">
+      <p class="sur">Le geste</p>
+      <h2>Ce qu’elle dit, le Trône y va.</h2>
+      <p>Tout se manipule. La démonstration est arrêtée au samedi 14 novembre 2026 ; la cliente et les places sont des exemples.</p>
+    </div>
+
+    <div class="voile">
+      <div class="fenetre" id="demo">
+        <div class="fenetre__titre">
+          <h3>Le jour, l’heure, le maître</h3>
+          <span class="sur">« + RDV » › Quand</span>
+        </div>
+        <div class="cliente">
+          <span><b>Sènami</b> (exemple) · rituel complet, 3 h</span>
+          <span>Dernière venue : <b>aujourd’hui</b></span>
+          <span>Son rythme : <b>4 semaines</b></span>
+          <span>Son jour : <b>le samedi, vers 10 h</b></span>
+        </div>
+
+        <div>
+          <p class="sur" style="margin-bottom:6px">Déjà au « + RDV » : les trois propositions</p>
+          <div class="props" id="props"></div>
+        </div>
+
+        <div id="saut-demo"></div>
+
+        <div>
+          <div class="fil-tete">
+            <p class="sur">Le fil · seize semaines depuis aujourd’hui</p>
+            <div class="legende">
+              <span><i style="background:var(--barre)"></i>fauteuils pris</span>
+              <span><i style="background:var(--cuivre)"></i>presque plein</span>
+              <span><i style="background:var(--cuivre-pale);border:1px solid var(--cuivre)"></i>sa date</span>
+            </div>
+          </div>
+          <div class="fil-cadre" id="fil-cadre"><div class="fil" id="fil" role="group" aria-label="Les semaines à venir"></div></div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="semaine-tete">
+            <span id="semaine-lib"></span>
+            <span class="nav">
+              <button type="button" class="btn" id="sem-prec">‹ Précédente</button>
+              <button type="button" class="btn" id="sem-auj">Aujourd’hui</button>
+              <button type="button" class="btn" id="sem-suiv">Suivante ›</button>
+            </span>
+          </div>
+          <div class="semaine" id="semaine"></div>
+          <div class="heures" id="heures" role="group"></div>
+        </div>
+
+        <div class="resume">
+          <div><b id="res-quand">Choisissez une heure.</b><span id="res-dist">La distance et son rythme s’écrivent ici.</span></div>
+          <button type="button" class="btn btn--plein" id="poser" disabled>Poser le rendez-vous</button>
+        </div>
+        <p class="pose" id="pose" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="tete">
+      <p class="sur">Se retrouver</p>
+      <h2>On sait toujours où l’on est.</h2>
+      <p>Trois repères, les mêmes partout. Le haut du Calendrier ci-dessous se manipule aussi.</p>
+    </div>
+    <div class="deux">
+      <div class="bloc">
+        <h3>La distance, à côté de la date</h3>
+        <p>Chaque date dit son écart avec aujourd’hui. Plus de calcul de tête entre le carnet et le téléphone de la cliente.</p>
+        <span class="exemple">samedi 12 décembre · dans 4 semaines</span>
+      </div>
+      <div class="bloc">
+        <h3>Un seul retour</h3>
+        <p>« Aujourd’hui » paraît dès qu’on s’en éloigne, toujours au même endroit, dans le Calendrier comme dans « + RDV ».</p>
+        <span class="exemple">‹ Semaine du 7 déc. · dans 3 semaines ›  Aujourd’hui</span>
+      </div>
+      <div class="bloc">
+        <h3>Le fil des semaines</h3>
+        <p>Seize semaines d’un regard : le remplissage des fauteuils, les fêtes, sa date à elle. Une semaine presque pleine se voit avant d’y aller.</p>
+        <span class="exemple">Noël en cuivre, sa date encadrée</span>
+      </div>
+    </div>
+
+    <div class="cal" id="cal">
+      <p class="sur">Le haut du Calendrier, vue Semaine</p>
+      <div class="barre-cal">
+        <div class="cal-nav">
+          <button type="button" id="cal-prec" aria-label="Semaine précédente">‹</button>
+          <span class="lib"><b id="cal-lib"></b><span id="cal-dist"></span></span>
+          <button type="button" id="cal-suiv" aria-label="Semaine suivante">›</button>
+        </div>
+        <button type="button" class="btn" id="cal-auj">Aujourd’hui</button>
+        <button type="button" class="btn" id="cal-aller" aria-expanded="false">Aller à…</button>
+        <span class="segs"><span>Jour</span><span class="on">Semaine</span><span>Mois</span></span>
+        <button type="button" class="btn btn--plein" disabled>+ Nouveau RDV</button>
+      </div>
+      <div class="pop" id="cal-pop" hidden></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="tete">
+      <p class="sur">Ce que le champ comprend</p>
+      <h2>On l’écrit comme elle le dit.</h2>
+      <p>Les phrases d’une cliente au comptoir ou sur WhatsApp, lues depuis le samedi 14 novembre 2026. Le tableau est calculé par le même lecteur que la démonstration.</p>
+    </div>
+    <div class="tableau">
+      <table>
+        <thead><tr><th>Elle dit</th><th>Le Trône ouvre</th><th>Distance</th></tr></thead>
+        <tbody id="langage"></tbody>
+      </table>
+    </div>
+    <p class="note">Pour aller voir une date, l’année se déduit : la prochaine fois que ce jour revient. Pour écrire une date dans un champ (une fiche, une facture), la règle de la Maison ne change pas : l’année ne se devine jamais. Le jour de la semaine tapé est relu : « vendredi 12 décembre » est signalé, le 12 décembre 2026 est un samedi.</p>
+  </section>
+
+  <section>
+    <div class="tete">
+      <p class="sur">Où il vit</p>
+      <h2>Le même geste à quatre endroits.</h2>
+    </div>
+    <ul class="liste">
+      <li><b>Le Calendrier.</b> « Aller à… » à côté de la date du haut ; ‹ › restent. Sous la date, sa distance : « dans 3 semaines ».</li>
+      <li><b>« + RDV » › Quand.</b> La barre se pose au-dessus de la semaine des places, avec le fil. Les trois propositions restent en tête.</li>
+      <li><b>La fiche cliente.</b> Son « + RDV » ouvre toujours sur aujourd’hui (décision du 24 octobre) ; sa date est à une touche, en cuivre : « Sa date · sam. 12 déc. ».</li>
+      <li><b>Trouver (Ctrl K).</b> Taper « dans 3 semaines » ou « 12/12 » propose « Ouvrir le Calendrier au samedi 12 décembre ».</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="tete">
+      <p class="sur">Ce qui ne change pas</p>
+      <h2>Le moteur reste celui d’aujourd’hui.</h2>
+    </div>
+    <ul class="liste">
+      <li><b>Les places se comptent comme aujourd’hui</b> : fauteuils, jours fermés, exceptions d’horaires, blocages. C’est le moteur du « + RDV » et du site.</li>
+      <li><b>Une heure prise se pose quand même</b>, la raison dite en cuivre ; seul le plafond des fauteuils bloque.</li>
+      <li><b>Les fêtes viennent des exceptions d’horaires</b> déjà réglées au Trône. Le fil les montre, il n’en invente aucune.</li>
+      <li><b>Le site et Ma Couronne</b> ne bougent pas.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="tete">
+      <p class="sur">Tranché</p>
+      <h2>Quatre arbitrages, tranchés.</h2>
+      <p>Par Yéman le 14 novembre 2026 : les quatre propositions sont retenues.</p>
+    </div>
+    <div class="arbitrages">
+      <div class="arb">
+        <h3>1 · La longueur du fil</h3>
+        <p class="propose"><b>Seize semaines</b>, environ quatre mois, et il défile au-delà quand on saute plus loin.</p>
+        <p class="autres">Douze semaines, le trimestre. Ou vingt-six, six mois.</p>
+      </div>
+      <div class="arb">
+        <h3>2 · D’où partent les sauts</h3>
+        <p class="propose"><b>D’aujourd’hui</b>, comme elle le dit. Sa date à elle a sa propre touche, comptée depuis sa dernière venue.</p>
+        <p class="autres">Depuis sa dernière venue dès qu’une cliente est choisie.</p>
+      </div>
+      <div class="arb">
+        <h3>3 · Trouver comprend les dates</h3>
+        <p class="propose"><b>Oui.</b> « dans 3 semaines » ou « 12/12 » dans Trouver ouvre le Calendrier sur ce jour.</p>
+        <p class="autres">Non : la barre seulement dans le Calendrier et « + RDV ».</p>
+      </div>
+      <div class="arb">
+        <h3>4 · Ce que dit le fil</h3>
+        <p class="propose"><b>Le remplissage et les places libres</b>, la semaine presque pleine en cuivre.</p>
+        <p class="autres">Les places libres seulement, en chiffres. Ou les dates seules.</p>
+      </div>
+    </div>
+    <p class="pied">Après « construis » : un module pur (le lecteur des phrases, la distance, le fil), éprouvé par un banc ; la barre partagée par le Calendrier et « + RDV » ; Trouver si l’arbitrage 3 est retenu. Les places, elles, viennent du moteur existant.</p>
+  </section>
+</main>
+
+<script>
+/*PUR-DEBUT*/
+const AUJ = '2026-11-14';
+const DERNIERE = '2026-11-14';
+const RYTHME = 28;
+const SON_HEURE = '10:00';
+const FETES = { '2026-12-25': 'Noël', '2027-01-01': 'Jour de l’an', '2027-01-10': 'Fête du Vodoun' };
+const JOURS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+const JOURS_COURTS = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const MOIS_COURTS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+const MOIS_SANS = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin', 'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre'];
+
+const D = (s) => new Date(s + 'T12:00:00');
+const pad = (n) => String(n).padStart(2, '0');
+const isoDe = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const add = (s, n) => { const d = D(s); d.setDate(d.getDate() + n); return isoDe(d); };
+const ecart = (a, b) => Math.round((D(b) - D(a)) / 864e5);
+const jds = (s) => (D(s).getDay() + 6) % 7; // lundi = 0
+const lundi = (s) => add(s, -jds(s));
+const addMois = (s, n) => {
+  const d = D(s); const j = d.getDate(); d.setDate(1); d.setMonth(d.getMonth() + n);
+  const fin = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); d.setDate(Math.min(j, fin)); return isoDe(d);
+};
+const numero = (n) => (n === 1 ? '1er' : String(n));
+const dit = (s) => { const d = D(s); return `${JOURS[jds(s)]} ${numero(d.getDate())} ${MOIS[d.getMonth()]} ${d.getFullYear()}`; };
+const court = (s) => { const d = D(s); return `${JOURS_COURTS[jds(s)]} ${numero(d.getDate())} ${MOIS_COURTS[d.getMonth()]}`; };
+const maj = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const SA_DATE = add(DERNIERE, RYTHME);
+
+/** LA DISTANCE : ce que l'on dirait à la cliente. */
+function distance(s) {
+  const n = ecart(AUJ, s);
+  if (n === 0) return 'aujourd’hui';
+  if (n === 1) return 'demain';
+  if (n === 2) return 'après-demain';
+  if (n === -1) return 'hier';
+  const a = Math.abs(n); const pre = n > 0 ? 'dans ' : 'il y a ';
+  if (a < 14) return `${pre}${a} jours`;
+  /* Les semaines jusqu'à huit, puis les mois : « dans 8 semaines et 5 jours »
+     ne se dit pas, « dans 2 mois » si. */
+  if (a < 56 || (a < 63 && a % 7 === 0)) { const s7 = Math.floor(a / 7); const r = a % 7; return `${pre}${s7} semaines${r ? ` et ${r} jour${r > 1 ? 's' : ''}` : ''}`; }
+  const m = Math.round((a / 30.44) * 2) / 2;
+  return m % 1 ? `${pre}${Math.floor(m)} mois et demi` : `${pre}${m} mois`;
+}
+/** La distance d'une semaine, comptée de lundi à lundi. */
+function distanceDeSemaine(l) {
+  const n = ecart(lundi(AUJ), l) / 7;
+  if (n === 0) return 'cette semaine';
+  if (n === 1) return 'la semaine prochaine';
+  if (n === -1) return 'la semaine dernière';
+  return n > 0 ? `dans ${n} semaines` : `il y a ${-n} semaines`;
+}
+
+const sansAccent = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+const jourDe = (mot) => { const m = (mot || '').replace(/\.$/, ''); if (m.length < 3) return -1; return JOURS.findIndex((j) => j.startsWith(m)); };
+const moisDe = (mot) => { const m = (mot || '').replace(/\.$/, ''); if (m.length < 3) return -1; return MOIS_SANS.findIndex((x) => x.startsWith(m)); };
+const prochainJour = (j, apres) => { for (let i = 1; i <= 7; i += 1) { const s = add(apres, i); if (jds(s) === j) return s; } return null; };
+function dateValide(j, mo, an) {
+  const essai = (y) => { const d = new Date(y, mo, j, 12); return d.getMonth() === mo && d.getDate() === j ? isoDe(d) : null; };
+  if (an) { const s = essai(an); return s ? { iso: s } : null; }
+  const y = D(AUJ).getFullYear();
+  const s = essai(y); if (s && s >= AUJ) return { iso: s };
+  const s2 = essai(y + 1); return s2 ? { iso: s2 } : null;
+}
+function prochainNumero(j) {
+  for (let i = 0; i < 13; i += 1) {
+    const base = addMois(`${AUJ.slice(0, 8)}01`, i);
+    const r = dateValide(j, D(base).getMonth(), D(base).getFullYear());
+    if (r && r.iso >= AUJ) return r;
+  }
+  return null;
+}
+function relit(r, motDuJour) {
+  if (!r || !motDuJour) return r;
+  const j = jourDe(motDuJour);
+  if (j < 0) return null;
+  if (jds(r.iso) !== j) r.avertit = `Le ${numero(D(r.iso).getDate())} ${MOIS[D(r.iso).getMonth()]} ${D(r.iso).getFullYear()} est un ${JOURS[jds(r.iso)]}, pas un ${JOURS[j]}.`;
+  return r;
+}
+
+/** LE LECTEUR : une phrase de cliente → le jour à ouvrir, ou null. */
+function lis(texte) {
+  let t = sansAccent(String(texte).toLowerCase()).replace(/[’']/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!t) return null;
+  t = t.replace(/^le /, '');
+  if (/^(aujourd ?hui|auj)$/.test(t)) return { iso: AUJ };
+  if (t === 'demain') return { iso: add(AUJ, 1) };
+  if (/^apres[- ]?demain$/.test(t)) return { iso: add(AUJ, 2) };
+  if (/^(la )?semaine prochaine$/.test(t)) return { iso: add(lundi(AUJ), 7) };
+  /* dans 3 semaines · 3s · +10j · 2 mois · dans 3 semaines samedi · samedi dans 3 semaines */
+  let m = t.match(/^(?:dans )?\+? ?(\d{1,2}) ?(j|jours?|s|sem|semaines?|m|mois)(?: (\w+\.?))?$/);
+  if (!m) { const m2 = t.match(/^(\w+\.?) dans (\d{1,2}) ?(s|sem|semaines?)$/); if (m2) m = [m2[0], m2[2], m2[3], m2[1]]; }
+  if (m) {
+    const n = Number(m[1]); const u = m[2][0];
+    const base = u === 'j' ? add(AUJ, n) : u === 's' ? add(AUJ, 7 * n) : addMois(AUJ, n);
+    if (m[3]) { const j = jourDe(m[3]); return j < 0 ? null : { iso: add(lundi(base), j) }; }
+    return { iso: base };
+  }
+  /* samedi en huit · jeudi en quinze */
+  m = t.match(/^(\w+\.?) en (huit|8|quinze|15)$/);
+  if (m) { const j = jourDe(m[1]); if (j >= 0) return { iso: add(prochainJour(j, AUJ), /huit|8/.test(m[2]) ? 7 : 14) }; }
+  /* samedi · samedi prochain */
+  m = t.match(/^(\w+\.?)(?: prochain)?$/);
+  if (m && jourDe(m[1]) >= 0) return { iso: prochainJour(jourDe(m[1]), AUJ) };
+  /* début, mi, fin + mois · fin du mois */
+  if (/^fin (du )?mois$/.test(t)) { const r = dateValide(25, D(AUJ).getMonth(), null); return r; }
+  m = t.match(/^(debut|mi|fin)(?: de)?[- ]?(\w+\.?)$/);
+  if (m && moisDe(m[2]) >= 0) return dateValide(m[1] === 'debut' ? 1 : m[1] === 'mi' ? 15 : 25, moisDe(m[2]), null);
+  /* janvier */
+  if (moisDe(t) >= 0 && /^[a-z]+\.?$/.test(t)) return dateValide(1, moisDe(t), null);
+  /* 12 · 12/12 · 12/12/26 · 12 dec · 12 decembre 2026, éventuellement précédés du jour */
+  let motDuJour = null;
+  m = t.match(/^([a-z]+\.?) (\d.*)$/);
+  if (m && jourDe(m[1]) >= 0) { motDuJour = m[1]; t = m[2]; }
+  m = t.match(/^(\d{1,2})$/);
+  if (m) return relit(prochainNumero(Number(m[1])), motDuJour);
+  m = t.match(/^(\d{1,2})[/\-. ](\d{1,2})(?:[/\-. ](\d{2,4}))?$/);
+  if (m) { const an = m[3] ? (m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3])) : null; return relit(dateValide(Number(m[1]), Number(m[2]) - 1, an), motDuJour); }
+  m = t.match(/^(\d{1,2}) ([a-z]+\.?)(?: (\d{4}))?$/);
+  if (m && moisDe(m[2]) >= 0) return relit(dateValide(Number(m[1]), moisDe(m[2]), m[3] ? Number(m[3]) : null), motDuJour);
+  return null;
+}
+/*PUR-FIN*/
+
+/* — Les places d'exemple — */
+function hache(s) { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967295; }
+const memo = new Map();
+function jourDesPlaces(s) {
+  if (memo.has(s)) return memo.get(s);
+  let r;
+  if (s < AUJ) r = { passe: true, heures: [] };
+  else if (FETES[s]) r = { ferme: FETES[s], heures: [] };
+  else if (jds(s) === 6) r = { ferme: 'fermé', heures: [] };
+  else {
+    let occ = [0.35, 0.3, 0.35, 0.45, 0.6, 0.85][jds(s)];
+    if (s >= '2026-12-14' && s <= '2026-12-24') occ += 0.3;
+    if (s >= '2026-12-28' && s <= '2026-12-31') occ -= 0.1;
+    occ += (hache(s) - 0.5) * 0.2;
+    if (s === AUJ) occ = Math.max(occ, 0.92);
+    occ = Math.min(1, Math.max(0, occ));
+    const cand = (jds(s) === 5 ? ['08:00'] : []).concat(['09:00', '09:30', '10:00', '10:30', '11:00', '13:00', '13:30', '14:00', '15:00', '16:00']);
+    const n = Math.round((1 - occ) * cand.length);
+    const h = cand.slice().sort((a, b) => hache(s + a) - hache(s + b)).slice(0, n);
+    if (s === SA_DATE && n > 0 && !h.includes(SON_HEURE)) h[0] = SON_HEURE;
+    h.sort();
+    r = { occ, heures: h };
+  }
+  memo.set(s, r);
+  return r;
+}
+function semaineDesPlaces(l) {
+  let somme = 0; let nb = 0; let libres = 0;
+  for (let i = 0; i < 6; i += 1) { const p = jourDesPlaces(add(l, i)); if (p.occ !== undefined) { somme += p.occ; nb += 1; libres += p.heures.length; } }
+  return { occ: nb ? somme / nb : null, libres };
+}
+
+/* — L'état de la démonstration — */
+const etat = { semaine: lundi(AUJ), jour: AUJ, heure: null };
+const $ = (id) => document.getElementById(id);
+const reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function premierJourLibre(l) {
+  for (let i = 0; i < 7; i += 1) { const s = add(l, i); if (s >= AUJ && jourDesPlaces(s).heures.length) return s; }
+  return l < AUJ ? AUJ : l;
+}
+function va(iso, heure) {
+  etat.semaine = lundi(iso);
+  etat.jour = iso < AUJ ? AUJ : iso;
+  etat.heure = heure && jourDesPlaces(etat.jour).heures.includes(heure) ? heure : null;
+  rendre(true);
+}
+
+/* — La barre « Aller à », partagée par la démonstration et le Calendrier — */
+function barreDeSaut(racine, surSaut, avecSienne) {
+  const id = racine.id;
+  racine.innerHTML = `
+    <div class="saut">
+      <label class="sur" for="${id}-champ">Aller à</label>
+      <span class="saut__ligne"><input type="text" id="${id}-champ" placeholder="dans 3 semaines, samedi en huit, 12/12, fin janvier" autocomplete="off" enterkeyhint="go"><button type="button" class="btn">Y aller</button></span>
+      <p class="saut__lecture" aria-live="polite"></p>
+      <div class="puces" role="group" aria-label="Sauts depuis aujourd’hui"></div>
+    </div>`;
+  const champ = racine.querySelector('input'); const lecture = racine.querySelector('.saut__lecture'); const puces = racine.querySelector('.puces');
+  const SAUTS = [['Aujourd’hui', AUJ], ['+1 sem', add(AUJ, 7)], ['+2 sem', add(AUJ, 14)], ['+3 sem', add(AUJ, 21)], ['+4 sem', add(AUJ, 28)], ['+6 sem', add(AUJ, 42)], ['+8 sem', add(AUJ, 56)], ['+3 mois', addMois(AUJ, 3)]];
+  puces.innerHTML = SAUTS.map(([l, iso]) => `<button type="button" class="puce" data-iso="${iso}" title="${maj(dit(iso))}">${l}</button>`).join('')
+    + (avecSienne ? `<button type="button" class="puce puce--sienne" data-iso="${SA_DATE}" data-heure="${SON_HEURE}" title="Son rythme : 4 semaines après sa dernière venue">Sa date · ${court(SA_DATE)}</button>` : '');
+  const conseil = () => { lecture.className = 'saut__lecture'; lecture.textContent = 'Tapez ce qu’elle dit, puis Entrée. Ou touchez un saut.'; };
+  const relis = () => {
+    const brut = champ.value.trim();
+    if (!brut) { conseil(); return null; }
+    const r = lis(brut);
+    lecture.textContent = '';
+    if (!r) {
+      lecture.className = 'saut__lecture ko';
+      lecture.textContent = `Je ne lis pas « ${brut} ». Essayez : 3 sem, samedi en huit, 12/12, fin janvier.`;
+      return null;
+    }
+    lecture.className = 'saut__lecture';
+    const b = document.createElement('b'); b.textContent = maj(dit(r.iso));
+    const d = document.createElement('span'); d.className = 'dist'; d.textContent = distance(r.iso);
+    lecture.append(b, ' · ', d, ' · Entrée pour y aller');
+    if (r.avertit) { const a = document.createElement('span'); a.className = 'avert'; a.textContent = r.avertit; lecture.append(a); }
+    return r;
+  };
+  const allerA = () => { const r = relis(); if (r) surSaut(r.iso); };
+  champ.addEventListener('input', relis);
+  champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); allerA(); } });
+  racine.querySelector('.btn').addEventListener('click', allerA);
+  puces.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-iso]'); if (!b) return;
+    champ.value = ''; conseil(); surSaut(b.dataset.iso, b.dataset.heure);
+  });
+  conseil();
+  return { marque(iso) { puces.querySelectorAll('[data-iso]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.iso === iso))); }, champ };
+}
+
+const sautDemo = barreDeSaut($('saut-demo'), (iso, heure) => va(iso, heure), true);
+
+/* — Les trois propositions, comme au « + RDV » — */
+function propositions() {
+  const out = [];
+  const sienne = jourDesPlaces(SA_DATE).heures.includes(SON_HEURE) ? SON_HEURE : jourDesPlaces(SA_DATE).heures[0];
+  if (sienne) out.push({ titre: 'À sa date', iso: SA_DATE, heure: sienne, pourquoi: 'Son rythme, à son heure.' });
+  for (let i = 1; i < 30; i += 1) { const s = add(AUJ, i); const h = jourDesPlaces(s).heures; if (h.length) { out.push({ titre: 'Le plus tôt', iso: s, heure: h[0], pourquoi: 'La première place libre.' }); break; } }
+  for (let i = 1; i < 60; i += 1) {
+    const s = add(AUJ, i);
+    if (jds(s) !== 5 || s === SA_DATE) continue;
+    const h = jourDesPlaces(s).heures; if (!h.length) continue;
+    out.push({ titre: 'Son samedi', iso: s, heure: h.includes(SON_HEURE) ? SON_HEURE : h[0], pourquoi: 'Elle vient le plus souvent le samedi.' }); break;
+  }
+  return out;
+}
+const PROPS = propositions();
+$('props').innerHTML = PROPS.map((p, i) => `<button type="button" class="prop" data-i="${i}"><small>${p.titre}</small><b>${maj(court(p.iso))} · ${p.heure}</b><span>${maj(distance(p.iso))} · ${p.pourquoi}</span></button>`).join('');
+$('props').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (!b) return; const p = PROPS[Number(b.dataset.i)]; va(p.iso, p.heure); });
+
+/* — Le fil — */
+function rendreFil(defile) {
+  const debut = lundi(AUJ);
+  const n = Math.max(16, ecart(debut, etat.semaine) / 7 + 2);
+  let html = ''; let moisPrec = -1;
+  for (let i = 0; i < n; i += 1) {
+    const l = add(debut, 7 * i);
+    const sem = semaineDesPlaces(l);
+    const mo = D(l).getMonth();
+    const libMois = mo !== moisPrec ? MOIS_COURTS[mo] : '';
+    moisPrec = mo;
+    const jours = Array.from({ length: 7 }, (_, k) => add(l, k));
+    const fete = jours.find((s) => FETES[s]);
+    const sienne = jours.includes(SA_DATE);
+    const note = sienne ? '<span class="sem__note sienne">sa date</span>' : fete ? `<span class="sem__note">${FETES[fete]}</span>` : '<span class="sem__note">&nbsp;</span>';
+    const h = sem.occ === null ? 0 : Math.round(sem.occ * 100);
+    const plein = sem.occ !== null && sem.occ >= 0.85;
+    const on = l === etat.semaine;
+    const rang = i === 0 ? 'cette sem.' : `S+${i}`;
+    html += `<button type="button" class="sem" data-lundi="${l}" aria-pressed="${on}" title="Semaine du ${dit(l)}, ${distanceDeSemaine(l)} : ${sem.libres} place${sem.libres > 1 ? 's' : ''} libre${sem.libres > 1 ? 's' : ''}">
+      <span class="sem__mois">${libMois}</span>
+      <span class="sem__barre${i === 0 ? ' is-auj' : ''}"><i class="${plein ? 'plein' : ''}" style="height:${h}%"></i></span>
+      <span class="sem__date">${D(l).getDate()}</span>
+      <span class="sem__rang">${rang}</span>
+      <span class="sem__libre">${sem.libres} pl.</span>
+      ${note}
+    </button>`;
+  }
+  $('fil').innerHTML = html;
+  if (defile) {
+    const cadre = $('fil-cadre'); const el = cadre.querySelector('[aria-pressed="true"]');
+    if (el) cadre.scrollTo({ left: el.offsetLeft - cadre.clientWidth / 2 + el.clientWidth / 2, behavior: reduit ? 'auto' : 'smooth' });
+  }
+}
+$('fil').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-lundi]'); if (!b) return;
+  const l = b.dataset.lundi;
+  etat.semaine = l; etat.jour = premierJourLibre(l); etat.heure = null; rendre(false);
+});
+
+/* — La semaine, les heures, le résumé — */
+function rendre(defile) {
+  rendreFil(defile);
+  const l = etat.semaine;
+  $('semaine-lib').innerHTML = `<b>Semaine du ${dit(l).replace(/ \d{4}$/, '')}</b> · <span class="dist">${distanceDeSemaine(l)}</span>`;
+  $('sem-auj').hidden = l === lundi(AUJ);
+  $('sem-prec').disabled = l <= lundi(AUJ);
+  $('semaine').innerHTML = Array.from({ length: 7 }, (_, k) => {
+    const s = add(l, k); const p = jourDesPlaces(s); const n = p.heures.length;
+    const etiquette = p.passe ? 'passé' : p.ferme ? p.ferme : n === 0 ? 'complet' : `${n} place${n > 1 ? 's' : ''}`;
+    const marque = s === SA_DATE ? '<small class="sienne">sa date</small>' : s === AUJ ? '<small>aujourd’hui</small>' : '<small>&nbsp;</small>';
+    return `<button type="button" class="jour${s === AUJ ? ' is-auj' : ''}" data-jour="${s}" aria-pressed="${s === etat.jour}" ${p.passe ? 'disabled' : ''} aria-label="${maj(dit(s))}, ${etiquette}">
+      <small>${JOURS_COURTS[k]}</small><b>${D(s).getDate()}</b><small>${etiquette}</small>${marque}</button>`;
+  }).join('');
+  const p = jourDesPlaces(etat.jour);
+  $('heures').setAttribute('aria-label', `Les places du ${dit(etat.jour)}`);
+  $('heures').innerHTML = p.heures.length
+    ? p.heures.map((h) => `<button type="button" class="heure${etat.jour === SA_DATE && h === SON_HEURE ? ' sienne' : ''}" data-heure="${h}" aria-pressed="${h === etat.heure}">${h}</button>`).join('')
+    : `<span class="vide">${p.ferme ? `La Maison est fermée le ${dit(etat.jour)}${p.ferme !== 'fermé' ? ` (${p.ferme})` : ''}.` : `Plus aucune place le ${dit(etat.jour)} pour 3 h.`}</span>`;
+  if (etat.heure) {
+    const e = ecart(DERNIERE, etat.jour); const d = e - RYTHME;
+    const rythme = d === 0 ? 'pile à son rythme' : d < 0 ? `${-d} jour${-d > 1 ? 's' : ''} avant son rythme` : `${d} jour${d > 1 ? 's' : ''} après son rythme`;
+    $('res-quand').textContent = `${maj(dit(etat.jour))} à ${etat.heure}`;
+    $('res-dist').textContent = `${maj(distance(etat.jour))} · ${e} jours après sa dernière venue, ${rythme}.`;
+    $('poser').disabled = false;
+  } else {
+    $('res-quand').textContent = `${maj(dit(etat.jour))} · choisissez une heure.`;
+    $('res-dist').textContent = `${maj(distance(etat.jour))}.`;
+    $('poser').disabled = true;
+  }
+  $('pose').textContent = '';
+  sautDemo.marque(etat.jour);
+  document.querySelectorAll('#props .prop').forEach((b) => { const q = PROPS[Number(b.dataset.i)]; b.setAttribute('aria-pressed', String(q.iso === etat.jour && q.heure === etat.heure)); });
+}
+$('semaine').addEventListener('click', (e) => { const b = e.target.closest('[data-jour]'); if (!b || b.disabled) return; etat.jour = b.dataset.jour; etat.heure = null; rendre(false); });
+$('heures').addEventListener('click', (e) => { const b = e.target.closest('[data-heure]'); if (!b) return; etat.heure = b.dataset.heure; rendre(false); });
+$('sem-prec').addEventListener('click', () => { const l = add(etat.semaine, -7); etat.semaine = l; etat.jour = premierJourLibre(l); etat.heure = null; rendre(true); });
+$('sem-suiv').addEventListener('click', () => { const l = add(etat.semaine, 7); etat.semaine = l; etat.jour = premierJourLibre(l); etat.heure = null; rendre(true); });
+$('sem-auj').addEventListener('click', () => va(AUJ));
+$('poser').addEventListener('click', () => { $('pose').textContent = `Posé le ${dit(etat.jour)} à ${etat.heure}, confirmé. Dans la démonstration seulement : rien n’est écrit au Trône.`; });
+
+/* — Le haut du Calendrier — */
+let ancre = AUJ;
+function rendreCal() {
+  const l = lundi(ancre);
+  $('cal-lib').textContent = `Semaine du ${court(l)}`;
+  $('cal-dist').textContent = distanceDeSemaine(l);
+  $('cal-auj').hidden = l === lundi(AUJ);
+}
+const sautCal = barreDeSaut($('cal-pop'), (iso) => { ancre = iso; rendreCal(); sautCal.marque(iso); }, false);
+$('cal-prec').addEventListener('click', () => { ancre = add(ancre, -7); rendreCal(); });
+$('cal-suiv').addEventListener('click', () => { ancre = add(ancre, 7); rendreCal(); });
+$('cal-auj').addEventListener('click', () => { ancre = AUJ; rendreCal(); sautCal.marque(AUJ); });
+$('cal-aller').addEventListener('click', () => {
+  const pop = $('cal-pop'); pop.hidden = !pop.hidden;
+  $('cal-aller').setAttribute('aria-expanded', String(!pop.hidden));
+  if (!pop.hidden) sautCal.champ.focus();
+});
+
+/* — Le tableau du langage — */
+const PHRASES = ['3s', 'dans 3 semaines', '+10j', '2 mois', 'demain', 'samedi', 'samedi en huit', 'jeudi dans 3 semaines', 'le 12', '12/12', 'vendredi 12 décembre', '15 janv', 'mi-décembre', 'fin janvier', 'semaine prochaine'];
+$('langage').innerHTML = PHRASES.map((ph) => {
+  const r = lis(ph);
+  if (!r) return `<tr><td>« ${ph} »</td><td>non lu</td><td></td></tr>`;
+  return `<tr><td>« ${ph} »</td><td>${maj(dit(r.iso))}${r.avertit ? `<span class="avert">${r.avertit}</span>` : ''}</td><td class="dist">${distance(r.iso)}</td></tr>`;
+}).join('');
+
+rendreCal();
+rendre(false);
+</script>

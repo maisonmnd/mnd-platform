@@ -1,0 +1,78 @@
+/* ══ ALLER À, ET LE FIL DES SEMAINES — 14 novembre 2026 ════════════════
+   Maquette `public/maquette-dans-trois-semaines.html`. Le cuivre reste un
+   accent : la touche « Sa date », la semaine presque pleine, un filet. */
+
+.tr-saut { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tr-saut__etiquette {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft);
+}
+.tr-saut__ligne { display: flex; gap: 8px; min-width: 0; }
+.tr-saut__ligne input {
+  flex: 1 1 auto; min-width: 0; font: inherit; font-size: 14px; color: var(--ink);
+  padding: 8px 11px; border: 1px solid var(--hairline); border-radius: 3px; background: var(--color-ivoire);
+}
+.tr-saut__ligne input:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 1px; }
+.tr-saut__lecture { margin: 0; font-size: 12.5px; color: var(--ink-soft); min-height: 1.5em; line-height: 1.5; }
+.tr-saut__lecture b { font-weight: 600; color: var(--color-indigo); }
+.tr-saut__dist { color: var(--color-indigo); border-bottom: 1px solid var(--color-copper); }
+.tr-saut__lecture.is-ko { color: var(--color-brique, #96412E); }
+.tr-saut__avert { display: block; color: var(--color-brique, #96412E); }
+.tr-saut__puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.tr-saut__puce {
+  font: inherit; font-size: 12px; font-weight: 500; color: var(--color-indigo); white-space: nowrap; cursor: pointer;
+  padding: 5px 10px; border: 1px solid var(--hairline); border-radius: 2px; background: var(--color-ivoire);
+}
+.tr-saut__puce:hover { border-color: var(--copper-300); }
+.tr-saut__puce[aria-pressed="true"] { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
+.tr-saut__puce--sienne { border-color: var(--color-copper); background: var(--copper-50); }
+.tr-saut__puce--sienne::before {
+  content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 1px; background: var(--color-copper);
+  margin-right: 7px; vertical-align: 1px;
+}
+
+.tr-fil { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tr-fil__tete { display: flex; justify-content: space-between; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; }
+.tr-fil__titre { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.tr-fil__legende { display: inline-flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--ink-soft); }
+.tr-fil__legende i { display: inline-block; width: 9px; height: 9px; border-radius: 1px; margin-right: 5px; vertical-align: -1px; }
+.tr-fil__legende i.is-pris { background: var(--indigo-200, #B9BDD8); }
+.tr-fil__legende i.is-plein { background: var(--color-copper); }
+.tr-fil__legende i.is-sienne { background: var(--copper-50); border: 1px solid var(--color-copper); }
+.tr-fil__cadre { position: relative; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.tr-fil__rang { display: flex; gap: 4px; width: max-content; }
+.tr-fil__sem {
+  flex: none; width: 58px; display: flex; flex-direction: column; align-items: stretch; gap: 3px; text-align: center;
+  padding: 4px 3px 5px; border: 1px solid transparent; border-radius: 3px; background: none; cursor: pointer; font: inherit; color: var(--ink);
+}
+.tr-fil__sem:hover { background: var(--color-ivoire); border-color: var(--hairline); }
+.tr-fil__sem[aria-pressed="true"] { border-color: var(--color-indigo); background: var(--color-ivoire); }
+.tr-fil__mois {
+  height: 14px; text-align: left; padding-left: 2px;
+  font-size: 9.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft);
+}
+.tr-fil__barre { position: relative; height: 46px; border: 1px solid var(--hairline); border-radius: 2px; overflow: hidden; background: var(--color-ivoire); }
+.tr-fil__barre i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--indigo-200, #B9BDD8); transition: height .3s ease; }
+.tr-fil__barre i.is-plein { background: var(--color-copper); }
+.tr-fil__barre.is-auj::after {
+  content: ""; position: absolute; top: 4px; left: 50%; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--color-indigo);
+}
+.tr-fil__date { font-family: var(--font-serif); font-size: 19px; line-height: 1; color: var(--color-indigo); }
+.tr-fil__n, .tr-fil__libres { font-size: 10.5px; line-height: 1.2; color: var(--ink-soft); }
+.tr-fil__libres { color: var(--ink); }
+.tr-fil__note {
+  height: 15px; line-height: 13px; font-size: 9px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid transparent; border-radius: 2px;
+}
+.tr-fil__note.is-sienne { color: var(--color-indigo); background: var(--copper-50); border-color: var(--color-copper); }
+@media (prefers-reduced-motion: reduce) { .tr-fil__barre i { transition: none; } }
+
+/* Dans le « + RDV », au-dessus de la semaine des places. */
+.trc-rdv3__saut {
+  display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--hairline);
+}
+
+/* LA DISTANCE, sous la date du haut du Calendrier et de la semaine des places. */
+.tr-distance { font-size: 11px; color: var(--ink-soft); letter-spacing: .02em; }
+.tr-aller-pop {
+  margin: 0 0 16px; padding: 14px 16px; border: 1px solid var(--hairline); border-radius: 4px; background: var(--color-ivoire);
+}

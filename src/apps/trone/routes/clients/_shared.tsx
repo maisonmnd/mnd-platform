@@ -27,7 +27,9 @@ import {
 } from '../../../../shared/agenda';
 import { categoriesStore, servicesStore, productsStore, sousArbreOf, useServices, useCategories, useProducts, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel, LONGUEURS, suitLongueur, fondeLaCouronne, type LongueurId, type Service } from '../../../../shared/catalog';
 import { RANG_DU_PALIER, plusHautDes, avertissementDHabilitation, type Palier } from '../../../../shared/paliers';
-import { depositForServices, depositPctFor, useSettings, settingsStore, openingForIso } from '../../../../shared/settings';
+import { depositForServices, depositPctFor, useSettings, settingsStore, openingForIso, useExceptionsHoraires } from '../../../../shared/settings';
+import { BarreDeSaut, FilDesSemaines } from './AllerA';
+import { distanceDeLaSemaine, filDesSemaines, lundiDe as lundiDuFil, remplissageDuJour } from './aller-a-pur';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { ageDe, estKids, AGE_MND_KIDS } from '../../../../shared/accounts';
@@ -2989,6 +2991,29 @@ function RdvModalCorps({
     });
   };
   const semaine = septJours(debutSemaine).map(placesDe);
+  /* LE FIL DES SEMAINES — 14 novembre 2026, maquette « Dans trois semaines ».
+     Seize semaines depuis aujourd'hui : les places pour la durée de sa tête,
+     le remplissage des fauteuils (les minutes prises sur fauteuils ×
+     ouverture), les exceptions d'horaires de la Maison qui portent un nom, et
+     sa date. Les places viennent du même `placesDe` que la semaine. */
+  const [exceptionsHoraires] = useExceptionsHoraires();
+  const filDuRdv = useMemo(() => (chosen.length === 0 ? [] : filDesSemaines({
+    aujourdhui,
+    jusqua: debutSemaine,
+    saDate: !appt && reprise?.iso ? reprise.iso : null,
+    jour: (iso) => {
+      const p = placesDe(iso);
+      const nom = exceptionsHoraires.find((e) => e.date === iso && !e.staffId && e.note?.trim())?.note?.trim() ?? null;
+      return {
+        ferme: p.ferme,
+        passe: p.passe,
+        libres: p.heures.length,
+        remplissage: remplissageDuJour({ ouverture: openingForIso(iso), occupes: occupesDe(iso), sieges }),
+        note: nom,
+      };
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  })), [chosen.length, aujourdhui, debutSemaine, appt?.id, reprise?.iso, branchAppts, dureeRetenue, blocages, branch.id, master, sieges, exceptionsHoraires, byId]);
   /* LE JOUR MONTRÉ : celui qu'on a touché, sinon celui du rendez-vous, sinon
      son jour de reprise, sinon le premier jour de la semaine qui a une place :
      le prochain créneau se propose sans qu'on le cherche. */
@@ -5306,13 +5331,42 @@ function RdvModalCorps({
             </p>
           ) : (
             <div>
+              {/* ALLER À ET LE FIL — 14 novembre 2026, maquette « Dans trois
+                  semaines » : « dans 3 semaines », « +3 sem », sa date en
+                  cuivre ; les seize semaines d'un regard. La semaine s'ouvre
+                  toujours sur aujourd'hui (24 octobre). */}
+              <div className="trc-rdv3__saut">
+                <BarreDeSaut
+                  id="rdv-aller-a"
+                  aujourdhui={aujourdhui}
+                  choisi={jourDuJour?.iso ?? null}
+                  saDate={!appt && reprise?.iso && reprise.iso >= aujourdhui
+                    ? { iso: reprise.iso, pourquoi: reprise.jours ? `Son rythme : environ ${Math.round(reprise.jours)} jours entre deux venues.` : 'Son jour de reprise, lu sur sa fiche.' }
+                    : null}
+                  onSaut={(iso) => { setDebutChoisi(debutDeLaSemaine(iso, aujourdhui, !!appt)); setJourVu(iso); }}
+                />
+                <FilDesSemaines
+                  semaines={filDuRdv}
+                  choisie={lundiDuFil(debutSemaine)}
+                  aujourdhui={aujourdhui}
+                  onChoisir={(lundi) => {
+                    const debut = debutDeLaSemaine(lundi, aujourdhui, !!appt);
+                    setDebutChoisi(debut);
+                    setJourVu(septJours(debut).map(placesDe).find((j) => j.heures.length > 0)?.iso ?? debut);
+                  }}
+                />
+              </div>
               <div className="trc-rdv3__semaine-tete">
                 <span>
-                  Semaine du {jourDit(debutSemaine)} · places pour {fmtDureeCourte(dureeRetenue)}
+                  Semaine du {jourDit(debutSemaine)} · <span className="tr-distance">{distanceDeLaSemaine(debutSemaine, aujourdhui)}</span>
+                  {' · '}places pour {fmtDureeCourte(dureeRetenue)}
                   {sieges > 0 ? `, ${sieges} fauteuil${sieges > 1 ? 's' : ''}` : ''}
                 </span>
                 <span className="trc-rdv3__nav">
                   <button type="button" disabled={!appt && debutSemaine <= aujourdhui} onClick={() => setDebutChoisi(ajouteJours(debutSemaine, -7))}>‹ Précédente</button>
+                  {lundiDuFil(debutSemaine) !== lundiDuFil(aujourdhui) && (
+                    <button type="button" onClick={() => { setDebutChoisi(debutDeLaSemaine(aujourdhui, aujourdhui, !!appt)); setJourVu(aujourdhui); }}>Aujourd’hui</button>
+                  )}
                   <button type="button" onClick={() => setDebutChoisi(ajouteJours(debutSemaine, 7))}>Suivante ›</button>
                 </span>
               </div>

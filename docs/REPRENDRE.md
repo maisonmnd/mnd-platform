@@ -2,6 +2,16 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## DANS TROIS SEMAINES — 14 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
+
+« Besoin de designer comme un expert un calendrier rapide et intelligent. Jump to a date from today et se retrouver facilement pour la cliente qui a besoin de programmer son prochain RDV rapidement » (Yéman). Maquette `public/maquette-dans-trois-semaines.html` (artefact 3eVTTj8KaaqVubnjD5voH9), les quatre propositions prises au sélecteur, puis « construis ».
+
+- **La règle** `routes/clients/aller-a-pur.ts` : `lisLeSaut` lit les phrases d'une cliente (« 3s », « dans 3 semaines », « +10j », « 2 mois », « samedi » (jamais aujourd'hui), « samedi en huit », « jeudi dans 3 semaines », « le 12 », « 12/12 », « 15 janv », « mi-décembre », « fin janvier », « semaine prochaine ») ; pour ALLER VOIR, l'année se déduit (la prochaine fois que ce jour revient) ; `ChampDeDate` garde sa règle pour ÉCRIRE (l'année ne se devine jamais). Le jour tapé est relu (« vendredi 12 décembre » signalé). `distanceDite` (jours jusqu'à 13, semaines jusqu'à 8, puis mois), `distanceDeLaSemaine`, `distanceDuMois`, `sautsRapides` (depuis aujourd'hui : +1, +2, +3, +4, +6, +8 sem, +3 mois), `estUneDateSure` (Trouver : un chiffre ou des mots entiers du calendrier, « mar » reste Mariette), `remplissageDuJour` (minutes prises / fauteuils × ouverture ; `null` sans fauteuils dits), `filDesSemaines` (16 semaines, prolongé jusqu'au saut, 60 au plus ; presque plein ≥ 85 %).
+- **L'écran** (`AllerA.tsx` : `BarreDeSaut`, `FilDesSemaines` ; `aller-a.css`) : **Calendrier** : la distance sous la date du haut, « Aujourd'hui » dès qu'on s'en éloigne, « Aller à… » ouvre la barre ; `?jour=` suit l'adresse même Calendrier ouvert. **« + RDV » › Quand** : la barre (« Sa date » en cuivre = la reprise de sa fiche, à la création seulement), le fil (places du même `placesDe` que la semaine, remplissage, exceptions d'horaires de la Maison qui portent une note), la distance de la semaine, « Aujourd'hui » entre Précédente et Suivante ; la semaine s'ouvre toujours sur aujourd'hui (24 octobre). **Trouver** : « dans 3 semaines », « 12/12 » proposent « Ouvrir le Calendrier au … » (derrière l'accès au Calendrier).
+- **Bancs** : `verifie-aller-a.mjs` (le lecteur, la distance, les sauts, Trouver, le remplissage, le fil, le branchement ; `--prouve` 9 pannes sur 9) ; `banc-dans-trois-semaines.mjs` (Chrome réel, Trône construit hors ligne : 34 contrôles, téléphone 390 px sans débordement) ; verts : rdv-fluide, prochain-rituel, places-au-trone, moment-en-trois, fenêtre de fidélité, essai, parcours du foyer et douze autres qui lisent `_shared.tsx`, `Calendrier.tsx` ou `Trouver.tsx` ; typecheck.
+
+
+
 ## UN RENDEZ-VOUS NE DISPARAÎT PAS TOUT SEUL — 14 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
 
 « J'avais pris son RDV du 29 décembre depuis le 19 septembre, elle a reçu une confirmation et aujourd'hui le RDV a disparu » (Yéman, pour Carla B.).
