@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## DANS TROIS SEMAINES — 14 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
+## DANS TROIS SEMAINES — 14 novembre 2026, EN LIGNE (Trône build 20261114211542 @ 746167c9, 536/536 identiques ; Trône seul : aucune fonction, aucun SQL)
 
 « Besoin de designer comme un expert un calendrier rapide et intelligent. Jump to a date from today et se retrouver facilement pour la cliente qui a besoin de programmer son prochain RDV rapidement » (Yéman). Maquette `public/maquette-dans-trois-semaines.html` (artefact 3eVTTj8KaaqVubnjD5voH9), les quatre propositions prises au sélecteur, puis « construis ».
 
