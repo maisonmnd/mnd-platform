@@ -5,10 +5,11 @@ import { useBranch } from '../../../../shared/branches';
 import { useStaff } from '../../../../shared/auth';
 import { fmtMoney } from '../../../../shared/currency';
 import { consultationsQueueStore, type OnlineConsultation } from '../../../../shared/bridges';
-import { ecrisLaVisio, entreeDeLaMaison, useVisios, type Visio } from '../../../../shared/visios';
+import { ecrisLaVisio, entreeDeLaMaison, messageDuLien, nouveauLien, useVisios, type Visio } from '../../../../shared/visios';
+import { lienWaMe } from '../../../../shared/conversations';
 import {
   AVANT_L_ENTREE_MIN, DUREE_MIN, LONGUEURS, NIVEAUX, SUITES,
-  anneauAllume, ecouleDit, heureDite, jourDeCotonou, jourDit, minutesSecondes, phaseDe, priveeObligatoire, resteS,
+  anneauAllume, creneauDit, ecouleDit, heureDite, jourDeCotonou, jourDit, minutesSecondes, phaseDe, priveeObligatoire, resteS,
   type ResumeDeLaVisio,
 } from '../../../../shared/visio-pur';
 import './visios.css';
@@ -29,6 +30,24 @@ export function ConsultationsVisios() {
   const { currency } = useBranch();
   const [salle, setSalle] = useState<Visio | null>(null);
   const [resume, setResume] = useState<string | null>(null);
+  /* LE LIEN RENVOYÉ (14 novembre 2026) : le dernier lien fabriqué, par visio, gardé à l'écran pour le copier. */
+  const [liens, setLiens] = useState<Record<string, { lien?: string; mot: string }>>({});
+  const envoieLeLien = async (v: Visio) => {
+    /* La fenêtre s'ouvre AU CLIC (un navigateur bloque celle ouverte après une attente), puis reçoit WhatsApp. */
+    const fenetre = window.open('', '_blank');
+    setLiens((x) => ({ ...x, [v.id]: { mot: 'Fabrication du lien…' } }));
+    const r = await nouveauLien(v.id);
+    if (!r.chemin) {
+      fenetre?.close();
+      setLiens((x) => ({ ...x, [v.id]: { mot: r.motif === 'fermee' ? 'La visio est passée : plus de lien à envoyer.' : r.motif === 'annulee' ? 'Visio annulée.' : 'Le lien n’a pas pu être fabriqué. Réessayez.' } }));
+      return;
+    }
+    const lien = `${window.location.origin}${r.chemin}`;
+    const prenom = v.nom.trim().split(/s+/)[0] ?? '';
+    const wa = lienWaMe(v.telephone, messageDuLien(prenom, creneauDit(v.debut), lien));
+    if (wa && fenetre) { fenetre.opener = null; fenetre.location.href = wa; } else fenetre?.close();
+    setLiens((x) => ({ ...x, [v.id]: { lien, mot: wa ? 'Lien neuf : WhatsApp s’ouvre avec le message prêt, il reste à l’envoyer. L’ancien lien n’ouvre plus la salle.' : 'Numéro illisible pour WhatsApp : copiez le lien ci-dessous.' } }));
+  };
   const [maintenant, setMaintenant] = useState(() => Date.now());
   useEffect(() => { const t = window.setInterval(() => setMaintenant(Date.now()), 1000); return () => window.clearInterval(t); }, []);
 
@@ -92,10 +111,17 @@ export function ConsultationsVisios() {
             {v.resume && <p style={{ margin: 0, fontSize: 13.5 }}><span style={lab}>Le résumé · </span>{resumeDit(v.resume, argent)}</p>}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {v.statut !== 'annulée' && phase !== 'attente' && phase !== 'fermee' && <Button size="sm" onClick={() => setSalle(v)}>Entrer dans la salle</Button>}
+              {v.statut === 'réservée' && phase !== 'fermee' && <Button size="sm" variant="ghost" onClick={() => void envoieLeLien(v)}>Envoyer le lien</Button>}
               {v.statut !== 'annulée' && <Button size="sm" variant="ghost" onClick={() => setResume(resume === v.id ? null : v.id)}>{v.resume ? 'Revoir le résumé' : 'Le résumé'}</Button>}
               {v.statut === 'réservée' && phase === 'fermee' && <Button size="sm" variant="ghost" onClick={() => void ecrisLaVisio(v.id, { statut: 'manquée' }).then(relis)}>Elle n’est pas venue</Button>}
               {v.statut === 'réservée' && phase === 'attente' && <Button size="sm" variant="ghost" onClick={() => void ecrisLaVisio(v.id, { statut: 'annulée' }).then(relis)}>Annuler</Button>}
             </div>
+            {liens[v.id] && (
+              <p className="tvz-note" role="status" style={{ margin: 0 }}>
+                {liens[v.id].mot}
+                {liens[v.id].lien && <><br /><span style={{ wordBreak: 'break-all', color: 'var(--ink)' }}>{liens[v.id].lien}</span></>}
+              </p>
+            )}
             {resume === v.id && <ResumeEnTroisTouches visio={v} onEcrit={() => { setResume(null); void relis(); }} />}
           </article>
         );

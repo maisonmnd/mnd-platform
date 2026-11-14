@@ -124,7 +124,7 @@ function resumeSur(x) {
 }
 
 // scripts/serveur/visio-salle.ts
-var VERSION = "2026-11-13-a";
+var VERSION = "2026-11-14-a";
 var DAILY = "https://api.daily.co/v1";
 var LIMITE = { seau: "visio", max: 6, fenetreMin: 10 };
 var DAILY_MAX_MS = 8e3;
@@ -319,6 +319,20 @@ Deno.serve(async (req) => {
       if (!data) return json({ ok: false, motif: "inconnue" }, 404);
       if (!cle) return json({ ok: false, motif: "sans-service" }, 503);
       return await entre(sb, cle, data, "Maison MND", true);
+    }
+    if (geste === "nouveau-lien") {
+      if (!await delEquipe(sb, req)) return json({ ok: false, motif: "reserve-a-l-equipe" }, 403);
+      if (typeof corps.id !== "string" || !FORME_DE_L_ID.test(corps.id)) return json({ ok: false, motif: "inconnue" }, 404);
+      const { data } = await sb.from("visios").select("*").eq("id", corps.id).maybeSingle();
+      const l = data;
+      if (!l) return json({ ok: false, motif: "inconnue" }, 404);
+      if (l.statut === "annulée") return json({ ok: false, motif: "annulee" }, 409);
+      if (Date.now() >= Date.parse(l.fin)) return json({ ok: false, motif: "fermee" }, 409);
+      const jeton = aleatoire(32);
+      const { error } = await sb.from("visios").update({ jeton_hash: await empreinte(jeton), maj_le: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", l.id);
+      if (error) return json({ ok: false, motif: "ecriture" }, 500);
+      dis("nouveau lien", { id: l.id });
+      return json({ ok: true, id: l.id, debut: l.debut, fin: l.fin, chemin: cheminDeLaSalle(l.id, jeton) });
     }
     return json({ ok: false, motif: "geste inconnu" }, 400);
   } catch (e) {

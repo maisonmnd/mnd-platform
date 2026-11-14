@@ -104,6 +104,17 @@ dit('aucun secret ni domaine ecrit : tout vient de l environnement', [true, fals
 dit('la reservation est limitee et revalidee au serveur', [true, true, true], [/await permis\(sb, ipDe\(req\)\)/.test(fn), /creneauValide\(r, maintenant/.test(fn), /r\.parTelephone/.test(fn)]);
 dit('l entree de la Maison demande une session de l equipe', true, /geste === 'entrer-maison'[\s\S]{0,120}delEquipe\(sb, req\)/.test(fn));
 dit('le resume ne se lit qu une fois la salle fermee', true, /const fermee = Date\.now\(\) >= Date\.parse\(l\.fin\);/.test(fn));
+/* Le lien renvoyé par la Maison (14 novembre 2026). */
+dit('nouveau-lien : equipe seule, un jeton neuf garde en empreinte, jamais apres la fin', [true, true, true], [
+  /geste === 'nouveau-lien'[\s\S]{0,120}delEquipe\(sb, req\)/.test(fn),
+  /const jeton = aleatoire\(32\);\n\s*const \{ error \} = await sb\.from\('visios'\)\.update\(\{ jeton_hash: await empreinte\(jeton\)/.test(fn),
+  /geste === 'nouveau-lien'[\s\S]{0,700}Date\.now\(\) >= Date\.parse\(l\.fin\)\) return json\(\{ ok: false, motif: 'fermee' \}/.test(fn),
+]);
+const fileB = lf('src/apps/trone/routes/clients/ConsultationsVisios.tsx');
+dit('la file B envoie le lien par WhatsApp, la fenetre ouverte au clic', [true, true], [
+  /const fenetre = window\.open\('', '_blank'\);\n\s*setLiens[\s\S]{0,120}await nouveauLien\(v\.id\)/.test(fileB),
+  /lienWaMe\(v\.telephone, messageDuLien\(prenom, creneauDit\(v\.debut\), lien\)\)/.test(fileB),
+]);
 
 /* ── ⑧ LA MIGRATION 0209 ────────────────────────────────────────────── */
 const sql = lf('supabase/migrations/0209_la_visio_de_quinze_minutes.sql');

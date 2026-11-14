@@ -100,6 +100,32 @@ export async function entreeDeLaMaison(id: string): Promise<{ url?: string; moti
   return { motif: 'erreur' };
 }
 
+/** UN LIEN D'ENTRÉE NEUF pour la cliente (l'ancien cesse d'ouvrir la salle) : rend le chemin, relatif à l'origine. */
+export async function nouveauLien(id: string): Promise<{ chemin?: string; motif?: string }> {
+  if (!supabase) return { motif: 'hors-ligne' };
+  const { data, error } = await supabase.functions.invoke('visio-salle', { body: { geste: 'nouveau-lien', id } });
+  if (!error) {
+    const d = (data ?? {}) as { ok?: boolean; chemin?: string; motif?: string };
+    return d.ok && d.chemin ? { chemin: d.chemin } : { motif: d.motif ?? 'erreur' };
+  }
+  try {
+    const r = (error as { context?: Response }).context;
+    const d = r && typeof r.json === 'function' ? ((await r.json()) as { motif?: string }) : null;
+    if (d?.motif) return { motif: d.motif };
+  } catch { /* corps illisible */ }
+  return { motif: 'erreur' };
+}
+
+/** Le message WhatsApp qui porte le lien : prénom, jour, heure, et ce qui va se passer. */
+export function messageDuLien(prenom: string, quand: string, lien: string): string {
+  return [
+    `Bonjour${prenom ? ` ${prenom}` : ''}, voici votre visio gratuite avec la Maison MND : ${quand}.`,
+    'Votre lien d’entrée, sans mot de passe (la salle s’ouvre cinq minutes avant) :',
+    lien,
+    'Quinze minutes, pas une de plus : à treize minutes, on résume et on vous propose la suite.',
+  ].join('\n');
+}
+
 /** La clé du service de visio est-elle posée ? (la fonction le dit sans la montrer) */
 export async function etatDuService(): Promise<{ joignable: boolean; cle: boolean; actif: boolean }> {
   if (!supabase) return { joignable: false, cle: false, actif: false };

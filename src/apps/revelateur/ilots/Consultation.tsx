@@ -200,7 +200,7 @@ export default function Consultation() {
           </div>
           <h2 style={{ marginTop: 22 }}>Où en sont les locks ?</h2>
           <div className="reponses">
-            {reponse(nees === 'maison', 'Des locks faites à la Maison', () => setNees('maison'))}
+            {reponse(nees === 'maison', 'Des locks faites à la Maison MND', () => setNees('maison'))}
             {reponse(nees === 'ailleurs', 'Des locks faites ailleurs', () => setNees('ailleurs'))}
             {reponse(nees === 'aucune', 'Pas encore de locks', () => { setNees('aucune'); if (!familles.length) setFamilles(['creer']); })}
           </div>

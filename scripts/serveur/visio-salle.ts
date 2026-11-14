@@ -8,7 +8,10 @@
      · etat          (public, par jeton) l'heure, l'état, le résumé une fois fermée ;
      · entrer        (public, par jeton) ouvre la salle et rend l'entrée de la cliente ;
      · annuler       (public, par jeton) avant l'heure seulement ;
-     · entrer-maison (session de l'équipe) l'entrée de la Maison, propriétaire de la salle.
+     · entrer-maison (session de l'équipe) l'entrée de la Maison, propriétaire de la salle ;
+     · nouveau-lien  (session de l'équipe) un lien d'entrée NEUF pour la cliente,
+                     qui remplace l'ancien (le jeton n'est gardé qu'en empreinte :
+                     on ne peut pas renvoyer l'ancien, on en fabrique un autre).
 
    LE SERVEUR COUPE, PAS LE NAVIGATEUR : la salle naît chez Daily avec
    `exp` = début + 15 min et `eject_at_room_exp`, et chaque entrée porte un
@@ -33,8 +36,8 @@ declare const Deno: {
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-/* 2026-11-13-a : la première salle (lot 3 de la Consultation). */
-const VERSION = '2026-11-13-a';
+/* 2026-11-14-a : « nouveau-lien », l'équipe renvoie le lien d'entrée (14 novembre 2026). */
+const VERSION = '2026-11-14-a';
 const DAILY = 'https://api.daily.co/v1';
 /** La limite du public : six réservations par dix minutes et par adresse. */
 const LIMITE = { seau: 'visio', max: 6, fenetreMin: 10 };
@@ -254,6 +257,25 @@ Deno.serve(async (req) => {
       if (!data) return json({ ok: false, motif: 'inconnue' }, 404);
       if (!cle) return json({ ok: false, motif: 'sans-service' }, 503);
       return await entre(sb, cle, data as Ligne, 'Maison MND', true);
+    }
+
+    /* LE LIEN, RENVOYÉ PAR LA MAISON — 14 novembre 2026. « Le numéro n'a reçu
+       ni lien, ni confirmation, ni rien » (Yéman) : le lien ne s'affichait
+       qu'une fois, sur la page du site. L'équipe en fabrique un neuf ici ;
+       l'ancien cesse d'ouvrir la salle. Le Trône le met dans un WhatsApp prêt. */
+    if (geste === 'nouveau-lien') {
+      if (!(await delEquipe(sb, req))) return json({ ok: false, motif: 'reserve-a-l-equipe' }, 403);
+      if (typeof corps.id !== 'string' || !FORME_DE_L_ID.test(corps.id)) return json({ ok: false, motif: 'inconnue' }, 404);
+      const { data } = await sb.from('visios').select('*').eq('id', corps.id).maybeSingle();
+      const l = data as Ligne | null;
+      if (!l) return json({ ok: false, motif: 'inconnue' }, 404);
+      if (l.statut === 'annulée') return json({ ok: false, motif: 'annulee' }, 409);
+      if (Date.now() >= Date.parse(l.fin)) return json({ ok: false, motif: 'fermee' }, 409);
+      const jeton = aleatoire(32);
+      const { error } = await sb.from('visios').update({ jeton_hash: await empreinte(jeton), maj_le: new Date().toISOString() }).eq('id', l.id);
+      if (error) return json({ ok: false, motif: 'ecriture' }, 500);
+      dis('nouveau lien', { id: l.id });
+      return json({ ok: true, id: l.id, debut: l.debut, fin: l.fin, chemin: cheminDeLaSalle(l.id, jeton) });
     }
 
     return json({ ok: false, motif: 'geste inconnu' }, 400);
