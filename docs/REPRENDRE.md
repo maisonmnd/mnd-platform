@@ -136,7 +136,7 @@ Jocelyne S. (parente de trois filles d’un même foyer) ne voyait pas ses fille
 - Banc : `node scripts/verifie-la-consultation-ouverte.mjs` (26). Tous les bancs : aucun échec neuf (40, contre 45 au témoin).
 - **Lot 3** : la visio (table, fonction de salle, page avec le compte à rebours des 120 dernières secondes et la coupure à 15 min, file B au Trône) et la consultation privée payée dans la foulée de la lecture. **Lot 4** : les gestes de la cliente sur le devis dans Ma Couronne (accepter, valider, plus doux, plus loin), l’acompte au devis confirmé, la mesure A/B/C.
 
-## LES ENVOIS PROGRAMMÉS — 13 novembre 2026, EN LIGNE le 13 novembre 2026 (0206 PASSÉE et envois-partent v38 « 2026-11-13-a » au commit b7452bbc ; le modèle `un_message_pour_vous` APPROUVÉ chez Meta le 14 novembre 2026, catégorie MARKETING, ID 1888935439219635, secret `WA_TEMPLATE_OUVERTURE` posé ; pied à refaire chez Meta pour la devise du code)
+## LES ENVOIS PROGRAMMÉS — 13 novembre 2026, EN LIGNE le 13 novembre 2026 (0206 PASSÉE et envois-partent v38 « 2026-11-13-a » au commit b7452bbc ; le modèle `un_message_pour_vous` APPROUVÉ chez Meta le 14 novembre 2026, catégorie MARKETING, ID 1888935439219635, secret `WA_TEMPLATE_OUVERTURE` posé ; pied passé à la devise du code, approuvé le même soir)
 
 « Programmer un WhatsApp » remplace « Appel reçu », partout (maquette `public/maquette-les-envois-programmes.html`, artefact 5FHHHAQRACAjcsnkeL9bSD, validée le 13 novembre 2026, « construis »). On écrit le WhatsApp maintenant, avec sa pièce jointe si besoin, on choisit l'heure, et l'assistant du sujet l'envoie seul à l'heure dite ; ou bien « par l'app » : à l'heure dite, le téléphone sonne et WhatsApp s'ouvre, le message écrit.
 

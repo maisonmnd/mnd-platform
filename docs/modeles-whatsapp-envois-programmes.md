@@ -78,8 +78,11 @@ votre suivi » (« Category does not match », refus annoncé) : choix de Yéman
 et Meta peut la retenir pour une cliente qui reçoit déjà beaucoup de messages
 marketing. Secret `WA_TEMPLATE_OUVERTURE` POSÉ le 14 novembre 2026. Le pied a
 d'abord été déposé « mi nyɔ́ ɖɛkpɛ · la maison veille » (une règle de marque
-périmée) ; Yéman a confirmé la devise du code le même jour : le pied est à
-modifier chez Meta pour « mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là ».
+périmée) ; Yéman a confirmé la devise du code le même jour, et le pied a été
+modifié chez Meta pour « mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là » (soumis
+à 21 h 28 UTC, approuvé à 21 h 31 UTC le 14 novembre 2026, le reste
+inchangé ; le secret n'a pas bougé). Reporté au document Claude Docs des
+modèles (fiche 33).
 
 **Ce que fait sa réponse** : rien de plus que d'ouvrir la fenêtre.
 `whatsapp-webhook` range la réponse dans son fil comme toute réponse ; le
