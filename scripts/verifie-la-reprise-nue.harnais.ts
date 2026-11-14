@@ -9,7 +9,7 @@
    ecrit), puis honorer, deux fois. */
 import { readFileSync } from 'node:fs';
 import { sansLaVisite, reprisesARendreNues, CHAMPS_DE_LA_VISITE, pourquoiPasDeRepriseIci, rituelDeLaRepriseEffacee, CLOTURE_JOURS, prochainDejaPose } from '../src/shared/reprise-nue';
-import { poseLaReprise, honorAppointment } from '../src/apps/trone/routes/clients/actions';
+import { poseLaReprise, honorAppointment, retireLHonneur, ditLeRetrait } from '../src/apps/trone/routes/clients/actions';
 import { laCarteSOuvreApresLHonneur } from '../src/shared/carte-du-prochain-rituel';
 import { appointmentsStore } from '../src/shared/agenda';
 import { clientsStore } from '../src/shared/clients';
@@ -179,6 +179,32 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
   dit('la suite imposee (La Retouche comprise) part de la visite debarrassee', true, /export function laSuiteImposeeDuRituel[\s\S]*?\.\.\.sansLaVisite\(appt\),\s*\.\.\.sansLaPlaceDuJour\(appt\),/.test(actions));
   const shell = readFileSync('src/apps/trone/shell/Shell.tsx', 'utf8');
   dit('la reparation est montee dans le Trone', true, /useReprisesNuesVivant\(\);/.test(shell));
+}
+
+/* ── 6. De-honorer garde la reprise (14 novembre 2026) ──
+   Carla B., 19 septembre 2026 : sa reprise du 26 decembre, deplacee a la main
+   au 29 et confirmee par WhatsApp, effacee une demi-seconde apres que le
+   selecteur de la fiche a remis son rituel a « confirme ». Rien n'y etait
+   regle : la seule garde d'alors la laissait partir. */
+{
+  const rdv = (id: string, date: string, status: string, extra: Record<string, unknown> = {}) => ({ id, branchId: 'b', clientId: 'carla', serviceIds: ['s1'], date, time: '09:00', master: 'Team', status, ...extra });
+  appointmentsStore.set([
+    rdv('c7', ilYa(0), 'honoré', { pointsAwarded: true }),
+    rdv('c29', ilYa(-45), 'confirmé', { repriseDe: 'c7', note: 'Reprise posée à la clôture · toutes les 7 semaines' }),
+  ] as never);
+  const r = retireLHonneur(appointmentsStore.get().find((a) => a.id === 'c7')! as never, new Map());
+  dit('de-honorer : la reprise nue, deplacee et confirmee, reste au Carnet', ['c29', 'confirmé'],
+    [appointmentsStore.get().find((a) => a.id === 'c29')?.id, appointmentsStore.get().find((a) => a.id === 'c29')?.status]);
+  dit('... aucun rendez-vous ne disparait', 2, appointmentsStore.get().length);
+  dit('... l ecran la nomme et dit qu elle reste', true, /reste au Carnet/.test(ditLeRetrait(r)) && r.repriseGardee?.id === 'c29');
+  dit('... la reprise n est pas marquee retiree', [undefined, undefined],
+    [appointmentsStore.get().find((a) => a.id === 'c7')?.repriseRetiree, appointmentsStore.get().find((a) => a.id === 'c29')?.repriseRetiree]);
+  /* Les deux chemins (bouton « De-honorer » et selecteur de la fiche) passent par ce seul juge. */
+  const actions = readFileSync('src/apps/trone/routes/clients/actions.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const corps = actions.slice(actions.indexOf('export function retireLHonneur('), actions.indexOf('export const ditLeRetrait'));
+  dit('retireLHonneur n efface aucun rendez-vous', false, corps.length === 0 || /appointmentsStore\.set\([^;]*\.filter\(/.test(corps));
+  const shared = readFileSync('src/apps/trone/routes/clients/_shared.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  dit('le selecteur de la fiche passe par le meme juge', true, /toast\(ditLeRetrait\(retireLHonneur\(appt, byId\)\)\);/.test(shared));
 }
 
 console.log(ko === 0 ? '\nUne reprise nait nue, et une tete n en a qu une.' : `\n${ko} controle(s) en echec.`);

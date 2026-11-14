@@ -2,6 +2,23 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## UN RENDEZ-VOUS NE DISPARAÎT PAS TOUT SEUL — 14 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
+
+« J'avais pris son RDV du 29 décembre depuis le 19 septembre, elle a reçu une confirmation et aujourd'hui le RDV a disparu » (Yéman, pour Carla B.).
+
+- **Lu dans `traces`** (chaque écriture, son compte, son appareil, avant et après) : le 19 septembre 2026, son rituel du 7 novembre passe « honoré » d'avance (11 h 47, heure de Cotonou) ; la clôture pose sa reprise au 26 décembre, déplacée à la main au 29, confirmée par WhatsApp à 11 h 50. À 12 h 01 min 51,106 le sélecteur de statut de la fiche remet le rituel à « confirmé » ; à 12 h 01 min 51,617 la reprise est effacée, par le même poste (Edge, Windows). Elle n'avait disparu ni aujourd'hui ni par la synchronisation : `retireLHonneur` l'a retirée parce qu'elle était « restée nue » (rien de réglé), seule garde d'alors.
+- **La règle** (`clients/actions.tsx`) : dé-honorer (bouton « Dés-honorer », « Défaire » du Carnet, sélecteur de la fiche) ne retire JAMAIS la reprise. `HonneurRetire.repriseGardee` la nomme ; l'écran dit « son rendez-vous du … reste au Carnet : retirez-le à la main s'il n'a plus lieu d'être ». La retirer reste un geste à la main (marque `repriseRetiree`, elle ne revient pas). Depuis le 4 octobre 2026, un rituel à venir ne s'honore plus et ne pose plus de reprise : la cause de départ était déjà fermée, pas l'effacement.
+- **Les autres effacements automatiques** relus : la carte « Son prochain rituel » ne retire que le rendez-vous qu'elle vient de poser, après un « oui » (jamais un rendez-vous déjà là) ; `SerieModal` retire les séances d'une série à la demande. Aucun autre chemin n'efface un rendez-vous.
+- **Le relevé des rendez-vous à venir effacés** (traces, depuis septembre) : presque tous voulus (essais, annulés, doublons). Restent à regarder avec Yéman : Floriane A., rendez-vous du 14 novembre 2026 à 15 h effacé à 11 h 44 depuis le téléphone de Yéman.
+- **Prisca L.** (même soir) : son rendez-vous du 21 novembre (`gohofq67bh`, la proposition de la carte, posée par Brice à 21 h 06) n'a JAMAIS reçu d'écriture vers le 5 décembre : aucune trace. Le changement « après coup, au Carnet » n'a pas quitté l'appareil qui l'a fait (rien en attente sur l'ordinateur de Yéman). F-2026-0784, doublon, effacée par la direction le 14 novembre 2026 avec son motif.
+- Banc : `node scripts/verifie-la-reprise-nue.mjs` (section 6 : le cas de Carla rejoué sur le vrai `retireLHonneur` ; 4 échecs sur l'ancien code). Verts : 61 bancs qui lisent actions.tsx, `_shared.tsx` ou la reprise ; `verifie-gerard` garde ses 3 échecs d'avant (webhook de Perle, écran), sans lien.
+
+## LE CAISSIER N'ÉCRIT PLUS SUR UN RENDEZ-VOUS — 14 novembre 2026, EN LIGNE (commit 1231b2d6 ; `cloture-du-jour` v26 « 2026-11-14-b » ; aucun SQL)
+
+Le 14 novembre 2026 à 21 h 05, la marque « comptoir prévenu » du caissier, posée sur la ligne du rendez-vous 40 s après sa saisie, est revenue en retard au téléphone qui encaissait : il a renvoyé l'ancienne ligne, l'encaissement de Prisca L. s'est effacé (statut, versement, pièce), refait à 21 h 18 (d'où F-2026-0784 et F-2026-0785). Depuis la v26 : la marque va dans `documents` (`caissier:<maison>:<jour>`, écrite AVANT la notification), la ligne fraîche du rendez-vous est lue et jamais écrite ; honorer et relier restent aux seules clôtures de 15 h et 19 h ; le caissier ne dépose plus que le reçu, après 15 min de calme ; un rendez-vous saisi depuis moins de 15 min n'est pas suivi. La partie Trône de 1231b2d6 (types, texte de la règle) part avec la prochaine publication.
+
+**Risque connu, pas traité** : l'arbitrage de la synchronisation (heure du geste de l'appareil contre `updated_at` du serveur) peut encore laisser une ligne serveur plus récente écraser un geste local, et un téléphone la renvoyer. Toute écriture serveur sur une table que les mains écrivent (rendez-vous, factures) est donc à proscrire.
+
 
 ## UN COMPTE, UNE FICHE — 14 novembre 2026 (Ma Couronne + Trône, SQL 0210)
 

@@ -456,16 +456,34 @@ export function prenomsDuFoyer(rdvs: readonly Appointment[], clients: readonly {
    On les reprend une à une, chacune avec sa garde :
    · les points, là où ils ont été donnés (`reverseHonorPoints`) ;
    · la recette revient au stock (`rembobinerRituel`, sans effet s'il n'y a rien) ;
-   · LA REPRISE N'EST RETIRÉE QUE SI ELLE EST RESTÉE NUE : honorée, réglée ou
-     portant un acompte, elle a sa propre vie, et l'effacer mentirait ;
+   · LA REPRISE RESTE (14 novembre 2026, voir plus bas) : dé-honorer ne
+     retire plus aucun rendez-vous ;
    · la couronne ne s'efface que si elle porte LA DATE DE CE RITUEL, et
      qu'aucun autre rituel honoré du même jour ne la fonde.
+
+   ══ UN RENDEZ-VOUS NE DISPARAÎT PAS TOUT SEUL — 14 novembre 2026 ═══════
+   « J'avais pris son RDV du 29 décembre depuis le 19 septembre, elle a reçu
+   une confirmation et aujourd'hui le RDV a disparu » (Yéman, pour Carla B.).
+
+   LA PANNE, LUE DANS LES TRACES. Le 19 septembre 2026, son rituel du
+   7 novembre passe « honoré » d'avance ; la clôture pose sa reprise
+   (26 décembre), déplacée à la main au 29, confirmée à Carla par WhatsApp.
+   Treize minutes plus tard, le sélecteur de la fiche remet le rituel à
+   « confirmé » : une demi-seconde après, la reprise est effacée. Elle était
+   « restée nue » (rien de réglé), la seule garde d'alors ; déplacée,
+   annoncée, attendue, elle ne comptait pour rien.
+
+   LA RÈGLE : dé-honorer ne retire JAMAIS la reprise. Elle reste au Carnet,
+   et l'écran le dit ; la retirer est un geste à la main (qui laisse sa
+   marque `repriseRetiree`, elle ne revient pas). Un rendez-vous de trop se
+   voit et s'efface ; un rendez-vous promis et effacé ne se voit qu'au jour
+   où la cliente arrive. Éprouvé par `verifie-la-reprise-nue`.
 
    L'ARGENT NE SE TOUCHE PAS ICI. Un rituel encaissé reste honoré (règle
    ci-dessus) : on annule d'abord l'encaissement, puis on dés-honore. */
 export type HonneurRetire = {
   points: number;
-  repriseRetiree?: Appointment;
+  /** Sa reprise, qui reste au Carnet (14 novembre 2026) : jamais retirée ici. */
   repriseGardee?: Appointment;
   couronneEffacee: boolean;
   /** Les missions de prestataires nées de l'honneur et encore à payer, retirées (1er novembre 2026). */
@@ -483,19 +501,8 @@ export function retireLHonneur(appt: Appointment, byId: Map<string, Service>): H
   const missionsRetirees = retireLesMissionsDuRituel(appt.id);
 
   const tous = appointmentsStore.get();
-  const reprise = tous.find((a) => a.repriseDe === appt.id && a.status !== 'annulé');
-  let repriseRetiree: Appointment | undefined;
-  let repriseGardee: Appointment | undefined;
-  if (reprise) {
-    const aSaVie = reprise.status === 'honoré' || apptPaidXof(reprise) > 0
-      || !!reprise.invoiceId || !!reprise.depositConfirmed;
-    if (aSaVie) {
-      repriseGardee = reprise;
-    } else {
-      appointmentsStore.set((prev) => prev.filter((a) => a.id !== reprise.id));
-      repriseRetiree = reprise;
-    }
-  }
+  /* La reprise reste, toujours (14 novembre 2026) : on la nomme, on n'y touche pas. */
+  const repriseGardee = tous.find((a) => a.repriseDe === appt.id && a.status !== 'annulé');
 
   const fonde = (a: Appointment) => a.serviceIds.some((id) => {
     const sv = byId.get(id);
@@ -509,15 +516,14 @@ export function retireLHonneur(appt: Appointment, byId: Map<string, Service>): H
     clientsStore.set((prev) => prev.map((c) => (c.id === cliente.id ? { ...c, crownSince: undefined } : c)));
     couronneEffacee = true;
   }
-  return { points, repriseRetiree, repriseGardee, couronneEffacee, missionsRetirees };
+  return { points, repriseGardee, couronneEffacee, missionsRetirees };
 }
 
 /** Ce que le retrait a fait, en une ligne pour l'écran. */
 export const ditLeRetrait = (r: HonneurRetire): string => `${[
   'Rituel dés-honoré',
   r.points > 0 ? `${r.points} point${r.points > 1 ? 's' : ''} du Cercle repris` : '',
-  r.repriseRetiree ? `sa reprise du ${frShortAn(r.repriseRetiree.date)} est retirée` : '',
-  r.repriseGardee ? `sa reprise du ${frShortAn(r.repriseGardee.date)} reste, elle a déjà été honorée ou réglée` : '',
+  r.repriseGardee ? `son rendez-vous du ${frShortAn(r.repriseGardee.date)} à ${r.repriseGardee.time} reste au Carnet : retirez-le à la main s’il n’a plus lieu d’être` : '',
   r.couronneEffacee ? '« Couronne depuis » effacée de sa fiche' : '',
   ditLesMissionsRetirees(r.missionsRetirees),
 ].filter(Boolean).join(' · ')}.`;
@@ -542,7 +548,7 @@ export async function deshonoreLeRituel(appt: Appointment, byId: Map<string, Ser
     'Il redevient « confirmé » : il sort des venues de la tête et des chiffres du jour.',
     'Les points du Cercle gagnés à sa clôture sont repris, et sa recette revient au stock.',
   ];
-  if (reprise) lignes.push(`Sa reprise du ${frShortAn(reprise.date)}, posée à sa clôture, est retirée si rien n’y a été réglé.`);
+  if (reprise) lignes.push(`Son rendez-vous du ${frShortAn(reprise.date)} à ${reprise.time}, posé à sa clôture, reste au Carnet : la cliente l’attend peut-être.`);
   if (!await demande({
     quoi: 'Rituel honoré',
     titre: `Dés-honorer le rituel du ${frShortAn(frais.date)} ?`,

@@ -3637,9 +3637,11 @@ function RdvModalCorps({
       } else if (chosenStatus !== 'honoré' && appt.status === 'honoré') {
         rembobinerRituel(appt.id);
         /* LE RESTE DE L'HONNEUR SUIT (13 septembre 2026), par le même juge que
-           le bouton « Dés-honorer » : les points du Cercle repris, la reprise
-           posée à la clôture retirée, la couronne née ce jour-là effacée. Ce
-           sélecteur ne défaisait que le stock. */
+           le bouton « Dés-honorer » : les points du Cercle repris, la couronne
+           née ce jour-là effacée. Ce sélecteur ne défaisait que le stock.
+           La reprise posée à la clôture RESTE (14 novembre 2026) : c'est ce
+           chemin, un 19 septembre, qui a effacé en silence le rendez-vous
+           du 29 décembre que Carla B. attendait. */
         void import('./actions').then(({ retireLHonneur, ditLeRetrait }) => {
           toast(ditLeRetrait(retireLHonneur(appt, byId)));
         });
