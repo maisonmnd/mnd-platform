@@ -240,7 +240,9 @@ export type FamilleDeModele =
   | 'rappel-echeance' | 'prix-revu' | 'relance-facture' | 'fete-de-couronne' | 'fin-de-paquet'
   | 'merci-marraine' | 'perle-garder' | 'perle-avant' | 'perle' | 'campagne'
   /* Le modèle d'ouverture d'un envoi programmé (13 novembre 2026). */
-  | 'ouverture';
+  | 'ouverture'
+  /* La visio gratuite réservée sur le site (14 novembre 2026). */
+  | 'visio';
 
 export type EntreeDuRegistre = {
   famille: FamilleDeModele;
@@ -384,6 +386,14 @@ export const REGISTRE_DES_MODELES: readonly EntreeDuRegistre[] = [
     pourQuoi: 'Le modèle d’ouverture d’un envoi programmé : « Bonjour {{1}}, la Maison MND a un message pour vous. » {{1}} l’appel ; le message programmé part à sa réponse.',
     quand: 'À l’heure dite d’un envoi programmé, quand elle n’a pas écrit depuis 24 h ; un seul par numéro tant qu’il attend sa réponse.',
     appel: 1, rdv: false, rappel: false, unParTete: true, porte: 'toutes',
+  },
+  /* LA VISIO RÉSERVÉE — 14 novembre 2026 (« le numéro n'a reçu ni lien ni
+     confirmation »). La fonction visio-salle la dépose à la réservation. */
+  {
+    famille: 'visio', type: 'visio', modeles: ['visio_mnd'], secrets: ['WA_TEMPLATE_VISIO'], depose: 'visio-salle',
+    pourQuoi: 'La visio gratuite réservée sur le site : {{1}} l’appel, {{2}} le jour et l’heure, {{3}} le lien d’entrée dans la salle.',
+    quand: 'À la réservation, une fois par visio, dès que le modèle est approuvé chez Meta (secret posé).',
+    appel: 1, rdv: false, rappel: false, unParTete: false, porte: 'toutes',
   },
 ];
 

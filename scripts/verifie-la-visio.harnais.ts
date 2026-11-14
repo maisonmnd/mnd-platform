@@ -110,6 +110,16 @@ dit('nouveau-lien : equipe seule, un jeton neuf garde en empreinte, jamais apres
   /const jeton = aleatoire\(32\);\n\s*const \{ error \} = await sb\.from\('visios'\)\.update\(\{ jeton_hash: await empreinte\(jeton\)/.test(fn),
   /geste === 'nouveau-lien'[\s\S]{0,700}Date\.now\(\) >= Date\.parse\(l\.fin\)\) return json\(\{ ok: false, motif: 'fermee' \}/.test(fn),
 ]);
+/* La confirmation sur WhatsApp à la réservation (14 novembre 2026). */
+dit('la confirmation : rien sans le modele approuve, le lien a l origine de la reservation, deposee en salle', [true, true, true, true, false], [
+  /const modele = \(Deno\.env\.get\('WA_TEMPLATE_VISIO'\) \?\? ''\)\.trim\(\);\n\s*if \(!modele\) return 'sans-modele';/.test(fn),
+  /const origine = \(req\.headers\.get\('origin'\) \?\? ''\)\.trim\(\);/.test(fn),
+  /statut: 'en-attente', deposeLe:[\s\S]{0,200}partA: new Date\(partA\)\.toISOString\(\)/.test(fn) && /parQui: 'la Maison, automatiquement'/.test(fn),
+  /await confirmeSurWhatsApp\(sb, req, [\s\S]{0,120}\)\.catch\(\(\) => 'erreur'\);/.test(fn),
+  /maisonmnd\.com/i.test(fn),
+]);
+dit('le site dit que le lien arrive aussi sur WhatsApp, seulement quand il part', true,
+  /parWhatsApp: r\.whatsapp === 'en-attente' \|\| r\.whatsapp === 'envoyé'/.test(lf('src/apps/revelateur/ilots/PortesDeLaConsultation.tsx')));
 const fileB = lf('src/apps/trone/routes/clients/ConsultationsVisios.tsx');
 dit('la file B envoie le lien par WhatsApp, la fenetre ouverte au clic', [true, true], [
   /const fenetre = window\.open\('', '_blank'\);\n\s*setLiens[\s\S]{0,120}await nouveauLien\(v\.id\)/.test(fileB),

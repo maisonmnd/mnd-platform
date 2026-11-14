@@ -27,17 +27,19 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
   AVANT_L_ENTREE_MIN, FORME_DE_L_ID, FORME_DE_LA_CONSULTATION, FORME_DU_JETON,
-  cheminDeLaSalle, creneauValide, creneauxOuverts, finDe, numeroCourt, reglagesSurs, resumeSur,
+  cheminDeLaSalle, creneauDit, creneauValide, creneauxOuverts, finDe, heureDite, jourDeCotonou, numeroCourt, reglagesSurs, resumeSur,
   type ReglagesDeLaVisio,
 } from '../../src/shared/visio-pur';
+import { facteurVivant, heureDeDepart, reglesDepuis } from '../../src/shared/salle-des-envois';
+import { numeroWa } from '../../src/shared/porte-des-modeles-pur';
 
 declare const Deno: {
   env: { get(nom: string): string | undefined };
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-/* 2026-11-14-a : « nouveau-lien », l'équipe renvoie le lien d'entrée (14 novembre 2026). */
-const VERSION = '2026-11-14-a';
+/* 2026-11-14-b : la confirmation sur WhatsApp à la réservation (modèle visio_mnd). */
+const VERSION = '2026-11-14-b';
 const DAILY = 'https://api.daily.co/v1';
 /** La limite du public : six réservations par dix minutes et par adresse. */
 const LIMITE = { seau: 'visio', max: 6, fenetreMin: 10 };
@@ -174,6 +176,70 @@ async function entre(sb: Base, cle: string, l: Ligne, nom: string, maison: boole
   return json({ ok: true, url: `${salle.url}?t=${encodeURIComponent(jeton)}`, debut: l.debut, fin: l.fin });
 }
 
+/* ── La confirmation sur WhatsApp (14 novembre 2026) ────────────────────
+   « Le numéro n'a reçu ni lien, ni confirmation, ni rien » (Yéman). À la
+   réservation, le modèle `visio_mnd` (secret WA_TEMPLATE_VISIO, posé une fois
+   approuvé chez Meta) porte l'appel, le jour et l'heure, et le lien d'entrée.
+   Comme tout envoi automatique de la Maison, il est DÉPOSÉ dans la salle
+   d'attente (`envois`, en-attente) : la porte des modèles le juge et le
+   facteur l'envoie à son heure, hors des heures calmes. Si le facteur ne
+   donne plus signe de vie, il part tout de suite (comme avis-google).
+   L'adresse du lien est celle d'où vient la réservation (en-tête Origin) :
+   aucun nom de domaine n'est écrit ici. */
+async function confirmeSurWhatsApp(
+  sb: Base, req: Request,
+  v: { id: string; nom: string; telephone: string; debut: string; chemin: string; branchId: string | null },
+): Promise<string> {
+  const modele = (Deno.env.get('WA_TEMPLATE_VISIO') ?? '').trim();
+  if (!modele) return 'sans-modele';
+  const origine = (req.headers.get('origin') ?? '').trim();
+  if (!/^https:\/\/[^/\s]+$/.test(origine)) return 'sans-origine';
+  const numero = numeroWa(v.telephone);
+  if (numero.length < 11) return 'numero';
+  const prenom = prenomDe(v.nom);
+  const quand = creneauDit(v.debut);
+  const lien = `${origine}${v.chemin}`;
+  const composants = [{ type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: quand }, { type: 'text', text: lien }] }];
+  const colis = {
+    genre: 'whatsapp', numero, modele, parQui: 'la Maison, automatiquement',
+    texteAuFil: `Bonjour ${prenom}, votre visio gratuite avec la Maison MND est réservée : ${quand}. Votre lien d’entrée : ${lien}`,
+    composants,
+  };
+  const { data: docs } = await sb.from('documents').select('key, data').in('key', ['mnd_auto_config', 'mnd_facteur']);
+  const regles = reglesDepuis((docs?.find((d: { key: string }) => d.key === 'mnd_auto_config')?.data ?? {}) as Record<string, unknown>);
+  const maintenant = Date.now();
+  const salleOuverte = facteurVivant((docs?.find((d: { key: string }) => d.key === 'mnd_facteur')?.data as { vuLe?: string } | undefined)?.vuLe, maintenant);
+  const id = `env-${v.id}-wa-visio`;
+  const base = {
+    id, branchId: v.branchId, type: 'visio', canal: 'whatsapp', apptId: '', invoiceId: '', clientId: '', visioId: v.id,
+    dateRdv: jourDeCotonou(Date.parse(v.debut)), heure: heureDite(v.debut), quand: new Date(maintenant).toISOString(), prenom,
+  };
+  let ligne: Record<string, unknown>;
+  if (salleOuverte) {
+    const { partA, calme } = heureDeDepart(maintenant, regles);
+    ligne = { ...base, statut: 'en-attente', deposeLe: new Date(maintenant).toISOString(), partA: new Date(partA).toISOString(), ...(calme ? { calme: true } : {}), colis };
+  } else {
+    const jeton = (Deno.env.get('WA_TOKEN') ?? '').trim();
+    const telId = (Deno.env.get('WA_PHONE_ID') ?? '').trim();
+    if (!jeton || !telId) return 'sans-whatsapp';
+    let statut = 'échec';
+    let detail = '';
+    try {
+      const r = await fetch(`https://graph.facebook.com/v20.0/${telId}/messages`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${jeton}` },
+        body: JSON.stringify({ messaging_product: 'whatsapp', to: numero, type: 'template', template: { name: modele, language: { code: 'fr' }, components: composants } }),
+      });
+      if (r.ok) statut = 'envoyé'; else detail = (await r.text()).slice(0, 300);
+    } catch (e) {
+      detail = String((e as Error)?.message ?? e).slice(0, 300);
+    }
+    ligne = { ...base, statut, ...(detail ? { detail } : {}), colis };
+  }
+  const { error } = await sb.from('envois').upsert({ id, branch_id: v.branchId, data: ligne }, { onConflict: 'id' });
+  return error ? 'journal' : String(ligne.statut);
+}
+
 /* ── La fonction ────────────────────────────────────────────────────── */
 
 Deno.serve(async (req) => {
@@ -221,12 +287,18 @@ Deno.serve(async (req) => {
       });
       if (error) return json({ ok: false, motif: /duplicate|unique/i.test(String(error.message)) ? 'pris' : 'ecriture' }, 409);
       /* La consultation déposée garde la trace de sa visio (file B du Trône). */
+      let branchId: string | null = null;
       if (consultationId) {
         const { data: row } = await sb.from('consultations_queue').select('id, data').eq('id', consultationId).maybeSingle();
         if (row) await sb.from('consultations_queue').update({ data: { ...(row.data ?? {}), visio: { id, debut: debutIso } } }).eq('id', consultationId);
+        const b = (row?.data as { branchId?: unknown } | null)?.branchId;
+        branchId = typeof b === 'string' && b ? b : null;
       }
-      dis('réservée', { id, debut: debutIso, consultation: !!consultationId });
-      return json({ ok: true, id, jeton, debut: debutIso, fin: finDe(debutIso), chemin: cheminDeLaSalle(id, jeton) });
+      const chemin = cheminDeLaSalle(id, jeton);
+      /* La confirmation sur WhatsApp ne bloque jamais la réservation. */
+      const whatsapp = await confirmeSurWhatsApp(sb, req, { id, nom, telephone, debut: debutIso, chemin, branchId }).catch(() => 'erreur');
+      dis('réservée', { id, debut: debutIso, consultation: !!consultationId, whatsapp });
+      return json({ ok: true, id, jeton, debut: debutIso, fin: finDe(debutIso), chemin, whatsapp });
     }
 
     if (geste === 'etat' || geste === 'entrer' || geste === 'annuler') {

@@ -22,7 +22,7 @@ import {
    Ce que la consultation payée apporte est écrit AVANT qu'on la demande. */
 
 export type Depot = { id: string; prenom: string; tel: string };
-type Visio = { debut: string; chemin: string };
+type Visio = { debut: string; chemin: string; parWhatsApp: boolean };
 
 const base = (chemin: string): string => import.meta.env.BASE_URL.replace(/\/$/, '') + chemin;
 
@@ -101,7 +101,7 @@ function ReserverLaVisio({ depot, creneaux, whatsapp }: { depot: Depot; creneaux
       const r = await appelle('visio-salle', { geste: 'reserver', debut: choisi, nom: depot.prenom, telephone: depot.tel, consultationId: depot.id });
       if (r.ok && typeof r.chemin === 'string') {
         mesure('visio_reservee');
-        setVisio({ debut: String(r.debut), chemin: r.chemin });
+        setVisio({ debut: String(r.debut), chemin: r.chemin, parWhatsApp: r.whatsapp === 'en-attente' || r.whatsapp === 'envoyé' });
         return;
       }
       setErreur(r.motif === 'pris' ? 'Ce quart d’heure vient d’être pris. Choisissez-en un autre.'
@@ -120,7 +120,7 @@ function ReserverLaVisio({ depot, creneaux, whatsapp }: { depot: Depot; creneaux
     return (
       <div style={{ display: 'grid', gap: 10 }}>
         <h2 style={{ margin: '4px 0' }}>Votre visio : {creneauDit(visio.debut)}</h2>
-        <p>Gardez ce lien : c’est votre entrée dans la salle, dans Ma Couronne, sans mot de passe. La salle s’ouvre cinq minutes avant.</p>
+        <p>Gardez ce lien : c’est votre entrée dans la salle, dans Ma Couronne, sans mot de passe. La salle s’ouvre cinq minutes avant.{visio.parWhatsApp ? ' La Maison vous l’envoie aussi sur WhatsApp.' : ''}</p>
         <p className="legende" style={{ wordBreak: 'break-all' }}>{lien}</p>
         <p className="rangee">
           <a className="btn btn--plein" href={visio.chemin}>Ouvrir ma salle</a>

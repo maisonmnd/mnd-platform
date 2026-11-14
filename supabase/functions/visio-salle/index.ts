@@ -82,6 +82,14 @@ function creneauxOuverts(r, maintenantMs, pris) {
   return tous;
 }
 var creneauValide = (r, maintenantMs, pris, debut) => creneauxOuverts(r, maintenantMs, pris).some((c) => Date.parse(c.debut) === Date.parse(debut));
+var JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+var MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+var heureDite = (iso) => new Date(Date.parse(iso) + DECALAGE_DE_COTONOU_MS).toISOString().slice(11, 16);
+function jourDit(jour) {
+  const d = /* @__PURE__ */ new Date(`${jour}T12:00:00Z`);
+  return `${JOURS[d.getUTCDay()]} ${d.getUTCDate()} ${MOIS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+var creneauDit = (debut) => `${jourDit(jourDeCotonou(Date.parse(debut)))} · ${heureDite(debut)}`;
 var FORME_DE_L_ID = /^vz-[a-z0-9]{6,24}$/;
 var FORME_DU_JETON = /^[A-Za-z0-9_-]{32}$/;
 var FORME_DE_LA_CONSULTATION = /^[A-Za-z0-9_-]{1,80}$/;
@@ -123,8 +131,60 @@ function resumeSur(x) {
   return Object.keys(r).length ? r : null;
 }
 
+// src/shared/salle-des-envois.ts
+var DECALAGE_DU_SALON_H = 1;
+var REGLES_PAR_DEFAUT = { salleMin: 10, calmeDe: 20, calmeA: 8 };
+var FACTEUR_VIVANT_MS = 5 * 6e4;
+function reglesDepuis(cfg) {
+  const n = (v, min, max, defaut) => {
+    const x = Number(v);
+    return Number.isFinite(x) && x >= min && x <= max ? Math.round(x) : defaut;
+  };
+  return {
+    salleMin: n(cfg?.salleMin, 1, 120, REGLES_PAR_DEFAUT.salleMin),
+    calmeDe: n(cfg?.calmeDe, 0, 23, REGLES_PAR_DEFAUT.calmeDe),
+    calmeA: n(cfg?.calmeA, 0, 23, REGLES_PAR_DEFAUT.calmeA)
+  };
+}
+var heureDuSalon = (ms) => {
+  const d = new Date(ms + DECALAGE_DU_SALON_H * 36e5);
+  return d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600;
+};
+function dansLesHeuresCalmes(ms, r) {
+  if (r.calmeDe === r.calmeA) return false;
+  const h = heureDuSalon(ms);
+  return r.calmeDe < r.calmeA ? h >= r.calmeDe && h < r.calmeA : h >= r.calmeDe || h < r.calmeA;
+}
+function finDesHeuresCalmes(ms, r) {
+  const local = new Date(ms + DECALAGE_DU_SALON_H * 36e5);
+  const fin = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate(), r.calmeA, 0, 0) - DECALAGE_DU_SALON_H * 36e5;
+  return fin > ms ? fin : fin + 864e5;
+}
+function heureDeDepart(maintenantMs, r) {
+  const apresLaSalle = maintenantMs + r.salleMin * 6e4;
+  if (!dansLesHeuresCalmes(apresLaSalle, r)) return { partA: apresLaSalle, calme: false };
+  return { partA: finDesHeuresCalmes(apresLaSalle, r), calme: true };
+}
+var facteurVivant = (vuLe, maintenantMs) => {
+  const t = Date.parse(vuLe ?? "");
+  return Number.isFinite(t) && maintenantMs - t <= FACTEUR_VIVANT_MS && t - maintenantMs <= FACTEUR_VIVANT_MS;
+};
+
+// src/shared/porte-des-modeles-pur.ts
+var JAMAIS_DEUX_FOIS_MS = 20 * 36e5;
+var CONFIRMATION_RECENTE_MS = 24 * 36e5;
+var numeroWa = (brut) => {
+  const d = (brut ?? "").replace(/\D/g, "");
+  if (!d) return "";
+  if (d.startsWith("00229")) return d.slice(2);
+  if (d.startsWith("229")) return d;
+  if (d.length === 10 && d.startsWith("01")) return `229${d}`;
+  if (d.length === 8) return `22901${d}`;
+  return d;
+};
+
 // scripts/serveur/visio-salle.ts
-var VERSION = "2026-11-14-a";
+var VERSION = "2026-11-14-b";
 var DAILY = "https://api.daily.co/v1";
 var LIMITE = { seau: "visio", max: 6, fenetreMin: 10 };
 var DAILY_MAX_MS = 8e3;
@@ -229,6 +289,70 @@ async function entre(sb, cle, l, nom, maison) {
   dis("entrée", { id: l.id, maison });
   return json({ ok: true, url: `${salle.url}?t=${encodeURIComponent(jeton)}`, debut: l.debut, fin: l.fin });
 }
+async function confirmeSurWhatsApp(sb, req, v) {
+  const modele = (Deno.env.get("WA_TEMPLATE_VISIO") ?? "").trim();
+  if (!modele) return "sans-modele";
+  const origine = (req.headers.get("origin") ?? "").trim();
+  if (!/^https:\/\/[^/\s]+$/.test(origine)) return "sans-origine";
+  const numero = numeroWa(v.telephone);
+  if (numero.length < 11) return "numero";
+  const prenom = prenomDe(v.nom);
+  const quand = creneauDit(v.debut);
+  const lien = `${origine}${v.chemin}`;
+  const composants = [{ type: "body", parameters: [{ type: "text", text: prenom }, { type: "text", text: quand }, { type: "text", text: lien }] }];
+  const colis = {
+    genre: "whatsapp",
+    numero,
+    modele,
+    parQui: "la Maison, automatiquement",
+    texteAuFil: `Bonjour ${prenom}, votre visio gratuite avec la Maison MND est réservée : ${quand}. Votre lien d’entrée : ${lien}`,
+    composants
+  };
+  const { data: docs } = await sb.from("documents").select("key, data").in("key", ["mnd_auto_config", "mnd_facteur"]);
+  const regles = reglesDepuis(docs?.find((d) => d.key === "mnd_auto_config")?.data ?? {});
+  const maintenant = Date.now();
+  const salleOuverte = facteurVivant(docs?.find((d) => d.key === "mnd_facteur")?.data?.vuLe, maintenant);
+  const id = `env-${v.id}-wa-visio`;
+  const base = {
+    id,
+    branchId: v.branchId,
+    type: "visio",
+    canal: "whatsapp",
+    apptId: "",
+    invoiceId: "",
+    clientId: "",
+    visioId: v.id,
+    dateRdv: jourDeCotonou(Date.parse(v.debut)),
+    heure: heureDite(v.debut),
+    quand: new Date(maintenant).toISOString(),
+    prenom
+  };
+  let ligne;
+  if (salleOuverte) {
+    const { partA, calme } = heureDeDepart(maintenant, regles);
+    ligne = { ...base, statut: "en-attente", deposeLe: new Date(maintenant).toISOString(), partA: new Date(partA).toISOString(), ...calme ? { calme: true } : {}, colis };
+  } else {
+    const jeton = (Deno.env.get("WA_TOKEN") ?? "").trim();
+    const telId = (Deno.env.get("WA_PHONE_ID") ?? "").trim();
+    if (!jeton || !telId) return "sans-whatsapp";
+    let statut = "échec";
+    let detail = "";
+    try {
+      const r = await fetch(`https://graph.facebook.com/v20.0/${telId}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${jeton}` },
+        body: JSON.stringify({ messaging_product: "whatsapp", to: numero, type: "template", template: { name: modele, language: { code: "fr" }, components: composants } })
+      });
+      if (r.ok) statut = "envoyé";
+      else detail = (await r.text()).slice(0, 300);
+    } catch (e) {
+      detail = String(e?.message ?? e).slice(0, 300);
+    }
+    ligne = { ...base, statut, ...detail ? { detail } : {}, colis };
+  }
+  const { error } = await sb.from("envois").upsert({ id, branch_id: v.branchId, data: ligne }, { onConflict: "id" });
+  return error ? "journal" : String(ligne.statut);
+}
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method === "GET") return json({ ok: true, fonction: "visio-salle" });
@@ -280,12 +404,17 @@ Deno.serve(async (req) => {
         statut: "réservée"
       });
       if (error) return json({ ok: false, motif: /duplicate|unique/i.test(String(error.message)) ? "pris" : "ecriture" }, 409);
+      let branchId = null;
       if (consultationId) {
         const { data: row } = await sb.from("consultations_queue").select("id, data").eq("id", consultationId).maybeSingle();
         if (row) await sb.from("consultations_queue").update({ data: { ...row.data ?? {}, visio: { id, debut: debutIso } } }).eq("id", consultationId);
+        const b = row?.data?.branchId;
+        branchId = typeof b === "string" && b ? b : null;
       }
-      dis("réservée", { id, debut: debutIso, consultation: !!consultationId });
-      return json({ ok: true, id, jeton, debut: debutIso, fin: finDe(debutIso), chemin: cheminDeLaSalle(id, jeton) });
+      const chemin = cheminDeLaSalle(id, jeton);
+      const whatsapp = await confirmeSurWhatsApp(sb, req, { id, nom, telephone, debut: debutIso, chemin, branchId }).catch(() => "erreur");
+      dis("réservée", { id, debut: debutIso, consultation: !!consultationId, whatsapp });
+      return json({ ok: true, id, jeton, debut: debutIso, fin: finDe(debutIso), chemin, whatsapp });
     }
     if (geste === "etat" || geste === "entrer" || geste === "annuler") {
       const l = await parLeJeton(sb, corps.id, corps.jeton);
