@@ -19,7 +19,7 @@ import { clotureDuJour, francsDits, type GesteSur, type PieceLue } from '../src/
 import {
   COMPTOIR_PREVENU_APRES_MIN, RECU_APRES_MIN,
   aSavoirAvantDEnvoyer, decisionsDuCaissier, gesteDuCaissier, lignesDuCaissier, notificationDuComptoir,
-  pourquoiPasDeFacture, reglagesDuCaissier,
+  cleDesPrevenus, pourquoiPasDeFacture, reglagesDuCaissier,
   type FaitsDuCaissier, type FicheDuCaissier, type PieceDuCaissier, type RdvDuCaissier, type ReglagesDuCaissier,
 } from '../src/shared/le-caissier-pur';
 
@@ -93,6 +93,12 @@ dit('une partie deja encaissee : le reste', `Fini vers 10 h 00 · ${F(15000)}. E
 dit('notificationDuComptoir sans initiales : « une cliente »', 'À encaisser · une cliente', notificationDuComptoir({ qui: '', finDite: '9 h 00' }, 1000).titre);
 dit('prevenu une fois : la marque eteint la notification',
   ['prevenir-le-comptoir:r8', 'prevenir-le-comptoir:r9'], genres(faits(a('10:30'), { rdvs: avec('r1', { caissier: { demandeLe: iso('10:30') } }) })));
+/* Le document du jour (14 novembre 2026, le soir) : la marque ne vit plus sur la ligne du rendez-vous. */
+dit('prevenu une fois : le document du jour eteint la notification',
+  ['prevenir-le-comptoir:r8', 'prevenir-le-comptoir:r9'], genres({ ...faits(a('10:30')), prevenus: { r1: iso('10:30') } }));
+/* Saisi depuis moins de quinze minutes : une main est dessus (le 14 novembre 2026, 21 h 05 : saisi apres coup, encaisse dans la minute). */
+dit('saisi il y a 5 min (apres coup) : pas suivi', [], genres(faits(a('21:05'), { rdvs: avec('r1', { creeLe: iso('21:00') }) })).filter((g) => g.endsWith(':r1')));
+dit('saisi il y a 15 min : suivi', ['prevenir-le-comptoir:r1'], genres(faits(a('21:15'), { rdvs: avec('r1', { creeLe: iso('21:00') }) })).filter((g) => g.endsWith(':r1')));
 dit('apres la fermeture : fini a 21 h 30, prevenu a 21 h 45', ['prevenir-le-comptoir:r7'], genres(faits(a('21:45'))).filter((g) => g.endsWith(':r7')));
 dit('... pas avant', [], genres(faits(a('21:44'))).filter((g) => g.endsWith(':r7')));
 
@@ -127,7 +133,9 @@ dit('eteint : rien', [], genres(faits(a('16:30'), { reglages: { actif: false } }
 const f15 = faits(a('15:30'));
 const honore = clotureDuJour({ jour: J, maintenantMs: a('15:30'), rdvs: RDVS, pieces: [], fiches: FICHES }).gestes.find((g) => g.genre === 'passer-honore');
 dit('la regle de la cloture veut honorer celle qui a tout regle', 'r3', honore?.genre === 'passer-honore' ? honore.rdvId : null);
-vrai('le caissier honore aussitot (sans attendre 19 h)', !!honore && gesteDuCaissier(honore, f15));
+dit('le caissier n honore plus : la cloture de 15 h et 19 h le fait (14 novembre 2026)', false, !!honore && gesteDuCaissier(honore, f15));
+const relier: GesteSur = { genre: 'relier-la-piece', cle: 'relier:r1', rdvId: 'r1', pieceId: 'p1', dit: '' };
+dit('le caissier ne relie plus : la cloture le fait', false, gesteDuCaissier(relier, f15));
 const r11: RdvDuCaissier = rdv('r11', 'c1', '13:30', 30, 6000, { status: 'honoré', invoiceId: 'p11', payments: [{ id: 'v11', amountXof: 6000, date: J, method: 'Espèces', invoiceId: 'p11' }] });
 const p11 = (modifieeLe?: string): PieceDuCaissier => ({ id: 'p11', kind: 'facture', number: 'F-2026-0790', apptId: 'r11', clientId: 'c1', date: J, status: 'payée', lines: [{ qty: 1, unitXof: 6000 }], payments: [{ id: 'v11', amountXof: 6000, date: J, method: 'Espèces' }], ...(modifieeLe ? { modifieeLe } : {}) });
 const recuA = (hhmm: string, modifieeLe?: string) => {
@@ -138,8 +146,10 @@ const recuA = (hhmm: string, modifieeLe?: string) => {
 dit('le recu, encaisse a 15 h 00 : pas a 15 h 10', false, recuA('15:10', iso('15:00')));
 dit('le recu : a 15 h 15, oui', true, recuA('15:15', iso('15:00')));
 dit('le recu sans heure d ecriture : jamais seul', false, recuA('16:00'));
-dit('eteint : aucun geste', false, !!honore && gesteDuCaissier(honore, { ...f15, reglages: { actif: false } }));
-dit('un autre jour : aucun geste', false, !!honore && gesteDuCaissier(honore, { ...f15, maintenantMs: a('10:00', '2026-11-13') }));
+const recuGeste = clotureDuJour({ jour: J, maintenantMs: a('15:20'), rdvs: [...RDVS, r11], pieces: [p11(iso('15:00'))] as PieceLue[], fiches: FICHES }).gestes.find((x) => x.genre === 'envoyer-le-papier' && x.pieceId === 'p11');
+const fRecu = faits(a('15:20'), { rdvs: [...RDVS, r11], pieces: [p11(iso('15:00'))] });
+dit('eteint : pas de recu', false, !!recuGeste && gesteDuCaissier(recuGeste, { ...fRecu, reglages: { actif: false } }));
+dit('un autre jour : pas de recu', false, !!recuGeste && gesteDuCaissier(recuGeste, { ...fRecu, maintenantMs: a('15:20', '2026-11-13') }));
 
 /* ── 7. Ce que dit La journee ── */
 const lignes = lignesDuCaissier({
@@ -173,11 +183,14 @@ vrai('les gestes surs passent par sa regle', FN.includes('if (caisse && !gesteDu
 vrai('a l essai, aucun geste ecrit', FN.includes("if (caisse && essai) { faits.push({ genre: g.genre, cle: g.cle, dit: `(essai, rien écrit) ${g.dit}` }); continue; }"));
 vrai('a l essai, aucune marque ecrite', FN.includes("if (essai) { faits.push({ genre: d.genre, cle: d.cle, dit: `(essai, rien écrit) ${ditLa}` }); continue; }"));
 vrai('chaque decision se rejuge sur la ligne fraiche', FN.includes('if (!decisionsDuCaissier(faitsDuCaissier(constatsFrais, rdvsFrais)).some((x) => x.cle === d.cle))'));
-vrai('la marque s ecrit sous condition', FN.includes(".eq('id', frais.id).eq('updated_at', frais.updated_at).select('id, branch_id, data, updated_at');"));
-vrai('la seule marque est « comptoir prevenu »', FN.includes('const caissier: MarqueDuCaissier = { ...avant, demandeLe: le };') && !FN.includes('pieceDemandeeLe'));
-const marque = FN.indexOf('const caissier: MarqueDuCaissier = { ...avant, demandeLe: le };');
+const blocCaisse = FN.slice(FN.indexOf('/* ⑥ LE CAISSIER'), FN.indexOf("resultats.push({ branche, faits, passes });"));
+vrai('le caissier n ecrit jamais sur un rendez-vous', blocCaisse.length > 0 && !/from\('appointments'\)\.(update|upsert|insert|delete)/.test(blocCaisse) && !FN.includes('pieceDemandeeLe'));
+vrai('la marque va dans le document du jour', FN.includes("const cleDuDocument = cleDesPrevenus(branche, jour);") && FN.includes("await sb.from('documents').upsert({ key: cleDuDocument, data: { prevenus } }, { onConflict: 'key' });"));
+const marque = FN.indexOf("await sb.from('documents').upsert({ key: cleDuDocument, data: { prevenus } }, { onConflict: 'key' });");
 const notif = FN.indexOf('notifiesParLeCaissier += await previens(');
-vrai('la notification part apres la marque ecrite', marque > 0 && notif > marque && FN.slice(marque, notif).includes("if (!(ecrit ?? []).length) { passes.push({ cle: d.cle, pourquoi: 'la donnée a bougé' }); continue; }"));
+vrai('la notification part apres la marque ecrite', marque > 0 && notif > marque && FN.slice(marque, notif).includes('if (errDoc) { passes.push('));
+vrai('le document du jour se lit avant de decider', FN.includes("const { data: doc } = await sb.from('documents').select('data').eq('key', cleDuDocument).maybeSingle();"));
+dit('la cle du document : par maison et par jour', 'caissier:br-1:2026-11-12', cleDesPrevenus('br-1', J));
 vrai('le caissier ne reecrit ni compte rendu ni bilan', FN.indexOf("if (caisse) {\n      dis('caisse'") > 0 && FN.indexOf("if (caisse) {\n      dis('caisse'") < FN.indexOf("await sb.from('assistants_bilans')"));
 vrai('le GET dit la version du caissier', FN.includes('caissier: VERSION_DU_CAISSIER });'));
 const SQL = lis('supabase/migrations/0207_le_caissier_de_grenat.sql');

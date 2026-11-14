@@ -29,14 +29,17 @@ const LUS = [P, FN, SQL, SHELL, LJ, CARTE, MAINGR, CLO];
 const PANNES = [
   /* La regle : prevenir le comptoir. */
   { nom: 'le comptoir est prevenu a la fin, sans les quinze minutes', fichier: P, avant: 'if (ici.minutes < c.finMin + COMPTOIR_PREVENU_APRES_MIN) continue;', apres: 'if (ici.minutes < c.finMin) continue;' },
-  { nom: 'le comptoir est prevenu a chaque passage', fichier: P, avant: 'if (!s || s.a.caissier?.demandeLe) continue;', apres: 'if (!s) continue;' },
+  { nom: 'le comptoir est prevenu a chaque passage', fichier: P, avant: 'if (!s || prevenuLe(s.a, f)) continue;', apres: 'if (!s) continue;' },
   { nom: 'le lendemain, le caissier travaille encore', fichier: P, avant: "  if (ici.jour !== f.jour) return [];\n  const sorties", apres: '  const sorties' },
   { nom: 'eteint, le caissier decide encore', fichier: P, avant: "export function decisionsDuCaissier(f: FaitsDuCaissier): DecisionDuCaissier[] {\n  if (!f.reglages.actif) return [];", apres: 'export function decisionsDuCaissier(f: FaitsDuCaissier): DecisionDuCaissier[] {' },
   { nom: 'le rituel termine par elle est suivi', fichier: P, avant: "if (!a || a.status !== 'confirmé' || a.termineParElle) return null;", apres: "if (!a || a.status !== 'confirmé') return null;" },
   { nom: 'la notification dit le nom en clair', fichier: P, avant: "titre: `À encaisser · ${c.qui || 'une cliente'}`,", apres: "titre: `À encaisser · ${c.qui || 'une cliente'} (Celine Dossa)`," },
   { nom: 'la notification promet une facture seule', fichier: P, avant: "Encaissez-la ; sa facture ne part qu’avec l’accord de la direction (La journée).", apres: 'Sans encaissement, sa facture partira seule dans une heure.' },
   /* Aucune facture ne part seule. */
-  { nom: 'le caissier envoie une facture a regler', fichier: P, avant: "  if (g.papier !== 'recu') return false;\n", apres: '' },
+  { nom: 'le caissier envoie une facture a regler', fichier: P, avant: "if (g.genre !== 'envoyer-le-papier' || g.papier !== 'recu') return false;", apres: "if (g.genre !== 'envoyer-le-papier') return false;" },
+  { nom: 'le caissier honore entre deux clotures', fichier: P, avant: "if (g.genre !== 'envoyer-le-papier' || g.papier !== 'recu') return false;", apres: "if (g.genre === 'passer-honore') return true;\n  if (g.genre !== 'envoyer-le-papier' || g.papier !== 'recu') return false;" },
+  { nom: 'un rendez-vous saisi a l instant est suivi', fichier: P, avant: 'if (Number.isFinite(saisi) && f.maintenantMs - saisi < SAISI_IL_Y_A_MOINS_DE_MIN * 60_000) return null;', apres: '' },
+  { nom: 'le document du jour est oublie', fichier: P, avant: 'return f.prevenus?.[a.id] ?? a.caissier?.demandeLe;', apres: 'return a.caissier?.demandeLe;' },
   { nom: 'la cloture renvoie seule la facture a regler', fichier: CLO, avant: "} else if (genre === 'facture') {", apres: '} else if (false) {' },
   { nom: 'le recu part sans les quinze minutes du comptoir', fichier: P, avant: 'return !!p && Number.isFinite(calme) && f.maintenantMs - calme >= RECU_APRES_MIN * 60_000;', apres: 'return !!p;' },
   { nom: 'eteint, le caissier fait encore les gestes', fichier: P, avant: "export function gesteDuCaissier(g: GesteSur, f: FaitsDuCaissier): boolean {\n  if (!f.reglages.actif) return false;", apres: 'export function gesteDuCaissier(g: GesteSur, f: FaitsDuCaissier): boolean {' },
@@ -47,7 +50,8 @@ const PANNES = [
   { nom: 'l acompte a verifier n est pas dit', fichier: P, avant: "  if ((Number(a.depositXof) || 0) > 0 && !a.depositConfirmed) dits.push('un acompte attend d’être vérifié');\n", apres: '' },
   { nom: 'passe au comptoir n est pas dit', fichier: P, avant: "  if (soignee?.passeAuComptoir || payeuse?.passeAuComptoir) dits.push('elle règle d’habitude au comptoir');\n", apres: '' },
   /* La fonction, la migration, le Trone (lus sur le disque). */
-  { nom: 'la marque s ecrit sans condition', fichier: FN, avant: ".eq('id', frais.id).eq('updated_at', frais.updated_at).select('id, branch_id, data, updated_at');", apres: ".eq('id', frais.id).select('id, branch_id, data, updated_at');", disque: true },
+  { nom: 'le caissier reecrit sur le rendez-vous', fichier: FN, avant: "await sb.from('documents').upsert({ key: cleDuDocument, data: { prevenus } }, { onConflict: 'key' });", apres: "await sb.from('appointments').upsert({ id: frais.id, data: { ...(frais.data ?? {}), caissier: { demandeLe: '' } } });", disque: true },
+  { nom: 'le document du jour n est pas lu', fichier: FN, avant: "const { data: doc } = await sb.from('documents').select('data').eq('key', cleDuDocument).maybeSingle();", apres: 'const doc = null;', disque: true },
   { nom: 'la decision ne se rejuge pas sur la ligne fraiche', fichier: FN, avant: 'if (!decisionsDuCaissier(faitsDuCaissier(constatsFrais, rdvsFrais)).some((x) => x.cle === d.cle))', apres: 'if (false)', disque: true },
   { nom: 'l essai ecrit les marques', fichier: FN, avant: "if (essai) { faits.push({ genre: d.genre, cle: d.cle, dit: `(essai, rien écrit) ${ditLa}` }); continue; }", apres: '', disque: true },
   { nom: 'le caissier fait tous les gestes de la cloture', fichier: FN, avant: 'if (caisse && !gesteDuCaissier(g, faitsDuCaissier(premiere.rdvs))) continue;', apres: '', disque: true },

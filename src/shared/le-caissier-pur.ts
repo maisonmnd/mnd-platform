@@ -43,6 +43,22 @@ import { aCotonouLe, acompteRecu, argentDuCarnet, francsDits, heureEnClair, rest
    autoriser »). La facture part d'un toucher de la direction, « Envoyer sa
    facture », dans La journée (le chemin exprès `aRegler` du Trône).
 
+   LE CAISSIER N'ÉCRIT PLUS JAMAIS SUR UN RENDEZ-VOUS — 14 novembre 2026,
+   le soir. À 21 h 05, il a posé sa marque « comptoir prévenu » sur un
+   rendez-vous saisi après coup quarante secondes plus tôt ; deux secondes
+   après, la main l'encaissait ; le téléphone a reçu en retard la version du
+   serveur d'avant l'encaissement et l'a réécrite par-dessus : l'encaissement
+   a disparu, et la carte « Son prochain rituel » est revenue à sa date
+   proposée (le 5 décembre choisi a été perdu, le 21 novembre posé). Depuis :
+     · « comptoir prévenu » s'écrit dans un DOCUMENT à part
+       (`documents`, clé `caissier:<maison>:<jour>`, `prevenus`), jamais sur
+       la ligne du rendez-vous ;
+     · honorer un rendez-vous réglé et relier une pièce redeviennent l'affaire
+       des seules clôtures de 15 h et 19 h (comme avant le caissier) : entre
+       deux clôtures, le caissier ne fait que déposer le REÇU en salle ;
+     · un rendez-vous saisi depuis moins de quinze minutes n'est pas suivi :
+       une main est dessus.
+
    CE QU'IL NE FAIT JAMAIS : encaisser des espèces ou un MoMoPay (seule la
    main qui les a reçus le sait), envoyer une facture non réglée, dire
    venue, absente ou annulée, toucher un prix, une remise ou un versement,
@@ -58,7 +74,7 @@ import { aCotonouLe, acompteRecu, argentDuCarnet, francsDits, heureEnClair, rest
    l'importe tel quel. */
 
 /* ⟨le-caissier⟩ */
-export const VERSION_DU_CAISSIER = '2026-11-14-a';
+export const VERSION_DU_CAISSIER = '2026-11-14-b';
 
 /** Le caissier passe toutes les cinq minutes (le cron de 0207). */
 export const RYTHME_DU_CAISSIER_MIN = 5;
@@ -66,6 +82,10 @@ export const RYTHME_DU_CAISSIER_MIN = 5;
 export const COMPTOIR_PREVENU_APRES_MIN = 15;
 /** Le reçu d'une pièce payée part quand la pièce n'a plus bougé depuis quinze minutes. */
 export const RECU_APRES_MIN = 15;
+/** Un rendez-vous saisi depuis moins de quinze minutes n'est pas suivi : une main est dessus. */
+export const SAISI_IL_Y_A_MOINS_DE_MIN = 15;
+/** La clé du document où le caissier note « comptoir prévenu », par maison et par jour. */
+export const cleDesPrevenus = (branche: string, jour: string): string => `caissier:${branche}:${jour}`;
 
 /** Les réglages du caissier (`mnd_settings.caissier`) : allumé par défaut. */
 export type ReglagesDuCaissier = { actif: boolean };
@@ -75,8 +95,9 @@ export function reglagesDuCaissier(brut: unknown): ReglagesDuCaissier {
   return { actif: r.actif !== false };
 }
 
-/** LA MARQUE DU CAISSIER sur un rendez-vous : le comptoir prévenu, et quand
-    (posée par le serveur, sous condition). */
+/** LA MARQUE DU CAISSIER : le comptoir prévenu, et quand. Depuis le 14
+    novembre 2026 au soir, elle vit dans le document `cleDesPrevenus` ; les
+    lignes d'avant la portent encore sur le rendez-vous (lue, jamais écrite). */
 export type MarqueDuCaissier = { demandeLe?: string };
 
 /** Ce que le caissier lit d'un rendez-vous, en plus de ce que lit la clôture. */
@@ -95,6 +116,8 @@ export type FaitsDuCaissier = {
   fiches: readonly FicheDuCaissier[];
   pieces: readonly PieceDuCaissier[];
   reglages: ReglagesDuCaissier;
+  /** Les rendez-vous déjà dits au comptoir ce jour : identifiant → instant (le document `cleDesPrevenus`). */
+  prevenus?: Readonly<Record<string, string>>;
 };
 
 export type DecisionDuCaissier = { genre: 'prevenir-le-comptoir'; cle: string; rdvId: string; titre: string; corps: string };
@@ -137,6 +160,9 @@ function suivi(c: ConstatDuRdv, f: FaitsDuCaissier): { a: RdvDuCaissier; reste: 
   if (c.etat !== 'a-encaisser') return null;
   const a = f.rdvs.find((r) => r.id === c.id);
   if (!a || a.status !== 'confirmé' || a.termineParElle) return null;
+  /* Saisi depuis moins de quinze minutes : une main est dessus (le 14 novembre 2026, 21 h 05). */
+  const saisi = Date.parse(a.creeLe ?? '');
+  if (Number.isFinite(saisi) && f.maintenantMs - saisi < SAISI_IL_Y_A_MOINS_DE_MIN * 60_000) return null;
   const reste = resteDuRdv(a);
   return typeof reste === 'number' && reste > 0 ? { a, reste } : null;
 }
@@ -150,23 +176,29 @@ export function decisionsDuCaissier(f: FaitsDuCaissier): DecisionDuCaissier[] {
   const sorties: DecisionDuCaissier[] = [];
   for (const c of f.constats) {
     const s = suivi(c, f);
-    if (!s || s.a.caissier?.demandeLe) continue;
+    if (!s || prevenuLe(s.a, f)) continue;
     if (ici.minutes < c.finMin + COMPTOIR_PREVENU_APRES_MIN) continue;
     sorties.push({ genre: 'prevenir-le-comptoir', cle: `comptoir:${s.a.id}`, rdvId: s.a.id, ...notificationDuComptoir(c, s.reste) });
   }
   return sorties;
 }
 
-/** ① LES GESTES SÛRS DE LA CLÔTURE QUE LE CAISSIER FAIT ENTRE DEUX CLÔTURES.
-    Honorer un rendez-vous réglé et relier une pièce : toujours. Le reçu
-    d'une pièce payée : quand elle n'a plus bougé depuis quinze minutes.
-    Une facture à régler : JAMAIS (la direction l'autorise). */
+/** Le moment où le comptoir a été prévenu : le document du jour, sinon la marque d'avant sur la ligne. */
+function prevenuLe(a: RdvDuCaissier, f: FaitsDuCaissier): string | undefined {
+  return f.prevenus?.[a.id] ?? a.caissier?.demandeLe;
+}
+
+/** ① LE SEUL GESTE DE LA CLÔTURE QUE LE CAISSIER FAIT ENTRE DEUX CLÔTURES :
+    déposer le reçu d'une pièce payée qui n'a plus bougé depuis quinze
+    minutes (une ligne de salle, jamais une écriture sur le rendez-vous ni sur
+    la pièce). Honorer et relier : aux clôtures de 15 h et 19 h seulement
+    (14 novembre 2026). Une facture à régler : JAMAIS (la direction
+    l'autorise). */
 export function gesteDuCaissier(g: GesteSur, f: FaitsDuCaissier): boolean {
   if (!f.reglages.actif) return false;
   const ici = aCotonouLe(f.maintenantMs);
   if (ici.jour !== f.jour) return false;
-  if (g.genre === 'passer-honore' || g.genre === 'relier-la-piece') return true;
-  if (g.papier !== 'recu') return false;
+  if (g.genre !== 'envoyer-le-papier' || g.papier !== 'recu') return false;
   const p = f.pieces.find((x) => x.id === g.pieceId);
   const calme = Date.parse(p?.modifieeLe ?? '');
   return !!p && Number.isFinite(calme) && f.maintenantMs - calme >= RECU_APRES_MIN * 60_000;
@@ -205,10 +237,10 @@ export function lignesDuCaissier(f: FaitsDuCaissier & { facturesParties?: Readon
       continue;
     }
     const pourquoiPas = pourquoiPasDeFacture(s.a, f.fiches);
-    const marque = s.a.caissier ?? {};
-    const prevenu = marque.demandeLe ? `Comptoir prévenu à ${heureDe(marque.demandeLe)}` : `Le comptoir sera prévenu vers ${heureEnClair(c.finMin + COMPTOIR_PREVENU_APRES_MIN)}`;
+    const le = prevenuLe(s.a, f);
+    const prevenu = le ? `Comptoir prévenu à ${heureDe(le)}` : `Le comptoir sera prévenu vers ${heureEnClair(c.finMin + COMPTOIR_PREVENU_APRES_MIN)}`;
     const suite = pourquoiPas ? `sa facture ne peut pas partir (${pourquoiPas})` : 'sa facture attend votre « Envoyer »';
-    lignes.push({ ...base, etat: marque.demandeLe ? 'prevenu' : 'a-venir', dit: `${prevenu} ; ${francsDits(s.reste)} à encaisser, ${suite}.`,
+    lignes.push({ ...base, etat: le ? 'prevenu' : 'a-venir', dit: `${prevenu} ; ${francsDits(s.reste)} à encaisser, ${suite}.`,
       peutEnvoyer: !pourquoiPas, aSavoir: aSavoirAvantDEnvoyer(s.a, f.fiches) });
   }
   return lignes;

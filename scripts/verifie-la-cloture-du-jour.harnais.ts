@@ -336,8 +336,8 @@ vrai('la fonction ne pousse jamais un nom de cliente dans la notification', /not
 vrai('la fonction lit les pieces effacees dans traces (operation efface sur invoices)', /from\('traces'\)[\s\S]{0,200}eq\('table_name', 'invoices'\)[\s\S]{0,120}eq\('operation', 'efface'\)/.test(fonction));
 const horsDuBloc = fonction.slice(fonction.indexOf('/* ⟨/cloture-du-jour⟩ */'));
 vrai('la fonction relit avant d ecrire (gesteToujoursValable sur la ligne fraiche) et ecrit sous condition (updated_at)',
-  /* Quatre ecritures sous condition depuis le caissier (13 novembre 2026) : les trois de la cloture, et la marque du caissier. */
-  horsDuBloc.includes('if (!gesteToujoursValable(g, { ...faitsDe(), rdvs: rdvsFrais, pieces: piecesFraiches })) {') && (horsDuBloc.match(/\.eq\('updated_at', fra[a-z]+\.updated_at\)/g) ?? []).length >= 4);
+  /* Les trois ecritures sous condition de la cloture (le caissier n ecrit plus sur un rendez-vous depuis le 14 novembre 2026). */
+  horsDuBloc.includes('if (!gesteToujoursValable(g, { ...faitsDe(), rdvs: rdvsFrais, pieces: piecesFraiches })) {') && (horsDuBloc.match(/\.eq\('updated_at', fra[a-z]+\.updated_at\)/g) ?? []).length >= 3);
 vrai('le mot du matin n envoie aucun papier (le papier d hier ne part pas le lendemain)', /if \(matin && g\.genre === 'envoyer-le-papier'\)/.test(horsDuBloc));
 vrai('la fonction ne notifie ni a l essai ni au mot du matin, et une fois par passage', /if \(!essai && !matin && !dejaDit && pourLaNotification\)/.test(horsDuBloc));
 /* Le caissier (13 novembre 2026) passe a toute heure de son cron : la cloture garde les siennes. */

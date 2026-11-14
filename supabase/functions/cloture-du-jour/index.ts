@@ -1039,7 +1039,7 @@ export function gesteToujoursValable(g: GesteSur, f: FaitsDeLaJournee): boolean 
 /* ⟨/cloture-du-jour⟩ */
 
 /* ⟨le-caissier⟩ */
-export const VERSION_DU_CAISSIER = '2026-11-14-a';
+export const VERSION_DU_CAISSIER = '2026-11-14-b';
 
 /** Le caissier passe toutes les cinq minutes (le cron de 0207). */
 export const RYTHME_DU_CAISSIER_MIN = 5;
@@ -1047,6 +1047,10 @@ export const RYTHME_DU_CAISSIER_MIN = 5;
 export const COMPTOIR_PREVENU_APRES_MIN = 15;
 /** Le reçu d'une pièce payée part quand la pièce n'a plus bougé depuis quinze minutes. */
 export const RECU_APRES_MIN = 15;
+/** Un rendez-vous saisi depuis moins de quinze minutes n'est pas suivi : une main est dessus. */
+export const SAISI_IL_Y_A_MOINS_DE_MIN = 15;
+/** La clé du document où le caissier note « comptoir prévenu », par maison et par jour. */
+export const cleDesPrevenus = (branche: string, jour: string): string => `caissier:${branche}:${jour}`;
 
 /** Les réglages du caissier (`mnd_settings.caissier`) : allumé par défaut. */
 export type ReglagesDuCaissier = { actif: boolean };
@@ -1056,8 +1060,9 @@ export function reglagesDuCaissier(brut: unknown): ReglagesDuCaissier {
   return { actif: r.actif !== false };
 }
 
-/** LA MARQUE DU CAISSIER sur un rendez-vous : le comptoir prévenu, et quand
-    (posée par le serveur, sous condition). */
+/** LA MARQUE DU CAISSIER : le comptoir prévenu, et quand. Depuis le 14
+    novembre 2026 au soir, elle vit dans le document `cleDesPrevenus` ; les
+    lignes d'avant la portent encore sur le rendez-vous (lue, jamais écrite). */
 export type MarqueDuCaissier = { demandeLe?: string };
 
 /** Ce que le caissier lit d'un rendez-vous, en plus de ce que lit la clôture. */
@@ -1076,6 +1081,8 @@ export type FaitsDuCaissier = {
   fiches: readonly FicheDuCaissier[];
   pieces: readonly PieceDuCaissier[];
   reglages: ReglagesDuCaissier;
+  /** Les rendez-vous déjà dits au comptoir ce jour : identifiant → instant (le document `cleDesPrevenus`). */
+  prevenus?: Readonly<Record<string, string>>;
 };
 
 export type DecisionDuCaissier = { genre: 'prevenir-le-comptoir'; cle: string; rdvId: string; titre: string; corps: string };
@@ -1118,6 +1125,9 @@ function suivi(c: ConstatDuRdv, f: FaitsDuCaissier): { a: RdvDuCaissier; reste: 
   if (c.etat !== 'a-encaisser') return null;
   const a = f.rdvs.find((r) => r.id === c.id);
   if (!a || a.status !== 'confirmé' || a.termineParElle) return null;
+  /* Saisi depuis moins de quinze minutes : une main est dessus (le 14 novembre 2026, 21 h 05). */
+  const saisi = Date.parse(a.creeLe ?? '');
+  if (Number.isFinite(saisi) && f.maintenantMs - saisi < SAISI_IL_Y_A_MOINS_DE_MIN * 60_000) return null;
   const reste = resteDuRdv(a);
   return typeof reste === 'number' && reste > 0 ? { a, reste } : null;
 }
@@ -1131,23 +1141,29 @@ export function decisionsDuCaissier(f: FaitsDuCaissier): DecisionDuCaissier[] {
   const sorties: DecisionDuCaissier[] = [];
   for (const c of f.constats) {
     const s = suivi(c, f);
-    if (!s || s.a.caissier?.demandeLe) continue;
+    if (!s || prevenuLe(s.a, f)) continue;
     if (ici.minutes < c.finMin + COMPTOIR_PREVENU_APRES_MIN) continue;
     sorties.push({ genre: 'prevenir-le-comptoir', cle: `comptoir:${s.a.id}`, rdvId: s.a.id, ...notificationDuComptoir(c, s.reste) });
   }
   return sorties;
 }
 
-/** ① LES GESTES SÛRS DE LA CLÔTURE QUE LE CAISSIER FAIT ENTRE DEUX CLÔTURES.
-    Honorer un rendez-vous réglé et relier une pièce : toujours. Le reçu
-    d'une pièce payée : quand elle n'a plus bougé depuis quinze minutes.
-    Une facture à régler : JAMAIS (la direction l'autorise). */
+/** Le moment où le comptoir a été prévenu : le document du jour, sinon la marque d'avant sur la ligne. */
+function prevenuLe(a: RdvDuCaissier, f: FaitsDuCaissier): string | undefined {
+  return f.prevenus?.[a.id] ?? a.caissier?.demandeLe;
+}
+
+/** ① LE SEUL GESTE DE LA CLÔTURE QUE LE CAISSIER FAIT ENTRE DEUX CLÔTURES :
+    déposer le reçu d'une pièce payée qui n'a plus bougé depuis quinze
+    minutes (une ligne de salle, jamais une écriture sur le rendez-vous ni sur
+    la pièce). Honorer et relier : aux clôtures de 15 h et 19 h seulement
+    (14 novembre 2026). Une facture à régler : JAMAIS (la direction
+    l'autorise). */
 export function gesteDuCaissier(g: GesteSur, f: FaitsDuCaissier): boolean {
   if (!f.reglages.actif) return false;
   const ici = aCotonouLe(f.maintenantMs);
   if (ici.jour !== f.jour) return false;
-  if (g.genre === 'passer-honore' || g.genre === 'relier-la-piece') return true;
-  if (g.papier !== 'recu') return false;
+  if (g.genre !== 'envoyer-le-papier' || g.papier !== 'recu') return false;
   const p = f.pieces.find((x) => x.id === g.pieceId);
   const calme = Date.parse(p?.modifieeLe ?? '');
   return !!p && Number.isFinite(calme) && f.maintenantMs - calme >= RECU_APRES_MIN * 60_000;
@@ -1186,17 +1202,17 @@ export function lignesDuCaissier(f: FaitsDuCaissier & { facturesParties?: Readon
       continue;
     }
     const pourquoiPas = pourquoiPasDeFacture(s.a, f.fiches);
-    const marque = s.a.caissier ?? {};
-    const prevenu = marque.demandeLe ? `Comptoir prévenu à ${heureDe(marque.demandeLe)}` : `Le comptoir sera prévenu vers ${heureEnClair(c.finMin + COMPTOIR_PREVENU_APRES_MIN)}`;
+    const le = prevenuLe(s.a, f);
+    const prevenu = le ? `Comptoir prévenu à ${heureDe(le)}` : `Le comptoir sera prévenu vers ${heureEnClair(c.finMin + COMPTOIR_PREVENU_APRES_MIN)}`;
     const suite = pourquoiPas ? `sa facture ne peut pas partir (${pourquoiPas})` : 'sa facture attend votre « Envoyer »';
-    lignes.push({ ...base, etat: marque.demandeLe ? 'prevenu' : 'a-venir', dit: `${prevenu} ; ${francsDits(s.reste)} à encaisser, ${suite}.`,
+    lignes.push({ ...base, etat: le ? 'prevenu' : 'a-venir', dit: `${prevenu} ; ${francsDits(s.reste)} à encaisser, ${suite}.`,
       peutEnvoyer: !pourquoiPas, aSavoir: aSavoirAvantDEnvoyer(s.a, f.fiches) });
   }
   return lignes;
 }
 /* ⟨/le-caissier⟩ */
 
-const VERSION = '2026-11-14-a';
+const VERSION = '2026-11-14-b';
 /** Le caissier dit ses rendez-vous à La journée, comme la clôture. */
 const ETIQUETTE_DU_CAISSIER = 'mnd-caissier';
 const ADRESSE = '/trone/#/la-journee';
@@ -1459,9 +1475,19 @@ Deno.serve(async (req) => {
       const premiere = clotureDuJour(faitsDe());
       const faits: { genre: string; cle: string; dit: string }[] = [];
       const passes: { cle: string; pourquoi: string }[] = [];
+      /* LE DOCUMENT DU CAISSIER (14 novembre 2026, le soir) : « comptoir
+         prévenu », par maison et par jour. Jamais sur la ligne du rendez-vous :
+         une écriture du serveur pendant qu'une main encaisse lui a fait
+         perdre son encaissement à 21 h 05. */
+      const cleDuDocument = cleDesPrevenus(branche, jour);
+      let prevenus: Record<string, string> = {};
+      if (caisse) {
+        const { data: doc } = await sb.from('documents').select('data').eq('key', cleDuDocument).maybeSingle();
+        prevenus = { ...(((doc?.data ?? {}) as { prevenus?: Record<string, string> }).prevenus ?? {}) };
+      }
       /* Ce que le caissier lit, à l'instant (les constats de la clôture de cet instant). */
       const faitsDuCaissier = (constats = clotureDuJour(faitsDe()).rdvs, lesRdvs = rdvs): FaitsDuCaissier => ({
-        jour, maintenantMs, constats, rdvs: lesRdvs as RdvDuCaissier[], fiches, pieces: lesPieces, reglages: reglagesCaissier,
+        jour, maintenantMs, constats, rdvs: lesRdvs as RdvDuCaissier[], fiches, pieces: lesPieces, reglages: reglagesCaissier, prevenus,
       });
 
       /* ③ LES TROIS GESTES SÛRS, chacun relu et écrit sous condition. */
@@ -1469,8 +1495,9 @@ Deno.serve(async (req) => {
         /* Le mot du matin n'envoie aucun papier : celui d'hier ne part pas
            aujourd'hui (le retard reste invisible). */
         if (matin && g.genre === 'envoyer-le-papier') { passes.push({ cle: g.cle, pourquoi: 'le papier d’hier ne part pas le lendemain' }); continue; }
-        /* LE CAISSIER ne fait que ceux de sa règle : le reçu après quinze
-           minutes de calme, la facture qu'il a fait écrire, à son heure. */
+        /* LE CAISSIER ne fait que celui de sa règle : déposer le reçu après
+           quinze minutes de calme (une ligne de salle). Honorer et relier
+           restent aux clôtures (14 novembre 2026). */
         if (caisse && !gesteDuCaissier(g, faitsDuCaissier(premiere.rdvs))) continue;
         if (caisse && essai) { faits.push({ genre: g.genre, cle: g.cle, dit: `(essai, rien écrit) ${g.dit}` }); continue; }
         const idRdv = g.rdvId;
@@ -1523,10 +1550,10 @@ Deno.serve(async (req) => {
 
       /* ⑥ LE CAISSIER (13 novembre 2026) : le comptoir prévenu (plus aucune
          facture demandée ni envoyée seule depuis le 14 novembre 2026 : la
-         direction l'autorise). Chaque décision se rejuge sur la ligne FRAÎCHE du
-         rendez-vous (une main a pu encaisser entre-temps) et sa marque
-         s'écrit SOUS CONDITION (`updated_at`) ; la notification ne part
-         qu'après la marque écrite : une fois par rendez-vous. */
+         direction l'autorise). Chaque décision se rejuge sur la ligne FRAÎCHE
+         du rendez-vous (une main a pu encaisser entre-temps), LUE ET JAMAIS
+         ÉCRITE ; la marque s'écrit dans le document du jour AVANT la
+         notification : une fois par rendez-vous. */
       if (caisse) {
         for (const d of decisionsDuCaissier(faitsDuCaissier())) {
           const ditLa = `${d.titre} : ${d.corps}`;
@@ -1536,13 +1563,9 @@ Deno.serve(async (req) => {
           const rdvsFrais = rdvs.map((r) => (r.id === frais.id ? rdvDe(frais, prestations, nomDe) : r));
           const constatsFrais = clotureDuJour({ ...faitsDe(), rdvs: rdvsFrais }).rdvs;
           if (!decisionsDuCaissier(faitsDuCaissier(constatsFrais, rdvsFrais)).some((x) => x.cle === d.cle)) { passes.push({ cle: d.cle, pourquoi: 'la donnée a bougé' }); continue; }
-          const le = new Date().toISOString();
-          const avant = ((frais.data ?? {}) as { caissier?: MarqueDuCaissier | null }).caissier ?? {};
-          const caissier: MarqueDuCaissier = { ...avant, demandeLe: le };
-          const { data: ecrit } = await sb.from('appointments').update({ data: { ...(frais.data ?? {}), caissier } })
-            .eq('id', frais.id).eq('updated_at', frais.updated_at).select('id, branch_id, data, updated_at');
-          if (!(ecrit ?? []).length) { passes.push({ cle: d.cle, pourquoi: 'la donnée a bougé' }); continue; }
-          rdvs = rdvs.map((r) => (r.id === frais.id ? rdvDe((ecrit as Ligne[])[0], prestations, nomDe) : r));
+          prevenus = { ...prevenus, [frais.id]: new Date().toISOString() };
+          const { error: errDoc } = await sb.from('documents').upsert({ key: cleDuDocument, data: { prevenus } }, { onConflict: 'key' });
+          if (errDoc) { passes.push({ cle: d.cle, pourquoi: `marque non écrite : ${String(errDoc.message ?? '').slice(0, 80)}` }); continue; }
           faits.push({ genre: d.genre, cle: d.cle, dit: ditLa });
           total.prevenus += 1;
           notifiesParLeCaissier += await previens(sb, url, service, jour, { titre: d.titre, corps: d.corps }, `${ETIQUETTE_DU_CAISSIER}-${frais.id}`);
