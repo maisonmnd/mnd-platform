@@ -22,7 +22,9 @@
         jour, toutes pièces), par moyen et par tiroir.
 
    CE QUE GRENAT FAIT SEUL, trois gestes sûrs et rien d'autre : envoyer le
-   papier pas encore parti (par la salle, jamais en direct), passer « honoré »
+   REÇU pas encore parti (par la salle, jamais en direct ; une facture non
+   réglée attend l'autorisation de la direction depuis le 14 novembre
+   2026), passer « honoré »
    un rendez-vous entièrement réglé encore « confirmé », relier une facture à
    son rendez-vous quand un seul candidat existe (même cliente, même jour,
    même prix). Jamais seul : dire venue, absente ou annulée, toucher un prix,
@@ -37,7 +39,7 @@
    l'écran « La journée » et le serveur jugent avec la même règle. */
 
 /* ⟨cloture-du-jour⟩ */
-export const VERSION_DE_LA_CLOTURE = '2026-11-12-b';
+export const VERSION_DE_LA_CLOTURE = '2026-11-14-a';
 
 /** Cotonou vit à UTC + 1, toute l'année. */
 export const DECALAGE_DE_COTONOU_MIN = 60;
@@ -360,7 +362,7 @@ export type ClotureDuJour = {
   version: string; jour: string; ecriteA: string;
   ferme: boolean;
   rdvs: ConstatDuRdv[];
-  pieces: { id: string; numero: string; dit: string; aRevoir: { cle: string; dit: string }[]; papier: 'parti' | 'en-salle' | 'excepte' | 'a-envoyer' | 'sans-numero' | 'sans-objet' }[];
+  pieces: { id: string; numero: string; dit: string; aRevoir: { cle: string; dit: string }[]; papier: 'parti' | 'en-salle' | 'excepte' | 'a-envoyer' | 'a-autoriser' | 'sans-numero' | 'sans-objet' }[];
   gestes: GesteSur[];
   alarmes: Alarme[];
   caisse: CaisseDuJour;
@@ -824,6 +826,14 @@ export function clotureDuJour(f: FaitsDeLaJournee): ClotureDuJour {
         papier = 'excepte'; dit = 'rattrapage d’un jour passé : pas de papier, le retard reste invisible';
       } else if (genre === 'recu' && aujourdhui.length === 0) {
         papier = 'excepte'; dit = 'réglée avant ce jour : son reçu était l’affaire de ce jour-là';
+      } else if (genre === 'facture') {
+        /* AUCUNE FACTURE NON RÉGLÉE NE PART SEULE — 14 novembre 2026, Yéman :
+           « aucune facture part s'il n'est pas encaissé, je dois autoriser
+           cela », puis au sélecteur « Oui, toutes » (celles du caissier ET
+           celles que Grenat envoyait à 15 h et 19 h). Grenat la montre à la
+           direction, qui l'envoie d'un toucher depuis La journée ; le reçu
+           d'un paiement, lui, part toujours seul. */
+        papier = 'a-autoriser'; dit = 'la facture à régler attend l’autorisation de la direction';
       } else {
         papier = 'a-envoyer';
         const montant = genre === 'recu' ? aujourdhui.reduce((s, v) => s + (Number(v.amountXof) || 0), 0) : reste;

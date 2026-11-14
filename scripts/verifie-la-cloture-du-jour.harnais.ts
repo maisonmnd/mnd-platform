@@ -256,8 +256,12 @@ dit('... une vente sans fiche : pas de papier', 'excepte', papier({ clientId: ''
 dit('... un rituel d un jour passe regle ce jour : jamais (le retard reste invisible)', 'excepte',
   clotureDuJour(faits(a('16:00'), { rdvs: [], pieces: [recuDu({ apptId: undefined, date: '2026-10-28' })] })).pieces[0].papier);
 const aRegler = clotureDuJour(faits(a('16:00'), { rdvs: [{ ...R2, status: 'honoré', invoiceId: 'inv-20' }], pieces: [recuDu({ status: 'envoyée', payments: [] })] }));
-dit('la facture a regler d un rituel du jour, pas partie : Grenat l envoie', { papier: 'facture', montantXof: 52000 },
-  (({ papier: p, montantXof }) => ({ papier: p, montantXof }))(aRegler.gestes[0] as { papier: string; montantXof: number }));
+/* « Aucune facture part s'il n'est pas encaisse, je dois autoriser cela » (Yeman, 14 novembre 2026, « Oui, toutes ») :
+   la facture a regler n'est plus un geste de Grenat ; elle attend la direction. */
+dit('la facture a regler d un rituel du jour, pas partie : Grenat ne l envoie plus, elle attend la direction',
+  { gestes: 0, papier: 'a-autoriser', dit: 'la facture à régler attend l’autorisation de la direction' },
+  { gestes: aRegler.gestes.length, papier: aRegler.pieces[0]?.papier, dit: aRegler.pieces[0]?.dit });
+dit('... et une facture a autoriser ne retient pas la journee', true, aRegler.verdict.close);
 dit('... honore et a regler, sa facture partie : la journee la tient pour close', 'clos',
   clotureDuJour(faits(a('16:00'), { rdvs: [{ ...R2, status: 'honoré', invoiceId: 'inv-20' }], pieces: [recuDu({ status: 'envoyée', payments: [], whatsapp: parti('15:30') })] })).rdvs[0].etat);
 dit('... un brouillon ne part pas', 0, clotureDuJour(faits(a('16:00'), { rdvs: [{ ...R2, status: 'honoré', invoiceId: 'inv-20' }], pieces: [recuDu({ status: 'brouillon', payments: [] })] })).gestes.length);

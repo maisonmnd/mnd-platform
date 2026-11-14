@@ -436,10 +436,11 @@ export type Appointment = {
       (`useLaMainDeGrenat`), par un seul poste, qui réserve `suitesLe`. */
   honoreParGrenat?: { le: string; moment?: string; suitesLe?: string };
   /** LE CAISSIER DE GRENAT (13 novembre 2026, shared/le-caissier-pur.ts) :
-      le comptoir prévenu (`demandeLe`), la facture demandée au Trône
-      (`pieceDemandeeLe`, posés par la fonction `cloture-du-jour`), la pièce
-      réservée par le poste qui l'écrit (`pieceLe`, `useLeCaissier`), et
-      « Retenir sa facture » au comptoir (`retenueLe`, `retenuePar`). */
+      le comptoir prévenu (`demandeLe`), posé par la fonction
+      `cloture-du-jour`. Les lignes du 13 novembre 2026 au soir portent aussi
+      `pieceDemandeeLe` et `pieceLe` (la facture demandée au Trône, retirée le
+      14 novembre : aucune facture ne part sans la direction) ; plus rien ne
+      les lit. */
   caissier?: MarqueDuCaissier;
   /** ELLE A TERMINÉ ELLE-MÊME — 6 novembre 2026 (« Terminer et régler »). La
       cliente a déclaré avoir terminé, par Ma Couronne, le site ou le WhatsApp

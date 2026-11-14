@@ -124,9 +124,10 @@ export function useLaMainDeGrenat(): void {
           }
           /* LE PAPIER DU CAISSIER PASSE LES HEURES CALMES (13 novembre 2026) :
              « parfois nous sommes sur les clients jusqu'à 21 h 30 » (Yéman).
-             Le caissier ne dépose qu'un papier du jour, au plus tard à 23 h,
-             pour une cliente qui vient de quitter la Maison : il part après
-             les dix minutes de la salle, pas au matin. `parLaMain` est la
+             Le caissier ne dépose que des REÇUS (une facture à régler attend
+             la direction, 14 novembre 2026), du jour, pour une cliente qui
+             vient de régler : il part après les dix minutes de la salle, pas
+             au matin. `parLaMain` est la
              marque que le facteur laisse déjà passer la nuit (envois-partent
              n'a pas à changer) ; les papiers des clôtures gardent les heures
              calmes. */

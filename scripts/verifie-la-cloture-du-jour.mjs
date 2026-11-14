@@ -45,6 +45,8 @@ const PANNES = [
   { nom: 'Grenat relie sans comparer le prix', fichier: P, avant: '&& typeof a.prixXof === \'number\' && rituelDeLaPiece(p) === a.prixXof);', apres: ');' },
   { nom: 'Grenat relie avec deux candidats', fichier: P, avant: 'if (candidates.length === 1) {', apres: 'if (candidates.length >= 1) {' },
   { nom: 'une piece deja reliee devient candidate', fichier: P, avant: "const orphelines = pieces.filter((p) => estUneFacture(p) && !p.apptId && !nommees.has(p.id));", apres: 'const orphelines = pieces.filter((p) => estUneFacture(p));' },
+  /* 14 novembre 2026 : aucune facture non reglee ne part sans la direction. */
+  { nom: 'la facture a regler repart seule', fichier: P, avant: "} else if (genre === 'facture') {", apres: '} else if (false) {' },
   { nom: 'le papier repart quand il est parti', fichier: P, avant: '} else if (p.whatsapp?.partieLe) {', apres: '} else if (false) {' },
   { nom: 'le papier part malgre « Pas de recu ni de facture par WhatsApp »', fichier: P, avant: '} else if (destinataire.sansPapiersWa) {', apres: '} else if (false) {' },
   { nom: 'le retard se voit (papier d un jour passe)', fichier: P, avant: "&& (!o.jourDuRituel || o.jourDuRituel >= o.aujourdhui);", apres: ';' },
@@ -141,7 +143,7 @@ const PANNES = [
   { nom: 'La journee ne montre plus les pannes', fichier: LJ, avant: 'data-lj="pannes"', apres: 'data-lj="ailleurs"', disque: true },
   { nom: 'le Trone juge sans les pannes', fichier: PRISE, avant: '      pannes,\n    });', apres: '    });', disque: true },
   /* La copie, la fonction, la migration. */
-  { nom: 'un caractere change dans la copie de la fonction', fichier: FN, avant: "export const VERSION_DE_LA_CLOTURE = '2026-11-12-b';", apres: "export const VERSION_DE_LA_CLOTURE = '2026-11-12-c';", disque: true },
+  { nom: 'un caractere change dans la copie de la fonction', fichier: FN, avant: "export const VERSION_DE_LA_CLOTURE = '2026-11-14-a';", apres: "export const VERSION_DE_LA_CLOTURE = '2026-11-14-b';", disque: true },
   { nom: 'le maitre qui a pose un rendez-vous est prevenu', fichier: FN, avant: ".eq('table_name', 'invoices').eq('porte', 'trone')", apres: ".in('table_name', ['invoices', 'appointments']).eq('porte', 'trone')", disque: true },
   { nom: 'la porte de secours ouverte a toute l equipe', fichier: 'src/apps/trone/routes/finances/Caisses.tsx', avant: '{estDirection && (', apres: '{(true) && (', disque: true },
   { nom: 'la fonction ecrit sans relire', fichier: FN, avant: 'if (!gesteToujoursValable(', apres: 'if (false && !gesteToujoursValable(', disque: true },

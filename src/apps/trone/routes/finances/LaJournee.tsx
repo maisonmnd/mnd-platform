@@ -13,13 +13,15 @@ import { francsDits, idDuPapier, TYPE_DU_PAPIER, type ConstatDeDepense, type Ges
 import { decideLaDepense, momentDit, tranche } from '../../../../shared/cloture-du-jour';
 import { lignesDuCaissier, reglagesDuCaissier, type RdvDuCaissier } from '../../../../shared/le-caissier-pur';
 import { useSettings } from '../../../../shared/settings';
-import { peutValider, useExpenses, useInvoices } from '../../../../shared/finance';
+import { invoiceTotal, invoicesStore, peutValider, useExpenses, useInvoices } from '../../../../shared/finance';
+import { versementsDejaRecus } from '../../../../shared/terminer-et-regler-pur';
+import { lArgentDejaRecu } from '../vente/encaissement-pur';
 import { useStore } from '../../../../shared/store';
 import { sameName } from '../../../../shared/text';
 import { envoisStore, staffAccessStore } from '../equipe/data';
-import { tarifsDuRituel, useBranchAppointments, useServicesById } from '../clients/_shared';
+import { prixAFiger, tarifsDuRituel, useBranchAppointments, useServicesById } from '../clients/_shared';
 import { useClotureDuJour } from './useClotureDuJour';
-import { honoreSansEncaisser, PayAppointmentModal } from '../clients/actions';
+import { factureAEnvoyer, honoreSansEncaisser, PayAppointmentModal } from '../clients/actions';
 import { useEnvoiDeLaPiece } from '../vente/envoi-de-la-piece';
 import { JournalDeCaisse } from './JournalDeCaisse';
 import { todayISO } from './_shared';
@@ -229,15 +231,46 @@ export default function LaJournee() {
     reglages: reglagesCaissier,
     facturesParties: new Set(pieces.filter((p) => !!p.whatsapp?.partieLe).map((p) => p.id)),
   }) : [];
-  /** « Retenir sa facture » : elle ne part pas seule ; « La laisser partir » défait le geste. */
-  const retiens = (rdvId: string, oui: boolean) => {
-    appointmentsStore.set((prev) => prev.map((x) => {
-      if (x.id !== rdvId) return x;
-      const { retenueLe: _r, retenuePar: _p, ...reste } = x.caissier ?? {};
-      return { ...x, caissier: oui ? { ...reste, retenueLe: new Date().toISOString(), retenuePar: moi } : reste };
-    }));
-    toast(oui ? 'Sa facture ne partira pas seule : le comptoir s’en occupe.' : 'Le caissier peut de nouveau envoyer sa facture, à son heure.');
+  /* « ENVOYER SA FACTURE » — 14 novembre 2026, Yéman : « aucune facture part
+     s'il n'est pas encaissé, je dois autoriser cela », puis « Oui, toutes ».
+     Ni le caissier ni les clôtures n'envoient plus une facture à régler : la
+     DIRECTION (souverain) la fait partir d'un toucher. La pièce est celle de
+     « Terminer la séance » (`factureAEnvoyer`, au tarif de sa tête, prix figé
+     au premier geste d'argent, acompte et versements d'avant montés dessus,
+     comme la fin du rituel déclarée par la cliente), écrite seulement si le
+     rendez-vous n'en a pas ; elle part par le chemin exprès `aRegler` (le
+     bouton « Régler » de sa séance, sinon Tap & Go). Le rendez-vous n'est
+     pas honoré : il le sera à son règlement, ou au comptoir. */
+  const envoieLaPiece = (pieceId: string, jourDuRituel: string) => {
+    if (!souverain) { toast('La direction seule autorise l’envoi d’une facture.'); return; }
+    void envoiDeLaPiece.aRegler(pieceId, jourDuRituel, { memePasse: true });
   };
+  const envoieSaFacture = (rdvId: string) => {
+    if (!souverain) { toast('La direction seule autorise l’envoi d’une facture.'); return; }
+    const a = rdvDe(rdvId);
+    if (!a) return;
+    const deja = invoicesStore.get().find((p) => p.apptId === a.id && p.kind === 'facture' && p.status !== 'payée');
+    if (deja) { envoieLaPiece(deja.id, a.date); return; }
+    appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id ? { ...x, ...prixAFiger(x, byId) } : x)));
+    const frais = appointmentsStore.get().find((x) => x.id === a.id) ?? a;
+    const tarifs = tarifsDuRituel(frais, {
+      client: clients.find((c) => c.id === frais.clientId), bands, sets, cats: categories, byId, tousServices: services, produits,
+    });
+    const r = factureAEnvoyer(frais, byId, frais.branchId, tarifs.prixPlein, tarifs.gesteDe);
+    if (!r.ok) { toast(`Sa facture n’a pas pu s’écrire (${r.erreur}) : encaissez-la au comptoir.`); return; }
+    if (!r.deja) {
+      const dejaRecu = versementsDejaRecus({ rdvId: frais.id, totalXof: invoiceTotal(r.inv), dejaRecu: lArgentDejaRecu(frais, frais.date) });
+      if (dejaRecu.length > 0) {
+        const dejaXof = dejaRecu.reduce((t, v) => t + v.amountXof, 0);
+        invoicesStore.set((prev) => prev.map((i) => (i.id === r.inv.id ? { ...i, payments: [...(i.payments ?? []), ...dejaRecu], depositCreditXof: (i.depositCreditXof ?? 0) + dejaXof } : i)));
+      }
+    }
+    envoieLaPiece(r.inv.id, frais.date);
+  };
+  /* Les factures que Grenat montre « à autoriser » (règle 4), hors celles des rituels que le caissier suit déjà. */
+  const suivisParLeCaissier = new Set(lignesCaissier.map((l) => l.rdvId));
+  const aAutoriser = cloture.pieces.filter((x) => x.papier === 'a-autoriser').map((x) => ({ ...x, piece: pieces.find((i) => i.id === x.id) }))
+    .filter((x) => !x.piece?.apptId || !suivisParLeCaissier.has(x.piece.apptId));
 
   const jourDit = (() => {
     const s = new Date(`${jour}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -394,8 +427,27 @@ export default function LaJournee() {
           {fait.length === 0 && cloture.gestes.length === 0 && (
             <p className="lj-vide">{passage ? `Grenat a tout relu à ${momentDit(passage.moment)} : rien à faire seul.` : 'Rien à faire seul pour l’instant.'}</p>
           )}
-          <p className="lj-regle">Seul, Grenat envoie le papier pas encore parti (par la salle d’attente), passe « honoré » un rendez-vous réglé en entier encore « confirmé », et relie une facture à son rendez-vous quand il n’y a qu’un candidat. Jamais seul : une absence, un prix, une remise, un paiement, un effacement.</p>
+          <p className="lj-regle">Seul, Grenat envoie le reçu pas encore parti (par la salle d’attente), passe « honoré » un rendez-vous réglé en entier encore « confirmé », et relie une facture à son rendez-vous quand il n’y a qu’un candidat. Jamais seul : une facture à régler (elle attend votre « Envoyer »), une absence, un prix, une remise, un paiement, un effacement.</p>
         </div>
+
+        {/* LES FACTURES À AUTORISER — 14 novembre 2026 (« je dois autoriser
+            cela ») : une facture non réglée ne part que sur le toucher de la direction. */}
+        {aAutoriser.length > 0 && (
+          <div className="lj-bloc" data-lj="a-autoriser">
+            <p className="lj-bloc__tete"><span>Les factures à autoriser</span><span>{aAutoriser.length}</span></p>
+            {aAutoriser.map((x) => (
+              <div className="lj-ligne" key={x.id} data-lj-a-autoriser={x.id}>
+                <span className="lj-heure">{x.numero}</span>
+                <span className="lj-qui-dit"><span className="lj-dit">{souverain ? 'Non réglée : elle ne part qu’avec votre « Envoyer ».' : 'Non réglée : la direction autorise son envoi.'}</span></span>
+                <span className="lj-etat cuivre">À autoriser</span>
+                <span className="lj-gestes">
+                  {souverain && <button type="button" className="lj-g plein" data-geste="envoyer-la-facture" onClick={() => envoieLaPiece(x.id, x.piece?.date ?? jour)}>Envoyer sa facture</button>}
+                  <button type="button" className="lj-g" onClick={() => navigate(`/factures?id=${x.id}`)}>Ouvrir la facture</button>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* LE CAISSIER DE GRENAT — 13 novembre 2026 (« Le Trône n'a pas de
             caissier… un robot caissier qui se déclenche automatiquement »).
@@ -404,25 +456,27 @@ export default function LaJournee() {
           <div className="lj-bloc" data-lj="caissier">
             <p className="lj-bloc__tete">
               <span>Le caissier</span>
-              <span>{!reglagesCaissier.actif ? 'éteint' : `toutes les 5 minutes${reglagesCaissier.factureApresMin > 0 ? ` · facture seule ${reglagesCaissier.factureApresMin} min après la fin` : ' · jamais de facture seule'}`}</span>
+              <span>{!reglagesCaissier.actif ? 'éteint' : 'toutes les 5 minutes · aucune facture sans votre accord'}</span>
             </p>
             {!reglagesCaissier.actif && <p className="lj-vide">Le caissier est éteint (Système › Paramètres › Heures et jours). Grenat garde ses clôtures.</p>}
             {reglagesCaissier.actif && lignesCaissier.length === 0 && <p className="lj-vide">Rien à suivre pour l’instant : aucun rituel fini sans encaissement.</p>}
             {reglagesCaissier.actif && lignesCaissier.map((l) => (
               <div className="lj-ligne" key={l.rdvId} data-lj-caissier={l.etat}>
                 <span className="lj-heure">{l.heure}</span>
-                <span className="lj-qui-dit"><span className="lj-qui">{l.qui}</span><span className="lj-dit">{l.dit}</span></span>
-                <span className={`lj-etat ${l.etat === 'honore-seul' ? 'ok' : l.etat === 'retenue' ? 'cuivre' : 'ko'}`}>
-                  {l.etat === 'honore-seul' ? 'Fini seul' : l.etat === 'retenue' ? 'Retenue' : l.etat === 'facture-ecrite' ? 'Facture' : l.etat === 'prevenu' ? 'Prévenu' : 'À suivre'}
+                <span className="lj-qui-dit">
+                  <span className="lj-qui">{l.qui}</span><span className="lj-dit">{l.dit}</span>
+                  {l.aSavoir.length > 0 && <span className="lj-libelle">À savoir : {l.aSavoir.join(' ; ')}.</span>}
+                </span>
+                <span className={`lj-etat ${l.etat === 'honore-seul' ? 'ok' : l.etat === 'facture-partie' ? 'cuivre' : 'ko'}`}>
+                  {l.etat === 'honore-seul' ? 'Fini seul' : l.etat === 'facture-partie' ? 'Facture partie' : l.etat === 'prevenu' ? 'Prévenu' : 'À suivre'}
                 </span>
                 <span className="lj-gestes">
-                  {l.etat !== 'honore-seul' && l.etat !== 'retenue' && <button type="button" className="lj-g plein" onClick={() => fais(l.rdvId, 'encaisser')}>Encaisser</button>}
-                  {l.peutRetenir && <button type="button" className="lj-g" data-geste="retenir-sa-facture" onClick={() => retiens(l.rdvId, true)}>Retenir sa facture</button>}
-                  {l.etat === 'retenue' && <button type="button" className="lj-g" data-geste="laisser-partir" onClick={() => retiens(l.rdvId, false)}>La laisser partir</button>}
+                  {l.etat !== 'honore-seul' && <button type="button" className="lj-g plein" onClick={() => fais(l.rdvId, 'encaisser')}>Encaisser</button>}
+                  {souverain && l.peutEnvoyer && <button type="button" className="lj-g" data-geste="envoyer-sa-facture" onClick={() => envoieSaFacture(l.rdvId)}>Envoyer sa facture</button>}
                 </span>
               </div>
             ))}
-            <p className="lj-regle">Entre deux clôtures, le caissier passe toutes les cinq minutes. Seul : il honore un rendez-vous réglé en entier, relie une facture, envoie le reçu quinze minutes après l’encaissement. Quinze minutes après la fin d’un rituel où rien n’est encaissé, il prévient le comptoir ; à l’heure dite, la facture s’écrit au tarif de sa tête et part sur son WhatsApp avec son bouton de règlement, même après la fermeture, jamais après 23 h. Jamais seul : des espèces, un MoMoPay, un prix, une absence.</p>
+            <p className="lj-regle">Entre deux clôtures, le caissier passe toutes les cinq minutes, même après la fermeture. Seul : il honore un rendez-vous réglé en entier, relie une facture, envoie le reçu quinze minutes après l’encaissement. Quinze minutes après la fin d’un rituel où rien n’est encaissé, il prévient le comptoir et la direction. Jamais seul : une facture à régler (elle part sur « Envoyer sa facture », la direction seule), des espèces, un MoMoPay, un prix, une absence.</p>
           </div>
         )}
 

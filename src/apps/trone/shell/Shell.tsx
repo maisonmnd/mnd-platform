@@ -84,7 +84,6 @@ import { useMndPayRattache } from './useMndPayRattache';
 import { useReglementsEnLigne } from './useReglementsEnLigne';
 import { useLaMainDeGrenat } from './useLaMainDeGrenat';
 import { useLaFinDuRituel } from './useLaFinDuRituel';
-import { useLeCaissier } from './useLeCaissier';
 import { useLectureDesCaptures } from './useLectureDesCaptures';
 import { useLaReleveArrive } from './useLaReleveArrive';
 import { useParrainageVivant } from './useParrainageVivant';
@@ -581,8 +580,6 @@ export default function Shell() {
   useLaMainDeGrenat();
   /* Terminer et régler : elle a terminé elle-même, sa pièce s'écrit ici au tarif de sa tête (sans honorer) ; réglée, les suites de l'honneur se font ici (6 novembre 2026). */
   useLaFinDuRituel();
-  /* Le caissier de Grenat : la facture qu'il a demandée (rituel fini, rien encaissé) s'écrit ici au tarif de sa tête, sans honorer (13 novembre 2026). */
-  useLeCaissier();
   /* Les envois programmés (13 novembre 2026) : les appels convertis, les pièces tirées à l'envoi. */
   useLaMainDesEnvoisProgrammes();
   /* Les captures de transfert reçues sur WhatsApp d'une cliente qui doit se lisent seules, par Claude (19 octobre 2026). */

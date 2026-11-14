@@ -141,12 +141,12 @@ export type Settings = {
       règle, dans Paramètres › Heures et jours. */
   cloture?: { heures?: number[] };
   /** LE CAISSIER DE GRENAT — 13 novembre 2026 (shared/le-caissier-pur.ts) :
-      allumé par défaut (`actif` absent = oui) ; la facture d'un rituel fini
-      sans encaissement part seule `factureApresMin` minutes après sa fin
-      (30, 60 ou 120 ; 0 = jamais seule ; absent = 60). La fonction
-      `cloture-du-jour` les lit à chaque passage (`reglagesDuCaissier`). La
-      direction seule les règle, dans Paramètres › Heures et jours. */
-  caissier?: { actif?: boolean; factureApresMin?: number };
+      allumé par défaut (`actif` absent = oui). La fonction `cloture-du-jour`
+      le lit à chaque passage (`reglagesDuCaissier`). La direction seule le
+      règle, dans Paramètres › Heures et jours. Le délai de la facture seule
+      (`factureApresMin`) n'existe plus depuis le 14 novembre 2026 : aucune
+      facture ne part sans la direction. */
+  caissier?: { actif?: boolean };
   /** LA DICTÉE MND — 31 octobre 2026 (maquette F7LksMC3…) : les mots de la
       Maison, le mode et le modèle par défaut, l'empreinte du jeton de la
       Dictée du bureau, et depuis le 2 novembre 2026 celle de chaque autre

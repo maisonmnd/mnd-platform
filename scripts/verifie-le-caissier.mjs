@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-/* LE CAISSIER DE GRENAT, EPROUVE (13 novembre 2026).
+/* LE CAISSIER DE GRENAT, EPROUVE (13 novembre 2026, revu le 14 : aucune facture sans la direction).
    `node scripts/verifie-le-caissier.mjs` lance le harnais ;
    `--prouve` le relance sur chaque panne ci-dessous, et chaque panne doit le
    faire crier. Les pannes de la regle vivent dans la memoire du bundle (un
@@ -19,43 +19,33 @@ const racine = path.resolve(import.meta.dirname, '..');
 const P = 'src/shared/le-caissier-pur.ts';
 const FN = 'supabase/functions/cloture-du-jour/index.ts';
 const SQL = 'supabase/migrations/0207_le_caissier_de_grenat.sql';
-const MAIN = 'src/apps/trone/shell/useLeCaissier.ts';
 const SHELL = 'src/apps/trone/shell/Shell.tsx';
 const LJ = 'src/apps/trone/routes/finances/LaJournee.tsx';
 const CARTE = 'src/apps/trone/routes/systeme/CarteClotureDeGrenat.tsx';
 const MAINGR = 'src/apps/trone/shell/useLaMainDeGrenat.ts';
-const LUS = [P, FN, SQL, MAIN, SHELL, LJ, CARTE, MAINGR];
+const CLO = 'src/shared/cloture-du-jour-pur.ts';
+const LUS = [P, FN, SQL, SHELL, LJ, CARTE, MAINGR, CLO];
 
 const PANNES = [
-  /* La regle : quand prevenir, quand demander. */
-  { nom: 'le comptoir est prevenu a la fin, sans les quinze minutes', fichier: P, avant: 'if (!marque.demandeLe && ici.minutes >= c.finMin + COMPTOIR_PREVENU_APRES_MIN) {', apres: 'if (!marque.demandeLe && ici.minutes >= c.finMin) {' },
-  { nom: 'le comptoir est prevenu a chaque passage', fichier: P, avant: 'if (!marque.demandeLe && ici.minutes >= c.finMin + COMPTOIR_PREVENU_APRES_MIN) {', apres: 'if (ici.minutes >= c.finMin + COMPTOIR_PREVENU_APRES_MIN) {' },
-  { nom: 'la facture est redemandee a chaque passage', fichier: P, avant: 'if (!marque.pieceDemandeeLe && factureVers !== null', apres: 'if (factureVers !== null' },
-  { nom: 'la facture est demandee avant son heure', fichier: P, avant: 'factureVers !== null && ici.minutes >= factureVers\n', apres: 'factureVers !== null\n' },
-  { nom: 'la facture part seule apres 23 h', fichier: P, avant: 'return a <= DERNIERE_FACTURE_SEULE_MIN ? a : null;', apres: 'return a;' },
-  { nom: 'la facture du matin se rattrape le soir', fichier: P, avant: '&& ici.minutes <= Math.min(factureVers + FENETRE_DE_LA_FACTURE_MIN, DERNIERE_FACTURE_SEULE_MIN)) {', apres: '&& ici.minutes <= DERNIERE_FACTURE_SEULE_MIN) {' },
-  { nom: 'la derniere facture seule revient a 19 h 30', fichier: P, avant: 'export const DERNIERE_FACTURE_SEULE_MIN = 23 * 60;', apres: 'export const DERNIERE_FACTURE_SEULE_MIN = 19 * 60 + 30;' },
-  { nom: 'une facture du comptoir est doublee', fichier: P, avant: 'const factureVers = pourquoiPas || c.pieceId ? null', apres: 'const factureVers = pourquoiPas ? null' },
+  /* La regle : prevenir le comptoir. */
+  { nom: 'le comptoir est prevenu a la fin, sans les quinze minutes', fichier: P, avant: 'if (ici.minutes < c.finMin + COMPTOIR_PREVENU_APRES_MIN) continue;', apres: 'if (ici.minutes < c.finMin) continue;' },
+  { nom: 'le comptoir est prevenu a chaque passage', fichier: P, avant: 'if (!s || s.a.caissier?.demandeLe) continue;', apres: 'if (!s) continue;' },
   { nom: 'le lendemain, le caissier travaille encore', fichier: P, avant: "  if (ici.jour !== f.jour) return [];\n  const sorties", apres: '  const sorties' },
   { nom: 'eteint, le caissier decide encore', fichier: P, avant: "export function decisionsDuCaissier(f: FaitsDuCaissier): DecisionDuCaissier[] {\n  if (!f.reglages.actif) return [];", apres: 'export function decisionsDuCaissier(f: FaitsDuCaissier): DecisionDuCaissier[] {' },
-  { nom: 'un delai inconnu est accepte', fichier: P, avant: 'DELAIS_DE_LA_FACTURE.includes(delai) ? delai', apres: 'Number.isFinite(delai) ? delai' },
-  { nom: 'la facture part malgre « passe au comptoir »', fichier: P, avant: "  if (soignee.passeAuComptoir || (payeuse && payeuse.passeAuComptoir)) return 'elle passe toujours au comptoir';\n", apres: '' },
-  { nom: 'la facture part malgre un acompte a verifier', fichier: P, avant: "  if ((Number(a.depositXof) || 0) > 0 && !a.depositConfirmed) return 'un acompte attend d’être vérifié';\n", apres: '' },
-  { nom: 'la facture part sur une partie deja encaissee', fichier: P, avant: "  if (argentDuCarnet(a) + acompteRecu(a) > 0) return 'une partie est déjà encaissée';\n", apres: '' },
-  { nom: 'la facture part malgre « retenir sa facture »', fichier: P, avant: "  if (a.caissier?.retenueLe) return 'retenue au comptoir';\n", apres: '' },
-  { nom: 'la facture part sans numero', fichier: P, avant: "  if (!destinataire.aUnNumero) return 'pas de numéro sur sa fiche';\n", apres: '' },
-  { nom: 'la facture part malgre « pas de papiers par WhatsApp »', fichier: P, avant: "  if (destinataire.sansPapiersWa) return 'pas de facture par WhatsApp (sa fiche le dit)';\n", apres: '' },
-  { nom: 'la payeuse d un rituel offert est oubliee', fichier: P, avant: 'const destinataire = payeuse?.aUnNumero ? payeuse : soignee;', apres: 'const destinataire = soignee;' },
   { nom: 'le rituel termine par elle est suivi', fichier: P, avant: "if (!a || a.status !== 'confirmé' || a.termineParElle) return null;", apres: "if (!a || a.status !== 'confirmé') return null;" },
-  { nom: 'la notification dit le nom en clair', fichier: P, avant: "return { titre: `À encaisser · ${c.qui || 'une cliente'}`", apres: "return { titre: `À encaisser · ${c.qui || 'une cliente'} (Celine Dossa)`" },
-  /* Les gestes surs. */
-  { nom: 'le recu part sans les quinze minutes du comptoir', fichier: P, avant: 'return Number.isFinite(calme) && f.maintenantMs - calme >= RECU_APRES_MIN * 60_000;', apres: 'return true;' },
-  { nom: 'une facture du comptoir part entre deux clotures', fichier: P, avant: "if (!a || a.id !== g.rdvId || !a.caissier?.pieceDemandeeLe || a.status !== 'confirmé') return false;", apres: "if (!a || a.id !== g.rdvId || a.status !== 'confirmé') return false;" },
-  { nom: 'la facture retenue part quand meme', fichier: P, avant: '  if (pourquoiPasDeFactureSeule(a, f.fiches)) return false;\n  const c = f.constats', apres: '  const c = f.constats' },
+  { nom: 'la notification dit le nom en clair', fichier: P, avant: "titre: `À encaisser · ${c.qui || 'une cliente'}`,", apres: "titre: `À encaisser · ${c.qui || 'une cliente'} (Celine Dossa)`," },
+  { nom: 'la notification promet une facture seule', fichier: P, avant: "Encaissez-la ; sa facture ne part qu’avec l’accord de la direction (La journée).", apres: 'Sans encaissement, sa facture partira seule dans une heure.' },
+  /* Aucune facture ne part seule. */
+  { nom: 'le caissier envoie une facture a regler', fichier: P, avant: "  if (g.papier !== 'recu') return false;\n", apres: '' },
+  { nom: 'la cloture renvoie seule la facture a regler', fichier: CLO, avant: "} else if (genre === 'facture') {", apres: '} else if (false) {' },
+  { nom: 'le recu part sans les quinze minutes du comptoir', fichier: P, avant: 'return !!p && Number.isFinite(calme) && f.maintenantMs - calme >= RECU_APRES_MIN * 60_000;', apres: 'return !!p;' },
   { nom: 'eteint, le caissier fait encore les gestes', fichier: P, avant: "export function gesteDuCaissier(g: GesteSur, f: FaitsDuCaissier): boolean {\n  if (!f.reglages.actif) return false;", apres: 'export function gesteDuCaissier(g: GesteSur, f: FaitsDuCaissier): boolean {' },
-  /* La piece au Trone. */
-  { nom: 'une seconde piece s ecrit', fichier: P, avant: "&& !a.termineParElle && !aDejaUnePiece;", apres: '&& !a.termineParElle;' },
-  { nom: 'une piece s ecrit malgre l encaissement', fichier: P, avant: "return !!a.caissier?.pieceDemandeeLe && !a.caissier.retenueLe && a.status === 'confirmé'", apres: 'return !!a.caissier?.pieceDemandeeLe && !a.caissier.retenueLe' },
+  /* Ce que la direction voit. */
+  { nom: 'la facture se propose sans numero', fichier: P, avant: "  if (!destinataire.aUnNumero) return 'pas de numéro sur sa fiche';\n", apres: '' },
+  { nom: 'la facture se propose malgre « pas de papiers par WhatsApp »', fichier: P, avant: "  if (destinataire.sansPapiersWa) return 'pas de facture par WhatsApp (sa fiche le dit)';\n", apres: '' },
+  { nom: 'la payeuse d un rituel offert est oubliee', fichier: P, avant: 'const destinataire = payeuse?.aUnNumero ? payeuse : soignee;\n  if (!soignee || !destinataire) return', apres: 'const destinataire = soignee;\n  if (!soignee || !destinataire) return' },
+  { nom: 'l acompte a verifier n est pas dit', fichier: P, avant: "  if ((Number(a.depositXof) || 0) > 0 && !a.depositConfirmed) dits.push('un acompte attend d’être vérifié');\n", apres: '' },
+  { nom: 'passe au comptoir n est pas dit', fichier: P, avant: "  if (soignee?.passeAuComptoir || payeuse?.passeAuComptoir) dits.push('elle règle d’habitude au comptoir');\n", apres: '' },
   /* La fonction, la migration, le Trone (lus sur le disque). */
   { nom: 'la marque s ecrit sans condition', fichier: FN, avant: ".eq('id', frais.id).eq('updated_at', frais.updated_at).select('id, branch_id, data, updated_at');", apres: ".eq('id', frais.id).select('id, branch_id, data, updated_at');", disque: true },
   { nom: 'la decision ne se rejuge pas sur la ligne fraiche', fichier: FN, avant: 'if (!decisionsDuCaissier(faitsDuCaissier(constatsFrais, rdvsFrais)).some((x) => x.cle === d.cle))', apres: 'if (false)', disque: true },
@@ -66,12 +56,10 @@ const PANNES = [
   { nom: 'eteint, la fonction travaille', fichier: FN, avant: 'if (caisse && !reglagesCaissier.actif) {', apres: 'if (false) {', disque: true },
   { nom: '0207 : le caissier a chaque minute', fichier: SQL, avant: "'*/5 6-22 * * *'", apres: "'* 6-22 * * *'", disque: true },
   { nom: '0207 : le moment oublie', fichier: SQL, avant: `'{"source":"cron","moment":"caisse"}'::jsonb`, apres: `'{"source":"cron"}'::jsonb`, disque: true },
-  { nom: 'deux postes ecrivent la piece', fichier: MAIN, avant: "? ecriture.is('data->caissier->>pieceLe', null)", apres: '? ecriture', disque: true },
-  { nom: 'la main du caissier ne relit pas la ligne', fichier: MAIN, avant: 'if (!d || !pieceDuCaissierAEcrire(d as never, false)) return;', apres: 'if (!d) return;', disque: true },
-  { nom: 'le Shell ne monte pas la main du caissier', fichier: SHELL, avant: '  useLeCaissier();', apres: '', disque: true },
-  { nom: 'le papier du caissier attend le matin', fichier: MAINGR, avant: '? { partA: Date.now() + REGLES_PAR_DEFAUT.salleMin * 60_000, calme: false }', apres: '? heureDeDepart(Date.now(), REGLES_PAR_DEFAUT)', disque: true },
-  { nom: 'le facteur retient la nuit le papier du caissier', fichier: MAINGR, avant: "...(duCaissier ? { parLaMain: true } : {})", apres: '', disque: true },
-  { nom: 'retenir ne dit plus qui', fichier: LJ, avant: 'retenueLe: new Date().toISOString(), retenuePar: moi', apres: 'retenueLe: new Date().toISOString()', disque: true },
+  { nom: 'tout le personnel voit « Envoyer sa facture »', fichier: LJ, avant: '{souverain && l.peutEnvoyer && <button type="button" className="lj-g" data-geste="envoyer-sa-facture"', apres: '{l.peutEnvoyer && <button type="button" className="lj-g" data-geste="envoyer-sa-facture"', disque: true },
+  { nom: 'le geste d envoi ne garde pas la direction', fichier: LJ, avant: "const envoieSaFacture = (rdvId: string) => {\n    if (!souverain) { toast('La direction seule autorise l’envoi d’une facture.'); return; }", apres: 'const envoieSaFacture = (rdvId: string) => {', disque: true },
+  { nom: 'les factures a autoriser ne se montrent pas', fichier: LJ, avant: 'data-lj="a-autoriser"', apres: 'data-lj="autre"', disque: true },
+  { nom: 'le recu du caissier attend le matin', fichier: MAINGR, avant: '? { partA: Date.now() + REGLES_PAR_DEFAUT.salleMin * 60_000, calme: false }', apres: '? heureDeDepart(Date.now(), REGLES_PAR_DEFAUT)', disque: true },
 ];
 
 const md5 = (rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');

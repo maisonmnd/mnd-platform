@@ -2,10 +2,7 @@ import { Card, toast } from '../../../../ds/components';
 import { useSettings } from '../../../../shared/settings';
 import { useStaff as useMaTete } from '../../../../shared/auth';
 import { HEURES_DE_LA_CLOTURE_PAR_DEFAUT, heuresDeLaCloture } from '../../../../shared/cloture-du-jour-pur';
-import { DELAIS_DE_LA_FACTURE, reglagesDuCaissier } from '../../../../shared/le-caissier-pur';
-
-/** Un délai dit : « 30 min », « 1 h », « 2 h », « Jamais seule ». */
-const delaiDit = (m: number): string => (m <= 0 ? 'Jamais seule' : m % 60 === 0 ? `${m / 60} h` : `${m} min`);
+import { reglagesDuCaissier } from '../../../../shared/le-caissier-pur';
 
 /* ══ LES HEURES DE LA CLÔTURE DE GRENAT — 4 novembre 2026 ═══════════════
    Maquette 9KCMgAb1… : « 15 h et 19 h, réglables dans Paramètres ». Deux
@@ -40,9 +37,9 @@ export function CarteClotureDeGrenat() {
     ecris([...heures, h]);
   };
 
-  /* LE CAISSIER (13 novembre 2026) : allumé ou éteint, et le délai de la facture seule. */
+  /* LE CAISSIER (13 novembre 2026) : allumé ou éteint. Aucune facture ne part sans la direction (14 novembre 2026). */
   const caissier = reglagesDuCaissier(settings.caissier);
-  const ecrisLeCaissier = (suivant: { actif?: boolean; factureApresMin?: number }, dit: string) => {
+  const ecrisLeCaissier = (suivant: { actif?: boolean }, dit: string) => {
     if (!direction) { toast('Ce réglage appartient à la direction.'); return; }
     setSettings({ ...settings, caissier: { ...caissier, ...suivant } });
     toast(dit);
@@ -52,7 +49,7 @@ export function CarteClotureDeGrenat() {
     <Card className="sys-section" data-carte="cloture-de-grenat">
       <div className="sys-section__title">La clôture de Grenat</div>
       <div className="sys-section__cap">
-        Aux heures choisies, Grenat relit chaque rendez-vous et chaque facture du jour, fait ses trois gestes sûrs et prévient la direction et la personne au comptoir. Deux heures au plus ; par défaut {HEURES_DE_LA_CLOTURE_PAR_DEFAUT.map((h) => `${h} h`).join(' et ')}. Un rendez-vous fini après la dernière se relit au mot de 7 h.
+        Aux heures choisies, Grenat relit chaque rendez-vous et chaque facture du jour, fait ses trois gestes sûrs (le reçu d’un paiement, jamais une facture à régler : elle attend votre « Envoyer » dans La journée) et prévient la direction et la personne au comptoir. Deux heures au plus ; par défaut {HEURES_DE_LA_CLOTURE_PAR_DEFAUT.map((h) => `${h} h`).join(' et ')}. Un rendez-vous fini après la dernière se relit au mot de 7 h.
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }} role="group" aria-label="Les heures de la clôture">
         {CHOIX.map((h) => (
@@ -76,7 +73,7 @@ export function CarteClotureDeGrenat() {
 
       <div className="sys-section__title" style={{ marginTop: 18 }} data-carte="le-caissier">Le caissier</div>
       <div className="sys-section__cap">
-        Entre deux clôtures, Grenat passe toutes les cinq minutes. Seul : il honore un rendez-vous réglé en entier, relie une facture, envoie le reçu quinze minutes après l’encaissement. Quinze minutes après la fin d’un rituel où rien n’est encaissé, il prévient le comptoir ; au délai choisi, la facture s’écrit au tarif de sa tête et part sur son WhatsApp, même après la fermeture, jamais après 23 h, jamais à une cliente « passe au comptoir ». Il n’encaisse jamais d’espèces.
+        Entre deux clôtures, Grenat passe toutes les cinq minutes. Seul : il honore un rendez-vous réglé en entier, relie une facture, envoie le reçu quinze minutes après l’encaissement. Quinze minutes après la fin d’un rituel où rien n’est encaissé, même après la fermeture, il prévient le comptoir et la direction. Il n’envoie jamais une facture à régler : elle part quand la direction touche « Envoyer sa facture » dans La journée. Il n’encaisse jamais d’espèces.
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }} role="group" aria-label="Le caissier">
         <button
@@ -89,22 +86,8 @@ export function CarteClotureDeGrenat() {
           {caissier.actif ? 'Allumé' : 'Éteint'}
         </button>
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }} role="group" aria-label="La facture part seule après">
-        {DELAIS_DE_LA_FACTURE.map((m) => (
-          <button
-            key={m}
-            type="button"
-            className={`trv-pill ${caissier.factureApresMin === m ? 'is-active' : ''}`}
-            aria-pressed={caissier.factureApresMin === m}
-            disabled={!direction || !caissier.actif}
-            onClick={() => ecrisLeCaissier({ factureApresMin: m }, m > 0 ? `La facture partira seule ${delaiDit(m)} après la fin du rituel.` : 'La facture ne partira jamais seule : le comptoir est seulement prévenu.')}
-          >
-            {delaiDit(m)}
-          </button>
-        ))}
-      </div>
       <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10 }}>
-        En ce moment : {caissier.actif ? `allumé ; la facture ${caissier.factureApresMin > 0 ? `part seule ${delaiDit(caissier.factureApresMin)} après la fin` : 'ne part jamais seule'}` : 'éteint'}.{direction ? '' : ' La direction seule le règle.'}
+        En ce moment : {caissier.actif ? 'allumé' : 'éteint'}.{direction ? '' : ' La direction seule le règle.'}
       </div>
     </Card>
   );
