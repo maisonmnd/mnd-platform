@@ -271,7 +271,9 @@ dit('le soir du 2, elles finissent le 3 a 8 h', iso(salon('2026-10-03', '08:00')
 {
   const sansCommentaires = (f: string) => readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ');
   const ecran = sansCommentaires('src/apps/trone/routes/clients/SalleDesEnvois.tsx');
-  dit('le geste ne passe que si la ligne est encore dans l etat montre', true, /\.update\(\{ data: apres \}\)\.eq\('id', id\)\.eq\('data->>statut', ligne\.statut\)\.select\('id'\)/.test(ecran));
+  /* La ligne ecrite revient depuis le 15 novembre 2026 (`id, data, updated_at`) :
+     l'ecran la montre aussitot, sans attendre le direct. La condition, elle, ne bouge pas. */
+  dit('le geste ne passe que si la ligne est encore dans l etat montre', true, /\.update\(\{ data: apres \}\)\.eq\('id', id\)\.eq\('data->>statut', ligne\.statut\)\.select\('id(?:, data, updated_at)?'\)/.test(ecran));
   /* Deux écritures au magasin depuis le 23 octobre (le geste, la reprise de
      date) : toutes deux réservées au poste sans serveur. */
   dit('avec un serveur, l ecran n ecrit pas dans le magasin (sa poussee pourrait remettre en attente un message parti)', 2, (ecran.match(/envoisStore\.set\(/g) ?? []).length);

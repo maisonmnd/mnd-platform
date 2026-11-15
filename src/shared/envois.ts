@@ -185,11 +185,32 @@ export function motifEnClair(e: Pick<EnvoiLu, 'statut' | 'detail' | 'codeMeta' |
 
 /* ── LE JOUR, À L'HEURE DU SALON ─────────────────────────────────────────
    `quand` est un instant UTC. À 00 h 30 à Cotonou, il est encore 23 h 30 la
-   veille en UTC : lire la date brute rangerait l'envoi du matin dans hier. */
+   veille en UTC : lire la date brute rangerait l'envoi du matin dans hier.
+
+   UN SEUL FORMATEUR PAR FUSEAU — 15 novembre 2026. « Quand j'appuie le
+   bouton Retenir ou Envoyer quand même, rien ne se passe » (Yéman). Mesuré
+   en ligne sur Perle › Conversations : la page gelait de 20 à 52 secondes.
+   `toLocaleDateString` avec un fuseau fabrique un formateur Intl à chaque
+   appel (0,1 à 0,3 ms), et le journal en faisait quatre par envoi à chaque
+   rendu : 48 000 appels en 50 secondes, près de dix secondes de calcul,
+   pendant lesquelles aucun clic ne passe. Le formateur se garde, et le jour
+   d'un instant déjà lu se retient (le journal relit les mêmes envois à
+   chaque rendu) : même texte, bien moins cher (`verifie-la-salle-qui-repond`). */
+const formateursDuJour = new Map<string, Intl.DateTimeFormat>();
+const joursDejaLus = new Map<string, string>();
 export const jourDuSalon = (iso: string, fuseau = 'Africa/Porto-Novo'): string => {
+  const cle = `${fuseau}|${iso}`;
+  const deja = joursDejaLus.get(cle);
+  if (deja !== undefined) return deja;
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return '';
-  return new Date(t).toLocaleDateString('en-CA', { timeZone: fuseau });
+  let f = formateursDuJour.get(fuseau);
+  if (!f) { f = new Intl.DateTimeFormat('en-CA', { timeZone: fuseau }); formateursDuJour.set(fuseau, f); }
+  const jour = f.format(t);
+  /* Une mémoire bornée : vingt mille instants, puis on repart de zéro. */
+  if (joursDejaLus.size >= 20_000) joursDejaLus.clear();
+  joursDejaLus.set(cle, jour);
+  return jour;
 };
 
 /** Le jour « AAAA-MM-JJ » décalé de `n` jours. */

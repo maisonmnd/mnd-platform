@@ -723,6 +723,20 @@ const ecouteLeDirect = (table: string, surChangement: EcouteDeTable, relit: () =
   rejointLeCanalDeLaMaison();
 };
 
+/* ══ CE QUE LE SERVEUR VIENT DE CONFIRMER — 15 novembre 2026 ═════════════
+   « Quand j'appuie le bouton Retenir, rien ne se passe ; il finit par partir
+   avec beaucoup de retard » (Yéman). Les gestes de la salle s'écrivent au
+   serveur sous condition, jamais par le magasin (sa poussée réécrirait la
+   ligne entière) : l'écran attendait donc le direct pour montrer le geste,
+   des secondes quand le canal traîne, une minute quand il est à terre. On
+   reclique, la deuxième écriture trouve « retenu » et l'écran dit « trop
+   tard ». La ligne que l'écriture RENVOIE est la vérité du serveur : elle
+   s'applique ici exactement comme si le direct l'apportait (même garde, même
+   repère, aucune poussée), et le direct, quand il arrive, n'apprend rien. */
+export function appliqueCommeLeDirect(table: string, ligne: { id: string; data: unknown; updated_at?: string }): void {
+  ecoutesParTable.get(table)?.({ eventType: 'UPDATE', new: ligne, old: {} } as Parameters<EcouteDeTable>[0]);
+}
+
 export const tablePrete = (t: string): boolean => !supabase || tablesResolues.has(t);
 /** Appelle `fn` dès que la table est prête — tout de suite si elle l'est déjà. */
 export function quandTablePrete(t: string, fn: () => void): void {

@@ -192,6 +192,24 @@ export function quandIlPart(e: Pick<EnvoiEnSalle, 'partA' | 'calme'>, maintenant
   return `part à ${hh} h${mm > 0 ? ` ${String(mm).padStart(2, '0')}` : ''}`;
 }
 
+/** QUAND IL PARTIRA VRAIMENT — 15 novembre 2026. La salle disait « part à
+    l'instant » à 7 h 44 d'un message que le facteur ne porte qu'à 8 h : son
+    heure était passée, mais les heures calmes le retenaient, et rien ne le
+    disait. La règle est celle de `peutPartir` : pendant les heures calmes,
+    seul part ce qu'une main a demandé, ou un envoi programmé (son heure
+    exacte, même la nuit). L'écran seul s'en sert ; le facteur n'en change pas. */
+export function departReel(
+  e: Pick<EnvoiEnSalle, 'partA' | 'calme' | 'parLaMain'> & { type?: string },
+  maintenantMs: number, r: ReglesDeLaSalle,
+): { partA: string; calme: boolean } | null {
+  const t = Date.parse(e.partA ?? '');
+  if (!Number.isFinite(t)) return null;
+  if (e.parLaMain === true || e.type === 'programme') return { partA: new Date(t).toISOString(), calme: false };
+  const des = Math.max(t, maintenantMs);
+  if (!dansLesHeuresCalmes(des, r)) return { partA: new Date(t).toISOString(), calme: e.calme === true };
+  return { partA: new Date(finDesHeuresCalmes(des, r)).toISOString(), calme: true };
+}
+
 /** LE RENDEZ-VOUS A-T-IL BOUGÉ PENDANT L'ATTENTE ? Le facteur relit avant de
     porter : un rendez-vous disparu, annulé, déplacé ou déjà passé ne reçoit
     pas le message qu'on lui destinait. Rend le motif, ou `null` si tout tient. */

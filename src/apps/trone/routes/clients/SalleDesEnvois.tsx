@@ -25,11 +25,12 @@ import { useClients } from '../../../../shared/clients';
 import { useAppointments } from '../../../../shared/agenda';
 import { useAuth, useMaTete } from '../../../../shared/auth';
 import { supabase } from '../../../../shared/supabase';
+import { appliqueCommeLeDirect } from '../../../../shared/sync';
 import { heureLisible } from '../../../../shared/rappel';
-import { typeDit, canalDit } from '../../../../shared/envois';
+import { typeDit, canalDit, jourDuSalon } from '../../../../shared/envois';
 import {
-  EN_ATTENTE, RETENU, reglesDepuis, retiens, relache, envoieMaintenant, ecarte,
-  quandIlPart, facteurVivant, heureDuSalon, recolleLeColis, type ReglesDeLaSalle,
+  EN_ATTENTE, RETENU, ECARTE, reglesDepuis, retiens, relache, envoieMaintenant, ecarte,
+  quandIlPart, departReel, facteurVivant, heureDuSalon, recolleLeColis, type ReglesDeLaSalle,
 } from '../../../../shared/salle-des-envois';
 import { programmeDansLaSalle } from '../../../../shared/envois-programmes-pur';
 import { envoisStore, useEnvois, useAutoConfig, type Envoi } from '../equipe/data';
@@ -61,10 +62,32 @@ export async function gesteDeLaSalle(
     return 'fait';
   }
   const { data, error } = await supabase.from('envois')
-    .update({ data: apres }).eq('id', id).eq('data->>statut', ligne.statut).select('id');
+    .update({ data: apres }).eq('id', id).eq('data->>statut', ligne.statut).select('id, data, updated_at');
   if (error) return 'panne';
-  return (data ?? []).length > 0 ? 'fait' : 'trop-tard';
+  const ecrite = (data ?? [])[0] as LigneDuServeur | undefined;
+  /* LE GESTE SE VOIT TOUT DE SUITE (15 novembre 2026) : la ligne que le
+     serveur vient d'écrire s'applique comme le direct l'apporterait. */
+  if (ecrite) { appliqueCommeLeDirect('envois', ecrite); return 'fait'; }
+  /* RIEN N'A ÉTÉ ÉCRIT : la ligne n'était plus dans l'état que l'écran
+     montrait. On relit ce qu'elle est devenue, l'écran le montre, et si une
+     autre main (ou un premier clic) a déjà fait le même geste, c'est fait. */
+  const { data: relue } = await supabase.from('envois').select('id, data, updated_at').eq('id', id).limit(1);
+  const vraie = (relue ?? [])[0] as LigneDuServeur | undefined;
+  if (!vraie) return 'trop-tard';
+  appliqueCommeLeDirect('envois', vraie);
+  return gesteDejaFait(geste, vraie.data) ? 'fait' : 'trop-tard';
 }
+
+type LigneDuServeur = { id: string; data: Envoi; updated_at?: string };
+
+/** Le geste voulu est-il déjà ce que porte la ligne ? */
+const gesteDejaFait = (geste: Geste, l: Envoi | null | undefined): boolean => {
+  if (!l) return false;
+  if (geste === 'retenir') return l.statut === RETENU;
+  if (geste === 'ecarter') return l.statut === ECARTE;
+  if (geste === 'envoyer') return l.statut === EN_ATTENTE && l.parLaMain === true;
+  return l.statut === EN_ATTENTE;
+};
 
 /* ══ LA CONFIRMATION SUIT SON RENDEZ-VOUS — 23 octobre 2026 ══════════════
    « Le message est figé sur la date initialement prévue » (Yéman). Dès que
@@ -116,6 +139,28 @@ const heureDite = (iso?: string): string => {
   const hh = Math.floor(h); const mm = Math.floor((h - hh) * 60 + 1e-6);
   return `${hh} h${mm > 0 ? ` ${String(mm).padStart(2, '0')}` : ''}`;
 };
+/** « 7 h 57 » aujourd'hui, « 25 oct. 2026, 7 h 57 » un autre jour : un
+    message retenu depuis trois semaines ne doit pas passer pour retenu ce
+    matin. L'année toujours, comme partout où une date se dit. */
+const momentDit = (iso: string | undefined, maintenantMs: number): string => {
+  const heure = heureDite(iso);
+  if (!heure) return '';
+  const jour = jourDuSalon(iso ?? '');
+  if (!jour || jour === jourDuSalon(new Date(maintenantMs).toISOString())) return heure;
+  const [a, m, j] = jour.split('-').map(Number);
+  const date = new Date(Date.UTC(a, m - 1, j, 12)).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  return `${date}, ${heure}`;
+};
+
+/** Plusieurs gestes à la fois, six au plus en vol : « Tout effacer » sur
+    quarante-huit lignes ne doit pas attendre quarante-huit allers-retours. */
+async function parPaquets<T>(ids: readonly string[], fais: (id: string) => Promise<T>, enVol = 6): Promise<T[]> {
+  const res: T[] = [];
+  let i = 0;
+  const ouvrier = async () => { while (i < ids.length) { const k = i++; res[k] = await fais(ids[k]); } };
+  await Promise.all(Array.from({ length: Math.min(enVol, ids.length) }, ouvrier));
+  return res;
+}
 
 /** LE FACTEUR EST-IL VIVANT ? Lu directement, une fois par minute : c'est un
     signe de vie, pas une donnée de la Maison, il n'a rien à faire dans un
@@ -147,7 +192,12 @@ export function SalleDesEnvois() {
   const [cfg] = useAutoConfig();
   const regles = useMemo(() => reglesDepuis(cfg), [cfg]);
   const facteur = useFacteur();
-  const [enCours, setEnCours] = useState<string | null>(null);
+  /* CHAQUE LIGNE SON GESTE (15 novembre 2026) : un geste en vol figeait TOUS
+     les boutons de la salle, et un serveur lent faisait croire la salle
+     morte. Seule la ligne touchée attend ; « tous » fige le reste. */
+  const [enCours, setEnCours] = useState<ReadonlySet<string>>(() => new Set());
+  const [toutEnCours, setToutEnCours] = useState(false);
+  const [effacerTout, setEffacerTout] = useState(false);
   const [mot, setMot] = useState('');
   /* Le compte à rebours avance sans qu'aucun magasin ne bouge. */
   const [, bat] = useState(0);
@@ -167,20 +217,25 @@ export function SalleDesEnvois() {
     [envois, branch.id],
   );
   const attendent = enSalle.filter((e) => e.statut === EN_ATTENTE);
+  const tenus = enSalle.filter((e) => e.statut === RETENU);
   const maintenant = Date.now();
 
   const fais = async (ids: string[], geste: Geste) => {
-    setEnCours(ids.length === 1 ? ids[0] : 'tous');
+    const tous = ids.length > 1;
+    if (tous) setToutEnCours(true);
+    setEnCours((s) => new Set([...s, ...ids]));
     setMot('');
-    let tropTard = 0; let pannes = 0;
-    for (const id of ids) {
-      const v = await gesteDeLaSalle(id, geste, qui, regles);
-      if (v === 'trop-tard') tropTard += 1;
-      if (v === 'panne') pannes += 1;
+    let verdicts: Verdict[] = [];
+    try {
+      verdicts = await parPaquets(ids, (id) => gesteDeLaSalle(id, geste, qui, regles).catch((): Verdict => 'panne'));
+    } finally {
+      setEnCours((s) => { const n = new Set(s); for (const id of ids) n.delete(id); return n; });
+      if (tous) { setToutEnCours(false); setEffacerTout(false); }
     }
-    setEnCours(null);
-    setMot(pannes > 0 ? 'Le serveur n’a pas répondu : le geste n’est pas passé. Réessayez.'
-      : tropTard > 0 ? (ids.length === 1 ? 'Trop tard : ce message vient de partir.' : `${tropTard} message${tropTard > 1 ? 's étaient déjà partis' : ' était déjà parti'}.`)
+    const tropTard = verdicts.filter((v) => v === 'trop-tard').length;
+    const pannes = verdicts.filter((v) => v === 'panne').length;
+    setMot(pannes > 0 ? `Le serveur n’a pas répondu${tous ? ` pour ${pannes} message${pannes > 1 ? 's' : ''}` : ''} : le geste n’est pas passé. Réessayez.`
+      : tropTard > 0 ? (!tous ? 'Trop tard : ce message vient de partir.' : `${tropTard} message${tropTard > 1 ? 's étaient déjà partis' : ' était déjà parti'}.`)
         : '');
   };
 
@@ -193,12 +248,43 @@ export function SalleDesEnvois() {
         <span className="mnd-muted" style={{ fontSize: 12.5 }}>
           Un message y reste {regles.salleMin} minutes. Passé ce délai, il part seul, sauf si une main l’a retenu.
         </span>
-        {attendent.length > 1 && (
-          <Button variant="ghost" size="sm" style={{ marginLeft: 'auto' }} disabled={enCours !== null} onClick={() => void fais(attendent.map((e) => e.id), 'retenir')}>
-            Tout retenir
-          </Button>
+        {(attendent.length > 1 || tenus.length > 1) && (
+          <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
+            {attendent.length > 1 && (
+              <Button variant="ghost" size="sm" disabled={toutEnCours} onClick={() => void fais(attendent.map((e) => e.id), 'retenir')}>
+                Tout retenir
+              </Button>
+            )}
+            {/* EFFACER LES RETENUS (15 novembre 2026) : « quand j'ai des messages
+                que j'ai retenus, me donner la possibilité de les effacer pour ne
+                plus les voir » (Yéman). Ils ne partiront jamais ; le journal les
+                garde, rangés « écartés ». */}
+            {tenus.length > 1 && !effacerTout && (
+              <Button variant="ghost" size="sm" disabled={toutEnCours} onClick={() => setEffacerTout(true)}>
+                Effacer les {tenus.length} retenus
+              </Button>
+            )}
+          </span>
         )}
       </div>
+
+      {effacerTout && (
+        <div
+          role="alertdialog"
+          aria-label="Effacer les messages retenus"
+          style={{ marginTop: 12, padding: '12px 14px', border: '1px solid var(--copper-300)', borderRadius: 3, background: 'var(--color-ivoire, #F6F1E7)', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}
+        >
+          <span style={{ fontSize: 13, color: 'var(--color-indigo)', lineHeight: 1.5, flex: '1 1 260px' }}>
+            Les {tenus.length} messages retenus ne partiront jamais. Ils quittent la salle et restent au journal, rangés « écartés ».
+          </span>
+          <span style={{ display: 'inline-flex', gap: 8 }}>
+            <Button variant="copper" size="sm" disabled={toutEnCours} onClick={() => void fais(tenus.map((e) => e.id), 'ecarter')}>
+              {toutEnCours ? 'Effacement…' : `Effacer les ${tenus.length}`}
+            </Button>
+            <Button variant="ghost" size="sm" disabled={toutEnCours} onClick={() => setEffacerTout(false)}>Garder</Button>
+          </span>
+        </div>
+      )}
 
       {facteur === 'absent' && (
         <div style={{ marginTop: 10, fontSize: 12.5, color: 'var(--copper-700)', lineHeight: 1.5 }}>
@@ -212,9 +298,12 @@ export function SalleDesEnvois() {
         const fiche = e.clientId ? ficheDe.get(e.clientId) : undefined;
         const nom = fiche?.name ?? e.prenom ?? 'Une cliente';
         const tenu = e.statut === RETENU;
+        const occupe = toutEnCours || enCours.has(e.id);
+        const depart = tenu ? null : departReel(e, maintenant, regles);
         return (
           <div
             key={e.id}
+            data-envoi={e.id}
             style={{
               display: 'grid', gridTemplateColumns: 'minmax(96px, 124px) minmax(0, 1fr) auto', gap: 14, alignItems: 'center',
               padding: '12px 0', marginTop: 10, borderTop: '1px solid var(--copper-300)',
@@ -224,14 +313,16 @@ export function SalleDesEnvois() {
               {tenu ? (
                 <>
                   <span style={{ display: 'inline-block', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: 999, background: 'var(--color-copper)', color: '#fff' }}>retenu</span>
-                  <span style={{ display: 'block', marginTop: 3 }}>{e.retenuPar ? `par ${e.retenuPar}` : ''}{e.retenuLe ? `, ${heureDite(e.retenuLe)}` : ''}</span>
+                  <span style={{ display: 'block', marginTop: 3 }}>{e.retenuPar ? `par ${e.retenuPar}` : ''}{e.retenuLe ? `${e.retenuPar ? ', ' : ''}${momentDit(e.retenuLe, maintenant)}` : ''}</span>
                 </>
               ) : (
                 <>
                   <span style={{ display: 'block', fontFamily: 'var(--font-serif)', fontSize: 19, lineHeight: 1.1, color: 'var(--color-indigo)' }}>
-                    {quandIlPart(e, maintenant)}
+                    {depart ? quandIlPart(depart, maintenant) : quandIlPart(e, maintenant)}
                   </span>
-                  {e.calme ? <span style={{ display: 'block', marginTop: 2 }}>heures calmes</span> : <span style={{ display: 'block', marginTop: 2 }}>à {heureDite(e.partA)}</span>}
+                  <span style={{ display: 'block', marginTop: 2 }}>
+                    {e.parLaMain ? 'demandé à la main : le facteur passe chaque minute' : depart?.calme ? 'heures calmes' : `à ${heureDite(depart?.partA ?? e.partA)}`}
+                  </span>
                 </>
               )}
             </div>
@@ -247,24 +338,28 @@ export function SalleDesEnvois() {
               )}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {tenu ? (
+              {occupe ? (
+                <span aria-live="polite" style={{ fontSize: 12.5, color: 'var(--copper-700)', padding: '6px 2px' }}>Un instant…</span>
+              ) : tenu ? (
                 <>
-                  <Button variant="ghost" size="sm" disabled={enCours !== null} onClick={() => void fais([e.id], 'relacher')}>Relâcher</Button>
-                  <button
-                    type="button"
-                    disabled={enCours !== null}
+                  <Button variant="ghost" size="sm" onClick={() => void fais([e.id], 'relacher')}>Relâcher</Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    title="Il ne partira jamais. Il quitte la salle et reste au journal, rangé « écarté »."
                     onClick={() => void fais([e.id], 'ecarter')}
-                    style={{ font: 'inherit', fontSize: 12.5, color: 'var(--copper-700)', background: 'transparent', border: 'none', padding: '6px 2px', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}
                   >
-                    Ne jamais l’envoyer
-                  </button>
+                    Effacer
+                  </Button>
                 </>
               ) : (
                 <>
-                  <Button variant="copper" size="sm" disabled={enCours !== null} onClick={() => void fais([e.id], 'retenir')}>Retenir</Button>
-                  <Button variant="ghost" size="sm" disabled={enCours !== null} onClick={() => void fais([e.id], 'envoyer')}>
-                    {e.calme ? 'Envoyer quand même' : 'Envoyer maintenant'}
-                  </Button>
+                  <Button variant="copper" size="sm" onClick={() => void fais([e.id], 'retenir')}>Retenir</Button>
+                  {!e.parLaMain && (
+                    <Button variant="ghost" size="sm" onClick={() => void fais([e.id], 'envoyer')}>
+                      {depart?.calme ? 'Envoyer quand même' : 'Envoyer maintenant'}
+                    </Button>
+                  )}
                 </>
               )}
             </div>

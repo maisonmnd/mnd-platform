@@ -112,13 +112,21 @@ export function EnvoisAutomatiques({ onOuvrirLeFil, typeInitial, jourInitial, on
     () => envois.filter((e) => e && (!e.branchId || e.branchId === branch.id)),
     [envois, branch.id],
   );
-  const periode = envoisDeLaPeriode(ici, filtre.jour, aujourdhui);
-  const compte = compteDuJournal(periode);
-  const lignes = lignesDuJournal(ici, filtre, aujourdhui);
+  /* LE JOURNAL SE CALCULE QUAND IL CHANGE, PAS À CHAQUE RENDU (15 novembre
+     2026) : quatre lectures du journal entier à chaque battement de la page,
+     et la salle d'attente, juste au-dessus, ne répondait plus aux clics. */
+  const { periode, compte, lignes, surLaSemaine, surTrenteJours } = useMemo(() => {
+    const p = envoisDeLaPeriode(ici, filtre.jour, aujourdhui);
+    return {
+      periode: p,
+      compte: compteDuJournal(p),
+      lignes: lignesDuJournal(ici, filtre, aujourdhui),
+      surLaSemaine: envoisDeLaPeriode(ici, 'semaine', aujourdhui).length,
+      surTrenteJours: envoisDeLaPeriode(ici, '30-jours', aujourdhui).length,
+    };
+  }, [ici, filtre, aujourdhui]);
   const ficheDe = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
-  const surLaSemaine = envoisDeLaPeriode(ici, 'semaine', aujourdhui).length;
-  const surTrenteJours = envoisDeLaPeriode(ici, '30-jours', aujourdhui).length;
-  const enSalle = ici.filter((e) => e.statut === 'en-attente' || e.statut === 'retenu').length;
+  const enSalle = useMemo(() => ici.filter((e) => e.statut === 'en-attente' || e.statut === 'retenu').length, [ici]);
   const [onglet, setOnglet] = useState<OngletDesEnvois>(() => {
     const voulu = ONGLETS.find(([k]) => k === ongletInitial)?.[0];
     if (voulu) return voulu;
