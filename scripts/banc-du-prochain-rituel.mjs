@@ -169,12 +169,14 @@ dit('deux puces, le lavage choisi d office (son rythme mesuré passe devant le s
   JSON.stringify(puces) === JSON.stringify([['Lavage du banc', 'true'], ['Soin du banc', 'false']]), JSON.stringify(puces));
 dit('la raison : son rythme, lu sur ses venues', /^Son rythme : environ 2 semaines, lu sur ses 4 dernières venues\./.test(await texte('.trv-prochain__pourquoi')), await texte('.trv-prochain__pourquoi'));
 dit('rien n est posé avant de valider', (await siens()).length === 0, (await siens()).length);
-dit('« Ce qu elle reçoit » : rien tant que ce n est pas validé', (await texte('.trv-prochain__quand')).startsWith('Rien tant que le rendez-vous n’est pas validé.'));
+/* Depuis le 15 novembre 2026, « Suggéré par la Maison » d'office : une proposition, pas une confirmation. */
+dit('« Ce qu elle reçoit » : rien tant que ce n est pas posé', (await texte('.trv-prochain__quand')).startsWith('Rien tant que vous ne la posez pas.'), await texte('.trv-prochain__quand'));
 await capture('caisse-carte-proposee', 1280, 1500, false);
 
 /* ── 3. LA PLACE PARTIE ENTRE-TEMPS : deux rendez-vous écrits après l'affichage ── */
 const laDate = await enGrand();
-const isoDeLaCarte = jourPlus(14);
+/* Un dimanche (la Maison fermée, heures par défaut), deux semaines tombent un dimanche : la carte propose le lundi (15 novembre 2026). */
+const isoDeLaCarte = new Date(`${jourPlus(14)}T12:00:00`).getDay() === 0 ? jourPlus(15) : jourPlus(14);
 const ditLeJour = (iso) => evalue(`(() => { const s = new Date('${iso}T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); return s.charAt(0).toUpperCase() + s.slice(1); })()`);
 dit('la date proposée est sa date : deux semaines après, son jour, son heure', laDate === await ditLeJour(isoDeLaCarte), `${laDate} / ${await ditLeJour(isoDeLaCarte)}`);
 await evalue(`(() => {
@@ -204,8 +206,8 @@ dit('un rendez-vous et un seul est posé', poses.length === 1, poses.length);
 dit('posé confirmé, au Trône, chez Team, au prix et à la durée de la fenêtre', p?.status === 'confirmé' && p?.source === 'trone' && p?.master === 'Team' && p?.priceXof === 10000 && p?.dureeMin === 30,
   JSON.stringify({ s: p?.status, src: p?.source, m: p?.master, prix: p?.priceXof, d: p?.dureeMin }));
 dit('estampillé, et SANS confirmation tant que l écran est ouvert', !!p?.creeLe && p?.sansConfirmation === true, JSON.stringify({ creeLe: !!p?.creeLe, sans: p?.sansConfirmation }));
-dit('la pastille dit « Confirmé »', (await pastille()) === 'Confirmé', await pastille());
-dit('« Ce qu elle reçoit » montre le message, avec la date et la référence', /^Bonjour Paule, c'est confirmé : votre rendez-vous est retenu \S+ \d{1,2} \S+ \d{4} à \d{1,2} h( \d{2})?\. Votre référence : MND-[A-Z0-9]{4}\./u.test(await texte('.trv-prochain__bulle')), await texte('.trv-prochain__bulle'));
+dit('la pastille dit « Suggéré », le rendez-vous porte sa marque', (await pastille()) === 'Suggéré' && !!p?.suggereLe, await pastille());
+dit('« Ce qu elle reçoit » montre la proposition, avec la date et ses gestes', /^Bonjour Paule, merci pour votre visite\. Pour garder le rythme de vos locks, nous vous proposons votre prochain rituel le \S+ \d{1,2} \S+ \d{4} à \d{1,2} h( \d{2})? : Lavage du banc\./u.test(await texte('.trv-prochain__bulle')), await texte('.trv-prochain__bulle'));
 dit('« Changer la date ou l heure » ouvre trois places', await clique('.trv-prochain__bouton', 'Changer la date ou l’heure'));
 await attend(500);
 const places = await evalue(`[...document.querySelectorAll('.trv-prochain__modif .trv-prochain__place')].map((b) => ({ iso: b.dataset.iso, heure: b.dataset.heure, on: b.getAttribute('aria-pressed') }))`);
@@ -217,7 +219,7 @@ poses = await siens();
 p = poses[0];
 dit('une autre place déplace le même rendez-vous, sans en poser un second', poses.length === 1 && p?.date === autre?.iso && p?.time === autre?.heure && p?.sansConfirmation === true,
   JSON.stringify(poses.map((a) => `${a.date} ${a.time} ${a.sansConfirmation}`)));
-dit('la pastille dit « Confirmé · changé »', (await pastille()) === 'Confirmé · changé', await pastille());
+dit('la pastille dit « Suggéré · changé »', (await pastille()) === 'Suggéré · changé', await pastille());
 
 /* ── 5. « TICKET SUIVANT » : LA CONFIRMATION PART, UNE FOIS ── */
 dit('« Ticket suivant » passe par la carte', await clique('.trv-reussite__boutons button', 'Ticket suivant'));
@@ -228,7 +230,7 @@ dit('le ticket suivant repart', !(await evalue(`!!document.querySelector('.trv-r
 
 /* ── 6. SON RENDEZ-VOUS DÉJÀ POSÉ SE MONTRE ── */
 dit('un second lavage se règle', await encaisse('Paule', 'Paule A.', 'Lavage du banc', '10'));
-dit('son rendez-vous déjà posé se montre, confirmé', (await pastille()) === 'Confirmé' && (await texte('.trv-prochain__pourquoi')).startsWith('Un rituel, un seul prochain rendez-vous'), `${await pastille()} · ${await texte('.trv-prochain__pourquoi')}`);
+dit('son rendez-vous déjà posé se montre, toujours suggéré', (await pastille()) === 'Suggéré' && (await texte('.trv-prochain__pourquoi')).startsWith('Un rituel, un seul prochain rendez-vous'), `${await pastille()} · ${await texte('.trv-prochain__pourquoi')}`);
 dit('« Ce qu elle reçoit » : rien de plus', (await texte('.trv-prochain__quand')).startsWith('Rien de plus'), await texte('.trv-prochain__quand'));
 dit('« Ticket suivant »', await clique('.trv-reussite__boutons button', 'Ticket suivant'));
 await attend(800);

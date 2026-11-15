@@ -177,14 +177,21 @@ export const JOURS_AVANT_LA_REPRISE = 3;
 export type RepriseProposable = {
   id: string; date: string; status: string; clientId?: string;
   repriseDe?: string; confirmeeParLaClienteLe?: string; autreMomentDemandeLe?: string;
+  /** LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : seule une suggestion se relance. */
+  suggereLe?: string;
 };
 
 /** Les reprises à proposer le jour `dansTroisJours` : posées d'office par la
     Maison, toujours confirmées, rattachées à une fiche, et auxquelles la
     cliente n'a pas encore répondu. Un rendez-vous qu'elle a pris elle-même
-    n'est pas une reprise : elle sait déjà qu'elle vient. */
+    n'est pas une reprise : elle sait déjà qu'elle vient.
+
+    DEPUIS LE 15 NOVEMBRE 2026 (le rendez-vous suggéré, arbitrage B) : seule
+    une SUGGESTION se relance (`suggereLe`, posée par la seconde étape de
+    « C'est réglé ») ; les reprises posées avant restent « Confirmé », sans
+    message. */
 export const reprisesAProposer = <T extends RepriseProposable>(appts: readonly T[], dansTroisJours: string): T[] =>
-  appts.filter((a) => a.date === dansTroisJours && a.status === 'confirmé' && !!a.clientId && !!a.repriseDe
+  appts.filter((a) => a.date === dansTroisJours && a.status === 'confirmé' && !!a.clientId && !!a.suggereLe
     && !a.confirmeeParLaClienteLe && !a.autreMomentDemandeLe);
 
 /** Ce que le bouton porte : « REPRISE_OK:<rdv> » ou « REPRISE_AUTRE:<rdv> ».

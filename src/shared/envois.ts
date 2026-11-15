@@ -26,7 +26,10 @@ export type TypeDEnvoi = 'accuse' | 'confirmation' | 'rappel-j1' | 'avis-google'
      de genre `veille-attention`. */
   | 'apres-seance'
   /* Les envois programmés (13 novembre 2026) : « Programmer un WhatsApp ». */
-  | 'programme';
+  | 'programme'
+  /* La proposition du rendez-vous suggéré, en fermant « C'est réglé »
+     (15 novembre 2026, confirmation-rdv). */
+  | 'proposition';
 
 /** Ce que le journal lit d'une ligne `envois`. Les champs viennent de
     fonctions différentes, écrites à des dates différentes : tous facultatifs
@@ -95,7 +98,9 @@ export const TYPE_DIT: Record<string, string> = {
   'rappel-j1': 'Rappel de la veille',
   'avis-google': 'Demande d’avis',
   'fin-de-paquet': 'Fin de paquet',
-  'reprise-j3': 'Reprise proposée',
+  'reprise-j3': 'Relance de la proposition',
+  /* Le rendez-vous suggéré (15 novembre 2026). */
+  proposition: 'Proposition du prochain rituel',
   /* Entre deux séances, sur WhatsApp (17 octobre 2026). */
   'point-apres': 'Point d’après séance',
   'point-avant': 'Point d’avant séance',
@@ -254,7 +259,8 @@ export const estEnvoiAutomatique = (parQui?: string): boolean =>
 const MODELE_DIT: Record<string, string> = {
   rappel_rdv: 'rappel de la veille',
   confirmation_rdv: 'confirmation',
-  reprise_proposee: 'reprise proposée',
+  reprise_proposee: 'relance de la proposition',
+  proposition_rituel: 'proposition du prochain rituel',
   demande_recue: 'accusé de demande',
   avis_google: 'demande d’avis',
   bulletin_du_mois: 'bulletin de paie',

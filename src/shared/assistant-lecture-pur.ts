@@ -10,6 +10,7 @@
    la direction voit à l'écran, au même identifiant de ligne près. Pur :
    rien de la synchronisation, les murs de la Maison passent en argument
    (`ouverture`). `verifie-gerard` le prouve sur des fiches fabriquées. */
+import { estSuggere } from './rendez-vous-suggere-pur';
 import type { Appointment } from './agenda';
 import type { Client, Family } from './clients';
 import type { Invoice } from './finance';
@@ -160,6 +161,8 @@ export function lisLAssistant(e: EntreesDeLAssistant): CerveauDeGerard {
         familles: (a.serviceIds ?? []).map((id) => familleDuNom(nomDuService(id))),
         venu: estUneVenue({ date: a.date, status: a.status, encaisse: apptPaidXof(a) > 0, facture: !!a.invoiceId || factures.has(a.id) }, today),
         ...(parent ? { parent } : {}),
+        /* Le rendez-vous suggéré (15 novembre 2026) : Gérard ne le « garde » pas. */
+        ...(estSuggere(a) ? { suggere: true } : {}),
       };
     });
     const cad = siens.length ? predictNextVisitSelon(siens, c, c.id, today, estFerme) : null;

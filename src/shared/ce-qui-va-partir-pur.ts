@@ -113,7 +113,9 @@ export const MODELES_CONNUS: Record<string, { dit: string; sert: string; sorte: 
   confirmation_rdv_liens: { dit: 'Confirmation à liens', sert: 'Confirmer, avec la référence et deux boutons', sorte: 'rdv' },
   rappel_rdv: { dit: 'Rappel de la veille', sert: 'Le rappel de la veille', sorte: 'rdv' },
   assistant_maison_garder: { dit: 'Petit rappel, deux jours avant', sert: 'Le petit rappel, deux jours avant', sorte: 'rdv' },
-  reprise_proposee: { dit: 'Reprise proposée', sert: 'Proposer la reprise posée à la caisse', sorte: 'rdv' },
+  reprise_proposee: { dit: 'Relance de la proposition', sert: 'Relancer, trois jours avant, un rendez-vous suggéré resté sans réponse', sorte: 'rdv' },
+  /* Le rendez-vous suggéré (15 novembre 2026). */
+  proposition_rituel: { dit: 'Proposition du prochain rituel', sert: 'Proposer, en fermant « C’est réglé », le rendez-vous suggéré par la Maison', sorte: 'rdv' },
   point_avant_seance: { dit: 'Point d’avant séance', sert: 'Une semaine avant la séance suivante', sorte: 'rdv' },
   point_apres_seance: { dit: 'Point d’après séance', sert: 'Une semaine après la séance', sorte: 'avis' },
   avis_google: { dit: 'Demande d’avis Google', sert: 'Demander un avis après la séance', sorte: 'avis' },
@@ -174,7 +176,9 @@ const saSeance = (l: LigneDuJournal): string => (l.dateRdv ? `Sa séance du ${jo
 export const GENRES_PREVUS: Record<string, GenrePrevu> = {
   'rappel-j1': { dit: 'Rappel de la veille', modele: 'rappel_rdv', sorte: 'rdv', raison: (l) => sonRdv(l) },
   confirmation: { dit: 'Confirmation du rendez-vous', modele: 'confirmation_rdv', sorte: 'rdv', raison: (l) => sonRdv(l) },
-  'reprise-j3': { dit: 'Reprise proposée', modele: 'reprise_proposee', sorte: 'rdv', raison: (l) => sonRdv(l, 'Sa reprise') },
+  'reprise-j3': { dit: 'Relance de la proposition', modele: 'reprise_proposee', sorte: 'rdv', raison: (l) => sonRdv(l, 'Sa suggestion') },
+  /* Le rendez-vous suggéré (15 novembre 2026) : la proposition, en fermant la fenêtre. */
+  proposition: { dit: 'Proposition du prochain rituel', modele: 'proposition_rituel', sorte: 'rdv', raison: (l) => sonRdv(l, 'Sa suggestion') },
   'point-avant': { dit: 'Point d’avant séance', modele: 'point_avant_seance', sorte: 'rdv', raison: (l) => sonRdv(l, 'Sa séance') },
   'point-apres': { dit: 'Point d’après séance', modele: 'point_apres_seance', sorte: 'avis', raison: saSeance },
   'avis-google': { dit: 'Demande d’avis Google', modele: 'avis_google', sorte: 'avis', raison: () => 'Sa première venue, soldée.' },

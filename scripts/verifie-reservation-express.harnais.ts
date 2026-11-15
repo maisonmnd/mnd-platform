@@ -91,18 +91,21 @@ dit('... abimee, elle est rejetee entiere', [null, null, null, null],
 const ecrite = JSON.parse(memoireAEcrire({ ...bonne, master: 'Befoune', code: 'AWA-K7P' } as never));
 dit('... elle ne garde jamais le maitre ni le code', [false, false], ['master' in ecrite, 'code' in ecrite]);
 
-/* ── (4) La reprise J-3 ── */
-const r = (o: Record<string, unknown>) => ({ id: 'r', date: '2026-10-02', status: 'confirmé', clientId: 'c', repriseDe: 'a0', ...o });
+/* ── (4) La reprise J-3 ──
+   DEPUIS LE 15 NOVEMBRE 2026 (le rendez-vous suggéré, arbitrage B) : seule
+   une suggestion se relance (`suggereLe`) ; une reprise posée avant, sans la
+   marque, reste confirmée et ne reçoit rien. */
+const r = (o: Record<string, unknown>) => ({ id: 'r', date: '2026-10-02', status: 'confirmé', clientId: 'c', repriseDe: 'a0', suggereLe: '2026-09-20T10:00:00Z', ...o });
 const cas = [
   r({ id: 'ok' }),
-  r({ id: 'pas-reprise', repriseDe: undefined }),
+  r({ id: 'pas-suggeree', suggereLe: undefined }),
   r({ id: 'en-attente', status: 'en attente' }),
   r({ id: 'sans-fiche', clientId: '' }),
   r({ id: 'deja-confirmee', confirmeeParLaClienteLe: '2026-09-29' }),
   r({ id: 'autre-moment', autreMomentDemandeLe: '2026-09-29' }),
   r({ id: 'autre-jour', date: '2026-10-03' }),
 ];
-dit('la reprise J-3 : seulement posee d office, confirmee, rattachee, sans reponse', ['ok'],
+dit('la reprise J-3 : seulement suggeree, confirmee, rattachee, sans reponse', ['ok'],
   reprisesAProposer(cas as never[], '2026-10-02').map((a: { id: string }) => a.id));
 dit('le bouton porte le rendez-vous, et se relit', [{ geste: 'OK', apptId: 'ap-1' }, { geste: 'AUTRE', apptId: 'ap-2' }, null],
   [repriseDuPayload(payloadDeLaReprise('OK', 'ap-1')), repriseDuPayload(payloadDeLaReprise('AUTRE', 'ap-2')), repriseDuPayload('RECU:ap-1')]);
@@ -129,8 +132,9 @@ for (const jour of ['2026-10-02', '2026-10-03', '2026-10-04']) {
 }
 dit('rappels-j1 : trois jours, les deux boutons dans l ordre, et rien sans modele', [true, true, true, true], [
   rappels.includes('const JOURS_AVANT_LA_REPRISE = 3;'),
-  rappels.includes("index: '0', parameters: [{ type: 'payload', payload: `REPRISE_OK:${a.id}` }]"),
-  rappels.includes("index: '1', parameters: [{ type: 'payload', payload: `REPRISE_AUTRE:${a.id}` }]"),
+  /* Les deux boutons vivent dans la copie ⟨rendez-vous-suggere⟩ (15 novembre 2026). */
+  rappels.includes("index: '0', parameters: [{ type: 'payload', payload: `REPRISE_OK:${o.apptId}` }]") && rappels.includes('composantsDeLaProposition({ appel: prenom, quand, gestes, apptId: a.id })'),
+  rappels.includes("index: '1', parameters: [{ type: 'payload', payload: `REPRISE_AUTRE:${o.apptId}` }]"),
   rappels.includes("if (!MODELE || !WA_TOKEN || !WA_PHONE_ID) return { reprises: 'sans-modele' };"),
 ]);
 /* 17 octobre 2026 : le retour d'un soir sans rappel dit aussi sa version et

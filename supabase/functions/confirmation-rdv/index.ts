@@ -60,7 +60,55 @@ type Rdv = {
   sansConfirmation?: boolean;
   /** Le foyer qui vient ensemble (2 septembre 2026) : un message pour tous (4 novembre 2026). */
   foyerId?: string;
+  /** LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : posé par la Maison, en attente de son oui. */
+  suggereLe?: string;
+  confirmeeParLaClienteLe?: string;
+  serviceIds?: string[];
 };
+
+/* LE RENDEZ-VOUS SUGGÉRÉ — 15 novembre 2026. Bloc RECOPIÉ tel quel de
+   `src/shared/rendez-vous-suggere-pur.ts` (ses choix y sont écrits) ;
+   `verifie-les-douze-lunes` confronte les copies. NE RIEN RETOUCHER ENTRE
+   LES REPÈRES. */
+/* ⟨rendez-vous-suggere⟩ */
+/** Les marques que lit le juge : le statut, la pose par la Maison, son oui. */
+export type MarquesDeLaSuggestion = {
+  status?: unknown; suggereLe?: unknown; confirmeeParLaClienteLe?: unknown; autreMomentDemandeLe?: unknown;
+};
+const marquePosee = (v: unknown): boolean => typeof v === 'string' && v.trim().length > 0;
+
+/** SUGGÉRÉ : posé par la Maison (`suggereLe`), tenu, et pas encore de oui. */
+export function estSuggere(a: MarquesDeLaSuggestion | null | undefined): boolean {
+  return !!a && a.status === 'confirmé' && marquePosee(a.suggereLe) && !marquePosee(a.confirmeeParLaClienteLe);
+}
+
+/** Trois jours avant : la relance d'une suggestion sans réponse. */
+export const JOURS_AVANT_LA_RELANCE = 3;
+
+/** « Bonjour Mme F., merci pour votre visite… » : le message de la
+    proposition, en fermant la fenêtre (le modèle `proposition_rituel`,
+    {{1}} l'appel, {{2}} le moment, {{3}} les gestes). */
+export function texteDeLaProposition(o: { appel: string; quand: string; gestes: string }): string {
+  return `Bonjour ${o.appel}, merci pour votre visite. Pour garder le rythme de vos locks, nous vous proposons votre prochain rituel le ${o.quand} : ${o.gestes}.`;
+}
+
+/** La relance, trois jours avant, quand elle n'a pas répondu (le modèle
+    `reprise_proposee`, mêmes variables). Elle ne dit jamais « votre
+    rendez-vous » : elle n'a rien réservé. */
+export function texteDeLaRelance(o: { appel: string; quand: string; gestes: string }): string {
+  return `Bonjour ${o.appel}, notre proposition du ${o.quand} pour votre prochain rituel (${o.gestes}) vous convient-elle ?`;
+}
+
+/** Les deux réponses, dans cet ordre : ce que chaque bouton rapporte au
+    webhook (REPRISE_OK / REPRISE_AUTRE, lus depuis le 29 septembre 2026). */
+export function composantsDeLaProposition(o: { appel: string; quand: string; gestes: string; apptId: string }): unknown[] {
+  return [
+    { type: 'body', parameters: [{ type: 'text', text: o.appel }, { type: 'text', text: o.quand }, { type: 'text', text: o.gestes }] },
+    { type: 'button', sub_type: 'quick_reply', index: '0', parameters: [{ type: 'payload', payload: `REPRISE_OK:${o.apptId}` }] },
+    { type: 'button', sub_type: 'quick_reply', index: '1', parameters: [{ type: 'payload', payload: `REPRISE_AUTRE:${o.apptId}` }] },
+  ];
+}
+/* ⟨/rendez-vous-suggere⟩ */
 
 /* ══ UN RENDEZ-VOUS POSÉ APRÈS SON HEURE NE SE DIT À PERSONNE — 13 sept. 2026 ══
    « Chaque fois que je pose un rendez-vous dans le passé, n'envoie aucun
@@ -133,7 +181,7 @@ const confirmationEstNeuve = (
 /** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-11-a · ce qui va partir : une confirmation arrêtée d’avance, ou d’un modèle en pause, ne part pas ; le modèle à liens en pause, l’ancien part à sa place ; un message par foyer, qui nomme chaque tête ; un périmé retenu par Opale ne se redépose pas';
+const VERSION = '2026-11-15-a · le rendez-vous suggéré : un rendez-vous posé « Suggéré par la Maison » reçoit la proposition (modèle proposition_rituel, WA_TEMPLATE_PROPOSITION, « Je confirme » et « Un autre moment ») à la place de la confirmation, une seule fois ; sans le modèle, rien ne part sur WhatsApp · 2026-11-11-a · ce qui va partir : une confirmation arrêtée d’avance, ou d’un modèle en pause, ne part pas ; le modèle à liens en pause, l’ancien part à sa place ; un message par foyer, qui nomme chaque tête ; un périmé retenu par Opale ne se redépose pas';
 
 /* LE LIEN DU RENDEZ-VOUS — 3 novembre 2026. Bloc RECOPIÉ tel quel de
    `src/shared/lien-du-rdv-pur.ts` (ses choix y sont écrits) ;
@@ -1028,8 +1076,11 @@ Deno.serve(async (req) => {
   /* CE QUI RESTE À DIRE : un push pas encore verrouillé, ou un WhatsApp pas
      encore verrouillé quand les clés Meta sont posées. Un rendez-vous déjà
      confirmé sur tous ses canaux ne compte plus dans la rafale. */
+  /* Une suggestion n'attend son WhatsApp que son modèle posé (15 novembre
+     2026) : sans lui, elle ne compte pas dans la rafale à chaque passage. */
+  const propositionPossible = !!(Deno.env.get('WA_TEMPLATE_PROPOSITION') ?? '').trim();
   const aEnvoyer = rdvs.filter((a) => !deja.has(`conf-${a.id}-push`)
-    || (!!WA_TOKEN && !!WA_PHONE_ID && !deja.has(`conf-${a.id}-whatsapp`)));
+    || (!!WA_TOKEN && !!WA_PHONE_ID && (!estSuggere(a) || propositionPossible) && !deja.has(`conf-${a.id}-whatsapp`)));
   if (aEnvoyer.length === 0) {
     return new Response(JSON.stringify({ version: VERSION, vus: rdvs.length, dejaDits: rdvs.length, push: 0, whatsapp: 0 }), {
       headers: { 'content-type': 'application/json' },
@@ -1063,6 +1114,8 @@ Deno.serve(async (req) => {
      tête seule, ou sans foyer, part comme avant, avec sa civilité. Le push,
      lui, reste à chaque tête : il va à l'appli de chacune, pas à un numéro. */
   const foyersWa = foyersAPrevenir(aEnvoyer
+    /* Une suggestion n'entre dans aucun foyer : elle reçoit sa proposition à elle. */
+    .filter((a) => !estSuggere(a))
     .filter((a) => !!WA_TOKEN && !!WA_PHONE_ID && !deja.has(`conf-${a.id}-whatsapp`))
     .map((a) => ({ ...a, numero: numeroIntl(telDuRdv(a, fiches.get(a.clientId))) }))
     .filter((a) => !!a.numero));
@@ -1118,10 +1171,13 @@ Deno.serve(async (req) => {
     });
   };
 
-  let nPush = 0, nWa = 0, nDeposes = 0, nJournal = 0;
+  let nPush = 0, nWa = 0, nDeposes = 0, nJournal = 0, nPropositions = 0;
   let journalRefuse = '';
 
-  for (const a of aEnvoyer) {
+  /* LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : la confirmation ne part
+     qu'à ce qu'elle a pris ou dit oui ; une suggestion reçoit, plus bas, sa
+     proposition (« Je confirme », « Un autre moment »). */
+  for (const a of aEnvoyer.filter((x) => !estSuggere(x))) {
     const fiche = fiches.get(a.clientId);
     /* L'appel de sa fiche, pour son push ; celui du foyer, pour le WhatsApp
        qu'elle porte (« Jade et Faith »). */
@@ -1275,8 +1331,128 @@ Deno.serve(async (req) => {
     }
   }
 
+  /* ══ LA PROPOSITION DU RENDEZ-VOUS SUGGÉRÉ — 15 novembre 2026 ══════════
+     « The way you make automatic appointments is not good » (Yéman, après
+     Mme F., qui n'avait rien réservé et que tout appelait « votre
+     rendez-vous »). Un rendez-vous posé « Suggéré par la Maison » par la
+     seconde étape de « C'est réglé » reçoit, en fermant la fenêtre et UNE
+     fois (la même ligne `conf-<rdv>-<canal>` qu'une confirmation, type
+     « proposition »), la proposition : {{1}} l'appel, {{2}} le moment, {{3}}
+     les gestes, et deux boutons (REPRISE_OK / REPRISE_AUTRE, lus par le
+     webhook). SANS LE MODÈLE APPROUVÉ (secret WA_TEMPLATE_PROPOSITION), rien
+     ne part sur WhatsApp et rien ne s'écrit : la relance trois jours avant
+     la remplacera. Le push, gratuit, part à celle qui a l'appli. */
+  const MODELE_PROPOSITION = (Deno.env.get('WA_TEMPLATE_PROPOSITION') ?? '').trim();
+  const aProposer = journalRefuse ? [] : aEnvoyer.filter((x) => estSuggere(x));
+  let nomsDesGestes = new Map<string, string>();
+  if (aProposer.length > 0) {
+    const ids = [...new Set(aProposer.flatMap((a) => a.serviceIds ?? []))];
+    if (ids.length > 0) {
+      const { data: svc } = await sb.from('catalog_services').select('id, data').in('id', ids);
+      nomsDesGestes = new Map(((svc ?? []) as { id: string; data: { name?: string } }[]).map((r) => [r.id, String(r.data?.name ?? '').split(' · ')[0]]));
+    }
+  }
+  for (const a of aProposer) {
+    const fiche = fiches.get(a.clientId);
+    const appel = appelDe(fiche, a.clientName);
+    const quand = `${jourEnClair(a.date)} à ${heureLisible(a.time)}`;
+    const noms = (a.serviceIds ?? []).map((id) => nomsDesGestes.get(id) ?? '').filter(Boolean);
+    const gestes = noms.length > 1 ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}` : noms[0] || 'votre rituel';
+    const texte = texteDeLaProposition({ appel, quand, gestes });
+    const composants = composantsDeLaProposition({ appel, quand, gestes, apptId: a.id });
+    const enSalle = salleOuverte;
+    const plus = { type: 'proposition', modele: MODELE_PROPOSITION || 'proposition_rituel' };
+
+    /* ① PUSH — à celle qui a l'appli : la proposition, jamais « c'est confirmé ». */
+    const titrePush = `${nomMaison} · votre prochain rituel`;
+    const corpsPush = `${appel}, nous vous proposons votre prochain rituel le ${quand}. Confirmez-le dans Ma Couronne.`;
+    if (enSalle && !deja.has(`conf-${a.id}-push`)) {
+      consigne('push', a, 'en-attente', undefined, undefined, undefined, { ...depot(Date.now(), regles, { genre: 'push', clientId: a.clientId, titre: titrePush, corps: corpsPush, url: '/couronne/' }, appel), type: 'proposition' });
+      nDeposes++;
+    } else if (!deja.has(`conf-${a.id}-push`)) {
+      try {
+        const r = await fetch(`${urlBase}/functions/v1/push-notify`, {
+          method: 'POST',
+          signal: AbortSignal.timeout(ENVOI_MAX_MS),
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${service}` },
+          body: JSON.stringify({ mode: 'to-client', clientId: a.clientId, title: titrePush, body: corpsPush, url: '/couronne/' }),
+        });
+        const sent = ((await r.json().catch(() => ({}))) as { sent?: number }).sent ?? 0;
+        consigne('push', a, sent > 0 ? 'envoyé' : 'sans-abonnement', undefined, undefined, undefined, { type: 'proposition' });
+        if (sent > 0) nPush++;
+      } catch (e) {
+        consigne('push', a, 'échec', String(e), undefined, undefined, { type: 'proposition' });
+      }
+    }
+
+    /* ② WHATSAPP — seulement son modèle approuvé et les clés Meta posées. */
+    const telDeLaProposition = numeroIntl(telDuRdv(a, fiche));
+    const tel = telDeLaProposition;
+    if (MODELE_PROPOSITION && WA_TOKEN && WA_PHONE_ID && !deja.has(`conf-${a.id}-whatsapp`)) {
+      if (!tel) {
+        consigne('whatsapp', a, 'sans-numero', undefined, undefined, undefined, plus);
+      } else {
+        const dAvance = laPorteDAvance({
+          id: `conf-${a.id}-whatsapp`, type: 'proposition', apptId: a.id,
+          colis: { genre: 'whatsapp', modele: MODELE_PROPOSITION, repli: null },
+        }, avanceDuDepot);
+        if (dAvance && dAvance.verdict !== 'repli') {
+          const retenue = ligneRetenueDAvance(dAvance, new Date().toISOString()) ?? {};
+          consigne('whatsapp', a, String(retenue.statut), String(retenue.detail ?? ''), undefined, undefined, { ...plus, ...retenue });
+        } else if (enSalle) {
+          consigne('whatsapp', a, 'en-attente', undefined, undefined, undefined, {
+            ...depot(Date.now(), regles, { genre: 'whatsapp', numero: tel, modele: MODELE_PROPOSITION, parQui: 'Le Trône', texteAuFil: texte, composants }, appel),
+            ...plus,
+          });
+          nDeposes++;
+          nPropositions++;
+        } else if (!enSalle) {
+          try {
+            const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
+              method: 'POST',
+              signal: AbortSignal.timeout(ENVOI_MAX_MS),
+              headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
+              body: JSON.stringify({
+                messaging_product: 'whatsapp', to: tel, type: 'template',
+                template: { name: MODELE_PROPOSITION, language: { code: 'fr' }, components: composants },
+              }),
+            });
+            const rep = await r.json().catch(() => ({})) as { messages?: { id?: string }[]; error?: { code?: number; message?: string } };
+            const waId = String(rep?.messages?.[0]?.id ?? '');
+            if (r.ok) {
+              consigne('whatsapp', a, 'envoyé', waId ? undefined : 'accepté sans identifiant Meta', waId || undefined, undefined, plus);
+              if (waId) consigneAuFil(a, tel, waId, texte, MODELE_PROPOSITION);
+              nWa++;
+              nPropositions++;
+            } else {
+              consigne('whatsapp', a, 'échec', String(rep?.error?.message ?? `HTTP ${r.status}`), undefined, Number(rep?.error?.code) || undefined, plus);
+            }
+          } catch (e) {
+            consigne('whatsapp', a, 'échec', String(e), undefined, undefined, plus);
+          }
+        }
+      }
+    }
+
+    const lignes = aInserer.splice(0);
+    if (lignes.length > 0) {
+      const { error: errJ } = await sb.from('envois').upsert(lignes, { onConflict: 'id' });
+      if (errJ) {
+        journalRefuse = errJ.message;
+        console.error('confirmation-rdv: journal refusé, proposition arrêtée', errJ.message);
+        break;
+      }
+      nJournal += lignes.length;
+    }
+    const auFilDuRdv = auFil.splice(0);
+    if (auFilDuRdv.length > 0) {
+      const { error } = await sb.from('messages_wa').upsert(auFilDuRdv, { onConflict: 'id' });
+      if (error) console.error('confirmation-rdv: fil', error.message);
+    }
+  }
+
   return new Response(
-    JSON.stringify({ version: VERSION, vus: rdvs.length, ecartes: candidats.length - rdvs.length, salle: salleOuverte, deposes: nDeposes, push: nPush, whatsapp: nWa, journal: nJournal, ...(journalRefuse ? { journalRefuse } : {}), modele: WA_TEMPLATE, ...(WA_TEMPLATE_LIENS ? { modeleLiens: WA_TEMPLATE_LIENS } : {}) }),
+    JSON.stringify({ version: VERSION, vus: rdvs.length, ecartes: candidats.length - rdvs.length, salle: salleOuverte, deposes: nDeposes, push: nPush, whatsapp: nWa, journal: nJournal, propositions: nPropositions, ...(MODELE_PROPOSITION ? { modeleProposition: MODELE_PROPOSITION } : {}), ...(journalRefuse ? { journalRefuse } : {}), modele: WA_TEMPLATE, ...(WA_TEMPLATE_LIENS ? { modeleLiens: WA_TEMPLATE_LIENS } : {}) }),
     { status: journalRefuse ? 500 : 200, headers: { 'content-type': 'application/json' } },
   );
 });

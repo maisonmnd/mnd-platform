@@ -752,7 +752,13 @@ function heuresDesRappels(cfg) {
   return { premier, second: second !== null && second > premier ? second : null };
 }
 function rappelDeLaVeilleSeTait(a) {
-  return typeof a.confirmeeParLaClienteLe === "string" && a.confirmeeParLaClienteLe.trim().length > 0;
+  const oui = typeof a.confirmeeParLaClienteLe === "string" && a.confirmeeParLaClienteLe.trim().length > 0;
+  const suggere = typeof a.suggereLe === "string" && a.suggereLe.trim().length > 0;
+  if (!suggere) return oui;
+  if (!oui) return true;
+  const t = Date.parse(`${String(a.date ?? "")}T12:00:00Z`);
+  if (!Number.isFinite(t)) return true;
+  return String(a.confirmeeParLaClienteLe).slice(0, 10) >= new Date(t - 3 * 864e5).toISOString().slice(0, 10);
 }
 
 // scripts/serveur/conseil-du-matin.ts

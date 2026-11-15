@@ -78,7 +78,8 @@ dit(3, 'le numero a prevenir s il est pose, sinon le premier de la fiche', ['019
   const pur = regle(brut('src/shared/numero-a-prevenir-pur.ts'));
   const conf = brut('supabase/functions/confirmation-rdv/index.ts');
   const rapp = brut('supabase/functions/rappels-j1/index.ts');
-  dit(4, 'les deux fonctions portent la regle mot pour mot, et lisent le numero par elle (1 + 2 envois)', [true, true, 1, 2, 0], [
+  /* 2 dans confirmation-rdv depuis le 15 novembre 2026 : la confirmation, et la proposition du rendez-vous suggéré. */
+  dit(4, 'les deux fonctions portent la regle mot pour mot, et lisent le numero par elle (2 + 2 envois)', [true, true, 2, 2, 0], [
     !!pur && regle(conf) === pur,
     !!pur && regle(rapp) === pur,
     (conf.match(/numeroIntl\(telDuRdv\(a, fiche\)\)/g) ?? []).length,

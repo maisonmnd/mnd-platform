@@ -117,6 +117,12 @@ function heureDeDepart(maintenantMs, r) {
   return { partA: finDesHeuresCalmes(apresLaSalle, r), calme: true };
 }
 
+// src/shared/rendez-vous-suggere-pur.ts
+var marquePosee = (v) => typeof v === "string" && v.trim().length > 0;
+function estSuggere(a2) {
+  return !!a2 && a2.status === "confirmé" && marquePosee(a2.suggereLe) && !marquePosee(a2.confirmeeParLaClienteLe);
+}
+
 // src/shared/clients-pur.ts
 var estDePassage = (c) => c.dePassage === true;
 var aDefaitSesLocks = (c) => c.locksDefaits === true;
@@ -1013,7 +1019,7 @@ function situationDuJour(f, ctx) {
     };
   };
   const r = f.archivee ? void 0 : prochainRdv(f, A);
-  if (r && ecartJours(A, r.date) === GARDER_AVANT && (!r.creeLe || ecartJours(r.creeLe.slice(0, 10), r.date) >= GARDER_SI_PRIS_DES_J) && !traceDe(f, ["garder"]).some((t) => t.quand.slice(0, 10) >= plusJours(r.date, -GARDER_AVANT - 1))) {
+  if (r && !r.suggere && ecartJours(A, r.date) === GARDER_AVANT && (!r.creeLe || ecartJours(r.creeLe.slice(0, 10), r.date) >= GARDER_SI_PRIS_DES_J) && !traceDe(f, ["garder"]).some((t) => t.quand.slice(0, 10) >= plusJours(r.date, -GARDER_AVANT - 1))) {
     const place = placeDite({ iso: r.date, heure: r.time });
     const pourquoi = [["Son RDV", place], ["Pris le", r.creeLe ? jourDit(r.creeLe.slice(0, 10)) : "avant le 5 sept. 2026"]];
     if (f.enfantDuFoyer) {
@@ -1328,7 +1334,9 @@ function lisLAssistant(e) {
         creeLe: a2.creeLe,
         familles: (a2.serviceIds ?? []).map((id) => familleDuNom(nomDuService(id))),
         venu: estUneVenue({ date: a2.date, status: a2.status, encaisse: apptPaidXof(a2) > 0, facture: !!a2.invoiceId || factures.has(a2.id) }, today),
-        ...parent ? { parent } : {}
+        ...parent ? { parent } : {},
+        /* Le rendez-vous suggéré (15 novembre 2026) : Gérard ne le « garde » pas. */
+        ...estSuggere(a2) ? { suggere: true } : {}
       };
     });
     const cad = siens.length ? predictNextVisitSelon(siens, c, c.id, today, estFerme) : null;
@@ -1610,7 +1618,7 @@ async function litLesArretsEtLesPauses(sb) {
 }
 
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-11-11-a";
+var VERSION = "2026-11-15-a";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {

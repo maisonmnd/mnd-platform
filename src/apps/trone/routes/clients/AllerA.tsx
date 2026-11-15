@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   dateCourte, dateDite, distanceDite, lisLeSaut, sautsRapides, titreDeLaSemaine, type SemaineDuFil,
 } from './aller-a-pur';
+import { dansNSemaines, SEMAINES_DE_LA_SUITE, semaineDuRythme } from '../../../../shared/rendez-vous-suggere-pur';
 import './aller-a.css';
 
 /* ══ ALLER À, ET LE FIL DES SEMAINES — 14 novembre 2026 ════════════════
@@ -13,7 +14,7 @@ const majuscule = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** ALLER À : on tape ce qu'elle dit, ou on touche un saut. Entrée y va. */
 export function BarreDeSaut({
-  id, aujourdhui, choisi, onSaut, saDate, autoFocus,
+  id, aujourdhui, choisi, onSaut, saDate, apresSaVenue, autoFocus,
 }: {
   /** L'identifiant du champ : deux barres peuvent vivre sur le même écran. */
   id: string;
@@ -23,6 +24,11 @@ export function BarreDeSaut({
   onSaut: (iso: string) => void;
   /** Sa date à elle, en cuivre : la reprise que lit sa fiche. */
   saDate?: { iso: string; pourquoi: string } | null;
+  /** LES SEMAINES DEPUIS SA VENUE (15 novembre 2026, le rendez-vous suggéré,
+      arbitrage D) : 3, 4, 5, 6, 8 et 12 semaines après sa dernière venue,
+      son rythme marqué. Une AUTRE BASE que les sauts « +3 sem » (depuis
+      aujourd'hui) : leur rangée le dit en toutes lettres. */
+  apresSaVenue?: { iso: string; rythmeJours?: number | null } | null;
   autoFocus?: boolean;
 }) {
   const [texte, setTexte] = useState('');
@@ -91,6 +97,31 @@ export function BarreDeSaut({
           </button>
         )}
       </div>
+      {apresSaVenue && (() => {
+        const rythme = semaineDuRythme(apresSaVenue.rythmeJours ?? null);
+        const touches = SEMAINES_DE_LA_SUITE
+          .map((n) => ({ n, iso: dansNSemaines(apresSaVenue.iso, n) }))
+          .filter((t) => t.iso > aujourdhui);
+        if (touches.length === 0) return null;
+        return (
+          <div className="tr-saut__puces tr-saut__puces--venue" role="group" aria-label={`Depuis sa dernière venue, le ${dateDite(apresSaVenue.iso)}`}>
+            <span className="tr-saut__base">{`Après sa venue du ${dateCourte(apresSaVenue.iso)}`}</span>
+            {touches.map((t) => (
+              <button
+                key={t.n}
+                type="button"
+                className={`tr-saut__puce tr-saut__puce--venue${t.n === rythme ? ' est-rythme' : ''}`}
+                aria-pressed={choisi === t.iso}
+                data-semaines={t.n}
+                title={`${t.n} semaines après sa venue du ${dateDite(apresSaVenue.iso)} : ${dateDite(t.iso)}, ${distanceDite(t.iso, aujourdhui)}${t.n === rythme ? '. Son rythme.' : ''}`}
+                onClick={() => va(t.iso)}
+              >
+                {`${t.n} sem après${t.n === rythme ? ' · son rythme' : ''}`}
+              </button>
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 }

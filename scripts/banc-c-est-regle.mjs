@@ -26,6 +26,15 @@
        validée d'un toucher, confirmée à « Terminer » ;
      - F. au téléphone, rien ne déborde.
 
+   15 NOVEMBRE 2026, LE RENDEZ-VOUS SUGGÉRÉ (maquette PeiD4o4yfCY4GajdGJ52Ez) :
+   « C'est réglé » a deux étapes nommées. L'étape 1 ferme la séance (le
+   ticket, « Ensuite : son prochain rendez-vous », « Fermer sans prochain
+   rendez-vous ») ; l'étape 2, « Nouveau rendez-vous », porte la carte, les
+   puces 3 à 12 semaines, « Qui a choisi cette date » et « Poser la
+   suggestion ». Le rendez-vous posé « Suggéré par la Maison » porte
+   `suggereLe` ; « Elle l'a choisi avec nous » n'en porte pas. H : au Carnet,
+   le badge « Suggéré », et « Elle a dit oui ».
+
    `--prouve` : chaque faute est remise une à une dans le vrai fichier (copie
    gardée, restaurée dans un finally, empreintes comparées), le Trône est
    reconstruit hors ligne, et le banc doit crier à chacune.
@@ -56,7 +65,14 @@ const PANNES = [
   ['la date se pose d office', 'src/shared/carte-du-prochain-rituel-pur.ts',
     'return { depart: o.depart, place: o.depart, rdvId: null, dejaLa: false, valide: false,', 'return { depart: o.depart, place: o.depart, rdvId: null, dejaLa: false, valide: true,'],
   ['la confirmation part des la pose', 'src/apps/trone/routes/vente/SonProchainRituel.tsx',
-    '      sansConfirmation: true,\n      remiseFamilleXof:', '      remiseFamilleXof:'],
+    '      sansConfirmation: true,\n      ...marqueDeLaPose(', '      ...marqueDeLaPose('],
+  /* Le rendez-vous suggéré (15 novembre 2026). */
+  ['la seance et la suite se melangent', 'src/apps/trone/routes/clients/actions.tsx',
+    'const [etape, setEtape] = useState<1 | 2>(1);', 'const [etape, setEtape] = useState<1 | 2>(2);'],
+  ['la suggestion ne se marque pas', 'src/apps/trone/routes/vente/SonProchainRituel.tsx',
+    '      ...marqueDeLaPose(quiRef.current, new Date().toISOString()),\n      remiseFamilleXof:', '      remiseFamilleXof:'],
+  ['la puce pose le rendez-vous', 'src/shared/carte-du-prochain-rituel-pur.ts',
+    "if (!e.valide) return { etat: { ...e, place: g.place, modif: false, pied: 'rien' }, effets: [] };", "if (!e.valide) return { etat: { ...e, place: g.place, valide: true, rdvId: 'p', modif: false, pied: 'rien' }, effets: [{ genre: 'poser', id: 'p', place: g.place }] };"],
   ['changer de place pose un second rendez-vous', 'src/shared/carte-du-prochain-rituel-pur.ts',
     "return { etat: { ...e, place: g.place, modif: false }, effets: [{ genre: 'deplacer', rdvId: e.rdvId, place: g.place }] };",
     "return { etat: { ...e, place: g.place, modif: false, rdvId: g.id }, effets: [{ genre: 'poser', id: g.id, place: g.place }] };"],
@@ -185,6 +201,10 @@ const isoDe = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDat
 const DEPART = new Date();
 const jourPlus = (n) => { const d = new Date(DEPART); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + n); return isoDe(d); };
 const AUJ = jourPlus(0);
+/* UN DIMANCHE, LA MAISON EST FERMÉE (heures par défaut) : passé un dimanche
+   (15 novembre 2026), quatre semaines tombent un dimanche et la carte propose
+   le lundi. Les attendus suivent le premier jour ouvert. */
+const ouvertDes = (n) => { const iso = jourPlus(n); return new Date(`${iso}T12:00:00`).getDay() === 0 ? jourPlus(n + 1) : iso; };
 const GESTES = ['sv-souffle', 'sv-reprise'];
 const tete = (cid, nom, civilite, phone) => ({ id: cid, branchId: 'maison', name: nom, phone, city: '', persona: '', since: '2026-01-10', segments: [], ...(civilite ? { civilite } : {}) });
 const sesVenues = (cid, heure) => [84, 56, 28].map((n) => ({ id: `${cid}-h${n}`, branchId: 'maison', clientId: cid, serviceIds: GESTES, date: jourPlus(-n), time: heure, status: 'honoré', master: 'Expert', priceXof: 28000 }));
@@ -215,8 +235,8 @@ const SEMENCE = {
     /* C. Son prochain rendez-vous, pris dans Ma Couronne le 20 octobre 2026. */
     { id: 'bd-deja', branchId: 'maison', clientId: 'cl-bd', serviceIds: GESTES, date: jourPlus(20), time: '11:00', status: 'confirmé', master: 'Expert', source: 'couronne', creeLe: '2026-10-20T09:00:00.000Z', priceXof: 28000 },
     /* D. Les deux fauteuils pris à son heure, le jour de son rythme. */
-    { id: 'pris-1', branchId: 'maison', clientId: 'cl-x1', serviceIds: GESTES, date: jourPlus(28), time: '15:00', status: 'confirmé', master: 'Expert' },
-    { id: 'pris-2', branchId: 'maison', clientId: 'cl-x2', serviceIds: GESTES, date: jourPlus(28), time: '15:00', status: 'confirmé', master: 'Team' },
+    { id: 'pris-1', branchId: 'maison', clientId: 'cl-x1', serviceIds: GESTES, date: ouvertDes(28), time: '15:00', status: 'confirmé', master: 'Expert' },
+    { id: 'pris-2', branchId: 'maison', clientId: 'cl-x2', serviceIds: GESTES, date: ouvertDes(28), time: '15:00', status: 'confirmé', master: 'Team' },
   ],
   'trone::mnd_invoices': [],
   'trone::mnd_payment_methods': ['MTN MoMo', 'Espèces', 'Carte', 'Chèque'],
@@ -246,111 +266,110 @@ const toastDit = () => evalue(`([...document.querySelectorAll('.mnd-toast')].pop
 const ditLeJour = (iso) => evalue(`(() => { const s = new Date('${iso}T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); return s.charAt(0).toUpperCase() + s.slice(1); })()`);
 const termine = async () => { const ok = await clique('.mnd-modal .trv-regle__terminer', 'Terminer'); await attend(900); return ok; };
 
-/* ── A. ENCAISSER, VALIDER, CHANGER, TERMINER ── */
+const etape = () => evalue(`document.querySelector('.mnd-modal .trv-regle')?.dataset.etape || ''`);
+const geste = async (libelle) => { const ok = await clique('.mnd-modal .trv-regle__terminer', libelle); await attend(900); return ok; };
+const lien = async (libelle) => { const ok = await clique('.mnd-modal .trv-regle__pied-gauche button', libelle); await attend(900); return ok; };
+const versLaSuite = async () => { const ok = await geste('Son prochain rendez-vous'); return ok && (await etape()) === '2'; };
+
+/* ── A. ENCAISSER, PUIS LA SUITE À PART (15 novembre 2026, le rendez-vous suggéré) ── */
 dit('le Carnet ouvre l encaissement d Awa K.', await ouvreLEncaissement('Awa', '10:00'));
 dit('elle règle ses 28 000 F', await encaisse());
-dit('la fenêtre reste ouverte et passe à « C’est réglé »', (await titre()) === 'C’est réglé', await titre());
-dit('la carte « Son prochain rituel » est à valider', (await pastille()) === 'À valider', await pastille());
-const saDate = await ditLeJour(jourPlus(28));
+dit('la fenêtre reste ouverte et passe à « C’est réglé », première étape', (await titre()) === 'C’est réglé' && (await etape()) === '1', `${await titre()} · ${await etape()}`);
+const rail = await evalue(`[...document.querySelectorAll('.mnd-modal .trv-regle__etape')].map((e) => e.textContent.replace(/\\s+/g, ' ').trim())`);
+dit('deux étapes nommées : la séance, puis son prochain rendez-vous', rail.length === 2 && rail[0].startsWith('1La séance du ') && rail[1].startsWith('2Son prochain rendez-vous'), JSON.stringify(rail));
+const ticket = await evalue(`(${modale}?.querySelector('.trv-regle__droite')?.innerText || '').replace(/\\s+/g, ' ')`);
+dit('l étape 1 : le ticket réglé', /Réglé en totalité/i.test(ticket) && /28\s?000\s?F/u.test(ticket) && ticket.includes('Rituel honoré'), ticket.slice(0, 160));
+dit('... et la suite annoncée à part, rien de posé', (await texte('.mnd-modal .trv-regle__annonce')).startsWith('Ensuite : son prochain rendez-vous') && !(await evalue(`!!document.querySelector('.mnd-modal .trv-prochain__carte')`)) && (await sesRdv('cl-ak')).length === 0, await texte('.mnd-modal .trv-regle__annonce'));
+await capture('c-est-regle-etape-1', 1280, 900, false);
+dit('« Son prochain rendez-vous » ouvre la seconde étape', await versLaSuite());
+dit('... la séance réduite à une ligne, « Nouveau rendez-vous »', (await texte('.mnd-modal .trv-regle__close')).startsWith('Séance du ') && (await texte('.mnd-modal .trv-regle__close')).includes('fermée') && (await texte('.mnd-modal .trv-regle__nouveau')) === 'Nouveau rendez-vous' && (await titre()) === 'Son prochain rendez-vous', await texte('.mnd-modal .trv-regle__close'));
+dit('la carte est à valider, rien de posé', (await pastille()) === 'À valider' && (await sesRdv('cl-ak')).length === 0, await pastille());
+const saDate = await ditLeJour(ouvertDes(28));
 dit('la date en grand, avec son année : quatre semaines, son jour', (await enGrand()) === saDate, `${await enGrand()} / ${saDate}`);
 dit('l heure, la durée, son maître', (await texte('.mnd-modal .trv-prochain__heure')) === '10 h · 1 h 30 · avec Expert', await texte('.mnd-modal .trv-prochain__heure'));
-const gestes = await evalue(`[...document.querySelectorAll('.mnd-modal .trv-prochain__lignes li')].map((l) => l.textContent.replace(/\\s+/g, ' ').trim())`);
-dit('ses gestes, et le total au tarif du jour venu', gestes.length === 3 && gestes[0].startsWith('Souffle du banc') && gestes[1].startsWith('Reprise du banc') && /28\s?000\s?F\s*au tarif du jour venu$/u.test(gestes[2]), JSON.stringify(gestes));
-dit('la raison de la date : son rythme, lu sur ses venues', /^Son rythme : environ 4 semaines, lu sur ses 4 dernières venues\./.test(await texte('.mnd-modal .trv-prochain__pourquoi')), await texte('.mnd-modal .trv-prochain__pourquoi'));
-dit('la place relue, libre chez Expert', (await texte('.mnd-modal .trv-prochain__verifie')).includes('Place libre chez Expert, relue à l’instant.'), await texte('.mnd-modal .trv-prochain__verifie'));
-dit('rien n est posé avant de valider', (await sesRdv('cl-ak')).length === 0, (await sesRdv('cl-ak')).length);
-dit('le pied le dit', (await pied()) === 'Rien n’est posé tant que vous ne le validez pas.', await pied());
-const ticket = await evalue(`(${modale}?.querySelector('.trv-regle__droite')?.innerText || '').replace(/\\s+/g, ' ')`);
-dit('à droite, le ticket réglé en bref', /Réglé en totalité/i.test(ticket) && /28\s?000\s?F/u.test(ticket) && ticket.includes('Rituel honoré'), ticket.slice(0, 160));
-await capture('c-est-regle-carte-proposee', 1280, 900, false);
+const puces = await evalue(`[...document.querySelectorAll('.mnd-modal .trv-prochain__puce')].map((b) => ({ n: b.dataset.semaines, on: b.getAttribute('aria-pressed'), rythme: !!b.querySelector('.est-rythme') }))`);
+dit('six puces 3, 4, 5, 6, 8, 12 semaines, la sienne marquée et enfoncée', JSON.stringify(puces.map((x) => x.n)) === '["3","4","5","6","8","12"]' && puces.find((x) => x.n === '4')?.rythme && puces.find((x) => x.n === '4')?.on === 'true', JSON.stringify(puces));
+dit('« Ou choisir une date » est là', await evalue(`!!document.querySelector('.mnd-modal .trv-prochain__date-libre input[type="date"]')`));
+const qui = await evalue(`[...document.querySelectorAll('.mnd-modal .trv-prochain__choix')].map((l) => ({ t: l.querySelector('b')?.textContent, on: l.querySelector('input')?.checked }))`);
+dit('« Suggéré par la Maison » d office, « Elle l’a choisi avec nous » à côté', JSON.stringify(qui) === JSON.stringify([{ t: 'Suggéré par la Maison', on: true }, { t: 'Elle l’a choisi avec nous', on: false }]), JSON.stringify(qui));
+const bulle0 = await texte('.mnd-modal .trv-prochain__bulle');
+dit('ce qu elle reçoit en fermant : la proposition, et ses deux boutons', bulle0.startsWith(`Bonjour Mme Awa, merci pour votre visite. Pour garder le rythme de vos locks, nous vous proposons votre prochain rituel le ${saDate.charAt(0).toLowerCase()}${saDate.slice(1)} à 10 h : Souffle du banc et Reprise du banc.`) && bulle0.includes('Je confirme') && bulle0.includes('Un autre moment'), bulle0.slice(0, 200));
+dit('le geste plein dit « Poser la suggestion »', (await texte('.mnd-modal .trv-regle__terminer')) === 'Poser la suggestion', await texte('.mnd-modal .trv-regle__terminer'));
+await capture('c-est-regle-etape-2', 1280, 900, false);
 
+dit('la puce « 6 sem. » change la date montrée', await clique('.mnd-modal .trv-prochain__puce', '6 sem.'));
+await attend(600);
+dit('... six semaines, et toujours rien de posé', (await enGrand()) === await ditLeJour(ouvertDes(42)) && (await sesRdv('cl-ak')).length === 0, `${await enGrand()} · ${(await sesRdv('cl-ak')).length}`);
 dit('« Valider ce rendez-vous »', await clique('.mnd-modal .trv-prochain__valider', 'Valider ce rendez-vous'));
 await attend(800);
 let poses = await sesRdv('cl-ak');
 let p = poses[0];
-dit('un rendez-vous et un seul est posé, à la date en grand', poses.length === 1 && p?.date === jourPlus(28) && p?.time === '10:00', JSON.stringify(poses.map((a) => `${a.date} ${a.time}`)));
-dit('posé confirmé, au Trône, chez Expert, relié à son rituel', p?.status === 'confirmé' && p?.source === 'trone' && p?.master === 'Expert' && p?.repriseDe === 'rdv-cl-ak' && p?.priceXof === 28000 && p?.dureeMin === 90,
-  JSON.stringify({ s: p?.status, src: p?.source, m: p?.master, de: p?.repriseDe, prix: p?.priceXof, d: p?.dureeMin }));
-dit('SANS confirmation tant que l écran est ouvert, estampillé', p?.sansConfirmation === true && !!p?.creeLe, JSON.stringify({ sans: p?.sansConfirmation, creeLe: !!p?.creeLe }));
-dit('la pastille dit « Confirmé »', (await pastille()) === 'Confirmé', await pastille());
-const bulle = await texte('.mnd-modal .trv-prochain__bulle');
-dit('« Ce qu elle reçoit » : le message, la date retenue, sa référence', bulle.startsWith(`Bonjour Mme Awa, c'est confirmé : votre rendez-vous est retenu ${saDate.charAt(0).toLowerCase()}${saDate.slice(1)} à 10 h. Votre référence : MND-`), bulle.slice(0, 160));
-dit('« Changer la date ou l heure »', await clique('.mnd-modal .trv-prochain__bouton', 'Changer la date ou l’heure'));
-await attend(500);
-dit('trois places au plus', (await evalue(`document.querySelectorAll('.mnd-modal .trv-prochain__modif .trv-prochain__place').length`)) > 0);
-dit('« Une autre date » ouvre la bande des jours', await clique('.mnd-modal .trv-prochain__modif .trv-prochain__lien', 'Une autre date'));
-await attend(500);
-const jours = await evalue(`[...document.querySelectorAll('.mnd-modal .trv-prochain__jour')].map((b) => ({ iso: b.dataset.iso, on: b.getAttribute('aria-pressed') }))`);
-dit('des jours ouverts, après aujourd hui', jours.length > 1 && jours.every((j) => j.iso > AUJ), JSON.stringify(jours.map((j) => j.iso)));
-const autreJour = jours.find((j) => j.iso !== jourPlus(28) && j.on !== 'true');
-await evalue(`document.querySelector('.mnd-modal .trv-prochain__jour[data-iso="${autreJour?.iso}"]')?.click()`);
-await attend(500);
-const heures = await evalue(`[...document.querySelectorAll('.mnd-modal .trv-prochain__heures button')].map((b) => ({ h: b.dataset.heure, libre: !b.disabled }))`);
-const uneHeure = heures.find((x) => x.libre);
-dit('les heures libres du jour choisi', !!uneHeure, JSON.stringify(heures.slice(0, 6)));
-await evalue(`document.querySelector('.mnd-modal .trv-prochain__heures button[data-heure="${uneHeure?.h}"]')?.click()`);
+dit('un rendez-vous et un seul est posé, à la date montrée', poses.length === 1 && p?.date === ouvertDes(42) && p?.time === '10:00', JSON.stringify(poses.map((a) => `${a.date} ${a.time}`)));
+dit('posé confirmé, SUGGÉRÉ, relié à son rituel, sans confirmation tant que l écran est ouvert', p?.status === 'confirmé' && !!p?.suggereLe && p?.repriseDe === 'rdv-cl-ak' && p?.sansConfirmation === true && p?.priceXof === 28000,
+  JSON.stringify({ s: p?.status, sug: !!p?.suggereLe, de: p?.repriseDe, sans: p?.sansConfirmation }));
+dit('la pastille dit « Suggéré · changé »', (await pastille()) === 'Suggéré · changé', await pastille());
+dit('« Elle l’a choisi avec nous » retire la marque', await evalue(`(() => { const i = [...document.querySelectorAll('.mnd-modal .trv-prochain__choix input')][1]; if (i) i.click(); return !!i; })()`));
+await attend(700);
+p = (await sesRdv('cl-ak'))[0];
+dit('... plus de suggestion, la pastille dit « Confirmé · changé », l aperçu dit la confirmation', !p?.suggereLe && (await pastille()) === 'Confirmé · changé' && (await texte('.mnd-modal .trv-prochain__bulle')).startsWith('Bonjour Mme Awa, c\'est confirmé'), `${!!p?.suggereLe} · ${await pastille()}`);
+dit('« Suggéré par la Maison » la remet', await evalue(`(() => { const i = [...document.querySelectorAll('.mnd-modal .trv-prochain__choix input')][0]; if (i) i.click(); return !!i; })()`));
+await attend(700);
+dit('... la marque revient', !!(await sesRdv('cl-ak'))[0]?.suggereLe);
+dit('la puce « 4 sem. » déplace le même rendez-vous', await clique('.mnd-modal .trv-prochain__puce', '4 sem.'));
 await attend(900);
 poses = await sesRdv('cl-ak');
 p = poses[0];
-dit('changer de place déplace le même rendez-vous, sans en poser un second', poses.length === 1 && p?.date === autreJour?.iso && p?.time === uneHeure?.h && p?.sansConfirmation === true,
-  JSON.stringify(poses.map((a) => `${a.id} ${a.date} ${a.time} ${a.sansConfirmation}`)));
-dit('la pastille dit « Confirmé · changé », la date en grand suit', (await pastille()) === 'Confirmé · changé' && (await enGrand()) === await ditLeJour(autreJour?.iso), `${await pastille()} · ${await enGrand()}`);
-dit('« Revenir à la proposition » se propose', await evalue(`[...document.querySelectorAll('.mnd-modal .trv-prochain__lien')].some((b) => b.textContent.startsWith('Revenir à la proposition du'))`));
-await evalue(`document.querySelector('.mnd-modal .trv-prochain-carte')?.scrollIntoView({ block: 'start' })`);
-await capture('c-est-regle-carte-confirmee-changee', 1280, 900, false);
-dit('« Terminer »', await termine());
+dit('... un seul, à quatre semaines, toujours sans confirmation', poses.length === 1 && p?.date === ouvertDes(28) && p?.sansConfirmation === true && (await pastille()) === 'Suggéré', JSON.stringify(poses.map((a) => `${a.date} ${a.sansConfirmation}`)));
+dit('le geste plein dit « Terminer »', (await texte('.mnd-modal .trv-regle__terminer')) === 'Terminer', await texte('.mnd-modal .trv-regle__terminer'));
+dit('« Terminer »', await geste('Terminer'));
 p = (await sesRdv('cl-ak'))[0];
-dit('« Terminer » lève le drapeau : la confirmation part une fois, à la date retenue', !!p && !('sansConfirmation' in p) && p.date === autreJour?.iso, JSON.stringify({ sans: p?.sansConfirmation, date: p?.date }));
-dit('la fenêtre se ferme, et dit ce qui part', !(await evalue(`!!${modale}`)) && (await toastDit()).startsWith('Fenêtre fermée. La confirmation part vers Awa K. :'), await toastDit());
+dit('« Terminer » lève le drapeau : la proposition part une fois, suggérée', !!p && !('sansConfirmation' in p) && !!p.suggereLe && p.date === ouvertDes(28), JSON.stringify({ sans: p?.sansConfirmation, sug: !!p?.suggereLe, date: p?.date }));
+dit('la fenêtre se ferme, et dit la proposition', !(await evalue(`!!${modale}`)) && (await toastDit()).startsWith('Fenêtre fermée. La proposition part vers Awa K. :'), await toastDit());
 
-/* ── B. TERMINER SANS VALIDER FAIT DEMANDER ── */
+/* ── B. « FERMER SANS PROCHAIN RENDEZ-VOUS », DÈS L'ÉTAPE 1 ── */
 dit('le Carnet ouvre l encaissement de Chloé F.', await ouvreLEncaissement('Chloé', '10:00'));
 dit('elle règle', await encaisse());
-dit('« C’est réglé », à valider', (await titre()) === 'C’est réglé' && (await pastille()) === 'À valider');
-dit('« Terminer » sans valider', await termine());
-dit('... le pied demande, la fenêtre reste', (await pied()).startsWith('Le rendez-vous du ') && (await pied()).includes('n’est pas validé.') && !!(await evalue(`!!${modale}`)), await pied());
-dit('... « Le valider et terminer » et « Terminer sans rendez-vous » sont là', (await evalue(`[...document.querySelectorAll('.mnd-modal .trv-regle__pied-gauche button')].map((b) => b.textContent.trim()).join('|')`)) === 'Le valider et terminer|Terminer sans rendez-vous');
-dit('... rien n est posé', (await sesRdv('cl-cf')).length === 0);
-await capture('c-est-regle-demande-fin', 1280, 900, false);
-dit('« Terminer sans rendez-vous »', await clique('.mnd-modal .trv-regle__pied-gauche button', 'Terminer sans rendez-vous'));
-await attend(900);
+dit('« Fermer sans prochain rendez-vous »', await lien('Fermer sans prochain rendez-vous'));
 dit('... la fenêtre se ferme, aucun rendez-vous, aucun message', !(await evalue(`!!${modale}`)) && (await sesRdv('cl-cf')).length === 0 && (await toastDit()).startsWith('Fenêtre fermée sans prochain rendez-vous, aucun message.'), await toastDit());
 
 /* ── C. UN RENDEZ-VOUS DÉJÀ LÀ SE MONTRE ── */
 dit('le Carnet ouvre l encaissement de Bénédicte D.', await ouvreLEncaissement('Bénédicte', '09:00'));
 dit('elle règle', await encaisse());
+dit('l étape 1 dit que son prochain rendez-vous est déjà posé', (await texte('.mnd-modal .trv-regle__annonce')).startsWith('Son prochain rendez-vous est déjà posé'), await texte('.mnd-modal .trv-regle__annonce'));
+dit('« Voir son prochain rendez-vous »', (await geste('Voir son prochain rendez-vous')) && (await etape()) === '2');
 dit('son rendez-vous déjà posé se montre, confirmé, en grand', (await pastille()) === 'Confirmé' && (await enGrand()) === await ditLeJour(jourPlus(20)), `${await pastille()} · ${await enGrand()}`);
 dit('... il dit d où il vient', (await texte('.mnd-modal .trv-prochain__verifie')).includes('Posé le 20 octobre 2026 depuis Ma Couronne, confirmé.'), await texte('.mnd-modal .trv-prochain__verifie'));
-dit('... un rituel, un seul prochain', (await texte('.mnd-modal .trv-prochain__pourquoi')).startsWith('Un rituel, un seul prochain rendez-vous'));
-dit('... ni « Valider », ni « Pas de prochain rendez-vous »', !(await evalue(`!!document.querySelector('.mnd-modal .trv-prochain__valider')`)) && !(await pied()).includes('Pas de prochain'));
+dit('... ni puces, ni « Qui a choisi », ni « Valider »', !(await evalue(`!!document.querySelector('.mnd-modal .trv-prochain__puce, .mnd-modal .trv-prochain__choix, .mnd-modal .trv-prochain__valider')`)));
 dit('... « Ce qu elle reçoit » : rien de plus', (await texte('.mnd-modal .trv-prochain__quand')).startsWith('Rien de plus'));
-dit('« Terminer »', await termine());
+dit('« Fermer »', await geste('Fermer'));
 const bd = await sesRdv('cl-bd');
-dit('... rien de plus créé, rien de reconfirmé', bd.length === 1 && bd[0].id === 'bd-deja' && !('sansConfirmation' in bd[0]), JSON.stringify(bd.map((a) => a.id)));
+dit('... rien de plus créé, rien de reconfirmé', bd.length === 1 && bd[0].id === 'bd-deja' && !('sansConfirmation' in bd[0]) && !bd[0].suggereLe && !(await evalue(`!!${modale}`)), JSON.stringify(bd.map((a) => a.id)));
 
-/* ── D. SON HEURE PRISE ; « LE VALIDER ET TERMINER » ── */
+/* ── D. SON HEURE PRISE ; « ELLE L'A CHOISI AVEC NOUS » ; « POSER LE RENDEZ-VOUS » ── */
 dit('le Carnet ouvre l encaissement de Danielle E.', await ouvreLEncaissement('Danielle', '15:00'));
-dit('elle règle', await encaisse());
+dit('elle règle, puis la seconde étape', (await encaisse()) && (await versLaSuite()));
 const heureD = await texte('.mnd-modal .trv-prochain__heure');
-dit('son heure prise : le même jour, l heure libre la plus proche', (await enGrand()) === await ditLeJour(jourPlus(28)) && !heureD.startsWith('15 h ·'), `${await enGrand()} · ${heureD}`);
+dit('son heure prise : le même jour, l heure libre la plus proche', (await enGrand()) === await ditLeJour(ouvertDes(28)) && !heureD.startsWith('15 h ·'), `${await enGrand()} · ${heureD}`);
 dit('... et l écran le dit', /^!s?15 h est déjà prise chez Expert ce \S+-là : proposé à \d{1,2} h( \d{2})?, l’heure libre la plus proche\.$/u.test(await texte('.mnd-modal .trv-prochain__verifie')), await texte('.mnd-modal .trv-prochain__verifie'));
-dit('« Terminer », puis « Le valider et terminer »', (await termine()) && (await clique('.mnd-modal .trv-regle__pied-gauche button', 'Le valider et terminer')));
-await attend(900);
+dit('« Elle l’a choisi avec nous »', await evalue(`(() => { const i = [...document.querySelectorAll('.mnd-modal .trv-prochain__choix input')][1]; if (i) i.click(); return !!i; })()`));
+await attend(500);
+dit('... le geste plein dit « Poser le rendez-vous », l aperçu la confirmation', (await texte('.mnd-modal .trv-regle__terminer')) === 'Poser le rendez-vous' && (await texte('.mnd-modal .trv-prochain__quand')).startsWith('Rien tant que'), await texte('.mnd-modal .trv-regle__terminer'));
+dit('« Poser le rendez-vous »', await geste('Poser le rendez-vous'));
 const de = await sesRdv('cl-de');
-dit('... posé et confirmé d un geste, la fenêtre fermée', de.length === 1 && !('sansConfirmation' in de[0]) && de[0].date === jourPlus(28) && !(await evalue(`!!${modale}`)), JSON.stringify(de.map((a) => `${a.date} ${a.time} ${a.sansConfirmation}`)));
+dit('... posé et confirmé d un geste, sans marque de suggestion, la fenêtre fermée', de.length === 1 && !('sansConfirmation' in de[0]) && !de[0].suggereLe && de[0].date === ouvertDes(28) && !(await evalue(`!!${modale}`)), JSON.stringify(de.map((a) => `${a.date} ${a.time} ${a.sansConfirmation} ${a.suggereLe}`)));
+dit('... la fenêtre dit la confirmation', (await toastDit()).startsWith('Fenêtre fermée. La confirmation part vers Danielle E. :'), await toastDit());
 
 /* ── E. « PAS DE PROCHAIN RENDEZ-VOUS » ── */
 dit('le Carnet ouvre l encaissement d Eva G.', await ouvreLEncaissement('Eva', '12:00'));
-dit('elle règle, et la carte se valide', (await encaisse()) && (await clique('.mnd-modal .trv-prochain__valider', 'Valider ce rendez-vous')));
+dit('elle règle, la seconde étape, et la carte se valide', (await encaisse()) && (await versLaSuite()) && (await clique('.mnd-modal .trv-prochain__valider', 'Valider ce rendez-vous')));
 await attend(700);
-dit('... posé', (await sesRdv('cl-eg')).length === 1);
-dit('« Pas de prochain rendez-vous » se demande dans le pied', (await clique('.mnd-modal .trv-regle__pied-gauche button', 'Pas de prochain rendez-vous')) && (await pied()).startsWith('Retirer le rendez-vous du '), await pied());
-dit('« Retirer »', await clique('.mnd-modal .trv-regle__pied-gauche button', 'Retirer'));
-await attend(700);
+dit('... posé, suggéré', (await sesRdv('cl-eg')).length === 1 && !!(await sesRdv('cl-eg'))[0]?.suggereLe);
+dit('« Pas de prochain rendez-vous » se demande dans le pied', (await lien('Pas de prochain rendez-vous')) && (await pied()).startsWith('Retirer le rendez-vous du '), await pied());
+dit('« Retirer »', await lien('Retirer'));
 dit('... le rendez-vous s efface, rien ne part ; la carte le dit', (await sesRdv('cl-eg')).length === 0 && (await enGrand()) === 'Pas de prochain rendez-vous' && (await pastille()) === 'Aucun', `${(await sesRdv('cl-eg')).length} · ${await enGrand()}`);
 const eva = ((await lis('trone::mnd_appointments')) ?? []).find((a) => a.id === 'rdv-cl-eg');
 dit('... son rituel garde la marque d une suite retirée', eva?.repriseRetiree === true);
-dit('« Terminer » ferme sans rien poser', (await termine()) && !(await evalue(`!!${modale}`)) && (await sesRdv('cl-eg')).length === 0);
+dit('« Fermer » ferme sans rien poser', (await geste('Fermer')) && !(await evalue(`!!${modale}`)) && (await sesRdv('cl-eg')).length === 0);
 
 /* ── G. « HONORÉ » AU CARNET, SANS ENCAISSER ── */
 await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/trone.html#/carnet?q=${encodeURIComponent('Grâce')}` });
@@ -360,27 +379,45 @@ await attend(7000);
 dit('au Carnet, « Honoré » d un toucher sur son rituel du jour', await evalue(`(() => { const l = [...document.querySelectorAll('.trc-rdv')].find((r) => r.querySelector('.trc-time')?.textContent.trim() === '14:00'); const b = l?.querySelector('.trc-vite--oui'); if (b) b.click(); return !!b; })()`));
 await attend(1200);
 dit('... la même carte s ouvre, proposée, rien de posé', (await titre()) === 'Son prochain rituel' && (await pastille()) === 'À valider' && (await sesRdv('cl-gi')).length === 0, `${await titre()} · ${await pastille()}`);
-dit('... sa date en grand', (await enGrand()) === await ditLeJour(jourPlus(28)), await enGrand());
+dit('... sa date en grand, et les puces', (await enGrand()) === await ditLeJour(ouvertDes(28)) && (await evalue(`document.querySelectorAll('.mnd-modal .trv-prochain__puce').length`)) === 6, await enGrand());
 await capture('carnet-honore-carte', 1280, 900, false);
 dit('« Valider ce rendez-vous »', await clique('.mnd-modal .trv-prochain__valider', 'Valider ce rendez-vous'));
 await attend(800);
 const gi = await sesRdv('cl-gi');
-dit('... posé sans confirmation, relié à son rituel', gi.length === 1 && gi[0].sansConfirmation === true && gi[0].repriseDe === 'rdv-cl-gi', JSON.stringify(gi.map((a) => `${a.date} ${a.sansConfirmation} ${a.repriseDe}`)));
-dit('« Terminer » : confirmé une fois, la fenêtre fermée', (await termine()) && !('sansConfirmation' in ((await sesRdv('cl-gi'))[0] ?? { sansConfirmation: 1 })) && !(await evalue(`!!${modale}`)));
+dit('... posé sans confirmation, suggéré, relié à son rituel', gi.length === 1 && gi[0].sansConfirmation === true && !!gi[0].suggereLe && gi[0].repriseDe === 'rdv-cl-gi' && (await pastille()) === 'Suggéré', JSON.stringify(gi.map((a) => `${a.date} ${a.sansConfirmation} ${a.repriseDe}`)));
+dit('« Terminer » : la proposition une fois, la fenêtre fermée', (await termine()) && !('sansConfirmation' in ((await sesRdv('cl-gi'))[0] ?? { sansConfirmation: 1 })) && !(await evalue(`!!${modale}`)));
+
+/* ── H. AU CARNET, LA SUGGESTION SE VOIT ET SE CONFIRME ── */
+await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/trone.html#/carnet?q=${encodeURIComponent('Awa')}` });
+await attend(1500);
+await cdp('Page.reload', { ignoreCache: false });
+await attend(7000);
+const ligneAwa = `[...document.querySelectorAll('.trc-rdv')].find((r) => r.textContent.includes('Suggéré'))`;
+dit('au Carnet, sa suggestion porte le badge « Suggéré »', await evalue(`!!${ligneAwa}`));
+dit('« Elle a dit oui » au menu du statut', await evalue(`(() => { const b = ${ligneAwa}?.querySelector('.trc-statut'); if (b) b.click(); return !!b; })()`) && (await clique('.trc-menu button', 'Elle a dit oui')));
+await attend(900);
+p = (await sesRdv('cl-ak'))[0];
+dit('... son oui est noté par le comptoir, le badge s en va', !!p?.confirmeeParLaClienteLe && p?.ouiNoteParLeComptoir === true && !(await evalue(`!!${ligneAwa}`)), JSON.stringify({ oui: !!p?.confirmeeParLaClienteLe, comptoir: p?.ouiNoteParLeComptoir }));
 
 /* ── F. AU TÉLÉPHONE ── */
 dit('le Carnet ouvre l encaissement de Fanta H.', await ouvreLEncaissement('Fanta', '16:30'));
 dit('elle règle', await encaisse());
 await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
 await attend(700);
+const deborde1 = await evalue(`(() => { const m = document.querySelector('.mnd-modal'); return { page: document.documentElement.scrollWidth, fenetre: m ? m.scrollWidth - m.clientWidth : -1 }; })()`);
+dit('à 390 px, l étape 1 ne déborde pas', deborde1.page <= 390 && deborde1.fenetre <= 1, JSON.stringify(deborde1));
+await capture('c-est-regle-telephone-1', 390, 844, true);
+await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+await attend(400);
+await versLaSuite();
 const deborde = await evalue(`(() => { const m = document.querySelector('.mnd-modal'); return { page: document.documentElement.scrollWidth, fenetre: m ? m.scrollWidth - m.clientWidth : -1 }; })()`);
-dit('à 390 px, rien ne déborde', deborde.page <= 390 && deborde.fenetre <= 1, JSON.stringify(deborde));
+dit('à 390 px, l étape 2 ne déborde pas', deborde.page <= 390 && deborde.fenetre <= 1, JSON.stringify(deborde));
 await capture('c-est-regle-telephone', 390, 844, true);
 await cdp('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
-await termine();
+await lien('Pas de prochain rendez-vous');
 
 dit('aucune erreur dans la page', erreurs.length === 0, erreurs.slice(0, 3).join(' | ') || 'aucune');
 ws.close(); chrome.kill(); serveur.close();
 setTimeout(() => { try { rmSync(profil, { recursive: true, force: true }); } catch { /* libere apres */ } }, 1500);
-console.log(ko === 0 ? '\n« C’est réglé » tient : proposé, validé d’un toucher, une seule confirmation à la fermeture.' : `\n${ko} controle(s) en echec.`);
+console.log(ko === 0 ? '\n« C’est réglé » tient : la séance se ferme, la suite est une étape à part, suggérée, une seule proposition à la fermeture.' : `\n${ko} controle(s) en echec.`);
 setTimeout(() => process.exit(ko === 0 ? 0 : 1), 1600);

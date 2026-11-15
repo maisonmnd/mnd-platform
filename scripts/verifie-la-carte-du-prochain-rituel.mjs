@@ -53,7 +53,8 @@ const PANNES = [
   ['la date d office oublie son jour habituel', PUR, "return places.find((p) => p.cle === 'jour') ?? date ?? places[0] ?? null;", "return date ?? places[0] ?? null;"],
   ['sa date sur son jour cede au meme jour une semaine plus tard', PUR, "if (date && jourHabituel !== null && jourHabituel !== undefined && new Date(`${date.iso}T12:00:00`).getDay() === jourHabituel) return date;", ''],
   ['l heure prise ne se dit pas', PUR, "if (o.heureHabituelle && o.place.heure !== o.heureHabituelle) {", "if (false) {"],
-  ['la pastille ne dit pas le changement', PUR, "if (!e.dejaLa && e.depart && !memePlace(e.place, e.depart)) return { texte: 'Confirmé · changé', ton: 'change' };", ""],
+  /* Depuis le 15 novembre 2026 (le rendez-vous suggéré), le changement se lit une fois, puis se dit. */
+  ['la pastille ne dit pas le changement', PUR, "  if (change) return { texte: 'Confirmé · changé', ton: 'change' };", "  if (false) return { texte: 'Confirmé · changé', ton: 'change' };"],
   ['revenir ne deplace pas le rendez-vous pose', PUR, "if (e.valide && e.rdvId) return { etat: { ...e, place: e.depart, modif: false }, effets: [{ genre: 'deplacer', rdvId: e.rdvId, place: e.depart }] };", ""],
   ['une autre date garde les jours fermes', PUR, "if (!p.ferme && p.heures.length > 0) jours.push(iso);", "jours.push(iso);"],
   /* Ce que les ecrans ajoutent (4 novembre 2026). */

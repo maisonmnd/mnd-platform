@@ -170,3 +170,63 @@
 @media (prefers-reduced-motion: no-preference) {
   .trv-prochain__carte, .trv-prochain__modif { transition: border-color .2s ease; }
 }
+
+/* ══ LE RENDEZ-VOUS SUGGÉRÉ · 15 novembre 2026 ═══════════════════════════
+   Maquette PeiD4o4yfCY4GajdGJ52Ez. Deux étapes nommées dans « C'est réglé »
+   (le rail), la séance fermée en une ligne, « Nouveau rendez-vous » ; dans
+   la carte, les semaines de la suite et « Qui a choisi cette date ». Un
+   suggéré se dessine en pointillés cuivre, comme au Carnet. */
+.trv-regle__rail { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; align-items: center; }
+.trv-regle__etape { display: flex; gap: 10px; align-items: center; min-width: 0; padding: 9px 12px; border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); font-family: var(--font-sans); color: var(--ink-soft); }
+.trv-regle__etape b { display: block; font-size: 14px; font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
+.trv-regle__etape small { display: block; font-size: 12.5px; color: var(--ink-soft); }
+.trv-regle__etape.est-la { border-color: var(--color-indigo); box-shadow: inset 0 0 0 1px var(--color-indigo); }
+.trv-regle__etape.est-faite b { color: var(--ink-soft); }
+.trv-regle__num { flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--color-indigo); color: var(--color-indigo); font-size: 12.5px; font-weight: 600; }
+.trv-regle__etape.est-la .trv-regle__num { background: var(--color-indigo); color: var(--color-ivoire); }
+.trv-regle__etape.est-faite .trv-regle__num { border-color: #2F6B45; color: #2F6B45; }
+.trv-regle__fleche { color: var(--ink-soft); display: grid; place-items: center; }
+.trv-regle__ticket { max-width: 100%; }
+.trv-regle__annonce { display: grid; gap: 4px; padding: 12px 14px; border-left: 2px solid var(--color-copper); background: var(--paper); font-family: var(--font-sans); }
+.trv-regle__annonce b { font-size: 15px; font-weight: 500; color: var(--color-indigo); }
+.trv-regle__annonce span { font-size: 13.5px; line-height: 1.5; color: var(--ink-soft); }
+.trv-regle__close { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; padding: 9px 12px; border: 1px solid var(--hairline); border-radius: 4px; background: var(--paper); font-family: var(--font-sans); font-size: 13.5px; color: var(--ink-soft); }
+.trv-regle__close svg { flex: none; color: #2F6B45; }
+.trv-regle__close > span { flex: 1 1 14ch; min-width: 0; }
+.trv-regle__close .trv-prochain__lien { margin-left: auto; }
+.trv-regle__nouveau { font-family: var(--font-sans); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; font-weight: 500; color: var(--copper-700); }
+
+.trv-prochain__semaines { display: grid; gap: 8px; min-width: 0; }
+.trv-prochain__puces { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.trv-prochain__puce {
+  display: grid; justify-items: center; gap: 1px; min-height: 52px; padding: 6px 4px; cursor: pointer;
+  border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); color: var(--ink);
+  font-family: var(--font-sans); font-variant-numeric: tabular-nums;
+}
+.trv-prochain__puce span { font-size: 15px; font-weight: 500; }
+.trv-prochain__puce small { font-size: 11.5px; color: var(--ink-soft); text-align: center; }
+.trv-prochain__puce small.est-rythme { color: var(--copper-700); }
+.trv-prochain__puce:hover:not(:disabled) { border-color: var(--copper-300); }
+.trv-prochain__puce:disabled { opacity: .5; cursor: not-allowed; }
+.trv-prochain__puce[aria-pressed="true"] { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
+.trv-prochain__puce[aria-pressed="true"] small, .trv-prochain__puce[aria-pressed="true"] small.est-rythme { color: var(--copper-200); }
+.trv-prochain__date-libre { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.trv-prochain__date-libre input { min-height: 38px; padding: 6px 10px; border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); color: var(--ink); font: 400 14px/1.2 var(--font-sans); }
+.trv-prochain__qui { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.trv-prochain__choix { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; cursor: pointer; border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); font-family: var(--font-sans); }
+.trv-prochain__choix input { margin-top: 3px; accent-color: var(--color-indigo); }
+.trv-prochain__choix b { display: block; font-size: 14px; font-weight: 500; color: var(--ink); }
+.trv-prochain__choix span span { display: block; font-size: 12.5px; line-height: 1.4; color: var(--ink-soft); }
+.trv-prochain__choix.is-on { border-color: var(--color-indigo); box-shadow: inset 0 0 0 1px var(--color-indigo); }
+.trv-prochain__pastille--suggere { background: transparent; color: var(--copper-700); border: 1px dashed var(--color-copper); }
+.trv-prochain__carte[data-pastille="suggere"] { border-style: dashed; border-color: var(--copper-300); }
+.trv-prochain__puce:focus-visible, .trv-prochain__choix:focus-within, .trv-prochain__date-libre input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+@media (max-width: 620px) {
+  .trv-regle__rail { grid-template-columns: minmax(0, 1fr); }
+  .trv-regle__fleche { display: none; }
+  .trv-prochain__puces { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .trv-prochain__qui { grid-template-columns: minmax(0, 1fr); }
+}
+.trv-reussite .trv-prochain__puces { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.trv-reussite .trv-prochain__qui { grid-template-columns: minmax(0, 1fr); }

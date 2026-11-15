@@ -110,6 +110,11 @@ export type EtatDeLaCarte = {
 export type GesteDeLaCarte =
   | { genre: 'valider'; id: string }
   | { genre: 'toucher'; place: PlaceDeLaCarte; id: string }
+  /** LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : une puce « 6 sem. » ou une
+      date choisie. Tant que rien n'est posé, la place montrée change et RIEN
+      ne se pose (« Rien n'est posé tant que vous ne le décidez pas ») ; posé,
+      le même rendez-vous se déplace, comme au toucher. */
+  | { genre: 'viser'; place: PlaceDeLaCarte }
   | { genre: 'revenir' }
   | { genre: 'modifier' }
   | { genre: 'garder' }
@@ -160,6 +165,13 @@ export function gesteSurLaCarte(e: EtatDeLaCarte, g: GesteDeLaCarte): { etat: Et
       if (memePlace(e.place, g.place) || !e.rdvId) return { etat: { ...e, modif: false }, effets: [] };
       return { etat: { ...e, place: g.place, modif: false }, effets: [{ genre: 'deplacer', rdvId: e.rdvId, place: g.place }] };
     }
+    case 'viser': {
+      if (e.retire) return rien;
+      if (e.dejaLa && e.rdvId) return { etat: e, effets: [{ genre: 'ouvrir', rdvId: e.rdvId, place: g.place }] };
+      if (!e.valide) return { etat: { ...e, place: g.place, modif: false, pied: 'rien' }, effets: [] };
+      if (memePlace(e.place, g.place) || !e.rdvId) return { etat: { ...e, modif: false }, effets: [] };
+      return { etat: { ...e, place: g.place, modif: false }, effets: [{ genre: 'deplacer', rdvId: e.rdvId, place: g.place }] };
+    }
     case 'revenir': {
       if (!e.depart || memePlace(e.place, e.depart) || e.retire) return rien;
       if (e.dejaLa) return { etat: { ...e, place: e.depart, modif: false }, effets: [] };
@@ -207,21 +219,34 @@ export function gesteSurLaCarte(e: EtatDeLaCarte, g: GesteDeLaCarte): { etat: Et
   }
 }
 
-/** LA PASTILLE DE LA CARTE. */
-export function pastilleDeLaCarte(e: EtatDeLaCarte): { texte: string; ton: 'vide' | 'ok' | 'change' } {
+/** LA PASTILLE DE LA CARTE. `suggere` (15 novembre 2026) : posé « Suggéré
+    par la Maison », il se dit « Suggéré » tant qu'elle n'a pas dit oui. */
+export function pastilleDeLaCarte(e: EtatDeLaCarte, o: { suggere?: boolean } = {}): { texte: string; ton: 'vide' | 'ok' | 'change' | 'suggere' } {
   if (e.retire) return { texte: 'Aucun', ton: 'vide' };
   if (!e.place) return { texte: 'À poser', ton: 'vide' };
   if (!e.valide) return { texte: 'À valider', ton: 'vide' };
-  if (!e.dejaLa && e.depart && !memePlace(e.place, e.depart)) return { texte: 'Confirmé · changé', ton: 'change' };
+  const change = !e.dejaLa && !!e.depart && !memePlace(e.place, e.depart);
+  if (!e.dejaLa && o.suggere) return { texte: change ? 'Suggéré · changé' : 'Suggéré', ton: 'suggere' };
+  if (change) return { texte: 'Confirmé · changé', ton: 'change' };
   return { texte: 'Confirmé', ton: 'ok' };
 }
 
 /** CE QUI S'EST PASSÉ À LA FERMETURE, dit dans le pied. */
-export function issueDeLaFermeture(e: EtatDeLaCarte, o: { qui: string; momentDit: (p: PlaceDeLaCarte) => string }): string {
+export function issueDeLaFermeture(e: EtatDeLaCarte, o: {
+  qui: string; momentDit: (p: PlaceDeLaCarte) => string;
+  /** Posé « Suggéré par la Maison » (15 novembre 2026). */
+  suggere?: boolean;
+  /** Le modèle de la proposition n'est pas approuvé chez Meta : rien ne part. */
+  sansModele?: boolean;
+}): string {
   if (e.valide && e.place && !e.retire) {
-    return e.dejaLa
-      ? `Fenêtre fermée. Son rendez-vous du ${o.momentDit(e.place)} reste tel qu’il était, aucun nouveau message.`
-      : `Fenêtre fermée. La confirmation part vers ${o.qui} : ${o.momentDit(e.place)}.`;
+    if (e.dejaLa) return `Fenêtre fermée. Son rendez-vous du ${o.momentDit(e.place)} reste tel qu’il était, aucun nouveau message.`;
+    if (o.suggere) {
+      return o.sansModele
+        ? `Fenêtre fermée. Suggestion posée au Carnet : ${o.momentDit(e.place)}. Le modèle de la proposition n’est pas encore approuvé chez Meta : rien ne part vers ${o.qui}, dites-lui la date.`
+        : `Fenêtre fermée. La proposition part vers ${o.qui} : ${o.momentDit(e.place)}, avec « Je confirme » et « Un autre moment ».`;
+    }
+    return `Fenêtre fermée. La confirmation part vers ${o.qui} : ${o.momentDit(e.place)}.`;
   }
   return 'Fenêtre fermée sans prochain rendez-vous, aucun message. Perle le lui proposera avant la date de son rythme.';
 }
@@ -280,9 +305,16 @@ export function lesHeuresDuJour(o: { toutes: readonly string[]; libres: readonly
 /** CE QU'ELLE REÇOIT, dit avant la fermeture : rien tant que ce n'est pas
     validé ; une seule confirmation, à la fermeture ; rien de plus pour un
     rendez-vous qui existait déjà ; rien du tout sans numéro. */
-export function ceQuiPartVersElle(e: EtatDeLaCarte, o: { aUnNumero: boolean }): { genre: 'rien' | 'deja' | 'attend' | 'sans-numero' | 'part'; texte: string } {
+export function ceQuiPartVersElle(e: EtatDeLaCarte, o: { aUnNumero: boolean; suggere?: boolean; sansModele?: boolean }): { genre: 'rien' | 'deja' | 'attend' | 'sans-numero' | 'sans-modele' | 'part'; texte: string } {
   if (e.retire || !e.place) return { genre: 'rien', texte: 'Rien ne part vers elle.' };
   if (e.dejaLa) return { genre: 'deja', texte: 'Rien de plus : ce rendez-vous existait déjà, sa confirmation est partie quand il a été posé.' };
+  /* LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : une proposition, pas une confirmation. */
+  if (o.suggere) {
+    if (o.aUnNumero !== true) return { genre: 'sans-numero', texte: 'Sa fiche n’a pas de numéro : aucune proposition ne partira. La suggestion est posée au Carnet, dites-lui la date.' };
+    if (o.sansModele) return { genre: 'sans-modele', texte: 'Le modèle de la proposition n’est pas encore approuvé chez Meta : rien ne part vers elle tant qu’il ne l’est pas. La suggestion est posée au Carnet, dites-lui la date.' };
+    if (!e.valide) return { genre: 'attend', texte: 'Rien tant que vous ne la posez pas. Posée, la proposition part en fermant cette fenêtre, une seule fois.' };
+    return { genre: 'part', texte: 'En fermant cette fenêtre, une seule fois, avec la date retenue : elle confirme d’un toucher, ou demande un autre moment. Sans réponse, une relance trois jours avant.' };
+  }
   if (!e.valide) {
     return { genre: 'attend', texte: 'Rien tant que le rendez-vous n’est pas validé. Validé, la confirmation part à la fermeture de cet écran, une seule fois, avec la date retenue.' };
   }
@@ -299,9 +331,10 @@ const D_OU_VIENT: Record<string, string> = {
 
 /** LE RENDEZ-VOUS QUI EXISTAIT DÉJÀ, d'où il vient : « Posé le 20 octobre
     2026 depuis Ma Couronne, confirmé. » `dateDite` : « 20 octobre 2026 ». */
-export function ceQueDitLeRendezVousDejaLa(o: { creeLe?: string; source?: string; status?: string; dateDite: (iso: string) => string }): string {
+export function ceQueDitLeRendezVousDejaLa(o: { creeLe?: string; source?: string; status?: string; dateDite: (iso: string) => string; suggere?: boolean }): string {
   const quand = /^\d{4}-\d{2}-\d{2}/.test(o.creeLe ?? '') ? ` le ${o.dateDite((o.creeLe as string).slice(0, 10))}` : '';
   const ou = o.source && D_OU_VIENT[o.source] ? ` ${D_OU_VIENT[o.source]}` : '';
-  const statut = o.status === 'en attente' ? 'en attente de confirmation' : 'confirmé';
+  /* Une suggestion de la Maison (15 novembre 2026) attend son oui : elle ne se dit pas « confirmé ». */
+  const statut = o.suggere ? 'suggéré, en attente de son oui' : o.status === 'en attente' ? 'en attente de confirmation' : 'confirmé';
   return quand || ou ? `Posé${quand}${ou}, ${statut}.` : `Déjà posé, ${statut}.`;
 }

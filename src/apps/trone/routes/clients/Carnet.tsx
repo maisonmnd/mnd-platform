@@ -43,6 +43,9 @@ import {
 } from './_shared';
 import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honoreSansEncaisser, PayAppointmentModal, piecesDuFoyer, prenomsDuFoyer } from './actions';
 import { FenetreDuProchainRituel } from '../vente/SonProchainRituel';
+import { BadgeSuggere } from './BadgeSuggere';
+import { estSuggere } from '../../../../shared/rendez-vous-suggere-pur';
+import { noteSonOui } from '../../../../shared/carte-du-prochain-rituel';
 import { laCarteSOuvreApresLHonneur, sonProchainDejaPose } from '../../../../shared/carte-du-prochain-rituel';
 import { momentDuMessage } from '../../../../shared/salle-des-envois';
 import { rdvsDuFoyerLeJour } from '../../../../shared/facture-du-foyer-pur';
@@ -158,7 +161,7 @@ function MenuFlottant({ ancre, onClose, children }: { ancre: HTMLElement; onClos
    n'existe pas, et faire chercher au comptoir un argent que la Maison n'attend
    pas. Les trois vues d'argent l'écartent donc. La pastille de la ligne, elle,
    continue de dire l'état comptable — c'est son rôle. */
-type VueCarnet = '' | 'avenir' | 'aclore' | 'impaye' | 'partiel' | 'paye' | 'attente' | 'confirme' | 'honore' | 'annule';
+type VueCarnet = '' | 'avenir' | 'aclore' | 'impaye' | 'partiel' | 'paye' | 'attente' | 'suggere' | 'confirme' | 'honore' | 'annule';
 
 const VUES: Record<VueCarnet, {
   label: string;
@@ -172,7 +175,10 @@ const VUES: Record<VueCarnet, {
   partiel:    { label: 'Partiels',    garde: (a, b) => a.status !== 'annulé' && apptPayState(a, b) === 'partiel' },
   paye:       { label: 'Payés',       garde: (a, b) => a.status !== 'annulé' && apptPayState(a, b) === 'payé' },
   attente:    { label: 'En attente',  garde: (a) => a.status === 'en attente' },
-  confirme:   { label: 'Confirmés',   garde: (a) => a.status === 'confirmé' },
+  /* LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : posé par la Maison, il attend
+     son oui ; « les chiffres à venir le comptent à part, à confirmer ». */
+  suggere:    { label: 'Suggérés',    garde: (a) => estSuggere(a) },
+  confirme:   { label: 'Confirmés',   garde: (a) => a.status === 'confirmé' && !estSuggere(a) },
   honore:     { label: 'Honorés',     garde: (a) => a.status === 'honoré' },
   annule:     { label: 'Annulés',     garde: (a) => a.status === 'annulé' },
 };
@@ -919,6 +925,7 @@ export default function Carnet() {
             <span key={s.cle} className={`trc-src trc-signal${s.alerte ? ' est-alerte' : ''}`} title={s.pourquoi}>{s.dit}</span>
           ))}
           <SourceBadge source={a.source} />
+          <BadgeSuggere a={a} />
         </span>
         </span>
         <span className="trc-carnet__amount">
@@ -1017,6 +1024,12 @@ export default function Carnet() {
             {menuFor === a.id && menuAncre && (
               <MenuFlottant ancre={menuAncre} onClose={fermeLeMenu}>
                 <div className="trc-menu__titre">Statut</div>
+                {/* ELLE A DIT OUI (15 novembre 2026) : au téléphone ou au
+                    comptoir, à une suggestion de la Maison. Elle devient
+                    « Confirmé » ; la relance trois jours avant ne part plus. */}
+                {estSuggere(a) && (
+                  <button onClick={() => { noteSonOui(a.id); setMenuFor(null); toast('Son oui est noté : le rendez-vous est confirmé, la relance ne partira pas.'); }}>Elle a dit oui</button>
+                )}
                 {canConfirm && (
                   <button onClick={() => { setStatus(a.id, 'confirmé'); setMenuFor(null); }}>Confirmer le rendez-vous</button>
                 )}

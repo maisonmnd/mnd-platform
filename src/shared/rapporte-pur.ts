@@ -452,7 +452,8 @@ export type Voix = {
 export const VOIX_DE_LA_MAISON: readonly Voix[] = [
   { id: 'assistant', nom: 'Assistant Maison', automatisations: [], types: ['gerard'], fonctions: ['assistant-maison'], secrets: [], modeles: Object.values(MODELES_DE_GERARD).map((m) => m.nom), interrupteur: 'assistant' },
   { id: 'automate', nom: 'Automate WhatsApp', automatisations: ['automate-wa'], types: [], fonctions: ['whatsapp-automate'], secrets: [], modeles: [], interrupteur: 'automate', compteDit: 'ses réponses vivent dans les conversations' },
-  { id: 'confirmation', nom: 'Confirmation, rappel J-1', automatisations: ['confirmation', 'rappel-j1', 'push-rappels'], types: [], fonctions: ['confirmation-rdv', 'rappels-j1', 'envois-partent'], parLeFacteur: true, secrets: [], modeles: [], interrupteur: 'toujours' },
+  /* La proposition du rendez-vous suggéré (15 novembre 2026) part de confirmation-rdv, à la place de la confirmation. */
+  { id: 'confirmation', nom: 'Confirmation, rappel J-1', automatisations: ['confirmation', 'proposition', 'rappel-j1', 'push-rappels'], types: [], fonctions: ['confirmation-rdv', 'rappels-j1', 'envois-partent'], parLeFacteur: true, secrets: [], modeles: [], interrupteur: 'toujours' },
   /* Les deux messages de l'abonnée (8 novembre 2026, lot 4) vivent ici : les mêmes fonctions, la même salle. */
   { id: 'entre-deux', nom: 'Entre deux séances', automatisations: ['point-apres', 'point-avant', 'reprise-j3', 'veille-attention', 'prochaine-seance'], types: [], fonctions: ['rappels-j1', 'whatsapp-webhook'], parLeFacteur: true, secrets: [], modeles: [], interrupteur: 'avec-son-modele' },
   { id: 'relances', nom: 'Relances de factures', automatisations: ['relance-facture'], types: [], fonctions: ['relances-factures'], secrets: ['WA_TEMPLATE_RELANCE'], modeles: [], interrupteur: 'relances' },

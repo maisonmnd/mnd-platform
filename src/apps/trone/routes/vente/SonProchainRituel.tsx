@@ -85,7 +85,11 @@ import {
   laRaisonDeLaDate, lesHeuresDuJour, lesJoursDUneAutreDate, memePlace, pastilleDeLaCarte, sansDateDOffice,
   type EffetDeLaCarte, type EtatDeLaCarte, type GesteDeLaCarte, type PlaceDeLaCarte,
 } from '../../../../shared/carte-du-prochain-rituel-pur';
-import { leveLaConfirmation, remplaceLeRendezVousDeLaCarte, retireLeRendezVousDeLaCarte } from '../../../../shared/carte-du-prochain-rituel';
+import { leveLaConfirmation, marqueLaSuggestion, remplaceLeRendezVousDeLaCarte, retireLeRendezVousDeLaCarte } from '../../../../shared/carte-du-prochain-rituel';
+import {
+  dansNSemaines, estSuggere, laPlaceDeLaPuce, marqueDeLaPose, SEMAINES_DE_LA_SUITE, semaineDuRythme, texteDeLaProposition, type QuiAChoisi,
+} from '../../../../shared/rendez-vous-suggere-pur';
+import { supabase } from '../../../../shared/supabase';
 import './son-prochain-rituel.css';
 
 const NOMS_DES_JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
@@ -110,7 +114,43 @@ export type VueDeLaCarte = {
   terminer: () => void;
   /** Le bouton qui ferme est-il le bouton plein (validé, rien à poser, retiré) ? */
   plein: boolean;
+  /* ── LA SECONDE ÉTAPE DE « C'EST RÉGLÉ » (15 novembre 2026) ── */
+  /** « Poser la suggestion » : pose la place montrée et ferme (ou ferme, si c'est déjà posé). */
+  poser: () => void;
+  /** « Pas de prochain rendez-vous » : ferme sans rien poser, ou demande le retrait de ce qui est posé. */
+  sansSuite: () => void;
+  /** Le pied pose une question (terminer sans valider, retirer) : l'hôte la montre seule. */
+  question: boolean;
+  /** Ce que dit le bouton plein de la seconde étape. */
+  libelleDuGeste: string;
+  /** Un rendez-vous à venir existait déjà : rien de neuf ne se pose. */
+  dejaLa: boolean;
+  /** Sa date déjà posée, dite (« samedi 26 décembre 2026 à 13 h 30 »), quand elle l'est. */
+  dejaLaDit: string | null;
 };
+
+/** LE MODÈLE DE LA PROPOSITION EST-IL APPROUVÉ CHEZ META ? (15 novembre 2026)
+    La dernière lecture que le Trône garde (`mnd_modeles_meta`, écrite par
+    « Les modèles chez Meta »). `null` : on ne sait pas (hors ligne, jamais lu). */
+function useModeleApprouve(nom: string): boolean | null {
+  const [etat, setEtat] = useState<boolean | null>(null);
+  useEffect(() => {
+    const sb = supabase;
+    if (!sb) return undefined;
+    let vivant = true;
+    void (async () => {
+      try {
+        const { data } = await sb.from('documents').select('data').eq('key', 'mnd_modeles_meta').maybeSingle();
+        const modeles = ((data?.data ?? null) as { modeles?: { nom?: string; etat?: string }[] } | null)?.modeles;
+        if (!vivant || !Array.isArray(modeles) || modeles.length === 0) return;
+        const m = modeles.find((x) => x?.nom === nom);
+        setEtat(!!m && String(m.etat ?? '').toUpperCase() === 'APPROVED');
+      } catch { /* hors ligne : on ne sait pas, la fenêtre n'en dit rien */ }
+    })();
+    return () => { vivant = false; };
+  }, [nom]);
+  return etat;
+}
 
 export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituelId, onALaMain, onFerme, children }: {
   clientId: string;
@@ -307,6 +347,22 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
   const [alerte, setAlerte] = useState<string | null>(null);
   const [fenetre, setFenetre] = useState<{ appt?: Appointment; initial?: RdvInitial } | null>(null);
 
+  /* ══ LE RENDEZ-VOUS SUGGÉRÉ · 15 novembre 2026 ══════════════════════════
+     « Suggéré par la Maison » d'office : elle le confirme d'un toucher sur
+     WhatsApp. « Elle l'a choisi avec nous » : au comptoir elle a dit oui,
+     il est confirmé. Les puces 3, 4, 5, 6, 8 et 12 semaines (depuis cette
+     séance) et « Ou choisir une date » changent la place montrée ; rien ne
+     se pose avant « Poser la suggestion ». Maquette PeiD4o4yfCY4GajdGJ52Ez. */
+  const [qui, setQui] = useState<QuiAChoisi>('suggere');
+  const quiRef = useRef(qui);
+  quiRef.current = qui;
+  const [puce, setPuce] = useState<number | null>(null);
+  const [dateLibre, setDateLibre] = useState('');
+  const [notePuce, setNotePuce] = useState<string | null>(null);
+  const modeleApprouve = useModeleApprouve('proposition_rituel');
+  /* La proposition ne part que son modèle approuvé ; sans lecture, on n'en dit rien. */
+  const sansModele = qui === 'suggere' && modeleApprouve === false;
+
   /* Le rendez-vous de la carte, relu au carnet : la fenêtre du rendez-vous a
      pu le changer (ses gestes, son heure) ou l'effacer. */
   const posee = carte.rdvId ? tous.find((a) => a.id === carte.rdvId) : undefined;
@@ -402,7 +458,7 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
   const construis = (p: PlaceDeLaCarte, id: string): Appointment | null => {
     if (!tarif) return null;
     if (imposee) {
-      return { ...imposee.suite, id, date: p.iso, time: p.heure, sansConfirmation: true, numeroAPrevenir: imposee.suite.numeroAPrevenir ?? numero };
+      return { ...imposee.suite, id, date: p.iso, time: p.heure, sansConfirmation: true, numeroAPrevenir: imposee.suite.numeroAPrevenir ?? numero, ...marqueDeLaPose(quiRef.current, new Date().toISOString()) };
     }
     const mercredi = leMercrediDeLaPlace(p.iso, appointmentsStore.get());
     const rdv = leRendezVousDuProchainRituel({
@@ -421,6 +477,7 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
       numeroAPrevenir: numero,
       repriseDe: rituelId,
       sansConfirmation: true,
+      ...marqueDeLaPose(quiRef.current, new Date().toISOString()),
       remiseFamilleXof: mercredi ? 0 : familleXof(p.iso),
     });
     return rdv;
@@ -437,7 +494,7 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
   /* UN GESTE : la règle pure dit l'état et les effets ; une place se relit
      d'abord sur le carnet du moment (une autre main a pu la prendre), puis
      l'écran exécute. */
-  const qui = fiche?.name ?? 'elle';
+  const quiEst = fiche?.name ?? 'elle';
   const nomDuNumero = numerosDeLaFiche(fiche).find((n) => n.numero === numero)?.nom;
   const execute = (f: EffetDeLaCarte, apres: EtatDeLaCarte) => {
     if (f.genre === 'poser') {
@@ -460,9 +517,12 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
       if (lu) ouvreLaFenetre({ appt: lu });
     } else if (f.genre === 'fermer') {
       const sansNumero = apres.valide && !apres.dejaLa && !apres.retire && !aUnNumero;
+      const suggere = quiRef.current === 'suggere';
       toast(sansNumero && apres.place
-        ? `Fenêtre fermée. Rendez-vous posé, confirmé : ${momentDuMessage(apres.place.iso, apres.place.heure)}. Sa fiche n’a pas de numéro : aucune confirmation ne part.`
-        : issueDeLaFermeture(apres, { qui: nomDuNumero ? `${qui} (${nomDuNumero})` : qui, momentDit: (p) => momentDuMessage(p.iso, p.heure) }));
+        ? (suggere
+          ? `Fenêtre fermée. Suggestion posée au Carnet : ${momentDuMessage(apres.place.iso, apres.place.heure)}. Sa fiche n’a pas de numéro : aucune proposition ne part, dites-lui la date.`
+          : `Fenêtre fermée. Rendez-vous posé, confirmé : ${momentDuMessage(apres.place.iso, apres.place.heure)}. Sa fiche n’a pas de numéro : aucune confirmation ne part.`)
+        : issueDeLaFermeture(apres, { qui: nomDuNumero ? `${quiEst} (${nomDuNumero})` : quiEst, momentDit: (p) => momentDuMessage(p.iso, p.heure), suggere, sansModele: suggere && modeleApprouve === false }));
       onFerme?.();
     }
   };
@@ -490,6 +550,47 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
   };
   const terminer = () => fais({ genre: 'terminer' });
   const plein = carte.valide || !carte.place || carte.retire;
+
+  /* ── LES SEMAINES DE LA SUITE (15 novembre 2026) ──────────────────────
+     Chaque puce vise le jour de cette séance + n semaines, à son heure chez
+     son maître (`laPlaceDeLaPuce`, sur les places du « + RDV ») ; un jour
+     fermé ou plein passe au suivant, et la carte le dit. La puce de son
+     rythme est marquée. Rien ne se pose : la place montrée change. */
+  const rythmeEnJours = imposee ? imposee.semaines * 7 : rituel && rituel.source !== 'defaut' ? rituel.rythmeJours : null;
+  const sonRythme = semaineDuRythme(rythmeEnJours);
+  const placesDesPuces = useMemo(() => {
+    if (!tarif || carte.dejaLa) return [];
+    const duJour = placesDe(tous, blocages, tarif.dureeMin, maitre);
+    const lit = (iso: string) => { const p = duJour(iso); return { ferme: p.ferme, heures: p.heures }; };
+    return SEMAINES_DE_LA_SUITE.map((n) => ({ n, vise: dansNSemaines(jour, n), place: laPlaceDeLaPuce({ vise: dansNSemaines(jour, n), aujourdhui, placesDe: lit, heureHabituelle: sonHeure }) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tarif?.dureeMin, maitre, tous, blocages, sonHeure, jour, aujourdhui, carte.dejaLa, sieges, branch.id, carteTouchee?.rdvId]);
+  const puceMontree = (() => {
+    const montre = (n: number) => { const x = placesDesPuces.find((y) => y.n === n)?.place; return !!x && !!carte.place && memePlace(x, carte.place); };
+    if (puce !== null && montre(puce)) return puce;
+    return placesDesPuces.find((x) => montre(x.n))?.n ?? null;
+  })();
+  const vise = (o: { n: number } | { iso: string }) => {
+    if (!tarif) return;
+    const cible = 'n' in o
+      ? placesDesPuces.find((x) => x.n === o.n)?.place ?? null
+      : laPlaceDeLaPuce({
+        vise: o.iso, aujourdhui, heureHabituelle: sonHeure,
+        placesDe: (iso) => { const p = placesDe(appointmentsStore.get(), blocagesStore.get(), tarif.dureeMin, maitre)(iso); return { ferme: p.ferme, heures: p.heures }; },
+      });
+    if (!cible) {
+      setAlerte(`Aucune place pour ${fmtDureeCourte(tarif.dureeMin)}${maitre ? ` chez ${maitre}` : ''} dans les quatre semaines qui suivent : choisissez une autre date.`);
+      return;
+    }
+    setPuce('n' in o ? o.n : null);
+    if ('n' in o) setDateLibre('');
+    setNotePuce(cible.ecart === 'jour' ? `Le ${jourDit(cible.vise)} n’a pas de place pour sa durée : le ${jourDit(cible.iso)}, la première place qui suit.` : null);
+    fais({ genre: 'viser', place: { iso: cible.iso, heure: cible.heure } });
+  };
+  const changeQui = (q: QuiAChoisi) => {
+    setQui(q);
+    if (carte.valide && carte.rdvId && !carte.dejaLa && !carte.retire) marqueLaSuggestion(carte.rdvId, q === 'suggere');
+  };
 
   /* ── CE QUE LA CARTE MONTRE ───────────────────────────────────────────── */
   const nomDe = (l: readonly string[]) => l.map((id) => byId.get(id)?.name.split(' · ')[0]).filter(Boolean).join(' + ');
@@ -529,7 +630,7 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
   })();
   const verifie = (() => {
     if (!carte.place) return null;
-    if (carte.dejaLa) return { texte: ceQueDitLeRendezVousDejaLa({ creeLe: dejaPose?.creeLe, source: dejaPose?.source, status: dejaPose?.status, dateDite: dateSansJour }), alerte: false };
+    if (carte.dejaLa) return { texte: ceQueDitLeRendezVousDejaLa({ creeLe: dejaPose?.creeLe, source: dejaPose?.source, status: dejaPose?.status, dateDite: dateSansJour, suggere: estSuggere(dejaPose) }), alerte: false };
     if (change || !tarif) return ceQueDitLaPlace({ place: carte.place, maitre: maitreMontre, nomDuJour: (iso) => NOMS_DES_JOURS[new Date(`${iso}T12:00:00`).getDay()] });
     return ceQueDitLaPlace({
       place: carte.place,
@@ -540,8 +641,10 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
     });
   })();
   /* Un rendez-vous déjà là, venu du site, peut attendre sa confirmation : la pastille le dit. */
-  const pastille = carte.dejaLa && rdvMontre?.status === 'en attente' ? { texte: 'En attente', ton: 'vide' as const } : pastilleDeLaCarte(carte);
-  const message = ceQuiPartVersElle(carte, { aUnNumero });
+  const pastille = carte.dejaLa && rdvMontre?.status === 'en attente' ? { texte: 'En attente', ton: 'vide' as const }
+    : carte.dejaLa && estSuggere(rdvMontre) ? { texte: 'Suggéré', ton: 'suggere' as const }
+    : pastilleDeLaCarte(carte, { suggere: qui === 'suggere' });
+  const message = ceQuiPartVersElle(carte, { aUnNumero, suggere: qui === 'suggere', sansModele });
 
   /* Les places : celles du rythme, ou la première venue sans date en grand. */
   const lesPlaces = (titre: string) => (
@@ -621,11 +724,74 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
     ) : <p className="trv-prochain__note">Aucun jour ouvert avec une place pour sa durée dans les six semaines.</p>
   ) : null;
 
+  /* « Dans combien de temps » : six puces, et une date au choix. */
+  const lesSemaines = !carte.dejaLa && tarif && placesDesPuces.length > 0 ? (
+    <div className="trv-prochain__semaines">
+      <span className="trv-prochain__etiquette" id={`trv-dans-combien-${clientId}`}>Dans combien de temps</span>
+      <div className="trv-prochain__puces" role="group" aria-labelledby={`trv-dans-combien-${clientId}`}>
+        {placesDesPuces.map((x) => (
+          <button
+            key={x.n}
+            type="button"
+            className="trv-prochain__puce"
+            data-semaines={x.n}
+            aria-pressed={puceMontree === x.n}
+            disabled={!x.place}
+            title={x.place && x.place.iso !== x.vise ? `${x.n} semaines tombent le ${jourDit(x.vise)}, sans place pour sa durée : le ${jourDit(x.place.iso)}.` : undefined}
+            onClick={() => vise({ n: x.n })}
+          >
+            <span>{`${x.n} sem.`}</span>
+            <small className={x.n === sonRythme ? 'est-rythme' : undefined}>{`${x.n === sonRythme ? 'son rythme · ' : ''}${morceauDuJour(x.place?.iso ?? x.vise, { day: 'numeric', month: 'short' })}`}</small>
+          </button>
+        ))}
+      </div>
+      <label className="trv-prochain__date-libre">
+        <span className="trv-prochain__etiquette">Ou choisir une date</span>
+        <input
+          type="date"
+          min={demain}
+          value={dateLibre}
+          onChange={(e) => { const v = e.target.value; setDateLibre(v); if (/^\d{4}-\d{2}-\d{2}$/.test(v)) vise({ iso: v }); }}
+        />
+      </label>
+      {notePuce && <p className="trv-prochain__note">{notePuce}</p>}
+    </div>
+  ) : null;
+
+  /* « Qui a choisi cette date » : la Maison la suggère, ou elle l'a choisie avec nous. */
+  const quiDecide = !carte.dejaLa && carte.place && !carte.retire ? (
+    <div className="trv-prochain__qui" role="radiogroup" aria-label="Qui a choisi cette date">
+      <label className={`trv-prochain__choix${qui === 'suggere' ? ' is-on' : ''}`}>
+        <input type="radio" name={`qui-${clientId}`} value="suggere" checked={qui === 'suggere'} onChange={() => changeQui('suggere')} />
+        <span><b>Suggéré par la Maison</b><span>Elle le confirme d’un toucher sur WhatsApp.</span></span>
+      </label>
+      <label className={`trv-prochain__choix${qui === 'choisi' ? ' is-on' : ''}`}>
+        <input type="radio" name={`qui-${clientId}`} value="choisi" checked={qui === 'choisi'} onChange={() => changeQui('choisi')} />
+        <span><b>Elle l’a choisi avec nous</b><span>Au comptoir, elle a dit oui : il est confirmé.</span></span>
+      </label>
+    </div>
+  ) : null;
+
+  const gestesDits = (() => {
+    const noms = gestesMontres.map((id) => byId.get(id)?.name.split(' · ')[0]).filter(Boolean) as string[];
+    return noms.length > 1 ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}` : noms[0] ?? 'votre rituel';
+  })();
+
   const ceQuElleRecoit = (
     <div className="trv-prochain__message">
-      <h4>Ce qu’elle reçoit</h4>
+      <h4>{qui === 'suggere' && !carte.dejaLa ? 'Ce qu’elle reçoit en fermant' : 'Ce qu’elle reçoit'}</h4>
       <p className="trv-prochain__quand">{message.texte}</p>
-      {message.genre === 'part' && carte.place && carte.rdvId && (
+      {qui === 'suggere' && !carte.dejaLa && carte.place && !carte.retire && message.genre !== 'sans-numero' && message.genre !== 'sans-modele' && (
+        <div className="trv-prochain__wa">
+          <div className="trv-prochain__bulle">
+            <span>{texteDeLaProposition({ appel: appelDe(fiche), quand: momentDuMessage(carte.place.iso, carte.place.heure), gestes: gestesDits })}</span>
+            <span className="trv-prochain__pied-wa"><TexteFon texte={DEVISE_COMPLETE} penche /></span>
+            <span className="trv-prochain__boutons-wa"><span>Je confirme</span><span>Un autre moment</span></span>
+          </div>
+          {nomDuNumero && <p className="trv-prochain__quand">{`Sur le numéro de ${nomDuNumero}.`}</p>}
+        </div>
+      )}
+      {qui !== 'suggere' && message.genre === 'part' && carte.place && carte.rdvId && (
         <div className="trv-prochain__wa">
           <div className="trv-prochain__bulle">
             <span>{texteDeLaConfirmation({ avecLiens: true, prenom: appelDe(fiche), quand: momentDuMessage(carte.place.iso, carte.place.heure), reference: referenceDuRendezVous(carte.rdvId) })}</span>
@@ -665,6 +831,7 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
         {`${rituel && rituel.occurrences <= 1 ? 'C’est sa première venue' : 'Son rythme n’est pas encore lisible'} : pas de date en grand. Touchez une place, elle est validée et posée confirmée${maitre ? ` chez ${maitre}` : ''}.`}
       </p>
       {rituels.length > 1 && <LesRituels rituels={rituels} iChoisi={iChoisi} nomDe={nomDe} dit={(i) => [tarifs[i].longueurPertinente ? longueurDite : null, fmtMoney(tarifs[i].prixXof, currency), fmtDureeCourte(tarifs[i].dureeMin)].filter(Boolean).join(' · ')} onChoisir={(i) => { setChoisi(i); setCarte(null); setAutre(false); }} />}
+      {lesSemaines}
       {lesPlaces('Trois places proposées')}
       <div className="trv-prochain__actions">
         <button type="button" className="trv-prochain__lien" onClick={() => setAutre((v) => !v)}>{autre ? 'Fermer le calendrier' : 'Une autre date'}</button>
@@ -680,6 +847,7 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
           <span className="trv-prochain__etiquette">Son prochain rituel</span>
           <span className={`trv-prochain__pastille trv-prochain__pastille--${pastille.ton}`}>{pastille.texte}</span>
         </div>
+        {lesSemaines}
         <p className="trv-prochain__date">{jourEnLettres(carte.place.iso)}</p>
         <p className="trv-prochain__heure"><b>{heureDuMessage(carte.place.heure)}</b>{` · ${fmtDureeCourte(dureeMontree)}${maitreMontre ? ` · avec ${maitreMontre}` : ''}`}</p>
         {!carte.valide && !carte.dejaLa && rituels.length > 1 && (
@@ -702,6 +870,7 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
             <span aria-hidden="true">{verifie.alerte ? '!' : '✓'}</span><span>{verifie.texte}</span>
           </p>
         )}
+        {quiDecide}
         {!carte.valide && !carte.dejaLa && casAPart(carte.place.iso) && (
           <p className="trv-prochain__note">{`${casAPart(carte.place.iso)}. Valider ouvre sa fiche, posée sur cette place.`}</p>
         )}
@@ -789,7 +958,25 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
     return null;
   })();
 
-  if (children) return <>{children({ carte: vue, pied, terminer, plein })}</>;
+  /* LA SECONDE ÉTAPE (15 novembre 2026) : « Poser la suggestion » pose la
+     place montrée puis ferme ; « Pas de prochain rendez-vous » ferme sans
+     rien poser, ou demande le retrait de ce que la carte a posé. */
+  const poser = () => {
+    if (carte.valide || carte.dejaLa || carte.retire || !carte.place) { terminer(); return; }
+    fais({ genre: 'valider-et-terminer', id: uid() });
+  };
+  const sansSuite = () => {
+    if (carte.dejaLa) { terminer(); return; }
+    if (carte.valide && !carte.retire) { fais({ genre: 'retirer' }); return; }
+    fais({ genre: 'terminer-sans' });
+  };
+  const question = carte.pied === 'demande-fin' || carte.pied === 'demande-retrait';
+  const libelleDuGeste = carte.dejaLa || carte.retire || (!carte.place && !carte.valide)
+    ? 'Fermer'
+    : carte.valide ? 'Terminer' : qui === 'suggere' ? 'Poser la suggestion' : 'Poser le rendez-vous';
+  const dejaLaDit = carte.dejaLa && carte.place ? momentDuMessage(carte.place.iso, carte.place.heure) : null;
+
+  if (children) return <>{children({ carte: vue, pied, terminer, plein, poser, sansSuite, question, libelleDuGeste, dejaLa: carte.dejaLa, dejaLaDit })}</>;
   return (
     <section className="trv-prochain" aria-label="Son prochain rituel, à la Caisse">
       {vue}

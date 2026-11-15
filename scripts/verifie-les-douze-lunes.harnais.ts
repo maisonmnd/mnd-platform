@@ -637,6 +637,8 @@ const regles: Regle[] = [
         'accord-whatsapp': { fichier: 'src/shared/accord-whatsapp-pur.ts', extrait: (s) => entre(s, 'accord-whatsapp') },
         /* Le rappel de la veille se tait quand elle a confirmé (2 novembre 2026), recopié dans rappels-j1 et push-notify. */
         'rappel-se-tait': { fichier: 'src/shared/heures-des-rappels-pur.ts', extrait: (s) => entre(s, 'rappel-se-tait') },
+        /* Le rendez-vous suggéré (15 novembre 2026) : la marque, la proposition et la relance, recopiées dans confirmation-rdv et rappels-j1. */
+        'rendez-vous-suggere': { fichier: 'src/shared/rendez-vous-suggere-pur.ts', extrait: (s) => entre(s, 'rendez-vous-suggere') },
         /* Le lien du rendez-vous (3 novembre 2026) : la référence, les jetons, la confirmation à liens, recopié dans demande-submit et confirmation-rdv. */
         'lien-du-rdv': { fichier: 'src/shared/lien-du-rdv-pur.ts', extrait: (s) => entre(s, 'lien-du-rdv') },
         /* Le message du foyer (4 novembre 2026) : un message par foyer, qui nomme chaque tête, recopié dans confirmation-rdv, rappels-j1 et envois-partent. */

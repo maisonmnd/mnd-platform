@@ -76,3 +76,10 @@
 .tr-aller-pop {
   margin: 0 0 16px; padding: 14px 16px; border: 1px solid var(--hairline); border-radius: 4px; background: var(--color-ivoire);
 }
+
+/* LES SEMAINES DEPUIS SA VENUE (15 novembre 2026, le rendez-vous suggéré) :
+   une autre base que les sauts depuis aujourd'hui, leur rangée le dit. */
+.tr-saut__puces--venue { align-items: center; }
+.tr-saut__base { font-family: var(--font-sans); font-size: 12px; letter-spacing: .04em; color: var(--ink-soft); margin-right: 2px; }
+.tr-saut__puce--venue { border-style: solid; }
+.tr-saut__puce--venue.est-rythme { border-color: var(--color-copper); }

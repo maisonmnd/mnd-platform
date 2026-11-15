@@ -30,6 +30,7 @@ import { useOffers } from '../../shared/offers';
 import { codeNormalise, estAPlaces } from '../../shared/offres-pur';
 import { estLaPlacePartie, laPlaceDuJour } from './places-pure';
 import { etatDeLaSeance, seDeplaceEnLigne } from '../../shared/abonnee-pur';
+import { estSuggere } from '../../shared/rendez-vous-suggere-pur';
 import { decaleLeJour } from '../../shared/ia-faits-pur';
 import { prenomDUsage } from '../../shared/civilite';
 import { ETAT_SEANCE, appelleLaMaison, dateDansLaPhrase, leJour, seanceDuRelevé, useRelevesDe } from './releve';
@@ -86,6 +87,15 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
   const jourC = leJour();
   const seanceDe = (a: Appointment) => seanceDuRelevé(releves.get(a.clientId) ?? null, a.id);
   const etatDit = (a: Appointment) => ETAT_SEANCE[etatDeLaSeance(a, jourC)];
+  /* « JE CONFIRME » (15 novembre 2026, le rendez-vous suggéré) : son oui, écrit
+     sur le rendez-vous comme le bouton WhatsApp l'écrit ; la relance trois
+     jours avant ne part plus, le rappel de la veille suivra. */
+  const confirmeLaProposition = async (a: Appointment) => {
+    const ok = await ecrisRendezVous(a.id, { confirmeeParLaClienteLe: new Date().toISOString(), autreMomentDemandeLe: undefined });
+    toast(ok
+      ? t('C’est noté : la Maison vous attend le {jour} à {heure}.', { jour: dayLabelIso(a.date), heure: a.time })
+      : t('Votre confirmation n’est pas arrivée à la maison. Réessayez dans un instant.'));
+  };
   /** Les heures qui séparent maintenant du début de la séance (heure de Cotonou). */
   const heuresAvant = (a: Appointment): number =>
     (Date.parse(`${a.date}T${a.time.length === 5 ? a.time : '00:00'}:00+01:00`) - Date.now()) / 3_600_000;
@@ -643,6 +653,19 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
                 </div>
                 {/* RÉGLER D'AVANCE (7 novembre 2026) : jusqu'à l'heure du rituel, au prix connu. */}
                 {aVenir && <ReglerDAvance rdv={a} />}
+                {/* LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : la Maison l'a proposé
+                    après sa venue ; elle n'a rien réservé. Un toucher le confirme,
+                    ou elle choisit un autre moment. */}
+                {aVenir && estSuggere(a) && (
+                  <div className="mc-propose">
+                    <b>{t('Proposé par la Maison')}</b>
+                    <span>{t('Après votre dernière venue, la Maison vous garde cette place. Vous n’avez rien réservé : confirmez-la d’un toucher, ou choisissez un autre moment.')}</span>
+                    <div className="mc-fiche__acts">
+                      <button className="mc-rdvact" onClick={() => { void confirmeLaProposition(a); }}>{t('Je confirme')}</button>
+                      <button className="mc-rdvact" onClick={() => openEdit(a)}>{t('Un autre moment')}</button>
+                    </div>
+                  </div>
+                )}
                 {aVenir ? (
                   <div className="mc-fiche__acts">
                     <button className="mc-rdvact" onClick={() => addToCalendar(a)}>{t('Calendrier')}</button>
@@ -709,7 +732,8 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
                     </div>
                   )}
                   <div className="mc-rdvcard__acts" onClick={(e) => e.stopPropagation()}>
-                    <button className="mc-rdvact" onClick={() => openEdit(a)}>{t('Modifier')}</button>
+                    {estSuggere(a) && <button className="mc-rdvact" onClick={() => { void confirmeLaProposition(a); }}>{t('Je confirme')}</button>}
+                    <button className="mc-rdvact" onClick={() => openEdit(a)}>{estSuggere(a) ? t('Un autre moment') : t('Modifier')}</button>
                     <button className="mc-rdvact" onClick={() => addToCalendar(a)}>{t('Calendrier')}</button>
                     <button className="mc-rdvact mc-rdvact--danger" onClick={() => setCancelling(a)}>{t('Annuler')}</button>
                   </div>

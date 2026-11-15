@@ -97,10 +97,11 @@ const DEJA_JOURNAL = 'déjà parti : le même message est au journal depuis moin
 /* ══ 1. Le registre, lu dans le code qui depose ══ */
 {
   /* Dix-sept depuis le 13 novembre 2026 : le modèle d'ouverture des envois programmés ;
-     dix-huit depuis le 14 : la confirmation de la visio (visio-salle). */
-  dit('dix-huit familles de modeles automatiques, chacune une fois',
+     dix-huit depuis le 14 : la confirmation de la visio (visio-salle) ;
+     dix-neuf depuis le 15 : la proposition du rendez-vous suggéré (confirmation-rdv). */
+  dit('dix-neuf familles de modeles automatiques, chacune une fois',
     ['rappel-j1', 'confirmation', 'reprise-j3', 'point-apres', 'point-avant', 'avis-google', 'rappel-echeance', 'prix-revu', 'relance-facture',
-      'fete-de-couronne', 'fin-de-paquet', 'merci-marraine', 'perle-garder', 'perle-avant', 'perle', 'campagne', 'ouverture', 'visio'],
+      'fete-de-couronne', 'fin-de-paquet', 'merci-marraine', 'perle-garder', 'perle-avant', 'perle', 'campagne', 'ouverture', 'visio', 'proposition'],
     REGISTRE_DES_MODELES.map((e) => e.famille));
   dit('chacune dit a quoi elle sert et quand elle part, et l appel au {{1}}', [],
     REGISTRE_DES_MODELES.filter((e) => e.pourQuoi.length < 30 || e.quand.length < 15 || e.appel !== 1).map((e) => e.famille));
@@ -110,7 +111,7 @@ const DEJA_JOURNAL = 'déjà parti : le même message est au journal depuis moin
     j1 && { modeles: j1.modeles, secrets: j1.secrets, appel: j1.appel, rdv: j1.rdv, rappel: j1.rappel, unParTete: j1.unParTete, porte: j1.porte });
   dit('les rappels : la veille, la reprise J-3, le point d avant, garder et avant de Perle',
     ['rappel-j1', 'reprise-j3', 'point-avant', 'perle-garder', 'perle-avant'], REGISTRE_DES_MODELES.filter((e) => e.rappel).map((e) => e.famille));
-  dit('les familles liees a un rendez-vous', ['rappel-j1', 'confirmation', 'reprise-j3', 'point-avant', 'perle-garder'],
+  dit('les familles liees a un rendez-vous', ['rappel-j1', 'confirmation', 'reprise-j3', 'point-avant', 'perle-garder', 'proposition'],
     REGISTRE_DES_MODELES.filter((e) => e.rdv).map((e) => e.famille));
   dit('seule la campagne ne connait que « jamais deux fois »', ['campagne'],
     REGISTRE_DES_MODELES.filter((e) => e.porte === 'jamais-deux-fois').map((e) => e.famille));
@@ -124,6 +125,8 @@ const DEJA_JOURNAL = 'déjà parti : le même message est au journal depuis moin
     ouverture: EP,
     /* La visio (14 novembre 2026) : visio-salle dépose et lit son secret (sa source, regroupée ensuite). */
     visio: 'scripts/serveur/visio-salle.ts',
+    /* Le rendez-vous suggéré (15 novembre 2026) : confirmation-rdv dépose la proposition. */
+    proposition: 'supabase/functions/confirmation-rdv/index.ts',
   };
   dit('chaque secret du registre est lu par la fonction qui depose', [],
     REGISTRE_DES_MODELES.flatMap((e) => e.secrets.filter((s) => !source(parFonction[e.famille] ?? PUR).includes(`Deno.env.get('${s}')`)).map((s) => `${e.famille}:${s}`)));
@@ -141,7 +144,9 @@ const DEJA_JOURNAL = 'déjà parti : le même message est au journal depuis moin
        est écrit par la règle recopiée ⟨veille-attention⟩ (rappelDeLaVeille), l'appel en {{1}}. */
     source(RJ).includes("const corps = (): unknown[] => [{ type: 'body', parameters: [{ type: 'text', text: o.appel }, { type: 'text', text: o.heure }] }];")
       && source(RJ).includes("appel: prenom, heure: heureLisible(a.time),"),
-    source(RJ).includes("{ type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: quand }, { type: 'text', text: gestes }] }"),
+    /* La relance du rendez-vous suggéré (15 novembre 2026) : le corps de la copie ⟨rendez-vous-suggere⟩, l'appel en {{1}}. */
+    source(RJ).includes("{ type: 'body', parameters: [{ type: 'text', text: o.appel }, { type: 'text', text: o.quand }, { type: 'text', text: o.gestes }] }")
+      && source(RJ).includes('composantsDeLaProposition({ appel: prenom, quand, gestes, apptId: a.id })'),
     (source(RJ).match(/\{ type: 'body', parameters: \[\{ type: 'text', text: prenom \}, \{ type: 'text', text: jour \}\] \}/g) ?? []).length === 2,
     source('supabase/functions/confirmation-rdv/index.ts').includes("const corps = [{ type: 'text', text: o.prenom }, { type: 'text', text: o.quand }];"),
     source('supabase/functions/avis-google/index.ts').includes("composants: [{ type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: lien }] }]"),

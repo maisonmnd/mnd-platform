@@ -351,6 +351,17 @@ export type Appointment = {
       la Maison lui propose une autre heure. Écrits par le webhook WhatsApp. */
   confirmeeParLaClienteLe?: string;
   autreMomentDemandeLe?: string;
+  /** LE RENDEZ-VOUS SUGGÉRÉ — 15 novembre 2026 (maquette
+      PeiD4o4yfCY4GajdGJ52Ez, `shared/rendez-vous-suggere-pur.ts`). L'instant
+      où la seconde étape de « C'est réglé » l'a posé « Suggéré par la
+      Maison » : elle ne l'a pas pris. Il reste une suggestion (pointillés au
+      Carnet, « proposition » dans chaque message, aucun rappel de la veille)
+      tant que `confirmeeParLaClienteLe` n'est pas posé, par son « Je
+      confirme » ou par le comptoir (« Elle a dit oui »). Le statut reste
+      « confirmé » : la place est tenue. Absent : tout ce qui précède. */
+  suggereLe?: string;
+  /** Qui a noté son oui, quand ce n'est pas elle d'un toucher : le comptoir. */
+  ouiNoteParLeComptoir?: boolean;
   /** « JE NE PEUX PLUS » sous le message « garder » — 2 novembre 2026 (lot 3
       de Perle) : rien n'est annulé, la Maison reprend la conversation ; À
       faire dit « ne peut plus venir ». Écrit par le webhook WhatsApp. */

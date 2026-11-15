@@ -44,6 +44,8 @@ import { enPause } from '../../../../shared/formules-en-lunes-pur';
 import { regardADeduire, remiseAvecLeRegard, type RegardADeduire } from '../../../../shared/regard-deduit-pur';
 import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDeGestes } from '../_vie';
 import { referenceDuRendezVous } from '../../../../shared/lien-du-rdv-pur';
+import { ceQueDitLaSuggestion, estSuggere } from '../../../../shared/rendez-vous-suggere-pur';
+import { noteSonOui } from '../../../../shared/carte-du-prochain-rituel';
 import { useStaff as useMaTeteDuRdv } from '../../../../shared/auth';
 import { momentDuRdv, poseUnRendezVous } from '../../../../shared/agenda';
 import { useRdvsDeLaMaison } from '../../../../shared/essai';
@@ -2960,6 +2962,13 @@ function RdvModalCorps({
     const c = predictNextVisit(tousLesRdv.filter((a) => a.status === 'honoré' && a.id !== appt?.id), clients, clientId, aujourdhui);
     return c.predicted && c.iso ? { iso: c.iso, jours: c.avgDays } : null;
   }, [clientId, tousLesRdv, clients, appt?.id, aujourdhui]);
+  /* SA DERNIÈRE VENUE (15 novembre 2026, arbitrage D du rendez-vous
+     suggéré) : les semaines « après sa venue » s'en comptent. */
+  const saDerniereVenue = useMemo(() => (clientId
+    ? tousLesRdv
+      .filter((a) => a.clientId === clientId && a.status === 'honoré' && a.date <= aujourdhui && a.id !== appt?.id)
+      .reduce<string | null>((d, a) => (!d || a.date > d ? a.date : d), null)
+    : null), [clientId, tousLesRdv, appt?.id, aujourdhui]);
   const dejaPose = useMemo(() => (clientId
     ? branchAppts
       .filter((a) => a.clientId === clientId && a.id !== appt?.id && a.status !== 'annulé' && a.status !== 'honoré' && a.date >= aujourdhui)
@@ -4041,6 +4050,17 @@ function RdvModalCorps({
           <span>Code du rendez-vous</span>
           <b>{referenceDuRendezVous(appt.id)}</b>
           <button type="button" className="tr-code-rdv__copie" onClick={() => { const c = referenceDuRendezVous(appt.id); void navigator.clipboard?.writeText(c).then(() => toast('Code copié.')).catch(() => toast(c)); }}>Copier</button>
+        </div>
+      )}
+      {/* LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : la Maison l'a proposé, elle
+          ne l'a pas pris. Le dire ici, avant tout geste ; le comptoir note son oui. */}
+      {appt && rdvDuMagasin && estSuggere(rdvDuMagasin) && (
+        <div className="trc-rdv-suggere" role="note">
+          <b>Suggéré par la Maison : elle ne l’a pas encore confirmé</b>
+          <span>{`${ceQueDitLaSuggestion(rdvDuMagasin, { court: (iso) => frShortAn(iso), aujourdhui: todayISO() })}. La place est tenue ; rien ne s’efface seul.`}</span>
+          <span className="trc-rdv-suggere__gestes">
+            <button type="button" className="trv-prochain__lien" onClick={() => { noteSonOui(rdvDuMagasin.id); toast('Son oui est noté : le rendez-vous est confirmé, la relance ne partira pas.'); }}>Elle a dit oui</button>
+          </span>
         </div>
       )}
       {(montreSaVie || montreSiens) && (
@@ -5343,6 +5363,7 @@ function RdvModalCorps({
                   saDate={!appt && reprise?.iso && reprise.iso >= aujourdhui
                     ? { iso: reprise.iso, pourquoi: reprise.jours ? `Son rythme : environ ${Math.round(reprise.jours)} jours entre deux venues.` : 'Son jour de reprise, lu sur sa fiche.' }
                     : null}
+                  apresSaVenue={!appt && saDerniereVenue ? { iso: saDerniereVenue, rythmeJours: reprise?.jours ?? null } : null}
                   onSaut={(iso) => { setDebutChoisi(debutDeLaSemaine(iso, aujourdhui, !!appt)); setJourVu(iso); }}
                 />
                 <FilDesSemaines

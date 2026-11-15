@@ -152,13 +152,14 @@ const PANNES: [string, keyof Textes, string, string][] = [
   ['les reprises partent avant la porte', 'edge', "  const { data: reglage } = await sb.from('documents')", "  await proposeLesReprises(sb, false, REGLES_PAR_DEFAUT);\n  const { data: reglage } = await sb.from('documents')"],
   ['le serveur ne lit pas le reglage', 'edge', "heuresDesRappels(reglage?.data", 'heuresDesRappels(undefined'],
   /* 2026-11-11-b : la veille avec l'attention (lot 4 de l'abonnement refait), après « Ce qui va partir » (-a). */
-  ['la version n a pas bouge', 'edge', "const VERSION = '2026-11-11-b", "const VERSION = '2026-11-02-b"],
+  /* 2026-11-15-a : le rendez-vous suggéré (la veille se tait sans son oui, la relance des seules suggestions, le comptoir à 10 h). */
+  ['la version n a pas bouge', 'edge', "const VERSION = '2026-11-15-a", "const VERSION = '2026-11-02-b"],
   ['le fil se compare au numero tel quel', 'edge', 'if (tel && (dejaRemis.has(`${cleDuNumero(tel)}|tete|', 'if (tel && (dejaRemis.has(`${tel}|tete|'],
   ['le fil ne se range plus par fiche', 'edge', '...(r.data?.clientId ? [`${cleDuNumero(r.data?.numero)}|tete|${r.data.clientId}`] : []),', ''],
   ['un rappel remis repart quand meme', 'edge', 'dejaRemisTus++; continue; }', 'dejaRemisTus++; }'],
   ['un non remis compte comme remis', 'edge', ".filter((r) => r.data?.etat !== 'non-remis')", '.filter((r) => !!r)'],
   ['la veille part meme confirmee', 'edge', 'tousDemain.filter((a) => !rappelDeLaVeilleSeTait(a))', 'tousDemain.filter((a) => !!a)'],
-  ['la regle ne regarde pas la marque', 'pur', "return typeof a.confirmeeParLaClienteLe === 'string'", "return typeof a.autreMomentDemandeLe === 'string'"],
+  ['la regle ne regarde pas la marque', 'pur', "const oui = typeof a.confirmeeParLaClienteLe === 'string'", "const oui = typeof a.autreMomentDemandeLe === 'string'"],
   ['le SQL garde le job de 21 h', 'sql', "'0 * * * *'", "'0 20 * * *'"],
   ['le SQL laisse les anciens jobs', 'sql', 'select cron.unschedule(jobid)', 'select jobid'],
   ['le SQL oublie de dire la fonction d abord', 'sql', 'JAMAIS avant', 'peu importe l ordre'],

@@ -1186,10 +1186,27 @@ function EcranCEstRegle({ regle, appt, nom, sousTitre, longueur, onClose }: {
   onClose: () => void;
 }) {
   const { currency } = useBranch();
+  /* ══ DEUX ÉTAPES NOMMÉES — 15 novembre 2026 (le rendez-vous suggéré) ══
+     « Après avoir terminé un RDV, il y a une ambiguïté car on ne comprend
+     pas qu'une nouvelle transaction commence avec un futur RDV, il faut
+     revoir la transition » (Yéman). Maquette PeiD4o4yfCY4GajdGJ52Ez : la
+     première étape ferme la séance (le ticket, ce qui est fait) et annonce
+     la suite ; la seconde est une NOUVELLE opération, « Nouveau
+     rendez-vous », la séance réduite à une ligne. Rien n'est posé avant
+     « Poser la suggestion » ; « Fermer sans prochain rendez-vous » ne pose
+     rien et n'envoie rien. */
+  const [etape, setEtape] = useState<1 | 2>(1);
   const titre = regle.genre === 'seance' ? 'Séance terminée' : regle.total ? 'C’est réglé' : 'Paiement enregistré';
   const sur = regle.genre === 'seance'
     ? (regle.resteXof > 0 ? 'À régler' : 'Rien à régler')
     : regle.total ? 'Réglé en totalité' : `Réglé en partie · reste ${fmtMoney(regle.resteXof, currency)}`;
+  const dateDuJour = (iso: string) => { try { return new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }); } catch { return iso; } };
+  const seanceDite = `La séance du ${dateDuJour(appt.date)}`;
+  const fermeeDite = [
+    `Séance du ${dateDuJour(appt.date)} fermée`,
+    regle.genre === 'regle' ? `${fmtMoney(regle.montantXof, currency)} ${regle.total ? 'réglés' : 'enregistrés'}` : sur.toLowerCase(),
+    ...(regle.resteXof > 0 && regle.genre === 'regle' ? [`reste ${fmtMoney(regle.resteXof, currency)}`] : []),
+  ].join(' · ');
   return (
     <SonProchainRituel
       clientId={appt.clientId}
@@ -1199,50 +1216,101 @@ function EcranCEstRegle({ regle, appt, nom, sousTitre, longueur, onClose }: {
       rituelId={appt.id}
       onFerme={onClose}
     >
-      {({ carte, pied, terminer, plein }) => (
+      {({ carte, pied, terminer, poser, sansSuite, question, libelleDuGeste, dejaLa, dejaLaDit }) => (
         <Modal
           title={(
             <span className="trv-regle__titre">
               <span className="trv-regle__coche" aria-hidden="true">
                 <svg width="14" height="14" viewBox="0 0 14 14"><path d="M2.5 7.4l3 3 6-6.4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </span>
-              {titre}
+              {etape === 1 ? titre : 'Son prochain rendez-vous'}
             </span>
           )}
-          onClose={terminer}
-          width={1060}
+          onClose={etape === 1 ? (dejaLa ? terminer : sansSuite) : terminer}
+          width={etape === 1 ? 760 : 1060}
         >
-          <div className="trv-regle" data-regle={regle.genre}>
+          <div className="trv-regle" data-regle={regle.genre} data-etape={etape}>
+            <ol className="trv-regle__rail" aria-label="Les deux étapes">
+              <li className={`trv-regle__etape ${etape === 1 ? 'est-la' : 'est-faite'}`} aria-current={etape === 1 ? 'step' : undefined}>
+                <span className="trv-regle__num" aria-hidden="true">1</span>
+                <span><b>{seanceDite}</b><small>{etape === 1 ? `${sur} · à fermer` : 'Fermée'}</small></span>
+              </li>
+              <li className="trv-regle__fleche" aria-hidden="true">
+                <svg width="18" height="10" viewBox="0 0 18 10"><path d="M0 5h16M12 1l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.2" /></svg>
+              </li>
+              <li className={`trv-regle__etape${etape === 2 ? ' est-la' : ''}`} aria-current={etape === 2 ? 'step' : undefined}>
+                <span className="trv-regle__num" aria-hidden="true">2</span>
+                <span><b>Son prochain rendez-vous</b><small>{dejaLa ? 'Déjà posé' : 'Nouveau · une suggestion'}</small></span>
+              </li>
+            </ol>
             <p className="trv-regle__qui">{`${nom} · ${sousTitre}`}</p>
-            <div className="trv-regle__corps">
-              <div className="trv-regle__gauche">{carte}</div>
-              <aside className="trv-regle__droite" aria-label="Le ticket réglé">
-                <div className="trv-regle__montant">
-                  <span className="trv-regle__sur">{sur}</span>
-                  <b>{fmtMoney(regle.montantXof, currency)}</b>
-                  <small>{regle.sous}</small>
-                </div>
-                {regle.lignes.length > 0 && (
-                  <div className="trv-regle__lignes">
-                    {regle.lignes.map((l, i) => (
-                      <div key={`${l.libelle}-${i}`} className="trv-regle__ligne">
-                        <div>{l.libelle}{l.sous && <small>{l.sous}</small>}</div>
-                        <div className="trv-regle__mt">{fmtMoney(l.montantXof, currency)}</div>
-                      </div>
+            {etape === 1 ? (
+              <>
+                <section className="trv-regle__droite trv-regle__ticket" aria-label="Le ticket réglé">
+                  <div className="trv-regle__montant">
+                    <span className="trv-regle__sur">{sur}</span>
+                    <b>{fmtMoney(regle.montantXof, currency)}</b>
+                    <small>{regle.sous}</small>
+                  </div>
+                  {regle.lignes.length > 0 && (
+                    <div className="trv-regle__lignes">
+                      {regle.lignes.map((l, i) => (
+                        <div key={`${l.libelle}-${i}`} className="trv-regle__ligne">
+                          <div>{l.libelle}{l.sous && <small>{l.sous}</small>}</div>
+                          <div className="trv-regle__mt">{fmtMoney(l.montantXof, currency)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="trv-regle__faits">
+                    {regle.faits.map((f) => (
+                      <div key={f}><span className="trv-regle__fait" aria-hidden="true">✓</span><span>{f}</span></div>
                     ))}
                   </div>
-                )}
-                <div className="trv-regle__faits">
-                  {regle.faits.map((f) => (
-                    <div key={f}><span className="trv-regle__fait" aria-hidden="true">✓</span><span>{f}</span></div>
-                  ))}
+                </section>
+                <div className="trv-regle__annonce">
+                  {dejaLa ? (
+                    <>
+                      <b>Son prochain rendez-vous est déjà posé</b>
+                      <span>{`${dejaLaDit ? `Le ${dejaLaDit}. ` : ''}Rien de plus ne se crée : un rituel, un seul prochain rendez-vous.`}</span>
+                    </>
+                  ) : (
+                    <>
+                      <b>Ensuite : son prochain rendez-vous</b>
+                      <span>Une nouvelle étape, à part de ce règlement. Rien n’est posé tant que vous ne le décidez pas.</span>
+                    </>
+                  )}
                 </div>
-              </aside>
-            </div>
-            <div className="trv-regle__pied">
-              <div className="trv-regle__pied-gauche">{pied}</div>
-              <Button variant={plein ? 'copper' : 'ghost'} className="trv-regle__terminer" onClick={terminer}>Terminer</Button>
-            </div>
+                <div className="trv-regle__pied">
+                  <div className="trv-regle__pied-gauche">
+                    <button type="button" className="trv-prochain__lien" onClick={dejaLa ? terminer : sansSuite}>
+                      {dejaLa ? 'Fermer' : 'Fermer sans prochain rendez-vous'}
+                    </button>
+                  </div>
+                  <Button variant="copper" className="trv-regle__terminer" onClick={() => setEtape(2)}>
+                    {dejaLa ? 'Voir son prochain rendez-vous' : 'Son prochain rendez-vous'}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="trv-regle__close">
+                  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.4l3 3 6-6.4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+                  <span>{fermeeDite}</span>
+                  <button type="button" className="trv-prochain__lien" onClick={() => setEtape(1)}>Revoir</button>
+                </div>
+                {!dejaLa && <span className="trv-regle__nouveau">Nouveau rendez-vous</span>}
+                <div className="trv-regle__gauche">{carte}</div>
+                <div className="trv-regle__pied">
+                  <div className="trv-regle__pied-gauche">
+                    {question || dejaLa ? pied : (
+                      <button type="button" className="trv-prochain__lien" onClick={sansSuite}>Pas de prochain rendez-vous</button>
+                    )}
+                  </div>
+                  <Button variant="copper" className="trv-regle__terminer" onClick={poser}>{libelleDuGeste}</Button>
+                </div>
+              </>
+            )}
           </div>
         </Modal>
       )}

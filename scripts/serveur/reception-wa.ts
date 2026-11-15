@@ -62,7 +62,7 @@ declare const Deno: {
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-const VERSION = '2026-11-12-a';
+const VERSION = '2026-11-15-a';
 /** Haïku d'abord (rapide, sur les crédits inclus) ; Sonnet si l'identifiant n'est pas reconnu. */
 const MODELES = ['claude-haiku-5-5', 'claude-sonnet-5-5'];
 /** Le prix d'un million de jetons, en dollars, pour le compte du mois. */
@@ -100,7 +100,8 @@ type Demande = {
   clientId?: string;
   fiche?: { name?: string; civilite?: 'madame' | 'mademoiselle' | 'monsieur'; auMasculin?: boolean } | null;
   nomProfil?: string;
-  prochainRdv?: { date: string; time?: string } | null;
+  /** `suggere` (15 novembre 2026) : une proposition de la Maison, sans son oui. */
+  prochainRdv?: { date: string; time?: string; suggere?: boolean } | null;
   derniereVenue?: { date: string } | null;
   choixId?: string;
   /** Ce que l'automate qui appelle sait faire en plus (2 novembre 2026) :

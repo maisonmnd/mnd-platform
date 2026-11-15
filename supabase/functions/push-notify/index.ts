@@ -28,7 +28,7 @@ const TZ = 'Africa/Porto-Novo';
     porteur d'un assistant) et le chien de garde des assistants reliés, au
     cron du personnel. 2 novembre 2026 : le chien de garde suit la veille
     des réglages (rythme du soir, grâce du matin). */
-const VERSION = '2026-11-02-b';
+const VERSION = '2026-11-15-a';
 
 /* LA DATE ET L'HEURE TELLES QU'ON LES DIT — 10 octobre 2026 (revue de nuit).
    Le rappel disait « Rendez-vous le 2026-10-11 à 09:00 », puis un tiret
@@ -219,8 +219,24 @@ async function broadcastToClients(payload: Payload): Promise<number> {
     viens » du message de Perle ou par un « oui » écrit (reception-wa). Le
     WhatsApp de la veille (rappels-j1) et la notification « Rappel · demain »
     de Ma Couronne (push-notify) se taisent ; celle de deux heures avant reste. */
-export function rappelDeLaVeilleSeTait(a: { confirmeeParLaClienteLe?: unknown }): boolean {
-  return typeof a.confirmeeParLaClienteLe === 'string' && a.confirmeeParLaClienteLe.trim().length > 0;
+export function rappelDeLaVeilleSeTait(a: { date?: unknown; confirmeeParLaClienteLe?: unknown; suggereLe?: unknown }): boolean {
+  const oui = typeof a.confirmeeParLaClienteLe === 'string' && a.confirmeeParLaClienteLe.trim().length > 0;
+  const suggere = typeof a.suggereLe === 'string' && a.suggereLe.trim().length > 0;
+  if (!suggere) return oui;
+  /* LE RENDEZ-VOUS SUGGÉRÉ — 15 novembre 2026 : sans son oui, aucun « votre
+     rendez-vous est demain », elle n'a rien réservé (la veille à 10 h, le
+     comptoir est prévenu). Son oui donné à la proposition, des semaines
+     avant, ne fait pas taire la veille : seul un oui des trois derniers
+     jours (la relance) le fait, comme le « Oui, je viens » de J-2. */
+  if (!oui) return true;
+  const t = Date.parse(`${String(a.date ?? '')}T12:00:00Z`);
+  if (!Number.isFinite(t)) return true;
+  return String(a.confirmeeParLaClienteLe).slice(0, 10) >= new Date(t - 3 * 86_400_000).toISOString().slice(0, 10);
+}
+/** Une suggestion sans son oui ne reçoit aucun rappel, ni la veille, ni deux heures avant. */
+export function suggestionSansOui(a: { status?: unknown; confirmeeParLaClienteLe?: unknown; suggereLe?: unknown }): boolean {
+  return typeof a.suggereLe === 'string' && a.suggereLe.trim().length > 0
+    && !(typeof a.confirmeeParLaClienteLe === 'string' && a.confirmeeParLaClienteLe.trim().length > 0);
 }
 /* ⟨/rappel-se-tait⟩ */
 
@@ -245,6 +261,8 @@ async function runReminders(): Promise<number> {
     else if (diffH <= 2 && diffH > 0.4) kind = 'h-2';
     if (!kind) continue;
     if (kind === 'j-1' && rappelDeLaVeilleSeTait(a)) continue;
+    /* LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : sans son oui, pas de « votre rituel approche ». */
+    if (kind === 'h-2' && suggestionSansOui(a)) continue;
     const { data: seen } = await admin.from('push_reminders').select('appointment_id').eq('appointment_id', a.id ?? row.id).eq('kind', kind).maybeSingle();
     if (seen) continue;
     const title = kind === 'j-1' ? 'Rappel · demain' : 'Votre rituel approche';

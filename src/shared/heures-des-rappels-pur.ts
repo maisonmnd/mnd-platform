@@ -61,8 +61,24 @@ export function passageDeLHeure(heure: number, h: HeuresDesRappels): 'premier' |
     viens » du message de Perle ou par un « oui » écrit (reception-wa). Le
     WhatsApp de la veille (rappels-j1) et la notification « Rappel · demain »
     de Ma Couronne (push-notify) se taisent ; celle de deux heures avant reste. */
-export function rappelDeLaVeilleSeTait(a: { confirmeeParLaClienteLe?: unknown }): boolean {
-  return typeof a.confirmeeParLaClienteLe === 'string' && a.confirmeeParLaClienteLe.trim().length > 0;
+export function rappelDeLaVeilleSeTait(a: { date?: unknown; confirmeeParLaClienteLe?: unknown; suggereLe?: unknown }): boolean {
+  const oui = typeof a.confirmeeParLaClienteLe === 'string' && a.confirmeeParLaClienteLe.trim().length > 0;
+  const suggere = typeof a.suggereLe === 'string' && a.suggereLe.trim().length > 0;
+  if (!suggere) return oui;
+  /* LE RENDEZ-VOUS SUGGÉRÉ — 15 novembre 2026 : sans son oui, aucun « votre
+     rendez-vous est demain », elle n'a rien réservé (la veille à 10 h, le
+     comptoir est prévenu). Son oui donné à la proposition, des semaines
+     avant, ne fait pas taire la veille : seul un oui des trois derniers
+     jours (la relance) le fait, comme le « Oui, je viens » de J-2. */
+  if (!oui) return true;
+  const t = Date.parse(`${String(a.date ?? '')}T12:00:00Z`);
+  if (!Number.isFinite(t)) return true;
+  return String(a.confirmeeParLaClienteLe).slice(0, 10) >= new Date(t - 3 * 86_400_000).toISOString().slice(0, 10);
+}
+/** Une suggestion sans son oui ne reçoit aucun rappel, ni la veille, ni deux heures avant. */
+export function suggestionSansOui(a: { status?: unknown; confirmeeParLaClienteLe?: unknown; suggereLe?: unknown }): boolean {
+  return typeof a.suggereLe === 'string' && a.suggereLe.trim().length > 0
+    && !(typeof a.confirmeeParLaClienteLe === 'string' && a.confirmeeParLaClienteLe.trim().length > 0);
 }
 /* ⟨/rappel-se-tait⟩ */
 /* ══ COPIE DANS rappels-j1 : FIN ══ */

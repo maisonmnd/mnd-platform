@@ -304,6 +304,9 @@ export function leRendezVousDuProchainRituel(o: {
   /** La carte pose SANS confirmation tant qu'elle est ouverte ; elle lève
       ce drapeau à sa fermeture, et la confirmation part une fois. */
   sansConfirmation?: boolean;
+  /** LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : « Suggéré par la Maison »,
+      l'instant de la pose ; absent, elle l'a choisi avec nous. */
+  suggereLe?: string;
   /** La remise famille de sa tête, en francs, comme la fenêtre la fige
       (`remiseFamille`, `remiseFamilleXof`, et le cumul `discountXof`). */
   remiseFamilleXof?: number;
@@ -324,6 +327,7 @@ export function leRendezVousDuProchainRituel(o: {
     source: 'trone',
     ...(o.sansConfirmation ? { sansConfirmation: true } : {}),
     ...(o.repriseDe ? { repriseDe: o.repriseDe } : {}),
+    ...(o.suggereLe ? { suggereLe: o.suggereLe } : {}),
     priceXof: o.priceXof,
     ...(famille > 0 ? { discountXof: famille, remiseFamille: true, remiseFamilleXof: famille } : {}),
     depositServiceIds: [...o.depositServiceIds],

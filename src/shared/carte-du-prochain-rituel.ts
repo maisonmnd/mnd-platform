@@ -45,6 +45,28 @@ export function retireLeRendezVousDeLaCarte(rdvId: string): void {
     .map((a) => (a.id === marque ? { ...a, repriseRetiree: true } : a)));
 }
 
+/** « SUGGÉRÉ PAR LA MAISON » OU « ELLE L'A CHOISI AVEC NOUS » (15 novembre
+    2026), changé après la pose : rien n'est encore parti (la carte est
+    ouverte, le rendez-vous est sans confirmation). La marque se pose ou
+    tombe ; elle ne touche à rien d'autre. */
+export function marqueLaSuggestion(rdvId: string, suggere: boolean): void {
+  appointmentsStore.set((prev) => prev.map((a) => {
+    if (a.id !== rdvId) return a;
+    if (suggere) return a.suggereLe ? a : { ...a, suggereLe: new Date().toISOString() };
+    if (!('suggereLe' in a)) return a;
+    const { suggereLe: _tombe, ...reste } = a;
+    return reste as Appointment;
+  }));
+}
+
+/** « ELLE A DIT OUI » (15 novembre 2026) : le comptoir note son oui à une
+    suggestion (au téléphone, au comptoir) ; elle devient « Confirmé ». */
+export function noteSonOui(rdvId: string): void {
+  appointmentsStore.set((prev) => prev.map((a) => (a.id === rdvId && !a.confirmeeParLaClienteLe
+    ? { ...a, confirmeeParLaClienteLe: new Date().toISOString(), ouiNoteParLeComptoir: true, autreMomentDemandeLe: undefined }
+    : a)));
+}
+
 /** À la fermeture : le drapeau tombe, la confirmation part une fois. */
 export function leveLaConfirmation(rdvId: string): void {
   appointmentsStore.set((prev) => prev.map((a) => {

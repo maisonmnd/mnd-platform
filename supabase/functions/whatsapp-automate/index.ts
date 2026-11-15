@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -2243,8 +2243,9 @@ type FicheDuNumero = {
   derniereVenue?: { date: string; serviceIds: string[] };
   /** Son prochain rendez-vous, confirmé ou en attente, d'aujourd'hui ou
       plus tard (fiches_du_numero, 0125) : elle en a déjà un, la Maison
-      répond elle-même. */
-  prochainRdv?: { date: string; time?: string };
+      répond elle-même. `suggere` (0211, 15 novembre 2026) : la Maison l'a
+      proposé, elle n'a pas encore dit oui. */
+  prochainRdv?: { date: string; time?: string; suggere?: boolean };
   /** SA TÊTE POUR LE PRIX (30 octobre 2026, Yéman : « si c'est un ancien
       client, le système reconnaît son nombre de locks grâce au numéro ») :
       son comptage, sa longueur, sa marge, son Juste Prix (`clients`). */
@@ -3856,7 +3857,9 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       ...(mots.heure ? { heureVoulue: mots.heure } : {}),
     };
     const rdv = f.prochainRdv?.date;
-    const m = msgPlaces({ intro: `Pour déplacer votre rendez-vous${rdv ? ` du ${jourDitAvecAnnee(rdv)}` : ''}, voici les prochaines places, ${appel()}. Touchez celle qui vous convient : une personne de la Maison déplace le rendez-vous.` });
+    /* Une suggestion de la Maison (15 novembre 2026) n'est pas « votre rendez-vous ». */
+    const quoi = f.prochainRdv?.suggere ? 'changer la proposition de la Maison' : 'déplacer votre rendez-vous';
+    const m = msgPlaces({ intro: `Pour ${quoi}${rdv ? ` du ${jourDitAvecAnnee(rdv)}` : ''}, voici les prochaines places, ${appel()}. Touchez celle qui vous convient : une personne de la Maison déplace le rendez-vous.` });
     if (!m) { base.panier = {}; return null; }
     base.prisLe = maintenant;
     base.rdvId = undefined;
@@ -6075,9 +6078,9 @@ async function lesFichesDuNumero(sb: Sb, numero: string): Promise<FicheDuNumero[
     const venue = v && typeof v.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.date) && Array.isArray(v.serviceIds)
       ? { date: v.date, serviceIds: (v.serviceIds as unknown[]).map((x) => String(x ?? '')).filter(Boolean) }
       : undefined;
-    const p = f.prochainRdv as { date?: unknown; time?: unknown } | null | undefined;
+    const p = f.prochainRdv as { date?: unknown; time?: unknown; suggere?: unknown } | null | undefined;
     const prochain = p && typeof p.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.date)
-      ? { date: p.date, ...(typeof p.time === 'string' && p.time ? { time: p.time } : {}) }
+      ? { date: p.date, ...(typeof p.time === 'string' && p.time ? { time: p.time } : {}), ...(p.suggere === true ? { suggere: true } : {}) }
       : undefined;
     return {
       id: String(f.id),

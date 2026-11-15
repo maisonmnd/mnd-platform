@@ -293,6 +293,10 @@ export type RdvDeGerard = {
       qui a pris le RDV s'il a le même numéro) ; `pourId` : la fiche du
       payeur, quand c'est à son numéro que le message part. */
   parent?: { telephone: boolean; appel?: string; pourId?: string };
+  /** LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : posé par la Maison, sans son
+      oui. Gérard ne lui dit jamais « votre rendez-vous » : la relance trois
+      jours avant (rappels-j1) la lui propose, avec ses deux boutons. */
+  suggere?: boolean;
 };
 /** Ce que Gérard a déjà écrit (le journal du lot 2) ; `reponse` : ce qu'elle a
     fait (« oui », « non » = pas maintenant, « jamais » = jamais pour elle). */
@@ -689,7 +693,10 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
      payeur, jamais à son propre numéro. Seule une fiche archivée n'est plus
      jamais écrite. */
   const r = f.archivee ? undefined : prochainRdv(f, A);
-  if (r && ecartJours(A, r.date) === GARDER_AVANT && (!r.creeLe || ecartJours(r.creeLe.slice(0, 10), r.date) >= GARDER_SI_PRIS_DES_J)
+  /* UNE SUGGESTION NE SE « GARDE » PAS (15 novembre 2026) : elle n'a rien
+     réservé ; « votre rendez-vous … confirmer votre venue ? » l'a fait douter
+     de tout (Mme F., 12 novembre 2026). Sa relance part trois jours avant. */
+  if (r && !r.suggere && ecartJours(A, r.date) === GARDER_AVANT && (!r.creeLe || ecartJours(r.creeLe.slice(0, 10), r.date) >= GARDER_SI_PRIS_DES_J)
     && !traceDe(f, ['garder']).some((t) => t.quand.slice(0, 10) >= plusJours(r.date, -GARDER_AVANT - 1))) {
     const place = placeDite({ iso: r.date, heure: r.time });
     const pourquoi: [string, string][] = [['Son RDV', place], ['Pris le', r.creeLe ? jourDit(r.creeLe.slice(0, 10)) : 'avant le 5 sept. 2026']];

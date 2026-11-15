@@ -4,6 +4,7 @@ import { PageHead } from '../_ui';
 import { useFichesParId, useMontrerLesEssais } from '../../../../shared/essai';
 import { MONTRER_LES_ESSAIS, estUnRdvDEssai, nombreDEssais, rdvsDuCalendrier } from '../../../../shared/essai-pur';
 import { BadgeEssai } from './BadgeEssai';
+import { BadgeSuggere, classeDuSuggere } from './BadgeSuggere';
 import { Button, Segs } from '../../../../ds/components';
 import { useBranch, maitreParDefaut } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -516,7 +517,7 @@ export default function Calendrier() {
                 <button
                   key={a.id}
                   type="button"
-                  className={`trc-agenda__row ${live ? 'is-live' : ''} ${estEfface(a) ? 'is-muted' : ''} ${honoreDu(a) ? 'is-du' : ''}`}
+                  className={`trc-agenda__row ${classeDuSuggere(a)} ${live ? 'is-live' : ''} ${estEfface(a) ? 'is-muted' : ''} ${honoreDu(a) ? 'is-du' : ''}`}
                   onClick={() => setEditAppt(a)}
                 >
                   <span className="trc-agenda__time">{a.time}</span>
@@ -539,6 +540,7 @@ export default function Calendrier() {
                         {nomDuRdv(a)}
                       </span>
                       {estEssai(a) && <BadgeEssai />}
+                      <BadgeSuggere a={a} />
                       {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
                       {marqueWhatsApp(a)}
                       {honoreDu(a) && <span className="trc-cal__reste">{resteDit(a)}</span>}
@@ -612,7 +614,7 @@ export default function Calendrier() {
                   const cls = live ? 'trc-cal__appt--deep' : estEfface(a) ? 'trc-cal__appt--muted' : honoreDu(a) ? 'trc-cal__appt--du' : '';
                   return (
                     <div
-                      className={`trc-cal__appt trc-cal__appt--drag ${cls} ${dragId === a.id ? 'is-dragging' : ''}`}
+                      className={`trc-cal__appt trc-cal__appt--drag ${cls} ${classeDuSuggere(a)} ${dragId === a.id ? 'is-dragging' : ''}`}
                       key={a.id}
                       style={{ top, height: h }}
                       title={`${nomDuRdv(a)} · ${apptLabel(a, byId)}, glisser pour déplacer, cliquer pour modifier`}
@@ -646,6 +648,7 @@ export default function Calendrier() {
                           {nomDuRdv(a)}
                         </button>
                         {estEssai(a) && <BadgeEssai />}
+                        <BadgeSuggere a={a} />
                         {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
                         {marqueWhatsApp(a)}
                         {honoreDu(a) && <span className="trc-cal__reste">{resteDit(a)}</span>}
@@ -752,7 +755,7 @@ export default function Calendrier() {
                     const deep = a.status === 'confirmé' || a.status === 'en attente';
                     return (
                       <div
-                        className={`trc-week__chip trc-week__chip--drag ${deep ? 'trc-week__chip--deep' : ''} ${honoreDu(a) ? 'trc-week__chip--du' : ''} ${dragId === a.id ? 'is-dragging' : ''}`}
+                        className={`trc-week__chip trc-week__chip--drag ${deep ? 'trc-week__chip--deep' : ''} ${honoreDu(a) ? 'trc-week__chip--du' : ''} ${classeDuSuggere(a)} ${dragId === a.id ? 'is-dragging' : ''}`}
                         key={a.id}
                         title={`${nomDuRdv(a)} · ${a.master}, glisser vers un autre jour, cliquer pour modifier`}
                         draggable
@@ -769,7 +772,7 @@ export default function Calendrier() {
                         <i className="trc-week__who">{nomDuRdv(a)}</i>
                         <i>
                           {a.master[0]} · {first?.name ?? 'Rituel'}
-                          {estEssai(a) ? ' · Essai' : ''}{serieMark(a) ? ` · ${serieMark(a)}` : ''}{a.source === 'whatsapp' ? ' · WhatsApp' : ''}
+                          {estEssai(a) ? ' · Essai' : ''}{classeDuSuggere(a) ? ' · Suggéré' : ''}{serieMark(a) ? ` · ${serieMark(a)}` : ''}{a.source === 'whatsapp' ? ' · WhatsApp' : ''}
                         </i>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
                           <span style={{ pointerEvents: 'none', display: 'inline-flex' }}>
@@ -826,7 +829,7 @@ export default function Calendrier() {
                     {c.appts.slice(0, 3).map((a) => (
                       <div
                         key={a.id}
-                        className={`trc-month__chip trc-month__chip--drag ${estEfface(a) ? 'is-muted' : ''} ${honoreDu(a) ? 'is-du' : ''} ${dragId === a.id ? 'is-dragging' : ''}`}
+                        className={`trc-month__chip trc-month__chip--drag ${estEfface(a) ? 'is-muted' : ''} ${honoreDu(a) ? 'is-du' : ''} ${classeDuSuggere(a)} ${dragId === a.id ? 'is-dragging' : ''}`}
                         title={`${a.time} · ${nomDuRdv(a)} · ${apptLabel(a, byId)}, glisser vers un autre jour, cliquer pour modifier`}
                         draggable
                         onDragStart={(e) => onDragStart(e, a)}

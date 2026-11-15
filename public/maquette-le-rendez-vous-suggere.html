@@ -1,0 +1,551 @@
+<title>Le rendez-vous suggéré</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Jost:wght@300;400;500;600&display=swap">
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   LE RENDEZ-VOUS SUGGÉRÉ — maquette, 14 novembre 2026.
+   « The way you make automatic appointments is not good » ; « call it
+   suggested appointment » ; « après avoir terminé un RDV, on ne comprend
+   pas qu'une nouvelle transaction commence » ; « 3, 4, 5, 6, 8 et 12
+   semaines, ou choisir une date » (Yéman).
+   Mise en page : une colonne de lecture, la fenêtre du Trône en démonstration
+   au centre, les arbitrages à la fin.
+   Tokens de la Maison : rayons 2–4 px, Cormorant Garamond 300 + Jost,
+   indigo pour les surfaces sombres, cuivre pour l'accent seul. */
+:root {
+  --ivoire: #F6F1E7; --carte: #FFFDF8; --encre: #1E2150; --texte: #26263A; --doux: #6B6B78;
+  --filet: rgba(30,33,80,.14); --filet-fort: rgba(30,33,80,.34);
+  --indigo: #1E2150; --indigo-2: #2C3470; --indigo-pale: #EDEEF4; --indigo-texte: #2C3470;
+  --cuivre: #B97A4A; --cuivre-fonce: #7C4C2C; --cuivre-pale: #FAF1E9;
+  --vert: #0A9483; --vert-fonce: #086B5F; --vert-pale: #DDF2EE;
+  --terre: #A3402B; --terre-pale: #F8E6E0;
+  --hero-texte: #F6F1E7; --hero-doux: #B9BDDB;
+  --wa-fond: #E9E2D6; --wa-bulle: #FFFFFF; --wa-elle: #DCF1D9;
+  --serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --sans: "Jost", "Segoe UI", system-ui, sans-serif;
+  --ombre: 0 10px 30px rgba(30,33,80,.08);
+  --sur-accent: #fff;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ivoire: #121430; --carte: #1A1D45; --encre: #ECE8F8; --texte: #E4E1EE; --doux: #A9ADCA;
+  --filet: rgba(236,232,248,.14); --filet-fort: rgba(236,232,248,.4);
+  --indigo: #1E2150; --indigo-2: #2C3470; --indigo-pale: #2A2F66; --indigo-texte: #B9BDDB;
+  --cuivre: #D6A06F; --cuivre-fonce: #E8C39F; --cuivre-pale: #3A2D2A;
+  --vert: #3FC2B0; --vert-fonce: #8FE0D4; --vert-pale: #16343A;
+  --terre: #E28A72; --terre-pale: #3C2429;
+  --wa-fond: #0E1029; --wa-bulle: #22264F; --wa-elle: #1D3B3A;
+  --ombre: 0 10px 30px rgba(0,0,0,.3); --sur-accent: #121430;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ivoire: #121430; --carte: #1A1D45; --encre: #ECE8F8; --texte: #E4E1EE; --doux: #A9ADCA;
+  --filet: rgba(236,232,248,.14); --filet-fort: rgba(236,232,248,.4);
+  --indigo: #1E2150; --indigo-2: #2C3470; --indigo-pale: #2A2F66; --indigo-texte: #B9BDDB;
+  --cuivre: #D6A06F; --cuivre-fonce: #E8C39F; --cuivre-pale: #3A2D2A;
+  --vert: #3FC2B0; --vert-fonce: #8FE0D4; --vert-pale: #16343A;
+  --terre: #E28A72; --terre-pale: #3C2429;
+  --wa-fond: #0E1029; --wa-bulle: #22264F; --wa-elle: #1D3B3A;
+  --ombre: 0 10px 30px rgba(0,0,0,.3); --sur-accent: #121430;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
+body { margin: 0; background: var(--ivoire); color: var(--texte); font: 400 15px/1.6 var(--sans); font-variant-numeric: lining-nums tabular-nums; }
+.int { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); min-width: 0; }
+h1, h2, h3, h4 { font-family: var(--serif); font-weight: 300; color: var(--encre); margin: 0; text-wrap: balance; line-height: 1.1; }
+h2 { font-size: clamp(28px, 4.2vw, 38px); }
+h3 { font-size: 23px; }
+p { margin: 0; }
+.lecture { max-width: 66ch; }
+.etiquette { font: 500 11px/1.2 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--doux); }
+
+/* ── L'ouverture, sur indigo ── */
+.haut { background: var(--indigo); color: var(--hero-texte); }
+.haut .int { padding-block: 44px 40px; display: grid; gap: 16px; }
+.haut .etiquette { color: var(--hero-doux); }
+.haut h1 { font-family: var(--serif); font-weight: 300; font-size: clamp(40px, 7vw, 64px); color: var(--hero-texte); }
+.haut .these { color: var(--hero-doux); font-size: 17px; max-width: 62ch; }
+.haut .these b { color: var(--hero-texte); font-weight: 500; }
+.filet-cuivre { width: 56px; height: 1px; background: var(--cuivre); border: 0; margin: 0; }
+
+section.bloc { padding-block: 48px; border-bottom: 1px solid var(--filet); }
+.bloc .int { display: grid; gap: 22px; }
+.bloc-tete { display: grid; gap: 10px; }
+
+/* ── Ce qui s'est passé ── */
+.recit { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 380px); gap: 28px; align-items: start; }
+@media (max-width: 860px) { .recit { grid-template-columns: minmax(0, 1fr); } }
+.chiffres { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 560px) { .chiffres { grid-template-columns: minmax(0, 1fr); } }
+.chiffre { border-top: 1px solid var(--filet-fort); padding-top: 10px; display: grid; gap: 4px; }
+.chiffre b { font: 300 40px/1 var(--serif); color: var(--encre); }
+.chiffre span { color: var(--doux); font-size: 13.5px; }
+
+.wa { background: var(--wa-fond); border-radius: 4px; padding: 14px; display: grid; gap: 8px; }
+.wa-l { max-width: 92%; padding: 8px 11px 6px; border-radius: 4px; background: var(--wa-bulle); font-size: 13.5px; line-height: 1.45; color: var(--texte); box-shadow: 0 1px 0 rgba(0,0,0,.05); }
+.wa-l small { display: block; color: var(--doux); font-size: 11px; margin-top: 3px; text-align: right; }
+.wa-l.elle { justify-self: end; background: var(--wa-elle); }
+.wa-l.faux { outline: 1px solid var(--terre); }
+.wa-note { font-size: 12px; color: var(--terre); justify-self: start; }
+.wa-boutons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+.wa-boutons span { text-align: center; border-top: 1px solid var(--filet); padding-top: 6px; color: var(--indigo-texte); font-weight: 500; font-size: 13px; }
+
+/* ── La démonstration : la fenêtre du Trône ── */
+.scene { background: var(--indigo-pale); border-radius: 4px; padding: clamp(12px, 3vw, 28px); }
+.fenetre { background: var(--carte); border-radius: 4px; box-shadow: var(--ombre); border: 1px solid var(--filet); overflow: hidden; max-width: 860px; margin: 0 auto; }
+.fen-titre { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--filet); }
+.fen-titre h3 { font-size: 26px; display: flex; align-items: center; gap: 10px; }
+.fen-qui { color: var(--doux); font-size: 13.5px; padding: 12px 20px 0; }
+.coche { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 2px; background: var(--vert); color: var(--sur-accent); flex: none; }
+.fermer { width: 30px; height: 30px; border: 1px solid var(--filet); background: transparent; border-radius: 2px; color: var(--doux); cursor: pointer; font: 400 16px/1 var(--sans); }
+
+/* Le rail : deux étapes, une vraie suite */
+.rail { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: stretch; gap: 0; border-bottom: 1px solid var(--filet); }
+.etape { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 10px; align-items: center; padding: 12px 20px; color: var(--doux); }
+.etape .num { width: 26px; height: 26px; border-radius: 2px; border: 1px solid var(--filet-fort); display: grid; place-items: center; font: 500 12px/1 var(--sans); }
+.etape b { display: block; color: var(--texte); font-weight: 500; font-size: 13.5px; }
+.etape small { font-size: 12px; }
+.etape.est-la { background: var(--cuivre-pale); }
+.etape.est-la .num { border-color: var(--cuivre); background: var(--cuivre); color: var(--sur-accent); }
+.etape.faite .num { border-color: var(--vert); background: var(--vert); color: var(--sur-accent); }
+.fleche { display: grid; place-items: center; color: var(--doux); padding-inline: 4px; }
+@media (max-width: 620px) { .rail { grid-template-columns: minmax(0,1fr); } .fleche { display: none; } }
+
+.fen-corps { padding: 20px; display: grid; gap: 18px; }
+.fen-pied { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--filet); background: var(--ivoire); }
+.fen-pied p { color: var(--doux); font-size: 13px; }
+
+.btn { font: 500 12.5px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; padding: 12px 18px; border-radius: 2px; border: 1px solid var(--filet-fort); background: transparent; color: var(--encre); cursor: pointer; }
+.btn:hover { border-color: var(--encre); }
+.btn.cuivre { background: var(--cuivre); border-color: var(--cuivre); color: var(--sur-accent); }
+.btn.cuivre:hover { background: var(--cuivre-fonce); border-color: var(--cuivre-fonce); }
+.lien { background: none; border: 0; padding: 0; color: var(--indigo-texte); font: 500 13px/1.3 var(--sans); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 2px; }
+
+/* Étape 1 : le ticket */
+.ticket { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 620px) { .ticket { grid-template-columns: minmax(0,1fr); } }
+.montant { display: grid; gap: 4px; }
+.montant b { font: 300 46px/1 var(--serif); color: var(--encre); }
+.montant small { color: var(--doux); }
+.lignes { display: grid; gap: 8px; }
+.ligne { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--filet); padding-bottom: 8px; font-size: 14px; }
+.faits { display: grid; gap: 8px; align-content: start; }
+.fait { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+.fait svg { flex: none; margin-top: 4px; color: var(--vert); }
+.annonce { border: 1px dashed var(--cuivre); border-radius: 4px; padding: 14px 16px; display: grid; gap: 4px; background: var(--cuivre-pale); }
+.annonce b { color: var(--encre); font-weight: 500; }
+.annonce span { color: var(--doux); font-size: 13.5px; }
+
+/* Étape 2 : la suggestion */
+.close { display: flex; align-items: center; gap: 10px; color: var(--doux); font-size: 13.5px; padding: 10px 12px; background: var(--ivoire); border-radius: 2px; }
+.close svg { color: var(--vert); flex: none; }
+.nouveau { display: inline-flex; align-items: center; gap: 8px; font: 500 11px/1 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre-fonce); }
+.nouveau::before { content: ""; width: 18px; height: 1px; background: var(--cuivre); }
+.puces { display: flex; flex-wrap: wrap; gap: 8px; }
+.puce { font: 500 14px/1 var(--sans); padding: 11px 14px; border-radius: 2px; border: 1px solid var(--filet-fort); background: var(--carte); color: var(--texte); cursor: pointer; display: grid; gap: 4px; text-align: left; min-width: 74px; }
+.puce small { font: 400 11.5px/1.2 var(--sans); color: var(--doux); }
+.puce[aria-pressed="true"] { border-color: var(--indigo); background: var(--indigo); color: var(--hero-texte); }
+.puce[aria-pressed="true"] small { color: var(--hero-doux); }
+.puce .rythme { color: var(--cuivre-fonce); }
+.puce[aria-pressed="true"] .rythme { color: var(--hero-doux); }
+.date-libre { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.date-libre input { font: 400 14px/1 var(--sans); padding: 9px 10px; border: 1px solid var(--filet-fort); border-radius: 2px; background: var(--carte); color: var(--texte); }
+.la-date { display: grid; gap: 4px; padding-block: 4px; }
+.la-date .jour { font: 300 clamp(30px, 5vw, 42px)/1.05 var(--serif); color: var(--encre); }
+.la-date .detail { color: var(--doux); font-size: 14px; }
+.la-place { font-size: 13.5px; color: var(--vert-fonce); display: flex; gap: 8px; align-items: center; }
+.la-place.deplace { color: var(--cuivre-fonce); }
+.qui-decide { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 10px; }
+@media (max-width: 620px) { .qui-decide { grid-template-columns: minmax(0,1fr); } }
+.choix { border: 1px solid var(--filet-fort); border-radius: 4px; padding: 12px 14px; display: grid; grid-template-columns: auto minmax(0,1fr); gap: 10px; cursor: pointer; background: var(--carte); }
+.choix input { margin-top: 4px; accent-color: var(--indigo); }
+.choix b { font-weight: 500; color: var(--texte); display: block; }
+.choix span { color: var(--doux); font-size: 13px; }
+.choix:has(input:checked) { border-color: var(--indigo); box-shadow: inset 0 0 0 1px var(--indigo); }
+.deux { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 720px) { .deux { grid-template-columns: minmax(0,1fr); } }
+.pose { display: grid; gap: 6px; border-left: 2px solid var(--vert); padding: 6px 0 6px 14px; }
+.pose b { color: var(--encre); font-weight: 500; }
+.pose span { color: var(--doux); font-size: 13.5px; }
+
+/* ── Le Carnet ── */
+.carnet { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 0; border: 1px solid var(--filet); border-radius: 4px; background: var(--carte); overflow: hidden; }
+.heure { padding: 12px 10px; color: var(--doux); font-size: 13px; border-bottom: 1px solid var(--filet); border-right: 1px solid var(--filet); }
+.case { padding: 8px 10px; border-bottom: 1px solid var(--filet); min-width: 0; }
+.tuile { border-radius: 2px; padding: 9px 12px; display: grid; gap: 2px; font-size: 13.5px; }
+.tuile b { font-weight: 500; }
+.tuile small { font-size: 12px; }
+.tuile.confirme { background: var(--indigo); color: var(--hero-texte); }
+.tuile.confirme small { color: var(--hero-doux); }
+.tuile.suggere { border: 1px dashed var(--cuivre); background: var(--cuivre-pale); color: var(--texte); }
+.tuile.suggere small { color: var(--doux); }
+.pastille { display: inline-block; font: 500 10.5px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; padding: 4px 6px; border-radius: 2px; margin-left: 6px; vertical-align: 1px; }
+.tuile.confirme .pastille { background: var(--indigo-2); color: var(--hero-texte); }
+.tuile.suggere .pastille { border: 1px solid var(--cuivre); color: var(--cuivre-fonce); }
+
+/* ── Avant / après ── */
+.table-defile { overflow-x: auto; border: 1px solid var(--filet); border-radius: 4px; background: var(--carte); }
+table { border-collapse: collapse; width: 100%; min-width: 680px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--filet); }
+th { font: 500 11px/1.2 var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--doux); background: var(--ivoire); }
+td:first-child { font-weight: 500; color: var(--encre); width: 22%; }
+td.avant { color: var(--doux); }
+tr:last-child td { border-bottom: 0; }
+
+/* ── La fenêtre « Nouveau rendez-vous » ── */
+.champ { display: grid; gap: 8px; border: 1px solid var(--filet); border-radius: 4px; padding: 16px; background: var(--carte); }
+.champ label { font: 500 12px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--doux); }
+
+/* ── Ne fera pas ── */
+.liste { display: grid; gap: 10px; padding: 0; margin: 0; list-style: none; }
+.liste li { display: grid; grid-template-columns: 18px minmax(0,1fr); gap: 10px; }
+.liste li::before { content: ""; width: 10px; height: 1px; background: var(--cuivre); margin-top: 12px; }
+
+/* ── Arbitrages ── */
+.arbitrages { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+@media (max-width: 760px) { .arbitrages { grid-template-columns: minmax(0,1fr); } }
+.arb { border: 1px solid var(--filet); border-radius: 4px; padding: 18px; background: var(--carte); display: grid; gap: 10px; align-content: start; }
+.arb .lettre { font: 300 34px/1 var(--serif); color: var(--cuivre); }
+.arb h3 { font-size: 22px; }
+.arb .ferme { border-left: 2px solid var(--indigo); padding-left: 12px; }
+.arb .ferme b { display: block; font: 500 11px/1.2 var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--indigo-texte); margin-bottom: 4px; }
+.arb .autres { color: var(--doux); font-size: 13.5px; }
+
+footer .int { padding-block: 28px 40px; color: var(--doux); font-size: 13px; }
+</style>
+
+<header class="haut">
+  <div class="int">
+    <span class="etiquette">Le Trône · maquette du 14 novembre 2026 · construite le 15 novembre 2026</span>
+    <h1>Le rendez-vous suggéré</h1>
+    <hr class="filet-cuivre">
+    <p class="these">Une date que la Maison propose après une séance <b>n’est pas un rendez-vous que la cliente a pris</b>. Elle reste une <b>suggestion</b> tant qu’elle n’a pas dit oui, partout : au Carnet, dans ses messages, dans la bouche de l’assistant. Et la suite de la séance devient une <b>étape à part</b>, qu’on voit commencer.</p>
+  </div>
+</header>
+
+<section class="bloc" aria-labelledby="t-passe">
+  <div class="int">
+    <div class="bloc-tete">
+      <span class="etiquette">Ce qui s’est passé</span>
+      <h2 id="t-passe">Mme F. n’avait rien réservé</h2>
+    </div>
+    <div class="recit">
+      <div style="display:grid;gap:18px;min-width:0">
+        <p class="lecture">Le 11 novembre 2026 à 22 h 14, après sa séance, la carte « Son prochain rituel » a posé un rendez-vous au samedi 14 novembre 2026, 13 h 30, avec le statut <b>confirmé</b>. Tout le reste l’a cru : la relance de Gérard le 12, le rappel de la veille le 13, puis l’assistant WhatsApp, qui lui a répondu qu’elle avait « bien un rendez-vous confirmé ». Le rendez-vous a été effacé à la main le 14 au matin.</p>
+        <p class="lecture">Le Trône sait déjà qu’une date vient de la Maison (elle porte la marque de la séance dont elle est la suite) et prévoit de la faire confirmer trois jours avant, par « Je confirme » et « Un autre moment ». Mais ce message n’est jamais parti : son modèle WhatsApp n’a pas été déposé.</p>
+        <div class="chiffres" aria-label="Le Carnet, au 14 novembre 2026">
+          <div class="chiffre"><b>45</b><span>rendez-vous à venir posés par la Maison, affichés « confirmé »</span></div>
+          <div class="chiffre"><b>0</b><span>confirmés par la cliente elle-même</span></div>
+          <div class="chiffre"><b>32</b><span>rendez-vous à venir pris par les clientes</span></div>
+        </div>
+      </div>
+      <div class="wa" aria-label="Ses messages, du 12 au 13 novembre 2026">
+        <div class="wa-l">Bonjour Mme F., petit rappel de la Maison : votre rendez-vous de lavage rituel est prévu samedi 14 novembre 2026 à 13 h 30. Pouvez-vous nous confirmer votre venue ?<small>Gérard · 12 nov. 2026, 9 h 12</small></div>
+        <div class="wa-l">Mme F., votre rendez-vous est demain à 13 h 30.<small>Rappel de la veille · 13 nov. 2026, 18 h 34</small></div>
+        <div class="wa-l elle">Hello MND, je n’avais pas pris de rdv pour demain…<small>18 h 35</small></div>
+        <div class="wa-l faux">Bonsoir Mme F., vous avez bien un rendez-vous confirmé demain, samedi 14 novembre 2026, à 13 h 30…<small>Assistant · 18 h 35</small></div>
+        <span class="wa-note">L’assistant la contredit : il ne sait pas que c’était une proposition.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="bloc" aria-labelledby="t-transition">
+  <div class="int">
+    <div class="bloc-tete">
+      <span class="etiquette">La transition, à manipuler</span>
+      <h2 id="t-transition">Une séance se ferme, une suggestion commence</h2>
+      <p class="lecture">Aujourd’hui « C’est réglé » montre le ticket à droite et la carte du prochain rituel à gauche, dans la même fenêtre : on ne voit pas qu’on passe à autre chose. Ici, deux étapes nommées. La première ferme la séance. La seconde est annoncée comme une <b>nouvelle</b> opération, avec la séance réduite à une ligne.</p>
+    </div>
+
+    <div class="scene">
+      <div class="fenetre" id="fenetre">
+        <div class="fen-titre">
+          <h3 id="fen-h"><span class="coche" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 14 14"><path d="M2.5 7.4l3 3 6-6.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span id="fen-titre-texte">C’est réglé</span></h3>
+          <button class="fermer" type="button" aria-label="Fermer la fenêtre" title="Fermer">×</button>
+        </div>
+        <div class="rail" role="list" aria-label="Les deux étapes">
+          <div class="etape est-la" id="e1" role="listitem"><span class="num">1</span><span><b>La séance du 14 novembre 2026</b><small id="e1-dit">Réglée · à fermer</small></span></div>
+          <div class="fleche" aria-hidden="true"><svg width="18" height="10" viewBox="0 0 18 10"><path d="M0 5h16M12 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></div>
+          <div class="etape" id="e2" role="listitem"><span class="num">2</span><span><b>Son prochain rendez-vous</b><small id="e2-dit">Nouveau · une suggestion</small></span></div>
+        </div>
+        <p class="fen-qui">Mme F. · Lavage rituel, Reprise des racines · avec Team</p>
+
+        <!-- ÉTAPE 1 -->
+        <div id="etape1">
+          <div class="fen-corps">
+            <div class="ticket">
+              <div style="display:grid;gap:14px;min-width:0">
+                <div class="montant"><span class="etiquette">Réglé en totalité</span><b>25 000 F</b><small>Espèces · Real Money</small></div>
+                <div class="lignes">
+                  <div class="ligne"><span>Lavage rituel</span><span>10 000 F</span></div>
+                  <div class="ligne"><span>Reprise des racines</span><span>15 000 F</span></div>
+                </div>
+              </div>
+              <div class="faits">
+                <div class="fait"><svg width="12" height="12" viewBox="0 0 14 14"><path d="M2.5 7.4l3 3 6-6.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Séance honorée</span></div>
+                <div class="fait"><svg width="12" height="12" viewBox="0 0 14 14"><path d="M2.5 7.4l3 3 6-6.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Son reçu part sur son WhatsApp</span></div>
+                <div class="fait"><svg width="12" height="12" viewBox="0 0 14 14"><path d="M2.5 7.4l3 3 6-6.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>25 points du Cercle</span></div>
+              </div>
+            </div>
+            <div class="annonce">
+              <b>Ensuite : son prochain rendez-vous</b>
+              <span>Une nouvelle étape, à part de ce règlement. Rien n’est posé tant que vous ne le décidez pas.</span>
+            </div>
+          </div>
+          <div class="fen-pied">
+            <button class="lien" type="button" data-geste="sans-suite">Fermer sans prochain rendez-vous</button>
+            <button class="btn cuivre" type="button" data-geste="etape2">Son prochain rendez-vous</button>
+          </div>
+        </div>
+
+        <!-- ÉTAPE 2 -->
+        <div id="etape2" hidden>
+          <div class="fen-corps">
+            <div class="close"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M2.5 7.4l3 3 6-6.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Séance du 14 novembre 2026 fermée · 25 000 F réglés · reçu envoyé</span><button class="lien" type="button" data-geste="etape1" style="margin-left:auto">Revoir</button></div>
+            <span class="nouveau">Nouveau rendez-vous</span>
+            <div class="deux">
+              <div style="display:grid;gap:16px;min-width:0">
+                <div style="display:grid;gap:8px">
+                  <span class="etiquette" id="l-dans">Dans combien de temps</span>
+                  <div class="puces" role="group" aria-labelledby="l-dans" id="puces"></div>
+                  <div class="date-libre"><label class="etiquette" for="date-choisie">Ou choisir une date</label><input type="date" id="date-choisie" min="2026-11-15"></div>
+                </div>
+                <div class="la-date" aria-live="polite">
+                  <span class="jour" id="jour">samedi 26 décembre 2026</span>
+                  <span class="detail" id="detail">13 h 30 · avec Team · 1 h 45</span>
+                  <span class="la-place" id="place"><svg width="12" height="12" viewBox="0 0 14 14"><path d="M2.5 7.4l3 3 6-6.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Place libre, à son heure habituelle</span></span>
+                </div>
+                <div class="qui-decide" role="radiogroup" aria-label="Qui a choisi cette date">
+                  <label class="choix"><input type="radio" name="qui" value="suggere" id="qui-suggere" checked><span><b>Suggéré par la Maison</b><span>Elle le confirme d’un toucher sur WhatsApp.</span></span></label>
+                  <label class="choix"><input type="radio" name="qui" value="choisi" id="qui-choisi"><span><b>Elle l’a choisi avec nous</b><span>Au comptoir, elle a dit oui : il est confirmé.</span></span></label>
+                </div>
+              </div>
+              <div style="display:grid;gap:8px;min-width:0">
+                <span class="etiquette">Ce qu’elle reçoit en fermant</span>
+                <div class="wa"><div class="wa-l" id="apercu"></div></div>
+              </div>
+            </div>
+            <div class="pose" id="pose" hidden><b id="pose-b"></b><span id="pose-s"></span></div>
+          </div>
+          <div class="fen-pied">
+            <button class="lien" type="button" data-geste="sans-suite">Pas de prochain rendez-vous</button>
+            <button class="btn cuivre" type="button" id="poser" data-geste="poser">Poser la suggestion</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="bloc" aria-labelledby="t-carnet">
+  <div class="int">
+    <div class="bloc-tete">
+      <span class="etiquette">Au Carnet</span>
+      <h2 id="t-carnet">On voit d’un coup d’œil qui a dit oui</h2>
+      <p class="lecture">Un rendez-vous suggéré tient sa place, mais se dessine en pointillés cuivre, avec la mention « Suggéré ». Il devient plein, « Confirmé », au « Je confirme » de la cliente ou quand le comptoir note son oui. Les chiffres à venir le comptent à part : « à confirmer ».</p>
+    </div>
+    <div class="carnet" aria-label="Samedi 26 décembre 2026, exemple">
+      <div class="heure">10 h 00</div>
+      <div class="case"><div class="tuile confirme"><b>Mme A. <span class="pastille">Confirmé</span></b><small>Réservé par elle sur le site · Lavage rituel</small></div></div>
+      <div class="heure">13 h 30</div>
+      <div class="case"><div class="tuile suggere"><b>Mme F. <span class="pastille">Suggéré</span></b><small>Proposé le 14 nov. 2026 · sans réponse · relance le 23 déc.</small></div></div>
+      <div class="heure">16 h 00</div>
+      <div class="case"><div class="tuile confirme"><b>Mme K. <span class="pastille">Confirmé</span></b><small>Suggéré le 7 nov. 2026, confirmé par elle le 8</small></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="bloc" aria-labelledby="t-partout">
+  <div class="int">
+    <div class="bloc-tete">
+      <span class="etiquette">Partout où il parle</span>
+      <h2 id="t-partout">Une suggestion se dit comme une suggestion</h2>
+    </div>
+    <div class="table-defile">
+      <table>
+        <thead><tr><th scope="col">Où</th><th scope="col">Aujourd’hui</th><th scope="col">Avec la suggestion</th></tr></thead>
+        <tbody>
+          <tr><td>En fermant la fenêtre</td><td class="avant">« Votre rendez-vous est confirmé » (parti seulement quand la confirmation n’est pas retenue)</td><td>« Nous vous proposons votre prochain rituel le … », boutons <b>Je confirme</b> et <b>Un autre moment</b>. Une seule fois.</td></tr>
+          <tr><td>« Je confirme »</td><td class="avant">Prévu trois jours avant, jamais parti (pas de modèle)</td><td>Le rendez-vous passe « Confirmé », elle reçoit « C’est noté, Mme F. : samedi 26 décembre 2026 à 13 h 30. La Maison vous attend. »</td></tr>
+          <tr><td>« Un autre moment »</td><td class="avant">Prévu, jamais parti</td><td>Elle reçoit le lien de Ma Couronne pour choisir son moment, ou répond avec le jour qui lui va ; la conversation paraît au comptoir, et la suggestion reste jusqu’à ce qu’on la déplace ou la retire.</td></tr>
+          <tr><td>Relance, trois jours avant</td><td class="avant">Gérard : « votre rendez-vous … confirmer votre venue ? »</td><td>Si elle n’a pas répondu : « Notre proposition du samedi 26 décembre 2026 à 13 h 30 vous convient-elle ? » avec les deux boutons. Gérard ne parle plus de « votre rendez-vous ».</td></tr>
+          <tr><td>Rappel de la veille</td><td class="avant">« Votre rendez-vous est demain »</td><td>Seulement quand elle a confirmé.</td></tr>
+          <tr><td>L’assistant WhatsApp</td><td class="avant">« Vous avez bien un rendez-vous confirmé »</td><td>« C’est une proposition de la Maison après votre dernière venue, vous n’avez rien réservé. Voulez-vous la garder ? »</td></tr>
+          <tr><td>Ma Couronne</td><td class="avant">Affiché comme ses autres rendez-vous</td><td>« Proposé par la Maison », avec Je confirme et Un autre moment.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="bloc" aria-labelledby="t-semaines">
+  <div class="int">
+    <div class="bloc-tete">
+      <span class="etiquette">Aussi dans « Nouveau rendez-vous »</span>
+      <h2 id="t-semaines">Les semaines, à côté de la date</h2>
+      <p class="lecture">La même rangée dans la fenêtre « Nouveau rendez-vous », au champ « Quand », sous les sauts depuis aujourd’hui de la barre « Aller à » : « Après sa venue du sam. 14 nov. », 3 à 12 sem après, son rythme marqué. Deux bases, deux rangées qui le disent. Une puce ouvre ce jour, on choisit l’heure comme d’habitude.</p>
+    </div>
+    <div class="champ">
+      <label for="date-rdv">Quand</label>
+      <div class="puces" id="puces-rdv" role="group" aria-label="Depuis sa dernière venue, le 14 novembre 2026"></div>
+      <div class="date-libre"><input type="date" id="date-rdv" value="2026-12-26"><span class="detail" style="color:var(--doux);font-size:13.5px">Depuis sa dernière venue, le 14 novembre 2026</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="bloc" aria-labelledby="t-pas">
+  <div class="int">
+    <div class="bloc-tete">
+      <span class="etiquette">Ce que ça ne fera pas</span>
+      <h2 id="t-pas">Les limites</h2>
+    </div>
+    <ul class="liste lecture">
+      <li><span>Un rendez-vous suggéré ne disparaît jamais tout seul. Sans réponse, la décision reste au comptoir (arbitrage A).</span></li>
+      <li><span>Un rendez-vous que la cliente a pris elle-même (site, Ma Couronne, WhatsApp, au téléphone) ne devient jamais « Suggéré ». Les 45 posés avant la mise en ligne restent « Confirmé ».</span></li>
+      <li><span>Pas plus de deux messages pour une suggestion : la proposition en fermant, une relance trois jours avant.</span></li>
+      <li><span>Le modèle WhatsApp de la proposition se dépose chez Meta avant la mise en ligne. Tant qu’il n’est pas approuvé, rien ne part, et la fenêtre le dit.</span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="bloc" aria-labelledby="t-arb">
+  <div class="int">
+    <div class="bloc-tete">
+      <span class="etiquette">À trancher</span>
+      <h2 id="t-arb">Quatre arbitrages, tranchés</h2>
+    </div>
+    <div class="arbitrages">
+      <article class="arb">
+        <span class="lettre">A</span>
+        <h3>Si elle ne répond jamais</h3>
+        <p class="ferme"><b>Tranché le 14 novembre 2026</b>La place reste tenue. Relance trois jours avant. La veille à 10 h, si toujours rien, le comptoir est prévenu pour l’appeler ou libérer la place.</p>
+      </article>
+      <article class="arb">
+        <span class="lettre">B</span>
+        <h3>Les 45 déjà posés</h3>
+        <p class="ferme"><b>Tranché le 14 novembre 2026</b>Ils restent « Confirmé », sans message. Seuls les rendez-vous posés à partir de la mise en ligne peuvent être « Suggéré », et seuls ceux-là reçoivent la proposition et sa relance.</p>
+      </article>
+      <article class="arb">
+        <span class="lettre">C</span>
+        <h3>Quand la proposition part</h3>
+        <p class="ferme"><b>Tranché le 14 novembre 2026</b>En fermant la fenêtre, une fois, comme la confirmation aujourd’hui : elle sort à peine de la séance.</p>
+      </article>
+      <article class="arb">
+        <span class="lettre">D</span>
+        <h3>Les semaines ailleurs</h3>
+        <p class="ferme"><b>Tranché le 14 novembre 2026</b>Oui, aussi dans « Nouveau rendez-vous », comptées depuis sa dernière venue.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<footer><div class="int">Maquette du Trône · Maison MND · 14 novembre 2026, construite le 15 novembre 2026. Les noms sont réduits à l’initiale.</div></footer>
+
+<script>
+(() => {
+  /* La séance de Mme F. : samedi 14 novembre 2026, 13 h 30, son rythme 6 semaines. */
+  const SEANCE = new Date(2026, 10, 14);
+  const SEMAINES = [3, 4, 5, 6, 8, 12];
+  const RYTHME = 6;
+  const HEURE = '13 h 30';
+  /* Exemple : le 12 décembre 2026, 13 h 30 est pris ; la Maison est fermée du 1er au 5 janvier 2027. */
+  const PRIS = { '2026-12-12': '15 h 00' };
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const plus = (d, j) => { const x = new Date(d); x.setDate(x.getDate() + j); return x; };
+  const dit = (d) => d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const court = (d) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  const fermee = (d) => iso(d) >= '2027-01-01' && iso(d) <= '2027-01-05';
+
+  let date = plus(SEANCE, RYTHME * 7);
+  let semaines = RYTHME;
+  let qui = 'suggere';
+  let etape = 1;
+
+  const $ = (id) => document.getElementById(id);
+  const puces = $('puces');
+  SEMAINES.forEach((n) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'puce'; b.dataset.n = String(n);
+    const d = plus(SEANCE, n * 7);
+    b.innerHTML = `<span>${n} sem.</span><small${n === RYTHME ? ' class="rythme"' : ''}>${n === RYTHME ? 'son rythme · ' : ''}${court(d)}</small>`;
+    b.addEventListener('click', () => { semaines = n; date = plus(SEANCE, n * 7); $('date-choisie').value = ''; rends(); });
+    puces.appendChild(b);
+  });
+  $('date-choisie').addEventListener('change', (e) => {
+    const v = e.target.value; if (!v) return;
+    const [a, m, j] = v.split('-').map(Number); date = new Date(a, m - 1, j); semaines = null; rends();
+  });
+
+  const lAplace = () => {
+    let d = date; let heure = HEURE; let note = 'Place libre, à son heure habituelle'; let deplace = false;
+    if (fermee(d)) { d = new Date(2027, 0, 6); note = 'La Maison est fermée du 1er au 5 janvier 2027 : le 6 janvier, à la même heure'; deplace = true; }
+    else if (PRIS[iso(d)]) { heure = PRIS[iso(d)]; note = `13 h 30 est pris ce jour-là : ${heure}, l’heure libre la plus proche, avec Team`; deplace = true; }
+    return { d, heure, note, deplace };
+  };
+
+  const rends = () => {
+    puces.querySelectorAll('.puce').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.n) === semaines)));
+    const p = lAplace();
+    $('jour').textContent = dit(p.d);
+    $('detail').textContent = `${p.heure} · avec Team · 1 h 45${semaines ? ` · dans ${semaines} semaines` : ''}`;
+    $('place').className = `la-place${p.deplace ? ' deplace' : ''}`;
+    $('place').querySelector('span').textContent = p.note;
+    const quand = `le ${dit(p.d)} à ${p.heure}`;
+    $('apercu').innerHTML = qui === 'suggere'
+      ? `Bonjour Mme F., merci pour votre visite. Pour garder le rythme de vos locks, nous vous proposons votre prochain rituel ${quand} : Lavage rituel et Reprise des racines.<div class="wa-boutons"><span>Je confirme</span><span>Un autre moment</span></div><small>Maison MND · proposition</small>`
+      : `Bonjour Mme F., votre rendez-vous est confirmé ${quand} : Lavage rituel et Reprise des racines.<div class="wa-boutons"><span>Déplacer ou annuler</span><span>Ajouter à mon agenda</span></div><small>Maison MND · confirmation</small>`;
+    $('poser').textContent = qui === 'suggere' ? 'Poser la suggestion' : 'Poser le rendez-vous';
+    $('pose').hidden = true;
+  };
+
+  const montre = (n) => {
+    etape = n;
+    $('etape1').hidden = n !== 1;
+    $('etape2').hidden = n !== 2;
+    $('e1').className = `etape ${n === 1 ? 'est-la' : 'faite'}`;
+    $('e2').className = `etape${n === 2 ? ' est-la' : ''}`;
+    $('e1-dit').textContent = n === 1 ? 'Réglée · à fermer' : 'Fermée';
+    $('fen-titre-texte').textContent = n === 1 ? 'C’est réglé' : 'Son prochain rendez-vous';
+  };
+
+  document.querySelectorAll('input[name="qui"]').forEach((r) => r.addEventListener('change', (e) => { qui = e.target.value; rends(); }));
+  document.querySelectorAll('[data-geste]').forEach((b) => b.addEventListener('click', () => {
+    const g = b.dataset.geste;
+    if (g === 'etape2') montre(2);
+    if (g === 'etape1') montre(1);
+    if (g === 'poser') {
+      const p = lAplace();
+      $('pose-b').textContent = qui === 'suggere' ? `Suggestion posée au Carnet : ${dit(p.d)}, ${p.heure}.` : `Rendez-vous confirmé au Carnet : ${dit(p.d)}, ${p.heure}.`;
+      $('pose-s').textContent = qui === 'suggere' ? 'Elle la voit en pointillés au Carnet. La proposition part en fermant la fenêtre.' : 'Elle a dit oui au comptoir : la confirmation part en fermant la fenêtre.';
+      $('pose').hidden = false;
+    }
+    if (g === 'sans-suite') {
+      montre(2);
+      $('pose-b').textContent = 'Aucun prochain rendez-vous posé.';
+      $('pose-s').textContent = 'Rien ne part vers elle. Perle le lui proposera avant la date de son rythme.';
+      $('pose').hidden = false;
+    }
+  }));
+
+  /* La même rangée dans « Nouveau rendez-vous ». */
+  const pr = $('puces-rdv');
+  let nRdv = 6;
+  const rendsRdv = () => pr.querySelectorAll('.puce').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.n) === nRdv)));
+  SEMAINES.forEach((n) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'puce'; b.dataset.n = String(n);
+    b.innerHTML = `<span>${n} sem après${n === RYTHME ? ' · son rythme' : ''}</span><small>${court(plus(SEANCE, n * 7))}</small>`;
+    b.addEventListener('click', () => { nRdv = n; $('date-rdv').value = iso(plus(SEANCE, n * 7)); rendsRdv(); });
+    pr.appendChild(b);
+  });
+  $('date-rdv').addEventListener('change', () => { nRdv = null; rendsRdv(); });
+  rendsRdv();
+
+  rends();
+  montre(1);
+})();
+</script>

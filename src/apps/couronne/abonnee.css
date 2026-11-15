@@ -359,3 +359,10 @@
 /* La pile du tableau de bord, posée dans la page de l'accueil */
 .ab-pile { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
 .ab-pile > .mc-nextrdv { margin-top: 0; }
+
+/* LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : proposé par la Maison après sa
+   venue, il attend son oui. Pointillés cuivre, comme au Carnet du Trône. */
+.mc-propose { display: grid; gap: 8px; margin-top: 14px; padding: 12px 14px; border: 1px dashed var(--accent); border-radius: 4px; }
+.mc-propose b { font-family: var(--mc-sans, 'Jost', sans-serif); font-weight: 500; font-size: 14px; color: var(--mc-encre); }
+.mc-propose span { font-size: 13.5px; line-height: 1.5; color: var(--mc-encre); opacity: .82; }
+.mc-propose .mc-fiche__acts { margin-top: 2px; }

@@ -4004,3 +4004,16 @@ label.trc-foyer--lier { justify-content: flex-start; cursor: pointer; }
 .trc-fiches__titre { grid-area: titre; font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
 .trc-fiches__qui { grid-area: qui; font-size: 13px; color: var(--ink-soft); }
 .trc-fiches__ligne > button { grid-area: bouton; }
+
+/* ══ LE RENDEZ-VOUS SUGGÉRÉ · 15 novembre 2026 ══════════════════════════
+   Une suggestion tient sa place, mais se dessine en pointillés cuivre tant
+   qu'elle n'a pas dit oui (shared/rendez-vous-suggere-pur.ts). */
+.trc-cal__appt.est-suggere, .trc-week__chip.est-suggere, .trc-month__chip.est-suggere {
+  border: 1px dashed var(--color-copper) !important;
+  background-image: none;
+}
+.trc-agenda__row.est-suggere { border-left: 2px dashed var(--color-copper); }
+.trc-rdv-suggere { display: grid; gap: 6px; padding: 10px 12px; border: 1px dashed var(--color-copper); border-radius: 4px; background: var(--paper); font-family: var(--font-sans); }
+.trc-rdv-suggere b { font-size: 13.5px; font-weight: 500; color: var(--color-indigo); }
+.trc-rdv-suggere span { font-size: 13px; line-height: 1.45; color: var(--ink-soft); }
+.trc-rdv-suggere__gestes { display: flex; flex-wrap: wrap; gap: 8px; }

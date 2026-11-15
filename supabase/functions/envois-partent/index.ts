@@ -242,7 +242,9 @@ export type FamilleDeModele =
   /* Le modèle d'ouverture d'un envoi programmé (13 novembre 2026). */
   | 'ouverture'
   /* La visio gratuite réservée sur le site (14 novembre 2026). */
-  | 'visio';
+  | 'visio'
+  /* La proposition du rendez-vous suggéré, en fermant la fenêtre (15 novembre 2026). */
+  | 'proposition';
 
 export type EntreeDuRegistre = {
   famille: FamilleDeModele;
@@ -291,8 +293,8 @@ export const REGISTRE_DES_MODELES: readonly EntreeDuRegistre[] = [
   },
   {
     famille: 'reprise-j3', type: 'reprise-j3', modeles: ['reprise_proposee'], secrets: ['WA_TEMPLATE_REPRISE'], depose: 'rappels-j1',
-    pourQuoi: 'La reprise posée à la caisse, proposée avec deux boutons, « Je confirme » et « Un autre moment » : {{1}} l’appel, {{2}} le moment, {{3}} les gestes.',
-    quand: 'Trois jours avant la reprise, à chaque passage de rappels-j1.',
+    pourQuoi: 'La relance d’un rendez-vous suggéré resté sans réponse, avec deux boutons, « Je confirme » et « Un autre moment » : {{1}} l’appel, {{2}} le moment, {{3}} les gestes.',
+    quand: 'Trois jours avant un rendez-vous suggéré (posé à partir du 15 novembre 2026) qu’elle n’a ni confirmé ni voulu changer, à chaque passage de rappels-j1.',
     appel: 1, rdv: true, rappel: true, unParTete: false, porte: 'toutes',
   },
   {
@@ -394,6 +396,15 @@ export const REGISTRE_DES_MODELES: readonly EntreeDuRegistre[] = [
     pourQuoi: 'La visio gratuite réservée sur le site : {{1}} l’appel, {{2}} le jour et l’heure, {{3}} le lien d’entrée dans la salle.',
     quand: 'À la réservation, une fois par visio, dès que le modèle est approuvé chez Meta (secret posé).',
     appel: 1, rdv: false, rappel: false, unParTete: false, porte: 'toutes',
+  },
+  /* LE RENDEZ-VOUS SUGGÉRÉ — 15 novembre 2026 (« The way you make automatic
+     appointments is not good »). À la place de la confirmation, confirmation-rdv
+     dépose la proposition d'un rendez-vous que la Maison a posé pour elle. */
+  {
+    famille: 'proposition', type: 'proposition', modeles: ['proposition_rituel'], secrets: ['WA_TEMPLATE_PROPOSITION'], depose: 'confirmation-rdv',
+    pourQuoi: 'Le prochain rituel suggéré par la Maison après une séance, avec « Je confirme » et « Un autre moment » : {{1}} l’appel, {{2}} le moment, {{3}} les gestes.',
+    quand: 'En fermant la fenêtre « C’est réglé », une seule fois, quand la date est « Suggéré par la Maison ».',
+    appel: 1, rdv: true, rappel: false, unParTete: false, porte: 'toutes',
   },
 ];
 

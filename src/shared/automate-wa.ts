@@ -1132,8 +1132,9 @@ type FicheDuNumero = {
   derniereVenue?: { date: string; serviceIds: string[] };
   /** Son prochain rendez-vous, confirmé ou en attente, d'aujourd'hui ou
       plus tard (fiches_du_numero, 0125) : elle en a déjà un, la Maison
-      répond elle-même. */
-  prochainRdv?: { date: string; time?: string };
+      répond elle-même. `suggere` (0211, 15 novembre 2026) : la Maison l'a
+      proposé, elle n'a pas encore dit oui. */
+  prochainRdv?: { date: string; time?: string; suggere?: boolean };
   /** SA TÊTE POUR LE PRIX (30 octobre 2026, Yéman : « si c'est un ancien
       client, le système reconnaît son nombre de locks grâce au numéro ») :
       son comptage, sa longueur, sa marge, son Juste Prix (`clients`). */
@@ -2745,7 +2746,9 @@ function atelierDuTour(ancien: EtatDuFil | null | undefined, tour: TourDeLaClien
       ...(mots.heure ? { heureVoulue: mots.heure } : {}),
     };
     const rdv = f.prochainRdv?.date;
-    const m = msgPlaces({ intro: `Pour déplacer votre rendez-vous${rdv ? ` du ${jourDitAvecAnnee(rdv)}` : ''}, voici les prochaines places, ${appel()}. Touchez celle qui vous convient : une personne de la Maison déplace le rendez-vous.` });
+    /* Une suggestion de la Maison (15 novembre 2026) n'est pas « votre rendez-vous ». */
+    const quoi = f.prochainRdv?.suggere ? 'changer la proposition de la Maison' : 'déplacer votre rendez-vous';
+    const m = msgPlaces({ intro: `Pour ${quoi}${rdv ? ` du ${jourDitAvecAnnee(rdv)}` : ''}, voici les prochaines places, ${appel()}. Touchez celle qui vous convient : une personne de la Maison déplace le rendez-vous.` });
     if (!m) { base.panier = {}; return null; }
     base.prisLe = maintenant;
     base.rdvId = undefined;

@@ -1,3 +1,4 @@
+import { estSuggere } from './rendez-vous-suggere-pur';
 import { prenomEtInitiale, pourClaude, type Personne } from './ia-anonymise-pur';
 import { appelDe } from './civilite';
 import { prixDuCatalogue, prixDitWa } from './automate-wa';
@@ -78,7 +79,9 @@ export const PLACES_DITES = 6;
 
 export type MessageDuFilPourClaude = { sens: 'entrant' | 'sortant'; texte: string; type?: string; etat?: string };
 export type FichePourClaude = { name?: string | null; civilite?: 'madame' | 'mademoiselle' | 'monsieur'; auMasculin?: boolean } | null | undefined;
-export type RdvPourClaude = { date: string; time?: string; gestes?: readonly string[] };
+/** `suggere` (15 novembre 2026, le rendez-vous suggéré) : la Maison l'a
+    proposé après sa dernière venue ; elle ne l'a ni pris ni encore confirmé. */
+export type RdvPourClaude = { date: string; time?: string; gestes?: readonly string[]; suggere?: boolean };
 export type JourDePlaces = { iso: string; heures: readonly { heure: string }[] };
 export type PrestationPourClaude = {
   id: string; name: string; categoryId: string;
@@ -146,7 +149,7 @@ export const isoDuJourLocal = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /* ── LA FICHE, LUE POUR LE CONTEXTE ─────────────────────────────────────── */
-type RdvLisible = { date: string; time?: string; status: string; clientId?: string; serviceIds?: readonly string[] };
+type RdvLisible = { date: string; time?: string; status: string; clientId?: string; serviceIds?: readonly string[]; suggereLe?: string; confirmeeParLaClienteLe?: string };
 
 /** Son prochain rendez-vous : confirmé ou en attente, d'aujourd'hui ou plus
     tard, le plus proche d'abord. */
@@ -154,7 +157,7 @@ export function prochainRdvDe(appts: readonly RdvLisible[], clientId: string, au
   const a = appts
     .filter((x) => x.clientId === clientId && (x.status === 'confirmé' || x.status === 'en attente') && x.date >= aujourdhui)
     .sort((x, y) => (`${x.date} ${x.time ?? ''}` < `${y.date} ${y.time ?? ''}` ? -1 : 1))[0];
-  return a ? { date: a.date, time: a.time, gestes: (a.serviceIds ?? []).map(nomDe).filter(Boolean) } : null;
+  return a ? { date: a.date, time: a.time, gestes: (a.serviceIds ?? []).map(nomDe).filter(Boolean), ...(estSuggere(a) ? { suggere: true } : {}) } : null;
 }
 
 /** Sa dernière venue honorée, la plus récente d'abord. */
@@ -324,8 +327,13 @@ export function contextePourClaude(o: ContexteDeLaReponse): string {
   lignes.push(`Aujourd’hui : ${dateDitePourClaude(o.aujourdhui)}.`);
   if (o.fiche) {
     const rdv = o.prochainRdv;
+    /* LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : « je n'avais pas pris de rdv
+       pour demain », et la réponse « vous avez bien un rendez-vous confirmé »
+       (Mme F.). Une proposition de la Maison se dit comme une proposition. */
     lignes.push(rdv
-      ? `Son prochain rendez-vous : ${dateDitePourClaude(rdv.date, rdv.time)}${rdv.gestes?.length ? ` (${rdv.gestes.join(', ')})` : ''}.`
+      ? rdv.suggere
+        ? `Son prochain rendez-vous est une PROPOSITION de la Maison, faite après sa dernière venue : ${dateDitePourClaude(rdv.date, rdv.time)}${rdv.gestes?.length ? ` (${rdv.gestes.join(', ')})` : ''}. Elle ne l’a pas réservé et ne l’a pas encore confirmé. Si elle en parle, dis que c’est une proposition de la Maison, qu’elle n’a rien réservé, et demande-lui si elle veut la garder ; ne dis jamais qu’elle a un rendez-vous confirmé.`
+        : `Son prochain rendez-vous : ${dateDitePourClaude(rdv.date, rdv.time)}${rdv.gestes?.length ? ` (${rdv.gestes.join(', ')})` : ''}.`
       : 'Aucun rendez-vous à venir.');
     const venue = o.derniereVenue;
     if (venue) lignes.push(`Sa dernière venue : ${dateDitePourClaude(venue.date)}${venue.gestes?.length ? ` (${venue.gestes.join(', ')})` : ''}.`);

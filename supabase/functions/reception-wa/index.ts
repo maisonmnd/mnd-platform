@@ -329,7 +329,7 @@ function contextePourClaude(o) {
   lignes.push(`Aujourd’hui : ${dateDitePourClaude(o.aujourdhui)}.`);
   if (o.fiche) {
     const rdv = o.prochainRdv;
-    lignes.push(rdv ? `Son prochain rendez-vous : ${dateDitePourClaude(rdv.date, rdv.time)}${rdv.gestes?.length ? ` (${rdv.gestes.join(", ")})` : ""}.` : "Aucun rendez-vous à venir.");
+    lignes.push(rdv ? rdv.suggere ? `Son prochain rendez-vous est une PROPOSITION de la Maison, faite après sa dernière venue : ${dateDitePourClaude(rdv.date, rdv.time)}${rdv.gestes?.length ? ` (${rdv.gestes.join(", ")})` : ""}. Elle ne l’a pas réservé et ne l’a pas encore confirmé. Si elle en parle, dis que c’est une proposition de la Maison, qu’elle n’a rien réservé, et demande-lui si elle veut la garder ; ne dis jamais qu’elle a un rendez-vous confirmé.` : `Son prochain rendez-vous : ${dateDitePourClaude(rdv.date, rdv.time)}${rdv.gestes?.length ? ` (${rdv.gestes.join(", ")})` : ""}.` : "Aucun rendez-vous à venir.");
     const venue = o.derniereVenue;
     if (venue) lignes.push(`Sa dernière venue : ${dateDitePourClaude(venue.date)}${venue.gestes?.length ? ` (${venue.gestes.join(", ")})` : ""}.`);
     if (typeof o.resteDu === "number" && Number.isFinite(o.resteDu) && o.resteDu >= 0) {
@@ -865,7 +865,7 @@ function prixSelonLeCalibre(s, ctx) {
 }
 
 // scripts/serveur/reception-wa.ts
-var VERSION = "2026-11-12-a";
+var VERSION = "2026-11-15-a";
 var MODELES = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 var TARIFS = {
   "claude-haiku-5-5": { entree: 1, sortie: 5 },

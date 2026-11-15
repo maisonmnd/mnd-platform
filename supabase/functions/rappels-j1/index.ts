@@ -34,7 +34,7 @@ const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. 10 octobre 2026 : le passage du soir ne dépose plus
     un rappel que les heures calmes retiendraient jusqu'au jour même. */
-const VERSION = '2026-11-11-b · la veille d’une séance de formule dit « Une attention vous y attend » quand son panier est validé et que le modèle rappel_rdv_attention est posé (WA_TEMPLATE_RAPPEL_ATTENTION), sinon le rappel d’hier mot pour mot ; ce qui va partir : un rappel, une reprise ou un point arrêtés d’avance, ou d’un modèle en pause, ne se déposent pas ; un rappel par foyer, qui nomme chaque tête ; la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
+const VERSION = '2026-11-15-a · le rendez-vous suggéré : la relance trois jours avant ne vise que les suggestions sans réponse (posées à partir du 15 novembre 2026), sur le modèle reprise_proposee (« Notre proposition du … vous convient-elle ? ») ; une suggestion sans oui n’a pas de rappel de la veille ; la veille à 10 h, le comptoir est prévenu des suggestions de demain sans réponse · 2026-11-11-b · la veille d’une séance de formule dit « Une attention vous y attend » quand son panier est validé et que le modèle rappel_rdv_attention est posé (WA_TEMPLATE_RAPPEL_ATTENTION), sinon le rappel d’hier mot pour mot ; ce qui va partir : un rappel, une reprise ou un point arrêtés d’avance, ou d’un modèle en pause, ne se déposent pas ; un rappel par foyer, qui nomme chaque tête ; la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
 
 type Rdv = {
   id: string;
@@ -53,7 +53,54 @@ type Rdv = {
   coverKind?: string;
   /** Posé sans confirmation : le rappel d'hier, mot pour mot, jamais l'attention (11 novembre 2026). */
   sansConfirmation?: boolean;
+  /** LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : posé par la Maison, son oui attendu. */
+  suggereLe?: string;
+  confirmeeParLaClienteLe?: string;
 };
+
+/* LE RENDEZ-VOUS SUGGÉRÉ — 15 novembre 2026. Bloc RECOPIÉ tel quel de
+   `src/shared/rendez-vous-suggere-pur.ts` (ses choix y sont écrits) ;
+   `verifie-les-douze-lunes` confronte les copies. NE RIEN RETOUCHER ENTRE
+   LES REPÈRES. */
+/* ⟨rendez-vous-suggere⟩ */
+/** Les marques que lit le juge : le statut, la pose par la Maison, son oui. */
+export type MarquesDeLaSuggestion = {
+  status?: unknown; suggereLe?: unknown; confirmeeParLaClienteLe?: unknown; autreMomentDemandeLe?: unknown;
+};
+const marquePosee = (v: unknown): boolean => typeof v === 'string' && v.trim().length > 0;
+
+/** SUGGÉRÉ : posé par la Maison (`suggereLe`), tenu, et pas encore de oui. */
+export function estSuggere(a: MarquesDeLaSuggestion | null | undefined): boolean {
+  return !!a && a.status === 'confirmé' && marquePosee(a.suggereLe) && !marquePosee(a.confirmeeParLaClienteLe);
+}
+
+/** Trois jours avant : la relance d'une suggestion sans réponse. */
+export const JOURS_AVANT_LA_RELANCE = 3;
+
+/** « Bonjour Mme F., merci pour votre visite… » : le message de la
+    proposition, en fermant la fenêtre (le modèle `proposition_rituel`,
+    {{1}} l'appel, {{2}} le moment, {{3}} les gestes). */
+export function texteDeLaProposition(o: { appel: string; quand: string; gestes: string }): string {
+  return `Bonjour ${o.appel}, merci pour votre visite. Pour garder le rythme de vos locks, nous vous proposons votre prochain rituel le ${o.quand} : ${o.gestes}.`;
+}
+
+/** La relance, trois jours avant, quand elle n'a pas répondu (le modèle
+    `reprise_proposee`, mêmes variables). Elle ne dit jamais « votre
+    rendez-vous » : elle n'a rien réservé. */
+export function texteDeLaRelance(o: { appel: string; quand: string; gestes: string }): string {
+  return `Bonjour ${o.appel}, notre proposition du ${o.quand} pour votre prochain rituel (${o.gestes}) vous convient-elle ?`;
+}
+
+/** Les deux réponses, dans cet ordre : ce que chaque bouton rapporte au
+    webhook (REPRISE_OK / REPRISE_AUTRE, lus depuis le 29 septembre 2026). */
+export function composantsDeLaProposition(o: { appel: string; quand: string; gestes: string; apptId: string }): unknown[] {
+  return [
+    { type: 'body', parameters: [{ type: 'text', text: o.appel }, { type: 'text', text: o.quand }, { type: 'text', text: o.gestes }] },
+    { type: 'button', sub_type: 'quick_reply', index: '0', parameters: [{ type: 'payload', payload: `REPRISE_OK:${o.apptId}` }] },
+    { type: 'button', sub_type: 'quick_reply', index: '1', parameters: [{ type: 'payload', payload: `REPRISE_AUTRE:${o.apptId}` }] },
+  ];
+}
+/* ⟨/rendez-vous-suggere⟩ */
 
 type Fiche = { id: string; name?: string; prenomUsage?: string; phone?: string };
 
@@ -266,8 +313,24 @@ function passageDeLHeure(heure: number, h: HeuresDesRappels): 'premier' | 'secon
     viens » du message de Perle ou par un « oui » écrit (reception-wa). Le
     WhatsApp de la veille (rappels-j1) et la notification « Rappel · demain »
     de Ma Couronne (push-notify) se taisent ; celle de deux heures avant reste. */
-export function rappelDeLaVeilleSeTait(a: { confirmeeParLaClienteLe?: unknown }): boolean {
-  return typeof a.confirmeeParLaClienteLe === 'string' && a.confirmeeParLaClienteLe.trim().length > 0;
+export function rappelDeLaVeilleSeTait(a: { date?: unknown; confirmeeParLaClienteLe?: unknown; suggereLe?: unknown }): boolean {
+  const oui = typeof a.confirmeeParLaClienteLe === 'string' && a.confirmeeParLaClienteLe.trim().length > 0;
+  const suggere = typeof a.suggereLe === 'string' && a.suggereLe.trim().length > 0;
+  if (!suggere) return oui;
+  /* LE RENDEZ-VOUS SUGGÉRÉ — 15 novembre 2026 : sans son oui, aucun « votre
+     rendez-vous est demain », elle n'a rien réservé (la veille à 10 h, le
+     comptoir est prévenu). Son oui donné à la proposition, des semaines
+     avant, ne fait pas taire la veille : seul un oui des trois derniers
+     jours (la relance) le fait, comme le « Oui, je viens » de J-2. */
+  if (!oui) return true;
+  const t = Date.parse(`${String(a.date ?? '')}T12:00:00Z`);
+  if (!Number.isFinite(t)) return true;
+  return String(a.confirmeeParLaClienteLe).slice(0, 10) >= new Date(t - 3 * 86_400_000).toISOString().slice(0, 10);
+}
+/** Une suggestion sans son oui ne reçoit aucun rappel, ni la veille, ni deux heures avant. */
+export function suggestionSansOui(a: { status?: unknown; confirmeeParLaClienteLe?: unknown; suggereLe?: unknown }): boolean {
+  return typeof a.suggereLe === 'string' && a.suggereLe.trim().length > 0
+    && !(typeof a.confirmeeParLaClienteLe === 'string' && a.confirmeeParLaClienteLe.trim().length > 0);
 }
 /* ⟨/rappel-se-tait⟩ */
 /* ══ COPIE DANS rappels-j1 : FIN ══ */
@@ -707,12 +770,14 @@ type Reprise = {
   date: string; time: string; status: string; serviceIds?: string[];
   repriseDe?: string; confirmeeParLaClienteLe?: string; autreMomentDemandeLe?: string;
   repriseProposeeLe?: string;
+  /** LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : seule une suggestion se relance. */
+  suggereLe?: string;
 };
 
 const JOURS_AVANT_LA_REPRISE = 3;
 
 const reprisesAProposer = (appts: readonly Reprise[], dansTroisJours: string): Reprise[] =>
-  appts.filter((a) => a.date === dansTroisJours && a.status === 'confirmé' && !!a.clientId && !!a.repriseDe
+  appts.filter((a) => a.date === dansTroisJours && a.status === 'confirmé' && !!a.clientId && !!a.suggereLe
     && !a.confirmeeParLaClienteLe && !a.autreMomentDemandeLe);
 
 /** « mardi 14 octobre 2026 ». Recopiée de confirmation-rdv. L'ANNÉE SE DIT
@@ -772,18 +837,15 @@ async function proposeLesReprises(sb: ReturnType<typeof createClient>, salleOuve
     const tel = numeroIntl(telDuRdv(a, fiche));
     const prenom = appelDe(fiche, a.clientName);
     const quand = `${jourEnClair(a.date)} à ${heureLisible(a.time)}`;
-    const gestes = (a.serviceIds ?? []).map((id) => nomDe.get(id)).filter(Boolean).join(', ') || 'votre rituel';
+    const gestes = (a.serviceIds ?? []).map((id) => String(nomDe.get(id) ?? '').split(' · ')[0]).filter(Boolean).join(', ') || 'votre rituel';
     const maintenant = new Date().toISOString();
     let statut = 'échec';
     let detail: string | undefined;
     let waId = '';
-    const composants = [
-      { type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: quand }, { type: 'text', text: gestes }] },
-      /* Ce que chaque bouton rapporte au webhook : le rendez-vous visé. */
-      { type: 'button', sub_type: 'quick_reply', index: '0', parameters: [{ type: 'payload', payload: `REPRISE_OK:${a.id}` }] },
-      { type: 'button', sub_type: 'quick_reply', index: '1', parameters: [{ type: 'payload', payload: `REPRISE_AUTRE:${a.id}` }] },
-    ];
-    const texteDuFil = `Bonjour ${prenom}, votre prochain rituel est prévu ${quand} : ${gestes}. [Je confirme] [Un autre moment]`;
+    /* Ce que chaque bouton rapporte au webhook : le rendez-vous visé (REPRISE_OK / REPRISE_AUTRE). */
+    const composants = composantsDeLaProposition({ appel: prenom, quand, gestes, apptId: a.id });
+    /* UNE SUGGESTION SE DIT COMME UNE SUGGESTION (15 novembre 2026) : jamais « votre rendez-vous ». */
+    const texteDuFil = `${texteDeLaRelance({ appel: prenom, quand, gestes })} [Je confirme] [Un autre moment]`;
     /* ARRÊTÉE D'AVANCE, OU SON MODÈLE EN PAUSE (5 novembre 2026, ce qui va
        partir) : écrite telle qu'elle partirait, mais « écarté » ou « périmé ». */
     if (tel) {
@@ -875,6 +937,50 @@ async function proposeLesReprises(sb: ReturnType<typeof createClient>, salleOuve
     }
   }
   return { reprises: parties, jour, candidates: aProposer.length };
+}
+
+/* ══ LE COMPTOIR PRÉVENU LA VEILLE — 15 novembre 2026 ═══════════════════
+   Arbitrage A du rendez-vous suggéré : « La place reste tenue. Relance trois
+   jours avant. La veille à 10 h, si toujours rien, le comptoir est prévenu
+   pour l'appeler ou libérer la place. » Rien ne s'efface ici ; la fonction
+   lit, prévient (push du personnel, des initiales et des heures), et garde
+   sa marque dans `documents` : un second réveil de la même heure se tait. */
+const HEURE_DU_COMPTOIR_LA_VEILLE = 10;
+
+const initialesDuNom = (nom: unknown): string => {
+  const mots = String(nom ?? '').replace(/(^|\s)(?:M\.|Mme|Mlle|Monsieur|Madame|Mademoiselle)(?=\s)/g, ' ').trim().split(/\s+/).filter(Boolean);
+  return mots.length ? mots.slice(0, 2).map((m) => `${m.charAt(0).toUpperCase()}.`).join(' ') : 'Une cliente';
+};
+
+async function previensLeComptoirDesSuggestions(sb: ReturnType<typeof createClient>, urlBase: string, service: string): Promise<Record<string, unknown>> {
+  const demain = new Date(Date.now() + 86_400_000).toLocaleDateString('en-CA', { timeZone: TZ });
+  const cle = `suggestions-sans-reponse:${demain}`;
+  const { data: deja } = await sb.from('documents').select('key').eq('key', cle).maybeSingle();
+  if (deja) return { comptoir: 'deja-prevenu', jour: demain };
+  const { data: lignes, error } = await sb.from('appointments').select('id, data')
+    .eq('data->>date', demain).eq('data->>status', 'confirmé');
+  if (error) return { comptoir: 'lecture-refusee', motif: error.message.slice(0, 120) };
+  const sans = ((lignes ?? []) as { id: string; data: Rdv & { suggereLe?: string; confirmeeParLaClienteLe?: string } }[])
+    .map((l) => ({ ...l.data, id: l.id }))
+    .filter((a) => estSuggere(a))
+    .sort((a, b) => String(a.time ?? '').localeCompare(String(b.time ?? '')));
+  /* La marque d'abord : un second réveil ne prévient jamais deux fois. */
+  await sb.from('documents').upsert({ key: cle, data: { jour: demain, n: sans.length, apptIds: sans.map((a) => a.id), le: new Date().toISOString() } }, { onConflict: 'key' });
+  if (sans.length === 0) return { comptoir: 0, jour: demain };
+  const qui = sans.map((a) => `${initialesDuNom(a.clientName)} à ${heureLisible(a.time)}`).join(', ');
+  const titre = sans.length > 1 ? `${sans.length} suggestions de demain sans réponse` : 'Une suggestion de demain sans réponse';
+  const corps = `${qui}. Appelez-la pour confirmer, ou libérez la place au Carnet.`;
+  try {
+    const r = await fetch(`${urlBase}/functions/v1/push-notify`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${service}` },
+      body: JSON.stringify({ mode: 'staff', title: titre, body: corps, url: '/trone/#/clients/carnet' }),
+    });
+    const envoyes = Number(((await r.json().catch(() => ({}))) as { sent?: number }).sent ?? 0) || 0;
+    return { comptoir: sans.length, prevenus: envoyes, jour: demain };
+  } catch (e) {
+    return { comptoir: sans.length, prevenus: 0, motif: String(e).slice(0, 120), jour: demain };
+  }
 }
 
 /* ══ LES POINTS D'ÉTAPE, SUR WHATSAPP — 17 octobre 2026 ══════════════════
@@ -1141,9 +1247,17 @@ Deno.serve(async (req) => {
   const { data: reglage } = await sb.from('documents').select('data').eq('key', 'mnd_auto_config').maybeSingle();
   const heures = heuresDesRappels(reglage?.data as { rappelPremier?: unknown; rappelSecond?: unknown } | undefined);
   const heureDeCePassage = Math.floor(heureDuSalon(Date.now()));
+  /* ══ LA VEILLE À 10 H, LE COMPTOIR — 15 novembre 2026 (le rendez-vous
+     suggéré, arbitrage A) : les suggestions de demain restées sans réponse
+     ne s'effacent jamais seules ; le comptoir les apprend, pour l'appeler ou
+     libérer la place. Une fois par jour (`documents`, clé
+     `suggestions-sans-reponse:<demain>`), des initiales et des heures. */
+  const comptoir = heureDeCePassage === HEURE_DU_COMPTOIR_LA_VEILLE
+    ? await previensLeComptoirDesSuggestions(sb, urlBase, service).catch((e) => ({ comptoir: 'echec', motif: String(e).slice(0, 120) }))
+    : null;
   const passage = passageDeLHeure(heureDeCePassage, heures);
   if (!passage) {
-    return new Response(JSON.stringify({ version: VERSION, passage: null, heure: heureDeCePassage, heures }), { status: 200 });
+    return new Response(JSON.stringify({ version: VERSION, passage: null, heure: heureDeCePassage, heures, ...(comptoir ?? {}) }), { status: 200 });
   }
 
   /* ── Demain, au fuseau du salon ─────────────────────────────────── */

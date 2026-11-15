@@ -71,6 +71,7 @@ import type { Invoice, InvoicePayment } from './finance';
 import { etatDesEcheances, JOURS_DE_GRACE, type Echeance } from './echeancier';
 import { dejaPriseParLaTete, leFoyerJoue, prixDuFoyer, soinDeLaLune } from './formules-en-lunes-pur';
 import { decaleLeJour } from './ia-faits-pur';
+import { estSuggere } from './rendez-vous-suggere-pur';
 
 /* ══ LES FAITS QUE LE MODÈLE PORTERA (lot L3) ══════════════════════════
    Le juge lit des FAITS, jamais des états. Ceux-ci n'existent pas encore
@@ -270,6 +271,11 @@ export function etatDeLaSeance(a: SeanceLue, jour: string): EtatSeance {
   if (a.absente || a.status === 'annulé') return 'annulee';
   if (a.date < jour) return 'a-cloturer';
   if (a.proposeeLe && a.status === 'en attente' && !a.confirmeeParLaClienteLe) return 'proposee';
+  /* LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : la Maison l'a posé après sa
+     venue, elle ne l'a pas encore confirmé. « Proposé par la Maison », avec
+     « Je confirme » et « Un autre moment » (Ma Couronne). La place est tenue :
+     il prend son crédit comme une séance confirmée. */
+  if (estSuggere(a)) return 'proposee';
   return a.status === 'en attente' ? 'a-confirmer' : 'confirmee';
 }
 

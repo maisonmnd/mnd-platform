@@ -39,4 +39,11 @@ export const EN_RDV: Record<string, string> = {
     'La dernière place à −{pct} % de ce jour vient de partir. Choisissez un jour en cuivre, ou écrivez à la Maison.',
   'Places limitées : votre remise de {pct} % tient les jours en cuivre. Un autre jour, la Maison vous redit le prix en confirmant.':
     'Places limitées : votre remise de {pct} % tient les jours en cuivre. Un autre jour, la Maison vous redit le prix en confirmant.',
+  /* Le rendez-vous suggéré (15 novembre 2026). */
+  'Proposé par la Maison': 'Offered by the Maison',
+  'Après votre dernière venue, la Maison vous garde cette place. Vous n’avez rien réservé : confirmez-la d’un toucher, ou choisissez un autre moment.':
+    'After your last visit, the Maison is holding this slot for you. You have not booked anything: confirm it with one tap, or choose another time.',
+  'Je confirme': 'I confirm',
+  'C’est noté : la Maison vous attend le {jour} à {heure}.': 'Noted: the Maison expects you on {jour} at {heure}.',
+  'Votre confirmation n’est pas arrivée à la maison. Réessayez dans un instant.': 'Your confirmation did not reach the Maison. Please try again in a moment.',
 };
