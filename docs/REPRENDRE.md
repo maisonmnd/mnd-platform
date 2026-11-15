@@ -2,7 +2,9 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LA SALLE QUI RÉPOND — 15 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
+## LA SALLE QUI RÉPOND — 15 novembre 2026, EN LIGNE (Trône build 20261115073200 @ 25f1c80c, 537/537 identiques ; Trône seul : aucune fonction, aucun SQL)
+
+Mesuré en ligne après publication (Perle › Conversations, 90 s) : aucune trame ne bloque plus d'une seconde (la plus longue 1 266 ms, 842 ms de blocage ; avant : 52 000 ms). La salle montrait « Effacer les 48 retenus » : personne n'a rien effacé, c'est à Yéman d'en décider.
 
 « Quand j'appuie le bouton Retenir ou Envoyer quand même, rien ne se passe. Le bouton, même en appuyant plusieurs fois, ne s'exécute pas. Il finit par partir mais avec beaucoup de retard. Quand j'ai des messages que j'ai retenus, me donner la possibilité de les effacer pour ne plus les voir » (Yéman, capture de Perle › Conversations › Ce qui part, 50 en salle).
 
