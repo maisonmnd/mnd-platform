@@ -150,7 +150,8 @@ const webhook = lis('supabase/functions/whatsapp-webhook/index.ts');
 dit('le webhook lit le meme bouton que le depot', true, webhook.includes(String.raw`.match(/^REPRISE_(OK|AUTRE):(.+)$/)`)
   && lis('src/shared/reservation-express.ts').includes(String.raw`/^REPRISE_(OK|AUTRE):(.+)$/`));
 dit('... n ecoute que le numero de la fiche, n annule jamais, eteint la relance', [true, false, true], [
-  webhook.includes('!fiche.numeros.includes(e.numero)'),
+  /* Par la clé du numéro depuis le 15 novembre 2026 : Meta livre huit chiffres, la fiche dix. */
+  webhook.includes("if (!fiche || !fiche.numeros.some((n) => cleWa(n) === cleWa(e.numero))) { dis('reprise · numéro étranger au rendez-vous'); continue; }"),
   /REPRISE_[\s\S]{0,4000}status: 'annulé'/.test(webhook.slice(webhook.indexOf('bis·2 LA REPRISE'), webhook.indexOf('⑤ ter LE FORMULAIRE'))),
   webhook.includes('confirmeeParLaClienteLe: e.quand, relanceFaite: true'),
 ]);

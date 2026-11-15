@@ -67,6 +67,8 @@ const PANNES = [
   ['Gerard garde une suggestion', 'src/shared/gerard-pur.ts', 'if (r && !r.suggere && ecartJours(A, r.date) === GARDER_AVANT', 'if (r && ecartJours(A, r.date) === GARDER_AVANT'],
   ['l assistant dit « votre rendez-vous » d une proposition', 'src/shared/ia-reponse-wa-pur.ts', '      ? rdv.suggere\n', '      ? false\n'],
   ['Ma Couronne dit confirmee une proposition', 'src/shared/abonnee-pur.ts', "  if (estSuggere(a)) return 'proposee';\n", ''],
+  ['le webhook compare le numero a l identique', 'supabase/functions/whatsapp-webhook/index.ts', "if (!fiche || !fiche.numeros.some((n) => cleWa(n) === cleWa(e.numero))) { dis('reprise · numéro étranger au rendez-vous'); continue; }", "if (!fiche || !fiche.numeros.includes(e.numero)) { dis('reprise · numéro étranger au rendez-vous'); continue; }"],
+  ['la proposition perd sa question finale', PUR, ' : ${o.gestes}. Cette date vous convient-elle ?`;', ' : ${o.gestes}.`;'],
   ['« Suggéré par la Maison » n est plus le defaut', 'src/apps/trone/routes/vente/SonProchainRituel.tsx', "useState<QuiAChoisi>('suggere')", "useState<QuiAChoisi>('choisi')"],
 ];
 

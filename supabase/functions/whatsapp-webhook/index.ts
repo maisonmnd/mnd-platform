@@ -127,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-11-a · les boutons de la paie (PAIE_RECU, PAIE_PASENCORE) s écrivent sur le registre des envois MTN, venus du seul numéro à qui le message est parti, sans automate ni sonnerie ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero : le message et l appel portent l adulte, le payeur, ou personne ; les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour ; la prochaine séance de l abonnée (PROCHAINE_OK, PROCHAINE_AUTRE) : « Oui, je réserve » pose la séance couverte par sa formule sous le verrou du serveur (reserver_une_seance_incluse_par_la_maison, 0198) et la confirme en une phrase, la ligne conf-<rdv>-whatsapp taisant le modèle de confirmation-rdv sauf si la phrase ne part pas ; une suite déjà posée ne se pose pas deux fois ; « Une autre date » passe la main à la conversation sans rien poser ; venus du seul numéro à qui le message est parti';
+const VERSION = '2026-11-15-a · le « Je confirme » et « Un autre moment » d une proposition (REPRISE_OK, REPRISE_AUTRE) reconnaissent le numero par sa cle : Meta livre 229 et huit chiffres, la fiche porte 229 01 ; 2026-11-11-a · les boutons de la paie (PAIE_RECU, PAIE_PASENCORE) s écrivent sur le registre des envois MTN, venus du seul numéro à qui le message est parti, sans automate ni sonnerie ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero : le message et l appel portent l adulte, le payeur, ou personne ; les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour ; la prochaine séance de l abonnée (PROCHAINE_OK, PROCHAINE_AUTRE) : « Oui, je réserve » pose la séance couverte par sa formule sous le verrou du serveur (reserver_une_seance_incluse_par_la_maison, 0198) et la confirme en une phrase, la ligne conf-<rdv>-whatsapp taisant le modèle de confirmation-rdv sauf si la phrase ne part pas ; une suite déjà posée ne se pose pas deux fois ; « Une autre date » passe la main à la conversation sans rien poser ; venus du seul numéro à qui le message est parti';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -2445,7 +2445,13 @@ Deno.serve(async (req) => {
     if (!ligne) { dis('reprise · rendez-vous introuvable'); continue; }
     const rdv = ligne.data as { clientId?: string; clientName?: string; date?: string; time?: string; status?: string; branchId?: string };
     const fiche = fiches.find((f) => f.id === rdv.clientId);
-    if (!fiche || !fiche.numeros.includes(e.numero)) { dis('reprise · numéro étranger au rendez-vous'); continue; }
+    /* LE NUMÉRO SE COMPARE PAR SA CLÉ (15 novembre 2026, essai réel du
+       rendez-vous suggéré) : Meta livre l'ancienne forme à huit chiffres
+       (229 62…), la fiche porte la nouvelle (229 01 62…). À l'identique, le
+       « Je confirme » de presque chaque cliente était rejeté, rien ne
+       s'écrivait et le « C'est noté » ne partait pas. Même règle que les
+       points d'étape, juste en dessous. */
+    if (!fiche || !fiche.numeros.some((n) => cleWa(n) === cleWa(e.numero))) { dis('reprise · numéro étranger au rendez-vous'); continue; }
     if (rdv.status === 'annulé' || rdv.status === 'honoré') { dis('reprise · rendez-vous déjà clos'); continue; }
     const ok = m[1] === 'OK';
     const patch = ok

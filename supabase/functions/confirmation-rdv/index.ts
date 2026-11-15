@@ -87,9 +87,11 @@ export const JOURS_AVANT_LA_RELANCE = 3;
 
 /** « Bonjour Mme F., merci pour votre visite… » : le message de la
     proposition, en fermant la fenêtre (le modèle `proposition_rituel`,
-    {{1}} l'appel, {{2}} le moment, {{3}} les gestes). */
+    {{1}} l'appel, {{2}} le moment, {{3}} les gestes). Mot pour mot le corps
+    approuvé chez Meta le 15 novembre 2026 : Meta refuse un corps qui finit
+    par une variable, la question finale y a été ajoutée. */
 export function texteDeLaProposition(o: { appel: string; quand: string; gestes: string }): string {
-  return `Bonjour ${o.appel}, merci pour votre visite. Pour garder le rythme de vos locks, nous vous proposons votre prochain rituel le ${o.quand} : ${o.gestes}.`;
+  return `Bonjour ${o.appel}, merci pour votre visite. Pour garder le rythme de vos locks, nous vous proposons votre prochain rituel le ${o.quand} : ${o.gestes}. Cette date vous convient-elle ?`;
 }
 
 /** La relance, trois jours avant, quand elle n'a pas répondu (le modèle
@@ -181,7 +183,7 @@ const confirmationEstNeuve = (
 /** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-15-a · le rendez-vous suggéré : un rendez-vous posé « Suggéré par la Maison » reçoit la proposition (modèle proposition_rituel, WA_TEMPLATE_PROPOSITION, « Je confirme » et « Un autre moment ») à la place de la confirmation, une seule fois ; sans le modèle, rien ne part sur WhatsApp · 2026-11-11-a · ce qui va partir : une confirmation arrêtée d’avance, ou d’un modèle en pause, ne part pas ; le modèle à liens en pause, l’ancien part à sa place ; un message par foyer, qui nomme chaque tête ; un périmé retenu par Opale ne se redépose pas';
+const VERSION = '2026-11-15-b · la proposition finit par « Cette date vous convient-elle ? », comme le modèle approuvé chez Meta · 2026-11-15-a · le rendez-vous suggéré : un rendez-vous posé « Suggéré par la Maison » reçoit la proposition (modèle proposition_rituel, WA_TEMPLATE_PROPOSITION, « Je confirme » et « Un autre moment ») à la place de la confirmation, une seule fois ; sans le modèle, rien ne part sur WhatsApp · 2026-11-11-a · ce qui va partir : une confirmation arrêtée d’avance, ou d’un modèle en pause, ne part pas ; le modèle à liens en pause, l’ancien part à sa place ; un message par foyer, qui nomme chaque tête ; un périmé retenu par Opale ne se redépose pas';
 
 /* LE LIEN DU RENDEZ-VOUS — 3 novembre 2026. Bloc RECOPIÉ tel quel de
    `src/shared/lien-du-rdv-pur.ts` (ses choix y sont écrits) ;

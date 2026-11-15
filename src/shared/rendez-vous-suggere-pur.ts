@@ -48,9 +48,11 @@ export const JOURS_AVANT_LA_RELANCE = 3;
 
 /** « Bonjour Mme F., merci pour votre visite… » : le message de la
     proposition, en fermant la fenêtre (le modèle `proposition_rituel`,
-    {{1}} l'appel, {{2}} le moment, {{3}} les gestes). */
+    {{1}} l'appel, {{2}} le moment, {{3}} les gestes). Mot pour mot le corps
+    approuvé chez Meta le 15 novembre 2026 : Meta refuse un corps qui finit
+    par une variable, la question finale y a été ajoutée. */
 export function texteDeLaProposition(o: { appel: string; quand: string; gestes: string }): string {
-  return `Bonjour ${o.appel}, merci pour votre visite. Pour garder le rythme de vos locks, nous vous proposons votre prochain rituel le ${o.quand} : ${o.gestes}.`;
+  return `Bonjour ${o.appel}, merci pour votre visite. Pour garder le rythme de vos locks, nous vous proposons votre prochain rituel le ${o.quand} : ${o.gestes}. Cette date vous convient-elle ?`;
 }
 
 /** La relance, trois jours avant, quand elle n'a pas répondu (le modèle

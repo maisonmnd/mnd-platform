@@ -871,9 +871,12 @@ export const laFenetreSePaie = (instant: number = Date.now()): boolean =>
 export const CATEGORIE_DES_MODELES: Readonly<Record<string, 'utilitaire' | 'marketing'>> = {
   rappel_rdv: 'utilitaire',
   confirmation_rdv: 'utilitaire',
-  /* LA REPRISE PROPOSÉE — 29 septembre 2026 : elle rappelle un rendez-vous
-     déjà posé et demande de le tenir. Utilitaire, comme le rappel. */
-  reprise_proposee: 'utilitaire',
+  /* LA REPRISE PROPOSÉE — 29 septembre 2026, reformulée le 15 novembre 2026
+     (la relance d'une suggestion) : Meta l'a refusée en Utilitaire, elle est
+     approuvée en MARKETING (ID 1604860744238286). La proposition en fermant
+     la fenêtre, elle, est approuvée Utilitaire (ID 1137098799075487). */
+  reprise_proposee: 'marketing',
+  proposition_rituel: 'utilitaire',
   avis_google: 'marketing',
   /* L'ÉQUIPE ET LES PRESTATAIRES — 15 septembre 2026, à faire approuver
      (docs/BRANCHER-ENVOIS.md, étape 6). Tous utilitaires : un bulletin, une

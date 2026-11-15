@@ -496,7 +496,7 @@ footer .int { padding-block: 28px 40px; color: var(--doux); font-size: 13px; }
     $('place').querySelector('span').textContent = p.note;
     const quand = `le ${dit(p.d)} à ${p.heure}`;
     $('apercu').innerHTML = qui === 'suggere'
-      ? `Bonjour Mme F., merci pour votre visite. Pour garder le rythme de vos locks, nous vous proposons votre prochain rituel ${quand} : Lavage rituel et Reprise des racines.<div class="wa-boutons"><span>Je confirme</span><span>Un autre moment</span></div><small>Maison MND · proposition</small>`
+      ? `Bonjour Mme F., merci pour votre visite. Pour garder le rythme de vos locks, nous vous proposons votre prochain rituel ${quand} : Lavage rituel et Reprise des racines. Cette date vous convient-elle ?<div class="wa-boutons"><span>Je confirme</span><span>Un autre moment</span></div><small>Maison MND · proposition</small>`
       : `Bonjour Mme F., votre rendez-vous est confirmé ${quand} : Lavage rituel et Reprise des racines.<div class="wa-boutons"><span>Déplacer ou annuler</span><span>Ajouter à mon agenda</span></div><small>Maison MND · confirmation</small>`;
     $('poser').textContent = qui === 'suggere' ? 'Poser la suggestion' : 'Poser le rendez-vous';
     $('pose').hidden = true;

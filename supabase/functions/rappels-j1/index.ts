@@ -34,7 +34,7 @@ const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. 10 octobre 2026 : le passage du soir ne dépose plus
     un rappel que les heures calmes retiendraient jusqu'au jour même. */
-const VERSION = '2026-11-15-a · le rendez-vous suggéré : la relance trois jours avant ne vise que les suggestions sans réponse (posées à partir du 15 novembre 2026), sur le modèle reprise_proposee (« Notre proposition du … vous convient-elle ? ») ; une suggestion sans oui n’a pas de rappel de la veille ; la veille à 10 h, le comptoir est prévenu des suggestions de demain sans réponse · 2026-11-11-b · la veille d’une séance de formule dit « Une attention vous y attend » quand son panier est validé et que le modèle rappel_rdv_attention est posé (WA_TEMPLATE_RAPPEL_ATTENTION), sinon le rappel d’hier mot pour mot ; ce qui va partir : un rappel, une reprise ou un point arrêtés d’avance, ou d’un modèle en pause, ne se déposent pas ; un rappel par foyer, qui nomme chaque tête ; la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
+const VERSION = '2026-11-15-b · la proposition finit par « Cette date vous convient-elle ? », comme le modèle approuvé chez Meta · 2026-11-15-a · le rendez-vous suggéré : la relance trois jours avant ne vise que les suggestions sans réponse (posées à partir du 15 novembre 2026), sur le modèle reprise_proposee (« Notre proposition du … vous convient-elle ? ») ; une suggestion sans oui n’a pas de rappel de la veille ; la veille à 10 h, le comptoir est prévenu des suggestions de demain sans réponse · 2026-11-11-b · la veille d’une séance de formule dit « Une attention vous y attend » quand son panier est validé et que le modèle rappel_rdv_attention est posé (WA_TEMPLATE_RAPPEL_ATTENTION), sinon le rappel d’hier mot pour mot ; ce qui va partir : un rappel, une reprise ou un point arrêtés d’avance, ou d’un modèle en pause, ne se déposent pas ; un rappel par foyer, qui nomme chaque tête ; la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
 
 type Rdv = {
   id: string;
@@ -79,9 +79,11 @@ export const JOURS_AVANT_LA_RELANCE = 3;
 
 /** « Bonjour Mme F., merci pour votre visite… » : le message de la
     proposition, en fermant la fenêtre (le modèle `proposition_rituel`,
-    {{1}} l'appel, {{2}} le moment, {{3}} les gestes). */
+    {{1}} l'appel, {{2}} le moment, {{3}} les gestes). Mot pour mot le corps
+    approuvé chez Meta le 15 novembre 2026 : Meta refuse un corps qui finit
+    par une variable, la question finale y a été ajoutée. */
 export function texteDeLaProposition(o: { appel: string; quand: string; gestes: string }): string {
-  return `Bonjour ${o.appel}, merci pour votre visite. Pour garder le rythme de vos locks, nous vous proposons votre prochain rituel le ${o.quand} : ${o.gestes}.`;
+  return `Bonjour ${o.appel}, merci pour votre visite. Pour garder le rythme de vos locks, nous vous proposons votre prochain rituel le ${o.quand} : ${o.gestes}. Cette date vous convient-elle ?`;
 }
 
 /** La relance, trois jours avant, quand elle n'a pas répondu (le modèle

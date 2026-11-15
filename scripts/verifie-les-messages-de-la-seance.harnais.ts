@@ -744,8 +744,9 @@ dit('VI9 l ecran des modeles montre les deux fiches avec « Copier », le pied l
   [gerard.includes('FICHES_DES_MODELES_DE_L_ABONNEE.map((m) =>'), /const piedDeGerard = DEVISE_COMPLETE;/.test(gerard) && /\$\{m\.corps\}\\n\\n\$\{piedDeGerard\}/.test(gerard)]);
 dit('VI10 les versions des fonctions disent ce lot (rappels-j1 et envois-partent apres « Ce qui va partir », en -b)', [true, true, true],
   /* 2026-11-15-a : le rendez-vous suggéré, le texte d'avant gardé. */
-  [/const VERSION = '2026-11-1(?:1-b|5-a) · [^']*la veille d’une séance de formule dit « Une attention vous y attend »/.test(lis(RJ)),
-    /const VERSION = '2026-11-11-a · [^']*la prochaine séance de l abonnée \(PROCHAINE_OK, PROCHAINE_AUTRE\)/.test(lis(WH)),
+  [/const VERSION = '2026-11-1(?:1-b|5-a|5-b) · [^']*la veille d’une séance de formule dit « Une attention vous y attend »/.test(lis(RJ)),
+    /* 2026-11-15-a : le « Je confirme » par la clé du numéro, le texte d'avant gardé. */
+    /const VERSION = '2026-11-1(?:1|5)-a · [^']*la prochaine séance de l abonnée \(PROCHAINE_OK, PROCHAINE_AUTRE\)/.test(lis(WH)),
     /* 2026-11-13-a : les envois programmés (13 novembre 2026), le texte d'avant gardé. */
     /const VERSION = '2026-11-1(?:1-b|3-a) · [^']*la prochaine séance de l’abonnée \(apres-seance\) relue avant de partir/.test(lis(EP))]);
 

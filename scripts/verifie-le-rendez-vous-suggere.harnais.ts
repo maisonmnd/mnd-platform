@@ -57,7 +57,8 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
 {
   const o = { appel: 'Mme F.', quand: 'samedi 26 décembre 2026 à 13 h 30', gestes: 'Lavage rituel et Reprise des racines' };
   dit('la proposition, mot pour mot comme la maquette',
-    'Bonjour Mme F., merci pour votre visite. Pour garder le rythme de vos locks, nous vous proposons votre prochain rituel le samedi 26 décembre 2026 à 13 h 30 : Lavage rituel et Reprise des racines.',
+    /* Le corps approuvé chez Meta le 15 novembre 2026 (ID 1137098799075487), question finale comprise. */
+    'Bonjour Mme F., merci pour votre visite. Pour garder le rythme de vos locks, nous vous proposons votre prochain rituel le samedi 26 décembre 2026 à 13 h 30 : Lavage rituel et Reprise des racines. Cette date vous convient-elle ?',
     texteDeLaProposition(o));
   dit('la relance ne dit jamais « votre rendez-vous »', false, /votre rendez-vous/i.test(texteDeLaRelance(o)));
   dit('la relance demande si la proposition convient', true, texteDeLaRelance(o).includes('notre proposition du samedi 26 décembre 2026 à 13 h 30'));
@@ -187,6 +188,9 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
   dit('push-notify : deux heures avant, une suggestion sans oui se tait', true, push.includes("if (kind === 'h-2' && suggestionSansOui(a)) continue;"));
   const gerard = lit('src/shared/gerard-pur.ts');
   dit('Gerard ne « garde » jamais une suggestion', true, gerard.includes('if (r && !r.suggere && ecartJours(A, r.date) === GARDER_AVANT'));
+  const wh = lit('supabase/functions/whatsapp-webhook/index.ts');
+  dit('le webhook reconnait son « Je confirme » par la cle du numero (Meta livre huit chiffres, la fiche dix)', true,
+    wh.includes("if (!fiche || !fiche.numeros.some((n) => cleWa(n) === cleWa(e.numero))) { dis('reprise · numéro étranger au rendez-vous'); continue; }"));
   const sql = lit('supabase/migrations/0211_le_rendez_vous_suggere.sql');
   dit('fiches_du_numero dit la suggestion a l assistant', [true, true], [sql.includes("'suggere', case when btrim(coalesce(a.data->>'suggereLe', '')) <> ''"), sql.includes('create or replace function public.fiches_du_numero(n text)')]);
   const quand = lit('src/apps/trone/routes/clients/_shared.tsx');
