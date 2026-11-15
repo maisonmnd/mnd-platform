@@ -196,6 +196,12 @@ export function phaseDe(debutMs: number, finMs: number, maintenantMs: number): P
   return 'attente';
 }
 
+/** Le résumé ne s'écrit qu'une fois la visio commencée (15 novembre 2026) : le
+    14 au soir, un résumé posé sur une visio du mardi suivant l'a marquée
+    « tenue » avant l'heure, et la cliente l'aurait reçu à la fin. Avant le
+    début, il n'y a rien à résumer ; la base refuse aussi (0212). */
+export const resumeOuvert = (phase: Phase): boolean => phase === 'echange' || phase === 'rebours' || phase === 'fermee';
+
 /** Le temps écoulé depuis le début du créneau, borné à 0 et 15:00 (« 13:36 »). */
 export const ecouleDit = (debutMs: number, maintenantMs: number): string =>
   minutesSecondes(Math.min(DUREE_MIN * 60, Math.max(0, (maintenantMs - debutMs) / 1000)));

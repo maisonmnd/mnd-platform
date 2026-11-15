@@ -10,7 +10,7 @@ import { lienWaMe } from '../../../../shared/conversations';
 import {
   AVANT_L_ENTREE_MIN, DUREE_MIN, LONGUEURS, NIVEAUX, SUITES,
   anneauAllume, creneauDit, ecouleDit, heureDite, jourDeCotonou, jourDit, minutesSecondes, phaseDe, priveeObligatoire, resteS,
-  type ResumeDeLaVisio,
+  resumeOuvert, type ResumeDeLaVisio,
 } from '../../../../shared/visio-pur';
 import './visios.css';
 
@@ -79,6 +79,8 @@ export function ConsultationsVisios() {
         const c = consultationDe(v);
         const jour = jourDeCotonou(debutMs);
         const enCours = phase === 'echange' || phase === 'rebours';
+        /* Le résumé s'ouvre au début de la visio (ou se relit s'il existe déjà). */
+        const resumable = v.statut !== 'annulée' && (resumeOuvert(phase) || !!v.resume);
         return (
           <article key={v.id} className={`tvz-carte ${enCours ? 'is-en-cours' : ''}`}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
@@ -112,7 +114,7 @@ export function ConsultationsVisios() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {v.statut !== 'annulée' && phase !== 'attente' && phase !== 'fermee' && <Button size="sm" onClick={() => setSalle(v)}>Entrer dans la salle</Button>}
               {v.statut === 'réservée' && phase !== 'fermee' && <Button size="sm" variant="ghost" onClick={() => void envoieLeLien(v)}>Envoyer le lien</Button>}
-              {v.statut !== 'annulée' && <Button size="sm" variant="ghost" onClick={() => setResume(resume === v.id ? null : v.id)}>{v.resume ? 'Revoir le résumé' : 'Le résumé'}</Button>}
+              {resumable && <Button size="sm" variant="ghost" onClick={() => setResume(resume === v.id ? null : v.id)}>{v.resume ? 'Revoir le résumé' : 'Le résumé'}</Button>}
               {v.statut === 'réservée' && phase === 'fermee' && <Button size="sm" variant="ghost" onClick={() => void ecrisLaVisio(v.id, { statut: 'manquée' }).then(relis)}>Elle n’est pas venue</Button>}
               {v.statut === 'réservée' && phase === 'attente' && <Button size="sm" variant="ghost" onClick={() => void ecrisLaVisio(v.id, { statut: 'annulée' }).then(relis)}>Annuler</Button>}
             </div>
@@ -122,7 +124,7 @@ export function ConsultationsVisios() {
                 {liens[v.id].lien && <><br /><span style={{ wordBreak: 'break-all', color: 'var(--ink)' }}>{liens[v.id].lien}</span></>}
               </p>
             )}
-            {resume === v.id && <ResumeEnTroisTouches visio={v} onEcrit={() => { setResume(null); void relis(); }} />}
+            {resume === v.id && resumable && <ResumeEnTroisTouches visio={v} onEcrit={() => { setResume(null); void relis(); }} />}
           </article>
         );
       })}
@@ -243,7 +245,9 @@ function SalleCoteMaison({ visio, onQuitte }: { visio: Visio; onQuitte: () => vo
         </div>
         <aside className="tvz-salle__cote">
           <div className="tvz-lab" style={{ color: 'var(--indigo-200)' }}>Le résumé, en trois touches</div>
-          <ResumeEnTroisTouches visio={visio} sombre onEcrit={() => setEcrit(true)} />
+          {resumeOuvert(phase)
+            ? <ResumeEnTroisTouches visio={visio} sombre onEcrit={() => setEcrit(true)} />
+            : <p className="tvz-note" style={{ color: 'var(--indigo-100)' }}>Le résumé s’ouvre au début de la visio, à {heureDite(visio.debut)}.</p>}
           {ecrit && <p className="tvz-note" style={{ color: 'var(--indigo-100)' }}>Résumé écrit : elle le reçoit à la fermeture. Vous pouvez encore le corriger.</p>}
         </aside>
       </div>

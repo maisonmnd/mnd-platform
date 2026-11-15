@@ -2,6 +2,15 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE RÉSUMÉ D'UNE VISIO APRÈS SON DÉBUT — 15 novembre 2026 (Trône, file B ; SQL 0212 ; aucune fonction)
+
+Le 14 novembre au soir, pendant les essais de la file B, un résumé a été posé sur la visio réservée du mardi 17 (`vz-rlzoumg2lkce`) : elle est passée « tenue » trois jours avant l'heure, « Envoyer le lien » a disparu, et la cliente aurait reçu ce faux résumé à la fin. Remise à « réservée », résumé effacé (`supabase/repare_visio_tenue_par_erreur.sql`, passé le 15 novembre ; ne rejoue rien).
+
+- **La règle** (`shared/visio-pur.ts`, `resumeOuvert`) : le résumé s'ouvre en phase `echange`, `rebours` ou `fermee`, jamais en `attente` ni `ouverte` (les cinq minutes d'avant).
+- **La file B** (`clients/ConsultationsVisios.tsx`) : « Le résumé » n'apparaît qu'une fois la visio commencée (« Revoir le résumé » reste là s'il existe déjà) ; dans la salle, avant le début, le côté dit « Le résumé s'ouvre au début de la visio, à 10:00 ».
+- **La base** (`0212_le_resume_apres_le_debut.sql`) : déclencheur `le_resume_apres_le_debut` avant chaque mise à jour d'une visio : avant `debut` (horloge du serveur), un résumé neuf ou le passage à « tenue » est refusé (`check_violation`), même depuis un Trône resté en cache. Annuler, renvoyer le lien, ouvrir la salle, remettre à « réservée » passent.
+- Banc : `node scripts/verifie-la-visio.mjs` (48).
+
 ## LE RENDEZ-VOUS SUGGÉRÉ — 15 novembre 2026 (Trône, Ma Couronne, confirmation-rdv, rappels-j1, push-notify, envois-partent, assistant-maison, reception-wa, whatsapp-automate, conseil-du-matin ; SQL 0211 ; deux modèles Meta)
 
 « The way you make automatic appointments is not good » ; « call it suggested appointment » ; « après avoir terminé un RDV, il y a une ambiguïté car on ne comprend pas qu'une nouvelle transaction commence avec un futur RDV, il faut revoir la transition » ; « l'option de cocher 3, 4, 5, 6, 8 et 12 semaines, ou choisir une date » (Yéman, 14 novembre 2026, après Mme F. : « je n'avais pas pris de rdv pour demain », et l'assistant qui répondait « vous avez bien un rendez-vous confirmé »). Maquette `public/maquette-le-rendez-vous-suggere.html` (PeiD4o4yfCY4GajdGJ52Ez), quatre arbitrages au sélecteur le 14, « construis » le 15.

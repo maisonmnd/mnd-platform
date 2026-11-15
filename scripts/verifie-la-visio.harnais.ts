@@ -10,7 +10,7 @@
 import {
   REGLAGES_DE_DEPART, anneauAllume, cheminDeLaSalle, creneauDit, creneauValide, creneauxOuverts, ecouleDit, heureDite,
   instantDeCotonou, jourDit, lectureDite, minutesSecondes, parJour, phaseDe, priveeObligatoire, reglagesSurs, resteS,
-  resumeSur, salleDuFragment, suiteRetenue, numeroCourt,
+  resumeOuvert, resumeSur, salleDuFragment, suiteRetenue, numeroCourt,
 } from '../src/shared/visio-pur';
 import { deductionDeLaConsultation, motDuDevisFerme } from '../src/shared/devis-de-la-consultation-pur';
 import { PRIX_DE_LA_CONSULTATION_PRIVEE_XOF } from '../src/shared/estimation-pur';
@@ -61,6 +61,8 @@ const a = (hms: string) => Date.parse(`2026-11-17T${hms}.000Z`);
 dit('les phases : attente, ouverte cinq minutes avant, echange, rebours a 13:00, fermee a 15:00',
   ['attente', 'ouverte', 'echange', 'echange', 'rebours', 'fermee'],
   [a('09:09:59'), a('09:10:00'), a('09:15:00'), a('09:27:59'), a('09:28:00'), a('09:30:00')].map((t) => phaseDe(D, F, t)));
+dit('le resume ne s ouvre qu au debut de la visio (15 novembre 2026)', [false, false, true, true, true],
+  (['attente', 'ouverte', 'echange', 'rebours', 'fermee'] as const).map(resumeOuvert));
 dit('a 13:36, il reste 1:24 et l anneau est aux sept dixiemes', ['13:36', 84, '1:24', 0.7], [ecouleDit(D, a('09:28:36')), resteS(F, a('09:28:36')), minutesSecondes(resteS(F, a('09:28:36'))), anneauAllume(84)]);
 dit('l horloge ne depasse jamais 15:00, l anneau s eteint a zero', ['15:00', 0, 1], [ecouleDit(D, a('09:45:00')), anneauAllume(0), anneauAllume(600)]);
 
@@ -124,6 +126,20 @@ const fileB = lf('src/apps/trone/routes/clients/ConsultationsVisios.tsx');
 dit('la file B envoie le lien par WhatsApp, la fenetre ouverte au clic', [true, true], [
   /const fenetre = window\.open\('', '_blank'\);\n\s*setLiens[\s\S]{0,120}await nouveauLien\(v\.id\)/.test(fileB),
   /lienWaMe\(v\.telephone, messageDuLien\(prenom, creneauDit\(v\.debut\), lien\)\)/.test(fileB),
+]);
+
+dit('la file B ne montre Le resume qu une fois la visio commencee (ou deja resume), la salle aussi', [true, true, true, true], [
+  fileB.includes("const resumable = v.statut !== 'annulée' && (resumeOuvert(phase) || !!v.resume);"),
+  /\{resumable && <Button[^\n]*'Le résumé'/.test(fileB),
+  fileB.includes('{resume === v.id && resumable && <ResumeEnTroisTouches'),
+  /\{resumeOuvert\(phase\)\n\s*\? <ResumeEnTroisTouches visio=\{visio\} sombre/.test(fileB),
+]);
+const sql0212 = lf('supabase/migrations/0212_le_resume_apres_le_debut.sql');
+dit('0212 : avant le debut, la base refuse un resume neuf et le passage a tenue, le reste passe', [true, true, true, true], [
+  sql0212.includes('before update on public.visios'),
+  sql0212.includes('now() < new.debut and ('),
+  sql0212.includes('new.resume is not null and new.resume is distinct from old.resume'),
+  sql0212.includes("new.statut = 'tenue' and old.statut is distinct from 'tenue'"),
 ]);
 
 /* ── ⑧ LA MIGRATION 0209 ────────────────────────────────────────────── */
