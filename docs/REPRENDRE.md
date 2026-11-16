@@ -2,12 +2,13 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE PREMIER RENDEZ-VOUS À 08:30 — 16 novembre 2026 (Trône, Ma Couronne, site, et trois fonctions en 2026-11-16-a : demande-submit, whatsapp-automate, assistant-maison)
+## LE PREMIER RENDEZ-VOUS À 08:30 — 16 novembre 2026, EN LIGNE (demande-submit v66, whatsapp-automate v68, assistant-maison v38, toutes en 2026-11-16-a ; Trône, Ma Couronne et site build 20261116214208 @ 1802de11 : 537/537, 313/313, 391/391 identiques au servi)
 
 « Sur le Trône et Ma Couronne et le site, ne pas mettre de RDV avant 8h30. Plus de RDV à 8h » (Yéman). La Maison ouvre à 08:00 du mardi au vendredi (`mnd_settings.hours`), et **l'ouverture reste 08:00** : elle sert aussi au pointage, à « c'est la nuit » et à la fiche publique. Seul le premier rendez-vous recule.
 
 - **`PREMIER_RENDEZ_VOUS_MIN` (510)** dans `shared/agenda-pur.ts`, entre les repères : `creneauxLibres` pose à 08:30 tout point de la grille d'avant, une seule fois, puis garde son pas. À l'heure : 08:30, 09:00, 10:00… ; à la demi-heure (Trône) : 08:30, 09:00, 09:30… Le samedi (ouverture 09:00) ne change pas.
 - **Le Trône** : le menu des heures (`TIME_SLOTS`) commence à 08:30 ; un rendez-vous relu avant 08:30 garde son heure et la raison se dit en cuivre (`raisonDeLHeure`), sans bloquer. Les heures tapées à la main (série, consultation, contre-proposition) restent libres.
+- **Essai réel du 16 novembre 2026** (aucun rendez-vous posé, aucun message) : sur /reserver/, chaque mardi à vendredi libre le matin commence à 08:30, jamais 08:00 ; un matin déjà pris commence plus tard ; le samedi commence à 09:00. Au Trône, Créer › Rendez-vous : le menu va de 08:30 à 21:30. Ma Couronne ne se lit pas sans compte : la règle est vérifiée dans son bundle servi.
 - **Pour revenir en arrière** : une constante, puis recopier le bloc dans demande-submit et whatsapp-automate (R8 de `verifie-les-douze-lunes`) et refaire `assistant-maison` et `reception-wa` (leurs `*-serveur.mjs`). `reception-wa` n'embarque que la constante, sans s'en servir : refaite pour rester à jour, pas à redéployer. Bancs : `verifie-agenda-pur` (㉗ à ㉝), `verifie-le-rdv-fluide`, `verifie-le-prochain-rituel` et `verifie-opale` (08:30 attendu). Aucun SQL : la base ne juge pas l'heure.
 
 ## LA SALLE QUI RÉPOND — 15 novembre 2026, EN LIGNE (Trône build 20261115073200 @ 25f1c80c, 537/537 identiques ; Trône seul : aucune fonction, aucun SQL)
