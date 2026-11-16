@@ -23,7 +23,7 @@
    plafonds du jour : le comptoir n'est pas bridé. Sans magasin ni React :
    `scripts/verifie-le-rdv-fluide` l'éprouve. */
 
-import { creneauxLibres, hhmmDeMinutes, minutesDeHhmm, type FenetreDuJour } from '../../../../shared/agenda-pur';
+import { creneauxLibres, hhmmDeMinutes, minutesDeHhmm, PREMIER_RENDEZ_VOUS_MIN, type FenetreDuJour } from '../../../../shared/agenda-pur';
 
 /** Ce qui occupe un fauteuil ce jour-là : un rendez-vous non annulé, autre que
     celui qu'on relit. `qui` sert seulement à dire la raison. */
@@ -151,6 +151,9 @@ export function raisonDeLHeure(o: {
     dits.push(`La Maison est fermée le ${o.jourDit}.`);
   } else if (fin > o.ouverture.closeMin) {
     dits.push(`Hors des heures d’ouverture : la Maison ouvre de ${hhmmDeMinutes(o.ouverture.openMin)} à ${hhmmDeMinutes(o.ouverture.closeMin)}, le rituel irait de ${o.heure} à ${hhmmDeMinutes(fin)}.`);
+  } else if (debut < PREMIER_RENDEZ_VOUS_MIN) {
+    /* 16 novembre 2026 : la Maison ne reçoit plus avant 08:30 (Yéman). */
+    dits.push(`Avant ${hhmmDeMinutes(PREMIER_RENDEZ_VOUS_MIN)} : le premier rendez-vous de la journée est à ${hhmmDeMinutes(PREMIER_RENDEZ_VOUS_MIN)}.`);
   }
   if (o.bloques.some(([s, e]) => debut < e && fin > s)) {
     dits.push(`Un créneau est bloqué au planning à cette heure${o.maitre ? ` pour ${o.maitre}` : ''}.`);

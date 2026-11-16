@@ -89,6 +89,14 @@ export function plagesBloquees(
     .filter(([s, e]) => e > s);
 }
 
+/** LE PREMIER RENDEZ-VOUS DU JOUR, 08:30 — 16 novembre 2026.
+    « Sur le Trône, Ma Couronne et le site, ne pas mettre de RDV avant 8h30.
+    Plus de RDV à 8h » (Yéman). La Maison ouvre à 08:00 du mardi au vendredi
+    (`mnd_settings.hours`), et l'ouverture reste 08:00 : elle sert aussi au
+    pointage et à la fiche publique. Seul le premier rendez-vous recule. La
+    grille garde son pas : à l'heure, 08:00 devient 08:30, puis 09:00, 10:00… */
+export const PREMIER_RENDEZ_VOUS_MIN = 8 * 60 + 30;
+
 /** UN CRÉNEAU DÉJÀ PRIS, dit sans dire par qui — voir la migration 0079.
     C'est tout ce que le serveur consent à donner à une inconnue, et tout ce
     qu'un calendrier honnête demande. */
@@ -146,7 +154,13 @@ export function creneauxLibres(o: {
   const pas = o.pasMin ?? 60;
   const cap = o.capSimultane ?? 0;
   const out: string[] = [];
-  for (let m = o.opening.openMin; m + o.durationMin <= o.opening.closeMin; m += pas) {
+  /* Un point de la grille avant 08:30 se pose à 08:30, une seule fois. */
+  let dernier = -1;
+  for (let g = o.opening.openMin; g < o.opening.closeMin; g += pas) {
+    const m = Math.max(g, PREMIER_RENDEZ_VOUS_MIN);
+    if (m + o.durationMin > o.opening.closeMin) break;
+    if (m <= dernier) continue;
+    dernier = m;
     if (o.maintenantMin != null && m <= o.maintenantMin) continue;
     const overlaps = busy.some(([s, e]) => m < e && m + o.durationMin > s);
     if (overlaps) continue;

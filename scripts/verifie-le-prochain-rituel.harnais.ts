@@ -107,8 +107,9 @@ const placesDe = (dureeMin: number) => (iso: string) => {
 const sonHeure = heureHabituelle(HONORE_CE_JOUR.filter((a) => a.clientId === pa && a.status === 'honoré'));
 dit('son heure habituelle, celle de la fenêtre du rendez-vous', '13:00', sonHeure);
 const placesDuLavage = sesTroisPlaces({ vers: r[0].vers, aujourdhui: PAYE_LE, placesDe: placesDe(30), heureHabituelle: sonHeure, jourHabituel: 6, jourDit, nomDuJour: (j) => NOMS[j] });
+/* 08:30, plus 08:00 : le premier rendez-vous du jour, depuis le 16 novembre 2026. */
 dit('le lavage : un peu avant, son samedi (le mur de Team écarté), puis la place suivante de sa date (lundi fermé, 13 h pleine)',
-  [['2026-11-20', '08:00', 'Un peu avant'], ['2026-11-21', '11:30', 'Son samedi'], ['2026-11-24', '12:00', 'À sa date']],
+  [['2026-11-20', '08:30', 'Un peu avant'], ['2026-11-21', '11:30', 'Son samedi'], ['2026-11-24', '12:00', 'À sa date']],
   placesDuLavage.map((p) => [p.iso, p.heure, p.titre]));
 dit('... et sa date dit pourquoi elle a glissé',
   'Son rythme tombe le lundi 23 novembre 2026, jour de fermeture : la place suivante.',
@@ -116,7 +117,7 @@ dit('... et sa date dit pourquoi elle a glissé',
 dit('chaque place proposée est libre ce jour-là', [true, true, true], placesDuLavage.map((p) => laPlaceTient(placesDe(30)(p.iso), p.heure)));
 const placesDuComplet = sesTroisPlaces({ vers: r[1].vers, aujourdhui: PAYE_LE, placesDe: placesDe(300), heureHabituelle: sonHeure, jourHabituel: 6, jourDit, nomDuJour: (j) => NOMS[j] });
 dit('le rituel complet (5 h) : le jeudi (le mercredi fermé par exception), sa date un samedi, le samedi suivant',
-  [['2026-12-10', '08:00', 'Un peu avant'], ['2026-12-12', '13:00', 'À sa date'], ['2026-12-19', '13:00', 'Son samedi']],
+  [['2026-12-10', '08:30', 'Un peu avant'], ['2026-12-12', '13:00', 'À sa date'], ['2026-12-19', '13:00', 'Son samedi']],
   placesDuComplet.map((p) => [p.iso, p.heure, p.titre]));
 dit('une date visée demain : rien aujourd hui, rien avant demain', true,
   sesTroisPlaces({ vers: '2026-11-04', aujourdhui: PAYE_LE, placesDe: placesDe(30), heureHabituelle: '13:00', jourHabituel: null, jourDit, nomDuJour: (j) => NOMS[j] })

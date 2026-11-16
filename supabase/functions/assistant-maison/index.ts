@@ -52,6 +52,7 @@ function plagesBloquees(murs, branchId, dateIso, master) {
     b.fin?.trim() ? hourToMin(b.fin) : 24 * 60
   ]).filter(([s, e]) => e > s);
 }
+var PREMIER_RENDEZ_VOUS_MIN = 8 * 60 + 30;
 function creneauxLibres(o) {
   if (o.opening.closed) return [];
   const capMaison = o.capMaison ?? 0;
@@ -64,7 +65,12 @@ function creneauxLibres(o) {
   const pas = o.pasMin ?? 60;
   const cap = o.capSimultane ?? 0;
   const out = [];
-  for (let m = o.opening.openMin; m + o.durationMin <= o.opening.closeMin; m += pas) {
+  let dernier = -1;
+  for (let g = o.opening.openMin; g < o.opening.closeMin; g += pas) {
+    const m = Math.max(g, PREMIER_RENDEZ_VOUS_MIN);
+    if (m + o.durationMin > o.opening.closeMin) break;
+    if (m <= dernier) continue;
+    dernier = m;
     if (o.maintenantMin != null && m <= o.maintenantMin) continue;
     const overlaps = busy.some(([s, e]) => m < e && m + o.durationMin > s);
     if (overlaps) continue;
@@ -1618,7 +1624,7 @@ async function litLesArretsEtLesPauses(sb) {
 }
 
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-11-15-a";
+var VERSION = "2026-11-16-a";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {

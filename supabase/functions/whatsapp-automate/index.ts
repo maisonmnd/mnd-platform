@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -245,6 +245,14 @@ export function plagesBloquees(
     .filter(([s, e]) => e > s);
 }
 
+/** LE PREMIER RENDEZ-VOUS DU JOUR, 08:30 — 16 novembre 2026.
+    « Sur le Trône, Ma Couronne et le site, ne pas mettre de RDV avant 8h30.
+    Plus de RDV à 8h » (Yéman). La Maison ouvre à 08:00 du mardi au vendredi
+    (`mnd_settings.hours`), et l'ouverture reste 08:00 : elle sert aussi au
+    pointage et à la fiche publique. Seul le premier rendez-vous recule. La
+    grille garde son pas : à l'heure, 08:00 devient 08:30, puis 09:00, 10:00… */
+export const PREMIER_RENDEZ_VOUS_MIN = 8 * 60 + 30;
+
 /** UN CRÉNEAU DÉJÀ PRIS, dit sans dire par qui — voir la migration 0079.
     C'est tout ce que le serveur consent à donner à une inconnue, et tout ce
     qu'un calendrier honnête demande. */
@@ -302,7 +310,13 @@ export function creneauxLibres(o: {
   const pas = o.pasMin ?? 60;
   const cap = o.capSimultane ?? 0;
   const out: string[] = [];
-  for (let m = o.opening.openMin; m + o.durationMin <= o.opening.closeMin; m += pas) {
+  /* Un point de la grille avant 08:30 se pose à 08:30, une seule fois. */
+  let dernier = -1;
+  for (let g = o.opening.openMin; g < o.opening.closeMin; g += pas) {
+    const m = Math.max(g, PREMIER_RENDEZ_VOUS_MIN);
+    if (m + o.durationMin > o.opening.closeMin) break;
+    if (m <= dernier) continue;
+    dernier = m;
     if (o.maintenantMin != null && m <= o.maintenantMin) continue;
     const overlaps = busy.some(([s, e]) => m < e && m + o.durationMin > s);
     if (overlaps) continue;

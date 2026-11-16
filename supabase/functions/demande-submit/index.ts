@@ -197,7 +197,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
+const VERSION = '2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
 
 /** LE SECOND FAUTEUIL, PAS DAVANTAGE (2 novembre 2026, 0152) : la copie de
     `PLACES_EN_LIGNE_AU_PLUS` (src/shared/agenda-pur.ts), hors des repères. */
@@ -686,6 +686,14 @@ export function plagesBloquees(
     .filter(([s, e]) => e > s);
 }
 
+/** LE PREMIER RENDEZ-VOUS DU JOUR, 08:30 — 16 novembre 2026.
+    « Sur le Trône, Ma Couronne et le site, ne pas mettre de RDV avant 8h30.
+    Plus de RDV à 8h » (Yéman). La Maison ouvre à 08:00 du mardi au vendredi
+    (`mnd_settings.hours`), et l'ouverture reste 08:00 : elle sert aussi au
+    pointage et à la fiche publique. Seul le premier rendez-vous recule. La
+    grille garde son pas : à l'heure, 08:00 devient 08:30, puis 09:00, 10:00… */
+export const PREMIER_RENDEZ_VOUS_MIN = 8 * 60 + 30;
+
 /** UN CRÉNEAU DÉJÀ PRIS, dit sans dire par qui — voir la migration 0079.
     C'est tout ce que le serveur consent à donner à une inconnue, et tout ce
     qu'un calendrier honnête demande. */
@@ -743,7 +751,13 @@ export function creneauxLibres(o: {
   const pas = o.pasMin ?? 60;
   const cap = o.capSimultane ?? 0;
   const out: string[] = [];
-  for (let m = o.opening.openMin; m + o.durationMin <= o.opening.closeMin; m += pas) {
+  /* Un point de la grille avant 08:30 se pose à 08:30, une seule fois. */
+  let dernier = -1;
+  for (let g = o.opening.openMin; g < o.opening.closeMin; g += pas) {
+    const m = Math.max(g, PREMIER_RENDEZ_VOUS_MIN);
+    if (m + o.durationMin > o.opening.closeMin) break;
+    if (m <= dernier) continue;
+    dernier = m;
     if (o.maintenantMin != null && m <= o.maintenantMin) continue;
     const overlaps = busy.some(([s, e]) => m < e && m + o.durationMin > s);
     if (overlaps) continue;

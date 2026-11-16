@@ -108,6 +108,7 @@ function ouvertureDuJour(dateIso, semaine, exceptions = []) {
     closeMin: ex.close?.trim() ? hourToMin(ex.close) : base.closeMin
   };
 }
+var PREMIER_RENDEZ_VOUS_MIN = 8 * 60 + 30;
 
 // src/shared/catalogue-pur.ts
 var CATEGORIE_VEKPE = "atl-i-vekpe";

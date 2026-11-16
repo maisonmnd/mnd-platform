@@ -88,7 +88,7 @@ import {
   ajouteJours, ancreDeLaSemaine, bloqueLaPose, ceQuiReste, debutDeLaSemaine, heureHabituelle, placesDuJour, prestationsDeLaCase, propositionsDuRdv,
   raisonDeLHeure, rangeeSuivante, septJours, type Occupant, type Rangee,
 } from './rdv-fluide-pur';
-import { dureeDuRendezVous, estUnSinsin, maitresPermis, MAITRE_DES_SINSIN } from '../../../../shared/agenda-pur';
+import { dureeDuRendezVous, estUnSinsin, hhmmDeMinutes, maitresPermis, MAITRE_DES_SINSIN, PREMIER_RENDEZ_VOUS_MIN } from '../../../../shared/agenda-pur';
 import { maitresLibres } from '../../../../shared/agenda';
 import {
   aLierAvec, appliqueLeDeplacement, autresDuFoyer, compagnesAPoser, deplacementDuFoyer, lienDesRdvs, maitresDesCompagnes,
@@ -1761,16 +1761,16 @@ export function Drawer({ onClose, children }: { onClose: () => void; children: R
   );
 }
 
-/* ---------- Créneaux 07:00 → 21:30 ----------
+/* ---------- Créneaux 08:30 → 21:30 ----------
    Toute l'amplitude d'ouverture possible (le samedi ferme à 20h, certains
    soirs plus tard) : la liste s'arrêtait à 17:30, d'où l'impossibilité de
    poser un rendez-vous en soirée. La modale accepte de toute façon une heure
-   hors liste (option injectée), mais le menu doit couvrir les heures réelles. */
+   hors liste (option injectée), mais le menu doit couvrir les heures réelles.
+   16 novembre 2026 : plus aucun rendez-vous avant 08:30 (Yéman), le menu
+   commence donc là (`PREMIER_RENDEZ_VOUS_MIN`, `shared/agenda-pur.ts`). */
 export const TIME_SLOTS: string[] = (() => {
   const out: string[] = [];
-  for (let h = 7; h < 22; h++) {
-    out.push(`${pad2(h)}:00`, `${pad2(h)}:30`);
-  }
+  for (let m = PREMIER_RENDEZ_VOUS_MIN; m < 22 * 60; m += 30) out.push(hhmmDeMinutes(m));
   return out;
 })();
 

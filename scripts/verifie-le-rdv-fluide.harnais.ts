@@ -87,6 +87,15 @@ dit(2, 'jour ferme, hors des heures, creneau bloque : dits, jamais bloquants', [
   raison({ heure: '17:30', occupes: [] }),
   raison({ heure: '14:00', occupes: [], bloques: [[840, 900]] }),
 ]);
+/* 16 novembre 2026 : plus aucun rendez-vous avant 08:30 (Yéman). */
+dit(2, 'ouverte a 08:00, un rendez-vous relu a 08:00 dit que la journee commence a 08:30', {
+  bloque: false, texte: 'Avant 08:30 : le premier rendez-vous de la journée est à 08:30. Le rendez-vous se pose quand même.',
+}, raison({ heure: '08:00', durationMin: 60, ouverture: { closed: false, openMin: 8 * 60, closeMin: 19 * 60 }, occupes: [] }));
+dit(2, 'le menu des heures du Trone commence a 08:30, et la place d un jour ouvert a 08:00 aussi', [true, true, '08:30'], [
+  fenetre.includes('for (let m = PREMIER_RENDEZ_VOUS_MIN; m < 22 * 60; m += 30) out.push(hhmmDeMinutes(m));'),
+  !fenetre.includes('for (let h = 7; h < 22; h++)'),
+  placesDuJour({ ...jour, ouverture: { closed: false, openMin: 8 * 60, closeMin: 19 * 60 }, occupes: [], sieges: 2 }).heures[0],
+]);
 
 /* ══ #3 — LE BLOCAGE NE VAUT QUE POUR CE QUI BOUGE ══ */
 {

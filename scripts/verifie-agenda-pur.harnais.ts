@@ -99,6 +99,22 @@ dit('\u3247 a un seul fauteuil, toute heure occupee se ferme', [],
 dit('\u3248 le plafond ne touche pas une journee vide', 10,
   libres({ capSimultane: 2 }).length);
 
+/* ── Le premier rendez-vous à 08:30 (16 novembre 2026) ─────────── */
+const A_HUIT = { closed: false, openMin: 8 * 60, closeMin: 12 * 60 };
+dit('㉗ une Maison ouverte à 08:00 reçoit d’abord à 08:30, puis à l’heure',
+  ['08:30', '09:00', '10:00', '11:00'], libres({ opening: A_HUIT }));
+dit('㉘ à la demi-heure, 08:00 disparaît et 08:30 ne se dit qu’une fois',
+  ['08:30', '09:00', '09:30'], libres({ opening: A_HUIT, pasMin: 30 }).slice(0, 3));
+dit('㉙ ouverte à 07:00, rien avant 08:30', ['08:30', '09:00'],
+  libres({ opening: { closed: false, openMin: 7 * 60, closeMin: 12 * 60 } }).slice(0, 2));
+dit('㉚ 08:30 occupée : la journée reprend à 10:00', ['10:00', '11:00'],
+  libres({ opening: A_HUIT, occupes: [{ maitre: 'Brice', debutMin: 510, dureeMin: 90 }] }));
+dit('㉛ un rituel de 3 h 30 tient encore de 08:30 à 12:00', ['08:30'], libres({ opening: A_HUIT, durationMin: 210 }));
+dit('㉜ ouverte à 09:00, rien ne change', ['09:00', '10:00', '11:00'],
+  libres({ opening: { closed: false, openMin: 9 * 60, closeMin: 12 * 60 } }));
+dit('㉝ aujourd’hui à 08:40, 08:30 est passée', ['09:00', '10:00', '11:00'],
+  libres({ opening: A_HUIT, maintenantMin: 8 * 60 + 40 }));
+
 /* ── Les durées ─────────────────────────────────────────────────── */
 const CATALOGUE = [{ id: 'a', durationMin: 45 }, { id: 'b', durationMin: 90 }];
 dit('㉓ une prestation courte vaut quand même une heure', 60, dureeDesPrestations(['a'], CATALOGUE));

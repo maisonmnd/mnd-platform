@@ -290,12 +290,13 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
   const w = elleEcrit(NUM, 'Bonjour, je voudrais un rendez-vous pour un shampoing et mon resserrage, le matin');
   FILE = [
     { outils: [{ name: 'chercher_des_places', input: { gestes: ['sv-plt-05-ess-c', 'sv-atl-ii-e'], jour: J1, moment: 'matin' } }] },
-    { texte: `Avec plaisir, Mme Akouele. Je peux vous recevoir ${J1} à 8 h ou à 9 h. Laquelle vous convient ?` },
+    { texte: `Avec plaisir, Mme Akouele. Je peux vous recevoir ${J1} à 8 h 30 ou à 9 h. Laquelle vous convient ?` },
   ];
   const r = await tour(NUM, [w]);
   const res = resultatsDe(1)[0] ?? '';
   dit('Opale prend le tour', true, r.pris);
-  dit('l outil rend les places du serveur, son jour d abord', [true, true], [res.includes(`${J1} 08:00`), !res.includes('Aucune place')]);
+  /* 08:30, plus 08:00 : le premier rendez-vous du jour depuis le 16 novembre 2026. */
+  dit('l outil rend les places du serveur, son jour d abord', [true, true], [res.includes(`${J1} 08:30`), !res.includes('Aucune place')]);
   dit('un seul message part, sa phrase, aucun menu', [1, true], [META.length, textesEnvoyes()[0]?.startsWith('Avec plaisir')]);
   dit('la trace est signee Opale', [OPALE, 'automate'], [traces()[0]?.parQui, traces()[0]?.auto]);
   dit('le fil la dit tenue (etape besoin), son message traite', ['besoin', true], [fil(NUM)?.etape, (fil(NUM)?.traites ?? []).includes(w)]);
