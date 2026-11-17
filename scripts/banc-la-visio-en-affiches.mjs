@@ -189,7 +189,8 @@ try {
       affiches: [...document.querySelectorAll('.mv-aff')].map((a) => { const r = a.getBoundingClientRect(); return r.left >= 0 && r.right <= vw + 0.5; }),
       mots: [...document.querySelectorAll('.mv-aff__nom, .mv-aff__ligne, .mv-aff__chiffre, .mv-resume dd')].map((e) => e.scrollWidth - e.clientWidth),
       noms: [...document.querySelectorAll('.mv-aff__nom')].map((e) => lignes(e) <= e.textContent.trim().split(/\\s+/).length),
-      prix: [...document.querySelectorAll('.mv-prix')].map((e) => e.getClientRects().length),
+      /* Un prix tient sur une ligne : une seule boite, et la hauteur d une seule ligne (l affiche le pose en bloc). */
+      prix: [...document.querySelectorAll('.mv-prix')].map((e) => Math.max(e.getClientRects().length, lignes(e))),
     };
   })()`;
   for (const largeur of [320, 360, 390, 412]) {
