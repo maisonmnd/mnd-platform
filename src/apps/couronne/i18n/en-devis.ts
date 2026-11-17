@@ -8,4 +8,8 @@ export const EN_DEVIS: Record<string, string> = {
   'Devis confirmé : votre rendez-vous est pris.': 'Quote confirmed: your appointment is booked.',
   'Faire confirmer': 'Ask to confirm',
   'Valider le devis': 'Approve the quote',
+  /* 17 novembre 2026 : un devis vaut quinze jours ; « acompte reçu » ne se dit que reçu. */
+  'Ce devis a dépassé ses quinze jours. Écrivez à la Maison : elle le renouvelle.': 'This quote is more than fifteen days old. Write to the Maison: they will renew it.',
+  '{rituel}, en attente de votre acompte.': '{rituel}, awaiting your deposit.',
+  '{rituel}, en attente de la maison.': '{rituel}, awaiting the Maison.',
 };

@@ -30,6 +30,8 @@ import { laFenetreSePaie, REPONSES_GRATUITES_DU_MOIS } from '../../../../shared/
 import { todayISO } from './_shared';
 import { appelDe } from '../../../../shared/civilite';
 import { lienMapsWa } from '../../../../shared/automate-wa';
+import { dernierJourValable, estPerime, horsRegle, jourEnClair, peutEtreRemis } from '../../../../shared/devis-remis-pur';
+import { useContexteDeLaRemise } from '../../../../shared/devis-remis';
 
 /* ═══════════════════════════════════════════════════════════════════
    LA BARRE D'OUTILS D'UNE CONVERSATION — maquette
@@ -86,6 +88,8 @@ export function useGestesDuFil(fil: FilOutille | null): {
   const [services] = useServices();
   const [codes] = useCodesPromo();
   const [auto] = useAutoConfig();
+  /* Le devis se remet au rendez-vous (17 novembre 2026) : ce que la règle lit. */
+  const contexteDeLaRemise = useContexteDeLaRemise();
 
   const aujourdhui = todayISO();
   const maintenant = new Date().toISOString();
@@ -98,11 +102,24 @@ export function useGestesDuFil(fil: FilOutille | null): {
        connaître toute la finance, et à s'en tenir à jour. */
     const pieces: PieceDuGeste[] = invoices
       .filter((i) => i.branchId === branch.id)
-      .map((i) => ({
-        id: i.id, branchId: i.branchId, kind: i.kind, number: i.number,
-        clientId: i.clientId, date: i.date, status: i.status, apptId: i.apptId,
-        totalXof: invoiceTotal(i), resteXof: invoiceResteXof(i),
-      }));
+      .map((i) => {
+        /* LA PORTE DE LA REMISE, la même qu'aux Factures : un devis périmé, ou
+           qui attend son rendez-vous, ne se joint pas à un message. */
+        let devisFerme: string | undefined;
+        if (i.kind === 'devis' && !horsRegle(i) && i.clientId === fil?.clientId) {
+          if (estPerime(i, aujourdhui)) devisFerme = `Ce devis valait jusqu’au ${jourEnClair(dernierJourValable(i))} : renouvelez-le aux Factures.`;
+          else {
+            const r = peutEtreRemis(i, contexteDeLaRemise);
+            if (!r.ok) devisFerme = `À remettre au rendez-vous. ${r.raison}`;
+          }
+        }
+        return {
+          id: i.id, branchId: i.branchId, kind: i.kind, number: i.number,
+          clientId: i.clientId, date: i.date, status: i.status, apptId: i.apptId,
+          totalXof: invoiceTotal(i), resteXof: invoiceResteXof(i),
+          ...(devisFerme ? { devisFerme } : {}),
+        };
+      });
     const carnet = appts.filter((a) => a.branchId === branch.id);
 
     /* ── LE SUIVI D'ABONNEMENT — repris de l'écran Abonnements, JAMAIS
@@ -177,7 +194,7 @@ export function useGestesDuFil(fil: FilOutille | null): {
     return { gestes, codesVivants, foyer };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fil?.clientId, fil?.fenetreOuverte, clients, familles, invoices, appts, bilans,
-    credits, subs, plans, services, codes, auto, branch.id, branch.mapsUrl, currency, aujourdhui]);
+    credits, subs, plans, services, codes, auto, branch.id, branch.mapsUrl, currency, aujourdhui, contexteDeLaRemise]);
 }
 
 /* ══ RÉSOUDRE UNE PIÈCE EN OCTETS ════════════════════════════════════

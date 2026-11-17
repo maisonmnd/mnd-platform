@@ -26,6 +26,8 @@ import { BlocRelances } from './BlocRelances';
 import AssistantDuDevis, { type BrouillonDuDevis } from './AssistantDuDevis';
 import { consultationsQueueStore } from '../../../../shared/bridges';
 import { acompteDuDevis } from '../../../../shared/devis-de-la-cliente-pur';
+import { avecLaValidite, validiteDite } from '../../../../shared/devis-remis-pur';
+import { LienDeLAcompte, PanneauDeLaRemise, PastilleDeLaRemise, RemiseDuBrouillon, ValiditeDuDevis, useLaPorteDeLaRemise, useUnDevisParConsultation } from './RemiseDuDevis';
 import { depositRateFor } from '../../../../shared/settings';
 import { clienteDeLaConsultation, deductionDeLaConsultation, lignesDuDevisEstime, motDuDevisEstime, motDuDevisFerme } from '../../../../shared/devis-de-la-consultation-pur';
 import { fmtDateFr, useLaPieceEnPdf, detailPorte } from './pdf-de-la-piece';
@@ -692,7 +694,7 @@ export default function Factures() {
       const svc = services.find((s) => s.name === l.label);
       if (svc) for (let n = 0; n < Math.max(1, l.qty); n++) svcIds.push(svc.id);
     });
-    const acompte = acompteDuDevis(devis.lines, (nom) => services.find((s) => s.name === nom)?.id, depositRateFor, devis.globalDiscountPct);
+    const acompte = acompteDuDevis(devis.lines, (nom) => services.find((s) => s.name === nom)?.id, depositRateFor, devis.globalDiscountPct, devis.globalDiscountXof ?? 0);
     const t = new Date();
     const todayIso = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
     const appt: Appointment = {
@@ -726,10 +728,28 @@ export default function Factures() {
     defaultNoteFor, contenuDeLaLigne, buildPdfData, reglagesMnd, sousLeVerrou,
   } = useLaPieceEnPdf();
 
+  /* ══ LE DEVIS SE REMET AU RENDEZ-VOUS — 17 novembre 2026 ═════════════
+     Tout vit dans `RemiseDuDevis.tsx` (la règle : shared/devis-remis-pur).
+     Ici, la porte par où sort un devis (« Remettre le devis », WhatsApp,
+     Imprimer, PDF), qui le marque remis ; et la pièce déjà née d'une
+     consultation, qui se rouvre plutôt qu'un second devis. */
+  const remise = useLaPorteDeLaRemise({
+    ecris: (id, marque) => setInvoices((prev) => prev.map((i) => (i.id === id ? { ...i, ...marque } : i))),
+    qui: monNomFil,
+    dit: (mot) => { toast(mot); setWaHint(mot); },
+  });
+  useUnDevisParConsultation({
+    neuf: editing?.mode === 'new' ? editing.draft : null,
+    argent: (n) => fmtMoney(n, currency),
+    ouvre: (piece, enEdition, mot) => { setSelectedId(piece.id); setEditing(enEdition ? { mode: 'edit', draft: piece } : null); setWaHint(mot); toast(mot); },
+  });
+
   /* Génère & télécharge le vrai PDF du document sélectionné. */
   const downloadPdf = async () => {
     if (!selected) return;
-    await invoicePdf(buildPdfData(selected));
+    const doc = remise.sortLeDevis(selected);
+    if (!doc) return;
+    await invoicePdf(avecLaValidite(buildPdfData(doc), doc));
     setWaHint('PDF téléchargé.');
   };
 
@@ -869,6 +889,9 @@ export default function Factures() {
        monte au 500 F supérieur et s'écrit en francs ; ceux que la pièce portait
        déjà, inchangés, restent tels quels (le passé ne bouge pas). */
     const d = figeLesRemisesDeLaPiece(dBrut, editing.mode === 'edit' ? invoices.find((i) => i.id === dBrut.id) : null);
+    /* Un devis par consultation ; « confirmé » demande un devis remis, encore valable (17 novembre 2026). */
+    const refusDeLaRemise = remise.refuseLEnregistrement(d, editing.mode === 'edit' ? invoices.find((i) => i.id === d.id) : undefined, invoicesStore.get());
+    if (refusDeLaRemise) { toast(refusDeLaRemise); return; }
     if (editing.mode === 'new') setInvoices((prev) => [d, ...prev]);
     else {
       const avant = invoices.find((i) => i.id === d.id);
@@ -1019,6 +1042,7 @@ export default function Factures() {
   const defaultNote = active ? defaultNoteFor(active) : '';
 
   const printDoc = () => {
+    if (selected && !remise.sortLeDevis(selected)) return;
     document.body.classList.add('trv-print-doc');
     window.print();
     window.setTimeout(() => document.body.classList.remove('trv-print-doc'), 400);
@@ -1042,7 +1066,7 @@ export default function Factures() {
     return signeLeMessage(
       `${maisonNom()} · ${label}\n` +
       `Pour ${appelOf(doc)}, total ${fmtMoney(invoiceTotal(doc), currency)}.\n` +
-      `Votre ${doc.kind === 'devis' ? 'devis' : 'facture'} est en pièce jointe.\n` +
+      `Votre ${doc.kind === 'devis' ? 'devis' : 'facture'} est en pièce jointe.${validiteDite(doc) ? ` ${validiteDite(doc)}.` : ''}\n` +
       `${(doc.note?.trim() || defaultNoteFor(doc))}`,
     );
   };
@@ -1060,8 +1084,9 @@ export default function Factures() {
      pour un geste que quelques secondes. */
   const sendWhatsApp = async (porte: 'trone' | 'app') => {
     if (!selected) return;
-    const doc = selected;
-    await invoicePdf(buildPdfData(doc));
+    const doc = remise.sortLeDevis(selected);
+    if (!doc) return;
+    await invoicePdf(avecLaValidite(buildPdfData(doc), doc));
     if (porte === 'trone') {
       const phone = clientOf(doc)?.phone.replace(/\D/g, '') ?? '';
       window.location.hash = `#${cheminDeLaConversation(phone, messageDeLaPiece(doc)) ?? '/conversations'}`;
@@ -1174,6 +1199,7 @@ export default function Factures() {
           {fmtMoney(invoiceTotal(d), currency)}
         </span>
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+          <PastilleDeLaRemise d={d} porte={remise} />
           <span className={`trv-status ${statusClass(d.status)}`}>{d.status}</span>
           <button className="trv-minibtn" title="Modifier ce document" onClick={(e) => { e.stopPropagation(); openEdit(d); }}>
             Modifier
@@ -1355,6 +1381,7 @@ export default function Factures() {
                 </div>
                 <span className={`trv-status ${statusClass(draft.status)}`}>{draft.status}</span>
               </div>
+              <RemiseDuBrouillon d={draft} porte={remise} />
 
               <div>
                 <div className="trv-sec-label">Tête couronnée & maître</div>
@@ -1780,6 +1807,7 @@ export default function Factures() {
               {/* SA NAISSANCE ET SA VIE — 13 septembre 2026, signées par la base
                   (0092). La direction seule : le composant ne rend rien aux autres. */}
               <VieDeLaFacture invoice={selected} />
+              <PanneauDeLaRemise d={selected} porte={remise} estDirection={estDirection} dit={setWaHint} surRenouveler={openEdit} />
               {/* LE RITUEL S'OUVRE ICI, PAS DANS UN AUTRE ÉCRAN. Corriger une
                   prestation obligeait à quitter la pièce pour le Carnet, à y
                   retrouver la cliente, puis à revenir vérifier ce que la facture
@@ -1808,10 +1836,10 @@ export default function Factures() {
                 const versLApp = lienWaMe(clientOf(selected)?.phone, messageDeLaPiece(selected));
                 return (
                   <div className="trv-doc-actions__row" style={{ display: 'flex', gap: 8 }}>
-                    <button className="trv-wa-btn" style={{ flex: 1 }} onClick={() => void sendWhatsApp('trone')}>
+                    <button className="trv-wa-btn" style={{ flex: 1, opacity: remise.fermeAuDevis(selected) ? 0.45 : undefined }} disabled={!!remise.fermeAuDevis(selected)} title={remise.fermeAuDevis(selected) ?? undefined} onClick={() => void sendWhatsApp('trone')}>
                       Adresser par WhatsApp
                     </button>
-                    {versLApp && (
+                    {versLApp && !remise.fermeAuDevis(selected) && (
                       <a
                         className="trv-wa-btn trv-wa-btn--app"
                         href={versLApp}
@@ -1935,16 +1963,17 @@ export default function Factures() {
                 </a>
               )}
               <div className="trv-doc-actions__row" style={{ display: 'flex', gap: 8 }}>
-                <Button style={{ flex: 1 }} size="sm" onClick={printDoc}>Imprimer</Button>
-                <Button variant="ghost" style={{ flex: 1 }} size="sm" onClick={() => void downloadPdf()}>PDF</Button>
+                <Button style={{ flex: 1 }} size="sm" disabled={!!remise.fermeAuDevis(selected)} title={remise.fermeAuDevis(selected) ?? undefined} onClick={printDoc}>Imprimer</Button>
+                <Button variant="ghost" style={{ flex: 1 }} size="sm" disabled={!!remise.fermeAuDevis(selected)} title={remise.fermeAuDevis(selected) ?? undefined} onClick={() => void downloadPdf()}>PDF</Button>
               </div>
               {waHint && <div className="trv-pdf-hint">{waHint}</div>}
+              <LienDeLAcompte d={selected} rdvs={appointments} appel={appelOf(selected)} telephone={clientOf(selected)?.phone} />
               {selected.kind === 'devis' && selected.status !== 'confirmé' && (
                 /* CONFIRMER — 13 novembre 2026 : le rendez-vous naît ici, plus à
                    l'acceptation. Accepter dit oui à la proposition ; confirmer
                    prend le créneau. Un seul rendez-vous par devis (voir
                    `rendezVousDuDevis`). */
-                <Button variant="ghost" size="sm" onClick={() => patchSelected({ status: 'confirmé' })}>
+                <Button variant="ghost" size="sm" disabled={!!remise.fermeALaConfirmation(selected)} title={remise.fermeALaConfirmation(selected) ?? undefined} onClick={() => patchSelected({ status: 'confirmé' })}>
                   Confirmer et créer le rendez-vous
                 </Button>
               )}
@@ -1952,6 +1981,8 @@ export default function Factures() {
                 <Button
                   variant="copper"
                   size="sm"
+                  disabled={!!remise.fermeALaFacture(selected)}
+                  title={remise.fermeALaFacture(selected) ?? undefined}
                   /* UNE COMMANDE DÉJÀ RÉGLÉE EN LIGNE RESTE RÉGLÉE — 22 octobre 2026
                      (la Boutique) : convertie, elle repassait « envoyée » avec
                      tout son argent dessus, et la cloche la réclamait comme
@@ -2221,6 +2252,7 @@ export default function Factures() {
                 <span className="q">“</span>
                 <div className="txt">{active.note?.trim() || defaultNote}</div>
               </div>
+              <ValiditeDuDevis d={active} />
 
               {/* LE RÈGLEMENT DIT AUSSI QUAND — 17 août 2026, demande de Yéman :
                   « reporte la date du règlement sur la facture ». La pièce

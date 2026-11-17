@@ -325,7 +325,8 @@ dit('un compteur sain n’avertit de rien', undefined,
   dit('le geste Sa facture / Son devis joint le PDF des Factures (fabriqué, posé dans la zone)', [true, true, true, true],
     [/if \(g\.piece && \(g\.piece\.quoi === 'facture' \|\| g\.piece\.quoi === 'devis'\)\) \{/.test(pose),
       /invoicesStore\.get\(\)\.find\(\(i\) => i\.id === id\)/.test(pose),
-      /setPiece\(await invoiceEnPiece\(buildPdfData\(doc\)\)\)/.test(pose),
+      /* 17 novembre 2026 : le devis joint est marque remis, et son papier dit ses quinze jours. */
+      /setPiece\(await invoiceEnPiece\(avecLaValidite\(buildPdfData\(remis\), remis\)\)\)/.test(pose),
       /const \{ buildPdfData \} = useLaPieceEnPdf\(\);/.test(src)]);
 }
 
