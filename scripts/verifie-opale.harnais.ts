@@ -12,6 +12,7 @@ import {
   CLE_D_OPALE, MESSAGES_D_OPALE_PAR_JOUR, OPALE, OUTILS_D_OPALE, confirmationPermise, consigneDOpale, contexteDOpale,
   etatApresOpale, fautesDOpale, gestesLus, heuresDites, montantsDuTexte, opaleSert, placesDites, propositionLue,
   reglageDOpale, estUneQuestionFrancheDOpale, salueLEnfant, type ContexteDOpale,
+  avecLeLienDeLaConsultation, lienDeLaConsultation, motDeLaPhotoSansRendezVous, photoSansRendezVous, photoSeuleDansLeTour, tourSansUnMot,
 } from '../src/shared/opale-pur';
 import { laVoixDuFil, type LecteurDeLaVoix, type LigneDeLaVoix } from '../src/shared/voix-du-fil-pur';
 
@@ -780,6 +781,121 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
     dit(`une cliente qui dit autre chose (« ${phrase.replace(/[^\x20-\x7e]/g, ' ')} ») ne recoit aucun lien de reglement : la fonction n est pas appelee, Opale repond`,
       [0, 1, false], [FINS.length, DEMANDES.length, /payer\.html/.test(textesEnvoyes().join(' '))]);
   }
+}
+
+/* ══ 14. L'AVIS SUR PHOTO, AVEC UN RENDEZ-VOUS (17 novembre 2026) ══
+   « Il ne faut pas permettre d'avoir des bilans sans prendre de RDV » : la
+   main ne passe plus pour la photo d'un numéro que la Maison ne reçoit pas. */
+{
+  const LIEN = 'https://maisonmnd.com/consultation/';
+  let seqPhoto = 0;
+  const elleEnvoie = (numero: string, type: string, legende = ''): string => {
+    const waId = `wamid.photo${++seqPhoto}`;
+    table('messages_wa').push({ id: `wa-${waId}`, data: { waId, sens: 'entrant', numero, texte: legende, type, quand: new Date().toISOString() } });
+    return waId;
+  };
+  const pose = (id: string, clientId: string, date: string, status: string, marques: Record<string, unknown> = {}) =>
+    table('appointments').push({ id, branch_id: 'br-banc', data: { id, clientId, date, time: '10:00', status, serviceIds: ['sv-atl-ii-e'], ...marques } });
+  const LA_LIGNE = 'Bonjour. La Maison regarde vos locks avec vous, au rendez-vous.';
+  const PASSE = { outils: [{ name: 'passer_la_main', input: { motif: 'media', pourquoi: 'une photo' } }] };
+  const contexteLu = (): string => String(DEMANDES[0]?.messages?.[0]?.content ?? '');
+
+  /* Une inconnue, une photo seule : la main ne passe pas, le lien part. */
+  decor();
+  const w1 = elleEnvoie(INCONNUE, 'image');
+  FILE = [PASSE, { texte: LA_LIGNE }];
+  const r1 = await tour(INCONNUE, [w1]);
+  dit('une photo sans rendez-vous : le contexte le dit a Opale, avec le lien de la consultation', [true, true],
+    [contexteLu().includes('L’avis sur photo : elle n’a ni rendez-vous pris ni séance faite'), contexteLu().includes(LIEN)]);
+  dit('... la main ne passe pas : l outil le refuse et rend le lien', [true, true], [(resultatsDe(1)[0] ?? '').startsWith('La main ne passe pas pour cette photo'), (resultatsDe(1)[0] ?? '').includes(LIEN)]);
+  dit('... le fil reste a Opale, personne n est alerte', ['besoin', undefined, undefined], [fil(INCONNUE)?.etape, fil(INCONNUE)?.motifMain, r1.alerte]);
+  dit('... son message part avec le lien, pose par le code', [1, `${LA_LIGNE}\nVotre consultation se prend ici : ${LIEN}`], [META.length, textesEnvoyes()[0]]);
+
+  /* Le lien deja ecrit par Opale ne se pose pas deux fois. */
+  decor();
+  FILE = [{ texte: `${LA_LIGNE} Votre consultation : ${LIEN}` }];
+  await tour(INCONNUE, [elleEnvoie(INCONNUE, 'image')]);
+  dit('le lien deja dans son message ne se pose pas deux fois', 1, (textesEnvoyes()[0] ?? '').split(LIEN).length - 1);
+
+  /* Un silence a une photo seule : refuse aussi. */
+  decor();
+  FILE = [{ outils: [{ name: 'ne_rien_repondre', input: { pourquoi: 'une photo' } }] }, { texte: LA_LIGNE }];
+  await tour(INCONNUE, [elleEnvoie(INCONNUE, 'image')]);
+  dit('une photo seule ne reste pas sans reponse', [1, true], [META.length, (textesEnvoyes()[0] ?? '').endsWith(LIEN)]);
+
+  /* Une photo seule, un autre motif : la main ne passe pas non plus. */
+  decor();
+  FILE = [{ outils: [{ name: 'passer_la_main', input: { motif: 'question', pourquoi: 'une photo sans mot' } }] }, { texte: LA_LIGNE }];
+  await tour(INCONNUE, [elleEnvoie(INCONNUE, 'image')]);
+  dit('une photo seule, sans un mot : aucun motif ne fait passer la main', ['besoin', true], [fil(INCONNUE)?.etape, (textesEnvoyes()[0] ?? '').endsWith(LIEN)]);
+
+  /* Une photo et des mots qui parlent d argent : la main passe pour l argent. */
+  decor();
+  FILE = [{ outils: [{ name: 'passer_la_main', input: { motif: 'question', pourquoi: 'un reglement' } }] }, { texte: 'Bien reçu. Une personne de la Maison vous répond ici dans un instant.' }];
+  await tour(INCONNUE, [elleEnvoie(INCONNUE, 'image', 'Voici mon reçu de paiement')]);
+  dit('une photo avec des mots d argent : la main passe pour l argent, sans lien de consultation', ['main', 'question', false], [fil(INCONNUE)?.etape, fil(INCONNUE)?.motifMain, (textesEnvoyes()[0] ?? '').includes(LIEN)]);
+
+  /* Une photo avec des mots : le motif « media » reste refuse. */
+  decor();
+  FILE = [PASSE, { texte: 'La Maison regarde vos locks avec vous, au rendez-vous.' }];
+  await tour(INCONNUE, [elleEnvoie(INCONNUE, 'image', 'Que pensez-vous de mes locks ?')]);
+  dit('une photo avec une demande d avis : la main ne passe pas, le lien part', ['besoin', true], [fil(INCONNUE)?.etape, (textesEnvoyes()[0] ?? '').endsWith(LIEN)]);
+
+  /* Un vocal revient toujours a une personne. */
+  decor();
+  FILE = [PASSE, { texte: 'Bien reçu. Une personne de la Maison vous répond ici dans un instant.' }];
+  await tour(INCONNUE, [elleEnvoie(INCONNUE, 'audio')]);
+  dit('un vocal sans rendez-vous : la main passe, comme avant', ['main', 'media'], [fil(INCONNUE)?.etape, fil(INCONNUE)?.motifMain]);
+
+  /* Claude muet devant une photo seule : la ligne de la Maison, sans passer la main. */
+  decor();
+  FILE = [{ jette: true }];
+  const r2 = await tour(INCONNUE, [elleEnvoie(INCONNUE, 'image')]);
+  dit('Claude injoignable devant une photo seule : la ligne de la Maison et le lien, la main ne passe pas', [motDeLaPhotoSansRendezVous(LIEN), 'besoin', undefined],
+    [textesEnvoyes()[0], fil(INCONNUE)?.etape, r2.alerte]);
+
+  /* Une seance faite : la photo revient a une personne, comme avant. */
+  decor();
+  FILE = [PASSE, { texte: 'Bien reçu, Mme Akouele. Une personne de la Maison vous répond ici dans un instant.' }];
+  const r3 = await tour(NUM, [elleEnvoie(NUM, 'image')]);
+  dit('une seance faite : le contexte le dit, la main passe, l equipe est prevenue', [true, 'main', 'media', 'WhatsApp · la main passe', false],
+    [contexteLu().includes('L’avis sur photo : elle a un rendez-vous pris ou une séance faite'), fil(NUM)?.etape, fil(NUM)?.motifMain, r3.alerte?.titre, (textesEnvoyes()[0] ?? '').includes(LIEN)]);
+
+  /* Une fiche jamais venue : seul un rendez-vous PRIS ouvre. */
+  const jamaisVenue = (rdvs: () => void): Promise<any> => {
+    decor();
+    table('clients').push({ id: 'cl-banc-n', data: { name: 'Nadia Banc', civilite: 'madame', phone: '+229 01 90 00 00 02' } });
+    rdvs();
+    FILE = [PASSE, { texte: 'Bien reçu.' }];
+    return tour(INCONNUE, [elleEnvoie(INCONNUE, 'image')]);
+  };
+  await jamaisVenue(() => pose('rdv-pris', 'cl-banc-n', J2, 'confirmé'));
+  dit('jamais venue, un rendez-vous confirme a venir : la main passe', 'main', fil(INCONNUE)?.etape);
+  await jamaisVenue(() => pose('rdv-attente', 'cl-banc-n', J2, 'en attente'));
+  dit('jamais venue, un rendez-vous encore en attente : la main ne passe pas', 'besoin', fil(INCONNUE)?.etape);
+  await jamaisVenue(() => pose('rdv-suggere', 'cl-banc-n', J2, 'confirmé', { suggereLe: '2026-11-15T10:00:00.000Z' }));
+  dit('jamais venue, une suggestion de la Maison sans son oui : la main ne passe pas', 'besoin', fil(INCONNUE)?.etape);
+  await jamaisVenue(() => pose('rdv-oui', 'cl-banc-n', J2, 'confirmé', { suggereLe: '2026-11-15T10:00:00.000Z', confirmeeParLaClienteLe: '2026-11-16T09:00:00.000Z' }));
+  dit('jamais venue, une suggestion qu elle a confirmee : la main passe', 'main', fil(INCONNUE)?.etape);
+  await jamaisVenue(() => pose('rdv-passe', 'cl-banc-n', plusJours(AUJOURDHUI, -3), 'confirmé'));
+  dit('jamais venue, un rendez-vous confirme reste dans le passe : la main ne passe pas', 'besoin', fil(INCONNUE)?.etape);
+  await jamaisVenue(() => pose('rdv-annule', 'cl-banc-n', J2, 'annulé'));
+  dit('jamais venue, un rendez-vous annule : la main ne passe pas', 'besoin', fil(INCONNUE)?.etape);
+
+  /* Le module pur. */
+  dit('le lien de la consultation se deduit du site du catalogue, jamais ecrit a part', [LIEN, ''],
+    [lienDeLaConsultation('https://maisonmnd.com/reserver/?besoin=entretien'), lienDeLaConsultation('c')]);
+  dit('une photo seule dans le tour : photo ou video, sans vocal ni piece', [true, true, false, false, false],
+    [photoSeuleDansLeTour([{ type: 'image' }]), photoSeuleDansLeTour([{ type: 'text' }, { type: 'video' }]), photoSeuleDansLeTour([{ type: 'image' }, { type: 'audio' }]),
+      photoSeuleDansLeTour([{ type: 'image' }, { type: 'document' }]), photoSeuleDansLeTour([{ type: 'text' }])]);
+  dit('la photo sans rendez-vous : jamais pour une cliente suivie', [true, false, false],
+    [photoSansRendezVous({ suivie: false, nouveaux: [{ type: 'image' }] }), photoSansRendezVous({ suivie: true, nouveaux: [{ type: 'image' }] }), photoSansRendezVous({ suivie: false, nouveaux: [{ type: 'text' }] })]);
+  dit('un tour sans un mot', [true, false], [tourSansUnMot([{ texte: '' }, { texte: '  ' }]), tourSansUnMot([{ texte: '' }, { texte: 'Bonjour' }])]);
+  dit('le lien se pose une fois, a la ligne, et jamais sur un message vide', ['Bonjour.\nVotre consultation se prend ici : L', 'Voir L', ''],
+    [avecLeLienDeLaConsultation('Bonjour.', 'L'), avecLeLienDeLaConsultation('Voir L', 'L'), avecLeLienDeLaConsultation('', 'L')]);
+  const laConsigne = consigneDOpale();
+  dit('la consigne ne demande plus de photo et ne passe plus la main pour toute photo', [true, true, false],
+    [laConsigne.includes('Ne demande jamais de photo, à personne.'), laConsigne.includes('une photo, seulement quand le contexte dit qu’elle a un rendez-vous pris ou une séance faite'), laConsigne.includes('une photo ou un vocal (tu ne les vois pas')]);
 }
 
 console.log(`${ko ? 'ECHEC' : 'OK   '} ${n} controles, ${ko} echec(s)`);

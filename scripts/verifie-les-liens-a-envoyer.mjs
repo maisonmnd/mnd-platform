@@ -36,7 +36,6 @@ const listeDe = (texte, motif, ou) => {
   return [...m[1].matchAll(/'([a-z]+)'/g)].map((x) => x[1]);
 };
 const LUS_PAR_LA_PAGE = listeDe(lis('src/apps/revelateur/ilots/Reserver.tsx'), /const besoinDeLAdresse[\s\S]*?\(\[([^\]]+)\]/, 'besoinDeLAdresse (Reserver.tsx)');
-const RESERVABLES = listeDe(lis('src/apps/revelateur/ilots/Triage.tsx'), /const RESERVABLES = new Set<Besoin>\(\[([^\]]+)\]\)/, 'RESERVABLES (Triage.tsx)');
 const GENERATEUR = lis('scripts/genere-revelateur.mjs');
 const PAGE_QR = lis('src/apps/trone/routes/clients/QrCodes.tsx');
 /* Les codes de la page QR codes, dans l'ordre de leur liste. */
@@ -74,7 +73,9 @@ function epreuves(m, source, parle) {
 
   const besoins = L.map((l) => new URL(m.adresseDuLienAEnvoyer(site, l.cle)).searchParams.get('besoin')).filter(Boolean);
   dit('chaque parcours est lu par la page de réservation', besoins, besoins.filter((b) => LUS_PAR_LA_PAGE.includes(b)));
-  dit('… et le triage du site le dit réservable', besoins, besoins.filter((b) => RESERVABLES.includes(b)));
+  /* Le triage du site disait aussi ces parcours réservables ; il est fermé
+     depuis le 17 novembre 2026 (le diagnostic en cinq questions), la page de
+     réservation reste seule juge. */
   dit('les liens de réservation mènent à /reserver/', ['/reserver/'], [...new Set(L.filter((l) => l.cle !== 'venir').map((l) => new URL(m.adresseDuLienAEnvoyer(site, l.cle)).pathname))]);
   dit('l’itinéraire mène à /venir/, que le site construit', ['/venir/', true],
     [new URL(m.adresseDuLienAEnvoyer(site, 'venir')).pathname, /path\.join\(SORTIE, 'venir', 'index\.html'\)/.test(GENERATEUR)]);

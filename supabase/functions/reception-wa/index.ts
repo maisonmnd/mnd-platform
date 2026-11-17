@@ -547,7 +547,9 @@ function consigneDeLaReception() {
     'Elle écrit en anglais : réponds en anglais, dans la même voix. Le jour même ne se réserve pas ici : dis-le, et propose les jours suivants (suite "reserver").',
     'Elle est en route ou arrive : un mot bref (« Bien noté, nous vous attendons. »), sans l’adresse ; un retard annoncé, pareil ; suite "venir" seulement si le contexte dit qu’elle ne connaît pas encore le lieu, sinon "rien".',
     'Les extensions de locks se décident à la consultation (la teinte, le calibre, le nombre), puis un devis écrit : ne donne aucun prix, suite "creation".',
-    'Elle demande si sa longueur suffit : demande-lui une photo de ses cheveux, qu’une personne de la Maison regardera ; suite "equipe".',
+    /* 17 novembre 2026 : Yéman revient sur son choix du 30 octobre (une
+       photo, une personne regarde). Plus d'avis sur photo sans rendez-vous. */
+    'Elle demande si sa longueur suffit, ou un avis sur ses cheveux ou ses locks : ne demande aucune photo ; dis en une ligne que la Maison le regarde avec elle au rendez-vous, la consultation d’abord ; suite "creation".',
     "Elle demande comment payer : réponds avec les moyens de paiement du contexte, sans en ajouter ; un paiement à distance seulement s’il y est dit.",
     "",
     "Après ton message, dis la suite, une seule :",
@@ -866,7 +868,7 @@ function prixSelonLeCalibre(s, ctx) {
 }
 
 // scripts/serveur/reception-wa.ts
-var VERSION = "2026-11-15-a";
+var VERSION = "2026-11-17-a";
 var MODELES = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 var TARIFS = {
   "claude-haiku-5-5": { entree: 1, sortie: 5 },

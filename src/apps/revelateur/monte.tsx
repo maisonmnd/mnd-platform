@@ -14,8 +14,10 @@ import { createRoot } from 'react-dom/client';
    code, puis on monte : le contenu écrit reste visible jusqu'à l'instant où
    l'îlot le remplace, et si le code ne vient pas, la page garde son repli. */
 type Chargeur = () => Promise<{ default: ComponentType<Record<string, unknown>> }>;
+/* LE TRIAGE N'EST PLUS UN ÎLOT (17 novembre 2026) : le diagnostic en cinq
+   questions est fermé, plus aucune page ne le monte. Sa routine vit dans
+   shared/routine-de-soins-pur, et c'est la Maison qui la remet. */
 const ILOTS: Record<string, Chargeur> = {
-  triage: () => import('./ilots/Triage') as unknown as ReturnType<Chargeur>,
   demande: () => import('./ilots/Demande') as unknown as ReturnType<Chargeur>,
   reserver: () => import('./ilots/Reserver') as unknown as ReturnType<Chargeur>,
   avis: () => import('./ilots/Avis') as unknown as ReturnType<Chargeur>,

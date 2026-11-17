@@ -11,7 +11,7 @@ import { pathToFileURL } from 'node:url';
    et les dix articles du Journal (`docs/site-revelateur/journal/*.md`), et écrit
    une page HTML par adresse dans `revelateur/<chemin>/index.html` : titre,
    description, H1, textes, liens, balisage structuré, tout est dans le fichier.
-   Les îlots React (triage, demande, avis, contact) ne se montent que dans
+   Les îlots React (demande, avis, contact) ne se montent que dans
    leurs emplacements (`data-ilot`), et chaque emplacement porte un repli
    statique. Le dossier `revelateur/` est GÉNÉRÉ (ignoré par git) : Vite le lit
    comme entrées, en développement comme à la construction.
@@ -1007,28 +1007,14 @@ function rendIngredient(i) {
       ${SCRIPT_COMMUNAUTE}`;
 }
 
-/* LA PREMIÈRE QUESTION DU DIAGNOSTIC, ÉCRITE DANS LA PAGE — 11 octobre 2026.
-   La page du diagnostic montrait une courte liste, puis le quiz, plus haut,
-   la remplaçait en montant : tout le reste de la page sautait (CLS mesuré à
-   0,54 sur téléphone, « mauvais » au-delà de 0,25). La question s'écrit
-   désormais ici, au même dessin que l'îlot : rien ne bouge quand il prend la
-   main. Sans script, chaque réponse mène à la page qui lui répond ; aucun
-   bouton n'y fait semblant. */
-const SANS_SCRIPT = { aucune: '/premiere-couronne/', jeunes: '/entretien-locks/', mures: '/entretien-locks/', anciennes: '/entretien-locks/', enfant: '/mnd-kids/' };
-function questionDuDiagnostic() {
-  const qs = statique.QUESTIONS_DU_DIAGNOSTIC;
-  const q = qs[0];
-  const reponses = q.reponses.map(([v, texte]) => `<a class="reponse" href="${attr(lien(SANS_SCRIPT[v] ?? '/mon-parcours/'))}"><i aria-hidden="true"></i><span>${echappe(texte)}</span></a>`).join('');
-  return `<div class="triage"><div class="etapes">${qs.map(() => '<span></span>').join('')}</div><div class="question"><p class="sur">Question 1 sur ${qs.length}</p><h2 tabindex="-1">${echappe(q.titre)}</h2><div class="reponses">${reponses}</div><div class="rangee" style="margin-top:18px;justify-content:space-between"><span></span></div></div></div>`;
-}
-
+/* LE DIAGNOSTIC EN CINQ QUESTIONS EST FERMÉ — 17 novembre 2026. « Il ne faut
+   pas permettre d'avoir des bilans sans prendre de RDV sinon tout le monde
+   nous trichera » (Yéman, la consultation en affiches, arbitrage D). Plus
+   aucune page n'écrit sa première question ni ne monte son îlot : l'accueil
+   et le menu mènent à la consultation, l'ancienne adresse aussi (voir
+   « L'ANCIEN DIAGNOSTIC », plus bas). La routine en trois temps vit dans
+   src/shared/routine-de-soins-pur.ts ; la Maison la remet avec le rendez-vous. */
 function ilot(nom, p) {
-  if (nom === 'triage') {
-    const repli = PAGES.filter((x) => x.besoin && x.chemin !== p.chemin).slice(0, 5)
-      .map((x) => `<li><a href="${attr(lien(x.chemin))}">${echappe(x.h1)}</a></li>`).join('');
-    void repli;
-    return `<section class="serre"><div class="conteneur"><div data-ilot="triage">${questionDuDiagnostic()}</div></div></section>`;
-  }
   if (nom === 'demande' || nom === 'reserver') {
     const f = COMMUN.formulaire;
     /* LA QUESTION D'ABORD — 11 octobre 2026. Le titre de la page dit déjà
@@ -1212,10 +1198,10 @@ ${mobile}`;
 function rendLibre(p, supplement = '') {
   const sections = (p.sections ?? []).map(rendSection).join('\n');
   const ilotHtml = p.ilot ? ilot(p.ilot, p) : '';
-  /* DEUX ÎLOTS SE LISENT AVANT LE TEXTE, pas après : le triage, qui EST la
-     page, et les trois cartes du contact, qui répondent aux questions qu'on
-     vient poser. Les autres (formulaire, calendrier, offres) ferment la page. */
-  const enTete = p.ilot === 'triage' || p.ilot === 'joindre' || p.ilot === 'offrir' || p.ilot === 'boutique'
+  /* CES ÎLOTS SE LISENT AVANT LE TEXTE, pas après : les trois cartes du
+     contact, qui répondent aux questions qu'on vient poser, et ceux qui SONT
+     la page. Les autres (formulaire, offres) ferment la page. */
+  const enTete = p.ilot === 'joindre' || p.ilot === 'offrir' || p.ilot === 'boutique'
     || p.ilot === 'parrainer' || p.ilot === 'ingredients' || p.ilot === 'engagements'
     /* La réservation et le rappel SONT la page (11 octobre 2026). */
     || p.ilot === 'reserver' || p.ilot === 'demande'
@@ -1342,12 +1328,12 @@ function rendAccueil(articles) {
         <div class="piliers">${a.objectif.piliers.map((p) => `<div><h3>${echappe(p.titre)}</h3><p>${echappe(p.ligne)}</p></div>`).join('')}</div>
         ${a.objectif.suite ? `<div class="passage"><p>${echappe(a.objectif.suite.ligne)}</p>${bouton(a.objectif.suite.bouton, 'btn btn--lien')}</div>` : ''}
       </div></section>
-      <!-- LE DIAGNOSTIC SE JOUE SUR L'ACCUEIL : le même îlot que /mon-parcours/,
-           dans une carte ivoire sur l'indigo. Sans script, la carte mène à la
-           page du diagnostic. -->
+      <!-- LA CARTE MÈNE À LA CONSULTATION, 17 novembre 2026 : le diagnostic en
+           cinq questions ne se joue plus sur l'accueil (une porte et une
+           routine sans rendez-vous). Un titre, une ligne, un bouton. -->
       <section class="diag sombre" id="diagnostic"><div class="conteneur">
         <div class="tete"><p class="sur">${echappe(a.diagnostic.sur)}</p><h2>${echappe(a.diagnostic.titre)}</h2><p class="ligne">${echappe(a.diagnostic.ligne)}</p><p class="note">${echappe(a.diagnostic.note)}</p></div>
-        <div class="diag__quiz" data-ilot="triage" data-genre="accueil">${questionDuDiagnostic()}</div>
+        <div class="rangee">${bouton(a.diagnostic.bouton, 'btn btn--plein')}</div>
       </div></section>
       <!-- L'ACCUEIL ALLÉGÉ, 11 octobre 2026 (Yéman) : « ça alourdit les pages, garder
            juste la remise qui vient avec ». La section des offres et celle du
@@ -1844,7 +1830,7 @@ for (const l of LEGALES) {
 /* La page 404 n'est qu'une page d'erreur : jamais un routeur. */
 writeFileSync(path.join(SORTIE, '404.html'), pageAccentuee({
   chemin: '/404.html', transition: false, titre: 'Page introuvable · Maison MND', description: 'Cette page n’existe pas ou plus. Retrouvez votre parcours depuis l’accueil de la Maison MND.',
-  corps: `<section class="page-hero page-hero--simple"><div class="conteneur"><div><p class="sur">Page introuvable</p><h1>Cette page n’existe pas.</h1><p class="ligne">Reprenez depuis l’accueil, ou trouvez votre parcours en trois questions.</p><div class="rangee" style="margin-top:22px"><a class="btn btn--plein" href="${BASE}">Retour à l’accueil</a><a class="btn" href="${lien('/mon-parcours/')}">Trouver mon parcours</a></div></div></div></section>`,
+  corps: `<section class="page-hero page-hero--simple"><div class="conteneur"><div><p class="sur">Page introuvable</p><h1>Cette page n’existe pas.</h1><p class="ligne">Reprenez depuis l’accueil, ou commencez par la consultation.</p><div class="rangee" style="margin-top:22px"><a class="btn btn--plein" href="${BASE}">Retour à l’accueil</a><a class="btn" href="${lien('/consultation/')}">Ma consultation</a></div></div></div></section>`,
   noeuds: [noeudSite()],
 }).replace('<link rel="canonical"', '<meta name="robots" content="noindex" /><link rel="canonical"'));
 
@@ -1899,6 +1885,23 @@ writeFileSync(path.join(SORTIE, 'venir', 'index.html'), pageAccentuee({
   noeuds: [noeudSite()],
 }).replace('<link rel="canonical"', '<meta name="robots" content="noindex" /><link rel="canonical"'));
 console.log(`  /venir/ : ${VERS_LA_PORTE === lienDeLaBranche ? 'le lien de la branche' : 'le lien de la fiche publique (branche sans lien lu)'}`);
+
+/* L'ANCIEN DIAGNOSTIC MÈNE À LA CONSULTATION — 17 novembre 2026. « Il ne faut
+   pas permettre d'avoir des bilans sans prendre de RDV sinon tout le monde
+   nous trichera » (Yéman). /mon-parcours/ rendait une porte et une routine en
+   cinq questions, à volonté ; l'adresse est partie dans des messages et dans
+   les moteurs. Elle reste donc, comme /m/ et /venir/ : une vraie page, hors
+   des moteurs et hors du plan (jamais dans `pagesEcrites`), qui mène aussitôt
+   à /consultation/. Sans script, le rafraîchissement et le bouton y mènent. */
+const VERS_LA_CONSULTATION = lien('/consultation/');
+mkdirSync(path.join(SORTIE, 'mon-parcours'), { recursive: true });
+writeFileSync(path.join(SORTIE, 'mon-parcours', 'index.html'), pageAccentuee({
+  chemin: '/mon-parcours/', transition: false, titre: 'La consultation · Maison MND',
+  description: 'La consultation de la Maison MND : cinq questions, puis votre rendez-vous.',
+  corps: `<section class="page-hero page-hero--simple"><div class="conteneur"><div><p class="sur">La consultation</p><h1>La consultation se prend ici.</h1><div class="rangee" style="margin-top:22px"><a class="btn btn--plein" id="vers-la-consultation" href="${attr(VERS_LA_CONSULTATION)}">Ma consultation</a></div></div></div></section>
+      <script>if('onpageswap' in window)addEventListener('pageswap',function(e){if(e.viewTransition)e.viewTransition.skipTransition()});location.replace(${JSON.stringify(VERS_LA_CONSULTATION)});</script>`,
+  noeuds: [noeudSite()],
+}).replace('<link rel="canonical"', `<meta name="robots" content="noindex" /><meta http-equiv="refresh" content="0; url=${attr(VERS_LA_CONSULTATION)}" /><link rel="canonical"`));
 
 /* LE PLAN DU SITE — 18 septembre 2026, demandé par Yéman au pied de page.
 

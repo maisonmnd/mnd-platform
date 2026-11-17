@@ -3,9 +3,10 @@ import { t, locale, prix } from './i18n';
 import {
   MOT_DES_PRODUITS, MOT_PEAU, MOT_RELU, PHOTOS_MAX, PHRASE_DE_L_ACCORD,
   calibreDit, defautDeLEnvoi, intensiteDite, longueurDite, observationDite, texteMontre, zoneDite,
-  type Lecture, type Recommandation,
+  type Lecture, type PorteDeMaCouronne, type Recommandation,
 } from '../../shared/ia-diagnostic-pur';
-import { envoieLesPhotos, mesDiagnostics, photoReduite, useDiagnosticOuvert, type DiagnosticDeLaCliente } from '../../shared/diagnostic-locks';
+import { envoieLesPhotos, monDiagnostic, photoReduite, useDiagnosticOuvert, type DiagnosticDeLaCliente } from '../../shared/diagnostic-locks';
+import { CHEMIN_DE_LA_CONSULTATION } from '../../shared/rendez-vous-pris-pur';
 
 /* ══ LE DIAGNOSTIC PHOTO, DANS MA COURONNE — 19 octobre 2026 ════════════
    Décisions de Yéman (14 octobre, confirmées le 19) : une à quatre photos de
@@ -21,7 +22,14 @@ import { envoieLesPhotos, mesDiagnostics, photoReduite, useDiagnosticOuvert, typ
 
    Les produits conseillés sont mis de côté pour son prochain passage et se
    règlent au retrait : la Gamme n'a pas de paiement en ligne. Ce qu'elle lit
-   passe par t() ; la lecture elle-même reste dans sa langue d'écriture. */
+   passe par t() ; la lecture elle-même reste dans sa langue d'écriture.
+
+   AVEC UN RENDEZ-VOUS, ET UN PLAFOND (17 novembre 2026). « Il ne faut pas
+   permettre d'avoir des bilans sans prendre de RDV » (Yéman). La FONCTION
+   tient la porte (un rendez-vous pris ou une séance faite, puis le plafond
+   par cliente) et la dit dans sa réponse à « lire » ; l'écran ne fait que la
+   montrer : une ligne et le chemin de la consultation, ou le jour où la
+   lecture se rouvre. Tant que la fonction n'a pas répondu, rien ne s'affiche. */
 
 const dateLisible = (iso: string | null | undefined): string => {
   const d = new Date(String(iso ?? ''));
@@ -71,15 +79,34 @@ export function MonDiagnosticPhoto() {
   const [envoi, setEnvoi] = useState(false);
   const [refus, setRefus] = useState<string | null>(null);
   const [rendu, setRendu] = useState<DiagnosticDeLaCliente | null>(null);
+  /* `null` : la fonction n'a pas encore répondu ; `'libre'` : elle a
+     répondu sans dire de porte (une fonction d'avant le 17 novembre 2026). */
+  const [porte, setPorte] = useState<PorteDeMaCouronne | 'libre' | null>(null);
 
   useEffect(() => {
     if (!ouvert) return;
     let vivant = true;
-    void mesDiagnostics().then((l) => { if (vivant) setMiens(l); });
+    void monDiagnostic().then((r) => {
+      if (!vivant) return;
+      setMiens(r.diagnostics);
+      if (r.repondu) setPorte(r.porte ?? 'libre');
+    });
     return () => { vivant = false; };
   }, [ouvert, rendu?.id]);
 
-  if (!ouvert) return null;
+  if (!ouvert || porte === null) return null;
+  /* SANS RENDEZ-VOUS PRIS NI SÉANCE FAITE : une ligne, et le chemin. */
+  if (porte !== 'libre' && !porte.ouverte && porte.raison === 'rendez-vous') {
+    return (
+      <div className="mc-ed">
+        <p className="mc-ed-doux">
+          {t('Le diagnostic photo s’ouvre avec votre rendez-vous.')}{' '}
+          <a className="mc-ed-lien" href={CHEMIN_DE_LA_CONSULTATION}>{t('Ma consultation')}</a>
+        </p>
+      </div>
+    );
+  }
+  const auPlafond = porte !== 'libre' && !porte.ouverte && porte.raison === 'plafond' ? porte.prochaineLe : null;
 
   const defaut = defautDeLEnvoi(fichiers.length, accord);
   const ajoute = (liste: FileList | null) => {
@@ -92,7 +119,13 @@ export function MonDiagnosticPhoto() {
     setRefus(null);
     try {
       const r = await envoieLesPhotos(await Promise.all(fichiers.map((f) => photoReduite(f))));
-      if (!r.ok) { setRefus(r.message); return; }
+      if (!r.ok) {
+        /* La fonction a fermé la porte entre-temps : l'écran la suit. */
+        if (r.erreur === 'rendez-vous') { setPorte({ ouverte: false, raison: 'rendez-vous' }); return; }
+        if (r.erreur === 'plafond' && r.prochaineLe) { setPorte({ ouverte: false, raison: 'plafond', prochaineLe: r.prochaineLe }); setSaisie(false); return; }
+        setRefus(r.message);
+        return;
+      }
       setRendu({
         id: r.id, cree_le: new Date().toISOString(), etat: r.etat, lecture: r.lecture, recommandation: r.recommandation,
         texte: r.texte, correction: null, relu_le: null, photosEffaceesLe: null, mot: r.mot,
@@ -115,6 +148,8 @@ export function MonDiagnosticPhoto() {
           <p className="mc-ed-doux">{t('La Maison relit cette lecture dans la journée.')}</p>
           <button type="button" className="mc-cta mc-cta--outline" onClick={() => setRendu(null)}>{t('Fermer')}</button>
         </div>
+      ) : auPlafond ? (
+        <p className="mc-ed-doux">{t('Votre prochaine lecture de photos s’ouvre le {date}.', { date: dateLisible(auPlafond) })}</p>
       ) : saisie ? (
         <div className="mc-ed-carte">
           <div className="mc-micro-eyebrow">{t('Le diagnostic photo')}</div>

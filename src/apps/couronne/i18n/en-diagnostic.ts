@@ -27,6 +27,10 @@ export const EN_DIAGNOSTIC: Record<string, string> = {
   'Quatre photos au plus.': 'Four photos at most.',
   'Cochez l’accord pour que la Maison garde vos photos.': 'Tick the agreement so the Maison can keep your photos.',
   'Le diagnostic photo n’est pas ouvert pour l’instant.': 'The photo reading is not open yet.',
+  /* 17 novembre 2026 : un rendez-vous pris ou une séance faite, et le plafond par cliente. */
+  'Le diagnostic photo s’ouvre avec votre rendez-vous.': 'The photo reading opens with your appointment.',
+  'Votre prochaine lecture de photos s’ouvre le {date}.': 'Your next photo reading opens on {date}.',
+  'Vos photos ont déjà été lues : la suite se regarde avec vous, à la Maison.': 'Your photos have already been read: the next step is seen with you, at the Maison.',
   'La lecture de vos photos s’ouvre avec votre consultation réglée en ligne, ou depuis votre compte Ma Couronne.': 'The photo reading opens with a consultation paid online, or from your Ma Couronne account.',
   'Ce compte est celui de l’équipe : le diagnostic photo se fait depuis le compte d’une cliente.': 'This is a team account: the photo reading is made from a client account.',
   'Une à quatre photos, nettes et à la lumière du jour.': 'One to four sharp photos, in daylight.',

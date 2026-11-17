@@ -21,9 +21,10 @@ import {
   type Answers, type CurrencyChoice, type Parcours, type PhotoSlot,
 } from './data';
 import {
-  ACCES_VIDE, accesApresDepot, accesApresLeWidget, accesSansVerdict, voieDAcces,
+  ACCES_VIDE, accesApresDepot, accesApresLeWidget, accesSansVerdict, peutPoursuivreSansVerdict, voieDAcces,
   type Access, type Reglement,
 } from './acces-pur';
+import { useEtatDeLaPorteDeLEquipe } from '../../shared/porte-de-l-equipe';
 import { DiagnosticPhoto } from './DiagnosticPhoto';
 
 /* La Consultation — le rite d'entrée mondial de la Maison MND.
@@ -155,6 +156,10 @@ export default function App() {
   const [access, setAccess] = useStore(accessStore);
   const [toast, setToast] = useState<string | null>(null);
   const [tried, setTried] = useState<Record<string, boolean>>({});
+  /* L'ÉQUIPE CONNECTÉE (17 novembre 2026) : elle seule passe le péage sans
+     paiement vérifié. La porte de main.tsx ne laisse entrer qu'elle ; la
+     règle se redit ici, à l'endroit des deux boutons. */
+  const sansVerdictPermis = peutPoursuivreSansVerdict(useEtatDeLaPorteDeLEquipe() === 'equipe');
 
   // l'accès
   const [momoOp, setMomoOp] = useState('MTN');
@@ -314,6 +319,7 @@ export default function App() {
      rapproche un versement Mobile Money déclaré, ou encaisse au salon. Rien
      n'est « crédité » tant que le serveur ne l'a pas dit. */
   const poursuivreSansPaiement = (reglement: Reglement) => {
+    if (!sansVerdictPermis) return;
     setAccess(accesSansVerdict(access, consultationId, reglement));
     go('portrait');
   };
@@ -695,11 +701,11 @@ export default function App() {
                     <button type="button" className={`lc-pay__btn${paying ? ' is-paying' : ''}`} onClick={() => void payNow()} disabled={paying}>
                       {paying ? 'Vérification en cours…' : `Payer ${fee} avec KkiaPay`}
                     </button>
-                  ) : (
+                  ) : sansVerdictPermis ? (
                     <button type="button" className="lc-pay__btn" onClick={() => poursuivreSansPaiement('aucun')}>
                       Poursuivre, je règle à la Maison
                     </button>
-                  )}
+                  ) : null}
                   {payErreur && <div className="lc-hint" style={{ marginTop: 10, color: 'var(--color-copper)' }}>{payErreur}</div>}
                   <div className="lc-pay__webhook">
                     <span className="lc-dot lc-dot--ok" />
@@ -707,9 +713,11 @@ export default function App() {
                       ? 'À la réussite, la Maison vérifie la transaction auprès de KkiaPay avant d’ouvrir la consultation.'
                       : 'Le paiement en ligne n’est pas encore ouvert : la consultation se règle à la Maison.'}
                   </div>
-                  <button type="button" className="lc-back" style={{ marginTop: 12 }} onClick={() => poursuivreSansPaiement('declare')}>
-                    {voieDAcces(access) === 'a-reverifier' ? 'Poursuivre, la Maison vérifiera mon paiement →' : 'J’ai réglé par Mobile Money moi-même, poursuivre →'}
-                  </button>
+                  {sansVerdictPermis && (
+                    <button type="button" className="lc-back" style={{ marginTop: 12 }} onClick={() => poursuivreSansPaiement('declare')}>
+                      {voieDAcces(access) === 'a-reverifier' ? 'Poursuivre, la Maison vérifiera mon paiement →' : 'J’ai réglé par Mobile Money moi-même, poursuivre →'}
+                    </button>
+                  )}
                 </div>
               </div>
 

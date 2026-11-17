@@ -88,6 +88,7 @@ import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversatio
 import { appelDe } from '../../../../shared/civilite';
 import { LIBELLE_PARENTAL } from '../../../../shared/voix-du-numero-pur';
 import LiensAEnvoyer from '../../shell/LiensAEnvoyer';
+import LaRoutineDeSoins from './LaRoutineDeSoins';
 import { CIVILITES, civiliteNotee, estMuette, ficheAvecCivilite, prenomDevine, type Civilite } from '../../../../shared/civilite';
 
 /* Customers — le CRM 360 : recherche, tri, indicateurs, segments, persona attribué,
@@ -2231,6 +2232,10 @@ function Customer360({
      4 novembre 2026, `voix-du-numero-pur`) : le message dit « Bonjour, » et
      la fenêtre s'ouvre sur MND Kids. */
   const [liensOuverts, setLiensOuverts] = useState(false);
+  /* SA ROUTINE, REMISE AVEC LE RENDEZ-VOUS (17 novembre 2026) : le diagnostic
+     en cinq questions du site est fermé ; la Maison compose la routine en
+     trois temps depuis la fiche, et l'envoie. */
+  const [routineOuverte, setRoutineOuverte] = useState(false);
   const ficheDEnfant = estMineur(client, todayISO()) || LIBELLE_PARENTAL.test(client.phoneNom ?? '');
   const appelDuLien = ficheDEnfant ? '' : appelDe(client);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -3141,6 +3146,14 @@ function Customer360({
                 onClick={() => setLiensOuverts(true)}
               >
                 Lien de réservation
+              </button>
+              <button
+                type="button"
+                className="trc-cover-act trc-cover-act--btn"
+                title="Composer sa routine de soins en trois temps, et la lui envoyer"
+                onClick={() => setRoutineOuverte(true)}
+              >
+                Sa routine
               </button>
             </div>
           </div>
@@ -5883,6 +5896,13 @@ function Customer360({
           numero={client.phone ?? ''}
           choisi={ficheDEnfant ? 'enfant' : 'tout'}
           surFermer={() => setLiensOuverts(false)}
+        />
+      )}
+      {routineOuverte && (
+        <LaRoutineDeSoins
+          appel={appelDuLien === 'Madame, Monsieur' ? '' : appelDuLien}
+          numero={client.phone ?? ''}
+          surFermer={() => setRoutineOuverte(false)}
         />
       )}
       {adjust && <RdvModal onClose={() => setAdjust(null)} initial={adjust} title={`Rendez-vous · ${client.name.split(' ')[0]}.`} />}

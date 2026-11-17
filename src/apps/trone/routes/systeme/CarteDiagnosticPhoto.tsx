@@ -7,9 +7,9 @@ import { useCategories, useProducts, useServices } from '../../../../shared/cata
 import { autoConfigStore } from '../equipe/data';
 import { useEstDirection } from '../_vie';
 import {
-  GARDE_DES_PHOTOS_JOURS, MOTS_DE_PRODUIT, PLAFOND_DU_DIAGNOSTIC_USD, TABLE_PAR_DEFAUT,
-  apercuDeLaLigne, dateDuDiagnostic, motsDeLaSaisie, observationDite, tableEstValidee, tableValide,
-  type Catalogue, type DocDeLaTable, type LigneDeLaTable,
+  BORNES_DU_PLAFOND_PAR_CLIENTE, CHAMP_DU_PLAFOND_PAR_CLIENTE, GARDE_DES_PHOTOS_JOURS, MOTS_DE_PRODUIT, PLAFOND_DU_DIAGNOSTIC_USD, TABLE_PAR_DEFAUT,
+  apercuDeLaLigne, dateDuDiagnostic, motsDeLaSaisie, observationDite, plafondParCliente, tableEstValidee, tableValide,
+  type Catalogue, type DocDeLaTable, type LigneDeLaTable, type PlafondParCliente,
 } from '../../../../shared/ia-diagnostic-pur';
 import { ecrisLaTableDuDiagnostic, lisLaTableDuDiagnostic } from '../../../../shared/diagnostics-au-trone';
 import { etatDeLaFonction } from '../../../../shared/diagnostic-locks';
@@ -25,7 +25,13 @@ import { etatDeLaFonction } from '../../../../shared/diagnostic-locks';
    valeur et la table refuse l'écriture. Ici, on ne fait que le dire, et le
    montrer en lecture au reste du personnel. La table ne passe pas par la
    synchro des documents (voir `diagnostics-au-trone`) : elle se lit à
-   l'ouverture et s'écrit sur « Enregistrer ». */
+   l'ouverture et s'écrit sur « Enregistrer ».
+
+   LE 17 NOVEMBRE 2026 : « il ne faut pas permettre d'avoir des bilans sans
+   prendre de RDV » (Yéman). Dans Ma Couronne, le diagnostic ne s'ouvre plus
+   qu'à une cliente qui a un rendez-vous pris ou une séance faite (la
+   fonction le juge), et chaque cliente a son plafond de lectures, réglé ici
+   par la direction (`mnd_auto_config.diagnosticPhotoPlafond`). */
 
 const texteDe = (mots: readonly string[]): string => mots.join(', ');
 
@@ -43,6 +49,15 @@ export function CarteDiagnosticPhoto() {
   const [occupe, setOccupe] = useState(false);
 
   const allume = (cfg as { diagnosticPhoto?: unknown }).diagnosticPhoto === true;
+  /* Le plafond par cliente : relu par la même règle que la fonction. */
+  const plafond = plafondParCliente((cfg as Record<string, unknown>)[CHAMP_DU_PLAFOND_PAR_CLIENTE]);
+  const reglePlafond = (champ: keyof PlafondParCliente, brut: string) => {
+    if (!estDirection) { toast('Ce réglage appartient à la direction.'); return; }
+    const n = Math.round(Number(brut));
+    const [min, max] = BORNES_DU_PLAFOND_PAR_CLIENTE[champ];
+    if (!Number.isFinite(n) || n < min || n > max) { toast(`Entre ${min} et ${max}.`); return; }
+    setCfg((c) => ({ ...c, [CHAMP_DU_PLAFOND_PAR_CLIENTE]: { ...plafond, [champ]: n } } as typeof c));
+  };
   const table = useMemo(() => tableValide(doc), [doc]);
   const validee = tableEstValidee(doc);
   const catalogue: Catalogue = useMemo(() => ({ services, categories, products: produits }), [services, categories, produits]);
@@ -61,7 +76,7 @@ export function CarteDiagnosticPhoto() {
   const bascule = () => {
     if (!estDirection) { toast('Ce réglage appartient à la direction.'); return; }
     setCfg((c) => ({ ...c, diagnosticPhoto: !allume } as typeof c));
-    toast(allume ? 'Diagnostic photo éteint : les clientes ne le voient plus.' : 'Diagnostic photo allumé : La Consultation et Ma Couronne le proposent.');
+    toast(allume ? 'Diagnostic photo éteint : les clientes ne le voient plus.' : 'Diagnostic photo allumé : Ma Couronne le propose, avec un rendez-vous pris ou une séance faite.');
   };
 
   const ligneSaisie = (l: LigneDeLaTable) => saisie[l.observation] ?? { rituel: texteDe(l.rituel), produits: texteDe(l.produits) };
@@ -100,11 +115,12 @@ export function CarteDiagnosticPhoto() {
     <Card className="sys-section" style={{ marginTop: 18 }} data-diagnostic="reglages">
       <div className="sys-section__title">Le diagnostic photo</div>
       <div className="sys-section__cap" style={{ maxWidth: 680 }}>
-        Une cliente de La Consultation (réglée en ligne) ou de Ma Couronne envoie une à quatre photos de ses locks ;
-        elle lit aussitôt une première lecture « à confirmer en consultation », qu’un maître de la direction ou de
-        l’Atelier relit dans la journée (Consultations). Jamais un avis médical : une peau qui inquiète ne propose
-        rien et l’équipe est prévenue. Les photos s’effacent à {GARDE_DES_PHOTOS_JOURS} jours ; les lectures ont
-        leur plafond à part, {PLAFOND_DU_DIAGNOSTIC_USD} $ par mois.
+        Une cliente de Ma Couronne qui a un rendez-vous pris ou une séance faite envoie une à quatre photos de ses
+        locks ; elle lit aussitôt une première lecture « à confirmer en consultation », qu’un maître de la
+        direction ou de l’Atelier relit dans la journée (Consultations). Sans rendez-vous, Ma Couronne la mène à
+        la consultation. Jamais un avis médical : une peau qui inquiète ne propose rien et l’équipe est prévenue.
+        Les photos s’effacent à {GARDE_DES_PHOTOS_JOURS} jours ; les lectures ont leur plafond à part,
+        {PLAFOND_DU_DIAGNOSTIC_USD} $ par mois.
       </div>
 
       <div className="sys-row">
@@ -112,12 +128,33 @@ export function CarteDiagnosticPhoto() {
           <div className="sys-row__label">Proposer le diagnostic photo aux clientes</div>
           <div className="sys-row__sub">
             {allume
-              ? 'Allumé : La Consultation et Ma Couronne le proposent.'
+              ? 'Allumé : Ma Couronne le propose aux clientes qui ont un rendez-vous pris ou une séance faite.'
               : 'Éteint : les clientes ne le voient nulle part. À allumer quand la migration 0137 et la fonction diagnostic-locks sont posées.'}
             {!estDirection && ' Ce réglage appartient à la direction.'}
           </div>
         </div>
         <Toggle on={allume} onToggle={bascule} />
+      </div>
+      <div className="sys-row" data-diagnostic="plafond">
+        <div>
+          <div className="sys-row__label">Le plafond par cliente</div>
+          <div className="sys-row__sub">
+            {plafond.lectures} lecture{plafond.lectures > 1 ? 's' : ''} par cliente tous les {plafond.jours} jours. Au-delà, Ma Couronne lui dit
+            le jour où la lecture se rouvre.{!estDirection && ' Ce réglage appartient à la direction.'}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label className="mnd-field" style={{ width: 92 }}>
+            <span className="mnd-field__label">Lectures</span>
+            <Input type="number" inputMode="numeric" min={BORNES_DU_PLAFOND_PAR_CLIENTE.lectures[0]} max={BORNES_DU_PLAFOND_PAR_CLIENTE.lectures[1]}
+              value={plafond.lectures} disabled={!estDirection} onChange={(e) => reglePlafond('lectures', e.target.value)} />
+          </label>
+          <label className="mnd-field" style={{ width: 92 }}>
+            <span className="mnd-field__label">Jours</span>
+            <Input type="number" inputMode="numeric" min={BORNES_DU_PLAFOND_PAR_CLIENTE.jours[0]} max={BORNES_DU_PLAFOND_PAR_CLIENTE.jours[1]}
+              value={plafond.jours} disabled={!estDirection} onChange={(e) => reglePlafond('jours', e.target.value)} />
+          </label>
+        </div>
       </div>
       <div className="sys-row">
         <div>

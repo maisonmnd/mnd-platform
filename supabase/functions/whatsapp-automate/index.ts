@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-17-a · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -4937,6 +4937,43 @@ export const motifDOpale = (m: unknown): MotifDOpale | null =>
 /** Le motif tel que le fil le garde (le Trône le dit sous la conversation). */
 export const motifDuFilDOpale = (m: MotifDOpale): MotifDeLaMain => m;
 
+/* ── L'AVIS SUR PHOTO, AVEC UN RENDEZ-VOUS (17 novembre 2026) ───────────
+   « Il ne faut pas permettre d'avoir des bilans sans prendre de RDV sinon
+   tout le monde nous trichera » : Yéman revient sur son choix du 30 octobre
+   2026 (une photo, une personne de la Maison regarde). Une personne ne
+   regarde plus que la photo d'une cliente qui a un rendez-vous pris ou une
+   séance faite (la règle ⟨rendez-vous-pris⟩, que la fonction applique aux
+   fiches du numéro). Aux autres, la main ne passe pas : une ligne, et le
+   lien de la consultation, que le code pose lui-même quand le message ne le
+   porte pas. Un vocal et une pièce reviennent toujours à une personne : ils
+   s'écoutent et se lisent, ils ne se regardent pas. */
+/** Le lien de la consultation, sur le site du catalogue en ligne. */
+export const lienDeLaConsultation = (catalogue: string): string => {
+  try { return new URL('/consultation/', catalogue).href; } catch { return ''; }
+};
+/** Ses nouveaux messages portent une photo ou une vidéo, sans vocal ni pièce. */
+export const photoSeuleDansLeTour = (nouveaux: readonly { type?: string }[]): boolean =>
+  nouveaux.some((m) => m.type === 'image' || m.type === 'video') && !nouveaux.some((m) => m.type === 'audio' || m.type === 'document');
+/** LA PHOTO SANS RENDEZ-VOUS. `suivie` : elle a un rendez-vous pris ou une séance faite. */
+export const photoSansRendezVous = (o: { suivie: boolean; nouveaux: readonly { type?: string }[] }): boolean =>
+  !o.suivie && photoSeuleDansLeTour(o.nouveaux);
+/** Ses nouveaux messages ne disent rien : une photo seule, sans un mot. */
+export const tourSansUnMot = (nouveaux: readonly { texte?: string }[]): boolean =>
+  nouveaux.every((m) => !String(m.texte ?? '').trim());
+/** Ce que l'outil répond à Opale quand la main ne passe pas pour une photo. */
+export const refusDeLAvisSurPhoto = (lien: string): string =>
+  `La main ne passe pas pour cette photo : elle n’a ni rendez-vous pris ni séance faite à la Maison. Écris une seule ligne, sans expliquer pourquoi : la Maison regarde ses locks avec elle, au rendez-vous. Puis donne le lien de la consultation : ${lien}`;
+/** La ligne du lien, que le code pose quand son message ne le porte pas. */
+export const ligneDeLaConsultation = (lien: string): string => `Votre consultation se prend ici : ${lien}`;
+export function avecLeLienDeLaConsultation(texte: string, lien: string): string {
+  const t = String(texte ?? '').trim();
+  if (!lien || !t || t.includes(lien)) return t;
+  return `${t}\n${ligneDeLaConsultation(lien)}`;
+}
+/** Le message entier, quand Claude ne répond pas à une photo seule. */
+export const motDeLaPhotoSansRendezVous = (lien: string): string =>
+  `Bonjour. La Maison regarde vos locks avec vous, au rendez-vous.\n${ligneDeLaConsultation(lien)}`;
+
 /* ── CE QUI PART SEUL ───────────────────────────────────────────────────
    Les messages que la Maison envoie d'elle-même, par ses modèles Meta. Opale
    les connaît : elle ne les double pas, ne les promet pas autrement, et
@@ -5001,8 +5038,13 @@ export function consigneDOpale(): string {
     'Les heures d’ouverture se disent seulement si elle les demande, ou quand la suite revient à l’équipe et que la Maison est fermée.',
     '',
     'CE QUI REVIENT À UNE PERSONNE',
-    'Appelle `passer_la_main`, puis écris un message bref et chaleureux qui dit qu’une personne de la Maison lui répond ici (quand la Maison est fermée : à sa réouverture, que le contexte dit) : une annulation ; le cuir chevelu, une gêne, une douleur, une chute (aucun diagnostic, aucun produit à distance) ; une plainte, un remboursement, un règlement, une question d’argent ; une photo ou un vocal (tu ne les vois pas et ne les entends pas : ne décris rien) ; elle demande une personne ; une demande qui ne concerne pas la Maison ; ou ce que tu ne sais pas.',
+    'Appelle `passer_la_main`, puis écris un message bref et chaleureux qui dit qu’une personne de la Maison lui répond ici (quand la Maison est fermée : à sa réouverture, que le contexte dit) : une annulation ; le cuir chevelu, une gêne, une douleur, une chute (aucun diagnostic, aucun produit à distance) ; une plainte, un remboursement, un règlement, une question d’argent ; un vocal ou une pièce (tu ne les entends pas et ne les lis pas : ne décris rien) ; une photo, seulement quand le contexte dit qu’elle a un rendez-vous pris ou une séance faite (tu ne la vois pas : ne décris rien) ; elle demande une personne ; une demande qui ne concerne pas la Maison ; ou ce que tu ne sais pas.',
     'Jamais pour un bonjour, un rendez-vous, un déplacement, un prix du catalogue, les heures ou l’adresse : à ceux-là, tu réponds toi-même. Ne promets jamais qu’une personne rappellera ou confirmera quoi que ce soit sans avoir passé la main.',
+    '',
+    'L’AVIS SUR PHOTO',
+    'La Maison ne regarde une photo que pour une cliente qui a un rendez-vous pris ou une séance faite : le contexte le dit (« L’avis sur photo »). Ne demande jamais de photo, à personne.',
+    'Quand le contexte dit qu’elle n’a ni l’un ni l’autre, et qu’elle envoie une photo ou demande un avis à distance (ses cheveux, ses locks, sa longueur, « qu’en pensez-vous ? ») : ne passe pas la main. Écris une seule ligne, sans expliquer pourquoi : la Maison regarde ses locks avec elle, au rendez-vous ; puis donne le lien de la consultation du contexte. Le reste de son message se traite comme d’habitude.',
+    'Une photo dont ses mots disent qu’elle est autre chose (un reçu, un règlement) suit sa propre règle.',
     '',
     'RÈGLES ABSOLUES',
     'N’invente rien : ce que le contexte et les outils ne disent pas, tu ne le sais pas.',
@@ -5279,6 +5321,9 @@ export type ContexteDOpale = {
   nomProfil?: string;
   rdvs: readonly RdvDOpale[];
   connaitLeLieu: boolean;
+  /** Elle a un rendez-vous pris ou une séance faite (⟨rendez-vous-pris⟩, 17 novembre
+      2026) : une personne de la Maison peut regarder sa photo. Absent : non. */
+  suivie?: boolean;
   adresse: string;
   liens: { catalogue: string; creation: string; reparation: string };
   paiements: readonly string[];
@@ -5350,6 +5395,10 @@ export function contexteDOpale(c: ContexteDOpale): string {
     for (const r of c.rdvs) l.push(`- ${rdvDit(r, c.nomDe)}, pour la fiche [${r.pour}]`);
   } else l.push('Aucun rendez-vous à venir.');
   l.push(c.connaitLeLieu ? 'Le lieu : elle connaît déjà la Maison ; ne redonne ni l’adresse ni le plan, sauf si elle les demande.' : `Le lieu : elle n’est jamais venue. L’adresse : ${c.adresse}.`);
+  l.push('');
+  l.push(c.suivie
+    ? 'L’avis sur photo : elle a un rendez-vous pris ou une séance faite à la Maison. Une photo de ses locks revient à une personne (passer_la_main, motif « media »).'
+    : `L’avis sur photo : elle n’a ni rendez-vous pris ni séance faite à la Maison. Aucun avis sur photo ni à distance, et la main ne passe pas pour une photo : une ligne (la Maison regarde ses locks avec elle, au rendez-vous), puis le lien de la consultation : ${lienDeLaConsultation(c.liens.catalogue)}`);
   l.push('');
   l.push(`Les liens de la Maison : le catalogue en ligne ${c.liens.catalogue} ; la consultation de création ${c.liens.creation} ; la consultation de réparation ${c.liens.reparation}.`);
   if (c.paiements.length > 0) l.push(`Les moyens de paiement : ${c.paiements.join(', ')}.`);
@@ -5491,6 +5540,46 @@ export function coutDOpale(u: { input_tokens?: number | null; output_tokens?: nu
     + n(u.cache_read_input_tokens) * TARIF_D_OPALE.cacheLu + n(u.cache_creation_input_tokens) * TARIF_D_OPALE.cacheEcrit) / 1_000_000;
 }
 /* ⟨/opale⟩ */
+
+/* ══ UN RENDEZ-VOUS PRIS OU UNE SÉANCE FAITE · 17 novembre 2026 ═══════
+   « Il ne faut pas permettre d'avoir des bilans sans prendre de RDV »
+   (Yéman). La règle des autres portes, recopiée telle quelle de
+   src/shared/rendez-vous-pris-pur.ts, entre ses repères (les douze lunes
+   gardent la copie identique) : Opale ne passe la main pour une photo qu'à
+   une cliente que la Maison reçoit. */
+/* ⟨rendez-vous-pris⟩ */
+/** Ce que la règle lit d'un rendez-vous : son statut, son jour, et les deux
+    marques d'une suggestion (la pose par la Maison, son oui). */
+export type RendezVousLu = { status?: unknown; date?: unknown; suggereLe?: unknown; confirmeeParLaClienteLe?: unknown };
+const marqueDuRendezVous = (v: unknown): boolean => typeof v === 'string' && v.trim().length > 0;
+const jourDuRendezVous = (v: unknown): string => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : '');
+
+/** UNE SÉANCE FAITE : honorée, aujourd'hui ou avant (`aujourdhui` : AAAA-MM-JJ à Cotonou). */
+export function estUneSeanceFaite(a: RendezVousLu | null | undefined, aujourdhui: string): boolean {
+  const jour = jourDuRendezVous(a?.date);
+  return !!a && a.status === 'honoré' && jour !== '' && jour <= aujourdhui;
+}
+
+/** UN RENDEZ-VOUS PRIS : confirmé, aujourd'hui ou plus tard, et pas une
+    suggestion de la Maison restée sans son oui. « En attente » ne compte pas. */
+export function estUnRendezVousPris(a: RendezVousLu | null | undefined, aujourdhui: string): boolean {
+  const jour = jourDuRendezVous(a?.date);
+  if (!a || a.status !== 'confirmé' || jour === '' || jour < aujourdhui) return false;
+  return !(marqueDuRendezVous(a.suggereLe) && !marqueDuRendezVous(a.confirmeeParLaClienteLe));
+}
+
+/** Elle a déjà eu une séance à la Maison. */
+export const aEuUneSeance = (rdvs: readonly (RendezVousLu | null | undefined)[], aujourdhui: string): boolean =>
+  rdvs.some((a) => estUneSeanceFaite(a, aujourdhui));
+
+/** Elle a un rendez-vous pris. */
+export const aUnRendezVousPris = (rdvs: readonly (RendezVousLu | null | undefined)[], aujourdhui: string): boolean =>
+  rdvs.some((a) => estUnRendezVousPris(a, aujourdhui));
+
+/** LA RÈGLE : un rendez-vous pris, ou une séance faite. */
+export const aUnRendezVousPrisOuUneSeanceFaite = (rdvs: readonly (RendezVousLu | null | undefined)[], aujourdhui: string): boolean =>
+  rdvs.some((a) => estUneSeanceFaite(a, aujourdhui) || estUnRendezVousPris(a, aujourdhui));
+/* ⟨/rendez-vous-pris⟩ */
 
 /* ══ LA VOIX DU NUMÉRO, JAMAIS UNE FICHE D'ENFANT · 4 novembre 2026 ═══
    « Une fiche d'enfant ne doit jamais être la voix d'un numéro WhatsApp »
@@ -6726,6 +6815,23 @@ async function lesRdvDOpale(sb: Sb, fiches: readonly FicheDuNumero[], aujourdhui
     .sort((a, b) => `${a.date} ${a.time ?? ''}`.localeCompare(`${b.date} ${b.time ?? ''}`)).slice(0, 8);
 }
 
+/** A-T-ELLE UN RENDEZ-VOUS PRIS OU UNE SÉANCE FAITE ? (17 novembre 2026)
+    Les fiches du numéro : elle, et les enfants de son foyer. La dernière
+    venue honorée vient de `fiches_du_numero` ; les rendez-vous confirmés à
+    venir se lisent ici, et la règle ⟨rendez-vous-pris⟩ juge (une suggestion
+    de la Maison sans son oui ne compte pas). Illisible : non, la porte
+    reste fermée. */
+async function aUnRendezVousOuUneSeanceWa(sb: Sb, fiches: readonly FicheDuNumero[], aujourdhui: string): Promise<boolean> {
+  const venues: RendezVousLu[] = fiches.filter((f) => !!f.derniereVenue).map((f) => ({ status: 'honoré', date: f.derniereVenue!.date }));
+  if (aUnRendezVousPrisOuUneSeanceFaite(venues, aujourdhui)) return true;
+  const ids = fiches.map((f) => f.id);
+  if (ids.length === 0) return false;
+  const { data, error } = await sb.from('appointments').select('id, data').in('data->>clientId', ids)
+    .eq('data->>status', 'confirmé').gte('data->>date', aujourdhui).limit(40);
+  if (error) { dis('opale · rendez-vous pris illisibles', { motif: error.message.slice(0, 120) }); return false; }
+  return aUnRendezVousPrisOuUneSeanceFaite(((data ?? []) as Ligne[]).map((l) => (l.data ?? {}) as RendezVousLu), aujourdhui);
+}
+
 /** LE CATALOGUE DIT À OPALE : ce qui se réserve en ligne, en français d'abord,
     sa durée, et son prix comme le site le dit (un prix, ou de… à… selon les
     locks ou la longueur ; la consultation d'abord pour une création ou une
@@ -7002,6 +7108,10 @@ async function reponseALaFinDuRituel(
   }
 }
 
+/** Les liens que donne Opale : le site de la Maison. Celui de la
+    consultation s'en déduit (`lienDeLaConsultation`), jamais écrit à part. */
+const LIENS_D_OPALE = { catalogue: 'https://maisonmnd.com/reserver/?besoin=entretien', creation: 'https://maisonmnd.com/reserver/?besoin=creation', reparation: 'https://maisonmnd.com/reserver/?besoin=reparation' };
+
 async function unTourDOpale(
   // deno-lint-ignore no-explicit-any
   sb: Sb, o: Appel, docs: Map<string, any>, reglage: ReglageDeLAutomate, maison: { nom: string; itineraire: string; carte: string }, essai: number,
@@ -7083,6 +7193,8 @@ async function unTourDOpale(
   /* ⑤ LE CONTEXTE. */
   const filLu = (await leFilDOpale(sb, o.numero, ms)) ?? [];
   const rdvs = await lesRdvDOpale(sb, fiches, aujourdhui);
+  /* L'AVIS SUR PHOTO (17 novembre 2026) : seulement avec un rendez-vous pris ou une séance faite. */
+  const suivie = await aUnRendezVousOuUneSeanceWa(sb, fiches, aujourdhui);
   const permis = new Set<number>();
   const catalogue = vue ? catalogueDOpale(vue.agenda, permis) : [];
   const connus = new Set((vue?.agenda.prestations ?? []).filter((p) => p.reservable).map((p) => p.id));
@@ -7128,9 +7240,9 @@ async function unTourDOpale(
   const contexte = contexteDOpale({
     maintenantMs: ms, aujourdhui, heureDuJour: heureDite(`${String(Math.floor(instantACotonou(ms).min / 60)).padStart(2, '0')}:${String(instantACotonou(ms).min % 60).padStart(2, '0')}`),
     reouverture, heures: heuresDites(Array.isArray(semaine) ? semaine : []),
-    fiches: fichesDOpale, ...(parentDOpale ? { parent: parentDOpale } : {}), rdvs, connaitLeLieu,
+    fiches: fichesDOpale, ...(parentDOpale ? { parent: parentDOpale } : {}), rdvs, connaitLeLieu, suivie,
     adresse: String(agenda?.lignes.branche.data?.address ?? '').trim() || ADRESSE_D_OPALE,
-    liens: { catalogue: 'https://maisonmnd.com/reserver/?besoin=entretien', creation: 'https://maisonmnd.com/reserver/?besoin=creation', reparation: 'https://maisonmnd.com/reserver/?besoin=reparation' },
+    liens: LIENS_D_OPALE,
     /* AUCUNE OFFRE ANNONCÉE (4 novembre 2026) : « jamais deux remises » et
        MERCREDI15 le jour même seulement (le-trone-67, sur la règle de Yéman) ;
        Opale ne réserve jamais le jour même. La Maison les applique au comptoir. */
@@ -7138,6 +7250,13 @@ async function unTourDOpale(
     ...(etatDOpale.enAttente ? { enAttente: etatDOpale.enAttente } : {}),
     fil: filLu, nouveaux, nomDe,
   });
+
+  /* ⑤ bis LA PHOTO SANS RENDEZ-VOUS (17 novembre 2026) : ses nouveaux
+     messages portent une photo, et elle n'a ni rendez-vous pris ni séance
+     faite. La main ne passera pas pour elle, et le lien de la consultation
+     accompagnera la réponse. */
+  const lienConsultation = lienDeLaConsultation(LIENS_D_OPALE.catalogue);
+  const photoRefusee = !!lienConsultation && photoSansRendezVous({ suivie, nouveaux });
 
   /* ⑥ LES OUTILS, exécutés ici. Chacun rend des mots à Claude, jamais une
      écriture qu'elle n'a pas demandée. */
@@ -7310,11 +7429,15 @@ async function unTourDOpale(
     }
     if (nom === 'passer_la_main') {
       const motif = motifDOpale(e?.motif) ?? 'question';
+      /* Une photo sans rendez-vous : la main ne passe pas pour elle. Avec
+         des mots, les autres motifs (la santé, l'argent, une personne) passent. */
+      if (photoRefusee && (motif === 'media' || tourSansUnMot(nouveaux))) { dis('opale · photo sans rendez-vous : la main ne passe pas'); return refusDeLAvisSurPhoto(lienConsultation); }
       issue.issue = { genre: 'main', motif: motifDuFilDOpale(motif) };
       issue.alerte = alerteDeLAutomate({ genre: 'main', prenom: prenomPourAlerte, numero: o.numero, motif: motifDuFilDOpale(motif) });
       return `La main passe à l’équipe. Écris un message bref : une personne de la Maison lui répond ici${reouverture ? `, ${reouverture}` : ', dans un instant'}.`;
     }
     if (nom === 'ne_rien_repondre') {
+      if (photoRefusee && tourSansUnMot(nouveaux)) return refusDeLAvisSurPhoto(lienConsultation);
       issue.silence = true;
       return 'Aucun message ne part. N’écris rien.';
     }
@@ -7390,6 +7513,13 @@ async function unTourDOpale(
     }
   }
   await compteDOpale(sb, usages, ms);
+  /* UNE PHOTO SEULE, SANS RENDEZ-VOUS, ET CLAUDE MUET (17 novembre 2026) :
+     la ligne de la Maison part, la main ne passe pas. */
+  if (secours && !issue.silence && photoRefusee && tourSansUnMot(nouveaux) && issue.issue.genre === 'parle') {
+    issue.texte = motDeLaPhotoSansRendezVous(lienConsultation);
+    issue.plan = false;
+    secours = false;
+  }
   if (secours && !issue.silence) {
     const s = secoursDeLaReception(ms, Array.isArray(semaine) ? semaine : [], Array.isArray(exceptions) ? exceptions : []);
     /* Un rendez-vous déjà posé ou déplacé reste : seul son mot manque, le
@@ -7408,6 +7538,9 @@ async function unTourDOpale(
       issue.alerte = alerteDeLAutomate({ genre: 'main', prenom: prenomPourAlerte, numero: o.numero, motif: 'erreur' });
     }
   }
+  /* LE LIEN EST POSÉ PAR LE CODE (17 novembre 2026), jamais laissé au
+     modèle : une photo sans rendez-vous, la main n'est pas passée. */
+  if (photoRefusee && !finDuRituel && !issue.silence && issue.issue.genre === 'parle') issue.texte = avecLeLienDeLaConsultation(issue.texte, lienConsultation);
   if (issue.issue.genre === 'parle' && enAttente !== undefined) issue.issue = { genre: 'parle', enAttente };
 
   /* ⑧ LES MESSAGES, et l'état du fil, À CONDITION, avant qu'ils partent. */

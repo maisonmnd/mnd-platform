@@ -7,6 +7,7 @@ import {
   type CleDeSouci, type PointDEtape, type Signalement,
 } from '../../shared/entre-deux-pur';
 import { BONNE_NOUVELLE, deposeLaPhoto, deposeUnSignalement, lisLesReponsesValidees, lisMesSignalements } from '../../shared/entre-deux-couronne';
+import { CHEMIN_DE_LA_CONSULTATION, aEuUneSeance, aUnRendezVousPris } from '../../shared/rendez-vous-pris-pur';
 
 /* ══ ENTRE DEUX SÉANCES, DANS MA COURONNE — 15 octobre 2026 ═════════════
    Maquette EfhgzxjA… validée. Une semaine après la séance, et une semaine
@@ -14,7 +15,15 @@ import { BONNE_NOUVELLE, deposeLaPhoto, deposeUnSignalement, lisLesReponsesValid
    moment, « Un souci ? ». La cliente touche ce qui lui arrive, ajoute un mot
    ou une photo, et reçoit tout de suite la réponse VALIDÉE de la Maison (en
    Santé, jamais un conseil : on la rappelle). Ce qui part à la Maison reste
-   en français ; ce qu'elle lit passe par t(). */
+   en français ; ce qu'elle lit passe par t().
+
+   APRÈS UNE SÉANCE SEULEMENT (17 novembre 2026). « Il ne faut pas permettre
+   d'avoir des bilans sans prendre de RDV » (Yéman) : la réponse validée de
+   la Maison est un conseil, et il ne se donne qu'à une cliente qui a déjà eu
+   une séance (`aEuUneSeance`, rendez-vous-pris-pur). Les autres lisent une
+   ligne et le chemin de la consultation ; celle qui a déjà pris son premier
+   rendez-vous ne lit rien, elle vient. La base tient la même règle
+   (`a_eu_une_seance`, 0226) : un dépôt forcé est refusé. */
 
 const aujourdhui = (): string => {
   const d = new Date();
@@ -45,20 +54,22 @@ export function EntreDeux({ client, appts, onAvancer }: { client: Client; appts:
   const repondus = useMemo(() => new Set(miens.map((s) => s.point).filter(Boolean) as string[]), [miens]);
   const point: PointDEtape | undefined = pointDuJour(seances, aujourdhui(), repondus);
   const { derniere } = derniereEtProchaine(seances, aujourdhui());
+  /* La porte : une séance faite. Sans elle, ni question ni souci. */
+  const dejaVenue = aEuUneSeance(appts, aujourdhui());
 
   /* Une notification sur le téléphone, une seule fois par point d'étape. */
   useEffect(() => {
-    if (!point) return;
+    if (!point || !dejaVenue) return;
     try {
       if (localStorage.getItem(CLE_NOTIF) === point.cle) return;
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
       new Notification(t('Comment vont vos locks ?'), { body: t('Une touche pour nous le dire.') });
       localStorage.setItem(CLE_NOTIF, point.cle);
     } catch { /* sans notification, la carte suffit */ }
-  }, [point?.cle]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [point?.cle, dejaVenue]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const envoie = async (bien: boolean) => {
-    if (etat === 'envoi') return;
+    if (etat === 'envoi' || !dejaVenue) return;
     if (!bien && pris.length === 0 && !mot.trim()) return;
     setEtat('envoi');
     const chemin = !bien && photo ? await deposeLaPhoto(client.id, photo) : null;
@@ -75,6 +86,20 @@ export function EntreDeux({ client, appts, onAvancer }: { client: Client; appts:
     relire();
   };
   const bascule = (c: CleDeSouci) => setPris((x) => (x.includes(c) ? x.filter((y) => y !== c) : [...x, c]));
+
+  /* JAMAIS VENUE : une ligne et le chemin de la consultation. Son premier
+     rendez-vous déjà pris : rien, la Maison la voit ce jour-là. */
+  if (!dejaVenue) {
+    if (aUnRendezVousPris(appts, aujourdhui())) return null;
+    return (
+      <div className="mc-ed">
+        <p className="mc-ed-doux">
+          {t('Un souci avec vos locks ?')}{' '}
+          <a className="mc-ed-lien" href={CHEMIN_DE_LA_CONSULTATION}>{t('Ma consultation')}</a>
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mc-ed">

@@ -3342,7 +3342,7 @@ const regles: Regle[] = [
       const corr = correctionProposee(creation, PRIX);
       vaut('la creation : la phrase aux prix introuvables s en va, le reste demeure', [true, false, true],
         [!!corr, (corr?.texte ?? '').includes('À titre de repère'), (corr?.texte ?? '').startsWith('Une création se chiffre après la consultation Origine (KÒKÒ™ Origine, {prix:sv-koko-ori})')]);
-      vaut('la longueur vide : le texte propose (une photo) ; une reponse qui peut partir : rien a proposer', [TEXTES_PROPOSES['r-longueur'], null],
+      vaut('la longueur vide : le texte propose (au rendez-vous, plus de photo depuis le 17 novembre 2026) ; une reponse qui peut partir : rien a proposer', [TEXTES_PROPOSES['r-longueur'], null],
         [correctionProposee({ id: 'r-longueur', texte: '' }, PRIX)?.texte, correctionProposee(BROUILLONS_DU_CONSEIL.find((r) => r.id === 'r-duree')!, PRIX)]);
       const c = valideLesReponses({ reponses: [...BROUILLONS_DU_CONSEIL] }, ['r-duree', 'r-consultation'], 'direction', '2026-10-30T09:00:00Z');
       vaut('valider les cochees : celles-la, et elles seules', ['validee', 'validee', 'brouillon'],

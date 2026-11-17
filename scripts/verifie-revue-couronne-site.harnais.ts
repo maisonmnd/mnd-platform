@@ -201,7 +201,8 @@ dit('n101 un mois qui change', ['2026-11-01'], prochainsJours(1, new Date('2026-
   dit('n102 un corps illisible rend le message generique', 'Edge Function returned a non-2xx status code',
     await raisonDuRefus(null, { message: 'Edge Function returned a non-2xx status code', context: { json: async () => { throw new Error('pas du json'); } } }));
   dit('n102 une panne reseau sans reponse rend son message', 'Failed to fetch', await raisonDuRefus(null, { message: 'Failed to fetch' }));
-  for (const f of ['Reserver', 'Offrir', 'Demande', 'Triage']) {
+  /* Le triage n'est plus un îlot (17 novembre 2026, le diagnostic du menu est fermé). */
+  for (const f of ['Reserver', 'Offrir', 'Demande']) {
     const s = source(`src/apps/revelateur/ilots/${f}.tsx`);
     dit(`n102 ${f} lit la raison par raisonDuRefus`, true, contient(s, new RegExp(String.raw`const code = await raisonDuRefus\(data, error\);`)));
     dit(`n102 ${f} ne lit plus data.error seul`, false, contient(s, new RegExp(String.raw`const code = r\.error \?\? \(error\?\.message`)));

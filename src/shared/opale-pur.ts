@@ -23,8 +23,9 @@
    se pose en deux temps : `proposer_le_rendez_vous` tient la place et rend
    le récapitulatif ; la cliente dit oui ; `confirmer`, au tour suivant, pose
    ce qui a été proposé, rien d'autre. Ce qu'elle ne sait pas, ou ce qui
-   revient à une personne (annuler, la santé, une plainte, l'argent, une
-   photo ou un vocal), passe à l'équipe.
+   revient à une personne (annuler, la santé, une plainte, l'argent, un
+   vocal, et la photo d'une cliente qui a un rendez-vous pris ou une séance
+   faite), passe à l'équipe.
 
    Ce module est PUR : il dit la consigne, les outils, le contexte, les juges
    du texte et l'état du fil après son tour. Il vit à l'identique dans
@@ -105,6 +106,43 @@ export const motifDOpale = (m: unknown): MotifDOpale | null =>
 /** Le motif tel que le fil le garde (le Trône le dit sous la conversation). */
 export const motifDuFilDOpale = (m: MotifDOpale): MotifDeLaMain => m;
 
+/* ── L'AVIS SUR PHOTO, AVEC UN RENDEZ-VOUS (17 novembre 2026) ───────────
+   « Il ne faut pas permettre d'avoir des bilans sans prendre de RDV sinon
+   tout le monde nous trichera » : Yéman revient sur son choix du 30 octobre
+   2026 (une photo, une personne de la Maison regarde). Une personne ne
+   regarde plus que la photo d'une cliente qui a un rendez-vous pris ou une
+   séance faite (la règle ⟨rendez-vous-pris⟩, que la fonction applique aux
+   fiches du numéro). Aux autres, la main ne passe pas : une ligne, et le
+   lien de la consultation, que le code pose lui-même quand le message ne le
+   porte pas. Un vocal et une pièce reviennent toujours à une personne : ils
+   s'écoutent et se lisent, ils ne se regardent pas. */
+/** Le lien de la consultation, sur le site du catalogue en ligne. */
+export const lienDeLaConsultation = (catalogue: string): string => {
+  try { return new URL('/consultation/', catalogue).href; } catch { return ''; }
+};
+/** Ses nouveaux messages portent une photo ou une vidéo, sans vocal ni pièce. */
+export const photoSeuleDansLeTour = (nouveaux: readonly { type?: string }[]): boolean =>
+  nouveaux.some((m) => m.type === 'image' || m.type === 'video') && !nouveaux.some((m) => m.type === 'audio' || m.type === 'document');
+/** LA PHOTO SANS RENDEZ-VOUS. `suivie` : elle a un rendez-vous pris ou une séance faite. */
+export const photoSansRendezVous = (o: { suivie: boolean; nouveaux: readonly { type?: string }[] }): boolean =>
+  !o.suivie && photoSeuleDansLeTour(o.nouveaux);
+/** Ses nouveaux messages ne disent rien : une photo seule, sans un mot. */
+export const tourSansUnMot = (nouveaux: readonly { texte?: string }[]): boolean =>
+  nouveaux.every((m) => !String(m.texte ?? '').trim());
+/** Ce que l'outil répond à Opale quand la main ne passe pas pour une photo. */
+export const refusDeLAvisSurPhoto = (lien: string): string =>
+  `La main ne passe pas pour cette photo : elle n’a ni rendez-vous pris ni séance faite à la Maison. Écris une seule ligne, sans expliquer pourquoi : la Maison regarde ses locks avec elle, au rendez-vous. Puis donne le lien de la consultation : ${lien}`;
+/** La ligne du lien, que le code pose quand son message ne le porte pas. */
+export const ligneDeLaConsultation = (lien: string): string => `Votre consultation se prend ici : ${lien}`;
+export function avecLeLienDeLaConsultation(texte: string, lien: string): string {
+  const t = String(texte ?? '').trim();
+  if (!lien || !t || t.includes(lien)) return t;
+  return `${t}\n${ligneDeLaConsultation(lien)}`;
+}
+/** Le message entier, quand Claude ne répond pas à une photo seule. */
+export const motDeLaPhotoSansRendezVous = (lien: string): string =>
+  `Bonjour. La Maison regarde vos locks avec vous, au rendez-vous.\n${ligneDeLaConsultation(lien)}`;
+
 /* ── CE QUI PART SEUL ───────────────────────────────────────────────────
    Les messages que la Maison envoie d'elle-même, par ses modèles Meta. Opale
    les connaît : elle ne les double pas, ne les promet pas autrement, et
@@ -169,8 +207,13 @@ export function consigneDOpale(): string {
     'Les heures d’ouverture se disent seulement si elle les demande, ou quand la suite revient à l’équipe et que la Maison est fermée.',
     '',
     'CE QUI REVIENT À UNE PERSONNE',
-    'Appelle `passer_la_main`, puis écris un message bref et chaleureux qui dit qu’une personne de la Maison lui répond ici (quand la Maison est fermée : à sa réouverture, que le contexte dit) : une annulation ; le cuir chevelu, une gêne, une douleur, une chute (aucun diagnostic, aucun produit à distance) ; une plainte, un remboursement, un règlement, une question d’argent ; une photo ou un vocal (tu ne les vois pas et ne les entends pas : ne décris rien) ; elle demande une personne ; une demande qui ne concerne pas la Maison ; ou ce que tu ne sais pas.',
+    'Appelle `passer_la_main`, puis écris un message bref et chaleureux qui dit qu’une personne de la Maison lui répond ici (quand la Maison est fermée : à sa réouverture, que le contexte dit) : une annulation ; le cuir chevelu, une gêne, une douleur, une chute (aucun diagnostic, aucun produit à distance) ; une plainte, un remboursement, un règlement, une question d’argent ; un vocal ou une pièce (tu ne les entends pas et ne les lis pas : ne décris rien) ; une photo, seulement quand le contexte dit qu’elle a un rendez-vous pris ou une séance faite (tu ne la vois pas : ne décris rien) ; elle demande une personne ; une demande qui ne concerne pas la Maison ; ou ce que tu ne sais pas.',
     'Jamais pour un bonjour, un rendez-vous, un déplacement, un prix du catalogue, les heures ou l’adresse : à ceux-là, tu réponds toi-même. Ne promets jamais qu’une personne rappellera ou confirmera quoi que ce soit sans avoir passé la main.',
+    '',
+    'L’AVIS SUR PHOTO',
+    'La Maison ne regarde une photo que pour une cliente qui a un rendez-vous pris ou une séance faite : le contexte le dit (« L’avis sur photo »). Ne demande jamais de photo, à personne.',
+    'Quand le contexte dit qu’elle n’a ni l’un ni l’autre, et qu’elle envoie une photo ou demande un avis à distance (ses cheveux, ses locks, sa longueur, « qu’en pensez-vous ? ») : ne passe pas la main. Écris une seule ligne, sans expliquer pourquoi : la Maison regarde ses locks avec elle, au rendez-vous ; puis donne le lien de la consultation du contexte. Le reste de son message se traite comme d’habitude.',
+    'Une photo dont ses mots disent qu’elle est autre chose (un reçu, un règlement) suit sa propre règle.',
     '',
     'RÈGLES ABSOLUES',
     'N’invente rien : ce que le contexte et les outils ne disent pas, tu ne le sais pas.',
@@ -447,6 +490,9 @@ export type ContexteDOpale = {
   nomProfil?: string;
   rdvs: readonly RdvDOpale[];
   connaitLeLieu: boolean;
+  /** Elle a un rendez-vous pris ou une séance faite (⟨rendez-vous-pris⟩, 17 novembre
+      2026) : une personne de la Maison peut regarder sa photo. Absent : non. */
+  suivie?: boolean;
   adresse: string;
   liens: { catalogue: string; creation: string; reparation: string };
   paiements: readonly string[];
@@ -518,6 +564,10 @@ export function contexteDOpale(c: ContexteDOpale): string {
     for (const r of c.rdvs) l.push(`- ${rdvDit(r, c.nomDe)}, pour la fiche [${r.pour}]`);
   } else l.push('Aucun rendez-vous à venir.');
   l.push(c.connaitLeLieu ? 'Le lieu : elle connaît déjà la Maison ; ne redonne ni l’adresse ni le plan, sauf si elle les demande.' : `Le lieu : elle n’est jamais venue. L’adresse : ${c.adresse}.`);
+  l.push('');
+  l.push(c.suivie
+    ? 'L’avis sur photo : elle a un rendez-vous pris ou une séance faite à la Maison. Une photo de ses locks revient à une personne (passer_la_main, motif « media »).'
+    : `L’avis sur photo : elle n’a ni rendez-vous pris ni séance faite à la Maison. Aucun avis sur photo ni à distance, et la main ne passe pas pour une photo : une ligne (la Maison regarde ses locks avec elle, au rendez-vous), puis le lien de la consultation : ${lienDeLaConsultation(c.liens.catalogue)}`);
   l.push('');
   l.push(`Les liens de la Maison : le catalogue en ligne ${c.liens.catalogue} ; la consultation de création ${c.liens.creation} ; la consultation de réparation ${c.liens.reparation}.`);
   if (c.paiements.length > 0) l.push(`Les moyens de paiement : ${c.paiements.join(', ')}.`);
