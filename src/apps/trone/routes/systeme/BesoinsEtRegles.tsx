@@ -243,7 +243,7 @@ function Editeur({ b, r, services, currency, prixDe, nomDe, prixDit, onChange, o
       </div>
       <label className="tbs-coche">
         <input type="checkbox" checked={b.garde === 'peau'} onChange={(e) => onChange({ ...b, garde: e.target.checked ? 'peau' : undefined })} />
-        <span><b>Garde médicale</b> · plaques, psoriasis, peau à vif : écarte détox, décapant et décoloration tant que la Maison n’a pas vu le cuir chevelu.</span>
+        <span><b>Garde médicale</b> · plaques, psoriasis, peau à vif : écarte détox et décapant tant que la Maison n’a pas vu le cuir chevelu.</span>
       </label>
       {b.prestations.length > 0 && (
         <div className="tbs-apercu">
@@ -314,7 +314,7 @@ function Essai({ r, nomDe, prixDit, prixDe }: { r: ReglagesDesBesoins; nomDe: (i
         <h3 className="tbs-titre">
           {choisis.length === 0 ? 'Cochez des besoins : les prestations qui y répondent apparaissent ici.' : `${q.proposees} prestation${q.proposees > 1 ? 's' : ''} proposée${q.proposees > 1 ? 's' : ''} sur ${q.lignes.length}`}
         </h3>
-        {q.peau && <p className="tbs-garde"><b>Garde médicale.</b> La Maison ne pose pas de diagnostic médical : avis d’un dermatologue conseillé, lecture du cuir chevelu, lavage doux. Détox, décapant et décoloration sont écartés tant qu’elle n’a pas vu.</p>}
+        {q.peau && <p className="tbs-garde"><b>Garde médicale.</b> La Maison ne pose pas de diagnostic médical : avis d’un dermatologue conseillé, lecture du cuir chevelu, lavage doux. Détox et décapant sont écartés tant qu’elle n’a pas vu.</p>}
         {q.lignes.map((l) => (
           <div key={l.serviceId} className={`tbs-svc${l.ok ? ' is-ok' : ''}`}>
             <div className="tbs-svc__haut"><span className="tbs-svc__nom">{nomDe(l.serviceId)}</span><span className="mnd-muted">{prixDit(l.serviceId)}</span></div>

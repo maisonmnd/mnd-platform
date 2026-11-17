@@ -13,8 +13,14 @@
 
    LA GARDE « PEAU » (13 novembre au soir) : plaques, psoriasis. La Maison ne
    pose pas de diagnostic médical (même règle que le diagnostic photo) : tant
-   qu'elle n'a pas vu le cuir chevelu, détox, décapant et décoloration sont
-   écartés, quels que soient les points.
+   qu'elle n'a pas vu le cuir chevelu, détox et décapant sont écartés, quels
+   que soient les points.
+
+   LA DÉCOLORATION SE RÉSERVE DIRECTEMENT (17 novembre 2026). « Non la
+   décoloration fait partie du process de la coloration, ça se réserve
+   directement » (Yéman). La Transformation · décoloration et oxydation rejoint
+   donc les prestations courantes, sans seuil, et la garde « peau » ne
+   l'écarte plus. Elle seule : détox et décapant restent écartés.
 
    TOUT SE RÈGLE AU TRÔNE : ce module ne porte que la semence et le calcul.
    Le document `mnd_besoins` (shared/besoins.ts) est ce que la direction
@@ -216,7 +222,8 @@ const S: [IdFamille, string, number, Cle[], 'peau'?][] = [
     coiffures) : les points protègent les prestations lourdes, pas un soin. */
 const SANS_SEUIL: Cle[] = [
   'kloe', 'klos', 'klop', 'shp', 'kkl', 'wewe', 'wedec', 'wd', 'dan', 'danl', 'viv', 'vivc', 'gbi', 'gbip', 'kgr', 'sowa',
-  'retc', 'cont', 'subl', 'sins', 'sinsig', 'expr', 'lum', 'ecl', 'coula', 'soig', 'ssig', 'sgj',
+  /* `trans` : la décoloration, comme le reste de la couleur (17 novembre 2026). */
+  'retc', 'cont', 'subl', 'sins', 'sinsig', 'expr', 'lum', 'ecl', 'coula', 'trans', 'soig', 'ssig', 'sgj',
   'cge', 'cgs', 'cev', 'rcf', 'rev', 'mp', 'man', 'ped', 'kri', 'ksi', 'kre',
 ];
 
@@ -236,7 +243,8 @@ export const BESOINS_DE_DEPART = (): ReglagesDesBesoins => ({
   /* Medium se compte au lock, sans plancher : le prix ne dit pas son palier.
      Le Moment Cuir chevelu est un forfait composé. Posés à la main. */
   paliersPoses: { [P.med]: 2, [P.momc]: 2 },
-  ecartesParLaPeau: [P.wewe, P.wedec, P.wd, P.momc, P.trans],
+  /* Détox et décapant. La décoloration n'y est plus (17 novembre 2026) : elle se réserve directement. */
+  ecartesParLaPeau: [P.wewe, P.wedec, P.wd, P.momc],
 });
 
 /* ── LE CALCUL ─────────────────────────────────────────────────────────── */

@@ -112,7 +112,11 @@ export type ReglagesDesEnvies = {
      · Lavage : KLƆKLƆ™ Signature · L'Ancrage, le lavage le plus cité que la
        garde « peau » n'écarte pas (le WÈWÈ™, plus cité, est un détox écarté) ;
      · Couleur : YÈKPÈ™ Couleur · La Révélation Végétale, la plus citée ; son
-       palier ne demande aucun point ;
+       palier ne demande aucun point. LA DÉCOLORATION FAIT PARTIE DE LA
+       COULEUR et se réserve directement (Yéman, 17 novembre 2026) : La
+       Transformation n'a plus ni seuil ni garde « peau » (besoins-pur). Elle
+       n'est pas posée d'office dans le rituel de l'envie (toute couleur n'est
+       pas une décoloration) : la direction l'y ajoute d'un geste au Trône ;
      · Grands jours, Enfants : rien d'évident, laissées vides. Une envie en
        Rituel sans rituel se comporte comme une Visio, et le Trône la dit
        « rituel à choisir ».

@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 
 /* VOS ENVIES ET LE PARCOURS EN AFFICHES, EPROUVES - 17 novembre 2026 (maquette
    « La consultation en affiches », validee par Yeman : « construis »).
@@ -21,6 +22,13 @@ import { spawnSync } from 'node:child_process';
    comme le site le livre (esbuild, elagage des importations inutiles) et y
    cherche les traces de la lecture, de la fourchette et de la semence des
    besoins. Aucune ne doit rester.
+
+   LE REGLAGE DE LA DECOLORATION (supabase/reglage_la_decoloration_se_reserve_
+   20261117.sql) se joue pour de vrai quand PGlite est la :
+     BANC_PGLITE=<dossier qui porte node_modules/@electric-sql/pglite> node scripts/verifie-les-envies.mjs
+   contre une table `documents` simulee : le seuil, la garde et la case du
+   site levés pour elle seule, le reste intact, et rejoué sans rien changer.
+   Sans PGlite, cette partie se saute et le dit ; son texte reste tenu.
 
    `--prouve` : chaque faute est remise une a une dans le vrai fichier (copie
    gardee, restauration dans un finally, empreintes comparees), et le banc
@@ -40,6 +48,8 @@ const ONGLETS = 'src/apps/trone/routes/systeme/BesoinsEtRegles.tsx';
 const BESOINS = 'src/shared/besoins.ts';
 const SQL = 'supabase/migrations/0231_vos_envies.sql';
 const PAGE = 'src/apps/revelateur/contenu.ts';
+const SEMENCE = 'src/shared/besoins-pur.ts';
+const REGLAGE = 'supabase/reglage_la_decoloration_se_reserve_20261117.sql';
 
 const PANNES = [
   /* La semence */
@@ -192,6 +202,20 @@ const PANNES = [
   ['0231 laisse tout le personnel ecrire', SQL, "  as restrictive for update to anon, authenticated\n  using (key <> 'mnd_envies' or public.est_direction())\n  with check (key <> 'mnd_envies' or public.est_direction());", "  as restrictive for update to anon, authenticated\n  using (true)\n  with check (true);"],
   ['0231 ferme aussi la lecture a l equipe', SQL, 'as restrictive for delete to anon, authenticated', 'as restrictive for all to anon, authenticated'],
   ['0231 reecrit la liste blanche des autres', SQL, '-- ⟨/0231⟩', "drop policy if exists docs_pub_read on public.documents;\n-- ⟨/0231⟩"],
+  /* La decoloration se reserve directement */
+  ['la decoloration reprend son seuil', SEMENCE, "'coula', 'trans', 'soig'", "'coula', 'soig'"],
+  ['la garde peau ecarte de nouveau la decoloration', SEMENCE, 'ecartesParLaPeau: [P.wewe, P.wedec, P.wd, P.momc],', 'ecartesParLaPeau: [P.wewe, P.wedec, P.wd, P.momc, P.trans],'],
+  ['la garde peau lache le detox', SEMENCE, 'ecartesParLaPeau: [P.wewe, P.wedec, P.wd, P.momc],', 'ecartesParLaPeau: [P.wedec, P.wd, P.momc],'],
+  ['la garde peau lache Le Moment Cuir chevelu', SEMENCE, 'ecartesParLaPeau: [P.wewe, P.wedec, P.wd, P.momc],', 'ecartesParLaPeau: [P.wewe, P.wedec, P.wd],'],
+  ['le Trone dit encore la decoloration ecartee', ONGLETS, 'écarte détox et décapant tant que', 'écarte détox, décapant et décoloration tant que'],
+  ['la lecture d essai du Trone dit encore la decoloration ecartee', ONGLETS, 'Détox et décapant sont écartés tant qu', 'Détox, décapant et décoloration sont écartés tant qu'],
+  ['le reglage sort le detox de la garde', REGLAGE, "from jsonb_array_elements(d.data->'ecartesParLaPeau') with ordinality as t(e, ord)\n                         where e <> '\"sv-atl-iii-sub-c\"'::jsonb)", "from jsonb_array_elements(d.data->'ecartesParLaPeau') with ordinality as t(e, ord)\n                         where e <> '\"sv-plt-20-c\"'::jsonb)"],
+  ['le reglage vide la garde', REGLAGE, "                         where e <> '\"sv-atl-iii-sub-c\"'::jsonb), '[]'::jsonb),\n              'modifieLe'", "                         where false), '[]'::jsonb),\n              'modifieLe'"],
+  ['le reglage oublie le seuil', REGLAGE, "else d.data->'sansSeuil' || '[\"sv-atl-iii-sub-c\"]'::jsonb end,", "else d.data->'sansSeuil' end,"],
+  ['le reglage oublie la case du site', REGLAGE, "where d.key = 'mnd_vitrine_config'\n   and jsonb_typeof", "where d.key = 'mnd_vitrine_config_jamais'\n   and jsonb_typeof"],
+  ['le reglage recoche tout le site', REGLAGE, "from jsonb_array_elements(d.data->'siteMasques'->'services') with ordinality as t(e, ord)\n                    where e <> '\"sv-atl-iii-sub-c\"'::jsonb)", "from jsonb_array_elements(d.data->'siteMasques'->'services') with ordinality as t(e, ord)\n                    where false)"],
+  ['le reglage demasque aussi Ma Couronne', REGLAGE, "         '{siteMasques,services}',", "         '{hiddenServices}',"],
+  ['le reglage se rejoue en reecrivant', REGLAGE, "   and (not (d.data->'sansSeuil' @> '[\"sv-atl-iii-sub-c\"]'::jsonb)\n        or d.data->'ecartesParLaPeau' @> '[\"sv-atl-iii-sub-c\"]'::jsonb);", ';'],
   /* La page */
   ['la page promet encore une estimation', PAGE, "ligne: 'Cinq questions, puis votre rendez-vous.',", "ligne: 'Une lecture et une estimation, sans rien payer.',"],
 ];
@@ -228,6 +252,63 @@ if (prouve) {
   console.log(intacts ? 'Fichiers rendus a l identique.' : 'ATTENTION : un fichier n est pas revenu a l identique.');
   console.log(muettes === 0 && intacts ? `\nLa preuve tient : ${PANNES.length} fautes, le banc crie a chacune.` : `\n${muettes} faute(s) sans cri.`);
   process.exit(muettes === 0 && intacts ? 0 : 1);
+}
+
+/** Le fichier de reglage, joue contre une table `documents` simulee. Vrai si tout tient (ou si PGlite manque). */
+async function joueLeReglage() {
+  const ou = process.env.BANC_PGLITE;
+  let PGlite = null;
+  if (ou) { try { PGlite = (await import(pathToFileURL(path.join(ou, 'node_modules/@electric-sql/pglite/dist/index.js')).href)).PGlite ?? null; } catch { PGlite = null; } }
+  if (!PGlite) { console.log('SAUTE le reglage de la decoloration ne se joue pas ici, PGlite absent (BANC_PGLITE=<dossier qui porte node_modules/@electric-sql/pglite>)'); return true; }
+  const DECO = 'sv-atl-iii-sub-c';
+  const besoins = {
+    version: 1, seuils: [0, 20, 40, 70], bornes: [15000, 40000, 100000], besoins: [{ id: 'bs-080', famille: 'couleur', mots: 'x', points: 25, prestations: [DECO] }],
+    sansSeuil: ['sv-plt-20-c', 'sv-atl-iii-ecl-c'], paliersPoses: { 'sv-atl-i-med': 2 },
+    ecartesParLaPeau: ['sv-plt-20-c', 'sv-dds-dec', 'sv-forfait-sv-plt-60-wd-c', 'sv-le-moment-cuir-chevelu', DECO],
+  };
+  const vitrine = { autoplay: true, hiddenServices: ['sv-cache', DECO], siteMasques: { services: ['sv-a', DECO, 'sv-b'], categories: ['sup'] } };
+  const abime = { sansSeuil: 'texte', ecartesParLaPeau: [DECO] };
+  const db = new PGlite();
+  let ko = 0;
+  /* jsonb range les cles a sa facon : la comparaison ne tient pas compte de leur ordre. */
+  const range = (v) => JSON.stringify(v, (_, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, x[k]])) : x));
+  const dit = (nom, attendu, obtenu) => {
+    const ok = range(attendu) === range(obtenu);
+    if (!ok) ko += 1;
+    console.log(`${ok ? 'OK   ' : 'ECHEC'} ${nom}${ok ? '' : ` -> ${range(obtenu)}`}`);
+  };
+  try {
+    await db.exec('create table public.documents (key text primary key, data jsonb, updated_at timestamptz not null default now());');
+    for (const [cle, data] of [['mnd_besoins', besoins], ['mnd_vitrine_config', vitrine], ['mnd_settings', { hours: [] }], ['mnd_besoins_abime', abime]]) {
+      await db.query("insert into public.documents (key, data, updated_at) values ($1, $2::jsonb, '2026-11-13T00:00:00Z')", [cle, JSON.stringify(data)]);
+    }
+    const sql = readFileSync(path.join(racine, REGLAGE), 'utf8');
+    const lis = async () => Object.fromEntries((await db.query('select key, data, updated_at from public.documents')).rows.map((r) => [r.key, { data: r.data, le: new Date(r.updated_at).toISOString() }]));
+    await db.exec(sql);
+    const un = await lis();
+    const b = un.mnd_besoins.data;
+    const v = un.mnd_vitrine_config.data;
+    dit('PGlite : la decoloration rejoint les prestations sans seuil, les autres y restent', ['sv-plt-20-c', 'sv-atl-iii-ecl-c', DECO], b.sansSeuil);
+    dit('PGlite : la garde peau ne l ecarte plus, et ecarte toujours les quatre autres, dans l ordre', ['sv-plt-20-c', 'sv-dds-dec', 'sv-forfait-sv-plt-60-wd-c', 'sv-le-moment-cuir-chevelu'], b.ecartesParLaPeau);
+    dit('PGlite : rien d autre ne bouge dans les besoins, et le reglage signe', [besoins.besoins, besoins.seuils, besoins.bornes, besoins.paliersPoses, true, true],
+      [b.besoins, b.seuils, b.bornes, b.paliersPoses, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(String(b.modifieLe)), /17 novembre 2026/.test(String(b.modifiePar))]);
+    dit('PGlite : la case du site est recochee pour elle seule ; Ma Couronne et le comptoir ne bougent pas', [['sv-a', 'sv-b'], ['sup'], ['sv-cache', DECO], true],
+      [v.siteMasques.services, v.siteMasques.categories, v.hiddenServices, v.autoplay]);
+    dit('PGlite : un autre document, ou un document abime, n est pas touche', [{ hours: [] }, '2026-11-13T00:00:00.000Z', abime, '2026-11-13T00:00:00.000Z'],
+      [un.mnd_settings.data, un.mnd_settings.le, un.mnd_besoins_abime.data, un.mnd_besoins_abime.le]);
+    dit('PGlite : les deux documents changes portent une date neuve', [true, true], [un.mnd_besoins.le !== '2026-11-13T00:00:00.000Z', un.mnd_vitrine_config.le !== '2026-11-13T00:00:00.000Z']);
+    await db.exec("update public.documents set updated_at = '2026-11-14T00:00:00Z'");
+    await db.exec(sql);
+    const deux = await lis();
+    dit('PGlite : rejoue, le reglage ne change rien', [un.mnd_besoins.data, un.mnd_vitrine_config.data, '2026-11-14T00:00:00.000Z', '2026-11-14T00:00:00.000Z'],
+      [deux.mnd_besoins.data, deux.mnd_vitrine_config.data, deux.mnd_besoins.le, deux.mnd_vitrine_config.le]);
+  } catch (e) {
+    ko += 1;
+    console.log(`ECHEC PGlite : le reglage ne se joue pas : ${String(e?.message ?? e).split('\n')[0]}`);
+  } finally {
+    try { await db.close(); } catch { /* deja fermee */ }
+  }
+  return ko === 0;
 }
 
 process.chdir(racine);
@@ -272,6 +353,9 @@ globalThis.document = globalThis.document ?? { body: { dataset: {} }, addEventLi
   const restes = [...new Set(TRACES.filter(([, t]) => texte.includes(t)).map(([nom]) => nom))];
   if (restes.length) { statut = 1; console.log(`ECHEC le navigateur recoit encore : ${restes.join(', ')}`); }
   else console.log(`OK    le navigateur ne recoit ni lecture, ni fourchette, ni semence des besoins (ilot empaquete : ${Math.round(texte.length / 1024)} Ko)`);
+
+  /* LE VRAI REGLAGE, DANS PGLITE. */
+  if (!(await joueLeReglage())) statut = 1;
 } catch (e) {
   /* Une faute qui ne se construit plus (une importation interdite, un type cassé) est une faute criée. */
   console.log(`ECHEC : le harnais ne se construit pas : ${String(e?.message ?? e).split('\n')[0]}`);

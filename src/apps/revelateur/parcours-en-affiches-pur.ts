@@ -302,7 +302,8 @@ export function besoinsDuSite(doc: unknown): BesoinDuSite[] {
   return out;
 }
 
-/** Ce que la garde « peau » écarte (détox, décapant, décoloration), tel que le Trône l'a réglé. */
+/** Ce que la garde « peau » écarte (détox, décapant), tel que le Trône l'a réglé. La décoloration
+    n'en est plus (17 novembre 2026) : elle se réserve directement, comme le reste de la couleur. */
 export function ecarteesParLaPeau(doc: unknown): string[] {
   const liste = objet(doc).ecartesParLaPeau;
   return Array.isArray(liste) ? liste.filter((s): s is string => typeof s === 'string') : [];

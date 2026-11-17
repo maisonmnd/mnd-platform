@@ -6,7 +6,13 @@
    ligne (la règle du serveur), les écrans et les mots du parcours, ce que le
    site dépose, et les branchements : l'îlot, « Votre moment », l'écran du
    Trône, la migration 0231. Les prix sont des exemples. Sortie ASCII : la
-   console de Windows. */
+   console de Windows.
+
+   17 novembre 2026, au soir : « la decoloration fait partie du process de la
+   coloration, ca se reserve directement » (Yeman). La section 6 bis tient la
+   semence des besoins (plus de seuil ni de garde « peau » pour elle seule),
+   l'aiguillage (Couleur, decoloration comprise, mene au rituel), ce que le
+   juge du serveur en dit, et le fichier de reglage a passer en ligne. */
 import {
   ENVIES_DE_DEPART, ENVIES_MAX, GESTES_MAX, NOM_MAX, REPONSES_DU_DEBUT,
   affichesADefaire, affichesDesEnvies, affichesDuModele, ajouteUnEcart, ajouteUneEnvie, ajouteUnePaire, basculeUnGroupe, basculeUnRendezVous,
@@ -15,7 +21,7 @@ import {
   type Contexte, type ReglagesDesEnvies,
 } from '../src/shared/envies-pur';
 import { AUCUNE_PREUVE, BESOINS_DE_DEPART, FAMILLES_DE_DEPART, qualifie } from '../src/shared/besoins-pur';
-import { lesGestesSeReservent, type AgendaDuServeur } from '../src/shared/place-du-serveur';
+import { ATELIERS_RESERVABLES, lesGestesSeReservent, type AgendaDuServeur } from '../src/shared/place-du-serveur';
 import {
   AVEC, BESOINS_D_ABORD, LONGUEURS_DITES, REPONSES_VIDES,
   apresLaReponseDuDebut, baremeDe, besoinsAMontrer, besoinsDuSite, consultationADeposer, ecarteesParLaPeau, ecranPrecedent, ecranSuivant, ecranTenu, ecransDe,
@@ -226,6 +232,66 @@ const SERVEUR: AgendaDuServeur = {
 };
 dit('le site ne propose que ce que le serveur poserait : le meme verdict, prestation par prestation', [],
   SERVICES.filter((s) => (etat(s.id) === 'ok') !== (lesGestesSeReservent(SERVEUR, [s.id], { date: '2026-12-01', derniereVenue: null }) === null)).map((s) => s.id));
+
+/* ── ⑥ bis LA DÉCOLORATION SE RÉSERVE DIRECTEMENT (Yéman, 17 novembre 2026) ── */
+const DECO = 'sv-atl-iii-sub-c';
+const DETOX = 'sv-plt-20-c';
+dit('la semence des besoins : la decoloration est sans seuil, la garde peau ne l ecarte plus', [true, false], [B.sansSeuil.includes(DECO), B.ecartesParLaPeau.includes(DECO)]);
+dit('la garde peau tient toujours pour les autres : le detox, le decapant, le 2 en 1, Le Moment Cuir chevelu',
+  ['sv-plt-20-c', 'sv-dds-dec', 'sv-forfait-sv-plt-60-wd-c', 'sv-le-moment-cuir-chevelu'], B.ecartesParLaPeau);
+const besoinDit = (mots: string): string => B.besoins.find((b) => b.mots === mots)?.id ?? '';
+const blondes = besoinDit('Je veux des locks plus claires, blondes');
+const prixDeLaCouleur = (id: string): number | undefined => ({ [DECO]: 25000, [DETOX]: 22000 } as Record<string, number>)[id];
+const laDeco = qualifie(B, [blondes], AUCUNE_PREUVE, prixDeLaCouleur).lignes.find((l) => l.serviceId === DECO);
+dit('la decoloration se propose sans point ni preuve', [true, true, []], [laDeco?.ok, laDeco?.sansSeuil, laDeco?.manques]);
+const sousGarde = qualifie(B, [blondes, besoinDit('J’ai du psoriasis'), besoinDit('Mes locks ont des résidus de produits')], AUCUNE_PREUVE, prixDeLaCouleur);
+dit('garde peau levee : la decoloration reste proposee, le detox reste ecarte', [true, true, false, true], [
+  sousGarde.peau, sousGarde.lignes.find((l) => l.serviceId === DECO)?.ok, sousGarde.lignes.find((l) => l.serviceId === DETOX)?.ok,
+  sousGarde.lignes.find((l) => l.serviceId === DETOX)?.manques.some((x) => x.startsWith('écartée')),
+]);
+/* Toute couleur n'est pas une decoloration : la semence garde la coloration vegetale, a son prix d'appel ; la
+   direction ajoute La Transformation au rituel de l'envie, au Trone, si elle le veut. */
+dit('a la semence, le rituel de Couleur reste la coloration vegetale : la decoloration ne s y pose pas d office', ['sv-atl-iii-cou-c'], S.envies.find((e) => e.id === 'couleur')?.rituels);
+const couleurEtDeco = poseLesRituels(poseLesRituels(S, 'couleur', ['sv-atl-iii-cou-c', DECO]), 'lavage', [DETOX]);
+const leJugeLaLit: Contexte = { seReserve: (id) => EN_LIGNE.has(id) || id === DECO || id === DETOX, visioOuverte: true };
+dit('Couleur, decoloration comprise : Votre rituel, reserve de suite, sans visio ni consultation privee',
+  { rituel: { prestations: ['sv-atl-iii-cou-c', DECO], envies: ['couleur'] }, regard: null }, affichesDesEnvies(couleurEtDeco, ['couleur'], leJugeLaLit));
+dit('garde peau levee : la decoloration mene toujours au rituel, le detox attend toujours la Maison',
+  { rituel: { prestations: ['sv-atl-iii-cou-c', DECO], envies: ['couleur'] }, regard: { envies: ['lavage'], visio: true, privee: false } },
+  affichesDesEnvies(couleurEtDeco, ['couleur', 'lavage'], { ...leJugeLaLit, ecartees: B.ecartesParLaPeau }));
+dit('tant que le juge du serveur la refuse, le site ne la propose pas : la visio', { rituel: null, regard: { envies: ['couleur'], visio: true, privee: false } },
+  affichesDesEnvies(couleurEtDeco, ['couleur'], c));
+/* Ce que le juge du serveur dit de La Transformation, telle qu'elle est au catalogue : ni consultation avant, ni
+   devis, un atelier a elle (`cat-transformation`, la nouvelle grille du 10 octobre 2026). */
+const LA_DECO = { id: DECO, categoryId: 'cat-transformation', name: 'La Transformation' };
+const CATS_T = [...CATS, { id: 'cat-transformation' }];
+dit('la decoloration devant le juge : seuls la case du site (aujourd hui) et son atelier la retiennent', [
+  'masquee', ATELIERS_RESERVABLES.includes('cat-transformation') ? 'ok' : 'hors-atelier', 'ok',
+], [
+  etatEnLigne(LA_DECO, CATS_T, { services: [DECO] }),
+  etatEnLigne(LA_DECO, CATS_T, {}),
+  etatEnLigne(LA_DECO, [...CATS, { id: 'cat-transformation', parentId: 'atl-iii-yekpe' }], {}),
+]);
+dit('le Trone et le site disent d elle ce que le juge du serveur dit', true,
+  (etatEnLigne(LA_DECO, CATS_T, {}) === 'ok') === (lesGestesSeReservent({ ...SERVEUR, services: [...SERVICES, LA_DECO], categories: CATS_T, masques: {} }, [DECO], { date: '2026-12-01', derniereVenue: null }) === null));
+const reglage = readFileSync('supabase/reglage_la_decoloration_se_reserve_20261117.sql', 'utf8').replace(/\r\n/g, '\n');
+const reglageNu = reglage.replace(/^\s*--.*$/gm, '');
+dit('le reglage en ligne ne nomme que la decoloration, et ne touche que deux documents', [[DECO], 2, true, false], [
+  [...new Set(reglageNu.match(/\bsv-[a-z0-9-]+/g) ?? [])], (reglageNu.match(/update public\.documents/g) ?? []).length,
+  /\n where d\.key = 'mnd_besoins'\n   and jsonb_typeof\(d\.data->'sansSeuil'\) = 'array'\n   and jsonb_typeof\(d\.data->'ecartesParLaPeau'\) = 'array'\n/.test(reglageNu)
+    && /\n where d\.key = 'mnd_vitrine_config'\n   and jsonb_typeof\(d\.data->'siteMasques'->'services'\) = 'array'\n/.test(reglageNu),
+  /insert into|delete from|\bdrop\b|\balter\b|\bcreate\b|truncate|hiddenServices|hiddenCategories|'besoins'|'seuils'|'bornes'/i.test(reglageNu),
+]);
+dit('le reglage leve le seuil, la garde et la case du site, et se rejoue sans rien changer', [true, true, true, true, true], [
+  /else d\.data->'sansSeuil' \|\| '\["sv-atl-iii-sub-c"\]'::jsonb end,/.test(reglageNu),
+  /from jsonb_array_elements\(d\.data->'ecartesParLaPeau'\) with ordinality as t\(e, ord\)\n\s*where e <> '"sv-atl-iii-sub-c"'::jsonb\)/.test(reglageNu),
+  /'\{siteMasques,services\}',\n\s*coalesce\(\(select jsonb_agg\(e order by ord\)\n\s*from jsonb_array_elements\(d\.data->'siteMasques'->'services'\) with ordinality as t\(e, ord\)\n\s*where e <> '"sv-atl-iii-sub-c"'::jsonb\)/.test(reglageNu),
+  /and \(not \(d\.data->'sansSeuil' @> '\["sv-atl-iii-sub-c"\]'::jsonb\)\n\s*or d\.data->'ecartesParLaPeau' @> '\["sv-atl-iii-sub-c"\]'::jsonb\);/.test(reglageNu),
+  /and d\.data->'siteMasques'->'services' @> '\["sv-atl-iii-sub-c"\]'::jsonb;/.test(reglageNu),
+]);
+const ongletsDuTrone = readFileSync('src/apps/trone/routes/systeme/BesoinsEtRegles.tsx', 'utf8');
+dit('le Trone ne dit plus la decoloration ecartee par la garde : ni a l onglet, ni a la lecture d essai', [false, true, true],
+  [/d[ée]coloration/i.test(ongletsDuTrone), /écarte détox et décapant tant que/.test(ongletsDuTrone), /Détox et décapant sont écartés tant qu/.test(ongletsDuTrone)]);
 
 /* ── ⑦ LE PARCOURS : LES ÉCRANS, LES MOTS, LES JOURS ─────────────────── */
 dit('une question par ecran : deux communes, trois selon la reponse, puis le rendez-vous', [
@@ -535,7 +601,8 @@ dit('0231 : le site lit mnd_envies, la direction seule l ecrit (creer, modifier,
 ]);
 dit('0231 ne reecrit ni la liste blanche ni les cles de la direction : rien a refermer chez les autres', false, /docs_pub_read|cles_ecrites_par_la_direction|create or replace function|insert into|update public|delete from/.test(sqlNu));
 
-const NEUFS = [ILOT, PORTES, PUR, 'src/apps/revelateur/ilots/consultation.css', 'src/shared/envies-pur.ts', 'src/shared/envies.ts', 'src/apps/trone/routes/systeme/VosEnvies.tsx', 'supabase/migrations/0231_vos_envies.sql'];
+const NEUFS = [ILOT, PORTES, PUR, 'src/apps/revelateur/ilots/consultation.css', 'src/shared/envies-pur.ts', 'src/shared/envies.ts', 'src/apps/trone/routes/systeme/VosEnvies.tsx', 'supabase/migrations/0231_vos_envies.sql',
+  'supabase/reglage_la_decoloration_se_reserve_20261117.sql'];
 const textes = NEUFS.map(lf);
 dit('aucun emoji, aucun nom de domaine, aucune cle dans les fichiers neufs', [[], []], [
   NEUFS.filter((_, i) => /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(textes[i])),
