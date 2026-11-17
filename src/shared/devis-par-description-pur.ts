@@ -176,7 +176,12 @@ export type JugeDesPrix = (sv: PrestationDuCatalogue, o: { locks: number | undef
 
 export function devisDepuisLaLecture(
   lu: DevisLu,
-  o: { services: readonly PrestationDuCatalogue[]; prixDe: JugeDesPrix; plafondDeRemiseXof: (baseXof: number) => number },
+  o: {
+    services: readonly PrestationDuCatalogue[]; prixDe: JugeDesPrix; plafondDeRemiseXof: (baseXof: number) => number;
+    /** Comment une somme se dit : `fmtMoney` dans la devise de la branche, injecté comme le juge des prix.
+        Les avertissements écrivaient « 160000 F » en dur, faux hors du franc et sans séparateur. */
+    somme: (xof: number) => string;
+  },
 ): DevisPropose {
   const parId = new Map(o.services.map((s) => [s.id, s]));
   const avertissements: string[] = lu.ecartees.map((e) => `Écartée : ${e}.`);
@@ -202,12 +207,12 @@ export function devisDepuisLaLecture(
   let remiseXof = 0;
   if (lu.totalVoulu > 0) {
     if (lu.totalVoulu >= brutXof) {
-      if (lu.totalVoulu > brutXof) avertissements.push(`Le total voulu (${lu.totalVoulu} F) dépasse la somme des prestations (${brutXof} F) : rien n’est majoré.`);
+      if (lu.totalVoulu > brutXof) avertissements.push(`Le total voulu (${o.somme(lu.totalVoulu)}) dépasse la somme des prestations (${o.somme(brutXof)}) : rien n’est majoré.`);
     } else {
       const voulue = brutXof - lu.totalVoulu;
       const permise = o.plafondDeRemiseXof(brutXof);
       remiseXof = Math.min(voulue, permise);
-      if (remiseXof < voulue) avertissements.push(`La remise demandée (${voulue} F) dépasse ce que l’équipe peut accorder : plafonnée à ${remiseXof} F. La direction peut aller au-delà.`);
+      if (remiseXof < voulue) avertissements.push(`La remise demandée (${o.somme(voulue)}) dépasse ce que l’équipe peut accorder : plafonnée à ${o.somme(remiseXof)}. La direction peut aller au-delà.`);
     }
   }
   return { lignes, brutXof, remiseXof, totalXof: brutXof - remiseXof, totalVoulu: lu.totalVoulu, longueur: lu.longueur, avertissements };
