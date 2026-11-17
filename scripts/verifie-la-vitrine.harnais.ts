@@ -366,7 +366,8 @@ dit('… et chaque vignette de cliente sert bien quelque part', [],
   VIGNETTES_DE_CLIENTES.filter((v) => !articlesDuJournal.some((a) => a.image === v)));
 /* LES PROMESSES SONT PARTIES LE 27 SEPTEMBRE 2026 avec l'épure. Le
    diagnostic se joue sur l'accueil, entre les portes et les offres. */
-dit('le diagnostic se monte sur l’accueil', true, accueil.includes('data-ilot="triage" data-genre="accueil"'));
+/* 17 novembre 2026 : le diagnostic en cinq questions est fermé, la carte de l'accueil mène à la consultation. */
+dit('le diagnostic ne se joue plus sur l’accueil : la carte mène à la consultation', [false, true], [accueil.includes('data-ilot="triage"'), /<section class="diag sombre" id="diagnostic">[\s\S]{0,900}href="[^"]*\/consultation\/"/.test(accueil)]);
 /* L'ACCUEIL ALLÉGÉ — 11 octobre 2026 (Yéman) : « ça alourdit les pages, garder
    juste la remise qui vient avec ». Les offres et le parrainage quittent
    l'accueil (leurs pages restent), la carte cadeau descend après les avis. */

@@ -19,10 +19,18 @@
    (`mnd_ia_compteur_diagnostic`, 20 $ par mois) et recopie ce bloc entre ses
    repères ⟨diagnostic-locks⟩ : `verifie-les-douze-lunes` (R8) confronte les
    deux, `verifie-le-diagnostic-photo` fait tourner la règle et la fonction.
-   On corrige ici, puis on recopie le bloc entier. MODULE PUR. */
+   On corrige ici, puis on recopie le bloc entier. MODULE PUR.
+
+   LE 17 NOVEMBRE 2026, LA PORTE DE MA COURONNE SE RESSERRE. « Il ne faut pas
+   permettre d'avoir des bilans sans prendre de RDV sinon tout le monde nous
+   trichera » (Yéman). Un compte ne suffit plus : il faut un rendez-vous pris
+   ou une séance faite (`rendez-vous-pris-pur`, recopié lui aussi dans la
+   fonction), et chaque cliente a son plafond de lectures, que la direction
+   règle (`mnd_auto_config.diagnosticPhotoPlafond`). La fonction tient la
+   règle ; l'écran ne fait que la dire. */
 
 /* ⟨diagnostic-locks⟩ */
-export const VERSION_DU_DIAGNOSTIC = '2026-10-19-a';
+export const VERSION_DU_DIAGNOSTIC = '2026-11-17-a';
 /** Une à quatre photos de la même couronne (sa décision). */
 export const PHOTOS_MIN = 1;
 export const PHOTOS_MAX = 4;
@@ -373,6 +381,48 @@ export function diagnosticsAuxPhotosAEffacer<T extends { id: string; cree_le?: s
     && Number.isFinite(Date.parse(d.cree_le ?? '')) && Date.parse(d.cree_le!) < limite);
 }
 
+/* ── LA PORTE DE MA COURONNE (17 novembre 2026) ─────────────────────────
+   Un rendez-vous pris ou une séance faite d'abord (la fonction le juge par
+   la règle ⟨rendez-vous-pris⟩), puis le plafond par cliente. */
+/** Le champ de `mnd_auto_config` où la direction règle le plafond. */
+export const CHAMP_DU_PLAFOND_PAR_CLIENTE = 'diagnosticPhotoPlafond';
+export type PlafondParCliente = { lectures: number; jours: number };
+/** Deux lectures par trente jours, tant que la direction n'a rien réglé. */
+export const PLAFOND_PAR_CLIENTE_LIVRE: PlafondParCliente = { lectures: 2, jours: 30 };
+export const BORNES_DU_PLAFOND_PAR_CLIENTE = { lectures: [1, 10], jours: [7, 365] } as const;
+/** Le réglage relu : 1 à 10 lectures, 7 à 365 jours ; hors bornes ou
+    illisible, celui d'origine. */
+export function plafondParCliente(brut: unknown): PlafondParCliente {
+  const b = (brut && typeof brut === 'object' ? brut : {}) as { lectures?: unknown; jours?: unknown };
+  const entier = (v: unknown, bornes: readonly [number, number], defaut: number): number => {
+    const n = typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : NaN;
+    return n >= bornes[0] && n <= bornes[1] ? n : defaut;
+  };
+  return {
+    lectures: entier(b.lectures, BORNES_DU_PLAFOND_PAR_CLIENTE.lectures, PLAFOND_PAR_CLIENTE_LIVRE.lectures),
+    jours: entier(b.jours, BORNES_DU_PLAFOND_PAR_CLIENTE.jours, PLAFOND_PAR_CLIENTE_LIVRE.jours),
+  };
+}
+export type PorteDeMaCouronne =
+  | { ouverte: true; reste: number }
+  | { ouverte: false; raison: 'rendez-vous' }
+  | { ouverte: false; raison: 'plafond'; prochaineLe: string };
+/** LA PORTE. `suivie` : elle a un rendez-vous pris ou une séance faite.
+    `lignes` : ses lectures, toutes comptées (celle que Claude n'a pas pu
+    faire est relue à la main : c'est une lecture). Au plafond, `prochaineLe`
+    dit l'instant où une lecture sort de la fenêtre. */
+export function porteDeMaCouronne(o: {
+  suivie: boolean; lignes: readonly { cree_le?: string }[]; maintenantMs: number; plafond: PlafondParCliente;
+}): PorteDeMaCouronne {
+  if (!o.suivie) return { ouverte: false, raison: 'rendez-vous' };
+  const fenetre = o.plafond.jours * 86_400_000;
+  const recentes = o.lignes.map((d) => Date.parse(d.cree_le ?? ''))
+    .filter((t) => Number.isFinite(t) && t <= o.maintenantMs && o.maintenantMs - t < fenetre)
+    .sort((a, b) => a - b);
+  if (recentes.length < o.plafond.lectures) return { ouverte: true, reste: o.plafond.lectures - recentes.length };
+  return { ouverte: false, raison: 'plafond', prochaineLe: new Date(recentes[recentes.length - o.plafond.lectures] + fenetre).toISOString() };
+}
+
 export type EtatDuDiagnostic = 'a-relire' | 'relu' | 'ferme';
 export const ETATS_DU_DIAGNOSTIC: readonly EtatDuDiagnostic[] = ['a-relire', 'relu', 'ferme'];
 /** Ce que la cliente lit sous sa lecture, selon l'état. */
@@ -409,6 +459,9 @@ export function defautDeLEnvoi(nbPhotos: number, accord: boolean): string | null
 export const MOTS_DES_REFUS: Readonly<Record<string, string>> = {
   ferme: 'Le diagnostic photo n’est pas ouvert pour l’instant.',
   porte: 'La lecture de vos photos s’ouvre avec votre consultation réglée en ligne, ou depuis votre compte Ma Couronne.',
+  /* 17 novembre 2026 : un rendez-vous pris ou une séance faite, et le plafond par cliente. */
+  'rendez-vous': 'Le diagnostic photo s’ouvre avec votre rendez-vous.',
+  plafond: 'Vos photos ont déjà été lues : la suite se regarde avec vous, à la Maison.',
   personnel: 'Ce compte est celui de l’équipe : le diagnostic photo se fait depuis le compte d’une cliente.',
   consentement: 'Cochez l’accord pour que la Maison garde vos photos.',
   photos: 'Une à quatre photos, nettes et à la lumière du jour.',

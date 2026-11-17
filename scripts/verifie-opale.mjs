@@ -26,7 +26,7 @@ const OP = 'src/shared/opale-pur.ts';
 const PANNES = [
   { nom: 'l aiguillage oublie le reglage', fichier: AU, avant: "if (reglageDOpale(docs.get(CLE_D_OPALE)).qui === 'opale') {", apres: 'if (true) {' },
   { nom: 'Opale parle quand l equipe a la main', fichier: AU, avant: "if (pauseActive(main, ms)) { dis('opale · l equipe a la main'); return { pris: false }; }", apres: '' },
-  { nom: 'Opale parle apres avoir passe la main', fichier: AU, avant: "if (fil && etapeCourante(fil, main, ms, reglage.pauseHeures) === 'main' && !o.reprise) { dis('opale · la main est passee, pas encore rendue'); return { pris: false }; }", apres: '' },
+  { nom: 'Opale parle apres avoir passe la main', fichier: AU, avant: "  const laMainEstPassee = !!fil && etapeCourante(fil, main, ms, reglage.pauseHeures) === 'main' && !o.reprise;", apres: '  const laMainEstPassee = false;' },
   { nom: 'la trace n est pas signee Opale', fichier: AU, avant: 'm, rendu, parQui: OPALE, ', apres: 'm, rendu, ' },
   { nom: 'les juges ne lisent pas son message', fichier: AU, avant: 'const fautes = fautesDOpale(texte, { montantsPermis: permis, questionFranche, enfants: prenomsDesEnfants });', apres: 'const fautes: string[] = [];' },
   { nom: 'Claude injoignable laisse la cliente sans reponse', fichier: AU, avant: "dis('opale · claude injoignable', { motif: String((e as Error)?.message ?? e).slice(0, 120) });\n      secours = true;", apres: 'throw e;' },
@@ -76,6 +76,20 @@ const PANNES = [
   { nom: 'une cliente qui fait ses courses recoit un lien (la phrase n a plus a tenir en entier)', fichier: AU, avant: '){0,2}$`);', apres: '){0,2}`);' },
   { nom: 'une question recoit un lien', fichier: AU, avant: '  if (/[?？]/.test(brut)) return false;\n', apres: '' },
   { nom: 'une cliente en route recoit un lien (le message peut porter autre chose apres la forme)', fichier: AU, avant: 'const UNE_DECLARATION_DE_FIN = new RegExp(`^(?:', apres: 'const UNE_DECLARATION_DE_FIN = new RegExp(`(?:' },
+  /* L'avis sur photo, avec un rendez-vous (17 novembre 2026). */
+  { nom: 'la main passe pour la photo d un numero sans rendez-vous', fichier: AU, avant: "if (photoRefusee && (motif === 'media' || tourSansUnMot(nouveaux))) {", apres: 'if (false) {' },
+  { nom: 'une photo seule passe la main par un autre motif', fichier: AU, avant: "(motif === 'media' || tourSansUnMot(nouveaux))", apres: "(motif === 'media')" },
+  { nom: 'le lien de la consultation est laisse au modele', fichier: AU, avant: "  if (photoRefusee && !finDuRituel && !issue.silence && issue.issue.genre === 'parle') issue.texte = avecLeLienDeLaConsultation(issue.texte, lienConsultation);\n", apres: '' },
+  { nom: 'une photo seule reste sans reponse', fichier: AU, avant: '      if (photoRefusee && tourSansUnMot(nouveaux)) return refusDeLAvisSurPhoto(lienConsultation);\n      issue.silence = true;', apres: '      issue.silence = true;' },
+  { nom: 'Claude muet, la photo d une inconnue passe a l equipe', fichier: AU, avant: "if (secours && !issue.silence && photoRefusee && tourSansUnMot(nouveaux) && issue.issue.genre === 'parle') {", apres: 'if (false) {' },
+  { nom: 'une suggestion sans son oui ouvre l avis sur photo', fichier: AU, avant: '  return !(marqueDuRendezVous(a.suggereLe) && !marqueDuRendezVous(a.confirmeeParLaClienteLe));', apres: '  return true;' },
+  { nom: 'une seance faite n ouvre plus l avis sur photo', fichier: AU, avant: '  if (aUnRendezVousPrisOuUneSeanceFaite(venues, aujourdhui)) return true;\n', apres: '' },
+  { nom: 'un rendez-vous pris n ouvre plus l avis sur photo', fichier: AU, avant: "  return aUnRendezVousPrisOuUneSeanceFaite(((data ?? []) as Ligne[]).map((l) => (l.data ?? {}) as RendezVousLu), aujourdhui);", apres: '  return false;' },
+  { nom: 'le contexte ne dit plus la porte a Opale', fichier: AU, avant: 'rdvs, connaitLeLieu, suivie,', apres: 'rdvs, connaitLeLieu,' },
+  { nom: 'toute cliente passe pour suivie', fichier: AU, avant: "const photoRefusee = !!lienConsultation && photoSansRendezVous({ suivie, nouveaux });", apres: "const photoRefusee = !!lienConsultation && photoSansRendezVous({ suivie: true, nouveaux });" },
+  { nom: 'un vocal joint a une photo ne revient plus a une personne', fichier: OP, avant: " && !nouveaux.some((m) => m.type === 'audio' || m.type === 'document');", apres: ';' },
+  { nom: 'la consigne redemande une photo', fichier: OP, avant: ' Ne demande jamais de photo, à personne.', apres: '' },
+  { nom: 'le lien de la consultation se pose deux fois', fichier: OP, avant: '  if (!lien || !t || t.includes(lien)) return t;', apres: '  if (!lien || !t) return t;' },
 ];
 
 const md5 = (rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');

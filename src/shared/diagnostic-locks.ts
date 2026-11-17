@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
-import { motDuRefus, type EtatDuDiagnostic, type Lecture, type Recommandation } from './ia-diagnostic-pur';
+import { motDuRefus, type EtatDuDiagnostic, type Lecture, type PorteDeMaCouronne, type Recommandation } from './ia-diagnostic-pur';
 
 /* ══ LE DIAGNOSTIC PHOTO, CÔTÉ CLIENTE — 19 octobre 2026 ═════════════════
    Les règles vivent dans `ia-diagnostic-pur` ; ici, l'appel à la fonction
@@ -25,7 +25,7 @@ export type DiagnosticDeLaCliente = {
 };
 export type LectureRendue =
   | { ok: true; id: string; etat: string; lecture: Lecture | null; recommandation: Recommandation | null; texte: string; mot: string }
-  | { ok: false; erreur: string; message: string };
+  | { ok: false; erreur: string; message: string; prochaineLe?: string };
 /** La consultation payée qui ouvre la porte (La Consultation seulement). */
 export type PreuveDeConsultation = { consultationId: string; transactionId: string };
 
@@ -78,11 +78,33 @@ export function useDiagnosticOuvert(): boolean {
   return ouvert;
 }
 
-/** SES LECTURES : par sa session (Ma Couronne) ou par sa consultation payée. */
-export async function mesDiagnostics(preuve?: PreuveDeConsultation): Promise<DiagnosticDeLaCliente[]> {
+/** LA PORTE, TELLE QUE LA FONCTION LA DIT (17 novembre 2026). Ma Couronne :
+    un rendez-vous pris ou une séance faite, puis le plafond par cliente.
+    Illisible, la réponse ne vaut rien : `null`. */
+function porteLue(brut: unknown): PorteDeMaCouronne | null {
+  const p = brut as { ouverte?: unknown; raison?: unknown; reste?: unknown; prochaineLe?: unknown } | null | undefined;
+  if (!p || typeof p !== 'object') return null;
+  if (p.ouverte === true) return { ouverte: true, reste: typeof p.reste === 'number' ? p.reste : 0 };
+  if (p.ouverte !== false) return null;
+  if (p.raison === 'rendez-vous') return { ouverte: false, raison: 'rendez-vous' };
+  if (p.raison === 'plafond' && typeof p.prochaineLe === 'string') return { ouverte: false, raison: 'plafond', prochaineLe: p.prochaineLe };
+  return null;
+}
+
+/** SES LECTURES ET SA PORTE : par sa session (Ma Couronne) ou par sa
+    consultation payée. `porte` : `undefined` tant que la fonction ne l'a pas
+    dite (une consultation réglée, ou une fonction d'avant le 17 novembre
+    2026) ; `repondu` : la fonction a répondu. */
+export async function monDiagnostic(preuve?: PreuveDeConsultation): Promise<{ repondu: boolean; diagnostics: DiagnosticDeLaCliente[]; porte?: PorteDeMaCouronne }> {
   const r = await appelle({ action: 'lire', ...(preuve ?? {}) }, !preuve);
-  if (!r || r.status !== 200 || !Array.isArray(r.corps.diagnostics)) return [];
-  return r.corps.diagnostics as DiagnosticDeLaCliente[];
+  if (!r || r.status !== 200 || !Array.isArray(r.corps.diagnostics)) return { repondu: false, diagnostics: [] };
+  const porte = porteLue(r.corps.porte);
+  return { repondu: true, diagnostics: r.corps.diagnostics as DiagnosticDeLaCliente[], ...(porte ? { porte } : {}) };
+}
+
+/** SES LECTURES, seules. */
+export async function mesDiagnostics(preuve?: PreuveDeConsultation): Promise<DiagnosticDeLaCliente[]> {
+  return (await monDiagnostic(preuve)).diagnostics;
 }
 
 /** LES PHOTOS PARTENT, AVEC L'ACCORD. Le corps porte `consentement: 'oui'`
@@ -92,7 +114,7 @@ export async function envoieLesPhotos(photos: { base64: string; mime: string }[]
   if (!r) return { ok: false, erreur: 'reseau', message: motDuRefus('reseau') };
   if (r.status !== 200 || r.corps.ok !== true) {
     const code = typeof r.corps.error === 'string' ? r.corps.error : 'erreur';
-    return { ok: false, erreur: code, message: motDuRefus(code) };
+    return { ok: false, erreur: code, message: motDuRefus(code), ...(typeof r.corps.prochaineLe === 'string' ? { prochaineLe: r.corps.prochaineLe } : {}) };
   }
   const c = r.corps as Record<string, unknown>;
   return {

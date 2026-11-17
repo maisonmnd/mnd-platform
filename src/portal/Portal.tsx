@@ -39,8 +39,10 @@ const SISTERS = [
     cls: 'po-card--consultation',
     seal: 'ivoire' as const,
     name: 'La Consultation',
-    who: 'Le monde · diagnostic payant',
-    desc: 'Création ou SOS Locks : huit étapes cérémonielles, paiement à l\'entrée crédité sur le premier rituel, transmission directe au Trône.',
+    /* 17 novembre 2026 : la consultation des clientes est celle du site ;
+       l'ancien tunnel ne s'ouvre plus qu'à l'équipe connectée. */
+    who: 'La cliente · en ligne',
+    desc: 'Cinq questions, puis le rendez-vous : une visio avec la Maison, une consultation privée, ou le rituel réservé tout de suite.',
   },
   {
     href: '/lokaa.html',

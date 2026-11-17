@@ -30,6 +30,8 @@ export const EN_ENTRE_DEUX: Record<string, string> = {
   'Tout va bien': 'All is well',
   'J’ai un souci': 'I have a concern',
   'Un souci avec vos locks ? Dites-le-nous.': 'A concern with your locks? Tell us.',
+  /* 17 novembre 2026 : sans séance faite, une ligne et le chemin de la consultation. */
+  'Un souci avec vos locks ?': 'A concern with your locks?',
   'Ce que vous nous avez dit': 'What you told us',
   'La Maison vous a répondu': 'The Maison has answered you',
   'La Maison vous répond': 'The Maison will answer you',

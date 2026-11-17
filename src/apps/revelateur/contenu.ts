@@ -93,7 +93,11 @@ export const COMMUN: Commun = {
        parcours » devient le diagnostic, la carte cadeau entre au menu
        (« Offrir »), les offres descendent au pied de page : l'accueil les
        montre déjà. */
-    { texte: 'Diagnostic', vers: '/mon-parcours/' },
+    /* LE DIAGNOSTIC DU MENU EST FERMÉ — 17 novembre 2026. « Il ne faut pas
+       permettre d'avoir des bilans sans prendre de RDV sinon tout le monde
+       nous trichera » (Yéman). L'entrée mène à la consultation ; la routine
+       en trois temps se remet avec le rendez-vous, par la Maison. */
+    { texte: 'Consultation', vers: '/consultation/' },
     { texte: 'Services', vers: '/#portes' },
     { texte: 'Offrir', vers: '/offrir/' },
     /* LA BOUTIQUE — 22 octobre 2026. Écrite dans le menu de chaque page mais
@@ -146,7 +150,7 @@ export const COMMUN: Commun = {
           { texte: 'Notre histoire', vers: '/notre-histoire/' },
           { texte: 'Le Journal', vers: '/journal/' },
           { texte: 'Vos questions', vers: '/faq/' },
-          { texte: 'Le diagnostic locks', vers: '/mon-parcours/' },
+          { texte: 'La consultation', vers: '/consultation/' },
           { texte: 'Offrir la Maison', vers: '/offrir/' },
           { texte: 'Parrainer une amie', vers: '/parrainage/' },
           { texte: 'Nos ingrédients', vers: '/ingredients/' },
@@ -372,11 +376,16 @@ export const ACCUEIL: Accueil = {
        qui y menait n'a plus rien à annoncer. Le premier pilier, « un
        diagnostic avant tout geste », mène au diagnostic qui suit. */
   },
+  /* LE DIAGNOSTIC NE SE JOUE PLUS SUR L'ACCUEIL — 17 novembre 2026. Les cinq
+     questions rendaient une porte et une routine à qui passait, sans
+     rendez-vous. La carte mène à la consultation ; la routine se remet au
+     rendez-vous. */
   diagnostic: {
-    sur: 'Le diagnostic locks',
-    titre: 'Cinq questions. Votre routine.',
-    ligne: 'Dites-nous où en sont vos locks, votre cheveu, votre cuir chevelu et votre rythme. Vous repartez avec la porte qui vous convient et une routine de soins, chez vous et à la Maison.',
-    note: "Votre routine part sur WhatsApp si vous le voulez, et s'inscrit à votre fiche pour que la Maison s'en souvienne à votre prochain rendez-vous.",
+    sur: 'La consultation',
+    titre: 'Cinq questions. Votre rendez-vous.',
+    ligne: 'Pour qui, vos locks, vos envies. La Maison vous reçoit.',
+    note: 'Votre routine de soins vous est remise au rendez-vous.',
+    bouton: { texte: 'Ma consultation', vers: '/consultation/' },
   },
   marques: {
     sur: 'Les marques que nous choisissons',
@@ -465,8 +474,8 @@ export const ACCUEIL: Accueil = {
       { titre: 'MND Kids', pour: 'Pour mon enfant', ligne: 'Tout va plus doucement.', comment: 'Un échange avec vous · Une séance courte · Le temps qu’il faut', suite: 'MND Kids', vers: '/mnd-kids/', image: 'mnd-kids.jpg' },
     ],
     repli: 'Vous hésitez entre deux chemins ?',
-    repliNote: 'Cinq questions, et la Maison vous dit le vôtre, avec votre routine.',
-    repliBouton: { texte: 'Faire mon diagnostic', vers: '/mon-parcours/' },
+    repliNote: 'Cinq questions, puis votre rendez-vous.',
+    repliBouton: { texte: 'Ma consultation', vers: '/consultation/' },
   },
   confiance: {
     sur: 'Entre de bonnes mains',
@@ -504,7 +513,7 @@ export const ACCUEIL: Accueil = {
     ligne: 'Vous êtes beaux, votre beauté est déjà là.',
     boutons: [
       { texte: 'Réserver', vers: '/reserver/' },
-      { texte: 'Faire mon diagnostic', vers: '/mon-parcours/' },
+      { texte: 'Ma consultation', vers: '/consultation/' },
     ],
   },
 };
@@ -555,37 +564,13 @@ export const PAGES: Page[] = [
     jsonld: 'aucun',
     court: 'Consultation',
   },
-  {
-    chemin: '/mon-parcours/',
-    titre: 'Le diagnostic locks · Maison MND Cotonou',
-    description: 'Cinq questions sur vos locks, votre cheveu, votre cuir chevelu et votre rythme : la Maison MND vous dit la porte qui vous convient et votre routine de soins, à Cotonou.',
-    h1: 'Le diagnostic locks',
-    sur: 'Diagnostic',
-    ligne: 'Cinq questions. Votre routine.',
-    besoin: 'inconnu',
-    ilot: 'triage',
-    sections: [
-      {
-        type: 'texte',
-        corps: "Il n'y a pas de bonne réponse. Dites où en sont vos locks : nous composons votre routine, chez vous et à la Maison, et la porte qui vous convient.",
-      },
-      {
-        type: 'grille',
-        style: 'portes',
-        sur: 'Ou choisissez directement',
-        titre: 'Les cinq parcours',
-        items: [
-          { titre: "Je n'ai pas encore de locks", texte: 'Votre couronne commence ici, par une consultation.', vers: '/premiere-couronne/', suite: 'La Première Couronne' },
-          { titre: 'Mes locks me préoccupent', texte: "Regardons d'abord : une réparation commence par un diagnostic.", vers: '/reparation-locks/', suite: 'La Réparation' },
-          { titre: 'Mes locks vont bien', texte: 'Pas de consultation : choisissez votre geste et votre créneau.', vers: '/entretien-locks/', suite: 'Entretien et soins' },
-          { titre: "C'est pour mon enfant", texte: 'Pour votre enfant, tout va plus doucement.', vers: '/mnd-kids/', suite: 'MND Kids' },
-          { titre: 'Je veux en faire mon métier', texte: 'Apprendre à faire, et à bien faire.', vers: '/formations/', suite: 'Académie MND' },
-        ],
-      },
-    ],
-    jsonld: 'aucun',
-    court: 'Diagnostic',
-  },
+  /* /mon-parcours/ N'EST PLUS UNE PAGE DU PLAN — 17 novembre 2026. Le
+     diagnostic en cinq questions est fermé (arbitrage D de la consultation
+     en affiches). Son adresse reste, pour qui l'a gardée : le générateur y
+     écrit une page qui mène à /consultation/, hors des moteurs et hors du
+     plan (voir « L'ANCIEN DIAGNOSTIC » dans genere-revelateur). La routine en
+     trois temps vit dans `shared/routine-de-soins-pur` ; la Maison la remet
+     depuis la fiche d'une cliente. */
   {
     chemin: '/premiere-couronne/',
     titre: 'Création de dreadlocks à Cotonou · Maison MND',
@@ -973,7 +958,7 @@ export const PAGES: Page[] = [
         titre: "Vous êtes où aujourd'hui ?",
         ligne: 'Il existe un chemin pour vous. Nous commençons par vous écouter.',
         boutons: [
-          { texte: 'Trouver mon parcours', vers: '/mon-parcours/' },
+          { texte: 'Ma consultation', vers: '/consultation/' },
           { texte: 'Brice et Yéman', vers: '/brice-et-yeman/' },
           { texte: 'Notre histoire', vers: '/notre-histoire/' },
         ],
@@ -1026,7 +1011,7 @@ export const PAGES: Page[] = [
         boutons: [
           { texte: 'Réserver', vers: '/reserver/' },
           { texte: 'Lire notre histoire', vers: '/notre-histoire/' },
-          { texte: 'Trouver mon parcours', vers: '/mon-parcours/' },
+          { texte: 'Ma consultation', vers: '/consultation/' },
         ],
       },
     ],
@@ -1256,7 +1241,7 @@ export const PAGES: Page[] = [
         sur: 'Ce que le récit porte',
         titre: 'Chaque offre est une façon de prendre soin, de transformer ou de transmettre.',
         items: [
-          { titre: 'Le diagnostic', texte: 'On commence par regarder. C’est la porte d’entrée de tout, et le seul endroit où l’on dit non.', vers: '/mon-parcours/' },
+          { titre: 'La consultation', texte: 'On commence par regarder. C’est la porte d’entrée de tout, et le seul endroit où l’on dit non.', vers: '/consultation/' },
           { titre: 'La réparation', texte: 'Le chapitre des mains. Des locks abîmées que l’on répare, comme nous nous sommes réparés.', vers: '/reparation-locks/' },
           { titre: 'La Première Couronne', texte: 'Une couronne qu’on porte des années. Elle commence par une consultation, jamais par un geste.', vers: '/premiere-couronne/' },
           { titre: 'L’entretien et les soins', texte: 'Revenir. Toutes les cinq semaines, la place est là, et la Maison vous attend.', vers: '/entretien-locks/' },
@@ -1469,7 +1454,7 @@ export const PAGES: Page[] = [
         titre: 'Vous hésitez encore ?',
         ligne: 'Écrivez-nous, nous vous répondons simplement.',
         boutons: [
-          { texte: 'Trouver mon parcours', vers: '/mon-parcours/' },
+          { texte: 'Ma consultation', vers: '/consultation/' },
           { texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' },
         ],
       },

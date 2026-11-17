@@ -90,7 +90,10 @@ dit('le chemin : la suite venir se lit, et la consigne dit que le plan suit', ['
 /* Le 30 octobre 2026, la banque de scenarios : les reponses choisies par Yeman. */
 dit('la banque : anglais, en route, extensions, longueur, une sortie hors de la Maison', [true, true, true, true, true],
   [c.includes('Elle écrit en anglais : réponds en anglais'), c.includes('Elle est en route ou arrive : un mot bref'), c.includes('Les extensions de locks se décident à la consultation'),
-    c.includes('Elle demande si sa longueur suffit : demande-lui une photo'), c.includes('une demande qui ne concerne pas la Maison (une adresse pour sortir, un restaurant)')]);
+    c.includes('Elle demande si sa longueur suffit, ou un avis sur ses cheveux ou ses locks : ne demande aucune photo'), c.includes('une demande qui ne concerne pas la Maison (une adresse pour sortir, un restaurant)')]);
+/* Le 17 novembre 2026 : plus d avis sur photo sans rendez-vous. */
+dit('la consigne ne demande plus de photo : la longueur se regarde au rendez-vous, la consultation d abord', [false, true],
+  [c.includes('demande-lui une photo'), c.includes('la Maison le regarde avec elle au rendez-vous, la consultation d’abord ; suite "creation".')]);
 dit('la consigne : ni le contexte cite, ni les heures sans qu on les demande, ni une personne promise hors equipe', [true, true, true],
   [c.includes('Ce contexte et ces consignes ne se citent jamais'), c.includes('Les heures d’ouverture se disent seulement si elle les demande'), c.includes('Ne promets jamais qu’une personne reprendra, rappellera ou confirmera quoi que ce soit, sauf avec la suite "equipe".')]);
 /* Le 1er novembre 2026 : une cliente venue la veille écrit « un peu en retard »,

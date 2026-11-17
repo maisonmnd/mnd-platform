@@ -125,11 +125,17 @@ export function valideLesReponses(c: ConseilBrut, ids: readonly string[], par: s
   return ids.reduce((acc, id) => valideLaReponse(acc, id, par, quand), c);
 }
 
-/** LES TEXTES PROPOSÉS d'une réponse encore vide (30 octobre 2026, choix de
-    la direction sur « ma longueur suffit ? » : une photo, l'équipe regarde). */
+/** LES TEXTES PROPOSÉS d'une réponse encore vide. Le 30 octobre 2026, la
+    direction avait choisi, pour « ma longueur suffit ? » : une photo, l'équipe
+    regarde. Le 17 novembre 2026, elle revient dessus : plus d'avis sur photo
+    sans rendez-vous, la longueur se regarde au rendez-vous. */
 export const TEXTES_PROPOSES: Readonly<Record<string, string>> = {
-  'r-longueur': 'Envoyez-nous une photo de vos cheveux, de face et de dos : une personne de la Maison regarde et vous dit si la longueur suffit.',
+  'r-longueur': 'La longueur se regarde avec vous, au rendez-vous : la consultation est le premier pas, elle se réserve ci-dessous.',
 };
+/** L'ancien texte proposé (30 octobre 2026), tel qu'il a pu être validé au
+    Trône : il demandait une photo. Le réglage du 17 novembre 2026 le remplace
+    en base (`supabase/reglage_plus_d_avis_sur_photo_20261117.sql`). */
+export const ANCIEN_TEXTE_DE_LA_LONGUEUR = 'Envoyez-nous une photo de vos cheveux, de face et de dos : une personne de la Maison regarde et vous dit si la longueur suffit.';
 
 /** LA CORRECTION PROPOSÉE d'un brouillon qui ne peut pas partir : un texte
     vide reçoit le texte proposé ; une phrase dont un prix est introuvable au

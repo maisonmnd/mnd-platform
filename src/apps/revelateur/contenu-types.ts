@@ -134,7 +134,7 @@ export type Page = {
   /** Un îlot React à monter sur cette page. */
   /** `contact` est la petite carte WhatsApp de la page de réservation ;
       `joindre` les trois cartes de la page contact (écrire, trouver, venir). */
-  ilot?: 'triage' | 'demande' | 'contact' | 'joindre' | 'reserver' | 'offres' | 'offrir'
+  ilot?: 'demande' | 'contact' | 'joindre' | 'reserver' | 'offres' | 'offrir'
     /* La consultation gratuite (13 novembre 2026). */
     | 'consultation'
     /* 28 septembre 2026 : la communauté. `engagements` et `ingredients` ne
@@ -178,7 +178,9 @@ export type Accueil = {
       « revoir comment faire la transition et savoir qu'on va vers les 5
       portes » (Yéman). */
   objectif: { sur: string; titre: string; ligne: string; piliers: { titre: string; ligne: string }[]; suite?: { ligne: string; bouton: Lien } };
-  diagnostic: { sur: string; titre: string; ligne: string; note: string };
+  /** Depuis le 17 novembre 2026, la carte mène à la consultation (`bouton`) :
+      le diagnostic ne se joue plus sur l'accueil. */
+  diagnostic: { sur: string; titre: string; ligne: string; note: string; bouton: Lien };
   marques: { sur: string; titre: string; ligne: string };
   offrir: { sur: string; titre: string; ligne: string; bouton: Lien };
   galerie: { sur: string; titre: string; images: string[]; bouton: Lien };

@@ -23,7 +23,15 @@
    LA PORTE N'EST PAS CELLE DU PERSONNEL (les clientes n'ont pas de compte
    du Trône, `ia-maison` ne leur sert pas) :
      · une session Ma Couronne (le jeton de la cliente dans Authorization :
-       un compte qui n'est PAS du personnel, et sa fiche) ;
+       un compte qui n'est PAS du personnel, et sa fiche). Depuis le 17
+       novembre 2026 (« il ne faut pas permettre d'avoir des bilans sans
+       prendre de RDV », Yéman), le compte ne suffit plus : il faut un
+       rendez-vous pris ou une séance faite (⟨rendez-vous-pris⟩), et chaque
+       cliente a son plafond (`mnd_auto_config.diagnosticPhotoPlafond`,
+       deux lectures par trente jours à défaut). Sans rendez-vous : 403
+       « rendez-vous », et ses lectures passées restent sous clé ; au
+       plafond : 429 « plafond », avec le jour où la porte se rouvre. Le
+       même plafond vaut pour une consultation réglée, par consultation ;
      · ou une consultation payée (`consultationId` + `transactionId` : la
        transaction KkiaPay inscrite au registre `payments` pour CETTE
        consultation, par `kkiapay-verify`).
@@ -32,7 +40,7 @@
 
    TROIS GESTES, tous en POST JSON :
      · { action: 'etat' }                                → { ouvert }
-     · { action: 'lire', consultationId?, transactionId? } → { diagnostics }
+     · { action: 'lire', consultationId?, transactionId? } → { diagnostics, porte? }
      · { action: 'lire-photos', photos: [{ base64, mime }], consentement: 'oui',
          consultationId?, transactionId? }              → { id, lecture, recommandation, texte, etat, mot }
    Un GET rend la version (405) : on ne cherche pas une panne dans un
@@ -56,7 +64,7 @@ const ANTHROPIC_API_KEY = (Deno.env.get('ANTHROPIC_API_KEY') ?? '').trim();
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-const VERSION = '2026-10-19-a · le diagnostic photo des locks';
+const VERSION = '2026-11-17-a · Ma Couronne : un rendez-vous pris ou une seance faite, un plafond par cliente (et par consultation reglee) ; 2026-10-19-a · le diagnostic photo des locks';
 
 function enTacheDeFond(p: Promise<unknown>): void {
   const er = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
@@ -254,7 +262,7 @@ function objetPourClaude<T>(valeur: T, personnes: readonly Personne[] = []): T {
    NE RIEN RETOUCHER ENTRE LES REPÈRES : on corrige l'original, puis on
    recopie le bloc entier ; `verifie-les-douze-lunes` (R8) confronte les deux. */
 /* ⟨diagnostic-locks⟩ */
-export const VERSION_DU_DIAGNOSTIC = '2026-10-19-a';
+export const VERSION_DU_DIAGNOSTIC = '2026-11-17-a';
 /** Une à quatre photos de la même couronne (sa décision). */
 export const PHOTOS_MIN = 1;
 export const PHOTOS_MAX = 4;
@@ -605,12 +613,91 @@ export function diagnosticsAuxPhotosAEffacer<T extends { id: string; cree_le?: s
     && Number.isFinite(Date.parse(d.cree_le ?? '')) && Date.parse(d.cree_le!) < limite);
 }
 
+/* ── LA PORTE DE MA COURONNE (17 novembre 2026) ─────────────────────────
+   Un rendez-vous pris ou une séance faite d'abord (la fonction le juge par
+   la règle ⟨rendez-vous-pris⟩), puis le plafond par cliente. */
+/** Le champ de `mnd_auto_config` où la direction règle le plafond. */
+export const CHAMP_DU_PLAFOND_PAR_CLIENTE = 'diagnosticPhotoPlafond';
+export type PlafondParCliente = { lectures: number; jours: number };
+/** Deux lectures par trente jours, tant que la direction n'a rien réglé. */
+export const PLAFOND_PAR_CLIENTE_LIVRE: PlafondParCliente = { lectures: 2, jours: 30 };
+export const BORNES_DU_PLAFOND_PAR_CLIENTE = { lectures: [1, 10], jours: [7, 365] } as const;
+/** Le réglage relu : 1 à 10 lectures, 7 à 365 jours ; hors bornes ou
+    illisible, celui d'origine. */
+export function plafondParCliente(brut: unknown): PlafondParCliente {
+  const b = (brut && typeof brut === 'object' ? brut : {}) as { lectures?: unknown; jours?: unknown };
+  const entier = (v: unknown, bornes: readonly [number, number], defaut: number): number => {
+    const n = typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : NaN;
+    return n >= bornes[0] && n <= bornes[1] ? n : defaut;
+  };
+  return {
+    lectures: entier(b.lectures, BORNES_DU_PLAFOND_PAR_CLIENTE.lectures, PLAFOND_PAR_CLIENTE_LIVRE.lectures),
+    jours: entier(b.jours, BORNES_DU_PLAFOND_PAR_CLIENTE.jours, PLAFOND_PAR_CLIENTE_LIVRE.jours),
+  };
+}
+export type PorteDeMaCouronne =
+  | { ouverte: true; reste: number }
+  | { ouverte: false; raison: 'rendez-vous' }
+  | { ouverte: false; raison: 'plafond'; prochaineLe: string };
+/** LA PORTE. `suivie` : elle a un rendez-vous pris ou une séance faite.
+    `lignes` : ses lectures, toutes comptées (celle que Claude n'a pas pu
+    faire est relue à la main : c'est une lecture). Au plafond, `prochaineLe`
+    dit l'instant où une lecture sort de la fenêtre. */
+export function porteDeMaCouronne(o: {
+  suivie: boolean; lignes: readonly { cree_le?: string }[]; maintenantMs: number; plafond: PlafondParCliente;
+}): PorteDeMaCouronne {
+  if (!o.suivie) return { ouverte: false, raison: 'rendez-vous' };
+  const fenetre = o.plafond.jours * 86_400_000;
+  const recentes = o.lignes.map((d) => Date.parse(d.cree_le ?? ''))
+    .filter((t) => Number.isFinite(t) && t <= o.maintenantMs && o.maintenantMs - t < fenetre)
+    .sort((a, b) => a - b);
+  if (recentes.length < o.plafond.lectures) return { ouverte: true, reste: o.plafond.lectures - recentes.length };
+  return { ouverte: false, raison: 'plafond', prochaineLe: new Date(recentes[recentes.length - o.plafond.lectures] + fenetre).toISOString() };
+}
+
 export type EtatDuDiagnostic = 'a-relire' | 'relu' | 'ferme';
 export const ETATS_DU_DIAGNOSTIC: readonly EtatDuDiagnostic[] = ['a-relire', 'relu', 'ferme'];
 /** Ce que la cliente lit sous sa lecture, selon l'état. */
 export const motDeLEtat = (etat: string | undefined, peauInquiete = false): string =>
   (peauInquiete ? MOT_PEAU : etat === 'relu' ? MOT_RELU : MOT_A_CONFIRMER);
 /* ⟨/diagnostic-locks⟩ */
+
+/* UN RENDEZ-VOUS PRIS OU UNE SÉANCE FAITE (17 novembre 2026), RECOPIÉ de
+   `src/shared/rendez-vous-pris-pur.ts` : la règle des autres portes, la même
+   que pour l'avis sur photo par WhatsApp. NE RIEN RETOUCHER ENTRE LES REPÈRES. */
+/* ⟨rendez-vous-pris⟩ */
+/** Ce que la règle lit d'un rendez-vous : son statut, son jour, et les deux
+    marques d'une suggestion (la pose par la Maison, son oui). */
+export type RendezVousLu = { status?: unknown; date?: unknown; suggereLe?: unknown; confirmeeParLaClienteLe?: unknown };
+const marqueDuRendezVous = (v: unknown): boolean => typeof v === 'string' && v.trim().length > 0;
+const jourDuRendezVous = (v: unknown): string => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : '');
+
+/** UNE SÉANCE FAITE : honorée, aujourd'hui ou avant (`aujourdhui` : AAAA-MM-JJ à Cotonou). */
+export function estUneSeanceFaite(a: RendezVousLu | null | undefined, aujourdhui: string): boolean {
+  const jour = jourDuRendezVous(a?.date);
+  return !!a && a.status === 'honoré' && jour !== '' && jour <= aujourdhui;
+}
+
+/** UN RENDEZ-VOUS PRIS : confirmé, aujourd'hui ou plus tard, et pas une
+    suggestion de la Maison restée sans son oui. « En attente » ne compte pas. */
+export function estUnRendezVousPris(a: RendezVousLu | null | undefined, aujourdhui: string): boolean {
+  const jour = jourDuRendezVous(a?.date);
+  if (!a || a.status !== 'confirmé' || jour === '' || jour < aujourdhui) return false;
+  return !(marqueDuRendezVous(a.suggereLe) && !marqueDuRendezVous(a.confirmeeParLaClienteLe));
+}
+
+/** Elle a déjà eu une séance à la Maison. */
+export const aEuUneSeance = (rdvs: readonly (RendezVousLu | null | undefined)[], aujourdhui: string): boolean =>
+  rdvs.some((a) => estUneSeanceFaite(a, aujourdhui));
+
+/** Elle a un rendez-vous pris. */
+export const aUnRendezVousPris = (rdvs: readonly (RendezVousLu | null | undefined)[], aujourdhui: string): boolean =>
+  rdvs.some((a) => estUnRendezVousPris(a, aujourdhui));
+
+/** LA RÈGLE : un rendez-vous pris, ou une séance faite. */
+export const aUnRendezVousPrisOuUneSeanceFaite = (rdvs: readonly (RendezVousLu | null | undefined)[], aujourdhui: string): boolean =>
+  rdvs.some((a) => estUneSeanceFaite(a, aujourdhui) || estUnRendezVousPris(a, aujourdhui));
+/* ⟨/rendez-vous-pris⟩ */
 
 /* ══ LE DIAGNOSTIC, SANS BASE NI RÉSEAU ═════════════════════════════════
    Tout ce qui suit jusqu'au repère de fin reçoit ses outils (la base, la
@@ -640,6 +727,10 @@ type BaseDuDiagnostic = {
   touche(id: string, champs: Record<string, unknown>): Promise<void>;
   miens(porte: Porte): Promise<LigneDiagnostic[]>;
   vieux(limiteIso: string): Promise<LigneDiagnostic[]>;
+  /** Les rendez-vous de la fiche, confirmés ou honorés (17 novembre 2026). */
+  rdvs(clientId: string): Promise<RendezVousLu[]>;
+  /** Le plafond par cliente, tel que la direction l'a écrit. */
+  plafond(): Promise<unknown>;
 };
 type RequeteDuDiagnostic = { jwt: string; body: Record<string, unknown> };
 type OutilsDuDiagnostic = {
@@ -677,12 +768,34 @@ async function etatDuDiagnostic(o: OutilsDuDiagnostic): Promise<Reponse> {
   return [200, { ok: true, ouvert: await o.base.interrupteur(), version: VERSION_DU_DIAGNOSTIC }];
 }
 
+/** Aujourd'hui à Cotonou (UTC+1, sans heure d'été) : le jour que lit la règle du rendez-vous. */
+const jourACotonou = (ms: number): string => new Date(ms + 3_600_000).toISOString().slice(0, 10);
+
+/** LA PORTE DE LA CLIENTE (17 novembre 2026). Ma Couronne : un rendez-vous
+    pris ou une séance faite, puis le plafond par cliente ; une session sans
+    fiche lisible reste dehors. Une consultation réglée n'a pas de
+    rendez-vous à montrer (elle a payé le sien) ; elle a le même plafond, par
+    consultation : un paiement n'ouvre pas des lectures sans fin. `miens` :
+    ses lectures (par sa fiche, ou par sa consultation). */
+async function porteDeLaCliente(o: OutilsDuDiagnostic, porte: Porte, miens: readonly LigneDiagnostic[]): Promise<PorteDeMaCouronne> {
+  const maintenant = o.maintenant();
+  const plafond = plafondParCliente(await o.base.plafond());
+  if (porte.source !== 'couronne') return porteDeMaCouronne({ suivie: true, lignes: miens, maintenantMs: maintenant, plafond });
+  if (!porte.clientId) return { ouverte: false, raison: 'rendez-vous' };
+  const suivie = aUnRendezVousPrisOuUneSeanceFaite(await o.base.rdvs(porte.clientId), jourACotonou(maintenant));
+  return porteDeMaCouronne({ suivie, lignes: miens, maintenantMs: maintenant, plafond });
+}
+
 async function lire(o: OutilsDuDiagnostic, r: RequeteDuDiagnostic): Promise<Reponse> {
   const porte = await o.porte(r);
   if (porte === 'personnel') return [403, { error: 'personnel' }];
   if (!porte) return [403, { error: 'porte' }];
   const miens = await o.base.miens(porte);
-  return [200, { ok: true, diagnostics: miens.slice(0, 20).map(pourLaCliente) }];
+  const laPorte = await porteDeLaCliente(o, porte, miens);
+  /* SANS RENDEZ-VOUS PRIS NI SÉANCE FAITE, SES LECTURES RESTENT SOUS CLÉ
+     (17 novembre 2026) : elles reviennent avec son rendez-vous. */
+  const visibles = !laPorte.ouverte && laPorte.raison === 'rendez-vous' ? [] : miens;
+  return [200, { ok: true, diagnostics: visibles.slice(0, 20).map(pourLaCliente), porte: laPorte }];
 }
 
 /** LES PHOTOS DE PLUS DE 90 JOURS S'EFFACENT (sa décision) ; la lecture reste
@@ -703,6 +816,13 @@ async function lirePhotos(o: OutilsDuDiagnostic, r: RequeteDuDiagnostic): Promis
   const porte = await o.porte(r);
   if (porte === 'personnel') return [403, { error: 'personnel' }];
   if (!porte) return [403, { error: 'porte' }];
+  /* LA PORTE DE LA CLIENTE (17 novembre 2026), avant le coffre et avant
+     Claude : un rendez-vous pris ou une séance faite (Ma Couronne), puis
+     son plafond (Ma Couronne et la consultation réglée). */
+  const laPorte = await porteDeLaCliente(o, porte, await o.base.miens(porte));
+  if (!laPorte.ouverte) {
+    return laPorte.raison === 'rendez-vous' ? [403, { error: 'rendez-vous' }] : [429, { error: 'plafond', prochaineLe: laPorte.prochaineLe }];
+  }
   const body = r.body;
   /* L'ACCORD EXPLICITE : « j'accepte que la Maison garde ces photos 90 jours ». */
   if (body.consentement !== 'oui') return [400, { error: 'consentement' }];
@@ -832,6 +952,18 @@ const base: BaseDuDiagnostic = {
   async vieux(limiteIso) {
     const { data } = await admin.from(TABLE_DES_DIAGNOSTICS).select('*').lt('cree_le', limiteIso).is('data->>photosEffaceesLe', null).limit(50);
     return (data ?? []) as LigneDiagnostic[];
+  },
+  /* Les plus récents d'abord : son prochain rendez-vous et sa dernière
+     séance y sont. Illisible : aucun, la porte reste fermée. */
+  async rdvs(clientId) {
+    const { data, error } = await admin.from('appointments').select('data').eq('data->>clientId', clientId)
+      .in('data->>status', ['confirmé', 'honoré']).order('data->>date', { ascending: false }).limit(200);
+    if (error) { console.error('diagnostic-locks: rendez-vous', error.message); return []; }
+    return ((data ?? []) as { data?: RendezVousLu }[]).map((l) => l.data ?? {});
+  },
+  async plafond() {
+    const cfg = await lisLeDocument<Record<string, unknown>>('mnd_auto_config', {});
+    return cfg?.[CHAMP_DU_PLAFOND_PAR_CLIENTE];
   },
 };
 

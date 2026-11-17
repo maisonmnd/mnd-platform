@@ -37,6 +37,14 @@ export const accesSansVerdict = (a: Access, consultationId: string, reglement: R
     ? { ...ACCES_VIDE, consultationId, ref: a.ref, at: a.at, reglement: 'kkiapay' }
     : { ...ACCES_VIDE, consultationId, reglement });
 
+/** LE PÉAGE SE PASSE PAR UN PAIEMENT VÉRIFIÉ — 17 novembre 2026. « Poursuivre,
+    je règle à la Maison » et « J'ai réglé par Mobile Money moi-même,
+    poursuivre » sont des passages de comptoir : ils ne s'offrent qu'à
+    l'équipe connectée, qui encaisse et rapproche le versement. Le tunnel
+    lui-même ne s'ouvre qu'à elle (`porte-de-l-equipe`) ; la règle se
+    redit ici, à l'endroit des deux boutons. */
+export const peutPoursuivreSansVerdict = (equipe: boolean): boolean => equipe === true;
+
 /** LA CONSULTATION EST DÉPOSÉE : l'accès qui l'a portée est SCELLÉ (l'écran
     de bienvenue le relit), et l'accès persisté redevient vide. Jusqu'au 10
     octobre, il restait : un rechargement puis un nouveau rite réutilisaient

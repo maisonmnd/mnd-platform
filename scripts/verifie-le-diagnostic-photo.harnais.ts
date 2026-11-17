@@ -25,6 +25,7 @@ import {
   consigneDuDiagnostic, dateDuDiagnostic, defautDeLEnvoi, diagnosticsAuxPhotosAEffacer, ecarte, formatDePhotoPermis,
   lectureDuDiagnostic, motDeLEtat, motDuRefus, motSimple, peutRelire, recommande, relecture, resumeDepuisLesObservations,
   tableEstValidee, tableValide, texteMontre, texteSansPromesse, type Catalogue, type Lecture,
+  PLAFOND_PAR_CLIENTE_LIVRE, plafondParCliente, porteDeMaCouronne,
 } from '../src/shared/ia-diagnostic-pur';
 
 let ko = 0;
@@ -361,6 +362,8 @@ function serveur(admin: unknown): Serveur {
     copieDe(src, 'src/shared/ia-budget-pur.ts'),
     copieDe(src, 'src/shared/ia-anonymise-pur.ts'),
     bloc(src).replace(/^export /gm, ''),
+    /* La règle du rendez-vous pris (17 novembre 2026), recopiée dans la fonction. */
+    morceau(src, '/* ⟨rendez-vous-pris⟩ */', '/* ⟨/rendez-vous-pris⟩ */').replace(/^export /gm, ''),
     morceau(src, '// ── DEBUT diagnostic', '// ── FIN diagnostic'),
     morceau(src, 'async function allowRate(', '\n}\n'),
     morceau(src, '/* ══ LES VRAIS OUTILS', '/** QUI SONNE').slice(0, -'/** QUI SONNE'.length),
@@ -375,10 +378,13 @@ const ANON = 'cle.publique.anon';
 const COMPTES = { 'jwt.awa.x': 'u-awa', 'jwt.staff.x': 'u-staff', 'jwt.inconnue.x': 'u-x', 'jwt.archivee.x': 'u-arch' };
 type Reponse = { brut: unknown; modele: string; entree: number; sortie: number } | null;
 
-function monde(o: { allume?: boolean; table?: unknown; compteur?: unknown; diagnostics?: Ligne[]; claude?: Reponse | 'panne'; pannes?: { uploadsPermis?: number; insertRefuse?: boolean } } = {}) {
+/** Awa a eu une séance à la Maison : sans autre précision, sa porte est ouverte (17 novembre 2026). */
+const SEANCE_D_AWA: Ligne[] = [{ id: 'rdv-awa', data: { clientId: 'c-awa', date: '2026-10-03', status: 'honoré' } }];
+function monde(o: { allume?: boolean; table?: unknown; compteur?: unknown; diagnostics?: Ligne[]; claude?: Reponse | 'panne'; pannes?: { uploadsPermis?: number; insertRefuse?: boolean }; rdvs?: Ligne[]; plafond?: unknown } = {}) {
   const tables: Tables = {
+    appointments: structuredClone(o.rdvs ?? SEANCE_D_AWA),
     documents: [
-      { key: 'mnd_auto_config', data: { momoLink: '', ...(o.allume === undefined ? { diagnosticPhoto: true } : o.allume === null ? {} : { diagnosticPhoto: o.allume }) } },
+      { key: 'mnd_auto_config', data: { momoLink: '', ...(o.allume === undefined ? { diagnosticPhoto: true } : o.allume === null ? {} : { diagnosticPhoto: o.allume }), ...(o.plafond !== undefined ? { diagnosticPhotoPlafond: o.plafond } : {}) } },
       ...(o.table !== undefined ? [{ key: 'mnd_diagnostic_table', data: o.table }] : []),
       ...(o.compteur !== undefined ? [{ key: 'mnd_ia_compteur_diagnostic', data: o.compteur }] : []),
     ],
@@ -443,7 +449,7 @@ const essais = async () => {
     dit('... absent du document, il est éteint aussi ; « etat » le dit', [[403, 'ferme'], false],
       [await monde({ allume: null }).envoie(AWA()).then(([a, b]) => [a, b.error]), (await m.s.etatDuDiagnostic(m.outils))[1].ouvert]);
     const m2 = monde();
-    dit('allumé, « etat » répond ouvert, avec la version', [200, true, '2026-10-19-a'], await m2.s.etatDuDiagnostic(m2.outils).then(([a, b]) => [a, b.ouvert, b.version]));
+    dit('allumé, « etat » répond ouvert, avec la version', [200, true, '2026-11-17-a'], await m2.s.etatDuDiagnostic(m2.outils).then(([a, b]) => [a, b.ouvert, b.version]));
   }
 
   /* La porte. */
@@ -465,6 +471,84 @@ const essais = async () => {
     for (const [, req] of cas) rendus.push(await monde().envoie(req).then(([a, b]) => [a, b.error]));
     dit('la porte : une session Ma Couronne ou une consultation payée, jamais le personnel ni un paiement qui n est pas le sien',
       cas.map(([nom, , att]) => `${nom} → ${JSON.stringify(att)}`), cas.map(([nom], i) => `${nom} → ${JSON.stringify(rendus[i])}`));
+  }
+
+  /* LA PORTE DE MA COURONNE (17 novembre 2026) : un rendez-vous pris ou une
+     séance faite, puis le plafond par cliente. Tenue par la fonction. */
+  {
+    const rdv = (status: string, date: string, marques: Record<string, unknown> = {}): Ligne[] => [{ id: 'r1', data: { clientId: 'c-awa', date, status, ...marques } }];
+    const AVANT = '2026-10-12';
+    const APRES = '2026-10-26';
+    const cas: [string, Ligne[], [number, unknown]][] = [
+      ['un compte sans aucun rendez-vous', [], [403, 'rendez-vous']],
+      ['une séance faite', rdv('honoré', AVANT), [200, undefined]],
+      ['un rendez-vous confirmé à venir', rdv('confirmé', APRES), [200, undefined]],
+      ['un rendez-vous confirmé aujourd hui', rdv('confirmé', '2026-10-19'), [200, undefined]],
+      ['un rendez-vous encore en attente', rdv('en attente', APRES), [403, 'rendez-vous']],
+      ['une suggestion de la Maison sans son oui', rdv('confirmé', APRES, { suggereLe: '2026-10-15T10:00:00.000Z' }), [403, 'rendez-vous']],
+      ['une suggestion qu elle a confirmée', rdv('confirmé', APRES, { suggereLe: '2026-10-15T10:00:00.000Z', confirmeeParLaClienteLe: '2026-10-16T08:00:00.000Z' }), [200, undefined]],
+      ['un rendez-vous confirmé resté dans le passé', rdv('confirmé', AVANT), [403, 'rendez-vous']],
+      ['un rendez-vous annulé', rdv('annulé', APRES), [403, 'rendez-vous']],
+      ['la séance d une autre cliente', [{ id: 'r2', data: { clientId: 'c-zoe', date: AVANT, status: 'honoré' } }], [403, 'rendez-vous']],
+    ];
+    const rendus = [];
+    const coffres = [];
+    for (const [, rdvs] of cas) { const m = monde({ rdvs }); rendus.push(await m.envoie(AWA()).then(([a, b]) => [a, b.error])); coffres.push(m.journal.filter((j) => j.startsWith('upload') || j === 'claude').length > 0); }
+    dit('Ma Couronne : un rendez-vous pris ou une séance faite, tenu par la fonction',
+      cas.map(([nom, , att]) => `${nom} → ${JSON.stringify(att)}`), cas.map(([nom], i) => `${nom} → ${JSON.stringify(rendus[i])}`));
+    dit('... porte fermée : rien au coffre, Claude jamais appelé', cas.map(([, , att]) => att[0] === 200), coffres);
+    dit('la consultation réglée garde sa porte à elle (aucun rendez-vous demandé)', [200, undefined], await monde({ rdvs: [] }).envoie(MARIAM()).then(([a, b]) => [a, b.error]));
+
+    /* Le plafond par cliente. */
+    const lecture = (id: string, joursAvant: number): Ligne => ({ id, branch_id: 'br-cot', client_id: 'c-awa', source: 'couronne', etat: 'a-relire', cree_le: iso(T0 - joursAvant * JOUR), data: { appel: 'Awa D.', consultationId: null, photos: [], lecture: null, recommandation: null, texte: 'Une lecture.', sansLecture: false } });
+    const m1 = monde({ diagnostics: [lecture('d-1', 3), lecture('d-2', 10)] });
+    const r1 = await m1.envoie(AWA());
+    dit('au plafond (deux lectures en trente jours, à défaut) : 429 « plafond », le jour où la porte se rouvre, rien au coffre', [429, 'plafond', iso(T0 + 20 * JOUR), 0],
+      [r1[0], r1[1].error, r1[1].prochaineLe, m1.journal.filter((j) => j.startsWith('upload') || j === 'claude').length]);
+    dit('une lecture sortie de la fenêtre ne compte plus', [200, undefined], await monde({ diagnostics: [lecture('d-1', 3), lecture('d-2', 31)] }).envoie(AWA()).then(([a, b]) => [a, b.error]));
+    dit('le plafond réglé par la direction est suivi (une lecture par quatre-vingt-dix jours)', [429, 'plafond'],
+      await monde({ diagnostics: [lecture('d-1', 60)], plafond: { lectures: 1, jours: 90 } }).envoie(AWA()).then(([a, b]) => [a, b.error]));
+    dit('un réglage illisible ou hors bornes retombe sur celui d origine', [[200, undefined], [429, 'plafond']], [
+      await monde({ diagnostics: [lecture('d-1', 3)], plafond: { lectures: 0, jours: 2 } }).envoie(AWA()).then(([a, b]) => [a, b.error]),
+      await monde({ diagnostics: [lecture('d-1', 3), lecture('d-2', 4)], plafond: 'beaucoup' }).envoie(AWA()).then(([a, b]) => [a, b.error]),
+    ]);
+    const m2 = monde({ plafond: { lectures: 1, jours: 30 } });
+    const premier = await m2.envoie(AWA());
+    const second = await m2.envoie(AWA());
+    dit('la lecture qu elle vient de faire compte aussitôt', [200, 429, 'plafond'], [premier[0], second[0], second[1].error]);
+    dit('les lectures d une autre cliente ne comptent pas pour elle', [200, undefined],
+      await monde({ diagnostics: [{ ...lecture('d-1', 3), client_id: 'c-autre' }, { ...lecture('d-2', 4), client_id: 'c-autre' }] }).envoie(AWA()).then(([a, b]) => [a, b.error]));
+
+    /* « lire » dit la porte, et garde les lectures sous clé sans rendez-vous. */
+    const lit = async (m: ReturnType<typeof monde>, r: { jwt?: string; body: Record<string, unknown> }) => m.s.lire(m.outils, { jwt: r.jwt ?? '', body: r.body });
+    const ouverte = await lit(monde({ diagnostics: [lecture('d-1', 3)] }), { jwt: 'jwt.awa.x', body: {} });
+    dit('« lire » : la porte ouverte, ce qu il reste, ses lectures', [200, { ouverte: true, reste: 1 }, 1], [ouverte[0], ouverte[1].porte, (ouverte[1].diagnostics as unknown[]).length]);
+    const fermee = await lit(monde({ diagnostics: [lecture('d-1', 3)], rdvs: [] }), { jwt: 'jwt.awa.x', body: {} });
+    dit('« lire » sans rendez-vous pris ni séance faite : la porte fermée, ses lectures passées sous clé', [200, { ouverte: false, raison: 'rendez-vous' }, 0],
+      [fermee[0], fermee[1].porte, (fermee[1].diagnostics as unknown[]).length]);
+    const pleine = await lit(monde({ diagnostics: [lecture('d-1', 3), lecture('d-2', 10)] }), { jwt: 'jwt.awa.x', body: {} });
+    dit('« lire » au plafond : le jour de la réouverture, ses lectures toujours lisibles', [{ ouverte: false, raison: 'plafond', prochaineLe: iso(T0 + 20 * JOUR) }, 2],
+      [pleine[1].porte, (pleine[1].diagnostics as unknown[]).length]);
+    const reglee = await lit(monde({ rdvs: [] }), { jwt: ANON, body: { consultationId: 'cons-1', transactionId: 'tx-ok' } });
+    dit('« lire » par une consultation réglée : aucun rendez-vous à montrer, le même plafond', [200, { ouverte: true, reste: 2 }], [reglee[0], reglee[1].porte]);
+    /* Un paiement n'ouvre pas des lectures sans fin : le plafond vaut par consultation. */
+    const m3 = monde({ rdvs: [] });
+    const envois = [await m3.envoie(MARIAM()), await m3.envoie(MARIAM()), await m3.envoie(MARIAM())];
+    dit('une consultation réglée a le même plafond, par consultation : deux lectures, puis 429 « plafond »', [200, 200, 429, 'plafond'], [envois[0][0], envois[1][0], envois[2][0], envois[2][1].error]);
+
+    /* La règle pure du plafond. */
+    dit('le plafond relu : celui d origine, les bornes, les nombres arrondis', [{ lectures: 2, jours: 30 }, { lectures: 2, jours: 30 }, { lectures: 10, jours: 365 }, { lectures: 3, jours: 30 }, { lectures: 2, jours: 30 }],
+      [plafondParCliente(undefined), plafondParCliente({ lectures: 11, jours: 6 }), plafondParCliente({ lectures: 10, jours: 365 }), plafondParCliente({ lectures: 3.2, jours: '14' }), plafondParCliente(null)]);
+    dit('la porte pure : le rendez-vous d abord, puis le plafond ; au plafond, la lecture qui sort la première rouvre', [
+      { ouverte: false, raison: 'rendez-vous' }, { ouverte: true, reste: 2 }, { ouverte: true, reste: 1 },
+      { ouverte: false, raison: 'plafond', prochaineLe: iso(T0 + 20 * JOUR) }, { ouverte: false, raison: 'plafond', prochaineLe: iso(T0 + 25 * JOUR) },
+    ], [
+      porteDeMaCouronne({ suivie: false, lignes: [], maintenantMs: T0, plafond: PLAFOND_PAR_CLIENTE_LIVRE }),
+      porteDeMaCouronne({ suivie: true, lignes: [], maintenantMs: T0, plafond: PLAFOND_PAR_CLIENTE_LIVRE }),
+      porteDeMaCouronne({ suivie: true, lignes: [{ cree_le: iso(T0 - 3 * JOUR) }, { cree_le: 'illisible' }, { cree_le: iso(T0 - 40 * JOUR) }], maintenantMs: T0, plafond: PLAFOND_PAR_CLIENTE_LIVRE }),
+      porteDeMaCouronne({ suivie: true, lignes: [{ cree_le: iso(T0 - 3 * JOUR) }, { cree_le: iso(T0 - 10 * JOUR) }], maintenantMs: T0, plafond: PLAFOND_PAR_CLIENTE_LIVRE }),
+      porteDeMaCouronne({ suivie: true, lignes: [{ cree_le: iso(T0 - 3 * JOUR) }, { cree_le: iso(T0 - 5 * JOUR) }, { cree_le: iso(T0 - 10 * JOUR) }], maintenantMs: T0, plafond: PLAFOND_PAR_CLIENTE_LIVRE }),
+    ]);
   }
 
   /* L'accord et les photos. */
@@ -644,7 +728,13 @@ const essais = async () => {
 /* ── 4. LA FONCTION, LA MIGRATION, LES ÉCRANS ────────────────────────── */
 const structure = () => {
   const f = sansCommentaires(lis(SERVEUR));
-  dit('la fonction dit sa version et répond 405 à un GET', [true, true], [/const VERSION = '2026-10-19-a/.test(f), /json\(\{ error: 'method', version: VERSION \}, 405\)/.test(f)]);
+  dit('la fonction dit sa version et répond 405 à un GET', [true, true], [/const VERSION = '2026-11-17-a/.test(f), /json\(\{ error: 'method', version: VERSION \}, 405\)/.test(f)]);
+  dit('la porte de Ma Couronne se juge avant le coffre et avant Claude, par la règle recopiée', [true, true, true],
+    [/const laPorte = await porteDeLaCliente\(o, porte, await o\.base\.miens\(porte\)\);\s*if \(!laPorte\.ouverte\) \{/.test(f),
+      /const suivie = aUnRendezVousPrisOuUneSeanceFaite\(await o\.base\.rdvs\(porte\.clientId\), jourACotonou\(maintenant\)\);/.test(f),
+      lis(SERVEUR).indexOf('if (!laPorte.ouverte) {') > 0 && lis(SERVEUR).indexOf('if (!laPorte.ouverte) {') < lis(SERVEUR).indexOf('if (!(await o.base.depose(chemin')]);
+  dit('la fonction porte la règle du rendez-vous pris, caractère pour caractère', morceau(lis('src/shared/rendez-vous-pris-pur.ts'), '/* ⟨rendez-vous-pris⟩ */', '/* ⟨/rendez-vous-pris⟩ */'),
+    morceau(lis(SERVEUR), '/* ⟨rendez-vous-pris⟩ */', '/* ⟨/rendez-vous-pris⟩ */'));
   dit('trois gestes, chacun son seau ; la lecture des photos, cinq par dix minutes', [true, true, true],
     [/allowRate\(ip, 'diagnostic_photos', SEAU_DU_DIAGNOSTIC\)\)\) return json\(\{ error: 'rate_limited' \}, 429\);\s*r = await lirePhotos\(outils/.test(f),
       /allowRate\(ip, 'diagnostic_lire', 30\)/.test(f), /allowRate\(ip, 'diagnostic_etat', 60\)/.test(f)]);
@@ -692,8 +782,13 @@ const structure = () => {
     [/ia-maison/.test(cons), /\.storage\s*\.\s*from\(/.test(cons + app), /consultationsQueueStore/.test(cons), /restent sur votre t[ée]l[ée]phone/.test(app)]);
   const mc = sansCommentaires(lis('src/apps/couronne/MonDiagnosticPhoto.tsx'));
   dit('Ma Couronne : rien sans l interrupteur ; sa couronne à elle seulement ; l accord coché ; envoyer au toucher', [true, true, true, true, true, false],
-    [/const ouvert = useDiagnosticOuvert\(\);/.test(mc), /if \(!ouvert\) return null;/.test(mc), /\{client && !regard && <MonDiagnosticPhoto \/>\}/.test(sansCommentaires(lis('src/apps/couronne/Tabs.tsx'))),
+    [/const ouvert = useDiagnosticOuvert\(\);/.test(mc), /if \(!ouvert \|\| porte === null\) return null;/.test(mc), /\{client && !regard && <MonDiagnosticPhoto \/>\}/.test(sansCommentaires(lis('src/apps/couronne/Tabs.tsx'))),
       /t\(PHRASE_DE_L_ACCORD\)/.test(mc), /if \(envoi \|\| defaut\) return;/.test(mc), /ia-maison/.test(mc)]);
+  dit('Ma Couronne suit la porte que dit la fonction : rien avant sa réponse ; sans rendez-vous, une ligne et le chemin de la consultation ; au plafond, le jour', [true, true, true, true],
+    [/if \(r\.repondu\) setPorte\(r\.porte \?\? 'libre'\);/.test(mc),
+      /porte\.raison === 'rendez-vous'\) \{\s*return \([\s\S]{0,260}t\('Le diagnostic photo s’ouvre avec votre rendez-vous\.'\)[\s\S]{0,120}href=\{CHEMIN_DE_LA_CONSULTATION\}>\{t\('Ma consultation'\)\}/.test(mc),
+      /t\('Votre prochaine lecture de photos s’ouvre le \{date\}\.', \{ date: dateLisible\(auPlafond\) \}\)/.test(mc),
+      lis('src/shared/rendez-vous-pris-pur.ts').includes("export const CHEMIN_DE_LA_CONSULTATION = '/consultation/';")]);
   {
     const montres = `${cons}\n${mc}`;
     dit('ce que lisent les clientes : jamais « salon », jamais de tiret long, jamais « intelligence », toujours « à confirmer en consultation »', [false, false, false, true],
@@ -721,6 +816,10 @@ const structure = () => {
     [/<CarteDiagnosticPhoto \/>/.test(sansCommentaires(lis('src/apps/trone/routes/systeme/Parametres.tsx'))),
       /if \(!estDirection\) \{ toast\('Ce réglage appartient à la direction\.'\); return; \}\s*setCfg\(\(c\) => \(\{ \.\.\.c, diagnosticPhoto: !allume \}/.test(carte),
       /if \(!estDirection\) \{ toast\('La table du diagnostic appartient à la direction\.'\); return; \}/.test(carte), />À valider</.test(carte), /tableEstValidee\(doc\)/.test(carte)]);
+  dit('Paramètres : le plafond par cliente, à la direction, dans les bornes de la règle', [true, true, true],
+    [/const plafond = plafondParCliente\(\(cfg as Record<string, unknown>\)\[CHAMP_DU_PLAFOND_PAR_CLIENTE\]\);/.test(carte),
+      /const reglePlafond = [\s\S]{0,120}if \(!estDirection\) \{ toast\('Ce réglage appartient à la direction\.'\); return; \}/.test(carte),
+      /if \(!Number\.isFinite\(n\) \|\| n < min \|\| n > max\) \{/.test(carte)]);
   dit('pas de rubrique de plus dans la barre', false, /path: '\/diagnostic/.test(lis('src/apps/trone/routes/index.tsx')));
 };
 
