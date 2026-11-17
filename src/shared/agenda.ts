@@ -360,6 +360,18 @@ export type Appointment = {
       confirme » ou par le comptoir (« Elle a dit oui »). Le statut reste
       « confirmé » : la place est tenue. Absent : tout ce qui précède. */
   suggereLe?: string;
+  /** LE RENDEZ-VOUS EN ATTENTE (17 novembre 2026, rendez-vous-en-attente-pur) :
+      né d'une porte en ligne, la place est tenue jusqu'à cette échéance sans
+      son oui (ni son acompte) ; passée, la base la libère (`placeLibereeLe`,
+      le rendez-vous annulé). `cleDuNumero` : la clé du numéro qui l'a pris,
+      pour le plafond. `deplacements` : ses déplacements depuis le site (deux
+      au plus). `remiseRetireeLe` : une remise qui n'a pas suivi un autre jour.
+      Posées par le serveur seul. */
+  attenduJusquAu?: string;
+  placeLibereeLe?: string;
+  cleDuNumero?: string;
+  deplacements?: number;
+  remiseRetireeLe?: string;
   /** Qui a noté son oui, quand ce n'est pas elle d'un toucher : le comptoir. */
   ouiNoteParLeComptoir?: boolean;
   /** « JE NE PEUX PLUS » sous le message « garder » — 2 novembre 2026 (lot 3

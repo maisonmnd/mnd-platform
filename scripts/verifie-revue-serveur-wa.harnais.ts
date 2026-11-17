@@ -272,7 +272,8 @@ const appelsReseau = (src: string): string[] => {
   return out;
 };
 const racine = process.cwd();
-for (const [n, f, combien] of [['n0', 'whatsapp-webhook', 9], ['n1', 'whatsapp-envoi', 6]] as const) {
+/* 17 novembre 2026 : un appel de plus dans le webhook, la porte du site (rendsALaPorteDuSite), borne a douze secondes. */
+for (const [n, f, combien] of [['n0', 'whatsapp-webhook', 10], ['n1', 'whatsapp-envoi', 6]] as const) {
   const appels = appelsReseau(readFileSync(path.join(racine, `supabase/functions/${f}/index.ts`), 'utf8'));
   const nus = appels.filter((a) => !a.includes('signal: AbortSignal.timeout('));
   dit(`${n} chaque fetch de ${f} porte une borne de temps (${combien} appels)`, appels.length === combien && nus.length === 0,
@@ -376,7 +377,8 @@ reprise();
      2 novembre 2026 : une de plus, la réponse à la question de l'accord des nouvelles (lot 3 de Perle).
      6 novembre 2026 : une de plus, les boutons de la paie (« Oui, bien reçu », « Pas encore »).
      11 novembre 2026 : une de plus, les boutons de la prochaine séance (lot 4 de l'abonnement refait). */
-  dit('n4 chaque boucle de gestes ne joue que les messages neufs (12 boucles)', boucles.length === 12 && nues.length === 0, { boucles: boucles.length, nues });
+  /* 17 novembre 2026 : une boucle de plus, le « Je confirme » ecrit rendu a la porte du site (des messages neufs seulement). */
+  dit('n4 chaque boucle de gestes ne joue que les messages neufs (13 boucles)', boucles.length === 13 && nues.length === 0, { boucles: boucles.length, nues });
 }
 
 /* ── n79 · la cle d'unicite ────────────────────────────────────────── */

@@ -16,7 +16,7 @@ import { lectureDuRdv, type RendezVousLu } from './reservation-du-site-pure';
 export const FONCTION_DES_PLACES = 'demande-submit';
 
 /** Pourquoi un rendez-vous ne se déplace pas depuis la page. */
-export type RaisonDuRefus = 'trop_tard' | 'annule' | 'passe';
+export type RaisonDuRefus = 'trop_tard' | 'annule' | 'passe' | 'limite';
 
 /** Ce que la page montre à la place du bouton « Déplacer ». `ouvert` : le
     calendrier peut s'ouvrir ; `ecrire` : 24 h ou moins restent, un mot à la
@@ -56,6 +56,8 @@ export function placesLues(r: unknown, statut?: number): LectureDesPlaces {
   if (!x || typeof x !== 'object') return { etat: 'panne' };
   if (x.ok !== true) return x.error === 'lien' || x.error === 'introuvable' ? { etat: 'lien' } : { etat: 'panne' };
   if (x.deplacable === false) {
+    /* DEUX FOIS AU PLUS (17 novembre 2026) : le serveur le dit, la page mène à la Maison. */
+    if (x.raison === 'trop_de_deplacements') return { etat: 'ferme', raison: 'limite' };
     return x.raison === 'trop_tard' || x.raison === 'annule' || x.raison === 'passe' ? { etat: 'ferme', raison: x.raison } : { etat: 'panne' };
   }
   const jours: Record<string, string[]> = {};
@@ -80,7 +82,7 @@ export function placesLues(r: unknown, statut?: number): LectureDesPlaces {
 
 /** Ce que « Déplacer à ce moment » a rendu : le rendez-vous à sa nouvelle
     place (la même lecture que la page), ou pourquoi il n'a pas bougé. */
-export type RefusDuDeplacement = 'place_prise' | 'trop_tard' | 'annule' | 'passe' | 'meme_place' | 'lien' | 'modifie' | 'panne';
+export type RefusDuDeplacement = 'place_prise' | 'trop_tard' | 'annule' | 'passe' | 'meme_place' | 'lien' | 'modifie' | 'limite' | 'autre_jour' | 'panne';
 export type LectureDuDeplacement =
   | { etat: 'deplace'; rdv: RendezVousLu; confirmation: 'envoyee' | 'plus-tard' | 'sans' | 'deja' }
   | { etat: 'refus'; raison: RefusDuDeplacement }
@@ -97,6 +99,8 @@ export function deplacementLu(r: unknown, statut?: number): LectureDuDeplacement
     const e = String(x.error ?? '');
     if (PLACE_PERDUE.includes(e)) return { etat: 'refus', raison: 'place_prise' };
     if (e === 'trop_tard' || e === 'annule' || e === 'passe' || e === 'meme_place' || e === 'modifie') return { etat: 'refus', raison: e };
+    if (e === 'trop_de_deplacements') return { etat: 'refus', raison: 'limite' };
+    if (e === 'remise_perdue') return { etat: 'refus', raison: 'autre_jour' };
     return { etat: 'refus', raison: e === 'lien' || e === 'introuvable' ? 'lien' : 'panne' };
   }
   if (x.verdict !== 'deplace' && x.verdict !== 'deja') return { etat: 'refus', raison: 'panne' };
@@ -142,6 +146,8 @@ export function refusDuDeplacementDit(r: RefusDuDeplacement): string {
     case 'passe': return 'Ce rendez-vous a eu lieu : il ne peut plus être déplacé.';
     case 'meme_place': return 'C’est déjà la date de votre rendez-vous. Choisissez-en une autre.';
     case 'modifie': return 'Votre rendez-vous vient de changer. Réessayez dans un instant, ou écrivez à la Maison.';
+    case 'limite': return 'Ce rendez-vous a déjà été déplacé deux fois. Pour le déplacer encore, écrivez à la Maison sur WhatsApp.';
+    case 'autre_jour': return 'Ce jour-là ne se choisit pas d’ici pour ce rendez-vous. Choisissez-en un autre, ou écrivez à la Maison sur WhatsApp.';
     case 'lien': return 'Ce lien ne vaut plus. Retrouvez votre rendez-vous avec votre code, ou écrivez à la Maison.';
     default: return 'Le déplacement ne répond pas. Votre rendez-vous n’a pas bougé : réessayez dans un moment, ou écrivez à la Maison sur WhatsApp.';
   }

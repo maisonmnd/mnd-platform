@@ -148,7 +148,16 @@ export const appelDuRetour = (c: Pick<CoordonneesDuRetour, 'prenom' | 'civilite'
    rendez-vous à venir (avec déplacer, annuler, l'agenda), passé ou annulé
    (dits sans les boutons), ou un lien qui ne vaut plus. Le jeton ne se
    montre jamais. */
-export type RendezVousLu = { reference: string; date: string; heure: string; dureeMin: number; gestes: string[]; appel: string; statut: 'a-venir' | 'passe' | 'annule' };
+export type RendezVousLu = {
+  reference: string; date: string; heure: string; dureeMin: number; gestes: string[]; appel: string; statut: 'a-venir' | 'passe' | 'annule';
+  /** LE RENDEZ-VOUS EN ATTENTE (17 novembre 2026) : pris en ligne, il attend son
+      « Je confirme » (`sans-reponse`) ou son acompte (`acompte`), jusqu'à
+      `attenduJusquAu`. Absent : confirmé, ou d'avant ce jour. */
+  attente?: 'sans-reponse' | 'acompte';
+  attenduJusquAu?: string;
+  acompteXof?: number;
+  branchId?: string;
+};
 export type LectureDuRdv = { etat: 'pret'; rdv: RendezVousLu } | { etat: 'lien' } | { etat: 'trop' } | { etat: 'panne' };
 export function lectureDuRdv(r: unknown, statut?: number): LectureDuRdv {
   if (statut === 429 || (r as { error?: unknown } | null)?.error === 'rate_limited') return { etat: 'trop' };
@@ -167,6 +176,12 @@ export function lectureDuRdv(r: unknown, statut?: number): LectureDuRdv {
       gestes: Array.isArray(d.gestes) ? (d.gestes as unknown[]).filter((g): g is string => typeof g === 'string').slice(0, 6) : [],
       appel: typeof d.appel === 'string' ? d.appel.slice(0, 60) : '',
       statut: statutLu,
+      ...(statutLu === 'a-venir' && (d.attente === 'sans-reponse' || d.attente === 'acompte') ? {
+        attente: d.attente,
+        ...(typeof d.attenduJusquAu === 'string' && Number.isFinite(Date.parse(d.attenduJusquAu)) ? { attenduJusquAu: d.attenduJusquAu } : {}),
+        ...(d.attente === 'acompte' && Number(d.acompteXof) > 0 ? { acompteXof: Math.round(Number(d.acompteXof)) } : {}),
+        ...(d.attente === 'acompte' && typeof d.branchId === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(d.branchId) ? { branchId: d.branchId } : {}),
+      } : {}),
     },
   };
 }

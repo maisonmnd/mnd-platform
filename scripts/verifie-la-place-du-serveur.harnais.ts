@@ -533,7 +533,25 @@ function jugeLaPorte(brut: string): string[] {
   exige('la derniere venue se lit par les fiches du numero et le statut honore, rien d autre',
     !!blocVenue && (blocVenue.match(/from\('appointments'\)/g) ?? []).length === 1
     && /from\('appointments'\)\.select\('data'\)\s*\.in\('data->>clientId', ids\)\.eq\('data->>status', 'honoré'\)\.limit\(PLAFOND_D_UNE_REPONSE\)/.test(blocVenue));
-  const pourJuger = (horsJuge0 ? s.replace(horsJuge0, '') : s).replace(blocVenue, '');
+  /* 17 novembre 2026 : le rendez-vous en attente et Ma Couronne. Leur section (de la bascule du modele a la porte)
+     ne juge aucune place du site : elle lit SES rendez-vous (la cle du numero, vingt au plus), les venues honorees
+     d'UNE tete, et n'ecrit que le rendez-vous qu'elle confirme, rend ou defait, par son identifiant. Le doublon relit
+     les seuls rendez-vous des demandes connues. Tout cela est mis de cote, et tenu. */
+  const debutAttente = s.indexOf('async function modeleDeLAttenteOuvert(');
+  const finAttente = s.indexOf('Deno.serve(');
+  const blocAttente = debutAttente > 0 && finAttente > debutAttente ? s.slice(debutAttente, finAttente) : '';
+  const LECTURES_DE_L_ATTENTE = [
+    /^from\('appointments'\)\.update\(\{ data: reste \}\)\.eq\('id', apptId\)$/,
+    /^from\('appointments'\)\.select\('id, branch_id, data, updated_at'\) \.eq\('data->>cleDuNumero', cle\)\.order\('updated_at', \{ ascending: false \}\)\.limit\(20\)$/,
+    /^from\('appointments'\)\.update\(\{ data: apres \}\) \.eq\('id', apptId\)\.eq\('updated_at', ligne\.updatedAt\)\.select\('id'\)$/,
+    /^from\('appointments'\)\.select\('data'\) \.eq\('data->>clientId', pour\)\.eq\('data->>status', 'honoré'\)\.limit\(PLAFOND_D_UNE_REPONSE\)$/,
+    /^from\('appointments'\)\.delete\(\)\.in\('id', ids\)$/,
+  ];
+  exige('l attente et Ma Couronne ne lisent que les rendez-vous d un numero ou d une tete, et n ecrivent que le leur, par son id',
+    !!blocAttente && (blocAttente.replace(/\s+/g, ' ').match(/from\('appointments'\)[^;]*/g) ?? []).every((l) => LECTURES_DE_L_ATTENTE.some((r) => r.test(l.trim()))));
+  const doublon = "admin.from('appointments').select('id, data').in('id', idsConnus)";
+  exige('le doublon relit les seuls rendez-vous des demandes connues, par leurs identifiants', s.split(doublon).length === 2);
+  const pourJuger = (horsJuge0 ? s.replace(horsJuge0, '') : s).replace(blocVenue, '').replace(blocAttente, '').replace(doublon, '');
   exige('plus aucune lecture directe des rendez-vous pour juger', !/from\('appointments'\)\.select\(/.test(pourJuger));
   exige('la page du rendez-vous et le retour lisent un rendez-vous par son id, ou ceux d une fiche, rien d autre',
     !!horsJuge && (horsJuge.match(/from\('appointments'\)\.select\([^)]*\)[^;]*/g) ?? []).every((l) => /\.eq\('id', apptId\)\.maybeSingle\(\)$|\.eq\('data->>clientId', f\.id\)\.limit\(500\)$/.test(l))
@@ -544,14 +562,14 @@ function jugeLaPorte(brut: string): string[] {
      2 novembre 2026) ; c'est toujours celui du serveur. */
   /* LE SITE OUVRE LE JOUR MÊME (12 novembre 2026) : la porte du site passe
      `jourMeme` (true) au juge, aux deux endroits. */
-  exige('le juge est celui du serveur', /laPlaceTient\(\{ \.\.\.agenda, sieges: places \}, \{ date: o\.date, time: o\.time, serviceIds: o\.serviceIds, derniereVenue \}, maintenant, true\)/.test(s));
+  exige('le juge est celui du serveur', /laPlaceTient\(\{ \.\.\.agenda, sieges: places, services: auCalibre, categories: famillesDuSite \}, \{ date: o\.date, time: o\.time, serviceIds: o\.serviceIds, derniereVenue \}, maintenant, true\)/.test(s));
   exige('la forme et la fenetre se jugent avant toute lecture', s.indexOf('laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant, true)') > -1
     && s.indexOf('laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant, true)') < s.indexOf("toutesLesLignes('catalog_services')"));
   exige('une lecture en panne refuse', /if \(panne \|\| pris\.length >= PLAFOND_D_UNE_REPONSE\)/.test(s) && /return \{ erreur: 'agenda_illisible' \}/.test(s));
   exige('le refus du juge part en 409, la panne en 503', /json\(\{ error: verdict\.erreur \}, verdict\.erreur === 'agenda_illisible' \? 503 : 409\)/.test(s));
   exige('jamais le premier maitre de la branche sans regarder', !/\b(?:o|branche)\.maitres\[0\]/.test(s));
   exige('le jour ne se compte plus sur l horloge du serveur', !/setHours\(0, 0, 0, 0\)/.test(s));
-  exige('la branche porte sa ligne (les fauteuils)', /ligne: \{ id, data: choisie\?\.data \?\? \{\} \}/.test(s) && /laPlaceDemandee\(\{ branche: branche\.ligne, serviceIds, date, time, telephone \}\)/.test(s));
+  exige('la branche porte sa ligne (les fauteuils)', /ligne: \{ id, data: choisie\?\.data \?\? \{\} \}/.test(s) && /laPlaceDemandee\(\{ branche: branche\.ligne, serviceIds, date, time, telephone, lockCount \}\)/.test(s));
   exige('plus aucune vieille copie du calendrier hors des reperes', (s.match(/function ouvertureDuJour\(/g) ?? []).length === 1
     && (s.match(/function masquePourLeSite\(/g) ?? []).length === 1);
   return fautes;

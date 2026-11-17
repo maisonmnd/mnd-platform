@@ -67,8 +67,11 @@ dit('la reponse de la base : rien, posee ; creneau_pris, prise ; autre chose, ec
 const booking = sansCommentaires('src/apps/couronne/Booking.tsx');
 dit('les murs se relisent toujours, acompte ou non', [true, false],
   [booking.includes("const mursFrais = await relisLesMurs(sb ? () => sb.rpc('creneaux_occupes', {"), booking.includes('peutNaitreConfirme ?')]);
-dit('le rendez-vous s ecrit en base et attend sa reponse AVANT le telephone', true,
-  /await sb\.from\('appointments'\)\.insert\(poses\.map[\s\S]*?appointmentsStore\.set\(\(prev\) => \[\.\.\.prev, \.\.\.poses\]\)/.test(booking));
+/* 17 novembre 2026 : la Maison pose (demande-submit, « couronne »), le navigateur n'ecrit plus qu'en repli ; dans
+   les deux cas la reponse s'attend AVANT que le telephone garde quoi que ce soit, et ce qu'il garde est ce qui est ecrit. */
+dit('le rendez-vous se demande a la Maison (ou s ecrit en base, en repli) et attend sa reponse AVANT le telephone', [true, true], [
+  /await reserveALaMaison\(sb, \{[\s\S]*?appointmentsStore\.set\(\(prev\) => \[\.\.\.prev\.filter\(\(x\) => !ecrits\.some\(\(e\) => e\.id === x\.id\)\), \.\.\.ecrits\]\)/.test(booking),
+  /if \(sb && parLaMaison\?\.etat === 'injoignable'\) \{[\s\S]*?await sb\.from\('appointments'\)\.insert\(ecrits\.map[\s\S]*?appointmentsStore\.set\(/.test(booking)]);
 dit('une place prise a la base ne laisse rien sur le telephone', true,
   booking.includes("if (verdict === 'prise') { if (online?.confirmed) acompteSansPlace(); else laPlacePrise(); return; }"));
 dit('la duree de SA tete se fige sur le rendez-vous (calibre compris)', true, booking.includes('dureeMin: totalDuration,'));

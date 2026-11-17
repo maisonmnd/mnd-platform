@@ -44,6 +44,7 @@ import {
   CLE_MEMOIRE_DU_SITE, memoireAEcrire, memoireLue, prochainesPlaces, type MemoireDuSite,
 } from '../../../shared/reservation-express';
 import { bandesTriees, etendueDeLaBande, representantDeLaBande, prixSelonLeCalibre, seCompteAuLock, type ContexteDuCalibre } from '../prix-calibre';
+import { dureeAuCalibre, gestesAuCalibre, heureDeCotonouDite, type ContexteDeDuree } from '../../../shared/rendez-vous-en-attente-pur';
 import { ceQueLaCouleurOffre } from '../couleur-pure';
 
 /* RÉSERVER DIRECTEMENT, SANS COMPTE ET SANS WHATSAPP — 17 septembre 2026.
@@ -473,11 +474,30 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         celle de la remise qu'elle a déjà (une seule remise), dites au clic. */
     placeLimitee?: string;
     uneSeuleRemise?: string;
+    /** LE RENDEZ-VOUS EN ATTENTE — 17 novembre 2026 : la place est tenue deux
+        heures, elle se confirme par « Je confirme » sur WhatsApp. `jusqua` :
+        l'heure de Cotonou où elle se libère ; `acompteXof` : l'acompte que
+        portent ses gestes, s'il y en a un. */
+    etat?: 'en-attente' | 'confirme';
+    jusqua?: string;
+    acompteXof?: number;
+    /** Cette demande était déjà enregistrée (un autre appareil, ou une autre visite). */
+    deja?: boolean;
   } | null>(null);
+  /* LA CLÉ DE CE DÉPÔT (17 novembre 2026) : un mot tiré au hasard, gardé le
+     temps de la visite. Un second envoi de CETTE page retrouve sa référence ;
+     personne d'autre ne l'obtient en retapant le numéro, le jour et l'heure. */
+  const cleDuDepot = useRef('');
+  if (!cleDuDepot.current) {
+    try {
+      const octets = crypto.getRandomValues(new Uint8Array(18));
+      cleDuDepot.current = Array.from(octets, (o) => o.toString(16).padStart(2, '0')).join('');
+    } catch { /* sans hasard sûr : pas de clé, la référence ne se rend qu'une fois */ }
+  }
   /* LA BANDE DE FIN NE REDIT PAS « RÉSERVER » après une place tenue : le corps
      de la page porte la classe, la feuille cache l'appel. */
   useEffect(() => {
-    try { document.body.classList.toggle('est-reserve', !!recu?.confirme); } catch { /* sans document */ }
+    try { document.body.classList.toggle('est-reserve', !!recu?.confirme || recu?.etat === 'en-attente'); } catch { /* sans document */ }
   }, [recu]);
 
   useEffect(() => {
@@ -595,6 +615,19 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     [agenda, bandeChoisie, bandes],
   );
   const lockCountAnnonce = bandeChoisie ? representantDeLaBande(bandeChoisie, bandes) : 0;
+  /* LA DURÉE AU CALIBRE ANNONCÉ — 17 novembre 2026. Le barème porte un
+     coefficient de durée par tranche de locks (`durCoef`) : une tête Micro
+     demande plus de temps qu'une Medium. Les heures proposées et la durée
+     dite le suivent, comme le serveur qui pose la place (`gestesAuCalibre`,
+     la même règle des deux côtés). Sans calibre annoncé, le catalogue nu. */
+  const contexteDeDuree = useMemo<ContexteDeDuree>(() => ({
+    lockCount: lockCountAnnonce, bandes: agenda?.bandes ?? [], sets: agenda?.bandSets ?? {},
+    categories: agenda?.categories ?? [], suspendu: agenda?.baremeSuspendu === true,
+  }), [agenda, lockCountAnnonce]);
+  const agendaAuCalibre = useMemo(
+    () => (agenda ? { ...agenda, services: gestesAuCalibre(agenda.services, contexteDeDuree) } : null),
+    [agenda, contexteDeDuree],
+  );
   const tousLesGroupes = useMemo(
     () => (agenda ? groupesDePrestations(agenda, prestations, besoin) : []),
     [agenda, prestations, besoin],
@@ -694,7 +727,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
      calendrier, lui, applique le plancher d'une heure du serveur. Le prix
      ne compte que les prix fermes, et dès qu'un geste n'en a pas, le total
      se dit « à partir de » : on ne promet jamais un chiffre qui bougerait. */
-  const dureeTotale = choisies.reduce((t, s) => t + Number(s.durationMin ?? 0), 0);
+  const dureeTotale = choisies.reduce((t, s) => t + Number(dureeAuCalibre(s, contexteDeDuree) ?? 0), 0);
 
   /* CE QUE LE CODE RETIRE, LIGNE À LIGNE — 24 septembre 2026. Jamais un
      total opaque : une cliente doit voir LAQUELLE de ses prestations a
@@ -789,7 +822,12 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const arrondi = arrondiDuNet(compte.net, compte.retire);
   const retireNet = Math.max(0, compte.retire - arrondi);
   const prixTotal = compte.net + arrondi;
-  const prixFlou = choisies.some((s) => !prixFerme(s, ctx) || s.priceMode === 'variable');
+  /* LE CALIBRE ANNONCÉ NE FAIT PAS UN PRIX FERME — 17 novembre 2026. Elle
+     DIT son nombre de locks ; la Maison le compte au fauteuil. Dès qu'un
+     geste choisi change de prix avec le calibre, le total se dit « à partir
+     de », confirmé au fauteuil : jamais un prix promis sur une déclaration. */
+  const prixAuCalibre = !!bandeChoisie && !!ctx && choisies.some((s) => prixSelonLeCalibre(s, ctx) !== prixSelonLeCalibre(s, {}));
+  const prixFlou = prixAuCalibre || choisies.some((s) => !prixFerme(s, ctx) || s.priceMode === 'variable');
   const plein = serviceIds.length >= PLAFOND_GESTES;
 
   /* Les jours qui ont au moins une heure libre pour TOUS les gestes cochés,
@@ -802,9 +840,9 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     const aujourdhui = jourDeCotonou(maintenant.getTime());
     return horizon.jours
       .filter((iso) => iso >= aujourdhui)
-      .map((iso) => ({ iso, heures: heuresLibres({ agenda, dateIso: iso, serviceIds, occupes, places: placesParJour, maintenant }) }))
+      .map((iso) => ({ iso, heures: heuresLibres({ agenda: agendaAuCalibre ?? agenda, dateIso: iso, serviceIds, occupes, places: placesParJour, maintenant }) }))
       .filter((j) => j.heures.length > 0);
-  }, [agenda, serviceIds, occupes, placesParJour, occupesEtat, minute]);
+  }, [agenda, agendaAuCalibre, serviceIds, occupes, placesParJour, occupesEtat, minute]);
 
   const heuresDuJour = jours.find((j) => j.iso === jour)?.heures ?? [];
   /* L'HEURE CHOISIE QUI VIENT DE COMMENCER (12 novembre 2026) : elle quitte
@@ -1028,6 +1066,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                lit `dial` depuis le 9 octobre, la page ne l'envoyait pas, et un
                numéro français devenait un numéro béninois. */
             dial: indicatif, pourQui,
+            ...(cleDuDepot.current ? { cle: cleDuDepot.current } : {}),
             page: location.pathname, campagne: campagne() || undefined, consentement: true,
           },
         },
@@ -1041,6 +1080,10 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         /* 3 novembre 2026 : la référence (une ancienne fonction ne la rend
            pas, elle se recalcule d'après `apptId`). */
         apptId?: string; reference?: string;
+        /* 17 novembre 2026 : l'état de la place (« en-attente » : tenue deux
+           heures, à confirmer sur WhatsApp), son échéance, son acompte ; et
+           `deja` quand la demande était déjà enregistrée. */
+        etat?: string; attenduJusquAu?: string; acompteXof?: number; deja?: boolean;
         /* 4 novembre 2026 : la place limitée posée (et son offre), ou la
            remise qu'elle a déjà et qui l'a écartée. */
         placeLimitee?: boolean; offreId?: string; uneSeuleRemise?: string;
@@ -1108,12 +1151,17 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
         code: r.code, codeApplique: r.codeApplique, codeRaison: r.codeRaison,
         marraine: r.marraine, cadeau: r.cadeau, confirme: r.confirme === true,
         accuse: typeof r.accuse === 'string' ? r.accuse : undefined,
-        resume: [dit(dureeTotale), !uneSeuleRemise && prixConfirme > 0 ? `${prixFlou ? 'à partir de ' : ''}${fmtMoney(prixConfirme, devise)}, à régler à la Maison` : ''].filter(Boolean).join(' · '),
+        resume: [dit(dureeTotale), !uneSeuleRemise && prixConfirme > 0 ? `${prixFlou ? 'à partir de ' : ''}${fmtMoney(prixConfirme, devise)}, ${prixAuCalibre ? 'confirmé au fauteuil' : 'à régler à la Maison'}` : ''].filter(Boolean).join(' · '),
         ...(r.placeLimitee ? { placeLimitee: phraseDeLaPlaceTenue(offreDuServeur) } : {}),
         ...(uneSeuleRemise ? { uneSeuleRemise } : {}),
         dureeMin: dureeTotale,
-        ...(r.confirme === true ? { reference: referenceDeLaReponse(r) || undefined } : {}),
+        ...(r.confirme === true || r.etat === 'en-attente' ? { reference: referenceDeLaReponse(r) || undefined } : {}),
         ...(typeof r.apptId === 'string' && r.apptId ? { apptId: r.apptId } : {}),
+        ...(r.etat === 'en-attente' ? {
+          etat: 'en-attente' as const, jusqua: heureDeCotonouDite(r.attenduJusquAu) || undefined,
+          ...(Number(r.acompteXof) > 0 ? { acompteXof: Math.round(Number(r.acompteXof)) } : {}),
+        } : r.confirme === true ? { etat: 'confirme' as const } : {}),
+        ...(r.deja === true ? { deja: true } : {}),
       });
       /* Le téléphone la retient pour la prochaine fois : prénom, numéro,
          gestes, calibre. Jamais le maître, jamais le code. */
@@ -1130,20 +1178,27 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
 
   /* ── Reçue ───────────────────────────────────────────────────────── */
   if (recu) {
+    /* EN ATTENTE DE SON OUI (17 novembre 2026) : la place est tenue, elle se
+       confirme sur WhatsApp. Le mot prêt commence par « Je confirme » et porte
+       sa référence : la Maison le reconnaît, écrit comme touché. */
+    const enAttente = recu.etat === 'en-attente';
+    const jeConfirme = `Je confirme mon rendez-vous du ${jourDit(recu.date)} à ${heureDite(recu.heure)}${recu.reference ? ` (réf. ${recu.reference})` : ''}.`;
     return (
       <div className="merci">
         {/* C'EST RÉSERVÉ — 29 septembre 2026 : la place revérifiée libre
             par le serveur est tenue, la confirmation part sur WhatsApp dans
             la seconde. Si le serveur n'a pas pu poser le rendez-vous, la
             demande vit quand même et la Maison rappelle : on le dit. */}
-        <p className="sur">{recu.confirme ? 'Réservé' : 'Demande reçue'}</p>
-        <h2>{recu.confirme ? `C’est réservé${prenomDevine(prenom) ? `, ${prenomDevine(prenom)}` : ''}.` : 'Votre place est demandée.'}</h2>
+        <p className="sur">{enAttente ? 'Place tenue' : recu.confirme ? 'Réservé' : recu.deja ? 'Déjà enregistrée' : 'Demande reçue'}</p>
+        <h2>{enAttente ? 'Répondez « Je confirme » sur WhatsApp.'
+          : recu.confirme ? `C’est réservé${prenomDevine(prenom) ? `, ${prenomDevine(prenom)}` : ''}.`
+            : recu.deja ? 'Cette demande est déjà enregistrée.' : 'Votre place est demandée.'}</h2>
         <p className="merci__place">{jourDit(recu.date)}, à {recu.heure}.</p>
         {recu.resume && <p className="merci__resume">{recu.resume}</p>}
         {/* LA RÉFÉRENCE, AVANT WHATSAPP — 3 novembre 2026 : « On-screen
             confirmation with reference number before the WhatsApp message »
             (Yéman). La même que dans la confirmation WhatsApp et au Trône. */}
-        {recu.confirme && recu.reference && (
+        {(recu.confirme || enAttente) && recu.reference && (
           <p className="merci__reference">
             <span>Votre référence</span>
             <b>{recu.reference}</b>
@@ -1154,15 +1209,24 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
             arrive sur WhatsApp » se lisait même quand l'accusé n'était pas parti
             (sans clés, échec Meta, numéro hors WhatsApp) : la page lit `accuse`
             et ne promet que ce qui est fait. */}
-        {recu.confirme ? (
+        {enAttente ? (
+          recu.accuse === 'envoyé'
+            ? <p className="merci__etat est-tenue"><b>La Maison vient de vous écrire sur WhatsApp</b>, au {indicatif} {numeroMasque(numero)}. Touchez « Je confirme »{recu.jusqua ? ` avant ${recu.jusqua}` : ' dans les deux heures'} : sans réponse, la place se libère.</p>
+            : <p className="merci__etat est-tenue"><b>Votre place est tenue{recu.jusqua ? ` jusqu’à ${recu.jusqua}` : ' deux heures'}.</b> Écrivez « Je confirme » à la Maison sur WhatsApp, le bouton est juste dessous : sans réponse, la place se libère.</p>
+        ) : recu.confirme ? (
           recu.accuse === 'envoyé'
             ? <p className="merci__etat est-partie"><b>La confirmation est partie sur WhatsApp</b>, au {indicatif} {numeroMasque(numero)}. La Maison choisit qui s’occupe de vous, et vous attend.</p>
             : recu.accuse === 'deja'
               ? <p className="merci__etat"><b>Votre place était déjà tenue</b> : rien n’a changé. La Maison vous attend.</p>
               : <p className="merci__etat est-tenue"><b>Votre place est tenue.</b> La Maison vous écrit sur WhatsApp pendant ses heures d’ouverture. Si rien n’arrive d’ici là, écrivez-lui : le bouton est juste dessous.</p>
+        ) : recu.deja ? (
+          <p>Votre référence est dans le message WhatsApp de la Maison. Pour une question, écrivez-lui : le bouton est juste dessous.</p>
         ) : (
           <p>La Maison vous confirme sur WhatsApp ou par téléphone, pendant ses heures d’ouverture.</p>
         )}
+        {enAttente && recu.acompteXof ? (
+          <p className="legende">Un acompte de {fmtMoney(recu.acompteXof, devise)} confirme ce rendez-vous : le lien pour le régler arrive avec votre « Je confirme ».</p>
+        ) : null}
         {f.avantDeVenir[besoin] && (
           <div className="avant-de-venir"><b>Avant de venir</b><p>{f.avantDeVenir[besoin]}</p></div>
         )}
@@ -1217,7 +1281,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
             répond dedans. « Une cliente doit être autonome du début à la
             fin » (Yéman). */}
         <div className="rangee">
-          <a className={`btn ${recu.confirme && recu.accuse === 'envoyé' ? '' : 'btn--fort'}`} href={lienWhatsApp(whatsapp, texteDeLaDemande(recu, `${prenom.trim()} ${nom.trim()}`, mot))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: besoin })}>{recu.confirme ? 'Écrire à la Maison sur WhatsApp' : 'Envoyer ma demande sur WhatsApp'}</a>
+          <a className={`btn ${recu.confirme && recu.accuse === 'envoyé' ? '' : 'btn--fort'}`} href={lienWhatsApp(whatsapp, enAttente ? jeConfirme : texteDeLaDemande(recu, `${prenom.trim()} ${nom.trim()}`, mot))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: besoin })}>{enAttente ? 'Écrire « Je confirme » sur WhatsApp' : recu.confirme ? 'Écrire à la Maison sur WhatsApp' : 'Envoyer ma demande sur WhatsApp'}</a>
           {/* L'AGENDA DU TÉLÉPHONE — un fichier .ics, à l'heure de Cotonou
               (3 novembre 2026 : celui du contrat, avec la référence). */}
           {recu.confirme && (
@@ -1239,7 +1303,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
             <a className="btn btn--lien" href={lienWhatsApp(whatsapp, motPourAnnuler(`${jourDit(recu.date)} à ${heureDite(recu.heure)}`, recu.reference))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: besoin, chemin: 'annuler' })}>Annuler</a>
           </p>
         )}
-        <p className="legende">{recu.confirme ? (recu.reference ? 'Déplacer et Annuler écrivent à la Maison sur WhatsApp, votre référence déjà dans le message.' : 'Pour une question, pour déplacer ou annuler votre venue : un mot sur WhatsApp suffit.') : 'La Maison vous répond dans cette conversation.'}</p>
+        <p className="legende">{enAttente ? 'Confirmé, vous recevez votre référence et le lien pour déplacer ou annuler.' : recu.confirme ? (recu.reference ? 'Déplacer et Annuler écrivent à la Maison sur WhatsApp, votre référence déjà dans le message.' : 'Pour une question, pour déplacer ou annuler votre venue : un mot sur WhatsApp suffit.') : 'La Maison vous répond dans cette conversation.'}</p>
         <p className="merci__liens"><a className="btn btn--lien" href={import.meta.env.BASE_URL}>Retour à l’accueil</a></p>
         {recu.confirme && (
           <div className="merci__attend"><h3>Nous vous attendons.</h3><p>Votre espace Ma Couronne s’ouvre à votre premier rendez-vous : vos venues, votre suivi, vos formules.</p></div>
@@ -1798,7 +1862,9 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
           )}
           {blocDuCode}
           {plein && <p className="legende avertit">Six gestes au plus dans une même venue. Retirez-en un pour en cocher un autre.</p>}
-          {prixFlou && prixTotal > 0 && <p className="legende">Un geste au moins se règle à la Maison : ce total est un plancher, jamais une promesse.</p>}
+          {prixFlou && prixTotal > 0 && <p className="legende">{prixAuCalibre
+            ? 'Vos locks se comptent au fauteuil : ce prix est un plancher, confirmé à la Maison.'
+            : 'Un geste au moins se règle à la Maison : ce total est un plancher, jamais une promesse.'}</p>}
         </div>
       )}
 

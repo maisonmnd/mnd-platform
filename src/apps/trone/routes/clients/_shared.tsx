@@ -45,6 +45,7 @@ import { regardADeduire, remiseAvecLeRegard, type RegardADeduire } from '../../.
 import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDeGestes } from '../_vie';
 import { referenceDuRendezVous } from '../../../../shared/lien-du-rdv-pur';
 import { ceQueDitLaSuggestion, estSuggere } from '../../../../shared/rendez-vous-suggere-pur';
+import { ceQueDitLAttente, etatDeLAttente } from '../../../../shared/rendez-vous-en-attente-pur';
 import { noteSonOui } from '../../../../shared/carte-du-prochain-rituel';
 import { useStaff as useMaTeteDuRdv } from '../../../../shared/auth';
 import { momentDuRdv, poseUnRendezVous } from '../../../../shared/agenda';
@@ -4054,7 +4055,23 @@ function RdvModalCorps({
       )}
       {/* LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : la Maison l'a proposé, elle
           ne l'a pas pris. Le dire ici, avant tout geste ; le comptoir note son oui. */}
-      {appt && rdvDuMagasin && estSuggere(rdvDuMagasin) && (
+      {/* LE RENDEZ-VOUS EN ATTENTE (17 novembre 2026) : pris en ligne, la place
+          est tenue deux heures ; il se confirme par son « Je confirme » sur
+          WhatsApp, et son acompte quand un geste en porte un. Sans cela, la
+          place se libère seule, et la fiche le dit. Le comptoir peut noter son
+          oui (elle a appelé) ; l'acompte se reconnaît comme toujours. */}
+      {appt && rdvDuMagasin && etatDeLAttente(rdvDuMagasin) !== null && etatDeLAttente(rdvDuMagasin) !== 'ferme' && (
+        <div className="trc-rdv-suggere" role="note">
+          <b>{etatDeLAttente(rdvDuMagasin) === 'liberee' ? 'Pris en ligne : la place s’est libérée' : 'Pris en ligne : en attente de sa confirmation'}</b>
+          <span>{`${ceQueDitLAttente(rdvDuMagasin, { court: (iso) => frShortAn(iso), francs: (x) => fmtMoney(x, currency) })}.${etatDeLAttente(rdvDuMagasin) === 'liberee' ? '' : ' Sans cela, la place se libère seule.'}`}</span>
+          {etatDeLAttente(rdvDuMagasin) === 'sans-reponse' && (
+            <span className="trc-rdv-suggere__gestes">
+              <button type="button" className="trv-prochain__lien" onClick={() => { noteSonOui(rdvDuMagasin.id); toast('Son oui est noté : le rendez-vous est confirmé.'); }}>Elle a dit oui</button>
+            </span>
+          )}
+        </div>
+      )}
+      {appt && rdvDuMagasin && estSuggere(rdvDuMagasin) && etatDeLAttente(rdvDuMagasin) === null && (
         <div className="trc-rdv-suggere" role="note">
           <b>Suggéré par la Maison : elle ne l’a pas encore confirmé</b>
           <span>{`${ceQueDitLaSuggestion(rdvDuMagasin, { court: (iso) => frShortAn(iso), aujourdhui: todayISO() })}. La place est tenue ; rien ne s’efface seul.`}</span>
