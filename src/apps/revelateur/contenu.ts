@@ -540,15 +540,17 @@ export const GALERIE: Galerie = {
 
 export const PAGES: Page[] = [
   {
-    /* LA CONSULTATION GRATUITE — 13 novembre 2026 (maquette « La Consultation
-       MND », écrans S1 à S5). Ses mots viennent du Trône (Besoins et règles),
-       ses prix du catalogue. */
+    /* LA CONSULTATION EN AFFICHES — 17 novembre 2026 (maquette validée par
+       Yéman : « trop d'écriture », « pas de bilan sans rendez-vous »). Cinq
+       questions, puis le rendez-vous : la page ne promet plus ni lecture ni
+       estimation, le bilan se remet au rendez-vous. Ses envies viennent du
+       Trône (Besoins et règles › Vos envies), ses prix du catalogue. */
     chemin: '/consultation/',
     titre: 'Ma consultation gratuite · Maison MND Cotonou',
-    description: 'Dites ce que vous voulez pour vos locks : la Maison MND vous propose les soins qui y répondent et une estimation au tarif du jour. Gratuit, sans engagement, à Cotonou.',
+    description: 'Cinq questions sur vos locks, puis votre rendez-vous à la Maison MND, Cotonou : votre rituel, une visio gratuite avec un maître, ou une consultation privée.',
     h1: 'Ma consultation gratuite',
     sur: 'Consultation',
-    ligne: 'Vos envies, vos besoins, votre couronne. Une lecture et une estimation, sans rien payer.',
+    ligne: 'Cinq questions, puis votre rendez-vous.',
     besoin: 'inconnu',
     ilot: 'consultation',
     ton: 'reservation',

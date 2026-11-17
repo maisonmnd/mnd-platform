@@ -120,8 +120,11 @@ dit('la confirmation : rien sans le modele approuve, le lien a l origine de la r
   /await confirmeSurWhatsApp\(sb, req, [\s\S]{0,120}\)\.catch\(\(\) => 'erreur'\);/.test(fn),
   /maisonmnd\.com/i.test(fn),
 ]);
-dit('le site dit que le lien arrive aussi sur WhatsApp, seulement quand il part', true,
-  /parWhatsApp: r\.whatsapp === 'en-attente' \|\| r\.whatsapp === 'envoyé'/.test(lf('src/apps/revelateur/ilots/PortesDeLaConsultation.tsx')));
+/* 17 novembre 2026 (la consultation en affiches) : le lien ne se montre plus a l'ecran, il arrive sur WhatsApp. */
+dit('le site ne montre jamais le lien de la salle : il arrive sur WhatsApp', [true, false], [
+  /Le lien arrive sur votre WhatsApp\./.test(lf('src/apps/revelateur/ilots/PortesDeLaConsultation.tsx')),
+  /location\.origin|Ouvrir ma salle|Gardez ce lien/.test(lf('src/apps/revelateur/ilots/PortesDeLaConsultation.tsx')),
+]);
 const fileB = lf('src/apps/trone/routes/clients/ConsultationsVisios.tsx');
 dit('la file B envoie le lien par WhatsApp, la fenetre ouverte au clic', [true, true], [
   /const fenetre = window\.open\('', '_blank'\);\n\s*setLiens[\s\S]{0,120}await nouveauLien\(v\.id\)/.test(fileB),
@@ -167,8 +170,9 @@ const portes = lf('src/apps/revelateur/ilots/PortesDeLaConsultation.tsx');
 const ilot = lf('src/apps/revelateur/ilots/Consultation.tsx');
 dit('les deux portes du site : la visio par la fonction, la privee verifiee au serveur', [true, true, true], [
   /appelle\('visio-salle', \{ geste: 'reserver'/.test(portes),
-  /appelle\('kkiapay-verify', \{ transactionId, apptId: '', consultationId: depot\.id, expectedXof: prix, branchId \}\)/.test(portes),
-  /<PortesDeLaConsultation depot=\{depot\}/.test(ilot) && /get\('privee'\)/.test(ilot),
+  /* 17 novembre 2026 : le creneau choisi part avec la verification (`moment`), et l'affiche mene a « Votre moment ». */
+  /appelle\('kkiapay-verify', \{ transactionId, apptId: '', consultationId: id, expectedXof: prix, branchId: agenda\.branchId, moment \}\)/.test(portes),
+  /<VotreMoment\n/.test(ilot) && /get\('privee'\)/.test(ilot),
 ]);
 dit('les portes n importent ni magasin ni synchronisation', false, /from '\.\.\/\.\.\/\.\.\/shared\/(besoins|sync|store|pricing|catalog|kkiapay|finance)'/.test(portes));
 const consultations = lf('src/apps/trone/routes/clients/Consultations.tsx');

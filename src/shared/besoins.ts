@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { createStore, useStore } from './store';
 import { bindDocument } from './sync';
 import { BESOINS_DE_DEPART, reglagesSurs, type ReglagesDesBesoins } from './besoins-pur';
+import { enviesStore } from './envies';
+import { enviesSures } from './envies-pur';
 import type { Service } from './catalog';
 
 /* ══ LES BESOINS, CÔTÉ TRÔNE — 13 novembre 2026 (la Consultation, lot 1) ═══
@@ -16,10 +18,21 @@ export const CLE_DES_BESOINS = 'mnd_besoins';
 export const besoinsStore = createStore<ReglagesDesBesoins>('mnd_besoins', BESOINS_DE_DEPART());
 bindDocument(besoinsStore, 'mnd_besoins');
 
-/** Le document, toujours sûr à lire, même s'il arrive incomplet du serveur. */
+/** Le document, toujours sûr à lire, même s'il arrive incomplet du serveur.
+
+    LES FAMILLES SONT LES ENVIES (17 novembre 2026, la consultation en
+    affiches) : la direction crée, renomme et retire ses envies dans le
+    document `mnd_envies` (Besoins et règles › Vos envies), et chaque besoin
+    se range dans l'une d'elles. Les écrans lisent donc les familles LÀ ; la
+    liste que `mnd_besoins` porte encore n'est plus lue par le Trône. Un
+    besoin dont l'envie a été retirée se dit « famille inconnue ». */
 export function useBesoins(): [ReglagesDesBesoins, (fn: (r: ReglagesDesBesoins) => ReglagesDesBesoins, par?: string) => void] {
   const [brut] = useStore(besoinsStore);
-  const r = useMemo(() => reglagesSurs(brut), [brut]);
+  const [envies] = useStore(enviesStore);
+  const r = useMemo(
+    () => ({ ...reglagesSurs(brut), familles: enviesSures(envies).envies.map((e) => ({ id: e.id, nom: e.nom || e.id })) }),
+    [brut, envies],
+  );
   const ecris = (fn: (r: ReglagesDesBesoins) => ReglagesDesBesoins, par?: string) =>
     besoinsStore.set((avant) => ({
       ...fn(reglagesSurs(avant)),

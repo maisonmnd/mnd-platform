@@ -1,0 +1,139 @@
+/* ══ LA CONSULTATION EN AFFICHES (ca-) — 17 novembre 2026 ══════════════════
+   Maquette « La consultation en affiches », validée par Yéman. « Trop
+   d'écriture. Des affiches dans le style de Canal Box. » L'affiche : un bloc
+   de couleur, une carte claire au coin coupé, un nom, une ligne, un grand
+   chiffre, un « + ». Les couleurs et les deux polices sont celles de la
+   Maison (les jetons de revelateur.css) ; les affiches sont droites.
+
+   Largeur de téléphone d'abord : une colonne de 460 px au plus, aucun
+   défilement de côté. Rayons 2 à 4 px. Indigo pour le sombre, cuivre pour
+   l'accent. Fondus sans rebond, éteints sous prefers-reduced-motion.
+
+   DE 320 À 412 PX, RIEN N'ÉLARGIT LA COLONNE : chaque grille est en
+   `minmax(0, 1fr)`, et le nom d'une affiche (« CONSULTATION PRIVÉE ») suit
+   la largeur de l'écran au lieu de la pousser. Les affiches tiennent à égale
+   distance des deux bords, le « + » reste dans son coin.
+
+   UN PRIX NE SE COUPE JAMAIS SUR DEUX LIGNES : le nombre tient d'un seul
+   tenant (`white-space: nowrap`, espaces insécables), et un prix à six
+   chiffres tient dans son affiche à 320 px.
+
+   Cette feuille ne se charge qu'avec l'îlot de la consultation. */
+
+.ca { --ca-sable: #E7D7C2; --ca-vert: #2F6B45; width: 100%; max-width: 460px; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; }
+.ca * { box-sizing: border-box; }
+.ca :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Les cinq traits du haut : un par question. */
+.ca-pas { display: flex; gap: 5px; }
+.ca-pas i { flex: 1; height: 2px; background: var(--filet); transition: background var(--t); }
+.ca-pas i.est-fait { background: var(--accent); }
+
+.ca-ecran { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; min-width: 0; animation: ca-venir .28s ease both; }
+.ca-ecran:focus { outline: none; }
+@keyframes ca-venir { from { opacity: 0; } to { opacity: 1; } }
+.ca-sur { margin: 0; font-family: var(--sans); font-weight: 500; font-size: 10.5px; line-height: 1.3; letter-spacing: .16em; text-transform: uppercase; color: var(--accent-profond); }
+.ca-titre { margin: 0; font-family: var(--serif); font-weight: 300; font-size: 34px; line-height: 1; color: var(--titre); }
+.ca-titre:focus { outline: none; }
+.ca-note { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--texte-doux); }
+.ca-erreur { margin: 0; font-size: 13.5px; line-height: 1.4; color: #96412E; }
+.ca-revenir { justify-self: start; padding: 0; border: 0; background: none; font-family: var(--sans); font-weight: 400; font-size: 13px; color: var(--texte-doux); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.ca-cta { min-height: 48px; padding: 12px 20px; border: 0; border-radius: 2px; background: var(--plein); color: var(--plein-texte); font-family: var(--sans); font-weight: 500; font-size: 13px; line-height: 1.2; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: filter var(--t); }
+.ca-cta:hover:not(:disabled) { filter: brightness(1.06); }
+.ca-cta:disabled { background: var(--ca-sable); color: var(--texte-doux); cursor: not-allowed; }
+
+/* L'AFFICHE : un bloc de couleur, une carte claire au coin coupé, un « + ». */
+.ca-affiches { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; }
+.ca-aff { position: relative; display: block; width: 100%; min-width: 0; padding: 14px; border: 0; border-radius: 4px; text-align: left; font: inherit; color: inherit; cursor: pointer; text-decoration: none; }
+.ca-aff--indigo { background: var(--sombre); }
+.ca-aff--cuivre { background: var(--plein); }
+.ca-aff--sable { background: var(--ca-sable); }
+.ca-aff__c { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; padding: 18px 16px 20px; background: var(--carte); border-radius: 2px; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 36px), calc(100% - 36px) 100%, 0 100%); }
+.ca-aff__plus { position: absolute; right: 22px; bottom: 16px; font-family: var(--serif); font-weight: 300; font-size: 26px; line-height: 1; color: var(--fort-texte); }
+.ca-aff--sable .ca-aff__plus { color: var(--sombre); }
+/* Le nom suit l'écran : « CONSULTATION » (7,63 em, le mot le plus long, qui ne se coupe pas) tient sur sa
+   ligne dès 320 px sans pousser la colonne, et prend ses 38 px pleins au-delà de 423 px. */
+.ca-aff__nom { font-family: var(--serif); font-weight: 300; font-size: clamp(22px, 13vw - 17px, 38px); line-height: .95; text-transform: uppercase; letter-spacing: .01em; color: var(--sombre); min-width: 0; overflow-wrap: break-word; }
+.ca-aff--cuivre .ca-aff__nom { color: var(--accent-profond); }
+.ca-aff__ligne { font-family: var(--sans); font-weight: 400; font-size: 14.5px; line-height: 1.35; color: var(--texte-doux); padding-right: 8px; }
+/* Le chiffre ne se coupe jamais (« 64 » au-dessus de « 000 ») : c'est son unité, à côté de lui, qui passe à
+   la ligne. Un prix à six chiffres garde son unité à côté de lui dès 320 px. */
+.ca-aff__chiffre { display: flex; align-items: baseline; gap: 8px; min-width: 0; padding-right: 30px; white-space: nowrap; font-family: var(--serif); font-weight: 300; font-size: clamp(28px, 36vw - 84px, 54px); line-height: 1; color: var(--texte); font-variant-numeric: lining-nums tabular-nums; font-feature-settings: "lnum" 1, "tnum" 1; }
+.ca-aff__nombre { flex: none; white-space: nowrap; }
+.ca-aff__chiffre small { min-width: 0; white-space: normal; font-family: var(--sans); font-weight: 600; font-size: 11px; line-height: 1.25; letter-spacing: .1em; text-transform: uppercase; color: var(--texte-doux); font-variant-numeric: normal; font-feature-settings: normal; }
+.ca-aff__chiffre small span { display: block; }
+.ca-aff[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--fond), 0 0 0 4px var(--accent); }
+.ca-aff:disabled { cursor: default; }
+
+/* Les petites affiches : un mot, un toucher. */
+.ca-mots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+/* Le mot suit l'écran lui aussi : « Hydratation » tient dans sa demi-colonne à 320 px. */
+.ca-mot { min-height: 58px; min-width: 0; padding: 10px 12px; border: 1px solid var(--filet); border-radius: 2px; background: var(--carte); text-align: left; font-family: var(--serif); font-weight: 300; font-size: clamp(20px, 6.4vw, 24px); line-height: 1; color: var(--sombre); cursor: pointer; overflow-wrap: anywhere; transition: background var(--t), border-color var(--t), color var(--t); }
+.ca-mot small { display: block; margin-top: 4px; font-family: var(--sans); font-weight: 400; font-size: 12px; line-height: 1.2; color: var(--texte-doux); }
+.ca-mot[aria-pressed="true"] { background: var(--sombre); border-color: var(--sombre); color: var(--fort-texte); }
+.ca-mot[aria-pressed="true"] small { color: var(--accent-sombre); }
+.ca-mot:disabled { opacity: .42; cursor: not-allowed; }
+.ca-mot--long { font-size: clamp(19px, 6vw, 22px); }
+.ca-mot--nombre { font-size: clamp(19px, 6.2vw, 23px); font-variant-numeric: lining-nums; font-feature-settings: "lnum" 1; }
+.ca-mot--epais { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ca-mot--epais > span { min-width: 0; }
+.ca-mot--epais svg { flex: none; }
+.ca-mots--pile, .ca-mots--liste { grid-template-columns: minmax(0, 1fr); }
+/* Les réponses écrites en toutes lettres (« Des locks faites à la Maison MND ») : en Jost, pour se lire. */
+.ca-mots--liste .ca-mot { min-height: 46px; font-family: var(--sans); font-weight: 400; font-size: 15px; line-height: 1.2; color: var(--texte); }
+.ca-mots--liste .ca-mot[aria-pressed="true"] { color: var(--fort-texte); }
+.ca-mot--duree { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.ca-mot--duree b { font-family: var(--serif); font-weight: 300; font-size: 20px; line-height: 1; font-variant-numeric: lining-nums; font-feature-settings: "lnum" 1; }
+
+/* Les puces : un besoin, un jour, une heure. */
+.ca-groupe { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; }
+.ca-puces { display: flex; flex-wrap: wrap; gap: 8px; }
+.ca-puce { min-height: 40px; max-width: 100%; padding: 8px 14px; border: 1px solid var(--filet); border-radius: 2px; background: var(--carte); font-family: var(--sans); font-weight: 400; font-size: 14px; line-height: 1.2; color: var(--texte); text-align: left; cursor: pointer; transition: background var(--t), border-color var(--t), color var(--t); }
+.ca-puce[aria-pressed="true"] { background: var(--sombre); border-color: var(--sombre); color: var(--fort-texte); }
+.ca-puce--plus { border-style: dashed; }
+
+/* Le nombre de locks, traduit seul dans le nom de la Maison. */
+.ca-champ { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; min-width: 0; }
+.ca-champ label { font-family: var(--sans); font-weight: 500; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--texte-doux); }
+.ca-champ input, .ca-champ select { min-height: 46px; min-width: 0; width: 100%; padding: 10px 12px; border: 1px solid var(--filet); border-radius: 2px; background: var(--carte); font-family: var(--sans); font-weight: 400; font-size: 16px; color: var(--texte); }
+.ca-champ input:focus, .ca-champ select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+.ca-numero { display: grid; grid-template-columns: minmax(0, 132px) minmax(0, 1fr); gap: 8px; }
+.ca-traduit { margin: 0; font-size: 14px; line-height: 1.4; color: var(--texte-doux); }
+.ca-traduit b { font-weight: 500; color: var(--sombre); white-space: nowrap; }
+
+/* La fiche : son modèle, ses locks à défaire. */
+.ca-fiche { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 16px; border: 1px solid var(--filet); border-top: 3px solid var(--accent); border-radius: 2px; background: var(--carte); min-width: 0; }
+.ca-fiche__nom { font-family: var(--serif); font-weight: 300; font-size: 34px; line-height: .95; text-transform: uppercase; letter-spacing: .01em; color: var(--sombre); overflow-wrap: anywhere; }
+.ca-fiche__ligne { font-size: 13.5px; line-height: 1.35; color: var(--texte-doux); }
+.ca-fiche__traits { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin: 2px 0 0; padding: 10px 0 0; border-top: 1px solid var(--filet); }
+.ca-fiche__traits div { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; line-height: 1.3; }
+.ca-fiche__traits dt { flex: none; color: var(--texte-doux); }
+.ca-fiche__traits dd { margin: 0; min-width: 0; text-align: right; color: var(--texte); overflow-wrap: break-word; }
+
+/* Le bilan sous clé. */
+.ca-scelle { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border: 1px dashed var(--accent); border-radius: 2px; background: var(--accent-clair); }
+.ca-scelle svg { flex: none; color: var(--accent-profond); }
+.ca-scelle b { display: block; font-family: var(--sans); font-weight: 500; font-size: 13px; line-height: 1.3; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-profond); }
+.ca-scelle > span { min-width: 0; }
+.ca-scelle span span { font-size: 13.5px; line-height: 1.35; color: var(--texte-doux); }
+
+/* Le calendrier : plus de dates. */
+.ca-cal { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 12px; border: 1px solid var(--filet); border-radius: 2px; background: var(--carte); min-width: 0; }
+.ca-cal__tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ca-cal__tete span { font-family: var(--serif); font-weight: 300; font-size: 22px; line-height: 1; color: var(--sombre); font-variant-numeric: lining-nums; font-feature-settings: "lnum" 1; }
+.ca-cal__nav { width: 38px; height: 38px; padding: 0; border: 1px solid var(--filet); border-radius: 2px; background: transparent; font-family: var(--serif); font-weight: 300; font-size: 24px; line-height: 1; color: var(--sombre); cursor: pointer; }
+.ca-cal__nav:disabled { opacity: .35; cursor: not-allowed; }
+.ca-cal__grille { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.ca-cal__j { padding: 4px 0; font-family: var(--sans); font-weight: 500; font-size: 10.5px; line-height: 1; letter-spacing: .1em; text-align: center; color: var(--texte-doux); }
+.ca-cal__c { min-height: 38px; min-width: 0; padding: 0; border: 1px solid var(--filet); border-radius: 2px; background: var(--fond); font-family: var(--sans); font-weight: 400; font-size: 14px; line-height: 1; color: var(--texte); cursor: pointer; }
+.ca-cal__c:disabled { border-color: transparent; background: transparent; color: var(--texte-doux); opacity: .45; cursor: not-allowed; }
+.ca-cal__c[aria-pressed="true"] { background: var(--sombre); border-color: var(--sombre); color: var(--fort-texte); }
+
+/* Le billet. */
+.ca-billet { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; padding: 14px; background: var(--sombre); border-radius: 4px; }
+.ca-billet__c { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 18px 16px; background: var(--carte); border-radius: 2px; min-width: 0; }
+.ca-billet__jour { font-family: var(--serif); font-weight: 300; font-size: 32px; line-height: 1.02; color: var(--sombre); font-variant-numeric: lining-nums; font-feature-settings: "lnum" 1; }
+.ca-billet__code { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; padding-top: 10px; border-top: 1px dashed var(--filet); font-family: var(--sans); font-weight: 500; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--texte-doux); }
+.ca-billet__code b { color: var(--texte); font-weight: 600; overflow-wrap: anywhere; }
+
+@media (prefers-reduced-motion: reduce) { .ca-ecran { animation: none; } .ca * { transition: none !important; } }
