@@ -733,6 +733,13 @@ const idB3 = b3.corps.apptId as string;
   (table('documents').find((d) => d.key === 'mnd_settings') as Ligne).data.depositPctByService = {};
   const horsGrille = await appelle(corps({ serviceIds: ['sv-lavage'], seances: [{ date: '2026-12-15', time: '10:20' }] }), { cle: 'session-de-awa' });
   dit('B44 … et l heure est une heure de la grille, pour elle aussi', [409, 'creneau_hors_ouverture'], [horsGrille.statut, horsGrille.corps.error]);
+  const avantLaDemie = await appelle(corps({ serviceIds: ['sv-lavage'], seances: [{ date: '2026-12-15', time: '08:00' }] }), { cle: 'session-de-awa' });
+  dit('B44b … et rien ne se pose a 08:00 un jour qui ouvre a 08:00 : jamais avant 08:30, depuis Ma Couronne non plus',
+    [409, false], [avantLaDemie.statut, table('appointments').some((l) => l.data.date === '2026-12-15' && l.data.time === '08:00')]);
+  const jugeDeLaCouronne = (() => { const s = lit('supabase/functions/demande-submit/index.ts'); const i = s.indexOf('function laPlaceTientPourLaCouronne('); return i >= 0 ? s.slice(i, i + 700) : ''; })();
+  dit('B44c son juge refuse lui-meme avant 08:30 ; il ne compare jamais a la seule ouverture',
+    [true, false],
+    [jugeDeLaCouronne.includes('if (debut < Math.max(fenetre.openMin, PREMIER_RENDEZ_VOUS_MIN) || fin > fenetre.closeMin) return false;'), jugeDeLaCouronne.includes('debut < fenetre.openMin')]);
 }
 
 /* ══ C. LES FICHIERS QUI TIENNENT LA MÊME RÈGLE ═════════════════════════════ */

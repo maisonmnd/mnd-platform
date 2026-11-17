@@ -112,6 +112,7 @@ const PANNES = [
   ['Ma Couronne garde la duree de son ecran', DS, '  const dureeMin = Math.max(dureeDuServeur, Math.min(dureeVue, dureeDuServeur * 2));', '  const dureeMin = dureeVue || dureeDuServeur;'],
   ['une serie se pose a moitie', DS, '    await defais();\n', ''],
   ['Ma Couronne croit le paiement d un autre rendez-vous', DS, "    if (p && p.status === 'success' && String(p.partnerId ?? '') === idPaye) verseXof", "    if (p && p.status === 'success') verseXof"],
+  ['le juge de Ma Couronne ne compare qu a l ouverture', DS, '  if (debut < Math.max(fenetre.openMin, PREMIER_RENDEZ_VOUS_MIN) || fin > fenetre.closeMin) return false;', '  if (debut < fenetre.openMin || fin > fenetre.closeMin) return false;'],
   ['la base laisse une cliente se confirmer', GARDE, "    if coalesce(new.data->>'status', '') = 'confirmé' then\n      new.data := jsonb_set(new.data, '{status}', '\"en attente\"'::jsonb);\n    end if;\n\n    -- L'ARGENT", "    -- L'ARGENT"],
 ];
 

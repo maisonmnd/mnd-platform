@@ -4062,7 +4062,8 @@ function laPlaceTientPourLaCouronne(agenda: AgendaDuServeur, maitre: string, p: 
   if (fenetre.closed) return false;
   const debut = minutesDeHhmm(p.time);
   const fin = debut + p.dureeMin;
-  if (debut < fenetre.openMin || fin > fenetre.closeMin) return false;
+  /* Jamais avant 08:30, depuis Ma Couronne non plus : le juge le dit lui-même, comme la grille. */
+  if (debut < Math.max(fenetre.openMin, PREMIER_RENDEZ_VOUS_MIN) || fin > fenetre.closeMin) return false;
   const duJour = occupesDuJour(agenda.occupes, p.date);
   if (agenda.capMaison > 0 && duJour.length >= agenda.capMaison) return false;
   const chevauche = (s: number, e: number): boolean => debut < e && fin > s;
