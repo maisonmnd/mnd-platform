@@ -196,7 +196,8 @@ const webhook = lis('supabase/functions/whatsapp-webhook/index.ts').replace(/\r\
 const surWhatsapp = lis('supabase/migrations/0165_la_paie_sur_whatsapp.sql').replace(/\r\n/g, '\n');
 dit('le webhook lit les deux boutons de la paie, du seul numero a qui le message est parti', [true, true, true],
   [/const m = \(e\.bouton\?\.id \?\? ''\)\.match\(RE_BOUTON_DE_LA_PAIE\);/.test(webhook),
-    /if \(!numeroParti \|\| numeroParti !== String\(e\.numero \?\? ''\)\.replace\(\/\\D\/g, ''\)\) \{ dis\('bouton · paie, numéro étranger'\); continue; \}/.test(webhook),
+    /* 17 novembre 2026 : par la clé du numéro (Meta livre 229 et huit chiffres, l'envoi est parti a 229 01). */
+    /const numeroParti = cleWa\(String\(\(\(env \?\? \[\]\)\[0\][^;]*colis\?\.numero \?\? ''\)\);\s*const numeroQuiRepond = cleWa\(e\.numero\);\s*if \(!numeroParti \|\| numeroParti !== numeroQuiRepond\) \{ dis\('bouton · paie, numéro étranger'\); continue; \}/.test(webhook),
     /\}\)\.eq\('reference', reference\)\.eq\('etat', 'recu'\);/.test(webhook)]);
 dit('« Oui, bien reçu » ecrit bien-recu, « Pas encore » ecrit pas-encore', true,
   /reponse_employe: m\[1\]\.toUpperCase\(\) === 'RECU' \? 'bien-recu' : 'pas-encore',/.test(webhook));

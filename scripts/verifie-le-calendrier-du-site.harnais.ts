@@ -211,7 +211,7 @@ dit('E1 main.ts precharge sur horizonDuSite, et rien d autre', [true, true, true
     main.includes('calendrierDuSite(du, au, brancheDeLaPage)'), /prochainsJours|JOURS_DU_CALENDRIER|JOURS_DU_SITE/.test(main)]);
 dit('E2 l ilot lit le meme horizon, pour charger, pour ses jours et pour relire apres un refus', [true, true, true, 2],
   [r.includes('const [horizon] = useState(() => horizonDuSite());'), r.includes('void calendrierDuSite(horizon.du, horizon.au, initiales?.branchId)'),
-    r.includes('return horizon.jours\n      .filter((iso) => iso >= aujourdhui)\n      .map((iso) => ({ iso, heures: heuresLibres({ agenda, dateIso: iso, serviceIds, occupes, places: placesParJour, maintenant }) }))'),
+    r.includes('return horizon.jours\n      .filter((iso) => iso >= aujourdhui)\n      .map((iso) => ({ iso, heures: heuresLibres({ agenda: agendaAuCalibre ?? agenda, dateIso: iso, serviceIds, occupes, places: placesParJour, maintenant }) }))'),
     (r.match(/const suite = \[horizon\.du, horizon\.au\];/g) ?? []).length]);
 /* L HEURE QUI PASSE, PAGE OUVERTE — 12 novembre 2026 : une page chargee a
    11 h 59 montrait encore 12 h a 12 h 01. La minute bat, les heures se
@@ -219,7 +219,7 @@ dit('E2 l ilot lit le meme horizon, pour charger, pour ses jours et pour relire 
 dit('E2b la page suit l heure : la minute bat (20 s et retour sur l onglet), les heures se recalculent avec elle, l heure choisie qui commence tombe',
   [true, true, true, true, true],
   [r.includes('const t = window.setInterval(bat, 20_000);'), r.includes("document.addEventListener('visibilitychange', auRetour);"),
-    r.includes('const maintenant = new Date(minute * 60_000);') && r.includes('}, [agenda, serviceIds, occupes, placesParJour, occupesEtat, minute]);'),
+    r.includes('const maintenant = new Date(minute * 60_000);') && r.includes('}, [agenda, agendaAuCalibre, serviceIds, occupes, placesParJour, occupesEtat, minute]);'),
     r.includes('if (h * 60 + m > minutesDeCotonou(minute * 60_000)) return;') && r.includes('}, [minute, jour, heure]);'),
     r.includes("setErreur('Cette heure vient de commencer. Choisissez-en une autre, la liste est à jour.');")]);
 dit('E3 agenda.ts : l horizon tient la borne du serveur, compte a Cotonou ; plus de vingt et un jours', [true, true, true, false],

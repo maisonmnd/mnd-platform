@@ -76,6 +76,8 @@ let TIC = 0;
 let SEQ = 0;
 /** Une main qui ecrit entre la lecture et l'ecriture de la fonction (une seule fois). */
 let ENTRE_DEUX: (() => void) | null = null;
+/** Combien de fois le verrou de la base (`deplace_si_libre`) a été demandé. */
+let AU_VERROU = 0;
 function valeur(l: Ligne, col: string): unknown {
   const m = /^data((?:->[A-Za-z0-9_]+)*)->>([A-Za-z0-9_]+)$/.exec(col);
   if (!m) return l[col];
@@ -167,6 +169,35 @@ const RPC: Record<string, (a: any) => unknown> = {
   creneaux_occupes: ({ p_branch, p_du, p_au }) => table('appointments')
     .filter((l) => l.branch_id === p_branch && l.data.status !== 'annulé' && l.data.date >= p_du && l.data.date <= p_au)
     .map((l) => ({ jour: l.data.date, maitre: l.data.master ?? '', debut: l.data.time, duree: l.data.dureeMin ?? 60 })),
+  /* `deplace_si_libre` (0223, 17 novembre 2026), rejoue ici comme la base le fait SOUS LE VERROU DES POSES :
+     la ligne relue (une main a pu ecrire entre la lecture de la fonction et ce verrou), deux deplacements au
+     plus, jamais avant 08:30, une seule place en ligne a cette heure, lui-meme retire du compte ; puis l'ecriture. */
+  deplace_si_libre: ({ p_id, p_date, p_time, p_vu, p_sans_remise }) => {
+    AU_VERROU += 1;
+    if (ENTRE_DEUX) { const f = ENTRE_DEUX; ENTRE_DEUX = null; f(); }
+    const l = table('appointments').find((x) => x.id === p_id);
+    if (!l) return { ok: false, raison: 'introuvable' };
+    if (l.updated_at !== p_vu) return { ok: false, raison: 'modifie' };
+    const d = l.data;
+    if (d.status === 'annulé') return { ok: false, raison: 'annule' };
+    if (d.status !== 'confirmé' && d.status !== 'en attente') return { ok: false, raison: 'passe' };
+    if (d.date === p_date && d.time === p_time) return { ok: false, raison: 'meme_place' };
+    const faits = Math.max(Number(d.deplacements) || 0, d.deplaceLe && d.deplacePar === 'site' ? 1 : 0);
+    if (faits >= 2) return { ok: false, raison: 'trop_de_deplacements' };
+    const min = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+    const debut = min(p_time);
+    if (debut < 510) return { ok: false, raison: 'creneau_hors_ouverture' };
+    const duree = d.dureeMin ?? 60;
+    const dessus = table('appointments').filter((x) => x.id !== p_id && x.branch_id === l.branch_id && x.data.date === p_date
+      && x.data.status !== 'annulé' && x.data.time && debut < min(x.data.time) + (x.data.dureeMin ?? 60) && debut + duree > min(x.data.time));
+    if (dessus.length >= 1) return { ok: false, raison: 'creneau_pris' };
+    const apres: any = { ...d, date: p_date, time: p_time, deplaceLe: new Date().toISOString(), deplacePar: 'site', deplaceDe: { date: d.date, time: d.time }, deplacements: faits + 1 };
+    delete apres.autreMomentDemandeLe;
+    if (p_sans_remise && apres.remisesLignes) { delete apres.remisesLignes; apres.remiseRetireeLe = new Date().toISOString(); }
+    l.data = apres;
+    l.updated_at = `t${++TIC}`;
+    return { ok: true, verdict: 'deplace', deplacements: faits + 1 };
+  },
 };
 /** L'agenda illisible : la lecture des creneaux pris echoue, ou rend une tranche de mille (qui cacherait un rendez-vous). */
 let PANNE_AGENDA: 'erreur' | 'mille' | null = null;
@@ -438,9 +469,10 @@ await attendsLeFond();
 {
   const apres = donnees('ap-a');
   dit('D1 deplace AUSSITOT : la nouvelle place, la meme reference MND-XXXX, « Mme Anne Marie » (le prenom d usage, jamais le premier mot), mêmes soins, meme duree',
-    [200, true, 'deplace', { reference: referenceDuRendezVous('ap-a'), date: '2026-11-21', heure: '10:00', dureeMin: 180, gestes: ['Retwist', 'Shampoing'], appel: 'Mme Anne Marie', statut: 'a-venir' }],
+    [200, true, 'deplace', { reference: referenceDuRendezVous('ap-a'), date: '2026-11-21', heure: '10:00', dureeMin: 180, gestes: ['Retwist', 'Shampoing'], appel: 'Mme Anne Marie', statut: 'a-venir', deplacementsRestants: 1 }],
     [d1.statut, d1.corps.ok, d1.corps.verdict, d1.corps.rdv]);
-  const attendu = { ...avantA, date: '2026-11-21', time: '10:00', deplaceLe: new REEL(T0).toISOString(), deplacePar: 'site', deplaceDe: { date: '2026-11-20', time: '10:00' } };
+  /* 17 novembre 2026 : la ligne compte aussi ses deplacements (deux au plus depuis le site). */
+  const attendu = { ...avantA, date: '2026-11-21', time: '10:00', deplaceLe: new REEL(T0).toISOString(), deplacePar: 'site', deplaceDe: { date: '2026-11-20', time: '10:00' }, deplacements: 1 };
   delete (attendu as any).autreMomentDemandeLe;
   dit('D2 sur la ligne : la date et l heure, la marque du deplacement (de quand, par le site, d ou), la marque « autre moment demande » levee, RIEN d autre (ni le maitre, ni la duree, ni les soins, ni le statut, ni le prix, ni la fiche)', attendu, apres);
   dit('D3 aucune remise : le prix reste fige et aucune ligne de remise n est ajoutee', [47000, false, false], [apres.priceXof, 'remisesLignes' in apres, 'discountPct' in apres]);
@@ -711,6 +743,103 @@ await attendsLeFond();
   const serviDemande = await servirDemande(new Request('http://f/', { method: 'GET' }));
   const versionDemande = (await serviDemande.json() as any).version as string;
   dit('S15 les deux fonctions disent leur version : terminer-et-regler 2026-11-07-d ou apres, demande-submit 2026-11-07-a ou apres', [true, true], [/^2026-\d\d-\d\d-[a-z] · /.test(versionFin) && versionFin >= '2026-11-07-d', /^2026-\d\d-\d\d-[a-z] · /.test(versionDemande) && versionDemande >= '2026-11-07-a']);
+}
+
+/* ══ 17 NOVEMBRE 2026 : DEUX FOIS AU PLUS, SOUS LE VERROU, ET LA REMISE D'UN JOUR ══════════ */
+{
+  rdv('ap-lim-a', '2027-01-06', '10:00', { dureeMin: 60, clientId: '', clientName: 'Limite' });
+  const v = await jeton('ap-lim-a');
+  const m1 = await appelleD({ rdv: 'deplacer', v, date: '2027-01-07', time: '10:00' });
+  const m2 = await appelleD({ rdv: 'deplacer', v, date: '2027-01-08', time: '11:00' });
+  const lu2 = await appelleD({ rdv: 'lire', v });
+  const pl = await appelleD({ rdv: 'places', v });
+  const m3 = await appelleD({ rdv: 'deplacer', v, date: '2027-01-09', time: '10:00' });
+  await attendsLeFond();
+  dit('L1 deux deplacements passent, comptes sur la ligne', [true, true, 2, '2027-01-08'], [m1.corps.ok, m2.corps.ok, donnees('ap-lim-a').deplacements, donnees('ap-lim-a').date]);
+  dit('L2 le troisieme est refuse : « trop_de_deplacements », la date ne bouge pas', [false, 'trop_de_deplacements', '2027-01-08'], [m3.corps.ok, m3.corps.error, donnees('ap-lim-a').date]);
+  dit('L3 la page le sait : aucun deplacement restant, le calendrier ne s ouvre plus, et une phrase mene a la Maison',
+    [0, false, 'trop_de_deplacements', { etat: 'ferme', raison: 'limite' }, { etat: 'refus', raison: 'limite' }, true],
+    [lu2.corps.rdv?.deplacementsRestants, pl.corps.deplacable, pl.corps.raison, placesLues(pl.corps), deplacementLu(m3.corps), /deux fois/.test(refusDuDeplacementDit('limite')) && /la Maison/.test(refusDuDeplacementDit('limite'))]);
+
+  rdv('ap-avant', '2027-01-12', '10:00', { dureeMin: 60, deplaceLe: '2026-11-08T09:00:00.000Z', deplacePar: 'site', deplaceDe: { date: '2026-12-20', time: '10:00' } });
+  const luAvant = await appelleD({ rdv: 'lire', v: await jeton('ap-avant') });
+  dit('L3b un rendez-vous deja deplace avant que le compte existe en compte un : il lui en reste un', 1, luAvant.corps.rdv?.deplacementsRestants);
+
+  /* LE VERROU : la place d'arrivee prise entre la lecture et l'ecriture SANS que la ligne deplacee ait bouge.
+     La base, sous le verrou des poses, la refuse. */
+  rdv('ap-verrou', '2027-01-12', '14:00', { dureeMin: 60 });
+  ENTRE_DEUX = () => { rdv('ap-vole2', '2027-01-13', '10:00', { clientId: '', dureeMin: 60 }); };
+  const rv = await appelleD({ rdv: 'deplacer', v: await jeton('ap-verrou'), date: '2027-01-13', time: '10:00' });
+  await attendsLeFond();
+  dit('L4 sous le verrou : une place prise au meme instant, la ligne intacte, est refusee « creneau_pris », rien ne bouge',
+    [false, 'creneau_pris', '2027-01-12'], [rv.corps.ok, rv.corps.error, donnees('ap-verrou').date]);
+
+  /* LE JUGE D'ABORD : une place deja prise a la lecture (par un autre maitre : seule la regle des places en
+     ligne la refuse) est refusee par la fonction, sans meme demander le verrou. */
+  rdv('ap-juge', '2027-01-27', '10:00', { dureeMin: 60 });
+  rdv('ap-occupe', '2027-01-28', '10:00', { clientId: '', dureeMin: 60, master: 'Team' });
+  const avantVerrou = AU_VERROU;
+  const rj = await appelleD({ rdv: 'deplacer', v: await jeton('ap-juge'), date: '2027-01-28', time: '10:00' });
+  dit('L4b une place deja prise a la lecture est refusee par le juge, avant le verrou', [false, 'creneau_pris', 0, '2027-01-27'],
+    [rj.corps.ok, rj.corps.error, AU_VERROU - avantVerrou, donnees('ap-juge').date]);
+
+  /* LA BASE, A SES ANCRES (0223) : la ligne relue sous le verrou des poses, et l'ecriture qui ne change que la place. */
+  const verrou = lis('supabase/migrations/0223_deplacer_sous_le_verrou.sql').replace(/--[^\n]*/g, '');
+  dit('L10 la base ecrit sous condition (la ligne n a pas bouge depuis sa lecture), sous le verrou des poses du jour d arrivee',
+    [true, true],
+    [/if p_vu is null or rdv\.updated_at is distinct from p_vu then\s+return jsonb_build_object\('ok', false, 'raison', 'modifie'\);/.test(verrou),
+      verrou.indexOf("perform pg_advisory_xact_lock(hashtext('pose'), hashtext(branche || ':' || p_date));") > 0
+        && verrou.indexOf("perform pg_advisory_xact_lock(hashtext('pose'), hashtext(branche || ':' || p_date));") < verrou.indexOf('for update;')]);
+  dit('L10b elle n ecrit que la date, l heure, la marque du deplacement et son compte ; la marque « autre moment » levee ; ni maitre, ni statut, ni duree, ni remise ajoutee',
+    [true, false],
+    [verrou.includes("d := (d - 'autreMomentDemandeLe') || jsonb_build_object(\n         'date', p_date, 'time', p_time, 'deplaceLe', maintenant, 'deplacePar', 'site',\n         'deplaceDe', jsonb_build_object('date', d->>'date', 'time', d->>'time'),\n         'deplacements', faits + 1);"),
+      /'master'|'status'|'dureeMin'|'priceXof'|'remisesLignes', /.test(verrou.slice(verrou.indexOf("d := (d - 'autreMomentDemandeLe')"), verrou.indexOf('update public.appointments set data = d')).replace("d ? 'remisesLignes'", '').replace("(d - 'remisesLignes' - 'placeLimitee')", ''))]);
+  dit('L10c la fonction donne a la base l instant de sa lecture, et relit quand la ligne a bouge', [true, true],
+    [lis('supabase/functions/demande-submit/index.ts').includes('p_id: apptId, p_date: date, p_time: time, p_vu: ligne.updatedAt, p_sans_remise: false,'),
+      lis('supabase/functions/demande-submit/index.ts').includes("if (rendu?.ok !== true && rendu?.raison === 'modifie') continue;")]);
+
+  /* UNE PLACE EN ATTENTE DE SON OUI (17 novembre 2026) se deplace sans etre dite confirmee. */
+  rdv('ap-pend', '2027-01-27', '14:00', { clientId: '', clientName: 'Pendante', dureeMin: 60, suggereLe: '2026-11-11T08:00:00.000Z', attenduJusquAu: '2026-11-11T10:00:00.000Z' });
+  table('demandes').push({ id: 'dm-pend', data: { apptId: 'ap-pend', prenom: 'Pia', telephone: '+2290100000009' } });
+  META.length = 0;
+  const rp = await appelleD({ rdv: 'deplacer', v: await jeton('ap-pend'), date: '2027-01-28', time: '14:00' });
+  await attendsLeFond();
+  dit('L11 une place qui attend encore son « Je confirme » se deplace sans recevoir « c est confirme »', [true, 'plus-tard', 0],
+    [rp.corps.ok, rp.corps.confirmation, META.length]);
+
+  /* LA REMISE D'UN JOUR NE SUIT PAS UN AUTRE JOUR. */
+  table('documents').push({ key: 'mnd_offers', data: [
+    { id: 'of-mer', active: true, code: 'MERCREDI', discountPct: 15, serviceIds: ['sv-shampoing'], joursDeLaVenue: ['Mer'] },
+    { id: 'of-places', active: true, code: 'PLACES', discountPct: 20, serviceIds: ['sv-shampoing'], joursDeLaVenue: ['Mar', 'Mer', 'Jeu', 'Ven'], placesParJour: 2 },
+    { id: 'of-saison', active: true, code: 'RENTREE', discountPct: 10, serviceIds: ['sv-shampoing'] },
+  ] });
+  rdv('ap-mer', '2027-01-13', '14:00', { dureeMin: 60, remisesLignes: [null, { pct: 15 }], codeOffre: 'MERCREDI', offreId: 'of-mer' });
+  const vm = await jeton('ap-mer');
+  const pm = await appelleD({ rdv: 'places', v: vm });
+  const offerts = Object.keys(pm.corps.jours ?? {});
+  dit('L5 le mercredi de la Maison : le calendrier ne propose que des mercredis', [true, true],
+    [offerts.length > 0, offerts.every((j) => new REEL(`${j}T12:00:00Z`).getUTCDay() === 3)]);
+  const mj = await appelleD({ rdv: 'deplacer', v: vm, date: '2027-01-14', time: '14:00' });
+  dit('L6 un appel direct vers un jeudi est refuse « remise_perdue » : rien ne bouge, la remise reste, et la page le dit sans promettre',
+    [false, 'remise_perdue', '2027-01-13', [null, { pct: 15 }], { etat: 'refus', raison: 'autre_jour' }],
+    [mj.corps.ok, mj.corps.error, donnees('ap-mer').date, donnees('ap-mer').remisesLignes, deplacementLu(mj.corps)]);
+  const mm = await appelleD({ rdv: 'deplacer', v: vm, date: '2027-01-20', time: '14:00' });
+  dit('L7 vers un autre mercredi, il se deplace et garde sa remise', [true, '2027-01-20', [null, { pct: 15 }]], [mm.corps.ok, donnees('ap-mer').date, donnees('ap-mer').remisesLignes]);
+  rdv('ap-pl', '2027-01-19', '16:00', { dureeMin: 60, remisesLignes: [null, { pct: 20 }], codeOffre: 'PLACES', offreId: 'of-places', placeLimitee: true });
+  const vp = await jeton('ap-pl');
+  const mp = await appelleD({ rdv: 'deplacer', v: vp, date: '2027-01-21', time: '16:00' });
+  const mh = await appelleD({ rdv: 'deplacer', v: vp, date: '2027-01-19', time: '17:00' });
+  dit('L8 une place limitee etait celle de son jour : elle ne suit pas un jeudi que l offre couvre pourtant ; une autre heure le meme jour, oui',
+    [false, 'remise_perdue', true, '17:00', [null, { pct: 20 }]], [mp.corps.ok, mp.corps.error, mh.corps.ok, donnees('ap-pl').time, donnees('ap-pl').remisesLignes]);
+  rdv('ap-sai', '2027-01-22', '16:00', { dureeMin: 60, remisesLignes: [null, { pct: 10 }], codeOffre: 'RENTREE', offreId: 'of-saison' });
+  rdv('ap-bien', '2027-01-22', '17:00', { dureeMin: 60, master: 'Team', remisesLignes: [null, { pct: 20 }], codeOffre: 'AWA-K3F', codeRaison: 'parrainage' });
+  rdv('ap-perdue', '2027-01-23', '16:00', { dureeMin: 60, remisesLignes: [null, { pct: 30 }], codeOffre: 'DISPARUE', offreId: 'of-disparue' });
+  const ms1 = await appelleD({ rdv: 'deplacer', v: await jeton('ap-sai'), date: '2027-01-26', time: '15:00' });
+  const ms2 = await appelleD({ rdv: 'deplacer', v: await jeton('ap-bien'), date: '2027-01-26', time: '17:00' });
+  const ms3 = await appelleD({ rdv: 'deplacer', v: await jeton('ap-perdue'), date: '2027-01-26', time: '18:00' });
+  await attendsLeFond();
+  dit('L9 l offre d une saison et la remise de bienvenue suivent a un autre jour ; une offre qu on ne retrouve plus : dans le doute, non',
+    [true, true, false, 'remise_perdue'], [ms1.corps.ok, ms2.corps.ok, ms3.corps.ok, ms3.corps.error]);
 }
 
 console.log(`\n${n - ko}/${n} epreuves tenues${ko ? `, ${ko} en echec` : ''}.`);

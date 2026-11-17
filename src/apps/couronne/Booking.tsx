@@ -59,6 +59,7 @@ import {
 import { t, locale, langue, prix } from './i18n';
 import { heureHabituelle, issueDeLaPlace, naitConfirme, relisLesMurs, verdictDeLEcriture } from './reservation-pure';
 import { supabase } from '../../shared/supabase';
+import { reserveALaMaison } from './reservation-serveur';
 import { prenomDUsage } from '../../shared/civilite';
 
 /* LE JOUR DIT DANS SA LANGUE : « Sam. 5 juil » en français (le libellé de
@@ -1059,6 +1060,46 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
         };
       });
       const poses = estampilleLesPoses(newAppts);
+      /* LA MAISON POSE, PAS LE NAVIGATEUR — 17 novembre 2026. Ma Couronne dit
+         ce qu'elle veut (la tête, les gestes, les séances, le maître vu) ; la
+         fonction décide du statut, de la durée, de l'acompte et de la remise
+         des places, et pose sous le verrou des places. Ce qu'elle rend est ce
+         qui est écrit : c'est cela, et non le calcul de cet écran, qui entre
+         dans son téléphone. Le prix ne se fige plus d'ici : ce qu'elle a vu
+         part pour la note du comptoir. Si la fonction ne répond pas (panne, ou
+         version d'avant), l'ancien chemin sert encore, et la base ramène
+         l'écriture à « en attente » (0224) : la Maison confirme. */
+      let ecrits: Appointment[] = poses;
+      let ferme = tenu;
+      const parLaMaison = sb ? await reserveALaMaison(sb, {
+        pour: cibleId, nom: cibleNom, branchId: branch.id, serviceIds: [...selectedIds],
+        seances: sessionDates.map((sd, i) => ({ date: sd.iso, time: sd.time, ...(i === 0 && online ? { id: online.apptId } : {}) })),
+        maitre: master, notes: baseNotes, placeAttendue: !!laPlace, tarifDeLaMaison: !laPlace,
+        vu: {
+          totalXof: Math.max(0, knownTotal - (poseDeLaPlace ? chiffre.remisePlace : 0) - famRemiseXof - (chiffre.retenue === 'offre' ? chiffre.remiseOffre : 0)),
+          remiseXof: (poseDeLaPlace ? chiffre.remisePlace : 0) + famRemiseXof + (chiffre.retenue === 'offre' ? chiffre.remiseOffre : 0),
+          dureeMin: totalDuration,
+        },
+        ...(online ? { transactionId: online.transactionId } : {}),
+      }) : null;
+      if (parLaMaison?.etat === 'pose') {
+        ecrits = parLaMaison.rdvs;
+        ferme = parLaMaison.ferme;
+        setNeTenu(ferme);
+      } else if (parLaMaison?.etat === 'refus') {
+        if (parLaMaison.raison === 'prise') { if (online?.confirmed) acompteSansPlace(); else laPlacePrise(); return; }
+        if (parLaMaison.raison === 'place-partie' && laPlace) {
+          setPaying(false);
+          acompteDeLaTentative.current = acompte;
+          const jour = sessionDates[0]?.iso ?? '';
+          fermeLaPlaceIci(branch.id, laPlaceEstPartie(placesDeLaRemiseDe(branch.id), laPlace, jour));
+          setPlacePartie({ iso: jour, pct: Math.max(0, Math.round(laPlace.discountPct ?? 0)), ...(online ? { online } : {}) });
+          return;
+        }
+        setPaying(false);
+        toast(t('La réservation n’est pas partie. Vérifiez votre connexion, puis réessayez.'));
+        return;
+      }
       /* LA BASE DIT LE DERNIER MOT — 24 octobre 2026. Le rendez-vous s'écrit
          directement, et l'on attend sa réponse : entre la relecture des murs
          et cette ligne, une autre a pu prendre l'heure, et le garde de la base
@@ -1067,8 +1108,14 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
          un rendez-vous que la Maison n'avait pas. Un acompte déjà encaissé
          garde l'ancien chemin si la base ne répond pas : on ne perd pas une
          cliente qui a payé. */
-      if (sb) {
-        const { error } = await sb.from('appointments').insert(poses.map((a) => ({ id: a.id, branch_id: a.branchId ?? null, data: a })));
+      if (sb && parLaMaison?.etat === 'injoignable') {
+        /* LE REPLI (17 novembre 2026) : la base ne laisse plus une cliente se
+           confirmer ni figer un prix (0224) ; l'écran dit donc « la Maison
+           confirmera », ce qui sera vrai. */
+        ecrits = poses.map((a) => ({ ...a, status: 'en attente' as const }));
+        ferme = false;
+        setNeTenu(false);
+        const { error } = await sb.from('appointments').insert(ecrits.map((a) => ({ id: a.id, branch_id: a.branchId ?? null, data: a })));
         const verdict = verdictDeLEcriture(error ? error.message : null);
         if (verdict === 'prise') { if (online?.confirmed) acompteSansPlace(); else laPlacePrise(); return; }
         /* LA DERNIÈRE PLACE VIENT DE PARTIR — 4 novembre 2026. Le garde des
@@ -1091,11 +1138,11 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
           return;
         }
       }
-      appointmentsStore.set((prev) => [...prev, ...poses]);
-      setRdvCree(newAppts[0]?.id ?? null);
+      appointmentsStore.set((prev) => [...prev.filter((x) => !ecrits.some((e) => e.id === x.id)), ...ecrits]);
+      setRdvCree(ecrits[0]?.id ?? newAppts[0]?.id ?? null);
       /* Alerte le personnel du Trône (Web Push), même Le Trône fermé. */
       void pushNotifyStaff(
-        online?.confirmed ? 'Réservation payée · Ma Couronne' : tenu ? 'Réservé · Ma Couronne' : 'Nouvelle réservation · Ma Couronne',
+        online?.confirmed ? 'Réservation payée · Ma Couronne' : ferme ? 'Réservé · Ma Couronne' : 'Nouvelle réservation · Ma Couronne',
         `${beneficiaire ? `${cibleNom} · par ${clientName}` : clientName} · ${summaryLabel}${online?.confirmed ? ` · acompte ${fmtMoney(acompte, currency)} reçu` : ''}`,
         '/trone/#/calendrier',
       );
@@ -1105,16 +1152,16 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
          réussie. Web Push si possible (arrive même app fermée) ; sinon notif locale. */
       const first = sessionDates[0];
       /* La notification ouvre la fiche de CE rendez-vous (7 octobre 2026). */
-      const url = `${import.meta.env.BASE_URL}#/rdv/${newAppts[0]?.id ?? ''}`;
+      const url = `${import.meta.env.BASE_URL}#/rdv/${ecrits[0]?.id ?? newAppts[0]?.id ?? ''}`;
       void enablePush(clientId).then((subbed) => {
         if (!first) return;
         /* Cette notification est la SIENNE (son téléphone) : elle lui parle
            dans sa langue. L'alerte du personnel, plus haut, reste française. */
         const vars = { quoi: summaryDit, jour: jourDit(first.iso), heure: first.time };
-        const body = tenu
+        const body = ferme
           ? t('{quoi} · {jour} à {heure}. La Maison vous attend.', vars)
           : t('{quoi} · {jour} à {heure}, la maison confirmera.', vars);
-        const titre = tenu ? t('C’est réservé') : t('Réservation transmise');
+        const titre = ferme ? t('C’est réservé') : t('Réservation transmise');
         if (subbed) void pushNotify(clientId, titre, body, url);
         else void askNotifyPermission().then((ok) => { if (ok) notifyLocal(titre, body); });
       });
@@ -1357,7 +1404,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
     /* Identifiant réservé AVANT l'ouverture du widget : il part chez KkiaPay en
        `partnerId` et deviendra celui de la séance 1. Conservé d'une tentative à
        l'autre pour qu'un second essai retombe sur la même réservation. */
-    const apptId = onlineApptId.current ?? uid();
+    const apptId = onlineApptId.current ?? `rdv-${uid()}`;
     onlineApptId.current = apptId;
     setPaying(true);
     try {

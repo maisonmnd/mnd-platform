@@ -12,11 +12,13 @@ import {
 import { Chargeur, RepliDuChargement } from './Chargeur';
 import {
   CHEMIN_POUR_RETROUVER, FACTURE_EN_PANNE, FONCTION_DE_LA_FIN, MOTS_DE_LA_RECHERCHE, REGLEMENT_EN_PANNE, REGLER_DES_MAINTENANT, billetDeLaPageLu, codeDeLAdresse,
-  finLue, rechercheLue, refusDit, reglementDuBillet, reglerLue, saisieARevoir, type BilletDuSite,
+  finLue, francsDits, rechercheLue, refusDit, reglementDuBillet, reglerLue, saisieARevoir, type BilletDuSite,
 } from '../billet-du-rdv-pur';
 import { jourDeLaFin } from '../../../shared/terminer-et-regler-pur';
 import { MOTS_DU_DEPLACEMENT, leBoutonDeplacer, suiteDuDeplacementDite } from '../deplacer-du-site-pur';
 import DeplacerLeRendezVous from './DeplacerLeRendezVous';
+import { payWithKkiapay } from '../../../shared/kkiapay-widget';
+import { heureDeCotonouDite } from '../../../shared/rendez-vous-en-attente-pur';
 import { telechargeLaFactureDuBillet } from '../facture-du-billet';
 
 /* LA PAGE DU RENDEZ-VOUS — 3 novembre 2026. « Add a "Déplacer/Annuler"
@@ -170,6 +172,9 @@ export default function MonRendezVous({ genre }: { genre?: string }) {
      le rendez-vous à sa nouvelle place (l'écran « Rendez-vous déplacé »). */
   const [calendrierOuvert, setCalendrierOuvert] = useState(false);
   const [deplace, setDeplace] = useState<{ rdv: RendezVousLu; confirmation: 'envoyee' | 'plus-tard' | 'sans' | 'deja' } | null>(null);
+  /* L'ACOMPTE EN LIGNE (17 novembre 2026) : réglé par KkiaPay, revérifié par
+     kkiapay-verify, qui seul le pose ; puis la page relit le rendez-vous. */
+  const [acompte, setAcompte] = useState<{ enCours: boolean; dit: string }>({ enCours: false, dit: '' });
 
   useEffect(() => {
     let vivant = true;
@@ -349,6 +354,44 @@ export default function MonRendezVous({ genre }: { genre?: string }) {
   const reglement = !agendaSeul && billet ? reglementDuBillet(billet, aujourdhui) : null;
   /* Le jour même, le rituel a commencé : Déplacer et Annuler n'ont plus lieu d'être. */
   const changer = aVenir && !reglement?.leJourMeme;
+  /* EN ATTENTE DE SON OUI, OU DE SON ACOMPTE (17 novembre 2026) : la page dit
+     comment confirmer, et règle l'acompte quand il y en a un. Le retour du
+     widget ne prouve rien : kkiapay-verify revérifie et pose l'acompte, puis
+     la page relit. */
+  const jusqua = r.attenduJusquAu ? heureDeCotonouDite(r.attenduJusquAu) : '';
+  const regleLAcompte = async (): Promise<void> => {
+    if (!r.acompteXof || !r.branchId || !apptId) return;
+    setAcompte({ enCours: true, dit: '' });
+    try {
+      const { transactionId } = await payWithKkiapay({ amountXof: r.acompteXof, partnerId: apptId, branchId: r.branchId });
+      const supabase = await client();
+      if (!supabase) { setAcompte({ enCours: false, dit: 'Votre paiement est reçu : la Maison le vérifie et vous confirme sur WhatsApp.' }); return; }
+      const { data, error } = await supabase.functions.invoke('kkiapay-verify', { body: { transactionId, apptId, branchId: r.branchId } });
+      if (error || (data as { ok?: boolean } | null)?.ok !== true) {
+        setAcompte({ enCours: false, dit: `Votre paiement est noté (référence ${transactionId}) : la Maison le vérifie et vous confirme sur WhatsApp.` });
+        return;
+      }
+      setAcompte({ enCours: false, dit: '' });
+      setEssai((n) => n + 1);
+    } catch (x) {
+      setAcompte({ enCours: false, dit: x instanceof Error ? x.message : 'Le paiement n’a pas abouti. Réessayez, ou écrivez à la Maison sur WhatsApp.' });
+    }
+  };
+  const blocDeLAttente = aVenir && r.attente && (
+    <div className="rdv-page__reglement">
+      <p className="sur">{r.attente === 'acompte' ? 'Il reste l’acompte' : 'À confirmer'}</p>
+      {r.attente === 'acompte' && r.acompteXof ? <p className="rdv-page__montant">{francsDits(r.acompteXof)}</p> : null}
+      <p className="legende">{r.attente === 'acompte'
+        ? `Votre place est tenue${jusqua ? ` jusqu’à ${jusqua}` : ''}. L’acompte la confirme.`
+        : `Répondez « Je confirme » à la Maison sur WhatsApp${jusqua ? ` avant ${jusqua}` : ''} : sans réponse, la place se libère.`}</p>
+      <p className="rangee">
+        {r.attente === 'acompte' && r.acompteXof && r.branchId
+          ? <button type="button" className="btn btn--fort" disabled={acompte.enCours} onClick={() => { void regleLAcompte(); }}>{acompte.enCours ? 'Un instant…' : 'Régler l’acompte'}</button>
+          : <a className="btn btn--fort" href={lienWhatsApp(whatsapp, `Je confirme mon rendez-vous du ${quand}${r.reference ? ` (réf. ${r.reference})` : ''}.`)} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { chemin: 'je-confirme', page: '/rdv/' })}>Écrire « Je confirme »</a>}
+      </p>
+      {acompte.dit && <p className="legende" role="alert">{acompte.dit}</p>}
+    </div>
+  );
   const blocDuReglement = reglement && (
     <div className="rdv-page__reglement">
       <p className="sur">{reglement.sur}</p>
@@ -386,6 +429,7 @@ export default function MonRendezVous({ genre }: { genre?: string }) {
           <small>À garder pour tout échange avec la Maison.</small>
         </p>
       )}
+      {blocDeLAttente}
       {aVenir ? (
         <>
           {/* Avant l'heure du rituel : l'agenda, Déplacer, Annuler. Le jour même, dès son heure : le règlement seul. */}

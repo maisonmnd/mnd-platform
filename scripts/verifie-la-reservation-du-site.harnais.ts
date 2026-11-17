@@ -139,8 +139,8 @@ function controles(t: Textes): string[] {
   exige('le bouton Reserver de la barre et l appel de fin gardent le parcours', (t.gen.match(/href="\$\{attr\(reserverDeLaPage\(chemin\)\)\}">Réserver<\/a>/g) ?? []).length === 2 && t.gen.includes('corps + appelDeFin(chemin)'));
   exige('la regle du bouton suit la page : parcours reservable, pas de message', t.gen.includes("return p && RESERVABLES.has(p.besoin ?? '') && !p.cta?.vers ? versLaReservation(p.besoin, p.cta?.famille) : lien('/reserver/');"));
   /* La reference, avant WhatsApp ; deplacer, annuler ; l agenda du contrat. */
-  exige('la reference se dit avant la ligne de WhatsApp', avant(r, /\{recu\.confirme && recu\.reference && \(\s*<p className="merci__reference">/, 'La confirmation est partie sur WhatsApp'));
-  exige('pas de reference sans place tenue', r.includes('...(r.confirme === true ? { reference: referenceDeLaReponse(r) || undefined } : {}),'));
+  exige('la reference se dit avant la ligne de WhatsApp', avant(r, /\{\(recu\.confirme \|\| enAttente\) && recu\.reference && \(\s*<p className="merci__reference">/, 'La confirmation est partie sur WhatsApp'));
+  exige('pas de reference sans place tenue', r.includes("...(r.confirme === true || r.etat === 'en-attente' ? { reference: referenceDeLaReponse(r) || undefined } : {}),"));
   exige('deplacer et annuler ecrivent a la Maison avec la reference',
     r.includes('motPourDeplacer(`${jourDit(recu.date)} à ${heureDite(recu.heure)}`, recu.reference)') && r.includes('motPourAnnuler(`${jourDit(recu.date)} à ${heureDite(recu.heure)}`, recu.reference)'));
   exige('l agenda vient du contrat, a l adresse de la Maison', /href=\{adresseDAgenda\(ficheAgendaICS\(\{\s*apptId: recu\.apptId/.test(r) && r.includes('lieu: `${COMMUN.nom}, ${COMMUN.editeur.adresseComplete}`') && !/fichierAgenda\(/.test(r));
@@ -188,8 +188,8 @@ const PANNES: [string, keyof Textes, string, string][] = [
   ['le parcours ne se voit plus', 'reserver', '<span>Votre parcours : <b>{NOM_DU_PARCOURS[besoin]}</b></span>', '<span />'],
   ['la barre du site repart a la porte', 'gen', 'href="${attr(reserverDeLaPage(chemin))}">Réserver</a>\n      </div>\n    </header>', 'href="${lien(\'/reserver/\')}">Réserver</a>\n      </div>\n    </header>'],
   ['une page par message ouvre le calendrier', 'gen', "&& !p.cta?.vers ? versLaReservation(p.besoin, p.cta?.famille)", '? versLaReservation(p.besoin, p.cta?.famille)'],
-  ['la reference se tait', 'reserver', '{recu.confirme && recu.reference && (\n          <p className="merci__reference">', '{false && (\n          <p className="merci__reference">'],
-  ['une reference sans place tenue', 'reserver', '...(r.confirme === true ? { reference:', '...(true ? { reference:'],
+  ['la reference se tait', 'reserver', '{(recu.confirme || enAttente) && recu.reference && (\n          <p className="merci__reference">', '{false && (\n          <p className="merci__reference">'],
+  ['une reference sans place tenue', 'reserver', "...(r.confirme === true || r.etat === 'en-attente' ? { reference:", '...(true ? { reference:'],
   ['l ancien fichier d agenda revient', 'reserver', 'href={adresseDAgenda(ficheAgendaICS({', 'href={fichierAgenda(({'],
   ['Reessayer ne relance rien', 'reserver', '}, [essai]);', '}, []);'],
   ['le chargeur attend sans fin', 'reserver', ": etatDesPlaces === 'lent' || etatDesPlaces === 'panne'", ": etatDesPlaces === 'panne'"],

@@ -664,6 +664,8 @@ const regles: Regle[] = [
         'prenom-d-usage': { fichier: 'src/shared/civilite.ts', extrait: (s) => entre(s, 'prenom-d-usage') },
         /* Déplacer depuis le site (7 novembre 2026) : la règle des 24 heures, recopiée dans demande-submit. */
         'deplacer-du-site': { fichier: 'src/shared/deplacer-du-site-pur.ts', extrait: (s) => entre(s, 'deplacer-du-site') },
+        /* Le rendez-vous en attente (17 novembre 2026) : la place tenue deux heures, son oui, l'acompte, les plafonds, la clé du numéro, recopiés dans demande-submit et confirmation-rdv. */
+        'rendez-vous-en-attente': { fichier: 'src/shared/rendez-vous-en-attente-pur.ts', extrait: (s) => entre(s, 'rendez-vous-en-attente') },
         /* Ce qui va partir (5 novembre 2026) : la clé d'un message, l'arrêt d'avance, la pause d'un modèle et la veille d'Opale, recopiés dans envois-partent et chaque fonction qui dépose. */
         'arret-d-avance': { fichier: 'src/shared/arret-d-avance-pur.ts', extrait: (s) => entre(s, 'arret-d-avance') },
         /* Les messages de l'abonnée (8 novembre 2026, lot 4 de l'abonnement refait) : la veille avec l'attention, recopiée dans rappels-j1 ; les boutons de la prochaine séance, recopiés dans whatsapp-webhook ; le rendez-vous suivant, recopié dans whatsapp-webhook et envois-partent. */
@@ -1082,7 +1084,7 @@ const regles: Regle[] = [
       vrai('l Edge resout le code d une demande sans place, sans remise', /\} else if \(FORME_DU_CODE\.test\(codeNormalise\(codeEcrit\)\)\) \{\s*const code = codeNormalise\(codeEcrit\);\s*duCode = \(await verdictDuParrainage\(code, telephone\)\.catch\(\(\) => null\)\) \?\? \{ code, raison: 'inconnu' \};/.test(edge));
       /* Depuis demande-submit 2026-10-11-a, une place DEJA posee (le doublon)
          ne previent pas la marraine une seconde fois : la promesse se resserre. */
-      vrai('... et la marraine n est prevenue que d une place posee (aucun envoi neuf)', /if \(apptId && (?:!dejaPosee && )?duCode\.raison === 'parrainage' && duCode\.marraineTelephone\) \{/.test(edge));
+      vrai('... et la marraine n est prevenue que d une place posee (aucun envoi neuf)', /if \(apptId && (?:!dejaPosee && )?(?:!enAttente && )?duCode\.raison === 'parrainage' && duCode\.marraineTelephone\) \{/.test(edge));
       /* Le Trone : la demande de rappel rejoint sa fiche a la conversion. */
       const ficheA = [
         fiche({ id: 'awa', name: 'Awa H', graine: graineDe('AWA-7KQ'), codeParrain: 'AWA-7KQ' }),

@@ -45,6 +45,7 @@ import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honoreSan
 import { FenetreDuProchainRituel } from '../vente/SonProchainRituel';
 import { BadgeSuggere } from './BadgeSuggere';
 import { estSuggere } from '../../../../shared/rendez-vous-suggere-pur';
+import { estEnAttente, etatDeLAttente } from '../../../../shared/rendez-vous-en-attente-pur';
 import { noteSonOui } from '../../../../shared/carte-du-prochain-rituel';
 import { laCarteSOuvreApresLHonneur, sonProchainDejaPose } from '../../../../shared/carte-du-prochain-rituel';
 import { momentDuMessage } from '../../../../shared/salle-des-envois';
@@ -174,11 +175,14 @@ const VUES: Record<VueCarnet, {
   impaye:     { label: 'Impayés',     garde: (a, b) => a.status !== 'annulé' && apptPayState(a, b) === 'impayé' },
   partiel:    { label: 'Partiels',    garde: (a, b) => a.status !== 'annulé' && apptPayState(a, b) === 'partiel' },
   paye:       { label: 'Payés',       garde: (a, b) => a.status !== 'annulé' && apptPayState(a, b) === 'payé' },
-  attente:    { label: 'En attente',  garde: (a) => a.status === 'en attente' },
+  /* LE RENDEZ-VOUS EN ATTENTE (17 novembre 2026) : pris en ligne, il attend son
+     « Je confirme » (ou son acompte). Il se range ici, pas parmi les suggestions
+     de la Maison ni parmi les confirmés. */
+  attente:    { label: 'En attente',  garde: (a) => a.status === 'en attente' || estEnAttente(a) },
   /* LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : posé par la Maison, il attend
      son oui ; « les chiffres à venir le comptent à part, à confirmer ». */
-  suggere:    { label: 'Suggérés',    garde: (a) => estSuggere(a) },
-  confirme:   { label: 'Confirmés',   garde: (a) => a.status === 'confirmé' && !estSuggere(a) },
+  suggere:    { label: 'Suggérés',    garde: (a) => estSuggere(a) && etatDeLAttente(a) === null },
+  confirme:   { label: 'Confirmés',   garde: (a) => a.status === 'confirmé' && !estSuggere(a) && !estEnAttente(a) },
   honore:     { label: 'Honorés',     garde: (a) => a.status === 'honoré' },
   annule:     { label: 'Annulés',     garde: (a) => a.status === 'annulé' },
 };

@@ -127,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-15-a · le « Je confirme » et « Un autre moment » d une proposition (REPRISE_OK, REPRISE_AUTRE) reconnaissent le numero par sa cle : Meta livre 229 et huit chiffres, la fiche porte 229 01 ; 2026-11-11-a · les boutons de la paie (PAIE_RECU, PAIE_PASENCORE) s écrivent sur le registre des envois MTN, venus du seul numéro à qui le message est parti, sans automate ni sonnerie ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero : le message et l appel portent l adulte, le payeur, ou personne ; les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour ; la prochaine séance de l abonnée (PROCHAINE_OK, PROCHAINE_AUTRE) : « Oui, je réserve » pose la séance couverte par sa formule sous le verrou du serveur (reserver_une_seance_incluse_par_la_maison, 0198) et la confirme en une phrase, la ligne conf-<rdv>-whatsapp taisant le modèle de confirmation-rdv sauf si la phrase ne part pas ; une suite déjà posée ne se pose pas deux fois ; « Une autre date » passe la main à la conversation sans rien poser ; venus du seul numéro à qui le message est parti';
+const VERSION = '2026-11-17-a · la place tenue depuis le site : « Je confirme » et « Un autre moment » (le bouton, ou « Je confirme » écrit) sont rendus à la porte du site (demande-submit), qui confirme, dit l acompte ou rend la place ; le bouton de la paie (PAIE_RECU, PAIE_PASENCORE) reconnaît le numéro par sa clé ; 2026-11-15-a · le « Je confirme » et « Un autre moment » d une proposition (REPRISE_OK, REPRISE_AUTRE) reconnaissent le numero par sa cle : Meta livre 229 et huit chiffres, la fiche porte 229 01 ; 2026-11-11-a · les boutons de la paie (PAIE_RECU, PAIE_PASENCORE) s écrivent sur le registre des envois MTN, venus du seul numéro à qui le message est parti, sans automate ni sonnerie ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero : le message et l appel portent l adulte, le payeur, ou personne ; les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour ; la prochaine séance de l abonnée (PROCHAINE_OK, PROCHAINE_AUTRE) : « Oui, je réserve » pose la séance couverte par sa formule sous le verrou du serveur (reserver_une_seance_incluse_par_la_maison, 0198) et la confirme en une phrase, la ligne conf-<rdv>-whatsapp taisant le modèle de confirmation-rdv sauf si la phrase ne part pas ; une suite déjà posée ne se pose pas deux fois ; « Une autre date » passe la main à la conversation sans rien poser ; venus du seul numéro à qui le message est parti';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -910,6 +910,42 @@ async function demandeALAutomate(
     return { pris: false };
   }
 }
+
+/* ══ LA PLACE TENUE DEPUIS LE SITE — 17 novembre 2026 ═══════════════════
+   Un rendez-vous pris sur le site naît en attente (`attenduJusquAu`,
+   rendez-vous-en-attente-pur) : la place est tenue deux heures, et le message
+   qui part porte les deux boutons du rendez-vous suggéré (REPRISE_OK,
+   REPRISE_AUTRE). Sa réponse ne se traite pas ici : la visiteuse n'a souvent
+   pas encore de fiche, et confirmer veut dire sa référence, le lien de son
+   rendez-vous, l'acompte quand il y en a un. Le webhook REND LE GESTE À LA
+   PORTE DU SITE (`demande-submit`, `{ attente: 'reponse' }`, la clé service),
+   qui juge le numéro par sa clé, écrit, et lui répond. `pris: false` : ce
+   n'était pas une place en attente (ou la porte est injoignable), et le
+   webhook fait comme avant. Ne lève jamais. */
+async function rendsALaPorteDuSite(
+  urlBase: string, service: string, corps: Record<string, unknown>,
+): Promise<{ pris: boolean; etat?: string }> {
+  if (!urlBase || !service) return { pris: false };
+  try {
+    const r = await fetch(`${urlBase.replace(/\/+$/, '')}/functions/v1/demande-submit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${service}` },
+      body: JSON.stringify({ attente: 'reponse', ...corps }),
+      signal: AbortSignal.timeout(12_000),
+    });
+    const rep = await r.json().catch(() => ({})) as { pris?: unknown; etat?: unknown };
+    return { pris: r.ok && rep?.pris === true, ...(typeof rep?.etat === 'string' ? { etat: rep.etat } : {}) };
+  } catch (e) {
+    dis('attente · porte du site injoignable', { motif: String(e).slice(0, 120) });
+    return { pris: false };
+  }
+}
+
+/** « Je confirme », écrit au lieu de touché : le message de la place tenue
+    dit « Répondez Je confirme », et certaines l'écrivent. Rien d'autre ne
+    compte (« oui » seul reste à l'automate, qui sait de quoi elle parle). */
+const estUnJeConfirme = (texte: string | undefined): boolean =>
+  /^\s*(?:oui[\s,.!]*)?je\s+confirme\b/i.test(String(texte ?? ''));
 
 /** LES NUMÉROS CONFIÉS, ensemble, puis ce qui doit sonner. Une alerte de
     l'automate sur un fil de l'équipe (un numéro d'essai de la direction) ne
@@ -2333,9 +2369,21 @@ Deno.serve(async (req) => {
          jamais un numéro dont la base n'a pas dit le tiroir : au moindre
          doute, la Maison répond elle-même. Ces numéros-là ne sonnent pas
          ici : l'automate dit ce qui doit sonner (`confieALAutomate`). */
+      /* « JE CONFIRME », ÉCRIT — 17 novembre 2026 : rendu à la porte du site
+         AVANT l'automate. Si ce numéro tient une place en attente, elle est
+         confirmée et la réponse part de là-bas : ni l'automate ni la sonnerie
+         des messages n'ont à s'en mêler. Sinon, tout continue comme avant. */
+      const confirmesParEcrit = new Set<string>();
+      for (const e of entrants) {
+        if (!neufs.has(`wa-${e.waId}`) || e.bouton || !estUnJeConfirme(e.texte)) continue;
+        const rendu = await rendsALaPorteDuSite(urlBase, service, { geste: 'ok', numero: e.numero, texte: String(e.texte ?? '').slice(0, 300) });
+        dis('attente · « je confirme » écrit', { pris: rendu.pris, etat: rendu.etat });
+        if (rendu.pris) confirmesParEcrit.add(e.waId);
+      }
       const confies = new Map<string, Confie>();
       for (const e of entrants) {
         if (!neufs.has(`wa-${e.waId}`) || !tetes.has(e.numero)) continue;
+        if (confirmesParEcrit.has(e.waId)) continue;
         /* STOP et la question franche ne vont pas à l'automate (27 octobre 2026) :
            la Maison y répond elle-même (⑤ bis·4), et le personnel est prévenu. */
         if (!e.bouton && (estUnStop(e.texte) || estUneQuestionFranche(e.texte))) continue;
@@ -2365,7 +2413,7 @@ Deno.serve(async (req) => {
       }
 
       const arrivees: Arrivee[] = entrants
-        .filter((e) => estNeuf(e) && !confies.has(e.numero) && !estUnBoutonDeLaProchaineSeance(e.bouton?.id) && !estUnBoutonDePerle(e.bouton?.id) && !estUnBoutonDeLaPaie(e.bouton?.id))
+        .filter((e) => estNeuf(e) && !confies.has(e.numero) && !confirmesParEcrit.has(e.waId) && !estUnBoutonDeLaProchaineSeance(e.bouton?.id) && !estUnBoutonDePerle(e.bouton?.id) && !estUnBoutonDeLaPaie(e.bouton?.id))
         .map((e) => ({
           numero: e.numero,
           tiroir: tiroirDe(e.numero),
@@ -2415,8 +2463,13 @@ Deno.serve(async (req) => {
     if (!m) continue;
     const reference = m[2].toLowerCase();
     const { data: env } = await sb.from('envois').select('data').eq('id', `paie-${reference}-whatsapp`).limit(1);
-    const numeroParti = String(((env ?? [])[0] as { data?: { colis?: { numero?: string } } } | undefined)?.data?.colis?.numero ?? '').replace(/\D/g, '');
-    if (!numeroParti || numeroParti !== String(e.numero ?? '').replace(/\D/g, '')) { dis('bouton · paie, numéro étranger'); continue; }
+    /* LE NUMÉRO SE COMPARE PAR SA CLÉ (17 novembre 2026), comme les boutons
+       d'une proposition depuis le 15 : Meta livre l'ancienne forme béninoise
+       à huit chiffres (229 62…), l'envoi est parti à la nouvelle (229 01 62…).
+       À l'identique, le « Oui, bien reçu » d'un employé était rejeté. */
+    const numeroParti = cleWa(String(((env ?? [])[0] as { data?: { colis?: { numero?: string } } } | undefined)?.data?.colis?.numero ?? ''));
+    const numeroQuiRepond = cleWa(e.numero);
+    if (!numeroParti || numeroParti !== numeroQuiRepond) { dis('bouton · paie, numéro étranger'); continue; }
     const { error } = await sb.from('paie_envois_mtn').update({
       reponse_employe: m[1].toUpperCase() === 'RECU' ? 'bien-recu' : 'pas-encore',
       reponse_employe_le: e.quand || new Date().toISOString(),
@@ -2443,7 +2496,17 @@ Deno.serve(async (req) => {
     const { data: l } = await sb.from('appointments').select('id, branch_id, data').eq('id', m[2]).limit(1);
     const ligne = (l ?? [])[0] as { id: string; branch_id?: string; data: Record<string, unknown> } | undefined;
     if (!ligne) { dis('reprise · rendez-vous introuvable'); continue; }
-    const rdv = ligne.data as { clientId?: string; clientName?: string; date?: string; time?: string; status?: string; branchId?: string };
+    const rdv = ligne.data as { clientId?: string; clientName?: string; date?: string; time?: string; status?: string; branchId?: string; attenduJusquAu?: unknown };
+    /* LA PLACE TENUE DEPUIS LE SITE (17 novembre 2026) : née en attente, elle
+       se confirme à la porte du site, qui connaît le numéro qui l'a prise
+       (souvent sans fiche encore), sa référence, son lien et son acompte. Si
+       la porte ne la prend pas (injoignable), la suite fait comme pour une
+       suggestion : avec une fiche, son oui s'écrit quand même. */
+    if (typeof rdv.attenduJusquAu === 'string' && rdv.attenduJusquAu.trim()) {
+      const rendu = await rendsALaPorteDuSite(urlBase, service, { rdv: ligne.id, geste: m[1] === 'OK' ? 'ok' : 'autre', numero: e.numero });
+      dis('attente · bouton rendu à la porte du site', { geste: m[1], pris: rendu.pris, etat: rendu.etat });
+      if (rendu.pris) continue;
+    }
     const fiche = fiches.find((f) => f.id === rdv.clientId);
     /* LE NUMÉRO SE COMPARE PAR SA CLÉ (15 novembre 2026, essai réel du
        rendez-vous suggéré) : Meta livre l'ancienne forme à huit chiffres

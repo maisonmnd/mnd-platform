@@ -174,7 +174,7 @@ const appelle = async (corps: unknown, ip = `10.0.0.${++ipN}`) => {
 const jeton1 = await jetonDuRendezVous(SECRET, 'ap-banc-1');
 const lu = await appelle({ rdv: 'lire', v: jeton1 });
 dit('S1 le jeton signe lit son rendez-vous : reference, jour, heure, duree, gestes, appel, a venir', {
-  statut: 200, corps: { ok: true, rdv: { reference: referenceDuRendezVous('ap-banc-1'), date: '2099-11-08', heure: '10:00', dureeMin: 90, gestes: ['Retwist', 'Shampoing'], appel: 'Mme Adjoa', statut: 'a-venir' } },
+  statut: 200, corps: { ok: true, rdv: { reference: referenceDuRendezVous('ap-banc-1'), date: '2099-11-08', heure: '10:00', dureeMin: 90, gestes: ['Retwist', 'Shampoing'], appel: 'Mme Adjoa', statut: 'a-venir', deplacementsRestants: 2 } },
 }, lu);
 dit('S2 la reponse ne dit ni le numero, ni le nom entier, ni le prix', [false, false, false],
   [JSON.stringify(lu.corps).includes('0197000001'), JSON.stringify(lu.corps).includes('Koffi'), /prix|price|xof/i.test(JSON.stringify(lu.corps))]);

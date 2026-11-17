@@ -32,6 +32,11 @@ const ILOT = 'src/apps/revelateur/ilots/MonRendezVous.tsx';
 const CAL = 'src/apps/revelateur/ilots/DeplacerLeRendezVous.tsx';
 const CSS = 'src/apps/revelateur/revelateur.css';
 const DEUX = [REGLE, DS];
+/* 17 novembre 2026 : la limite des deplacements et la remise d'un jour (rendez-vous-en-attente-pur, recopie dans demande-submit). */
+const ATTENTE = 'src/shared/rendez-vous-en-attente-pur.ts';
+const LES_DEUX_DE_L_ATTENTE = [ATTENTE, DS];
+/* Le verrou des deplacements (0223) : lu par le harnais a ses ancres. */
+const VERROU = 'supabase/migrations/0223_deplacer_sous_le_verrou.sql';
 
 /** [ce qui casse, le ou les fichiers, le texte juste, le texte faux] */
 export const PANNES = [
@@ -58,17 +63,19 @@ export const PANNES = [
   ['la place d arrivee n est pas jugee a 24 heures au deplacement', DS, "const recevable = laPlaceEstRecevable({ date, time }, ms) ?? arriveeRecevable({ date, time }, ms);", "const recevable = laPlaceEstRecevable({ date, time }, ms);"],
   ['la meme place se deplace', DS, "    if (date === avant.date && time === avant.time) return json({ ok: false, error: 'meme_place' });\n", ''],
   ['l agenda du deplacement croit une lecture manquee', DS, "if (lectureManquee || pris.length >= PLAFOND_D_UNE_REPONSE) {", "if (false) {"],
-  ['l ecriture ne se fait plus sous condition', DS, ".eq('id', apptId).eq('updated_at', ligne.updatedAt).select('id');", ".eq('id', apptId).select('id');"],
-  ['une ligne qui a bouge n est pas rejugee', DS, '    if (!Array.isArray(ecrit) || ecrit.length === 0) continue;', '    if (!Array.isArray(ecrit) || ecrit.length === 0) return json({ ok: true, verdict: \'deplace\', rdv: await rdvPourLaPage(apptId), confirmation: \'sans\' });'],
-  ['le deplacement change le maitre', DS, "const apres = { ...reste, date, time, deplaceLe: le, deplacePar: 'site', deplaceDe: { date: avant.date, time: avant.time } };", "const apres = { ...reste, date, time, master: 'Team', deplaceLe: le, deplacePar: 'site', deplaceDe: { date: avant.date, time: avant.time } };"],
-  ['le deplacement change le statut', DS, "const apres = { ...reste, date, time, deplaceLe: le, deplacePar: 'site', deplaceDe: { date: avant.date, time: avant.time } };", "const apres = { ...reste, date, time, status: 'en attente', deplaceLe: le, deplacePar: 'site', deplaceDe: { date: avant.date, time: avant.time } };"],
-  ['le deplacement oublie sa marque pour le facteur', DS, "const apres = { ...reste, date, time, deplaceLe: le, deplacePar: 'site', deplaceDe: { date: avant.date, time: avant.time } };", "const apres = { ...reste, date, time, deplacePar: 'site', deplaceDe: { date: avant.date, time: avant.time } };"],
-  ['le deplacement garde la marque « autre moment demande »', DS, "    const { autreMomentDemandeLe: _marque, ...reste } = a;\n", "    const reste = a;\n"],
-  ['le deplacement pose une remise', DS, "const apres = { ...reste, date, time, deplaceLe: le,", "const apres = { ...reste, date, time, remisesLignes: [{ pct: 15 }], deplaceLe: le,"],
+  ['l ecriture ne se fait plus sous condition', VERROU, "  if p_vu is null or rdv.updated_at is distinct from p_vu then\n    return jsonb_build_object('ok', false, 'raison', 'modifie');\n  end if;\n", ''],
+  ['une ligne qui a bouge n est pas rejugee', DS, "      if (rendu?.ok !== true && rendu?.raison === 'modifie') continue;\n", ''],
+  ['le deplacement change le maitre', VERROU, "'date', p_date, 'time', p_time, 'deplaceLe', maintenant, 'deplacePar', 'site',", "'date', p_date, 'time', p_time, 'master', 'Team', 'deplaceLe', maintenant, 'deplacePar', 'site',"],
+  ['le deplacement change le statut', VERROU, "'date', p_date, 'time', p_time, 'deplaceLe', maintenant, 'deplacePar', 'site',", "'date', p_date, 'time', p_time, 'status', 'en attente', 'deplaceLe', maintenant, 'deplacePar', 'site',"],
+  ['le deplacement oublie sa marque pour le facteur', VERROU, "'date', p_date, 'time', p_time, 'deplaceLe', maintenant, 'deplacePar', 'site',", "'date', p_date, 'time', p_time, 'deplacePar', 'site',"],
+  ['le deplacement garde la marque « autre moment demande »', VERROU, "  d := (d - 'autreMomentDemandeLe') || jsonb_build_object(", '  d := d || jsonb_build_object('],
+  ['le deplacement pose une remise', VERROU, "'date', p_date, 'time', p_time, 'deplaceLe', maintenant, 'deplacePar', 'site',", "'date', p_date, 'time', p_time, 'remisesLignes', '[{\"pct\":15}]'::jsonb, 'deplaceLe', maintenant, 'deplacePar', 'site',"],
   ['un rejeu se refait', DS, "    if (a.date === date && a.time === time && a.deplacePar === 'site') {", "    if (false) {"],
   ['la confirmation part sans reserver sa ligne', DS, "}, { onConflict: 'id', ignoreDuplicates: true }).select('id');\n  if (errReserve)", "}, { onConflict: 'id' }).select('id');\n  if (errReserve)"],
   ['la confirmation part meme sans ligne reservee', DS, "  if (!Array.isArray(reservee) || reservee.length === 0) return 'deja';\n", ''],
-  ['un rendez-vous en attente se dit confirme', DS, "const envoi = a.status === 'confirmé'\n", "const envoi = true\n"],
+  ['un rendez-vous en attente se dit confirme', DS, "const envoi = a.status === 'confirmé' && !estEnAttente(a)\n", "const envoi = true\n"],
+  ['une place qui attend son oui se dit confirmee au deplacement', DS, "const envoi = a.status === 'confirmé' && !estEnAttente(a)\n", "const envoi = a.status === 'confirmé'\n"],
+  ['la fonction ne donne plus a la base l instant de sa lecture', DS, 'p_vu: ligne.updatedAt, p_sans_remise: false,', 'p_vu: new Date().toISOString(), p_sans_remise: false,'],
   ['la confirmation oublie son numero a prevenir', DS, "const numero = String(a.numeroAPrevenir ?? '').trim() || String(fiche?.data?.phone ?? '').trim()", "const numero = String(fiche?.data?.phone ?? '').trim()"],
   ['l appel prend le premier mot du nom', DS, "    ? appelDe(fiche.data as { name?: unknown; prenomUsage?: unknown; civilite?: unknown; auMasculin?: unknown }, a.clientName)\n    : appelDe(laDemande?.civilite ? { civilite: laDemande.civilite } : null, laDemande?.prenom ?? a.clientName);\n  const numero", "    ? `Mme ${String(fiche.data.name ?? '').split(' ')[0]}`\n    : appelDe(laDemande?.civilite ? { civilite: laDemande.civilite } : null, laDemande?.prenom ?? a.clientName);\n  const numero"],
   ['l equipe n est pas prevenue du deplacement', DS, "    await auPlus(alerteLePersonnel(\n      'Rendez-vous déplacé depuis le site',", "    await auPlus(((..._a: unknown[]) => Promise.resolve(0))(\n      'Rendez-vous déplacé depuis le site',"],
@@ -77,7 +84,7 @@ export const PANNES = [
   ['le deplacement ne prend aucun frein par adresse', DS, "if (!(await allowRate(ip, 'rdv_deplacer', 10)))", "if (false)"],
   ['les places prennent le seau de la lecture', DS, "allowRate(ip, 'rdv_places', 30)", "allowRate(ip, 'rdv_lire', 30)"],
   ['un jeton forge deplace', DS, "  const apptId = await apptIdDuJeton(SECRET_DES_LIENS, body.v);\n  if (!apptId) return json({ ok: false, error: 'lien' });\n  if (!(await allowRate(apptId, 'rdv_deplacer_jeton', 8)))", "  const apptId = String(body.v ?? '').split('.')[0];\n  if (!apptId) return json({ ok: false, error: 'lien' });\n  if (!(await allowRate(apptId, 'rdv_deplacer_jeton', 8)))"],
-  ['la version de demande-submit ne monte pas', DS, "const VERSION = '2026-11-07-a ·", "const VERSION = '2026-11-06-a ·"],
+  ['la version de demande-submit ne monte pas', DS, "const VERSION = '2026-11-17-a ·", "const VERSION = '2026-11-06-a ·"],
   ['le cas deja-deplace ne dit plus rien de la confirmation', DS, "return json({ ok: true, verdict: 'deja', rdv: await rdvPourLaPage(apptId), confirmation: 'deja' });", "return json({ ok: true, verdict: 'deja', rdv: await rdvPourLaPage(apptId) });"],
   /* ── La fonction terminer-et-regler : regler ── */
   ['le billet ne dit plus si la porte d avance est ouverte', TER, "const billet = momentDuReglement(rdv, maintenantMs) === 'avance'", "const billet = false"],
@@ -123,6 +130,17 @@ export const PANNES = [
   ['le calendrier charge la synchronisation du Trone', CAL, "import { client } from '../maison';\n", "import { client } from '../maison';\nimport '../../../shared/sync';\n"],
   ['la grille a une largeur fixe', CSS, '.rdv-page__deplacer { display: grid; gap: 10px; min-width: 0;', '.rdv-page__deplacer { display: grid; gap: 10px; min-width: 520px;'],
   ['la copie de la regle derive dans demande-submit', [DS], 'export const DELAI_POUR_DEPLACER_MS = 24 * 3_600_000;', 'export const DELAI_POUR_DEPLACER_MS = 24 * 3_600_001;'],
+  /* ── 17 novembre 2026 : deux fois au plus, sous le verrou, et la remise d'un jour ── */
+  ['un rendez-vous se deplace trois fois', LES_DEUX_DE_L_ATTENTE, 'export const DEPLACEMENTS_AU_PLUS = 2;', 'export const DEPLACEMENTS_AU_PLUS = 3;'],
+  ['un rendez-vous deplace avant le compte repart de zero', LES_DEUX_DE_L_ATTENTE, "  return Math.max(comptes, marqueDite(a?.deplaceLe) && a?.deplacePar === 'site' ? 1 : 0);", '  return comptes;'],
+  ['le deplacement sort du verrou des places', DS, 'const fonctionAbsente = !!errVerrou && /PGRST202|deplace_si_libre/.test(', 'const fonctionAbsente = true || /PGRST202|deplace_si_libre/.test('],
+  ['le mercredi de la Maison suit a un jeudi', LES_DEUX_DE_L_ATTENTE, '  return !o.lieeAuJour || o.tombeBien;', '  return true;'],
+  ['une place limitee suit a un autre jour', LES_DEUX_DE_L_ATTENTE, '  if (!o.offreConnue || o.aPlaces) return false;', '  if (!o.offreConnue) return false;'],
+  ['une offre disparue garde sa remise', LES_DEUX_DE_L_ATTENTE, '  if (!o.offreConnue || o.aPlaces) return false;', '  if (o.aPlaces) return false;'],
+  ['la remise de bienvenue tombe au deplacement', LES_DEUX_DE_L_ATTENTE, '  if (!o.aUneRemise || o.memeJour || o.bienvenue) return true;', '  if (!o.aUneRemise || o.memeJour) return true;'],
+  ['un appel direct emporte la remise a un autre jour', DS, "    if (!(await jugeDeLaRemise(a))(date)) return json({ ok: false, error: 'remise_perdue' });\n", ''],
+  ['le calendrier propose les jours ou la remise ne suit pas', DS, '  for (const iso of Object.keys(jours)) if (!suit(iso)) delete jours[iso];\n', ''],
+  ['la page prend la limite pour une panne', DEPL, "    if (x.raison === 'trop_de_deplacements') return { etat: 'ferme', raison: 'limite' };\n", ''],
 ];
 
 const fichiersDe = (x) => (Array.isArray(x) ? x : [x]);
