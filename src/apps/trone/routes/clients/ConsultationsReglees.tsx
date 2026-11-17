@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../../../ds/components';
 import { useStore } from '../../../../shared/store';
@@ -6,14 +6,20 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { lienWaMe } from '../../../../shared/conversations';
 import { consultationsQueueStore, type OnlineConsultation } from '../../../../shared/bridges';
-import { deposeUnTemoin, voirUnTemoin } from '../../../../shared/visios';
+import { deposeUnTemoin, momentsDeLaPrivee, poseLaPrivee, voirUnTemoin, type ConsultationSuivie } from '../../../../shared/visios';
+import { jourDit } from '../../../../shared/visio-pur';
+import type { MomentChoisi } from '../../../../shared/consultation-privee-pur';
 
 /* ══ C · LES CONSULTATIONS PRIVÉES RÉGLÉES — 13 novembre 2026 (lot 3) ══════
    Maquette T1, la file C. Une consultation gratuite du site, dont la cliente
    a réglé les 15 000 F de la consultation privée juste après sa lecture
    (KkiaPay, vérifié par `kkiapay-verify` sur l'identifiant de la
    consultation). Ici, la Maison :
-     · fixe le moment avec elle (WhatsApp), et le note ;
+     · voit son rendez-vous du Carnet : depuis le 17 novembre 2026, le moment
+       se choisit au paiement et la fonction `visio-salle` le pose sous le
+       verrou des places ; un moment qui n'était plus libre, ou une
+       consultation réglée sans moment, se pose d'ici (« Poser au Carnet ») ;
+     · à défaut, fixe le moment avec elle (WhatsApp), et le note ;
      · pose les photos des locks témoins faites devant elle (trois au plus,
        compartiment `temoins`, lu par l'équipe seule) ;
      · prépare le devis ferme, la consultation déduite. */
@@ -32,6 +38,18 @@ export function ConsultationsReglees() {
   const { currency } = useBranch();
   const navigate = useNavigate();
   const reglees = queue.filter(estReglee).sort((a, b) => (b.payeLe ?? b.createdAt).localeCompare(a.payeLe ?? a.createdAt));
+  /* LE FILET : une consultation réglée dont le moment choisi n'a pas encore sa
+     place au Carnet (le site a été fermé avant la pose) la reçoit ici, une
+     fois, par la même fonction et sous le même verrou. Refusée, elle ne se
+     retente pas seule : la Maison choisit un autre moment. */
+  const tentees = useRef(new Set<string>());
+  useEffect(() => {
+    for (const o of reglees as ConsultationSuivie[]) {
+      if (!o.momentVoulu || o.rdvId || o.momentRefuse || tentees.current.has(o.id)) continue;
+      tentees.current.add(o.id);
+      void poseLaPrivee(o.id);
+    }
+  });
   if (!reglees.length) return null;
   const argent = (n: number) => fmtMoney(n, currency);
 
@@ -55,6 +73,7 @@ export function ConsultationsReglees() {
               <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <span className="trv-status trv-status--payee">{argent(o.paidXof)} réglés</span>
                 {o.garde === 'peau' && <span className="trv-status trv-status--envoyee">garde médicale</span>}
+                {(o as ConsultationSuivie).rdvId && <span className="trv-status trv-status--envoyee">au Carnet</span>}
                 {!o.momentFixe && <span className="trv-status trv-status--avalider">moment à fixer</span>}
               </span>
             </div>
@@ -72,6 +91,7 @@ export function ConsultationsReglees() {
               </div>
               <MomentFixe o={o} />
             </div>
+            <AuCarnet o={o as ConsultationSuivie} />
             <Temoins o={o} />
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {wa && <Button size="sm" variant="ghost" onClick={() => window.open(wa, '_blank', 'noopener')}>Écrire pour fixer le moment</Button>}
@@ -82,6 +102,74 @@ export function ConsultationsReglees() {
         );
       })}
     </section>
+  );
+}
+
+/* ── AU CARNET — 17 novembre 2026 ──────────────────────────────────────────
+   La consultation privée est un vrai rendez-vous : posé par `visio-salle`
+   sous le verrou des places, aux heures que l'agenda propose (jamais le jour
+   même, premier rendez-vous à 08:30). Ici, la Maison voit où il en est, et le
+   pose elle-même quand le moment choisi n'était plus libre. */
+const raisonDite = (r: string): string =>
+  r === 'creneau_pris' ? 'la place a été prise entre-temps'
+    : r === 'creneau_ferme' ? 'la Maison est fermée ce jour-là'
+    : r === 'creneau_hors_fenetre' ? 'le jour est trop proche ou trop loin'
+    : r === 'creneau_plafond' ? 'la journée est pleine'
+    : r === 'a-regler' ? 'le règlement n’est pas au registre'
+    : 'la place n’a pas pu être posée';
+
+function AuCarnet({ o }: { o: ConsultationSuivie }) {
+  const [moments, setMoments] = useState<MomentChoisi[] | null>(null);
+  const [jour, setJour] = useState('');
+  const [heure, setHeure] = useState('');
+  const [envoi, setEnvoi] = useState(false);
+  const [mot, setMot] = useState<string | null>(null);
+  if (o.rdvId) {
+    return <p className="mnd-muted" style={{ fontSize: 12.5, margin: 0 }}>Au Carnet : {o.rdv ? `${jourDit(o.rdv.date)} · ${o.rdv.time}` : o.momentFixe ?? 'rendez-vous posé'}.</p>;
+  }
+  const ouvre = async () => {
+    setMot(null);
+    const m = await momentsDeLaPrivee();
+    setMoments(m);
+    setJour(m[0]?.jour ?? '');
+    setHeure('');
+  };
+  const pose = async () => {
+    if (!jour || !heure || envoi) return;
+    setEnvoi(true);
+    const r = await poseLaPrivee(o.id, { jour, heure });
+    setEnvoi(false);
+    if (r.ok) { setMoments(null); setMot(`Posée au Carnet : ${jourDit(jour)} · ${heure}.`); } else setMot(`Pas posée : ${raisonDite(r.motif ?? '')}.`);
+  };
+  const jours = [...new Set((moments ?? []).map((m) => m.jour))];
+  const heures = (moments ?? []).filter((m) => m.jour === jour).map((m) => m.heure);
+  return (
+    <div style={{ display: 'grid', gap: 6 }}>
+      {o.momentVoulu && (
+        <p className="mnd-muted" style={{ fontSize: 12.5, margin: 0 }}>
+          Moment choisi au paiement : {jourDit(o.momentVoulu.jour)} · {o.momentVoulu.heure}
+          {o.momentRefuse ? `, pas posé : ${raisonDite(o.momentRefuse.raison)}.` : ', en cours de pose au Carnet.'}
+        </p>
+      )}
+      {moments === null
+        ? <div><Button size="sm" variant="ghost" onClick={() => void ouvre()}>Poser au Carnet</Button></div>
+        : moments.length === 0
+          ? <p className="mnd-muted" style={{ fontSize: 12.5, margin: 0 }}>Aucun moment libre à proposer : l’agenda ne se lit pas, ou les prochains jours sont pleins.</p>
+          : (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+              <select className="mnd-input" style={{ width: 'auto' }} aria-label="Le jour" value={jour} onChange={(e) => { setJour(e.target.value); setHeure(''); }}>
+                {jours.map((j) => <option key={j} value={j}>{jourDit(j)}</option>)}
+              </select>
+              <select className="mnd-input" style={{ width: 'auto' }} aria-label="L’heure" value={heure} onChange={(e) => setHeure(e.target.value)}>
+                <option value="">l’heure</option>
+                {heures.map((h) => <option key={h} value={h}>{h}</option>)}
+              </select>
+              <Button size="sm" disabled={!heure || envoi} onClick={() => void pose()}>{envoi ? 'Pose' : 'Poser au Carnet'}</Button>
+              <Button size="sm" variant="ghost" onClick={() => setMoments(null)}>Fermer</Button>
+            </div>
+          )}
+      {mot && <p className="mnd-muted" role="status" style={{ fontSize: 12.5, margin: 0 }}>{mot}</p>}
+    </div>
   );
 }
 

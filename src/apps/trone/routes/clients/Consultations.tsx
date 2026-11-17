@@ -25,6 +25,7 @@ import { ConsultationsGratuites } from './ConsultationsGratuites';
 import { ConsultationsVisios } from './ConsultationsVisios';
 import { ConsultationsReglees } from './ConsultationsReglees';
 import { ConsultationsMesure } from './ConsultationsMesure';
+import { useLectureDeLaMaison } from './lecture-de-la-maison';
 import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
 import { ChampDeDate } from '../../../../ds/dates';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
@@ -115,6 +116,8 @@ const TABS: { k: Tab; label: string }[] = [
 ];
 
 export default function Consultations() {
+  /* La lecture d'une consultation du site se fait ici, sur le catalogue du Trône (17 novembre 2026). */
+  useLectureDeLaMaison();
   const [tab, setTab] = useState<Tab>('dossiers');
   const [forms] = useStore(consultFormsStore);
   const [chooser, setChooser] = useState(false);

@@ -16,7 +16,9 @@
    leur téléphone.
 
    MODULE PUR : la fonction `visio-salle` (regroupée par esbuild), Ma Couronne,
-   le site et le Trône lisent les mêmes règles. Rien d'autre n'est importé. */
+   le site et le Trône lisent les mêmes règles. Un seul import, pur lui
+   aussi : le jeton du lien de réservation préparé (`lien-reservation`). */
+import { jetonDuLien } from './lien-reservation';
 
 /** Durée d'une visio, en minutes. */
 export const DUREE_MIN = 15;
@@ -41,8 +43,20 @@ export type ReglagesDeLaVisio = {
   horizonJours: number;
   /** Aucun créneau à moins de … minutes. */
   delaiMin: number;
-  /** Visios à venir au plus, par numéro. */
+  /** Visios par numéro, au plus, sur la période `limiteJours` (à venir comprises). */
   parTelephone: number;
+  /** LA VISIO LIMITÉE (17 novembre 2026) : la période, en jours. 0 : seules les
+      visios à venir comptent. */
+  limiteJours: number;
+  /** Changer l'heure, ou annuler sans que la visio compte : jusqu'à … minutes avant. */
+  changementAvantMin: number;
+  /** Changements d'heure par la cliente, au plus. */
+  changementsMax: number;
+  /** Inscrire chaque visio au Carnet. Son quart d'heure y prend alors une
+      place, comme tout rendez-vous : éteint au départ. */
+  auCarnet: boolean;
+  /** La durée de la consultation privée au Carnet, en minutes. */
+  priveeDureeMin: number;
   modifieLe?: string;
   modifiePar?: string;
 };
@@ -55,6 +69,11 @@ export const REGLAGES_DE_DEPART = (): ReglagesDeLaVisio => ({
   horizonJours: 7,
   delaiMin: 120,
   parTelephone: 1,
+  limiteJours: 90,
+  changementAvantMin: 120,
+  changementsMax: 2,
+  auCarnet: false,
+  priveeDureeMin: 60,
 });
 
 const HEURE = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -82,6 +101,11 @@ export function reglagesSurs(x: unknown): ReglagesDeLaVisio {
     horizonJours: entier(o.horizonJours, 1, 30, d.horizonJours),
     delaiMin: entier(o.delaiMin, 0, 2880, d.delaiMin),
     parTelephone: entier(o.parTelephone, 1, 5, d.parTelephone),
+    limiteJours: entier(o.limiteJours, 0, 365, d.limiteJours),
+    changementAvantMin: entier(o.changementAvantMin, 0, 2880, d.changementAvantMin),
+    changementsMax: entier(o.changementsMax, 0, 5, d.changementsMax),
+    auCarnet: o.auCarnet === true,
+    priveeDureeMin: entier(o.priveeDureeMin, 15, 240, d.priveeDureeMin),
     ...(typeof o.modifieLe === 'string' ? { modifieLe: o.modifieLe } : {}),
     ...(typeof o.modifiePar === 'string' ? { modifiePar: o.modifiePar } : {}),
   };
@@ -163,6 +187,20 @@ export function jourCourtDit(jour: string): string {
   return `${JOURS_COURTS[d.getUTCDay()]} ${d.getUTCDate()}`;
 }
 
+/** « novembre 2026 », un mois « 2026-11 » : le titre d'un calendrier. */
+export function moisDit(mois: string): string {
+  const d = new Date(`${mois}-01T12:00:00Z`);
+  return `${MOIS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+/** Les cases d'un mois « 2026-11 », lundi en tête : des vides, puis ses jours (« 2026-11-01 »…). */
+export function casesDuMois(mois: string): (string | null)[] {
+  const premier = new Date(`${mois}-01T12:00:00Z`);
+  const vides = (premier.getUTCDay() + 6) % 7;
+  const n = new Date(Date.UTC(premier.getUTCFullYear(), premier.getUTCMonth() + 1, 0, 12)).getUTCDate();
+  return [...Array.from({ length: vides }, () => null), ...Array.from({ length: n }, (_, i) => `${mois}-${String(i + 1).padStart(2, '0')}`)];
+}
+
 /** « mardi 17 novembre 2026 · 10:15 ». */
 export const creneauDit = (debut: string): string => `${jourDit(jourDeCotonou(Date.parse(debut)))} · ${heureDite(debut)}`;
 
@@ -230,6 +268,90 @@ export function salleDuFragment(hash: string): { id: string; jeton: string } | n
 /** Un numéro réduit à ses huit derniers chiffres : la même cliente, quel que soit l'indicatif. */
 export const numeroCourt = (tel: string): string => String(tel ?? '').replace(/\D/g, '').slice(-8);
 
+/* ── LA VISIO LIMITÉE — 17 novembre 2026 (« La consultation en affiches », arbitrage C) ──
+   « La visio reste gratuite, limitée : une par numéro tous les 90 jours, les
+   manquées comptent, le lien ne part que par WhatsApp. » Une visio annulée à
+   temps ne compte pas ; « à temps », c'est le délai du changement d'heure
+   (deux heures avant, réglable) : passé ce délai, le quart d'heure est perdu
+   pour la Maison, comme une visio manquée. Annulée par la Maison, jamais. */
+
+const UN_JOUR_MS = 86_400_000;
+
+/** Ce que la limite lit d'une visio de ce numéro. */
+export type VisioDuNumero = { debut: string; statut: string; annuleeLe?: string | null; annuleePar?: string | null };
+
+/** Annulée par la Maison, ou par elle avant le délai : elle ne compte pas. Sans
+    heure d'annulation connue (les visios d'avant le 17 novembre 2026), le doute lui profite. */
+export function annuleeATemps(v: VisioDuNumero, avantMin: number): boolean {
+  if (v.statut !== 'annulée') return false;
+  if (v.annuleePar === 'maison') return true;
+  const le = Date.parse(String(v.annuleeLe ?? ''));
+  if (!Number.isFinite(le)) return true;
+  return le <= Date.parse(v.debut) - avantMin * 60_000;
+}
+
+/** Cette visio compte-t-elle dans la limite ? Réservée, tenue, manquée, ou annulée trop tard. */
+export const comptePourLaLimite = (v: VisioDuNumero, r: Pick<ReglagesDeLaVisio, 'changementAvantMin'>): boolean =>
+  v.statut !== 'annulée' || !annuleeATemps(v, r.changementAvantMin);
+
+export type VerdictDeLaLimite =
+  | { ok: true }
+  /** `prochaineLe` : le premier jour (de Cotonou, « 2027-02-15 ») où une visio redevient possible ; vide sans période. */
+  | { ok: false; prochaineLe: string; aVenir: boolean };
+
+/** LA LIMITE : `parTelephone` visios par numéro sur `limiteJours` jours, à venir
+    comprises. La visio qui ferme la porte la rouvre `limiteJours` jours après son heure. */
+export function limiteDe(visios: readonly VisioDuNumero[], r: ReglagesDeLaVisio, maintenantMs: number): VerdictDeLaLimite {
+  const enCours = (v: VisioDuNumero): boolean => v.statut === 'réservée' && Date.parse(v.debut) + DUREE_MIN * 60_000 >= maintenantMs;
+  const aVenir = visios.some(enCours);
+  if (r.limiteJours <= 0) {
+    return visios.filter(enCours).length >= r.parTelephone ? { ok: false, prochaineLe: '', aVenir: true } : { ok: true };
+  }
+  const depuis = maintenantMs - r.limiteJours * UN_JOUR_MS;
+  const comptees = visios
+    .filter((v) => comptePourLaLimite(v, r) && Date.parse(v.debut) > depuis)
+    .map((v) => Date.parse(v.debut))
+    .sort((a, b) => b - a);
+  if (comptees.length < r.parTelephone) return { ok: true };
+  return { ok: false, prochaineLe: jourDeCotonou(comptees[r.parTelephone - 1] + r.limiteJours * UN_JOUR_MS), aVenir };
+}
+
+/* ── CHANGER L'HEURE D'UNE VISIO CONFIRMÉE — 17 novembre 2026 ──────────────
+   « Permets de modifier l'heure d'une visio qui a été confirmée » (Yéman).
+   Par elle : jusqu'à deux heures avant, deux fois au plus (réglables). Par la
+   Maison, depuis la file des visios : tant que la visio n'a pas commencé, sans
+   compter dans ses deux fois. L'ancien quart d'heure se libère aussitôt (la
+   ligne change d'heure, l'index unique le rend). */
+
+export type RefusDuChangement = 'pas-reservee' | 'trop-tard' | 'trop-de-fois';
+
+export function changementPermis(
+  v: { debut: string; statut: string; deplacements?: number | null },
+  r: Pick<ReglagesDeLaVisio, 'changementAvantMin' | 'changementsMax'>,
+  maintenantMs: number,
+  parLaMaison = false,
+): 'permis' | RefusDuChangement {
+  if (v.statut !== 'réservée') return 'pas-reservee';
+  const debutMs = Date.parse(v.debut);
+  if (parLaMaison) return maintenantMs < debutMs ? 'permis' : 'trop-tard';
+  if (maintenantMs > debutMs - r.changementAvantMin * 60_000) return 'trop-tard';
+  if ((v.deplacements ?? 0) >= r.changementsMax) return 'trop-de-fois';
+  return 'permis';
+}
+
+/** Combien de changements il lui reste. */
+export const changementsRestants = (v: { deplacements?: number | null }, r: Pick<ReglagesDeLaVisio, 'changementsMax'>): number =>
+  Math.max(0, r.changementsMax - (v.deplacements ?? 0));
+
+/** Le quart d'heure visé tient-il ? La grille de la Maison, libre, et pour elle
+    le délai de réservation ; la Maison, elle, pose dans la grille sans délai. */
+export const creneauDuChangement = (r: ReglagesDeLaVisio, maintenantMs: number, pris: readonly string[], debut: string, parLaMaison = false): boolean =>
+  creneauValide(parLaMaison ? { ...r, delaiMin: 0 } : r, maintenantMs, pris, debut);
+
+/** Le nom de la salle chez le service de visio : la visio ET son heure, pour
+    qu'une visio déplacée après l'ouverture de sa salle en reçoive une neuve. */
+export const nomDeLaSalle = (id: string, debut: string): string => `mnd-${id}-${Math.floor(Date.parse(debut) / 60_000).toString(36)}`;
+
 /* ── LE RÉSUMÉ EN TROIS TOUCHES (V4) ──────────────────────────────────── */
 
 export type NiveauConstate = 'aucune' | 'douce' | 'essentielle' | 'intensive' | 'alala';
@@ -253,10 +375,18 @@ export const SUITES: readonly { id: SuiteDeLaVisio; dit: string; pourElle: strin
   { id: 'soins', dit: 'Soins', pourElle: 'Des soins suffisent : réservez votre rituel quand vous le souhaitez.' },
 ];
 
+/** LE RITUEL QUE LE MAÎTRE PROPOSE (17 novembre 2026) : des prestations du
+    catalogue qui se réservent en ligne, leurs noms tels qu'il les a choisis. */
+export type RituelPropose = { besoin: 'entretien' | 'enfant'; serviceIds: string[]; noms: string[] };
+
 export type ResumeDeLaVisio = {
   niveau?: NiveauConstate;
   longueur?: LongueurConstatee;
   suite?: SuiteDeLaVisio;
+  /** APRÈS LA VISIO (17 novembre 2026) : ce que le maître propose, en un geste. */
+  rituel?: RituelPropose;
+  /** La consultation privée proposée (ou imposée dès la réparation intensive). */
+  privee?: boolean;
   estimationXof?: number;
   /** Un mot de la Maison, court. */
   mot?: string;
@@ -273,6 +403,27 @@ export const suiteRetenue = (r: ResumeDeLaVisio): SuiteDeLaVisio | undefined => 
 const dans = <T extends string>(x: unknown, l: readonly { id: T }[]): T | undefined =>
   l.some((v) => v.id === x) ? (x as T) : undefined;
 
+const ID_DE_PRESTATION = /^[A-Za-z0-9_-]{1,80}$/;
+/** Six prestations au plus, comme le lien de réservation préparé. */
+export const RITUEL_AU_PLUS = 6;
+
+/** Un rituel proposé, rendu sûr : des identifiants du catalogue, des noms courts, rien d'autre. */
+export function rituelSur(x: unknown): RituelPropose | null {
+  if (!x || typeof x !== 'object') return null;
+  const o = x as Record<string, unknown>;
+  const ids = Array.isArray(o.serviceIds) ? o.serviceIds : [];
+  const noms = Array.isArray(o.noms) ? o.noms : [];
+  const serviceIds: string[] = [];
+  const dits: string[] = [];
+  ids.forEach((id, i) => {
+    if (typeof id !== 'string' || !ID_DE_PRESTATION.test(id) || serviceIds.includes(id) || serviceIds.length >= RITUEL_AU_PLUS) return;
+    serviceIds.push(id);
+    dits.push(typeof noms[i] === 'string' ? (noms[i] as string).trim().slice(0, 120) : '');
+  });
+  if (!serviceIds.length) return null;
+  return { besoin: o.besoin === 'enfant' ? 'enfant' : 'entretien', serviceIds, noms: dits };
+}
+
 export function resumeSur(x: unknown): ResumeDeLaVisio | null {
   if (!x || typeof x !== 'object') return null;
   const o = x as Record<string, unknown>;
@@ -280,12 +431,76 @@ export function resumeSur(x: unknown): ResumeDeLaVisio | null {
   const niveau = dans(o.niveau, NIVEAUX); if (niveau) r.niveau = niveau;
   const longueur = dans(o.longueur, LONGUEURS); if (longueur) r.longueur = longueur;
   const suite = dans(o.suite, SUITES); if (suite) r.suite = suite;
+  const rituel = rituelSur(o.rituel); if (rituel) r.rituel = rituel;
+  if (o.privee === true) r.privee = true;
   const e = Math.round(Number(o.estimationXof));
   if (Number.isFinite(e) && e > 0) r.estimationXof = e;
   if (typeof o.mot === 'string' && o.mot.trim()) r.mot = o.mot.trim().slice(0, 400);
   if (typeof o.par === 'string') r.par = o.par.slice(0, 60);
   if (typeof o.le === 'string') r.le = o.le;
   return Object.keys(r).length ? r : null;
+}
+
+/* ── APRÈS LA VISIO : LES AFFICHES — 17 novembre 2026 ──────────────────────
+   « Après avoir fini une visio, possibilité d'avoir un call to action de
+   rendez-vous privé à prendre, ou en une étape qui suit un RDV normal pour un
+   service à la Maison MND » (Yéman). Le maître propose un rituel (prestations
+   du catalogue) ou la consultation privée ; la cliente voit l'affiche « Votre
+   rituel » (sa réservation déjà remplie) et/ou « Consultation privée ». Dès la
+   réparation intensive, la consultation privée seule s'affiche. Aucun prix
+   n'est inventé : le seul nombre est celui que le maître a écrit. */
+
+export type AffichesDeLaSuite = {
+  /** « Votre rituel » : son nom d'affiche, les prestations proposées, le chemin (relatif à l'origine) de sa réservation déjà remplie, et son mot. */
+  rituel?: { nom: string; noms: string[]; chemin: string; jeton: string };
+  /** « Consultation privée » : son nom, sa ligne, ce que dit son prix, et le chemin de sa réservation. */
+  privee?: { nom: string; ligne: string; unite: string; chemin: string };
+};
+
+/** ELLE N'A PAS ENCORE DE LOCKS : ce que sa consultation a dit de sa couronne
+    (`couronne.nees === 'aucune'`). Ses affiches parlent alors de ses cheveux
+    et de sa création, pas de locks ni de rituel. */
+export function sansLocksEncore(consultation: unknown): boolean {
+  const c = consultation && typeof consultation === 'object' ? (consultation as { couronne?: unknown }).couronne : null;
+  return !!c && typeof c === 'object' && (c as { nees?: unknown }).nees === 'aucune';
+}
+
+/** « JE NE SAIS PAS » NE SE REMET JAMAIS TEL QUEL (17 novembre 2026) : dans
+    un bilan ou un résumé remis par la Maison, c'est « À voir avec la Maison ». */
+export const A_VOIR_AVEC_LA_MAISON = 'À voir avec la Maison';
+export const pourLeBilan = (texte: string): string =>
+  /^je ne sais pas\.?$/i.test(String(texte ?? '').trim()) ? A_VOIR_AVEC_LA_MAISON : String(texte ?? '');
+
+/** Le mot du bouton `reservation_preparee`, et de l'adresse `reserver/?r=` : `besoin.geste~geste`. */
+export const jetonDuRituel = (r: RituelPropose): string => jetonDuLien({ besoin: r.besoin, gestes: r.serviceIds });
+
+/** Le chemin de la consultation privée d'une consultation déposée (l'entrée directe `?privee=`). */
+export const cheminDeLaPrivee = (consultationId: string | null | undefined): string =>
+  `/consultation/${consultationId && FORME_DE_LA_CONSULTATION.test(consultationId) ? `?privee=${encodeURIComponent(consultationId)}` : ''}`;
+
+/** CE QUE LA PAGE DE LA CLIENTE, SON WHATSAPP ET LE MESSAGE DE LA MAISON
+    AFFICHENT APRÈS LA VISIO. Une seule fonction écrit ces affiches, pour que
+    leurs mots ne divergent pas : ils suivent son parcours. Sans locks encore
+    (`sansLocks`), la consultation privée se tient « devant vos cheveux » et
+    ses 15 000 F sont « déduits de votre création » ; sinon « devant vos
+    locks », « déduits de votre rituel ». */
+export function affichesDeLaSuite(r: ResumeDeLaVisio | null | undefined, consultationId?: string | null, sansLocks = false): AffichesDeLaSuite {
+  if (!r) return {};
+  const privee = r.privee === true || suiteRetenue(r) === 'privee';
+  const a: AffichesDeLaSuite = {};
+  if (r.rituel && !priveeObligatoire(r.niveau)) {
+    const jeton = jetonDuRituel(r.rituel);
+    a.rituel = { nom: 'Votre rituel', noms: r.rituel.noms.filter(Boolean).map(pourLeBilan), chemin: `/reserver/?r=${jeton}`, jeton };
+  }
+  if (privee) {
+    a.privee = {
+      nom: 'Consultation privée',
+      ligne: sansLocks ? 'À la Maison, devant vos cheveux' : 'À la Maison, devant vos locks',
+      unite: sansLocks ? 'déduits de votre création' : 'déduits de votre rituel',
+      chemin: cheminDeLaPrivee(consultationId),
+    };
+  }
+  return a;
 }
 
 /** La lecture confirmée, en une phrase pour la cliente (« Réparation intensive · mi-longue »). */
