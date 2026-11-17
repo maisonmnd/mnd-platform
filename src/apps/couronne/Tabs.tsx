@@ -37,6 +37,8 @@ import { ageDe, tetesPortees, statutFidelite, type StatutFidelite } from '../../
 import { corrigerNaissance, declarationsDe, rattacherEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
 import { apresLeGeste, attendElle, boutonDuGeste, gesteDeLaCliente, motPourElle, visiblePourElle, type GesteDeLaCliente } from '../../shared/devis-de-la-cliente-pur';
+import { dernierJourValable, lisibleParElle, validiteDite } from '../../shared/devis-remis-pur';
+import { dateDansLaPhrase } from './releve';
 import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useFoyerTiers, cercleActifStore, foyerActifStore } from '../../shared/offers';
 import { remiseFamilleDeLaTete } from '../../shared/offres-pur';
 import { deliveryFee, useSettings } from '../../shared/settings';
@@ -326,7 +328,8 @@ function useCercle(): StatutFidelite & { membre: boolean } {
 /* ---------- devis — le pont Factures du Trône ---------- */
 
 /** Devis adressés à la cliente : estimés, à valider, envoyés (son geste), acceptés et confirmés (informatifs).
-    La Consultation, lot 4 (13 novembre 2026) : `devis-de-la-cliente-pur` en est le seul juge. */
+    La Consultation, lot 4 (13 novembre 2026) : `devis-de-la-cliente-pur` en est le seul juge.
+    17 novembre 2026 : seulement ceux que la Maison lui a REMIS (au rendez-vous). */
 function useClientDevis(): Invoice[] {
   const [invoices] = useInvoices();
   const clientId = useClientId();
@@ -352,8 +355,9 @@ function useClientOrders(): Invoice[] {
   return useMemo(
     () =>
       invoices
+        /* Un devis qui attend son rendez-vous ne paraît pas ici non plus (17 novembre 2026). */
         .filter((i) => (i.clientId === clientId || (!!compte && i.clientId === compte))
-          && (i.kind === 'devis' || estCommandeBoutique(i)) && i.status !== 'brouillon')
+          && (estCommandeBoutique(i) || (i.kind === 'devis' && lisibleParElle(i))) && i.status !== 'brouillon')
         .slice()
         .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)),
     [invoices, clientId, compte]
@@ -383,7 +387,7 @@ function useNotifCount(): number {
   const bilans = useBilansRecents();
   const [dismissed] = useStore(dismissedMcStore);
   const d = new Set(dismissed);
-  return devis.filter((x) => attendElle(x) && !d.has(`devis-${x.id}`)).length
+  return devis.filter((x) => attendElle(x, todayIso()) && !d.has(`devis-${x.id}`)).length
     + upcoming.filter((a) => !d.has(`resa-${a.id}`)).length
     + bilans.filter((b) => !d.has(`bilan-${b.id}`)).length;
 }
@@ -2272,7 +2276,7 @@ export function Notifications({ onClose, onOpenRdv }: { onClose: () => void; onO
   const gesteSurLeDevis = (id: string, g: GesteDeLaCliente) => {
     invoicesStore.set((prev) => prev.map((i) => {
       if (i.id !== id) return i;
-      const apres = apresLeGeste(i, g);
+      const apres = apresLeGeste(i, g, todayIso());
       return apres ? { ...i, ...apres } : i;
     }));
   };
@@ -2317,7 +2321,7 @@ export function Notifications({ onClose, onOpenRdv }: { onClose: () => void; onO
         ))}
 
         {/* devis — estimés, à valider, envoyés par le Trône : son geste ici */}
-        {devisV.map((d) => { const geste = gesteDeLaCliente(d); return (
+        {devisV.map((d) => { const geste = gesteDeLaCliente(d, todayIso()); return (
           <div key={d.id} className="mc-notif" style={{ position: 'relative', paddingRight: 34 }}>
             <button type="button" aria-label={t('Effacer')} onClick={() => dismiss(`devis-${d.id}`)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 12 }}>✕</button>
             <span className={`mc-notif__dot ${d.status === 'acceptée' || d.status === 'confirmé' ? 'mc-notif__dot--success' : 'mc-notif__dot--copper'}`} />
@@ -2326,8 +2330,12 @@ export function Notifications({ onClose, onOpenRdv }: { onClose: () => void; onO
                 <span className="mc-notif__kind">{t('Devis · {numero}', { numero: d.number })}</span>
                 <span className="mc-notif__time">{jourDit(d.date)}</span>
               </div>
-              <div className="mc-notif__msg">{t(motPourElle(d))}</div>
+              <div className="mc-notif__msg">{t(motPourElle(d, todayIso()))}</div>
               <div className="mc-notif__total">{prix(invoiceTotal(d), currency)}</div>
+              {/* Un devis vaut quinze jours (17 novembre 2026) : sa date se lit tant qu'il attend. */}
+              {geste && validiteDite(d) && (
+                <div className="mc-notif__time" style={{ marginTop: 4 }}>{t('Valable jusqu’au {date}', { date: dateDansLaPhrase(dernierJourValable(d)) })}</div>
+              )}
               {geste && (
                 <button className="mc-smallcta" style={{ marginTop: 10 }} onClick={() => gesteSurLeDevis(d.id, geste)}>
                   {t(boutonDuGeste[geste])}
@@ -2370,9 +2378,17 @@ export function Notifications({ onClose, onOpenRdv }: { onClose: () => void; onO
                 <span className="mc-notif__time">{jourDit(a.date)} · {a.time}</span>
               </div>
               <div className="mc-notif__msg">
+                {/* « ACOMPTE REÇU » NE SE DIT QUE QUAND IL L'EST (17 novembre 2026) :
+                    la phrase le disait de tout rendez-vous en attente, même sans
+                    acompte, même demandé et jamais versé. Seul l'acompte que la
+                    Maison a reconnu reçu (`depositConfirmed`) se dit reçu. */}
                 {a.status === 'confirmé'
                   ? t('{rituel} confirmé, la maison vous attend.', { rituel: serviceNames(a, services) || t('Votre rituel') })
-                  : t('{rituel}, acompte reçu, en attente de la maison.', { rituel: serviceNames(a, services) || t('Votre rituel') })}
+                  : a.depositConfirmed && (a.depositXof ?? 0) > 0
+                    ? t('{rituel}, acompte reçu, en attente de la maison.', { rituel: serviceNames(a, services) || t('Votre rituel') })
+                    : (a.depositXof ?? 0) > 0
+                      ? t('{rituel}, en attente de votre acompte.', { rituel: serviceNames(a, services) || t('Votre rituel') })
+                      : t('{rituel}, en attente de la maison.', { rituel: serviceNames(a, services) || t('Votre rituel') })}
               </div>
               {onOpenRdv && <button className="mc-smallcta" style={{ marginTop: 10 }} onClick={() => onOpenRdv(a.id)}>{t('Voir mon rendez-vous')}</button>}
             </div>

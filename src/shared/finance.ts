@@ -168,6 +168,15 @@ export type Invoice = {
   aValiderPar?: 'maison' | 'cliente';
   /** La consultation d'où vient ce devis (la Consultation, lot 4) : la mesure compare l'estimation au prix ferme. */
   consultationId?: string;
+  /** LE DEVIS REMIS À LA CLIENTE (17 novembre 2026) : l'instant où la Maison
+      l'a remis, et qui. Sans cette marque, Ma Couronne ne le montre pas et la
+      base ne le lui rend pas (0219). Elle ne se pose que si `peutEtreRemis`
+      (devis-remis-pur) dit oui : visio tenue, consultation privée faite, ou
+      une cliente déjà venue. `remisHorsRegle` : le motif de la direction
+      quand elle passe outre. */
+  remisLe?: string;
+  remisPar?: string;
+  remisHorsRegle?: string;
   payment?: PaymentMethod;
   /** LE JOURNAL DES RÈGLEMENTS — plusieurs versements sur UNE pièce, chacun
       avec sa date, son moyen et sa caisse. Absent sur les pièces d'avant le

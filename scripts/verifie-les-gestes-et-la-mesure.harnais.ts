@@ -28,21 +28,26 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
 };
 const lf = (p: string) => readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
 
-/* ── ① LES GESTES DE LA CLIENTE ─────────────────────────────────────── */
-const ETATS: DevisLu[] = [
+/* ── ① LES GESTES DE LA CLIENTE ───────────────────────────────────────
+   17 novembre 2026 : elle ne voit et ne touche qu'un devis que la Maison lui
+   a REMIS (`remisLe`, pose au rendez-vous : verifie-le-devis-remis). Les
+   exemples d'ici sont donc des devis remis. */
+const REMIS = { kind: 'devis', date: '2026-11-20', remisLe: '2026-11-20T10:00:00.000Z' };
+const ETATS: DevisLu[] = ([
   { status: 'brouillon' }, { status: 'estimé' }, { status: 'à valider', aValiderPar: 'maison' }, { status: 'à valider', aValiderPar: 'cliente' },
   { status: 'envoyée' }, { status: 'acceptée' }, { status: 'confirmé' }, { status: 'payée' },
-];
-dit('elle voit ses devis, jamais un brouillon ni une piece payee', [false, true, true, true, true, true, true, false], ETATS.map(visiblePourElle));
-dit('un seul geste par etat, et la Maison seule confirme', [null, 'faire-confirmer', null, 'valider', 'accepter', null, null, null], ETATS.map(gesteDeLaCliente));
-dit('faire confirmer : a valider par la Maison', { status: 'à valider', aValiderPar: 'maison' }, apresLeGeste({ status: 'estimé' }, 'faire-confirmer'));
+] as DevisLu[]).map((e) => ({ ...e, ...REMIS }));
+dit('elle voit ses devis remis, jamais un brouillon ni une piece payee', [false, true, true, true, true, true, true, false], ETATS.map(visiblePourElle));
+dit('elle ne voit pas un devis que la Maison n a pas remis', [false, false, false], [visiblePourElle({ status: 'estimé' }), visiblePourElle({ status: 'envoyée', kind: 'devis', date: '2026-11-20' }), visiblePourElle({ status: 'confirmé', kind: 'devis', date: '2026-11-20' })]);
+dit('un seul geste par etat, et la Maison seule confirme', [null, 'faire-confirmer', null, 'valider', 'accepter', null, null, null], ETATS.map((e) => gesteDeLaCliente(e)));
+dit('faire confirmer : a valider par la Maison', { status: 'à valider', aValiderPar: 'maison' }, apresLeGeste({ status: 'estimé', ...REMIS }, 'faire-confirmer'));
 dit('valider ou accepter : acceptee, plus rien a valider', [{ status: 'acceptée' }, { status: 'acceptée' }],
-  [apresLeGeste({ status: 'à valider', aValiderPar: 'cliente' }, 'valider'), apresLeGeste({ status: 'envoyée' }, 'accepter')].map((x) => JSON.parse(JSON.stringify(x))));
+  [apresLeGeste({ status: 'à valider', aValiderPar: 'cliente', ...REMIS }, 'valider'), apresLeGeste({ status: 'envoyée', ...REMIS }, 'accepter')].map((x) => JSON.parse(JSON.stringify(x))));
 dit('un geste qui ne correspond pas a l etat n ecrit rien', [null, null, null], [
-  apresLeGeste({ status: 'à valider', aValiderPar: 'maison' }, 'valider'), apresLeGeste({ status: 'confirmé' }, 'accepter'), apresLeGeste({ status: 'envoyée' }, 'faire-confirmer'),
+  apresLeGeste({ status: 'à valider', aValiderPar: 'maison', ...REMIS }, 'valider'), apresLeGeste({ status: 'confirmé', ...REMIS }, 'accepter'), apresLeGeste({ status: 'envoyée', ...REMIS }, 'faire-confirmer'),
 ]);
-dit('la pastille ne compte que ce qui attend son geste', [false, false, false, true, true, false], ETATS.slice(0, 6).map(attendElle));
-const phrases = [...ETATS.filter(visiblePourElle).map(motPourElle), ...Object.values(boutonDuGeste)];
+dit('la pastille ne compte que ce qui attend son geste', [false, false, false, true, true, false], ETATS.slice(0, 6).map((e) => attendElle(e)));
+const phrases = [...ETATS.filter(visiblePourElle).map((e) => motPourElle(e)), ...Object.values(boutonDuGeste)];
 dit('chaque phrase de la cloche a son anglais', [], phrases.filter((p) => !p || !EN[p]));
 dit('le dictionnaire des devis est range dans le grand', true, Object.keys(EN_DEVIS).every((k) => EN[k] === EN_DEVIS[k]));
 
@@ -81,8 +86,8 @@ dit('la deduction se reconnait au nom que pose le devis ferme', LIBELLE_DE_LA_DE
 /* ── ④ LES BRANCHEMENTS ─────────────────────────────────────────────── */
 const tabs = lf('src/apps/couronne/Tabs.tsx');
 dit('Ma Couronne : le juge pur choisit, la cloche fait son geste', [true, true, true, false], [
-  /i\.kind === 'devis' && visiblePourElle\(i\)/.test(tabs), /const apres = apresLeGeste\(i, g\);/.test(tabs),
-  /devis\.filter\(\(x\) => attendElle\(x\)/.test(tabs), /acceptDevis/.test(tabs),
+  /i\.kind === 'devis' && visiblePourElle\(i\)/.test(tabs), /const apres = apresLeGeste\(i, g, todayIso\(\)\);/.test(tabs),
+  /devis\.filter\(\(x\) => attendElle\(x, todayIso\(\)\)/.test(tabs), /acceptDevis/.test(tabs),
 ]);
 const factures = lf('src/apps/trone/routes/vente/Factures.tsx');
 dit('le devis ne d une consultation garde son lien, le rendez-vous porte l acompte demande', [true, true, false], [

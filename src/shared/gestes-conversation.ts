@@ -41,7 +41,12 @@ import { lienMapsWa, ligneGoogleMapsWa } from './automate-wa';
       toute la finance descende avec lui. */
 export type TeteDuGeste = Pick<Client, 'id' | 'name' | 'familyId' | 'birthday' | 'archived' | 'photo'>;
 export type PieceDuGeste = Pick<Invoice, 'id' | 'branchId' | 'kind' | 'number' | 'clientId' | 'date' | 'status' | 'apptId'>
-  & { totalXof: number; resteXof: number };
+  & { totalXof: number; resteXof: number;
+    /** LE DEVIS SE REMET AU RENDEZ-VOUS (17 novembre 2026) : pourquoi ce devis
+        ne peut pas sortir (`peutEtreRemis` de devis-remis-pur, ou ses quinze
+        jours passés). Absent : il peut partir. La surface le calcule, le juge
+        ne fait que le lire. */
+    devisFerme?: string };
 
 export type CleDuGeste =
   | 'paiement' | 'devis' | 'facture' | 'bilan' | 'photos'
@@ -456,16 +461,19 @@ export function lesGestes(ctx: ContexteDesGestes): Geste[] {
   /* ② SON DEVIS — celui qui attend un oui. Le oui arrive par ce fil de toute
         façon ; c'est ici qu'il doit pouvoir être accepté. */
   const devis = tete ? sonDevisEnAttente(ctx.pieces, tete.id) : undefined;
+  /* UN DEVIS QUI ATTEND SON RENDEZ-VOUS NE PART PAS (17 novembre 2026) : le
+     geste s'éteint et dit pourquoi ; ni message, ni pièce. */
+  const devisFerme = devis?.devisFerme || null;
   g.push({
     cle: 'devis',
     mot: 'Son devis',
     dit: devis?.number,
-    attend: devis ? 'attend un oui' : undefined,
-    eteint: barre(!tete ? sansFiche : (devis ? null : 'Aucun devis n’attend de réponse.')),
-    compose: devis
+    attend: devis ? (devisFerme ? 'à remettre au rendez-vous' : 'attend un oui') : undefined,
+    eteint: barre(!tete ? sansFiche : (devis ? devisFerme : 'Aucun devis n’attend de réponse.')),
+    compose: devis && !devisFerme
       ? `${prenom}, voici le devis du ${jourDit(devis.date)}, pour ${ctx.enFrancs(devis.totalXof)}. Dites-nous simplement oui et nous posons le rendez-vous.`
       : undefined,
-    piece: devis ? { quoi: 'devis', invoiceId: devis.id, nom: `Devis ${devis.number}` } : undefined,
+    piece: devis && !devisFerme ? { quoi: 'devis', invoiceId: devis.id, nom: `Devis ${devis.number}` } : undefined,
   });
 
   /* ③ SA FACTURE — la dernière pièce, avec ce qui reste dû s'il en reste. */

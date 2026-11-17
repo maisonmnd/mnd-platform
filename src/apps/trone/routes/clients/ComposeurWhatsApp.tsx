@@ -30,6 +30,8 @@ import { BarreDesGestes, ChoisirUnFichier, PanneauDeLaPromo, useGestesDuFil, typ
 import { LienDeReservation } from './LienDeReservation';
 import { appelDe } from '../../../../shared/civilite';
 import { invoicesStore } from '../../../../shared/finance';
+import { avecLaValidite } from '../../../../shared/devis-remis-pur';
+import { remetsLeDevis } from '../../../../shared/devis-remis';
 import { useLaPieceEnPdf } from '../vente/pdf-de-la-piece';
 import { ReponseProposee } from './ReponseProposee';
 import './clients.css';
@@ -430,10 +432,15 @@ export function ComposeurWhatsApp({ fil, texte, surTexte, cite, surCite, poignee
       const nom = g.piece.nom;
       const doc = invoicesStore.get().find((i) => i.id === id);
       if (!doc) { toast(`${nom} introuvable : le texte est prêt, sans la pièce.`); return; }
+      /* LE DEVIS JOINT EST UN DEVIS REMIS (17 novembre 2026) : le juge n'a
+         allumé le geste que si `peutEtreRemis` dit oui ; la Maison le marque
+         ici, et Ma Couronne le montre. Son papier dit ses quinze jours. */
+      if (doc.kind === 'devis') remetsLeDevis(doc.id);
+      const remis = invoicesStore.get().find((i) => i.id === id) ?? doc;
       void (async () => {
         try {
           const { invoiceEnPiece } = await import('../../../../shared/pdf');
-          setPiece(await invoiceEnPiece(buildPdfData(doc)));
+          setPiece(await invoiceEnPiece(avecLaValidite(buildPdfData(remis), remis)));
         } catch {
           toast(`${nom} : le PDF n’a pas pu se faire. Joignez-le avec « + Pièce jointe ».`);
         }
