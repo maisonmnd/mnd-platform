@@ -35,7 +35,7 @@ export type BrouillonDuDevis = { clientId: string; propose: DevisPropose };
 const EXEMPLE = 'Ex. : elle a 295 locks faites ailleurs. On les défait, on répare, puis on recrée 100 locks. Le devis doit s’arrêter à 160 000 F.';
 
 /** La reconnaissance vocale du navigateur, quand il en a une : le bouton n'apparaît pas sinon. */
-type Reconnaissance = { lang: string; interimResults: boolean; continuous: boolean; start(): void; stop(): void; onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null; onend: (() => void) | null; onerror: (() => void) | null };
+type Reconnaissance = { lang: string; interimResults: boolean; continuous: boolean; start(): void; stop(): void; onresult: ((e: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null; onend: (() => void) | null; onerror: (() => void) | null };
 const creeLaReconnaissance = (): Reconnaissance | null => {
   const w = window as unknown as { SpeechRecognition?: new () => Reconnaissance; webkitSpeechRecognition?: new () => Reconnaissance };
   const Classe = w.SpeechRecognition ?? w.webkitSpeechRecognition;
@@ -60,6 +60,11 @@ export default function AssistantDuDevis({ onOuvrir }: { onOuvrir: (b: Brouillon
   const [lit, setLit] = useState(false);
   const [mot, setMot] = useState('');
   const [propose, setPropose] = useState<DevisPropose | null>(null);
+  /* LA CLIENTE POUR QUI LES PRIX ONT ÉTÉ CALCULÉS. Changer de cliente pendant
+     la lecture laissait un devis chiffré au Juste Prix de la première
+     s'ouvrir au nom de la seconde : le choix se fige pendant la lecture, et
+     le brouillon part avec la cliente retenue au moment de la demande. */
+  const [pourQui, setPourQui] = useState('');
   const [ecoute, setEcoute] = useState(false);
   const reco = useRef<Reconnaissance | null>(null);
   const [vocalPossible] = useState(() => creeLaReconnaissance() !== null);
@@ -72,6 +77,7 @@ export default function AssistantDuDevis({ onOuvrir }: { onOuvrir: (b: Brouillon
 
   const maCarte = useMemo(() => services as readonly Service[], [services]);
   const cliente = clients.find((c) => c.id === clientId);
+  const clienteDuDevis = clients.find((c) => c.id === pourQui);
   const peut = saitFaire === true && peutDemander(moi?.role, CHANTIER_DU_DEVIS, mesDomaines);
 
   /* Le juge des prix est celui de la Caisse : la cliente choisie apporte son Juste Prix et ses prix fermes ;
@@ -90,8 +96,11 @@ export default function AssistantDuDevis({ onOuvrir }: { onOuvrir: (b: Brouillon
     if (!r) return;
     r.lang = 'fr-FR'; r.interimResults = false; r.continuous = true;
     r.onresult = (e) => {
+      /* En continu, chaque événement redonne TOUTES les phrases depuis le
+         début : on ne lit que celles qui viennent d'arriver (`resultIndex`),
+         sinon la première phrase se recopiait à chaque nouvelle. */
       let dit = '';
-      for (let i = 0; i < e.results.length; i++) if (e.results[i].isFinal) dit += ` ${e.results[i][0].transcript}`;
+      for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) dit += ` ${e.results[i][0].transcript}`;
       if (dit.trim()) setTexte((t) => `${t}${t && !/\s$/.test(t) ? ' ' : ''}${dit.trim()}`.slice(0, SIGNES_MAX_DE_LA_DESCRIPTION));
     };
     r.onend = () => setEcoute(false);
@@ -104,6 +113,7 @@ export default function AssistantDuDevis({ onOuvrir }: { onOuvrir: (b: Brouillon
   const prepare = async () => {
     const description = descriptionPourClaude(texte);
     if (!description) { setMot('Décrivez la situation en une ou deux phrases.'); return; }
+    const demandePour = clientId;
     setLit(true); setPropose(null); setMot('L’assistant lit la situation…');
     try {
       const r = await demandeAClaude<unknown>({
@@ -118,7 +128,9 @@ export default function AssistantDuDevis({ onOuvrir }: { onOuvrir: (b: Brouillon
       const devis = devisDepuisLaLecture(lu, {
         services: maCarte, prixDe,
         plafondDeRemiseXof: (base) => plafondDeRemiseXof(estDirection, base),
+        somme: (xof) => fmtMoney(xof, currency),
       });
+      setPourQui(demandePour);
       setPropose(devis);
       setMot(devis.lignes.length ? '' : 'Aucune prestation du catalogue ne répond à cette description.');
     } finally {
@@ -145,8 +157,8 @@ export default function AssistantDuDevis({ onOuvrir }: { onOuvrir: (b: Brouillon
 
       {!propose && (
         <>
-          <div className="trv-assistant__cliente">
-            <ClientPicker value={clientId} onChange={setClientId} placeholder="Pour quelle cliente ? (facultatif)" />
+          <div className="trv-assistant__cliente" inert={lit} aria-busy={lit}>
+            <ClientPicker value={clientId} onChange={(id) => { if (!lit) setClientId(id); }} placeholder="Pour quelle cliente ? (facultatif)" />
           </div>
           <div className="trv-assistant__champ">
             <textarea
@@ -173,7 +185,7 @@ export default function AssistantDuDevis({ onOuvrir }: { onOuvrir: (b: Brouillon
 
       {propose && propose.lignes.length > 0 && (
         <div className="trv-assistant__resultat">
-          <div className="trv-assistant__sous-titre">Ce que l’assistant a compris{cliente ? ` pour ${cliente.name}` : ''}</div>
+          <div className="trv-assistant__sous-titre">Ce que l’assistant a compris{clienteDuDevis ? ` pour ${clienteDuDevis.name}` : ''}</div>
           <ol className="trv-assistant__lignes">
             {propose.lignes.map((l, i) => (
               <li key={`${l.serviceId}-${i}`}>
@@ -197,7 +209,7 @@ export default function AssistantDuDevis({ onOuvrir }: { onOuvrir: (b: Brouillon
             </ul>
           )}
           <div className="trv-assistant__actions">
-            <Button onClick={() => onOuvrir({ clientId, propose })}>Ouvrir le brouillon à relire</Button>
+            <Button onClick={() => onOuvrir({ clientId: pourQui, propose })}>Ouvrir le brouillon à relire</Button>
             <Button variant="ghost" onClick={recommence}>Recommencer</Button>
           </div>
           <p className="trv-assistant__aide">Rien n’est enregistré : le brouillon s’ouvre dans l’éditeur, vous changez ce que vous voulez, puis « Créer le document ».</p>

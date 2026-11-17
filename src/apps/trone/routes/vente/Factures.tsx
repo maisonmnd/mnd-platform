@@ -2,7 +2,7 @@ import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai
 import { figeLesRemisesDeLaPiece } from '../../../../shared/arrondi-des-remises-pur';
 import { asset } from '../../../../shared/asset';
 import { TexteFon } from '../../../../ds/fon';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { CalendarClock, MapPin, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { OptionsPrestations, PageHead } from '../_ui';
@@ -119,6 +119,10 @@ const DISC_OPTIONS = [0, ...TAUX_DE_REMISE, 30].sort((a, b) => a - b);
    toujours dans la liste, même s'il n'appartient plus à son registre. */
 const ETATS_DU_DEVIS: Invoice['status'][] = ['brouillon', 'estimé', 'à valider', 'envoyée', 'acceptée', 'confirmé'];
 const ETATS_DE_LA_FACTURE: Invoice['status'][] = ['brouillon', 'envoyée', 'payée'];
+/** Les paramètres de l'adresse À L'INSTANT, lus dans la barre et non dans le
+    rendu : le Trône route par le dièse, et le rendu peut avoir une écriture de
+    retard. Qui réécrit l'adresse part d'ici, sinon il efface l'écriture d'avant. */
+const adresseVivante = (): URLSearchParams => new URLSearchParams(window.location.hash.split('?')[1] ?? '');
 const etatsPour = (kind: Invoice['kind'], present: Invoice['status']): Invoice['status'][] => {
   const l = kind === 'devis' ? ETATS_DU_DEVIS : ETATS_DE_LA_FACTURE;
   return l.includes(present) ? l : [...l, present];
@@ -179,11 +183,64 @@ export default function Factures() {
      mélangé » (Yéman). L'onglet se lit dans l'adresse (`?onglet=devis`) pour
      qu'un lien ou un rechargement retombe sur le bon registre. */
   type Onglet = 'factures' | 'devis';
-  const [onglet, setOnglet] = useState<Onglet>(() => {
-    const p = new URLSearchParams(window.location.hash.split('?')[1] ?? '');
-    return p.get('onglet') === 'devis' || p.get('nouveau') === 'devis' ? 'devis' : 'factures';
-  });
+  const [params, setParams] = useSearchParams();
+  const ongletDeLAdresse: Onglet = params.get('onglet') === 'devis' ? 'devis' : 'factures';
+  const [onglet, setOnglet] = useState<Onglet>(ongletDeLAdresse);
   const changeOnglet = (o: Onglet) => { setOnglet(o); setStatusFilter('tous'); };
+  /* L'ONGLET ET L'ADRESSE SE SUIVENT — 17 novembre 2026. L'onglet n'était lu
+     qu'à l'arrivée et jamais écrit : recharger depuis Devis retombait sur
+     Factures, et un lien `?onglet=devis` suivi depuis l'écran lui-même ne
+     faisait rien.
+
+     UNE SEULE RÈGLE. `accord` garde le dernier onglet sur lequel l'écran et
+     l'adresse étaient d'accord ; à chaque changement d'onglet et à chaque
+     navigation, on regarde lequel des deux s'en est écarté :
+     - l'onglet a bougé ici (un clic, une pièce ouverte, un document neuf) :
+       l'adresse le suit, sans empiler d'entrée dans l'historique ;
+     - l'adresse a bougé d'ailleurs (un lien, Retour, Avance) : l'onglet la
+       suit. Si elle porte une pièce (`?id=`) sans dire d'onglet, c'est le
+       registre de cette pièce qui compte, même si elle est déjà ouverte.
+
+     On juge sur l'adresse de la BARRE, pas sur celle du rendu : le routeur
+     rend ses changements en différé, et un clic rapproché prenait notre
+     propre écriture, encore en route, pour un lien venu d'ailleurs.
+
+     Le jugement se relance à chaque navigation rendue. Il faut les DEUX
+     témoins : la clé de l'adresse (deux navigations qui laissent la même
+     adresse) et l'adresse elle-même (une adresse tapée dans la barre ou un
+     lien `#/…` ordinaire n'ont pas de clé à eux : Retour ne ramenait pas
+     l'onglet). */
+  const cleDeLAdresse = useLocation().key;
+  const adresseRendue = params.toString();
+  const accord = useRef<Onglet>(ongletDeLAdresse);
+  useEffect(() => {
+    const vivante = adresseVivante();
+    const dit: Onglet = vivante.get('onglet') === 'devis' ? 'devis' : 'factures';
+    let voulu: Onglet;
+    if (onglet !== accord.current) {
+      voulu = onglet;
+    } else if (dit !== accord.current) {
+      const piece = vivante.has('onglet') ? undefined : branchDocs.find((d) => d.id === vivante.get('id'));
+      voulu = piece ? (piece.kind === 'devis' ? 'devis' : 'factures') : dit;
+    } else {
+      return;
+    }
+    accord.current = voulu;
+    if (voulu !== onglet) setOnglet(voulu);
+    if (voulu !== dit) {
+      if (voulu === 'devis') vivante.set('onglet', 'devis'); else vivante.delete('onglet');
+      setParams(vivante, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onglet, cleDeLAdresse, adresseRendue]);
+  /* Un filtre qui n'existe pas dans l'autre registre ne le suit pas : arriver
+     sur Devis avec « Payée » encore choisi montrait une liste vide, sous un
+     menu qui n'affichait même pas le filtre en cause. Vaut pour tous les
+     chemins qui changent d'onglet (une pièce ouverte, un devis converti). */
+  useEffect(() => {
+    const permis = onglet === 'devis' ? ETATS_DU_DEVIS : ETATS_DE_LA_FACTURE;
+    setStatusFilter((f) => (f === 'tous' || permis.includes(f) ? f : 'tous'));
+  }, [onglet]);
   /* Le mois choisi, ou « tous ». Il coupe le registre avant le rangement :
      choisir août ne laisse qu'août, et le total en tête devient celui d'août. */
   const [moisFilter, setMoisFilter] = useState('tous');
@@ -195,12 +252,22 @@ export default function Factures() {
      CHANGEMENT du paramètre, jamais à chaque rendu : les clics de la liste
      gardent la main, et chercher une pièce QUAND ON EST DÉJÀ ICI l'ouvre
      aussi — la lecture unique à l'état initial l'ignorait. */
-  const [params] = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(() => params.get('id'));
-  useEffect(() => {
-    const pid = params.get('id');
-    if (pid) setSelectedId(pid);
+  /* On suit l'adresse SANS SON ONGLET, pas l'objet `params` : depuis que
+     l'onglet s'écrit dans l'adresse, chaque changement d'onglet refait un
+     `params` neuf, et la pièce d'arrivée se rouvrait toute seule, ramenant
+     son onglet avec elle (le clic sur l'autre onglet était avalé). Tout autre
+     changement de l'adresse compte encore : la même pièce cherchée à nouveau
+     après un `&modifier=1` se rouvre, comme avant. */
+  const idDeLAdresse = params.get('id');
+  const adresseHorsOnglet = useMemo(() => {
+    const p = new URLSearchParams(params);
+    p.delete('onglet');
+    return p.toString();
   }, [params]);
+  useEffect(() => {
+    if (idDeLAdresse) setSelectedId(idDeLAdresse);
+  }, [idDeLAdresse, adresseHorsOnglet]);
 
   /* ── « MODIFIER » VENU DU JOURNAL DE CAISSE — 15 septembre 2026 ────
      « Dans encaissement je veux le bouton modifier » (Yéman). Le journal
@@ -822,7 +889,12 @@ export default function Factures() {
 
   /* « CRÉER » VENU DE LA BARRE — 10 novembre 2026. Le bouton « + Créer » de la
      barre envoie ici avec `?nouveau=facture` ou `?nouveau=devis` : l'éditeur neuf
-     s'ouvre, une fois, sans second éditeur ni page muette. */
+     s'ouvre, une fois, sans second éditeur ni page muette.
+
+     LE PARAMÈTRE S'EFFACE AUSSITÔT SERVI — 17 novembre 2026, comme le
+     `?nouvelle=1` des clientes. Il restait dans l'adresse : un second
+     « Créer › Devis » retombait sur la même adresse et ne faisait rien, et
+     un rechargement rouvrait un éditeur vide que personne n'avait demandé. */
   const dejaCreePour = useRef<string | null>(null);
   useEffect(() => {
     const k = params.get('nouveau');
@@ -830,7 +902,8 @@ export default function Factures() {
        `?nouveau=devis&consultation=<id>` ouvre le brouillon pré-rempli. */
     const cid = params.get('consultation');
     const cle = cid ? `${k}:${cid}` : k;
-    if ((k === 'facture' || k === 'devis') && dejaCreePour.current !== cle) {
+    if (k !== 'facture' && k !== 'devis') { dejaCreePour.current = null; return; }
+    if (dejaCreePour.current !== cle) {
       dejaCreePour.current = cle;
       const c = cid && k === 'devis' ? consultationsQueueStore.get().find((o) => o.id === cid) : undefined;
       if (c) {
@@ -863,6 +936,12 @@ export default function Factures() {
         openNew(k);
       }
     }
+    /* On n'efface ici que ce qu'on a servi. L'onglet, lui, s'écrit à un seul
+       endroit (la règle de l'onglet et de l'adresse, plus haut), qui repart
+       de l'adresse de la barre et ne perd donc pas cette écriture. */
+    const reste = adresseVivante();
+    reste.delete('nouveau'); reste.delete('consultation'); reste.delete('ferme');
+    setParams(reste, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
 
@@ -1318,7 +1397,10 @@ export default function Factures() {
       </div>
 
       {/* ===== L'assistant des devis : on décrit, il propose, on relit ===== */}
-      {onglet === 'devis' && !editing && <AssistantDuDevis onOuvrir={ouvrirLeBrouillonDuDevis} />}
+      {/* Une branche, un assistant : changer de branche repart d'une page blanche. Sans cela une
+          proposition restait à l'écran avec ses avertissements dits dans la devise d'avant, et une
+          cliente de l'autre branche. */}
+      {onglet === 'devis' && !editing && <AssistantDuDevis key={branch.id} onOuvrir={ouvrirLeBrouillonDuDevis} />}
 
       {/* ===== Chercher une cliente ===== */}
       <div className="trv-search">

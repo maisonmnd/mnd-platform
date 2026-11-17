@@ -1642,7 +1642,8 @@
   color: var(--ink-soft);
   font-variant-numeric: tabular-nums;
 }
-.trv-tab.is-active .trv-tab__n { color: var(--copper-700); }
+/* Le compte de l'onglet ouvert prend l'indigo de son nom : le cuivre est son filet, pas son texte. */
+.trv-tab.is-active .trv-tab__n { color: var(--color-indigo); }
 
 /* ---------- L'assistant des devis (13 novembre 2026) ----------
    Un cadre calme au-dessus du registre des devis : on décrit, il propose, on relit.

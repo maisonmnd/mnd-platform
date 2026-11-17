@@ -21,7 +21,7 @@
       Paramètres qui demande le nom par la question de la Maison. */
 import { readFileSync } from 'node:fs';
 import {
-  DICTEES_PAR_MOIS, ID_DU_BUREAU, MOTS_DE_LA_MAISON, NOM_DU_BUREAU, NOM_DU_POSTE_AU_PLUS, POSTES_AU_PLUS, ajouteUnPoste, auPropreIci,
+  DICTEES_PAR_MOIS, ID_DU_BUREAU, MOTS_DE_LA_MAISON, NOM_DU_BUREAU, NOM_DU_POSTE_AU_PLUS, POSTES_AU_PLUS, ajouteUnPoste, auPropreIci, motDeSanteDeLaDictee,
   consigneDeLaDictee, empreinteDuJeton, empreintesDesPostes, jourDuPoste, litLaCommandeDeMode, motsDuTexte, motsPropres, nettoieLaReponse,
   nomDuPoste, nomDuPosteDe, nouveauJeton, nouvelIdDePoste, postesDeLaDictee, retireUnPoste, type IssueDuPoste, type PosteDictee,
   type ReglagesDictee,
@@ -270,6 +270,21 @@ const composant = carte.slice(carte.indexOf('export function CarteDictee()'));
 const premierRetour = composant.search(/\n {2}(?:if \([^\n]*\) )?return\b/);
 const crochets = [...composant.matchAll(/\buse[A-Z]\w*(?:<[^>\n]*>)?\(/g)].map((m) => m.index ?? 0);
 dit('… les crochets React avant tout retour', true, premierRetour > 0 && crochets.length >= 5 && Math.max(...crochets) < premierRetour);
+
+/* ── ⑤ Le mot d'état et le geste coupé (17 novembre 2026) ─────────────── */
+dit('« Micro prêt » ne se dit que micro accordé', [true, false, false, false], (['granted', 'prompt', 'inconnu', 'denied'] as const)
+  .map((m) => motDeSanteDeLaDictee(m, { claude: true }).includes('Micro prêt')));
+dit('pas encore demandé : on annonce la question du navigateur', true, /pas encore autorisé.*Acceptez/.test(motDeSanteDeLaDictee('prompt', { claude: true })));
+dit('un navigateur muet sur le micro ne promet rien', true, /ne dit pas si le micro/.test(motDeSanteDeLaDictee('inconnu', { claude: true })));
+dit('le micro refusé passe avant tout le reste', true, /bloqué/.test(motDeSanteDeLaDictee('denied', null)));
+dit('sans clé ou sans réponse, on le dit quel que soit le micro', [true, true, true, true], [
+  /clé de Claude manque/.test(motDeSanteDeLaDictee('granted', { claude: false })), /clé de Claude manque/.test(motDeSanteDeLaDictee('prompt', { claude: false })),
+  /ne répond pas/.test(motDeSanteDeLaDictee('granted', null)), /ne répond pas/.test(motDeSanteDeLaDictee('inconnu', null)),
+]);
+const geste = ecran.slice(ecran.indexOf('onPointerCancel'), ecran.indexOf('onContextMenu'));
+dit('le geste coupé détache l oreille avant de l arrêter : rien ne part vers Claude', [true, false], [geste.includes('coupeLOreille()'), geste.includes('.abort()')]);
+const coupe = ecran.slice(ecran.indexOf('const coupeLOreille'), ecran.indexOf('const demarre'));
+dit('… détacher, c est ôter la fin d écoute avant l arrêt', true, coupe.indexOf('o.onend = null') > 0 && coupe.indexOf('o.onend = null') < coupe.indexOf('o.abort()'));
 
 console.log(ko === 0 ? '\nLa Dictée tient.' : `\n${ko} ECHEC.`);
 process.exit(ko ? 1 : 0);

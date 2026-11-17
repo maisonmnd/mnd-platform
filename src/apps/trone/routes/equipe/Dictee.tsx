@@ -4,7 +4,7 @@ import { PageHead } from '../_ui';
 import { Card, toast } from '../../../../ds/components';
 import { useSettings } from '../../../../shared/settings';
 import { metsAuPropre, santeDeLaDictee } from '../../../../shared/dictee';
-import { MODES_DICTEE, auPropreIci, estMode, nomDuMode, type ModeDictee } from '../../../../shared/dictee-pur';
+import { MODES_DICTEE, auPropreIci, estMode, motDeSanteDeLaDictee, nomDuMode, type EtatDuMicro, type ModeDictee } from '../../../../shared/dictee-pur';
 import './dictee.css';
 
 /* ══ LA DICTÉE MND — 31 octobre 2026 ═══════════════════════════════════════
@@ -58,7 +58,9 @@ export default function Dictee() {
   const [voirEntendu, setVoirEntendu] = useState(false);
   const [sansMicro, setSansMicro] = useState(() => fabriqueDOreille() === null);
   const [tape, setTape] = useState('');
-  const [sante, setSante] = useState<string | null>(null);
+  /* Ce qu'on sait du micro et de la fonction ; `null` et `undefined` : pas encore su. */
+  const [micro, setMicro] = useState<EtatDuMicro | null>(null);
+  const [serveur, setServeur] = useState<{ claude: boolean } | null | undefined>(undefined);
 
   const oreille = useRef<Oreille | null>(null);
   const tenue = useRef(false);
@@ -118,6 +120,21 @@ export default function Dictee() {
     o.start();
   };
 
+  /* COUPER L'OREILLE SANS RIEN ENVOYER — 17 novembre 2026. `abort()` déclenche
+     quand même la fin d'écoute, qui envoyait à Claude les mots déjà entendus :
+     un geste interrompu partait donc, et « Refaire » ou quitter l'écran aussi.
+     On détache l'oreille AVANT de l'arrêter, et on oublie ce qu'elle tenait. */
+  const coupeLOreille = () => {
+    tenue.current = false;
+    const o = oreille.current;
+    oreille.current = null;
+    if (o) {
+      o.onresult = null; o.onerror = null; o.onend = null;
+      try { o.abort(); } catch { /* déjà arrêtée */ }
+    }
+    finals.current = []; enCoursRef.current = '';
+  };
+
   const demarre = () => {
     if (tenue.current || phase === 'propre') return;
     const Fabrique = fabriqueDOreille();
@@ -140,8 +157,7 @@ export default function Dictee() {
     document.addEventListener('visibilitychange', cache);
     return () => {
       document.removeEventListener('visibilitychange', cache);
-      tenue.current = false;
-      try { oreille.current?.abort(); } catch { /* déjà arrêtée */ }
+      coupeLOreille();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -151,27 +167,24 @@ export default function Dictee() {
      si c'est le navigateur (pas d'oreille), le micro (refusé) ou la fonction
      (pas en ligne). On le dit tout de suite, en clair, avant le premier geste. */
   useEffect(() => {
-    if (fabriqueDOreille() === null) {
-      setSante('Ce navigateur ne lit pas la voix : ouvrez le Trône dans Chrome ou Edge pour dicter, ou tapez ci-dessous.');
-      return;
-    }
-    const micro = navigator.permissions?.query
-      ? navigator.permissions.query({ name: 'microphone' as PermissionName }).then((p) => p.state).catch(() => 'inconnu')
-      : Promise.resolve('inconnu');
-    void Promise.all([micro, santeDeLaDictee()]).then(([etatMicro, s]) => {
-      if (etatMicro === 'denied') {
-        setSante('Le micro est bloqué pour ce site : autorisez-le dans les réglages du navigateur, puis revenez dicter.');
-        return;
-      }
-      setSante(
-        s === null
-          ? 'La mise au propre ne répond pas pour l’instant : vos mots resteront tels quels.'
-          : s.claude
-            ? 'Micro prêt, Claude posée : tenez le bouton, parlez, relâchez.'
-            : 'Micro prêt, mais la clé de Claude manque : vos mots resteront bruts.',
-      );
-    });
+    if (fabriqueDOreille() === null) return;
+    let vivant = true;
+    /* Le navigateur prévient quand l'autorisation change : le mot d'état suit
+       (« pas encore autorisé » devient « prêt » dès qu'on a accepté). */
+    const tenu: { statut: PermissionStatus | null } = { statut: null };
+    const lis = () => { if (vivant && tenu.statut) setMicro(tenu.statut.state); };
+    const demande = navigator.permissions?.query
+      ? navigator.permissions.query({ name: 'microphone' as PermissionName })
+      : Promise.reject(new Error('sans permissions'));
+    demande
+      .then((p) => { if (!vivant) return; tenu.statut = p; lis(); p.addEventListener('change', lis); })
+      .catch(() => { if (vivant) setMicro('inconnu'); });
+    void santeDeLaDictee().then((s) => { if (vivant) setServeur(s); });
+    return () => { vivant = false; tenu.statut?.removeEventListener('change', lis); };
   }, []);
+  const sante = fabriqueDOreille() === null
+    ? 'Ce navigateur ne lit pas la voix : ouvrez le Trône dans Chrome ou Edge pour dicter, ou tapez ci-dessous.'
+    : micro === null || serveur === undefined ? null : motDeSanteDeLaDictee(micro, serveur);
 
   const changeDeMode = (m: ModeDictee) => {
     setMode(m);
@@ -193,9 +206,7 @@ export default function Dictee() {
   const versWhatsApp = () => window.open(`https://wa.me/?text=${encodeURIComponent(propre)}`, '_blank', 'noopener');
 
   const refais = () => {
-    tenue.current = false;
-    try { oreille.current?.abort(); } catch { /* rien */ }
-    finals.current = []; enCoursRef.current = '';
+    coupeLOreille();
     setPhase('repos'); setEntendu(''); setEnCours(''); setPropre(''); setModeRendu(null); setErreur(null); setVoirEntendu(false);
     setAide('Tenez le bouton le temps de parler, puis relâchez.');
   };
@@ -267,11 +278,11 @@ export default function Dictee() {
           onPointerUp={relache}
           onPointerCancel={() => {
             /* Le geste a été coupé (le micro s'est demandé à l'écran, par
-               exemple) : on n'envoie pas une dictée vide, on invite à
-               recommencer. */
+               exemple) : rien ne part vers Claude, ni vide ni à moitié dit,
+               on invite à recommencer. */
             if (tenue.current) {
-              tenue.current = false;
-              try { oreille.current?.abort(); } catch { /* rien */ }
+              coupeLOreille();
+              setEntendu(''); setEnCours('');
               setPhase('repos');
               setAide('Le geste a été interrompu. Tenez à nouveau le bouton pour dicter.');
             }

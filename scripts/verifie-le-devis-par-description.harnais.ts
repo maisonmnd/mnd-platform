@@ -87,24 +87,29 @@ const lecture = (over: Record<string, unknown>) => lectureDuDevis({
   ],
   locksDeLaTete: 295, longueur: 'court', totalVoulu: 0, reserves: [], ...over,
 }, CAT)!;
-const sansVoulu = devisDepuisLaLecture(lecture({}), { services: CAT, prixDe, plafondDeRemiseXof: plafondDirection });
+/* La somme se dit par la Maison (ici en euros, pour voir que le « F » en dur a disparu). */
+const somme = (xof: number) => `${xof} EUR-banc`;
+const sansVoulu = devisDepuisLaLecture(lecture({}), { services: CAT, prixDe, plafondDeRemiseXof: plafondDirection, somme });
 dit('les prix viennent du catalogue, jamais de Claude (100 locks x 1100)', [10000, 80000, 110000], sansVoulu.lignes.map((l) => l.unitXof));
 dit('sans total voulu : ni remise, ni ecart', [200000, 0, 200000], [sansVoulu.brutXof, sansVoulu.remiseXof, sansVoulu.totalXof]);
-const voulu = devisDepuisLaLecture(lecture({ totalVoulu: 160000 }), { services: CAT, prixDe, plafondDeRemiseXof: plafondDirection });
+const voulu = devisDepuisLaLecture(lecture({ totalVoulu: 160000 }), { services: CAT, prixDe, plafondDeRemiseXof: plafondDirection, somme });
 dit('le devis s\'arrete au total voulu : la remise est la difference', [200000, 40000, 160000], [voulu.brutXof, voulu.remiseXof, voulu.totalXof]);
-const plafonne = devisDepuisLaLecture(lecture({ totalVoulu: 60000 }), { services: CAT, prixDe, plafondDeRemiseXof: plafondEquipe });
+const plafonne = devisDepuisLaLecture(lecture({ totalVoulu: 60000 }), { services: CAT, prixDe, plafondDeRemiseXof: plafondEquipe, somme });
 dit('l\'equipe est plafonnee a 49 % : la remise s\'arrete, et on le dit', [98000, 102000, true], [plafonne.remiseXof, plafonne.totalXof, plafonne.avertissements.some((a) => /plafonn/.test(a))]);
-const direction = devisDepuisLaLecture(lecture({ totalVoulu: 60000 }), { services: CAT, prixDe, plafondDeRemiseXof: plafondDirection });
+const direction = devisDepuisLaLecture(lecture({ totalVoulu: 60000 }), { services: CAT, prixDe, plafondDeRemiseXof: plafondDirection, somme });
+dit('la remise plafonnee se dit dans la devise de la branche, jamais en « F » ecrit en dur', [true, false],
+  [plafonne.avertissements.some((a) => a.includes('140000 EUR-banc') && a.includes('98000 EUR-banc')), plafonne.avertissements.some((a) => /\d F/.test(a))]);
 dit('la direction va au-dela', [140000, 60000], [direction.remiseXof, direction.totalXof]);
-const majore = devisDepuisLaLecture(lecture({ totalVoulu: 500000 }), { services: CAT, prixDe, plafondDeRemiseXof: plafondDirection });
+const majore = devisDepuisLaLecture(lecture({ totalVoulu: 500000 }), { services: CAT, prixDe, plafondDeRemiseXof: plafondDirection, somme });
 dit('un total voulu plus haut que la somme ne majore rien', [0, 200000, true], [majore.remiseXof, majore.totalXof, majore.avertissements.some((a) => /major/.test(a))]);
-const sansLocks = devisDepuisLaLecture(lecture({ lignes: [{ serviceId: 'cree-medium', quantite: 1, locks: 0, raison: 'c' }] }), { services: CAT, prixDe, plafondDeRemiseXof: plafondDirection });
+const sansLocks = devisDepuisLaLecture(lecture({ lignes: [{ serviceId: 'cree-medium', quantite: 1, locks: 0, raison: 'c' }] }), { services: CAT, prixDe, plafondDeRemiseXof: plafondDirection, somme });
+dit('le total voulu trop haut se dit aussi dans la devise de la branche', true, majore.avertissements.some((a) => a.includes('500000 EUR-banc') && a.includes('200000 EUR-banc')));
 dit('une creation sans nombre de locks se dit et ne vaut rien', [0, true], [sansLocks.lignes[0].unitXof, sansLocks.avertissements.some((a) => /nombre de locks/.test(a))]);
-const longueurMuette = devisDepuisLaLecture(lecture({ longueur: '', lignes: [{ serviceId: 'repare', quantite: 1, locks: 0, raison: 'r' }] }), { services: CAT, prixDe, plafondDeRemiseXof: plafondDirection });
+const longueurMuette = devisDepuisLaLecture(lecture({ longueur: '', lignes: [{ serviceId: 'repare', quantite: 1, locks: 0, raison: 'r' }] }), { services: CAT, prixDe, plafondDeRemiseXof: plafondDirection, somme });
 dit('sans longueur, les prix par longueur sont ceux du court, et on le dit', [80000, true], [longueurMuette.lignes[0].unitXof, longueurMuette.avertissements.some((a) => /longueur/.test(a))]);
-const surDevis = devisDepuisLaLecture(lecture({ lignes: [{ serviceId: 'sur-devis', quantite: 1, locks: 0, raison: 's' }] }), { services: CAT, prixDe, plafondDeRemiseXof: plafondDirection });
+const surDevis = devisDepuisLaLecture(lecture({ lignes: [{ serviceId: 'sur-devis', quantite: 1, locks: 0, raison: 's' }] }), { services: CAT, prixDe, plafondDeRemiseXof: plafondDirection, somme });
 dit('une prestation sur devis se dit : son prix est a ecrire', true, surDevis.avertissements.some((a) => /sur devis/.test(a)));
-const vide = devisDepuisLaLecture(lecture({ lignes: [] }), { services: CAT, prixDe, plafondDeRemiseXof: plafondDirection });
+const vide = devisDepuisLaLecture(lecture({ lignes: [] }), { services: CAT, prixDe, plafondDeRemiseXof: plafondDirection, somme });
 dit('sans prestation, on le dit et rien n\'est invente', [0, true], [vide.lignes.length, vide.avertissements.some((a) => /Aucune prestation/.test(a))]);
 dit('la description trop courte ne part pas, la longue est bornee', [null, 4000], [descriptionPourClaude('court'), descriptionPourClaude('x'.repeat(9000))!.length]);
 

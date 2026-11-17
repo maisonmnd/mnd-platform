@@ -138,6 +138,29 @@ export function nettoieLaReponse(brut: string): string {
   return t.trim();
 }
 
+/* ── LE MOT D'ÉTAT, DÈS L'ARRIVÉE — 17 novembre 2026 ─────────────────────────
+   « Micro prêt » se disait pour tout ce qui n'était pas un refus : aussi quand
+   le navigateur n'avait encore rien demandé (`prompt`), et quand il ne sait
+   pas répondre (Safari, Firefox). Le premier appui ouvrait alors la question
+   du micro, qui coupait le geste, juste après avoir lu que tout était prêt.
+   On ne dit « prêt » que si le micro est accordé. */
+export type EtatDuMicro = 'granted' | 'denied' | 'prompt' | 'inconnu';
+
+export function motDeSanteDeLaDictee(micro: EtatDuMicro, serveur: { claude: boolean } | null): string {
+  if (micro === 'denied') return 'Le micro est bloqué pour ce site : autorisez-le dans les réglages du navigateur, puis revenez dicter.';
+  if (micro === 'granted') {
+    if (serveur === null) return 'Micro prêt, mais la mise au propre ne répond pas pour l’instant : vos mots resteront tels quels.';
+    return serveur.claude
+      ? 'Micro prêt, Claude posée : tenez le bouton, parlez, relâchez.'
+      : 'Micro prêt, mais la clé de Claude manque : vos mots resteront bruts.';
+  }
+  const leMicro = micro === 'prompt'
+    ? 'Le micro n’est pas encore autorisé : au premier appui, le navigateur le demandera. Acceptez, puis tenez à nouveau le bouton.'
+    : 'Ce navigateur ne dit pas si le micro est autorisé : s’il le demande au premier appui, acceptez, puis tenez à nouveau le bouton.';
+  if (serveur === null) return `${leMicro} La mise au propre ne répond pas pour l’instant : vos mots resteront tels quels.`;
+  return serveur.claude ? leMicro : `${leMicro} La clé de Claude manque : vos mots resteront bruts.`;
+}
+
 /* ── LA MISE AU PROPRE DE SECOURS ───────────────────────────────────────────
    Quand Claude ne répond pas (réseau, plafond, clé) : les hésitations tombent,
    « à la ligne » devient une ligne, la majuscule revient au début. C'est ce
