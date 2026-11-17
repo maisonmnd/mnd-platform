@@ -79,8 +79,10 @@ dit('l ilot est monte, la page existe, l accueil y mene', [true, true, true], [
   /\{ texte: 'Ma consultation gratuite', vers: '\/consultation\/' \}/.test(lf('src/apps/revelateur/contenu.ts')),
 ]);
 dit('le generateur sait la page sans script', true, /if \(nom === 'consultation'\)/.test(lf('scripts/genere-revelateur.mjs')));
-dit('l ilot depose par push-notify (tunnel-submit), jamais en base directe', [true, false],
-  [/functions\.invoke\('push-notify'[\s\S]{0,120}mode: 'tunnel-submit'/.test(ilot), /from\('consultations_queue'\)\.(insert|upsert)/.test(ilot)]);
+/* 17 novembre 2026 (la consultation en affiches) : le depot part de « Votre moment », avec le rendez-vous. */
+const moment = lf('src/apps/revelateur/ilots/PortesDeLaConsultation.tsx');
+dit('le site depose par push-notify (tunnel-submit), jamais en base directe', [true, false],
+  [/appelle\('push-notify', \{\s*mode: 'tunnel-submit'/.test(moment), /from\('consultations_queue'\)\.(insert|upsert)/.test(`${ilot}\n${moment}`)]);
 dit('l ilot n importe ni magasin ni synchronisation', false, /from '\.\.\/\.\.\/\.\.\/shared\/(besoins|sync|store|pricing|catalog)'/.test(ilot));
 dit('l ilot ne parle jamais de points ni de palier a la cliente', false, /'[^']*\b(points|palier)\b[^']*'/.test(ilot.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter((l) => /<|\{`|'.*'/.test(l) && !/import|manques\.|startsWith|includes\(/.test(l)).join('\n')));
 const sql = lf('supabase/migrations/0208_la_consultation_ouverte.sql');

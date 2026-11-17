@@ -9,6 +9,7 @@ import { uid } from '../../../../shared/store';
 import { useBesoins, prixDAppelDe, etatDe } from '../../../../shared/besoins';
 import { useEstDirection } from '../_vie';
 import { ReglagesDeLaVisio } from './ReglagesDeLaVisio';
+import { VosEnvies } from './VosEnvies';
 import {
   AUCUNE_PREUVE, PALIERS_DITS, POINTS_PERMIS, SENS_DES_POINTS, defautsDes, palierDe, qualifie,
   type Besoin, type Palier, type Preuves, type Qualification, type ReglagesDesBesoins,
@@ -27,7 +28,7 @@ import './besoins.css';
    main. « Seuils et preuves » règle les paliers. Tout s'écrit dans le
    document `mnd_besoins`, signé (qui, quand). */
 
-type Onglet = 'besoins' | 'essayer' | 'seuils' | 'visio';
+type Onglet = 'envies' | 'besoins' | 'essayer' | 'seuils' | 'visio';
 const vide = (famille: string): Besoin => ({ id: '', famille, mots: '', points: 10, prestations: [] });
 const plie = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -39,7 +40,9 @@ export default function BesoinsEtRegles() {
   /* SEULE LA DIRECTION ÉCRIT LES BESOINS — 0208 (13 novembre 2026). L'écran le
      dit au lieu de laisser la base refuser sans bruit. */
   const estDirection = useEstDirection();
-  const [onglet, setOnglet] = useState<Onglet>('besoins');
+  /* VOS ENVIES EN PREMIER (17 novembre 2026, la consultation en affiches) :
+     les envies portent les besoins, et ce sont elles que le site montre. */
+  const [onglet, setOnglet] = useState<Onglet>('envies');
   const [edite, setEdite] = useState<Besoin | null>(null);
   const [famille, setFamille] = useState<string>('toutes');
   const [cherche, setCherche] = useState('');
@@ -99,6 +102,7 @@ export default function BesoinsEtRegles() {
       />
 
       <div className="trv-tabs" role="tablist">
+        <button role="tab" aria-selected={onglet === 'envies'} className={`trv-tab ${onglet === 'envies' ? 'is-active' : ''}`} onClick={() => setOnglet('envies')}>Vos envies <span className="trv-tab__n">{r.familles.length}</span></button>
         <button role="tab" aria-selected={onglet === 'besoins'} className={`trv-tab ${onglet === 'besoins' ? 'is-active' : ''}`} onClick={() => setOnglet('besoins')}>Les besoins <span className="trv-tab__n">{r.besoins.length}</span></button>
         <button role="tab" aria-selected={onglet === 'essayer'} className={`trv-tab ${onglet === 'essayer' ? 'is-active' : ''}`} onClick={() => setOnglet('essayer')}>Essayer</button>
         <button role="tab" aria-selected={onglet === 'seuils'} className={`trv-tab ${onglet === 'seuils' ? 'is-active' : ''}`} onClick={() => setOnglet('seuils')}>Seuils et preuves</button>
@@ -107,11 +111,13 @@ export default function BesoinsEtRegles() {
 
       {!estDirection && <p className="tbs-garde">Lecture seule : seule la direction modifie les besoins, leurs points et les seuils. « Essayer » reste ouvert.</p>}
 
-      {r.modifieLe && (
+      {onglet !== 'envies' && r.modifieLe && (
         <p className="mnd-muted tbs-signe">
           Modifié le {new Date(r.modifieLe).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}{r.modifiePar ? ` par ${r.modifiePar}` : ''}.
         </p>
       )}
+
+      {onglet === 'envies' && <VosEnvies estDirection={estDirection} />}
 
       {onglet === 'besoins' && (
         <>
@@ -237,7 +243,7 @@ function Editeur({ b, r, services, currency, prixDe, nomDe, prixDit, onChange, o
       </div>
       <label className="tbs-coche">
         <input type="checkbox" checked={b.garde === 'peau'} onChange={(e) => onChange({ ...b, garde: e.target.checked ? 'peau' : undefined })} />
-        <span><b>Garde médicale</b> · plaques, psoriasis, peau à vif : écarte détox, décapant et décoloration tant que la Maison n’a pas vu le cuir chevelu.</span>
+        <span><b>Garde médicale</b> · plaques, psoriasis, peau à vif : écarte détox et décapant tant que la Maison n’a pas vu le cuir chevelu.</span>
       </label>
       {b.prestations.length > 0 && (
         <div className="tbs-apercu">
@@ -308,7 +314,7 @@ function Essai({ r, nomDe, prixDit, prixDe }: { r: ReglagesDesBesoins; nomDe: (i
         <h3 className="tbs-titre">
           {choisis.length === 0 ? 'Cochez des besoins : les prestations qui y répondent apparaissent ici.' : `${q.proposees} prestation${q.proposees > 1 ? 's' : ''} proposée${q.proposees > 1 ? 's' : ''} sur ${q.lignes.length}`}
         </h3>
-        {q.peau && <p className="tbs-garde"><b>Garde médicale.</b> La Maison ne pose pas de diagnostic médical : avis d’un dermatologue conseillé, lecture du cuir chevelu, lavage doux. Détox, décapant et décoloration sont écartés tant qu’elle n’a pas vu.</p>}
+        {q.peau && <p className="tbs-garde"><b>Garde médicale.</b> La Maison ne pose pas de diagnostic médical : avis d’un dermatologue conseillé, lecture du cuir chevelu, lavage doux. Détox et décapant sont écartés tant qu’elle n’a pas vu.</p>}
         {q.lignes.map((l) => (
           <div key={l.serviceId} className={`tbs-svc${l.ok ? ' is-ok' : ''}`}>
             <div className="tbs-svc__haut"><span className="tbs-svc__nom">{nomDe(l.serviceId)}</span><span className="mnd-muted">{prixDit(l.serviceId)}</span></div>

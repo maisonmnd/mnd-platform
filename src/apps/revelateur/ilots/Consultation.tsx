@@ -1,464 +1,573 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { COMMUN } from '../contenu';
 import { client, lienWhatsApp, maison } from '../maison';
 import { mesure } from '../mesure';
-import { raisonDuRefus } from '../refus-du-serveur';
+import { agendaDeLaMaison, prestationsReservables, type AgendaDeLaMaison, type PrestationPublique } from '../agenda';
+import { prixSelonLeCalibre, representantDeLaBande, type Bande, type ContexteDuCalibre } from '../prix-calibre';
 import { fmtMoney } from '../../../shared/currency';
+import { kkiapayPeutSOuvrir } from '../../../shared/kkiapay-widget';
+import { PRIX_DE_LA_CONSULTATION_PRIVEE_XOF } from '../../../shared/estimation-pur';
+import { DUREE_MIN, FORME_DE_LA_CONSULTATION, type Creneau } from '../../../shared/visio-pur';
+import type { Besoin as Porte } from '../../../shared/qualification';
 import {
-  AUCUNE_PREUVE, BESOINS_DE_DEPART, qualifie, reglagesSurs,
-  type Besoin, type LigneQualifiee, type ReglagesDesBesoins,
-} from '../../../shared/besoins-pur';
+  ENVIES_MAX, REPONSES_DU_DEBUT, affichesADefaire, affichesDesEnvies, affichesDuModele, basculeUneEnvie, enviesAffichees, enviesSures,
+  etatEnLigne, parcoursDe, prixAuBareme, rangeLesChoisies, seTouche, tarifDesNaturels,
+  type Affiches, type Contexte, type Envie, type ReglagesDesEnvies, type ReponseDuDebut,
+} from '../../../shared/envies-pur';
 import {
-  bornesDesCalibres, calibreDuNombre, fourchetteDe, proposableEnLigne, somme,
-  type CalibreBrut, type Fourchette, type LongueurDite, type PrestationBrute,
-} from '../../../shared/estimation-pur';
-import type { OnlineConsultation } from '../../../shared/bridges';
-import { FORME_DE_LA_CONSULTATION } from '../../../shared/visio-pur';
-import { PortesDeLaConsultation, type Depot as DepotFait } from './PortesDeLaConsultation';
+  AGES, AVEC, A_PARTIR_DE, DUREES, ENSUITES, EPAISSEUR_INCONNUE, FACONS, LONGUEURS_DITES, NOMBRE_DE_QUESTIONS, REPONSES_VIDES,
+  apresLaReponseDuDebut, baremeDe, besoinsAMontrer, besoinsDuSite, consultationADeposer, ecarteesParLaPeau, ecranPrecedent, ecranSuivant, ecranTenu,
+  epaisseursDe, ficheADefaire, ficheDuModele, insecable, motDuRituel, motsDuRendezVous, nombreTape, numeroDe, pasFaits, plageDeLEpaisseur, plageDite,
+  trancheDuNombre, tranchesDe,
+  type BesoinDuSite, type Ecran, type Epaisseur, type Fiche, type Reponses,
+} from '../parcours-en-affiches-pur';
+import { Affiche, COORDONNEES_VIDES, Scelle, VotreMoment, base, chiffreEtSigne, creneauxDeLaVisio, type Choix, type Coordonnees } from './PortesDeLaConsultation';
+import './consultation.css';
 
-/* ══ LA CONSULTATION GRATUITE — 13 novembre 2026 (la Consultation, lot 2) ═══
-   Maquette « La Consultation MND », écrans S1 à S5. « Le problème c'est
-   qu'en entrée de jeu les gens ne voient pas l'utilité de payer un
-   diagnostic » (Yéman) : ici, rien à payer. Elle dit ce qu'elle veut, coche
-   ce qu'elle reconnaît, décrit sa couronne ; la Maison lui rend une lecture
-   et une estimation au catalogue du jour. La consultation privée, payée,
-   reste l'étape qui ouvre l'atelier pour une création ou une réparation.
+/* ══ LA CONSULTATION EN AFFICHES — 17 novembre 2026 ════════════════════════
+   Maquette « La consultation en affiches », validée par Yéman : « construis ».
+   « Dans le parcours de consultation gratuite trop d'écriture. Besoin de
+   faire des affiches dans le style de Canal Box. Il faut enlever merci la
+   maison confirme. Il ne faut pas permettre d'avoir des bilans sans prendre
+   de RDV sinon tout le monde nous trichera. »
 
-   LES MOTS VIENNENT DU TRÔNE (document `mnd_besoins`, Système › Besoins et
-   règles), les prix du catalogue ; rien n'est écrit ici en dur. Si le
-   document est illisible, la semence du lot 1 prend le relais.
+   UNE QUESTION PAR ÉCRAN, cinq questions, puis le rendez-vous : « 1 sur 5 ·
+   Pour qui ? », « 2 sur 5 · Vos locks ? », trois questions selon la réponse,
+   l'écran du rendez-vous, « Votre moment », le billet. Un toucher avance
+   quand la réponse est unique.
 
-   LE NAVIGATEUR N'ÉCRIT JAMAIS EN BASE : le dépôt passe par la fonction
-   `push-notify` (mode tunnel-submit), qui retire tout montant reçu et
-   prévient l'équipe. */
+   PLUS DE LECTURE, PLUS D'ESTIMATION : ce navigateur ne calcule et n'affiche
+   ni prestation proposée ni fourchette. Le bilan est remis par la Maison, au
+   rendez-vous. Les seuls prix montrés : le rituel d'une envie du groupe
+   Rituel et le rituel de « Cheveux libres » (au catalogue, « à partir de,
+   confirmé au fauteuil »), la consultation privée, le tarif des cheveux
+   naturels.
 
-type Etape = 'qui' | 'envies' | 'besoins' | 'couronne' | 'lecture' | 'deposee';
-const RAIL: { e: Etape; t: string }[] = [
-  { e: 'qui', t: 'Vous' }, { e: 'envies', t: 'Vos envies' }, { e: 'besoins', t: 'Vos besoins' },
-  { e: 'couronne', t: 'Votre couronne' }, { e: 'lecture', t: 'Notre lecture' },
-];
+   LES ENVIES VIENNENT DU TRÔNE (document `mnd_envies`, Système › Besoins et
+   règles › Vos envies) : leur groupe (Rituel, Visio, Consultation privée),
+   leur rituel, les restrictions. Les besoins de chaque envie viennent de
+   `mnd_besoins`. L'aiguillage vit dans `envies-pur`, les écrans dans
+   `parcours-en-affiches-pur` ; rien n'est écrit ici en dur. Sans document
+   lisible, la semence prend le relais.
+
+   LE NAVIGATEUR N'ÉCRIT JAMAIS EN BASE : la visio se réserve par
+   `visio-salle`, la consultation se dépose par `push-notify`, le rituel se
+   pose par `demande-submit` (voir PortesDeLaConsultation). */
 
 type Donnees = {
-  reglages: ReglagesDesBesoins;
-  services: Map<string, PrestationBrute>;
-  calibres: CalibreBrut[];
-  branchId: string;
+  agenda: AgendaDeLaMaison;
+  envies: ReglagesDesEnvies;
+  besoins: BesoinDuSite[];
+  /** Ce que la garde « peau » écarte, réglé au Trône. */
+  ecartees: string[];
   devise: string;
   whatsapp: string;
 };
 
-const base = (chemin: string): string => import.meta.env.BASE_URL.replace(/\/$/, '') + chemin;
-
-async function charge(): Promise<Donnees | null> {
-  const [supabase, m] = await Promise.all([client(), maison()]);
-  if (!supabase || !m) return null;
-  const [svc, cats, docs] = await Promise.all([
-    supabase.from('catalog_services').select('id,data'),
-    supabase.from('catalog_categories').select('id,data'),
-    supabase.from('documents').select('key,data').in('key', ['mnd_besoins', 'mnd_model_bands']),
-  ]);
-  if (svc.error || cats.error) throw new Error('catalogue illisible');
-  const fermees = new Set((cats.data ?? []).filter((c) => (c.data as { enabled?: boolean } | null)?.enabled === false).map((c) => String(c.id)));
-  const services = new Map<string, PrestationBrute>();
-  for (const l of svc.data ?? []) {
-    const d = (l.data ?? {}) as PrestationBrute;
-    const s: PrestationBrute = { ...d, id: String(l.id), name: String(d.name ?? '') };
-    if (proposableEnLigne(s) && !fermees.has(String(s.categoryId ?? ''))) services.set(s.id, s);
-  }
-  const doc = (k: string) => (docs.data ?? []).find((x) => x.key === k)?.data;
+async function charge(): Promise<Donnees> {
+  const [supabase, m, agenda] = await Promise.all([client(), maison(), agendaDeLaMaison()]);
+  if (!supabase || !m || !agenda) throw new Error('la Maison ne répond pas');
+  const { data, error } = await supabase.from('documents').select('key,data').in('key', ['mnd_envies', 'mnd_besoins']);
+  if (error) throw new Error('réglages illisibles');
+  const doc = (k: string): unknown => (data ?? []).find((x) => x.key === k)?.data;
   return {
-    /* Illisible (la clé n'est pas encore publique) : la semence du lot 1. */
-    reglages: doc('mnd_besoins') ? reglagesSurs(doc('mnd_besoins')) : BESOINS_DE_DEPART(),
-    services,
-    calibres: Array.isArray(doc('mnd_model_bands')) ? (doc('mnd_model_bands') as CalibreBrut[]) : [],
-    branchId: m.branchId, devise: m.devise, whatsapp: m.whatsapp,
+    agenda,
+    /* Absent (pas encore amorcé) ou abîmé : la semence, la même qu'au Trône. */
+    envies: enviesSures(doc('mnd_envies')),
+    besoins: besoinsDuSite(doc('mnd_besoins')),
+    ecartees: ecarteesParLaPeau(doc('mnd_besoins')),
+    devise: m.devise,
+    whatsapp: m.whatsapp,
   };
 }
 
-/** Ce qui manque, dit pour la cliente : jamais « points », jamais « palier ». */
-const pourquoiDit = (l: LigneQualifiee): string =>
-  l.manques.some((m) => m.startsWith('écartée'))
-    ? 'Pas avant que la Maison ait vu votre cuir chevelu.'
-    : l.manques.some((m) => m.includes('consultation privée'))
-      ? 'Se décide à la consultation privée, devant vos locks.'
-      : 'La Maison doit d’abord voir vos locks : en visio ou à la consultation privée.';
+/** Le point dessiné : la grosseur d'une lock. */
+const Point = ({ r }: { r: number }) => (
+  <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r={r} fill="currentColor" /></svg>
+);
 
 export default function Consultation() {
   const [d, setD] = useState<Donnees | null>(null);
   const [panne, setPanne] = useState(false);
-  const [etape, setEtape] = useState<Etape>('qui');
-  const [pour, setPour] = useState<'moi' | 'enfant' | ''>('');
-  const [nees, setNees] = useState<'maison' | 'ailleurs' | 'aucune' | ''>('');
-  const [familles, setFamilles] = useState<string[]>([]);
-  const [choisis, setChoisis] = useState<string[]>([]);
-  const [connu, setConnu] = useState<boolean | null>(null);
-  const [locks, setLocks] = useState('');
-  const [calibreId, setCalibreId] = useState('');
-  const [longueur, setLongueur] = useState<LongueurDite | 'inconnue' | ''>('');
-  const [sensibilites, setSensibilites] = useState('');
-  const [retenues, setRetenues] = useState<string[] | null>(null);
-  /* Lot 3 : la consultation déposée (pour réserver la visio ou régler la privée), et l'arrivée par `?privee=<id>` après la visio. */
-  const [depot, setDepot] = useState<DepotFait | null>(null);
+  /* Les quarts d'heure de visio : `null` tant qu'on ne sait pas. */
+  const [creneaux, setCreneaux] = useState<Creneau[] | null>(null);
+  const [ecranVoulu, setEcran] = useState<Ecran>('pour');
+  const [repBrutes, setRep] = useState<Reponses>(REPONSES_VIDES);
+  /* Son prénom et son numéro vivent ici : rien de ce qu'elle touche sur « Votre moment » ne les efface. */
+  const [qui, setQui] = useState<Coordonnees>(COORDONNEES_VIDES);
+  /* La consultation déposée (son identifiant) : une seule, quel que soit le rendez-vous qu'elle prend ensuite. */
+  const [depot, setDepot] = useState('');
+  const [toutVoir, setToutVoir] = useState<string[]>([]);
+  const [choix, setChoix] = useState<Choix | null>(null);
+  const [reserves, setReserves] = useState<Choix['genre'][]>([]);
+  /* L'arrivée par `?privee=<id>`, après la visio : la consultation privée, directement. */
   const privee = useMemo(() => { try { const p = new URLSearchParams(location.search).get('privee') ?? ''; return FORME_DE_LA_CONSULTATION.test(p) ? p : ''; } catch { return ''; } }, []);
   const titre = useRef<HTMLHeadingElement>(null);
+  const haut = useRef<HTMLDivElement>(null);
   const aBouge = useRef(false);
 
-  useEffect(() => { charge().then(setD).catch(() => setPanne(true)); }, []);
-  useEffect(() => { if (aBouge.current) titre.current?.focus(); }, [etape]);
-  const va = (e: Etape) => {
-    aBouge.current = true;
-    if (e === 'envies' && etape === 'qui') mesure('consultation_commencee');
-    if (e === 'lecture') mesure('consultation_lue', { genre: familles.join(',') });
-    setEtape(e);
-  };
+  useEffect(() => {
+    charge().then(setD).catch(() => setPanne(true));
+    void creneauxDeLaVisio().then(setCreneaux);
+  }, []);
+  /* Un écran neuf se lit depuis son titre, et se voit depuis son haut. */
+  useEffect(() => {
+    if (!aBouge.current) return;
+    titre.current?.focus({ preventScroll: true });
+    const h = haut.current;
+    if (h && h.getBoundingClientRect().top < 0) h.scrollIntoView({ block: 'start' });
+  }, [ecranVoulu, choix]);
 
-  const r = d?.reglages;
-  const nLocks = connu ? Math.max(0, parseInt(locks.replace(/\D/g, ''), 10) || 0) : 0;
-  const lon: LongueurDite = longueur === 'inconnue' ? '' : longueur;
-  const calibre = connu && nLocks > 0 && d ? calibreDuNombre(nLocks, d.calibres) : (calibreId || undefined);
+  /* SES ENVIES SE RECONNAISSENT À LEUR IDENTIFIANT, et se relisent contre les
+     réglages : une envie retirée, écartée, restée sans nom ou interdite par
+     une autre sort d'elle-même, et ses besoins avec elle. */
+  const rep: Reponses = useMemo(() => {
+    if (!d) return repBrutes;
+    const envies = rangeLesChoisies(d.envies, repBrutes.envies, repBrutes.locks);
+    if (envies.length === repBrutes.envies.length) return repBrutes;
+    return { ...repBrutes, envies, besoins: repBrutes.besoins.filter((b) => d.besoins.some((x) => x.id === b && envies.includes(x.famille))) };
+  }, [d, repBrutes]);
+  const parcours = rep.locks ? parcoursDe(rep.locks) : null;
+  const tranches = useMemo(() => tranchesDe(d?.agenda.bandes ?? []), [d]);
+  const epaisseurs = useMemo(() => epaisseursDe(tranches), [tranches]);
+  const epaisseur: Epaisseur | null = epaisseurs.find((e) => e.id === rep.epaisseur) ?? null;
+  const tranche = tranches.find((t) => t.id === rep.calibre) ?? null;
+  const montrees: Envie[] = d ? enviesAffichees(d.envies, rep.locks) : [];
+  const choisies: Envie[] = d ? rep.envies.map((id) => d.envies.envies.find((e) => e.id === id)).filter((e): e is Envie => !!e) : [];
+  const besoinsChoisis = d ? d.besoins.filter((b) => rep.besoins.includes(b.id)) : [];
+  const besoinsDesEnvies = d ? d.besoins.filter((b) => rep.envies.includes(b.famille)) : [];
+  /* Une envie sans besoin écrit : la question « Ce qui vous parle » ne se pose pas. */
+  const sautes: Ecran[] = besoinsDesEnvies.length === 0 ? ['besoins'] : [];
 
-  const q = useMemo(() => {
-    if (!d || !r) return null;
-    const prixDe = (id: string) => {
-      const s = d.services.get(id);
-      if (!s) return undefined;
-      if (s.priceXof && s.priceXof > 0) return s.priceXof;
-      const p = Object.values(s.prixParLongueur ?? {}).filter((n): n is number => typeof n === 'number' && n > 0);
-      return p.length ? Math.min(...p) : undefined;
-    };
-    const res = qualifie(r, choisis, AUCUNE_PREUVE, prixDe);
-    return { ...res, lignes: res.lignes.filter((l) => d.services.has(l.serviceId)) };
-  }, [d, r, choisis]);
-
-  const fourchette = (id: string): Fourchette | null => {
-    const s = d?.services.get(id);
-    return s && d ? fourchetteDe(s, { locks: nLocks || undefined, calibreId: calibre, longueur: lon, calibres: d.calibres }) : null;
-  };
-  const proposees = q?.lignes.filter((l) => l.ok) ?? [];
-  const aConfirmer = q?.lignes.filter((l) => !l.ok) ?? [];
-  const retenuesEffectives = retenues ?? (proposees[0] ? [proposees[0].serviceId] : []);
-  const total = somme(retenuesEffectives.map(fourchette));
-  const argent = (n: number) => fmtMoney(n, d?.devise ?? 'XOF');
-  const ditFourchette = (f: Fourchette | null) => (!f ? 'chiffrée par la Maison' : f.min === f.max ? argent(f.min) : `${argent(f.min)} à ${argent(f.max)}`);
+  /* Aucune impasse : sans plus aucune envie choisie alors qu'il en reste, elle revient à « Vos envies ». */
+  const ecran = ecranTenu(ecranVoulu, parcours, { choisies: d ? rep.envies.length : 1, montrees: montrees.length });
+  const va = (e: Ecran) => { aBouge.current = true; setChoix(null); setEcran(e); };
+  const avance = () => va(ecranSuivant(ecran, parcours, sautes));
+  const recule = () => va(ecranPrecedent(ecran, parcours, sautes));
+  const pose = (neuf: Partial<Reponses>) => setRep((r) => ({ ...r, ...neuf }));
+  /* Tout montant passe par `fmtMoney`, et ne se coupe jamais sur deux lignes. */
+  const argent = (xof: number) => insecable(fmtMoney(xof, d?.devise ?? 'XOF'));
 
   if (panne) {
     return (
-      <div className="triage"><div className="merci">
-        <p className="sur">La consultation</p>
-        <h2>La consultation en ligne ne répond pas pour l’instant.</h2>
-        <p>Écrivez-nous sur WhatsApp : la Maison vous répond pendant ses heures d’ouverture.</p>
-      </div></div>
+      <div className="ca">
+        <div className="ca-ecran">
+          <p className="ca-sur">La consultation</p>
+          <h2 className="ca-titre">La consultation ne répond pas.</h2>
+          <a className="ca-cta" href={lienWhatsApp(COMMUN.editeur.telephone.replace(/\D/g, ''), COMMUN.messages.inconnu)} target="_blank" rel="noopener">Écrire à la Maison</a>
+        </div>
+      </div>
     );
   }
-  if (!d || !r) return <div className="triage"><p className="sur">La consultation se prépare…</p></div>;
+
+  const pas = (
+    <div className="ca-pas" aria-hidden="true">
+      {Array.from({ length: NOMBRE_DE_QUESTIONS }, (_, i) => <i key={i} className={i < pasFaits(ecran, parcours) ? 'est-fait' : ''} />)}
+    </div>
+  );
+  const numero = numeroDe(ecran, parcours);
+  const sur = (suite = '') => (numero ? <p className="ca-sur">{numero} sur {NOMBRE_DE_QUESTIONS}{suite ? ` · ${suite}` : ''}</p> : null);
+  const revenir = <button type="button" className="ca-revenir" onClick={recule}>Revenir</button>;
+  const cadre = (dedans: ReactNode, vif = true) => (
+    <div className="ca" ref={haut}>
+      {pas}
+      <div className="ca-ecran" key={choix ? 'moment' : ecran} aria-live={vif ? 'polite' : undefined}>{dedans}</div>
+    </div>
+  );
 
   /* ── APRÈS LA VISIO : LA CONSULTATION PRIVÉE, DIRECTEMENT ── */
-  if (privee && etape === 'qui') {
+  if (privee) {
+    if (!d) return <div className="ca"><p className="ca-note" role="status">Un instant…</p></div>;
     return (
-      <div className="triage">
-        <div className="merci">
-          <p className="sur">Votre consultation privée</p>
-          <h2>La Maison vous reçoit, devant vos locks.</h2>
-          <p>Votre lecture et votre visio sont à la Maison. Il reste à réserver la consultation privée.</p>
-        </div>
-        <PortesDeLaConsultation depot={{ id: privee, prenom: '', tel: '' }} branchId={d.branchId} devise={d.devise} whatsapp={d.whatsapp} atelier seulementPrivee />
-        <p className="legende" style={{ marginTop: 14 }}>Une nouvelle lecture ? <a href={base('/consultation/')}>Recommencer la consultation gratuite</a>.</p>
+      <div className="ca" ref={haut}>
+        <VotreMoment
+          choix={{ genre: 'privee', prestations: prestationsReservables(d.agenda, 'reparation').slice(0, 1).map((s) => s.id) }}
+          agenda={d.agenda} creneaux={[]} whatsapp={d.whatsapp} argent={argent} qui={qui} surQui={setQui} depot={privee} surDepot={setDepot} consultationId={privee}
+        />
+        <a className="ca-revenir" href={base('/consultation/')}>Recommencer la consultation</a>
       </div>
     );
   }
 
-  const idx = RAIL.findIndex((x) => x.e === etape);
-  const rail = (
-    <div className="etapes" aria-label="Les étapes de la consultation">
-      {RAIL.map((x, i) => <span key={x.e} className={i < idx || etape === 'deposee' ? 'fait' : ''} title={x.t} />)}
+  /* ── 1 SUR 5 · POUR QUI ? ── */
+  if (ecran === 'pour') {
+    const choisit = (pour: 'moi' | 'enfant') => {
+      if (!rep.pour) mesure('consultation_commencee');
+      pose({ pour });
+      va('locks');
+    };
+    return cadre(
+      <>
+        {sur()}
+        <h2 className="ca-titre" ref={titre} tabIndex={-1}>Pour qui ?</h2>
+        <div className="ca-affiches">
+          <Affiche couleur="indigo" nom="Moi" ligne="Ma couronne" pressee={rep.pour === 'moi'} onClick={() => choisit('moi')} />
+          <Affiche couleur="cuivre" nom="Mon enfant" ligne="Sa couronne" pressee={rep.pour === 'enfant'} onClick={() => choisit('enfant')} />
+        </div>
+      </>,
+    );
+  }
+
+  /* ── 2 SUR 5 · VOS LOCKS ? ── */
+  if (ecran === 'locks') {
+    const choisit = (locks: ReponseDuDebut) => {
+      /* Sans changer de parcours, ses réponses restent ; les envies que la réponse écarte sortent d'elles-mêmes. */
+      setRep(apresLaReponseDuDebut(rep, locks));
+      mesure('parcours_choisi', { parcours: parcoursDe(locks), genre: 'consultation' });
+      aBouge.current = true;
+      setChoix(null);
+      setEcran(ecranSuivant('locks', parcoursDe(locks)));
+    };
+    return cadre(
+      <>
+        {sur()}
+        <h2 className="ca-titre" ref={titre} tabIndex={-1}>{rep.pour === 'enfant' ? 'Ses locks ?' : 'Vos locks ?'}</h2>
+        <div className="ca-mots ca-mots--liste" role="group" aria-label="Où en sont les locks">
+          {REPONSES_DU_DEBUT.map((l) => (
+            <button type="button" key={l.id} className="ca-mot" aria-pressed={rep.locks === l.id} onClick={() => choisit(l.id)}>{l.dit}</button>
+          ))}
+        </div>
+        {revenir}
+      </>,
+    );
+  }
+
+  /* La suite lit les réglages de la Maison : on les attend ici, jamais avant. */
+  if (!d || !parcours) return cadre(<p className="ca-note" role="status">Un instant…</p>);
+  const r = d.envies;
+
+  /* ── LES RÉPONSES QUI AVANCENT D'UN TOUCHER ── */
+  const mots = (
+    label: string,
+    liste: readonly { id: string; nom: string; petit?: string; point?: number }[],
+    choisi: string | null,
+    touche: (id: string) => void,
+    classe = 'ca-mot--long',
+  ) => (
+    <div className="ca-mots" role="group" aria-label={label}>
+      {liste.map((x) => (
+        <button type="button" key={x.id} className={`ca-mot ${classe}${x.point !== undefined ? ' ca-mot--epais' : ''}`} aria-pressed={choisi === x.id} onClick={() => touche(x.id)}>
+          {x.point !== undefined
+            ? <><span>{x.nom}{x.petit && <small>{x.petit}</small>}</span>{x.point > 0 && <Point r={x.point} />}</>
+            : <>{x.nom}{x.petit && <small>{x.petit}</small>}</>}
+        </button>
+      ))}
     </div>
   );
-  const sur = (t: string) => <p className="sur">{RAIL[idx]?.t ?? 'La consultation'}{t ? ` · ${t}` : ''}</p>;
-  const reponse = (on: boolean, texte: string, onClick: () => void, sousTexte?: string, cle?: string) => (
-    <button type="button" key={cle ?? texte} className="reponse reponse--case" aria-pressed={on} onClick={onClick}>
-      <i aria-hidden="true">{on && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"><path d="M5 12l5 5 9-11" /></svg>}</i>
-      <span>{texte}{sousTexte && <small style={{ display: 'block', opacity: 0.75 }}>{sousTexte}</small>}</span>
-    </button>
-  );
-  const nav = (retour: Etape | null, suite: Etape | null, pret: boolean, texte = 'Continuer') => (
-    <div className="rangee" style={{ marginTop: 18, justifyContent: 'space-between' }}>
-      {retour ? <button type="button" className="btn btn--lien retour" onClick={() => va(retour)}>Revenir</button> : <span />}
-      {suite && <button type="button" className="btn btn--fort" disabled={!pret} onClick={() => va(suite)}>{texte}</button>}
-    </div>
-  );
+  const lesEpaisseurs = (sansNombre: string) => [
+    ...epaisseurs.map((e) => ({ id: e.id, nom: e.nom, petit: e.tranches.length ? `${plageDeLEpaisseur(e).toLowerCase()} locks` : undefined, point: e.r })),
+    { id: EPAISSEUR_INCONNUE, nom: 'Je ne sais pas', petit: sansNombre, point: 0 },
+  ];
+  const lesLongueurs = LONGUEURS_DITES.map((l) => ({ id: l.id, nom: l.nom, petit: l.repere }));
 
-  /* ── 1 · VOUS ── */
-  if (etape === 'qui') {
-    return (
-      <div className="triage">{rail}
-        <div className={`question${aBouge.current ? ' venir' : ''}`}>
-          {sur('gratuit, sans engagement')}
-          <h2 ref={titre} tabIndex={-1}>Pour qui est cette consultation ?</h2>
-          <div className="reponses">
-            {reponse(pour === 'moi', 'Pour moi', () => setPour('moi'))}
-            {reponse(pour === 'enfant', 'Pour mon enfant', () => { setPour('enfant'); if (!familles.length) setFamilles(['enfants']); })}
-          </div>
-          <h2 style={{ marginTop: 22 }}>Où en sont les locks ?</h2>
-          <div className="reponses">
-            {reponse(nees === 'maison', 'Des locks faites à la Maison MND', () => setNees('maison'))}
-            {reponse(nees === 'ailleurs', 'Des locks faites ailleurs', () => setNees('ailleurs'))}
-            {reponse(nees === 'aucune', 'Pas encore de locks', () => { setNees('aucune'); if (!familles.length) setFamilles(['creer']); })}
-          </div>
-          {nav(null, 'envies', !!pour && !!nees, 'Commencer')}
-          <p className="legende" style={{ marginTop: 12 }}>Environ six minutes. Rien à payer, aucun compte à créer.</p>
+  /* ── 3 SUR 5 · VOS ENVIES ── */
+  if (ecran === 'envies') {
+    const touche = (id: string) => {
+      const envies = basculeUneEnvie(r, rep.envies, id);
+      /* Les besoins cochés et les « Tout voir » ne valent que pour les envies encore choisies. */
+      pose({ envies, besoins: rep.besoins.filter((b) => d.besoins.some((x) => x.id === b && envies.includes(x.famille))) });
+      setToutVoir((t) => t.filter((x) => envies.includes(x)));
+    };
+    return cadre(
+      <>
+        {sur(rep.envies.length >= ENVIES_MAX ? 'cinq choisies, c’est le maximum' : 'cinq au plus')}
+        <h2 className="ca-titre" ref={titre} tabIndex={-1}>Vos envies</h2>
+        <div className="ca-mots" role="group" aria-label="Vos envies, cinq au plus">
+          {montrees.map((e) => (
+            <button type="button" key={e.id} className="ca-mot" aria-pressed={rep.envies.includes(e.id)} disabled={!seTouche(r, rep.envies, e.id)} onClick={() => touche(e.id)}>{e.nom}</button>
+          ))}
         </div>
-      </div>
+        <button type="button" className="ca-cta" disabled={rep.envies.length === 0 && montrees.length > 0} onClick={avance}>Continuer</button>
+        {revenir}
+      </>,
+      false,
     );
   }
 
-  /* ── 2 · VOS ENVIES ── */
-  if (etape === 'envies') {
-    const bascule = (id: string) => setFamilles((f) => (f.includes(id) ? f.filter((x) => x !== id) : f.length >= 2 ? [f[1], id] : [...f, id]));
-    return (
-      <div className="triage">{rail}
-        <div className="question venir">
-          {sur('deux choix au plus')}
-          <h2 ref={titre} tabIndex={-1}>Que souhaitez-vous pour votre couronne ?</h2>
-          <div className="reponses">
-            {r.familles.filter((f) => r.besoins.some((b) => b.famille === f.id && b.prestations.length > 0)).map((f) => reponse(familles.includes(f.id), f.nom, () => bascule(f.id), undefined, f.id))}
-          </div>
-          {nav('qui', 'besoins', familles.length > 0)}
-        </div>
-      </div>
-    );
-  }
-
-  /* ── 3 · VOS BESOINS ── */
-  if (etape === 'besoins') {
-    const bascule = (id: string) => setChoisis((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
-    const visibles = (b: Besoin) => familles.includes(b.famille) && b.prestations.some((s) => d.services.has(s));
-    return (
-      <div className="triage">{rail}
-        <div className="question venir">
-          {sur('plusieurs réponses possibles')}
-          <h2 ref={titre} tabIndex={-1}>Qu’est-ce qui vous parle ?</h2>
-          {familles.map((fid) => {
-            const f = r.familles.find((x) => x.id === fid);
-            const bs = r.besoins.filter((b) => b.famille === fid && visibles(b));
-            if (!f || !bs.length) return null;
-            return (
-              <div key={fid} style={{ marginTop: 14 }}>
-                <p className="sur" style={{ marginBottom: 8 }}>{f.nom}</p>
-                <div className="reponses">{bs.map((b) => reponse(choisis.includes(b.id), b.mots, () => bascule(b.id), undefined, b.id))}</div>
+  /* ── 4 SUR 5 · CE QUI VOUS PARLE ── */
+  if (ecran === 'besoins') {
+    const touche = (id: string) => pose({ besoins: rep.besoins.includes(id) ? rep.besoins.filter((x) => x !== id) : [...rep.besoins, id] });
+    return cadre(
+      <>
+        {sur()}
+        <h2 className="ca-titre" ref={titre} tabIndex={-1}>Ce qui vous parle</h2>
+        {choisies.map((e) => {
+          const { montres, reste } = besoinsAMontrer(d.besoins, e.id, toutVoir.includes(e.id));
+          if (!montres.length) return null;
+          return (
+            <div className="ca-groupe" key={e.id}>
+              <p className="ca-sur">{e.nom}</p>
+              <div className="ca-puces" role="group" aria-label={e.nom}>
+                {montres.map((b) => <button type="button" key={b.id} className="ca-puce" aria-pressed={rep.besoins.includes(b.id)} onClick={() => touche(b.id)}>{b.mots}</button>)}
+                {reste > 0 && <button type="button" className="ca-puce" onClick={() => setToutVoir((t) => [...t, e.id])}>Tout voir</button>}
               </div>
-            );
-          })}
-          {nav('envies', 'couronne', choisis.length > 0, `Continuer${choisis.length ? ` (${choisis.length})` : ''}`)}
-        </div>
-      </div>
+            </div>
+          );
+        })}
+        <button type="button" className="ca-cta" onClick={avance}>Continuer</button>
+        {revenir}
+      </>,
+      false,
     );
   }
 
-  /* ── 4 · VOTRE COURONNE ── */
-  if (etape === 'couronne') {
-    const bornes = bornesDesCalibres(d.calibres);
-    const creation = nees === 'aucune';
-    return (
-      <div className="triage">{rail}
-        <div className="question venir">
-          {sur('')}
-          <h2 ref={titre} tabIndex={-1}>{creation ? 'Quelle épaisseur de locks aimeriez-vous ?' : 'Combien de locks portez-vous ?'}</h2>
-          {!creation && (
-            <div className="reponses">
-              {reponse(connu === true, 'Je connais le nombre', () => setConnu(true))}
-              {reponse(connu === false, 'Je ne sais pas', () => setConnu(false))}
-            </div>
-          )}
-          {!creation && connu === true && (
-            <div className="champ" style={{ marginTop: 12, maxWidth: 260 }}>
-              <label htmlFor="cg-locks">Nombre de locks</label>
-              <input id="cg-locks" inputMode="numeric" value={locks} onChange={(e) => setLocks(e.target.value)} placeholder="Par exemple 120" />
-            </div>
-          )}
-          {(creation || connu === false) && bornes.length > 0 && (
-            <>
-              <p className="legende" style={{ marginTop: 12 }}>Choisissez l’épaisseur qui ressemble {creation ? 'à ce que vous voulez' : 'aux vôtres'}.</p>
-              <div className="reponses">
-                {bornes.map((b) => reponse(calibreId === b.id, b.nom, () => setCalibreId(b.id), b.min <= 1 ? `jusqu’à ${b.max} locks` : `${b.min} à ${b.max} locks`, b.id))}
-              </div>
-            </>
-          )}
-          <h2 style={{ marginTop: 22 }}>{creation ? 'Et la longueur de vos cheveux ?' : 'Et leur longueur ?'}</h2>
-          <div className="reponses">
-            {reponse(longueur === 'court', 'Courtes', () => setLongueur('court'))}
-            {reponse(longueur === 'mi-long', 'Mi-longues', () => setLongueur('mi-long'))}
-            {reponse(longueur === 'long', 'Longues', () => setLongueur('long'))}
-            {reponse(longueur === 'inconnue', 'Je ne sais pas', () => setLongueur('inconnue'))}
-          </div>
-          <div className="champ" style={{ marginTop: 18 }}>
-            <label htmlFor="cg-sens">Une allergie, une sensibilité, les huiles essentielles ? (facultatif)</label>
-            <input id="cg-sens" value={sensibilites} onChange={(e) => setSensibilites(e.target.value)} placeholder="Par exemple : je ne supporte pas les huiles essentielles" />
-          </div>
-          {nav('besoins', 'lecture', !!longueur && (creation ? true : connu !== null), 'Voir ma lecture')}
+  /* ── 5 SUR 5 · VOTRE COURONNE ── */
+  if (ecran === 'couronne') {
+    const tape = (brut: string) => {
+      const nombre = nombreTape(brut);
+      pose({ nombre, calibre: nombre ? trancheDuNombre(Number(nombre), tranches)?.id ?? null : null });
+    };
+    return cadre(
+      <>
+        {sur()}
+        <h2 className="ca-titre" ref={titre} tabIndex={-1}>Votre couronne</h2>
+        <div className="ca-champ">
+          <label htmlFor="ca-nombre">Combien de locks ?</label>
+          <input id="ca-nombre" type="text" inputMode="numeric" autoComplete="off" placeholder="Par exemple 120" value={rep.nombre} onChange={(e) => tape(e.target.value)} />
         </div>
-      </div>
+        <p className="ca-traduit">
+          {rep.nombre && tranche
+            ? <><b>{rep.nombre} locks</b> : à la Maison, c’est le calibre <b>{tranche.nom}</b>.</>
+            : 'Vous ne savez pas ? Touchez la tranche qui vous ressemble.'}
+        </p>
+        <div className="ca-mots" role="group" aria-label="Le nombre de locks, par tranche">
+          {tranches.map((t) => (
+            <button type="button" key={t.id} className="ca-mot ca-mot--nombre" aria-pressed={rep.calibre === t.id} onClick={() => pose({ calibre: t.id, nombre: '' })}>
+              {plageDite(t)}<small>locks · {t.nom}</small>
+            </button>
+          ))}
+        </div>
+        <p className="ca-sur">Leur longueur</p>
+        {mots('La longueur', lesLongueurs, rep.longueur, (id) => pose({ longueur: id as Reponses['longueur'] }))}
+        <button type="button" className="ca-cta" disabled={!((rep.calibre || tranches.length === 0) && rep.longueur)} onClick={avance}>Mon rendez-vous</button>
+        {revenir}
+      </>,
+      false,
     );
   }
 
-  /* ── 5 · NOTRE LECTURE ET L'ESTIMATION ── */
-  const nom = (id: string) => d.services.get(id)?.name ?? '';
-  const pourQuoi = (id: string) => r.besoins.filter((b) => choisis.includes(b.id) && b.prestations.includes(id)).map((b) => b.mots);
-  const bascule = (id: string) => setRetenues((x) => {
-    const c = x ?? retenuesEffectives;
-    return c.includes(id) ? c.filter((y) => y !== id) : [...c, id];
-  });
-
-  if (etape === 'lecture') {
-    return (
-      <div className="triage">{rail}
-        <div className="question venir">
-          {sur('préliminaire')}
-          <h2 ref={titre} tabIndex={-1}>{proposees.length ? 'Voici ce que la Maison vous propose.' : 'La Maison doit d’abord voir vos locks.'}</h2>
-          {q?.peau && (
-            <p className="maison" style={{ marginTop: 10 }}>
-              Plaques ou psoriasis : la Maison ne pose pas de diagnostic médical. L’avis d’un dermatologue d’abord ; la Maison lit votre cuir chevelu et lave en douceur, sans détox ni décapant, tant qu’elle ne l’a pas vu.
-            </p>
-          )}
-          {proposees.length > 0 && (
-            <div className="reponses" style={{ marginTop: 12 }}>
-              {proposees.map((l) => reponse(retenuesEffectives.includes(l.serviceId), nom(l.serviceId), () => bascule(l.serviceId),
-                `${ditFourchette(fourchette(l.serviceId))} · pour : ${pourQuoi(l.serviceId).join(' ; ').toLowerCase()}`, l.serviceId))}
-            </div>
-          )}
-          {aConfirmer.length > 0 && (
-            <>
-              <p className="sur" style={{ marginTop: 18 }}>Plus complètes, à confirmer par la Maison</p>
-              {/* Des cartes comme les autres, mais qu'on ne coche pas : c'est la Maison qui décide. */}
-              <div className="reponses">
-                {aConfirmer.map((l) => (
-                  <div key={l.serviceId} className="reponse" aria-disabled="true" style={{ cursor: 'default', opacity: 0.85 }}>
-                    <span>{nom(l.serviceId)}<small style={{ display: 'block', opacity: 0.75 }}>{ditFourchette(fourchette(l.serviceId))} · {pourquoiDit(l)}</small></span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-          {retenuesEffectives.length > 0 && (
-            <div className="merci" style={{ marginTop: 18 }}>
-              <p className="sur">Votre estimation</p>
-              <h2 style={{ margin: '4px 0' }}>{total.min === total.max ? argent(total.min) : `${argent(total.min)} à ${argent(total.max)}`}{total.aChiffrer ? ' et ce que la Maison chiffrera' : ''}</h2>
-              <p>Une première orientation. Le prix ferme est donné par la Maison, après confirmation{lon ? '' : ' (la longueur, quand vous ne la savez pas, élargit la fourchette)'}.</p>
-            </div>
-          )}
-          <Depot d={d} r={r} etat={{ pour, nees, familles, choisis, nLocks, calibre, lon, sensibilites, proposees, aConfirmer, retenues: retenuesEffectives, total, peau: !!q?.peau }}
-            fourchette={fourchette} nom={nom} onDepose={(x) => { setDepot(x); va('deposee'); }} />
-          {nav('couronne', null, true)}
+  /* ── SANS LOCKS ENCORE : L'ÉPAISSEUR, LA LONGUEUR, LA DURÉE ── */
+  if (ecran === 'epaisseur') {
+    return cadre(
+      <>
+        {sur()}
+        <h2 className="ca-titre" ref={titre} tabIndex={-1}>L’épaisseur</h2>
+        {mots('L’épaisseur de vos locks', lesEpaisseurs('la Maison vous conseille'), rep.epaisseur, (id) => { pose({ epaisseur: id }); avance(); })}
+        {revenir}
+      </>,
+    );
+  }
+  if (ecran === 'longueur') {
+    const naturels = tarifDesNaturels(argent(r.modele.naturels.prixXof), r.modele.naturels.lot);
+    return cadre(
+      <>
+        {sur()}
+        <h2 className="ca-titre" ref={titre} tabIndex={-1}>La longueur</h2>
+        {mots('La longueur voulue', lesLongueurs, rep.longueur, (id) => { pose({ longueur: id as Reponses['longueur'] }); if (rep.avec) avance(); })}
+        <p className="ca-sur">Avec</p>
+        {mots('Vos cheveux seuls, ou des cheveux naturels en option',
+          AVEC.map((a) => ({ id: a.id, nom: a.nom, petit: a.id === 'naturels' ? `${a.dit} · ${naturels}` : a.dit })),
+          rep.avec, (id) => { pose({ avec: id as Reponses['avec'] }); if (rep.longueur) avance(); })}
+        {revenir}
+      </>,
+    );
+  }
+  if (ecran === 'duree') {
+    return cadre(
+      <>
+        {sur()}
+        <h2 className="ca-titre" ref={titre} tabIndex={-1}>La durée</h2>
+        <div className="ca-mots ca-mots--pile" role="group" aria-label="Pour combien de temps">
+          {DUREES.map((x) => (
+            <button type="button" key={x.id} className="ca-mot ca-mot--duree" aria-pressed={rep.duree === x.id} onClick={() => { pose({ duree: x.id }); avance(); }}><span>{x.nom}</span><b>{x.dit}</b></button>
+          ))}
         </div>
-      </div>
+        {revenir}
+      </>,
     );
   }
 
-  /* ── APRÈS LE DÉPÔT ── */
-  const porte = familles.includes('creer') ? 'creation' : familles.includes('enfants') ? 'enfant'
-    : familles.some((f) => ['reparer', 'structure', 'volume'].includes(f)) ? 'reparation' : 'entretien';
-  const atelier = familles.some((f) => ['creer', 'reparer', 'structure', 'volume'].includes(f)) || !!q?.peau;
-  const resume = `Bonjour, je viens de faire ma consultation gratuite sur le site : ${r.besoins.filter((b) => choisis.includes(b.id)).map((b) => b.mots.toLowerCase()).join(' ; ')}.`;
-  return (
-    <div className="triage">{rail}
-      <div className="merci">
-        <p className="sur">Votre lecture est à la Maison</p>
-        <h2 ref={titre} tabIndex={-1}>Merci. La Maison la relit et vous écrit sur WhatsApp.</h2>
-        <p>Pour la confirmer et passer à votre rituel, choisissez comment la Maison la regarde avec vous.</p>
-        <div className="rangee" style={{ marginTop: 10 }}>
-          <a className="btn btn--lien" href={lienWhatsApp(d.whatsapp, resume)} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: porte, genre: 'consultation' })}>Écrire à la Maison</a>
-          <a className="btn btn--lien" href={base(`/reserver/?besoin=${porte}`)} onClick={() => mesure('parcours_choisi', { parcours: porte, genre: 'consultation' })}>Réserver un rituel directement</a>
-        </div>
-      </div>
-      {depot && <PortesDeLaConsultation depot={depot} branchId={d.branchId} devise={d.devise} whatsapp={d.whatsapp} atelier={atelier} />}
-      <p className="legende" style={{ marginTop: 14 }}>Vous voulez seulement une routine de soins ? <a href={base('/mon-parcours/')}>Le diagnostic en cinq questions</a>.</p>
-    </div>
-  );
-}
+  /* ── DES LOCKS À DÉFAIRE : DEPUIS QUAND, SES LOCKS, COMMENT ── */
+  if (ecran === 'depuis') {
+    return cadre(
+      <>
+        {sur()}
+        <h2 className="ca-titre" ref={titre} tabIndex={-1}>Depuis quand ?</h2>
+        {mots('L’âge de vos locks', AGES, rep.depuis, (id) => { pose({ depuis: id }); avance(); }, 'ca-mot--nombre')}
+        {revenir}
+      </>,
+    );
+  }
+  if (ecran === 'ses-locks') {
+    return cadre(
+      <>
+        {sur()}
+        <h2 className="ca-titre" ref={titre} tabIndex={-1}>Vos locks</h2>
+        {mots('Leur épaisseur', lesEpaisseurs('la Maison comptera'), rep.epaisseur, (id) => { pose({ epaisseur: id }); if (rep.longueur) avance(); })}
+        <p className="ca-sur">Leur longueur</p>
+        {mots('Leur longueur', lesLongueurs, rep.longueur, (id) => { pose({ longueur: id as Reponses['longueur'] }); if (rep.epaisseur) avance(); })}
+        {revenir}
+      </>,
+    );
+  }
+  if (ecran === 'comment') {
+    return cadre(
+      <>
+        {sur()}
+        <h2 className="ca-titre" ref={titre} tabIndex={-1}>Comment ?</h2>
+        {mots('La façon de défaire', FACONS.map((f) => ({ id: f.id, nom: f.nom, petit: f.dit })), rep.facon, (id) => { pose({ facon: id }); if (rep.ensuite) avance(); })}
+        <p className="ca-sur">Ensuite</p>
+        {mots('Ce que vous voulez ensuite', ENSUITES.map((x) => ({ id: x.id, nom: x.nom, petit: x.dit })), rep.ensuite, (id) => { pose({ ensuite: id as Reponses['ensuite'] }); if (rep.facon) avance(); })}
+        {revenir}
+      </>,
+    );
+  }
 
-/* ── LE DÉPÔT ─────────────────────────────────────────────────────────── */
-type Etat = {
-  pour: string; nees: string; familles: string[]; choisis: string[]; nLocks: number; calibre?: string; lon: LongueurDite; sensibilites: string;
-  proposees: LigneQualifiee[]; aConfirmer: LigneQualifiee[]; retenues: string[]; total: { min: number; max: number; aChiffrer: number }; peau: boolean;
-};
-function Depot({ d, r, etat, fourchette, nom, onDepose }: {
-  d: Donnees; r: ReglagesDesBesoins; etat: Etat; fourchette: (id: string) => Fourchette | null; nom: (id: string) => string; onDepose: (x: DepotFait) => void;
-}) {
-  const f = COMMUN.formulaire;
-  const [prenom, setPrenom] = useState('');
-  const [tel, setTel] = useState('');
-  const [consent, setConsent] = useState(false);
-  const [envoi, setEnvoi] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
-
-  const envoie = async (e: FormEvent) => {
-    e.preventDefault();
-    if (envoi) return;
-    if (!prenom.trim()) { setErreur('Votre prénom, pour que la Maison vous appelle par votre nom.'); return; }
-    if (tel.replace(/\D/g, '').length < 8) { setErreur(f.erreurNumero); return; }
-    if (!consent) { setErreur('Cochez la case pour que la Maison garde votre lecture.'); return; }
-    setErreur(null);
-    setEnvoi(true);
-    try {
-      const supabase = await client();
-      if (!supabase) { setErreur('La Maison n’est pas joignable pour l’instant. Écrivez-nous sur WhatsApp.'); return; }
-      const id = `cg-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-      const calibreDit = etat.calibre ? bornesDesCalibres(d.calibres).find((b) => b.id === etat.calibre)?.nom : undefined;
-      const besoins = r.besoins.filter((b) => etat.choisis.includes(b.id)).map((b) => ({ id: b.id, mots: b.mots, points: b.points }));
-      const c: OnlineConsultation = {
-        id, createdAt: new Date().toISOString(),
-        parcours: etat.familles.includes('creer') ? 'creation' : 'sos',
-        client: { name: prenom.trim(), phone: tel.trim(), city: '', currency: d.devise },
-        answers: { familles: etat.familles, besoins: besoins.map((b) => b.mots) },
-        paidXof: 0, branchId: d.branchId, status: 'nouvelle',
-        modalite: 'auto', besoins,
-        couronne: {
-          ...(etat.nLocks ? { locks: etat.nLocks } : {}), ...(etat.calibre ? { calibreId: etat.calibre } : {}), ...(calibreDit ? { calibreDit } : {}),
-          ...(etat.lon ? { longueur: etat.lon } : {}), nees: etat.nees as 'maison' | 'ailleurs' | 'aucune', pour: etat.pour as 'moi' | 'enfant',
-          ...(etat.sensibilites.trim() ? { sensibilites: etat.sensibilites.trim().slice(0, 300) } : {}),
-        },
-        estimation: {
-          lignes: etat.proposees.map((l) => { const x = fourchette(l.serviceId); return { serviceId: l.serviceId, nom: nom(l.serviceId), min: x?.min ?? null, max: x?.max ?? null, retenue: etat.retenues.includes(l.serviceId) }; }),
-          aConfirmer: etat.aConfirmer.map((l) => ({ serviceId: l.serviceId, nom: nom(l.serviceId), pourquoi: pourquoiDit(l) })),
-          min: etat.total.min, max: etat.total.max, aChiffrer: etat.total.aChiffrer,
-        },
-        ...(etat.peau ? { garde: 'peau' as const } : {}),
-      };
-      const fourchetteDite = etat.total.min === etat.total.max ? fmtMoney(etat.total.min, d.devise) : `${fmtMoney(etat.total.min, d.devise)} à ${fmtMoney(etat.total.max, d.devise)}`;
-      const { data, error } = await supabase.functions.invoke('push-notify', {
-        body: {
-          mode: 'tunnel-submit',
-          consultation: { id, data: c },
-          title: `Consultation gratuite · ${prenom.trim()}`,
-          body: `${besoins.length} besoin${besoins.length > 1 ? 's' : ''} · estimation ${fourchetteDite}${etat.peau ? ' · garde médicale' : ''}`,
-          url: '/trone/#/consultations',
-        },
-      });
-      const rep = (data ?? {}) as { ok?: boolean };
-      if (error || !rep.ok) {
-        const code = await raisonDuRefus(data, error);
-        setErreur(code.includes('429') || code.includes('rate') ? 'Trop d’envois d’un coup. Réessayez dans quelques minutes, ou écrivez-nous sur WhatsApp.' : 'L’envoi n’a pas abouti. Réessayez, ou écrivez-nous sur WhatsApp.');
-        return;
-      }
-      mesure('consultation_deposee', { genre: etat.familles.join(',') });
-      onDepose({ id, prenom: prenom.trim(), tel: tel.trim() });
-    } catch {
-      setErreur('L’envoi n’a pas abouti. Réessayez, ou écrivez-nous sur WhatsApp.');
-    } finally {
-      setEnvoi(false);
-    }
+  /* ══ LE RENDEZ-VOUS ════════════════════════════════════════════════════ */
+  const { agenda } = d;
+  const service = (id: string): PrestationPublique | undefined => agenda.services.find((s) => s.id === id);
+  const garde = besoinsChoisis.some((b) => b.garde);
+  const contexte: Contexte = {
+    seReserve: (id) => etatEnLigne(service(id), agenda.categories, agenda.masques) === 'ok',
+    visioOuverte: (creneaux?.length ?? 0) > 0,
+    ecartees: garde ? d.ecartees : [],
   };
+  const affiches: Affiches = parcours === 'envies' ? affichesDesEnvies(r, rep.envies, contexte)
+    : parcours === 'modele' ? affichesDuModele(r, contexte)
+      : affichesADefaire(r, rep.ensuite, contexte);
 
-  return (
-    <form className="formulaire garder" onSubmit={(e) => void envoie(e)} noValidate style={{ marginTop: 18 }}>
-      <p className="sur">Garder ma lecture et la faire confirmer</p>
-      <div className="deux-champs">
-        <div className="champ"><label htmlFor="cg-prenom">{f.prenom}</label><input id="cg-prenom" name="prenom" autoComplete="given-name" value={prenom} onChange={(e) => setPrenom(e.target.value)} /></div>
-        <div className="champ"><label htmlFor="cg-numero">{f.numero}</label><input id="cg-numero" name="numero" inputMode="tel" autoComplete="tel" value={tel} onChange={(e) => setTel(e.target.value)} required /></div>
+  const fiche: Fiche | null = parcours === 'modele'
+    ? ficheDuModele({ epaisseur, longueur: rep.longueur, avec: rep.avec, duree: rep.duree, tarifDesNaturels: tarifDesNaturels(argent(r.modele.naturels.prixXof), r.modele.naturels.lot) })
+    : parcours === 'defaire' ? ficheADefaire({ depuis: rep.depuis, epaisseur, longueur: rep.longueur, facon: rep.facon, ensuite: rep.ensuite }) : null;
+
+  /* LE PRIX DU RITUEL : celui du catalogue, pour le calibre qu'elle a dit (la
+     règle de la réservation du site, `prixSelonLeCalibre`) ; pour « Cheveux
+     libres », le prix du catalogue au barème de la Maison (`prixAuBareme`).
+     Toujours « à partir de, confirmé au fauteuil ». */
+  const bande: Bande | undefined = agenda.bandes.find((b) => b.id === (parcours === 'envies' ? rep.calibre : epaisseur?.tranches[0]?.id));
+  const lockCount = bande ? (parcours === 'envies' && Number(rep.nombre) > 0 ? Number(rep.nombre) : representantDeLaBande(bande, agenda.bandes)) : 0;
+  const ctx: ContexteDuCalibre | undefined = bande
+    ? { bande, lockCount, sets: agenda.bandSets, cats: agenda.categories, baremeSuspendu: agenda.baremeSuspendu } : undefined;
+  const prixDuRituel = (ids: readonly string[]): number => ids.reduce((total, id) => {
+    const s = service(id);
+    if (!s) return total;
+    if (parcours === 'defaire') {
+      const bareme = baremeDe(s.categoryId, agenda.bandSets, agenda.categories, agenda.bandes);
+      const coefs = (epaisseur?.tranches ?? tranches).map((t) => bareme.find((b) => b.id === t.id)?.coef ?? t.coef);
+      return total + prixAuBareme(Number(s.priceXof ?? 0), coefs, agenda.baremeSuspendu);
+    }
+    return total + ((ctx ? prixSelonLeCalibre(s, ctx) : Number(s.priceXof ?? 0)) ?? 0);
+  }, 0);
+
+  /* La consultation de la porte cadre le créneau de la consultation privée (une heure). */
+  const porte: Porte = rep.pour === 'enfant' ? 'enfant' : parcours === 'modele' ? 'creation' : 'reparation';
+  const laPrivee: Choix = { genre: 'privee', prestations: prestationsReservables(agenda, porte).slice(0, 1).map((s) => s.id) };
+  const leRituel: Choix | null = affiches.rituel
+    ? { genre: 'rituel', prestations: affiches.rituel.prestations, ...(lockCount ? { lockCount, ...(bande ? { calibre: bande.name } : {}) } : {}) }
+    : null;
+  const ouvre = (c: Choix | null) => { aBouge.current = true; setChoix(c); };
+
+  /* ── VOTRE MOMENT, PUIS LE BILLET ── */
+  if (choix) {
+    const mixte = !!affiches.rituel && !!affiches.regard;
+    const tous = reserves.includes('rituel') && reserves.some((g) => g !== 'rituel');
+    return (
+      <div className="ca" ref={haut}>
+        {pas}
+        <VotreMoment
+          key={choix.genre}
+          choix={choix} agenda={agenda} creneaux={creneaux ?? []} whatsapp={d.whatsapp} argent={argent} qui={qui} surQui={setQui} depot={depot} surDepot={setDepot}
+          consultation={(o) => consultationADeposer({
+            ...o, maintenant: new Date().toISOString(), devise: d.devise, branchId: agenda.branchId,
+            parcours, reponses: rep, envies: choisies, besoins: besoinsChoisis, tranche, epaisseur, fiche,
+          })}
+          mot={motDuRituel({ envies: choisies, besoins: besoinsChoisis, fiche: parcours === 'defaire' ? fiche : null, longueur: rep.longueur })}
+          pourQui={rep.pour ?? 'moi'}
+          surRevenir={() => ouvre(null)}
+          surReserve={(g) => setReserves((x) => (x.includes(g) ? x : [...x, g]))}
+          surLaPrivee={choix.genre === 'visio' ? () => ouvre(laPrivee) : undefined}
+          surLesAutres={mixte && !tous ? () => ouvre(null) : undefined}
+        />
       </div>
-      <label className="consentement"><input type="checkbox" id="cg-consent" checked={consent} onChange={(e) => setConsent(e.target.checked)} /><span>{f.consentement}</span></label>
-      <button className="btn btn--fort" type="submit" disabled={envoi}>{envoi ? 'Envoi en cours' : 'Envoyer ma lecture à la Maison'}</button>
-      {erreur && <p className="erreur" role="alert">{erreur}</p>}
-    </form>
+    );
+  }
+
+  /* ── LES AFFICHES DU RENDEZ-VOUS ── */
+  const cPrivee = chiffreEtSigne(argent(PRIX_DE_LA_CONSULTATION_PRIVEE_XOF));
+  const dits = motsDuRendezVous(parcours);
+  const dejaVu = reserves.some((g) => g !== 'rituel');
+  const regard = affiches.regard && (
+    creneaux === null
+      ? <p className="ca-note" role="status">Un instant…</p>
+      : (
+        <div className="ca-affiches">
+          {affiches.regard.visio && (
+            <Affiche couleur="indigo" nom={dits.visio.nom} ligne={dits.visio.ligne} chiffre="Gratuite" unite={[`${DUREE_MIN}`, 'minutes']}
+              pressee={reserves.includes('visio')} onClick={dejaVu ? undefined : () => ouvre({ genre: 'visio' })} />
+          )}
+          {affiches.regard.privee && (
+            <Affiche couleur="cuivre" nom={dits.privee.nom} ligne={dits.privee.ligne} chiffre={cPrivee.chiffre} unite={[`${cPrivee.signe} déduits`.trim(), dits.privee.deduits]}
+              pressee={reserves.includes('privee')}
+              /* Sans paiement en ligne ouvert, la consultation se réserve par la porte du site, et se règle à la Maison. */
+              vers={kkiapayPeutSOuvrir() || dejaVu ? undefined : base(`/reserver/?besoin=${porte}`)}
+              onClick={dejaVu ? undefined : () => ouvre(laPrivee)} />
+          )}
+        </div>
+      )
+  );
+  const rituel = affiches.rituel && leRituel && (() => {
+    const prix = prixDuRituel(affiches.rituel.prestations);
+    const c = prix > 0 ? chiffreEtSigne(argent(prix)) : null;
+    return (
+      <div className="ca-affiches">
+        <Affiche couleur="sable" nom="Votre rituel" ligne={affiches.rituel.prestations.map((id) => service(id)?.name ?? '').filter(Boolean).join(' + ')}
+          chiffre={c?.chiffre} unite={c ? [`${c.signe} · ${A_PARTIR_DE[0]}`, A_PARTIR_DE[1]] : undefined}
+          pressee={reserves.includes('rituel')} onClick={reserves.includes('rituel') ? undefined : () => ouvre(leRituel)} />
+      </div>
+    );
+  })();
+  const laFiche = fiche && (
+    <div className="ca-fiche">
+      <span className="ca-fiche__nom">{fiche.nom}</span>
+      <span className="ca-fiche__ligne">{fiche.ligne}</span>
+      <dl className="ca-fiche__traits">{fiche.traits.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+      {fiche.pied && <span className="ca-fiche__ligne">{fiche.pied}</span>}
+    </div>
+  );
+
+  if (parcours === 'envies') {
+    const aVoir = affiches.regard?.envies.map((id) => r.envies.find((e) => e.id === id)?.nom ?? '').filter(Boolean) ?? [];
+    return cadre(
+      <>
+        <h2 className="ca-titre" ref={titre} tabIndex={-1}>{affiches.regard ? 'Votre rendez-vous' : 'Votre rituel'}</h2>
+        {rituel}
+        {affiches.regard && (
+          <>
+            {affiches.rituel && aVoir.length > 0 && <p className="ca-sur">{aVoir.join(', ')} : la Maison regarde d’abord</p>}
+            {regard}
+            <Scelle texte="Remis par la Maison, à votre rendez-vous." />
+          </>
+        )}
+        {revenir}
+      </>,
+      false,
+    );
+  }
+
+  return cadre(
+    <>
+      <h2 className="ca-titre" ref={titre} tabIndex={-1}>{parcours === 'modele' ? 'Votre modèle' : 'Défaire vos locks'}</h2>
+      {laFiche}
+      {rituel}
+      {affiches.regard && (
+        <>
+          <p className="ca-sur">Votre rendez-vous</p>
+          {regard}
+          <Scelle texte={parcours === 'modele' ? 'Le prix de votre modèle, remis par la Maison à votre rendez-vous.' : 'Le temps et le prix, remis par la Maison à votre rendez-vous.'} />
+        </>
+      )}
+      {revenir}
+    </>,
+    false,
   );
 }
-
