@@ -197,7 +197,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
+const VERSION = '2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous déplacé) : une page en cache ou un envoi direct ne passe plus ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
 
 /** LE SECOND FAUTEUIL, PAS DAVANTAGE (2 novembre 2026, 0152) : la copie de
     `PLACES_EN_LIGNE_AU_PLUS` (src/shared/agenda-pur.ts), hors des repères. */
@@ -1377,7 +1377,12 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jo
   const dureeMin = dureeDesPrestations(p.serviceIds, agenda.services);
   const debut = minutesDeHhmm(p.time);
   const fin = debut + dureeMin;
-  if (debut < fenetre.openMin || fin > fenetre.closeMin) return { ok: false, erreur: 'creneau_hors_ouverture' };
+  /* LE PREMIER RENDEZ-VOUS, 08:30 (17 novembre 2026) : la liste des heures
+     (`creneauxLibres`) commençait déjà à 08:30, mais ce juge, lui, acceptait
+     encore 08:00 un jour ouvert à 08:00. Une page du site restée en cache,
+     Ma Couronne installée ou un envoi direct passait donc. La règle se juge
+     ICI, là où le rendez-vous est accepté. */
+  if (debut < Math.max(fenetre.openMin, PREMIER_RENDEZ_VOUS_MIN) || fin > fenetre.closeMin) return { ok: false, erreur: 'creneau_hors_ouverture' };
 
   const duJour = occupesDuJour(agenda.occupes, p.date);
   /* Le plafond de la Maison : ses rendez-vous du jour, tous maîtres confondus. */
@@ -2760,7 +2765,8 @@ function laPlaceTientPourDeplacer(
   if (fenetre.closed) return { ok: false, erreur: 'creneau_ferme' };
   const debut = minutesDeHhmm(p.time);
   const fin = debut + Math.max(1, Math.round(Number(p.dureeMin) || 60));
-  if (debut < fenetre.openMin || fin > fenetre.closeMin) return { ok: false, erreur: 'creneau_hors_ouverture' };
+  /* Jamais avant 08:30, même pour un rendez-vous déplacé (17 novembre 2026). */
+  if (debut < Math.max(fenetre.openMin, PREMIER_RENDEZ_VOUS_MIN) || fin > fenetre.closeMin) return { ok: false, erreur: 'creneau_hors_ouverture' };
   const sans = agendaSansLeRdvDuSite(agenda, maitre, sauf);
   const duJour = occupesDuJour(sans.occupes, p.date);
   if (sans.capMaison > 0 && duJour.length >= sans.capMaison) return { ok: false, erreur: 'creneau_plafond' };

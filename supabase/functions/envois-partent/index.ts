@@ -1939,17 +1939,39 @@ async function suisLesProgrammes(c: ContexteDuProgramme): Promise<{ partisASaRep
   return bilan;
 }
 
+/* ⟨cle-du-cron⟩ */
+/** Deux clés sont-elles la même ? À TEMPS CONSTANT : `===` s'arrête au
+    premier caractère qui diffère, et ce temps-là se mesure de l'extérieur,
+    caractère après caractère. Une clé vide ne vaut jamais : un secret qui
+    n'est pas posé n'ouvre rien. */
+const memeCle = (a: string, b: string): boolean => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
+};
+
+/** Une clé refusée se dit AU JOURNAL de la fonction, en longueurs seules
+    (sb_secret ≈ 40 à 50 signes · legacy eyJ… ≈ 200 et plus · 0 = rien de
+    posé de ce côté-là) : elles suffisent à situer la panne. Jamais dans la
+    réponse : celui qui frappe sans la clé n'a pas à les lire. */
+const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+/* ⟨/cle-du-cron⟩ */
+
 Deno.serve(async (req) => {
   const service = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
   const urlBase = Deno.env.get('SUPABASE_URL') ?? '';
   /* Seul le cron (armé de la clé service) réveille le facteur : il lit des
      téléphones et écrit au journal. */
   const cleRecue = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
-  if (!service || cleRecue !== service) {
-    return new Response(
-      JSON.stringify({ erreur: 'réservé au cron', attendueLg: service.length, recueLg: cleRecue.length }),
-      { status: 401 },
-    );
+  if (!service || !memeCle(cleRecue, service)) {
+    /* Les longueurs vont AU JOURNAL, plus dans la réponse (17 novembre 2026). */
+    noteLeRefus('envois-partent', service, cleRecue);
+    return new Response(JSON.stringify({ erreur: 'réservé au cron' }), { status: 401 });
   }
   const sb = createClient(urlBase, service);
   const maintenantMs = Date.now();

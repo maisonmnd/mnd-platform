@@ -1656,6 +1656,29 @@ function lecteurDesFiches(sb: SupabaseClient): (n: string) => Promise<FicheDuNum
   };
 }
 
+/* ⟨cle-du-cron⟩ */
+/** Deux clés sont-elles la même ? À TEMPS CONSTANT : `===` s'arrête au
+    premier caractère qui diffère, et ce temps-là se mesure de l'extérieur,
+    caractère après caractère. Une clé vide ne vaut jamais : un secret qui
+    n'est pas posé n'ouvre rien. */
+const memeCle = (a: string, b: string): boolean => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
+};
+
+/** Une clé refusée se dit AU JOURNAL de la fonction, en longueurs seules
+    (sb_secret ≈ 40 à 50 signes · legacy eyJ… ≈ 200 et plus · 0 = rien de
+    posé de ce côté-là) : elles suffisent à situer la panne. Jamais dans la
+    réponse : celui qui frappe sans la clé n'a pas à les lire. */
+const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+/* ⟨/cle-du-cron⟩ */
+
 Deno.serve(async (req) => {
   /* LE PREMIER MOT, AVANT TOUTE GARDE : si cette ligne ne paraît pas au
      journal, c'est que Meta n'a jamais atteint la fonction, et le reste du
@@ -1916,15 +1939,13 @@ Deno.serve(async (req) => {
     const attendu = (Deno.env.get('WA_VERIFY_TOKEN') ?? '').trim();
     const recu = (url.searchParams.get('hub.verify_token') ?? '').trim();
     const defi = url.searchParams.get('hub.challenge') ?? '';
-    if (attendu && url.searchParams.get('hub.mode') === 'subscribe' && recu === attendu && defi) {
+    if (attendu && url.searchParams.get('hub.mode') === 'subscribe' && memeCle(recu, attendu) && defi) {
       return new Response(defi, { status: 200, headers: { 'content-type': 'text/plain' } });
     }
-    /* LES LONGUEURS SEULES, JAMAIS LES VALEURS — assez pour situer la panne
-       (0 = secret non posé), rien pour l'attaquant. */
-    return new Response(
-      JSON.stringify({ erreur: 'jeton refusé', attendueLg: attendu.length, recueLg: recu.length }),
-      { status: 403 },
-    );
+    /* Les longueurs vont AU JOURNAL, plus dans la réponse (17 novembre 2026) :
+       0 = secret non posé. */
+    noteLeRefus('whatsapp-webhook', attendu, recu);
+    return new Response(JSON.stringify({ erreur: 'jeton refusé' }), { status: 403 });
   }
 
   if (req.method !== 'POST') return new Response('ok', { status: 200 });

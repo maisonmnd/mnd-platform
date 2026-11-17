@@ -71,6 +71,15 @@ const clique = (selecteur, texte) => evalue(`(() => {
   if (b) b.click();
   return !!b;
 })()`);
+/* LE RENDEZ-VOUS SE CRÉE PAR « CRÉER » (17 novembre 2026). Depuis le 10 novembre,
+   la barre du haut n'a plus qu'un bouton « Créer » : « + RDV » n'existe plus à
+   la Caisse, et ce banc cliquait dans le vide (toutes ses étapes suivantes
+   jugeaient une fenêtre jamais ouverte). */
+const ouvreLeRdv = async () => {
+  if (!(await clique('.trc-creer__bouton', 'Créer'))) return false;
+  await attend(300);
+  return clique('.trc-creer__item', 'Rendez-vous');
+};
 const tape = (selecteur, valeur) => evalue(`(() => {
   const el = document.querySelector(${JSON.stringify(selecteur)});
   if (!el) return false;
@@ -130,7 +139,7 @@ await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/trone.html#/caisse` 
 await attend(8000);
 
 /* ── 1. LA PORTE : la case, les attendues, rien de posable ── */
-dit('« + RDV » s ouvre', await clique('button', '+ RDV'));
+dit('« Créer » › « Rendez-vous » s ouvre', await ouvreLeRdv());
 await attend(900);
 dit('plus de rangées Qui / Quoi / Quand', (await evalue(`document.querySelectorAll('.trc-rang').length`)) === 0);
 dit('la case unique est là', await evalue(`!!document.querySelector('.trc-rdv3__case input')`));
@@ -236,7 +245,7 @@ dit('... sans rien dédoubler', (await evalue(`document.querySelectorAll('.trc-r
   && ((await lis('trone::mnd_appointments')) ?? []).filter((a) => a.clientId === 'cl-mir' && a.status !== 'honoré').length === 1);
 
 /* ── 5. LA CASE UNIQUE : une prestation, une cliente sans venue, le téléphone ── */
-await clique('button', '+ RDV');
+await ouvreLeRdv();
 await attend(800);
 dit('Mireille n est plus attendue : son rendez-vous est pris', !(await evalue(`[...document.querySelectorAll('.trc-rdv4__attendue')].some((b) => b.textContent.includes('Mireille A.'))`)));
 await tape('.trc-rdv3__case input', 'retw');

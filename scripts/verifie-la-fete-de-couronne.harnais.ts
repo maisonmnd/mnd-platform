@@ -228,7 +228,7 @@ const envois = (b: { lignes: (t: string) => Ligne[] }) => b.lignes('envois');
   const tournee = extrais('tournee');
   dit('la sante (GET) dit la version et la longueur du secret du modele, sans rien lancer', true,
     /if \(req\.method === 'GET'\)[\s\S]*WA_TEMPLATE_FETE_DE_COURONNE: MODELE_FETE\.length/.test(src));
-  dit('seul le cron, arme de la cle service, la reveille', true, /if \(!service \|\| cleRecue !== service\) \{\s*return json\(\{ erreur: 'réservé au cron'/.test(src));
+  dit('seul le cron, arme de la cle service, la reveille', true, /if \(!service \|\| !memeCle\(cleRecue, service\)\) \{[\s\S]{0,200}return json\(\{ erreur: 'réservé au cron' \}, 401\)/.test(src));
   dit('le modele vient du secret, jamais ecrit en dur dans la tournee', [true, false],
     [/Deno\.env\.get\('WA_TEMPLATE_FETE_DE_COURONNE'\)/.test(src), /'fete_de_couronne'/.test(tournee)]);
   dit('la date metier juge : la tournee ne lit jamais updated_at', false, /updated_at/.test(tournee));

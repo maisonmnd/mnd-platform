@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -936,7 +936,12 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jo
   const dureeMin = dureeDesPrestations(p.serviceIds, agenda.services);
   const debut = minutesDeHhmm(p.time);
   const fin = debut + dureeMin;
-  if (debut < fenetre.openMin || fin > fenetre.closeMin) return { ok: false, erreur: 'creneau_hors_ouverture' };
+  /* LE PREMIER RENDEZ-VOUS, 08:30 (17 novembre 2026) : la liste des heures
+     (`creneauxLibres`) commençait déjà à 08:30, mais ce juge, lui, acceptait
+     encore 08:00 un jour ouvert à 08:00. Une page du site restée en cache,
+     Ma Couronne installée ou un envoi direct passait donc. La règle se juge
+     ICI, là où le rendez-vous est accepté. */
+  if (debut < Math.max(fenetre.openMin, PREMIER_RENDEZ_VOUS_MIN) || fin > fenetre.closeMin) return { ok: false, erreur: 'creneau_hors_ouverture' };
 
   const duJour = occupesDuJour(agenda.occupes, p.date);
   /* Le plafond de la Maison : ses rendez-vous du jour, tous maîtres confondus. */
@@ -6396,7 +6401,8 @@ function laPlaceTientPourLeMaitreWa(
   if (fenetre.closed) return { ok: false, erreur: 'creneau_ferme' };
   const debut = minutesDeHhmm(p.time);
   const fin = debut + Math.max(1, Math.round(Number(p.dureeMin) || 60));
-  if (debut < fenetre.openMin || fin > fenetre.closeMin) return { ok: false, erreur: 'creneau_hors_ouverture' };
+  /* Jamais avant 08:30, même pour un rendez-vous déplacé (17 novembre 2026). */
+  if (debut < Math.max(fenetre.openMin, PREMIER_RENDEZ_VOUS_MIN) || fin > fenetre.closeMin) return { ok: false, erreur: 'creneau_hors_ouverture' };
   const sans = agendaSansLeRdvWa(agenda, maitre, sauf);
   const duJour = occupesDuJour(sans.occupes, p.date);
   if (sans.capMaison > 0 && duJour.length >= sans.capMaison) return { ok: false, erreur: 'creneau_plafond' };
@@ -7941,6 +7947,11 @@ const jsonCors = (o: unknown, status = 200) =>
 /* ══ LA PORTE ══════════════════════════════════════════════════════════
    Comparaison à temps constant : comparer deux secrets avec `===` laisse
    fuir, caractère par caractère, où l'on s'est arrêté. */
+/* ⟨cle-du-cron⟩ */
+/** Deux clés sont-elles la même ? À TEMPS CONSTANT : `===` s'arrête au
+    premier caractère qui diffère, et ce temps-là se mesure de l'extérieur,
+    caractère après caractère. Une clé vide ne vaut jamais : un secret qui
+    n'est pas posé n'ouvre rien. */
 const memeCle = (a: string, b: string): boolean => {
   const x = new TextEncoder().encode(a);
   const y = new TextEncoder().encode(b);
@@ -7949,6 +7960,15 @@ const memeCle = (a: string, b: string): boolean => {
   for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
   return diff === 0 && x.length > 0;
 };
+
+/** Une clé refusée se dit AU JOURNAL de la fonction, en longueurs seules
+    (sb_secret ≈ 40 à 50 signes · legacy eyJ… ≈ 200 et plus · 0 = rien de
+    posé de ce côté-là) : elles suffisent à situer la panne. Jamais dans la
+    réponse : celui qui frappe sans la clé n'a pas à les lire. */
+const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+/* ⟨/cle-du-cron⟩ */
 
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
@@ -8006,8 +8026,9 @@ Deno.serve(async (req) => {
         return jsonCors({ repris: false, raison: 'erreur', version: VERSION });
       }
     }
-    /* LES LONGUEURS SEULES, JAMAIS LES VALEURS. */
-    return jsonCors({ erreur: 'réservé au webhook', attendueLg: service.length, recueLg: recue.length }, 401);
+    /* Les longueurs vont AU JOURNAL, plus dans la réponse (17 novembre 2026). */
+    noteLeRefus('whatsapp-automate', service, recue);
+    return jsonCors({ erreur: 'réservé au webhook' }, 401);
   }
   if (!urlBase) return json({ pris: false, erreur: 'SUPABASE_URL manque' }, 500);
 

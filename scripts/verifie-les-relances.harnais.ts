@@ -535,7 +535,7 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
     [iGet > 0 && iGet < serve.indexOf('const cleRecue'), !/cleRecue|createClient|sb\.|tournee\(/.test(brancheGet),
       /return json\(\{\s*fonction: 'relances-factures', version: VERSION,/.test(brancheGet)]);
   dit('seul le cron réveille la tournée, et rien ne part sans le modèle nommé', [true, true],
-    [/if \(!service \|\| cleRecue !== service\)/.test(serve), /if \(!MODELE\) return json\(\{ version: VERSION, relances: 'sans-modele' \}\);/.test(serve)]);
+    [/if \(!service \|\| !memeCle\(cleRecue, service\)\)/.test(serve), /if \(!MODELE\) return json\(\{ version: VERSION, relances: 'sans-modele' \}\);/.test(serve)]);
   const fac = lis('src/apps/trone/routes/vente/Factures.tsx');
   const bloc = lis('src/apps/trone/routes/vente/BlocRelances.tsx');
   dit('la facture montre ses relances, et toute personne qui encaisse pose ou lève la pause', [true, true, true, false],

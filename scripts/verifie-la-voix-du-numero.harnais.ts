@@ -131,6 +131,11 @@ const ecrans = ['src/apps/trone/routes/clients/LesConversations.tsx', 'src/apps/
 dit('les quatre écrans donnent les comptes famille aux têtes', [true, true, true, true], ecrans.map((e) => /tetesDeLaMaison\(\{ clientes: clients, familles/.test(e)));
 dit('Les conversations : la boîte reçoit les comptes famille ; « Bloquer » jamais sur le fil d’un parent', [true, 3],
   [/clientes: clients, familles, maintenant/.test(ecrans[0]), (ecrans[0].match(/b\.sansFiche && !b\.parentDe|!b\.sansFiche \|\| b\.parentDe/g) ?? []).length]);
+/* La fiche 360 (le lien de réservation depuis sa fiche) : la même règle, appelée, pas recopiée (17 novembre 2026). */
+const fiche360 = sansCommentaires(readFileSync('src/apps/trone/routes/clients/Customers.tsx', 'utf8'));
+dit('la fiche 360 juge une fiche d’enfant par la règle : mineure, numéro d’un parent, ou sans date sous son payeur', [true, true, false],
+  [/const ficheDEnfant = !parleSurCeNumero\(client, 'phone', todayISO\(\)\)\s*\|\| muetteSousSonPayeur\(client, 'phone', clientsStore\.get\(\), families, todayISO\(\)\);/.test(fiche360),
+    /choisi=\{ficheDEnfant \? 'enfant' : 'tout'\}/.test(fiche360), /LIBELLE_PARENTAL/.test(fiche360)]);
 dit('pas de tiret cadratin, pas le mot banni', [false, false], [pur.includes(String.fromCharCode(0x2014)), /\bsalons?\b/i.test(pur)]);
 
 console.log(ko === 0 ? '\nLa voix du numero tient.' : `\n${ko} ECHEC(S)`);

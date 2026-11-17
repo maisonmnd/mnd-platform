@@ -126,7 +126,7 @@ try {
     ['le menu Créer porte « Lien de réservation » en tête de Clientèle', /nom: 'Clientèle',\s*entrees: \[\s*\{ id: 'liens', label: 'Lien de réservation'/.test(menu)],
     ['la barre monte la fenêtre', /onLiens=\{\(\) => setLiensOuverts\(true\)\}/.test(barre) && /<LiensAEnvoyer surFermer=/.test(barre)],
     ['la fiche l’ouvre avec son appel et son numéro', /<LiensAEnvoyer\s+appel=\{/.test(fiche) && /numero=\{client\.phone/.test(fiche)],
-    ['une fiche d’enfant ne prête pas son prénom (voix du numéro)', /ficheDEnfant = estMineur\(client, todayISO\(\)\) \|\| LIBELLE_PARENTAL\.test/.test(fiche) && /appelDuLien = ficheDEnfant \? ''/.test(fiche)],
+    ['une fiche d’enfant ne prête pas son prénom (voix du numéro)', /ficheDEnfant = !parleSurCeNumero\(client, 'phone', todayISO\(\)\)\s*\|\| muetteSousSonPayeur\(/.test(fiche) && /appelDuLien = ficheDEnfant \? ''/.test(fiche)],
     ['la fenêtre écrit depuis l’origine du Trône, sans domaine', /window\.location\.origin/.test(fenetre) && !/maisonmnd/.test(fenetre)],
     ['la fenêtre lit les liens des QR codes à leur source unique', /useLiensDesQrCodes\(\)/.test(fenetre)],
     ['Ma Couronne n’a qu’une adresse (Vitrine la reprend)', /export \{ lienMaCouronne \}/.test(vitrine) && /from '\.\/liens-des-qr-codes'/.test(vitrine) && !/export const lienMaCouronne/.test(vitrine)],

@@ -86,7 +86,7 @@ import FichesDeSoin from './FichesDeSoin';
 import { ChampDeDate, DateEnClair } from '../../../../ds/dates';
 import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
-import { LIBELLE_PARENTAL } from '../../../../shared/voix-du-numero-pur';
+import { muetteSousSonPayeur, parleSurCeNumero } from '../../../../shared/voix-du-numero-pur';
 import LiensAEnvoyer from '../../shell/LiensAEnvoyer';
 import { CIVILITES, civiliteNotee, estMuette, ficheAvecCivilite, prenomDevine, type Civilite } from '../../../../shared/civilite';
 
@@ -2231,7 +2231,12 @@ function Customer360({
      4 novembre 2026, `voix-du-numero-pur`) : le message dit « Bonjour, » et
      la fenêtre s'ouvre sur MND Kids. */
   const [liensOuverts, setLiensOuverts] = useState(false);
-  const ficheDEnfant = estMineur(client, todayISO()) || LIBELLE_PARENTAL.test(client.phoneNom ?? '');
+  /* LA RÈGLE ELLE-MÊME, pas une copie (17 novembre 2026) : recopiée à la main,
+     elle oubliait l'enfant SANS DATE DE NAISSANCE rattachée au compte famille
+     d'un parent qui porte ce numéro. La fenêtre s'ouvrait à son prénom, sur
+     le lien « tout », au numéro du parent. */
+  const ficheDEnfant = !parleSurCeNumero(client, 'phone', todayISO())
+    || muetteSousSonPayeur(client, 'phone', clientsStore.get(), families, todayISO());
   const appelDuLien = ficheDEnfant ? '' : appelDe(client);
   const [photoBusy, setPhotoBusy] = useState(false);
   /* ══ LA PHOTO SE CHANGE ET SE RETIRE AU MÊME ENDROIT — 11 sept. 2026 ══

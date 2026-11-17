@@ -1,5 +1,6 @@
 import {
   creneauxLibres, dureeDesPrestations, estUnSinsin, MAITRE_DES_SINSIN, minutesDeHhmm, occupesDuJour, ouvertureDuJour, plagesBloquees, PLACES_EN_LIGNE,
+  PREMIER_RENDEZ_VOUS_MIN,
   type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
 } from './agenda-pur';
 import { dansLaFenetreDeVenue, estUneConsultation, fenetreEnJours, masquePourLeSite, priceModeOf, racineOf, type FenetreApresVenue, type MasquesDuSite, type PriceMode } from './catalogue-pur';
@@ -380,7 +381,12 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jo
   const dureeMin = dureeDesPrestations(p.serviceIds, agenda.services);
   const debut = minutesDeHhmm(p.time);
   const fin = debut + dureeMin;
-  if (debut < fenetre.openMin || fin > fenetre.closeMin) return { ok: false, erreur: 'creneau_hors_ouverture' };
+  /* LE PREMIER RENDEZ-VOUS, 08:30 (17 novembre 2026) : la liste des heures
+     (`creneauxLibres`) commençait déjà à 08:30, mais ce juge, lui, acceptait
+     encore 08:00 un jour ouvert à 08:00. Une page du site restée en cache,
+     Ma Couronne installée ou un envoi direct passait donc. La règle se juge
+     ICI, là où le rendez-vous est accepté. */
+  if (debut < Math.max(fenetre.openMin, PREMIER_RENDEZ_VOUS_MIN) || fin > fenetre.closeMin) return { ok: false, erreur: 'creneau_hors_ouverture' };
 
   const duJour = occupesDuJour(agenda.occupes, p.date);
   /* Le plafond de la Maison : ses rendez-vous du jour, tous maîtres confondus. */

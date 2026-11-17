@@ -580,7 +580,7 @@ const sansNumeroDePiece = (t: string) => !/MND-\d|ABO-\d|\d{4}-\d{3,4}/.test(t);
     [iGet > 0 && iGet < serve.indexOf('const cleRecue'), !/cleRecue|createClient|sb\.|tournee\(/.test(brancheGet),
       /return json\(\{\s*fonction: 'rappels-d-echeance', version: VERSION,/.test(brancheGet)]);
   dit('seul le cron réveille la tournée, et rien ne part sans un modèle nommé', [true, true],
-    [/if \(!service \|\| cleRecue !== service\)/.test(serve), /if \(!MODELE_RAPPEL && !MODELE_PRIX_REVU\) return json\(\{ version: VERSION, messages: 'sans-modele' \}\);/.test(serve)]);
+    [/if \(!service \|\| !memeCle\(cleRecue, service\)\)/.test(serve), /if \(!MODELE_RAPPEL && !MODELE_PRIX_REVU\) return json\(\{ version: VERSION, messages: 'sans-modele' \}\);/.test(serve)]);
   dit('aucune date jugée sur updated_at, aucun Date.now dans la tournée', [false, false],
     [/updated_at/.test(extrais(RAPPELS, 'tournee')), /Date\.now\(\)/.test(extrais(RAPPELS, 'tournee'))]);
   dit('aucun tiret cadratin dans ce que la cliente lit', false, /—/.test(extrais(RAPPELS, 'phrases')));

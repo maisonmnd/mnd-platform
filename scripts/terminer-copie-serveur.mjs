@@ -53,6 +53,21 @@ export const COPIES = [
   /* Le caissier de la Maison (13 novembre 2026) : Grenat tient la caisse
      entre ses deux clôtures, dans la même fonction, après ⟨cloture-du-jour⟩. */
   { bloc: 'le-caissier', source: 'src/shared/le-caissier-pur.ts', cibles: ['supabase/functions/cloture-du-jour/index.ts'] },
+  /* La clé d'une porte (17 novembre 2026) : comparée à temps constant, ses
+     longueurs au journal et plus dans la réponse, dans les dix fonctions qui
+     ne s'ouvrent qu'à une clé. */
+  { bloc: 'cle-du-cron', source: 'src/shared/cle-du-cron-pur.ts', cibles: [
+    'supabase/functions/avis-google/index.ts',
+    'supabase/functions/confirmation-rdv/index.ts',
+    'supabase/functions/rappels-j1/index.ts',
+    'supabase/functions/sauvegarde-nuit/index.ts',
+    'supabase/functions/envois-partent/index.ts',
+    'supabase/functions/fete-de-couronne/index.ts',
+    'supabase/functions/rappels-d-echeance/index.ts',
+    'supabase/functions/relances-factures/index.ts',
+    'supabase/functions/whatsapp-automate/index.ts',
+    'supabase/functions/whatsapp-webhook/index.ts',
+  ] },
 ];
 
 const lf = (s) => s.replace(/\r\n/g, '\n');

@@ -267,6 +267,17 @@ function suite(lib: Lib, silence: boolean): number {
   dit('A15 le rituel doit finir avant la fermeture', ['ok', 'creneau_hors_ouverture', 'creneau_hors_ouverture', 'creneau_hors_ouverture'],
     [erreur(tient(AG, JEU2, '18:00', ['lav-1'])), erreur(tient(AG, JEU2, '18:30', ['lav-1'])),
       erreur(tient(AG, JEU2, '08:00', ['lav-1'])), erreur(tient(AG, JEU2, '17:30', ['rep-1']))]);
+  /* LE PREMIER RENDEZ-VOUS, 08:30 (17 novembre 2026) : un jour ouvert a 08:00,
+     le juge refuse 08:00 et 08:15 (une page en cache, un envoi direct), et
+     accepte 08:30. Un jour qui ouvre plus tard garde son ouverture. */
+  {
+    const TOT = ag({ exceptions: [{ date: JEU2, open: '08h00', close: '19h00' }] });
+    dit('A15b ouvert a 08:00 : rien avant 08:30, meme envoye tout droit au serveur', ['creneau_hors_ouverture', 'creneau_hors_ouverture', 'ok', 'ok'],
+      [erreur(tient(TOT, JEU2, '08:00', ['lav-1'])), erreur(tient(TOT, JEU2, '08:15', ['lav-1'])),
+        erreur(tient(TOT, JEU2, '08:30', ['lav-1'])), erreur(tient(TOT, JEU2, '09:00', ['lav-1']))]);
+    dit('A15c ... et les heures proposees ce jour-la commencent a 08:30', '08:30',
+      lib.placesLibres(TOT, ['lav-1'], MS, 14).filter((p) => p.iso === JEU2).map((p) => p.heure).sort()[0] ?? 'aucune');
+  }
 
   /* ── La porte de consultation, et ce qui se reserve en ligne ── */
   dit('A16 une creation VEKPE, une restauration FINFIN, un devis, un prix cache, « consultation avant » : consultation_requise',
@@ -464,6 +475,15 @@ const originaux = ORIGINAUX.map(([nom, f]) => entre(lf(readFileSync(f, 'utf8')),
   marche('supabase/functions');
   const porteurs = fonctions.filter((f) => lf(readFileSync(f, 'utf8')).includes('/* ⟨place-du-serveur⟩ */\n'));
   dit('D3 la porte du site porte le juge du serveur', true, porteurs.includes('supabase/functions/demande-submit/index.ts'));
+  /* 17 novembre 2026 : le rendez-vous DÉPLACÉ (le site, WhatsApp) se juge hors des repères ; il refuse lui aussi avant 08:30. */
+  dit('D3b les juges du deplacement refusent avant 08:30, et plus aucun juge ne compare a la seule ouverture', [[true, true], [0, 0]], [
+    [['supabase/functions/demande-submit/index.ts', 'laPlaceTientPourDeplacer'], ['supabase/functions/whatsapp-automate/index.ts', 'laPlaceTientPourLeMaitreWa']].map(([f, nom]) => {
+      const s = lf(readFileSync(f, 'utf8'));
+      const i = s.indexOf(`function ${nom}(`);
+      return i >= 0 && s.slice(i, i + 1400).includes('if (debut < Math.max(fenetre.openMin, PREMIER_RENDEZ_VOUS_MIN) || fin > fenetre.closeMin)');
+    }),
+    ['supabase/functions/demande-submit/index.ts', 'supabase/functions/whatsapp-automate/index.ts'].map((f) => lf(readFileSync(f, 'utf8')).split('debut < fenetre.openMin').length - 1),
+  ]);
   for (const f of porteurs) {
     const src = lf(readFileSync(f, 'utf8'));
     const copies = ORIGINAUX.map(([nom]) => entre(src, nom));

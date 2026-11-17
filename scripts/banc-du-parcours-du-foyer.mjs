@@ -70,6 +70,15 @@ const clique = (selecteur, texte) => evalue(`(() => {
   if (b) b.click();
   return !!b;
 })()`);
+/* LE RENDEZ-VOUS SE CRÉE PAR « CRÉER » (17 novembre 2026). Depuis le 10 novembre,
+   la barre du haut n'a plus qu'un bouton « Créer » : « + RDV » n'existe plus à
+   la Caisse, et ce banc cliquait dans le vide (toutes ses étapes suivantes
+   jugeaient une fenêtre jamais ouverte). */
+const ouvreLeRdv = async () => {
+  if (!(await clique('.trc-creer__bouton', 'Créer'))) return false;
+  await attend(300);
+  return clique('.trc-creer__item', 'Rendez-vous');
+};
 const tape = (selecteur, valeur) => evalue(`(() => {
   const el = document.querySelector(${JSON.stringify(selecteur)});
   if (!el) return false;
@@ -136,7 +145,7 @@ await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/trone.html#/caisse` 
 await attend(8000);
 
 /* ── 1. POSER POUR JOY POSE AUSSI FIFI ── */
-dit('« + RDV » s ouvre', await clique('button', '+ RDV'));
+dit('« Créer » › « Rendez-vous » s ouvre', await ouvreLeRdv());
 await attend(900);
 await tape('.trc-rdv3__case input', 'Joy');
 await attend(500);
@@ -146,7 +155,11 @@ dit('son rituel habituel se pose', /KLƆKLƆ™ Essentiel \+ SÍNSIN™ Essentie
 const foyerNeuf = await texte('.trc-foyer[aria-label="Elles viennent toujours ensemble"]');
 dit('« Elles viennent toujours ensemble » : Fifi, aux gestes de son âge', foyerNeuf.includes('Fifi Akpo') && foyerNeuf.includes('KLƆKLƆ™ Kids + SÍNSIN™ Kids') && foyerNeuf.includes('Team'), foyerNeuf);
 dit('... la carte MND Kids se dit', foyerNeuf.includes('À son âge, la carte MND Kids'), foyerNeuf);
-dit('... à son prix, la remise famille déduite (20 000 F moins 22 %)', foyerNeuf.includes('15 600'), foyerNeuf);
+/* L'ARRONDI DES REMISES (7 novembre 2026) : un prix remisé en pourcentage monte au
+   500 F supérieur. 20 000 F moins 22 % font 15 600 F, donc 16 000 F, et la remise
+   figée en francs est de 4 000 F. Ce banc datait du 4 novembre et n'allait plus
+   jusqu'ici (il cherchait « + RDV », retiré de la barre) : recalé le 17 novembre 2026. */
+dit('... à son prix, la remise famille déduite (20 000 F moins 22 %, au 500 F supérieur)', foyerNeuf.includes('16 000'), foyerNeuf);
 /* Un jour de la semaine prochaine, à 10:00 : tout le banc vit dans l'avenir. */
 await clique('.trc-rdv4__bouton', 'Changer le jour');
 await attend(300);
@@ -165,8 +178,8 @@ const joy1 = await de('cl-joy');
 const fifi1 = await de('cl-fifi');
 dit('deux rendez-vous écrits, au même jour, à la même heure, au même foyer', !!joy1 && !!fifi1 && joy1.date === fifi1.date && joy1.time === fifi1.time
   && !!joy1.foyerId && joy1.foyerId === fifi1.foyerId, JSON.stringify([joy1, fifi1].map((a) => a && [a.date, a.time, a.master, a.foyerId])));
-dit('Fifi : ses gestes Kids, chez Team, 20 000 F et 4 400 F de remise famille', !!fifi1 && JSON.stringify(fifi1.serviceIds) === JSON.stringify([KLOKLO_KIDS, SINSIN_KIDS])
-  && fifi1.master === 'Team' && fifi1.priceXof === 20000 && fifi1.remiseFamilleXof === 4400 && fifi1.remiseFamille === true && fifi1.status === 'confirmé',
+dit('Fifi : ses gestes Kids, chez Team, 20 000 F et 4 000 F de remise famille', !!fifi1 && JSON.stringify(fifi1.serviceIds) === JSON.stringify([KLOKLO_KIDS, SINSIN_KIDS])
+  && fifi1.master === 'Team' && fifi1.priceXof === 20000 && fifi1.remiseFamilleXof === 4000 && fifi1.remiseFamille === true && fifi1.status === 'confirmé',
   JSON.stringify(fifi1 && [fifi1.serviceIds, fifi1.master, fifi1.priceXof, fifi1.remiseFamilleXof, fifi1.status]));
 dit('Joy garde les siens', !!joy1 && JSON.stringify(joy1.serviceIds) === JSON.stringify([KLOKLO, SINSIN]) && joy1.master === 'Team', JSON.stringify(joy1 && [joy1.serviceIds, joy1.master]));
 dit('l écran « posé » le dit', (await texte('.trc-rdv4__pose')).includes('Avec Fifi, à la même heure'), await texte('.trc-rdv4__pose'));
