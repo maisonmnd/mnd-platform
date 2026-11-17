@@ -6,21 +6,35 @@ import { garderLaTete, noteLaConnexionEnLigne, oublieLeHorsLigne, serveurInjoign
 
 /* Authentification — couche mince au-dessus de Supabase Auth.
 
-   - Personnel (Le Trône / LOKAA) : e-mail + mot de passe. Le tout premier compte
-     devient « souverain » (RPC `provision_first_staff`).
+   - Personnel (Le Trône / LOKAA) : e-mail + mot de passe. Un compte créé ici
+     n'entre qu'une fois rattaché au personnel (place préparée, 0109, ou un
+     souverain). Le souverain lui-même s'insère à la main dans `staff`
+     (gabarit en tête de supabase/apply_rls_prod.sql) : jusqu'au 17 novembre
+     2026, le tout premier compte le devenait par `provision_first_staff`,
+     supprimée par 0213 (audit du 4 novembre).
    - Cliente (Ma Couronne) : e-mail + mot de passe, avec réinitialisation par code
      à 6 chiffres. Les helpers OTP (e-mail, téléphone) restent plus bas : l'OTP
      e-mail a précédé le mot de passe, le téléphone attend un fournisseur SMS.
 
-   L'application reste ouverte tant que l'ENFORCEMENT n'est pas demandé :
-   `requireAuth` n'est vrai que si un backend existe ET VITE_REQUIRE_AUTH=true.
-   Sans backend, tout est local et l'auth est inerte. */
+   Avec un backend, la connexion est exigée PAR DÉFAUT : `requireAuth` n'est
+   faux que si le build demande explicitement l'ouverture (VITE_ALLOW_OPEN=true,
+   pour le travail local, dans .env.local ; les sites publiés l'épinglent à
+   'false', et chaque banc qui a un backend pose sa propre valeur). Sans
+   backend, tout est local et l'auth est inerte.
+   Jusqu'au 17 novembre 2026 (audit du 4 novembre), c'était l'inverse : la
+   porte restait ouverte tant que la construction ne demandait pas de la
+   fermer.
+
+   La personne du Trône et la cliente de Ma Couronne ne partagent pas leur
+   session, même dans un seul navigateur : la page de Ma Couronne a son propre
+   tiroir, en développement comme en ligne (shared/supabase, « CHAQUE SŒUR SA
+   SESSION »). */
 
 /** Un backend est configuré (des sessions sont possibles). */
 export const authEnabled = isRemote;
 
 /** L'accès est-il verrouillé derrière une connexion ? (à coupler au durcissement RLS) */
-export const requireAuth = isRemote && import.meta.env.VITE_REQUIRE_AUTH === 'true';
+export const requireAuth = isRemote && import.meta.env.VITE_ALLOW_OPEN !== 'true';
 
 /** URL de retour des e-mails d'authentification : l'app courante (jamais localhost).
     Doit figurer dans « Redirect URLs » du tableau de bord Supabase. */
@@ -165,14 +179,14 @@ export async function signInEmail(email: string, password: string): Promise<void
   if (!supabase) throw new Error('Backend non configuré.');
   const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
   if (error) throw error;
-  await ensureFounder(''); // no-op si le personnel existe déjà
 }
 
-/** Inscription — le premier compte fonde la Maison (souverain). */
+/** Inscription d'un compte personnel. Le compte naît sans aucun droit : il
+    attend d'être rattaché au personnel (la porte, AuthGate, dit la suite).
+    Il n'amorce plus le souverain (17 novembre 2026, 0213). */
 export async function signUpEmail(
   email: string,
   password: string,
-  name: string,
 ): Promise<{ needsConfirmation: boolean }> {
   if (!supabase) throw new Error('Backend non configuré.');
   const { data, error } = await supabase.auth.signUp({
@@ -181,7 +195,6 @@ export async function signUpEmail(
     options: { emailRedirectTo: appRedirect(), data: { origine: 'trone' } },
   });
   if (error) throw error;
-  if (data.session) await ensureFounder(name);
   return { needsConfirmation: !data.session };
 }
 
@@ -229,13 +242,6 @@ export async function signOut(): Promise<void> {
   purgeLocalKeys(SENSITIVE_KEYS);
 }
 
-/** Amorce le fondateur si le personnel est vide (idempotent, côté serveur). */
-async function ensureFounder(name: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.rpc('provision_first_staff', { display_name: name });
-  if (error) console.warn('[auth] provision_first_staff:', error.message);
-}
-
 // ---------- Actions cliente (e-mail + mot de passe) — Ma Couronne ----------
 /** Connexion cliente par e-mail + mot de passe (comme Le Trône). */
 export async function signInClient(email: string, password: string): Promise<void> {
@@ -246,7 +252,10 @@ export async function signInClient(email: string, password: string): Promise<voi
 
 /** Inscription cliente : nom + e-mail + mot de passe. Le nom est stocké dans les
     métadonnées du compte (`user_metadata.name`) et sert à nommer la fiche cliente.
-    N'amorce PAS le personnel (contrairement à `signUpEmail` du Trône). */
+    Elle diffère de `signUpEmail` du Trône par ce nom et par sa marque
+    d'origine (`couronne`, que la porte du Trône reconnaît), et parce qu'elle
+    reconnaît une adresse déjà prise. Aucune des deux n'amorce plus le
+    personnel depuis le 17 novembre 2026 (0213). */
 /* ══ UNE ADRESSE DÉJÀ PRISE SE RECONNAÎT — 5 septembre 2026 ═════════
 
    « Elle a ouvert son compte normalement sur le lien de Ma Couronne, puis

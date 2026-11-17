@@ -5,19 +5,57 @@
 -- AVANT DE LANCER — vérifiez que votre compte est bien « personnel » :
 --     select count(*) from public.staff;      -- doit être >= 1
 --
--- Si c'est 0 (rare), inscrivez votre compte fondateur en remplaçant l'e-mail,
--- puis relancez le script principal :
+-- Si c'est 0, c'est l'état normal d'un projet neuf depuis le 17 novembre 2026 :
+-- plus rien ne crée le fondateur (`provision_first_staff` est supprimée par la
+-- migration 0213). Inscrivez-vous souverain à la main, DANS CET ORDRE :
 --
---   insert into public.staff(user_id, name, role, rubrics)
---   select id, 'Fondateur', 'souverain',
---          array['pilotage','clients','vente','finances','equipe','academie','systeme']
---   from auth.users where email = 'VOTRE_EMAIL_ICI'
---   on conflict (user_id) do nothing;
+--   1. CRÉEZ D'ABORD VOTRE COMPTE : au Trône, « Vous êtes de l'équipe ? Créer
+--      un compte » (ou Authentication → Users → Add user). Le Trône dit alors
+--      « Accès en attente » : c'est attendu, rien ne vous rattache encore.
+--      Sans ce compte, l'étape 2 n'a personne à inscrire.
+--   2. Dans un NOUVEL onglet du SQL Editor (rôle postgres, celui par défaut ;
+--      pas en se faisant passer pour un utilisateur), collez les lignes
+--      comprises entre « /* » et « */ » ci-dessous, sans ces deux lignes,
+--      remplacez l'e-mail, Run. Le bloc s'arrête en nommant l'adresse si aucun
+--      compte ne la porte, et refuse si `staff` n'est plus vide (un souverain
+--      rattache alors les autres depuis le Trône, « Accès & rôles »). Il finit
+--      par afficher la ligne inscrite : aucune ligne affichée, rien n'est fait.
+--   3. Rechargez le Trône : vous entrez souverain. Puis lancez ce script.
 --
---   insert into public.staff_branches(user_id, branch_id)
---   select u.id, b.id from auth.users u cross join public.branches b
---   where u.email = 'VOTRE_EMAIL_ICI'
---   on conflict do nothing;
+-- Pourquoi seulement pour le premier membre : le déclencheur `staff_guard`
+-- (0073, 0109) ne laisse entrer cette insertion que par son cas « table
+-- vide », puisque dans le SQL Editor `auth.uid()` est nul (en-tête de 0213).
+--
+/*
+do $$
+declare
+  courriel constant text := 'VOTRE_EMAIL_ICI';  -- l'adresse du compte de l'étape 1
+  nom      constant text := 'Fondateur';        -- le nom affiché au Trône
+  combien  integer;
+  fondateur uuid;
+begin
+  if exists (select 1 from public.staff) then
+    raise exception 'public.staff n''est pas vide : le fondateur ne s''inscrit ici qu''une fois. Un souverain rattache les autres comptes depuis le Trône (Accès & rôles).';
+  end if;
+  select count(*) into combien from auth.users where lower(email) = lower(trim(courriel));
+  if combien = 0 then
+    raise exception 'Aucun compte « % » dans auth.users : créez d''abord ce compte au Trône (« Créer un compte »), puis relancez.', courriel;
+  elsif combien > 1 then
+    raise exception 'Plusieurs comptes portent « % » dans auth.users : rien n''est inscrit, choisissez l''identifiant à la main.', courriel;
+  end if;
+  select id into fondateur from auth.users where lower(email) = lower(trim(courriel));
+  insert into public.staff(user_id, name, role, rubrics)
+  values (fondateur, nom, 'souverain',
+          array['pilotage','clients','vente','finances','equipe','academie','systeme']);
+  insert into public.staff_branches(user_id, branch_id)
+  select fondateur, b.id from public.branches b
+  on conflict do nothing;
+end $$;
+
+select s.user_id, u.email, s.name, s.role,
+       (select count(*) from public.staff_branches sb where sb.user_id = s.user_id) as branches
+  from public.staff s join auth.users u on u.id = s.user_id;
+*/
 --
 -- ---------------------------------------------------------------------
 -- Maison MND — Row-Level Security de PRODUCTION (durcissement).
@@ -38,9 +76,10 @@
 --                                       lecture ; dépôt d'une demande de consultation.
 --   Tout le reste (finances, équipe, dossiers…) → personnel uniquement.
 --
--- ⚠ PRÉREQUIS : au moins un membre dans public.staff (le fondateur est provisionné
---   au premier login du Trône). Le bloc de garde ci-dessous ARRÊTE le script si la
---   table est vide, pour éviter de vous verrouiller dehors.
+-- ⚠ PRÉREQUIS : au moins un membre dans public.staff (le fondateur s'inscrit à
+--   la main, gabarit en tête de ce fichier ; plus rien ne le crée tout seul).
+--   Le bloc de garde ci-dessous ARRÊTE le script si la table est vide, pour
+--   éviter de vous verrouiller dehors.
 --
 -- Idempotent : réexécutable sans risque. Réversible : voir rollback_to_dev_rls.sql.
 -- =====================================================================
@@ -50,9 +89,8 @@ do $$
 begin
   if (select count(*) from public.staff) = 0 then
     raise exception
-      'RLS non durcie : public.staff est vide. Connectez-vous d''abord au Trône '
-      '(le fondateur est provisionné automatiquement), ou insérez votre compte '
-      '(voir en-tête de apply_rls_prod.sql), puis relancez.';
+      'RLS non durcie : public.staff est vide. Créez d''abord votre compte au Trône, '
+      'inscrivez-le souverain (gabarit en tête de apply_rls_prod.sql), puis relancez.';
   end if;
 end $$;
 

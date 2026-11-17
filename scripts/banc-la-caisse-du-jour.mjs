@@ -370,7 +370,7 @@ if (direction) {
   construitD = mkdtempSync(path.join(tmpdir(), 'banc-cdj-dir-'));
   execSync(`npx vite build --outDir "${construitD}" --emptyOutDir`, {
     cwd: racine, stdio: 'ignore',
-    env: { ...process.env, VITE_APPS: 'trone', VITE_SUPABASE_URL: 'http://127.0.0.1:9', VITE_SUPABASE_ANON_KEY: 'faux', VITE_REQUIRE_AUTH: 'true', VITE_BUILD_ID: 'banc', VITE_BASE: '/' },
+    env: { ...process.env, VITE_APPS: 'trone', VITE_SUPABASE_URL: 'http://127.0.0.1:9', VITE_SUPABASE_ANON_KEY: 'faux', VITE_ALLOW_OPEN: 'false', VITE_BUILD_ID: 'banc', VITE_BASE: '/' },
   });
   renameSync(path.join(construitD, 'trone.html'), path.join(construitD, 'index.html'));
   serveurD = await sers(construitD);

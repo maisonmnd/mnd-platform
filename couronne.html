@@ -7,6 +7,17 @@
          document personnel n a rien a faire dans Google. Le robots.txt de
          /trone/ ne comptait pas, seul celui de la racine est lu. -->
     <meta name="robots" content="noindex" />
+    <!-- MA COURONNE A SON TIROIR DE SESSION, PARTOUT (17 novembre 2026).
+         Cette balise donne à la page sa propre session (« sb-mnd-couronne »),
+         à part de celle du Trône, y compris en développement et dans un
+         `npm run build` ordinaire : src/shared/supabase.ts la lit quand
+         VITE_AUTH_SCOPE n'est pas posé. Le site publié se construit déjà avec
+         VITE_AUTH_SCOPE=couronne : même tiroir, rien n'y change. Aucune autre
+         page ne la porte. L'ôter rendrait à Ma Couronne, hors du site publié,
+         le tiroir du Trône : une session du personnel y fermerait la porte
+         aux clientes. Une valeur qui porte autre chose que des minuscules,
+         des chiffres et des tirets est ignorée. -->
+    <meta name="mnd-auth-scope" content="couronne" />
     <meta name="theme-color" content="#B97A4A" />
     <!-- LE THÈME AVANT LE PREMIER AFFICHAGE (3 octobre 2026) : le choix de la
          cliente (Profil, voir src/apps/couronne/theme.ts) est posé avant que

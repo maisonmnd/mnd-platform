@@ -23,7 +23,7 @@
    fiche du personnel, la direction ; tout le reste est refusé, et la
    semence du poste fait foi) :
      VITE_APPS=trone VITE_SUPABASE_URL=http://127.0.0.1:47123 VITE_SUPABASE_ANON_KEY=faux \
-       VITE_REQUIRE_AUTH=true VITE_BUILD_ID=banc npx vite build --outDir "<chemin absolu>" --emptyOutDir
+       VITE_ALLOW_OPEN=false VITE_BUILD_ID=banc npx vite build --outDir "<chemin absolu>" --emptyOutDir
    `capture` (facultatif) : un préfixe, chaque étape donne <préfixe>-<étape>.png.
 
    PROUVÉ DANS LES DEUX SENS : `--prouve` rejoue le banc sans le geste qui

@@ -12,11 +12,19 @@ import { teteGardee } from '../../../shared/hors-ligne';
 import { compteMemorise, empreinteDeLAppareil, entreParLEmpreinte, noteUneEntree, oublieLeCompte, oublieLEmpreinte } from '../../../shared/empreinte';
 import { BoutonEmpreinte, CompteReconnu, GardeDeLEmpreinte } from './Empreinte';
 
-/* Porte d'entrée du Trône. Tant que l'enforcement n'est pas demandé
-   (`requireAuth` faux), l'application s'affiche comme aujourd'hui.
+/* Porte d'entrée du Trône. Avec un backend, la connexion est exigée par défaut
+   (`requireAuth`, shared/auth) : la porte ne s'efface que sans backend, ou
+   dans un build qui demande l'ouverture (VITE_ALLOW_OPEN=true : le travail
+   local, jamais un site publié).
    Sinon : session + compte rattaché au personnel → l'ERP ; sinon connexion ou
-   écran « en attente d'autorisation » (un compte créé sans rattachement au
-   personnel ne peut pas entrer — le premier compte devient souverain). */
+   écran « en attente d'autorisation ». Un compte créé ici n'entre pas tant
+   qu'il n'est pas rattaché au personnel : par la place que la direction lui
+   avait préparée (0109), ou par un souverain, dans « Accès & rôles ».
+
+   AUCUN COMPTE NE DEVIENT SOUVERAIN EN S'INSCRIVANT — 17 novembre 2026.
+   Jusqu'à l'audit du 4 novembre, le tout premier compte le devenait
+   (`provision_first_staff`, supprimée par 0213). Le souverain s'insère
+   désormais à la main dans `staff` ; cette porte ne fonde plus rien. */
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth();
@@ -263,11 +271,15 @@ function AuthSplash({ children }: { children: ReactNode }) {
    Les deux appels s'enchaînent dans une seule soumission. */
 /* `inscription-code` : le gabarit Supabase envoie un CODE, pas un lien —
    voir `verifyInscription`. La porte le prend là où il arrive. */
-type Mode = 'connexion' | 'fondation' | 'oubli' | 'oubli-code' | 'inscription-code';
+/* `inscription` : créer son compte d'équipe, qui attend ensuite d'être
+   rattaché au personnel. Le mode s'appelait `fondation` jusqu'au
+   17 novembre 2026, du temps où le premier compte fondait la Maison ; plus
+   rien ne se fonde ici, et le champ « Votre nom » qui servait à nommer le
+   fondateur est parti avec. */
+type Mode = 'connexion' | 'inscription' | 'oubli' | 'oubli-code' | 'inscription-code';
 
 function Login() {
   const [mode, setMode] = useState<Mode>('connexion');
-  const [name, setName] = useState('');
   /* LE COMPTE DONT L'APPAREIL SE SOUVIENT (16 octobre 2026, comme BIIC) : le
      prénom et l'e-mail masqué ; « Changer » l'oublie. Avec l'empreinte
      activée ici, un doigt suffit. */
@@ -354,8 +366,8 @@ function Login() {
         await verifyInscription(email, code.trim());
         /* La session s'ouvre : le gate vérifie le rattachement et dit la
            suite — entrée pour le personnel, attente pour les autres. */
-      } else if (mode === 'fondation') {
-        const { needsConfirmation } = await signUpEmail(email, password, name);
+      } else if (mode === 'inscription') {
+        const { needsConfirmation } = await signUpEmail(email, password);
         if (needsConfirmation) {
           /* ON NE RENVOIE PLUS VERS UNE PORTE CLOSE — 31 août 2026. L'écran
              disait « confirmez votre e-mail, puis connectez-vous » et
@@ -365,7 +377,9 @@ function Login() {
           setNotice('Compte créé. Saisissez le code à 6 chiffres reçu par e-mail.');
           setMode('inscription-code');
         }
-        // Sinon, la session s'ouvre et le gate laisse entrer.
+        /* Sinon, la session s'ouvre tout de suite : le gate vérifie le
+           rattachement et dit la suite, la place préparée ou l'attente. Un
+           compte tout juste créé n'entre plus d'office (17 novembre 2026). */
       } else {
         noteUneEntree();
         await signInEmail(email, password);
@@ -391,24 +405,25 @@ function Login() {
         <p className="tra-lede mnd-muted">
           {mode === 'connexion'
             ? (compte?.prenom ? `Bon retour, ${compte.prenom}.` : 'Entrez dans la salle du conseil.')
-            : mode === 'fondation'
-            /* LE BOUTON MENTAIT AUX SUIVANTS — 31 août 2026. Il n'y a qu'une
-               fondation ; les comptes d'après attendent d'être autorisés. Le
-               dire ici évite qu'une collègue croie devenir souveraine, et
-               qu'une cliente croie devoir passer par là. */
-            ? 'Créez votre compte d’équipe. Le tout premier fonde la Maison ; les suivants attendent qu’un souverain les autorise. Vous êtes cliente ? C’est dans Ma Couronne.'
+            : mode === 'inscription'
+            /* LE BOUTON MENTAIT AUX SUIVANTS — 31 août 2026. Il n'y avait
+               qu'une fondation ; les comptes d'après attendaient d'être
+               autorisés, et la phrase le disait pour qu'une collègue ne croie
+               pas devenir souveraine, ni une cliente devoir passer par là.
+               PLUS AUCUNE FONDATION ICI — 17 novembre 2026 (audit du
+               4 novembre) : tout compte créé à cette porte n'ouvre le Trône
+               qu'une fois rattaché à une fiche du personnel, le premier comme
+               les autres (la place préparée par la direction, 0109, ou un
+               souverain dans « Accès & rôles »). La phrase ne promet donc plus
+               rien au « tout premier » ; elle dit ce qui ouvre le compte, avec
+               les mots de l'écran d'attente, et renvoie la cliente chez elle. */
+            ? 'Créez votre compte d’équipe : il s’ouvre une fois rattaché à votre fiche par la direction. Vous êtes cliente ? C’est dans Ma Couronne.'
             : mode === 'oubli'
             ? 'Indiquez votre e-mail : la Maison vous envoie un code à 6 chiffres.'
             : mode === 'inscription-code'
             ? 'Votre compte est créé. Saisissez le code à 6 chiffres reçu par e-mail pour confirmer votre adresse.'
             : 'Saisissez le code reçu, puis choisissez votre nouveau mot de passe.'}
         </p>
-
-        {mode === 'fondation' && (
-          <Field label="Votre nom">
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom du fondateur" autoComplete="name" />
-          </Field>
-        )}
 
         {mode === 'connexion' && compte && (
           <CompteReconnu compte={compte} action={(
@@ -462,7 +477,7 @@ function Login() {
             /* LE BOUTON DISAIT ENCORE « FONDER LA MAISON » — 31 août 2026.
                Le texte au-dessus avait été corrigé, pas lui : une collègue qui
                crée son compte croyait encore fonder quelque chose. */
-            : mode === 'fondation' ? 'Créer mon compte'
+            : mode === 'inscription' ? 'Créer mon compte'
             : mode === 'oubli' ? 'Envoyer le code'
             : mode === 'inscription-code' ? 'Confirmer mon adresse'
             : 'Définir le mot de passe'}
@@ -500,7 +515,7 @@ function Login() {
           type="button"
           className="tra-switch"
           onClick={() => {
-            setMode((m) => (m === 'connexion' ? 'fondation' : 'connexion'));
+            setMode((m) => (m === 'connexion' ? 'inscription' : 'connexion'));
             setError(null);
             setNotice(null);
           }}

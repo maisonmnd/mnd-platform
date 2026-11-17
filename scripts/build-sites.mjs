@@ -24,7 +24,8 @@ import { adressesARenvoyer, cibleDe, pageDeRenvoi, page404DeRenvoi } from './ren
 
    Usage : node scripts/build-sites.mjs
    Requiert : VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY dans l'environnement
-   (ou .env.local, lu par Vite). */
+   (ou .env.local, lu par Vite). VITE_ALLOW_OPEN, lui, est toujours forcé à
+   « false » : un site publié exige la connexion (voir le lancement de Vite). */
 
 const root = path.resolve(import.meta.dirname, '..');
 const HOST = ''; // chemins relatifs à l'origine — indépendants du nom de domaine
@@ -79,18 +80,19 @@ const SITES = [
     base: '/trone/',
     apps: 'trone,consultation,certificat,bilan,bulletin,carte,regler',
     rename: { 'trone.html': 'index.html' },
-    // Connexion obligatoire pour l'ERP (le personnel se connecte par e-mail).
-    env: { VITE_REQUIRE_AUTH: 'true' },
+    // Connexion obligatoire pour l'ERP (le personnel se connecte par e-mail) :
+    // elle n'est pas posée ici, mais pour TOUS les sites, au lancement de Vite.
   },
   {
     name: 'couronne',
     base: '/couronne/',
     apps: 'couronne',
     rename: { 'couronne.html': 'index.html' },
-    // Connexion cliente obligatoire — et SESSION À PART (même origine que le
-    // Trône : sans tiroir séparé, l'admin connecté au Trône bloquait Ma
-    // Couronne dans le même navigateur).
-    env: { VITE_REQUIRE_AUTH: 'true', VITE_AUTH_SCOPE: 'couronne' },
+    // Connexion cliente obligatoire (posée pour tous les sites, au lancement
+    // de Vite) — et SESSION À PART (même origine que le Trône : sans tiroir
+    // séparé, l'admin connecté au Trône bloquait Ma Couronne dans le même
+    // navigateur).
+    env: { VITE_AUTH_SCOPE: 'couronne' },
   },
   { name: 'lokaa', base: '/lokaa/', apps: 'lokaa', rename: { 'lokaa.html': 'index.html' } },
   /* MND ACADÉMIE — 17 septembre 2026. La vitrine publique des neuf parcours.
@@ -159,10 +161,18 @@ rmSync(out, { recursive: true, force: true });
 
 for (const site of SITES) {
   console.log(`\n═══ ${site.name} (base ${site.base}) ═══`);
+  /* UN SITE PUBLIÉ N'EST JAMAIS OUVERT — 17 novembre 2026 (audit du
+     4 novembre). Avec un backend, la connexion est exigée par défaut
+     (`requireAuth`, shared/auth.ts) et seul VITE_ALLOW_OPEN=true l'efface.
+     Le verrou est posé ici UNE fois pour tous les sites, et EN DERNIER : ni
+     l'environnement du poste, ni l'`env` propre d'un site ne peuvent le
+     lever, ni un .env.local (Vite fait toujours passer l'environnement du
+     processus devant ses fichiers .env). Seuls le Trône et Ma Couronne le
+     lisent ; les autres sites l'ignorent. */
   execSync('npx vite build', {
     cwd: root,
     stdio: 'inherit',
-    env: { ...process.env, VITE_BASE: site.base, VITE_APPS: site.apps, VITE_BUILD_ID: BUILD_ID, ...(site.env ?? {}) },
+    env: { ...process.env, VITE_BASE: site.base, VITE_APPS: site.apps, VITE_BUILD_ID: BUILD_ID, ...(site.env ?? {}), VITE_ALLOW_OPEN: 'false' },
   });
   const dist = path.join(root, 'dist');
   for (const [from, to] of Object.entries(site.rename)) {
