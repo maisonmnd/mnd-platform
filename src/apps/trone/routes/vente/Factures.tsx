@@ -201,10 +201,15 @@ export default function Factures() {
 
      On juge sur l'adresse de la BARRE, pas sur celle du rendu : le routeur
      rend ses changements en différé, et un clic rapproché prenait notre
-     propre écriture, encore en route, pour un lien venu d'ailleurs. La clé
-     de l'adresse relance le jugement à chaque navigation rendue, même quand
-     l'onglet qu'elle dit n'a pas changé. */
+     propre écriture, encore en route, pour un lien venu d'ailleurs.
+
+     Le jugement se relance à chaque navigation rendue. Il faut les DEUX
+     témoins : la clé de l'adresse (deux navigations qui laissent la même
+     adresse) et l'adresse elle-même (une adresse tapée dans la barre ou un
+     lien `#/…` ordinaire n'ont pas de clé à eux : Retour ne ramenait pas
+     l'onglet). */
   const cleDeLAdresse = useLocation().key;
+  const adresseRendue = params.toString();
   const accord = useRef<Onglet>(ongletDeLAdresse);
   useEffect(() => {
     const vivante = adresseVivante();
@@ -225,7 +230,7 @@ export default function Factures() {
       setParams(vivante, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onglet, cleDeLAdresse]);
+  }, [onglet, cleDeLAdresse, adresseRendue]);
   /* Un filtre qui n'existe pas dans l'autre registre ne le suit pas : arriver
      sur Devis avec « Payée » encore choisi montrait une liste vide, sous un
      menu qui n'affichait même pas le filtre en cause. Vaut pour tous les
