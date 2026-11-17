@@ -4,18 +4,25 @@ import { useStore } from '../../../../shared/store';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { consultationsQueueStore, type OnlineConsultation } from '../../../../shared/bridges';
+import { useBesoins } from '../../../../shared/besoins';
+import { pointsDuBesoin } from '../../../../shared/lecture-de-la-maison-pur';
 
 /* ══ A · LES CONSULTATIONS GRATUITES À RELIRE — 13 novembre 2026 (lot 2) ═══
    Ce que le site a déposé (/consultation/) : les besoins cochés, la couronne
-   décrite, la lecture et l'estimation. La Maison relit, prépare le devis
-   « estimé » d'un geste, puis confirme en visio ou en consultation privée. */
+   décrite. La lecture et l'estimation sont celles du Trône (17 novembre
+   2026 : `useLectureDeLaMaison` les calcule sur le catalogue). La Maison
+   relit, prépare le devis « estimé » d'un geste, puis
+   confirme en visio ou en consultation privée. */
 
 const lab = { fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: 'var(--ink-soft)', fontWeight: 600 };
 
 export function ConsultationsGratuites() {
   const [queue] = useStore(consultationsQueueStore);
+  const [reglages] = useBesoins();
   const { currency } = useBranch();
   const navigate = useNavigate();
+  /* Les points d'un besoin se lisent dans les réglages du Trône ; ceux d'un dépôt d'avant restent ce qu'ils étaient. */
+  const points = (b: { id: string; points?: number }): number | null => pointsDuBesoin(reglages, b.id) ?? (typeof b.points === 'number' ? b.points : null);
   /* Réglée en ligne, elle passe en file C (lot 3). */
   const aRelire = queue.filter((o) => o.modalite === 'auto' && o.status !== 'fermée' && !(o.paidXof > 0))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -28,7 +35,7 @@ export function ConsultationsGratuites() {
     <section style={{ marginBottom: 26, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <span style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)' }}>A · Consultations gratuites à relire</span>
-        <span className="mnd-muted" style={{ fontSize: 12 }}>{aRelire.length} déposée{aRelire.length > 1 ? 's' : ''} sur le site · la lecture et l’estimation sont celles du moteur, à confirmer</span>
+        <span className="mnd-muted" style={{ fontSize: 12 }}>{aRelire.length} déposée{aRelire.length > 1 ? 's' : ''} sur le site · la lecture et l’estimation sont faites ici, sur le catalogue du Trône, à confirmer</span>
       </div>
       {aRelire.map((o) => {
         const e = o.estimation;
@@ -51,7 +58,7 @@ export function ConsultationsGratuites() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
               <div>
                 <div style={lab}>Ce qu’elle a coché</div>
-                <ul style={{ margin: '4px 0 0', paddingLeft: 16, fontSize: 13.5 }}>{(o.besoins ?? []).map((b) => <li key={b.id}>{b.mots} <span className="mnd-muted">· {b.points} pts</span></li>)}</ul>
+                <ul style={{ margin: '4px 0 0', paddingLeft: 16, fontSize: 13.5 }}>{(o.besoins ?? []).map((b) => <li key={b.id}>{b.mots}{points(b) !== null && <span className="mnd-muted"> · {points(b)} pts</span>}</li>)}</ul>
               </div>
               <div>
                 <div style={lab}>Sa couronne</div>

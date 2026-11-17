@@ -27,8 +27,10 @@ const TZ = 'Africa/Porto-Novo';
     31 octobre 2026 : le mode `to-staff` (un seul membre du personnel, le
     porteur d'un assistant) et le chien de garde des assistants reliés, au
     cron du personnel. 2 novembre 2026 : le chien de garde suit la veille
-    des réglages (rythme du soir, grâce du matin). */
-const VERSION = '2026-11-15-a';
+    des réglages (rythme du soir, grâce du matin). 17 novembre 2026 : le
+    dépôt d'une consultation est gardé par le serveur (son identifiant, ce
+    qu'elle a dit seulement, une insertion). */
+const VERSION = '2026-11-17-a';
 
 /* LA DATE ET L'HEURE TELLES QU'ON LES DIT — 10 octobre 2026 (revue de nuit).
    Le rappel disait « Rendez-vous le 2026-10-11 à 09:00 », puis un tiret
@@ -781,6 +783,113 @@ async function chienDeGardeDesAssistants(): Promise<number> {
   return prevenus;
 }
 
+/* LE DÉPÔT D'UNE CONSULTATION, GARDÉ PAR LE SERVEUR — 17 novembre 2026. Bloc
+   RECOPIÉ tel quel de `src/shared/depot-de-la-consultation-pur.ts` (ses choix
+   y sont écrits) ; `verifie-les-douze-lunes` (R8) compare les deux copies. */
+/* ⟨depot-de-la-consultation⟩ */
+/** Ce que le serveur seul écrit sur une consultation : jamais lu dans un dépôt. */
+export const CLES_DU_SERVEUR: readonly string[] = [
+  'id', 'createdAt', 'status', 'paidXof', 'transactionId', 'payeLe', 'reglement',
+  'visio', 'rdvId', 'rdv', 'momentFixe', 'momentVoulu', 'momentRefuse', 'temoins', 'devisId',
+];
+/** Ce que la Maison calcule : retiré d'un dépôt public à toute profondeur. */
+export const CLES_DE_LA_MAISON: readonly string[] = [
+  'estimation', 'fourchette', 'fourchettes', 'lecture', 'diagnostic', 'bilan', 'resume', 'devis', 'suite',
+  'points', 'palier', 'paliers', 'score', 'scores', 'prix', 'prixXof', 'priceXof', 'priceToXof', 'estimationXof',
+  'valeurPrestationXof', 'prescription', 'aChiffrer', 'aConfirmer',
+];
+/** La taille d'un dépôt, en caractères de JSON. */
+export const DEPOT_AU_PLUS = 20_000;
+export const FORME_DE_L_ID_DE_CONSULTATION = /^[A-Za-z0-9_-]{1,80}$/;
+
+/** Un identifiant de consultation, fait par le serveur : `cg-` et vingt signes tirés au sort. */
+export function idDeConsultation(hasard: (n: number) => Uint8Array): string {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  return `cg-${[...hasard(20)].map((b) => alphabet[b % alphabet.length]).join('')}`;
+}
+
+/** Une valeur du dépôt, sans ce que la Maison calcule, à toute profondeur. */
+function sansLesCalculs(v: unknown, profondeur = 0): unknown {
+  if (profondeur > 8) return undefined;
+  if (Array.isArray(v)) return v.slice(0, 200).map((x) => sansLesCalculs(x, profondeur + 1)).filter((x) => x !== undefined);
+  if (v && typeof v === 'object') {
+    const o: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+      if (CLES_DE_LA_MAISON.includes(k)) continue;
+      const propre = sansLesCalculs(x, profondeur + 1);
+      if (propre !== undefined) o[k] = propre;
+    }
+    return o;
+  }
+  if (typeof v === 'string') return v.slice(0, 2000);
+  if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
+  if (typeof v === 'boolean' || v === null) return v;
+  return undefined;
+}
+
+export type DepotPropre =
+  | { ok: true; data: Record<string, unknown> }
+  | { ok: false; erreur: 'bad request' | 'too large' | 'incomplet' };
+
+/** LE DÉPÔT, RENDU PROPRE. `parLEquipe` : une session du personnel (le tunnel
+    de la Maison) garde ses champs de diagnostic ; ce que le serveur écrit
+    lui-même est retiré pour tous. Ce qui en sort n'a ni identifiant, ni date,
+    ni état, ni règlement : l'appelant les pose. */
+export function depotPropre(brut: unknown, o: { parLEquipe: boolean }): DepotPropre {
+  if (!brut || typeof brut !== 'object' || Array.isArray(brut)) return { ok: false, erreur: 'bad request' };
+  let taille = 0;
+  try { taille = JSON.stringify(brut).length; } catch { return { ok: false, erreur: 'bad request' }; }
+  if (taille > DEPOT_AU_PLUS) return { ok: false, erreur: 'too large' };
+  const source = brut as Record<string, unknown>;
+  const sansServeur: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(source)) if (!CLES_DU_SERVEUR.includes(k)) sansServeur[k] = v;
+  const data = (o.parLEquipe ? sansServeur : sansLesCalculs(sansServeur)) as Record<string, unknown>;
+
+  /* Qui elle est : un numéro au moins, sinon la Maison ne peut rien lui remettre. */
+  const c = (data.client && typeof data.client === 'object' ? data.client : {}) as Record<string, unknown>;
+  const texte = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+  const phone = texte(c.phone, 30);
+  if (phone.replace(/\D/g, '').length < 8) return { ok: false, erreur: 'incomplet' };
+  data.client = { name: texte(c.name, 80), phone, city: texte(c.city, 80), currency: texte(c.currency, 8) || 'XOF' };
+
+  if (!o.parLEquipe) {
+    data.parcours = data.parcours === 'creation' ? 'creation' : 'sos';
+    data.modalite = 'auto';
+  }
+  if (typeof data.branchId !== 'string' || !FORME_DE_L_ID_DE_CONSULTATION.test(data.branchId)) delete data.branchId;
+
+  /* Le moment voulu pour la consultation privée (`moment: { jour, heure }`) : gardé comme un vœu, posé au Carnet au paiement. */
+  const m = (source.moment && typeof source.moment === 'object' ? source.moment : {}) as Record<string, unknown>;
+  delete data.moment;
+  if (typeof m.jour === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(m.jour) && typeof m.heure === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(m.heure)) {
+    data.momentVoulu = { jour: m.jour, heure: m.heure };
+  }
+  return { ok: true, data };
+}
+
+/** Ce que l'équipe lit sur son téléphone à un dépôt public : écrit par le serveur, jamais par le navigateur. */
+export function annonceDuDepot(data: Record<string, unknown>): { title: string; body: string } {
+  const client = (data.client ?? {}) as { name?: string };
+  const prenom = String(client.name ?? '').trim().split(/\s+/)[0] ?? '';
+  const n = Array.isArray(data.besoins) ? data.besoins.length : 0;
+  return {
+    title: `Consultation en ligne${prenom ? ` · ${prenom}` : ''}`,
+    body: n > 0 ? `${n} besoin${n > 1 ? 's' : ''} · à relire au Trône` : 'À relire au Trône',
+  };
+}
+/* ⟨/depot-de-la-consultation⟩ */
+
+/** Une session du personnel porte-t-elle cet appel ? (le tunnel de la Maison) */
+async function parLEquipe(req: Request): Promise<boolean> {
+  const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+  if (!jwt) return false;
+  const { data: userData } = await admin.auth.getUser(jwt);
+  const uid = userData?.user?.id;
+  if (!uid) return false;
+  const { data: staffRow } = await admin.from('staff').select('user_id').eq('user_id', uid).maybeSingle();
+  return !!staffRow;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
@@ -846,39 +955,70 @@ Deno.serve(async (req) => {
   if (body.mode === 'tunnel-submit') {
     if (!(await allowRate(ipOf(req)))) return json({ error: 'rate_limited' }, 429);
     const c = body.consultation as { id?: unknown; data?: Record<string, unknown> } | undefined;
-    const id = typeof c?.id === 'string' ? c.id : '';
-    if (!id || !c?.data || typeof c.data !== 'object') return json({ error: 'bad request' }, 400);
-    if (JSON.stringify(c.data).length > 20_000) return json({ error: 'too large' }, 400); // anti-abus
+    if (!c?.data || typeof c.data !== 'object') return json({ error: 'bad request' }, 400);
+    /* LE SERVEUR GARDE LA LECTURE — 17 novembre 2026 (« La consultation en
+       affiches »). Le dépôt public ne garde que ce qu'elle a dit : ce que la
+       Maison calcule (prestations, fourchettes, estimation, points) se fait
+       au Trône (`depotPropre`). Seule une session de l'équipe (le tunnel de
+       la Maison) garde ses champs et l'identifiant qu'elle présente : elle
+       règle avant de déposer, sous cet identifiant. */
+    const equipe = await parLEquipe(req);
+    const propre = depotPropre(c.data, { parLEquipe: equipe });
+    if (!propre.ok) return json({ error: propre.erreur, version: VERSION }, 400);
+    /* L'IDENTIFIANT EST FAIT ICI, par le serveur. */
+    const idPresente = typeof c.id === 'string' && FORME_DE_L_ID_DE_CONSULTATION.test(c.id) ? c.id : '';
+    const id = equipe && idPresente ? idPresente : idDeConsultation((n) => crypto.getRandomValues(new Uint8Array(n)));
     /* CE QUI A ÉTÉ RÉGLÉ VIENT DU REGISTRE, JAMAIS DU CORPS — 17 septembre 2026.
        Le navigateur annonçait `paidXof: 15000` après un paiement SIMULÉ, et le
-       Trône affichait « crédités ». On retire donc ces champs de ce qu'il envoie
-       et on relit `payments` par `partnerId` : l'identifiant de la consultation,
-       posé sur la transaction KkiaPay et vérifié par `kkiapay-verify`. */
-    const { paidXof: _p, transactionId: _t, payeLe: _l, ...propre } = c.data as Record<string, unknown>;
+       Trône affichait « crédités ». On relit `payments` par `partnerId` :
+       l'identifiant de la consultation, posé sur la transaction KkiaPay et
+       vérifié par `kkiapay-verify`. Un identifiant neuf n'a encore rien réglé. */
     const { data: regles } = await admin.from('payments').select('id, data').eq('data->>partnerId', id);
     type Regle = { id: string; data?: { status?: string; amountXof?: number; at?: string } };
     const reussis = ((regles ?? []) as Regle[]).filter((r) => (r.data?.status ?? '') === 'success');
     const paidXof = reussis.reduce((somme, r) => somme + Math.round(Number(r.data?.amountXof ?? 0)), 0);
+    const declare = equipe && (c.data as Record<string, unknown>).reglement === 'declare';
     const data = {
-      ...propre,
+      ...propre.data,
+      id,
+      createdAt: equipe && typeof (c.data as Record<string, unknown>).createdAt === 'string' ? (c.data as Record<string, unknown>).createdAt : new Date().toISOString(),
+      status: 'nouvelle',
       paidXof,
       ...(reussis.length > 0
         ? { transactionId: reussis[0].id, payeLe: reussis[0].data?.at ?? null, reglement: 'kkiapay' }
-        : { reglement: propre.reglement === 'declare' ? 'declare' : 'aucun' }),
+        : { reglement: declare ? 'declare' : 'aucun' }),
     };
-    const { error } = await admin.from('consultations_queue').upsert({
+    /* UN DÉPÔT S'INSÈRE, IL N'ÉCRASE RIEN. Une ligne déjà là sous cet
+       identifiant (le poste de l'équipe l'a synchronisée avant cet appel)
+       reste telle qu'elle est. */
+    const { error } = await admin.from('consultations_queue').insert({
       id,
-      branch_id: (propre.branchId as string | undefined) ?? null,
+      branch_id: (propre.data.branchId as string | undefined) ?? null,
       data,
     });
-    if (error) return json({ error: 'insert failed' }, 500);
-    const sent = await sendToStaff({
-      title: (body.title as string) || 'Nouvelle consultation en ligne',
-      body: (body.body as string) ?? '',
-      url: (body.url as string) ?? '/trone/#/consultations',
-      tag: 'mnd-staff',
-    });
-    return json({ ok: true, sent });
+    const dejaLa = !!error && (error.code === '23505' || /duplicate|unique/i.test(String(error.message)));
+    if (error && !dejaLa) return json({ error: 'insert failed', version: VERSION }, 500);
+    if (dejaLa) {
+      /* Ce qui a été réglé reste dit par le registre, même sur la ligne déjà là. */
+      const { data: ligne } = await admin.from('consultations_queue').select('id, data').eq('id', id).maybeSingle();
+      if (ligne) {
+        const { transactionId: _t, payeLe: _l, ...garde } = (ligne.data ?? {}) as Record<string, unknown>;
+        await admin.from('consultations_queue').update({
+          data: {
+            ...garde, paidXof,
+            ...(reussis.length > 0
+              ? { transactionId: reussis[0].id, payeLe: reussis[0].data?.at ?? null, reglement: 'kkiapay' }
+              : { reglement: garde.reglement === 'declare' ? 'declare' : 'aucun' }),
+          },
+        }).eq('id', id);
+      }
+    }
+    /* L'annonce à l'équipe est écrite ici pour un dépôt public. */
+    const annonce = equipe
+      ? { title: String(body.title ?? '').slice(0, 120) || 'Nouvelle consultation en ligne', body: String(body.body ?? '').slice(0, 240) }
+      : annonceDuDepot(data);
+    const sent = await sendToStaff({ ...annonce, url: '/trone/#/consultations', tag: 'mnd-staff' });
+    return json({ ok: true, id, sent, version: VERSION, ...(dejaLa ? { deja: true } : {}) });
   }
 
   // Mode personnel — notifie tout le personnel (consultation reçue, réservation, inscription…).

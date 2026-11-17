@@ -33,7 +33,7 @@ const lf = (p: string) => readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
 dit('les reglages de depart : eteints, mardi a samedi, quatre quarts d heure', [false, [2, 3, 4, 5, 6], ['10:00', '10:15', '10:30', '10:45']],
   [REGLAGES_DE_DEPART().actif, REGLAGES_DE_DEPART().jours, REGLAGES_DE_DEPART().heures]);
 const sale = reglagesSurs({ actif: 'oui', jours: [9, 2, 2, '3'], heures: ['25:00', '09:30', '9:00', '09:30'], horizonJours: 400, delaiMin: -5, parTelephone: 0 });
-dit('des reglages sales sont rendus surs', [false, [2, 3], ['09:30'], 30, 0, 1], [sale.actif, sale.jours, sale.heures, sale.horizonJours, sale.delaiMin, sale.parTelephone]);
+dit('des reglages sales sont rendus surs', [false, [2, 3], ['09:30'], 30, 0, 1, 90, 120, 2, false], [sale.actif, sale.jours, sale.heures, sale.horizonJours, sale.delaiMin, sale.parTelephone, sale.limiteJours, sale.changementAvantMin, sale.changementsMax, sale.auCarnet]);
 
 /* ── ② L'HEURE DE COTONOU ET LES CRÉNEAUX ───────────────────────────── */
 dit('10:15 a Cotonou, c est 09:15 UTC', '2026-11-17T09:15:00.000Z', instantDeCotonou('2026-11-17', '10:15'));
@@ -103,19 +103,25 @@ dit('le jeton n est garde qu en empreinte', [true, false], [/jeton_hash: await e
 dit('aucun secret ni domaine ecrit : tout vient de l environnement', [true, false], [
   /Deno\.env\.get\('DAILY_API_KEY'\)/.test(fn), /supabase\.co|maisonmnd|github\.io|sk_live|daily\.co\/[a-z]/i.test(fn.replace("const DAILY = 'https://api.daily.co/v1';", '')),
 ]);
-dit('la reservation est limitee et revalidee au serveur', [true, true, true], [/await permis\(sb, ipDe\(req\)\)/.test(fn), /creneauValide\(r, maintenant/.test(fn), /r\.parTelephone/.test(fn)]);
+dit('la reservation est limitee et revalidee au serveur', [true, true, true], [/await permis\(sb, ipDe\(req\)\)/.test(fn), /creneauValide\(r, maintenant/.test(fn), /limiteDe\(duNumero, r, maintenant\)/.test(fn)]);
 dit('l entree de la Maison demande une session de l equipe', true, /geste === 'entrer-maison'[\s\S]{0,120}delEquipe\(sb, req\)/.test(fn));
-dit('le resume ne se lit qu une fois la salle fermee', true, /const fermee = Date\.now\(\) >= Date\.parse\(l\.fin\);/.test(fn));
+dit('le resume ne se lit qu une fois la salle fermee', [true, true], [/const fermee = maintenant >= Date\.parse\(l\.fin\);/.test(fn), /const resume = fermee \? resumeSur\(l\.resume\) : null;/.test(fn)]);
 /* Le lien renvoyé par la Maison (14 novembre 2026). */
 dit('nouveau-lien : equipe seule, un jeton neuf garde en empreinte, jamais apres la fin', [true, true, true], [
   /geste === 'nouveau-lien'[\s\S]{0,120}delEquipe\(sb, req\)/.test(fn),
   /const jeton = aleatoire\(32\);\n\s*const \{ error \} = await sb\.from\('visios'\)\.update\(\{ jeton_hash: await empreinte\(jeton\)/.test(fn),
   /geste === 'nouveau-lien'[\s\S]{0,700}Date\.now\(\) >= Date\.parse\(l\.fin\)\) return json\(\{ ok: false, motif: 'fermee' \}/.test(fn),
 ]);
+/* La visio limitée, le lien par WhatsApp seulement (17 novembre 2026) : le détail est éprouvé par verifie-le-bilan-sous-cle. */
+dit('la reservation ne rend plus le lien d entree : un billet, qui n ouvre pas la salle', [true, true, false], [
+  /\.\.\.\(sansBillet \? \{\} : \{ billet, chemin: cheminDeLaSalle\(id, billet\) \}\),/.test(fn),
+  /if \(porte !== 'entree'\) return json\(\{ ok: false, motif: 'par-whatsapp' \}, 403\);/.test(fn),
+  /return json\(\{[^}]*\bjeton\b[^}]*\}\);/.test(fn.slice(fn.indexOf("if (geste === 'reserver') {"), fn.indexOf("if (geste === 'etat'"))),
+]);
 /* La confirmation sur WhatsApp à la réservation (14 novembre 2026). */
 dit('la confirmation : rien sans le modele approuve, le lien a l origine de la reservation, deposee en salle', [true, true, true, true, false], [
   /const modele = \(Deno\.env\.get\('WA_TEMPLATE_VISIO'\) \?\? ''\)\.trim\(\);\n\s*if \(!modele\) return 'sans-modele';/.test(fn),
-  /const origine = \(req\.headers\.get\('origin'\) \?\? ''\)\.trim\(\);/.test(fn),
+  /const origine = origineDe\(req\);\n\s*if \(!origine\) return 'sans-origine';/.test(fn) && /const o = \(req\.headers\.get\('origin'\) \?\? ''\)\.trim\(\);/.test(fn),
   /statut: 'en-attente', deposeLe:[\s\S]{0,200}partA: new Date\(partA\)\.toISOString\(\)/.test(fn) && /parQui: 'la Maison, automatiquement'/.test(fn),
   /await confirmeSurWhatsApp\(sb, req, [\s\S]{0,120}\)\.catch\(\(\) => 'erreur'\);/.test(fn),
   /maisonmnd\.com/i.test(fn),

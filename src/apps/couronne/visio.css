@@ -130,3 +130,73 @@
   .mv-rebours { flex-direction: column; align-items: center; gap: 2px; white-space: normal; text-align: center; }
   .mv-deroule li { grid-template-columns: 80px 1fr; }
 }
+
+/* ══ APRÈS LA VISIO, ET CHANGER L'HEURE — 17 novembre 2026 (« La consultation
+   en affiches ») ══ Le bilan ouvert, puis les affiches de la suite : un bloc
+   de couleur (indigo, cuivre), une carte claire au coin coupé, un nom, une
+   ligne, un grand nombre. Les jours et les heures en puces, le calendrier
+   derrière « Plus de dates ». Chiffres alignés en Cormorant. */
+
+.mv-bilan { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--mc-success, #4a7a5b); border-radius: 2px; }
+.mv-bilan__tete { display: flex; gap: 10px; align-items: center; margin: 0; color: var(--mc-success, #4a7a5b); }
+.mv-bilan__tete b { font: 500 12px/1.3 var(--font-sans); letter-spacing: 0.1em; text-transform: uppercase; }
+.mv-bilan .mv-resume { border-top: 0; padding-top: 0; }
+
+.mv-affiches { display: grid; gap: 10px; }
+.mv-affiches, .mv-aff, .mv-aff__c { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.mv-aff { position: relative; display: block; padding: 10px; border-radius: 4px; text-decoration: none; color: inherit; }
+/* Un prix ne se coupe jamais sur deux lignes. */
+.mv-prix { white-space: nowrap; }
+.mv-aff--indigo { background: var(--color-indigo); }
+.mv-aff--cuivre { background: var(--copper-600, #9a6036); }
+.mv-aff__c {
+  display: grid;
+  gap: 6px;
+  padding: 16px 14px 22px;
+  background: var(--surface-card);
+  border-radius: 2px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 36px), calc(100% - 36px) 100%, 0 100%);
+}
+.mv-aff__plus { position: absolute; right: 20px; bottom: 14px; font: 300 26px/1 var(--font-serif); color: var(--color-ivoire); }
+/* « CONSULTATION » est le mot le plus long : à 320 px il tient sur sa ligne, sans déborder. */
+.mv-aff__nom { font: 300 clamp(21px, 6.6vw, 34px)/1 var(--font-serif); text-transform: uppercase; letter-spacing: 0.01em; color: var(--color-indigo); overflow-wrap: break-word; }
+.mv-aff--cuivre .mv-aff__nom { color: var(--copper-800, #7c4c2c); }
+.mv-aff__ligne { font: 400 14.5px/1.35 var(--font-sans); color: var(--ink-soft); overflow-wrap: break-word; }
+.mv-aff__chiffre {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  font: 300 clamp(32px, 10vw, 48px)/1 var(--font-serif);
+  color: var(--ink);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: "lnum" 1, "tnum" 1;
+}
+.mv-aff__chiffre small { font: 600 11px/1.25 var(--font-sans); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); }
+.mv-aff:focus-visible { outline: 2px solid var(--copper-500); outline-offset: 2px; }
+
+.mv-puces { display: flex; flex-wrap: wrap; gap: 8px; }
+.mv-puce {
+  appearance: none;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  background: var(--surface-card);
+  font: 400 14px/1.2 var(--font-sans);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.mv-puce[aria-pressed="true"] { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
+.mv-puce--plus { border-style: dashed; }
+
+.mv-cal { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--hairline); border-radius: 2px; min-width: 0; }
+.mv-cal__tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.mv-cal__tete span { font: 300 22px/1 var(--font-serif); color: var(--color-indigo); font-variant-numeric: lining-nums; font-feature-settings: "lnum" 1; }
+.mv-cal__nav { appearance: none; width: 38px; height: 38px; border: 1px solid var(--hairline); border-radius: 2px; background: transparent; font: 300 24px/1 var(--font-serif); color: var(--color-indigo); cursor: pointer; }
+.mv-cal__nav:disabled { opacity: 0.35; cursor: default; }
+.mv-cal__grille { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.mv-cal__c { appearance: none; min-height: 38px; padding: 0; border: 1px solid var(--hairline); border-radius: 2px; background: transparent; font: 400 14px/1 var(--font-sans); color: var(--ink); cursor: pointer; }
+.mv-cal__c:disabled { border-color: transparent; color: var(--ink-soft); opacity: 0.45; cursor: default; }
+.mv-cal__c[aria-pressed="true"] { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }

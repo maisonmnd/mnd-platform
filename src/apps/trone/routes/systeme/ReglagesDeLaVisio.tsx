@@ -10,7 +10,13 @@ import { DUREE_MIN, creneauxOuverts, heureDite, jourCourtDit, parJour } from '..
    à l'avance, le délai avant un créneau, et l'interrupteur. Le site ne
    propose la visio que si elle est allumée ICI ET que la clé du service de
    visio (Daily) est posée chez Supabase : l'écran dit les deux. Écrit par
-   la direction seule (0209). */
+   la direction seule (0209).
+
+   17 novembre 2026 (« La consultation en affiches ») : la limite (une visio
+   par numéro tous les quatre-vingt-dix jours), le changement d'heure (jusqu'à
+   deux heures avant, deux fois au plus), la durée de la consultation privée
+   au Carnet, et l'inscription des visios au Carnet (éteinte au départ : un
+   quart d'heure de visio y ferme la place en ligne de cette heure). */
 
 const JOURS = [
   { n: 1, dit: 'lundi' }, { n: 2, dit: 'mardi' }, { n: 3, dit: 'mercredi' }, { n: 4, dit: 'jeudi' },
@@ -102,10 +108,43 @@ export function ReglagesDeLaVisio({ estDirection }: { estDirection: boolean }) {
             <input className="mnd-input" inputMode="numeric" value={r.delaiMin} onChange={(e) => ecris((d) => ({ ...d, delaiMin: Number(e.target.value.replace(/\D/g, '')) || 0 }), par)} />
           </label>
           <label style={{ fontSize: 13.5 }}>
-            <span style={lab}>Visios à venir par numéro</span>
+            <span style={lab}>Visios par numéro, sur la période</span>
             <input className="mnd-input" inputMode="numeric" value={r.parTelephone} onChange={(e) => ecris((d) => ({ ...d, parTelephone: Number(e.target.value.replace(/\D/g, '')) || 1 }), par)} />
           </label>
+          <label style={{ fontSize: 13.5 }}>
+            <span style={lab}>La période, en jours (0 : les visios à venir seulement)</span>
+            <input className="mnd-input" inputMode="numeric" value={r.limiteJours} onChange={(e) => ecris((d) => ({ ...d, limiteJours: Number(e.target.value.replace(/\D/g, '')) || 0 }), par)} />
+          </label>
+          <label style={{ fontSize: 13.5 }}>
+            <span style={lab}>Changer l’heure, ou annuler sans compter : jusqu’à … minutes avant</span>
+            <input className="mnd-input" inputMode="numeric" value={r.changementAvantMin} onChange={(e) => ecris((d) => ({ ...d, changementAvantMin: Number(e.target.value.replace(/\D/g, '')) || 0 }), par)} />
+          </label>
+          <label style={{ fontSize: 13.5 }}>
+            <span style={lab}>Changements d’heure par la cliente, au plus</span>
+            <input className="mnd-input" inputMode="numeric" value={r.changementsMax} onChange={(e) => ecris((d) => ({ ...d, changementsMax: Number(e.target.value.replace(/\D/g, '')) || 0 }), par)} />
+          </label>
+          <label style={{ fontSize: 13.5 }}>
+            <span style={lab}>La consultation privée au Carnet, en minutes</span>
+            <input className="mnd-input" inputMode="numeric" value={r.priveeDureeMin} onChange={(e) => ecris((d) => ({ ...d, priveeDureeMin: Number(e.target.value.replace(/\D/g, '')) || 60 }), par)} />
+          </label>
         </div>
+        <p className="mnd-muted" style={{ fontSize: 12.5, margin: 0 }}>
+          {r.limiteJours > 0
+            ? `${r.parTelephone} visio${r.parTelephone > 1 ? 's' : ''} par numéro tous les ${r.limiteJours} jours. Une visio manquée compte ; annulée ${r.changementAvantMin} minutes avant au moins, ou par la Maison, elle ne compte pas.`
+            : `${r.parTelephone} visio${r.parTelephone > 1 ? 's' : ''} à venir par numéro, sans période.`}
+          {' '}Le lien d’entrée ne part que sur WhatsApp.
+        </p>
+
+        <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14 }}>
+          <input type="checkbox" checked={r.auCarnet} onChange={(e) => ecris((d) => ({ ...d, auCarnet: e.target.checked }), par)} style={{ marginTop: 3 }} />
+          <span>
+            Inscrire chaque visio au Carnet
+            <span className="mnd-muted" style={{ display: 'block', fontSize: 12.5 }}>
+              Son quart d’heure y prend alors une place, comme tout rendez-vous : la réservation en ligne ne propose plus les rituels qui le chevauchent.
+              La consultation privée, elle, est toujours au Carnet.
+            </span>
+          </span>
+        </label>
       </fieldset>
 
       <div>
