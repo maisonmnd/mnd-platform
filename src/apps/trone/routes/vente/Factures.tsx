@@ -2,7 +2,7 @@ import { usePiecesDeLaMaison, useRdvsDeLaMaison } from '../../../../shared/essai
 import { figeLesRemisesDeLaPiece } from '../../../../shared/arrondi-des-remises-pur';
 import { asset } from '../../../../shared/asset';
 import { TexteFon } from '../../../../ds/fon';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { CalendarClock, MapPin, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { OptionsPrestations, PageHead } from '../_ui';
@@ -190,33 +190,42 @@ export default function Factures() {
      Factures, et un lien `?onglet=devis` suivi depuis l'écran lui-même ne
      faisait rien.
 
-     Si l'adresse bouge d'ailleurs (un lien, le retour arrière), l'onglet la
-     suit. Une exception : une adresse qui porte une pièce (`?id=`) sans dire
-     d'onglet ne décide rien, c'est la pièce ouverte qui amène le sien, plus
-     bas. Si l'onglet bouge ici, l'adresse le suit, sans empiler d'entrée dans
-     l'historique. `adresseVue` garde la dernière adresse dont on a tenu
-     compte : sans elle, on ne saurait pas lequel des deux vient de bouger. */
-  const adresseVue = useRef<Onglet>(ongletDeLAdresse);
+     UNE SEULE RÈGLE. `accord` garde le dernier onglet sur lequel l'écran et
+     l'adresse étaient d'accord ; à chaque changement d'onglet et à chaque
+     navigation, on regarde lequel des deux s'en est écarté :
+     - l'onglet a bougé ici (un clic, une pièce ouverte, un document neuf) :
+       l'adresse le suit, sans empiler d'entrée dans l'historique ;
+     - l'adresse a bougé d'ailleurs (un lien, Retour, Avance) : l'onglet la
+       suit. Si elle porte une pièce (`?id=`) sans dire d'onglet, c'est le
+       registre de cette pièce qui compte, même si elle est déjà ouverte.
+
+     On juge sur l'adresse de la BARRE, pas sur celle du rendu : le routeur
+     rend ses changements en différé, et un clic rapproché prenait notre
+     propre écriture, encore en route, pour un lien venu d'ailleurs. La clé
+     de l'adresse relance le jugement à chaque navigation rendue, même quand
+     l'onglet qu'elle dit n'a pas changé. */
+  const cleDeLAdresse = useLocation().key;
+  const accord = useRef<Onglet>(ongletDeLAdresse);
   useEffect(() => {
-    /* On juge sur l'adresse de la BARRE, pas sur celle du rendu : le routeur
-       rend ses changements en différé, et deux clics rapprochés (Devis puis
-       Factures) faisaient passer notre propre écriture, encore en route, pour
-       un lien venu d'ailleurs : l'onglet revenait sur Devis. */
     const vivante = adresseVivante();
-    const ongletVivant: Onglet = vivante.get('onglet') === 'devis' ? 'devis' : 'factures';
-    if (ongletVivant !== adresseVue.current) {
-      adresseVue.current = ongletVivant;
-      if (ongletVivant === 'devis' || !vivante.get('id')) {
-        if (ongletVivant !== onglet) setOnglet(ongletVivant);
-        return;
-      }
+    const dit: Onglet = vivante.get('onglet') === 'devis' ? 'devis' : 'factures';
+    let voulu: Onglet;
+    if (onglet !== accord.current) {
+      voulu = onglet;
+    } else if (dit !== accord.current) {
+      const piece = vivante.has('onglet') ? undefined : branchDocs.find((d) => d.id === vivante.get('id'));
+      voulu = piece ? (piece.kind === 'devis' ? 'devis' : 'factures') : dit;
+    } else {
+      return;
     }
-    adresseVue.current = onglet;
-    if ((ongletVivant === 'devis') === (onglet === 'devis')) return;
-    if (onglet === 'devis') vivante.set('onglet', 'devis'); else vivante.delete('onglet');
-    setParams(vivante, { replace: true });
+    accord.current = voulu;
+    if (voulu !== onglet) setOnglet(voulu);
+    if (voulu !== dit) {
+      if (voulu === 'devis') vivante.set('onglet', 'devis'); else vivante.delete('onglet');
+      setParams(vivante, { replace: true });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ongletDeLAdresse, onglet]);
+  }, [onglet, cleDeLAdresse]);
   /* Un filtre qui n'existe pas dans l'autre registre ne le suit pas : arriver
      sur Devis avec « Payée » encore choisi montrait une liste vide, sous un
      menu qui n'affichait même pas le filtre en cause. Vaut pour tous les
@@ -237,14 +246,21 @@ export default function Factures() {
      gardent la main, et chercher une pièce QUAND ON EST DÉJÀ ICI l'ouvre
      aussi — la lecture unique à l'état initial l'ignorait. */
   const [selectedId, setSelectedId] = useState<string | null>(() => params.get('id'));
-  /* On suit la VALEUR de `?id=`, pas l'objet `params` : depuis que l'onglet
-     s'écrit dans l'adresse, chaque changement d'onglet refait un `params`
-     neuf, et la pièce d'arrivée se rouvrait toute seule, ramenant son onglet
-     avec elle (le clic sur l'autre onglet était avalé). */
+  /* On suit l'adresse SANS SON ONGLET, pas l'objet `params` : depuis que
+     l'onglet s'écrit dans l'adresse, chaque changement d'onglet refait un
+     `params` neuf, et la pièce d'arrivée se rouvrait toute seule, ramenant
+     son onglet avec elle (le clic sur l'autre onglet était avalé). Tout autre
+     changement de l'adresse compte encore : la même pièce cherchée à nouveau
+     après un `&modifier=1` se rouvre, comme avant. */
   const idDeLAdresse = params.get('id');
+  const adresseHorsOnglet = useMemo(() => {
+    const p = new URLSearchParams(params);
+    p.delete('onglet');
+    return p.toString();
+  }, [params]);
   useEffect(() => {
     if (idDeLAdresse) setSelectedId(idDeLAdresse);
-  }, [idDeLAdresse]);
+  }, [idDeLAdresse, adresseHorsOnglet]);
 
   /* ── « MODIFIER » VENU DU JOURNAL DE CAISSE — 15 septembre 2026 ────
      « Dans encaissement je veux le bouton modifier » (Yéman). Le journal
@@ -895,11 +911,11 @@ export default function Factures() {
         openNew(k);
       }
     }
-    /* L'onglet part dans la même écriture : deux écritures d'adresse dans le
-       même souffle, et la seconde effaçait la première. */
+    /* On n'efface ici que ce qu'on a servi. L'onglet, lui, s'écrit à un seul
+       endroit (la règle de l'onglet et de l'adresse, plus haut), qui repart
+       de l'adresse de la barre et ne perd donc pas cette écriture. */
     const reste = adresseVivante();
     reste.delete('nouveau'); reste.delete('consultation'); reste.delete('ferme');
-    if (k === 'devis') reste.set('onglet', 'devis'); else reste.delete('onglet');
     setParams(reste, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
