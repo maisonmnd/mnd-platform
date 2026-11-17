@@ -18,7 +18,7 @@ import {
   MODELES_PAR_NUMERO_ET_PAR_JOUR, DEPLACEMENTS_AU_PLUS, MODELE_DE_L_ATTENTE,
   acompteAttendu, estFerme, estEnAttente, placeALiberer, etatDeLAttente, marquesDeLaNaissance, marquesDuOui, marquesDeLaLiberation,
   cleDuNumero, formesDuNumero, plafondDuNumero, deplacementsFaits, peutEncoreSeDeplacer, remiseGardeeAuDeplacement, acompteDesGestes,
-  heureSurLaGrille, dureeAuCalibre, gestesAuCalibre, texteDeLAttente, composantsDeLAttente, texteDuOui, texteDeLAcompte,
+  heureSurLaGrille, dureeAuCalibre, gestesAuCalibre, famillesAvecLeDefaisage, ATELIERS_DU_DEFAISAGE, texteDeLAttente, composantsDeLAttente, texteDuOui, texteDeLAcompte,
   texteDeLaPlaceLiberee, texteDeLAutreMoment, heureDeCotonouDite, ceQueDitLAttente,
 } from '../src/shared/rendez-vous-en-attente-pur';
 import { estSuggere } from '../src/shared/rendez-vous-suggere-pur';
@@ -113,6 +113,13 @@ const iso = (ms: number): string => new REEL(ms).toISOString();
   dit('A18 le catalogue au calibre ne touche que les durees qui changent', [[210, 60], true],
     [gestesAuCalibre([geste, { id: 'x', durationMin: 60 }], { lockCount: 300, bandes }).map((s) => s.durationMin),
       gestesAuCalibre([{ id: 'x', durationMin: 60 }], { lockCount: 300, bandes })[0] !== undefined]);
+  const fam = [{ id: 'atl-ii-gbeji' }, { id: 'atl-iv-finfin' }, { id: 'cat-defaisage' }, { id: 'sup' }, { id: 'cat-x', parentId: 'atl-iv-finfin' }];
+  const lues = (f: { id: string; parentId?: string }[]) => Object.fromEntries(famillesAvecLeDefaisage(f, ['atl-ii-gbeji', 'atl-iii-yekpe']).map((c) => [c.id, c.parentId ?? null]));
+  dit('A18b le defaisage, pour la porte du site : son atelier a lui se lit sous un atelier qui se reserve ; range sous la restauration, il y reste ; aucune autre famille ne bouge ; sans atelier qui se reserve, rien',
+    [['cat-defaisage', 'plt-45'], 'atl-ii-gbeji', 'atl-ii-gbeji', null, null, 'atl-iv-finfin', 'atl-iv-finfin', undefined],
+    [[...ATELIERS_DU_DEFAISAGE], lues(fam)['cat-defaisage'], lues(fam)['plt-45'], lues(fam).sup, lues(fam)['atl-iv-finfin'], lues(fam)['cat-x'],
+      lues([{ id: 'atl-ii-gbeji' }, { id: 'cat-defaisage', parentId: 'atl-iv-finfin' }])['cat-defaisage'],
+      Object.fromEntries(famillesAvecLeDefaisage([{ id: 'cat-defaisage' }], ['atl-ii-gbeji']).map((c) => [c.id, c.parentId]))['cat-defaisage']]);
   const o = { appel: 'Mme Awa', quand: 'vendredi 20 novembre 2026 à 10 h', gestes: 'Lavage rituel' };
   dit('A19 le message de la place tenue : il dit la place tenue, les deux heures, et ne finit pas par une variable',
     'Bonjour Mme Awa, la Maison MND tient votre place le vendredi 20 novembre 2026 à 10 h : Lavage rituel. Répondez « Je confirme » dans les deux heures pour la garder ; sans réponse, la place se libère.',
@@ -339,11 +346,15 @@ table('documents').push(
   { key: 'mnd_model_bands', data: [{ id: 'm', name: 'Medium', maxLocks: 150, coef: 1, durCoef: 1 }, { id: 'mi', name: 'Micro', maxLocks: 350, coef: 1.8, durCoef: 1.8 }] },
   { key: 'mnd_model_band_sets', data: {} },
 );
-table('catalog_categories').push({ id: 'atl-ii-gbeji', data: {} }, { id: 'atl-i-vekpe', data: {} });
+table('catalog_categories').push({ id: 'atl-ii-gbeji', data: {} }, { id: 'atl-i-vekpe', data: {} }, { id: 'atl-iv-finfin', data: {} }, { id: 'cat-defaisage', data: {} }, { id: 'sup', data: {} });
 table('catalog_services').push(
   { id: 'sv-lavage', data: { name: 'Lavage rituel', categoryId: 'atl-ii-gbeji', durationMin: 60, priceXof: 20000 } },
   { id: 'sv-racines', data: { name: 'Reprise des racines', categoryId: 'atl-ii-gbeji', durationMin: 120, priceXof: 25000, scalesWithModel: true } },
   { id: 'sv-creation', data: { name: 'Création', categoryId: 'atl-i-vekpe', durationMin: 240, priceXof: 150000 } },
+  /* Le défaisage, comme au catalogue en ligne le 17 novembre 2026 : un atelier à lui, « consultation avant » cochée. */
+  { id: 'sv-gbata', data: { name: 'GBÀTÀ™ Essentiel · Le Défaisage', categoryId: 'cat-defaisage', durationMin: 300, priceXof: 80000, priceMode: 'variable', consultationAvant: true } },
+  { id: 'sv-renais', data: { name: 'Restauration', categoryId: 'atl-iv-finfin', durationMin: 120, priceXof: 60000 } },
+  { id: 'sv-sup', data: { name: 'Supplément', categoryId: 'sup', durationMin: 60, priceXof: 5000 } },
 );
 table('services').push({ id: 'sv-lavage', data: { name: 'Lavage rituel' } }, { id: 'sv-racines', data: { name: 'Reprise des racines' } });
 table('clients').push(
@@ -640,6 +651,40 @@ const idB3 = b3.corps.apptId as string;
     [rdvDe(nu.corps.apptId).dureeMin, rdvDe(micro.corps.apptId).dureeMin]);
   const dessus = await depot({ telephone: '0197000406', date: '2026-12-09', time: '13:00' });
   dit('B36 … et l heure qui tombe dans cette duree n est plus libre', [409, 'creneau_pris'], [dessus.statut, dessus.corps.error]);
+}
+
+/* B36b. LE DÉFAISAGE (GBÀTÀ™) SE RÉSERVE EN LIGNE. */
+{
+  const gbata = (plus: Record<string, unknown>) => depot({ serviceIds: ['sv-gbata'], ...plus });
+  const geste = table('catalog_services').find((l) => l.id === 'sv-gbata') as Ligne;
+  const cochee = await gbata({ telephone: '0197000501', date: '2026-12-22', time: '09:00' });
+  dit('G1 tant que sa case « consultation avant » est cochee au Catalogue (comme en ligne aujourd hui), le rituel GBATA ne se reserve pas : la consultation',
+    [409, 'consultation_requise'], [cochee.statut, cochee.corps.error]);
+  delete geste.data.consultationAvant;
+  const libre = await gbata({ telephone: '0197000502', date: '2026-12-22', time: '09:00' });
+  await attendsLeFond();
+  const a = rdvDe(libre.corps.apptId);
+  dit('G2 la case decochee par Yeman : le rituel GBATA se reserve tout de suite, a sa duree (cinq heures), comme toute place du site (tenue, a confirmer)',
+    [200, 'en-attente', ['sv-gbata'], 300, 'confirmé', true], [libre.statut, libre.corps.etat, a?.serviceIds, a?.dureeMin, a?.status, estEnAttente(a)]);
+  const creation = await depot({ telephone: '0197000503', date: '2026-12-23', time: '09:00', serviceIds: ['sv-creation'] });
+  const restauration = await depot({ telephone: '0197000504', date: '2026-12-23', time: '09:00', serviceIds: ['sv-renais'] });
+  const autre = await depot({ telephone: '0197000505', date: '2026-12-23', time: '09:00', serviceIds: ['sv-sup'] });
+  dit('G3 rien d autre ne s ouvre : une creation et une restauration passent toujours par la consultation, une famille qui ne se reserve pas reste fermee',
+    [[409, 'consultation_requise'], [409, 'consultation_requise'], [409, 'prestation_retiree']],
+    [[creation.statut, creation.corps.error], [restauration.statut, restauration.corps.error], [autre.statut, autre.corps.error]]);
+  const vitrine = table('documents').find((d) => d.key === 'mnd_vitrine_config') as Ligne;
+  vitrine.data = { siteMasques: { services: ['sv-gbata'], categories: [] } };
+  const decoche = await gbata({ telephone: '0197000506', date: '2026-12-24', time: '09:00' });
+  vitrine.data = {};
+  (table('catalog_categories').find((c) => c.id === 'cat-defaisage') as Ligne).data = { parentId: 'atl-iv-finfin' };
+  const sousFinfin = await gbata({ telephone: '0197000507', date: '2026-12-24', time: '09:00' });
+  (table('catalog_categories').find((c) => c.id === 'cat-defaisage') as Ligne).data = {};
+  geste.data.priceMode = 'devis';
+  const devis = await gbata({ telephone: '0197000508', date: '2026-12-24', time: '09:00' });
+  geste.data.priceMode = 'variable';
+  dit('G4 … et le geste garde ses fermetures : decoche pour le site, range sous la restauration, ou sur devis, il ne se reserve pas',
+    [[409, 'prestation_retiree'], [409, 'consultation_requise'], [409, 'consultation_requise']],
+    [[decoche.statut, decoche.corps.error], [sousFinfin.statut, sousFinfin.corps.error], [devis.statut, devis.corps.error]]);
 }
 
 /* B37. MA COURONNE PASSE PAR LE SERVEUR. */

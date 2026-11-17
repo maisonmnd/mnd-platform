@@ -542,7 +542,7 @@ function jugeLaPorte(brut: string): string[] {
      2 novembre 2026) ; c'est toujours celui du serveur. */
   /* LE SITE OUVRE LE JOUR MÊME (12 novembre 2026) : la porte du site passe
      `jourMeme` (true) au juge, aux deux endroits. */
-  exige('le juge est celui du serveur', /laPlaceTient\(\{ \.\.\.agenda, sieges: places, services: auCalibre \}, \{ date: o\.date, time: o\.time, serviceIds: o\.serviceIds, derniereVenue \}, maintenant, true\)/.test(s));
+  exige('le juge est celui du serveur', /laPlaceTient\(\{ \.\.\.agenda, sieges: places, services: auCalibre, categories: famillesDuSite \}, \{ date: o\.date, time: o\.time, serviceIds: o\.serviceIds, derniereVenue \}, maintenant, true\)/.test(s));
   exige('la forme et la fenetre se jugent avant toute lecture', s.indexOf('laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant, true)') > -1
     && s.indexOf('laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant, true)') < s.indexOf("toutesLesLignes('catalog_services')"));
   exige('une lecture en panne refuse', /if \(panne \|\| pris\.length >= PLAFOND_D_UNE_REPONSE\)/.test(s) && /return \{ erreur: 'agenda_illisible' \}/.test(s));

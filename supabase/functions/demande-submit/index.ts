@@ -195,6 +195,8 @@
 //   · l'heure demandée doit être une heure de la grille (le refus d'avant
 //     08:30 est celui du juge et du verrou de la base) ;
 //   · la durée posée suit le calibre annoncé (`durCoef` du barème) ;
+//   · le rituel GBÀTÀ™ (l'atelier du défaisage) se réserve en ligne, sa case
+//     « consultation avant » respectée ; création et réparation, jamais ;
 //   · un code « une fois par personne » se compte par la clé du numéro ;
 //   · un dépôt en double ne rend la référence qu'à l'appareil qui l'a déposé ;
 //   · déplacer : deux fois au plus, sous le verrou des places (0223), et la
@@ -223,7 +225,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-17-a · le rendez-vous en attente (la place tenue deux heures, « Je confirme » sur WhatsApp, l’acompte quand un geste en porte un ; tant que le modèle n’est pas approuvé, la place naît confirmée comme avant) ; un plafond par numéro et par adresse ; l’heure tenue sur la grille ; la durée au calibre annoncé ; les codes comptés par la clé du numéro ; déplacer deux fois au plus, sous le verrou des places ; Ma Couronne passe par le serveur ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
+const VERSION = '2026-11-17-a · le rituel GBÀTÀ™ (le défaisage) se réserve en ligne ; le rendez-vous en attente (la place tenue deux heures, « Je confirme » sur WhatsApp, l’acompte quand un geste en porte un ; tant que le modèle n’est pas approuvé, la place naît confirmée comme avant) ; un plafond par numéro et par adresse ; l’heure tenue sur la grille ; la durée au calibre annoncé ; les codes comptés par la clé du numéro ; déplacer deux fois au plus, sous le verrou des places ; Ma Couronne passe par le serveur ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
 
 /** LE SECOND FAUTEUIL, PAS DAVANTAGE (2 novembre 2026, 0152) : la copie de
     `PLACES_EN_LIGNE_AU_PLUS` (src/shared/agenda-pur.ts), hors des repères. */
@@ -588,6 +590,29 @@ export function gestesAuCalibre<S extends GesteADuree>(gestes: readonly S[], o: 
     const d = dureeAuCalibre(s, o);
     return d === s.durationMin ? s : { ...s, durationMin: d };
   });
+}
+
+/* LE DÉFAISAGE SE RÉSERVE EN LIGNE — 17 novembre 2026. Yéman : sur le site,
+   une cliente qui veut défaire ses locks et garder ses cheveux libres réserve
+   tout de suite le rituel GBÀTÀ™, sans visio ni consultation privée. Le juge
+   des places ne connaît que deux ateliers qui se réservent (l'Entretien, la
+   Coloration). POUR LA PORTE DU SITE SEULEMENT, l'atelier du défaisage,
+   quand il est un atelier à lui (sans parent : rangé sous FÍNFÍN™, il reste
+   une restauration et passe par la consultation), se lit comme rangé sous un
+   atelier qui se réserve. Rien d'autre ne s'ouvre, et rien du geste ne
+   change : sa case « consultation avant », un prix sur devis, un geste éteint
+   ou décoché pour le site le ferment toujours ; le juge les lit lui-même. */
+export const ATELIERS_DU_DEFAISAGE: readonly string[] = ['cat-defaisage', 'plt-45'];
+/** Les familles, telles que le juge des places du site les lit. */
+export function famillesAvecLeDefaisage(
+  familles: readonly { id: string; parentId?: string }[], ateliersQuiSeReservent: readonly string[],
+): { id: string; parentId?: string }[] {
+  const sous = ateliersQuiSeReservent.find((id) => familles.some((c) => c.id === id));
+  if (!sous) return [...familles];
+  const lues = familles.map((c) => (ATELIERS_DU_DEFAISAGE.includes(c.id) && !c.parentId ? { ...c, parentId: sous } : c));
+  /* Un catalogue qui range ses gestes dans l'atelier sans en porter la ligne. */
+  for (const id of ATELIERS_DU_DEFAISAGE) if (!familles.some((c) => c.id === id)) lues.push({ id, parentId: sous });
+  return lues;
 }
 
 /** Le nom du modèle Meta de l'attente, tant que le secret n'en dit pas un autre. */
@@ -1885,7 +1910,15 @@ async function laPlaceDemandee(o: {
       categories: agenda.categories, suspendu: doc('mnd_settings')?.baremeSuspendu === true,
     },
   );
-  const verdict = laPlaceTient({ ...agenda, sieges: places, services: auCalibre }, { date: o.date, time: o.time, serviceIds: o.serviceIds, derniereVenue }, maintenant, true);
+  /* LE DÉFAISAGE SE RÉSERVE EN LIGNE — 17 novembre 2026 (le rituel GBÀTÀ™,
+     Yéman). Pour cette porte seulement, le juge lit l'atelier du défaisage
+     sous un atelier qui se réserve (`famillesAvecLeDefaisage`). La case
+     « consultation avant » du geste, un devis, un geste éteint ou décoché
+     pour le site le ferment toujours : le juge les lit lui-même. Création et
+     réparation passent toujours par la consultation. Hors des repères
+     ⟨place-du-serveur⟩ : WhatsApp garde ses deux ateliers. */
+  const famillesDuSite = famillesAvecLeDefaisage(agenda.categories, ATELIERS_RESERVABLES);
+  const verdict = laPlaceTient({ ...agenda, sieges: places, services: auCalibre, categories: famillesDuSite }, { date: o.date, time: o.time, serviceIds: o.serviceIds, derniereVenue }, maintenant, true);
   if (!verdict.ok) return { erreur: verdict.erreur };
   /* L'HEURE EST UNE HEURE DE LA GRILLE — 17 novembre 2026. Le serveur
      n'accepte que les heures que l'écran propose : la grille du jour (08:30,

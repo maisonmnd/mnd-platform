@@ -310,6 +310,29 @@ export function gestesAuCalibre<S extends GesteADuree>(gestes: readonly S[], o: 
   });
 }
 
+/* LE DÉFAISAGE SE RÉSERVE EN LIGNE — 17 novembre 2026. Yéman : sur le site,
+   une cliente qui veut défaire ses locks et garder ses cheveux libres réserve
+   tout de suite le rituel GBÀTÀ™, sans visio ni consultation privée. Le juge
+   des places ne connaît que deux ateliers qui se réservent (l'Entretien, la
+   Coloration). POUR LA PORTE DU SITE SEULEMENT, l'atelier du défaisage,
+   quand il est un atelier à lui (sans parent : rangé sous FÍNFÍN™, il reste
+   une restauration et passe par la consultation), se lit comme rangé sous un
+   atelier qui se réserve. Rien d'autre ne s'ouvre, et rien du geste ne
+   change : sa case « consultation avant », un prix sur devis, un geste éteint
+   ou décoché pour le site le ferment toujours ; le juge les lit lui-même. */
+export const ATELIERS_DU_DEFAISAGE: readonly string[] = ['cat-defaisage', 'plt-45'];
+/** Les familles, telles que le juge des places du site les lit. */
+export function famillesAvecLeDefaisage(
+  familles: readonly { id: string; parentId?: string }[], ateliersQuiSeReservent: readonly string[],
+): { id: string; parentId?: string }[] {
+  const sous = ateliersQuiSeReservent.find((id) => familles.some((c) => c.id === id));
+  if (!sous) return [...familles];
+  const lues = familles.map((c) => (ATELIERS_DU_DEFAISAGE.includes(c.id) && !c.parentId ? { ...c, parentId: sous } : c));
+  /* Un catalogue qui range ses gestes dans l'atelier sans en porter la ligne. */
+  for (const id of ATELIERS_DU_DEFAISAGE) if (!familles.some((c) => c.id === id)) lues.push({ id, parentId: sous });
+  return lues;
+}
+
 /** Le nom du modèle Meta de l'attente, tant que le secret n'en dit pas un autre. */
 export const MODELE_DE_L_ATTENTE = 'rdv_a_confirmer';
 

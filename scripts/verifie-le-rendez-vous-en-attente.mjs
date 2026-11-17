@@ -92,7 +92,11 @@ const PANNES = [
   ['une place liberee reste un doublon', DS, "    for (const r of (lus ?? []) as { id: string; data?: any }[]) if (r.data && r.data.status !== 'annulé') rdvsConnus.set(r.id, r.data);", '    for (const r of (lus ?? []) as { id: string; data?: any }[]) if (r.data) rdvsConnus.set(r.id, r.data);'],
   /* ── L'heure et la duree ── */
   ['la grille accepte toute heure', DS, '    && !heureSurLaGrille({ openMin: ouverture.openMin, closeMin: ouverture.closeMin, debutMin: debutDemande,', '    && false && !heureSurLaGrille({ openMin: ouverture.openMin, closeMin: ouverture.closeMin, debutMin: debutDemande,'],
-  ['la duree oublie le calibre', DS, 'const verdict = laPlaceTient({ ...agenda, sieges: places, services: auCalibre },', 'const verdict = laPlaceTient({ ...agenda, sieges: places, services: agenda.services },'],
+  ['la duree oublie le calibre', DS, 'const verdict = laPlaceTient({ ...agenda, sieges: places, services: auCalibre, categories: famillesDuSite },', 'const verdict = laPlaceTient({ ...agenda, sieges: places, services: agenda.services, categories: famillesDuSite },'],
+  /* ── Le défaisage (GBÀTÀ™) ── */
+  ['le defaisage reste ferme en ligne', DS, 'services: auCalibre, categories: famillesDuSite },', 'services: auCalibre },'],
+  ['toute famille a part se reserve en ligne', REGLE, 'ATELIERS_DU_DEFAISAGE.includes(c.id) && !c.parentId ?', '!c.parentId ?'],
+  ['un defaisage range sous la restauration se reserve', REGLE, 'ATELIERS_DU_DEFAISAGE.includes(c.id) && !c.parentId ?', 'ATELIERS_DU_DEFAISAGE.includes(c.id) ?'],
   ['le coefficient de duree ne se lit pas', REGLE, '  return Math.max(15, Math.round((base * tranche.durCoef) / 15) * 15);', '  return base;'],
   ['le site dit ferme un prix au calibre annonce', 'src/apps/revelateur/ilots/Reserver.tsx', '  const prixFlou = prixAuCalibre || choisies.some(', '  const prixFlou = choisies.some('],
   /* ── Les deplacements ── */

@@ -22,7 +22,9 @@
        ni le paiement en ligne, ni « Elle a dit oui », ni l'acompte contrôlé
        au comptoir n'ont à connaître ce fichier ;
      · les plafonds (par numéro, par adresse), la clé du numéro, la limite
-       des déplacements et la remise qui ne suit pas un autre jour.
+       des déplacements et la remise qui ne suit pas un autre jour ;
+     · ce que la porte du site juge en plus du juge des places : l'heure sur
+       la grille, la durée au calibre annoncé, le défaisage qui se réserve.
 
    Pur, sans magasin ni React. Le bloc ⟨rendez-vous-en-attente⟩ est RECOPIÉ
    dans demande-submit et confirmation-rdv (une fonction Edge n'importe rien
@@ -260,6 +262,29 @@ export function gestesAuCalibre<S extends GesteADuree>(gestes: readonly S[], o: 
     const d = dureeAuCalibre(s, o);
     return d === s.durationMin ? s : { ...s, durationMin: d };
   });
+}
+
+/* LE DÉFAISAGE SE RÉSERVE EN LIGNE — 17 novembre 2026. Yéman : sur le site,
+   une cliente qui veut défaire ses locks et garder ses cheveux libres réserve
+   tout de suite le rituel GBÀTÀ™, sans visio ni consultation privée. Le juge
+   des places ne connaît que deux ateliers qui se réservent (l'Entretien, la
+   Coloration). POUR LA PORTE DU SITE SEULEMENT, l'atelier du défaisage,
+   quand il est un atelier à lui (sans parent : rangé sous FÍNFÍN™, il reste
+   une restauration et passe par la consultation), se lit comme rangé sous un
+   atelier qui se réserve. Rien d'autre ne s'ouvre, et rien du geste ne
+   change : sa case « consultation avant », un prix sur devis, un geste éteint
+   ou décoché pour le site le ferment toujours ; le juge les lit lui-même. */
+export const ATELIERS_DU_DEFAISAGE: readonly string[] = ['cat-defaisage', 'plt-45'];
+/** Les familles, telles que le juge des places du site les lit. */
+export function famillesAvecLeDefaisage(
+  familles: readonly { id: string; parentId?: string }[], ateliersQuiSeReservent: readonly string[],
+): { id: string; parentId?: string }[] {
+  const sous = ateliersQuiSeReservent.find((id) => familles.some((c) => c.id === id));
+  if (!sous) return [...familles];
+  const lues = familles.map((c) => (ATELIERS_DU_DEFAISAGE.includes(c.id) && !c.parentId ? { ...c, parentId: sous } : c));
+  /* Un catalogue qui range ses gestes dans l'atelier sans en porter la ligne. */
+  for (const id of ATELIERS_DU_DEFAISAGE) if (!familles.some((c) => c.id === id)) lues.push({ id, parentId: sous });
+  return lues;
 }
 
 /** Le nom du modèle Meta de l'attente, tant que le secret n'en dit pas un autre. */
