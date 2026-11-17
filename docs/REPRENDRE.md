@@ -2,6 +2,17 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## L'ASSISTANT DES DEVIS, FIN DE LA REVUE, ET UN DÉFAISAGE NE SE RÉPARE PAS — 18 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
+
+Les quatre points de la revue du 17 novembre restés à cette session (`shared/devis-par-description-pur.ts`, `vente/AssistantDuDevis.tsx`), et une règle de métier dite par Yéman.
+
+- **UN DÉFAISAGE NE SE RÉPARE PAS** : « on ne peut pas défaire et réparer en même temps. Mais on peut défaire, revenir à neuf, cheveux afro, et refaire un nouveau départ, une nouvelle création ». La règle est dans la consigne ET dans le code : à la lecture, une réparation proposée à côté d'un défaisage est écartée, et le brouillon dit pourquoi. Reconnues PAR LA CATÉGORIE : le défaisage est GBÀTÀ™ (`plt-45`, `cat-defaisage`, comme `defaitLaCouronne`), la réparation est l'atelier FÍNFÍN™ (`atl-iv-finfin`, et `plt-40` de la semence, comme `CAT_REPARE`). **Hors de la règle** : « Portes closes · la Réparation intensive », rangée sous `cat-souverain` ; la consigne la couvre, pas le code. L'exemple de l'écran ne dit plus « on les défait, on répare ».
+- **(2) Un soin au lock n'est pas une création** : `estUneCreationAuLock` = compté au lock ET rangé dans VÈKPÈ™ (`atl-i-vekpe`, les six créations de la base y sont), ou à défaut liée à son calibre (`bandIds`, `bandId`, plancher unique). Ses locks sont ceux qu'on pose. Les autres prix qui suivent la tête (`suitLaTete` : soin au lock, prix par calibre à plusieurs planchers comme le SÍNSIN™ Essentiel de la base, prestation qui suit le modèle) se chiffrent sur `locksDeLaTete`. Les planchers seuls ne suffisent pas à dire « création » : la Nano de la semence en porte deux (Nano, Galaxy).
+- **(10) Les calibres de la consigne viennent du barème** (`calibresDits(bands)`) : plus de « Pico 451 à 600 » écrit en dur quand le barème arrête Pico à 550. Une création hors de son calibre sort au prix du catalogue : le brouillon le dit (`horsDeSonCalibre`, le juge `servesBand` de la Caisse, injecté).
+- **(11) Plus de repli muet sur la fiche** : le juge des prix prend les locks et la longueur tels que le module les donne. La fiche de la cliente choisie passe au module (`fiche`) : sa longueur et son nombre de locks servent quand la description se tait, ET L'AVERTISSEMENT LE DIT. Une création sans nombre ne prend jamais la tête de la fiche.
+- **(12) Le total voulu dans la devise de la branche** : la consigne dit la devise à Claude, le schéma accepte les centimes, `enXof` (`toXof`) le ramène en XOF. « S'arrêter à 250 € » se lisait 250 F, et la direction, sans plafond, accordait une remise de presque tout.
+- **Banc** : `node scripts/verifie-le-devis-par-description.mjs` (71), avec le vrai juge des prix sur le catalogue de départ.
+
 ## LA REVUE DU 17 NOVEMBRE, SUITE : FACTURES, L'ASSISTANT DES DEVIS, LA DICTÉE — 17 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
 
 Dix points d'une seconde revue (`/code-review`) sur les mêmes commits. Neuf sont réglés ici ; le dixième (l'audit du 4 novembre resté non commité dans la copie commune : `AuthGate.tsx`, `BACKEND.md`, `apply_auth.sql`, `provision_first_staff`) est entre les mains de la session qui reprend cet audit (migration 0213).
