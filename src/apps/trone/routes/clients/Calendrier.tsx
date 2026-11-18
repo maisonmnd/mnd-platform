@@ -22,12 +22,16 @@ import { useStore } from '../../../../shared/store';
 import { voitLesPrix } from '../index';
 import { BarreDeSaut } from './AllerA';
 import { distanceDeLaSemaine, distanceDite, distanceDuMois, lundiDe } from './aller-a-pur';
+import { voiesDuJour } from '../../../../shared/voies-pur';
 
 /* Calendrier — la journée par Maître, la semaine d'un regard. 08:00 → 18:00.
    Déplacer un rendez-vous : glisser le bloc vers un autre créneau (jour) ou un
    autre jour (semaine) ; cliquer l'ouvre en modification. */
 
 const HOUR_PX = 56;
+/** Ce qu'une carte occupe au moins à l'écran, en minutes : 30 px de haut et
+    6 px d'écart (un rendez-vous de quinze minutes en prend plus). */
+const CARTE_MIN_MIN = Math.ceil(((30 + 6) / HOUR_PX) * 60);
 const SLOT_MIN = 30; // pas de la grille — calage identique au carnet
 const WEEKDAYS = ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim']; // en-tête de la vue mois
 
@@ -593,7 +597,16 @@ export default function Calendrier() {
                 </div>
               ))}
             </div>
-            {dayCols.map((m) => (
+            {dayCols.map((m) => {
+              /* CÔTE À CÔTE (18 novembre 2026) : deux rendez-vous qui se
+                 chevauchent chez le même maître partagent la largeur au lieu de
+                 se cacher l'un sous l'autre (`voiesDuJour`). La fin compte la
+                 hauteur minimale d'une carte : c'est l'écran qu'on range. */
+              const voies = voiesDuJour(m.appts.map((a) => {
+                const debutMin = timeToMin(a.time);
+                return { id: a.id, debutMin, finMin: debutMin + Math.max(apptDurationMin(a, byId), CARTE_MIN_MIN) };
+              }));
+              return (
               <div
                 className={`trc-cal__col ${dropKey === `d:${m.name}` ? 'is-drop' : ''}`}
                 key={m.name}
@@ -612,11 +625,19 @@ export default function Calendrier() {
                   const h = Math.max(30, (dur / 60) * HOUR_PX - 6);
                   const live = anchor === today && nowMin >= startMin && nowMin < startMin + dur && a.status !== 'honoré';
                   const cls = live ? 'trc-cal__appt--deep' : estEfface(a) ? 'trc-cal__appt--muted' : honoreDu(a) ? 'trc-cal__appt--du' : '';
+                  const v = voies.get(a.id) ?? { voie: 0, voies: 1 };
+                  /* Seul, la carte garde les marges de la colonne (6 px de
+                     chaque côté) ; partagée, chaque voie prend sa part de la
+                     largeur utile, 4 px entre deux cartes. */
+                  const largeur = v.voies > 1
+                    ? { left: `calc(6px + (100% - 12px) * ${v.voie} / ${v.voies})`, right: 'auto', width: `calc((100% - 12px) / ${v.voies} - 4px)` }
+                    : {};
                   return (
                     <div
-                      className={`trc-cal__appt trc-cal__appt--drag ${cls} ${classeDuSuggere(a)} ${dragId === a.id ? 'is-dragging' : ''}`}
+                      className={`trc-cal__appt trc-cal__appt--drag ${cls} ${classeDuSuggere(a)} ${dragId === a.id ? 'is-dragging' : ''} ${v.voies > 1 ? 'trc-cal__appt--partage' : ''}`}
                       key={a.id}
-                      style={{ top, height: h }}
+                      data-rdv={a.id}
+                      style={{ top, height: h, ...largeur }}
                       title={`${nomDuRdv(a)} · ${apptLabel(a, byId)}, glisser pour déplacer, cliquer pour modifier`}
                       draggable
                       onDragStart={(e) => onDragStart(e, a)}
@@ -677,7 +698,8 @@ export default function Calendrier() {
                   );
                 })}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

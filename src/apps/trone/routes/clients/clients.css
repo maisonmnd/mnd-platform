@@ -737,6 +737,11 @@
 .trc-cal__appt--muted { opacity: 0.55; }
 /* Honoré mais pas réglé (25 octobre 2026) : en cuivre, jamais pâli. */
 .trc-cal__appt--du { background: #FBF4EC; border-color: var(--copper-200, #E3C9AE); border-left-color: var(--copper-700, #9A6036); }
+/* CÔTE À CÔTE (18 novembre 2026) : une carte qui partage sa colonne avec un
+   rendez-vous à la même heure (largeur posée par `voiesDuJour`). Un peu moins
+   de marge, et le nom passe à la ligne plutôt que sous la cloche. */
+.trc-cal__appt--partage { padding: 6px 8px; }
+.trc-cal__appt--partage .trc-cal__appt-title { padding-right: 24px; overflow-wrap: anywhere; }
 .trc-cal__reste { margin-left: 6px; font: 500 10px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--copper-700, #9A6036); white-space: nowrap; }
 .trc-cal__appt-title { font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); line-height: 1.1; }
 .trc-cal__appt--deep .trc-cal__appt-title { color: var(--color-ivoire); }

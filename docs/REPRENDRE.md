@@ -2,6 +2,14 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES RENDEZ-VOUS CÔTE À CÔTE — 18 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
+
+« Il y a le rendez-vous de P. A. qui est également pour le vendredi 20 à 10 heures. Comment on peut voir ce rendez-vous ? Il est caché en dessous du rendez-vous de S. E. Quand les rendez-vous sont à la même heure, il y a un rendez-vous qui se cache. Rends-moi tout visible » (Yéman, capture de la vue jour, colonne Team, « 4 rituels » annoncés, trois visibles).
+
+- **Cause** : la vue jour (ordinateur) pose chaque carte en position absolue, toute la largeur de la colonne du maître (`.trc-cal__appt`, 6 px de chaque côté). Deux rendez-vous qui se chevauchent chez le même maître s'empilaient exactement. La vue semaine (cartes en liste) et la vue jour au téléphone (agenda en liste) n'avaient pas le défaut.
+- **Correctif** : `voiesDuJour` (shared/voies-pur.ts, pur) range les cartes comme un agenda papier. Les rendez-vous qui se chevauchent, même en chaîne, forment un groupe ; chacun prend la première voie libre à son heure, et le groupe partage la largeur en autant de voies qu'il en ouvre. Un rendez-vous seul garde toute la largeur, une voie libérée resert, et deux rendez-vous qui se touchent (fin = début) ne se gênent pas. La fin compte la hauteur minimale d'une carte (`CARTE_MIN_MIN`). L'ordre est stable : à heure égale, le plus long à gauche. Calendrier.tsx pose `left`/`width` sur la carte partagée (classe `trc-cal__appt--partage` : un peu moins de marge, le nom passe à la ligne plutôt que sous la cloche). Glisser-déposer et clic sur un créneau libre : inchangés.
+- **Bancs** : `node scripts/verifie-les-rendez-vous-cote-a-cote.mjs` (la règle et le branchement ; `--prouve` 8/8), `node scripts/banc-des-rendez-vous-cote-a-cote.mjs` (Chrome, faux Supabase sur 47125 ; 16 contrôles : deux à 10 h côte à côte, trois à 11 h en trois voies, 8 h 30 et 15 h pleins, chaque nom vu au point près, rien ne déborde ; `--photo <png>` pour l'œil ; sur le Trône d'avant : 4 échecs, « cachés : Bella Banc, Ella Banc, Fifa Banc »). Déjà rouge sur origin/main, sans rapport : `verifie-le-parcours-du-foyer --prouve` (« panne introuvable : le prénom devient le nom de famille »).
+
 ## LE DÉMARCHEUR QUI SALUE D'ABORD — 18 novembre 2026, EN LIGNE (tri-des-messages 2026-11-18-a v28, whatsapp-automate 2026-11-18-f v78 ; aucun SQL ; Trône inchangé)
 
 « Comment isoler ce genre de messages quand ils viennent automatiquement dans Conversations ? Tu dois reconnaître que c'est du marketing, des gens qui ne veulent pas prendre rendez-vous pour les cheveux, que ce soit trié en même temps, qu'on ne leur réponde pas. Ça va directement à bloquer » (Yéman, capture du fil d'un « créateur de sites web » auquel Opale répondait).
