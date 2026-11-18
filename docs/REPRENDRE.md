@@ -21,7 +21,7 @@ L'audit du 4 novembre dormait, non commité, dans la copie commune (dont la bran
   - **Reste à Yéman** : l'essai réel de « Payer par MTN » au Trône (`collecte-mtn`, `demander-trone`, rouvert à l'équipe par ce lot) : il demande un vrai numéro et une vraie demande de paiement.
 - **Laissé, à savoir** : en développement, la connexion Google de Ma Couronne revient sur le portail, qui ne lit aucune session (d'avant) ; un appelant anon peut savoir si `staff` est vide par le message d'erreur de `staff_guard` (d'avant ; aucune écriture ne passe) ; `authorize_staff` et ses sœurs sont exécutables par anon mais vérifient `is_souverain()` en premier (un `revoke … from public, anon` serait un durcissement de plus) ; le message d'arrêt de 0006 est périmé (signalé dans `apply_rls_prod.sql`).
 
-## L'AGENT DES RENDEZ-VOUS, LOT 3b : LE « OUI » DE PERLE RÉSERVE — 18 novembre 2026 (assistant-maison 2026-11-18-a, whatsapp-webhook 2026-11-18-c, whatsapp-automate 2026-11-18-d ; aucun SQL)
+## L'AGENT DES RENDEZ-VOUS, LOT 3b : LE « OUI » DE PERLE RÉSERVE — 18 novembre 2026, EN LIGNE (assistant-maison 2026-11-18-a v42, whatsapp-webhook 2026-11-18-c v79, whatsapp-automate 2026-11-18-d v75 ; aucun SQL ; le vrai essai, un « Oui » sous un vrai message de Perle, reste à faire)
 
 « Un toucher, rien à choisir » (Yéman). Le « Oui » des messages de Perle (« Je vous réserve votre place ? », `assistant_maison_avant` ; « nous avons de la place … Je vous en garde une ? », `assistant_maison_place`) POSE la place, au lieu de renvoyer vers Ma Couronne.
 
@@ -31,7 +31,7 @@ L'audit du 4 novembre dormait, non commité, dans la copie commune (dont la bran
 - **Le fil d'Opale** (2026-11-18-d, vu par la session d'Opale) : la confirmation signée Perle se lit comme un message automatique (`quiDuMessageWa`), pas comme l'ancien automate.
 - **Bancs** : `node scripts/verifie-le-oui-de-perle.mjs` (27, la vraie fonction automate) ; `verifie-les-messages-de-la-seance` et `verifie-les-autres-portes` acceptent les versions 18-c ; `verifie-opale` (148), `verifie-l-automate-wa`, `verifie-le-rendez-vous-en-attente` (120), `verifie-la-place-du-serveur` (127) verts. `verifie-gerard` garde ses trois échecs d'avant (le soin dit « reprise », la ligne de l'écran, le filtre des boutons), sans rapport.
 
-## L'AGENT DES RENDEZ-VOUS, LOT 3a : « MON PROCHAIN RITUEL » EN QR ET EN LIEN — 18 novembre 2026 (Trône + Ma Couronne)
+## L'AGENT DES RENDEZ-VOUS, LOT 3a : « MON PROCHAIN RITUEL » EN QR ET EN LIEN — 18 novembre 2026, EN LIGNE (Trône et Ma Couronne build 20261118075116 @ cb24bd70, 543/543 et 313/313)
 
 Lot 3 tranché par Yéman : le « Oui » des messages de Perle réservera d'un toucher (lot 3b, à venir : `assistant-maison`, `whatsapp-webhook` 2026-11-18-c, `whatsapp-automate` 2026-11-18-c ; jamais le jour même, avec la clé du numéro, le numéro du bouton vérifié, le fil d'Opale passé à « confirmé »), et le QR du salon et le lien d'Instagram « pour les deux ».
 
