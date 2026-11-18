@@ -317,6 +317,9 @@ function plagesBloquees(murs, branchId, dateIso, master) {
   ]).filter(([s, e]) => e > s);
 }
 var PREMIER_RENDEZ_VOUS_MIN = 8 * 60 + 30;
+var MAITRE_QUI_PARTAGE = "Team";
+var DEUX_TETES_AU_PLUS = 2;
+var bloqueLaVenue = (maitre, nouvelleLourde, deja) => maitre !== MAITRE_QUI_PARTAGE || !!nouvelleLourde && !!deja.lourde;
 function creneauxLibres(o) {
   if (o.opening.closed) return [];
   const capMaison = o.capMaison ?? 0;
@@ -324,7 +327,7 @@ function creneauxLibres(o) {
   if (capMaison > 0 && o.occupes.length >= capMaison) return [];
   const duMaitre = o.occupes.filter((a) => a.maitre === o.master);
   if (capMaitre > 0 && duMaitre.length >= capMaitre) return [];
-  const busy = duMaitre.map((a) => [a.debutMin, a.debutMin + a.dureeMin]);
+  const busy = duMaitre.filter((a) => bloqueLaVenue(o.master, o.lourde, a)).map((a) => [a.debutMin, a.debutMin + a.dureeMin]);
   if (o.bloques) busy.push(...o.bloques);
   const pas = o.pasMin ?? 60;
   const cap = o.capSimultane ?? 0;
@@ -338,6 +341,7 @@ function creneauxLibres(o) {
     if (o.maintenantMin != null && m <= o.maintenantMin) continue;
     const overlaps = busy.some(([s, e]) => m < e && m + o.durationMin > s);
     if (overlaps) continue;
+    if (duMaitre.filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length >= DEUX_TETES_AU_PLUS) continue;
     if (cap > 0) {
       const ensemble = o.occupes.filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length;
       if (ensemble >= cap) continue;
@@ -346,7 +350,7 @@ function creneauxLibres(o) {
   }
   return out;
 }
-var occupesDuJour = (occupes, dateIso) => occupes.filter((c) => c.jour === dateIso && c.debut).map((c) => ({ maitre: c.maitre, debutMin: minutesDeHhmm(c.debut), dureeMin: c.duree }));
+var occupesDuJour = (occupes, dateIso) => occupes.filter((c) => c.jour === dateIso && c.debut).map((c) => ({ maitre: c.maitre, debutMin: minutesDeHhmm(c.debut), dureeMin: c.duree, ...c.lourde ? { lourde: true } : {} }));
 var PLACES_EN_LIGNE = 1;
 
 // src/shared/catalogue-pur.ts
@@ -392,8 +396,13 @@ function agendaDepuisLesLignes(l) {
   }));
   const occupes = (l.occupes ?? []).map(objet2).filter((c) => chaine(c.jour) !== "" && /^\d{1,2}:\d{2}/.test(chaine(c.debut))).map((c) => {
     const d = Number(c.duree);
-    return { jour: chaine(c.jour), maitre: chaine(c.maitre), debut: chaine(c.debut), duree: Number.isFinite(d) && d >= 1 ? d : 60 };
+    return { jour: chaine(c.jour), maitre: chaine(c.maitre), debut: chaine(c.debut), duree: Number.isFinite(d) && d >= 1 ? d : 60, ...c.lourde === true ? { lourde: true } : {} };
   });
+  const siegesDuJour = {};
+  for (const r of (l.places ?? []).map(objet2)) {
+    const n = Number(r.places);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(chaine(r.jour)) && Number.isInteger(n) && n >= 1) siegesDuJour[chaine(r.jour)] = n;
+  }
   const services = (l.services ?? []).map((r) => {
     const d = objet2(r.data);
     const duree = Number(d.durationMin);
@@ -424,6 +433,7 @@ function agendaDepuisLesLignes(l) {
        rituel ne chevauche jamais un autre (`PLACES_EN_LIGNE`). Les fauteuils
        de la branche restent au comptoir. */
     sieges: PLACES_EN_LIGNE,
+    ...Object.keys(siegesDuJour).length > 0 ? { siegesDuJour } : {},
     capMaison: entier2(reglages2.maxRdvParJourMaison),
     capMaitre: entier2(reglages2.maxRdvParJourMaitre),
     semaine,
@@ -547,7 +557,7 @@ function rdvDeLaPrivee(o) {
 var PRIX_DE_LA_CONSULTATION_PRIVEE_XOF = 15e3;
 
 // scripts/serveur/visio-salle.ts
-var VERSION = "2026-11-18-a";
+var VERSION = "2026-11-18-b";
 var DAILY = "https://api.daily.co/v1";
 var LIMITE = { seau: "visio", max: 6, fenetreMin: 10 };
 var DAILY_MAX_MS = 8e3;

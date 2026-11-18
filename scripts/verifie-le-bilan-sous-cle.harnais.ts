@@ -578,7 +578,7 @@ dit('⑦ 0216 : les colonnes de la limite et du changement, l heure de l annulat
 ]);
 const fn = lf('scripts/serveur/visio-salle.ts');
 dit('⑦ la fonction : sa version, aucun domaine ecrit, le billet garde en empreinte', [true, false, true], [
-  fn.includes("const VERSION = '2026-11-18-a';"), /maisonmnd|github\.io|supabase\.co/i.test(fn), fn.includes('billet_hash: await empreinte(billet)'),
+  (/const VERSION = '(\d{4}-\d{2}-\d{2}-[a-z])';/.exec(fn)?.[1] ?? '') >= '2026-11-18-a', /maisonmnd|github\.io|supabase\.co/i.test(fn), fn.includes('billet_hash: await empreinte(billet)'),
 ]);
 const reg = lf('src/apps/trone/routes/systeme/ReglagesDeLaVisio.tsx');
 dit('⑦ les reglages se reglent au Trone : la periode, le delai, les changements, le Carnet', [], ['limiteJours', 'changementAvantMin', 'changementsMax', 'priveeDureeMin', 'auCarnet'].filter((k) => !reg.includes(`d, ${k}:`)));

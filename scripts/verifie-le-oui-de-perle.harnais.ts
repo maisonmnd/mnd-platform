@@ -64,8 +64,8 @@ const lecture = lis('src/shared/assistant-lecture-pur.ts');
 dit('son rituel : sa derniere venue honoree, jamais une creation, son heure habituelle', [true, true],
   [/!gestesDeLaDerniere\.some\(\(id\) => byId\.get\(id\)\?\.categoryId === CATEGORIE_VEKPE\)/.test(lecture), /heure: heureHabituelle\(siens\.filter\(\(a\) => a\.status === 'honoré'\)\)/.test(lecture)]);
 const am = lis('supabase/functions/assistant-maison/index.ts');
-dit('la fonction de Perle est refaite depuis le depot, et dit 2026-11-18-a', [true, true],
-  [am.includes('propositionDuJour') && am.includes('proposition: s.proposition'), /var VERSION = "2026-11-18-a"/.test(am)]);
+dit('la fonction de Perle est refaite depuis le depot, et dit 2026-11-18-a ou une suivante', [true, true],
+  [am.includes('propositionDuJour') && am.includes('proposition: s.proposition'), (/var VERSION = "(\d{4}-\d{2}-\d{2}-[a-z])"/.exec(am)?.[1] ?? '') >= '2026-11-18-a']);
 
 /* ── ② L'AUTOMATE RELIT ET CHOISIT ────────────────────────────────────── */
 (globalThis as unknown as { Deno: unknown }).Deno = { env: { get: () => '' }, serve: () => undefined };
@@ -100,8 +100,10 @@ const reserve = entre(wa, 'async function reserveLeOuiDePerle(', '\nDeno.serve('
 dit('seulement une ligne de Perle qui a dit oui, et sa fiche au numero (reverifiee)', [true, true],
   [/if \(!ligne \|\| d\.type !== 'gerard' \|\| d\.reponse !== 'oui'\)/.test(reserve),
     /const f = fiches\?\.find\(\(x\) => x\.id === String\(d\.clientId \?\? ''\)\);\n\s*if \(!f\) \{ dis\('perle · fiche etrangere au numero'\); return \{ pris: false \}; \}/.test(reserve)]);
-dit('la pose : sous le verrou, jamais le jour meme, confirmee, par Perle, avec la cle du numero et son oui date', [true, true, true],
-  [/const v = await poseSousVerrou\(sb, lu, ecriture, vue\.oublie, false\);/.test(reserve),
+/* Depuis « deux têtes chez Team » (60603719), la tête de la cliente suit jusqu'au verrou. */
+dit('la pose : sous le verrou, jamais le jour meme, sa tete lue sur sa fiche, confirmee, par Perle, avec la cle du numero et son oui date', [true, true, true, true],
+  [/const v = await poseSousVerrou\(sb, lu, ecriture, vue\.oublie, false, lourde\);/.test(reserve),
+    /const lourde = teteLourde\(f\.tete\?\.locks\);/.test(reserve),
     /status: 'confirmé', source: 'whatsapp'/.test(reserve),
     /poseePar: PERLE, cleDuNumero: cleWa\(o\.numero\), confirmeeParLaClienteLe: maintenant,/.test(reserve)]);
 dit('un seul rendez-vous par ligne : un second « Oui » le redit sans en poser un autre', [true, true],

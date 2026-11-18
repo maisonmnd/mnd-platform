@@ -2,6 +2,14 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## DEUX FICHIERS REGROUPÉS RATTRAPÉS APRÈS « DEUX TÊTES » — 18 novembre 2026 (assistant-maison 2026-11-18-b, visio-salle 2026-11-18-b ; aucun SQL ; Trône inchangé)
+
+- **Pourquoi** : 60603719 a changé `agenda-pur` et `place-du-serveur` sans refaire les deux fonctions qui les regroupent. `verifie-la-cle-du-cron` criait sur `assistant-maison` (signalé par la session du « Non merci ») ; `visio-salle` avait le même retard, sans banc pour le dire.
+- **assistant-maison** : rien ne change pour elle ; les places de ses messages se comptent sans maître (`placesDuJour` de `rdv-fluide-pur`, maître `PERSONNE`), la règle des deux têtes n'y entre pas. Octets seulement.
+- **visio-salle** : la consultation privée au Carnet lit désormais la tête des créneaux pris et les places de chaque jour, comme le verrou de 0238 qui juge déjà ainsi. Avant, elle était plus stricte que le verrou.
+- **Bancs** : `verifie-le-oui-de-perle` 27 (la pose porte maintenant la tête de la cliente, `teteLourde(f.tete?.locks)` ; la version se lit « 18-a ou une suivante »), `verifie-le-bilan-sous-cle` (même lecture de version), `verifie-la-visio`, `verifie-la-visio-relue` 15, `verifie-les-envies`, `verifie-la-porte-des-modeles` 105, `verifie-le-devis-remis`, `verifie-la-cle-du-cron` 36, `verifie-deux-tetes-chez-team` 40, `verifie-la-place-du-serveur` 127. `verifie-les-douze-lunes` : R12 seul, faute des pages générées du site dans un worktree (connu).
+- **À retenir** : après tout changement de `src/shared/agenda-pur.ts` ou `place-du-serveur.ts`, relancer les scripts `*-serveur.mjs` et regarder `git diff --ignore-cr-at-eol` (les autres ne bougent qu'en fins de ligne).
+
 ## DEUX TÊTES CHEZ TEAM — 18 novembre 2026, EN LIGNE (SQL 0238 passée ; whatsapp-automate 2026-11-18-h v80 ; demande-submit 2026-11-18-d v74 ; site public 391/391 et Ma Couronne 313/313, build 20261118215533 @ 0ee22462 ; Trône inchangé ; aucun essai réel sur WhatsApp)
 
 « On peut mettre deux personnes aux mêmes horaires… tant qu'une personne a moins de 150 locks et l'autre a 400 locks. Mais on ne peut pas prendre deux personnes qui ont 400 locks simultanément » (Yéman, après la conversation où Opale disait « libre » puis « vient d'être prise »). Au sélecteur : l'une des deux sous 150 locks ; une fiche sans nombre de locks compte comme une petite tête ; tous les rituels de Team ; le samedi comme en semaine (0237).
