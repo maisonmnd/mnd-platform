@@ -252,8 +252,8 @@ const alerte = (() => {
 }
 {
   const f = sansCommentaires(lis(FONCTION));
-  dit('la fonction : version 2026-10-20-b, le jour, la référence et le lien gardés, `texte` intouché', [true, true, true, true, true],
-    [/const VERSION = '2026-10-20-b';/.test(f), /publieLe: String\(r\.publishTime\)\.trim\(\)/.test(f), /ref: String\(r\.name\)\.trim\(\)/.test(f),
+  dit('la fonction : version 2026-11-17-a, le jour, la référence et le lien gardés, `texte` intouché', [true, true, true, true, true],
+    [/const VERSION = '2026-11-17-a';/.test(f), /publieLe: String\(r\.publishTime\)\.trim\(\)/.test(f), /ref: String\(r\.name\)\.trim\(\)/.test(f),
       /lien: String\(r\.googleMapsUri\)/.test(f), /texte: String\(r\.text\?\.text \?\? r\.originalText\?\.text \?\? ''\)\.trim\(\),/.test(f)]);
   dit('l alerte part par push-notify, mode direction, APRÈS l écriture du relevé, et ne le fait jamais échouer', [true, true, true],
     [/mode: 'direction'/.test(f), f.indexOf("upsert({ key: 'mnd_avis_google', data: doc })") >= 0 && f.indexOf("upsert({ key: 'mnd_avis_google', data: doc })") < f.indexOf('/functions/v1/push-notify'),

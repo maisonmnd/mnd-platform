@@ -14,6 +14,7 @@ import { MODELES_DE_CARTE, genreEffectif, nomDuRang, prenomDuNom, rangSuivant, s
 import { useDouzeLunes } from '../../../../shared/douze-lunes';
 import { attendLeLancement, codeActifDe, resteAvantLaGraine, seuilDeLaGraine, visitesDesLunes } from '../../../../shared/douze-lunes-pur';
 import { appelDe, prenomDUsage } from '../../../../shared/civilite';
+import { escHtml } from '../../../../shared/echappe-html-pur';
 
 /* ══ SA CARTE DE MARRAINE, DANS SA FICHE — 28 septembre 2026 ════════════
    Maquette validée (« Au Trône, la fiche cliente »). La carte à son prénom,
@@ -45,6 +46,11 @@ const dateAvecAnnee = (iso: string) => {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 };
 
+/* LE CODE S'ÉCHAPPE DANS LE TITRE (audit du 4 novembre 2026) : la fenêtre
+   d'impression vit sur l'origine du Trône, et le code vient d'une fiche
+   synchronisée. Jusqu'au 17 novembre 2026, il y était écrit brut, sans aucun
+   échappement. Il passe maintenant par celui des cartes des QR codes, une
+   seule copie : shared/echappe-html-pur. */
 async function imprime(d: DonneesDeCarte): Promise<void> {
   const faces = await Promise.all((['recto', 'verso'] as const).map(async (f) => {
     const canvas = document.createElement('canvas');
@@ -53,7 +59,7 @@ async function imprime(d: DonneesDeCarte): Promise<void> {
   }));
   const w = window.open('', '_blank');
   if (!w) { toast('La fenêtre d’impression a été bloquée par le navigateur.'); return; }
-  w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Carte de marraine ${d.code}</title>
+  w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Carte de marraine ${escHtml(d.code)}</title>
 <style>@page{size:85.6mm 54mm;margin:0}html,body{margin:0}img{display:block;width:85.6mm;height:54mm;page-break-after:always}</style></head>
 <body>${faces.map((src) => `<img src="${src}" alt="">`).join('')}<script>window.onload=()=>{window.focus();window.print();}<\/script></body></html>`);
   w.document.close();

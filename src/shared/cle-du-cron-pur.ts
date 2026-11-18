@@ -7,11 +7,22 @@
    durcie à la main : les neuf autres gardaient l'ancienne porte (revue de
    code du 17 novembre 2026).
 
-   UNE SEULE PORTE, RECOPIÉE : ce bloc, entre ses repères ⟨cle-du-cron⟩, est
-   recopié tel quel dans chaque fonction par `scripts/terminer-copie-serveur.mjs`
-   (une fonction Edge n'importe rien de `src/`). `scripts/verifie-la-cle-du-cron.mjs`
-   le prouve : les copies sont l'original, aucune porte ne compare plus avec
-   `===`, aucune réponse ne porte plus de longueur.
+   PUIS LES AUTRES PORTES (le même jour) : toute fonction qui compare une
+   clé reçue à un secret attendu passe désormais par ce bloc, et il les
+   atteint par DEUX CHEMINS (noté le 18 novembre 2026) :
+   · les fonctions DIRECTES, vingt-deux (la liste `cle-du-cron` de
+     `scripts/terminer-copie-serveur.mjs`) : ce bloc, entre ses repères
+     ⟨cle-du-cron⟩, y est recopié tel quel par ce script (une fonction Edge
+     n'importe rien de `src/`). Une copie ne se retouche jamais à la main ;
+   · les quatre fonctions REGROUPÉES (assistant-maison, reception-wa,
+     conseil-du-matin, tri-des-messages) : leur source `scripts/serveur/<f>.ts`
+     importe ce module, et esbuild l'emporte dans le fichier généré. Elles ne
+     portent ni repères ni copie : ne pas leur en poser, ni les inscrire dans
+     la liste du script de copie.
+   `scripts/verifie-la-cle-du-cron.mjs` le prouve (B les copies, D les
+   regroupées) : aucune porte ne compare plus avec `===`, aucune réponse ne
+   porte plus de longueur. `verifie-les-douze-lunes` (R8) confronte aussi
+   chaque copie à cet original.
 
    CE QUI NE CHANGE PAS : le contrôle de santé (GET) de chaque fonction dit
    toujours ses secrets en longueurs seules. C'est voulu, et c'est l'outil de

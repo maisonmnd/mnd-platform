@@ -49,7 +49,7 @@ const origine = `http://127.0.0.1:${serveur.address().port}`;
 console.log('Construction du Trône (la base ne répond jamais)…');
 execSync(`npx vite build --outDir "${construit}" --emptyOutDir`, {
   cwd: racine, stdio: 'ignore',
-  env: { ...process.env, VITE_APPS: 'trone', VITE_SUPABASE_URL: origine, VITE_SUPABASE_ANON_KEY: 'faux', VITE_REQUIRE_AUTH: 'true', VITE_BUILD_ID: 'banc', VITE_BASE: '/' },
+  env: { ...process.env, VITE_APPS: 'trone', VITE_SUPABASE_URL: origine, VITE_SUPABASE_ANON_KEY: 'faux', VITE_ALLOW_OPEN: 'false', VITE_BUILD_ID: 'banc', VITE_BASE: '/' },
 });
 renameSync(path.join(construit, 'trone.html'), path.join(construit, 'index.html'));
 const dbg = 9300 + Math.floor(Math.random() * 500);

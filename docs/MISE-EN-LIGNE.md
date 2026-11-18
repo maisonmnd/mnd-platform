@@ -54,7 +54,10 @@ Ne jamais chercher la clé ailleurs.
    copie propre détachée. Un seul banc rouge, et rien ne part.
 2. **SQL d'abord**, dans l'ordre des numéros, puisque le code qui suit peut en
    dépendre. Vérifier l'effet avec une `requete`. Ne jamais relancer une
-   migration déjà passée (voir `docs/REPRENDRE.md`).
+   migration déjà passée (voir `docs/REPRENDRE.md`). Ne jamais passer en
+   production les fichiers `supabase/apply_*.sql` : ce sont les installations
+   d'un projet neuf (`apply_auth.sql` refuse d'ailleurs de tourner sur une base
+   qui a passé 0109, depuis le 18 novembre 2026).
 3. **Secrets**, s'il y en a.
 4. **Fonctions.** Le rapport doit dire « le serveur dit … » ou « pas de
    contrôle de santé ». Au moindre écart de version, on s'arrête.

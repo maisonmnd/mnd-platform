@@ -48,7 +48,8 @@
    POST|PUT ?rappel=<ref>  l'annonce de MTN pour une demande ou un virement.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-11-04-b';
+/* 2026-11-17-a : la clé du projet comparée à temps constant, son refus au journal (⟨cle-du-cron⟩). */
+const VERSION = '2026-11-17-a';
 
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o, null, 2), { status, headers: { 'content-type': 'application/json' } });
@@ -258,6 +259,33 @@ async function gardeLeRappel(ref: string, status: string) {
   });
 }
 
+/* LA CLÉ COMPARÉE SANS RIEN LAISSER FUIR (17 novembre 2026, revue de code) :
+   copie du bloc de src/shared/cle-du-cron-pur.ts, réécrite par
+   scripts/terminer-copie-serveur.mjs ; scripts/verifie-la-cle-du-cron.mjs la
+   compare. */
+/* ⟨cle-du-cron⟩ */
+/** Deux clés sont-elles la même ? À TEMPS CONSTANT : `===` s'arrête au
+    premier caractère qui diffère, et ce temps-là se mesure de l'extérieur,
+    caractère après caractère. Une clé vide ne vaut jamais : un secret qui
+    n'est pas posé n'ouvre rien. */
+const memeCle = (a: string, b: string): boolean => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
+};
+
+/** Une clé refusée se dit AU JOURNAL de la fonction, en longueurs seules
+    (sb_secret ≈ 40 à 50 signes · legacy eyJ… ≈ 200 et plus · 0 = rien de
+    posé de ce côté-là) : elles suffisent à situer la panne. Jamais dans la
+    réponse : celui qui frappe sans la clé n'a pas à les lire. */
+const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+/* ⟨/cle-du-cron⟩ */
+
 Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
   const k = cles();
@@ -277,7 +305,13 @@ Deno.serve(async (req: Request) => {
 
   if (req.method === 'POST' && url.searchParams.get('lancer') === '1') {
     const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
-    if (!ANON || jeton !== ANON) return json({ erreur: 'clé du projet attendue' }, 401);
+    /* La clé du projet (publique, mais c'est elle que la porte attend),
+       comparée à temps constant ; le refus au journal, en longueurs seules
+       (17 novembre 2026). */
+    if (!ANON || !memeCle(jeton, ANON)) {
+      noteLeRefus('mtn-momo-essais', ANON, jeton);
+      return json({ erreur: 'clé du projet attendue' }, 401);
+    }
     const rapport = await deroule(k, {
       f: fetch,
       attendre: (ms) => new Promise((ok) => setTimeout(ok, ms)),

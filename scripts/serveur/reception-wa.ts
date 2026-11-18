@@ -7,7 +7,9 @@
 
    QUI L'APPELLE : `whatsapp-automate` seul, quand son juge se tait sur un
    numéro que la réception sert (`laReceptionPeutParler`). LA PORTE :
-   `Authorization: Bearer <CLE_SERVICE>`.
+   `Authorization: Bearer <CLE_SERVICE>`, comparée à temps constant
+   (`memeCle`, shared/cle-du-cron-pur, 17 novembre 2026) ; un refus se dit
+   au journal en longueurs seules (`noteLeRefus`), jamais dans la réponse.
 
    CE QU'ELLE FAIT, à chaque appel :
      ① le plafond : vingt réponses au plus par numéro en vingt-quatre
@@ -56,13 +58,16 @@ import {
 import { prixSelonLeCalibre, type Bande, type PrestationTarifee } from '../../src/apps/revelateur/prix-calibre';
 import { prixDuCatalogue } from '../../src/shared/automate-wa';
 import type { ExceptionDHoraire, HeureDeLaSemaine } from '../../src/shared/agenda-pur';
+import { memeCle, noteLeRefus } from '../../src/shared/cle-du-cron-pur';
 
 declare const Deno: {
   env: { get(nom: string): string | undefined };
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-/* 2026-11-17-a : plus d'avis sur photo sans rendez-vous (la consigne ne demande plus de photo). */
+/* 2026-11-18-b : la consultation en affiches (plus d'avis sur photo sans rendez-vous, la consigne ne demande plus de photo)
+   ET la clé du service comparée à temps constant (memeCle), son refus au journal en longueurs seules
+   (noteLeRefus), que la porte de la clé a posés en 2026-11-18-a. */
 const VERSION = '2026-11-18-b';
 /** Haïku d'abord (rapide, sur les crédits inclus) ; Sonnet si l'identifiant n'est pas reconnu. */
 const MODELES = ['claude-haiku-5-5', 'claude-sonnet-5-5'];
@@ -205,7 +210,11 @@ Deno.serve(async (req) => {
   if (req.method === 'GET') return json({ fonction: 'reception-wa', version: VERSION, claude: cleClaude ? 'oui' : 'non' });
   const service = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
   const cleRecue = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
-  if (!service || cleRecue !== service) return json({ ok: false, motif: 'porte', version: VERSION }, 401);
+  if (!service || !memeCle(cleRecue, service)) {
+    /* Les longueurs vont AU JOURNAL, jamais dans la réponse (17 novembre 2026). */
+    noteLeRefus('reception-wa', service, cleRecue);
+    return json({ ok: false, motif: 'porte', version: VERSION }, 401);
+  }
   if (!cleClaude) return json({ ok: false, motif: 'cle-claude-absente', version: VERSION });
   let d: Demande;
   try { d = await req.json() as Demande; } catch { return json({ ok: false, motif: 'demande-illisible', version: VERSION }, 400); }

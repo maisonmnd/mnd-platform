@@ -65,7 +65,22 @@
    sont posés d'office.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = '2026-11-11-c';
+/* 2026-11-17-a : les clés de service comparées à temps constant (⟨cle-du-cron⟩) ;
+   personnel() retire de nouveau le préfixe « Bearer » (`/^Bearer\s+/i`).
+   L'antislash manquait depuis fbfa0321 : le jeton gardait « Bearer » collé,
+   la liste noire ne reconnaissait une clé de service qu'envoyée SANS ce
+   préfixe, et l'appel à auth/v1/user partait en « Bearer Bearer … ».
+   Révélé par verifie-la-cle-du-cron.
+   CE QUI CHANGE POUR LE TRÔNE (18 novembre 2026, revue) : depuis sa mise en
+   ligne (2026-11-11-c), « Payer par MTN » de la fenêtre Encaisser
+   ('demander-trone', appelé par supabase.functions.invoke, donc « Bearer
+   <session> ») répondait 403 { erreur: 'personnel' } à TOUTE l'équipe, et
+   aucune demande n'est jamais partie du Trône. Désormais chaque session du
+   personnel, quel que soit son rôle, l'envoie (interrupteur ouvert, pièce
+   émise, reste figé au serveur), comme voulu le 11 novembre : une vraie
+   demande d'argent chez MTN. Éprouvé par verifie-collecte-mtn (lot B,
+   demander-trone) ; à essayer en vrai après la mise en ligne. */
+const VERSION = '2026-11-17-a';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -78,7 +93,8 @@ const json = (o: unknown, status = 200) =>
 const env = (k: string) => (Deno.env.get(k) ?? '').trim();
 const PROJET = () => env('SUPABASE_URL').replace(/\/$/, '');
 const SERVICE = () => env('SERVICE_KEY') || env('SUPABASE_SERVICE_ROLE_KEY');
-/** Les clés de service posées : le passage de la base présente l'une d'elles. */
+/** Les clés de service posées : le passage de la base présente l'une d'elles.
+    Comparées à temps constant (memeCle, 17 novembre 2026). */
 const CLES_DE_SERVICE = () => [env('SERVICE_KEY'), env('CLE_SERVICE'), env('SUPABASE_SERVICE_ROLE_KEY')].filter(Boolean);
 const DIRECTION = new Set(['souverain', 'gerant']);
 
@@ -779,13 +795,40 @@ const leCompte = () => ({
   compte: env('MOMO_PROD_COLLECTION_COMPTE').slice(0, 60) || null,
 });
 
+/* LA CLÉ COMPARÉE SANS RIEN LAISSER FUIR (17 novembre 2026, revue de code) :
+   copie du bloc de src/shared/cle-du-cron-pur.ts, réécrite par
+   scripts/terminer-copie-serveur.mjs ; scripts/verifie-la-cle-du-cron.mjs la
+   compare. */
+/* ⟨cle-du-cron⟩ */
+/** Deux clés sont-elles la même ? À TEMPS CONSTANT : `===` s'arrête au
+    premier caractère qui diffère, et ce temps-là se mesure de l'extérieur,
+    caractère après caractère. Une clé vide ne vaut jamais : un secret qui
+    n'est pas posé n'ouvre rien. */
+const memeCle = (a: string, b: string): boolean => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
+};
+
+/** Une clé refusée se dit AU JOURNAL de la fonction, en longueurs seules
+    (sb_secret ≈ 40 à 50 signes · legacy eyJ… ≈ 200 et plus · 0 = rien de
+    posé de ce côté-là) : elles suffisent à situer la panne. Jamais dans la
+    réponse : celui qui frappe sans la clé n'a pas à les lire. */
+const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+/* ⟨/cle-du-cron⟩ */
+
 /* ── Qui appelle ── */
 /** LE PERSONNEL, QUEL QUE SOIT SON RÔLE (11 novembre 2026) : la fenêtre
     Encaisser du Trône demande au téléphone de la cliente. Même lecture que
     la direction, sans exiger le rôle. */
 async function personnel(req: Request): Promise<{ par: string } | null> {
-  const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearers+/i, '').trim();
-  if (!jwt || CLES_DE_SERVICE().includes(jwt)) return null;
+  const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+  if (!jwt || CLES_DE_SERVICE().some((cle) => memeCle(jwt, cle))) return null;
   const u = await fetch(`${PROJET()}/auth/v1/user`, { headers: { apikey: SERVICE(), Authorization: `Bearer ${jwt}` } }).catch(() => null);
   if (!u || !u.ok) return null;
   const uid = (await u.json().catch(() => null))?.id;
@@ -797,7 +840,7 @@ async function personnel(req: Request): Promise<{ par: string } | null> {
 }
 async function direction(req: Request): Promise<{ par: string } | null> {
   const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
-  if (!jwt || CLES_DE_SERVICE().includes(jwt)) return null;
+  if (!jwt || CLES_DE_SERVICE().some((cle) => memeCle(jwt, cle))) return null;
   const u = await fetch(`${PROJET()}/auth/v1/user`, { headers: { apikey: SERVICE(), Authorization: `Bearer ${jwt}` } }).catch(() => null);
   if (!u || !u.ok) return null;
   const uid = (await u.json().catch(() => null))?.id;
@@ -809,7 +852,7 @@ async function direction(req: Request): Promise<{ par: string } | null> {
 }
 const estLePassage = (req: Request) => {
   const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
-  return !!jwt && CLES_DE_SERVICE().includes(jwt);
+  return !!jwt && CLES_DE_SERVICE().some((cle) => memeCle(jwt, cle));
 };
 
 /* ── L'interrupteur (0200) : illisible ou absent, il est FERMÉ ── */

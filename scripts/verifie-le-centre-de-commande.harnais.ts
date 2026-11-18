@@ -148,7 +148,7 @@ const regles: Regle[] = [
       if (!/\.eq\('user_id', uid\)\.maybeSingle\(\);\s*if \(!ligne \|\| \(ligne as \{ role\?: string \}\)\.role !== 'souverain'\) return null;/.test(s)) x.push('le fondateur n’est pas vérifié au rôle souverain');
       if (!/if \(mode === 'mission'\) \{\s*if \(!fondateur\) return json\(\{ error: 'forbidden' \}, 403\);/.test(s)) x.push('une mission peut se lancer sans fondateur');
       if (!/if \(!service && !fondateur\) return json\(\{ error: 'forbidden' \}, 403\);/.test(s)) x.push('un inconnu passe la porte');
-      if (!/\.some\(\(cle\) => memeSecret\(recu,/.test(s)) x.push('la clé service ne se compare pas à temps constant');
+      if (!/\.some\(\(cle\) => memeCle\(recu,/.test(s)) x.push('la clé service ne se compare pas à temps constant');
       const plafond = s.indexOf('const permis = peutAppeler('), appel = s.indexOf('anthropic.messages.create(');
       if (plafond < 0 || appel < 0 || plafond > appel || !/if \(!permis\.oui\) throw new Plafond/.test(s)) x.push('le plafond ne se lit pas avant l’appel');
       if (/ecrisLeDocument\('mnd_ia_missions'/.test(s)) x.push('la fonction écrit les missions du Trône');

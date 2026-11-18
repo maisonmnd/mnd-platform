@@ -14,7 +14,7 @@
    Il attend deux constructions des memes entrees :
      VITE_APPS=consultation,certificat,bilan VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= \
        npx vite build --outDir "$TEMP/banc-porte-sans" --emptyOutDir
-     VITE_APPS=consultation,certificat,bilan VITE_SUPABASE_URL=http://127.0.0.1:9 VITE_SUPABASE_ANON_KEY=banc \
+     VITE_APPS=consultation,certificat,bilan VITE_SUPABASE_URL=http://127.0.0.1:9 VITE_SUPABASE_ANON_KEY=banc VITE_ALLOW_OPEN=false \
        npx vite build --outDir "$TEMP/banc-porte-avec" --emptyOutDir
    (l'adresse du second serveur ne repond pas : il suffit qu'il y en ait une,
    la session se lit sur l'appareil). */

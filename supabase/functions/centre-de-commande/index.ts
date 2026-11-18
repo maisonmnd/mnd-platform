@@ -34,8 +34,9 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 
-/** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-10-11-b';
+/** La version de ce fichier, rendue dans chaque réponse. 2026-11-17-a : la
+    clé service comparée par le bloc ⟨cle-du-cron⟩. */
+const VERSION = '2026-11-17-a';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
@@ -1721,19 +1722,38 @@ export function relisLeScript(brut: unknown): ScriptRelu {
 
 /* ── Qui appelle ─────────────────────────────────────────────────────────── */
 
-/** Égalité à temps constant ; une chaîne vide n'est égale à rien. */
-const memeSecret = (a: string, b: string): boolean => {
-  if (!a || !b || a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
+/* LA CLÉ COMPARÉE SANS RIEN LAISSER FUIR (17 novembre 2026, revue de code) :
+   le bloc ⟨cle-du-cron⟩ remplace l'égalité d'ici (memeSecret, qui sortait dès
+   que les longueurs différaient). Copie de src/shared/cle-du-cron-pur.ts,
+   réécrite par scripts/terminer-copie-serveur.mjs. */
+/* ⟨cle-du-cron⟩ */
+/** Deux clés sont-elles la même ? À TEMPS CONSTANT : `===` s'arrête au
+    premier caractère qui diffère, et ce temps-là se mesure de l'extérieur,
+    caractère après caractère. Une clé vide ne vaut jamais : un secret qui
+    n'est pas posé n'ouvre rien. */
+const memeCle = (a: string, b: string): boolean => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
 };
+
+/** Une clé refusée se dit AU JOURNAL de la fonction, en longueurs seules
+    (sb_secret ≈ 40 à 50 signes · legacy eyJ… ≈ 200 et plus · 0 = rien de
+    posé de ce côté-là) : elles suffisent à situer la panne. Jamais dans la
+    réponse : celui qui frappe sans la clé n'a pas à les lire. */
+const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+/* ⟨/cle-du-cron⟩ */
 
 /** Le cron (par `appelle_fonction_edge`, qui porte la clé service). */
 const porteLaCleService = (req: Request): boolean => {
   const recu = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
   return [Deno.env.get('CLE_SERVICE'), Deno.env.get('SERVICE_KEY'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')]
-    .some((cle) => memeSecret(recu, (cle ?? '').trim()));
+    .some((cle) => memeCle(recu, (cle ?? '').trim()));
 };
 
 /** Un fondateur connecté : un compte du personnel au rôle `souverain`. */

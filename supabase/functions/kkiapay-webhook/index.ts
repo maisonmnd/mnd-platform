@@ -37,8 +37,10 @@ const KKIA_VERIFY_PATH = '/api/v1/transactions/status';
 /** La version de ce fichier, écrite au journal des fonctions à chaque
     passage. 20 octobre 2026 (le parcours de l'abonnée) : l'argent d'un
     contrat passe par `verse_sur_l_abonnement` (0138), au contrat ET à sa
-    pièce ; le dû se relit sur les deux. */
-const VERSION = '2026-10-20-a';
+    pièce ; le dû se relit sur les deux. 17 novembre 2026 : le secret de
+    KkiaPay comparé à temps constant, son refus au journal en longueurs
+    seules (⟨cle-du-cron⟩). */
+const VERSION = '2026-11-17-a';
 
 /* ── CE QUE LE CONTRAT ATTEND — 20 octobre 2026 (le parcours de l'abonnée) ──
    Le dû d'un abonnement est ce qui reste de la plus vieille échéance pas
@@ -111,14 +113,32 @@ async function leContratEtSaPiece(admin: any, d: any): Promise<{ piece: any; pla
 // ── FIN leContratEtSaPiece
 
 
-/** Comparaison à temps constant — une comparaison naïve fuit le secret, octet
-    par octet, par le temps de réponse. */
-function safeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
+/* LA CLÉ COMPARÉE SANS RIEN LAISSER FUIR (17 novembre 2026, revue de code) :
+   le bloc ⟨cle-du-cron⟩ remplace l'égalité d'ici (safeEqual, qui sortait dès
+   que les longueurs différaient). Copie de src/shared/cle-du-cron-pur.ts,
+   réécrite par scripts/terminer-copie-serveur.mjs. */
+/* ⟨cle-du-cron⟩ */
+/** Deux clés sont-elles la même ? À TEMPS CONSTANT : `===` s'arrête au
+    premier caractère qui diffère, et ce temps-là se mesure de l'extérieur,
+    caractère après caractère. Une clé vide ne vaut jamais : un secret qui
+    n'est pas posé n'ouvre rien. */
+const memeCle = (a: string, b: string): boolean => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
+};
+
+/** Une clé refusée se dit AU JOURNAL de la fonction, en longueurs seules
+    (sb_secret ≈ 40 à 50 signes · legacy eyJ… ≈ 200 et plus · 0 = rien de
+    posé de ce côté-là) : elles suffisent à situer la panne. Jamais dans la
+    réponse : celui qui frappe sans la clé n'a pas à les lire. */
+const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+/* ⟨/cle-du-cron⟩ */
 
 type KkiaTransaction = { status?: string; amount?: number; fees?: number; source?: string; failureMessage?: string };
 
@@ -355,8 +375,10 @@ Deno.serve(async (req) => {
   //    KkiaPay cinq fois pour rien, et renseignerait un attaquant sur sa cible.
   const secret = Deno.env.get('KKIAPAY_WEBHOOK_SECRET') ?? '';
   const sent = req.headers.get('x-kkiapay-secret') ?? '';
-  if (!secret || !safeEqual(sent, secret)) {
-    console.error('kkiapay-webhook: signature refusée');
+  if (!secret || !memeCle(sent, secret)) {
+    /* Au journal, en longueurs seules (17 novembre 2026) ; la réponse reste
+       le même 200 muet. */
+    noteLeRefus('kkiapay-webhook', secret, sent);
     return new Response('ok', { status: 200 });
   }
 

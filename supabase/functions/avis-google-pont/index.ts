@@ -4,7 +4,7 @@
 // fonctions qu on colle a la main : elle survit a un collage de travers.
 
 /* ═══════════════════════════════════════════════════════════════════════
-   AVIS-GOOGLE-PONT · 25 octobre 2026 · version 2026-10-26-a
+   AVIS-GOOGLE-PONT · 25 octobre 2026 · version 2026-11-17-a
 
    « Je veux également répondre aux avis Google depuis ici » (Yéman). Google
    a refusé deux fois son API à la Maison ; Make.com l'a. Choix du 25 octobre
@@ -35,7 +35,7 @@
    jeton que Make met dans l'en-tête x-jeton), MAKE_AVIS_REPONDRE
    (l'adresse du webhook « Répondre sur Google ») ; CLE_SERVICE (ou
    SERVICE_KEY) existe déjà. Aucune migration. Contrôle : un GET sur
-   l'adresse rend { error: 'method', version: '2026-10-26-a', … }.
+   l'adresse rend { error: 'method', version: '2026-11-17-a', … }.
 
    2026-10-25-b (le soir du premier import, 299 avis arrivés sans leurs
    noms) : les champs de Make se lisent sans majuscules, et un avis sans
@@ -44,6 +44,11 @@
    2026-10-26-a (la rubrique « Les avis Google ») : la rubrique connaît le
    nom de l'avis chez Google ; s'il est dans le document, il sert tel quel,
    sans appariement.
+
+   2026-11-17-a (revue de code ; noté ici le 18 novembre 2026) : le jeton
+   de Make (x-jeton) comparé à AVIS_PONT_JETON à temps constant (memeCle,
+   bloc ⟨cle-du-cron⟩ recopié par terminer-copie-serveur) ; un refus se dit
+   au journal en longueurs seules (noteLeRefus), jamais dans la réponse.
 
    LE BLOC RECOPIÉ : src/shared/avis-google-pont-pur.ts, entier, entre ses
    repères (`node scripts/copie-dans-le-centre.mjs --fonction
@@ -60,8 +65,9 @@ const WEBHOOK = (Deno.env.get('MAKE_AVIS_REPONDRE') ?? '').trim();
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-/** La version de ce fichier : le Trône la lit au GET. */
-const VERSION = '2026-10-26-a';
+/** La version de ce fichier : le Trône la lit au GET. 2026-11-17-a : le jeton
+    de Make comparé à temps constant, son refus au journal (⟨cle-du-cron⟩). */
+const VERSION = '2026-11-17-a';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -290,13 +296,32 @@ export function peutPublier(role: string | undefined, acces: Record<string, bool
 }
 // ── FIN DE LA COPIE ──
 
-/** Deux secrets égaux, comparés sans s'arrêter au premier écart. */
-function memeSecret(a: string, b: string): boolean {
-  if (!a || !b || a.length !== b.length) return false;
-  let d = 0;
-  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return d === 0;
-}
+/* LA CLÉ COMPARÉE SANS RIEN LAISSER FUIR (17 novembre 2026, revue de code) :
+   le bloc ⟨cle-du-cron⟩ remplace l'égalité d'ici (memeSecret, qui sortait dès
+   que les longueurs différaient). Copie de src/shared/cle-du-cron-pur.ts,
+   réécrite par scripts/terminer-copie-serveur.mjs. */
+/* ⟨cle-du-cron⟩ */
+/** Deux clés sont-elles la même ? À TEMPS CONSTANT : `===` s'arrête au
+    premier caractère qui diffère, et ce temps-là se mesure de l'extérieur,
+    caractère après caractère. Une clé vide ne vaut jamais : un secret qui
+    n'est pas posé n'ouvre rien. */
+const memeCle = (a: string, b: string): boolean => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
+};
+
+/** Une clé refusée se dit AU JOURNAL de la fonction, en longueurs seules
+    (sb_secret ≈ 40 à 50 signes · legacy eyJ… ≈ 200 et plus · 0 = rien de
+    posé de ce côté-là) : elles suffisent à situer la panne. Jamais dans la
+    réponse : celui qui frappe sans la clé n'a pas à les lire. */
+const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+/* ⟨/cle-du-cron⟩ */
 
 async function lisLeDocument<T>(cle: string, defaut: T): Promise<T> {
   const { data, error } = await admin.from('documents').select('data').eq('key', cle).maybeSingle();
@@ -323,7 +348,13 @@ async function corpsDeMake(req: Request): Promise<Record<string, unknown>> {
 /* ── MAKE APPORTE UN AVIS ─────────────────────────────────────────────── */
 async function recoisUnAvis(req: Request): Promise<Response> {
   if (!JETON) return refus(503, 'pont', 'Le secret AVIS_PONT_JETON n’est pas posé.');
-  if (!memeSecret((req.headers.get('x-jeton') ?? '').trim(), JETON)) return refus(403, 'jeton', 'Jeton refusé.');
+  /* Refusé : au journal, en longueurs seules, jamais le jeton ni dans la
+     réponse (17 novembre 2026). */
+  const jetonRecu = (req.headers.get('x-jeton') ?? '').trim();
+  if (!memeCle(jetonRecu, JETON)) {
+    noteLeRefus('avis-google-pont', JETON, jetonRecu);
+    return refus(403, 'jeton', 'Jeton refusé.');
+  }
   const a = lisLAvisRecu(await corpsDeMake(req), new Date().toISOString());
   if (!a) return refus(400, 'format', 'Ce n’est pas un avis : le champ « name » doit être le nom de l’avis chez Google (accounts/…/locations/…/reviews/…).');
   const doc = await lisLeDocument<DocumentDesAvisDeGoogle>(CLE_DES_AVIS_DE_GOOGLE, { avis: {} });

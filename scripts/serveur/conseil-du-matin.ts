@@ -3,7 +3,8 @@
    (maquette CrtJrZzF8E6K39dbPeHwwt, le socle). Ce fichier n'est PAS déployé
    tel quel : `node scripts/conseil-du-matin-serveur.mjs` le regroupe avec les
    modules purs (`shared/conseil-du-matin-pur`, `shared/maison-intelligente-pur`,
-   `shared/assistants-pur`) dans `supabase/functions/conseil-du-matin/index.ts`.
+   `shared/assistants-pur`, et depuis le 17 novembre 2026 `shared/cle-du-cron-pur`
+   pour la porte) dans `supabase/functions/conseil-du-matin/index.ts`.
 
    QUI L'APPELLE :
      - le cron `conseil-du-matin` (0151), à 6 h UTC, 7 h à Cotonou, par
@@ -31,14 +32,15 @@ import { aCotonou } from '../../src/shared/assistants-pur';
 import { CLES_DES_COMPTEURS } from '../../src/shared/maison-intelligente-pur';
 import { ecrisLeConseil, type EnvoisMetaDuMatin, type FaitsDuConseil, type PageDuConseil } from '../../src/shared/conseil-du-matin-pur';
 import { heuresDesRappels, rappelDeLaVeilleSeTait } from '../../src/shared/heures-des-rappels-pur';
+import { memeCle, noteLeRefus } from '../../src/shared/cle-du-cron-pur';
 
 declare const Deno: {
   env: { get(nom: string): string | undefined };
   serve(f: (req: Request) => Promise<Response>): void;
 };
 
-/* 2026-11-11-a : ce qui va partir (reprise du chantier du 5 novembre 2026) : le mot d'Opale (les rappels du soir, ce qu'elle a retenu, les modèles en pause). */
-const VERSION = '2026-11-11-a';
+/* 2026-11-17-a : la clé du cron se compare à temps constant (memeCle, src/shared/cle-du-cron-pur) ; un refus se note au journal en longueurs seules (noteLeRefus), la réponse 403 ne change pas. */
+const VERSION = '2026-11-17-a';
 const ADRESSE = '/trone/#/assistants';
 const ETIQUETTE = 'mnd-conseil';
 /** Un appel à push-notify ne pend jamais au-delà. */
@@ -224,11 +226,18 @@ async function notifieLesSouverains(sb: Base, url: string, service: string, page
   return envoyes;
 }
 
-/** La porte : la clé service (le cron), ou la session d'un souverain. */
+/** La clé présentée : l'en-tête authorization, sans son « Bearer ». */
+const laCleRecue = (req: Request): string => (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+
+/** La porte : la clé service (le cron), ou la session d'un souverain.
+    17 novembre 2026 : la clé service se compare À TEMPS CONSTANT (memeCle),
+    plus avec `===`. Ici on ne fait que reconnaître le cron : rien ne se note,
+    une clé qui n'est pas la sienne passe au chemin du souverain. Le refus, s'il
+    vient, se note une seule fois, au 403 (dessin de whatsapp-automate). */
 async function laPorte(sb: Base, req: Request, service: string): Promise<'cron' | 'souverain' | null> {
-  const cle = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+  const cle = laCleRecue(req);
   if (!cle) return null;
-  if (service && cle === service) return 'cron';
+  if (service && memeCle(cle, service)) return 'cron';
   const { data: lu } = await sb.auth.getUser(cle);
   const uid = lu?.user?.id;
   if (!uid) return null;
@@ -258,6 +267,9 @@ Deno.serve(async (req) => {
   const sb: Base = createClient(url, service);
   try {
     const porte = await laPorte(sb, req, service);
+    /* Ni le cron, ni un souverain : les longueurs des deux clés vont AU JOURNAL,
+       jamais dans la réponse, qui reste la même (17 novembre 2026). */
+    if (!porte) noteLeRefus('conseil-du-matin', service, laCleRecue(req));
     if (!porte) return json({ ok: false, motif: 'reserve-au-cron-et-aux-souverains', version: VERSION }, 403);
     const source: 'cron' | 'souverain' | 'essai' = porte === 'cron' && (await laSourceDuCorps(req)) === 'essai' ? 'essai' : porte;
 

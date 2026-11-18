@@ -3,7 +3,9 @@
    une COPIE des règles, entre ses repères « ⟨nom⟩ ». Ce script réécrit
    chaque copie depuis son original ; le banc verifie-collecte-mtn les
    compare, caractère pour caractère. Même montage que
-   terminer-copie-serveur.mjs (dont il ne touche aucune cible).
+   terminer-copie-serveur.mjs (dont il ne touche aucun bloc ; depuis le
+   17 novembre 2026, celui-ci réécrit aussi le bloc ⟨cle-du-cron⟩ de
+   collecte-mtn).
 
      node scripts/collecte-copie-serveur.mjs            réécrit les copies
      node scripts/collecte-copie-serveur.mjs --verifie  dit seulement si elles sont à jour */

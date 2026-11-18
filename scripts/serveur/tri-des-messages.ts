@@ -14,6 +14,9 @@
        (`numeros`), « debloquer » et « cliente » (`numero`), « passe » (relire
        les fils sans fiche des dernières 24 heures, rien n'est rangé : la
        direction valide).
+   La clé de l'automate se compare à temps constant (`memeCle`), et un refus
+   se note au journal en longueurs seules (`noteLeRefus`), jamais dans la
+   réponse : la règle de shared/cle-du-cron-pur (17 novembre 2026).
 
    LE BLOCAGE chez WhatsApp : `POST /<WA_PHONE_ID>/block_users` (Meta ne
    bloque qu'un numéro qui a écrit dans les 24 heures), `DELETE` pour
@@ -30,8 +33,9 @@ import {
   CLE_DU_TRI, SCHEMA_DU_TRI, avecUnBloque, avecUnJugement, avecUneProposition, cleDuTri, consigneDuTri, contexteDuTri,
   etatDuNumero, extraitDe, lectureDuTri, rendu, triLu, type EntreeDuTri, type TriDesMessages, type VerdictDuTri,
 } from '../../src/shared/tri-des-messages-pur';
+import { memeCle, noteLeRefus } from '../../src/shared/cle-du-cron-pur';
 
-const VERSION = '2026-10-29-a';
+const VERSION = '2026-11-17-a';
 const MODELES = ['claude-haiku-5-5', 'claude-sonnet-5-5'];
 /** Le prix d'un million de jetons, en dollars, pour le compte du mois. */
 const TARIFS: Record<string, { entree: number; sortie: number }> = {
@@ -287,13 +291,19 @@ Deno.serve(async (req) => {
   try { d = await req.json() as Record<string, unknown>; } catch { return avecCors(json({ ok: false, motif: 'demande-illisible', version: VERSION }, 400)); }
   const sb = createClient(base, service);
   const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+  /* UN REFUS SE NOTE AU JOURNAL (17 novembre 2026) : les deux longueurs, jamais
+     une valeur, et la réponse reste ce qu'elle était. Les deux refus le notent,
+     le 403 aussi : l'automate dont la clé ne serait plus la bonne y tombe,
+     puisque son jeton part alors demander `is_staff`. */
+  const auJournal = (r: Response): Response => { noteLeRefus('tri-des-messages', service, jeton); return r; };
   try {
-    if (jeton && jeton === service) return avecCors(await pourLAutomate(sb, cleClaude, base, service, d));
+    /* L'AUTOMATE : sa clé se compare à temps constant, jamais avec `===`. */
+    if (jeton && memeCle(jeton, service)) return avecCors(await pourLAutomate(sb, cleClaude, base, service, d));
     /* LE TRÔNE : on demande à la base si ce jeton est celui du personnel. */
-    if (!jeton || !anon) return avecCors(json({ ok: false, motif: 'porte', version: VERSION }, 401));
+    if (!jeton || !anon) return avecCors(auJournal(json({ ok: false, motif: 'porte', version: VERSION }, 401)));
     const commeAppelant = createClient(base, anon, { global: { headers: { authorization: `Bearer ${jeton}` } } });
     const { data: estPersonnel, error } = await commeAppelant.rpc('is_staff');
-    if (error || estPersonnel !== true) return avecCors(json({ ok: false, motif: 'reserve-au-personnel', version: VERSION }, 403));
+    if (error || estPersonnel !== true) return avecCors(auJournal(json({ ok: false, motif: 'reserve-au-personnel', version: VERSION }, 403)));
     return avecCors(await pourLeTrone(sb, cleClaude, d));
   } catch (e) {
     dis('erreur', { motif: String((e as Error)?.message ?? e).slice(0, 160) });

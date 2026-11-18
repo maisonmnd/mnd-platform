@@ -761,8 +761,21 @@ function rappelDeLaVeilleSeTait(a) {
   return String(a.confirmeeParLaClienteLe).slice(0, 10) >= new Date(t - 3 * 864e5).toISOString().slice(0, 10);
 }
 
+// src/shared/cle-du-cron-pur.ts
+var memeCle = (a, b) => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
+};
+var noteLeRefus = (porte, attendue, recue) => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+
 // scripts/serveur/conseil-du-matin.ts
-var VERSION = "2026-11-11-a";
+var VERSION = "2026-11-17-a";
 var ADRESSE = "/trone/#/assistants";
 var ETIQUETTE = "mnd-conseil";
 var ENVOI_MAX_MS = 8e3;
@@ -918,10 +931,11 @@ async function notifieLesSouverains(sb, url, service, page) {
   }
   return envoyes;
 }
+var laCleRecue = (req) => (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
 async function laPorte(sb, req, service) {
-  const cle = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  const cle = laCleRecue(req);
   if (!cle) return null;
-  if (service && cle === service) return "cron";
+  if (service && memeCle(cle, service)) return "cron";
   const { data: lu } = await sb.auth.getUser(cle);
   const uid = lu?.user?.id;
   if (!uid) return null;
@@ -946,6 +960,7 @@ Deno.serve(async (req) => {
   const sb = createClient(url, service);
   try {
     const porte = await laPorte(sb, req, service);
+    if (!porte) noteLeRefus("conseil-du-matin", service, laCleRecue(req));
     if (!porte) return json({ ok: false, motif: "reserve-au-cron-et-aux-souverains", version: VERSION }, 403);
     const source = porte === "cron" && await laSourceDuCorps(req) === "essai" ? "essai" : porte;
     const maintenantMs = Date.now();

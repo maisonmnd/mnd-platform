@@ -44,7 +44,7 @@ const PANNES = [
   ['les dix suivants prennent les recents', 'src/shared/avis-rubrique-pur.ts', 'return avis.filter((a) => !estRecent(a, maintenant) && etatDeLAvis', 'return avis.filter((a) => true && etatDeLAvis'],
   ['la fonction ignore le nom de l avis', FONCTION, 'const g = (parSonNom ? doc.avis?.[parSonNom] : undefined)', 'const g = (undefined)'],
   ['les Finances publient', PUR, "export const DEPARTEMENTS_QUI_PUBLIENT: readonly string[] = ['dept-clientele', 'dept-marketing'];", "export const DEPARTEMENTS_QUI_PUBLIENT: readonly string[] = ['dept-clientele', 'dept-marketing', 'dept-finances'];"],
-  ['le jeton n est plus verifie', FONCTION, "if (!memeSecret((req.headers.get('x-jeton') ?? '').trim(), JETON)) return refus(403, 'jeton', 'Jeton refusé.');", ''],
+  ['le jeton n est plus verifie', FONCTION, "if (!memeCle(jetonRecu, JETON)) {\n    noteLeRefus('avis-google-pont', JETON, jetonRecu);\n    return refus(403, 'jeton', 'Jeton refusé.');\n  }", ''],
   ['le departement n est plus verifie', FONCTION, "if (!peutPublier((ligne as { role?: string }).role, matrice[uid])) return refus(403, 'equipe', 'Publier sur Google n’est pas ouvert à votre département.');", ''],
   ['un 200 de Make suffit, sans le statut de Google', FONCTION, "if (statut !== 200 || dit !== '200') {", 'if (statut !== 200) {'],
   ['le chemin de Make publie', FONCTION, "if (req.headers.has('x-jeton')) return await recoisUnAvis(req);", "if (req.headers.has('x-jeton') && !req.headers.get('content-type')?.includes('json')) return await recoisUnAvis(req);"],

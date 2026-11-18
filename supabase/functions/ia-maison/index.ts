@@ -70,8 +70,10 @@ const ANTHROPIC_API_KEY = (Deno.env.get('ANTHROPIC_API_KEY') ?? '').trim();
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-/** La version de ce fichier : `saitIaMaison` du Trône la compare. */
-const VERSION = '2026-11-18-a';
+/** La version de ce fichier : `saitIaMaison` du Trône la compare.
+    2026-11-18-a : l'agent des rendez-vous ; 2026-11-18-b : les clés de service
+    reconnues à temps constant (⟨cle-du-cron⟩). */
+const VERSION = '2026-11-18-b';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -616,7 +618,35 @@ async function lisLeDocument<T>(cle: string, defaut: T): Promise<T> {
   return (v === null || v === undefined ? defaut : v) as T;
 }
 
-/** Les clés de service connues : aucune ne sert jamais à lire un coffre. */
+/* LA CLÉ COMPARÉE SANS RIEN LAISSER FUIR (17 novembre 2026, revue de code) :
+   copie du bloc de src/shared/cle-du-cron-pur.ts, réécrite par
+   scripts/terminer-copie-serveur.mjs ; scripts/verifie-la-cle-du-cron.mjs la
+   compare. */
+/* ⟨cle-du-cron⟩ */
+/** Deux clés sont-elles la même ? À TEMPS CONSTANT : `===` s'arrête au
+    premier caractère qui diffère, et ce temps-là se mesure de l'extérieur,
+    caractère après caractère. Une clé vide ne vaut jamais : un secret qui
+    n'est pas posé n'ouvre rien. */
+const memeCle = (a: string, b: string): boolean => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
+};
+
+/** Une clé refusée se dit AU JOURNAL de la fonction, en longueurs seules
+    (sb_secret ≈ 40 à 50 signes · legacy eyJ… ≈ 200 et plus · 0 = rien de
+    posé de ce côté-là) : elles suffisent à situer la panne. Jamais dans la
+    réponse : celui qui frappe sans la clé n'a pas à les lire. */
+const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+/* ⟨/cle-du-cron⟩ */
+
+/** Les clés de service connues : aucune ne sert jamais à lire un coffre.
+    Reconnues à temps constant (memeCle, 17 novembre 2026). */
 const CLES_DE_SERVICE: readonly string[] = [Deno.env.get('CLE_SERVICE'), Deno.env.get('SERVICE_KEY'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')]
   .map((c) => (c ?? '').trim()).filter(Boolean);
 
@@ -625,7 +655,7 @@ const CLES_DE_SERVICE: readonly string[] = [Deno.env.get('CLE_SERVICE'), Deno.en
     l'en-tête, elle lirait par-dessus la RLS. */
 function clePubliqueDe(req: Request): string {
   const recue = (req.headers.get('apikey') ?? '').trim();
-  if (recue && !CLES_DE_SERVICE.includes(recue)) return recue;
+  if (recue && !CLES_DE_SERVICE.some((cle) => memeCle(recue, cle))) return recue;
   const env = (Deno.env.get('SUPABASE_ANON_KEY') ?? '').trim();
   return CLES_DE_SERVICE.includes(env) ? '' : env;
 }
@@ -649,7 +679,7 @@ function baseDeLaRequete(clePublique: string): BaseDeLaMaison {
     /* Le coffre se lit avec la clé publique et le jeton de la personne :
        la RLS dit oui ou non, la fonction n'en sait pas plus que le Trône. */
     telecharge: async (coffre, chemin, jwt) => {
-      if (!clePublique || !jwt || CLES_DE_SERVICE.includes(jwt)) return null;
+      if (!clePublique || !jwt || CLES_DE_SERVICE.some((cle) => memeCle(jwt, cle))) return null;
       const lecteur = createClient(SUPABASE_URL, clePublique, {
         auth: { persistSession: false, autoRefreshToken: false },
         global: { headers: { Authorization: `Bearer ${jwt}` } },

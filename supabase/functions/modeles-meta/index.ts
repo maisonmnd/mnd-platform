@@ -29,7 +29,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const VERSION = '2026-11-11-a · l’état des modèles chez Meta, lu ; reprendre un modèle que Meta a mis en pause, par la direction seule';
+const VERSION = '2026-11-17-a · l’état des modèles chez Meta, lu ; reprendre un modèle que Meta a mis en pause, par la direction seule';
 const GRAPH = 'https://graph.facebook.com/v20.0';
 const APPEL_MAX_MS = 10_000;
 const PAGES_AU_PLUS = 10;
@@ -59,12 +59,41 @@ function modeleLu(t: Record<string, unknown>): ModeleMeta | null {
   };
 }
 
-/** QUI APPELLE : la clé service (le cron, un essai), la direction, le personnel, ou personne. */
+/* LA CLÉ COMPARÉE SANS RIEN LAISSER FUIR (17 novembre 2026, revue de code) :
+   copie du bloc de src/shared/cle-du-cron-pur.ts, réécrite par
+   scripts/terminer-copie-serveur.mjs ; scripts/verifie-la-cle-du-cron.mjs la
+   compare. */
+/* ⟨cle-du-cron⟩ */
+/** Deux clés sont-elles la même ? À TEMPS CONSTANT : `===` s'arrête au
+    premier caractère qui diffère, et ce temps-là se mesure de l'extérieur,
+    caractère après caractère. Une clé vide ne vaut jamais : un secret qui
+    n'est pas posé n'ouvre rien. */
+const memeCle = (a: string, b: string): boolean => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
+};
+
+/** Une clé refusée se dit AU JOURNAL de la fonction, en longueurs seules
+    (sb_secret ≈ 40 à 50 signes · legacy eyJ… ≈ 200 et plus · 0 = rien de
+    posé de ce côté-là) : elles suffisent à situer la panne. Jamais dans la
+    réponse : celui qui frappe sans la clé n'a pas à les lire. */
+const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+/* ⟨/cle-du-cron⟩ */
+
+/** QUI APPELLE : la clé service (le cron, un essai), la direction, le personnel, ou personne.
+    La clé se compare à temps constant (17 novembre 2026) ; ce n'est pas un
+    refus, la session est essayée ensuite. */
 // deno-lint-ignore no-explicit-any
 async function quiAppelle(sb: any, req: Request, service: string): Promise<'service' | 'direction' | 'personnel' | null> {
   const cle = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
   if (!cle) return null;
-  if (service && cle === service) return 'service';
+  if (service && memeCle(cle, service)) return 'service';
   const { data: lu } = await sb.auth.getUser(cle);
   const uid = lu?.user?.id;
   if (!uid) return null;

@@ -32,24 +32,50 @@ const PLACES_KEY = Deno.env.get('GOOGLE_PLACES_KEY') ?? '';
 const PLACE_ID = Deno.env.get('GOOGLE_PLACE_ID') ?? '';
 const CRON_SECRET = (Deno.env.get('CRON_SECRET') ?? '').trim();
 
-/** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-10-20-b';
+/** La version de ce fichier, rendue dans chaque réponse. 2026-11-17-a : la
+    porte compare à temps constant et note son refus au journal (⟨cle-du-cron⟩). */
+const VERSION = '2026-11-17-a';
 
-/** Égalité à temps constant : une comparaison naïve fuit le secret par le
-    temps de réponse. Une chaîne vide n'est égale à rien. */
-const memeSecret = (a: string, b: string): boolean => {
-  if (!a || !b || a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
+/* LA CLÉ COMPARÉE SANS RIEN LAISSER FUIR (17 novembre 2026, revue de code) :
+   le bloc ⟨cle-du-cron⟩ remplace l'égalité d'ici (memeSecret, qui sortait dès
+   que les longueurs différaient). Copie de src/shared/cle-du-cron-pur.ts,
+   réécrite par scripts/terminer-copie-serveur.mjs. */
+/* ⟨cle-du-cron⟩ */
+/** Deux clés sont-elles la même ? À TEMPS CONSTANT : `===` s'arrête au
+    premier caractère qui diffère, et ce temps-là se mesure de l'extérieur,
+    caractère après caractère. Une clé vide ne vaut jamais : un secret qui
+    n'est pas posé n'ouvre rien. */
+const memeCle = (a: string, b: string): boolean => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
 };
 
-/** Le cron (son secret) ou le serveur (la clé service), et personne d'autre. */
+/** Une clé refusée se dit AU JOURNAL de la fonction, en longueurs seules
+    (sb_secret ≈ 40 à 50 signes · legacy eyJ… ≈ 200 et plus · 0 = rien de
+    posé de ce côté-là) : elles suffisent à situer la panne. Jamais dans la
+    réponse : celui qui frappe sans la clé n'a pas à les lire. */
+const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+/* ⟨/cle-du-cron⟩ */
+
+/** Le cron (son secret) ou le serveur (la clé service), et personne d'autre.
+    Refusée, la clé se dit au journal en longueurs seules (17 novembre 2026) :
+    le secret du cron s'il a été présenté, sinon la première clé service
+    posée. La réponse, elle, reste un 403 sans longueur. */
 const porteLaCle = (req: Request): boolean => {
-  if (memeSecret((req.headers.get('x-cron-secret') ?? '').trim(), CRON_SECRET)) return true;
+  const secretRecu = (req.headers.get('x-cron-secret') ?? '').trim();
+  if (memeCle(secretRecu, CRON_SECRET)) return true;
   const recu = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
-  return [Deno.env.get('CLE_SERVICE'), Deno.env.get('SERVICE_KEY'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')]
-    .some((cle) => memeSecret(recu, (cle ?? '').trim()));
+  const cles = [Deno.env.get('CLE_SERVICE'), Deno.env.get('SERVICE_KEY'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')].map((cle) => (cle ?? '').trim());
+  if (cles.some((cle) => memeCle(recu, cle))) return true;
+  if (secretRecu) noteLeRefus('avis-google-releve', CRON_SECRET, secretRecu);
+  else noteLeRefus('avis-google-releve', cles.find(Boolean) ?? '', recu);
+  return false;
 };
 
 const CORS: Record<string, string> = {

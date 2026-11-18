@@ -24,7 +24,11 @@ import { adressesARenvoyer, cibleDe, pageDeRenvoi, page404DeRenvoi } from './ren
 
    Usage : node scripts/build-sites.mjs
    Requiert : VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY dans l'environnement
-   (ou .env.local, lu par Vite). */
+   (ou .env.local, lu par Vite). VITE_ALLOW_OPEN, lui, est toujours forcé à
+   « false » : le Trône et Ma Couronne publiés exigent la connexion ; le
+   portail, LOKAA, l'Académie et la vitrine n'en demandent aucune et ne le
+   lisent pas. VITE_AUTH_SCOPE est épinglé de même : « couronne » pour Ma
+   Couronne, vide pour tout autre site (voir le lancement de Vite). */
 
 const root = path.resolve(import.meta.dirname, '..');
 const HOST = ''; // chemins relatifs à l'origine — indépendants du nom de domaine
@@ -79,18 +83,22 @@ const SITES = [
     base: '/trone/',
     apps: 'trone,consultation,certificat,bilan,bulletin,carte,regler',
     rename: { 'trone.html': 'index.html' },
-    // Connexion obligatoire pour l'ERP (le personnel se connecte par e-mail).
-    env: { VITE_REQUIRE_AUTH: 'true' },
+    // Connexion obligatoire pour l'ERP (le personnel se connecte par e-mail) :
+    // son verrou n'est pas posé ici, mais pour TOUS les sites, au lancement de
+    // Vite (seuls le Trône et Ma Couronne le lisent). Tiroir de session par
+    // défaut : le lancement lui donne une portée vide.
   },
   {
     name: 'couronne',
     base: '/couronne/',
     apps: 'couronne',
     rename: { 'couronne.html': 'index.html' },
-    // Connexion cliente obligatoire — et SESSION À PART (même origine que le
-    // Trône : sans tiroir séparé, l'admin connecté au Trône bloquait Ma
-    // Couronne dans le même navigateur).
-    env: { VITE_REQUIRE_AUTH: 'true', VITE_AUTH_SCOPE: 'couronne' },
+    // Connexion cliente obligatoire (le verrou est posé pour tous les sites,
+    // au lancement de Vite) — et SESSION À PART (même origine que le Trône :
+    // sans tiroir séparé, l'admin connecté au Trône bloquait Ma Couronne dans
+    // le même navigateur). Le lancement reprend cette portée en dernier ;
+    // tout autre site y reçoit une portée vide.
+    env: { VITE_AUTH_SCOPE: 'couronne' },
   },
   { name: 'lokaa', base: '/lokaa/', apps: 'lokaa', rename: { 'lokaa.html': 'index.html' } },
   /* MND ACADÉMIE — 17 septembre 2026. La vitrine publique des neuf parcours.
@@ -159,10 +167,31 @@ rmSync(out, { recursive: true, force: true });
 
 for (const site of SITES) {
   console.log(`\n═══ ${site.name} (base ${site.base}) ═══`);
+  /* LE TRÔNE ET MA COURONNE PUBLIÉS NE S'OUVRENT JAMAIS SANS CONNEXION —
+     17 novembre 2026 (audit du 4 novembre). Avec un backend, la connexion
+     est exigée par défaut (`requireAuth`, shared/auth.ts) et seul
+     VITE_ALLOW_OPEN=true l'efface. Le verrou est posé ici UNE fois pour tous
+     les sites, et EN DERNIER : ni l'environnement du poste, ni l'`env` propre
+     d'un site ne peuvent le lever, ni un .env.local (Vite fait toujours
+     passer l'environnement du processus devant ses fichiers .env). Ce qu'il
+     garantit : le Trône et Ma Couronne, seuls à le lire, exigent la
+     connexion. Le portail, LOKAA, l'Académie et la vitrine ne demandent
+     aucune connexion ; pour eux, il ne change rien.
+
+     LE TIROIR DE SESSION, ÉPINGLÉ DE MÊME — 18 novembre 2026. Ma Couronne
+     publie avec la portée de son `env` (« couronne ») ; tout autre site
+     reçoit une portée VIDE, posée elle aussi après toute recopie. Vide
+     compte pour absente (`porteeDeSession`, shared/supabase.ts) : la page
+     décide, et les pages du Trône ne portent pas de balise, donc le tiroir
+     par défaut. Sans cette ligne, un VITE_AUTH_SCOPE égaré dans
+     l'environnement du poste ou dans un .env.local changeait le tiroir du
+     Trône publié (tout le personnel déconnecté au déploiement) ; avec la
+     valeur « couronne », Trône et Ma Couronne retombaient dans un même
+     tiroir, le conflit du 14 août. */
   execSync('npx vite build', {
     cwd: root,
     stdio: 'inherit',
-    env: { ...process.env, VITE_BASE: site.base, VITE_APPS: site.apps, VITE_BUILD_ID: BUILD_ID, ...(site.env ?? {}) },
+    env: { ...process.env, VITE_BASE: site.base, VITE_APPS: site.apps, VITE_BUILD_ID: BUILD_ID, ...(site.env ?? {}), VITE_ALLOW_OPEN: 'false', VITE_AUTH_SCOPE: site.env?.VITE_AUTH_SCOPE ?? '' },
   });
   const dist = path.join(root, 'dist');
   for (const [from, to] of Object.entries(site.rename)) {

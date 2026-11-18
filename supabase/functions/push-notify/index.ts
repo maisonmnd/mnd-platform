@@ -29,7 +29,9 @@ const TZ = 'Africa/Porto-Novo';
     cron du personnel. 2 novembre 2026 : le chien de garde suit la veille
     des réglages (rythme du soir, grâce du matin). 17 novembre 2026 : le
     dépôt d'une consultation est gardé par le serveur (son identifiant, ce
-    qu'elle a dit seulement, une insertion). */
+    qu'elle a dit seulement, une insertion) ; la clé service comparée à
+    temps constant (⟨cle-du-cron⟩), posée en 2026-11-18-a par la porte de
+    la clé : les deux ensemble, en 2026-11-18-b. */
 const VERSION = '2026-11-18-b';
 
 /* LA DATE ET L'HEURE TELLES QU'ON LES DIT — 10 octobre 2026 (revue de nuit).
@@ -390,19 +392,50 @@ async function rappelDesTiroirs(): Promise<number> {
   });
 }
 
+/* LA CLÉ COMPARÉE SANS RIEN LAISSER FUIR (17 novembre 2026, revue de code) :
+   copie du bloc de src/shared/cle-du-cron-pur.ts, réécrite par
+   scripts/terminer-copie-serveur.mjs ; scripts/verifie-la-cle-du-cron.mjs la
+   compare. */
+/* ⟨cle-du-cron⟩ */
+/** Deux clés sont-elles la même ? À TEMPS CONSTANT : `===` s'arrête au
+    premier caractère qui diffère, et ce temps-là se mesure de l'extérieur,
+    caractère après caractère. Une clé vide ne vaut jamais : un secret qui
+    n'est pas posé n'ouvre rien. */
+const memeCle = (a: string, b: string): boolean => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
+};
+
+/** Une clé refusée se dit AU JOURNAL de la fonction, en longueurs seules
+    (sb_secret ≈ 40 à 50 signes · legacy eyJ… ≈ 200 et plus · 0 = rien de
+    posé de ce côté-là) : elles suffisent à situer la panne. Jamais dans la
+    réponse : celui qui frappe sans la clé n'a pas à les lire. */
+const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+/* ⟨/cle-du-cron⟩ */
+
 /* ══ LE FACTEUR ET LES FONCTIONS PLANIFIÉES PARLENT AVEC LA CLÉ SERVICE — 2 oct. 2026 ══
    « Notifier une cliente » exigeait le jeton d'un membre du personnel. Les
    fonctions planifiées n'en ont pas : elles portent la clé service. Leur push
    de confirmation répondait donc « forbidden », se lisait « sans abonnement »
    au journal, et n'était jamais parti. Qui porte la clé service est le
    serveur lui-même : il passe, et n'est pas soumis à la limite de débit du
-   tunnel public. Les longueurs se comparent d'abord, jamais les valeurs ne
-   s'écrivent. */
+   tunnel public. Jamais une valeur ne s'écrit. 17 novembre 2026 : la clé se
+   compare à temps constant (memeCle, bloc ⟨cle-du-cron⟩ juste au-dessus).
+   Ce n'est pas un refus, et rien ne s'écrit au journal : sans la clé,
+   to-client, direction et to-staff essaient la session du personnel ;
+   staff passe par la limite de débit de l'adresse (allowRate), comme le
+   tunnel public (18 novembre 2026, revue). */
 const parLeService = (req: Request): boolean => {
   const recu = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
   if (!recu) return false;
   return [Deno.env.get('CLE_SERVICE'), Deno.env.get('SERVICE_KEY'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')]
-    .some((cle) => !!cle && cle.trim().length === recu.length && cle.trim() === recu);
+    .some((cle) => !!cle && memeCle(recu, cle.trim()));
 };
 
 /* ⟨ce-qui-tombe⟩ */

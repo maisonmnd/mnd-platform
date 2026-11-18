@@ -21,6 +21,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { appelDe } from '../../../../shared/civilite';
 import { lienWaMe } from '../../../../shared/conversations';
 import { jourEnLettres } from '../../../../shared/calendrier';
+import { escHtml } from '../../../../shared/echappe-html-pur';
 import {
   codesDuMoment, ordreParUsage, premiereVenueDe, minutesDe, besoinsDeLaCliente, autresCodesDeLaCliente, CODES_DES_CLIENTES,
   CODES_ENVOYABLES, type IdDuCode, type RdvDuMoment, type Suggestion, type Besoin,
@@ -47,9 +48,11 @@ const escWifi = (s: string) => s.replace(/([\\;,:"])/g, '\\$1');
    qu'un autre poste peut écrire via l'API. Depuis le 10 octobre 2026 la
    fenêtre d'impression s'ouvre vraiment (voir `imprime`) et vit en même
    origine que le Trône : un balisage glissé dans ces champs s'y exécuterait.
-   On échappe donc à la source, comme le fait déjà public/payer.html. */
-const escHtml = (s: string): string =>
-  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+   On échappe donc à la source, comme le fait déjà public/payer.html.
+   L'échappement lui-même vit dans shared/echappe-html-pur depuis le
+   17 novembre 2026. Il n'en existait qu'une copie, celle-ci ; elle y a
+   déménagé pour que la carte de marraine, qui écrivait jusque-là son code
+   sans aucun échappement, puisse l'importer. */
 const wifiPayload = (ssid: string, pass: string) =>
   `WIFI:T:WPA;S:${escWifi(ssid)};P:${escWifi(pass)};;`;
 

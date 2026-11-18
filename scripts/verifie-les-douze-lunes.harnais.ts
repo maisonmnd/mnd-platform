@@ -684,7 +684,7 @@ const regles: Regle[] = [
         'regler-par-fedapay': { fichier: 'src/shared/regler-par-fedapay-pur.ts', extrait: (s) => entre(s, 'regler-par-fedapay') },
         /* Le caissier de Grenat (13 novembre 2026) : prévenir le comptoir, demander la facture, ses gestes sûrs, recopiés dans cloture-du-jour. */
         'le-caissier': { fichier: 'src/shared/le-caissier-pur.ts', extrait: (s) => entre(s, 'le-caissier') },
-        /* La clé d'une porte (revue du 17 novembre 2026) : la comparaison à temps constant et le refus au journal, recopiés dans les dix portes à clé. */
+        /* La clé d'une porte (17 novembre 2026, enregistrée ici le 18 novembre 2026) : memeCle et noteLeRefus, recopiés par terminer-copie-serveur dans chaque fonction directe qui compare une clé reçue à un secret ; les quatre fonctions regroupées l'importent et n'en portent pas de copie. Sans cette ligne, R8 criait sur chaque copie depuis a9d5903b. */
         'cle-du-cron': { fichier: 'src/shared/cle-du-cron-pur.ts', extrait: (s) => entre(s, 'cle-du-cron') },
       };
       const fonctions: string[] = [];
@@ -728,6 +728,9 @@ const regles: Regle[] = [
       { nom: 'un caractere change dans la copie ce-qui-tombe de push-notify', mute: [P('supabase/functions/push-notify/index.ts', 'const JOURS_DE_NOTIFICATION = [7, 1];', 'const JOURS_DE_NOTIFICATION = [7, 2];')] },
       { nom: 'un caractere change dans la copie ia-maison de la porte vers Claude', mute: [P('supabase/functions/ia-maison/index.ts', 'export const PLAFOND_DES_HUIT_USD = 120;', 'export const PLAFOND_DES_HUIT_USD = 121;')] },
       { nom: 'un caractere change dans la copie veille-des-assistants de push-notify', mute: [P('supabase/functions/push-notify/index.ts', 'export const MARGE_DE_SOMMEIL_MIN = 15;', 'export const MARGE_DE_SOMMEIL_MIN = 16;')] },
+      /* La clé d'une porte (18 novembre 2026) : une copie qui ne compare plus les longueurs, et l'original qui change seul. */
+      { nom: 'un caractere change dans la copie cle-du-cron de cloture-du-jour', mute: [P('supabase/functions/cloture-du-jour/index.ts', '  let diff = x.length ^ y.length;', '  let diff = 0;')] },
+      { nom: 'l original de cle-du-cron change seul', mute: [P('src/shared/cle-du-cron-pur.ts', '  return diff === 0 && x.length > 0;', '  return diff === 0;')] },
     ],
   },
 
