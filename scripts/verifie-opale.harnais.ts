@@ -123,6 +123,8 @@ class Requete {
 }
 const cle8 = (n2: string): string => { const d = String(n2 ?? '').replace(/\D/g, ''); return d.startsWith('229') ? d.slice(-8) : d; };
 const POSES: Ligne[] = [];
+const OCCUPES: { jour: string; maitre: string; debut: string; duree: number }[] = [];
+const APPELS_CRENEAUX: [string, string][] = [];
 const RPC: Record<string, (a: any) => any> = {
   fiches_du_numero: ({ n: num }) => table('clients').filter((c) => [c.data?.phone, c.data?.phone2].some((p) => p && cle8(p) === cle8(num)))
     .map((c) => ({
@@ -130,7 +132,10 @@ const RPC: Record<string, (a: any) => any> = {
       numeros: [c.data.phone].filter(Boolean), ...(c.data.derniereVenue ? { derniereVenue: c.data.derniereVenue } : {}), branchId: 'br-banc',
       ...(c.data.birthday ? { naissance: c.data.birthday } : {}), ...(c.data.familyId ? { familyId: c.data.familyId } : {}),
     })),
-  creneaux_occupes: () => [],
+  /* Les rendez-vous pris, comme la base les rend ({ jour, maitre, debut, duree }),
+     et chaque période demandée (18 novembre 2026 : la lecture de toute la
+     fenêtre, la journée relue avant une proposition). */
+  creneaux_occupes: ({ p_du, p_au }: { p_du: string; p_au: string }) => { APPELS_CRENEAUX.push([p_du, p_au]); return OCCUPES.filter((o) => o.jour >= p_du && o.jour <= p_au); },
   is_staff: () => true,
   avance_le_fil: ({ p_numero, p_version, p_data }) => {
     const main = table('fils_automate').find((l) => l.id === `main-${p_numero}`)?.data;
@@ -257,7 +262,7 @@ const J2 = jourOuvert(2);
 const LOIN = jourOuvert(16);
 function decor(qui: 'opale' | 'automate' | null = 'opale') {
   for (const k of Object.keys(TABLES)) delete TABLES[k];
-  POSES.length = 0; META.length = 0; DEMANDES.length = 0; FILE = [];
+  POSES.length = 0; META.length = 0; DEMANDES.length = 0; FILE = []; OCCUPES.length = 0; APPELS_CRENEAUX.length = 0;
   const semaine = ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'].map((key) => ({ key, open: '08h00', close: '20h30', closed: key === 'lun' || key === 'dim' }));
   table('documents').push(
     { key: 'mnd_settings', data: { hours: semaine } },
@@ -1088,6 +1093,40 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
   const rn = await relance();
   dit('la nuit, aucune relance', [0, 'la nuit', 0], [rn.relancees, rn.raison, META.length]);
   aHeure(null);
+
+  /* ── g. L'AGENDA DE TOUTE LA FENÊTRE (18 novembre 2026) ──
+     « Le samedi 28 novembre à 9 h est libre », puis « vient d'être prise » :
+     Opale lisait l'agenda sur l'horizon de l'automate (sept jours en ligne,
+     quatorze ici), et une journée plus loin paraissait vide. */
+  decor();
+  OCCUPES.push({ jour: LOIN, maitre: 'm-banc', debut: '10:00', duree: 60 });
+  const wl = elleEcrit(NUM, `Un shampoing le ${LOIN} à 10 h ?`);
+  FILE = [
+    { outils: [{ name: 'chercher_des_places', input: { gestes: ['sv-plt-05-ess-c'], jour: LOIN } }] },
+    { outils: [{ name: 'proposer_le_rendez_vous', input: { pour: 'cl-banc-a', gestes: ['sv-plt-05-ess-c'], date: LOIN, heure: '10:00' } }] },
+    { texte: `Le ${LOIN} à 10 h est pris, Mme Akouele : je peux vous recevoir à 11 h. Je vous la garde ?` },
+  ];
+  await tour(NUM, [wl]);
+  const placesLoin = resultatsDe(1)[0] ?? '';
+  dit('un rendez-vous pris au-dela de l horizon de l automate : la place n est ni proposee ni tenue', [false, true, true, undefined], [
+    placesLoin.includes(`${LOIN} 10:00`), placesLoin.includes(`${LOIN} 11:00`), (resultatsDe(2)[0] ?? '').startsWith('Cette place n’est pas libre'), fil(NUM)?.opale?.enAttente,
+  ]);
+  dit('la lecture va jusqu a la borne du site, et la journee est relue avant la proposition', [true, true], [
+    APPELS_CRENEAUX.some(([, au]) => au >= LOIN), APPELS_CRENEAUX.some(([du, au]) => du === LOIN && au === LOIN),
+  ]);
+  /* Le cas du 18 novembre : un DÉPLACEMENT vers un jour au-delà de l'horizon. */
+  decor();
+  OCCUPES.push({ jour: LOIN, maitre: 'm-banc', debut: '10:00', duree: 60 });
+  table('appointments').push({ id: 'rdv-banc-a', branch_id: 'br-banc', data: { clientId: 'cl-banc-a', date: J1, time: '10:00', status: 'confirmé', serviceIds: ['sv-plt-05-ess-c'], master: 'm-banc', dureeMin: 60 }, updated_at: new Date().toISOString() });
+  const wd = elleEcrit(NUM, `Je voudrais reporter mon soin au ${LOIN} à 10 h`);
+  FILE = [
+    { outils: [{ name: 'proposer_le_deplacement', input: { rdv: 'rdv-banc-a', date: LOIN, heure: '10:00' } }] },
+    { texte: `Le ${LOIN} à 10 h n’est pas libre, Mme Akouele : je peux vous recevoir à 11 h. Cela vous convient-il ?` },
+  ];
+  await tour(NUM, [wd]);
+  dit('un deplacement vers un jour au-dela de l horizon : la place prise n est pas dite libre, la journee est relue', [true, undefined, true], [
+    (resultatsDe(1)[0] ?? '').startsWith('Cette place n’est pas libre'), fil(NUM)?.opale?.enAttente, APPELS_CRENEAUX.some(([du, au]) => du === LOIN && au === LOIN),
+  ]);
 
   /* ── f. LE MODULE PUR ── */
   const T = VraieDate.UTC(2026, 10, 18, 11, 0);

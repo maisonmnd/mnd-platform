@@ -2,6 +2,15 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## « LIBRE » PUIS « VIENT D'ÊTRE PRISE » — 18 novembre 2026 (whatsapp-automate 2026-11-18-g)
+
+Une cliente demande de reporter son soin au samedi 28 à 9 h ; Opale : « le samedi 28 novembre 2026 à 9 h est libre… Pouvez-vous nous le confirmer ? » ; « Oui, je vous confirme » ; vingt secondes plus tard : « la place vient d'être prise ». Personne ne l'avait prise (un rendez-vous de 10 h chez Team, posé le 24 octobre, chevauchait 9 h à 11 h 30). La cause : Opale lisait l'agenda sur l'horizon de l'automate (`mnd_auto_config.automateWa.horizonJours` = 7 en ligne), mais proposait jusqu'à la borne du site (`horizonPour`, trois mois) ; au-delà du septième jour, toute journée paraissait vide. La confirmation (`poseSousVerrou`, `deplaceSousVerrou`) relit, elle, la journée.
+
+- `unTourDOpale` lit l'agenda sur `Math.max(horizonJours, joursDeLaFenetre(ms))` ; `litLesCreneaux` lit ses tranches de sept jours ensemble (`Promise.all`).
+- `rafraichisLeJour` : `proposer_le_rendez_vous` et `proposer_le_deplacement` relisent leur journée avant de juger, comme la confirmation la relira. Une place dite tenue ne se refuse plus qu'à une vraie course.
+- Bancs : `verifie-opale` 151 (le faux `creneaux_occupes` rend désormais des rendez-vous et note les périodes lues ; un rendez-vous au-delà de l'horizon, proposé puis déplacé), `--prouve` 85 (la panne « la fin du rituel passe par Claude », introuvable depuis l'ajout de `vocalIncompris`, recalée) ; `verifie-l-automate-wa` tient.
+- À FAIRE ENSUITE (choix de Yéman, même jour, au sélecteur) : deux clientes en même temps chez Team, si l'une des deux a moins de 150 locks (une fiche sans nombre compte comme une petite tête ; tous les rituels de Team ; deux au plus, les fauteuils). Aujourd'hui, Team ne reçoit jamais deux rendez-vous qui se chevauchent.
+
 ## LES RENDEZ-VOUS CÔTE À CÔTE — 18 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
 
 « Il y a le rendez-vous de P. A. qui est également pour le vendredi 20 à 10 heures. Comment on peut voir ce rendez-vous ? Il est caché en dessous du rendez-vous de S. E. Quand les rendez-vous sont à la même heure, il y a un rendez-vous qui se cache. Rends-moi tout visible » (Yéman, capture de la vue jour, colonne Team, « 4 rituels » annoncés, trois visibles).

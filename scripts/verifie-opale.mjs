@@ -28,6 +28,10 @@ const PANNES = [
   { nom: 'Opale parle quand l equipe a la main', fichier: AU, avant: "if (pauseActive(main, ms)) { dis('opale · l equipe a la main'); return { pris: false }; }", apres: '' },
   { nom: 'Opale parle apres avoir passe la main', fichier: AU, avant: "  const laMainEstPassee = !!fil && etapeCourante(fil, main, ms, reglage.pauseHeures) === 'main' && !o.reprise;", apres: '  const laMainEstPassee = false;' },
   { nom: 'Opale parle apres avoir passe la main', fichier: AU, avant: 'if (!filAvant || !laMainNEstPasPrise({ mainPasseeLe: passeeLe, fil: filAvant, maintenantMs: ms })) {', apres: 'if (false) {' },
+  /* L'AGENDA DE TOUTE LA FENÊTRE, 18 novembre 2026 (« libre » puis « vient d'être prise »). */
+  { nom: 'l agenda ne lit que l horizon de l automate', fichier: AU, avant: 'aujourdhui, Math.max(reglage.horizonJours, joursDeLaFenetre(ms)));', apres: 'aujourdhui, reglage.horizonJours);' },
+  { nom: 'la proposition ne relit pas sa journee', fichier: AU, avant: 'if (!await rafraichisLeJour(sb, agenda!, p.date, vue!.oublie)) return', apres: 'if (false) return' },
+  { nom: 'le deplacement ne relit pas sa journee', fichier: AU, avant: 'if (!await rafraichisLeJour(sb, agenda!, date, vue!.oublie)) return', apres: 'if (false) return' },
   /* NE PERDRE AUCUN RENDEZ-VOUS, 18 novembre 2026. */
   { nom: 'Opale ne voit pas les photos', fichier: AU, avant: 'content: photos.length === 0 ? contexte : [', apres: 'content: true ? contexte : [' },
   { nom: 'la main que personne ne prend tient toujours', fichier: OP, avant: "  return !o.fil.some((m) => m.sens === 'sortant' && m.qui === 'equipe' && Date.parse(m.quand) >= le);", apres: '  return false;' },
@@ -77,7 +81,7 @@ const PANNES = [
   { nom: 'un lien de reglement part sans rendez-vous du jour', fichier: AU, avant: '  if (rdvIds.length === 0) return sansRdv();\n', apres: '' },
   { nom: 'le rendez-vous d un autre jour passe pour celui du jour', fichier: AU, avant: ".in('data->>clientId', ids).eq('data->>date', x.aujourdhui).limit(12);", apres: ".in('data->>clientId', ids).limit(12);" },
   { nom: 'un rendez-vous annule passe pour celui du jour', fichier: AU, avant: ".filter((l) => l.data && ['confirmé', 'honoré'].includes(String(l.data.status ?? ''))).map((l) => l.id);", apres: '.filter((l) => l.data).map((l) => l.id);' },
-  { nom: 'la fin du rituel passe par Claude', fichier: AU, avant: '  if (claude && !finDuRituel) {', apres: '  if (claude) {' },
+  { nom: 'la fin du rituel passe par Claude', fichier: AU, avant: '  if (claude && !finDuRituel && !vocalIncompris) {', apres: '  if (claude && !vocalIncompris) {' },
   { nom: 'sans rendez-vous du jour, la main ne passe pas', fichier: AU, avant: '    if (finDuRituel.sansRdv) {', apres: '    if (false) {' },
   { nom: 'la fin du rituel n ecoute plus', fichier: AU, avant: '  if (!ditQuElleATermine(x.texte)) return null;\n  /* SANS RENDEZ-VOUS DU JOUR', apres: '  if (true) return null;\n  /* SANS RENDEZ-VOUS DU JOUR' },
   { nom: 'toute phrase passe pour « j ai termine »', fichier: AU, avant: '  if (!ditQuElleATermine(x.texte)) return null;\n  /* SANS RENDEZ-VOUS DU JOUR', apres: '  /* SANS RENDEZ-VOUS DU JOUR' },

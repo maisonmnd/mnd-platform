@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-18-f · Opale range le demarchage : quelqu un qui vend a la Maison, elle ne lui ecrit rien et le tri relit ses derniers mots (relire) pour le bloquer ou le ranger dans les propositions ; 2026-11-18-e · Opale lit les vocaux : la transcription que la réception a écrite (Whisper chez Groq) entre dans son fil et ses nouveaux messages, elle y répond comme à un message écrit ; un vocal que la Maison n a pas compris fait passer la main sans un mot, avec l alerte ; 2026-11-18-d · la confirmation du Oui de Perle se lit dans le fil d Opale comme un message automatique ; 2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-18-g · Opale lit l agenda sur toute la fenetre ou elle propose, et relit la journee avant chaque proposition : plus jamais « libre » puis « vient d etre prise » (le 28 au dixieme jour paraissait vide) ; 2026-11-18-f · Opale range le demarchage : quelqu un qui vend a la Maison, elle ne lui ecrit rien et le tri relit ses derniers mots (relire) pour le bloquer ou le ranger dans les propositions ; 2026-11-18-e · Opale lit les vocaux : la transcription que la réception a écrite (Whisper chez Groq) entre dans son fil et ses nouveaux messages, elle y répond comme à un message écrit ; un vocal que la Maison n a pas compris fait passer la main sans un mot, avec l alerte ; 2026-11-18-d · la confirmation du Oui de Perle se lit dans le fil d Opale comme un message automatique ; 2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -6307,17 +6307,44 @@ async function litParPages(sb: Sb, table: string, filtre: (q: any) => any = (q) 
     les rend (le juge les met en forme). Une tranche de mille lignes pile
     est une erreur : elle est peut-être coupée. */
 async function litLesCreneaux(sb: Sb, branchId: string, du: string, au: string): Promise<Record<string, unknown>[] | null> {
-  const out: Record<string, unknown>[] = [];
+  /* LES TRANCHES ENSEMBLE (18 novembre 2026) : Opale lit désormais toute la
+     fenêtre du site (trois mois et plus), une quinzaine de tranches ; lues
+     l'une après l'autre, elles mangeaient le temps du tour. */
+  const tranches: [string, string][] = [];
   for (let debut = du; debut <= au; debut = isoPlusJoursWa(debut, TRANCHE_JOURS)) {
     const finDeTranche = isoPlusJoursWa(debut, TRANCHE_JOURS - 1);
-    const fin = finDeTranche < au ? finDeTranche : au;
-    const { data, error } = await sb.rpc('creneaux_occupes', { p_branch: branchId, p_du: debut, p_au: fin });
+    tranches.push([debut, finDeTranche < au ? finDeTranche : au]);
+  }
+  const lues = await Promise.all(tranches.map(([debut, fin]) => sb.rpc('creneaux_occupes', { p_branch: branchId, p_du: debut, p_au: fin })));
+  const out: Record<string, unknown>[] = [];
+  for (const { data, error } of lues) {
     if (error) { dis('creneaux illisibles', { motif: error.message.slice(0, 120) }); return null; }
     const lignes = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
     if (lignes.length >= PLAFOND_DE_LIGNES) { dis('creneaux · tranche de mille lignes pile, on ne s y fie pas'); return null; }
     out.push(...lignes);
   }
   return out;
+}
+
+/** LA JOURNÉE RELUE, FRAÎCHE (18 novembre 2026). Le 18 novembre, Opale dit
+    « le samedi 28 novembre à 9 h est libre », la cliente répond « Oui, je
+    vous confirme », et vingt secondes plus tard : « la place vient d'être
+    prise ». Personne ne l'avait prise : Opale ne lisait l'agenda que sur
+    sept jours (`horizonJours`), le 28 était au dixième, sa journée paraissait
+    vide ; la confirmation, elle, relit la journée (`poseSousVerrou`). Chaque
+    proposition relit donc sa journée comme la confirmation la relira : les
+    deux juges voient la même chose. `false` : la base ne répond pas. */
+async function rafraichisLeJour(sb: Sb, lu: AgendaLu, date: string, oublie: () => void): Promise<boolean> {
+  const frais = await litLesCreneaux(sb, lu.agenda.branchId, date, date);
+  if (!frais) return false;
+  const autresJours = (lu.lignes.occupes ?? []).filter((c) => String((c as { jour?: unknown } | null)?.jour ?? '') !== date);
+  const lignes: LignesDeLAgenda = { ...lu.lignes, occupes: [...autresJours, ...frais] };
+  const neuf = agendaDepuisLesLignes(lignes);
+  if (!neuf) return false;
+  lu.lignes = lignes;
+  lu.agenda = neuf;
+  oublie();
+  return true;
 }
 
 const texteOu = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v : undefined);
@@ -7565,7 +7592,10 @@ async function unTourDOpale(
 
   /* ④ « EN TRAIN D'ÉCRIRE », l'attente de la rafale, et l'agenda pendant ce temps. */
   const aujourdhui = instantACotonou(ms).iso;
-  const lecture = litLAgenda(sb, docs, titulaire?.branchId, aujourdhui, reglage.horizonJours);
+  /* TOUTE LA FENÊTRE OÙ ELLE PROPOSE (18 novembre 2026) : ses places vont
+     jusqu'à la borne du site (`horizonPour`) ; l'agenda lu doit aller aussi
+     loin, sinon une journée hors de la lecture paraît vide. */
+  const lecture = litLAgenda(sb, docs, titulaire?.branchId, aujourdhui, Math.max(reglage.horizonJours, joursDeLaFenetre(ms)));
   if (!o.reprise && essai === 0 && tour.waIds.length > 0) {
     await enTrainDEcrire(sb, o.jeton, o.phoneId, tour.waIds[tour.waIds.length - 1]);
     await attends(ATTENTE_DU_TOUR_MS);
@@ -7788,6 +7818,7 @@ async function unTourDOpale(
     if (nom === 'proposer_le_rendez_vous') {
       const p = propositionLue(e ?? {}, { fiches: fichesIds, connus, aujourdhui, minutesDuJour: minutesACotonou(Date.now()) });
       if (!p.ok) return p.pourquoi;
+      if (!await rafraichisLeJour(sb, agenda!, p.date, vue!.oublie)) return 'L’agenda de la Maison ne répond pas en ce moment : passe la main (motif « question »).';
       const libre = laPlaceTient(agenda!.agenda, { date: p.date, time: p.heure, serviceIds: p.gestes }, ms, p.date === aujourdhui).ok;
       if (!libre) {
         const proches = placesDites([...placesDuJourMemeWa(agenda!.agenda, p.gestes, Date.now()), ...placesLibres(agenda!.agenda, p.gestes, ms, horizonPour(p.date))], { jour: p.date, heure: p.heure }, 3);
@@ -7818,6 +7849,7 @@ async function unTourDOpale(
       const date = String(e?.date ?? '');
       const heure = String(e?.heure ?? '');
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(heure) || date <= aujourdhui) return 'La date ou l’heure est illisible, ou c’est aujourd’hui : propose les jours suivants.';
+      if (!await rafraichisLeJour(sb, agenda!, date, vue!.oublie)) return 'L’agenda de la Maison ne répond pas en ce moment : passe la main (motif « question »).';
       const tient = laPlaceTientPourLeMaitreWa(agenda!.agenda, r.maitre, { date, time: heure, dureeMin: r.dureeMin }, { date: r.date, time: r.time }, ms);
       if (!tient.ok) return 'Cette place n’est pas libre pour la personne qui la reçoit. Cherche les places avec le rendez-vous (chercher_des_places, champ « rdv »).';
       enAttente = { genre: 'deplacement', rdvId: r.id, updatedAt: r.updatedAt, maitre: r.maitre, clientId: r.clientId, gestes: r.serviceIds, dureeMin: r.dureeMin, avant: { date: r.date, time: r.time }, date, heure, proposeLe: new Date().toISOString() };
