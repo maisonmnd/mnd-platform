@@ -383,7 +383,10 @@ function voile(corps, classeBody) {
    dernier chapitre : le contact porte un appel au milieu (avant « Qui signe »)
    et reçoit quand même sa bande de fin. */
 const finitBien = (corps) => { const i = corps.lastIndexOf('<section'); return i >= 0 && /^<section class="(appel|recit-fin|devise-bande)[ "]/.test(corps.slice(i)); };
-const appelDeFin = (chemin) => `<section class="appel"><div class="conteneur"><div><h2>Votre couronne, à votre tour.</h2><p class="ligne" style="margin-top:8px">La Maison vous attend à Cotonou : un diagnostic, un rendez-vous, ou simplement un mot.</p></div><div class="rangee"><a class="btn btn--fort" href="${attr(reserverDeLaPage(chemin))}">Réserver</a>${bouton({ texte: 'Écrire sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn')}</div></div></section>`;
+/* PLUS DE DIAGNOSTIC SANS RENDEZ-VOUS — 18 novembre 2026 : le bilan se remet au
+   rendez-vous (« La consultation en affiches », arbitrage A). La bande de fin ne
+   promet plus « un diagnostic » à part : un rendez-vous, ou un mot. */
+const appelDeFin = (chemin) => `<section class="appel"><div class="conteneur"><div><h2>Votre couronne, à votre tour.</h2><p class="ligne" style="margin-top:8px">La Maison vous attend à Cotonou : un rendez-vous, ou simplement un mot.</p></div><div class="rangee"><a class="btn btn--fort" href="${attr(reserverDeLaPage(chemin))}">Réserver</a>${bouton({ texte: 'Écrire sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn')}</div></div></section>`;
 
 /* LA PORTE ET SES HEURES, AU PIED DE CHAQUE PAGE — 11 octobre 2026. Le pied
    disait la Maison sans dire où la trouver ni quand : l'adresse vivait sur
@@ -1027,6 +1030,13 @@ function ilot(nom, p) {
        suite et son repli ; la carte « Plus direct » y est courte. */
     const rappel = nom === 'demande';
     const suite = rappel ? f.suiteRappel : f.suite;
+    /* LA SUITE SUIT LA RÉPONSE DU SERVEUR — 18 novembre 2026. Avant l'envoi,
+       la page dit ce qui se passe aujourd'hui : la place tenue, son « Je
+       confirme » sur WhatsApp. Si le serveur rend la place ferme
+       (`etat: 'confirme'`), l'îlot pose `est-ferme` sur la page et la feuille
+       montre la suite ferme à sa place (revelateur.css). */
+    const etapes = (liste, classe) => `<ol class="${classe}">${liste.map(([t, l]) => `<li><div><b>${echappe(t)}</b><p>${echappe(l)}</p></div></li>`).join('')}</ol>`;
+    const lesEtapes = rappel ? etapes(suite, 'ensuite__rappel') : `${etapes(suite, 'ensuite__attente')}${etapes(f.suiteFerme, 'ensuite__ferme')}`;
     const repli = rappel ? 'Le formulaire se charge.' : 'Le calendrier se charge.';
     return `<section class="reserver serre"><div class="conteneur">
       <div>
@@ -1034,7 +1044,7 @@ function ilot(nom, p) {
         <div data-ilot="${nom}" data-genre="rdv"${rappel ? '' : ` data-initiales-agenda="${attr(AGENDA_ECRIT ? 'oui' : 'non')}"`}>${rappel ? '' : agendaDansLaPage()}<p class="corps">${repli} Vous pouvez aussi nous écrire sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div>
       </div>
       <aside class="ensuite">
-        <div><p class="sur">Ce qui se passe ensuite</p><ol>${suite.map(([t, l]) => `<li><div><b>${echappe(t)}</b><p>${echappe(l)}</p></div></li>`).join('')}</ol></div>
+        <div><p class="sur">Ce qui se passe ensuite</p>${lesEtapes}</div>
         <div data-ilot="contact" data-genre="court"></div>
         ${rappel ? '<div data-ilot="vocal" data-genre="carte"></div>' : ''}
         <p class="compte">Aucun compte à créer, rien à payer aujourd’hui.</p>

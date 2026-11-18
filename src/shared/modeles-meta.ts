@@ -1,5 +1,11 @@
 import { createStore, useStore } from './store';
 import { bindDocument } from './sync';
+import {
+  avecLaNote, estUnNomDeModeleMeta, etatDuModeleMeta, etatsConnus, modelesMetaLus,
+  type DocumentDesModelesMeta, type EtatDuModeleMeta, type ModelesMetaLus,
+} from './modeles-meta-pur';
+
+export { ETATS_DU_MODELE, type EtatDuModeleMeta, type NoteDuModele } from './modeles-meta-pur';
 
 /* ══ LE REGISTRE DES MODÈLES META · 27 octobre 2026, lot 3 ══════════════════
    Spécification de l'Assistant Maison (§5.5, « Qui écrit seul » et « Ses
@@ -14,70 +20,42 @@ import { bindDocument } from './sync';
    les huit modèles de l'Assistant, « approuvé » a une conséquence de plus :
    `mnd_gerard.approuves` (gerard.ts, `marqueLeModeleApprouve`) fait partir
    le modèle seul au passage du matin. L'écran qui note l'état écrit les
-   deux, pour qu'une seule vérité gouverne le départ. */
+   deux, pour qu'une seule vérité gouverne le départ.
 
-export type EtatDuModeleMeta = 'a-deposer' | 'depose' | 'approuve' | 'refuse';
-export const ETATS_DU_MODELE: readonly EtatDuModeleMeta[] = ['a-deposer', 'depose', 'approuve', 'refuse'];
+   LES DEUX FORMES ENSEMBLE (18 novembre 2026) : le même document porte aussi
+   la liste que rend Meta à « Relire chez Meta » (fonction `modeles-meta`).
+   Une note s'AJOUTE à cette liste, elle ne la remplace plus ; un état se lit
+   de l'une ou de l'autre, la plus récente disant vrai. La règle est dans
+   `modeles-meta-pur.ts`, recopiée dans les deux fonctions qui lisent ou
+   écrivent ce document. */
+
 export const ETAT_DU_MODELE_DIT: Record<EtatDuModeleMeta, string> = {
   'a-deposer': 'à déposer', depose: 'déposé', approuve: 'approuvé', refuse: 'refusé',
 };
 
-export type NoteDuModele = { etat: EtatDuModeleMeta; le?: string; parQui?: string };
-export type RegistreDesModelesMeta = {
-  /** Par nom Meta (`assistant_maison_garder`, `confirmation_rdv`…). Absent : à déposer. */
-  modeles: Record<string, NoteDuModele>;
-  parQui?: string;
-  le?: string;
-};
-
-export const REGISTRE_VIDE: RegistreDesModelesMeta = { modeles: {} };
+/** Le document tel qu'il s'écrit ; il peut arriver d'avant sous une autre forme, d'où `unknown` à la lecture. */
+export type RegistreDesModelesMeta = DocumentDesModelesMeta;
+export const REGISTRE_VIDE: RegistreDesModelesMeta = {};
 
 export const modelesMetaStore = createStore<RegistreDesModelesMeta>('mnd_modeles_meta', REGISTRE_VIDE);
 export const useModelesMeta = () => useStore(modelesMetaStore);
 bindDocument(modelesMetaStore, 'mnd_modeles_meta');
 
-const estUnEtat = (x: unknown): x is EtatDuModeleMeta => typeof x === 'string' && (ETATS_DU_MODELE as readonly string[]).includes(x);
-const NOM_META = /^[a-z0-9_]{1,120}$/;
+/** Le document lu sans confiance, ses deux formes ensemble (la liste de Meta, les notes). */
+export const registreLu = (brut: unknown): ModelesMetaLus => modelesMetaLus(brut);
 
-/** Le registre lu sans confiance : un état inconnu ou un nom qui n'est pas
-    un nom de modèle Meta tombent ; le reste se garde tel quel. */
-export function registreLu(brut: unknown): RegistreDesModelesMeta {
-  const r = brut && typeof brut === 'object' ? (brut as Record<string, unknown>) : {};
-  const bruts = r.modeles && typeof r.modeles === 'object' ? (r.modeles as Record<string, unknown>) : {};
-  const modeles: Record<string, NoteDuModele> = {};
-  for (const [nom, n] of Object.entries(bruts)) {
-    if (!NOM_META.test(nom) || !n || typeof n !== 'object') continue;
-    const note = n as Record<string, unknown>;
-    if (!estUnEtat(note.etat)) continue;
-    modeles[nom] = {
-      etat: note.etat,
-      ...(typeof note.le === 'string' ? { le: note.le } : {}),
-      ...(typeof note.parQui === 'string' ? { parQui: note.parQui } : {}),
-    };
-  }
-  return { modeles, ...(typeof r.parQui === 'string' ? { parQui: r.parQui } : {}), ...(typeof r.le === 'string' ? { le: r.le } : {}) };
-}
+/** L'état d'un modèle : lu chez Meta ou noté, le plus récent ; sinon « à déposer ». */
+export const etatDuModele = (registre: ModelesMetaLus, nom: string): EtatDuModeleMeta => etatDuModeleMeta(registre, nom);
 
-/** L'état d'un modèle : noté, sinon « à déposer ». */
-export const etatDuModele = (registre: RegistreDesModelesMeta, nom: string): EtatDuModeleMeta =>
-  registre.modeles[nom]?.etat ?? 'a-deposer';
-
-/** Ce que le compte (`quiEcritSeul`, rapporte-pur) lit : nom → état noté.
+/** Ce que le compte (`quiEcritSeul`, rapporte-pur) lit : nom → état connu.
     Un « à déposer » n'y figure pas, le compte le tient pour non approuvé. */
-export function etatsNotes(registre: RegistreDesModelesMeta): Partial<Record<string, 'depose' | 'approuve' | 'refuse'>> {
-  const out: Partial<Record<string, 'depose' | 'approuve' | 'refuse'>> = {};
-  for (const [nom, n] of Object.entries(registre.modeles)) if (n.etat !== 'a-deposer') out[nom] = n.etat;
-  return out;
-}
+export const etatsNotes = (registre: ModelesMetaLus): Partial<Record<string, 'depose' | 'approuve' | 'refuse'>> => etatsConnus(registre);
 
-/** La direction note l'état d'un modèle, le jour où elle le lit chez Meta. « À déposer » efface la note. */
+/** La direction note l'état d'un modèle, le jour où elle le lit chez Meta. La
+    note s'ajoute au document : la liste de Meta et les autres notes restent.
+    « À déposer » efface la note de ce modèle. */
 export function noteLeModele(nom: string, etat: EtatDuModeleMeta, parQui: string): void {
-  if (!NOM_META.test(nom)) return;
+  if (!estUnNomDeModeleMeta(nom)) return;
   const le = new Date().toISOString();
-  modelesMetaStore.set((prev) => {
-    const r = registreLu(prev);
-    const modeles = { ...r.modeles };
-    if (etat === 'a-deposer') delete modeles[nom]; else modeles[nom] = { etat, le, parQui };
-    return { modeles, parQui, le };
-  });
+  modelesMetaStore.set((prev) => avecLaNote(prev, nom, etat, parQui, le));
 }

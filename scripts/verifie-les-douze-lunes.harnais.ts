@@ -686,6 +686,8 @@ const regles: Regle[] = [
         'le-caissier': { fichier: 'src/shared/le-caissier-pur.ts', extrait: (s) => entre(s, 'le-caissier') },
         /* La clé d'une porte (17 novembre 2026, enregistrée ici le 18 novembre 2026) : memeCle et noteLeRefus, recopiés par terminer-copie-serveur dans chaque fonction directe qui compare une clé reçue à un secret ; les quatre fonctions regroupées l'importent et n'en portent pas de copie. Sans cette ligne, R8 criait sur chaque copie depuis a9d5903b. */
         'cle-du-cron': { fichier: 'src/shared/cle-du-cron-pur.ts', extrait: (s) => entre(s, 'cle-du-cron') },
+        /* Les modèles chez Meta (18 novembre 2026) : leurs deux formes lues ensemble, une note qui s'ajoute à la liste, une relecture qui garde les notes, recopiés dans demande-submit (la bascule de l'attente) et modeles-meta (la relecture). */
+        'modeles-meta': { fichier: 'src/shared/modeles-meta-pur.ts', extrait: (s) => entre(s, 'modeles-meta') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

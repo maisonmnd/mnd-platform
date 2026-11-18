@@ -462,6 +462,34 @@ export function rendezVousQuiNeTientPlus(l: LigneALaPorte, ctx: ContexteDeLaPort
   return null;
 }
 
+/** (d bis) LA VISIO TIENT-ELLE ENCORE ? — 18 novembre 2026. Le message de la
+    visio réservée (`visio`, déposé par visio-salle) n'a pas de rendez-vous :
+    il nomme sa visio (`visioId`) et porte son jour, son heure et son lien.
+    Retenu jusqu'à 8 h pendant les heures calmes, il partait même quand la
+    visio avait été annulée entre-temps (par elle, ou par la Maison au Trône,
+    qui ne passe pas par visio-salle) : essai du 18 novembre 2026, une visio
+    annulée à 07:07, son lien en attente pour 8 h. Relue avant de partir :
+    disparue, annulée, à une autre heure que celle du message, déplacée depuis
+    son dépôt, ou finie, elle ne part pas. Après un déplacement, seul le
+    message de la nouvelle heure part. */
+export type VisioALaPorte = { debut?: string | null; fin?: string | null; statut?: string | null; deplacee_le?: string | null };
+const DECALAGE_DE_COTONOU_MS = 3_600_000;
+export function visioQuiNeTientPlus(l: { visioId?: unknown; dateRdv?: string; heure?: string; deposeLe?: unknown; quand?: unknown }, v: VisioALaPorte | null, maintenantMs: number): string | null {
+  if (typeof l.visioId !== 'string' || !l.visioId) return 'le message ne nomme pas sa visio';
+  if (!v) return 'la visio n’existe plus';
+  if (v.statut === 'annulée') return 'la visio a été annulée';
+  const debut = instant(v.debut);
+  if (!Number.isFinite(debut)) return 'la visio n’a plus d’heure lisible';
+  const aCotonou = new Date(debut + DECALAGE_DE_COTONOU_MS).toISOString();
+  if (aCotonou.slice(0, 10) !== (l.dateRdv ?? '') || aCotonou.slice(11, 16) !== (l.heure ?? '')) return 'la visio a été déplacée';
+  const deplacee = instant(v.deplacee_le);
+  const depot = instant(l.deposeLe ?? l.quand);
+  if (Number.isFinite(deplacee) && Number.isFinite(depot) && deplacee > depot) return 'la visio a été déplacée depuis le dépôt';
+  const fin = instant(v.fin);
+  if (Number.isFinite(fin) && fin <= maintenantMs) return 'l’heure de la visio est passée';
+  return null;
+}
+
 /* ── (e) LA CIVILITÉ. La règle de src/shared/civilite.ts (`appelDe`) : la
    civilité notée l'emporte sur l'ancienne marque `auMasculin`, abrégée
    devant le prénom (« M. », « Mme », « Mlle »), en entier seule ; une fiche

@@ -86,6 +86,13 @@ export const COPIES = [
     'supabase/functions/avis-google-pont/index.ts',
     'supabase/functions/kkiapay-webhook/index.ts',
   ] },
+  /* Les modèles chez Meta, leurs deux formes ensemble (18 novembre 2026) : la
+     liste relue chez Meta et les notes de la direction dans le même document ;
+     la bascule de l'attente les lit, la relecture n'efface plus les notes. */
+  { bloc: 'modeles-meta', source: 'src/shared/modeles-meta-pur.ts', cibles: [
+    'supabase/functions/demande-submit/index.ts',
+    'supabase/functions/modeles-meta/index.ts',
+  ] },
 ];
 
 const lf = (s) => s.replace(/\r\n/g, '\n');

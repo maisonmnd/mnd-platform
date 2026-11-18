@@ -79,7 +79,7 @@ const PANNES = [
   ['un « je confirme » ecrit confirme une place deja rendue', DS, "      if (etatDeLAttente(a) !== 'sans-reponse') break;\n", ''],
   ['la phrase ne dit qu une de ses places', REGLE, "\\n${lignes.join('\\n')}\\nLa Maison vous attend.`;", "\\n${lignes.slice(0, 1).join('\\n')}\\nLa Maison vous attend.`;"],
   /* ── La bascule ── */
-  ['la bascule ne regarde pas l approbation', DS, "  return (modeles as { nom?: unknown; etat?: unknown }[]).some((m) => m?.nom === nom && String(m?.etat ?? '').toUpperCase() === 'APPROVED') ? nom : '';", '    return nom;'],
+  ['la bascule ne regarde pas l approbation', DS, "  return estApprouveChezMeta(data?.data, nom) ? nom : '';", '  return nom;'],
   ['un refus du modele laisse la place en attente', DS, '    if (attenteNonPartie(partie)) {', '    if (false) {'],
   /* ── Un message qui ne part pas, ou n'arrive pas (18 novembre 2026) ── */
   ['un echec de l envoi laisse la place en attente', DS, "const attenteNonPartie = (partie: string): boolean => partie !== 'envoyé' && partie !== 'en-cours';", "const attenteNonPartie = (partie: string): boolean => partie === 'refus-du-modele';"],

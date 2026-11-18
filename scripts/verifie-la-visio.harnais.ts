@@ -184,7 +184,8 @@ dit('les portes n importent ni magasin ni synchronisation', false, /from '\.\.\/
 const consultations = lf('src/apps/trone/routes/clients/Consultations.tsx');
 dit('les files A, B et C sont au Trone, dans cet ordre', true, /<ConsultationsGratuites \/>\n\s*<ConsultationsVisios \/>\n\s*<ConsultationsReglees \/>/.test(consultations));
 dit('une consultation reglee quitte la file A pour la file C', [true, true], [
-  /!\(o\.paidXof > 0\)/.test(lf('src/apps/trone/routes/clients/ConsultationsGratuites.tsx')),
+  /* 18 novembre 2026 : la règle de la file A vit dans consultation-a-relire-pur (une visio refusée n'y laisse rien), l'écran la lit. */
+  /!\(Number\(o\.paidXof\) > 0\)/.test(lf('src/shared/consultation-a-relire-pur.ts')) && lf('src/apps/trone/routes/clients/ConsultationsGratuites.tsx').includes('const aRelire = queue.filter(estARelire)'),
   /o\.modalite === 'auto' && o\.paidXof > 0 && o\.status !== 'fermée'/.test(lf('src/apps/trone/routes/clients/ConsultationsReglees.tsx')),
 ]);
 dit('le devis ferme : a valider par elle, la consultation deduite', true,

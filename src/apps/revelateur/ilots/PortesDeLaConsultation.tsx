@@ -454,7 +454,8 @@ export function VotreMoment({
           : recu.etat === 'confirme' ? 'Votre confirmation arrive sur votre WhatsApp.' : 'La Maison vous confirme sur WhatsApp.';
     return (
       <div className="ca-ecran" ref={billet} tabIndex={-1} role="status">
-        <p className="ca-sur">{recu.genre === 'privee' && recu.etat !== 'confirme' ? 'C’est réglé' : recu.etat === 'demande' ? 'C’est demandé' : 'C’est réservé'}</p>
+        {/* Un rituel en attente de son « Je confirme » est tenu, pas réservé (18 novembre 2026). */}
+        <p className="ca-sur">{recu.genre === 'privee' && recu.etat !== 'confirme' ? 'C’est réglé' : recu.etat === 'demande' ? 'C’est demandé' : recu.etat === 'en-attente' ? 'Place tenue' : 'C’est réservé'}</p>
         <div className="ca-billet">
           <div className="ca-billet__c">
             <span className="ca-sur">{QUOI[recu.genre]}</span>

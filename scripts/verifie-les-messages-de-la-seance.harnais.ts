@@ -748,7 +748,8 @@ dit('VI10 les versions des fonctions disent ce lot (rappels-j1 et envois-partent
     /* 2026-11-15-a : le « Je confirme » par la clé du numéro, le texte d'avant gardé (2026-11-18-b : le message non remis). */
     /const VERSION = '2026-11-1(?:1-a|5-a|7-a|8-a|8-b) · [^']*la prochaine séance de l abonnée \(PROCHAINE_OK, PROCHAINE_AUTRE\)/.test(lis(WH)),
     /* 2026-11-13-a : les envois programmés (13 novembre 2026), le texte d'avant gardé. */
-    /const VERSION = '2026-11-1(?:1-b|3-a) · [^']*la prochaine séance de l’abonnée \(apres-seance\) relue avant de partir/.test(lis(EP))]);
+    /* 2026-11-18-a : la visio relue avant de partir, le texte d'avant gardé. */
+    /const VERSION = '2026-11-1(?:1-b|3-a|8-a) · [^']*la prochaine séance de l’abonnée \(apres-seance\) relue avant de partir/.test(lis(EP))]);
 
 /* ══ VII. CE QUI VA PARTIR ═════════════════════════════════════════════ */
 const ligneVeille = { id: 'env-t1-whatsapp', type: 'rappel-j1', genre: 'veille-attention', canal: 'whatsapp', apptId: 't1', clientId: 'cA', dateRdv: '2026-12-12', heure: '09:00',

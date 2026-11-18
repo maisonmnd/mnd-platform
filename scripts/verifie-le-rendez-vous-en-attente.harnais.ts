@@ -28,6 +28,7 @@ import { estSuggere } from '../src/shared/rendez-vous-suggere-pur';
 import { rappelDeLaVeilleSeTait, suggestionSansOui } from '../src/shared/heures-des-rappels-pur';
 import { jetonDuRendezVous, referenceDuRendezVous } from '../src/shared/lien-du-rdv-pur';
 import { reponseDeLaMaisonLue } from '../src/apps/couronne/reservation-serveur';
+import { avecLaNote } from '../src/shared/modeles-meta-pur';
 
 let ko = 0;
 let n = 0;
@@ -463,6 +464,36 @@ const approuve = (etat = 'APPROVED') => {
   dit('B2 le secret pose mais le modele pas encore lu « APPROVED » au Trone (absent, puis en revue) : toujours confirmee, jamais le modele de l attente',
     ['confirme', 'confirme', false, false, ['confirmation_rdv', 'confirmation_rdv']],
     [r2.corps.etat, r3.corps.etat, estEnAttente(rdvDe(r2.corps.apptId)), estEnAttente(rdvDe(r3.corps.apptId)), META.map((m) => m.modele)]);
+}
+
+/* B2b. LES DEUX FORMES DU DOCUMENT (18 novembre 2026) : une note de « Ses
+   modèles chez Meta » s'ajoute à la liste relue chez Meta, elle ne l'efface
+   plus, et la bascule les lit ensemble ; le registre d'avant se lit encore ;
+   une note plus récente que la liste dit vrai. Ses trois places s'effacent
+   ensuite (la base et les débits remis comme avant) : la suite compte ses
+   places à elle. */
+{
+  const photo = structuredClone(TABLES);
+  const debits = structuredClone(DEBIT);
+  const pose = (data: unknown) => {
+    const i = table('documents').findIndex((d) => d.key === 'mnd_modeles_meta');
+    if (i >= 0) table('documents').splice(i, 1);
+    table('documents').push({ key: 'mnd_modeles_meta', data });
+  };
+  const liste = { lusLe: iso(T0 - 3_600_000), modeles: [{ id: '1', nom: 'rdv_a_confirmer', etat: 'APPROVED' }], version: 'v' };
+  META.length = 0;
+  pose(avecLaNote(liste, 'prochaine_seance', 'approuve', 'Y', iso(T0)));
+  const n1 = await depot({ telephone: '0197000191', date: '2026-11-26', time: '10:00' });
+  pose({ modeles: { rdv_a_confirmer: { etat: 'approuve' } }, parQui: 'Y', le: iso(T0) });
+  const n2 = await depot({ telephone: '0197000192', date: '2026-11-26', time: '12:00' });
+  pose(avecLaNote(liste, 'rdv_a_confirmer', 'depose', 'Y', iso(T0)));
+  const n3 = await depot({ telephone: '0197000193', date: '2026-11-26', time: '14:00' });
+  await attendsLeFond();
+  dit('B2b la liste relue chez Meta puis une note sur un autre modele : la place nait en attente ; le registre d avant seul (rdv_a_confirmer note approuve) aussi ; une note « depose » plus recente que la liste : confirmee',
+    ['en-attente', 'en-attente', 'confirme'], [n1.corps.etat, n2.corps.etat, n3.corps.etat]);
+  META.length = 0;
+  for (const k of Object.keys(TABLES)) TABLES[k].splice(0, TABLES[k].length, ...(photo[k] ?? []));
+  DEBIT.splice(0, DEBIT.length, ...debits);
 }
 
 /* B3. LA BASCULE : EN ATTENTE. */
@@ -1019,7 +1050,7 @@ const idB3 = b3.corps.apptId as string;
   dit('C11 demande-submit : la bascule veut le secret ET le modele approuve ; la reponse de l attente ne s ouvre qu a la cle service ; le juge de l heure n est pas refait ici',
     [true, true, true, true],
     [/const nom = \(Deno\.env\.get\('WA_TEMPLATE_ATTENTE'\) \?\? ''\)\.trim\(\);\s+if \(!nom \|\| !Deno\.env\.get\('WA_TOKEN'\) \|\| !Deno\.env\.get\('WA_PHONE_ID'\)\) return '';/.test(ds),
-      /String\(m\?\.etat \?\? ''\)\.toUpperCase\(\) === 'APPROVED'/.test(ds), /if \(!appelDuServeur\(req\)\) return json\(\{ error: 'reserve' \}, 401\);/.test(ds),
+      /return estApprouveChezMeta\(data\?\.data, nom\) \? nom : '';/.test(ds) && /if \(s === 'APPROVED'\) return 'approuve';/.test(ds), /if \(!appelDuServeur\(req\)\) return json\(\{ error: 'reserve' \}, 401\);/.test(ds),
       /if \(debutDemande >= PREMIER_RENDEZ_VOUS_MIN\s+&& !heureSurLaGrille\(/.test(ds)]);
   const badge = lit('src/apps/trone/routes/clients/BadgeSuggere.tsx');
   const carnet = lit('src/apps/trone/routes/clients/Carnet.tsx');

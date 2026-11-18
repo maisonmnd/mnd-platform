@@ -240,9 +240,23 @@ export const COMMUN: Commun = {
        validée). La confirmation part quand Meta l'accepte : presque toujours
        tout de suite, pas toujours. La page ne promet que ce que le serveur
        lui dit avoir fait (voir `accuse` dans Reserver.tsx). */
+    /* LA PLACE EST TENUE, ELLE SE CONFIRME — 18 novembre 2026. Depuis que le
+       modèle `rdv_a_confirmer` est approuvé et son secret posé, une place prise
+       ici naît « en attente » : tenue deux heures, confirmée par « Je confirme »
+       sur WhatsApp. « C'est réservé, le créneau est à votre nom dès l'envoi »
+       promettait une place ferme qu'elle n'est pas encore. Peu de mots
+       (Yéman veut des textes publics courts). Si le serveur rend la place
+       ferme (`etat: 'confirme'` : attente éteinte, ou message qui ne part
+       pas), l'îlot pose `est-ferme` sur la page et `suiteFerme` se montre
+       seule : la page dit ce que le serveur a fait. */
     suite: [
-      ['C’est réservé', "Le créneau est à votre nom dès l'envoi : la Maison a vérifié qu'il était libre."],
-      ['La confirmation arrive sur WhatsApp', "La Maison choisit qui s'occupe de vous."],
+      ['Votre place est tenue', 'Deux heures, à votre nom.'],
+      ['Vous confirmez sur WhatsApp', 'Touchez « Je confirme » : sans réponse, la place se libère.'],
+      ['Vous venez', 'Votre espace Ma Couronne s’ouvre à votre premier rendez-vous.'],
+    ],
+    suiteFerme: [
+      ['Votre place est confirmée', 'Elle est à votre nom.'],
+      ['La confirmation arrive sur WhatsApp', 'La Maison choisit qui s’occupe de vous.'],
       ['Vous venez', 'Votre espace Ma Couronne s’ouvre à votre premier rendez-vous.'],
     ],
     /* LA SUITE DU RAPPEL, À PART — 11 octobre 2026. La page du rappel servait

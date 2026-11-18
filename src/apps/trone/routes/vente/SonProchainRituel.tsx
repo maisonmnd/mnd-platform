@@ -58,6 +58,7 @@ import { SUCCESSEURS } from '../../../../shared/bascule-de-janvier-pur';
 import { numeroAPrevenirDuRdv, numerosDeLaFiche } from '../../../../shared/numero-a-prevenir-pur';
 import { avertissementDHabilitation, plusHautDes, type Palier } from '../../../../shared/paliers';
 import { sameName } from '../../../../shared/text';
+import { etatDuModeleMeta, modelesMetaLus } from '../../../../shared/modeles-meta-pur';
 import { uid } from '../../../../shared/store';
 import { jourCourtAn, jourEnLettres } from '../../../../shared/calendrier';
 import { heureDuMessage, momentDuMessage } from '../../../../shared/salle-des-envois';
@@ -140,7 +141,10 @@ export type VueDeLaCarte = {
 
 /** LE MODÈLE DE LA PROPOSITION EST-IL APPROUVÉ CHEZ META ? (15 novembre 2026)
     La dernière lecture que le Trône garde (`mnd_modeles_meta`, écrite par
-    « Les modèles chez Meta »). `null` : on ne sait pas (hors ligne, jamais lu). */
+    « Les modèles chez Meta »). `null` : on ne sait pas (hors ligne, jamais lu).
+    Ses deux formes ensemble (18 novembre 2026) : la liste relue chez Meta, et
+    les notes de « Ses modèles chez Meta » (`modelesMetaLus`) ; une note seule
+    ne fait plus croire le modèle inconnu. */
 function useModeleApprouve(nom: string): boolean | null {
   const [etat, setEtat] = useState<boolean | null>(null);
   useEffect(() => {
@@ -150,10 +154,9 @@ function useModeleApprouve(nom: string): boolean | null {
     void (async () => {
       try {
         const { data } = await sb.from('documents').select('data').eq('key', 'mnd_modeles_meta').maybeSingle();
-        const modeles = ((data?.data ?? null) as { modeles?: { nom?: string; etat?: string }[] } | null)?.modeles;
-        if (!vivant || !Array.isArray(modeles) || modeles.length === 0) return;
-        const m = modeles.find((x) => x?.nom === nom);
-        setEtat(!!m && String(m.etat ?? '').toUpperCase() === 'APPROVED');
+        const lu = modelesMetaLus(data?.data);
+        if (!vivant || (lu.liste.length === 0 && Object.keys(lu.notes).length === 0)) return;
+        setEtat(etatDuModeleMeta(lu, nom) === 'approuve');
       } catch { /* hors ligne : on ne sait pas, la fenêtre n'en dit rien */ }
     })();
     return () => { vivant = false; };

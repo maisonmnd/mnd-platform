@@ -6,6 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { consultationsQueueStore, type OnlineConsultation } from '../../../../shared/bridges';
 import { useBesoins } from '../../../../shared/besoins';
 import { pointsDuBesoin, saFicheDite } from '../../../../shared/lecture-de-la-maison-pur';
+import { estARelire } from '../../../../shared/consultation-a-relire-pur';
 
 /* ══ A · LES CONSULTATIONS GRATUITES À RELIRE — 13 novembre 2026 (lot 2) ═══
    Ce que le site a déposé (/consultation/) : les besoins cochés, la couronne
@@ -23,8 +24,10 @@ export function ConsultationsGratuites() {
   const navigate = useNavigate();
   /* Les points d'un besoin se lisent dans les réglages du Trône ; ceux d'un dépôt d'avant restent ce qu'ils étaient. */
   const points = (b: { id: string; points?: number }): number | null => pointsDuBesoin(reglages, b.id) ?? (typeof b.points === 'number' ? b.points : null);
-  /* Réglée en ligne, elle passe en file C (lot 3). */
-  const aRelire = queue.filter((o) => o.modalite === 'auto' && o.status !== 'fermée' && !(o.paidXof > 0))
+  /* Réglée en ligne, elle passe en file C (lot 3). Une visio demandée puis
+     refusée au site ne laisse pas de consultation à relire (18 novembre 2026,
+     `estARelire`) : elle n'est à relire qu'une fois sa visio posée. */
+  const aRelire = queue.filter(estARelire)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   if (!aRelire.length) return null;
   const argent = (n: number) => fmtMoney(n, currency);

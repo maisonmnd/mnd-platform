@@ -64,8 +64,10 @@ import type { PropsDUneVue } from './Gerard';
      · « Qui écrit seul » lit l'état RÉEL : l'interrupteur aux MÊMES clés que
        Paramètres (et écrit par les mêmes fonctions), la fonction posée par un
        GET sans POST (bouton « Sonder », direction), le secret nommé, le modèle
-       Meta noté à la main dans `mnd_modeles_meta`, le dernier passage et les
-       partis du mois dans `envois` ;
+       Meta lu chez Meta ou noté à la main dans `mnd_modeles_meta` (les deux
+       formes ensemble depuis le 18 novembre 2026 : une note s'ajoute à la
+       liste de « Relire chez Meta », elle ne la remplace plus), le dernier
+       passage et les partis du mois dans `envois` ;
      · « Claude ce mois » lit le compteur des huit ENTIER (`parChantier` n'est
        pas un mois), le Centre et le diagnostic photo à côté ; le plafond est
        celui d'aujourd'hui, 120 $ ; les 150 $ et les parts par usage arrivent
@@ -548,7 +550,7 @@ export default function CeQueCaRapporte({ cerveau, reglages, moi }: PropsDUneVue
       {direction && (
         <details className="trc-ger__carte trc-am__repli" open={repli === 'modeles'} onToggle={surRepli('modeles')}>
           <summary>
-            <h3>Ses modèles chez Meta <span>7 + 1, et deux cartes · état noté à la main</span></h3>
+            <h3>Ses modèles chez Meta <span>7 + 1, et deux cartes · état lu chez Meta ou noté</span></h3>
             <span className="trc-am__resume"><b className={approuvesDeGerard === 0 ? 'trc-am__alarme' : ''}>{approuvesDeGerard}</b> approuvé{approuvesDeGerard > 1 ? 's' : ''} sur {Object.keys(MODELES_DE_GERARD).length}</span>
           </summary>
           <p className="trc-ger__doux">Dans le gestionnaire WhatsApp de Meta, un modèle par ligne : le nom, la catégorie, le corps tel quel ({'{{1}}'}, {'{{2}}'}… sont les variables), le pied « <TexteFon texte={DEVISE_COMPLETE} /> », les boutons. Notez ici ce que Meta a répondu : un modèle approuvé de l’Assistant part seul au passage du matin.</p>

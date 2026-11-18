@@ -25,6 +25,7 @@ import { supabase } from '../../../../shared/supabase';
 import { basculeLeModele, usePauses } from '../../../../shared/arrets-d-avance';
 import { REGISTRE_DES_MODELES } from '../../../../shared/porte-des-modeles-pur';
 import { NON_REMIS_EN_PAUSE_AU, NON_REMIS_SIGNALE_AU } from '../../../../shared/arret-d-avance-pur';
+import { modelesMetaLus } from '../../../../shared/modeles-meta-pur';
 import {
   MODELES_CONNUS, QUALITE_DITE, chiffresDesModeles, etatMetaDit, jourDeCotonou, messagesSansLesEssais, modeleDit, repriseChezMetaPossible,
 } from '../../../../shared/ce-qui-va-partir-pur';
@@ -52,9 +53,10 @@ function useEtatChezMeta(): { lecture: LectureMeta | null; relis: () => void; en
         const { data, error } = await sb.functions.invoke('modeles-meta', { body: { geste: 'lire' } });
         const rep = (data ?? {}) as LectureMeta;
         if (!error && Array.isArray(rep.modeles) && rep.modeles.length > 0) { if (vivant) setLecture(rep); return; }
+        /* La dernière lecture gardée : la liste de Meta, à côté des notes de la direction (18 novembre 2026, `modelesMetaLus`). */
         const { data: doc } = await sb.from('documents').select('data').eq('key', 'mnd_modeles_meta').maybeSingle();
-        const garde = (doc?.data ?? null) as LectureMeta | null;
-        if (vivant) setLecture(garde && Array.isArray(garde.modeles) ? { ...garde, erreur: rep.erreur ?? (error ? 'la fonction modeles-meta ne répond pas' : undefined) } : { modeles: [], erreur: rep.erreur ?? 'la fonction modeles-meta ne répond pas' });
+        const garde = modelesMetaLus(doc?.data);
+        if (vivant) setLecture(garde.liste.length > 0 ? { ...(garde.lusLe ? { lusLe: garde.lusLe } : {}), modeles: garde.liste.map((m) => ({ ...m, id: m.id ?? '' })), erreur: rep.erreur ?? (error ? 'la fonction modeles-meta ne répond pas' : undefined) } : { modeles: [], erreur: rep.erreur ?? 'la fonction modeles-meta ne répond pas' });
       } finally {
         if (vivant) setEnCours(false);
       }

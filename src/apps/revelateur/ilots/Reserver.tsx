@@ -495,9 +495,15 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     } catch { /* sans hasard sûr : pas de clé, la référence ne se rend qu'une fois */ }
   }
   /* LA BANDE DE FIN NE REDIT PAS « RÉSERVER » après une place tenue : le corps
-     de la page porte la classe, la feuille cache l'appel. */
+     de la page porte la classe, la feuille cache l'appel. « Ce qui se passe
+     ensuite » suit la réponse (18 novembre 2026) : `est-ferme` quand le
+     serveur a rendu la place ferme, et la feuille montre la suite ferme au
+     lieu de « Je confirme ». */
   useEffect(() => {
-    try { document.body.classList.toggle('est-reserve', !!recu?.confirme || recu?.etat === 'en-attente'); } catch { /* sans document */ }
+    try {
+      document.body.classList.toggle('est-reserve', !!recu?.confirme || recu?.etat === 'en-attente');
+      document.body.classList.toggle('est-ferme', recu?.etat === 'confirme');
+    } catch { /* sans document */ }
   }, [recu]);
 
   useEffect(() => {

@@ -66,7 +66,8 @@ import {
 
 export type IssueDuDepot = 'depose' | 'deja' | 'repli' | 'facteur-muet' | RaisonDuSilence;
 
-/** Le modèle `prochaine_seance` est-il noté approuvé chez Meta ? */
+/** Le modèle `prochaine_seance` est-il approuvé chez Meta ? Lu à « Relire chez Meta » ou noté par la
+    direction : les deux formes du document ensemble (18 novembre 2026, `registreLu`). */
 export const modeleProchaineSeanceApprouve = (): boolean =>
   etatDuModele(registreLu(modelesMetaStore.get()), MODELE_PROCHAINE_SEANCE) === 'approuve';
 

@@ -627,6 +627,34 @@ export function rendezVousQuiNeTientPlus(l: LigneALaPorte, ctx: ContexteDeLaPort
   return null;
 }
 
+/** (d bis) LA VISIO TIENT-ELLE ENCORE ? — 18 novembre 2026. Le message de la
+    visio réservée (`visio`, déposé par visio-salle) n'a pas de rendez-vous :
+    il nomme sa visio (`visioId`) et porte son jour, son heure et son lien.
+    Retenu jusqu'à 8 h pendant les heures calmes, il partait même quand la
+    visio avait été annulée entre-temps (par elle, ou par la Maison au Trône,
+    qui ne passe pas par visio-salle) : essai du 18 novembre 2026, une visio
+    annulée à 07:07, son lien en attente pour 8 h. Relue avant de partir :
+    disparue, annulée, à une autre heure que celle du message, déplacée depuis
+    son dépôt, ou finie, elle ne part pas. Après un déplacement, seul le
+    message de la nouvelle heure part. */
+export type VisioALaPorte = { debut?: string | null; fin?: string | null; statut?: string | null; deplacee_le?: string | null };
+const DECALAGE_DE_COTONOU_MS = 3_600_000;
+export function visioQuiNeTientPlus(l: { visioId?: unknown; dateRdv?: string; heure?: string; deposeLe?: unknown; quand?: unknown }, v: VisioALaPorte | null, maintenantMs: number): string | null {
+  if (typeof l.visioId !== 'string' || !l.visioId) return 'le message ne nomme pas sa visio';
+  if (!v) return 'la visio n’existe plus';
+  if (v.statut === 'annulée') return 'la visio a été annulée';
+  const debut = instant(v.debut);
+  if (!Number.isFinite(debut)) return 'la visio n’a plus d’heure lisible';
+  const aCotonou = new Date(debut + DECALAGE_DE_COTONOU_MS).toISOString();
+  if (aCotonou.slice(0, 10) !== (l.dateRdv ?? '') || aCotonou.slice(11, 16) !== (l.heure ?? '')) return 'la visio a été déplacée';
+  const deplacee = instant(v.deplacee_le);
+  const depot = instant(l.deposeLe ?? l.quand);
+  if (Number.isFinite(deplacee) && Number.isFinite(depot) && deplacee > depot) return 'la visio a été déplacée depuis le dépôt';
+  const fin = instant(v.fin);
+  if (Number.isFinite(fin) && fin <= maintenantMs) return 'l’heure de la visio est passée';
+  return null;
+}
+
 /* ── (e) LA CIVILITÉ. La règle de src/shared/civilite.ts (`appelDe`) : la
    civilité notée l'emporte sur l'ancienne marque `auMasculin`, abrégée
    devant le prénom (« M. », « Mme », « Mlle »), en entier seule ; une fiche
@@ -1281,7 +1309,7 @@ export function texteDeLaConsigne(o: { auteur: string; numero: string; prenom?: 
 }
 /* ⟨/envois-programmes⟩ */
 
-const VERSION = '2026-11-13-a · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi ; le papier d’une pièce déposé par Grenat : la pièce relue, sa clé réservée, sa marque posée ; ce qui va partir : arrêté d’avance, modèle en pause, cinq non remis de suite et Opale le met en pause ; la prochaine séance de l’abonnée (apres-seance) relue avant de partir : une suite posée pendant l’attente, ou une séance qui n’est plus marquée faite, et elle ne part pas ; les envois programmés (13 novembre 2026) : l’heure exacte, même la nuit, relus avant de partir, le texte et sa pièce dans la fenêtre, sinon le modèle d’ouverture puis le message à sa réponse, ou Opale par WhatsApp Web pour un message privé, me demander avant, par l’app, la fois suivante posée une fois';
+const VERSION = '2026-11-18-a · la visio relue avant de partir : annulée (par elle ou par la Maison), déplacée, disparue ou finie, son message ne part pas, et après un déplacement seul celui de la nouvelle heure part ; 2026-11-13-a · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi ; le papier d’une pièce déposé par Grenat : la pièce relue, sa clé réservée, sa marque posée ; ce qui va partir : arrêté d’avance, modèle en pause, cinq non remis de suite et Opale le met en pause ; la prochaine séance de l’abonnée (apres-seance) relue avant de partir : une suite posée pendant l’attente, ou une séance qui n’est plus marquée faite, et elle ne part pas ; les envois programmés (13 novembre 2026) : l’heure exacte, même la nuit, relus avant de partir, le texte et sa pièce dans la fenêtre, sinon le modèle d’ouverture puis le message à sa réponse, ou Opale par WhatsApp Web pour un message privé, me demander avant, par l’app, la fois suivante posée une fois';
 
 /* ── LE CALCUL DES HEURES, recopié de src/shared/salle-des-envois.ts ── */
 const DECALAGE_DU_SALON_H = 1;
@@ -1568,6 +1596,8 @@ const dejaUnSuivant = (rdvs: readonly RdvDeLaTete[], seance: { id: string; clien
   leSuivant(rdvs, seance) !== null;
 /* ⟨/deja-un-suivant⟩ */
 const TYPE_DE_LA_PROCHAINE_SEANCE = 'apres-seance';
+/** Le message de la visio réservée (visio-salle) : relu avant de partir (`visioQuiNeTientPlus`). */
+const TYPE_DE_LA_VISIO = 'visio';
 /** Pourquoi la prochaine séance ne part plus, ou `null`. Lève quand la base ne se lit pas. */
 async function pourquoiLaProchaineSeanceNePartPlus(sb: Sb, l: { seanceId?: unknown; clientId?: unknown }): Promise<string | null> {
   const seanceId = String(l.seanceId ?? '');
@@ -2166,6 +2196,23 @@ Deno.serve(async (req) => {
         const motifDuFoyer = foyerQuiNeTientPlus({ apptId: l.data.apptId, apptIds: l.data.apptIds, dateRdv: base.dateRdv }, relus);
         if (motifDuFoyer) { await ecris({ statut: 'périmé', detail: motifDuFoyer }); perimes++; continue; }
       }
+    }
+    /* LA VISIO RELUE AVANT DE PARTIR (18 novembre 2026, `visioQuiNeTientPlus`) :
+       annulée, déplacée, disparue ou finie, son message ne part pas. Une
+       lecture en panne ne le perd pas : il repasse dans une minute. */
+    if (l.data.type === TYPE_DE_LA_VISIO) {
+      let visio: VisioALaPorte | null = null;
+      if (typeof l.data.visioId === 'string' && l.data.visioId) {
+        const { data: lue, error: errVisio } = await sb.from('visios').select('id, debut, fin, statut, deplacee_le').eq('id', l.data.visioId).maybeSingle();
+        if (errVisio) {
+          await sb.from('envois').update({ data: { ...l.data, statut: 'en-attente', partA: new Date(Date.now() + 60_000).toISOString(), detail: 'la visio n’a pas pu être relue : il repasse dans une minute' } }).eq('id', l.id);
+          echecs++;
+          continue;
+        }
+        visio = (lue ?? null) as VisioALaPorte | null;
+      }
+      const motifDeLaVisio = visioQuiNeTientPlus(l.data, visio, Date.now());
+      if (motifDeLaVisio) { await ecris({ statut: 'périmé', detail: motifDeLaVisio }); perimes++; continue; }
     }
     /* LA PROCHAINE SÉANCE DE L'ABONNÉE (11 novembre 2026) : relue avant de
        partir ; la suite posée pendant l'attente la tait. */

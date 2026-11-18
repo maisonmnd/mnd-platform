@@ -275,7 +275,10 @@ export type Commun = {
     nom: string;
     besoins: { valeur: Besoin; texte: string }[]; profils: string[];
     erreurNumero: string; merci: { titre: string; texte: string };
+    /** Ce qui se passe ensuite, place tenue en attente de son « Je confirme » (18 novembre 2026). */
     suite: [string, string][];
+    /** La même suite quand le serveur rend la place ferme (`etat: 'confirme'`) : la page la montre alors seule. */
+    suiteFerme: [string, string][];
     /** La suite propre au rappel (11 octobre 2026) : rien n'y est réservé. */
     suiteRappel: [string, string][];
     /** Le numéro avec son indicatif, et l'aide sous le champ. */
