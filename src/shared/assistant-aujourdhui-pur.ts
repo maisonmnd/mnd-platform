@@ -38,6 +38,10 @@ import { francs } from './ia-faits-pur';
     champs que l'Assistant y pose (`LigneDeGerard`) et ceux de la salle. */
 export type EnvoiDuJour = EnvoiLu & {
   genre?: string; envie?: string; codePromo?: string; partA?: string; calme?: boolean; deposeLe?: string;
+  /** Une main a dit « maintenant » (la salle, ou « Envoyer maintenant » du plan) : il part à l'instant. */
+  parLaMain?: boolean;
+  /** Qui l'a fait partir avant son heure (`envoyer-maintenant-pur`). */
+  envoyeMaintenantPar?: string;
   /** La remise à faire au départ réel (lot 2), et ce que sa fabrication a dit (« jour passé, pas de remise »). */
   codeAFaire?: CodeAFaire; detailRemise?: string;
   /** De quoi l'envoyer, déposé par la fonction qui a jugé : le numéro, le texte au fil, le modèle ; ou le titre et le corps d'une notification. */
@@ -145,6 +149,8 @@ function etatDe(e: EnvoiDuJour | undefined, s: Situation, actif: boolean, seule:
 function departDe(e: EnvoiDuJour | undefined, etat: EtatDeLaLigne, maintenantMs: number, carte: boolean): string {
   /* La carte d'anniversaire attend 10 h en salle (`departDeLaCarte`, 28 octobre 2026) : son heure se dit. */
   if (etat === 'en-salle' && carte && e) return quandIlPart(e, maintenantMs) || 'part à l’instant';
+  /* ENVOYÉE MAINTENANT par une main (18 novembre 2026) : elle part à l'instant, pas au passage du matin. */
+  if (etat === 'en-salle' && e?.parLaMain) return quandIlPart(e, maintenantMs) || 'part à l’instant';
   switch (etat) {
     case 'en-pause': return 'en pause';
     case 'pas-encore': return 'pas encore en salle';

@@ -41,6 +41,8 @@ import type { Appointment } from '../../../../shared/agenda';
 import { envoisStore, useAutoConfig, useEnvois } from '../equipe/data';
 import { fabriqueLeCodeDe, useCerveauDeGerard, useLePassageDeGerard, type CerveauDeGerard } from './gerard-donnees';
 import { gesteDeLaSalle } from './SalleDesEnvois';
+import { porteDuMaintenant } from '../../../../shared/envoyer-maintenant-pur';
+import { envoieLaLigneMaintenant } from './envoyer-maintenant';
 import { RdvModal, apptTotalXof, tarifDeLaTeteXof, useBranchAppointmentsAvecEssais, useBranchClients, useServicesById } from './_shared';
 import { PageHead } from '../_ui';
 import { GerardEntreDeux } from './GerardEntreDeux';
@@ -365,6 +367,30 @@ export default function Gerard() {
       [id]: v === 'fait' ? VERDICT_DIT[g] : v === 'trop-tard' ? 'Trop tard : elle vient de partir, ou une autre main l’a reprise.' : 'Panne : le serveur n’a pas répondu, rien n’a changé.',
     }));
   };
+  /* « ENVOYER MAINTENANT » SUR UNE LIGNE QUI ATTEND SON HEURE (18 novembre
+     2026, Yéman : « je veux que ça parte maintenant ») : la ligne que le
+     passage du matin déposerait, à la même clé, part à l'instant, malgré les
+     heures calmes (`shared/envoyer-maintenant-pur`). La clé déjà prise (le
+     passage vient de la déposer), elle part par le geste de la salle. */
+  const [enVol, setEnVol] = useState<string | null>(null);
+  const envoieSansAttendre = async (s: Situation) => {
+    const qui = moi?.name ?? 'La direction';
+    setEnVol(s.clientId);
+    try {
+      const { issue, id } = await envoieLaLigneMaintenant({ cerveau, situation: s, reglagesGerard: brut, branchId: branch.id, regles, qui });
+      let dit = issue === 'parti' ? 'Envoyée maintenant : elle part à l’instant sur WhatsApp, même pendant les heures calmes ; le passage du matin ne la renverra pas.'
+        : issue === 'facteur-muet' ? 'Le facteur se tait depuis plus de cinq minutes : rien n’est parti. Réessayez dans un instant.'
+          : issue === 'ferme' ? 'Elle ne peut pas partir : le passage du matin ne la déposerait pas.'
+            : 'Panne : le serveur n’a pas répondu, rien n’est parti.';
+      if (issue === 'deja') {
+        const v = await gesteDeLaSalle(id, 'envoyer', qui, regles);
+        dit = v === 'fait' ? VERDICT_DIT.envoyer : v === 'trop-tard' ? 'Déjà partie, ou une autre main l’a reprise.' : 'Panne : le serveur n’a pas répondu, rien n’a changé.';
+      }
+      setVerdicts((prev) => ({ ...prev, [id]: dit }));
+    } finally {
+      setEnVol(null);
+    }
+  };
   /* TOUT LAISSER PARTIR (spec §9, les quatre touchers du matin ; 27 octobre
      2026) : chaque notification Ma Couronne du jour encore en salle ou retenue
      part à l'instant, par le même geste que la ligne, une écriture
@@ -569,6 +595,12 @@ export default function Gerard() {
                   const enSalle = l.etat === 'en-salle' || l.etat === 'retenue';
                   /* Garder son RDV : la ligne dit lequel, avec l'année (maquette l.374). */
                   const rdv = s.genre === 'garder' ? cerveau.rdvAGarder(s.clientId) : undefined;
+                  /* La ligne qui attend son heure : « Envoyer maintenant », ouvert ou fermé avec sa raison. */
+                  const porteMaintenant = porteDuMaintenant({
+                    situation: s, reglagesGerard: brut, dejaUneLigne: !!l.envoi, fiche: f, destinataire: s.pourId ? ficheDe.get(s.pourId) : undefined,
+                    nouvelles: cerveau.clientDe(s.clientId)?.nouvelles, telephone: cerveau.telDe(s), aujourdhui: ctx.aujourdhui,
+                  });
+                  const idWa = idDeLaLigne(ctx.aujourdhui, s.clientId, 'whatsapp');
                   return (
                     <li key={s.clientId} id={`am-ligne-${s.clientId}`} className={`trc-ger__rangee${ouvert ? ' est-ouverte' : ''}`}>
                       <button type="button" className="trc-ger__ligne trc-am__ligne" aria-expanded={ouvert} onClick={() => setOuverte(ouvert ? null : s.clientId)}>
@@ -611,8 +643,19 @@ export default function Gerard() {
                               {/* LOT 2 : un modèle approuvé chez Meta part seul au passage du matin (`partSeule`) ; le
                                   bouton se tait, sinon le message partirait deux fois. Pas approuvé : un toucher par cliente. */}
                               {s.canal === 'whatsapp' && partSeule(s, reglages) && (
-                                <em className="trc-am__puce trc-am__puce--cuivre">{s.genre === 'anniversaire' ? 'Part seule sur WhatsApp à 10 h' : 'Part seul sur WhatsApp au passage du matin'}</em>
+                                <em className="trc-am__puce trc-am__puce--cuivre">{l.envoi?.envoyeMaintenantPar ? `Envoyée maintenant par ${l.envoi.envoyeMaintenantPar}` : s.genre === 'anniversaire' ? 'Part seule sur WhatsApp à 10 h' : 'Part seul sur WhatsApp au passage du matin'}</em>
                               )}
+                              {/* « ENVOYER MAINTENANT » (18 novembre 2026) : la ligne qui attend son heure part à l'instant,
+                                  malgré les heures calmes ; fermé, le bouton dit pourquoi (`porteDuMaintenant`). */}
+                              {porteMaintenant.bouton && (porteMaintenant.ouvert ? (
+                                <button type="button" className="trc-ger__btn trc-ger__btn--cuivre" disabled={enVol === s.clientId}
+                                  title="Elle part à l’instant, par le même modèle que le passage du matin, même pendant les heures calmes ; le passage ne la renverra pas."
+                                  onClick={() => { void envoieSansAttendre(s); }}>
+                                  {enVol === s.clientId ? 'Envoi en cours' : 'Envoyer maintenant'}
+                                </button>
+                              ) : (
+                                <button type="button" className="trc-ger__btn" disabled title={`Fermé : ${porteMaintenant.raison}.`}>Envoyer maintenant</button>
+                              ))}
                               {/* LA CARTE À UN TOUCHER : la fenêtre « Sa carte » (l'image à son prénom, au numéro du plan) ; noté « à la main » quand elle part. */}
                               {s.canal === 'whatsapp' && servie(reglages, s.clientId) && !partSeule(s, reglages) && modele.enTete === 'image' && (
                                 <button type="button" className="trc-ger__btn trc-ger__btn--cuivre" onClick={() => setCarteDe(s)}>Envoyer sa carte</button>
@@ -648,6 +691,8 @@ export default function Gerard() {
                                 </button>
                               )}
                             </div>
+                            {porteMaintenant.bouton && !porteMaintenant.ouvert && <small className="trc-ger__doux">Envoyer maintenant est fermé : {porteMaintenant.raison}.</small>}
+                            {!l.envoi && verdicts[idWa] && <small className="trc-ger__doux">{verdicts[idWa]}</small>}
                             {l.envoi && verdicts[l.envoi.id] && <small className="trc-ger__doux">{verdicts[l.envoi.id]}</small>}
                             {s.canal === 'couronne' && actif && l.etat === 'pas-encore' && <small className="trc-ger__doux">Notification Ma Couronne : elle part au passage du jour.</small>}
                           </div>
