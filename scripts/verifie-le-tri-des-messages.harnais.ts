@@ -14,10 +14,11 @@
 import { readFileSync } from 'node:fs';
 import {
   CLE_DU_TRI, TRI_VIDE, avecUnBloque, avecUnJugement, avecUneProposition, cleDuTri, consigneDuTri, contexteDuTri,
-  etatDuNumero, extraitDe, lectureDuTri, motifDit, rendu, triLu, type EntreeDuTri,
+  echangeQuiCompte, etatDuNumero, extraitDe, lectureDuTri, motifDit, rendu, sansSujet, triLu, type EntreeDuTri,
 } from '../src/shared/tri-des-messages-pur';
 import { cleDuNumeroWa } from '../src/shared/conversations';
 import { filtresDe } from '../src/shared/boite-unique-pur';
+import { OUTILS_D_OPALE, consigneDOpale, textesPourLeTri, verdictRange } from '../src/shared/opale-pur';
 
 let ko = 0; let n = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -26,6 +27,29 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
   if (a === o) console.log(`OK    ${nom}`);
   else { ko++; console.log(`ECHEC ${nom}\n       obtenu  ${o}\n       attendu ${a}`); }
 };
+
+/* ── ⓪ LE DÉMARCHEUR QUI SALUE D'ABORD (18 novembre 2026) ── */
+dit('sans sujet : des saluts, un merci, un accord, rien', [true, true, true, true, true, true],
+  [sansSujet(['Bonsoir']), sansSujet(['Bonjour Madame !']), sansSujet(['Bonsoir Madame,', 'ok merci']), sansSujet(['Bjr la maison MND']), sansSujet(['Good morning']), sansSujet([])]);
+dit('... mais une question, une demande, une publicite ont un sujet', [false, false, false, false, false],
+  [sansSujet(['Bonjour, vous êtes ouverts samedi ?']), sansSujet(['Bonjour je voudrais un rendez-vous']), sansSujet(['Bonsoir Madame, je suis créateur de sites web']), sansSujet(['Prix ?']), sansSujet(['bonjour bonjour bonjour bonjour bonjour bonjour bonjour'])]);
+dit('un echange qui compte : un message de la Maison sans auto (une personne, un modele) ; jamais Opale ni l automate', [true, true, false, false, false],
+  [echangeQuiCompte({ sens: 'sortant' }), echangeQuiCompte({ sens: 'sortant', modele: 'rappel' } as { sens: string }), echangeQuiCompte({ sens: 'sortant', auto: 'automate' }), echangeQuiCompte({ sens: 'entrant' }), echangeQuiCompte(null)]);
+dit('la consigne du tri : se presenter et offrir ses services, c est demarcher, meme apres un bonjour', true,
+  consigneDuTri().includes('« je suis créateur de sites web »') && consigneDuTri().includes('même s’il a salué avant'));
+/* Le fil : un bonjour, sa publicité, la réponse de la Maison, une question,
+   la même publicité recollée, une photo, un vocal non compris, un vocal compris. */
+dit('les textes relus pour Opale : ses trois derniers qui disent quelque chose, sans doublon, la transcription d un vocal',
+  ['Seriez-vous intéressée ?', 'Je fais des sites web', 'je vous propose une vidéo'],
+  textesPourLeTri([
+    { sens: 'entrant', texte: 'Bonsoir' }, { sens: 'entrant', texte: 'Je fais des sites web' }, { sens: 'sortant', texte: 'Bienvenue' },
+    { sens: 'entrant', texte: 'Seriez-vous intéressée ?' }, { sens: 'entrant', texte: 'Je fais des sites web' }, { sens: 'entrant', texte: 'une photo', type: 'image' },
+    { sens: 'entrant', texte: 'un message vocal', type: 'audio' }, { sens: 'entrant', texte: 'un message vocal', type: 'audio', transcription: 'je vous propose une vidéo' },
+  ]));
+dit('le verdict qui range : bloque ou proposition', [true, true, false, false, false], ['bloque', 'proposition', 'cliente', 'passe', ''].map(verdictRange));
+const outilRanger = OUTILS_D_OPALE.find((o) => o.name === 'ranger_un_demarchage');
+dit('Opale a l outil, et sa consigne : n ecris rien, ne remercie pas, ne passe pas la main', [true, true, true],
+  [!!outilRanger, consigneDOpale().includes('n’écris RIEN, ne le remercie pas, ne passe pas la main ; appelle seulement `ranger_un_demarchage`'), !consigneDOpale().includes('(un démarchage, une sortie, une adresse ailleurs)')]);
 
 /* ── ① LES RÈGLES PURES ── */
 const NUMEROS = ['2290197000001', '22997000001', '22965947030', '33612345678', ''];
@@ -84,6 +108,7 @@ class Requete {
   eq(col: string, v: unknown) { this.filtres.push((r) => lit(r, col) === String(v)); return this; }
   gte(col: string, v: unknown) { this.filtres.push((r) => (lit(r, col) ?? '') >= String(v)); return this; }
   in(col: string, vs: unknown[]) { this.filtres.push((r) => vs.map(String).includes(String(lit(r, col)))); return this; }
+  is(col: string, v: unknown) { this.filtres.push((r) => (v === null ? lit(r, col) === null : lit(r, col) === String(v))); return this; }
   limit(k: number) { this.lim = k; return this; }
   maybeSingle() { this.seul = true; return this; }
   upsert(o: unknown) { this.mode = 'upsert'; this.valeur = o; return this; }
@@ -179,6 +204,38 @@ const registre = () => triLu(docs.get(CLE_DU_TRI));
   dit('JAMAIS JUGE : une fiche, ou un numero a qui la Maison a deja ecrit ; Claude n est pas appele', ['connue', 'connue', k2, false, false],
     [f.j.verdict, s.j.verdict, claudes, F in registre().bloques, S in registre().bloques]);
 
+  /* LE DÉMARCHEUR QUI SALUE D'ABORD (18 novembre 2026) : « Bonsoir » seul,
+     la réponse automatique d'Opale, puis sa publicité. */
+  const B = '22960000041';
+  const k6 = claudes;
+  const salut = await appel('service', { numero: B, textes: ['Bonsoir Madame !'] });
+  const salut2 = await appel('service', { numero: B, textes: ['Bonjour, comment allez-vous ?', 'ok merci'] });
+  dit('un bonjour seul (ou un merci) : ni juge ni inscrit, Claude n est pas appele', ['passe', 'sans-sujet', 'passe', k6, false],
+    [salut.j.verdict, salut.j.motif, salut2.j.verdict, claudes, B in registre().juges]);
+  tables.messages_wa.push({ id: 'wa-b1', data: { numero: B, sens: 'sortant', texte: 'Bonjour, et bienvenue', auto: 'automate', parQui: 'Opale', quand: '2026-11-11T13:46:02Z' } });
+  const pub = await appel('service', { numero: B, textes: ['Je suis créateur de sites web professionnels. Seriez-vous intéressée ?'] });
+  dit('... la reponse automatique d Opale ne le protege pas : sa publicite suivante est bloquee', ['bloque', k6 + 1, true],
+    [pub.j.verdict, claudes, B in registre().bloques]);
+  const Q = '22960000042';
+  tables.messages_wa.push({ id: 'wa-q1', data: { numero: Q, sens: 'sortant', texte: 'Bonjour Madame, ici la Maison', parQui: 'Yéman Boya', quand: '2026-11-11T13:46:02Z' } });
+  const k7 = claudes;
+  const q = await appel('service', { numero: Q, textes: ['Je crée des sites web.'] });
+  dit('... mais un message ecrit par une personne de la Maison le protege toujours', ['connue', k7], [q.j.verdict, claudes]);
+  const Rl = '22960000043';
+  const r0 = await appel('service', { numero: Rl, textes: ['Bonjour, vous êtes ouverts samedi ?'] });
+  const r1 = await appel('service', { numero: Rl, textes: ['Je fais aussi des affiches pour les salons, à petit prix.'] });
+  const k8 = claudes;
+  const r2 = await appel('service', { numero: Rl, textes: ['Je fais aussi des affiches pour les salons, à petit prix.'], relire: true });
+  dit('RELIRE (Opale) : un numero juge cliente se relit, et sa publicite le fait bloquer ; sans relire, il passe', ['cliente', 'passe', 'bloque', k8 + 1, true],
+    [r0.j.verdict, r1.j.verdict, r2.j.verdict, claudes, Rl in registre().bloques]);
+  const Bl = '22960000044';
+  docs.set(CLE_DU_TRI, { ...registre(), blancs: { ...registre().blancs, [Bl]: '2026-11-01T00:00:00Z' } });
+  const k9 = claudes;
+  const rb = await appel('service', { numero: Bl, textes: ['Je crée des sites web.'], relire: true });
+  dit('... mais jamais un numero rendu par la direction, meme relu', ['passe', k9, false], [rb.j.verdict, claudes, Bl in registre().bloques]);
+  const rs = await appel('service', { numero: '22960000045', textes: ['Bonsoir'], relire: true });
+  dit('... et un bonjour seul, meme relu, reste sans sujet', ['passe', 'sans-sujet'], [rs.j.verdict, rs.j.motif]);
+
   const V = '22960000016';
   const k3 = claudes;
   const vide = await appel('service', { numero: V, textes: [] });
@@ -235,10 +292,20 @@ const servir = auto.slice(auto.indexOf('async function servirLeNumero('), auto.i
 dit('l automate trie AVANT son interrupteur, pour les clientes seulement, et se tait sur un range', [true, true],
   [servir.indexOf('estRangeParLeTri(') > 0 && servir.indexOf('estRangeParLeTri(') < servir.indexOf('numeroServi('),
     servir.includes("if (o.tiroir === 'clientes' && await estRangeParLeTri(sb, o, docs.get('mnd_tri_des_messages'))) return { pris: true };")]);
-const range = auto.slice(auto.indexOf('async function estRangeParLeTri('), auto.indexOf('async function servirLeNumero('));
-dit('... rien n est appele pour un numero rendu, juge ou avec une fiche ; injoignable, comme avant', [true, true, true, true], [
+const range = auto.slice(auto.indexOf('async function estRangeParLeTri('), auto.indexOf('async function demandeAuTri('));
+const demande = auto.slice(auto.indexOf('async function demandeAuTri('), auto.indexOf('async function servirLeNumero('));
+dit('... rien n est appele pour un numero rendu, juge ou avec une fiche ; injoignable, comme avant', [true, true, true, true, true], [
   range.includes('if (!k || tri.blancs?.[k] || tri.juges?.[k]) return false;'), range.includes('if (!fiches || fiches.length > 0) return false;'),
-  /catch \(e\) \{\s*dis\('tri injoignable : comme avant'[\s\S]{0,80}return false;/.test(range), range.includes("return verdict === 'bloque' || verdict === 'proposition';"),
+  /catch \(e\) \{\s*dis\('tri injoignable : comme avant'[\s\S]{0,80}return '';/.test(demande), range.includes("return verdict === 'bloque' || verdict === 'proposition';"),
+  demande.includes("...(o.relire ? { relire: true } : {})"),
+]);
+/* OPALE RECONNAÎT LE DÉMARCHAGE (18 novembre 2026) : son outil, la relecture, le silence. */
+const outilDOpale = auto.slice(auto.indexOf("if (nom === 'ranger_un_demarchage') {"), auto.indexOf("return 'Outil inconnu.';", auto.indexOf("if (nom === 'ranger_un_demarchage') {")));
+dit('Opale : son outil fait relire le tri ; range, rien ne part ; sinon elle repond', [true, true, true, true], [
+  outilDOpale.includes('const textes = textesPourLeTri([...filLu, ...nouveaux]);'),
+  outilDOpale.includes('await demandeAuTri({ numero: o.numero, textes, relire: true })'),
+  /if \(verdictRange\(verdict\)\) \{\s*issue\.silence = true;/.test(outilDOpale),
+  outilDOpale.includes('Le tri de la Maison ne le range pas.'),
 ]);
 const cleWa = new Function(`${auto.slice(auto.indexOf('const cleDuTriWa = '), auto.indexOf('};', auto.indexOf('const cleDuTriWa = ')) + 2).replace('(numero: string): string =>', '(numero) =>')}; return cleDuTriWa;`)() as (x: string) => string;
 dit('... la cle de l automate est celle du tri', NUMEROS.map(cleDuTri), NUMEROS.map((x) => cleWa(x)));

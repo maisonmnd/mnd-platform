@@ -128,7 +128,7 @@ const MOTIF_D_OPALE_DIT: Record<MotifDOpale, string> = {
   media: 'un vocal que la Maison n’a pas compris, ou une vidéo que tu ne peux pas voir',
   question: 'une plainte, un remboursement, un règlement, une question d’argent, ou ce que tu ne sais pas',
   demande: 'elle demande à parler à une personne',
-  'autre-personne': 'une demande qui ne concerne pas la Maison (un démarchage, une sortie, une adresse ailleurs)',
+  'autre-personne': 'une demande qui ne concerne pas la Maison (une sortie, une adresse ailleurs ; un démarchage se range, il ne passe pas)',
 };
 /** Le motif d'une main, en mots, pour le contexte d'une reprise. */
 export const motifDitDOpale = (m: string): string => (MOTIF_D_OPALE_DIT as Record<string, string>)[m] ?? 'une question pour l’équipe';
@@ -301,6 +301,9 @@ export function consigneDOpale(): string {
     'Appelle `passer_la_main`, puis écris un message bref et chaleureux qui dit qu’une personne de la Maison lui répond ici dès que possible (quand la Maison est fermée : à sa réouverture, que le contexte dit), jamais « dans un instant » : une annulation ; le cuir chevelu, une gêne, une douleur, une chute (aucun diagnostic, aucun produit à distance) ; une plainte, un remboursement, un règlement, une question d’argent ; elle demande une personne ; une demande qui ne concerne pas la Maison ; ou ce que tu ne sais vraiment pas. Dans le même message, réponds à tout ce que tu sais déjà (un prix, des places).',
     'Jamais pour un bonjour, un rendez-vous, un déplacement, un prix, une photo de ses locks, un vocal, le jour même, les heures ou l’adresse : à ceux-là, tu réponds toi-même. Ne promets jamais qu’une personne rappellera ou confirmera quoi que ce soit sans avoir passé la main.',
     '',
+    'CELUI QUI VEND À LA MAISON',
+    'Quelqu’un ne vient pas pour ses cheveux mais VEND ou PROPOSE quelque chose à la Maison : publicité, marketing, réseaux sociaux, abonnés, affiches, vidéos, sites web, applications, référencement, prêts, placements, un produit, du matériel, une formation, un partenariat, ou une coiffeuse qui cherche du travail. Même poli, même après un bonjour, même s’il relance ou envoie une photo : n’écris RIEN, ne le remercie pas, ne passe pas la main ; appelle seulement `ranger_un_demarchage`. Une cliente qui parle de son propre métier en prenant rendez-vous n’est pas concernée.',
+    '',
     'L’AVIS SUR PHOTO',
     'Sa photo te sert au prix et à la place, jamais à un avis : ne dis rien de l’état de ses locks, ne conseille aucun soin à distance. Ne demande une photo que pour estimer leur nombre et leur longueur. La Maison ne regarde une photo, pour un avis, que pour une cliente qui a un rendez-vous pris ou une séance faite : le contexte le dit (« L’avis sur photo »).',
     'Quand le contexte dit qu’elle n’a ni l’un ni l’autre, et qu’elle demande un avis à distance (ses cheveux, ses locks, sa longueur, « qu’en pensez-vous ? ») : ne passe pas la main. Une seule ligne, sans expliquer pourquoi : la Maison regarde ses locks avec elle, au rendez-vous ; puis propose sa place, et, pour une création ou une réparation, le lien de la consultation du contexte. Le reste de son message se traite comme d’habitude.',
@@ -424,7 +427,37 @@ export const OUTILS_D_OPALE = [
       additionalProperties: false,
     },
   },
+  {
+    name: 'ranger_un_demarchage',
+    description: 'La personne ne vient pas pour ses cheveux : elle vend ou propose quelque chose à la Maison. Le tri de la Maison relit ses messages et range son numéro (bloqué, ou dans les propositions) : aucun message ne part, personne ne lui répond. S’il ne le range pas, l’outil te le dit.',
+    input_schema: {
+      type: 'object',
+      properties: { pourquoi: { type: 'string', maxLength: 100, description: 'Ce qu’elle vend, en quelques mots, sans nom ni numéro.' } },
+      required: ['pourquoi'],
+      additionalProperties: false,
+    },
+  },
 ] as const;
+
+/* ── LE DÉMARCHAGE QU'OPALE RECONNAÎT (18 novembre 2026) ─────────────────
+   Ce que le tri relit : ses trois derniers messages qui disent quelque
+   chose (la transcription d'un vocal ; ni une photo seule, ni un vocal non
+   compris), sans doublon (le démarcheur recolle la même publicité). */
+export function textesPourLeTri(messages: readonly { sens: string; texte: string; type?: string; transcription?: string }[]): string[] {
+  const vus: string[] = [];
+  for (const m of messages) {
+    if (m.sens !== 'entrant') continue;
+    const t = String(m.type === 'audio' ? m.transcription ?? '' : m.texte ?? '').trim();
+    if (!t || t === 'une photo' || t === 'un message vocal' || t === 'une vidéo') continue;
+    const net = t.slice(0, 1200);
+    const i = vus.indexOf(net);
+    if (i >= 0) vus.splice(i, 1);
+    vus.push(net);
+  }
+  return vus.slice(-3);
+}
+/** Le verdict du tri qui range le numéro : personne ne lui répond. */
+export const verdictRange = (v: string): boolean => v === 'bloque' || v === 'proposition';
 export type NomDOutil = typeof OUTILS_D_OPALE[number]['name'];
 export const NOMS_D_OUTILS = OUTILS_D_OPALE.map((o) => o.name) as readonly NomDOutil[];
 export const estUnOutilDOpale = (n: unknown): n is NomDOutil => (NOMS_D_OUTILS as readonly string[]).includes(String(n));

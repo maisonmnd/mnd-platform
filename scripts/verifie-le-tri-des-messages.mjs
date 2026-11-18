@@ -43,12 +43,24 @@ const SERVEUR = 'scripts/serveur/tri-des-messages.ts';
 const PUR = 'src/shared/tri-des-messages-pur.ts';
 const AUTO = 'supabase/functions/whatsapp-automate/index.ts';
 const BOITE = 'src/shared/boite-unique-pur.ts';
+const OPALE = 'src/shared/opale-pur.ts';
 const PANNES = [
   ['une fiche jugee quand meme', SERVEUR, "  if (fiches.some((f: { id?: unknown }) => typeof f?.id === 'string' && f.id)) return true;\n", ''],
   ['un echange passe juge quand meme', SERVEUR, '  return (sortants ?? []).length > 0;', '  return false;'],
   ['le demarcheur range sans blocage WhatsApp', SERVEUR, "    const pose = await bloqueChezMeta('POST', numero);\n    await ecritLeTri(sb, avecUnBloque(tri, { ...entree, meta: pose ? 'bloque' : 'echec' }));", "    const pose = true;\n    await ecritLeTri(sb, avecUnBloque(tri, { ...entree, meta: pose ? 'bloque' : 'echec' }));"],
   ['la proposition sans notification', SERVEUR, '    await previensDUneProposition(base, service, entree);\n', ''],
-  ['la cliente rejugee a chaque message', SERVEUR, "  if (etat === 'blanc' || etat === 'juge') return json({ ok: true, verdict: 'passe', version: VERSION });", "  if (etat === 'blanc') return json({ ok: true, verdict: 'passe', version: VERSION });"],
+  ['la cliente rejugee a chaque message', SERVEUR, "  if (etat === 'blanc' || (etat === 'juge' && !relire)) return json({ ok: true, verdict: 'passe', version: VERSION });", "  if (etat === 'blanc') return json({ ok: true, verdict: 'passe', version: VERSION });"],
+  /* ── Le démarcheur qui salue d'abord (18 novembre 2026) ── */
+  ['un bonjour seul juge et inscrit', SERVEUR, "  if (sansSujet(textes)) { dis('sans sujet : rien d inscrit'); return json({ ok: true, verdict: 'passe', motif: 'sans-sujet', version: VERSION }); }\n", ''],
+  ['la reponse automatique protege le demarcheur', SERVEUR, ".eq('data->>sens', 'sortant').is('data->>auto', null).limit(1);", ".eq('data->>sens', 'sortant').limit(1);"],
+  ['relire ignore', SERVEUR, '  const relire = d.relire === true;', '  const relire = false;'],
+  ['relire passe un numero rendu', SERVEUR, "  if (etat === 'blanc' || (etat === 'juge' && !relire))", "  if ((etat === 'blanc' && !relire) || (etat === 'juge' && !relire))"],
+  ['un salut de deux mots a un sujet', PUR, '  return mots.length <= 6 && mots.every(', '  return mots.length <= 1 && mots.every('],
+  ['la consigne du tri oublie celui qui salue d abord', PUR, "    '- Quelqu’un qui se présente et offre ses services à la Maison (« je suis créateur de sites web », « je vous propose… », « seriez-vous intéressée ») démarche, même poliment, même s’il a salué avant ou demandé un prix pour engager la conversation.',\n", ''],
+  ['Opale ecrit quand meme au demarcheur range', AUTO, "        issue.silence = true;\n        dis('opale · demarchage range par le tri', { verdict });", "        dis('opale · demarchage range par le tri', { verdict });"],
+  ['Opale ne fait pas relire', AUTO, 'await demandeAuTri({ numero: o.numero, textes, relire: true })', 'await demandeAuTri({ numero: o.numero, textes })'],
+  ['la consigne d Opale lui fait passer la main', OPALE, 'appelle seulement `ranger_un_demarchage`', 'passe la main (motif « autre-personne »)'],
+  ['les textes relus oublient la transcription', OPALE, "    const t = String(m.type === 'audio' ? m.transcription ?? '' : m.texte ?? '').trim();", "    const t = String(m.texte ?? '').trim();"],
   ['debloquer sans WhatsApp', SERVEUR, "    const meta = etaitBloque ? await bloqueChezMeta('DELETE', numero) : true;", '    const meta = true;'],
   ['n importe quel jeton passe au Trone', SERVEUR, '    if (error || estPersonnel !== true) return avecCors(', '    if (false) return avecCors('],
   ['la passe range sans la direction', SERVEUR, '        proposes.push({ numero, nom: x.nom, extrait: extraitDe(x.textes.slice(0, 3)), verdict: lu.verdict, motif: lu.motif });', '        proposes.push({ numero, nom: x.nom, extrait: extraitDe(x.textes.slice(0, 3)), verdict: lu.verdict, motif: lu.motif }); await ecritLeTri(sb, avecUnBloque(await litLeTri(sb), { numero, quand, motif: lu.motif, extrait: "", par: "claude" }));'],

@@ -8,8 +8,15 @@
    DEUX PORTES :
      · `Authorization: Bearer <CLE_SERVICE>` : whatsapp-automate, au premier
        message d'un numéro inconnu, AVANT toute réponse. Corps
-       `{ numero, textes, nomProfil? }`. Rend `{ verdict }` : « bloque » et
+       `{ numero, textes, nomProfil?, relire? }`. Rend `{ verdict }` : « bloque » et
        « proposition » veulent dire que personne ne lui répond.
+       LE 18 NOVEMBRE 2026 (le démarcheur qui salue d'abord) : un message
+       sans sujet (`sansSujet` : des saluts, un merci) n'est ni jugé ni
+       inscrit ; seul un message de la Maison sans `auto` fait un numéro
+       connu ; et `relire` (Opale, quand elle reconnaît un démarchage au
+       milieu d'un fil) juge à nouveau un numéro déjà jugé « cliente » ou
+       « doute ». Ni un numéro rendu par la direction, ni un numéro qui a une
+       fiche ou un vrai échange ne se relisent.
      · une session du personnel (le Trône) : `{ geste }` parmi « bloquer »
        (`numeros`), « debloquer » et « cliente » (`numero`), « passe » (relire
        les fils sans fiche des dernières 24 heures, rien n'est rangé : la
@@ -31,11 +38,11 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
   CLE_DU_TRI, SCHEMA_DU_TRI, avecUnBloque, avecUnJugement, avecUneProposition, cleDuTri, consigneDuTri, contexteDuTri,
-  etatDuNumero, extraitDe, lectureDuTri, rendu, triLu, type EntreeDuTri, type TriDesMessages, type VerdictDuTri,
+  etatDuNumero, extraitDe, lectureDuTri, rendu, sansSujet, triLu, type EntreeDuTri, type TriDesMessages, type VerdictDuTri,
 } from '../../src/shared/tri-des-messages-pur';
 import { memeCle, noteLeRefus } from '../../src/shared/cle-du-cron-pur';
 
-const VERSION = '2026-11-17-a';
+const VERSION = '2026-11-18-a';
 const MODELES = ['claude-haiku-5-5', 'claude-sonnet-5-5'];
 /** Le prix d'un million de jetons, en dollars, pour le compte du mois. */
 const TARIFS: Record<string, { entree: number; sortie: number }> = {
@@ -144,13 +151,17 @@ async function ecritLeTri(sb: Base, tri: TriDesMessages): Promise<void> {
   if (error) throw new Error(`registre non ecrit : ${error.message}`);
 }
 
-/** JAMAIS JUGÉ : une fiche porte ce numéro, ou la Maison lui a déjà écrit. */
+/** JAMAIS JUGÉ : une fiche porte ce numéro, ou la Maison lui a déjà VRAIMENT
+    écrit : une personne, ou un modèle. Une réponse automatique (Opale,
+    l'automate, l'assistant : `auto` posé) ne compte pas (18 novembre 2026 :
+    le « bienvenue » d'Opale à son bonjour protégeait le démarcheur). La règle
+    de `echangeQuiCompte` (shared/tri-des-messages-pur). */
 async function estConnu(sb: Base, numero: string): Promise<boolean | null> {
   const { data: fiches, error } = await sb.rpc('fiches_du_numero', { n: numero });
   if (error || !Array.isArray(fiches)) return null;
   if (fiches.some((f: { id?: unknown }) => typeof f?.id === 'string' && f.id)) return true;
   const { data: sortants, error: e2 } = await sb.from('messages_wa').select('id')
-    .eq('data->>numero', numero).eq('data->>sens', 'sortant').limit(1);
+    .eq('data->>numero', numero).eq('data->>sens', 'sortant').is('data->>auto', null).limit(1);
   if (e2) return null;
   return (sortants ?? []).length > 0;
 }
@@ -173,16 +184,22 @@ async function previensDUneProposition(base: string, service: string, e: EntreeD
 }
 
 /* ── LA PORTE DE L'AUTOMATE ─────────────────────────────────────────────── */
-async function pourLAutomate(sb: Base, cleClaude: string, base: string, service: string, d: { numero?: unknown; textes?: unknown; nomProfil?: unknown }): Promise<Response> {
+async function pourLAutomate(sb: Base, cleClaude: string, base: string, service: string, d: { numero?: unknown; textes?: unknown; nomProfil?: unknown; relire?: unknown }): Promise<Response> {
   const numero = String(d.numero ?? '');
   if (!/^\d{8,15}$/.test(numero)) return json({ ok: false, motif: 'numero', version: VERSION }, 400);
   const textes = (Array.isArray(d.textes) ? d.textes : []).map((t) => String(t ?? '')).filter((t) => t.trim()).slice(0, 3);
   const nom = String(d.nomProfil ?? '').trim().slice(0, 80);
+  /* RELIRE (18 novembre 2026) : Opale a reconnu un démarchage dans un fil
+     déjà jugé « cliente » ou « doute » ; le tri le relit. */
+  const relire = d.relire === true;
   let tri = await litLeTri(sb);
   const etat = etatDuNumero(tri, numero);
   if (etat === 'bloque' || etat === 'proposition') return json({ ok: true, verdict: etat, version: VERSION });
-  if (etat === 'blanc' || etat === 'juge') return json({ ok: true, verdict: 'passe', version: VERSION });
+  if (etat === 'blanc' || (etat === 'juge' && !relire)) return json({ ok: true, verdict: 'passe', version: VERSION });
   if (textes.length === 0) return json({ ok: true, verdict: 'passe', version: VERSION });
+  /* SANS SUJET (18 novembre 2026) : un bonjour seul n'est ni jugé ni
+     inscrit ; son message suivant le sera. */
+  if (sansSujet(textes)) { dis('sans sujet : rien d inscrit'); return json({ ok: true, verdict: 'passe', motif: 'sans-sujet', version: VERSION }); }
   const connu = await estConnu(sb, numero);
   if (connu !== false) return json({ ok: true, verdict: connu ? 'connue' : 'passe', version: VERSION });
   if (!cleClaude) return json({ ok: true, verdict: 'passe', motif: 'cle-claude-absente', version: VERSION });

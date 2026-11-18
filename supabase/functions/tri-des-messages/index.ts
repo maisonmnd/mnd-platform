@@ -45,6 +45,91 @@ function etatDuNumero(tri, numero) {
   return "inconnu";
 }
 var extraitDe = (textes) => textes.map((t) => String(t ?? "").replace(/\s+/g, " ").trim()).filter(Boolean).join(" · ").slice(0, 180);
+var MOTS_SANS_SUJET = /* @__PURE__ */ new Set([
+  "bonjour",
+  "bonsoir",
+  "salut",
+  "hello",
+  "hi",
+  "hey",
+  "coucou",
+  "bjr",
+  "bsr",
+  "slt",
+  "cc",
+  "allo",
+  "yo",
+  "bonne",
+  "bon",
+  "journee",
+  "soiree",
+  "matinee",
+  "nuit",
+  "apres",
+  "midi",
+  "good",
+  "morning",
+  "evening",
+  "afternoon",
+  "madame",
+  "monsieur",
+  "mme",
+  "mr",
+  "mlle",
+  "mademoiselle",
+  "mesdames",
+  "messieurs",
+  "chere",
+  "cher",
+  "maman",
+  "tantie",
+  "tata",
+  "tonton",
+  "sister",
+  "sis",
+  "la",
+  "le",
+  "les",
+  "a",
+  "au",
+  "vous",
+  "toi",
+  "tu",
+  "et",
+  "de",
+  "maison",
+  "mnd",
+  "equipe",
+  "comment",
+  "allez",
+  "ca",
+  "va",
+  "cv",
+  "bien",
+  "vas",
+  "how",
+  "are",
+  "you",
+  "ok",
+  "okay",
+  "oki",
+  "dac",
+  "daccord",
+  "d",
+  "accord",
+  "oui",
+  "merci",
+  "beaucoup",
+  "thanks",
+  "thank",
+  "svp",
+  "stp",
+  "please"
+]);
+function sansSujet(textes) {
+  const mots = textes.join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z\s]+/g, " ").split(/\s+/).filter(Boolean);
+  return mots.length <= 6 && mots.every((m) => MOTS_SANS_SUJET.has(m));
+}
 var sans = (r, k) => {
   const { [k]: _, ...reste } = r;
   return reste;
@@ -79,6 +164,7 @@ function consigneDuTri() {
     '- Dans le doute, "doute" : un message bloqué à tort fait perdre une cliente.',
     '- Quelqu’un qui demande un service pour lui-même est "cliente", même avec un lien ou une photo.',
     "- Un lien seul ne suffit pas : il faut que la personne vende quelque chose à la Maison.",
+    "- Quelqu’un qui se présente et offre ses services à la Maison (« je suis créateur de sites web », « je vous propose… », « seriez-vous intéressée ») démarche, même poliment, même s’il a salué avant ou demandé un prix pour engager la conversation.",
     "- Le motif : une phrase courte en français, sans nom propre ni numéro (par exemple « services numériques : affiches, vidéos, sites web »).",
     "",
     "Réponds uniquement par l’outil demandé."
@@ -124,7 +210,7 @@ var noteLeRefus = (porte, attendue, recue) => {
 };
 
 // scripts/serveur/tri-des-messages.ts
-var VERSION = "2026-11-17-a";
+var VERSION = "2026-11-18-a";
 var MODELES = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 var TARIFS = {
   "claude-haiku-5-5": { entree: 1, sortie: 5 },
@@ -231,7 +317,7 @@ async function estConnu(sb, numero) {
   const { data: fiches, error } = await sb.rpc("fiches_du_numero", { n: numero });
   if (error || !Array.isArray(fiches)) return null;
   if (fiches.some((f) => typeof f?.id === "string" && f.id)) return true;
-  const { data: sortants, error: e2 } = await sb.from("messages_wa").select("id").eq("data->>numero", numero).eq("data->>sens", "sortant").limit(1);
+  const { data: sortants, error: e2 } = await sb.from("messages_wa").select("id").eq("data->>numero", numero).eq("data->>sens", "sortant").is("data->>auto", null).limit(1);
   if (e2) return null;
   return (sortants ?? []).length > 0;
 }
@@ -257,11 +343,16 @@ async function pourLAutomate(sb, cleClaude, base, service, d) {
   if (!/^\d{8,15}$/.test(numero)) return json({ ok: false, motif: "numero", version: VERSION }, 400);
   const textes = (Array.isArray(d.textes) ? d.textes : []).map((t) => String(t ?? "")).filter((t) => t.trim()).slice(0, 3);
   const nom = String(d.nomProfil ?? "").trim().slice(0, 80);
+  const relire = d.relire === true;
   let tri = await litLeTri(sb);
   const etat = etatDuNumero(tri, numero);
   if (etat === "bloque" || etat === "proposition") return json({ ok: true, verdict: etat, version: VERSION });
-  if (etat === "blanc" || etat === "juge") return json({ ok: true, verdict: "passe", version: VERSION });
+  if (etat === "blanc" || etat === "juge" && !relire) return json({ ok: true, verdict: "passe", version: VERSION });
   if (textes.length === 0) return json({ ok: true, verdict: "passe", version: VERSION });
+  if (sansSujet(textes)) {
+    dis("sans sujet : rien d inscrit");
+    return json({ ok: true, verdict: "passe", motif: "sans-sujet", version: VERSION });
+  }
   const connu = await estConnu(sb, numero);
   if (connu !== false) return json({ ok: true, verdict: connu ? "connue" : "passe", version: VERSION });
   if (!cleClaude) return json({ ok: true, verdict: "passe", motif: "cle-claude-absente", version: VERSION });

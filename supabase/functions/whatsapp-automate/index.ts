@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-18-e · Opale lit les vocaux : la transcription que la réception a écrite (Whisper chez Groq) entre dans son fil et ses nouveaux messages, elle y répond comme à un message écrit ; un vocal que la Maison n a pas compris fait passer la main sans un mot, avec l alerte ; 2026-11-18-d · la confirmation du Oui de Perle se lit dans le fil d Opale comme un message automatique ; 2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-18-f · Opale range le demarchage : quelqu un qui vend a la Maison, elle ne lui ecrit rien et le tri relit ses derniers mots (relire) pour le bloquer ou le ranger dans les propositions ; 2026-11-18-e · Opale lit les vocaux : la transcription que la réception a écrite (Whisper chez Groq) entre dans son fil et ses nouveaux messages, elle y répond comme à un message écrit ; un vocal que la Maison n a pas compris fait passer la main sans un mot, avec l alerte ; 2026-11-18-d · la confirmation du Oui de Perle se lit dans le fil d Opale comme un message automatique ; 2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -4972,7 +4972,7 @@ const MOTIF_D_OPALE_DIT: Record<MotifDOpale, string> = {
   media: 'un vocal que la Maison n’a pas compris, ou une vidéo que tu ne peux pas voir',
   question: 'une plainte, un remboursement, un règlement, une question d’argent, ou ce que tu ne sais pas',
   demande: 'elle demande à parler à une personne',
-  'autre-personne': 'une demande qui ne concerne pas la Maison (un démarchage, une sortie, une adresse ailleurs)',
+  'autre-personne': 'une demande qui ne concerne pas la Maison (une sortie, une adresse ailleurs ; un démarchage se range, il ne passe pas)',
 };
 /** Le motif d'une main, en mots, pour le contexte d'une reprise. */
 export const motifDitDOpale = (m: string): string => (MOTIF_D_OPALE_DIT as Record<string, string>)[m] ?? 'une question pour l’équipe';
@@ -5145,6 +5145,9 @@ export function consigneDOpale(): string {
     'Appelle `passer_la_main`, puis écris un message bref et chaleureux qui dit qu’une personne de la Maison lui répond ici dès que possible (quand la Maison est fermée : à sa réouverture, que le contexte dit), jamais « dans un instant » : une annulation ; le cuir chevelu, une gêne, une douleur, une chute (aucun diagnostic, aucun produit à distance) ; une plainte, un remboursement, un règlement, une question d’argent ; elle demande une personne ; une demande qui ne concerne pas la Maison ; ou ce que tu ne sais vraiment pas. Dans le même message, réponds à tout ce que tu sais déjà (un prix, des places).',
     'Jamais pour un bonjour, un rendez-vous, un déplacement, un prix, une photo de ses locks, un vocal, le jour même, les heures ou l’adresse : à ceux-là, tu réponds toi-même. Ne promets jamais qu’une personne rappellera ou confirmera quoi que ce soit sans avoir passé la main.',
     '',
+    'CELUI QUI VEND À LA MAISON',
+    'Quelqu’un ne vient pas pour ses cheveux mais VEND ou PROPOSE quelque chose à la Maison : publicité, marketing, réseaux sociaux, abonnés, affiches, vidéos, sites web, applications, référencement, prêts, placements, un produit, du matériel, une formation, un partenariat, ou une coiffeuse qui cherche du travail. Même poli, même après un bonjour, même s’il relance ou envoie une photo : n’écris RIEN, ne le remercie pas, ne passe pas la main ; appelle seulement `ranger_un_demarchage`. Une cliente qui parle de son propre métier en prenant rendez-vous n’est pas concernée.',
+    '',
     'L’AVIS SUR PHOTO',
     'Sa photo te sert au prix et à la place, jamais à un avis : ne dis rien de l’état de ses locks, ne conseille aucun soin à distance. Ne demande une photo que pour estimer leur nombre et leur longueur. La Maison ne regarde une photo, pour un avis, que pour une cliente qui a un rendez-vous pris ou une séance faite : le contexte le dit (« L’avis sur photo »).',
     'Quand le contexte dit qu’elle n’a ni l’un ni l’autre, et qu’elle demande un avis à distance (ses cheveux, ses locks, sa longueur, « qu’en pensez-vous ? ») : ne passe pas la main. Une seule ligne, sans expliquer pourquoi : la Maison regarde ses locks avec elle, au rendez-vous ; puis propose sa place, et, pour une création ou une réparation, le lien de la consultation du contexte. Le reste de son message se traite comme d’habitude.',
@@ -5268,7 +5271,37 @@ export const OUTILS_D_OPALE = [
       additionalProperties: false,
     },
   },
+  {
+    name: 'ranger_un_demarchage',
+    description: 'La personne ne vient pas pour ses cheveux : elle vend ou propose quelque chose à la Maison. Le tri de la Maison relit ses messages et range son numéro (bloqué, ou dans les propositions) : aucun message ne part, personne ne lui répond. S’il ne le range pas, l’outil te le dit.',
+    input_schema: {
+      type: 'object',
+      properties: { pourquoi: { type: 'string', maxLength: 100, description: 'Ce qu’elle vend, en quelques mots, sans nom ni numéro.' } },
+      required: ['pourquoi'],
+      additionalProperties: false,
+    },
+  },
 ] as const;
+
+/* ── LE DÉMARCHAGE QU'OPALE RECONNAÎT (18 novembre 2026) ─────────────────
+   Ce que le tri relit : ses trois derniers messages qui disent quelque
+   chose (la transcription d'un vocal ; ni une photo seule, ni un vocal non
+   compris), sans doublon (le démarcheur recolle la même publicité). */
+export function textesPourLeTri(messages: readonly { sens: string; texte: string; type?: string; transcription?: string }[]): string[] {
+  const vus: string[] = [];
+  for (const m of messages) {
+    if (m.sens !== 'entrant') continue;
+    const t = String(m.type === 'audio' ? m.transcription ?? '' : m.texte ?? '').trim();
+    if (!t || t === 'une photo' || t === 'un message vocal' || t === 'une vidéo') continue;
+    const net = t.slice(0, 1200);
+    const i = vus.indexOf(net);
+    if (i >= 0) vus.splice(i, 1);
+    vus.push(net);
+  }
+  return vus.slice(-3);
+}
+/** Le verdict du tri qui range le numéro : personne ne lui répond. */
+export const verdictRange = (v: string): boolean => v === 'bloque' || v === 'proposition';
 export type NomDOutil = typeof OUTILS_D_OPALE[number]['name'];
 export const NOMS_D_OUTILS = OUTILS_D_OPALE.map((o) => o.name) as readonly NomDOutil[];
 export const estUnOutilDOpale = (n: unknown): n is NomDOutil => (NOMS_D_OUTILS as readonly string[]).includes(String(n));
@@ -6989,23 +7022,32 @@ async function estRangeParLeTri(sb: Sb, o: Appel, brut: any): Promise<boolean> {
   const siens = ((lus ?? []) as { data: any }[]).map((l) => l.data).filter((x) => x?.sens === 'entrant');
   const textes = siens.map((x) => String(x?.texte ?? '').trim()).filter(Boolean).slice(0, 3);
   if (textes.length === 0) return false;
+  const verdict = await demandeAuTri({ numero: o.numero, textes, nomProfil: siens.find((x) => x?.nomProfil)?.nomProfil ?? '' });
+  return verdict === 'bloque' || verdict === 'proposition';
+}
+
+/** LE TRI, DEMANDÉ : son verdict (« bloque », « proposition », « cliente »,
+    « doute », « passe »…), ou '' s'il ne répond pas (comme avant : personne
+    n'est rangé). `relire` (18 novembre 2026) : Opale a reconnu un démarchage
+    dans un fil déjà jugé ; le tri le relit. */
+async function demandeAuTri(o: { numero: string; textes: readonly string[]; nomProfil?: string; relire?: boolean }): Promise<string> {
   const base = (Deno.env.get('SUPABASE_URL') ?? '').replace(/\/$/, '');
   const cle = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
-  if (!base || !cle) return false;
+  if (!base || !cle) return '';
   try {
     const res = await fetch(`${base}/functions/v1/tri-des-messages`, {
       method: 'POST', signal: AbortSignal.timeout(25_000),
       headers: { authorization: `Bearer ${cle}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ numero: o.numero, textes, nomProfil: siens.find((x) => x?.nomProfil)?.nomProfil ?? '' }),
+      body: JSON.stringify({ numero: o.numero, textes: o.textes, nomProfil: o.nomProfil ?? '', ...(o.relire ? { relire: true } : {}) }),
     });
     // deno-lint-ignore no-explicit-any
     const r: any = await res.json().catch(() => null);
     const verdict = String(r?.verdict ?? '');
-    dis('tri', { verdict: verdict || `illisible ${res.status}` });
-    return verdict === 'bloque' || verdict === 'proposition';
+    dis('tri', { verdict: verdict || `illisible ${res.status}`, relire: !!o.relire });
+    return verdict;
   } catch (e) {
     dis('tri injoignable : comme avant', { motif: String((e as Error)?.message ?? e).slice(0, 60) });
-    return false;
+    return '';
   }
 }
 
@@ -7884,6 +7926,21 @@ async function unTourDOpale(
       if (photoRefusee && tourSansUnMot(nouveaux)) return refusDeLAvisSurPhoto(lienConsultation);
       issue.silence = true;
       return 'Aucun message ne part. N’écris rien.';
+    }
+    /* LE DÉMARCHAGE QU'OPALE RECONNAÎT (18 novembre 2026) : « tu dois
+       reconnaître que c'est du marketing, qu'on ne leur réponde pas, ça va
+       directement à bloquer » (Yéman). Le tri relit ses derniers mots : rangé
+       (bloqué, ou une proposition), rien ne part ; sinon, Opale répond. */
+    if (nom === 'ranger_un_demarchage') {
+      const textes = textesPourLeTri([...filLu, ...nouveaux]);
+      const verdict = textes.length > 0 ? await demandeAuTri({ numero: o.numero, textes, relire: true }) : '';
+      if (verdictRange(verdict)) {
+        issue.silence = true;
+        dis('opale · demarchage range par le tri', { verdict });
+        return 'Rangé par le tri de la Maison : aucun message ne part. N’écris rien.';
+      }
+      dis('opale · demarchage non range', { verdict: verdict || 'muet' });
+      return 'Le tri de la Maison ne le range pas. Réponds-lui comme à quelqu’un qui ne vient pas pour ses cheveux, ou passe la main (motif « autre-personne »).';
     }
     return 'Outil inconnu.';
   };

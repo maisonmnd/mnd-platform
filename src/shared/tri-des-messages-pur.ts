@@ -91,6 +91,47 @@ export function etatDuNumero(tri: TriDesMessages, numero: string | undefined | n
 export const extraitDe = (textes: readonly string[]): string =>
   textes.map((t) => String(t ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean).join(' · ').slice(0, 180);
 
+/* ── LE DÉMARCHEUR QUI SALUE D'ABORD — 18 novembre 2026 ────────────────────
+   « Comment isoler ce genre de messages quand ils viennent automatiquement
+   dans Conversations ? Tu dois reconnaître que c'est du marketing [...] qu'on
+   ne leur réponde pas. Ça va directement à bloquer » (Yéman, sur le fil d'un
+   « créateur de sites web »). Le tri du 29 octobre l'avait laissé passer
+   trois fois, par deux portes :
+     · il écrit « Bonsoir » seul, cinq minutes avant sa publicité : le tri
+       jugeait ce bonjour (« cliente », la règle le veut) et l'INSCRIVAIT ;
+       un numéro jugé n'est plus jamais relu, sa publicité non plus ;
+     · Opale répond « bienvenue » au bonjour : « la Maison lui a déjà écrit »,
+       et un numéro connu n'est jamais jugé, ni bloqué à la main.
+   Désormais un message SANS SUJET (des saluts, un merci, un « ok ») n'est ni
+   jugé ni inscrit : le suivant l'est. Et seul compte comme un échange un
+   message de la Maison qui n'est pas une réponse automatique (Opale,
+   l'automate, l'assistant portent `auto`) : celui d'une personne, ou un
+   modèle. */
+
+/** Les mots d'un salut, d'un merci, d'un accord : rien qui dise un sujet. */
+const MOTS_SANS_SUJET: ReadonlySet<string> = new Set([
+  'bonjour', 'bonsoir', 'salut', 'hello', 'hi', 'hey', 'coucou', 'bjr', 'bsr', 'slt', 'cc', 'allo', 'yo',
+  'bonne', 'bon', 'journee', 'soiree', 'matinee', 'nuit', 'apres', 'midi', 'good', 'morning', 'evening', 'afternoon',
+  'madame', 'monsieur', 'mme', 'mr', 'mlle', 'mademoiselle', 'mesdames', 'messieurs', 'chere', 'cher', 'maman', 'tantie', 'tata', 'tonton', 'sister', 'sis',
+  'la', 'le', 'les', 'a', 'au', 'vous', 'toi', 'tu', 'et', 'de', 'maison', 'mnd', 'equipe',
+  'comment', 'allez', 'ca', 'va', 'cv', 'bien', 'vas', 'how', 'are', 'you',
+  'ok', 'okay', 'oki', 'dac', 'daccord', 'd', 'accord', 'oui', 'merci', 'beaucoup', 'thanks', 'thank', 'svp', 'stp', 'please',
+]);
+
+/** SANS SUJET : chaque message n'est fait que de saluts, de mercis, d'un
+    accord (ou de rien) ; six mots au plus en tout. Ni jugé, ni inscrit. */
+export function sansSujet(textes: readonly string[]): boolean {
+  const mots = textes.join(' ').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z\s]+/g, ' ').split(/\s+/).filter(Boolean);
+  return mots.length <= 6 && mots.every((m) => MOTS_SANS_SUJET.has(m));
+}
+
+/** UN ÉCHANGE QUI COMPTE : un message de la Maison qui n'est pas une
+    réponse automatique. La fonction du tri le cherche en base par la même
+    règle (`sens` sortant et `auto` absent). */
+export const echangeQuiCompte = (d: { sens?: unknown; auto?: unknown } | null | undefined): boolean =>
+  !!d && d.sens === 'sortant' && !d.auto;
+
 /* ── LES GESTES SUR LE REGISTRE ──────────────────────────────────────────── */
 
 const sans = <T>(r: Record<string, T>, k: string): Record<string, T> => {
@@ -138,6 +179,7 @@ export function consigneDuTri(): string {
     '- Dans le doute, "doute" : un message bloqué à tort fait perdre une cliente.',
     '- Quelqu’un qui demande un service pour lui-même est "cliente", même avec un lien ou une photo.',
     '- Un lien seul ne suffit pas : il faut que la personne vende quelque chose à la Maison.',
+    '- Quelqu’un qui se présente et offre ses services à la Maison (« je suis créateur de sites web », « je vous propose… », « seriez-vous intéressée ») démarche, même poliment, même s’il a salué avant ou demandé un prix pour engager la conversation.',
     '- Le motif : une phrase courte en français, sans nom propre ni numéro (par exemple « services numériques : affiches, vidéos, sites web »).',
     '',
     'Réponds uniquement par l’outil demandé.',
