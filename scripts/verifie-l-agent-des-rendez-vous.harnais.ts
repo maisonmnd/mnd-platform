@@ -10,7 +10,7 @@
 import {
   CHANTIER_DE_L_AGENT, USAGE_DE_L_AGENT, SCHEMA_DE_L_AGENT, JOURS_DU_CALENDRIER, JOURS_DE_LA_FENETRE_MAX, GESTES_MAX,
   calendrierDit, clientesQuiRepondent, consigneDeLAgent, heureLue, laCliente, laPlaceDuSouhait, lectureDeLAgent,
-  leRituelVoulu, motsDuNom, phraseDuSouhait, phrasePourClaude, plusJours,
+  leRituelVoulu, leRendezVousADeplacer, motsDuNom, phraseDuSouhait, phrasePourClaude, plusJours,
 } from '../src/shared/agent-des-rendez-vous-pur';
 import type { PrestationDuCatalogue } from '../src/shared/devis-par-description-pur';
 import { CHANTIERS_IA, DEPARTEMENTS_PAR_CHANTIER, peutDemander, saitLAgentDesRendezVous } from '../src/shared/ia-maison-pur';
@@ -57,7 +57,7 @@ dit('la consigne interdit le prix, la promesse et le calcul de tete', [true, tru
 dit('la cliente se dit telle qu elle est dite : la Maison la cherche dans son carnet', [true, true], [/TEL QU’IL EST DIT/.test(consigne), /la Maison qui cherche la cliente dans son carnet/.test(consigne)]);
 dit('la consigne ne recoit que le catalogue et le jour, jamais les fiches', 1, consigneDeLAgent.length);
 const props = (SCHEMA_DE_L_AGENT as { properties: Record<string, unknown>; required: string[] });
-dit('le schema demande la cliente dite, des gestes, la fenetre, l heure, le moment', ['cliente', 'gestes', 'du', 'au', 'heure', 'moment', 'reserves'], props.required);
+dit('le schema demande la cliente dite, l intention, le rendez-vous a deplacer, des gestes, la fenetre, l heure, le moment', ['cliente', 'intention', 'ancien', 'gestes', 'du', 'au', 'heure', 'moment', 'reserves'], props.required);
 dit('le schema ne porte aucun champ de prix ni de numero', false, Object.keys(props.properties).some((k) => /prix|xof|montant|tel|phone|numero/i.test(k)));
 dit('le chantier : rendez-vous, usage texte', ['rendez-vous', 'texte'], [CHANTIER_DE_L_AGENT, USAGE_DE_L_AGENT]);
 
@@ -82,6 +82,27 @@ dit('les heures se lisent : 10 h, 9h30, 14:00 ; 25:00 et midi non', ['10:00', '0
 dit('le moment : matin, apres-midi, ou rien', ['matin', 'apres-midi', ''], [lu({ moment: 'matin' }).moment, lu({ moment: 'apres-midi' }).moment, lu({ moment: 'soir' }).moment]);
 dit('la cliente dite est gardee, nettoyee et bornee', ['Mme T.', 80], [lu({ cliente: '  Mme   T. ' }).cliente, lu({ cliente: 'x'.repeat(200) }).cliente.length]);
 dit('la phrase trop courte ne part pas, la longue est bornee', [null, 600], [phrasePourClaude('ok'), phrasePourClaude('x'.repeat(2000))!.length]);
+
+/* ── ③ bis DÉPLACER — 18 novembre 2026 ────────────────────────────────────
+   « J'ai testé : déplacer un rendez-vous du samedi au mardi 25 » (Yéman) :
+   Perle ne savait que poser. Elle lit l'intention et le rendez-vous à déplacer. */
+dit('la consigne apprend a deplacer, et le jour qui ne s accorde pas a son numero', [true, true, true],
+  [/« deplacer » si la phrase demande de déplacer, décaler, reporter ou avancer un rendez-vous qu’elle a DÉJÀ/.test(consigne),
+    /la date du rendez-vous à déplacer si elle est dite/.test(consigne), /« mardi 25 » quand le 25 est un mercredi/.test(consigne)]);
+const dep = lu({ intention: 'deplacer', ancien: '2026-11-21', du: '2026-11-24' });
+dit('« du samedi au mardi » : deplacer, l ancien samedi, la nouvelle place mardi', ['deplacer', '2026-11-21', '2026-11-24', '2026-11-24'], [dep.intention, dep.ancien, dep.du, dep.au]);
+dit('sans intention dite : poser ; une intention inconnue : poser', ['poser', 'poser'], [lu({}).intention, lu({ intention: 'annuler' }).intention]);
+dit('l ancien ne compte que pour un deplacement, jamais passe, jamais une date fausse', ['', '', ''],
+  [lu({ intention: 'poser', ancien: '2026-11-21' }).ancien, lu({ intention: 'deplacer', ancien: '2026-11-10' }).ancien, lu({ intention: 'deplacer', ancien: '2026-11-31' }).ancien]);
+const SIENS = [
+  { id: 'r-passe', date: '2026-11-14', time: '09:00', status: 'honoré' },
+  { id: 'r-annule', date: '2026-11-20', time: '09:00', status: 'annulé' },
+  { id: 'r-sam', date: '2026-11-21', time: '09:00', status: 'confirmé' },
+  { id: 'r-dec', date: '2026-12-05', time: '10:00', status: 'en attente' },
+];
+dit('le rendez-vous a deplacer : celui de la date dite, sinon le prochain vivant, jamais un annule ni un passe', ['r-sam', 'r-dec', 'r-sam', null],
+  [leRendezVousADeplacer(SIENS, '2026-11-21', AUJ)?.id, leRendezVousADeplacer(SIENS, '2026-12-05', AUJ)?.id, leRendezVousADeplacer(SIENS, '', AUJ)?.id, leRendezVousADeplacer(SIENS, '2026-11-20', AUJ)?.id ?? null]);
+dit('aucun rendez-vous a venir : rien a deplacer', null, leRendezVousADeplacer(SIENS.slice(0, 2), '', AUJ));
 
 /* ── ④ LA CLIENTE, CHERCHÉE AU CARNET ─────────────────────────────────── */
 const FICHES = [
@@ -164,9 +185,18 @@ dit('la fenetre n envoie a Claude que la phrase, avec le catalogue et le jour', 
 dit('la cliente se cherche au Trone, puis la carte recoit le souhait', [true, true],
   [/laCliente\(lu\.cliente, clients,/.test(fenetre), /<SonProchainRituel clientId=\{clientId\} serviceIds=\{\[\]\} jour=\{jour\} longueur=\{longueur\} souhait=\{souhait\} onFerme=\{onFerme\}>/.test(fenetre)]);
 dit('l agent valide seul, une seule fois, et Terminer envoie la confirmation', [true, true],
-  [/if \(tente\.current \|\| !aPoser\) return;\s*\n\s*tente\.current = true;\s*\n\s*valider\(\);/.test(fenetre), /<Modal title="L’agent des rendez-vous" onClose=\{v\.terminer\} width=\{760\}>/.test(fenetre)]);
+  [/if \(tente\.current \|\| !aPoser\) return;\s*\n\s*tente\.current = true;\s*\n\s*valider\(\);/.test(fenetre), /<Modal title="Perle" onClose=\{v\.terminer\} width=\{760\}>/.test(fenetre)]);
 const shell = lis('src/apps/trone/shell/Shell.tsx');
 const bouton = lis('src/apps/trone/shell/AgentDesRendezVous.tsx');
+/* « C'est Perle son nom » (Yéman, 18 novembre 2026) : le Trône la nomme, partout où l'équipe la voit. */
+dit('Perle deplace comme le calendrier : le meme rendez-vous, son heure gardee si libre, et le retour en arriere', [true, true, true, true],
+  [/if \(lu\.intention === 'deplacer'\) deplace\(lu, clientId\);/.test(fenetre),
+    /laPlaceDuSouhait\(\{ souhait, aujourdhui, heureHabituelle: rdv\.time, placesDe: placesPour\(rdv\) \}\)/.test(fenetre),
+    /deplaceAvecLeFoyer\(rdv, \{ date: place\.iso, time: place\.heure \}\);/.test(fenetre),
+    /if \(a && avant\) deplaceAvecLeFoyer\(a, avant\);/.test(fenetre)]);
+dit('la cliente choisie a la main suit le meme chemin (poser ou deplacer)', 2, (fenetre.match(/suite\(lu, /g) ?? []).length);
+dit('l agent s appelle Perle : le bouton, la fenetre, sa phrase', [true, true, true, false],
+  [/<span>Perle<\/span>/.test(bouton), (fenetre.match(/<Modal title="Perle"/g) ?? []).length === 4, /Perle lit la demande…/.test(fenetre), /L’agent|l’agent|<span>Agent<\/span>/.test(fenetre + bouton)]);
 dit('le bouton est dans la barre du haut, a cote de Creer, et n apparait que s il le peut', [true, true],
   [/<AgentDesRendezVous \/>\s*\n\s*<MenuCreer /.test(shell), /if \(!saitFaire \|\| !peutDemander\(moi\?\.role, CHANTIER_DE_L_AGENT, mesDomaines\)\) return null;/.test(bouton)]);
 

@@ -69,6 +69,9 @@ export function consigneDeLAgent(o: { services: readonly PrestationDuCatalogue[]
     '- `cliente` : le nom de la cliente TEL QU’IL EST DIT (« Mme T. », « Aïcha », « Fifi »), sans le compléter ni le corriger. Vide si la phrase ne nomme personne.',
     '- `gestes` : les IDENTIFIANTS du catalogue qui répondent aux gestes nommés (« sa reprise », « un lavage »). Un nom de famille suffit : prends la prestation la plus simple de cette famille, la Maison retrouvera celle que la cliente prend d’habitude. Laisse vide si la phrase dit « son rendez-vous habituel », « comme d’habitude », ou ne nomme aucun geste. Jamais un identifiant hors du catalogue.',
     '- `du` et `au` : la fenêtre de dates voulue, LUE DANS LE CALENDRIER ci-dessous, jamais calculée de tête. « La semaine prochaine » : du lundi au samedi de la semaine qui suit. « Samedi » : le prochain samedi. « Dans trois semaines » : ce jour-là et les six jours qui suivent. Un seul jour : `du` égale `au`. Laisse les deux vides si aucune date n’est dite : la Maison suivra le rythme de la cliente.',
+    '- `intention` : « deplacer » si la phrase demande de déplacer, décaler, reporter ou avancer un rendez-vous qu’elle a DÉJÀ ; sinon « poser ».',
+    '- `ancien` : pour un déplacement, la date du rendez-vous à déplacer si elle est dite (« du samedi » : le prochain samedi), lue dans le calendrier ; sinon vide. `du`, `au`, `heure` et `moment` disent alors la NOUVELLE place.',
+    '- Si un jour de la semaine et un numéro ne s’accordent pas (« mardi 25 » quand le 25 est un mercredi), prends le jour de la semaine nommé le plus proche de ce numéro, et dis-le dans `reserves`.',
     '- `heure` : l’heure dite, au format HH:MM (« 10 h » donne 10:00), sinon vide.',
     '- `moment` : « matin » ou « apres-midi » si la phrase le dit, sinon vide.',
     '- `reserves` : ce qui t’a fait douter (deux clientes possibles, une date ambiguë), une phrase par point, ou rien.',
@@ -87,6 +90,8 @@ export const SCHEMA_DE_L_AGENT: Record<string, unknown> = {
   additionalProperties: false,
   properties: {
     cliente: { type: 'string', description: 'Le nom de la cliente tel qu’il est dit, ou vide.' },
+    intention: { type: 'string', enum: ['poser', 'deplacer'] },
+    ancien: { type: 'string', description: 'Pour un déplacement : la date du rendez-vous à déplacer, AAAA-MM-JJ, ou vide.' },
     gestes: { type: 'array', maxItems: GESTES_MAX, items: { type: 'string' }, description: 'Des identifiants du catalogue, ou rien.' },
     du: { type: 'string', description: 'AAAA-MM-JJ, lu dans le calendrier, ou vide.' },
     au: { type: 'string', description: 'AAAA-MM-JJ, lu dans le calendrier, ou vide.' },
@@ -94,11 +99,17 @@ export const SCHEMA_DE_L_AGENT: Record<string, unknown> = {
     moment: { type: 'string', enum: ['', 'matin', 'apres-midi'] },
     reserves: { type: 'array', maxItems: 4, items: { type: 'string' } },
   },
-  required: ['cliente', 'gestes', 'du', 'au', 'heure', 'moment', 'reserves'],
+  required: ['cliente', 'intention', 'ancien', 'gestes', 'du', 'au', 'heure', 'moment', 'reserves'],
 };
 
 /* ── LA LECTURE, REVALIDÉE ────────────────────────────────────────────── */
+/** Poser un rendez-vous neuf, ou déplacer celui qu'elle a déjà (18 novembre 2026). */
+export type Intention = 'poser' | 'deplacer';
+
 export type DemandeLue = {
+  intention: Intention;
+  /** Pour un déplacement : la date du rendez-vous à déplacer, si elle est dite. */
+  ancien: string;
   cliente: string;
   gestes: string[];
   du: string;
@@ -151,7 +162,11 @@ export function lectureDeLAgent(data: unknown, services: readonly PrestationDuCa
   if (du && au > plusJours(du, JOURS_DE_LA_FENETRE_MAX - 1)) au = plusJours(du, JOURS_DE_LA_FENETRE_MAX - 1);
 
   const moment: Moment = d.moment === 'matin' || d.moment === 'apres-midi' ? d.moment : '';
-  return { cliente: net(d.cliente, 80), gestes, du, au, heure: heureLue(d.heure), moment, reserves };
+  const intention: Intention = d.intention === 'deplacer' ? 'deplacer' : 'poser';
+  /* Le rendez-vous à déplacer : une date réelle, jamais passée ; sinon le prochain. */
+  const ancienLu = dateLue(d.ancien);
+  const ancien = intention === 'deplacer' && ancienLu && ancienLu >= aujourdhui ? ancienLu : '';
+  return { intention, ancien, cliente: net(d.cliente, 80), gestes, du, au, heure: heureLue(d.heure), moment, reserves };
 }
 
 /** La phrase qui part vers Claude : bornée, jamais vide. */
@@ -217,6 +232,19 @@ export function laCliente<T extends FicheCherchee>(dit: string, fiches: readonly
   const pleine = motsDuNom(dit).filter((m) => !CIVILITES.has(m)).length * 3;
   if (c[0].score === pleine && c[1].score < pleine) return { genre: 'une', fiche: c[0].fiche };
   return { genre: 'plusieurs', fiches: c.slice(0, 6).map((x) => x.fiche) };
+}
+
+/* ── LE RENDEZ-VOUS À DÉPLACER — 18 novembre 2026 ─────────────────────────
+   « J'ai testé : déplacer un rendez-vous du samedi au mardi » (Yéman, le
+   jour même). Perle ne savait que poser : elle voyait le rendez-vous déjà là
+   et le montrait. Le rendez-vous à déplacer est le sien, à venir, encore
+   vivant (confirmé ou en attente) : celui de la date dite, sinon le prochain. */
+export type RdvDeLaCliente = { id: string; date: string; time: string; status: string };
+export function leRendezVousADeplacer<T extends RdvDeLaCliente>(rdvs: readonly T[], ancien: string, aujourdhui: string): T | null {
+  const vivants = rdvs.filter((a) => (a.status === 'confirmé' || a.status === 'en attente') && a.date >= aujourdhui)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+  if (ancien) return vivants.find((a) => a.date === ancien) ?? null;
+  return vivants[0] ?? null;
 }
 
 /* ── LE RITUEL ET LA PLACE DU SOUHAIT ─────────────────────────────────── */

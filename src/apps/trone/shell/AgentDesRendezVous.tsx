@@ -8,7 +8,10 @@ import { peutDemander, saitLAgentDesRendezVous } from '../../../shared/ia-maison
 import { CHANTIER_DE_L_AGENT } from '../../../shared/agent-des-rendez-vous-pur';
 import './agent-des-rendez-vous.css';
 
-/* ══ L'AGENT DES RENDEZ-VOUS, DANS LA BARRE DU HAUT — 18 novembre 2026 ════
+/* ══ PERLE, DANS LA BARRE DU HAUT — 18 novembre 2026 ═════════════════════
+   « L'agent qu'on vient de créer, je veux que ce soit Perle aussi. C'est Perle
+   son nom » (Yéman, le même jour). Perle est l'assistant de la Maison entre
+   nous : le Trône la nomme ; devant une cliente, elle ne se nomme pas.
    « Dites-le. C'est posé. » Un bouton à côté de « Créer », sur chaque
    écran du Trône. La fenêtre se charge au premier toucher (elle porte la
    carte « Son prochain rituel » et la recherche des clientes).
@@ -39,10 +42,10 @@ export default function AgentDesRendezVous() {
         type="button"
         className="tra-agent__bouton"
         onClick={() => setOuvert(true)}
-        title="L’agent des rendez-vous : dites-le, c’est posé"
+        title="Perle : dites-le, c’est posé"
       >
         <Sparkles size={14} aria-hidden />
-        <span>Agent</span>
+        <span>Perle</span>
       </button>
       {ouvert && (
         <Suspense fallback={null}>

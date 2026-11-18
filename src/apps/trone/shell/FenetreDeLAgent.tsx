@@ -3,13 +3,21 @@ import { Mic, Sparkles } from 'lucide-react';
 import { Button, Modal } from '../../../ds/components';
 import { useClients } from '../../../shared/clients';
 import { useServices } from '../../../shared/catalog';
-import { useAppointments } from '../../../shared/agenda';
+import { appointmentsStore, useAppointments, type Appointment } from '../../../shared/agenda';
+import { blocagesStore, plagesBloquees } from '../../../shared/blocages';
+import { openingForIso } from '../../../shared/settings';
+import { useBranch } from '../../../shared/branches';
+import { jourEnLettres } from '../../../shared/calendrier';
+import { heureDuMessage, momentDuMessage } from '../../../shared/salle-des-envois';
 import { demandeAClaude } from '../../../shared/ia-maison';
 import {
   CHANTIER_DE_L_AGENT, USAGE_DE_L_AGENT, SCHEMA_DE_L_AGENT, SIGNES_MAX_DE_LA_PHRASE,
-  consigneDeLAgent, laCliente, lectureDeLAgent, phrasePourClaude, type DemandeLue,
+  consigneDeLAgent, laCliente, laPlaceDuSouhait, lectureDeLAgent, leRendezVousADeplacer, phraseDuSouhait, phrasePourClaude,
+  type DemandeLue,
 } from '../../../shared/agent-des-rendez-vous-pur';
-import { ClientPicker, todayISO } from '../routes/clients/_shared';
+import { ClientPicker, RdvModal, apptDurationMin, timeToMin, todayISO, useServicesById } from '../routes/clients/_shared';
+import { placesDuJour, type Occupant } from '../routes/clients/rdv-fluide-pur';
+import { deplaceAvecLeFoyer, quiSuit } from '../routes/clients/foyer-gestes';
 import { SonProchainRituel, type VueDeLaCarte } from '../routes/vente/SonProchainRituel';
 
 /* ══ LA FENÊTRE DE L'AGENT DES RENDEZ-VOUS — 18 novembre 2026 ═════════════
@@ -23,8 +31,16 @@ import { SonProchainRituel, type VueDeLaCarte } from '../routes/vente/SonProchai
         « Pas de prochain rendez-vous » le retire sans rien envoyer ;
         « Terminer » (ou fermer la fenêtre) envoie la confirmation WhatsApp,
         une fois, comme à la Caisse.
+     3 bis. DÉPLACER (18 novembre 2026, « j'ai testé : déplacer du samedi au
+        mardi », Yéman) : Perle ne savait que poser, elle montrait le rendez-vous
+        déjà là. Elle lit désormais l'intention : le rendez-vous à déplacer (la
+        date dite, sinon le prochain), la nouvelle place (à la même heure si
+        elle est libre, sinon la plus proche), et le DÉPLACE ELLE-MÊME, comme le
+        calendrier quand on le glisse (`deplaceAvecLeFoyer` : le foyer suit, rien
+        ne part vers la cliente). « Annuler le déplacement » le remet à sa place.
 
-   Les prix ne viennent jamais de Claude : il ne lit que la phrase. */
+   Les prix ne viennent jamais de Claude : il ne lit que la phrase. Elle
+   s'appelle Perle : « C'est Perle son nom » (Yéman, 18 novembre 2026). */
 
 /** La reconnaissance vocale du navigateur (celle de l'assistant des devis) : le micro n'apparaît pas sans elle. */
 type Reconnaissance = { lang: string; interimResults: boolean; continuous: boolean; start(): void; stop(): void; onresult: ((e: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null; onend: (() => void) | null; onerror: (() => void) | null };
@@ -39,12 +55,22 @@ const EXEMPLE = 'Ex. : Mme T., sa reprise, la semaine prochaine, plutôt le mati
 type Etape =
   | { genre: 'phrase' }
   | { genre: 'cliente'; lu: DemandeLue; parmi: string[]; dit: string }
-  | { genre: 'carte'; lu: DemandeLue; clientId: string };
+  | { genre: 'carte'; lu: DemandeLue; clientId: string }
+  | {
+    genre: 'deplace'; lu: DemandeLue; clientId: string;
+    /** Le rendez-vous déplacé, son ancienne et sa nouvelle place ; sans nouvelle place : rien n'a bougé, `pourquoi` le dit. */
+    rdvId: string; avant: { date: string; time: string } | null; apres: { date: string; time: string } | null; pourquoi: string;
+  };
+
+const jourDit = (iso: string) => jourEnLettres(iso).replace(/^./, (c) => c.toLowerCase());
 
 export default function FenetreDeLAgent({ onClose }: { onClose: () => void }) {
   const [clients] = useClients();
   const [services] = useServices();
   const [rdvs] = useAppointments();
+  const { branch } = useBranch();
+  const byId = useServicesById();
+  const [ouvert, setOuvert] = useState<Appointment | null>(null);
   const [texte, setTexte] = useState('');
   const [lit, setLit] = useState(false);
   const [mot, setMot] = useState('');
@@ -81,11 +107,62 @@ export default function FenetreDeLAgent({ onClose }: { onClose: () => void }) {
     r.start();
   };
 
+  /* LES PLACES D'UN JOUR POUR CE RENDEZ-VOUS, comme la carte et le « + RDV » :
+     les fauteuils, les murs de son maître, l'ouverture du jour ; lui-même et
+     son foyer ne s'occupent pas leur propre place. */
+  const placesPour = (rdv: Appointment) => (iso: string) => {
+    const m = new Date();
+    const occupes: Occupant[] = appointmentsStore.get()
+      .filter((a) => a.branchId === branch.id && a.date === iso && a.status !== 'annulé' && a.id !== rdv.id && !(rdv.foyerId && a.foyerId === rdv.foyerId))
+      .map((a) => ({ maitre: a.master, debutMin: timeToMin(a.time), dureeMin: apptDurationMin(a, byId) }));
+    const p = placesDuJour({
+      iso, aujourdhui: todayISO(), maintenantMin: m.getHours() * 60 + m.getMinutes(), ouverture: openingForIso(iso),
+      durationMin: apptDurationMin(rdv, byId), occupes, bloques: plagesBloquees(blocagesStore.get(), branch.id, iso, rdv.master),
+      sieges: Math.max(0, branch.seats ?? 0),
+    });
+    return { ferme: p.ferme, heures: p.heures };
+  };
+
+  /** DÉPLACER : le sien, à la nouvelle place, par Perle seule. Rien ne bouge sans place. */
+  const deplace = (lu: DemandeLue, clientId: string) => {
+    const aujourdhui = todayISO();
+    const base = { genre: 'deplace' as const, lu, clientId };
+    const rdv = leRendezVousADeplacer(appointmentsStore.get().filter((a) => a.clientId === clientId && a.branchId === branch.id), lu.ancien, aujourdhui);
+    if (!rdv) {
+      setEtape({ ...base, rdvId: '', avant: null, apres: null, pourquoi: lu.ancien ? `Elle n’a pas de rendez-vous le ${jourDit(lu.ancien)} : rien n’est déplacé.` : 'Elle n’a aucun rendez-vous à venir : rien n’est déplacé.' });
+      return;
+    }
+    const avant = { date: rdv.date, time: rdv.time };
+    if (!lu.du) {
+      setEtape({ ...base, rdvId: rdv.id, avant, apres: null, pourquoi: 'La nouvelle date n’est pas dite : rien n’est déplacé. Dites le jour voulu.' });
+      return;
+    }
+    const souhait = { du: lu.du, au: lu.au, heure: lu.heure, moment: lu.moment };
+    /* SANS HEURE DITE, LA SIENNE : le rendez-vous garde son heure si elle est libre ce jour-là. */
+    const place = laPlaceDuSouhait({ souhait, aujourdhui, heureHabituelle: rdv.time, placesDe: placesPour(rdv) });
+    if (!place) {
+      setEtape({ ...base, rdvId: rdv.id, avant, apres: null, pourquoi: `${phraseDuSouhait({ souhait, place: null, jourDit, heureDite: heureDuMessage }).replace(' : touchez une des places proposées.', '.')} Rien n’est déplacé.` });
+      return;
+    }
+    if (place.iso === rdv.date && place.heure === rdv.time) {
+      setEtape({ ...base, rdvId: rdv.id, avant, apres: null, pourquoi: 'Il est déjà à cette place : rien n’est déplacé.' });
+      return;
+    }
+    deplaceAvecLeFoyer(rdv, { date: place.iso, time: place.heure });
+    setEtape({ ...base, rdvId: rdv.id, avant, apres: { date: place.iso, time: place.heure }, pourquoi: place.ecart === 'heure' ? phraseDuSouhait({ souhait, place, jourDit, heureDite: heureDuMessage }) : '' });
+  };
+
+  /** La suite, une fois la cliente connue : poser (la carte) ou déplacer. */
+  const suite = (lu: DemandeLue, clientId: string) => {
+    if (lu.intention === 'deplacer') deplace(lu, clientId);
+    else setEtape({ genre: 'carte', lu, clientId });
+  };
+
   const lire = async () => {
     const phrase = phrasePourClaude(texte);
     if (!phrase) { setMot('Dites pour qui, et quand.'); return; }
     reco.current?.stop();
-    setLit(true); setMot('L’agent lit la demande…');
+    setLit(true); setMot('Perle lit la demande…');
     try {
       const aujourdhui = todayISO();
       const r = await demandeAClaude<unknown>({
@@ -100,12 +177,57 @@ export default function FenetreDeLAgent({ onClose }: { onClose: () => void }) {
       setMot('');
       if (!lu.cliente) { setEtape({ genre: 'cliente', lu, parmi: [], dit: '' }); return; }
       const trouvee = laCliente(lu.cliente, clients, (id) => derniere.get(id) ?? '');
-      if (trouvee.genre === 'une') setEtape({ genre: 'carte', lu, clientId: trouvee.fiche.id });
+      if (trouvee.genre === 'une') suite(lu, trouvee.fiche.id);
       else setEtape({ genre: 'cliente', lu, parmi: trouvee.genre === 'plusieurs' ? trouvee.fiches.map((f) => f.id) : [], dit: lu.cliente });
     } finally {
       setLit(false);
     }
   };
+
+  /* ── 3 bis. LE DÉPLACEMENT, FAIT PAR PERLE ── */
+  if (etape.genre === 'deplace') {
+    const { lu, clientId, rdvId, avant, apres, pourquoi } = etape;
+    const fiche = clients.find((c) => c.id === clientId);
+    const nom = fiche?.name ?? 'Cliente';
+    const frais = () => appointmentsStore.get().find((a) => a.id === rdvId) ?? null;
+    const lui = rdvId ? frais() : null;
+    const suit = lui ? quiSuit(lui) : '';
+    const annuler = () => {
+      const a = frais();
+      if (a && avant) deplaceAvecLeFoyer(a, avant);
+      setEtape({ ...etape, apres: null, pourquoi: 'Déplacement annulé : il est revenu à sa place.' });
+    };
+    return (
+      <>
+        <Modal title="Perle" onClose={onClose} width={560}>
+          <div className="tra-agent">
+            <p className="tra-agent__dit">{`${nom} · « ${texte.trim()} »`}</p>
+            {apres && avant ? (
+              <div className="tra-agent__deplace" role="status">
+                <span className="tra-agent__etat">Déplacé</span>
+                <p className="tra-agent__avant">{momentDuMessage(avant.date, avant.time)}</p>
+                <p className="tra-agent__apres">{momentDuMessage(apres.date, apres.time)}</p>
+                {pourquoi && <p className="tra-agent__note">{pourquoi}</p>}
+                {suit && <p className="tra-agent__note">{`Son foyer suit : ${suit}.`}</p>}
+                <p className="tra-agent__note">Rien n’est parti vers elle : prévenez-la si besoin.</p>
+              </div>
+            ) : (
+              <p className="tra-agent__question">{avant ? `${pourquoi} Son rendez-vous reste le ${momentDuMessage(avant.date, avant.time)}.` : pourquoi}</p>
+            )}
+            {lu.reserves.length > 0 && <ul className="tra-agent__reserves">{lu.reserves.map((r, i) => <li key={i}>{r}</li>)}</ul>}
+            <div className="tra-agent__actions">
+              {apres && avant && <Button variant="ghost" onClick={annuler}>Annuler le déplacement</Button>}
+              {lui && <Button variant="ghost" onClick={() => setOuvert(frais())}>Ouvrir le rendez-vous</Button>}
+              {!rdvId && <Button variant="ghost" onClick={() => setEtape({ genre: 'carte', lu: { ...lu, intention: 'poser' }, clientId })}>Poser un nouveau rendez-vous</Button>}
+              <Button variant="ghost" onClick={() => setEtape({ genre: 'phrase' })}>Reformuler</Button>
+              <Button onClick={onClose}>Fermer</Button>
+            </div>
+          </div>
+        </Modal>
+        {ouvert && <RdvModal appt={ouvert} onClose={() => setOuvert(null)} />}
+      </>
+    );
+  }
 
   /* ── 3. LA CARTE, VALIDÉE PAR L'AGENT ── */
   if (etape.genre === 'carte') {
@@ -125,9 +247,9 @@ export default function FenetreDeLAgent({ onClose }: { onClose: () => void }) {
   /* ── 2. LA CLIENTE, QUAND ELLE N'EST PAS SEULE À RÉPONDRE ── */
   if (etape.genre === 'cliente') {
     const { lu, parmi, dit } = etape;
-    const choisir = (id: string) => { if (id) setEtape({ genre: 'carte', lu, clientId: id }); };
+    const choisir = (id: string) => { if (id) suite(lu, id); };
     return (
-      <Modal title="L’agent des rendez-vous" onClose={onClose} width={560}>
+      <Modal title="Perle" onClose={onClose} width={560}>
         <div className="tra-agent">
           <p className="tra-agent__dit">{`« ${texte.trim()} »`}</p>
           <p className="tra-agent__question">
@@ -160,9 +282,9 @@ export default function FenetreDeLAgent({ onClose }: { onClose: () => void }) {
 
   /* ── 1. LA PHRASE ── */
   return (
-    <Modal title="L’agent des rendez-vous" onClose={onClose} width={560}>
+    <Modal title="Perle" onClose={onClose} width={560}>
       <div className="tra-agent">
-        <p className="tra-agent__aide"><Sparkles size={13} aria-hidden /> Dites pour qui, le geste et quand. L’agent trouve la place sur Team et pose le rendez-vous ; la confirmation part quand vous fermez.</p>
+        <p className="tra-agent__aide"><Sparkles size={13} aria-hidden /> Dites pour qui, le geste et quand. Perle trouve la place sur Team et pose le rendez-vous ; la confirmation part quand vous fermez.</p>
         <div className="tra-agent__champ">
           <input
             className="mnd-input tra-agent__texte"
@@ -173,7 +295,7 @@ export default function FenetreDeLAgent({ onClose }: { onClose: () => void }) {
             disabled={lit}
             onChange={(e) => setTexte(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !lit) { e.preventDefault(); void lire(); } }}
-            aria-label="La demande à l’agent"
+            aria-label="La demande à Perle"
           />
           {vocalPossible && (
             <button type="button" className={`tra-agent__micro${ecoute ? ' is-actif' : ''}`} onClick={dicter} disabled={lit} title={ecoute ? 'Arrêter la dictée' : 'Dicter la demande'} aria-pressed={ecoute}>
@@ -218,10 +340,10 @@ function LaVueDeLAgent({ v, nom, lu, phrase }: { v: VueDeLaCarte; nom: string; l
     valider();
   }, [aPoser, valider]);
   return (
-    <Modal title="L’agent des rendez-vous" onClose={v.terminer} width={760}>
+    <Modal title="Perle" onClose={v.terminer} width={760}>
       <div className="trv-regle trv-regle--seule">
         <p className="trv-regle__qui">{`${nom} · « ${phrase.trim()} »`}</p>
-        {v.dejaLa && <p className="tra-agent__note">{`Elle a déjà un rendez-vous${v.dejaLaDit ? `, ${v.dejaLaDit}` : ''} : l’agent n’en pose pas un second.`}</p>}
+        {v.dejaLa && <p className="tra-agent__note">{`Elle a déjà un rendez-vous${v.dejaLaDit ? `, ${v.dejaLaDit}` : ''} : Perle n’en pose pas un second.`}</p>}
         {lu.reserves.length > 0 && (
           <ul className="tra-agent__reserves">{lu.reserves.map((r, i) => <li key={i}>{r}</li>)}</ul>
         )}

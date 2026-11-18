@@ -42,6 +42,12 @@
 .tra-agent__cliente small { font: 400 12px var(--font-sans); color: var(--ink-soft); }
 
 .tra-agent__note { margin: 0 0 10px; font: 400 13px/1.5 var(--font-sans); color: var(--ink-soft); }
+
+/* LE DÉPLACEMENT FAIT PAR PERLE (18 novembre 2026) : l'ancienne place barrée, la nouvelle en grand. */
+.tra-agent__deplace { display: flex; flex-direction: column; gap: 4px; border-left: 2px solid var(--color-copper); padding: 4px 0 4px 14px; }
+.tra-agent__etat { font: 600 11px var(--font-sans); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.tra-agent__avant { margin: 0; font: 400 14px var(--font-sans); color: var(--ink-soft); text-decoration: line-through; }
+.tra-agent__apres { margin: 0 0 6px; font: 300 26px/1.2 var(--font-serif); color: var(--color-indigo); }
 .tra-agent__reserves { margin: 0 0 10px; padding-left: 18px; font: 400 13px/1.5 var(--font-sans); color: var(--ink-soft); }
 
 @media (max-width: 640px) {
