@@ -213,6 +213,26 @@ export const jourDuSalon = (iso: string, fuseau = 'Africa/Porto-Novo'): string =
   return jour;
 };
 
+/* ── UNE DATE DITE, SANS REFAIRE LE FORMATEUR — 17 novembre 2026 (revue) ──
+   Même cause que `jourDuSalon` : `toLocaleDateString` et `toLocaleTimeString`
+   fabriquent un formateur Intl à chaque appel. Les « Partis » sur trente jours
+   en faisaient deux ou trois par ligne et par rendu, près de sept cents
+   lignes : une à une seconde et demie de calcul à chaque battement de la
+   page. Un formateur par jeu d'options, gardé ; même texte (le banc
+   `verifie-la-salle-qui-repond` le compare à l'ancien). Un instant illisible
+   rend une chaîne vide au lieu de « Invalid Date » (et `format(NaN)`, lui,
+   lèverait une erreur et ferait tomber l'onglet). */
+const formateursDeDate = new Map<string, Intl.DateTimeFormat>();
+export const dateDite = (ms: number, options: Intl.DateTimeFormatOptions): string => {
+  if (!Number.isFinite(ms)) return '';
+  const cle = JSON.stringify(options);
+  let f = formateursDeDate.get(cle);
+  if (!f) { f = new Intl.DateTimeFormat('fr-FR', options); formateursDeDate.set(cle, f); }
+  return f.format(ms);
+};
+/** « jeu. 8 oct. 2026 » : le jour d'un rendez-vous ou d'une ligne du journal. */
+export const JOUR_COURT: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
+
 /** Le jour « AAAA-MM-JJ » décalé de `n` jours. */
 export const jourDecale = (jour: string, n: number): string => {
   const d = new Date(`${jour}T12:00:00Z`);

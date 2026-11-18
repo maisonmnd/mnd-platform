@@ -143,8 +143,16 @@ dit('D3 publier lit le brouillon APRES la confirmation et ne le vide plus d un b
 
 /* ── E. LES ANNEES ────────────────────────────────────────────────────── */
 const ecransDates = ['BilanModal.tsx', 'CarteDeMarrainePanneau.tsx', 'Demandes.tsx', 'EnvoisAutomatiques.tsx', 'SalleDesEnvois.tsx'];
-const datesLues = ecransDates.flatMap((f) => (sansCommentaires(`${C}/${f}`).match(/toLocaleDateString\([^{;]*\{[^}]*\}/g) ?? [])
-  .map((o) => ({ f, o: o.replace(/\s+/g, ' ') })));
+/* LES DATES PAR UN FORMATEUR GARDÉ (17 novembre 2026) : le journal des envois
+   et la salle écrivent leurs dates par `dateDite` (shared/envois.ts), avec des
+   jeux d'options nommés (`JOUR_COURT`, `JOUR_SANS_SEMAINE`…). Le contrôle les
+   lit aussi : un jeu nommé sans l'année serait la même faute. */
+const lisLesDates = (fichier: string, f: string) => {
+  const t = sansCommentaires(fichier);
+  return [...(t.match(/toLocaleDateString\([^{;]*\{[^}]*\}/g) ?? []), ...(t.match(/Intl\.DateTimeFormatOptions = \{[^}]*\}/g) ?? [])]
+    .map((o) => ({ f, o: o.replace(/\s+/g, ' ') }));
+};
+const datesLues = [...ecransDates.flatMap((f) => lisLesDates(`${C}/${f}`, f)), ...lisLesDates('src/shared/envois.ts', 'envois.ts')];
 dit('E1 aucun ecran du lot n ecrit une date « jour + mois » sans l annee', [],
   datesLues.filter(({ o }) => /\bday:/.test(o) && /\bmonth:/.test(o) && !/\byear:/.test(o)).map(({ f, o }) => `${f}: ${o}`));
 dit('E1b ... et le controle en lit bien (au moins cinq)', true, datesLues.length >= 5);

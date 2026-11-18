@@ -16,7 +16,9 @@
    dit, « trop tard, il vient de partir ». On n'écrit PAS dans le magasin : sa
    poussée réécrirait la ligne entière un quart de seconde plus tard, et
    pourrait remettre « en attente » un message que le facteur vient de porter.
-   L'écran se met à jour par le direct, comme pour le geste d'un autre poste. */
+   L'écran se met à jour par la ligne que le serveur renvoie, appliquée comme
+   le direct l'apporterait (15 novembre 2026), sauf si le direct a déjà dit
+   plus récent (17 novembre 2026). */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Card } from '../../../../ds/components';
@@ -25,9 +27,9 @@ import { useClients } from '../../../../shared/clients';
 import { useAppointments } from '../../../../shared/agenda';
 import { useAuth, useMaTete } from '../../../../shared/auth';
 import { supabase } from '../../../../shared/supabase';
-import { appliqueCommeLeDirect } from '../../../../shared/sync';
+import { appliqueCommeLeDirect, repereDuDirect } from '../../../../shared/sync';
 import { heureLisible } from '../../../../shared/rappel';
-import { typeDit, canalDit, jourDuSalon } from '../../../../shared/envois';
+import { typeDit, canalDit, jourDuSalon, dateDite, JOUR_COURT } from '../../../../shared/envois';
 import {
   EN_ATTENTE, RETENU, ECARTE, reglesDepuis, retiens, relache, envoieMaintenant, ecarte,
   quandIlPart, departReel, facteurVivant, heureDuSalon, recolleLeColis, type ReglesDeLaSalle,
@@ -61,21 +63,40 @@ export async function gesteDeLaSalle(
     envoisStore.set((prev) => prev.map((e) => (e.id === id ? apres : e)));
     return 'fait';
   }
+  const avantLEcriture = repereDuDirect('envois', ligne);
   const { data, error } = await supabase.from('envois')
     .update({ data: apres }).eq('id', id).eq('data->>statut', ligne.statut).select('id, data, updated_at');
   if (error) return 'panne';
   const ecrite = (data ?? [])[0] as LigneDuServeur | undefined;
   /* LE GESTE SE VOIT TOUT DE SUITE (15 novembre 2026) : la ligne que le
-     serveur vient d'écrire s'applique comme le direct l'apporterait. */
-  if (ecrite) { appliqueCommeLeDirect('envois', ecrite); return 'fait'; }
+     serveur vient d'écrire s'applique comme le direct l'apporterait, sauf si
+     le direct a déjà dit plus récent (17 novembre 2026, revue). */
+  if (ecrite) { appliqueCommeLeDirect('envois', ecrite, avantLEcriture); return 'fait'; }
   /* RIEN N'A ÉTÉ ÉCRIT : la ligne n'était plus dans l'état que l'écran
      montrait. On relit ce qu'elle est devenue, l'écran le montre, et si une
-     autre main (ou un premier clic) a déjà fait le même geste, c'est fait. */
-  const { data: relue } = await supabase.from('envois').select('id, data, updated_at').eq('id', id).limit(1);
+     autre main (ou un premier clic) a déjà fait le même geste, c'est fait.
+     Une relecture ratée est une panne, pas un « trop tard » (17 novembre). */
+  const avantLaRelecture = repereDuDirect('envois', envoisStore.get().find((e) => e.id === id) ?? ligne);
+  const { data: relue, error: erreurDeRelecture } = await supabase.from('envois').select('id, data, updated_at').eq('id', id).limit(1);
+  if (erreurDeRelecture) return 'panne';
   const vraie = (relue ?? [])[0] as LigneDuServeur | undefined;
   if (!vraie) return 'trop-tard';
-  appliqueCommeLeDirect('envois', vraie);
-  return gesteDejaFait(geste, vraie.data) ? 'fait' : 'trop-tard';
+  appliqueCommeLeDirect('envois', vraie, avantLaRelecture);
+  if (!gesteDejaFait(geste, vraie.data)) return 'trop-tard';
+  /* CE QUE LE GESTE DISAIT EN PLUS — 17 novembre 2026 (revue). Une autre main
+     a déjà écarté la ligne ; « Pas maintenant » y pose encore sa réponse,
+     sinon le refus n'est compté nulle part et la même situation revient le
+     lendemain au lieu d'attendre 90 jours. Écrit sous la même condition (la
+     ligne doit être restée dans l'état relu), et « fait » seulement s'il l'est. */
+  if (!enPlus || dejaDit(enPlus, vraie.data)) return 'fait';
+  const avantLeComplement = repereDuDirect('envois', vraie.data);
+  const { data: completee, error: erreurDuComplement } = await supabase.from('envois')
+    .update({ data: { ...vraie.data, ...enPlus } }).eq('id', id).eq('data->>statut', vraie.data.statut).select('id, data, updated_at');
+  if (erreurDuComplement) return 'panne';
+  const c = (completee ?? [])[0] as LigneDuServeur | undefined;
+  if (!c) return 'trop-tard';
+  appliqueCommeLeDirect('envois', c, avantLeComplement);
+  return 'fait';
 }
 
 type LigneDuServeur = { id: string; data: Envoi; updated_at?: string };
@@ -87,6 +108,15 @@ const gesteDejaFait = (geste: Geste, l: Envoi | null | undefined): boolean => {
   if (geste === 'ecarter') return l.statut === ECARTE;
   if (geste === 'envoyer') return l.statut === EN_ATTENTE && l.parLaMain === true;
   return l.statut === EN_ATTENTE;
+};
+
+/** La ligne dit-elle déjà ce que le geste dit en plus ? Le QUOI compte
+    (`reponse: 'non'`), pas le quand ni le qui : les champs en `…Le` et `…Par`
+    (`reponduLe`, `reponduPar`) changent à chaque clic, et un « Pas maintenant »
+    déjà noté par un premier clic ou une autre main est bien noté. */
+const dejaDit = (enPlus: Record<string, unknown>, l: Envoi): boolean => {
+  const porte = l as unknown as Record<string, unknown>;
+  return Object.entries(enPlus).every(([k, v]) => (/(?:Le|Par)$/.test(k) ? porte[k] !== undefined : porte[k] === v));
 };
 
 /* ══ LA CONFIRMATION SUIT SON RENDEZ-VOUS — 23 octobre 2026 ══════════════
@@ -129,9 +159,11 @@ export function useRecolleLesEnvois(): void {
     journal des envois : un rendez-vous retenu ici peut tomber l'an prochain. */
 const pourLeRdv = (date?: string, heure?: string): string => {
   if (!date) return '';
-  const jour = new Date(`${date}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  const jour = dateDite(new Date(`${date}T12:00:00`).getTime(), JOUR_COURT);
   return heure ? `${jour} · ${heureLisible(heure)}` : jour;
 };
+/** « 25 oct. 2026 », d'un jour du salon déjà calculé (minuit UTC évité). */
+const JOUR_SANS_SEMAINE: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' };
 const heureDite = (iso?: string): string => {
   const t = Date.parse(iso ?? '');
   if (!Number.isFinite(t)) return '';
@@ -148,8 +180,7 @@ const momentDit = (iso: string | undefined, maintenantMs: number): string => {
   const jour = jourDuSalon(iso ?? '');
   if (!jour || jour === jourDuSalon(new Date(maintenantMs).toISOString())) return heure;
   const [a, m, j] = jour.split('-').map(Number);
-  const date = new Date(Date.UTC(a, m - 1, j, 12)).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-  return `${date}, ${heure}`;
+  return `${dateDite(Date.UTC(a, m - 1, j, 12), JOUR_SANS_SEMAINE)}, ${heure}`;
 };
 
 /** Plusieurs gestes à la fois, six au plus en vol : « Tout effacer » sur
@@ -198,7 +229,12 @@ export function SalleDesEnvois() {
   const [enCours, setEnCours] = useState<ReadonlySet<string>>(() => new Set());
   const [toutEnCours, setToutEnCours] = useState(false);
   const [effacerTout, setEffacerTout] = useState(false);
-  const [mot, setMot] = useState('');
+  /* CHAQUE AVERTISSEMENT SUIT SA LIGNE (17 novembre 2026, revue). Un seul mot
+     pour toute la salle : un geste réussi effaçait la panne d'un autre, un
+     « trop tard » la recouvrait, et l'on ne savait plus de quel message il
+     s'agissait. La panne d'une ligne reste dite tant qu'on ne l'a pas
+     reprise ; un « trop tard » se tait au geste suivant. */
+  const [avis, setAvis] = useState<ReadonlyMap<string, { v: 'panne' | 'trop-tard'; statut?: string }>>(() => new Map());
   /* Le compte à rebours avance sans qu'aucun magasin ne bouge. */
   const [, bat] = useState(0);
   useEffect(() => {
@@ -219,12 +255,25 @@ export function SalleDesEnvois() {
   const attendent = enSalle.filter((e) => e.statut === EN_ATTENTE);
   const tenus = enSalle.filter((e) => e.statut === RETENU);
   const maintenant = Date.now();
-
-  const fais = async (ids: string[], geste: Geste) => {
-    const tous = ids.length > 1;
+  /* LA QUESTION « EFFACER LES N » NE SURVIT PAS À SA LISTE (17 novembre 2026,
+     revue) : relâchés un à un, ou par un autre poste, il n'en reste qu'un ou
+     aucun ; la question se ferme, et ne revient pas toute seule avec le
+     prochain message retenu. Jamais pendant l'effacement lui-même, qui vide
+     la liste ligne à ligne. Avant le `return null` plus bas (ordre des hooks). */
+  useEffect(() => {
+    if (tenus.length < 2 && !toutEnCours) setEffacerTout(false);
+  }, [tenus.length, toutEnCours]);
+  /** `tous` : un geste sur l'ensemble (« Tout retenir », « Effacer les N »),
+      dit par le bouton, pas déduit du nombre de lignes. */
+  const fais = async (ids: string[], geste: Geste, tous = false) => {
     if (tous) setToutEnCours(true);
     setEnCours((s) => new Set([...s, ...ids]));
-    setMot('');
+    /* Le geste reprend ses lignes et fait taire les « trop tard » ; la panne
+       d'une AUTRE ligne reste dite. */
+    setAvis((a) => new Map([...a].filter(([id, x]) => x.v === 'panne' && !ids.includes(id))));
+    /* L'état d'où part chaque ligne : sa panne se tait dès qu'elle a bougé
+       (une autre main a fait le geste), il n'y a plus rien à réessayer. */
+    const statutDAvant = new Map(ids.map((id) => [id, envoisStore.get().find((e) => e.id === id)?.statut]));
     let verdicts: Verdict[] = [];
     try {
       verdicts = await parPaquets(ids, (id) => gesteDeLaSalle(id, geste, qui, regles).catch((): Verdict => 'panne'));
@@ -232,12 +281,33 @@ export function SalleDesEnvois() {
       setEnCours((s) => { const n = new Set(s); for (const id of ids) n.delete(id); return n; });
       if (tous) { setToutEnCours(false); setEffacerTout(false); }
     }
-    const tropTard = verdicts.filter((v) => v === 'trop-tard').length;
-    const pannes = verdicts.filter((v) => v === 'panne').length;
-    setMot(pannes > 0 ? `Le serveur n’a pas répondu${tous ? ` pour ${pannes} message${pannes > 1 ? 's' : ''}` : ''} : le geste n’est pas passé. Réessayez.`
-      : tropTard > 0 ? (!tous ? 'Trop tard : ce message vient de partir.' : `${tropTard} message${tropTard > 1 ? 's étaient déjà partis' : ' était déjà parti'}.`)
-        : '');
+    const neufs = ids.flatMap((id, k) => {
+      const v = verdicts[k];
+      return v === 'panne' || v === 'trop-tard' ? [[id, { v, statut: statutDAvant.get(id) }] as const] : [];
+    });
+    if (neufs.length) setAvis((a) => { const n = new Map(a); for (const [id, x] of neufs) n.set(id, x); return n; });
   };
+  /* Ce que l'écran dit des gestes qui n'ont pas passé, la cliente nommée
+     quand il n'y en a qu'une. « Trop tard » ne dit plus « il vient de
+     partir » : la ligne relue a pu être retenue, relâchée ou écartée d'un
+     autre poste (17 novembre 2026). Une panne dont la ligne a quitté la salle,
+     ou changé d'état depuis (une autre main a fait le geste), se tait : il
+     n'y a plus rien à réessayer. */
+  const nomDe = (id: string): string => {
+    const e = envois.find((x) => x?.id === id);
+    return (e?.clientId ? ficheDe.get(e.clientId)?.name : undefined) ?? e?.prenom ?? 'Une cliente';
+  };
+  const enPanne = [...avis].filter(([id, x]) => x.v === 'panne' && enSalle.some((e) => e.id === id && e.statut === x.statut)).map(([id]) => id);
+  const bouges = [...avis].filter(([, x]) => x.v === 'trop-tard').map(([id]) => id);
+  const mot = [
+    enPanne.length === 1 ? `${nomDe(enPanne[0])} : le serveur n’a pas répondu, le geste n’est pas passé. Réessayez.`
+      : enPanne.length > 1 ? `Le serveur n’a pas répondu pour ${enPanne.length} messages : le geste n’est pas passé. Réessayez.` : '',
+    bouges.length === 1 ? `${nomDe(bouges[0])} : trop tard, ce message vient de bouger (parti, ou touché d’un autre poste).`
+      : bouges.length > 1 ? `${bouges.length} messages avaient déjà bougé (partis, ou touchés d’un autre poste).` : '',
+  ].filter(Boolean).join(' ');
+  /* Un geste sur l'ensemble attend que chaque ligne ait fini le sien : une
+     même ligne ne porte jamais deux gestes à la fois (17 novembre 2026). */
+  const occupeAilleurs = toutEnCours || enCours.size > 0;
 
   if (enSalle.length === 0 && facteur !== 'absent') return null;
 
@@ -251,7 +321,7 @@ export function SalleDesEnvois() {
         {(attendent.length > 1 || tenus.length > 1) && (
           <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
             {attendent.length > 1 && (
-              <Button variant="ghost" size="sm" disabled={toutEnCours} onClick={() => void fais(attendent.map((e) => e.id), 'retenir')}>
+              <Button variant="ghost" size="sm" disabled={occupeAilleurs} onClick={() => void fais(attendent.map((e) => e.id), 'retenir', true)}>
                 Tout retenir
               </Button>
             )}
@@ -260,7 +330,7 @@ export function SalleDesEnvois() {
                 plus les voir » (Yéman). Ils ne partiront jamais ; le journal les
                 garde, rangés « écartés ». */}
             {tenus.length > 1 && !effacerTout && (
-              <Button variant="ghost" size="sm" disabled={toutEnCours} onClick={() => setEffacerTout(true)}>
+              <Button variant="ghost" size="sm" disabled={occupeAilleurs} onClick={() => setEffacerTout(true)}>
                 Effacer les {tenus.length} retenus
               </Button>
             )}
@@ -278,7 +348,7 @@ export function SalleDesEnvois() {
             Les {tenus.length} messages retenus ne partiront jamais. Ils quittent la salle et restent au journal, rangés « écartés ».
           </span>
           <span style={{ display: 'inline-flex', gap: 8 }}>
-            <Button variant="copper" size="sm" disabled={toutEnCours} onClick={() => void fais(tenus.map((e) => e.id), 'ecarter')}>
+            <Button variant="copper" size="sm" disabled={occupeAilleurs} onClick={() => void fais(tenus.map((e) => e.id), 'ecarter', true)}>
               {toutEnCours ? 'Effacement…' : `Effacer les ${tenus.length}`}
             </Button>
             <Button variant="ghost" size="sm" disabled={toutEnCours} onClick={() => setEffacerTout(false)}>Garder</Button>

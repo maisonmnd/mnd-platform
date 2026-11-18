@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Mic, Sparkles } from 'lucide-react';
 import { Button } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { fmtMoney } from '../../../../shared/currency';
+import { fmtIn, fmtMoney, toXof } from '../../../../shared/currency';
 import { useStore } from '../../../../shared/store';
 import { useStaff } from '../../../../shared/auth';
 import { staffAccessStore } from '../equipe/data';
 import { useCategories, useServices, type Service } from '../../../../shared/catalog';
 import { useClients } from '../../../../shared/clients';
-import { useModelBands, useBandSets, pricingOf, personalPriceXof, plafondDeRemiseXof } from '../../../../shared/pricing';
+import { useModelBands, useBandSets, pricingOf, personalPriceXof, plafondDeRemiseXof, servesBand, bandForService } from '../../../../shared/pricing';
 import { demandeAClaude, versionDeIaMaison } from '../../../../shared/ia-maison';
 import { peutDemander, saitLeDevisParDescription } from '../../../../shared/ia-maison-pur';
 import {
@@ -32,7 +32,10 @@ import { useEstDirection } from '../_vie';
 
 export type BrouillonDuDevis = { clientId: string; propose: DevisPropose };
 
-const EXEMPLE = 'Ex. : elle a 295 locks faites ailleurs. On les défait, on répare, puis on recrée 100 locks. Le devis doit s’arrêter à 160 000 F.';
+/* L'exemple dit le total dans la devise de la branche : on le recopie tel quel,
+   et l'assistant le lit dans cette devise. */
+const exempleDans = (devise: string): string =>
+  `Ex. : elle a 295 locks faites ailleurs. On les défait, retour aux cheveux naturels, puis une nouvelle création de 100 locks. Le devis doit s’arrêter à ${['XOF', 'XAF'].includes(devise) ? fmtMoney(160000, devise) : fmtIn(250, devise)}.`;
 
 /** La reconnaissance vocale du navigateur, quand il en a une : le bouton n'apparaît pas sinon. */
 type Reconnaissance = { lang: string; interimResults: boolean; continuous: boolean; start(): void; stop(): void; onresult: ((e: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null; onend: (() => void) | null; onerror: (() => void) | null };
@@ -81,14 +84,19 @@ export default function AssistantDuDevis({ onOuvrir }: { onOuvrir: (b: Brouillon
   const peut = saitFaire === true && peutDemander(moi?.role, CHANTIER_DU_DEVIS, mesDomaines);
 
   /* Le juge des prix est celui de la Caisse : la cliente choisie apporte son Juste Prix et ses prix fermes ;
-     le nombre de locks et la longueur de la ligne se posent par-dessus. */
-  const prixDe = (sv: PrestationDuCatalogue, o: { locks: number | undefined; longueur: string }): number => {
-    const ctx = pricingOf(
-      { ...(cliente ?? { priceCoef: 1 }), lockCount: o.locks ?? cliente?.lockCount, longueur: (o.longueur || cliente?.longueur || undefined) as never } as never,
-      bands, sets, categories,
-    );
-    return personalPriceXof(sv as Service, ctx, maCarte);
-  };
+     le nombre de locks et la longueur de la ligne se posent par-dessus, TELS QUE LE MODULE LES DONNE.
+     Plus de repli ici sur ceux de sa fiche (revue du 17 novembre 2026) : le module les reçoit
+     (`fiche`), s'en sert quand la description se tait, et le dit. */
+  const contexte = (locks: number | undefined, longueur: string) => pricingOf(
+    { ...(cliente ?? { priceCoef: 1 }), lockCount: locks, longueur: (longueur || undefined) as never } as never,
+    bands, sets, categories,
+  );
+  const prixDe = (sv: PrestationDuCatalogue, o: { locks: number | undefined; longueur: string }): number =>
+    personalPriceXof(sv as Service, contexte(o.locks, o.longueur), maCarte);
+  /* Le juge des calibres de la Caisse : une création qui ne sert pas ce nombre de locks
+     sort au prix du catalogue, et le brouillon doit le dire. */
+  const horsDeSonCalibre = (sv: PrestationDuCatalogue, locks: number): boolean =>
+    !servesBand(sv as Service, bandForService(sv as Service, contexte(locks, '')));
 
   const dicter = () => {
     if (ecoute) { reco.current?.stop(); return; }
@@ -118,7 +126,9 @@ export default function AssistantDuDevis({ onOuvrir }: { onOuvrir: (b: Brouillon
     try {
       const r = await demandeAClaude<unknown>({
         chantier: CHANTIER_DU_DEVIS, usage: USAGE_DU_DEVIS,
-        systeme: consigneDuDevis({ services: maCarte, aujourdhui: todayISO() }),
+        /* Les calibres dits à Claude sont ceux du barème réglé aujourd'hui, et le total voulu
+           se dit dans la devise de la branche (revue du 17 novembre 2026). */
+        systeme: consigneDuDevis({ services: maCarte, aujourdhui: todayISO(), calibres: bands, devise: currency }),
         messages: [{ role: 'user', content: description }],
         schema: SCHEMA_DU_DEVIS, maxTokens: 1500,
       });
@@ -129,6 +139,9 @@ export default function AssistantDuDevis({ onOuvrir }: { onOuvrir: (b: Brouillon
         services: maCarte, prixDe,
         plafondDeRemiseXof: (base) => plafondDeRemiseXof(estDirection, base),
         somme: (xof) => fmtMoney(xof, currency),
+        enXof: (montant) => Math.round(toXof(montant, currency)),
+        fiche: cliente ? { lockCount: cliente.lockCount, longueur: cliente.longueur ?? '' } : undefined,
+        horsDeSonCalibre,
       });
       setPourQui(demandePour);
       setPropose(devis);
@@ -165,7 +178,7 @@ export default function AssistantDuDevis({ onOuvrir }: { onOuvrir: (b: Brouillon
               className="mnd-input trv-assistant__texte"
               rows={4}
               maxLength={SIGNES_MAX_DE_LA_DESCRIPTION}
-              placeholder={EXEMPLE}
+              placeholder={exempleDans(currency)}
               value={texte}
               onChange={(e) => setTexte(e.target.value)}
               disabled={lit}

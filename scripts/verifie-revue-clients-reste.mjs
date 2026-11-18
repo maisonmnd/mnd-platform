@@ -50,8 +50,10 @@ const FAUTES = [
   [`${C}/BilanModal.tsx`, 'Séance du {frShortAn(b.date)}', 'Séance du {frShort(b.date)}', 'E2 '],
   [`${C}/CarteDeMarrainePanneau.tsx`, "{ day: 'numeric', month: 'short', year: 'numeric' }", "{ day: 'numeric', month: 'short' }", 'E1 '],
   [`${C}/Demandes.tsx`, "{ weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }", "{ weekday: 'long', day: 'numeric', month: 'long' }", 'E1 '],
-  [`${C}/EnvoisAutomatiques.tsx`, "const jour = new Date(`${date}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });", "const jour = new Date(`${date}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });", 'E1 '],
-  [`${C}/SalleDesEnvois.tsx`, "{ weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }", "{ weekday: 'short', day: 'numeric', month: 'short' }", 'E1 '],
+  /* Le journal des envois et la salle écrivent leurs dates par `dateDite`
+     depuis le 17 novembre 2026 : la faute se remet dans leurs jeux d'options. */
+  ['src/shared/envois.ts', "export const JOUR_COURT: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };", "export const JOUR_COURT: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' };", 'E1 '],
+  [`${C}/SalleDesEnvois.tsx`, "const JOUR_SANS_SEMAINE: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' };", "const JOUR_SANS_SEMAINE: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', timeZone: 'UTC' };", 'E1 '],
   ['src/apps/trone/routes/pilotage/Dashboard.tsx', '/${d.date.slice(0, 4)}', '', 'E3 '],
   ['src/shared/ambassade.ts', 'if (sesNoms.some((n) => deja.has(n))) {', 'if (deja.has(f.recompenseId)) {', 'F2 '],
   ['src/shared/offers.ts', 'dont le prix se dit à la Maison', 'dont le prix se dit au salon', 'G1 '],

@@ -20,6 +20,16 @@
        demande d'abord, « Garder » renonce, puis tout s'efface ;
      - un retenu d'il y a trois semaines dit sa date, avec l'année ;
      - sur un téléphone (390 px), rien ne déborde.
+   17 novembre 2026, la revue du chantier, à l'écran aussi :
+     - un geste sur l'ensemble attend qu'une ligne ait fini le sien ;
+     - un geste réussi n'efface pas la panne d'un autre ;
+     - une relecture de toute la table, partie AVANT le geste et revenue
+       après, ne remet plus le message « en attente » ;
+     - une relecture ratée se dit panne, pas « trop tard » ; « trop tard » ne
+       prétend plus que le message est parti ;
+     - la question « Effacer les N » se ferme quand sa liste fond, et ne
+       revient pas seule ;
+     - le direct est VRAIMENT refusé (les demandes de canal sont comptées).
    Les clientes, les messages et les montants sont inventés.
 
    Sans dossier, le banc construit le Trône lui-même (sous Node, sans Git
@@ -64,12 +74,18 @@ pose(ligne('s-faith', { type: 'avis-google', statut: 'en-attente', clientId: 'c-
 pose(ligne('t-vieux', { type: 'confirmation', statut: 'retenu', clientId: 'c-awa', prenom: 'Awa', retenuPar: 'Accueil', retenuLe: isoA(-21 * JOUR), partA: isoA(-21 * JOUR + 10 * MIN) }));
 pose(ligne('t-hier', { type: 'point-apres', statut: 'retenu', clientId: 'c-jade', prenom: 'Jade', retenuPar: 'Banc', retenuLe: isoA(-JOUR), partA: isoA(-JOUR + 10 * MIN) }));
 pose(ligne('t-matin', { type: 'avis-google', statut: 'retenu', clientId: 'c-faith', prenom: 'Faith', retenuPar: 'Banc', retenuLe: isoA(-60 * MIN), partA: isoA(-50 * MIN) }));
+pose(ligne('s-mia', { type: 'rappel-j1', canal: 'push', statut: 'en-attente', prenom: 'Mia', partA: isoA(7 * MIN), calme: false }));
 /* Le journal à l'échelle de la Maison : sept cents envois partis sur trente jours. */
 for (let i = 0; i < 700; i++) {
   pose(ligne(`p-${String(i).padStart(4, '0')}`, { type: i % 3 ? 'confirmation' : 'rappel-j1', statut: 'envoyé', etat: i % 2 ? 'lu' : 'remis', clientId: 'c-awa', quand: isoA(-((i * 61) % (30 * 24 * 60)) * MIN) }));
 }
 
 let ecritures = []; let lenteur = 0;
+/* La revue du 17 novembre : une écriture lente ou en panne pour UNE ligne,
+   une relecture de ligne en panne, une lecture de toute la table qui prend sa
+   photo au départ et répond tard, et les demandes de canal comptées. */
+const retardPour = new Map(); const pannePour = new Set(); const relectureEnPanne = new Set();
+let lectureLente = 0; let lecturesEntieres = 0; let directsRefuses = 0;
 const repond = (res, code, corps, entetes = {}) => {
   res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*', ...entetes });
   res.end(corps === undefined ? '' : JSON.stringify(corps));
@@ -95,13 +111,19 @@ const serveur = createServer((req, res) => {
       const inIds = (p.get('id') ?? '').match(/^in\.\((.*)\)$/)?.[1]?.split(',').map((s) => s.replace(/^"|"$/g, ''));
       const statutVoulu = (p.get('data->>statut') ?? '').match(/^eq\.(.+)$/)?.[1];
       if (req.method === 'GET') {
+        if (eqId && relectureEnPanne.has(eqId)) return repond(res, 500, { message: 'banc : relecture en panne' });
         let rows = [...table.values()].sort((a, b) => a.id.localeCompare(b.id));
         if (eqId) rows = rows.filter((l) => l.id === eqId);
         if (gtId) rows = rows.filter((l) => l.id > gtId);
         if (inIds) rows = rows.filter((l) => inIds.includes(l.id));
         if (statutVoulu) rows = rows.filter((l) => l.data.statut === statutVoulu);
         const limite = Number(p.get('limit') ?? 1000);
-        return repond(res, 200, rows.slice(0, limite).map((l) => champs(p.get('select'), l)));
+        /* La photo est prise À LA DEMANDE, la réponse part plus tard. */
+        const photo = rows.slice(0, limite).map((l) => champs(p.get('select'), structuredClone(l)));
+        const entiere = !eqId && !inIds && String(p.get('select') ?? '').includes('data');
+        if (entiere) lecturesEntieres += 1;
+        if (entiere && lectureLente > 0) { setTimeout(() => repond(res, 200, photo), lectureLente); return undefined; }
+        return repond(res, 200, photo);
       }
       if (req.method === 'PATCH') {
         const morceaux = [];
@@ -109,6 +131,7 @@ const serveur = createServer((req, res) => {
         req.on('end', () => {
           const corps = JSON.parse(Buffer.concat(morceaux).toString('utf8') || '{}');
           setTimeout(() => {
+            if (pannePour.has(eqId)) { ecritures.push({ id: eqId, passe: false, panne: true }); return repond(res, 500, { message: 'banc : écriture en panne' }); }
             const l = eqId ? table.get(eqId) : undefined;
             const passe = !!l && (!statutVoulu || l.data.statut === statutVoulu);
             ecritures.push({ id: eqId, passe, statut: corps.data?.statut });
@@ -116,7 +139,7 @@ const serveur = createServer((req, res) => {
             const neuve = { ...l, data: corps.data, updated_at: new Date().toISOString() };
             table.set(l.id, neuve);
             return repond(res, 200, [champs(p.get('select'), neuve)]);
-          }, lenteur);
+          }, retardPour.get(eqId) ?? lenteur);
         });
         return undefined;
       }
@@ -129,8 +152,12 @@ const serveur = createServer((req, res) => {
   res.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream' });
   res.end(readFileSync(f));
 });
-/* LE DIRECT REFUSÉ : la demande de canal temps réel est coupée net. */
-serveur.on('upgrade', (_req, socket) => socket.destroy());
+/* LE DIRECT REFUSÉ : la demande de canal temps réel est coupée net, et
+   comptée (le banc vérifie qu'il y en a eu, 17 novembre 2026). */
+serveur.on('upgrade', (req, socket) => {
+  if (new URL(req.url, 'http://x').pathname.startsWith('/realtime/')) directsRefuses += 1;
+  socket.destroy();
+});
 await new Promise((r) => serveur.listen(PORT, '127.0.0.1', r));
 
 /* ── CHROME ───────────────────────────────────────────────────────────── */
@@ -183,9 +210,12 @@ try {
   await attend(2500);
   await evalue(`(() => { for (const [k, v] of Object.entries(${JSON.stringify(SEMENCE)})) localStorage.setItem(k, JSON.stringify(v)); location.hash = '#/conversations?envois=1&onglet=salle'; location.reload(); return true; })()`);
   const ouverte = await jusqua(`!!document.querySelector('[data-envoi="s-awa"]') && !!document.querySelector('[data-envoi="t-matin"]')`, 45000);
-  dit('la salle s’ouvre, ses six lignes lues au serveur', ouverte !== null && (await evalue(`document.querySelectorAll('[data-envoi]').length`)) === 6,
+  dit('la salle s’ouvre, ses sept lignes lues au serveur', ouverte !== null && (await evalue(`document.querySelectorAll('[data-envoi]').length`)) === 7,
     ouverte === null ? (await evalue('document.body.innerText'))?.slice(0, 400).replace(/\n/g, ' ') : undefined);
-  dit('le direct est bien refusé (le cas qui figeait la salle)', ecritures.length === 0);
+  dit('ouvrir la salle n’écrit rien', ecritures.length === 0);
+  /* Le canal se demande après la session, un peu plus tard que l'écran. */
+  for (let i = 0; i < 100 && directsRefuses === 0; i++) await attend(100);
+  dit('le direct est bien refusé (le cas qui figeait la salle)', directsRefuses >= 1, `${directsRefuses} demande(s) de canal coupée(s)`);
 
   /* ── 1. Un retenu d'il y a trois semaines dit sa date, avec l'année ── */
   const vieux = await texteDe('t-vieux');
@@ -201,8 +231,11 @@ try {
   dit('« Relâcher » se touche', await touche('s-awa', 'Relâcher'));
   t = await jusqua(`[...(${rangee('s-awa')}?.querySelectorAll('button') ?? [])].some((b) => b.textContent.trim() === 'Retenir')`, RAPIDE);
   dit('… il attend de nouveau, tout de suite', t !== null && table.get('s-awa').data.statut === 'en-attente', t === null ? 'pas dans les 2,5 s' : `${t} ms`);
-  dit('« Envoyer maintenant » se touche', await touche('s-awa', 'Envoyer maintenant'));
-  t = await jusqua(`/demandé à la main/.test(${rangee('s-awa')}?.innerText ?? '') && ![...${rangee('s-awa')}.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Envoyer maintenant')`, RAPIDE);
+  /* Relâché la nuit, il attend 8 h : le bouton dit « Envoyer quand même »
+     (le banc tourne à toute heure, 18 novembre 2026). */
+  const envoyer = (await evalue(`[...(${rangee('s-awa')}?.querySelectorAll('button') ?? [])].map((b) => b.textContent.trim()).find((x) => /^Envoyer (maintenant|quand même)$/.test(x)) ?? ''`)) || 'Envoyer maintenant';
+  dit(`« ${envoyer} » se touche`, await touche('s-awa', envoyer));
+  t = await jusqua(`/demandé à la main/.test(${rangee('s-awa')}?.innerText ?? '') && ![...${rangee('s-awa')}.querySelectorAll('button')].some((b) => /^Envoyer (maintenant|quand même)$/.test(b.textContent.trim()))`, RAPIDE);
   dit('… l’écran dit qu’il part dans la minute, le bouton s’efface', t !== null && table.get('s-awa').data.parLaMain === true, t === null ? (await texteDe('s-awa')).replace(/\n/g, ' | ') : `${t} ms`);
   dit('trois gestes, trois écritures, aucune répétée', ecrituresDe('s-awa').length === 3, String(ecrituresDe('s-awa').length));
 
@@ -217,10 +250,65 @@ try {
   dit('… puis Jade paraît retenue', t !== null, t === null ? 'jamais' : `${t} ms après`);
   lenteur = 0;
 
+  /* Ce que la salle dit d'un geste qui n'a pas passé (pour le détail d'un échec). */
+  const MOT_DE_LA_SALLE = /[^\n]*(?:trop tard|le serveur n’a pas répondu)[^\n]*/i;
+  const attendLaLigne = (rid) => `[...(${rangee(rid)}?.querySelectorAll('button') ?? [])].some((b) => b.textContent.trim() === 'Retenir')`;
+  const retenueALecran = (rid) => `/retenu/i.test(${rangee(rid)}?.innerText ?? '') && [...(${rangee(rid)}?.querySelectorAll('button') ?? [])].some((b) => b.textContent.trim() === 'Relâcher')`;
+  const relache = async (rid) => { await touche(rid, 'Relâcher'); return jusqua(attendLaLigne(rid), 4000); };
+
+  /* ── 3b. Un geste sur l'ensemble attend la ligne en vol (revue F5) ── */
+  retardPour.set('s-mia', 1500);
+  dit('« Retenir » de Mia, serveur lent', await touche('s-mia', 'Retenir'));
+  await attend(200);
+  const toutRetenir = await evalue(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Tout retenir'); return b ? (b.disabled ? 'grisé' : 'touchable') : 'absent'; })()`);
+  dit('… « Tout retenir » attend qu’elle ait fini', toutRetenir === 'grisé', toutRetenir);
+  t = await jusqua(retenueALecran('s-mia'), 4000);
+  dit('… Mia retenue, puis relâchée', t !== null && (await relache('s-mia')) !== null);
+  retardPour.clear();
+
+  /* ── 3c. Une panne ne s'efface pas sous le succès d'un autre (revue F6) ── */
+  retardPour.set('s-mia', 1200); pannePour.add('s-awa');
+  await touche('s-mia', 'Retenir');
+  await attend(150);
+  dit('« Retenir » d’Awa pendant que Mia vole, le serveur tombe pour Awa', await touche('s-awa', 'Retenir'));
+  t = await jusqua(`${retenueALecran('s-mia')} && !/Un instant/.test(document.body.innerText)`, 5000);
+  const apresLesDeux = await evalue('document.body.innerText');
+  dit('… Mia retenue, et la panne d’Awa reste dite, à son nom', t !== null && /Awa Koffi : le serveur n’a pas répondu/.test(apresLesDeux) && (await evalue(attendLaLigne('s-awa'))),
+    t === null ? 'Mia jamais retenue' : (apresLesDeux.match(MOT_DE_LA_SALLE)?.[0] ?? 'aucun mot'));
+  pannePour.clear(); retardPour.clear();
+  dit('… Mia relâchée', (await relache('s-mia')) !== null);
+
+  /* ── 3d. Une relecture partie AVANT le geste ne le défait plus (revue F2) ── */
+  lectureLente = 2500;
+  const lecturesAvant = lecturesEntieres;
+  /* Le retour du focus relit toute la table (au plus une fois par quinze secondes). */
+  for (let i = 0; i < 25 && lecturesEntieres === lecturesAvant; i++) { await evalue(`window.dispatchEvent(new Event('focus')), true`); await attend(1000); }
+  dit('une relecture de toute la table est en vol', lecturesEntieres > lecturesAvant, `${lecturesEntieres - lecturesAvant} lecture(s)`);
+  dit('« Retenir » d’Awa pendant qu’elle vole', await touche('s-awa', 'Retenir'));
+  t = await jusqua(retenueALecran('s-awa'), RAPIDE);
+  dit('… Awa paraît retenue', t !== null, t === null ? 'jamais' : `${t} ms`);
+  await attend(lectureLente + 1200);
+  lectureLente = 0;
+  dit('… et le reste quand la vieille relecture revient', await evalue(retenueALecran('s-awa')) && table.get('s-awa').data.statut === 'retenu',
+    (await texteDe('s-awa')).replace(/\n/g, ' | '));
+  dit('… Awa relâchée', (await relache('s-awa')) !== null);
+
+  /* ── 3e. Une relecture ratée est une panne ; « trop tard » ne ment plus (revue F3, F7) ── */
+  table.set('s-mia', { ...table.get('s-mia'), data: { ...table.get('s-mia').data, statut: 'écarté', ecartePar: 'Autre poste' } });
+  relectureEnPanne.add('s-mia');
+  dit('« Retenir » de Mia, écartée ailleurs, et la relecture tombe', await touche('s-mia', 'Retenir'));
+  t = await jusqua(`/Mia : le serveur n’a pas répondu/.test(document.body.innerText) && ${attendLaLigne('s-mia')}`, RAPIDE);
+  dit('… l’écran dit la panne, à son nom, pas « trop tard »', t !== null, t === null ? ((await evalue('document.body.innerText')).match(MOT_DE_LA_SALLE)?.[0] ?? 'aucun mot') : `${t} ms`);
+  relectureEnPanne.clear();
+  dit('« Retenir » de nouveau, la relecture passe', await touche('s-mia', 'Retenir'));
+  t = await jusqua(`!${rangee('s-mia')} && /Mia : trop tard, ce message vient de bouger \\(parti, ou touché/.test(document.body.innerText)`, RAPIDE);
+  dit('… elle quitte la salle, « trop tard » ne dit pas qu’elle est partie', t !== null && !/vient de partir/.test(await evalue('document.body.innerText')),
+    t === null ? ((await presente('s-mia')) ? 'toujours là' : 'partie, sans le mot') : `${t} ms`);
+
   /* ── 4. Parti entre-temps : l'écran relit et le dit ── */
   table.set('s-faith', { ...table.get('s-faith'), data: { ...table.get('s-faith').data, statut: 'envoyé' }, updated_at: new Date().toISOString() });
   dit('« Retenir » d’un message que le facteur vient de porter', await touche('s-faith', 'Retenir'));
-  t = await jusqua(`!${rangee('s-faith')} && /Trop tard : ce message vient de partir/.test(document.body.innerText)`, RAPIDE);
+  t = await jusqua(`!${rangee('s-faith')} && /Faith Banc : trop tard, ce message vient de bouger/.test(document.body.innerText)`, RAPIDE);
   dit('… il quitte la salle et l’écran dit « trop tard »', t !== null, t === null ? ((await presente('s-faith')) ? 'toujours là' : 'parti, sans le mot') : `${t} ms`);
 
   /* ── 5. Effacer un retenu ── */
@@ -235,12 +323,23 @@ try {
   const question = await evalue(`document.querySelector('[role="alertdialog"]')?.innerText ?? ''`);
   dit('… il demande d’abord, et dit que rien ne partira', new RegExp(`Les ${restants} messages retenus ne partiront jamais`).test(question), question.replace(/\n/g, ' | '));
   dit('« Garder » renonce', await toucheDansLaSalle('Garder') && !(await evalue(`!!document.querySelector('[role="alertdialog"]')`)) && (await presente('t-vieux')));
+  /* La question ne survit pas à sa liste (revue F4) : on relâche, ligne à
+     ligne, jusqu'à n'en garder qu'un ; elle se ferme seule, puis ne revient
+     pas quand les retenus reviennent. */
+  const tenusIds = await evalue(`[...document.querySelectorAll('[data-envoi]')].filter((r) => /retenu/i.test(r.innerText.split('\\n')[0])).map((r) => r.dataset.envoi)`);
+  await toucheDansLaSalle(mot);
+  const aRelacher = tenusIds.filter((x) => x !== 't-vieux');
+  for (const rid of aRelacher) await relache(rid);
+  dit('… relâchés jusqu’au dernier, la question se ferme seule', !(await evalue(`!!document.querySelector('[role="alertdialog"]')`)),
+    (await evalue(`document.querySelector('[role="alertdialog"]')?.innerText ?? ''`)).replace(/\n/g, ' | '));
+  for (const rid of aRelacher) { await touche(rid, 'Retenir'); await jusqua(retenueALecran(rid), 4000); }
+  dit('… les retenus reviennent, la question ne revient pas seule', !(await evalue(`!!document.querySelector('[role="alertdialog"]')`)) && (await evalue(`[...document.querySelectorAll('[data-envoi]')].filter((r) => /retenu/i.test(r.innerText.split('\\n')[0])).length`)) === restants);
+  const ecartesAvant = [...table.values()].filter((l) => l.data.statut === 'écarté').length;
   await toucheDansLaSalle(mot);
   dit(`« Effacer les ${restants} » efface`, await toucheDansLaSalle(`Effacer les ${restants}`));
   t = await jusqua(`![...document.querySelectorAll('[data-envoi]')].some((r) => /retenu/i.test(r.innerText.split('\\n')[0]))`, 4000);
   const ecartes = [...table.values()].filter((l) => l.data.statut === 'écarté').map((l) => l.id).sort();
-  /* Écartés : celui d'« Effacer » (t-hier), puis les `restants` d'un coup. */
-  dit('… tous les retenus quittent la salle, écartés au serveur', t !== null && ecartes.length === 1 + restants, `${t ?? 'jamais'} ms, écartés : ${ecartes.join(', ')}`);
+  dit('… tous les retenus quittent la salle, écartés au serveur', t !== null && ecartes.length === ecartesAvant + restants, `${t ?? 'jamais'} ms, écartés : ${ecartes.join(', ')}`);
   const onglet = await evalue(`[...document.querySelectorAll('.trc-envois-onglets button')].map((b) => b.textContent.trim())[0] ?? ''`);
   dit('l’onglet compte ce qui reste en salle', onglet === 'En salle (1)', onglet);
 

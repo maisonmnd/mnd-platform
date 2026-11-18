@@ -38,7 +38,7 @@ import { heureLisible } from '../../../../shared/rappel';
 import { telephoneMasque } from '../../../../shared/demandes';
 import {
   lignesDuJournal, envoisDeLaPeriode, compteDuJournal, devenuDe, estARegarder, motifEnClair,
-  jourDuSalon, typeDit, canalDit, DEVENU_DIT, type FiltreDuJournal, type TypeDEnvoi,
+  jourDuSalon, typeDit, canalDit, DEVENU_DIT, dateDite, JOUR_COURT, type FiltreDuJournal, type TypeDEnvoi,
 } from '../../../../shared/envois';
 import { useEnvois } from '../equipe/data';
 import { SalleDesEnvois } from './SalleDesEnvois';
@@ -49,6 +49,10 @@ type OngletDesEnvois = 'salle' | 'a-venir' | 'partis' | 'modeles';
 const ONGLETS: [OngletDesEnvois, string][] = [['salle', 'En salle'], ['a-venir', 'À venir'], ['partis', 'Partis'], ['modeles', 'Les modèles Meta']];
 
 const FUSEAU = 'Africa/Porto-Novo';
+/** Le compte d'un journal qu'on ne regarde pas (onglet fermé). */
+const COMPTE_VIDE = compteDuJournal([]);
+/** « 14:05 » à l'heure du salon, par un formateur gardé (`dateDite`). */
+const HEURE_DU_SALON: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', timeZone: FUSEAU };
 
 /* « 30 jours » : le compte de « Ce que ça rapporte » (27 octobre 2026, lot 3 de
    l'Assistant Maison) lit le journal sur trente jours glissants. */
@@ -72,7 +76,7 @@ const PERIODE_DITE: Record<FiltreDuJournal['jour'], string> = {
     reprise ou un rappel vise parfois un rendez-vous de l'an prochain. */
 const pourLeRdv = (date?: string, heure?: string): string => {
   if (!date) return '';
-  const jour = new Date(`${date}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  const jour = dateDite(new Date(`${date}T12:00:00`).getTime(), JOUR_COURT);
   return heure ? `${jour} · ${heureLisible(heure)}` : jour;
 };
 
@@ -112,10 +116,20 @@ export function EnvoisAutomatiques({ onOuvrirLeFil, typeInitial, jourInitial, on
     () => envois.filter((e) => e && (!e.branchId || e.branchId === branch.id)),
     [envois, branch.id],
   );
+  const [onglet, setOnglet] = useState<OngletDesEnvois>(() => {
+    const voulu = ONGLETS.find(([k]) => k === ongletInitial)?.[0];
+    if (voulu) return voulu;
+    if (typeDemande || jourInitial) return 'partis';
+    return envois.some((e) => e && (!e.branchId || e.branchId === branch.id) && (e.statut === 'en-attente' || e.statut === 'retenu')) ? 'salle' : 'partis';
+  });
   /* LE JOURNAL SE CALCULE QUAND IL CHANGE, PAS À CHAQUE RENDU (15 novembre
      2026) : quatre lectures du journal entier à chaque battement de la page,
-     et la salle d'attente, juste au-dessus, ne répondait plus aux clics. */
+     et la salle d'attente, juste au-dessus, ne répondait plus aux clics.
+     ET SEULEMENT QUAND ON LE REGARDE (17 novembre 2026, revue) : sur « En
+     salle », chaque geste changeait les envois et relisait un journal que
+     personne ne voyait. */
   const { periode, compte, lignes, surLaSemaine, surTrenteJours } = useMemo(() => {
+    if (onglet !== 'partis') return { periode: [] as typeof ici, compte: COMPTE_VIDE, lignes: [] as typeof ici, surLaSemaine: 0, surTrenteJours: 0 };
     const p = envoisDeLaPeriode(ici, filtre.jour, aujourdhui);
     return {
       periode: p,
@@ -124,15 +138,9 @@ export function EnvoisAutomatiques({ onOuvrirLeFil, typeInitial, jourInitial, on
       surLaSemaine: envoisDeLaPeriode(ici, 'semaine', aujourdhui).length,
       surTrenteJours: envoisDeLaPeriode(ici, '30-jours', aujourdhui).length,
     };
-  }, [ici, filtre, aujourdhui]);
+  }, [ici, filtre, aujourdhui, onglet]);
   const ficheDe = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
   const enSalle = useMemo(() => ici.filter((e) => e.statut === 'en-attente' || e.statut === 'retenu').length, [ici]);
-  const [onglet, setOnglet] = useState<OngletDesEnvois>(() => {
-    const voulu = ONGLETS.find(([k]) => k === ongletInitial)?.[0];
-    if (voulu) return voulu;
-    if (typeDemande || jourInitial) return 'partis';
-    return envois.some((e) => e && (!e.branchId || e.branchId === branch.id) && (e.statut === 'en-attente' || e.statut === 'retenu')) ? 'salle' : 'partis';
-  });
 
   const segment = (actif: boolean): React.CSSProperties => ({
     font: 'inherit', fontSize: 12.5, padding: '6px 14px', cursor: 'pointer', border: 'none',
@@ -239,14 +247,14 @@ export function EnvoisAutomatiques({ onOuvrirLeFil, typeInitial, jourInitial, on
           const d = devenuDe(e);
           const motif = estARegarder(d) || d === 'personne' || d === 'ecarte' || d === 'perime' ? motifEnClair(e) : '';
           const jour = jourDuSalon(e.quand, FUSEAU);
-          const heure = new Date(e.quand).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: FUSEAU });
+          const heure = dateDite(Date.parse(e.quand), HEURE_DU_SALON);
           return (
             <div key={e.id} className="trc-envoi" style={{ borderTop: i === 0 ? 'none' : '1px solid var(--hairline)' }}>
               <div className="trc-envoi__quand">
                 <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{heure}</span>
                 {jour !== aujourdhui && (
                   <span className="mnd-muted" style={{ display: 'block', fontSize: 11 }}>
-                    {new Date(`${jour}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                    {dateDite(new Date(`${jour}T12:00:00`).getTime(), JOUR_COURT)}
                   </span>
                 )}
               </div>
