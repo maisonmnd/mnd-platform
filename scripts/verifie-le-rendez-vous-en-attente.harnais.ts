@@ -20,7 +20,10 @@ import {
   cleDuNumero, formesDuNumero, plafondDuNumero, deplacementsFaits, peutEncoreSeDeplacer, remiseGardeeAuDeplacement, acompteDesGestes,
   heureSurLaGrille, dureeAuCalibre, gestesAuCalibre, famillesAvecLeDefaisage, ATELIERS_DU_DEFAISAGE, texteDeLAttente, composantsDeLAttente, texteDuOui, texteDeLAcompte,
   texteDeLaPlaceLiberee, texteDeLAutreMoment, heureDeCotonouDite, ceQueDitLAttente,
+  minuteDePortoNovo, debutDuRendezVous, ouiDuComptoir, texteDesOuis,
 } from '../src/shared/rendez-vous-en-attente-pur';
+import { pathToFileURL } from 'node:url';
+import path from 'node:path';
 import { estSuggere } from '../src/shared/rendez-vous-suggere-pur';
 import { rappelDeLaVeilleSeTait, suggestionSansOui } from '../src/shared/heures-des-rappels-pur';
 import { jetonDuRendezVous, referenceDuRendezVous } from '../src/shared/lien-du-rdv-pur';
@@ -58,9 +61,29 @@ const iso = (ms: number): string => new REEL(ms).toISOString();
     [estEnAttente(tenue), estSuggere(tenue), estFerme(tenue), etatDeLAttente(tenue)]);
   dit('A3 les rappels se taisent tant qu elle n a pas dit oui : ni la veille, ni deux heures avant', [true, true],
     [rappelDeLaVeilleSeTait({ ...tenue, date: '2026-11-18' }), suggestionSansOui(tenue)]);
+  /* Une place pour le vendredi 20 novembre, 10 h : son heure est loin. */
+  const aVenir = { ...tenue, date: '2026-11-20', time: '10:00' };
   dit('A4 l echeance : a 1 h 59 la place tient, a 2 h pile elle se libere ; ferme, jamais', [false, true, false],
-    [placeALiberer(tenue, T0 + 7_140_000), placeALiberer(tenue, T0 + 7_200_000),
-      placeALiberer({ ...tenue, confirmeeParLaClienteLe: iso(T0 + 60_000) }, T0 + 9_000_000)]);
+    [placeALiberer(aVenir, T0 + 7_140_000), placeALiberer(aVenir, T0 + 7_200_000),
+      placeALiberer({ ...aVenir, confirmeeParLaClienteLe: iso(T0 + 60_000) }, T0 + 9_000_000)]);
+  /* LA PLACE DU JOUR MÊME (18 novembre 2026) : prise à 13 h 30 pour 14 h, sans réponse. */
+  const midiEtDemi = REEL.parse('2026-11-17T13:30:00+01:00');
+  const duJour = { status: 'confirmé', ...marquesDeLaNaissance(midiEtDemi), date: '2026-11-17', time: '14:00' };
+  const apresSesDeuxHeures = midiEtDemi + 2 * 3_600_000 + 60_000;
+  dit('A4b une place dont l heure est venue ne se libere jamais : prise a 13 h 30 pour 14 h, a 15 h 31 elle tient (elle est au fauteuil) ; pour le lendemain, elle se libere ; a l heure pile, elle tient ; une minute avant, elle se libere ; un jour ou une heure illisibles la gardent',
+    ['2026-11-17 15:31', '2026-11-17 14:00', false, true, false, true, false, false, true],
+    [minuteDePortoNovo(apresSesDeuxHeures), debutDuRendezVous(duJour), placeALiberer(duJour, apresSesDeuxHeures),
+      placeALiberer({ ...duJour, date: '2026-11-18', time: '10:00' }, apresSesDeuxHeures),
+      placeALiberer({ ...duJour, time: '15:31' }, apresSesDeuxHeures), placeALiberer({ ...duJour, time: '15:32' }, apresSesDeuxHeures),
+      placeALiberer({ ...duJour, date: '17/11/2026' }, apresSesDeuxHeures), placeALiberer({ ...duJour, time: undefined }, apresSesDeuxHeures),
+      estEnAttente(duJour)]);
+  /* « ELLE A DIT OUI » AU COMPTOIR, AVEC UN ACOMPTE ENCORE DÛ (18 novembre 2026). */
+  const auComptoir = { ...aVenir, depositXof: 6000, confirmeeParLaClienteLe: iso(T0 + 60_000), ouiNoteParLeComptoir: true };
+  dit('A4c son oui note au comptoir : la place ne se libere pas, l acompte reste attendu ; son oui par WhatsApp sans l acompte, elle se libere a son echeance ; la marque seule, sans le oui, ne tient rien',
+    [true, true, 'acompte', false, false, true, true],
+    [ouiDuComptoir(auComptoir), estEnAttente(auComptoir), etatDeLAttente(auComptoir), placeALiberer(auComptoir, T0 + 9_000_000),
+      ouiDuComptoir({ ...auComptoir, ouiNoteParLeComptoir: undefined }), placeALiberer({ ...auComptoir, ouiNoteParLeComptoir: undefined }, T0 + 9_000_000),
+      placeALiberer({ ...aVenir, ouiNoteParLeComptoir: true }, T0 + 9_000_000)]);
   const oui = { ...tenue, ...marquesDuOui(tenue, T0 + 600_000) };
   dit('A5 son oui, sans acompte : ferme, plus en attente, plus suggeree ; l echeance ne bouge pas', [true, false, false, 'ferme', pose.attenduJusquAu],
     [estFerme(oui), estEnAttente(oui), estSuggere(oui), etatDeLAttente(oui), oui.attenduJusquAu]);
@@ -141,6 +164,22 @@ const iso = (ms: number): string => new REEL(ms).toISOString();
     [ceQueDitLAttente(tenue, { court, francs }), ceQueDitLAttente(ouiAcompte, { court, francs }), ceQueDitLAttente(oui, { court, francs }),
       ceQueDitLAttente(liberee, { court, francs }), ceQueDitLAttente({ ...liberee, autreMomentDemandeLe: iso(T0) }, { court, francs }),
       ceQueDitLAttente({ status: 'confirmé' }, { court, francs }), heureDeCotonouDite(pose.attenduJusquAu)]);
+  dit('A22b le Carnet ne promet pas une liberation qui n aura pas lieu : ni l heure d une place qui commence avant son echeance, ni celle d une place dont le comptoir a note le oui ; une place du lendemain la dit',
+    ['En attente de son oui', 'Elle a dit oui · acompte de 6000 F attendu', 'En attente de son oui · la place se libère à 15 h 30'],
+    [ceQueDitLAttente(duJour, { court, francs }), ceQueDitLAttente(auComptoir, { court, francs }), ceQueDitLAttente({ ...duJour, date: '2026-11-18' }, { court, francs })]);
+  const troisPlaces = [
+    { quand: 'vendredi 20 novembre 2026 à 10 h', reference: 'MND-AAA2', lien: 'https://x/rdv/?v=a' },
+    { quand: 'vendredi 20 novembre 2026 à 12 h', reference: 'MND-BBB3', lien: 'https://x/rdv/?v=b' },
+    { quand: 'vendredi 20 novembre 2026 à 14 h', reference: 'MND-CCC4', lien: '' },
+  ];
+  const ouis = texteDesOuis({ appel: 'Mme Awa', places: troisPlaces });
+  const mele = texteDesOuis({ appel: 'Mme Awa', places: [troisPlaces[0], { ...troisPlaces[1], acompte: '6 000 F', jusqua: '12 h 30' }] });
+  dit('A24 « Je confirme » ecrit pour trois places : la phrase dit combien, et chacune sur sa ligne, avec sa reference et son lien ; une place dont l acompte reste du le dit',
+    [true, 3, true, true, true, false, true, true, true],
+    [ouis.startsWith('C’est confirmé, Mme Awa : vos trois rendez-vous.'), ouis.split('\n').filter((l) => l.startsWith('· ')).length,
+      ['MND-AAA2', 'MND-BBB3', 'MND-CCC4'].every((r) => ouis.includes(r)), ouis.includes('https://x/rdv/?v=b'), ouis.endsWith('La Maison vous attend.'),
+      mele.startsWith('C’est confirmé'), mele.startsWith('Merci Mme Awa, votre oui est noté pour vos deux rendez-vous.'),
+      mele.includes('il reste l’acompte de 6 000 F'), mele.includes('place tenue jusqu’à 12 h 30')]);
   dit('A23 Ma Couronne relit la reponse de la Maison : posee (ferme ou non), place prise, place limitee partie, refusee ; tout le reste est une fonction injoignable',
     ['pose', true, 'pose', false, 'prise', 'place-partie', 'refusee', 'injoignable', 'injoignable', 'injoignable'],
     [reponseDeLaMaisonLue({ ok: true, etat: 'confirme', rdvs: [{ id: 'rdv-1', date: '2026-11-20', time: '10:00', status: 'confirmé' }] }).etat,
@@ -159,6 +198,7 @@ const table = (t: string): Ligne[] => (TABLES[t] ??= []);
 const cleDe = (t: string): string => (t === 'documents' ? 'key' : 'id');
 let TIC = 0;
 let SEQ = 0;
+let ENTRE_DEUX: ((t: string) => void) | null = null;
 function valeur(l: Ligne, col: string): unknown {
   const m = /^data((?:->[A-Za-z0-9_]+)*)->>([A-Za-z0-9_]+)$/.exec(col);
   if (!m) return l[col];
@@ -206,6 +246,8 @@ class Requete {
   upsert(d: any, o: any = {}) { this.mode = 'upsert'; this.charge = d; this.options = o; return this; }
   insert(d: any) { this.mode = 'insert'; this.charge = d; return this; }
   private execute(): { data: any; error: any; count?: number } {
+    /* Une autre écriture qui passe entre la lecture et la mise à jour (une fois). */
+    if (this.mode === 'update' && ENTRE_DEUX) { const f = ENTRE_DEUX; ENTRE_DEUX = null; f(this.t); }
     const lignes = table(this.t);
     const cle = this.options.onConflict ?? cleDe(this.t);
     if (this.mode === 'insert' || this.mode === 'upsert') {
@@ -303,7 +345,10 @@ const client = {
   from: (t: string) => new Requete(t),
   rpc: async (nom: string, args: unknown) => (RPC[nom] ? { data: RPC[nom](args), error: null } : { data: null, error: { message: 'rpc absente du banc' } }),
   auth: {
-    getUser: async (jeton: string) => (jeton === 'session-de-awa' ? { data: { user: { id: 'cl-awa' } }, error: null } : { data: { user: null }, error: { message: 'session inconnue' } }),
+    /* Awa : son compte porte l'identifiant de sa fiche. Béa : la Maison l'a inscrite avant son compte, sa fiche porte son compte (`authUserId`). */
+    getUser: async (jeton: string) => (jeton === 'session-de-awa' ? { data: { user: { id: 'cl-awa' } }, error: null }
+      : jeton === 'session-de-bea' ? { data: { user: { id: 'uid-de-bea' } }, error: null }
+        : { data: { user: null }, error: { message: 'session inconnue' } }),
   },
   storage: { from: () => ({}) },
 };
@@ -360,7 +405,15 @@ table('services').push({ id: 'sv-lavage', data: { name: 'Lavage rituel' } }, { i
 table('clients').push(
   { id: 'cl-awa', branch_id: 'br-1', data: { name: 'Awa EXEMPLE', civilite: 'madame', phone: '+2290197000090', lockCount: 300 } },
   { id: 'cl-autre', branch_id: 'br-1', data: { name: 'Autre EXEMPLE', phone: '+2290197000091' } },
+  /* La fiche que la Maison a inscrite avant le compte de Béa, adoptée depuis : son identifiant n'est pas celui du compte. */
+  { id: 'cl-bea', branch_id: 'br-1', data: { name: 'Bea EXEMPLE', phone: '+2290197000092', authUserId: 'uid-de-bea', familyId: 'fam-bea' } },
+  { id: 'cl-enfant-bea', branch_id: 'br-1', data: { name: 'Enfant EXEMPLE', birthday: '2016-05-01', familyId: 'fam-bea' } },
+  { id: 'cl-grande-bea', branch_id: 'br-1', data: { name: 'Grande EXEMPLE', birthday: '1990-01-01', familyId: 'fam-bea' } },
+  { id: 'cl-enfant-awa', branch_id: 'br-1', data: { name: 'Petit EXEMPLE', birthday: '2018-03-01', familyId: 'fam-awa' } },
+  { id: 'cl-grand-awa', branch_id: 'br-1', data: { name: 'Grand EXEMPLE', birthday: '1995-03-01', familyId: 'fam-awa' } },
 );
+/* Béa paie le compte famille par sa fiche ; Awa, par l'identifiant de son compte. */
+table('families').push({ id: 'fam-bea', data: { payerClientId: 'cl-bea' } }, { id: 'fam-awa', data: { payerClientId: 'cl-awa' } });
 
 const demande = await import('../supabase/functions/demande-submit/index.ts') as any;
 const [servir] = SERVIS;
@@ -546,14 +599,60 @@ const idB3 = b3.corps.apptId as string;
   await attendsLeFond();
   dit('B23 « Je confirme » ecrit au lieu de touche : sa seule place en attente est confirmee ; un numero qui n en tient aucune rend la main',
     [{ pris: false }, { pris: true, etat: 'ferme' }, true], [inconnue.corps, ecrit.corps, estFerme(rdvDe(id))]);
+  /* UNE MÈRE ET SES DEUX ENFANTS : trois places du même numéro, sans réponse. */
   const r1 = await depot({ telephone: '0197000062', date: '2026-11-24', time: '14:00' });
   const r2 = await depot({ telephone: '0197000062', date: '2026-11-24', time: '16:00', pourQui: 'enfant' });
+  const r3 = await depot({ telephone: '0197000062', date: '2026-11-24', time: '18:00', pourQui: 'enfant' });
   await attendsLeFond();
-  const flou = await appelle({ attente: 'reponse', geste: 'ok', numero: '22997000062', texte: 'je confirme' }, { cle: SERVICE });
-  const cite = await appelle({ attente: 'reponse', geste: 'ok', numero: '22997000062', texte: `Je confirme mon rendez-vous (réf. ${referenceDuRendezVous(r2.corps.apptId)}).` }, { cle: SERVICE });
+  const ref = (r: { corps: any }) => referenceDuRendezVous(r.corps.apptId);
+  const cite = await appelle({ attente: 'reponse', geste: 'ok', numero: '22997000062', texte: `Je confirme mon rendez-vous (réf. ${ref(r2)}).` }, { cle: SERVICE });
   await attendsLeFond();
-  dit('B24 deux places en attente : personne ne devine laquelle ; la reference citee designe la bonne',
-    [{ pris: false }, { pris: true, etat: 'ferme' }, false, true], [flou.corps, cite.corps, estFerme(rdvDe(r1.corps.apptId)), estFerme(rdvDe(r2.corps.apptId))]);
+  dit('B24 trois places en attente, la reference citee : celle-la seule se confirme',
+    [['en-attente', 'en-attente', 'en-attente'], { pris: true, etat: 'ferme' }, false, true, false],
+    [[r1, r2, r3].map((r) => r.corps.etat), cite.corps, estFerme(rdvDe(r1.corps.apptId)), estFerme(rdvDe(r2.corps.apptId)), estFerme(rdvDe(r3.corps.apptId))]);
+  META.length = 0;
+  const toutes = await appelle({ attente: 'reponse', geste: 'ok', numero: '22997000062', texte: 'je confirme' }, { cle: SERVICE });
+  await attendsLeFond();
+  const phrase = META[0]?.texte ?? '';
+  dit('B24b « Je confirme » ecrit, quand le numero tient encore deux places sans reponse : les deux se confirment ; UNE phrase dit combien et lesquelles, avec leurs references ; chacune a sa confirmation inscrite',
+    [{ pris: true, etat: 'ferme', places: 2 }, true, true, 1, true, true, false, ['envoyé', 'envoyé']],
+    [toutes.corps, estFerme(rdvDe(r1.corps.apptId)), estFerme(rdvDe(r3.corps.apptId)), META.length, /vos deux rendez-vous/.test(phrase),
+      phrase.includes(ref(r1)) && phrase.includes(ref(r3)), phrase.includes(ref(r2)),
+      [envoi(`conf-${r1.corps.apptId}-whatsapp`)?.statut, envoi(`conf-${r3.corps.apptId}-whatsapp`)?.statut]]);
+  const encore = await appelle({ attente: 'reponse', geste: 'ok', numero: '22997000062', texte: 'Je confirme' }, { cle: SERVICE });
+  dit('B24c un « Je confirme » de plus, toutes confirmees : rien a confirmer, le webhook garde la main', { pris: false }, encore.corps);
+  /* Deux places, l'une porte un acompte : son oui est noté, l'acompte reste dû. */
+  (table('documents').find((d) => d.key === 'mnd_settings') as Ligne).data.depositPctByService = { 'sv-lavage': 30 };
+  const m1 = await depot({ telephone: '0197000063', date: '2026-11-25', time: '14:00', serviceIds: ['sv-racines'] });
+  const m2 = await depot({ telephone: '0197000063', date: '2026-11-25', time: '17:00' });
+  (table('documents').find((d) => d.key === 'mnd_settings') as Ligne).data.depositPctByService = {};
+  await attendsLeFond();
+  META.length = 0;
+  const mixte = await appelle({ attente: 'reponse', geste: 'ok', numero: '22997000063', texte: 'Oui je confirme' }, { cle: SERVICE });
+  await attendsLeFond();
+  const dite = META[0]?.texte ?? '';
+  dit('B24d deux places, l une avec un acompte : la premiere se confirme, l autre note son oui et attend son acompte ; la phrase le dit',
+    [{ pris: true, etat: 'acompte', places: 2 }, 'ferme', 'acompte', true, true, 'envoyé', undefined],
+    [mixte.corps, etatDeLAttente(rdvDe(m1.corps.apptId)), etatDeLAttente(rdvDe(m2.corps.apptId)), /votre oui est noté pour vos deux rendez-vous/.test(dite),
+      /il reste l’acompte de 6 000 F/.test(dite), envoi(`conf-${m1.corps.apptId}-whatsapp`)?.statut, envoi(`conf-${m2.corps.apptId}-whatsapp`)]);
+  /* Deux places ; la première est rendue (« Un autre moment », sur un autre téléphone) entre la lecture et l'écriture. */
+  const t1 = await depot({ telephone: '0197000064', date: '2026-11-21', time: '16:00' });
+  const t2 = await depot({ telephone: '0197000064', date: '2026-11-21', time: '18:00' });
+  await attendsLeFond();
+  ENTRE_DEUX = (t) => {
+    if (t !== 'appointments') return;
+    const l = table('appointments').find((x) => x.id === t1.corps.apptId) as Ligne;
+    l.data = { ...l.data, ...marquesDeLaLiberation(T0), annuleePar: 'cliente', autreMomentDemandeLe: iso(T0) };
+    l.updated_at = `t${++TIC}`;
+  };
+  META.length = 0;
+  const croisee = await appelle({ attente: 'reponse', geste: 'ok', numero: '22997000064', texte: 'Je confirme' }, { cle: SERVICE });
+  await attendsLeFond();
+  ENTRE_DEUX = null;
+  dit('B24e une place rendue entre la lecture et l ecriture reste rendue : seule l autre se confirme, et la phrase ne parle que d elle',
+    [{ pris: true, etat: 'ferme', places: 1 }, 'liberee', false, 'ferme', true, false],
+    [croisee.corps, etatDeLAttente(rdvDe(t1.corps.apptId)), 'confirmeeParLaClienteLe' in rdvDe(t1.corps.apptId), etatDeLAttente(rdvDe(t2.corps.apptId)),
+      (META[0]?.texte ?? '').includes(referenceDuRendezVous(t2.corps.apptId)), (META[0]?.texte ?? '').includes(referenceDuRendezVous(t1.corps.apptId))]);
 }
 
 /* B25. META REFUSE LE MODÈLE. */
@@ -566,11 +665,45 @@ const idB3 = b3.corps.apptId as string;
   dit('B25 Meta refuse le modele de l attente (#132001) : la place se confirme dans la seconde, comme avant, et l ancienne confirmation part',
     ['confirme', true, 'confirmé', false, false, ['rdv_a_confirmer', 'confirmation_rdv']],
     [r.corps.etat, r.corps.confirme, a.status, 'attenduJusquAu' in a, 'suggereLe' in a, META.map((m) => m.modele)]);
+  META.length = 0;
   REPONSES_META = [{ status: 400, corps: { error: { code: 131026, message: 'Message undeliverable' } } }];
   const r2 = await depot({ telephone: '0197000072', date: '2026-11-25', time: '12:00' });
   await attendsLeFond();
-  dit('B26 un echec qui n est pas celui du modele (numero hors WhatsApp) : la place reste en attente, la page le saura', ['en-attente', 'échec', true],
-    [r2.corps.etat, r2.corps.accuse, estEnAttente(rdvDe(r2.corps.apptId))]);
+  const a2 = rdvDe(r2.corps.apptId);
+  dit('B26 un echec qui n est pas celui du modele (numero hors WhatsApp) : elle ne pourrait pas repondre, la place se confirme dans la seconde, comme pour un refus du modele, et l ancienne confirmation part',
+    ['confirme', true, 'confirmé', false, false, 'échec', ['rdv_a_confirmer', 'confirmation_rdv']],
+    [r2.corps.etat, r2.corps.confirme, a2.status, 'attenduJusquAu' in a2, estEnAttente(a2), envoi(`att-${r2.corps.apptId}-whatsapp`)?.statut, META.map((m) => m.modele)]);
+  /* Le plafond des modèles du site, déjà atteint pour ce numéro aujourd'hui. */
+  for (let i = 0; i < MODELES_PAR_NUMERO_ET_PAR_JOUR; i += 1) DEBIT.push({ seau: 'modeles_du_site', cle: '22997000073', at: T0 });
+  META.length = 0;
+  const r3 = await depot({ telephone: '0197000073', date: '2026-11-25', time: '19:00' });
+  await attendsLeFond();
+  const a3 = rdvDe(r3.corps.apptId);
+  dit('B26b le plafond des modeles atteint : aucun message ne part, et la place ne reste pas en attente d un oui qu elle ne peut pas donner',
+    ['confirme', 'confirmé', false, 0, 'plafond'], [r3.corps.etat, a3.status, estEnAttente(a3), META.length, r3.corps.accuse]);
+}
+
+/* B26c. META DIT PLUS TARD LE MESSAGE DE L'ATTENTE NON REMIS (le webhook, « failed » sur sa ligne att-…). */
+{
+  const r4 = await depot({ telephone: '0197000074', date: '2026-11-28', time: '10:00' });
+  const r5 = await depot({ telephone: '0197000075', date: '2026-11-28', time: '12:00' });
+  await attendsLeFond();
+  const id4 = r4.corps.apptId as string;
+  const id5 = r5.corps.apptId as string;
+  const sansCle = await appelle({ attente: 'non-remis', rdv: id4 });
+  META.length = 0;
+  const rendu = await appelle({ attente: 'non-remis', rdv: id4 }, { cle: SERVICE });
+  await attendsLeFond();
+  const a4 = rdvDe(id4);
+  dit('B26c la porte ne s ouvre qu a la cle service ; la place qui attendait son oui se confirme sans attente, l ancienne confirmation part a son numero et s inscrit',
+    [['en-attente', 'en-attente'], 401, { pris: true, etat: 'confirme', accuse: 'envoyé' }, 'confirmé', false, false, ['confirmation_rdv'], '2290197000074', 'envoyé'],
+    [[r4.corps.etat, r5.corps.etat], sansCle.statut, rendu.corps, a4.status, 'attenduJusquAu' in a4, estEnAttente(a4), META.map((m) => m.modele), META[0]?.to, envoi(`conf-${id4}-whatsapp`)?.statut]);
+  await appelle({ attente: 'reponse', rdv: id5, geste: 'ok', numero: '22997000075' }, { cle: SERVICE });
+  META.length = 0;
+  const repondue = await appelle({ attente: 'non-remis', rdv: id5 }, { cle: SERVICE });
+  const deuxFois = await appelle({ attente: 'non-remis', rdv: id4 }, { cle: SERVICE });
+  dit('B26d une place qui a deja repondu, ou deja confirmee sans attente, ne bouge pas, et rien ne repart',
+    [{ pris: false }, { pris: false }, true, true, 0], [repondue.corps, deuxFois.corps, estFerme(rdvDe(id5)), 'attenduJusquAu' in rdvDe(id5), META.length]);
 }
 
 /* B27. LES PLAFONDS. */
@@ -740,6 +873,62 @@ const idB3 = b3.corps.apptId as string;
   dit('B44c son juge refuse lui-meme avant 08:30 ; il ne compare jamais a la seule ouverture',
     [true, false],
     [jugeDeLaCouronne.includes('if (debut < Math.max(fenetre.openMin, PREMIER_RENDEZ_VOUS_MIN) || fin > fenetre.closeMin) return false;'), jugeDeLaCouronne.includes('debut < fenetre.openMin')]);
+
+  /* SA FICHE, LA RÈGLE D'est_ma_tete (18 novembre 2026). Une heure plus tard : le seau de son compte est reparti. */
+  T0 += 61 * 60_000;
+  const jour = '2026-12-19';
+  const adoptee = await appelle(corps({ pour: 'cl-bea', seances: [{ date: jour, time: '10:00' }] }), { cle: 'session-de-bea' });
+  dit('B45 la fiche que la Maison a inscrite avant son compte, adoptee (son compte dans authUserId), est la sienne : Ma Couronne y reserve, a son nom',
+    [200, 'cl-bea', 'Bea EXEMPLE'], [adoptee.statut, adoptee.corps.rdvs?.[0]?.clientId, adoptee.corps.rdvs?.[0]?.clientName]);
+  const sonEnfant = await appelle(corps({ pour: 'cl-enfant-bea', seances: [{ date: jour, time: '13:00' }] }), { cle: 'session-de-bea' });
+  const enfantDAwa = await appelle(corps({ pour: 'cl-enfant-awa', seances: [{ date: jour, time: '16:00' }] }), { cle: 'session-de-awa' });
+  dit('B45b son enfant mineur, dont elle paie le compte famille par sa fiche adoptee : elle y reserve ; payeur par l identifiant de son compte, comme avant',
+    [[200, 'cl-enfant-bea'], [200, 'cl-enfant-awa']],
+    [[sonEnfant.statut, sonEnfant.corps.rdvs?.[0]?.clientId], [enfantDAwa.statut, enfantDAwa.corps.rdvs?.[0]?.clientId]]);
+  const avantLesRefus = table('appointments').length;
+  const lEnfantDUneAutre = await appelle(corps({ pour: 'cl-enfant-bea', seances: [{ date: jour, time: '18:00' }] }), { cle: 'session-de-awa' });
+  const majeure = await appelle(corps({ pour: 'cl-grande-bea', seances: [{ date: jour, time: '18:00' }] }), { cle: 'session-de-bea' });
+  const laFicheDUneAutre = await appelle(corps({ pour: 'cl-bea', seances: [{ date: jour, time: '18:00' }] }), { cle: 'session-de-awa' });
+  const majeurDAwa = await appelle(corps({ pour: 'cl-grand-awa', seances: [{ date: jour, time: '18:00' }] }), { cle: 'session-de-awa' });
+  dit('B45c rien d autre : l enfant d une autre, une majeure de sa famille (payee par sa fiche, ou par son compte), la fiche adoptee d une autre ; rien ne se pose',
+    [[403, 'tete'], [403, 'tete'], [403, 'tete'], [403, 'tete'], avantLesRefus],
+    [[lEnfantDUneAutre.statut, lEnfantDUneAutre.corps.error], [majeure.statut, majeure.corps.error], [majeurDAwa.statut, majeurDAwa.corps.error],
+      [laFicheDUneAutre.statut, laFicheDUneAutre.corps.error], table('appointments').length]);
+}
+
+/* B46. LA PLACE DU JOUR MÊME NE SE LIBÈRE PAS PENDANT LA SÉANCE (18 novembre 2026). */
+{
+  T0 = REEL.parse('2026-12-29T13:30:00+01:00');
+  const duJour = await depot({ telephone: '0197000601', date: '2026-12-29', time: '14:00' });
+  const demain = await depot({ telephone: '0197000602', date: '2026-12-30', time: '10:00' });
+  await attendsLeFond();
+  T0 += 2 * 3_600_000 + 60_000;
+  libere();
+  const a = rdvDe(duJour.corps.apptId);
+  const b = rdvDe(demain.corps.apptId);
+  dit('B46 prise a 13 h 30 pour 14 h, sans reponse : a 15 h 31 sa place tient (elle est au fauteuil) ; celle du lendemain, prise au meme instant, se libere',
+    [['en-attente', 'en-attente'], 'confirmé', false, 'annulé', 'liberee'],
+    [[duJour.corps.etat, demain.corps.etat], a.status, 'placeLibereeLe' in a, b.status, etatDeLAttente(b)]);
+}
+
+/* B47. « ELLE A DIT OUI » AU COMPTOIR, L'ACOMPTE ENCORE DÛ (18 novembre 2026). */
+{
+  (table('documents').find((d) => d.key === 'mnd_settings') as Ligne).data.depositPctByService = { 'sv-lavage': 30 };
+  const auComptoir = await depot({ telephone: '0197000611', date: '2027-01-05', time: '10:00' });
+  const parWhatsApp = await depot({ telephone: '0197000612', date: '2027-01-05', time: '12:00' });
+  (table('documents').find((d) => d.key === 'mnd_settings') as Ligne).data.depositPctByService = {};
+  await attendsLeFond();
+  /* Le geste du Carnet (`noteSonOui`) : son oui, et la marque du comptoir. */
+  const ligne = table('appointments').find((l) => l.id === auComptoir.corps.apptId) as Ligne;
+  ligne.data = { ...ligne.data, confirmeeParLaClienteLe: iso(T0), ouiNoteParLeComptoir: true };
+  ligne.updated_at = `t${++TIC}`;
+  await appelle({ attente: 'reponse', rdv: parWhatsApp.corps.apptId, geste: 'ok', numero: '22997000612' }, { cle: SERVICE });
+  T0 += 3 * 3_600_000;
+  libere();
+  const a = rdvDe(auComptoir.corps.apptId);
+  const b = rdvDe(parWhatsApp.corps.apptId);
+  dit('B47 son oui note au comptoir, l acompte encore du : trois heures plus tard la place tient, l acompte reste attendu ; son oui par WhatsApp sans l acompte : la place se libere a son echeance',
+    [6000, 'confirmé', 'acompte', false, 'annulé', 'liberee'], [a.depositXof, a.status, etatDeLAttente(a), 'placeLibereeLe' in a, b.status, etatDeLAttente(b)]);
 }
 
 /* ══ C. LES FICHIERS QUI TIENNENT LA MÊME RÈGLE ═════════════════════════════ */
@@ -773,6 +962,14 @@ const idB3 = b3.corps.apptId as string;
     [true, true, true, true, true],
     [/public\.rdv_en_attente\(a\.data\)\s+and a\.data->>'attenduJusquAu' <= maintenant/.test(lib), /'status', 'annulé', 'annuleeLe', maintenant, 'placeLibereeLe', maintenant/.test(lib),
       /d\.data - 'codeApplique'/.test(lib), /cron\.schedule\('libere-les-places-en-attente', '\*\/5 \* \* \* \*'/.test(lib), !/annuleePar/.test(lib)]);
+  const ouLibere = lib.slice(lib.indexOf('for r in'), lib.indexOf('for update skip locked'));
+  dit('C4b la base, comme placeALiberer : jamais une place dont l heure est venue (le jour et l heure compares en texte a l heure de Porto-Novo, illisibles : gardee), ni une place dont le comptoir a note le oui',
+    [true, true, true, true, true],
+    [/ici\s+text := to_char\(now\(\) at time zone 'Africa\/Porto-Novo', 'YYYY-MM-DD HH24:MI'\);/.test(lib),
+      /and coalesce\(a\.data->>'date', ''\) ~ '\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$'\s+and coalesce\(a\.data->>'time', ''\) ~ '\^\\d\{2\}:\\d\{2\}\$'/.test(ouLibere),
+      /and \(a\.data->>'date'\) \|\| ' ' \|\| \(a\.data->>'time'\) > ici\s/.test(ouLibere),
+      /and not \(btrim\(coalesce\(a\.data->>'confirmeeParLaClienteLe', ''\)\) <> ''\s+and coalesce\(a\.data->'ouiNoteParLeComptoir' = 'true'::jsonb, false\)\)/.test(ouLibere),
+      minuteDePortoNovo(REEL.parse('2026-11-17T23:30:00Z')) === '2026-11-18 00:30']);
   dit('C5 le debit se compte et s ecrit sous un meme verrou, a la cle service seule', [true, true],
     [/perform pg_advisory_xact_lock\(hashtext\('debit:' \|\| seau\), hashtext\(cle\)\);[\s\S]*?insert into public\.edge_rate_limits/.test(sql),
       /revoke all on function public\.debit_permis\(text, text, int, int\) from public, anon, authenticated;/.test(sql)]);
@@ -789,6 +986,14 @@ const idB3 = b3.corps.apptId as string;
       /if coalesce\(new\.data->>'status', ''\) = 'confirmé' then\s+new\.data := jsonb_set\(new\.data, '\{status\}', '"en attente"'::jsonb\);/.test(garde),
       /array\['priceXof', 'discountXof', 'discountPct', 'remisesLignes', 'offreId',/.test(garde), /greatest\(\s*catalogue,/.test(garde),
       /create trigger garde_reservation_cliente_biu\s+before insert or update on public\.appointments/.test(garde)]);
+  dit('C7b la ligne deja la (la synchronisation insere, ou modifie si la ligne existe) n est pas une creation : la branche des creations la laisse, en tete, comme 0219',
+    true, /if tg_op = 'INSERT' then\s+if exists \(select 1 from public\.appointments a where a\.id = new\.id\) then\s+return new;\s+end if;\s+if coalesce\(new\.data->>'status', ''\) = 'confirmé' then/.test(garde));
+  dit('C7c la branche des modifications garde la ligne : une cliente ne monte pas son rendez-vous en « confirme », la valeur d avant revient',
+    true, /else\s+if coalesce\(new\.data->>'status', ''\) = 'confirmé' and coalesce\(old\.data->>'status', ''\) <> 'confirmé' then\s+new\.data := jsonb_set\(new\.data, '\{status\}', coalesce\(old\.data -> 'status', '"en attente"'::jsonb\)\);/.test(garde));
+  dit('C7d la marque du comptoir (ouiNoteParLeComptoir, qui tient une place) ne se pose pas a la creation et garde sa valeur d avant a la modification',
+    [true, true],
+    [/'remiseFamille', 'remiseFamilleXof', 'remiseDuComptoirXof',\s+'suggereLe', 'attenduJusquAu', 'cleDuNumero', 'placeLibereeLe', 'deplacements',\s+'ouiNoteParLeComptoir'\] loop\s+new\.data := new\.data - cle;\s+end loop;/.test(garde),
+      /'remiseDuComptoirXof', 'dureeMin',\s+'suggereLe', 'attenduJusquAu', 'cleDuNumero', 'placeLibereeLe', 'deplacements',\s+'ouiNoteParLeComptoir'\] loop\s+new\.data := new\.data - cle;\s+if old\.data \? cle then/.test(garde)]);
 
   const webhook = lit('supabase/functions/whatsapp-webhook/index.ts');
   dit('C8 le webhook rend le bouton d une place en attente a la porte du site, AVANT de chercher une fiche ; et le « Je confirme » ecrit, AVANT l automate',
@@ -844,6 +1049,122 @@ const idB3 = b3.corps.apptId as string;
       (mesRdv.match(/\{(aVenir && )?estSuggere\(a\) &&/g) ?? []).length,
       prochain.includes("suggere: estSuggere(dejaPose) && etatDeLAttente(dejaPose) === null }") && prochain.includes("estSuggere(rdvMontre) && etatDeLAttente(rdvMontre) === null ?"),
       abonnee.includes("if (estSuggere(a) && !a.attenduJusquAu) return 'proposee';")]);
+  /* LE MESSAGE DE L'ATTENTE NON REMIS (18 novembre 2026). */
+  const accusesDuWebhook = webhook.slice(webhook.indexOf('const refusesApresCoup = new Set<string>();'), webhook.indexOf('/* ── ⑥ LES REACTIONS QU ELLE POSE'));
+  dit('C17 le webhook : un « failed » sur la ligne att-<rdv>-whatsapp d une place tenue est rendu a la porte du site (attente non-remis, la cle service), apres le journal',
+    [true, true, true, true],
+    [/if \(ligne && a\.etat === 'non-remis' && ligne\.data\.attente === true && \/\^att-rdv-\/\.test\(ligne\.id\)\s+&& typeof ligne\.data\.apptId === 'string' && ligne\.id === `att-\$\{ligne\.data\.apptId\}-whatsapp`\) \{\s+attentesNonRemises\.add\(String\(ligne\.data\.apptId\)\);/.test(accusesDuWebhook),
+      /for \(const rdv of attentesNonRemises\) await ditLAttenteNonRemise\(urlBase, service, rdv\);/.test(accusesDuWebhook),
+      accusesDuWebhook.indexOf('for (const rdv of attentesNonRemises)') > accusesDuWebhook.indexOf("...(a.etat === 'non-remis' ? { statut: 'échec' } : {}),"),
+      /body: JSON\.stringify\(\{ attente: 'non-remis', rdv \}\)/.test(webhook) && /async function ditLAttenteNonRemise\([\s\S]{0,300}authorization: `Bearer \$\{service\}`/.test(webhook)]);
+  dit('C17b demande-submit : un envoi de l attente plus long que six secondes est suivi jusqu au bout ; s il ne part pas, la place se confirme et l ancienne confirmation part',
+    true, /if \(partie === 'en-cours'\) \{\s+enTacheDeFond\(envoi\.then\(async \(fin\) => \{\s+if \(!attenteNonPartie\(fin\) \|\| !\(await confirmeSansAttente\(posee\)\)\) return;\s+await accuseDAvant\(\);/.test(ds));
+  const carte = lit('src/shared/carte-du-prochain-rituel.ts');
+  dit('C18 « Elle a dit oui » au Carnet (noteSonOui) pose son oui ET la marque du comptoir que lit la liberation',
+    true, /confirmeeParLaClienteLe: new Date\(\)\.toISOString\(\), ouiNoteParLeComptoir: true/.test(carte));
+}
+
+/* ══ D. LA BASE, JOUÉE DANS PGLITE (quand BANC_PGLITE le permet) ═══════════
+   La VRAIE 0224 et la VRAIE libération de 0222 contre une base simulée : les
+   rôles de Supabase, `auth.uid()`, des règles `own_*` comme 0006,
+   `ecriture_de_la_maison` (0138). La cliente écrit comme sa synchronisation :
+   « insérer, ou modifier si la ligne existe ». */
+{
+  const dossierPGlite = process.env.BANC_PGLITE;
+  type Base = { exec: (s: string) => Promise<unknown>; query: (s: string, p?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }>; close: () => Promise<void> };
+  let PGlite: (new () => Base) | null = null;
+  if (dossierPGlite) {
+    try { PGlite = (await import(pathToFileURL(path.join(dossierPGlite, 'node_modules/@electric-sql/pglite/dist/index.js')).href)).PGlite ?? null; } catch { PGlite = null; }
+  }
+  if (!PGlite) {
+    console.log('SAUTE D 0224 et la liberation de 0222 ne se jouent pas ici, PGlite absent (BANC_PGLITE=<dossier qui porte node_modules/@electric-sql/pglite>)');
+  } else {
+    /* La vraie horloge : PGlite lit la sienne. */
+    (globalThis as any).Date = REEL;
+    const M0138 = lit('supabase/migrations/0138_le_parcours_de_l_abonnee.sql');
+    const M0222 = lit('supabase/migrations/0222_le_rendez_vous_en_attente.sql');
+    const M0224 = lit('supabase/migrations/0224_ma_couronne_passe_par_le_serveur.sql');
+    const fonction = (s: string, debut: string): string => { const i = s.indexOf(debut); return i < 0 ? '' : s.slice(i, s.indexOf('$$;', s.indexOf('$$', s.indexOf('$$', i) + 2)) + 3); };
+    const CLIENTE = '11111111-1111-4111-8111-111111111111';
+    const EQUIPE = '33333333-3333-4333-8333-333333333333';
+    const base = new PGlite();
+    await base.exec(`
+      create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
+      grant anon, authenticated, service_role to current_user;
+      create schema auth;
+      create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+      create table public.staff (user_id uuid primary key, role text);
+      create table public.appointments (id text primary key, branch_id text, data jsonb not null default '{}'::jsonb, updated_at timestamptz default now());
+      create table public.demandes (id text primary key, genre text, branch_id text, data jsonb not null default '{}'::jsonb);
+      create function public.is_staff() returns boolean language sql stable security definer set search_path = public as $$ select exists (select 1 from public.staff where user_id = auth.uid()) $$;
+      create function public.est_ma_tete(cible text) returns boolean language sql stable security definer set search_path = public as $$ select cible = (auth.uid())::text $$;
+      create function public.duree_du_rdv(a jsonb) returns int language sql stable as $$ select 60 $$;
+      ${M0138.slice(M0138.indexOf('create or replace function public.ecriture_de_la_maison()'), M0138.indexOf('create or replace function public.garde_argent_cliente()'))}
+      ${fonction(M0138, 'create or replace function public.abo_iso(t timestamptz)')}
+      alter table public.appointments enable row level security;
+      create policy own_sel on public.appointments for select to authenticated using (public.is_staff() or public.est_ma_tete(data->>'clientId'));
+      create policy own_ins on public.appointments for insert to authenticated with check (public.is_staff() or public.est_ma_tete(data->>'clientId'));
+      create policy own_upd on public.appointments for update to authenticated using (public.is_staff() or public.est_ma_tete(data->>'clientId')) with check (public.is_staff() or public.est_ma_tete(data->>'clientId'));
+      insert into public.staff (user_id, role) values ('${EQUIPE}', 'equipe');
+      grant usage on schema public, auth to anon, authenticated, service_role;
+      grant all on all tables in schema public to anon, authenticated, service_role;
+      grant execute on all functions in schema public to anon, authenticated, service_role;
+      grant execute on all functions in schema auth to anon, authenticated, service_role;`);
+    const joue = (s: string) => base.exec(s).then(() => 'jouee', (e: Error) => String(e?.message ?? e).slice(0, 160));
+    dit('D1 0224 se joue sans erreur, et se rejoue ; les deux fonctions de la liberation (0222) aussi',
+      ['jouee', 'jouee', 'jouee'],
+      [await joue(M0224), await joue(M0224), await joue(`${fonction(M0222, 'create or replace function public.rdv_en_attente(a jsonb)')}\n${fonction(M0222, 'create or replace function public.libere_les_places_en_attente()')}`)]);
+    const q = (v: unknown) => `'${JSON.stringify(v).replace(/'/g, "''")}'::jsonb`;
+    type Qui = 'cliente' | 'serveur';
+    const comme = async (qui: Qui, s: string): Promise<string> => {
+      const role = qui === 'serveur' ? 'service_role' : 'authenticated';
+      await base.exec(`begin; set local role ${role}; select set_config('request.jwt.claim.sub', '${qui === 'cliente' ? CLIENTE : ''}', true), set_config('request.jwt.claims', '{"role":"${role}"}', true);`);
+      try { await base.exec(s); await base.exec('commit;'); return 'ecrit'; } catch (e) {
+        await base.exec('rollback;');
+        return `erreur ${String((e as Error)?.message).slice(0, 90)}`;
+      }
+    };
+    const ligneDe = async (id: string) => ((await base.query('select data from public.appointments where id = $1', [id])).rows[0]?.data ?? null) as Record<string, any> | null;
+    const pousse = (id: string, data: Record<string, unknown>) =>
+      comme('cliente', `insert into public.appointments (id, branch_id, data) values ('${id}', 'br-1', ${q({ id, ...data })}) on conflict (id) do update set branch_id = excluded.branch_id, data = excluded.data;`);
+    /* Ce que le serveur pose pour Ma Couronne : confirmé, sa durée, ses marques. */
+    const duServeur = { branchId: 'br-1', clientId: CLIENTE, clientName: 'Awa EXEMPLE', serviceIds: ['sv-lavage'], date: '2099-01-06', time: '10:00', status: 'confirmé', source: 'couronne', dureeMin: 60, cleDuNumero: '22997000090', priceXof: 20000 };
+    await comme('serveur', `insert into public.appointments (id, branch_id, data) values ('rdv-pose-1', 'br-1', ${q({ id: 'rdv-pose-1', ...duServeur })});`);
+    const repousse = await pousse('rdv-pose-1', { ...duServeur, note: 'vu' });
+    const apres = await ligneDe('rdv-pose-1');
+    dit('D2 Ma Couronne repousse le rendez-vous que le serveur a pose confirme (sa synchronisation) : il reste confirme ; rien de « Annonce par son appareil », ses marques restent',
+      ['ecrit', 'confirmé', false, '22997000090', 20000], [repousse, apres?.status, /Annoncé par son appareil/.test(String(apres?.note ?? '')), apres?.cleDuNumero, apres?.priceXof]);
+    const neuve = await pousse('rdv-neuf-1', { ...duServeur, cleDuNumero: undefined, date: '2099-01-07', ouiNoteParLeComptoir: true });
+    const lue = await ligneDe('rdv-neuf-1');
+    dit('D3 un rendez-vous NEUF ecrit par elle : « confirme » retombe « en attente », ni prix fige, ni marque du comptoir ; ce qu elle annoncait passe dans la note',
+      ['ecrit', 'en attente', false, false, true], [neuve, lue?.status, 'priceXof' in (lue ?? {}), 'ouiNoteParLeComptoir' in (lue ?? {}), /Annoncé par son appareil : prix 20000 F/.test(String(lue?.note ?? ''))]);
+    const monte = await pousse('rdv-neuf-1', { ...lue, status: 'confirmé', ouiNoteParLeComptoir: true });
+    const parMiseAJour = await comme('cliente', `update public.appointments set data = data || '{"status":"confirmé"}'::jsonb where id = 'rdv-neuf-1';`);
+    const toujours = await ligneDe('rdv-neuf-1');
+    dit('D4 elle ne monte pas son rendez-vous en « confirme », ni par sa synchronisation ni par une mise a jour ; elle ne pose pas la marque du comptoir',
+      ['ecrit', 'ecrit', 'en attente', false], [monte, parMiseAJour, toujours?.status, 'ouiNoteParLeComptoir' in (toujours ?? {})]);
+    /* LA LIBÉRATION, POUR DE VRAI : toutes les échéances sont passées. */
+    const passee = '2000-01-01T00:00:00.000Z';
+    const place = (o: Record<string, unknown>) => ({ branchId: 'br-1', clientId: '', serviceIds: ['sv-lavage'], status: 'confirmé', source: 'site', suggereLe: passee, attenduJusquAu: passee, date: '2099-01-08', time: '10:00', ...o });
+    const PLACES: Record<string, Record<string, unknown>> = {
+      'rdv-a-venir': place({}),
+      'rdv-commence': place({ date: '2000-01-01', time: '10:00' }),
+      'rdv-illisible': place({ date: '08/01/2099' }),
+      'rdv-comptoir': place({ depositXof: 6000, confirmeeParLaClienteLe: passee, ouiNoteParLeComptoir: true }),
+      'rdv-oui-sans-acompte-recu': place({ depositXof: 6000, confirmeeParLaClienteLe: passee }),
+      'rdv-ferme': place({ confirmeeParLaClienteLe: passee }),
+      'rdv-marque-sans-oui': place({ ouiNoteParLeComptoir: true }),
+    };
+    for (const [id, d] of Object.entries(PLACES)) await comme('serveur', `insert into public.appointments (id, branch_id, data) values ('${id}', 'br-1', ${q({ id, ...d })});`);
+    const n = Number((await base.query('select public.libere_les_places_en_attente() as n')).rows[0]?.n);
+    const etats = Object.fromEntries(await Promise.all(Object.keys(PLACES).map(async (id) => [id, (await ligneDe(id))?.status])));
+    const jumeaux = Object.fromEntries(Object.entries(PLACES).map(([id, d]) => [id, placeALiberer(d, REEL.now()) ? 'annulé' : 'confirmé']));
+    dit('D5 la vraie liberation : la place a venir et le oui par WhatsApp sans l acompte se liberent ; l heure venue, un jour illisible, le oui du comptoir, une place ferme restent ; et placeALiberer dit la meme chose, place par place',
+      [3, { 'rdv-a-venir': 'annulé', 'rdv-commence': 'confirmé', 'rdv-illisible': 'confirmé', 'rdv-comptoir': 'confirmé', 'rdv-oui-sans-acompte-recu': 'annulé', 'rdv-ferme': 'confirmé', 'rdv-marque-sans-oui': 'annulé' }, true],
+      [n, etats, JSON.stringify(jumeaux) === JSON.stringify(etats)]);
+    await base.close();
+    (globalThis as any).Date = Horloge;
+  }
 }
 
 console.log(`\n${n - ko}/${n} epreuves tenues${ko ? `, ${ko} en echec` : ''}.`);

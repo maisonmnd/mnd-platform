@@ -71,11 +71,23 @@ const PANNES = [
   ['un oui sans l acompte recu fait ferme', REGLE, '  return acompteAttendu(a) <= 0 || a.depositConfirmed === true;\n}', '  return true;\n}'],
   ['son oui ne laisse pas le temps de regler l acompte', REGLE, '  const sursis = maintenantMs + SURSIS_DE_L_ACOMPTE_MS;', '  const sursis = 0;'],
   ['un autre numero confirme pour elle', DS, "    if (String(a.cleDuNumero ?? '') !== cle) return json({ pris: true, etat: 'numero-etranger' });\n", ''],
-  ['la reponse s ouvre sans la cle service', DS, "  if (!appelDuServeur(req)) return json({ error: 'reserve' }, 401);\n", ''],
-  ['un « je confirme » ecrit devine entre deux places', DS, '  if (tenues.length === 1) return tenues[0];', '  if (tenues.length >= 1) return tenues[0];'],
+  ['la reponse s ouvre sans la cle service', DS, "async function reponseALAttente(req: Request, body: Record<string, unknown>): Promise<Response> {\n  if (!appelDuServeur(req)) return json({ error: 'reserve' }, 401);\n", 'async function reponseALAttente(req: Request, body: Record<string, unknown>): Promise<Response> {\n'],
+  /* ── « Je confirme », écrit, pour toutes ses places (18 novembre 2026) ── */
+  ['un « je confirme » ecrit ne confirme aucune de ses places', DS, "    if (siennes.length > 1) return geste === 'ok' ? await confirmeSesPlaces(numero, siennes) : json({ pris: false });", '    if (siennes.length > 1) return json({ pris: false });'],
+  ['un « je confirme » ecrit ne confirme que la premiere de ses places', DS, '  for (const place of places) {\n    let ligne: RdvDuSite | null = place;', '  for (const place of places.slice(0, 1)) {\n    let ligne: RdvDuSite | null = place;'],
+  ['la reference citee confirme toutes ses places', DS, '    if (citee) return [citee];', "    if (citee) return lignes.filter((x) => etatDeLAttente(x.data) === 'sans-reponse');"],
+  ['un « je confirme » ecrit confirme une place deja rendue', DS, "      if (etatDeLAttente(a) !== 'sans-reponse') break;\n", ''],
+  ['la phrase ne dit qu une de ses places', REGLE, "\\n${lignes.join('\\n')}\\nLa Maison vous attend.`;", "\\n${lignes.slice(0, 1).join('\\n')}\\nLa Maison vous attend.`;"],
   /* ── La bascule ── */
   ['la bascule ne regarde pas l approbation', DS, "  return (modeles as { nom?: unknown; etat?: unknown }[]).some((m) => m?.nom === nom && String(m?.etat ?? '').toUpperCase() === 'APPROVED') ? nom : '';", '    return nom;'],
-  ['un refus du modele laisse la place en attente', DS, "    if (partie === 'refus-du-modele') {", '    if (false) {'],
+  ['un refus du modele laisse la place en attente', DS, '    if (attenteNonPartie(partie)) {', '    if (false) {'],
+  /* ── Un message qui ne part pas, ou n'arrive pas (18 novembre 2026) ── */
+  ['un echec de l envoi laisse la place en attente', DS, "const attenteNonPartie = (partie: string): boolean => partie !== 'envoyé' && partie !== 'en-cours';", "const attenteNonPartie = (partie: string): boolean => partie === 'refus-du-modele';"],
+  ['un envoi trop lent qui echoue laisse la place en attente', DS, '          if (!attenteNonPartie(fin) || !(await confirmeSansAttente(posee))) return;', '          return;'],
+  ['la porte du message non remis s ouvre sans la cle service', DS, "async function attenteNonRemise(req: Request, body: Record<string, unknown>): Promise<Response> {\n  if (!appelDuServeur(req)) return json({ error: 'reserve' }, 401);\n", 'async function attenteNonRemise(req: Request, body: Record<string, unknown>): Promise<Response> {\n'],
+  ['un message non remis confirme une place qui a deja repondu', DS, "    if (!ligne || etatDeLAttente(ligne.data) !== 'sans-reponse') return false;", '    if (!ligne) return false;'],
+  ['le message non remis ne confirme rien', DS, "  if (!apptId || !(await confirmeSansAttente(apptId))) return json({ pris: false });", "  if (!apptId || !apptId) return json({ pris: false });"],
+  ['le webhook ne rend pas le message non remis', WH, '      attentesNonRemises.add(String(ligne.data.apptId));\n', ''],
   /* ── Les plafonds ── */
   ['trois places en attente deviennent quatre', REGLE, 'export const EN_ATTENTE_PAR_NUMERO = 3;', 'export const EN_ATTENTE_PAR_NUMERO = 4;'],
   ['le rendez-vous oublie la cle du numero qui l a pris', DS, '      cleDuNumero: cleDuNumero(telephone),\n      ...(naissance ?', '      ...(naissance ?'],
@@ -115,12 +127,29 @@ const PANNES = [
   ['le Carnet range une place en attente parmi les confirmes', 'src/apps/trone/routes/clients/Carnet.tsx', "garde: (a) => a.status === 'confirmé' && !estSuggere(a) && !estEnAttente(a) }", "garde: (a) => a.status === 'confirmé' && !estSuggere(a) }"],
   /* ── Ma Couronne ── */
   ['Ma Couronne se confirme elle-meme', DS, '  const ferme = !regard && (acompteXof <= 0 || acompteRecu);', '  const ferme = true;'],
-  ['Ma Couronne reserve pour la tete d une autre', DS, '  if (pour !== uid) {', '  if (false) {'],
+  ['Ma Couronne reserve pour la tete d une autre', DS, '  if (!laSienne) {', '  if (false) {'],
+  ['Ma Couronne refuse la fiche adoptee de la cliente', DS, "  const laSienne = pour === uid || (!!fiche && String(fiche.authUserId ?? '') === uid);", '  const laSienne = pour === uid;'],
+  ['Ma Couronne prend une fiche qui porte un autre compte', DS, "  const laSienne = pour === uid || (!!fiche && String(fiche.authUserId ?? '') === uid);", "  const laSienne = pour === uid || (!!fiche && String(fiche.authUserId ?? '') !== '');"],
+  ['Ma Couronne ne reconnait pas le payeur designe par sa fiche', DS, "      payeParElle = String((ficheDuPayeur?.data as { authUserId?: unknown } | null | undefined)?.authUserId ?? '') === uid;", '      payeParElle = false;'],
+  ['Ma Couronne reserve pour une majeure de sa famille', DS, '    if (!fiche || fiche.archived === true || !mineur || !payeParElle) {', '    if (!fiche || fiche.archived === true || !payeParElle) {'],
   ['Ma Couronne garde la duree de son ecran', DS, '  const dureeMin = Math.max(dureeDuServeur, Math.min(dureeVue, dureeDuServeur * 2));', '  const dureeMin = dureeVue || dureeDuServeur;'],
   ['une serie se pose a moitie', DS, '    await defais();\n', ''],
   ['Ma Couronne croit le paiement d un autre rendez-vous', DS, "    if (p && p.status === 'success' && String(p.partnerId ?? '') === idPaye) verseXof", "    if (p && p.status === 'success') verseXof"],
   ['le juge de Ma Couronne ne compare qu a l ouverture', DS, '  if (debut < Math.max(fenetre.openMin, PREMIER_RENDEZ_VOUS_MIN) || fin > fenetre.closeMin) return false;', '  if (debut < fenetre.openMin || fin > fenetre.closeMin) return false;'],
   ['la base laisse une cliente se confirmer', GARDE, "    if coalesce(new.data->>'status', '') = 'confirmé' then\n      new.data := jsonb_set(new.data, '{status}', '\"en attente\"'::jsonb);\n    end if;\n\n    -- L'ARGENT", "    -- L'ARGENT"],
+  /* ── La ligne déjà là, et la marque du comptoir (0224, 18 novembre 2026) ── */
+  ['la base repasse en attente un rendez-vous que Ma Couronne repousse', GARDE, '    if exists (select 1 from public.appointments a where a.id = new.id) then\n      return new;\n    end if;\n', ''],
+  ['une cliente monte son rendez-vous en confirme par une mise a jour', GARDE, "    if coalesce(new.data->>'status', '') = 'confirmé' and coalesce(old.data->>'status', '') <> 'confirmé' then", '    if false then'],
+  ['une cliente pose la marque du comptoir par une mise a jour', GARDE, "'remiseDuComptoirXof', 'dureeMin',\n                               'suggereLe', 'attenduJusquAu', 'cleDuNumero', 'placeLibereeLe', 'deplacements',\n                               'ouiNoteParLeComptoir'] loop", "'remiseDuComptoirXof', 'dureeMin',\n                               'suggereLe', 'attenduJusquAu', 'cleDuNumero', 'placeLibereeLe', 'deplacements'] loop"],
+  /* ── Jamais pendant la séance ; le oui du comptoir tient (0222, 18 novembre 2026) ── */
+  ['la place se libere pendant la seance', REGLE, '  if (debut === null || debut <= minuteDePortoNovo(maintenantMs)) return false;', '  if (debut === null) return false;'],
+  ['une place sans jour lisible se libere', REGLE, '  if (debut === null || debut <= minuteDePortoNovo(maintenantMs)) return false;', '  if (debut !== null && debut <= minuteDePortoNovo(maintenantMs)) return false;'],
+  ['l heure de Porto-Novo se lit en UTC', REGLE, 'export const minuteDePortoNovo = (ms: number): string => new Date(ms + 3_600_000).toISOString()', 'export const minuteDePortoNovo = (ms: number): string => new Date(ms).toISOString()'],
+  ['le oui du comptoir laisse la place se liberer', REGLE, '  if (!estEnAttente(a) || ouiDuComptoir(a) || !Number.isFinite(maintenantMs)) return false;', '  if (!estEnAttente(a) || !Number.isFinite(maintenantMs)) return false;'],
+  ['la base libere pendant la seance', SQL, "       and (a.data->>'date') || ' ' || (a.data->>'time') > ici\n", ''],
+  ['la base lit l heure en UTC', SQL, "  ici        text := to_char(now() at time zone 'Africa/Porto-Novo', 'YYYY-MM-DD HH24:MI');", "  ici        text := to_char(now() at time zone 'UTC', 'YYYY-MM-DD HH24:MI');"],
+  ['la base libere une place dont le comptoir a note le oui', SQL, "       and not (btrim(coalesce(a.data->>'confirmeeParLaClienteLe', '')) <> ''\n                and coalesce(a.data->'ouiNoteParLeComptoir' = 'true'::jsonb, false))\n", ''],
+  ['le Carnet promet une liberation qui n aura pas lieu', PUR, "  const jusqua = seLibere ? heureDeCotonouDite(a.attenduJusquAu) : '';", '  const jusqua = heureDeCotonouDite(a.attenduJusquAu);'],
 ];
 
 const fichiersDe = (x) => (Array.isArray(x) ? x : [x]);

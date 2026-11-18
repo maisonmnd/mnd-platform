@@ -100,8 +100,28 @@ export const DEPLACEMENTS_AU_PLUS = 2;
 export type MarquesDeLAttente = {
   status?: unknown; attenduJusquAu?: unknown; confirmeeParLaClienteLe?: unknown;
   depositXof?: unknown; depositConfirmed?: unknown; placeLibereeLe?: unknown; autreMomentDemandeLe?: unknown;
+  /** « Elle a dit oui », noté au comptoir (`noteSonOui`). */
+  ouiNoteParLeComptoir?: unknown;
+  /** Le jour et l'heure du rendez-vous, à Porto-Novo. */
+  date?: unknown; time?: unknown;
 };
 const marqueDite = (v: unknown): boolean => typeof v === 'string' && v.trim().length > 0;
+
+/** « AAAA-MM-JJ HH:MM » à Porto-Novo (UTC+1, sans heure d'été) : comme un
+    rendez-vous écrit son jour et son heure, et comme la base les compare. */
+export const minuteDePortoNovo = (ms: number): string => new Date(ms + 3_600_000).toISOString().slice(0, 16).replace('T', ' ');
+
+/** Le début du rendez-vous, « AAAA-MM-JJ HH:MM » ; `null` quand il ne se lit pas. */
+export function debutDuRendezVous(a: { date?: unknown; time?: unknown } | null | undefined): string | null {
+  const jour = typeof a?.date === 'string' ? a.date : '';
+  const heure = typeof a?.time === 'string' ? a.time : '';
+  return /^\d{4}-\d{2}-\d{2}$/.test(jour) && /^\d{2}:\d{2}$/.test(heure) ? `${jour} ${heure}` : null;
+}
+
+/** SON OUI NOTÉ AU COMPTOIR (« Elle a dit oui », 18 novembre 2026) : la
+    Maison tient la place. L'acompte reste attendu, la place ne se libère pas. */
+export const ouiDuComptoir = (a: MarquesDeLAttente | null | undefined): boolean =>
+  !!a && marqueDite(a.confirmeeParLaClienteLe) && a.ouiNoteParLeComptoir === true;
 
 /** L'acompte que porte le rendez-vous, en francs ; zéro quand il n'en porte pas. */
 export const acompteAttendu = (a: MarquesDeLAttente | null | undefined): number => {
@@ -120,9 +140,16 @@ export function estEnAttente(a: MarquesDeLAttente | null | undefined): boolean {
   return !!a && a.status === 'confirmé' && marqueDite(a.attenduJusquAu) && !estFerme(a);
 }
 
-/** L'échéance est passée sans que le rendez-vous soit ferme : la place se libère. */
+/** L'échéance est passée sans que le rendez-vous soit ferme : la place se
+    libère. JAMAIS une place dont l'heure est venue (18 novembre 2026) : prise à
+    13 h 30 pour 14 h, elle est au fauteuil quand ses deux heures passent. Seule
+    se libère une place dont le jour et l'heure, à Porto-Novo, sont encore à
+    venir ; un jour ou une heure qui ne se lisent pas la gardent. Ni une place
+    dont le comptoir a noté le oui (`ouiDuComptoir`). */
 export function placeALiberer(a: MarquesDeLAttente | null | undefined, maintenantMs: number): boolean {
-  if (!estEnAttente(a)) return false;
+  if (!estEnAttente(a) || ouiDuComptoir(a) || !Number.isFinite(maintenantMs)) return false;
+  const debut = debutDuRendezVous(a);
+  if (debut === null || debut <= minuteDePortoNovo(maintenantMs)) return false;
   const t = Date.parse(String(a?.attenduJusquAu));
   return Number.isFinite(t) && Number.isFinite(maintenantMs) && t <= maintenantMs;
 }
@@ -358,6 +385,24 @@ export function texteDuOui(o: { appel: string; quand: string; reference: string;
   return `C’est confirmé, ${o.appel} : ${o.quand}. Référence ${o.reference}.${o.lien ? ` Pour déplacer ou annuler : ${o.lien}` : ''}\nLa Maison vous attend.`;
 }
 
+/** « JE CONFIRME », ÉCRIT, POUR TOUTES SES PLACES (18 novembre 2026) : une
+    mère tient trois places (elle et ses deux enfants) et écrit « Je
+    confirme » ; toutes celles qui attendaient son oui se confirment, et la
+    phrase dit combien, et lesquelles, une ligne chacune. Une place dont
+    l'acompte reste dû le dit sur sa ligne. */
+export function texteDesOuis(o: {
+  appel: string;
+  places: readonly { quand: string; reference: string; lien: string; acompte?: string; jusqua?: string }[];
+}): string {
+  const NOMBRES = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six'];
+  const combien = NOMBRES[o.places.length] ?? String(o.places.length);
+  const toutes = o.places.every((p) => !p.acompte);
+  const lignes = o.places.map((p) => (p.acompte
+    ? `· ${p.quand} : il reste l’acompte de ${p.acompte}${p.lien ? ` (${p.lien})` : ''}${p.jusqua ? `, place tenue jusqu’à ${p.jusqua}` : ''}.`
+    : `· ${p.quand} : confirmé, référence ${p.reference}.${p.lien ? ` Pour déplacer ou annuler : ${p.lien}` : ''}`));
+  return `${toutes ? `C’est confirmé, ${o.appel} : vos ${combien} rendez-vous.` : `Merci ${o.appel}, votre oui est noté pour vos ${combien} rendez-vous.`}\n${lignes.join('\n')}\nLa Maison vous attend.`;
+}
+
 /** Son oui, avec un acompte : il reste à le régler, et jusqu'à quand. */
 export function texteDeLAcompte(o: { appel: string; quand: string; acompte: string; jusqua: string; lien: string }): string {
   return `Merci ${o.appel}. Il reste l’acompte de ${o.acompte} pour confirmer votre rendez-vous du ${o.quand}${o.lien ? ` : ${o.lien}` : '.'}\nVotre place est tenue jusqu’à ${o.jusqua}.`;
@@ -491,7 +536,7 @@ const confirmationEstNeuve = (
 /** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-18-a · le rendez-vous en attente : une place tenue depuis le site, tant qu’elle attend son oui ou son acompte, ne reçoit ni proposition ni confirmation ; elle les reçoit ferme · 2026-11-15-b · la proposition finit par « Cette date vous convient-elle ? », comme le modèle approuvé chez Meta · 2026-11-15-a · le rendez-vous suggéré : un rendez-vous posé « Suggéré par la Maison » reçoit la proposition (modèle proposition_rituel, WA_TEMPLATE_PROPOSITION, « Je confirme » et « Un autre moment ») à la place de la confirmation, une seule fois ; sans le modèle, rien ne part sur WhatsApp · 2026-11-11-a · ce qui va partir : une confirmation arrêtée d’avance, ou d’un modèle en pause, ne part pas ; le modèle à liens en pause, l’ancien part à sa place ; un message par foyer, qui nomme chaque tête ; un périmé retenu par Opale ne se redépose pas';
+const VERSION = '2026-11-18-b · la règle de l’attente recopiée du dépôt (une place dont l’heure est venue, ou dont le comptoir a noté le oui, ne se libère pas ; « Je confirme » écrit pour toutes ses places) ; le balayage ne change pas · 2026-11-18-a · le rendez-vous en attente : une place tenue depuis le site, tant qu’elle attend son oui ou son acompte, ne reçoit ni proposition ni confirmation ; elle les reçoit ferme · 2026-11-15-b · la proposition finit par « Cette date vous convient-elle ? », comme le modèle approuvé chez Meta · 2026-11-15-a · le rendez-vous suggéré : un rendez-vous posé « Suggéré par la Maison » reçoit la proposition (modèle proposition_rituel, WA_TEMPLATE_PROPOSITION, « Je confirme » et « Un autre moment ») à la place de la confirmation, une seule fois ; sans le modèle, rien ne part sur WhatsApp · 2026-11-11-a · ce qui va partir : une confirmation arrêtée d’avance, ou d’un modèle en pause, ne part pas ; le modèle à liens en pause, l’ancien part à sa place ; un message par foyer, qui nomme chaque tête ; un périmé retenu par Opale ne se redépose pas';
 
 /* LE LIEN DU RENDEZ-VOUS — 3 novembre 2026. Bloc RECOPIÉ tel quel de
    `src/shared/lien-du-rdv-pur.ts` (ses choix y sont écrits) ;

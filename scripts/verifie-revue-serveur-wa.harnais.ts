@@ -272,8 +272,9 @@ const appelsReseau = (src: string): string[] => {
   return out;
 };
 const racine = process.cwd();
-/* 17 novembre 2026 : un appel de plus dans le webhook, la porte du site (rendsALaPorteDuSite), borne a douze secondes. */
-for (const [n, f, combien] of [['n0', 'whatsapp-webhook', 10], ['n1', 'whatsapp-envoi', 6]] as const) {
+/* 17 novembre 2026 : un appel de plus dans le webhook, la porte du site (rendsALaPorteDuSite), borne a douze secondes.
+   18 novembre 2026 : un autre, le message de la place tenue non remis (ditLAttenteNonRemise), borne a douze secondes. */
+for (const [n, f, combien] of [['n0', 'whatsapp-webhook', 11], ['n1', 'whatsapp-envoi', 6]] as const) {
   const appels = appelsReseau(readFileSync(path.join(racine, `supabase/functions/${f}/index.ts`), 'utf8'));
   const nus = appels.filter((a) => !a.includes('signal: AbortSignal.timeout('));
   dit(`${n} chaque fetch de ${f} porte une borne de temps (${combien} appels)`, appels.length === combien && nus.length === 0,

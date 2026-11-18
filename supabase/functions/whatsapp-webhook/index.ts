@@ -127,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-18-a · la place tenue depuis le site : « Je confirme » et « Un autre moment » (le bouton, ou « Je confirme » écrit) sont rendus à la porte du site (demande-submit), qui confirme, dit l acompte ou rend la place ; le bouton de la paie (PAIE_RECU, PAIE_PASENCORE) reconnaît le numéro par sa clé ; 2026-11-15-a · le « Je confirme » et « Un autre moment » d une proposition (REPRISE_OK, REPRISE_AUTRE) reconnaissent le numero par sa cle : Meta livre 229 et huit chiffres, la fiche porte 229 01 ; 2026-11-11-a · les boutons de la paie (PAIE_RECU, PAIE_PASENCORE) s écrivent sur le registre des envois MTN, venus du seul numéro à qui le message est parti, sans automate ni sonnerie ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero : le message et l appel portent l adulte, le payeur, ou personne ; les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour ; la prochaine séance de l abonnée (PROCHAINE_OK, PROCHAINE_AUTRE) : « Oui, je réserve » pose la séance couverte par sa formule sous le verrou du serveur (reserver_une_seance_incluse_par_la_maison, 0198) et la confirme en une phrase, la ligne conf-<rdv>-whatsapp taisant le modèle de confirmation-rdv sauf si la phrase ne part pas ; une suite déjà posée ne se pose pas deux fois ; « Une autre date » passe la main à la conversation sans rien poser ; venus du seul numéro à qui le message est parti';
+const VERSION = '2026-11-18-b · le message de la place tenue que Meta dit non remis (« failed » sur sa ligne att-…) est rendu à la porte du site, qui confirme la place sans attente ; « Je confirme » écrit confirme toutes les places du numéro (à la porte du site) ; 2026-11-18-a · la place tenue depuis le site : « Je confirme » et « Un autre moment » (le bouton, ou « Je confirme » écrit) sont rendus à la porte du site (demande-submit), qui confirme, dit l acompte ou rend la place ; le bouton de la paie (PAIE_RECU, PAIE_PASENCORE) reconnaît le numéro par sa clé ; 2026-11-15-a · le « Je confirme » et « Un autre moment » d une proposition (REPRISE_OK, REPRISE_AUTRE) reconnaissent le numero par sa cle : Meta livre 229 et huit chiffres, la fiche porte 229 01 ; 2026-11-11-a · les boutons de la paie (PAIE_RECU, PAIE_PASENCORE) s écrivent sur le registre des envois MTN, venus du seul numéro à qui le message est parti, sans automate ni sonnerie ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero : le message et l appel portent l adulte, le payeur, ou personne ; les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour ; la prochaine séance de l abonnée (PROCHAINE_OK, PROCHAINE_AUTRE) : « Oui, je réserve » pose la séance couverte par sa formule sous le verrou du serveur (reserver_une_seance_incluse_par_la_maison, 0198) et la confirme en une phrase, la ligne conf-<rdv>-whatsapp taisant le modèle de confirmation-rdv sauf si la phrase ne part pas ; une suite déjà posée ne se pose pas deux fois ; « Une autre date » passe la main à la conversation sans rien poser ; venus du seul numéro à qui le message est parti';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -938,6 +938,29 @@ async function rendsALaPorteDuSite(
   } catch (e) {
     dis('attente · porte du site injoignable', { motif: String(e).slice(0, 120) });
     return { pris: false };
+  }
+}
+
+/** LE MESSAGE DE LA PLACE TENUE N'EST PAS ARRIVÉ — 18 novembre 2026. Meta dit
+    « failed » sur la ligne `att-<rdv>-whatsapp` (un numéro hors de WhatsApp,
+    par exemple) : elle ne peut pas répondre « Je confirme », et sa place
+    partirait au bout de deux heures. Le webhook le rend à la porte du site
+    (`{ attente: 'non-remis' }`, la clé service), qui confirme la place sans
+    attente si elle attend encore son oui, envoie l'ancienne confirmation et
+    prévient le comptoir. Ne lève jamais. */
+async function ditLAttenteNonRemise(urlBase: string, service: string, rdv: string): Promise<void> {
+  if (!urlBase || !service || !rdv) return;
+  try {
+    const r = await fetch(`${urlBase.replace(/\/+$/, '')}/functions/v1/demande-submit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${service}` },
+      body: JSON.stringify({ attente: 'non-remis', rdv }),
+      signal: AbortSignal.timeout(12_000),
+    });
+    const rep = await r.json().catch(() => ({})) as { pris?: unknown };
+    dis('attente · message non remis', { confirmee: r.ok && rep?.pris === true });
+  } catch (e) {
+    dis('attente · porte du site injoignable', { motif: String(e).slice(0, 120) });
   }
 }
 
@@ -3012,10 +3035,16 @@ Deno.serve(async (req) => {
      9 octobre 2026) : le numéro est rendu à l'automate (`apresCoup`), qui
      passe la main d'un parcours en cours et dit ce qui doit sonner. */
   const refusesApresCoup = new Set<string>();
+  /* Les places tenues depuis le site dont le message n'est pas arrivé. */
+  const attentesNonRemises = new Set<string>();
   for (const a of accuses) {
     const { data: lignes } = await sb.from('envois').select('id, data')
       .eq('data->>waMessageId', a.waId).limit(1);
     const ligne = (lignes ?? [])[0] as { id: string; data: Record<string, unknown> } | undefined;
+    if (ligne && a.etat === 'non-remis' && ligne.data.attente === true && /^att-rdv-/.test(ligne.id)
+      && typeof ligne.data.apptId === 'string' && ligne.id === `att-${ligne.data.apptId}-whatsapp`) {
+      attentesNonRemises.add(String(ligne.data.apptId));
+    }
     if (ligne) {
       await sb.from('envois').update({
         data: {
@@ -3061,6 +3090,15 @@ Deno.serve(async (req) => {
     if (fond) fond(rattrapage);
     else automateEnCours.push(rattrapage);
     dis('automate · refus apres coup confies', { combien: refusesApresCoup.size, enFond: !!fond });
+  }
+  /* LE MESSAGE DE LA PLACE TENUE N'EST PAS ARRIVÉ (18 novembre 2026) : la
+     place se confirme sans attente, à la porte du site. Après le journal : la
+     ligne `att-…` dit déjà « échec » quand la porte relit. */
+  if (attentesNonRemises.size > 0 && service && urlBase) {
+    const fond = tacheDeFond();
+    const rendues = (async () => { for (const rdv of attentesNonRemises) await ditLAttenteNonRemise(urlBase, service, rdv); })();
+    if (fond) fond(rendues);
+    else automateEnCours.push(rendues);
   }
 
   /* ── ⑥ LES REACTIONS QU ELLE POSE ──────────────────────────────────

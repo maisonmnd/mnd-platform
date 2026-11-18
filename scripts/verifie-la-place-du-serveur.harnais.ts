@@ -540,8 +540,11 @@ function jugeLaPorte(brut: string): string[] {
   const debutAttente = s.indexOf('async function modeleDeLAttenteOuvert(');
   const finAttente = s.indexOf('Deno.serve(');
   const blocAttente = debutAttente > 0 && finAttente > debutAttente ? s.slice(debutAttente, finAttente) : '';
+  /* 18 novembre 2026 : la place confirmée sans attente s'écrit sous condition, et « Je confirme » écrit
+     confirme chacune de SES places (la clé du numéro), par son identifiant, sous condition. */
   const LECTURES_DE_L_ATTENTE = [
-    /^from\('appointments'\)\.update\(\{ data: reste \}\)\.eq\('id', apptId\)$/,
+    /^from\('appointments'\)\.update\(\{ data: reste \}\) \.eq\('id', apptId\)\.eq\('updated_at', ligne\.updatedAt\)\.select\('id'\)$/,
+    /^from\('appointments'\)\.update\(\{ data: apres \}\) \.eq\('id', ligne\.id\)\.eq\('updated_at', ligne\.updatedAt\)\.select\('id'\)$/,
     /^from\('appointments'\)\.select\('id, branch_id, data, updated_at'\) \.eq\('data->>cleDuNumero', cle\)\.order\('updated_at', \{ ascending: false \}\)\.limit\(20\)$/,
     /^from\('appointments'\)\.update\(\{ data: apres \}\) \.eq\('id', apptId\)\.eq\('updated_at', ligne\.updatedAt\)\.select\('id'\)$/,
     /^from\('appointments'\)\.select\('data'\) \.eq\('data->>clientId', pour\)\.eq\('data->>status', 'honoré'\)\.limit\(PLAFOND_D_UNE_REPONSE\)$/,

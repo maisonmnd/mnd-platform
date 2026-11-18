@@ -14,6 +14,9 @@
 --
 -- POUR UNE ÉCRITURE DE CLIENTE (jamais le comptoir, jamais le serveur) :
 --   À LA CRÉATION
+--     · une ligne qui existe déjà n'est pas une création : la synchronisation
+--       écrit par « insérer, ou modifier si la ligne existe », et c'est la
+--       modification qui la garde (comme 0219) ;
 --     · « confirmé » retombe à « en attente » : la Maison regarde et confirme,
 --       comme avant le 29 septembre 2026. Aucun rendez-vous ne se perd ;
 --     · le prix figé, la remise (en francs, en pour cent, par ligne), l'offre
@@ -21,7 +24,8 @@
 --       dans la note (« Annoncé par son appareil : … »), le comptoir compte ;
 --     · la durée n'est jamais plus courte que celle du catalogue ;
 --     · les marques du serveur (`suggereLe`, `attenduJusquAu`, `cleDuNumero`,
---       `placeLibereeLe`, `deplacements`) ne se posent pas.
+--       `placeLibereeLe`, `deplacements`) et celle du comptoir
+--       (`ouiNoteParLeComptoir`, qui tient une place en ligne) ne se posent pas.
 --   À LA MODIFICATION
 --     · un rendez-vous ne se confirme pas lui-même ;
 --     · la remise, la durée et les marques du serveur retombent sur leur
@@ -43,6 +47,17 @@ begin
   end if;
 
   if tg_op = 'INSERT' then
+    -- LA LIGNE DÉJÀ LÀ (18 novembre 2026, comme 0219) : la synchronisation
+    -- écrit par « insérer, ou modifier si la ligne existe », et ce déclencheur
+    -- passe d'abord ici même pour une ligne qui existe (Ma Couronne repousse
+    -- le rendez-vous que le serveur vient de poser confirmé, ou qu'elle vient
+    -- de confirmer). Ce que cette branche écrirait passerait dans la
+    -- modification : un rendez-vous confirmé retomberait « en attente ». Elle
+    -- est laissée telle quelle ; la branche des modifications la garde ensuite.
+    if exists (select 1 from public.appointments a where a.id = new.id) then
+      return new;
+    end if;
+
     -- LE STATUT : une cliente ne se confirme pas ; la Maison regarde.
     if coalesce(new.data->>'status', '') = 'confirmé' then
       new.data := jsonb_set(new.data, '{status}', '"en attente"'::jsonb);
@@ -65,7 +80,8 @@ begin
     end if;
     foreach cle in array array['priceXof', 'discountXof', 'discountPct', 'remisesLignes', 'offreId',
                                'remiseFamille', 'remiseFamilleXof', 'remiseDuComptoirXof',
-                               'suggereLe', 'attenduJusquAu', 'cleDuNumero', 'placeLibereeLe', 'deplacements'] loop
+                               'suggereLe', 'attenduJusquAu', 'cleDuNumero', 'placeLibereeLe', 'deplacements',
+                               'ouiNoteParLeComptoir'] loop
       new.data := new.data - cle;
     end loop;
     if annonce <> '' then
@@ -87,7 +103,8 @@ begin
     -- La remise, la durée et les marques du serveur : la valeur d'AVANT.
     foreach cle in array array['discountXof', 'discountPct', 'remisesLignes', 'offreId',
                                'remiseFamille', 'remiseFamilleXof', 'remiseDuComptoirXof', 'dureeMin',
-                               'suggereLe', 'attenduJusquAu', 'cleDuNumero', 'placeLibereeLe', 'deplacements'] loop
+                               'suggereLe', 'attenduJusquAu', 'cleDuNumero', 'placeLibereeLe', 'deplacements',
+                               'ouiNoteParLeComptoir'] loop
       new.data := new.data - cle;
       if old.data ? cle then
         new.data := jsonb_set(new.data, array[cle], old.data -> cle);
@@ -111,7 +128,8 @@ create trigger garde_reservation_cliente_biu
 
 
 -- ── Contrôle ───────────────────────────────────────────────────────────────
--- Deux « oui » attendus.
+-- Trois « oui » attendus.
 select
   exists (select 1 from pg_trigger where tgname = 'garde_reservation_cliente_biu' and not tgisinternal) as garde_posee,
+  (select position('if exists (select 1 from public.appointments a where a.id = new.id) then' in pg_get_functiondef('public.garde_reservation_cliente()'::regprocedure)) > 0) as la_ligne_deja_la_se_garde,
   (select position('ecriture_de_la_maison()' in pg_get_functiondef('public.garde_reservation_cliente()'::regprocedure)) > 0) as la_maison_ecrit_comme_avant;

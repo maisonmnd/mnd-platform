@@ -24,7 +24,8 @@
 --   5. `libere_les_places_en_attente` et son cron, toutes les cinq minutes :
 --      une place dont l'échéance est passée sans son oui (ni son acompte)
 --      passe « annulé », `placeLibereeLe` le dit au Carnet, et le code d'une
---      offre qu'elle portait ne compte pas pour une fois.
+--      offre qu'elle portait ne compte pas pour une fois. Jamais une place
+--      dont l'heure est venue, ni une place dont le comptoir a noté le oui.
 --
 -- AVANT DE PASSER CE FICHIER : la base doit porter le `pose_si_libre` de 0213
 -- (pg_get_functiondef : « coalesce(p_rdv->>'poseePar', '') = 'Opale' »). Le
@@ -348,10 +349,20 @@ grant execute on function public.pose_si_libre(jsonb, text[], jsonb, jsonb) to s
 -- annulé (`annuleePar` reste vide), `placeLibereeLe` le dit au Carnet. Le code
 -- d'une offre qu'elle portait ne compte pas pour une fois (`codeApplique`
 -- retiré de sa demande). Rend le nombre de places libérées.
+-- La règle de `placeALiberer` (rendez-vous-en-attente-pur), au mot près :
+--   · JAMAIS UNE PLACE DONT L'HEURE EST VENUE : prise à 13 h 30 pour 14 h,
+--     elle est au fauteuil quand ses deux heures passent. Seule se libère une
+--     place dont le jour et l'heure, à Porto-Novo, sont encore à venir,
+--     comparés en texte (« AAAA-MM-JJ HH:MM ») : rien ne se convertit, rien
+--     ne peut lever d'erreur ; un jour ou une heure qui ne se lisent pas
+--     gardent la place ;
+--   · NI UNE PLACE DONT LE COMPTOIR A NOTÉ LE OUI (« Elle a dit oui »,
+--     `ouiNoteParLeComptoir`) : la Maison la tient, l'acompte reste attendu.
 create or replace function public.libere_les_places_en_attente() returns int
 language plpgsql volatile security definer set search_path = public as $$
 declare
   maintenant text := public.abo_iso(now());
+  ici        text := to_char(now() at time zone 'Africa/Porto-Novo', 'YYYY-MM-DD HH24:MI');
   r record;
   n int := 0;
 begin
@@ -361,6 +372,11 @@ begin
      where a.data ? 'attenduJusquAu'
        and public.rdv_en_attente(a.data)
        and a.data->>'attenduJusquAu' <= maintenant
+       and not (btrim(coalesce(a.data->>'confirmeeParLaClienteLe', '')) <> ''
+                and coalesce(a.data->'ouiNoteParLeComptoir' = 'true'::jsonb, false))
+       and coalesce(a.data->>'date', '') ~ '^\d{4}-\d{2}-\d{2}$'
+       and coalesce(a.data->>'time', '') ~ '^\d{2}:\d{2}$'
+       and (a.data->>'date') || ' ' || (a.data->>'time') > ici
      for update skip locked
   loop
     update public.appointments
@@ -381,16 +397,19 @@ revoke all on function public.libere_les_places_en_attente() from public, anon, 
 grant execute on function public.libere_les_places_en_attente() to service_role;
 
 -- Toutes les cinq minutes : une place se libère entre deux heures et deux
--- heures cinq après sa pose. Tant que la ligne n'est pas passée, la place
--- reste la sienne (un « Je confirme » de la dernière minute tient).
+-- heures cinq après sa pose, si son heure n'est pas encore venue. Tant que la
+-- ligne n'est pas passée, la place reste la sienne (un « Je confirme » de la
+-- dernière minute tient).
 select cron.unschedule(jobid) from cron.job where jobname = 'libere-les-places-en-attente';
 select cron.schedule('libere-les-places-en-attente', '*/5 * * * *',
   $$select public.libere_les_places_en_attente();$$);
 
 
 -- ── Contrôle ───────────────────────────────────────────────────────────────
--- Sept « oui » attendus, puis le cron.
+-- Neuf « oui » attendus, puis le cron.
 select
+  (select position('|| '' '' || (a.data->>''time'') > ici' in pg_get_functiondef('public.libere_les_places_en_attente()'::regprocedure)) > 0) as jamais_pendant_la_seance,
+  (select position('ouiNoteParLeComptoir' in pg_get_functiondef('public.libere_les_places_en_attente()'::regprocedure)) > 0) as le_oui_du_comptoir_tient,
   (select position('debut < 510' in pg_get_functiondef('public.pose_si_libre(jsonb, text[], jsonb, jsonb)'::regprocedure)) > 0) as pas_avant_08_30,
   (select position('coalesce(p_rdv->>''poseePar'', '''') = ''Opale''' in pg_get_functiondef('public.pose_si_libre(jsonb, text[], jsonb, jsonb)'::regprocedure)) > 0) as opale_le_jour_meme,
   (select position('hashtext(''pose-numero'')' in pg_get_functiondef('public.pose_si_libre(jsonb, text[], jsonb, jsonb)'::regprocedure)) > 0) as verrou_du_numero,

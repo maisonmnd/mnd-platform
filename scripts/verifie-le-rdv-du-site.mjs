@@ -85,7 +85,7 @@ export const PANNES = [
   ['le deplacement ne prend aucun frein par adresse', DS, "if (!(await allowRate(ip, 'rdv_deplacer', 10)))", "if (false)"],
   ['les places prennent le seau de la lecture', DS, "allowRate(ip, 'rdv_places', 30)", "allowRate(ip, 'rdv_lire', 30)"],
   ['un jeton forge deplace', DS, "  const apptId = await apptIdDuJeton(SECRET_DES_LIENS, body.v);\n  if (!apptId) return json({ ok: false, error: 'lien' });\n  if (!(await allowRate(apptId, 'rdv_deplacer_jeton', 8)))", "  const apptId = String(body.v ?? '').split('.')[0];\n  if (!apptId) return json({ ok: false, error: 'lien' });\n  if (!(await allowRate(apptId, 'rdv_deplacer_jeton', 8)))"],
-  ['la version de demande-submit ne monte pas', DS, "const VERSION = '2026-11-18-a ·", "const VERSION = '2026-11-06-a ·"],
+  ['la version de demande-submit ne monte pas', DS, "const VERSION = '2026-11-18-b ·", "const VERSION = '2026-11-06-a ·"],
   ['le cas deja-deplace ne dit plus rien de la confirmation', DS, "return json({ ok: true, verdict: 'deja', rdv: await rdvPourLaPage(apptId), confirmation: 'deja' });", "return json({ ok: true, verdict: 'deja', rdv: await rdvPourLaPage(apptId) });"],
   /* ── La fonction terminer-et-regler : regler ── */
   ['le billet ne dit plus si la porte d avance est ouverte', TER, "const billet = momentDuReglement(rdv, maintenantMs) === 'avance'", "const billet = false"],

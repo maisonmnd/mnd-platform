@@ -201,7 +201,12 @@
 //   · un dépôt en double ne rend la référence qu'à l'appareil qui l'a déposé ;
 //   · déplacer : deux fois au plus, sous le verrou des places (0223), et la
 //     remise d'un jour ne suit pas un autre jour ;
-//   · `{ attente: 'reponse' }` : le webhook rend ici le bouton touché ;
+//   · `{ attente: 'reponse' }` : le webhook rend ici le bouton touché, ou un
+//     « Je confirme » écrit, qui confirme toutes les places de ce numéro qui
+//     attendent son oui (18 novembre 2026) ;
+//   · `{ attente: 'non-remis' }` : le webhook rend ici l'accusé « failed » du
+//     message de l'attente ; la place se confirme sans attente, comme quand
+//     le message ne part pas (18 novembre 2026) ;
 //   · `{ couronne: 'reserver' }` : Ma Couronne ne pose plus son rendez-vous
 //     depuis le navigateur ; le statut, la durée, l'acompte et la remise des
 //     places se décident ici.
@@ -225,7 +230,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-18-a · la décoloration se réserve en ligne comme la coloration (son atelier, La Transformation) ; la clé du serveur comparée à temps constant (⟨cle-du-cron⟩) ; l’heure d’un rendez-vous déplacé tenue sur la grille ; le rituel GBÀTÀ™ (le défaisage) se réserve en ligne ; le rendez-vous en attente (la place tenue deux heures, « Je confirme » sur WhatsApp, l’acompte quand un geste en porte un ; tant que le modèle n’est pas approuvé, la place naît confirmée comme avant) ; un plafond par numéro et par adresse ; l’heure tenue sur la grille ; la durée au calibre annoncé ; les codes comptés par la clé du numéro ; déplacer deux fois au plus, sous le verrou des places ; Ma Couronne passe par le serveur ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous déplacé) : une page en cache ou un envoi direct ne passe plus ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
+const VERSION = '2026-11-18-b · Ma Couronne reconnaît la fiche que la Maison a inscrite avant son compte (la règle d’est_ma_tete : la fiche qui porte son compte, le payeur désigné par sa fiche) ; « Je confirme » écrit confirme toutes les places de ce numéro qui attendent son oui, et la réponse les dit ; un message de l’attente qui ne part pas (échec, plafond) ou que Meta dit non remis confirme la place sans attente, comme un refus du modèle ; 2026-11-18-a · la décoloration se réserve en ligne comme la coloration (son atelier, La Transformation) ; la clé du serveur comparée à temps constant (⟨cle-du-cron⟩) ; l’heure d’un rendez-vous déplacé tenue sur la grille ; le rituel GBÀTÀ™ (le défaisage) se réserve en ligne ; le rendez-vous en attente (la place tenue deux heures, « Je confirme » sur WhatsApp, l’acompte quand un geste en porte un ; tant que le modèle n’est pas approuvé, la place naît confirmée comme avant) ; un plafond par numéro et par adresse ; l’heure tenue sur la grille ; la durée au calibre annoncé ; les codes comptés par la clé du numéro ; déplacer deux fois au plus, sous le verrou des places ; Ma Couronne passe par le serveur ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous déplacé) : une page en cache ou un envoi direct ne passe plus ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
 
 /** LE SECOND FAUTEUIL, PAS DAVANTAGE (2 novembre 2026, 0152) : la copie de
     `PLACES_EN_LIGNE_AU_PLUS` (src/shared/agenda-pur.ts), hors des repères. */
@@ -382,8 +387,28 @@ export const DEPLACEMENTS_AU_PLUS = 2;
 export type MarquesDeLAttente = {
   status?: unknown; attenduJusquAu?: unknown; confirmeeParLaClienteLe?: unknown;
   depositXof?: unknown; depositConfirmed?: unknown; placeLibereeLe?: unknown; autreMomentDemandeLe?: unknown;
+  /** « Elle a dit oui », noté au comptoir (`noteSonOui`). */
+  ouiNoteParLeComptoir?: unknown;
+  /** Le jour et l'heure du rendez-vous, à Porto-Novo. */
+  date?: unknown; time?: unknown;
 };
 const marqueDite = (v: unknown): boolean => typeof v === 'string' && v.trim().length > 0;
+
+/** « AAAA-MM-JJ HH:MM » à Porto-Novo (UTC+1, sans heure d'été) : comme un
+    rendez-vous écrit son jour et son heure, et comme la base les compare. */
+export const minuteDePortoNovo = (ms: number): string => new Date(ms + 3_600_000).toISOString().slice(0, 16).replace('T', ' ');
+
+/** Le début du rendez-vous, « AAAA-MM-JJ HH:MM » ; `null` quand il ne se lit pas. */
+export function debutDuRendezVous(a: { date?: unknown; time?: unknown } | null | undefined): string | null {
+  const jour = typeof a?.date === 'string' ? a.date : '';
+  const heure = typeof a?.time === 'string' ? a.time : '';
+  return /^\d{4}-\d{2}-\d{2}$/.test(jour) && /^\d{2}:\d{2}$/.test(heure) ? `${jour} ${heure}` : null;
+}
+
+/** SON OUI NOTÉ AU COMPTOIR (« Elle a dit oui », 18 novembre 2026) : la
+    Maison tient la place. L'acompte reste attendu, la place ne se libère pas. */
+export const ouiDuComptoir = (a: MarquesDeLAttente | null | undefined): boolean =>
+  !!a && marqueDite(a.confirmeeParLaClienteLe) && a.ouiNoteParLeComptoir === true;
 
 /** L'acompte que porte le rendez-vous, en francs ; zéro quand il n'en porte pas. */
 export const acompteAttendu = (a: MarquesDeLAttente | null | undefined): number => {
@@ -402,9 +427,16 @@ export function estEnAttente(a: MarquesDeLAttente | null | undefined): boolean {
   return !!a && a.status === 'confirmé' && marqueDite(a.attenduJusquAu) && !estFerme(a);
 }
 
-/** L'échéance est passée sans que le rendez-vous soit ferme : la place se libère. */
+/** L'échéance est passée sans que le rendez-vous soit ferme : la place se
+    libère. JAMAIS une place dont l'heure est venue (18 novembre 2026) : prise à
+    13 h 30 pour 14 h, elle est au fauteuil quand ses deux heures passent. Seule
+    se libère une place dont le jour et l'heure, à Porto-Novo, sont encore à
+    venir ; un jour ou une heure qui ne se lisent pas la gardent. Ni une place
+    dont le comptoir a noté le oui (`ouiDuComptoir`). */
 export function placeALiberer(a: MarquesDeLAttente | null | undefined, maintenantMs: number): boolean {
-  if (!estEnAttente(a)) return false;
+  if (!estEnAttente(a) || ouiDuComptoir(a) || !Number.isFinite(maintenantMs)) return false;
+  const debut = debutDuRendezVous(a);
+  if (debut === null || debut <= minuteDePortoNovo(maintenantMs)) return false;
   const t = Date.parse(String(a?.attenduJusquAu));
   return Number.isFinite(t) && Number.isFinite(maintenantMs) && t <= maintenantMs;
 }
@@ -638,6 +670,24 @@ export function composantsDeLAttente(o: { appel: string; quand: string; gestes: 
 /** Son oui, sans acompte : c'est confirmé, avec sa référence et le lien de son rendez-vous. */
 export function texteDuOui(o: { appel: string; quand: string; reference: string; lien: string }): string {
   return `C’est confirmé, ${o.appel} : ${o.quand}. Référence ${o.reference}.${o.lien ? ` Pour déplacer ou annuler : ${o.lien}` : ''}\nLa Maison vous attend.`;
+}
+
+/** « JE CONFIRME », ÉCRIT, POUR TOUTES SES PLACES (18 novembre 2026) : une
+    mère tient trois places (elle et ses deux enfants) et écrit « Je
+    confirme » ; toutes celles qui attendaient son oui se confirment, et la
+    phrase dit combien, et lesquelles, une ligne chacune. Une place dont
+    l'acompte reste dû le dit sur sa ligne. */
+export function texteDesOuis(o: {
+  appel: string;
+  places: readonly { quand: string; reference: string; lien: string; acompte?: string; jusqua?: string }[];
+}): string {
+  const NOMBRES = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six'];
+  const combien = NOMBRES[o.places.length] ?? String(o.places.length);
+  const toutes = o.places.every((p) => !p.acompte);
+  const lignes = o.places.map((p) => (p.acompte
+    ? `· ${p.quand} : il reste l’acompte de ${p.acompte}${p.lien ? ` (${p.lien})` : ''}${p.jusqua ? `, place tenue jusqu’à ${p.jusqua}` : ''}.`
+    : `· ${p.quand} : confirmé, référence ${p.reference}.${p.lien ? ` Pour déplacer ou annuler : ${p.lien}` : ''}`));
+  return `${toutes ? `C’est confirmé, ${o.appel} : vos ${combien} rendez-vous.` : `Merci ${o.appel}, votre oui est noté pour vos ${combien} rendez-vous.`}\n${lignes.join('\n')}\nLa Maison vous attend.`;
 }
 
 /** Son oui, avec un acompte : il reste à le régler, et jusqu'à quand. */
@@ -3833,16 +3883,66 @@ async function envoieLAttente(o: {
   return statut !== 'envoyé' && refusDuModele(codeMeta) ? 'refus-du-modele' : statut;
 }
 
-/** META REFUSE LE MODÈLE DE L'ATTENTE : la place se confirme dans la seconde,
-    comme avant le 17 novembre 2026 (ses marques d'attente tombent, l'acompte
-    demandé avec elles : le comptoir fait comme il a toujours fait). On ne perd
-    pas un rendez-vous pour un modèle. */
-async function confirmeSansAttente(apptId: string): Promise<void> {
+/** LE MESSAGE DE L'ATTENTE NE PART PAS, OU N'ARRIVE PAS : la place se
+    confirme dans la seconde, comme avant le 17 novembre 2026 (ses marques
+    d'attente tombent, l'acompte demandé avec elles : le comptoir fait comme il
+    a toujours fait). Meta refuse le modèle, l'envoi échoue, le plafond des
+    modèles est atteint, ou Meta dit plus tard le message non remis (un numéro
+    hors de WhatsApp) : elle ne peut pas répondre « Je confirme », et sa place
+    ne se perd pas pour un message (18 novembre 2026). Seule une place qui
+    attend encore son oui se confirme ici : un oui déjà donné, une place rendue
+    ou libérée ne bougent pas. Écrite sous condition (`updated_at`), trois
+    essais au plus. Vrai : la place est confirmée par cet appel. */
+async function confirmeSansAttente(apptId: string): Promise<boolean> {
+  for (let essai = 0; essai < 3; essai += 1) {
+    const ligne = await leRdvDuSite(apptId).catch(() => null);
+    if (!ligne || etatDeLAttente(ligne.data) !== 'sans-reponse') return false;
+    const { suggereLe: _pose, attenduJusquAu: _echeance, depositXof: _acompte, ...reste } = ligne.data;
+    const { data: ecrit, error } = await admin.from('appointments').update({ data: reste })
+      .eq('id', apptId).eq('updated_at', ligne.updatedAt).select('id');
+    if (error) { console.error('demande-submit: la place n a pas pu se confirmer sans attente', error.message); return false; }
+    if (Array.isArray(ecrit) && ecrit.length > 0) return true;
+  }
+  return false;
+}
+
+/** L'ENVOI DE L'ATTENTE EST-IL PARTI ? `envoyé` : elle peut répondre.
+    `en-cours` : on ne le sait pas encore (la suite le dira). Tout le reste
+    (refus du modèle, échec, plafond, sans numéro) : rien n'est parti. */
+const attenteNonPartie = (partie: string): boolean => partie !== 'envoyé' && partie !== 'en-cours';
+
+/** La place confirmée sans attente reçoit l'ancienne confirmation, comme
+    avant ce jour : de sa demande, son prénom, sa civilité et son numéro. */
+async function confirmeCommeAvant(apptId: string): Promise<string> {
   const ligne = await leRdvDuSite(apptId).catch(() => null);
-  if (!ligne) return;
-  const { suggereLe: _pose, attenduJusquAu: _echeance, depositXof: _acompte, ...reste } = ligne.data;
-  const { error } = await admin.from('appointments').update({ data: reste }).eq('id', apptId);
-  if (error) console.error('demande-submit: la place n a pas pu se confirmer sans attente', error.message);
+  if (!ligne) return 'échec';
+  const { data: dems } = await admin.from('demandes').select('id, data').eq('data->>apptId', apptId).limit(1);
+  const dem = ((dems ?? []) as { id: string; data?: { prenom?: unknown; telephone?: unknown; civilite?: unknown } }[])[0];
+  const telephone = String(dem?.data?.telephone ?? '');
+  if (!dem || !telephone) return 'sans-numero';
+  const civilite = String(dem.data?.civilite ?? '');
+  const date = String(ligne.data.date ?? '');
+  const time = String(ligne.data.time ?? '');
+  return envoieLAccuse({
+    apptId, demandeId: dem.id, branchId: ligne.branchId, prenom: String(dem.data?.prenom ?? ''), telephone,
+    ...(civilite ? { civilite } : {}), avecPlace: true, quand: `${jourEnClair(date)} à ${heureLisible(time)}`, date, time,
+  }).catch((e) => { console.error('demande-submit: accusé', String(e)); return 'échec'; });
+}
+
+/** { attente: 'non-remis', rdv } : META DIT LE MESSAGE DE L'ATTENTE NON REMIS
+    (le webhook, la clé service seule). La place qui attend encore son oui se
+    confirme sans attente, l'ancienne confirmation part, et le comptoir le
+    sait : elle n'a rien reçu. `pris: false` : rien à faire (pas une place en
+    attente, ou elle a déjà répondu). */
+async function attenteNonRemise(req: Request, body: Record<string, unknown>): Promise<Response> {
+  if (!appelDuServeur(req)) return json({ error: 'reserve' }, 401);
+  const apptId = typeof body.rdv === 'string' && /^rdv-[A-Za-z0-9_-]{6,80}$/.test(body.rdv) ? body.rdv : '';
+  if (!apptId || !(await confirmeSansAttente(apptId))) return json({ pris: false });
+  const accuse = await confirmeCommeAvant(apptId);
+  const ligne = await leRdvDuSite(apptId).catch(() => null);
+  const quand = ligne ? `${jourEnClair(String(ligne.data.date))} à ${heureLisible(String(ligne.data.time))}` : '';
+  await auPlus(alerteLePersonnel('Réservé depuis le site', `${String(ligne?.data?.clientName ?? '') || 'Une visiteuse'}${quand ? ` · ${quand}` : ''} · son WhatsApp n’a pas reçu le message : la place est confirmée, appelez-la`, '/trone/#/calendrier').catch(() => 0), 1500, 0);
+  return json({ pris: true, etat: 'confirme', accuse });
 }
 
 /** UNE PHRASE SUR WHATSAPP, dans la fenêtre qu'elle vient d'ouvrir en
@@ -3922,11 +4022,14 @@ const appelDuServeur = (req: Request): boolean => {
   return false;
 };
 
-/** SA PLACE EN ATTENTE, quand elle écrit « Je confirme » au lieu de toucher le
-    bouton : la référence qu'elle cite, sinon la seule place qu'elle tient sans
-    l'avoir confirmée, sinon la seule qui s'est libérée depuis moins d'un jour
-    (pour le lui dire). Plusieurs : personne ne devine, la Maison regarde. */
-async function sonAttente(cle: string, texteRecu: string): Promise<RdvDuSite | null> {
+/** SES PLACES EN ATTENTE, quand elle écrit « Je confirme » au lieu de toucher
+    le bouton : la référence qu'elle cite (cette place-là, seule) ; sinon
+    TOUTES les places qu'elle tient sans les avoir confirmées (18 novembre
+    2026 : une mère tient trois places, elle et ses deux enfants, et écrit
+    « Je confirme » ; avant ce jour, personne ne devinait laquelle et les
+    trois se libéraient) ; sinon la seule qui s'est libérée depuis moins d'un
+    jour (pour le lui dire). Aucune : le webhook garde la main. */
+async function sesAttentes(cle: string, texteRecu: string): Promise<RdvDuSite[]> {
   const { data, error } = await admin.from('appointments').select('id, branch_id, data, updated_at')
     .eq('data->>cleDuNumero', cle).order('updated_at', { ascending: false }).limit(20);
   if (error) throw new Error(error.message);
@@ -3936,14 +4039,95 @@ async function sonAttente(cle: string, texteRecu: string): Promise<RdvDuSite | n
   const reference = /MND-[A-Z2-9]{4}/.exec(texteRecu.toUpperCase())?.[0];
   if (reference) {
     const citee = lignes.find((x) => referenceDuRendezVous(x.id) === reference);
-    if (citee) return citee;
+    if (citee) return [citee];
   }
-  const tenues = lignes.filter((x) => etatDeLAttente(x.data) === 'sans-reponse');
-  if (tenues.length === 1) return tenues[0];
-  if (tenues.length > 1) return null;
+  const tenues = lignes.filter((x) => etatDeLAttente(x.data) === 'sans-reponse')
+    .sort((x, y) => `${x.data.date} ${x.data.time}`.localeCompare(`${y.data.date} ${y.data.time}`));
+  if (tenues.length > 0) return tenues;
   const hier = Date.now() - 86_400_000;
   const liberees = lignes.filter((x) => etatDeLAttente(x.data) === 'liberee' && Date.parse(String(x.data.placeLibereeLe)) > hier);
-  return liberees.length === 1 ? liberees[0] : null;
+  return liberees.length === 1 ? [liberees[0]] : [];
+}
+
+/** LA CONFIRMATION EST DITE : sa ligne `conf-<rdv>-whatsapp` l'inscrit, le
+    balayage de confirmation-rdv ne la redira pas. Un échec s'écrit « échec »,
+    qu'il retente avec le modèle quand la fiche est rattachée, comme les siens. */
+async function inscritLaConfirmation(ligne: RdvDuSite, o: { numero: string; appel: string; quand: string; statut: string; waId: string }): Promise<void> {
+  const a = ligne.data;
+  const apptId = ligne.id;
+  const idConf = `conf-${apptId}-whatsapp`;
+  await admin.from('envois').upsert({
+    id: idConf, branch_id: ligne.branchId || null,
+    data: {
+      id: idConf, ...(ligne.branchId ? { branchId: ligne.branchId } : {}), type: 'confirmation', canal: 'whatsapp', apptId,
+      ...(a.clientId ? { clientId: String(a.clientId) } : {}), prenom: o.appel, numero: `+${o.numero}`, dateRdv: String(a.date), heure: String(a.time),
+      moment: o.quand, statut: o.statut === 'envoyé' ? 'envoyé' : 'échec',
+      detail: 'la confirmation, dite après son « Je confirme »', ...(o.waId ? { waMessageId: o.waId } : {}),
+      reference: referenceDuRendezVous(apptId), quand: new Date().toISOString(),
+    },
+  }, { onConflict: 'id' });
+}
+
+/** « JE CONFIRME », ÉCRIT, POUR PLUSIEURS PLACES (18 novembre 2026) : chacune
+    de celles qui attendaient son oui le reçoit, sous condition (`updated_at`),
+    trois essais au plus ; une place qui a bougé entre-temps (rendue, libérée,
+    confirmée par son bouton) reste comme elle est. UNE phrase les dit toutes :
+    combien, et lesquelles. Le bouton touché, lui, reste lié à SA place. */
+async function confirmeSesPlaces(numero: string, places: RdvDuSite[]): Promise<Response> {
+  const ms = Date.now();
+  const ditesOui: { ligne: RdvDuSite; apres: Record<string, unknown> }[] = [];
+  for (const place of places) {
+    let ligne: RdvDuSite | null = place;
+    for (let essai = 0; essai < 3 && ligne; essai += 1) {
+      const a = ligne.data;
+      if (etatDeLAttente(a) !== 'sans-reponse') break;
+      const { autreMomentDemandeLe: _autre, ...sansAutre } = a;
+      const apres = { ...sansAutre, ...marquesDuOui(a, ms) };
+      const { data: ecrit, error: errEcrit } = await admin.from('appointments').update({ data: apres })
+        .eq('id', ligne.id).eq('updated_at', ligne.updatedAt).select('id');
+      if (errEcrit) { console.error('demande-submit: oui non ecrit', errEcrit.message); break; }
+      if (Array.isArray(ecrit) && ecrit.length > 0) { ditesOui.push({ ligne, apres }); break; }
+      ligne = await leRdvDuSite(ligne.id).catch(() => null);
+    }
+  }
+  if (ditesOui.length === 0) return json({ pris: false, error: 'modifie' });
+
+  const premiere = ditesOui[0].ligne;
+  const { appel } = await coordonneesPourLeDeplacement(premiere.data, premiere.id).catch(() => ({ appel: '', numero: '' }));
+  const lues = await Promise.all(ditesOui.map(async ({ ligne, apres }) => {
+    const jeton = SECRET_DES_LIENS ? await jetonDuRendezVous(SECRET_DES_LIENS, ligne.id).catch(() => '') : '';
+    return {
+      ligne, apres, ferme: estFerme(apres),
+      quand: `${jourEnClair(String(apres.date))} à ${heureLisible(String(apres.time))}`,
+      lien: jeton ? `${URL_DU_RDV}${jeton}` : '',
+    };
+  }));
+  const toutes = lues.every((p) => p.ferme);
+  const texteDit = lues.length === 1
+    ? (lues[0].ferme
+      ? texteDuOui({ appel, quand: lues[0].quand, reference: referenceDuRendezVous(lues[0].ligne.id), lien: lues[0].lien })
+      : texteDeLAcompte({ appel, quand: lues[0].quand, acompte: francsDits(acompteAttendu(lues[0].apres)), jusqua: heureDeCotonouDite(lues[0].apres.attenduJusquAu), lien: lues[0].lien }))
+    : texteDesOuis({
+      appel,
+      places: lues.map((p) => ({
+        quand: p.quand, reference: referenceDuRendezVous(p.ligne.id), lien: p.lien,
+        ...(p.ferme ? {} : { acompte: francsDits(acompteAttendu(p.apres)), jusqua: heureDeCotonouDite(p.apres.attenduJusquAu) }),
+      })),
+    });
+  const dit = await ditSurWhatsApp({
+    numero, texte: texteDit, branchId: premiere.branchId, clientId: String(premiere.data.clientId ?? ''), auto: toutes ? 'attente-ok' : 'attente-acompte',
+  });
+  for (const p of lues) {
+    if (!p.ferme) continue;
+    await inscritLaConfirmation(p.ligne, { numero, appel, quand: p.quand, statut: dit.statut, waId: dit.waId });
+    enTacheDeFond(previensLaMarraineDuRdv(p.ligne.id, p.ligne.branchId).catch((e) => console.error('demande-submit: marraine', String(e))));
+  }
+  await auPlus(alerteLePersonnel(
+    toutes ? 'Confirmé par la cliente' : 'Elle a dit oui, acompte attendu',
+    `${appel || 'Une cliente'} · ${lues.map((p) => p.quand).join(', ')} · ${lues.length > 1 ? `${lues.length} rendez-vous réservés` : 'réservé'} depuis le site`,
+    '/trone/#/calendrier',
+  ).catch(() => 0), 1500, 0);
+  return json({ pris: true, etat: toutes ? 'ferme' : 'acompte', places: lues.length });
 }
 
 /** La marraine d'une amie n'est prévenue que d'une place FERME : au oui de
@@ -3963,7 +4147,8 @@ async function previensLaMarraineDuRdv(apptId: string, branchId: string): Promis
 /** { attente: 'reponse', rdv?, geste, numero, texte? } : CE QUE SA RÉPONSE FAIT.
     Le webhook rend ici le bouton touché sous le message de la place tenue
     (REPRISE_OK, REPRISE_AUTRE, avec le rendez-vous), ou un « Je confirme »
-    écrit (sans rendez-vous : on cherche le sien). La clé service seule.
+    écrit (sans rendez-vous : on cherche les siens, et toutes les places qui
+    attendent son oui se confirment, `confirmeSesPlaces`). La clé service seule.
     `pris: false` : ce n'est pas une place en attente, le webhook garde la main.
 
     SEUL SON NUMÉRO RÉPOND : celui qui a pris la place, comparé par sa clé.
@@ -3983,10 +4168,16 @@ async function reponseALAttente(req: Request, body: Record<string, unknown>): Pr
   const cle = cleDuNumero(numero);
   if (!cle) return json({ pris: false });
   const geste = body.geste === 'autre' ? 'autre' : 'ok';
+  /* Le bouton touché porte SA place ; « Je confirme » écrit les cherche toutes. */
+  let rdvId = typeof body.rdv === 'string' ? body.rdv : '';
+  if (!rdvId) {
+    const siennes = await sesAttentes(cle, String(body.texte ?? ''));
+    if (siennes.length === 0) return json({ pris: false });
+    if (siennes.length > 1) return geste === 'ok' ? await confirmeSesPlaces(numero, siennes) : json({ pris: false });
+    rdvId = siennes[0].id;
+  }
   for (let essai = 0; essai < 3; essai += 1) {
-    const ligne = typeof body.rdv === 'string' && body.rdv
-      ? await leRdvDuSite(body.rdv)
-      : await sonAttente(cle, String(body.texte ?? ''));
+    const ligne = await leRdvDuSite(rdvId);
     if (!ligne) return json({ pris: false });
     const a = ligne.data;
     /* Pas née en attente (une vraie suggestion de la Maison) : le webhook fait comme avant. */
@@ -4062,20 +4253,7 @@ async function reponseALAttente(req: Request, body: Record<string, unknown>): Pr
     }
     const reference = referenceDuRendezVous(apptId);
     const dit = await dis(texteDuOui({ appel, quand, reference, lien: lienDuRdv }), 'attente-ok');
-    /* LA CONFIRMATION EST DITE : sa ligne l'inscrit, le balayage de
-       confirmation-rdv ne la redira pas. Un échec s'écrit « échec », qu'il
-       retente avec le modèle quand la fiche est rattachée, comme les siens. */
-    const idConf = `conf-${apptId}-whatsapp`;
-    await admin.from('envois').upsert({
-      id: idConf, branch_id: ligne.branchId || null,
-      data: {
-        id: idConf, ...(ligne.branchId ? { branchId: ligne.branchId } : {}), type: 'confirmation', canal: 'whatsapp', apptId,
-        ...(a.clientId ? { clientId: String(a.clientId) } : {}), prenom: appel, numero: `+${numero}`, dateRdv: String(a.date), heure: String(a.time),
-        moment: quand, statut: dit.statut === 'envoyé' ? 'envoyé' : 'échec',
-        detail: 'la confirmation, dite après son « Je confirme »', ...(dit.waId ? { waMessageId: dit.waId } : {}),
-        reference, quand: new Date().toISOString(),
-      },
-    }, { onConflict: 'id' });
+    await inscritLaConfirmation(ligne, { numero, appel, quand, statut: dit.statut, waId: dit.waId });
     enTacheDeFond(previensLaMarraineDuRdv(apptId, ligne.branchId).catch((e) => console.error('demande-submit: marraine', String(e))));
     await auPlus(alerteLePersonnel('Confirmé par la cliente', `${appel || 'Une cliente'} · ${quand} · réservé depuis le site`, '/trone/#/calendrier').catch(() => 0), 1500, 0);
     return json({ pris: true, etat: 'ferme' });
@@ -4087,8 +4265,9 @@ async function reponseALAttente(req: Request, body: Record<string, unknown>): Pr
    `{ couronne: 'reserver', data }`, avec la session de la cliente. Ma Couronne
    ne pose plus son rendez-vous elle-même. Elle n'envoie plus que ce qu'elle VEUT (la tête, les
    gestes, les séances, le maître souhaité) ; ICI se décident :
-     · LA TÊTE : la sienne, ou un mineur de sa famille dont elle est le parent
-       payeur (la règle d'`est_ma_tete`, 0036) ;
+     · LA TÊTE : la sienne (son compte, ou la fiche adoptée qui le porte), ou
+       un mineur de sa famille dont elle est le parent payeur (la règle
+       d'`est_ma_tete`, 0076) ;
      · LA DURÉE : celle du catalogue, à la longueur et au calibre de SA fiche
        (`gestesAuCalibre`). Ce que l'écran a compté ne l'allonge que jusqu'au
        double, jamais ne la raccourcit ;
@@ -4136,14 +4315,27 @@ async function reserveDepuisLaCouronne(req: Request, ip: string, body: Record<st
   const { data: ficheLue, error: errFiche } = await admin.from('clients').select('id, branch_id, data').eq('id', pour).maybeSingle();
   if (errFiche) { console.error('demande-submit: fiche de la couronne illisible', errFiche.message); return json({ ok: false, error: 'agenda_illisible' }, 503); }
   const fiche = ((ficheLue?.data ?? null) as Record<string, any> | null);
-  if (pour !== uid) {
-    /* UN ENFANT DE SA FAMILLE, mineur, dont elle est le parent payeur : rien d'autre. */
+  /* SA FICHE, LA RÈGLE D'`est_ma_tete` (0076), 18 novembre 2026 : l'identifiant
+     de son compte, OU la fiche qui porte son compte (`authUserId`). La Maison
+     inscrit ses clientes bien avant leur compte : la fiche adoptée garde son
+     identifiant, et Ma Couronne envoie celui-là (`useClientId`). */
+  const laSienne = pour === uid || (!!fiche && String(fiche.authUserId ?? '') === uid);
+  if (!laSienne) {
+    /* UN ENFANT DE SA FAMILLE, mineur, dont elle est le parent payeur : par
+       l'identifiant de son compte, ou par la fiche qui porte son compte. Rien d'autre. */
     const { data: famille } = fiche?.familyId
       ? await admin.from('families').select('data').eq('id', String(fiche.familyId)).maybeSingle()
       : { data: null };
     const naissance = Date.parse(String(fiche?.birthday ?? ''));
     const mineur = Number.isFinite(naissance) && naissance > Date.now() - 18 * 365.25 * 86_400_000;
-    if (!fiche || fiche.archived === true || !mineur || String((famille as { data?: { payerClientId?: string } } | null)?.data?.payerClientId ?? '') !== uid) {
+    const payeur = String((famille as { data?: { payerClientId?: string } } | null)?.data?.payerClientId ?? '');
+    let payeParElle = payeur !== '' && payeur === uid;
+    if (!payeParElle && payeur !== '' && fiche && fiche.archived !== true && mineur) {
+      const { data: ficheDuPayeur, error: errPayeur } = await admin.from('clients').select('data').eq('id', payeur).maybeSingle();
+      if (errPayeur) { console.error('demande-submit: fiche du payeur illisible', errPayeur.message); return json({ ok: false, error: 'agenda_illisible' }, 503); }
+      payeParElle = String((ficheDuPayeur?.data as { authUserId?: unknown } | null | undefined)?.authUserId ?? '') === uid;
+    }
+    if (!fiche || fiche.archived === true || !mineur || !payeParElle) {
       return json({ ok: false, error: 'tete' }, 403);
     }
   }
@@ -4343,6 +4535,16 @@ Deno.serve(async (req) => {
       return await reponseALAttente(req, body);
     } catch (e) {
       console.error('demande-submit: reponse a l attente', String((e as Error)?.message ?? e).slice(0, 200));
+      return json({ pris: false, error: 'panne' }, 500);
+    }
+  }
+  /* LE MESSAGE DE L'ATTENTE NON REMIS — 18 novembre 2026 : le webhook rend ici
+     l'accusé « failed » de Meta. La clé service seule, sans seau. */
+  if (body.attente === 'non-remis') {
+    try {
+      return await attenteNonRemise(req, body);
+    } catch (e) {
+      console.error('demande-submit: attente non remise', String((e as Error)?.message ?? e).slice(0, 200));
       return json({ pris: false, error: 'panne' }, 500);
     }
   }
@@ -4790,25 +4992,38 @@ Deno.serve(async (req) => {
   }).catch((e) => { console.error('demande-submit: accusé', String(e)); return 'échec'; });
   /* LA PLACE EN ATTENTE REÇOIT SA DEMANDE DE CONFIRMATION — 17 novembre 2026 :
      le modèle de l'attente et ses deux boutons, à la place de « c'est
-     confirmé ». On l'attend six secondes : si Meta REFUSE LE MODÈLE (il n'est
-     plus approuvé, il a changé), la place se confirme dans la seconde et
-     l'ancienne confirmation part, comme avant ce jour. Tout autre échec
-     laisse la place en attente : la page dit comment confirmer. */
+     confirmé ». On l'attend six secondes. UN MESSAGE QUI NE PART PAS NE LAISSE
+     PAS LA PLACE EN ATTENTE (18 novembre 2026) : Meta refuse le modèle,
+     l'envoi échoue (un numéro hors de WhatsApp), le plafond des modèles est
+     atteint ; elle ne pourrait pas répondre « Je confirme » et sa place
+     partirait au bout de deux heures. La place se confirme dans la seconde et
+     l'ancienne confirmation part, comme avant ce jour. Un envoi qui dépasse
+     les six secondes est suivi jusqu'au bout, en tâche de fond ; un message
+     que Meta dit plus tard non remis passe par le webhook (`non-remis`). */
   let enAttente = !!apptId && !dejaPosee && !!attenduJusquAu;
   let accuse: string;
   if (enAttente && apptId) {
-    const partie = await auPlus(envoieLAttente({
+    const posee = apptId;
+    const envoi = envoieLAttente({
       apptId, demandeId: id, branchId, modele: modeleAttente, prenom, telephone, ...(civilite ? { civilite } : {}),
       quand: `${jourEnClair(date)} à ${heureLisible(time)}`, gestes: nomsDesGestes.join(', '), date, time,
-    }).catch((e) => { console.error('demande-submit: attente', String(e)); return 'échec'; }), 6000, 'en-cours');
-    if (partie === 'refus-du-modele') {
-      await confirmeSansAttente(apptId);
+    }).catch((e) => { console.error('demande-submit: attente', String(e)); return 'échec'; });
+    const partie = await auPlus(envoi, 6000, 'en-cours');
+    if (attenteNonPartie(partie)) {
+      await confirmeSansAttente(posee);
       enAttente = false;
       attenduJusquAu = '';
       acompteXof = 0;
       accuse = await auPlus(accuseDAvant(), 2500, 'en-cours');
     } else {
       accuse = partie;
+      if (partie === 'en-cours') {
+        enTacheDeFond(envoi.then(async (fin) => {
+          if (!attenteNonPartie(fin) || !(await confirmeSansAttente(posee))) return;
+          await accuseDAvant();
+          await alerteLePersonnel('Réservé depuis le site', `${nomEntier || 'Une visiteuse'} · ${date} à ${time} · le message de l’attente n’est pas parti : la place est confirmée`, '/trone/#/calendrier').catch(() => 0);
+        }).catch((e) => console.error('demande-submit: suite de l attente', String(e))));
+      }
     }
   } else {
     accuse = await auPlus(dejaPosee ? Promise.resolve('deja') : accuseDAvant(), 2500, 'en-cours');
