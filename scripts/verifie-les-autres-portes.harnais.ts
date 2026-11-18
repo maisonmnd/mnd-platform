@@ -293,9 +293,10 @@ const OUI = '2026-11-12T08:00:00.000Z';
 /* ── 5. L'AVIS SUR PHOTO PAR WHATSAPP : avec un rendez-vous ── */
 {
   const consigne = consigneDOpale();
-  dit('Opale ne demande plus de photo, et ne passe plus la main pour toute photo', [true, false, true], [
-    consigne.includes('Ne demande jamais de photo, à personne.'), consigne.includes('une photo ou un vocal (tu ne les vois pas'),
-    consigne.includes('ne passe pas la main. Écris une seule ligne, sans expliquer pourquoi'),
+  /* 18 novembre 2026, avec « Opale ne perd aucun rendez-vous » : la photo sert au prix et à la place, jamais à un avis sans rendez-vous. */
+  dit('Opale ne demande une photo que pour le prix, jamais un avis, et ne passe plus la main pour toute photo', [true, false, true], [
+    consigne.includes('Ne demande une photo que pour estimer leur nombre et leur longueur.'), consigne.includes('une photo ou un vocal (tu ne les vois pas'),
+    consigne.includes('ne passe pas la main. Une seule ligne, sans expliquer pourquoi'),
   ]);
   const c: ContexteDOpale = {
     maintenantMs: Date.parse('2026-11-17T10:00:00Z'), aujourdhui: AUJ, heureDuJour: '11 h', reouverture: null, heures: [], fiches: [], rdvs: [], connaitLeLieu: false,
@@ -318,13 +319,14 @@ const OUI = '2026-11-12T08:00:00.000Z';
   ]);
   dit('... la main ne passe pas, et le lien est posé par le code, jamais laissé au modèle', [true, true], [
     /if \(photoRefusee && \(motif === 'media' \|\| tourSansUnMot\(nouveaux\)\)\) \{[^}]*return refusDeLAvisSurPhoto\(lienConsultation\); \}/.test(wa),
-    /if \(photoRefusee && !finDuRituel && !issue\.silence && issue\.issue\.genre === 'parle'\) issue\.texte = avecLeLienDeLaConsultation\(issue\.texte, lienConsultation\);/.test(wa),
+    /* … sauf quand elle a proposé sa place (18 novembre 2026, « Opale ne perd aucun rendez-vous »). */
+    /if \(photoRefusee && !finDuRituel && !issue\.silence && issue\.issue\.genre === 'parle' && !enAttente\) issue\.texte = avecLeLienDeLaConsultation\(issue\.texte, lienConsultation\);/.test(wa),
   ]);
-  dit('la fonction dit sa version du jour', true, /const VERSION = '2026-11-18-a · plus d avis sur photo sans rendez-vous/.test(wa));
+  dit('la fonction dit sa version du jour', true, /const VERSION = '2026-11-18-b · plus d avis sur photo sans rendez-vous/.test(wa));
   const reception = consigneDeLaReception();
   dit('la réception (l’automate en réserve) ne demande plus de photo non plus', [false, true],
     [/demande-lui une photo/.test(reception), reception.includes('ne demande aucune photo ; dis en une ligne que la Maison le regarde avec elle au rendez-vous')]);
-  dit('... et sa fonction porte la version du jour', true, /const VERSION = '2026-11-18-a';/.test(lit('scripts/serveur/reception-wa.ts')));
+  dit('... et sa fonction porte la version du jour', true, /const VERSION = '2026-11-18-b';/.test(lit('scripts/serveur/reception-wa.ts')));
   dit('le texte proposé pour « ma longueur suffit ? » ne demande plus de photo ; l’ancien est nommé pour le réglage en base', [false, true, true], [
     /photo/i.test(TEXTES_PROPOSES['r-longueur']), /rendez-vous/.test(TEXTES_PROPOSES['r-longueur']),
     lit('supabase/reglage_plus_d_avis_sur_photo_20261117.sql').split(ANCIEN_TEXTE_DE_LA_LONGUEUR).length - 1 === 2

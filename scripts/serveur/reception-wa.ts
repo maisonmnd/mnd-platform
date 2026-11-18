@@ -63,7 +63,7 @@ declare const Deno: {
 };
 
 /* 2026-11-17-a : plus d'avis sur photo sans rendez-vous (la consigne ne demande plus de photo). */
-const VERSION = '2026-11-18-a';
+const VERSION = '2026-11-18-b';
 /** Haïku d'abord (rapide, sur les crédits inclus) ; Sonnet si l'identifiant n'est pas reconnu. */
 const MODELES = ['claude-haiku-5-5', 'claude-sonnet-5-5'];
 /** Le prix d'un million de jetons, en dollars, pour le compte du mois. */

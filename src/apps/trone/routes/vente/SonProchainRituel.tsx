@@ -90,6 +90,7 @@ import {
   dansNSemaines, estSuggere, laPlaceDeLaPuce, marqueDeLaPose, SEMAINES_DE_LA_SUITE, semaineDuRythme, texteDeLaProposition, type QuiAChoisi,
 } from '../../../../shared/rendez-vous-suggere-pur';
 import { estEnAttente, etatDeLAttente } from '../../../../shared/rendez-vous-en-attente-pur';
+import { laPlaceDuSouhait, leRituelVoulu, phraseDuSouhait, type Souhait } from '../../../../shared/agent-des-rendez-vous-pur';
 import { supabase } from '../../../../shared/supabase';
 import './son-prochain-rituel.css';
 
@@ -128,6 +129,13 @@ export type VueDeLaCarte = {
   dejaLa: boolean;
   /** Sa date déjà posée, dite (« samedi 26 décembre 2026 à 13 h 30 »), quand elle l'est. */
   dejaLaDit: string | null;
+  /* ── L'AGENT DES RENDEZ-VOUS (18 novembre 2026) ── */
+  /** « Valider ce rendez-vous » : pose la place montrée, SANS fermer ; la
+      confirmation part à « Terminer », comme toujours. */
+  valider: () => void;
+  /** Une place est montrée, rien n'est encore posé, et elle se pose ici
+      (rien qui demande sa fiche) : l'agent peut la valider seul. */
+  aPoser: boolean;
 };
 
 /** LE MODÈLE DE LA PROPOSITION EST-IL APPROUVÉ CHEZ META ? (15 novembre 2026)
@@ -153,7 +161,7 @@ function useModeleApprouve(nom: string): boolean | null {
   return etat;
 }
 
-export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituelId, onALaMain, onFerme, children }: {
+export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituelId, onALaMain, onFerme, souhait, children }: {
   clientId: string;
   /** Les prestations qu'elle vient de régler, ou du rituel honoré. */
   serviceIds: readonly string[];
@@ -170,6 +178,13 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
   onALaMain?: (initial: RdvInitial) => void;
   /** La carte a terminé : l'hôte ferme son écran. */
   onFerme?: () => void;
+  /** L'AGENT DES RENDEZ-VOUS (18 novembre 2026) : ce que la phrase a
+      demandé. Le rituel qui porte ces gestes (sinon ces gestes eux-mêmes),
+      la première place de la fenêtre, TOUJOURS SUR TEAM (« c'est toujours
+      Team », Yéman), et « elle l'a choisi avec nous ». Le reste de la carte
+      (prix, acompte, offre du jour, un seul prochain, la confirmation à
+      « Terminer ») ne change pas. */
+  souhait?: Souhait & { gestes: readonly string[] };
   children?: (v: VueDeLaCarte) => ReactNode;
 }) {
   const { branch, currency } = useBranch();
@@ -223,9 +238,18 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
   })), [imposee, siens, clientId, aujourdhui, byId, jour, serviceIds, cadenceJours]);
 
   const [choisi, setChoisi] = useState<number | null>(null);
-  const iChoisi = choisi !== null && choisi < rituels.length ? choisi : leRituelDOffice(rituels);
+  /* LE SOUHAIT DE L'AGENT : le rituel qui porte les gestes nommés (ou un geste
+     de leur famille). Des gestes qu'elle n'a jamais pris font un rituel à part,
+     ces gestes-là eux-mêmes. */
+  const voulus = souhait?.gestes ?? [];
+  const iVoulu = !imposee && voulus.length > 0 ? leRituelVoulu(rituels, voulus, (id) => byId.get(id)?.categoryId) : -1;
+  const horsDeSesRituels = !imposee && voulus.length > 0 && iVoulu < 0;
+  const iChoisi = choisi !== null && choisi < rituels.length ? choisi
+    : iVoulu >= 0 ? iVoulu
+    : horsDeSesRituels ? -1
+    : leRituelDOffice(rituels);
   const rituel = iChoisi >= 0 ? rituels[iChoisi] : undefined;
-  const ids = imposee ? imposee.suite.serviceIds : rituel?.ids ?? [];
+  const ids = imposee ? imposee.suite.serviceIds : rituel?.ids ?? (horsDeSesRituels ? [...voulus] : []);
 
   /* LE TARIF D'UN RITUEL, COMME LA FENÊTRE DU RENDEZ-VOUS : son contexte
      (`tarifsDuRituel`, sa tête et la longueur du jour), son brut
@@ -264,15 +288,22 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
   const famPctA = (iso: string): number =>
     famPctDeLaTete(famPctDuFoyer, { prixConvenus, abonnee: !!contratPourLaDate(subs, clientId, iso, plans) });
   const tarifs = rituels.map((r) => tarifDe(r.ids));
-  const tarifBrut = imposee ? tarifDe(ids) : iChoisi >= 0 ? tarifs[iChoisi] : undefined;
+  const tarifBrut = imposee ? tarifDe(ids) : iChoisi >= 0 ? tarifs[iChoisi] : horsDeSesRituels ? tarifDe(ids) : undefined;
   /* La Retouche comprise garde la durée que sa création lui donne. */
   const tarif = tarifBrut && imposee?.suite.dureeMin ? { ...tarifBrut, dureeMin: imposee.suite.dureeMin } : tarifBrut;
+  /* TOUJOURS TEAM POUR L'AGENT (18 novembre 2026) : le calendrier commun de
+     la branche, jamais une personne choisie par lui. */
+  const maitreDeTeam = branch.masters.find((m) => sameName(m, 'Team')) ?? maitreParDefaut(branch);
   const maitre = imposee
     ? (imposee.suite.master || maitreParDefaut(branch))
-    : rituel && tarif
-      ? leMaitreDuRituel({ habituel: rituel.maitre, noms: tarif.chosen.map((sv) => sv.name), maitres: branch.masters, parDefaut: maitreParDefaut(branch) })
-      : '';
-  const vers = imposee ? (imposee.date < demain ? demain : imposee.date) : rituel?.vers;
+    : souhait && tarif
+      ? maitreDeTeam
+      : rituel && tarif
+        ? leMaitreDuRituel({ habituel: rituel.maitre, noms: tarif.chosen.map((sv) => sv.name), maitres: branch.masters, parDefaut: maitreParDefaut(branch) })
+        : '';
+  /* La date visée : celle du souhait quand il en dit une, sinon celle de son rythme. */
+  const duSouhait = souhait?.du ? (souhait.du < aujourdhui ? aujourdhui : souhait.du) : '';
+  const vers = imposee ? (imposee.date < demain ? demain : imposee.date) : duSouhait || rituel?.vers || (horsDeSesRituels ? demain : undefined);
 
   /* LA CARTE : `null` tant qu'on n'y a pas touché, et elle se relit alors à
      chaque rendu (la place d'office, le rendez-vous déjà là). Au premier
@@ -334,7 +365,18 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
   const sansDate = !imposee && !!rituel && sansDateDOffice({
     source: rituel.source, dePassage: !!fiche && estDePassage(fiche), diaspora: !!fiche && estDiaspora(fiche), rythmeSurLaFiche: !!fiche?.rythmeSemaines,
   });
-  const departProp = sansDate ? null : laPlaceDOffice(places, jourHabituel);
+  /* LA PLACE DU SOUHAIT : la première de la fenêtre demandée, au moment et à
+     l'heure dits (sinon la plus proche), sur les places du « + RDV ». */
+  const placeDuSouhait = useMemo(() => {
+    if (!souhait?.du || !tarif) return null;
+    const duJour = placesDe(tous, blocages, tarif.dureeMin, maitre);
+    return laPlaceDuSouhait({ souhait, aujourdhui, heureHabituelle: sonHeure, placesDe: (iso) => { const p = duJour(iso); return { ferme: p.ferme, heures: p.heures }; } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [souhait?.du, souhait?.au, souhait?.heure, souhait?.moment, tarif?.dureeMin, maitre, tous, blocages, sonHeure, aujourdhui, sieges, branch.id, byId, carteTouchee?.rdvId]);
+  const departDOffice = souhait?.du || sansDate ? null : laPlaceDOffice(places, jourHabituel);
+  const departProp: PlaceDeLaCarte | null = souhait?.du
+    ? (placeDuSouhait ? { iso: placeDuSouhait.iso, heure: placeDuSouhait.heure } : null)
+    : departDOffice;
   const initiale = carteNeuve({
     depart: departProp ? { iso: departProp.iso, heure: departProp.heure } : null,
     deja: dejaPose ? { id: dejaPose.id, iso: dejaPose.date, heure: dejaPose.time } : null,
@@ -354,7 +396,8 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
      il est confirmé. Les puces 3, 4, 5, 6, 8 et 12 semaines (depuis cette
      séance) et « Ou choisir une date » changent la place montrée ; rien ne
      se pose avant « Poser la suggestion ». Maquette PeiD4o4yfCY4GajdGJ52Ez. */
-  const [qui, setQui] = useState<QuiAChoisi>('suggere');
+  /* L'agent pose ce qu'on lui a demandé au comptoir : elle l'a choisi avec nous. */
+  const [qui, setQui] = useState<QuiAChoisi>(souhait ? 'choisi' : 'suggere');
   const quiRef = useRef(qui);
   quiRef.current = qui;
   const [puce, setPuce] = useState<number | null>(null);
@@ -624,9 +667,11 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
         ? `Après sa création, La Retouche comprise, offerte, ${dureeDite(imposee.semaines * 7)} plus tard.`
         : `Après sa Retouche comprise, sa première venue, ${dureeDite(imposee.semaines * 7)} plus tard.`;
     }
-    if (!rituel || !departProp) return '';
+    /* Ce que l'agent a lu, et l'écart s'il y en a un (« 10 h est prise ce jour-là »). */
+    if (souhait?.du) return phraseDuSouhait({ souhait, place: placeDuSouhait, jourDit, heureDite: heureDuMessage });
+    if (!rituel || !departDOffice) return '';
     return laRaisonDeLaDate({
-      rituel, place: departProp, jourDit, sonJour: jourHabituel !== null ? NOMS_DES_JOURS[jourHabituel] : null,
+      rituel, place: departDOffice, jourDit, sonJour: jourHabituel !== null ? NOMS_DES_JOURS[jourHabituel] : null,
     });
   })();
   const verifie = (() => {
@@ -806,7 +851,7 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
     </div>
   );
 
-  const sansRituel = !imposee && !rituel && !carte.dejaLa;
+  const sansRituel = !imposee && !rituel && !horsDeSesRituels && !carte.dejaLa;
   const corps = sansRituel ? (
     <section className="trv-prochain__carte" aria-label="Son prochain rituel">
       <div className="trv-prochain__haut"><span className="trv-prochain__etiquette">Son prochain rituel</span><span className="trv-prochain__pastille trv-prochain__pastille--vide">À poser</span></div>
@@ -830,7 +875,9 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
       <div className="trv-prochain__haut"><span className="trv-prochain__etiquette">Son prochain rituel</span><span className="trv-prochain__pastille trv-prochain__pastille--vide">{pastille.texte}</span></div>
       <p className="trv-prochain__date trv-prochain__date--petite">Rien n’est posé d’office</p>
       <p className="trv-prochain__pourquoi">
-        {`${rituel && rituel.occurrences <= 1 ? 'C’est sa première venue' : 'Son rythme n’est pas encore lisible'} : pas de date en grand. Touchez une place, elle est validée et posée confirmée${maitre ? ` chez ${maitre}` : ''}.`}
+        {souhait?.du
+          ? phraseDuSouhait({ souhait, place: null, jourDit, heureDite: heureDuMessage })
+          : `${rituel && rituel.occurrences <= 1 ? 'C’est sa première venue' : 'Son rythme n’est pas encore lisible'} : pas de date en grand. Touchez une place, elle est validée et posée confirmée${maitre ? ` chez ${maitre}` : ''}.`}
       </p>
       {rituels.length > 1 && <LesRituels rituels={rituels} iChoisi={iChoisi} nomDe={nomDe} dit={(i) => [tarifs[i].longueurPertinente ? longueurDite : null, fmtMoney(tarifs[i].prixXof, currency), fmtDureeCourte(tarifs[i].dureeMin)].filter(Boolean).join(' · ')} onChoisir={(i) => { setChoisi(i); setCarte(null); setAutre(false); }} />}
       {lesSemaines}
@@ -977,8 +1024,12 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
     ? 'Fermer'
     : carte.valide ? 'Terminer' : qui === 'suggere' ? 'Poser la suggestion' : 'Poser le rendez-vous';
   const dejaLaDit = carte.dejaLa && carte.place ? momentDuMessage(carte.place.iso, carte.place.heure) : null;
+  /* L'AGENT VALIDE SEUL, SANS FERMER : la carte reste ouverte, « Annuler »
+     (pas de prochain rendez-vous) ne fait rien partir, « Terminer » confirme. */
+  const valider = () => { if (carte.place && !carte.valide && !carte.dejaLa && !carte.retire) fais({ genre: 'valider', id: uid() }); };
+  const aPoser = !!carte.place && !carte.valide && !carte.dejaLa && !carte.retire && !casAPart(carte.place.iso);
 
-  if (children) return <>{children({ carte: vue, pied, terminer, plein, poser, sansSuite, question, libelleDuGeste, dejaLa: carte.dejaLa, dejaLaDit })}</>;
+  if (children) return <>{children({ carte: vue, pied, terminer, plein, poser, sansSuite, question, libelleDuGeste, dejaLa: carte.dejaLa, dejaLaDit, valider, aPoser })}</>;
   return (
     <section className="trv-prochain" aria-label="Son prochain rituel, à la Caisse">
       {vue}

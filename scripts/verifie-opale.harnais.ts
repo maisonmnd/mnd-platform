@@ -13,6 +13,7 @@ import {
   etatApresOpale, fautesDOpale, gestesLus, heuresDites, montantsDuTexte, opaleSert, placesDites, propositionLue,
   reglageDOpale, estUneQuestionFrancheDOpale, salueLEnfant, type ContexteDOpale,
   avecLeLienDeLaConsultation, lienDeLaConsultation, motDeLaPhotoSansRendezVous, photoSansRendezVous, photoSeuleDansLeTour, tourSansUnMot,
+  relanceDue, laMainNEstPasPrise, quiInscrire,
 } from '../src/shared/opale-pur';
 import { laVoixDuFil, type LecteurDeLaVoix, type LigneDeLaVoix } from '../src/shared/voix-du-fil-pur';
 
@@ -153,7 +154,34 @@ const RPC: Record<string, (a: any) => any> = {
 const client = {
   from: (t: string) => new Requete(t),
   rpc: async (nom: string, a: any) => (RPC[nom] ? { data: structuredClone(RPC[nom](a)), error: null } : { data: null, error: { message: `rpc ${nom} absente du banc` } }),
-  storage: { from: () => ({}) },
+  /* Le coffre des pièces (18 novembre 2026) : ses photos, que lit Opale. */
+  storage: {
+    from: (coffre: string) => ({
+      download: async (chemin: string) => {
+        const o = COFFRE[`${coffre}/${chemin}`];
+        return o ? { data: new Blob([o]), error: null } : { data: null, error: { message: 'absent du coffre' } };
+      },
+    }),
+  },
+};
+const COFFRE: Record<string, Uint8Array> = {};
+
+/* L'HEURE DU BANC (18 novembre 2026) : le jour même et la relance dépendent
+   de l'heure de Cotonou. `aHeure` pose une heure choisie (Date.now et
+   new Date() sans argument la suivent), `aHeure(null)` rend l'horloge. */
+const VraieDate = Date;
+let decalage = 0;
+class DateDuBanc extends VraieDate {
+  constructor(...a: any[]) { if (a.length === 0) super(VraieDate.now() + decalage); else super(...(a as [any])); }
+  static now() { return VraieDate.now() + decalage; }
+}
+(globalThis as any).Date = DateDuBanc;
+const aHeure = (cible: number | null) => { decalage = cible === null ? 0 : cible - VraieDate.now(); };
+/** Le prochain mardi (ouvert dans le décor), à cette heure de Cotonou (UTC+1). */
+const mardiA = (h: number, m = 0): number => {
+  const d = new VraieDate(VraieDate.now() + 2 * 86_400_000);
+  while (d.getUTCDay() !== 2) d.setUTCDate(d.getUTCDate() + 1);
+  return VraieDate.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), h - 1, m);
 };
 
 /* ── Claude simulé : une file de réponses écrites d'avance ── */
@@ -337,16 +365,31 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
   dit('le fil dit le rendez-vous pose, la proposition effacee', ['confirme', POSES[0]?.id, undefined], [fil(NUM)?.etape, fil(NUM)?.rdvId, fil(NUM)?.opale?.enAttente]);
 }
 
-/* ══ 4. UNE NOUVELLE : prenom et civilite avant toute proposition ══ */
+/* ══ 4. UNE NOUVELLE : la place tenue, son nom demandé dans le même message,
+   sa réponse la pose (18 novembre 2026 ; avant, le nom d'abord, puis la
+   civilité, puis la place, puis son oui : quatre allers et retours) ══ */
 {
   decor();
-  const w = elleEcrit(INCONNUE, `Un shampoing ${J2} à 10 h svp`);
+  const w = elleEcrit(INCONNUE, `Un shampoing ${J2} à 10 h svp`, 60_000);
   FILE = [
     { outils: [{ name: 'proposer_le_rendez_vous', input: { pour: 'nouvelle', gestes: ['sv-plt-05-ess-c'], date: J2, heure: '10:00' } }] },
-    { texte: 'Pour inscrire votre rendez-vous, comment devons-nous vous appeler ?' },
+    { texte: `Je vous garde le ${J2} à 10 h pour votre lavage. Pour l’inscrire, quel prénom, et devons-nous écrire Madame ou Monsieur ?` },
   ];
   await tour(INCONNUE, [w]);
-  dit('sans prenom ni civilite, la proposition est refusee', [true, undefined], [(resultatsDe(1)[0] ?? '').includes('prénom'), fil(INCONNUE)?.opale?.enAttente]);
+  dit('sans prenom ni civilite, la place est tenue et le nom se demande dans le meme message', [true, J2, '10:00', 0], [
+    (resultatsDe(1)[0] ?? '').includes('Madame ou Monsieur'), fil(INCONNUE)?.opale?.enAttente?.date, fil(INCONNUE)?.opale?.enAttente?.heure, POSES.length,
+  ]);
+  const avant = DEMANDES.length;
+  const w2 = elleEcrit(INCONNUE, 'Afiwa, madame');
+  FILE = [
+    { outils: [{ name: 'confirmer', input: {} }] },
+    { outils: [{ name: 'confirmer', input: { prenom: 'Afiwa', civilite: 'madame' } }] },
+    { texte: `C’est confirmé, Mme Afiwa : nous vous attendons le ${J2} à 10 h.` },
+  ];
+  await tour(INCONNUE, [w2]);
+  dit('confirmer sans son nom est refuse, la place reste tenue ; avec son prenom et sa civilite, le rendez-vous est pose', [true, 1, 'Afiwa', 'madame', J2], [
+    (resultatsDe(avant + 1)[0] ?? '').includes('Madame ou Monsieur'), POSES.length, table('demandes')[0]?.data?.prenom, table('demandes')[0]?.data?.civilite, POSES[0]?.date,
+  ]);
   dit('une fiche qui n est pas a ce numero est refusee', false, propositionLue({ pour: 'cl-autre', gestes: ['a'], date: J2, heure: '10:00' }, { fiches: ['cl-banc-a'], connus: new Set(['a']), aujourdhui: AUJOURDHUI }).ok);
 }
 
@@ -894,8 +937,191 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
   dit('le lien se pose une fois, a la ligne, et jamais sur un message vide', ['Bonjour.\nVotre consultation se prend ici : L', 'Voir L', ''],
     [avecLeLienDeLaConsultation('Bonjour.', 'L'), avecLeLienDeLaConsultation('Voir L', 'L'), avecLeLienDeLaConsultation('', 'L')]);
   const laConsigne = consigneDOpale();
-  dit('la consigne ne demande plus de photo et ne passe plus la main pour toute photo', [true, true, false],
-    [laConsigne.includes('Ne demande jamais de photo, à personne.'), laConsigne.includes('une photo, seulement quand le contexte dit qu’elle a un rendez-vous pris ou une séance faite'), laConsigne.includes('une photo ou un vocal (tu ne les vois pas')]);
+  /* 18 novembre 2026, avec « Opale ne perd aucun rendez-vous » : la photo sert au prix et à la place, jamais à un avis. */
+  dit('la consigne ne demande une photo que pour le prix, jamais un avis, et ne passe plus la main pour toute photo', [true, true, false, true],
+    [laConsigne.includes('Ne demande une photo que pour estimer leur nombre et leur longueur.'), laConsigne.includes('Sa photo te sert au prix et à la place, jamais à un avis'),
+      laConsigne.includes('une photo ou un vocal (tu ne les vois pas'), laConsigne.includes('ne passe pas la main. Une seule ligne, sans expliquer pourquoi')]);
+}
+
+
+/* ══ 15. NE PERDRE AUCUN RENDEZ-VOUS (18 novembre 2026) ══
+   Le fil de Mme H. : « Puis je avoir les tarifs svp? » sans un montant ;
+   « Je peux envoyer une photo? », la main passée pour la photo, puis
+   « ALORS? » et « Pas d'info sur les prix? » sans réponse jusqu'au
+   lendemain. Au sélecteur : le jour même une heure plus tard, une relance
+   une fois après trois heures. Tout est inventé. */
+{
+  const filDe = (numero: string, data: Record<string, unknown>) =>
+    table('fils_automate').push({ id: `fil-${numero}`, data: { id: `fil-${numero}`, numero, version: 3, versionDeLEtape: 2, traites: [], envois: [], panier: {}, ecarts: 0, ...data }, updated_at: new Date().toISOString() });
+  const ilYA = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+  const opaleADit = (numero: string, texte: string, minutes: number, plus: Record<string, unknown> = {}) =>
+    table('messages_wa').push({ id: `wa-o-${++seq}`, data: { sens: 'sortant', numero, parQui: OPALE, etat: 'remis', texte, quand: ilYA(minutes), ...plus } });
+
+  /* ── a. SA PHOTO, QU'OPALE VOIT ── */
+  decor();
+  const octets = new Uint8Array([0xff, 0xd8, 0xff, 0x01, 0x02]);
+  COFFRE['whatsapp/22990000002/abc-photo.jpg'] = octets;
+  const w1 = elleEcrit(INCONNUE, 'Voici mes locks');
+  const w2 = `wamid.photo${++seq}`;
+  table('messages_wa').push({ id: `wa-${w2}`, data: { waId: w2, sens: 'entrant', numero: INCONNUE, type: 'image', texte: 'une photo', quand: new Date().toISOString(), piece: { nom: 'photo.jpg', type: 'image/jpeg', chemin: '22990000002/abc-photo.jpg', coffre: 'whatsapp', octets: 5 } } });
+  FILE = [{ texte: 'Merci pour votre photo : vos locks sont fines et longues.' }];
+  await tour(INCONNUE, [w1, w2]);
+  const premier = DEMANDES[0]?.messages?.[0]?.content;
+  const image = Array.isArray(premier) ? premier.find((c: any) => c.type === 'image') : null;
+  const texteDuPremier = Array.isArray(premier) ? String(premier.find((c: any) => c.type === 'text')?.text ?? '') : String(premier ?? '');
+  dit('sa photo part avec la demande : l image elle-meme, et le fil dit qu Opale la voit', ['image/jpeg', btoa(String.fromCharCode(...octets)), true, 1], [
+    image?.source?.media_type, image?.source?.data, texteDuPremier.includes('[une photo, jointe après le contexte : tu la vois]'), META.length,
+  ]);
+  decor();
+  const w3 = `wamid.photo${++seq}`;
+  table('messages_wa').push({ id: `wa-${w3}`, data: { waId: w3, sens: 'entrant', numero: INCONNUE, type: 'image', texte: 'une photo', quand: new Date().toISOString(), piece: { type: 'image/jpeg', chemin: '22990000002/absente.jpg', coffre: 'whatsapp' } } });
+  FILE = [{ texte: 'Merci pour votre photo.' }];
+  await tour(INCONNUE, [w3]);
+  dit('une photo que le coffre ne rend pas : le tour part quand meme, sans image', [true, false, 1], [
+    typeof DEMANDES[0]?.messages?.[0]?.content === 'string', String(DEMANDES[0]?.messages?.[0]?.content ?? '').includes('jointe après le contexte'), META.length,
+  ]);
+
+  /* ── b. LE PRIX TOUT DE SUITE : la grille ── */
+  decor();
+  table('catalog_services').push(
+    { id: 'sv-banc-grille', data: { name: 'SÍNSIN™ Banc · La Reprise', categoryId: 'atl-ii-gbeji', priceXof: 20000, priceMode: 'fixe', durationMin: 90, tarifMode: 'calibre', priceFloors: { 'b-medium': 20000, 'b-fin': 30000 } } },
+    { id: 'sv-banc-lavage', data: { name: 'KLƆKLƆ™ Banc · Le Souffle', categoryId: 'cat-lavages', priceXof: 8000, priceMode: 'fixe', durationMin: 30, prixParLongueur: { court: 8000, 'mi-long': 10000, long: 12000 } } },
+  );
+  const wp = elleEcrit(INCONNUE, 'Puis je avoir les tarifs svp?');
+  FILE = [
+    { outils: [{ name: 'prix', input: { gestes: ['sv-banc-grille', 'sv-banc-lavage'] } }] },
+    { texte: 'La Reprise est à 20 000 F jusqu’à 150 locks, 30 000 F au-delà ; Le Souffle de 8 000 F à 12 000 F selon la longueur, soit de 28 000 F à 42 000 F pour les deux. Combien de locks avez-vous à peu près ?' },
+  ];
+  await tour(INCONNUE, [wp]);
+  const grille = resultatsDe(1)[0] ?? '';
+  dit('sans son nombre de locks ni sa longueur : la grille, tout de suite', [true, true], [
+    grille.includes('jusqu’à 150 locks : 20 000 F ; plus de 150 locks : 30 000 F'), grille.includes('court : 8 000 F ; mi-long : 10 000 F ; long : 12 000 F'),
+  ]);
+  dit('les montants de la grille et les totaux possibles partent, sans relecture', [1, 2], [META.length, DEMANDES.length]);
+
+  /* ── c. LA MAIN QUE PERSONNE NE PREND ── */
+  decor();
+  const wa0 = elleEcrit(NUM, 'Je peux envoyer une photo?', 16 * 60_000);
+  filDe(NUM, { etape: 'main', majLe: ilYA(15), depuis: ilYA(15), mainPasseeLe: ilYA(15), motifMain: 'media', mainDeLaReception: true, etapeAvantLaMain: 'besoin', dernierEntrantQuand: ilYA(16), traites: [wa0] });
+  opaleADit(NUM, 'Je vous en prie, envoyez-la ici. Une personne de la Maison vous répond dans un instant.', 15, { etape: 'main' });
+  const wa = elleEcrit(NUM, 'ALORS?');
+  FILE = [{ texte: 'Pardonnez cette attente, Mme Akouele. Le lavage est à 8 000 F, et je peux vous recevoir demain à 10 h. Je vous la garde ?' }];
+  const ra = await tour(NUM, [wa]);
+  dit('la main passee il y a 15 min, personne ne l a prise : Opale reprend et repond', [true, 1, true, 'besoin'], [
+    ra.pris, META.length, String(DEMANDES[0]?.messages?.[0]?.content ?? '').includes('TU REPRENDS LA CONVERSATION'), fil(NUM)?.etape,
+  ]);
+  decor();
+  const wb0 = elleEcrit(NUM, 'Je peux envoyer une photo?', 16 * 60_000);
+  filDe(NUM, { etape: 'main', majLe: ilYA(15), depuis: ilYA(15), mainPasseeLe: ilYA(15), motifMain: 'media', mainDeLaReception: true, etapeAvantLaMain: 'besoin', dernierEntrantQuand: ilYA(16), traites: [wb0] });
+  table('messages_wa').push({ id: 'wa-equipe', data: { sens: 'sortant', numero: NUM, parQui: 'Yéman', etat: 'remis', texte: 'Je regarde votre photo.', quand: ilYA(5) } });
+  const wb = elleEcrit(NUM, 'Alors ?');
+  FILE = [{ texte: 'ne doit pas partir' }];
+  const rb = await tour(NUM, [wb]);
+  dit('une personne de l equipe a ecrit depuis : Opale se tait', [false, 0, 1], [rb.pris, META.length, FILE.length]);
+  decor();
+  const wc0 = elleEcrit(NUM, 'Je dois annuler jeudi', 30 * 60_000);
+  const passee = ilYA(25);
+  filDe(NUM, { etape: 'main', majLe: passee, depuis: passee, mainPasseeLe: passee, motifMain: 'annulation', mainDeLaReception: true, etapeAvantLaMain: 'besoin', dernierEntrantQuand: ilYA(30), traites: [wc0] });
+  const wc = elleEcrit(NUM, 'Et pour un shampoing samedi, combien ?');
+  FILE = [{ texte: 'Pardonnez l’attente, Mme Akouele : la Maison s’occupe de votre annulation. Le lavage est à 8 000 F.' }];
+  const rc = await tour(NUM, [wc]);
+  dit('une annulation que personne n a prise : Opale repond au prix, le fil reste a l equipe, son heure gardee, l alarme sonne', [1, 'main', 'annulation', passee, 'WhatsApp · la main passe'], [
+    META.length, fil(NUM)?.etape, fil(NUM)?.motifMain, fil(NUM)?.mainPasseeLe, rc.alerte?.titre,
+  ]);
+
+  /* ── d. LE JOUR MÊME, UNE HEURE PLUS TARD (un mardi, 9 h à Cotonou) ── */
+  aHeure(mardiA(9));
+  decor();
+  const auj = new Date(Date.now() + 3_600_000).toISOString().slice(0, 10);
+  const wj = elleEcrit(NUM, 'Avez-vous de la place aujourd hui pour un shampoing ?');
+  FILE = [
+    { outils: [{ name: 'chercher_des_places', input: { gestes: ['sv-plt-05-ess-c'], jour: auj } }] },
+    { outils: [{ name: 'proposer_le_rendez_vous', input: { pour: 'cl-banc-a', gestes: ['sv-plt-05-ess-c'], date: auj, heure: '09:30' } }] },
+    { outils: [{ name: 'proposer_le_rendez_vous', input: { pour: 'cl-banc-a', gestes: ['sv-plt-05-ess-c'], date: auj, heure: '10:00' } }] },
+    { texte: 'Avec plaisir, Mme Akouele : aujourd’hui à 10 h pour votre lavage. Je vous la garde ?' },
+  ];
+  await tour(NUM, [wj]);
+  const placesDuJour = resultatsDe(1)[0] ?? '';
+  dit('le jour meme : les places d aujourd hui, une heure plus tard au plus tot', [true, false], [
+    placesDuJour.includes(`${auj} 10:00`), placesDuJour.includes(`${auj} 09:00`) || placesDuJour.includes(`${auj} 09:30`),
+  ]);
+  dit('une place du jour a moins d une heure est refusee ; a une heure, tenue', [true, true, auj], [
+    (resultatsDe(2)[0] ?? '').includes('une heure plus tard'), (resultatsDe(3)[0] ?? '').startsWith('Place tenue'), fil(NUM)?.opale?.enAttente?.date,
+  ]);
+  const wj2 = elleEcrit(NUM, 'Oui parfait');
+  FILE = [{ outils: [{ name: 'confirmer', input: {} }] }, { texte: 'C’est confirmé, Mme Akouele : nous vous attendons aujourd’hui à 10 h.' }];
+  await tour(NUM, [wj2]);
+  dit('a son oui, le rendez-vous du jour meme est pose', [1, auj, '10:00'], [POSES.length, POSES[0]?.date, POSES[0]?.time]);
+  aHeure(null);
+
+  /* ── e. LA RELANCE, UNE FOIS, DE JOUR (un mardi, midi à Cotonou) ── */
+  aHeure(mardiA(12));
+  decor();
+  const wr0 = elleEcrit(NUM, 'Je suis de passage, mon agenda n est pas encore stable', 4 * 3_600_000 + 5 * 60_000);
+  opaleADit(NUM, 'Je vous garde le jeudi à 10 h ? Un simple message suffira pour la déplacer.', 4 * 60);
+  filDe(NUM, { etape: 'besoin', majLe: ilYA(240), depuis: ilYA(240), dernierEntrantQuand: ilYA(245), traites: [wr0], opale: { dernierTourLe: ilYA(240) } });
+  const relance = async () => (await (await SERVIS[0](new Request('http://faux.local/functions/v1/whatsapp-automate', {
+    method: 'POST', headers: { authorization: 'Bearer la-cle-de-la-maison', 'content-type': 'application/json' }, body: JSON.stringify({ relances: true }),
+  }))).json());
+  FILE = [{ texte: 'Je vous garde toujours jeudi à 10 h, Mme Akouele ? Un simple mot suffit.' }];
+  const r1 = await relance();
+  dit('trois heures sans reponse, de jour : une relance part, une seule, signee Opale', [1, 1, true, OPALE], [
+    r1.relancees, META.length, String(DEMANDES[0]?.messages?.[0]?.content ?? '').includes('RELANCE :'), traces().at(-1)?.parQui,
+  ]);
+  dit('la relance est notee dans le fil', true, typeof fil(NUM)?.opale?.relanceLe === 'string');
+  FILE = [{ texte: 'ne doit pas partir' }];
+  const r2 = await relance();
+  dit('jamais deux fois avant un nouveau message d elle', [0, 1, 1], [r2.relancees, META.length, FILE.length]);
+  decor();
+  const ws0 = elleEcrit(NUM, 'Je vous redis', 4 * 3_600_000 + 5 * 60_000);
+  opaleADit(NUM, 'Je vous garde le jeudi à 10 h ?', 4 * 60);
+  filDe(NUM, { etape: 'besoin', majLe: ilYA(240), depuis: ilYA(240), dernierEntrantQuand: ilYA(245), traites: [ws0] });
+  FILE = [{ outils: [{ name: 'ne_rien_repondre', input: { pourquoi: 'elle reviendra' } }] }, { texte: '' }];
+  await relance();
+  dit('une relance que Claude juge inutile : rien ne part, et elle est quand meme notee', [0, true], [META.length, typeof fil(NUM)?.opale?.relanceLe === 'string']);
+  aHeure(mardiA(22));
+  decor();
+  const wn0 = elleEcrit(NUM, 'Je vous redis', 4 * 3_600_000 + 5 * 60_000);
+  opaleADit(NUM, 'Je vous garde le jeudi à 10 h ?', 4 * 60);
+  filDe(NUM, { etape: 'besoin', majLe: ilYA(240), depuis: ilYA(240), dernierEntrantQuand: ilYA(245), traites: [wn0] });
+  FILE = [{ texte: 'ne doit pas partir' }];
+  const rn = await relance();
+  dit('la nuit, aucune relance', [0, 'la nuit', 0], [rn.relancees, rn.raison, META.length]);
+  aHeure(null);
+
+  /* ── f. LE MODULE PUR ── */
+  const T = VraieDate.UTC(2026, 10, 18, 11, 0);
+  const iso = (ms: number) => new VraieDate(ms).toISOString();
+  const filR = (opaleIlYA: number, elleIlYA: number, texte = 'Je vous garde jeudi à 10 h ?') => [
+    { sens: 'entrant', quand: iso(T - elleIlYA * 60_000), texte: 'Je suis de passage' },
+    { sens: 'sortant', qui: 'opale', quand: iso(T - opaleIlYA * 60_000), texte },
+  ];
+  dit('la relance : trois heures apres sa question, une fois, de jour, la fenetre ouverte', [true, false, false, false, false, false, false], [
+    relanceDue({ etape: 'besoin', fil: filR(185, 190), maintenantMs: T }).due,
+    relanceDue({ etape: 'besoin', fil: filR(170, 175), maintenantMs: T }).due,
+    relanceDue({ etape: 'besoin', fil: filR(185, 190, 'Nous vous attendons jeudi.'), maintenantMs: T }).due,
+    relanceDue({ etape: 'main', fil: filR(185, 190), maintenantMs: T }).due,
+    relanceDue({ etape: 'besoin', relanceLe: iso(T - 60_000), fil: filR(185, 190), maintenantMs: T }).due,
+    relanceDue({ etape: 'besoin', fil: filR(185, 23 * 60 + 40), maintenantMs: T }).due,
+    relanceDue({ etape: 'besoin', fil: filR(185, 190), maintenantMs: VraieDate.UTC(2026, 10, 18, 20, 30) }).due,
+  ]);
+  dit('la main non prise : dix minutes, sans un mot de l equipe', [false, true, false], [
+    laMainNEstPasPrise({ mainPasseeLe: iso(T - 5 * 60_000), fil: [], maintenantMs: T }),
+    laMainNEstPasPrise({ mainPasseeLe: iso(T - 11 * 60_000), fil: [{ sens: 'sortant', qui: 'opale', quand: iso(T - 11 * 60_000) }], maintenantMs: T }),
+    laMainNEstPasPrise({ mainPasseeLe: iso(T - 11 * 60_000), fil: [{ sens: 'sortant', qui: 'equipe', quand: iso(T - 2 * 60_000) }], maintenantMs: T }),
+  ]);
+  const inscrite = quiInscrire({ prenom: 'Afiwa' }, { civilite: 'madame' });
+  dit('qui inscrire : jamais une civilite supposee', [false, true, 'Afiwa'], [
+    quiInscrire({}, { prenom: 'Afiwa' }).ok, quiInscrire({}, { prenom: 'Afiwa', civilite: 'madame' }).ok, inscrite.ok ? inscrite.prenom : '',
+  ]);
+  const relu = (heure: string, date = '2026-11-04') => propositionLue({ pour: 'f', gestes: ['a'], date, heure }, { fiches: ['f'], connus: new Set(['a']), aujourdhui: '2026-11-04', minutesDuJour: 8 * 60 + 30 }).ok;
+  dit('le jour meme, relu : une heure plus tard au plus tot, jamais hier', [false, true, false], [relu('09:00'), relu('09:30'), relu('10:00', '2026-11-03')]);
+  dit('une nouvelle sans nom : la proposition tient', true, propositionLue({ pour: 'nouvelle', gestes: ['a'], date: '2026-11-10', heure: '10:00' }, { fiches: [], connus: new Set(['a']), aujourdhui: '2026-11-04' }).ok);
+  const consigne = consigneDOpale();
+  dit('la consigne : le prix tout de suite, les photos vues, conclure, le jour meme, jamais « dans un instant »', [true, true, true, true, true], [
+    consigne.includes('donne-le TOUT DE SUITE'), consigne.includes('tu vois les photos qu’elle envoie'), consigne.includes('CONCLURE'),
+    consigne.includes('Le jour même se réserve ici'), consigne.includes('jamais « dans un instant »'),
+  ]);
 }
 
 console.log(`${ko ? 'ECHEC' : 'OK   '} ${n} controles, ${ko} echec(s)`);

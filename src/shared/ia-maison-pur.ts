@@ -26,7 +26,7 @@
 
 /* ⟨ia-maison⟩ */
 /** Les huit chantiers, par leur clef : c'est ce que le compteur détaille. */
-export const CHANTIERS_IA = ['capture', 'recu', 'cahier', 'reponse-wa', 'avis', 'diagnostic', 'fiche-du-jour', 'lettre', 'prevision', 'question', 'processus', 'achat', 'devis'] as const;
+export const CHANTIERS_IA = ['capture', 'recu', 'cahier', 'reponse-wa', 'avis', 'diagnostic', 'fiche-du-jour', 'lettre', 'prevision', 'question', 'processus', 'achat', 'devis', 'rendez-vous'] as const;
 export type ChantierIa = (typeof CHANTIERS_IA)[number];
 
 /** Ce qu'on demande : lire une image (le plus fin) ou écrire un texte (le rapide). */
@@ -148,6 +148,10 @@ export const DEPARTEMENTS_PAR_CHANTIER: Record<ChantierIa, readonly string[]> = 
      devis, la vente et la clientèle. Claude choisit des prestations du
      catalogue ; les prix, eux, sont calculés par la Maison. */
   devis: ['dept-vente-caisse', 'dept-clientele'],
+  /* L'AGENT DES RENDEZ-VOUS (18 novembre 2026) : ceux qui posent les
+     rendez-vous au comptoir, la clientèle et la vente. Claude lit la phrase ;
+     la cliente se cherche au Trône, la place et le prix sont à la Maison. */
+  'rendez-vous': ['dept-clientele', 'dept-vente-caisse'],
 };
 export function peutDemander(role: string | undefined, chantier: ChantierIa, acces: Record<string, boolean> | undefined): boolean {
   if (!role) return false;
@@ -164,6 +168,8 @@ export const saitLeTableauIntelligent = (version: string | undefined): boolean =
 export const saitLAchatParPhotos = (version: string | undefined): boolean => !!version && version >= '2026-11-01-a';
 /** La fonction qui connaît le chantier du devis par description (13 novembre 2026). */
 export const saitLeDevisParDescription = (version: string | undefined): boolean => !!version && version >= '2026-11-13-a';
+/** La fonction qui connaît le chantier de l'agent des rendez-vous (18 novembre 2026). */
+export const saitLAgentDesRendezVous = (version: string | undefined): boolean => !!version && version >= '2026-11-18-a';
 /* ⟨/ia-maison⟩ */
 
 /** « 12 $ », « 0,40 $ » : ce que coûte un appel, dit au Trône. */

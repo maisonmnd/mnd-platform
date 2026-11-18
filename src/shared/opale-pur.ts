@@ -61,6 +61,35 @@ export const MESSAGES_DU_FIL_D_OPALE = 30;
 export const PROPOSITION_TENUE_MS = 2 * 3_600_000;
 /** Six places dites au plus, comme sur le site. */
 export const PLACES_D_OPALE = 6;
+
+/* ── NE PERDRE AUCUN RENDEZ-VOUS, 18 novembre 2026 ──────────────────────
+   « Aujourd'hui j'ai perdu un RDV… Il faut pouvoir conclure tout seul »
+   (Yéman). Le fil du 17 novembre : une nouvelle cliente, de passage, demande
+   un shampoing et un resserrage, « de la place aujourd'hui ? », puis les
+   tarifs. Opale ne donne aucun prix sans le nombre de locks, ne voit pas la
+   photo proposée, passe la main pour elle (« une personne vous répond dans
+   un instant »), et personne ne la prend : « ALORS? » à 18 h 45, « Pas
+   d'info sur les prix? » à 20 h 58, sans réponse. Au sélecteur : le jour
+   même avec une heure d'avance, une relance une fois après trois heures. */
+/** La main passée que personne ne prend : passé dix minutes sans un mot de
+    l'équipe, Opale reprend la conversation au message suivant. */
+export const MAIN_NON_PRISE_MS = 10 * 60_000;
+/** Le jour même se propose à partir d'une heure plus tard (sélecteur du 18
+    novembre 2026), et se confirme tant qu'il reste une demi-heure. */
+export const JOUR_MEME_DELAI_MIN = 60;
+export const JOUR_MEME_CONFIRME_MIN = 30;
+/** Les photos qu'elle voit : les trois plus récentes du fil, une à une sous
+    ce poids (WhatsApp les compresse bien en dessous). */
+export const PHOTOS_D_OPALE_AU_PLUS = 3;
+export const OCTETS_D_UNE_PHOTO_AU_PLUS = 3_500_000;
+/** LA RELANCE : trois heures après sa question restée sans réponse, une
+    seule fois, de 8 h à 21 h à Cotonou, et au moins une demi-heure avant
+    que la fenêtre de 24 heures de WhatsApp ne se ferme. */
+export const RELANCE_APRES_MS = 3 * 3_600_000;
+export const RELANCE_DES_MIN = 8 * 60;
+export const RELANCE_JUSQU_A_MIN = 21 * 60;
+export const FENETRE_WA_MS = 24 * 3_600_000;
+export const MARGE_DE_LA_FENETRE_MS = 30 * 60_000;
 /** L'adresse de la Maison, quand la branche n'en dit pas (reception-wa-pur). */
 export const ADRESSE_D_OPALE = 'Ilot 130-F, Maison 88, Portail Marron, quartier Suru-Léré, Cotonou';
 /** Le lieu déjà dit dans ce fil : l'adresse, ou le lien du plan. */
@@ -96,11 +125,13 @@ export type MotifDOpale = typeof MOTIFS_D_OPALE[number];
 const MOTIF_D_OPALE_DIT: Record<MotifDOpale, string> = {
   annulation: 'elle annule son rendez-vous',
   sante: 'son cuir chevelu, une gêne, une douleur, une chute : une personne doit regarder',
-  media: 'une photo ou un vocal que tu ne peux pas lire',
+  media: 'un vocal ou une vidéo que tu ne peux pas lire, et qu’elle ne veut pas écrire',
   question: 'une plainte, un remboursement, un règlement, une question d’argent, ou ce que tu ne sais pas',
   demande: 'elle demande à parler à une personne',
   'autre-personne': 'une demande qui ne concerne pas la Maison (un démarchage, une sortie, une adresse ailleurs)',
 };
+/** Le motif d'une main, en mots, pour le contexte d'une reprise. */
+export const motifDitDOpale = (m: string): string => (MOTIF_D_OPALE_DIT as Record<string, string>)[m] ?? 'une question pour l’équipe';
 export const motifDOpale = (m: unknown): MotifDOpale | null =>
   (MOTIFS_D_OPALE as readonly string[]).includes(String(m)) ? (m as MotifDOpale) : null;
 /** Le motif tel que le fil le garde (le Trône le dit sous la conversation). */
@@ -115,7 +146,11 @@ export const motifDuFilDOpale = (m: MotifDOpale): MotifDeLaMain => m;
    fiches du numéro). Aux autres, la main ne passe pas : une ligne, et le
    lien de la consultation, que le code pose lui-même quand le message ne le
    porte pas. Un vocal et une pièce reviennent toujours à une personne : ils
-   s'écoutent et se lisent, ils ne se regardent pas. */
+   s'écoutent et se lisent, ils ne se regardent pas.
+   18 NOVEMBRE 2026, AVEC « OPALE NE PERD AUCUN RENDEZ-VOUS » : Opale voit
+   les photos pour le prix et la place (le nombre de locks, la longueur) ;
+   l'avis à distance (l'état de ses locks, un soin) reste fermé sans
+   rendez-vous, et le lien ne s'ajoute plus quand elle a proposé sa place. */
 /** Le lien de la consultation, sur le site du catalogue en ligne. */
 export const lienDeLaConsultation = (catalogue: string): string => {
   try { return new URL('/consultation/', catalogue).href; } catch { return ''; }
@@ -131,7 +166,7 @@ export const tourSansUnMot = (nouveaux: readonly { texte?: string }[]): boolean 
   nouveaux.every((m) => !String(m.texte ?? '').trim());
 /** Ce que l'outil répond à Opale quand la main ne passe pas pour une photo. */
 export const refusDeLAvisSurPhoto = (lien: string): string =>
-  `La main ne passe pas pour cette photo : elle n’a ni rendez-vous pris ni séance faite à la Maison. Écris une seule ligne, sans expliquer pourquoi : la Maison regarde ses locks avec elle, au rendez-vous. Puis donne le lien de la consultation : ${lien}`;
+  `La main ne passe pas pour cette photo : elle n’a ni rendez-vous pris ni séance faite à la Maison. Réponds toi-même : sa photo te sert au prix (estime ses locks, appelle \`prix\`) et à proposer sa place ; aucun avis à distance, la Maison regarde ses locks avec elle, au rendez-vous. Pour une création ou une réparation, le lien de la consultation : ${lien}`;
 /** La ligne du lien, que le code pose quand son message ne le porte pas. */
 export const ligneDeLaConsultation = (lien: string): string => `Votre consultation se prend ici : ${lien}`;
 export function avecLeLienDeLaConsultation(texte: string, lien: string): string {
@@ -142,6 +177,48 @@ export function avecLeLienDeLaConsultation(texte: string, lien: string): string 
 /** Le message entier, quand Claude ne répond pas à une photo seule. */
 export const motDeLaPhotoSansRendezVous = (lien: string): string =>
   `Bonjour. La Maison regarde vos locks avec vous, au rendez-vous.\n${ligneDeLaConsultation(lien)}`;
+
+/** CE QUI RESTE À L'ÉQUIPE quand Opale reprend une main que personne n'a
+    prise (18 novembre 2026) : elle répond à ce qu'elle sait (le prix, les
+    places, la photo), mais une annulation, la santé, l'argent ou une
+    personne demandée restent à faire, et la conversation reste marquée pour
+    l'équipe (la pastille, l'alarme). Les autres motifs (une photo, un prix,
+    le jour même, une erreur) se règlent par sa réponse. */
+export const MOTIFS_QUI_RESTENT_A_L_EQUIPE: readonly string[] = ['annulation', 'sante', 'question', 'demande', 'autre-personne'];
+
+/** LA MAIN QUE PERSONNE NE PREND : passée depuis dix minutes au moins, et
+    aucune personne de l'équipe n'a écrit depuis dans le fil. Une personne qui
+    a PRIS la main au Trône (la pause) se juge ailleurs et tient toujours. */
+export function laMainNEstPasPrise(o: { mainPasseeLe?: string; fil: readonly { sens: string; qui?: string; quand: string }[]; maintenantMs: number }): boolean {
+  const le = Date.parse(String(o.mainPasseeLe ?? ''));
+  if (!Number.isFinite(le) || o.maintenantMs - le < MAIN_NON_PRISE_MS) return false;
+  return !o.fil.some((m) => m.sens === 'sortant' && m.qui === 'equipe' && Date.parse(m.quand) >= le);
+}
+
+/** Minutes depuis minuit à Cotonou (UTC+1, sans heure d'été). */
+export const minutesACotonou = (ms: number): number => Math.floor(((((ms + 3_600_000) % 86_400_000) + 86_400_000) % 86_400_000) / 60_000);
+
+/** LA RELANCE EST-ELLE DUE ? Opale mène le fil ; son dernier mot est une
+    question restée sans réponse depuis trois heures ; aucune relance depuis
+    le dernier message de la cliente ; la fenêtre de WhatsApp est encore
+    ouverte pour une demi-heure ; il fait jour à Cotonou. */
+export function relanceDue(o: { etape: string; relanceLe?: string; fil: readonly { sens: string; qui?: string; quand: string; texte: string }[]; maintenantMs: number }): { due: true } | { due: false; pourquoi: string } {
+  const non = (pourquoi: string) => ({ due: false as const, pourquoi });
+  if (o.etape !== 'besoin') return non('Opale ne mène pas ce fil');
+  const dernier = o.fil[o.fil.length - 1];
+  if (!dernier || dernier.sens !== 'sortant' || dernier.qui !== 'opale') return non('le dernier mot n’est pas le sien');
+  if (!dernier.texte.includes('?')) return non('son dernier mot ne lui demande rien');
+  if (!(o.maintenantMs - Date.parse(dernier.quand) >= RELANCE_APRES_MS)) return non('trop tôt');
+  const siens = o.fil.filter((m) => m.sens === 'entrant');
+  const elle = Date.parse(siens[siens.length - 1]?.quand ?? '');
+  if (!Number.isFinite(elle)) return non('elle n’a rien écrit dans le fil');
+  if (o.maintenantMs - elle > FENETRE_WA_MS - MARGE_DE_LA_FENETRE_MS) return non('la fenêtre de WhatsApp se ferme');
+  const deja = Date.parse(String(o.relanceLe ?? ''));
+  if (Number.isFinite(deja) && deja >= elle) return non('déjà relancée');
+  const min = minutesACotonou(o.maintenantMs);
+  if (min < RELANCE_DES_MIN || min >= RELANCE_JUSQU_A_MIN) return non('la nuit');
+  return { due: true };
+}
 
 /* ── CE QUI PART SEUL ───────────────────────────────────────────────────
    Les messages que la Maison envoie d'elle-même, par ses modèles Meta. Opale
@@ -186,10 +263,14 @@ export function consigneDOpale(): string {
     'Elle veut un rendez-vous : comprends ce qu’elle veut (les gestes du catalogue, le jour, l’heure) dans ses propres mots. « La même chose », « comme d’habitude » : les gestes de sa dernière venue.',
     'Le catalogue du contexte donne l’identifiant de chaque geste. Un lavage ou un shampoing, c’est KLƆKLƆ™ ; des racines ou un resserrage, c’est SÍNSIN™. Si tu hésites entre deux gestes, pose une seule question courte.',
     'Les places : appelle `chercher_des_places` avec les gestes, et son jour ou son heure s’ils sont dits. Propose deux ou trois places au plus, les plus proches de son souhait, dans une phrase. Jamais une place, un jour ni une heure que l’outil n’a pas rendus.',
-    'Le jour même ne se réserve pas ici : dis-le avec égards, et propose les jours suivants.',
+    'Le jour même se réserve ici, pour une place qui commence au moins une heure plus tard : `chercher_des_places` avec son jour (aujourd’hui) les rend quand il en reste. S’il n’en reste pas, dis-le avec égards et propose les premières places des jours suivants.',
     'Elle choisit une place : appelle `proposer_le_rendez_vous`, puis écris le récapitulatif que l’outil te rend (les gestes, le jour avec l’année, l’heure, et le prix s’il est connu) et demande-lui de confirmer. Ne dis pas « c’est confirmé » à ce moment-là.',
     'Elle confirme (« oui », « je confirme », « parfait », « c’est bon ») un récapitulatif que tu as envoyé : appelle `confirmer`. Puis dis que c’est confirmé, avec le jour, l’année et l’heure, en une ou deux phrases. Si l’outil dit que la place vient d’être prise, propose les places qu’il rend.',
-    'Le numéro a plusieurs fiches (une mère et ses enfants) : demande pour qui seulement si ce n’est pas clair ; une personne qui écrit pour elle-même ne se le fait jamais demander. Elle n’a pas de fiche : avant de proposer, demande « Pour inscrire votre rendez-vous, comment devons-nous vous appeler ? », puis « Madame ou Monsieur ? » s’il le faut. Jamais une civilité supposée.',
+    'Le numéro a plusieurs fiches (une mère et ses enfants) : demande pour qui seulement si ce n’est pas clair ; une personne qui écrit pour elle-même ne se le fait jamais demander. Elle n’a pas de fiche : propose quand même la place qu’elle choisit (`proposer_le_rendez_vous`, pour « nouvelle »), et demande dans le même message, en une seule phrase, le prénom à inscrire et « Madame ou Monsieur ? ». Sa réponse qui les donne vaut son oui à cette place : appelle `confirmer` avec son prénom et sa civilité. Jamais une civilité supposée.',
+    '',
+    'CONCLURE',
+    'Chaque message la mène vers un rendez-vous posé. Après un prix, une réponse, une hésitation, termine par une proposition précise : une ou deux places (le jour et l’heure), et une question simple pour lui garder celle qui lui convient.',
+    'Elle hésite ou son agenda n’est pas sûr (« je suis de passage », « je ne sais pas encore », « je vous redis ») : propose de lui garder dès maintenant la place la plus proche de son souhait, en lui disant qu’un simple message suffira pour la déplacer. Ne la laisse jamais repartir avec un lien seulement : le lien du catalogue peut s’ajouter, il ne remplace jamais la place proposée.',
     'Elle veut changer l’heure ou le jour d’un rendez-vous qu’elle a : `chercher_des_places` pour les mêmes gestes, puis `proposer_le_deplacement`, puis `confirmer` à son oui. La même personne de la Maison la reçoit. Une fois fait, dis seulement que son rendez-vous est confirmé pour le nouveau jour et la nouvelle heure (« Votre rendez-vous est confirmé pour le vendredi 6 novembre 2026 à 10 h. ») : ne dis jamais qu’il a été déplacé.',
     'Elle annule : remercie-la de prévenir, dis que la Maison s’en occupe, et appelle `passer_la_main` (motif « annulation »). Tu n’annules rien toi-même.',
     'Elle demande si un rendez-vous tient (« c’est confirmé pour 15 h ? ») : réponds d’après ses rendez-vous du contexte, avec le jour, l’année et l’heure. S’il n’y figure pas, dis-le simplement et propose de le poser.',
@@ -198,7 +279,10 @@ export function consigneDOpale(): string {
     'LES PRIX, COMME SUR MAISONMND.COM',
     'Une création de locks ou une réparation commence TOUJOURS par une consultation : n’en donne aucun prix, ni « à partir de », ni estimation ; la Maison remet son devis écrit après la consultation. Propose de réserver la consultation.',
     'Les extensions de locks se décident à la consultation (la teinte, le calibre, le nombre) : aucun prix.',
-    'Les soins, entretiens, reprises, coiffures : le prix du catalogue, ou celui que l’outil `prix` rend pour elle. Un prix qui dépend de ses locks : il te faut son nombre de locks (approximatif) ; s’il n’est ni dans le contexte ni dans le fil, demande-le avec délicatesse, sans citer de montant. Un prix qui dépend de la longueur : demande sa longueur (court, mi-long, long).',
+    'Les soins, entretiens, reprises, coiffures : le prix du catalogue, ou celui que l’outil `prix` rend pour elle. Elle demande un prix : donne-le TOUT DE SUITE, dans ce message ; ne la fais jamais attendre un prix.',
+    'Un prix qui dépend du nombre de ses locks ou de leur longueur, qu’elle ne t’a pas dits : appelle `prix` sans eux, il rend la grille (par exemple « jusqu’à 250 locks : 20 000 F ; de 251 à 350 locks : 30 000 F »). Donne-la-lui simplement, la tranche la plus courante d’abord, puis demande avec délicatesse combien de locks elle a à peu près et leur longueur (court : jusqu’aux épaules ; mi-long : des épaules aux omoplates ; long : au-delà), ou une photo.',
+    'LES PHOTOS : tu vois les photos qu’elle envoie, jointes après le contexte. D’une photo de ses locks, estime toi-même, avec prudence, leur nombre approximatif et leur longueur, appelle `prix` avec ces estimations, et dis le prix comme une estimation que la Maison confirme à son arrivée (« d’après votre photo… »). Une estimation près d’une limite de la grille : donne les deux prix voisins. Ne commente rien d’autre que ses locks. Une photo qui montre une gêne, une plaie, une chute : rien de médical, passe la main (motif « sante »).',
+    'Un vocal ou une vidéo : tu ne les entends pas et ne les vois pas. Demande-lui avec égards de l’écrire en quelques mots (pour ses locks, une photo suffit), sans rien deviner de ce qu’ils disent.',
     'Aucun autre montant ni estimation que le contexte ou un outil ne donne pas. Ne parle d’aucune remise, d’aucun code ni d’aucune offre : la Maison MND les applique elle-même, quand ils valent pour elle.',
     'Les liens de la Maison (catalogue en ligne, consultation de création, consultation de réparation) sont dans le contexte : donne-les quand ils la servent.',
     '',
@@ -207,12 +291,12 @@ export function consigneDOpale(): string {
     'Les heures d’ouverture se disent seulement si elle les demande, ou quand la suite revient à l’équipe et que la Maison est fermée.',
     '',
     'CE QUI REVIENT À UNE PERSONNE',
-    'Appelle `passer_la_main`, puis écris un message bref et chaleureux qui dit qu’une personne de la Maison lui répond ici (quand la Maison est fermée : à sa réouverture, que le contexte dit) : une annulation ; le cuir chevelu, une gêne, une douleur, une chute (aucun diagnostic, aucun produit à distance) ; une plainte, un remboursement, un règlement, une question d’argent ; un vocal ou une pièce (tu ne les entends pas et ne les lis pas : ne décris rien) ; une photo, seulement quand le contexte dit qu’elle a un rendez-vous pris ou une séance faite (tu ne la vois pas : ne décris rien) ; elle demande une personne ; une demande qui ne concerne pas la Maison ; ou ce que tu ne sais pas.',
-    'Jamais pour un bonjour, un rendez-vous, un déplacement, un prix du catalogue, les heures ou l’adresse : à ceux-là, tu réponds toi-même. Ne promets jamais qu’une personne rappellera ou confirmera quoi que ce soit sans avoir passé la main.',
+    'Appelle `passer_la_main`, puis écris un message bref et chaleureux qui dit qu’une personne de la Maison lui répond ici dès que possible (quand la Maison est fermée : à sa réouverture, que le contexte dit), jamais « dans un instant » : une annulation ; le cuir chevelu, une gêne, une douleur, une chute (aucun diagnostic, aucun produit à distance) ; une plainte, un remboursement, un règlement, une question d’argent ; elle demande une personne ; une demande qui ne concerne pas la Maison ; ou ce que tu ne sais vraiment pas. Dans le même message, réponds à tout ce que tu sais déjà (un prix, des places).',
+    'Jamais pour un bonjour, un rendez-vous, un déplacement, un prix, une photo de ses locks, un vocal, le jour même, les heures ou l’adresse : à ceux-là, tu réponds toi-même. Ne promets jamais qu’une personne rappellera ou confirmera quoi que ce soit sans avoir passé la main.',
     '',
     'L’AVIS SUR PHOTO',
-    'La Maison ne regarde une photo que pour une cliente qui a un rendez-vous pris ou une séance faite : le contexte le dit (« L’avis sur photo »). Ne demande jamais de photo, à personne.',
-    'Quand le contexte dit qu’elle n’a ni l’un ni l’autre, et qu’elle envoie une photo ou demande un avis à distance (ses cheveux, ses locks, sa longueur, « qu’en pensez-vous ? ») : ne passe pas la main. Écris une seule ligne, sans expliquer pourquoi : la Maison regarde ses locks avec elle, au rendez-vous ; puis donne le lien de la consultation du contexte. Le reste de son message se traite comme d’habitude.',
+    'Sa photo te sert au prix et à la place, jamais à un avis : ne dis rien de l’état de ses locks, ne conseille aucun soin à distance. Ne demande une photo que pour estimer leur nombre et leur longueur. La Maison ne regarde une photo, pour un avis, que pour une cliente qui a un rendez-vous pris ou une séance faite : le contexte le dit (« L’avis sur photo »).',
+    'Quand le contexte dit qu’elle n’a ni l’un ni l’autre, et qu’elle demande un avis à distance (ses cheveux, ses locks, sa longueur, « qu’en pensez-vous ? ») : ne passe pas la main. Une seule ligne, sans expliquer pourquoi : la Maison regarde ses locks avec elle, au rendez-vous ; puis propose sa place, et, pour une création ou une réparation, le lien de la consultation du contexte. Le reste de son message se traite comme d’habitude.',
     'Une photo dont ses mots disent qu’elle est autre chose (un reçu, un règlement) suit sa propre règle.',
     '',
     'RÈGLES ABSOLUES',
@@ -235,7 +319,7 @@ const GESTES = { type: 'array', items: { type: 'string' }, minItems: 1, maxItems
 export const OUTILS_D_OPALE = [
   {
     name: 'chercher_des_places',
-    description: 'Les vraies places libres de la Maison pour ces gestes, à partir de demain (le jour même ne se réserve pas ici). Donne son jour, son moment ou son heure quand elle les a dits : les places rendues les entourent.',
+    description: 'Les vraies places libres de la Maison pour ces gestes, à partir d’aujourd’hui (le jour même, une heure plus tard au plus tôt). Donne son jour, son moment ou son heure quand elle les a dits : les places rendues les entourent.',
     input_schema: {
       type: 'object',
       properties: {
@@ -266,16 +350,18 @@ export const OUTILS_D_OPALE = [
   },
   {
     name: 'proposer_le_rendez_vous',
-    description: 'Tient une place choisie par elle et rend le récapitulatif à lui écrire. Rien n’est posé : il faudra son oui, puis `confirmer`.',
+    description: 'Tient une place choisie par elle, ou que tu lui proposes de garder, et rend le récapitulatif à lui écrire. Rien n’est posé : il faudra son oui, puis `confirmer`.',
     input_schema: {
       type: 'object',
       properties: {
         pour: { type: 'string', description: 'L’identifiant de la fiche pour qui l’on réserve, ou « nouvelle » quand elle n’a pas de fiche.' },
-        prenom: { type: 'string', description: 'Pour une nouvelle : le prénom qu’elle a donné.' },
-        civilite: { type: 'string', enum: ['madame', 'mademoiselle', 'monsieur'], description: 'Pour une nouvelle : la civilité qu’elle a dite.' },
+        prenom: { type: 'string', description: 'Pour une nouvelle : le prénom qu’elle a donné, s’il est déjà dit.' },
+        civilite: { type: 'string', enum: ['madame', 'mademoiselle', 'monsieur'], description: 'Pour une nouvelle : la civilité qu’elle a dite, si elle est déjà dite.' },
         gestes: GESTES,
         date: DATE_ISO,
         heure: HEURE,
+        locks: { type: 'integer', minimum: 1, maximum: 3000, description: 'Le nombre de locks qu’elle a dit, ou que tu as estimé sur sa photo, pour le prix du récapitulatif.' },
+        longueur: { type: 'string', enum: ['court', 'mi-long', 'long'], description: 'Sa longueur, dite ou estimée sur sa photo.' },
       },
       required: ['pour', 'gestes', 'date', 'heure'],
       additionalProperties: false,
@@ -293,8 +379,15 @@ export const OUTILS_D_OPALE = [
   },
   {
     name: 'confirmer',
-    description: 'Elle a dit oui au récapitulatif que tu lui as envoyé : pose le rendez-vous proposé, ou déplace celui qui l’était. Seulement après son oui, jamais dans le tour où tu proposes.',
-    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+    description: 'Elle a dit oui au récapitulatif que tu lui as envoyé : pose le rendez-vous proposé, ou déplace celui qui l’était. Seulement après son oui, jamais dans le tour où tu proposes. Pour une nouvelle, son prénom et sa civilité, tels qu’elle vient de les dire.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        prenom: { type: 'string', description: 'Pour une nouvelle : le prénom qu’elle a donné.' },
+        civilite: { type: 'string', enum: ['madame', 'mademoiselle', 'monsieur'], description: 'Pour une nouvelle : la civilité qu’elle a dite.' },
+      },
+      additionalProperties: false,
+    },
   },
   {
     name: 'envoyer_le_plan',
@@ -413,20 +506,36 @@ export type PropositionLue =
   | { ok: true; pour: string | 'nouvelle'; prenom?: string; civilite?: CiviliteDuFil; gestes: string[]; date: string; heure: string }
   | { ok: false; pourquoi: string };
 /** La proposition relue : la fiche parmi celles du numéro, ou une nouvelle
-    qui a dit son prénom et sa civilité ; des gestes connus ; une date après
-    aujourd'hui ; une heure. */
-export function propositionLue(e: EntreeDeLaProposition, o: { fiches: readonly string[]; connus: ReadonlySet<string>; aujourdhui: string }): PropositionLue {
+    (son prénom et sa civilité s'ils sont dits : sinon `confirmer` les
+    prendra, 18 novembre 2026) ; des gestes connus ; une date à venir, ou
+    aujourd'hui à une heure qui commence au moins une heure plus tard
+    (`minutesDuJour` : l'heure de Cotonou ; sans elle, jamais le jour même). */
+export function propositionLue(e: EntreeDeLaProposition, o: { fiches: readonly string[]; connus: ReadonlySet<string>; aujourdhui: string; minutesDuJour?: number }): PropositionLue {
   const pour = String(e.pour ?? '').trim();
   const nouvelle = pour === 'nouvelle';
   if (!nouvelle && !o.fiches.includes(pour)) return { ok: false, pourquoi: 'Cette fiche n’est pas l’une des fiches de ce numéro (contexte). Pour une personne sans fiche, « nouvelle ».' };
   const prenom = typeof e.prenom === 'string' ? e.prenom.trim().replace(/\s+/g, ' ').slice(0, 40) : '';
   const civilite = e.civilite === 'madame' || e.civilite === 'mademoiselle' || e.civilite === 'monsieur' ? e.civilite : undefined;
-  if (nouvelle && (!prenom || !civilite)) return { ok: false, pourquoi: 'Pour une nouvelle, il faut le prénom qu’elle a donné et sa civilité : demande-les-lui d’abord.' };
   const g = gestesLus(e.gestes, o.connus);
   if (g.ids.length === 0) return { ok: false, pourquoi: 'Aucun de ces gestes n’est réservable ici : reprends les identifiants du catalogue.' };
   if (!estIso(e.date) || !estHeure(e.heure)) return { ok: false, pourquoi: 'La date (AAAA-MM-JJ) ou l’heure (HH:MM) est illisible.' };
-  if (e.date <= o.aujourdhui) return { ok: false, pourquoi: 'Le jour même ne se réserve pas ici : propose les jours suivants.' };
-  return { ok: true, pour: nouvelle ? 'nouvelle' : pour, ...(nouvelle ? { prenom, civilite } : {}), gestes: g.ids, date: e.date, heure: e.heure };
+  if (e.date < o.aujourdhui) return { ok: false, pourquoi: 'Cette date est passée : propose les prochaines places.' };
+  if (e.date === o.aujourdhui && (o.minutesDuJour === undefined || minutesDe(e.heure) < o.minutesDuJour + JOUR_MEME_DELAI_MIN)) {
+    return { ok: false, pourquoi: 'Le jour même, une place commence au moins une heure plus tard : propose une heure plus tardive (chercher_des_places), ou les jours suivants.' };
+  }
+  return { ok: true, pour: nouvelle ? 'nouvelle' : pour, ...(nouvelle && prenom ? { prenom } : {}), ...(nouvelle && civilite ? { civilite } : {}), gestes: g.ids, date: e.date, heure: e.heure };
+}
+
+/** QUI INSCRIRE, AU OUI D'UNE NOUVELLE (18 novembre 2026) : le prénom et la
+    civilité de la proposition, sinon ceux qu'elle vient de dire et que
+    `confirmer` reçoit. Jamais une civilité supposée : sans les deux, rien ne
+    se pose. */
+export function quiInscrire(attente: { prenom?: string; civilite?: CiviliteDuFil }, e: { prenom?: unknown; civilite?: unknown }): { ok: true; prenom: string; civilite: CiviliteDuFil } | { ok: false; pourquoi: string } {
+  const dit = typeof e.prenom === 'string' ? e.prenom.trim().replace(/\s+/g, ' ').slice(0, 40) : '';
+  const prenom = attente.prenom || dit;
+  const civilite = attente.civilite ?? (e.civilite === 'madame' || e.civilite === 'mademoiselle' || e.civilite === 'monsieur' ? e.civilite : undefined);
+  if (!prenom || !civilite) return { ok: false, pourquoi: 'Pour l’inscrire, il faut le prénom qu’elle a donné et sa civilité (« Madame ou Monsieur ? ») : demande ce qui manque, la place reste tenue.' };
+  return { ok: true, prenom, civilite };
 }
 
 /* ── CE QUI ATTEND SON OUI ──────────────────────────────────────────────
@@ -437,7 +546,7 @@ export type EnAttenteDOpale =
   | { genre: 'pose'; pour: string; prenom?: string; civilite?: CiviliteDuFil; gestes: string[]; date: string; heure: string; dureeMin: number; proposeLe: string }
   | { genre: 'deplacement'; rdvId: string; updatedAt: string; maitre: string; clientId: string; gestes: string[]; dureeMin: number; avant: { date: string; time: string }; date: string; heure: string; proposeLe: string };
 
-export type EtatDOpale = { enAttente?: EnAttenteDOpale; dernierTourLe?: string };
+export type EtatDOpale = { enAttente?: EnAttenteDOpale; dernierTourLe?: string; relanceLe?: string };
 
 /** `confirmer` est-il permis ? Une proposition tenue, partie avant le
     premier message du tour, de moins de deux heures. */
@@ -457,6 +566,8 @@ export type MessageDuFilDOpale = {
   /** Pour un message de la Maison : qui l'a écrit, tel que le Trône le note. */
   qui?: 'opale' | 'equipe' | 'automatique' | 'automate';
   type?: string;
+  /** Une photo qu'elle a envoyée, jointe à la demande : Opale la voit. */
+  photoJointe?: boolean;
 };
 export type RdvDOpale = { id: string; date: string; time?: string; gestes: string[]; statut: string; pour: string };
 export type FicheDOpale = {
@@ -504,6 +615,12 @@ export type ContexteDOpale = {
   fil: readonly MessageDuFilDOpale[];
   /** Les messages du tour, ceux auxquels elle répond maintenant. */
   nouveaux: readonly MessageDuFilDOpale[];
+  /** LA MAIN QUE PERSONNE N'A PRISE (18 novembre 2026) : Opale l'avait
+      passée, personne n'a écrit depuis ; elle reprend. */
+  reprise?: { passeeLe: string; motif: string; resteALEquipe: boolean };
+  /** LA RELANCE (18 novembre 2026) : aucun message neuf ; sa dernière
+      question attend depuis plus de trois heures. */
+  relance?: boolean;
   /** Les noms des gestes, pour dire les rendez-vous en mots. */
   nomDe: (id: string) => string;
 };
@@ -526,7 +643,10 @@ const quiDit = (m: MessageDuFilDOpale): string => {
   return 'La Maison (message automatique)';
 };
 const ligneDuFil = (m: MessageDuFilDOpale): string => {
-  const t = String(m.texte ?? '').replace(/\s+/g, ' ').trim().slice(0, 600) || (m.type === 'audio' ? '[un message vocal]' : m.type === 'image' ? '[une photo]' : '[un message sans texte]');
+  const photo = m.photoJointe ? '[une photo, jointe après le contexte : tu la vois]' : '[une photo]';
+  const brut = String(m.texte ?? '').replace(/\s+/g, ' ').trim().slice(0, 600);
+  const t = m.type === 'image' ? (brut && brut !== 'une photo' ? `${photo} ${brut}` : photo)
+    : brut || (m.type === 'audio' ? '[un message vocal]' : '[un message sans texte]');
   return `[${quandDitDOpale(m.quand)}] ${quiDit(m)} : ${t}`;
 };
 
@@ -566,8 +686,8 @@ export function contexteDOpale(c: ContexteDOpale): string {
   l.push(c.connaitLeLieu ? 'Le lieu : elle connaît déjà la Maison ; ne redonne ni l’adresse ni le plan, sauf si elle les demande.' : `Le lieu : elle n’est jamais venue. L’adresse : ${c.adresse}.`);
   l.push('');
   l.push(c.suivie
-    ? 'L’avis sur photo : elle a un rendez-vous pris ou une séance faite à la Maison. Une photo de ses locks revient à une personne (passer_la_main, motif « media »).'
-    : `L’avis sur photo : elle n’a ni rendez-vous pris ni séance faite à la Maison. Aucun avis sur photo ni à distance, et la main ne passe pas pour une photo : une ligne (la Maison regarde ses locks avec elle, au rendez-vous), puis le lien de la consultation : ${lienDeLaConsultation(c.liens.catalogue)}`);
+    ? 'L’avis sur photo : elle a un rendez-vous pris ou une séance faite à la Maison. Sa photo te sert au prix ; un avis sur l’état de ses locks revient à une personne (passer_la_main, motif « media »).'
+    : `L’avis sur photo : elle n’a ni rendez-vous pris ni séance faite à la Maison. Sa photo te sert au prix et à la place, jamais à un avis à distance, et la main ne passe pas pour une photo : la Maison regarde ses locks avec elle, au rendez-vous. Le lien de la consultation, pour une création ou une réparation : ${lienDeLaConsultation(c.liens.catalogue)}`);
   l.push('');
   l.push(`Les liens de la Maison : le catalogue en ligne ${c.liens.catalogue} ; la consultation de création ${c.liens.creation} ; la consultation de réparation ${c.liens.reparation}.`);
   if (c.paiements.length > 0) l.push(`Les moyens de paiement : ${c.paiements.join(', ')}.`);
@@ -590,6 +710,15 @@ export function contexteDOpale(c: ContexteDOpale): string {
   l.push('LE FIL (les 48 dernières heures, du plus ancien au plus récent)');
   const vus = new Set(c.nouveaux.map((m) => `${m.quand}|${m.texte}`));
   for (const m of c.fil) if (!vus.has(`${m.quand}|${m.texte}`)) l.push(ligneDuFil(m));
+  if (c.reprise) {
+    l.push('');
+    l.push(`TU REPRENDS LA CONVERSATION : tu avais passé la main à l’équipe ${quandDitDOpale(c.reprise.passeeLe)}, et personne ne lui a répondu depuis. Excuse l’attente en quelques mots, sans accuser personne, puis réponds toi-même à tout ce qui attend (un prix, des places, sa photo) et propose une place.${c.reprise.resteALEquipe ? ` Ce qui revient à une personne (${c.reprise.motif}) reste à l’équipe : dis seulement que la Maison s’en occupe, sans promettre de délai, et n’appelle pas une seconde fois \`passer_la_main\` pour cela.` : ''}`);
+  }
+  if (c.relance) {
+    l.push('');
+    l.push('RELANCE : elle n’a pas répondu depuis plus de trois heures à ta dernière question, et aucun message neuf n’attend. Écris UN message court qui l’aide à conclure : une place lui a été proposée, vérifie qu’elle est encore libre (`chercher_des_places`) et propose de la lui garder (`proposer_le_rendez_vous`) ; sinon, reprends sa demande en une phrase et propose une place précise. Pas de reproche, pas d’insistance, ne dis pas que c’est une relance, ne salue pas une seconde fois dans la journée. Si rien n’appelle de relance (elle a dit non, elle a été servie, elle a dit qu’elle reviendrait vers la Maison plus tard, ou ta question n’attendait rien d’important), appelle `ne_rien_repondre`.');
+    return l.join('\n');
+  }
   l.push('');
   l.push('SES NOUVEAUX MESSAGES, AUXQUELS TU RÉPONDS MAINTENANT');
   for (const m of c.nouveaux) l.push(ligneDuFil(m));
@@ -648,20 +777,24 @@ export type IssueDuTourDOpale =
   | { genre: 'parle'; enAttente?: EnAttenteDOpale | null }
   | { genre: 'pose'; rdvId: string }
   | { genre: 'deplace'; rdvId: string }
-  | { genre: 'main'; motif: MotifDeLaMain }
+  | { genre: 'main'; motif: MotifDeLaMain; enAttente?: EnAttenteDOpale | null }
   | { genre: 'rien' };
 
+/** `relance` : ce tour était une relance (envoyée ou tue), elle ne se refait
+    pas avant un nouveau message d'elle. Une main déjà passée pour le même
+    motif garde son heure : la reprise par Opale ne la remet pas à zéro. */
 export function etatApresOpale(
-  avant: EtatDuFil, o: { issue: IssueDuTourDOpale; waIds: readonly string[]; dernierEntrantQuand?: string; envois: number; planEnvoye: boolean; maintenantMs: number },
+  avant: EtatDuFil, o: { issue: IssueDuTourDOpale; waIds: readonly string[]; dernierEntrantQuand?: string; envois: number; planEnvoye: boolean; maintenantMs: number; relance?: boolean },
 ): EtatDuFil & { opale: EtatDOpale } {
   const maintenant = new Date(o.maintenantMs).toISOString();
   const traites = [...(avant.traites ?? []), ...o.waIds.filter((w) => !(avant.traites ?? []).includes(w))].slice(-20);
   const envois = [...(avant.envois ?? []).filter((x) => o.maintenantMs - Date.parse(x) < 86_400_000), ...Array.from({ length: o.envois }, () => maintenant)];
   const ancienne = ((avant as EtatDuFil & { opale?: EtatDOpale }).opale ?? {}) as EtatDOpale;
-  const garde = o.issue.genre === 'parle'
+  const garde = o.issue.genre === 'parle' || o.issue.genre === 'main'
     ? (o.issue.enAttente === null ? undefined : o.issue.enAttente ?? ancienne.enAttente)
-    : o.issue.genre === 'rien' || o.issue.genre === 'main' ? ancienne.enAttente : undefined;
-  const opale: EtatDOpale = { ...(garde ? { enAttente: garde } : {}), dernierTourLe: maintenant };
+    : o.issue.genre === 'rien' ? ancienne.enAttente : undefined;
+  const relanceLe = o.relance ? maintenant : ancienne.relanceLe;
+  const opale: EtatDOpale = { ...(garde ? { enAttente: garde } : {}), dernierTourLe: maintenant, ...(relanceLe ? { relanceLe } : {}) };
   const base = {
     ...avant,
     traites,
@@ -676,9 +809,10 @@ export function etatApresOpale(
   const passe = (etape: EtatDuFil['etape']) => (avant.etape === etape ? {} : { etape, depuis: maintenant, versionDeLEtape: avant.version });
   if (o.issue.genre === 'pose' || o.issue.genre === 'deplace') return { ...base, ...passe('confirme'), rdvId: o.issue.rdvId };
   if (o.issue.genre === 'main') {
+    const memeMain = avant.etape === 'main' && avant.motifMain === o.issue.motif && !!avant.mainPasseeLe;
     return {
-      ...base, ...passe('main'), mainPasseeLe: maintenant, motifMain: o.issue.motif,
-      etapeAvantLaMain: 'besoin', versionAvantLaMain: avant.version, mainDeLaReception: true,
+      ...base, ...passe('main'), mainPasseeLe: memeMain ? avant.mainPasseeLe : maintenant, motifMain: o.issue.motif,
+      etapeAvantLaMain: 'besoin', versionAvantLaMain: memeMain ? avant.versionAvantLaMain ?? avant.version : avant.version, mainDeLaReception: true,
     };
   }
   return { ...base, ...passe('besoin') };

@@ -30,7 +30,7 @@ const TZ = 'Africa/Porto-Novo';
     des réglages (rythme du soir, grâce du matin). 17 novembre 2026 : le
     dépôt d'une consultation est gardé par le serveur (son identifiant, ce
     qu'elle a dit seulement, une insertion). */
-const VERSION = '2026-11-18-a';
+const VERSION = '2026-11-18-b';
 
 /* LA DATE ET L'HEURE TELLES QU'ON LES DIT — 10 octobre 2026 (revue de nuit).
    Le rappel disait « Rendez-vous le 2026-10-11 à 09:00 », puis un tiret

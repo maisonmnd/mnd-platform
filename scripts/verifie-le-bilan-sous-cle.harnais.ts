@@ -196,7 +196,7 @@ dit('⑤ push-notify : un depot s insere, il n ecrase rien, et rend son identifi
   /await admin\.from\('consultations_queue'\)\.insert\(\{\n\s*id,/.test(TS), /consultations_queue'\)\.upsert\(/.test(TS), TS.includes('return json({ ok: true, id, sent, version: VERSION'),
 ]);
 dit('⑤ push-notify : le depot passe par depotPropre, l annonce publique est ecrite au serveur', [true, true, true], [
-  TS.includes('const propre = depotPropre(c.data, { parLEquipe: equipe });'), TS.includes(': annonceDuDepot(data);'), PN.includes("const VERSION = '2026-11-18-a';"),
+  TS.includes('const propre = depotPropre(c.data, { parLEquipe: equipe });'), TS.includes(': annonceDuDepot(data);'), PN.includes("const VERSION = '2026-11-18-b';"),
 ]);
 /* La lecture, au Trône. */
 const BES: ReglagesDesBesoins = {

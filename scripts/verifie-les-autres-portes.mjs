@@ -122,7 +122,8 @@ const PANNES = [
   ['la base dit a tous qui est venue', SQL, "  select (public.is_staff() or public.est_ma_tete(cible))\n     and exists (", '  select exists ('],
   ['la base compte un rendez-vous confirme pour une seance', SQL, "          and a.data->>'status' = 'honoré'", "          and a.data->>'status' in ('honoré', 'confirmé')"],
   /* L'avis sur photo. */
-  ['la consigne redemande une photo', OPALE, ' Ne demande jamais de photo, à personne.', ''],
+  ['la consigne redemande une photo', OPALE, ' Ne demande une photo que pour estimer leur nombre et leur longueur.', ''],
+  ['le lien de la consultation coupe la place proposee', AUTOMATE, "issue.issue.genre === 'parle' && !enAttente) issue.texte = avecLeLienDeLaConsultation(", "issue.issue.genre === 'parle') issue.texte = avecLeLienDeLaConsultation("],
   ['le contexte dit la porte ouverte a tout le monde', OPALE, '  l.push(c.suivie\n', '  l.push(true\n'],
   ['le lien de la consultation est ecrit en dur dans la fonction', AUTOMATE, '  const lienConsultation = lienDeLaConsultation(LIENS_D_OPALE.catalogue);', "  const lienConsultation = 'https://maisonmnd.com/consultation/';"],
   ['la fonction ne lit plus les rendez-vous confirmes seuls', AUTOMATE, "    .eq('data->>status', 'confirmé').gte('data->>date', aujourdhui).limit(40);", "    .gte('data->>date', aujourdhui).limit(40);"],

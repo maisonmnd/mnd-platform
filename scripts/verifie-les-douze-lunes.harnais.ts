@@ -684,6 +684,8 @@ const regles: Regle[] = [
         'regler-par-fedapay': { fichier: 'src/shared/regler-par-fedapay-pur.ts', extrait: (s) => entre(s, 'regler-par-fedapay') },
         /* Le caissier de Grenat (13 novembre 2026) : prévenir le comptoir, demander la facture, ses gestes sûrs, recopiés dans cloture-du-jour. */
         'le-caissier': { fichier: 'src/shared/le-caissier-pur.ts', extrait: (s) => entre(s, 'le-caissier') },
+        /* La clé d'une porte (revue du 17 novembre 2026) : la comparaison à temps constant et le refus au journal, recopiés dans les dix portes à clé. */
+        'cle-du-cron': { fichier: 'src/shared/cle-du-cron-pur.ts', extrait: (s) => entre(s, 'cle-du-cron') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };
