@@ -25,7 +25,10 @@ export const BOUTONS_DE_L_ACCORD = [
 
 /** Ce que la Maison répond à chaque bouton. */
 export const MERCI_DE_L_ACCORD = 'Merci. Vous recevrez nos nouvelles ; un STOP suffit pour les arrêter.';
-export const MERCI_DU_REFUS = 'Bien entendu. Vous continuerez de recevoir vos rappels et vos confirmations, rien d\'autre.';
+/** LE REFUS SANS PROMESSE DE TROP (18 novembre 2026, Yéman au sélecteur : « La carte part quand même ») :
+    la carte d'anniversaire est un vœu, pas une nouvelle, et part aussi après un « Non merci ». La réponse
+    ne promet donc plus « rien d'autre » : elle dit ce qui s'arrête et ce qui continue. */
+export const MERCI_DU_REFUS = 'Bien entendu : plus d\'offres ni de nouvelles. Vous continuerez de recevoir vos rappels, vos confirmations et, le jour venu, nos vœux d\'anniversaire.';
 
 /** La promesse tenue : au plus deux messages par mois et par personne pour
     tout ce qui n'est pas un service (envies, offres, relances, fêtes, place
