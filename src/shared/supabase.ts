@@ -22,7 +22,8 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
    LA PORTÉE SE LIT À DEUX ENDROITS, dans cet ordre (17 novembre 2026) :
      1. `VITE_AUTH_SCOPE`, posé à la construction : build-sites.mjs le pose
-        pour le site couronne ;
+        pour le site couronne, et le pose VIDE pour tout autre site
+        (18 novembre 2026). Vide compte pour absent : on passe à la page ;
      2. à défaut, la balise `<meta name="mnd-auth-scope">` de la page :
         couronne.html la porte, aucune autre page.
    Sans l'un ni l'autre, aucune portée : le tiroir par défaut de supabase-js,

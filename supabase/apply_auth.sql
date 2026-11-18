@@ -13,12 +13,34 @@
 -- `staff_guard` dans sa forme de 0073 : sur un projet qui a passé 0109 (la
 -- production), cela retirerait le cas « une place préparée » de 0109, et une
 -- recrue invitée ne pourrait plus entrer par `rattacher_mon_compte`. Sur un
--- tel projet, ne pas le relancer : la migration 0213 suffit.
+-- tel projet, la migration 0213 suffit.
+--
+-- IL S'Y REFUSE LUI-MÊME (18 novembre 2026). L'avertissement ci-dessus n'était
+-- qu'un commentaire, dans un fichier dont la consigne est « Run ». Le premier
+-- geste du fichier regarde donc si le projet porte 0109 (ses fonctions
+-- `fiche_qui_mattend` ou `rattacher_mon_compte`) et, si oui, lève une
+-- exception qui nomme la migration 0213. Un Run du SQL Editor envoie tout le
+-- fichier d'un bloc, exécuté en UNE transaction implicite : l'exception
+-- l'annule en entier, rien n'est réécrit. Pas de `begin` … `commit` ici, à
+-- dessein : un bloc explicite qui échoue resterait ouvert, en échec, sur la
+-- connexion. Sous psql, passer le fichier avec `-1 -v ON_ERROR_STOP=1`, sans
+-- quoi psql continue après l'erreur.
 --
 -- Modèle : chaque membre du personnel = une ligne `staff` liée à `auth.users`,
 -- avec un rôle (souverain / gérant / maître) et les rubriques ERP accessibles ;
 -- ses branches dans `staff_branches`. Le souverain voit toutes les branches.
 -- =====================================================================
+
+-- ---------- Le refus d'un projet qui a passé 0109 (18 novembre 2026) ----------
+do $$
+begin
+  if exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname in ('fiche_qui_mattend', 'rattacher_mon_compte')
+  ) then
+    raise exception 'apply_auth.sql refusé : ce projet a passé la migration 0109 (public.fiche_qui_mattend ou public.rattacher_mon_compte existe). Ce fichier remettrait staff_guard dans sa forme de 0073 et fermerait la porte aux recrues invitées. Rien n''est fait. Pour retirer provision_first_staff, passer la migration 0213.';
+  end if;
+end $$;
 
 create table if not exists public.staff (
   user_id    uuid primary key references auth.users(id) on delete cascade,
@@ -93,7 +115,9 @@ create policy staff_self_read on public.staff for select to authenticated
 -- (0007, gardée par `is_souverain()`) et la recrue invitée par
 -- `rattacher_mon_compte` (0109), qui contournent la RLS ; le fondateur, depuis
 -- le 17 novembre 2026, par le SQL Editor (rôle postgres, que la RLS n'arrête
--- pas).
+-- pas, mais que `staff_guard` arrête comme tout autre rôle dès que la table
+-- n'est plus vide : ni le SQL Editor ni la clé de service ne réparent `staff`
+-- par une écriture ordinaire, voir l'en-tête de 0213).
 drop policy if exists staff_self_write on public.staff;
 drop policy if exists staff_admin_write on public.staff;
 create policy staff_admin_write on public.staff for all to authenticated

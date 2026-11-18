@@ -50,8 +50,13 @@
 --     souverain.';`, et `rattacher_mon_compte` (0109) n'écrit que le rôle
 --     d'une fiche préparée par la direction, que `fiche_qui_mattend` limite
 --     à `gerant` ou `maitre` : jamais souverain ;
---   · la clé de service, qui contourne la RLS, peut tout écrire de toute
---     façon ; aucune fonction Edge n'écrit `staff`.
+--   · la clé de service contourne la RLS, mais PAS `staff_guard` (relu le
+--     18 novembre 2026 ; l'en-tête disait à tort qu'elle pouvait tout
+--     écrire). Un déclencheur s'applique à tous les rôles, `service_role` et
+--     `postgres` compris : `auth.uid()` y est nul, `is_souverain()` est
+--     faux, et dès que `staff` n'est plus vide, toute écriture est refusée.
+--     La clé de service, comme le SQL Editor, n'écrit donc `staff` que tant
+--     que la table est vide ; aucune fonction Edge n'écrit `staff`.
 -- Le déclencheur n'est donc pas redéfini ici.
 --
 -- Aucune donnée ne bouge. Rejouable : `drop … if exists`.

@@ -89,7 +89,11 @@ l'auth est inerte. À coupler au durcissement RLS — les deux vont ensemble.
   (`sb-mnd-couronne`) : `VITE_AUTH_SCOPE=couronne` au build publié, et à défaut
   la balise `<meta name="mnd-auth-scope" content="couronne">` de `couronne.html`,
   que lit `src/shared/supabase.ts`. La session du personnel au Trône et celle
-  d'une cliente cohabitent donc sur localhost comme en ligne.
+  d'une cliente cohabitent donc sur localhost comme en ligne. `build-sites.mjs`
+  épingle la portée pour chaque site publié (18 novembre 2026) : `couronne`
+  pour Ma Couronne, vide pour tous les autres. Une valeur vide compte pour
+  absente : le Trône publié garde le tiroir par défaut, quoi que dise
+  l'environnement du poste ou un `.env.local`.
 - **Modèle** : table `staff` (rôle souverain/gérant/maître + rubriques ERP) +
   `staff_branches`. Helpers RLS `is_staff()`, `has_rubric()`, `can_see_branch()`
   déjà en place pour le durcissement.
@@ -120,10 +124,15 @@ où deux gérants doivent être étanches l'un à l'autre — ce jour-là, ce se
 1. SQL Editor → exécuter `supabase/apply_auth.sql` (tables `staff` et
    `staff_branches`, helpers, RLS, déclencheur `staff_guard` ; supprime
    `provision_first_staff` si le projet la porte). Sur un projet qui a passé
-   0109, ne pas le relancer : voir son en-tête.
+   0109, il se refuse lui-même et ne touche à rien (voir son en-tête) : la
+   migration 0213 suffit. Un projet monté en rejouant les migrations dans
+   l'ordre passe 0213 à part, avant de créer le moindre compte (étape 0 de
+   l'en-tête de `supabase/apply_rls_prod.sql`) ; le message d'arrêt de 0006,
+   « le fondateur est provisionné automatiquement », est périmé depuis le
+   17 novembre 2026.
 2. Auth → **Email** : pour un dev fluide, désactiver « Confirm email » (sinon le
-   fondateur doit cliquer le lien de confirmation avant que la session s'ouvre —
-   l'écran de connexion gère ce cas).
+   fondateur saisit le code à 6 chiffres reçu par e-mail avant que la session
+   s'ouvre — l'écran de connexion le demande).
 3. **Créer le compte du fondateur, AVANT toute insertion** : au Trône, « Vous
    êtes de l'équipe ? Créer un compte » (ou Authentication → Users → Add user).
    Le Trône dit « Accès en attente » : c'est attendu, rien ne le rattache encore.
@@ -147,6 +156,15 @@ les fonctions qui écrivent `staff` se gardent elles-mêmes (`authorize_staff`
 exige un souverain, `rattacher_mon_compte` n'écrit que `gerant` ou `maitre`). Le
 déclencheur reste donc tel quel ; le détail est dans l'en-tête de la migration
 0213.
+
+Si `staff` n'est pas vide mais ne compte plus aucun souverain (son compte
+supprimé, son rôle rétrogradé), le gabarit refuse, et ni le SQL Editor ni la
+clé de service ne passent `staff_guard`, qui ne laisse écrire que dans une
+table vide, un souverain connecté, ou une recrue à la place préparée pour elle.
+Le recours est un SQL unique, écrit par la session pour ce cas et passé une
+fois : remettre UN souverain choisi par la direction, dans une seule
+transaction qui suspend puis rétablit le déclencheur, sans jamais le redéfinir
+ni rouvrir une fonction qui se promeut elle-même.
 
 ### Ma Couronne — OTP téléphone (prêt, en attente de fournisseur)
 `startPhoneOtp` / `verifyPhoneOtp` sont écrits et prêts. Ils n'enverront de code

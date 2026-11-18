@@ -6,10 +6,26 @@
 --     select count(*) from public.staff;      -- doit être >= 1
 --
 -- Si c'est 0, c'est l'état normal d'un projet neuf depuis le 17 novembre 2026 :
--- plus rien ne crée le fondateur (`provision_first_staff` est supprimée par la
--- migration 0213). Inscrivez-vous souverain à la main, DANS CET ORDRE :
+-- le Trône ne crée plus le fondateur, et `provision_first_staff` est supprimée
+-- par la migration 0213 et par apply_auth.sql. Inscrivez-vous souverain à la
+-- main, DANS CET ORDRE :
 --
---   1. CRÉEZ D'ABORD VOTRE COMPTE : au Trône, « Vous êtes de l'équipe ? Créer
+--   0. FERMEZ D'ABORD LA FONCTION, sur un projet monté en REJOUANT LES
+--      MIGRATIONS DANS L'ORDRE (relu le 18 novembre 2026). Là, 0003 crée
+--      encore `provision_first_staff` et la donne à `authenticated`, et la
+--      migration 0006 (dont ce fichier est la copie) s'arrête tant que `staff`
+--      est vide : on n'atteint donc pas 0213 avant d'avoir inscrit le
+--      fondateur. Dans cette fenêtre, le premier compte qui s'inscrit (au Trône
+--      ou dans Ma Couronne) peut appeler la fonction et devenir souverain.
+--      Passez donc 0213 à part, AVANT de créer le moindre compte : elle ne fait
+--      que supprimer, son rang ne compte pas. (Le message d'arrêt de 0006 dit
+--      encore « le fondateur est provisionné automatiquement » : c'est faux
+--      depuis le 17 novembre ; suivez ces étapes.) Le chemin de
+--      docs/BACKEND.md, qui passe apply_auth.sql, n'a pas cette fenêtre :
+--      apply_auth.sql supprime la fonction. Le gabarit ci-dessous la supprime
+--      aussi, en premier, mais il vient après la création du compte : il ne
+--      remplace pas cette étape.
+--   1. CRÉEZ ENSUITE VOTRE COMPTE : au Trône, « Vous êtes de l'équipe ? Créer
 --      un compte » (ou Authentication → Users → Add user). Le Trône dit alors
 --      « Accès en attente » : c'est attendu, rien ne vous rattache encore.
 --      Sans ce compte, l'étape 2 n'a personne à inscrire.
@@ -18,8 +34,9 @@
 --      comprises entre « /* » et « */ » ci-dessous, sans ces deux lignes,
 --      remplacez l'e-mail, Run. Le bloc s'arrête en nommant l'adresse si aucun
 --      compte ne la porte, et refuse si `staff` n'est plus vide (un souverain
---      rattache alors les autres depuis le Trône, « Accès & rôles »). Il finit
---      par afficher la ligne inscrite : aucune ligne affichée, rien n'est fait.
+--      rattache alors les autres depuis le Trône, « Accès & rôles » ; s'il
+--      n'y a plus aucun souverain, voir docs/BACKEND.md). Il finit par
+--      afficher la ligne inscrite : aucune ligne affichée, rien n'est fait.
 --   3. Rechargez le Trône : vous entrez souverain. Puis lancez ce script.
 --
 -- Pourquoi seulement pour le premier membre : le déclencheur `staff_guard`
@@ -27,6 +44,8 @@
 -- vide », puisque dans le SQL Editor `auth.uid()` est nul (en-tête de 0213).
 --
 /*
+drop function if exists public.provision_first_staff(text);
+
 do $$
 declare
   courriel constant text := 'VOTRE_EMAIL_ICI';  -- l'adresse du compte de l'étape 1

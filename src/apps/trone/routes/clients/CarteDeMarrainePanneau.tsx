@@ -48,8 +48,9 @@ const dateAvecAnnee = (iso: string) => {
 
 /* LE CODE S'ÉCHAPPE DANS LE TITRE (audit du 4 novembre 2026) : la fenêtre
    d'impression vit sur l'origine du Trône, et le code vient d'une fiche
-   synchronisée. Même échappement que les cartes des QR codes, une seule
-   copie : shared/echappe-html-pur. */
+   synchronisée. Jusqu'au 17 novembre 2026, il y était écrit brut, sans aucun
+   échappement. Il passe maintenant par celui des cartes des QR codes, une
+   seule copie : shared/echappe-html-pur. */
 async function imprime(d: DonneesDeCarte): Promise<void> {
   const faces = await Promise.all((['recto', 'verso'] as const).map(async (f) => {
     const canvas = document.createElement('canvas');
