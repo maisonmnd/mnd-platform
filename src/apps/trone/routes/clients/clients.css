@@ -740,7 +740,22 @@
 /* CÔTE À CÔTE (18 novembre 2026) : une carte qui partage sa colonne avec un
    rendez-vous à la même heure (largeur posée par `voiesDuJour`). Un peu moins
    de marge, et le nom passe à la ligne plutôt que sous la cloche. */
-.trc-cal__appt--partage { padding: 6px 8px; }
+.trc-cal__appt--partage { padding: 6px 8px 2px; }
+/* « Encaisser » dans la ligne de la prestation, sur une carte trop courte pour
+   le porter en bas sans couvrir le nom (18 novembre 2026). */
+.trc-cal__encaisser.trc-cal__encaisser--ligne { position: static; flex: none; padding: 1px 6px; }
+/* Ce qui ne tient pas EN ENTIER sous le nom passe hors de la carte (une boîte
+   flexible en colonnes repousse l'élément de trop dans une colonne voisine,
+   coupée), au lieu d'apparaître coupé à mi-hauteur : plus de lisière de bouton
+   cuivre au bas d'une carte étroite. */
+.trc-cal__appt--partage { display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; column-gap: 200px; }
+.trc-cal__appt--partage > .trc-cal__appt-title,
+.trc-cal__appt--partage > .trc-cal__appt-sub { box-sizing: border-box; width: 100%; flex: none; }
+/* Partagée et courte : le nom seul, un peu plus petit, sur deux lignes au
+   besoin : deux lignes tiennent dans la plus courte des cartes. */
+.trc-cal__appt--partage.trc-cal__appt--courte { padding-top: 4px; }
+.trc-cal__appt--courte .trc-cal__appt-title { font-size: 13px; line-height: 1; }
+.trc-cal__appt--courte .trc-cal__who { text-align: left; }
 .trc-cal__appt--partage .trc-cal__appt-title { padding-right: 24px; overflow-wrap: anywhere; }
 .trc-cal__reste { margin-left: 6px; font: 500 10px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--copper-700, #9A6036); white-space: nowrap; }
 .trc-cal__appt-title { font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); line-height: 1.1; }

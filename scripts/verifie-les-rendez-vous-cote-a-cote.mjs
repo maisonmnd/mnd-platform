@@ -80,6 +80,15 @@ function eprouve(m, textes) {
   vrai('la largeur partagée est posée sur la carte',
     /const largeur = v\.voies > 1 \? \{ left: `calc\(6px \+ \(100% - 12px\) \* \$\{v\.voie\} \/ \$\{v\.voies\}\)`, right: 'auto', width: `calc\(\(100% - 12px\) \/ \$\{v\.voies\} - 4px\)` \} : \{\};/.test(ecran)
     && /style=\{\{ top, height: h, \.\.\.largeur \}\}/.test(ecran));
+  /* L'essai réel du 18 novembre : sur une carte courte et partagée, le bouton
+     du bas couvrait la ligne du nom. */
+  vrai('« Encaisser » ne se pose en bas que sur une carte assez haute, sinon dans la ligne de la prestation',
+    /const CARTE_ENCAISSER_PX = 64;/.test(ecran)
+    && /\{aEncaisser\(a\) && h < CARTE_ENCAISSER_PX \? \( <button type="button" className="trc-cal__encaisser trc-cal__encaisser--ligne"/.test(ecran)
+    && /\{aEncaisser\(a\) && h >= CARTE_ENCAISSER_PX && \(/.test(ecran));
+  vrai('partagée et courte : le nom seul (l’heure reste dans l’infobulle)',
+    /const courte = v\.voies > 1 && h < CARTE_DEUX_LIGNES_PX;/.test(ecran) && /\{!courte && <>\{a\.time\} ·\{' '\}<\/>\}/.test(ecran)
+    && /title=\{`\$\{a\.time\} · \$\{nomDuRdv\(a\)\}/.test(ecran));
   return fautes;
 }
 
@@ -104,6 +113,8 @@ try {
       ['un groupe ne se ferme jamais', 'voies', 'if (p.debutMin >= finDuGroupe) ferme();', ''],
       ['la vue jour ne range plus', 'ecran', 'style={{ top, height: h, ...largeur }}', 'style={{ top, height: h }}'],
       ['la carte courte ne compte plus sa hauteur', 'ecran', 'finMin: debutMin + Math.max(apptDurationMin(a, byId), CARTE_MIN_MIN)', 'finMin: debutMin + apptDurationMin(a, byId)'],
+      ['« Encaisser » se pose en bas de toute carte', 'ecran', '{aEncaisser(a) && h >= CARTE_ENCAISSER_PX && (', '{aEncaisser(a) && ('],
+      ['la carte courte garde l’heure devant le nom', 'ecran', "{!courte && <>{a.time} ·{' '}</>}", "<>{a.time} ·{' '}</>"],
     ];
     let tenues = 0;
     for (const [nom, cle, avant, apres] of PANNES) {

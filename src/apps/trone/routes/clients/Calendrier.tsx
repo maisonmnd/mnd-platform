@@ -32,6 +32,13 @@ const HOUR_PX = 56;
 /** Ce qu'une carte occupe au moins à l'écran, en minutes : 30 px de haut et
     6 px d'écart (un rendez-vous de quinze minutes en prend plus). */
 const CARTE_MIN_MIN = Math.ceil(((30 + 6) / HOUR_PX) * 60);
+/** La hauteur où « Encaisser » tient en bas d'une carte sans rien couvrir : le
+    nom (première ligne), la prestation (seconde), puis le bouton. En dessous,
+    il se range dans la ligne de la prestation (18 novembre 2026). */
+const CARTE_ENCAISSER_PX = 64;
+/** Sous cette hauteur, une carte n'a qu'une ligne de titre (6 px de marge,
+    une ligne de 16,5 px, la moitié d'une seconde). */
+const CARTE_DEUX_LIGNES_PX = 44;
 const SLOT_MIN = 30; // pas de la grille — calage identique au carnet
 const WEEKDAYS = ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim']; // en-tête de la vue mois
 
@@ -632,13 +639,19 @@ export default function Calendrier() {
                   const largeur = v.voies > 1
                     ? { left: `calc(6px + (100% - 12px) * ${v.voie} / ${v.voies})`, right: 'auto', width: `calc((100% - 12px) / ${v.voies} - 4px)` }
                     : {};
+                  /* PARTAGÉE ET COURTE (une seule ligne de titre) : le nom seul,
+                     sur une ligne. « 10:00 · Prénom Nom » passait à la ligne
+                     dans une voie étroite, et la seconde ligne était coupée à
+                     moitié ; l'heure se lit à la place de la carte dans la
+                     grille, et reste dans l'infobulle (18 novembre 2026). */
+                  const courte = v.voies > 1 && h < CARTE_DEUX_LIGNES_PX;
                   return (
                     <div
-                      className={`trc-cal__appt trc-cal__appt--drag ${cls} ${classeDuSuggere(a)} ${dragId === a.id ? 'is-dragging' : ''} ${v.voies > 1 ? 'trc-cal__appt--partage' : ''}`}
+                      className={`trc-cal__appt trc-cal__appt--drag ${cls} ${classeDuSuggere(a)} ${dragId === a.id ? 'is-dragging' : ''} ${v.voies > 1 ? 'trc-cal__appt--partage' : ''} ${courte ? 'trc-cal__appt--courte' : ''}`}
                       key={a.id}
                       data-rdv={a.id}
                       style={{ top, height: h, ...largeur }}
-                      title={`${nomDuRdv(a)} · ${apptLabel(a, byId)}, glisser pour déplacer, cliquer pour modifier`}
+                      title={`${a.time} · ${nomDuRdv(a)} · ${apptLabel(a, byId)}, glisser pour déplacer, cliquer pour modifier`}
                       draggable
                       onDragStart={(e) => onDragStart(e, a)}
                       onDragEnd={onDragEnd}
@@ -655,7 +668,7 @@ export default function Calendrier() {
                           ligne. C'est le nom qui doit survivre à la coupe, pas le
                           rituel — on lit un carnet pour savoir qui vient. */}
                       <div className="trc-cal__appt-title">
-                        {a.time} ·{' '}
+                        {!courte && <>{a.time} ·{' '}</>}
                         <button
                           type="button"
                           className={`trc-cal__who ${clientOf(a.clientId)?.phone ? '' : 'is-manquant'}`}
@@ -681,10 +694,28 @@ export default function Calendrier() {
                       </div>
                       <div className="trc-cal__appt-sub" style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{apptLabel(a, byId)}</span>
-                        <span style={{ pointerEvents: 'none', flex: 'none' }}><PayStatusPill a={a} byId={byId} /></span>
+                        {/* LE NOM N'EST JAMAIS SOUS « ENCAISSER » (18 novembre
+                            2026, essai réel : une carte courte et partagée, le
+                            bouton du bas couvrait la ligne du nom). Sous
+                            CARTE_ENCAISSER_PX, le bouton entre dans cette ligne,
+                            à la place de la pastille ; plus court encore, la
+                            ligne est coupée, et la carte ouverte encaisse. */}
+                        {aEncaisser(a) && h < CARTE_ENCAISSER_PX ? (
+                          <button
+                            type="button"
+                            className="trc-cal__encaisser trc-cal__encaisser--ligne"
+                            draggable={false}
+                            onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}
+                            title="Encaisser ce rituel"
+                          >
+                            Encaisser
+                          </button>
+                        ) : (
+                          <span style={{ pointerEvents: 'none', flex: 'none' }}><PayStatusPill a={a} byId={byId} /></span>
+                        )}
                       </div>
                       {/* Réglé = plus rien à encaisser — même juge qu'ailleurs. */}
-                      {aEncaisser(a) && (
+                      {aEncaisser(a) && h >= CARTE_ENCAISSER_PX && (
                         <button
                           className="trc-cal__encaisser"
                           draggable={false}

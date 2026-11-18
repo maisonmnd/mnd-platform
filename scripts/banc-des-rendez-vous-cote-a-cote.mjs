@@ -13,7 +13,12 @@
      - celui de 8 h 30, qui finit à 10 h, garde toute la largeur ;
      - trois à la même heure chez un autre maître : trois voies ;
      - un rendez-vous seul l'après-midi : toute la largeur ;
-     - rien ne déborde de sa colonne.
+     - rien ne déborde de sa colonne ;
+     - le cas de l'essai réel du 18 novembre (troisième colonne) : un long
+       rendez-vous de 8 h 30 chevauche les deux de 10 h, dont un de 45 min.
+       Trois cartes étroites, une très courte : chaque nom se lit EN ENTIER
+       (sondé en plusieurs points de chacune de ses lignes), « Encaisser » ne
+       couvre plus rien.
    Les clientes et les rendez-vous sont inventés.
 
    Sans dossier, le banc construit le Trône lui-même (sous Node : VITE_BASE
@@ -96,7 +101,7 @@ const cdp = (method, params = {}) => new Promise((r) => { const n = ++id; enVol.
 const evalue = async (expr) => (await cdp('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true })).result?.result?.value;
 const jusqua = async (expr, ms) => { const t0 = Date.now(); for (;;) { const v = await evalue(expr); if (v) return Date.now() - t0; if (Date.now() - t0 > ms) return null; await attend(100); } };
 await cdp('Runtime.enable');
-await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+await cdp('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
 
 let ko = 0;
 const dit = (nom, ok, detail) => { if (!ok) ko++; console.log(`${ok ? 'OK   ' : 'ECHEC'} ${nom}${detail !== undefined ? ' -> ' + detail : ''}`); };
@@ -113,6 +118,10 @@ const RDV = [
   rdv('r-trois-1', 'c-05', '11:00', 60, 'Banc B'),
   rdv('r-trois-2', 'c-06', '11:00', 60, 'Banc B'),
   rdv('r-trois-3', 'c-07', '11:00', 60, 'Banc B'),
+  /* L'essai réel du 18 novembre : le long de 8 h 30 chevauche les deux de 10 h. */
+  rdv('r-reel-matin', 'c-08', '08:30', 160, 'Banc C'),
+  rdv('r-reel-long', 'c-09', '10:00', 140, 'Banc C'),
+  rdv('r-reel-court', 'c-10', '10:00', 45, 'Banc C'),
 ];
 const SEMENCE = {
   [CLE]: { access_token: 'faux', refresh_token: 'faux', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(MAINTENANT / 1000) + 3600,
@@ -120,7 +129,8 @@ const SEMENCE = {
   [`mnd_hors_ligne::connexion::${CLE}`]: { uid: UID, le },
   [`mnd_hors_ligne::tete::${CLE}`]: { uid: UID, le, tete: { user_id: UID, name: 'Banc', role: 'souverain', rubrics: [] } },
   'trone::mnd_clients': [fiche('c-01', 'Ama Banc'), fiche('c-02', 'Bella Banc'), fiche('c-03', 'Cora Banc'), fiche('c-04', 'Dora Banc'),
-    fiche('c-05', 'Ella Banc'), fiche('c-06', 'Fifa Banc'), fiche('c-07', 'Gina Banc')],
+    fiche('c-05', 'Ella Banc'), fiche('c-06', 'Fifa Banc'), fiche('c-07', 'Gina Banc'),
+    fiche('c-08', 'Hana Banc'), fiche('c-09', 'Shadia Banc'), fiche('c-10', 'Joséphine Bancolo')],
   'trone::mnd_appointments': RDV,
 };
 
@@ -133,13 +143,33 @@ const boite = (rid) => evalue(`(() => { const e = [...document.querySelectorAll(
      tout se mesure ENSUITE, d'un même instant, et par rapport à sa colonne :
      deux cartes mesurées à deux défilements différents se comparent juste. */
   const n = e.querySelector('.trc-cal__who');
-  if (n) n.scrollIntoView({ block: 'center' });
+  /* La CARTE dans la fenêtre, pas le nom : faire défiler le nom ferait défiler
+     l'intérieur de la carte (overflow hidden) et masquerait une coupe. */
+  e.scrollIntoView({ block: 'center' }); e.scrollTop = 0; e.scrollLeft = 0;
+  const titre = e.querySelector('.trc-cal__appt-title'); if (titre) { titre.scrollTop = 0; titre.scrollLeft = 0; }
   const r2 = e.getBoundingClientRect(); const c2 = e.closest('[data-daycol]').getBoundingClientRect(); const rn = n ? n.getBoundingClientRect() : null;
   let vu = false;
   if (rn) { const p = document.elementFromPoint(rn.left + rn.width / 2, rn.top + rn.height / 2); vu = !!p && e.contains(p); }
+  /* En entier : neuf points sur chaque ligne du nom (il peut passer à la
+     ligne), chacun doit tomber sur le nom lui-même, ni sur un bouton posé
+     par-dessus, ni hors de la carte coupée. */
+  let entier = !!n; let premierAccroc = '';
+  /* Chaque ligne du nom DANS la carte (rien de coupé en bas ni à droite), et
+     dans son titre quand il coupe (« … »). */
+  const boiteDuTitre = titre ? titre.getBoundingClientRect() : r2;
+  const coupeAuTitre = titre && getComputedStyle(titre).overflow === 'hidden';
+  if (n) for (const ligne of n.getClientRects()) {
+    const dedans = (b) => ligne.left >= b.left - 1 && ligne.right <= b.right + 1 && ligne.top >= b.top - 1 && ligne.bottom <= b.bottom + 1;
+    if (!dedans(r2) || (coupeAuTitre && !dedans(boiteDuTitre))) { entier = false; if (!premierAccroc) premierAccroc = 'coupé par sa carte'; }
+  }
+  if (n) for (const ligne of n.getClientRects()) for (let k = 1; k <= 9; k++) {
+    const x = ligne.left + (ligne.width * k) / 10; const y = ligne.top + ligne.height / 2;
+    const p = document.elementFromPoint(x, y);
+    if (!p || !n.contains(p)) { entier = false; if (!premierAccroc) premierAccroc = p ? (p.className || p.tagName) : 'rien'; }
+  }
   void r; void c;
   return { g: r2.left - c2.left, d: r2.right - c2.left, h: r2.top - c2.top, b: r2.bottom - c2.top, l: r2.width, cg: 0, cd: c2.width, cl: c2.width,
-    nom: n ? n.textContent.trim() : '', nl: rn ? rn.width : 0, nd: rn ? rn.right - c2.left : 0, nb: rn ? rn.bottom - c2.top : 0, vu, col: e.closest('[data-daycol]').getAttribute('data-daycol') }; })()`);
+    nom: n ? n.textContent.trim() : '', nl: rn ? rn.width : 0, nd: rn ? rn.right - c2.left : 0, nb: rn ? rn.bottom - c2.top : 0, vu, entier, premierAccroc, col: e.closest('[data-daycol]').getAttribute('data-daycol') }; })()`);
 const recouvre = (a, b) => Math.max(0, Math.min(a.d, b.d) - Math.max(a.g, b.g)) * Math.max(0, Math.min(a.b, b.b) - Math.max(a.h, b.h));
 const r1 = (x) => Math.round(x);
 
@@ -179,6 +209,18 @@ try {
   for (const r of RDV) toutes.push(await boite(r.id));
   const caches = RDV.filter((r, i) => !toutes[i]?.vu).map((r) => NOMS[r.id]);
   dit('chaque cliente du jour se voit : aucun nom sous une autre carte', caches.length === 0, caches.length ? `cachés : ${caches.join(', ')}` : `${RDV.length} noms vus`);
+  const coupes = RDV.map((r, i) => [r, toutes[i]]).filter(([, b]) => !b?.entier).map(([r, b]) => `${NOMS[r.id]} (sous ${b?.premierAccroc || '?'})`);
+  dit('chaque nom se lit en entier : rien ne le couvre, pas même « Encaisser »', coupes.length === 0, coupes.length ? coupes.join(', ') : `${RDV.length} noms entiers`);
+  /* Le cas de l'essai réel : trois voies, la plus courte comprise. */
+  const reel = ['r-reel-matin', 'r-reel-long', 'r-reel-court'].map((rid) => toutes[RDV.findIndex((r) => r.id === rid)]);
+  dit('le cas de l’essai réel : trois cartes côte à côte, sans recouvrement', reel.every(Boolean)
+    && [[0, 1], [0, 2], [1, 2]].every(([i, j]) => recouvre(reel[i], reel[j]) === 0) && reel.every((b) => b.l < b.cl * 0.4),
+    reel.every(Boolean) ? reel.map((b) => `${Math.round(b.g)}–${Math.round(b.d)}`).join(', ') : 'carte absente');
+  const encaisserSurNom = await evalue(`[...document.querySelectorAll('[data-daycol] .trc-cal__appt')].filter((c) => {
+    const b = c.querySelector('.trc-cal__encaisser'); const n = c.querySelector('.trc-cal__who'); if (!b || !n) return false;
+    const rb = b.getBoundingClientRect(); return [...n.getClientRects()].some((r) => Math.min(r.right, rb.right) > Math.max(r.left, rb.left) && Math.min(r.bottom, rb.bottom) > Math.max(r.top, rb.top));
+  }).map((c) => c.querySelector('.trc-cal__who').textContent.trim())`);
+  dit('« Encaisser » ne recouvre aucun nom', encaisserSurNom.length === 0, encaisserSurNom.join(', '));
   dit('aucune carte ne déborde de sa colonne', toutes.every((b) => b && b.g >= b.cg - 0.5 && b.d <= b.cd + 0.5));
   const deborde = await evalue('document.documentElement.scrollWidth - document.documentElement.clientWidth');
   dit('la page ne déborde pas', deborde <= 0, `${deborde} px`);

@@ -38,10 +38,15 @@ dit('les quatre vues palissent par estEfface et marquent le du en cuivre', [true
 dit('le reste se dit au jour et au telephone, sans prix pour qui ne les voit pas', [2, true],
   [(code.match(/\{honoreDu\(a\) && <span className="trc-cal__reste">\{resteDit\(a\)\}<\/span>\}/g) ?? []).length,
     /const resteDit = \(a: Appointment\) => \(estMaitre \? 'à encaisser' : `reste \$\{fmtMoney\(apptDueXof\(a, byId\), currency\)\}`\);/.test(code)]);
-dit('Encaisser reste sur un rituel honore qui doit encore, au jour et au telephone', [2, 0, true],
-  [(code.match(/\{aEncaisser\(a\) && \(/g) ?? []).length,
+/* Au jour, depuis le 18 novembre 2026 (les rendez-vous cote a cote), le bouton
+   d une carte courte entre dans la ligne de la prestation : deux places, le
+   meme juge. */
+dit('Encaisser reste sur un rituel honore qui doit encore, au jour et au telephone', [2, 0, true, true],
+  [(code.match(/\{aEncaisser\(a\) && (?:h >= CARTE_ENCAISSER_PX && )?\(/g) ?? []).length,
     (code.match(/a\.status !== 'honoré' && apptPayState\(a, byId\) !== 'payé'/g) ?? []).length,
-    /const aEncaisser = \(a: Appointment\) => \(a\.status === 'honoré' \? doitEncore\(a\) : apptPayState\(a, byId\) !== 'payé'\);/.test(code)]);
+    /const aEncaisser = \(a: Appointment\) => \(a\.status === 'honoré' \? doitEncore\(a\) : apptPayState\(a, byId\) !== 'payé'\);/.test(code),
+    /* Si le bouton du bas depend de la hauteur, la carte courte a le sien. */
+    !/h >= CARTE_ENCAISSER_PX/.test(code) || /\{aEncaisser\(a\) && h < CARTE_ENCAISSER_PX \? \(/.test(code)]);
 dit('le cuivre existe dans la feuille, et il ne palit pas', [true, true, true, true, false],
   ['.trc-cal__appt--du', '.trc-month__chip.is-du', '.trc-agenda__row.is-du', '.trc-week__chip--du'].map((c) => css.includes(c))
     .concat(/\.trc-cal__appt--du \{[^}]*opacity/.test(css)));
