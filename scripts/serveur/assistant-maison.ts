@@ -27,6 +27,7 @@ import { lisLAssistant, codeDeLaSituation } from '../../src/shared/assistant-lec
 import { CLE_DU_SERVEUR, lignesDuPassage, lignesNeuves, remisesAFabriquer, type EtatDuServeur } from '../../src/shared/assistant-passage-pur';
 import { HEURE_DU_PASSAGE_A, HEURE_DU_PASSAGE_DE, planDuJour, reglagesLus } from '../../src/shared/gerard-pur';
 import { laPorteDAvance, ligneRetenueDAvance, litLesArretsEtLesPauses } from '../../src/shared/arret-d-avance-pur';
+import { memeCle, noteLeRefus } from '../../src/shared/cle-du-cron-pur';
 
 declare const Deno: {
   env: { get(nom: string): string | undefined };
@@ -38,7 +39,8 @@ declare const Deno: {
 /* 2026-11-11-a : ce qui va partir (reprise du chantier du 5 novembre 2026) : une ligne arrêtée d'avance ou d'un modèle en pause s'écrit « écarté » ou « périmé ». */
 /* 2026-11-02-b : « garder » dès J-3 pour toutes (de passage, diaspora, locks défaits ; l'enfant par son parent), choix de Yéman au sélecteur. */
 /* 2026-11-16-a : plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, agenda-pur). */
-const VERSION = '2026-11-16-a';
+/* 2026-11-17-a : la clé du cron se compare à temps constant (memeCle, cle-du-cron-pur) ; le refus se note au journal en longueurs seules (noteLeRefus), jamais dans la réponse. */
+const VERSION = '2026-11-17-a';
 
 type Ligne = { id: string; branch_id?: string | null; data: Record<string, unknown> };
 // deno-lint-ignore no-explicit-any
@@ -174,7 +176,11 @@ Deno.serve(async (req) => {
   if (req.method === 'GET') return json({ fonction: 'assistant-maison', version: VERSION });
   const service = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
   const cleRecue = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
-  if (!service || cleRecue !== service) return json({ erreur: 'réservé au cron', version: VERSION }, 401);
+  if (!service || !memeCle(cleRecue, service)) {
+    /* Les longueurs vont AU JOURNAL, jamais dans la réponse (17 novembre 2026). */
+    noteLeRefus('assistant-maison', service, cleRecue);
+    return json({ erreur: 'réservé au cron', version: VERSION }, 401);
+  }
   const sb = createClient(Deno.env.get('SUPABASE_URL') ?? '', service);
   const maintenantMs = Date.now();
   const maintenant = new Date(maintenantMs).toISOString();

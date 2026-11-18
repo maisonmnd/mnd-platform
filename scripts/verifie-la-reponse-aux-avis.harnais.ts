@@ -348,7 +348,7 @@ const fonction = sansCommentaires(lis(FONCTION));
    relevé garde AUSSI le texte d'origine et sa langue ; `texte` reste la clé
    des avis cochés, intouchée. Il ne connaît toujours rien de Claude. */
 dit('la fonction avis-google-releve garde son seul document, rien de Claude, et le texte d origine à côté du texte', [true, true, false, true, true, true],
-  [/const VERSION = '2026-10-20-b';/.test(fonction), /upsert\(\{ key: 'mnd_avis_google', data: doc \}\)/.test(fonction), /anthropic|ia-maison|claude|brouillon/i.test(fonction),
+  [/const VERSION = '2026-11-17-a';/.test(fonction), /upsert\(\{ key: 'mnd_avis_google', data: doc \}\)/.test(fonction), /anthropic|ia-maison|claude|brouillon/i.test(fonction),
     /texte: String\(r\.text\?\.text \?\? r\.originalText\?\.text \?\? ''\)\.trim\(\),/.test(fonction),
     /texteOriginal: String\(r\.originalText\.text\)\.trim\(\)/.test(fonction), /langueOriginale: String\(r\.originalText\.languageCode\)\.trim\(\)/.test(fonction)]);
 

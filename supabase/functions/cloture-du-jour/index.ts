@@ -1212,7 +1212,8 @@ export function lignesDuCaissier(f: FaitsDuCaissier & { facturesParties?: Readon
 }
 /* ⟨/le-caissier⟩ */
 
-const VERSION = '2026-11-14-b';
+/* 2026-11-17-a : la clé du cron comparée à temps constant (⟨cle-du-cron⟩). */
+const VERSION = '2026-11-17-a';
 /** Le caissier dit ses rendez-vous à La journée, comme la clôture. */
 const ETIQUETTE_DU_CAISSIER = 'mnd-caissier';
 const ADRESSE = '/trone/#/la-journee';
@@ -1319,11 +1320,41 @@ async function previens(sb: Base, url: string, service: string, jour: string, no
   return envoyes;
 }
 
-/** La porte : la clé service (le cron), ou la session d'un souverain (un essai depuis le Trône). */
+/* LA CLÉ COMPARÉE SANS RIEN LAISSER FUIR (17 novembre 2026, revue de code) :
+   copie du bloc de src/shared/cle-du-cron-pur.ts, réécrite par
+   scripts/terminer-copie-serveur.mjs ; scripts/verifie-la-cle-du-cron.mjs la
+   compare. */
+/* ⟨cle-du-cron⟩ */
+/** Deux clés sont-elles la même ? À TEMPS CONSTANT : `===` s'arrête au
+    premier caractère qui diffère, et ce temps-là se mesure de l'extérieur,
+    caractère après caractère. Une clé vide ne vaut jamais : un secret qui
+    n'est pas posé n'ouvre rien. */
+const memeCle = (a: string, b: string): boolean => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
+};
+
+/** Une clé refusée se dit AU JOURNAL de la fonction, en longueurs seules
+    (sb_secret ≈ 40 à 50 signes · legacy eyJ… ≈ 200 et plus · 0 = rien de
+    posé de ce côté-là) : elles suffisent à situer la panne. Jamais dans la
+    réponse : celui qui frappe sans la clé n'a pas à les lire. */
+const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+/* ⟨/cle-du-cron⟩ */
+
+/** La porte : la clé service (le cron), ou la session d'un souverain (un essai depuis le Trône).
+    La clé se compare à temps constant (17 novembre 2026). Ce n'est pas un
+    refus : sans elle, la session est essayée, et le refus final ne dit
+    aucune longueur. */
 async function laPorte(sb: Base, req: Request, service: string): Promise<'cron' | 'souverain' | null> {
   const cle = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
   if (!cle) return null;
-  if (service && cle === service) return 'cron';
+  if (service && memeCle(cle, service)) return 'cron';
   const { data: lu } = await sb.auth.getUser(cle);
   const uid = lu?.user?.id;
   if (!uid) return null;

@@ -148,7 +148,7 @@ dit('le Trone ne propose l agent que si la fonction le sait', [false, false, tru
 const serveur = lis('supabase/functions/ia-maison/index.ts');
 const pur = lis('src/shared/ia-maison-pur.ts');
 const bloc = (t: string) => { const a = t.indexOf('/* ⟨ia-maison⟩ */'); const b = t.indexOf('/* ⟨/ia-maison⟩ */'); return a >= 0 && b > a ? t.slice(a, b) : ''; };
-dit('la fonction porte le meme bloc que le depot, et dit 2026-11-18-a', [true, true, true], [bloc(serveur) !== '' && bloc(serveur) === bloc(pur), /const VERSION = '2026-11-18-a';/.test(serveur), /'rendez-vous': \['dept-clientele', 'dept-vente-caisse'\]/.test(serveur)]);
+dit('la fonction porte le meme bloc que le depot, et dit 2026-11-18-a ou plus tard', [true, true, true], [bloc(serveur) !== '' && bloc(serveur) === bloc(pur), (/const VERSION = '(\d{4}-\d{2}-\d{2}-[a-z])';/.exec(serveur)?.[1] ?? '') >= '2026-11-18-a', /'rendez-vous': \['dept-clientele', 'dept-vente-caisse'\]/.test(serveur)]);
 
 /* ── ⑦ LE BRANCHEMENT ─────────────────────────────────────────────────── */
 const carte = lis('src/apps/trone/routes/vente/SonProchainRituel.tsx');

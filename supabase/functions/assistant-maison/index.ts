@@ -1623,8 +1623,21 @@ async function litLesArretsEtLesPauses(sb) {
   return { arrets, pauses };
 }
 
+// src/shared/cle-du-cron-pur.ts
+var memeCle = (a2, b) => {
+  const x = new TextEncoder().encode(a2);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
+};
+var noteLeRefus = (porte, attendue, recue) => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-11-16-a";
+var VERSION = "2026-11-17-a";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {
@@ -1767,7 +1780,10 @@ Deno.serve(async (req) => {
   if (req.method === "GET") return json({ fonction: "assistant-maison", version: VERSION });
   const service = (Deno.env.get("CLE_SERVICE") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "").trim();
   const cleRecue = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
-  if (!service || cleRecue !== service) return json({ erreur: "réservé au cron", version: VERSION }, 401);
+  if (!service || !memeCle(cleRecue, service)) {
+    noteLeRefus("assistant-maison", service, cleRecue);
+    return json({ erreur: "réservé au cron", version: VERSION }, 401);
+  }
   const sb = createClient(Deno.env.get("SUPABASE_URL") ?? "", service);
   const maintenantMs = Date.now();
   const maintenant = new Date(maintenantMs).toISOString();

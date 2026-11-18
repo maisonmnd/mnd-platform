@@ -865,8 +865,21 @@ function prixSelonLeCalibre(s, ctx) {
   return prix || void 0;
 }
 
+// src/shared/cle-du-cron-pur.ts
+var memeCle = (a, b) => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
+};
+var noteLeRefus = (porte, attendue, recue) => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+
 // scripts/serveur/reception-wa.ts
-var VERSION = "2026-11-15-a";
+var VERSION = "2026-11-18-a";
 var MODELES = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 var TARIFS = {
   "claude-haiku-5-5": { entree: 1, sortie: 5 },
@@ -984,7 +997,10 @@ Deno.serve(async (req) => {
   if (req.method === "GET") return json({ fonction: "reception-wa", version: VERSION, claude: cleClaude ? "oui" : "non" });
   const service = (Deno.env.get("CLE_SERVICE") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "").trim();
   const cleRecue = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
-  if (!service || cleRecue !== service) return json({ ok: false, motif: "porte", version: VERSION }, 401);
+  if (!service || !memeCle(cleRecue, service)) {
+    noteLeRefus("reception-wa", service, cleRecue);
+    return json({ ok: false, motif: "porte", version: VERSION }, 401);
+  }
   if (!cleClaude) return json({ ok: false, motif: "cle-claude-absente", version: VERSION });
   let d;
   try {

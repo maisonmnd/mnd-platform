@@ -75,7 +75,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  * --commit <sha> --jwt non`. Vérifier : un GET rend sa version.
  */
 
-const VERSION = '2026-11-11-a · le prénom d’usage entier sur le billet (« Merci, Anne-Marie ») ; régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après';
+const VERSION = '2026-11-17-a · la clé de service comparée à temps constant, son refus au journal en longueurs seules (cle-du-cron) ; le prénom d’usage entier sur le billet (« Merci, Anne-Marie ») ; régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -1062,15 +1062,45 @@ export function notificationAvantApres(o: { prenom: string; quand: 'avance' | 'a
 
 const SECRET_DES_LIENS = (Deno.env.get(NOM_DU_SECRET_DES_LIENS) ?? '').trim();
 
+/* LA CLÉ COMPARÉE SANS RIEN LAISSER FUIR (17 novembre 2026, revue de code) :
+   copie du bloc de src/shared/cle-du-cron-pur.ts, réécrite par
+   scripts/terminer-copie-serveur.mjs ; scripts/verifie-la-cle-du-cron.mjs la
+   compare. */
+/* ⟨cle-du-cron⟩ */
+/** Deux clés sont-elles la même ? À TEMPS CONSTANT : `===` s'arrête au
+    premier caractère qui diffère, et ce temps-là se mesure de l'extérieur,
+    caractère après caractère. Une clé vide ne vaut jamais : un secret qui
+    n'est pas posé n'ouvre rien. */
+const memeCle = (a: string, b: string): boolean => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
+};
+
+/** Une clé refusée se dit AU JOURNAL de la fonction, en longueurs seules
+    (sb_secret ≈ 40 à 50 signes · legacy eyJ… ≈ 200 et plus · 0 = rien de
+    posé de ce côté-là) : elles suffisent à situer la panne. Jamais dans la
+    réponse : celui qui frappe sans la clé n'a pas à les lire. */
+const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+/* ⟨/cle-du-cron⟩ */
+
 /* ── Les portes ────────────────────────────────────────────────────────── */
 const ipOf = (req: Request): string => (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown';
 const jetonDeLaRequete = (req: Request): string => (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
-/** La clé de service (le WhatsApp de la Maison) : les longueurs d'abord, jamais une valeur écrite. */
+/** Les clés de service posées, dans l'ordre où la porte les essaie. */
+const clesDuService = (): string[] => [Deno.env.get('CLE_SERVICE'), Deno.env.get('SERVICE_KEY'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')]
+  .map((cle) => (cle ?? '').trim()).filter(Boolean);
+/** La clé de service (le WhatsApp de la Maison), comparée à temps constant
+    (17 novembre 2026) ; jamais une valeur écrite. */
 const parLeService = (req: Request): boolean => {
   const recu = jetonDeLaRequete(req);
   if (!recu) return false;
-  return [Deno.env.get('CLE_SERVICE'), Deno.env.get('SERVICE_KEY'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')]
-    .some((cle) => !!cle && cle.trim().length === recu.length && cle.trim() === recu);
+  return clesDuService().some((cle) => memeCle(recu, cle));
 };
 
 /* ── Le frein, sur la table des limites de débit (0007) : un seau, une clé
@@ -1374,7 +1404,12 @@ async function terminer(req: Request, b: any) {
   if (!porte) return json({ ok: false, error: 'porte' }, 400);
   let ids: string[] = [];
   if (porte === 'whatsapp') {
-    if (!parLeService(req)) return json({ ok: false, error: 'interdit' }, 403);
+    /* Sans la clé : le refus au journal, en longueurs seules (la première
+       clé posée, la clé reçue), jamais dans la réponse (17 novembre 2026). */
+    if (!parLeService(req)) {
+      noteLeRefus('terminer-et-regler', clesDuService()[0] ?? '', jetonDeLaRequete(req));
+      return json({ ok: false, error: 'interdit' }, 403);
+    }
     ids = [...new Set<string>((Array.isArray(b.rdvIds) ? b.rdvIds : []).map(String).filter(Boolean))];
     /* PLUS DE SIX TÊTES LE MÊME JOUR À CE NUMÉRO : on ne coupe plus la liste
        en silence (les suivantes restaient sans marque ni lien). Rien ne se

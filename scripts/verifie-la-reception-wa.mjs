@@ -40,7 +40,11 @@ async function lanceLeBanc() {
 const SERVEUR = 'scripts/serveur/reception-wa.ts';
 const PUR = 'src/shared/reception-wa-pur.ts';
 const PANNES = [
-  ['une cle quelconque acceptee', SERVEUR, 'if (!service || cleRecue !== service) return json(', 'if (!service) return json('],
+  ['une cle quelconque acceptee', SERVEUR, 'if (!service || !memeCle(cleRecue, service)) {', 'if (!service) {'],
+  /* La porte à temps constant, 17 novembre 2026 (bloc cle-du-cron). */
+  ['un secret pas pose ouvre sans cle', SERVEUR, 'if (!service || !memeCle(cleRecue, service)) {', 'if (cleRecue !== service) {'],
+  ['le refus n est plus note au journal', SERVEUR, "    noteLeRefus('reception-wa', service, cleRecue);\n", ''],
+  ['le refus rend les longueurs des cles', SERVEUR, "    return json({ ok: false, motif: 'porte', version: VERSION }, 401);", "    return json({ ok: false, motif: 'porte', version: VERSION, attendueLg: service.length, recueLg: cleRecue.length }, 401);"],
   ['le plafond du numero oublie', SERVEUR, 'if ((count ?? 0) >= RECEPTIONS_PAR_JOUR) {', 'if (false) {'],
   ['les prix des calibres oublies', SERVEUR, '      if (prix && prix > 0) prixParPalier.push({ palier: p.palier, prixXof: prix });\n', ''],
   ['le calibre touche oublie', SERVEUR, "const declare = touche && touche !== 'inconnu' ? touche.locks : Number(f.lockCountDeclare ?? 0) || 0;", 'const declare = Number(f.lockCountDeclare ?? 0) || 0;'],

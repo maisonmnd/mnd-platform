@@ -29,7 +29,7 @@ const FICHIER = 'supabase/functions/mtn-momo-essais/index.ts';
 const prouve = process.argv.includes('--prouve');
 
 const PANNES = [
-  ['le lancement sans la cle du projet', "    if (!ANON || jeton !== ANON) return json({ erreur: 'clé du projet attendue' }, 401);\n", ''],
+  ['le lancement sans la cle du projet', "    if (!ANON || !memeCle(jeton, ANON)) {\n      noteLeRefus('mtn-momo-essais', ANON, jeton);\n      return json({ erreur: 'clé du projet attendue' }, 401);\n    }\n", ''],
   ['la production au lieu du bac a sable', "const BASE = 'https://sandbox.momodeveloper.mtn.com';", "const BASE = 'https://proxy.momoapi.mtn.com';"],
   ['la cle de l utilisateur au rapport', "apiKey ? 'clé reçue (gardée sur le serveur)'", 'apiKey ? apiKey'],
   ['le mauvais environnement cible', "const ENV_CIBLE = 'sandbox';", "const ENV_CIBLE = 'mtnbenin';"],

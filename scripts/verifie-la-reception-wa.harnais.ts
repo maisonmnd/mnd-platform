@@ -307,7 +307,30 @@ const demande = { numero: NUM, clientId: 'c-n', fiche: { name: 'N. M.', civilite
 remplis();
 const g = await appelle({ get: true });
 dit('GET : la version, et si la cle de Claude est posee, sans rien lire', [200, 'reception-wa', 'oui', 0], [g.status, g.corps.fonction, g.corps.claude, recus.length]);
-dit('sans la cle service : refuse', 401, (await appelle({ cle: 'autre', corps: demande })).status);
+/* LA PORTE, 17 novembre 2026 : la clé se compare à temps constant (memeCle) ;
+   un refus se dit au journal en longueurs seules (noteLeRefus), et la
+   réponse reste celle d'avant, sans aucune longueur. */
+const refusDeLaPorte = async (o: { cle: string | null; sansSecret?: boolean }) => {
+  const ecrits: unknown[][] = [];
+  const garde = console.error;
+  const secret = env.CLE_SERVICE;
+  console.error = (...a: unknown[]) => { ecrits.push(a); };
+  if (o.sansSecret) env.CLE_SERVICE = '';
+  try {
+    /* `cle: null` : aucun en-tête (un « Bearer » vide serait rogné en « Bearer » par Request). */
+    const r = await handler!(new Request('http://f/reception-wa', {
+      method: 'POST', body: JSON.stringify(demande),
+      headers: { ...(o.cle === null ? {} : { authorization: `Bearer ${o.cle}` }), 'content-type': 'application/json' },
+    }));
+    return { status: r.status, corps: await r.json() as any, ecrits }; // eslint-disable-line @typescript-eslint/no-explicit-any
+  } finally { console.error = garde; env.CLE_SERVICE = secret; }
+};
+const refus = await refusDeLaPorte({ cle: 'autre' });
+dit('sans la cle service : refuse', 401, refus.status);
+dit('... la reponse dit la porte et la version, sans aucune longueur', [['ok', 'motif', 'version'], false, 'porte'], [Object.keys(refus.corps), refus.corps.ok, refus.corps.motif]);
+dit('... le refus se note au journal, en longueurs seules', [1, 'reception-wa : clé refusée', { attendueLg: 7, recueLg: 5 }], [refus.ecrits.length, refus.ecrits[0]?.[0], refus.ecrits[0]?.[1]]);
+const sansSecret = await refusDeLaPorte({ cle: null, sansSecret: true });
+dit('un secret pas pose n ouvre rien, pas meme sans cle', [401, 'porte', { attendueLg: 0, recueLg: 0 }], [sansSecret.status, sansSecret.corps.motif, sansSecret.ecrits[0]?.[1]]);
 
 reponseDeClaude = () => outil('Avec plaisir, Madame N. Pour un calibre de 81 à 150 locks, la reprise des racines est à 40 000 F.', 'rien');
 const r1 = await appelle({ corps: demande });

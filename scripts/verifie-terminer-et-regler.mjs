@@ -62,7 +62,7 @@ const PANNES = [
   ['le foyer se regle a moitie pret', REG, "      : avecPiece.length === 0 || enPreparation ? 'sans-piece'", "      : avecPiece.length === 0 ? 'sans-piece'"],
   ['la copie de l honneur derive dans regler-la-seance', REG, '  if (!Number.isFinite(reste) || Math.round(reste) > 0) return null;', '  if (!Number.isFinite(reste) || Math.round(reste) > 1) return null;'],
   ['la copie de la regle derive dans terminer-et-regler', TER, 'export const JOURS_APRES_DE_LA_RECHERCHE = 100;', 'export const JOURS_APRES_DE_LA_RECHERCHE = 101;'],
-  ['la porte WhatsApp s ouvre sans la cle de service', TER, "    if (!parLeService(req)) return json({ ok: false, error: 'interdit' }, 403);\n", ''],
+  ['la porte WhatsApp s ouvre sans la cle de service', TER, "    if (!parLeService(req)) {\n      noteLeRefus('terminer-et-regler', clesDuService()[0] ?? '', jetonDeLaRequete(req));\n      return json({ ok: false, error: 'interdit' }, 403);\n    }\n", ''],
   ['Ma Couronne termine le rendez-vous d une autre', TER, "      if (!ligne || String(ligne.data?.clientId ?? '') !== ficheId) return json({ ok: false, error: 'introuvable' }, 404);", "      if (!ligne) return json({ ok: false, error: 'introuvable' }, 404);"],
   ['un echec ne compte plus : le frein par code est mort', TER, 'echecsDuCodeDansLHeure: dansLHeure - 1, echecsDuCodeDuJour: duJour - 1 })', 'echecsDuCodeDansLHeure: 0, echecsDuCodeDuJour: 0 })'],
   ['le frein n arrete plus rien', TER, "echecsDuCodeDuJour: duJour - 1 }) !== 'libre') {", "echecsDuCodeDuJour: duJour - 1 }) === 'jamais') {"],

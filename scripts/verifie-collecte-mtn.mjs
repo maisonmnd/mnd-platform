@@ -78,6 +78,11 @@ const PANNES = [
   ['l adresse de rappel oubliee', FONCTION, "      ...(rappel ? { 'X-Callback-Url': `${PROJET()}/functions/v1/mtn-momo-rappel/collection` } : {}),", ''],
   ['le comptoir repond interrupteur ferme', FONCTION, "  if (!reglage.ouverte) return json({ ok: true, ouverte: false, rdvs: [] });", ''],
   ['la limite de debit oubliee', FONCTION, "  if (!(await permis(req, 'collecte-demander', 12))) return json({ erreur: 'trop' }, 429);", ''],
+  /* « Payer par MTN » du Trône (18 novembre 2026) : la porte du personnel. */
+  ['le Bearer reste colle a la session du personnel (l ancienne regex de fbfa0321)', FONCTION,
+    "async function personnel(req: Request): Promise<{ par: string } | null> {\n  const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\\s+/i, '').trim();",
+    "async function personnel(req: Request): Promise<{ par: string } | null> {\n  const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearers+/i, '').trim();"],
+  ['demander-trone ouvert sans session du personnel', FONCTION, "  const qui = await personnel(req);\n  if (!qui) return json({ erreur: 'personnel' }, 403);", "  const qui = (await personnel(req)) ?? { par: 'Personne' };"],
   /* Le rappel */
   ['le rappel ne demande plus de relecture', RAPPEL, "    await fetch(`${projet}/functions/v1/collecte-mtn`, {", '    if (false) await fetch(`${projet}/functions/v1/collecte-mtn`, {'],
   ['le rappel de la paie transmis a la collecte', RAPPEL, "  if (voie === 'collection' && reference && SERVICE()) {", '  if (reference && SERVICE()) {'],
@@ -852,6 +857,37 @@ let refLien;
     && demandesMtn(d.o.reference)[0]?.corps.payer.partyId === N.bon && demandesMtn(d.o.reference)[0]?.corps.amount === '31000', d.t);
   const d2 = await page({ action: 'demander', comptoir: { numero: '01 97 00 00 01', n: 2 } });
   dit('un rang qui n existe pas : introuvable, rien ne part', d2.status === 404 && demandesMtn().length === 1, d2.t);
+}
+
+/* ── Lot B : « Payer par MTN » de la fenêtre Encaisser (demander-trone) · 18 novembre 2026 ──
+   Le Trône appelle par supabase.functions.invoke, donc « Authorization:
+   Bearer <session> ». De fbfa0321 à 2026-11-11-c, personnel() lisait le
+   préfixe avec /^Bearers+/i : « Bearer » restait collé, auth/v1/user
+   recevait « Bearer Bearer … » et toute l'équipe lisait 403 { erreur:
+   'personnel' }. Aucun banc n'éprouvait cette porte. */
+{
+  remiseAZero(); ip = 35;
+  seance();
+  const corps = { action: 'demander-trone', rdvId: 'r1', numero: '01 97 00 00 01', pourboireXof: 0 };
+  const ferme = await poste(JWT_EQUIPE, corps);
+  dit('demander-trone, interrupteur ferme : la session de l equipe est reconnue, la demande refusee (fermee), rien ne part',
+    ferme.status === 503 && ferme.o?.erreur === 'fermee' && T.collectes_mtn.length === 0 && demandesMtn().length === 0, ferme.t);
+  ouvre();
+  const sans = await poste(null, corps);
+  const anon = await page(corps);
+  const inconnu = await poste('jwt-inconnu', corps);
+  dit('demander-trone sans session du personnel (aucun jeton, la cle publique, un jeton inconnu) : 403 personnel, rien au registre, rien chez MTN',
+    [sans, anon, inconnu].every((x) => x.status === 403 && x.o?.erreur === 'personnel') && T.collectes_mtn.length === 0 && demandesMtn().length === 0,
+    [sans, anon, inconnu].map((x) => x.t).join(' '));
+  const r = await poste(JWT_EQUIPE, corps);
+  const c = collecte(r.o?.reference);
+  dit('demander-trone par l equipe (« Bearer <session> », role coiffeuse) : la demande part pour CE rendez-vous, le reste de sa piece, origine « comptoir », au nom de qui l envoie',
+    r.status === 200 && r.o?.etat === 'attente' && c?.rdv_id === 'r1' && c?.origine === 'comptoir' && c?.montant_xof === 30000 && c?.demande_par === 'A. K., au Trône'
+    && demandesMtn(r.o?.reference).length === 1 && demandesMtn(r.o?.reference)[0]?.corps.payer.partyId === N.bon, r.t);
+  const lectures = journal.filter((j) => j.chemin === '/auth/v1/user').map((j) => j.h.authorization ?? '');
+  dit('... auth/v1/user recoit la session seule (« Bearer jwt-equipe »), jamais « Bearer Bearer »',
+    lectures.includes(`Bearer ${JWT_EQUIPE}`) && !lectures.some((a) => /^Bearer\s+Bearer/i.test(a)), JSON.stringify(lectures));
+  dit('... la reponse ne montre ni cle, ni jeton, ni le numero entier', sansSecret(r.t) && !r.t.includes('0197000001') && !r.t.includes('229019700'), r.t);
 }
 
 /* ── Lot B : le registre en panne, la limite de débit ── */

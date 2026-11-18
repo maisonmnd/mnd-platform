@@ -110,8 +110,21 @@ function lectureDuTri(entree) {
   return { verdict, motif: motif || (verdict === "demarchage" ? "démarchage" : verdict === "proposition" ? "proposition" : "") };
 }
 
+// src/shared/cle-du-cron-pur.ts
+var memeCle = (a, b) => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
+};
+var noteLeRefus = (porte, attendue, recue) => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+
 // scripts/serveur/tri-des-messages.ts
-var VERSION = "2026-10-29-a";
+var VERSION = "2026-11-17-a";
 var MODELES = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 var TARIFS = {
   "claude-haiku-5-5": { entree: 1, sortie: 5 },
@@ -365,12 +378,16 @@ Deno.serve(async (req) => {
   }
   const sb = createClient(base, service);
   const jeton = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  const auJournal = (r) => {
+    noteLeRefus("tri-des-messages", service, jeton);
+    return r;
+  };
   try {
-    if (jeton && jeton === service) return avecCors(await pourLAutomate(sb, cleClaude, base, service, d));
-    if (!jeton || !anon) return avecCors(json({ ok: false, motif: "porte", version: VERSION }, 401));
+    if (jeton && memeCle(jeton, service)) return avecCors(await pourLAutomate(sb, cleClaude, base, service, d));
+    if (!jeton || !anon) return avecCors(auJournal(json({ ok: false, motif: "porte", version: VERSION }, 401)));
     const commeAppelant = createClient(base, anon, { global: { headers: { authorization: `Bearer ${jeton}` } } });
     const { data: estPersonnel, error } = await commeAppelant.rpc("is_staff");
-    if (error || estPersonnel !== true) return avecCors(json({ ok: false, motif: "reserve-au-personnel", version: VERSION }, 403));
+    if (error || estPersonnel !== true) return avecCors(auJournal(json({ ok: false, motif: "reserve-au-personnel", version: VERSION }, 403)));
     return avecCors(await pourLeTrone(sb, cleClaude, d));
   } catch (e) {
     dis("erreur", { motif: String(e?.message ?? e).slice(0, 160) });

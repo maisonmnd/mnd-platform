@@ -36,7 +36,7 @@ const WEBHOOK = 'supabase/functions/whatsapp-webhook/index.ts';
 const PANNES = [
   /* Le serveur */
   ['n importe qui confie un envoi', FONCTION, "  if (!moi || !DIRECTION.has(String(moi.role))) return null;", '  if (!moi) return null;'],
-  ['le passage sans la cle de service', FONCTION, '  return !!jwt && CLES_DE_SERVICE().includes(jwt);', '  return true;'],
+  ['le passage sans la cle de service', FONCTION, '  return !!jwt && CLES_DE_SERVICE().some((cle) => memeCle(jwt, cle));', '  return true;'],
   ['MTN appele sans le relais', FONCTION, "    const r = await fetch(`${k.relais}${chemin}`, {", "    const r = await fetch(`https://proxy.momoapi.mtn.com${chemin}`, {"],
   ['la cle du relais oubliee', FONCTION, "      headers: { 'X-Relais-Cle': k.relaisCle, 'Ocp-Apim-Subscription-Key': k.abonnement, ...(init.headers ?? {}) },", "      headers: { 'Ocp-Apim-Subscription-Key': k.abonnement, ...(init.headers ?? {}) },"],
   ['une cle montree au GET', FONCTION, "    cles: { utilisateur: !!k.utilisateur, cle: !!k.cle, abonnement: !!k.abonnement },", '    cles: { utilisateur: k.utilisateur, cle: k.cle, abonnement: k.abonnement },'],

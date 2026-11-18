@@ -236,7 +236,7 @@ const { ecarts } = copiesAJour(lis(FONCTION), (p: string) => readFileSync(p, 'ut
 dit('la fonction porte la copie à jour de avis-google-pont-pur', [], ecarts);
 const f = sansCommentaires(lis(FONCTION));
 dit('la fonction : sa version, le jeton comparé sans fuite, ni jeton ni webhook dans une réponse', [true, true, false],
-  [/const VERSION = '2026-10-26-a';/.test(f), /memeSecret\(\(req\.headers\.get\('x-jeton'\)/.test(f), /json\(\{[^}]*(JETON|WEBHOOK)[,}]/.test(f.replace(/!!JETON|!!WEBHOOK/g, ''))]);
+  [/const VERSION = '2026-11-17-a';/.test(f), /const jetonRecu = \(req\.headers\.get\('x-jeton'\) \?\? ''\)\.trim\(\);\s*if \(!memeCle\(jetonRecu, JETON\)\)/.test(f), /json\(\{[^}]*(JETON|WEBHOOK)[,}]/.test(f.replace(/!!JETON|!!WEBHOOK/g, ''))]);
 
 /* ── 4. L'ÉCRAN ────────────────────────────────────────────────────────── */
 const ecran = sansCommentaires(lis('src/apps/trone/routes/clients/ReponseAUnAvis.tsx'));

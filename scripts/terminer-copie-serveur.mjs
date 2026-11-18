@@ -55,7 +55,12 @@ export const COPIES = [
   { bloc: 'le-caissier', source: 'src/shared/le-caissier-pur.ts', cibles: ['supabase/functions/cloture-du-jour/index.ts'] },
   /* La clé d'une porte (17 novembre 2026) : comparée à temps constant, ses
      longueurs au journal et plus dans la réponse, dans les dix fonctions qui
-     ne s'ouvrent qu'à une clé. */
+     ne s'ouvrent qu'à une clé. Le même jour, les douze autres portes qui
+     comparent une clé reçue à un secret attendu : celles qui refusent
+     notent leur refus au journal (terminer-et-regler, mtn-momo-essais,
+     avis-google-releve, avis-google-pont, kkiapay-webhook) ; celles qui
+     reconnaissent seulement la clé service (le rôle, avant la session)
+     comparent par memeCle sans rien noter. */
   { bloc: 'cle-du-cron', source: 'src/shared/cle-du-cron-pur.ts', cibles: [
     'supabase/functions/avis-google/index.ts',
     'supabase/functions/confirmation-rdv/index.ts',
@@ -67,6 +72,18 @@ export const COPIES = [
     'supabase/functions/relances-factures/index.ts',
     'supabase/functions/whatsapp-automate/index.ts',
     'supabase/functions/whatsapp-webhook/index.ts',
+    'supabase/functions/cloture-du-jour/index.ts',
+    'supabase/functions/modeles-meta/index.ts',
+    'supabase/functions/push-notify/index.ts',
+    'supabase/functions/terminer-et-regler/index.ts',
+    'supabase/functions/collecte-mtn/index.ts',
+    'supabase/functions/paie-mtn/index.ts',
+    'supabase/functions/mtn-momo-essais/index.ts',
+    'supabase/functions/ia-maison/index.ts',
+    'supabase/functions/centre-de-commande/index.ts',
+    'supabase/functions/avis-google-releve/index.ts',
+    'supabase/functions/avis-google-pont/index.ts',
+    'supabase/functions/kkiapay-webhook/index.ts',
   ] },
 ];
 
