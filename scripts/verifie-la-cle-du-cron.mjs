@@ -11,7 +11,7 @@
 
    Le même jour, toutes les autres portes. Le banc tient désormais chaque
    porte de la plateforme, pas seulement les dix premières :
-     B. les vingt-deux fonctions DIRECTES qui portent le bloc, NOMMÉES une à
+     B. les vingt-trois fonctions DIRECTES qui portent le bloc, NOMMÉES une à
         une (en retirer une de la table de terminer-copie-serveur fait crier),
         chacune avec son genre : celles qui REFUSENT notent leur refus à leur
         nom ; celles qui RECONNAISSENT seulement la clé service (le rôle, avant
@@ -85,6 +85,8 @@ const DIRECTES = {
   'avis-google-releve': 'refuse',
   'avis-google-pont': 'refuse',
   'kkiapay-webhook': 'refuse',
+  /* La porte du site, pour la réponse du webhook (la consultation en affiches, 18 novembre 2026). */
+  'demande-submit': 'refuse',
   'cloture-du-jour': 'reconnait',
   'modeles-meta': 'reconnait',
   'push-notify': 'reconnait',

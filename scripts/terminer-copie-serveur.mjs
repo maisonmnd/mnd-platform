@@ -72,6 +72,7 @@ export const COPIES = [
     'supabase/functions/relances-factures/index.ts',
     'supabase/functions/whatsapp-automate/index.ts',
     'supabase/functions/whatsapp-webhook/index.ts',
+    'supabase/functions/demande-submit/index.ts',
     'supabase/functions/cloture-du-jour/index.ts',
     'supabase/functions/modeles-meta/index.ts',
     'supabase/functions/push-notify/index.ts',

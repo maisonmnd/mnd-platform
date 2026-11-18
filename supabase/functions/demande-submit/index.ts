@@ -225,7 +225,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-18-a · la décoloration se réserve en ligne comme la coloration (son atelier, La Transformation) ; l’heure d’un rendez-vous déplacé tenue sur la grille ; le rituel GBÀTÀ™ (le défaisage) se réserve en ligne ; le rendez-vous en attente (la place tenue deux heures, « Je confirme » sur WhatsApp, l’acompte quand un geste en porte un ; tant que le modèle n’est pas approuvé, la place naît confirmée comme avant) ; un plafond par numéro et par adresse ; l’heure tenue sur la grille ; la durée au calibre annoncé ; les codes comptés par la clé du numéro ; déplacer deux fois au plus, sous le verrou des places ; Ma Couronne passe par le serveur ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous déplacé) : une page en cache ou un envoi direct ne passe plus ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
+const VERSION = '2026-11-18-a · la décoloration se réserve en ligne comme la coloration (son atelier, La Transformation) ; la clé du serveur comparée à temps constant (⟨cle-du-cron⟩) ; l’heure d’un rendez-vous déplacé tenue sur la grille ; le rituel GBÀTÀ™ (le défaisage) se réserve en ligne ; le rendez-vous en attente (la place tenue deux heures, « Je confirme » sur WhatsApp, l’acompte quand un geste en porte un ; tant que le modèle n’est pas approuvé, la place naît confirmée comme avant) ; un plafond par numéro et par adresse ; l’heure tenue sur la grille ; la durée au calibre annoncé ; les codes comptés par la clé du numéro ; déplacer deux fois au plus, sous le verrou des places ; Ma Couronne passe par le serveur ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous déplacé) : une page en cache ou un envoi direct ne passe plus ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
 
 /** LE SECOND FAUTEUIL, PAS DAVANTAGE (2 novembre 2026, 0152) : la copie de
     `PLACES_EN_LIGNE_AU_PLUS` (src/shared/agenda-pur.ts), hors des repères. */
@@ -3883,12 +3883,43 @@ async function ditSurWhatsApp(o: { numero: string; texte: string; branchId: stri
   return { statut, waId };
 }
 
-/** L'appel vient-il d'une fonction de la Maison ? La clé service, rien d'autre. */
+/* LA PORTE DE LA CLÉ (18 novembre 2026, avec la session qui la pose dans
+   seize fonctions) : RECOPIÉ de src/shared/cle-du-cron-pur.ts entre ses
+   repères (scripts/terminer-copie-serveur.mjs, verifie-la-cle-du-cron). */
+/* ⟨cle-du-cron⟩ */
+/** Deux clés sont-elles la même ? À TEMPS CONSTANT : `===` s'arrête au
+    premier caractère qui diffère, et ce temps-là se mesure de l'extérieur,
+    caractère après caractère. Une clé vide ne vaut jamais : un secret qui
+    n'est pas posé n'ouvre rien. */
+const memeCle = (a: string, b: string): boolean => {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  const n = Math.max(x.length, y.length);
+  for (let i = 0; i < n; i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0 && x.length > 0;
+};
+
+/** Une clé refusée se dit AU JOURNAL de la fonction, en longueurs seules
+    (sb_secret ≈ 40 à 50 signes · legacy eyJ… ≈ 200 et plus · 0 = rien de
+    posé de ce côté-là) : elles suffisent à situer la panne. Jamais dans la
+    réponse : celui qui frappe sans la clé n'a pas à les lire. */
+const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
+  console.error(`${porte} : clé refusée`, { attendueLg: attendue.length, recueLg: recue.length });
+};
+/* ⟨/cle-du-cron⟩ */
+
+/** L'appel vient-il d'une fonction de la Maison ? La clé service, rien d'autre,
+    comparée à temps constant (`memeCle`) ; un refus se note au journal, en
+    longueurs seules (`noteLeRefus`). */
 const appelDuServeur = (req: Request): boolean => {
   const cle = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
   if (!cle) return false;
-  return [Deno.env.get('CLE_SERVICE'), Deno.env.get('SERVICE_KEY'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')]
-    .some((k) => !!k && k.trim() === cle);
+  const attendues = [Deno.env.get('CLE_SERVICE'), Deno.env.get('SERVICE_KEY'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')]
+    .map((k) => (k ?? '').trim()).filter((k) => k !== '');
+  if (attendues.some((k) => memeCle(cle, k))) return true;
+  noteLeRefus('demande-submit', attendues[0] ?? '', cle);
+  return false;
 };
 
 /** SA PLACE EN ATTENTE, quand elle écrit « Je confirme » au lieu de toucher le
