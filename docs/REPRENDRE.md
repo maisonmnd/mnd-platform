@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## L'AGENT DES RENDEZ-VOUS, LOT 1 : AU COMPTOIR — 18 novembre 2026 (ia-maison 2026-11-18-a + Trône)
+## L'AGENT DES RENDEZ-VOUS, LOT 1 : AU COMPTOIR — 18 novembre 2026, EN LIGNE (ia-maison 2026-11-18-a, v31 ; Trône build 20261118020708 @ 237f0f96, 538/538 identiques)
 
 « Construire un agent qui prend les RDV en 1 clic » ; deux maquettes le même jour, la seconde retenue (`public/maquette-l-agent-des-rendez-vous.html`, jamais commitée) : un agent qui AGIT SEUL, un seul toucher pour la cliente, « l'équipe est toujours disponible, oublie les congés, c'est toujours Team », puis « construis » (Yéman). La première maquette (le Planning et les Compétences qui décident des places) est abandonnée.
 
