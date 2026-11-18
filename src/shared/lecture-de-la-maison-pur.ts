@@ -78,3 +78,22 @@ export const gardeDeLaPeau = (c: CeQuElleADit, r: ReglagesDesBesoins): boolean =
 
 /** Les points d'un besoin coché, lus dans les réglages du Trône (le dépôt n'en porte pas). */
 export const pointsDuBesoin = (r: ReglagesDesBesoins, id: string): number | null => r.besoins.find((b) => b.id === id)?.points ?? null;
+
+/** CE QU'ELLE A RÉPONDU SUR LE SITE — 18 novembre 2026 (l'assemblage de la
+    consultation en affiches). Le parcours dépose sa fiche (`answers.fiche`) :
+    ses envies, son nombre de locks, ou, sans besoin à cocher, le modèle voulu
+    (épaisseur, longueur, durée) et les locks à défaire (depuis quand, la
+    façon, ensuite). Sans elle, les files A, B et C disaient « rien de coché »
+    devant une cliente qui avait tout dit. Une consultation d'avant n'en porte
+    pas : rien. Ses mots, jamais du HTML ; vingt lignes au plus. */
+export function lignesDeSaFiche(answers: unknown): [string, string][] {
+  const f = answers && typeof answers === 'object' ? (answers as { fiche?: unknown }).fiche : null;
+  if (!Array.isArray(f)) return [];
+  return f
+    .filter((l): l is [string, string] => Array.isArray(l) && l.length === 2 && typeof l[0] === 'string' && typeof l[1] === 'string' && l[1].trim() !== '')
+    .slice(0, 20)
+    .map(([k, v]) => [k.slice(0, 60), v.slice(0, 200)]);
+}
+
+/** Les mêmes, en une ligne : « Demande : Démêler · Ensuite : Cheveux libres ». */
+export const saFicheDite = (answers: unknown): string => lignesDeSaFiche(answers).map(([k, v]) => `${k} : ${v}`).join(' · ');

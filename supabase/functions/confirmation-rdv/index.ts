@@ -313,8 +313,8 @@ export function gestesAuCalibre<S extends GesteADuree>(gestes: readonly S[], o: 
 /* LE DÉFAISAGE SE RÉSERVE EN LIGNE — 17 novembre 2026. Yéman : sur le site,
    une cliente qui veut défaire ses locks et garder ses cheveux libres réserve
    tout de suite le rituel GBÀTÀ™, sans visio ni consultation privée. Le juge
-   des places ne connaît que deux ateliers qui se réservent (l'Entretien, la
-   Coloration). POUR LA PORTE DU SITE SEULEMENT, l'atelier du défaisage,
+   des places ne connaît que ses ateliers qui se réservent (l'Entretien, la
+   Coloration, la décoloration). POUR LA PORTE DU SITE SEULEMENT, l'atelier du défaisage,
    quand il est un atelier à lui (sans parent : rangé sous FÍNFÍN™, il reste
    une restauration et passe par la consultation), se lit comme rangé sous un
    atelier qui se réserve. Rien d'autre ne s'ouvre, et rien du geste ne
@@ -491,7 +491,7 @@ const confirmationEstNeuve = (
 /** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-17-a · le rendez-vous en attente : une place tenue depuis le site, tant qu’elle attend son oui ou son acompte, ne reçoit ni proposition ni confirmation ; elle les reçoit ferme · 2026-11-15-b · la proposition finit par « Cette date vous convient-elle ? », comme le modèle approuvé chez Meta · 2026-11-15-a · le rendez-vous suggéré : un rendez-vous posé « Suggéré par la Maison » reçoit la proposition (modèle proposition_rituel, WA_TEMPLATE_PROPOSITION, « Je confirme » et « Un autre moment ») à la place de la confirmation, une seule fois ; sans le modèle, rien ne part sur WhatsApp · 2026-11-11-a · ce qui va partir : une confirmation arrêtée d’avance, ou d’un modèle en pause, ne part pas ; le modèle à liens en pause, l’ancien part à sa place ; un message par foyer, qui nomme chaque tête ; un périmé retenu par Opale ne se redépose pas';
+const VERSION = '2026-11-18-a · le rendez-vous en attente : une place tenue depuis le site, tant qu’elle attend son oui ou son acompte, ne reçoit ni proposition ni confirmation ; elle les reçoit ferme · 2026-11-15-b · la proposition finit par « Cette date vous convient-elle ? », comme le modèle approuvé chez Meta · 2026-11-15-a · le rendez-vous suggéré : un rendez-vous posé « Suggéré par la Maison » reçoit la proposition (modèle proposition_rituel, WA_TEMPLATE_PROPOSITION, « Je confirme » et « Un autre moment ») à la place de la confirmation, une seule fois ; sans le modèle, rien ne part sur WhatsApp · 2026-11-11-a · ce qui va partir : une confirmation arrêtée d’avance, ou d’un modèle en pause, ne part pas ; le modèle à liens en pause, l’ancien part à sa place ; un message par foyer, qui nomme chaque tête ; un périmé retenu par Opale ne se redépose pas';
 
 /* LE LIEN DU RENDEZ-VOUS — 3 novembre 2026. Bloc RECOPIÉ tel quel de
    `src/shared/lien-du-rdv-pur.ts` (ses choix y sont écrits) ;

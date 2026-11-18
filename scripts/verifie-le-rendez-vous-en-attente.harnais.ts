@@ -816,6 +816,24 @@ const idB3 = b3.corps.apptId as string;
     [true, true, true, true],
     [reserver.includes("const prixFlou = prixAuCalibre || choisies.some("), reserver.includes("${prixAuCalibre ? 'confirmé au fauteuil' : 'à régler à la Maison'}"),
       reserver.includes('heuresLibres({ agenda: agendaAuCalibre ?? agenda, dateIso: iso,'), reserver.includes("'Répondez « Je confirme » sur WhatsApp.'")]);
+  /* L'ASSEMBLAGE (18 novembre 2026) : une place prise en ligne porte `suggereLe` pour taire les rappels,
+     mais ce n'est pas une suggestion de la Maison. Rien de ce qui est fait pour une suggestion ne la vise. */
+  const rj1 = lit('supabase/functions/rappels-j1/index.ts');
+  const express = lit('src/shared/reservation-express.ts');
+  dit('C15 rappels-j1 : ni la relance J-3 « Notre proposition », ni la note du comptoir la veille ne visent une place prise en ligne',
+    [true, true, true],
+    [rj1.includes('&& !a.confirmeeParLaClienteLe && !a.autreMomentDemandeLe && !a.attenduJusquAu);'),
+      express.includes('&& !a.confirmeeParLaClienteLe && !a.autreMomentDemandeLe && !a.attenduJusquAu);'),
+      rj1.includes('.filter((a) => estSuggere(a) && !a.attenduJusquAu)')]);
+  const mesRdv = lit('src/apps/couronne/MesRendezVous.tsx');
+  const prochain = lit('src/apps/trone/routes/vente/SonProchainRituel.tsx');
+  const abonnee = lit('src/shared/abonnee-pur.ts');
+  dit('C16 Ma Couronne, la carte du prochain rituel et la formule ne la disent pas « proposee par la Maison »',
+    [true, 0, true, true],
+    [mesRdv.includes('const proposeeParLaMaison = (a: Appointment): boolean => estSuggere(a) && etatDeLAttente(a) === null;'),
+      (mesRdv.match(/\{(aVenir && )?estSuggere\(a\) &&/g) ?? []).length,
+      prochain.includes("suggere: estSuggere(dejaPose) && etatDeLAttente(dejaPose) === null }") && prochain.includes("estSuggere(rdvMontre) && etatDeLAttente(rdvMontre) === null ?"),
+      abonnee.includes("if (estSuggere(a) && !a.attenduJusquAu) return 'proposee';")]);
 }
 
 console.log(`\n${n - ko}/${n} epreuves tenues${ko ? `, ${ko} en echec` : ''}.`);

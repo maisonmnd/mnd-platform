@@ -64,6 +64,11 @@ const FICHIERS = [
 const PERMIS = [
   /* une note posée sur le RDV, lue au Trône seulement */
   { fichier: 'src/apps/couronne/Booking.tsx', fragment: 'Maîtres multiples · ' },
+  /* LES MOTS DE YÉMAN POUR L'AFFICHE VISIO (17 novembre 2026, la consultation
+     en affiches) : « Un maître de la Maison répond à vos inquiétudes, en
+     quelques minutes ». Le métier, dit par elle, après la règle du 2 novembre
+     qui visait « votre maître », « votre maîtresse » (la Maison qui répond). */
+  { fichier: 'src/apps/revelateur/parcours-en-affiches-pur.ts', fragment: "export const LIGNE_DE_LA_VISIO = 'Un maître de la Maison répond à vos inquiétudes, en quelques minutes';" },
   /* la règle elle-même, dans la consigne du rédacteur des bilans */
   { fichier: 'supabase/functions/bilan-redige/index.ts', fragment: 'JAMAIS « votre maître », « votre maîtresse »' },
 ];

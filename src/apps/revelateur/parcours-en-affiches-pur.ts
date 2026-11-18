@@ -11,7 +11,7 @@ export type ConsultationDuSite = Omit<OnlineConsultation, 'paidXof' | 'besoins'>
   /** Le moment voulu de la consultation privée (`momentVoulu` au serveur). */
   moment?: { jour: string; heure: string };
 };
-import type { Bande } from './prix-calibre';
+import { prixSelonLeCalibre, representantDeLaBande, type Bande, type PrestationTarifee } from './prix-calibre';
 
 /* ══ LE PARCOURS EN AFFICHES, LA RÈGLE PURE — 17 novembre 2026 ═════════════
    Maquette « La consultation en affiches », validée par Yéman : « construis ».
@@ -175,22 +175,35 @@ export const plageDite = (t: Pick<Tranche, 'de' | 'a'>): string =>
 export const trancheDuNombre = (n: number, tranches: readonly Tranche[]): Tranche | null =>
   (n >= 1 ? tranches.find((t) => n >= t.de && (t.a === null || n <= t.a)) ?? null : null);
 
-/** Le barème qui vaut pour une prestation : celui de sa famille ou de son
-    atelier quand il en porte un, sinon celui de la Maison (la règle du Trône,
-    `bandForService`, et de `prix-calibre`). */
-export function baremeDe(
-  categoryId: string,
-  sets: Readonly<Record<string, readonly Bande[]>> | undefined,
-  cats: readonly { id: string; parentId?: string }[],
-  maison: readonly Bande[],
-): readonly Bande[] {
-  let id: string | undefined = categoryId;
-  for (let i = 0; id && i < 8; i += 1) {
-    const propre = sets?.[id];
-    if (propre?.length) return propre;
-    id = cats.find((c) => c.id === id)?.parentId;
-  }
-  return maison;
+/** Les comptes de locks que ces tranches tiennent : le représentant de
+    chacune (son plafond ; cent de plus que la précédente pour la dernière),
+    comme `/reserver/` l'annonce au serveur (`representantDeLaBande`). */
+export function comptesDesTranches(tranches: readonly Pick<Tranche, 'id'>[], bandes: readonly Bande[]): number[] {
+  return tranches
+    .map((t) => bandes.find((b) => b.id === t.id))
+    .filter((b): b is Bande => !!b)
+    .map((b) => representantDeLaBande(b, bandes));
+}
+
+/** LE PRIX « À PARTIR DE » D'UNE PRESTATION POUR CES TRANCHES — 18 novembre
+    2026. « Le Gbata se paie selon le nombre de locks » (Yéman) : par la règle
+    du Catalogue, celle de `/reserver/` et du serveur (`prixSelonLeCalibre`),
+    où le barème ne joue que sur une prestation qui « suit le modèle »
+    (`scalesWithModel`) ; jamais une multiplication faite d'office par le
+    site. Plusieurs tranches (une épaisseur large, ou rien de dit) : le plus
+    petit prix. Sans prix au catalogue : 0, et rien ne s'affiche. */
+export function prixAPartirDe(
+  s: PrestationTarifee,
+  tranches: readonly Pick<Tranche, 'id'>[],
+  o: { bandes: readonly Bande[]; sets?: Record<string, Bande[]>; cats?: { id: string; parentId?: string }[]; baremeSuspendu?: boolean },
+): number {
+  const prix = tranches
+    .map((t) => o.bandes.find((b) => b.id === t.id))
+    .filter((b): b is Bande => !!b)
+    .map((bande) => prixSelonLeCalibre(s, { bande, lockCount: representantDeLaBande(bande, o.bandes), sets: o.sets, cats: o.cats, baremeSuspendu: o.baremeSuspendu }))
+    .filter((p): p is number => typeof p === 'number' && p > 0);
+  if (prix.length) return Math.min(...prix);
+  return prixSelonLeCalibre(s, { sets: o.sets, cats: o.cats, baremeSuspendu: o.baremeSuspendu }) ?? 0;
 }
 
 /** Le nombre tapé, propre : des chiffres, quatre au plus. */
@@ -391,7 +404,8 @@ const leJour = (iso: string): Date => new Date(`${iso}T12:00:00Z`);
 export function jourEnPuce(iso: string, aujourdhui: string): string {
   const d = leJour(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return `${SEMAINE_COURTE[d.getUTCDay()]} ${d.getUTCDate()}${iso.slice(0, 7) === aujourdhui.slice(0, 7) ? '' : ` ${MOIS_COURTS[d.getUTCMonth()]}`}`;
+  /* L'année se dit dès qu'elle n'est plus celle d'aujourd'hui (« ven. 8 janv. 2027 ») : une date montrée à une cliente ne prête jamais à confusion. */
+  return `${SEMAINE_COURTE[d.getUTCDay()]} ${d.getUTCDate()}${iso.slice(0, 7) === aujourdhui.slice(0, 7) ? '' : ` ${MOIS_COURTS[d.getUTCMonth()]}${String(d.getUTCFullYear()) === aujourdhui.slice(0, 4) ? '' : ` ${d.getUTCFullYear()}`}`}`;
 }
 
 /** « Mercredi 18 novembre 2026 », « Mardi 1er décembre 2026 » : l'année toujours, sur une date montrée à une cliente. */

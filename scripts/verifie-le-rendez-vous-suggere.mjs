@@ -63,7 +63,7 @@ const PANNES = [
   ['un oui de six semaines tait la veille', RAPPEL, "  return String(a.confirmeeParLaClienteLe).slice(0, 10) >= new Date(t - 3 * 86_400_000).toISOString().slice(0, 10);", '  return true;'],
   ['la relance vise les reprises d avant', EXPRESS, "&& !!a.clientId && !!a.suggereLe\n    && !a.confirmeeParLaClienteLe", "&& !!a.clientId && !!a.repriseDe\n    && !a.confirmeeParLaClienteLe"],
   ['le serveur confirme une suggestion', CONF, 'for (const a of aEnvoyer.filter((x) => !estSuggere(x))) {', 'for (const a of aEnvoyer) {'],
-  ['le serveur relance les reprises d avant', RJ1, "&& !!a.clientId && !!a.suggereLe\n    && !a.confirmeeParLaClienteLe && !a.autreMomentDemandeLe);", "&& !!a.clientId && !!a.repriseDe\n    && !a.confirmeeParLaClienteLe && !a.autreMomentDemandeLe);"],
+  ['le serveur relance les reprises d avant', RJ1, "&& !!a.clientId && !!a.suggereLe\n    && !a.confirmeeParLaClienteLe && !a.autreMomentDemandeLe && !a.attenduJusquAu);", "&& !!a.clientId && !!a.repriseDe\n    && !a.confirmeeParLaClienteLe && !a.autreMomentDemandeLe && !a.attenduJusquAu);"],
   ['Gerard garde une suggestion', 'src/shared/gerard-pur.ts', 'if (r && !r.suggere && ecartJours(A, r.date) === GARDER_AVANT', 'if (r && ecartJours(A, r.date) === GARDER_AVANT'],
   ['l assistant dit « votre rendez-vous » d une proposition', 'src/shared/ia-reponse-wa-pur.ts', '      ? rdv.suggere\n', '      ? false\n'],
   ['Ma Couronne dit confirmee une proposition', 'src/shared/abonnee-pur.ts', "  if (estSuggere(a)) return 'proposee';\n", ''],

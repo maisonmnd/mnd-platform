@@ -23,9 +23,13 @@
    `scripts/verifie-les-autres-portes.mjs` l'éprouve (et `--prouve`). */
 
 /* ⟨rendez-vous-pris⟩ */
-/** Ce que la règle lit d'un rendez-vous : son statut, son jour, et les deux
-    marques d'une suggestion (la pose par la Maison, son oui). */
-export type RendezVousLu = { status?: unknown; date?: unknown; suggereLe?: unknown; confirmeeParLaClienteLe?: unknown };
+/** Ce que la règle lit d'un rendez-vous : son statut, son jour, les deux
+    marques d'une suggestion (la pose par la Maison, son oui), et celles d'une
+    place née en attente d'une porte en ligne (l'échéance, l'acompte). */
+export type RendezVousLu = {
+  status?: unknown; date?: unknown; suggereLe?: unknown; confirmeeParLaClienteLe?: unknown;
+  attenduJusquAu?: unknown; depositXof?: unknown; depositConfirmed?: unknown;
+};
 const marqueDuRendezVous = (v: unknown): boolean => typeof v === 'string' && v.trim().length > 0;
 const jourDuRendezVous = (v: unknown): string => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : '');
 
@@ -36,11 +40,16 @@ export function estUneSeanceFaite(a: RendezVousLu | null | undefined, aujourdhui
 }
 
 /** UN RENDEZ-VOUS PRIS : confirmé, aujourd'hui ou plus tard, et pas une
-    suggestion de la Maison restée sans son oui. « En attente » ne compte pas. */
+    suggestion de la Maison restée sans son oui. « En attente » ne compte pas :
+    ni le statut, ni une place prise en ligne qui attend encore son oui ou son
+    acompte (`attenduJusquAu`, rendez-vous-en-attente-pur : FERME, c'est son
+    oui et l'acompte reçu quand il y en a un ; 18 novembre 2026). */
 export function estUnRendezVousPris(a: RendezVousLu | null | undefined, aujourdhui: string): boolean {
   const jour = jourDuRendezVous(a?.date);
   if (!a || a.status !== 'confirmé' || jour === '' || jour < aujourdhui) return false;
-  return !(marqueDuRendezVous(a.suggereLe) && !marqueDuRendezVous(a.confirmeeParLaClienteLe));
+  if (marqueDuRendezVous(a.suggereLe) && !marqueDuRendezVous(a.confirmeeParLaClienteLe)) return false;
+  const acompte = Math.round(Number(a.depositXof));
+  return !(marqueDuRendezVous(a.attenduJusquAu) && Number.isFinite(acompte) && acompte > 0 && a.depositConfirmed !== true);
 }
 
 /** Elle a déjà eu une séance à la Maison. */

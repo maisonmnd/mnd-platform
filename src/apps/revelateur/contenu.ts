@@ -556,7 +556,7 @@ export const PAGES: Page[] = [
        Trône (Besoins et règles › Vos envies), ses prix du catalogue. */
     chemin: '/consultation/',
     titre: 'Ma consultation gratuite · Maison MND Cotonou',
-    description: 'Cinq questions sur vos locks, puis votre rendez-vous à la Maison MND, Cotonou : votre rituel, une visio gratuite avec un maître, ou une consultation privée.',
+    description: 'Cinq questions sur vos locks, puis votre rendez-vous à la Maison MND, Cotonou : votre rituel, une visio gratuite, ou une consultation privée.',
     h1: 'Ma consultation gratuite',
     sur: 'Consultation',
     ligne: 'Cinq questions, puis votre rendez-vous.',

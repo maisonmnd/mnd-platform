@@ -15,7 +15,8 @@ import { ENVIES_DE_DEPART, enviesSures, type ReglagesDesEnvies } from './envies-
    n'existe pas, le site lit la même semence. */
 
 export const CLE_DES_ENVIES = 'mnd_envies';
-export const enviesStore = createStore<ReglagesDesEnvies>(CLE_DES_ENVIES, ENVIES_DE_DEPART());
+/* La clé du magasin s'écrit en toutes lettres : `verifie-cles-uniques` lit chaque `createStore` (une clé, un magasin). */
+export const enviesStore = createStore<ReglagesDesEnvies>('mnd_envies', ENVIES_DE_DEPART());
 bindDocument(enviesStore, CLE_DES_ENVIES);
 
 /** Le document, toujours sûr à lire, même s'il arrive incomplet du serveur. */

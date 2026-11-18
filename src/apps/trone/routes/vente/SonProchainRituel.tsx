@@ -89,6 +89,7 @@ import { leveLaConfirmation, marqueLaSuggestion, remplaceLeRendezVousDeLaCarte, 
 import {
   dansNSemaines, estSuggere, laPlaceDeLaPuce, marqueDeLaPose, SEMAINES_DE_LA_SUITE, semaineDuRythme, texteDeLaProposition, type QuiAChoisi,
 } from '../../../../shared/rendez-vous-suggere-pur';
+import { estEnAttente, etatDeLAttente } from '../../../../shared/rendez-vous-en-attente-pur';
 import { supabase } from '../../../../shared/supabase';
 import './son-prochain-rituel.css';
 
@@ -630,7 +631,8 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
   })();
   const verifie = (() => {
     if (!carte.place) return null;
-    if (carte.dejaLa) return { texte: ceQueDitLeRendezVousDejaLa({ creeLe: dejaPose?.creeLe, source: dejaPose?.source, status: dejaPose?.status, dateDite: dateSansJour, suggere: estSuggere(dejaPose) }), alerte: false };
+    /* Une place prise en ligne qui attend son oui (18 novembre 2026) se dit « en attente », pas « suggéré ». */
+    if (carte.dejaLa) return { texte: ceQueDitLeRendezVousDejaLa({ creeLe: dejaPose?.creeLe, source: dejaPose?.source, status: estEnAttente(dejaPose) ? 'en attente' : dejaPose?.status, dateDite: dateSansJour, suggere: estSuggere(dejaPose) && etatDeLAttente(dejaPose) === null }), alerte: false };
     if (change || !tarif) return ceQueDitLaPlace({ place: carte.place, maitre: maitreMontre, nomDuJour: (iso) => NOMS_DES_JOURS[new Date(`${iso}T12:00:00`).getDay()] });
     return ceQueDitLaPlace({
       place: carte.place,
@@ -641,8 +643,8 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
     });
   })();
   /* Un rendez-vous déjà là, venu du site, peut attendre sa confirmation : la pastille le dit. */
-  const pastille = carte.dejaLa && rdvMontre?.status === 'en attente' ? { texte: 'En attente', ton: 'vide' as const }
-    : carte.dejaLa && estSuggere(rdvMontre) ? { texte: 'Suggéré', ton: 'suggere' as const }
+  const pastille = carte.dejaLa && (rdvMontre?.status === 'en attente' || estEnAttente(rdvMontre)) ? { texte: 'En attente', ton: 'vide' as const }
+    : carte.dejaLa && estSuggere(rdvMontre) && etatDeLAttente(rdvMontre) === null ? { texte: 'Suggéré', ton: 'suggere' as const }
     : pastilleDeLaCarte(carte, { suggere: qui === 'suggere' });
   const message = ceQuiPartVersElle(carte, { aUnNumero, suggere: qui === 'suggere', sansModele });
 

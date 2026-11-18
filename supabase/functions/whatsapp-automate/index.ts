@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-18-a · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-18-a · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -604,13 +604,16 @@ export const ditLaPorte = (p: Porte): string =>
 
 /* ⟨place-du-serveur⟩ */
 /* ── 1. CE QUI SE RÉSERVE EN LIGNE ──────────────────────────────────────
-   Deux ateliers, et c'est délibéré : l'Entretien (lavages, soins, reprises de
-   racines, sorties signature) et la Coloration. Une création et une
-   restauration passent par la consultation, les formations sont des
-   candidatures, les mèches et les fournitures ne sont pas des rendez-vous.
-   Les masques de la Vitrine (comptoir, Ma Couronne) ne comptent pas ici :
-   seuls ceux du site public (`siteMasques`). */
-const ATELIERS_RESERVABLES: readonly string[] = ['atl-ii-gbeji', 'atl-iii-yekpe'];
+   Trois ateliers, et c'est délibéré : l'Entretien (lavages, soins, reprises
+   de racines, sorties signature), la Coloration, et La Transformation, la
+   décoloration, rangée dans un atelier à elle depuis la nouvelle grille du
+   10 octobre 2026 (« la décoloration fait partie du process de la
+   coloration, ça se réserve directement », Yéman, 17 novembre 2026). Une
+   création et une restauration passent par la consultation, les formations
+   sont des candidatures, les mèches et les fournitures ne sont pas des
+   rendez-vous. Les masques de la Vitrine (comptoir, Ma Couronne) ne comptent
+   pas ici : seuls ceux du site public (`siteMasques`). */
+const ATELIERS_RESERVABLES: readonly string[] = ['atl-ii-gbeji', 'atl-iii-yekpe', 'cat-transformation'];
 
 /* LA CONSULTATION DE CHAQUE PORTE (la Maison, 17 septembre 2026) : le KÒKÒ
    Origine pour une première couronne, le KÒKÒ Suivi pour une réparation, le
@@ -5553,9 +5556,13 @@ export function coutDOpale(u: { input_tokens?: number | null; output_tokens?: nu
    gardent la copie identique) : Opale ne passe la main pour une photo qu'à
    une cliente que la Maison reçoit. */
 /* ⟨rendez-vous-pris⟩ */
-/** Ce que la règle lit d'un rendez-vous : son statut, son jour, et les deux
-    marques d'une suggestion (la pose par la Maison, son oui). */
-export type RendezVousLu = { status?: unknown; date?: unknown; suggereLe?: unknown; confirmeeParLaClienteLe?: unknown };
+/** Ce que la règle lit d'un rendez-vous : son statut, son jour, les deux
+    marques d'une suggestion (la pose par la Maison, son oui), et celles d'une
+    place née en attente d'une porte en ligne (l'échéance, l'acompte). */
+export type RendezVousLu = {
+  status?: unknown; date?: unknown; suggereLe?: unknown; confirmeeParLaClienteLe?: unknown;
+  attenduJusquAu?: unknown; depositXof?: unknown; depositConfirmed?: unknown;
+};
 const marqueDuRendezVous = (v: unknown): boolean => typeof v === 'string' && v.trim().length > 0;
 const jourDuRendezVous = (v: unknown): string => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : '');
 
@@ -5566,11 +5573,16 @@ export function estUneSeanceFaite(a: RendezVousLu | null | undefined, aujourdhui
 }
 
 /** UN RENDEZ-VOUS PRIS : confirmé, aujourd'hui ou plus tard, et pas une
-    suggestion de la Maison restée sans son oui. « En attente » ne compte pas. */
+    suggestion de la Maison restée sans son oui. « En attente » ne compte pas :
+    ni le statut, ni une place prise en ligne qui attend encore son oui ou son
+    acompte (`attenduJusquAu`, rendez-vous-en-attente-pur : FERME, c'est son
+    oui et l'acompte reçu quand il y en a un ; 18 novembre 2026). */
 export function estUnRendezVousPris(a: RendezVousLu | null | undefined, aujourdhui: string): boolean {
   const jour = jourDuRendezVous(a?.date);
   if (!a || a.status !== 'confirmé' || jour === '' || jour < aujourdhui) return false;
-  return !(marqueDuRendezVous(a.suggereLe) && !marqueDuRendezVous(a.confirmeeParLaClienteLe));
+  if (marqueDuRendezVous(a.suggereLe) && !marqueDuRendezVous(a.confirmeeParLaClienteLe)) return false;
+  const acompte = Math.round(Number(a.depositXof));
+  return !(marqueDuRendezVous(a.attenduJusquAu) && Number.isFinite(acompte) && acompte > 0 && a.depositConfirmed !== true);
 }
 
 /** Elle a déjà eu une séance à la Maison. */

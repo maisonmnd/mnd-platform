@@ -69,8 +69,10 @@ const BANC_DIAGNOSTIC = 'verifie-le-diagnostic-photo.mjs';
 const PANNES = [
   /* La regle. */
   ['un rendez-vous en attente compte comme pris', PUR, "  if (!a || a.status !== 'confirmé' || jour === '' || jour < aujourdhui) return false;", "  if (!a || (a.status !== 'confirmé' && a.status !== 'en attente') || jour === '' || jour < aujourdhui) return false;"],
-  ['une suggestion sans son oui compte comme prise', PUR, '  return !(marqueDuRendezVous(a.suggereLe) && !marqueDuRendezVous(a.confirmeeParLaClienteLe));', '  return true;'],
-  ['son oui ne la rend plus prise', PUR, '  return !(marqueDuRendezVous(a.suggereLe) && !marqueDuRendezVous(a.confirmeeParLaClienteLe));', '  return !marqueDuRendezVous(a.suggereLe);'],
+  ['une suggestion sans son oui compte comme prise', PUR, '  if (marqueDuRendezVous(a.suggereLe) && !marqueDuRendezVous(a.confirmeeParLaClienteLe)) return false;\n', ''],
+  ['son oui ne la rend plus prise', PUR, '  if (marqueDuRendezVous(a.suggereLe) && !marqueDuRendezVous(a.confirmeeParLaClienteLe)) return false;', '  if (marqueDuRendezVous(a.suggereLe)) return false;'],
+  ['une place du site qui attend son acompte compte comme prise', PUR, "  return !(marqueDuRendezVous(a.attenduJusquAu) && Number.isFinite(acompte) && acompte > 0 && a.depositConfirmed !== true);", '  return true;'],
+  ['une place du site ferme ne compte plus', PUR, "  return !(marqueDuRendezVous(a.attenduJusquAu) && Number.isFinite(acompte) && acompte > 0 && a.depositConfirmed !== true);", '  return !marqueDuRendezVous(a.attenduJusquAu);'],
   ['un rendez-vous confirme reste dans le passe compte encore', PUR, " || jour === '' || jour < aujourdhui) return false;", " || jour === '') return false;"],
   ['une seance a venir passe pour faite', PUR, "  return !!a && a.status === 'honoré' && jour !== '' && jour <= aujourdhui;", "  return !!a && a.status === 'honoré' && jour !== '';"],
   ['un rendez-vous confirme passe pour une seance faite', PUR, "  return !!a && a.status === 'honoré' && jour !== '' && jour <= aujourdhui;", "  return !!a && (a.status === 'honoré' || a.status === 'confirmé') && jour !== '' && jour <= aujourdhui;"],

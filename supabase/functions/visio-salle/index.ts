@@ -547,7 +547,7 @@ function rdvDeLaPrivee(o) {
 var PRIX_DE_LA_CONSULTATION_PRIVEE_XOF = 15e3;
 
 // scripts/serveur/visio-salle.ts
-var VERSION = "2026-11-17-a";
+var VERSION = "2026-11-18-a";
 var DAILY = "https://api.daily.co/v1";
 var LIMITE = { seau: "visio", max: 6, fenetreMin: 10 };
 var DAILY_MAX_MS = 8e3;

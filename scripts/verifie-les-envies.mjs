@@ -28,6 +28,10 @@ import { pathToFileURL } from 'node:url';
      BANC_PGLITE=<dossier qui porte node_modules/@electric-sql/pglite> node scripts/verifie-les-envies.mjs
    contre une table `documents` simulee : le seuil, la garde et la case du
    site levés pour elle seule, le reste intact, et rejoué sans rien changer.
+   LE REGLAGE DU GBATA (supabase/reglage_le_gbata_suit_le_nombre_de_locks_
+   20261118.sql) aussi, contre une table `catalog_services` simulee : la seule
+   GBATA Essentiel suit le modele et perd sa consultation avant, rejoue sans
+   rien changer, sa copie de repli sous RLS.
    Sans PGlite, cette partie se saute et le dit ; son texte reste tenu.
 
    `--prouve` : chaque faute est remise une a une dans le vrai fichier (copie
@@ -50,6 +54,8 @@ const SQL = 'supabase/migrations/0231_vos_envies.sql';
 const PAGE = 'src/apps/revelateur/contenu.ts';
 const SEMENCE = 'src/shared/besoins-pur.ts';
 const REGLAGE = 'supabase/reglage_la_decoloration_se_reserve_20261117.sql';
+const REGLAGE_GBATA = 'supabase/reglage_le_gbata_suit_le_nombre_de_locks_20261118.sql';
+const AGENDA = 'src/apps/revelateur/agenda.ts';
 
 const PANNES = [
   /* La semence */
@@ -86,23 +92,31 @@ const PANNES = [
   ['une envie interdite reste choisie apres un reglage', ENVIES, '|| gardees.length >= ENVIES_MAX || interditePar(r, gardees, id) !== null) continue;', '|| gardees.length >= ENVIES_MAX) continue;'],
   /* L aiguillage */
   ['une envie sans rituel mene a un rituel vide', ENVIES, 'const tient = e.rituels.length > 0 && e.rituels.every(', 'const tient = e.rituels.every('],
-  ['un rituel que le serveur refuserait est propose', ENVIES, 'e.rituels.every((s) => c.seReserve(s) && !(c.ecartees ?? []).includes(s));', 'e.rituels.every((s) => !(c.ecartees ?? []).includes(s));'],
-  ['la garde peau n ecarte plus rien', ENVIES, 'e.rituels.every((s) => c.seReserve(s) && !(c.ecartees ?? []).includes(s));', 'e.rituels.every((s) => c.seReserve(s));'],
+  ['un rituel que le serveur refuserait est propose', ENVIES, 'e.rituels.every((s) => c.seReserve(s) && !(c.ecartees ?? []).includes(s))\n', 'e.rituels.every((s) => !(c.ecartees ?? []).includes(s))\n'],
+  ['la garde peau n ecarte plus rien', ENVIES, 'e.rituels.every((s) => c.seReserve(s) && !(c.ecartees ?? []).includes(s))\n', 'e.rituels.every((s) => c.seReserve(s))\n'],
+  ['un rituel qui ne tient pas dans une journee se reserve', ENVIES, '\n      && (c.tient?.(e.rituels) ?? true);', ';'],
   ['une envie sans rituel mene a la consultation privee', ENVIES, "return tient ? { rituel: [...e.rituels] } : { rdv: ['visio'] };", "return tient ? { rituel: [...e.rituels] } : { rdv: ['privee'] };"],
   ['la privee seule ne l emporte plus', ENVIES, "const visio = !priveeSeule && vus.some((g) => g.includes('visio'));", "const visio = vus.some((g) => g.includes('visio'));"],
   ['la visio fermee reste affichee', ENVIES, 'return visio && !visioOuverte ? { visio: false, privee: true } : { visio, privee };', 'return { visio, privee };'],
   ['la visio seule affiche aussi la privee', ENVIES, "const privee = priveeSeule || !visio || vus.some((g) => g.includes('privee'));", 'const privee = true;'],
-  ['un septieme geste entre dans la venue', ENVIES, 'if (prestations.length + neufs.length <= GESTES_MAX) {', 'if (prestations.length + neufs.length <= GESTES_MAX + 2) {'],
+  ['un septieme geste entre dans la venue', ENVIES, 'if (prestations.length + neufs.length <= GESTES_MAX &&', 'if (prestations.length + neufs.length <= GESTES_MAX + 2 &&'],
+  ['une venue qui deborde d une journee se reserve', ENVIES, ' && (c.tient?.([...prestations, ...neufs]) ?? true)) {', ') {'],
   ['une prestation commune se compte deux fois', ENVIES, 'const neufs = p.rituel.filter((s) => !prestations.includes(s));', 'const neufs = p.rituel;'],
   ['une envie restee sans nom compte encore', ENVIES, "filter((e): e is Envie => !!e && e.nom.trim() !== '');", 'filter((e): e is Envie => !!e);'],
-  ['Cheveux libres passe par la visio', ENVIES, "if (ensuite === 'libres' && r.defaire.rituel && c.seReserve(r.defaire.rituel)) {", "if (ensuite === 'jamais' && r.defaire.rituel && c.seReserve(r.defaire.rituel)) {"],
-  ['Nouvelles locks se reserve sans regard', ENVIES, "if (ensuite === 'libres' && r.defaire.rituel && c.seReserve(r.defaire.rituel)) {", 'if (r.defaire.rituel && c.seReserve(r.defaire.rituel)) {'],
-  ['le rituel de Cheveux libres propose alors que le serveur le refuserait', ENVIES, "if (ensuite === 'libres' && r.defaire.rituel && c.seReserve(r.defaire.rituel)) {", "if (ensuite === 'libres' && r.defaire.rituel) {"],
+  ['Cheveux libres passe par la visio', ENVIES, "if (ensuite === 'libres' && r.defaire.rituel && c.seReserve(", "if (ensuite === 'jamais' && r.defaire.rituel && c.seReserve("],
+  ['Nouvelles locks se reserve sans regard', ENVIES, "if (ensuite === 'libres' && r.defaire.rituel && c.seReserve(", 'if (r.defaire.rituel && c.seReserve('],
+  ['le rituel de Cheveux libres propose alors que le serveur le refuserait', ENVIES, 'r.defaire.rituel && c.seReserve(r.defaire.rituel) && (c.tient', 'r.defaire.rituel && (c.tient'],
+  ['Cheveux libres se reserve pour une tete qui ne tient pas dans une journee', ENVIES, ' && (c.tient?.([r.defaire.rituel]) ?? true)) {', ') {'],
   ['le modele propose un rituel', ENVIES, "({ rituel: null, regard: { envies: [], ...rendezVousDe([r.modele.rdv], c.visioOuverte) } });", "({ rituel: { prestations: ['x'], envies: [] }, regard: { envies: [], ...rendezVousDe([r.modele.rdv], c.visioOuverte) } });"],
-  /* Le prix au bareme */
-  ['le bareme prend le plus grand coefficient', ENVIES, 'arrondi(prixXof * (suspendu || !valides.length ? 1 : Math.min(...valides)));', 'arrondi(prixXof * (suspendu || !valides.length ? 1 : Math.max(...valides)));'],
-  ['le bareme suspendu s applique encore', ENVIES, 'arrondi(prixXof * (suspendu || !valides.length ? 1 : Math.min(...valides)));', 'arrondi(prixXof * (!valides.length ? 1 : Math.min(...valides)));'],
-  ['un prix s invente sans catalogue', ENVIES, '  if (!(prixXof > 0)) return 0;\n', '  if (!(prixXof > 0)) return 80000;\n'],
+  /* Le prix suit le Catalogue, la duree suit le calibre, la journee tient */
+  ['Cheveux libres prend le plus grand prix', PUR, 'if (prix.length) return Math.min(...prix);', 'if (prix.length) return Math.max(...prix);'],
+  ['le site multiplie le prix d office, sans suit le modele', PUR, '.map((bande) => prixSelonLeCalibre(s, { bande,', '.map((bande) => prixSelonLeCalibre({ ...s, scalesWithModel: true }, { bande,'],
+  ['le bareme suspendu s applique encore', PUR, 'lockCount: representantDeLaBande(bande, o.bandes), sets: o.sets, cats: o.cats, baremeSuspendu: o.baremeSuspendu }))', 'lockCount: representantDeLaBande(bande, o.bandes), sets: o.sets, cats: o.cats, baremeSuspendu: false }))'],
+  ['un prix s invente sans catalogue', PUR, 'return prixSelonLeCalibre(s, { sets: o.sets, cats: o.cats, baremeSuspendu: o.baremeSuspendu }) ?? 0;', 'return prixSelonLeCalibre(s, { sets: o.sets, cats: o.cats, baremeSuspendu: o.baremeSuspendu }) ?? 80000;'],
+  ['la derniere tranche se compte a son plafond lu', PUR, '.map((b) => representantDeLaBande(b, bandes));', '.map((b) => b.maxLocks ?? 0);'],
+  ['une journee deborde la fermeture', ENVIES, 'return !opening.closed && creneauxLibres({ opening, durationMin: dureeMin, occupes: [], master: \'\' }).length > 0;', 'return !opening.closed;'],
+  ['la duree ne suit plus le calibre', ENVIES, 'return dureeDesPrestations(ids, gestesAuCalibre(services.filter((s) => ids.includes(s.id)), o));', 'return dureeDesPrestations(ids, services);'],
+  ['le Trone dit la tranche qui ne tient pas', ENVIES, '    if (!tientDansUneJournee(dureeAuCompte(ids, services, { ...o, lockCount: compte }), semaine)) return avant;', '    if (!tientDansUneJournee(dureeAuCompte(ids, services, { ...o, lockCount: compte }), semaine)) return compte;'],
   ['un prix se coupe sur deux lignes', ENVIES, ".trim().replace(/ /g, '\\u00a0');", '.trim();'],
   /* Ce qui se reserve en ligne */
   ['une prestation a consultation avant se reserve', ENVIES, "  if (!estUneConsultation(s, cats) && exigeConsultation(s, cats)) return 'consultation';\n", ''],
@@ -110,6 +124,8 @@ const PANNES = [
   ['un atelier hors reservation se reserve', ENVIES, "  if (!reservableSurLeSite(s, cats, masques)) return 'hors-atelier';\n", ''],
   ['une prestation archivee se reserve', ENVIES, "  if (s.archived || s.enabled === false) return 'eteinte';\n", ''],
   ['un geste a fenetre se reserve', ENVIES, "  if (s.fenetreApresVenue) return 'fenetre';\n", ''],
+  ['le juge du site lit les familles nues : le defaisage n y est plus', ENVIES, '  const cats = famillesDeLaPorteDuSite(familles);', '  const cats = familles;'],
+  ['la liste de /reserver/ ignore le defaisage', AGENDA, 'reservableSurLeSite(s, familles, agenda.masques)', 'reservableSurLeSite(s, cats, agenda.masques)'],
   /* Le parcours */
   ['le rendez-vous porte un numero', PUR, 'return i >= 0 && i < NOMBRE_DE_QUESTIONS ? i + 1 : null;', 'return i >= 0 ? i + 1 : null;'],
   ['le modele pose la duree avant l epaisseur', PUR, "modele: ['epaisseur', 'longueur', 'duree'],", "modele: ['duree', 'longueur', 'epaisseur'],"],
@@ -153,10 +169,15 @@ const PANNES = [
   ['une envie retiree reste choisie dans l ilot', ILOT, 'const envies = rangeLesChoisies(d.envies, repBrutes.envies, repBrutes.locks);', 'const envies = repBrutes.envies;'],
   ['l impasse revient dans l ilot', ILOT, 'const ecran = ecranTenu(ecranVoulu, parcours, { choisies: d ? rep.envies.length : 1, montrees: montrees.length });', 'const ecran = ecranVoulu;'],
   ['le prenom s efface en changeant de rendez-vous', ILOT, 'const [qui, setQui] = useState<Coordonnees>(COORDONNEES_VIDES);', 'const qui = COORDONNEES_VIDES; const setQui = (_: Coordonnees) => {};'],
-  ['le Cheveux libres au prix du catalogue, sans bareme', ILOT, 'return total + prixAuBareme(Number(s.priceXof ?? 0), coefs, agenda.baremeSuspendu);', 'return total + Number(s.priceXof ?? 0);'],
+  ['le Cheveux libres au prix du catalogue, sans la regle du Catalogue', ILOT, 'return total + prixAPartirDe(s, tranchesDites, { bandes: agenda.bandes, sets: agenda.bandSets, cats: agenda.categories, baremeSuspendu: agenda.baremeSuspendu });', 'return total + Number(s.priceXof ?? 0);'],
+  ['l ilot multiplie le prix d office', ILOT, 'return total + prixAPartirDe(s, tranchesDites, { bandes: agenda.bandes, sets: agenda.bandSets, cats: agenda.categories, baremeSuspendu: agenda.baremeSuspendu });', 'return total + prixAPartirDe(s, tranchesDites, { bandes: agenda.bandes, sets: agenda.bandSets, cats: agenda.categories, baremeSuspendu: agenda.baremeSuspendu }) * 1;\n      void (Number(s.priceXof ?? 0) * 1.4);'],
+  ['l ilot ne juge plus la journee', ILOT, 'tient: (ids) => (comptes.length ? comptes : [0]).every(', 'tient: (ids) => [0].every('],
+  ['la place tenue est celle de la plus petite tete', ILOT, 'Math.max(0, ...comptes)', 'Math.min(...comptes)'],
   ['l ilot importe un magasin du Trone', ILOT, "import './consultation.css';", "import './consultation.css';\nimport { besoinsStore } from '../../../shared/besoins';\nvoid besoinsStore;"],
   ['le lien de la visio s affiche', PORTES, '<p className="ca-note">{note}</p>', '<p className="ca-note">{note}</p><p className="ca-note">{location.origin}{recu.changer}</p>'],
-  ['le billet de la visio ne dit plus le WhatsApp', PORTES, 'Le lien arrive sur votre WhatsApp. Répondez « Je confirme » : sans réponse, la place se libère.', 'Gardez ce lien : c’est votre entrée dans la salle.'],
+  ['le billet de la visio ne dit plus le WhatsApp', PORTES, "? 'Le lien arrive sur votre WhatsApp.'", "? 'Gardez ce lien : c’est votre entrée dans la salle.'"],
+  ['le billet de la visio promet un Je confirme', PORTES, "? 'Le lien arrive sur votre WhatsApp.'", "? 'Le lien arrive sur votre WhatsApp. Répondez « Je confirme » : sans réponse, la place se libère.'"],
+  ['les heures d un rituel ignorent son calibre', PORTES, 'heuresLibres({ agenda: agendaDuChoix,', 'heuresLibres({ agenda,'],
   ['le bilan sous cle au billet d un rituel', PORTES, "{recu.genre !== 'rituel' && <Scelle texte=\"Il s’ouvre à ce rendez-vous.\" />}", '<Scelle texte="Il s’ouvre à ce rendez-vous." />'],
   ['le creneau de la privee ne part plus a la verification', PORTES, 'expectedXof: prix, branchId: agenda.branchId, moment });', 'expectedXof: prix, branchId: agenda.branchId });'],
   ['la privee se depose sans son creneau', PORTES, "const id = await depose('privee', moment);", "const id = await depose('privee');"],
@@ -192,8 +213,11 @@ const PANNES = [
   ['l onglet Vos envies disparait', ONGLETS, "{onglet === 'envies' && <VosEnvies estDirection={estDirection} />}", ''],
   ['Vos envies s ecrit hors direction', TRONE, '<fieldset disabled={!estDirection} className="tev-champs">', '<fieldset className="tev-champs">'],
   ['le Trone ne dit plus « rituel a choisir »', TRONE, '{e.rituels.length === 0 && <span className="tev-signal">Rituel à choisir. En attendant, le site propose la visio.</span>}', ''],
+  ['le Trone dit le Gbata au bareme meme sans suit le modele', TRONE, '{libres.scalesWithModel === true', '{true'],
+  ['le Trone ne dit plus la journee', TRONE, 'auDelaDUneJournee([libres.id], services, { bandes, sets: jeux, categories: cats, suspendu: reglages.baremeSuspendu === true }, reglages.hours)', 'null'],
   ['le Trone ne juge plus par la regle du serveur', TRONE, 'const etat = (id: string) => etatEnLigne(parId.get(id), cats, vitrine.siteMasques);', "const etat = (_: string) => 'ok' as const;"],
   ['le document change de cle', MAGASIN, "export const CLE_DES_ENVIES = 'mnd_envies';", "export const CLE_DES_ENVIES = 'mnd_envie';"],
+  ['le magasin change de cle', MAGASIN, "createStore<ReglagesDesEnvies>('mnd_envies', ENVIES_DE_DEPART())", "createStore<ReglagesDesEnvies>('mnd_envie', ENVIES_DE_DEPART())"],
   ['le document ne se synchronise plus', MAGASIN, 'bindDocument(enviesStore, CLE_DES_ENVIES);', ''],
   ['un geste refuse signe quand meme', MAGASIN, 'return neuf === sur ? avant : { ...neuf,', 'return { ...neuf,'],
   ['les familles reviennent a mnd_besoins', BESOINS, 'familles: enviesSures(envies).envies.map((e) => ({ id: e.id, nom: e.nom || e.id }))', 'familles: reglagesSurs(brut).familles'],
@@ -216,6 +240,12 @@ const PANNES = [
   ['le reglage recoche tout le site', REGLAGE, "from jsonb_array_elements(d.data->'siteMasques'->'services') with ordinality as t(e, ord)\n                    where e <> '\"sv-atl-iii-sub-c\"'::jsonb)", "from jsonb_array_elements(d.data->'siteMasques'->'services') with ordinality as t(e, ord)\n                    where false)"],
   ['le reglage demasque aussi Ma Couronne', REGLAGE, "         '{siteMasques,services}',", "         '{hiddenServices}',"],
   ['le reglage se rejoue en reecrivant', REGLAGE, "   and (not (d.data->'sansSeuil' @> '[\"sv-atl-iii-sub-c\"]'::jsonb)\n        or d.data->'ecartesParLaPeau' @> '[\"sv-atl-iii-sub-c\"]'::jsonb);", ';'],
+  /* Le reglage du Gbata */
+  ['le reglage du Gbata touche toutes les prestations', REGLAGE_GBATA, " where id = 'sv-plt-45-std'\n   and (coalesce", " where true\n   and (coalesce"],
+  ['le reglage du Gbata garde la consultation avant', REGLAGE_GBATA, "'consultationAvant', false)", "'consultationAvant', true)"],
+  ['le reglage du Gbata se rejoue en reecrivant', REGLAGE_GBATA, "   and (coalesce((data->>'scalesWithModel')::boolean, false) = false\n        or coalesce((data->>'consultationAvant')::boolean, false) = true);", ';'],
+  ['la copie de repli du Gbata sans RLS', REGLAGE_GBATA, 'alter table public.repli_le_gbata_suit_le_nombre_de_locks_20261118 enable row level security;', ''],
+  ['le reglage du Gbata eteint suit le modele', REGLAGE_GBATA, "jsonb_build_object('scalesWithModel', true,", "jsonb_build_object('scalesWithModel', false,"],
   /* La page */
   ['la page promet encore une estimation', PAGE, "ligne: 'Cinq questions, puis votre rendez-vous.',", "ligne: 'Une lecture et une estimation, sans rien payer.',"],
 ];
@@ -259,7 +289,7 @@ async function joueLeReglage() {
   const ou = process.env.BANC_PGLITE;
   let PGlite = null;
   if (ou) { try { PGlite = (await import(pathToFileURL(path.join(ou, 'node_modules/@electric-sql/pglite/dist/index.js')).href)).PGlite ?? null; } catch { PGlite = null; } }
-  if (!PGlite) { console.log('SAUTE le reglage de la decoloration ne se joue pas ici, PGlite absent (BANC_PGLITE=<dossier qui porte node_modules/@electric-sql/pglite>)'); return true; }
+  if (!PGlite) { console.log('SAUTE les reglages (decoloration, Gbata) ne se jouent pas ici, PGlite absent (BANC_PGLITE=<dossier qui porte node_modules/@electric-sql/pglite>)'); return true; }
   const DECO = 'sv-atl-iii-sub-c';
   const besoins = {
     version: 1, seuils: [0, 20, 40, 70], bornes: [15000, 40000, 100000], besoins: [{ id: 'bs-080', famille: 'couleur', mots: 'x', points: 25, prestations: [DECO] }],
@@ -302,6 +332,31 @@ async function joueLeReglage() {
     const deux = await lis();
     dit('PGlite : rejoue, le reglage ne change rien', [un.mnd_besoins.data, un.mnd_vitrine_config.data, '2026-11-14T00:00:00.000Z', '2026-11-14T00:00:00.000Z'],
       [deux.mnd_besoins.data, deux.mnd_vitrine_config.data, deux.mnd_besoins.le, deux.mnd_vitrine_config.le]);
+
+    /* LE GBATA SE PAIE SELON LE NOMBRE DE LOCKS (18 novembre 2026). */
+    const std = { id: 'sv-plt-45-std', name: 'GBATA Essentiel', priceXof: 80000, priceMode: 'variable', priceToXof: 120000, categoryId: 'cat-defaisage', durationMin: 300, consultationAvant: true };
+    const integral = { id: 'sv-plt-45-int', name: 'GBATA Integral', priceXof: 150000, priceMode: 'fixe', categoryId: 'cat-defaisage', durationMin: 480, consultationAvant: true };
+    const autre = { id: 'sv-autre', name: 'Autre', priceXof: 10000, categoryId: 'atl-ii-gbeji', durationMin: 60, consultationAvant: true };
+    await db.exec('create table public.catalog_services (id text primary key, data jsonb, updated_at timestamptz not null default now());');
+    for (const s of [std, integral, autre]) {
+      await db.query("insert into public.catalog_services (id, data, updated_at) values ($1, $2::jsonb, '2026-11-13T00:00:00Z')", [s.id, JSON.stringify(s)]);
+    }
+    const sqlGbata = readFileSync(path.join(racine, REGLAGE_GBATA), 'utf8');
+    const catalogue = async () => Object.fromEntries((await db.query('select id, data, updated_at from public.catalog_services')).rows.map((r) => [r.id, { data: r.data, le: new Date(r.updated_at).toISOString() }]));
+    await db.exec(sqlGbata);
+    const g1 = await catalogue();
+    dit('PGlite : GBATA Essentiel suit le modele et perd sa consultation avant ; le reste de sa fiche ne bouge pas', [{ ...std, scalesWithModel: true, consultationAvant: false }, true],
+      [g1['sv-plt-45-std'].data, g1['sv-plt-45-std'].le !== '2026-11-13T00:00:00.000Z']);
+    dit('PGlite : l Integral et les autres prestations ne bougent pas', [integral, autre, '2026-11-13T00:00:00.000Z', '2026-11-13T00:00:00.000Z'],
+      [g1['sv-plt-45-int'].data, g1['sv-autre'].data, g1['sv-plt-45-int'].le, g1['sv-autre'].le]);
+    const repli = (await db.query("select c.relrowsecurity as rls, (select count(*)::int from public.repli_le_gbata_suit_le_nombre_de_locks_20261118) as n from pg_class c where c.relname = 'repli_le_gbata_suit_le_nombre_de_locks_20261118'")).rows[0];
+    dit('PGlite : la copie de repli garde la fiche d avant, sous RLS', [true, 1], [repli?.rls, repli?.n]);
+    await db.exec("update public.catalog_services set updated_at = '2026-11-14T00:00:00Z'");
+    await db.exec(sqlGbata);
+    const g2 = await catalogue();
+    const repli2 = (await db.query('select data from public.repli_le_gbata_suit_le_nombre_de_locks_20261118')).rows;
+    dit('PGlite : rejoue, le reglage du Gbata ne change rien, et sa copie de repli ne se refait pas', [g1['sv-plt-45-std'].data, '2026-11-14T00:00:00.000Z', [std]],
+      [g2['sv-plt-45-std'].data, g2['sv-plt-45-std'].le, repli2.map((r) => r.data)]);
   } catch (e) {
     ko += 1;
     console.log(`ECHEC PGlite : le reglage ne se joue pas : ${String(e?.message ?? e).split('\n')[0]}`);

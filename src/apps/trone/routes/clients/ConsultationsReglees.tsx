@@ -5,6 +5,7 @@ import { useStore } from '../../../../shared/store';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { lienWaMe } from '../../../../shared/conversations';
+import { saFicheDite } from '../../../../shared/lecture-de-la-maison-pur';
 import { consultationsQueueStore, type OnlineConsultation } from '../../../../shared/bridges';
 import { deposeUnTemoin, momentsDeLaPrivee, poseLaPrivee, voirUnTemoin, type ConsultationSuivie } from '../../../../shared/visios';
 import { jourDit } from '../../../../shared/visio-pur';
@@ -80,7 +81,8 @@ export function ConsultationsReglees() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
               <div>
                 <div style={lab}>Ce qu’elle a coché</div>
-                <p style={{ margin: '4px 0 0', fontSize: 13.5 }}>{(o.besoins ?? []).map((b) => b.mots).join(' · ') || 'rien de coché'}</p>
+                <p style={{ margin: '4px 0 0', fontSize: 13.5 }}>{(o.besoins ?? []).map((b) => b.mots).join(' · ') || (saFicheDite(o.answers) ? '' : 'rien de coché')}</p>
+                {saFicheDite(o.answers) && <p className="mnd-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>{saFicheDite(o.answers)}</p>}
               </div>
               <div>
                 <div style={lab}>Lecture du moteur</div>

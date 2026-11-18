@@ -6,6 +6,7 @@ import {
 import { estUneConsultation, type MasquesDuSite } from '../../shared/catalogue-pur';
 import { porteDuBesoin, type Besoin } from '../../shared/qualification';
 import { ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS, finDeLaReservation, minutesDeCotonou, reservableSurLeSite } from '../../shared/place-du-serveur';
+import { famillesDeLaPorteDuSite } from '../../shared/rendez-vous-en-attente-pur';
 import type { Bande } from './prix-calibre';
 import { client } from './maison';
 import { litToutesLesPages } from '../../shared/lecture-entiere';
@@ -448,8 +449,10 @@ export const jourCourt = (iso: string): { lettre: string; chiffre: string } => {
 
 
 /* ══ CE QUE LE SITE OUVRE À LA RÉSERVATION ═════════════════════════
-   Deux ateliers (l'Entretien et la Coloration), et la consultation de chaque
-   porte (le KÒKÒ Origine, le KÒKÒ Suivi, le Conseil et diagnostic). DEPUIS LE
+   Trois ateliers (l'Entretien, la Coloration, la décoloration), le défaisage
+   pour cette porte seule (`famillesDeLaPorteDuSite`, 18 novembre 2026), et la
+   consultation de chaque porte (le KÒKÒ Origine, le KÒKÒ Suivi, le Conseil et
+   diagnostic). DEPUIS LE
    9 OCTOBRE 2026, LA RÈGLE VIT DANS `shared/place-du-serveur` : la même
    ligne sert à cet écran pour proposer, et au serveur (`demande-submit`,
    `whatsapp-automate`) pour refuser. Une règle tenue à deux endroits finit
@@ -469,7 +472,9 @@ export function prestationsReservables(agenda: AgendaDeLaMaison, besoin: Besoin)
   /* CE QUE LA MAISON A DÉCOCHÉ NE SE PROPOSE PLUS (17 septembre 2026). Le
      même juge sert à `demande-submit`, qui REFUSE : sans lui, décocher ne
      serait qu'un décor. */
-  const offert = (s: PrestationPublique) => reservableSurLeSite(s, cats, agenda.masques) && !s.fenetreApresVenue;
+  /* Les familles que le serveur lit pour CETTE porte : le défaisage s'y réserve (18 novembre 2026). */
+  const familles = famillesDeLaPorteDuSite(cats);
+  const offert = (s: PrestationPublique) => reservableSurLeSite(s, familles, agenda.masques) && !s.fenetreApresVenue;
   if (porteDuBesoin(besoin) === 'consultation') {
     const consultations = agenda.services.filter((s) => estUneConsultation(s, cats) && offert(s));
     const sienne = CONSULTATION_PAR_PARCOURS[besoin];

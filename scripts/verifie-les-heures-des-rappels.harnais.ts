@@ -153,7 +153,8 @@ const PANNES: [string, keyof Textes, string, string][] = [
   ['le serveur ne lit pas le reglage', 'edge', "heuresDesRappels(reglage?.data", 'heuresDesRappels(undefined'],
   /* 2026-11-11-b : la veille avec l'attention (lot 4 de l'abonnement refait), après « Ce qui va partir » (-a). */
   /* 2026-11-15-b : le rendez-vous suggéré (la veille se tait sans son oui, la relance des seules suggestions, le comptoir à 10 h), la proposition qui finit par sa question. */
-  ['la version n a pas bouge', 'edge', "const VERSION = '2026-11-15-b", "const VERSION = '2026-11-02-b"],
+  /* 2026-11-18-a : une place prise en ligne qui attend son oui n'est pas une suggestion (la consultation en affiches). */
+  ['la version n a pas bouge', 'edge', "const VERSION = '2026-11-18-a", "const VERSION = '2026-11-02-b"],
   ['le fil se compare au numero tel quel', 'edge', 'if (tel && (dejaRemis.has(`${cleDuNumero(tel)}|tete|', 'if (tel && (dejaRemis.has(`${tel}|tete|'],
   ['le fil ne se range plus par fiche', 'edge', '...(r.data?.clientId ? [`${cleDuNumero(r.data?.numero)}|tete|${r.data.clientId}`] : []),', ''],
   ['un rappel remis repart quand meme', 'edge', 'dejaRemisTus++; continue; }', 'dejaRemisTus++; }'],

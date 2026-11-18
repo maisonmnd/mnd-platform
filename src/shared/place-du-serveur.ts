@@ -49,13 +49,16 @@ import { exigeConsultation, type Besoin } from './qualification';
 
 /* ⟨place-du-serveur⟩ */
 /* ── 1. CE QUI SE RÉSERVE EN LIGNE ──────────────────────────────────────
-   Deux ateliers, et c'est délibéré : l'Entretien (lavages, soins, reprises de
-   racines, sorties signature) et la Coloration. Une création et une
-   restauration passent par la consultation, les formations sont des
-   candidatures, les mèches et les fournitures ne sont pas des rendez-vous.
-   Les masques de la Vitrine (comptoir, Ma Couronne) ne comptent pas ici :
-   seuls ceux du site public (`siteMasques`). */
-const ATELIERS_RESERVABLES: readonly string[] = ['atl-ii-gbeji', 'atl-iii-yekpe'];
+   Trois ateliers, et c'est délibéré : l'Entretien (lavages, soins, reprises
+   de racines, sorties signature), la Coloration, et La Transformation, la
+   décoloration, rangée dans un atelier à elle depuis la nouvelle grille du
+   10 octobre 2026 (« la décoloration fait partie du process de la
+   coloration, ça se réserve directement », Yéman, 17 novembre 2026). Une
+   création et une restauration passent par la consultation, les formations
+   sont des candidatures, les mèches et les fournitures ne sont pas des
+   rendez-vous. Les masques de la Vitrine (comptoir, Ma Couronne) ne comptent
+   pas ici : seuls ceux du site public (`siteMasques`). */
+const ATELIERS_RESERVABLES: readonly string[] = ['atl-ii-gbeji', 'atl-iii-yekpe', 'cat-transformation'];
 
 /* LA CONSULTATION DE CHAQUE PORTE (la Maison, 17 septembre 2026) : le KÒKÒ
    Origine pour une première couronne, le KÒKÒ Suivi pour une réparation, le

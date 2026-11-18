@@ -104,6 +104,8 @@ const cas = [
   r({ id: 'deja-confirmee', confirmeeParLaClienteLe: '2026-09-29' }),
   r({ id: 'autre-moment', autreMomentDemandeLe: '2026-09-29' }),
   r({ id: 'autre-jour', date: '2026-10-03' }),
+  /* Une place prise en ligne qui attend son oui (18 novembre 2026) : elle porte `suggereLe`, ce n'est pas une suggestion. */
+  r({ id: 'prise-en-ligne', repriseDe: undefined, attenduJusquAu: '2026-09-29T12:00:00Z' }),
 ];
 dit('la reprise J-3 : seulement suggeree, confirmee, rattachee, sans reponse', ['ok'],
   reprisesAProposer(cas as never[], '2026-10-02').map((a: { id: string }) => a.id));

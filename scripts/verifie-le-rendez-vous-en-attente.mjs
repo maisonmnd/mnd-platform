@@ -105,6 +105,12 @@ const PANNES = [
   /* ── Les autres surfaces ── */
   ['confirmation-rdv confirme une place en attente', CONF, '    .filter((a) => !estEnAttente(a));', '    .filter((a) => !!a);'],
   ['le webhook garde le bouton d une place en attente', WH, "    if (typeof rdv.attenduJusquAu === 'string' && rdv.attenduJusquAu.trim()) {", '    if (false) {'],
+  ['la relance J-3 de rappels-j1 vise une place prise en ligne', 'supabase/functions/rappels-j1/index.ts', '&& !a.autreMomentDemandeLe && !a.attenduJusquAu);', '&& !a.autreMomentDemandeLe);'],
+  ['le comptoir est prevenu d une place prise en ligne comme d une suggestion', 'supabase/functions/rappels-j1/index.ts', '.filter((a) => estSuggere(a) && !a.attenduJusquAu)', '.filter((a) => estSuggere(a))'],
+  ['la relance du depot vise une place prise en ligne', 'src/shared/reservation-express.ts', '&& !a.autreMomentDemandeLe && !a.attenduJusquAu);', '&& !a.autreMomentDemandeLe);'],
+  ['Ma Couronne dit « Propose par la Maison » a une place prise en ligne', 'src/apps/couronne/MesRendezVous.tsx', '=> estSuggere(a) && etatDeLAttente(a) === null;', '=> estSuggere(a);'],
+  ['la carte du prochain rituel dit « Suggere » a une place prise en ligne', 'src/apps/trone/routes/vente/SonProchainRituel.tsx', 'estSuggere(rdvMontre) && etatDeLAttente(rdvMontre) === null ?', 'estSuggere(rdvMontre) ?'],
+  ['la formule dit proposee une place prise en ligne', 'src/shared/abonnee-pur.ts', "if (estSuggere(a) && !a.attenduJusquAu) return 'proposee';", "if (estSuggere(a)) return 'proposee';"],
   ['le Carnet range une place en attente parmi les confirmes', 'src/apps/trone/routes/clients/Carnet.tsx', "garde: (a) => a.status === 'confirmé' && !estSuggere(a) && !estEnAttente(a) }", "garde: (a) => a.status === 'confirmé' && !estSuggere(a) }"],
   /* ── Ma Couronne ── */
   ['Ma Couronne se confirme elle-meme', DS, '  const ferme = !regard && (acompteXof <= 0 || acompteRecu);', '  const ferme = true;'],

@@ -15,16 +15,17 @@
    juge du serveur en dit, et le fichier de reglage a passer en ligne. */
 import {
   ENVIES_DE_DEPART, ENVIES_MAX, GESTES_MAX, NOM_MAX, REPONSES_DU_DEBUT,
-  affichesADefaire, affichesDesEnvies, affichesDuModele, ajouteUnEcart, ajouteUneEnvie, ajouteUnePaire, basculeUnGroupe, basculeUnRendezVous,
-  basculeUneEnvie, compteurs, enviesAffichees, enviesSures, etatEnLigne, insecable, interditePar, nomRefuse, parcoursDe, poseLesRituels, prixAuBareme,
-  rangeLesChoisies, renommeUneEnvie, retireUnEcart, retireUneEnvie, retireUnePaire, seTouche, tarifDesNaturels,
+  affichesADefaire, affichesDesEnvies, affichesDuModele, ajouteUnEcart, ajouteUneEnvie, ajouteUnePaire, auDelaDUneJournee, basculeUnGroupe, basculeUnRendezVous,
+  basculeUneEnvie, compteurs, dureeAuCompte, enviesAffichees, enviesSures, etatEnLigne, insecable, interditePar, nomRefuse, parcoursDe, poseLesRituels,
+  rangeLesChoisies, renommeUneEnvie, retireUnEcart, retireUneEnvie, retireUnePaire, seTouche, tarifDesNaturels, tientDansUneJournee,
   type Contexte, type ReglagesDesEnvies,
 } from '../src/shared/envies-pur';
 import { AUCUNE_PREUVE, BESOINS_DE_DEPART, FAMILLES_DE_DEPART, qualifie } from '../src/shared/besoins-pur';
 import { ATELIERS_RESERVABLES, lesGestesSeReservent, type AgendaDuServeur } from '../src/shared/place-du-serveur';
+import { famillesDeLaPorteDuSite } from '../src/shared/rendez-vous-en-attente-pur';
 import {
   AVEC, BESOINS_D_ABORD, LONGUEURS_DITES, REPONSES_VIDES,
-  apresLaReponseDuDebut, baremeDe, besoinsAMontrer, besoinsDuSite, consultationADeposer, ecarteesParLaPeau, ecranPrecedent, ecranSuivant, ecranTenu, ecransDe,
+  apresLaReponseDuDebut, besoinsAMontrer, comptesDesTranches, prixAPartirDe, besoinsDuSite, consultationADeposer, ecarteesParLaPeau, ecranPrecedent, ecranSuivant, ecranTenu, ecransDe,
   epaisseursDe, ficheADefaire, ficheDuModele, heureEnMots, ilYAPlusDeDates, jourEnPuce, jourEnToutesLettres, joursDeLaVisio, joursDesMoments, joursDuCarnet, moisDesJours,
   motDuRituel, motsDuRendezVous, nomDuModele, nombreTape, numeroDe, numeroEntier, numeroLisible, pasFaits, plageDeLEpaisseur, plageDite, pucesDesJours,
   trancheDuNombre, tranchesDe,
@@ -190,12 +191,15 @@ dit('Nouvelles locks, Je ne sais pas, ou rien : le rendez-vous, jamais le rituel
 dit('le rendez-vous de Nouvelles locks suit son reglage', { envies: [], visio: false, privee: true }, affichesADefaire({ ...S, defaire: { ...S.defaire, rdv: ['privee'] } }, 'nouvelles', libres).regard);
 dit('sans rituel choisi au Trone, Cheveux libres mene au rendez-vous', null, affichesADefaire({ ...S, defaire: { ...S.defaire, rituel: '' } }, 'libres', libres).rituel);
 
-/* ── ⑤ LE PRIX AU BARÈME ─────────────────────────────────────────────── */
-const COEFS = [0.8, 0.8, 1, 1.2, 1.4, 1.6, 1.8];
-dit('le rituel de Cheveux libres, calibre par calibre', [64000, 64000, 80000, 96000, 112000, 128000, 144000], COEFS.map((k) => prixAuBareme(80000, [k])));
-dit('une epaisseur qui tient plusieurs calibres, ou qui n est pas dite : le plus petit coefficient', [112000, 64000], [prixAuBareme(80000, [1.4, 1.6, 1.8]), prixAuBareme(80000, COEFS)]);
-dit('bareme suspendu, ou illisible : le prix du catalogue', [80000, 80000, 80000], [prixAuBareme(80000, [1.4], true), prixAuBareme(80000, []), prixAuBareme(80000, [0, Number.NaN])]);
-dit('sans prix au catalogue, rien ne s invente ; l arrondi au 500 F ne fait jamais disparaitre un prix', [0, 4000, 240], [prixAuBareme(0, [1.4]), prixAuBareme(5000, [0.83]), prixAuBareme(300, [0.8])]);
+/* ── ⑤ LES PRIX DITS ─────────────────────────────────────────────────── */
+/* Le prix de Cheveux libres suit la regle du Catalogue : voir ⑤ bis, apres le bareme. */
+dit('Cheveux libres, quand son rituel ne tient pas dans une journee pour sa tete : le rendez-vous regle au Trone',
+  { rituel: null, regard: { envies: [], visio: true, privee: true } }, affichesADefaire(S, 'libres', { ...libres, tient: () => false }));
+dit('une envie dont le rituel ne tient pas dans une journee se comporte comme une Visio', { rituel: null, regard: { envies: ['hydratation'], visio: true, privee: false } },
+  vaut(['hydratation'], { ...c, tient: () => false }));
+dit('une envie qui ferait deborder la venue d une journee attend la Maison, la premiere garde son rituel',
+  { rituel: { prestations: ['sv-atl-ii-e'], envies: ['entretien'] }, regard: { envies: ['lavage'], visio: true, privee: false } },
+  vaut(['entretien', 'lavage'], { ...c, tient: (ids) => ids.length < 2 }));
 dit('le tarif des cheveux naturels se dit en une ligne', '25 000 F les 75 locks', tarifDesNaturels('25 000 F', 75));
 dit('un prix ne se coupe jamais sur deux lignes : plus aucune espace secable', [false, '64\u00a0000\u00a0F', 3], (() => {
   const x = insecable(' 64 000 F ');
@@ -224,14 +228,22 @@ const SERVICES = [
 ];
 const MASQUES = { services: ['masque'] };
 const etat = (id: string) => etatEnLigne(SERVICES.find((s) => s.id === id), CATS, MASQUES);
-dit('ce que le Trone dit de chaque prestation', ['ok', 'ok', 'consultation', 'hors-atelier', 'masquee', 'eteinte', 'eteinte', 'ok', 'consultation', 'consultation', 'consultation', 'hors-atelier', 'fenetre', 'inconnue'],
+dit('ce que le Trone dit de chaque prestation (le defaisage sans la case : ouvert a la porte du site)', ['ok', 'ok', 'consultation', 'ok', 'masquee', 'eteinte', 'eteinte', 'ok', 'consultation', 'consultation', 'consultation', 'hors-atelier', 'fenetre', 'inconnue'],
   [...SERVICES.map((s) => s.id), 'nulle-part'].map(etat));
+/* Le juge de la porte du site lit les familles de cette porte (`famillesDeLaPorteDuSite`, demande-submit,
+   laPlaceDemandee) ; WhatsApp lit les familles nues. */
 const SERVEUR: AgendaDuServeur = {
   branchId: 'b', maitres: ['Team'], sieges: 1, capMaison: 0, capMaitre: 0, semaine: [], exceptions: [], murs: [], occupes: [],
-  services: SERVICES, categories: CATS, masques: MASQUES, formules: [],
+  services: SERVICES, categories: famillesDeLaPorteDuSite(CATS), masques: MASQUES, formules: [],
 };
 dit('le site ne propose que ce que le serveur poserait : le meme verdict, prestation par prestation', [],
   SERVICES.filter((s) => (etat(s.id) === 'ok') !== (lesGestesSeReservent(SERVEUR, [s.id], { date: '2026-12-01', derniereVenue: null }) === null)).map((s) => s.id));
+dit('WhatsApp garde ses ateliers : le defaisage ne s y reserve pas', false,
+  lesGestesSeReservent({ ...SERVEUR, categories: CATS }, ['gbata-libre'], { date: '2026-12-01', derniereVenue: null }) === null);
+dit('un defaisage range sous la restauration reste une restauration, au site comme au serveur', [false, false], [
+  etatEnLigne(SERVICES.find((s) => s.id === 'gbata-libre'), CATS.map((x) => (x.id === 'cat-defaisage' ? { ...x, parentId: 'atl-iv-finfin' } : x)), MASQUES) === 'ok',
+  lesGestesSeReservent({ ...SERVEUR, categories: famillesDeLaPorteDuSite(CATS.map((x) => (x.id === 'cat-defaisage' ? { ...x, parentId: 'atl-iv-finfin' } : x))) }, ['gbata-libre'], { date: '2026-12-01', derniereVenue: null }) === null,
+]);
 
 /* ── ⑥ bis LA DÉCOLORATION SE RÉSERVE DIRECTEMENT (Yéman, 17 novembre 2026) ── */
 const DECO = 'sv-atl-iii-sub-c';
@@ -265,8 +277,9 @@ dit('tant que le juge du serveur la refuse, le site ne la propose pas : la visio
    devis, un atelier a elle (`cat-transformation`, la nouvelle grille du 10 octobre 2026). */
 const LA_DECO = { id: DECO, categoryId: 'cat-transformation', name: 'La Transformation' };
 const CATS_T = [...CATS, { id: 'cat-transformation' }];
-dit('la decoloration devant le juge : seuls la case du site (aujourd hui) et son atelier la retiennent', [
-  'masquee', ATELIERS_RESERVABLES.includes('cat-transformation') ? 'ok' : 'hors-atelier', 'ok',
+dit('son atelier se reserve en ligne, comme la coloration (18 novembre 2026)', [true, true], [ATELIERS_RESERVABLES.includes('cat-transformation'), ATELIERS_RESERVABLES.includes('atl-iii-yekpe')]);
+dit('la decoloration devant le juge : seule la case du site (avant le reglage) la retient', [
+  'masquee', 'ok', 'ok',
 ], [
   etatEnLigne(LA_DECO, CATS_T, { services: [DECO] }),
   etatEnLigne(LA_DECO, CATS_T, {}),
@@ -341,10 +354,43 @@ dit('cinq epaisseurs : chacune sa tranche, la derniere tient celles qui restent'
 dit('le nombre se lit sous le mot', ['Jusqu’à 80', '81 à 150', 'Plus de 350'], [plageDeLEpaisseur(E[0]), plageDeLEpaisseur(E[1]), plageDeLEpaisseur(E[4])]);
 dit('le nom de la Maison ne parait qu a la fin, sur la fiche', ['Medium', 'Nano, Pico ou Galaxy', 'À choisir ensemble'], [nomDuModele(E[1]), nomDuModele(E[4]), nomDuModele(null)]);
 dit('un bareme plus court donne moins d epaisseurs ; sans bareme, les cinq mots sans nombre', [3, 5, ''], [epaisseursDe(T.slice(0, 3)).length, epaisseursDe([]).length, plageDeLEpaisseur(epaisseursDe([])[0])]);
-dit('le bareme d une prestation : celui de sa famille, de son atelier, sinon celui de la Maison', ['propre', 'atelier', 'maison'], [
-  baremeDe('cat-lavages', { 'cat-lavages': [{ ...BANDES[0], id: 'propre' }], 'atl-ii-gbeji': [{ ...BANDES[0], id: 'atelier' }] }, CATS, [{ ...BANDES[0], id: 'maison' }])[0].id,
-  baremeDe('cat-lavages', { 'atl-ii-gbeji': [{ ...BANDES[0], id: 'atelier' }] }, CATS, [{ ...BANDES[0], id: 'maison' }])[0].id,
-  baremeDe('cat-defaisage', { 'atl-ii-gbeji': [{ ...BANDES[0], id: 'atelier' }] }, CATS, [{ ...BANDES[0], id: 'maison' }])[0].id,
+/* ── ⑤ bis LE GBATA SE PAIE SELON LE NOMBRE DE LOCKS (Yeman, 17 novembre au soir) ──
+   Le prix suit la regle du Catalogue (`prixSelonLeCalibre`, `scalesWithModel`), jamais une multiplication
+   faite d office par le site ; la duree suit le calibre ; une tete dont le rituel ne tient plus dans une
+   journee ne le reserve pas en ligne. Les chiffres sont ceux lus en ligne le 18 novembre 2026. */
+const GBATA = { id: 'sv-plt-45-std', categoryId: 'cat-defaisage', priceXof: 80000, priceMode: 'variable' as const, durationMin: 300, scalesWithModel: true };
+const GBATA_NU = { ...GBATA, scalesWithModel: false };
+const PB = { bandes: BANDES, sets: {}, cats: CATS };
+dit('le prix suit le modele, tranche par tranche : 64 000 a 144 000 F', [64000, 64000, 80000, 96000, 112000, 128000, 144000], T.map((t) => prixAPartirDe(GBATA, [t], PB)));
+dit('sans « suit le modele » au Catalogue : le prix du catalogue pour toute tete, rien de multiplie', [80000, 80000, 80000], [T[0], T[3], T[6]].map((t) => prixAPartirDe(GBATA_NU, [t], PB)));
+dit('une epaisseur qui tient plusieurs tranches, ou rien de dit : le plus petit prix', [112000, 64000], [prixAPartirDe(GBATA, E[4].tranches, PB), prixAPartirDe(GBATA, T, PB)]);
+dit('bareme suspendu : le prix du catalogue ; sans prix au catalogue : rien', [80000, 0], [prixAPartirDe(GBATA, [T[4]], { ...PB, baremeSuspendu: true }), prixAPartirDe({ ...GBATA, priceXof: 0 }, [T[4]], PB)]);
+dit('le barème propre d un atelier l emporte, comme au Trone', 160000, prixAPartirDe(GBATA, [T[2]], { ...PB, sets: { 'cat-defaisage': BANDES.map((b) => ({ ...b, coef: 2 })) } }));
+const SEMAINE_MND = [
+  { key: 'lun', open: '08h00', close: '19h00', closed: true }, { key: 'mar', open: '08h00', close: '20h30', closed: false },
+  { key: 'mer', open: '08h00', close: '20h30', closed: false }, { key: 'jeu', open: '08h00', close: '20h30', closed: false },
+  { key: 'ven', open: '08h00', close: '20h30', closed: false }, { key: 'sam', open: '09h00', close: '20h00', closed: false },
+  { key: 'dim', open: '10h00', close: '16h00', closed: true },
+];
+const DUREE = (n: number) => ({ lockCount: n, bandes: BANDES, sets: {}, categories: CATS });
+const COMPTES = comptesDesTranches(T, BANDES);
+dit('les comptes de chaque tranche : son plafond, cent de plus pour la derniere', [80, 150, 250, 350, 450, 550, 650], COMPTES);
+dit('la duree suit le calibre : 240 a 840 minutes', [240, 300, 420, 570, 720, 780, 840], COMPTES.map((k) => dureeAuCompte([GBATA.id], [GBATA], DUREE(k))));
+dit('sans « suit le modele », la duree du catalogue ; rien de dit, la duree du catalogue', [300, 300], [dureeAuCompte([GBATA.id], [GBATA_NU], DUREE(650)), dureeAuCompte([GBATA.id], [GBATA], DUREE(0))]);
+dit('une journee de la Maison : 08:30 a 20:30 du mardi au vendredi ; une semaine fermee ne prend rien', [true, true, false, false, true],
+  [tientDansUneJournee(660, SEMAINE_MND), tientDansUneJournee(720, SEMAINE_MND), tientDansUneJournee(735, SEMAINE_MND), tientDansUneJournee(60, SEMAINE_MND.map((h) => ({ ...h, closed: true }))), tientDansUneJournee(0, [])]);
+dit('au-dela de 450 locks le Gbata ne tient plus dans une journee ; sans « suit le modele », toute tete tient', [450, null, 0], [
+  auDelaDUneJournee([GBATA.id], [GBATA], { bandes: BANDES, sets: {}, categories: CATS }, SEMAINE_MND),
+  auDelaDUneJournee([GBATA.id], [GBATA_NU], { bandes: BANDES, sets: {}, categories: CATS }, SEMAINE_MND),
+  auDelaDUneJournee([GBATA.id], [{ ...GBATA, durationMin: 1000 }], { bandes: BANDES, sets: {}, categories: CATS }, SEMAINE_MND),
+]);
+const tientPour = (comptes: number[]) => (ids: readonly string[]) => comptes.every((k) => tientDansUneJournee(dureeAuCompte(ids, [GBATA], DUREE(k)), SEMAINE_MND));
+const libresGbata: Contexte = { seReserve: (id) => id === GBATA.id, visioOuverte: true };
+dit('Cheveux libres, Tres fins (251 a 350) : son rituel, reserve de suite', { rituel: { prestations: [GBATA.id], envies: [] }, regard: null },
+  affichesADefaire(S, 'libres', { ...libresGbata, tient: tientPour(comptesDesTranches(E[3].tranches, BANDES)) }));
+dit('Cheveux libres, Extra fins (plus de 350) ou rien de dit : une tete peut ne pas tenir, la visio et la privee', [{ envies: [], visio: true, privee: true }, null], [
+  affichesADefaire(S, 'libres', { ...libresGbata, tient: tientPour(comptesDesTranches(E[4].tranches, BANDES)) }).regard,
+  affichesADefaire(S, 'libres', { ...libresGbata, tient: tientPour(COMPTES) }).rituel,
 ]);
 
 dit('la fiche du modele : le nom de la Maison, puis ses quatre reponses', {
@@ -418,7 +464,7 @@ dit('les moments de la privee dits par le serveur : ranges par jour, sans double
 ]);
 dit('Plus de dates ne se montre que s il y en a', [true, false, false], [ilYAPlusDeDates(CARNET), ilYAPlusDeDates(CARNET.slice(0, 4)), ilYAPlusDeDates([])]);
 dit('le calendrier va du premier au dernier mois ouvert', [{ premier: '2026-11', dernier: '2026-12' }, null], [moisDesJours(CARNET), moisDesJours([])]);
-dit('un jour en puce : sans le mois ce mois-ci, avec ensuite', ['mer. 18', 'ven. 4 déc.'], [jourEnPuce('2026-11-18', '2026-11-17'), jourEnPuce('2026-12-04', '2026-11-17')]);
+dit('un jour en puce : sans le mois ce mois-ci, avec ensuite, avec l annee quand elle change', ['mer. 18', 'ven. 4 déc.', 'ven. 8 janv. 2027'], [jourEnPuce('2026-11-18', '2026-11-17'), jourEnPuce('2026-12-04', '2026-11-17'), jourEnPuce('2027-01-08', '2026-11-17')]);
 dit('un jour en toutes lettres porte son annee', ['Mercredi 18 novembre 2026', 'Mardi 1er décembre 2026'], [jourEnToutesLettres('2026-11-18'), jourEnToutesLettres('2026-12-01')]);
 dit('le numero part avec son indicatif, sauf s il le porte deja', ['+229 01 51 99 77 99', '+33 6 12 34 56 78', '0033612345678'],
   [numeroEntier('+229', ' 01 51 99 77 99 '), numeroEntier('+229', '+33 6 12 34 56 78'), numeroEntier('+229', '0033612345678')]);
@@ -491,7 +537,7 @@ dit('jamais « extensions » ; jamais de points ni de palier dits a la cliente',
 dit('le lien de la visio ne s affiche jamais, ni en texte ni en adresse : il arrive sur WhatsApp ; le billet seul mene a sa page', [false, 1, true, true], [
   /location\.origin|Ouvrir ma salle|Gardez ce lien|\{lien\}/.test(portes), (sansCommentaires(portes).match(/\br\.chemin\b/g) ?? []).length,
   portes.includes("cheminSur(r.changer) || (typeof r.billet === 'string' && !('jeton' in r) ? cheminSur(r.chemin) : '');"),
-  portes.includes('Le lien arrive sur votre WhatsApp. Répondez « Je confirme »'),
+  portes.includes("? 'Le lien arrive sur votre WhatsApp.'\n"),
 ]);
 dit('un seul depot par parcours, a l identifiant que le serveur rend', [true, true, true], [
   /if \(depot\) return depot;/.test(portes),
@@ -519,7 +565,7 @@ dit('la consultation se depose par push-notify (tunnel-submit), jamais en base d
   [/appelle\('push-notify', \{\n\s*mode: 'tunnel-submit',/.test(portes), /from\('(consultations_queue|appointments|visios)'\)/.test(`${ilot}\n${portes}`)]);
 dit('les jours et les heures viennent du Carnet et de la visio, jamais d une liste', [true, true, true, false], [
   /const horizon = useMemo\(\(\) => horizonDuSite\(\), \[\]\);/.test(portes),
-  /joursDuCarnet\(horizon\.jours, \(iso\) => heuresLibres\(\{ agenda, dateIso: iso, serviceIds: prestations, occupes: carnet\.occupes, places: carnet\.places \}\)\)/.test(portes),
+  /joursDuCarnet\(horizon\.jours, \(iso\) => heuresLibres\(\{ agenda: agendaDuChoix, dateIso: iso, serviceIds: prestations, occupes: carnet\.occupes, places: carnet\.places \}\)\)/.test(portes),
   /if \(!prestations\) return joursDeLaVisio\(vifs\);/.test(portes), /'\d{4}-\d{2}-\d{2}'|\['\d{1,2} ?h/.test(sansCommentaires(`${ilot}\n${portes}`)),
 ]);
 dit('Plus de dates ouvre le mois, grise ce qui n est pas libre', [true, true],
@@ -557,8 +603,23 @@ dit('changer l heure : le billet mene a la page de la visio, par un chemin de la
 dit('l ilot lit les envies et les besoins au document, la semence sinon', [true, true],
   [/\.in\('key', \['mnd_envies', 'mnd_besoins'\]\)/.test(ilot), /envies: enviesSures\(doc\('mnd_envies'\)\),/.test(ilot)]);
 dit('le site ne propose un rituel que si le serveur le poserait', true, /seReserve: \(id\) => etatEnLigne\(service\(id\), agenda\.categories, agenda\.masques\) === 'ok',/.test(ilot));
-dit('le prix d un rituel : la regle de la reservation du site ; Cheveux libres : le bareme', [true, true],
-  [/\(ctx \? prixSelonLeCalibre\(s, ctx\) : Number\(s\.priceXof \?\? 0\)\)/.test(ilot), /prixAuBareme\(Number\(s\.priceXof \?\? 0\), coefs, agenda\.baremeSuspendu\)/.test(ilot)]);
+dit('le prix d un rituel : la regle du Catalogue (celle de la reservation du site), Cheveux libres compris ; rien de multiplie par le site', [true, true, false],
+  [/\(ctx \? prixSelonLeCalibre\(s, ctx\) : Number\(s\.priceXof \?\? 0\)\)/.test(ilot),
+    /return total \+ prixAPartirDe\(s, tranchesDites, \{ bandes: agenda\.bandes, sets: agenda\.bandSets, cats: agenda\.categories, baremeSuspendu: agenda\.baremeSuspendu \}\);/.test(ilot),
+    /priceXof \?\? 0\) \*|\bcoefs\b|prixAuBareme/.test(ilot)]);
+dit('une tete dont le rituel ne tient plus dans une journee ne le reserve pas : chaque compte qu elle peut avoir doit tenir', [true, true],
+  [/tient: \(ids\) => \(comptes\.length \? comptes : \[0\]\)\.every\(\(n\) => tientDansUneJournee\(dureeAuCompte\(ids, agenda\.services, dureeDuCompte\(n\)\), agenda\.semaine\)\),/.test(ilot),
+    /const comptes = parcours === 'defaire' \? comptesDesTranches\(tranchesDites, agenda\.bandes\) : \[lockCount\];/.test(ilot)]);
+dit('la place tenue est celle de la plus grande tete possible ; un calibre ne se nomme que s il est seul', [true, true],
+  [/const compteDuRituel = parcours === 'defaire' \? Math\.max\(0, \.\.\.comptes\) : lockCount;/.test(ilot), /\(epaisseur\?\.tranches\.length === 1 \?/.test(ilot)]);
+dit('Votre moment : les heures d un rituel suivent la duree de son calibre', [true, true],
+  [/gestesAuCalibre\(agenda\.services, \{ lockCount: compte, bandes: agenda\.bandes, sets: agenda\.bandSets, categories: agenda\.categories, suspendu: agenda\.baremeSuspendu === true \}\)/.test(portes),
+    /heuresLibres\(\{ agenda: agendaDuChoix, dateIso: iso,/.test(portes)]);
+dit('le juge du site, /reserver/ et Vos envies lisent les familles de la porte du site', [true, true],
+  [/const cats = famillesDeLaPorteDuSite\(familles\);/.test(lf('src/shared/envies-pur.ts')),
+    /const familles = famillesDeLaPorteDuSite\(cats\);\n  const offert = \(s: PrestationPublique\) => reservableSurLeSite\(s, familles, agenda\.masques\) && !s\.fenetreApresVenue;/.test(lf('src/apps/revelateur/agenda.ts'))]);
+dit('la visio n attend aucun « Je confirme » : le billet ne le promet pas', [true, false],
+  [/\? 'Le lien arrive sur votre WhatsApp\.'\n/.test(portes), /Répondez « Je confirme » : sans réponse, la place se libère/.test(portes)]);
 dit('l ilot n importe ni magasin ni synchronisation', false, /from '\.\.\/\.\.\/\.\.\/shared\/(besoins|envies|sync|store|pricing|catalog|kkiapay|finance|bridges)'/.test(sansCommentaires(`${ilot}\n${portes}`)));
 dit('la page et l ilot sont branches ; la page ne promet plus ni lecture ni estimation', [true, true, false], [
   /consultation: \(\) => import\('\.\/ilots\/Consultation'\)/.test(lf('src/apps/revelateur/monte.tsx')),
@@ -585,9 +646,14 @@ dit('Vos envies : un onglet de Besoins et regles, ferme a qui n est pas de la di
   [/\{onglet === 'envies' && <VosEnvies estDirection=\{estDirection\} \/>\}/.test(besoinsEtRegles), /<fieldset disabled=\{!estDirection\} className="tev-champs">/.test(ecranTrone)]);
 dit('le Trone dit « rituel a choisir » et ce qui ne se reserve pas en ligne', [true, true],
   [/\{e\.rituels\.length === 0 && <span className="tev-signal">Rituel à choisir\./.test(ecranTrone), /RAISON_HORS_LIGNE\[x\]/.test(ecranTrone) && /const etat = \(id: string\) => etatEnLigne\(parId\.get\(id\), cats, vitrine\.siteMasques\);/.test(ecranTrone)]);
+dit('le Trone dit le rituel de Cheveux libres comme le Catalogue le regle, et la journee qu il ne tient plus', [true, true, true], [
+  /libres\.scalesWithModel === true\n\s*\? <>/.test(ecranTrone),
+  /auDelaDUneJournee\(\[libres\.id\], services, \{ bandes, sets: jeux, categories: cats, suspendu: reglages\.baremeSuspendu === true \}, reglages\.hours\)/.test(ecranTrone),
+  /« suit le modèle » est éteint au Catalogue/.test(ecranTrone),
+]);
 const magasin = lf('src/shared/envies.ts');
 dit('le document se synchronise sous sa cle, et un geste refuse ne s ecrit pas', [true, true, true], [
-  /export const CLE_DES_ENVIES = 'mnd_envies';/.test(magasin) && /createStore<ReglagesDesEnvies>\(CLE_DES_ENVIES, ENVIES_DE_DEPART\(\)\)/.test(magasin),
+  /export const CLE_DES_ENVIES = 'mnd_envies';/.test(magasin) && /createStore<ReglagesDesEnvies>\('mnd_envies', ENVIES_DE_DEPART\(\)\)/.test(magasin),
   /bindDocument\(enviesStore, CLE_DES_ENVIES\);/.test(magasin), /return neuf === sur \? avant : /.test(magasin),
 ]);
 dit('les familles des besoins sont les envies', true, /familles: enviesSures\(envies\)\.envies\.map\(\(e\) => \(\{ id: e\.id, nom: e\.nom \|\| e\.id \}\)\)/.test(lf('src/shared/besoins.ts')));
@@ -601,8 +667,21 @@ dit('0231 : le site lit mnd_envies, la direction seule l ecrit (creer, modifier,
 ]);
 dit('0231 ne reecrit ni la liste blanche ni les cles de la direction : rien a refermer chez les autres', false, /docs_pub_read|cles_ecrites_par_la_direction|create or replace function|insert into|update public|delete from/.test(sqlNu));
 
+const gbata = lf('supabase/reglage_le_gbata_suit_le_nombre_de_locks_20261118.sql');
+const gbataNu = gbata.replace(/^\s*--.*$/gm, '');
+dit('le reglage du Gbata : la seule GBATA Essentiel, suit le modele allume, consultation avant decochee', [['sv-plt-45-int', 'sv-plt-45-std'], 1, true, true], [
+  [...new Set(gbataNu.match(/\bsv-[a-z0-9-]+/g) ?? [])].sort(), (gbataNu.match(/^update public\.catalog_services$/gm) ?? []).length,
+  /set data = data \|\| jsonb_build_object\('scalesWithModel', true, 'consultationAvant', false\),\n\s*updated_at = now\(\)\n where id = 'sv-plt-45-std'\n/.test(gbataNu),
+  /from public\.catalog_services\n where id in \('sv-plt-45-std', 'sv-plt-45-int'\)/.test(gbataNu),
+]);
+dit('le reglage du Gbata se rejoue sans rien changer, sa copie de repli porte RLS, il n efface rien', [true, true, false], [
+  /and \(coalesce\(\(data->>'scalesWithModel'\)::boolean, false\) = false\n\s*or coalesce\(\(data->>'consultationAvant'\)::boolean, false\) = true\);/.test(gbataNu),
+  /create table if not exists public\.repli_le_gbata_suit_le_nombre_de_locks_20261118 as[\s\S]*alter table public\.repli_le_gbata_suit_le_nombre_de_locks_20261118 enable row level security;/.test(gbataNu),
+  /delete from|\bdrop\b|truncate|insert into/i.test(gbataNu),
+]);
+
 const NEUFS = [ILOT, PORTES, PUR, 'src/apps/revelateur/ilots/consultation.css', 'src/shared/envies-pur.ts', 'src/shared/envies.ts', 'src/apps/trone/routes/systeme/VosEnvies.tsx', 'supabase/migrations/0231_vos_envies.sql',
-  'supabase/reglage_la_decoloration_se_reserve_20261117.sql'];
+  'supabase/reglage_la_decoloration_se_reserve_20261117.sql', 'supabase/reglage_le_gbata_suit_le_nombre_de_locks_20261118.sql'];
 const textes = NEUFS.map(lf);
 dit('aucun emoji, aucun nom de domaine, aucune cle dans les fichiers neufs', [[], []], [
   NEUFS.filter((_, i) => /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(textes[i])),

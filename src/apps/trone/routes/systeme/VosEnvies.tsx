@@ -9,10 +9,12 @@ import { uid, useStore } from '../../../../shared/store';
 import { vitrineConfigStore } from '../../../../shared/bridges';
 import { besoinsStore } from '../../../../shared/besoins';
 import { useEnvies } from '../../../../shared/envies';
+import { useBandSets, useModelBands } from '../../../../shared/pricing';
+import { useSettings } from '../../../../shared/settings';
 import { PRIX_DE_LA_CONSULTATION_PRIVEE_XOF } from '../../../../shared/estimation-pur';
 import {
   GESTES_MAX, GROUPES, NOM_MAX, RAISON_HORS_LIGNE, REPONSES_A_ENVIES,
-  ajouteUnEcart, ajouteUneEnvie, ajouteUnePaire, basculeUnGroupe, basculeUnRendezVous, compteurs, etatEnLigne, insecable, nomRefuse, poseLesRituels,
+  ajouteUnEcart, ajouteUneEnvie, ajouteUnePaire, auDelaDUneJournee, basculeUnGroupe, basculeUnRendezVous, compteurs, etatEnLigne, insecable, nomRefuse, poseLesRituels,
   renommeUneEnvie, reponseDite, retireUnEcart, retireUneEnvie, retireUnePaire, tarifDesNaturels,
   type Envie, type Groupe, type ReglagesDesEnvies, type RendezVous, type ReponseAEnvies,
 } from '../../../../shared/envies-pur';
@@ -88,6 +90,9 @@ export function VosEnvies({ estDirection }: { estDirection: boolean }) {
   const [cats] = useCategories();
   const [vitrine] = useStore(vitrineConfigStore);
   const [besoins] = useStore(besoinsStore);
+  const [bandes] = useModelBands();
+  const [jeux] = useBandSets();
+  const [reglages] = useSettings();
   const moi = useStaff();
   const [r, ecris] = useEnvies();
   const par = moi?.name ?? undefined;
@@ -139,6 +144,12 @@ export function VosEnvies({ estDirection }: { estDirection: boolean }) {
 
   const libres = parId.get(r.defaire.rituel);
   const etatDesLibres = r.defaire.rituel ? etat(r.defaire.rituel) : null;
+  /* Le Gbata se paie selon le nombre de locks (18 novembre 2026) : quand son
+     rituel suit le modèle, sa durée aussi, et au-delà d'un nombre de locks il
+     ne tient plus dans une journée : le site propose alors le rendez-vous. */
+  const auDelaDesLibres = libres && libres.scalesWithModel === true
+    ? auDelaDUneJournee([libres.id], services, { bandes, sets: jeux, categories: cats, suspendu: reglages.baremeSuspendu === true }, reglages.hours)
+    : null;
 
   return (
     <div className="tev">
@@ -269,7 +280,13 @@ export function VosEnvies({ estDirection }: { estDirection: boolean }) {
               <OptionsPrestations services={vendables} prix devise={currency} />
             </select>
           </div>
-          {libres && <p className="mnd-muted tbs-aide">{argent(libres.priceXof)} au catalogue, selon son nombre de locks : le prix du catalogue au barème de la Maison, dit « à partir de, confirmé au fauteuil ».</p>}
+          {libres && (
+            <p className="mnd-muted tbs-aide">
+              {libres.scalesWithModel === true
+                ? <>{argent(libres.priceXof)} au catalogue, suit le modèle : son prix et sa durée selon son nombre de locks, au barème de la Maison, dits « à partir de, confirmé au fauteuil ».{auDelaDesLibres !== null && <> {auDelaDesLibres > 0 ? `Au-delà de ${auDelaDesLibres} locks, il` : 'Il'} ne tient plus dans une journée : le site propose le rendez-vous ci-dessous.</>}</>
+                : <>{argent(libres.priceXof)} au catalogue, pour toute tête : « suit le modèle » est éteint au Catalogue. Dit « à partir de, confirmé au fauteuil ».</>}
+            </p>
+          )}
           {etatDesLibres && etatDesLibres !== 'ok' && (
             <span className="tev-signal">{sujet(r.defaire.rituel)} {RAISON_HORS_LIGNE[etatDesLibres]} : pas de réservation en ligne. En attendant, « Cheveux libres » mène au rendez-vous ci-dessous.</span>
           )}

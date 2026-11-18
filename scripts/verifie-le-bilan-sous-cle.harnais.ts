@@ -196,7 +196,7 @@ dit('⑤ push-notify : un depot s insere, il n ecrase rien, et rend son identifi
   /await admin\.from\('consultations_queue'\)\.insert\(\{\n\s*id,/.test(TS), /consultations_queue'\)\.upsert\(/.test(TS), TS.includes('return json({ ok: true, id, sent, version: VERSION'),
 ]);
 dit('⑤ push-notify : le depot passe par depotPropre, l annonce publique est ecrite au serveur', [true, true, true], [
-  TS.includes('const propre = depotPropre(c.data, { parLEquipe: equipe });'), TS.includes(': annonceDuDepot(data);'), PN.includes("const VERSION = '2026-11-17-a';"),
+  TS.includes('const propre = depotPropre(c.data, { parLEquipe: equipe });'), TS.includes(': annonceDuDepot(data);'), PN.includes("const VERSION = '2026-11-18-a';"),
 ]);
 /* La lecture, au Trône. */
 const BES: ReglagesDesBesoins = {
@@ -559,7 +559,8 @@ dit('⑦ la file B : le prenom se coupe aux espaces, « Déplacer », le lien a 
   fileB.includes('const s = await envoieLaSuite(visio.id);') && fileB.includes('>Lui écrire la suite</Button>'),
 ]);
 dit('⑦ la file B propose un rituel du catalogue, reservable en ligne, et la privee seule des l intensive', [true, true], [
-  fileB.includes('return services.filter((s) => !!s.name && reservableSurLeSite(s, categories, masques));'),
+  /* Le lien part vers /reserver/ : les familles de la porte du site, défaisage compris (18 novembre 2026). */
+  fileB.includes('const familles = famillesDeLaPorteDuSite(categories);') && fileB.includes('return services.filter((s) => !!s.name && reservableSurLeSite(s, familles, masques));'),
   fileB.includes('const rituel: RituelPropose | undefined = !obligatoire && rituelOuvert && gestes.length'),
 ]);
 dit('⑦ la file C pose la privee au Carnet par la fonction ; la lecture se fait au Trone', [true, true, true], [
@@ -577,7 +578,7 @@ dit('⑦ 0216 : les colonnes de la limite et du changement, l heure de l annulat
 ]);
 const fn = lf('scripts/serveur/visio-salle.ts');
 dit('⑦ la fonction : sa version, aucun domaine ecrit, le billet garde en empreinte', [true, false, true], [
-  fn.includes("const VERSION = '2026-11-17-a';"), /maisonmnd|github\.io|supabase\.co/i.test(fn), fn.includes('billet_hash: await empreinte(billet)'),
+  fn.includes("const VERSION = '2026-11-18-a';"), /maisonmnd|github\.io|supabase\.co/i.test(fn), fn.includes('billet_hash: await empreinte(billet)'),
 ]);
 const reg = lf('src/apps/trone/routes/systeme/ReglagesDeLaVisio.tsx');
 dit('⑦ les reglages se reglent au Trone : la periode, le delai, les changements, le Carnet', [], ['limiteJours', 'changementAvantMin', 'changementsMax', 'priveeDureeMin', 'auCarnet'].filter((k) => !reg.includes(`d, ${k}:`)));

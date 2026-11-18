@@ -20,6 +20,7 @@ import {
   estUnRendezVousPris, estUneSeanceFaite,
 } from '../src/shared/rendez-vous-pris-pur';
 import { estSuggere } from '../src/shared/rendez-vous-suggere-pur';
+import { estFerme } from '../src/shared/rendez-vous-en-attente-pur';
 import { ENTREE_DU_TRONE, SORTIES_DE_LA_PORTE, etatDeLaPorteDeLEquipe } from '../src/shared/porte-de-l-equipe-pur';
 import { peutPoursuivreSansVerdict } from '../src/apps/consultation/acces-pur';
 import {
@@ -93,6 +94,21 @@ const OUI = '2026-11-12T08:00:00.000Z';
     if (pris !== attendu) ecarts.push(JSON.stringify(a));
   }
   dit('la règle et `estSuggere` (rendez-vous-suggere-pur) disent la même chose, sur toutes les marques', [], ecarts);
+  /* UNE PLACE PRISE EN LIGNE QUI ATTEND (18 novembre 2026, l'assemblage) : elle compte quand elle est FERME,
+     comme le dit `estFerme` (rendez-vous-en-attente-pur) : son oui, et l'acompte reçu quand il y en a un. */
+  const ATT = '2026-11-18T12:00:00.000Z';
+  dit('une place du site en attente ne compte pas : ni sans son oui, ni avec son oui et son acompte à recevoir ; ferme, elle compte', [false, false, true, true], [
+    estUnRendezVousPris({ status: 'confirmé', date: DEMAIN, suggereLe: POSE, attenduJusquAu: ATT }, AUJ),
+    estUnRendezVousPris({ status: 'confirmé', date: DEMAIN, suggereLe: POSE, attenduJusquAu: ATT, confirmeeParLaClienteLe: OUI, depositXof: 10000, depositConfirmed: false }, AUJ),
+    estUnRendezVousPris({ status: 'confirmé', date: DEMAIN, suggereLe: POSE, attenduJusquAu: ATT, confirmeeParLaClienteLe: OUI, depositXof: 10000, depositConfirmed: true }, AUJ),
+    estUnRendezVousPris({ status: 'confirmé', date: DEMAIN, suggereLe: POSE, attenduJusquAu: ATT, confirmeeParLaClienteLe: OUI }, AUJ),
+  ]);
+  const ecartsDeLAttente: string[] = [];
+  for (const confirmeeParLaClienteLe of [undefined, OUI]) for (const depositXof of [undefined, 0, 10000]) for (const depositConfirmed of [undefined, false, true]) {
+    const a = { status: 'confirmé', date: DEMAIN, suggereLe: POSE, attenduJusquAu: ATT, confirmeeParLaClienteLe, depositXof, depositConfirmed };
+    if (estUnRendezVousPris(a, AUJ) !== estFerme(a)) ecartsDeLAttente.push(JSON.stringify(a));
+  }
+  dit('pour une place née en attente, la règle et `estFerme` (rendez-vous-en-attente-pur) disent la même chose', [], ecartsDeLAttente);
   dit('une date illisible ne compte jamais ; une date avec son heure se lit par son jour', [false, false, true, true], [
     estUnRendezVousPris({ status: 'confirmé', date: 'demain' }, AUJ), estUneSeanceFaite({ status: 'honoré', date: 20261116 }, AUJ),
     estUnRendezVousPris({ status: 'confirmé', date: `${DEMAIN}T10:00:00Z` }, AUJ), estUneSeanceFaite({ status: 'honoré', date: `${HIER}T10:00:00Z` }, AUJ),
@@ -308,7 +324,7 @@ const OUI = '2026-11-12T08:00:00.000Z';
   const reception = consigneDeLaReception();
   dit('la réception (l’automate en réserve) ne demande plus de photo non plus', [false, true],
     [/demande-lui une photo/.test(reception), reception.includes('ne demande aucune photo ; dis en une ligne que la Maison le regarde avec elle au rendez-vous')]);
-  dit('... et sa fonction porte la version du jour', true, /const VERSION = '2026-11-17-a';/.test(lit('scripts/serveur/reception-wa.ts')));
+  dit('... et sa fonction porte la version du jour', true, /const VERSION = '2026-11-18-a';/.test(lit('scripts/serveur/reception-wa.ts')));
   dit('le texte proposé pour « ma longueur suffit ? » ne demande plus de photo ; l’ancien est nommé pour le réglage en base', [false, true, true], [
     /photo/i.test(TEXTES_PROPOSES['r-longueur']), /rendez-vous/.test(TEXTES_PROPOSES['r-longueur']),
     lit('supabase/reglage_plus_d_avis_sur_photo_20261117.sql').split(ANCIEN_TEXTE_DE_LA_LONGUEUR).length - 1 === 2

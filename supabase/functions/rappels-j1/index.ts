@@ -34,7 +34,7 @@ const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. 10 octobre 2026 : le passage du soir ne dépose plus
     un rappel que les heures calmes retiendraient jusqu'au jour même. */
-const VERSION = '2026-11-15-b · la proposition finit par « Cette date vous convient-elle ? », comme le modèle approuvé chez Meta · 2026-11-15-a · le rendez-vous suggéré : la relance trois jours avant ne vise que les suggestions sans réponse (posées à partir du 15 novembre 2026), sur le modèle reprise_proposee (« Notre proposition du … vous convient-elle ? ») ; une suggestion sans oui n’a pas de rappel de la veille ; la veille à 10 h, le comptoir est prévenu des suggestions de demain sans réponse · 2026-11-11-b · la veille d’une séance de formule dit « Une attention vous y attend » quand son panier est validé et que le modèle rappel_rdv_attention est posé (WA_TEMPLATE_RAPPEL_ATTENTION), sinon le rappel d’hier mot pour mot ; ce qui va partir : un rappel, une reprise ou un point arrêtés d’avance, ou d’un modèle en pause, ne se déposent pas ; un rappel par foyer, qui nomme chaque tête ; la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
+const VERSION = '2026-11-18-a · une place prise en ligne qui attend son « Je confirme » n’est pas une suggestion : ni la relance trois jours avant, ni le comptoir prévenu la veille · 2026-11-15-b · la proposition finit par « Cette date vous convient-elle ? », comme le modèle approuvé chez Meta · 2026-11-15-a · le rendez-vous suggéré : la relance trois jours avant ne vise que les suggestions sans réponse (posées à partir du 15 novembre 2026), sur le modèle reprise_proposee (« Notre proposition du … vous convient-elle ? ») ; une suggestion sans oui n’a pas de rappel de la veille ; la veille à 10 h, le comptoir est prévenu des suggestions de demain sans réponse · 2026-11-11-b · la veille d’une séance de formule dit « Une attention vous y attend » quand son panier est validé et que le modèle rappel_rdv_attention est posé (WA_TEMPLATE_RAPPEL_ATTENTION), sinon le rappel d’hier mot pour mot ; ce qui va partir : un rappel, une reprise ou un point arrêtés d’avance, ou d’un modèle en pause, ne se déposent pas ; un rappel par foyer, qui nomme chaque tête ; la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
 
 type Rdv = {
   id: string;
@@ -774,13 +774,15 @@ type Reprise = {
   repriseProposeeLe?: string;
   /** LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : seule une suggestion se relance. */
   suggereLe?: string;
+  /** Une place prise en ligne qui attend son oui (18 novembre 2026) : ce n'est pas une suggestion. */
+  attenduJusquAu?: string;
 };
 
 const JOURS_AVANT_LA_REPRISE = 3;
 
 const reprisesAProposer = (appts: readonly Reprise[], dansTroisJours: string): Reprise[] =>
   appts.filter((a) => a.date === dansTroisJours && a.status === 'confirmé' && !!a.clientId && !!a.suggereLe
-    && !a.confirmeeParLaClienteLe && !a.autreMomentDemandeLe);
+    && !a.confirmeeParLaClienteLe && !a.autreMomentDemandeLe && !a.attenduJusquAu);
 
 /** « mardi 14 octobre 2026 ». Recopiée de confirmation-rdv. L'ANNÉE SE DIT
     (9 octobre 2026) : la reprise proposée trois jours avant est une date
@@ -962,9 +964,11 @@ async function previensLeComptoirDesSuggestions(sb: ReturnType<typeof createClie
   const { data: lignes, error } = await sb.from('appointments').select('id, data')
     .eq('data->>date', demain).eq('data->>status', 'confirmé');
   if (error) return { comptoir: 'lecture-refusee', motif: error.message.slice(0, 120) };
-  const sans = ((lignes ?? []) as { id: string; data: Rdv & { suggereLe?: string; confirmeeParLaClienteLe?: string } }[])
+  const sans = ((lignes ?? []) as { id: string; data: Rdv & { suggereLe?: string; confirmeeParLaClienteLe?: string; attenduJusquAu?: string } }[])
     .map((l) => ({ ...l.data, id: l.id }))
-    .filter((a) => estSuggere(a))
+    /* Une place prise en ligne qui attend son oui n'est pas une suggestion (18 novembre 2026) :
+       elle se libère seule, le comptoir n'a rien à faire. */
+    .filter((a) => estSuggere(a) && !a.attenduJusquAu)
     .sort((a, b) => String(a.time ?? '').localeCompare(String(b.time ?? '')));
   /* La marque d'abord : un second réveil ne prévient jamais deux fois. */
   await sb.from('documents').upsert({ key: cle, data: { jour: demain, n: sans.length, apptIds: sans.map((a) => a.id), le: new Date().toISOString() } }, { onConflict: 'key' });

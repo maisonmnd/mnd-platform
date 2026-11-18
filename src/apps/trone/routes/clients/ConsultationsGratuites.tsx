@@ -5,7 +5,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { consultationsQueueStore, type OnlineConsultation } from '../../../../shared/bridges';
 import { useBesoins } from '../../../../shared/besoins';
-import { pointsDuBesoin } from '../../../../shared/lecture-de-la-maison-pur';
+import { pointsDuBesoin, saFicheDite } from '../../../../shared/lecture-de-la-maison-pur';
 
 /* ══ A · LES CONSULTATIONS GRATUITES À RELIRE — 13 novembre 2026 (lot 2) ═══
    Ce que le site a déposé (/consultation/) : les besoins cochés, la couronne
@@ -59,6 +59,7 @@ export function ConsultationsGratuites() {
               <div>
                 <div style={lab}>Ce qu’elle a coché</div>
                 <ul style={{ margin: '4px 0 0', paddingLeft: 16, fontSize: 13.5 }}>{(o.besoins ?? []).map((b) => <li key={b.id}>{b.mots}{points(b) !== null && <span className="mnd-muted"> · {points(b)} pts</span>}</li>)}</ul>
+                {saFicheDite(o.answers) && <p className="mnd-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>{saFicheDite(o.answers)}</p>}
               </div>
               <div>
                 <div style={lab}>Sa couronne</div>

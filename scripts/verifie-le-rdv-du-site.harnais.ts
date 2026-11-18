@@ -532,6 +532,7 @@ await attendsLeFond();
   await refuse(neuf(), '2026-11-22', '10:00', 'creneau_ferme', 'E10 un dimanche : « creneau_ferme »');
   await refuse(neuf(), '2026-11-25', '10:00', 'creneau_ferme', 'E11 une fermeture exceptionnelle : « creneau_ferme »');
   await refuse(neuf(), '2026-11-21', '17:00', 'creneau_hors_ouverture', 'E12 une heure qui deborde la fermeture (3 h a 17 h) : « creneau_hors_ouverture »');
+  await refuse(neuf(), '2026-12-17', '14:07', 'creneau_hors_ouverture', 'E12b une heure hors de la grille (14:07, un appel direct) : « creneau_hors_ouverture », rien ne bouge');
   await refuse(neuf(), '2026-12-02', '10:00', 'meme_place', 'E13 la place qu il occupe deja : « meme_place »');
   await refuse(neuf(), 'demain', '10:00', 'creneau_invalide', 'E14 une date mal formee : « creneau_invalide »');
   await refuse(neuf(), '2026-11-21', '25h', 'creneau_invalide', 'E15 une heure mal formee : « creneau_invalide »');

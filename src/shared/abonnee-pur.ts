@@ -274,9 +274,11 @@ export function etatDeLaSeance(a: SeanceLue, jour: string): EtatSeance {
   /* LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : la Maison l'a posé après sa
      venue, elle ne l'a pas encore confirmé. « Proposé par la Maison », avec
      « Je confirme » et « Un autre moment » (Ma Couronne). La place est tenue :
-     il prend son crédit comme une séance confirmée. */
-  if (estSuggere(a)) return 'proposee';
-  return a.status === 'en attente' ? 'a-confirmer' : 'confirmee';
+     il prend son crédit comme une séance confirmée. Une place qu'elle a prise
+     elle-même en ligne et qui attend son « Je confirme » (`attenduJusquAu`,
+     18 novembre 2026) n'est pas une proposition : elle est à confirmer. */
+  if (estSuggere(a) && !a.attenduJusquAu) return 'proposee';
+  return a.status === 'en attente' || estSuggere(a) ? 'a-confirmer' : 'confirmee';
 }
 
 /** UNE SÉANCE DE FORMULE SE DÉPLACE-T-ELLE EN LIGNE ? Plus de 24 h avant son

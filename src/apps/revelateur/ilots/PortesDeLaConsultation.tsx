@@ -7,6 +7,7 @@ import { PRIX_DE_LA_CONSULTATION_PRIVEE_XOF } from '../../../shared/estimation-p
 import { DUREE_MIN, FORME_DE_LA_CONSULTATION, jourDeCotonou, type Creneau } from '../../../shared/visio-pur';
 import type { CarteDesPlaces, CreneauOccupe } from '../../../shared/agenda-pur';
 import type { RendezVous } from '../../../shared/envies-pur';
+import { gestesAuCalibre } from '../../../shared/rendez-vous-en-attente-pur';
 import { TELEPHONE_MONDE, TELEPHONE_PAYS } from '../../../shared/geo';
 import { creneauxOccupes, heuresLibres, horizonDuSite, placesEnLigne, type AgendaDeLaMaison } from '../agenda';
 import { LETTRES_DE_LA_SEMAINE, flechesDuMois, grilleDuMois, moisApres, titreDuMois } from '../calendrier-du-site-pur';
@@ -262,12 +263,19 @@ export function VotreMoment({
   }, [choix.genre, agenda.branchId, horizon.du, horizon.au, horizon.jours.length, essai]);
 
   const prestations = choix.genre === 'visio' ? null : choix.prestations;
+  /* LA DURÉE AU CALIBRE QU'ELLE A DIT — 18 novembre 2026 : les heures d'un
+     rituel sont celles où la place tient à la durée de sa tête (`gestesAuCalibre`,
+     le `durCoef` des gestes qui suivent le modèle), comme le serveur la pose. */
+  const compte = choix.genre === 'rituel' ? choix.lockCount ?? 0 : 0;
+  const agendaDuChoix = useMemo<AgendaDeLaMaison>(() => (compte > 0
+    ? { ...agenda, services: gestesAuCalibre(agenda.services, { lockCount: compte, bandes: agenda.bandes, sets: agenda.bandSets, categories: agenda.categories, suspendu: agenda.baremeSuspendu === true }) }
+    : agenda), [agenda, compte]);
   const ouverts: JourOuvert[] | null = useMemo(() => {
     if (!prestations) return joursDeLaVisio(vifs);
     if (privees) return privees;
     if (!carnet || carnet === 'panne') return null;
-    return joursDuCarnet(horizon.jours, (iso) => heuresLibres({ agenda, dateIso: iso, serviceIds: prestations, occupes: carnet.occupes, places: carnet.places }));
-  }, [prestations, vifs, privees, carnet, horizon.jours, agenda]);
+    return joursDuCarnet(horizon.jours, (iso) => heuresLibres({ agenda: agendaDuChoix, dateIso: iso, serviceIds: prestations, occupes: carnet.occupes, places: carnet.places }));
+  }, [prestations, vifs, privees, carnet, horizon.jours, agendaDuChoix]);
 
   const duJour = ouverts?.find((j) => j.jour === jour)?.heures ?? [];
   const choisisLeJour = (iso: string) => { setJour(iso); setHeure(null); setErreur(null); };
@@ -308,7 +316,7 @@ export function VotreMoment({
       mesure('visio_reservee');
       const debut = typeof r.debut === 'string' && Number.isFinite(Date.parse(r.debut)) ? r.debut : h.cle;
       setRecu({
-        genre: 'visio', jour: jourDeCotonou(Date.parse(debut)), heure: h.dit, etat: 'en-attente',
+        genre: 'visio', jour: jourDeCotonou(Date.parse(debut)), heure: h.dit, etat: 'confirme',
         ...(typeof r.reference === 'string' && r.reference ? { code: r.reference } : {}),
         /* « Changer l'heure » mène à la page de la visio que le serveur nomme (`changer`), jamais à la salle par
            son chemin à jeton (`chemin`) : le lien d'entrée ne part que par WhatsApp. */
@@ -434,8 +442,9 @@ export function VotreMoment({
 
   /* ── LE BILLET ── */
   if (recu) {
+    /* La visio n'attend aucun « Je confirme » : elle est tenue dès sa réservation (18 novembre 2026). */
     const note = recu.genre === 'visio'
-      ? 'Le lien arrive sur votre WhatsApp. Répondez « Je confirme » : sans réponse, la place se libère.'
+      ? 'Le lien arrive sur votre WhatsApp.'
       : recu.genre === 'privee'
         ? (recu.etat === 'confirme' ? 'C’est réglé. Votre confirmation arrive sur votre WhatsApp.'
           : recu.etat === 'a-fixer' ? 'Ce moment vient d’être pris : la Maison fixe le vôtre avec vous sur WhatsApp.'

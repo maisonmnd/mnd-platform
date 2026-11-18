@@ -1,3 +1,5 @@
+import { ATELIERS_RESERVABLES } from './place-du-serveur';
+
 /* ══ LE RENDEZ-VOUS EN ATTENTE · 17 novembre 2026 ═══════════════════════
    Tranché au sélecteur par Yéman le 17 novembre 2026 (arbitrage B de « La
    consultation en affiches ») : un rendez-vous pris sur le site naît EN ATTENTE ; il se
@@ -267,8 +269,8 @@ export function gestesAuCalibre<S extends GesteADuree>(gestes: readonly S[], o: 
 /* LE DÉFAISAGE SE RÉSERVE EN LIGNE — 17 novembre 2026. Yéman : sur le site,
    une cliente qui veut défaire ses locks et garder ses cheveux libres réserve
    tout de suite le rituel GBÀTÀ™, sans visio ni consultation privée. Le juge
-   des places ne connaît que deux ateliers qui se réservent (l'Entretien, la
-   Coloration). POUR LA PORTE DU SITE SEULEMENT, l'atelier du défaisage,
+   des places ne connaît que ses ateliers qui se réservent (l'Entretien, la
+   Coloration, la décoloration). POUR LA PORTE DU SITE SEULEMENT, l'atelier du défaisage,
    quand il est un atelier à lui (sans parent : rangé sous FÍNFÍN™, il reste
    une restauration et passe par la consultation), se lit comme rangé sous un
    atelier qui se réserve. Rien d'autre ne s'ouvre, et rien du geste ne
@@ -327,6 +329,17 @@ export function texteDeLAutreMoment(o: { appel: string; lien: string }): string 
   return `Bien sûr, ${o.appel}. La place est rendue.${o.lien ? `\nChoisissez votre nouveau moment ici : ${o.lien}` : ''}`;
 }
 /* ⟨/rendez-vous-en-attente⟩ */
+
+/* ── LES FAMILLES DE LA PORTE DU SITE ─────────────────────────────────────
+   18 novembre 2026. Le serveur juge une place du site sur ces familles-là
+   (`demande-submit`, `laPlaceDemandee`) : le défaisage y est rangé sous un
+   atelier qui se réserve. Tout ce qui, sur le site ou au Trône, dit ce que
+   le site laisse réserver (la liste de /reserver/, l'aiguillage de
+   /consultation/, « Vos envies ») lit les MÊMES familles : sans elles, le
+   serveur posait un GBÀTÀ™ que la liste ne montrait pas, et le parcours
+   l'envoyait à la visio. WhatsApp et Ma Couronne ne passent pas par ici. */
+export const famillesDeLaPorteDuSite = (familles: readonly { id: string; parentId?: string }[]): { id: string; parentId?: string }[] =>
+  famillesAvecLeDefaisage(familles, ATELIERS_RESERVABLES);
 
 /* ── CE QUE LE TRÔNE EN DIT ────────────────────────────────────────────── */
 

@@ -179,6 +179,8 @@ export type RepriseProposable = {
   repriseDe?: string; confirmeeParLaClienteLe?: string; autreMomentDemandeLe?: string;
   /** LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : seule une suggestion se relance. */
   suggereLe?: string;
+  /** Une place prise en ligne qui attend son oui (18 novembre 2026) : ce n'est pas une suggestion. */
+  attenduJusquAu?: string;
 };
 
 /** Les reprises à proposer le jour `dansTroisJours` : posées d'office par la
@@ -189,10 +191,15 @@ export type RepriseProposable = {
     DEPUIS LE 15 NOVEMBRE 2026 (le rendez-vous suggéré, arbitrage B) : seule
     une SUGGESTION se relance (`suggereLe`, posée par la seconde étape de
     « C'est réglé ») ; les reprises posées avant restent « Confirmé », sans
-    message. */
+    message.
+
+    UNE PLACE PRISE EN LIGNE N'EST PAS UNE SUGGESTION (18 novembre 2026) :
+    née en attente de son « Je confirme » (`attenduJusquAu`), elle porte
+    `suggereLe` pour que les rappels se taisent, mais c'est elle qui l'a
+    réservée : jamais « Notre proposition du … ». */
 export const reprisesAProposer = <T extends RepriseProposable>(appts: readonly T[], dansTroisJours: string): T[] =>
   appts.filter((a) => a.date === dansTroisJours && a.status === 'confirmé' && !!a.clientId && !!a.suggereLe
-    && !a.confirmeeParLaClienteLe && !a.autreMomentDemandeLe);
+    && !a.confirmeeParLaClienteLe && !a.autreMomentDemandeLe && !a.attenduJusquAu);
 
 /** Ce que le bouton porte : « REPRISE_OK:<rdv> » ou « REPRISE_AUTRE:<rdv> ».
     Le webhook le relit ; rien d'autre n'a cette forme. */

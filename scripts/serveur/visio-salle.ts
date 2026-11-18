@@ -64,7 +64,7 @@ declare const Deno: {
    affiches d'après la visio (`suite`, `suite-vue`), la consultation privée au
    Carnet (`moments-privee`, `reserver-privee`).
    2026-11-14-b : la confirmation sur WhatsApp à la réservation (modèle visio_mnd). */
-const VERSION = '2026-11-17-a';
+const VERSION = '2026-11-18-a';
 const DAILY = 'https://api.daily.co/v1';
 /** La limite du public : six réservations par dix minutes et par adresse. */
 const LIMITE = { seau: 'visio', max: 6, fenetreMin: 10 };

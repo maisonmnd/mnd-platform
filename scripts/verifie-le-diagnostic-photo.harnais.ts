@@ -449,7 +449,7 @@ const essais = async () => {
     dit('... absent du document, il est éteint aussi ; « etat » le dit', [[403, 'ferme'], false],
       [await monde({ allume: null }).envoie(AWA()).then(([a, b]) => [a, b.error]), (await m.s.etatDuDiagnostic(m.outils))[1].ouvert]);
     const m2 = monde();
-    dit('allumé, « etat » répond ouvert, avec la version', [200, true, '2026-11-17-a'], await m2.s.etatDuDiagnostic(m2.outils).then(([a, b]) => [a, b.ouvert, b.version]));
+    dit('allumé, « etat » répond ouvert, avec la version', [200, true, '2026-11-18-a'], await m2.s.etatDuDiagnostic(m2.outils).then(([a, b]) => [a, b.ouvert, b.version]));
   }
 
   /* La porte. */
@@ -728,7 +728,7 @@ const essais = async () => {
 /* ── 4. LA FONCTION, LA MIGRATION, LES ÉCRANS ────────────────────────── */
 const structure = () => {
   const f = sansCommentaires(lis(SERVEUR));
-  dit('la fonction dit sa version et répond 405 à un GET', [true, true], [/const VERSION = '2026-11-17-a/.test(f), /json\(\{ error: 'method', version: VERSION \}, 405\)/.test(f)]);
+  dit('la fonction dit sa version et répond 405 à un GET', [true, true], [/const VERSION = '2026-11-18-a/.test(f), /json\(\{ error: 'method', version: VERSION \}, 405\)/.test(f)]);
   dit('la porte de Ma Couronne se juge avant le coffre et avant Claude, par la règle recopiée', [true, true, true],
     [/const laPorte = await porteDeLaCliente\(o, porte, await o\.base\.miens\(porte\)\);\s*if \(!laPorte\.ouverte\) \{/.test(f),
       /const suivie = aUnRendezVousPrisOuUneSeanceFaite\(await o\.base\.rdvs\(porte\.clientId\), jourACotonou\(maintenant\)\);/.test(f),

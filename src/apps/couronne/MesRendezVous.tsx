@@ -31,6 +31,7 @@ import { codeNormalise, estAPlaces } from '../../shared/offres-pur';
 import { estLaPlacePartie, laPlaceDuJour } from './places-pure';
 import { etatDeLaSeance, seDeplaceEnLigne } from '../../shared/abonnee-pur';
 import { estSuggere } from '../../shared/rendez-vous-suggere-pur';
+import { etatDeLAttente } from '../../shared/rendez-vous-en-attente-pur';
 import { decaleLeJour } from '../../shared/ia-faits-pur';
 import { prenomDUsage } from '../../shared/civilite';
 import { ETAT_SEANCE, appelleLaMaison, dateDansLaPhrase, leJour, seanceDuRelevé, useRelevesDe } from './releve';
@@ -90,6 +91,12 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
   /* « JE CONFIRME » (15 novembre 2026, le rendez-vous suggéré) : son oui, écrit
      sur le rendez-vous comme le bouton WhatsApp l'écrit ; la relance trois
      jours avant ne part plus, le rappel de la veille suivra. */
+  /* PROPOSÉ PAR LA MAISON : une suggestion posée après sa venue. Une place
+     qu'elle a prise elle-même sur le site et qui attend son « Je confirme »
+     (`attenduJusquAu`, 18 novembre 2026) porte la même marque pour faire
+     taire les rappels, mais elle l'a réservée : elle se confirme sur
+     WhatsApp, jamais par ce bouton. */
+  const proposeeParLaMaison = (a: Appointment): boolean => estSuggere(a) && etatDeLAttente(a) === null;
   const confirmeLaProposition = async (a: Appointment) => {
     const ok = await ecrisRendezVous(a.id, { confirmeeParLaClienteLe: new Date().toISOString(), autreMomentDemandeLe: undefined });
     toast(ok
@@ -656,7 +663,7 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
                 {/* LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : la Maison l'a proposé
                     après sa venue ; elle n'a rien réservé. Un toucher le confirme,
                     ou elle choisit un autre moment. */}
-                {aVenir && estSuggere(a) && (
+                {aVenir && proposeeParLaMaison(a) && (
                   <div className="mc-propose">
                     <b>{t('Proposé par la Maison')}</b>
                     <span>{t('Après votre dernière venue, la Maison vous garde cette place. Vous n’avez rien réservé : confirmez-la d’un toucher, ou choisissez un autre moment.')}</span>
@@ -732,8 +739,8 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
                     </div>
                   )}
                   <div className="mc-rdvcard__acts" onClick={(e) => e.stopPropagation()}>
-                    {estSuggere(a) && <button className="mc-rdvact" onClick={() => { void confirmeLaProposition(a); }}>{t('Je confirme')}</button>}
-                    <button className="mc-rdvact" onClick={() => openEdit(a)}>{estSuggere(a) ? t('Un autre moment') : t('Modifier')}</button>
+                    {proposeeParLaMaison(a) && <button className="mc-rdvact" onClick={() => { void confirmeLaProposition(a); }}>{t('Je confirme')}</button>}
+                    <button className="mc-rdvact" onClick={() => openEdit(a)}>{proposeeParLaMaison(a) ? t('Un autre moment') : t('Modifier')}</button>
                     <button className="mc-rdvact" onClick={() => addToCalendar(a)}>{t('Calendrier')}</button>
                     <button className="mc-rdvact mc-rdvact--danger" onClick={() => setCancelling(a)}>{t('Annuler')}</button>
                   </div>

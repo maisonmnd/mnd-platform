@@ -12,7 +12,9 @@ import {
   type ConsultationSuivie, type Visio,
 } from '../../../../shared/visios';
 import { lienWaMe } from '../../../../shared/conversations';
+import { saFicheDite } from '../../../../shared/lecture-de-la-maison-pur';
 import { reservableSurLeSite } from '../../../../shared/place-du-serveur';
+import { famillesDeLaPorteDuSite } from '../../../../shared/rendez-vous-en-attente-pur';
 import {
   AVANT_L_ENTREE_MIN, DUREE_MIN, LONGUEURS, NIVEAUX, RITUEL_AU_PLUS, SUITES,
   affichesDeLaSuite, anneauAllume, creneauDit, ecouleDit, heureDite, jourCourtDit, jourDeCotonou, jourDit, minutesSecondes, parJour, phaseDe,
@@ -140,7 +142,8 @@ export function ConsultationsVisios() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
                 <div>
                   <div style={lab}>Ce qu’elle a coché</div>
-                  <p style={{ margin: '4px 0 0', fontSize: 13.5 }}>{(c.besoins ?? []).map((b) => b.mots).join(' · ') || 'rien de coché'}</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 13.5 }}>{(c.besoins ?? []).map((b) => b.mots).join(' · ') || (saFicheDite(c.answers) ? '' : 'rien de coché')}</p>
+                  {saFicheDite(c.answers) && <p className="mnd-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>{saFicheDite(c.answers)}</p>}
                 </div>
                 <div>
                   <div style={lab}>La lecture de la Maison</div>
@@ -270,7 +273,9 @@ function ChoixDuRituel({ choisis, onChange }: { choisis: string[]; onChange: (id
   const [cherche, setCherche] = useState('');
   const reservables = useMemo(() => {
     const masques = { services: vitrine.siteMasques?.services ?? [], categories: vitrine.siteMasques?.categories ?? [] };
-    return services.filter((s) => !!s.name && reservableSurLeSite(s, categories, masques));
+    /* Le lien part vers /reserver/ : les familles de la porte du site, défaisage compris (18 novembre 2026). */
+    const familles = famillesDeLaPorteDuSite(categories);
+    return services.filter((s) => !!s.name && reservableSurLeSite(s, familles, masques));
   }, [services, categories, vitrine.siteMasques]);
   const q = cherche.trim().toLowerCase();
   const visibles = (q ? reservables.filter((s) => s.name.toLowerCase().includes(q)) : reservables).slice(0, 40);

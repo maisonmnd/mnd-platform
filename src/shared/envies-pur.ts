@@ -1,6 +1,8 @@
 import { estUneConsultation, masquePourLeSite, type MasquesDuSite, type PriceMode } from './catalogue-pur';
 import { exigeConsultation } from './qualification';
 import { reservableSurLeSite } from './place-du-serveur';
+import { creneauxLibres, dureeDesPrestations, ouvertureDuJour, type HeureDeLaSemaine } from './agenda-pur';
+import { famillesDeLaPorteDuSite, gestesAuCalibre, type ContexteDeDuree } from './rendez-vous-en-attente-pur';
 
 /* ══ VOS ENVIES — 17 novembre 2026 (la consultation en affiches) ══════════
    « Permets-moi de créer mes envies et de les associer en votre rituel ou la
@@ -320,13 +322,16 @@ export type EtatEnLigne = 'ok' | 'inconnue' | 'eteinte' | 'masquee' | 'consultat
 
 /** Une prestation se réserve-t-elle en ligne aujourd'hui, et sinon pourquoi ?
     La règle est celle du serveur (`lesGestesSeReservent`, place-du-serveur),
-    dite pour la direction : le site ne propose que ce que le serveur pose. */
+    dite pour la direction : le site ne propose que ce que le serveur pose.
+    Sur les familles que le serveur lit pour la porte du site
+    (`famillesDeLaPorteDuSite`, 18 novembre 2026) : le défaisage s'y réserve. */
 export function etatEnLigne(
   s: PrestationJugee | undefined,
-  cats: { id: string; parentId?: string }[],
+  familles: { id: string; parentId?: string }[],
   masques: MasquesDuSite | undefined,
 ): EtatEnLigne {
   if (!s) return 'inconnue';
+  const cats = famillesDeLaPorteDuSite(familles);
   if (s.archived || s.enabled === false) return 'eteinte';
   if (masquePourLeSite(s, masques, cats)) return 'masquee';
   if (!estUneConsultation(s, cats) && exigeConsultation(s, cats)) return 'consultation';
@@ -393,6 +398,9 @@ export function rangeLesChoisies(r: ReglagesDesEnvies, choisies: readonly string
 export type Contexte = {
   /** Cette prestation se réserve-t-elle en ligne aujourd'hui ? (`etatEnLigne` sur le catalogue lu) */
   seReserve: (serviceId: string) => boolean;
+  /** Ces gestes, ensemble, tiennent-ils dans une journée de la Maison, à la
+      durée du calibre qu'elle a dit (`tientDansUneJournee`) ? Absent : oui. */
+  tient?: (prestations: readonly string[]) => boolean;
   /** La visio est-elle ouverte : allumée, branchée, et au moins un quart d'heure libre ? */
   visioOuverte: boolean;
   /** La garde « peau » est levée : ce qu'elle écarte ne se réserve pas sans regard. */
@@ -409,8 +417,10 @@ export type Affiches = {
 /** Ce qu'une envie vaut aujourd'hui : son rituel, s'il se réserve en ligne tout entier ; sinon son rendez-vous. */
 export function porteeDe(e: Envie, c: Contexte): { rituel: string[] } | { rdv: RendezVous[] } {
   if (e.groupes.includes('rituel')) {
-    const tient = e.rituels.length > 0 && e.rituels.every((s) => c.seReserve(s) && !(c.ecartees ?? []).includes(s));
-    /* Sans rituel, ou avec un rituel que le serveur refuserait : comme une Visio. */
+    const tient = e.rituels.length > 0 && e.rituels.every((s) => c.seReserve(s) && !(c.ecartees ?? []).includes(s))
+      && (c.tient?.(e.rituels) ?? true);
+    /* Sans rituel, avec un rituel que le serveur refuserait, ou qui ne tient
+       pas dans une journée pour sa tête : comme une Visio. */
     return tient ? { rituel: [...e.rituels] } : { rdv: ['visio'] };
   }
   const rdv = e.groupes.filter((g): g is RendezVous => g !== 'rituel');
@@ -443,12 +453,13 @@ export function affichesDesEnvies(r: ReglagesDesEnvies, choisies: readonly strin
     const p = porteeDe(e, c);
     if ('rituel' in p) {
       const neufs = p.rituel.filter((s) => !prestations.includes(s));
-      if (prestations.length + neufs.length <= GESTES_MAX) {
+      if (prestations.length + neufs.length <= GESTES_MAX && (c.tient?.([...prestations, ...neufs]) ?? true)) {
         prestations.push(...neufs);
         auRituel.push(e.id);
         continue;
       }
-      /* Le septième geste ne rentre pas dans la venue : cette envie attend la Maison. */
+      /* Le septième geste ne rentre pas dans la venue, ou la venue ne tiendrait
+         plus dans une journée : cette envie attend la Maison. */
       aVoir.push(e.id);
       vus.push(['visio']);
       continue;
@@ -469,34 +480,64 @@ export const affichesDuModele = (r: ReglagesDesEnvies, c: Contexte): Affiches =>
 export type Ensuite = 'libres' | 'nouvelles' | 'inconnu';
 
 /** DES LOCKS À DÉFAIRE. « Cheveux libres » : son rituel, réservé tout de
-    suite, sans visio ni consultation privée, s'il se réserve en ligne.
-    « Nouvelles locks », « Je ne sais pas », ou un rituel que le serveur
-    refuserait : le rendez-vous réglé au Trône. */
+    suite, sans visio ni consultation privée, s'il se réserve en ligne et
+    tient dans une journée pour sa tête. « Nouvelles locks », « Je ne sais
+    pas », un rituel que le serveur refuserait, ou une tête dont le rituel ne
+    tient plus dans une journée : le rendez-vous réglé au Trône. */
 export function affichesADefaire(r: ReglagesDesEnvies, ensuite: Ensuite | null, c: Contexte): Affiches {
-  if (ensuite === 'libres' && r.defaire.rituel && c.seReserve(r.defaire.rituel)) {
+  if (ensuite === 'libres' && r.defaire.rituel && c.seReserve(r.defaire.rituel) && (c.tient?.([r.defaire.rituel]) ?? true)) {
     return { rituel: { prestations: [r.defaire.rituel], envies: [] }, regard: null };
   }
   return { rituel: null, regard: { envies: [], ...rendezVousDe([r.defaire.rdv], c.visioOuverte) } };
 }
 
-/* ── LE PRIX AU BARÈME ────────────────────────────────────────────────── */
+/* ── UNE JOURNÉE DE LA MAISON ─────────────────────────────────────────── */
 
-/** Arrondi commercial au 500 F, comme au Trône : jamais zéro pour un prix qui existe. */
-const arrondi = (x: number): number => {
-  const a = Math.round(x / 500) * 500;
-  return a === 0 && x > 0 ? Math.round(x) : a;
-};
+/** Une semaine, du lundi au dimanche : chaque jour se lit dans la grille de la Maison (`ouvertureDuJour`). */
+const UNE_SEMAINE: readonly string[] = ['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20', '2026-11-21', '2026-11-22'];
 
-/** LE PRIX DU RITUEL DE « CHEVEUX LIBRES » : « donne le prix du rituel de
-    Gbata selon le nombre de locks » (Yéman). Son prix du catalogue multiplié
-    par le coefficient du barème de la Maison pour l'épaisseur dite ; quand
-    elle tient plusieurs calibres, ou qu'elle n'est pas dite, le plus petit
-    coefficient : le prix se dit « à partir de ». Barème suspendu : le prix
-    du catalogue. Sans prix au catalogue : 0, et rien ne s'affiche. */
-export function prixAuBareme(prixXof: number, coefs: readonly number[], suspendu = false): number {
-  if (!(prixXof > 0)) return 0;
-  const valides = coefs.filter((c) => Number.isFinite(c) && c > 0);
-  return arrondi(prixXof * (suspendu || !valides.length ? 1 : Math.min(...valides)));
+/** LE RITUEL TIENT-IL DANS UNE JOURNÉE ? — 18 novembre 2026. « Le Gbata se
+    paie selon le nombre de locks » (Yéman) : son prix ET sa durée suivent le
+    barème, et une tête dont le rituel ne tient plus dans une journée ne le
+    réserve pas en ligne (elle voit la visio et/ou la consultation privée).
+    Tenir : trouver au moins une heure de la grille (`creneauxLibres`,
+    premier rendez-vous 08:30, fin avant la fermeture) un jour ouvert de la
+    semaine de la Maison, sur un Carnet vide. Sinon aucun jour ne le
+    prendrait, ni au site ni au serveur. */
+export function tientDansUneJournee(dureeMin: number, semaine: readonly HeureDeLaSemaine[]): boolean {
+  if (!(dureeMin > 0)) return true;
+  return UNE_SEMAINE.some((iso) => {
+    const opening = ouvertureDuJour(iso, semaine);
+    return !opening.closed && creneauxLibres({ opening, durationMin: dureeMin, occupes: [], master: '' }).length > 0;
+  });
+}
+
+type GesteDuree = { id: string; categoryId?: string; durationMin?: number; scalesWithModel?: boolean };
+
+/** La durée de la venue pour ce compte de locks, comme le serveur la pose :
+    chaque geste à sa durée du calibre (`gestesAuCalibre`, le `durCoef` des
+    seuls gestes qui suivent le modèle), puis leur somme (`dureeDesPrestations`). */
+export function dureeAuCompte(ids: readonly string[], services: readonly GesteDuree[], o: ContexteDeDuree): number {
+  return dureeDesPrestations(ids, gestesAuCalibre(services.filter((s) => ids.includes(s.id)), o));
+}
+
+/** Au-delà de combien de locks ces gestes ne tiennent plus dans une journée :
+    le plafond de la dernière tranche du barème qui tient (0 : aucune ne
+    tient) ; `null` : toutes tiennent. Ce que le Trône dit à la direction. */
+export function auDelaDUneJournee(
+  ids: readonly string[],
+  services: readonly GesteDuree[],
+  o: Omit<ContexteDeDuree, 'lockCount'> & { bandes: readonly { maxLocks: number | null }[] },
+  semaine: readonly HeureDeLaSemaine[],
+): number | null {
+  const tri = [...o.bandes].filter((b) => !!b).sort((a, b) => (a.maxLocks ?? Infinity) - (b.maxLocks ?? Infinity));
+  let avant = 0;
+  for (const b of tri) {
+    const compte = b.maxLocks ?? avant + 100;
+    if (!tientDansUneJournee(dureeAuCompte(ids, services, { ...o, lockCount: compte }), semaine)) return avant;
+    avant = b.maxLocks ?? avant;
+  }
+  return null;
 }
 
 /** UN PRIX NE SE COUPE JAMAIS SUR DEUX LIGNES (« 64 » au-dessus de « 000 »,

@@ -183,7 +183,7 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
     [conf.includes('for (const a of aEnvoyer.filter((x) => !estSuggere(x))) {'), conf.includes("Deno.env.get('WA_TEMPLATE_PROPOSITION')"), conf.includes('composantsDeLaProposition({ appel, quand, gestes, apptId: a.id })')]);
   const rap = lit('supabase/functions/rappels-j1/index.ts');
   dit('rappels-j1 : la relance des seules suggestions, le comptoir a 10 h', [true, true, true],
-    [rap.includes("&& !!a.clientId && !!a.suggereLe\n    && !a.confirmeeParLaClienteLe && !a.autreMomentDemandeLe);"), rap.includes('heureDeCePassage === HEURE_DU_COMPTOIR_LA_VEILLE'), rap.includes('texteDeLaRelance({ appel: prenom, quand, gestes })')]);
+    [rap.includes("&& !!a.clientId && !!a.suggereLe\n    && !a.confirmeeParLaClienteLe && !a.autreMomentDemandeLe && !a.attenduJusquAu);"), rap.includes('heureDeCePassage === HEURE_DU_COMPTOIR_LA_VEILLE'), rap.includes('texteDeLaRelance({ appel: prenom, quand, gestes })')]);
   const push = lit('supabase/functions/push-notify/index.ts');
   dit('push-notify : deux heures avant, une suggestion sans oui se tait', true, push.includes("if (kind === 'h-2' && suggestionSansOui(a)) continue;"));
   const gerard = lit('src/shared/gerard-pur.ts');

@@ -49,9 +49,10 @@ dit('la fiche : calendrier, déplacer, annuler ; passée : refaire, bilan', [tru
 ]);
 dit('notifications : le rappel et chaque réservation ouvrent leur fiche', [true, true],
   [/onClick=\{\(\) => onOpenRdv\(next\.id\)\}>\{t\('Voir mon rendez-vous'\)\}/.test(tabs), /onClick=\{\(\) => onOpenRdv\(a\.id\)\}>\{t\('Voir mon rendez-vous'\)\}/.test(tabs)]);
-dit('après la réservation : « Voir mon rendez-vous »', true, /onClick=\{\(\) => onVoirRdv\(rdvCree\)\}/.test(resa) && /setRdvCree\(newAppts\[0\]\?\.id \?\? null\)/.test(resa));
+/* Depuis le 17 novembre 2026, Ma Couronne pose par le serveur : la fiche est celle que la Maison a écrite (`ecrits`), le repli celle de l'appareil. */
+dit('après la réservation : « Voir mon rendez-vous »', true, /onClick=\{\(\) => onVoirRdv\(rdvCree\)\}/.test(resa) && /setRdvCree\(ecrits\[0\]\?\.id \?\? newAppts\[0\]\?\.id \?\? null\)/.test(resa));
 dit('les notifications du téléphone portent le lien de LA fiche', [true, 2],
-  [/#\/rdv\/\$\{newAppts\[0\]\?\.id \?\? ''\}/.test(resa), (liste.match(/#\/rdv\/\$\{a\.id\}/g) ?? []).length]);
+  [/#\/rdv\/\$\{ecrits\[0\]\?\.id \?\? newAppts\[0\]\?\.id \?\? ''\}/.test(resa), (liste.match(/#\/rdv\/\$\{a\.id\}/g) ?? []).length]);
 dit('… et l\'app ouvre ce lien, à l\'ouverture comme en route', [true, true],
   [/\/\^#\\\/rdv\\\/\(\[A-Za-z0-9_-\]\+\)\$\/\.exec\(window\.location\.hash\)/.test(app), /window\.addEventListener\('hashchange', lis\)/.test(app)]);
 dit('l\'app passe la fiche désignée à « Mes rendez-vous »', true, /ouvrir=\{rdv\.ouvrir\}/.test(app));

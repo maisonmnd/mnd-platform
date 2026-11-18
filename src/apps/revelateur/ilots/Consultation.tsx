@@ -11,14 +11,14 @@ import { DUREE_MIN, FORME_DE_LA_CONSULTATION, type Creneau } from '../../../shar
 import type { Besoin as Porte } from '../../../shared/qualification';
 import {
   ENVIES_MAX, REPONSES_DU_DEBUT, affichesADefaire, affichesDesEnvies, affichesDuModele, basculeUneEnvie, enviesAffichees, enviesSures,
-  etatEnLigne, parcoursDe, prixAuBareme, rangeLesChoisies, seTouche, tarifDesNaturels,
+  dureeAuCompte, etatEnLigne, parcoursDe, rangeLesChoisies, seTouche, tarifDesNaturels, tientDansUneJournee,
   type Affiches, type Contexte, type Envie, type ReglagesDesEnvies, type ReponseDuDebut,
 } from '../../../shared/envies-pur';
 import {
   AGES, AVEC, A_PARTIR_DE, DUREES, ENSUITES, EPAISSEUR_INCONNUE, FACONS, LONGUEURS_DITES, NOMBRE_DE_QUESTIONS, REPONSES_VIDES,
-  apresLaReponseDuDebut, baremeDe, besoinsAMontrer, besoinsDuSite, consultationADeposer, ecarteesParLaPeau, ecranPrecedent, ecranSuivant, ecranTenu,
+  apresLaReponseDuDebut, besoinsAMontrer, comptesDesTranches, besoinsDuSite, consultationADeposer, ecarteesParLaPeau, ecranPrecedent, ecranSuivant, ecranTenu,
   epaisseursDe, ficheADefaire, ficheDuModele, insecable, motDuRituel, motsDuRendezVous, nombreTape, numeroDe, pasFaits, plageDeLEpaisseur, plageDite,
-  trancheDuNombre, tranchesDe,
+  prixAPartirDe, trancheDuNombre, tranchesDe,
   type BesoinDuSite, type Ecran, type Epaisseur, type Fiche, type Reponses,
 } from '../parcours-en-affiches-pur';
 import { Affiche, COORDONNEES_VIDES, Scelle, VotreMoment, base, chiffreEtSigne, creneauxDeLaVisio, type Choix, type Coordonnees } from './PortesDeLaConsultation';
@@ -427,8 +427,24 @@ export default function Consultation() {
   const { agenda } = d;
   const service = (id: string): PrestationPublique | undefined => agenda.services.find((s) => s.id === id);
   const garde = besoinsChoisis.some((b) => b.garde);
+
+  /* LE CALIBRE QU'ELLE A DIT. Ses envies : son nombre, ou le représentant de
+     sa tranche. Des locks à défaire : chaque tranche de son épaisseur (une
+     épaisseur large en tient plusieurs ; rien de dit : toutes). */
+  const bande: Bande | undefined = parcours === 'envies' ? agenda.bandes.find((b) => b.id === rep.calibre) : undefined;
+  const lockCount = bande ? (Number(rep.nombre) > 0 ? Number(rep.nombre) : representantDeLaBande(bande, agenda.bandes)) : 0;
+  const tranchesDites = epaisseur?.tranches ?? tranches;
+  const comptes = parcours === 'defaire' ? comptesDesTranches(tranchesDites, agenda.bandes) : [lockCount];
+  const dureeDuCompte = (n: number) => ({
+    lockCount: n, bandes: agenda.bandes, sets: agenda.bandSets, categories: agenda.categories, suspendu: agenda.baremeSuspendu === true,
+  });
+
   const contexte: Contexte = {
     seReserve: (id) => etatEnLigne(service(id), agenda.categories, agenda.masques) === 'ok',
+    /* LA DURÉE SUIT LE CALIBRE — 18 novembre 2026 : une tête dont le rituel ne
+       tient plus dans une journée ne le réserve pas en ligne (la visio, la
+       consultation privée). Chaque compte qu'elle peut avoir doit tenir. */
+    tient: (ids) => (comptes.length ? comptes : [0]).every((n) => tientDansUneJournee(dureeAuCompte(ids, agenda.services, dureeDuCompte(n)), agenda.semaine)),
     visioOuverte: (creneaux?.length ?? 0) > 0,
     ecartees: garde ? d.ecartees : [],
   };
@@ -440,21 +456,18 @@ export default function Consultation() {
     ? ficheDuModele({ epaisseur, longueur: rep.longueur, avec: rep.avec, duree: rep.duree, tarifDesNaturels: tarifDesNaturels(argent(r.modele.naturels.prixXof), r.modele.naturels.lot) })
     : parcours === 'defaire' ? ficheADefaire({ depuis: rep.depuis, epaisseur, longueur: rep.longueur, facon: rep.facon, ensuite: rep.ensuite }) : null;
 
-  /* LE PRIX DU RITUEL : celui du catalogue, pour le calibre qu'elle a dit (la
-     règle de la réservation du site, `prixSelonLeCalibre`) ; pour « Cheveux
-     libres », le prix du catalogue au barème de la Maison (`prixAuBareme`).
-     Toujours « à partir de, confirmé au fauteuil ». */
-  const bande: Bande | undefined = agenda.bandes.find((b) => b.id === (parcours === 'envies' ? rep.calibre : epaisseur?.tranches[0]?.id));
-  const lockCount = bande ? (parcours === 'envies' && Number(rep.nombre) > 0 ? Number(rep.nombre) : representantDeLaBande(bande, agenda.bandes)) : 0;
+  /* LE PRIX DU RITUEL : la règle du Catalogue, celle de la réservation du site
+     et du serveur (`prixSelonLeCalibre`) : le barème ne joue que sur une
+     prestation qui « suit le modèle ». Pour « Cheveux libres », le plus petit
+     prix des tranches de son épaisseur (`prixAPartirDe`). Toujours « à partir
+     de, confirmé au fauteuil ». */
   const ctx: ContexteDuCalibre | undefined = bande
     ? { bande, lockCount, sets: agenda.bandSets, cats: agenda.categories, baremeSuspendu: agenda.baremeSuspendu } : undefined;
   const prixDuRituel = (ids: readonly string[]): number => ids.reduce((total, id) => {
     const s = service(id);
     if (!s) return total;
     if (parcours === 'defaire') {
-      const bareme = baremeDe(s.categoryId, agenda.bandSets, agenda.categories, agenda.bandes);
-      const coefs = (epaisseur?.tranches ?? tranches).map((t) => bareme.find((b) => b.id === t.id)?.coef ?? t.coef);
-      return total + prixAuBareme(Number(s.priceXof ?? 0), coefs, agenda.baremeSuspendu);
+      return total + prixAPartirDe(s, tranchesDites, { bandes: agenda.bandes, sets: agenda.bandSets, cats: agenda.categories, baremeSuspendu: agenda.baremeSuspendu });
     }
     return total + ((ctx ? prixSelonLeCalibre(s, ctx) : Number(s.priceXof ?? 0)) ?? 0);
   }, 0);
@@ -462,8 +475,15 @@ export default function Consultation() {
   /* La consultation de la porte cadre le créneau de la consultation privée (une heure). */
   const porte: Porte = rep.pour === 'enfant' ? 'enfant' : parcours === 'modele' ? 'creation' : 'reparation';
   const laPrivee: Choix = { genre: 'privee', prestations: prestationsReservables(agenda, porte).slice(0, 1).map((s) => s.id) };
+  /* La place tenue est celle de la plus grande tête qu'elle peut avoir : une
+     épaisseur large réserve la durée de sa dernière tranche, et ne nomme un
+     calibre que si elle n'en tient qu'un. */
+  const compteDuRituel = parcours === 'defaire' ? Math.max(0, ...comptes) : lockCount;
+  const calibreDuRituel = parcours === 'defaire'
+    ? (epaisseur?.tranches.length === 1 ? agenda.bandes.find((b) => b.id === epaisseur.tranches[0].id)?.name : undefined)
+    : bande?.name;
   const leRituel: Choix | null = affiches.rituel
-    ? { genre: 'rituel', prestations: affiches.rituel.prestations, ...(lockCount ? { lockCount, ...(bande ? { calibre: bande.name } : {}) } : {}) }
+    ? { genre: 'rituel', prestations: affiches.rituel.prestations, ...(compteDuRituel ? { lockCount: compteDuRituel, ...(calibreDuRituel ? { calibre: calibreDuRituel } : {}) } : {}) }
     : null;
   const ouvre = (c: Choix | null) => { aBouge.current = true; setChoix(c); };
 

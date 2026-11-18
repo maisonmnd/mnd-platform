@@ -30,7 +30,7 @@
    règle ; l'écran ne fait que la dire. */
 
 /* ⟨diagnostic-locks⟩ */
-export const VERSION_DU_DIAGNOSTIC = '2026-11-17-a';
+export const VERSION_DU_DIAGNOSTIC = '2026-11-18-a';
 /** Une à quatre photos de la même couronne (sa décision). */
 export const PHOTOS_MIN = 1;
 export const PHOTOS_MAX = 4;
