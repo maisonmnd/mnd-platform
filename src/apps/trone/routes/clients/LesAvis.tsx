@@ -112,7 +112,7 @@ function faitsDeLaPublication(brouillons: BrouillonsDAvis): { relues: number; pa
 /* LES PUCES DE LA LISTE (18 novembre 2026) : tous, ceux qui attendent un geste, les réponses prêtes, les notes basses, les répondus. */
 type PuceDesAvis = 'tous' | 'arepondre' | 'pretes' | 'bas' | 'repondus';
 const PUCES_DES_AVIS: readonly { k: PuceDesAvis; dit: string }[] = [
-  { k: 'tous', dit: 'Tous' }, { k: 'arepondre', dit: 'À répondre' }, { k: 'pretes', dit: 'Prêtes à relire' }, { k: 'bas', dit: '1 à 3 étoiles' }, { k: 'repondus', dit: 'Répondus' },
+  { k: 'tous', dit: 'Tous' }, { k: 'arepondre', dit: 'À répondre' }, { k: 'pretes', dit: 'Prêtes' }, { k: 'bas', dit: '1 à 3 ★' }, { k: 'repondus', dit: 'Répondus' },
 ];
 /** Le téléphone (900 px et moins) : la liste OU l'avis ouvert, comme les Conversations. */
 function useEtroit(largeur = 900): boolean {

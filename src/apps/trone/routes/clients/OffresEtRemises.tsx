@@ -59,7 +59,7 @@ import './les-conversations.css';
 /* LES PUCES DE LA LISTE (18 novembre 2026). */
 type PuceDesOffres = 'tous' | 'nom' | 'public' | 'vivants' | 'orphelins';
 const PUCES_DES_OFFRES: readonly { k: PuceDesOffres; dit: string }[] = [
-  { k: 'tous', dit: 'Tous' }, { k: 'nom', dit: 'À son nom' }, { k: 'public', dit: 'Offres publiques' }, { k: 'vivants', dit: 'Codes vivants' }, { k: 'orphelins', dit: 'Orphelins' },
+  { k: 'tous', dit: 'Tous' }, { k: 'nom', dit: 'À son nom' }, { k: 'public', dit: 'Publiques' }, { k: 'vivants', dit: 'Vivants' }, { k: 'orphelins', dit: 'Orphelins' },
 ];
 type VoletDesOffres = 'plafond' | 'annuler' | 'saison' | 'creux' | 'code';
 /** Le téléphone (900 px et moins) : la liste OU ce qui est ouvert, comme les Conversations. */
@@ -82,8 +82,8 @@ const SOURCE_DITE: Record<SourceDUsage, string> = { caisse: 'Caisse', site: 'sit
 
 /** « M. D. » → « MD » : l'avatar à initiales de la maquette ; les usages disent la cliente ainsi. */
 const initiales = (nom: string): string => nom.split(/\s+/).filter(Boolean).map((m) => m[0]).join('').slice(0, 2).toUpperCase() || '·';
-/** « 6,2 », ou « · » quand rien n'a été remisé. */
-const rendementDit = (r: number | null): string => (r === null ? '·' : r.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+/** « 6,2 » ; « pas encore » tant que rien n'a été remisé (essai du 18 novembre 2026 : « rendement · » ne disait rien). */
+const rendementDit = (r: number | null): string => (r === null ? 'pas encore' : r.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
 const tauxDit = (t: number | null): string => (t === null ? '·' : `${Math.round(t * 100)} %`);
 /** « Lun. 26 oct. 2026 » : toujours l'année ; une date illisible le dit. */
 const jourCourt = (j: string): string => { const d = jourCourtAn(j); return d === String.fromCharCode(0x2014) ? 'date inconnue' : d; };
