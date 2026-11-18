@@ -12,7 +12,7 @@
    calibre, Ma Couronne. C : les fichiers qui tiennent la même règle (le SQL,
    le webhook, confirmation-rdv, le Trône, Ma Couronne), lus à leurs ancres.
    Tout est inventé. Sortie ASCII : la console de Windows. */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import {
   DELAI_DE_L_ATTENTE_MS, SURSIS_DE_L_ACOMPTE_MS, EN_ATTENTE_PAR_NUMERO, POSES_PAR_NUMERO_ET_PAR_JOUR, POSES_PAR_ADRESSE_ET_PAR_JOUR,
   MODELES_PAR_NUMERO_ET_PAR_JOUR, DEPLACEMENTS_AU_PLUS, MODELE_DE_L_ATTENTE,
@@ -751,6 +751,16 @@ const idB3 = b3.corps.apptId as string;
     [new RegExp(`coalesce\\(poses_du_jour, 0\\) >= ${POSES_PAR_NUMERO_ET_PAR_JOUR} then`).test(pose), new RegExp(`coalesce\\(en_attente, 0\\) >= ${EN_ATTENTE_PAR_NUMERO} then`).test(pose),
       /interval '24 hours'/.test(pose),
       pose.indexOf("pg_advisory_xact_lock(hashtext('pose-numero'), hashtext(cle))") > 0 && pose.indexOf("pg_advisory_xact_lock(hashtext('pose-numero'), hashtext(cle))") < pose.indexOf("pg_advisory_xact_lock(hashtext('pose'), hashtext(branche || ':' || jour))")]);
+  /* LE JOUR MÊME D'OPALE NE SE PERD PAS (18 novembre 2026). 0222 réécrivait `pose_si_libre` depuis le texte
+     de 0203 et effaçait en silence la clause de 0213, passée le matin même : toute place du jour posée par
+     Opale aurait été refusée. La DERNIÈRE migration qui définit le verrou doit la garder, quelle qu'elle soit. */
+  const versLeVerrou = readdirSync('supabase/migrations').filter((f) => /^\d{4}_.*\.sql$/.test(f)).sort()
+    .filter((f) => lit(`supabase/migrations/${f}`).includes('create or replace function public.pose_si_libre'));
+  const dernier = lit(`supabase/migrations/${versLeVerrou[versLeVerrou.length - 1]}`).replace(/--[^\n]*/g, '');
+  const verrou = dernier.slice(dernier.indexOf('create or replace function public.pose_si_libre'));
+  dit('C1b la derniere migration du verrou garde le jour meme d Opale (0213) : WhatsApp, posee par Opale, vingt-cinq minutes au moins',
+    [true, true, true],
+    [/coalesce\(p_rdv->>'source', ''\) = 'whatsapp'/.test(verrou), /coalesce\(p_rdv->>'poseePar', ''\) = 'Opale'/.test(verrou), /::int \+ 25\)/.test(verrou)]);
   dit('C2 aucune porte en ligne ne pose avant 08:30 ; le plafond ne vaut que pour une place qui nait en attente',
     [true, true], [/if debut is null or debut < 510 then\s+return jsonb_build_object\('ok', false, 'raison', 'creneau_hors_ouverture'\);/.test(pose),
       /if btrim\(coalesce\(p_rdv->>'attenduJusquAu', ''\)\) <> '' and coalesce\(en_attente, 0\) >= 3 then/.test(pose)]);

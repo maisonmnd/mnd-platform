@@ -26,8 +26,9 @@
 --      passe « annulé », `placeLibereeLe` le dit au Carnet, et le code d'une
 --      offre qu'elle portait ne compte pas pour une fois.
 --
--- AVANT DE PASSER CE FICHIER : la base doit porter le `pose_si_libre` de 0203
--- (pg_get_functiondef : « coalesce(p_rdv->>'source', '') = 'site' »).
+-- AVANT DE PASSER CE FICHIER : la base doit porter le `pose_si_libre` de 0213
+-- (pg_get_functiondef : « coalesce(p_rdv->>'poseePar', '') = 'Opale' »). Le
+-- texte ci-dessous part de 0213 : le jour même d'Opale y est gardé.
 -- Les rendez-vous d'avant ne changent pas : aucun ne porte `attenduJusquAu`.
 --
 -- Rejouable : `create or replace`, `if not exists`, le cron retiré puis reposé.
@@ -146,13 +147,20 @@ begin
   -- trois suivants), comptés à Cotonou. Jamais le jour même, SAUF pour le site
   -- (source 'site', 0203) et pour Ma Couronne (source 'couronne', 0222 : elle
   -- propose le jour même depuis toujours, et pose désormais par ce verrou), à
-  -- une heure pas encore commencée à Porto-Novo.
+  -- une heure pas encore commencée à Porto-Novo ; et pour Opale sur WhatsApp
+  -- (source 'whatsapp', poseePar 'Opale', 0213, gardée telle quelle) à une
+  -- heure qui commence dans vingt-cinq minutes au moins.
   if jour < aujourdhui or jour > borne
      or (jour = aujourdhui and not (
-           coalesce(p_rdv->>'source', '') in ('site', 'couronne')
-           and coalesce(public.minutes_de_l_heure(heure), -1)
-               > (extract(hour from now() at time zone 'Africa/Porto-Novo') * 60
-                  + extract(minute from now() at time zone 'Africa/Porto-Novo'))::int)) then
+           (coalesce(p_rdv->>'source', '') in ('site', 'couronne')
+            and coalesce(public.minutes_de_l_heure(heure), -1)
+                > (extract(hour from now() at time zone 'Africa/Porto-Novo') * 60
+                   + extract(minute from now() at time zone 'Africa/Porto-Novo'))::int)
+           or (coalesce(p_rdv->>'source', '') = 'whatsapp'
+            and coalesce(p_rdv->>'poseePar', '') = 'Opale'
+            and coalesce(public.minutes_de_l_heure(heure), -1)
+                >= (extract(hour from now() at time zone 'Africa/Porto-Novo') * 60
+                    + extract(minute from now() at time zone 'Africa/Porto-Novo'))::int + 25))) then
     return jsonb_build_object('ok', false, 'raison', 'creneau_hors_fenetre');
   end if;
   debut := public.minutes_de_l_heure(heure);
@@ -381,9 +389,10 @@ select cron.schedule('libere-les-places-en-attente', '*/5 * * * *',
 
 
 -- ── Contrôle ───────────────────────────────────────────────────────────────
--- Six « oui » attendus, puis le cron.
+-- Sept « oui » attendus, puis le cron.
 select
   (select position('debut < 510' in pg_get_functiondef('public.pose_si_libre(jsonb, text[], jsonb, jsonb)'::regprocedure)) > 0) as pas_avant_08_30,
+  (select position('coalesce(p_rdv->>''poseePar'', '''') = ''Opale''' in pg_get_functiondef('public.pose_si_libre(jsonb, text[], jsonb, jsonb)'::regprocedure)) > 0) as opale_le_jour_meme,
   (select position('hashtext(''pose-numero'')' in pg_get_functiondef('public.pose_si_libre(jsonb, text[], jsonb, jsonb)'::regprocedure)) > 0) as verrou_du_numero,
   (select position('trop_en_attente' in pg_get_functiondef('public.pose_si_libre(jsonb, text[], jsonb, jsonb)'::regprocedure)) > 0) as plafond_du_numero,
   (select position('coalesce(p_rdv->>''source'', '''') in (''site'', ''couronne'')' in pg_get_functiondef('public.pose_si_libre(jsonb, text[], jsonb, jsonb)'::regprocedure)) > 0) as le_jour_meme_au_site_et_a_la_couronne,

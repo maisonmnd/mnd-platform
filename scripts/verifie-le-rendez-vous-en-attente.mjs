@@ -82,6 +82,7 @@ const PANNES = [
   ['le plafond par adresse oublie', DS, "    if (!(await allowRate(ip, 'places_du_jour', POSES_PAR_ADRESSE_ET_PAR_JOUR, 24 * 60))) return json({ error: 'trop_de_demandes' }, 429);\n", ''],
   ['la base laisse cinq poses en devenir six', SQL, '    if coalesce(poses_du_jour, 0) >= 5 then', '    if coalesce(poses_du_jour, 0) >= 6 then'],
   ['la base oublie les places en attente', SQL, "    if btrim(coalesce(p_rdv->>'attenduJusquAu', '')) <> '' and coalesce(en_attente, 0) >= 3 then", '    if false then'],
+  ['la base efface le jour meme d Opale', SQL, "            and coalesce(p_rdv->>'poseePar', '') = 'Opale'\n", ''],
   ['la base pose avant 08:30', SQL, '  if debut is null or debut < 510 then\n    return jsonb_build_object(\'ok\', false, \'raison\', \'creneau_hors_ouverture\');\n  end if;\n  duree := public.duree_du_rdv(p_rdv);', '  duree := public.duree_du_rdv(p_rdv);'],
   ['le debit se lit puis s ecrit, hors verrou', SQL, "  perform pg_advisory_xact_lock(hashtext('debit:' || seau), hashtext(cle));\n", ''],
   /* ── La cle du numero ── */
