@@ -18,23 +18,25 @@ const LIB = 'src/apps/couronne/lib.ts';
 const SITE = 'src/apps/revelateur/agenda.ts';
 const PAGE = 'src/apps/revelateur/ilots/Reserver.tsx';
 const SQL = 'supabase/migrations/0152_le_second_fauteuil_en_ligne.sql';
+const SQL237 = 'supabase/migrations/0237_le_samedi_a_deux_places.sql';
 const DS = 'supabase/functions/demande-submit/index.ts';
 
 /* Chaque panne : un fichier, une ou plusieurs paires [avant, apres]. */
 const PANNES = [
-  { nom: 'le samedi a 2 (la regle pure)', fichier: PUR,
-    r: [['export const JOURS_DU_SECOND_FAUTEUIL: readonly number[] = [1, 2, 3, 4];', 'export const JOURS_DU_SECOND_FAUTEUIL: readonly number[] = [1, 2, 3, 4, 5];']] },
-  { nom: 'le samedi a 2 (la base)', fichier: SQL,
-    r: [['when (select i from le_jour) between 1 and 4', 'when (select i from le_jour) between 1 and 5']] },
+  /* Le samedi à deux places depuis le 18 novembre 2026 (0237) : la panne est son retour à une. */
+  { nom: 'le samedi retombe a 1 (la regle pure)', fichier: PUR,
+    r: [['export const JOURS_DU_SECOND_FAUTEUIL: readonly number[] = [1, 2, 3, 4, 5];', 'export const JOURS_DU_SECOND_FAUTEUIL: readonly number[] = [1, 2, 3, 4];']] },
+  { nom: 'le samedi retombe a 1 (la base)', fichier: SQL237,
+    r: [['when (select i from le_jour) between 1 and 5', 'when (select i from le_jour) between 1 and 4']] },
   { nom: 'un seul au fauteuil qui ouvre 2 (la regle pure)', fichier: PUR,
     r: [['return auFauteuil >= 2 ? PLACES_EN_LIGNE_AU_PLUS : PLACES_EN_LIGNE;', 'return auFauteuil >= 1 ? PLACES_EN_LIGNE_AU_PLUS : PLACES_EN_LIGNE;']] },
-  { nom: 'un seul au fauteuil qui ouvre 2 (la base)', fichier: SQL,
+  { nom: 'un seul au fauteuil qui ouvre 2 (la base)', fichier: SQL237,
     r: [['and (select n from au_fauteuil) >= 2', 'and (select n from au_fauteuil) >= 1']] },
   { nom: 'plus que les fauteuils (la regle pure)', fichier: PUR,
     r: [['if (fauteuils < PLACES_EN_LIGNE_AU_PLUS) return PLACES_EN_LIGNE;', '']] },
   { nom: 'plus que les fauteuils (les portes)', fichier: PUR,
     r: [['return Math.min(n, plafond);', 'return n;']] },
-  { nom: 'plus que les fauteuils (la base)', fichier: SQL,
+  { nom: 'plus que les fauteuils (la base)', fichier: SQL237,
     r: [['            and (select n from les_fauteuils) >= 2\n', '']] },
   { nom: 'le repli perdu quand l appel echoue (les portes)', fichier: PUR,
     r: [['Number.isInteger(lue) && lue >= 1 ? lue : PLACES_EN_LIGNE;', 'Number.isInteger(lue) && lue >= 1 ? lue : PLACES_EN_LIGNE_AU_PLUS;']] },
@@ -65,9 +67,9 @@ const PANNES = [
   { nom: 'Ma Couronne oublie les places', fichier: LIB,
     r: [['capSimultane: placesEnLigneDe(branchId, dateIso),', 'capSimultane: 1,']] },
   { nom: 'le site oublie les places', fichier: PAGE,
-    r: [['heuresLibres({ agenda, dateIso: iso, serviceIds, occupes, places: placesParJour })', 'heuresLibres({ agenda, dateIso: iso, serviceIds, occupes })']] },
+    r: [['heuresLibres({ agenda: agendaAuCalibre ?? agenda, dateIso: iso, serviceIds, occupes, places: placesParJour, maintenant })', 'heuresLibres({ agenda: agendaAuCalibre ?? agenda, dateIso: iso, serviceIds, occupes, maintenant })']] },
   { nom: 'demande-submit juge a une place', fichier: DS,
-    r: [['laPlaceTient({ ...agenda, sieges: places }', 'laPlaceTient({ ...agenda, sieges: PLACES_EN_LIGNE }']] },
+    r: [['laPlaceTient({ ...agenda, sieges: places, services: auCalibre', 'laPlaceTient({ ...agenda, sieges: PLACES_EN_LIGNE, services: auCalibre']] },
   { nom: 'le miroir oublie le modele', fichier: PUR,
     r: [['return dans(semaine) || dans(modele);', 'return dans(semaine);']] },
   { nom: 'une fiche partie compte encore', fichier: PUR,

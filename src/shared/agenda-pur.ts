@@ -257,8 +257,9 @@ export function maitresPermis(noms: readonly (string | null | undefined)[], mait
 /** Le second fauteuil, pas davantage : un troisième serait un autre arbitrage. */
 export const PLACES_EN_LIGNE_AU_PLUS = 2;
 
-/** Mardi, mercredi, jeudi, vendredi (lundi = 0, comme le planning). */
-export const JOURS_DU_SECOND_FAUTEUIL: readonly number[] = [1, 2, 3, 4];
+/** Mardi à samedi (lundi = 0, comme le planning). Le samedi depuis le 18
+    novembre 2026 (« comme en semaine », Yéman ; 0237). */
+export const JOURS_DU_SECOND_FAUTEUIL: readonly number[] = [1, 2, 3, 4, 5];
 
 /** Ce que le miroir lit du planning : la forme de `Planning` (rh-pur), une
     semaine étant sept cases, lundi d'abord. */

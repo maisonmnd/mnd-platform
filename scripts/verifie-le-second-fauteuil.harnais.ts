@@ -60,10 +60,10 @@ const p = (iso: string, plan: PlanningDesFauteuils | undefined = A_DEUX, sieges 
 
 /* ══ 1. LA RÈGLE, PURE ══════════════════════════════════════════════ */
 dit('du mardi au vendredi, deux au fauteuil : deux places', [2, 2, 2, 2], [MARDI, MERCREDI, JEUDI, VENDREDI].map((d) => p(d)));
-dit('le samedi garde un fauteuil en ligne, meme a deux au planning', 1, p(SAMEDI));
+dit('le samedi aussi, deux au fauteuil : deux places (0237, comme en semaine)', 2, p(SAMEDI));
 dit('ni le lundi ni le dimanche (meme marques au fauteuil)', [1, 1],
   [LUNDI, DIMANCHE].map((d) => p(d, { modele: { 'st-a': [F, F, F, F, F, F, F], 'st-b': [F, F, F, F, F, F, F] } })));
-dit('les jours du second fauteuil : mardi a vendredi (lundi = 0)', [1, 2, 3, 4], [...JOURS_DU_SECOND_FAUTEUIL]);
+dit('les jours du second fauteuil : mardi a samedi (lundi = 0)', [1, 2, 3, 4, 5], [...JOURS_DU_SECOND_FAUTEUIL]);
 dit('un seul au fauteuil : une place', 1,
   p(MARDI, { semaines: { [LUNDI]: { 'st-a': ['', F, '', '', '', '', ''], 'st-b': ['', 'accueil', '', '', '', '', ''] } } }));
 dit('... l accueil, le repos, le conge ne comptent pas', 1,
@@ -106,7 +106,8 @@ dit('une date mal ecrite, ou qui n existe pas : une place', [1, 1],
     for (const iso of joursDeLaFenetre(LUNDI, DIMANCHE)) {
       const rang = (new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7;
       const compte = EQUIPE.filter((f) => statutDuJour(plan, f.id, iso) === F).length;
-      const attendu = rang >= 1 && rang <= 4 && compte >= 2 ? 2 : 1;
+      /* Mardi (1) à samedi (5) : le samedi depuis 0237 (18 novembre 2026). */
+      const attendu = rang >= 1 && rang <= 5 && compte >= 2 ? 2 : 1;
       if (p(iso, plan as PlanningDesFauteuils) !== attendu) ecarts++;
     }
   }
@@ -211,8 +212,8 @@ dit('... une heure refusee relit les places avec les murs', true,
   reserver.includes('placesEnLigne(agenda.branchId, suite[0], suite[suite.length - 1]),'));
 dit('... la page passe les places a chaque jour, et se recalcule quand elles arrivent', [true, true, true], [
   reserver.includes('setPlacesParJour(lues);'),
-  reserver.includes('heuresLibres({ agenda, dateIso: iso, serviceIds, occupes, places: placesParJour })'),
-  reserver.includes('}, [agenda, serviceIds, occupes, placesParJour, occupesEtat]);')]);
+  reserver.includes('heuresLibres({ agenda: agendaAuCalibre ?? agenda, dateIso: iso, serviceIds, occupes, places: placesParJour, maintenant })'),
+  reserver.includes('}, [agenda, agendaAuCalibre, serviceIds, occupes, placesParJour, occupesEtat, minute]);')]);
 
 /* ══ 6. LE SERVEUR DU SITE : `demande-submit` ═══════════════════════ */
 const ds = lis('supabase/functions/demande-submit/index.ts');
@@ -223,7 +224,7 @@ dit('... une panne ou une valeur folle : une place ; jamais plus que le second f
   dsNu.includes('const places = !placesDuJour.error && Number.isInteger(lues) && lues >= PLACES_EN_LIGNE ? Math.min(lues, PLACES_EN_LIGNE_AU_PLUS) : PLACES_EN_LIGNE;'),
   ds.includes('const PLACES_EN_LIGNE_AU_PLUS = 2;')]);
 dit('... le juge du serveur les recoit (le site propose ce que le serveur accepte)', true,
-  dsNu.includes('laPlaceTient({ ...agenda, sieges: places }, { date: o.date, time: o.time, serviceIds: o.serviceIds }, maintenant)'));
+  dsNu.includes('laPlaceTient({ ...agenda, sieges: places, services: auCalibre, categories: famillesDuSite }, { date: o.date, time: o.time, serviceIds: o.serviceIds, derniereVenue }, maintenant, true)'));
 const version = /const VERSION = '(\d{4}-\d{2}-\d{2})-/.exec(ds)?.[1] ?? '';
 dit('... sa version dit le second fauteuil (2 novembre 2026 ou plus recente)', true, version >= '2026-11-02');
 const wa = lis('supabase/functions/whatsapp-automate/index.ts');
@@ -239,7 +240,16 @@ const fonction = (nom: string): string => {
   const b = m.indexOf('$$;', a + 2);
   return m.slice(i, b + 3);
 };
-const jourSql = sansCommentairesSql(fonction('places_en_ligne'));
+/* LE SAMEDI À DEUX PLACES (0237, 18 novembre 2026) : `places_en_ligne` se lit
+   dans sa dernière définition ; le reste de 0152 ne bouge pas. */
+const m237 = lis('supabase/migrations/0237_le_samedi_a_deux_places.sql');
+const fonction237 = (nom: string): string => {
+  const i = m237.indexOf(`create or replace function public.${nom}(`);
+  if (i < 0) return '';
+  const a = m237.indexOf('$$', i);
+  return m237.slice(i, m237.indexOf('$$;', a + 2) + 3);
+};
+const jourSql = sansCommentairesSql(fonction237('places_en_ligne'));
 const duSql = sansCommentairesSql(fonction('places_en_ligne_du'));
 const poseSql = fonction('pose_si_libre');
 const gardeSql = sansCommentairesSql(fonction('une_place_en_ligne'));
@@ -259,7 +269,7 @@ dit('... la case de la semaine, sinon celle du modele (statutDuJour)', true,
 const jours = /when \(select i from le_jour\) between (\d) and (\d)/.exec(jourSql);
 const seuil = /and \(select n from au_fauteuil\) >= (\d+)/.exec(jourSql);
 const sieges = /and \(select n from les_fauteuils\) >= (\d+) then (\d+) else 1 end/.exec(jourSql);
-dit('... les jours de la base sont ceux du miroir (mardi a vendredi)', [...JOURS_DU_SECOND_FAUTEUIL],
+dit('... les jours de la base sont ceux du miroir (mardi a samedi)', [...JOURS_DU_SECOND_FAUTEUIL],
   jours ? Array.from({ length: Number(jours[2]) - Number(jours[1]) + 1 }, (_, k) => Number(jours[1]) + k) : null);
 dit('... deux au fauteuil, deux fauteuils au moins, deux places au plus', [2, PLACES_EN_LIGNE_AU_PLUS, PLACES_EN_LIGNE_AU_PLUS],
   [seuil ? Number(seuil[1]) : null, sieges ? Number(sieges[1]) : null, sieges ? Number(sieges[2]) : null]);
@@ -314,5 +324,5 @@ dit('la migration se termine par son controle (huit oui)', [true, true, true], [
   toute.includes("position('sieges := 1;' in pg_get_functiondef('public.pose_si_libre(jsonb, text[], jsonb, jsonb)'::regprocedure)) = 0"),
   toute.includes("pg_get_function_result('public.places_en_ligne_du(text, date, date)'::regprocedure) = 'TABLE(jour text, places integer)'")]);
 
-console.log(`\n${n - ko}/${n} epreuves : le second fauteuil en ligne, du mardi au vendredi.`);
+console.log(`\n${n - ko}/${n} epreuves : le second fauteuil en ligne, du mardi au samedi.`);
 if (ko) console.log(`${ko} ECHEC(S).`);
