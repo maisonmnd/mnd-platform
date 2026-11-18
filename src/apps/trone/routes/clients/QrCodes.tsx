@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { CSS_FON_OA, htmlFon } from '../../../../ds/fon-pur';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, ChevronDown, Clock, Crown, Globe, GraduationCap, MapPin, Smartphone, Star, Wifi, type LucideIcon } from 'lucide-react';
+import { BookOpen, CalendarCheck, ChevronDown, Clock, Crown, Globe, GraduationCap, MapPin, MessageCircle, Smartphone, Star, Wifi, type LucideIcon } from 'lucide-react';
 import { asset } from '../../../../shared/asset';
 import { useBranch } from '../../../../shared/branches';
 import { toast, demandeUnTexte } from '../../../../ds/components';
@@ -9,7 +9,7 @@ import { PageHead } from '../_ui';
 import { createStore, useStore } from '../../../../shared/store';
 import { maisonNom, DEVISE_COMPLETE, signeLeMessage, estLaMaisonMND } from '../../../../shared/identite';
 import { autoConfigStore, MOMO_QR_DEFAUT, lienPaiementMomo } from '../equipe/data';
-import { useLiensDesQrCodes } from './liens-des-qr-codes';
+import { MESSAGE_DU_PROCHAIN_RITUEL, useLiensDesQrCodes } from './liens-des-qr-codes';
 import { CODE_MOMOPAY } from '../../../../shared/momopay-de-la-maison-pur';
 import { usePointageConfig } from '../equipe/payroll';
 import { QrSvg, qrMatrice, lienDuJour } from '../equipe/Comptoir';
@@ -324,6 +324,7 @@ export default function QrCodes() {
   const {
     lienAvis, momoUssd, momoMarchand, codeMarchand, lienMomo, lienComptoirMtn,
     adresseComplete, lienPlan, planPrecis, lienCouronne, lienCarte, lienSite, lienAcademie,
+    lienProchainWhatsApp, lienProchainCouronne,
   } = useLiensDesQrCodes();
   /* Le code du jour ne se FABRIQUE pas ici — c'est le geste du Comptoir. On
      montre celui d'aujourd'hui s'il existe, sinon on mène au Comptoir. */
@@ -496,6 +497,8 @@ export default function QrCodes() {
   const afficheAvis: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Un avis, un merci.', phrase: 'Scannez, deux phrases suffisent, la Maison vous lit.', valeur: lienAvis }), empeche: lienAvis ? undefined : sansAvis };
   const afficheCouronne: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Ma Couronne.', phrase: 'Scannez, votre couronne vous reconnaît.', valeur: lienCouronne }) };
   const afficheAcademie: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Académie MND.', phrase: 'Scannez, la Maison vous apprend le métier.', valeur: lienAcademie }) };
+  const afficheProchainWa: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Mon prochain rituel.', phrase: 'Scannez : WhatsApp s’ouvre, le message est déjà écrit. Envoyez-le.', valeur: lienProchainWhatsApp }) };
+  const afficheProchainCouronne: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Mon prochain rituel.', phrase: 'Scannez : votre rituel habituel et vos prochaines places. Un toucher réserve.', valeur: lienProchainCouronne }) };
   const afficheJour: Geste | undefined = codeJour ? { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Le code du jour.', phrase: 'Le pointage de l’équipe, il change chaque nuit.', valeur: lienDuJour(codeJour) }) } : undefined;
   /* Le wifi n'a pas de bouton unique (deux box) : la 5G d'abord, sinon la 2G. */
   const wifiDuMoment = wifi1 ? wifiPayload(autoRaw.wifiSsid!.trim(), autoRaw.wifiPass!.trim())
@@ -638,6 +641,36 @@ export default function QrCodes() {
           { ...afficheCouronne, texte: 'Afficher au comptoir' },
           { texte: 'Carte A5', faire: imprimeCarteCouronne },
           { texte: 'Copier le lien', faire: () => copier(lienCouronne, 'de Ma Couronne') },
+        ],
+      },
+    },
+    /* « MON PROCHAIN RITUEL », EN UN TOUCHER (18 novembre 2026, l'agent des
+       rendez-vous, lot 3) : les deux portes, WhatsApp et Ma Couronne. */
+    {
+      id: 'prochain-wa', court: 'Mon prochain rituel · WhatsApp', groupe: 'revenir', pret: !!lienProchainWhatsApp, principal: afficheProchainWa,
+      resume: 'WhatsApp s’ouvre, le message est déjà écrit',
+      motsCles: 'prochain rituel rendez-vous réserver whatsapp message un toucher instagram',
+      carte: {
+        signe: MessageCircle, nom: 'Mon prochain rituel, par WhatsApp.', qui: 'Elle scanne · elle envoie le message',
+        dit: <>WhatsApp s’ouvre sur le numéro de la Maison, avec « {MESSAGE_DU_PROCHAIN_RITUEL} » déjà écrit. Elle l’envoie, et la Maison lui propose sa place. C’est aussi le lien à poser sur Instagram : il marche sans compte.</>,
+        valeur: lienProchainWhatsApp, champ: { lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienProchainWhatsApp}</span> },
+        gestes: [
+          { ...afficheProchainWa, texte: 'Afficher au comptoir' },
+          { texte: 'Copier le lien', faire: () => copier(lienProchainWhatsApp, 'du prochain rituel par WhatsApp') },
+        ],
+      },
+    },
+    {
+      id: 'prochain-couronne', court: 'Mon prochain rituel · Ma Couronne', groupe: 'revenir', pret: !!lienProchainCouronne, principal: afficheProchainCouronne,
+      resume: 'Son rituel habituel et ses prochaines places, un toucher réserve',
+      motsCles: 'prochain rituel rendez-vous réserver ma couronne express un toucher',
+      carte: {
+        signe: CalendarCheck, nom: 'Mon prochain rituel, dans Ma Couronne.', qui: 'Elle scanne · elle touche une place',
+        dit: <>Ma Couronne s’ouvre sur sa réservation express : son rituel habituel et ses prochaines places. Un toucher réserve. Elle doit avoir son compte : sinon, Ma Couronne le lui fait créer d’abord.</>,
+        valeur: lienProchainCouronne, champ: { lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienProchainCouronne}</span> },
+        gestes: [
+          { ...afficheProchainCouronne, texte: 'Afficher au comptoir' },
+          { texte: 'Copier le lien', faire: () => copier(lienProchainCouronne, 'du prochain rituel dans Ma Couronne') },
         ],
       },
     },

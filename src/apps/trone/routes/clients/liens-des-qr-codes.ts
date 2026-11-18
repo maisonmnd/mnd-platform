@@ -2,6 +2,7 @@ import { asset } from '../../../../shared/asset';
 import { useBranch } from '../../../../shared/branches';
 import { useStore } from '../../../../shared/store';
 import { autoConfigStore, MOMO_MARCHAND_DEFAUT, MOMO_USSD_DEFAUT, REVIEW_LINK_DEFAUT } from '../equipe/data';
+import { COMMUN } from '../../../revelateur/contenu';
 
 /* ══ LES LIENS DES QR CODES, UNE SEULE SOURCE — 12 novembre 2026 ═════════
    « Ajoute dans les liens la liste des liens des QR codes » (Yéman). Ces
@@ -23,6 +24,22 @@ import { autoConfigStore, MOMO_MARCHAND_DEFAUT, MOMO_USSD_DEFAUT, REVIEW_LINK_DE
 export const lienMaCouronne = () =>
   `${window.location.origin}${window.location.pathname.startsWith('/trone') ? '/couronne/' : '/couronne.html'}`;
 
+/* ══ « MON PROCHAIN RITUEL », EN UN TOUCHER — 18 novembre 2026 ══════════════
+   L'agent des rendez-vous, lot 3 : « il faut faire les deux » (Yéman).
+     · MA COURONNE s'ouvre sur `#/reserver` : sa réservation express, son
+       rituel habituel et ses prochaines places ; un toucher réserve. Elle
+       doit être reconnue (Ma Couronne demande sa connexion d'abord).
+     · WHATSAPP s'ouvre sur le numéro de la Maison, le message déjà écrit :
+       elle l'envoie, l'automate (ou Opale) lui propose sa place.
+   Le numéro est celui que donne le site (`revelateur/maison.ts`) : le
+   `whatsapp` de la branche, sinon celui du registre, relié aux Conversations. */
+export const MESSAGE_DU_PROCHAIN_RITUEL = 'Bonjour, je voudrais réserver mon prochain rituel.';
+export const lienDuProchainRituelCouronne = () => `${lienMaCouronne()}#/reserver`;
+export const lienDuProchainRituelWhatsApp = (numero: string): string => {
+  const n = String(numero ?? '').replace(/\D/g, '');
+  return n ? `https://wa.me/${n}?text=${encodeURIComponent(MESSAGE_DU_PROCHAIN_RITUEL)}` : '';
+};
+
 export type LiensDesQrCodes = {
   /** Le QR fixe du comptoir « Régler par MTN » (11 novembre 2026). */
   lienComptoirMtn: string;
@@ -38,6 +55,9 @@ export type LiensDesQrCodes = {
   planPrecis: boolean;
   adresseComplete: string;
   lienCouronne: string;
+  /** « Mon prochain rituel » : WhatsApp, le message déjà écrit ; Ma Couronne, sa réservation express. */
+  lienProchainWhatsApp: string;
+  lienProchainCouronne: string;
   lienAvis: string;
   lienAcademie: string;
 };
@@ -98,6 +118,9 @@ export function useLiensDesQrCodes(): LiensDesQrCodes {
     lienComptoirMtn,
     lienMomo: momo.href, codeMarchand, momoUssd, momoMarchand,
     lienSite, lienCarte, lienPlan, planPrecis: !!branch.mapsUrl?.trim(), adresseComplete,
-    lienCouronne: lienMaCouronne(), lienAvis, lienAcademie,
+    lienCouronne: lienMaCouronne(),
+    lienProchainWhatsApp: lienDuProchainRituelWhatsApp(branch.whatsapp?.trim() || COMMUN.editeur.telephone),
+    lienProchainCouronne: lienDuProchainRituelCouronne(),
+    lienAvis, lienAcademie,
   };
 }

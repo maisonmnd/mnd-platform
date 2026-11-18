@@ -241,13 +241,17 @@ function Shell() {
       else if (h === '#/solde') setEcran('solde');
       else if (h === '#/attentions') setEcran('attentions');
       else if (h === '#/reserver/incluse') openIncluse();
+      /* « MON PROCHAIN RITUEL » (18 novembre 2026, l'agent des rendez-vous,
+         lot 3) : le QR du salon et le lien d'Instagram ouvrent la réservation,
+         sur son écran express (son rituel habituel, ses prochaines places). */
+      else if (h === '#/reserver') openBooking();
       else return;
       try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch { /* sans historique, tant pis */ }
     };
     lisLesLiens();
     window.addEventListener('hashchange', lisLesLiens);
     return () => window.removeEventListener('hashchange', lisLesLiens);
-  }, [openIncluse]);
+  }, [openIncluse, openBooking]);
 
   const openOrders = useCallback(() => {
     setNotifOpen(false);

@@ -38,6 +38,8 @@ export type Branch = {
   logo?: string | null;
   pictogram?: string | null;
   phone?: string;
+  /** Le WhatsApp de la branche, quand il n'est pas celui du registre (le site le lit déjà, `revelateur/maison.ts`). */
+  whatsapp?: string;
   flagship?: boolean;
 };
 

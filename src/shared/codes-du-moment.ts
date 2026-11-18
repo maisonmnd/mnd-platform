@@ -25,7 +25,7 @@
 /* « kkiapay » (le QR Chap Chap) est retiré le 12 novembre 2026 (« Le choix du
    moyen ») : il se pointait à la main. « Payer par MTN » (le QR du comptoir)
    prend sa place en tête du paiement. */
-export type IdDuCode = 'site' | 'carte' | 'plan' | 'wifi' | 'mtn' | 'momo' | 'avis' | 'couronne' | 'academie' | 'jour';
+export type IdDuCode = 'site' | 'carte' | 'plan' | 'wifi' | 'mtn' | 'momo' | 'avis' | 'couronne' | 'prochain-wa' | 'prochain-couronne' | 'academie' | 'jour';
 
 export type RdvDuMoment = {
   id: string;
@@ -175,8 +175,8 @@ export function codesDuMoment(o: {
    Tout code qui a un lien s'envoie ; le wifi, non : ses mots de passe
    s'affichent au comptoir le temps d'un scan (18 août 2026). Un rendez-vous
    passé jamais honoré ne crée pas de dette : c'est souvent une absence. */
-export const CODES_DES_CLIENTES: readonly IdDuCode[] = ['mtn', 'momo', 'wifi', 'site', 'carte', 'plan', 'couronne', 'avis', 'academie'];
-export const CODES_ENVOYABLES: readonly IdDuCode[] = ['momo', 'site', 'carte', 'plan', 'couronne', 'avis', 'academie'];
+export const CODES_DES_CLIENTES: readonly IdDuCode[] = ['mtn', 'momo', 'wifi', 'site', 'carte', 'plan', 'couronne', 'prochain-wa', 'prochain-couronne', 'avis', 'academie'];
+export const CODES_ENVOYABLES: readonly IdDuCode[] = ['momo', 'site', 'carte', 'plan', 'couronne', 'prochain-wa', 'prochain-couronne', 'avis', 'academie'];
 export const AVIS_SOUS_JOURS = 14;
 
 export type RdvDeLaCliente = { date: string; time: string; status: string; resteXof: number };

@@ -21,6 +21,14 @@ L'audit du 4 novembre dormait, non commité, dans la copie commune (dont la bran
   - **Reste à Yéman** : l'essai réel de « Payer par MTN » au Trône (`collecte-mtn`, `demander-trone`, rouvert à l'équipe par ce lot) : il demande un vrai numéro et une vraie demande de paiement.
 - **Laissé, à savoir** : en développement, la connexion Google de Ma Couronne revient sur le portail, qui ne lit aucune session (d'avant) ; un appelant anon peut savoir si `staff` est vide par le message d'erreur de `staff_guard` (d'avant ; aucune écriture ne passe) ; `authorize_staff` et ses sœurs sont exécutables par anon mais vérifient `is_souverain()` en premier (un `revoke … from public, anon` serait un durcissement de plus) ; le message d'arrêt de 0006 est périmé (signalé dans `apply_rls_prod.sql`).
 
+## L'AGENT DES RENDEZ-VOUS, LOT 3a : « MON PROCHAIN RITUEL » EN QR ET EN LIEN — 18 novembre 2026 (Trône + Ma Couronne)
+
+Lot 3 tranché par Yéman : le « Oui » des messages de Perle réservera d'un toucher (lot 3b, à venir : `assistant-maison`, `whatsapp-webhook` 2026-11-18-c, `whatsapp-automate` 2026-11-18-c ; jamais le jour même, avec la clé du numéro, le numéro du bouton vérifié, le fil d'Opale passé à « confirmé »), et le QR du salon et le lien d'Instagram « pour les deux ».
+
+- **Deux codes neufs** dans QR codes (groupe « Revenir ») et dans les liens à envoyer : **Mon prochain rituel · WhatsApp** (`https://wa.me/<numéro de la Maison>?text=…`, le message « Bonjour, je voudrais réserver mon prochain rituel. » déjà écrit ; le numéro est celui du site, `branch.whatsapp` sinon le registre `COMMUN.editeur.telephone`) et **Mon prochain rituel · Ma Couronne** (`/couronne/#/reserver`).
+- **Ma Couronne** lit `#/reserver` : la réservation s'ouvre sur son écran express (son rituel habituel, ses six prochaines places, un toucher réserve). Connexion d'abord, comme toujours.
+- `liens-des-qr-codes.ts` (`MESSAGE_DU_PROCHAIN_RITUEL`, `lienDuProchainRituelWhatsApp`, `lienDuProchainRituelCouronne`), `codes-du-moment.ts` (deux `IdDuCode`, envoyables), `liens-a-envoyer-pur.ts` (deux `CleDuQr`). Banc : `verifie-les-liens-a-envoyer` lit désormais les identifiants à tiret.
+
 ## L'AGENT DES RENDEZ-VOUS, LOT 1 : AU COMPTOIR — 18 novembre 2026, EN LIGNE (ia-maison 2026-11-18-a, v31 ; Trône build 20261118020708 @ 237f0f96, 538/538 identiques)
 
 « Construire un agent qui prend les RDV en 1 clic » ; deux maquettes le même jour, la seconde retenue (`public/maquette-l-agent-des-rendez-vous.html`, jamais commitée) : un agent qui AGIT SEUL, un seul toucher pour la cliente, « l'équipe est toujours disponible, oublie les congés, c'est toujours Team », puis « construis » (Yéman). La première maquette (le Planning et les Compétences qui décident des places) est abandonnée.

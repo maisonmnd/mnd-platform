@@ -72,6 +72,8 @@ export default function LiensAEnvoyer({ appel = '', numero = '', choisi: choisiA
     carte: qr.lienCarte,
     plan: qr.lienPlan,
     couronne: qr.lienCouronne,
+    'prochain-wa': qr.lienProchainWhatsApp,
+    'prochain-couronne': qr.lienProchainCouronne,
     avis: qr.lienAvis,
     academie: qr.lienAcademie,
   };

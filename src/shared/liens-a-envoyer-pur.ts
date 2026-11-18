@@ -117,7 +117,7 @@ export function messageDuLienAEnvoyer(site: string, cle: CleDuLien, appel = ''):
    moyen », 12 novembre 2026) : il se pointait à la main ; « Payer par MTN »
    et Tap & Go le remplacent et se confirment seuls. */
 
-export type CleDuQr = 'mtn' | 'momo' | 'site' | 'carte' | 'plan' | 'couronne' | 'avis' | 'academie';
+export type CleDuQr = 'mtn' | 'momo' | 'site' | 'carte' | 'plan' | 'couronne' | 'prochain-wa' | 'prochain-couronne' | 'avis' | 'academie';
 export type LienDuQr = { cle: CleDuQr; nom: string; sous: string; objet: string; suite: string };
 
 export const GROUPE_DES_QR_CODES = 'Les liens des QR codes';
@@ -137,6 +137,13 @@ export const LIENS_DES_QR_CODES: readonly LienDuQr[] = [
     objet: 'la Maison MND sur Google Maps', suite: 'Google Maps vous guide jusqu’à nous.' },
   { cle: 'couronne', nom: 'Ma Couronne', sous: 'son application : rendez-vous, parcours, Cercle',
     objet: 'Ma Couronne, votre espace à la Maison MND', suite: 'Créez votre compte, puis « Ajouter à l’écran d’accueil » l’installe comme une application.' },
+  /* « UN TOUCHER, RIEN À CHOISIR » (18 novembre 2026, l'agent des rendez-vous,
+     lot 3 ; « il faut faire les deux », Yéman) : WhatsApp, le message déjà
+     écrit ; Ma Couronne, ouverte sur sa réservation express. */
+  { cle: 'prochain-wa', nom: 'Mon prochain rituel · WhatsApp', sous: 'le message est déjà écrit, elle l’envoie',
+    objet: 'votre prochain rituel, par WhatsApp', suite: 'WhatsApp s’ouvre, le message est déjà écrit : envoyez-le, la Maison vous propose votre place.' },
+  { cle: 'prochain-couronne', nom: 'Mon prochain rituel · Ma Couronne', sous: 'son rituel habituel et ses prochaines places',
+    objet: 'votre prochain rituel, dans Ma Couronne', suite: 'Ma Couronne s’ouvre sur votre rituel habituel : touchez une place, c’est réservé.' },
   { cle: 'avis', nom: 'Un avis Google', sous: 'le formulaire d’avis s’ouvre directement',
     objet: 'le lien pour laisser un avis à la Maison MND', suite: 'Si le cœur vous en dit, deux phrases nous aident beaucoup. Merci pour votre passage.' },
   { cle: 'academie', nom: 'Académie MND', sous: 'neuf parcours, leurs prix et la réservation',

@@ -38,8 +38,9 @@ const listeDe = (texte, motif, ou) => {
 const LUS_PAR_LA_PAGE = listeDe(lis('src/apps/revelateur/ilots/Reserver.tsx'), /const besoinDeLAdresse[\s\S]*?\(\[([^\]]+)\]/, 'besoinDeLAdresse (Reserver.tsx)');
 const GENERATEUR = lis('scripts/genere-revelateur.mjs');
 const PAGE_QR = lis('src/apps/trone/routes/clients/QrCodes.tsx');
-/* Les codes de la page QR codes, dans l'ordre de leur liste. */
-const CODES_DE_LA_PAGE = [...PAGE_QR.matchAll(/^\s+id: '([a-z]+)', court:/gm)].map((x) => x[1]);
+/* Les codes de la page QR codes, dans l'ordre de leur liste. Un identifiant
+   peut porter un tiret (« prochain-wa », « prochain-couronne », 18 novembre 2026). */
+const CODES_DE_LA_PAGE = [...PAGE_QR.matchAll(/^\s+id: '([a-z-]+)', court:/gm)].map((x) => x[1]);
 const SANS_LIEN = ['wifi', 'jour'];
 const EMOJI = /(?![©®™])\p{Extended_Pictographic}/u;
 
