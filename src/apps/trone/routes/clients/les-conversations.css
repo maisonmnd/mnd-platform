@@ -28,7 +28,7 @@
 
 /* ── La boîte : la liste, la conversation, ses infos ── */
 .trc-bx {
-  position: relative; display: grid; grid-template-columns: clamp(330px, 34%, 460px) minmax(0, 1fr);
+  position: relative; display: grid; grid-template-columns: clamp(330px, 34%, 480px) minmax(0, 1fr);
   height: calc(100dvh - 120px); min-height: 520px; overflow: hidden; scroll-margin-top: 0;
   background: #FFFFFF; border: 1px solid var(--bx-trait); border-radius: 4px;
 }
@@ -53,12 +53,16 @@
 .trc-bx__cherche:focus { box-shadow: inset 0 0 0 1.5px var(--color-indigo); background: #FFFFFF; }
 /* Les puces, comme WhatsApp (Toutes, Non lues…), à rayon de la Maison. */
 /* Une seule rangée, qui glisse si la colonne est étroite, comme WhatsApp. */
-.trc-bx__segments { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -12px; padding: 0 12px; }
+/* Le 18 novembre, essai réel à 1 536 px : « En attente » coupée sans que rien dise qu'on peut glisser. Les puces se resserrent, la colonne s'élargit un peu, et le bord droit s'estompe : ce qui glisse se voit. */
+.trc-bx__segments {
+  display: flex; flex-wrap: nowrap; gap: 5px; overflow-x: auto; scrollbar-width: none; margin: 0 -12px; padding: 0 30px 0 12px;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 30px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 30px), transparent);
+}
 .trc-bx__segments::-webkit-scrollbar { display: none; }
 .trc-bx__segments button { flex: none; }
 .trc-bx__segments button {
-  all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
-  border: 1px solid var(--bx-trait); border-radius: 4px; background: #FFFFFF; font: 400 13.5px var(--font-sans); color: #3B3B45; white-space: nowrap;
+  all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 10px;
+  border: 1px solid var(--bx-trait); border-radius: 4px; background: #FFFFFF; font: 400 13px var(--font-sans); color: #3B3B45; white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 .trc-bx__segments button:hover { background: var(--bx-survol); }
@@ -441,7 +445,7 @@
   .trc-bx__entete { padding: 10px 6px 4px 14px; }
   .trc-bx__titre { font-size: 26px; }
   .trc-bx__commandes { padding: 2px 10px 8px; gap: 8px; }
-  .trc-bx__segments { margin: 0 -10px; padding: 0 10px; }
+  .trc-bx__segments { margin: 0 -10px; padding: 0 30px 0 10px; }
   .trc-bx__ligne { height: 72px; gap: 12px; padding-left: 10px; }
   .trc-bx__regle-ouverte { margin-top: 12px; border: 1px solid var(--bx-trait); border-radius: 4px; }
   .trc-bx__regle-corps { padding: 18px 16px; }
@@ -471,3 +475,100 @@
   .trc-am__plein .trc-bx__faire-titre, .trc-am__plein .trc-bx__faire-phrase { display: none; }
   .trc-am__plein .trc-bx__faire { padding: 4px 6px; border: 0; background: transparent; }
 }
+
+/* ══ LES AVIS, DANS LE MÊME CADRE · 18 novembre 2026 (lot 2) ══════════════
+   La liste à gauche, l'avis ouvert à droite (son panneau tel quel : l'avis
+   en bulle blanche, la réponse de la Maison en indigo pâle), la note en
+   grand quand rien n'est ouvert. Les classes de la liste repliée d'avant
+   (`trc-am__avis`, `trc-ger__ligne`, `trc-ger__qui`, `trc-am__droite`)
+   restent : le banc des avis les lit. */
+.trc-av__resume { margin: 0; padding: 0 20px 8px; font-size: 13px; color: var(--ink-soft); }
+.trc-av__resume > b { font: 600 14px var(--font-sans); color: var(--color-indigo); }
+.trc-av__resume .trc-am__resume { font-size: 13px; }
+.trc-av__alerte { margin: 0 12px 8px; font-size: 12.5px; }
+.trc-av .trc-ger__liste { margin: 0; padding: 0; list-style: none; }
+.trc-av .trc-am__avis { border: 0; margin: 0; padding: 0; }
+.trc-av .trc-ger__ligne.trc-av__ligne {
+  display: grid; grid-template-columns: 50px minmax(0, 1fr); gap: 14px; align-items: center; height: 82px; padding: 0 0 0 14px;
+}
+.trc-av .trc-ger__ligne.trc-av__ligne:hover { background: var(--bx-survol); }
+.trc-av .trc-ger__ligne.trc-av__ligne.est-courante { background: var(--bx-courante); }
+.trc-av .trc-ger__ligne.trc-av__ligne:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.trc-av__avatar--cuivre { background: #F1DDC9; color: #7C4C2C; }
+.trc-av__avatar--terre { background: #F0D9D3; color: #8A3B2E; }
+.trc-av__corps { height: 100%; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding-right: 16px; border-bottom: 1px solid var(--bx-trait); }
+.trc-av__haut { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.trc-av .trc-ger__qui { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 6px; white-space: nowrap; overflow: hidden; }
+.trc-av .trc-ger__qui b { font: 400 16px var(--font-sans); color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+.trc-av .trc-am__avis.est-a-repondre .trc-ger__qui b { font-weight: 700; }
+.trc-av .trc-ger__qui em { font-style: normal; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; padding: 0 5px; border: 1px solid currentColor; border-radius: 2px; color: #2C3470; }
+.trc-av__age { flex: none; font-size: 12px; color: var(--ink-soft); }
+.trc-av .trc-am__avis.est-a-repondre .trc-av__age { color: #7C4C2C; font-weight: 600; }
+.trc-av__bas { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.trc-av__bas .trc-avr__etoiles { flex: none; font-size: 12.5px; letter-spacing: 1px; }
+.trc-av__extrait { flex: 1 1 auto; min-width: 0; font-size: 13.5px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trc-av .trc-am__avis.est-a-repondre .trc-av__extrait { color: var(--ink); }
+.trc-av .trc-am__droite { flex: none; display: inline-flex; }
+.trc-av .trc-am__droite .trc-av__etat { font: 600 11.5px/18px var(--font-sans); letter-spacing: 0; text-transform: none; padding: 0 7px; border-radius: 2px; white-space: nowrap; }
+.trc-av .trc-av__etat--nouveau { background: var(--color-copper); color: #FFFFFF; }
+.trc-av .trc-av__etat--prete, .trc-av .trc-av__etat--prepare { background: var(--color-indigo); color: #FFFFFF; }
+.trc-av .trc-av__etat--bas { background: #8A3B2E; color: #FFFFFF; }
+.trc-av .trc-av__etat--publiee, .trc-av .trc-av__etat--ecartee { color: var(--ink-soft); font-weight: 500; padding: 1px 0; }
+.trc-av__plus { display: block; margin: 12px auto 18px; }
+/* L'avis ouvert : le panneau sur le sable, l'avis en bulle, la réponse en face. */
+.trc-av__fil {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 20px 6% 28px;
+  background-color: var(--bx-fond-fil); background-image: radial-gradient(rgba(30, 33, 80, .055) 1px, transparent 1.2px); background-size: 22px 22px;
+}
+.trc-av .trc-ger__panneau { display: flex; flex-direction: column; gap: 18px; padding: 0; }
+.trc-av .trc-ger__message {
+  align-self: flex-start; width: min(100%, 680px); padding: 12px 14px 14px; gap: 10px;
+  background: #FFFFFF; border-radius: 4px; border-top-left-radius: 0; box-shadow: 0 1px .5px rgba(11, 20, 26, .13); position: relative;
+}
+.trc-av .trc-ger__message::before { content: ''; position: absolute; left: -8px; top: 0; border-right: 8px solid #FFFFFF; border-bottom: 10px solid transparent; }
+.trc-av .trc-ger__pourquoi {
+  align-self: flex-end; width: min(100%, 680px); padding: 12px 14px 14px;
+  background: var(--bx-sortant); border-radius: 4px; border-top-right-radius: 0; box-shadow: 0 1px .5px rgba(11, 20, 26, .13); position: relative;
+}
+.trc-av .trc-ger__pourquoi::before { content: ''; position: absolute; right: -8px; top: 0; border-left: 8px solid var(--bx-sortant); border-bottom: 10px solid transparent; }
+/* Sans avis ouvert : la note en grand, les compteurs, les deux cartes. */
+.trc-av__accueil { overflow-y: auto; background: var(--bx-tete); }
+.trc-av__accueil-corps { display: flex; flex-direction: column; align-items: center; gap: 18px; width: min(780px, 100%); margin: 0 auto; padding: 36px 28px 40px; }
+.trc-av__note { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.trc-av__note > b { font: 300 84px/1 var(--font-serif); color: var(--color-indigo); }
+.trc-av__note .trc-avr__etoiles { font-size: 22px; letter-spacing: 3px; }
+.trc-av__note > span { font-size: 14px; color: var(--ink-soft); }
+.trc-av__chiffres { display: flex; flex-wrap: wrap; justify-content: center; gap: 34px; }
+.trc-av__chiffres > span { display: flex; flex-direction: column; align-items: center; font-size: 12.5px; color: var(--ink-soft); text-align: center; max-width: 170px; }
+.trc-av__chiffres b { font: 300 40px/1 var(--font-serif); color: var(--color-indigo); }
+.trc-av__chiffres .est-alarme b { color: #8A3B2E; }
+.trc-av__cartes { width: 100%; }
+.trc-av__accueil .trc-avr__pied { text-align: center; }
+@media (max-width: 900px) {
+  .trc-av.est-ouverte > .trc-bx__liste { display: none; }
+  .trc-av .trc-ger__ligne.trc-av__ligne { height: 78px; padding-left: 10px; gap: 12px; }
+  .trc-am__plein > .trc-av__fil { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 4% 20px; }
+}
+
+/* ══ OFFRES ET REMISES, DANS LE MÊME CADRE · 18 novembre 2026 (lot 3) ═════
+   Les lignes reprennent celles des avis (`trc-av__*`) ; le plafond de la
+   semaine en tête de la liste, deux jauges ; à droite le compte d'une ligne
+   ou un volet ; sans rien d'ouvert, la vue d'ensemble et ses quatre cartes. */
+.trc-of__avatar { font-size: 13px; font-weight: 600; }
+.trc-of__avatar.est-public { background: #E6E2DA; color: #3B3B45; }
+.trc-of .trc-ger__qui b { font-weight: 500; letter-spacing: .02em; }
+.trc-of .trc-av__age { color: var(--ink-soft); font-weight: 400; font-variant-numeric: tabular-nums; }
+.trc-of__plafond { margin: 2px 12px 8px; padding: 10px 12px; background: #F7F4EE; border-radius: 4px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; }
+.trc-of__plafond-t { grid-column: 1 / -1; display: flex; justify-content: space-between; font: 600 10.5px var(--font-sans); letter-spacing: .16em; text-transform: uppercase; color: #7C4C2C; }
+.trc-of__plafond-t button { all: unset; cursor: pointer; font: 500 12px var(--font-sans); letter-spacing: 0; text-transform: none; color: #2C3470; text-decoration: underline; }
+.trc-of__plafond-t button:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.trc-of__jauge { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 12.5px; color: #3B3B45; }
+.trc-of__jauge b { font-weight: 600; color: var(--color-indigo); }
+.trc-of__jauge i { display: block; height: 4px; background: #E6E0D5; border-radius: 2px; overflow: hidden; }
+.trc-of__jauge i span { display: block; height: 100%; background: var(--color-copper); }
+.trc-of__volet { display: flex; flex-direction: column; gap: 14px; max-width: 860px; }
+.trc-of__panneau { display: flex; flex-direction: column; gap: 22px; padding: 0; }
+.trc-of__titre { margin: 0; font: 300 34px/1.15 var(--font-serif); color: var(--color-indigo); text-align: center; }
+.trc-of__resume { margin: 0; text-align: center; font-size: 13px; line-height: 1.55; }
+/* Une liste vide le dit avec une marge, dans les trois vues. */
+.trc-bx-vue .trc-bx__defile .trc-ger__vide { margin: 0; padding: 28px 24px; text-align: center; color: var(--ink-soft); font-size: 13.5px; line-height: 1.55; }

@@ -67,7 +67,7 @@ const menuDeplieStore = createStore<Record<string, boolean>>('mnd_trone_menu_dep
    les chemins dans l'ordre voulu. */
 const navOrdreStore = createStore<Record<string, string[]>>('mnd_trone_nav_ordre', {});
 /** Les vues de Perle (`/gerard?vue=`) qui prennent toute la page (18 novembre 2026). */
-const VUES_PLEINE_PAGE: ReadonlySet<string> = new Set(['conversations']);
+const VUES_PLEINE_PAGE: ReadonlySet<string> = new Set(['conversations', 'avis', 'offres']);
 
 /** L'ORDRE DE LA MAIN, PUIS CELUI DU CODE. Ce qui a été rangé passe d'abord,
     dans l'ordre voulu ; ce qui n'y figure pas — un écran arrivé depuis, un

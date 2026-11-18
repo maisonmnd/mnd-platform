@@ -443,7 +443,7 @@ export default function Gerard() {
   })();
   const propsDesVues: PropsDUneVue = { cerveau, reglages, moi };
   /* Les vues qui prennent toute la page (la barre du Trône se replie, Shell) : leur propre tête remplace celle de Perle ; « Les envois programmés » passe dans le menu ⋮ de la liste. */
-  const pleinePage = vue === 'conversations';
+  const pleinePage = vue === 'conversations' || vue === 'avis' || vue === 'offres';
 
   return (
     <div className={`trc-ger trc-am${vue === 'conversations' ? ' trc-am--conversations' : ''}${pleinePage ? ' trc-am--pleine' : ''}`}>

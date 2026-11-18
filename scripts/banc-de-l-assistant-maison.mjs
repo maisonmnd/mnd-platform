@@ -256,22 +256,25 @@ try {
       const faire = !!v.querySelector('.trc-bx__conv .trc-bx__faire');
       return entete && segments === 5 && !!kt && sante && faire ? true : JSON.stringify({ entete, segments, kt: !!kt, sante, faire });
     })()`,
-    /* Quatre tuiles ; la liste des avis Google (vide, Supabase injoignable : elle le dit). */
+    /* Dans le cadre des Conversations (18 novembre 2026) : « Avis Google », cinq puces, la note et ses compteurs a droite ;
+       la liste des avis Google (vide, Supabase injoignable : elle le dit). */
     avis: String.raw`(() => {
       const v = document.querySelector('.trc-am__vue'); if (!v) return 'pas de vue';
-      const tuiles = v.querySelectorAll('.trc-am__tuile').length;
-      const titre = [...v.querySelectorAll('h3')].some((h) => h.textContent.startsWith('Les avis Google'));
+      const titre = v.querySelector('.trc-bx__titre')?.textContent?.trim() === 'Avis Google';
+      const puces = v.querySelectorAll('.trc-bx__segments button').length;
+      const chiffres = v.querySelectorAll('.trc-av__chiffres b').length;
       const vide = /Les avis ne sont pas encore arrivés|Aucun avis/.test(v.textContent) || v.querySelectorAll('li.trc-am__avis').length > 0;
-      return tuiles === 4 && titre && vide ? true : JSON.stringify({ tuiles, titre, vide });
+      return titre && puces === 5 && chiffres === 3 && vide ? true : JSON.stringify({ titre, puces, chiffres, vide });
     })()`,
-    /* Quatre tuiles, « Par code », quatre cartes, l'editeur des offres replie. */
+    /* Dans le cadre des Conversations (18 novembre 2026) : « Offres et remises », le plafond de la semaine en deux jauges,
+       cinq puces, et sans rien d'ouvert la vue d'ensemble et ses quatre cartes ; l'editeur des offres s'ouvre en volet. */
     offres: String.raw`(() => {
       const v = document.querySelector('.trc-am__vue'); if (!v) return 'pas de vue';
-      const tuiles = v.querySelectorAll('.trc-am__tuile').length;
-      const parCode = [...v.querySelectorAll('h3')].some((h) => h.textContent.startsWith('Par code'));
+      const titre = v.querySelector('.trc-bx__titre')?.textContent?.trim() === 'Offres et remises';
+      const jauges = v.querySelectorAll('.trc-of__plafond .trc-of__jauge').length;
+      const puces = v.querySelectorAll('.trc-bx__segments button').length;
       const cartes = v.querySelectorAll('.trc-am__carte').length;
-      const editeur = !!v.querySelector('details#am-offres-editeur');
-      return tuiles === 4 && parCode && cartes === 4 && editeur ? true : JSON.stringify({ tuiles, parCode, cartes, editeur });
+      return titre && jauges === 2 && puces === 5 && cartes === 4 ? true : JSON.stringify({ titre, jauges, puces, cartes });
     })()`,
     /* Les tuiles du compte, le selecteur Semaine / Mois / Depuis, « Qui ecrit seul ». */
     rapporte: String.raw`(() => {

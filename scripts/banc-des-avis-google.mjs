@@ -172,8 +172,9 @@ dit('la barre : « Assistant Maison » juste sous « Clientes », allumée ; « 
 dit('... l onglet « Les avis » de la barre des vues est choisi', await evalue(String.raw`document.querySelector('.trc-am__vues [aria-selected="true"]')?.id === 'am-ong-avis'`));
 
 /* Les tuiles et la liste. */
-const tuiles = await evalue(String.raw`[...document.querySelectorAll('#am-vue-avis .trc-am__tuile b')].map((b) => b.innerText.replace(/\s+/g, ' ').trim())`);
-dit('quatre tuiles : 5 reçus sans réponse, 0 prête, 0 publiée ce mois, la note 4,9', (tuiles ?? []).length === 4 && tuiles[0] === '5' && tuiles[1] === '0' && tuiles[2] === '0' && tuiles[3] === '4,9', JSON.stringify(tuiles));
+/* 18 novembre 2026 (le cadre des Conversations) : les quatre tuiles deviennent la note en grand et trois compteurs, à droite, tant qu'aucun avis n'est ouvert. */
+const tuiles = await evalue(String.raw`[...document.querySelectorAll('#am-vue-avis .trc-av__note > b, #am-vue-avis .trc-av__chiffres b')].map((b) => b.innerText.replace(/\s+/g, ' ').trim())`);
+dit('la note 4,9 en grand, puis 5 reçus sans réponse, 0 prête, 0 publiée ce mois', (tuiles ?? []).length === 4 && tuiles[0] === '4,9' && tuiles[1] === '5' && tuiles[2] === '0' && tuiles[3] === '0', JSON.stringify(tuiles));
 dit('... la ligne résumé compte 6 avis, 5 sans réponse, 0 sur le site', /6 avis · sans réponse 5 · prêtes 0 · 0 sur le site/.test(await texte('#am-vue-avis .trc-am__resume')), await texte('#am-vue-avis .trc-am__resume'));
 const sans = await rangees();
 dit('l ordre : ce qui attend un geste d abord, 1 à 3 étoiles en tête, du plus récent au plus ancien ; le répondu en dernier',
@@ -190,7 +191,8 @@ await photo('1-repondu');
 dit('le panneau de N. M. s ouvre', await rangee('N. M.', '.trc-ger__ligne'));
 await attend(300);
 dit('... et celui de A. L. s est fermé : un seul panneau', (await evalue(`document.querySelectorAll('#am-vue-avis .trc-ger__panneau').length`)) === 1);
-dit('la case « Montrer sur maisonmnd.com » de N. M. se coche', await rangee('N. M.', '.trc-avr__case input'));
+/* Depuis le 18 novembre 2026, le panneau de l avis ouvert vit a droite de la liste, plus sous sa ligne. */
+dit('la case « Montrer sur maisonmnd.com » de N. M. se coche', await evalue(`(() => { const e = document.querySelector('#am-vue-avis .trc-ger__panneau .trc-avr__case input'); if (e) e.click(); return !!e; })()`));
 await attend(500);
 const cfg = await lis('trone::mnd_vitrine_config');
 const copie = (cfg?.avisDuSite ?? [])[0];
@@ -242,7 +244,7 @@ await attend(800);
 dit('au téléphone (390 px), rien ne déborde', (await evalue('document.documentElement.scrollWidth > window.innerWidth + 1')) === false, String(await evalue('document.documentElement.scrollWidth')));
 await rangee('G. J.', '.trc-ger__ligne');
 await attend(400);
-dit('... un avis ouvert déplie son panneau sous la ligne, seul, et rien ne déborde', (await evalue(`document.querySelectorAll('#am-vue-avis .trc-ger__panneau').length`)) === 1
+dit('... un avis ouvert prend l écran, seul, et rien ne déborde', (await evalue(`document.querySelectorAll('#am-vue-avis .trc-ger__panneau').length`)) === 1
   && (await evalue('document.documentElement.scrollWidth > window.innerWidth + 1')) === false, String(await evalue('document.documentElement.scrollWidth')));
 await photo('4-telephone');
 dit('aucune erreur dans la page', erreurs.length === 0, erreurs.slice(0, 3).join(' | ') || 'aucune');
