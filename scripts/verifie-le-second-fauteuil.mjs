@@ -67,7 +67,7 @@ const PANNES = [
   { nom: 'Ma Couronne oublie les places', fichier: LIB,
     r: [['capSimultane: placesEnLigneDe(branchId, dateIso),', 'capSimultane: 1,']] },
   { nom: 'le site oublie les places', fichier: PAGE,
-    r: [['heuresLibres({ agenda: agendaAuCalibre ?? agenda, dateIso: iso, serviceIds, occupes, places: placesParJour, maintenant })', 'heuresLibres({ agenda: agendaAuCalibre ?? agenda, dateIso: iso, serviceIds, occupes, maintenant })']] },
+    r: [['heuresLibres({ agenda: agendaAuCalibre ?? agenda, dateIso: iso, serviceIds, occupes, places: placesParJour, maintenant, lourde: teteLourde(lockCountAnnonce) })', 'heuresLibres({ agenda: agendaAuCalibre ?? agenda, dateIso: iso, serviceIds, occupes, maintenant, lourde: teteLourde(lockCountAnnonce) })']] },
   { nom: 'demande-submit juge a une place', fichier: DS,
     r: [['laPlaceTient({ ...agenda, sieges: places, services: auCalibre', 'laPlaceTient({ ...agenda, sieges: PLACES_EN_LIGNE, services: auCalibre']] },
   { nom: 'le miroir oublie le modele', fichier: PUR,

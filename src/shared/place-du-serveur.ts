@@ -1,5 +1,5 @@
 import {
-  creneauxLibres, dureeDesPrestations, estUnSinsin, MAITRE_DES_SINSIN, minutesDeHhmm, occupesDuJour, ouvertureDuJour, plagesBloquees, PLACES_EN_LIGNE,
+  bloqueLaVenue, creneauxLibres, DEUX_TETES_AU_PLUS, dureeDesPrestations, estUnSinsin, MAITRE_DES_SINSIN, minutesDeHhmm, occupesDuJour, ouvertureDuJour, plagesBloquees, PLACES_EN_LIGNE,
   PREMIER_RENDEZ_VOUS_MIN,
   type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
 } from './agenda-pur';
@@ -122,6 +122,9 @@ type AgendaDuServeur = {
   maitres: string[];
   /** Les fauteuils de la Maison. 0 = sans limite. */
   sieges: number;
+  /** LES PLACES DE CHAQUE JOUR (18 novembre 2026), quand la fonction les a
+      lues (`places_en_ligne_du`) : un jour absent garde `sieges`. */
+  siegesDuJour?: Readonly<Record<string, number>>;
   capMaison: number;
   capMaitre: number;
   semaine: HeureDeLaSemaine[];
@@ -146,8 +149,11 @@ type LignesDeLAgenda = {
   services?: readonly { id: string; data?: unknown }[] | null;
   categories?: readonly { id: string; data?: unknown }[] | null;
   blocages?: readonly { id?: string; data?: unknown }[] | null;
-  /** Les lignes de `creneaux_occupes` : jour, maître, début, durée. */
+  /** Les lignes de `creneaux_occupes` : jour, maître, début, durée, lourde. */
   occupes?: readonly unknown[] | null;
+  /** Les lignes de `places_en_ligne_du` (jour, places), quand la fonction
+      les lit (WhatsApp, 18 novembre 2026). Absentes : `PLACES_EN_LIGNE`. */
+  places?: readonly unknown[] | null;
 };
 
 function agendaDepuisLesLignes(l: LignesDeLAgenda): AgendaDuServeur | null {
@@ -197,8 +203,17 @@ function agendaDepuisLesLignes(l: LignesDeLAgenda): AgendaDuServeur | null {
     .filter((c) => chaine(c.jour) !== '' && /^\d{1,2}:\d{2}/.test(chaine(c.debut)))
     .map((c) => {
       const d = Number(c.duree);
-      return { jour: chaine(c.jour), maitre: chaine(c.maitre), debut: chaine(c.debut), duree: Number.isFinite(d) && d >= 1 ? d : 60 };
+      /* « lourde » : 150 locks ou plus (creneaux_occupes, deux têtes chez Team). */
+      return { jour: chaine(c.jour), maitre: chaine(c.maitre), debut: chaine(c.debut), duree: Number.isFinite(d) && d >= 1 ? d : 60, ...(c.lourde === true ? { lourde: true } : {}) };
     });
+  /* LES PLACES DE CHAQUE JOUR (18 novembre 2026) : un jour ISO et un entier
+     d'au moins 1, rien d'autre ; la base (`places_en_ligne`) les borne déjà
+     aux fauteuils, et son verrou relit les mêmes. */
+  const siegesDuJour: Record<string, number> = {};
+  for (const r of (l.places ?? []).map(objet)) {
+    const n = Number(r.places);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(chaine(r.jour)) && Number.isInteger(n) && n >= 1) siegesDuJour[chaine(r.jour)] = n;
+  }
   const services: PrestationDuServeur[] = (l.services ?? []).map((r) => {
     const d = objet(r.data);
     const duree = Number(d.durationMin);
@@ -232,6 +247,7 @@ function agendaDepuisLesLignes(l: LignesDeLAgenda): AgendaDuServeur | null {
        rituel ne chevauche jamais un autre (`PLACES_EN_LIGNE`). Les fauteuils
        de la branche restent au comptoir. */
     sieges: PLACES_EN_LIGNE,
+    ...(Object.keys(siegesDuJour).length > 0 ? { siegesDuJour } : {}),
     capMaison: entier(reglages.maxRdvParJourMaison),
     capMaitre: entier(reglages.maxRdvParJourMaitre),
     semaine,
@@ -302,7 +318,14 @@ type RefusDeLaPlace =
     LA LIT PAS : l'appelant la lit en base. Un geste à fenêtre
     (`fenetreApresVenue`) sans cette valeur est refusé : une cliente qu'on ne
     sait pas situer n'a pas de venue à compter. */
-type DemandeDePlace = { date: string; time: string; serviceIds: readonly string[]; derniereVenue?: string | null };
+/** Les places en ligne d'un jour : celles lues pour ce jour, sinon celles de l'agenda. */
+function siegesDe(agenda: AgendaDuServeur, iso: string): number {
+  const lu = agenda.siegesDuJour?.[iso];
+  return typeof lu === 'number' && Number.isInteger(lu) && lu >= 0 ? lu : agenda.sieges;
+}
+
+/** `lourde` : la tête de la nouvelle venue, 150 locks ou plus (deux têtes chez Team, 18 novembre 2026). Absent : une petite tête. */
+type DemandeDePlace = { date: string; time: string; serviceIds: readonly string[]; derniereVenue?: string | null; lourde?: boolean };
 
 /** La place tient : sa durée, et les maîtres LIBRES à cette heure, dans
     l'ordre de la Maison (le verrou prend le premier encore libre). */
@@ -395,14 +418,17 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jo
   /* Le plafond de la Maison : ses rendez-vous du jour, tous maîtres confondus. */
   if (agenda.capMaison > 0 && duJour.length >= agenda.capMaison) return { ok: false, erreur: 'creneau_plafond' };
   /* LES FAUTEUILS : le maître peut être libre, la Maison pleine. */
-  if (agenda.sieges > 0
-    && duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin).length >= agenda.sieges) {
+  const sieges = siegesDe(agenda, p.date);
+  if (sieges > 0
+    && duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin).length >= sieges) {
     return { ok: false, erreur: 'creneau_pris' };
   }
 
   /* LES MAÎTRES LIBRES, tous, dans l'ordre : jamais le premier sans regarder. */
   const candidats = maitresDuRituel(agenda, p.serviceIds);
   const libres: string[] = [];
+  /* Un maître seul à cette heure passe avant Team qui partage. */
+  const partages: string[] = [];
   let plafonnes = 0;
   for (const m of candidats) {
     const siens = duJour.filter((a) => a.maitre === m);
@@ -410,14 +436,17 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jo
       plafonnes += 1;
       continue;
     }
-    const occupe = [
-      ...siens.map((a): [number, number] => [a.debutMin, a.debutMin + a.dureeMin]),
-      ...plagesBloquees(agenda.murs, agenda.branchId, p.date, m),
-    ].some(([s, e]) => debut < e && fin > s);
-    if (!occupe) libres.push(m);
+    /* DEUX TÊTES CHEZ TEAM (18 novembre 2026) : un rendez-vous de Team que
+       l'une des deux petites têtes rend partageable ne bloque pas ; deux au
+       plus chez lui à la même heure. Un autre maître, une cliente à la fois. */
+    const chevauchent = siens.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin);
+    const occupe = chevauchent.some((a) => bloqueLaVenue(m, p.lourde, a))
+      || chevauchent.length >= DEUX_TETES_AU_PLUS
+      || plagesBloquees(agenda.murs, agenda.branchId, p.date, m).some(([s, e]) => debut < e && fin > s);
+    if (!occupe) (chevauchent.length === 0 ? libres : partages).push(m);
   }
-  if (libres.length === 0) return { ok: false, erreur: plafonnes === candidats.length ? 'creneau_plafond' : 'creneau_pris' };
-  return { ok: true, dureeMin, maitres: libres };
+  if (libres.length + partages.length === 0) return { ok: false, erreur: plafonnes === candidats.length ? 'creneau_plafond' : 'creneau_pris' };
+  return { ok: true, dureeMin, maitres: [...libres, ...partages] };
 }
 
 /** LES PLACES LIBRES, de demain (à Cotonou) à l'horizon, rangées dans le
@@ -429,6 +458,8 @@ function placesLibres(
   /* La dernière venue de la cliente (7 novembre 2026) : un geste à fenêtre ne
      propose que les jours qui tombent dedans. */
   derniereVenue?: string | null,
+  /* Sa tête : 150 locks ou plus (deux têtes chez Team, 18 novembre 2026). */
+  lourde?: boolean,
 ): PlaceDuServeur[] {
   const sansFenetre = lesGestesSeReservent(agenda, serviceIds, { derniereVenue, date: 'avant' });
   if (sansFenetre && sansFenetre !== 'prestation_hors_fenetre') return [];
@@ -454,8 +485,9 @@ function placesLibres(
         master,
         capMaison: agenda.capMaison,
         capMaitre: agenda.capMaitre,
-        capSimultane: agenda.sieges,
+        capSimultane: siegesDe(agenda, iso),
         maintenantMin: null,
+        ...(lourde ? { lourde: true } : {}),
       });
       for (const h of libres) heures.add(h);
     }
@@ -468,7 +500,7 @@ function placesLibres(
 export {
   ATELIERS_RESERVABLES, CONSULTATION_PAR_PARCOURS,
   reservableSurLeSite, agendaDepuisLesLignes, jourDeCotonou, minutesDeCotonou, isoApresJours, joursDEcart, finDeLaReservation, joursDeLaFenetre,
-  laPlaceEstRecevable, lesGestesSeReservent, maitresDuRituel, laPlaceTient, placesLibres,
+  laPlaceEstRecevable, lesGestesSeReservent, maitresDuRituel, laPlaceTient, placesLibres, siegesDe,
 };
 export type {
   PrestationDuServeur, CategorieDuServeur, AgendaDuServeur, LignesDeLAgenda,

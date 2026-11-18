@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-18-g · Opale lit l agenda sur toute la fenetre ou elle propose, et relit la journee avant chaque proposition : plus jamais « libre » puis « vient d etre prise » (le 28 au dixieme jour paraissait vide) ; 2026-11-18-f · Opale range le demarchage : quelqu un qui vend a la Maison, elle ne lui ecrit rien et le tri relit ses derniers mots (relire) pour le bloquer ou le ranger dans les propositions ; 2026-11-18-e · Opale lit les vocaux : la transcription que la réception a écrite (Whisper chez Groq) entre dans son fil et ses nouveaux messages, elle y répond comme à un message écrit ; un vocal que la Maison n a pas compris fait passer la main sans un mot, avec l alerte ; 2026-11-18-d · la confirmation du Oui de Perle se lit dans le fil d Opale comme un message automatique ; 2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-18-h · deux tetes chez Team : Opale lit les places de chaque jour (places_en_ligne_du) et la tete de la cliente (ses locks dits ou ceux de sa fiche) ; Team recoit une seconde cliente a la meme heure quand l une des deux a moins de 150 locks, jamais deux lourdes, deux au plus, un maitre seul d abord ; les locks dits s ecrivent sur le rendez-vous (locksAnnonces) ; 2026-11-18-g · Opale lit l agenda sur toute la fenetre ou elle propose, et relit la journee avant chaque proposition : plus jamais « libre » puis « vient d etre prise » (le 28 au dixieme jour paraissait vide) ; 2026-11-18-f · Opale range le demarchage : quelqu un qui vend a la Maison, elle ne lui ecrit rien et le tri relit ses derniers mots (relire) pour le bloquer ou le ranger dans les propositions ; 2026-11-18-e · Opale lit les vocaux : la transcription que la réception a écrite (Whisper chez Groq) entre dans son fil et ses nouveaux messages, elle y répond comme à un message écrit ; un vocal que la Maison n a pas compris fait passer la main sans un mot, avec l alerte ; 2026-11-18-d · la confirmation du Oui de Perle se lit dans le fil d Opale comme un message automatique ; 2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -259,7 +259,34 @@ export const PREMIER_RENDEZ_VOUS_MIN = 8 * 60 + 30;
 /** UN CRÉNEAU DÉJÀ PRIS, dit sans dire par qui — voir la migration 0079.
     C'est tout ce que le serveur consent à donner à une inconnue, et tout ce
     qu'un calendrier honnête demande. */
-export type CreneauOccupe = { jour: string; maitre: string; debut: string; duree: number };
+export type CreneauOccupe = { jour: string; maitre: string; debut: string; duree: number; lourde?: boolean };
+
+/** DEUX TÊTES CHEZ TEAM — 18 novembre 2026. « On peut mettre deux personnes
+    aux mêmes horaires… tant qu'une personne a moins de 150 locks et l'autre
+    a 400 locks. Mais on ne peut pas prendre deux personnes qui ont 400 locks
+    simultanément » (Yéman). Au sélecteur, le même jour : l'une des deux sous
+    150 locks ; une fiche sans nombre de locks compte comme une PETITE tête ;
+    tous les rituels de Team ; deux au plus en même temps (les fauteuils).
+    Un autre maître (une personne) ne reçoit toujours qu'une cliente à la
+    fois. La base (`creneaux_occupes`) ne dit d'un créneau pris que « lourde »
+    (150 locks ou plus), jamais le nombre ; le verrou (`pose_si_libre`,
+    `deplace_si_libre`) et le garde (`une_place_en_ligne`) tiennent la même
+    règle. */
+export const MAITRE_QUI_PARTAGE = 'Team';
+export const SEUIL_TETE_LOURDE = 150;
+export const DEUX_TETES_AU_PLUS = 2;
+/** Une tête lourde : 150 locks ou plus. Un nombre inconnu n'en fait pas une.
+    Le texte se lit comme la base (`locks_lourds`, 0238) : des chiffres, un
+    point décimal au plus, rien d'autre. */
+export const teteLourde = (locks: unknown): boolean => {
+  const n = typeof locks === 'number' ? locks
+    : typeof locks === 'string' && /^\d+(\.\d+)?$/.test(locks.trim()) ? Number(locks.trim()) : Number.NaN;
+  return Number.isFinite(n) && n >= SEUIL_TETE_LOURDE;
+};
+/** Ce rendez-vous déjà pris chez ce maître empêche-t-il une nouvelle venue à la
+    même heure ? Toujours, sauf chez Team quand l'une des deux têtes est petite. */
+export const bloqueLaVenue = (maitre: string, nouvelleLourde: boolean | undefined, deja: { lourde?: boolean }): boolean =>
+  maitre !== MAITRE_QUI_PARTAGE || (!!nouvelleLourde && !!deja.lourde);
 
 /** LE CŒUR DU CALCUL, SANS AUCUN MAGASIN — pour qu'il soit jugeable.
 
@@ -269,7 +296,10 @@ export function creneauxLibres(o: {
   opening: FenetreDuJour;
   durationMin: number;
   /** Tout ce qui occupe la journée, tous maîtres confondus. */
-  occupes: readonly { maitre: string; debutMin: number; dureeMin: number }[];
+  occupes: readonly { maitre: string; debutMin: number; dureeMin: number; lourde?: boolean }[];
+  /** La tête de la nouvelle venue : 150 locks ou plus (deux têtes chez Team,
+      18 novembre 2026). Absent : une petite tête. */
+  lourde?: boolean;
   /** Murs posés à la main (pause, absence), déjà résolus en minutes. */
   bloques?: readonly (readonly [number, number])[];
   master: string;
@@ -306,7 +336,10 @@ export function creneauxLibres(o: {
   const duMaitre = o.occupes.filter((a) => a.maitre === o.master);
   if (capMaitre > 0 && duMaitre.length >= capMaitre) return [];
 
+  /* Chez Team, un rendez-vous qu'une petite tête rend partageable ne bloque
+     pas l'heure ; deux au plus chez lui en même temps (plus bas). */
   const busy: Array<readonly [number, number]> = duMaitre
+    .filter((a) => bloqueLaVenue(o.master, o.lourde, a))
     .map((a) => [a.debutMin, a.debutMin + a.dureeMin] as const);
   if (o.bloques) busy.push(...o.bloques);
 
@@ -323,6 +356,7 @@ export function creneauxLibres(o: {
     if (o.maintenantMin != null && m <= o.maintenantMin) continue;
     const overlaps = busy.some(([s, e]) => m < e && m + o.durationMin > s);
     if (overlaps) continue;
+    if (duMaitre.filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length >= DEUX_TETES_AU_PLUS) continue;
     /* LES FAUTEUILS : le maître est libre, mais la Maison peut être pleine. */
     if (cap > 0) {
       const ensemble = o.occupes
@@ -348,10 +382,10 @@ export function dureeDesPrestations(
 export const occupesDuJour = (
   occupes: readonly CreneauOccupe[],
   dateIso: string,
-): { maitre: string; debutMin: number; dureeMin: number }[] =>
+): { maitre: string; debutMin: number; dureeMin: number; lourde?: boolean }[] =>
   occupes
     .filter((c) => c.jour === dateIso && c.debut)
-    .map((c) => ({ maitre: c.maitre, debutMin: minutesDeHhmm(c.debut), dureeMin: c.duree }));
+    .map((c) => ({ maitre: c.maitre, debutMin: minutesDeHhmm(c.debut), dureeMin: c.duree, ...(c.lourde ? { lourde: true } : {}) }));
 
 /** UNE SEULE RÉSERVATION EN LIGNE À LA FOIS — 24 octobre 2026.
 
@@ -680,6 +714,9 @@ type AgendaDuServeur = {
   maitres: string[];
   /** Les fauteuils de la Maison. 0 = sans limite. */
   sieges: number;
+  /** LES PLACES DE CHAQUE JOUR (18 novembre 2026), quand la fonction les a
+      lues (`places_en_ligne_du`) : un jour absent garde `sieges`. */
+  siegesDuJour?: Readonly<Record<string, number>>;
   capMaison: number;
   capMaitre: number;
   semaine: HeureDeLaSemaine[];
@@ -704,8 +741,11 @@ type LignesDeLAgenda = {
   services?: readonly { id: string; data?: unknown }[] | null;
   categories?: readonly { id: string; data?: unknown }[] | null;
   blocages?: readonly { id?: string; data?: unknown }[] | null;
-  /** Les lignes de `creneaux_occupes` : jour, maître, début, durée. */
+  /** Les lignes de `creneaux_occupes` : jour, maître, début, durée, lourde. */
   occupes?: readonly unknown[] | null;
+  /** Les lignes de `places_en_ligne_du` (jour, places), quand la fonction
+      les lit (WhatsApp, 18 novembre 2026). Absentes : `PLACES_EN_LIGNE`. */
+  places?: readonly unknown[] | null;
 };
 
 function agendaDepuisLesLignes(l: LignesDeLAgenda): AgendaDuServeur | null {
@@ -755,8 +795,17 @@ function agendaDepuisLesLignes(l: LignesDeLAgenda): AgendaDuServeur | null {
     .filter((c) => chaine(c.jour) !== '' && /^\d{1,2}:\d{2}/.test(chaine(c.debut)))
     .map((c) => {
       const d = Number(c.duree);
-      return { jour: chaine(c.jour), maitre: chaine(c.maitre), debut: chaine(c.debut), duree: Number.isFinite(d) && d >= 1 ? d : 60 };
+      /* « lourde » : 150 locks ou plus (creneaux_occupes, deux têtes chez Team). */
+      return { jour: chaine(c.jour), maitre: chaine(c.maitre), debut: chaine(c.debut), duree: Number.isFinite(d) && d >= 1 ? d : 60, ...(c.lourde === true ? { lourde: true } : {}) };
     });
+  /* LES PLACES DE CHAQUE JOUR (18 novembre 2026) : un jour ISO et un entier
+     d'au moins 1, rien d'autre ; la base (`places_en_ligne`) les borne déjà
+     aux fauteuils, et son verrou relit les mêmes. */
+  const siegesDuJour: Record<string, number> = {};
+  for (const r of (l.places ?? []).map(objet)) {
+    const n = Number(r.places);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(chaine(r.jour)) && Number.isInteger(n) && n >= 1) siegesDuJour[chaine(r.jour)] = n;
+  }
   const services: PrestationDuServeur[] = (l.services ?? []).map((r) => {
     const d = objet(r.data);
     const duree = Number(d.durationMin);
@@ -790,6 +839,7 @@ function agendaDepuisLesLignes(l: LignesDeLAgenda): AgendaDuServeur | null {
        rituel ne chevauche jamais un autre (`PLACES_EN_LIGNE`). Les fauteuils
        de la branche restent au comptoir. */
     sieges: PLACES_EN_LIGNE,
+    ...(Object.keys(siegesDuJour).length > 0 ? { siegesDuJour } : {}),
     capMaison: entier(reglages.maxRdvParJourMaison),
     capMaitre: entier(reglages.maxRdvParJourMaitre),
     semaine,
@@ -860,7 +910,14 @@ type RefusDeLaPlace =
     LA LIT PAS : l'appelant la lit en base. Un geste à fenêtre
     (`fenetreApresVenue`) sans cette valeur est refusé : une cliente qu'on ne
     sait pas situer n'a pas de venue à compter. */
-type DemandeDePlace = { date: string; time: string; serviceIds: readonly string[]; derniereVenue?: string | null };
+/** Les places en ligne d'un jour : celles lues pour ce jour, sinon celles de l'agenda. */
+function siegesDe(agenda: AgendaDuServeur, iso: string): number {
+  const lu = agenda.siegesDuJour?.[iso];
+  return typeof lu === 'number' && Number.isInteger(lu) && lu >= 0 ? lu : agenda.sieges;
+}
+
+/** `lourde` : la tête de la nouvelle venue, 150 locks ou plus (deux têtes chez Team, 18 novembre 2026). Absent : une petite tête. */
+type DemandeDePlace = { date: string; time: string; serviceIds: readonly string[]; derniereVenue?: string | null; lourde?: boolean };
 
 /** La place tient : sa durée, et les maîtres LIBRES à cette heure, dans
     l'ordre de la Maison (le verrou prend le premier encore libre). */
@@ -953,14 +1010,17 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jo
   /* Le plafond de la Maison : ses rendez-vous du jour, tous maîtres confondus. */
   if (agenda.capMaison > 0 && duJour.length >= agenda.capMaison) return { ok: false, erreur: 'creneau_plafond' };
   /* LES FAUTEUILS : le maître peut être libre, la Maison pleine. */
-  if (agenda.sieges > 0
-    && duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin).length >= agenda.sieges) {
+  const sieges = siegesDe(agenda, p.date);
+  if (sieges > 0
+    && duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin).length >= sieges) {
     return { ok: false, erreur: 'creneau_pris' };
   }
 
   /* LES MAÎTRES LIBRES, tous, dans l'ordre : jamais le premier sans regarder. */
   const candidats = maitresDuRituel(agenda, p.serviceIds);
   const libres: string[] = [];
+  /* Un maître seul à cette heure passe avant Team qui partage. */
+  const partages: string[] = [];
   let plafonnes = 0;
   for (const m of candidats) {
     const siens = duJour.filter((a) => a.maitre === m);
@@ -968,14 +1028,17 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jo
       plafonnes += 1;
       continue;
     }
-    const occupe = [
-      ...siens.map((a): [number, number] => [a.debutMin, a.debutMin + a.dureeMin]),
-      ...plagesBloquees(agenda.murs, agenda.branchId, p.date, m),
-    ].some(([s, e]) => debut < e && fin > s);
-    if (!occupe) libres.push(m);
+    /* DEUX TÊTES CHEZ TEAM (18 novembre 2026) : un rendez-vous de Team que
+       l'une des deux petites têtes rend partageable ne bloque pas ; deux au
+       plus chez lui à la même heure. Un autre maître, une cliente à la fois. */
+    const chevauchent = siens.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin);
+    const occupe = chevauchent.some((a) => bloqueLaVenue(m, p.lourde, a))
+      || chevauchent.length >= DEUX_TETES_AU_PLUS
+      || plagesBloquees(agenda.murs, agenda.branchId, p.date, m).some(([s, e]) => debut < e && fin > s);
+    if (!occupe) (chevauchent.length === 0 ? libres : partages).push(m);
   }
-  if (libres.length === 0) return { ok: false, erreur: plafonnes === candidats.length ? 'creneau_plafond' : 'creneau_pris' };
-  return { ok: true, dureeMin, maitres: libres };
+  if (libres.length + partages.length === 0) return { ok: false, erreur: plafonnes === candidats.length ? 'creneau_plafond' : 'creneau_pris' };
+  return { ok: true, dureeMin, maitres: [...libres, ...partages] };
 }
 
 /** LES PLACES LIBRES, de demain (à Cotonou) à l'horizon, rangées dans le
@@ -987,6 +1050,8 @@ function placesLibres(
   /* La dernière venue de la cliente (7 novembre 2026) : un geste à fenêtre ne
      propose que les jours qui tombent dedans. */
   derniereVenue?: string | null,
+  /* Sa tête : 150 locks ou plus (deux têtes chez Team, 18 novembre 2026). */
+  lourde?: boolean,
 ): PlaceDuServeur[] {
   const sansFenetre = lesGestesSeReservent(agenda, serviceIds, { derniereVenue, date: 'avant' });
   if (sansFenetre && sansFenetre !== 'prestation_hors_fenetre') return [];
@@ -1012,8 +1077,9 @@ function placesLibres(
         master,
         capMaison: agenda.capMaison,
         capMaitre: agenda.capMaitre,
-        capSimultane: agenda.sieges,
+        capSimultane: siegesDe(agenda, iso),
         maintenantMin: null,
+        ...(lourde ? { lourde: true } : {}),
       });
       for (const h of libres) heures.add(h);
     }
@@ -5112,7 +5178,7 @@ export function consigneDOpale(): string {
     'LES RENDEZ-VOUS',
     'Elle veut un rendez-vous : comprends ce qu’elle veut (les gestes du catalogue, le jour, l’heure) dans ses propres mots. « La même chose », « comme d’habitude » : les gestes de sa dernière venue.',
     'Le catalogue du contexte donne l’identifiant de chaque geste. Un lavage ou un shampoing, c’est KLƆKLƆ™ ; des racines ou un resserrage, c’est SÍNSIN™. Si tu hésites entre deux gestes, pose une seule question courte.',
-    'Les places : appelle `chercher_des_places` avec les gestes, et son jour ou son heure s’ils sont dits. Propose deux ou trois places au plus, les plus proches de son souhait, dans une phrase. Jamais une place, un jour ni une heure que l’outil n’a pas rendus.',
+    'Les places : appelle `chercher_des_places` avec les gestes, et son jour ou son heure s’ils sont dits ; avec `pour` et `locks` dès que tu les connais, car deux personnes ne se reçoivent à la même heure que si l’une a moins de 150 locks, et les places rendues en dépendent. Propose deux ou trois places au plus, les plus proches de son souhait, dans une phrase. Jamais une place, un jour ni une heure que l’outil n’a pas rendus.',
     'Le jour même se réserve ici, pour une place qui commence au moins une heure plus tard : `chercher_des_places` avec son jour (aujourd’hui) les rend quand il en reste. S’il n’en reste pas, dis-le avec égards et propose les premières places des jours suivants.',
     'Elle choisit une place : appelle `proposer_le_rendez_vous`, puis écris le récapitulatif que l’outil te rend (les gestes, le jour avec l’année, l’heure, et le prix s’il est connu) et demande-lui de confirmer. Ne dis pas « c’est confirmé » à ce moment-là.',
     'Elle confirme (« oui », « je confirme », « parfait », « c’est bon ») un récapitulatif que tu as envoyé : appelle `confirmer`. Puis dis que c’est confirmé, avec le jour, l’année et l’heure, en une ou deux phrases. Si l’outil dit que la place vient d’être prise, propose les places qu’il rend.',
@@ -5182,6 +5248,8 @@ export const OUTILS_D_OPALE = [
         moment: { type: 'string', enum: ['matin', 'apres-midi', 'soir'] },
         heure: HEURE,
         rdv: { type: 'string', description: 'Pour un déplacement : l’identifiant du rendez-vous à déplacer (les places de la personne qui la reçoit).' },
+        pour: { type: 'string', description: 'L’identifiant de la fiche pour qui l’on cherche, ou « nouvelle » quand elle n’a pas de fiche.' },
+        locks: { type: 'integer', minimum: 1, maximum: 3000, description: 'Le nombre de locks qu’elle a dit, ou que tu as estimé sur sa photo : les places en dépendent.' },
       },
       required: ['gestes'],
       additionalProperties: false,
@@ -5427,7 +5495,9 @@ export function quiInscrire(attente: { prenom?: string; civilite?: CiviliteDuFil
    seulement si la proposition est partie AVANT les messages du tour (elle y
    répond) et qu'elle n'a pas plus de deux heures. */
 export type EnAttenteDOpale =
-  | { genre: 'pose'; pour: string; prenom?: string; civilite?: CiviliteDuFil; gestes: string[]; date: string; heure: string; dureeMin: number; proposeLe: string }
+  /* `locks` : ceux qu'elle a dits ou que la photo a fait estimer, écrits sur
+     le rendez-vous (`locksAnnonces`) : deux têtes chez Team (18 novembre 2026). */
+  | { genre: 'pose'; pour: string; prenom?: string; civilite?: CiviliteDuFil; gestes: string[]; date: string; heure: string; dureeMin: number; proposeLe: string; locks?: number }
   | { genre: 'deplacement'; rdvId: string; updatedAt: string; maitre: string; clientId: string; gestes: string[]; dureeMin: number; avant: { date: string; time: string }; date: string; heure: string; proposeLe: string };
 
 export type EtatDOpale = { enAttente?: EnAttenteDOpale; dernierTourLe?: string; relanceLe?: string };
@@ -6369,11 +6439,20 @@ async function litLAgenda(sb: Sb, docs: Map<string, any>, voulue: string | undef
     || branches.find((b) => b.data?.flagship && b.data?.status !== 'paused')
     || branches[0];
   if (!branche) { dis('aucune branche'); return null; }
-  const [services, categories, blocages, occupes] = await Promise.all([
+  const [services, categories, blocages, occupes, places] = await Promise.all([
     litParPages(sb, 'catalog_services'),
     litParPages(sb, 'catalog_categories'),
     litParPages(sb, 'blocages', (q) => q.eq('data->>branchId', branche.id).gte('data->>date', du).lte('data->>date', au)),
     litLesCreneaux(sb, branche.id, du, au),
+    /* LES PLACES DE CHAQUE JOUR (18 novembre 2026, deux têtes chez Team) :
+       celles du site et du verrou (`places_en_ligne_du`, 0152/0237). Opale
+       comptait une place partout ; deux têtes chez Team en demandent deux.
+       Une panne garde une place : jamais promettre ce que le verrou refuse. */
+    sb.rpc('places_en_ligne_du', { p_branch: branche.id, p_debut: du, p_fin: au })
+      .then(({ data, error }) => {
+        if (error) { dis('places du jour illisibles, une place', { motif: error.message.slice(0, 120) }); return null; }
+        return Array.isArray(data) ? data as unknown[] : null;
+      }, () => null),
   ]);
   if (!services || !categories || !blocages || !occupes) return null;
   const lignes: LignesDeLAgenda = {
@@ -6385,6 +6464,7 @@ async function litLAgenda(sb: Sb, docs: Map<string, any>, voulue: string | undef
     categories,
     blocages,
     occupes,
+    ...(places ? { places } : {}),
   };
   const agenda = agendaDepuisLesLignes(lignes);
   if (!agenda) { dis('agenda illisible'); return null; }
@@ -6692,7 +6772,7 @@ async function ditLaConfirmation(sb: Sb, rdvId: string, rendu: Rendu): Promise<v
     rendez-vous, la demande et la ligne d'envoi. L'instantané frais remplace
     l'ancien pour ce jour : si l'heure est prise, les places proposées à la
     place le savent. */
-async function poseSousVerrou(sb: Sb, lu: AgendaLu, e: EcritureDuTour, oublie: () => void, jourMeme = false): Promise<VerdictDeLaPose> {
+async function poseSousVerrou(sb: Sb, lu: AgendaLu, e: EcritureDuTour, oublie: () => void, jourMeme = false, lourde = false): Promise<VerdictDeLaPose> {
   const { rdv } = e;
   const frais = await litLesCreneaux(sb, lu.agenda.branchId, rdv.date, rdv.date);
   if (!frais) return { ok: false, raison: 'agenda_illisible' };
@@ -6716,7 +6796,8 @@ async function poseSousVerrou(sb: Sb, lu: AgendaLu, e: EcritureDuTour, oublie: (
   }
   /* LE JOUR MÊME D'OPALE (18 novembre 2026) : une heure pas encore commencée,
      la marge jugée par son outil ; le verrou (0213) le rejuge. */
-  const place = laPlaceTient(neuf, { date: rdv.date, time: rdv.time, serviceIds: rdv.serviceIds, derniereVenue }, Date.now(), jourMeme);
+  /* Sa tête (deux têtes chez Team, 18 novembre 2026) : le verrou (0238) la relit sur sa fiche et `locksAnnonces`. */
+  const place = laPlaceTient(neuf, { date: rdv.date, time: rdv.time, serviceIds: rdv.serviceIds, derniereVenue, ...(lourde ? { lourde: true } : {}) }, Date.now(), jourMeme);
   if (!place.ok) return { ok: false, raison: place.erreur };
   const { data, error } = await sb.rpc('pose_si_libre', {
     p_rdv: rdv,
@@ -6746,6 +6827,13 @@ async function poseSousVerrou(sb: Sb, lu: AgendaLu, e: EcritureDuTour, oublie: (
 
 /** Un rendez-vous de l'agenda rendu libre : le créneau occupé de ce maître,
     ce jour, à cette heure, retiré une fois. */
+/** Sa tête, lue sur son propre créneau (`creneaux_occupes`, 0238) : lourde à
+    150 locks ou plus. Deux têtes chez Team, 18 novembre 2026. */
+function lourdeDuRdvWa(agenda: AgendaDuServeur, maitre: string, sauf: { date: string; time: string }): boolean {
+  const debut = minutesDeHhmm(sauf.time);
+  return !!agenda.occupes.find((c) => c.jour === sauf.date && (c.maitre ?? '') === maitre && minutesDeHhmm(c.debut) === debut)?.lourde;
+}
+
 function agendaSansLeRdvWa(agenda: AgendaDuServeur, maitre: string, sauf: { date: string; time: string }): AgendaDuServeur {
   let retire = false;
   const debut = minutesDeHhmm(sauf.time);
@@ -6769,6 +6857,7 @@ function placesDuMaitreWa(
   /* La borne du juge (`joursDeLaFenetre`, 6 novembre 2026), comme `placesLibres`. */
   const n = Math.max(1, Math.min(joursDeLaFenetre(ms), Number.isFinite(voulu) && voulu > 0 ? voulu : 14));
   const duree = Math.max(1, Math.round(Number(sauf.dureeMin) || 60));
+  const lourde = lourdeDuRdvWa(agenda, maitre, sauf);
   const sans = agendaSansLeRdvWa(agenda, maitre, sauf);
   const aujourdhui = jourDeCotonou(ms);
   const out: PlaceDuServeur[] = [];
@@ -6784,8 +6873,9 @@ function placesDuMaitreWa(
       master: maitre,
       capMaison: sans.capMaison,
       capMaitre: sans.capMaitre,
-      capSimultane: sans.sieges,
+      capSimultane: siegesDe(sans, iso),
       maintenantMin: null,
+      ...(lourde ? { lourde: true } : {}),
     });
     for (const heure of [...libres].sort()) out.push({ iso, heure });
   }
@@ -6807,17 +6897,20 @@ function laPlaceTientPourLeMaitreWa(
   const fin = debut + Math.max(1, Math.round(Number(p.dureeMin) || 60));
   /* Jamais avant 08:30, même pour un rendez-vous déplacé (17 novembre 2026). */
   if (debut < Math.max(fenetre.openMin, PREMIER_RENDEZ_VOUS_MIN) || fin > fenetre.closeMin) return { ok: false, erreur: 'creneau_hors_ouverture' };
+  const lourde = lourdeDuRdvWa(agenda, maitre, sauf);
   const sans = agendaSansLeRdvWa(agenda, maitre, sauf);
   const duJour = occupesDuJour(sans.occupes, p.date);
   if (sans.capMaison > 0 && duJour.length >= sans.capMaison) return { ok: false, erreur: 'creneau_plafond' };
   const chevauche = (s: number, e: number): boolean => debut < e && fin > s;
-  if (sans.sieges > 0 && duJour.filter((a) => chevauche(a.debutMin, a.debutMin + a.dureeMin)).length >= sans.sieges) return { ok: false, erreur: 'creneau_pris' };
+  const sieges = siegesDe(sans, p.date);
+  if (sieges > 0 && duJour.filter((a) => chevauche(a.debutMin, a.debutMin + a.dureeMin)).length >= sieges) return { ok: false, erreur: 'creneau_pris' };
   const siens = duJour.filter((a) => a.maitre === maitre);
   if (sans.capMaitre > 0 && siens.length >= sans.capMaitre) return { ok: false, erreur: 'creneau_plafond' };
-  const occupe = [
-    ...siens.map((a): [number, number] => [a.debutMin, a.debutMin + a.dureeMin]),
-    ...plagesBloquees(sans.murs, sans.branchId, p.date, maitre),
-  ].some(([s, e]) => chevauche(s, e));
+  /* DEUX TÊTES CHEZ TEAM (18 novembre 2026) : la règle du juge (`laPlaceTient`). */
+  const chevauchent = siens.filter((a) => chevauche(a.debutMin, a.debutMin + a.dureeMin));
+  const occupe = chevauchent.some((a) => bloqueLaVenue(maitre, lourde, a))
+    || chevauchent.length >= DEUX_TETES_AU_PLUS
+    || plagesBloquees(sans.murs, sans.branchId, p.date, maitre).some(([s, e]) => chevauche(s, e));
   return occupe ? { ok: false, erreur: 'creneau_pris' } : { ok: true };
 }
 
@@ -7174,7 +7267,7 @@ async function lesPhotosDOpale(sb: Sb, numero: string, ms: number): Promise<Phot
     l'avance ») : les heures d'aujourd'hui à Cotonou qui commencent au moins
     une heure plus tard, comptées comme celles de demain (`placesLibres`, le
     même `creneauxLibres`, maître par maître, fauteuils, plafonds et murs). */
-function placesDuJourMemeWa(agenda: AgendaDuServeur, serviceIds: readonly string[], ms: number): PlaceDuServeur[] {
+function placesDuJourMemeWa(agenda: AgendaDuServeur, serviceIds: readonly string[], ms: number, lourde = false): PlaceDuServeur[] {
   const iso = jourDeCotonou(ms);
   if (lesGestesSeReservent(agenda, serviceIds, { date: iso })) return [];
   const opening = ouvertureDuJour(iso, agenda.semaine, agenda.exceptions);
@@ -7186,8 +7279,9 @@ function placesDuJourMemeWa(agenda: AgendaDuServeur, serviceIds: readonly string
     const libres = creneauxLibres({
       opening, durationMin, occupes,
       bloques: plagesBloquees(agenda.murs, agenda.branchId, iso, master),
-      master, capMaison: agenda.capMaison, capMaitre: agenda.capMaitre, capSimultane: agenda.sieges,
+      master, capMaison: agenda.capMaison, capMaitre: agenda.capMaitre, capSimultane: siegesDe(agenda, iso),
       maintenantMin: minutesACotonou(ms) + JOUR_MEME_DELAI_MIN - 1,
+      ...(lourde ? { lourde: true } : {}),
     });
     for (const h of libres) heures.add(h);
   }
@@ -7700,6 +7794,16 @@ async function unTourDOpale(
   const joursJusqua = (iso: string): number => Math.round((Date.parse(`${iso}T12:00:00Z`) - Date.parse(`${aujourdhui}T12:00:00Z`)) / JOUR_WA);
   const horizonPour = (jour?: string): number => Math.min(joursDeLaFenetre(ms), Math.max(reglage.horizonJours, 30, jour ? joursJusqua(jour) + 7 : 0));
   const ficheDe = (id: string): FicheDuNumero | undefined => fiches.find((f) => f.id === id);
+  /* DEUX TÊTES CHEZ TEAM (18 novembre 2026) : ses locks, ceux qu'elle a dits
+     (ou estimés sur sa photo), sinon ceux de sa fiche ; quand la fiche n'est
+     pas dite et que le numéro n'en porte qu'une, la sienne. Lourde à 150. */
+  const locksDOpale = (pour: unknown, locks: unknown): number | undefined => {
+    const dits = Number(locks) > 0 ? Math.round(Number(locks)) : undefined;
+    if (dits) return dits;
+    const f = typeof pour === 'string' && pour !== '' && pour !== 'nouvelle' ? ficheDe(pour)
+      : (pour === undefined || pour === '') && fiches.length === 1 ? fiches[0] : undefined;
+    return f?.tete?.locks;
+  };
   // deno-lint-ignore no-explicit-any
   /* LA GRILLE, QUAND ELLE N'A RIEN DIT (18 novembre 2026) : « Puis-je avoir
      les tarifs ? », trois fois, sans un montant, parce qu'il fallait d'abord
@@ -7800,7 +7904,8 @@ async function unTourDOpale(
         places = placesDuMaitreWa(agenda!.agenda, r.maitre, { date: r.date, time: r.time, dureeMin: r.dureeMin }, ms, horizonPour(souhaitLu(e ?? {}).jour));
       } else {
         /* Le jour même d'abord, une heure plus tard au plus tôt (18 novembre 2026). */
-        places = [...placesDuJourMemeWa(agenda!.agenda, g.ids, Date.now()), ...placesLibres(agenda!.agenda, g.ids, ms, horizonPour(souhaitLu(e ?? {}).jour))];
+        const lourde = teteLourde(locksDOpale(e?.pour, e?.locks));
+        places = [...placesDuJourMemeWa(agenda!.agenda, g.ids, Date.now(), lourde), ...placesLibres(agenda!.agenda, g.ids, ms, horizonPour(souhaitLu(e ?? {}).jour), undefined, lourde)];
       }
       const dites = placesDites(places, souhaitLu(e ?? {}));
       if (dites.length === 0) return `Aucune place libre d’ici ${horizonPour(souhaitLu(e ?? {}).jour)} jours pour ces gestes. Dis-le avec égards et passe la main (motif « question »).`;
@@ -7819,9 +7924,10 @@ async function unTourDOpale(
       const p = propositionLue(e ?? {}, { fiches: fichesIds, connus, aujourdhui, minutesDuJour: minutesACotonou(Date.now()) });
       if (!p.ok) return p.pourquoi;
       if (!await rafraichisLeJour(sb, agenda!, p.date, vue!.oublie)) return 'L’agenda de la Maison ne répond pas en ce moment : passe la main (motif « question »).';
-      const libre = laPlaceTient(agenda!.agenda, { date: p.date, time: p.heure, serviceIds: p.gestes }, ms, p.date === aujourdhui).ok;
+      const lourdeVenue = teteLourde(locksDOpale(p.pour, e?.locks));
+      const libre = laPlaceTient(agenda!.agenda, { date: p.date, time: p.heure, serviceIds: p.gestes, ...(lourdeVenue ? { lourde: true } : {}) }, ms, p.date === aujourdhui).ok;
       if (!libre) {
-        const proches = placesDites([...placesDuJourMemeWa(agenda!.agenda, p.gestes, Date.now()), ...placesLibres(agenda!.agenda, p.gestes, ms, horizonPour(p.date))], { jour: p.date, heure: p.heure }, 3);
+        const proches = placesDites([...placesDuJourMemeWa(agenda!.agenda, p.gestes, Date.now(), lourdeVenue), ...placesLibres(agenda!.agenda, p.gestes, ms, horizonPour(p.date), undefined, lourdeVenue)], { jour: p.date, heure: p.heure }, 3);
         return `Cette place n’est pas libre.${proches.length ? ` Les plus proches :\n${proches.map((x) => `- ${x.iso} ${x.heure} : ${placeDite(x)}`).join('\n')}` : ''}`;
       }
       const dureeMin = dureeDesPrestations(p.gestes, agenda!.agenda.services);
@@ -7830,7 +7936,7 @@ async function unTourDOpale(
       const locksDits = Number(e?.locks) > 0 ? Math.round(Number(e.locks)) : undefined;
       const longueurDite = e?.longueur === 'court' || e?.longueur === 'mi-long' || e?.longueur === 'long' ? e.longueur : undefined;
       const prix = prixPour(p.gestes, { ...(f?.tete ?? {}), ...(locksDits ? { locks: locksDits } : {}), ...(longueurDite ? { longueur: longueurDite } : {}) }, f?.prixFixes);
-      enAttente = { genre: 'pose', pour: p.pour, ...(p.prenom ? { prenom: p.prenom } : {}), ...(p.civilite ? { civilite: p.civilite } : {}), gestes: p.gestes, date: p.date, heure: p.heure, dureeMin, proposeLe: new Date().toISOString() };
+      enAttente = { genre: 'pose', pour: p.pour, ...(p.prenom ? { prenom: p.prenom } : {}), ...(p.civilite ? { civilite: p.civilite } : {}), gestes: p.gestes, date: p.date, heure: p.heure, dureeMin, proposeLe: new Date().toISOString(), ...(locksDits ? { locks: locksDits } : {}) };
       const qui = f ? (f.civilite ? appelDe({ name: f.nom, prenomUsage: f.prenomUsage, civilite: f.civilite, auMasculin: f.auMasculin }) : prenomDeLaFicheWa(f))
         : p.prenom && p.civilite ? appelDe({ name: p.prenom, civilite: p.civilite })
           : 'une nouvelle cliente : demande-lui dans ce même message, en une phrase, le prénom à inscrire et « Madame ou Monsieur ? » ; sa réponse vaudra son oui';
@@ -7872,9 +7978,10 @@ async function unTourDOpale(
         }
         /* LE JOUR MÊME : il reste au moins une demi-heure avant la place. */
         const jourMeme = a.date === aujourdhui;
+        const lourdeVenue = teteLourde(a.locks ?? f?.tete?.locks);
         if (jourMeme && minutesDeHhmm(a.heure) < minutesACotonou(Date.now()) + JOUR_MEME_CONFIRME_MIN) {
           enAttente = null;
-          const restent = placesDites([...placesDuJourMemeWa(agenda!.agenda, a.gestes, Date.now()), ...placesLibres(agenda!.agenda, a.gestes, ms, horizonPour(a.date))], { jour: a.date, heure: a.heure }, 3);
+          const restent = placesDites([...placesDuJourMemeWa(agenda!.agenda, a.gestes, Date.now(), lourdeVenue), ...placesLibres(agenda!.agenda, a.gestes, ms, horizonPour(a.date), undefined, lourdeVenue)], { jour: a.date, heure: a.heure }, 3);
           return `Cette heure d’aujourd’hui est désormais trop proche pour la préparer.${restent.length ? ` Propose-lui les plus proches :\n${restent.map((x) => `- ${x.iso} ${x.heure} : ${placeDite(x)}`).join('\n')}` : ' Propose les jours suivants (chercher_des_places).'}`;
         }
         const cle = cleCourte(`${tour.waIds[tour.waIds.length - 1] ?? ''}|${a.date}|${a.heure}`);
@@ -7887,6 +7994,7 @@ async function unTourDOpale(
             id: rdvId, branchId: agenda!.agenda.branchId, clientId: f?.id ?? '', clientName: f?.nom || a.prenom || 'Réservation WhatsApp',
             serviceIds: [...a.gestes], date: a.date, time: a.heure, dureeMin: a.dureeMin, status: 'confirmé', source: 'whatsapp',
             creeLe: maintenant, note: 'Pris sur WhatsApp · Opale', poseePar: OPALE,
+            ...(a.locks ? { locksAnnonces: a.locks } : {}),
           } as RdvAPoser,
           ...(f ? {} : {
             demande: {
@@ -7901,7 +8009,7 @@ async function unTourDOpale(
             moment: placeDite({ iso: a.date, heure: a.heure }), statut: 'en cours', detail: 'dit dans la conversation, par Opale', quand: maintenant,
           } as EnvoiAPoser,
         };
-        const verdict = await poseSousVerrou(sb, agenda!, ecriture, vue!.oublie, jourMeme);
+        const verdict = await poseSousVerrou(sb, agenda!, ecriture, vue!.oublie, jourMeme, lourdeVenue);
         dis('opale · pose', { verdict: verdict.ok ? (verdict.verdict ?? 'pose') : verdict.raison });
         if (verdict.ok) {
           issue.issue = { genre: 'pose', rdvId: verdict.id };
@@ -7912,7 +8020,7 @@ async function unTourDOpale(
         }
         enAttente = null;
         if (['creneau_pris', 'creneau_plafond', 'creneau_complet', 'creneau_hors_ouverture', 'creneau_ferme', 'creneau_hors_fenetre'].includes(verdict.raison)) {
-          const proches = placesDites([...placesDuJourMemeWa(agenda!.agenda, a.gestes, Date.now()), ...placesLibres(agenda!.agenda, a.gestes, ms, horizonPour(a.date))], { jour: a.date, heure: a.heure }, 3);
+          const proches = placesDites([...placesDuJourMemeWa(agenda!.agenda, a.gestes, Date.now(), lourdeVenue), ...placesLibres(agenda!.agenda, a.gestes, ms, horizonPour(a.date), undefined, lourdeVenue)], { jour: a.date, heure: a.heure }, 3);
           return `Cette place vient d’être prise.${proches.length ? ` Propose-lui les plus proches :\n${proches.map((x) => `- ${x.iso} ${x.heure} : ${placeDite(x)}`).join('\n')}` : ' Passe la main (motif « question »).'}`;
         }
         return 'Le rendez-vous n’a pas pu être posé. Passe la main (motif « question »).';
@@ -8803,7 +8911,8 @@ async function reserveLeOuiDePerle(sb: Sb, o: { numero: string; ligneId: string;
   const lu = await litLAgenda(sb, docs, f.branchId ?? (ligne.branch_id || undefined), aujourdhui, horizon);
   if (!lu) return { pris: false };
   const vue = agendaDuTourWa(lu, ms, horizon);
-  const essais = placesDuOuiDePerle(p, p.places.length ? [] : placesLibres(lu.agenda, p.serviceIds, ms, horizon), aujourdhui).slice(0, 6);
+  const lourde = teteLourde(f.tete?.locks);
+  const essais = placesDuOuiDePerle(p, p.places.length ? [] : placesLibres(lu.agenda, p.serviceIds, ms, horizon, undefined, lourde), aujourdhui).slice(0, 6);
   if (essais.length === 0) { dis('perle · aucune place a essayer'); return { pris: false }; }
   const branchId = lu.agenda.branchId;
   const dureeMin = dureeDesPrestations(p.serviceIds, lu.agenda.services) || p.dureeMin || 60;
@@ -8822,7 +8931,7 @@ async function reserveLeOuiDePerle(sb: Sb, o: { numero: string; ligneId: string;
         numero: `+${o.numero}`, dateRdv: x.iso, heure: x.heure, moment: placeDite(x), statut: 'en cours', detail: 'dit dans la conversation, par Perle', quand: maintenant,
       },
     };
-    const v = await poseSousVerrou(sb, lu, ecriture, vue.oublie, false);
+    const v = await poseSousVerrou(sb, lu, ecriture, vue.oublie, false, lourde);
     dis('perle · pose', { verdict: v.ok ? (v.verdict ?? 'pose') : v.raison });
     if (v.ok) { posee = x; break; }
     if (!String(v.raison).startsWith('creneau_')) break;

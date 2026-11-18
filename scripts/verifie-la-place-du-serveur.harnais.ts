@@ -565,7 +565,8 @@ function jugeLaPorte(brut: string): string[] {
      2 novembre 2026) ; c'est toujours celui du serveur. */
   /* LE SITE OUVRE LE JOUR MÊME (12 novembre 2026) : la porte du site passe
      `jourMeme` (true) au juge, aux deux endroits. */
-  exige('le juge est celui du serveur', /laPlaceTient\(\{ \.\.\.agenda, sieges: places, services: auCalibre, categories: famillesDuSite \}, \{ date: o\.date, time: o\.time, serviceIds: o\.serviceIds, derniereVenue \}, maintenant, true\)/.test(s));
+  /* Sa tête annoncée (18 novembre 2026, deux têtes chez Team) va au juge avec la demande. */
+  exige('le juge est celui du serveur', /laPlaceTient\(\{ \.\.\.agenda, sieges: places, services: auCalibre, categories: famillesDuSite \}, \{ date: o\.date, time: o\.time, serviceIds: o\.serviceIds, derniereVenue, \.\.\.\(lourde \? \{ lourde: true \} : \{\}\) \}, maintenant, true\)/.test(s));
   exige('la forme et la fenetre se jugent avant toute lecture', s.indexOf('laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant, true)') > -1
     && s.indexOf('laPlaceEstRecevable({ date: o.date, time: o.time }, maintenant, true)') < s.indexOf("toutesLesLignes('catalog_services')"));
   exige('une lecture en panne refuse', /if \(panne \|\| pris\.length >= PLAFOND_D_UNE_REPONSE\)/.test(s) && /return \{ erreur: 'agenda_illisible' \}/.test(s));
@@ -621,8 +622,9 @@ const migration = lf(readFileSync(MIGRATION, 'utf8'));
    s'applique plus ne prouve rien. */
 type Panne = { nom: string; avant: string; apres: string };
 const PANNES_DU_JUGE: Panne[] = [
-  { nom: 'les fauteuils oublies par le juge', avant: 'if (agenda.sieges > 0\n    && duJour.filter', apres: 'if (false\n    && duJour.filter' },
-  { nom: 'le premier maitre, libre ou non', avant: 'return { ok: true, dureeMin, maitres: libres };', apres: 'return { ok: true, dureeMin, maitres: candidats };' },
+  /* Les places de chaque jour (18 novembre 2026, deux têtes chez Team) : `sieges` les lit (`siegesDe`). */
+  { nom: 'les fauteuils oublies par le juge', avant: 'if (sieges > 0\n    && duJour.filter', apres: 'if (false\n    && duJour.filter' },
+  { nom: 'le premier maitre, libre ou non', avant: 'return { ok: true, dureeMin, maitres: [...libres, ...partages] };', apres: 'return { ok: true, dureeMin, maitres: candidats };' },
   { nom: 'le jour compte sur l horloge UTC', avant: 'new Date(ms + 3_600_000)', apres: 'new Date(ms)' },
   { nom: 'la borne un mois plus loin', avant: 'Number(m[2]) - 1 + 4, 0)', apres: 'Number(m[2]) - 1 + 5, 0)' },
   { nom: 'la borne sur quatre-vingt-dix jours glissants', avant: '|| ecart > joursDeLaFenetre(ms)) return', apres: '|| ecart > 90) return' },
@@ -636,8 +638,8 @@ const PANNES_DU_JUGE: Panne[] = [
   { nom: 'la porte de consultation ouverte', avant: "if (connus.some((s) => !estUneConsultation(s, cats) && exigeConsultation(s, cats))) return 'consultation_requise';", apres: '' },
   { nom: 'tous les ateliers ouverts en ligne', avant: 'return ATELIERS_RESERVABLES.includes(racine);', apres: 'return true;' },
   { nom: 'la duree ecrite d un rendez-vous pose ignoree', avant: 'duree: Number.isFinite(d) && d >= 1 ? d : 60', apres: 'duree: 60' },
-  { nom: 'les places sans les fauteuils', avant: 'capSimultane: agenda.sieges,', apres: 'capSimultane: 0,' },
-  { nom: 'les murs oublies par le juge', avant: '      ...plagesBloquees(agenda.murs, agenda.branchId, p.date, m),\n', apres: '' },
+  { nom: 'les places sans les fauteuils', avant: 'capSimultane: siegesDe(agenda, iso),', apres: 'capSimultane: 0,' },
+  { nom: 'les murs oublies par le juge', avant: '\n      || plagesBloquees(agenda.murs, agenda.branchId, p.date, m).some(([s, e]) => debut < e && fin > s);', apres: ';' },
   { nom: 'une prestation eteinte acceptee', avant: "(s): s is PrestationDuServeur => !!s && s.enabled !== false && !s.archived", apres: '(s): s is PrestationDuServeur => !!s' },
 ];
 const PANNES_DE_LA_PORTE: Panne[] = [

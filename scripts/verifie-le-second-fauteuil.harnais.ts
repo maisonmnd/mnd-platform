@@ -139,20 +139,30 @@ const agenda = (sieges = 2): AgendaDeLaMaison => ({
   semaine: OUVERT, exceptions: [], murs: [], capMaison: 0, capMaitre: 0, sieges,
   masques: {}, bandes: [], bandSets: {}, baremeSuspendu: false, formules: [],
 });
-const pris = (jour: string, maitre: string, debut = '14:00', duree = 60) => ({ jour, maitre, debut, duree });
+/* `lourde` : une tete de 150 locks ou plus (deux tetes chez Team, 18 novembre 2026). */
+const pris = (jour: string, maitre: string, debut = '14:00', duree = 60, lourde = false) =>
+  ({ jour, maitre, debut, duree, ...(lourde ? { lourde: true } : {}) });
 const LOIN = new Date('2026-11-02T08:00:00');
-const site = (o: { jour: string; ids: string[]; occupes: ReturnType<typeof pris>[]; places?: Record<string, number>; sieges?: number }) =>
-  heuresLibres({ agenda: agenda(o.sieges), dateIso: o.jour, serviceIds: o.ids, occupes: o.occupes, places: o.places, maintenant: LOIN });
+const site = (o: { jour: string; ids: string[]; occupes: ReturnType<typeof pris>[]; places?: Record<string, number>; sieges?: number; lourde?: boolean }) =>
+  heuresLibres({ agenda: agenda(o.sieges), dateIso: o.jour, serviceIds: o.ids, occupes: o.occupes, places: o.places, maintenant: LOIN, lourde: o.lourde });
 const a14 = (l: { heure: string; maitre: string }[]) => l.find((h) => h.heure === '14:00') ?? null;
 const DEUX = { [MARDI]: 2 };
 
 dit('AUJOURD HUI (une place) : Team a 14 h ferme 14 h en ligne', null, a14(site({ jour: MARDI, ids: [LAVAGE.id], occupes: [pris(MARDI, 'Team')] })));
-dit('le second fauteuil : un lavage a 14 h, cote Expert', { heure: '14:00', maitre: 'Expert' },
+dit('le second fauteuil : un lavage a 14 h, cote Expert (un maitre seul avant Team qui partage)', { heure: '14:00', maitre: 'Expert' },
   a14(site({ jour: MARDI, ids: [LAVAGE.id], occupes: [pris(MARDI, 'Team')], places: DEUX })));
-dit('un SINSIN ne parait pas libre quand Team est deja au fauteuil', null,
-  a14(site({ jour: MARDI, ids: [SINSIN.id], occupes: [pris(MARDI, 'Team')], places: DEUX })));
+/* DEUX TETES CHEZ TEAM (18 novembre 2026) : deux lourdes jamais ensemble ;
+   une petite tete partage Team. */
+dit('un SINSIN ne parait pas libre quand Team tient deja une tete lourde et qu elle en a une aussi', null,
+  a14(site({ jour: MARDI, ids: [SINSIN.id], occupes: [pris(MARDI, 'Team', '14:00', 60, true)], places: DEUX, lourde: true })));
 dit('... ni un SINSIN avec un autre geste', null,
-  a14(site({ jour: MARDI, ids: [SINSIN.id, LAVAGE.id], occupes: [pris(MARDI, 'Team', '13:00', 120)], places: DEUX })));
+  a14(site({ jour: MARDI, ids: [SINSIN.id, LAVAGE.id], occupes: [pris(MARDI, 'Team', '13:00', 120, true)], places: DEUX, lourde: true })));
+dit('... une petite tete d un cote ou de l autre : Team recoit les deux', [{ heure: '14:00', maitre: 'Team' }, { heure: '14:00', maitre: 'Team' }, { heure: '14:00', maitre: 'Team' }], [
+  a14(site({ jour: MARDI, ids: [SINSIN.id], occupes: [pris(MARDI, 'Team')], places: DEUX })),
+  a14(site({ jour: MARDI, ids: [SINSIN.id], occupes: [pris(MARDI, 'Team', '14:00', 60, true)], places: DEUX })),
+  a14(site({ jour: MARDI, ids: [SINSIN.id], occupes: [pris(MARDI, 'Team')], places: DEUX, lourde: true }))]);
+dit('... jamais au-dela des places du jour : une place, Team ne partage pas', null,
+  a14(site({ jour: MARDI, ids: [SINSIN.id], occupes: [pris(MARDI, 'Team')], places: { [MARDI]: 1 } })));
 dit('Expert au fauteuil : le SINSIN prend le second, chez Team', { heure: '14:00', maitre: 'Team' },
   a14(site({ jour: MARDI, ids: [SINSIN.id], occupes: [pris(MARDI, 'Expert')], places: DEUX })));
 dit('deux rituels deja a 14 h : plus rien, meme a deux places', null,
@@ -174,13 +184,16 @@ dit('une Maison a un fauteuil : 14 h fermee meme si la carte dit deux', null,
 /* ══ 4. MA COURONNE : `freeSlots`, les places retenues avec les murs ══ */
 settingsStore.set((prev) => ({ ...prev, hours: OUVERT, maxRdvParJourMaison: 0, maxRdvParJourMaitre: 0 }));
 branchesStore.set([{ ...DEFAULT_BRANCHES[0], id: B, seats: 2, masters: ['Team', 'Expert'] }]);
-const couronne = (master: string, jour = MARDI, occupes = [pris(MARDI, 'Team')]) =>
-  freeSlots(jour, master, 60, [], [], B, occupes).includes('14:00');
+const couronne = (master: string, jour = MARDI, occupes = [pris(MARDI, 'Team')], lourde = false) =>
+  freeSlots(jour, master, 60, [], [], B, occupes, lourde).includes('14:00');
 retiensLesPlaces(B, LUNDI, DIMANCHE, [{ jour: MARDI, places: 2 }, { jour: SAMEDI, places: 1 }]);
-dit('Ma Couronne, deux places : 14 h libre pour un geste sans maitre, fermee pour Team (deja au fauteuil)', [true, false],
-  [couronne(''), couronne('Team')]);
-dit('... un SINSIN (Team) ne parait pas libre ; Expert au fauteuil, il l est', [false, true],
-  [couronne('Team'), couronne('Team', MARDI, [pris(MARDI, 'Expert')])]);
+dit('Ma Couronne, deux places : 14 h libre pour un geste sans maitre, fermee pour Team quand les deux tetes sont lourdes', [true, false],
+  [couronne(''), couronne('Team', MARDI, [pris(MARDI, 'Team', '14:00', 60, true)], true)]);
+dit('... un SINSIN (Team) ne parait pas libre entre deux lourdes ; Expert au fauteuil, il l est', [false, true],
+  [couronne('Team', MARDI, [pris(MARDI, 'Team', '14:00', 60, true)], true), couronne('Team', MARDI, [pris(MARDI, 'Expert')], true)]);
+dit('... une petite tete d un cote ou de l autre : Team partage (deux tetes chez Team)', [true, true, true],
+  [couronne('Team'), couronne('Team', MARDI, [pris(MARDI, 'Team', '14:00', 60, true)]), couronne('Team', MARDI, [pris(MARDI, 'Team')], true)]);
+dit('... Expert ne partage jamais, petite tete ou non', false, couronne('Expert', MARDI, [pris(MARDI, 'Expert')]));
 dit('... le samedi, une place', false, couronne('', SAMEDI, [pris(SAMEDI, 'Team')]));
 dit('... les places se lisent par jour : deux le mardi, une le samedi et le mercredi', [2, 1, 1],
   [placesEnLigneDe(B, MARDI), placesEnLigneDe(B, SAMEDI), placesEnLigneDe(B, MERCREDI)]);
@@ -212,8 +225,8 @@ dit('... une heure refusee relit les places avec les murs', true,
   reserver.includes('placesEnLigne(agenda.branchId, suite[0], suite[suite.length - 1]),'));
 dit('... la page passe les places a chaque jour, et se recalcule quand elles arrivent', [true, true, true], [
   reserver.includes('setPlacesParJour(lues);'),
-  reserver.includes('heuresLibres({ agenda: agendaAuCalibre ?? agenda, dateIso: iso, serviceIds, occupes, places: placesParJour, maintenant })'),
-  reserver.includes('}, [agenda, agendaAuCalibre, serviceIds, occupes, placesParJour, occupesEtat, minute]);')]);
+  reserver.includes('heuresLibres({ agenda: agendaAuCalibre ?? agenda, dateIso: iso, serviceIds, occupes, places: placesParJour, maintenant, lourde: teteLourde(lockCountAnnonce) })'),
+  reserver.includes('}, [agenda, agendaAuCalibre, serviceIds, occupes, placesParJour, occupesEtat, minute, lockCountAnnonce]);')]);
 
 /* ══ 6. LE SERVEUR DU SITE : `demande-submit` ═══════════════════════ */
 const ds = lis('supabase/functions/demande-submit/index.ts');
@@ -224,12 +237,15 @@ dit('... une panne ou une valeur folle : une place ; jamais plus que le second f
   dsNu.includes('const places = !placesDuJour.error && Number.isInteger(lues) && lues >= PLACES_EN_LIGNE ? Math.min(lues, PLACES_EN_LIGNE_AU_PLUS) : PLACES_EN_LIGNE;'),
   ds.includes('const PLACES_EN_LIGNE_AU_PLUS = 2;')]);
 dit('... le juge du serveur les recoit (le site propose ce que le serveur accepte)', true,
-  dsNu.includes('laPlaceTient({ ...agenda, sieges: places, services: auCalibre, categories: famillesDuSite }, { date: o.date, time: o.time, serviceIds: o.serviceIds, derniereVenue }, maintenant, true)'));
+  dsNu.includes('laPlaceTient({ ...agenda, sieges: places, services: auCalibre, categories: famillesDuSite }, { date: o.date, time: o.time, serviceIds: o.serviceIds, derniereVenue, ...(lourde ? { lourde: true } : {}) }, maintenant, true)'));
 const version = /const VERSION = '(\d{4}-\d{2}-\d{2})-/.exec(ds)?.[1] ?? '';
 dit('... sa version dit le second fauteuil (2 novembre 2026 ou plus recente)', true, version >= '2026-11-02');
 const wa = lis('supabase/functions/whatsapp-automate/index.ts');
-dit('WhatsApp garde ses propositions a une place (aucune lecture des places)', [true, false],
-  [wa.includes('sieges: PLACES_EN_LIGNE,'), wa.includes('places_en_ligne')]);
+/* DEUX TETES CHEZ TEAM (18 novembre 2026) : WhatsApp lit desormais les places
+   de chaque jour (`places_en_ligne_du`), une place par defaut et en panne. */
+dit('WhatsApp lit les places de chaque jour, une place par defaut', [true, true, true],
+  [wa.includes('sieges: PLACES_EN_LIGNE,'), wa.includes("sb.rpc('places_en_ligne_du', { p_branch: branche.id, p_debut: du, p_fin: au })"),
+    wa.includes("if (error) { dis('places du jour illisibles, une place'")]);
 
 /* ══ 7. LA BASE : migration 0152 ════════════════════════════════════ */
 const m = lis('supabase/migrations/0152_le_second_fauteuil_en_ligne.sql');

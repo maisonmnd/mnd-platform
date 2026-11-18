@@ -230,7 +230,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-18-c · une note de « Ses modèles chez Meta » n’éteint plus l’attente : la bascule lit la liste relue chez Meta et les notes de la direction ensemble (⟨modeles-meta⟩) ; 2026-11-18-b · Ma Couronne reconnaît la fiche que la Maison a inscrite avant son compte (la règle d’est_ma_tete : la fiche qui porte son compte, le payeur désigné par sa fiche) ; « Je confirme » écrit confirme toutes les places de ce numéro qui attendent son oui, et la réponse les dit ; un message de l’attente qui ne part pas (échec, plafond) ou que Meta dit non remis confirme la place sans attente, comme un refus du modèle ; 2026-11-18-a · la décoloration se réserve en ligne comme la coloration (son atelier, La Transformation) ; la clé du serveur comparée à temps constant (⟨cle-du-cron⟩) ; l’heure d’un rendez-vous déplacé tenue sur la grille ; le rituel GBÀTÀ™ (le défaisage) se réserve en ligne ; le rendez-vous en attente (la place tenue deux heures, « Je confirme » sur WhatsApp, l’acompte quand un geste en porte un ; tant que le modèle n’est pas approuvé, la place naît confirmée comme avant) ; un plafond par numéro et par adresse ; l’heure tenue sur la grille ; la durée au calibre annoncé ; les codes comptés par la clé du numéro ; déplacer deux fois au plus, sous le verrou des places ; Ma Couronne passe par le serveur ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous déplacé) : une page en cache ou un envoi direct ne passe plus ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
+const VERSION = '2026-11-18-d · deux têtes chez Team : le juge du site, de Ma Couronne et du déplacement lit la tête (le calibre annoncé, la fiche) ; Team reçoit une seconde cliente à la même heure quand l’une des deux a moins de 150 locks, jamais deux lourdes ; le compte annoncé s’écrit sur le rendez-vous (locksAnnonces) ; 2026-11-18-c · une note de « Ses modèles chez Meta » n’éteint plus l’attente : la bascule lit la liste relue chez Meta et les notes de la direction ensemble (⟨modeles-meta⟩) ; 2026-11-18-b · Ma Couronne reconnaît la fiche que la Maison a inscrite avant son compte (la règle d’est_ma_tete : la fiche qui porte son compte, le payeur désigné par sa fiche) ; « Je confirme » écrit confirme toutes les places de ce numéro qui attendent son oui, et la réponse les dit ; un message de l’attente qui ne part pas (échec, plafond) ou que Meta dit non remis confirme la place sans attente, comme un refus du modèle ; 2026-11-18-a · la décoloration se réserve en ligne comme la coloration (son atelier, La Transformation) ; la clé du serveur comparée à temps constant (⟨cle-du-cron⟩) ; l’heure d’un rendez-vous déplacé tenue sur la grille ; le rituel GBÀTÀ™ (le défaisage) se réserve en ligne ; le rendez-vous en attente (la place tenue deux heures, « Je confirme » sur WhatsApp, l’acompte quand un geste en porte un ; tant que le modèle n’est pas approuvé, la place naît confirmée comme avant) ; un plafond par numéro et par adresse ; l’heure tenue sur la grille ; la durée au calibre annoncé ; les codes comptés par la clé du numéro ; déplacer deux fois au plus, sous le verrou des places ; Ma Couronne passe par le serveur ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous déplacé) : une page en cache ou un envoi direct ne passe plus ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
 
 /** LE SECOND FAUTEUIL, PAS DAVANTAGE (2 novembre 2026, 0152) : la copie de
     `PLACES_EN_LIGNE_AU_PLUS` (src/shared/agenda-pur.ts), hors des repères. */
@@ -1083,7 +1083,34 @@ export const PREMIER_RENDEZ_VOUS_MIN = 8 * 60 + 30;
 /** UN CRÉNEAU DÉJÀ PRIS, dit sans dire par qui — voir la migration 0079.
     C'est tout ce que le serveur consent à donner à une inconnue, et tout ce
     qu'un calendrier honnête demande. */
-export type CreneauOccupe = { jour: string; maitre: string; debut: string; duree: number };
+export type CreneauOccupe = { jour: string; maitre: string; debut: string; duree: number; lourde?: boolean };
+
+/** DEUX TÊTES CHEZ TEAM — 18 novembre 2026. « On peut mettre deux personnes
+    aux mêmes horaires… tant qu'une personne a moins de 150 locks et l'autre
+    a 400 locks. Mais on ne peut pas prendre deux personnes qui ont 400 locks
+    simultanément » (Yéman). Au sélecteur, le même jour : l'une des deux sous
+    150 locks ; une fiche sans nombre de locks compte comme une PETITE tête ;
+    tous les rituels de Team ; deux au plus en même temps (les fauteuils).
+    Un autre maître (une personne) ne reçoit toujours qu'une cliente à la
+    fois. La base (`creneaux_occupes`) ne dit d'un créneau pris que « lourde »
+    (150 locks ou plus), jamais le nombre ; le verrou (`pose_si_libre`,
+    `deplace_si_libre`) et le garde (`une_place_en_ligne`) tiennent la même
+    règle. */
+export const MAITRE_QUI_PARTAGE = 'Team';
+export const SEUIL_TETE_LOURDE = 150;
+export const DEUX_TETES_AU_PLUS = 2;
+/** Une tête lourde : 150 locks ou plus. Un nombre inconnu n'en fait pas une.
+    Le texte se lit comme la base (`locks_lourds`, 0238) : des chiffres, un
+    point décimal au plus, rien d'autre. */
+export const teteLourde = (locks: unknown): boolean => {
+  const n = typeof locks === 'number' ? locks
+    : typeof locks === 'string' && /^\d+(\.\d+)?$/.test(locks.trim()) ? Number(locks.trim()) : Number.NaN;
+  return Number.isFinite(n) && n >= SEUIL_TETE_LOURDE;
+};
+/** Ce rendez-vous déjà pris chez ce maître empêche-t-il une nouvelle venue à la
+    même heure ? Toujours, sauf chez Team quand l'une des deux têtes est petite. */
+export const bloqueLaVenue = (maitre: string, nouvelleLourde: boolean | undefined, deja: { lourde?: boolean }): boolean =>
+  maitre !== MAITRE_QUI_PARTAGE || (!!nouvelleLourde && !!deja.lourde);
 
 /** LE CŒUR DU CALCUL, SANS AUCUN MAGASIN — pour qu'il soit jugeable.
 
@@ -1093,7 +1120,10 @@ export function creneauxLibres(o: {
   opening: FenetreDuJour;
   durationMin: number;
   /** Tout ce qui occupe la journée, tous maîtres confondus. */
-  occupes: readonly { maitre: string; debutMin: number; dureeMin: number }[];
+  occupes: readonly { maitre: string; debutMin: number; dureeMin: number; lourde?: boolean }[];
+  /** La tête de la nouvelle venue : 150 locks ou plus (deux têtes chez Team,
+      18 novembre 2026). Absent : une petite tête. */
+  lourde?: boolean;
   /** Murs posés à la main (pause, absence), déjà résolus en minutes. */
   bloques?: readonly (readonly [number, number])[];
   master: string;
@@ -1130,7 +1160,10 @@ export function creneauxLibres(o: {
   const duMaitre = o.occupes.filter((a) => a.maitre === o.master);
   if (capMaitre > 0 && duMaitre.length >= capMaitre) return [];
 
+  /* Chez Team, un rendez-vous qu'une petite tête rend partageable ne bloque
+     pas l'heure ; deux au plus chez lui en même temps (plus bas). */
   const busy: Array<readonly [number, number]> = duMaitre
+    .filter((a) => bloqueLaVenue(o.master, o.lourde, a))
     .map((a) => [a.debutMin, a.debutMin + a.dureeMin] as const);
   if (o.bloques) busy.push(...o.bloques);
 
@@ -1147,6 +1180,7 @@ export function creneauxLibres(o: {
     if (o.maintenantMin != null && m <= o.maintenantMin) continue;
     const overlaps = busy.some(([s, e]) => m < e && m + o.durationMin > s);
     if (overlaps) continue;
+    if (duMaitre.filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length >= DEUX_TETES_AU_PLUS) continue;
     /* LES FAUTEUILS : le maître est libre, mais la Maison peut être pleine. */
     if (cap > 0) {
       const ensemble = o.occupes
@@ -1172,10 +1206,10 @@ export function dureeDesPrestations(
 export const occupesDuJour = (
   occupes: readonly CreneauOccupe[],
   dateIso: string,
-): { maitre: string; debutMin: number; dureeMin: number }[] =>
+): { maitre: string; debutMin: number; dureeMin: number; lourde?: boolean }[] =>
   occupes
     .filter((c) => c.jour === dateIso && c.debut)
-    .map((c) => ({ maitre: c.maitre, debutMin: minutesDeHhmm(c.debut), dureeMin: c.duree }));
+    .map((c) => ({ maitre: c.maitre, debutMin: minutesDeHhmm(c.debut), dureeMin: c.duree, ...(c.lourde ? { lourde: true } : {}) }));
 
 /** UNE SEULE RÉSERVATION EN LIGNE À LA FOIS — 24 octobre 2026.
 
@@ -1504,6 +1538,9 @@ type AgendaDuServeur = {
   maitres: string[];
   /** Les fauteuils de la Maison. 0 = sans limite. */
   sieges: number;
+  /** LES PLACES DE CHAQUE JOUR (18 novembre 2026), quand la fonction les a
+      lues (`places_en_ligne_du`) : un jour absent garde `sieges`. */
+  siegesDuJour?: Readonly<Record<string, number>>;
   capMaison: number;
   capMaitre: number;
   semaine: HeureDeLaSemaine[];
@@ -1528,8 +1565,11 @@ type LignesDeLAgenda = {
   services?: readonly { id: string; data?: unknown }[] | null;
   categories?: readonly { id: string; data?: unknown }[] | null;
   blocages?: readonly { id?: string; data?: unknown }[] | null;
-  /** Les lignes de `creneaux_occupes` : jour, maître, début, durée. */
+  /** Les lignes de `creneaux_occupes` : jour, maître, début, durée, lourde. */
   occupes?: readonly unknown[] | null;
+  /** Les lignes de `places_en_ligne_du` (jour, places), quand la fonction
+      les lit (WhatsApp, 18 novembre 2026). Absentes : `PLACES_EN_LIGNE`. */
+  places?: readonly unknown[] | null;
 };
 
 function agendaDepuisLesLignes(l: LignesDeLAgenda): AgendaDuServeur | null {
@@ -1579,8 +1619,17 @@ function agendaDepuisLesLignes(l: LignesDeLAgenda): AgendaDuServeur | null {
     .filter((c) => chaine(c.jour) !== '' && /^\d{1,2}:\d{2}/.test(chaine(c.debut)))
     .map((c) => {
       const d = Number(c.duree);
-      return { jour: chaine(c.jour), maitre: chaine(c.maitre), debut: chaine(c.debut), duree: Number.isFinite(d) && d >= 1 ? d : 60 };
+      /* « lourde » : 150 locks ou plus (creneaux_occupes, deux têtes chez Team). */
+      return { jour: chaine(c.jour), maitre: chaine(c.maitre), debut: chaine(c.debut), duree: Number.isFinite(d) && d >= 1 ? d : 60, ...(c.lourde === true ? { lourde: true } : {}) };
     });
+  /* LES PLACES DE CHAQUE JOUR (18 novembre 2026) : un jour ISO et un entier
+     d'au moins 1, rien d'autre ; la base (`places_en_ligne`) les borne déjà
+     aux fauteuils, et son verrou relit les mêmes. */
+  const siegesDuJour: Record<string, number> = {};
+  for (const r of (l.places ?? []).map(objet)) {
+    const n = Number(r.places);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(chaine(r.jour)) && Number.isInteger(n) && n >= 1) siegesDuJour[chaine(r.jour)] = n;
+  }
   const services: PrestationDuServeur[] = (l.services ?? []).map((r) => {
     const d = objet(r.data);
     const duree = Number(d.durationMin);
@@ -1614,6 +1663,7 @@ function agendaDepuisLesLignes(l: LignesDeLAgenda): AgendaDuServeur | null {
        rituel ne chevauche jamais un autre (`PLACES_EN_LIGNE`). Les fauteuils
        de la branche restent au comptoir. */
     sieges: PLACES_EN_LIGNE,
+    ...(Object.keys(siegesDuJour).length > 0 ? { siegesDuJour } : {}),
     capMaison: entier(reglages.maxRdvParJourMaison),
     capMaitre: entier(reglages.maxRdvParJourMaitre),
     semaine,
@@ -1684,7 +1734,14 @@ type RefusDeLaPlace =
     LA LIT PAS : l'appelant la lit en base. Un geste à fenêtre
     (`fenetreApresVenue`) sans cette valeur est refusé : une cliente qu'on ne
     sait pas situer n'a pas de venue à compter. */
-type DemandeDePlace = { date: string; time: string; serviceIds: readonly string[]; derniereVenue?: string | null };
+/** Les places en ligne d'un jour : celles lues pour ce jour, sinon celles de l'agenda. */
+function siegesDe(agenda: AgendaDuServeur, iso: string): number {
+  const lu = agenda.siegesDuJour?.[iso];
+  return typeof lu === 'number' && Number.isInteger(lu) && lu >= 0 ? lu : agenda.sieges;
+}
+
+/** `lourde` : la tête de la nouvelle venue, 150 locks ou plus (deux têtes chez Team, 18 novembre 2026). Absent : une petite tête. */
+type DemandeDePlace = { date: string; time: string; serviceIds: readonly string[]; derniereVenue?: string | null; lourde?: boolean };
 
 /** La place tient : sa durée, et les maîtres LIBRES à cette heure, dans
     l'ordre de la Maison (le verrou prend le premier encore libre). */
@@ -1777,14 +1834,17 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jo
   /* Le plafond de la Maison : ses rendez-vous du jour, tous maîtres confondus. */
   if (agenda.capMaison > 0 && duJour.length >= agenda.capMaison) return { ok: false, erreur: 'creneau_plafond' };
   /* LES FAUTEUILS : le maître peut être libre, la Maison pleine. */
-  if (agenda.sieges > 0
-    && duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin).length >= agenda.sieges) {
+  const sieges = siegesDe(agenda, p.date);
+  if (sieges > 0
+    && duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin).length >= sieges) {
     return { ok: false, erreur: 'creneau_pris' };
   }
 
   /* LES MAÎTRES LIBRES, tous, dans l'ordre : jamais le premier sans regarder. */
   const candidats = maitresDuRituel(agenda, p.serviceIds);
   const libres: string[] = [];
+  /* Un maître seul à cette heure passe avant Team qui partage. */
+  const partages: string[] = [];
   let plafonnes = 0;
   for (const m of candidats) {
     const siens = duJour.filter((a) => a.maitre === m);
@@ -1792,14 +1852,17 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jo
       plafonnes += 1;
       continue;
     }
-    const occupe = [
-      ...siens.map((a): [number, number] => [a.debutMin, a.debutMin + a.dureeMin]),
-      ...plagesBloquees(agenda.murs, agenda.branchId, p.date, m),
-    ].some(([s, e]) => debut < e && fin > s);
-    if (!occupe) libres.push(m);
+    /* DEUX TÊTES CHEZ TEAM (18 novembre 2026) : un rendez-vous de Team que
+       l'une des deux petites têtes rend partageable ne bloque pas ; deux au
+       plus chez lui à la même heure. Un autre maître, une cliente à la fois. */
+    const chevauchent = siens.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin);
+    const occupe = chevauchent.some((a) => bloqueLaVenue(m, p.lourde, a))
+      || chevauchent.length >= DEUX_TETES_AU_PLUS
+      || plagesBloquees(agenda.murs, agenda.branchId, p.date, m).some(([s, e]) => debut < e && fin > s);
+    if (!occupe) (chevauchent.length === 0 ? libres : partages).push(m);
   }
-  if (libres.length === 0) return { ok: false, erreur: plafonnes === candidats.length ? 'creneau_plafond' : 'creneau_pris' };
-  return { ok: true, dureeMin, maitres: libres };
+  if (libres.length + partages.length === 0) return { ok: false, erreur: plafonnes === candidats.length ? 'creneau_plafond' : 'creneau_pris' };
+  return { ok: true, dureeMin, maitres: [...libres, ...partages] };
 }
 
 /** LES PLACES LIBRES, de demain (à Cotonou) à l'horizon, rangées dans le
@@ -1811,6 +1874,8 @@ function placesLibres(
   /* La dernière venue de la cliente (7 novembre 2026) : un geste à fenêtre ne
      propose que les jours qui tombent dedans. */
   derniereVenue?: string | null,
+  /* Sa tête : 150 locks ou plus (deux têtes chez Team, 18 novembre 2026). */
+  lourde?: boolean,
 ): PlaceDuServeur[] {
   const sansFenetre = lesGestesSeReservent(agenda, serviceIds, { derniereVenue, date: 'avant' });
   if (sansFenetre && sansFenetre !== 'prestation_hors_fenetre') return [];
@@ -1836,8 +1901,9 @@ function placesLibres(
         master,
         capMaison: agenda.capMaison,
         capMaitre: agenda.capMaitre,
-        capSimultane: agenda.sieges,
+        capSimultane: siegesDe(agenda, iso),
         maintenantMin: null,
+        ...(lourde ? { lourde: true } : {}),
       });
       for (const h of libres) heures.add(h);
     }
@@ -1976,7 +2042,11 @@ async function laPlaceDemandee(o: {
      réparation passent toujours par la consultation. Hors des repères
      ⟨place-du-serveur⟩ : WhatsApp garde ses ateliers, sans le défaisage. */
   const famillesDuSite = famillesAvecLeDefaisage(agenda.categories, ATELIERS_RESERVABLES);
-  const verdict = laPlaceTient({ ...agenda, sieges: places, services: auCalibre, categories: famillesDuSite }, { date: o.date, time: o.time, serviceIds: o.serviceIds, derniereVenue }, maintenant, true);
+  /* DEUX TÊTES CHEZ TEAM (18 novembre 2026) : la tête qu'elle annonce, lourde à
+     150 locks ou plus ; écrite sur le rendez-vous (`locksAnnonces`), le verrou
+     (0238) la relit. Sans compte annoncé, une petite tête. */
+  const lourde = teteLourde(Math.round(Number(o.lockCount) || 0));
+  const verdict = laPlaceTient({ ...agenda, sieges: places, services: auCalibre, categories: famillesDuSite }, { date: o.date, time: o.time, serviceIds: o.serviceIds, derniereVenue, ...(lourde ? { lourde: true } : {}) }, maintenant, true);
   if (!verdict.ok) return { erreur: verdict.erreur };
   /* L'HEURE EST UNE HEURE DE LA GRILLE — 17 novembre 2026. Le serveur
      n'accepte que les heures que l'écran propose : la grille du jour (08:30,
@@ -3179,6 +3249,13 @@ async function lisLAgendaDuSite(brancheId: string, du: string, au: string): Prom
 
 /** LE RENDEZ-VOUS QU'ON DÉPLACE, rendu libre : son créneau (ce maître, ce
     jour, cette heure) retiré une fois de l'agenda. */
+/** Sa tête, lue sur son propre créneau (`creneaux_occupes`, 0238) : lourde à
+    150 locks ou plus. Deux têtes chez Team, 18 novembre 2026. */
+function lourdeDuRdvDuSite(agenda: AgendaDuServeur, maitre: string, sauf: { date: string; time: string }): boolean {
+  const debut = minutesDeHhmm(sauf.time);
+  return !!agenda.occupes.find((c) => c.jour === sauf.date && (c.maitre ?? '') === maitre && minutesDeHhmm(c.debut) === debut)?.lourde;
+}
+
 function agendaSansLeRdvDuSite(agenda: AgendaDuServeur, maitre: string, sauf: { date: string; time: string }): AgendaDuServeur {
   let retire = false;
   const debut = minutesDeHhmm(sauf.time);
@@ -3198,6 +3275,7 @@ function placesDeLaMaisonPourDeplacer(
   agenda: AgendaDuServeur, maitre: string, sauf: { date: string; time: string; dureeMin: number }, ms: number,
 ): { jours: Record<string, string[]>; fermes: string[] } {
   const duree = Math.max(1, Math.round(Number(sauf.dureeMin) || 60));
+  const lourde = lourdeDuRdvDuSite(agenda, maitre, sauf);
   const sans = agendaSansLeRdvDuSite(agenda, maitre, sauf);
   const aujourdhui = jourDeCotonou(ms);
   const jours: Record<string, string[]> = {};
@@ -3210,6 +3288,7 @@ function placesDeLaMaisonPourDeplacer(
       opening, durationMin: duree, occupes: occupesDuJour(sans.occupes, iso),
       bloques: plagesBloquees(sans.murs, sans.branchId, iso, maitre), master: maitre,
       capMaison: sans.capMaison, capMaitre: sans.capMaitre, capSimultane: sans.sieges, maintenantMin: null,
+      ...(lourde ? { lourde: true } : {}),
     });
     const heures = [...libres].sort()
       .filter((h) => arriveeRecevable({ date: iso, time: h }, ms) === null && !(iso === sauf.date && h === sauf.time));
@@ -3235,6 +3314,7 @@ function laPlaceTientPourDeplacer(
   const fin = debut + Math.max(1, Math.round(Number(p.dureeMin) || 60));
   /* Jamais avant 08:30, même pour un rendez-vous déplacé (17 novembre 2026). */
   if (debut < Math.max(fenetre.openMin, PREMIER_RENDEZ_VOUS_MIN) || fin > fenetre.closeMin) return { ok: false, erreur: 'creneau_hors_ouverture' };
+  const lourde = lourdeDuRdvDuSite(agenda, maitre, sauf);
   const sans = agendaSansLeRdvDuSite(agenda, maitre, sauf);
   const duJour = occupesDuJour(sans.occupes, p.date);
   if (sans.capMaison > 0 && duJour.length >= sans.capMaison) return { ok: false, erreur: 'creneau_plafond' };
@@ -3242,10 +3322,11 @@ function laPlaceTientPourDeplacer(
   if (sans.sieges > 0 && duJour.filter((a) => chevauche(a.debutMin, a.debutMin + a.dureeMin)).length >= sans.sieges) return { ok: false, erreur: 'creneau_pris' };
   const siens = duJour.filter((a) => a.maitre === maitre);
   if (sans.capMaitre > 0 && siens.length >= sans.capMaitre) return { ok: false, erreur: 'creneau_plafond' };
-  const occupe = [
-    ...siens.map((a): [number, number] => [a.debutMin, a.debutMin + a.dureeMin]),
-    ...plagesBloquees(sans.murs, sans.branchId, p.date, maitre),
-  ].some(([s, e]) => chevauche(s, e));
+  /* DEUX TÊTES CHEZ TEAM (18 novembre 2026) : la règle du juge (`laPlaceTient`). */
+  const chevauchent = siens.filter((a) => chevauche(a.debutMin, a.debutMin + a.dureeMin));
+  const occupe = chevauchent.some((a) => bloqueLaVenue(maitre, lourde, a))
+    || chevauchent.length >= DEUX_TETES_AU_PLUS
+    || plagesBloquees(sans.murs, sans.branchId, p.date, maitre).some(([s, e]) => chevauche(s, e));
   return occupe ? { ok: false, erreur: 'creneau_pris' } : { ok: true };
 }
 
@@ -4416,7 +4497,7 @@ async function reponseALAttente(req: Request, body: Record<string, unknown>): Pr
    LE PRIX NE SE FIGE PLUS DEPUIS LE NAVIGATEUR, comme pour le site : le
    comptoir compte, avec sa fiche. Ce qu'elle a vu (son total, sa remise)
    s'écrit dans la note, pour que le comptoir le lise ; ce n'est pas un prix. */
-function laPlaceTientPourLaCouronne(agenda: AgendaDuServeur, maitre: string, p: { date: string; time: string; dureeMin: number }): boolean {
+function laPlaceTientPourLaCouronne(agenda: AgendaDuServeur, maitre: string, p: { date: string; time: string; dureeMin: number; lourde?: boolean }): boolean {
   const fenetre = ouvertureDuJour(p.date, agenda.semaine, agenda.exceptions);
   if (fenetre.closed) return false;
   const debut = minutesDeHhmm(p.time);
@@ -4429,10 +4510,11 @@ function laPlaceTientPourLaCouronne(agenda: AgendaDuServeur, maitre: string, p: 
   if (agenda.sieges > 0 && duJour.filter((a) => chevauche(a.debutMin, a.debutMin + a.dureeMin)).length >= agenda.sieges) return false;
   const siens = duJour.filter((a) => a.maitre === maitre);
   if (agenda.capMaitre > 0 && siens.length >= agenda.capMaitre) return false;
-  return ![
-    ...siens.map((a): [number, number] => [a.debutMin, a.debutMin + a.dureeMin]),
-    ...plagesBloquees(agenda.murs, agenda.branchId, p.date, maitre),
-  ].some(([s, e]) => chevauche(s, e));
+  /* DEUX TÊTES CHEZ TEAM (18 novembre 2026) : la règle du juge (`laPlaceTient`). */
+  const chevauchent = siens.filter((a) => chevauche(a.debutMin, a.debutMin + a.dureeMin));
+  return !(chevauchent.some((a) => bloqueLaVenue(maitre, p.lourde, a))
+    || chevauchent.length >= DEUX_TETES_AU_PLUS
+    || plagesBloquees(agenda.murs, agenda.branchId, p.date, maitre).some(([s, e]) => chevauche(s, e)));
 }
 
 async function reserveDepuisLaCouronne(req: Request, ip: string, body: Record<string, unknown>): Promise<Response> {
@@ -4543,7 +4625,7 @@ async function reserveDepuisLaCouronne(req: Request, ip: string, body: Record<st
     const { data: lues, error: errPlaces } = await admin.rpc('places_en_ligne', { p_branch: branche.id, p_date: s.date });
     const n = Number(lues);
     const places = !errPlaces && Number.isInteger(n) && n >= PLACES_EN_LIGNE ? Math.min(n, PLACES_EN_LIGNE_AU_PLUS) : PLACES_EN_LIGNE;
-    const libres = ordre.filter((m) => laPlaceTientPourLaCouronne({ ...agenda, sieges: places }, m, { date: s.date, time: s.time, dureeMin }));
+    const libres = ordre.filter((m) => laPlaceTientPourLaCouronne({ ...agenda, sieges: places }, m, { date: s.date, time: s.time, dureeMin, lourde: teteLourde(lockCount) }));
     if (libres.length === 0) return json({ ok: false, error: 'creneau_pris' }, 409);
     libresPar.push(libres);
   }
@@ -4620,6 +4702,9 @@ async function reserveDepuisLaCouronne(req: Request, ip: string, body: Record<st
       ...(i === 0 && duCode.offreId ? { offreId: duCode.offreId } : {}),
       ...(i === 0 && duCode.remisesLignes ? { remisesLignes: duCode.remisesLignes } : {}),
       ...(longueur ? { longueur } : {}),
+      /* Le compte qu'elle a déclaré, quand sa fiche n'en porte pas : le verrou
+         (0238) le relit pour la règle des deux têtes chez Team. */
+      ...(!(Number(fiche?.lockCount) > 0) && lockCount > 0 ? { locksAnnonces: lockCount } : {}),
       ...(note ? { note: seances.length > 1 ? `${note} · Séance ${i + 1}/${seances.length}` : note } : {}),
       ...(seriesId ? { seriesId, seriesIndex: i + 1, seriesTotal: seances.length } : {}),
     };
@@ -5042,6 +5127,8 @@ Deno.serve(async (req) => {
       dureeMin,
       status: 'confirmé',
       source: 'site',
+      /* Sa tête annoncée (deux têtes chez Team, 18 novembre 2026) : le verrou la relit. */
+      ...(lockCount > 0 ? { locksAnnonces: lockCount } : {}),
       /* LE STATUT RESTE « CONFIRMÉ » (17 novembre 2026) : la place est tenue
          partout (le Carnet, les places du « + RDV », les autres portes), comme
          une suggestion. Ce qui la dit EN ATTENTE, ce sont ses marques :

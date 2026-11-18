@@ -268,7 +268,7 @@ export function consigneDOpale(): string {
     'LES RENDEZ-VOUS',
     'Elle veut un rendez-vous : comprends ce qu’elle veut (les gestes du catalogue, le jour, l’heure) dans ses propres mots. « La même chose », « comme d’habitude » : les gestes de sa dernière venue.',
     'Le catalogue du contexte donne l’identifiant de chaque geste. Un lavage ou un shampoing, c’est KLƆKLƆ™ ; des racines ou un resserrage, c’est SÍNSIN™. Si tu hésites entre deux gestes, pose une seule question courte.',
-    'Les places : appelle `chercher_des_places` avec les gestes, et son jour ou son heure s’ils sont dits. Propose deux ou trois places au plus, les plus proches de son souhait, dans une phrase. Jamais une place, un jour ni une heure que l’outil n’a pas rendus.',
+    'Les places : appelle `chercher_des_places` avec les gestes, et son jour ou son heure s’ils sont dits ; avec `pour` et `locks` dès que tu les connais, car deux personnes ne se reçoivent à la même heure que si l’une a moins de 150 locks, et les places rendues en dépendent. Propose deux ou trois places au plus, les plus proches de son souhait, dans une phrase. Jamais une place, un jour ni une heure que l’outil n’a pas rendus.',
     'Le jour même se réserve ici, pour une place qui commence au moins une heure plus tard : `chercher_des_places` avec son jour (aujourd’hui) les rend quand il en reste. S’il n’en reste pas, dis-le avec égards et propose les premières places des jours suivants.',
     'Elle choisit une place : appelle `proposer_le_rendez_vous`, puis écris le récapitulatif que l’outil te rend (les gestes, le jour avec l’année, l’heure, et le prix s’il est connu) et demande-lui de confirmer. Ne dis pas « c’est confirmé » à ce moment-là.',
     'Elle confirme (« oui », « je confirme », « parfait », « c’est bon ») un récapitulatif que tu as envoyé : appelle `confirmer`. Puis dis que c’est confirmé, avec le jour, l’année et l’heure, en une ou deux phrases. Si l’outil dit que la place vient d’être prise, propose les places qu’il rend.',
@@ -338,6 +338,8 @@ export const OUTILS_D_OPALE = [
         moment: { type: 'string', enum: ['matin', 'apres-midi', 'soir'] },
         heure: HEURE,
         rdv: { type: 'string', description: 'Pour un déplacement : l’identifiant du rendez-vous à déplacer (les places de la personne qui la reçoit).' },
+        pour: { type: 'string', description: 'L’identifiant de la fiche pour qui l’on cherche, ou « nouvelle » quand elle n’a pas de fiche.' },
+        locks: { type: 'integer', minimum: 1, maximum: 3000, description: 'Le nombre de locks qu’elle a dit, ou que tu as estimé sur sa photo : les places en dépendent.' },
       },
       required: ['gestes'],
       additionalProperties: false,
@@ -583,7 +585,9 @@ export function quiInscrire(attente: { prenom?: string; civilite?: CiviliteDuFil
    seulement si la proposition est partie AVANT les messages du tour (elle y
    répond) et qu'elle n'a pas plus de deux heures. */
 export type EnAttenteDOpale =
-  | { genre: 'pose'; pour: string; prenom?: string; civilite?: CiviliteDuFil; gestes: string[]; date: string; heure: string; dureeMin: number; proposeLe: string }
+  /* `locks` : ceux qu'elle a dits ou que la photo a fait estimer, écrits sur
+     le rendez-vous (`locksAnnonces`) : deux têtes chez Team (18 novembre 2026). */
+  | { genre: 'pose'; pour: string; prenom?: string; civilite?: CiviliteDuFil; gestes: string[]; date: string; heure: string; dureeMin: number; proposeLe: string; locks?: number }
   | { genre: 'deplacement'; rdvId: string; updatedAt: string; maitre: string; clientId: string; gestes: string[]; dureeMin: number; avant: { date: string; time: string }; date: string; heure: string; proposeLe: string };
 
 export type EtatDOpale = { enAttente?: EnAttenteDOpale; dernierTourLe?: string; relanceLe?: string };

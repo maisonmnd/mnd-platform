@@ -9,7 +9,7 @@ import { useBlocages } from '../../shared/blocages';
 import { prochainesPlaces } from '../../shared/reservation-express';
 import { appointmentsStore, useAppointments, venuesHonorees, type Appointment, estampilleLesPoses } from '../../shared/agenda';
 import { derniereVenueAvant, dansLaFenetreDeVenue } from '../../shared/catalogue-pur';
-import { estUnSinsin, MAITRE_DES_SINSIN } from '../../shared/agenda-pur';
+import { estUnSinsin, MAITRE_DES_SINSIN, teteLourde } from '../../shared/agenda-pur';
 import { sesRituelsPasses, longueurDeSaDerniereVenue } from '../../shared/ses-rituels-pur';
 import { SUCCESSEURS } from '../../shared/bascule-de-janvier-pur';
 import { fondeLaCouronne } from '../../shared/catalogue-pur';
@@ -238,6 +238,8 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
      la PREMIÈRE venue de sa fille, et le rendez-vous de l'enfant se figeait
      au barème et à la longueur de la mère. */
   const cible = beneficiaire ?? client;
+  /* Sa tête (deux têtes chez Team, 18 novembre 2026) : le compte que le serveur juge, celui de sa fiche ou celui qu'elle a déclaré. */
+  const teteDeLaCible = teteLourde(Number(cible?.lockCount) || Number(cible?.lockCountDeclare) || 0);
   const { session } = useAuth();
   /* LE COMPTE FAMILLE DE LA TÊTE (14 août) : sa remise se VOIT ici — prix
      famille au récapitulatif — et se fige en francs sur le rendez-vous, pour
@@ -755,14 +757,14 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
     for (let d = 1; d <= daysIn; d++) {
       const iso = `${month.y}-${pad2(month.m + 1)}-${pad2(d)}`;
       const past = iso < today;
-      const free = !past && freeSlots(iso, master, totalDuration, appts, tousServices, branch.id, occupes).length > 0;
+      const free = !past && freeSlots(iso, master, totalDuration, appts, tousServices, branch.id, occupes, teteDeLaCible).length > 0;
       cells.push({ key: iso, day: d, iso, free });
     }
     return cells;
-  }, [month, selected.length, master, totalDuration, appts, services, branch.id, blocages, exceptions, occupes, reglages]);
+  }, [month, selected.length, master, totalDuration, appts, services, branch.id, blocages, exceptions, occupes, reglages, teteDeLaCible]);
 
   const dayTimes = selIso && selected.length
-    ? freeSlots(selIso, master, totalDuration, appts, tousServices, branch.id, occupes)
+    ? freeSlots(selIso, master, totalDuration, appts, tousServices, branch.id, occupes, teteDeLaCible)
     : [];
 
   /* LE MOMENT EST POSÉ quand toutes les séances ont le leur — c'est lui qui
@@ -938,7 +940,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
         p_branch: branch.id, p_du: joursDesSeances[0], p_au: joursDesSeances[joursDesSeances.length - 1],
       }) : null);
       const seancesToujoursLibres = mursFrais !== null && sessionDates.every((sd) =>
-        freeSlots(sd.iso, master, totalDuration, appts, tousServices, branch.id, mursFrais).includes(sd.time));
+        freeSlots(sd.iso, master, totalDuration, appts, tousServices, branch.id, mursFrais, teteDeLaCible).includes(sd.time));
       const laPlacePrise = () => {
         setPaying(false);
         toast(t('Ce moment vient d’être pris. Choisissez une autre heure.'));
@@ -1245,12 +1247,12 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
     for (let k = 0; k < JOURS_DES_PLACES; k++) {
       const d = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + k);
       const iso = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-      const heures = freeSlots(iso, master, totalDuration, appts, tousServices, branch.id, occupes);
+      const heures = freeSlots(iso, master, totalDuration, appts, tousServices, branch.id, occupes, teteDeLaCible);
       if (heures.length) jours.push({ iso, heures: heures.map((heure) => ({ heure })) });
     }
     return prochainesPlaces(jours, 6);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vue, selected.length, totalSessions, occupesCharges, master, totalDuration, appts, tousServices, branch.id, occupes, blocages, exceptions, reglages]);
+  }, [vue, selected.length, totalSessions, occupesCharges, master, totalDuration, appts, tousServices, branch.id, occupes, blocages, exceptions, reglages, teteDeLaCible]);
   const choisisLesGestes = (ids: string[]) => {
     setSelectedIds(ids);
     setSessionDates([]); setSelIso(null); setTime(null); setPlaceExpress(null);

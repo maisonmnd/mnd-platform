@@ -11,7 +11,7 @@ import { useServices, useProducts, useCategories, type Service, type ServiceIncl
 import {
   dateOfIso, dayLabelIso, ensureClient, fmtDuration, isoOf, todayIso, freeSlots, useCreneauxOccupes, useClient, useClientId,
 } from './lib';
-import { estUnSinsin, MAITRE_DES_SINSIN } from '../../shared/agenda-pur';
+import { estUnSinsin, MAITRE_DES_SINSIN, teteLourde } from '../../shared/agenda-pur';
 import { t, prix } from './i18n';
 
 /* ═══ LE CYCLE — un forfait de plusieurs séances, scellé d'un geste ═══
@@ -88,6 +88,8 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
   const { branch, currency } = useBranch();
   const { session } = useAuth();
   const client = useClient();
+  /* Sa tête (deux têtes chez Team, 18 novembre 2026) : celle de sa fiche, que le garde de la base (0238) relit. */
+  const lourde = teteLourde(client?.lockCount);
   const clientId = useClientId();
   const [appts] = useAppointments();
   /* CE QUE LE SALON A DÉJÀ PRIS — 31 août 2026. Même raison qu'à la
@@ -158,7 +160,7 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
       let iso = vise < plancher ? plancher : vise;
       let pose = false;
       for (let k = 0; k < 120 && !pose; k += 1) {
-        const libres = freeSlots(iso, master, s.dureeMin, appts, tousServices, branch.id, occupes);
+        const libres = freeSlots(iso, master, s.dureeMin, appts, tousServices, branch.id, occupes, lourde);
         if (libres.length) {
           out.push({ iso, time: libres[0] });
           if (i === 0) depart = iso;
@@ -206,14 +208,14 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
     const out: string[] = [];
     let iso = plusJours(todayIso(), 1);
     for (let k = 0; k < 70 && out.length < 24; k += 1) {
-      if (freeSlots(iso, master, s.dureeMin, appts, tousServices, branch.id, occupes).length) out.push(iso);
+      if (freeSlots(iso, master, s.dureeMin, appts, tousServices, branch.id, occupes, lourde).length) out.push(iso);
       iso = plusJours(iso, 1);
     }
     return out;
-  }, [retouche, seances, master, appts, tousServices, branch.id]);
+  }, [retouche, seances, master, appts, tousServices, branch.id, lourde]);
 
   const heuresDuJour = retouche !== null && jourRetouche
-    ? freeSlots(jourRetouche, master, seances[retouche].dureeMin, appts, tousServices, branch.id, occupes)
+    ? freeSlots(jourRetouche, master, seances[retouche].dureeMin, appts, tousServices, branch.id, occupes, lourde)
     : [];
 
   const poser = (i: number, iso: string, time: string) => {

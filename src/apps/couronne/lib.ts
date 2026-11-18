@@ -617,6 +617,9 @@ export function freeSlots(
       tout, y compris les rendez-vous de la cliente elle-même. Les mêler à
       `appts` compterait deux fois les siens contre le plafond du jour. */
   occupesDuJour?: readonly CreneauOccupe[],
+  /** Sa tête : 150 locks ou plus, sa fiche ou ce qu'elle a déclaré (deux
+      têtes chez Team, 18 novembre 2026). Le serveur juge le même compte. */
+  lourde = false,
 ): string[] {
   const opening = openingForIso(dateIso);
   if (opening.closed) return [];
@@ -627,7 +630,7 @@ export function freeSlots(
   const occupes = occupesDuJour
     ? occupesDuJour
       .filter((c) => c.jour === dateIso)
-      .map((c) => ({ maitre: c.maitre, debutMin: toMin(c.debut), dureeMin: c.duree }))
+      .map((c) => ({ maitre: c.maitre, debutMin: toMin(c.debut), dureeMin: c.duree, ...(c.lourde ? { lourde: true } : {}) }))
     : appts
       .filter((a) => a.branchId === branchId && a.date === dateIso && a.status !== 'annulé')
       .map((a) => ({ maitre: a.master, debutMin: toMin(a.time), dureeMin: apptDurationMin(a, services) }));
@@ -652,6 +655,7 @@ export function freeSlots(
        SÍNSIN cherche Team, et Team déjà au fauteuil ne se double pas. */
     capSimultane: placesEnLigneDe(branchId, dateIso),
     maintenantMin: dateIso === isoOf(now) ? now.getHours() * 60 + now.getMinutes() : null,
+    ...(lourde ? { lourde: true } : {}),
   });
 }
 

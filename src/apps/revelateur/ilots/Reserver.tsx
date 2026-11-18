@@ -17,7 +17,7 @@ import { CIVILITES, prenomDevine, type Civilite } from '../../../shared/civilite
 import { gesteDitEnFrancaisWa, nomEnFrancaisWa } from '../../../shared/gestes-en-francais';
 import { TELEPHONE_MONDE, TELEPHONE_PAYS } from '../../../shared/geo';
 import { fmtMoney } from '../../../shared/currency';
-import type { CarteDesPlaces, CreneauOccupe } from '../../../shared/agenda-pur';
+import { teteLourde, type CarteDesPlaces, type CreneauOccupe } from '../../../shared/agenda-pur';
 import {
   arrondiDuNet, ceQueLeCodeRetire, codeNormalise, ditLesPlaces, estAPlaces, gesteSansRemise, lignesDuCode, offreDuCode, offreDuCodePassee,
   porteSurLeJourDeLaVenue, pourquoiLOffreNeCourtPas, type OffreCodee,
@@ -846,9 +846,9 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
     const aujourdhui = jourDeCotonou(maintenant.getTime());
     return horizon.jours
       .filter((iso) => iso >= aujourdhui)
-      .map((iso) => ({ iso, heures: heuresLibres({ agenda: agendaAuCalibre ?? agenda, dateIso: iso, serviceIds, occupes, places: placesParJour, maintenant }) }))
+      .map((iso) => ({ iso, heures: heuresLibres({ agenda: agendaAuCalibre ?? agenda, dateIso: iso, serviceIds, occupes, places: placesParJour, maintenant, lourde: teteLourde(lockCountAnnonce) }) }))
       .filter((j) => j.heures.length > 0);
-  }, [agenda, agendaAuCalibre, serviceIds, occupes, placesParJour, occupesEtat, minute]);
+  }, [agenda, agendaAuCalibre, serviceIds, occupes, placesParJour, occupesEtat, minute, lockCountAnnonce]);
 
   const heuresDuJour = jours.find((j) => j.iso === jour)?.heures ?? [];
   /* L'HEURE CHOISIE QUI VIENT DE COMMENCER (12 novembre 2026) : elle quitte

@@ -100,7 +100,34 @@ export const PREMIER_RENDEZ_VOUS_MIN = 8 * 60 + 30;
 /** UN CRÉNEAU DÉJÀ PRIS, dit sans dire par qui — voir la migration 0079.
     C'est tout ce que le serveur consent à donner à une inconnue, et tout ce
     qu'un calendrier honnête demande. */
-export type CreneauOccupe = { jour: string; maitre: string; debut: string; duree: number };
+export type CreneauOccupe = { jour: string; maitre: string; debut: string; duree: number; lourde?: boolean };
+
+/** DEUX TÊTES CHEZ TEAM — 18 novembre 2026. « On peut mettre deux personnes
+    aux mêmes horaires… tant qu'une personne a moins de 150 locks et l'autre
+    a 400 locks. Mais on ne peut pas prendre deux personnes qui ont 400 locks
+    simultanément » (Yéman). Au sélecteur, le même jour : l'une des deux sous
+    150 locks ; une fiche sans nombre de locks compte comme une PETITE tête ;
+    tous les rituels de Team ; deux au plus en même temps (les fauteuils).
+    Un autre maître (une personne) ne reçoit toujours qu'une cliente à la
+    fois. La base (`creneaux_occupes`) ne dit d'un créneau pris que « lourde »
+    (150 locks ou plus), jamais le nombre ; le verrou (`pose_si_libre`,
+    `deplace_si_libre`) et le garde (`une_place_en_ligne`) tiennent la même
+    règle. */
+export const MAITRE_QUI_PARTAGE = 'Team';
+export const SEUIL_TETE_LOURDE = 150;
+export const DEUX_TETES_AU_PLUS = 2;
+/** Une tête lourde : 150 locks ou plus. Un nombre inconnu n'en fait pas une.
+    Le texte se lit comme la base (`locks_lourds`, 0238) : des chiffres, un
+    point décimal au plus, rien d'autre. */
+export const teteLourde = (locks: unknown): boolean => {
+  const n = typeof locks === 'number' ? locks
+    : typeof locks === 'string' && /^\d+(\.\d+)?$/.test(locks.trim()) ? Number(locks.trim()) : Number.NaN;
+  return Number.isFinite(n) && n >= SEUIL_TETE_LOURDE;
+};
+/** Ce rendez-vous déjà pris chez ce maître empêche-t-il une nouvelle venue à la
+    même heure ? Toujours, sauf chez Team quand l'une des deux têtes est petite. */
+export const bloqueLaVenue = (maitre: string, nouvelleLourde: boolean | undefined, deja: { lourde?: boolean }): boolean =>
+  maitre !== MAITRE_QUI_PARTAGE || (!!nouvelleLourde && !!deja.lourde);
 
 /** LE CŒUR DU CALCUL, SANS AUCUN MAGASIN — pour qu'il soit jugeable.
 
@@ -110,7 +137,10 @@ export function creneauxLibres(o: {
   opening: FenetreDuJour;
   durationMin: number;
   /** Tout ce qui occupe la journée, tous maîtres confondus. */
-  occupes: readonly { maitre: string; debutMin: number; dureeMin: number }[];
+  occupes: readonly { maitre: string; debutMin: number; dureeMin: number; lourde?: boolean }[];
+  /** La tête de la nouvelle venue : 150 locks ou plus (deux têtes chez Team,
+      18 novembre 2026). Absent : une petite tête. */
+  lourde?: boolean;
   /** Murs posés à la main (pause, absence), déjà résolus en minutes. */
   bloques?: readonly (readonly [number, number])[];
   master: string;
@@ -147,7 +177,10 @@ export function creneauxLibres(o: {
   const duMaitre = o.occupes.filter((a) => a.maitre === o.master);
   if (capMaitre > 0 && duMaitre.length >= capMaitre) return [];
 
+  /* Chez Team, un rendez-vous qu'une petite tête rend partageable ne bloque
+     pas l'heure ; deux au plus chez lui en même temps (plus bas). */
   const busy: Array<readonly [number, number]> = duMaitre
+    .filter((a) => bloqueLaVenue(o.master, o.lourde, a))
     .map((a) => [a.debutMin, a.debutMin + a.dureeMin] as const);
   if (o.bloques) busy.push(...o.bloques);
 
@@ -164,6 +197,7 @@ export function creneauxLibres(o: {
     if (o.maintenantMin != null && m <= o.maintenantMin) continue;
     const overlaps = busy.some(([s, e]) => m < e && m + o.durationMin > s);
     if (overlaps) continue;
+    if (duMaitre.filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length >= DEUX_TETES_AU_PLUS) continue;
     /* LES FAUTEUILS : le maître est libre, mais la Maison peut être pleine. */
     if (cap > 0) {
       const ensemble = o.occupes
@@ -189,10 +223,10 @@ export function dureeDesPrestations(
 export const occupesDuJour = (
   occupes: readonly CreneauOccupe[],
   dateIso: string,
-): { maitre: string; debutMin: number; dureeMin: number }[] =>
+): { maitre: string; debutMin: number; dureeMin: number; lourde?: boolean }[] =>
   occupes
     .filter((c) => c.jour === dateIso && c.debut)
-    .map((c) => ({ maitre: c.maitre, debutMin: minutesDeHhmm(c.debut), dureeMin: c.duree }));
+    .map((c) => ({ maitre: c.maitre, debutMin: minutesDeHhmm(c.debut), dureeMin: c.duree, ...(c.lourde ? { lourde: true } : {}) }));
 
 /** UNE SEULE RÉSERVATION EN LIGNE À LA FOIS — 24 octobre 2026.
 

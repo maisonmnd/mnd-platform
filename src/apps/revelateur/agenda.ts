@@ -1,6 +1,6 @@
 import type { FormuleRapide } from '../../shared/reservation-express';
 import {
-  carteDesPlaces, creneauxLibres, dureeDesPrestations, estUnSinsin, MAITRE_DES_SINSIN, occupesDuJour, ouvertureDuJour, placesDuJour, plagesBloquees,
+  carteDesPlaces, creneauxLibres, dureeDesPrestations, estUnSinsin, MAITRE_DES_SINSIN, minutesDeHhmm, occupesDuJour, ouvertureDuJour, placesDuJour, plagesBloquees,
   type CarteDesPlaces, type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
 } from '../../shared/agenda-pur';
 import { estUneConsultation, type MasquesDuSite } from '../../shared/catalogue-pur';
@@ -362,6 +362,9 @@ export function heuresLibres(o: {
   /** Les places en ligne par jour (`placesEnLigne`) ; absentes, une place. */
   places?: CarteDesPlaces;
   maintenant?: Date;
+  /** Sa tête, d'après le calibre annoncé : 150 locks ou plus (deux têtes chez
+      Team, 18 novembre 2026). Le serveur juge le même compte. */
+  lourde?: boolean;
 }): { heure: string; maitre: string }[] {
   const { agenda, dateIso, serviceIds } = o;
   const opening = ouvertureDuJour(dateIso, agenda.semaine, agenda.exceptions);
@@ -388,6 +391,10 @@ export function heuresLibres(o: {
      par un : un SÍNSIN ne cherche que Team, et Team déjà au fauteuil n'ouvre
      rien ; un autre geste prend alors le second fauteuil, côté Expert. */
   const places = placesDuJour(o.places, dateIso, agenda.sieges);
+  const seulA = (maitre: string, h: string): boolean => {
+    const d = minutesDeHhmm(h);
+    return !occupes.some((a) => a.maitre === maitre && d < a.debutMin + a.dureeMin && d + durationMin > a.debutMin);
+  };
   const parHeure = new Map<string, string>();
   for (const maitre of maitres) {
     const heures = creneauxLibres({
@@ -400,8 +407,14 @@ export function heuresLibres(o: {
       capMaitre: agenda.capMaitre,
       capSimultane: places,
       maintenantMin,
+      ...(o.lourde ? { lourde: true } : {}),
     });
-    for (const h of heures) if (!parHeure.has(h)) parHeure.set(h, maitre);
+    /* Un maître seul à cette heure passe avant Team qui partage (deux têtes
+       chez Team, 18 novembre 2026), comme le juge et le verrou. */
+    for (const h of heures) {
+      const deja = parHeure.get(h);
+      if (!deja || (!seulA(deja, h) && seulA(maitre, h))) parHeure.set(h, maitre);
+    }
   }
   return [...parHeure.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([heure, maitre]) => ({ heure, maitre }));
 }
