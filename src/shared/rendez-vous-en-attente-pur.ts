@@ -375,6 +375,17 @@ export function texteDeLAutreMoment(o: { appel: string; lien: string }): string 
 }
 /* ⟨/rendez-vous-en-attente⟩ */
 
+/** LA PLACE SE LIBÉRERA-T-ELLE ? (18 novembre 2026, pour la fiche du Trône.)
+    Oui seulement si elle attend encore, que le comptoir n'a pas noté son oui,
+    et que son heure, à Porto-Novo, n'est pas venue : les mêmes conditions que
+    `placeALiberer`, l'échéance mise à part. Hors du bloc recopié : seul le
+    Trône la lit. */
+export function seLibereraSansReponse(a: MarquesDeLAttente | null | undefined, maintenantMs: number): boolean {
+  if (!Number.isFinite(maintenantMs) || !estEnAttente(a) || ouiDuComptoir(a)) return false;
+  const heureDuRdv = debutDuRendezVous(a);
+  return heureDuRdv !== null && heureDuRdv > minuteDePortoNovo(maintenantMs);
+}
+
 /* ── LES FAMILLES DE LA PORTE DU SITE ─────────────────────────────────────
    18 novembre 2026. Le serveur juge une place du site sur ces familles-là
    (`demande-submit`, `laPlaceDemandee`) : le défaisage y est rangé sous un

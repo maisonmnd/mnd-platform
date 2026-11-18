@@ -45,7 +45,7 @@ import { regardADeduire, remiseAvecLeRegard, type RegardADeduire } from '../../.
 import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDeGestes } from '../_vie';
 import { referenceDuRendezVous } from '../../../../shared/lien-du-rdv-pur';
 import { ceQueDitLaSuggestion, estSuggere } from '../../../../shared/rendez-vous-suggere-pur';
-import { ceQueDitLAttente, etatDeLAttente } from '../../../../shared/rendez-vous-en-attente-pur';
+import { ceQueDitLAttente, etatDeLAttente, seLibereraSansReponse } from '../../../../shared/rendez-vous-en-attente-pur';
 import { noteSonOui } from '../../../../shared/carte-du-prochain-rituel';
 import { useStaff as useMaTeteDuRdv } from '../../../../shared/auth';
 import { momentDuRdv, poseUnRendezVous } from '../../../../shared/agenda';
@@ -4063,7 +4063,7 @@ function RdvModalCorps({
       {appt && rdvDuMagasin && etatDeLAttente(rdvDuMagasin) !== null && etatDeLAttente(rdvDuMagasin) !== 'ferme' && (
         <div className="trc-rdv-suggere" role="note">
           <b>{etatDeLAttente(rdvDuMagasin) === 'liberee' ? 'Pris en ligne : la place s’est libérée' : 'Pris en ligne : en attente de sa confirmation'}</b>
-          <span>{`${ceQueDitLAttente(rdvDuMagasin, { court: (iso) => frShortAn(iso), francs: (x) => fmtMoney(x, currency) })}.${etatDeLAttente(rdvDuMagasin) === 'liberee' ? '' : ' Sans cela, la place se libère seule.'}`}</span>
+          <span>{`${ceQueDitLAttente(rdvDuMagasin, { court: (iso) => frShortAn(iso), francs: (x) => fmtMoney(x, currency) })}.${seLibereraSansReponse(rdvDuMagasin, Date.now()) ? ' Sans cela, la place se libère seule.' : ''}`}</span>
           {etatDeLAttente(rdvDuMagasin) === 'sans-reponse' && (
             <span className="trc-rdv-suggere__gestes">
               <button type="button" className="trv-prochain__lien" onClick={() => { noteSonOui(rdvDuMagasin.id); toast('Son oui est noté : le rendez-vous est confirmé.'); }}>Elle a dit oui</button>

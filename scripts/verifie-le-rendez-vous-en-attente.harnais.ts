@@ -20,7 +20,7 @@ import {
   cleDuNumero, formesDuNumero, plafondDuNumero, deplacementsFaits, peutEncoreSeDeplacer, remiseGardeeAuDeplacement, acompteDesGestes,
   heureSurLaGrille, dureeAuCalibre, gestesAuCalibre, famillesAvecLeDefaisage, ATELIERS_DU_DEFAISAGE, texteDeLAttente, composantsDeLAttente, texteDuOui, texteDeLAcompte,
   texteDeLaPlaceLiberee, texteDeLAutreMoment, heureDeCotonouDite, ceQueDitLAttente,
-  minuteDePortoNovo, debutDuRendezVous, ouiDuComptoir, texteDesOuis,
+  minuteDePortoNovo, debutDuRendezVous, ouiDuComptoir, texteDesOuis, seLibereraSansReponse,
 } from '../src/shared/rendez-vous-en-attente-pur';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
@@ -84,7 +84,13 @@ const iso = (ms: number): string => new REEL(ms).toISOString();
     [ouiDuComptoir(auComptoir), estEnAttente(auComptoir), etatDeLAttente(auComptoir), placeALiberer(auComptoir, T0 + 9_000_000),
       ouiDuComptoir({ ...auComptoir, ouiNoteParLeComptoir: undefined }), placeALiberer({ ...auComptoir, ouiNoteParLeComptoir: undefined }, T0 + 9_000_000),
       placeALiberer({ ...aVenir, ouiNoteParLeComptoir: true }, T0 + 9_000_000)]);
-  const oui = { ...tenue, ...marquesDuOui(tenue, T0 + 600_000) };
+  /* LA FICHE DU TRÔNE NE PROMET PAS UNE LIBÉRATION QUI N'ARRIVERA PAS (18 novembre 2026). */
+  dit('A4d la fiche ne dit « la place se libere seule » que si elle se liberera : en attente et a venir, oui ; son oui note au comptoir, son heure venue, ferme, non',
+    [true, false, false, false, true],
+    [seLibereraSansReponse(duJour, midiEtDemi), seLibereraSansReponse(auComptoir, T0), seLibereraSansReponse(duJour, apresSesDeuxHeures),
+      seLibereraSansReponse({ ...duJour, ...marquesDuOui(duJour, midiEtDemi + 60_000) }, midiEtDemi + 120_000),
+      seLibereraSansReponse({ ...duJour, date: '2026-11-18', time: '10:00' }, apresSesDeuxHeures)]);
+  const oui ={ ...tenue, ...marquesDuOui(tenue, T0 + 600_000) };
   dit('A5 son oui, sans acompte : ferme, plus en attente, plus suggeree ; l echeance ne bouge pas', [true, false, false, 'ferme', pose.attenduJusquAu],
     [estFerme(oui), estEnAttente(oui), estSuggere(oui), etatDeLAttente(oui), oui.attenduJusquAu]);
   const avecAcompte = { ...tenue, depositXof: 6000 };
