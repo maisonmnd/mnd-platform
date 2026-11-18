@@ -109,9 +109,11 @@ dit('un seul rendez-vous par ligne : un second « Oui » le redit sans en poser 
 dit('la confirmation se dit dans la conversation et sa ligne suit (confirmation-rdv en relais)', [true, true],
   [/C’est réservé, \$\{appel\} : \$\{gestes\}, \$\{placeDite\(posee\)\}\./.test(reserve), /await ditLaConfirmation\(sb, rdvId, rendu\);/.test(reserve)]);
 dit('l automate n ecrit jamais « annule »', false, wa.includes("'annulé'"));
+dit('dans le fil d Opale, la confirmation de Perle est un message automatique (avant la regle de l automate)', true,
+  /if \(d\.parQui === PERLE\) return 'automatique';\n\s*if \(d\.auto === 'automate'\) return 'automate';/.test(wa));
 dit('le mode perle passe avant le tour ordinaire, et la version le dit', [true, true],
   [wa.indexOf('const brutPerle') > 0 && wa.indexOf('const brutPerle') < wa.indexOf('const r = await servirLeNumero(sb, {'),
-    /const VERSION = '2026-11-18-c · le Oui de Perle reserve/.test(wa)]);
+    /const VERSION = '2026-11-18-[c-z] · [^']*le Oui de Perle reserve/.test(wa)]);
 const wh = lis('supabase/functions/whatsapp-webhook/index.ts');
 const oui = entre(wh, 'LE « OUI » QUI RÉSERVE', 'if (suite?.deplacer && rdvAGarder');
 dit('le webhook confie le « Oui » d une ligne qui porte une proposition, hors « garder »', true,
