@@ -2,6 +2,19 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## OPALE ÉCOUTE LES VOCAUX — 18 novembre 2026 (whatsapp-webhook 2026-11-18-d, whatsapp-automate 2026-11-18-e, Trône ; secret `GROQ_API_KEY` ; aucun SQL)
+
+« M. Candide a laissé un audio. Opale doit être en mesure d'écouter, de comprendre les audios et de répondre directement » (Yéman, capture des Conversations : Opale lui demandait d'écrire son vocal). Puis : « j'ai une bulle vocale sur toutes mes applis, tu peux utiliser l'audio de VoxBubble ».
+
+**Claude n'entend pas un son** (son API lit le texte, les images, les PDF). Les oreilles sont celles de VoxBubble : Whisper `whisper-large-v3-turbo` chez Groq, appelé directement (la fonction `transcribe` de VoxBubble exige un jeton d'installation et le Pro : pas pour un serveur). **Tranché au sélecteur** : une clé Groq À PART pour la Maison (`GROQ_API_KEY`, coûts séparés de VoxBubble) ; un vocal que la Maison n'a pas compris → Opale **passe la main sans rien dire**.
+
+- La règle : `shared/ecoute-du-vocal-pur.ts`, bloc ⟨ecoute-du-vocal⟩ recopié dans `whatsapp-webhook` et `whatsapp-automate` (R8 des douze lunes). Compris = français ou anglais, au moins deux signes utiles, taux moyen « sans parole » ≤ 0,6, pas une phrase de sous-titres que Whisper écrit sur du silence. Sinon `compris: false`, texte vide, et un motif (`langue`, `vide`, `bruit`, `illisible`, `trop-lourd`, `moteur`).
+- La réception (`whatsapp-webhook`, en tâche de fond comme avant) : après « pièce rangée », un vocal part au moteur (25 s au plus, 20 Mo au plus, les mots de la Maison soufflés), et `messages_wa.data.transcription` s'écrit AVANT que le message soit rangé. Sans clé, rien ne part. Le journal dit la langue, le motif, le nombre de signes et la durée, jamais le texte.
+- Opale (`opale-pur.ts`, ⟨opale⟩) : un vocal se lit « [un message vocal ; sa transcription automatique : « … »] » ; la consigne « LES VOCAUX : la Maison les écoute pour toi » (répondre comme à un écrit, sans dire qu'elle l'a écouté ; redemander un jour, une heure, un montant douteux). Une vidéo : toujours « écris-le en quelques mots ». `vocalIncomprisDansLeTour` : un vocal sans transcription comprise parmi ses nouveaux messages → `whatsapp-automate` pose silence + main (motif `media`) + alerte, sans appeler Claude (sauf fin de rituel et relance).
+- **Attention : tant que `GROQ_API_KEY` n'est pas posée, TOUT vocal fait passer la main sans un mot** (avant : Opale demandait de l'écrire). La clé se crée sur console.groq.com (« Maison MND · Opale ») et se pose par `mise-en-ligne.mjs secret GROQ_API_KEY` (stdin).
+- Le Trône : sous un vocal entrant, « Transcription automatique » et son texte, ou « Vocal non transcrit · <motif> : une personne l'écoute » (`MOTIF_DU_VOCAL_DIT`).
+- Bancs : `verifie-l-ecoute-des-vocaux` neuf (25 contrôles, `--prouve` 18 fautes) ; `verifie-opale` 148, `verifie-l-automate-wa`, `verifie-les-douze-lunes`, `verifie-le-oui-de-perle` (sa version de webhook acceptée de c à z), `verifie-les-autres-portes`, rangement, reçus, à traiter verts ; typecheck 0, build vert.
+
 ## LES CONVERSATIONS FAÇON WHATSAPP, LOT 1 — 18 novembre 2026, EN LIGNE (Trône build 20261118090254 @ 5e9a5868, 543/543 identiques ; Trône seul : aucune fonction, aucun SQL)
 
 « L'UI de cette page doit être revue. Il faut la faire exactement comme WhatsApp avec des messages à archiver ou supprimer. Trop compact la page de conversation. On ne reconnaît pas les nouveaux messages, besoin que cela prenne toute la page. » (Yéman, capture de `#/gerard?vue=conversations`). Maquette Design https://claude.ai/artifact/J6ZeXBFaesywB5Q42F1TRN (trois planches : Conversations, Les avis, Offres et remises), puis « construis ».

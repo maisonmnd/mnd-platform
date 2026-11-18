@@ -178,6 +178,11 @@ export type MessageWa = {
       Le webhook en fait quelque chose (une demande de congé) ; le fil garde
       ce qu'elle a rempli, pour le relire. */
   formulaire?: { nom?: string; reponse: Record<string, unknown> };
+  /** UN VOCAL ÉCOUTÉ (18 novembre 2026) : ce que la réception a écrit en le
+      passant au moteur (Whisper chez Groq, `ecoute-du-vocal-pur`). Compris :
+      son texte, qu'Opale lit et auquel elle répond ; pas compris : son motif,
+      et Opale a passé la main sans un mot. */
+  transcription?: { compris: boolean; texte: string; langue?: string; motif?: string; moteur?: string; le?: string };
   /** UN MESSAGE PARTI TOUT SEUL, et pourquoi : l'accusé d'un devis reçu, le
       formulaire de congé proposé. Deux seulement, dits d'avance dans la
       maquette. Ils portent `parQui: 'Le Trône'`. */

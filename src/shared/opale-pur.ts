@@ -125,7 +125,7 @@ export type MotifDOpale = typeof MOTIFS_D_OPALE[number];
 const MOTIF_D_OPALE_DIT: Record<MotifDOpale, string> = {
   annulation: 'elle annule son rendez-vous',
   sante: 'son cuir chevelu, une gêne, une douleur, une chute : une personne doit regarder',
-  media: 'un vocal ou une vidéo que tu ne peux pas lire, et qu’elle ne veut pas écrire',
+  media: 'un vocal que la Maison n’a pas compris, ou une vidéo que tu ne peux pas voir',
   question: 'une plainte, un remboursement, un règlement, une question d’argent, ou ce que tu ne sais pas',
   demande: 'elle demande à parler à une personne',
   'autre-personne': 'une demande qui ne concerne pas la Maison (un démarchage, une sortie, une adresse ailleurs)',
@@ -161,6 +161,12 @@ export const photoSeuleDansLeTour = (nouveaux: readonly { type?: string }[]): bo
 /** LA PHOTO SANS RENDEZ-VOUS. `suivie` : elle a un rendez-vous pris ou une séance faite. */
 export const photoSansRendezVous = (o: { suivie: boolean; nouveaux: readonly { type?: string }[] }): boolean =>
   !o.suivie && photoSeuleDansLeTour(o.nouveaux);
+/** UN VOCAL QUE LA MAISON N'A PAS COMPRIS (18 novembre 2026) : dans ses
+    nouveaux messages, un vocal sans transcription comprise (le fon, le
+    bruit, un vocal vide, un moteur muet). Choix de Yéman : Opale passe la
+    main SANS RIEN DIRE, une personne l'écoute et répond. */
+export const vocalIncomprisDansLeTour = (nouveaux: readonly { type?: string; transcription?: string }[]): boolean =>
+  nouveaux.some((m) => m.type === 'audio' && !String(m.transcription ?? '').trim());
 /** Ses nouveaux messages ne disent rien : une photo seule, sans un mot. */
 export const tourSansUnMot = (nouveaux: readonly { texte?: string }[]): boolean =>
   nouveaux.every((m) => !String(m.texte ?? '').trim());
@@ -282,7 +288,8 @@ export function consigneDOpale(): string {
     'Les soins, entretiens, reprises, coiffures : le prix du catalogue, ou celui que l’outil `prix` rend pour elle. Elle demande un prix : donne-le TOUT DE SUITE, dans ce message ; ne la fais jamais attendre un prix.',
     'Un prix qui dépend du nombre de ses locks ou de leur longueur, qu’elle ne t’a pas dits : appelle `prix` sans eux, il rend la grille (par exemple « jusqu’à 250 locks : 20 000 F ; de 251 à 350 locks : 30 000 F »). Donne-la-lui simplement, la tranche la plus courante d’abord, puis demande avec délicatesse combien de locks elle a à peu près et leur longueur (court : jusqu’aux épaules ; mi-long : des épaules aux omoplates ; long : au-delà), ou une photo.',
     'LES PHOTOS : tu vois les photos qu’elle envoie, jointes après le contexte. D’une photo de ses locks, estime toi-même, avec prudence, leur nombre approximatif et leur longueur, appelle `prix` avec ces estimations, et dis le prix comme une estimation que la Maison confirme à son arrivée (« d’après votre photo… »). Une estimation près d’une limite de la grille : donne les deux prix voisins. Ne commente rien d’autre que ses locks. Une photo qui montre une gêne, une plaie, une chute : rien de médical, passe la main (motif « sante »).',
-    'Un vocal ou une vidéo : tu ne les entends pas et ne les vois pas. Demande-lui avec égards de l’écrire en quelques mots (pour ses locks, une photo suffit), sans rien deviner de ce qu’ils disent.',
+    'LES VOCAUX : la Maison les écoute pour toi. Dans le fil, un vocal porte sa transcription automatique entre guillemets : réponds-y comme à un message écrit, tout de suite, sans dire que tu l’as lu ni écouté. Les noms propres, les jours et les chiffres peuvent y être écorchés : en cas de doute sur un jour, une heure ou un montant, redemande-le simplement.',
+    'Une vidéo : tu ne la vois pas. Demande-lui avec égards de l’écrire en quelques mots (pour ses locks, une photo suffit), sans rien deviner de ce qu’elle montre.',
     'Aucun autre montant ni estimation que le contexte ou un outil ne donne pas. Ne parle d’aucune remise, d’aucun code ni d’aucune offre : la Maison MND les applique elle-même, quand ils valent pour elle.',
     'Les liens de la Maison (catalogue en ligne, consultation de création, consultation de réparation) sont dans le contexte : donne-les quand ils la servent.',
     '',
@@ -568,6 +575,9 @@ export type MessageDuFilDOpale = {
   type?: string;
   /** Une photo qu'elle a envoyée, jointe à la demande : Opale la voit. */
   photoJointe?: boolean;
+  /** UN VOCAL (18 novembre 2026) : sa transcription automatique, quand la
+      Maison l'a compris (`ecoute-du-vocal-pur`, écrit par la réception). */
+  transcription?: string;
 };
 export type RdvDOpale = { id: string; date: string; time?: string; gestes: string[]; statut: string; pour: string };
 export type FicheDOpale = {
@@ -645,8 +655,10 @@ const quiDit = (m: MessageDuFilDOpale): string => {
 const ligneDuFil = (m: MessageDuFilDOpale): string => {
   const photo = m.photoJointe ? '[une photo, jointe après le contexte : tu la vois]' : '[une photo]';
   const brut = String(m.texte ?? '').replace(/\s+/g, ' ').trim().slice(0, 600);
+  const vocal = m.transcription ? `[un message vocal ; sa transcription automatique : « ${m.transcription.replace(/\s+/g, ' ').trim().slice(0, 1200)} »]` : '[un message vocal]';
   const t = m.type === 'image' ? (brut && brut !== 'une photo' ? `${photo} ${brut}` : photo)
-    : brut || (m.type === 'audio' ? '[un message vocal]' : '[un message sans texte]');
+    : m.type === 'audio' ? (brut && brut !== 'un message vocal' ? `${vocal} ${brut}` : vocal)
+    : brut || '[un message sans texte]';
   return `[${quandDitDOpale(m.quand)}] ${quiDit(m)} : ${t}`;
 };
 

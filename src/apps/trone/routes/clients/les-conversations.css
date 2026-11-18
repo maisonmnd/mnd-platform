@@ -572,3 +572,9 @@
 .trc-of__resume { margin: 0; text-align: center; font-size: 13px; line-height: 1.55; }
 /* Une liste vide le dit avec une marge, dans les trois vues. */
 .trc-bx-vue .trc-bx__defile .trc-ger__vide { margin: 0; padding: 28px 24px; text-align: center; color: var(--ink-soft); font-size: 13.5px; line-height: 1.55; }
+
+/* LE VOCAL ÉCOUTÉ (18 novembre 2026) : sous le lecteur, sa transcription automatique, ou pourquoi elle manque. */
+.trc-b__vocal { display: block; margin: 4px 0 2px; padding: 6px 8px; border-left: 2px solid var(--color-copper); background: rgba(250, 241, 233, .7); font-size: 14px; line-height: 1.45; color: var(--ink); white-space: normal; }
+.trc-b__vocal i { display: block; margin-bottom: 2px; font-style: normal; font: 600 10.5px var(--font-sans); letter-spacing: .1em; text-transform: uppercase; color: #7C4C2C; }
+.trc-b__vocal.est-pas-compris { border-left-color: #8A3B2E; background: #F7E9E5; color: #5E2A20; font-size: 13px; }
+.trc-b__vocal.est-pas-compris i { color: #8A3B2E; }

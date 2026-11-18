@@ -122,7 +122,7 @@ dit('... par le mode perle, puis Ma Couronne en secours si rien ne se pose', [tr
   [/waIds: \[e\.waId\], perle: \{ ligneId \} \}/.test(oui), /if \(rep\.pris\) \{[\s\S]*return;\n\s*\}\n\s*if \(retour && jetonMeta && phoneIdMeta\) \{\n\s*await ditDepuisLeTrone\(/.test(oui)]);
 dit('... le numero du bouton deja verifie (la fiche de la ligne), et la version le dit', [true, true],
   [wh.indexOf("dis('assistant · numéro étranger à la ligne')") > 0 && wh.indexOf("dis('assistant · numéro étranger à la ligne')") < wh.indexOf('waIds: [e.waId], perle: { ligneId } }'),
-    /const VERSION = '2026-11-18-c · le Oui d un message de Perle/.test(wh)]);
+    /const VERSION = '2026-11-18-[c-z] · [^']*le Oui d un message de Perle/.test(wh)]);
 
 console.log(`\n${n} verifications.`);
 console.log(process.exitCode ? 'ECHEC : le Oui de Perle ne reserve pas comme promis.' : 'TOUT VA BIEN : le Oui de Perle reserve d un toucher.');

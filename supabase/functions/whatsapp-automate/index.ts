@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-18-d · la confirmation du Oui de Perle se lit dans le fil d Opale comme un message automatique ; 2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-18-e · Opale lit les vocaux : la transcription que la réception a écrite (Whisper chez Groq) entre dans son fil et ses nouveaux messages, elle y répond comme à un message écrit ; un vocal que la Maison n a pas compris fait passer la main sans un mot, avec l alerte ; 2026-11-18-d · la confirmation du Oui de Perle se lit dans le fil d Opale comme un message automatique ; 2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -139,6 +139,9 @@ const numeroWa = (brut: string | undefined): string => {
                          (de PLACES_PAR_JOUR à la fin de prochainesPlaces) ;
      ⟨automate-wa⟩       src/shared/automate-wa.ts, entre ses repères : le
                          dialogue ;
+     ⟨ecoute-du-vocal⟩   src/shared/ecoute-du-vocal-pur.ts, entre ses repères :
+                         la transcription d'un vocal, écrite par la réception,
+                         lue ici (18 novembre 2026) ;
      ⟨opale⟩             src/shared/opale-pur.ts, entre ses repères : la
                          consigne d'Opale, ses outils, ses juges (4 novembre 2026) ;
      ⟨age-de⟩            src/shared/clients-pur.ts, ⟨prenom-de⟩ src/shared/foyer-pur.ts,
@@ -1784,6 +1787,8 @@ type MessageEntrantDuTour = {
   canal?: string;
   bouton?: { id?: string; texte?: string } | null;
   formulaire?: unknown;
+  /** Un vocal : ce que la réception en a écrit (18 novembre 2026). */
+  transcription?: unknown;
 };
 
 type ChoixDuTour = { id: string; titre: string; waId: string };
@@ -4964,7 +4969,7 @@ export type MotifDOpale = typeof MOTIFS_D_OPALE[number];
 const MOTIF_D_OPALE_DIT: Record<MotifDOpale, string> = {
   annulation: 'elle annule son rendez-vous',
   sante: 'son cuir chevelu, une gêne, une douleur, une chute : une personne doit regarder',
-  media: 'un vocal ou une vidéo que tu ne peux pas lire, et qu’elle ne veut pas écrire',
+  media: 'un vocal que la Maison n’a pas compris, ou une vidéo que tu ne peux pas voir',
   question: 'une plainte, un remboursement, un règlement, une question d’argent, ou ce que tu ne sais pas',
   demande: 'elle demande à parler à une personne',
   'autre-personne': 'une demande qui ne concerne pas la Maison (un démarchage, une sortie, une adresse ailleurs)',
@@ -5000,6 +5005,12 @@ export const photoSeuleDansLeTour = (nouveaux: readonly { type?: string }[]): bo
 /** LA PHOTO SANS RENDEZ-VOUS. `suivie` : elle a un rendez-vous pris ou une séance faite. */
 export const photoSansRendezVous = (o: { suivie: boolean; nouveaux: readonly { type?: string }[] }): boolean =>
   !o.suivie && photoSeuleDansLeTour(o.nouveaux);
+/** UN VOCAL QUE LA MAISON N'A PAS COMPRIS (18 novembre 2026) : dans ses
+    nouveaux messages, un vocal sans transcription comprise (le fon, le
+    bruit, un vocal vide, un moteur muet). Choix de Yéman : Opale passe la
+    main SANS RIEN DIRE, une personne l'écoute et répond. */
+export const vocalIncomprisDansLeTour = (nouveaux: readonly { type?: string; transcription?: string }[]): boolean =>
+  nouveaux.some((m) => m.type === 'audio' && !String(m.transcription ?? '').trim());
 /** Ses nouveaux messages ne disent rien : une photo seule, sans un mot. */
 export const tourSansUnMot = (nouveaux: readonly { texte?: string }[]): boolean =>
   nouveaux.every((m) => !String(m.texte ?? '').trim());
@@ -5121,7 +5132,8 @@ export function consigneDOpale(): string {
     'Les soins, entretiens, reprises, coiffures : le prix du catalogue, ou celui que l’outil `prix` rend pour elle. Elle demande un prix : donne-le TOUT DE SUITE, dans ce message ; ne la fais jamais attendre un prix.',
     'Un prix qui dépend du nombre de ses locks ou de leur longueur, qu’elle ne t’a pas dits : appelle `prix` sans eux, il rend la grille (par exemple « jusqu’à 250 locks : 20 000 F ; de 251 à 350 locks : 30 000 F »). Donne-la-lui simplement, la tranche la plus courante d’abord, puis demande avec délicatesse combien de locks elle a à peu près et leur longueur (court : jusqu’aux épaules ; mi-long : des épaules aux omoplates ; long : au-delà), ou une photo.',
     'LES PHOTOS : tu vois les photos qu’elle envoie, jointes après le contexte. D’une photo de ses locks, estime toi-même, avec prudence, leur nombre approximatif et leur longueur, appelle `prix` avec ces estimations, et dis le prix comme une estimation que la Maison confirme à son arrivée (« d’après votre photo… »). Une estimation près d’une limite de la grille : donne les deux prix voisins. Ne commente rien d’autre que ses locks. Une photo qui montre une gêne, une plaie, une chute : rien de médical, passe la main (motif « sante »).',
-    'Un vocal ou une vidéo : tu ne les entends pas et ne les vois pas. Demande-lui avec égards de l’écrire en quelques mots (pour ses locks, une photo suffit), sans rien deviner de ce qu’ils disent.',
+    'LES VOCAUX : la Maison les écoute pour toi. Dans le fil, un vocal porte sa transcription automatique entre guillemets : réponds-y comme à un message écrit, tout de suite, sans dire que tu l’as lu ni écouté. Les noms propres, les jours et les chiffres peuvent y être écorchés : en cas de doute sur un jour, une heure ou un montant, redemande-le simplement.',
+    'Une vidéo : tu ne la vois pas. Demande-lui avec égards de l’écrire en quelques mots (pour ses locks, une photo suffit), sans rien deviner de ce qu’elle montre.',
     'Aucun autre montant ni estimation que le contexte ou un outil ne donne pas. Ne parle d’aucune remise, d’aucun code ni d’aucune offre : la Maison MND les applique elle-même, quand ils valent pour elle.',
     'Les liens de la Maison (catalogue en ligne, consultation de création, consultation de réparation) sont dans le contexte : donne-les quand ils la servent.',
     '',
@@ -5407,6 +5419,9 @@ export type MessageDuFilDOpale = {
   type?: string;
   /** Une photo qu'elle a envoyée, jointe à la demande : Opale la voit. */
   photoJointe?: boolean;
+  /** UN VOCAL (18 novembre 2026) : sa transcription automatique, quand la
+      Maison l'a compris (`ecoute-du-vocal-pur`, écrit par la réception). */
+  transcription?: string;
 };
 export type RdvDOpale = { id: string; date: string; time?: string; gestes: string[]; statut: string; pour: string };
 export type FicheDOpale = {
@@ -5484,8 +5499,10 @@ const quiDit = (m: MessageDuFilDOpale): string => {
 const ligneDuFil = (m: MessageDuFilDOpale): string => {
   const photo = m.photoJointe ? '[une photo, jointe après le contexte : tu la vois]' : '[une photo]';
   const brut = String(m.texte ?? '').replace(/\s+/g, ' ').trim().slice(0, 600);
+  const vocal = m.transcription ? `[un message vocal ; sa transcription automatique : « ${m.transcription.replace(/\s+/g, ' ').trim().slice(0, 1200)} »]` : '[un message vocal]';
   const t = m.type === 'image' ? (brut && brut !== 'une photo' ? `${photo} ${brut}` : photo)
-    : brut || (m.type === 'audio' ? '[un message vocal]' : '[un message sans texte]');
+    : m.type === 'audio' ? (brut && brut !== 'un message vocal' ? `${vocal} ${brut}` : vocal)
+    : brut || '[un message sans texte]';
   return `[${quandDitDOpale(m.quand)}] ${quiDit(m)} : ${t}`;
 };
 
@@ -5682,6 +5699,92 @@ export function coutDOpale(u: { input_tokens?: number | null; output_tokens?: nu
     + n(u.cache_read_input_tokens) * TARIF_D_OPALE.cacheLu + n(u.cache_creation_input_tokens) * TARIF_D_OPALE.cacheEcrit) / 1_000_000;
 }
 /* ⟨/opale⟩ */
+
+/* LES VOCAUX D'OPALE (18 novembre 2026) : la réception écoute le vocal
+   (Whisper chez Groq) et écrit sa transcription sur le message ; on la lit
+   ici par la même règle. */
+/* ⟨ecoute-du-vocal⟩ */
+/** Le moteur de VoxBubble : Whisper large-v3-turbo, chez Groq. */
+export const MOTEUR_DU_VOCAL = 'whisper-large-v3-turbo';
+export const ADRESSE_DU_MOTEUR = 'https://api.groq.com/openai/v1/audio/transcriptions';
+/** Au-delà, le vocal ne part pas au moteur (25 Mo chez Groq ; un vocal
+    WhatsApp d'une minute pèse une centaine de kilo-octets). */
+export const OCTETS_D_UN_VOCAL_AU_PLUS = 20 * 1024 * 1024;
+/** Le temps laissé au moteur : la réception l'attend avant de ranger le message. */
+export const ATTENTE_DU_MOTEUR_MS = 25_000;
+/** Les mots de la Maison, soufflés au moteur pour qu'il les écrive juste. */
+export const MOTS_SOUFFLES = 'Maison MND, Ma Couronne, locks, resserrage, reprise, rituel, consultation, rendez-vous, Cotonou, Perle, Opale.';
+/** Au-delà de ce taux moyen de « pas de parole », le moteur n'a rien entendu de net. */
+export const SANS_PAROLE_AU_PLUS = 0.6;
+/** Ce qu'Opale lit au plus d'une transcription. */
+export const SIGNES_D_UNE_TRANSCRIPTION_AU_PLUS = 2000;
+
+/** Les langues qu'Opale comprend : le français et l'anglais. Le fon, le
+    yoruba, le mina, le goun : une personne de la Maison écoute. */
+const LANGUES_COMPRISES: Readonly<Record<string, 'fr' | 'en'>> = {
+  fr: 'fr', fra: 'fr', french: 'fr', francais: 'fr', 'français': 'fr',
+  en: 'en', eng: 'en', english: 'en', anglais: 'en',
+};
+/** Ce que Whisper écrit sur du silence ou du bruit : des sous-titres appris. */
+const PHRASES_DU_SILENCE: readonly RegExp[] = [
+  /sous-titr/i, /amara\.org/i, /merci d['’]avoir regard/i, /abonnez-vous/i, /thank you for watching/i, /subtitles? by/i, /transcribed by/i,
+];
+
+export type MotifDuVocalPasCompris = 'langue' | 'vide' | 'bruit' | 'illisible' | 'trop-lourd' | 'moteur';
+
+/** Ce que la réception écrit sur le message (`messages_wa.data.transcription`). */
+export type TranscriptionDuVocal = {
+  compris: boolean;
+  /** Le texte, vide quand le vocal n'est pas compris : rien de faux à lire. */
+  texte: string;
+  /** « fr » ou « en » quand il est compris ; sinon la langue que le moteur a cru entendre. */
+  langue?: string;
+  motif?: MotifDuVocalPasCompris;
+  moteur: string;
+  le: string;
+};
+
+/** Un vocal que la Maison n'a pas compris, et pourquoi. */
+export const vocalPasCompris = (motif: MotifDuVocalPasCompris, le: string, langue?: string): TranscriptionDuVocal => ({
+  compris: false, texte: '', motif, moteur: MOTEUR_DU_VOCAL, le, ...(langue ? { langue } : {}),
+});
+
+/** Le nom que le moteur reçoit : il juge le format à l'extension. Un vocal
+    WhatsApp est de l'ogg (opus), parfois sans extension dans son nom. */
+export function nomPourLeMoteur(nom: string, type: string): string {
+  const n = String(nom ?? '').trim();
+  if (/\.(ogg|oga|mp3|m4a|mp4|mpeg|mpga|wav|webm|flac)$/i.test(n)) return n;
+  const t = String(type ?? '').toLowerCase().split(';')[0].trim();
+  const ext = t === 'audio/mpeg' ? 'mp3' : t === 'audio/mp4' || t === 'audio/aac' ? 'm4a' : t === 'audio/wav' || t === 'audio/x-wav' ? 'wav' : t === 'audio/webm' ? 'webm' : 'ogg';
+  return `${n || 'vocal'}.${ext}`;
+}
+
+/** LA RÉPONSE DU MOTEUR, JUGÉE (`response_format: verbose_json`) : sa
+    langue, son texte, ses segments. Compris seulement en français ou en
+    anglais, avec des mots, et pas sur du silence. */
+export function lisLaTranscription(reponse: unknown, le: string): TranscriptionDuVocal {
+  if (!reponse || typeof reponse !== 'object') return vocalPasCompris('illisible', le);
+  const r = reponse as { text?: unknown; language?: unknown; segments?: unknown };
+  const texte = String(r.text ?? '').replace(/\s+/g, ' ').trim();
+  const langueBrute = String(r.language ?? '').toLowerCase().trim();
+  const langue = LANGUES_COMPRISES[langueBrute];
+  if (texte.replace(/[\s.,;:!?'’"«»…-]+/g, '').length < 2) return vocalPasCompris('vide', le, langue ?? (langueBrute || undefined));
+  if (!langue) return vocalPasCompris('langue', le, langueBrute || undefined);
+  const segments = Array.isArray(r.segments) ? r.segments as { no_speech_prob?: unknown }[] : [];
+  const sansParole = segments.map((s) => Number(s?.no_speech_prob)).filter((x) => Number.isFinite(x));
+  if (sansParole.length > 0 && sansParole.reduce((a, b) => a + b, 0) / sansParole.length > SANS_PAROLE_AU_PLUS) return vocalPasCompris('bruit', le, langue);
+  if (texte.length <= 160 && PHRASES_DU_SILENCE.some((p) => p.test(texte))) return vocalPasCompris('bruit', le, langue);
+  return { compris: true, texte: texte.slice(0, SIGNES_D_UNE_TRANSCRIPTION_AU_PLUS), langue, moteur: MOTEUR_DU_VOCAL, le };
+}
+
+/** Ce qu'un message porte de sa transcription, lu d'une ligne de la base :
+    le texte compris, ou rien (pas de transcription, ou pas compris). */
+export function texteDuVocal(transcription: unknown): string {
+  if (!transcription || typeof transcription !== 'object') return '';
+  const t = transcription as { compris?: unknown; texte?: unknown };
+  return t.compris === true && typeof t.texte === 'string' ? t.texte.trim().slice(0, SIGNES_D_UNE_TRANSCRIPTION_AU_PLUS) : '';
+}
+/* ⟨/ecoute-du-vocal⟩ */
 
 /* ══ UN RENDEZ-VOUS PRIS OU UNE SÉANCE FAITE · 17 novembre 2026 ═══════
    « Il ne faut pas permettre d'avoir des bilans sans prendre de RDV »
@@ -6244,6 +6347,7 @@ async function litLesEntrants(sb: Sb, numero: string, ms: number): Promise<Messa
     ...(typeof d.canal === 'string' ? { canal: d.canal } : {}),
     ...(d.bouton && typeof d.bouton === 'object' ? { bouton: { id: texteOu(d.bouton.id), texte: texteOu(d.bouton.texte) } } : {}),
     ...(d.formulaire ? { formulaire: d.formulaire } : {}),
+    ...(d.transcription ? { transcription: d.transcription } : {}),
   }));
 }
 
@@ -6956,6 +7060,7 @@ async function leFilDOpale(sb: Sb, numero: string, ms: number): Promise<MessageD
     .reverse().map((d) => ({
       sens: d.sens as 'entrant' | 'sortant', texte: String(d.texte ?? ''), quand: String(d.quand),
       ...(quiDuMessageWa(d) ? { qui: quiDuMessageWa(d) } : {}), ...(typeof d.type === 'string' ? { type: d.type } : {}),
+      ...(d.type === 'audio' && texteDuVocal(d.transcription) ? { transcription: texteDuVocal(d.transcription) } : {}),
     }));
 }
 
@@ -7451,7 +7556,10 @@ async function unTourDOpale(
   const etatDOpale = ((fil as (EtatDuFil & { opale?: EtatDOpale }) | null)?.opale ?? {}) as EtatDOpale;
   const nouveaux: MessageDuFilDOpale[] = entrants.filter((m) => tour.waIds.includes(String(m.waId)))
     .sort((a, b) => String(a.quand).localeCompare(String(b.quand)))
-    .map((m): MessageDuFilDOpale => marqueLaPhoto({ sens: 'entrant', texte: m.bouton?.texte ? `[elle touche « ${m.bouton.texte} »] ${m.texte ?? ''}`.trim() : String(m.texte ?? ''), quand: m.quand, ...(m.type ? { type: m.type } : {}) }));
+    .map((m): MessageDuFilDOpale => marqueLaPhoto({
+      sens: 'entrant', texte: m.bouton?.texte ? `[elle touche « ${m.bouton.texte} »] ${m.texte ?? ''}`.trim() : String(m.texte ?? ''), quand: m.quand, ...(m.type ? { type: m.type } : {}),
+      ...(m.type === 'audio' && texteDuVocal(m.transcription) ? { transcription: texteDuVocal(m.transcription) } : {}),
+    }));
   if (o.deplacer) nouveaux.push({ sens: 'entrant', texte: `[elle a touché « Changer l’heure » pour le rendez-vous [${o.deplacer}]]`, quand: tour.quand });
   const aujourdhuiIso = aujourdhui;
   const fichesDOpale: FicheDOpale[] = fiches.map((f) => ({
@@ -7804,8 +7912,19 @@ async function unTourDOpale(
     }
     dis('opale · fin du rituel', { sansRdv: finDuRituel.sansRdv });
   }
-  let secours = !claude && !finDuRituel;
-  if (claude && !finDuRituel) {
+  /* ⑥ ter UN VOCAL QUE LA MAISON N'A PAS COMPRIS (18 novembre 2026) : le
+     fon, le bruit, un vocal vide, un moteur muet. Choix de Yéman : la main
+     passe SANS RIEN DIRE, avec l'alerte ; une personne l'écoute et répond.
+     Claude n'est pas appelé : il n'a rien à lire. */
+  const vocalIncompris = !finDuRituel && !o.relance && vocalIncomprisDansLeTour(nouveaux);
+  if (vocalIncompris) {
+    issue.silence = true;
+    issue.issue = { genre: 'main', motif: motifDuFilDOpale('media') };
+    issue.alerte = alerteDeLAutomate({ genre: 'main', prenom: prenomPourAlerte, numero: o.numero, motif: motifDuFilDOpale('media') });
+    dis('opale · vocal non compris : la main passe sans un mot');
+  }
+  let secours = !claude && !finDuRituel && !vocalIncompris;
+  if (claude && !finDuRituel && !vocalIncompris) {
     // deno-lint-ignore no-explicit-any
     /* Ses photos, jointes après le contexte, de la plus ancienne à la plus récente. */
     const messages: any[] = [{

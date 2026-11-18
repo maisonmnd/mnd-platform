@@ -688,6 +688,8 @@ const regles: Regle[] = [
         'cle-du-cron': { fichier: 'src/shared/cle-du-cron-pur.ts', extrait: (s) => entre(s, 'cle-du-cron') },
         /* Les modèles chez Meta (18 novembre 2026) : leurs deux formes lues ensemble, une note qui s'ajoute à la liste, une relecture qui garde les notes, recopiés dans demande-submit (la bascule de l'attente) et modeles-meta (la relecture). */
         'modeles-meta': { fichier: 'src/shared/modeles-meta-pur.ts', extrait: (s) => entre(s, 'modeles-meta') },
+        /* Opale écoute les vocaux (18 novembre 2026) : le moteur, ce qui est compris et pourquoi, la lecture d'une transcription, recopiés dans whatsapp-webhook (qui écoute) et whatsapp-automate (qui lit). */
+        'ecoute-du-vocal': { fichier: 'src/shared/ecoute-du-vocal-pur.ts', extrait: (s) => entre(s, 'ecoute-du-vocal') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

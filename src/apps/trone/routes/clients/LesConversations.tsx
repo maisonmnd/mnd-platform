@@ -34,6 +34,7 @@ import { deRangeLaBoite, rangeLaBoite, useRiensARepondre } from '../../../../sha
 import { marqueLue, marqueNonLue, retireNonLue, useConversationsLues, useNonLuesALaMain } from '../../../../shared/conversations-lues';
 import { estUnMessageDElle, heureRecueDite, recuDe, recusDesBoites, titreDesRecus, type Recu } from '../../../../shared/recus-pur';
 import { clesDeRangement, heureDeLaLigne, rangeLesBoites } from '../../../../shared/rangement-des-boites-pur';
+import { MOTIF_DU_VOCAL_DIT } from '../../../../shared/ecoute-du-vocal-pur';
 import { archiveLaDiscussion, desarchiveLaDiscussion, supprimeLaDiscussion, useConversationsSupprimees } from '../../../../shared/conversations-supprimees';
 import { BadgeEssai } from './BadgeEssai';
 import { estUneFicheDEssai } from '../../../../shared/essai-pur';
@@ -1265,6 +1266,14 @@ export default function LesConversations({ cerveau, moi }: PropsDUneVue) {
                     <div className={`trc-b ${classe}${premiere ? ' est-premiere' : ''}${bulleTouchee === x.id ? ' est-touchee' : ''}${x.gris ? ' est-grise' : ''}`} onClick={() => setBulleTouchee((t) => (t === x.id ? null : x.id))}>
                       {signature && <span className="trc-b__signe">{signature}{x.modele ? ` · modèle ${x.modele}` : ''}</span>}
                       {m?.sens === 'entrant' && m.piece && <PieceDuFil piece={m.piece} />}
+                      {/* LE VOCAL ÉCOUTÉ (18 novembre 2026) : sa transcription automatique, ou pourquoi elle manque. */}
+                      {m?.sens === 'entrant' && m.type === 'audio' && m.transcription && (
+                        <span className={`trc-b__vocal${m.transcription.compris ? '' : ' est-pas-compris'}`}>
+                          {m.transcription.compris
+                            ? <><i>Transcription automatique</i>« {m.transcription.texte} »</>
+                            : <><i>Vocal non transcrit</i>{(MOTIF_DU_VOCAL_DIT as Record<string, string>)[m.transcription.motif ?? ''] ?? 'rien de net'} : une personne l’écoute.</>}
+                        </span>
+                      )}
                       {m?.sens === 'entrant' && m.piece?.type?.startsWith('image/') && <CaptureLue message={m} clientId={b.clientId} />}
                       {x.texte}
                       {x.bouton && x.texte !== x.bouton ? <span className="trc-b__note">A touché « {x.bouton} »</span> : null}

@@ -127,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-18-c · le Oui d un message de Perle qui porte une proposition va a l automate (perle: { ligneId }), qui pose la place ; Ma Couronne en secours ; 2026-11-18-b · le message de la place tenue que Meta dit non remis (« failed » sur sa ligne att-…) est rendu à la porte du site, qui confirme la place sans attente ; « Je confirme » écrit confirme toutes les places du numéro (à la porte du site) ; 2026-11-18-a · la place tenue depuis le site : « Je confirme » et « Un autre moment » (le bouton, ou « Je confirme » écrit) sont rendus à la porte du site (demande-submit), qui confirme, dit l acompte ou rend la place ; le bouton de la paie (PAIE_RECU, PAIE_PASENCORE) reconnaît le numéro par sa clé ; 2026-11-15-a · le « Je confirme » et « Un autre moment » d une proposition (REPRISE_OK, REPRISE_AUTRE) reconnaissent le numero par sa cle : Meta livre 229 et huit chiffres, la fiche porte 229 01 ; 2026-11-11-a · les boutons de la paie (PAIE_RECU, PAIE_PASENCORE) s écrivent sur le registre des envois MTN, venus du seul numéro à qui le message est parti, sans automate ni sonnerie ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero : le message et l appel portent l adulte, le payeur, ou personne ; les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour ; la prochaine séance de l abonnée (PROCHAINE_OK, PROCHAINE_AUTRE) : « Oui, je réserve » pose la séance couverte par sa formule sous le verrou du serveur (reserver_une_seance_incluse_par_la_maison, 0198) et la confirme en une phrase, la ligne conf-<rdv>-whatsapp taisant le modèle de confirmation-rdv sauf si la phrase ne part pas ; une suite déjà posée ne se pose pas deux fois ; « Une autre date » passe la main à la conversation sans rien poser ; venus du seul numéro à qui le message est parti';
+const VERSION = '2026-11-18-d · les vocaux s écoutent (Whisper large-v3-turbo chez Groq, le moteur de VoxBubble, clé GROQ_API_KEY) avant que le message soit rangé, et leur transcription s écrit sur le message (transcription : compris, texte, langue, motif) pour Opale et le Trône ; 2026-11-18-c · le Oui d un message de Perle qui porte une proposition va a l automate (perle: { ligneId }), qui pose la place ; Ma Couronne en secours ; 2026-11-18-b · le message de la place tenue que Meta dit non remis (« failed » sur sa ligne att-…) est rendu à la porte du site, qui confirme la place sans attente ; « Je confirme » écrit confirme toutes les places du numéro (à la porte du site) ; 2026-11-18-a · la place tenue depuis le site : « Je confirme » et « Un autre moment » (le bouton, ou « Je confirme » écrit) sont rendus à la porte du site (demande-submit), qui confirme, dit l acompte ou rend la place ; le bouton de la paie (PAIE_RECU, PAIE_PASENCORE) reconnaît le numéro par sa clé ; 2026-11-15-a · le « Je confirme » et « Un autre moment » d une proposition (REPRISE_OK, REPRISE_AUTRE) reconnaissent le numero par sa cle : Meta livre 229 et huit chiffres, la fiche porte 229 01 ; 2026-11-11-a · les boutons de la paie (PAIE_RECU, PAIE_PASENCORE) s écrivent sur le registre des envois MTN, venus du seul numéro à qui le message est parti, sans automate ni sonnerie ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero : le message et l appel portent l adulte, le payeur, ou personne ; les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour ; la prochaine séance de l abonnée (PROCHAINE_OK, PROCHAINE_AUTRE) : « Oui, je réserve » pose la séance couverte par sa formule sous le verrou du serveur (reserver_une_seance_incluse_par_la_maison, 0198) et la confirme en une phrase, la ligne conf-<rdv>-whatsapp taisant le modèle de confirmation-rdv sauf si la phrase ne part pas ; une suite déjà posée ne se pose pas deux fois ; « Une autre date » passe la main à la conversation sans rien poser ; venus du seul numéro à qui le message est parti';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -351,6 +351,131 @@ async function telechargeChezMeta(
   } catch (e) {
     dis('pièce · échec', { detail: String(e).slice(0, 160) });
     return null;
+  }
+}
+
+/* ══ OPALE ÉCOUTE LES VOCAUX — 18 novembre 2026 ════════════════════════
+   « Opale doit être en mesure d'écouter, de comprendre les audios et de
+   répondre directement » (Yéman). Claude n'entend pas un son : le vocal,
+   rangé dans le coffre comme toute pièce, part au moteur de VoxBubble
+   (Whisper large-v3-turbo chez Groq, clé à part `GROQ_API_KEY`), et ce qui
+   en revient s'écrit sur le message (`transcription`) AVANT qu'il soit
+   rangé : Opale le lit comme un message écrit, le Trône l'affiche sous le
+   vocal. La règle (compris ou pas, et pourquoi) est recopiée de
+   `src/shared/ecoute-du-vocal-pur.ts` entre ses repères ; le banc des douze
+   lunes tient la copie. Sans clé, rien ne part : le vocal reste à écouter,
+   et Opale passe la main sans un mot (choix de Yéman). Le journal ne dit ni
+   le texte ni le numéro : la langue, le motif, la durée. */
+/* ⟨ecoute-du-vocal⟩ */
+/** Le moteur de VoxBubble : Whisper large-v3-turbo, chez Groq. */
+export const MOTEUR_DU_VOCAL = 'whisper-large-v3-turbo';
+export const ADRESSE_DU_MOTEUR = 'https://api.groq.com/openai/v1/audio/transcriptions';
+/** Au-delà, le vocal ne part pas au moteur (25 Mo chez Groq ; un vocal
+    WhatsApp d'une minute pèse une centaine de kilo-octets). */
+export const OCTETS_D_UN_VOCAL_AU_PLUS = 20 * 1024 * 1024;
+/** Le temps laissé au moteur : la réception l'attend avant de ranger le message. */
+export const ATTENTE_DU_MOTEUR_MS = 25_000;
+/** Les mots de la Maison, soufflés au moteur pour qu'il les écrive juste. */
+export const MOTS_SOUFFLES = 'Maison MND, Ma Couronne, locks, resserrage, reprise, rituel, consultation, rendez-vous, Cotonou, Perle, Opale.';
+/** Au-delà de ce taux moyen de « pas de parole », le moteur n'a rien entendu de net. */
+export const SANS_PAROLE_AU_PLUS = 0.6;
+/** Ce qu'Opale lit au plus d'une transcription. */
+export const SIGNES_D_UNE_TRANSCRIPTION_AU_PLUS = 2000;
+
+/** Les langues qu'Opale comprend : le français et l'anglais. Le fon, le
+    yoruba, le mina, le goun : une personne de la Maison écoute. */
+const LANGUES_COMPRISES: Readonly<Record<string, 'fr' | 'en'>> = {
+  fr: 'fr', fra: 'fr', french: 'fr', francais: 'fr', 'français': 'fr',
+  en: 'en', eng: 'en', english: 'en', anglais: 'en',
+};
+/** Ce que Whisper écrit sur du silence ou du bruit : des sous-titres appris. */
+const PHRASES_DU_SILENCE: readonly RegExp[] = [
+  /sous-titr/i, /amara\.org/i, /merci d['’]avoir regard/i, /abonnez-vous/i, /thank you for watching/i, /subtitles? by/i, /transcribed by/i,
+];
+
+export type MotifDuVocalPasCompris = 'langue' | 'vide' | 'bruit' | 'illisible' | 'trop-lourd' | 'moteur';
+
+/** Ce que la réception écrit sur le message (`messages_wa.data.transcription`). */
+export type TranscriptionDuVocal = {
+  compris: boolean;
+  /** Le texte, vide quand le vocal n'est pas compris : rien de faux à lire. */
+  texte: string;
+  /** « fr » ou « en » quand il est compris ; sinon la langue que le moteur a cru entendre. */
+  langue?: string;
+  motif?: MotifDuVocalPasCompris;
+  moteur: string;
+  le: string;
+};
+
+/** Un vocal que la Maison n'a pas compris, et pourquoi. */
+export const vocalPasCompris = (motif: MotifDuVocalPasCompris, le: string, langue?: string): TranscriptionDuVocal => ({
+  compris: false, texte: '', motif, moteur: MOTEUR_DU_VOCAL, le, ...(langue ? { langue } : {}),
+});
+
+/** Le nom que le moteur reçoit : il juge le format à l'extension. Un vocal
+    WhatsApp est de l'ogg (opus), parfois sans extension dans son nom. */
+export function nomPourLeMoteur(nom: string, type: string): string {
+  const n = String(nom ?? '').trim();
+  if (/\.(ogg|oga|mp3|m4a|mp4|mpeg|mpga|wav|webm|flac)$/i.test(n)) return n;
+  const t = String(type ?? '').toLowerCase().split(';')[0].trim();
+  const ext = t === 'audio/mpeg' ? 'mp3' : t === 'audio/mp4' || t === 'audio/aac' ? 'm4a' : t === 'audio/wav' || t === 'audio/x-wav' ? 'wav' : t === 'audio/webm' ? 'webm' : 'ogg';
+  return `${n || 'vocal'}.${ext}`;
+}
+
+/** LA RÉPONSE DU MOTEUR, JUGÉE (`response_format: verbose_json`) : sa
+    langue, son texte, ses segments. Compris seulement en français ou en
+    anglais, avec des mots, et pas sur du silence. */
+export function lisLaTranscription(reponse: unknown, le: string): TranscriptionDuVocal {
+  if (!reponse || typeof reponse !== 'object') return vocalPasCompris('illisible', le);
+  const r = reponse as { text?: unknown; language?: unknown; segments?: unknown };
+  const texte = String(r.text ?? '').replace(/\s+/g, ' ').trim();
+  const langueBrute = String(r.language ?? '').toLowerCase().trim();
+  const langue = LANGUES_COMPRISES[langueBrute];
+  if (texte.replace(/[\s.,;:!?'’"«»…-]+/g, '').length < 2) return vocalPasCompris('vide', le, langue ?? (langueBrute || undefined));
+  if (!langue) return vocalPasCompris('langue', le, langueBrute || undefined);
+  const segments = Array.isArray(r.segments) ? r.segments as { no_speech_prob?: unknown }[] : [];
+  const sansParole = segments.map((s) => Number(s?.no_speech_prob)).filter((x) => Number.isFinite(x));
+  if (sansParole.length > 0 && sansParole.reduce((a, b) => a + b, 0) / sansParole.length > SANS_PAROLE_AU_PLUS) return vocalPasCompris('bruit', le, langue);
+  if (texte.length <= 160 && PHRASES_DU_SILENCE.some((p) => p.test(texte))) return vocalPasCompris('bruit', le, langue);
+  return { compris: true, texte: texte.slice(0, SIGNES_D_UNE_TRANSCRIPTION_AU_PLUS), langue, moteur: MOTEUR_DU_VOCAL, le };
+}
+
+/** Ce qu'un message porte de sa transcription, lu d'une ligne de la base :
+    le texte compris, ou rien (pas de transcription, ou pas compris). */
+export function texteDuVocal(transcription: unknown): string {
+  if (!transcription || typeof transcription !== 'object') return '';
+  const t = transcription as { compris?: unknown; texte?: unknown };
+  return t.compris === true && typeof t.texte === 'string' ? t.texte.trim().slice(0, SIGNES_D_UNE_TRANSCRIPTION_AU_PLUS) : '';
+}
+/* ⟨/ecoute-du-vocal⟩ */
+
+/** Le vocal au moteur, et sa transcription jugée. Jamais une exception : un
+    moteur muet donne « pas compris, moteur », et la réception range le
+    message comme avant. */
+async function ecouteLeVocal(octets: Uint8Array, type: string, nom: string, cle: string): Promise<TranscriptionDuVocal> {
+  const le = new Date().toISOString();
+  if (octets.length > OCTETS_D_UN_VOCAL_AU_PLUS) return vocalPasCompris('trop-lourd', le);
+  const debut = Date.now();
+  try {
+    const corps = new FormData();
+    corps.append('file', new Blob([octets], { type: type || 'audio/ogg' }), nomPourLeMoteur(nom, type));
+    corps.append('model', MOTEUR_DU_VOCAL);
+    corps.append('response_format', 'verbose_json');
+    corps.append('temperature', '0');
+    corps.append('prompt', MOTS_SOUFFLES);
+    const r = await fetch(ADRESSE_DU_MOTEUR, {
+      method: 'POST', headers: { authorization: `Bearer ${cle}` }, body: corps, signal: AbortSignal.timeout(ATTENTE_DU_MOTEUR_MS),
+    });
+    const brut = await r.text();
+    if (!r.ok) { dis('vocal · le moteur refuse', { statut: r.status, motif: brut.slice(0, 120) }); return vocalPasCompris('moteur', le); }
+    let lu: unknown = null;
+    try { lu = JSON.parse(brut); } catch { lu = null; }
+    const t = lisLaTranscription(lu, le);
+    dis('vocal · écouté', { compris: t.compris, langue: t.langue ?? null, motif: t.motif ?? null, signes: t.texte.length, ms: Date.now() - debut });
+    return t;
+  } catch (e) {
+    dis('vocal · moteur injoignable', { detail: String(e).slice(0, 120), ms: Date.now() - debut });
+    return vocalPasCompris('moteur', le);
   }
 }
 
@@ -2273,6 +2398,9 @@ Deno.serve(async (req) => {
   };
   const pieces = new Map<string, PieceRangee>();
   const rangeDans = new Map<string, string>();
+  /* Les vocaux écoutés (18 novembre 2026), par identifiant Meta. */
+  const vocaux = new Map<string, TranscriptionDuVocal>();
+  const cleDuMoteur = Deno.env.get('GROQ_API_KEY') ?? '';
   const aujourdhui = new Date().toISOString().slice(0, 10);
 
   /** LE SEUL DOSSIER OUVERT d'un fournisseur, ou rien. Un dossier est
@@ -2331,6 +2459,10 @@ Deno.serve(async (req) => {
     pieces.set(e.waId, { nom, type, octets: lu.octets.length, chemin, coffre, mediaId: e.media.id });
     dis('pièce rangée', { coffre, genre: e.media.genre, octets: lu.octets.length, dansUnDossier: !!dossier });
 
+    /* LE VOCAL S'ÉCOUTE ICI (18 novembre 2026), une fois, avant que le
+       message soit rangé : Opale et le Trône lisent la même transcription. */
+    if (e.media.genre === 'audio' && cleDuMoteur) vocaux.set(e.waId, await ecouteLeVocal(lu.octets, type, nom, cleDuMoteur));
+
     /* LE DEVIS ENTRE AU DOSSIER, VIDE DE CHIFFRES : la direction les tape en
        le lisant. La garde de 0099 le laisse « reçu », comme toute saisie du
        comptoir. Un même message n'en fait jamais deux (identifiant dérivé). */
@@ -2384,6 +2516,7 @@ Deno.serve(async (req) => {
           /* CE QU ELLE CITE — l identifiant seul ; le fil a deja le texte. */
           citeWaId: e.citeWaId,
           ...(piece ? { piece } : {}),
+          ...(vocaux.has(e.waId) ? { transcription: vocaux.get(e.waId) } : {}),
           ...(e.bouton ? { bouton: e.bouton } : {}),
           ...(e.formulaire ? { formulaire: e.formulaire } : {}),
           ...(rangeDans.has(e.waId) ? { rangeDans: rangeDans.get(e.waId) } : {}),

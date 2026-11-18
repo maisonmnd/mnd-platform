@@ -651,6 +651,8 @@ type MessageEntrantDuTour = {
   canal?: string;
   bouton?: { id?: string; texte?: string } | null;
   formulaire?: unknown;
+  /** Un vocal : ce que la réception en a écrit (18 novembre 2026). */
+  transcription?: unknown;
 };
 
 type ChoixDuTour = { id: string; titre: string; waId: string };
