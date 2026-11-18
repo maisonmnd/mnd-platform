@@ -322,7 +322,7 @@ const OUI = '2026-11-12T08:00:00.000Z';
     /* … sauf quand elle a proposé sa place (18 novembre 2026, « Opale ne perd aucun rendez-vous »). */
     /if \(photoRefusee && !finDuRituel && !issue\.silence && issue\.issue\.genre === 'parle' && !enAttente\) issue\.texte = avecLeLienDeLaConsultation\(issue\.texte, lienConsultation\);/.test(wa),
   ]);
-  dit('la fonction dit sa version du jour', true, /const VERSION = '2026-11-18-b · plus d avis sur photo sans rendez-vous/.test(wa));
+  dit('la fonction dit sa version du jour', true, /const VERSION = '2026-11-18-[b-z] · [^']*plus d avis sur photo sans rendez-vous/.test(wa));
   const reception = consigneDeLaReception();
   dit('la réception (l’automate en réserve) ne demande plus de photo non plus', [false, true],
     [/demande-lui une photo/.test(reception), reception.includes('ne demande aucune photo ; dis en une ligne que la Maison le regarde avec elle au rendez-vous')]);

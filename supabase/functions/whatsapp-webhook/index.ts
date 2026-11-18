@@ -127,7 +127,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-18-b · le message de la place tenue que Meta dit non remis (« failed » sur sa ligne att-…) est rendu à la porte du site, qui confirme la place sans attente ; « Je confirme » écrit confirme toutes les places du numéro (à la porte du site) ; 2026-11-18-a · la place tenue depuis le site : « Je confirme » et « Un autre moment » (le bouton, ou « Je confirme » écrit) sont rendus à la porte du site (demande-submit), qui confirme, dit l acompte ou rend la place ; le bouton de la paie (PAIE_RECU, PAIE_PASENCORE) reconnaît le numéro par sa clé ; 2026-11-15-a · le « Je confirme » et « Un autre moment » d une proposition (REPRISE_OK, REPRISE_AUTRE) reconnaissent le numero par sa cle : Meta livre 229 et huit chiffres, la fiche porte 229 01 ; 2026-11-11-a · les boutons de la paie (PAIE_RECU, PAIE_PASENCORE) s écrivent sur le registre des envois MTN, venus du seul numéro à qui le message est parti, sans automate ni sonnerie ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero : le message et l appel portent l adulte, le payeur, ou personne ; les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour ; la prochaine séance de l abonnée (PROCHAINE_OK, PROCHAINE_AUTRE) : « Oui, je réserve » pose la séance couverte par sa formule sous le verrou du serveur (reserver_une_seance_incluse_par_la_maison, 0198) et la confirme en une phrase, la ligne conf-<rdv>-whatsapp taisant le modèle de confirmation-rdv sauf si la phrase ne part pas ; une suite déjà posée ne se pose pas deux fois ; « Une autre date » passe la main à la conversation sans rien poser ; venus du seul numéro à qui le message est parti';
+const VERSION = '2026-11-18-c · le Oui d un message de Perle qui porte une proposition va a l automate (perle: { ligneId }), qui pose la place ; Ma Couronne en secours ; 2026-11-18-b · le message de la place tenue que Meta dit non remis (« failed » sur sa ligne att-…) est rendu à la porte du site, qui confirme la place sans attente ; « Je confirme » écrit confirme toutes les places du numéro (à la porte du site) ; 2026-11-18-a · la place tenue depuis le site : « Je confirme » et « Un autre moment » (le bouton, ou « Je confirme » écrit) sont rendus à la porte du site (demande-submit), qui confirme, dit l acompte ou rend la place ; le bouton de la paie (PAIE_RECU, PAIE_PASENCORE) reconnaît le numéro par sa clé ; 2026-11-15-a · le « Je confirme » et « Un autre moment » d une proposition (REPRISE_OK, REPRISE_AUTRE) reconnaissent le numero par sa cle : Meta livre 229 et huit chiffres, la fiche porte 229 01 ; 2026-11-11-a · les boutons de la paie (PAIE_RECU, PAIE_PASENCORE) s écrivent sur le registre des envois MTN, venus du seul numéro à qui le message est parti, sans automate ni sonnerie ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero : le message et l appel portent l adulte, le payeur, ou personne ; les boutons de garder : changer l heure va a l automate, je ne peux plus passe la main ; Opale a 120 s pour son tour ; la prochaine séance de l abonnée (PROCHAINE_OK, PROCHAINE_AUTRE) : « Oui, je réserve » pose la séance couverte par sa formule sous le verrou du serveur (reserver_une_seance_incluse_par_la_maison, 0198) et la confirme en une phrase, la ligne conf-<rdv>-whatsapp taisant le modèle de confirmation-rdv sauf si la phrase ne part pas ; une suite déjà posée ne se pose pas deux fois ; « Une autre date » passe la main à la conversation sans rien poser ; venus du seul numéro à qui le message est parti';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -2933,6 +2933,34 @@ Deno.serve(async (req) => {
       : null;
     const appel = appelDe({ name: fiche.nom, prenomUsage: fiche.prenomUsage, civilite: fiche.civilite, auMasculin: fiche.auMasculin });
     const retour = retourDuBouton({ geste: b.geste, garder, appel, quand, couronneUrl, offrirUrl });
+    /* LE « OUI » QUI RÉSERVE (18 novembre 2026, l'agent des rendez-vous, lot 3,
+       choix de Yéman : « un toucher, rien à choisir »). Hors « garder », un
+       « Oui » sous un message de Perle qui porte une proposition (les places
+       dites, ou le jour) va à l'automate (`perle: { ligneId }`) : il pose la
+       place sous verrou et le lui dit. Le numéro est déjà celui de la fiche de
+       la ligne (plus haut). S'il ne pose rien, la phrase de Ma Couronne en
+       secours, comme avant. En tâche de fond, comme « Changer l'heure ». */
+    if (!garder && b.geste === 'OUI' && ligne.data?.proposition && service && urlBase) {
+      const enFond = tacheDeFond();
+      const numero = e.numero;
+      const branchId = fiche.branchId;
+      const ligneId = ligne.id;
+      const tache = (async () => {
+        const rep = await demandeALAutomate(urlBase, service, { numero, tiroir: tiroirDe(numero), waIds: [e.waId], perle: { ligneId } },
+          enFond ? AUTOMATE_EN_FOND_MS : AUTOMATE_SANS_FOND_MS);
+        dis('assistant · oui confie', { pris: rep.pris });
+        if (rep.pris) {
+          if (rep.alerte) await previensLesTelephones(sb, rep.alerte, rep.alerte, 1);
+          return;
+        }
+        if (retour && jetonMeta && phoneIdMeta) {
+          await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, { numero, branchId, auto: retour.auto as AutoDuTrone, texte: retour.texte });
+        }
+      })();
+      if (enFond) enFond(tache);
+      else automateEnCours.push(tache);
+      continue;
+    }
     if (suite?.deplacer && rdvAGarder && service && urlBase) {
       /* « CHANGER L'HEURE » VA À L'AUTOMATE (choix de Yéman, 2 novembre 2026) :
          il ouvre ses places en mode déplacement et déplace le rendez-vous sous

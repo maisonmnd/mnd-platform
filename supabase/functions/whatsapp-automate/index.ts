@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -8500,6 +8500,134 @@ const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
 
+/* ══ LE « OUI » DE PERLE QUI RÉSERVE — 18 novembre 2026 ═══════════════════
+   L'agent des rendez-vous, lot 3, choix de Yéman : « un toucher, rien à
+   choisir ». Le « Oui » d'un message de Perle (« Je vous réserve votre
+   place ? », « nous avons de la place … Je vous en garde une ? ») POSE sa
+   place, au lieu de renvoyer vers Ma Couronne. Le webhook confie le bouton
+   (`perle: { ligneId }`) après avoir vérifié que le numéro est celui de la
+   fiche de la ligne, et y avoir écrit « oui ».
+
+   CE QUI SE POSE : la proposition que Perle a écrite sur sa ligne
+   (`proposition`, gerard-pur) : ses gestes habituels, et les places dites
+   dans le message (la première qui tient), ou le jour dit (la place libre la
+   plus proche de son heure habituelle, ce jour-là puis les six suivants).
+   Sur Team, confirmé (son « Oui » est son oui), JAMAIS LE JOUR MÊME (le
+   verrou 0213 le refuse à tout autre qu'Opale), jamais avant 08:30 (le
+   juge). La clé du numéro porte le plafond des poses (0222).
+   L'identifiant vient de la ligne : un second « Oui » retrouve le même
+   rendez-vous, il n'en pose pas deux.
+
+   Rien ne tient : `pris: false`, et le webhook dit la phrase d'avant
+   (Ma Couronne) en secours. */
+type PropositionDePerle = { serviceIds: string[]; dureeMin: number; places: PlaceDuServeur[]; jour?: string; heure?: string };
+const ISO_DE_PERLE = /^\d{4}-\d{2}-\d{2}$/;
+const HHMM_DE_PERLE = /^([01]\d|2[0-3]):[0-5]\d$/;
+/** La proposition de la ligne, relue sans confiance : ce que Perle a écrit, rien d'autre. */
+export function propositionDePerleLue(x: unknown): PropositionDePerle | null {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return null;
+  const p = x as Record<string, unknown>;
+  const serviceIds = Array.isArray(p.serviceIds)
+    ? [...new Set(p.serviceIds.map((s) => String(s ?? '')).filter((s) => /^[A-Za-z0-9_.:-]{1,80}$/.test(s)))].slice(0, 6) : [];
+  if (serviceIds.length === 0) return null;
+  const places: PlaceDuServeur[] = Array.isArray(p.places)
+    ? p.places.map((q) => (q && typeof q === 'object' ? q as Record<string, unknown> : {}))
+      .map((q) => ({ iso: String(q.iso ?? ''), heure: String(q.heure ?? '') }))
+      .filter((q) => ISO_DE_PERLE.test(q.iso) && HHMM_DE_PERLE.test(q.heure)).slice(0, 4)
+    : [];
+  const jour = typeof p.jour === 'string' && ISO_DE_PERLE.test(p.jour) ? p.jour : undefined;
+  const heure = typeof p.heure === 'string' && HHMM_DE_PERLE.test(p.heure) ? p.heure : undefined;
+  if (places.length === 0 && !jour) return null;
+  const d = Math.round(Number(p.dureeMin));
+  return { serviceIds, dureeMin: Number.isFinite(d) && d >= 15 && d <= 600 ? d : 0, places, ...(jour ? { jour } : {}), ...(heure ? { heure } : {}) };
+}
+/** Les places à essayer, dans l'ordre : celles dites dans le message, sinon
+    le jour dit et les six suivants, l'heure la plus proche de la sienne
+    d'abord. Jamais aujourd'hui. */
+export function placesDuOuiDePerle(p: PropositionDePerle, libres: readonly PlaceDuServeur[], aujourdhui: string): PlaceDuServeur[] {
+  if (p.places.length > 0) return p.places.filter((x) => x.iso > aujourdhui);
+  if (!p.jour) return [];
+  const debut = p.jour > aujourdhui ? p.jour : isoPlusJoursWa(aujourdhui, 1);
+  const fin = isoPlusJoursWa(debut, 6);
+  const cible = p.heure ? minutesDeHhmm(p.heure) : null;
+  return libres.filter((x) => x.iso >= debut && x.iso <= fin && x.iso > aujourdhui).sort((a, b) => a.iso.localeCompare(b.iso)
+    || (cible === null ? 0 : Math.abs(minutesDeHhmm(a.heure) - cible) - Math.abs(minutesDeHhmm(b.heure) - cible))
+    || a.heure.localeCompare(b.heure));
+}
+export const PERLE = 'Perle';
+async function reserveLeOuiDePerle(sb: Sb, o: { numero: string; ligneId: string; jeton: string; phoneId: string }): Promise<Reponse> {
+  if (!o.jeton || !o.phoneId) { dis('perle · cles Meta absentes'); return { pris: false }; }
+  const { data: l, error } = await sb.from('envois').select('id, branch_id, data').eq('id', o.ligneId).limit(1);
+  if (error) { dis('perle · ligne illisible', { motif: error.message.slice(0, 120) }); return { pris: false }; }
+  const ligne = ((l ?? []) as (Ligne & { branch_id?: string | null })[])[0];
+  const d = (ligne?.data ?? {}) as Record<string, unknown>;
+  if (!ligne || d.type !== 'gerard' || d.reponse !== 'oui') { dis('perle · ligne sans oui'); return { pris: false }; }
+  const p = propositionDePerleLue(d.proposition);
+  if (!p) { dis('perle · ligne sans proposition'); return { pris: false }; }
+  /* SON NUMÉRO, ENCORE : le webhook l'a vérifié, l'automate le revérifie. */
+  const fiches = await lesFichesDuNumero(sb, o.numero);
+  const f = fiches?.find((x) => x.id === String(d.clientId ?? ''));
+  if (!f) { dis('perle · fiche etrangere au numero'); return { pris: false }; }
+  const rdvId = `rdv-wa-perle-${cleCourte(o.ligneId)}`;
+  const appel = appelDe({ name: f.nom, prenomUsage: f.prenomUsage, civilite: f.civilite, auMasculin: f.auMasculin }, prenomDeLaFicheWa(f));
+  const dire = async (corps: string, branchId: string | undefined): Promise<Rendu> => {
+    const m = { forme: 'texte', etape: 'confirme', corps } as MessageSortant;
+    const rendu = await envoieAGraph(o.jeton, o.phoneId, chargeGraph(m, o.numero));
+    await laisseLaTrace(sb, { numero: o.numero, m, rendu, branchId, clientId: f.id, parQui: PERLE });
+    return rendu;
+  };
+
+  /* UN SECOND « OUI » : le rendez-vous de cette ligne existe déjà, on le redit. */
+  const { data: deja } = await sb.from('appointments').select('id, data').eq('id', rdvId).limit(1);
+  const dejaLu = ((deja ?? []) as Ligne[])[0]?.data;
+  if (dejaLu && ['confirmé', 'en attente'].includes(String(dejaLu.status ?? '')) && ISO_DE_PERLE.test(String(dejaLu.date ?? '')) && HHMM_DE_PERLE.test(String(dejaLu.time ?? ''))) {
+    await dire(`C’est déjà réservé, ${appel} : ${placeDite({ iso: String(dejaLu.date), heure: String(dejaLu.time) })}. La Maison vous attend.`, String(dejaLu.branchId ?? '') || undefined);
+    return { pris: true };
+  }
+
+  const docs = await litLesDocuments(sb);
+  if (!docs) return { pris: false };
+  const ms = Date.now();
+  const aujourdhui = jourDeCotonou(ms);
+  const horizon = 30;
+  const lu = await litLAgenda(sb, docs, f.branchId ?? (ligne.branch_id || undefined), aujourdhui, horizon);
+  if (!lu) return { pris: false };
+  const vue = agendaDuTourWa(lu, ms, horizon);
+  const essais = placesDuOuiDePerle(p, p.places.length ? [] : placesLibres(lu.agenda, p.serviceIds, ms, horizon), aujourdhui).slice(0, 6);
+  if (essais.length === 0) { dis('perle · aucune place a essayer'); return { pris: false }; }
+  const branchId = lu.agenda.branchId;
+  const dureeMin = dureeDesPrestations(p.serviceIds, lu.agenda.services) || p.dureeMin || 60;
+  let posee: PlaceDuServeur | null = null;
+  for (const x of essais) {
+    const maintenant = new Date().toISOString();
+    const ecriture: EcritureDuTour = {
+      genre: 'pose',
+      rdv: {
+        id: rdvId, branchId, clientId: f.id, clientName: f.nom, serviceIds: [...p.serviceIds], date: x.iso, time: x.heure, dureeMin,
+        status: 'confirmé', source: 'whatsapp', creeLe: maintenant, note: 'Réservé d’un toucher sur WhatsApp · Perle',
+        poseePar: PERLE, cleDuNumero: cleWa(o.numero), confirmeeParLaClienteLe: maintenant,
+      } as RdvAPoser,
+      envoi: {
+        id: `conf-${rdvId}-whatsapp`, branchId, type: 'confirmation', canal: 'whatsapp', apptId: rdvId, clientId: f.id, prenom: appel,
+        numero: `+${o.numero}`, dateRdv: x.iso, heure: x.heure, moment: placeDite(x), statut: 'en cours', detail: 'dit dans la conversation, par Perle', quand: maintenant,
+      },
+    };
+    const v = await poseSousVerrou(sb, lu, ecriture, vue.oublie, false);
+    dis('perle · pose', { verdict: v.ok ? (v.verdict ?? 'pose') : v.raison });
+    if (v.ok) { posee = x; break; }
+    if (!String(v.raison).startsWith('creneau_')) break;
+  }
+  if (!posee) return { pris: false };
+
+  const noms = p.serviceIds.map((id) => lu.agenda.services.find((s) => s.id === id)?.name?.split(' · ')[0]).filter(Boolean) as string[];
+  const gestes = noms.length > 1 ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}` : noms[0] ?? 'votre rituel';
+  const rendu = await dire(`C’est réservé, ${appel} : ${gestes}, ${placeDite(posee)}. La Maison vous attend.\nPour changer ou annuler, répondez simplement ici.`, branchId);
+  await ditLaConfirmation(sb, rdvId, rendu);
+  const { error: errLigne } = await sb.from('envois').update({ data: { ...d, rdvPose: rdvId } }).eq('id', o.ligneId);
+  if (errLigne) dis('perle · ligne non marquee', { motif: errLigne.message.slice(0, 120) });
+  return { pris: true, alerte: alerteDeLAutomate({ genre: 'pose', prenom: prenomDeLaFicheWa(f), numero: o.numero, date: posee.iso, time: posee.heure }) };
+}
+
 Deno.serve(async (req) => {
   /* ── LE CONTRÔLE DE SANTÉ : la version et les secrets, EN LONGUEURS
      SEULES (0 = absent). Il n'envoie rien et ne lit rien. */
@@ -8589,6 +8717,23 @@ Deno.serve(async (req) => {
     } catch (e) {
       dis('echec des relances', { motif: String(e).slice(0, 160) });
       return json({ relancees: 0, raison: 'erreur', version: VERSION });
+    }
+  }
+  /* LE « OUI » DE PERLE QUI RÉSERVE (18 novembre 2026, l'agent des rendez-vous,
+     lot 3) : sa ligne, son numéro, et rien d'autre. Ni l'interrupteur ni la
+     voix (Opale ou l'automate) n'entrent en jeu : c'est la réponse à un
+     message de Perle. */
+  const brutPerle = corps.perle && typeof corps.perle === 'object' ? String(corps.perle.ligneId ?? '') : '';
+  if (brutPerle) {
+    if (numero.length < 8 || brutPerle.length > 160 || !/^gerard-\d{4}-\d{2}-\d{2}-[A-Za-z0-9_.:-]+-whatsapp$/.test(brutPerle)) return json({ pris: false, version: VERSION });
+    try {
+      const r = await reserveLeOuiDePerle(createClient(urlBase, service), {
+        numero, ligneId: brutPerle, jeton: (Deno.env.get('WA_TOKEN') ?? '').trim(), phoneId: (Deno.env.get('WA_PHONE_ID') ?? '').trim(),
+      });
+      return json({ pris: r.pris, ...(r.alerte ? { alerte: r.alerte } : {}), version: VERSION });
+    } catch (e) {
+      dis('perle · echec', { motif: String(e).slice(0, 160) });
+      return json({ pris: false, version: VERSION });
     }
   }
   if (numero.length < 8 || waIds.length === 0) return json({ pris: false });

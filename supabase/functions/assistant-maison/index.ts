@@ -588,6 +588,26 @@ function placesDuJour(o) {
   });
   return { iso: o.iso, ferme: false, passe: false, heures };
 }
+function heureHabituelle(venues) {
+  const compte = /* @__PURE__ */ new Map();
+  for (const v of venues) {
+    if (!v.time || !/^\d{2}:\d{2}$/.test(v.time)) continue;
+    const c = compte.get(v.time);
+    if (!c) compte.set(v.time, { n: 1, dernier: v.date });
+    else {
+      c.n += 1;
+      if (v.date > c.dernier) c.dernier = v.date;
+    }
+  }
+  let mieux = null;
+  for (const e of compte) {
+    if (!mieux || e[1].n > mieux[1].n || e[1].n === mieux[1].n && e[1].dernier > mieux[1].dernier) mieux = e;
+  }
+  return mieux ? mieux[0] : null;
+}
+
+// src/shared/catalogue-pur.ts
+var CATEGORIE_VEKPE = "atl-i-vekpe";
 
 // src/shared/numero-a-prevenir-pur.ts
 var telDuRdv = (a2, fiche) => (a2.numeroAPrevenir ?? "").trim() || (fiche?.phone ?? "").trim();
@@ -1003,6 +1023,8 @@ function anniversaireDuJour(f, ctx) {
   }
   return pose("carte", [f.appel], [["La carte seule", sansAttention]]);
 }
+var propositionDuJour = (f, jour) => f.rituel && f.rituel.serviceIds.length > 0 ? { proposition: { serviceIds: [...f.rituel.serviceIds], dureeMin: f.rituel.dureeMin, places: [], jour, ...f.rituel.heure ? { heure: f.rituel.heure } : {} } } : {};
+var propositionDesPlaces = (f, places) => f.rituel && f.rituel.serviceIds.length > 0 && places.length > 0 ? { proposition: { serviceIds: [...f.rituel.serviceIds], dureeMin: f.rituel.dureeMin, places: places.slice(0, 2).map((p) => ({ iso: p.iso, heure: p.heure })) } } : {};
 function situationDuJour(f, ctx) {
   const A = ctx.aujourdhui;
   const sollicitable = !f.ecartee && !f.enfantDuFoyer;
@@ -1088,7 +1110,7 @@ function situationDuJour(f, ctx) {
     const avantCadence = ecartJours(A, c.iso);
     if (avantCadence <= COMBINER_AVANT && avantCadence >= COMBINER_JUSQUA && !c.posee && !traceDe(f, ["combiner"]).some((t) => t.quand.slice(0, 10) > s0)) {
       const rattrape = avantCadence < COMBINER_AVANT ? [["Rattrapage", `prévu le ${jourDit(plusJours(c.iso, -COMBINER_AVANT))}, pas écrit à temps`]] : [];
-      return fait("combiner", "avant", [f.appel, f.soinDit, `vers le ${jourDit(c.iso)}`], [...pourquoiDuFil, ...rattrape]);
+      return fait("combiner", "avant", [f.appel, f.soinDit, `vers le ${jourDit(c.iso)}`], [...pourquoiDuFil, ...rattrape], propositionDuJour(f, c.iso));
     }
     if (A.slice(5) >= NOEL_DU && A.slice(5) <= NOEL_AU && !traceDe(f, ["noel"]).some((t) => t.quand.slice(0, 4) === A.slice(0, 4)) && !(c.posee && c.iso.slice(5) >= "12-15" && c.iso.slice(5) <= "12-24") && !f.carteVivante) {
       return fait("noel", "fetes", [f.appel, A.slice(0, 4)], pourquoiDuFil);
@@ -1133,7 +1155,8 @@ function situationDuJour(f, ctx) {
       "retard",
       "place",
       [f.appel, f.soinDit, deuxPlacesDites(places)],
-      [...pourquoiDuFil, ["Date attendue", jourDit(c.iso)], ["Retard", `${ecartJours(c.iso, A)} jours`]]
+      [...pourquoiDuFil, ["Date attendue", jourDit(c.iso)], ["Retard", `${ecartJours(c.iso, A)} jours`]],
+      propositionDesPlaces(f, places)
     );
   }
   if (venues === 1 && sansVenir >= UNE_VENUE_APRES) {
@@ -1143,7 +1166,8 @@ function situationDuJour(f, ctx) {
       "une-venue",
       "place",
       [f.appel, dejaResserree ? f.soinDit : "premier resserrage des racines", deuxPlacesDites(places)],
-      [...pourquoiDuFil, ["Ses venues", "1"], ["Première venue", jourDit(s0)]]
+      [...pourquoiDuFil, ["Ses venues", "1"], ["Première venue", jourDit(s0)]],
+      dejaResserree ? propositionDesPlaces(f, places) : {}
     );
   }
   return null;
@@ -1190,7 +1214,8 @@ var communs = (s, o) => ({
   ...s.pourId ? { pourId: s.pourId } : {},
   modele: s.modele,
   texte: s.texte,
-  ...o.codePromo ? { codePromo: o.codePromo } : s.code ? { codeAFaire: s.code } : {}
+  ...o.codePromo ? { codePromo: o.codePromo } : s.code ? { codeAFaire: s.code } : {},
+  ...s.proposition ? { proposition: s.proposition } : {}
 });
 function ligneDeNotification(s, o) {
   return {
@@ -1350,11 +1375,14 @@ function lisLAssistant(e) {
     const premierNom = derniere ? nomDuService(derniere.serviceIds?.[0] ?? "") : "";
     const geste = GESTES_EN_FRANCAIS[litLaMarqueWa(premierNom).marque];
     const soinDit = geste ? geste.long.toLowerCase() : NOM_DE_LA_FAMILLE[familleDuNom(premierNom)];
+    const gestesDeLaDerniere = derniere?.serviceIds ?? [];
+    const rituel = derniere && gestesDeLaDerniere.length > 0 && !gestesDeLaDerniere.some((id) => byId.get(id)?.categoryId === CATEGORIE_VEKPE) ? { serviceIds: [...gestesDeLaDerniere], dureeMin: Math.max(30, dureeDuRendezVous(derniere, byId)), heure: heureHabituelle(siens.filter((a2) => a2.status === "honoré")) } : void 0;
     const sesSignalements = signalementsDe.get(c.id) ?? [];
     return {
       id: c.id,
       appel: appelDe(c),
       soinDit,
+      ...rituel ? { rituel } : {},
       birthday: c.birthday,
       birthdayGiftAt: c.birthdayGiftAt,
       accord: aAccepteLesNouvelles(c),
@@ -1637,7 +1665,7 @@ var noteLeRefus = (porte, attendue, recue) => {
 };
 
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-11-17-a";
+var VERSION = "2026-11-18-a";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {

@@ -40,7 +40,8 @@ declare const Deno: {
 /* 2026-11-02-b : « garder » dès J-3 pour toutes (de passage, diaspora, locks défaits ; l'enfant par son parent), choix de Yéman au sélecteur. */
 /* 2026-11-16-a : plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, agenda-pur). */
 /* 2026-11-17-a : la clé du cron se compare à temps constant (memeCle, cle-du-cron-pur) ; le refus se note au journal en longueurs seules (noteLeRefus), jamais dans la réponse. */
-const VERSION = '2026-11-17-a';
+/* 2026-11-18-a : le « Oui » qui réserve (l'agent des rendez-vous, lot 3) : « avant » et « place » écrivent sur leur ligne la proposition (son rituel habituel, les places dites ou le jour, son heure), que le webhook confie à l'automate. */
+const VERSION = '2026-11-18-a';
 
 type Ligne = { id: string; branch_id?: string | null; data: Record<string, unknown> };
 // deno-lint-ignore no-explicit-any

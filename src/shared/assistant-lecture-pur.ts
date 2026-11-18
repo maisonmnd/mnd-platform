@@ -30,7 +30,8 @@ import { seRelance } from './relances-pur';
 import { estEchue, etatDeLaCarte, type CarteCadeau } from './cartes-cadeaux-pur';
 import { codesVivantsDe, fabriqueLeCode, type CodePromo } from './promos-pur';
 import { deuxPlaces } from './processus-pur';
-import { placesDuJour } from '../apps/trone/routes/clients/rdv-fluide-pur';
+import { heureHabituelle, placesDuJour } from '../apps/trone/routes/clients/rdv-fluide-pur';
+import { CATEGORIE_VEKPE } from './catalogue-pur';
 import { telDuRdv } from './numero-a-prevenir-pur';
 import { attendUneReponse, derniersMessagesHorsService, dernieresRelancesDeFacture } from './dernier-message-pur';
 import {
@@ -54,7 +55,7 @@ export type EntreesDeLAssistant = {
   /** Les fiches et les RDV de la branche. */
   clients: readonly Client[];
   rdvs: readonly Appointment[];
-  prestations: ReadonlyMap<string, Pick<Service, 'name' | 'durationMin' | 'dureeParLongueur'>>;
+  prestations: ReadonlyMap<string, Pick<Service, 'name' | 'durationMin' | 'dureeParLongueur'> & Partial<Pick<Service, 'categoryId'>>>;
   signalements: readonly Signalement[];
   /** Les comptes abonnés aux notifications (fiche ou compte Ma Couronne). */
   abonnes: ReadonlySet<string>;
@@ -171,11 +172,19 @@ export function lisLAssistant(e: EntreesDeLAssistant): CerveauDeGerard {
     const premierNom = derniere ? nomDuService(derniere.serviceIds?.[0] ?? '') : '';
     const geste = GESTES_EN_FRANCAIS[litLaMarqueWa(premierNom).marque];
     const soinDit = geste ? geste.long.toLowerCase() : NOM_DE_LA_FAMILLE[familleDuNom(premierNom)];
+    /* SON RITUEL HABITUEL (18 novembre 2026, le « Oui » qui réserve) : les
+       gestes de sa dernière venue honorée, leur durée, son heure habituelle.
+       Jamais une création : on ne repose pas une couronne d'un toucher. */
+    const gestesDeLaDerniere = derniere?.serviceIds ?? [];
+    const rituel = derniere && gestesDeLaDerniere.length > 0 && !gestesDeLaDerniere.some((id) => byId.get(id)?.categoryId === CATEGORIE_VEKPE)
+      ? { serviceIds: [...gestesDeLaDerniere], dureeMin: Math.max(30, dureeDuRendezVous(derniere, byId)), heure: heureHabituelle(siens.filter((a) => a.status === 'honoré')) }
+      : undefined;
     const sesSignalements = signalementsDe.get(c.id) ?? [];
     return {
       id: c.id,
       appel: appelDe(c),
       soinDit,
+      ...(rituel ? { rituel } : {}),
       birthday: c.birthday,
       birthdayGiftAt: c.birthdayGiftAt,
       accord: aAccepteLesNouvelles(c),

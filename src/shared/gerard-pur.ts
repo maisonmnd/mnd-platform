@@ -355,6 +355,10 @@ export type FicheDeGerard = {
   jamais?: readonly GenreDeMessage[];
   rdvs: RdvDeGerard[];
   traces: TraceDeGerard[];
+  /** SON RITUEL HABITUEL (18 novembre 2026, l'agent des rendez-vous, lot 3) :
+      les gestes de sa dernière venue honorée (jamais une création), leur
+      durée et son heure habituelle. C'est ce que le « Oui » réserve. */
+  rituel?: { serviceIds: string[]; dureeMin: number; heure: string | null };
   /** La Cadence : la date ATTENDUE d'après son rythme (pour une cliente en
       retard, la date manquée, pas le cycle suivant ; null : rien de prédit),
       et son rythme en jours. */
@@ -362,6 +366,13 @@ export type FicheDeGerard = {
 };
 export type JourCreux = { iso: string; poses: number; ordinaire: number; manque: number; remises: number };
 export type Place = { iso: string; heure: string };
+/** LE « OUI » QUI RÉSERVE (18 novembre 2026, l'agent des rendez-vous, lot 3,
+    choix de Yéman : « un toucher, rien à choisir »). Ce que le message
+    propose, écrit sur sa ligne : ses gestes, leur durée, et les places dites
+    dans le message (« place ») ou le jour dit (« avant ») avec son heure
+    habituelle. Au « Oui », l'automate (whatsapp-automate, mode `perle`) la
+    rejuge sous verrou et la pose ; rien d'autre n'en décide. */
+export type PropositionDePerle = { serviceIds: string[]; dureeMin: number; places: Place[]; jour?: string; heure?: string };
 export type ContexteDeGerard = {
   aujourdhui: string;
   /** Les jours creux de 3 à 7 jours, avec leurs remises ouvertes. */
@@ -393,6 +404,8 @@ export type Situation = {
   /** LA FICHE QUI REÇOIT, quand ce n'est pas la sienne : la carte d'un
       enfant part au parent payeur (son numéro, son compte Ma Couronne). */
   pourId?: string;
+  /** Ce que le « Oui » réserve, quand le message propose une place. */
+  proposition?: PropositionDePerle;
 };
 
 /* ── L'ANNIVERSAIRE, RECONNU QUELLE QUE SOIT LA FORME DE LA DATE ─────────
@@ -666,6 +679,17 @@ export function anniversaireDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Ann
 export const anniversairesDuJour = (fiches: readonly FicheDeGerard[], ctx: ContexteDeGerard): AnniversaireDuJour[] =>
   fiches.map((f) => anniversaireDuJour(f, ctx)).filter((x): x is AnniversaireDuJour => !!x);
 
+/** « Je vous réserve votre place ? » (avant) : son rituel, le jour de sa cadence, son heure. */
+export const propositionDuJour = (f: Pick<FicheDeGerard, 'rituel'>, jour: string): Partial<Situation> =>
+  f.rituel && f.rituel.serviceIds.length > 0
+    ? { proposition: { serviceIds: [...f.rituel.serviceIds], dureeMin: f.rituel.dureeMin, places: [], jour, ...(f.rituel.heure ? { heure: f.rituel.heure } : {}) } }
+    : {};
+/** « Nous avons de la place … » (place) : son rituel, et les deux places dites, dans l'ordre du message. */
+export const propositionDesPlaces = (f: Pick<FicheDeGerard, 'rituel'>, places: readonly Place[]): Partial<Situation> =>
+  f.rituel && f.rituel.serviceIds.length > 0 && places.length > 0
+    ? { proposition: { serviceIds: [...f.rituel.serviceIds], dureeMin: f.rituel.dureeMin, places: places.slice(0, 2).map((p) => ({ iso: p.iso, heure: p.heure })) } }
+    : {};
+
 export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situation | null {
   const A = ctx.aujourdhui;
   /* Écartée (de passage, diaspora, locks défaits, archivée) ou enfant d'un
@@ -784,7 +808,7 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
       && !traceDe(f, ['combiner']).some((t) => t.quand.slice(0, 10) > s0)) {
       const rattrape: [string, string][] = avantCadence < COMBINER_AVANT
         ? [['Rattrapage', `prévu le ${jourDit(plusJours(c.iso, -COMBINER_AVANT))}, pas écrit à temps`]] : [];
-      return fait('combiner', 'avant', [f.appel, f.soinDit, `vers le ${jourDit(c.iso)}`], [...pourquoiDuFil, ...rattrape]);
+      return fait('combiner', 'avant', [f.appel, f.soinDit, `vers le ${jourDit(c.iso)}`], [...pourquoiDuFil, ...rattrape], propositionDuJour(f, c.iso));
     }
     /* Le mois de Noël : les places des fêtes, la carte cadeau, sans remise. */
     if (A.slice(5) >= NOEL_DU && A.slice(5) <= NOEL_AU && !traceDe(f, ['noel']).some((t) => t.quand.slice(0, 4) === A.slice(0, 4))
@@ -823,14 +847,14 @@ export function situationDuJour(f: FicheDeGerard, ctx: ContexteDeGerard): Situat
     if (viaCreux) return viaCreux;
     const places = ctx.placesDe(f.id);
     return fait('retard', 'place', [f.appel, f.soinDit, deuxPlacesDites(places)],
-      [...pourquoiDuFil, ['Date attendue', jourDit(c.iso)], ['Retard', `${ecartJours(c.iso, A)} jours`]]);
+      [...pourquoiDuFil, ['Date attendue', jourDit(c.iso)], ['Retard', `${ecartJours(c.iso, A)} jours`]], propositionDesPlaces(f, places));
   }
   if (venues === 1 && sansVenir >= UNE_VENUE_APRES) {
     const places = ctx.placesDe(f.id);
     /* Venue une fois pour autre chose (sa création, un soin) : son premier resserrage. */
     const dejaResserree = f.rdvs.some((x) => x.venu && x.familles.includes('resserrage'));
     return fait('une-venue', 'place', [f.appel, dejaResserree ? f.soinDit : 'premier resserrage des racines', deuxPlacesDites(places)],
-      [...pourquoiDuFil, ['Ses venues', '1'], ['Première venue', jourDit(s0)]]);
+      [...pourquoiDuFil, ['Ses venues', '1'], ['Première venue', jourDit(s0)]], dejaResserree ? propositionDesPlaces(f, places) : {});
   }
   return null;
 }
@@ -898,6 +922,8 @@ export type LigneDeGerard = {
   pourId?: string;
   /** LA REMISE À FABRIQUER une fois la ligne partie (jamais avant le départ réel). */
   codeAFaire?: CodeAFaire;
+  /** Ce que le « Oui » réserve (18 novembre 2026). */
+  proposition?: PropositionDePerle;
   colis?:
     | { genre: 'push'; clientId: string; titre: string; corps: string; url: string }
     | { genre: 'whatsapp'; numero: string; modele: string; composants: ComposantDuModele[]; texteAuFil: string; parQui: string };
@@ -914,6 +940,7 @@ const communs = (s: Situation, o: OutilsDeLaLigne) => ({
   ...(s.genre === 'garder' && o.rdv ? { heure: o.rdv.time } : {}),
   deposeLe: o.maintenantIso, quand: o.maintenantIso, genre: s.genre, ...(s.envie ? { envie: s.envie } : {}), ...(s.pourId ? { pourId: s.pourId } : {}), modele: s.modele, texte: s.texte,
   ...(o.codePromo ? { codePromo: o.codePromo } : s.code ? { codeAFaire: s.code } : {}),
+  ...(s.proposition ? { proposition: s.proposition } : {}),
 });
 /** LA NOTIFICATION DÉPOSÉE EN SALLE, au compte où elle est abonnée. */
 export function ligneDeNotification(s: Situation, o: OutilsDeLaLigne & { compte: string; partA: string; calme: boolean }): LigneDeGerard {
