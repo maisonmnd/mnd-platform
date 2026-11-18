@@ -2,7 +2,9 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LA REVUE DE LA SALLE QUI RÉPOND — 17 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
+## LA REVUE DE LA SALLE QUI RÉPOND — 17 et 18 novembre 2026, EN LIGNE (Trône build 20261118004233 @ 171d7b16, 537/537 identiques ; Trône seul : aucune fonction, aucun SQL)
+
+Essai réel après publication (Perle › Conversations › Ce qui part, aucun geste, aucune donnée changée) : la page s'ouvre, aucune erreur en console. « En salle » (vide ce jour-là) : pire trame 592 ms bloquées. « Partis · 30 jours » (174 partis) : une trame de 1 553 ms bloquées, un rendu React d'un seul tenant venu d'une mise à jour des données, sur un poste chargé (65 à 82 % de processeur) ; à alléger si la règle de la seconde doit tenir aussi sur cette vue (le reste de la page se redessine à chaque relecture : mesurer d'abord, comme le 15 novembre). Les 48 retenus du 15 novembre n'étaient plus en salle ; personne n'a rien effacé.
 
 Une revue de code de 25f1c80c a relevé 15 défauts possibles ; six vérificateurs indépendants, chacun chargé de les réfuter, en ont confirmé 12 (deux sérieux, dix légers). Tous corrigés ici :
 
@@ -56,7 +58,7 @@ Les quatre points de la revue du 17 novembre restés à cette session (`shared/d
 - **(12) Le total voulu dans la devise de la branche** : la consigne dit la devise à Claude, le schéma accepte les centimes, `enXof` (`toXof`) le ramène en XOF. « S'arrêter à 250 € » se lisait 250 F, et la direction, sans plafond, accordait une remise de presque tout.
 - **Banc** : `node scripts/verifie-le-devis-par-description.mjs` (71), avec le vrai juge des prix sur le catalogue de départ.
 
-## LA REVUE DU 17 NOVEMBRE, SUITE : FACTURES, L'ASSISTANT DES DEVIS, LA DICTÉE — 17 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
+## LA REVUE DU 17 NOVEMBRE, SUITE : FACTURES, L'ASSISTANT DES DEVIS, LA DICTÉE — 17 novembre 2026, EN LIGNE (Trône build 20261118004233 @ 171d7b16, 537/537 ; commits 347206c7, fc5e010d, 469e9cae ; Trône seul : aucune fonction, aucun SQL)
 
 Dix points d'une seconde revue (`/code-review`) sur les mêmes commits. Neuf sont réglés ici ; le dixième (l'audit du 4 novembre resté non commité dans la copie commune : `AuthGate.tsx`, `BACKEND.md`, `apply_auth.sql`, `provision_first_staff`) est entre les mains de la session qui reprend cet audit (migration 0213).
 
@@ -68,6 +70,7 @@ Dix points d'une seconde revue (`/code-review`) sur les mêmes commits. Neuf son
 - **La Dictée** (`equipe/Dictee.tsx`, `shared/dictee-pur.ts`) : un geste coupé, « Refaire » et la sortie d'écran détachent l'oreille AVANT de l'arrêter (`coupeLOreille`) ; `abort()` déclenchait la fin d'écoute, qui envoyait à Claude les mots déjà entendus. Le mot d'état (`motDeSanteDeLaDictee`) ne dit « Micro prêt » que micro accordé, annonce la question du navigateur sinon, et suit le changement d'autorisation.
 - **Le cuivre reste un accent** : `.dct-sante` et le compte de l'onglet ouvert (`.trv-tab__n`) passent à l'encre et à l'indigo.
 - **Bancs** : `node scripts/verifie-le-devis-par-description.mjs` (34), `node scripts/verifie-la-dictee.mjs` (le mot d'état, le geste coupé). La règle de l'onglet a été éprouvée hors dépôt sur une réplique des effets (React 19 et le routeur du Trône, Chrome sans tête) : 236 cas sur 236 (arrivées à froid, navigations sur place, Retour, Avance, en dev strict et en production), plus les clics rapprochés. Seul écart connu, et d'avant : un clic d'onglet fait avant que « Créer » se soit affiché cède à « Créer ».
+- **Essai réel du 18 novembre 2026** (Trône en ligne, build 20261118004233 ; aucune pièce créée, rien d'enregistré, micro jamais tenu) : l'onglet Devis écrit `?onglet=devis` et tient au rechargement ; « Créer › Devis » ouvre l'éditeur, « Annuler », puis une seconde fois : il rouvre, et l'adresse ne porte plus `nouveau=` ; « Payée » choisi sur Factures revient à « Tous » en passant sur Devis ; la Dictée, micro déjà autorisé dans ce Chrome, dit « Micro prêt, Claude posée : tenez le bouton, parlez, relâchez. » à l'encre (rgb 20, 20, 27), le filet seul en cuivre.
 
 ## LA REVUE DU 17 NOVEMBRE : LE JUGE DE 08:30, LES DIX PORTES, LA FICHE D'ENFANT — 17 novembre 2026 (demande-submit et whatsapp-automate en 2026-11-17-a ; huit autres fonctions sans changement de version ; Trône ; aucun SQL)
 
