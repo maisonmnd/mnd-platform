@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## DEUX FICHIERS REGROUPÉS RATTRAPÉS APRÈS « DEUX TÊTES » — 18 novembre 2026 (assistant-maison 2026-11-18-b, visio-salle 2026-11-18-b ; aucun SQL ; Trône inchangé)
+## DEUX FICHIERS REGROUPÉS RATTRAPÉS APRÈS « DEUX TÊTES » — 18 novembre 2026, EN LIGNE (assistant-maison 2026-11-18-b v44, visio-salle 2026-11-18-b v12 ; aucun SQL ; Trône inchangé)
 
 - **Pourquoi** : 60603719 a changé `agenda-pur` et `place-du-serveur` sans refaire les deux fonctions qui les regroupent. `verifie-la-cle-du-cron` criait sur `assistant-maison` (signalé par la session du « Non merci ») ; `visio-salle` avait le même retard, sans banc pour le dire.
 - **assistant-maison** : rien ne change pour elle ; les places de ses messages se comptent sans maître (`placesDuJour` de `rdv-fluide-pur`, maître `PERSONNE`), la règle des deux têtes n'y entre pas. Octets seulement.
