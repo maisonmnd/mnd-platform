@@ -10,13 +10,13 @@ import { PRIX_DE_LA_CONSULTATION_PRIVEE_XOF } from '../../../shared/estimation-p
 import { DUREE_MIN, FORME_DE_LA_CONSULTATION, type Creneau } from '../../../shared/visio-pur';
 import type { Besoin as Porte } from '../../../shared/qualification';
 import {
-  ENVIES_MAX, REPONSES_DU_DEBUT, affichesADefaire, affichesDesEnvies, affichesDuModele, basculeUneEnvie, enviesAffichees, enviesSures,
-  dureeAuCompte, etatEnLigne, parcoursDe, rangeLesChoisies, seTouche, tarifDesNaturels, tientDansUneJournee,
-  type Affiches, type Contexte, type Envie, type ReglagesDesEnvies, type ReponseDuDebut,
+  ENVIES_MAX, ENVIE_A_REPARER, ETATS_DES_LOCKS, REPONSES_DU_DEBUT, affichesADefaire, affichesDesEnvies, affichesDuModele, affichesDuSouci, basculeUneEnvie, enviesAffichees, enviesSures,
+  dureeAuCompte, etatEnLigne, nomDuRituel, parcoursDe, rangeLesChoisies, seTouche, tarifDesNaturels, tientDansUneJournee,
+  type Affiches, type Contexte, type Envie, type EtatDesLocks, type ReglagesDesEnvies, type ReponseDuDebut,
 } from '../../../shared/envies-pur';
 import {
   AGES, AVEC, A_PARTIR_DE, DUREES, ENSUITES, EPAISSEUR_INCONNUE, FACONS, LONGUEURS_DITES, NOMBRE_DE_QUESTIONS, REPONSES_VIDES,
-  apresLaReponseDuDebut, besoinsAMontrer, comptesDesTranches, besoinsDuSite, consultationADeposer, ecarteesParLaPeau, ecranPrecedent, ecranSuivant, ecranTenu,
+  apresLaReponseDuDebut, besoinsDuSouci, cheminDe, comptesDesTranches, besoinsDuSite, consultationADeposer, ecarteesParLaPeau, ecranPrecedent, ecranSuivant, ecranTenu,
   epaisseursDe, ficheADefaire, ficheDuModele, insecable, motDuRituel, motsDuRendezVous, nombreTape, numeroDe, pasFaits, plageDeLEpaisseur, plageDite,
   prixAPartirDe, trancheDuNombre, tranchesDe,
   type BesoinDuSite, type Ecran, type Epaisseur, type Fiche, type Reponses,
@@ -97,7 +97,6 @@ export default function Consultation() {
   const [qui, setQui] = useState<Coordonnees>(COORDONNEES_VIDES);
   /* La consultation déposée (son identifiant) : une seule, quel que soit le rendez-vous qu'elle prend ensuite. */
   const [depot, setDepot] = useState('');
-  const [toutVoir, setToutVoir] = useState<string[]>([]);
   const [choix, setChoix] = useState<Choix | null>(null);
   const [reserves, setReserves] = useState<Choix['genre'][]>([]);
   /* L'arrivée par `?privee=<id>`, après la visio : la consultation privée, directement. */
@@ -121,29 +120,36 @@ export default function Consultation() {
   /* SES ENVIES SE RECONNAISSENT À LEUR IDENTIFIANT, et se relisent contre les
      réglages : une envie retirée, écartée, restée sans nom ou interdite par
      une autre sort d'elle-même, et ses besoins avec elle. */
+  /* UN SOUCI (18 novembre 2026) : son envie est Réparer, sans qu'elle la
+     touche ; ce qui ne va pas, ce sont les besoins de Réparer. EN FORME :
+     ni Créer ni Réparer (`enviesAffichees`). */
   const rep: Reponses = useMemo(() => {
     if (!d) return repBrutes;
-    const envies = rangeLesChoisies(d.envies, repBrutes.envies, repBrutes.locks);
-    if (envies.length === repBrutes.envies.length) return repBrutes;
+    const souci = repBrutes.locks && parcoursDe(repBrutes.locks) === 'envies' && repBrutes.etat === 'souci';
+    const envies = souci
+      ? d.envies.envies.some((e) => e.id === ENVIE_A_REPARER && e.nom.trim() !== '') ? [ENVIE_A_REPARER] : []
+      : rangeLesChoisies(d.envies, repBrutes.envies, repBrutes.locks, repBrutes.etat);
+    if (envies.length === repBrutes.envies.length && envies.every((e, i) => e === repBrutes.envies[i])) return repBrutes;
     return { ...repBrutes, envies, besoins: repBrutes.besoins.filter((b) => d.besoins.some((x) => x.id === b && envies.includes(x.famille))) };
   }, [d, repBrutes]);
   const parcours = rep.locks ? parcoursDe(rep.locks) : null;
+  const chemin = cheminDe(parcours, rep.etat);
   const tranches = useMemo(() => tranchesDe(d?.agenda.bandes ?? []), [d]);
   const epaisseurs = useMemo(() => epaisseursDe(tranches), [tranches]);
   const epaisseur: Epaisseur | null = epaisseurs.find((e) => e.id === rep.epaisseur) ?? null;
   const tranche = tranches.find((t) => t.id === rep.calibre) ?? null;
-  const montrees: Envie[] = d ? enviesAffichees(d.envies, rep.locks) : [];
+  const montrees: Envie[] = d ? enviesAffichees(d.envies, rep.locks, rep.etat) : [];
   const choisies: Envie[] = d ? rep.envies.map((id) => d.envies.envies.find((e) => e.id === id)).filter((e): e is Envie => !!e) : [];
   const besoinsChoisis = d ? d.besoins.filter((b) => rep.besoins.includes(b.id)) : [];
-  const besoinsDesEnvies = d ? d.besoins.filter((b) => rep.envies.includes(b.famille)) : [];
-  /* Une envie sans besoin écrit : la question « Ce qui vous parle » ne se pose pas. */
-  const sautes: Ecran[] = besoinsDesEnvies.length === 0 ? ['besoins'] : [];
+  const ceQuiNeVaPas = d ? besoinsDuSouci(d.besoins) : [];
+  /* Sans besoin de Réparer écrit au Trône, « Ce qui ne va pas » ne se pose pas. */
+  const sautes: Ecran[] = d && ceQuiNeVaPas.length === 0 ? ['besoins'] : [];
 
   /* Aucune impasse : sans plus aucune envie choisie alors qu'il en reste, elle revient à « Vos envies ». */
-  const ecran = ecranTenu(ecranVoulu, parcours, { choisies: d ? rep.envies.length : 1, montrees: montrees.length });
+  const ecran = ecranTenu(ecranVoulu, chemin, { choisies: d ? rep.envies.length : 1, montrees: montrees.length });
   const va = (e: Ecran) => { aBouge.current = true; setChoix(null); setEcran(e); };
-  const avance = () => va(ecranSuivant(ecran, parcours, sautes));
-  const recule = () => va(ecranPrecedent(ecran, parcours, sautes));
+  const avance = () => va(ecranSuivant(ecran, chemin, sautes));
+  const recule = () => va(ecranPrecedent(ecran, chemin, sautes));
   const pose = (neuf: Partial<Reponses>) => setRep((r) => ({ ...r, ...neuf }));
   /* Tout montant passe par `fmtMoney`, et ne se coupe jamais sur deux lignes. */
   const argent = (xof: number) => insecable(fmtMoney(xof, d?.devise ?? 'XOF'));
@@ -162,10 +168,10 @@ export default function Consultation() {
 
   const pas = (
     <div className="ca-pas" aria-hidden="true">
-      {Array.from({ length: NOMBRE_DE_QUESTIONS }, (_, i) => <i key={i} className={i < pasFaits(ecran, parcours) ? 'est-fait' : ''} />)}
+      {Array.from({ length: NOMBRE_DE_QUESTIONS }, (_, i) => <i key={i} className={i < pasFaits(ecran, chemin) ? 'est-fait' : ''} />)}
     </div>
   );
-  const numero = numeroDe(ecran, parcours);
+  const numero = numeroDe(ecran, chemin);
   const sur = (suite = '') => (numero ? <p className="ca-sur">{numero} sur {NOMBRE_DE_QUESTIONS}{suite ? ` · ${suite}` : ''}</p> : null);
   const revenir = <button type="button" className="ca-revenir" onClick={recule}>Revenir</button>;
   const cadre = (dedans: ReactNode, vif = true) => (
@@ -212,11 +218,12 @@ export default function Consultation() {
   if (ecran === 'locks') {
     const choisit = (locks: ReponseDuDebut) => {
       /* Sans changer de parcours, ses réponses restent ; les envies que la réponse écarte sortent d'elles-mêmes. */
-      setRep(apresLaReponseDuDebut(rep, locks));
+      const neuves = apresLaReponseDuDebut(rep, locks);
+      setRep(neuves);
       mesure('parcours_choisi', { parcours: parcoursDe(locks), genre: 'consultation' });
       aBouge.current = true;
       setChoix(null);
-      setEcran(ecranSuivant('locks', parcoursDe(locks)));
+      setEcran(ecranSuivant('locks', cheminDe(parcoursDe(locks), neuves.etat)));
     };
     return cadre(
       <>
@@ -260,13 +267,40 @@ export default function Consultation() {
   ];
   const lesLongueurs = LONGUEURS_DITES.map((l) => ({ id: l.id, nom: l.nom, petit: l.repere }));
 
-  /* ── 3 SUR 5 · VOS ENVIES ── */
+  /* ── 3 SUR 5 · COMMENT VONT VOS LOCKS ? (18 novembre 2026) ──
+     « Comment vont vos locks ? » (le mot de Yéman), « ses locks » pour un
+     enfant. Deux affiches, un toucher avance. Changer d'état ne garde que ce
+     qui vaut encore : en forme, ses envies (le souci n'en a pas) ; un souci,
+     ce qui ne va pas. */
+  if (ecran === 'etat') {
+    const choisit = (etat: EtatDesLocks) => {
+      const neuves: Reponses = etat === rep.etat ? rep : { ...rep, etat, besoins: [], ...(etat === 'souci' ? { envies: [] } : {}) };
+      setRep(neuves);
+      mesure('parcours_choisi', { parcours: etat === 'souci' ? 'souci' : 'en-forme', genre: 'consultation' });
+      aBouge.current = true;
+      setChoix(null);
+      setEcran(ecranSuivant('etat', cheminDe(parcours, etat), sautes));
+    };
+    return cadre(
+      <>
+        {sur()}
+        <h2 className="ca-titre" ref={titre} tabIndex={-1}>{rep.pour === 'enfant' ? 'Comment vont ses locks ?' : 'Comment vont vos locks ?'}</h2>
+        <div className="ca-affiches">
+          {ETATS_DES_LOCKS.map((e) => (
+            <Affiche key={e.id} couleur={e.id === 'bien' ? 'indigo' : 'cuivre'} nom={e.nom} ligne={e.ligne} pressee={rep.etat === e.id} onClick={() => choisit(e.id)} />
+          ))}
+        </div>
+        {revenir}
+      </>,
+    );
+  }
+
+  /* ── 4 SUR 5 · VOS ENVIES (en forme : ni Créer ni Réparer) ── */
   if (ecran === 'envies') {
     const touche = (id: string) => {
       const envies = basculeUneEnvie(r, rep.envies, id);
-      /* Les besoins cochés et les « Tout voir » ne valent que pour les envies encore choisies. */
+      /* Les besoins cochés ne valent que pour les envies encore choisies. */
       pose({ envies, besoins: rep.besoins.filter((b) => d.besoins.some((x) => x.id === b && envies.includes(x.famille))) });
-      setToutVoir((t) => t.filter((x) => envies.includes(x)));
     };
     return cadre(
       <>
@@ -284,27 +318,21 @@ export default function Consultation() {
     );
   }
 
-  /* ── 4 SUR 5 · CE QUI VOUS PARLE ── */
+  /* ── 4 SUR 5 · CE QUI NE VA PAS (un souci) ──
+     Les besoins de Réparer, tous, tels que la direction les écrit au Trône
+     (Système › Besoins et règles › Les besoins). Plusieurs se touchent. */
   if (ecran === 'besoins') {
     const touche = (id: string) => pose({ besoins: rep.besoins.includes(id) ? rep.besoins.filter((x) => x !== id) : [...rep.besoins, id] });
     return cadre(
       <>
         {sur()}
-        <h2 className="ca-titre" ref={titre} tabIndex={-1}>Ce qui vous parle</h2>
-        {choisies.map((e) => {
-          const { montres, reste } = besoinsAMontrer(d.besoins, e.id, toutVoir.includes(e.id));
-          if (!montres.length) return null;
-          return (
-            <div className="ca-groupe" key={e.id}>
-              <p className="ca-sur">{e.nom}</p>
-              <div className="ca-puces" role="group" aria-label={e.nom}>
-                {montres.map((b) => <button type="button" key={b.id} className="ca-puce" aria-pressed={rep.besoins.includes(b.id)} onClick={() => touche(b.id)}>{b.mots}</button>)}
-                {reste > 0 && <button type="button" className="ca-puce" onClick={() => setToutVoir((t) => [...t, e.id])}>Tout voir</button>}
-              </div>
-            </div>
-          );
-        })}
-        <button type="button" className="ca-cta" onClick={avance}>Continuer</button>
+        <h2 className="ca-titre" ref={titre} tabIndex={-1}>Ce qui ne va pas</h2>
+        <div className="ca-mots ca-mots--liste" role="group" aria-label="Ce qui ne va pas">
+          {ceQuiNeVaPas.map((b) => (
+            <button type="button" key={b.id} className="ca-mot" aria-pressed={rep.besoins.includes(b.id)} onClick={() => touche(b.id)}>{b.mots}</button>
+          ))}
+        </div>
+        <button type="button" className="ca-cta" disabled={rep.besoins.length === 0} onClick={avance}>Continuer</button>
         {revenir}
       </>,
       false,
@@ -448,7 +476,10 @@ export default function Consultation() {
     visioOuverte: (creneaux?.length ?? 0) > 0,
     ecartees: garde ? d.ecartees : [],
   };
-  const affiches: Affiches = parcours === 'envies' ? affichesDesEnvies(r, rep.envies, contexte)
+  /* Un souci : la Maison regarde d'abord, la visio seule pour son propre
+     travail (18 novembre 2026). En forme : ses envies, comme avant. */
+  const affiches: Affiches = parcours === 'envies'
+    ? (rep.etat === 'souci' ? affichesDuSouci(r, rep.locks, contexte) : affichesDesEnvies(r, rep.envies, contexte))
     : parcours === 'modele' ? affichesDuModele(r, contexte)
       : affichesADefaire(r, rep.ensuite, contexte);
 
@@ -501,7 +532,7 @@ export default function Consultation() {
             ...o, maintenant: new Date().toISOString(), devise: d.devise, branchId: agenda.branchId,
             parcours, reponses: rep, envies: choisies, besoins: besoinsChoisis, tranche, epaisseur, fiche,
           })}
-          mot={motDuRituel({ envies: choisies, besoins: besoinsChoisis, fiche: parcours === 'defaire' ? fiche : null, longueur: rep.longueur })}
+          mot={motDuRituel({ envies: choisies, besoins: besoinsChoisis, fiche: parcours === 'defaire' ? fiche : null, longueur: rep.longueur, etat: parcours === 'envies' ? rep.etat : null })}
           pourQui={rep.pour ?? 'moi'}
           surRevenir={() => ouvre(null)}
           surReserve={(g) => setReserves((x) => (x.includes(g) ? x : [...x, g]))}
@@ -540,7 +571,7 @@ export default function Consultation() {
     const c = prix > 0 ? chiffreEtSigne(argent(prix)) : null;
     return (
       <div className="ca-affiches">
-        <Affiche couleur="sable" nom="Votre rituel" ligne={affiches.rituel.prestations.map((id) => service(id)?.name ?? '').filter(Boolean).join(' + ')}
+        <Affiche couleur="sable" nom={parcours === 'envies' ? nomDuRituel(rep.locks) : 'Votre rituel'} ligne={affiches.rituel.prestations.map((id) => service(id)?.name ?? '').filter(Boolean).join(' + ')}
           chiffre={c?.chiffre} unite={c ? [`${c.signe} · ${A_PARTIR_DE[0]}`, A_PARTIR_DE[1]] : undefined}
           pressee={reserves.includes('rituel')} onClick={reserves.includes('rituel') ? undefined : () => ouvre(leRituel)} />
       </div>

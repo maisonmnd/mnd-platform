@@ -14,22 +14,22 @@
    l'aiguillage (Couleur, decoloration comprise, mene au rituel), ce que le
    juge du serveur en dit, et le fichier de reglage a passer en ligne. */
 import {
-  ENVIES_DE_DEPART, ENVIES_MAX, GESTES_MAX, NOM_MAX, REPONSES_DU_DEBUT,
-  affichesADefaire, affichesDesEnvies, affichesDuModele, ajouteUnEcart, ajouteUneEnvie, ajouteUnePaire, auDelaDUneJournee, basculeUnGroupe, basculeUnRendezVous,
+  ENVIES_DE_DEPART, ENVIES_MAX, ETATS_DES_LOCKS, GESTES_MAX, NOM_MAX, REPONSES_DU_DEBUT, REPONSES_D_ECART,
+  affichesADefaire, affichesDesEnvies, affichesDuModele, affichesDuSouci, nomDuRituel, reponseDEcartDite, ajouteUnEcart, ajouteUneEnvie, ajouteUnePaire, auDelaDUneJournee, basculeUnGroupe, basculeUnRendezVous,
   basculeUneEnvie, compteurs, dureeAuCompte, enviesAffichees, enviesSures, etatEnLigne, insecable, interditePar, nomRefuse, parcoursDe, porteeDe, poseLesRituels,
   rangeLesChoisies, renommeUneEnvie, retireUnEcart, retireUneEnvie, retireUnePaire, seTouche, tarifDesNaturels, tientDansUneJournee,
-  type Contexte, type ReglagesDesEnvies,
+  type Contexte, type Envie, type ReglagesDesEnvies,
 } from '../src/shared/envies-pur';
 import { AUCUNE_PREUVE, BESOINS_DE_DEPART, FAMILLES_DE_DEPART, qualifie } from '../src/shared/besoins-pur';
 import { ATELIERS_RESERVABLES, lesGestesSeReservent, type AgendaDuServeur } from '../src/shared/place-du-serveur';
 import { famillesDeLaPorteDuSite } from '../src/shared/rendez-vous-en-attente-pur';
 import {
   AVEC, BESOINS_D_ABORD, LONGUEURS_DITES, REPONSES_VIDES,
-  apresLaReponseDuDebut, besoinsAMontrer, comptesDesTranches, prixAPartirDe, besoinsDuSite, consultationADeposer, ecarteesParLaPeau, ecranPrecedent, ecranSuivant, ecranTenu, ecransDe,
+  apresLaReponseDuDebut, besoinsAMontrer, besoinsDuSouci, cheminDe, comptesDesTranches, prixAPartirDe, besoinsDuSite, consultationADeposer, ecarteesParLaPeau, ecranPrecedent, ecranSuivant, ecranTenu, ecransDe,
   epaisseursDe, ficheADefaire, ficheDuModele, heureEnMots, ilYAPlusDeDates, jourEnPuce, jourEnToutesLettres, joursDeLaVisio, joursDesMoments, joursDuCarnet, moisDesJours,
   motDuRituel, motsDuRendezVous, nomDuModele, nombreTape, numeroDe, numeroEntier, numeroLisible, pasFaits, plageDeLEpaisseur, plageDite, pucesDesJours,
   trancheDuNombre, tranchesDe,
-  type Reponses,
+  type BesoinDuSite, type Reponses,
 } from '../src/apps/revelateur/parcours-en-affiches-pur';
 import type { Bande } from '../src/apps/revelateur/prix-calibre';
 import { readFileSync } from 'node:fs';
@@ -55,7 +55,7 @@ dit('les groupes de depart : Creer en privee, Reparer en visio et privee, Volume
 dit('les sept autres en Rituel', ['finition', 'entretien', 'hydratation', 'lavage', 'couleur', 'grands-jours', 'enfants'],
   S.envies.filter((e) => e.groupes.join() === 'rituel').map((e) => e.id));
 dit('les trois compteurs de la semence : sept, trois, deux', { rituel: 7, visio: 3, privee: 2 }, compteurs(S));
-dit('une seule restriction : Creer et Reparer ; aucune reponse n ecarte rien', [[['creer', 'reparer']], []], [S.paires, S.ecarts]);
+dit('une seule restriction : Creer et Reparer ; aucune reponse du debut n ecarte rien, des locks en forme ecartent Creer et Reparer (bon sens, 18 novembre 2026)', [[['creer', 'reparer']], [{ reponse: 'bien', envie: 'creer' }, { reponse: 'bien', envie: 'reparer' }]], [S.paires, S.ecarts]);
 dit('le modele : les deux rendez-vous, 25 000 F les 75 locks', { rdv: ['visio', 'privee'], naturels: { prixXof: 25000, lot: 75 } }, S.modele);
 dit('a defaire : le rituel de Cheveux libres, et les deux rendez-vous', { rituel: 'sv-plt-45-std', rdv: ['visio', 'privee'] }, S.defaire);
 /* Chaque rituel de la semence est celui que `mnd_besoins` propose deja sans point ni preuve, dans la famille de l'envie. */
@@ -114,7 +114,7 @@ dit('une restriction neuve se pose ; la meme a l envers, ou avec elle-meme, ne c
   [avecPaire.paires.length, ajouteUnePaire(avecPaire, 'couleur', 'volume') === avecPaire, ajouteUnePaire(S, 'volume', 'volume') === S, ajouteUnePaire(S, 'volume', 'inconnue') === S]);
 dit('une restriction se retire dans les deux sens', [], retireUnePaire(S, 'reparer', 'creer').paires);
 const avecEcart = ajouteUnEcart(S, 'ailleurs', 'creer');
-dit('une reponse du debut ecarte une envie, une seule fois, et se retire', [[{ reponse: 'ailleurs', envie: 'creer' }], true, []],
+dit('une reponse du debut ecarte une envie, une seule fois, et se retire', [[{ reponse: 'bien', envie: 'creer' }, { reponse: 'bien', envie: 'reparer' }, { reponse: 'ailleurs', envie: 'creer' }], true, [{ reponse: 'bien', envie: 'creer' }, { reponse: 'bien', envie: 'reparer' }]],
   [avecEcart.ecarts, ajouteUnEcart(avecEcart, 'ailleurs', 'creer') === avecEcart, retireUnEcart(avecEcart, 'ailleurs', 'creer').ecarts]);
 const deux: ('visio' | 'privee')[] = ['visio', 'privee'];
 const seule: ('visio' | 'privee')[] = ['visio'];
@@ -307,25 +307,63 @@ dit('le Trone ne dit plus la decoloration ecartee par la garde : ni a l onglet, 
   [/d[ée]coloration/i.test(ongletsDuTrone), /écarte détox et décapant tant que/.test(ongletsDuTrone), /Détox et décapant sont écartés tant qu/.test(ongletsDuTrone)]);
 
 /* ── ⑦ LE PARCOURS : LES ÉCRANS, LES MOTS, LES JOURS ─────────────────── */
-dit('une question par ecran : deux communes, trois selon la reponse, puis le rendez-vous', [
-  ['pour', 'locks'], ['pour', 'locks', 'envies', 'besoins', 'couronne', 'rdv'],
+/* VOS LOCKS, DEUX CHEMINS (18 novembre 2026) : faites à la Maison ou
+   ailleurs, « Comment vont vos locks ? », puis Vos envies (en forme) ou Ce
+   qui ne va pas (un souci), puis Votre couronne. */
+dit('une question par ecran : deux communes, trois selon la reponse et l etat, puis le rendez-vous', [
+  ['pour', 'locks'], ['pour', 'locks', 'etat'],
+  ['pour', 'locks', 'etat', 'envies', 'couronne', 'rdv'], ['pour', 'locks', 'etat', 'besoins', 'couronne', 'rdv'],
   ['pour', 'locks', 'epaisseur', 'longueur', 'duree', 'rdv'], ['pour', 'locks', 'depuis', 'ses-locks', 'comment', 'rdv'],
-], [ecransDe(null), ecransDe('envies'), ecransDe('modele'), ecransDe('defaire')]);
-dit('les numeros : 1 sur 5 a 5 sur 5 ; l ecran du rendez-vous n en porte pas', [1, 2, 3, 4, 5, null, 3, 5, 4],
-  [numeroDe('pour', null), numeroDe('locks', 'envies'), numeroDe('envies', 'envies'), numeroDe('besoins', 'envies'), numeroDe('couronne', 'envies'), numeroDe('rdv', 'envies'),
+], [ecransDe(null), ecransDe('envies'), ecransDe('en-forme'), ecransDe('souci'), ecransDe('modele'), ecransDe('defaire')]);
+dit('le chemin : le parcours, et pour la Maison ou ailleurs, l etat des locks', ['envies', 'en-forme', 'souci', 'modele', 'defaire', null], [
+  cheminDe('envies', null), cheminDe('envies', 'bien'), cheminDe('envies', 'souci'), cheminDe('modele', 'souci'), cheminDe('defaire', null), cheminDe(null, 'bien'),
+]);
+dit('les numeros : 1 sur 5 a 5 sur 5 ; l ecran du rendez-vous n en porte pas', [1, 2, 3, 3, 4, 5, 4, 5, null, 3, 5, 4],
+  [numeroDe('pour', null), numeroDe('locks', 'envies'), numeroDe('etat', 'envies'), numeroDe('etat', 'en-forme'), numeroDe('envies', 'en-forme'), numeroDe('couronne', 'en-forme'),
+    numeroDe('besoins', 'souci'), numeroDe('couronne', 'souci'), numeroDe('rdv', 'souci'),
     numeroDe('epaisseur', 'modele'), numeroDe('duree', 'modele'), numeroDe('ses-locks', 'defaire')]);
-dit('les traits du haut : un par question, tous au rendez-vous', [1, 3, 5, 5], [pasFaits('pour', null), pasFaits('envies', 'envies'), pasFaits('comment', 'defaire'), pasFaits('rdv', 'modele')]);
-dit('avancer et revenir, d un ecran a la fois', ['locks', 'besoins', 'rdv', 'rdv', 'envies', 'pour'],
-  [ecranSuivant('pour', null), ecranSuivant('envies', 'envies'), ecranSuivant('couronne', 'envies'), ecranSuivant('rdv', 'envies'), ecranPrecedent('besoins', 'envies'), ecranPrecedent('pour', 'envies')]);
-dit('sans besoin a montrer, la question se saute dans les deux sens', ['couronne', 'envies'], [ecranSuivant('envies', 'envies', ['besoins']), ecranPrecedent('couronne', 'envies', ['besoins'])]);
-dit('aucune impasse : plus loin sans plus aucune envie choisie, elle revient a Vos envies', ['envies', 'envies', 'envies', 'couronne', 'rdv', 'envies'], [
-  ecranTenu('besoins', 'envies', { choisies: 0, montrees: 11 }), ecranTenu('couronne', 'envies', { choisies: 0, montrees: 3 }), ecranTenu('rdv', 'envies', { choisies: 0, montrees: 1 }),
-  ecranTenu('couronne', 'envies', { choisies: 2, montrees: 11 }), ecranTenu('rdv', 'envies', { choisies: 0, montrees: 0 }), ecranTenu('envies', 'envies', { choisies: 0, montrees: 11 }),
+dit('les traits du haut : un par question, tous au rendez-vous', [1, 3, 4, 5, 5], [pasFaits('pour', null), pasFaits('etat', 'envies'), pasFaits('besoins', 'souci'), pasFaits('comment', 'defaire'), pasFaits('rdv', 'modele')]);
+dit('avancer et revenir, d un ecran a la fois', ['locks', 'etat', 'envies', 'besoins', 'couronne', 'rdv', 'rdv', 'etat', 'etat', 'pour'],
+  [ecranSuivant('pour', null), ecranSuivant('locks', 'envies'), ecranSuivant('etat', 'en-forme'), ecranSuivant('etat', 'souci'), ecranSuivant('besoins', 'souci'), ecranSuivant('couronne', 'en-forme'),
+    ecranSuivant('rdv', 'souci'), ecranPrecedent('besoins', 'souci'), ecranPrecedent('envies', 'en-forme'), ecranPrecedent('pour', 'en-forme')]);
+dit('sans besoin de Reparer ecrit, Ce qui ne va pas se saute dans les deux sens', ['couronne', 'etat'], [ecranSuivant('etat', 'souci', ['besoins']), ecranPrecedent('couronne', 'souci', ['besoins'])]);
+dit('aucune impasse : plus loin sans plus aucune envie choisie, elle revient a Vos envies', ['envies', 'envies', 'couronne', 'rdv', 'envies', 'couronne'], [
+  ecranTenu('couronne', 'en-forme', { choisies: 0, montrees: 3 }), ecranTenu('rdv', 'en-forme', { choisies: 0, montrees: 1 }),
+  ecranTenu('couronne', 'en-forme', { choisies: 2, montrees: 9 }), ecranTenu('rdv', 'en-forme', { choisies: 0, montrees: 0 }), ecranTenu('envies', 'en-forme', { choisies: 0, montrees: 9 }),
+  ecranTenu('couronne', 'souci', { choisies: 0, montrees: 9 }),
 ]);
-dit('les parcours a part n ont pas d envies a retrouver ; un ecran d un autre parcours ramene aux locks', ['rdv', 'duree', 'locks', 'pour'], [
+dit('l etat pas encore dit : tout ecran plus loin ramene a Comment vont vos locks ; les parcours a part n ont pas d envies a retrouver', ['etat', 'etat', 'rdv', 'duree', 'locks', 'pour', 'locks'], [
+  ecranTenu('envies', 'envies', { choisies: 0, montrees: 9 }), ecranTenu('rdv', 'envies', { choisies: 0, montrees: 9 }),
   ecranTenu('rdv', 'modele', { choisies: 0, montrees: 11 }), ecranTenu('duree', 'modele', { choisies: 0, montrees: 11 }),
-  ecranTenu('couronne', 'defaire', { choisies: 0, montrees: 11 }), ecranTenu('envies', null, { choisies: 0, montrees: 11 }),
+  ecranTenu('couronne', 'defaire', { choisies: 0, montrees: 11 }), ecranTenu('envies', null, { choisies: 0, montrees: 11 }), ecranTenu('besoins', 'en-forme', { choisies: 1, montrees: 9 }),
 ]);
+{
+  const S = ENVIES_DE_DEPART();
+  const ids = (l: readonly { id: string }[]) => l.map((x) => x.id);
+  dit('bon sens : des locks en forme n ont ni envie de creer ni de reparer, quelle que soit leur origine', [false, false, false, false, true, true, 9], [
+    ids(enviesAffichees(S, 'maison', 'bien')).includes('creer'), ids(enviesAffichees(S, 'ailleurs', 'bien')).includes('creer'),
+    ids(enviesAffichees(S, 'maison', 'bien')).includes('reparer'), ids(enviesAffichees(S, 'ailleurs', 'bien')).includes('reparer'),
+    ids(enviesAffichees(S, 'maison')).includes('creer'), ids(enviesAffichees(S, 'ailleurs', 'souci')).includes('reparer'), enviesAffichees(S, 'ailleurs', 'bien').length,
+  ]);
+  dit('en forme, Creer et Reparer deja choisies sortent des choisies', ['volume', 'entretien'], rangeLesChoisies(S, ['creer', 'volume', 'reparer', 'entretien'], 'maison', 'bien'));
+  const ouverte = { seReserve: () => true, visioOuverte: true };
+  const fermee = { seReserve: () => true, visioOuverte: false };
+  dit('un souci, faites a la Maison : la visio seule ; sans visio ouverte, la consultation privee', [
+    { rituel: null, regard: { envies: ['reparer'], visio: true, privee: false } }, { rituel: null, regard: { envies: ['reparer'], visio: false, privee: true } },
+  ], [affichesDuSouci(S, 'maison', ouverte), affichesDuSouci(S, 'maison', fermee)]);
+  dit('un souci, faites ailleurs : les rendez-vous de Reparer (visio et consultation privee) ; Reparer retiree : les deux portes', [
+    { rituel: null, regard: { envies: ['reparer'], visio: true, privee: true } }, { rituel: null, regard: { envies: [], visio: true, privee: true } },
+    { rituel: null, regard: { envies: ['reparer'], visio: false, privee: true } },
+  ], [affichesDuSouci(S, 'ailleurs', ouverte), affichesDuSouci(retireUneEnvie(S, 'reparer'), 'ailleurs', ouverte),
+    affichesDuSouci({ ...S, envies: S.envies.map((e) => (e.id === 'reparer' ? { ...e, groupes: ['privee'] as Envie['groupes'] } : e)) }, 'ailleurs', ouverte)]);
+  dit('l affiche du rituel : Premiere visite pour des locks nees ailleurs, Votre rituel sinon', ['Votre rituel', 'Première visite', 'Votre rituel'], [nomDuRituel('maison'), nomDuRituel('ailleurs'), nomDuRituel(null)]);
+  dit('les deux affiches de l etat, et ses mots', [['bien', 'En forme', 'Elles vont bien.'], ['souci', 'Un souci', 'Quelque chose ne va pas.']], ETATS_DES_LOCKS.map((e) => [e.id, e.nom, e.ligne]));
+  const BS2: BesoinDuSite[] = [
+    { id: 'r1', famille: 'reparer', mots: 'Elles cassent', garde: false }, { id: 'l1', famille: 'lavage', mots: 'Odeur', garde: false },
+    { id: 'r2', famille: 'reparer', mots: 'Une alopécie', garde: true },
+  ];
+  dit('ce qui ne va pas : les besoins de Reparer, tous, dans leur ordre', ['r1', 'r2'], besoinsDuSouci(BS2).map((b) => b.id));
+}
 dit('les mots des affiches du rendez-vous suivent le parcours, une seule fonction les ecrit', [
   ['À la Maison, devant vos cheveux', 'de votre création'], ['À la Maison, devant vos locks', 'de votre rituel'], ['À la Maison, devant vos locks', 'de votre rituel'],
   'Un maître de la Maison répond à vos inquiétudes, en quelques minutes', ['Visio', 'Consultation privée'],
@@ -509,6 +547,23 @@ const depotD = consultationADeposer({
   envies: [], besoins: [], tranche: null, epaisseur: null, fiche: ficheADefaire({ depuis: '1-3', epaisseur: null, longueur: 'inconnue', facon: 'couper', ensuite: 'nouvelles' }), rendezVous: 'visio',
 });
 dit('des locks a defaire : ni « nees » inventee, ni calibre, ni longueur qu elle n a pas dits', { pour: 'moi' }, depotD.couronne);
+/* VOS LOCKS, DEUX CHEMINS (18 novembre 2026) : la fiche dit l'état ; un souci, ce qui ne va pas, sans « Envies : Réparer ». */
+const depotS = consultationADeposer({
+  id: 'cg-5', maintenant: 'x', prenom: 'E', telephone: 't', devise: 'XOF', branchId: 'br', parcours: 'envies',
+  reponses: { ...REP, locks: 'maison', etat: 'souci', envies: ['reparer'] }, envies: S.envies.filter((e) => e.id === 'reparer'), besoins: BS.slice(0, 2),
+  tranche: T[1], epaisseur: null, fiche: null, rendezVous: 'visio',
+});
+const ficheS = (depotS.answers as { fiche: [string, string][] }).fiche;
+dit('un souci depose : son etat, ce qui ne va pas, sans « Envies »', [['Un souci', 'Un, Deux', undefined], 'souci'],
+  [[ficheS.find(([k]) => k === 'État')?.[1], ficheS.find(([k]) => k === 'Ce qui ne va pas')?.[1], ficheS.find(([k]) => k === 'Envies')?.[1]], (depotS.answers as { etat?: string }).etat]);
+const depotB = consultationADeposer({
+  id: 'cg-6', maintenant: 'x', prenom: 'F', telephone: 't', devise: 'XOF', branchId: 'br', parcours: 'envies',
+  reponses: { ...REP, etat: 'bien', envies: ['lavage'] }, envies: S.envies.filter((e) => e.id === 'lavage'), besoins: [],
+  tranche: T[1], epaisseur: null, fiche: null, rendezVous: 'visio',
+});
+const ficheB = (depotB.answers as { fiche: [string, string][] }).fiche;
+dit('en forme depose : son etat et ses envies, sans « Ce qui ne va pas »', ['En forme', 'Lavage', undefined],
+  [ficheB.find(([k]) => k === 'État')?.[1], ficheB.find(([k]) => k === 'Envies')?.[1], ficheB.find(([k]) => k === 'Ce qui ne va pas')?.[1]]);
 dit('le mot d un rituel reserve dit ses envies et ses besoins, jamais un montant', 'Consultation du site · Envies : Réparer, Lavage · Besoins : Un ; Deux · Longueur : mi-longues',
   motDuRituel({ envies: S.envies.filter((e) => REP.envies.includes(e.id)), besoins: BS.slice(0, 2), fiche: null, longueur: 'mi-long' }));
 dit('changer la premiere reponse sans changer de parcours garde ses reponses', ['maison', ['reparer', 'lavage'], ['b1', 'b2'], '120', 'cal-medium', 'mi-long', true],
@@ -594,14 +649,29 @@ dit('son prenom et son numero sont tenus par le parcours : un jour, une heure, P
   /const \[(prenom|numero|pays)\b/.test(portes),
   /(choisisLeJour|ouvreLeCalendrier|relisLeCarnet) = \([^)]*\) => \{[^}]*surQui/.test(portes),
 ]);
-dit('Tout voir montre vraiment les besoins qui restent, et ils se cochent', [true, true], [
-  /besoinsAMontrer\(d\.besoins, e\.id, toutVoir\.includes\(e\.id\)\)/.test(ilot) && /onClick=\{\(\) => setToutVoir\(\(t\) => \[\.\.\.t, e\.id\]\)\}>Tout voir</.test(ilot)
-    && /setToutVoir\(\(t\) => t\.filter\(\(x\) => envies\.includes\(x\)\)\);/.test(ilot),
-  /montres\.map\(\(b\) => <button type="button" key=\{b\.id\} className="ca-puce" aria-pressed=\{rep\.besoins\.includes\(b\.id\)\} onClick=\{\(\) => touche\(b\.id\)\}>\{b\.mots\}<\/button>\)/.test(ilot),
+dit('Ce qui ne va pas montre tous les besoins de Reparer, et ils se cochent ; Continuer attend le premier', [true, true, true], [
+  /const ceQuiNeVaPas = d \? besoinsDuSouci\(d\.besoins\) : \[\];/.test(ilot),
+  /\{ceQuiNeVaPas\.map\(\(b\) => \(\r?\n\s*<button type="button" key=\{b\.id\} className="ca-mot" aria-pressed=\{rep\.besoins\.includes\(b\.id\)\} onClick=\{\(\) => touche\(b\.id\)\}>\{b\.mots\}<\/button>/.test(ilot),
+  /<button type="button" className="ca-cta" disabled=\{rep\.besoins\.length === 0\} onClick=\{avance\}>Continuer<\/button>/.test(ilot),
 ]);
-dit('ses envies se relisent contre les reglages, et aucune impasse ne reste', [true, true], [
-  /const envies = rangeLesChoisies\(d\.envies, repBrutes\.envies, repBrutes\.locks\);/.test(ilot),
-  /const ecran = ecranTenu\(ecranVoulu, parcours, \{ choisies: d \? rep\.envies\.length : 1, montrees: montrees\.length \}\);/.test(ilot),
+dit('ses envies se relisent contre les reglages et son etat ; un souci, c est Reparer ; aucune impasse ne reste', [true, true, true], [
+  /: rangeLesChoisies\(d\.envies, repBrutes\.envies, repBrutes\.locks, repBrutes\.etat\);/.test(ilot),
+  /\? d\.envies\.envies\.some\(\(e\) => e\.id === ENVIE_A_REPARER && e\.nom\.trim\(\) !== ''\) \? \[ENVIE_A_REPARER\] : \[\]/.test(ilot),
+  /const ecran = ecranTenu\(ecranVoulu, chemin, \{ choisies: d \? rep\.envies\.length : 1, montrees: montrees\.length \}\);/.test(ilot),
+]);
+dit('Comment vont vos locks : ses locks pour un enfant, deux affiches, un souci ne garde aucune envie', [true, true, true], [
+  /\{rep\.pour === 'enfant' \? 'Comment vont ses locks \?' : 'Comment vont vos locks \?'\}/.test(ilot),
+  /\{ETATS_DES_LOCKS\.map\(\(e\) => \(\r?\n\s*<Affiche key=\{e\.id\} couleur=\{e\.id === 'bien' \? 'indigo' : 'cuivre'\}/.test(ilot),
+  /\{ \.\.\.rep, etat, besoins: \[\], \.\.\.\(etat === 'souci' \? \{ envies: \[\] \} : \{\}\) \}/.test(ilot),
+]);
+dit('la fin : un souci par affichesDuSouci, l affiche du rituel nommee par son origine', [true, true], [
+  /\(rep\.etat === 'souci' \? affichesDuSouci\(r, rep\.locks, contexte\) : affichesDesEnvies\(r, rep\.envies, contexte\)\)/.test(ilot),
+  /nom=\{parcours === 'envies' \? nomDuRituel\(rep\.locks\) : 'Votre rituel'\}/.test(ilot),
+]);
+dit('le Trone dit l ecart de l etat : Des locks en forme, pas avec Creer ni Reparer', [['maison', 'ailleurs', 'bien'], 'Des locks en forme', true, [{ reponse: 'bien', envie: 'creer' }, { reponse: 'bien', envie: 'reparer' }],
+  [{ reponse: 'bien', envie: 'volume' }]], [
+  [...REPONSES_D_ECART], reponseDEcartDite('bien'), /REPONSES_D_ECART\.map\(\(id\) => <option key=\{id\} value=\{`reponse:\$\{id\}`\}>\{reponseDEcartDite\(id\)\}<\/option>\)/.test(lf('src/apps/trone/routes/systeme/VosEnvies.tsx')),
+  ENVIES_DE_DEPART().ecarts, enviesSures({ ...ENVIES_DE_DEPART(), ecarts: [{ reponse: 'bien', envie: 'volume' }, { reponse: 'souci', envie: 'creer' }, { reponse: 'autre', envie: 'creer' }] }).ecarts,
 ]);
 dit('les noms tapes au Trone ne s ecrivent jamais en HTML brut', false, /dangerouslySetInnerHTML|innerHTML|insertAdjacentHTML|document\.write/.test(`${ilot}\n${portes}\n${lf('src/apps/trone/routes/systeme/VosEnvies.tsx')}`));
 dit('changer l heure : le billet mene a la page de la visio, par un chemin de la Maison seulement', [true, true],

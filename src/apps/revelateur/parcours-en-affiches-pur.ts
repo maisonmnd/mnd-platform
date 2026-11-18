@@ -1,5 +1,8 @@
 import { heureDite as heureDeLInstant, parJour, type Creneau } from '../../shared/visio-pur';
-import { insecable, parcoursDe, reponseDite, type Envie, type Ensuite, type Parcours, type RendezVous, type ReponseDuDebut } from '../../shared/envies-pur';
+import {
+  ENVIE_A_REPARER, etatDit, insecable, parcoursDe, reponseDite,
+  type Envie, type Ensuite, type EtatDesLocks, type Parcours, type RendezVous, type ReponseDuDebut,
+} from '../../shared/envies-pur';
 import type { OnlineConsultation } from '../../shared/bridges';
 
 /** Ce que le site dépose : la consultation sans rien de ce que le serveur seul
@@ -36,51 +39,66 @@ import { prixSelonLeCalibre, representantDeLaBande, type Bande, type PrestationT
 
 export type Ecran =
   | 'pour' | 'locks'
-  | 'envies' | 'besoins' | 'couronne'
+  | 'etat' | 'envies' | 'besoins' | 'couronne'
   | 'epaisseur' | 'longueur' | 'duree'
   | 'depuis' | 'ses-locks' | 'comment'
   | 'rdv';
 
-/** Les trois questions de chaque parcours, après « Pour qui ? » et « Vos locks ? ». */
-export const QUESTIONS: Readonly<Record<Parcours, readonly Ecran[]>> = {
-  envies: ['envies', 'besoins', 'couronne'],
+/** LE CHEMIN (18 novembre 2026, « Vos locks, deux chemins ») : le parcours,
+    et pour des locks faites à la Maison ou ailleurs, leur état. `envies` :
+    l'état n'est pas encore dit ; `en-forme` et `souci` : il l'est. */
+export type Chemin = Parcours | 'en-forme' | 'souci';
+export const cheminDe = (p: Parcours | null, etat: EtatDesLocks | null): Chemin | null =>
+  (p === 'envies' && etat ? (etat === 'bien' ? 'en-forme' : 'souci') : p);
+
+/** Les questions de chaque chemin, après « Pour qui ? » et « Vos locks ? ».
+    Faites à la Maison ou ailleurs : « Comment vont vos locks ? », puis Vos
+    envies (en forme) ou Ce qui ne va pas (un souci), puis Votre couronne.
+    « Ce qui vous parle » ne se pose plus : en forme, ses envies de routine
+    mènent à leur rituel ; un souci, ce qui ne va pas EST le besoin. */
+export const QUESTIONS: Readonly<Record<Chemin, readonly Ecran[]>> = {
+  envies: ['etat'],
+  'en-forme': ['etat', 'envies', 'couronne'],
+  souci: ['etat', 'besoins', 'couronne'],
   modele: ['epaisseur', 'longueur', 'duree'],
   defaire: ['depuis', 'ses-locks', 'comment'],
 };
 export const NOMBRE_DE_QUESTIONS = 5;
 
-/** Les écrans dans l'ordre : avant la deuxième réponse, on ne connaît que les deux premiers. */
-export const ecransDe = (p: Parcours | null): Ecran[] => ['pour', 'locks', ...(p ? [...QUESTIONS[p], 'rdv' as const] : [])];
+/** Les écrans dans l'ordre : avant la deuxième réponse, on ne connaît que les
+    deux premiers ; avant l'état, que le troisième. */
+export const ecransDe = (c: Chemin | null): Ecran[] => ['pour', 'locks', ...(c ? [...QUESTIONS[c], ...(c === 'envies' ? [] : ['rdv' as const])] : [])];
 
 /** « 3 sur 5 » : le numéro d'une question. L'écran du rendez-vous n'en porte pas. */
-export function numeroDe(ecran: Ecran, p: Parcours | null): number | null {
-  const i = ecransDe(p).indexOf(ecran);
+export function numeroDe(ecran: Ecran, c: Chemin | null): number | null {
+  const i = ecransDe(c).indexOf(ecran);
   return i >= 0 && i < NOMBRE_DE_QUESTIONS ? i + 1 : null;
 }
 
 /** Les traits du haut : un par question répondue ou en cours ; tous au rendez-vous. */
-export const pasFaits = (ecran: Ecran, p: Parcours | null): number => numeroDe(ecran, p) ?? NOMBRE_DE_QUESTIONS;
+export const pasFaits = (ecran: Ecran, c: Chemin | null): number => numeroDe(ecran, c) ?? NOMBRE_DE_QUESTIONS;
 
 /** L'écran d'après, en sautant ceux qui n'ont rien à montrer. */
-export function ecranSuivant(ecran: Ecran, p: Parcours | null, sautes: readonly Ecran[] = []): Ecran {
-  const tous = ecransDe(p).filter((e) => e === ecran || !sautes.includes(e));
+export function ecranSuivant(ecran: Ecran, c: Chemin | null, sautes: readonly Ecran[] = []): Ecran {
+  const tous = ecransDe(c).filter((e) => e === ecran || !sautes.includes(e));
   return tous[Math.min(tous.length - 1, tous.indexOf(ecran) + 1)] ?? ecran;
 }
 
 /** L'écran d'avant, par le même chemin. */
-export function ecranPrecedent(ecran: Ecran, p: Parcours | null, sautes: readonly Ecran[] = []): Ecran {
-  const tous = ecransDe(p).filter((e) => e === ecran || !sautes.includes(e));
+export function ecranPrecedent(ecran: Ecran, c: Chemin | null, sautes: readonly Ecran[] = []): Ecran {
+  const tous = ecransDe(c).filter((e) => e === ecran || !sautes.includes(e));
   return tous[Math.max(0, tous.indexOf(ecran) - 1)] ?? ecran;
 }
 
 /** AUCUNE IMPASSE. Plus loin que « Vos envies » sans plus aucune envie
     choisie, alors qu'il en reste à choisir (un réglage du Trône a retiré la
     sienne) : elle revient à « Vos envies ». Un écran qui n'est pas de son
-    parcours ramène à la question des locks. */
-export function ecranTenu(ecran: Ecran, p: Parcours | null, o: { choisies: number; montrees: number }): Ecran {
-  const tous = ecransDe(p);
-  if (!tous.includes(ecran)) return p ? 'locks' : 'pour';
-  if (p === 'envies' && tous.indexOf(ecran) > tous.indexOf('envies') && o.choisies === 0 && o.montrees > 0) return 'envies';
+    chemin ramène à la question des locks (l'état pas encore dit : à
+    « Comment vont vos locks ? »). */
+export function ecranTenu(ecran: Ecran, c: Chemin | null, o: { choisies: number; montrees: number }): Ecran {
+  const tous = ecransDe(c);
+  if (!tous.includes(ecran)) return c === 'envies' && ecran !== 'pour' ? 'etat' : c ? 'locks' : 'pour';
+  if (c === 'en-forme' && tous.indexOf(ecran) > tous.indexOf('envies') && o.choisies === 0 && o.montrees > 0) return 'envies';
   return ecran;
 }
 
@@ -322,6 +340,10 @@ export function ecarteesParLaPeau(doc: unknown): string[] {
   return Array.isArray(liste) ? liste.filter((s): s is string => typeof s === 'string') : [];
 }
 
+/** CE QUI NE VA PAS (18 novembre 2026) : les besoins de Réparer, tous, dans
+    l'ordre où la direction les a rangés (Système › Besoins et règles). */
+export const besoinsDuSouci = (besoins: readonly BesoinDuSite[]): BesoinDuSite[] => besoins.filter((b) => b.famille === ENVIE_A_REPARER);
+
 /** Quatre besoins par envie choisie ; les autres sous « Tout voir ». */
 export const BESOINS_D_ABORD = 4;
 export function besoinsAMontrer(besoins: readonly BesoinDuSite[], envie: string, tout: boolean): { montres: BesoinDuSite[]; reste: number } {
@@ -433,6 +455,8 @@ export const numeroLisible = (saisi: string): boolean => String(saisi ?? '').rep
 export type Reponses = {
   pour: 'moi' | 'enfant' | null;
   locks: ReponseDuDebut | null;
+  /** Faites à la Maison ou ailleurs : en forme, ou un souci (18 novembre 2026). */
+  etat: EtatDesLocks | null;
   /** Les envies choisies (identifiants), dans l'ordre où elle les a touchées. */
   envies: string[];
   besoins: string[];
@@ -451,7 +475,7 @@ export type Reponses = {
 };
 
 export const REPONSES_VIDES: Reponses = {
-  pour: null, locks: null, envies: [], besoins: [], nombre: '', calibre: null, longueur: null,
+  pour: null, locks: null, etat: null, envies: [], besoins: [], nombre: '', calibre: null, longueur: null,
   epaisseur: null, avec: null, duree: null, depuis: null, facon: null, ensuite: null,
 };
 
@@ -487,7 +511,10 @@ export function consultationADeposer(o: {
     ['Ses locks', r.locks ? reponseDite(r.locks) : ''],
     ...(o.parcours === 'envies'
       ? [
-        ['Envies', o.envies.map((e) => e.nom).join(', ')] as [string, string],
+        ['État', r.etat ? etatDit(r.etat) : ''] as [string, string],
+        /* Un souci : ce qui ne va pas dit tout ; « Réparer » ne se recopie pas. */
+        ['Envies', r.etat === 'souci' ? '' : o.envies.map((e) => e.nom).join(', ')] as [string, string],
+        ['Ce qui ne va pas', r.etat === 'souci' ? o.besoins.map((b) => b.mots).join(', ') : ''] as [string, string],
         ['Locks', locks ? `${locks}${o.tranche ? ` · ${o.tranche.nom}` : ''}` : o.tranche ? `${plageDite(o.tranche)} · ${o.tranche.nom}` : ''] as [string, string],
         /* « Je ne sais pas » ne se recopie jamais tel quel : à voir avec la Maison. */
         ['Longueur', r.longueur === 'inconnue' ? A_VOIR : LONGUEURS_DITES.find((l) => l.id === r.longueur)?.nom ?? ''] as [string, string],
@@ -504,6 +531,7 @@ export function consultationADeposer(o: {
       parcours: o.parcours,
       pour: r.pour ?? 'moi',
       locks: r.locks ?? '',
+      ...(o.parcours === 'envies' && r.etat ? { etat: r.etat } : {}),
       envies: o.envies.map((e) => ({ id: e.id, nom: e.nom })),
       besoins: o.besoins.map((b) => b.mots),
       ...(o.parcours === 'modele' ? { modele: { epaisseur: r.epaisseur, longueur: r.longueur, avec: r.avec, duree: r.duree } } : {}),
@@ -530,10 +558,11 @@ export function consultationADeposer(o: {
 
 /** Le mot qui accompagne un rituel réservé (`demande-submit`, champ `mot`) :
     ce qu'elle a dit, pour la personne qui la reçoit. Jamais un montant. */
-export function motDuRituel(o: { envies: readonly Envie[]; besoins: readonly BesoinDuSite[]; fiche: Fiche | null; longueur: LongueurId | null }): string {
+export function motDuRituel(o: { envies: readonly Envie[]; besoins: readonly BesoinDuSite[]; fiche: Fiche | null; longueur: LongueurId | null; etat?: EtatDesLocks | null }): string {
   const l = LONGUEURS_DITES.find((x) => x.id === o.longueur);
   return [
     'Consultation du site',
+    o.etat ? `État : ${etatDit(o.etat).toLowerCase()}` : '',
     o.envies.length ? `Envies : ${o.envies.map((e) => e.nom).join(', ')}` : '',
     o.besoins.length ? `Besoins : ${o.besoins.map((b) => b.mots).join(' ; ')}` : '',
     o.fiche ? `${o.fiche.nom} · ${o.fiche.traits.filter(([, v]) => v).map(([k, v]) => `${k} : ${v}`).join(' · ')}` : '',

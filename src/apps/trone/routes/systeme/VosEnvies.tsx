@@ -13,10 +13,10 @@ import { useBandSets, useModelBands } from '../../../../shared/pricing';
 import { useSettings } from '../../../../shared/settings';
 import { PRIX_DE_LA_CONSULTATION_PRIVEE_XOF } from '../../../../shared/estimation-pur';
 import {
-  GESTES_MAX, GROUPES, NOM_MAX, RAISON_HORS_LIGNE, REPONSES_A_ENVIES,
+  GESTES_MAX, GROUPES, NOM_MAX, RAISON_HORS_LIGNE, REPONSES_D_ECART,
   ajouteUnEcart, ajouteUneEnvie, ajouteUnePaire, auDelaDUneJournee, basculeUnGroupe, basculeUnRendezVous, compteurs, etatEnLigne, insecable, nomRefuse, poseLesRituels,
-  renommeUneEnvie, reponseDite, retireUnEcart, retireUneEnvie, retireUnePaire, tarifDesNaturels,
-  type Envie, type Groupe, type ReglagesDesEnvies, type RendezVous, type ReponseAEnvies,
+  renommeUneEnvie, reponseDEcartDite, retireUnEcart, retireUneEnvie, retireUnePaire, tarifDesNaturels,
+  type Envie, type Groupe, type ReglagesDesEnvies, type RendezVous, type ReponseDEcart,
 } from '../../../../shared/envies-pur';
 
 /* ══ VOS ENVIES — 17 novembre 2026 (la consultation en affiches) ══════════
@@ -136,7 +136,7 @@ export function VosEnvies({ estDirection }: { estDirection: boolean }) {
     const a = de || `envie:${r.envies[0]?.id ?? ''}`;
     if (!avec) { toast('Choisissez l’envie qui ne va pas avec.'); return; }
     const id = a.slice(a.indexOf(':') + 1);
-    const neuve = (d: ReglagesDesEnvies) => (a.startsWith('reponse:') ? ajouteUnEcart(d, id as ReponseAEnvies, avec) : ajouteUnePaire(d, id, avec));
+    const neuve = (d: ReglagesDesEnvies) => (a.startsWith('reponse:') ? ajouteUnEcart(d, id as ReponseDEcart, avec) : ajouteUnePaire(d, id, avec));
     if (neuve(r) === r) { toast(id === avec ? 'Choisissez deux envies différentes.' : 'Cette restriction existe déjà.'); return; }
     pose(neuve);
     setAvec('');
@@ -229,7 +229,7 @@ export function VosEnvies({ estDirection }: { estDirection: boolean }) {
           ))}
           {r.ecarts.map((x) => (
             <div className="tev-ligne" key={`${x.reponse}|${x.envie}`}>
-              <span><b>{reponseDite(x.reponse)}</b> <span className="mnd-muted">pas avec</span> <b>{nomDeLEnvie(x.envie)}</b></span>
+              <span><b>{reponseDEcartDite(x.reponse)}</b> <span className="mnd-muted">pas avec</span> <b>{nomDeLEnvie(x.envie)}</b></span>
               <button type="button" className="tbs-retirer" onClick={() => pose((d) => retireUnEcart(d, x.reponse, x.envie))}>Retirer</button>
             </div>
           ))}
@@ -237,7 +237,8 @@ export function VosEnvies({ estDirection }: { estDirection: boolean }) {
             <form className="tev-ajout" onSubmit={restreint}>
               <select className="mnd-select" aria-label="Une envie, ou une réponse du début" value={de || `envie:${r.envies[0].id}`} onChange={(e) => setDe(e.target.value)}>
                 <optgroup label="Une envie">{r.envies.map((e) => <option key={e.id} value={`envie:${e.id}`}>{e.nom || 'envie sans nom'}</option>)}</optgroup>
-                <optgroup label="La première réponse">{REPONSES_A_ENVIES.map((id) => <option key={id} value={`reponse:${id}`}>{reponseDite(id)}</option>)}</optgroup>
+                {/* L'état des locks (18 novembre 2026) : « Des locks en forme » écarte ce qui ne leur va pas (Créer, Réparer). */}
+                <optgroup label="La première réponse, ou leur état">{REPONSES_D_ECART.map((id) => <option key={id} value={`reponse:${id}`}>{reponseDEcartDite(id)}</option>)}</optgroup>
               </select>
               <span className="mnd-muted">pas avec</span>
               <select className="mnd-select" aria-label="L’autre envie" value={avec} onChange={(e) => setAvec(e.target.value)}>

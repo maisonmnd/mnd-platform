@@ -71,6 +71,35 @@ export const REPONSES_A_ENVIES: readonly ReponseAEnvies[] = ['maison', 'ailleurs
 export const parcoursDe = (r: ReponseDuDebut): Parcours => (r === 'aucune' ? 'modele' : r === 'defaire' ? 'defaire' : 'envies');
 export const reponseDite = (r: ReponseDuDebut): string => REPONSES_DU_DEBUT.find((x) => x.id === r)?.dit ?? '';
 
+/* ── L'ÉTAT DES LOCKS — 18 novembre 2026 ────────────────────────────────
+   « Des locks faites à la Maison et des locks faites ailleurs ont tous deux
+   le même parcours » (Yéman). Au sélecteur : « origine puis état ». Après
+   « Vos locks ? », « Comment vont vos locks ? » : En forme, ou Un souci.
+   Quatre fins (maquette « Vos locks, deux chemins », version 4) :
+     · Maison, en forme : ses envies, « Votre rituel » ;
+     · Maison, un souci : la visio, seule (la Maison regarde son travail) ;
+     · ailleurs, en forme : ses envies, « Première visite » ;
+     · ailleurs, un souci : Réparer, par ses rendez-vous (visio, consultation privée).
+   BON SENS (Yéman) : des locks en forme n'ont ni envie de créer ni envie de
+   réparer, quelle que soit leur origine. Créer, c'est « Pas encore de
+   locks » ; réparer, c'est « Un souci ». */
+export type EtatDesLocks = 'bien' | 'souci';
+export const ETATS_DES_LOCKS: readonly { id: EtatDesLocks; nom: string; ligne: string }[] = [
+  { id: 'bien', nom: 'En forme', ligne: 'Elles vont bien.' },
+  { id: 'souci', nom: 'Un souci', ligne: 'Quelque chose ne va pas.' },
+];
+export const etatDit = (e: EtatDesLocks): string => ETATS_DES_LOCKS.find((x) => x.id === e)?.nom ?? '';
+/** L'envie dont les besoins font « Ce qui ne va pas ». */
+export const ENVIE_A_REPARER = 'reparer';
+/** LES ÉCARTS DE L'ÉTAT : une restriction du Trône (Vos envies), comme celles
+    de la première réponse, pour que l'écran dise ce que fait le site. La
+    semence écarte Créer et Réparer des locks en forme. */
+export type ReponseDEcart = ReponseAEnvies | 'bien';
+export const REPONSES_D_ECART: readonly ReponseDEcart[] = ['maison', 'ailleurs', 'bien'];
+export const reponseDEcartDite = (x: ReponseDEcart): string => (x === 'bien' ? 'Des locks en forme' : reponseDite(x));
+/** Le nom de l'affiche du rituel : une première venue, pour des locks nées ailleurs. */
+export const nomDuRituel = (r: ReponseDuDebut | null): string => (r === 'ailleurs' ? 'Première visite' : 'Votre rituel');
+
 /* ── LE DOCUMENT ──────────────────────────────────────────────────────── */
 
 export type Envie = {
@@ -88,7 +117,8 @@ export type ReglagesDesEnvies = {
   /** Deux envies qui ne se choisissent pas ensemble. */
   paires: [string, string][];
   /** Une réponse du début qui écarte une envie : elle ne s'affiche pas. */
-  ecarts: { reponse: ReponseAEnvies; envie: string }[];
+  /** Une réponse du début, ou l'état « en forme » (18 novembre 2026). */
+  ecarts: { reponse: ReponseDEcart; envie: string }[];
   /** Sans locks encore : le rendez-vous du modèle, et le tarif des cheveux naturels. */
   modele: { rdv: RendezVous[]; naturels: { prixXof: number; lot: number } };
   /** Des locks à défaire : le rituel de « Cheveux libres », et le rendez-vous de « Nouvelles locks ». */
@@ -139,7 +169,9 @@ export const ENVIES_DE_DEPART = (): ReglagesDesEnvies => ({
     { id: 'enfants', nom: 'Enfants', groupes: ['rituel'], rituels: [] },
   ],
   paires: [['creer', 'reparer']],
-  ecarts: [],
+  /* BON SENS (Yéman, 18 novembre 2026) : des locks en forme n'ont ni envie de
+     créer ni envie de réparer, quelle que soit leur origine. */
+  ecarts: [{ reponse: 'bien', envie: 'creer' }, { reponse: 'bien', envie: ENVIE_A_REPARER }],
   /* « 25 000 F pour 75 locks » (Yéman). Le rendez-vous : les deux, au départ. */
   modele: { rdv: ['visio', 'privee'], naturels: { prixXof: 25000, lot: 75 } },
   /* GBÀTÀ™ Essentiel · Le Défaisage : le rituel de « Cheveux libres ». */
@@ -211,8 +243,8 @@ export function enviesSures(v: unknown): ReglagesDesEnvies {
     ? o.paires.filter((p): p is [string, string] => Array.isArray(p) && p.length === 2 && typeof p[0] === 'string' && typeof p[1] === 'string').map((p) => [p[0], p[1]])
     : base.paires;
   const ecarts: ReglagesDesEnvies['ecarts'] = Array.isArray(o.ecarts)
-    ? o.ecarts.map(objet).filter((e) => (e.reponse === 'maison' || e.reponse === 'ailleurs') && typeof e.envie === 'string')
-      .map((e) => ({ reponse: e.reponse as ReponseAEnvies, envie: e.envie as string }))
+    ? o.ecarts.map(objet).filter((e) => (REPONSES_D_ECART as readonly unknown[]).includes(e.reponse) && typeof e.envie === 'string')
+      .map((e) => ({ reponse: e.reponse as ReponseDEcart, envie: e.envie as string }))
     : base.ecarts;
   const modele = objet(o.modele);
   const naturels = objet(modele.naturels);
@@ -291,11 +323,11 @@ export function ajouteUnePaire(r: ReglagesDesEnvies, a: string, b: string): Regl
 }
 export const retireUnePaire = (r: ReglagesDesEnvies, a: string, b: string): ReglagesDesEnvies => ({ ...r, paires: r.paires.filter((p) => !memePaire(p, a, b)) });
 /** Une réponse du début qui écarte une envie. */
-export function ajouteUnEcart(r: ReglagesDesEnvies, reponse: ReponseAEnvies, envie: string): ReglagesDesEnvies {
+export function ajouteUnEcart(r: ReglagesDesEnvies, reponse: ReponseDEcart, envie: string): ReglagesDesEnvies {
   if (!r.envies.some((e) => e.id === envie) || r.ecarts.some((x) => x.reponse === reponse && x.envie === envie)) return r;
   return { ...r, ecarts: [...r.ecarts, { reponse, envie }] };
 }
-export const retireUnEcart = (r: ReglagesDesEnvies, reponse: ReponseAEnvies, envie: string): ReglagesDesEnvies =>
+export const retireUnEcart = (r: ReglagesDesEnvies, reponse: ReponseDEcart, envie: string): ReglagesDesEnvies =>
   ({ ...r, ecarts: r.ecarts.filter((e) => !(e.reponse === reponse && e.envie === envie)) });
 
 /** Le rendez-vous d'un parcours à part : Visio et/ou Consultation privée,
@@ -353,9 +385,11 @@ export const RAISON_HORS_LIGNE: Readonly<Record<Exclude<EtatEnLigne, 'ok'>, stri
 
 /* ── CE QUE LE SITE MONTRE ────────────────────────────────────────────── */
 
-/** Les envies à montrer après cette réponse : nommées, et non écartées. */
-export function enviesAffichees(r: ReglagesDesEnvies, reponse: ReponseDuDebut | null): Envie[] {
-  return r.envies.filter((e) => e.nom.trim() !== '' && !r.ecarts.some((x) => x.reponse === reponse && x.envie === e.id));
+/** Les envies à montrer après cette réponse : nommées, et non écartées, par
+    la réponse du début ou par l'état des locks (18 novembre 2026 : en forme,
+    les écarts « Des locks en forme » du Trône). */
+export function enviesAffichees(r: ReglagesDesEnvies, reponse: ReponseDuDebut | null, etat: EtatDesLocks | null = null): Envie[] {
+  return r.envies.filter((e) => e.nom.trim() !== '' && !r.ecarts.some((x) => (x.reponse === reponse || (etat === 'bien' && x.reponse === 'bien')) && x.envie === e.id));
 }
 
 /** L'envie déjà choisie qui interdit celle-ci ; `null` : rien ne l'interdit. */
@@ -383,8 +417,8 @@ export function basculeUneEnvie(r: ReglagesDesEnvies, choisies: readonly string[
 /** Les réglages ont changé, ou la première réponse : ce qui ne se choisit
     plus sort (envie retirée, écartée, ou interdite par une envie choisie
     avant elle ; la première choisie reste). */
-export function rangeLesChoisies(r: ReglagesDesEnvies, choisies: readonly string[], reponse: ReponseDuDebut | null): string[] {
-  const montrees = new Set(enviesAffichees(r, reponse).map((e) => e.id));
+export function rangeLesChoisies(r: ReglagesDesEnvies, choisies: readonly string[], reponse: ReponseDuDebut | null, etat: EtatDesLocks | null = null): string[] {
+  const montrees = new Set(enviesAffichees(r, reponse, etat).map((e) => e.id));
   const gardees: string[] = [];
   for (const id of choisies) {
     if (!montrees.has(id) || gardees.includes(id) || gardees.length >= ENVIES_MAX || interditePar(r, gardees, id) !== null) continue;
@@ -471,6 +505,19 @@ export function affichesDesEnvies(r: ReglagesDesEnvies, choisies: readonly strin
     rituel: prestations.length ? { prestations, envies: auRituel } : null,
     regard: aVoir.length ? { envies: aVoir, ...rendezVousDe(vus, c.visioOuverte) } : null,
   };
+}
+
+/** UN SOUCI (18 novembre 2026). Faites à la Maison : la visio, seule ; la
+    Maison regarde son travail avec elle (sans visio ouverte, la consultation
+    privée prend sa place : il reste toujours une porte). Faites ailleurs :
+    les rendez-vous de Réparer, réglés au Trône (Vos envies) ; Réparer retirée
+    ou sans nom : les deux portes. Jamais de rituel : la Maison regarde d'abord. */
+export function affichesDuSouci(r: ReglagesDesEnvies, reponse: ReponseDuDebut | null, c: Contexte): Affiches {
+  const reparer = r.envies.find((e) => e.id === ENVIE_A_REPARER && e.nom.trim() !== '');
+  const envies = reparer ? [reparer.id] : [];
+  if (reponse === 'maison') return { rituel: null, regard: { envies, ...rendezVousDe([['visio']], c.visioOuverte) } };
+  const rdv = reparer ? reparer.groupes.filter((g): g is RendezVous => g !== 'rituel') : [];
+  return { rituel: null, regard: { envies, ...rendezVousDe([rdv.length ? rdv : RENDEZ_VOUS], c.visioOuverte) } };
 }
 
 /** SANS LOCKS ENCORE : le rendez-vous du modèle, réglé au Trône. Jamais de rituel. */
