@@ -7,6 +7,7 @@ import { createStore, useStore } from '../../../shared/store';
 import NotificationsBell from './Notifications';
 import Trouver from './Trouver';
 import MenuCreer from './MenuCreer';
+import AgentDesRendezVous from './AgentDesRendezVous';
 import LiensAEnvoyer from './LiensAEnvoyer';
 import Recherche from './Recherche';
 import BoutonDictee from './BoutonDictee';
@@ -975,6 +976,9 @@ export default function Shell() {
           {/* + CRÉER (10 novembre 2026) — un seul bouton pour tout créer, à la
               place des trois boutons « + Dépense », « + RDV » et « + Encaisser ».
               Chaque ligne du menu respecte les accès de la personne. */}
+          {/* L'AGENT DES RENDEZ-VOUS (18 novembre 2026) : « dites-le, c'est posé ».
+              Il n'apparaît que si la fonction le sait et que la personne y a droit. */}
+          <AgentDesRendezVous />
           <MenuCreer onRendezVous={() => setRdvNouveau(true)} onProgrammer={() => { setProgrammerInitial(null); setProgrammerOuvert(true); }} onLiens={() => setLiensOuverts(true)} />
           {session && <BoutonDesCles className="tr-top__bell" />}
           {session && (

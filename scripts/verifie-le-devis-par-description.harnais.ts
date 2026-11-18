@@ -250,7 +250,8 @@ const schema = SCHEMA_DU_DEVIS as { properties: Record<string, unknown> };
 dit('le schema ne porte aucun champ de prix de ligne', false, Object.keys(((schema.properties.lignes as { items: { properties: Record<string, unknown> } }).items.properties)).some((k) => /prix|unit|montant/i.test(k)));
 const serveur = lf(readFileSync('supabase/functions/ia-maison/index.ts', 'utf8'));
 dit('la fonction connait le chantier, sa version et ses departements', [true, true, true], [
-  /'achat', 'devis'\] as const/.test(serveur), /const VERSION = '2026-11-13-a'/.test(serveur), /devis: \['dept-vente-caisse', 'dept-clientele'\]/.test(serveur),
+  /* Le chantier et une version qui le connaît (2026-11-13-a ou plus tard : l'agent des rendez-vous est venu ensuite). */
+  /'achat', 'devis'[,\]]/.test(serveur), (/const VERSION = '(\d{4}-\d{2}-\d{2}-[a-z])'/.exec(serveur)?.[1] ?? '') >= '2026-11-13-a', /devis: \['dept-vente-caisse', 'dept-clientele'\]/.test(serveur),
 ]);
 
 console.log(`\n${n} verifications.`);

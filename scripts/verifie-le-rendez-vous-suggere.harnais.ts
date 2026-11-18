@@ -177,7 +177,8 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
     ['Ensuite : son prochain rendez-vous', 'Fermer sans prochain rendez-vous', 'Nouveau rendez-vous', 'const [etape, setEtape] = useState<1 | 2>(1);', 'Pas de prochain rendez-vous'].map((m) => regle.includes(m)));
   dit('la carte : les puces, la date libre, qui a choisi, la pose marquee', [true, true, true, true, true],
     ['Dans combien de temps', 'Ou choisir une date', 'Suggéré par la Maison', 'Elle l’a choisi avec nous', '...marqueDeLaPose(quiRef.current, new Date().toISOString()),'].map((m) => carte.includes(m)));
-  dit('« Suggéré par la Maison » est le choix par defaut', true, carte.includes("useState<QuiAChoisi>('suggere')"));
+  /* L'agent des rendez-vous (18 novembre 2026) pose ce qu'on lui demande au comptoir : « choisi » pour lui seul. */
+  dit('« Suggéré par la Maison » est le choix par defaut', true, carte.includes("useState<QuiAChoisi>(souhait ? 'choisi' : 'suggere')"));
   const conf = lit('supabase/functions/confirmation-rdv/index.ts');
   dit('confirmation-rdv : la confirmation ne part pas a une suggestion, la proposition oui', [true, true, true],
     [conf.includes('for (const a of aEnvoyer.filter((x) => !estSuggere(x))) {'), conf.includes("Deno.env.get('WA_TEMPLATE_PROPOSITION')"), conf.includes('composantsDeLaProposition({ appel, quand, gestes, apptId: a.id })')]);

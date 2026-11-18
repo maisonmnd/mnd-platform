@@ -1,0 +1,50 @@
+/* L'AGENT DES RENDEZ-VOUS — 18 novembre 2026.
+   Le bouton de la barre du haut, à côté de « Créer », et sa fenêtre.
+   Charte Maison MND : indigo, ivoire, cuivre en accent seul ; rayons 2–4 px,
+   Cormorant Garamond 300 + Jost. Le bouton est cerné d'indigo : le cuivre
+   plein reste à « Créer », le geste principal de la barre. */
+
+.tra-agent__bouton {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; color: var(--color-indigo);
+  border: 1px solid var(--color-indigo); border-radius: 4px; padding: 7px 12px;
+  font: 600 12.5px var(--font-sans); letter-spacing: .05em; text-transform: uppercase;
+  cursor: pointer; white-space: nowrap; transition: var(--transition-base);
+}
+.tra-agent__bouton:hover { background: var(--hover-veil); }
+.tra-agent__bouton:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+.tra-agent { display: flex; flex-direction: column; gap: 14px; }
+.tra-agent__aide { display: flex; gap: 8px; align-items: flex-start; font: 400 13.5px/1.5 var(--font-sans); color: var(--ink-soft); margin: 0; }
+.tra-agent__aide svg { flex: none; margin-top: 3px; color: var(--color-indigo); }
+.tra-agent__champ { position: relative; }
+.tra-agent__texte { width: 100%; padding-right: 46px; font-size: 15px; }
+.tra-agent__micro {
+  position: absolute; top: 50%; right: 6px; transform: translateY(-50%); width: 32px; height: 32px; border-radius: 3px;
+  border: 1px solid var(--hairline); background: var(--surface-card); color: var(--color-indigo); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; transition: var(--transition-base);
+}
+.tra-agent__micro:hover { background: var(--hover-veil); }
+.tra-agent__micro.is-actif { background: var(--color-indigo); color: var(--color-ivoire); border-color: var(--color-indigo); }
+.tra-agent__actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tra-agent__mot { font: 400 12.5px var(--font-sans); color: var(--ink-soft); }
+
+.tra-agent__dit { margin: 0; font: 300 20px/1.35 var(--font-serif); color: var(--color-indigo); }
+.tra-agent__question { margin: 0; font: 500 14px var(--font-sans); color: var(--ink); }
+.tra-agent__clientes { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.tra-agent__cliente {
+  display: flex; flex-direction: column; gap: 2px; text-align: left;
+  border: 1px solid var(--hairline); border-radius: 3px; background: var(--surface-card);
+  padding: 10px 12px; cursor: pointer; transition: var(--transition-base);
+}
+.tra-agent__cliente:hover { border-color: var(--color-indigo); background: var(--hover-veil); }
+.tra-agent__cliente b { font: 500 14px var(--font-sans); color: var(--ink); }
+.tra-agent__cliente small { font: 400 12px var(--font-sans); color: var(--ink-soft); }
+
+.tra-agent__note { margin: 0 0 10px; font: 400 13px/1.5 var(--font-sans); color: var(--ink-soft); }
+.tra-agent__reserves { margin: 0 0 10px; padding-left: 18px; font: 400 13px/1.5 var(--font-sans); color: var(--ink-soft); }
+
+@media (max-width: 640px) {
+  .tra-agent__bouton span { display: none; }
+  .tra-agent__bouton { padding: 7px 9px; }
+}
