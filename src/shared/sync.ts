@@ -652,9 +652,10 @@ const rejointLeCanalDeLaMaison = (force = false) => {
     .on(
       'postgres_changes',
       { event: '*', schema: 'public' },
-      (payload: { table?: string; new?: Record<string, unknown>; old?: Record<string, unknown> }) => {
+      (payload: { table?: string; eventType?: string; new?: Record<string, unknown>; old?: Record<string, unknown> }) => {
         const t = payload.table ? String(payload.table) : '';
         if (!t) return;
+        noteLeDirect(t, payload);
         ecoutesParTable.get(t)?.(payload);
       },
     );
@@ -733,8 +734,66 @@ const ecouteLeDirect = (table: string, surChangement: EcouteDeTable, relit: () =
    tard ». La ligne que l'écriture RENVOIE est la vérité du serveur : elle
    s'applique ici exactement comme si le direct l'apportait (même garde, même
    repère, aucune poussée), et le direct, quand il arrive, n'apprend rien. */
-export function appliqueCommeLeDirect(table: string, ligne: { id: string; data: unknown; updated_at?: string }): void {
-  ecoutesParTable.get(table)?.({ eventType: 'UPDATE', new: ligne, old: {} } as Parameters<EcouteDeTable>[0]);
+/* ══ … SANS RECULER — 17 novembre 2026 (revue) ══════════════════════════
+   DEUX RECULS POSSIBLES, deux gardes.
+
+   ① UNE LECTURE PARTIE AVANT LE GESTE. Une lecture de toute la table prend
+   sa photo au départ et répond plus tard : revenue après la réponse du
+   geste, elle remettait l'ancien état (« Retenir » se voyait, puis la
+   relecture d'une minute le remettait « en attente »). La ligne confirmée
+   arrive donc avec `confirmee` : le magasin la compte comme un geste
+   (`generation`), et une lecture qui volait pendant ce temps est jetée puis
+   refaite, la règle même des gestes locaux. On a d'abord essayé de RECOUVRIR
+   la lecture avec ce que le direct apportait pendant son vol : faux, un
+   écho en retard d'une frappe d'avant la photo est PLUS VIEUX qu'elle, et
+   remettait l'écran (puis le serveur, à la frappe suivante) en arrière.
+
+   ② UN DIRECT PLUS RÉCENT, ARRIVÉ AVANT LA RÉPONSE. Sur un réseau lent, le
+   direct peut apporter une écriture postérieure à la nôtre (le facteur qui
+   prend la ligne) avant que la réponse n'arrive ; l'appliquer ensuite
+   remettait l'écran en arrière. Compter les nouvelles ne suffit pas (un
+   écho en retard de NOTRE geste précédent compterait aussi) : on regarde le
+   contenu. Le direct a parlé de la ligne pendant le vol (`repereDuDirect`,
+   pris juste avant d'écrire, avec l'état d'où l'on part) avec autre chose
+   que notre écriture et que l'état d'avant : il porte une écriture plus
+   récente, la réponse se tait. On ne retient que les tables qui le
+   demandent : le direct de la Maison n'a rien de plus à garder. */
+let numeroDuDirect = 0;
+const tablesAuRepere = new Set<string>();
+const directParLigne = new Map<string, { n: number; data: unknown }>();
+function noteLeDirect(table: string, payload: { eventType?: string; new?: Record<string, unknown>; old?: Record<string, unknown> }): void {
+  if (!tablesAuRepere.has(table)) return;
+  const id = (payload.new?.id ?? payload.old?.id) as string | undefined;
+  if (!id) return;
+  numeroDuDirect += 1;
+  /* Quelques milliers de lignes touchées par séance ; au-delà, on repart de
+     zéro (le numéro, lui, ne recule jamais). */
+  if (directParLigne.size >= 50_000) directParLigne.clear();
+  directParLigne.set(`${table}:${id}`, { n: numeroDuDirect, data: payload.eventType === 'DELETE' ? null : payload.new?.data });
+}
+export type RepereDuDirect = { n: number; avant: unknown };
+/** Où en est le direct pour cette table, et l'état d'où part l'écriture :
+    à prendre juste avant d'envoyer une écriture dont on appliquera la
+    réponse par `appliqueCommeLeDirect`. */
+export function repereDuDirect(table: string, avant: unknown): RepereDuDirect {
+  tablesAuRepere.add(table);
+  return { n: numeroDuDirect, avant };
+}
+/** Applique la ligne que le serveur vient de confirmer. Rend `false` quand
+    elle se tait (aucune écoute, ou un direct plus récent déjà là). */
+export function appliqueCommeLeDirect(table: string, ligne: { id: string; data: unknown; updated_at?: string }, depuis?: RepereDuDirect): boolean {
+  const ecoute = ecoutesParTable.get(table);
+  if (!ecoute) return false;
+  if (depuis) {
+    const vu = directParLigne.get(`${table}:${ligne.id}`);
+    if (vu && vu.n > depuis.n && !memeContenu(vu.data, ligne.data) && !memeContenu(vu.data, depuis.avant)) {
+      /* Devancée : elle se tait, mais la lecture en vol reste dépassée. */
+      ecoute({ eventType: 'UPDATE', new: ligne, old: {}, confirmee: true, repereSeul: true } as Parameters<EcouteDeTable>[0]);
+      return false;
+    }
+  }
+  ecoute({ eventType: 'UPDATE', new: ligne, old: {}, confirmee: true } as Parameters<EcouteDeTable>[0]);
+  return true;
 }
 
 export const tablePrete = (t: string): boolean => !supabase || tablesResolues.has(t);
@@ -957,6 +1016,17 @@ export function bindCollection<T extends WithId>(
   let generation = 0;
   let pousseesEnVol = 0;
   let relectureDue = false;
+  /* LES LIGNES CONFIRMÉES PAR LE SERVEUR — 17 novembre 2026 (revue de la
+     salle). `appliqueCommeLeDirect` en apporte une à chaque geste de la salle
+     d'attente ; elle avance `generation` comme un geste, et aussi ce compte
+     à part, que regardent les chemins où un geste LOCAL est déjà rejoué
+     (la première lecture, la fusion avec la file) : une lecture partie avant
+     une ligne confirmée ne s'y applique pas sans être refaite. La relecture
+     qui suit se remet tant que les confirmations se suivent : « Effacer les
+     48 » ne relit pas la table entière à chaque réponse. */
+  let confirmations = 0;
+  let derniereConfirmation = 0;
+  let relectureRemise: ReturnType<typeof setTimeout> | undefined;
   const inscris = (gestes: ReadonlyMap<string, Entree>): void => {
     if (gestes.size === 0) return;
     generation += 1;
@@ -1444,6 +1514,7 @@ export function bindCollection<T extends WithId>(
       session = (await sb.auth.getSession()).data.session;
     }
     if (!session) return;
+    const confirmationsAuDepart = confirmations;
     const { data, error } = await litTouteLaTable();
     if (error) {
       /* Une LECTURE ratee doit se voir elle aussi. La pastille restait « Synchronise »
@@ -1481,6 +1552,9 @@ export function bindCollection<T extends WithId>(
          téléphone, notés à leur heure, jamais encore reçus. */
       await premiereLecture([]);
     }
+    /* Une ligne confirmée pendant cette première lecture : elle vient d'être
+       recouverte par la photo d'avant ; on relit (17 novembre 2026). */
+    if (confirmations !== confirmationsAuDepart) relisPlusTard();
   })();
 
   /* Filet de fraîcheur : au retour de focus, on re-tire l'état distant
@@ -1517,6 +1591,7 @@ export function bindCollection<T extends WithId>(
     /* Une poussée vole : la lecture se fera après elle (10 octobre 2026). */
     if (lu && pousseesEnVol > 0) { relectureDue = true; return; }
     const generationAuDepart = generation;
+    const confirmationsAuDepart = confirmations;
     const { data, error } = await litTouteLaTable();
     if (error || !data) {
       /* UNE TABLE DÉJÀ ROUGE D'UNE LECTURE garde sa reprise : sans ce
@@ -1528,13 +1603,19 @@ export function bindCollection<T extends WithId>(
     /* Le refetch vaut lecture : c'est souvent LUI qui hydrate pour de bon,
        quand la session arrive apres le chargement du module — et il rejoue
        alors les gestes de la fenêtre froide comme l'hydratation. */
-    if (!lu) { await premiereLecture(items); lectureReussie(); return; }
+    if (!lu) {
+      await premiereLecture(items);
+      lectureReussie();
+      if (confirmations !== confirmationsAuDepart) relisPlusTard();
+      return;
+    }
     /* LA LECTURE EST DÉPASSÉE : un geste ou une poussée l'a doublée pendant
        qu'elle volait. On la jette ; elle se refait après la poussée en
-       cours, ou tout de suite s'il n'y en a plus. */
+       cours, ou tout de suite s'il n'y en a plus (une seule fois pour une
+       rafale de lignes confirmées, 17 novembre 2026). */
     if (generation !== generationAuDepart || pousseesEnVol > 0 || timer) {
       if (pousseesEnVol > 0 || timer) relectureDue = true;
-      else setTimeout(() => void refetch(true), PUSH_DEBOUNCE_MS);
+      else relisPlusTard();
       return;
     }
     /* DES GESTES ATTENDENT ENCORE (4 octobre 2026) : relire le serveur ne
@@ -1543,6 +1624,14 @@ export function bindCollection<T extends WithId>(
        repère avançait par-dessus le geste. On les rejoue par l'arbitre. */
     if (attente.size > 0) {
       const { items: fusion, aPousser } = await fusionne(items);
+      /* La fusion attend l'heure des lignes au serveur : une ligne confirmée
+         pendant ce temps serait recouverte par la photo d'avant (17 novembre
+         2026). Les gestes locaux de ce temps-là, eux, sont déjà rejoués. */
+      if (confirmations !== confirmationsAuDepart) {
+        if (pousseesEnVol > 0 || timer) relectureDue = true;
+        else relisPlusTard();
+        return;
+      }
       applyingRemote = true;
       store.set(fusion);
       applyingRemote = false;
@@ -1561,6 +1650,14 @@ export function bindCollection<T extends WithId>(
     lastPushed = next;
     lectureReussie();
   };
+  /** La lecture jetée se refait : une seule fois, un quart de seconde plus
+      tard, ou une demi-seconde après la dernière ligne confirmée d'une rafale
+      (17 novembre 2026). */
+  function relisPlusTard(): void {
+    if (relectureRemise) clearTimeout(relectureRemise);
+    const attendre = Math.max(PUSH_DEBOUNCE_MS, derniereConfirmation + 2 * PUSH_DEBOUNCE_MS - Date.now());
+    relectureRemise = setTimeout(() => { relectureRemise = undefined; void refetch(true); }, attendre);
+  }
   /* LA RELECTURE RÉUSSIE EFFACE LE ROUGE D'UNE LECTURE — 11 novembre 2026,
      voir `rougeDeLecture`. JAMAIS celui d'une écriture : un geste en file,
      une poussée en vol ou une poussée planifiée gardent la table telle
@@ -1664,7 +1761,21 @@ export function bindCollection<T extends WithId>(
 
   // 3. Application des changements distants (Realtime).
   const surChangement =
-      (payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => {
+      (payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown>; confirmee?: boolean; repereSeul?: boolean }) => {
+        /* UNE LIGNE QUE LE SERVEUR VIENT DE CONFIRMER (`appliqueCommeLeDirect`)
+           compte comme un geste : une lecture partie avant elle est dépassée,
+           jetée et refaite (17 novembre 2026, revue). Avant tout jugement :
+           même déjà au magasin, elle rend dépassée la lecture en vol. Une
+           réponse que le direct a devancée (`repereSeul`) ne s'applique pas,
+           mais rend dépassée la lecture de la même façon : sans quoi la photo
+           d'avant défaisait le direct plus récent, qui ne revient pas. */
+        if (payload.confirmee) {
+          generation += 1;
+          confirmations += 1;
+          derniereConfirmation = Date.now();
+          if (relectureRemise) relisPlusTard();
+          if (payload.repereSeul) return;
+        }
         const items = [...store.get()];
         const at = (id: string) => items.findIndex((x) => x.id === id);
         /* ══ UNE LIGNE VENUE D'AILLEURS PENDANT QU'UN GESTE L'ATTEND ══

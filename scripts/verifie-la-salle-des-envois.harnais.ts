@@ -75,6 +75,10 @@ dit('le soir du 2, elles finissent le 3 a 8 h', iso(salon('2026-10-03', '08:00')
   const a23h = salon('2026-10-02', '23:00');
   dit('heure venue mais 23 h : rien ne part seul la nuit', false, peutPartir(enAttente, a23h, R));
   dit('... sauf si une main a dit « envoyer quand meme »', true, peutPartir({ ...enAttente, parLaMain: true }, a23h, R));
+  /* La règle du facteur, depuis le 13 novembre 2026 : l'envoi programmé part
+     à son heure exacte, même la nuit (`peutPartir` l'avait perdue : revue du
+     17 novembre 2026). */
+  dit('... ou si c’est un envoi programmé, a son heure', true, peutPartir({ ...enAttente, type: 'programme' }, a23h, R));
   dit('sans heure de depart lisible, on ne devine pas', false, peutPartir({ id: 'e2', statut: EN_ATTENTE }, a15h20, R));
 }
 

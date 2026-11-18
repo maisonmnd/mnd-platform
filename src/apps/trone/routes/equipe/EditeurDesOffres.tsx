@@ -252,11 +252,12 @@ export default function EditeurDesOffres({ abonnes }: { abonnes: ReadonlySet<str
     })) return;
     setNotifBusy(o.id);
     let faites = 0; let tard = 0; let pannes = 0;
-    for (const l of retenues) {
-      const v = await gesteDeLaSalle(l.id, 'relacher', qui, regles);
-      if (v === 'fait') faites += 1; else if (v === 'trop-tard') tard += 1; else pannes += 1;
-    }
-    setNotifBusy(null);
+    try {
+      for (const l of retenues) {
+        const v = await gesteDeLaSalle(l.id, 'relacher', qui, regles).catch((): 'panne' => 'panne');
+        if (v === 'fait') faites += 1; else if (v === 'trop-tard') tard += 1; else pannes += 1;
+      }
+    } finally { setNotifBusy(null); }
     toast(`Feu vert : ${faites} en route${tard ? `, ${tard} déjà reprise${tard > 1 ? 's' : ''} par une autre main` : ''}${pannes ? `, ${pannes} en panne (le serveur n’a pas répondu)` : ''}.`);
   };
 
@@ -269,10 +270,18 @@ export default function EditeurDesOffres({ abonnes }: { abonnes: ReadonlySet<str
       dit: 'Elles ne partiront pas. Un nouveau dépôt les redonnera.',
       accepter: 'Écarter', refuser: 'Les garder',
     })) return;
+    /* LE COMPTE DIT VRAI (17 novembre 2026, revue de la salle) : « Notifications
+       écartées » s'affichait même serveur tombé ; les lignes restaient
+       retenues, et un feu vert plus tard les faisait partir. */
     setNotifBusy(o.id);
-    for (const l of retenues) await gesteDeLaSalle(l.id, 'ecarter', qui, regles);
-    setNotifBusy(null);
-    toast('Notifications écartées.');
+    let faites = 0; let tard = 0; let pannes = 0;
+    try {
+      for (const l of retenues) {
+        const v = await gesteDeLaSalle(l.id, 'ecarter', qui, regles).catch((): 'panne' => 'panne');
+        if (v === 'fait') faites += 1; else if (v === 'trop-tard') tard += 1; else pannes += 1;
+      }
+    } finally { setNotifBusy(null); }
+    toast(`Écartées : ${faites}${tard ? `, ${tard} déjà reprise${tard > 1 ? 's' : ''} par une autre main` : ''}${pannes ? `, ${pannes} en panne (le serveur n’a pas répondu), toujours retenue${pannes > 1 ? 's' : ''}` : ''}.`);
   };
 
   const serviceName = (id?: string) => (id ? services.find((s) => s.id === id)?.name ?? 'Prestation retirée du catalogue' : '');

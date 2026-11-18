@@ -117,6 +117,8 @@ export type EnvoiEnSalle = {
   deposeLe?: string;
   /** L'heure voulue d'un envoi programmé (13 novembre 2026) : relâché, il la garde. */
   prevuA?: string;
+  /** La famille du message (`programme`, `confirmation`…). */
+  type?: string;
 };
 
 export const estEnSalle = (e: Pick<EnvoiEnSalle, 'statut'>): boolean => e.statut === EN_ATTENTE || e.statut === RETENU;
@@ -126,14 +128,26 @@ export const estEnSalle = (e: Pick<EnvoiEnSalle, 'statut'>): boolean => e.statut
 export const attendEncore = (e: Pick<EnvoiEnSalle, 'statut'>): boolean =>
   e.statut === EN_ATTENTE || e.statut === RETENU || e.statut === EN_ENVOI;
 
+/** QUI TRAVERSE LES HEURES CALMES — 17 novembre 2026 (revue). Ce qu'une main a
+    demandé, et l'envoi programmé, qui part à son heure exacte même la nuit
+    (13 novembre 2026). UNE seule écriture de la règle côté Trône : `peutPartir`
+    l'avait perdue (seul le facteur la portait, `envois-partent`, qui ne peut
+    pas importer `src/`), et l'écran la recopiait. Le type est écrit ici en
+    toutes lettres plutôt qu'importé : les fonctions du serveur qui lisent ce
+    module (`scripts/serveur/`) ne doivent pas changer pour autant ; le banc
+    `verifie-la-salle-qui-repond` vérifie qu'il reste `TYPE_PROGRAMME`. */
+const TYPE_PROGRAMME_ICI = 'programme';
+export const traverseLesHeuresCalmes = (e: { parLaMain?: boolean; type?: string }): boolean =>
+  e.parLaMain === true || e.type === TYPE_PROGRAMME_ICI;
+
 /** LE FACTEUR PEUT-IL LE PORTER MAINTENANT ? Seul un message en attente, dont
     l'heure est venue, part ; et pendant les heures calmes, seulement si une
-    main l'a demandé. */
+    main l'a demandé, ou si c'est un envoi programmé. */
 export function peutPartir(e: EnvoiEnSalle, maintenantMs: number, r: ReglesDeLaSalle): boolean {
   if (e.statut !== EN_ATTENTE) return false;
   const t = Date.parse(e.partA ?? '');
   if (!Number.isFinite(t) || t > maintenantMs) return false;
-  return e.parLaMain === true || !dansLesHeuresCalmes(maintenantMs, r);
+  return traverseLesHeuresCalmes(e) || !dansLesHeuresCalmes(maintenantMs, r);
 }
 
 /** Les gestes de la main. Chacun rend la ligne telle qu'elle doit s'écrire,
@@ -195,18 +209,24 @@ export function quandIlPart(e: Pick<EnvoiEnSalle, 'partA' | 'calme'>, maintenant
 /** QUAND IL PARTIRA VRAIMENT — 15 novembre 2026. La salle disait « part à
     l'instant » à 7 h 44 d'un message que le facteur ne porte qu'à 8 h : son
     heure était passée, mais les heures calmes le retenaient, et rien ne le
-    disait. La règle est celle de `peutPartir` : pendant les heures calmes,
-    seul part ce qu'une main a demandé, ou un envoi programmé (son heure
-    exacte, même la nuit). L'écran seul s'en sert ; le facteur n'en change pas. */
+    disait. La règle est celle du facteur (`traverseLesHeuresCalmes`) :
+    pendant les heures calmes, seul part ce qu'une main a demandé, ou un envoi
+    programmé (son heure exacte, même la nuit). L'écran seul s'en sert ; le
+    facteur n'en change pas.
+    « HEURES CALMES » SE TAIT À 8 H (17 novembre 2026, revue) : un message
+    déposé la nuit garde `calme` ; passé 8 h, il part dès que le facteur passe,
+    et l'écran ne doit plus dire « heures calmes » ni « Envoyer quand même ».
+    Il le dit tant que son départ est à venir (déposé à 19 h 55 pour 8 h : dès
+    le dépôt, pas seulement à partir de 20 h), ou que la nuit dure. */
 export function departReel(
-  e: Pick<EnvoiEnSalle, 'partA' | 'calme' | 'parLaMain'> & { type?: string },
+  e: Pick<EnvoiEnSalle, 'partA' | 'calme' | 'parLaMain' | 'type'>,
   maintenantMs: number, r: ReglesDeLaSalle,
 ): { partA: string; calme: boolean } | null {
   const t = Date.parse(e.partA ?? '');
   if (!Number.isFinite(t)) return null;
-  if (e.parLaMain === true || e.type === 'programme') return { partA: new Date(t).toISOString(), calme: false };
+  if (traverseLesHeuresCalmes(e)) return { partA: new Date(t).toISOString(), calme: false };
   const des = Math.max(t, maintenantMs);
-  if (!dansLesHeuresCalmes(des, r)) return { partA: new Date(t).toISOString(), calme: e.calme === true };
+  if (!dansLesHeuresCalmes(des, r)) return { partA: new Date(t).toISOString(), calme: e.calme === true && (t > maintenantMs || dansLesHeuresCalmes(maintenantMs, r)) };
   return { partA: new Date(finDesHeuresCalmes(des, r)).toISOString(), calme: true };
 }
 
