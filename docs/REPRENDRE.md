@@ -2,7 +2,9 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LA REVUE DE LA SALLE QUI RÉPOND — 17 novembre 2026 (Trône seul : aucune fonction, aucun SQL)
+## LA REVUE DE LA SALLE QUI RÉPOND — 17 et 18 novembre 2026, EN LIGNE (Trône build 20261118004233 @ 171d7b16, 537/537 identiques ; Trône seul : aucune fonction, aucun SQL)
+
+Essai réel après publication (Perle › Conversations › Ce qui part, aucun geste, aucune donnée changée) : la page s'ouvre, aucune erreur en console. « En salle » (vide ce jour-là) : pire trame 592 ms bloquées. « Partis · 30 jours » (174 partis) : une trame de 1 553 ms bloquées, un rendu React d'un seul tenant venu d'une mise à jour des données, sur un poste chargé (65 à 82 % de processeur) ; à alléger si la règle de la seconde doit tenir aussi sur cette vue (le reste de la page se redessine à chaque relecture : mesurer d'abord, comme le 15 novembre). Les 48 retenus du 15 novembre n'étaient plus en salle ; personne n'a rien effacé.
 
 Une revue de code de 25f1c80c a relevé 15 défauts possibles ; six vérificateurs indépendants, chacun chargé de les réfuter, en ont confirmé 12 (deux sérieux, dix légers). Tous corrigés ici :
 
