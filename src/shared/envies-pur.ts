@@ -123,6 +123,10 @@ export type ReglagesDesEnvies = {
   modele: { rdv: RendezVous[]; naturels: { prixXof: number; lot: number } };
   /** Des locks à défaire : le rituel de « Cheveux libres », et le rendez-vous de « Nouvelles locks ». */
   defaire: { rituel: string; rdv: RendezVous[] };
+  /** LA PREMIÈRE VISITE (18 novembre 2026, « oui » de Yéman) : l'accueil
+      ajouté en tête du rituel de locks nées ailleurs et en forme ; vide :
+      aucun. */
+  premiereVisite: { accueil: string };
   modifieLe?: string;
   modifiePar?: string;
 };
@@ -176,6 +180,8 @@ export const ENVIES_DE_DEPART = (): ReglagesDesEnvies => ({
   modele: { rdv: ['visio', 'privee'], naturels: { prixXof: 25000, lot: 75 } },
   /* GBÀTÀ™ Essentiel · Le Défaisage : le rituel de « Cheveux libres ». */
   defaire: { rituel: 'sv-plt-45-std', rdv: ['visio', 'privee'] },
+  /* KÒKÒ™ Accueil · pour des locks nées ailleurs (18 novembre 2026). */
+  premiereVisite: { accueil: 'sv-koko-sui' },
 });
 
 /* ── LE DOCUMENT RENDU SÛR ──────────────────────────────────────────────── */
@@ -249,6 +255,7 @@ export function enviesSures(v: unknown): ReglagesDesEnvies {
   const modele = objet(o.modele);
   const naturels = objet(modele.naturels);
   const defaire = objet(o.defaire);
+  const premiereVisite = objet(o.premiereVisite);
   return range({
     version: 1,
     envies,
@@ -262,6 +269,7 @@ export function enviesSures(v: unknown): ReglagesDesEnvies {
       rituel: typeof defaire.rituel === 'string' ? defaire.rituel.trim() : base.defaire.rituel,
       rdv: rendezVousSurs(defaire.rdv),
     },
+    premiereVisite: { accueil: typeof premiereVisite.accueil === 'string' ? premiereVisite.accueil.trim() : base.premiereVisite.accueil },
     ...(typeof o.modifieLe === 'string' ? { modifieLe: o.modifieLe } : {}),
     ...(typeof o.modifiePar === 'string' ? { modifiePar: o.modifiePar } : {}),
   });
@@ -505,6 +513,21 @@ export function affichesDesEnvies(r: ReglagesDesEnvies, choisies: readonly strin
     rituel: prestations.length ? { prestations, envies: auRituel } : null,
     regard: aVoir.length ? { envies: aVoir, ...rendezVousDe(vus, c.visioOuverte) } : null,
   };
+}
+
+/** LA PREMIÈRE VISITE (18 novembre 2026) : des locks nées ailleurs, en forme,
+    et un rituel réservé tout de suite. L'accueil réglé au Trône passe en tête
+    du rituel, s'il se réserve en ligne, si la garde ne l'écarte pas, s'il
+    reste une place dans la venue (six gestes) et si la venue tient encore
+    dans une journée. Sinon, le rituel reste tel quel : jamais l'accueil ne
+    fait perdre la réservation. Sans rituel (la Maison regarde d'abord) :
+    rien ne change. */
+export function avecLAccueil(r: ReglagesDesEnvies, a: Affiches, c: Contexte): Affiches {
+  const accueil = r.premiereVisite.accueil;
+  if (!a.rituel || !accueil || a.rituel.prestations.includes(accueil)) return a;
+  const prestations = [accueil, ...a.rituel.prestations];
+  if (!c.seReserve(accueil) || (c.ecartees ?? []).includes(accueil) || prestations.length > GESTES_MAX || !(c.tient?.(prestations) ?? true)) return a;
+  return { ...a, rituel: { ...a.rituel, prestations } };
 }
 
 /** UN SOUCI (18 novembre 2026). Faites à la Maison : la visio, seule ; la

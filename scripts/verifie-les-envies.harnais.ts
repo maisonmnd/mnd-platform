@@ -15,7 +15,7 @@
    juge du serveur en dit, et le fichier de reglage a passer en ligne. */
 import {
   ENVIES_DE_DEPART, ENVIES_MAX, ETATS_DES_LOCKS, GESTES_MAX, NOM_MAX, REPONSES_DU_DEBUT, REPONSES_D_ECART,
-  affichesADefaire, affichesDesEnvies, affichesDuModele, affichesDuSouci, nomDuRituel, reponseDEcartDite, ajouteUnEcart, ajouteUneEnvie, ajouteUnePaire, auDelaDUneJournee, basculeUnGroupe, basculeUnRendezVous,
+  affichesADefaire, affichesDesEnvies, affichesDuModele, affichesDuSouci, avecLAccueil, nomDuRituel, reponseDEcartDite, ajouteUnEcart, ajouteUneEnvie, ajouteUnePaire, auDelaDUneJournee, basculeUnGroupe, basculeUnRendezVous,
   basculeUneEnvie, compteurs, dureeAuCompte, enviesAffichees, enviesSures, etatEnLigne, insecable, interditePar, nomRefuse, parcoursDe, porteeDe, poseLesRituels,
   rangeLesChoisies, renommeUneEnvie, retireUnEcart, retireUneEnvie, retireUnePaire, seTouche, tarifDesNaturels, tientDansUneJournee,
   type Contexte, type Envie, type ReglagesDesEnvies,
@@ -363,6 +363,28 @@ dit('l etat pas encore dit : tout ecran plus loin ramene a Comment vont vos lock
     { id: 'r2', famille: 'reparer', mots: 'Une alopécie', garde: true },
   ];
   dit('ce qui ne va pas : les besoins de Reparer, tous, dans leur ordre', ['r1', 'r2'], besoinsDuSouci(BS2).map((b) => b.id));
+
+  /* LA PREMIÈRE VISITE (18 novembre 2026, « oui » de Yéman) : KÒKÒ™ Accueil
+     en tête du rituel de locks nées ailleurs et en forme. */
+  const A = { rituel: { prestations: ['sv-atl-ii-e'], envies: ['entretien'] }, regard: null };
+  const tout = { seReserve: () => true, visioOuverte: true };
+  dit('la semence : KOKO Accueil ; le document le garde, l efface, ou le reprend de la semence', ['sv-koko-sui', 'sv-koko-sui', '', 'autre'], [
+    ENVIES_DE_DEPART().premiereVisite.accueil, enviesSures({ ...ENVIES_DE_DEPART(), premiereVisite: undefined }).premiereVisite.accueil,
+    enviesSures({ ...ENVIES_DE_DEPART(), premiereVisite: { accueil: '' } }).premiereVisite.accueil, enviesSures({ ...ENVIES_DE_DEPART(), premiereVisite: { accueil: ' autre ' } }).premiereVisite.accueil,
+  ]);
+  dit('l accueil passe en tete du rituel, une seule fois', [['sv-koko-sui', 'sv-atl-ii-e'], ['sv-koko-sui', 'sv-atl-ii-e']], [
+    avecLAccueil(S, A, tout).rituel?.prestations, avecLAccueil(S, avecLAccueil(S, A, tout), tout).rituel?.prestations,
+  ]);
+  const six = { rituel: { prestations: ['a', 'b', 'c', 'd', 'e', 'f'], envies: ['entretien'] }, regard: null };
+  dit('jamais l accueil ne fait perdre la reservation : hors ligne, ecarte, venue pleine, journee trop longue, aucun accueil, aucun rituel', [A, A, six, A, A, null], [
+    avecLAccueil(S, A, { ...tout, seReserve: (id) => id !== 'sv-koko-sui' }), avecLAccueil(S, A, { ...tout, ecartees: ['sv-koko-sui'] }),
+    avecLAccueil(S, six, tout), avecLAccueil(S, A, { ...tout, tient: (ids) => ids.length < 2 }),
+    avecLAccueil({ ...S, premiereVisite: { accueil: '' } }, A, tout), avecLAccueil(S, { rituel: null, regard: { envies: ['volume'], visio: true, privee: false } }, tout).rituel,
+  ]);
+  dit('KOKO se reserve en ligne avec un rituel, au site comme au serveur (une consultation passe la porte, et n appelle pas de regard)', [true, true], [
+    etatEnLigne(SERVICES.find((s) => s.id === 'koko-ori'), CATS, MASQUES) === 'ok',
+    lesGestesSeReservent(SERVEUR, ['koko-ori', 'lavage'], { date: '2026-12-01', derniereVenue: null }) === null,
+  ]);
 }
 dit('les mots des affiches du rendez-vous suivent le parcours, une seule fonction les ecrit', [
   ['À la Maison, devant vos cheveux', 'de votre création'], ['À la Maison, devant vos locks', 'de votre rituel'], ['À la Maison, devant vos locks', 'de votre rituel'],
@@ -664,8 +686,12 @@ dit('Comment vont vos locks : ses locks pour un enfant, deux affiches, un souci 
   /\{ETATS_DES_LOCKS\.map\(\(e\) => \(\r?\n\s*<Affiche key=\{e\.id\} couleur=\{e\.id === 'bien' \? 'indigo' : 'cuivre'\}/.test(ilot),
   /\{ \.\.\.rep, etat, besoins: \[\], \.\.\.\(etat === 'souci' \? \{ envies: \[\] \} : \{\}\) \}/.test(ilot),
 ]);
+dit('l ilot ajoute l accueil aux seules locks nees ailleurs, et le Trone le regle', [true, true], [
+  /return rep\.locks === 'ailleurs' \? avecLAccueil\(r, a, contexte\) : a;/.test(ilot),
+  /aria-label="L’accueil de la Première visite" value=\{r\.premiereVisite\.accueil\}/.test(lf('src/apps/trone/routes/systeme/VosEnvies.tsx')),
+]);
 dit('la fin : un souci par affichesDuSouci, l affiche du rituel nommee par son origine', [true, true], [
-  /\(rep\.etat === 'souci' \? affichesDuSouci\(r, rep\.locks, contexte\) : affichesDesEnvies\(r, rep\.envies, contexte\)\)/.test(ilot),
+  /\(rep\.etat === 'souci' \? affichesDuSouci\(r, rep\.locks, contexte\) : enForme\(\)\)/.test(ilot) && /const a = affichesDesEnvies\(r, rep\.envies, contexte\);/.test(ilot),
   /nom=\{parcours === 'envies' \? nomDuRituel\(rep\.locks\) : 'Votre rituel'\}/.test(ilot),
 ]);
 dit('le Trone dit l ecart de l etat : Des locks en forme, pas avec Creer ni Reparer', [['maison', 'ailleurs', 'bien'], 'Des locks en forme', true, [{ reponse: 'bien', envie: 'creer' }, { reponse: 'bien', envie: 'reparer' }],

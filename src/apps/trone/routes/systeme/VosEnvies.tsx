@@ -144,6 +144,9 @@ export function VosEnvies({ estDirection }: { estDirection: boolean }) {
 
   const libres = parId.get(r.defaire.rituel);
   const etatDesLibres = r.defaire.rituel ? etat(r.defaire.rituel) : null;
+  /* La Première visite (18 novembre 2026) : l'accueil des locks nées ailleurs. */
+  const accueil = parId.get(r.premiereVisite.accueil);
+  const etatDeLAccueil = r.premiereVisite.accueil ? etat(r.premiereVisite.accueil) : null;
   /* Le Gbata se paie selon le nombre de locks (18 novembre 2026) : quand son
      rituel suit le modèle, sa durée aussi, et au-delà d'un nombre de locks il
      ne tient plus dans une journée : le site propose alors le rendez-vous. */
@@ -267,6 +270,24 @@ export function VosEnvies({ estDirection }: { estDirection: boolean }) {
             </span>
           </div>
           <p className="mnd-muted tbs-aide">Sur le site : « {tarifDesNaturels(argent(r.modele.naturels.prixXof), r.modele.naturels.lot)} ».</p>
+        </section>
+
+        <section className="tbs-carte">
+          <span className="tbs-lab">Des locks nées ailleurs</span>
+          <p className="mnd-muted tbs-aide">En forme, leur rituel s’appelle « Première visite » sur le site : l’accueil passe en tête, s’il se réserve en ligne et si la venue tient dans une journée.</p>
+          <div className="tev-ligne">
+            <span><b>Première visite</b> <span className="mnd-muted">l’accueil, ajouté au rituel</span></span>
+            <select className="mnd-select tev-rituel-libre" aria-label="L’accueil de la Première visite" value={r.premiereVisite.accueil}
+              onChange={(e) => pose((d) => ({ ...d, premiereVisite: { accueil: e.target.value } }))}>
+              <option value="">Aucun accueil : le rituel seul</option>
+              {r.premiereVisite.accueil && !vendables.some((s) => s.id === r.premiereVisite.accueil) && <option value={r.premiereVisite.accueil}>{nomDe(r.premiereVisite.accueil)}</option>}
+              <OptionsPrestations services={vendables} prix devise={currency} />
+            </select>
+          </div>
+          {accueil && <p className="mnd-muted tbs-aide">{argent(accueil.priceXof)} au catalogue, ajouté au prix du rituel.</p>}
+          {etatDeLAccueil && etatDeLAccueil !== 'ok' && (
+            <span className="tev-signal">{sujet(r.premiereVisite.accueil)} {RAISON_HORS_LIGNE[etatDeLAccueil]} : pas de réservation en ligne. En attendant, la Première visite garde son rituel seul.</span>
+          )}
         </section>
 
         <section className="tbs-carte">

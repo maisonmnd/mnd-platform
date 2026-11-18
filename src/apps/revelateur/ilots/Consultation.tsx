@@ -10,7 +10,7 @@ import { PRIX_DE_LA_CONSULTATION_PRIVEE_XOF } from '../../../shared/estimation-p
 import { DUREE_MIN, FORME_DE_LA_CONSULTATION, type Creneau } from '../../../shared/visio-pur';
 import type { Besoin as Porte } from '../../../shared/qualification';
 import {
-  ENVIES_MAX, ENVIE_A_REPARER, ETATS_DES_LOCKS, REPONSES_DU_DEBUT, affichesADefaire, affichesDesEnvies, affichesDuModele, affichesDuSouci, basculeUneEnvie, enviesAffichees, enviesSures,
+  ENVIES_MAX, ENVIE_A_REPARER, ETATS_DES_LOCKS, REPONSES_DU_DEBUT, affichesADefaire, affichesDesEnvies, affichesDuModele, affichesDuSouci, avecLAccueil, basculeUneEnvie, enviesAffichees, enviesSures,
   dureeAuCompte, etatEnLigne, nomDuRituel, parcoursDe, rangeLesChoisies, seTouche, tarifDesNaturels, tientDansUneJournee,
   type Affiches, type Contexte, type Envie, type EtatDesLocks, type ReglagesDesEnvies, type ReponseDuDebut,
 } from '../../../shared/envies-pur';
@@ -477,9 +477,14 @@ export default function Consultation() {
     ecartees: garde ? d.ecartees : [],
   };
   /* Un souci : la Maison regarde d'abord, la visio seule pour son propre
-     travail (18 novembre 2026). En forme : ses envies, comme avant. */
+     travail (18 novembre 2026). En forme : ses envies, comme avant ; des
+     locks nées ailleurs, l'accueil de la Première visite en tête du rituel. */
+  const enForme = (): Affiches => {
+    const a = affichesDesEnvies(r, rep.envies, contexte);
+    return rep.locks === 'ailleurs' ? avecLAccueil(r, a, contexte) : a;
+  };
   const affiches: Affiches = parcours === 'envies'
-    ? (rep.etat === 'souci' ? affichesDuSouci(r, rep.locks, contexte) : affichesDesEnvies(r, rep.envies, contexte))
+    ? (rep.etat === 'souci' ? affichesDuSouci(r, rep.locks, contexte) : enForme())
     : parcours === 'modele' ? affichesDuModele(r, contexte)
       : affichesADefaire(r, rep.ensuite, contexte);
 
