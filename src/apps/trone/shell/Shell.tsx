@@ -66,6 +66,8 @@ const menuDeplieStore = createStore<Record<string, boolean>>('mnd_trone_menu_dep
    La clé est le nom du groupe (« Le quotidien », « Pilotage »…) ; la valeur,
    les chemins dans l'ordre voulu. */
 const navOrdreStore = createStore<Record<string, string[]>>('mnd_trone_nav_ordre', {});
+/** Les vues de Perle (`/gerard?vue=`) qui prennent toute la page (18 novembre 2026). */
+const VUES_PLEINE_PAGE: ReadonlySet<string> = new Set(['conversations']);
 
 /** L'ORDRE DE LA MAIN, PUIS CELUI DU CODE. Ce qui a été rangé passe d'abord,
     dans l'ordre voulu ; ce qui n'y figure pas — un écran arrivé depuis, un
@@ -669,6 +671,16 @@ export default function Shell() {
     try { localStorage.setItem('mnd_barre_repliee', v ? '0' : '1'); } catch { /* le poste refuse : la barre bascule quand même */ }
     return !v;
   });
+  /* TOUTE LA PAGE (18 novembre 2026, les Conversations façon WhatsApp) :
+     « besoin que cela prenne toute la page » (Yéman). Sur ces vues de Perle,
+     le contenu perd ses marges et remplit l'écran sous la barre du haut, et
+     la barre du Trône se replie d'elle-même. La rouvrir ici ne vaut que
+     pour la visite : le choix retenu du poste (`mnd_barre_repliee`) ne
+     bouge pas. Au téléphone, rien ne change (la barre y est un tiroir). */
+  const pleinePage = emplacement.pathname === '/gerard' && VUES_PLEINE_PAGE.has(new URLSearchParams(emplacement.search).get('vue') ?? '');
+  const [deplieeIci, setDeplieeIci] = useState(false);
+  const repliee = pleinePage ? !deplieeIci : barreRepliee;
+  const basculeIci = () => { if (pleinePage) setDeplieeIci((v) => !v); else basculeLaBarre(); };
 
   /** Monter ou descendre un onglet dans son groupe. On enregistre la liste
       ENTIÈRE des chemins visibles, jamais un simple décalage : le rangement
@@ -843,13 +855,13 @@ export default function Shell() {
        Elle ne paraît plus dès qu'on est maître, mais seulement si un de ses
        trois gestes reste ouvert ; garder les 78 px sans elle laissait une
        bande morte sous la dernière ligne de chaque écran. */
-    <div className={`tr-shell ${sideOpen ? 'is-side-open' : ''} ${gestesRapides(staff?.role, mesDomaines).aucun ? '' : 'tr-shell--barre'}${barreRepliee ? ' tr-shell--repliee' : ''}`}>
+    <div className={`tr-shell ${sideOpen ? 'is-side-open' : ''} ${gestesRapides(staff?.role, mesDomaines).aucun ? '' : 'tr-shell--barre'}${repliee ? ' tr-shell--repliee' : ''}`}>
       {sideOpen && <div className="tr-side-veil" onClick={closeSide} />}
       <aside className="tr-side">
         {/* La bande repliée : le monogramme, et le bouton qui rouvre la barre. */}
         <div className="tr-side__rail">
           <span className="mnd-serif tr-side__monogramme" aria-hidden="true">M</span>
-          <button type="button" className="tr-side__deplier" onClick={basculeLaBarre} aria-label="Déplier la barre" title="Déplier la barre">
+          <button type="button" className="tr-side__deplier" onClick={basculeIci} aria-label="Déplier la barre" title="Déplier la barre">
             <ChevronDown size={16} style={{ transform: 'rotate(-90deg)' }} />
           </button>
         </div>
@@ -935,7 +947,7 @@ export default function Shell() {
           >
             {rangement ? 'Terminer le rangement' : 'Ranger le menu'}
           </button>
-          <button className="tr-nav__ranger tr-nav__replier" onClick={basculeLaBarre} title="Replier la barre en une bande étroite">
+          <button className="tr-nav__ranger tr-nav__replier" onClick={basculeIci} title="Replier la barre en une bande étroite">
             Replier la barre
           </button>
           {rangement && (
@@ -1027,7 +1039,7 @@ export default function Shell() {
           />
         )}
 
-        <main className="tr-content">
+        <main className={`tr-content${pleinePage ? ' tr-content--pleine' : ''}`}>
           <div className="tr-content__inner">
             <Suspense fallback={<div className="mnd-muted" style={{ padding: 48 }}>…</div>}>
               <Outlet />

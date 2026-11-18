@@ -123,6 +123,9 @@ try {
     return !!b;
   })()`);
   const segments = () => evalue(String.raw`[...document.querySelectorAll('.trc-bx__segments button, .trc-bx__puces button')].map((b) => b.textContent.replace(/\s+/g, ' ').trim())`);
+  /* LE MENU ⋮ DE LA LISTE (18 novembre 2026, les Conversations façon WhatsApp) : « Propositions » et « Bloqués » y vivent. */
+  const ouvreLesOutils = () => evalue(`(() => { const b = document.querySelector('.trc-bx__plus'); if (b && b.getAttribute('aria-expanded') !== 'true') b.click(); return !!b; })()`);
+  const enTri = () => evalue(`(document.querySelector('.trc-bx__retour-liste b')?.textContent || '').trim()`);
 
   const CLE = 'sb-127-auth-token';
   const le = new Date(Date.now() - 86_400_000).toISOString();
@@ -145,13 +148,21 @@ try {
   await attend(2500);
   await evalue(`(() => { for (const [k, v] of Object.entries(${JSON.stringify(semence)})) localStorage.setItem(k, JSON.stringify(v)); return true; })()`);
   await evalue(`location.hash = '#/gerard?vue=conversations'; location.reload(); true`);
-  const vu = await jusqua(`[...document.querySelectorAll('.trc-bx__puces button')].some((b) => /Bloqués · 1/.test(b.textContent))`, 40000);
+  await jusqua(`!!document.querySelector('.trc-bx__plus')`, 40000);
+  await ouvreLesOutils();
+  await attend(300);
+  const vu = await jusqua(`[...document.querySelectorAll('.trc-bx__puces button')].some((b) => /Bloqués · 1/.test(b.textContent))`, 20000);
   dit('les conversations s ouvrent, le registre est lu : « Propositions · 1 » et « Bloqués · 1 »', !!vu && JSON.stringify(await segments()).includes('Propositions · 1') && JSON.stringify(await segments()).includes('Bloqués · 1'), JSON.stringify(await segments()));
+  /* Depuis le 18 novembre 2026, la liste s'ouvre sur « Toutes » (comme WhatsApp), où les propositions se lisent : on passe à « À traiter ». */
+  await clique('.trc-bx__segments button', 'À traiter');
+  await attend(400);
   const aTraiter = await evalue(String.raw`[...document.querySelectorAll('.trc-bx__ligne, .trc-bx__lignes li')].map((l) => l.innerText.replace(/\s+/g, ' ').slice(0, 60))`);
   dit('« À traiter » : ni le demarcheur ni la proposition ; l inconnu et la cliente y sont', !JSON.stringify(aTraiter).includes('B. digital') && !JSON.stringify(aTraiter).includes('Huilerie K.') && JSON.stringify(aTraiter).includes('Awa B.'), JSON.stringify(aTraiter));
 
   /* Le bloqué, ouvert. */
-  dit('« Bloqués » s ouvre', await clique('.trc-bx__puces button', 'Bloqués'));
+  await ouvreLesOutils();
+  await attend(300);
+  dit('« Bloqués » s ouvre, depuis le menu ⋮', await clique('.trc-bx__puces button', 'Bloqués') && (await attend(300), (await enTri()) === 'Bloqués'));
   await attend(500);
   const listeB = await evalue(String.raw`(document.querySelector('.trc-bx__defile')?.innerText || '').replace(/\s+/g, ' ')`);
   dit('... il montre le demarcheur, et la passe des 24 h', /B\. digital/.test(listeB) && /Relire les dernières 24 h/i.test(listeB), listeB.slice(0, 200));
@@ -166,9 +177,7 @@ try {
   dit('... appelle la fonction avec le geste et le numero', JSON.stringify(appelsDuTri.slice(n0)) === JSON.stringify([{ geste: 'debloquer', numero: D }]), JSON.stringify(appelsDuTri.slice(n0)));
 
   /* La passe des 24 heures. */
-  await clique('.trc-bx__puces button', 'Bloqués');
-  await attend(300);
-  if (!(await evalue(`[...document.querySelectorAll('.trc-bx__puces button')].some((b) => b.getAttribute('aria-pressed') === 'true' && /Bloqués/.test(b.textContent))`))) await clique('.trc-bx__puces button', 'Bloqués');
+  if ((await enTri()) !== 'Bloqués') { await ouvreLesOutils(); await attend(300); await clique('.trc-bx__puces button', 'Bloqués'); }
   await attend(300);
   dit('« Relire les dernières 24 h »', await clique('button', 'Relire les dernières 24 h'));
   const modal = await jusqua(String.raw`(() => { const m = document.querySelector('.mnd-modal'); return m && /W\. agence/.test(m.innerText) ? m.innerText.replace(/\s+/g, ' ') : ''; })()`, 8000);
@@ -180,11 +189,16 @@ try {
   dit('... envoie le numero coche', JSON.stringify(appelsDuTri.slice(n1)) === JSON.stringify([{ geste: 'bloquer', numeros: ['22960000031'] }]), JSON.stringify(appelsDuTri.slice(n1)));
 
   /* Un fil sans fiche, à la main. */
+  await clique('.trc-bx__retour-liste button', '');
+  await attend(400);
   await clique('.trc-bx__segments button', 'À traiter');
   await attend(500);
   await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-bx__lignes button, .trc-bx__lignes li')].find((x) => x.innerText.includes('Inconnu Z.')); (b?.querySelector('button') ?? b)?.click(); return !!b; })()`);
   await attend(800);
-  dit('un fil sans fiche : « Bloquer ce numéro »', await clique('.trc-bx__fiche button, .trc-bx__autres button, .trc-bx__boutons button', 'Bloquer ce numéro'));
+  /* Le geste vit dans le ⋮ de la conversation (18 novembre 2026). */
+  await evalue(`(() => { const b = document.querySelector('.trc-bx__boutons .trc-bx__plus-zone > button'); if (b && b.getAttribute('aria-expanded') !== 'true') b.click(); return !!b; })()`);
+  await attend(300);
+  dit('un fil sans fiche : « Bloquer ce numéro », dans le ⋮ de la conversation', await clique('.trc-bx__fiche button, .trc-bx__autres button, .trc-bx__boutons button', 'Bloquer ce numéro'));
   await attend(300);
   const confirme = await evalue(String.raw`(document.querySelector('.trc-bx__tri')?.innerText || '').replace(/\s+/g, ' ')`);
   dit('... demande confirmation, et dit ce que ca fait', /il ne pourra plus écrire à la Maison/.test(confirme), confirme.slice(0, 160));

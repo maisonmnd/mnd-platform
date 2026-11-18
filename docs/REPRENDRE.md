@@ -2,6 +2,22 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES CONVERSATIONS FAÇON WHATSAPP, LOT 1 — 18 novembre 2026 (pas encore en ligne au moment d'écrire)
+
+« L'UI de cette page doit être revue. Il faut la faire exactement comme WhatsApp avec des messages à archiver ou supprimer. Trop compact la page de conversation. On ne reconnaît pas les nouveaux messages, besoin que cela prenne toute la page. » (Yéman, capture de `#/gerard?vue=conversations`). Maquette Design https://claude.ai/artifact/J6ZeXBFaesywB5Q42F1TRN (trois planches : Conversations, Les avis, Offres et remises), puis « construis ».
+
+**Tranché au sélecteur** : Supprimer = MASQUER, garder en base (revient sur la décision du 15 septembre « archiver seulement ») ; Archiver = toute l'équipe, Supprimer = la direction seule ; couleurs Maison (cuivre et indigo, pas le vert).
+
+**Ce qui est fait (lot 1, les Conversations)**
+- Toute la page : `Shell.tsx` (`VUES_PLEINE_PAGE`, `tr-content--pleine`, la barre du Trône repliée sur cette vue, la rouvrir ne vaut que pour la visite) ; `Gerard.tsx` (`trc-am--pleine` : sans le titre ni les cinq chiffres, sans le lien des envois programmés, passé dans le ⋮).
+- `LesConversations.tsx` refait comme WhatsApp Web : « Discussions », recherche, puces Toutes / Non lues / À traiter / Salle d'attente / En attente (la puce se retient par poste, `mnd_conversations_puce` en localStorage), « Archivées » en tête de Toutes, lignes de 76 px (avatar, initiale de qui la tient, nom, heure « 9 h 43 » / Hier / jour / date avec l'année, dernier mot avec son auteur, pastille cuivre des non lus), flèche de ligne (Archiver, Marquer comme non lue, Je la prends, Rien à répondre, Supprimer), ⋮ de la liste (Archivées, Règles, Ce qui part, Les envois programmés, Réponses toutes prêtes, Ce qu'elles disent, Banque de scénarios, Propositions, Bloqués, Depuis le site, Entre deux séances) ; tête de conversation en icônes (Appeler, RDV, Ses infos, Rien à répondre, Suivante, ⋮) ; « N messages non lus » en bandeau ; bulles à pointe, signées (Perle, l'automate, un prénom) ; « Ses infos » en troisième colonne dès 1 280 px ; les outils s'ouvrent à droite, plus sous la boîte. Les reçus, « lu de la main », la salle d'attente, le tri, le composeur : inchangés.
+- La règle : `shared/rangement-des-boites-pur.ts` (`rangeLesBoites`, `estArchivee`, `apresLaSuppression`, `heureDeLaLigne`). Les marques se posent sous la clé de la boîte ET le numéro réduit des fils : l'archive reste lisible par `estArchive` (cloche, alarme, compte de Perle). Documents : `mnd_fils_archives` (repris) et `mnd_conversations_supprimees` (`shared/conversations-supprimees.ts`), `mnd_conversations_non_lues` (« Marquer comme non lue », `conversations-lues.ts`, ne compte pas dans les Reçus). Aucune migration.
+- Suivent la règle : `useRecus` (le compte du Shell), le compte « attend un humain » de Perle, l'alarme du tableau de bord.
+- Bancs : `verifie-le-rangement` neuf (40 contrôles, `--prouve` 18 fautes) ; `banc-du-tri` et `banc-de-l-assistant-maison` réalignés sur le ⋮ et les cinq puces ; recus, qui-tient, a-traiter, banque, boîte unique, voix, essai, tri des messages, ordre des crochets verts (et leurs `--prouve`) ; banc du téléphone vert.
+- Échecs antérieurs, identiques sur `origin/main` sans ce lot (vérifié le 18 nov.) : `verifie-gerard` (3), `verifie-le-parrainage` (4, le site), `verifie-le-prenom-d-usage` (whatsapp-automate), `banc-de-l-assistant-maison` (4, dont le nom « Assistant Maison » devenu Perle).
+
+**Reste** : lot 2 « Les avis » et lot 3 « Offres et remises » dans le même cadre (planches 2 et 3 de la maquette ; `VUES_PLEINE_PAGE` les accueillera).
+
 ## L'AUDIT DU 4 NOVEMBRE, REVU, ET LA PORTE DE LA CLÉ PARTOUT — 17 et 18 novembre 2026, EN LIGNE le 18 novembre @ 09d21308 (SQL 0235 passée, contrôle true ; seize fonctions en 2026-11-17-a, reception-wa et push-notify en 2026-11-18-a, ia-maison en 2026-11-18-b v32 ; Trône et Ma Couronne build 20261118023022, 539/539 et 313/313 identiques au servi)
 
 L'audit du 4 novembre dormait, non commité, dans la copie commune (dont la branche `main` locale est restée au 5 novembre) ; une revue de onze points (`/code-review`) l'a repris, plus le point 10 de la revue de la session 94. **En production, le 17 novembre, `public.provision_first_staff(text)` existait encore, SECURITY DEFINER, exécutable par anon et authenticated** : elle fait « souverain » quiconque l'appelle quand `staff` est vide. Elle tombe au passage de 0235.

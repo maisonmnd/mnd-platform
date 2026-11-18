@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBranch } from '../../../../shared/branches';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import {
-  useMessagesWa, useFilsPrives, useFilsArchives, useAlarmeRetires, filsDeLaMaison, tetesDeLaMaison,
+  useMessagesWa, useFilsPrives, useFilsArchives, useAlarmeRetires, filsDeLaMaison, tetesDeLaMaison, estArchive,
   filsSansReponse, resteEnClair, lienDuFil, messagesQuiSonnent, numeroWa, TIROIRS, TIROIR_DIT,
   useFilsAutomate, automatesDesFils, numerosTenus, sonnentApresLAutomate,
   type Fil, type MessageWa, type VueDeLaSonnette,
 } from '../../../../shared/conversations';
 import { reglageDeLAutomate } from '../../../../shared/automate-wa';
+import { useConversationsSupprimees } from '../../../../shared/conversations-supprimees';
 import { useProviders } from '../../../../shared/prestataires';
 import { useFournisseurs } from '../../../../shared/stock';
 import { useEngagements } from '../../../../shared/engagements';
@@ -88,6 +89,8 @@ export function useLAlarmeWhatsApp(): LAlarme {
   const [messages] = useMessagesWa();
   const [prives] = useFilsPrives();
   const [archives] = useFilsArchives();
+  /* Une discussion supprimée aux Conversations (18 novembre 2026) quitte l'alarme aussi, jusqu'à son prochain message. */
+  const [supprimees] = useConversationsSupprimees();
   const [retires, setRetires] = useAlarmeRetires();
   const [equipe] = useEquipe();
   const [prestataires] = useProviders();
@@ -125,8 +128,8 @@ export function useLAlarmeWhatsApp(): LAlarme {
     [messages, tetes, prives, tick, branch.id, automates],
   );
   const enAttente = useMemo(
-    () => filsSansReponse(tous, archives, estDirection ? TIROIRS : ['clientes'], retires),
-    [tous, archives, estDirection, retires],
+    () => filsSansReponse(tous.filter((f) => !estArchive(f, supprimees)), archives, estDirection ? TIROIRS : ['clientes'], retires),
+    [tous, archives, supprimees, estDirection, retires],
   );
 
   /* RETIRER : l'instant du retrait. Tant qu'aucun message n'est plus récent,

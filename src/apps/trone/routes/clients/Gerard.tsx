@@ -44,6 +44,7 @@ import { gesteDeLaSalle } from './SalleDesEnvois';
 import { RdvModal, apptTotalXof, tarifDeLaTeteXof, useBranchAppointmentsAvecEssais, useBranchClients, useServicesById } from './_shared';
 import { PageHead } from '../_ui';
 import { GerardEntreDeux } from './GerardEntreDeux';
+import { useConversationsSupprimees } from '../../../../shared/conversations-supprimees';
 import LesConversations from './LesConversations';
 import LesAvis from './LesAvis';
 import OffresEtRemises from './OffresEtRemises';
@@ -202,6 +203,8 @@ export default function Gerard() {
   const [messages] = useMessagesWa();
   const [prives] = useFilsPrives();
   const [archives] = useFilsArchives();
+  /* Une discussion supprimée (18 novembre 2026) n'attend plus personne, jusqu'à son prochain message. */
+  const [supprimees] = useConversationsSupprimees();
   const [riens] = useRiensARepondre();
   const [lignesDeLAutomate] = useFilsAutomate();
   const signalementsTous = useSignalements();
@@ -259,9 +262,9 @@ export default function Gerard() {
   /* « Rien à répondre » (Les conversations, 27 octobre 2026) vaut ici aussi :
      un fil rangé ne compte pas dans « attend un humain » jusqu'à son prochain mot. */
   const fils = useMemo(
-    () => filsDeLaMaison(messages, tetes, prives, tick, branch.id, automates).filter((f) => f.tiroir === 'clientes' && !estArchive(f, archives)
+    () => filsDeLaMaison(messages, tetes, prives, tick, branch.id, automates).filter((f) => f.tiroir === 'clientes' && !estArchive(f, archives) && !estArchive(f, supprimees)
       && !estRangee([cleDuFilRange(f.numero), ...(f.clientId ? [`c:${f.clientId}`] : [])], f.dernierQuiCompte?.quand, riens)),
-    [messages, tetes, prives, tick, branch.id, automates, archives, riens],
+    [messages, tetes, prives, tick, branch.id, automates, archives, supprimees, riens],
   );
   const humain = useMemo(() => attendUnHumain({
     signalements,
@@ -439,10 +442,13 @@ export default function Gerard() {
     return parts.length ? `oui attendus · ${parts.join(', ')}` : 'oui attendus · rien à trancher';
   })();
   const propsDesVues: PropsDUneVue = { cerveau, reglages, moi };
+  /* Les vues qui prennent toute la page (la barre du Trône se replie, Shell) : leur propre tête remplace celle de Perle ; « Les envois programmés » passe dans le menu ⋮ de la liste. */
+  const pleinePage = vue === 'conversations';
 
   return (
-    <div className={`trc-ger trc-am${vue === 'conversations' ? ' trc-am--conversations' : ''}`}>
-      <PageHead
+    <div className={`trc-ger trc-am${vue === 'conversations' ? ' trc-am--conversations' : ''}${pleinePage ? ' trc-am--pleine' : ''}`}>
+      {/* TOUTE LA PAGE (18 novembre 2026) : sur les vues qui la prennent, le titre et les cinq chiffres restent sur « Aujourd'hui ». */}
+      {!pleinePage && <PageHead
         eyebrow="Clientèle · avec Perle, l’assistant des clientes"
         title="Conversations."
         actions={(
@@ -454,7 +460,7 @@ export default function Gerard() {
             <span className="trc-ger__chiffre"><b>{francsDits(plafond.francs)}</b><small>sur {francsDits(plafond.plafondFrancs)}</small></span>
           </div>
         )}
-      />
+      />}
 
       {/* LA BARRE DES CINQ VUES, collante : elle nomme ce qu'on règle et compte ce qui attend. */}
       <div className="trc-am__vues" role="tablist" aria-label="Les vues de l’Assistant" onKeyDown={surLesTouches}>
@@ -474,9 +480,11 @@ export default function Gerard() {
           mène ici, et la file des envois programmés vivait seulement sous la
           barre WhatsApp · Le chat du site (#/appels) : Yéman ne la trouvait pas
           pour envoyer « par l'app ». Un lien, hors des onglets de Perle. */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '6px 0 0' }}>
-        <Link to="/appels" className="tre-link-btn" style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5 }}>Les envois programmés →</Link>
-      </div>
+      {!pleinePage && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '6px 0 0' }}>
+          <Link to="/appels" className="tre-link-btn" style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5 }}>Les envois programmés →</Link>
+        </div>
+      )}
 
       <div className="trc-am__vue" role="tabpanel" id={`am-vue-${vue}`} aria-labelledby={`am-ong-${vue}`}>
         {vue === 'conversations' && <LesConversations {...propsDesVues} />}

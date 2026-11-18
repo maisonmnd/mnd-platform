@@ -344,3 +344,15 @@
 .trc-am__numero { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .trc-am__devenu { color: var(--ink-soft); }
 .trc-am__texte { margin: 0; font-size: 13px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); max-width: 72ch; }
+
+/* ── TOUTE LA PAGE (18 novembre 2026, les Conversations façon WhatsApp) ──
+   Sur un écran large, la vue remplit l'espace sous la barre du haut : la
+   barre des vues, mince, puis la vue elle-même, qui ne défile plus d'un
+   bloc (ses colonnes défilent chacune). Le titre de Perle reste sur
+   « Aujourd'hui ». */
+@media (min-width: 901px) {
+  .trc-ger.trc-am.trc-am--pleine { flex: 1 1 auto; min-height: 0; gap: 0; }
+  .trc-am--pleine > .trc-am__vues { flex: none; position: static; margin: 0; padding: 0 16px; }
+  .trc-am--pleine > .trc-am__vues button { padding: 9px 12px 9px; }
+  .trc-am--pleine > .trc-am__vue { flex: 1 1 auto; min-height: 0; gap: 0; }
+}

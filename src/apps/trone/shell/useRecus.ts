@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
 import { useBranch } from '../../../shared/branches';
 import {
-  automatesDesFils, estArchive, filsDeLaMaison, tetesDeLaMaison, useFilsArchives, useFilsAutomate, useFilsPrives, useMessagesWa,
+  automatesDesFils, filsDeLaMaison, tetesDeLaMaison, useFilsArchives, useFilsAutomate, useFilsPrives, useMessagesWa,
 } from '../../../shared/conversations';
+import { rangeLesBoites } from '../../../shared/rangement-des-boites-pur';
+import { useConversationsSupprimees } from '../../../shared/conversations-supprimees';
 import { reglageDeLAutomate } from '../../../shared/automate-wa';
 import { useDiscussions } from '../../../shared/discussions';
 import { useDemandes } from '../../../shared/demandes';
@@ -34,6 +36,7 @@ export function useRecus(): Recu[] {
   const [messages] = useMessagesWa();
   const [prives] = useFilsPrives();
   const [archives] = useFilsArchives();
+  const [supprimees] = useConversationsSupprimees();
   const [lignesDeLAutomate] = useFilsAutomate();
   const [cfg] = useAutoConfig();
   const { discussions } = useDiscussions();
@@ -53,11 +56,14 @@ export function useRecus(): Recu[] {
   /* L'heure ne change pas ce qui est reçu : on la lit au moment du calcul, elle n'est pas une dépendance. */
   const fils = useMemo(() => {
     const tous = filsDeLaMaison(messages, tetes, prives, Date.now(), branch.id, automates);
-    return tous.filter((f) => f.tiroir === 'clientes' && !estArchive(f, archives) && !f.prive);
-  }, [messages, tetes, prives, branch.id, automates, archives]);
-  const boites = useMemo(() => boitesDeLaMaison({
+    return tous.filter((f) => f.tiroir === 'clientes' && !f.prive);
+  }, [messages, tetes, prives, branch.id, automates]);
+  const boitesBrutes = useMemo(() => boitesDeLaMaison({
     fils, discussions, demandes, appelsWa, appels, signalements, envois: envois as unknown as EnvoiDeLaBoite[], clientes: clients, familles,
     maintenant: Date.now(), branchId: branch.id, tiroirs: ['clientes'], riensARepondre: riens, tri,
   }), [fils, discussions, demandes, appelsWa, appels, signalements, envois, clients, familles, branch.id, riens, tri]);
+  /* ARCHIVÉES ET SUPPRIMÉES (18 novembre 2026) : la même règle que l'écran
+     (`rangeLesBoites`) ; une discussion rangée ne se compte pas reçue. */
+  const boites = useMemo(() => rangeLesBoites(boitesBrutes, archives, supprimees).actives, [boitesBrutes, archives, supprimees]);
   return useMemo(() => recusDesBoites(boites, lues), [boites, lues]);
 }

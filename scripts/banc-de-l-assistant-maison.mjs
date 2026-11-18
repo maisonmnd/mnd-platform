@@ -244,17 +244,17 @@ try {
   /* 5. Chaque vue par son adresse ; la barre l'allume ; la vue vit (ses tuiles, sa liste ou son selecteur) ; au telephone rien ne deborde.
      `textContent`, pas `innerText` : les `h3 span` sont en petites capitales par CSS. */
   const VIVANTE = {
-    /* La ligne chiffree, « A traiter / Toutes », la liste a gauche et la conversation a droite (27 octobre 2026, le soir) :
-       K. T. (souci Sante ouvert) en tete du groupe « Maintenant », sa pastille Sante, et « Ce qu il faut faire » dans la conversation ouverte. */
+    /* Comme WhatsApp, pleine page (18 novembre 2026) : « Discussions » et son menu, les cinq puces (Toutes, Non lues, A traiter,
+       Salle d attente, En attente), la liste a gauche et la conversation a droite ; K. T. (souci Sante ouvert) porte « Sante »
+       sur sa ligne, et « Ce qu il faut faire » se lit dans la conversation ouverte. */
     conversations: String.raw`(() => {
       const v = document.querySelector('.trc-am__vue'); if (!v) return 'pas de vue';
-      const resume = !!v.querySelector('.trc-bx__resume');
+      const entete = !!v.querySelector('.trc-bx__entete .trc-bx__plus');
       const segments = v.querySelectorAll('.trc-bx__segments button').length;
-      const premiere = v.querySelector('.trc-bx__liste .trc-bx__ligne');
-      const nom = premiere?.querySelector('.trc-bx__haut b')?.textContent?.trim();
-      const pastille = premiere?.querySelector('.trc-bx__pastille')?.textContent ?? '';
+      const kt = [...v.querySelectorAll('.trc-bx__liste .trc-bx__ligne')].find((l) => l.querySelector('.trc-bx__haut b')?.textContent?.trim() === 'K. T.');
+      const sante = !!kt?.querySelector('.trc-bx__tag--sante');
       const faire = !!v.querySelector('.trc-bx__conv .trc-bx__faire');
-      return resume && segments === 4 && nom === 'K. T.' && /^Santé/.test(pastille) && faire ? true : JSON.stringify({ resume, segments, nom, pastille, faire });
+      return entete && segments === 5 && !!kt && sante && faire ? true : JSON.stringify({ entete, segments, kt: !!kt, sante, faire });
     })()`,
     /* Quatre tuiles ; la liste des avis Google (vide, Supabase injoignable : elle le dit). */
     avis: String.raw`(() => {
@@ -302,7 +302,7 @@ try {
   ] };
   await evalue(`localStorage.setItem('trone::mnd_scenarios_wa', ${JSON.stringify(JSON.stringify(BANQUE))}); location.hash = '#/gerard?vue=conversations&scenarios=1'; location.reload(); true`);
   const bq = await jusqua(String.raw`!!document.querySelector('.trc-bq .trc-bq__liste')`, 40000);
-  dit('la banque de scenarios s ouvre par ?scenarios=1, sous la boite', !!bq && !(await tombe()));
+  dit('la banque de scenarios s ouvre par ?scenarios=1, a droite de la liste', !!bq && !(await tombe()));
   const filtresBq = await evalue(String.raw`[...document.querySelectorAll('.trc-bq__filtres button')].map((b) => [b.textContent.trim(), b.getAttribute('aria-selected') === 'true'])`);
   dit('... quatre filtres, « A valider · 1 » choisi', JSON.stringify((filtresBq ?? []).map((f) => f[0])) === JSON.stringify(['À valider · 1', 'À reprendre · 0', 'Validés · 1', 'Tous · 2']) && filtresBq?.[0]?.[1] === true, JSON.stringify(filtresBq));
   dit('... le resume dit que le cas valide tient', /1 validé · 0 à reprendre · 1 à valider · le cas validé tient/.test(await evalue(String.raw`document.querySelector('.trc-bq__resume')?.textContent.replace(/\s+/g, ' ') ?? ''`)), await evalue(String.raw`document.querySelector('.trc-bq__resume')?.textContent ?? ''`));
@@ -313,7 +313,7 @@ try {
   await evalue(String.raw`document.querySelector('.trc-bq')?.scrollIntoView({ block: 'start' }); true`);
   await attend(300);
   if (capture) {
-    const zone = await evalue(String.raw`(() => { const r = document.querySelector('.trc-bx__outil')?.getBoundingClientRect(); return r ? { x: r.x, y: r.y + scrollY, w: r.width, h: r.height } : null; })()`);
+    const zone = await evalue(String.raw`(() => { const r = document.querySelector('.trc-bx__outil-pane')?.getBoundingClientRect(); return r ? { x: r.x, y: r.y + scrollY, w: r.width, h: r.height } : null; })()`);
     if (zone) {
       const img = await cdp('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, clip: { x: zone.x, y: zone.y, width: zone.w, height: Math.min(zone.h, 1400), scale: 1 } });
       writeFileSync(`${capture}-3-banque-ordi.png`, Buffer.from(img.result.data, 'base64'));
@@ -330,10 +330,10 @@ try {
   const ecrit = await evalue(`JSON.parse(localStorage.getItem('trone::mnd_scenarios_wa') || '{}')`);
   const valideBq = (ecrit?.cas ?? []).find((c) => c.id === 'cas-banc0001');
   dit('... ecrit : valide, son attendu, qui l a valide', valideBq?.etat === 'valide' && valideBq?.attendu?.qui === 'assistant' && (valideBq?.attendu?.signes ?? []).includes('en-route') && !!valideBq?.valideLe, JSON.stringify(valideBq));
-  await evalue(String.raw`document.querySelector('.trc-bx__menu > button')?.click(); true`);
+  await evalue(String.raw`document.querySelector('.trc-bx__plus')?.click(); true`);
   await attend(300);
   dit('le menu des outils propose la banque', await evalue(String.raw`[...document.querySelectorAll('.trc-bx__menu-liste button b')].some((b) => b.textContent.trim() === 'Banque de scénarios')`));
-  await evalue(String.raw`document.querySelector('.trc-bx__menu > button')?.click(); true`);
+  await evalue(String.raw`document.querySelector('.trc-bx__plus')?.click(); true`);
   await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await attend(500);
   dit('au telephone (390 px), la banque ne deborde pas', !(await deborde()), String(await evalue('document.documentElement.scrollWidth')));
