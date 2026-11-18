@@ -16,7 +16,7 @@
 import {
   ENVIES_DE_DEPART, ENVIES_MAX, GESTES_MAX, NOM_MAX, REPONSES_DU_DEBUT,
   affichesADefaire, affichesDesEnvies, affichesDuModele, ajouteUnEcart, ajouteUneEnvie, ajouteUnePaire, auDelaDUneJournee, basculeUnGroupe, basculeUnRendezVous,
-  basculeUneEnvie, compteurs, dureeAuCompte, enviesAffichees, enviesSures, etatEnLigne, insecable, interditePar, nomRefuse, parcoursDe, poseLesRituels,
+  basculeUneEnvie, compteurs, dureeAuCompte, enviesAffichees, enviesSures, etatEnLigne, insecable, interditePar, nomRefuse, parcoursDe, porteeDe, poseLesRituels,
   rangeLesChoisies, renommeUneEnvie, retireUnEcart, retireUneEnvie, retireUnePaire, seTouche, tarifDesNaturels, tientDansUneJournee,
   type Contexte, type ReglagesDesEnvies,
 } from '../src/shared/envies-pur';
@@ -375,6 +375,12 @@ const SEMAINE_MND = [
 const DUREE = (n: number) => ({ lockCount: n, bandes: BANDES, sets: {}, categories: CATS });
 const COMPTES = comptesDesTranches(T, BANDES);
 dit('les comptes de chaque tranche : son plafond, cent de plus pour la derniere', [80, 150, 250, 350, 450, 550, 650], COMPTES);
+const SANS_PLAFOND: Bande[] = [...BANDES.filter((b) => b.id !== 'cal-galaxy'), { id: 'cal-galaxy', name: 'Galaxy', maxLocks: null, coef: 1.8, durCoef: 2.8 }];
+dit('une derniere tranche sans plafond se compte cent de plus que la precedente', [550, 650], comptesDesTranches(tranchesDe(SANS_PLAFOND), SANS_PLAFOND).slice(-2));
+dit('une envie dont le rituel seul ne tient pas dans une journee : son rendez-vous, la visio', [{ rdv: ['visio'] }, { rituel: ['sv-plt-10-m'] }], [
+  porteeDe(S.envies.find((e) => e.id === 'hydratation')!, { ...c, tient: () => false }),
+  porteeDe(S.envies.find((e) => e.id === 'hydratation')!, { ...c, tient: () => true }),
+]);
 dit('la duree suit le calibre : 240 a 840 minutes', [240, 300, 420, 570, 720, 780, 840], COMPTES.map((k) => dureeAuCompte([GBATA.id], [GBATA], DUREE(k))));
 dit('sans « suit le modele », la duree du catalogue ; rien de dit, la duree du catalogue', [300, 300], [dureeAuCompte([GBATA.id], [GBATA_NU], DUREE(650)), dureeAuCompte([GBATA.id], [GBATA], DUREE(0))]);
 dit('une journee de la Maison : 08:30 a 20:30 du mardi au vendredi ; une semaine fermee ne prend rien', [true, true, false, false, true],

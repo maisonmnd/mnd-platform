@@ -82,7 +82,7 @@ const PANNES = [
   { nom: 'le lien de la consultation est laisse au modele', fichier: AU, avant: "  if (photoRefusee && !finDuRituel && !issue.silence && issue.issue.genre === 'parle') issue.texte = avecLeLienDeLaConsultation(issue.texte, lienConsultation);\n", apres: '' },
   { nom: 'une photo seule reste sans reponse', fichier: AU, avant: '      if (photoRefusee && tourSansUnMot(nouveaux)) return refusDeLAvisSurPhoto(lienConsultation);\n      issue.silence = true;', apres: '      issue.silence = true;' },
   { nom: 'Claude muet, la photo d une inconnue passe a l equipe', fichier: AU, avant: "if (secours && !issue.silence && photoRefusee && tourSansUnMot(nouveaux) && issue.issue.genre === 'parle') {", apres: 'if (false) {' },
-  { nom: 'une suggestion sans son oui ouvre l avis sur photo', fichier: AU, avant: '  return !(marqueDuRendezVous(a.suggereLe) && !marqueDuRendezVous(a.confirmeeParLaClienteLe));', apres: '  return true;' },
+  { nom: 'une suggestion sans son oui ouvre l avis sur photo', fichier: AU, avant: '  if (marqueDuRendezVous(a.suggereLe) && !marqueDuRendezVous(a.confirmeeParLaClienteLe)) return false;', apres: '  if (false) return false;' },
   { nom: 'une seance faite n ouvre plus l avis sur photo', fichier: AU, avant: '  if (aUnRendezVousPrisOuUneSeanceFaite(venues, aujourdhui)) return true;\n', apres: '' },
   { nom: 'un rendez-vous pris n ouvre plus l avis sur photo', fichier: AU, avant: "  return aUnRendezVousPrisOuUneSeanceFaite(((data ?? []) as Ligne[]).map((l) => (l.data ?? {}) as RendezVousLu), aujourdhui);", apres: '  return false;' },
   { nom: 'le contexte ne dit plus la porte a Opale', fichier: AU, avant: 'rdvs, connaitLeLieu, suivie,', apres: 'rdvs, connaitLeLieu,' },
