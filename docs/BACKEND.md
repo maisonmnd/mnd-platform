@@ -81,7 +81,7 @@ l'auth est inerte. À coupler au durcissement RLS — les deux vont ensemble.
 - **Fondateur** : aucun compte ne devient souverain en s'inscrivant. Le fondateur
   crée son compte, puis s'inscrit souverain à la main dans le SQL Editor (voir
   « Mise en route auth »). La fonction `provision_first_staff`, qui le faisait au
-  premier login, est supprimée par la migration 0213. Ensuite, l'écran
+  premier login, est supprimée par la migration 0235. Ensuite, l'écran
   « Se connecter » suffit ; les autres comptes sont rattachés par un souverain
   (« Accès & rôles », `authorize_staff`) ou entrent par la place que la direction
   leur a préparée (`rattacher_mon_compte`, 0109).
@@ -125,8 +125,8 @@ où deux gérants doivent être étanches l'un à l'autre — ce jour-là, ce se
    `staff_branches`, helpers, RLS, déclencheur `staff_guard` ; supprime
    `provision_first_staff` si le projet la porte). Sur un projet qui a passé
    0109, il se refuse lui-même et ne touche à rien (voir son en-tête) : la
-   migration 0213 suffit. Un projet monté en rejouant les migrations dans
-   l'ordre passe 0213 à part, avant de créer le moindre compte (étape 0 de
+   migration 0235 suffit. Un projet monté en rejouant les migrations dans
+   l'ordre passe 0235 à part, avant de créer le moindre compte (étape 0 de
    l'en-tête de `supabase/apply_rls_prod.sql`) ; le message d'arrêt de 0006,
    « le fondateur est provisionné automatiquement », est périmé depuis le
    17 novembre 2026.
@@ -155,7 +155,7 @@ refuse toute écriture directe d'un non-souverain (`staff_admin_write`, 0073), e
 les fonctions qui écrivent `staff` se gardent elles-mêmes (`authorize_staff`
 exige un souverain, `rattacher_mon_compte` n'écrit que `gerant` ou `maitre`). Le
 déclencheur reste donc tel quel ; le détail est dans l'en-tête de la migration
-0213.
+0235.
 
 Si `staff` n'est pas vide mais ne compte plus aucun souverain (son compte
 supprimé, son rôle rétrogradé), le gabarit refuse, et ni le SQL Editor ni la

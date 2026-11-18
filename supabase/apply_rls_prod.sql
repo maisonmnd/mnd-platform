@@ -7,17 +7,17 @@
 --
 -- Si c'est 0, c'est l'état normal d'un projet neuf depuis le 17 novembre 2026 :
 -- le Trône ne crée plus le fondateur, et `provision_first_staff` est supprimée
--- par la migration 0213 et par apply_auth.sql. Inscrivez-vous souverain à la
+-- par la migration 0235 et par apply_auth.sql. Inscrivez-vous souverain à la
 -- main, DANS CET ORDRE :
 --
 --   0. FERMEZ D'ABORD LA FONCTION, sur un projet monté en REJOUANT LES
 --      MIGRATIONS DANS L'ORDRE (relu le 18 novembre 2026). Là, 0003 crée
 --      encore `provision_first_staff` et la donne à `authenticated`, et la
 --      migration 0006 (dont ce fichier est la copie) s'arrête tant que `staff`
---      est vide : on n'atteint donc pas 0213 avant d'avoir inscrit le
+--      est vide : on n'atteint donc pas 0235 avant d'avoir inscrit le
 --      fondateur. Dans cette fenêtre, le premier compte qui s'inscrit (au Trône
 --      ou dans Ma Couronne) peut appeler la fonction et devenir souverain.
---      Passez donc 0213 à part, AVANT de créer le moindre compte : elle ne fait
+--      Passez donc 0235 à part, AVANT de créer le moindre compte : elle ne fait
 --      que supprimer, son rang ne compte pas. (Le message d'arrêt de 0006 dit
 --      encore « le fondateur est provisionné automatiquement » : c'est faux
 --      depuis le 17 novembre ; suivez ces étapes.) Le chemin de
@@ -41,7 +41,7 @@
 --
 -- Pourquoi seulement pour le premier membre : le déclencheur `staff_guard`
 -- (0073, 0109) ne laisse entrer cette insertion que par son cas « table
--- vide », puisque dans le SQL Editor `auth.uid()` est nul (en-tête de 0213).
+-- vide », puisque dans le SQL Editor `auth.uid()` est nul (en-tête de 0235).
 --
 /*
 drop function if exists public.provision_first_staff(text);

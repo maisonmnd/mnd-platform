@@ -23,7 +23,7 @@ import { BoutonEmpreinte, CompteReconnu, GardeDeLEmpreinte } from './Empreinte';
 
    AUCUN COMPTE NE DEVIENT SOUVERAIN EN S'INSCRIVANT — 17 novembre 2026.
    Jusqu'à l'audit du 4 novembre, le tout premier compte le devenait
-   (`provision_first_staff`, supprimée par 0213). Le souverain s'insère
+   (`provision_first_staff`, supprimée par 0235). Le souverain s'insère
    désormais à la main dans `staff` ; cette porte ne fonde plus rien. */
 
 export function AuthGate({ children }: { children: ReactNode }) {

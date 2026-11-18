@@ -6,20 +6,20 @@
 -- avec l'écriture directe réservée au souverain et le déclencheur
 -- `staff_guard` de 0073, et SANS amorçage du fondateur : `provision_first_staff`
 -- n'est plus créée, et elle est SUPPRIMÉE si le projet la porte encore (le
--- même geste que la migration 0213). Le fondateur crée son compte, puis
+-- même geste que la migration 0235). Le fondateur crée son compte, puis
 -- s'inscrit souverain à la main (gabarit en tête de apply_rls_prod.sql).
 --
 -- Idempotent : relancé, il redonne le même état. MAIS il réécrit
 -- `staff_guard` dans sa forme de 0073 : sur un projet qui a passé 0109 (la
 -- production), cela retirerait le cas « une place préparée » de 0109, et une
 -- recrue invitée ne pourrait plus entrer par `rattacher_mon_compte`. Sur un
--- tel projet, la migration 0213 suffit.
+-- tel projet, la migration 0235 suffit.
 --
 -- IL S'Y REFUSE LUI-MÊME (18 novembre 2026). L'avertissement ci-dessus n'était
 -- qu'un commentaire, dans un fichier dont la consigne est « Run ». Le premier
 -- geste du fichier regarde donc si le projet porte 0109 (ses fonctions
 -- `fiche_qui_mattend` ou `rattacher_mon_compte`) et, si oui, lève une
--- exception qui nomme la migration 0213. Un Run du SQL Editor envoie tout le
+-- exception qui nomme la migration 0235. Un Run du SQL Editor envoie tout le
 -- fichier d'un bloc, exécuté en UNE transaction implicite : l'exception
 -- l'annule en entier, rien n'est réécrit. Pas de `begin` … `commit` ici, à
 -- dessein : un bloc explicite qui échoue resterait ouvert, en échec, sur la
@@ -38,7 +38,7 @@ begin
     select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public' and p.proname in ('fiche_qui_mattend', 'rattacher_mon_compte')
   ) then
-    raise exception 'apply_auth.sql refusé : ce projet a passé la migration 0109 (public.fiche_qui_mattend ou public.rattacher_mon_compte existe). Ce fichier remettrait staff_guard dans sa forme de 0073 et fermerait la porte aux recrues invitées. Rien n''est fait. Pour retirer provision_first_staff, passer la migration 0213.';
+    raise exception 'apply_auth.sql refusé : ce projet a passé la migration 0109 (public.fiche_qui_mattend ou public.rattacher_mon_compte existe). Ce fichier remettrait staff_guard dans sa forme de 0073 et fermerait la porte aux recrues invitées. Rien n''est fait. Pour retirer provision_first_staff, passer la migration 0235.';
   end if;
 end $$;
 
@@ -93,7 +93,7 @@ $$;
 -- vide (audit du 4 novembre 2026). Elle n'est plus créée ici, et on la
 -- supprime si elle existe : sans cette ligne, relancer ce fichier sur un
 -- projet qui la porte laissait la porte ouverte. Même geste que la migration
--- 0213. Le fondateur crée son compte, puis s'inscrit souverain à la main dans
+-- 0235. Le fondateur crée son compte, puis s'inscrit souverain à la main dans
 -- le SQL Editor (gabarit en tête de apply_rls_prod.sql).
 drop function if exists public.provision_first_staff(text);
 
@@ -117,7 +117,7 @@ create policy staff_self_read on public.staff for select to authenticated
 -- le 17 novembre 2026, par le SQL Editor (rôle postgres, que la RLS n'arrête
 -- pas, mais que `staff_guard` arrête comme tout autre rôle dès que la table
 -- n'est plus vide : ni le SQL Editor ni la clé de service ne réparent `staff`
--- par une écriture ordinaire, voir l'en-tête de 0213).
+-- par une écriture ordinaire, voir l'en-tête de 0235).
 drop policy if exists staff_self_write on public.staff;
 drop policy if exists staff_admin_write on public.staff;
 create policy staff_admin_write on public.staff for all to authenticated
@@ -139,7 +139,7 @@ create policy staffb_admin_write on public.staff_branches for all to authenticat
 -- Laisse passer le souverain, et la table vide : c'est par ce cas seul
 -- qu'entre l'inscription du fondateur au SQL Editor (`auth.uid()` y est nul).
 -- Depuis l'API, il ne mène nulle part : la RLS ci-dessus refuse l'écriture
--- directe d'un non-souverain (détail dans l'en-tête de la migration 0213).
+-- directe d'un non-souverain (détail dans l'en-tête de la migration 0235).
 create or replace function public.staff_guard() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin

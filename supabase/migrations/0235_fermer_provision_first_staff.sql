@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- 0213 — RETIRER provision_first_staff (audit du 4 novembre 2026, M-1 ;
+-- 0235 — RETIRER provision_first_staff (audit du 4 novembre 2026, M-1 ;
 -- numérotée et datée le 17 novembre 2026)
 --
 -- LA FAILLE. `provision_first_staff(text)` (0003) est SECURITY DEFINER,
@@ -15,11 +15,14 @@
 -- fondateur crée son compte, puis s'inscrit souverain à la main dans le SQL
 -- Editor (gabarit en tête de apply_rls_prod.sql).
 --
--- POURQUOI 0213, LE 17 NOVEMBRE. Écrite pour l'audit sous un numéro qui
--- tombait sous des migrations déjà passées (main va jusqu'à 0212), et qu'une
--- branche non fusionnée portait déjà pour une autre migration, elle n'avait
--- jamais été passée. Elle prend 0213, le numéro suivant, réservé pour elle ce
--- jour-là. Rien ne dépend de son rang : elle ne fait que supprimer.
+-- POURQUOI 0235. Écrite pour l'audit sous le numéro 0153, qui tombait sous
+-- des migrations déjà passées et qu'une branche non fusionnée portait déjà
+-- pour une autre migration, elle n'avait jamais été passée. Renumérotée 0213
+-- le 17 novembre 2026, elle a dû céder ce numéro le 18 : une autre session y
+-- avait posé « Opale ne perd aucun rendez-vous », passée en production cette
+-- nuit-là. 0235 est au-dessus de tous les numéros portés ce jour-là, sur main
+-- comme sur les branches en cours (0216 à 0231). Rien ne dépend de son rang :
+-- elle ne fait que supprimer.
 --
 -- L'ORDRE AVEC LE TRÔNE EST LIBRE. Un Trône construit avant l'audit appelle
 -- encore la fonction à chaque connexion : une fois supprimée, l'appel échoue
@@ -62,9 +65,9 @@
 -- Aucune donnée ne bouge. Rejouable : `drop … if exists`.
 -- ═══════════════════════════════════════════════════════════════════════════
 
--- ⟨0213⟩
+-- ⟨0235⟩
 drop function if exists public.provision_first_staff(text);
--- ⟨/0213⟩
+-- ⟨/0235⟩
 
 
 -- ── Contrôle ──────────────────────────────────────────────────────────

@@ -38,12 +38,12 @@ import { pathToFileURL } from 'node:url';
        de sortie).
      · LE FONDATEUR. Plus rien n'appelle ni ne crée `provision_first_staff` ;
        apply_auth.sql la supprime, et se refuse d'abord sur un projet qui a
-       passé 0109 ; une seule migration la supprime, 0213, dont l'en-tête dit
+       passé 0109 ; une seule migration la supprime, 0235, dont l'en-tête dit
        que la clé de service ne passe pas `staff_guard`. Le gabarit
        d'apply_rls_prod.sql la supprime aussi, s'arrête quand l'adresse n'a
        pas de compte, et n'inscrit qu'UNE ligne : un souverain, toutes les
        rubriques que lui donnait l'ancienne fonction (0003), toutes les
-       branches ; l'en-tête fait passer 0213 avant le premier compte sur un
+       branches ; l'en-tête fait passer 0235 avant le premier compte sur un
        projet rejoué. La porte du Trône (AuthGate) ne promet plus de fonder
        la Maison.
      · LE TIROIR DE SESSION. Ma Couronne a le sien partout : la portée vient
@@ -83,13 +83,13 @@ const E = {
   appel: 'fondateur : rien dans src/ n\'appelle provision_first_staff (ni ensureFounder)',
   applyAuth: 'fondateur : apply_auth.sql supprime provision_first_staff et ne la cree jamais',
   refus: 'fondateur : apply_auth.sql se refuse d\'abord, sur un projet qui a passe 0109',
-  uneMigration: 'fondateur : une seule migration la supprime, 0213_fermer_provision_first_staff.sql',
-  numero: 'fondateur : 0213 existe et est seule a son numero',
+  uneMigration: 'fondateur : une seule migration la supprime, 0235_fermer_provision_first_staff.sql',
+  numero: 'fondateur : 0235 existe et est seule a son numero',
   plusDe0153: 'fondateur : plus de fichier 0153_fermer_provision_first_staff.sql',
   personneNeCree: 'fondateur : hors des migrations passees (0001 a 0212), aucun .sql de supabase/ ne la cree',
-  cleDeService: 'fondateur : l\'en-tete de 0213 dit que la cle de service ne passe pas staff_guard',
+  cleDeService: 'fondateur : l\'en-tete de 0235 dit que la cle de service ne passe pas staff_guard',
   gabarit: 'fondateur : le gabarit supprime la fonction, s\'arrete sans compte, n\'inscrit qu\'un souverain (rubriques de 0003, toutes branches)',
-  ordre: 'fondateur : sur un projet rejoue, l\'en-tete d\'apply_rls_prod.sql fait passer 0213 avant le premier compte',
+  ordre: 'fondateur : sur un projet rejoue, l\'en-tete d\'apply_rls_prod.sql fait passer 0235 avant le premier compte',
   sitesVerrou: 'build-sites : un seul lancement, npx vite build, VITE_ALLOW_OPEN \'false\' pose en dernier, rien d\'illisible',
   sitesEvalue: 'build-sites : ni l\'environnement du poste ni l\'env d\'un site ne le levent (env evalue)',
   sitesAucun: 'build-sites : aucun site ne nomme VITE_ALLOW_OPEN dans son env',
@@ -113,7 +113,7 @@ const E = {
   titre: 'echappement : le code de la carte de marraine passe par escHtml dans le titre',
   bloquante: 'BACKEND.md : bloquante par defaut',
   seulMoyen: 'BACKEND.md : VITE_ALLOW_OPEN=true seul moyen d\'ouvrir, les sites publies l\'epinglent a \'false\'',
-  migration0213: 'BACKEND.md : provision_first_staff supprimee par la migration 0213 (jamais 0153)',
+  migration0235: 'BACKEND.md : provision_first_staff supprimee par la migration 0235 (jamais 0153)',
   avant: 'BACKEND.md : le fondateur cree son compte AVANT l\'insertion',
   code6: 'BACKEND.md : avec Confirm email, le fondateur saisit le code a 6 chiffres (pas un lien)',
   sansSouverain: 'BACKEND.md : le cas staff non vide sans souverain est dit (un SQL unique, ecrit par la session)',
@@ -132,7 +132,7 @@ const CARTE = 'src/apps/trone/routes/clients/CarteDeMarrainePanneau.tsx';
 const ECHAPPE = 'src/shared/echappe-html-pur.ts';
 const SITES = 'scripts/build-sites.mjs';
 const DOC = 'docs/BACKEND.md';
-const M0213 = 'supabase/migrations/0213_fermer_provision_first_staff.sql';
+const M0235 = 'supabase/migrations/0235_fermer_provision_first_staff.sql';
 const RLS = 'supabase/apply_rls_prod.sql';
 /* Un env de banc AVEC backend et SANS verrou, pour les bancs témoins. */
 const ENV_OUVERT = "{ ...process.env, VITE_APPS: 'trone', VITE_SUPABASE_URL: 'http://127.0.0.1:9', VITE_SUPABASE_ANON_KEY: 'faux' }";
@@ -159,11 +159,11 @@ const PANNES = [
   { nom: 'apply_auth.sql la recree', cle: E.applyAuth, fichier: 'supabase/apply_auth.sql',
     avant: 'drop function if exists public.provision_first_staff(text);',
     apres: "drop function if exists public.provision_first_staff(text);\ncreate or replace function public.provision_first_staff(display_name text)\nreturns text language sql security definer as $$ select 'exists' $$;" },
-  { nom: 'la migration 0213 ne supprime plus rien', cle: E.uneMigration, fichier: M0213,
+  { nom: 'la migration 0235 ne supprime plus rien', cle: E.uneMigration, fichier: M0235,
     avant: 'drop function if exists public.provision_first_staff(text);', apres: 'select 1;' },
-  { nom: 'la migration reprend le numero 0153', cle: E.numero, fichier: M0213,
+  { nom: 'la migration reprend le numero 0153', cle: E.numero, fichier: M0235,
     renomme: 'supabase/migrations/0153_fermer_provision_first_staff.sql' },
-  { nom: 'une autre migration prend aussi 0213', cle: E.numero, fichier: 'supabase/migrations/0213_un_autre_chantier_temoin.sql',
+  { nom: 'une autre migration prend aussi 0235', cle: E.numero, fichier: 'supabase/migrations/0235_un_autre_chantier_temoin.sql',
     nouveau: '-- un autre chantier sur le meme numero\nselect 1;\n' },
   { nom: 'une copie 0153 reste a cote', cle: E.plusDe0153, fichier: 'supabase/migrations/0153_fermer_provision_first_staff.sql',
     nouveau: '-- copie oubliee\nselect 1;\n' },
@@ -174,7 +174,7 @@ const PANNES = [
   { nom: 'apply_auth.sql cree avant de se refuser', cle: E.refus, fichier: 'supabase/apply_auth.sql',
     avant: "-- ---------- Le refus d'un projet qui a passé 0109 (18 novembre 2026) ----------",
     apres: "create table if not exists public.staff_temoin (id int);\n-- ---------- Le refus d'un projet qui a passé 0109 (18 novembre 2026) ----------" },
-  { nom: '0213 redit que la cle de service ecrit tout', cle: E.cleDeService, fichier: M0213,
+  { nom: '0235 redit que la cle de service ecrit tout', cle: E.cleDeService, fichier: M0235,
     avant: 'la clé de service contourne la RLS, mais PAS `staff_guard`', apres: 'la clé de service, qui contourne la RLS, peut tout écrire de toute façon' },
   { nom: 'le gabarit inscrit sans compte', cle: E.gabarit, fichier: RLS,
     avant: '  if combien = 0 then', apres: '  if combien < 0 then' },
@@ -191,8 +191,8 @@ const PANNES = [
     apres: "  insert into public.staff(user_id, name, role, rubrics)\n  select id, nom, 'souverain', array['pilotage','clients','vente','finances','equipe','academie','systeme'] from auth.users where email = courriel;\n  select id into fondateur from auth.users where lower(email) = lower(trim(courriel));" },
   { nom: 'le gabarit ne supprime plus la fonction', cle: E.gabarit, fichier: RLS,
     avant: 'drop function if exists public.provision_first_staff(text);\n\ndo $$', apres: 'do $$' },
-  { nom: 'l en-tete ne fait plus passer 0213 d abord', cle: E.ordre, fichier: RLS,
-    avant: 'Passez donc 0213 à part, AVANT de créer le moindre compte', apres: 'Passez 0213 quand vous le pourrez' },
+  { nom: 'l en-tete ne fait plus passer 0235 d abord', cle: E.ordre, fichier: RLS,
+    avant: 'Passez donc 0235 à part, AVANT de créer le moindre compte', apres: 'Passez 0235 quand vous le pourrez' },
   { nom: 'le verrou de build-sites avant l env du site', cle: E.sitesVerrou, fichier: SITES,
     avant: "...(site.env ?? {}), VITE_ALLOW_OPEN: 'false', VITE_AUTH_SCOPE:", apres: "VITE_ALLOW_OPEN: 'false', ...(site.env ?? {}), VITE_AUTH_SCOPE:" },
   { nom: 'build-sites laisse le poste decider', cle: E.sitesEvalue, fichier: SITES,
@@ -301,8 +301,8 @@ const PANNES = [
     avant: '**Bloquante par défaut**', apres: '**Non bloquante par défaut**' },
   { nom: 'BACKEND.md ne dit plus le seul moyen', cle: E.seulMoyen, fichier: DOC,
     avant: '`VITE_ALLOW_OPEN=true` est le seul moyen', apres: '`VITE_ALLOW_OPEN=true` est un moyen' },
-  { nom: 'BACKEND.md redit 0153', cle: E.migration0213, fichier: DOC,
-    avant: 'est supprimée par la migration 0213', apres: 'est supprimée par la migration 0153' },
+  { nom: 'BACKEND.md redit 0153', cle: E.migration0235, fichier: DOC,
+    avant: 'est supprimée par la migration 0235', apres: 'est supprimée par la migration 0153' },
   { nom: 'BACKEND.md ne dit plus avant', cle: E.avant, fichier: DOC,
     avant: '3. **Créer le compte du fondateur, AVANT toute insertion**', apres: '3. **Créer le compte du fondateur**' },
   { nom: 'BACKEND.md redit le lien de confirmation', cle: E.code6, fichier: DOC,
@@ -812,8 +812,8 @@ try {
   dit(E.applyAuth, [true, false, false], [SUPPRIME.test(auth), CREE.test(auth), DONNE.test(auth)]);
   /* Le refus (18 novembre 2026) : le PREMIER geste du fichier, avant toute
      création, regarde si 0109 est passée et lève une exception qui nomme
-     0213. Un Run est une seule transaction : rien d'autre ne passe. */
-  const refus = /\bdo\s+\$\$\s*begin\s+if\s+exists\s*\(\s*select\s+1\s+from\s+pg_proc\s+p\s+join\s+pg_namespace\s+n\s+on\s+n\.oid\s*=\s*p\.pronamespace\s+where\s+n\.nspname\s*=\s*'public'\s+and\s+p\.proname\s+in\s*\(\s*'fiche_qui_mattend'\s*,\s*'rattacher_mon_compte'\s*\)\s*\)\s*then\s+raise\s+exception\s+'(?:[^']|'')*0213(?:[^']|'')*'\s*;\s*end\s+if\s*;\s*end\s*\$\$\s*;/i.exec(auth);
+     0235. Un Run est une seule transaction : rien d'autre ne passe. */
+  const refus = /\bdo\s+\$\$\s*begin\s+if\s+exists\s*\(\s*select\s+1\s+from\s+pg_proc\s+p\s+join\s+pg_namespace\s+n\s+on\s+n\.oid\s*=\s*p\.pronamespace\s+where\s+n\.nspname\s*=\s*'public'\s+and\s+p\.proname\s+in\s*\(\s*'fiche_qui_mattend'\s*,\s*'rattacher_mon_compte'\s*\)\s*\)\s*then\s+raise\s+exception\s+'(?:[^']|'')*0235(?:[^']|'')*'\s*;\s*end\s+if\s*;\s*end\s*\$\$\s*;/i.exec(auth);
   dit(E.refus, { refus: true, premier: true }, { refus: !!refus, premier: !!refus && auth.slice(0, refus.index).trim() === '' });
 
   /* Tout le SQL de supabase/, sauf supabase/functions/ (pas de ce banc). */
@@ -821,27 +821,28 @@ try {
   const MIGRATIONS = SQL.filter((f) => /^supabase\/migrations\/[^/]+$/.test(f));
   const numero = (f) => Number(/^(\d{4})/.exec(path.basename(f))?.[1] ?? NaN);
   const sql = new Map(SQL.map((f) => [f, sqlSansCommentaires(lire(f))]));
-  dit(E.uneMigration, [M0213], MIGRATIONS.filter((f) => SUPPRIME.test(sql.get(f))));
-  const autres = MIGRATIONS.filter((f) => f !== M0213).map(numero).filter((x) => !Number.isNaN(x));
-  /* Le numéro : 0213 réservé pour elle le 17 novembre 2026, au-dessus de
-     0212, la dernière migration de main ce jour-là. Ce qui doit tenir pour
-     toujours : elle existe sous ce nom, et elle est SEULE à porter 0213
-     (deux branches avaient chacune leur 0153). Les suivantes (0214, 0228…,
-     déjà promises à d'autres chantiers) ne la font pas crier. */
-  dit(E.numero, { existe: true, seuleA0213: true },
-    { existe: existsSync(absolu(M0213)), seuleA0213: MIGRATIONS.filter((f) => numero(f) === 213).length === 1 });
-  dit(E.plusDe0153, [], SQL.filter((f) => /fermer_provision_first_staff/.test(f) && f !== M0213));
+  dit(E.uneMigration, [M0235], MIGRATIONS.filter((f) => SUPPRIME.test(sql.get(f))));
+  const autres = MIGRATIONS.filter((f) => f !== M0235).map(numero).filter((x) => !Number.isNaN(x));
+  /* Le numéro : 0153 à l'écriture, 0213 le 17 novembre 2026, 0235 le 18 (le
+     0213 est parti avec « Opale ne perd aucun rendez-vous », passée cette
+     nuit-là ; voir l'en-tête de la migration). Ce qui doit tenir pour
+     toujours : elle existe sous ce nom, et elle est SEULE à porter 0235
+     (deux branches avaient chacune leur 0153, deux chantiers leur 0213). Les
+     autres numéros, au-dessus ou au-dessous, ne la font pas crier. */
+  dit(E.numero, { existe: true, seuleA0235: true },
+    { existe: existsSync(absolu(M0235)), seuleA0235: MIGRATIONS.filter((f) => numero(f) === 235).length === 1 });
+  dit(E.plusDe0153, [], SQL.filter((f) => /fermer_provision_first_staff/.test(f) && f !== M0235));
   const passee = (f) => MIGRATIONS.includes(f) && numero(f) >= 1 && numero(f) <= 212;
   dit(E.personneNeCree, [], SQL.filter((f) => !passee(f) && (CREE.test(sql.get(f)) || DONNE.test(sql.get(f)))));
 
-  /* L'en-tête de 0213, lu comme une prose (les `--` retirés, les lignes
+  /* L'en-tête de 0235, lu comme une prose (les `--` retirés, les lignes
      jointes) : la clé de service ne passe pas `staff_guard`. */
   const prose = (t) => t.split('\n').map((l) => l.replace(/^\s*--\s?/, '').trim()).join(' ').replace(/\s+/g, ' ');
-  const entete0213 = prose(lire(M0213).split('\n').filter((l) => /^\s*--/.test(l)).join('\n'));
+  const entete0235 = prose(lire(M0235).split('\n').filter((l) => /^\s*--/.test(l)).join('\n'));
   dit(E.cleDeService, [true, true, false], [
-    entete0213.includes('la clé de service contourne la RLS, mais PAS `staff_guard`'),
-    entete0213.includes("n'écrit donc `staff` que tant que la table est vide"),
-    /peut tout écrire de toute façon/.test(entete0213),
+    entete0235.includes('la clé de service contourne la RLS, mais PAS `staff_guard`'),
+    entete0235.includes("n'écrit donc `staff` que tant que la table est vide"),
+    /peut tout écrire de toute façon/.test(entete0235),
   ]);
 
   /* Le gabarit du fondateur : un bloc /* … *\/ en tête du fichier, qu'on
@@ -885,13 +886,13 @@ try {
 
   /* L'ordre sur un projet rejoué (18 novembre 2026) : 0003 y crée encore la
      fonction, et 0006 s'arrête tant que `staff` est vide ; l'en-tête doit
-     faire passer 0213 à part AVANT le premier compte. */
+     faire passer 0235 à part AVANT le premier compte. */
   const entete = prose(rls.slice(0, Math.max(0, rls.indexOf('\n/*\n'))));
   const etape0 = entete.search(/0\. FERMEZ D'ABORD LA FONCTION/);
   dit(E.ordre, { etape0: true, rejoue: true, avantLeCompte: true }, {
     etape0: etape0 >= 0 && etape0 < entete.search(/1\. CRÉEZ ENSUITE VOTRE COMPTE/),
     rejoue: /REJOUANT LES MIGRATIONS DANS L'ORDRE/.test(entete) && entete.includes('0003 crée encore `provision_first_staff`'),
-    avantLeCompte: entete.includes('Passez donc 0213 à part, AVANT de créer le moindre compte'),
+    avantLeCompte: entete.includes('Passez donc 0235 à part, AVANT de créer le moindre compte'),
   });
 }
 
@@ -1033,7 +1034,7 @@ try {
     doc.includes('`VITE_ALLOW_OPEN=true` est le seul moyen'),
     /Les sites publiés l'épinglent à `'false'`\s*\(`scripts\/build-sites\.mjs`, pour tous les sites\)/.test(doc),
   ]);
-  dit(E.migration0213, [true, false], [/`provision_first_staff`[^.]*est supprimée par la migration 0213/.test(doc), /\b0153\b/.test(doc)]);
+  dit(E.migration0235, [true, false], [/`provision_first_staff`[^.]*est supprimée par la migration 0235/.test(doc), /\b0153\b/.test(doc)]);
   const compte = doc.indexOf('Créer le compte du fondateur, AVANT toute insertion');
   const inscrire = doc.indexOf('L\'inscrire souverain');
   dit(E.avant, [true, true, true], [compte >= 0, inscrire > compte, /crée son compte, puis s'inscrit souverain/.test(doc)]);

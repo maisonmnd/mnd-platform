@@ -11,7 +11,7 @@ import { garderLaTete, noteLaConnexionEnLigne, oublieLeHorsLigne, serveurInjoign
      souverain). Le souverain lui-même s'insère à la main dans `staff`
      (gabarit en tête de supabase/apply_rls_prod.sql) : jusqu'au 17 novembre
      2026, le tout premier compte le devenait par `provision_first_staff`,
-     supprimée par 0213 (audit du 4 novembre).
+     supprimée par 0235 (audit du 4 novembre).
    - Cliente (Ma Couronne) : e-mail + mot de passe, avec réinitialisation par code
      à 6 chiffres. Les helpers OTP (e-mail, téléphone) restent plus bas : l'OTP
      e-mail a précédé le mot de passe, le téléphone attend un fournisseur SMS.
@@ -183,7 +183,7 @@ export async function signInEmail(email: string, password: string): Promise<void
 
 /** Inscription d'un compte personnel. Le compte naît sans aucun droit : il
     attend d'être rattaché au personnel (la porte, AuthGate, dit la suite).
-    Il n'amorce plus le souverain (17 novembre 2026, 0213). */
+    Il n'amorce plus le souverain (17 novembre 2026, 0235). */
 export async function signUpEmail(
   email: string,
   password: string,
@@ -255,7 +255,7 @@ export async function signInClient(email: string, password: string): Promise<voi
     Elle diffère de `signUpEmail` du Trône par ce nom et par sa marque
     d'origine (`couronne`, que la porte du Trône reconnaît), et parce qu'elle
     reconnaît une adresse déjà prise. Aucune des deux n'amorce plus le
-    personnel depuis le 17 novembre 2026 (0213). */
+    personnel depuis le 17 novembre 2026 (0235). */
 /* ══ UNE ADRESSE DÉJÀ PRISE SE RECONNAÎT — 5 septembre 2026 ═════════
 
    « Elle a ouvert son compte normalement sur le lien de Ma Couronne, puis
