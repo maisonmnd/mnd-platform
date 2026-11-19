@@ -450,6 +450,22 @@ export type Appointment = {
   annuleeLe?: string;
   /** Qui a annulé. Une trace, elle aussi. */
   annuleePar?: 'cliente' | 'maison';
+  /** À REPROGRAMMER — 19 novembre 2026 (`shared/a-reprogrammer-pur.ts`) :
+      elle a prévenu qu'elle ne viendra pas. Le statut est « annulé » (la
+      place se rend partout), la marque dit qu'il n'est PAS annulé : il
+      attend sa nouvelle date. `placesProposees` : les places déjà envoyées
+      en boutons (« AAAA-MM-JJ HH:MM ») ; `relanceDuReportLe` : la relance du
+      lendemain. La reprise efface ces marques et garde `reprogrammeDe`. */
+  aReprogrammerDepuis?: string;
+  aReprogrammerPar?: 'opale' | 'cliente' | 'trone';
+  placesProposees?: string[];
+  relanceDuReportLe?: string;
+  reprogrammeLe?: string;
+  reprogrammePar?: string;
+  reprogrammeDe?: { date?: string; time?: string };
+  /** Posé au-delà des fauteuils (Opale, « jamais sans rendez-vous ») : la
+      Maison était pleine à cette heure, l'équipe s'organise. */
+  auDelaDesPlaces?: boolean;
   /** Elle n'est pas venue : « Absente », au comptoir. La séance d'une formule
       revient à la formule. */
   absente?: { le: string; par?: string };

@@ -60,7 +60,7 @@ const PANNES = [
   ['le journal dit le texte', WEBHOOK, 'signes: t.texte.length,', 'texte: t.texte,'],
   ['la cle de VoxBubble au lieu de celle de la Maison', WEBHOOK, "Deno.env.get('GROQ_API_KEY')", "Deno.env.get('VOXBUBBLE_GROQ_KEY')"],
   /* ── L automate ── */
-  ['Claude appele pour un vocal incompris', AUTOMATE, 'if (claude && !finDuRituel && !vocalIncompris) {', 'if (claude && !finDuRituel) {'],
+  ['Claude appele pour un vocal incompris', AUTOMATE, 'if (claude && !finDuRituel && !vocalIncompris && !parLeCode) {', 'if (claude && !finDuRituel && !parLeCode) {'],
   ['la main passe en parlant', AUTOMATE, '  if (vocalIncompris) {\n    issue.silence = true;', '  if (vocalIncompris) {\n    issue.silence = false;'],
   ['une relance compte un vocal', AUTOMATE, 'const vocalIncompris = !finDuRituel && !o.relance && ', 'const vocalIncompris = !finDuRituel && '],
   ['le fil d Opale sans transcription', AUTOMATE, "      ...(d.type === 'audio' && texteDuVocal(d.transcription) ? { transcription: texteDuVocal(d.transcription) } : {}),\n", ''],

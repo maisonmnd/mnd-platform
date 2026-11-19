@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-19-a · le plan part avec le chemin : a qui demande l adresse, la localisation ou le chemin (un vocal compris), et chaque fois que le mot d Opale donne l adresse ou un lien pour venir, le plan part en image, pose par le code et non plus laisse au modele ; le lien pour venir n est pas redit ; 2026-11-18-h · deux tetes chez Team : Opale lit les places de chaque jour (places_en_ligne_du) et la tete de la cliente (ses locks dits ou ceux de sa fiche) ; Team recoit une seconde cliente a la meme heure quand l une des deux a moins de 150 locks, jamais deux lourdes, deux au plus, un maitre seul d abord ; les locks dits s ecrivent sur le rendez-vous (locksAnnonces) ; 2026-11-18-g · Opale lit l agenda sur toute la fenetre ou elle propose, et relit la journee avant chaque proposition : plus jamais « libre » puis « vient d etre prise » (le 28 au dixieme jour paraissait vide) ; 2026-11-18-f · Opale range le demarchage : quelqu un qui vend a la Maison, elle ne lui ecrit rien et le tri relit ses derniers mots (relire) pour le bloquer ou le ranger dans les propositions ; 2026-11-18-e · Opale lit les vocaux : la transcription que la réception a écrite (Whisper chez Groq) entre dans son fil et ses nouveaux messages, elle y répond comme à un message écrit ; un vocal que la Maison n a pas compris fait passer la main sans un mot, avec l alerte ; 2026-11-18-d · la confirmation du Oui de Perle se lit dans le fil d Opale comme un message automatique ; 2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-19-b · a reprogrammer : une cliente empechee libere sa place sans annuler (mettre_a_reprogrammer, et Changer l heure tout de suite) ; trois dates en boutons, le toucher vaut son oui (reprend_si_libre, 0239) ; elle ecrit sa date : son heure, sinon la plus proche dans l heure en boutons, sinon au-dela des fauteuils, jamais deux tetes lourdes chez Team, l equipe prevenue (accommoder) ; la relance intelligente du lendemain, vers la 23e heure, trois nouvelles dates pres de ses habitudes ; 2026-11-19-a · le plan part avec le chemin : a qui demande l adresse, la localisation ou le chemin (un vocal compris), et chaque fois que le mot d Opale donne l adresse ou un lien pour venir, le plan part en image, pose par le code et non plus laisse au modele ; le lien pour venir n est pas redit ; 2026-11-18-h · deux tetes chez Team : Opale lit les places de chaque jour (places_en_ligne_du) et la tete de la cliente (ses locks dits ou ceux de sa fiche) ; Team recoit une seconde cliente a la meme heure quand l une des deux a moins de 150 locks, jamais deux lourdes, deux au plus, un maitre seul d abord ; les locks dits s ecrivent sur le rendez-vous (locksAnnonces) ; 2026-11-18-g · Opale lit l agenda sur toute la fenetre ou elle propose, et relit la journee avant chaque proposition : plus jamais « libre » puis « vient d etre prise » (le 28 au dixieme jour paraissait vide) ; 2026-11-18-f · Opale range le demarchage : quelqu un qui vend a la Maison, elle ne lui ecrit rien et le tri relit ses derniers mots (relire) pour le bloquer ou le ranger dans les propositions ; 2026-11-18-e · Opale lit les vocaux : la transcription que la réception a écrite (Whisper chez Groq) entre dans son fil et ses nouveaux messages, elle y répond comme à un message écrit ; un vocal que la Maison n a pas compris fait passer la main sans un mot, avec l alerte ; 2026-11-18-d · la confirmation du Oui de Perle se lit dans le fil d Opale comme un message automatique ; 2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -1088,6 +1088,324 @@ function placesLibres(
   return out;
 }
 /* ⟨/place-du-serveur⟩ */
+
+/* À REPROGRAMMER (19 novembre 2026) : src/shared/a-reprogrammer-pur.ts, entre ses repères. */
+/* ⟨a-reprogrammer⟩ */
+/** Qui l'a mis à reprogrammer : Opale (elle a prévenu), la cliente (« Changer
+    l'heure »), le Trône (l'équipe, au téléphone). */
+export type ParQuiLeReport = 'opale' | 'cliente' | 'trone';
+
+/** Ce que les règles lisent d'un rendez-vous, sans rien croire. */
+export type MarquesDuReport = {
+  status?: unknown;
+  aReprogrammerDepuis?: unknown;
+  aReprogrammerPar?: unknown;
+  placesProposees?: unknown;
+  relanceDuReportLe?: unknown;
+};
+
+const ecritLe = (v: unknown): boolean => typeof v === 'string' && v.trim().length > 0;
+
+/** Ni confirmé ni annulé : sa place est rendue, il attend sa nouvelle date. */
+export function estAReprogrammer(a: MarquesDuReport | null | undefined): boolean {
+  return !!a && a.status === 'annulé' && ecritLe(a.aReprogrammerDepuis);
+}
+
+/** Ce que le report écrit. La date, l'heure, les soins, le maître et
+    l'acompte restent : ils disent ce qu'il faut reposer. */
+export function marquesDuReport(maintenantMs: number, par: ParQuiLeReport): {
+  status: 'annulé'; aReprogrammerDepuis: string; aReprogrammerPar: ParQuiLeReport;
+} {
+  return { status: 'annulé', aReprogrammerDepuis: new Date(maintenantMs).toISOString(), aReprogrammerPar: par };
+}
+
+/** Les marques que la reprise (une nouvelle date) efface. */
+export const CLES_DU_REPORT: readonly string[] = ['aReprogrammerDepuis', 'aReprogrammerPar', 'placesProposees', 'relanceDuReportLe'];
+
+/** Le rendez-vous sans ses marques de report (pour une écriture). */
+export function sansLeReport<T extends Record<string, unknown>>(a: T): T {
+  const copie: Record<string, unknown> = { ...a };
+  for (const k of CLES_DU_REPORT) delete copie[k];
+  return copie as T;
+}
+
+/** La relance part vers la 23e heure après son dernier message. */
+export const RELANCE_DU_REPORT_APRES_MS = 23 * 3_600_000;
+/** Au 7e jour sans choix, l'équipe. */
+export const EQUIPE_DU_REPORT_APRES_MS = 7 * 86_400_000;
+/** WhatsApp ferme une conversation 24 h après son dernier message. */
+export const FENETRE_DU_REPORT_MS = 24 * 3_600_000;
+/** On ne relance pas dans le dernier quart d'heure de la fenêtre. */
+export const MARGE_DU_REPORT_MS = 15 * 60_000;
+/** Jamais moins de six heures après ce qu'elle a écrit. */
+export const RELANCE_DU_REPORT_AU_PLUS_TOT_MS = 6 * 3_600_000;
+/** De 8 h à 21 h, à Cotonou. */
+export const RELANCE_DU_REPORT_DE_MIN = 8 * 60;
+export const RELANCE_DU_REPORT_A_MIN = 21 * 60;
+
+/** Les minutes du jour à Cotonou (UTC+1, sans heure d'été). */
+const minutesACotonouDuReport = (ms: number): number => {
+  const d = new Date(ms + 3_600_000);
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
+};
+
+export type EtatDuReport = 'attend' | 'relancee' | 'equipe';
+
+/** Où en est le report : il attend son choix, il a été relancé, ou il est à
+    l'équipe (7 jours sans choix). `null` : pas à reprogrammer. */
+export function etatDuReport(a: MarquesDuReport | null | undefined, maintenantMs: number): EtatDuReport | null {
+  if (!estAReprogrammer(a)) return null;
+  const depuis = Date.parse(String(a!.aReprogrammerDepuis));
+  if (Number.isFinite(depuis) && maintenantMs - depuis >= EQUIPE_DU_REPORT_APRES_MS) return 'equipe';
+  return ecritLe(a!.relanceDuReportLe) ? 'relancee' : 'attend';
+}
+
+/** L'INSTANT DE LA RELANCE : 23 h après ce qu'elle a écrit en dernier (ou
+    après le report, s'il est plus récent), avant la fin de la fenêtre de
+    WhatsApp ; tombée la nuit, ramenée à 20 h 55. Trop près de ce qu'elle a
+    écrit (moins de six heures) : pas de relance, l'équipe verra. */
+export function momentDeLaRelanceDuReport(depuisMs: number, dernierEntrantMs: number): number | null {
+  const base = Math.max(depuisMs, dernierEntrantMs);
+  const fermeture = dernierEntrantMs + FENETRE_DU_REPORT_MS;
+  let c = Math.min(base + RELANCE_DU_REPORT_APRES_MS, fermeture - MARGE_DU_REPORT_MS);
+  const m = minutesACotonouDuReport(c);
+  const soir = RELANCE_DU_REPORT_A_MIN - 5;
+  if (m >= RELANCE_DU_REPORT_A_MIN) c -= (m - soir) * 60_000;
+  else if (m < RELANCE_DU_REPORT_DE_MIN) c -= (m + 24 * 60 - soir) * 60_000;
+  return c - base >= RELANCE_DU_REPORT_AU_PLUS_TOT_MS ? c : null;
+}
+
+/** LA RELANCE EST-ELLE DUE ? Une fois, au moment dit, de jour, la fenêtre
+    encore ouverte. Sans message d'elle, pas de fenêtre : pas de boutons. */
+export function relanceDuReportDue(o: {
+  a: MarquesDuReport; dernierEntrantMs: number | null; maintenantMs: number;
+}): boolean {
+  if (!estAReprogrammer(o.a) || ecritLe(o.a.relanceDuReportLe) || o.dernierEntrantMs === null) return false;
+  const depuis = Date.parse(String(o.a.aReprogrammerDepuis));
+  if (!Number.isFinite(depuis)) return false;
+  if (o.maintenantMs >= o.dernierEntrantMs + FENETRE_DU_REPORT_MS - MARGE_DU_REPORT_MS) return false;
+  const quand = momentDeLaRelanceDuReport(depuis, o.dernierEntrantMs);
+  if (quand === null || o.maintenantMs < quand) return false;
+  const m = minutesACotonouDuReport(o.maintenantMs);
+  return m >= RELANCE_DU_REPORT_DE_MIN && m < RELANCE_DU_REPORT_A_MIN;
+}
+
+/* ── LES BOUTONS ──────────────────────────────────────────────────────── */
+
+/** Une place : un jour (AAAA-MM-JJ) et une heure (HH:MM). */
+export type PlaceDuReport = { iso: string; heure: string };
+
+const JOURS_COURTS_DU_REPORT = ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.', 'Dim.'];
+const MOIS_COURTS_DU_REPORT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+const ISO_DU_REPORT = /^(\d{4})-(\d{2})-(\d{2})$/;
+const HEURE_DU_REPORT = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+/** Lundi = 0 … dimanche = 6. */
+export function rangDuJourDuReport(iso: string): number {
+  const m = ISO_DU_REPORT.exec(iso);
+  if (!m) return -1;
+  return (new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).getUTCDay() + 6) % 7;
+}
+
+/** « 18 h », « 8 h 30 ». */
+export function heureDuReportDite(heure: string): string {
+  const m = HEURE_DU_REPORT.exec(heure);
+  if (!m) return heure;
+  return `${Number(m[1])} h${m[2] === '00' ? '' : ` ${m[2]}`}`;
+}
+
+/** LE TITRE D'UN BOUTON : « Ven. 20 nov., 18 h » ; vingt signes au plus (la
+    limite de WhatsApp), sinon « Mer. 30/09, 10 h 30 ». */
+export function titreDuBoutonDePlace(p: PlaceDuReport): string {
+  const m = ISO_DU_REPORT.exec(p.iso);
+  if (!m) return heureDuReportDite(p.heure).slice(0, 20);
+  const jour = JOURS_COURTS_DU_REPORT[rangDuJourDuReport(p.iso)] ?? '';
+  const long = `${jour} ${Number(m[3])} ${MOIS_COURTS_DU_REPORT[Number(m[2]) - 1]}, ${heureDuReportDite(p.heure)}`;
+  if (long.length <= 20) return long;
+  return `${jour} ${m[3]}/${m[2]}, ${heureDuReportDite(p.heure)}`.slice(0, 20);
+}
+
+/** L'IDENTIFIANT D'UN BOUTON : « MND:place|r:<rendez-vous>|AAAA-MM-JJ|HH:MM »
+    pour un rendez-vous à reposer, « MND:place|n:<fiche ou nouvelle>|… » pour
+    une première réservation. « MND: » : la réception le confie à Opale
+    (l'automate ne lit que ces boutons-là). */
+export function idDuBoutonDePlace(cible: { rdv: string } | { pour: string }, p: PlaceDuReport): string {
+  const qui = 'rdv' in cible ? `r:${cible.rdv}` : `n:${cible.pour}`;
+  return `MND:place|${qui}|${p.iso}|${p.heure}`.slice(0, 256);
+}
+
+export type BoutonDePlaceLu = { rdv: string; pour?: undefined; place: PlaceDuReport } | { pour: string; rdv?: undefined; place: PlaceDuReport };
+
+/** Le bouton touché, relu sans rien croire. */
+export function lisLeBoutonDePlace(id: unknown): BoutonDePlaceLu | null {
+  if (typeof id !== 'string') return null;
+  const m = /^MND:place\|([rn]):([A-Za-z0-9_.:-]{1,160})\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})$/.exec(id);
+  if (!m || !ISO_DU_REPORT.test(m[3]) || !HEURE_DU_REPORT.test(m[4])) return null;
+  const place = { iso: m[3], heure: m[4] };
+  return m[1] === 'r' ? { rdv: m[2], place } : { pour: m[2], place };
+}
+
+/** La clé d'une place, pour se souvenir de celles déjà proposées. */
+export const cleDeLaPlaceDuReport = (p: PlaceDuReport): string => `${p.iso} ${p.heure}`;
+
+/** Les places déjà proposées, relues. */
+export function placesDejaProposees(a: MarquesDuReport | null | undefined): string[] {
+  const l = a?.placesProposees;
+  return Array.isArray(l) ? l.filter((x): x is string => typeof x === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(x)).slice(-30) : [];
+}
+
+/* ── LES TROIS PLACES, CHOISIES POUR ELLE ─────────────────────────────── */
+
+/** Ses habitudes : les jours qui reviennent (lundi = 0) et son heure (médiane). */
+export type HabitudesDuReport = { jours: number[]; minutes: number | null };
+
+const minutesDuReport = (heure: string): number => {
+  const m = HEURE_DU_REPORT.exec(heure);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : Number.NaN;
+};
+
+/** Ses venues passées (honorées) disent ses habitudes : un jour qui revient
+    au moins deux fois, son heure médiane. Une seule venue ne fait pas une
+    habitude de jour. */
+export function habitudesDuReport(venues: readonly { date?: unknown; time?: unknown }[]): HabitudesDuReport {
+  const compte = new Map<number, number>();
+  const minutes: number[] = [];
+  for (const v of venues) {
+    const iso = typeof v.date === 'string' ? v.date : '';
+    const r = rangDuJourDuReport(iso);
+    if (r < 0) continue;
+    compte.set(r, (compte.get(r) ?? 0) + 1);
+    const m = minutesDuReport(typeof v.time === 'string' ? v.time : '');
+    if (Number.isFinite(m)) minutes.push(m);
+  }
+  const max = Math.max(0, ...compte.values());
+  const jours = max >= 2 ? [...compte.entries()].filter(([, n]) => n === max).map(([r]) => r).sort() : [];
+  minutes.sort((a, b) => a - b);
+  return { jours, minutes: minutes.length ? minutes[Math.floor((minutes.length - 1) / 2)] : null };
+}
+
+export type MomentDuReport = 'matin' | 'apres-midi' | 'soir';
+export const momentDuReport = (heure: string): MomentDuReport => {
+  const m = minutesDuReport(heure);
+  return m < 12 * 60 ? 'matin' : m < 17 * 60 ? 'apres-midi' : 'soir';
+};
+
+const JOURS_LONGS_DU_REPORT = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+const MOMENTS_DITS_DU_REPORT: Record<MomentDuReport, string> = { matin: 'matin', 'apres-midi': 'après-midi', soir: 'soir' };
+
+/** « du samedi matin », « du samedi », ou rien : ce que la relance peut dire
+    de ses habitudes, sans jamais inventer. */
+export function habitudesDites(h: HabitudesDuReport): string {
+  if (h.jours.length !== 1) return '';
+  const jour = JOURS_LONGS_DU_REPORT[h.jours[0]];
+  if (h.minutes === null) return `du ${jour}`;
+  const heure = `${String(Math.floor(h.minutes / 60)).padStart(2, '0')}:${String(h.minutes % 60).padStart(2, '0')}`;
+  return `du ${jour} ${MOMENTS_DITS_DU_REPORT[momentDuReport(heure)]}`;
+}
+
+const joursEntreDuReport = (a: string, b: string): number => {
+  const x = ISO_DU_REPORT.exec(a);
+  const y = ISO_DU_REPORT.exec(b);
+  if (!x || !y) return 0;
+  return Math.round((Date.UTC(+y[1], +y[2] - 1, +y[3]) - Date.UTC(+x[1], +x[2] - 1, +x[3])) / 86_400_000);
+};
+
+/** TROIS PLACES, CHOISIES POUR ELLE : jamais une déjà proposée ; d'abord le
+    jour ou le moment qu'elle a dits, puis ses habitudes (son jour, son
+    heure), puis la date perdue, au plus près ; trois jours différents quand
+    c'est possible ; rendues dans l'ordre du temps. */
+export function troisPlacesDuReport(candidats: readonly PlaceDuReport[], o: {
+  deja?: readonly string[];
+  perdue?: PlaceDuReport;
+  habitudes?: HabitudesDuReport;
+  souhait?: { jour?: string; moment?: MomentDuReport };
+  combien?: number;
+} = {}): PlaceDuReport[] {
+  const deja = new Set(o.deja ?? []);
+  const vues = new Set<string>();
+  const libres = candidats.filter((p) => {
+    const k = cleDeLaPlaceDuReport(p);
+    if (deja.has(k) || vues.has(k) || !ISO_DU_REPORT.test(p.iso) || !HEURE_DU_REPORT.test(p.heure)) return false;
+    vues.add(k);
+    return true;
+  });
+  const note = (p: PlaceDuReport): number => {
+    let s = 0;
+    if (o.souhait?.jour && p.iso === o.souhait.jour) s += 60;
+    if (o.souhait?.moment && momentDuReport(p.heure) === o.souhait.moment) s += 40;
+    if (o.habitudes?.jours.includes(rangDuJourDuReport(p.iso))) s += 25;
+    if (o.habitudes && o.habitudes.minutes !== null) s -= Math.min(20, Math.abs(minutesDuReport(p.heure) - o.habitudes.minutes) / 30);
+    if (o.perdue) s -= Math.min(30, Math.abs(joursEntreDuReport(o.perdue.iso, p.iso)) * 2);
+    return s;
+  };
+  const tries = libres
+    .map((p, i) => ({ p, s: note(p), i }))
+    .sort((a, b) => b.s - a.s || a.i - b.i);
+  const n = Math.max(1, Math.min(3, o.combien ?? 3));
+  const choisies: PlaceDuReport[] = [];
+  const jours = new Set<string>();
+  for (const { p } of tries) {
+    if (choisies.length >= n) break;
+    if (jours.has(p.iso)) continue;
+    choisies.push(p);
+    jours.add(p.iso);
+  }
+  for (const { p } of tries) {
+    if (choisies.length >= n) break;
+    if (!choisies.includes(p)) choisies.push(p);
+  }
+  return choisies.sort((a, b) => cleDeLaPlaceDuReport(a).localeCompare(cleDeLaPlaceDuReport(b)));
+}
+
+/* ── ELLE NE REPART JAMAIS SANS RENDEZ-VOUS ────────────────────────────── */
+
+/** Ce que sa demande donne : son heure ; des places dans l'heure qui suit ;
+    une place dans l'heure, au-delà des fauteuils, chez une personne qui peut
+    la recevoir ; ou rien (un jour fermé, hors des heures, ou aucune personne
+    possible), et alors les places les plus proches. */
+export type SuiteDeSaDemande =
+  | { genre: 'son-heure'; heure: string; maitres: string[] }
+  | { genre: 'dans-l-heure'; heures: string[] }
+  | { genre: 'au-dela'; heure: string; maitre: string }
+  | { genre: 'aucune' };
+
+/** L'heure qui suit, au plus une heure plus tard, de demi-heure en demi-heure. */
+export const DANS_L_HEURE_MIN = 60;
+const hhmmDuReport = (m: number): string => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+/** LA SUITE DE SA DEMANDE. Les juges sont donnés : `libre(heure)` rend les
+    maîtres qui la tiennent selon les règles (fauteuils, deux têtes chez
+    Team) ; `auDela(heure)` le maître qui peut la tenir au-delà des fauteuils
+    (jamais deux têtes lourdes chez Team), ou `null`. */
+export function suiteDeSaDemande(heure: string, juges: {
+  libre: (heure: string) => readonly string[];
+  auDela: (heure: string) => string | null;
+}): SuiteDeSaDemande {
+  const m0 = minutesDuReport(heure);
+  if (!Number.isFinite(m0)) return { genre: 'aucune' };
+  const ici = juges.libre(heure);
+  if (ici.length > 0) return { genre: 'son-heure', heure, maitres: [...ici] };
+  const heures: string[] = [];
+  for (let d = 30; d <= DANS_L_HEURE_MIN; d += 30) {
+    const h = hhmmDuReport(m0 + d);
+    if (m0 + d < 24 * 60 && juges.libre(h).length > 0) heures.push(h);
+  }
+  if (heures.length > 0) return { genre: 'dans-l-heure', heures };
+  for (let d = 0; d <= DANS_L_HEURE_MIN; d += 30) {
+    if (m0 + d >= 24 * 60) break;
+    const h = hhmmDuReport(m0 + d);
+    const maitre = juges.auDela(h);
+    if (maitre !== null) return { genre: 'au-dela', heure: h, maitre };
+  }
+  return { genre: 'aucune' };
+}
+
+/** La ligne de la Maison quand elle est pleine : la cliente est prévenue, le
+    rendez-vous reste confirmé. */
+export const MOT_DE_LA_MAISON_PLEINE = 'La Maison MND sera un peu pleine à ce moment-là ; nous vous recevons avec plaisir.';
+/** La note pour l'équipe sur un rendez-vous posé au-delà des fauteuils. */
+export const NOTE_AU_DELA_DES_FAUTEUILS = 'Posé au-delà des fauteuils : la Maison est pleine à cette heure, à organiser';
+/* ⟨/a-reprogrammer⟩ */
 
 /* ⟨prochaines-places⟩ */
 export const PLACES_PAR_JOUR = 2;
@@ -2100,7 +2418,8 @@ function respecteMeta(m: MessageSortant): string[] {
     }
     if (new Set(b.map((x) => x.titre)).size !== b.length) fautes.push('deux boutons au même titre');
     if (new Set(b.map((x) => x.id)).size !== b.length) fautes.push('deux boutons au même identifiant');
-    if (!b.some((x) => lisLeChoix(x.id)?.geste === 'maison')) fautes.push('pas de sortie « Parler à la Maison »');
+    /* Les places d'Opale en boutons (19 novembre 2026, à reprogrammer) : trois dates, le toucher vaut son oui ; elle écrit une autre date au besoin. */
+    if (!b.some((x) => lisLeChoix(x.id)?.geste === 'maison') && !b.every((x) => x.id.startsWith('MND:place|'))) fautes.push('pas de sortie « Parler à la Maison »');
   }
   if (m.forme === 'liste') {
     const l = m.lignes ?? [];
@@ -5191,16 +5510,16 @@ export function consigneDOpale(): string {
     'LES RENDEZ-VOUS',
     'Elle veut un rendez-vous : comprends ce qu’elle veut (les gestes du catalogue, le jour, l’heure) dans ses propres mots. « La même chose », « comme d’habitude » : les gestes de sa dernière venue.',
     'Le catalogue du contexte donne l’identifiant de chaque geste. Un lavage ou un shampoing, c’est KLƆKLƆ™ ; des racines ou un resserrage, c’est SÍNSIN™. Si tu hésites entre deux gestes, pose une seule question courte.',
-    'Les places : appelle `chercher_des_places` avec les gestes, et son jour ou son heure s’ils sont dits ; avec `pour` et `locks` dès que tu les connais, car deux personnes ne se reçoivent à la même heure que si l’une a moins de 150 locks, et les places rendues en dépendent. Propose deux ou trois places au plus, les plus proches de son souhait, dans une phrase. Jamais une place, un jour ni une heure que l’outil n’a pas rendus.',
+    'Les places : appelle `chercher_des_places` avec les gestes, et son jour ou son heure s’ils sont dits ; avec `pour` et `locks` dès que tu les connais, car deux personnes ne se reçoivent à la même heure que si l’une a moins de 150 locks, et les places rendues en dépendent. Puis appelle `proposer_les_places` avec TROIS de ces places, les plus proches de son souhait : elles partent en boutons sous ton message, et son toucher vaut son oui. Ton message ne recopie pas les dates : une ou deux phrases qui l’invitent à toucher la place qui lui convient, et à écrire une autre date au besoin. Jamais une place, un jour ni une heure que l’outil n’a pas rendus.',
     'Le jour même se réserve ici, pour une place qui commence au moins une heure plus tard : `chercher_des_places` avec son jour (aujourd’hui) les rend quand il en reste. S’il n’en reste pas, dis-le avec égards et propose les premières places des jours suivants.',
-    'Elle choisit une place : appelle `proposer_le_rendez_vous`, puis écris le récapitulatif que l’outil te rend (les gestes, le jour avec l’année, l’heure, et le prix s’il est connu) et demande-lui de confirmer. Ne dis pas « c’est confirmé » à ce moment-là.',
+    'Elle écrit un jour et une heure (une place que tu lui as proposée, ou la sienne) : appelle `accommoder`. Elle ne repart jamais sans rendez-vous : l’outil pose sa place, ou propose les plus proches dans l’heure en boutons, ou la pose au-delà des fauteuils, et te dit quoi lui écrire. Ne dis « c’est confirmé » que si l’outil l’a posée. Pour une nouvelle sans fiche, l’outil te dit s’il faut d’abord son prénom et « Madame ou Monsieur ? ».',
     'Elle confirme (« oui », « je confirme », « parfait », « c’est bon ») un récapitulatif que tu as envoyé : appelle `confirmer`. Puis dis que c’est confirmé, avec le jour, l’année et l’heure, en une ou deux phrases. Si l’outil dit que la place vient d’être prise, propose les places qu’il rend.',
     'Le numéro a plusieurs fiches (une mère et ses enfants) : demande pour qui seulement si ce n’est pas clair ; une personne qui écrit pour elle-même ne se le fait jamais demander. Elle n’a pas de fiche : propose quand même la place qu’elle choisit (`proposer_le_rendez_vous`, pour « nouvelle »), et demande dans le même message, en une seule phrase, le prénom à inscrire et « Madame ou Monsieur ? ». Sa réponse qui les donne vaut son oui à cette place : appelle `confirmer` avec son prénom et sa civilité. Jamais une civilité supposée.',
     '',
     'CONCLURE',
-    'Chaque message la mène vers un rendez-vous posé. Après un prix, une réponse, une hésitation, termine par une proposition précise : une ou deux places (le jour et l’heure), et une question simple pour lui garder celle qui lui convient.',
+    'Chaque message la mène vers un rendez-vous posé. Après un prix, une réponse, une hésitation, termine par une proposition précise : trois places en boutons (`proposer_les_places`), qu’elle touche pour réserver.',
     'Elle hésite ou son agenda n’est pas sûr (« je suis de passage », « je ne sais pas encore », « je vous redis ») : propose de lui garder dès maintenant la place la plus proche de son souhait, en lui disant qu’un simple message suffira pour la déplacer. Ne la laisse jamais repartir avec un lien seulement : le lien du catalogue peut s’ajouter, il ne remplace jamais la place proposée.',
-    'Elle veut changer l’heure ou le jour d’un rendez-vous qu’elle a : `chercher_des_places` pour les mêmes gestes, puis `proposer_le_deplacement`, puis `confirmer` à son oui. La même personne de la Maison la reçoit. Une fois fait, dis seulement que son rendez-vous est confirmé pour le nouveau jour et la nouvelle heure (« Votre rendez-vous est confirmé pour le vendredi 6 novembre 2026 à 10 h. ») : ne dis jamais qu’il a été déplacé.',
+    'Elle ne pourra pas venir à un rendez-vous qu’elle a (une contrainte, un empêchement, elle veut le reprogrammer, en changer le jour ou l’heure) : appelle `mettre_a_reprogrammer` avec ce rendez-vous. Sa place est libérée tout de suite, il n’est pas annulé, et trois places partent en boutons sous ton message. Remercie-la de prévenir en une phrase, et invite-la à toucher la place qui lui convient ou à écrire une autre date. Ne recopie pas les dates. Quand elle écrit une date, `accommoder` avec ce rendez-vous (champ « rdv »). Une fois sa nouvelle date posée, dis seulement que son rendez-vous est confirmé pour le nouveau jour et la nouvelle heure : ne dis jamais qu’il a été déplacé.',
     'Elle annule : remercie-la de prévenir, dis que la Maison s’en occupe, et appelle `passer_la_main` (motif « annulation »). Tu n’annules rien toi-même.',
     'Elle demande si un rendez-vous tient (« c’est confirmé pour 15 h ? ») : réponds d’après ses rendez-vous du contexte, avec le jour, l’année et l’heure. S’il n’y figure pas, dis-le simplement et propose de le poser.',
     'Elle est en route, en retard, ou arrive : un mot bref (« Bien noté, nous vous attendons. »).',
@@ -5280,6 +5599,57 @@ export const OUTILS_D_OPALE = [
         longueur: { type: 'string', enum: ['court', 'mi-long', 'long'] },
       },
       required: ['gestes'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'proposer_les_places',
+    description: 'Pose sous ton message TROIS places en boutons, prises parmi celles que `chercher_des_places` a rendues : elle en touche une, et c’est réservé, sans autre oui. Pour un rendez-vous à reprogrammer, donne `rdv` ; sinon `pour` (la fiche, ou « nouvelle ») et les gestes. Ne recopie pas les dates dans ton message.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        gestes: GESTES,
+        rdv: { type: 'string', description: 'Le rendez-vous à reprogrammer, s’il s’agit de lui.' },
+        pour: { type: 'string', description: 'L’identifiant de la fiche pour qui l’on réserve, ou « nouvelle » quand elle n’a pas de fiche.' },
+        prenom: { type: 'string', description: 'Pour une nouvelle : le prénom qu’elle a donné, s’il est déjà dit.' },
+        civilite: { type: 'string', enum: ['madame', 'mademoiselle', 'monsieur'], description: 'Pour une nouvelle : la civilité qu’elle a dite, si elle est déjà dite.' },
+        locks: { type: 'integer', minimum: 1, maximum: 3000, description: 'Le nombre de locks qu’elle a dit, ou que tu as estimé sur sa photo.' },
+        places: {
+          type: 'array', minItems: 1, maxItems: 3,
+          items: { type: 'object', properties: { date: DATE_ISO, heure: HEURE }, required: ['date', 'heure'], additionalProperties: false },
+          description: 'Trois places, les plus proches de son souhait.',
+        },
+      },
+      required: ['gestes', 'places'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'mettre_a_reprogrammer',
+    description: 'Elle ne pourra pas venir à un rendez-vous qu’elle a : sa place est libérée tout de suite (il n’est pas annulé, il attend sa nouvelle date), et trois places partent en boutons sous ton message.',
+    input_schema: {
+      type: 'object',
+      properties: { rdv: { type: 'string', description: 'L’identifiant du rendez-vous, tel que le contexte le donne.' } },
+      required: ['rdv'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'accommoder',
+    description: 'Elle a écrit un jour et une heure : la Maison lui trouve toujours de la place (son heure, sinon les plus proches dans l’heure en boutons, sinon au-delà des fauteuils). L’outil pose, ou propose, et te dit quoi lui écrire.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        gestes: GESTES,
+        date: DATE_ISO,
+        heure: HEURE,
+        rdv: { type: 'string', description: 'Le rendez-vous à reprogrammer, s’il s’agit de lui.' },
+        pour: { type: 'string', description: 'L’identifiant de la fiche pour qui l’on réserve, ou « nouvelle ».' },
+        prenom: { type: 'string', description: 'Pour une nouvelle : le prénom qu’elle a donné.' },
+        civilite: { type: 'string', enum: ['madame', 'mademoiselle', 'monsieur'], description: 'Pour une nouvelle : la civilité qu’elle a dite.' },
+        locks: { type: 'integer', minimum: 1, maximum: 3000, description: 'Le nombre de locks qu’elle a dit, ou que tu as estimé sur sa photo.' },
+      },
+      required: ['gestes', 'date', 'heure'],
       additionalProperties: false,
     },
   },
@@ -5513,7 +5883,13 @@ export type EnAttenteDOpale =
   | { genre: 'pose'; pour: string; prenom?: string; civilite?: CiviliteDuFil; gestes: string[]; date: string; heure: string; dureeMin: number; proposeLe: string; locks?: number }
   | { genre: 'deplacement'; rdvId: string; updatedAt: string; maitre: string; clientId: string; gestes: string[]; dureeMin: number; avant: { date: string; time: string }; date: string; heure: string; proposeLe: string };
 
-export type EtatDOpale = { enAttente?: EnAttenteDOpale; dernierTourLe?: string; relanceLe?: string };
+/** LA DERNIÈRE OFFRE EN BOUTONS (19 novembre 2026) : ce qu'il faut pour
+    poser une première réservation d'un toucher, sans rien redemander. */
+export type OffreDeBoutons = { gestes: string[]; pour: string; prenom?: string; civilite?: CiviliteDuFil; locks?: number; places: string[]; proposeLe: string };
+/** Une offre se tient quarante-huit heures. */
+export const OFFRE_TENUE_MS = 48 * 3_600_000;
+
+export type EtatDOpale = { enAttente?: EnAttenteDOpale; dernierTourLe?: string; relanceLe?: string; offre?: OffreDeBoutons };
 
 /** `confirmer` est-il permis ? Une proposition tenue, partie avant le
     premier message du tour, de moins de deux heures. */
@@ -5756,7 +6132,7 @@ export type IssueDuTourDOpale =
     pas avant un nouveau message d'elle. Une main déjà passée pour le même
     motif garde son heure : la reprise par Opale ne la remet pas à zéro. */
 export function etatApresOpale(
-  avant: EtatDuFil, o: { issue: IssueDuTourDOpale; waIds: readonly string[]; dernierEntrantQuand?: string; envois: number; planEnvoye: boolean; maintenantMs: number; relance?: boolean },
+  avant: EtatDuFil, o: { issue: IssueDuTourDOpale; waIds: readonly string[]; dernierEntrantQuand?: string; envois: number; planEnvoye: boolean; maintenantMs: number; relance?: boolean; offre?: OffreDeBoutons | null },
 ): EtatDuFil & { opale: EtatDOpale } {
   const maintenant = new Date(o.maintenantMs).toISOString();
   const traites = [...(avant.traites ?? []), ...o.waIds.filter((w) => !(avant.traites ?? []).includes(w))].slice(-20);
@@ -5766,7 +6142,9 @@ export function etatApresOpale(
     ? (o.issue.enAttente === null ? undefined : o.issue.enAttente ?? ancienne.enAttente)
     : o.issue.genre === 'rien' ? ancienne.enAttente : undefined;
   const relanceLe = o.relance ? maintenant : ancienne.relanceLe;
-  const opale: EtatDOpale = { ...(garde ? { enAttente: garde } : {}), dernierTourLe: maintenant, ...(relanceLe ? { relanceLe } : {}) };
+  const offreGardee = o.offre === null ? undefined : o.offre ?? ancienne.offre;
+  const offre = offreGardee && o.maintenantMs - Date.parse(offreGardee.proposeLe) < OFFRE_TENUE_MS ? offreGardee : undefined;
+  const opale: EtatDOpale = { ...(garde ? { enAttente: garde } : {}), dernierTourLe: maintenant, ...(relanceLe ? { relanceLe } : {}), ...(offre ? { offre } : {}) };
   const base = {
     ...avant,
     traites,
@@ -6810,11 +7188,14 @@ async function poseSousVerrou(sb: Sb, lu: AgendaLu, e: EcritureDuTour, oublie: (
   /* LE JOUR MÊME D'OPALE (18 novembre 2026) : une heure pas encore commencée,
      la marge jugée par son outil ; le verrou (0213) le rejuge. */
   /* Sa tête (deux têtes chez Team, 18 novembre 2026) : le verrou (0238) la relit sur sa fiche et `locksAnnonces`. */
-  const place = laPlaceTient(neuf, { date: rdv.date, time: rdv.time, serviceIds: rdv.serviceIds, derniereVenue, ...(lourde ? { lourde: true } : {}) }, Date.now(), jourMeme);
-  if (!place.ok) return { ok: false, raison: place.erreur };
+  /* AU-DELÀ DES FAUTEUILS (19 novembre 2026, « jamais sans rendez-vous ») :
+     le maître est choisi par Opale, le verrou (0239) juge les deux têtes. */
+  const auDela = (rdv as { auDelaDesPlaces?: unknown }).auDelaDesPlaces === true;
+  const place = auDela ? null : laPlaceTient(neuf, { date: rdv.date, time: rdv.time, serviceIds: rdv.serviceIds, derniereVenue, ...(lourde ? { lourde: true } : {}) }, Date.now(), jourMeme);
+  if (place && !place.ok) return { ok: false, raison: place.erreur };
   const { data, error } = await sb.rpc('pose_si_libre', {
     p_rdv: rdv,
-    p_maitres: place.maitres,
+    p_maitres: place ? place.maitres : [String((rdv as { master?: unknown }).master ?? '')],
     p_demande: e.demande ?? null,
     p_envoi: e.envoi,
   });
@@ -7301,17 +7682,116 @@ function placesDuJourMemeWa(agenda: AgendaDuServeur, serviceIds: readonly string
   return [...heures].sort().map((heure) => ({ iso, heure }));
 }
 
+/* ══ À REPROGRAMMER, ET JAMAIS SANS RENDEZ-VOUS — 19 novembre 2026 ══════
+   Maquette 7YX7UtCFusPMJdrjJtfcQr. La règle vit dans ⟨a-reprogrammer⟩ ;
+   ici, la base : relire le rendez-vous, le mettre à reprogrammer (sous
+   condition), noter les places proposées, ses habitudes, et le juge
+   « au-delà des fauteuils ». */
+type RdvLuWa = { id: string; updatedAt: string; data: Record<string, unknown> };
+
+/** Le rendez-vous, relu frais, s'il est à une fiche du numéro. */
+async function leRdvDuNumeroWa(sb: Sb, rdvId: string, fiches: readonly FicheDuNumero[]): Promise<RdvLuWa | null> {
+  if (!/^[A-Za-z0-9_.:-]{1,160}$/.test(rdvId)) return null;
+  const { data, error } = await sb.from('appointments').select('id, data, updated_at').eq('id', rdvId).limit(1);
+  if (error) { dis('report · rendez-vous illisible', { motif: error.message.slice(0, 120) }); return null; }
+  const l = ((data ?? []) as (Ligne & { updated_at?: string })[])[0];
+  if (!l?.data || typeof l.updated_at !== 'string') return null;
+  if (!fiches.some((f) => f.id === String(l.data!.clientId ?? ''))) return null;
+  return { id: l.id, updatedAt: l.updated_at, data: l.data as Record<string, unknown> };
+}
+
+/** LE METTRE À REPROGRAMMER : confirmé ou en attente, aujourd'hui ou plus
+    tard, sous condition (rien n'a bougé). Sa place se rend aussitôt. */
+async function metsAReprogrammerWa(sb: Sb, r: RdvLuWa, par: ParQuiLeReport, aujourdhui: string): Promise<'fait' | 'deja' | 'non'> {
+  if (estAReprogrammer(r.data)) return 'deja';
+  if (!['confirmé', 'en attente'].includes(String(r.data.status ?? '')) || String(r.data.date ?? '') < aujourdhui) return 'non';
+  const apres = { ...r.data, ...marquesDuReport(Date.now(), par) };
+  const { data, error } = await sb.from('appointments').update({ data: apres }).eq('id', r.id).eq('updated_at', r.updatedAt).select('id, updated_at');
+  if (error) { dis('report · refuse par la base', { motif: error.message.slice(0, 120) }); return 'non'; }
+  if (!Array.isArray(data) || data.length === 0) return 'non';
+  r.data = apres;
+  r.updatedAt = String((data[0] as { updated_at?: unknown }).updated_at ?? r.updatedAt);
+  return 'fait';
+}
+
+/** Les places envoyées en boutons s'ajoutent au rendez-vous : la relance
+    n'en redonnera aucune. Une tentative, jamais d'erreur. */
+async function noteLesPlacesProposeesWa(sb: Sb, r: RdvLuWa, places: readonly PlaceDuReport[], relance = false): Promise<void> {
+  try {
+    const { data } = await sb.from('appointments').select('id, data, updated_at').eq('id', r.id).limit(1);
+    const l = ((data ?? []) as (Ligne & { updated_at?: string })[])[0];
+    if (!l?.data) return;
+    const toutes = [...new Set([...placesDejaProposees(l.data), ...places.map(cleDeLaPlaceDuReport)])].slice(-30);
+    const apres = { ...l.data, placesProposees: toutes, ...(relance ? { relanceDuReportLe: new Date().toISOString() } : {}) };
+    const { data: ecrit } = await sb.from('appointments').update({ data: apres }).eq('id', r.id).eq('updated_at', String(l.updated_at)).select('id, updated_at');
+    const lu = Array.isArray(ecrit) ? ecrit[0] as { updated_at?: unknown } | undefined : undefined;
+    r.data = apres;
+    if (lu?.updated_at) r.updatedAt = String(lu.updated_at);
+  } catch (e) {
+    dis('report · places non notees', { motif: String(e).slice(0, 120) });
+  }
+}
+
+/** Ses gestes, et sa tête : les locks annoncés sur le rendez-vous, ou ceux de sa fiche. */
+const gestesDuRdvWa = (r: RdvLuWa): string[] => (Array.isArray(r.data.serviceIds) ? (r.data.serviceIds as unknown[]).map(String).filter(Boolean) : []);
+const lourdeDuRdvLuWa = (r: RdvLuWa, fiches: readonly FicheDuNumero[]): boolean =>
+  teteLourde(r.data.locksAnnonces) || teteLourde(fiches.find((f) => f.id === String(r.data.clientId ?? ''))?.tete?.locks);
+
+/** SES HABITUDES : ses venues honorées (son jour, son heure). Illisibles : aucune. */
+async function habitudesDeLaFicheWa(sb: Sb, clientId: string): Promise<HabitudesDuReport> {
+  if (!clientId) return { jours: [], minutes: null };
+  const { data, error } = await sb.from('appointments').select('data').eq('data->>clientId', clientId).eq('data->>status', 'honoré').limit(60);
+  if (error) return { jours: [], minutes: null };
+  return habitudesDuReport(((data ?? []) as { data?: Record<string, unknown> }[]).map((l) => l.data ?? {}));
+}
+
+/** LE JUGE « AU-DELÀ DES FAUTEUILS » : la forme, la fenêtre, l'ouverture et
+    08:30 tiennent toujours ; puis, parmi les personnes qui font ce rituel, une
+    libre à cette heure d'abord, puis Team qui partage, puis une autre ;
+    jamais deux têtes lourdes chez Team, jamais une personne absente (ses murs). */
+function maitreAuDelaWa(agenda: AgendaDuServeur, p: { date: string; time: string; serviceIds: readonly string[]; lourde: boolean }, ms: number, jourMeme: boolean): string | null {
+  if (laPlaceEstRecevable({ date: p.date, time: p.time }, ms, jourMeme)) return null;
+  const fenetre = ouvertureDuJour(p.date, agenda.semaine, agenda.exceptions);
+  if (fenetre.closed) return null;
+  const debut = minutesDeHhmm(p.time);
+  const fin = debut + dureeDesPrestations(p.serviceIds, agenda.services);
+  if (debut < Math.max(fenetre.openMin, PREMIER_RENDEZ_VOUS_MIN) || fin > fenetre.closeMin) return null;
+  const duJour = occupesDuJour(agenda.occupes, p.date);
+  const rangs: { m: string; rang: number }[] = [];
+  for (const m of maitresDuRituel(agenda, p.serviceIds)) {
+    if (plagesBloquees(agenda.murs, agenda.branchId, p.date, m).some(([s, e]) => debut < e && fin > s)) continue;
+    const siens = duJour.filter((a) => a.maitre === m && debut < a.debutMin + a.dureeMin && fin > a.debutMin);
+    if (m === MAITRE_QUI_PARTAGE && p.lourde && siens.some((a) => a.lourde)) continue;
+    rangs.push({ m, rang: siens.length === 0 ? 0 : m === MAITRE_QUI_PARTAGE ? 1 : 2 });
+  }
+  rangs.sort((a, b) => a.rang - b.rang);
+  return rangs[0]?.m ?? null;
+}
+
+/** L'alerte de l'équipe : posé au-delà des fauteuils. */
+const alerteDeLaMaisonPleine = (prenom: string, date: string, time: string): AlerteDeLAutomate => ({
+  titre: 'Posé au-delà des fauteuils',
+  corps: `${prenom || 'Une cliente'}, ${jourDitAvecAnnee(date)} à ${heureDite(time)} : la Maison est pleine à cette heure, à organiser`,
+  url: '/trone/#/calendrier',
+});
+
 /** SES RENDEZ-VOUS À VENIR, confirmés ou en attente, pour les fiches du numéro. */
 async function lesRdvDOpale(sb: Sb, fiches: readonly FicheDuNumero[], aujourdhui: string): Promise<RdvDOpale[]> {
   const ids = fiches.map((f) => f.id);
   if (ids.length === 0) return [];
-  const { data, error } = await sb.from('appointments').select('id, data').in('data->>clientId', ids).gte('data->>date', aujourdhui).limit(30);
+  const [{ data, error }, reportes] = await Promise.all([
+    sb.from('appointments').select('id, data').in('data->>clientId', ids).gte('data->>date', aujourdhui).limit(30),
+    /* À REPROGRAMMER (19 novembre 2026) : ses rendez-vous empêchés, même passés. */
+    sb.from('appointments').select('id, data').in('data->>clientId', ids).eq('data->>status', 'annulé').limit(30),
+  ]);
   if (error) { dis('opale · rendez-vous illisibles', { motif: error.message.slice(0, 120) }); return []; }
-  return ((data ?? []) as Ligne[]).filter((l) => l.data && ['confirmé', 'en attente'].includes(String(l.data.status ?? '')))
+  const vivants = ((data ?? []) as Ligne[]).filter((l) => l.data && ['confirmé', 'en attente'].includes(String(l.data.status ?? '')));
+  const aReprogrammer = ((reportes.data ?? []) as Ligne[]).filter((l) => l.data && estAReprogrammer(l.data));
+  return [...vivants, ...aReprogrammer]
     .map((l) => ({
       id: l.id, date: String(l.data!.date), ...(typeof l.data!.time === 'string' && l.data!.time ? { time: String(l.data!.time) } : {}),
       gestes: Array.isArray(l.data!.serviceIds) ? (l.data!.serviceIds as unknown[]).map(String) : [],
-      statut: String(l.data!.status), pour: String(l.data!.clientId ?? ''),
+      statut: estAReprogrammer(l.data) ? 'à reprogrammer (sa place est libérée, il attend sa nouvelle date)' : String(l.data!.status), pour: String(l.data!.clientId ?? ''),
     }))
     .sort((a, b) => `${a.date} ${a.time ?? ''}`.localeCompare(`${b.date} ${b.time ?? ''}`)).slice(0, 8);
 }
@@ -7399,7 +7879,7 @@ async function compteDOpale(sb: Sb, usages: any[], ms: number): Promise<void> {
   }
 }
 
-type IssueDOpale = { texte: string; silence: boolean; issue: IssueDuTourDOpale; plan: boolean; alerte?: AlerteDeLAutomate; posee?: string; deplace?: DeplacementAPoser };
+type IssueDOpale = { texte: string; silence: boolean; issue: IssueDuTourDOpale; plan: boolean; alerte?: AlerteDeLAutomate; posee?: string; deplace?: DeplacementAPoser; boutons?: { id: string; titre: string }[]; offre?: OffreDeBoutons | null };
 
 /* ══ « J'AI TERMINÉ MON RDV » — 6 novembre 2026 (Terminer et régler, la
    porte du WhatsApp de la Maison). « Quand le client finit son rendez-vous,
@@ -7902,11 +8382,302 @@ async function unTourDOpale(
     }
     return { lignes, ...(complet && total > 0 ? { total } : {}) };
   };
+  /* ══ À REPROGRAMMER, ET JAMAIS SANS RENDEZ-VOUS (19 novembre 2026) ══ */
+  const appelDeLaFiche = (f: FicheDuNumero | undefined): string => (!f ? '' : f.civilite ? appelDe({ name: f.nom, prenomUsage: f.prenomUsage, civilite: f.civilite, auMasculin: f.auMasculin }) : prenomDeLaFicheWa(f));
+  const virgule = (appel: string): string => (appel ? `, ${appel}` : '');
+  /** Les places candidates : le jour même (une heure plus tard), puis jusqu'à l'horizon. */
+  const candidatsDOpale = (gestes: readonly string[], lourde: boolean, jour?: string): PlaceDuReport[] => (agenda
+    ? [...placesDuJourMemeWa(agenda.agenda, gestes, Date.now(), lourde), ...placesLibres(agenda.agenda, gestes, ms, horizonPour(jour), undefined, lourde)]
+    : []);
+  const boutonsDe = (cible: { rdv: string } | { pour: string }, places: readonly PlaceDuReport[]) =>
+    places.slice(0, 3).map((p) => ({ id: idDuBoutonDePlace(cible, p), titre: titreDuBoutonDePlace(p) }));
+  const titresDe = (places: readonly PlaceDuReport[]): string => places.map(titreDuBoutonDePlace).join(' ; ');
+  /** La place tient-elle selon les règles, et chez qui ? */
+  const libreDOpale = (date: string, heure: string, gestes: readonly string[], lourde: boolean): string[] => {
+    if (!agenda) return [];
+    if (date === aujourdhui && minutesDeHhmm(heure) < minutesACotonou(Date.now()) + JOUR_MEME_DELAI_MIN) return [];
+    const v = laPlaceTient(agenda.agenda, { date, time: heure, serviceIds: gestes, ...(lourde ? { lourde: true } : {}) }, ms, date === aujourdhui);
+    return v.ok ? v.maitres : [];
+  };
+  const auDelaDOpale = (date: string, heure: string, gestes: readonly string[], lourde: boolean): string | null => {
+    if (!agenda) return null;
+    if (date === aujourdhui && minutesDeHhmm(heure) < minutesACotonou(Date.now()) + JOUR_MEME_DELAI_MIN) return null;
+    return maitreAuDelaWa(agenda.agenda, { date, time: heure, serviceIds: gestes, lourde }, ms, date === aujourdhui);
+  };
+  /** TROIS PLACES POUR UN REPORT : jamais déjà proposées, près de ses
+      habitudes, puis de la date perdue, ou autour du jour qu'elle a dit. */
+  const placesDuReportDOpale = async (r: RdvLuWa, autour?: PlaceDuReport): Promise<PlaceDuReport[]> => {
+    const gestes = gestesDuRdvWa(r);
+    const habitudes = await habitudesDeLaFicheWa(sb, String(r.data.clientId ?? ''));
+    const perdue = autour ?? { iso: String(r.data.date ?? ''), heure: String(r.data.time ?? '') };
+    return troisPlacesDuReport(candidatsDOpale(gestes, lourdeDuRdvLuWa(r, fiches), autour?.iso), {
+      deja: placesDejaProposees(r.data), perdue, habitudes, ...(autour ? { souhait: { jour: autour.iso } } : {}),
+    });
+  };
+  /** REPRENDRE UN RENDEZ-VOUS À REPROGRAMMER à une place, sous verrou (0239). */
+  const reprendsDOpale = async (r: RdvLuWa, p: PlaceDuReport, auDela: string | null): Promise<{ ok: true; deja: boolean } | { ok: false; raison: string }> => {
+    const gestes = gestesDuRdvWa(r);
+    const ordre = agenda ? maitresDuRituel(agenda.agenda, gestes) : [];
+    const maitres = auDela ? [auDela] : [...new Set([String(r.data.master ?? ''), ...ordre])].filter((m) => ordre.length === 0 || ordre.includes(m));
+    const { data, error } = await sb.rpc('reprend_si_libre', {
+      p_id: r.id, p_date: p.iso, p_time: p.heure, p_maitres: maitres, p_au_dela: !!auDela, p_par: 'opale', p_vu: r.updatedAt,
+    });
+    if (error) { dis('report · reprise refusee', { motif: error.message.slice(0, 120) }); return { ok: false, raison: 'erreur' }; }
+    const v = (data ?? {}) as { ok?: unknown; verdict?: unknown; raison?: unknown };
+    if (v.ok !== true) return { ok: false, raison: String(v.raison ?? 'erreur') };
+    return { ok: true, deja: v.verdict === 'deja' };
+  };
+  /** Ce que la reprise laisse : la ligne des envois (le modèle ne repart pas), l'issue, l'alerte. */
+  const noteLaReprise = (r: RdvLuWa, p: PlaceDuReport, auDela: boolean) => {
+    const fiche = ficheDe(String(r.data.clientId ?? ''));
+    issue.deplace = {
+      rdvId: r.id, updatedAt: r.updatedAt, branchId: agenda?.agenda.branchId ?? '', clientId: String(r.data.clientId ?? ''), maitre: String(r.data.master ?? ''),
+      serviceIds: gestesDuRdvWa(r), dureeMin: Number(r.data.dureeMin) || 60, avant: { date: String(r.data.date ?? ''), time: String(r.data.time ?? '') },
+      date: p.iso, time: p.heure, prenom: prenomDuNomWa(fiche?.nom) || prenomPourAlerte, numero: o.numero,
+    };
+    issue.issue = { genre: 'deplace', rdvId: r.id };
+    const prenom = prenomDuNomWa(fiche?.nom) || prenomPourAlerte;
+    issue.alerte = auDela ? alerteDeLaMaisonPleine(prenom, p.iso, p.heure) : alerteDeLAutomate({ genre: 'deplace', prenom, numero: o.numero, date: p.iso, time: p.heure });
+  };
+  /** POSER UNE PREMIÈRE RÉSERVATION (son toucher, ou sa date) : la règle de
+      `confirmer`, sans attendre un second oui. Sans fiche, son prénom et sa
+      civilité d'abord. */
+  const poseDOpale = async (a: { pour: string; prenom?: string; civilite?: CiviliteDuFil; gestes: string[]; date: string; heure: string; locks?: number; auDela?: string | null }): Promise<{ ok: true; id: string } | { ok: false; raison: string }> => {
+    if (!agenda || !vue) return { ok: false, raison: 'agenda_illisible' };
+    const f = a.pour === 'nouvelle' ? undefined : ficheDe(a.pour);
+    if (!f && !(a.prenom && a.civilite)) return { ok: false, raison: 'sans-nom' };
+    const dureeMin = dureeDesPrestations(a.gestes, agenda.agenda.services);
+    const cle = cleCourte(`${tour.waIds[tour.waIds.length - 1] ?? ''}|${a.date}|${a.heure}`);
+    const rdvId = `rdv-wa-${cle}`;
+    const maintenant = new Date().toISOString();
+    const appelDuRdv = f ? appelDeLaFiche(f) : appelDe({ name: a.prenom ?? '', civilite: a.civilite });
+    const ecriture: EcritureDuTour = {
+      genre: 'pose',
+      rdv: {
+        id: rdvId, branchId: agenda.agenda.branchId, clientId: f?.id ?? '', clientName: f?.nom || a.prenom || 'Réservation WhatsApp',
+        serviceIds: [...a.gestes], date: a.date, time: a.heure, dureeMin, status: 'confirmé', source: 'whatsapp',
+        creeLe: maintenant, note: a.auDela ? `Pris sur WhatsApp · Opale · ${NOTE_AU_DELA_DES_FAUTEUILS}` : 'Pris sur WhatsApp · Opale', poseePar: OPALE,
+        confirmeeParLaClienteLe: maintenant,
+        ...(a.locks !== undefined && a.locks > 0 ? { locksAnnonces: a.locks } : {}),
+        ...(a.auDela ? { auDelaDesPlaces: true, master: a.auDela } : {}),
+      } as RdvAPoser,
+      ...(f ? {} : {
+        demande: {
+          id: `dem-wa-${cle}`, genre: 'rdv', createdAt: maintenant, branchId: agenda.agenda.branchId, prenom: a.prenom ?? '',
+          civilite: a.civilite ?? 'madame', telephone: `+${o.numero}`, besoin: 'entretien', source: 'whatsapp',
+          serviceIds: [...a.gestes], date: a.date, time: a.heure, apptId: rdvId, consentementLe: tour.quand || maintenant, statut: 'nouvelle',
+        } as DemandeAPoser,
+      }),
+      envoi: {
+        id: `conf-${rdvId}-whatsapp`, branchId: agenda.agenda.branchId, type: 'confirmation', canal: 'whatsapp', apptId: rdvId,
+        ...(f ? { clientId: f.id } : {}), prenom: appelDuRdv, numero: `+${o.numero}`, dateRdv: a.date, heure: a.heure,
+        moment: placeDite({ iso: a.date, heure: a.heure }), statut: 'en cours', detail: 'dit dans la conversation, par Opale', quand: maintenant,
+      } as EnvoiAPoser,
+    };
+    const verdict = await poseSousVerrou(sb, agenda, ecriture, vue.oublie, a.date === aujourdhui, teteLourde(a.locks ?? f?.tete?.locks));
+    dis('opale · pose', { verdict: verdict.ok ? (verdict.verdict ?? 'pose') : verdict.raison, auDela: !!a.auDela });
+    if (!verdict.ok) return { ok: false, raison: verdict.raison };
+    issue.issue = { genre: 'pose', rdvId: verdict.id };
+    issue.posee = verdict.id;
+    const prenom = prenomDuNomWa(f?.nom) || a.prenom || prenomPourAlerte;
+    issue.alerte = a.auDela ? alerteDeLaMaisonPleine(prenom, a.date, a.heure) : alerteDeLAutomate({ genre: 'pose', prenom, numero: o.numero, date: a.date, time: a.heure });
+    issue.offre = null;
+    enAttente = null;
+    return { ok: true, id: verdict.id };
+  };
+  /** ELLE NE REPART JAMAIS SANS RENDEZ-VOUS : sa date et son heure, pour un
+      report ou une première réservation. Rend ce qu'Opale doit lui écrire. */
+  const accommodeDOpale = async (e: any): Promise<string> => {
+    const date = String(e?.date ?? '');
+    const heure = String(e?.heure ?? '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(heure)) return 'La date ou l’heure est illisible : AAAA-MM-JJ et HH:MM.';
+    if (!agenda || !vue) return 'L’agenda de la Maison ne répond pas en ce moment : passe la main (motif « question »).';
+    if (!await rafraichisLeJour(sb, agenda, date, vue.oublie)) return 'L’agenda de la Maison ne répond pas en ce moment : passe la main (motif « question »).';
+    const p0 = { iso: date, heure };
+    if (typeof e?.rdv === 'string' && e.rdv) {
+      const r = await leRdvDuNumeroWa(sb, e.rdv, fiches);
+      if (!r) return 'Ce rendez-vous n’est pas à ce numéro : passe la main (motif « question »).';
+      if (!estAReprogrammer(r.data)) {
+        const fait = await metsAReprogrammerWa(sb, r, 'opale', aujourdhui);
+        if (fait === 'non') return 'Ce rendez-vous ne peut pas être reprogrammé ici (passé, clos ou modifié à l’instant) : passe la main (motif « question »).';
+        await rafraichisLeJour(sb, agenda, date, vue.oublie);
+      }
+      const gestes = gestesDuRdvWa(r);
+      const lourde = lourdeDuRdvLuWa(r, fiches);
+      const suite = suiteDeSaDemande(heure, { libre: (h) => libreDOpale(date, h, gestes, lourde), auDela: (h) => auDelaDOpale(date, h, gestes, lourde) });
+      if (suite.genre === 'son-heure' || suite.genre === 'au-dela') {
+        const p = { iso: date, heure: suite.heure };
+        const auDela = suite.genre === 'au-dela' ? suite.maitre : null;
+        const v = await reprendsDOpale(r, p, auDela);
+        if (v.ok) {
+          noteLaReprise(r, p, !!auDela);
+          return `C’est posé : ${placeDite(p)}. Dis-lui que son rendez-vous est confirmé, avec le jour, l’année et l’heure, en une ou deux phrases${auDela ? `, et ajoute : « ${MOT_DE_LA_MAISON_PLEINE} »` : ''}. Ne dis pas qu’il a été déplacé.`;
+        }
+      }
+      const proches = suite.genre === 'dans-l-heure'
+        ? [{ iso: date, heure: suite.heures[0] }, ...(await placesDuReportDOpale(r, p0)).filter((x) => cleDeLaPlaceDuReport(x) !== `${date} ${suite.heures[0]}`)].slice(0, 3)
+        : await placesDuReportDOpale(r, p0);
+      if (proches.length === 0) return 'Aucune place ne se trouve pour l’instant : dis-lui avec égards que la Maison revient vers elle très vite, et passe la main (motif « question »).';
+      issue.boutons = boutonsDe({ rdv: r.id }, proches);
+      await noteLesPlacesProposeesWa(sb, r, proches);
+      return `${suite.genre === 'dans-l-heure' ? `Son heure est prise ; la plus proche est à ${heureDite(suite.heures[0])}.` : 'Ce moment ne se réserve pas (jour fermé, heure hors de l’ouverture, ou plus aucune personne pour la recevoir).'} Ces places partent en boutons sous ton message : ${titresDe(proches)}. Écris-le-lui en une ou deux phrases, invite-la à toucher celle qui lui convient ; ne recopie pas les dates.`;
+    }
+    const g = gestesLus(e?.gestes, connus);
+    if (g.ids.length === 0) return 'Aucun de ces gestes ne se réserve ici. Reprends les identifiants du catalogue.';
+    const pour = typeof e?.pour === 'string' && e.pour ? e.pour : fiches.length === 1 ? fiches[0].id : 'nouvelle';
+    if (pour !== 'nouvelle' && !ficheDe(pour)) return 'Cette fiche n’est pas à ce numéro : reprends l’identifiant du contexte, ou « nouvelle ».';
+    const locksDits = Number(e?.locks) > 0 ? Math.round(Number(e.locks)) : undefined;
+    const lourde = teteLourde(locksDOpale(pour, e?.locks));
+    const civ = e?.civilite === 'madame' || e?.civilite === 'mademoiselle' || e?.civilite === 'monsieur' ? e.civilite as CiviliteDuFil : undefined;
+    const prenom = typeof e?.prenom === 'string' && e.prenom.trim() ? e.prenom.trim().slice(0, 40) : undefined;
+    const suite = suiteDeSaDemande(heure, { libre: (h) => libreDOpale(date, h, g.ids, lourde), auDela: (h) => auDelaDOpale(date, h, g.ids, lourde) });
+    if (suite.genre === 'son-heure' || suite.genre === 'au-dela') {
+      const auDela = suite.genre === 'au-dela' ? suite.maitre : null;
+      if (pour === 'nouvelle' && !(prenom && civ)) {
+        enAttente = { genre: 'pose', pour: 'nouvelle', gestes: g.ids, date, heure: suite.heure, dureeMin: dureeDesPrestations(g.ids, agenda.agenda.services), proposeLe: new Date().toISOString(), ...(locksDits ? { locks: locksDits } : {}) };
+        return `La place de ${placeDite({ iso: date, heure: suite.heure })} est tenue pour elle. Demande-lui dans ce message, en une phrase, le prénom à inscrire et « Madame ou Monsieur ? » ; sa réponse vaudra son oui (puis \`confirmer\`).`;
+      }
+      const v = await poseDOpale({ pour, prenom, civilite: civ, gestes: g.ids, date, heure: suite.heure, locks: locksDits, auDela });
+      if (v.ok) return `C’est posé : ${placeDite({ iso: date, heure: suite.heure })}. Dis-lui que c’est confirmé, avec le jour, l’année et l’heure, en une ou deux phrases${auDela ? `, et ajoute : « ${MOT_DE_LA_MAISON_PLEINE} »` : ''}. Aucun autre message de confirmation ne partira.`;
+    }
+    const autour = troisPlacesDuReport(candidatsDOpale(g.ids, lourde, date), { perdue: p0, souhait: { jour: date } });
+    const proches = suite.genre === 'dans-l-heure'
+      ? [{ iso: date, heure: suite.heures[0] }, ...autour.filter((x) => cleDeLaPlaceDuReport(x) !== `${date} ${suite.heures[0]}`)].slice(0, 3)
+      : autour;
+    if (proches.length === 0) return 'Aucune place ne se trouve pour l’instant : dis-le avec égards et passe la main (motif « question »).';
+    issue.boutons = boutonsDe({ pour }, proches);
+    issue.offre = { gestes: g.ids, pour, ...(prenom ? { prenom } : {}), ...(civ ? { civilite: civ } : {}), ...(locksDits ? { locks: locksDits } : {}), places: proches.map(cleDeLaPlaceDuReport), proposeLe: new Date().toISOString() };
+    return `${suite.genre === 'dans-l-heure' ? `Son heure est prise ; la plus proche est à ${heureDite(suite.heures[0])}.` : 'Ce moment ne se réserve pas (jour fermé, heure hors de l’ouverture, ou plus personne pour la recevoir).'} Ces places partent en boutons sous ton message : ${titresDe(proches)}. Écris-le-lui en une ou deux phrases, invite-la à toucher celle qui lui convient ; ne recopie pas les dates.`;
+  };
+  /** LE TOUCHER D'UN BOUTON DE PLACE, ET « CHANGER L'HEURE », SERVIS PAR LE
+      CODE : rien à interpréter, la Maison répond aussitôt. `false` : Opale
+      reprend comme d'habitude. */
+  const servisParLeCode = async (): Promise<boolean> => {
+    if (!agenda || !vue) return false;
+    /* « CHANGER L'HEURE » : sa place se rend tout de suite, trois places suivent. */
+    if (o.deplacer) {
+      const r = await leRdvDuNumeroWa(sb, o.deplacer, fiches);
+      if (!r) return false;
+      const fait = await metsAReprogrammerWa(sb, r, 'cliente', aujourdhui);
+      if (fait === 'non') return false;
+      const appel = appelDeLaFiche(ficheDe(String(r.data.clientId ?? '')));
+      const places = await placesDuReportDOpale(r);
+      const avant = placeDite({ iso: String(r.data.date ?? ''), heure: String(r.data.time ?? '') });
+      if (places.length === 0) {
+        issue.texte = `Bien noté${virgule(appel)}. Votre rendez-vous du ${avant} est libéré ; la Maison vous propose une nouvelle date très vite.`;
+        issue.issue = { genre: 'main', motif: motifDuFilDOpale('question') };
+        issue.alerte = alerteDeLAutomate({ genre: 'main', prenom: prenomPourAlerte, numero: o.numero, motif: motifDuFilDOpale('question') });
+        return true;
+      }
+      issue.texte = `Bien noté${virgule(appel)}. Votre rendez-vous du ${avant} est libéré. Touchez la place qui vous convient, elle est aussitôt réservée. Une autre date vous arrange ? Écrivez-la-nous.`;
+      issue.boutons = boutonsDe({ rdv: r.id }, places);
+      await noteLesPlacesProposeesWa(sb, r, places);
+      dis('report · changer l heure', { places: places.length });
+      return true;
+    }
+    /* UN TOUCHER DE PLACE : son oui. */
+    const touche = entrants.filter((m) => tour.waIds.includes(String(m.waId)))
+      .map((m) => lisLeBoutonDePlace((m as { bouton?: { id?: unknown } }).bouton?.id)).filter((x): x is BoutonDePlaceLu => !!x).pop();
+    if (!touche) return false;
+    const p = touche.place;
+    if (!await rafraichisLeJour(sb, agenda, p.iso, vue.oublie)) return false;
+    if (touche.rdv) {
+      const r = await leRdvDuNumeroWa(sb, touche.rdv, fiches);
+      if (!r) return false;
+      const appel = appelDeLaFiche(ficheDe(String(r.data.clientId ?? '')));
+      if (!estAReprogrammer(r.data)) {
+        if (String(r.data.date ?? '') === p.iso && String(r.data.time ?? '') === p.heure && ['confirmé', 'en attente'].includes(String(r.data.status ?? ''))) {
+          issue.texte = `C’est déjà réservé${virgule(appel)} : ${placeDite(p)}. La Maison vous attend.`;
+          return true;
+        }
+        return false;
+      }
+      const v = await reprendsDOpale(r, p, null);
+      if (v.ok) {
+        noteLaReprise(r, p, false);
+        issue.texte = `C’est confirmé${virgule(appel)} : ${placeDite(p)}. La Maison vous attend.`;
+        dis('report · repris d un toucher', { deja: v.deja });
+        return true;
+      }
+      const autres = await placesDuReportDOpale(r, p);
+      if (autres.length === 0) return false;
+      issue.texte = `Cette place vient d’être prise${virgule(appel)}. Touchez celle qui vous convient parmi les plus proches, elle est aussitôt réservée.`;
+      issue.boutons = boutonsDe({ rdv: r.id }, autres);
+      await noteLesPlacesProposeesWa(sb, r, autres);
+      return true;
+    }
+    /* Une première réservation : ce que l'offre gardée disait. */
+    const offre = etatDOpale.offre;
+    if (!offre || offre.pour !== touche.pour || Date.now() - Date.parse(offre.proposeLe) > OFFRE_TENUE_MS) return false;
+    const f = offre.pour === 'nouvelle' ? undefined : ficheDe(offre.pour);
+    const appel = f ? appelDeLaFiche(f) : offre.prenom && offre.civilite ? appelDe({ name: offre.prenom, civilite: offre.civilite }) : '';
+    const lourde = teteLourde(offre.locks ?? f?.tete?.locks);
+    if (libreDOpale(p.iso, p.heure, offre.gestes, lourde).length === 0) {
+      const autres = troisPlacesDuReport(candidatsDOpale(offre.gestes, lourde, p.iso), { deja: offre.places, perdue: p, souhait: { jour: p.iso } });
+      if (autres.length === 0) return false;
+      issue.texte = `Cette place vient d’être prise${virgule(appel)}. Touchez celle qui vous convient parmi les plus proches, elle est aussitôt réservée.`;
+      issue.boutons = boutonsDe({ pour: offre.pour }, autres);
+      issue.offre = { ...offre, places: [...offre.places, ...autres.map(cleDeLaPlaceDuReport)].slice(-30), proposeLe: new Date().toISOString() };
+      return true;
+    }
+    if (offre.pour === 'nouvelle' && !(offre.prenom && offre.civilite)) {
+      enAttente = { genre: 'pose', pour: 'nouvelle', gestes: offre.gestes, date: p.iso, heure: p.heure, dureeMin: dureeDesPrestations(offre.gestes, agenda.agenda.services), proposeLe: new Date().toISOString(), ...(offre.locks ? { locks: offre.locks } : {}) };
+      issue.texte = 'Avec plaisir. Pour inscrire ce rendez-vous : votre prénom, et Madame ou Monsieur ?';
+      return true;
+    }
+    const v = await poseDOpale({ pour: offre.pour, prenom: offre.prenom, civilite: offre.civilite, gestes: offre.gestes, date: p.iso, heure: p.heure, locks: offre.locks });
+    if (!v.ok) return false;
+    issue.texte = `C’est confirmé${virgule(appel)} : ${placeDite(p)}. La Maison vous attend.`;
+    return true;
+  };
   // deno-lint-ignore no-explicit-any
   const outil = async (nom: string, e: any): Promise<string> => {
     if (!vue || !agenda) {
-      if (['chercher_des_places', 'proposer_le_rendez_vous', 'proposer_le_deplacement', 'confirmer', 'prix'].includes(nom)) return 'L’agenda de la Maison ne répond pas en ce moment : passe la main (motif « question »).';
+      if (['chercher_des_places', 'proposer_le_rendez_vous', 'proposer_le_deplacement', 'confirmer', 'prix', 'proposer_les_places', 'mettre_a_reprogrammer', 'accommoder'].includes(nom)) return 'L’agenda de la Maison ne répond pas en ce moment : passe la main (motif « question »).';
     }
+    if (nom === 'proposer_les_places') {
+      const lues = Array.isArray(e?.places) ? e.places as unknown[] : [];
+      const places = lues.map((x) => ({ iso: String((x as { date?: unknown })?.date ?? ''), heure: String((x as { heure?: unknown })?.heure ?? '') }))
+        .filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x.iso) && /^\d{2}:\d{2}$/.test(x.heure)).slice(0, 3);
+      if (places.length === 0) return 'Donne une à trois places (date et heure) que `chercher_des_places` a rendues.';
+      if (typeof e?.rdv === 'string' && e.rdv) {
+        const r = await leRdvDuNumeroWa(sb, e.rdv, fiches);
+        if (!r || !estAReprogrammer(r.data)) return 'Ce rendez-vous n’est pas à reprogrammer : appelle d’abord `mettre_a_reprogrammer`.';
+        const gestes = gestesDuRdvWa(r);
+        const lourde = lourdeDuRdvLuWa(r, fiches);
+        const bonnes = places.filter((x) => libreDOpale(x.iso, x.heure, gestes, lourde).length > 0);
+        if (bonnes.length === 0) return 'Aucune de ces places n’est libre : cherche à nouveau (`chercher_des_places`).';
+        issue.boutons = boutonsDe({ rdv: r.id }, bonnes);
+        await noteLesPlacesProposeesWa(sb, r, bonnes);
+        return `Ces places partent en boutons sous ton message : ${titresDe(bonnes)}. Écris une ou deux phrases qui l’invitent à toucher celle qui lui convient, ou à écrire une autre date ; ne recopie pas les dates.`;
+      }
+      const g = gestesLus(e?.gestes, connus);
+      if (g.ids.length === 0) return 'Aucun de ces gestes ne se réserve ici. Reprends les identifiants du catalogue.';
+      const pour = typeof e?.pour === 'string' && e.pour ? e.pour : fiches.length === 1 ? fiches[0].id : 'nouvelle';
+      if (pour !== 'nouvelle' && !ficheDe(pour)) return 'Cette fiche n’est pas à ce numéro : reprends l’identifiant du contexte, ou « nouvelle ».';
+      const locksDits = Number(e?.locks) > 0 ? Math.round(Number(e.locks)) : undefined;
+      const lourde = teteLourde(locksDOpale(pour, e?.locks));
+      const bonnes = places.filter((x) => libreDOpale(x.iso, x.heure, g.ids, lourde).length > 0);
+      if (bonnes.length === 0) return 'Aucune de ces places n’est libre : cherche à nouveau (`chercher_des_places`).';
+      const civ = e?.civilite === 'madame' || e?.civilite === 'mademoiselle' || e?.civilite === 'monsieur' ? e.civilite as CiviliteDuFil : undefined;
+      const prenom = typeof e?.prenom === 'string' && e.prenom.trim() ? e.prenom.trim().slice(0, 40) : undefined;
+      issue.boutons = boutonsDe({ pour }, bonnes);
+      issue.offre = { gestes: g.ids, pour, ...(prenom ? { prenom } : {}), ...(civ ? { civilite: civ } : {}), ...(locksDits ? { locks: locksDits } : {}), places: bonnes.map(cleDeLaPlaceDuReport), proposeLe: new Date().toISOString() };
+      return `Ces places partent en boutons sous ton message : ${titresDe(bonnes)}. Son toucher vaut son oui. Écris une ou deux phrases qui l’invitent à toucher celle qui lui convient, ou à écrire une autre date ; ne recopie pas les dates.`;
+    }
+    if (nom === 'mettre_a_reprogrammer') {
+      const r = typeof e?.rdv === 'string' ? await leRdvDuNumeroWa(sb, e.rdv, fiches) : null;
+      if (!r) return 'Ce rendez-vous n’est pas à ce numéro : passe la main (motif « question »).';
+      const fait = await metsAReprogrammerWa(sb, r, 'opale', aujourdhui);
+      if (fait === 'non') return 'Ce rendez-vous ne peut pas être reprogrammé ici (passé, clos ou modifié à l’instant) : passe la main (motif « question »).';
+      const places = await placesDuReportDOpale(r);
+      if (places.length === 0) return 'Sa place est libérée ; aucune place libre à proposer pour l’instant : dis-lui avec égards que la Maison revient vers elle très vite, et passe la main (motif « question »).';
+      issue.boutons = boutonsDe({ rdv: r.id }, places);
+      await noteLesPlacesProposeesWa(sb, r, places);
+      dis('report · mis a reprogrammer', { places: places.length });
+      return `Sa place est libérée : le rendez-vous est à reprogrammer, il n’est pas annulé. Ces places partent en boutons sous ton message : ${titresDe(places)}. Remercie-la de prévenir en une phrase, et invite-la à toucher la place qui lui convient ou à écrire une autre date ; ne recopie pas les dates.`;
+    }
+    if (nom === 'accommoder') return accommodeDOpale(e);
     if (nom === 'chercher_des_places') {
       const g = gestesLus(e?.gestes, connus);
       if (g.ids.length === 0) return 'Aucun de ces gestes ne se réserve ici. Reprends les identifiants du catalogue.';
@@ -8133,8 +8904,11 @@ async function unTourDOpale(
     issue.alerte = alerteDeLAutomate({ genre: 'main', prenom: prenomPourAlerte, numero: o.numero, motif: motifDuFilDOpale('media') });
     dis('opale · vocal non compris : la main passe sans un mot');
   }
-  let secours = !claude && !finDuRituel && !vocalIncompris;
-  if (claude && !finDuRituel && !vocalIncompris) {
+  /* ⑥ quater À REPROGRAMMER (19 novembre 2026) : un toucher de place, et
+     « Changer l'heure », se servent par le code ; Claude n'est pas appelé. */
+  const parLeCode = !finDuRituel && !vocalIncompris && !o.relance && !laMainEstPassee ? await servisParLeCode() : false;
+  let secours = !claude && !finDuRituel && !vocalIncompris && !parLeCode;
+  if (claude && !finDuRituel && !vocalIncompris && !parLeCode) {
     // deno-lint-ignore no-explicit-any
     /* Ses photos, jointes après le contexte, de la plus ancienne à la plus récente. */
     const messages: any[] = [{
@@ -8198,6 +8972,7 @@ async function unTourDOpale(
        secours le dit, et la confirmation officielle prend le relais. */
     issue.texte = s.texte;
     issue.plan = false;
+    issue.boutons = undefined;
     if (issue.issue.genre !== 'pose' && issue.issue.genre !== 'deplace') {
       issue.issue = { genre: 'main', motif: 'erreur' };
       issue.alerte = alerteDeLAutomate({ genre: 'main', prenom: prenomPourAlerte, numero: o.numero, motif: 'erreur' });
@@ -8238,7 +9013,12 @@ async function unTourDOpale(
 
   /* ⑧ LES MESSAGES, et l'état du fil, À CONDITION, avant qu'ils partent. */
   const sortants: MessageSortant[] = [];
-  if (!issue.silence) sortants.push({ forme: 'texte', etape: issue.issue.genre === 'main' && !repondEnReprise ? 'main' : issue.issue.genre === 'parle' || repondEnReprise ? 'besoin' : 'confirme', corps: issue.texte.trim() });
+  if (!issue.silence) {
+    const etape: EtapeDuFil = issue.issue.genre === 'main' && !repondEnReprise ? 'main' : issue.issue.genre === 'parle' || repondEnReprise ? 'besoin' : 'confirme';
+    /* LES PLACES EN BOUTONS (19 novembre 2026) : trois au plus, sous son mot ; son toucher vaut son oui. */
+    if (issue.boutons?.length) sortants.push({ forme: 'boutons', etape, corps: issue.texte.trim() || 'Touchez la place qui vous convient, elle est aussitôt réservée.', boutons: issue.boutons.slice(0, 3) });
+    else sortants.push({ forme: 'texte', etape, corps: issue.texte.trim() });
+  }
   if (!issue.silence && issue.plan) {
     const lien = ligneGoogleMapsWa(carte);
     sortants.push({ forme: 'image', etape: 'besoin', corps: '', image: PLAN_POUR_VENIR, accessoire: true });
@@ -8249,6 +9029,7 @@ async function unTourDOpale(
   const etat = etatApresOpale({ ...base, version: versionLue }, {
     issue: issue.issue, waIds: tour.waIds, dernierEntrantQuand: tour.quand, envois: sortants.length, planEnvoye: issue.plan, maintenantMs: Date.now(),
     ...(o.relance ? { relance: true } : {}),
+    ...(issue.offre !== undefined ? { offre: issue.offre } : {}),
   });
   const branchId = agenda?.agenda.branchId ?? titulaire?.branchId ?? null;
   const { data: version, error: errAvance } = await sb.rpc('avance_le_fil', {
@@ -8342,7 +9123,84 @@ async function lesRelancesDOpale(sb: Sb, o: { jeton: string; phoneId: string }):
     dis('relance', { pris: r !== 'rejoue' && r.pris });
     if (r !== 'rejoue' && r.pris) relancees += 1;
   }
-  return { relancees, vues };
+  /* LES RENDEZ-VOUS À REPROGRAMMER (19 novembre 2026) : leur relance du lendemain. */
+  const reports = await lesRelancesDuReport(sb, o, docs, reglage);
+  return { relancees: relancees + reports, vues };
+}
+
+/** LA RELANCE DU LENDEMAIN D'UN RENDEZ-VOUS À REPROGRAMMER — 19 novembre
+    2026. « La relance de 24 heures plus tard doit être une relance
+    intelligente avec de nouvelles dates » (Yéman). Une fois, vers la 23e
+    heure après son dernier message (`relanceDuReportDue`, avant que WhatsApp
+    ne ferme la conversation), de jour : trois NOUVELLES dates en boutons
+    (jamais celles déjà proposées), près de ses habitudes, puis de la date
+    perdue ; le mot est écrit par le code. La main de l'équipe tient ; sans
+    numéro ou sans place, rien : l'équipe la voit au 7e jour. */
+async function lesRelancesDuReport(
+  // deno-lint-ignore no-explicit-any
+  sb: Sb, o: { jeton: string; phoneId: string }, docs: Map<string, any>, reglage: ReglageDeLAutomate,
+): Promise<number> {
+  const ms = Date.now();
+  const { data, error } = await sb.from('appointments').select('id, data, updated_at').eq('data->>status', 'annulé').limit(300);
+  if (error) { dis('report · relances illisibles', { motif: error.message.slice(0, 120) }); return 0; }
+  const attente = ((data ?? []) as (Ligne & { updated_at?: string })[])
+    .filter((l) => l.data && typeof l.updated_at === 'string' && estAReprogrammer(l.data) && !l.data.relanceDuReportLe);
+  if (attente.length === 0) return 0;
+  /* Ses messages des dernières 24 heures, reconnus par la clé du numéro
+     (l'ancien et le nouveau plan du Bénin sont la même personne). */
+  const { data: recents, error: errRecents } = await sb.from('messages_wa').select('data').eq('data->>sens', 'entrant')
+    .gte('data->>quand', new Date(ms - FENETRE_DU_REPORT_MS).toISOString()).limit(1000);
+  if (errRecents) { dis('report · messages illisibles', { motif: errRecents.message.slice(0, 120) }); return 0; }
+  const derniers = new Map<string, { numero: string; ms: number }>();
+  for (const x of (recents ?? []) as Ligne[]) {
+    const numero = numeroWa(String(x.data?.numero ?? ''));
+    const q = Date.parse(String(x.data?.quand ?? ''));
+    if (numero.length < 8 || !Number.isFinite(q)) continue;
+    const cle = cleWa(numero);
+    if ((derniers.get(cle)?.ms ?? -1) < q) derniers.set(cle, { numero, ms: q });
+  }
+  let faites = 0;
+  for (const l of attente) {
+    if (faites >= RELANCES_PAR_PASSAGE) break;
+    const r: RdvLuWa = { id: l.id, updatedAt: String(l.updated_at), data: l.data as Record<string, unknown> };
+    const clientId = String(r.data.clientId ?? '');
+    if (!clientId) continue;
+    const { data: fiches } = await sb.from('clients').select('id, data').eq('id', clientId).limit(1);
+    const fiche = ((fiches ?? []) as Ligne[])[0]?.data ?? null;
+    const tel = numeroWa(String(fiche?.phone ?? ''));
+    if (!fiche || tel.length < 8) continue;
+    const sien = derniers.get(cleWa(tel));
+    if (!relanceDuReportDue({ a: r.data, dernierEntrantMs: sien ? sien.ms : null, maintenantMs: ms })) continue;
+    const numero = sien!.numero;
+    const { data: mains } = await sb.from('fils_automate').select('id, data').eq('id', `main-${numero}`).limit(1);
+    if (pauseActive(((mains ?? []) as Ligne[])[0]?.data as MainDuFil | undefined, ms)) continue;
+    const aujourdhui = instantACotonou(ms).iso;
+    const lu = await litLAgenda(sb, docs, String(r.data.branchId ?? '') || undefined, aujourdhui, Math.max(joursDeLaFenetre(ms), reglage.horizonJours));
+    if (!lu) continue;
+    const gestes = gestesDuRdvWa(r);
+    const lourde = teteLourde(r.data.locksAnnonces) || teteLourde(fiche.lockCount);
+    const habitudes = await habitudesDeLaFicheWa(sb, clientId);
+    const candidats = [...placesDuJourMemeWa(lu.agenda, gestes, ms, lourde), ...placesLibres(lu.agenda, gestes, ms, joursDeLaFenetre(ms), undefined, lourde)];
+    const places = troisPlacesDuReport(candidats, {
+      deja: placesDejaProposees(r.data), perdue: { iso: String(r.data.date ?? ''), heure: String(r.data.time ?? '') }, habitudes,
+    });
+    if (places.length === 0) continue;
+    const appel = fiche.civilite ? appelDe({ name: String(fiche.name ?? ''), prenomUsage: fiche.prenomUsage, civilite: fiche.civilite, auMasculin: fiche.auMasculin }) : '';
+    const pres = habitudesDites(habitudes);
+    const m: MessageSortant = {
+      forme: 'boutons', etape: 'besoin',
+      corps: `Bonjour${appel ? ` ${appel}` : ''}, votre rendez-vous vous attend toujours. Voici ${places.length > 1 ? `${places.length} nouvelles places` : 'une nouvelle place'}${pres ? `, choisies près de vos habitudes ${pres}` : ''}. Touchez celle qui vous convient, elle est aussitôt réservée. Une autre date vous arrange ? Écrivez-la-nous.`,
+      boutons: places.map((p) => ({ id: idDuBoutonDePlace({ rdv: r.id }, p), titre: titreDuBoutonDePlace(p) })),
+    };
+    if (respecteMeta(m).length > 0) { dis('report · relance retenue par Meta d avance'); continue; }
+    const rendu = await envoieAGraph(o.jeton, o.phoneId, chargeGraph(m, numero));
+    await laisseLaTrace(sb, { numero, m, rendu, clientId, parQui: OPALE, ...(r.data.branchId ? { branchId: String(r.data.branchId) } : {}) });
+    if (!rendu.waId) { dis('report · relance refusee par Meta', { code: rendu.code ?? null }); continue; }
+    await noteLesPlacesProposeesWa(sb, r, places, true);
+    dis('report · relance du lendemain', { places: places.length });
+    faites += 1;
+  }
+  return faites;
 }
 
 /** LA REPRISE PAR OPALE : « Rendre à Opale » au Trône. Ce qu'elle a écrit

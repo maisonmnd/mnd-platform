@@ -46,6 +46,8 @@ import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDe
 import { referenceDuRendezVous } from '../../../../shared/lien-du-rdv-pur';
 import { ceQueDitLaSuggestion, estSuggere } from '../../../../shared/rendez-vous-suggere-pur';
 import { ceQueDitLAttente, etatDeLAttente, seLibereraSansReponse } from '../../../../shared/rendez-vous-en-attente-pur';
+import { estAReprogrammer } from '../../../../shared/a-reprogrammer-pur';
+import { annuleLeReport, etatDuReportDit, marquesDeLaRepriseAuTrone, metsAReprogrammer } from './a-reprogrammer';
 import { noteSonOui } from '../../../../shared/carte-du-prochain-rituel';
 import { useStaff as useMaTeteDuRdv } from '../../../../shared/auth';
 import { momentDuRdv, poseUnRendezVous } from '../../../../shared/agenda';
@@ -2065,7 +2067,8 @@ function RdvModalCorps({
      liste n'était qu'un accident de saisie ; voir `maitreParDefaut`. Un
      rendez-vous qu'on relit garde évidemment le sien. */
   const [master, setMaster] = useState(appt?.master ?? initial?.master ?? maitreParDefaut(branch));
-  const [status, setStatus] = useState<Appointment['status']>(appt?.status ?? 'confirmé');
+  /* À REPROGRAMMER (19 novembre 2026) : il s'ouvre pour reposer une date ; Enregistrer le confirme. */
+  const [status, setStatus] = useState<Appointment['status']>(appt && estAReprogrammer(appt) ? 'confirmé' : appt?.status ?? 'confirmé');
   const [note, setNote] = useState(appt?.note ?? initial?.note ?? '');
   /* CE QU'ELLE A ENVOYÉ POUR CETTE SÉANCE (31 octobre 2026, « Avant le
      fauteuil », choix 5) : les photos, vidéos et liens attachés au
@@ -3590,6 +3593,9 @@ function RdvModalCorps({
                 ...(chosenStatus === 'annulé' && x.status !== 'annulé' && !x.annuleeLe
                   ? { annuleeLe: new Date().toISOString(), annuleePar: 'maison' as const }
                   : {}),
+                /* REPOSER UNE DATE (19 novembre 2026) : un rendez-vous à reprogrammer
+                   qui reprend un statut vivant perd ses marques de report. */
+                ...(chosenStatus !== 'annulé' ? marquesDeLaRepriseAuTrone(x) : {}),
                 offertPar: offertRetenu,
                 forfait: forfaitEnregistre,
                 /* Un forfait posé efface les remises : le total négocié EST le
@@ -4060,6 +4066,15 @@ function RdvModalCorps({
           WhatsApp, et son acompte quand un geste en porte un. Sans cela, la
           place se libère seule, et la fiche le dit. Le comptoir peut noter son
           oui (elle a appelé) ; l'acompte se reconnaît comme toujours. */}
+      {appt && rdvDuMagasin && estAReprogrammer(rdvDuMagasin) && (
+        <div className="trc-rdv-suggere" role="note">
+          <b>À reprogrammer : sa place est rendue</b>
+          <span>{`${etatDuReportDit(rdvDuMagasin, Date.now())}. Prévu le ${frShortAn(rdvDuMagasin.date)} à ${rdvDuMagasin.time}. Choisissez la nouvelle date et l’heure, puis Enregistrer : il redevient confirmé.`}</span>
+          <span className="trc-rdv-suggere__gestes">
+            <button type="button" className="trv-prochain__lien" onClick={() => { annuleLeReport(rdvDuMagasin.id); toast('Annulé pour de bon : il ne sera pas reprogrammé.'); onClose(); }}>Annuler pour de bon</button>
+          </span>
+        </div>
+      )}
       {appt && rdvDuMagasin && etatDeLAttente(rdvDuMagasin) !== null && etatDeLAttente(rdvDuMagasin) !== 'ferme' && (
         <div className="trc-rdv-suggere" role="note">
           <b>{etatDeLAttente(rdvDuMagasin) === 'liberee' ? 'Pris en ligne : la place s’est libérée' : 'Pris en ligne : en attente de sa confirmation'}</b>
@@ -6226,6 +6241,13 @@ function RdvModalCorps({
             confirmation. */}
         {appt && (
           <div className="trc-rdv3__gestes">
+            {(appt.status === 'confirmé' || appt.status === 'en attente') && (
+              <button type="button" className="trc-rdv3__lien trc-rdv3__lien--doux"
+                title="Elle ne pourra pas venir : sa place se rend tout de suite, il n’est pas annulé"
+                onClick={() => { metsAReprogrammer(appt.id); toast('À reprogrammer : sa place est rendue. Il attend sa nouvelle date dans le Calendrier.'); onClose(); }}>
+                À reprogrammer
+              </button>
+            )}
             {appt.status !== 'annulé' && (
               <button type="button" className="trc-rdv3__lien trc-rdv3__lien--doux" onClick={cancelRdv}>
                 Annuler le rendez-vous
@@ -6431,11 +6453,11 @@ function SesRendezVous({ rdvs, courantId, byId, sansPrix, onOuvrir, onNouveau }:
     const ici = a.id === courantId;
     const reste = a.status === 'annulé' ? 0 : apptDueXof(a, byId);
     return (
-      <button type="button" className={`trc-siens__ligne${ici ? ' est-ici' : ''}${a.status === 'annulé' ? ' est-annule' : ''}`}
+      <button type="button" className={`trc-siens__ligne${ici ? ' est-ici' : ''}${a.status === 'annulé' && !estAReprogrammer(a) ? ' est-annule' : ''}`}
         onClick={() => { if (!ici) onOuvrir(a); }} disabled={ici} title={ici ? 'Le rendez-vous ouvert' : 'Ouvrir ce rendez-vous'}>
         <span className="trc-siens__quand">{frShortAn(a.date)}<span>{a.time}</span></span>
         <span className="trc-siens__quoi">{apptLabel(a, byId) || 'Rituel'}<span>{a.master || ''}</span></span>
-        <span className="trc-siens__etat"><StatusPill status={a.status} /></span>
+        <span className="trc-siens__etat">{estAReprogrammer(a) ? <span className="trc-pill trc-pill--attente">à reprogrammer</span> : <StatusPill status={a.status} />}</span>
         {!sansPrix && (
           <span className="trc-siens__argent">
             {fmtMoney(apptNetXof(a, byId), currency)}

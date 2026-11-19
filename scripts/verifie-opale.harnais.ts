@@ -125,7 +125,23 @@ const cle8 = (n2: string): string => { const d = String(n2 ?? '').replace(/\D/g,
 const POSES: Ligne[] = [];
 const OCCUPES: { jour: string; maitre: string; debut: string; duree: number }[] = [];
 const APPELS_CRENEAUX: [string, string][] = [];
+/* La reprise d'un rendez-vous à reprogrammer (0239), comme la base la fait :
+   à reprogrammer seulement, la place prise refusée sauf au-delà des fauteuils. */
+const REPRISES: any[] = [];
 const RPC: Record<string, (a: any) => any> = {
+  reprend_si_libre: ({ p_id, p_date, p_time, p_maitres, p_au_dela }) => {
+    REPRISES.push({ p_id, p_date, p_time, p_maitres, p_au_dela });
+    const l = table('appointments').find((a) => a.id === p_id);
+    if (!l) return { ok: false, raison: 'introuvable' };
+    const d = l.data;
+    if (d.status === 'confirmé' && d.date === p_date && d.time === p_time) return { ok: true, verdict: 'deja', master: d.master };
+    if (!(d.status === 'annulé' && d.aReprogrammerDepuis)) return { ok: false, raison: 'pas_a_reprogrammer' };
+    if (!p_au_dela && OCCUPES.some((o) => o.jour === p_date && o.debut === p_time)) return { ok: false, raison: 'creneau_pris' };
+    const { aReprogrammerDepuis: _a, aReprogrammerPar: _b, placesProposees: _c, relanceDuReportLe: _d, ...reste } = d;
+    l.data = { ...reste, status: 'confirmé', date: p_date, time: p_time, master: p_maitres[0], reprogrammeLe: new Date().toISOString(), reprogrammeDe: { date: d.date, time: d.time }, ...(p_au_dela ? { auDelaDesPlaces: true } : {}) };
+    l.updated_at = new Date(Date.now() + 1).toISOString();
+    return { ok: true, verdict: 'repris', master: p_maitres[0], auDela: !!p_au_dela };
+  },
   fiches_du_numero: ({ n: num }) => table('clients').filter((c) => [c.data?.phone, c.data?.phone2].some((p) => p && cle8(p) === cle8(num)))
     .map((c) => ({
       id: c.id, nom: c.data.name, ...(c.data.civilite ? { civilite: c.data.civilite } : {}), parPhone: cle8(c.data.phone) === cle8(num),
@@ -262,7 +278,7 @@ const J2 = jourOuvert(2);
 const LOIN = jourOuvert(16);
 function decor(qui: 'opale' | 'automate' | null = 'opale') {
   for (const k of Object.keys(TABLES)) delete TABLES[k];
-  POSES.length = 0; META.length = 0; DEMANDES.length = 0; FILE = []; OCCUPES.length = 0; APPELS_CRENEAUX.length = 0;
+  POSES.length = 0; META.length = 0; DEMANDES.length = 0; FILE = []; OCCUPES.length = 0; APPELS_CRENEAUX.length = 0; REPRISES.length = 0;
   const semaine = ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'].map((key) => ({ key, open: '08h00', close: '20h30', closed: key === 'lun' || key === 'dim' }));
   table('documents').push(
     { key: 'mnd_settings', data: { hours: semaine } },
@@ -1184,6 +1200,129 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
     consigne.includes('donne-le TOUT DE SUITE'), consigne.includes('tu vois les photos qu’elle envoie'), consigne.includes('CONCLURE'),
     consigne.includes('Le jour même se réserve ici'), consigne.includes('jamais « dans un instant »'),
   ]);
+}
+
+/* ══ 13. À REPROGRAMMER, ET JAMAIS SANS RENDEZ-VOUS (19 novembre 2026) ══
+   Maquette 7YX7UtCFusPMJdrjJtfcQr : le rendez-vous empêché rend sa place
+   sans être annulé ; trois dates en boutons, le toucher vaut son oui ;
+   « Changer l'heure » libère tout de suite ; sa date écrite : son heure,
+   sinon dans l'heure en boutons, sinon au-delà des fauteuils. */
+{
+  const rdvBanc = (d: Record<string, unknown> = {}) => table('appointments').push({
+    id: 'rdv-banc-r', branch_id: 'br-banc', updated_at: new Date().toISOString(),
+    data: { id: 'rdv-banc-r', branchId: 'br-banc', clientId: 'cl-banc-a', clientName: 'Akouele Banc', serviceIds: ['sv-plt-05-ess-c'], date: J1, time: '10:00', master: 'm-banc', status: 'confirmé', dureeMin: 30, ...d },
+  });
+  const rdvLu = (): any => table('appointments').find((l) => l.id === 'rdv-banc-r')?.data;
+  const boutonsEnvoyes = (): { id: string; titre: string }[] => META.filter((m) => m.type === 'interactive' && m.interactive?.type === 'button')
+    .flatMap((m) => m.interactive.action.buttons).map((b: any) => ({ id: String(b.reply.id), titre: String(b.reply.title) }));
+  const corpsDesBoutons = (): string => String(META.find((m) => m.type === 'interactive')?.interactive?.body?.text ?? '');
+  const elleTouche = (numero: string, id: string, titre: string): string => {
+    const waId = `wamid.elle${++seq}`;
+    table('messages_wa').push({ id: `wa-${waId}`, data: { waId, sens: 'entrant', numero, texte: titre, type: 'interactive', bouton: { id, texte: titre }, quand: new Date().toISOString() } });
+    return waId;
+  };
+
+  decor();
+  rdvBanc();
+  const w1 = elleEcrit(NUM, 'J’ai une contrainte et je ne pourrai plus être là. Je vais reprogrammer le RDV. Merci');
+  FILE = [{ outils: [{ name: 'mettre_a_reprogrammer', input: { rdv: 'rdv-banc-r' } }] }, { texte: 'Merci de nous prévenir, Mme Akouele. Touchez la place qui vous convient, ou écrivez-nous une autre date.' }];
+  await tour(NUM, [w1]);
+  const b1 = boutonsEnvoyes();
+  dit('elle ne pourra pas venir : le rendez-vous passe a reprogrammer, sa place est rendue, il n est pas annule pour de bon', ['annulé', true, 'opale'],
+    [rdvLu()?.status, !!rdvLu()?.aReprogrammerDepuis, rdvLu()?.aReprogrammerPar]);
+  dit('... trois dates en boutons sous son mot, vingt signes au plus, notees sur le rendez-vous', [3, true, true, 3], [
+    b1.length, b1.every((b) => b.titre.length <= 20 && b.id.startsWith('MND:place|r:rdv-banc-r|')), corpsDesBoutons().startsWith('Merci de nous prévenir'), (rdvLu()?.placesProposees ?? []).length]);
+
+  const choisi = b1[1] ?? b1[0];
+  const [, , jour2, heure2] = String(choisi?.id ?? '|||').split('|');
+  FILE = [{ texte: 'ne doit pas partir' }];
+  await tour(NUM, [elleTouche(NUM, choisi?.id ?? '', choisi?.titre ?? '')]);
+  dit('son toucher vaut son oui : repris sous verrou a cette place, confirme, ses marques tombent, sans Claude', ['confirmé', jour2, heure2, undefined, 1, true, 1], [
+    rdvLu()?.status, rdvLu()?.date, rdvLu()?.time, rdvLu()?.aReprogrammerDepuis, REPRISES.length, (textesEnvoyes()[0] ?? '').startsWith('C’est confirmé, Mme Akouele'), FILE.length]);
+
+  decor();
+  rdvBanc({ status: 'annulé', aReprogrammerDepuis: new Date().toISOString(), aReprogrammerPar: 'opale' });
+  OCCUPES.push({ jour: J2, maitre: 'm-banc', debut: '11:00', duree: 60 });
+  FILE = [{ texte: 'ne doit pas partir' }];
+  await tour(NUM, [elleTouche(NUM, `MND:place|r:rdv-banc-r|${J2}|11:00`, 'Sa place')]);
+  dit('la place touchee vient d etre prise : d autres en boutons, jamais une date a recopier', [true, true, 'annulé'], [
+    corpsDesBoutons().startsWith('Cette place vient d’être prise'), boutonsEnvoyes().length >= 1 && boutonsEnvoyes().every((b) => !b.id.endsWith(`|${J2}|11:00`)), rdvLu()?.status]);
+
+  decor();
+  rdvBanc();
+  FILE = [{ texte: 'ne doit pas partir' }];
+  await tour(NUM, [elleEcrit(NUM, 'Changer l’heure')], 'clientes', { deplacer: { rdvId: 'rdv-banc-r' } });
+  dit('« Changer l heure » : sa place se rend tout de suite, trois dates suivent en boutons, sans Claude', ['annulé', 'cliente', 3, 1, true], [
+    rdvLu()?.status, rdvLu()?.aReprogrammerPar, boutonsEnvoyes().length, FILE.length, corpsDesBoutons().includes('est libéré')]);
+
+  /* Sa date écrite, pour une première réservation. */
+  decor();
+  FILE = [{ outils: [{ name: 'accommoder', input: { gestes: ['sv-plt-05-ess-c'], date: J1, heure: '15:00', pour: 'cl-banc-a' } }] }, { texte: 'C’est confirmé, Mme Akouele.' }];
+  await tour(NUM, [elleEcrit(NUM, `Un shampoing le ${J1} à 15 h`)]);
+  dit('elle ecrit son heure, libre : posee aussitot, son oui', [1, '15:00', true, undefined], [POSES.length, POSES[0]?.time, (resultatsDe(1)[0] ?? '').startsWith('C’est posé'), POSES[0]?.auDelaDesPlaces]);
+
+  decor();
+  OCCUPES.push({ jour: J1, maitre: 'm-banc', debut: '15:00', duree: 60 });
+  FILE = [{ outils: [{ name: 'accommoder', input: { gestes: ['sv-plt-05-ess-c'], date: J1, heure: '15:00', pour: 'cl-banc-a' } }] }, { texte: 'Quinze heures est pris ; la plus proche est à seize heures.' }];
+  await tour(NUM, [elleEcrit(NUM, `Un shampoing le ${J1} à 15 h`)]);
+  dit('son heure prise, 16 h libre : la plus proche dans l heure en premier bouton, rien de pose', [0, true, true], [
+    POSES.length, (boutonsEnvoyes()[0]?.id ?? '').endsWith(`|${J1}|16:00`), (resultatsDe(1)[0] ?? '').startsWith('Son heure est prise')]);
+
+  decor();
+  OCCUPES.push({ jour: J1, maitre: 'm-banc', debut: '15:00', duree: 120 });
+  FILE = [{ outils: [{ name: 'accommoder', input: { gestes: ['sv-plt-05-ess-c'], date: J1, heure: '15:00', pour: 'cl-banc-a' } }] }, { texte: 'C’est confirmé.' }];
+  const rPleine = await tour(NUM, [elleEcrit(NUM, `Un shampoing le ${J1} à 15 h`)]);
+  dit('rien de libre dans l heure : posee quand meme a son heure, au-dela des fauteuils, la note et l equipe', [1, true, '15:00', true, true, 'Posé au-delà des fauteuils'], [
+    POSES.length, POSES[0]?.auDelaDesPlaces, POSES[0]?.time, String(POSES[0]?.note ?? '').includes('au-delà des fauteuils'),
+    (resultatsDe(1)[0] ?? '').includes('un peu pleine'), rPleine?.alerte?.titre]);
+
+  /* Trois dates en boutons pour une première réservation, puis son toucher. */
+  decor();
+  FILE = [{ outils: [{ name: 'proposer_les_places', input: { gestes: ['sv-plt-05-ess-c'], pour: 'cl-banc-a', places: [{ date: J1, heure: '10:00' }, { date: J1, heure: '11:00' }, { date: J2, heure: '10:00' }] } }] }, { texte: 'Touchez la place qui vous convient.' }];
+  await tour(NUM, [elleEcrit(NUM, 'Je voudrais un shampoing cette semaine')]);
+  const b2 = boutonsEnvoyes();
+  dit('proposer_les_places : trois boutons « place|n: », l offre gardee dans le fil', [3, true, ['sv-plt-05-ess-c']], [
+    b2.length, b2.every((b) => b.id.startsWith('MND:place|n:cl-banc-a|')), fil(NUM)?.opale?.offre?.gestes]);
+  FILE = [{ texte: 'ne doit pas partir' }];
+  await tour(NUM, [elleTouche(NUM, b2[0]?.id ?? '', b2[0]?.titre ?? '')]);
+  dit('... son toucher pose le rendez-vous, sans Claude, et l offre tombe', [1, J1, '10:00', true, 1, undefined], [
+    POSES.length, POSES[0]?.date, POSES[0]?.time, !!POSES[0]?.confirmeeParLaClienteLe, FILE.length, fil(NUM)?.opale?.offre]);
+
+  /* LA RELANCE DU LENDEMAIN : vers la 23e heure, de jour, trois NOUVELLES dates. */
+  const relanceDuReport = async () => (await (await SERVIS[0](new Request('http://faux.local/functions/v1/whatsapp-automate', {
+    method: 'POST', headers: { authorization: 'Bearer la-cle-de-la-maison', 'content-type': 'application/json' }, body: JSON.stringify({ relances: true }),
+  }))).json());
+  aHeure(mardiA(14));
+  decor();
+  const depuis = new Date(Date.now() - 23.5 * 3_600_000).toISOString();
+  rdvBanc({ status: 'annulé', aReprogrammerDepuis: depuis, aReprogrammerPar: 'opale', placesProposees: [] });
+  elleEcrit(NUM, 'Merci, je regarde', 23.5 * 3_600_000);
+  FILE = [{ texte: 'ne doit pas partir' }];
+  await relanceDuReport();
+  const rel = boutonsEnvoyes();
+  dit('la relance du lendemain : une fois, de jour, des dates en boutons, sans Claude, notee', [true, true, true, 1], [
+    rel.length >= 1 && rel.length <= 3, corpsDesBoutons().startsWith('Bonjour Mme Akouele, votre rendez-vous vous attend toujours'), !!rdvLu()?.relanceDuReportLe, FILE.length]);
+  const proposees = [...(rdvLu()?.placesProposees ?? [])];
+  META.length = 0;
+  await relanceDuReport();
+  dit('... jamais deux fois', 0, META.length);
+
+  decor();
+  rdvBanc({ status: 'annulé', aReprogrammerDepuis: depuis, aReprogrammerPar: 'opale', placesProposees: proposees });
+  elleEcrit(NUM, 'Merci, je regarde', 23.5 * 3_600_000);
+  await relanceDuReport();
+  dit('... jamais une date deja proposee', true, boutonsEnvoyes().length > 0 && boutonsEnvoyes().every((b) => !proposees.includes(b.id.split('|').slice(2).join(' '))));
+
+  decor();
+  rdvBanc({ status: 'annulé', aReprogrammerDepuis: new Date(Date.now() - 10 * 3_600_000).toISOString(), aReprogrammerPar: 'opale' });
+  elleEcrit(NUM, 'Merci', 10 * 3_600_000);
+  await relanceDuReport();
+  dit('... pas avant la 23e heure', 0, META.length);
+  aHeure(null);
+
+  const consigneR = consigneDOpale();
+  dit('la consigne : trois dates en boutons, accommoder, mettre a reprogrammer', [true, true, true], [
+    consigneR.includes('`proposer_les_places` avec TROIS de ces places'), consigneR.includes('appelle `accommoder`'), consigneR.includes('appelle `mettre_a_reprogrammer`')]);
 }
 
 console.log(`${ko ? 'ECHEC' : 'OK   '} ${n} controles, ${ko} echec(s)`);

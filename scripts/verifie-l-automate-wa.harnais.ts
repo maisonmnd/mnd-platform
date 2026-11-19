@@ -1359,11 +1359,21 @@ const regles: Regle[] = [
       /* DEPUIS LE 2 NOVEMBRE 2026 (lot 3 de Perle, « Seule, sous verrou ») :
          la fonction touche un rendez-vous pour le DÉPLACER, et rien d'autre ;
          une seule écriture, sous condition `updated_at`, jamais un statut. */
+      /* DEPUIS LE 19 NOVEMBRE 2026 (« À reprogrammer », maquette 7YX7UtCF…) :
+         trois écritures, toutes sous condition `updated_at` : le déplacement,
+         le report (la place rendue, sa marque) et les places proposées. Le
+         seul « annulé » écrit est celui du report (`marquesDuReport`, bloc
+         ⟨a-reprogrammer⟩), toujours avec sa marque ; les autres sont lus. */
       const ecrituresDesRdv = fonction.match(/\.from\(\s*'appointments'\s*\)\s*\.(?:update|insert|upsert|delete)\(/g) ?? [];
-      vrai('whatsapp-automate n ecrit un rendez-vous que pour le deplacer, une fois, sous condition updated_at',
-        ecrituresDesRdv.length === 1 && /\.from\('appointments'\)\.update\(\{ data: apres \}\)\s*\.eq\('id', d\.rdvId\)\.eq\('updated_at', String\(ligne\.updated_at\)\)/.test(fonction), ecrituresDesRdv);
+      const sousCondition = fonction.match(/\.from\('appointments'\)\.update\(\{ data: apres \}\)\s*\.eq\('id', (?:d\.rdvId|r\.id)\)\.eq\('updated_at', (?:String\(ligne\.updated_at\)|r\.updatedAt|String\(l\.updated_at\))\)/g) ?? [];
+      vrai('whatsapp-automate n ecrit un rendez-vous que pour le deplacer, le reporter ou noter ses places, toujours sous condition updated_at',
+        ecrituresDesRdv.length === 3 && sousCondition.length === 3, [ecrituresDesRdv.length, sousCondition.length]);
       vrai('... et le deplacement ne change jamais le statut', /const apres = \{ \.\.\.reste, date: d\.date, time: d\.time, deplaceLe: maintenant, deplacePar: 'whatsapp'/.test(fonction));
-      vrai('... et n ecrit jamais « annule »', !fonction.includes("'annulé'") && !fonction.includes('"annulé"'));
+      const compte = (s: string, x: string): number => s.split(x).length - 1;
+      const blocDuReport = sansCommentaires(entre(lf(lit(F_AUTO)), 'a-reprogrammer') ?? '');
+      const annulesHors = compte(fonction, "'annulé'") - compte(blocDuReport, "'annulé'") - compte(fonction, ".eq('data->>status', 'annulé')");
+      vrai('... et n ecrit jamais « annule » hors du report (qui porte sa marque)', blocDuReport.length > 1000 && annulesHors === 0 && !fonction.includes('"annulé"')
+        && /const apres = \{ \.\.\.r\.data, \.\.\.marquesDuReport\(Date\.now\(\), par\) \};/.test(fonction), annulesHors);
       const bloc = entre(lf(lit(AUTO)), 'automate-wa') ?? '';
       vrai('le dialogue ne nomme aucun statut annule', bloc.length > 1000 && !/annulé/.test(sansCommentaires(bloc)));
       const sql = sqlSans(lit(M0125));
@@ -1907,7 +1917,8 @@ const regles: Regle[] = [
       const corpsF = sansCommentaires(lf(lit(F_AUTO)));
       const horsBlocs = corpsF.slice(corpsF.indexOf('type AgendaLu ='));
       vrai('l etat du fil ne s ecrit jamais en direct (seulement par avance_le_fil)', horsBlocs.length > 1000 && !/\.from\(\s*'fils_automate'\s*\)\s*\.(?:upsert|insert|update|delete)\(/.test(horsBlocs) && /sb\.rpc\('avance_le_fil'/.test(horsBlocs));
-      vrai('la pose passe par pose_si_libre, avec les maitres du juge', /sb\.rpc\('pose_si_libre', \{\s*p_rdv: rdv,\s*p_maitres: place\.maitres,/.test(horsBlocs));
+      /* Au-delà des fauteuils (19 novembre 2026), le maître choisi par Opale : le verrou juge. */
+      vrai('la pose passe par pose_si_libre, avec les maitres du juge', /sb\.rpc\('pose_si_libre', \{\s*p_rdv: rdv,\s*p_maitres: place \? place\.maitres : \[String\(\(rdv as \{ master\?: unknown \}\)\.master \?\? ''\)\],/.test(horsBlocs));
       vrai('la ligne de confirmation ne bouge que si elle est encore « en cours »', /\.update\(\{ data: neuf, updated_at: maintenant \}\)\s*\.eq\('id', id\)\.eq\('data->>statut', 'en cours'\)/.test(horsBlocs));
       await auBanc(ecarts, async () => {
         avecTacheDeFond(true);
@@ -2010,7 +2021,7 @@ const regles: Regle[] = [
     },
     pannes: [
       { nom: 'l etat s ecrit en direct', mute: [P(F_AUTO, "  const { data: version, error: errAvance } = await sb.rpc('avance_le_fil', {", "  await sb.from('fils_automate').upsert({ id: `fil-${o.numero}`, data: sortie.etat });\n  const { data: version, error: errAvance } = await sb.rpc('avance_le_fil', {")] },
-      { nom: 'le premier maitre de la liste, sans regarder', mute: [P(F_AUTO, '    p_maitres: place.maitres,', '    p_maitres: [place.maitres[0], ...place.maitres].slice(1, 2),')] },
+      { nom: 'le premier maitre de la liste, sans regarder', mute: [P(F_AUTO, '    p_maitres: place ? place.maitres :', '    p_maitres: place ? [place.maitres[0], ...place.maitres].slice(1, 2) :')] },
       { nom: 'la confirmation oubliee (la ligne reste en cours)', mute: [P(F_AUTO, '  if (posee) await ditLaConfirmation(sb, posee, laConfirmation', '  if (false) await ditLaConfirmation(sb, posee, laConfirmation')] },
       { nom: 'un refus de Meta reste muet', mute: [P(F_AUTO, "      refus = 'envoi-refuse';", '      refus = null;')] },
       { nom: 'la ligne de confirmation se reecrit sans condition', mute: [P(F_AUTO, ".eq('id', id).eq('data->>statut', 'en cours');", ".eq('id', id);")] },

@@ -43,7 +43,9 @@ import { fabriqueLeCodeDe, useCerveauDeGerard, useLePassageDeGerard, type Cervea
 import { gesteDeLaSalle } from './SalleDesEnvois';
 import { porteDuMaintenant } from '../../../../shared/envoyer-maintenant-pur';
 import { envoieLaLigneMaintenant } from './envoyer-maintenant';
-import { RdvModal, apptTotalXof, tarifDeLaTeteXof, useBranchAppointmentsAvecEssais, useBranchClients, useServicesById } from './_shared';
+import { RdvModal, apptLabel, apptTotalXof, frShort, tarifDeLaTeteXof, useBranchAppointmentsAvecEssais, useBranchClients, useServicesById } from './_shared';
+import { etatDuReport } from '../../../../shared/a-reprogrammer-pur';
+import { etatDuReportDit, rdvsAReprogrammer } from './a-reprogrammer';
 import { PageHead } from '../_ui';
 import { GerardEntreDeux } from './GerardEntreDeux';
 import { useConversationsSupprimees } from '../../../../shared/conversations-supprimees';
@@ -227,6 +229,8 @@ export default function Gerard() {
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [copie, setCopie] = useState<string | null>(null);
   const [rdvPour, setRdvPour] = useState<string | null>(null);
+  /* À REPROGRAMMER (19 novembre 2026) : le rendez-vous qu'on rouvre pour reposer sa date. */
+  const [aReposer, setAReposer] = useState<Appointment | null>(null);
   /* LA CARTE D'ANNIVERSAIRE, à un toucher : la fenêtre « Sa carte », au numéro du plan. */
   const [carteDe, setCarteDe] = useState<Situation | null>(null);
   /* Un verdict par ligne touchée (« Tout laisser partir » en rend plusieurs d'un coup). */
@@ -781,6 +785,35 @@ export default function Gerard() {
               </section>
             </div>
 
+            {/* À REPROGRAMMER (19 novembre 2026) : tant qu'elle n'a pas choisi sa
+                nouvelle date. Au 7e jour sans choix, à l'équipe de la rappeler. */}
+            {(() => {
+              const liste = rdvsAReprogrammer(appts);
+              if (liste.length === 0) return null;
+              const aLEquipe = liste.filter((a) => etatDuReport(a, Date.now()) === 'equipe').length;
+              return (
+                <section className="trc-ger__carte">
+                  <div className="trc-ger__haut">
+                    <h3>À reprogrammer <span>Leur place est rendue, elles choisissent leur nouvelle date</span></h3>
+                    <span className="trc-am__resume"><b>{liste.length}</b>{aLEquipe ? ` · à l’équipe ${aLEquipe}` : ''}</span>
+                  </div>
+                  <ul className="trc-ger__liste">
+                    {liste.map((a) => (
+                      <li key={a.id} className="trc-ger__rangee trc-am__attente">
+                        <span className="trc-am__qui">
+                          <b>{nomDe(a.clientId) || a.clientName || 'Cliente'}</b>
+                          <span>{apptLabel(a, byId) || 'Rituel'} · prévu le {frShort(a.date)} à {a.time} · {etatDuReportDit(a, Date.now())}</span>
+                        </span>
+                        <span className="trc-am__gestes">
+                          <button type="button" className="trc-ger__btn trc-ger__btn--cuivre" onClick={() => setAReposer(a)}>Reposer une date</button>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })()}
+
             {/* CE QUI EST PARTI AUJOURD'HUI, tous types, à l'heure de Cotonou. Ouvert dès qu'une ligne est partie. */}
             <details className="trc-ger__carte trc-am__repli" open={parti.lignes > 0}>
               <summary>
@@ -990,6 +1023,7 @@ export default function Gerard() {
       </div>
 
       {rdvPour && <RdvModal title="Poser le RDV" initial={{ clientId: rdvPour }} onClose={() => setRdvPour(null)} />}
+      {aReposer && <RdvModal appt={aReposer} onClose={() => setAReposer(null)} />}
       {civilites && <FenetreDesCivilites onClose={() => setCivilites(false)} />}
       {carteDe && cerveau.clientDe(carteDe.clientId) && (
         <CarteModal client={cerveau.clientDe(carteDe.clientId)!} numero={cerveau.telDe(carteDe)} mot={carteDe.texte}

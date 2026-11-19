@@ -23,6 +23,8 @@ import { voitLesPrix } from '../index';
 import { BarreDeSaut } from './AllerA';
 import { distanceDeLaSemaine, distanceDite, distanceDuMois, lundiDe } from './aller-a-pur';
 import { voiesDuJour } from '../../../../shared/voies-pur';
+import { etatDuReport } from '../../../../shared/a-reprogrammer-pur';
+import { etatDuReportDit, rdvsAReprogrammer } from './a-reprogrammer';
 
 /* Calendrier — la journée par Maître, la semaine d'un regard. 08:00 → 18:00.
    Déplacer un rendez-vous : glisser le bloc vers un autre créneau (jour) ou un
@@ -79,6 +81,8 @@ export default function Calendrier() {
   const [montrerLesEssais, setMontrerLesEssais] = useMontrerLesEssais();
   const appts = useMemo(() => rdvsDuCalendrier(tousLesRdv, fichesDuCalendrier, montrerLesEssais), [tousLesRdv, fichesDuCalendrier, montrerLesEssais]);
   const nombreDEssaisCaches = useMemo(() => nombreDEssais(tousLesRdv, fichesDuCalendrier), [tousLesRdv, fichesDuCalendrier]);
+  /* À REPROGRAMMER (19 novembre 2026) : hors de la grille, dans leur colonne. */
+  const aReprogrammer = useMemo(() => rdvsAReprogrammer(tousLesRdv), [tousLesRdv]);
   const estEssai = (a: Appointment) => estUnRdvDEssai(a, fichesDuCalendrier);
   const byId = useServicesById();
   /* LA PASTILLE DE PAIEMENT SUIT LE TARIF DE LA TÊTE (10 octobre 2026).
@@ -512,6 +516,10 @@ export default function Calendrier() {
         </div>
       )}
 
+      {/* À REPROGRAMMER (19 novembre 2026) : les rendez-vous empêchés quittent
+          la grille (leur place est rendue) et attendent ici leur nouvelle date. */}
+      <div className={aReprogrammer.length ? 'trc-cal-et-report' : undefined}>
+      <div className="trc-cal-et-report__grille">
       {/* Vue JOUR · téléphone — agenda vertical, tous maîtres confondus */}
       {view === 'jour' && isPhone && (
         <div className="trc-agenda">
@@ -911,6 +919,29 @@ export default function Calendrier() {
           </div>
         </div>
       )}
+      </div>
+      {aReprogrammer.length > 0 && (
+        <aside className="trc-report" aria-label="À reprogrammer">
+          <h3>À reprogrammer <span>{aReprogrammer.length}</span></h3>
+          <p className="trc-report__aide">Leur place est rendue. Reposez une date quand elle a choisi, ou laissez Opale lui proposer des places sur WhatsApp.</p>
+          {aReprogrammer.map((a) => {
+            const etat = etatDuReport(a, Date.now());
+            return (
+              <div key={a.id} className={`trc-report__carte${etat === 'equipe' ? ' est-equipe' : ''}`}>
+                <b>{nomDuRdv(a)}</b>
+                <span>{apptLabel(a, byId) || 'Rituel'}</span>
+                <span><s>{frShort(a.date)} · {a.time}</s>{a.master ? ` · ${a.master}` : ''}</span>
+                <span className="trc-report__etat">{etatDuReportDit(a, Date.now())}</span>
+                <div className="trc-report__gestes">
+                  <button type="button" className="trc-report__btn trc-report__btn--plein" onClick={() => setEditAppt(a)}>Reposer une date</button>
+                  {a.clientId && <button type="button" className="trc-report__btn" onClick={() => ouvrirFiche(a.clientId)}>Sa fiche</button>}
+                </div>
+              </div>
+            );
+          })}
+        </aside>
+      )}
+      </div>
 
       {hint && <div className="trc-cal__toast" role="status">{hint}</div>}
 

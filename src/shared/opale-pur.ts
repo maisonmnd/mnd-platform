@@ -281,16 +281,16 @@ export function consigneDOpale(): string {
     'LES RENDEZ-VOUS',
     'Elle veut un rendez-vous : comprends ce qu’elle veut (les gestes du catalogue, le jour, l’heure) dans ses propres mots. « La même chose », « comme d’habitude » : les gestes de sa dernière venue.',
     'Le catalogue du contexte donne l’identifiant de chaque geste. Un lavage ou un shampoing, c’est KLƆKLƆ™ ; des racines ou un resserrage, c’est SÍNSIN™. Si tu hésites entre deux gestes, pose une seule question courte.',
-    'Les places : appelle `chercher_des_places` avec les gestes, et son jour ou son heure s’ils sont dits ; avec `pour` et `locks` dès que tu les connais, car deux personnes ne se reçoivent à la même heure que si l’une a moins de 150 locks, et les places rendues en dépendent. Propose deux ou trois places au plus, les plus proches de son souhait, dans une phrase. Jamais une place, un jour ni une heure que l’outil n’a pas rendus.',
+    'Les places : appelle `chercher_des_places` avec les gestes, et son jour ou son heure s’ils sont dits ; avec `pour` et `locks` dès que tu les connais, car deux personnes ne se reçoivent à la même heure que si l’une a moins de 150 locks, et les places rendues en dépendent. Puis appelle `proposer_les_places` avec TROIS de ces places, les plus proches de son souhait : elles partent en boutons sous ton message, et son toucher vaut son oui. Ton message ne recopie pas les dates : une ou deux phrases qui l’invitent à toucher la place qui lui convient, et à écrire une autre date au besoin. Jamais une place, un jour ni une heure que l’outil n’a pas rendus.',
     'Le jour même se réserve ici, pour une place qui commence au moins une heure plus tard : `chercher_des_places` avec son jour (aujourd’hui) les rend quand il en reste. S’il n’en reste pas, dis-le avec égards et propose les premières places des jours suivants.',
-    'Elle choisit une place : appelle `proposer_le_rendez_vous`, puis écris le récapitulatif que l’outil te rend (les gestes, le jour avec l’année, l’heure, et le prix s’il est connu) et demande-lui de confirmer. Ne dis pas « c’est confirmé » à ce moment-là.',
+    'Elle écrit un jour et une heure (une place que tu lui as proposée, ou la sienne) : appelle `accommoder`. Elle ne repart jamais sans rendez-vous : l’outil pose sa place, ou propose les plus proches dans l’heure en boutons, ou la pose au-delà des fauteuils, et te dit quoi lui écrire. Ne dis « c’est confirmé » que si l’outil l’a posée. Pour une nouvelle sans fiche, l’outil te dit s’il faut d’abord son prénom et « Madame ou Monsieur ? ».',
     'Elle confirme (« oui », « je confirme », « parfait », « c’est bon ») un récapitulatif que tu as envoyé : appelle `confirmer`. Puis dis que c’est confirmé, avec le jour, l’année et l’heure, en une ou deux phrases. Si l’outil dit que la place vient d’être prise, propose les places qu’il rend.',
     'Le numéro a plusieurs fiches (une mère et ses enfants) : demande pour qui seulement si ce n’est pas clair ; une personne qui écrit pour elle-même ne se le fait jamais demander. Elle n’a pas de fiche : propose quand même la place qu’elle choisit (`proposer_le_rendez_vous`, pour « nouvelle »), et demande dans le même message, en une seule phrase, le prénom à inscrire et « Madame ou Monsieur ? ». Sa réponse qui les donne vaut son oui à cette place : appelle `confirmer` avec son prénom et sa civilité. Jamais une civilité supposée.',
     '',
     'CONCLURE',
-    'Chaque message la mène vers un rendez-vous posé. Après un prix, une réponse, une hésitation, termine par une proposition précise : une ou deux places (le jour et l’heure), et une question simple pour lui garder celle qui lui convient.',
+    'Chaque message la mène vers un rendez-vous posé. Après un prix, une réponse, une hésitation, termine par une proposition précise : trois places en boutons (`proposer_les_places`), qu’elle touche pour réserver.',
     'Elle hésite ou son agenda n’est pas sûr (« je suis de passage », « je ne sais pas encore », « je vous redis ») : propose de lui garder dès maintenant la place la plus proche de son souhait, en lui disant qu’un simple message suffira pour la déplacer. Ne la laisse jamais repartir avec un lien seulement : le lien du catalogue peut s’ajouter, il ne remplace jamais la place proposée.',
-    'Elle veut changer l’heure ou le jour d’un rendez-vous qu’elle a : `chercher_des_places` pour les mêmes gestes, puis `proposer_le_deplacement`, puis `confirmer` à son oui. La même personne de la Maison la reçoit. Une fois fait, dis seulement que son rendez-vous est confirmé pour le nouveau jour et la nouvelle heure (« Votre rendez-vous est confirmé pour le vendredi 6 novembre 2026 à 10 h. ») : ne dis jamais qu’il a été déplacé.',
+    'Elle ne pourra pas venir à un rendez-vous qu’elle a (une contrainte, un empêchement, elle veut le reprogrammer, en changer le jour ou l’heure) : appelle `mettre_a_reprogrammer` avec ce rendez-vous. Sa place est libérée tout de suite, il n’est pas annulé, et trois places partent en boutons sous ton message. Remercie-la de prévenir en une phrase, et invite-la à toucher la place qui lui convient ou à écrire une autre date. Ne recopie pas les dates. Quand elle écrit une date, `accommoder` avec ce rendez-vous (champ « rdv »). Une fois sa nouvelle date posée, dis seulement que son rendez-vous est confirmé pour le nouveau jour et la nouvelle heure : ne dis jamais qu’il a été déplacé.',
     'Elle annule : remercie-la de prévenir, dis que la Maison s’en occupe, et appelle `passer_la_main` (motif « annulation »). Tu n’annules rien toi-même.',
     'Elle demande si un rendez-vous tient (« c’est confirmé pour 15 h ? ») : réponds d’après ses rendez-vous du contexte, avec le jour, l’année et l’heure. S’il n’y figure pas, dis-le simplement et propose de le poser.',
     'Elle est en route, en retard, ou arrive : un mot bref (« Bien noté, nous vous attendons. »).',
@@ -370,6 +370,57 @@ export const OUTILS_D_OPALE = [
         longueur: { type: 'string', enum: ['court', 'mi-long', 'long'] },
       },
       required: ['gestes'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'proposer_les_places',
+    description: 'Pose sous ton message TROIS places en boutons, prises parmi celles que `chercher_des_places` a rendues : elle en touche une, et c’est réservé, sans autre oui. Pour un rendez-vous à reprogrammer, donne `rdv` ; sinon `pour` (la fiche, ou « nouvelle ») et les gestes. Ne recopie pas les dates dans ton message.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        gestes: GESTES,
+        rdv: { type: 'string', description: 'Le rendez-vous à reprogrammer, s’il s’agit de lui.' },
+        pour: { type: 'string', description: 'L’identifiant de la fiche pour qui l’on réserve, ou « nouvelle » quand elle n’a pas de fiche.' },
+        prenom: { type: 'string', description: 'Pour une nouvelle : le prénom qu’elle a donné, s’il est déjà dit.' },
+        civilite: { type: 'string', enum: ['madame', 'mademoiselle', 'monsieur'], description: 'Pour une nouvelle : la civilité qu’elle a dite, si elle est déjà dite.' },
+        locks: { type: 'integer', minimum: 1, maximum: 3000, description: 'Le nombre de locks qu’elle a dit, ou que tu as estimé sur sa photo.' },
+        places: {
+          type: 'array', minItems: 1, maxItems: 3,
+          items: { type: 'object', properties: { date: DATE_ISO, heure: HEURE }, required: ['date', 'heure'], additionalProperties: false },
+          description: 'Trois places, les plus proches de son souhait.',
+        },
+      },
+      required: ['gestes', 'places'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'mettre_a_reprogrammer',
+    description: 'Elle ne pourra pas venir à un rendez-vous qu’elle a : sa place est libérée tout de suite (il n’est pas annulé, il attend sa nouvelle date), et trois places partent en boutons sous ton message.',
+    input_schema: {
+      type: 'object',
+      properties: { rdv: { type: 'string', description: 'L’identifiant du rendez-vous, tel que le contexte le donne.' } },
+      required: ['rdv'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'accommoder',
+    description: 'Elle a écrit un jour et une heure : la Maison lui trouve toujours de la place (son heure, sinon les plus proches dans l’heure en boutons, sinon au-delà des fauteuils). L’outil pose, ou propose, et te dit quoi lui écrire.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        gestes: GESTES,
+        date: DATE_ISO,
+        heure: HEURE,
+        rdv: { type: 'string', description: 'Le rendez-vous à reprogrammer, s’il s’agit de lui.' },
+        pour: { type: 'string', description: 'L’identifiant de la fiche pour qui l’on réserve, ou « nouvelle ».' },
+        prenom: { type: 'string', description: 'Pour une nouvelle : le prénom qu’elle a donné.' },
+        civilite: { type: 'string', enum: ['madame', 'mademoiselle', 'monsieur'], description: 'Pour une nouvelle : la civilité qu’elle a dite.' },
+        locks: { type: 'integer', minimum: 1, maximum: 3000, description: 'Le nombre de locks qu’elle a dit, ou que tu as estimé sur sa photo.' },
+      },
+      required: ['gestes', 'date', 'heure'],
       additionalProperties: false,
     },
   },
@@ -603,7 +654,13 @@ export type EnAttenteDOpale =
   | { genre: 'pose'; pour: string; prenom?: string; civilite?: CiviliteDuFil; gestes: string[]; date: string; heure: string; dureeMin: number; proposeLe: string; locks?: number }
   | { genre: 'deplacement'; rdvId: string; updatedAt: string; maitre: string; clientId: string; gestes: string[]; dureeMin: number; avant: { date: string; time: string }; date: string; heure: string; proposeLe: string };
 
-export type EtatDOpale = { enAttente?: EnAttenteDOpale; dernierTourLe?: string; relanceLe?: string };
+/** LA DERNIÈRE OFFRE EN BOUTONS (19 novembre 2026) : ce qu'il faut pour
+    poser une première réservation d'un toucher, sans rien redemander. */
+export type OffreDeBoutons = { gestes: string[]; pour: string; prenom?: string; civilite?: CiviliteDuFil; locks?: number; places: string[]; proposeLe: string };
+/** Une offre se tient quarante-huit heures. */
+export const OFFRE_TENUE_MS = 48 * 3_600_000;
+
+export type EtatDOpale = { enAttente?: EnAttenteDOpale; dernierTourLe?: string; relanceLe?: string; offre?: OffreDeBoutons };
 
 /** `confirmer` est-il permis ? Une proposition tenue, partie avant le
     premier message du tour, de moins de deux heures. */
@@ -846,7 +903,7 @@ export type IssueDuTourDOpale =
     pas avant un nouveau message d'elle. Une main déjà passée pour le même
     motif garde son heure : la reprise par Opale ne la remet pas à zéro. */
 export function etatApresOpale(
-  avant: EtatDuFil, o: { issue: IssueDuTourDOpale; waIds: readonly string[]; dernierEntrantQuand?: string; envois: number; planEnvoye: boolean; maintenantMs: number; relance?: boolean },
+  avant: EtatDuFil, o: { issue: IssueDuTourDOpale; waIds: readonly string[]; dernierEntrantQuand?: string; envois: number; planEnvoye: boolean; maintenantMs: number; relance?: boolean; offre?: OffreDeBoutons | null },
 ): EtatDuFil & { opale: EtatDOpale } {
   const maintenant = new Date(o.maintenantMs).toISOString();
   const traites = [...(avant.traites ?? []), ...o.waIds.filter((w) => !(avant.traites ?? []).includes(w))].slice(-20);
@@ -856,7 +913,9 @@ export function etatApresOpale(
     ? (o.issue.enAttente === null ? undefined : o.issue.enAttente ?? ancienne.enAttente)
     : o.issue.genre === 'rien' ? ancienne.enAttente : undefined;
   const relanceLe = o.relance ? maintenant : ancienne.relanceLe;
-  const opale: EtatDOpale = { ...(garde ? { enAttente: garde } : {}), dernierTourLe: maintenant, ...(relanceLe ? { relanceLe } : {}) };
+  const offreGardee = o.offre === null ? undefined : o.offre ?? ancienne.offre;
+  const offre = offreGardee && o.maintenantMs - Date.parse(offreGardee.proposeLe) < OFFRE_TENUE_MS ? offreGardee : undefined;
+  const opale: EtatDOpale = { ...(garde ? { enAttente: garde } : {}), dernierTourLe: maintenant, ...(relanceLe ? { relanceLe } : {}), ...(offre ? { offre } : {}) };
   const base = {
     ...avant,
     traites,

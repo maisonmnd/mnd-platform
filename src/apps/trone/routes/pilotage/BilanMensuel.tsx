@@ -20,6 +20,7 @@ import {
   TEINTES, TEINTE_AUTRES, chiffreCourt, ecartAuMois, borneDuMois, aJourEgal, cumul, type PartDeLAnneau,
 } from '../finances/synthese-graphes-pur';
 import './pilotage.css';
+import { estAReprogrammer } from '../../../../shared/a-reprogrammer-pur';
 
 /* Bilan mensuel — le mois d'un regard : combien de rendez-vous, combien de revenu,
    qui sont les meilleures clientes, et combien de chaque prestation. Même base que
@@ -117,7 +118,8 @@ export default function BilanMensuel() {
        les compte déjà — on ne retient donc que ceux sans invoiceId (jamais deux fois). */
     const honoredNoInv = appts.filter((a) => a.branchId === branch.id && a.status === 'honoré' && !a.invoiceId && inMonth(a.date) && dansLaBorne(a.date));
     const monthAppts = appts.filter((a) => a.branchId === branch.id && a.status !== 'annulé' && inMonth(a.date));
-    const annulesDuMois = appts.filter((a) => a.branchId === branch.id && a.status === 'annulé' && inMonth(a.date));
+    /* Un rendez-vous à reprogrammer n'est pas une annulation (19 novembre 2026). */
+  const annulesDuMois = appts.filter((a) => a.branchId === branch.id && a.status === 'annulé' && !estAReprogrammer(a) && inMonth(a.date));
     /* Rituels honorés porteurs de valeur (séances 2..N d'une série = 0). */
     const honoredValue = monthAppts.filter((a) => a.status === 'honoré' && !(a.seriesIndex && a.seriesIndex > 1));
 

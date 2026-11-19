@@ -898,7 +898,8 @@ function respecteMeta(m: MessageSortant): string[] {
     }
     if (new Set(b.map((x) => x.titre)).size !== b.length) fautes.push('deux boutons au même titre');
     if (new Set(b.map((x) => x.id)).size !== b.length) fautes.push('deux boutons au même identifiant');
-    if (!b.some((x) => lisLeChoix(x.id)?.geste === 'maison')) fautes.push('pas de sortie « Parler à la Maison »');
+    /* Les places d'Opale en boutons (19 novembre 2026, à reprogrammer) : trois dates, le toucher vaut son oui ; elle écrit une autre date au besoin. */
+    if (!b.some((x) => lisLeChoix(x.id)?.geste === 'maison') && !b.every((x) => x.id.startsWith('MND:place|'))) fautes.push('pas de sortie « Parler à la Maison »');
   }
   if (m.forme === 'liste') {
     const l = m.lignes ?? [];

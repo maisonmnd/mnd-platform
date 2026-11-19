@@ -62,6 +62,8 @@ import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { PassageAvantLeFauteuil } from './PassageAvantLeFauteuil';
 import { AvantLeFauteuil } from './AvantLeFauteuil';
+import { estAReprogrammer } from '../../../../shared/a-reprogrammer-pur';
+import { marquesDeLaRepriseAuTrone } from './a-reprogrammer';
 
 /* Le Carnet — le registre des rendez-vous : multi-services, duplication, statuts. */
 
@@ -162,7 +164,7 @@ function MenuFlottant({ ancre, onClose, children }: { ancre: HTMLElement; onClos
    n'existe pas, et faire chercher au comptoir un argent que la Maison n'attend
    pas. Les trois vues d'argent l'écartent donc. La pastille de la ligne, elle,
    continue de dire l'état comptable — c'est son rôle. */
-type VueCarnet = '' | 'avenir' | 'aclore' | 'impaye' | 'partiel' | 'paye' | 'attente' | 'suggere' | 'confirme' | 'honore' | 'annule';
+type VueCarnet = '' | 'avenir' | 'aclore' | 'impaye' | 'partiel' | 'paye' | 'attente' | 'suggere' | 'confirme' | 'honore' | 'areprogrammer' | 'annule';
 
 const VUES: Record<VueCarnet, {
   label: string;
@@ -184,7 +186,9 @@ const VUES: Record<VueCarnet, {
   suggere:    { label: 'Suggérés',    garde: (a) => estSuggere(a) && etatDeLAttente(a) === null },
   confirme:   { label: 'Confirmés',   garde: (a) => a.status === 'confirmé' && !estSuggere(a) && !estEnAttente(a) },
   honore:     { label: 'Honorés',     garde: (a) => a.status === 'honoré' },
-  annule:     { label: 'Annulés',     garde: (a) => a.status === 'annulé' },
+  /* À REPROGRAMMER (19 novembre 2026) : statut technique « annulé », jamais compté comme une annulation. */
+  areprogrammer: { label: 'À reprogrammer', garde: (a) => estAReprogrammer(a) },
+  annule:     { label: 'Annulés',     garde: (a) => a.status === 'annulé' && !estAReprogrammer(a) },
 };
 
 /* Une pastille de filtre — la même dans les deux rangées, pour que le Carnet
@@ -554,7 +558,7 @@ export default function Carnet() {
   });
 
   const setStatus = (id: string, status: Appointment['status']) =>
-    appointmentsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
+    appointmentsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, status, ...(status !== 'annulé' ? marquesDeLaRepriseAuTrone(a) : {}) } : a)));
 
   /* Honorer sans encaisser émet la facture (4 octobre 2026) ; « Terminer la
      séance » l'envoie sur son WhatsApp (25 octobre). Un seul chemin pour le
@@ -803,7 +807,7 @@ export default function Carnet() {
          clics avant qu'ils n'ouvrent la fenêtre du rendez-vous. */
       <Fragment key={a.id}>
       <div
-        className={`trc-sheet__row trc-rdv est-${CLASSE_DU_STATUT[a.status].replace('trc-pill--', '')}`}
+        className={`trc-sheet__row trc-rdv est-${estAReprogrammer(a) ? 'attente' : CLASSE_DU_STATUT[a.status].replace('trc-pill--', '')}`}
         style={{ gridTemplateColumns: GRID, cursor: 'pointer' }}
         onClick={() => setModal({ appt: a })}
         title="Modifier ce rendez-vous"
@@ -1011,7 +1015,7 @@ export default function Carnet() {
           <span className="trc-menuwrap" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
-              className={`trc-pill trc-statut ${CLASSE_DU_STATUT[a.status]}`}
+              className={`trc-pill trc-statut ${estAReprogrammer(a) ? 'trc-pill--attente' : CLASSE_DU_STATUT[a.status]}`}
               aria-haspopup="menu"
               aria-expanded={menuFor === a.id}
               aria-label={`Statut : ${a.status}. Changer le statut ou agir sur ce rendez-vous`}
@@ -1023,7 +1027,7 @@ export default function Carnet() {
                 setMenuFor(a.id);
               }}
             >
-              {a.status}<span className="trc-statut__chevron" aria-hidden="true">▾</span>
+              {estAReprogrammer(a) ? 'à reprogrammer' : a.status}<span className="trc-statut__chevron" aria-hidden="true">▾</span>
             </button>
             {menuFor === a.id && menuAncre && (
               <MenuFlottant ancre={menuAncre} onClose={fermeLeMenu}>

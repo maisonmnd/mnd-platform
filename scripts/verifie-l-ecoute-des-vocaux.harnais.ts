@@ -97,8 +97,9 @@ dit('Opale lit la transcription dans son fil et ses nouveaux messages', [true, t
 ]);
 dit('un vocal incompris : la main passe sans un mot, avec l alerte, et Claude n est pas appele', [true, true, true, true], [
   /const vocalIncompris = !finDuRituel && !o\.relance && vocalIncomprisDansLeTour\(nouveaux\);\s*if \(vocalIncompris\) \{\s*issue\.silence = true;\s*issue\.issue = \{ genre: 'main', motif: motifDuFilDOpale\('media'\) \};\s*issue\.alerte = alerteDeLAutomate\(/.test(automate),
-  automate.includes('let secours = !claude && !finDuRituel && !vocalIncompris;'),
-  automate.includes('if (claude && !finDuRituel && !vocalIncompris) {'),
+  /* Le toucher d'une place et « Changer l'heure » se servent aussi sans Claude (19 novembre 2026). */
+  automate.includes('let secours = !claude && !finDuRituel && !vocalIncompris && !parLeCode;'),
+  automate.includes('if (claude && !finDuRituel && !vocalIncompris && !parLeCode) {'),
   automate.indexOf('const vocalIncompris =') > automate.indexOf('const nouveaux: MessageDuFilDOpale[]'),
 ]);
 dit('le Trone montre la transcription sous le vocal, ou pourquoi elle manque', [true, true], [

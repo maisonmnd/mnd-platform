@@ -8,6 +8,7 @@ import { t, prix } from './i18n';
 import MomentEnTrois from './MomentEnTrois';
 import { francsDuTiers } from '../../shared/le-moment-en-trois-pur';
 import './abonnee.css';
+import { estAReprogrammer } from '../../shared/a-reprogrammer-pur';
 
 /* ══ L'ONGLET RENDEZ-VOUS — 20 octobre 2026 ══════════════════════════════
    Maquette L0 validée, écran 4 (décision 8 : la barre Accueil · Rendez-vous ·
@@ -80,17 +81,20 @@ export default function RendezVousTab({ releve, prenom, selecteur, onOpenRdv, on
     const e = ETAT_SEANCE[etat];
     const ar = argent(a);
     const annulee = etat === 'annulee';
+    /* À REPROGRAMMER (19 novembre 2026) : sa place est rendue, il n'est pas annulé. */
+    const reporte = estAReprogrammer(a);
     return (
-      <div key={a.id} className={`ab-card ab-rdvc ${avenir ? '' : 'ab-rdvc--passe'} ${annulee ? 'ab-rdvc--annulee' : ''}`}>
+      <div key={a.id} className={`ab-card ab-rdvc ${avenir ? '' : 'ab-rdvc--passe'} ${annulee && !reporte ? 'ab-rdvc--annulee' : ''}`}>
         <div className="ab-rdvc__clic" role="button" tabIndex={0} onClick={() => onOpenRdv(a.id)} onKeyDown={auClavier(a.id)}>
           <div className="ab-card__top">
             <span className="ab-card__when">{t('{date} · {heure}', { date: dateCourte(a.date), heure: heureDite(a.time) })}</span>
-            <span className={`mc-stchip ${e.cls}`}>{t(e.dit)}</span>
+            <span className={`mc-stchip ${e.cls}`}>{reporte ? t('À reprogrammer') : t(e.dit)}</span>
           </div>
           <div className="ab-card__svc">{noms(a)}</div>
           {ar && <span className={`ab-argent ${ar.cls}`}>{ar.mot}</span>}
         </div>
-        {avenir && annulee && <p className="ab-rdvc__note">{t('Annulée. Elle reste ici, barrée, jusqu’à sa date.')}</p>}
+        {reporte && <p className="ab-rdvc__note">{t('À reprogrammer : votre place est libérée. La Maison vous propose de nouvelles dates sur WhatsApp.')}</p>}
+        {avenir && annulee && !reporte && <p className="ab-rdvc__note">{t('Annulée. Elle reste ici, barrée, jusqu’à sa date.')}</p>}
         {avenir && !annulee && (
           <div className="ab-rdvc__acts">
             {etat === 'proposee' ? (

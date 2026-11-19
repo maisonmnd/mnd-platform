@@ -25,6 +25,7 @@ import { demandeAClaude, versionDeIaMaison } from '../../../../shared/ia-maison'
 import { saitLeTableauIntelligent } from '../../../../shared/ia-maison-pur';
 import { demandeDExplication, explicationLisible, type ExplicationDeLaPrevision } from '../../../../shared/ia-tableau-pur';
 import './prevision-du-mois.css';
+import { estAReprogrammer } from '../../../../shared/a-reprogrammer-pur';
 
 /* ═══════════════════════════════════════════════════════════════════
    LA PRÉVISION DU MOIS, AU TABLEAU DE BORD — 24 octobre 2026, maquette
@@ -143,7 +144,7 @@ export function usePrevisionDuMois(): DonneesDeLaPrevision {
     const rdvs = aVenir.map((a) => ({ date: a.date, duXof: apptDueXof(a, byId) }));
     const ilYAUnAn = addDaysISO(today, -365);
     const passes = appts.filter((a) => a.branchId === branch.id && a.date >= ilYAUnAn && a.date < today);
-    const honneur = { honores: passes.filter((a) => a.status === 'honoré').length, annules: passes.filter((a) => a.status === 'annulé').length };
+    const honneur = { honores: passes.filter((a) => a.status === 'honoré').length, annules: passes.filter((a) => a.status === 'annulé' && !estAReprogrammer(a)).length };
     /* ③ Les reprises : la Cadence, chez celles qui n'ont pas de rendez-vous. */
     /* Le juge ne lit que les rendez-vous de la cliente et sa fiche : on les
        lui donne déjà triés par cliente, sans balayer toute la Maison pour
@@ -205,7 +206,7 @@ export function usePrevisionDuMois(): DonneesDeLaPrevision {
       const justeAlors = tauxDeRealisation(venues.filter((a) => a.date < cut));
       const alors = prevoisLeMois({
         aujourdhui: cut, dernierJour: fin, encaisseParJour: [{ iso: cut, xof: entreXof }], rdvs: rdvsAlors,
-        honneur: { honores: passesAlors.filter((a) => a.status === 'honoré').length, annules: passesAlors.filter((a) => a.status === 'annulé').length },
+        honneur: { honores: passesAlors.filter((a) => a.status === 'honoré').length, annules: passesAlors.filter((a) => a.status === 'annulé' && !estAReprogrammer(a)).length },
         reprises: reprisesAlors, justesse: justeAlors ? justeAlors.dans14 / 100 : null,
         creancesPassees: creancesDesSixMois(factures, m, jour),
         versementsAVenirXof: revenusProjetesDuMois(args, m, cut).versements,

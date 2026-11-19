@@ -10,6 +10,8 @@
    proche en tête), puis le passé (le plus récent en tête) ; et les totaux,
    en chiffres (« des chiffres, pas des phrases », même soir). */
 
+import { estAReprogrammer } from '../../../../shared/a-reprogrammer-pur';
+
 export type RdvDeLaListe = { id: string; date: string; time: string; status: string };
 
 const minutes = (hhmm: string): number => {
@@ -38,7 +40,8 @@ export function totauxDeSesRendezVous<T extends RdvDeLaListe>(
   return {
     nombre: rdvs.length,
     honores: honores.length,
-    annules: rdvs.filter((a) => a.status === 'annulé').length,
+    /* Un rendez-vous à reprogrammer n'est pas une annulation (19 novembre 2026). */
+    annules: rdvs.filter((a) => a.status === 'annulé' && !estAReprogrammer(a)).length,
     honoresXof: honores.reduce((s, a) => s + Math.max(0, netDe(a)), 0),
     resteXof: rdvs.filter((a) => a.status !== 'annulé').reduce((s, a) => s + Math.max(0, resteDe(a)), 0),
   };

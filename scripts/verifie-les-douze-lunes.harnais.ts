@@ -690,6 +690,8 @@ const regles: Regle[] = [
         'modeles-meta': { fichier: 'src/shared/modeles-meta-pur.ts', extrait: (s) => entre(s, 'modeles-meta') },
         /* Opale écoute les vocaux (18 novembre 2026) : le moteur, ce qui est compris et pourquoi, la lecture d'une transcription, recopiés dans whatsapp-webhook (qui écoute) et whatsapp-automate (qui lit). */
         'ecoute-du-vocal': { fichier: 'src/shared/ecoute-du-vocal-pur.ts', extrait: (s) => entre(s, 'ecoute-du-vocal') },
+        /* À reprogrammer (19 novembre 2026) : le report, la relance du lendemain, les boutons de places, « jamais sans rendez-vous », recopiés dans whatsapp-automate. */
+        'a-reprogrammer': { fichier: 'src/shared/a-reprogrammer-pur.ts', extrait: (s) => entre(s, 'a-reprogrammer') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };
