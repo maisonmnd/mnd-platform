@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## À REPROGRAMMER, ET JAMAIS SANS RENDEZ-VOUS — 19 novembre 2026 (SQL 0239, whatsapp-automate 2026-11-19-b, Trône, Ma Couronne)
+## À REPROGRAMMER, ET JAMAIS SANS RENDEZ-VOUS — 19 novembre 2026, EN LIGNE (SQL 0239 passée, retour en arrière ~/.supabase/repli-pose-avant-0239.sql ; whatsapp-automate 2026-11-19-b v82 ; Trône 543/543 et Ma Couronne 313/313, build 20261119134947 @ 8c2e8112 ; aucun essai réel)
 
 Une cliente écrit « j'ai une contrainte, je ne pourrai plus être là, je vais reprogrammer » ; Opale lui répondait trois dates en texte, et le rendez-vous restait confirmé, sa place prise. Yéman : des choix « cochables, un clic », le rendez-vous « ni confirmé ni annulé » mais sa place libérée, sorti du calendrier des confirmés. Maquette https://claude.ai/artifact/7YX7UtCFusPMJdrjJtfcQr (non commitée), tranchée au sélecteur puis « construis ».
 
