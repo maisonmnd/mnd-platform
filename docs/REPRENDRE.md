@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE PLAN PART AVEC LE CHEMIN — 19 novembre 2026 (whatsapp-automate 2026-11-19-a ; Trône : Conversations, WhatsApp programmé, QR codes ; aucun SQL)
+## LE PLAN PART AVEC LE CHEMIN — 19 novembre 2026, EN LIGNE (whatsapp-automate 2026-11-19-a v81 ; Trône build 20261119123548 @ 8cfa72eb, 543/543 ; aucun SQL ; aucun essai réel)
 
 « At all time this map needs to be attached to the message when we send the link to the clients when they need to come to the salon and they ask us the address » (Yéman, avec l'image du plan « Comment nous trouver · Depuis Super U Akpakpa », la même que `public/assets/itineraire/plan-depuis-super-u.png`).
 
