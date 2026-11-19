@@ -94,6 +94,19 @@ export const MARGE_DE_LA_FENETRE_MS = 30 * 60_000;
 export const ADRESSE_D_OPALE = 'Ilot 130-F, Maison 88, Portail Marron, quartier Suru-Léré, Cotonou';
 /** Le lieu déjà dit dans ce fil : l'adresse, ou le lien du plan. */
 export const LIEU_DEJA_DIT = /ilot 130-f|maisonmnd\.com\/venir/i;
+/** Un lien Google Maps, court ou long. */
+export const LIEN_DE_CARTE = /maps\.app\.goo\.gl|goo\.gl\/maps|google\.[a-z.]+\/maps|maps\.google\.[a-z.]+/i;
+/** CE MOT DONNE LE CHEMIN (19 novembre 2026) : l'adresse d'Opale, le lien
+    pour venir, un lien Google Maps, ou l'adresse que la branche porte. Le plan
+    part alors avec lui, toujours (Yéman : « this map needs to be attached to
+    the message… at all time »), qu'il vienne d'Opale ou de l'équipe. */
+export function donneLeChemin(texte: string, adresse = ''): boolean {
+  const t = String(texte ?? '');
+  if (LIEU_DEJA_DIT.test(t) || LIEN_DE_CARTE.test(t)) return true;
+  const plat = (s: string): string => s.toLowerCase().replace(/\s+/g, ' ').trim();
+  const a = plat(String(adresse ?? ''));
+  return a.length >= 8 && plat(t).includes(a);
+}
 
 /* ── LE RÉGLAGE ─────────────────────────────────────────────────────────
    Système › Paramètres › « Qui répond sur WhatsApp » : Opale, ou l'ancien

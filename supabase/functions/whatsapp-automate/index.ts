@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-18-h · deux tetes chez Team : Opale lit les places de chaque jour (places_en_ligne_du) et la tete de la cliente (ses locks dits ou ceux de sa fiche) ; Team recoit une seconde cliente a la meme heure quand l une des deux a moins de 150 locks, jamais deux lourdes, deux au plus, un maitre seul d abord ; les locks dits s ecrivent sur le rendez-vous (locksAnnonces) ; 2026-11-18-g · Opale lit l agenda sur toute la fenetre ou elle propose, et relit la journee avant chaque proposition : plus jamais « libre » puis « vient d etre prise » (le 28 au dixieme jour paraissait vide) ; 2026-11-18-f · Opale range le demarchage : quelqu un qui vend a la Maison, elle ne lui ecrit rien et le tri relit ses derniers mots (relire) pour le bloquer ou le ranger dans les propositions ; 2026-11-18-e · Opale lit les vocaux : la transcription que la réception a écrite (Whisper chez Groq) entre dans son fil et ses nouveaux messages, elle y répond comme à un message écrit ; un vocal que la Maison n a pas compris fait passer la main sans un mot, avec l alerte ; 2026-11-18-d · la confirmation du Oui de Perle se lit dans le fil d Opale comme un message automatique ; 2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-19-a · le plan part avec le chemin : a qui demande l adresse, la localisation ou le chemin (un vocal compris), et chaque fois que le mot d Opale donne l adresse ou un lien pour venir, le plan part en image, pose par le code et non plus laisse au modele ; le lien pour venir n est pas redit ; 2026-11-18-h · deux tetes chez Team : Opale lit les places de chaque jour (places_en_ligne_du) et la tete de la cliente (ses locks dits ou ceux de sa fiche) ; Team recoit une seconde cliente a la meme heure quand l une des deux a moins de 150 locks, jamais deux lourdes, deux au plus, un maitre seul d abord ; les locks dits s ecrivent sur le rendez-vous (locksAnnonces) ; 2026-11-18-g · Opale lit l agenda sur toute la fenetre ou elle propose, et relit la journee avant chaque proposition : plus jamais « libre » puis « vient d etre prise » (le 28 au dixieme jour paraissait vide) ; 2026-11-18-f · Opale range le demarchage : quelqu un qui vend a la Maison, elle ne lui ecrit rien et le tri relit ses derniers mots (relire) pour le bloquer ou le ranger dans les propositions ; 2026-11-18-e · Opale lit les vocaux : la transcription que la réception a écrite (Whisper chez Groq) entre dans son fil et ses nouveaux messages, elle y répond comme à un message écrit ; un vocal que la Maison n a pas compris fait passer la main sans un mot, avec l alerte ; 2026-11-18-d · la confirmation du Oui de Perle se lit dans le fil d Opale comme un message automatique ; 2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -5004,6 +5004,19 @@ export const MARGE_DE_LA_FENETRE_MS = 30 * 60_000;
 export const ADRESSE_D_OPALE = 'Ilot 130-F, Maison 88, Portail Marron, quartier Suru-Léré, Cotonou';
 /** Le lieu déjà dit dans ce fil : l'adresse, ou le lien du plan. */
 export const LIEU_DEJA_DIT = /ilot 130-f|maisonmnd\.com\/venir/i;
+/** Un lien Google Maps, court ou long. */
+export const LIEN_DE_CARTE = /maps\.app\.goo\.gl|goo\.gl\/maps|google\.[a-z.]+\/maps|maps\.google\.[a-z.]+/i;
+/** CE MOT DONNE LE CHEMIN (19 novembre 2026) : l'adresse d'Opale, le lien
+    pour venir, un lien Google Maps, ou l'adresse que la branche porte. Le plan
+    part alors avec lui, toujours (Yéman : « this map needs to be attached to
+    the message… at all time »), qu'il vienne d'Opale ou de l'équipe. */
+export function donneLeChemin(texte: string, adresse = ''): boolean {
+  const t = String(texte ?? '');
+  if (LIEU_DEJA_DIT.test(t) || LIEN_DE_CARTE.test(t)) return true;
+  const plat = (s: string): string => s.toLowerCase().replace(/\s+/g, ' ').trim();
+  const a = plat(String(adresse ?? ''));
+  return a.length >= 8 && plat(t).includes(a);
+}
 
 /* ── LE RÉGLAGE ─────────────────────────────────────────────────────────
    Système › Paramètres › « Qui répond sur WhatsApp » : Opale, ou l'ancien
@@ -8045,7 +8058,7 @@ async function unTourDOpale(
         : 'Le rendez-vous n’a pas pu être déplacé (il a changé entre-temps). Passe la main (motif « question »).';
     }
     if (nom === 'envoyer_le_plan') {
-      const demande = demandeLeCheminWa(nouveaux.map((m) => m.texte).join(' '));
+      const demande = demandeLeCheminWa(nouveaux.map((m) => [m.texte, m.transcription ?? ''].join(' ')).join(' '));
       if (connaitLeLieu && !demande) return 'Elle connaît déjà la Maison : le plan ne part pas. Ne le promets pas.';
       issue.plan = true;
       return 'Le plan et la Maison sur Google Maps partent juste après ton message. Ne les décris pas.';
@@ -8215,13 +8228,22 @@ async function unTourDOpale(
     if (!issue.silence) issue.alerte = alerteDeLAutomate({ genre: 'main', prenom: prenomPourAlerte, numero: o.numero, motif });
   }
 
+  /* LE PLAN PART AVEC LE CHEMIN, TOUJOURS (19 novembre 2026, Yéman : « At
+     all time this map needs to be attached to the message… when they ask us
+     the address »). Posé par le code, plus laissé au modèle : elle demande
+     l'adresse, la localisation ou le chemin (un vocal compris), ou le mot
+     d'Opale donne l'adresse ou un lien pour venir. Habituée ou non. */
+  const textesDuTour = nouveaux.map((m) => [m.texte, m.transcription ?? ''].join(' ')).join(' ');
+  if (!issue.silence && (demandeLeCheminWa(textesDuTour) || donneLeChemin(issue.texte, String(agenda?.lignes.branche.data?.address ?? '')))) issue.plan = true;
+
   /* ⑧ LES MESSAGES, et l'état du fil, À CONDITION, avant qu'ils partent. */
   const sortants: MessageSortant[] = [];
   if (!issue.silence) sortants.push({ forme: 'texte', etape: issue.issue.genre === 'main' && !repondEnReprise ? 'main' : issue.issue.genre === 'parle' || repondEnReprise ? 'besoin' : 'confirme', corps: issue.texte.trim() });
   if (!issue.silence && issue.plan) {
     const lien = ligneGoogleMapsWa(carte);
     sortants.push({ forme: 'image', etape: 'besoin', corps: '', image: PLAN_POUR_VENIR, accessoire: true });
-    if (lien) sortants.push({ forme: 'texte', etape: 'besoin', corps: lien, accessoire: true });
+    /* Le lien pour venir, une fois : pas quand son mot le porte déjà. */
+    if (lien && !LIEU_DEJA_DIT.test(issue.texte)) sortants.push({ forme: 'texte', etape: 'besoin', corps: lien, accessoire: true });
   }
   const base = fil ?? etatNeufDuFil(o.numero, new Date(ms).toISOString());
   const etat = etatApresOpale({ ...base, version: versionLue }, {

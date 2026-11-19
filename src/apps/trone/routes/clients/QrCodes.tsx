@@ -27,6 +27,7 @@ import {
   CODES_ENVOYABLES, type IdDuCode, type RdvDuMoment, type Suggestion, type Besoin,
 } from '../../../../shared/codes-du-moment';
 import { AuComptoir, type Grand } from './AuComptoir';
+import { partageLePlan } from './plan-pour-venir';
 import './clients.css';
 
 /* QR CODES — TOUS LES CODES DE LA MAISON, RÉUNIS (13 août, demande de Yéman).
@@ -815,6 +816,7 @@ export default function QrCodes() {
     compte(id);
     const message = signeLeMessage(brut);
     const lien = lienWaMe(cliente.phone, message);
+    if (id === 'plan') { void envoieAvecLePlan(message, lien, 'Pas de numéro sur sa fiche : le message'); return; }
     if (!lien) { copierTexte(message, 'Pas de numéro sur sa fiche : le message'); return; }
     const w = window.open(lien, '_blank');
     if (w) { try { w.opener = null; } catch { /* l'onglet est ouvert */ } } else copierTexte(message, 'Le message');
@@ -831,9 +833,19 @@ export default function QrCodes() {
     const fiche = ficheDe.get(a.clientId);
     const message = signeLeMessage(`Bonjour ${appelDe(fiche ?? {}, a.clientName)}, voici l’itinéraire de la ${maisonNom()} pour votre rendez-vous d’aujourd’hui à ${heureDite(a.time)} : ${lienPlan}`);
     const lien = lienWaMe(fiche?.phone, message);
-    if (!lien) { toast('Pas de numéro sur sa fiche : le message est à copier.'); copierTexte(message, 'Le message de l’itinéraire'); return; }
-    const w = window.open(lien, '_blank');
-    if (w) { try { w.opener = null; } catch { /* l'onglet est ouvert */ } } else copierTexte(message, 'Le message de l’itinéraire');
+    void envoieAvecLePlan(message, lien, 'Le message de l’itinéraire');
+  };
+
+  /* LE PLAN PART AVEC L'ITINÉRAIRE, TOUJOURS — 19 novembre 2026 (Yéman :
+     « At all time this map needs to be attached to the message »). WhatsApp
+     ouvert par un lien n'accepte que du texte : le partage de l'appareil
+     emporte l'image et le mot ensemble ; sinon le plan va au presse-papiers,
+     WhatsApp s'ouvre sur le mot, et l'écran dit de coller l'image. */
+  const envoieAvecLePlan = async (message: string, lien: string | null, quoi: string) => {
+    const r = await partageLePlan(message, lien);
+    if (r === 'copie') toast('Le plan est copié : collez-le (Ctrl+V) dans la conversation WhatsApp, puis envoyez.');
+    else if (r === 'sans-plan') toast('Le plan n’a pas pu se copier : joignez-le depuis « Nous trouver » › Afficher.');
+    else if (r === 'sans-numero') { toast('Pas de numéro sur sa fiche : le message est copié, joignez-y le plan.'); copierTexte(message, quoi); }
   };
 
   const ligneDuMoment = (s: Suggestion): { cle: string; texte: string; sous: string; gestes: Geste[] } => {

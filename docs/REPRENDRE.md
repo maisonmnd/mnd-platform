@@ -2,6 +2,19 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE PLAN PART AVEC LE CHEMIN — 19 novembre 2026 (whatsapp-automate 2026-11-19-a ; Trône : Conversations, WhatsApp programmé, QR codes ; aucun SQL)
+
+« At all time this map needs to be attached to the message when we send the link to the clients when they need to come to the salon and they ask us the address » (Yéman, avec l'image du plan « Comment nous trouver · Depuis Super U Akpakpa », la même que `public/assets/itineraire/plan-depuis-super-u.png`).
+
+- **La règle** (`donneLeChemin`, ⟨opale⟩ dans `opale-pur.ts`) : un mot donne le chemin s'il porte l'adresse d'Opale (`LIEU_DEJA_DIT`), le lien pour venir, un lien Google Maps (`LIEN_DE_CARTE` : maps.app.goo.gl, goo.gl/maps, google.…/maps, maps.google.…) ou l'adresse de la branche (`branches.address`, huit signes au moins).
+- **Opale** : le plan est posé PAR LE CODE (il dépendait de l'outil `envoyer_le_plan`, que le modèle pouvait oublier) quand elle demande l'adresse, la localisation ou le chemin (`demandeLeCheminWa`, transcription d'un vocal comprise), habituée ou non, et chaque fois que le mot d'Opale donne le chemin. Le lien pour venir ne se redit pas quand le mot le porte déjà. L'outil reste, et refuse toujours d'envoyer le plan à une habituée qui ne l'a pas demandé.
+- **Conversations** (`ComposeurWhatsApp`) : un mot qui donne le chemin, sans autre pièce, emporte le plan, comme le geste « Itinéraire » (`joinsLePlan`, il part avant le texte) ; retiré, il revient tant que le chemin est dans le mot.
+- **Programmer un WhatsApp** : la pièce « L'itinéraire », ou un message sans pièce qui donne le chemin, garde le plan comme fichier joint (`leFichierDuPlan`, `deposeLeFichier`) ; l'écran le dit.
+- **QR codes** (« Nous trouver » et « Envoyer l'itinéraire » du jour) : WhatsApp ouvert par un lien `wa.me` ne prend que du texte. Le partage de l'appareil (`partageLePlan`, `navigator.share`) emporte l'image et le mot ; sinon le plan va au presse-papiers, WhatsApp s'ouvre sur le mot, et l'écran dit de coller l'image (Ctrl+V).
+- **Ce qui ne bouge pas** : l'ancien automate (en réserve) renvoyait déjà le plan à qui demande le chemin ; les modèles Meta (confirmation, rappel) ne portent pas d'image.
+- **Bancs** : `verifie-le-plan-avec-le-chemin` 11 épreuves, `--prouve` 9 pannes sur 9 ; `verifie-opale` 155 (quatre contrôles neufs : l'habituée qui demande la localisation sans que Claude appelle l'outil, un lien Google Maps dans son mot, le lien pour venir pas redit, rien demandé rien donné ; « Vous êtes où ? » reçoit désormais le plan et le lien), `--prouve` 87 ; `verifie-les-liens-a-envoyer` (9/9), `verifie-les-envois-programmes` (37/37), `verifie-gestes-conversation`, `verifie-les-codes-du-moment` et les bancs qui lisent ces écrans, verts ; `verifie-les-douze-lunes` R8 tient (R12 seul, connu) ; typecheck 0.
+- **À vérifier avec Yéman** : le plan dit « Lot 0356, Akpakpa », Opale dit « Ilot 130-F, Maison 88, Portail Marron, quartier Suru-Léré » (`ADRESSE_D_OPALE`), et la branche « Maison 88 Portail Marron ».
+
 ## DEUX FICHIERS REGROUPÉS RATTRAPÉS APRÈS « DEUX TÊTES » — 18 novembre 2026, EN LIGNE (assistant-maison 2026-11-18-b v44, visio-salle 2026-11-18-b v12 ; aucun SQL ; Trône inchangé)
 
 - **Pourquoi** : 60603719 a changé `agenda-pur` et `place-du-serveur` sans refaire les deux fonctions qui les regroupent. `verifie-la-cle-du-cron` criait sur `assistant-maison` (signalé par la session du « Non merci ») ; `visio-salle` avait le même retard, sans banc pour le dire.

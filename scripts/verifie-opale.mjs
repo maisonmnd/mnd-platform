@@ -39,6 +39,9 @@ const PANNES = [
   { nom: 'la garde du rituel termine bloque la reprise', fichier: AU, avant: 'if (laMainEstPassee && !finDuRituel && !repriseDeLaMain) {', apres: 'if (laMainEstPassee && !finDuRituel) {' },
   { nom: 'une main qui reste a l equipe se perd a la reprise', fichier: AU, avant: "const repondEnReprise = !!repriseDeLaMain?.resteALEquipe && issue.issue.genre === 'parle';", apres: 'const repondEnReprise = false;' },
   { nom: 'la reprise remet l heure de la main a zero', fichier: OP, avant: "mainPasseeLe: memeMain ? avant.mainPasseeLe : maintenant,", apres: 'mainPasseeLe: maintenant,' },
+  /* Le plan part avec le chemin, toujours (19 novembre 2026). */
+  { nom: 'le plan laisse au modele', fichier: AU, avant: "  if (!issue.silence && (demandeLeCheminWa(textesDuTour) || donneLeChemin(issue.texte, String(agenda?.lignes.branche.data?.address ?? '')))) issue.plan = true;\n", apres: '' },
+  { nom: 'le lien pour venir redit', fichier: AU, avant: 'if (lien && !LIEU_DEJA_DIT.test(issue.texte)) sortants.push', apres: 'if (lien) sortants.push' },
   { nom: 'le jour meme ne se cherche pas', fichier: AU, avant: '...placesDuJourMemeWa(agenda!.agenda, g.ids, Date.now(), lourde), ', apres: '' },
   { nom: 'le jour meme sans l heure d avance', fichier: OP, avant: 'minutesDe(e.heure) < o.minutesDuJour + JOUR_MEME_DELAI_MIN', apres: 'minutesDe(e.heure) < o.minutesDuJour' },
   { nom: 'le jour meme se pose sans le juge du jour', fichier: AU, avant: 'const verdict = await poseSousVerrou(sb, agenda!, ecriture, vue!.oublie, jourMeme, lourdeVenue);', apres: 'const verdict = await poseSousVerrou(sb, agenda!, ecriture, vue!.oublie, false, lourdeVenue);' },

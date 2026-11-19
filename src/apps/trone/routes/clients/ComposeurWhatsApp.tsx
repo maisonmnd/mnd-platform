@@ -14,7 +14,7 @@ import {
   type EtapeDuFil, type EtatDuFil, type MainDuFil, type VueDeLAutomate,
 } from '../../../../shared/automate-wa';
 import { useOpale } from '../../../../shared/opale';
-import { reglageDOpale } from '../../../../shared/opale-pur';
+import { donneLeChemin, reglageDOpale } from '../../../../shared/opale-pur';
 import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
 import { motifDuRefus } from '../../../../shared/whatsapp';
 import { appelleOuGarde, gardeUnAppel } from '../../../../shared/appels-en-attente';
@@ -285,6 +285,45 @@ export function ComposeurWhatsApp({ fil, texte, surTexte, cite, surCite, poignee
      une autre. */
   const [planDAbord, setPlanDAbord] = useState(false);
   useEffect(() => { if (!piece) setPlanDAbord(false); }, [piece]);
+  /* LE PLAN POUR VENIR · 29 octobre 2026. L'image du Trône lui-même,
+     dessinée par la Maison : elle se relit, et part avant le texte. */
+  const planEnRoute = useRef(false);
+  const joinsLePlan = (nom: string, surEchec?: () => void) => {
+    if (planEnRoute.current) return;
+    planEnRoute.current = true;
+    void (async () => {
+      try {
+        const r = await fetch(`${import.meta.env.BASE_URL}assets/itineraire/plan-depuis-super-u.png`);
+        if (!r.ok) throw new Error(String(r.status));
+        const b = await r.blob();
+        const donnees = await new Promise<string>((ok, ko) => {
+          const l = new FileReader();
+          l.onload = () => ok(String(l.result));
+          l.onerror = () => ko(l.error);
+          l.readAsDataURL(b);
+        });
+        setPiece({ nom: `${nom}.png`, type: 'image/png', donnees });
+        setPlanDAbord(true);
+      } catch {
+        surEchec?.();
+        toast(`${nom} : l’image n’a pas pu se joindre. Le texte est prêt.`);
+      } finally {
+        planEnRoute.current = false;
+      }
+    })();
+  };
+  /* LE PLAN PART AVEC L'ADRESSE, TOUJOURS · 19 novembre 2026 (Yéman : « At
+     all time this map needs to be attached to the message »). Un mot qui
+     donne l'adresse de la Maison, le lien pour venir ou un lien Google Maps
+     emporte le plan, comme le geste « Itinéraire » : sans autre pièce, il se
+     joint seul, et revient si on le retire tant que le chemin est dans le mot. */
+  const parleDuChemin = donneLeChemin(texte, branch.address ?? '');
+  const planRefuse = useRef('');
+  useEffect(() => {
+    if (!parleDuChemin || piece || planRefuse.current === fil.numero) return;
+    joinsLePlan('Plan pour venir à la Maison', () => { planRefuse.current = fil.numero; });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parleDuChemin, piece, fil.numero]);
   /* La facture ou le devis d'un geste, tel que les Factures le font (18 octobre 2026). */
   const { buildPdfData } = useLaPieceEnPdf();
   const [promoOuverte, setPromoOuverte] = useState(false);
@@ -446,27 +485,7 @@ export function ComposeurWhatsApp({ fil, texte, surTexte, cite, surCite, poignee
         }
       })();
     } else if (g.piece?.quoi === 'plan') {
-      /* LE PLAN POUR VENIR · 29 octobre 2026. L'image du Trône lui-même,
-         dessinée par la Maison : elle se relit, se retire, et part avant le
-         texte. */
-      const nom = g.piece.nom;
-      void (async () => {
-        try {
-          const r = await fetch(`${import.meta.env.BASE_URL}assets/itineraire/plan-depuis-super-u.png`);
-          if (!r.ok) throw new Error(String(r.status));
-          const b = await r.blob();
-          const donnees = await new Promise<string>((ok, ko) => {
-            const l = new FileReader();
-            l.onload = () => ok(String(l.result));
-            l.onerror = () => ko(l.error);
-            l.readAsDataURL(b);
-          });
-          setPiece({ nom: `${nom}.png`, type: 'image/png', donnees });
-          setPlanDAbord(true);
-        } catch {
-          toast(`${nom} : l’image n’a pas pu se joindre. Le texte est prêt.`);
-        }
-      })();
+      joinsLePlan(g.piece.nom);
     } else if (g.piece) {
       /* ON NE PROMET PAS UN FICHIER QU'ON N'A PAS. Le bilan vit dans une page
          imprimable, les photos de séance n'ont pas encore de logement : le

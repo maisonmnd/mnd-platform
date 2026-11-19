@@ -24,6 +24,8 @@ import { ClientPicker, todayISO } from '../routes/clients/_shared';
 import { useLiensDesQrCodes } from '../routes/clients/liens-des-qr-codes';
 import { deposeLeFichier, gesteSurLEnvoi, motDuGeste, pieceATirerDe, programmeLesLignes } from '../routes/clients/envois-programmes-donnees';
 import { useEstDirection } from '../routes/_vie';
+import { leFichierDuPlan } from '../routes/clients/plan-pour-venir';
+import { donneLeChemin } from '../../../shared/opale-pur';
 import './programmer-un-whatsapp.css';
 
 /* ══ PROGRAMMER UN WHATSAPP — 13 novembre 2026 ═══════════════════════════
@@ -182,6 +184,7 @@ export default function ProgrammerUnWhatsApp({ initial, ligne, surFermer, onPose
   const nuit = prevu !== null && (() => { const h = Number(heureDuProgramme(prevu).split(' ')[0]); return h >= 20 || h < 8; })();
   const auteur = ((tete as { name?: string } | null)?.name ?? staff?.name ?? '').trim().split(/\s+/)[0] || (session?.user?.email ?? '').split('@')[0] || 'le comptoir';
   const sansNumero = dest.filter((d) => !d.numero);
+  const avecLePlan = piece === 'itineraire' || (piece === 'aucune' && donneLeChemin(texte, branch.address ?? ''));
 
   const programme = async () => {
     setMot('');
@@ -216,7 +219,15 @@ export default function ProgrammerUnWhatsApp({ initial, ligne, surFermer, onPose
     setEnCours(true);
     const lotId = `prog-${uid()}`;
     let laPiece: PieceDuProgramme | undefined;
-    if (piece === 'fichier' && fichier) {
+    /* LE PLAN PART AVEC L'ITINÉRAIRE, TOUJOURS (19 novembre 2026) : la pièce
+       « L'itinéraire », ou un message sans pièce qui donne l'adresse ou un
+       lien pour venir, emporte l'image du plan, gardée comme un fichier joint. */
+    if (avecLePlan) {
+      const plan = await leFichierDuPlan();
+      const d = plan ? await deposeLeFichier(lotId, plan) : null;
+      if (!d || !d.ok) { setEnCours(false); setMot(d && !d.ok ? d.erreur : 'Le plan pour venir n’a pas pu se joindre : réessayez.'); return; }
+      laPiece = d.piece;
+    } else if (piece === 'fichier' && fichier) {
       const d = await deposeLeFichier(lotId, fichier);
       if (!d.ok) { setEnCours(false); setMot(d.erreur); return; }
       laPiece = d.piece;
@@ -306,9 +317,10 @@ export default function ProgrammerUnWhatsApp({ initial, ligne, surFermer, onPose
                 {puce(piece === 'facture', <>Sa facture<small>tirée à l’envoi</small></>, () => setPiece('facture'), 'facture')}
                 {puce(piece === 'recu', <>Son reçu<small>tiré à l’envoi</small></>, () => setPiece('recu'), 'recu')}
                 {puce(piece === 'carte', <>La carte des prix<small>un lien, à jour</small></>, () => setPiece('carte'), 'carte')}
-                {puce(piece === 'itineraire', <>L’itinéraire<small>{qr.lienPlan ? 'Google Maps, jusqu’à la porte' : 'adresse à régler'}</small></>, () => setPiece('itineraire'), 'itineraire', !qr.lienPlan)}
+                {puce(piece === 'itineraire', <>L’itinéraire<small>{qr.lienPlan ? 'le plan et Google Maps' : 'adresse à régler'}</small></>, () => setPiece('itineraire'), 'itineraire', !qr.lienPlan)}
                 {fichier && puce(piece === 'fichier', fichier.name, () => setPiece('fichier'), 'fichier')}
               </div>
+              {avecLePlan && <span className="trc-prog__aide">Le plan pour venir part avec ce message, en image.</span>}
               <div className="trc-prog__ligne">
                 <label className="trc-prog__aide" htmlFor="trc-prog-fichier">Ou un fichier de l’appareil (photo, PDF, document) :</label>
                 <input id="trc-prog-fichier" type="file" accept="image/jpeg,image/png,application/pdf,video/mp4,.doc,.docx,.xls,.xlsx,.txt"

@@ -441,7 +441,8 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
   const w = elleEcrit(NUM, 'Vous etes ou ?');
   FILE = [{ texte: 'Notre salon est à Cotonou.' }, { texte: 'La Maison se trouve à Cotonou, au quartier Suru-Léré.' }];
   await tour(NUM, [w]);
-  dit('le mot banni : relu une fois, la phrase juste part', ['La Maison se trouve à Cotonou, au quartier Suru-Léré.'], textesEnvoyes());
+  /* « Vous etes ou ? » demande le chemin : le plan et le lien suivent (19 novembre 2026). */
+  dit('le mot banni : relu une fois, la phrase juste part (le plan et le lien suivent)', ['La Maison se trouve à Cotonou, au quartier Suru-Léré.', 'Maison MND sur Google Maps : https://maisonmnd.com/venir/'], textesEnvoyes());
   decor();
   const w2 = elleEcrit(NUM, 'Combien pour une couleur ?');
   FILE = [{ texte: 'La couleur est à 35 000 F.' }, { texte: 'La couleur est à 35 000 F, Madame.' }];
@@ -498,6 +499,28 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
   FILE = [{ outils: [{ name: 'envoyer_le_plan', input: {} }] }, { texte: 'Bien noté, nous vous attendons.' }];
   await tour(NUM, [w3]);
   dit('une habituee en route : pas de plan', [['text'], true], [META.map((m) => m.type), (resultatsDe(1)[0] ?? '').includes('connaît déjà')]);
+  /* LE PLAN PART AVEC LE CHEMIN, TOUJOURS (19 novembre 2026) : pose par le
+     code, meme quand Claude n appelle pas l outil, meme a une habituee. */
+  decor();
+  const w4 = elleEcrit(NUM, 'Envoyez-moi la localisation svp');
+  FILE = [{ texte: 'Nous sommes à Suru-Léré, à Cotonou.' }];
+  await tour(NUM, [w4]);
+  dit('une habituee demande la localisation, Claude oublie l outil : le plan part quand meme', ['text', 'image', 'text'], META.map((m) => m.type));
+  decor();
+  const w5 = elleEcrit(NUM, 'Merci, a samedi');
+  FILE = [{ texte: 'Avec plaisir. La Maison sur la carte : https://maps.app.goo.gl/banc' }];
+  await tour(NUM, [w5]);
+  dit('son mot donne un lien Google Maps : le plan part avec', ['text', 'image', 'text'], META.map((m) => m.type));
+  decor();
+  const w6 = elleEcrit(NUM, 'Comment venir chez vous ?');
+  FILE = [{ texte: 'Voici le chemin : https://maisonmnd.com/venir/' }];
+  await tour(NUM, [w6]);
+  dit('... le lien pour venir deja dans son mot : le plan, sans redire le lien', ['text', 'image'], META.map((m) => m.type));
+  decor();
+  const w7 = elleEcrit(NUM, 'Merci beaucoup');
+  FILE = [{ texte: 'Avec plaisir, à bientôt.' }];
+  await tour(NUM, [w7]);
+  dit('rien demande, rien donne : pas de plan', ['text'], META.map((m) => m.type));
 }
 
 /* ══ 11 bis. LES CORRECTIFS DU 4 NOVEMBRE 2026 ══
