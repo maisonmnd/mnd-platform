@@ -36,6 +36,7 @@ import {
 } from '../../../../shared/salle-des-envois';
 import { programmeDansLaSalle } from '../../../../shared/envois-programmes-pur';
 import { envoisStore, useEnvois, useAutoConfig, type Envoi } from '../equipe/data';
+import './salle-des-envois.css';
 
 type Geste = 'retenir' | 'relacher' | 'envoyer' | 'ecarter';
 type Verdict = 'fait' | 'trop-tard' | 'panne';
@@ -313,13 +314,13 @@ export function SalleDesEnvois() {
 
   return (
     <Card style={{ padding: '16px 18px', marginBottom: 16, borderColor: 'var(--copper-300)', background: 'var(--copper-50)' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-        <span style={{ fontFamily: 'var(--font-serif)', fontSize: 21, color: 'var(--color-indigo)' }}>La salle d’attente</span>
-        <span className="mnd-muted" style={{ fontSize: 12.5 }}>
+      <div className="tsa-tete">
+        <span className="tsa-titre">La salle d’attente</span>
+        <span className="mnd-muted tsa-regle">
           Un message y reste {regles.salleMin} minutes. Passé ce délai, il part seul, sauf si une main l’a retenu.
         </span>
         {(attendent.length > 1 || tenus.length > 1) && (
-          <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
+          <span className="tsa-tout">
             {attendent.length > 1 && (
               <Button variant="ghost" size="sm" disabled={occupeAilleurs} onClick={() => void fais(attendent.map((e) => e.id), 'retenir', true)}>
                 Tout retenir
@@ -342,12 +343,12 @@ export function SalleDesEnvois() {
         <div
           role="alertdialog"
           aria-label="Effacer les messages retenus"
-          style={{ marginTop: 12, padding: '12px 14px', border: '1px solid var(--copper-300)', borderRadius: 3, background: 'var(--color-ivoire, #F6F1E7)', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}
+          className="tsa-question"
         >
-          <span style={{ fontSize: 13, color: 'var(--color-indigo)', lineHeight: 1.5, flex: '1 1 260px' }}>
+          <span className="tsa-question__mot">
             Les {tenus.length} messages retenus ne partiront jamais. Ils quittent la salle et restent au journal, rangés « écartés ».
           </span>
-          <span style={{ display: 'inline-flex', gap: 8 }}>
+          <span className="tsa-question__gestes">
             <Button variant="copper" size="sm" disabled={occupeAilleurs} onClick={() => void fais(tenus.map((e) => e.id), 'ecarter', true)}>
               {toutEnCours ? 'Effacement…' : `Effacer les ${tenus.length}`}
             </Button>
@@ -357,12 +358,12 @@ export function SalleDesEnvois() {
       )}
 
       {facteur === 'absent' && (
-        <div style={{ marginTop: 10, fontSize: 12.5, color: 'var(--copper-700)', lineHeight: 1.5 }}>
+        <div className="tsa-avis">
           <b style={{ fontWeight: 600 }}>La salle est fermée.</b> Le facteur ne répond pas depuis plus de cinq minutes :
           les messages partent comme avant, sans attendre. Vérifiez le réveil « envois-partent » chez Supabase.
         </div>
       )}
-      {mot && <div style={{ marginTop: 10, fontSize: 12.5, color: 'var(--copper-700)' }}>{mot}</div>}
+      {mot && <div className="tsa-avis">{mot}</div>}
 
       {enSalle.map((e) => {
         const fiche = e.clientId ? ficheDe.get(e.clientId) : undefined;
@@ -374,42 +375,40 @@ export function SalleDesEnvois() {
           <div
             key={e.id}
             data-envoi={e.id}
-            style={{
-              display: 'grid', gridTemplateColumns: 'minmax(96px, 124px) minmax(0, 1fr) auto', gap: 14, alignItems: 'center',
-              padding: '12px 0', marginTop: 10, borderTop: '1px solid var(--copper-300)',
-            }}
+            className="tsa-ligne"
           >
-            <div style={{ fontSize: 12.5, color: 'var(--copper-700)', fontVariantNumeric: 'tabular-nums' }}>
+            <div className="tsa-quand">
               {tenu ? (
                 <>
-                  <span style={{ display: 'inline-block', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: 999, background: 'var(--color-copper)', color: '#fff' }}>retenu</span>
-                  <span style={{ display: 'block', marginTop: 3 }}>{e.retenuPar ? `par ${e.retenuPar}` : ''}{e.retenuLe ? `${e.retenuPar ? ', ' : ''}${momentDit(e.retenuLe, maintenant)}` : ''}</span>
+                  <span className="tsa-pastille">retenu</span>
+                  <span className="tsa-par">{e.retenuPar ? `par ${e.retenuPar}` : ''}{e.retenuLe ? `${e.retenuPar ? ', ' : ''}${momentDit(e.retenuLe, maintenant)}` : ''}</span>
                 </>
               ) : (
                 <>
-                  <span style={{ display: 'block', fontFamily: 'var(--font-serif)', fontSize: 19, lineHeight: 1.1, color: 'var(--color-indigo)' }}>
+                  <span className="tsa-heure">
                     {depart ? quandIlPart(depart, maintenant) : quandIlPart(e, maintenant)}
                   </span>
-                  <span style={{ display: 'block', marginTop: 2 }}>
+                  <span className="tsa-sous">
                     {e.parLaMain ? 'demandé à la main : le facteur passe chaque minute' : depart?.calme ? 'heures calmes' : `à ${heureDite(depart?.partA ?? e.partA)}`}
                   </span>
                 </>
               )}
             </div>
-            <div style={{ minWidth: 0 }}>
-              <span style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{typeDit(e.type)} · {nom}</span>
-              <span className="mnd-muted" style={{ display: 'block', fontSize: 12.5 }}>
+            <div className="tsa-qui">
+              <span className="tsa-type">{typeDit(e.type)}</span>
+              <span className="tsa-nom">{nom}</span>
+              <span className="mnd-muted tsa-detail">
                 {canalDit(e.canal)}{e.dateRdv && e.type !== 'avis-google' ? ` · ${e.type === 'point-apres' || e.type === 'point-avant' ? 'séance' : 'rendez-vous'} du ${pourLeRdv(e.dateRdv, e.heure)}` : ''}
               </span>
               {e.recolleLe && (
-                <span style={{ display: 'block', fontSize: 12, color: 'var(--copper-700)' }}>
+                <span className="tsa-deplace">
                   Rendez-vous déplacé : le message dit maintenant la nouvelle date.
                 </span>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <div className="tsa-gestes">
               {occupe ? (
-                <span aria-live="polite" style={{ fontSize: 12.5, color: 'var(--copper-700)', padding: '6px 2px' }}>Un instant…</span>
+                <span aria-live="polite" className="tsa-instant">Un instant…</span>
               ) : tenu ? (
                 <>
                   <Button variant="ghost" size="sm" onClick={() => void fais([e.id], 'relacher')}>Relâcher</Button>

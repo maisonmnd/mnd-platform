@@ -1,0 +1,71 @@
+/* ══ LA SALLE D'ATTENTE DES ENVOIS — mise en page (19 novembre 2026) ══════
+   « Rends la page plus responsive. Pour le téléphone, très dispersé. Besoin
+   d'ordre » (Yéman). Trois colonnes forcées écrasaient le nom au milieu,
+   un mot par ligne. Sur téléphone, chaque message devient une fiche lue de
+   haut en bas : l'état et l'heure, puis qui et pourquoi, puis les gestes,
+   en pleine largeur. Préfixe `tsa-`. Rayons 2 à 4 px, fondus sans rebond. */
+
+.tsa-tete { display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; }
+.tsa-titre { font-family: var(--font-serif); font-size: 21px; color: var(--color-indigo); }
+.tsa-regle { font-size: 12.5px; line-height: 1.5; }
+.tsa-tout { margin-left: auto; display: inline-flex; gap: 8px; flex-wrap: wrap; }
+
+.tsa-question {
+  margin-top: 12px; padding: 12px 14px;
+  border: 1px solid var(--copper-300); border-radius: 3px;
+  background: var(--color-ivoire, #F6F1E7);
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+}
+.tsa-question__mot { font-size: 13px; color: var(--color-indigo); line-height: 1.5; flex: 1 1 260px; }
+.tsa-question__gestes { display: inline-flex; gap: 8px; }
+
+.tsa-avis { margin-top: 10px; font-size: 12.5px; color: var(--copper-700); line-height: 1.5; }
+
+.tsa-ligne {
+  display: grid;
+  grid-template-columns: minmax(104px, 132px) minmax(0, 1fr) auto;
+  grid-template-areas: "quand qui gestes";
+  gap: 14px; align-items: center;
+  padding: 12px 0; margin-top: 10px;
+  border-top: 1px solid var(--copper-300);
+}
+.tsa-quand { grid-area: quand; font-size: 12.5px; color: var(--copper-700); font-variant-numeric: tabular-nums; min-width: 0; }
+.tsa-qui { grid-area: qui; min-width: 0; }
+.tsa-gestes { grid-area: gestes; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+.tsa-pastille {
+  display: inline-block; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 2px; background: var(--color-copper); color: #fff;
+}
+.tsa-par { display: block; margin-top: 3px; }
+.tsa-heure { display: block; font-family: var(--font-serif); font-size: 19px; line-height: 1.1; color: var(--color-indigo); }
+.tsa-sous { display: block; margin-top: 2px; }
+.tsa-nom { display: block; font-weight: 500; color: var(--color-indigo); line-height: 1.35; }
+.tsa-type { display: block; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft, #6b6b6b); margin-bottom: 2px; }
+.tsa-detail { display: block; font-size: 12.5px; line-height: 1.45; }
+.tsa-deplace { display: block; margin-top: 2px; font-size: 12px; color: var(--copper-700); }
+.tsa-instant { font-size: 12.5px; color: var(--copper-700); padding: 6px 2px; }
+
+/* TÉLÉPHONE : une fiche par message, lue de haut en bas. */
+@media (max-width: 640px) {
+  .tsa-regle { flex-basis: 100%; }
+  .tsa-tout { margin-left: 0; width: 100%; }
+  .tsa-tout > * { flex: 1 1 auto; }
+  .tsa-question__gestes { width: 100%; }
+  .tsa-question__gestes > * { flex: 1 1 0; }
+
+  .tsa-ligne {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "quand" "qui" "gestes";
+    gap: 8px; align-items: start;
+    padding: 14px 0;
+  }
+  /* L'état et son heure sur une seule ligne : « RETENU par Yéman, 18 nov. ». */
+  .tsa-quand { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+  .tsa-par, .tsa-sous { display: inline; margin-top: 0; }
+  .tsa-heure { display: inline; font-size: 18px; }
+  .tsa-nom { font-size: 15px; }
+  .tsa-gestes { justify-content: stretch; margin-top: 2px; }
+  .tsa-gestes > button { flex: 1 1 0; }
+  .tsa-instant { flex: 1 1 auto; text-align: center; }
+}
