@@ -55,7 +55,15 @@ function plagesBloquees(murs, branchId, dateIso, master) {
 var PREMIER_RENDEZ_VOUS_MIN = 8 * 60 + 30;
 var MAITRE_QUI_PARTAGE = "Team";
 var DEUX_TETES_AU_PLUS = 2;
-var bloqueLaVenue = (maitre, nouvelleLourde, deja) => maitre !== MAITRE_QUI_PARTAGE || !!nouvelleLourde && !!deja.lourde;
+var PETIT_SERVICE_MIN = 60;
+var petitService = (dureeMin) => typeof dureeMin === "number" && Number.isFinite(dureeMin) && dureeMin >= 1 && dureeMin <= PETIT_SERVICE_MIN;
+var partagentLaPlace = (dureeA, dureeB) => petitService(dureeA) || petitService(dureeB);
+function placesPrises(venueDureeMin, voisins) {
+  const n = voisins.length + 1;
+  const petits = voisins.filter((a2) => petitService(a2.dureeMin)).length + (petitService(venueDureeMin) ? 1 : 0);
+  return n - Math.min(petits, Math.floor(n / 2));
+}
+var bloqueLaVenue = (maitre, nouvelleLourde, deja, nouvelleDureeMin) => maitre !== MAITRE_QUI_PARTAGE || !!nouvelleLourde && !!deja.lourde && !partagentLaPlace(nouvelleDureeMin, deja.dureeMin);
 function creneauxLibres(o) {
   if (o.opening.closed) return [];
   const capMaison = o.capMaison ?? 0;
@@ -63,7 +71,7 @@ function creneauxLibres(o) {
   if (capMaison > 0 && o.occupes.length >= capMaison) return [];
   const duMaitre = o.occupes.filter((a2) => a2.maitre === o.master);
   if (capMaitre > 0 && duMaitre.length >= capMaitre) return [];
-  const busy = duMaitre.filter((a2) => bloqueLaVenue(o.master, o.lourde, a2)).map((a2) => [a2.debutMin, a2.debutMin + a2.dureeMin]);
+  const busy = duMaitre.filter((a2) => bloqueLaVenue(o.master, o.lourde, a2, o.durationMin)).map((a2) => [a2.debutMin, a2.debutMin + a2.dureeMin]);
   if (o.bloques) busy.push(...o.bloques);
   const pas = o.pasMin ?? 60;
   const cap = o.capSimultane ?? 0;
@@ -79,8 +87,8 @@ function creneauxLibres(o) {
     if (overlaps) continue;
     if (duMaitre.filter((a2) => m < a2.debutMin + a2.dureeMin && m + o.durationMin > a2.debutMin).length >= DEUX_TETES_AU_PLUS) continue;
     if (cap > 0) {
-      const ensemble = o.occupes.filter((a2) => m < a2.debutMin + a2.dureeMin && m + o.durationMin > a2.debutMin).length;
-      if (ensemble >= cap) continue;
+      const voisins = o.occupes.filter((a2) => m < a2.debutMin + a2.dureeMin && m + o.durationMin > a2.debutMin);
+      if (placesPrises(o.durationMin, voisins) > cap) continue;
     }
     out.push(hhmmDeMinutes(m));
   }
@@ -1669,7 +1677,7 @@ var noteLeRefus = (porte, attendue, recue) => {
 };
 
 // scripts/serveur/assistant-maison.ts
-var VERSION = "2026-11-18-b";
+var VERSION = "2026-11-20-a";
 var json = (corps, status = 200) => new Response(JSON.stringify(corps), { status, headers: { "content-type": "application/json" } });
 var jourDuSalon = (ms) => new Date(ms + 36e5).toISOString().slice(0, 10);
 var heureDuSalon2 = (ms) => {

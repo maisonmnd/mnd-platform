@@ -319,7 +319,15 @@ function plagesBloquees(murs, branchId, dateIso, master) {
 var PREMIER_RENDEZ_VOUS_MIN = 8 * 60 + 30;
 var MAITRE_QUI_PARTAGE = "Team";
 var DEUX_TETES_AU_PLUS = 2;
-var bloqueLaVenue = (maitre, nouvelleLourde, deja) => maitre !== MAITRE_QUI_PARTAGE || !!nouvelleLourde && !!deja.lourde;
+var PETIT_SERVICE_MIN = 60;
+var petitService = (dureeMin) => typeof dureeMin === "number" && Number.isFinite(dureeMin) && dureeMin >= 1 && dureeMin <= PETIT_SERVICE_MIN;
+var partagentLaPlace = (dureeA, dureeB) => petitService(dureeA) || petitService(dureeB);
+function placesPrises(venueDureeMin, voisins) {
+  const n = voisins.length + 1;
+  const petits = voisins.filter((a) => petitService(a.dureeMin)).length + (petitService(venueDureeMin) ? 1 : 0);
+  return n - Math.min(petits, Math.floor(n / 2));
+}
+var bloqueLaVenue = (maitre, nouvelleLourde, deja, nouvelleDureeMin) => maitre !== MAITRE_QUI_PARTAGE || !!nouvelleLourde && !!deja.lourde && !partagentLaPlace(nouvelleDureeMin, deja.dureeMin);
 function creneauxLibres(o) {
   if (o.opening.closed) return [];
   const capMaison = o.capMaison ?? 0;
@@ -327,7 +335,7 @@ function creneauxLibres(o) {
   if (capMaison > 0 && o.occupes.length >= capMaison) return [];
   const duMaitre = o.occupes.filter((a) => a.maitre === o.master);
   if (capMaitre > 0 && duMaitre.length >= capMaitre) return [];
-  const busy = duMaitre.filter((a) => bloqueLaVenue(o.master, o.lourde, a)).map((a) => [a.debutMin, a.debutMin + a.dureeMin]);
+  const busy = duMaitre.filter((a) => bloqueLaVenue(o.master, o.lourde, a, o.durationMin)).map((a) => [a.debutMin, a.debutMin + a.dureeMin]);
   if (o.bloques) busy.push(...o.bloques);
   const pas = o.pasMin ?? 60;
   const cap = o.capSimultane ?? 0;
@@ -343,8 +351,8 @@ function creneauxLibres(o) {
     if (overlaps) continue;
     if (duMaitre.filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length >= DEUX_TETES_AU_PLUS) continue;
     if (cap > 0) {
-      const ensemble = o.occupes.filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length;
-      if (ensemble >= cap) continue;
+      const voisins = o.occupes.filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin);
+      if (placesPrises(o.durationMin, voisins) > cap) continue;
     }
     out.push(hhmmDeMinutes(m));
   }
@@ -557,7 +565,7 @@ function rdvDeLaPrivee(o) {
 var PRIX_DE_LA_CONSULTATION_PRIVEE_XOF = 15e3;
 
 // scripts/serveur/visio-salle.ts
-var VERSION = "2026-11-18-b";
+var VERSION = "2026-11-20-a";
 var DAILY = "https://api.daily.co/v1";
 var LIMITE = { seau: "visio", max: 6, fenetreMin: 10 };
 var DAILY_MAX_MS = 8e3;

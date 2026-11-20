@@ -2,6 +2,10 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## ASSISTANT-MAISON ET VISIO-SALLE RATTRAPÉES APRÈS LE PETIT SERVICE — 20 novembre 2026, au soir (assistant-maison 2026-11-20-a, visio-salle 2026-11-20-a ; aucun SQL)
+
+Ces deux fonctions regroupées embarquent agenda-pur, donc les lots 0240 (bf81eb9b) et 0242 (6a6920bb) les avaient laissées en retard sur leurs sources. `verifie-la-cle-du-cron` l'a dit : « chaque fichier regroupé est à jour avec sa source » échouait pour assistant-maison, et `visio-salle-serveur --verifie` disait « À REFAIRE ». Elles sont refaites par `node scripts/assistant-maison-serveur.mjs` et `node scripts/visio-salle-serveur.mjs`. Leurs places suivent maintenant le petit service : une heure ou moins partage l'heure, et UNE place avec un voisin. Bancs : `verifie-la-cle-du-cron` tient, `verifie-l-assistant-au-serveur` 24, `verifie-la-visio` et `verifie-la-visio-relue` 15 ; `verifie-le-oui-de-perle` garde ses 3 échecs d'avant.
+
 ## LES PLACES DU JOUR À L'HEURE DE COTONOU — 20 novembre 2026, au soir, EN LIGNE (Trône build 20261120220754 @ 342733b2 LOCAL = 04516456 servi + cherry-pick de 83a6a607, 546/546 ; Trône seul ; aucun SQL ; aucune fonction)
 
 « Corrige les places du jour à l'heure de Cotonou » (Yéman). L'ordinateur du bureau est à l'heure de Chine (UTC+8) : à 15 h à Cotonou le Trône croyait être à 22 h et cachait les places restantes du jour ; dès 17 h, il se croyait au lendemain. `momentDuSalon()` (`shared/calendrier.ts`, Africa/Porto-Novo) donne le jour et la minute du salon ; il remplace `todayISO()` et `getHours()` dans la carte « Son prochain rituel », la fenêtre du rendez-vous (places, Le Moment, la phrase lue), la fenêtre de l'agent, Agents et la Prévision du mois. Banc `verifie-calendrier` à l'heure de Chine (66 ; 7/7 pannes). `verifie-le-prochain-rituel` recalé (ses trois contrôles de câblage tombaient depuis 4288911e, la date choisie).

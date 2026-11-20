@@ -42,7 +42,8 @@ declare const Deno: {
 /* 2026-11-17-a : la clé du cron se compare à temps constant (memeCle, cle-du-cron-pur) ; le refus se note au journal en longueurs seules (noteLeRefus), jamais dans la réponse. */
 /* 2026-11-18-a : le « Oui » qui réserve (l'agent des rendez-vous, lot 3) : « avant » et « place » écrivent sur leur ligne la proposition (son rituel habituel, les places dites ou le jour, son heure), que le webhook confie à l'automate. */
 /* 2026-11-18-b : refaite depuis ses sources après « deux têtes chez Team » (agenda-pur, 60603719) ; rien ne change pour elle : ses places se comptent sans maître (placesDuJour de rdv-fluide). */
-const VERSION = '2026-11-18-b';
+/* 2026-11-20-a : refaite depuis ses sources après « le petit service partage l'heure » (0240, bf81eb9b) et « une place par paire » (0242, 6a6920bb) : un rendez-vous d'une heure ou moins partage l'heure et UNE place avec un voisin. */
+const VERSION = '2026-11-20-a';
 
 type Ligne = { id: string; branch_id?: string | null; data: Record<string, unknown> };
 // deno-lint-ignore no-explicit-any

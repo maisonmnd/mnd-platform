@@ -65,8 +65,10 @@ declare const Deno: {
    Carnet (`moments-privee`, `reserver-privee`).
    2026-11-14-b : la confirmation sur WhatsApp à la réservation (modèle visio_mnd).
    2026-11-18-b : refaite depuis ses sources après « deux têtes chez Team » (agenda-pur et place-du-serveur, 60603719) :
-   la consultation privée lit les places du jour et la tête des créneaux pris, comme le verrou de 0238. */
-const VERSION = '2026-11-18-b';
+   la consultation privée lit les places du jour et la tête des créneaux pris, comme le verrou de 0238.
+   2026-11-20-a : refaite depuis ses sources après « le petit service partage l'heure » (0240) et « une place par paire » (0242) :
+   un rendez-vous d'une heure ou moins partage l'heure et UNE place avec un voisin, comme le verrou. */
+const VERSION = '2026-11-20-a';
 const DAILY = 'https://api.daily.co/v1';
 /** La limite du public : six réservations par dix minutes et par adresse. */
 const LIMITE = { seau: 'visio', max: 6, fenetreMin: 10 };
