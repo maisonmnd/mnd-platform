@@ -8,17 +8,16 @@ import { laPieceDuRdv, etatDuLien, type PieceLue } from '../../../../shared/regl
 import { adresseDuLien } from '../../../../shared/regler-la-seance';
 import { rattrapeLeLien } from '../../../../shared/regler-la-seance-serveur';
 import { marqueDeLaFinAuCarnet } from '../../../../shared/terminer-et-regler-pur';
+import { heureDuSalon } from '../../../../shared/calendrier';
 
 /* ══ LE RÈGLEMENT EN DIRECT — 25 octobre 2026 (« Terminer la séance ») ══
    Ce que la cliente fait du lien, sans rafraîchir : la facture écrite, le
    message parti, la page ouverte, l'argent reçu, le reçu parti. Tout se lit
    sur le rendez-vous et sa pièce, que le serveur met à jour (vue 11 du
    canvas du Tableau intelligent). */
-const heure = (iso?: string): string => {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '' : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-};
+/* L'heure du salon, jamais celle du poste (20 novembre 2026 : un ordinateur
+   à l'heure de Chine disait 22:13 d'un message parti à 15 h 13). */
+const heure = heureDuSalon;
 
 type Etape = { nom: string; quand: string; detail: string; fait: boolean };
 

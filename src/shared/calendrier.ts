@@ -175,6 +175,22 @@ export const jourCourtAn = (iso?: string | null): string =>
 export const jourEnLettres = (iso?: string | null): string =>
   majuscule(ecritLeJour(iso, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
 
+/* ── L'HEURE DU SALON, PAS CELLE DU POSTE — 20 novembre 2026 ──────────
+   « Quel message est parti à 22 h 13 ? » (Yéman). Le message était parti à
+   15 h 13 à Cotonou : l'ordinateur du bureau est réglé sur l'heure de Chine
+   (UTC+8), et « Le règlement en direct » lisait l'heure du poste
+   (`getHours`), quand le bouton « Renvoyer la facture » disait 15 h 13. Un
+   instant se dit à l'heure du salon, quel que soit le poste qui le montre.
+   Un formateur gardé (voir `jourDuSalon` : en refaire un par appel coûte). */
+const formateurDeLHeure = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Africa/Porto-Novo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+
+/** « 15:13 » : l'heure de Cotonou d'un instant ; chaîne vide s'il ne se lit pas. */
+export const heureDuSalon = (iso?: string | null): string => {
+  if (!iso) return '';
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? formateurDeLHeure.format(t) : '';
+};
+
 /* ── LES BORNES ──────────────────────────────────────────────────────
    Le calendrier du navigateur respectait `min` et `max` : une naissance ne
    pouvait pas tomber demain, une reprogrammation pas hier. Le champ de la

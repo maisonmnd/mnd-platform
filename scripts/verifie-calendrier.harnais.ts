@@ -9,7 +9,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import {
   jourDeSemaineLundi, grilleDuMois, moisVoisin,
   anneesPossibles, retardEnJours, correctionsPossibles,
-  jourAn, jourCourtAn, jourEnLettres, horsBornes, litLaDate,
+  jourAn, jourCourtAn, jourEnLettres, horsBornes, litLaDate, heureDuSalon,
 } from '../src/shared/calendrier';
 
 let ko = 0;
@@ -194,5 +194,16 @@ dit('aucune fonction du serveur n ecrit une date « jour + mois » sans l annee'
   datesDesFonctions.filter(({ o }) => /\bday:/.test(o) && /\bmonth:/.test(o) && !/\byear:/.test(o)).map(({ f, o }) => `${f}: ${o}`));
 /* Le contrôle doit voir des dates : moins de huit, il ne lit plus rien. */
 dit('… et il en lit bien (au moins huit)', true, datesDesFonctions.length >= 8);
+
+/* ── L'HEURE DU SALON, PAS CELLE DU POSTE (20 novembre 2026) ──────────
+   La facture partie à 14 h 13 UTC se lisait « 22:13 » sur un poste à l'heure
+   de Chine. L'heure d'un instant se dit à Cotonou, quel que soit le poste
+   (ce banc tourne lui-même sur un poste à UTC+8). */
+dit('un message parti a 14 h 13 UTC se dit 15:13, l heure de Cotonou', '15:13', heureDuSalon('2026-11-20T14:13:09.747Z'));
+dit('23 h 30 UTC se dit 00:30 (le lendemain a Cotonou), jamais 24:30', '00:30', heureDuSalon('2026-11-20T23:30:00Z'));
+dit('rien, ou un instant illisible : une chaine vide', ['', '', ''], [heureDuSalon(undefined), heureDuSalon(''), heureDuSalon('pas une date')]);
+const panneauDuReglement = readFileSync('src/apps/trone/routes/clients/ReglementEnDirect.tsx', 'utf8');
+dit('« Le règlement en direct » dit l heure du salon, plus celle du poste', [true, false],
+  [panneauDuReglement.includes('const heure = heureDuSalon;'), /getHours\(\)/.test(panneauDuReglement)]);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} épreuve(s) en échec.`);

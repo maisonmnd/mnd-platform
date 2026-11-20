@@ -9,6 +9,12 @@ import { pathToFileURL } from 'node:url';
    Le juge unique vit dans src/shared/clients.ts : la lecture du carnet
    (Gbata sans Vekpe) et les cinq mois sans venir. */
 
+/* LE BANC TOURNE À L'HEURE DE CHINE (20 novembre 2026), comme l'ordinateur
+   du bureau : une date ou une heure qui suivrait le poste au lieu du salon
+   s'y voit (la facture partie à 15 h 13 se lisait « 22:13 »). Posé avant
+   tout import : Node relit le fuseau à l'affectation. */
+process.env.TZ = 'Asia/Shanghai';
+
 const racine = path.resolve(import.meta.dirname, '..');
 const dossier = mkdtempSync(path.join(tmpdir(), 'verifie-calendrier-'));
 const sortie = path.join(dossier, 'harnais.mjs');
