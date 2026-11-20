@@ -2,6 +2,16 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA DATE CHOISIE EST CELLE QUI SE POSE — 20 novembre 2026, À METTRE EN LIGNE (Trône seul ; aucun SQL ; aucune fonction ; commit 4288911e)
+
+« Ekoundayo a fini son rendez-vous, j'ai pris rendez-vous pour lui le 22 décembre. Maintenant je vois le 25. Je n'ai jamais confirmé un rendez-vous pour le 25 » (Yéman).
+
+- **Les traces** : le rendez-vous est posé d'un seul geste au 25 décembre à 11 h (10 h 40 UTC, le téléphone Android), sans aucune modification ensuite ; la confirmation WhatsApp du 25 est partie à 11 h 00 UTC. Le 25 est la date d'office de la carte (son rythme, son vendredi, son heure). Le 24 était ouvert et vide : un simple « passer au jour suivant » depuis le 22 aurait donné le 24, donc le 22 n'a jamais été pris par la carte.
+- **Le piège** : dans « Une autre date », la bande des jours commence trois jours avant la date d'office (ici le mardi 22, premier bouton). Toucher un jour ne faisait que l'allumer ; il fallait encore toucher une heure. Le geste plein « Poser le rendez-vous » posait la date restée en grand. Et « Ou choisir une date » passait sans bruit au jour suivant quand le jour choisi était fermé ou plein, le champ montrant toujours le jour choisi.
+- **Corrigé** (`SonProchainRituel.tsx`, `laPlaceDuJourChoisi` dans `rendez-vous-suggere-pur.ts`) : un jour touché dans la bande devient la date de la carte (à son heure, sinon l'heure libre la plus proche, le même jour), « Une autre place » reste ouverte pour l'heure ; « Ou choisir une date » prend ce jour-là, jamais un autre — fermé, plein ou passé, la carte ne bouge pas, l'écran le dit (« la date n'a pas changé, la carte reste le… »), « Prendre le … » le jour suivant d'un toucher, « Le poser quand même » ouvre la fenêtre du rendez-vous ; le champ ne montre que le jour que la carte porte ; le geste plein dit sa date (« Poser la suggestion · ven. 18 déc. 2026 à 16 h 30 »). Les puces « n semaines » gardent leur distance (leur étiquette dit le jour pris).
+- **Bancs** : `banc-c-est-regle` 95 (section I ; le piège reproduit sur l'ancien code : 9 échecs), `verifie-le-rendez-vous-suggere` 68, `--prouve` 31/31.
+- **Le rendez-vous d'Ekoundayo** reste au 25 décembre à 11 h : à déplacer au Carnet si le 22 est voulu (11 h y est pris par deux têtes jusqu'à 11 h 15 ; 11 h 30 est libre). Le 25 décembre n'est pas marqué fermé dans les exceptions d'horaires.
+
 ## LE CADEAU D'ANNIVERSAIRE LOIN D'« ENREGISTRER » — 20 novembre 2026, EN LIGNE (SQL passé : 1 ligne ; Trône build 20261120135204 @ 7bc04a53) (Trône ; un correctif de données, `supabase/cadeau_anniversaire_retire_20261120.sql`)
 
 « Je voulais mettre à jour le profil […] au lieu d'Enregistrer ses coordonnées, j'ai appuyé le bouton Offrir une séance d'anniversaire. Ces deux boutons-là sont trop proches. Il faut les déplacer, et la séance que je lui ai offerte, il faut la remettre à sa place » (Yéman).
