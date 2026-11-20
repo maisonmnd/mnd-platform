@@ -2,6 +2,14 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE CADEAU D'ANNIVERSAIRE LOIN D'« ENREGISTRER » — 20 novembre 2026 (Trône ; un correctif de données, `supabase/cadeau_anniversaire_retire_20261120.sql`)
+
+« Je voulais mettre à jour le profil […] au lieu d'Enregistrer ses coordonnées, j'ai appuyé le bouton Offrir une séance d'anniversaire. Ces deux boutons-là sont trop proches. Il faut les déplacer, et la séance que je lui ai offerte, il faut la remettre à sa place » (Yéman).
+
+- **Le geste** (14 h 18) n'avait rien envoyé : la fiche n'a aucun abonnement aux notifications, et le bouton n'envoie ni e-mail ni WhatsApp. Il n'a écrit que `birthdayGiftAt`. Le correctif retire ce champ, une fois, gardé par `= '2026-11-20'`, avec la table `repli_cadeau_anniversaire_20261120` (RLS). NE PAS RELANCER.
+- **La fiche** : le cadeau quitte le formulaire de « La joindre » (où vit « Enregistrer ses coordonnées ») pour sa lecture, ligne « Son cadeau » sous « Anniv. » : les deux ne sont plus jamais à l'écran ensemble. Offrir, Renvoyer et le nouveau Retirer (offerte par erreur) se confirment (`demande`). Banc `verifie-le-cadeau-anniversaire` (8).
+- **Vu au passage, pas corrigé** : dans les traces de cette fiche, de 14 h 19 à 14 h 21, le Trône ouvert sur un autre poste a réécrit plusieurs fois la ligne entière avec sa copie d'avant (nom et anniversaire remis à l'ancien, puis rétablis). La synchronisation écrit la ligne entière : le dernier poste qui écrit gagne, même avec une copie périmée. L'état final est juste.
+
 ## SANS LOCKS, DÉFAITES AILLEURS — 20 novembre 2026, EN LIGNE (Trône build 20261120125430 @ 86beddd7, 546/546 ; Trône seul ; aucun SQL ; aucune fonction)
 
 « Les clientes qui n'ont plus de locks, qui ont défait leurs locks, je veux les rendre inactives, qu'elles ne figurent plus dans la liste des clientes actives » ; « il y a des Gbàtà ou des locks défaits ailleurs » (Yéman).

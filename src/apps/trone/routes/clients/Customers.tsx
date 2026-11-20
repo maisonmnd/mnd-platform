@@ -2569,8 +2569,19 @@ function Customer360({
   const [giftBusy, setGiftBusy] = useState(false);
   const giftedThisYear = !!client.birthdayGiftAt && client.birthdayGiftAt.slice(0, 4) === todayISO().slice(0, 4);
   const giftBirthday = async () => {
-    setGiftBusy(true);
     const first = appelDe(client);
+    /* UN CADEAU SE CONFIRME (20 novembre 2026) : il part sur son téléphone et
+       se note « offert cette année ». Un clic à côté ne doit rien offrir. */
+    if (!await demande({
+      quoi: 'Séance anniversaire',
+      titre: giftedThisYear ? `Renvoyer le cadeau à ${first} ?` : `Offrir une séance d’anniversaire à ${first} ?`,
+      dit: giftedThisYear
+        ? 'La notification repart sur son téléphone, si elle a activé Ma Couronne.'
+        : 'Une notification part sur son téléphone si elle a activé Ma Couronne, et la séance est notée offerte cette année.',
+      accepter: giftedThisYear ? 'Renvoyer' : 'Offrir la séance',
+      refuser: 'Ne rien envoyer',
+    })) return;
+    setGiftBusy(true);
     const n = await pushToClient(
       client.id,
       `Joyeux anniversaire, ${maisonNom()}`,
@@ -2585,6 +2596,21 @@ function Customer360({
         ? `Cadeau envoyé, notification reçue sur le téléphone de ${first}.`
         : `Cadeau enregistré côté Trône. ${first} n'a pas activé les notifications sur Ma Couronne, rien poussé sur son téléphone.`,
     );
+  };
+  /* OFFERTE PAR ERREUR — le geste inverse (20 novembre 2026). Une marque qui
+     ne se défait nulle part est un piège. */
+  const retirerLeCadeau = async () => {
+    const first = appelDe(client);
+    if (!await demande({
+      quoi: 'Séance anniversaire',
+      titre: `Retirer la séance offerte à ${first} ?`,
+      dit: 'Sa fiche ne la dira plus offerte cette année.',
+      suite: 'Une notification déjà reçue sur son téléphone ne se rappelle pas.',
+      accepter: 'Retirer la séance',
+      refuser: 'La garder',
+    })) return;
+    patch({ birthdayGiftAt: undefined });
+    toast(`Séance anniversaire retirée de la fiche de ${first}.`);
   };
 
   /* Note de la maison — texte libre éditable, consultations préservées à part. */
@@ -3765,6 +3791,21 @@ function Customer360({
               <div className="trc-v"><u>Ville</u><span className={client.city ? '' : 'is-vide'}>{client.city || '—'}</span></div>
               <div className="trc-v"><u>Profession</u><span className={client.profession ? '' : 'is-vide'}>{client.profession || '—'}</span></div>
               <div className="trc-v"><u>Anniv.</u><span className={client.birthday ? '' : 'is-vide'}>{client.birthday ? frBirthday(client.birthday) : '—'}</span></div>
+              {/* SON CADEAU (20 novembre 2026) : hors du formulaire, loin
+                  d'« Enregistrer ses coordonnées », et chaque geste confirmé. */}
+              {client.birthday && (
+                <div className="trc-v"><u>Son cadeau</u><span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  {giftedThisYear && <span>Séance offerte le {frShortAn(client.birthdayGiftAt!)}</span>}
+                  <button type="button" className="trc-note__geste" disabled={giftBusy} onClick={() => void giftBirthday()}>
+                    {giftBusy ? 'Envoi…' : giftedThisYear ? 'Renvoyer' : 'Offrir une séance anniversaire'}
+                  </button>
+                  {giftedThisYear && (
+                    <button type="button" className="trc-note__geste" disabled={giftBusy} onClick={() => void retirerLeCadeau()}>
+                      Retirer
+                    </button>
+                  )}
+                </span></div>
+              )}
               {/* « Comment nous avez-vous connus ? » (2 novembre 2026) : un clic
                   s'enregistre aussitôt, comme la civilité. */}
               <div className="trc-v"><u>Nous connaît par</u><span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
@@ -3836,19 +3877,8 @@ function Customer360({
               </div>
             )}
           </div>
-          {client.birthday && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--hairline)' }}>
-              <span className="trc-sub">
-                {giftedThisYear
-                  ? `Séance anniversaire offerte le ${frShortAn(client.birthdayGiftAt!)}`
-                  : 'Offrez-lui une séance pour son anniversaire (notification sur son téléphone).'}
-              </span>
-              <Button variant="copper" size="sm" disabled={giftBusy} onClick={() => void giftBirthday()}>
-                {giftBusy ? 'Envoi…' : giftedThisYear ? 'Renvoyer le cadeau' : 'Offrir une séance anniversaire'}
-              </Button>
-            </div>
-          )}
-          {/* 7 novembre 2026 (Y.) : « mettre le bouton Enregistrer ses coordonnées en dessous de Anniversaire ». Il ferme le bloc, après la date de naissance et le cadeau. */}
+          {/* 7 novembre 2026 (Y.) : « mettre le bouton Enregistrer ses coordonnées en dessous de Anniversaire ». Il ferme le bloc, après la date de naissance.
+              20 novembre 2026 (Y.) : « au lieu d'Enregistrer ses coordonnées, j'ai appuyé Offrir une séance d'anniversaire ; ces deux boutons sont trop proches ». Le cadeau a quitté le formulaire : il vit dans la lecture, sous l'anniversaire (`SonCadeau`), et il demande toujours confirmation. */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--hairline)' }}>
             <span className="trc-sub" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               {/* « Retirer la photo » VIVAIT ICI, à côté d'une date d'ancienneté,
