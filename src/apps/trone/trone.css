@@ -345,14 +345,25 @@ body[data-surface='trone'] {
 
 /* En-tête de page standard */
 .tr-page-head { margin-bottom: var(--space-6); }
+/* LE TITRE N'EST JAMAIS SOUS LES BOUTONS (20 novembre 2026, « Fix the UI of
+   the page. Make the app responsive », Yéman, capture du Calendrier). Les
+   actions ne passaient à la ligne que sous 900 px : au-dessus, quand elles ne
+   tenaient pas à côté du titre, elles l'écrasaient (« Calendrier. » sous la
+   date) et sortaient de l'écran. Désormais l'en-tête passe à la ligne : le
+   titre garde au moins la largeur de son plus long mot, les actions vont
+   dessous, alignées à droite, et se replient entre elles s'il le faut. */
 .tr-page-head--actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 24px;
+  gap: 16px 24px;
 }
-.tr-page-head__head { min-width: 0; }
-.tr-page-head__actions { display: flex; gap: 12px; flex: none; }
+.tr-page-head__head { min-width: min-content; max-width: 100%; flex: 1 1 260px; }
+.tr-page-head__actions {
+  display: flex; gap: 12px; flex: 0 1 auto; flex-wrap: wrap;
+  justify-content: flex-end; align-items: center; min-width: 0; max-width: 100%; margin-left: auto;
+}
 .tr-page-head h2 {
   font-size: var(--text-h2);
   margin-top: var(--space-2);
@@ -500,6 +511,18 @@ body[data-surface='trone'] {
 }
 .tr-top__sync-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 @media (max-width: 900px) { .tr-top__sync { display: none; } }
+
+/* LA BARRE DU BUREAU MOYEN (20 novembre 2026, capture de Yéman : « LE TRÔNE ·
+   SURU-… », la date mangée par les boutons). Entre 901 et 1440 px, « Dicter »
+   et « Rechercher » gardent leur icône (le mot reste au survol), et la
+   pastille de synchronisation ne garde que son point tant que tout va bien :
+   un souci remet le mot. La ville et la date reprennent leur place. */
+@media (min-width: 901px) and (max-width: 1440px) {
+  .tr-top { gap: 12px; }
+  .tr-top .rc-bouton span { display: none; }
+  .tr-top .rc-bouton { padding: 9px 10px; }
+  .tr-top__sync.est-calme .tr-top__sync-mot { display: none; }
+}
 
 /* ═══════════ Trouver — la recherche globale (Ctrl K) ═══════════
    Un champ, quatre groupes — clientes, factures, prestations, écrans.

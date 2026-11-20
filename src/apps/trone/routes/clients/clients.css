@@ -755,8 +755,21 @@
    besoin : deux lignes tiennent dans la plus courte des cartes. */
 .trc-cal__appt--partage.trc-cal__appt--courte { padding-top: 4px; }
 .trc-cal__appt--courte .trc-cal__appt-title { font-size: 13px; line-height: 1; }
-.trc-cal__appt--courte .trc-cal__who { text-align: left; }
 .trc-cal__appt--partage .trc-cal__appt-title { padding-right: 24px; overflow-wrap: anywhere; }
+/* UNE CARTE PARTAGÉE SE LIT COMME UNE FICHE (20 novembre 2026, capture de
+   Yéman : « 12:00 · » seul sur sa ligne, le nom centré sur deux lignes, et
+   « Encaisser » posé sur la prestation). L'heure passe au-dessus, en petit ;
+   le nom part de la gauche ; le bas de la carte est gardé pour « Encaisser ». */
+.trc-cal__appt--partage .trc-cal__heure {
+  display: block; margin-bottom: 2px;
+  font: 500 10px/1.3 var(--font-sans); letter-spacing: .06em; color: var(--ink-soft);
+}
+.trc-cal__appt--partage .trc-cal__point { display: none; }
+.trc-cal__appt--deep.trc-cal__appt--partage .trc-cal__heure { color: var(--indigo-100); }
+.trc-cal__appt--partage.trc-cal__appt--encaisse { padding-bottom: 26px; }
+/* « Encaisser » dit déjà qu'il reste à régler : dans une voie étroite, la
+   pastille « Impayé » rendait sa place à la prestation. */
+.trc-cal__appt--partage.trc-cal__appt--encaisse .trc-cal__regle { display: none; }
 .trc-cal__reste { margin-left: 6px; font: 500 10px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--copper-700, #9A6036); white-space: nowrap; }
 .trc-cal__appt-title { font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); line-height: 1.1; }
 .trc-cal__appt--deep .trc-cal__appt-title { color: var(--color-ivoire); }
@@ -769,6 +782,8 @@
   background: none;
   border: 0;
   padding: 0;
+  /* Un bouton centre son texte : le nom qui passait à la ligne se centrait. */
+  text-align: left;
   cursor: pointer;
   border-bottom: 1px dotted var(--copper-300);
   transition: border-color var(--dur-base) var(--ease-soft);
@@ -1293,6 +1308,13 @@
 }
 .trc-cal__fab:hover { filter: brightness(1.05); transform: translateY(-1px); }
 .trc-cal__fab:active { transform: scale(0.94); }
+/* Au bureau, « + Nouveau RDV » est déjà en haut de la page, et le rond
+   flottant se cachait sous la bulle de la dictée de Windows (20 novembre
+   2026) : il reste au pouce, sur téléphone et tablette. */
+@media (min-width: 901px) { .trc-cal__fab { display: none; } }
+/* Au téléphone, le rond couvrait « Encaisser » de la dernière cliente du jour :
+   la journée finit plus haut que lui. */
+@media (max-width: 900px) { .trc-cal-et-report__grille { padding-bottom: 84px; } }
 
 /* Sélecteur de cliente recherchable (RDV, devis, POS, abonnements) */
 .trc-clientpick { position: relative; }

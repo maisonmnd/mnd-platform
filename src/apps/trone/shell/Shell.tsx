@@ -215,14 +215,14 @@ Si cela dure plus d’une minute, une donnée se réécrit en boucle : rechargez
   return (
     <>
       <span
-        className="tr-top__sync"
+        className={`tr-top__sync${label === 'Synchronisé' ? ' est-calme' : ''}`}
         title={aMontrer ? `${title}\n\nCliquez pour voir la file d’attente.` : title}
         role="status"
         style={aMontrer ? { cursor: 'pointer' } : undefined}
         onClick={aMontrer ? () => setConflitsOuverts(true) : undefined}
       >
         <span className="tr-top__sync-dot" style={{ background: conflits.length || refus.length ? 'var(--color-copper)' : color }} />
-        {label}
+        <span className="tr-top__sync-mot">{label}</span>
       </span>
       {conflitsOuverts && <LaFileDAttente conflits={conflits} refus={refus} onClose={() => setConflitsOuverts(false)} />}
     </>

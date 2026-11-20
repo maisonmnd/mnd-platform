@@ -87,8 +87,14 @@ function eprouve(m, textes) {
     && /\{aEncaisser\(a\) && h < CARTE_ENCAISSER_PX \? \( <button type="button" className="trc-cal__encaisser trc-cal__encaisser--ligne"/.test(ecran)
     && /\{aEncaisser\(a\) && h >= CARTE_ENCAISSER_PX && \(/.test(ecran));
   vrai('partagée et courte : le nom seul (l’heure reste dans l’infobulle)',
-    /const courte = v\.voies > 1 && h < CARTE_DEUX_LIGNES_PX;/.test(ecran) && /\{!courte && <>\{a\.time\} ·\{' '\}<\/>\}/.test(ecran)
+    /const courte = v\.voies > 1 && h < CARTE_DEUX_LIGNES_PX;/.test(ecran)
+    && /\{!courte && <span className="trc-cal__heure">\{a\.time\}<span className="trc-cal__point"> · <\/span><\/span>\}/.test(ecran)
     && /title=\{`\$\{a\.time\} · \$\{nomDuRdv\(a\)\}/.test(ecran));
+  /* 20 novembre 2026 (capture de Yéman) : la carte partagée qui porte
+     « Encaisser » en bas lui garde sa place, au lieu de le poser sur la prestation. */
+  vrai('la carte partagée garde le bas de la carte pour « Encaisser »',
+    /const encaisseEnBas = aEncaisser\(a\) && h >= CARTE_ENCAISSER_PX;/.test(ecran)
+    && /\$\{encaisseEnBas \? 'trc-cal__appt--encaisse' : ''\}/.test(ecran));
   return fautes;
 }
 
@@ -114,7 +120,8 @@ try {
       ['la vue jour ne range plus', 'ecran', 'style={{ top, height: h, ...largeur }}', 'style={{ top, height: h }}'],
       ['la carte courte ne compte plus sa hauteur', 'ecran', 'finMin: debutMin + Math.max(apptDurationMin(a, byId), CARTE_MIN_MIN)', 'finMin: debutMin + apptDurationMin(a, byId)'],
       ['« Encaisser » se pose en bas de toute carte', 'ecran', '{aEncaisser(a) && h >= CARTE_ENCAISSER_PX && (', '{aEncaisser(a) && ('],
-      ['la carte courte garde l’heure devant le nom', 'ecran', "{!courte && <>{a.time} ·{' '}</>}", "<>{a.time} ·{' '}</>"],
+      ['la carte courte garde l’heure devant le nom', 'ecran', '{!courte && <span className="trc-cal__heure">', '{<span className="trc-cal__heure">'],
+      ['la carte partagée ne garde plus le bas pour « Encaisser »', 'ecran', "${encaisseEnBas ? 'trc-cal__appt--encaisse' : ''}", ''],
     ];
     let tenues = 0;
     for (const [nom, cle, avant, apres] of PANNES) {

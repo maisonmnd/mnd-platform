@@ -653,9 +653,11 @@ export default function Calendrier() {
                      moitié ; l'heure se lit à la place de la carte dans la
                      grille, et reste dans l'infobulle (18 novembre 2026). */
                   const courte = v.voies > 1 && h < CARTE_DEUX_LIGNES_PX;
+                  /* « Encaisser » au bas de la carte : la carte partagée lui garde sa place. */
+                  const encaisseEnBas = aEncaisser(a) && h >= CARTE_ENCAISSER_PX;
                   return (
                     <div
-                      className={`trc-cal__appt trc-cal__appt--drag ${cls} ${classeDuSuggere(a)} ${dragId === a.id ? 'is-dragging' : ''} ${v.voies > 1 ? 'trc-cal__appt--partage' : ''} ${courte ? 'trc-cal__appt--courte' : ''}`}
+                      className={`trc-cal__appt trc-cal__appt--drag ${cls} ${classeDuSuggere(a)} ${dragId === a.id ? 'is-dragging' : ''} ${v.voies > 1 ? 'trc-cal__appt--partage' : ''} ${courte ? 'trc-cal__appt--courte' : ''} ${encaisseEnBas ? 'trc-cal__appt--encaisse' : ''}`}
                       key={a.id}
                       data-rdv={a.id}
                       style={{ top, height: h, ...largeur }}
@@ -676,7 +678,7 @@ export default function Calendrier() {
                           ligne. C'est le nom qui doit survivre à la coupe, pas le
                           rituel — on lit un carnet pour savoir qui vient. */}
                       <div className="trc-cal__appt-title">
-                        {!courte && <>{a.time} ·{' '}</>}
+                        {!courte && <span className="trc-cal__heure">{a.time}<span className="trc-cal__point"> · </span></span>}
                         <button
                           type="button"
                           className={`trc-cal__who ${clientOf(a.clientId)?.phone ? '' : 'is-manquant'}`}
@@ -719,7 +721,7 @@ export default function Calendrier() {
                             Encaisser
                           </button>
                         ) : (
-                          <span style={{ pointerEvents: 'none', flex: 'none' }}><PayStatusPill a={a} byId={byId} /></span>
+                          <span className="trc-cal__regle" style={{ pointerEvents: 'none', flex: 'none' }}><PayStatusPill a={a} byId={byId} /></span>
                         )}
                       </div>
                       {/* Réglé = plus rien à encaisser — même juge qu'ailleurs. */}
