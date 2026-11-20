@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LA DERNIÈRE RELANCE D'UN RENDEZ-VOUS À REPROGRAMMER — 20 novembre 2026 (whatsapp-automate 2026-11-20-a, modèle Meta `rdv_a_reprogrammer`, Trône ; aucun SQL)
+## LA DERNIÈRE RELANCE D'UN RENDEZ-VOUS À REPROGRAMMER — 20 novembre 2026, EN LIGNE (whatsapp-automate 2026-11-20-a v83 ; modèle Meta `rdv_a_reprogrammer` APPROUVÉ, ID 1165827359309975, relu au Trône dans `mnd_modeles_meta` ; Trône 543/543, build 20261120054445 @ bcb43b9a ; aucun SQL, aucun secret, aucun essai réel)
 
 « Pouvons-nous programmer une dernière relance de rendez-vous sept jours plus tard pour mettre toutes nos chances de côté… sans embêter le client » (Yéman). Au sélecteur : en deux temps, le matin du 7e jour, l'équipe 48 heures après.
 
