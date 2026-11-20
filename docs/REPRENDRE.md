@@ -12,7 +12,7 @@
 - **Bancs** : `banc-c-est-regle` 95 (section I ; le piège reproduit sur l'ancien code : 9 échecs), `verifie-le-rendez-vous-suggere` 68, `--prouve` 31/31.
 - **Le rendez-vous d'Ekoundayo** reste au 25 décembre à 11 h : à déplacer au Carnet si le 22 est voulu (11 h y est pris par deux têtes jusqu'à 11 h 15 ; 11 h 30 est libre). Le 25 décembre n'est pas marqué fermé dans les exceptions d'horaires.
 
-## DEUX POSTES SUR LA MÊME FICHE, CHAMP PAR CHAMP — 20 novembre 2026 (Trône ; aucun SQL ; aucune fonction)
+## DEUX POSTES SUR LA MÊME FICHE, CHAMP PAR CHAMP — 20 novembre 2026, EN LIGNE (Trône build 20261120153643 @ 63a98fd0, 546/546 ; Trône seul ; aucun SQL ; aucune fonction)
 
 « Corrige le problème des deux postes » (Yéman), après la fiche d'une cliente où, de 14 h 19 à 14 h 21, le Mac du comptoir (resté sur la copie d'avant) a fait reculer cinq fois le nom et l'anniversaire que Yéman venait de corriger sur son téléphone, en y faisant signer l'autorisation de droit à l'image.
 
