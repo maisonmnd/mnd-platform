@@ -488,7 +488,7 @@ function DossierPanel({
                   <button type="button" className="trc-timeline__open" onClick={() => setEditAppt(a)} title="Ouvrir ce rendez-vous">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>{frDay(a.date)} · {a.time}</span>
-                      <StatusPill status={a.status} />
+                      <StatusPill status={a.status} rdv={a} />
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 3 }}>{apptLabel(a, byId)} · {a.master}</div>
                   </button>

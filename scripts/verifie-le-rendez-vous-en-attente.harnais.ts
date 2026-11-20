@@ -20,7 +20,7 @@ import {
   cleDuNumero, formesDuNumero, plafondDuNumero, deplacementsFaits, peutEncoreSeDeplacer, remiseGardeeAuDeplacement, acompteDesGestes,
   heureSurLaGrille, dureeAuCalibre, gestesAuCalibre, famillesAvecLeDefaisage, ATELIERS_DU_DEFAISAGE, texteDeLAttente, composantsDeLAttente, texteDuOui, texteDeLAcompte,
   texteDeLaPlaceLiberee, texteDeLAutreMoment, heureDeCotonouDite, ceQueDitLAttente,
-  minuteDePortoNovo, debutDuRendezVous, ouiDuComptoir, texteDesOuis, seLibereraSansReponse,
+  minuteDePortoNovo, debutDuRendezVous, ouiDuComptoir, texteDesOuis, seLibereraSansReponse, motDuStatut,
 } from '../src/shared/rendez-vous-en-attente-pur';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
@@ -91,6 +91,16 @@ const iso = (ms: number): string => new REEL(ms).toISOString();
     [seLibereraSansReponse(duJour, midiEtDemi), seLibereraSansReponse(auComptoir, T0), seLibereraSansReponse(duJour, apresSesDeuxHeures),
       seLibereraSansReponse({ ...duJour, ...marquesDuOui(duJour, midiEtDemi + 60_000) }, midiEtDemi + 120_000),
       seLibereraSansReponse({ ...duJour, date: '2026-11-18', time: '10:00' }, apresSesDeuxHeures)]);
+  /* LE MOT DE LA PASTILLE (20 novembre 2026) : ni « confirmé » pour une suggestion sans oui, ni pour une place en ligne qui attend. */
+  const suggereAuComptoir = { status: 'confirmé', suggereLe: iso(T0), date: '2026-12-04', time: '09:00' };
+  dit('A4e la pastille : suggere sans oui dit « suggere », en ligne sans oui ou acompte du dit « en attente », son oui la rend « confirme », honore et annule gardent leur mot',
+    [['suggéré', true], ['en attente', true], ['en attente', true], ['confirmé', false], ['confirmé', false], ['confirmé', false], ['honoré', false], ['annulé', false]],
+    [suggereAuComptoir, aVenir, auComptoir,
+      { ...suggereAuComptoir, confirmeeParLaClienteLe: iso(T0 + 60_000) },
+      { ...aVenir, ...marquesDuOui(aVenir, T0 + 60_000) },
+      { status: 'confirmé', date: '2026-12-04', time: '09:00' },
+      { ...suggereAuComptoir, status: 'honoré' },
+      { ...aVenir, status: 'annulé', placeLibereeLe: iso(T0 + 7_200_000) }].map((r) => { const m = motDuStatut(r); return [m.mot, m.pointilles]; }));
   const oui ={ ...tenue, ...marquesDuOui(tenue, T0 + 600_000) };
   dit('A5 son oui, sans acompte : ferme, plus en attente, plus suggeree ; l echeance ne bouge pas', [true, false, false, 'ferme', pose.attenduJusquAu],
     [estFerme(oui), estEnAttente(oui), estSuggere(oui), etatDeLAttente(oui), oui.attenduJusquAu]);

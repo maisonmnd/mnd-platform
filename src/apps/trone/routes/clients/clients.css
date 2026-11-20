@@ -4033,6 +4033,9 @@ label.trc-foyer--lier { justify-content: flex-start; cursor: pointer; }
   background-image: none;
 }
 .trc-agenda__row.est-suggere { border-left: 2px dashed var(--color-copper); }
+/* La pastille du statut dit « suggéré » ou « en attente », en pointillés comme
+   sa tuile, tant qu'elle n'a pas dit oui (20 novembre 2026, motDuStatut). */
+.trc-pill.est-pointilles { border-style: dashed; border-color: var(--color-copper); }
 .trc-rdv-suggere { display: grid; gap: 6px; padding: 10px 12px; border: 1px dashed var(--color-copper); border-radius: 4px; background: var(--paper); font-family: var(--font-sans); }
 .trc-rdv-suggere b { font-size: 13.5px; font-weight: 500; color: var(--color-indigo); }
 .trc-rdv-suggere span { font-size: 13px; line-height: 1.45; color: var(--ink-soft); }

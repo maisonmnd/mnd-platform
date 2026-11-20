@@ -45,7 +45,7 @@ import { regardADeduire, remiseAvecLeRegard, type RegardADeduire } from '../../.
 import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDeGestes } from '../_vie';
 import { referenceDuRendezVous } from '../../../../shared/lien-du-rdv-pur';
 import { ceQueDitLaSuggestion, estSuggere } from '../../../../shared/rendez-vous-suggere-pur';
-import { ceQueDitLAttente, etatDeLAttente, seLibereraSansReponse } from '../../../../shared/rendez-vous-en-attente-pur';
+import { ceQueDitLAttente, etatDeLAttente, motDuStatut, seLibereraSansReponse } from '../../../../shared/rendez-vous-en-attente-pur';
 import { estAReprogrammer } from '../../../../shared/a-reprogrammer-pur';
 import { annuleLeReport, etatDuReportDit, marquesDeLaRepriseAuTrone, metsAReprogrammer } from './a-reprogrammer';
 import { noteSonOui } from '../../../../shared/carte-du-prochain-rituel';
@@ -1522,7 +1522,12 @@ const STATUS_CLASS: Record<Appointment['status'], string> = {
   'annulé': 'trc-pill--annule',
 };
 
-export function StatusPill({ status }: { status: Appointment['status'] }) {
+/* `rdv` donné (20 novembre 2026) : un rendez-vous suggéré par la Maison, ou
+   pris en ligne et pas encore confirmé par elle, ne se dit pas « confirmé »
+   (motDuStatut, shared/rendez-vous-en-attente-pur.ts). */
+export function StatusPill({ status, rdv }: { status: Appointment['status']; rdv?: Appointment }) {
+  const dit = rdv ? motDuStatut(rdv) : null;
+  if (dit?.pointilles) return <span className="trc-pill trc-pill--attente est-pointilles">{dit.mot}</span>;
   return <span className={`trc-pill ${STATUS_CLASS[status]}`}>{status}</span>;
 }
 
@@ -6457,7 +6462,7 @@ function SesRendezVous({ rdvs, courantId, byId, sansPrix, onOuvrir, onNouveau }:
         onClick={() => { if (!ici) onOuvrir(a); }} disabled={ici} title={ici ? 'Le rendez-vous ouvert' : 'Ouvrir ce rendez-vous'}>
         <span className="trc-siens__quand">{frShortAn(a.date)}<span>{a.time}</span></span>
         <span className="trc-siens__quoi">{apptLabel(a, byId) || 'Rituel'}<span>{a.master || ''}</span></span>
-        <span className="trc-siens__etat">{estAReprogrammer(a) ? <span className="trc-pill trc-pill--attente">à reprogrammer</span> : <StatusPill status={a.status} />}</span>
+        <span className="trc-siens__etat">{estAReprogrammer(a) ? <span className="trc-pill trc-pill--attente">à reprogrammer</span> : <StatusPill status={a.status} rdv={a} />}</span>
         {!sansPrix && (
           <span className="trc-siens__argent">
             {fmtMoney(apptNetXof(a, byId), currency)}

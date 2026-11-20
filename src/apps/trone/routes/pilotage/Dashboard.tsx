@@ -558,7 +558,7 @@ function TableauDeLaDirection() {
               <div className="trp-pay__date">{frShortAn(a.date)}</div>
               <div className="trp-pay__total">{fmtMoney(rowNet, currency)}</div>
               <div className="trp-pay__due">{fmtMoney(due, currency)}</div>
-              <div style={{ flex: 'none' }}><StatusPill status={a.status} /></div>
+              <div style={{ flex: 'none' }}><StatusPill status={a.status} rdv={a} /></div>
               <button
                 className="trp-pay__cta"
                 onClick={(e) => { e.stopPropagation(); setPayAppt(a); }}
@@ -901,7 +901,7 @@ function TableauDeLaDirection() {
                       <td className="tdb__num">{a.time}</td>
                       <td className="tdb-txt">{clientOf(a.clientId)?.name ?? a.clientName ?? 'Cliente de passage'}</td>
                       <td className="tdb-txt">{rituelDit(apptLabel(a, byId))}</td>
-                      <td><StatusPill status={a.status} /></td>
+                      <td><StatusPill status={a.status} rdv={a} /></td>
                       <td className="n">{u.attenduXof > 0 ? fmt(u.attenduXof) : '·'}</td>
                       <td>
                         {/* UN GESTE PAR LIGNE, LE SUIVANT (5 novembre 2026) : confirmer,
@@ -1613,7 +1613,7 @@ function TableauDeLEquipe() {
                     <td className="tdb-txt">{allClients.find((c) => c.id === a.clientId)?.name ?? a.clientName ?? 'Cliente de passage'}</td>
                     <td className="tdb-txt">{rituelDit(apptLabel(a, byId))}</td>
                     <td>{a.master || '·'}</td>
-                    <td><StatusPill status={a.status} /></td>
+                    <td><StatusPill status={a.status} rdv={a} /></td>
                   </tr>
                 ))}
               </tbody>

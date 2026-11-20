@@ -3374,7 +3374,7 @@ function Customer360({
                         {apptLabel(a, byId)} · {a.master}
                         {a.seriesIndex && a.seriesTotal ? <span className="trc-serie-chip" style={{ marginLeft: 6 }}>{a.seriesIndex}/{a.seriesTotal}</span> : null}
                       </span>
-                      <StatusPill status={a.status} />
+                      <StatusPill status={a.status} rdv={a} />
                     </button>
                   ))}
                 </div>
@@ -3412,7 +3412,7 @@ function Customer360({
                           <b style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{nomDe(a.clientId)}</b>
                           {' · '}{apptLabel(a, byId)}{a.master ? ` · ${a.master}` : ''}
                         </span>
-                        <StatusPill status={a.status} />
+                        <StatusPill status={a.status} rdv={a} />
                       </button>
                     ))}
                   </div>
@@ -5904,7 +5904,7 @@ function Customer360({
                     {/* MÊME MAL, MÊME REMÈDE : le fil montre les six derniers
                         passages, qui s'étalent souvent sur deux ou trois ans. */}
                     <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>{frJourAn(a.date)} · {a.time}</span>
-                    <StatusPill status={a.status} />
+                    <StatusPill status={a.status} rdv={a} />
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 3 }}>
                     {apptLabel(a, byId)} · {a.master}

@@ -1,4 +1,5 @@
 import { ATELIERS_RESERVABLES } from './place-du-serveur';
+import { estSuggere, type MarquesDeLaSuggestion } from './rendez-vous-suggere-pur';
 
 /* ══ LE RENDEZ-VOUS EN ATTENTE · 17 novembre 2026 ═══════════════════════
    Tranché au sélecteur par Yéman le 17 novembre 2026 (arbitrage B de « La
@@ -426,4 +427,22 @@ export function ceQueDitLAttente(
   const jusqua = seLibere ? heureDeCotonouDite(a.attenduJusquAu) : '';
   if (etat === 'acompte') return `Elle a dit oui · acompte de ${o.francs(acompteAttendu(a))} attendu${jusqua ? ` · jusqu’à ${jusqua}` : ''}`;
   return `En attente de son oui${jusqua ? ` · la place se libère à ${jusqua}` : ''}`;
+}
+
+/* ══ LE MOT DE LA PASTILLE — 20 novembre 2026 ══════════════════════════════
+   « J'aimerais savoir que c'est suggéré, pas que ce soit définitif » (Yéman,
+   puis au sélecteur : « Afficher « Suggéré » »). La tuile se dessinait déjà en
+   pointillés, avec son badge, mais la pastille du statut, à droite du Carnet
+   et sur la fiche, disait encore « confirmé ». Le statut enregistré reste
+   « confirmé » : la place est tenue, personne d'autre ne la prend. Seul le mot
+   de la pastille change, lu comme le badge : l'attente d'une réservation en
+   ligne d'abord, la suggestion de la Maison ensuite. Il redevient
+   « confirmé » à son « Je confirme » ou à « Elle a dit oui ». */
+export type MotDuStatut = { mot: string; pointilles: boolean };
+
+export function motDuStatut(a: MarquesDeLAttente & MarquesDeLaSuggestion & { status: string }): MotDuStatut {
+  const attente = etatDeLAttente(a);
+  if (attente === 'sans-reponse' || attente === 'acompte') return { mot: 'en attente', pointilles: true };
+  if (estSuggere(a)) return { mot: 'suggéré', pointilles: true };
+  return { mot: a.status, pointilles: false };
 }

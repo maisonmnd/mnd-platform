@@ -45,7 +45,7 @@ import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honoreSan
 import { FenetreDuProchainRituel } from '../vente/SonProchainRituel';
 import { BadgeSuggere } from './BadgeSuggere';
 import { estSuggere } from '../../../../shared/rendez-vous-suggere-pur';
-import { estEnAttente, etatDeLAttente } from '../../../../shared/rendez-vous-en-attente-pur';
+import { estEnAttente, etatDeLAttente, motDuStatut } from '../../../../shared/rendez-vous-en-attente-pur';
 import { noteSonOui } from '../../../../shared/carte-du-prochain-rituel';
 import { laCarteSOuvreApresLHonneur, sonProchainDejaPose } from '../../../../shared/carte-du-prochain-rituel';
 import { momentDuMessage } from '../../../../shared/salle-des-envois';
@@ -1015,10 +1015,10 @@ export default function Carnet() {
           <span className="trc-menuwrap" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
-              className={`trc-pill trc-statut ${estAReprogrammer(a) ? 'trc-pill--attente' : CLASSE_DU_STATUT[a.status]}`}
+              className={`trc-pill trc-statut ${estAReprogrammer(a) ? 'trc-pill--attente' : motDuStatut(a).pointilles ? 'trc-pill--attente est-pointilles' : CLASSE_DU_STATUT[a.status]}`}
               aria-haspopup="menu"
               aria-expanded={menuFor === a.id}
-              aria-label={`Statut : ${a.status}. Changer le statut ou agir sur ce rendez-vous`}
+              aria-label={`Statut : ${estAReprogrammer(a) ? 'à reprogrammer' : motDuStatut(a).mot}. Changer le statut ou agir sur ce rendez-vous`}
               title="Changer le statut, encaisser, envoyer la facture"
               onClick={(e) => {
                 e.stopPropagation();
@@ -1027,7 +1027,7 @@ export default function Carnet() {
                 setMenuFor(a.id);
               }}
             >
-              {estAReprogrammer(a) ? 'à reprogrammer' : a.status}<span className="trc-statut__chevron" aria-hidden="true">▾</span>
+              {estAReprogrammer(a) ? 'à reprogrammer' : motDuStatut(a).mot}<span className="trc-statut__chevron" aria-hidden="true">▾</span>
             </button>
             {menuFor === a.id && menuAncre && (
               <MenuFlottant ancre={menuAncre} onClose={fermeLeMenu}>
