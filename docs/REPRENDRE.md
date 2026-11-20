@@ -2,6 +2,11 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA PASTILLE DIT « SUGGÉRÉ » OU « EN ATTENTE » — 20 novembre 2026, EN LIGNE (Trône build 20261120154800 @ c0d9396f, 546/546 ; Trône seul ; aucun SQL ; aucune fonction ; commit f5208ac6)
+
+- Au Carnet, sur la fiche cliente, aux Consultations et au Tableau de bord, la pastille d'un rendez-vous posé par la Maison sans le oui de la cliente dit « suggéré », et celle d'une réservation en ligne sans son oui ou sans son acompte dit « en attente », en pointillés cuivre (`.trc-pill.est-pointilles`). Le statut enregistré reste « confirmé » (la place est tenue) ; la pastille redevient « confirmé » à son « Je confirme » ou à « Elle a dit oui ». Le mot vient de `motDuStatut` (`shared/rendez-vous-en-attente-pur.ts`, hors du bloc recopié).
+- Bancs : `verifie-le-rendez-vous-en-attente` 121/121, `verifie-le-rdv-du-site` 150/150, typecheck 0.
+
 ## LA DATE CHOISIE EST CELLE QUI SE POSE — 20 novembre 2026, EN LIGNE (Trône build 20261120142541 @ 2a7069e8, 546/546 ; Trône seul ; aucun SQL ; aucune fonction ; commit 4288911e ; 967367d6 NON inclus, publié à part par sa session)
 
 « Ekoundayo a fini son rendez-vous, j'ai pris rendez-vous pour lui le 22 décembre. Maintenant je vois le 25. Je n'ai jamais confirmé un rendez-vous pour le 25 » (Yéman).
