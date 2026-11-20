@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE CLASSEMENT DES CLIENTES — 20 novembre 2026 (Trône seul : onglet Clientes › Le classement ; document `mnd_classement` ; aucun SQL)
+## LE CLASSEMENT DES CLIENTES — 20 novembre 2026, EN LIGNE (Trône build 20261120082030 @ bc1d3c33, 546/546 ; onglet Clientes › Le classement ; document `mnd_classement`, né à la première ouverture ; aucun SQL ; Ma Couronne inchangée)
 
 « Je veux définir ces critères qui permettent à chacun d'appartenir à un groupe… ensuite, on va faire le travail de classement » ; « Construis-moi Le classement des clientes dans le Trône » ; « rajoute les catégories avec leurs spécifications » ; « Rajoute des villes pré-remplies dans la rubrique de la ville dans le profil, auto-remplis ce que tu sais » (Yéman). Maquette : la page privée « Le classement des clientes » (artifact 7dMsfEcG…, noms des clientes, jamais commitée).
 
