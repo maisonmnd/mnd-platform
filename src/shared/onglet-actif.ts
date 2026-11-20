@@ -27,17 +27,27 @@
    Seul le Trône appelle `prendsLaMain` (main.tsx) : les autres surfaces ne
    sont pas concernées. */
 
-const CLE_PAUSE = 'mnd_onglet_en_pause';
+/* LA PAUSE EST CELLE DU TRÔNE, ET DE SA PAGE PRINCIPALE SEULE. La session
+   d'un onglet survit quand il change de page sur le même site : un onglet du
+   Trône mis en pause, puis envoyé sur Ma Couronne ou sur la page « Régler »,
+   y aurait démarré « en pause », sans rien écrire. La marque porte donc le
+   nom de la surface, et elle n'est lue QUE si la page l'arme (`armeLaPause`,
+   tout premier import de `apps/trone/main.tsx`). */
+const SURFACE = (typeof document !== 'undefined' && document.body?.dataset?.surface) || 'trone';
+const CLE_PAUSE = `${SURFACE}::mnd_onglet_en_pause`;
 const cleDeLaMain = (surface: string): string => `${surface}::onglet-qui-tient-la-main`;
 
 const lisLaPause = (): boolean => {
   try { return typeof sessionStorage !== 'undefined' && sessionStorage.getItem(CLE_PAUSE) === '1'; } catch { return false; }
 };
 
-/* Lue UNE fois, au chargement du module : ce module est importé par le
-   magasin (store.ts), donc avant qu'aucun magasin ni aucune synchronisation
-   n'existe. Un onglet rechargé en pause ne démarre jamais rien. */
-let enPause = lisLaPause();
+/* Une page qui n'arme pas la pause n'est jamais en pause. */
+let enPause = false;
+/** À appeler AVANT que le moindre magasin ou la moindre synchronisation
+    n'existe : la page principale du Trône le fait par son tout premier
+    import (`apps/trone/arme-la-pause.ts`). Un onglet rechargé en pause ne
+    démarre alors jamais rien. */
+export function armeLaPause(): void { enPause = lisLaPause(); }
 const moi = `${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
 
 /** Cet onglet est en pause : il ne doit rien écrire, ni rien envoyer. */

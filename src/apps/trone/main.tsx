@@ -1,3 +1,5 @@
+/* LA PAUSE D'ABORD (20 novembre 2026) : avant tout magasin, voir arme-la-pause. */
+import './arme-la-pause';
 import '../../shared/preload-guard';
 /* La mise à jour automatique (2 août) — branchée le 14 : sans cet import,
    une app installée ne voyait jamais un déploiement. */

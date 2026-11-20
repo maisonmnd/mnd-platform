@@ -75,8 +75,15 @@ try {
   dit('témoin hors pause : il lit le serveur et renvoie l’écriture de l’autre onglet (la panne du 18 novembre)',
     [false, true, true], [t.pause, t.lectures > 0, t.ecritures > 0]);
 
+  /* UNE AUTRE PAGE DU SITE DANS LE MÊME ONGLET (Ma Couronne, « Régler ») :
+     la marque de pause est là, mais elle ne l'arme pas. */
+  const a = lance({ ETAPE: 'autre-page', FAUX_PAUSE: '1' });
+  dit('une autre page du site, dans un onglet du Trône mis en pause, n’est pas en pause et écrit', { pause: false, apresUnSet: 'b' }, a);
+
   /* LE TRÔNE, ET LUI SEUL, PREND LA MAIN — et l'onglet en pause n'affiche que l'écran de pause. */
   const main = readFileSync(path.join(racine, 'src/apps/trone/main.tsx'), 'utf8');
+  dit('main.tsx : la pause s’arme par le tout premier import, avant tout magasin',
+    "import './arme-la-pause';", main.split(/\r?\n/).find((l) => l.startsWith('import ')));
   dit('main.tsx : la main prise au démarrage, sauf en pause ; rien ne migre en pause ; l’écran de pause seul',
     [true, true, true],
     [/const enPause = ongletEnPause\(\);\s*if \(!enPause\) prendsLaMain\(/.test(main),

@@ -21,7 +21,7 @@ import { createStore } from '../src/shared/store';
 import * as synchro from '../src/shared/sync';
 import { laPorteARepondu } from '../src/shared/auth';
 import { ecrisLaFile, lisLaFile, noteLesConflits, lisLesConflitsNotes } from '../src/shared/file-d-attente';
-import { ongletEnPause, prendsLaMain, reprendsLaMain } from '../src/shared/onglet-actif';
+import { armeLaPause, ongletEnPause, prendsLaMain, reprendsLaMain } from '../src/shared/onglet-actif';
 
 const attend = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const dit = (x: unknown) => { console.log(`RESULTAT ${JSON.stringify(x)}`); process.exit(0); };
@@ -32,6 +32,10 @@ const unAutreOngletPrendLaMain = (avecEvenement: boolean) => {
   if (avecEvenement) w.dispatchEvent({ type: 'storage', key: CLE });
 };
 const ETAPE = process.env.ETAPE ?? 'main';
+/* UNE AUTRE PAGE DU SITE, DANS LE MÊME ONGLET, n'arme pas la pause : jamais en pause. */
+const sansArmer = ongletEnPause();
+if (ETAPE !== 'autre-page') armeLaPause();
+if (ETAPE === 'autre-page') dit({ pause: sansArmer, apresUnSet: (() => { const s = createStore<{ v: string }>('mnd_essai_autre', { v: 'a' }); s.set({ v: 'b' }); return s.get().v; })() });
 
 if (ETAPE === 'main') {
   prendsLaMain('trone');
@@ -40,7 +44,7 @@ if (ETAPE === 'main') {
   s.set([{ id: 'x', v: 'avant' }]);
   const avant = { pause: ongletEnPause(), magasin: s.get()[0]?.v ?? null };
   unAutreOngletPrendLaMain(true);
-  const pendant = { pause: ongletEnPause(), session: laSession.get('mnd_onglet_en_pause') ?? null, rechargements: rechargements.n };
+  const pendant = { pause: ongletEnPause(), session: laSession.get('trone::mnd_onglet_en_pause') ?? null, rechargements: rechargements.n };
   /* En pause : plus rien ne s'écrit. */
   s.set([{ id: 'x', v: 'apres' }]);
   const fileAvant = localStorage.getItem('trone::file::essai_onglet');
@@ -105,5 +109,5 @@ if (ETAPE === 'rechargé') {
     file: lisLaFile('essai_pause').size,
   };
   reprendsLaMain();
-  dit({ ...r, apresUtiliserIci: { session: laSession.get('mnd_onglet_en_pause') ?? null, rechargements: rechargements.n } });
+  dit({ ...r, apresUtiliserIci: { session: laSession.get('trone::mnd_onglet_en_pause') ?? null, rechargements: rechargements.n } });
 }
