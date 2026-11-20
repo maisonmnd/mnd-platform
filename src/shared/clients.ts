@@ -9,6 +9,7 @@ import { type EnvieKey } from './quiz';
 import { estMineur } from './accounts';
 import { cadeauxApresRemise } from './club-pur';
 import type { ConnuePar } from './connue-par-pur';
+import type { ChoixDuParcours } from './classement-pur';
 
 /* Têtes couronnées — CRM 360. Toutes les entités portent `branchId` :
    la branche sélectionnée filtre tout. */
@@ -66,6 +67,15 @@ export type Client = {
       rattacher. Rien à re-clefer, aucun rendez-vous à déplacer. */
   authUserId?: string;
   city: string;
+  /** LA VILLE DÉDUITE DU NUMÉRO — 20 novembre 2026 (« auto-remplis ce que tu
+      sais », Yéman). Le pays d'un numéro étranger écrit dans `city` quand elle
+      était vide (shared/classement-pur, `villeADeduire`), et le jour où il l'a
+      été : jamais deux fois, même si l'équipe l'efface ensuite. */
+  villeDeduiteLe?: string;
+  /** LE PARCOURS CHOISI DANS LE DOSSIER — 20 novembre 2026 (Le classement).
+      L'étape, le lieu, le rythme (« une » ou « deux fois par an ») et une note
+      pour l'équipe : un choix posé passe avant les critères du classement. */
+  parcours?: ChoixDuParcours;
   persona: string; // id de persona
   /** LA MAIN L'EMPORTE. Posé dès qu'une personne choisit l'archétype elle-même
       au CRM : la lecture automatique (`shared/persona.ts`) ne recalcule plus

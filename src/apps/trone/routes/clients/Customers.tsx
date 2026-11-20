@@ -90,6 +90,7 @@ import { muetteSousSonPayeur, parleSurCeNumero } from '../../../../shared/voix-d
 import LiensAEnvoyer from '../../shell/LiensAEnvoyer';
 import LaRoutineDeSoins from './LaRoutineDeSoins';
 import { CIVILITES, civiliteNotee, estMuette, ficheAvecCivilite, prenomDevine, type Civilite } from '../../../../shared/civilite';
+import { ID_DES_VILLES, ListeDesVilles } from './_villes';
 
 /* Customers — le CRM 360 : recherche, tri, indicateurs, segments, persona attribué,
    prochain RDV prédit, fiche complète (finances, présence Ma Couronne, commandes,
@@ -3770,7 +3771,11 @@ function Customer360({
               <Input type="email" value={idEmail} onChange={(e) => setIdEmail(e.target.value)} placeholder="—" autoComplete="email" />
             </Field>
             <Field label="Ville">
-              <Input id="c360-city" value={idCity} onChange={(e) => setIdCity(e.target.value)} placeholder="—" />
+              <Input id="c360-city" list={ID_DES_VILLES} value={idCity} onChange={(e) => setIdCity(e.target.value)} placeholder="Cotonou, Abomey-Calavi, Paris…" />
+              <ListeDesVilles />
+              {client.villeDeduiteLe && idCity === client.city && client.city && (
+                <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Déduite de l’indicatif du numéro : précisez la ville si vous la connaissez.</span>
+              )}
             </Field>
             <Field label="Profession">
               <Input id="c360-profession" value={idProfession} onChange={(e) => setIdProfession(e.target.value)} placeholder="Infirmière, avocate, enseignante…" autoComplete="organization-title" />
@@ -6095,7 +6100,8 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
           </Field>
           <Field label="Ville">
-            <Input value={city} onChange={(e) => setCity(e.target.value)} />
+            <Input list={ID_DES_VILLES} value={city} onChange={(e) => setCity(e.target.value)} placeholder="Cotonou, Abomey-Calavi, Paris…" />
+            <ListeDesVilles />
           </Field>
         </div>
 

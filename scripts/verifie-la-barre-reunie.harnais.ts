@@ -110,7 +110,8 @@ dit('chaque onglet montre l ecran d avant, et l ecran d avant existe (les hotes 
 dit('un onglet n appartient qu a une reunion', true,
   REUNIONS.flatMap((r) => r.onglets.map((o) => o.path)).every((p, i, t) => t.indexOf(p) === i));
 /* Les trois réunions qui grandissent le 27 octobre 2026. */
-dit('Clientes : les clientes, l Audience, les Ambassadrices', ['/customers', '/audience', '/parrainages'], REUNIONS.find((r) => r.hote === '/customers')?.onglets.map((o) => o.path));
+/* LE CLASSEMENT (20 novembre 2026) entre en onglet des Clientes, juste après le registre. */
+dit('Clientes : les clientes, le classement, l Audience, les Ambassadrices', ['/customers', '/classement', '/audience', '/parrainages'], REUNIONS.find((r) => r.hote === '/customers')?.onglets.map((o) => o.path));
 dit('Synthese & bilan : le resultat, le mois, les prestations', ['/synthese', '/bilan-mensuel', '/chiffre-des-prestations'], REUNIONS.find((r) => r.hote === '/synthese')?.onglets.map((o) => o.path));
 /* 5 novembre 2026 : « Les paiements » (maquette maquette-les-paiements.html,
    v5) entre aux Ressources humaines, en deuxième onglet. */

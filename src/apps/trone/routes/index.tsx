@@ -95,6 +95,10 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          du Marketing ; le Marketing quitte la barre, l'audience vit avec les
          Clientes, en onglet (REUNIONS). « Écrire » mène à l'Assistant. */
       { path: '/audience', label: 'Audience', icon: Radio, Component: lazy(() => import('./clients/Audience')) },
+      /* LE CLASSEMENT DES CLIENTES (20 novembre 2026) : chaque cliente rangée par
+         étape, lieu, rythme et marques, selon des critères réglés ici ; onglet
+         des Clientes (REUNIONS). */
+      { path: '/classement', label: 'Le classement', icon: SquareKanban, Component: lazy(() => import('./clients/Classement')) },
       /* LES PARRAINAGES, 28 septembre 2026 : marraines, filleules, cadeaux.
          Hors de la barre depuis le Cercle réuni (29 septembre) ; depuis le
          27 octobre 2026, onglet « Ambassadrices » des Clientes : le Cercle
@@ -331,7 +335,7 @@ export const REUNIONS: readonly Reunion[] = [
   { hote: '/synthese', titre: 'Synthèse & bilan', onglets: [{ path: '/synthese', label: 'Le résultat' }, { path: '/bilan-mensuel', label: 'Le mois jour par jour' }, { path: '/chiffre-des-prestations', label: 'Les prestations' }] },
   { hote: '/analytics', titre: 'Les tendances', onglets: [{ path: '/analytics', label: 'L’analyse' }, { path: '/cadence', label: 'La cadence' }] },
   /* LES CLIENTES (27 octobre 2026) : le registre, l'audience, les ambassadrices. */
-  { hote: '/customers', titre: 'Clientes', onglets: [{ path: '/customers', label: 'Les clientes' }, { path: '/audience', label: 'Audience' }, { path: '/parrainages', label: 'Ambassadrices' }] },
+  { hote: '/customers', titre: 'Clientes', onglets: [{ path: '/customers', label: 'Les clientes' }, { path: '/classement', label: 'Le classement' }, { path: '/audience', label: 'Audience' }, { path: '/parrainages', label: 'Ambassadrices' }] },
   /* LE CHAT DU SITE (19 octobre 2026) entre dans Conversations, sans rubrique de plus : tout ce que les clientes écrivent au même endroit. */
   { hote: '/conversations', titre: 'Conversations', onglets: [{ path: '/conversations', label: 'WhatsApp' }, { path: '/discussions', label: 'Le chat du site' }, { path: '/appels', label: 'Les envois programmés' }] },
   { hote: '/demandes', titre: 'Demandes & consultations', onglets: [{ path: '/demandes', label: 'Les demandes' }, { path: '/consultations', label: 'Les consultations' }] },
@@ -505,7 +509,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires', '/mtn', '/besoins'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires', '/mtn', '/besoins', '/classement'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>
