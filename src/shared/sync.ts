@@ -8,6 +8,7 @@ import { noteUneEcritureRecue } from './poids-de-la-memoire';
 import { contenuCanonique, memeContenu } from './meme-contenu';
 import { arbitre, declareLecteurDeLigne, ecrisLaFile, gestesEntre, leGesteLocalTient, lisLaFile, noteLesConflits, oublieLeConflit, recus, type Conflit, type Entree } from './file-d-attente';
 import { avecNosChamps, fusionneLesChamps } from './fusion-des-champs';
+import { ongletEnPause } from './onglet-actif';
 import {
   tableSuivie, CARTE_DES_TABLES, champsChanges, inscrisLesGestes, identiteCourante,
   type Geste, type GesteVerbe, type ChampChange,
@@ -947,6 +948,9 @@ export function bindCollection<T extends WithId>(
      (réécrite, ou supprimée : 7 octobre 2026). */
   declareLecteurDeLigne(table, () => store.get());
   if (!supabase) return;
+  /* UN ONGLET EN PAUSE NE SE BRANCHE PAS (20 novembre 2026, `onglet-actif`) :
+     ni lecture, ni direct, ni envoi. L'onglet qui tient la main le fait. */
+  if (ongletEnPause()) return;
   const sb = supabase;
 
   /* TOUTE LA TABLE, JAMAIS UNE TRANCHE — 1er octobre 2026. Supabase plafonne chaque
@@ -1470,6 +1474,7 @@ export function bindCollection<T extends WithId>(
      vieille photo. */
   let pousseeRedemandee = false;
   const lanceLaPoussee = (): void => {
+    if (ongletEnPause()) return;
     if (pousseesEnVol > 0) { pousseeRedemandee = true; return; }
     const items = store.get();
     void pousse(lastPushed, snapshot(items), items);
@@ -1649,6 +1654,7 @@ export function bindCollection<T extends WithId>(
      car sous RLS les données visibles dépendent de l'utilisateur connecté. */
   let lastRefetch = 0;
   const refetch = async (force = false) => {
+    if (ongletEnPause()) return;
     if (timer) {
       /* Une écriture locale part bientôt : relire maintenant l'écraserait.
          Mais un refetch FORCÉ vient d'un changement de session (connexion,
@@ -1805,6 +1811,9 @@ export function bindCollection<T extends WithId>(
 
   // 2. Poussée des changements locaux (coalescée).
   store.subscribe(() => {
+    /* Mis en pause pendant la séance : le changement vient de l'autre onglet,
+       ce n'est pas un geste d'ici (20 novembre 2026). */
+    if (ongletEnPause()) return;
     if (applyingRemote) {
       /* Écriture DISTANTE : le repère suit, pour ne pas prendre ces lignes
          pour des gestes locaux. */
@@ -1857,6 +1866,7 @@ export function bindCollection<T extends WithId>(
   // 3. Application des changements distants (Realtime).
   const surChangement =
       (payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown>; confirmee?: boolean; repereSeul?: boolean }) => {
+        if (ongletEnPause()) return;
         /* UNE LIGNE QUE LE SERVEUR VIENT DE CONFIRMER (`appliqueCommeLeDirect`)
            compte comme un geste : une lecture partie avant elle est dépassée,
            jetée et refaite (17 novembre 2026, revue). Avant tout jugement :
@@ -2113,6 +2123,8 @@ const relitTousLesDocuments = () => {
 export function bindDocument<T>(store: Store<T>, key: string): void {
   /* Sans Supabase, rien ne descendra jamais : on le dit tout de suite. */
   if (!supabase) { registre(key).tenir(); return; }
+  /* Un onglet en pause ne se branche pas (20 novembre 2026, `onglet-actif`). */
+  if (ongletEnPause()) return;
   const sb = supabase;
 
   let applyingRemote = false;
@@ -2301,6 +2313,7 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
     syncMark.ok(`doc:${key}`);
   };
   function planifieLEnvoi(): void {
+    if (ongletEnPause()) return;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => void envoie(), PUSH_DEBOUNCE_MS);
   }
@@ -2315,6 +2328,7 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
      l'onglet avait vu. */
   let vu = JSON.stringify(store.get());
   store.subscribe(() => {
+    if (ongletEnPause()) return;
     const j = JSON.stringify(store.get());
     if (applyingRemote) { vu = j; return; }
     if (j === vu) return;
@@ -2339,6 +2353,7 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
   // 3. Application distante (Realtime).
   const surChangement =
       (payload: { new: Record<string, unknown> }) => {
+        if (ongletEnPause()) return;
         const row = payload.new as { data: T } | undefined;
         if (!row) return;
         const j = JSON.stringify(row.data);

@@ -17,11 +17,22 @@ import { migreLesFormulesAZero } from '../../shared/abonnements';
 import { migreLaNouvelleGrille } from '../../shared/nouvelle-grille';
 import { migreLesFormulesEnLunes } from '../../shared/formules-en-lunes';
 import { migreLaBasculeDeJanvier } from './shell/bascule-de-janvier';
+import { ongletEnPause, prendsLaMain } from '../../shared/onglet-actif';
+import { OngletEnPause } from './shell/OngletEnPause';
 
 /* L'APPLICATION RESTE SUR LE TÉLÉPHONE (4 octobre 2026, « hors ligne », temps 2) :
    le service s'enregistre dès l'ouverture, pas seulement quand on règle les
    notifications. C'est lui qui ouvre l'application sans réseau. */
 void registerSW();
+
+/* UN SEUL ONGLET TIENT LA MAIN — 20 novembre 2026 (le choix « A » de Yéman,
+   `shared/onglet-actif.ts`). Cet onglet la prend, et l'onglet du Trône déjà
+   ouvert se met en pause. Un onglet rechargé EN PAUSE ne la prend pas, ne
+   migre rien et n'affiche que « Le Trône est ouvert dans un autre onglet ». */
+const enPause = ongletEnPause();
+if (!enPause) prendsLaMain(document.body.dataset.surface || 'trone');
+
+if (!enPause) {
 
 /* LE NOM DE LA MAISON, corrigé une fois — 23 septembre 2026. Déclenchée ici,
    dans le seul Trône : le module d'identité est partagé par sept
@@ -57,6 +68,7 @@ migreLaBasculeDeJanvier();
 // « Remplacer la Maison » : après le redémarrage à blanc, appliquer le fichier en
 // attente sur les magasins vides AVANT le premier rendu (la synchro poussera au serveur).
 applyPendingReplace();
+}
 
 const router = createHashRouter([
   {
@@ -82,8 +94,12 @@ const router = createHashRouter([
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthGate>
-      <RouterProvider router={router} />
-    </AuthGate>
+    {enPause ? (
+      <OngletEnPause />
+    ) : (
+      <AuthGate>
+        <RouterProvider router={router} />
+      </AuthGate>
+    )}
   </StrictMode>
 );

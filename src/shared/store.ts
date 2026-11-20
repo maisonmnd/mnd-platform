@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { ongletEnPause } from './onglet-actif';
 
 /* Magasin persisté en localStorage.
    Chaque clé émet un CustomEvent local + réagit au `storage` des autres onglets,
@@ -198,6 +199,11 @@ export function createStore<T>(key: string, initial: T): Store<T> {
     key,
     get: read,
     set: (next) => {
+      /* UN ONGLET EN PAUSE N'ÉCRIT RIEN — 20 novembre 2026 (un seul onglet
+         du Trône tient la main, `onglet-actif.ts`). Une écriture ici irait
+         dans le stockage commun, et l'onglet qui travaille la prendrait pour
+         un geste à lui. */
+      if (ongletEnPause()) return;
       const value = typeof next === 'function' ? (next as (p: T) => T)(read()) : next;
       cache = value;
       cachedRaw = JSON.stringify(value);

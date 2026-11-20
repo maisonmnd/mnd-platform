@@ -23,6 +23,7 @@
    sur l'appareil sont à part, en bas. */
 
 import { avecNosChamps, fusionneLesChamps } from './fusion-des-champs';
+import { ongletEnPause } from './onglet-actif';
 
 export type Entree = {
   op: 'set' | 'del';
@@ -202,6 +203,10 @@ export function lisLaFile(table: string): Map<string, Entree> {
 }
 
 export function ecrisLaFile(table: string, file: ReadonlyMap<string, Entree>): void {
+  /* UN ONGLET EN PAUSE NE RÉÉCRIT PAS LA FILE (20 novembre 2026) : elle est
+     commune aux onglets, et sa vieille copie ferait renaître ou disparaître
+     les gestes de l'onglet qui tient la main. */
+  if (ongletEnPause()) return;
   try {
     if (file.size === 0) localStorage.removeItem(cleDeLaFile(table));
     else localStorage.setItem(cleDeLaFile(table), JSON.stringify(Object.fromEntries(file)));
@@ -419,6 +424,7 @@ export function oublieTousLesConflits(): void {
 
 /** Les conflits se gardent, les plus récents d'abord, cent au plus. */
 export function noteLesConflits(nouveaux: readonly Conflit[]): void {
+  if (ongletEnPause()) return;
   nouveaux = nouveaux.filter(conflitQuiDiffere);
   if (nouveaux.length === 0) return;
   try {
