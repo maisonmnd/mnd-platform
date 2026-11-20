@@ -118,6 +118,25 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  /* LE PLAN POUR VENIR, LE RÉSEAU D'ABORD (20 novembre 2026). Il part chez les
+     clientes : gardé comme les autres images, le plan d'avant une correction
+     (l'adresse du 20 novembre) repartait une fois de plus de chaque appareil.
+     En ligne, toujours le dernier, sans le cache du navigateur ; sans réseau,
+     celui qu'on a. */
+  if (url.pathname.includes('/assets/itineraire/')) {
+    event.respondWith((async () => {
+      const c = await caches.open(CACHE_IMAGES);
+      try {
+        const r = await avecDelai(fetch(req, { cache: 'no-cache' }), DELAI_PAGE_MS);
+        if (r.ok) { void c.put(req, r.clone()); return r; }
+        return (await c.match(req)) || r;
+      } catch (_e) {
+        return (await c.match(req)) || Response.error();
+      }
+    })());
+    return;
+  }
+
   if (/\.(png|jpe?g|webp|svg|gif|ico)$/.test(url.pathname)) {
     event.respondWith((async () => {
       const c = await caches.open(CACHE_IMAGES);
