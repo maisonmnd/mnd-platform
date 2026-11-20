@@ -38,6 +38,7 @@ const ENCAISSEMENTS = 'src/apps/trone/routes/finances/Encaissements.tsx';
 const PAGE_MTN = 'src/apps/trone/routes/finances/MtnMoMo.tsx';
 const ROUTES_DU_TRONE = 'src/apps/trone/routes/index.tsx';
 const SQL = 'supabase/migrations/0200_regler_par_mtn.sql';
+const SQL2 = 'supabase/migrations/0241_les_frais_mtn_ajoutes.sql';
 const PAGE = 'src/apps/regler/App.tsx';
 const MTN_PAGE = 'src/apps/regler/Mtn.tsx';
 const MAIN = 'src/apps/regler/main.tsx';
@@ -71,7 +72,14 @@ const PANNES = [
   ['deux demandes a la fois', FONCTION, "  if (demandeEnCours((Array.isArray(vivantes.corps) ? vivantes.corps : []) as CollecteMtn[], rdv.id, Date.now())) return json({ erreur: 'en_cours' }, 409);", ''],
   ['la piece ecrite sans condition', FONCTION, "    const w = await base(`invoices?id=eq.${enc(piece.id)}${ligne.updated_at ? `&updated_at=eq.${enc(ligne.updated_at)}` : ''}`, {", '    const w = await base(`invoices?id=eq.${enc(piece.id)}`, {'],
   ['le rendez-vous ne suit plus sa piece', FONCTION, '    const s = await suisLeRdv(c.rdv_id, v, piece.id, resteDeLaPiece(neuve), quand.getTime());', "    const s = { honore: false, nom: '' };"],
-  ['les frais de MTN oublies', FONCTION, "      await base('expenses', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: JSON.stringify({ id: d.id, branch_id: branche, data: d }) });", ''],
+  ['les frais de la cliente ignores a la confirmation', FONCTION, '    const aSaCharge = fraisALaChargeDeLaMaison(frais, fraisAjoutes);', '    const aSaCharge = frais;'],
+  ['pas de frais ajoutes', PUR, '  const fraisAjoutes = fraisAjoutesMtn(reste + pourboire);', '  const fraisAjoutes = 0;'],
+  ['les frais sans le merci', PUR, '  const fraisAjoutes = fraisAjoutesMtn(reste + pourboire);', '  const fraisAjoutes = fraisAjoutesMtn(reste);'],
+  ['les frais arrondis vers le bas', PUR, '  return b > 0 ? Math.ceil((b * TAUX_AJOUTE_MTN_PCT) / 100 - 1e-9) : 0;', '  return b > 0 ? Math.floor((b * TAUX_AJOUTE_MTN_PCT) / 100) : 0;'],
+  ['le plafond oublie les frais', PUR, '  if (reste + pourboire + fraisAjoutes > MONTANT_MTN_MAX) return \'montant\';', '  if (reste + pourboire > MONTANT_MTN_MAX) return \'montant\';'],
+  ['la page ne compte pas les frais', MTN_PAGE, '  const total = avantFrais + frais;', '  const total = avantFrais;'],
+  ['la base refuse les frais ajoutes', SQL2, '    and reste_xof >= 1 and montant_xof = reste_xof + pourboire_xof + frais_ajoutes_xof)', '    and reste_xof >= 1 and montant_xof = reste_xof + pourboire_xof)'],
+  ['l essai porte des frais', SQL2, '    and reste_xof = 0 and pourboire_xof = 0 and frais_ajoutes_xof = 0)', '    and reste_xof = 0 and pourboire_xof = 0)'],
   ['la caisse MTN ne nait pas', FONCTION, '    await laCaisse(branche);\n', ''],
   ['le recu gagne sans ecriture conditionnelle', FONCTION, "    }, c.etat);\n    if (recue && recue.genre === 'reglement') await poser(recue);", "    });\n    if (recue && recue.genre === 'reglement') await poser(recue);"],
   ['un recu reste sans pose apres une panne', FONCTION, "  for (const c of (Array.isArray(aPoser.corps) ? aPoser.corps : []) as CollecteMtn[]) {", '  for (const c of [] as CollecteMtn[]) {'],
@@ -209,12 +217,19 @@ dit('la fonction porte la copie exacte des regles, de la piece, de l honneur et 
 /* ── Lot B ── */
 const REF = (i) => `${String(i).padStart(8, '0')}-0000-4000-8000-${String(i).padStart(12, '0')}`;
 dit('les frais de MTN : 1,2 %, au franc pres (30 000 F : 360 F ; 32 000 F : 384 F)', egal([R.fraisDeMtn(30000), R.fraisDeMtn(32000), R.fraisDeMtn(100), R.fraisDeMtn(0)], [360, 384, 1, 0]), '');
+/* LES 1,6 % AJOUTÉS POUR LA CLIENTE (20 novembre 2026, 0241). */
+dit('les frais ajoutes pour la cliente : 1,6 %, au franc superieur (30 000 F : 480 F ; 32 000 F : 512 F ; 12 345 F : 198 F ; 1 F : 1 F)',
+  egal([R.TAUX_AJOUTE_MTN_PCT, R.fraisAjoutesMtn(30000), R.fraisAjoutesMtn(32000), R.fraisAjoutesMtn(12345), R.fraisAjoutesMtn(1), R.fraisAjoutesMtn(0), R.fraisAjoutesMtn(-5)], [1.6, 480, 512, 198, 1, 0, 0]), '');
+dit('la Maison ne paie que ce que les 1,6 % ne couvrent pas : rien a 1,6 %, tout pour une demande d avant',
+  egal([R.fraisALaChargeDeLaMaison(390, 512), R.fraisALaChargeDeLaMaison(390, 0), R.fraisALaChargeDeLaMaison(390, 100), R.fraisALaChargeDeLaMaison(390, null)], [0, 390, 290, 390]), '');
 dit('le merci : un entier de 0 a 100 000 F, rien quand il n est pas permis, jamais negatif',
   egal([R.pourboireLu(2000, true), R.pourboireLu(-5, true), R.pourboireLu(2000, false), R.pourboireLu(500000, true), R.pourboireLu('abc', true), R.pourboireLu(1500.7, true)], [2000, 0, 0, 100000, 0, 1500]), '');
 {
   const d = R.demandeDeReglement({ reference: REF(1), origine: 'lien', rdvId: 'r1', pieceId: 'p1', branchId: 'br', msisdn: '01 97 00 00 01', resteXof: 30000, pourboireXof: 2000 });
-  dit('la demande d un reglement : le reste du serveur plus le merci, ecrite « demande », par la cliente',
-    typeof d === 'object' && d.montant_xof === 32000 && d.reste_xof === 30000 && d.pourboire_xof === 2000 && d.etat === 'demande' && d.msisdn === '2290197000001' && d.genre === 'reglement', JSON.stringify(d));
+  dit('la demande d un reglement : le reste du serveur, le merci et 1,6 % de frais, ecrite « demande », par la cliente',
+    typeof d === 'object' && d.montant_xof === 32512 && d.frais_ajoutes_xof === 512 && d.reste_xof === 30000 && d.pourboire_xof === 2000 && d.etat === 'demande' && d.msisdn === '2290197000001' && d.genre === 'reglement', JSON.stringify(d));
+  dit('... le plafond compte les frais : 1 968 000 F passent (1 999 488 F), 1 970 000 F non', egal([R.demandeDeReglement({ reference: REF(1), origine: 'lien', rdvId: 'r', pieceId: 'p', branchId: null, msisdn: '0197000001', resteXof: 1_968_000, pourboireXof: 0 }).montant_xof,
+    R.demandeDeReglement({ reference: REF(1), origine: 'lien', rdvId: 'r', pieceId: 'p', branchId: null, msisdn: '0197000001', resteXof: 1_970_000, pourboireXof: 0 })], [1_999_488, 'montant']), '');
   dit('... refusee : numero illisible, rien a regler, plus de 2 000 000 F, reference illisible',
     egal([R.demandeDeReglement({ reference: REF(1), origine: 'lien', rdvId: 'r', pieceId: 'p', branchId: null, msisdn: '97000001', resteXof: 100, pourboireXof: 0 }),
       R.demandeDeReglement({ reference: REF(1), origine: 'lien', rdvId: 'r', pieceId: 'p', branchId: null, msisdn: '0197000001', resteXof: 0, pourboireXof: 0 }),
@@ -258,6 +273,8 @@ dit('le partage a la confirmation : le reste demande et le merci choisi ; reglee
     v.id === `mtn-${REF(3)}` && v.cashbox === 'MTN Collection' && v.method === 'MTN Collection' && v.date === '2026-11-11' && v.time === '11:02' && v.amountXof === 30000
     && v.note.includes('01 97 •• •• 01') && !v.note.includes('01 97 00 00 01'), JSON.stringify(v));
   const trace = R.traceMtn({ v, reference: REF(3), transaction: '9003', quand, pourboireXof: 2000, fraisXof: 384, msisdn: '2290197000001' });
+  const traceF = R.traceMtn({ v, reference: REF(3), transaction: '9003', quand, pourboireXof: 2000, fraisXof: 390, msisdn: '2290197000001', fraisAjoutesXof: 512 });
+  dit('la trace dit les frais payes par elle, a part (une demande d avant n en porte pas)', egal([traceF.fraisAjoutesXof, traceF.fraisXof, 'fraisAjoutesXof' in trace], [512, 390, false]), JSON.stringify(traceF));
   dit('la trace : la forme d un reglement en ligne (le Trone partage le merci et envoie le recu), « MTN », la reference et le numero masque',
     trace.id === v.id && trace.montantXof === 30000 && trace.pourboireXof === 2000 && trace.fraisXof === 384 && trace.moyen === 'MTN' && trace.referenceMtn === REF(3) && trace.numeroMasque === '01 97 •• •• 01' && trace.transactionId === '9003' && R.estUneTraceMtn(trace) && !R.estUneTraceMtn({ id: 'kkia-1' }), JSON.stringify(trace));
   const piece = { id: 'p1', lines: [{ label: 'SÍNSIN Essentiel', qty: 1, unitXof: 30000 }], payments: [], status: 'émise' };
@@ -384,8 +401,8 @@ const filtreDe = (url) => {
   return (r) => f.every((x) => x(r));
 };
 const contrainteDuRegistre = (r) => /^22901\d{8}$/.test(r.msisdn) && r.montant_xof >= 1 && r.montant_xof <= 2_000_000
-  && ((r.genre === 'reglement' && r.rdv_id && r.piece_id && r.reste_xof >= 1 && r.montant_xof === r.reste_xof + r.pourboire_xof)
-    || (r.genre === 'essai' && !r.rdv_id && r.montant_xof <= 500));
+  && ((r.genre === 'reglement' && r.rdv_id && r.piece_id && r.reste_xof >= 1 && r.montant_xof === r.reste_xof + r.pourboire_xof + (r.frais_ajoutes_xof ?? 0))
+    || (r.genre === 'essai' && !r.rdv_id && r.montant_xof <= 500 && !(r.frais_ajoutes_xof > 0)));
 
 function base(url, methode, h, corps) {
   if (h.apikey !== SERVICE || h.authorization !== `Bearer ${SERVICE}`) return rep(401, { message: 'service attendu' });
@@ -673,7 +690,7 @@ let refLien;
   const c = collecte(refLien);
   const posteMtn = demandesMtn(refLien)[0];
   dit('la demande par le lien : le reste de SA piece (30 000 F) plus le merci (2 000 F) ; le montant de la page est ignore',
-    r.status === 200 && r.o?.montantXof === 32000 && r.o?.etat === 'attente' && c?.montant_xof === 32000 && c?.reste_xof === 30000 && c?.pourboire_xof === 2000 && posteMtn?.corps.amount === '32000', r.t);
+    r.status === 200 && r.o?.montantXof === 32512 && r.o?.etat === 'attente' && c?.montant_xof === 32512 && c?.frais_ajoutes_xof === 512 && c?.reste_xof === 30000 && c?.pourboire_xof === 2000 && posteMtn?.corps.amount === '32512', r.t);
   dit('... la reference ecrite au registre avant l appel, et donnee a MTN comme X-Reference-Id et identifiant externe',
     journal.findIndex((j) => j.chemin === '/rest/v1/collectes_mtn' && j.methode === 'POST') < journal.findIndex((j) => j.chemin === '/collection/v1_0/requesttopay')
     && posteMtn.corps.externalId === refLien && /^[0-9a-f-]{36}$/.test(refLien), '');
@@ -690,21 +707,21 @@ let refLien;
   const v = p.payments?.[0];
   const trace = p.reglementsEnLigne?.[0];
   dit('MTN dit SUCCESSFUL : la piece est reglee (30 000 F, caisse « MTN Collection », mtn-<reference>), le merci a part, la trace « MTN »',
-    s3.o?.etat === 'recu' && s3.o?.montantXof === 32000 && p.status === 'payée' && p.payments.length === 1 && v.id === `mtn-${refLien}` && v.amountXof === 30000 && v.cashbox === 'MTN Collection' && v.method === 'MTN Collection'
-    && p.tipXof === 2000 && trace?.moyen === 'MTN' && trace?.pourboireXof === 2000 && trace?.fraisXof === 384 && trace?.referenceMtn === refLien && trace?.numeroMasque === '01 97 •• •• 01', JSON.stringify(p));
+    s3.o?.etat === 'recu' && s3.o?.montantXof === 32512 && p.status === 'payée' && p.payments.length === 1 && v.id === `mtn-${refLien}` && v.amountXof === 30000 && v.cashbox === 'MTN Collection' && v.method === 'MTN Collection'
+    && p.tipXof === 2000 && trace?.moyen === 'MTN' && trace?.pourboireXof === 2000 && trace?.fraisXof === 390 && trace?.fraisAjoutesXof === 512 && trace?.referenceMtn === refLien && trace?.numeroMasque === '01 97 •• •• 01', JSON.stringify(p));
   const rdv = rdvDe('r1');
   dit('... le rendez-vous suit sa piece (le meme versement, sa piece nommee) et son lien dit quand il a paye',
     rdv.payments?.length === 1 && rdv.payments[0].id === v.id && rdv.payments[0].invoiceId === 'p1' && rdv.paidXof === 30000 && !!rdv.lienDeReglement?.payeLe && rdv.status === 'confirmé', JSON.stringify(rdv));
   dit('... la caisse « MTN Collection » nait, une seule', T.cashboxes.filter((b) => b.data?.name === 'MTN Collection').length === 1 && T.cashboxes[0].id === 'cb-mtn-collection-br-1', JSON.stringify(T.cashboxes));
   const dep = T.expenses[0]?.data;
-  dit('... les frais de MTN (1,2 % de 32 000 F : 384 F) en depense de la Maison, payee par la caisse MTN, « Paulette K. »',
-    T.expenses.length === 1 && dep.amountXof === 384 && dep.cashbox === 'MTN Collection' && dep.category === 'Frais bancaires' && dep.label === 'Frais MTN (1,2 %) · Paulette K.', JSON.stringify(dep));
-  dit('... le registre dit recu, la transaction de MTN, la pose et les frais', collecte(refLien).etat === 'recu' && !!collecte(refLien).transaction_mtn && !!collecte(refLien).pose_le && collecte(refLien).frais_xof === 384, JSON.stringify(collecte(refLien)));
+  dit('... les frais de MTN (1,2 % de 32 512 F : 390 F) couverts par ses 512 F : aucune depense de la Maison',
+    T.expenses.length === 0, JSON.stringify(dep));
+  dit('... le registre dit recu, la transaction de MTN, la pose et les frais', collecte(refLien).etat === 'recu' && !!collecte(refLien).transaction_mtn && !!collecte(refLien).pose_le && collecte(refLien).frais_xof === 390, JSON.stringify(collecte(refLien)));
   const s4 = await page({ action: 'statut', reference: refLien });
   await cron();
   collecte(refLien).relu_le = new Date(Date.now() - 600_000).toISOString();
   await cron();
-  dit('relu encore, et le passage : rien ne se pose deux fois, MTN n est plus lu', s4.o?.etat === 'recu' && pieceDe('p1').payments.length === 1 && rdvDe('r1').payments.length === 1 && T.expenses.length === 1
+  dit('relu encore, et le passage : rien ne se pose deux fois, MTN n est plus lu', s4.o?.etat === 'recu' && pieceDe('p1').payments.length === 1 && rdvDe('r1').payments.length === 1 && T.expenses.length === 0
     && versMtn().filter((j) => j.chemin.endsWith(refLien)).length === lus + 1, `${pieceDe('p1').payments.length} ${versMtn().filter((j) => j.chemin.endsWith(refLien)).length}`);
   dit('rien de ce que la page recoit ne montre une cle, un jeton ou le numero entier', [r, s1, s3].every((x) => sansSecret(x.t) && !x.t.includes('0197000001') && !x.t.includes('229019700')), r.t);
   const d2 = await page({ action: 'demander', jeton: JETON, msisdn: '0197000001' });
@@ -729,7 +746,7 @@ let refLien;
   const r1 = await page({ action: 'demander', jeton: JETON, msisdn: '01 97 00 00 18', pourboireXof: 3000 });
   const r2 = await page({ action: 'demander', jeton: JETON, msisdn: '01 97 00 00 18', pourboireXof: 3000 });
   dit('une demande en cours retient le rendez-vous trois minutes : la seconde est refusee, une seule part chez MTN', r1.status === 200 && r2.status === 409 && r2.o?.erreur === 'en_cours' && demandesMtn().length === 1, `${r1.t} ${r2.t}`);
-  dit('une piece qui porte deja un merci : pas de second merci, le reste seul est demande', collecte(r1.o.reference)?.pourboire_xof === 0 && demandesMtn()[0].corps.amount === '30000', JSON.stringify(collecte(r1.o?.reference)));
+  dit('une piece qui porte deja un merci : pas de second merci, le reste seul est demande', collecte(r1.o.reference)?.pourboire_xof === 0 && demandesMtn()[0].corps.amount === '30480', JSON.stringify(collecte(r1.o?.reference)));
   const inconnu = await page({ action: 'demander', jeton: JETON2, msisdn: '01 97 00 00 18' });
   const illisible = await page({ action: 'demander', jeton: 'pas un jeton', msisdn: '01 97 00 00 18' });
   const numero = await page({ action: 'demander', jeton: JETON, msisdn: '97000018' });
@@ -758,7 +775,7 @@ let refLien;
   collecte(ref).relu_le = new Date(Date.now() - 10_000).toISOString();
   await rappel({ externalId: ref });
   dit('MTN dit enfin SUCCESSFUL, trois rappels (dont deux ensemble) : la seance est reglee une seule fois',
-    a.status === 200 && b.status === 200 && collecte(ref).etat === 'recu' && pieceDe('p1').payments.length === 1 && rdvDe('r1').payments.length === 1 && T.expenses.length === 1 && T.cashboxes.length === 1,
+    a.status === 200 && b.status === 200 && collecte(ref).etat === 'recu' && pieceDe('p1').payments.length === 1 && rdvDe('r1').payments.length === 1 && T.expenses.length === 0 && T.cashboxes.length === 1,
     JSON.stringify({ c: collecte(ref), n: pieceDe('p1').payments?.length }));
   const poses = journal.filter((j) => j.methode === 'PATCH' && j.chemin === '/rest/v1/collectes_mtn' && j.corps?.pose_le).length;
   dit('... deux relectures ensemble : une seule gagne « recu » (ecriture conditionnelle), une seule pose', poses === 1, `${poses}`);
@@ -826,7 +843,7 @@ let refLien;
   const r = await page({ action: 'demander', jeton: JETON, msisdn: '01 97 00 00 11' });
   Object.assign(collecte(r.o.reference), { etat: 'recu', repondu_le: new Date(Date.now() - 120_000).toISOString(), transaction_mtn: '777' });
   await cron(); await cron();
-  dit('recu mais pas pose (une panne) : le passage pose, une seule fois', pieceDe('p1').payments.length === 1 && !!collecte(r.o.reference).pose_le && rdvDe('r1').payments.length === 1 && T.expenses.length === 1, JSON.stringify(collecte(r.o.reference)));
+  dit('recu mais pas pose (une panne) : le passage pose, une seule fois', pieceDe('p1').payments.length === 1 && !!collecte(r.o.reference).pose_le && rdvDe('r1').payments.length === 0 + 1 && T.expenses.length === 0, JSON.stringify(collecte(r.o.reference)));
 }
 
 /* ── Lot B : elle avait terminé elle-même (Ma Couronne) ── */
@@ -852,9 +869,9 @@ let refLien;
   const personne = await page({ action: 'comptoir', numero: '01 97 00 00 50' });
   dit('un numero sans rendez-vous aujourd hui : rien', egal(personne.o?.rdvs, []), personne.t);
   const d = await page({ action: 'demander', comptoir: { numero: '01 97 00 00 01', n: 0 }, pourboireXof: 1000, montantXof: 10 });
-  dit('la demande du comptoir : au numero tape, le reste de SA piece et le merci, origine « comptoir »',
-    d.status === 200 && d.o?.montantXof === 31000 && collecte(d.o.reference)?.origine === 'comptoir' && collecte(d.o.reference)?.rdv_id === 'r-a'
-    && demandesMtn(d.o.reference)[0]?.corps.payer.partyId === N.bon && demandesMtn(d.o.reference)[0]?.corps.amount === '31000', d.t);
+  dit('la demande du comptoir : au numero tape, le reste de SA piece, le merci et 1,6 % de frais (31 000 F : 31 496 F), origine « comptoir »',
+    d.status === 200 && d.o?.montantXof === 31496 && collecte(d.o.reference)?.frais_ajoutes_xof === 496 && collecte(d.o.reference)?.origine === 'comptoir' && collecte(d.o.reference)?.rdv_id === 'r-a'
+    && demandesMtn(d.o.reference)[0]?.corps.payer.partyId === N.bon && demandesMtn(d.o.reference)[0]?.corps.amount === '31496', d.t);
   const d2 = await page({ action: 'demander', comptoir: { numero: '01 97 00 00 01', n: 2 } });
   dit('un rang qui n existe pas : introuvable, rien ne part', d2.status === 404 && demandesMtn().length === 1, d2.t);
 }
@@ -882,7 +899,7 @@ let refLien;
   const r = await poste(JWT_EQUIPE, corps);
   const c = collecte(r.o?.reference);
   dit('demander-trone par l equipe (« Bearer <session> », role coiffeuse) : la demande part pour CE rendez-vous, le reste de sa piece, origine « comptoir », au nom de qui l envoie',
-    r.status === 200 && r.o?.etat === 'attente' && c?.rdv_id === 'r1' && c?.origine === 'comptoir' && c?.montant_xof === 30000 && c?.demande_par === 'A. K., au Trône'
+    r.status === 200 && r.o?.etat === 'attente' && c?.rdv_id === 'r1' && c?.origine === 'comptoir' && c?.montant_xof === 30480 && c?.demande_par === 'A. K., au Trône'
     && demandesMtn(r.o?.reference).length === 1 && demandesMtn(r.o?.reference)[0]?.corps.payer.partyId === N.bon, r.t);
   const lectures = journal.filter((j) => j.chemin === '/auth/v1/user').map((j) => j.h.authorization ?? '');
   dit('... auth/v1/user recoit la session seule (« Bearer jwt-equipe »), jamais « Bearer Bearer »',
@@ -924,7 +941,10 @@ let refLien;
   const serveur = lis(SERVEUR_PAGE);
   dit('les pages n envoient que le numero et le merci, jamais un montant', /appel\(\{ action: 'demander', jeton, msisdn, pourboireXof \}\)/.test(serveur) && /appel\(\{ action: 'demander', comptoir: \{ numero, n \}, pourboireXof \}\)/.test(serveur) && !/montantXof:/.test(serveur.replace(/montantXof\?: number;/, '')), '');
   const mtnPage = lis(MTN_PAGE);
-  dit('la page MTN : « Validez sur votre telephone », *880#, aucun frais, « reglé » seulement sur la reponse relue', /Validez sur votre téléphone/.test(mtnPage) && /\*880#/.test(mtnPage) && /Aucun frais pour vous\./.test(mtnPage) && /if \(s\.etat === 'recu'\)/.test(mtnPage), '');
+  const sql2 = lis(SQL2);
+  dit('0241 : la colonne des frais ajoutes (0 par defaut), la regle du registre les compte, l essai n en porte jamais',
+    /add column if not exists frais_ajoutes_xof integer not null default 0;/.test(sql2) && /montant_xof = reste_xof \+ pourboire_xof \+ frais_ajoutes_xof\)/.test(sql2) && /reste_xof = 0 and pourboire_xof = 0 and frais_ajoutes_xof = 0\)/.test(sql2) && /drop constraint if exists collectes_mtn_genre;/.test(sql2), '');
+  dit('la page MTN : « Validez sur votre telephone », *880#, les frais de 1,6 % dits et comptes, « reglé » seulement sur la reponse relue', /Validez sur votre téléphone/.test(mtnPage) && /\*880#/.test(mtnPage) && /Frais MTN, ajoutés \(1,6 %\)/.test(mtnPage) && /fraisAjoutesMtn\(avantFrais\)/.test(mtnPage) && !/Aucun frais/.test(mtnPage) && /const total = avantFrais \+ frais;/.test(mtnPage) && /francs\(totalXof \+ frais\)/.test(mtnPage) && /if \(s\.etat === 'recu'\)/.test(mtnPage), '');
   dit('le QR mene au comptoir : regler.html?comptoir, l adresse lue chez GitHub, jamais ecrite', /has\('comptoir'\)/.test(lis(MAIN)) && /const CHEMIN_DU_COMPTOIR = '\/trone\/regler\.html\?comptoir';/.test(lis(QR)) && /origineDuCompte/.test(lis(QR)) && !/\b[\w-]+\.(?:com|bj|net|org|io)\b/i.test(sansCommentaires(lis(QR)).replace(/www\.w3\.org/g, '')), '');
   const bandeau = lis(BANDEAU);
   const client = lis(CLIENT);

@@ -437,7 +437,7 @@ export default function QrCodes() {
   const imprimerMtn = () => imprime(carteA5({
     verrou: verrouDeLaMaison(),
     titre: 'Régler par MTN.',
-    sous: 'Scannez, tapez votre numéro MTN, validez sur votre téléphone. Aucun frais pour vous.',
+    sous: 'Scannez, tapez votre numéro MTN, validez sur votre téléphone. Frais MTN de 1,6 % ajoutés.',
     qr: lienComptoirMtn,
     etapes: [
       'Ouvrez l’appareil photo du téléphone, visez le carré',
@@ -519,7 +519,7 @@ export default function QrCodes() {
          part de la Maison, au bon montant, et se pointe seule (caisse
          « MTN Collection »). Le rendez-vous doit avoir sa pièce. */
       id: 'mtn', court: 'MTN', groupe: 'payer', pret: true, principal: afficheMtn,
-      resume: 'Son numéro MTN, son rendez-vous du jour, aucun frais pour elle',
+      resume: 'Son numéro MTN, son rendez-vous du jour, frais MTN de 1,6 % ajoutés',
       motsCles: 'mtn momo mobile money collecte comptoir payer paiement argent régler rendez-vous qr',
       carte: {
         signe: Smartphone, nom: 'Payer par MTN.', qui: 'La cliente scanne · elle règle son rendez-vous',

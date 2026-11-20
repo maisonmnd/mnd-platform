@@ -5,7 +5,9 @@
      MTN et retrouve SON rendez-vous du jour ; et « Payer par MTN » sur le
      lien personnel de chaque rendez-vous (regler.html) ;
    · la Maison garde les 1,2 % de MTN : la cliente paie le juste reste,
-     aucun frais ajouté ; les frais vont en frais de la Maison ;
+     aucun frais ajouté ; les frais vont en frais de la Maison (CHANGÉ le
+     20 novembre 2026 : la cliente paie 1,6 % de plus, comme Tap & Go,
+     voir `fraisAjoutesMtn`) ;
    · MTN d'abord pour un numéro MTN ; KkiaPay pour Moov, Celtiis et la carte ;
    · un merci libre pour l'équipe sur la même demande, partagé selon les parts.
 
@@ -112,8 +114,24 @@ function ilYaDit(depuisMs: number): string {
    ÉTEINTE tant que la direction ne l'ouvre pas (réglage en base, 0200),
    et la direction ne peut l'ouvrir qu'après un essai de 100 F REÇU. */
 
-/** La Maison garde les frais de MTN (1,2 % de l'encaissé, contrat du 28 octobre 2026). */
+/** Les frais que MTN retient : 1,2 % de l'encaissé (contrat du 28 octobre 2026). */
 const TAUX_DES_FRAIS_MTN = 0.012;
+/** LES FRAIS AJOUTÉS POUR LA CLIENTE — 20 novembre 2026. « Ajoute le
+    pourcentage de 1.6% sur les paiements de MTN API » (Yéman) : comme Tap &
+    Go, la cliente paie 1,6 % de plus, sur tout ce qui passe chez MTN (son
+    merci compris, il traverse le même tuyau), au franc supérieur (la Maison
+    reçoit au moins ce qu'elle demande). Le 11 novembre, la Maison gardait les
+    frais ; plus maintenant. L'essai de 100 F n'en porte aucun. */
+const TAUX_AJOUTE_MTN_PCT = 1.6;
+/** Les frais ajoutés pour ce que la cliente règle (reste et merci). */
+const fraisAjoutesMtn = (baseXof: number): number => {
+  const b = Math.max(0, Math.round(Number(baseXof) || 0));
+  return b > 0 ? Math.ceil((b * TAUX_AJOUTE_MTN_PCT) / 100 - 1e-9) : 0;
+};
+/** Ce que la Maison paie encore des frais de MTN : ce que les frais ajoutés
+    ne couvrent pas (rien, à 1,6 % contre 1,2 %). */
+const fraisALaChargeDeLaMaison = (fraisMtnXof: number, fraisAjoutesXof: unknown): number =>
+  Math.max(0, Math.round(Number(fraisMtnXof) || 0) - Math.max(0, Math.round(Number(fraisAjoutesXof) || 0)));
 /** La caisse des règlements par MTN, et le moyen inscrit sur le versement. */
 const CAISSE_MTN_COLLECTION = 'MTN Collection';
 /** Ce que l'annonce du comptoir et la pièce disent du moyen. */
@@ -150,6 +168,8 @@ type CollecteMtn = {
   montant_xof: number;
   reste_xof: number;
   pourboire_xof: number;
+  /** Les frais ajoutés pour la cliente (1,6 %, 0241) : `montant_xof` = reste + merci + eux. */
+  frais_ajoutes_xof?: number | null;
   frais_xof?: number | null;
   etat: EtatDeLaCollecte;
   demande_par: string;
@@ -188,12 +208,13 @@ function demandeDeReglement(o: {
   const reste = Math.round(Number(o.resteXof));
   if (!Number.isInteger(reste) || reste < 1) return 'deja_reglee';
   const pourboire = pourboireLu(o.pourboireXof, true);
-  if (reste + pourboire > MONTANT_MTN_MAX) return 'montant';
+  const fraisAjoutes = fraisAjoutesMtn(reste + pourboire);
+  if (reste + pourboire + fraisAjoutes > MONTANT_MTN_MAX) return 'montant';
   if (!o.rdvId || !o.pieceId) return 'sans_piece';
   return {
     reference: o.reference.toLowerCase(), genre: 'reglement', origine: o.origine,
     rdv_id: o.rdvId, piece_id: o.pieceId, branch_id: o.branchId ?? null,
-    msisdn, montant_xof: reste + pourboire, reste_xof: reste, pourboire_xof: pourboire,
+    msisdn, montant_xof: reste + pourboire + fraisAjoutes, reste_xof: reste, pourboire_xof: pourboire, frais_ajoutes_xof: fraisAjoutes,
     etat: 'demande', demande_par: o.origine === 'comptoir' ? 'la cliente, au comptoir' : 'la cliente, par son lien',
   };
 }
@@ -289,12 +310,15 @@ function versementMtn(o: { reference: string; montantXof: number; quand: Date; m
 /** LA TRACE DU RÈGLEMENT sur la pièce : la forme de `ReglementEnLigne`
     (le Trône en tire l'annonce, le partage du merci et le reçu WhatsApp),
     et ce que la direction lit en plus : la référence MTN, le numéro masqué. */
-type TraceMtn = ReglementEnLigne & { referenceMtn: string; numeroMasque: string; caisse: string };
-function traceMtn(o: { v: VersementLu; reference: string; transaction?: string | null; quand: Date; pourboireXof: number; fraisXof: number; msisdn: string }): TraceMtn {
+type TraceMtn = ReglementEnLigne & { referenceMtn: string; numeroMasque: string; caisse: string; fraisAjoutesXof?: number };
+/** `fraisXof` : les frais que MTN a retenus ; `fraisAjoutesXof` : les 1,6 % qu'elle a payés en plus (20 novembre 2026). */
+function traceMtn(o: { v: VersementLu; reference: string; transaction?: string | null; quand: Date; pourboireXof: number; fraisXof: number; msisdn: string; fraisAjoutesXof?: number }): TraceMtn {
+  const ajoutes = Math.max(0, Math.round(Number(o.fraisAjoutesXof) || 0));
   return {
     id: o.v.id, transactionId: o.transaction ? String(o.transaction) : String(o.reference).toLowerCase(), payeLe: o.quand.toISOString(),
     montantXof: o.v.amountXof, pourboireXof: Math.round(o.pourboireXof), fraisXof: Math.round(o.fraisXof), moyen: MOYEN_MTN_DIT,
     referenceMtn: String(o.reference).toLowerCase(), numeroMasque: numeroMasque(o.msisdn), caisse: CAISSE_MTN_COLLECTION,
+    ...(ajoutes > 0 ? { fraisAjoutesXof: ajoutes } : {}),
   };
 }
 
@@ -326,7 +350,10 @@ function rdvApresMtn(avant: RdvLu, v: VersementLu, pieceId: string, resteApresXo
 }
 
 /** LES FRAIS DE MTN, EN FRAIS DE LA MAISON : une dépense par règlement,
-    payée par la caisse « MTN Collection » (son solde suit celui de MTN). */
+    payée par la caisse « MTN Collection » (son solde suit celui de MTN).
+    Depuis le 20 novembre 2026, `fraisXof` est la part que les frais ajoutés
+    ne couvrent pas (`fraisALaChargeDeLaMaison`) : rien, le plus souvent, et
+    alors aucune dépense ne s'écrit. */
 function depenseDesFraisMtn(o: { reference: string; branchId: string; fraisXof: number; jour: string; qui?: string }) {
   return {
     id: `exp-mtn-${String(o.reference).toLowerCase()}`,
@@ -470,7 +497,7 @@ export type {
 export {
   RE_MSISDN_DU_BENIN, PREFIXES_MTN_DU_BENIN, msisdnDe, estUnNumeroMtn, numeroDitMtn, numeroMasque,
   nomDeMtnCollecte, soldeDeMtnCollecte, souciDuCompte, ilYaDit,
-  TAUX_DES_FRAIS_MTN, CAISSE_MTN_COLLECTION, MOYEN_MTN_DIT, PREFIXE_DU_VERSEMENT_MTN, MONTANT_ESSAI_MTN, MONTANT_ESSAI_MTN_MAX,
+  TAUX_DES_FRAIS_MTN, TAUX_AJOUTE_MTN_PCT, fraisAjoutesMtn, fraisALaChargeDeLaMaison, CAISSE_MTN_COLLECTION, MOYEN_MTN_DIT, PREFIXE_DU_VERSEMENT_MTN, MONTANT_ESSAI_MTN, MONTANT_ESSAI_MTN_MAX,
   POURBOIRE_MTN_MAX, MONTANT_MTN_MAX, DEMANDE_EN_COURS_MS, DEMANDE_EN_VOL_MS, RELECTURE_MIN_MS, MAX_TENTATIVES_MTN, RE_REFERENCE_MTN,
   ETATS_VIVANTS, estVivante, fraisDeMtn, pourboireLu, demandeDeReglement, demandeDEssai, issueDeLaDemande, issueDuStatut,
   aRelire, demandeEnCours, partageConfirme, idDuVersementMtn, versementMtn, traceMtn, pieceRegleeParMtn, rdvApresMtn,

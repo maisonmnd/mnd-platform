@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
 import { TexteFon } from '../../ds/fon';
-import { estUnNumeroMtn, msisdnDe } from '../../shared/collecte-mtn-pur';
+import { estUnNumeroMtn, fraisAjoutesMtn, msisdnDe } from '../../shared/collecte-mtn-pur';
 import {
   ATTENTE_MTN_LECTURES, ATTENTE_MTN_MS, demandeAuComptoir, demandeParLeLien, laCollecteEstOuverte, retrouveAuComptoir, statutDeLaDemande,
   type RdvAuComptoir, type ReponseCollecte,
@@ -16,7 +16,8 @@ import {
    La demande part de la Maison, au montant du serveur (le reste de sa
    pièce) ; elle valide sur son téléphone, avec son code secret ; la page
    relit MTN toutes les quatre secondes et ne dit « réglé » que sur la
-   réponse de MTN. Aucun frais pour elle : la Maison garde ceux de MTN.
+   réponse de MTN. Les frais MTN de 1,6 % s'ajoutent pour elle, comme pour
+   Tap & Go (20 novembre 2026 ; avant, la Maison gardait ceux de MTN).
    Tant que la Maison n'a pas ouvert le règlement par MTN, rien ne paraît
    sur la page du lien, et le comptoir dit de régler à l'accueil. */
 
@@ -131,14 +132,16 @@ export function PayerParMtn({ jeton, totalXof, pourboireXof, onOccupe, onRegle }
   const lu = msisdnDe(numero);
 
   if (d.k === 'attente') return <Attente montantXof={d.montantXof} />;
+  /* LES 1,6 % DE MTN, AJOUTÉS (20 novembre 2026), comme le serveur les compte. */
+  const frais = fraisAjoutesMtn(totalXof);
   return (
     <div className="rg-mtn">
       <p className="rg-mtn-titre">Payer par MTN</p>
-      <p className="rg-doux rg-petit">La demande arrive sur votre téléphone. Aucun frais pour vous.</p>
+      <p className="rg-doux rg-petit">La demande arrive sur votre téléphone. Frais MTN ajoutés (1,6 %) : {francs(frais)}.</p>
       <ChampDuNumero valeur={numero} onChange={setNumero} />
       <button type="button" className="rg-regler" disabled={!lu || !estUnNumeroMtn(lu) || d.k === 'envoi'}
         onClick={() => { void lance(() => demandeParLeLien(jeton, lu ?? '', pourboireXof)); }}>
-        {d.k === 'envoi' ? 'Demande en cours…' : `Recevoir la demande MTN · ${francs(totalXof)}`}
+        {d.k === 'envoi' ? 'Demande en cours…' : `Recevoir la demande MTN · ${francs(totalXof + frais)}`}
       </button>
       {d.k === 'erreur' && <p className="rg-souci" role="alert">{d.dit}</p>}
       {d.k === 'refuse' && <p className="rg-souci" role="alert">MTN dit que la demande n’a pas abouti : {d.raison}. Vous pouvez recommencer, ou régler autrement.</p>}
@@ -181,7 +184,10 @@ export function Comptoir() {
   };
   const recommence = () => { remet(); setChoisi(null); setTrouves(null); setMerci(0); setAutre(false); setSaisie(''); setSouci(''); };
 
-  const total = choisi ? choisi.resteXof + (choisi.pourboire ? merci : 0) : 0;
+  const avantFrais = choisi ? choisi.resteXof + (choisi.pourboire ? merci : 0) : 0;
+  /* LES 1,6 % DE MTN, AJOUTÉS (20 novembre 2026), comme le serveur les compte. */
+  const frais = fraisAjoutesMtn(avantFrais);
+  const total = avantFrais + frais;
 
   return (
     <main className="rg">
@@ -279,9 +285,9 @@ export function Comptoir() {
                 </div>
               )}
               <div className="rg-lignes">
+                <div className="rg-ligne rg-doux"><span>Frais MTN, ajoutés (1,6 %)</span><span>+ {francs(frais)}</span></div>
                 <div className="rg-ligne rg-fort"><span>Total demandé par MTN</span><span>{francs(total)}</span></div>
               </div>
-              <p className="rg-doux rg-petit">Aucun frais pour vous.</p>
               <button type="button" className="rg-regler" disabled={d.k === 'envoi' || !lu}
                 onClick={() => { void lance(() => demandeAuComptoir(lu ?? '', choisi.n, choisi.pourboire ? merci : 0)); }}>
                 {d.k === 'envoi' ? 'Demande en cours…' : 'Recevoir la demande MTN'}

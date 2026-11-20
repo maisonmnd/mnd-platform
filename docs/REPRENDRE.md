@@ -2,6 +2,21 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES FRAIS MTN AJOUTÉS POUR LA CLIENTE, 1,6 % — 20 novembre 2026, au soir (SQL 0241 ; collecte-mtn 2026-11-20-a ; le Trône porte les pages « Régler » et la fenêtre Encaisser, sa publication attend Yéman)
+
+« Ajoute le pourcentage de 1.6% sur les paiements de MTN API » (Yéman). Le 11 novembre, la Maison gardait les frais de MTN (1,2 %) et la cliente payait le juste reste. Désormais, comme pour Tap & Go, elle paie 1,6 % de plus.
+
+- **La règle** (⟨collecte-mtn⟩) : `TAUX_AJOUTE_MTN_PCT` = 1,6 ; `fraisAjoutesMtn` porte sur tout ce qui passe chez MTN (le reste ET le merci, comme Tap & Go), arrondi au franc supérieur (30 000 F donnent 480 F, 32 000 F donnent 512 F). La demande vaut reste + merci + frais (`frais_ajoutes_xof`), et le plafond de 2 000 000 F compte les frais. L'essai de 100 F n'en porte aucun.
+- **La pièce ne change pas** : le versement reste le reste, le merci va à l'équipe. MTN retient toujours 1,2 % de ce qu'il encaisse (`frais_xof`, 1,2 % du total). La dépense « Frais MTN » ne porte plus que ce que les 1,6 % ne couvrent pas (`fraisALaChargeDeLaMaison`) : rien, donc aucune dépense. Une demande d'avant (sans frais ajoutés) garde sa dépense entière. **À savoir** : les quelque 0,4 % que la cliente paie au-delà des frais de MTN restent chez MTN sans s'écrire dans le Trône. La caisse « MTN Collection » ne colle déjà pas au franc près au compte MTN (les pourboires ne passent pas dans le solde des caisses).
+- **La trace** de la pièce garde `fraisXof` (les frais de MTN) et ajoute `fraisAjoutesXof`. « Confirmé par MTN » dit le total payé et « N F de frais payés par elle (1,6 %) ».
+- **Les écrans** :
+  - la page « Régler », par le lien comme par le QR du comptoir : « Frais MTN, ajoutés (1,6 %) + N F », puis le total demandé par MTN ;
+  - la fenêtre Encaisser du Trône (`PayerParMtnAuTrone`) : le total frais compris ;
+  - le choix du moyen : « frais MTN (1,6 %) ajoutés pour elle » ;
+  - l'affiche du QR (`QrCodes`, `fabrique-le-qr-du-comptoir`) : « Frais MTN de 1,6 % ajoutés ». **Les affiches déjà imprimées disent « Aucun frais pour vous » : à réimprimer.**
+- **La base (0241)** : la colonne `frais_ajoutes_xof` (0 par défaut, 40 000 F au plus) ; `collectes_mtn_genre` devient « montant = reste + merci + frais ajoutés », et l'essai n'en porte jamais. L'ancienne fonction écrit encore sans la colonne et tient (0). L'ordre est donc : SQL, puis collecte-mtn, puis le Trône.
+- **Bancs** : `verifie-collecte-mtn` 129 (les montants passent à 30 480, 31 496 et 32 512 F ; frais de MTN 390 F ; aucune dépense), `--prouve` 75 fautes sur 75 (dont : pas de frais, sans le merci, arrondis vers le bas, le plafond sans les frais, la page sans les frais, la base qui les refuse, l'essai qui en porte, la confirmation qui les ignore). `verifie-le-choix-du-moyen` 48, `verifie-les-pannes-dites` 49, `verifie-regler-la-seance` 84, `verifie-le-releve-mtn`, `verifie-les-douze-lunes` tiennent ; copies à jour ; typecheck 0.
+
 ## ASSISTANT-MAISON ET VISIO-SALLE RATTRAPÉES APRÈS LE PETIT SERVICE — 20 novembre 2026, au soir (assistant-maison 2026-11-20-a, visio-salle 2026-11-20-a ; aucun SQL)
 
 Ces deux fonctions regroupées embarquent agenda-pur, donc les lots 0240 (bf81eb9b) et 0242 (6a6920bb) les avaient laissées en retard sur leurs sources. `verifie-la-cle-du-cron` l'a dit : « chaque fichier regroupé est à jour avec sa source » échouait pour assistant-maison, et `visio-salle-serveur --verifie` disait « À REFAIRE ». Elles sont refaites par `node scripts/assistant-maison-serveur.mjs` et `node scripts/visio-salle-serveur.mjs`. Leurs places suivent maintenant le petit service : une heure ou moins partage l'heure, et UNE place avec un voisin. Bancs : `verifie-la-cle-du-cron` tient, `verifie-l-assistant-au-serveur` 24, `verifie-la-visio` et `verifie-la-visio-relue` 15 ; `verifie-le-oui-de-perle` garde ses 3 échecs d'avant.

@@ -105,7 +105,7 @@ body { width: 148mm; height: 210mm; }
   <p class="sur">Réglez votre rituel</p>
   <div class="carte">${qrSvg(ADRESSE)}</div>
   <h1 class="titre">Scannez, tapez votre numéro MTN,<br>validez sur votre téléphone.</h1>
-  <p class="note">Le montant de votre rendez-vous s’affiche tout seul. Aucun frais pour vous.</p>
+  <p class="note">Le montant de votre rendez-vous s’affiche tout seul, frais MTN de 1,6 % compris.</p>
   <p class="pied">${ADRESSE_DITE}<br>Moov, Celtiis, carte : à l’accueil, ou par votre lien « Régler ».</p>
   <p class="devise">${DEVISE}</p>
 </div></body></html>`;

@@ -33,8 +33,9 @@ export function ConfirmeParMtn({ appt }: { appt: Appointment }) {
           <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span>Confirmé par MTN à {heureDite(t.payeLe)} · numéro {t.numeroMasque} · caisse « {t.caisse} »</span>
             <span style={{ color: 'var(--indigo-200)' }}>
-              Réglé par MTN {fmtMoney(t.montantXof + (t.pourboireXof ?? 0), currency)}
+              Réglé par MTN {fmtMoney(t.montantXof + (t.pourboireXof ?? 0) + (t.fraisAjoutesXof ?? 0), currency)}
               {t.pourboireXof > 0 ? `, dont ${fmtMoney(t.pourboireXof, currency)} de merci pour l’équipe` : ''}
+              {(t.fraisAjoutesXof ?? 0) > 0 ? ` · ${fmtMoney(t.fraisAjoutesXof ?? 0, currency)} de frais payés par elle (1,6 %)` : ''}
               {' · '}frais MTN {fmtMoney(t.fraisXof, currency)} · réf. {t.referenceMtn.slice(0, 8)}
             </span>
           </span>

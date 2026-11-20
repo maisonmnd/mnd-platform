@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Input } from '../../../../ds/components';
 import { fmtMoney } from '../../../../shared/currency';
-import { estUnNumeroMtn, msisdnDe, raisonDiteALaCliente } from '../../../../shared/collecte-mtn-pur';
+import { estUnNumeroMtn, fraisAjoutesMtn, msisdnDe, raisonDiteALaCliente } from '../../../../shared/collecte-mtn-pur';
 import { SANS_SERVEUR, demandeDuTrone, statutDeLaCollecte } from '../finances/collecte-mtn';
 
 /* ══ « PAYER PAR MTN » DANS LA FENÊTRE ENCAISSER — 11 novembre 2026 ═════
@@ -79,7 +79,9 @@ export function PayerParMtnAuTrone({ rdvId, telephone, resteXof, pourboireXof, c
   const lu = msisdnDe(numero);
   const mtn = !!lu && estUnNumeroMtn(lu);
   const occupe = etat.k === 'piece' || etat.k === 'envoi' || etat.k === 'attente';
-  const total = resteXof + Math.max(0, pourboireXof);
+  /* LES 1,6 % DE MTN, AJOUTÉS POUR ELLE (20 novembre 2026), comme le serveur les compte. */
+  const frais = fraisAjoutesMtn(resteXof + Math.max(0, pourboireXof));
+  const total = resteXof + Math.max(0, pourboireXof) + frais;
 
   const relis = async (reference: string) => {
     for (let i = 0; i < RELECTURES && vivant.current; i++) {
@@ -137,7 +139,7 @@ export function PayerParMtnAuTrone({ rdvId, telephone, resteXof, pourboireXof, c
     <div style={BLOC}>
       <span>
         La demande part sur son téléphone : <b>{fmtMoney(total, currency)}</b>
-        {pourboireXof > 0 ? `, dont ${fmtMoney(pourboireXof, currency)} de pourboire` : ''}. Elle valide avec son code secret ; aucun frais pour elle.
+        {pourboireXof > 0 ? `, dont ${fmtMoney(pourboireXof, currency)} de pourboire` : ''}, frais MTN de 1,6 % compris ({fmtMoney(frais, currency)}). Elle valide avec son code secret.
       </span>
       {(etat.k === 'pret' || etat.k === 'erreur' || etat.k === 'refuse' || etat.k === 'delai') && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>

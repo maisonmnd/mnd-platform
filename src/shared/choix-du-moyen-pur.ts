@@ -47,7 +47,7 @@ export type FicheDuRail = {
 };
 
 export const RAILS: Record<Rail, FicheDuRail> = {
-  mtn: { nom: 'Payer par MTN', sous: 'la demande part sur son téléphone', voie: 'mobile', seConfirmeSeul: true, prestataire: 'mtn', frais: 'sans frais pour elle' },
+  mtn: { nom: 'Payer par MTN', sous: 'la demande part sur son téléphone', voie: 'mobile', seConfirmeSeul: true, prestataire: 'mtn', frais: 'frais MTN (1,6 %) ajoutés pour elle' },
   fedapay: { nom: 'FedaPay', sous: 'la demande part sur son téléphone', voie: 'mobile', seConfirmeSeul: true, prestataire: 'fedapay', frais: 'frais FedaPay ajoutés pour elle' },
   tapgo: { nom: 'Tap & Go', sous: 'elle compose le code, tous réseaux, sans internet', voie: 'mobile', seConfirmeSeul: true, prestataire: 'fedapay', frais: 'frais Tap & Go ajoutés pour elle' },
   momopay: { nom: 'MTN MoMoPay', sous: 'code 909099', voie: 'mobile', seConfirmeSeul: false, frais: 'frais dans le code MoMo', secours: true },
@@ -186,8 +186,8 @@ export function horsDuRail(r: Rail, c: ContexteDuChoix): string {
 
 const RAISON_DU_PREMIER: Record<Rail, (c: ContexteDuChoix) => string> = {
   mtn: (c) => (msisdnDe(c.telephone ?? '')
-    ? 'Son numéro est chez MTN : sans frais pour elle, et MTN confirme seul.'
-    : 'Pas de numéro sur sa fiche : tapez-le. Par MTN, sans frais pour elle, et MTN confirme seul.'),
+    ? 'Son numéro est chez MTN : la demande part sur son téléphone (frais de 1,6 % ajoutés pour elle), et MTN confirme seul.'
+    : 'Pas de numéro sur sa fiche : tapez-le. Par MTN, frais de 1,6 % ajoutés pour elle, et MTN confirme seul.'),
   fedapay: () => 'Son numéro n’est pas chez MTN : FedaPay lui envoie la demande (Moov ou Celtiis) et confirme seul.',
   tapgo: () => 'Elle compose le code sur son téléphone, n’importe quel réseau ; le Trône reconnaît son paiement au montant.',
   momopay: () => 'MoMoPay, à pointer le soir sur le relevé.',
