@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LES FRAIS MTN AJOUTÉS POUR LA CLIENTE, 1,6 % — 20 novembre 2026, au soir (SQL 0241 ; collecte-mtn 2026-11-20-a ; le Trône porte les pages « Régler » et la fenêtre Encaisser, sa publication attend Yéman)
+## LES FRAIS MTN AJOUTÉS POUR LA CLIENTE, 1,6 % — 20 novembre 2026, au soir (SQL 0241 passée, NE PAS RELANCER ; collecte-mtn 2026-11-20-a ; le Trône porte les pages « Régler » et la fenêtre Encaisser, sa publication attend Yéman)
 
 « Ajoute le pourcentage de 1.6% sur les paiements de MTN API » (Yéman). Le 11 novembre, la Maison gardait les frais de MTN (1,2 %) et la cliente payait le juste reste. Désormais, comme pour Tap & Go, elle paie 1,6 % de plus.
 
@@ -16,8 +16,9 @@
   - l'affiche du QR (`QrCodes`, `fabrique-le-qr-du-comptoir`) : « Frais MTN de 1,6 % ajoutés ». **Les affiches déjà imprimées disent « Aucun frais pour vous » : à réimprimer.**
 - **La base (0241)** : la colonne `frais_ajoutes_xof` (0 par défaut, 40 000 F au plus) ; `collectes_mtn_genre` devient « montant = reste + merci + frais ajoutés », et l'essai n'en porte jamais. L'ancienne fonction écrit encore sans la colonne et tient (0). L'ordre est donc : SQL, puis collecte-mtn, puis le Trône.
 - **Bancs** : `verifie-collecte-mtn` 129 (les montants passent à 30 480, 31 496 et 32 512 F ; frais de MTN 390 F ; aucune dépense), `--prouve` 75 fautes sur 75 (dont : pas de frais, sans le merci, arrondis vers le bas, le plafond sans les frais, la page sans les frais, la base qui les refuse, l'essai qui en porte, la confirmation qui les ignore). `verifie-le-choix-du-moyen` 48, `verifie-les-pannes-dites` 49, `verifie-regler-la-seance` 84, `verifie-le-releve-mtn`, `verifie-les-douze-lunes` tiennent ; copies à jour ; typecheck 0.
+- **SQL 0241 passée**, le 20 novembre à 22 h 18 UTC, depuis une copie propre détachée à 6317dc2a (`verifie-collecte-mtn` 129 rejoué dans la copie avant). Avant : `collectes_mtn` sans `frais_ajoutes_xof`, `collectes_mtn_genre` à l'ancienne règle (montant = reste + merci), 4 lignes (1 essai, 3 règlements). Après : `frais_ajoutes_xof` integer, non nulle, 0 par défaut ; `collectes_mtn_frais_ajoutes` (0 à 40 000) ; `collectes_mtn_genre` contient « montant_xof = ((reste_xof + pourboire_xof) + frais_ajoutes_xof) » pour un règlement et « frais_ajoutes_xof = 0 » pour l'essai ; les 4 lignes sont à 0. **collecte-mtn reste en ligne en v16, 2026-11-17-a** : elle écrit `montant_xof: reste + pourboire` sans la colonne, prend 0 et tient. Elle n'est PAS mise en ligne : elle part avec le Trône (sinon la page dirait 30 000 F quand MTN demanderait 30 480 F).
 
-## ASSISTANT-MAISON ET VISIO-SALLE RATTRAPÉES APRÈS LE PETIT SERVICE — 20 novembre 2026, au soir (assistant-maison 2026-11-20-a, visio-salle 2026-11-20-a ; aucun SQL)
+## ASSISTANT-MAISON ET VISIO-SALLE RATTRAPÉES APRÈS LE PETIT SERVICE — 20 novembre 2026, au soir, EN LIGNE (assistant-maison v45 2026-11-20-a, le serveur le dit ; visio-salle v13 2026-11-20-a, relue au GET ; commit 6317dc2a ; aucun SQL)
 
 Ces deux fonctions regroupées embarquent agenda-pur, donc les lots 0240 (bf81eb9b) et 0242 (6a6920bb) les avaient laissées en retard sur leurs sources. `verifie-la-cle-du-cron` l'a dit : « chaque fichier regroupé est à jour avec sa source » échouait pour assistant-maison, et `visio-salle-serveur --verifie` disait « À REFAIRE ». Elles sont refaites par `node scripts/assistant-maison-serveur.mjs` et `node scripts/visio-salle-serveur.mjs`. Leurs places suivent maintenant le petit service : une heure ou moins partage l'heure, et UNE place avec un voisin. Bancs : `verifie-la-cle-du-cron` tient, `verifie-l-assistant-au-serveur` 24, `verifie-la-visio` et `verifie-la-visio-relue` 15 ; `verifie-le-oui-de-perle` garde ses 3 échecs d'avant.
 
