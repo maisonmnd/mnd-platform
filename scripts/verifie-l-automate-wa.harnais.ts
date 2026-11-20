@@ -2972,7 +2972,8 @@ const regles: Regle[] = [
       const resa = elle(r, t0 + 120000, { texte: 'Je voudrais réserver samedi' });
       vrai('une envie de reserver apres une reponse ouvre le parcours', ['meme', 'besoin'].includes(resa.messages[0]?.etape ?? ''), resa.messages[0]?.etape);
       const fn = lf(lit(F_AUTO));
-      vrai('la fonction lit les reponses de la Maison', fn.includes("'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa', 'mnd_tri_des_messages', 'mnd_model_bands', 'mnd_model_band_sets', 'mnd_opale', 'mnd_offers', 'mnd_payment_methods']") && fn.includes("conseil: conseilDeLaMaison(docs.get('mnd_reponses_maison')),"));
+      /* `mnd_modeles_meta` s'y ajoute le 20 novembre 2026 (la dernière relance d'un rendez-vous à reprogrammer). */
+      vrai('la fonction lit les reponses de la Maison', fn.includes("'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa', 'mnd_tri_des_messages', 'mnd_model_bands', 'mnd_model_band_sets', 'mnd_opale', 'mnd_offers', 'mnd_payment_methods', 'mnd_modeles_meta']") && fn.includes("conseil: conseilDeLaMaison(docs.get('mnd_reponses_maison')),"));
       vrai('la fonction donne les prix du catalogue du jour au tour', fn.includes('...(agenda ? { prix: prixDuCatalogue(agenda.lignes.services) } : {}),'));
       vrai('le juge de la fonction ne laisse passer un prix que venu du catalogue', (fn.match(/texteSain\(toutLeTexteWa\(m\), m\.prixDuCatalogue === true\)/g) ?? []).length === 3 && !/texteSain\(toutLeTexteWa\(m\)\)/.test(fn));
       vrai('la trace porte la reponse envoyee', fn.includes('...(o.m.reponseId ? { reponse: o.m.reponseId } : {}),'));

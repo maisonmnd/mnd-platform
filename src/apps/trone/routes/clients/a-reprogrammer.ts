@@ -57,6 +57,8 @@ export function etatDuReportDit(a: Appointment, maintenantMs: number): string {
   const par = a.aReprogrammerPar === 'trone' ? 'noté au Trône' : a.aReprogrammerPar === 'cliente' ? '« Changer l’heure »' : 'prévenu sur WhatsApp';
   const places = a.placesProposees?.length ? ` · ${a.placesProposees.length} place${a.placesProposees.length > 1 ? 's' : ''} envoyée${a.placesProposees.length > 1 ? 's' : ''}` : '';
   if (etat === 'equipe') return `Sans choix depuis ${j} jours : à l’équipe de la rappeler`;
+  if (etat === 'plus-tard') return `Elle a dit « Plus tard » : plus de relance, la Maison attend son message`;
+  if (etat === 'derniere') return `Dernière relance partie (le 7e jour) · ${par} ${depuis}${places}`;
   if (etat === 'relancee') return `Relancée · ${par} ${depuis}${places}`;
   return `${par[0].toUpperCase()}${par.slice(1)} ${depuis}${places}`;
 }

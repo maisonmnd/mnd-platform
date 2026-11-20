@@ -2,6 +2,15 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA DERNIÈRE RELANCE D'UN RENDEZ-VOUS À REPROGRAMMER — 20 novembre 2026 (whatsapp-automate 2026-11-20-a, modèle Meta `rdv_a_reprogrammer`, Trône ; aucun SQL)
+
+« Pouvons-nous programmer une dernière relance de rendez-vous sept jours plus tard pour mettre toutes nos chances de côté… sans embêter le client » (Yéman). Au sélecteur : en deux temps, le matin du 7e jour, l'équipe 48 heures après.
+
+- **Quand** (`derniereRelanceDuReportDue`, ⟨a-reprogrammer⟩) : le 7e jour après le report, entre 10 h et 12 h à Cotonou, une fois (`derniereRelanceDuReportLe`) ; jamais après « Plus tard » (`refusDuReportLe`), jamais si elle a écrit dans les 24 heures (Opale y répond), jamais après un « stop » (`nouvelles.par`), jamais sous la main de l'équipe, jamais sans le modèle approuvé chez Meta (`mnd_modeles_meta`, le bloc ⟨modeles-meta⟩ désormais recopié aussi dans whatsapp-automate).
+- **Quoi** : le modèle `rdv_a_reprogrammer` (Utilitaire, français ; « Bonjour {{1}}, votre rendez-vous vous attend toujours à la Maison MND. Souhaitez-vous que nous vous proposions de nouvelles dates ? », pied la devise), deux réponses rapides aux charges `MND:report|dates|<rdv>` et `MND:report|plus-tard|<rdv>`. « Voir des dates » : trois dates en boutons (la fenêtre est rouverte), le toucher vaut son oui ; « Plus tard » : plus aucune relance, un mot bref, le rendez-vous reste à reprogrammer. Servis par le code, sans Claude.
+- **L'équipe** : 48 heures après la dernière relance, ou au 9e jour si elle n'a pas pu partir (`EQUIPE_DU_REPORT_APRES_MS` passe de 7 à 9 jours) ; la colonne et Aujourd'hui disent « Dernière relance partie » ou « Elle a dit Plus tard ».
+- **Bancs** : `verifie-a-reprogrammer` 34, `--prouve` 22 ; `verifie-opale` 178 (le modèle le matin du 7e jour, jamais deux fois, sans modèle approuvé, après un stop, pendant une conversation, l'après-midi ; ses deux réponses), `--prouve` 97 ; `verifie-l-automate-wa` « Tout tient » (la liste des documents) ; douze lunes R8 tient.
+
 ## À REPROGRAMMER, ET JAMAIS SANS RENDEZ-VOUS — 19 novembre 2026, EN LIGNE (SQL 0239 passée, retour en arrière ~/.supabase/repli-pose-avant-0239.sql ; whatsapp-automate 2026-11-19-b v82 ; Trône 543/543 et Ma Couronne 313/313, build 20261119134947 @ 8c2e8112 ; aucun essai réel)
 
 Une cliente écrit « j'ai une contrainte, je ne pourrai plus être là, je vais reprogrammer » ; Opale lui répondait trois dates en texte, et le rendez-vous restait confirmé, sa place prise. Yéman : des choix « cochables, un clic », le rendez-vous « ni confirmé ni annulé » mais sa place libérée, sorti du calendrier des confirmés. Maquette https://claude.ai/artifact/7YX7UtCFusPMJdrjJtfcQr (non commitée), tranchée au sélecteur puis « construis ».

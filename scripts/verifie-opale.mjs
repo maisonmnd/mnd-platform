@@ -44,9 +44,13 @@ const PANNES = [
   { nom: 'la reprise passe toujours au-dela des fauteuils', fichier: AU, avant: 'p_au_dela: !!auDela, p_par', apres: 'p_au_dela: true, p_par' },
   { nom: 'le report ne marque rien', fichier: AU, avant: '  const apres = { ...r.data, ...marquesDuReport(Date.now(), par) };', apres: "  const apres = { ...r.data, status: 'annulé' };" },
   { nom: 'jamais au-dela des fauteuils', fichier: AU, avant: '    const suite = suiteDeSaDemande(heure, { libre: (h) => libreDOpale(date, h, g.ids, lourde), auDela: (h) => auDelaDOpale(date, h, g.ids, lourde) });', apres: '    const suite = suiteDeSaDemande(heure, { libre: (h) => libreDOpale(date, h, g.ids, lourde), auDela: () => null });' },
-  { nom: 'la relance part avant la 23e heure', fichier: AU, avant: '    if (!relanceDuReportDue({ a: r.data, dernierEntrantMs: sien ? sien.ms : null, maintenantMs: ms })) continue;\n', apres: '    if (!sien) continue;\n' },
+  { nom: 'la relance part avant la 23e heure', fichier: AU, avant: '    if (!relanceDuReportDue({ a: r.data, dernierEntrantMs: sien ? sien.ms : null, maintenantMs: ms })) {', apres: '    if (!sien) {' },
   { nom: 'la relance redonne les memes dates', fichier: AU, avant: '      deja: placesDejaProposees(r.data), perdue: { iso: String(r.data.date ?? \'\'), heure: String(r.data.time ?? \'\') }, habitudes,', apres: '      perdue: { iso: String(r.data.date ?? \'\'), heure: String(r.data.time ?? \'\') }, habitudes,' },
   { nom: 'les boutons partent en texte', fichier: AU, avant: '    if (issue.boutons?.length) sortants.push(', apres: '    if (false) sortants.push(' },
+  /* La dernière relance (20 novembre 2026). */
+  { nom: 'la derniere relance apres un stop', fichier: AU, avant: "      if ((fiche.nouvelles as { par?: unknown } | undefined)?.par === 'stop') continue;\n", apres: '' },
+  { nom: 'la derniere relance sans modele approuve', fichier: AU, avant: "  const modeleOuvert = estApprouveChezMeta(docs.get('mnd_modeles_meta'), MODELE_DE_LA_DERNIERE_RELANCE);", apres: '  const modeleOuvert = true;' },
+  { nom: 'Plus tard ne note rien', fichier: AU, avant: "        await noteLesPlacesProposeesWa(sb, r, [], false, { refusDuReportLe: new Date().toISOString() });\n", apres: '' },
   /* Le plan part avec le chemin, toujours (19 novembre 2026). */
   { nom: 'le plan laisse au modele', fichier: AU, avant: "  if (!issue.silence && (demandeLeCheminWa(textesDuTour) || donneLeChemin(issue.texte, String(agenda?.lignes.branche.data?.address ?? '')))) issue.plan = true;\n", apres: '' },
   { nom: 'le lien pour venir redit', fichier: AU, avant: 'if (lien && !LIEU_DEJA_DIT.test(issue.texte)) sortants.push', apres: 'if (lien) sortants.push' },

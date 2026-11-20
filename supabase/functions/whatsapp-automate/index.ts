@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-19-b · a reprogrammer : une cliente empechee libere sa place sans annuler (mettre_a_reprogrammer, et Changer l heure tout de suite) ; trois dates en boutons, le toucher vaut son oui (reprend_si_libre, 0239) ; elle ecrit sa date : son heure, sinon la plus proche dans l heure en boutons, sinon au-dela des fauteuils, jamais deux tetes lourdes chez Team, l equipe prevenue (accommoder) ; la relance intelligente du lendemain, vers la 23e heure, trois nouvelles dates pres de ses habitudes ; 2026-11-19-a · le plan part avec le chemin : a qui demande l adresse, la localisation ou le chemin (un vocal compris), et chaque fois que le mot d Opale donne l adresse ou un lien pour venir, le plan part en image, pose par le code et non plus laisse au modele ; le lien pour venir n est pas redit ; 2026-11-18-h · deux tetes chez Team : Opale lit les places de chaque jour (places_en_ligne_du) et la tete de la cliente (ses locks dits ou ceux de sa fiche) ; Team recoit une seconde cliente a la meme heure quand l une des deux a moins de 150 locks, jamais deux lourdes, deux au plus, un maitre seul d abord ; les locks dits s ecrivent sur le rendez-vous (locksAnnonces) ; 2026-11-18-g · Opale lit l agenda sur toute la fenetre ou elle propose, et relit la journee avant chaque proposition : plus jamais « libre » puis « vient d etre prise » (le 28 au dixieme jour paraissait vide) ; 2026-11-18-f · Opale range le demarchage : quelqu un qui vend a la Maison, elle ne lui ecrit rien et le tri relit ses derniers mots (relire) pour le bloquer ou le ranger dans les propositions ; 2026-11-18-e · Opale lit les vocaux : la transcription que la réception a écrite (Whisper chez Groq) entre dans son fil et ses nouveaux messages, elle y répond comme à un message écrit ; un vocal que la Maison n a pas compris fait passer la main sans un mot, avec l alerte ; 2026-11-18-d · la confirmation du Oui de Perle se lit dans le fil d Opale comme un message automatique ; 2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-20-a · la derniere relance d un rendez-vous a reprogrammer : le matin du 7e jour, le modele rdv_a_reprogrammer en deux temps (Voir des dates, Plus tard), une fois, jamais apres un stop, ni si elle a ecrit dans les 24 heures ; Voir des dates : trois dates en boutons ; Plus tard : plus aucune relance ; l equipe 48 heures apres ; 2026-11-19-b · a reprogrammer : une cliente empechee libere sa place sans annuler (mettre_a_reprogrammer, et Changer l heure tout de suite) ; trois dates en boutons, le toucher vaut son oui (reprend_si_libre, 0239) ; elle ecrit sa date : son heure, sinon la plus proche dans l heure en boutons, sinon au-dela des fauteuils, jamais deux tetes lourdes chez Team, l equipe prevenue (accommoder) ; la relance intelligente du lendemain, vers la 23e heure, trois nouvelles dates pres de ses habitudes ; 2026-11-19-a · le plan part avec le chemin : a qui demande l adresse, la localisation ou le chemin (un vocal compris), et chaque fois que le mot d Opale donne l adresse ou un lien pour venir, le plan part en image, pose par le code et non plus laisse au modele ; le lien pour venir n est pas redit ; 2026-11-18-h · deux tetes chez Team : Opale lit les places de chaque jour (places_en_ligne_du) et la tete de la cliente (ses locks dits ou ceux de sa fiche) ; Team recoit une seconde cliente a la meme heure quand l une des deux a moins de 150 locks, jamais deux lourdes, deux au plus, un maitre seul d abord ; les locks dits s ecrivent sur le rendez-vous (locksAnnonces) ; 2026-11-18-g · Opale lit l agenda sur toute la fenetre ou elle propose, et relit la journee avant chaque proposition : plus jamais « libre » puis « vient d etre prise » (le 28 au dixieme jour paraissait vide) ; 2026-11-18-f · Opale range le demarchage : quelqu un qui vend a la Maison, elle ne lui ecrit rien et le tri relit ses derniers mots (relire) pour le bloquer ou le ranger dans les propositions ; 2026-11-18-e · Opale lit les vocaux : la transcription que la réception a écrite (Whisper chez Groq) entre dans son fil et ses nouveaux messages, elle y répond comme à un message écrit ; un vocal que la Maison n a pas compris fait passer la main sans un mot, avec l alerte ; 2026-11-18-d · la confirmation du Oui de Perle se lit dans le fil d Opale comme un message automatique ; 2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -104,7 +104,7 @@ const TRANCHE_JOURS = 7;
     est peut-être coupée, on ne s'y fie pas. */
 const PLAFOND_DE_LIGNES = 1000;
 /** Les réglages que lit un tour, en une requête. */
-const DOCUMENTS_DU_TOUR = ['mnd_auto_config', 'mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config', 'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa', 'mnd_tri_des_messages', 'mnd_model_bands', 'mnd_model_band_sets', 'mnd_opale', 'mnd_offers', 'mnd_payment_methods'];
+const DOCUMENTS_DU_TOUR = ['mnd_auto_config', 'mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config', 'mnd_house_identity', 'mnd_reponses_maison', 'mnd_assistant_wa', 'mnd_tri_des_messages', 'mnd_model_bands', 'mnd_model_band_sets', 'mnd_opale', 'mnd_offers', 'mnd_payment_methods', 'mnd_modeles_meta'];
 
 /* LE JOURNAL : des genres, des comptes, des étapes. JAMAIS un numéro,
    jamais un texte, jamais un jeton : un journal qui recopierait le message
@@ -1102,6 +1102,9 @@ export type MarquesDuReport = {
   aReprogrammerPar?: unknown;
   placesProposees?: unknown;
   relanceDuReportLe?: unknown;
+  /** La dernière relance (le modèle du 7e jour) et son « Plus tard ». */
+  derniereRelanceDuReportLe?: unknown;
+  refusDuReportLe?: unknown;
 };
 
 const ecritLe = (v: unknown): boolean => typeof v === 'string' && v.trim().length > 0;
@@ -1120,7 +1123,7 @@ export function marquesDuReport(maintenantMs: number, par: ParQuiLeReport): {
 }
 
 /** Les marques que la reprise (une nouvelle date) efface. */
-export const CLES_DU_REPORT: readonly string[] = ['aReprogrammerDepuis', 'aReprogrammerPar', 'placesProposees', 'relanceDuReportLe'];
+export const CLES_DU_REPORT: readonly string[] = ['aReprogrammerDepuis', 'aReprogrammerPar', 'placesProposees', 'relanceDuReportLe', 'derniereRelanceDuReportLe', 'refusDuReportLe'];
 
 /** Le rendez-vous sans ses marques de report (pour une écriture). */
 export function sansLeReport<T extends Record<string, unknown>>(a: T): T {
@@ -1131,8 +1134,18 @@ export function sansLeReport<T extends Record<string, unknown>>(a: T): T {
 
 /** La relance part vers la 23e heure après son dernier message. */
 export const RELANCE_DU_REPORT_APRES_MS = 23 * 3_600_000;
-/** Au 7e jour sans choix, l'équipe. */
-export const EQUIPE_DU_REPORT_APRES_MS = 7 * 86_400_000;
+/** LA DERNIÈRE RELANCE (20 novembre 2026, Yéman : « une dernière relance sept
+    jours plus tard… sans embêter le client ») : le 7e jour, le matin, par un
+    modèle Meta en deux temps (« Voir des dates », « Plus tard »), une fois. */
+export const DERNIERE_RELANCE_DU_REPORT_APRES_MS = 7 * 86_400_000;
+export const DERNIERE_RELANCE_DE_MIN = 10 * 60;
+export const DERNIERE_RELANCE_A_MIN = 12 * 60;
+/** Le modèle Meta de la dernière relance : {{1}} l'appel, deux réponses rapides. */
+export const MODELE_DE_LA_DERNIERE_RELANCE = 'rdv_a_reprogrammer';
+/** L'équipe : 48 heures après la dernière relance, ou au 9e jour quand elle
+    n'a pas pu partir. Jamais annulé tout seul. */
+export const EQUIPE_APRES_LA_DERNIERE_MS = 48 * 3_600_000;
+export const EQUIPE_DU_REPORT_APRES_MS = 9 * 86_400_000;
 /** WhatsApp ferme une conversation 24 h après son dernier message. */
 export const FENETRE_DU_REPORT_MS = 24 * 3_600_000;
 /** On ne relance pas dans le dernier quart d'heure de la fenêtre. */
@@ -1149,16 +1162,51 @@ const minutesACotonouDuReport = (ms: number): number => {
   return d.getUTCHours() * 60 + d.getUTCMinutes();
 };
 
-export type EtatDuReport = 'attend' | 'relancee' | 'equipe';
+export type EtatDuReport = 'attend' | 'relancee' | 'derniere' | 'plus-tard' | 'equipe';
 
-/** Où en est le report : il attend son choix, il a été relancé, ou il est à
-    l'équipe (7 jours sans choix). `null` : pas à reprogrammer. */
+/** Où en est le report : il attend son choix, il a été relancé (le
+    lendemain, puis la dernière relance du 7e jour), elle a dit « Plus tard »,
+    ou il est à l'équipe (48 heures après la dernière relance, ou au 9e jour).
+    `null` : pas à reprogrammer. */
 export function etatDuReport(a: MarquesDuReport | null | undefined, maintenantMs: number): EtatDuReport | null {
   if (!estAReprogrammer(a)) return null;
+  if (ecritLe(a!.refusDuReportLe)) return 'plus-tard';
   const depuis = Date.parse(String(a!.aReprogrammerDepuis));
+  const derniere = Date.parse(String(a!.derniereRelanceDuReportLe ?? ''));
+  if (Number.isFinite(derniere) && maintenantMs - derniere >= EQUIPE_APRES_LA_DERNIERE_MS) return 'equipe';
   if (Number.isFinite(depuis) && maintenantMs - depuis >= EQUIPE_DU_REPORT_APRES_MS) return 'equipe';
+  if (Number.isFinite(derniere)) return 'derniere';
   return ecritLe(a!.relanceDuReportLe) ? 'relancee' : 'attend';
 }
+
+/** LA DERNIÈRE RELANCE EST-ELLE DUE ? Le 7e jour après le report, entre 10 h
+    et 12 h à Cotonou, une fois ; jamais si elle a dit « Plus tard », ni si
+    elle a écrit dans les dernières 24 heures (la conversation vit : Opale y
+    répond). Le « stop » de sa fiche se juge à côté. */
+export function derniereRelanceDuReportDue(o: {
+  a: MarquesDuReport; dernierEntrantMs: number | null; maintenantMs: number;
+}): boolean {
+  if (!estAReprogrammer(o.a) || ecritLe(o.a.derniereRelanceDuReportLe) || ecritLe(o.a.refusDuReportLe)) return false;
+  const depuis = Date.parse(String(o.a.aReprogrammerDepuis));
+  if (!Number.isFinite(depuis) || o.maintenantMs - depuis < DERNIERE_RELANCE_DU_REPORT_APRES_MS) return false;
+  if (o.dernierEntrantMs !== null && o.maintenantMs - o.dernierEntrantMs < FENETRE_DU_REPORT_MS) return false;
+  const m = minutesACotonouDuReport(o.maintenantMs);
+  return m >= DERNIERE_RELANCE_DE_MIN && m < DERNIERE_RELANCE_A_MIN;
+}
+
+/** Les deux réponses du modèle : « Voir des dates », « Plus tard ». */
+export type GesteDuReport = 'dates' | 'plus-tard';
+export const idDuBoutonDuReport = (geste: GesteDuReport, rdvId: string): string => `MND:report|${geste}|${rdvId}`.slice(0, 256);
+export function lisLeBoutonDuReport(id: unknown): { geste: GesteDuReport; rdv: string } | null {
+  if (typeof id !== 'string') return null;
+  const m = /^MND:report\|(dates|plus-tard)\|([A-Za-z0-9_.:-]{1,160})$/.exec(id);
+  return m ? { geste: m[1] as GesteDuReport, rdv: m[2] } : null;
+}
+
+/** Le texte du modèle, tel que Meta l'approuve ({{1}} l'appel). Il ne finit
+    pas par une variable. */
+export const texteDeLaDerniereRelance = (appel: string): string =>
+  `Bonjour ${appel}, votre rendez-vous vous attend toujours à la Maison MND. Souhaitez-vous que nous vous proposions de nouvelles dates ?`;
 
 /** L'INSTANT DE LA RELANCE : 23 h après ce qu'elle a écrit en dernier (ou
     après le report, s'il est plus récent), avant la fin de la fenêtre de
@@ -1406,6 +1454,140 @@ export const MOT_DE_LA_MAISON_PLEINE = 'La Maison MND sera un peu pleine à ce m
 /** La note pour l'équipe sur un rendez-vous posé au-delà des fauteuils. */
 export const NOTE_AU_DELA_DES_FAUTEUILS = 'Posé au-delà des fauteuils : la Maison est pleine à cette heure, à organiser';
 /* ⟨/a-reprogrammer⟩ */
+
+/* LES MODÈLES CHEZ META (20 novembre 2026, la dernière relance) : src/shared/modeles-meta-pur.ts, entre ses repères. */
+/* ⟨modeles-meta⟩ */
+/** L'état d'un modèle dans les mots de la Maison. « À déposer » : rien n'en est su. */
+export type EtatDuModeleMeta = 'a-deposer' | 'depose' | 'approuve' | 'refuse';
+export const ETATS_DU_MODELE: readonly EtatDuModeleMeta[] = ['a-deposer', 'depose', 'approuve', 'refuse'];
+/** Une note de la direction, le jour où elle a lu l'état chez Meta. */
+export type NoteDuModele = { etat: EtatDuModeleMeta; le?: string; parQui?: string };
+/** Un modèle tel que Meta le rend à « Relire chez Meta ». `etat` : le statut de Meta, en capitales. */
+export type ModeleLuChezMeta = { id?: string; nom: string; etat: string; categorie?: string; langue?: string; qualite?: string; motifDuRefus?: string };
+/** Le document tel qu'il s'écrit désormais : la liste de Meta ET les notes. */
+export type DocumentDesModelesMeta = {
+  modeles?: ModeleLuChezMeta[]; lusLe?: string; version?: string;
+  notes?: Record<string, NoteDuModele>; parQui?: string; le?: string;
+};
+/** Le document lu, quelle que soit sa forme. */
+export type ModelesMetaLus = {
+  liste: ModeleLuChezMeta[]; lusLe?: string; version?: string;
+  notes: Record<string, NoteDuModele>; parQui?: string; le?: string;
+};
+
+const NOM_DE_MODELE_META = /^[a-z0-9_]{1,512}$/;
+const estUnEtatNote = (x: unknown): x is EtatDuModeleMeta => typeof x === 'string' && (ETATS_DU_MODELE as readonly string[]).includes(x);
+
+/** Des notes, lues sans confiance : un nom qui n'est pas un nom Meta, ou un état inconnu, tombent. */
+function notesLues(brut: unknown): Record<string, NoteDuModele> {
+  const out: Record<string, NoteDuModele> = {};
+  if (!brut || typeof brut !== 'object' || Array.isArray(brut)) return out;
+  for (const [nom, n] of Object.entries(brut as Record<string, unknown>)) {
+    if (!NOM_DE_MODELE_META.test(nom) || !n || typeof n !== 'object') continue;
+    const note = n as Record<string, unknown>;
+    if (!estUnEtatNote(note.etat) || note.etat === 'a-deposer') continue;
+    out[nom] = {
+      etat: note.etat,
+      ...(typeof note.le === 'string' ? { le: note.le } : {}),
+      ...(typeof note.parQui === 'string' ? { parQui: note.parQui } : {}),
+    };
+  }
+  return out;
+}
+
+/** La liste de Meta, lue sans confiance : chaque ligne garde ce qu'elle porte, son nom et son statut relus. */
+function listeLue(brut: unknown): ModeleLuChezMeta[] {
+  if (!Array.isArray(brut)) return [];
+  const out: ModeleLuChezMeta[] = [];
+  for (const m of brut) {
+    if (!m || typeof m !== 'object') continue;
+    const x = m as Record<string, unknown>;
+    const nom = typeof x.nom === 'string' ? x.nom.trim() : '';
+    if (nom) out.push({ ...(x as Partial<ModeleLuChezMeta>), nom, etat: String(x.etat ?? '').toUpperCase() });
+  }
+  return out;
+}
+
+/** LES TROIS FORMES, LUES ENSEMBLE : `modeles` en tableau (la liste de Meta),
+    `notes` (les notes), et `modeles` en objet (le registre d'avant le 18
+    novembre 2026, qui compte comme des notes). */
+export function modelesMetaLus(brut: unknown): ModelesMetaLus {
+  const r = brut && typeof brut === 'object' && !Array.isArray(brut) ? (brut as Record<string, unknown>) : {};
+  return {
+    liste: listeLue(r.modeles),
+    ...(typeof r.lusLe === 'string' ? { lusLe: r.lusLe } : {}),
+    ...(typeof r.version === 'string' ? { version: r.version } : {}),
+    notes: { ...notesLues(r.modeles), ...notesLues(r.notes) },
+    ...(typeof r.parQui === 'string' ? { parQui: r.parQui } : {}),
+    ...(typeof r.le === 'string' ? { le: r.le } : {}),
+  };
+}
+
+/** Le statut de Meta dit par la Maison. En pause, en revue, en appel : il ne
+    part pas encore (ou plus), c'est « déposé ». */
+export function etatDitParMeta(statut: string): EtatDuModeleMeta {
+  const s = String(statut).toUpperCase();
+  if (s === 'APPROVED') return 'approuve';
+  if (s === 'REJECTED' || s === 'DISABLED' || s === 'DELETED' || s === 'PENDING_DELETION' || s === 'ARCHIVED') return 'refuse';
+  return 'depose';
+}
+
+/** L'ÉTAT D'UN MODÈLE : ce que Meta a dit à la dernière relecture, ou ce que
+    la direction a noté ; les deux connus, le plus récent dit vrai (une note
+    sans date cède à la liste). Ni l'un ni l'autre : « à déposer ». Un nom
+    rendu dans plusieurs langues est approuvé si l'une l'est. */
+export function etatDuModeleMeta(lu: ModelesMetaLus, nom: string): EtatDuModeleMeta {
+  const chezMeta = lu.liste.filter((m) => m.nom === nom).map((m) => etatDitParMeta(m.etat));
+  const deMeta: EtatDuModeleMeta | null = chezMeta.length === 0 ? null
+    : chezMeta.includes('approuve') ? 'approuve' : chezMeta.includes('depose') ? 'depose' : 'refuse';
+  const note = lu.notes[nom];
+  if (!deMeta) return note?.etat ?? 'a-deposer';
+  if (!note) return deMeta;
+  const noteLe = Date.parse(note.le ?? '');
+  const luLe = Date.parse(lu.lusLe ?? '');
+  return Number.isFinite(noteLe) && (!Number.isFinite(luLe) || noteLe > luLe) ? note.etat : deMeta;
+}
+
+/** Le modèle peut-il partir ? Le document brut, tel que la base le rend. */
+export const estApprouveChezMeta = (brut: unknown, nom: string): boolean =>
+  etatDuModeleMeta(modelesMetaLus(brut), nom) === 'approuve';
+
+/** Chaque modèle connu (de la liste ou des notes) et son état ; « à déposer » n'y figure pas. */
+export function etatsConnus(lu: ModelesMetaLus): Partial<Record<string, 'depose' | 'approuve' | 'refuse'>> {
+  const out: Partial<Record<string, 'depose' | 'approuve' | 'refuse'>> = {};
+  for (const nom of new Set([...lu.liste.map((m) => m.nom), ...Object.keys(lu.notes)])) {
+    const e = etatDuModeleMeta(lu, nom);
+    if (e !== 'a-deposer') out[nom] = e;
+  }
+  return out;
+}
+
+/** LA RELECTURE CHEZ META S'AJOUTE AU DOCUMENT : la liste neuve, les notes gardées. */
+export function avecLaListe(brut: unknown, liste: readonly ModeleLuChezMeta[], lusLe: string, version: string): DocumentDesModelesMeta {
+  const lu = modelesMetaLus(brut);
+  return {
+    modeles: [...liste], lusLe, version,
+    notes: lu.notes,
+    ...(lu.parQui ? { parQui: lu.parQui } : {}),
+    ...(lu.le ? { le: lu.le } : {}),
+  };
+}
+
+/** UNE NOTE S'AJOUTE AU DOCUMENT : la liste de Meta gardée, les autres notes
+    aussi. « À déposer » retire la note de ce modèle, et rien d'autre. */
+export function avecLaNote(brut: unknown, nom: string, etat: EtatDuModeleMeta, parQui: string, le: string): DocumentDesModelesMeta {
+  const lu = modelesMetaLus(brut);
+  const notes = { ...lu.notes };
+  if (etat === 'a-deposer') delete notes[nom];
+  else notes[nom] = { etat, le, parQui };
+  return {
+    ...(lu.liste.length > 0 ? { modeles: lu.liste } : {}),
+    ...(lu.lusLe ? { lusLe: lu.lusLe } : {}),
+    ...(lu.version ? { version: lu.version } : {}),
+    notes, parQui, le,
+  };
+}
+/* ⟨/modeles-meta⟩ */
 
 /* ⟨prochaines-places⟩ */
 export const PLACES_PAR_JOUR = 2;
@@ -7716,13 +7898,13 @@ async function metsAReprogrammerWa(sb: Sb, r: RdvLuWa, par: ParQuiLeReport, aujo
 
 /** Les places envoyées en boutons s'ajoutent au rendez-vous : la relance
     n'en redonnera aucune. Une tentative, jamais d'erreur. */
-async function noteLesPlacesProposeesWa(sb: Sb, r: RdvLuWa, places: readonly PlaceDuReport[], relance = false): Promise<void> {
+async function noteLesPlacesProposeesWa(sb: Sb, r: RdvLuWa, places: readonly PlaceDuReport[], relance = false, marques: Record<string, unknown> = {}): Promise<void> {
   try {
     const { data } = await sb.from('appointments').select('id, data, updated_at').eq('id', r.id).limit(1);
     const l = ((data ?? []) as (Ligne & { updated_at?: string })[])[0];
     if (!l?.data) return;
     const toutes = [...new Set([...placesDejaProposees(l.data), ...places.map(cleDeLaPlaceDuReport)])].slice(-30);
-    const apres = { ...l.data, placesProposees: toutes, ...(relance ? { relanceDuReportLe: new Date().toISOString() } : {}) };
+    const apres = { ...l.data, placesProposees: toutes, ...(relance ? { relanceDuReportLe: new Date().toISOString() } : {}), ...marques };
     const { data: ecrit } = await sb.from('appointments').update({ data: apres }).eq('id', r.id).eq('updated_at', String(l.updated_at)).select('id, updated_at');
     const lu = Array.isArray(ecrit) ? ecrit[0] as { updated_at?: unknown } | undefined : undefined;
     r.data = apres;
@@ -8575,6 +8757,27 @@ async function unTourDOpale(
       dis('report · changer l heure', { places: places.length });
       return true;
     }
+    /* LA DERNIÈRE RELANCE : « Voir des dates » ou « Plus tard ». */
+    const choix = entrants.filter((m) => tour.waIds.includes(String(m.waId)))
+      .map((m) => lisLeBoutonDuReport((m as { bouton?: { id?: unknown } }).bouton?.id)).filter((x): x is { geste: GesteDuReport; rdv: string } => !!x).pop();
+    if (choix) {
+      const r = await leRdvDuNumeroWa(sb, choix.rdv, fiches);
+      if (!r || !estAReprogrammer(r.data)) return false;
+      const appel = appelDeLaFiche(ficheDe(String(r.data.clientId ?? '')));
+      if (choix.geste === 'plus-tard') {
+        await noteLesPlacesProposeesWa(sb, r, [], false, { refusDuReportLe: new Date().toISOString() });
+        issue.texte = `Bien noté${virgule(appel)}. Votre rendez-vous vous attend : écrivez-nous quand vous le souhaitez, et la Maison vous proposera ses places.`;
+        dis('report · plus tard');
+        return true;
+      }
+      const places = await placesDuReportDOpale(r);
+      if (places.length === 0) return false;
+      issue.texte = `Avec plaisir${virgule(appel)}. Touchez la place qui vous convient, elle est aussitôt réservée. Une autre date vous arrange ? Écrivez-la-nous.`;
+      issue.boutons = boutonsDe({ rdv: r.id }, places);
+      await noteLesPlacesProposeesWa(sb, r, places);
+      dis('report · voir des dates', { places: places.length });
+      return true;
+    }
     /* UN TOUCHER DE PLACE : son oui. */
     const touche = entrants.filter((m) => tour.waIds.includes(String(m.waId)))
       .map((m) => lisLeBoutonDePlace((m as { bouton?: { id?: unknown } }).bouton?.id)).filter((x): x is BoutonDePlaceLu => !!x).pop();
@@ -9144,7 +9347,10 @@ async function lesRelancesDuReport(
   const { data, error } = await sb.from('appointments').select('id, data, updated_at').eq('data->>status', 'annulé').limit(300);
   if (error) { dis('report · relances illisibles', { motif: error.message.slice(0, 120) }); return 0; }
   const attente = ((data ?? []) as (Ligne & { updated_at?: string })[])
-    .filter((l) => l.data && typeof l.updated_at === 'string' && estAReprogrammer(l.data) && !l.data.relanceDuReportLe);
+    .filter((l) => l.data && typeof l.updated_at === 'string' && estAReprogrammer(l.data) && !l.data.refusDuReportLe
+      && (!l.data.relanceDuReportLe || !l.data.derniereRelanceDuReportLe));
+  /* LA DERNIÈRE RELANCE (20 novembre 2026) : son modèle doit être approuvé chez Meta (le Trône l'a lu). */
+  const modeleOuvert = estApprouveChezMeta(docs.get('mnd_modeles_meta'), MODELE_DE_LA_DERNIERE_RELANCE);
   if (attente.length === 0) return 0;
   /* Ses messages des dernières 24 heures, reconnus par la clé du numéro
      (l'ancien et le nouveau plan du Bénin sont la même personne). */
@@ -9170,7 +9376,39 @@ async function lesRelancesDuReport(
     const tel = numeroWa(String(fiche?.phone ?? ''));
     if (!fiche || tel.length < 8) continue;
     const sien = derniers.get(cleWa(tel));
-    if (!relanceDuReportDue({ a: r.data, dernierEntrantMs: sien ? sien.ms : null, maintenantMs: ms })) continue;
+    if (!relanceDuReportDue({ a: r.data, dernierEntrantMs: sien ? sien.ms : null, maintenantMs: ms })) {
+      /* LA DERNIÈRE RELANCE, le matin du 7e jour : un modèle en deux temps
+         (« Voir des dates », « Plus tard »), la fenêtre de WhatsApp étant
+         fermée. Jamais après un « stop », ni sans modèle approuvé. */
+      if (!modeleOuvert || !derniereRelanceDuReportDue({ a: r.data, dernierEntrantMs: sien ? sien.ms : null, maintenantMs: ms })) continue;
+      if ((fiche.nouvelles as { par?: unknown } | undefined)?.par === 'stop') continue;
+      const { data: mainsD } = await sb.from('fils_automate').select('id, data').eq('id', `main-${tel}`).limit(1);
+      if (pauseActive(((mainsD ?? []) as Ligne[])[0]?.data as MainDuFil | undefined, ms)) continue;
+      const appelD = fiche.civilite ? appelDe({ name: String(fiche.name ?? ''), prenomUsage: fiche.prenomUsage, civilite: fiche.civilite, auMasculin: fiche.auMasculin })
+        : prenomDuNomWa(String(fiche.name ?? '')) || 'Madame, Monsieur';
+      const charge = {
+        messaging_product: 'whatsapp', to: tel, type: 'template',
+        template: {
+          name: MODELE_DE_LA_DERNIERE_RELANCE, language: { code: 'fr' },
+          components: [
+            { type: 'body', parameters: [{ type: 'text', text: appelD }] },
+            { type: 'button', sub_type: 'quick_reply', index: '0', parameters: [{ type: 'payload', payload: idDuBoutonDuReport('dates', r.id) }] },
+            { type: 'button', sub_type: 'quick_reply', index: '1', parameters: [{ type: 'payload', payload: idDuBoutonDuReport('plus-tard', r.id) }] },
+          ],
+        },
+      };
+      const renduD = await envoieAGraph(o.jeton, o.phoneId, charge);
+      const traceD: MessageSortant = {
+        forme: 'boutons', etape: 'besoin', corps: texteDeLaDerniereRelance(appelD),
+        boutons: [{ id: idDuBoutonDuReport('dates', r.id), titre: 'Voir des dates' }, { id: idDuBoutonDuReport('plus-tard', r.id), titre: 'Plus tard' }],
+      };
+      await laisseLaTrace(sb, { numero: tel, m: traceD, rendu: renduD, clientId, parQui: OPALE, ...(r.data.branchId ? { branchId: String(r.data.branchId) } : {}) });
+      if (!renduD.waId) { dis('report · derniere relance refusee par Meta', { code: renduD.code ?? null }); continue; }
+      await noteLesPlacesProposeesWa(sb, r, [], false, { derniereRelanceDuReportLe: new Date().toISOString() });
+      dis('report · derniere relance');
+      faites += 1;
+      continue;
+    }
     const numero = sien!.numero;
     const { data: mains } = await sb.from('fils_automate').select('id, data').eq('id', `main-${numero}`).limit(1);
     if (pauseActive(((mains ?? []) as Ligne[])[0]?.data as MainDuFil | undefined, ms)) continue;

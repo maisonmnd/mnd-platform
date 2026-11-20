@@ -16,7 +16,8 @@
    relance) se jugent dans verifie-opale. Sortie en ASCII. */
 import { readFileSync } from 'node:fs';
 import {
-  EQUIPE_DU_REPORT_APRES_MS, RELANCE_DU_REPORT_APRES_MS, estAReprogrammer, etatDuReport, habitudesDites, habitudesDuReport, idDuBoutonDePlace,
+  DERNIERE_RELANCE_DU_REPORT_APRES_MS, EQUIPE_APRES_LA_DERNIERE_MS, EQUIPE_DU_REPORT_APRES_MS, MODELE_DE_LA_DERNIERE_RELANCE, RELANCE_DU_REPORT_APRES_MS,
+  derniereRelanceDuReportDue, idDuBoutonDuReport, lisLeBoutonDuReport, texteDeLaDerniereRelance, estAReprogrammer, etatDuReport, habitudesDites, habitudesDuReport, idDuBoutonDePlace,
   lisLeBoutonDePlace, marquesDuReport, momentDeLaRelanceDuReport, placesDejaProposees, relanceDuReportDue, sansLeReport, suiteDeSaDemande,
   titreDuBoutonDePlace, troisPlacesDuReport,
 } from '../src/shared/a-reprogrammer-pur';
@@ -47,9 +48,28 @@ dit('a reprogrammer : annule ET marque ; ni un annule seul, ni un confirme marqu
 dit('la reprise efface les marques, garde le reste', { id: 'r', date: 'd' },
   sansLeReport({ id: 'r', date: 'd', aReprogrammerDepuis: 'x', aReprogrammerPar: 'opale', placesProposees: ['a'], relanceDuReportLe: 'y' }));
 const a0 = { status: 'annulé', aReprogrammerDepuis: new Date(cotonou(10, 9)).toISOString() };
-dit('son etat : attend, relancee, a l equipe au 7e jour', ['attend', 'relancee', 'equipe'], [
-  etatDuReport(a0, cotonou(12, 9)), etatDuReport({ ...a0, relanceDuReportLe: 'x' }, cotonou(12, 9)), etatDuReport(a0, cotonou(17, 9))]);
-dit('les delais : 23 heures, 7 jours', [23 * H, 7 * 24 * H], [RELANCE_DU_REPORT_APRES_MS, EQUIPE_DU_REPORT_APRES_MS]);
+/* La derniere relance (20 novembre 2026) : le 7e jour ; l equipe 48 h apres, ou au 9e jour. */
+const derniereLe = new Date(cotonou(17, 10, 30)).toISOString();
+dit('son etat : attend, relancee, derniere, plus tard, a l equipe 48 h apres la derniere ou au 9e jour', ['attend', 'relancee', 'derniere', 'plus-tard', 'equipe', 'equipe', 'relancee'], [
+  etatDuReport(a0, cotonou(12, 9)), etatDuReport({ ...a0, relanceDuReportLe: 'x' }, cotonou(12, 9)),
+  etatDuReport({ ...a0, relanceDuReportLe: 'x', derniereRelanceDuReportLe: derniereLe }, cotonou(18, 9)),
+  etatDuReport({ ...a0, refusDuReportLe: 'x' }, cotonou(25, 9)),
+  etatDuReport({ ...a0, relanceDuReportLe: 'x', derniereRelanceDuReportLe: derniereLe }, cotonou(19, 11)),
+  etatDuReport(a0, cotonou(19, 10)), etatDuReport({ ...a0, relanceDuReportLe: 'x' }, cotonou(17, 9))]);
+dit('les delais : 23 heures, 7 jours, 48 heures, 9 jours ; le modele', [23 * H, 7 * 24 * H, 48 * H, 9 * 24 * H, 'rdv_a_reprogrammer'],
+  [RELANCE_DU_REPORT_APRES_MS, DERNIERE_RELANCE_DU_REPORT_APRES_MS, EQUIPE_APRES_LA_DERNIERE_MS, EQUIPE_DU_REPORT_APRES_MS, MODELE_DE_LA_DERNIERE_RELANCE]);
+const r7 = { status: 'annulé', aReprogrammerDepuis: new Date(cotonou(12, 9)).toISOString() };
+dit('la derniere relance : le 7e jour, entre 10 h et 12 h, une fois, jamais apres « Plus tard » ni si elle a ecrit dans les 24 h', [false, true, false, false, false, false, true], [
+  derniereRelanceDuReportDue({ a: r7, dernierEntrantMs: null, maintenantMs: cotonou(18, 10, 30) }),
+  derniereRelanceDuReportDue({ a: r7, dernierEntrantMs: null, maintenantMs: cotonou(19, 10, 30) }),
+  derniereRelanceDuReportDue({ a: r7, dernierEntrantMs: null, maintenantMs: cotonou(19, 12, 30) }),
+  derniereRelanceDuReportDue({ a: { ...r7, derniereRelanceDuReportLe: 'x' }, dernierEntrantMs: null, maintenantMs: cotonou(19, 10, 30) }),
+  derniereRelanceDuReportDue({ a: { ...r7, refusDuReportLe: 'x' }, dernierEntrantMs: null, maintenantMs: cotonou(19, 10, 30) }),
+  derniereRelanceDuReportDue({ a: r7, dernierEntrantMs: cotonou(19, 8), maintenantMs: cotonou(19, 10, 30) }),
+  derniereRelanceDuReportDue({ a: r7, dernierEntrantMs: cotonou(18, 8), maintenantMs: cotonou(19, 10, 30) })]);
+dit('ses deux reponses : « MND:report|… », relues telles quelles ; le texte ne finit pas par une variable', ['MND:report|dates|rdv-abc', { geste: 'plus-tard', rdv: 'rdv-abc' }, null, true], [
+  idDuBoutonDuReport('dates', 'rdv-abc'), lisLeBoutonDuReport('MND:report|plus-tard|rdv-abc'), lisLeBoutonDuReport('MND:report|peut-etre|rdv-abc'),
+  texteDeLaDerniereRelance('Mme Afi').endsWith('nouvelles dates ?')]);
 const iso = (ms: number | null) => (ms === null ? null : new Date(ms + H).toISOString().slice(0, 16));
 dit('le moment de la relance : 23 h apres, ramene a 20 h 55 la nuit, jamais trop tot', ['2026-11-20T09:00', '2026-11-20T20:55', '2026-11-19T20:55', '2026-11-20T14:00'], [
   iso(momentDeLaRelanceDuReport(cotonou(19, 10), cotonou(19, 10))),

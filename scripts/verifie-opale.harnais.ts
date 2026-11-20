@@ -1320,6 +1320,53 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
   dit('... pas avant la 23e heure', 0, META.length);
   aHeure(null);
 
+  /* LA DERNIÈRE RELANCE (20 novembre 2026) : le matin du 7e jour, le modèle
+     « rdv_a_reprogrammer » en deux temps, une fois ; « Voir des dates »,
+     « Plus tard ». Jamais sans modèle approuvé, après un stop, l'après-midi,
+     ni si elle a écrit dans les 24 heures. */
+  const modeleApprouve = () => table('documents').push({ key: 'mnd_modeles_meta', data: { modeles: [{ nom: 'rdv_a_reprogrammer', etat: 'APPROVED' }] } });
+  const modelesEnvoyes = (): any[] => META.filter((m) => m.type === 'template');
+  aHeure(mardiA(10, 30));
+  const report7 = () => ({ status: 'annulé', aReprogrammerDepuis: new Date(Date.now() - 7 * 86_400_000 - 3_600_000).toISOString(), aReprogrammerPar: 'opale', relanceDuReportLe: new Date(Date.now() - 6 * 86_400_000).toISOString() });
+  decor(); modeleApprouve(); rdvBanc(report7());
+  FILE = [{ texte: 'ne doit pas partir' }];
+  await relanceDuReport();
+  const tpl = modelesEnvoyes()[0];
+  const charges = (tpl?.template?.components ?? []).filter((c: any) => c.type === 'button').map((c: any) => c.parameters?.[0]?.payload);
+  dit('la derniere relance : le matin du 7e jour, le modele en deux temps, une fois, notee', ['rdv_a_reprogrammer', ['MND:report|dates|rdv-banc-r', 'MND:report|plus-tard|rdv-banc-r'], true, 1], [
+    tpl?.template?.name, charges, !!rdvLu()?.derniereRelanceDuReportLe, FILE.length]);
+  META.length = 0;
+  await relanceDuReport();
+  dit('... jamais deux fois', 0, modelesEnvoyes().length);
+  decor(); rdvBanc(report7());
+  await relanceDuReport();
+  dit('... jamais sans modele approuve chez Meta', 0, modelesEnvoyes().length);
+  decor(); modeleApprouve(); rdvBanc(report7());
+  const fiche = table('clients').find((c) => c.id === 'cl-banc-a');
+  if (fiche) fiche.data = { ...fiche.data, nouvelles: { par: 'stop' } };
+  await relanceDuReport();
+  dit('... jamais apres un « stop »', 0, modelesEnvoyes().length);
+  decor(); modeleApprouve(); rdvBanc(report7());
+  elleEcrit(NUM, 'Je regarde mon agenda', 5 * 3_600_000);
+  await relanceDuReport();
+  dit('... jamais si elle a ecrit dans les 24 heures', 0, modelesEnvoyes().filter((m) => m.template?.name === 'rdv_a_reprogrammer').length);
+  aHeure(mardiA(15));
+  decor(); modeleApprouve(); rdvBanc(report7());
+  await relanceDuReport();
+  dit('... jamais l apres-midi', 0, modelesEnvoyes().length);
+  aHeure(null);
+
+  decor(); rdvBanc(report7());
+  FILE = [{ texte: 'ne doit pas partir' }];
+  await tour(NUM, [elleTouche(NUM, 'MND:report|dates|rdv-banc-r', 'Voir des dates')]);
+  dit('« Voir des dates » : trois dates en boutons, sans Claude', [true, 1, true], [
+    boutonsEnvoyes().length >= 1 && boutonsEnvoyes().every((b) => b.id.startsWith('MND:place|r:rdv-banc-r|')), FILE.length, corpsDesBoutons().startsWith('Avec plaisir')]);
+  decor(); rdvBanc(report7());
+  FILE = [{ texte: 'ne doit pas partir' }];
+  await tour(NUM, [elleTouche(NUM, 'MND:report|plus-tard|rdv-banc-r', 'Plus tard')]);
+  dit('« Plus tard » : plus aucune relance, le rendez-vous reste a reprogrammer, un mot bref', [true, 'annulé', true, 1], [
+    !!rdvLu()?.refusDuReportLe, rdvLu()?.status, (textesEnvoyes()[0] ?? '').startsWith('Bien noté, Mme Akouele'), FILE.length]);
+
   const consigneR = consigneDOpale();
   dit('la consigne : trois dates en boutons, accommoder, mettre a reprogrammer', [true, true, true], [
     consigneR.includes('`proposer_les_places` avec TROIS de ces places'), consigneR.includes('appelle `accommoder`'), consigneR.includes('appelle `mettre_a_reprogrammer`')]);

@@ -46,6 +46,9 @@ export type MarquesDuReport = {
   aReprogrammerPar?: unknown;
   placesProposees?: unknown;
   relanceDuReportLe?: unknown;
+  /** La dernière relance (le modèle du 7e jour) et son « Plus tard ». */
+  derniereRelanceDuReportLe?: unknown;
+  refusDuReportLe?: unknown;
 };
 
 const ecritLe = (v: unknown): boolean => typeof v === 'string' && v.trim().length > 0;
@@ -64,7 +67,7 @@ export function marquesDuReport(maintenantMs: number, par: ParQuiLeReport): {
 }
 
 /** Les marques que la reprise (une nouvelle date) efface. */
-export const CLES_DU_REPORT: readonly string[] = ['aReprogrammerDepuis', 'aReprogrammerPar', 'placesProposees', 'relanceDuReportLe'];
+export const CLES_DU_REPORT: readonly string[] = ['aReprogrammerDepuis', 'aReprogrammerPar', 'placesProposees', 'relanceDuReportLe', 'derniereRelanceDuReportLe', 'refusDuReportLe'];
 
 /** Le rendez-vous sans ses marques de report (pour une écriture). */
 export function sansLeReport<T extends Record<string, unknown>>(a: T): T {
@@ -75,8 +78,18 @@ export function sansLeReport<T extends Record<string, unknown>>(a: T): T {
 
 /** La relance part vers la 23e heure après son dernier message. */
 export const RELANCE_DU_REPORT_APRES_MS = 23 * 3_600_000;
-/** Au 7e jour sans choix, l'équipe. */
-export const EQUIPE_DU_REPORT_APRES_MS = 7 * 86_400_000;
+/** LA DERNIÈRE RELANCE (20 novembre 2026, Yéman : « une dernière relance sept
+    jours plus tard… sans embêter le client ») : le 7e jour, le matin, par un
+    modèle Meta en deux temps (« Voir des dates », « Plus tard »), une fois. */
+export const DERNIERE_RELANCE_DU_REPORT_APRES_MS = 7 * 86_400_000;
+export const DERNIERE_RELANCE_DE_MIN = 10 * 60;
+export const DERNIERE_RELANCE_A_MIN = 12 * 60;
+/** Le modèle Meta de la dernière relance : {{1}} l'appel, deux réponses rapides. */
+export const MODELE_DE_LA_DERNIERE_RELANCE = 'rdv_a_reprogrammer';
+/** L'équipe : 48 heures après la dernière relance, ou au 9e jour quand elle
+    n'a pas pu partir. Jamais annulé tout seul. */
+export const EQUIPE_APRES_LA_DERNIERE_MS = 48 * 3_600_000;
+export const EQUIPE_DU_REPORT_APRES_MS = 9 * 86_400_000;
 /** WhatsApp ferme une conversation 24 h après son dernier message. */
 export const FENETRE_DU_REPORT_MS = 24 * 3_600_000;
 /** On ne relance pas dans le dernier quart d'heure de la fenêtre. */
@@ -93,16 +106,51 @@ const minutesACotonouDuReport = (ms: number): number => {
   return d.getUTCHours() * 60 + d.getUTCMinutes();
 };
 
-export type EtatDuReport = 'attend' | 'relancee' | 'equipe';
+export type EtatDuReport = 'attend' | 'relancee' | 'derniere' | 'plus-tard' | 'equipe';
 
-/** Où en est le report : il attend son choix, il a été relancé, ou il est à
-    l'équipe (7 jours sans choix). `null` : pas à reprogrammer. */
+/** Où en est le report : il attend son choix, il a été relancé (le
+    lendemain, puis la dernière relance du 7e jour), elle a dit « Plus tard »,
+    ou il est à l'équipe (48 heures après la dernière relance, ou au 9e jour).
+    `null` : pas à reprogrammer. */
 export function etatDuReport(a: MarquesDuReport | null | undefined, maintenantMs: number): EtatDuReport | null {
   if (!estAReprogrammer(a)) return null;
+  if (ecritLe(a!.refusDuReportLe)) return 'plus-tard';
   const depuis = Date.parse(String(a!.aReprogrammerDepuis));
+  const derniere = Date.parse(String(a!.derniereRelanceDuReportLe ?? ''));
+  if (Number.isFinite(derniere) && maintenantMs - derniere >= EQUIPE_APRES_LA_DERNIERE_MS) return 'equipe';
   if (Number.isFinite(depuis) && maintenantMs - depuis >= EQUIPE_DU_REPORT_APRES_MS) return 'equipe';
+  if (Number.isFinite(derniere)) return 'derniere';
   return ecritLe(a!.relanceDuReportLe) ? 'relancee' : 'attend';
 }
+
+/** LA DERNIÈRE RELANCE EST-ELLE DUE ? Le 7e jour après le report, entre 10 h
+    et 12 h à Cotonou, une fois ; jamais si elle a dit « Plus tard », ni si
+    elle a écrit dans les dernières 24 heures (la conversation vit : Opale y
+    répond). Le « stop » de sa fiche se juge à côté. */
+export function derniereRelanceDuReportDue(o: {
+  a: MarquesDuReport; dernierEntrantMs: number | null; maintenantMs: number;
+}): boolean {
+  if (!estAReprogrammer(o.a) || ecritLe(o.a.derniereRelanceDuReportLe) || ecritLe(o.a.refusDuReportLe)) return false;
+  const depuis = Date.parse(String(o.a.aReprogrammerDepuis));
+  if (!Number.isFinite(depuis) || o.maintenantMs - depuis < DERNIERE_RELANCE_DU_REPORT_APRES_MS) return false;
+  if (o.dernierEntrantMs !== null && o.maintenantMs - o.dernierEntrantMs < FENETRE_DU_REPORT_MS) return false;
+  const m = minutesACotonouDuReport(o.maintenantMs);
+  return m >= DERNIERE_RELANCE_DE_MIN && m < DERNIERE_RELANCE_A_MIN;
+}
+
+/** Les deux réponses du modèle : « Voir des dates », « Plus tard ». */
+export type GesteDuReport = 'dates' | 'plus-tard';
+export const idDuBoutonDuReport = (geste: GesteDuReport, rdvId: string): string => `MND:report|${geste}|${rdvId}`.slice(0, 256);
+export function lisLeBoutonDuReport(id: unknown): { geste: GesteDuReport; rdv: string } | null {
+  if (typeof id !== 'string') return null;
+  const m = /^MND:report\|(dates|plus-tard)\|([A-Za-z0-9_.:-]{1,160})$/.exec(id);
+  return m ? { geste: m[1] as GesteDuReport, rdv: m[2] } : null;
+}
+
+/** Le texte du modèle, tel que Meta l'approuve ({{1}} l'appel). Il ne finit
+    pas par une variable. */
+export const texteDeLaDerniereRelance = (appel: string): string =>
+  `Bonjour ${appel}, votre rendez-vous vous attend toujours à la Maison MND. Souhaitez-vous que nous vous proposions de nouvelles dates ?`;
 
 /** L'INSTANT DE LA RELANCE : 23 h après ce qu'elle a écrit en dernier (ou
     après le report, s'il est plus récent), avant la fin de la fenêtre de

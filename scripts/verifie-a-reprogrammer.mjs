@@ -54,6 +54,15 @@ const PANNES = [
     r: [["a.id === id && (a.status === 'confirmé' || a.status === 'en attente')", 'a.id === id']] },
   { nom: 'le Carnet le compte comme une annulation', fichier: CAR,
     r: [["garde: (a) => a.status === 'annulé' && !estAReprogrammer(a) },", "garde: (a) => a.status === 'annulé' },"]] },
+  /* La dernière relance (20 novembre 2026). */
+  { nom: 'la derniere relance l apres-midi', fichier: PUR,
+    r: [['  return m >= DERNIERE_RELANCE_DE_MIN && m < DERNIERE_RELANCE_A_MIN;', '  return true;']] },
+  { nom: 'la derniere relance apres « Plus tard »', fichier: PUR,
+    r: [['ecritLe(o.a.derniereRelanceDuReportLe) || ecritLe(o.a.refusDuReportLe)) return false;', 'ecritLe(o.a.derniereRelanceDuReportLe)) return false;']] },
+  { nom: 'la derniere relance pendant une conversation', fichier: PUR,
+    r: [['  if (o.dernierEntrantMs !== null && o.maintenantMs - o.dernierEntrantMs < FENETRE_DU_REPORT_MS) return false;\n', '']] },
+  { nom: 'l equipe des le 7e jour, avant la derniere relance', fichier: PUR,
+    r: [['export const EQUIPE_DU_REPORT_APRES_MS = 9 * 86_400_000;', 'export const EQUIPE_DU_REPORT_APRES_MS = 7 * 86_400_000;']] },
   { nom: 'Ma Couronne le barre', fichier: RVT,
     r: [["${annulee && !reporte ? 'ab-rdvc--annulee' : ''}", "${annulee ? 'ab-rdvc--annulee' : ''}"]] },
 ];
