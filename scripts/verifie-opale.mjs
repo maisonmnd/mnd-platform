@@ -129,6 +129,15 @@ const PANNES = [
   { nom: 'la consigne redemande une photo', fichier: OP, avant: ' Ne demande une photo que pour estimer leur nombre et leur longueur.', apres: '' },
   { nom: 'la consigne laisse un avis sur photo', fichier: OP, avant: 'Sa photo te sert au prix et à la place, jamais à un avis : ne dis rien de l’état de ses locks, ne conseille aucun soin à distance.', apres: 'Sa photo te sert à tout.' },
   { nom: 'le lien de la consultation se pose deux fois', fichier: OP, avant: '  if (!lien || !t || t.includes(lien)) return t;', apres: '  if (!lien || !t) return t;' },
+  /* UN RETARD N'EST PAS UN EMPÊCHEMENT, LE PETIT SERVICE PARTAGE L'HEURE (20 novembre 2026). */
+  { nom: 'le petit service ne partage plus Team', fichier: AU, avant: 'maitre !== MAITRE_QUI_PARTAGE || (!!nouvelleLourde && !!deja.lourde && !partagentLaPlace(nouvelleDureeMin, deja.dureeMin));', apres: 'maitre !== MAITRE_QUI_PARTAGE || (!!nouvelleLourde && !!deja.lourde);' },
+  { nom: 'le petit service prend une place en ligne (le juge)', fichier: AU, avant: '&& duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin && !partagentLaPlace(dureeMin, a.dureeMin)).length >= sieges) {', apres: '&& duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin).length >= sieges) {' },
+  { nom: 'le petit service prend une place en ligne (sa personne)', fichier: AU, avant: '&& !partagentLaPlace(duree, a.dureeMin)).length >= sieges) return', apres: ').length >= sieges) return' },
+  { nom: 'Opale n a pas l outil du retard', fichier: AU, avant: "    if (nom === 'noter_un_retard') return noteLeRetardDOpale(e);\n", apres: '' },
+  { nom: 'un retard libere sa place', fichier: AU, avant: "if (String(r.data.date ?? '') === aujourdhui && parleDUnRetard(textesPourLeTri(nouveaux))) {", apres: 'if (false) {' },
+  { nom: 'le retard se decale sans que rien ne tienne', fichier: AU, avant: '    if (!tient.ok && auDela === null) {', apres: '    if (false) {' },
+  { nom: 'vingt minutes de retard decalent sa place', fichier: OP, avant: "  if (o.arriveeMin - o.rdvMin <= RETARD_SANS_DECALER_MIN) return 'attendue';\n", apres: '' },
+  { nom: 'la consigne oublie le retard', fichier: OP, avant: 'Appelle `noter_un_retard` avec ce rendez-vous et son heure d’arrivée', apres: 'Appelle `mettre_a_reprogrammer` avec ce rendez-vous et son heure d’arrivée' },
 ];
 
 const md5 = (rel) => createHash('md5').update(readFileSync(path.join(racine, rel))).digest('hex');

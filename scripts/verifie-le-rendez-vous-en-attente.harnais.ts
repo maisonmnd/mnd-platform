@@ -829,7 +829,9 @@ const idB3 = b3.corps.apptId as string;
   await attendsLeFond();
   dit('B35 la duree posee suit le calibre annonce : 120 min au catalogue, 210 min pour une tete Micro (x1,8, au quart d heure)', [120, 210],
     [rdvDe(nu.corps.apptId).dureeMin, rdvDe(micro.corps.apptId).dureeMin]);
-  const dessus = await depot({ telephone: '0197000406', date: '2026-12-09', time: '13:00' });
+  /* Deux heures : plus qu'un petit service (une heure ou moins partage l'heure
+     depuis le 20 novembre 2026, verifie-le-petit-service). */
+  const dessus = await depot({ telephone: '0197000406', date: '2026-12-09', time: '13:00', serviceIds: ['sv-racines'] });
   dit('B36 … et l heure qui tombe dans cette duree n est plus libre', [409, 'creneau_pris'], [dessus.statut, dessus.corps.error]);
 }
 

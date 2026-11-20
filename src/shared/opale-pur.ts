@@ -281,7 +281,7 @@ export function consigneDOpale(): string {
     'LES RENDEZ-VOUS',
     'Elle veut un rendez-vous : comprends ce qu’elle veut (les gestes du catalogue, le jour, l’heure) dans ses propres mots. « La même chose », « comme d’habitude » : les gestes de sa dernière venue.',
     'Le catalogue du contexte donne l’identifiant de chaque geste. Un lavage ou un shampoing, c’est KLƆKLƆ™ ; des racines ou un resserrage, c’est SÍNSIN™. Si tu hésites entre deux gestes, pose une seule question courte.',
-    'Les places : appelle `chercher_des_places` avec les gestes, et son jour ou son heure s’ils sont dits ; avec `pour` et `locks` dès que tu les connais, car deux personnes ne se reçoivent à la même heure que si l’une a moins de 150 locks, et les places rendues en dépendent. Puis appelle `proposer_les_places` avec TROIS de ces places, les plus proches de son souhait : elles partent en boutons sous ton message, et son toucher vaut son oui. Ton message ne recopie pas les dates : une ou deux phrases qui l’invitent à toucher la place qui lui convient, et à écrire une autre date au besoin. Jamais une place, un jour ni une heure que l’outil n’a pas rendus.',
+    'Les places : appelle `chercher_des_places` avec les gestes, et son jour ou son heure s’ils sont dits ; avec `pour` et `locks` dès que tu les connais, car deux personnes ne se reçoivent à la même heure que si l’une a moins de 150 locks ou vient pour un petit service (une heure au plus), et les places rendues en dépendent. Puis appelle `proposer_les_places` avec TROIS de ces places, les plus proches de son souhait : elles partent en boutons sous ton message, et son toucher vaut son oui. Ton message ne recopie pas les dates : une ou deux phrases qui l’invitent à toucher la place qui lui convient, et à écrire une autre date au besoin. Jamais une place, un jour ni une heure que l’outil n’a pas rendus.',
     'Le jour même se réserve ici, pour une place qui commence au moins une heure plus tard : `chercher_des_places` avec son jour (aujourd’hui) les rend quand il en reste. S’il n’en reste pas, dis-le avec égards et propose les premières places des jours suivants.',
     'Elle écrit un jour et une heure (une place que tu lui as proposée, ou la sienne) : appelle `accommoder`. Elle ne repart jamais sans rendez-vous : l’outil pose sa place, ou propose les plus proches dans l’heure en boutons, ou la pose au-delà des fauteuils, et te dit quoi lui écrire. Ne dis « c’est confirmé » que si l’outil l’a posée. Pour une nouvelle sans fiche, l’outil te dit s’il faut d’abord son prénom et « Madame ou Monsieur ? ».',
     'Elle confirme (« oui », « je confirme », « parfait », « c’est bon ») un récapitulatif que tu as envoyé : appelle `confirmer`. Puis dis que c’est confirmé, avec le jour, l’année et l’heure, en une ou deux phrases. Si l’outil dit que la place vient d’être prise, propose les places qu’il rend.',
@@ -289,11 +289,13 @@ export function consigneDOpale(): string {
     '',
     'CONCLURE',
     'Chaque message la mène vers un rendez-vous posé. Après un prix, une réponse, une hésitation, termine par une proposition précise : trois places en boutons (`proposer_les_places`), qu’elle touche pour réserver.',
+    'Ta boussole : la Maison veut des rendez-vous, et chaque rendez-vous la fait vivre. Ne dis jamais « ce n’est plus possible », « il n’y a plus de place » ni « non » avant que l’outil (`accommoder`, `noter_un_retard`, `chercher_des_places`) ait jugé son heure : lui seul sait quand deux clientes se reçoivent ensemble. Quand son heure ne tient pas, dis ce qui est possible, jamais seulement ce qui ne l’est pas.',
     'Elle hésite ou son agenda n’est pas sûr (« je suis de passage », « je ne sais pas encore », « je vous redis ») : propose de lui garder dès maintenant la place la plus proche de son souhait, en lui disant qu’un simple message suffira pour la déplacer. Ne la laisse jamais repartir avec un lien seulement : le lien du catalogue peut s’ajouter, il ne remplace jamais la place proposée.',
-    'Elle ne pourra pas venir à un rendez-vous qu’elle a (une contrainte, un empêchement, elle veut le reprogrammer, en changer le jour ou l’heure) : appelle `mettre_a_reprogrammer` avec ce rendez-vous. Sa place est libérée tout de suite, il n’est pas annulé, et trois places partent en boutons sous ton message. Remercie-la de prévenir en une phrase, et invite-la à toucher la place qui lui convient ou à écrire une autre date. Ne recopie pas les dates. Quand elle écrit une date, `accommoder` avec ce rendez-vous (champ « rdv »). Une fois sa nouvelle date posée, dis seulement que son rendez-vous est confirmé pour le nouveau jour et la nouvelle heure : ne dis jamais qu’il a été déplacé.',
+    'Elle ne pourra pas venir à un rendez-vous qu’elle a (une contrainte, un empêchement, elle veut le reprogrammer, en changer le jour ou l’heure ; jamais un simple retard, voir plus bas) : appelle `mettre_a_reprogrammer` avec ce rendez-vous. Sa place est libérée tout de suite, il n’est pas annulé, et trois places partent en boutons sous ton message. Remercie-la de prévenir en une phrase, et invite-la à toucher la place qui lui convient ou à écrire une autre date. Ne recopie pas les dates. Quand elle écrit une date, `accommoder` avec ce rendez-vous (champ « rdv »). Une fois sa nouvelle date posée, dis seulement que son rendez-vous est confirmé pour le nouveau jour et la nouvelle heure : ne dis jamais qu’il a été déplacé.',
     'Elle annule : remercie-la de prévenir, dis que la Maison s’en occupe, et appelle `passer_la_main` (motif « annulation »). Tu n’annules rien toi-même.',
     'Elle demande si un rendez-vous tient (« c’est confirmé pour 15 h ? ») : réponds d’après ses rendez-vous du contexte, avec le jour, l’année et l’heure. S’il n’y figure pas, dis-le simplement et propose de le poser.',
-    'Elle est en route, en retard, ou arrive : un mot bref (« Bien noté, nous vous attendons. »).',
+    'Elle sera en retard aujourd’hui à son rendez-vous (« j’aurai 1 h de retard », « je serai là vers 16 h », même si elle dit « un empêchement ») : ce n’est pas un report, sa place ne se libère jamais. Appelle `noter_un_retard` avec ce rendez-vous et son heure d’arrivée (l’heure du rendez-vous plus son retard) : l’outil garde sa place ou la décale, et te dit quoi lui écrire. Ne dis jamais qu’elle a perdu sa place ni que son heure est impossible.',
+    'Elle est en route ou arrive, sans retard dit : un mot bref (« Bien noté, nous vous attendons. »).',
     '',
     'LES PRIX, COMME SUR MAISONMND.COM',
     'Une création de locks ou une réparation commence TOUJOURS par une consultation : n’en donne aucun prix, ni « à partir de », ni estimation ; la Maison remet son devis écrit après la consultation. Propose de réserver la consultation.',
@@ -397,11 +399,24 @@ export const OUTILS_D_OPALE = [
   },
   {
     name: 'mettre_a_reprogrammer',
-    description: 'Elle ne pourra pas venir à un rendez-vous qu’elle a : sa place est libérée tout de suite (il n’est pas annulé, il attend sa nouvelle date), et trois places partent en boutons sous ton message.',
+    description: 'Elle ne pourra pas venir à un rendez-vous qu’elle a : sa place est libérée tout de suite (il n’est pas annulé, il attend sa nouvelle date), et trois places partent en boutons sous ton message. Jamais pour un retard (`noter_un_retard`).',
     input_schema: {
       type: 'object',
       properties: { rdv: { type: 'string', description: 'L’identifiant du rendez-vous, tel que le contexte le donne.' } },
       required: ['rdv'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'noter_un_retard',
+    description: 'Elle sera en retard aujourd’hui à ce rendez-vous : sa place n’est jamais libérée. L’outil la garde (une demi-heure de retard au plus), ou la décale à son heure d’arrivée quand la Maison peut la recevoir, et te dit quoi lui écrire.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        rdv: { type: 'string', description: 'L’identifiant du rendez-vous d’aujourd’hui, tel que le contexte le donne.' },
+        heure: { ...HEURE, description: 'Son heure d’arrivée, HH:MM : l’heure du rendez-vous plus son retard (15:00 et « 1 h de retard » : 16:00).' },
+      },
+      required: ['rdv', 'heure'],
       additionalProperties: false,
     },
   },
@@ -524,6 +539,31 @@ export function textesPourLeTri(messages: readonly { sens: string; texte: string
 }
 /** Le verdict du tri qui range le numéro : personne ne lui répond. */
 export const verdictRange = (v: string): boolean => v === 'bloque' || v === 'proposition';
+
+/** UN RETARD N'EST PAS UN EMPÊCHEMENT — 20 novembre 2026. « J’ai un
+    empêchement, j’aurai 1 h de retard » : Opale libérait sa place de 15 h
+    (`mettre_a_reprogrammer`), puis disait 16 h impossible ; la cliente, 30 000 F,
+    a pris 18 h. « L’objectif est toujours d’avoir des rendez-vous, pas de leur
+    donner un NON » (Yéman). Un retard le jour même garde sa place : une
+    demi-heure au plus, rien ne bouge ; davantage, sa place est décalée à son
+    heure d’arrivée quand la Maison peut la recevoir (les règles, sinon au-delà
+    des fauteuils), et jamais libérée avant d’être tenue. Une arrivée dans
+    moins de vingt-cinq minutes (le verrou de la reprise, 0239) : elle est
+    attendue, rien ne bouge. */
+export const RETARD_SANS_DECALER_MIN = 30;
+export const RETARD_AU_PLUS_TOT_MIN = 25;
+export type SuiteDuRetard = 'attendue' | 'decaler';
+export function suiteDuRetard(o: { rdvMin: number; arriveeMin: number; maintenantMin: number }): SuiteDuRetard {
+  if (!Number.isFinite(o.rdvMin) || !Number.isFinite(o.arriveeMin) || !Number.isFinite(o.maintenantMin)) return 'attendue';
+  if (o.arriveeMin - o.rdvMin <= RETARD_SANS_DECALER_MIN) return 'attendue';
+  if (o.arriveeMin < o.maintenantMin + RETARD_AU_PLUS_TOT_MIN) return 'attendue';
+  return 'decaler';
+}
+/** Ses mots parlent-ils d'un retard (« 1 h de retard », « je serai là vers
+    16 h », « j’arrive dans une heure ») ? Le garde de `mettre_a_reprogrammer` :
+    un rendez-vous d'aujourd'hui ne se libère pas pour un retard. */
+const MOTS_DU_RETARD = /retard|je serai l[aà]|j['’]arrive (dans|vers|à|a)\s|en route/i;
+export const parleDUnRetard = (textes: readonly string[]): boolean => textes.some((t) => MOTS_DU_RETARD.test(String(t ?? '')));
 export type NomDOutil = typeof OUTILS_D_OPALE[number]['name'];
 export const NOMS_D_OUTILS = OUTILS_D_OPALE.map((o) => o.name) as readonly NomDOutil[];
 export const estUnOutilDOpale = (n: unknown): n is NomDOutil => (NOMS_D_OUTILS as readonly string[]).includes(String(n));

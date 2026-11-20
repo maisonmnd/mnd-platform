@@ -3905,12 +3905,13 @@ const regles: Regle[] = [
         vrai('banc : au journal, Perle, sans nom ni numero', geste?.parNom === 'Perle' && geste?.porte === 'assistant' && geste?.verbe === 'modifie' && !/Naffi|01 97|2290197/.test(j(geste)), geste);
         vrai('banc : l alerte : rendez-vous deplace, au prenom seul', pushsDepuis(p0).some((x: Any) => x.title === 'Rendez-vous déplacé par WhatsApp' && /^Naffi, /.test(x.body)), pushsDepuis(p0));
         vaut('banc : les juges de la Maison, sur chaque message', [], fautesDuBanc(NAFFI_E));
-        /* S2 : la place prise entre-temps. */
+        /* S2 : la place prise entre-temps, chez SA personne (Expert) : un petit
+           service partage l'heure chez Team depuis le 20 novembre 2026. */
         base();
         await ecrit(NAFFI_E, 'Je voudrais décaler mon rendez-vous');
         const p2 = places()[0];
         const a2 = p2.id.split(':')[3];
-        T('appointments').set('rdv-y', { id: 'rdv-y', branch_id: 'maison', updated_at: '2026-10-15T08:00:00.000Z', data: { id: 'rdv-y', branchId: 'maison', clientId: 'cli-x', date: `${a2.slice(0, 4)}-${a2.slice(4, 6)}-${a2.slice(6, 8)}`, time: `${a2.slice(9, 11)}:${a2.slice(11, 13)}`, status: 'confirmé', master: 'Team', dureeMin: 60 } });
+        T('appointments').set('rdv-y', { id: 'rdv-y', branch_id: 'maison', updated_at: '2026-10-15T08:00:00.000Z', data: { id: 'rdv-y', branchId: 'maison', clientId: 'cli-x', date: `${a2.slice(0, 4)}-${a2.slice(4, 6)}-${a2.slice(6, 8)}`, time: `${a2.slice(9, 11)}:${a2.slice(11, 13)}`, status: 'confirmé', master: 'Expert', dureeMin: 90 } });
         await touche(NAFFI_E, p2);
         vrai('banc : la place prise entre-temps : rien ne bouge, les places les plus proches sans elle', T('appointments').get('rdv-exp')?.data.date === '2026-10-17'
           && /^Cette heure vient d'être prise, Mme Naffi/.test(corpsDe(dernierA(NAFFI_E))) && !places().some((x) => x.id.endsWith(a2)), corpsDe(dernierA(NAFFI_E)));

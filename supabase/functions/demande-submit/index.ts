@@ -230,7 +230,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-18-d · deux têtes chez Team : le juge du site, de Ma Couronne et du déplacement lit la tête (le calibre annoncé, la fiche) ; Team reçoit une seconde cliente à la même heure quand l’une des deux a moins de 150 locks, jamais deux lourdes ; le compte annoncé s’écrit sur le rendez-vous (locksAnnonces) ; 2026-11-18-c · une note de « Ses modèles chez Meta » n’éteint plus l’attente : la bascule lit la liste relue chez Meta et les notes de la direction ensemble (⟨modeles-meta⟩) ; 2026-11-18-b · Ma Couronne reconnaît la fiche que la Maison a inscrite avant son compte (la règle d’est_ma_tete : la fiche qui porte son compte, le payeur désigné par sa fiche) ; « Je confirme » écrit confirme toutes les places de ce numéro qui attendent son oui, et la réponse les dit ; un message de l’attente qui ne part pas (échec, plafond) ou que Meta dit non remis confirme la place sans attente, comme un refus du modèle ; 2026-11-18-a · la décoloration se réserve en ligne comme la coloration (son atelier, La Transformation) ; la clé du serveur comparée à temps constant (⟨cle-du-cron⟩) ; l’heure d’un rendez-vous déplacé tenue sur la grille ; le rituel GBÀTÀ™ (le défaisage) se réserve en ligne ; le rendez-vous en attente (la place tenue deux heures, « Je confirme » sur WhatsApp, l’acompte quand un geste en porte un ; tant que le modèle n’est pas approuvé, la place naît confirmée comme avant) ; un plafond par numéro et par adresse ; l’heure tenue sur la grille ; la durée au calibre annoncé ; les codes comptés par la clé du numéro ; déplacer deux fois au plus, sous le verrou des places ; Ma Couronne passe par le serveur ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous déplacé) : une page en cache ou un envoi direct ne passe plus ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
+const VERSION = '2026-11-20-a · le petit service partage l heure : un rendez-vous d une heure ou moins se pose chez Team a cote de n importe quelle tete, et un petit service et son voisin ne prennent qu une place en ligne (petitService, partagentLaPlace, 0240) ; 2026-11-18-d · deux têtes chez Team : le juge du site, de Ma Couronne et du déplacement lit la tête (le calibre annoncé, la fiche) ; Team reçoit une seconde cliente à la même heure quand l’une des deux a moins de 150 locks, jamais deux lourdes ; le compte annoncé s’écrit sur le rendez-vous (locksAnnonces) ; 2026-11-18-c · une note de « Ses modèles chez Meta » n’éteint plus l’attente : la bascule lit la liste relue chez Meta et les notes de la direction ensemble (⟨modeles-meta⟩) ; 2026-11-18-b · Ma Couronne reconnaît la fiche que la Maison a inscrite avant son compte (la règle d’est_ma_tete : la fiche qui porte son compte, le payeur désigné par sa fiche) ; « Je confirme » écrit confirme toutes les places de ce numéro qui attendent son oui, et la réponse les dit ; un message de l’attente qui ne part pas (échec, plafond) ou que Meta dit non remis confirme la place sans attente, comme un refus du modèle ; 2026-11-18-a · la décoloration se réserve en ligne comme la coloration (son atelier, La Transformation) ; la clé du serveur comparée à temps constant (⟨cle-du-cron⟩) ; l’heure d’un rendez-vous déplacé tenue sur la grille ; le rituel GBÀTÀ™ (le défaisage) se réserve en ligne ; le rendez-vous en attente (la place tenue deux heures, « Je confirme » sur WhatsApp, l’acompte quand un geste en porte un ; tant que le modèle n’est pas approuvé, la place naît confirmée comme avant) ; un plafond par numéro et par adresse ; l’heure tenue sur la grille ; la durée au calibre annoncé ; les codes comptés par la clé du numéro ; déplacer deux fois au plus, sous le verrou des places ; Ma Couronne passe par le serveur ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous déplacé) : une page en cache ou un envoi direct ne passe plus ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
 
 /** LE SECOND FAUTEUIL, PAS DAVANTAGE (2 novembre 2026, 0152) : la copie de
     `PLACES_EN_LIGNE_AU_PLUS` (src/shared/agenda-pur.ts), hors des repères. */
@@ -1107,10 +1107,34 @@ export const teteLourde = (locks: unknown): boolean => {
     : typeof locks === 'string' && /^\d+(\.\d+)?$/.test(locks.trim()) ? Number(locks.trim()) : Number.NaN;
   return Number.isFinite(n) && n >= SEUIL_TETE_LOURDE;
 };
+/** LE PETIT SERVICE PARTAGE L'HEURE — 20 novembre 2026. « Si valider deux
+    rendez-vous à la même heure est possible il faut le faire, tant que c'est
+    un petit service » (Yéman). Opale venait de refuser 16 h à une cliente en
+    retard (un lavage et une reprise, 30 000 F) : un lavage et une coiffure
+    d'une heure, à 17 h, fermaient l'heure, deux têtes lourdes et une seule
+    place en ligne ce jour-là.
+
+    Un rendez-vous d'UNE HEURE OU MOINS est un petit service (une durée n'est
+    jamais sous une heure : `dureeDesPrestations`, `duree_du_rdv`). Chez Team,
+    il partage l'heure avec n'importe quelle tête, lourde ou non ; et l'un à
+    côté de l'autre, ils ne prennent qu'une place en ligne (les fauteuils).
+    Deux au plus chez Team en même temps, toujours (`DEUX_TETES_AU_PLUS`).
+    Un autre maître, une cliente à la fois, comme avant. La base tient la
+    même règle (0240 : `pose_si_libre`, `deplace_si_libre`,
+    `reprend_si_libre`, le garde `une_place_en_ligne`). Une durée inconnue
+    n'en fait pas un petit service. */
+export const PETIT_SERVICE_MIN = 60;
+export const petitService = (dureeMin: unknown): boolean =>
+  typeof dureeMin === 'number' && Number.isFinite(dureeMin) && dureeMin >= 1 && dureeMin <= PETIT_SERVICE_MIN;
+/** Deux rendez-vous qui se chevauchent tiennent-ils dans la même place en
+    ligne ? Oui quand l'un des deux est un petit service. */
+export const partagentLaPlace = (dureeA: unknown, dureeB: unknown): boolean => petitService(dureeA) || petitService(dureeB);
 /** Ce rendez-vous déjà pris chez ce maître empêche-t-il une nouvelle venue à la
-    même heure ? Toujours, sauf chez Team quand l'une des deux têtes est petite. */
-export const bloqueLaVenue = (maitre: string, nouvelleLourde: boolean | undefined, deja: { lourde?: boolean }): boolean =>
-  maitre !== MAITRE_QUI_PARTAGE || (!!nouvelleLourde && !!deja.lourde);
+    même heure ? Toujours, sauf chez Team quand l'une des deux têtes est petite,
+    ou que l'un des deux est un petit service (`nouvelleDureeMin` : la durée de
+    la venue ; absente, elle n'en est pas un). */
+export const bloqueLaVenue = (maitre: string, nouvelleLourde: boolean | undefined, deja: { lourde?: boolean; dureeMin?: number }, nouvelleDureeMin?: number): boolean =>
+  maitre !== MAITRE_QUI_PARTAGE || (!!nouvelleLourde && !!deja.lourde && !partagentLaPlace(nouvelleDureeMin, deja.dureeMin));
 
 /** LE CŒUR DU CALCUL, SANS AUCUN MAGASIN — pour qu'il soit jugeable.
 
@@ -1160,10 +1184,11 @@ export function creneauxLibres(o: {
   const duMaitre = o.occupes.filter((a) => a.maitre === o.master);
   if (capMaitre > 0 && duMaitre.length >= capMaitre) return [];
 
-  /* Chez Team, un rendez-vous qu'une petite tête rend partageable ne bloque
-     pas l'heure ; deux au plus chez lui en même temps (plus bas). */
+  /* Chez Team, un rendez-vous qu'une petite tête, ou un petit service, rend
+     partageable ne bloque pas l'heure ; deux au plus chez lui en même temps
+     (plus bas). */
   const busy: Array<readonly [number, number]> = duMaitre
-    .filter((a) => bloqueLaVenue(o.master, o.lourde, a))
+    .filter((a) => bloqueLaVenue(o.master, o.lourde, a, o.durationMin))
     .map((a) => [a.debutMin, a.debutMin + a.dureeMin] as const);
   if (o.bloques) busy.push(...o.bloques);
 
@@ -1181,10 +1206,11 @@ export function creneauxLibres(o: {
     const overlaps = busy.some(([s, e]) => m < e && m + o.durationMin > s);
     if (overlaps) continue;
     if (duMaitre.filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length >= DEUX_TETES_AU_PLUS) continue;
-    /* LES FAUTEUILS : le maître est libre, mais la Maison peut être pleine. */
+    /* LES FAUTEUILS : le maître est libre, mais la Maison peut être pleine.
+       Un petit service et son voisin ne prennent qu'une place. */
     if (cap > 0) {
       const ensemble = o.occupes
-        .filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length;
+        .filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin && !partagentLaPlace(o.durationMin, a.dureeMin)).length;
       if (ensemble >= cap) continue;
     }
     out.push(hhmmDeMinutes(m));
@@ -1833,10 +1859,11 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jo
   const duJour = occupesDuJour(agenda.occupes, p.date);
   /* Le plafond de la Maison : ses rendez-vous du jour, tous maîtres confondus. */
   if (agenda.capMaison > 0 && duJour.length >= agenda.capMaison) return { ok: false, erreur: 'creneau_plafond' };
-  /* LES FAUTEUILS : le maître peut être libre, la Maison pleine. */
+  /* LES FAUTEUILS : le maître peut être libre, la Maison pleine. Un petit
+     service et son voisin ne prennent qu'une place (20 novembre 2026). */
   const sieges = siegesDe(agenda, p.date);
   if (sieges > 0
-    && duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin).length >= sieges) {
+    && duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin && !partagentLaPlace(dureeMin, a.dureeMin)).length >= sieges) {
     return { ok: false, erreur: 'creneau_pris' };
   }
 
@@ -1854,9 +1881,10 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jo
     }
     /* DEUX TÊTES CHEZ TEAM (18 novembre 2026) : un rendez-vous de Team que
        l'une des deux petites têtes rend partageable ne bloque pas ; deux au
-       plus chez lui à la même heure. Un autre maître, une cliente à la fois. */
+       plus chez lui à la même heure. Un autre maître, une cliente à la fois.
+       Un petit service partage aussi l'heure (20 novembre 2026). */
     const chevauchent = siens.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin);
-    const occupe = chevauchent.some((a) => bloqueLaVenue(m, p.lourde, a))
+    const occupe = chevauchent.some((a) => bloqueLaVenue(m, p.lourde, a, dureeMin))
       || chevauchent.length >= DEUX_TETES_AU_PLUS
       || plagesBloquees(agenda.murs, agenda.branchId, p.date, m).some(([s, e]) => debut < e && fin > s);
     if (!occupe) (chevauchent.length === 0 ? libres : partages).push(m);

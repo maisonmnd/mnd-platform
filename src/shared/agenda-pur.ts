@@ -124,10 +124,34 @@ export const teteLourde = (locks: unknown): boolean => {
     : typeof locks === 'string' && /^\d+(\.\d+)?$/.test(locks.trim()) ? Number(locks.trim()) : Number.NaN;
   return Number.isFinite(n) && n >= SEUIL_TETE_LOURDE;
 };
+/** LE PETIT SERVICE PARTAGE L'HEURE — 20 novembre 2026. « Si valider deux
+    rendez-vous à la même heure est possible il faut le faire, tant que c'est
+    un petit service » (Yéman). Opale venait de refuser 16 h à une cliente en
+    retard (un lavage et une reprise, 30 000 F) : un lavage et une coiffure
+    d'une heure, à 17 h, fermaient l'heure, deux têtes lourdes et une seule
+    place en ligne ce jour-là.
+
+    Un rendez-vous d'UNE HEURE OU MOINS est un petit service (une durée n'est
+    jamais sous une heure : `dureeDesPrestations`, `duree_du_rdv`). Chez Team,
+    il partage l'heure avec n'importe quelle tête, lourde ou non ; et l'un à
+    côté de l'autre, ils ne prennent qu'une place en ligne (les fauteuils).
+    Deux au plus chez Team en même temps, toujours (`DEUX_TETES_AU_PLUS`).
+    Un autre maître, une cliente à la fois, comme avant. La base tient la
+    même règle (0240 : `pose_si_libre`, `deplace_si_libre`,
+    `reprend_si_libre`, le garde `une_place_en_ligne`). Une durée inconnue
+    n'en fait pas un petit service. */
+export const PETIT_SERVICE_MIN = 60;
+export const petitService = (dureeMin: unknown): boolean =>
+  typeof dureeMin === 'number' && Number.isFinite(dureeMin) && dureeMin >= 1 && dureeMin <= PETIT_SERVICE_MIN;
+/** Deux rendez-vous qui se chevauchent tiennent-ils dans la même place en
+    ligne ? Oui quand l'un des deux est un petit service. */
+export const partagentLaPlace = (dureeA: unknown, dureeB: unknown): boolean => petitService(dureeA) || petitService(dureeB);
 /** Ce rendez-vous déjà pris chez ce maître empêche-t-il une nouvelle venue à la
-    même heure ? Toujours, sauf chez Team quand l'une des deux têtes est petite. */
-export const bloqueLaVenue = (maitre: string, nouvelleLourde: boolean | undefined, deja: { lourde?: boolean }): boolean =>
-  maitre !== MAITRE_QUI_PARTAGE || (!!nouvelleLourde && !!deja.lourde);
+    même heure ? Toujours, sauf chez Team quand l'une des deux têtes est petite,
+    ou que l'un des deux est un petit service (`nouvelleDureeMin` : la durée de
+    la venue ; absente, elle n'en est pas un). */
+export const bloqueLaVenue = (maitre: string, nouvelleLourde: boolean | undefined, deja: { lourde?: boolean; dureeMin?: number }, nouvelleDureeMin?: number): boolean =>
+  maitre !== MAITRE_QUI_PARTAGE || (!!nouvelleLourde && !!deja.lourde && !partagentLaPlace(nouvelleDureeMin, deja.dureeMin));
 
 /** LE CŒUR DU CALCUL, SANS AUCUN MAGASIN — pour qu'il soit jugeable.
 
@@ -177,10 +201,11 @@ export function creneauxLibres(o: {
   const duMaitre = o.occupes.filter((a) => a.maitre === o.master);
   if (capMaitre > 0 && duMaitre.length >= capMaitre) return [];
 
-  /* Chez Team, un rendez-vous qu'une petite tête rend partageable ne bloque
-     pas l'heure ; deux au plus chez lui en même temps (plus bas). */
+  /* Chez Team, un rendez-vous qu'une petite tête, ou un petit service, rend
+     partageable ne bloque pas l'heure ; deux au plus chez lui en même temps
+     (plus bas). */
   const busy: Array<readonly [number, number]> = duMaitre
-    .filter((a) => bloqueLaVenue(o.master, o.lourde, a))
+    .filter((a) => bloqueLaVenue(o.master, o.lourde, a, o.durationMin))
     .map((a) => [a.debutMin, a.debutMin + a.dureeMin] as const);
   if (o.bloques) busy.push(...o.bloques);
 
@@ -198,10 +223,11 @@ export function creneauxLibres(o: {
     const overlaps = busy.some(([s, e]) => m < e && m + o.durationMin > s);
     if (overlaps) continue;
     if (duMaitre.filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length >= DEUX_TETES_AU_PLUS) continue;
-    /* LES FAUTEUILS : le maître est libre, mais la Maison peut être pleine. */
+    /* LES FAUTEUILS : le maître est libre, mais la Maison peut être pleine.
+       Un petit service et son voisin ne prennent qu'une place. */
     if (cap > 0) {
       const ensemble = o.occupes
-        .filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length;
+        .filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin && !partagentLaPlace(o.durationMin, a.dureeMin)).length;
       if (ensemble >= cap) continue;
     }
     out.push(hhmmDeMinutes(m));

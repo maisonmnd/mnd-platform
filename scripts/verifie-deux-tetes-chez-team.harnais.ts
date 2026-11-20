@@ -54,12 +54,15 @@ dit('Team : bloque seulement entre deux lourdes', [false, false, false, true],
   [bloqueLaVenue('Team', false, {}), bloqueLaVenue('Team', true, {}), bloqueLaVenue('Team', false, { lourde: true }), bloqueLaVenue('Team', true, { lourde: true })]);
 
 const JOUR = { closed: false, openMin: 9 * 60, closeMin: 19 * 60 };
-const o = (maitre: string, debut: number, duree = 60, lourde = false) => ({ maitre, debutMin: debut * 60, dureeMin: duree, ...(lourde ? { lourde: true } : {}) });
+/* Les durees par defaut : une heure et demie, plus qu'un petit service (une
+   heure ou moins partage l'heure depuis le 20 novembre 2026,
+   verifie-le-petit-service). */
+const o = (maitre: string, debut: number, duree = 90, lourde = false) => ({ maitre, debutMin: debut * 60, dureeMin: duree, ...(lourde ? { lourde: true } : {}) });
 const libre = (master: string, occupes: ReturnType<typeof o>[], h: string, x: { lourde?: boolean; places?: number; duree?: number } = {}): boolean =>
-  creneauxLibres({ opening: JOUR, durationMin: x.duree ?? 60, occupes, master, capSimultane: x.places ?? 2, maintenantMin: null, ...(x.lourde ? { lourde: true } : {}) }).includes(h);
+  creneauxLibres({ opening: JOUR, durationMin: x.duree ?? 90, occupes, master, capSimultane: x.places ?? 2, maintenantMin: null, ...(x.lourde ? { lourde: true } : {}) }).includes(h);
 dit('creneauxLibres, Team : une petite tete partage, d un cote ou de l autre', [true, true, true],
-  [libre('Team', [o('Team', 14)], '14:00'), libre('Team', [o('Team', 14, 60, true)], '14:00'), libre('Team', [o('Team', 14)], '14:00', { lourde: true })]);
-dit('... deux lourdes jamais ensemble', false, libre('Team', [o('Team', 14, 60, true)], '14:00', { lourde: true }));
+  [libre('Team', [o('Team', 14)], '14:00'), libre('Team', [o('Team', 14, 90, true)], '14:00'), libre('Team', [o('Team', 14)], '14:00', { lourde: true })]);
+dit('... deux lourdes jamais ensemble', false, libre('Team', [o('Team', 14, 90, true)], '14:00', { lourde: true }));
 dit('... deux au plus chez Team, meme petites et meme avec des places', false,
   libre('Team', [o('Team', 14), o('Team', 14)], '14:00', { places: 5 }));
 dit('... une lourde qui deborde (13 h - 15 h) ferme aussi 14 h a une autre lourde', false,
@@ -82,11 +85,11 @@ const CATEGORIES = [
   { id: 'c-lav', data: { label: 'Les lavages', parentId: 'atl-ii-gbeji' } },
 ];
 const SERVICES = [
-  { id: 'lav', data: { name: 'Lavage', categoryId: 'c-lav', durationMin: 60 } },
-  { id: 'sin', data: { name: 'SÍNSIN™ Essentiel · La Reprise', categoryId: 'atl-ii-gbeji', durationMin: 60 } },
+  { id: 'lav', data: { name: 'Lavage', categoryId: 'c-lav', durationMin: 90 } },
+  { id: 'sin', data: { name: 'SÍNSIN™ Essentiel · La Reprise', categoryId: 'atl-ii-gbeji', durationMin: 90 } },
 ];
 const occ = (jour: string, maitre: string, debut: string, lourde?: boolean): Record<string, unknown> =>
-  ({ jour, maitre, debut, duree: 60, ...(lourde === undefined ? {} : { lourde }) });
+  ({ jour, maitre, debut, duree: 90, ...(lourde === undefined ? {} : { lourde }) });
 const agenda = (occupes: Record<string, unknown>[], places?: Record<string, unknown>[]) => agendaDepuisLesLignes({
   branche: { id: 'br', data: { masters: ['Team', 'Expert'], seats: 2 } },
   reglages: { hours: SEMAINE, maxRdvParJourMaison: 0, maxRdvParJourMaitre: 0 },

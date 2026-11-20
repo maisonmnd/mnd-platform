@@ -1372,4 +1372,75 @@ await import('../supabase/functions/whatsapp-automate/index.ts');
     consigneR.includes('`proposer_les_places` avec TROIS de ces places'), consigneR.includes('appelle `accommoder`'), consigneR.includes('appelle `mettre_a_reprogrammer`')]);
 }
 
+/* ══ 14. UN RETARD N'EST PAS UN EMPÊCHEMENT, ET LE PETIT SERVICE PARTAGE
+   L'HEURE (20 novembre 2026) ══
+   La scène réelle : à 14 h 47, une cliente attendue à 15 h (un lavage et une
+   reprise, 2 h 30, 358 locks) écrit « j’ai un empêchement, j’aurai 1 h de
+   retard ». À 17 h, un lavage et une coiffure d'une heure (505 locks). Une
+   seule place en ligne ce jour-là (aucune carte des places). Opale libérait
+   sa place, puis disait 16 h impossible. */
+{
+  const UNE_HEURE = 3_600_000;
+  const leJour = (ms: number) => new VraieDate(ms + UNE_HEURE).toISOString().slice(0, 10);
+  const scene = (o: { voisin?: number; voisinMaitre?: string } = {}) => {
+    aHeure(mardiA(14, 47));
+    decor();
+    const jour = leJour(mardiA(14, 47));
+    const b = table('branches').find((l) => l.id === 'br-banc');
+    if (b) b.data = { ...b.data, masters: ['Team'] };
+    table('appointments').push({
+      id: 'rdv-retard', branch_id: 'br-banc', updated_at: new Date().toISOString(),
+      data: { id: 'rdv-retard', branchId: 'br-banc', clientId: 'cl-banc-a', clientName: 'Akouele Banc', serviceIds: ['sv-plt-05-ess-c', 'sv-atl-ii-e'], date: jour, time: '15:00', master: 'Team', status: 'confirmé', dureeMin: 150, locksAnnonces: '358' },
+    });
+    (OCCUPES as any[]).push(
+      { jour, maitre: 'Team', debut: '15:00', duree: 150, lourde: true },
+      { jour, maitre: o.voisinMaitre ?? 'Team', debut: '17:00', duree: o.voisin ?? 60, lourde: true },
+    );
+    return jour;
+  };
+  const leRdv = (): any => table('appointments').find((l) => l.id === 'rdv-retard')?.data;
+  const DIT = 'J’ai un empêchement, j’aurai une heure de retard';
+
+  const jour = scene();
+  FILE = [{ outils: [{ name: 'noter_un_retard', input: { rdv: 'rdv-retard', heure: '16:00' } }] }, { texte: 'Bien noté, Mme Akouele : la Maison vous attend à 16 h.' }];
+  await tour(NUM, [elleEcrit(NUM, DIT)]);
+  dit('RETARD : une heure de retard, le petit service de 17 h a cote : elle est recue a 16 h, le jour meme, jamais liberee', ['confirmé', jour, '16:00', 1, '16:00', false, true, true], [
+    leRdv()?.status, leRdv()?.date, leRdv()?.time, REPRISES.length, REPRISES[0]?.p_time, REPRISES[0]?.p_au_dela,
+    (resultatsDe(1)[0] ?? '').startsWith('C’est fait : la Maison la reçoit aujourd’hui à'), (textesEnvoyes()[0] ?? '').startsWith('Bien noté')]);
+
+  scene();
+  FILE = [{ outils: [{ name: 'mettre_a_reprogrammer', input: { rdv: 'rdv-retard' } }] }, { texte: 'Bien noté.' }];
+  await tour(NUM, [elleEcrit(NUM, DIT)]);
+  dit('RETARD : mettre_a_reprogrammer refuse un retard du jour, sa place reste la sienne', ['confirmé', '15:00', false, 0, true], [
+    leRdv()?.status, leRdv()?.time, !!leRdv()?.aReprogrammerDepuis, REPRISES.length, (resultatsDe(1)[0] ?? '').startsWith('Elle parle d’un retard')]);
+
+  scene({ voisin: 90 });
+  FILE = [{ outils: [{ name: 'noter_un_retard', input: { rdv: 'rdv-retard', heure: '16:00' } }] }, { texte: 'Bien noté, la Maison vous confirme votre heure dans quelques minutes.' }];
+  await tour(NUM, [elleEcrit(NUM, DIT)]);
+  dit('RETARD : deux grosses tetes a 16 h (un voisin d une heure et demie) : rien n est libere, la Maison s organise', ['confirmé', '15:00', false, 0, true], [
+    leRdv()?.status, leRdv()?.time, !!leRdv()?.aReprogrammerDepuis, REPRISES.length, (resultatsDe(1)[0] ?? '').includes('reste à elle, rien n’est libéré')]);
+
+  scene();
+  FILE = [{ outils: [{ name: 'noter_un_retard', input: { rdv: 'rdv-retard', heure: '15:20' } }] }, { texte: 'Bien noté, nous vous attendons.' }];
+  await tour(NUM, [elleEcrit(NUM, 'J’aurai vingt minutes de retard')]);
+  dit('RETARD : vingt minutes : rien ne bouge, sa place l attend', ['confirmé', '15:00', 0, true], [
+    leRdv()?.status, leRdv()?.time, REPRISES.length, (resultatsDe(1)[0] ?? '').startsWith('Sa place de')]);
+
+  /* Une nouvelle réservation de 2 h 30 à 16 h, le petit service de 17 h à côté. */
+  scene();
+  table('appointments').length = 0;
+  (OCCUPES as any[]).splice(0, 1);
+  FILE = [{ outils: [{ name: 'accommoder', input: { gestes: ['sv-plt-05-ess-c', 'sv-atl-ii-e'], date: leJour(mardiA(14, 47)), heure: '16:00', pour: 'cl-banc-a', locks: 358 } }] }, { texte: 'C’est confirmé.' }];
+  await tour(NUM, [elleEcrit(NUM, 'Je voudrais un lavage et une reprise aujourd’hui à 16 h')]);
+  dit('PETIT SERVICE : 16 h se pose aussitot a son heure, a cote du lavage-coiffure de 17 h, sans passer au-dela des fauteuils', [1, '16:00', undefined, true], [
+    POSES.length, POSES[0]?.time, POSES[0]?.auDelaDesPlaces, (resultatsDe(1)[0] ?? '').startsWith('C’est posé')]);
+
+  scene({ voisinMaitre: 'Team', voisin: 60 });
+  const consigneT = consigneDOpale();
+  dit('la consigne : le retard n est pas un report, la boussole, le petit service', [true, true, true, true], [
+    consigneT.includes('Appelle `noter_un_retard`'), consigneT.includes('jamais un simple retard'),
+    consigneT.includes('Ta boussole : la Maison veut des rendez-vous'), consigneT.includes('ou vient pour un petit service (une heure au plus)')]);
+  aHeure(null);
+}
+
 console.log(`${ko ? 'ECHEC' : 'OK   '} ${n} controles, ${ko} echec(s)`);

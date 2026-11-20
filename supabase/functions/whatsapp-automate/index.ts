@@ -89,7 +89,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-11-20-a · la derniere relance d un rendez-vous a reprogrammer : le matin du 7e jour, le modele rdv_a_reprogrammer en deux temps (Voir des dates, Plus tard), une fois, jamais apres un stop, ni si elle a ecrit dans les 24 heures ; Voir des dates : trois dates en boutons ; Plus tard : plus aucune relance ; l equipe 48 heures apres ; 2026-11-19-b · a reprogrammer : une cliente empechee libere sa place sans annuler (mettre_a_reprogrammer, et Changer l heure tout de suite) ; trois dates en boutons, le toucher vaut son oui (reprend_si_libre, 0239) ; elle ecrit sa date : son heure, sinon la plus proche dans l heure en boutons, sinon au-dela des fauteuils, jamais deux tetes lourdes chez Team, l equipe prevenue (accommoder) ; la relance intelligente du lendemain, vers la 23e heure, trois nouvelles dates pres de ses habitudes ; 2026-11-19-a · le plan part avec le chemin : a qui demande l adresse, la localisation ou le chemin (un vocal compris), et chaque fois que le mot d Opale donne l adresse ou un lien pour venir, le plan part en image, pose par le code et non plus laisse au modele ; le lien pour venir n est pas redit ; 2026-11-18-h · deux tetes chez Team : Opale lit les places de chaque jour (places_en_ligne_du) et la tete de la cliente (ses locks dits ou ceux de sa fiche) ; Team recoit une seconde cliente a la meme heure quand l une des deux a moins de 150 locks, jamais deux lourdes, deux au plus, un maitre seul d abord ; les locks dits s ecrivent sur le rendez-vous (locksAnnonces) ; 2026-11-18-g · Opale lit l agenda sur toute la fenetre ou elle propose, et relit la journee avant chaque proposition : plus jamais « libre » puis « vient d etre prise » (le 28 au dixieme jour paraissait vide) ; 2026-11-18-f · Opale range le demarchage : quelqu un qui vend a la Maison, elle ne lui ecrit rien et le tri relit ses derniers mots (relire) pour le bloquer ou le ranger dans les propositions ; 2026-11-18-e · Opale lit les vocaux : la transcription que la réception a écrite (Whisper chez Groq) entre dans son fil et ses nouveaux messages, elle y répond comme à un message écrit ; un vocal que la Maison n a pas compris fait passer la main sans un mot, avec l alerte ; 2026-11-18-d · la confirmation du Oui de Perle se lit dans le fil d Opale comme un message automatique ; 2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
+const VERSION = '2026-11-20-b · le petit service partage l heure (une heure ou moins, chez Team, a cote de n importe quelle tete, une seule place en ligne pour les deux, 0240) ; un retard n est pas un empechement : noter_un_retard garde sa place ou la decale a son heure d arrivee, jamais liberee avant ; mettre_a_reprogrammer refuse un retard du jour ; jamais un non avant que l outil ait juge l heure ; 2026-11-20-a · la derniere relance d un rendez-vous a reprogrammer : le matin du 7e jour, le modele rdv_a_reprogrammer en deux temps (Voir des dates, Plus tard), une fois, jamais apres un stop, ni si elle a ecrit dans les 24 heures ; Voir des dates : trois dates en boutons ; Plus tard : plus aucune relance ; l equipe 48 heures apres ; 2026-11-19-b · a reprogrammer : une cliente empechee libere sa place sans annuler (mettre_a_reprogrammer, et Changer l heure tout de suite) ; trois dates en boutons, le toucher vaut son oui (reprend_si_libre, 0239) ; elle ecrit sa date : son heure, sinon la plus proche dans l heure en boutons, sinon au-dela des fauteuils, jamais deux tetes lourdes chez Team, l equipe prevenue (accommoder) ; la relance intelligente du lendemain, vers la 23e heure, trois nouvelles dates pres de ses habitudes ; 2026-11-19-a · le plan part avec le chemin : a qui demande l adresse, la localisation ou le chemin (un vocal compris), et chaque fois que le mot d Opale donne l adresse ou un lien pour venir, le plan part en image, pose par le code et non plus laisse au modele ; le lien pour venir n est pas redit ; 2026-11-18-h · deux tetes chez Team : Opale lit les places de chaque jour (places_en_ligne_du) et la tete de la cliente (ses locks dits ou ceux de sa fiche) ; Team recoit une seconde cliente a la meme heure quand l une des deux a moins de 150 locks, jamais deux lourdes, deux au plus, un maitre seul d abord ; les locks dits s ecrivent sur le rendez-vous (locksAnnonces) ; 2026-11-18-g · Opale lit l agenda sur toute la fenetre ou elle propose, et relit la journee avant chaque proposition : plus jamais « libre » puis « vient d etre prise » (le 28 au dixieme jour paraissait vide) ; 2026-11-18-f · Opale range le demarchage : quelqu un qui vend a la Maison, elle ne lui ecrit rien et le tri relit ses derniers mots (relire) pour le bloquer ou le ranger dans les propositions ; 2026-11-18-e · Opale lit les vocaux : la transcription que la réception a écrite (Whisper chez Groq) entre dans son fil et ses nouveaux messages, elle y répond comme à un message écrit ; un vocal que la Maison n a pas compris fait passer la main sans un mot, avec l alerte ; 2026-11-18-d · la confirmation du Oui de Perle se lit dans le fil d Opale comme un message automatique ; 2026-11-18-c · le Oui de Perle reserve d un toucher (perle: { ligneId }) : la place de sa proposition, sur Team, confirmee, jamais le jour meme, la cle du numero, un second Oui ne pose pas deux fois ; 2026-11-18-b · plus d avis sur photo sans rendez-vous : Opale ne passe la main pour une photo qu a une cliente qui a un rendez-vous pris ou une seance faite (rendez-vous-pris) ; aux autres, une ligne et le lien de la consultation, pose par le code  ; la decoloration se reserve comme la coloration (son atelier, La Transformation) ; une place prise en ligne ne compte comme rendez-vous pris qu une fois ferme (son oui, et son acompte s il y en a un) ; Opale ne perd aucun rendez-vous : elle voit les photos, dit le prix tout de suite (la grille), reprend une main que personne n a prise en dix minutes, reserve le jour meme une heure plus tard, garde une place a une nouvelle sans son nom, relance une fois apres trois heures ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous deplace) ; la cle refusee va au journal, plus dans la reponse (cle-du-cron) ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 : la place du serveur et les places proposees commencent a 08:30 (PREMIER_RENDEZ_VOUS_MIN) ; 2026-11-15-a · le rendez-vous suggere : une proposition de la Maison ne se dit pas votre rendez-vous, et l assistant le sait (fiches_du_numero 0211, prochainRdv.suggere) ; 2026-11-12-a · la place du serveur connait le jour meme du site, rien ne change pour WhatsApp (jamais le jour meme) ; 2026-11-07-a · « j ai termine » est repondu meme quand la main est passee (la pause d une personne tient) ; 2026-11-06-d · la place jugee jusqu au dernier jour du troisieme mois qui suit (place-du-serveur), Opale cherche jusqu a la meme borne ; « j ai termine mon RDV » (le message entier, formes fermees, jamais une question ni un trajet) : le rituel du jour retrouve par le numero, le montant et le lien de reglement ; sans rendez-vous du jour, le code n est demande que si le message nomme le rendez-vous, sinon Opale repond ; jamais dans les vingt premieres minutes du rituel (terminer-et-regler) ; Opale repond sur le WhatsApp de la Maison (mnd_opale), l automate en reserve ; une fiche sans date de naissance sous un payeur ne parle pas sur son numero : le payeur parle ; une fiche d enfant n est jamais la voix du numero (Opale parle au parent, la trace porte l adulte ou le payeur) ; places jusqu au jour demande, la Maison MND, confirme et jamais deplace, reprise apres un relais ; aucune offre ni remise annoncee';
 
 /** « En train d'écrire », puis on attend : deux messages envoyés coup sur
     coup font un seul tour, celui du dernier. */
@@ -283,10 +283,34 @@ export const teteLourde = (locks: unknown): boolean => {
     : typeof locks === 'string' && /^\d+(\.\d+)?$/.test(locks.trim()) ? Number(locks.trim()) : Number.NaN;
   return Number.isFinite(n) && n >= SEUIL_TETE_LOURDE;
 };
+/** LE PETIT SERVICE PARTAGE L'HEURE — 20 novembre 2026. « Si valider deux
+    rendez-vous à la même heure est possible il faut le faire, tant que c'est
+    un petit service » (Yéman). Opale venait de refuser 16 h à une cliente en
+    retard (un lavage et une reprise, 30 000 F) : un lavage et une coiffure
+    d'une heure, à 17 h, fermaient l'heure, deux têtes lourdes et une seule
+    place en ligne ce jour-là.
+
+    Un rendez-vous d'UNE HEURE OU MOINS est un petit service (une durée n'est
+    jamais sous une heure : `dureeDesPrestations`, `duree_du_rdv`). Chez Team,
+    il partage l'heure avec n'importe quelle tête, lourde ou non ; et l'un à
+    côté de l'autre, ils ne prennent qu'une place en ligne (les fauteuils).
+    Deux au plus chez Team en même temps, toujours (`DEUX_TETES_AU_PLUS`).
+    Un autre maître, une cliente à la fois, comme avant. La base tient la
+    même règle (0240 : `pose_si_libre`, `deplace_si_libre`,
+    `reprend_si_libre`, le garde `une_place_en_ligne`). Une durée inconnue
+    n'en fait pas un petit service. */
+export const PETIT_SERVICE_MIN = 60;
+export const petitService = (dureeMin: unknown): boolean =>
+  typeof dureeMin === 'number' && Number.isFinite(dureeMin) && dureeMin >= 1 && dureeMin <= PETIT_SERVICE_MIN;
+/** Deux rendez-vous qui se chevauchent tiennent-ils dans la même place en
+    ligne ? Oui quand l'un des deux est un petit service. */
+export const partagentLaPlace = (dureeA: unknown, dureeB: unknown): boolean => petitService(dureeA) || petitService(dureeB);
 /** Ce rendez-vous déjà pris chez ce maître empêche-t-il une nouvelle venue à la
-    même heure ? Toujours, sauf chez Team quand l'une des deux têtes est petite. */
-export const bloqueLaVenue = (maitre: string, nouvelleLourde: boolean | undefined, deja: { lourde?: boolean }): boolean =>
-  maitre !== MAITRE_QUI_PARTAGE || (!!nouvelleLourde && !!deja.lourde);
+    même heure ? Toujours, sauf chez Team quand l'une des deux têtes est petite,
+    ou que l'un des deux est un petit service (`nouvelleDureeMin` : la durée de
+    la venue ; absente, elle n'en est pas un). */
+export const bloqueLaVenue = (maitre: string, nouvelleLourde: boolean | undefined, deja: { lourde?: boolean; dureeMin?: number }, nouvelleDureeMin?: number): boolean =>
+  maitre !== MAITRE_QUI_PARTAGE || (!!nouvelleLourde && !!deja.lourde && !partagentLaPlace(nouvelleDureeMin, deja.dureeMin));
 
 /** LE CŒUR DU CALCUL, SANS AUCUN MAGASIN — pour qu'il soit jugeable.
 
@@ -336,10 +360,11 @@ export function creneauxLibres(o: {
   const duMaitre = o.occupes.filter((a) => a.maitre === o.master);
   if (capMaitre > 0 && duMaitre.length >= capMaitre) return [];
 
-  /* Chez Team, un rendez-vous qu'une petite tête rend partageable ne bloque
-     pas l'heure ; deux au plus chez lui en même temps (plus bas). */
+  /* Chez Team, un rendez-vous qu'une petite tête, ou un petit service, rend
+     partageable ne bloque pas l'heure ; deux au plus chez lui en même temps
+     (plus bas). */
   const busy: Array<readonly [number, number]> = duMaitre
-    .filter((a) => bloqueLaVenue(o.master, o.lourde, a))
+    .filter((a) => bloqueLaVenue(o.master, o.lourde, a, o.durationMin))
     .map((a) => [a.debutMin, a.debutMin + a.dureeMin] as const);
   if (o.bloques) busy.push(...o.bloques);
 
@@ -357,10 +382,11 @@ export function creneauxLibres(o: {
     const overlaps = busy.some(([s, e]) => m < e && m + o.durationMin > s);
     if (overlaps) continue;
     if (duMaitre.filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length >= DEUX_TETES_AU_PLUS) continue;
-    /* LES FAUTEUILS : le maître est libre, mais la Maison peut être pleine. */
+    /* LES FAUTEUILS : le maître est libre, mais la Maison peut être pleine.
+       Un petit service et son voisin ne prennent qu'une place. */
     if (cap > 0) {
       const ensemble = o.occupes
-        .filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length;
+        .filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin && !partagentLaPlace(o.durationMin, a.dureeMin)).length;
       if (ensemble >= cap) continue;
     }
     out.push(hhmmDeMinutes(m));
@@ -1009,10 +1035,11 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jo
   const duJour = occupesDuJour(agenda.occupes, p.date);
   /* Le plafond de la Maison : ses rendez-vous du jour, tous maîtres confondus. */
   if (agenda.capMaison > 0 && duJour.length >= agenda.capMaison) return { ok: false, erreur: 'creneau_plafond' };
-  /* LES FAUTEUILS : le maître peut être libre, la Maison pleine. */
+  /* LES FAUTEUILS : le maître peut être libre, la Maison pleine. Un petit
+     service et son voisin ne prennent qu'une place (20 novembre 2026). */
   const sieges = siegesDe(agenda, p.date);
   if (sieges > 0
-    && duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin).length >= sieges) {
+    && duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin && !partagentLaPlace(dureeMin, a.dureeMin)).length >= sieges) {
     return { ok: false, erreur: 'creneau_pris' };
   }
 
@@ -1030,9 +1057,10 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jo
     }
     /* DEUX TÊTES CHEZ TEAM (18 novembre 2026) : un rendez-vous de Team que
        l'une des deux petites têtes rend partageable ne bloque pas ; deux au
-       plus chez lui à la même heure. Un autre maître, une cliente à la fois. */
+       plus chez lui à la même heure. Un autre maître, une cliente à la fois.
+       Un petit service partage aussi l'heure (20 novembre 2026). */
     const chevauchent = siens.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin);
-    const occupe = chevauchent.some((a) => bloqueLaVenue(m, p.lourde, a))
+    const occupe = chevauchent.some((a) => bloqueLaVenue(m, p.lourde, a, dureeMin))
       || chevauchent.length >= DEUX_TETES_AU_PLUS
       || plagesBloquees(agenda.murs, agenda.branchId, p.date, m).some(([s, e]) => debut < e && fin > s);
     if (!occupe) (chevauchent.length === 0 ? libres : partages).push(m);
@@ -5692,7 +5720,7 @@ export function consigneDOpale(): string {
     'LES RENDEZ-VOUS',
     'Elle veut un rendez-vous : comprends ce qu’elle veut (les gestes du catalogue, le jour, l’heure) dans ses propres mots. « La même chose », « comme d’habitude » : les gestes de sa dernière venue.',
     'Le catalogue du contexte donne l’identifiant de chaque geste. Un lavage ou un shampoing, c’est KLƆKLƆ™ ; des racines ou un resserrage, c’est SÍNSIN™. Si tu hésites entre deux gestes, pose une seule question courte.',
-    'Les places : appelle `chercher_des_places` avec les gestes, et son jour ou son heure s’ils sont dits ; avec `pour` et `locks` dès que tu les connais, car deux personnes ne se reçoivent à la même heure que si l’une a moins de 150 locks, et les places rendues en dépendent. Puis appelle `proposer_les_places` avec TROIS de ces places, les plus proches de son souhait : elles partent en boutons sous ton message, et son toucher vaut son oui. Ton message ne recopie pas les dates : une ou deux phrases qui l’invitent à toucher la place qui lui convient, et à écrire une autre date au besoin. Jamais une place, un jour ni une heure que l’outil n’a pas rendus.',
+    'Les places : appelle `chercher_des_places` avec les gestes, et son jour ou son heure s’ils sont dits ; avec `pour` et `locks` dès que tu les connais, car deux personnes ne se reçoivent à la même heure que si l’une a moins de 150 locks ou vient pour un petit service (une heure au plus), et les places rendues en dépendent. Puis appelle `proposer_les_places` avec TROIS de ces places, les plus proches de son souhait : elles partent en boutons sous ton message, et son toucher vaut son oui. Ton message ne recopie pas les dates : une ou deux phrases qui l’invitent à toucher la place qui lui convient, et à écrire une autre date au besoin. Jamais une place, un jour ni une heure que l’outil n’a pas rendus.',
     'Le jour même se réserve ici, pour une place qui commence au moins une heure plus tard : `chercher_des_places` avec son jour (aujourd’hui) les rend quand il en reste. S’il n’en reste pas, dis-le avec égards et propose les premières places des jours suivants.',
     'Elle écrit un jour et une heure (une place que tu lui as proposée, ou la sienne) : appelle `accommoder`. Elle ne repart jamais sans rendez-vous : l’outil pose sa place, ou propose les plus proches dans l’heure en boutons, ou la pose au-delà des fauteuils, et te dit quoi lui écrire. Ne dis « c’est confirmé » que si l’outil l’a posée. Pour une nouvelle sans fiche, l’outil te dit s’il faut d’abord son prénom et « Madame ou Monsieur ? ».',
     'Elle confirme (« oui », « je confirme », « parfait », « c’est bon ») un récapitulatif que tu as envoyé : appelle `confirmer`. Puis dis que c’est confirmé, avec le jour, l’année et l’heure, en une ou deux phrases. Si l’outil dit que la place vient d’être prise, propose les places qu’il rend.',
@@ -5700,11 +5728,13 @@ export function consigneDOpale(): string {
     '',
     'CONCLURE',
     'Chaque message la mène vers un rendez-vous posé. Après un prix, une réponse, une hésitation, termine par une proposition précise : trois places en boutons (`proposer_les_places`), qu’elle touche pour réserver.',
+    'Ta boussole : la Maison veut des rendez-vous, et chaque rendez-vous la fait vivre. Ne dis jamais « ce n’est plus possible », « il n’y a plus de place » ni « non » avant que l’outil (`accommoder`, `noter_un_retard`, `chercher_des_places`) ait jugé son heure : lui seul sait quand deux clientes se reçoivent ensemble. Quand son heure ne tient pas, dis ce qui est possible, jamais seulement ce qui ne l’est pas.',
     'Elle hésite ou son agenda n’est pas sûr (« je suis de passage », « je ne sais pas encore », « je vous redis ») : propose de lui garder dès maintenant la place la plus proche de son souhait, en lui disant qu’un simple message suffira pour la déplacer. Ne la laisse jamais repartir avec un lien seulement : le lien du catalogue peut s’ajouter, il ne remplace jamais la place proposée.',
-    'Elle ne pourra pas venir à un rendez-vous qu’elle a (une contrainte, un empêchement, elle veut le reprogrammer, en changer le jour ou l’heure) : appelle `mettre_a_reprogrammer` avec ce rendez-vous. Sa place est libérée tout de suite, il n’est pas annulé, et trois places partent en boutons sous ton message. Remercie-la de prévenir en une phrase, et invite-la à toucher la place qui lui convient ou à écrire une autre date. Ne recopie pas les dates. Quand elle écrit une date, `accommoder` avec ce rendez-vous (champ « rdv »). Une fois sa nouvelle date posée, dis seulement que son rendez-vous est confirmé pour le nouveau jour et la nouvelle heure : ne dis jamais qu’il a été déplacé.',
+    'Elle ne pourra pas venir à un rendez-vous qu’elle a (une contrainte, un empêchement, elle veut le reprogrammer, en changer le jour ou l’heure ; jamais un simple retard, voir plus bas) : appelle `mettre_a_reprogrammer` avec ce rendez-vous. Sa place est libérée tout de suite, il n’est pas annulé, et trois places partent en boutons sous ton message. Remercie-la de prévenir en une phrase, et invite-la à toucher la place qui lui convient ou à écrire une autre date. Ne recopie pas les dates. Quand elle écrit une date, `accommoder` avec ce rendez-vous (champ « rdv »). Une fois sa nouvelle date posée, dis seulement que son rendez-vous est confirmé pour le nouveau jour et la nouvelle heure : ne dis jamais qu’il a été déplacé.',
     'Elle annule : remercie-la de prévenir, dis que la Maison s’en occupe, et appelle `passer_la_main` (motif « annulation »). Tu n’annules rien toi-même.',
     'Elle demande si un rendez-vous tient (« c’est confirmé pour 15 h ? ») : réponds d’après ses rendez-vous du contexte, avec le jour, l’année et l’heure. S’il n’y figure pas, dis-le simplement et propose de le poser.',
-    'Elle est en route, en retard, ou arrive : un mot bref (« Bien noté, nous vous attendons. »).',
+    'Elle sera en retard aujourd’hui à son rendez-vous (« j’aurai 1 h de retard », « je serai là vers 16 h », même si elle dit « un empêchement ») : ce n’est pas un report, sa place ne se libère jamais. Appelle `noter_un_retard` avec ce rendez-vous et son heure d’arrivée (l’heure du rendez-vous plus son retard) : l’outil garde sa place ou la décale, et te dit quoi lui écrire. Ne dis jamais qu’elle a perdu sa place ni que son heure est impossible.',
+    'Elle est en route ou arrive, sans retard dit : un mot bref (« Bien noté, nous vous attendons. »).',
     '',
     'LES PRIX, COMME SUR MAISONMND.COM',
     'Une création de locks ou une réparation commence TOUJOURS par une consultation : n’en donne aucun prix, ni « à partir de », ni estimation ; la Maison remet son devis écrit après la consultation. Propose de réserver la consultation.',
@@ -5808,11 +5838,24 @@ export const OUTILS_D_OPALE = [
   },
   {
     name: 'mettre_a_reprogrammer',
-    description: 'Elle ne pourra pas venir à un rendez-vous qu’elle a : sa place est libérée tout de suite (il n’est pas annulé, il attend sa nouvelle date), et trois places partent en boutons sous ton message.',
+    description: 'Elle ne pourra pas venir à un rendez-vous qu’elle a : sa place est libérée tout de suite (il n’est pas annulé, il attend sa nouvelle date), et trois places partent en boutons sous ton message. Jamais pour un retard (`noter_un_retard`).',
     input_schema: {
       type: 'object',
       properties: { rdv: { type: 'string', description: 'L’identifiant du rendez-vous, tel que le contexte le donne.' } },
       required: ['rdv'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'noter_un_retard',
+    description: 'Elle sera en retard aujourd’hui à ce rendez-vous : sa place n’est jamais libérée. L’outil la garde (une demi-heure de retard au plus), ou la décale à son heure d’arrivée quand la Maison peut la recevoir, et te dit quoi lui écrire.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        rdv: { type: 'string', description: 'L’identifiant du rendez-vous d’aujourd’hui, tel que le contexte le donne.' },
+        heure: { ...HEURE, description: 'Son heure d’arrivée, HH:MM : l’heure du rendez-vous plus son retard (15:00 et « 1 h de retard » : 16:00).' },
+      },
+      required: ['rdv', 'heure'],
       additionalProperties: false,
     },
   },
@@ -5935,6 +5978,31 @@ export function textesPourLeTri(messages: readonly { sens: string; texte: string
 }
 /** Le verdict du tri qui range le numéro : personne ne lui répond. */
 export const verdictRange = (v: string): boolean => v === 'bloque' || v === 'proposition';
+
+/** UN RETARD N'EST PAS UN EMPÊCHEMENT — 20 novembre 2026. « J’ai un
+    empêchement, j’aurai 1 h de retard » : Opale libérait sa place de 15 h
+    (`mettre_a_reprogrammer`), puis disait 16 h impossible ; la cliente, 30 000 F,
+    a pris 18 h. « L’objectif est toujours d’avoir des rendez-vous, pas de leur
+    donner un NON » (Yéman). Un retard le jour même garde sa place : une
+    demi-heure au plus, rien ne bouge ; davantage, sa place est décalée à son
+    heure d’arrivée quand la Maison peut la recevoir (les règles, sinon au-delà
+    des fauteuils), et jamais libérée avant d’être tenue. Une arrivée dans
+    moins de vingt-cinq minutes (le verrou de la reprise, 0239) : elle est
+    attendue, rien ne bouge. */
+export const RETARD_SANS_DECALER_MIN = 30;
+export const RETARD_AU_PLUS_TOT_MIN = 25;
+export type SuiteDuRetard = 'attendue' | 'decaler';
+export function suiteDuRetard(o: { rdvMin: number; arriveeMin: number; maintenantMin: number }): SuiteDuRetard {
+  if (!Number.isFinite(o.rdvMin) || !Number.isFinite(o.arriveeMin) || !Number.isFinite(o.maintenantMin)) return 'attendue';
+  if (o.arriveeMin - o.rdvMin <= RETARD_SANS_DECALER_MIN) return 'attendue';
+  if (o.arriveeMin < o.maintenantMin + RETARD_AU_PLUS_TOT_MIN) return 'attendue';
+  return 'decaler';
+}
+/** Ses mots parlent-ils d'un retard (« 1 h de retard », « je serai là vers
+    16 h », « j’arrive dans une heure ») ? Le garde de `mettre_a_reprogrammer` :
+    un rendez-vous d'aujourd'hui ne se libère pas pour un retard. */
+const MOTS_DU_RETARD = /retard|je serai l[aà]|j['’]arrive (dans|vers|à|a)\s|en route/i;
+export const parleDUnRetard = (textes: readonly string[]): boolean => textes.some((t) => MOTS_DU_RETARD.test(String(t ?? '')));
 export type NomDOutil = typeof OUTILS_D_OPALE[number]['name'];
 export const NOMS_D_OUTILS = OUTILS_D_OPALE.map((o) => o.name) as readonly NomDOutil[];
 export const estUnOutilDOpale = (n: unknown): n is NomDOutil => (NOMS_D_OUTILS as readonly string[]).includes(String(n));
@@ -7464,8 +7532,10 @@ function placesDuMaitreWa(
     libre. Un autre maître libre à cette heure ne compte pas. */
 function laPlaceTientPourLeMaitreWa(
   agenda: AgendaDuServeur, maitre: string, p: { date: string; time: string; dureeMin: number }, sauf: { date: string; time: string }, ms: number,
+  /* Le jour même : un retard (20 novembre 2026), à une heure pas encore commencée. */
+  jourMeme = false,
 ): { ok: true } | { ok: false; erreur: RefusDeLaPlace } {
-  const recevable = laPlaceEstRecevable(p, ms);
+  const recevable = laPlaceEstRecevable(p, ms, jourMeme);
   if (recevable) return { ok: false, erreur: recevable };
   const fenetre = ouvertureDuJour(p.date, agenda.semaine, agenda.exceptions);
   if (fenetre.closed) return { ok: false, erreur: 'creneau_ferme' };
@@ -7479,12 +7549,15 @@ function laPlaceTientPourLeMaitreWa(
   if (sans.capMaison > 0 && duJour.length >= sans.capMaison) return { ok: false, erreur: 'creneau_plafond' };
   const chevauche = (s: number, e: number): boolean => debut < e && fin > s;
   const sieges = siegesDe(sans, p.date);
-  if (sieges > 0 && duJour.filter((a) => chevauche(a.debutMin, a.debutMin + a.dureeMin)).length >= sieges) return { ok: false, erreur: 'creneau_pris' };
+  const duree = fin - debut;
+  /* Un petit service et son voisin ne prennent qu'une place (20 novembre 2026). */
+  if (sieges > 0 && duJour.filter((a) => chevauche(a.debutMin, a.debutMin + a.dureeMin) && !partagentLaPlace(duree, a.dureeMin)).length >= sieges) return { ok: false, erreur: 'creneau_pris' };
   const siens = duJour.filter((a) => a.maitre === maitre);
   if (sans.capMaitre > 0 && siens.length >= sans.capMaitre) return { ok: false, erreur: 'creneau_plafond' };
-  /* DEUX TÊTES CHEZ TEAM (18 novembre 2026) : la règle du juge (`laPlaceTient`). */
+  /* DEUX TÊTES CHEZ TEAM (18 novembre 2026) : la règle du juge (`laPlaceTient`),
+     le petit service compris. */
   const chevauchent = siens.filter((a) => chevauche(a.debutMin, a.debutMin + a.dureeMin));
-  const occupe = chevauchent.some((a) => bloqueLaVenue(maitre, lourde, a))
+  const occupe = chevauchent.some((a) => bloqueLaVenue(maitre, lourde, a, duree))
     || chevauchent.length >= DEUX_TETES_AU_PLUS
     || plagesBloquees(sans.murs, sans.branchId, p.date, maitre).some(([s, e]) => chevauche(s, e));
   return occupe ? { ok: false, erreur: 'creneau_pris' } : { ok: true };
@@ -7943,7 +8016,8 @@ function maitreAuDelaWa(agenda: AgendaDuServeur, p: { date: string; time: string
   for (const m of maitresDuRituel(agenda, p.serviceIds)) {
     if (plagesBloquees(agenda.murs, agenda.branchId, p.date, m).some(([s, e]) => debut < e && fin > s)) continue;
     const siens = duJour.filter((a) => a.maitre === m && debut < a.debutMin + a.dureeMin && fin > a.debutMin);
-    if (m === MAITRE_QUI_PARTAGE && p.lourde && siens.some((a) => a.lourde)) continue;
+    /* Jamais deux têtes lourdes chez Team, sauf un petit service (20 novembre 2026). */
+    if (m === MAITRE_QUI_PARTAGE && siens.some((a) => bloqueLaVenue(m, p.lourde, a, fin - debut))) continue;
     rangs.push({ m, rang: siens.length === 0 ? 0 : m === MAITRE_QUI_PARTAGE ? 1 : 2 });
   }
   rangs.sort((a, b) => a.rang - b.rang);
@@ -8731,6 +8805,52 @@ async function unTourDOpale(
     issue.offre = { gestes: g.ids, pour, ...(prenom ? { prenom } : {}), ...(civ ? { civilite: civ } : {}), ...(locksDits ? { locks: locksDits } : {}), places: proches.map(cleDeLaPlaceDuReport), proposeLe: new Date().toISOString() };
     return `${suite.genre === 'dans-l-heure' ? `Son heure est prise ; la plus proche est à ${heureDite(suite.heures[0])}.` : 'Ce moment ne se réserve pas (jour fermé, heure hors de l’ouverture, ou plus personne pour la recevoir).'} Ces places partent en boutons sous ton message : ${titresDe(proches)}. Écris-le-lui en une ou deux phrases, invite-la à toucher celle qui lui convient ; ne recopie pas les dates.`;
   };
+  /** UN RETARD N'EST PAS UN EMPÊCHEMENT (20 novembre 2026) : sa place se
+      garde, ou se décale à son heure d'arrivée ; elle n'est jamais libérée
+      avant que la nouvelle heure soit jugée tenable. */
+  const noteLeRetardDOpale = async (e: any): Promise<string> => {
+    const plusTard = 'dis-lui en une ou deux phrases que c’est bien noté et que la Maison lui confirme dans quelques minutes l’heure à laquelle elle la reçoit, puis passe la main (motif « question »).';
+    const heure = String(e?.heure ?? '');
+    if (!/^\d{2}:\d{2}$/.test(heure)) return 'Son heure d’arrivée est illisible : HH:MM.';
+    const r = typeof e?.rdv === 'string' ? await leRdvDuNumeroWa(sb, e.rdv, fiches) : null;
+    if (!r) return 'Ce rendez-vous n’est pas à ce numéro : passe la main (motif « question »).';
+    const date = String(r.data.date ?? '');
+    const avant = String(r.data.time ?? '');
+    if (date !== aujourdhui || estAReprogrammer(r.data) || !['confirmé', 'en attente'].includes(String(r.data.status ?? ''))) {
+      return 'Ce rendez-vous n’est pas aujourd’hui, ou n’est plus en place : réponds d’après ses rendez-vous du contexte ; pour un autre jour, `mettre_a_reprogrammer`.';
+    }
+    const appel = appelDeLaFiche(ficheDe(String(r.data.clientId ?? '')));
+    const suite = suiteDuRetard({ rdvMin: minutesDeHhmm(avant), arriveeMin: minutesDeHhmm(heure), maintenantMin: minutesACotonou(Date.now()) });
+    if (suite === 'attendue') {
+      dis('retard · place gardee');
+      return `Sa place de ${heureDite(avant)} l’attend, rien ne bouge. Dis-lui en une phrase : « Bien noté${virgule(appel)}, nous vous attendons. »`;
+    }
+    if (!agenda || !vue || !await rafraichisLeJour(sb, agenda, date, vue.oublie)) return `L’agenda de la Maison ne répond pas en ce moment : sa place reste à ${heureDite(avant)} ; ${plusTard}`;
+    const maitre = String(r.data.master ?? '');
+    const gestes = gestesDuRdvWa(r);
+    const dureeMin = Number(r.data.dureeMin) > 0 ? Number(r.data.dureeMin) : dureeDesPrestations(gestes, agenda.agenda.services);
+    /* Juger d'abord, sa propre place rendue libre, chez sa personne ; sinon
+       au-delà des fauteuils (jamais deux têtes lourdes chez Team, sauf un
+       petit service). */
+    const tient = laPlaceTientPourLeMaitreWa(agenda.agenda, maitre, { date, time: heure, dureeMin }, { date, time: avant }, ms, true);
+    const auDela = tient.ok ? null
+      : maitreAuDelaWa(agendaSansLeRdvWa(agenda.agenda, maitre, { date, time: avant }), { date, time: heure, serviceIds: gestes, lourde: lourdeDuRdvLuWa(r, fiches) }, ms, true);
+    if (!tient.ok && auDela === null) {
+      dis('retard · rien ne tient', { erreur: tient.erreur });
+      return `Sa place de ${heureDite(avant)} reste à elle, rien n’est libéré ; à ${heureDite(heure)}, la Maison doit s’organiser : ${plusTard}`;
+    }
+    const fait = await metsAReprogrammerWa(sb, r, 'opale', aujourdhui);
+    if (fait === 'non') return `Ce rendez-vous vient de changer : ${plusTard}`;
+    const p = { iso: date, heure };
+    const repris = await reprendsDOpale(r, p, auDela);
+    if (!repris.ok) {
+      dis('retard · reprise refusee', { raison: repris.raison });
+      return `La place n’a pas tenu au dernier instant : ${plusTard}`;
+    }
+    noteLaReprise(r, p, !!auDela);
+    dis('retard · decale', { auDela: !!auDela });
+    return `C’est fait : la Maison la reçoit aujourd’hui à ${heureDite(heure)}. Dis-lui en une ou deux phrases que c’est bien noté et que la Maison l’attend à ${heureDite(heure)}. Ne parle ni de déplacement ni de report.`;
+  };
   /** LE TOUCHER D'UN BOUTON DE PLACE, ET « CHANGER L'HEURE », SERVIS PAR LE
       CODE : rien à interpréter, la Maison répond aussitôt. `false` : Opale
       reprend comme d'habitude. */
@@ -8871,6 +8991,11 @@ async function unTourDOpale(
     if (nom === 'mettre_a_reprogrammer') {
       const r = typeof e?.rdv === 'string' ? await leRdvDuNumeroWa(sb, e.rdv, fiches) : null;
       if (!r) return 'Ce rendez-vous n’est pas à ce numéro : passe la main (motif « question »).';
+      /* UN RETARD NE LIBÈRE PAS SA PLACE (20 novembre 2026). */
+      if (String(r.data.date ?? '') === aujourdhui && parleDUnRetard(textesPourLeTri(nouveaux))) {
+        dis('report · retard, rien de libere');
+        return 'Elle parle d’un retard aujourd’hui : sa place ne se libère pas. Appelle `noter_un_retard` avec ce rendez-vous et son heure d’arrivée (l’heure du rendez-vous plus son retard).';
+      }
       const fait = await metsAReprogrammerWa(sb, r, 'opale', aujourdhui);
       if (fait === 'non') return 'Ce rendez-vous ne peut pas être reprogrammé ici (passé, clos ou modifié à l’instant) : passe la main (motif « question »).';
       const places = await placesDuReportDOpale(r);
@@ -8881,6 +9006,7 @@ async function unTourDOpale(
       return `Sa place est libérée : le rendez-vous est à reprogrammer, il n’est pas annulé. Ces places partent en boutons sous ton message : ${titresDe(places)}. Remercie-la de prévenir en une phrase, et invite-la à toucher la place qui lui convient ou à écrire une autre date ; ne recopie pas les dates.`;
     }
     if (nom === 'accommoder') return accommodeDOpale(e);
+    if (nom === 'noter_un_retard') return noteLeRetardDOpale(e);
     if (nom === 'chercher_des_places') {
       const g = gestesLus(e?.gestes, connus);
       if (g.ids.length === 0) return 'Aucun de ces gestes ne se réserve ici. Reprends les identifiants du catalogue.';

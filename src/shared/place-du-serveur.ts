@@ -1,6 +1,6 @@
 import {
   bloqueLaVenue, creneauxLibres, DEUX_TETES_AU_PLUS, dureeDesPrestations, estUnSinsin, MAITRE_DES_SINSIN, minutesDeHhmm, occupesDuJour, ouvertureDuJour, plagesBloquees, PLACES_EN_LIGNE,
-  PREMIER_RENDEZ_VOUS_MIN,
+  partagentLaPlace, PREMIER_RENDEZ_VOUS_MIN,
   type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
 } from './agenda-pur';
 import { dansLaFenetreDeVenue, estUneConsultation, fenetreEnJours, masquePourLeSite, priceModeOf, racineOf, type FenetreApresVenue, type MasquesDuSite, type PriceMode } from './catalogue-pur';
@@ -417,10 +417,11 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jo
   const duJour = occupesDuJour(agenda.occupes, p.date);
   /* Le plafond de la Maison : ses rendez-vous du jour, tous maîtres confondus. */
   if (agenda.capMaison > 0 && duJour.length >= agenda.capMaison) return { ok: false, erreur: 'creneau_plafond' };
-  /* LES FAUTEUILS : le maître peut être libre, la Maison pleine. */
+  /* LES FAUTEUILS : le maître peut être libre, la Maison pleine. Un petit
+     service et son voisin ne prennent qu'une place (20 novembre 2026). */
   const sieges = siegesDe(agenda, p.date);
   if (sieges > 0
-    && duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin).length >= sieges) {
+    && duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin && !partagentLaPlace(dureeMin, a.dureeMin)).length >= sieges) {
     return { ok: false, erreur: 'creneau_pris' };
   }
 
@@ -438,9 +439,10 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jo
     }
     /* DEUX TÊTES CHEZ TEAM (18 novembre 2026) : un rendez-vous de Team que
        l'une des deux petites têtes rend partageable ne bloque pas ; deux au
-       plus chez lui à la même heure. Un autre maître, une cliente à la fois. */
+       plus chez lui à la même heure. Un autre maître, une cliente à la fois.
+       Un petit service partage aussi l'heure (20 novembre 2026). */
     const chevauchent = siens.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin);
-    const occupe = chevauchent.some((a) => bloqueLaVenue(m, p.lourde, a))
+    const occupe = chevauchent.some((a) => bloqueLaVenue(m, p.lourde, a, dureeMin))
       || chevauchent.length >= DEUX_TETES_AU_PLUS
       || plagesBloquees(agenda.murs, agenda.branchId, p.date, m).some(([s, e]) => debut < e && fin > s);
     if (!occupe) (chevauchent.length === 0 ? libres : partages).push(m);

@@ -277,7 +277,9 @@ const rdv = (id: string, date: string, time: string, plus: Record<string, unknow
 /* Celui qu'on deplace, et ceux qui lui font de l'ombre (jamais un vrai nom). */
 rdv('ap-a', '2026-11-20', '10:00', { autreMomentDemandeLe: '2026-11-09T08:00:00.000Z', note: 'Fictif' });
 rdv('ap-b', '2026-11-24', '10:00', { clientId: '', clientName: 'Autre', dureeMin: 120 });
-rdv('ap-c', '2026-11-26', '14:00', { clientId: '', clientName: 'Autre', dureeMin: 60, master: 'Team' });
+/* Une heure et demie : plus qu'un petit service (une heure ou moins partage
+   l'heure depuis le 20 novembre 2026, verifie-le-petit-service). */
+rdv('ap-c', '2026-11-26', '14:00', { clientId: '', clientName: 'Autre', dureeMin: 90, master: 'Team' });
 rdv('ap-lim', '2026-11-12', '10:00', { dureeMin: 120 });
 rdv('ap-lim2', '2026-11-12', '10:30', { dureeMin: 60 });
 rdv('ap-tot', '2026-11-12', '09:00', { dureeMin: 60, master: 'Team' });
@@ -410,8 +412,8 @@ const places = (await appelleD({ rdv: 'places', v: await jeton('ap-a') })).corps
   dit('P3 jamais un dimanche ni un lundi (fermes), ni la fermeture exceptionnelle du 25 novembre ; ils se disent « fermes »', [[], true, true, true],
     [dimLun, !('2026-11-25' in jours), places.fermes?.includes('2026-11-25'), places.fermes?.includes('2026-11-15')]);
   dit('P4 sa propre place est rendue libre : le 20 novembre, toute la journee SAUF 10 h (sa date)', ['09:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'], jours['2026-11-20']);
-  dit('P5 un autre rituel du meme jour ferme les heures qui le chevauchent : le 24 (Expert, 10 h a 12 h), le 26 (Team, 14 h : un seul rituel a la fois en ligne)',
-    [['12:00', '13:00', '14:00', '15:00', '16:00'], ['09:00', '10:00', '11:00', '15:00', '16:00']], [jours['2026-11-24'], jours['2026-11-26']]);
+  dit('P5 un autre rituel du meme jour ferme les heures qui le chevauchent : le 24 (Expert, 10 h a 12 h), le 26 (Team, 14 h a 15 h 30 : un seul rituel a la fois en ligne)',
+    [['12:00', '13:00', '14:00', '15:00', '16:00'], ['09:00', '10:00', '11:00', '16:00']], [jours['2026-11-24'], jours['2026-11-26']]);
   dit('P6 « le meme maitre » : Expert bloque le 27 (aucune place), Team bloque le 28 (Expert garde toute sa journee)', [false, 8], ['2026-11-27' in jours, (jours['2026-11-28'] ?? []).length]);
   dit('P7 jamais une place a moins de 24 h : le 12 novembre, rien avant 12 h (les rendez-vous du jour sont la), et jamais 10 h pile', [['12:00', '13:00', '14:00', '15:00', '16:00'], false],
     [jours['2026-11-12'], Object.values(jours).some((hs) => hs.length === 0)]);

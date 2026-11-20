@@ -132,15 +132,17 @@ dit('la fenetre : bornes comprises, a rebours vide, au plus 400 jours', [7, 0, 4
 
 /* ══ 3. LE SITE : `heuresLibres` ════════════════════════════════════ */
 const OUVERT = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'].map((key) => ({ key, open: '09h00', close: '19h00', closed: false }));
-const LAVAGE: PrestationPublique = { id: 'sv-lavage', name: 'KLƆKLƆ™ Essentiel', categoryId: 'cat-lavage', durationMin: 60 };
-const SINSIN: PrestationPublique = { id: 'sv-sinsin', name: 'SÍNSIN™ Essentiel · La Reprise', categoryId: 'cat-reprise', durationMin: 60 };
+/* Une heure et demie : plus qu'un petit service (une heure ou moins partage
+   l'heure depuis le 20 novembre 2026, verifie-le-petit-service). */
+const LAVAGE: PrestationPublique = { id: 'sv-lavage', name: 'KLƆKLƆ™ Essentiel', categoryId: 'cat-lavage', durationMin: 90 };
+const SINSIN: PrestationPublique = { id: 'sv-sinsin', name: 'SÍNSIN™ Essentiel · La Reprise', categoryId: 'cat-reprise', durationMin: 90 };
 const agenda = (sieges = 2): AgendaDeLaMaison => ({
   branchId: B, maitres: ['Team', 'Expert'], services: [LAVAGE, SINSIN], categories: [],
   semaine: OUVERT, exceptions: [], murs: [], capMaison: 0, capMaitre: 0, sieges,
   masques: {}, bandes: [], bandSets: {}, baremeSuspendu: false, formules: [],
 });
 /* `lourde` : une tete de 150 locks ou plus (deux tetes chez Team, 18 novembre 2026). */
-const pris = (jour: string, maitre: string, debut = '14:00', duree = 60, lourde = false) =>
+const pris = (jour: string, maitre: string, debut = '14:00', duree = 90, lourde = false) =>
   ({ jour, maitre, debut, duree, ...(lourde ? { lourde: true } : {}) });
 const LOIN = new Date('2026-11-02T08:00:00');
 const site = (o: { jour: string; ids: string[]; occupes: ReturnType<typeof pris>[]; places?: Record<string, number>; sieges?: number; lourde?: boolean }) =>
@@ -154,12 +156,12 @@ dit('le second fauteuil : un lavage a 14 h, cote Expert (un maitre seul avant Te
 /* DEUX TETES CHEZ TEAM (18 novembre 2026) : deux lourdes jamais ensemble ;
    une petite tete partage Team. */
 dit('un SINSIN ne parait pas libre quand Team tient deja une tete lourde et qu elle en a une aussi', null,
-  a14(site({ jour: MARDI, ids: [SINSIN.id], occupes: [pris(MARDI, 'Team', '14:00', 60, true)], places: DEUX, lourde: true })));
+  a14(site({ jour: MARDI, ids: [SINSIN.id], occupes: [pris(MARDI, 'Team', '14:00', 90, true)], places: DEUX, lourde: true })));
 dit('... ni un SINSIN avec un autre geste', null,
   a14(site({ jour: MARDI, ids: [SINSIN.id, LAVAGE.id], occupes: [pris(MARDI, 'Team', '13:00', 120, true)], places: DEUX, lourde: true })));
 dit('... une petite tete d un cote ou de l autre : Team recoit les deux', [{ heure: '14:00', maitre: 'Team' }, { heure: '14:00', maitre: 'Team' }, { heure: '14:00', maitre: 'Team' }], [
   a14(site({ jour: MARDI, ids: [SINSIN.id], occupes: [pris(MARDI, 'Team')], places: DEUX })),
-  a14(site({ jour: MARDI, ids: [SINSIN.id], occupes: [pris(MARDI, 'Team', '14:00', 60, true)], places: DEUX })),
+  a14(site({ jour: MARDI, ids: [SINSIN.id], occupes: [pris(MARDI, 'Team', '14:00', 90, true)], places: DEUX })),
   a14(site({ jour: MARDI, ids: [SINSIN.id], occupes: [pris(MARDI, 'Team')], places: DEUX, lourde: true }))]);
 dit('... jamais au-dela des places du jour : une place, Team ne partage pas', null,
   a14(site({ jour: MARDI, ids: [SINSIN.id], occupes: [pris(MARDI, 'Team')], places: { [MARDI]: 1 } })));
@@ -168,9 +170,9 @@ dit('Expert au fauteuil : le SINSIN prend le second, chez Team', { heure: '14:00
 dit('deux rituels deja a 14 h : plus rien, meme a deux places', null,
   a14(site({ jour: MARDI, ids: [LAVAGE.id], occupes: [pris(MARDI, 'Team'), pris(MARDI, 'Expert')], places: DEUX })));
 {
-  /* Team de 13 h à 15 h, Expert de 14 h à 15 h : à 14 h les deux fauteuils
-     sont pris ; à 13 h, Expert est encore libre une heure. */
-  const l = site({ jour: MARDI, ids: [LAVAGE.id], occupes: [pris(MARDI, 'Team', '13:00', 120), pris(MARDI, 'Expert', '14:00')], places: DEUX });
+  /* Team de 13 h à 15 h, Expert de 14 h 30 à 16 h : à 14 h les deux fauteuils
+     sont pris ; à 13 h, Expert est encore libre une heure et demie. */
+  const l = site({ jour: MARDI, ids: [LAVAGE.id], occupes: [pris(MARDI, 'Team', '13:00', 120), pris(MARDI, 'Expert', '14:30')], places: DEUX });
   dit('jamais deux rituels sur un fauteuil : 14 h fermee (les deux pris), 13 h chez Expert', [null, 'Expert'],
     [a14(l), l.find((h) => h.heure === '13:00')?.maitre ?? null]);
 }
@@ -185,14 +187,14 @@ dit('une Maison a un fauteuil : 14 h fermee meme si la carte dit deux', null,
 settingsStore.set((prev) => ({ ...prev, hours: OUVERT, maxRdvParJourMaison: 0, maxRdvParJourMaitre: 0 }));
 branchesStore.set([{ ...DEFAULT_BRANCHES[0], id: B, seats: 2, masters: ['Team', 'Expert'] }]);
 const couronne = (master: string, jour = MARDI, occupes = [pris(MARDI, 'Team')], lourde = false) =>
-  freeSlots(jour, master, 60, [], [], B, occupes, lourde).includes('14:00');
+  freeSlots(jour, master, 90, [], [], B, occupes, lourde).includes('14:00');
 retiensLesPlaces(B, LUNDI, DIMANCHE, [{ jour: MARDI, places: 2 }, { jour: SAMEDI, places: 1 }]);
 dit('Ma Couronne, deux places : 14 h libre pour un geste sans maitre, fermee pour Team quand les deux tetes sont lourdes', [true, false],
-  [couronne(''), couronne('Team', MARDI, [pris(MARDI, 'Team', '14:00', 60, true)], true)]);
+  [couronne(''), couronne('Team', MARDI, [pris(MARDI, 'Team', '14:00', 90, true)], true)]);
 dit('... un SINSIN (Team) ne parait pas libre entre deux lourdes ; Expert au fauteuil, il l est', [false, true],
-  [couronne('Team', MARDI, [pris(MARDI, 'Team', '14:00', 60, true)], true), couronne('Team', MARDI, [pris(MARDI, 'Expert')], true)]);
+  [couronne('Team', MARDI, [pris(MARDI, 'Team', '14:00', 90, true)], true), couronne('Team', MARDI, [pris(MARDI, 'Expert')], true)]);
 dit('... une petite tete d un cote ou de l autre : Team partage (deux tetes chez Team)', [true, true, true],
-  [couronne('Team'), couronne('Team', MARDI, [pris(MARDI, 'Team', '14:00', 60, true)]), couronne('Team', MARDI, [pris(MARDI, 'Team')], true)]);
+  [couronne('Team'), couronne('Team', MARDI, [pris(MARDI, 'Team', '14:00', 90, true)]), couronne('Team', MARDI, [pris(MARDI, 'Team')], true)]);
 dit('... Expert ne partage jamais, petite tete ou non', false, couronne('Expert', MARDI, [pris(MARDI, 'Expert')]));
 dit('... le samedi, une place', false, couronne('', SAMEDI, [pris(SAMEDI, 'Team')]));
 dit('... les places se lisent par jour : deux le mardi, une le samedi et le mercredi', [2, 1, 1],
