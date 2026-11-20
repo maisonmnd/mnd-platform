@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE CADEAU D'ANNIVERSAIRE LOIN D'« ENREGISTRER » — 20 novembre 2026 (Trône ; un correctif de données, `supabase/cadeau_anniversaire_retire_20261120.sql`)
+## LE CADEAU D'ANNIVERSAIRE LOIN D'« ENREGISTRER » — 20 novembre 2026, EN LIGNE (SQL passé : 1 ligne ; Trône build 20261120135204 @ 7bc04a53) (Trône ; un correctif de données, `supabase/cadeau_anniversaire_retire_20261120.sql`)
 
 « Je voulais mettre à jour le profil […] au lieu d'Enregistrer ses coordonnées, j'ai appuyé le bouton Offrir une séance d'anniversaire. Ces deux boutons-là sont trop proches. Il faut les déplacer, et la séance que je lui ai offerte, il faut la remettre à sa place » (Yéman).
 
