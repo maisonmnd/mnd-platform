@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LA DATE CHOISIE EST CELLE QUI SE POSE — 20 novembre 2026, À METTRE EN LIGNE (Trône seul ; aucun SQL ; aucune fonction ; commit 4288911e)
+## LA DATE CHOISIE EST CELLE QUI SE POSE — 20 novembre 2026, EN LIGNE (Trône build 20261120142541 @ 2a7069e8, 546/546 ; Trône seul ; aucun SQL ; aucune fonction ; commit 4288911e ; 967367d6 NON inclus, publié à part par sa session)
 
 « Ekoundayo a fini son rendez-vous, j'ai pris rendez-vous pour lui le 22 décembre. Maintenant je vois le 25. Je n'ai jamais confirmé un rendez-vous pour le 25 » (Yéman).
 
