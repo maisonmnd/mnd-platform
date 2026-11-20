@@ -2,6 +2,13 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES PLACES DU JOUR À L'HEURE DE COTONOU — 20 novembre 2026, au soir, EN LIGNE (Trône build 20261120220754 @ 342733b2 LOCAL = 04516456 servi + cherry-pick de 83a6a607, 546/546 ; Trône seul ; aucun SQL ; aucune fonction)
+
+« Corrige les places du jour à l'heure de Cotonou » (Yéman). L'ordinateur du bureau est à l'heure de Chine (UTC+8) : à 15 h à Cotonou le Trône croyait être à 22 h et cachait les places restantes du jour ; dès 17 h, il se croyait au lendemain. `momentDuSalon()` (`shared/calendrier.ts`, Africa/Porto-Novo) donne le jour et la minute du salon ; il remplace `todayISO()` et `getHours()` dans la carte « Son prochain rituel », la fenêtre du rendez-vous (places, Le Moment, la phrase lue), la fenêtre de l'agent, Agents et la Prévision du mois. Banc `verifie-calendrier` à l'heure de Chine (66 ; 7/7 pannes). `verifie-le-prochain-rituel` recalé (ses trois contrôles de câblage tombaient depuis 4288911e, la date choisie).
+
+- **Le Trône servi ne porte PAS le petit service** (bf81eb9b, 6a6920bb, session 7c) : sa publication au Trône attend l'accord de Yéman (refusée par les permissions de l'agent de 7c). 83a6a607 est sur main : toute publication du Trône depuis le sommet le porte, et portera aussi le petit service.
+- **Reste, hors de cette demande** : `todayISO()` (≈ 320 appels) lit encore le jour du poste ailleurs (dates du jour au Carnet, à la Caisse) ; le badge « maintenant » du Carnet et « À encaisser maintenant » de la Caisse lisent l'heure du poste ; Ma Couronne (`couronne/lib.ts`, Booking) et le site (`revelateur/heures.ts`, Réserver) jugent l'heure du jour sur le téléphone de la cliente — une cliente de la diaspora y voit des places déjà passées à Cotonou. Aucune facture datée à tort trouvée sur 60 jours.
+
 ## UN PETIT SERVICE PARTAGE UNE PLACE, AVEC UN SEUL VOISIN — 20 novembre 2026, au soir, EN LIGNE (SQL 0242 passée, NE PAS RELANCER, retour en arrière ~/.supabase/repli-une-place-avant-0242.sql ; essais à blanc d'après : 0242 TIENT, 0240 TIENT ; whatsapp-automate v85 2026-11-20-c, le serveur le dit ; demande-submit v76 2026-11-20-b, relue au GET ; site public 391/391 et Ma Couronne 313/313 identiques, build 20261120220325 @ 6a6920bb ; Trône NON republié, il attend la décision de Yéman)
 
 Le second passage du petit service. La session 9d l'a vu sur `verifie-le-prochain-rituel` : avec 0240, un petit service ne comptait pour AUCUNE place. Un lavage de 30 min passait donc à côté de deux rendez-vous d'une heure et demie, et trois clientes tenaient dans deux fauteuils. La règle voulue est qu'un petit service PARTAGE une place avec UN voisin.
