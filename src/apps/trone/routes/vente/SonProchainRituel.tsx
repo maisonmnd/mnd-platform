@@ -60,7 +60,7 @@ import { avertissementDHabilitation, plusHautDes, type Palier } from '../../../.
 import { sameName } from '../../../../shared/text';
 import { etatDuModeleMeta, modelesMetaLus } from '../../../../shared/modeles-meta-pur';
 import { uid } from '../../../../shared/store';
-import { jourCourtAn, jourEnLettres } from '../../../../shared/calendrier';
+import { jourCourtAn, jourEnLettres, momentDuSalon } from '../../../../shared/calendrier';
 import { heureDuMessage, momentDuMessage } from '../../../../shared/salle-des-envois';
 import { contratPourLaDate, usePlans, useStaff, useSubscribers } from '../equipe/data';
 import { useOffers } from '../../../../shared/offers';
@@ -73,7 +73,7 @@ import { DEVISE_COMPLETE } from '../../../../shared/identite';
 import { TexteFon } from '../../../../ds/fon';
 import { referenceDuRendezVous, texteDeLaConfirmation } from '../../../../shared/lien-du-rdv-pur';
 import {
-  addDaysISO, apptDurationMin, apptNetXof, brutDuRituel, fmtDureeCourte, RdvModal, tarifsDuRituel, timeToMin, todayISO, useServicesById, type RdvInitial,
+  addDaysISO, apptDurationMin, apptNetXof, brutDuRituel, fmtDureeCourte, RdvModal, tarifsDuRituel, timeToMin, useServicesById, type RdvInitial,
 } from '../clients/_shared';
 import { laSuiteImposeeDuRituel } from '../clients/actions';
 import { heureHabituelle, placesDuJour, type Occupant } from '../clients/rdv-fluide-pur';
@@ -206,7 +206,8 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
   const [equipe] = useStaff();
   const [offres] = useOffers();
   const byId = useServicesById();
-  const aujourdhui = todayISO();
+  /* Le jour du salon, pas celui du poste (20 novembre 2026, `momentDuSalon`). */
+  const aujourdhui = momentDuSalon().jour;
   const demain = addDaysISO(aujourdhui, 1);
   const fiche = clients.find((c) => c.id === clientId);
 
@@ -324,7 +325,6 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
      passés en argument : au toucher, on relit ceux du moment. */
   const sieges = Math.max(0, branch.seats ?? 0);
   const placesDe = (carnet: readonly Appointment[], murs: Blocage[], dureeMin: number, qui: string) => (iso: string) => {
-    const m = new Date();
     const occupes: Occupant[] = carnet
       .filter((a) => a.branchId === branch.id && a.date === iso && a.status !== 'annulé')
       .filter((a) => a.id !== laSienne.current)
@@ -332,7 +332,7 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
     return placesDuJour({
       iso,
       aujourdhui,
-      maintenantMin: m.getHours() * 60 + m.getMinutes(),
+      maintenantMin: momentDuSalon().minutes,
       ouverture: openingForIso(iso),
       durationMin: dureeMin,
       occupes,

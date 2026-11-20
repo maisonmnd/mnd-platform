@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Input, Select, Textarea, toast, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
+import { momentDuSalon } from '../../../../shared/calendrier';
 import { useAuth, useStaff as useMonProfil } from '../../../../shared/auth';
 import { fmtMoney } from '../../../../shared/currency';
 import { useInvoices, invoiceResteXof } from '../../../../shared/finance';
@@ -82,8 +83,8 @@ export default function Agents() {
   const depense = useDepenseDuMois();
   const [rdvPour, setRdvPour] = useState<{ passageId: string; clientId: string; date?: string; time?: string; avant: number } | null>(null);
   const appts = useBranchAppointments();
-  const aujourdhui = todayISO();
-  const maintenantMin = (() => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); })();
+  /* Aujourd'hui et maintenant à Cotonou, pas sur le poste (20 novembre 2026). */
+  const { jour: aujourdhui, minutes: maintenantMin } = momentDuSalon();
 
   const ficheDe = (id: string) => clients.find((c) => c.id === id);
   const nomDe = (p: Processus | undefined) => p?.nom ?? 'Un processus';

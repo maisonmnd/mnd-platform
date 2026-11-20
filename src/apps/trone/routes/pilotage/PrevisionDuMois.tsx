@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { allerALaSection } from '../../../../ds/ancre';
 import { useNavigate } from 'react-router-dom';
 import { useBranch } from '../../../../shared/branches';
+import { momentDuSalon } from '../../../../shared/calendrier';
 import { fmtMoney } from '../../../../shared/currency';
 import { useInvoices, invoiceReglements, type Invoice } from '../../../../shared/finance';
 import { predictNextVisit, tauxDeRealisation } from '../../../../shared/cadence';
@@ -11,7 +12,7 @@ import { useBlocages, plagesBloquees } from '../../../../shared/blocages';
 import { PRISE_NOTEE_DEPUIS } from '../../../../shared/previsions-pur';
 import { useApprenants, useSubscribers } from '../equipe/data';
 import {
-  addDaysISO, apptDueXof, apptDurationMin, apptNetXof, revenuDuMois, revenusProjetesDuMois, timeToMin, todayISO,
+  addDaysISO, apptDueXof, apptDurationMin, apptNetXof, revenuDuMois, revenusProjetesDuMois, timeToMin,
   useBranchAppointments, useBranchClients, useClefDuTarif, useServicesById,
 } from '../clients/_shared';
 import {
@@ -124,7 +125,8 @@ export function usePrevisionDuMois(): DonneesDeLaPrevision {
   const [abonnes] = useSubscribers();
   const [blocages] = useBlocages();
   const [objectifs] = useObjectifsDuMois();
-  const today = todayISO();
+  /* Le jour du salon, pas celui du poste (20 novembre 2026, `momentDuSalon`). */
+  const today = momentDuSalon().jour;
   const mk = today.slice(0, 7);
   const dernierJour = dernierJourDu(mk);
 
@@ -218,7 +220,7 @@ export function usePrevisionDuMois(): DonneesDeLaPrevision {
 
     /* ⑥ LE DÉTAIL DE CHAQUE JOUR, pour le panneau sous le graphe. */
     const sieges = Math.max(1, branch.seats ?? 1);
-    const maintenantMin = (() => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); })();
+    const maintenantMin = momentDuSalon().minutes;
     const details: Record<string, DetailDuJour> = {};
     let placesLibres = 0;
     for (const j of prevision.jours) {

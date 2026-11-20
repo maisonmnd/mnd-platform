@@ -7,7 +7,7 @@ import { appointmentsStore, useAppointments, type Appointment } from '../../../s
 import { blocagesStore, plagesBloquees } from '../../../shared/blocages';
 import { openingForIso } from '../../../shared/settings';
 import { useBranch } from '../../../shared/branches';
-import { jourEnLettres } from '../../../shared/calendrier';
+import { jourEnLettres, momentDuSalon } from '../../../shared/calendrier';
 import { heureDuMessage, momentDuMessage } from '../../../shared/salle-des-envois';
 import { demandeAClaude } from '../../../shared/ia-maison';
 import {
@@ -15,7 +15,7 @@ import {
   consigneDeLAgent, laCliente, laPlaceDuSouhait, lectureDeLAgent, leRendezVousADeplacer, phraseDuSouhait, phrasePourClaude,
   type DemandeLue,
 } from '../../../shared/agent-des-rendez-vous-pur';
-import { ClientPicker, RdvModal, apptDurationMin, timeToMin, todayISO, useServicesById } from '../routes/clients/_shared';
+import { ClientPicker, RdvModal, apptDurationMin, timeToMin, useServicesById } from '../routes/clients/_shared';
 import { placesDuJour, type Occupant } from '../routes/clients/rdv-fluide-pur';
 import { deplaceAvecLeFoyer, quiSuit } from '../routes/clients/foyer-gestes';
 import { SonProchainRituel, type VueDeLaCarte } from '../routes/vente/SonProchainRituel';
@@ -111,12 +111,13 @@ export default function FenetreDeLAgent({ onClose }: { onClose: () => void }) {
      les fauteuils, les murs de son maître, l'ouverture du jour ; lui-même et
      son foyer ne s'occupent pas leur propre place. */
   const placesPour = (rdv: Appointment) => (iso: string) => {
-    const m = new Date();
+    /* Aujourd'hui et maintenant à Cotonou, pas sur le poste (20 novembre 2026). */
+    const salon = momentDuSalon();
     const occupes: Occupant[] = appointmentsStore.get()
       .filter((a) => a.branchId === branch.id && a.date === iso && a.status !== 'annulé' && a.id !== rdv.id && !(rdv.foyerId && a.foyerId === rdv.foyerId))
       .map((a) => ({ maitre: a.master, debutMin: timeToMin(a.time), dureeMin: apptDurationMin(a, byId) }));
     const p = placesDuJour({
-      iso, aujourdhui: todayISO(), maintenantMin: m.getHours() * 60 + m.getMinutes(), ouverture: openingForIso(iso),
+      iso, aujourdhui: salon.jour, maintenantMin: salon.minutes, ouverture: openingForIso(iso),
       durationMin: apptDurationMin(rdv, byId), occupes, bloques: plagesBloquees(blocagesStore.get(), branch.id, iso, rdv.master),
       sieges: Math.max(0, branch.seats ?? 0),
     });
@@ -125,7 +126,7 @@ export default function FenetreDeLAgent({ onClose }: { onClose: () => void }) {
 
   /** DÉPLACER : le sien, à la nouvelle place, par Perle seule. Rien ne bouge sans place. */
   const deplace = (lu: DemandeLue, clientId: string) => {
-    const aujourdhui = todayISO();
+    const aujourdhui = momentDuSalon().jour;
     const base = { genre: 'deplace' as const, lu, clientId };
     const rdv = leRendezVousADeplacer(appointmentsStore.get().filter((a) => a.clientId === clientId && a.branchId === branch.id), lu.ancien, aujourdhui);
     if (!rdv) {
@@ -164,7 +165,7 @@ export default function FenetreDeLAgent({ onClose }: { onClose: () => void }) {
     reco.current?.stop();
     setLit(true); setMot('Perle lit la demande…');
     try {
-      const aujourdhui = todayISO();
+      const aujourdhui = momentDuSalon().jour;
       const r = await demandeAClaude<unknown>({
         chantier: CHANTIER_DE_L_AGENT, usage: USAGE_DE_L_AGENT,
         systeme: consigneDeLAgent({ services, aujourdhui }),
@@ -322,7 +323,7 @@ function LaCarteDeLAgent({ clientId, nom, longueur, lu, phrase, onFerme }: {
   phrase: string;
   onFerme: () => void;
 }) {
-  const [jour] = useState(todayISO);
+  const [jour] = useState(() => momentDuSalon().jour);
   const souhait = useMemo(() => ({ gestes: lu.gestes, du: lu.du, au: lu.au, heure: lu.heure, moment: lu.moment }), [lu]);
   return (
     <SonProchainRituel clientId={clientId} serviceIds={[]} jour={jour} longueur={longueur} souhait={souhait} onFerme={onFerme}>

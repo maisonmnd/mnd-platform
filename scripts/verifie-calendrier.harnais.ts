@@ -9,7 +9,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import {
   jourDeSemaineLundi, grilleDuMois, moisVoisin,
   anneesPossibles, retardEnJours, correctionsPossibles,
-  jourAn, jourCourtAn, jourEnLettres, horsBornes, litLaDate, heureDuSalon,
+  jourAn, jourCourtAn, jourEnLettres, horsBornes, litLaDate, heureDuSalon, momentDuSalon,
 } from '../src/shared/calendrier';
 
 let ko = 0;
@@ -205,5 +205,28 @@ dit('rien, ou un instant illisible : une chaine vide', ['', '', ''], [heureDuSal
 const panneauDuReglement = readFileSync('src/apps/trone/routes/clients/ReglementEnDirect.tsx', 'utf8');
 dit('« Le règlement en direct » dit l heure du salon, plus celle du poste', [true, false],
   [panneauDuReglement.includes('const heure = heureDuSalon;'), /getHours\(\)/.test(panneauDuReglement)]);
+
+/* ── LES PLACES DU JOUR À L'HEURE DE COTONOU (20 novembre 2026) ───────
+   « Corrige les places du jour à l'heure de Cotonou » (Yéman). Sur un poste
+   à l'heure de Chine, à 15 h à Cotonou le Trône croyait être à 22 h, et dès
+   17 h, au lendemain. Le jour et la minute se lisent à Cotonou. */
+dit('15 h 13 a Cotonou : le jour du salon et sa minute (et non 22 h 13 du poste)', { jour: '2026-11-20', minutes: 15 * 60 + 13 }, momentDuSalon(Date.parse('2026-11-20T14:13:09Z')));
+dit('17 h 30 a Cotonou : toujours le 20, quand le poste dit deja le 21', { jour: '2026-11-20', minutes: 17 * 60 + 30 }, momentDuSalon(Date.parse('2026-11-20T16:30:00Z')));
+dit('minuit passe a Cotonou : le lendemain, minute 30 (jamais 24 h)', { jour: '2026-11-21', minutes: 30 }, momentDuSalon(Date.parse('2026-11-20T23:30:00Z')));
+dit('la Saint-Sylvestre : la nouvelle annee a Cotonou', { jour: '2027-01-01', minutes: 5 }, momentDuSalon(Date.parse('2026-12-31T23:05:00Z')));
+const ECRANS_DES_PLACES = [
+  'src/apps/trone/routes/vente/SonProchainRituel.tsx',
+  'src/apps/trone/routes/clients/_shared.tsx',
+  'src/apps/trone/shell/FenetreDeLAgent.tsx',
+  'src/apps/trone/routes/pilotage/Agents.tsx',
+  'src/apps/trone/routes/pilotage/PrevisionDuMois.tsx',
+];
+/* Toute place du jour reçoit sa minute du salon : aucun `maintenantMin` lu sur l'horloge du poste. */
+const minutesDuPoste = ECRANS_DES_PLACES.flatMap((f) => (readFileSync(f, 'utf8').match(/maintenantMin(?: =|:)[^\n]*getHours\(\)[^\n]*/g) ?? []).map((l) => `${f.split('/').pop()}: ${l.trim().slice(0, 80)}`));
+dit('les places du jour (carte, fenetre du rendez-vous, agent, agents, prevision) : aucune minute lue sur le poste', [], minutesDuPoste);
+dit('... et chacun de ces ecrans lit le moment du salon', ECRANS_DES_PLACES.map(() => true), ECRANS_DES_PLACES.map((f) => readFileSync(f, 'utf8').includes('momentDuSalon()')));
+const rdvModal = readFileSync('src/apps/trone/routes/clients/_shared.tsx', 'utf8');
+dit('la fenetre du rendez-vous : son aujourd hui et la phrase lue (« demain 10 h ») sont ceux du salon', [true, true],
+  [rdvModal.includes('const aujourdhui = momentDuSalon().jour;'), rdvModal.includes('aujourdhui: salon.jour,\n      minutes: salon.minutes,') || rdvModal.includes('aujourdhui: salon.jour,\r\n      minutes: salon.minutes,')]);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} épreuve(s) en échec.`);

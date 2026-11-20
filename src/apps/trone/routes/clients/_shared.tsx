@@ -33,7 +33,7 @@ import { distanceDeLaSemaine, filDesSemaines, lundiDe as lundiDuFil, remplissage
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { ageDe, estKids, AGE_MND_KIDS } from '../../../../shared/accounts';
-import { jourAn, jourCourtAn, jourEnLettres } from '../../../../shared/calendrier';
+import { jourAn, jourCourtAn, jourEnLettres, momentDuSalon } from '../../../../shared/calendrier';
 import { ChampDeDate } from '../../../../ds/dates';
 import { catalogueDeLaTete, masqueesParLAge, compositionDuForfait, gainDuForfait, detailDuForfait, pourQui } from '../../../../shared/kids';
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
@@ -2962,7 +2962,8 @@ function RdvModalCorps({
   const [debutChoisi, setDebutChoisi] = useState<string | null>(null);
   const [jourVu, setJourVu] = useState<string | null>(null);
   const [blocages] = useBlocages();
-  const aujourdhui = todayISO();
+  /* Le jour du salon, pas celui du poste (20 novembre 2026, `momentDuSalon`). */
+  const aujourdhui = momentDuSalon().jour;
   const sieges = Math.max(0, branch.seats ?? 0);
   /* SON JOUR DE REPRISE : le même juge que sa fiche, sur ses seules venues
      honorées ; un rendez-vous déjà pris se dit à part (`dejaPose`). */
@@ -2996,11 +2997,10 @@ function RdvModalCorps({
       qui: clients.find((c) => c.id === a.clientId)?.name,
     }));
   const placesDe = (iso: string) => {
-    const m = new Date();
     return placesDuJour({
       iso,
       aujourdhui,
-      maintenantMin: m.getHours() * 60 + m.getMinutes(),
+      maintenantMin: momentDuSalon().minutes,
       ouverture: openingForIso(iso),
       durationMin: dureeRetenue,
       occupes: occupesDe(iso),
@@ -3099,9 +3099,8 @@ function RdvModalCorps({
      sinon le jour libre le plus proche, avec sa raison), « Comptant » comme « plusieurs venues », et restent
      modifiables. Une cliente qui a déjà un Moment en cours n'en reçoit pas un second : l'écran le dit. */
   const heuresLibresLe = (iso: string): string[] => {
-    const m = new Date();
     return placesDuJour({
-      iso, aujourdhui, maintenantMin: m.getHours() * 60 + m.getMinutes(), ouverture: openingForIso(iso), durationMin: dureeDeLaVenue,
+      iso, aujourdhui, maintenantMin: momentDuSalon().minutes, ouverture: openingForIso(iso), durationMin: dureeDeLaVenue,
       occupes: occupesDe(iso), bloques: plagesBloquees(blocages, branch.id, iso, master), sieges,
     }).heures;
   };
@@ -3347,10 +3346,11 @@ function RdvModalCorps({
      Confirmer. Une heure sans jour vaut pour le jour déjà posé ; un mot qui
      désigne plusieurs prestations ouvre « Quoi ? » sur elles. */
   const lisLaPhrase = (q: string): LectureDeLaPhrase => {
-    const m = new Date();
+    /* « Demain 10 h », « tout à l'heure » : lus à Cotonou, pas sur le poste. */
+    const salon = momentDuSalon();
     return litLaPhrase(q, {
-      aujourdhui: todayISO(),
-      minutes: m.getHours() * 60 + m.getMinutes(),
+      aujourdhui: salon.jour,
+      minutes: salon.minutes,
       prestations: proposables.map((sv) => ({ id: sv.id, name: sv.name })),
       clientes: clients.filter((c) => !c.archived).map((c) => ({ id: c.id, name: c.name, phone: c.phone })),
       maitres: branch.masters,

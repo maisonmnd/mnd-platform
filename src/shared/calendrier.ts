@@ -191,6 +191,24 @@ export const heureDuSalon = (iso?: string | null): string => {
   return Number.isFinite(t) ? formateurDeLHeure.format(t) : '';
 };
 
+/* ── LE MOMENT DU SALON : AUJOURD'HUI ET MAINTENANT, À COTONOU — 20 novembre 2026 ──
+   « Corrige les places du jour à l'heure de Cotonou » (Yéman). Les places du
+   jour se jugent sur « aujourd'hui » et « maintenant » : lus sur le poste
+   (`new Date()`, `getHours()`), un ordinateur à l'heure de Chine croit, à
+   15 h à Cotonou, qu'il est 22 h, et cache les places qui restent ; dès
+   17 h à Cotonou, il croit même être le lendemain. Le salon est à Cotonou :
+   son jour et sa minute se lisent là, quel que soit le poste. */
+const formateurDuMoment = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Africa/Porto-Novo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+});
+
+/** Le jour (« AAAA-MM-JJ ») et la minute du jour (0 à 1439) à Cotonou, à l'instant `ms`. */
+export const momentDuSalon = (ms: number = Date.now()): { jour: string; minutes: number } => {
+  const p: Record<string, string> = {};
+  for (const x of formateurDuMoment.formatToParts(ms)) p[x.type] = x.value;
+  return { jour: `${p.year}-${p.month}-${p.day}`, minutes: (Number(p.hour) % 24) * 60 + Number(p.minute) };
+};
+
 /* ── LES BORNES ──────────────────────────────────────────────────────
    Le calendrier du navigateur respectait `min` et `max` : une naissance ne
    pouvait pas tomber demain, une reprogrammation pas hier. Le champ de la
