@@ -22,6 +22,8 @@
    `verifie-la-file-d-attente` l'éprouve. La lecture et l'écriture de la file
    sur l'appareil sont à part, en bas. */
 
+import { avecNosChamps, fusionneLesChamps } from './fusion-des-champs';
+
 export type Entree = {
   op: 'set' | 'del';
   /** L'heure du geste, sur le téléphone (ISO). */
@@ -33,6 +35,12 @@ export type Entree = {
       devient un conflit, il ne la recrée pas. Sans ce drapeau (ligne neuve,
       ou geste noté avant ce jour), le geste part comme avant. */
   connue?: true;
+  /** LA LIGNE DU SERVEUR SUR LAQUELLE LE GESTE S'EST POSÉ (JSON) — 20 novembre
+      2026, « le problème des deux postes ». Avec elle, l'arbitre sait QUELS
+      champs le geste a changés, et ne repose que ceux-là sur la ligne du
+      serveur (`fusionneLesChamps`). Sans elle (ligne neuve, geste d'avant ce
+      jour), il tranche ligne contre ligne, comme avant. */
+  b?: string;
 };
 
 export type Conflit = {
@@ -60,6 +68,9 @@ export type Arbitrage<T> = {
   finis: string[];
   /** Les gestes perdants, gardés pour être relus. */
   conflits: Omit<Conflit, 'table' | 'vuLe'>[];
+  /** Les gestes FUSIONNÉS avec la ligne du serveur (20 novembre 2026) : leur
+      entrée porte désormais la ligne fusionnée, sur sa nouvelle base. */
+  reecrites: Map<string, Entree>;
 };
 
 /**
@@ -78,6 +89,7 @@ export function arbitre<T extends { id: string }>(
   const aPousser: string[] = [];
   const finis: string[] = [];
   const conflits: Arbitrage<T>['conflits'] = [];
+  const reecrites = new Map<string, Entree>();
   for (const [id, e] of attente) {
     const s = parId.get(id);
     const sAt = quand?.get(id);
@@ -87,6 +99,24 @@ export function arbitre<T extends { id: string }>(
       if (!notre) { finis.push(id); continue; }
       /* Déjà arrivé (l'application s'était fermée juste après l'envoi). */
       if (s && canon(s) === canon(notre)) { finis.push(id); continue; }
+      /* CHAMP PAR CHAMP, QUAND ON CONNAÎT LA BASE — 20 novembre 2026. Le
+         geste ne repose que ce qu'il a changé ; ce qu'un autre poste a écrit
+         sur les autres champs reste. Une dispute (le même champ, deux
+         valeurs) va au plus récent ; si c'est le serveur, notre valeur est
+         gardée en conflit pour ce champ seul. */
+      if (s && e.b) {
+        let base: unknown;
+        try { base = JSON.parse(e.b); } catch { base = undefined; }
+        const f = fusionneLesChamps(base, notre, s, plusRecentAilleurs);
+        if (f.perdus.length) {
+          conflits.push({ id, notre: JSON.stringify(avecNosChamps(f.ligne, notre, f.perdus)), notreAt: e.at, leur: JSON.stringify(f.ligne), leurAt: sAt ?? e.at });
+        }
+        if (canon(f.ligne) === canon(s)) { finis.push(id); continue; }
+        parId.set(id, f.ligne);
+        aPousser.push(id);
+        reecrites.set(id, { ...e, j: JSON.stringify(f.ligne), b: JSON.stringify(s) });
+        continue;
+      }
       /* SUPPRIMÉE AILLEURS PENDANT QUE LE GESTE ATTENDAIT — 10 octobre 2026
          (revue de code). La ligne que le serveur portait n'y est plus : la
          repousser la faisait renaître, et la suppression la plus récente
@@ -116,7 +146,7 @@ export function arbitre<T extends { id: string }>(
       aPousser.push(id);
     }
   }
-  return { items: [...parId.values()], aPousser, finis, conflits };
+  return { items: [...parId.values()], aPousser, finis, conflits, reecrites };
 }
 
 /** Une ligne venue d'ailleurs en direct, pendant qu'un geste l'attend : qui
@@ -129,9 +159,15 @@ export const leGesteLocalTient = (e: Entree, distantAt: string | undefined): boo
 export function gestesEntre(
   avant: ReadonlyMap<string, string>, apres: ReadonlyMap<string, string>, at: string,
   connue: (id: string) => boolean = () => false,
+  /** La ligne du serveur sur laquelle le geste se pose (20 novembre 2026). */
+  baseDe: (id: string) => string | undefined = () => undefined,
 ): Map<string, Entree> {
   const sortie = new Map<string, Entree>();
-  for (const [id, j] of apres) if (avant.get(id) !== j) sortie.set(id, connue(id) ? { op: 'set', at, j, connue: true } : { op: 'set', at, j });
+  for (const [id, j] of apres) {
+    if (avant.get(id) === j) continue;
+    const b = baseDe(id);
+    sortie.set(id, { op: 'set', at, j, ...(connue(id) ? { connue: true as const } : {}), ...(b !== undefined ? { b } : {}) });
+  }
   for (const id of avant.keys()) if (!apres.has(id)) sortie.set(id, { op: 'del', at });
   return sortie;
 }

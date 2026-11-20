@@ -7,6 +7,7 @@ import { litToutesLesPages } from './lecture-entiere';
 import { noteUneEcritureRecue } from './poids-de-la-memoire';
 import { contenuCanonique, memeContenu } from './meme-contenu';
 import { arbitre, declareLecteurDeLigne, ecrisLaFile, gestesEntre, leGesteLocalTient, lisLaFile, noteLesConflits, oublieLeConflit, recus, type Conflit, type Entree } from './file-d-attente';
+import { avecNosChamps, fusionneLesChamps } from './fusion-des-champs';
 import {
   tableSuivie, CARTE_DES_TABLES, champsChanges, inscrisLesGestes, identiteCourante,
   type Geste, type GesteVerbe, type ChampChange,
@@ -1074,6 +1075,17 @@ export function bindCollection<T extends WithId>(
       noteLesConflits(a.conflits.map((c) => ({ ...c, table, vuLe, magasin: store.key })));
       console.warn(`[mnd-sync] ${table} : ${a.conflits.length} geste(s) plus ancien(s) qu'une écriture d'ailleurs, gardé(s) en conflit.`);
     }
+    /* LES GESTES FUSIONNÉS (20 novembre 2026) portent désormais la ligne
+       fusionnée sur sa nouvelle base : sans quoi, une fois envoyés, ils ne se
+       reconnaîtraient pas (`recus`) et resteraient « en attente ». Un geste
+       posé pendant la lecture garde le sien. */
+    let reecrite = false;
+    for (const [id, e] of a.reecrites) {
+      if (instantane.get(id) !== attente.get(id)) continue;
+      attente.set(id, e);
+      reecrite = true;
+    }
+    if (reecrite) ecrisLaFile(table, attente);
     sortDeLaFile(a.finis.filter((id) => instantane.get(id) === attente.get(id)));
     let items = a.items;
     let aPousser = a.aPousser.length > 0;
@@ -1136,7 +1148,19 @@ export function bindCollection<T extends WithId>(
 
   const rowOf = (it: T) => ({ id: it.id, branch_id: it.branchId ?? null, data: it, ...(options?.colonnes?.(it) ?? {}) });
 
-  const pushDiff = async (prev: Map<string, string>, next: Map<string, string>, items: readonly T[]) => {
+  /* Les lignes du serveur, pour les seules lignes qui partent (20 novembre
+     2026), ou l'erreur qui a empêché de les lire. */
+  const litLesLignes = async (ids: readonly string[]): Promise<Map<string, unknown> | { erreur: string }> => {
+    const m = new Map<string, unknown>();
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data, error } = await sb.from(table).select('id,data').in('id', ids.slice(i, i + 200));
+      if (error) return { erreur: error.message };
+      for (const r of (data ?? []) as { id: string; data: unknown }[]) m.set(r.id, r.data);
+    }
+    return m;
+  };
+
+  const pushDiff = async (prev: Map<string, string>, next: Map<string, string>, items: readonly T[], fusions?: Map<string, T>) => {
     /* Le premier refus rencontré porte l'explication qui remontera à la
        pastille — un échec sans son message renvoie le comptoir à la console. */
     let refus: string | undefined;
@@ -1205,14 +1229,42 @@ export function bindCollection<T extends WithId>(
           return;
         }
       }
+      /* ══ CE QUE NOUS AVONS CHANGÉ, SUR CE QUE LE SERVEUR PORTE — 20 novembre
+         2026, « le problème des deux postes ». Une ligne que le serveur
+         connaît ne part plus ENTIÈRE : on relit la sienne, et l'on n'y pose
+         que les champs que ce poste a changés depuis la dernière version
+         qu'il en connaissait (`prev`). Un poste resté sur une copie d'avant
+         — direct tombé, onglet endormi — n'efface donc plus ce qu'un autre a
+         écrit sur les autres champs. La ligne neuve part telle quelle. Une
+         relecture ratée laisse partir la ligne comme avant : jamais pire
+         qu'hier, et l'écriture ne reste pas bloquée. */
+      let envois = upserts;
+      const connues = upserts.filter((u) => prev.has(u.id)).map((u) => u.id);
+      if (connues.length) {
+        const distants = await litLesLignes(connues);
+        if (distants instanceof Map) {
+          envois = upserts.map((u) => {
+            const base = prev.get(u.id);
+            const leur = distants.get(u.id);
+            if (base === undefined || leur === undefined) return u;
+            const f = fusionneLesChamps(JSON.parse(base) as unknown, u.data, leur);
+            if (memeContenu(f.ligne, u.data)) return u;
+            fusions?.set(u.id, f.ligne);
+            return rowOf(f.ligne);
+          });
+        } else if (!seRattrape(distants.erreur)) {
+          /* Sans réseau, l'envoi échouera de lui-même : rien à dire de plus. */
+          console.warn(`[mnd-sync] ${table} : la relecture avant l'envoi a échoué (${distants.erreur}), les lignes partent entières.`);
+        }
+      }
       /* AVANT l'envoi : l'écho peut revenir pendant que la requête vole. */
-      noteLesPoussees(upserts as { id: string; data: T }[]);
+      noteLesPoussees(envois as { id: string; data: T }[]);
       /* PAR TRANCHES DE 400 — 4 octobre 2026, la bascule des caisses réécrit
          d'un geste toutes les pièces d'avant octobre. Un seul envoi de quelques
          milliers de lignes risquait le plafond de la requête ; une tranche
          refusée n'arrête pas les autres, et l'échec se dit comme avant. */
-      for (let i = 0; i < upserts.length; i += TRANCHE_D_ENVOI) {
-        const tranche = upserts.slice(i, i + TRANCHE_D_ENVOI);
+      for (let i = 0; i < envois.length; i += TRANCHE_D_ENVOI) {
+        const tranche = envois.slice(i, i + TRANCHE_D_ENVOI);
         const { error } = await sb.from(table).upsert(tranche);
         /* Refus de droit : on cesse d'insister, mais on ne prétend PAS avoir
            écrit (voir plus haut) — le repère doit rester en arrière. */
@@ -1429,13 +1481,46 @@ export function bindCollection<T extends WithId>(
   const pousse = async (prev: Map<string, string>, next: Map<string, string>, items: readonly T[]): Promise<void> => {
     pousseesEnVol += 1;
     try {
-      if (await pushDiff(prev, next, items)) {
+      const fusions = new Map<string, T>();
+      if (await pushDiff(prev, next, items, fusions)) {
         /* L'envoi réussi a dit « ok » : le rouge de lecture n'est plus. */
         rougeDeLecture = false;
-        lastPushed = next;
         /* Ce que le serveur vient de recevoir sort de la file ; un geste
-           posé pendant l'envoi y reste et partira au tour suivant. */
+           posé pendant l'envoi y reste et partira au tour suivant. La file se
+           compare à ce que CE POSTE a envoyé, avant fusion. */
         sortDeLaFile(recus(attente, next));
+        if (fusions.size === 0) {
+          lastPushed = next;
+        } else {
+          /* LES LIGNES FUSIONNÉES (20 novembre 2026) : le serveur porte la
+             fusion, le repère aussi. L'écran reçoit les champs de l'autre
+             poste, sans perdre ce qu'on a tapé pendant l'envoi : ce qui a
+             bougé ici depuis le départ reste, le reste vient de la fusion. */
+          const repere = new Map(next);
+          for (const [id, l] of fusions) repere.set(id, JSON.stringify(l));
+          lastPushed = repere;
+          let bouge = false;
+          let fileBouge = false;
+          const absorbes = store.get().map((it) => {
+            const f = fusions.get(it.id);
+            if (!f) return it;
+            const auDepart = next.get(it.id);
+            const r = fusionneLesChamps(auDepart === undefined ? it : (JSON.parse(auDepart) as unknown), it, f).ligne;
+            if (memeContenu(r, it)) return it;
+            bouge = true;
+            /* Un geste posé pendant l'envoi porte maintenant la ligne absorbée,
+               sur la base que le serveur vient de prendre. */
+            const e = attente.get(it.id);
+            if (e?.op === 'set') { attente.set(it.id, { ...e, j: JSON.stringify(r), b: JSON.stringify(f) }); fileBouge = true; }
+            return r;
+          });
+          if (fileBouge) ecrisLaFile(table, attente);
+          if (bouge) {
+            applyingRemote = true;
+            store.set(absorbes);
+            applyingRemote = false;
+          }
+        }
         generation += 1;
       }
     } finally {
@@ -1754,7 +1839,17 @@ export function bindCollection<T extends WithId>(
       if (deja) return deja.connue === true || lastPushed.has(id);
       return lu ? lastPushed.has(id) : avant.has(id);
     };
-    inscris(gestesEntre(avant, cur, new Date().toISOString(), connue));
+    /* LA BASE DU GESTE (20 novembre 2026, deux postes) : la ligne du serveur
+       sur laquelle il se pose. Un geste qui en suit un autre, encore en
+       attente sur la même ligne, garde la base du premier : c'est depuis elle
+       que les champs ont changé. Avant la première lecture, on ne la connaît
+       pas, et l'on n'invente rien. */
+    const baseDe = (id: string): string | undefined => {
+      const deja = attente.get(id);
+      if (deja) return deja.b;
+      return lu ? lastPushed.get(id) : undefined;
+    };
+    inscris(gestesEntre(avant, cur, new Date().toISOString(), connue, baseDe));
     if (!lu) return;
     planifiePoussee();
   });
@@ -1808,6 +1903,48 @@ export function bindCollection<T extends WithId>(
              n'est jamais une écriture d'ailleurs : la frappe en attente reste,
              et repart par-dessus. */
           const notreEcho = !!distant && estNotreEcho(idTouche, contenuCanonique(distant));
+          /* ══ CHAMP PAR CHAMP — 20 novembre 2026, « le problème des deux
+             postes ». La ligne d'un autre poste arrive pendant qu'un geste
+             attend : on ne choisit plus une ligne ENTIÈRE. Ses champs à lui
+             entrent ; les nôtres restent ; un champ touché des deux côtés va
+             au plus récent, et notre valeur perdue est gardée en conflit pour
+             ce champ seul. La base est celle du geste (`b`), sinon la dernière
+             ligne connue du serveur. */
+          const baseDuGeste = enAttente.op === 'set' && distant && !notreEcho
+            && !memeContenu(distant, JSON.parse(enAttente.j ?? 'null'))
+            ? (enAttente.b ?? lastPushed.get(idTouche)) : undefined;
+          if (baseDuGeste !== undefined && distant) {
+            const i = at(idTouche);
+            const local = i >= 0 ? items[i] : (JSON.parse(enAttente.j!) as T);
+            const f = fusionneLesChamps(JSON.parse(baseDuGeste) as unknown, local, distant, !leGesteLocalTient(enAttente, distantAt));
+            const maintenant = new Date().toISOString();
+            if (f.perdus.length) {
+              noteLesConflits([{
+                table, id: idTouche, notre: JSON.stringify(avecNosChamps(f.ligne, local, f.perdus)), notreAt: enAttente.at,
+                leur: JSON.stringify(f.ligne), leurAt: distantAt ?? maintenant, vuLe: maintenant, magasin: store.key,
+              }]);
+            }
+            if (i >= 0 && !memeContenu(items[i], f.ligne)) {
+              items[i] = f.ligne;
+              noteUneEcritureRecue(table);
+              applyingRemote = true;
+              store.set(items);
+              applyingRemote = false;
+            }
+            const lp = new Map(lastPushed);
+            lp.set(idTouche, JSON.stringify(distant));
+            lastPushed = lp;
+            if (memeContenu(f.ligne, distant)) {
+              /* Tout ce que le geste portait est déjà au serveur (ou a perdu
+                 sa dispute) : il n'a plus rien à envoyer. */
+              sortDeLaFile([idTouche]);
+            } else {
+              attente.set(idTouche, { ...enAttente, j: JSON.stringify(f.ligne), b: JSON.stringify(distant) });
+              ecrisLaFile(table, attente);
+              planifiePoussee();
+            }
+            return;
+          }
           if (enAttente.op === 'set' && distant && memeContenu(distant, JSON.parse(enAttente.j ?? 'null'))) {
             /* Notre geste, revenu du serveur : il est arrivé. */
             sortDeLaFile([idTouche]);

@@ -12,13 +12,24 @@
 - **Bancs** : `banc-c-est-regle` 95 (section I ; le piège reproduit sur l'ancien code : 9 échecs), `verifie-le-rendez-vous-suggere` 68, `--prouve` 31/31.
 - **Le rendez-vous d'Ekoundayo** reste au 25 décembre à 11 h : à déplacer au Carnet si le 22 est voulu (11 h y est pris par deux têtes jusqu'à 11 h 15 ; 11 h 30 est libre). Le 25 décembre n'est pas marqué fermé dans les exceptions d'horaires.
 
+## DEUX POSTES SUR LA MÊME FICHE, CHAMP PAR CHAMP — 20 novembre 2026 (Trône ; aucun SQL ; aucune fonction)
+
+« Corrige le problème des deux postes » (Yéman), après la fiche d'une cliente où, de 14 h 19 à 14 h 21, le Mac du comptoir (resté sur la copie d'avant) a fait reculer cinq fois le nom et l'anniversaire que Yéman venait de corriger sur son téléphone, en y faisant signer l'autorisation de droit à l'image.
+
+- **La cause** : `bindCollection` (`shared/sync.ts`) envoyait la ligne ENTIÈRE, et la file d'attente tranchait ligne contre ligne : le dernier geste gagnait tout, y compris les champs qu'il n'avait pas touchés.
+- **La règle** (`shared/fusion-des-champs.ts`, pure) : fusion à trois voies par champ de premier niveau de `data` (la base connue du poste, la nôtre, celle du serveur). Notre champ changé prend notre valeur ; un champ que nous n'avons pas touché prend la leur ; un champ touché des deux côtés vers deux valeurs différentes va au geste le plus récent, et la valeur perdue est gardée en conflit POUR CE CHAMP SEUL (`avecNosChamps`, le panneau des conflits ne montre que lui).
+- **Trois endroits** : ① l'ENVOI relit au serveur les lignes connues qui partent (`litLesLignes`) et n'y pose que nos champs, puis l'écran absorbe la fusion sans perdre ce qu'on a tapé pendant l'envoi ; une relecture ratée laisse partir la ligne entière, comme avant ; ② le DIRECT, quand un geste attend sur la ligne, fusionne au lieu de choisir une ligne ; ③ la FILE retient la base de chaque geste (`Entree.b`, posée par `gestesEntre`) et l'arbitre fusionne au retour du réseau (`Arbitrage.reecrites`). Une entrée sans base (d'avant ce jour) se tranche comme avant. Les documents (`bindDocument`, les réglages) ne sont pas touchés.
+- **Coût** : une lecture des lignes qui partent avant chaque envoi (par paquets de 200).
+- **Ma Couronne** partage `sync.ts` : elle aura la fusion à sa prochaine publication.
+- **Bancs** : `verifie-les-deux-postes` 17 (la règle, l'arbitre, et sur la vraie synchro et le faux serveur : A copie d'avant qui signe, B direct pendant un geste hors ligne, C file rejouée sans direct, D le même champ des deux côtés), `--prouve` : 6 échecs sur la synchro d'avant (fc98887b), dont « Shadé » qui revient au serveur ; `verifie-la-file-d-attente`, `verifie-synchro`, `verifie-le-direct-pendant-la-lecture`, `verifie-revue-synchro`, `verifie-entre-deux-seances`, `verifie-la-fiche-du-jour` tiennent ; typecheck 0. `verifie-cles-uniques` échoue déjà sur le tronc (« une clé n'est pas littérale »), sans lien.
+
 ## LE CADEAU D'ANNIVERSAIRE LOIN D'« ENREGISTRER » — 20 novembre 2026, EN LIGNE (SQL passé : 1 ligne ; Trône build 20261120135204 @ 7bc04a53) (Trône ; un correctif de données, `supabase/cadeau_anniversaire_retire_20261120.sql`)
 
 « Je voulais mettre à jour le profil […] au lieu d'Enregistrer ses coordonnées, j'ai appuyé le bouton Offrir une séance d'anniversaire. Ces deux boutons-là sont trop proches. Il faut les déplacer, et la séance que je lui ai offerte, il faut la remettre à sa place » (Yéman).
 
 - **Le geste** (14 h 18) n'avait rien envoyé : la fiche n'a aucun abonnement aux notifications, et le bouton n'envoie ni e-mail ni WhatsApp. Il n'a écrit que `birthdayGiftAt`. Le correctif retire ce champ, une fois, gardé par `= '2026-11-20'`, avec la table `repli_cadeau_anniversaire_20261120` (RLS). NE PAS RELANCER.
 - **La fiche** : le cadeau quitte le formulaire de « La joindre » (où vit « Enregistrer ses coordonnées ») pour sa lecture, ligne « Son cadeau » sous « Anniv. » : les deux ne sont plus jamais à l'écran ensemble. Offrir, Renvoyer et le nouveau Retirer (offerte par erreur) se confirment (`demande`). Banc `verifie-le-cadeau-anniversaire` (8).
-- **Vu au passage, pas corrigé** : dans les traces de cette fiche, de 14 h 19 à 14 h 21, le Trône ouvert sur un autre poste a réécrit plusieurs fois la ligne entière avec sa copie d'avant (nom et anniversaire remis à l'ancien, puis rétablis). La synchronisation écrit la ligne entière : le dernier poste qui écrit gagne, même avec une copie périmée. L'état final est juste.
+- **Vu au passage** : dans les traces de cette fiche, de 14 h 19 à 14 h 21, le Trône ouvert sur un autre poste a réécrit plusieurs fois la ligne entière avec sa copie d'avant (nom et anniversaire remis à l'ancien, puis rétablis). L'état final est juste. Corrigé le même jour : voir « DEUX POSTES SUR LA MÊME FICHE, CHAMP PAR CHAMP ».
 
 ## SANS LOCKS, DÉFAITES AILLEURS — 20 novembre 2026, EN LIGNE (Trône build 20261120125430 @ 86beddd7, 546/546 ; Trône seul ; aucun SQL ; aucune fonction)
 
