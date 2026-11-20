@@ -82,6 +82,13 @@ const PANNES = [
     "if (!e.valide && e.place && !e.retire) return { etat: { ...e, pied: 'demande-fin' }, effets: [] };", ''],
   ['le rendez-vous deja la ne se montre pas', 'src/apps/trone/routes/vente/SonProchainRituel.tsx',
     '    deja: dejaPose ? { id: dejaPose.id, iso: dejaPose.date, heure: dejaPose.time } : null,\n', '    deja: null,\n'],
+  /* La date choisie est celle qui se pose (20 novembre 2026). */
+  ['la bande ne fait qu allumer le jour', 'src/apps/trone/routes/vente/SonProchainRituel.tsx',
+    'onClick={() => { setJourChoisi(iso); choisitLeJour(iso, { resteOuvert: true }); }}', 'onClick={() => setJourChoisi(iso)}'],
+  ['le jour choisi ferme passe au suivant sans le dire', 'src/shared/rendez-vous-suggere-pur.ts',
+    "  if (p.ferme) return { iso: o.iso, manque: 'ferme' };\n",
+    "  if (p.ferme) { const s = laPlaceDeLaPuce({ vise: o.iso, aujourdhui: o.aujourdhui, placesDe: o.placesDe, heureHabituelle: o.heureHabituelle }); if (s) return s; }\n"],
+  ['le geste plein tait sa date', 'src/apps/trone/routes/vente/SonProchainRituel.tsx', " · ${placeCourte(carte.place)}`;", '`;'],
 ];
 
 if (prouve) {
@@ -265,6 +272,18 @@ const pied = () => texte('.mnd-modal .trv-regle__pied-gauche');
 const toastDit = () => evalue(`([...document.querySelectorAll('.mnd-toast')].pop()?.textContent || '').replace(/\\s+/g, ' ').trim()`);
 const ditLeJour = (iso) => evalue(`(() => { const s = new Date('${iso}T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); return s.charAt(0).toUpperCase() + s.slice(1); })()`);
 const termine = async () => { const ok = await clique('.mnd-modal .trv-regle__terminer', 'Terminer'); await attend(900); return ok; };
+/* « mar. 22 déc. 2026 », « mardi 22 décembre 2026 » : comme la carte les écrit. */
+const ditCourt = (iso) => evalue(`(() => { const s = new Date('${iso}T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); return s.charAt(0).toLowerCase() + s.slice(1); })()`);
+const ditLong = async (iso) => { const s = await ditLeJour(iso); return s.charAt(0).toLowerCase() + s.slice(1); };
+/* Le champ « Ou choisir une date », rempli comme le calendrier du téléphone le remplit. */
+const choisitLaDate = (iso) => evalue(`(() => {
+  const i = document.querySelector('.mnd-modal .trv-prochain__date-libre input[type="date"]');
+  if (!i) return false;
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, '${iso}');
+  i.dispatchEvent(new Event('input', { bubbles: true }));
+  i.dispatchEvent(new Event('change', { bubbles: true }));
+  return true;
+})()`);
 
 const etape = () => evalue(`document.querySelector('.mnd-modal .trv-regle')?.dataset.etape || ''`);
 const geste = async (libelle) => { const ok = await clique('.mnd-modal .trv-regle__terminer', libelle); await attend(900); return ok; };
@@ -294,7 +313,7 @@ const qui = await evalue(`[...document.querySelectorAll('.mnd-modal .trv-prochai
 dit('« Suggéré par la Maison » d office, « Elle l’a choisi avec nous » à côté', JSON.stringify(qui) === JSON.stringify([{ t: 'Suggéré par la Maison', on: true }, { t: 'Elle l’a choisi avec nous', on: false }]), JSON.stringify(qui));
 const bulle0 = await texte('.mnd-modal .trv-prochain__bulle');
 dit('ce qu elle reçoit en fermant : la proposition, et ses deux boutons', bulle0.startsWith(`Bonjour Mme Awa, merci pour votre visite. Pour garder le rythme de vos locks, nous vous proposons votre prochain rituel le ${saDate.charAt(0).toLowerCase()}${saDate.slice(1)} à 10 h : Souffle du banc et Reprise du banc.`) && bulle0.includes('Je confirme') && bulle0.includes('Un autre moment'), bulle0.slice(0, 200));
-dit('le geste plein dit « Poser la suggestion »', (await texte('.mnd-modal .trv-regle__terminer')) === 'Poser la suggestion', await texte('.mnd-modal .trv-regle__terminer'));
+dit('le geste plein dit « Poser la suggestion » et la date qu il pose', (await texte('.mnd-modal .trv-regle__terminer')) === `Poser la suggestion · ${await ditCourt(ouvertDes(28))} à 10 h`, await texte('.mnd-modal .trv-regle__terminer'));
 await capture('c-est-regle-etape-2', 1280, 900, false);
 
 dit('la puce « 6 sem. » change la date montrée', await clique('.mnd-modal .trv-prochain__puce', '6 sem.'));
@@ -351,9 +370,50 @@ dit('elle règle, puis la seconde étape', (await encaisse()) && (await versLaSu
 const heureD = await texte('.mnd-modal .trv-prochain__heure');
 dit('son heure prise : le même jour, l heure libre la plus proche', (await enGrand()) === await ditLeJour(ouvertDes(28)) && !heureD.startsWith('15 h ·'), `${await enGrand()} · ${heureD}`);
 dit('... et l écran le dit', /^!s?15 h est déjà prise chez Expert ce \S+-là : proposé à \d{1,2} h( \d{2})?, l’heure libre la plus proche\.$/u.test(await texte('.mnd-modal .trv-prochain__verifie')), await texte('.mnd-modal .trv-prochain__verifie'));
+
+/* ── I. LA DATE CHOISIE EST CELLE QUI SE POSE (20 novembre 2026) ──
+   « J'ai pris rendez-vous pour lui le 22 décembre, je vois le 25. » Dans
+   « Une autre date », le jour touché ne faisait que s'allumer : le geste
+   plein posait la date restée en grand, celle d'office. Et « Ou choisir une
+   date » passait sans le dire au jour suivant quand le jour choisi n'avait
+   pas de place. */
+const dateD = await enGrand();
+const heureD0 = await texte('.mnd-modal .trv-prochain__heure');
+dit('« Changer la date ou l’heure »', await clique('.mnd-modal .trv-prochain__bouton', 'Changer la date ou l’heure'));
+await attend(400);
+dit('« Une autre date » ouvre la bande des jours', await clique('.mnd-modal .trv-prochain__lien', 'Une autre date'));
+await attend(500);
+const autreJour = await evalue(`(() => { const b = [...document.querySelectorAll('.mnd-modal .trv-prochain__jour')].find((x) => x.getAttribute('aria-pressed') !== 'true'); if (!b) return null; b.click(); return b.dataset.iso; })()`);
+await attend(700);
+dit('un jour touché dans la bande devient la date en grand, rien de posé', !!autreJour && (await enGrand()) === await ditLeJour(autreJour) && (await sesRdv('cl-de')).length === 0, `${autreJour} -> ${await enGrand()}`);
+dit('... le jour touché reste allumé', await evalue(`document.querySelector('.mnd-modal .trv-prochain__jour[data-iso="${autreJour}"]')?.getAttribute('aria-pressed') === 'true'`));
+dit('... et le geste plein nomme ce jour', (await texte('.mnd-modal .trv-regle__terminer')).startsWith('Poser la suggestion · ') && (await texte('.mnd-modal .trv-regle__terminer')).includes(await ditCourt(autreJour)), await texte('.mnd-modal .trv-regle__terminer'));
+dit('« Garder ce rendez-vous » referme la bande', await clique('.mnd-modal .trv-prochain__bouton', 'Garder ce rendez-vous'));
+await attend(400);
+dit('« Revenir à la proposition »', await clique('.mnd-modal .trv-prochain__lien', 'Revenir à la proposition'));
+await attend(500);
+dit('... la date et l heure d office reviennent', (await enGrand()) === dateD && (await texte('.mnd-modal .trv-prochain__heure')) === heureD0, `${await enGrand()} · ${await texte('.mnd-modal .trv-prochain__heure')}`);
+let nDim = 29;
+while (new Date(`${jourPlus(nDim)}T12:00:00`).getDay() !== 0) nDim += 1;
+const dimanche = jourPlus(nDim);
+const mardiApres = jourPlus(nDim + 2);
+dit('« Ou choisir une date » : un dimanche, jour fermé', await choisitLaDate(dimanche));
+await attend(700);
+dit('... la date en grand ne bouge pas, rien de posé', (await enGrand()) === dateD && (await sesRdv('cl-de')).length === 0, await enGrand());
+const alerteD = await texte('.mnd-modal .trv-prochain__jour-sans-place');
+dit('... l écran dit que ce jour est fermé, et où la carte reste', alerteD.startsWith(`La Maison est fermée le ${await ditLong(dimanche)}`) && alerteD.includes('la date n’a pas changé'), alerteD.slice(0, 160));
+dit('... il offre le jour suivant et la pose quand même, sans rien choisir seul', (await evalue(`[...document.querySelectorAll('.mnd-modal .trv-prochain__jour-sans-place button')].map((b) => b.textContent.trim().split(' ')[0]).join('|')`)) === 'Prendre|Le', await evalue(`[...document.querySelectorAll('.mnd-modal .trv-prochain__jour-sans-place button')].map((b) => b.textContent.trim()).join(' | ')`));
+dit('... et le champ ne montre pas un jour que la carte ne porte pas', (await evalue(`document.querySelector('.mnd-modal .trv-prochain__date-libre input')?.value`)) === '', await evalue(`document.querySelector('.mnd-modal .trv-prochain__date-libre input')?.value`));
+dit('« Ou choisir une date » : un mardi ouvert', await choisitLaDate(mardiApres));
+await attend(700);
+dit('... c est ce jour-là, exactement, qui passe en grand', (await enGrand()) === await ditLeJour(mardiApres) && !(await evalue(`!!document.querySelector('.mnd-modal .trv-prochain__jour-sans-place')`)), await enGrand());
+dit('... et le champ le montre', (await evalue(`document.querySelector('.mnd-modal .trv-prochain__date-libre input')?.value`)) === mardiApres, await evalue(`document.querySelector('.mnd-modal .trv-prochain__date-libre input')?.value`));
+dit('« Revenir à la proposition » encore', await clique('.mnd-modal .trv-prochain__lien', 'Revenir à la proposition'));
+await attend(500);
+dit('... la date d office revient', (await enGrand()) === dateD, await enGrand());
 dit('« Elle l’a choisi avec nous »', await evalue(`(() => { const i = [...document.querySelectorAll('.mnd-modal .trv-prochain__choix input')][1]; if (i) i.click(); return !!i; })()`));
 await attend(500);
-dit('... le geste plein dit « Poser le rendez-vous », l aperçu la confirmation', (await texte('.mnd-modal .trv-regle__terminer')) === 'Poser le rendez-vous' && (await texte('.mnd-modal .trv-prochain__quand')).startsWith('Rien tant que'), await texte('.mnd-modal .trv-regle__terminer'));
+dit('... le geste plein dit « Poser le rendez-vous » et sa date, l aperçu la confirmation', (await texte('.mnd-modal .trv-regle__terminer')).startsWith(`Poser le rendez-vous · ${await ditCourt(ouvertDes(28))} à `) &&(await texte('.mnd-modal .trv-prochain__quand')).startsWith('Rien tant que'), await texte('.mnd-modal .trv-regle__terminer'));
 dit('« Poser le rendez-vous »', await geste('Poser le rendez-vous'));
 const de = await sesRdv('cl-de');
 dit('... posé et confirmé d un geste, sans marque de suggestion, la fenêtre fermée', de.length === 1 && !('sansConfirmation' in de[0]) && !de[0].suggereLe && de[0].date === ouvertDes(28) && !(await evalue(`!!${modale}`)), JSON.stringify(de.map((a) => `${a.date} ${a.time} ${a.sansConfirmation} ${a.suggereLe}`)));

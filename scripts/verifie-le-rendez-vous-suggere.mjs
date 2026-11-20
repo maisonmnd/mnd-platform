@@ -51,7 +51,15 @@ const PANNES = [
   ['les boutons s inversent', PUR, "index: '0', parameters: [{ type: 'payload', payload: `REPRISE_OK:${o.apptId}` }]", "index: '0', parameters: [{ type: 'payload', payload: `REPRISE_AUTRE:${o.apptId}` }]"],
   ['le rythme ne se lit plus', PUR, '    if (e < ecart - 1e-9) { ecart = e; meilleure = n; }\n', ''],
   ['une puce tombe sur un jour ferme', PUR, '    if (p.ferme || p.heures.length === 0) continue;\n', ''],
-  ['une puce oublie son heure', PUR, '        ? sienne\n', '        ? p.heures[0]\n'],
+  ['une puce oublie son heure', PUR, '  if (heures.includes(sienne)) return sienne;\n', '  if (heures.includes(sienne)) return heures[0];\n'],
+  /* Le jour choisi à la main (20 novembre 2026, « le 22, je vois le 25 »). */
+  ['le jour choisi plein passe au suivant', PUR, "  if (p.heures.length === 0) return { iso: o.iso, manque: 'plein' };\n",
+    "  if (p.heures.length === 0) { const s = laPlaceDeLaPuce({ vise: o.iso, aujourdhui: o.aujourdhui, placesDe: o.placesDe, heureHabituelle: o.heureHabituelle }); return s ?? { iso: o.iso, manque: 'plein' }; }\n"],
+  ['le jour choisi ferme ne se dit pas ferme', PUR, "  if (p.ferme) return { iso: o.iso, manque: 'ferme' };\n", ''],
+  ['le jour choisi passe se prend', PUR, "  if (o.iso < plusJours(o.aujourdhui, 1)) return { iso: o.iso, manque: 'passe' };\n", ''],
+  ['la bande ne fait qu allumer le jour', 'src/apps/trone/routes/vente/SonProchainRituel.tsx', 'onClick={() => { setJourChoisi(iso); choisitLeJour(iso, { resteOuvert: true }); }}', 'onClick={() => setJourChoisi(iso)}'],
+  ['le champ montre un jour que la carte ne porte pas', 'src/apps/trone/routes/vente/SonProchainRituel.tsx', "value={dateLibre && carte.place && !carte.retire && carte.place.iso === dateLibre ? dateLibre : ''}", 'value={dateLibre}'],
+  ['le geste plein tait sa date', 'src/apps/trone/routes/vente/SonProchainRituel.tsx', " · ${placeCourte(carte.place)}`;", '`;'],
   ['la pose oublie la marque', PUR, "(qui === 'suggere' ? { suggereLe: maintenantIso } : {});", '({});'],
   ['le comptoir lit un nom', PUR, "return mots.slice(0, 2).map((m) => `${m.charAt(0).toUpperCase()}.`).join(' ');", "return mots.join(' ');"],
   ['a confirmer se compte avec les confirmes', PUR, '    if (estSuggere(a)) aConfirmer += 1; else confirmes += 1;', '    confirmes += 1;'],
@@ -69,7 +77,7 @@ const PANNES = [
   ['Ma Couronne dit confirmee une proposition', 'src/shared/abonnee-pur.ts', "  if (estSuggere(a) && !a.attenduJusquAu) return 'proposee';\n", ''],
   ['le webhook compare le numero a l identique', 'supabase/functions/whatsapp-webhook/index.ts', "if (!fiche || !fiche.numeros.some((n) => cleWa(n) === cleWa(e.numero))) { dis('reprise · numéro étranger au rendez-vous'); continue; }", "if (!fiche || !fiche.numeros.includes(e.numero)) { dis('reprise · numéro étranger au rendez-vous'); continue; }"],
   ['la proposition perd sa question finale', PUR, ' : ${o.gestes}. Cette date vous convient-elle ?`;', ' : ${o.gestes}.`;'],
-  ['« Suggéré par la Maison » n est plus le defaut', 'src/apps/trone/routes/vente/SonProchainRituel.tsx', "useState<QuiAChoisi>('suggere')", "useState<QuiAChoisi>('choisi')"],
+  ['« Suggéré par la Maison » n est plus le defaut', 'src/apps/trone/routes/vente/SonProchainRituel.tsx', "useState<QuiAChoisi>(souhait ? 'choisi' : 'suggere')", "useState<QuiAChoisi>('choisi')"],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

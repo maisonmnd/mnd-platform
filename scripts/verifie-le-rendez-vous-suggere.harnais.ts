@@ -8,7 +8,7 @@
    messages, Ma Couronne, l'assistant, et lit les copies du serveur. */
 import { readFileSync } from 'node:fs';
 import {
-  estSuggere, etatDeLaSuggestion, ceQueDitLaSuggestion, jourDeLaRelance, semaineDuRythme, dansNSemaines, laPlaceDeLaPuce,
+  estSuggere, etatDeLaSuggestion, ceQueDitLaSuggestion, jourDeLaRelance, semaineDuRythme, dansNSemaines, laPlaceDeLaPuce, laPlaceDuJourChoisi, estUnJourSansPlace,
   marqueDeLaPose, comptesAVenir, suggestionsSansReponse, noteDuComptoir, initialesDe, texteDeLaProposition, texteDeLaRelance,
   composantsDeLaProposition, SEMAINES_DE_LA_SUITE,
 } from '../src/shared/rendez-vous-suggere-pur';
@@ -112,6 +112,25 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
   dit('ferme ou plein : le jour ouvert suivant', { iso: '2027-01-04', heure: '13:30', vise: '2027-01-02', ecart: 'jour' },
     laPlaceDeLaPuce({ vise: '2027-01-02', aujourdhui: '2026-11-15', placesDe: places, heureHabituelle: '13:30' }));
   dit('jamais avant demain', '2026-11-16', laPlaceDeLaPuce({ vise: '2026-11-10', aujourdhui: '2026-11-15', placesDe: () => ({ ferme: false, heures: ['10:00'] }) })?.iso);
+
+  /* LE JOUR CHOISI À LA MAIN (20 novembre 2026) : « j'ai pris rendez-vous
+     pour lui le 22 décembre, je vois le 25 ». Ce jour-là, jamais un autre. */
+  const dec = (iso: string) => ({
+    '2026-12-22': { ferme: false, heures: [] },
+    '2026-12-23': { ferme: false, heures: ['11:30', '14:00'] },
+    '2026-12-24': { ferme: false, heures: ['08:30', '11:00'] },
+    '2026-12-25': { ferme: false, heures: ['11:00'] },
+    '2026-12-28': { ferme: true, heures: [] },
+  } as Record<string, { ferme: boolean; heures: string[] }>)[iso] ?? { ferme: true, heures: [] };
+  const choisi = (iso: string) => laPlaceDuJourChoisi({ iso, aujourdhui: '2026-11-20', placesDe: dec, heureHabituelle: '11:00' });
+  dit('le jour choisi, a son heure', { iso: '2026-12-24', heure: '11:00', vise: '2026-12-24', ecart: 'aucun' }, choisi('2026-12-24'));
+  dit('le jour choisi, son heure prise : le meme jour, l heure libre la plus proche', { iso: '2026-12-23', heure: '11:30', vise: '2026-12-23', ecart: 'heure' }, choisi('2026-12-23'));
+  dit('le jour choisi plein : il ne passe JAMAIS au suivant, il le dit', { iso: '2026-12-22', manque: 'plein' }, choisi('2026-12-22'));
+  dit('le jour choisi ferme : il le dit', { iso: '2026-12-28', manque: 'ferme' }, choisi('2026-12-28'));
+  dit('le jour choisi passe : il le dit', { iso: '2026-11-20', manque: 'passe' }, choisi('2026-11-20'));
+  dit('estUnJourSansPlace les reconnait', [true, false], [estUnJourSansPlace(choisi('2026-12-22')), estUnJourSansPlace(choisi('2026-12-24'))]);
+  dit('la puce, elle, garde la distance : un jour plein passe au suivant', { iso: '2026-12-23', heure: '11:30', vise: '2026-12-22', ecart: 'jour' },
+    laPlaceDeLaPuce({ vise: '2026-12-22', aujourdhui: '2026-11-20', placesDe: dec, heureHabituelle: '11:00' }));
 }
 
 /* ── 5. La carte : viser ne pose rien, poser la suggestion pose et ferme ── */
@@ -177,6 +196,14 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
     ['Ensuite : son prochain rendez-vous', 'Fermer sans prochain rendez-vous', 'Nouveau rendez-vous', 'const [etape, setEtape] = useState<1 | 2>(1);', 'Pas de prochain rendez-vous'].map((m) => regle.includes(m)));
   dit('la carte : les puces, la date libre, qui a choisi, la pose marquee', [true, true, true, true, true],
     ['Dans combien de temps', 'Ou choisir une date', 'Suggéré par la Maison', 'Elle l’a choisi avec nous', '...marqueDeLaPose(quiRef.current, new Date().toISOString()),'].map((m) => carte.includes(m)));
+  dit('la carte : un jour choisi a la main passe par laPlaceDuJourChoisi, la bande aussi, le champ ne ment pas, le geste dit sa date', [true, true, true, true, true],
+    [
+      "if (/^\\d{4}-\\d{2}-\\d{2}$/.test(v)) choisitLeJour(v); }}",
+      'onClick={() => { setJourChoisi(iso); choisitLeJour(iso, { resteOuvert: true }); }}',
+      "value={dateLibre && carte.place && !carte.retire && carte.place.iso === dateLibre ? dateLibre : ''}",
+      "const r = laPlaceDuJourChoisi({ iso, aujourdhui, heureHabituelle: sonHeure, placesDe: lesPlacesDuMoment });",
+      "`${qui === 'suggere' ? 'Poser la suggestion' : 'Poser le rendez-vous'} · ${placeCourte(carte.place)}`",
+    ].map((m) => carte.includes(m)));
   /* L'agent des rendez-vous (18 novembre 2026) pose ce qu'on lui demande au comptoir : « choisi » pour lui seul. */
   dit('« Suggéré par la Maison » est le choix par defaut', true, carte.includes("useState<QuiAChoisi>(souhait ? 'choisi' : 'suggere')"));
   const conf = lit('supabase/functions/confirmation-rdv/index.ts');

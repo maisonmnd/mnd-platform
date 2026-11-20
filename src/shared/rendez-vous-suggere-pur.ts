@@ -164,17 +164,54 @@ export function laPlaceDeLaPuce(o: {
     const p = o.placesDe(iso);
     if (p.ferme || p.heures.length === 0) continue;
     const sienne = o.heureHabituelle ?? null;
-    let heure = p.heures[0];
-    if (sienne) {
-      heure = p.heures.includes(sienne)
-        ? sienne
-        : [...p.heures].sort((a, b) => Math.abs(enMinutes(a) - enMinutes(sienne)) - Math.abs(enMinutes(b) - enMinutes(sienne)) || enMinutes(a) - enMinutes(b))[0];
-    }
+    const heure = lHeureDuJour(p.heures, sienne);
     const ecart: PlaceDeLaPuce['ecart'] = iso !== o.vise ? 'jour' : sienne && heure !== sienne ? 'heure' : 'aucun';
     return { iso, heure, vise: o.vise, ecart };
   }
   return null;
 }
+
+/** L'HEURE D'UN JOUR QUI A DES PLACES : son heure habituelle si elle est
+    libre, sinon l'heure libre la plus proche (à égalité, la plus tôt) ;
+    sans heure habituelle, la première. */
+function lHeureDuJour(heures: readonly string[], sienne: string | null): string {
+  if (!sienne) return heures[0];
+  if (heures.includes(sienne)) return sienne;
+  return [...heures].sort((a, b) => Math.abs(enMinutes(a) - enMinutes(sienne)) - Math.abs(enMinutes(b) - enMinutes(sienne)) || enMinutes(a) - enMinutes(b))[0];
+}
+
+/* ══ LE JOUR CHOISI À LA MAIN — 20 novembre 2026 ════════════════════════
+   « Ekoundayo a fini son rendez-vous, j'ai pris rendez-vous pour lui le
+   22 décembre ; maintenant je vois le 25. Je n'ai jamais confirmé un
+   rendez-vous pour le 25 » (Yéman). Le jour touché dans « Une autre date »
+   ne faisait que s'allumer, et « Ou choisir une date » passait sans bruit
+   au jour suivant quand le jour choisi était fermé ou plein : le geste
+   plein posait alors une date que personne n'avait choisie.
+
+   UNE DATE CHOISIE À LA MAIN EST CELLE-LÀ, JAMAIS UNE AUTRE. À son heure si
+   elle est libre, sinon l'heure libre la plus proche, le même jour. Fermé,
+   plein ou passé : la carte ne bouge pas, l'écran le dit, et le jour
+   suivant ne se prend que d'un toucher. Les puces « dans n semaines »,
+   elles, visent une distance, pas un jour : elles gardent `laPlaceDeLaPuce`,
+   et leur étiquette dit le jour qu'elles prennent. */
+export type JourSansPlace = { iso: string; manque: 'ferme' | 'plein' | 'passe' };
+
+export function laPlaceDuJourChoisi(o: {
+  iso: string;
+  aujourdhui: string;
+  placesDe: (iso: string) => { ferme: boolean; heures: readonly string[] };
+  heureHabituelle?: string | null;
+}): PlaceDeLaPuce | JourSansPlace {
+  if (o.iso < plusJours(o.aujourdhui, 1)) return { iso: o.iso, manque: 'passe' };
+  const p = o.placesDe(o.iso);
+  if (p.ferme) return { iso: o.iso, manque: 'ferme' };
+  if (p.heures.length === 0) return { iso: o.iso, manque: 'plein' };
+  const sienne = o.heureHabituelle ?? null;
+  const heure = lHeureDuJour(p.heures, sienne);
+  return { iso: o.iso, heure, vise: o.iso, ecart: sienne && heure !== sienne ? 'heure' : 'aucun' };
+}
+
+export const estUnJourSansPlace = (x: PlaceDeLaPuce | JourSansPlace): x is JourSansPlace => 'manque' in x;
 
 /* ── QUI A CHOISI LA DATE ──────────────────────────────────────────────── */
 

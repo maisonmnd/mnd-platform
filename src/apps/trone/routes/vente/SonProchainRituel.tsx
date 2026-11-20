@@ -88,7 +88,8 @@ import {
 } from '../../../../shared/carte-du-prochain-rituel-pur';
 import { leveLaConfirmation, marqueLaSuggestion, remplaceLeRendezVousDeLaCarte, retireLeRendezVousDeLaCarte } from '../../../../shared/carte-du-prochain-rituel';
 import {
-  dansNSemaines, estSuggere, laPlaceDeLaPuce, marqueDeLaPose, SEMAINES_DE_LA_SUITE, semaineDuRythme, texteDeLaProposition, type QuiAChoisi,
+  dansNSemaines, estSuggere, estUnJourSansPlace, laPlaceDeLaPuce, laPlaceDuJourChoisi, marqueDeLaPose, SEMAINES_DE_LA_SUITE, semaineDuRythme, texteDeLaProposition,
+  type JourSansPlace, type PlaceDeLaPuce, type QuiAChoisi,
 } from '../../../../shared/rendez-vous-suggere-pur';
 import { estEnAttente, etatDeLAttente } from '../../../../shared/rendez-vous-en-attente-pur';
 import { laPlaceDuSouhait, leRituelVoulu, phraseDuSouhait, type Souhait } from '../../../../shared/agent-des-rendez-vous-pur';
@@ -406,6 +407,9 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
   const [puce, setPuce] = useState<number | null>(null);
   const [dateLibre, setDateLibre] = useState('');
   const [notePuce, setNotePuce] = useState<string | null>(null);
+  /* Le jour choisi à la main qui n'a pas de place (20 novembre 2026) : la
+     carte ne bouge pas, l'écran le dit, le jour suivant se prend d'un toucher. */
+  const [jourSansPlace, setJourSansPlace] = useState<(JourSansPlace & { suivante: PlaceDeLaPuce | null }) | null>(null);
   const modeleApprouve = useModeleApprouve('proposition_rituel');
   /* La proposition ne part que son modèle approuvé ; sans lecture, on n'en dit rien. */
   const sansModele = qui === 'suggere' && modeleApprouve === false;
@@ -573,7 +577,9 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
       onFerme?.();
     }
   };
-  const fais = (g: GesteDeLaCarte) => {
+  /* `resteOuvert` : le jour touché dans la bande garde « Une autre place »
+     ouverte, pour en choisir l'heure (20 novembre 2026). */
+  const fais = (g: GesteDeLaCarte, o: { resteOuvert?: boolean } = {}) => {
     const r = gesteSurLaCarte(carte, g);
     for (const f of r.effets) {
       if (f.genre !== 'poser' && f.genre !== 'deplacer') continue;
@@ -592,8 +598,10 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
       }
     }
     setAlerte(null);
-    setCarte(r.etat);
-    for (const f of r.effets) execute(f, r.etat);
+    setJourSansPlace(null);
+    const etat = o.resteOuvert && !r.etat.dejaLa ? { ...r.etat, modif: true } : r.etat;
+    setCarte(etat);
+    for (const f of r.effets) execute(f, etat);
   };
   const terminer = () => fais({ genre: 'terminer' });
   const plein = carte.valide || !carte.place || carte.retire;
@@ -617,22 +625,45 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
     if (puce !== null && montre(puce)) return puce;
     return placesDesPuces.find((x) => montre(x.n))?.n ?? null;
   })();
-  const vise = (o: { n: number } | { iso: string }) => {
+  /** Les places d'un jour, relues sur le carnet et les murs du moment. */
+  const lesPlacesDuMoment = (iso: string) => {
+    if (!tarif) return { ferme: true, heures: [] as string[] };
+    const p = placesDe(appointmentsStore.get(), blocagesStore.get(), tarif.dureeMin, maitre)(iso);
+    return { ferme: p.ferme, heures: p.heures };
+  };
+  /** UNE PUCE « dans n semaines » : une distance ; un jour fermé ou plein
+      passe au suivant, et l'étiquette de la puce le montre. */
+  const vise = (o: { n: number }) => {
     if (!tarif) return;
-    const cible = 'n' in o
-      ? placesDesPuces.find((x) => x.n === o.n)?.place ?? null
-      : laPlaceDeLaPuce({
-        vise: o.iso, aujourdhui, heureHabituelle: sonHeure,
-        placesDe: (iso) => { const p = placesDe(appointmentsStore.get(), blocagesStore.get(), tarif.dureeMin, maitre)(iso); return { ferme: p.ferme, heures: p.heures }; },
-      });
+    const cible = placesDesPuces.find((x) => x.n === o.n)?.place ?? null;
     if (!cible) {
       setAlerte(`Aucune place pour ${fmtDureeCourte(tarif.dureeMin)}${maitre ? ` chez ${maitre}` : ''} dans les quatre semaines qui suivent : choisissez une autre date.`);
       return;
     }
-    setPuce('n' in o ? o.n : null);
-    if ('n' in o) setDateLibre('');
+    setPuce(o.n);
+    setDateLibre('');
     setNotePuce(cible.ecart === 'jour' ? `Le ${jourDit(cible.vise)} n’a pas de place pour sa durée : le ${jourDit(cible.iso)}, la première place qui suit.` : null);
     fais({ genre: 'viser', place: { iso: cible.iso, heure: cible.heure } });
+  };
+  /** UN JOUR CHOISI À LA MAIN (« Ou choisir une date », la bande « Une autre
+      date ») : ce jour-là, jamais un autre (20 novembre 2026,
+      `laPlaceDuJourChoisi`). Sans place, la carte ne bouge pas. */
+  const choisitLeJour = (iso: string, o: { resteOuvert?: boolean } = {}) => {
+    if (!tarif) return;
+    const r = laPlaceDuJourChoisi({ iso, aujourdhui, heureHabituelle: sonHeure, placesDe: lesPlacesDuMoment });
+    setPuce(null);
+    if (estUnJourSansPlace(r)) {
+      setDateLibre('');
+      setNotePuce(null);
+      setAlerte(null);
+      setJourSansPlace({
+        ...r,
+        suivante: r.manque === 'passe' ? null : laPlaceDeLaPuce({ vise: addDaysISO(iso, 1), aujourdhui, heureHabituelle: sonHeure, placesDe: lesPlacesDuMoment }),
+      });
+      return;
+    }
+    setNotePuce(r.ecart === 'heure' && sonHeure ? `${heureDuMessage(sonHeure)} est prise le ${jourDit(iso)} : ${heureDuMessage(r.heure)}, l’heure libre la plus proche.` : null);
+    fais({ genre: 'viser', place: { iso: r.iso, heure: r.heure } }, o);
   };
   const changeQui = (q: QuiAChoisi) => {
     setQui(q);
@@ -744,7 +775,9 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
       <div className="trv-prochain__autre">
         <div className="trv-prochain__jours" role="group" aria-label="Les jours ouverts">
           {joursOuverts.map((iso) => (
-            <button key={iso} type="button" className="trv-prochain__jour" data-iso={iso} aria-pressed={iso === jourVu} onClick={() => setJourChoisi(iso)}>
+            /* Le jour touché devient la date de la carte (20 novembre 2026) :
+               il ne s'allume plus seul pendant que le geste plein pose l'autre. */
+            <button key={iso} type="button" className="trv-prochain__jour" data-iso={iso} aria-pressed={iso === jourVu} onClick={() => { setJourChoisi(iso); choisitLeJour(iso, { resteOuvert: true }); }}>
               <small>{morceauDuJour(iso, { weekday: 'short' })}</small>
               <b>{morceauDuJour(iso, { day: 'numeric' })}</b>
               <small>{morceauDuJour(iso, { month: 'short' })}</small>
@@ -774,6 +807,37 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
     ) : <p className="trv-prochain__note">Aucun jour ouvert avec une place pour sa durée dans les six semaines.</p>
   ) : null;
 
+  /* LE JOUR CHOISI SANS PLACE (20 novembre 2026) : la carte reste où elle
+     est, et le dit ; le jour suivant ne se prend que d'un toucher ; la
+     fenêtre du rendez-vous pose quand même ce jour-là, si la Maison s'organise. */
+  const leJourSansPlace = jourSansPlace && tarif ? (() => {
+    const j = jourSansPlace;
+    const reste = carte.place && !carte.retire ? `, la carte reste le ${jourDit(carte.place.iso)} à ${heureDuMessage(carte.place.heure)}` : '';
+    const phrase = j.manque === 'ferme'
+      ? `La Maison est fermée le ${jourDit(j.iso)} : la date n’a pas changé${reste}.`
+      : j.manque === 'plein'
+        ? `Le ${jourDit(j.iso)} est complet${maitre ? ` chez ${maitre}` : ''} pour ${fmtDureeCourte(tarif.dureeMin)} : la date n’a pas changé${reste}.`
+        : `Le ${jourDit(j.iso)} est passé : la date n’a pas changé${reste}.`;
+    const heureDeLaMain = sonHeure ?? placesDe([], [], tarif.dureeMin, maitre)(j.iso).heures[0] ?? '10:00';
+    return (
+      <div className="trv-prochain__jour-sans-place" role="alert">
+        <p>{phrase}</p>
+        <div className="trv-prochain__actions">
+          {j.suivante && (
+            <button type="button" className="trv-prochain__bouton" onClick={() => { const s = j.suivante; if (s) fais({ genre: 'viser', place: { iso: s.iso, heure: s.heure } }); }}>
+              {`Prendre le ${jourDit(j.suivante.iso)} à ${heureDuMessage(j.suivante.heure)}`}
+            </button>
+          )}
+          {j.manque !== 'passe' && (
+            <button type="button" className="trv-prochain__lien" onClick={() => ouvreLaFenetre({ place: { iso: j.iso, heure: heureDeLaMain } })}>
+              {`Le poser quand même le ${jourDit(j.iso)}`}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  })() : null;
+
   /* « Dans combien de temps » : six puces, et une date au choix. */
   const lesSemaines = !carte.dejaLa && tarif && placesDesPuces.length > 0 ? (
     <div className="trv-prochain__semaines">
@@ -797,14 +861,17 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
       </div>
       <label className="trv-prochain__date-libre">
         <span className="trv-prochain__etiquette">Ou choisir une date</span>
+        {/* Le champ ne montre que le jour que la carte porte : jamais un jour
+            choisi qu'elle n'a pas pris (20 novembre 2026). */}
         <input
           type="date"
           min={demain}
-          value={dateLibre}
-          onChange={(e) => { const v = e.target.value; setDateLibre(v); if (/^\d{4}-\d{2}-\d{2}$/.test(v)) vise({ iso: v }); }}
+          value={dateLibre && carte.place && !carte.retire && carte.place.iso === dateLibre ? dateLibre : ''}
+          onChange={(e) => { const v = e.target.value; setDateLibre(v); if (/^\d{4}-\d{2}-\d{2}$/.test(v)) choisitLeJour(v); }}
         />
       </label>
       {notePuce && <p className="trv-prochain__note">{notePuce}</p>}
+      {leJourSansPlace}
     </div>
   ) : null;
 
@@ -1023,9 +1090,12 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
     fais({ genre: 'terminer-sans' });
   };
   const question = carte.pied === 'demande-fin' || carte.pied === 'demande-retrait';
-  const libelleDuGeste = carte.dejaLa || carte.retire || (!carte.place && !carte.valide)
-    ? 'Fermer'
-    : carte.valide ? 'Terminer' : qui === 'suggere' ? 'Poser la suggestion' : 'Poser le rendez-vous';
+  /* LE GESTE PLEIN DIT CE QU'IL POSE (20 novembre 2026) : « Poser le
+     rendez-vous · mar. 22 déc. 2026 à 11 h 30 ». La date se lit sur le
+     bouton même, au moment de toucher. */
+  const libelleDuGeste = carte.dejaLa || carte.retire || !carte.place
+    ? (carte.valide && !carte.dejaLa && !carte.retire ? 'Terminer' : 'Fermer')
+    : carte.valide ? 'Terminer' : `${qui === 'suggere' ? 'Poser la suggestion' : 'Poser le rendez-vous'} · ${placeCourte(carte.place)}`;
   const dejaLaDit = carte.dejaLa && carte.place ? momentDuMessage(carte.place.iso, carte.place.heure) : null;
   /* L'AGENT VALIDE SEUL, SANS FERMER : la carte reste ouverte, « Annuler »
      (pas de prochain rendez-vous) ne fait rien partir, « Terminer » confirme. */
