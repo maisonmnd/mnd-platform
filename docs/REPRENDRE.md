@@ -2,6 +2,10 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE RÈGLEMENT EN DIRECT DIT L'HEURE DU SALON — 20 novembre 2026, EN LIGNE (Trône build 20261120210548 @ 053427b1, 546/546 ; Trône seul ; aucun SQL ; aucune fonction)
+
+« Quel message est parti à 22 h 13 ? » (Yéman, Mme O.-T.). Un seul message ce jour-là : `facture_du_rituel`, le PDF et le bouton « Régler », à 14 h 13 UTC (15 h 13 à Cotonou). Le navigateur du bureau est à l'heure de Chine (UTC+8) : « Le règlement en direct » lisait `getHours()` et disait 22:13, quand « Renvoyer la facture » disait 15 h 13. `heureDuSalon` (`shared/calendrier.ts`, Africa/Porto-Novo) ; `verifie-calendrier` tourne désormais à l'heure de Chine (59 ; 2/2 pannes criées). **Reste à faire, sur décision** : d'autres écrans lisent encore l'heure du poste — surtout `maintenantMin = getHours()` des places du jour (SonProchainRituel, `_shared.tsx`, FenetreDeLAgent) : sur ce poste, l'après-midi à Cotonou, le Trône croit qu'il est le soir et peut cacher les places restantes du jour ; et des heures affichées (ComposeurWhatsApp, `_gestes.tsx`, MonMois).
+
 ## UN SEUL ONGLET DU TRÔNE TIENT LA MAIN — 20 novembre 2026 (Trône ; aucun SQL ; aucune fonction)
 
 Signalé par la session 1f : le 18 novembre, un rendez-vous annulé dans un onglet est revenu « confirmé » trois minutes plus tard, écrit par un second onglet du même Chrome. Deux causes, que la fusion champ par champ (967367d6) ne couvrait pas : chaque onglet prenait ce que l'autre posait dans le stockage commun (`storage` → notify) pour un geste à lui, daté de maintenant ; et chaque onglet réécrivait toute la file d'attente commune avec sa propre copie. Yéman a choisi « A » : un seul onglet actif, comme WhatsApp Web (plutôt que « B », faire travailler deux onglets ensemble).
