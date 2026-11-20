@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## SANS LOCKS, DÉFAITES AILLEURS — 20 novembre 2026 (Trône seul ; aucun SQL ; aucune fonction)
+## SANS LOCKS, DÉFAITES AILLEURS — 20 novembre 2026, EN LIGNE (Trône build 20261120125430 @ 86beddd7, 546/546 ; Trône seul ; aucun SQL ; aucune fonction)
 
 « Les clientes qui n'ont plus de locks, qui ont défait leurs locks, je veux les rendre inactives, qu'elles ne figurent plus dans la liste des clientes actives » ; « il y a des Gbàtà ou des locks défaits ailleurs » (Yéman).
 
