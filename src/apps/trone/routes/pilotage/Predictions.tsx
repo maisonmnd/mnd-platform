@@ -11,7 +11,7 @@ import {
 } from '../clients/_shared';
 import { downloadCsv } from '../finances/_shared';
 import { tauxDeRealisation } from '../../../../shared/cadence';
-import { clientsStore } from '../../../../shared/clients';
+import { clientsStore, marqueSansLocks } from '../../../../shared/clients';
 import './pilotage.css';
 
 /* ═══ LA CADENCE — la salle où la Maison lit ce qu'elle attend ═════
@@ -232,7 +232,10 @@ export default function Predictions() {
       accepter: 'Poser la marque',
       refuser: 'Ne pas la poser',
     })) return;
-    clientsStore.set((prev) => prev.map((c) => (c.id === clientId ? { ...c, ...m.pose } : c)));
+    /* « Sans locks » part datée du jour (20 novembre 2026) : seule une
+       création honorée après la ramène, pas celle qu'elle a défaite. */
+    const pose = 'locksDefaits' in m.pose ? marqueSansLocks(todayISO()) : m.pose;
+    clientsStore.set((prev) => prev.map((c) => (c.id === clientId ? { ...c, ...pose } : c)));
   };
 
   /* ---- LA FILE, POUR UNE CAMPAGNE DE RELANCE ---- */

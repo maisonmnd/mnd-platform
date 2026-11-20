@@ -196,6 +196,15 @@ export type Client = {
       Elle continue de venir, et son argent compte comme celui des autres :
       seules les mesures de la couronne se taisent. */
   locksDefaits?: boolean;
+  /** LE JOUR OÙ LA MAISON L'A SU — 20 novembre 2026. « Il y a des Gbàtà ou des
+      locks défaits ailleurs » (Yéman). Sans ce jour, la marque posée à la main
+      sur une tête CRÉÉE chez nous puis défaite ailleurs tombait à la passe
+      suivante : la création au carnet passait pour plus récente que tout.
+      Seule une création honorée APRÈS ce jour rend les locks. Date ISO (jour). */
+  locksDefaitsLe?: string;
+  /** Qui l'a dit, quand ce n'est pas la main du Trône (« Perle » : sa parole
+      sur WhatsApp). */
+  locksDefaitsPar?: string;
   /** LA CLIENTE DE PASSAGE — venue une fois, sans relation engagée.
 
       On ne peut pas ne pas l'enregistrer : l'argent doit être tracé et le geste
@@ -970,7 +979,34 @@ export const estSortie = (
    avant même qu'elle sorte. Celle qui défait mardi pour refaire le mois
    prochain ne bouge donc pas d'une heure. */
 
-export type TeteLocks = Pick<Client, 'id' | 'locksDefaits' | 'resteDeLaMaison'>;
+export type TeteLocks = Pick<Client, 'id' | 'locksDefaits' | 'locksDefaitsLe' | 'resteDeLaMaison'>;
+
+/* ── DÉFAITES AILLEURS — 20 novembre 2026 ─────────────────────────────
+   « Les clientes qui ont défait leurs locks, je veux les rendre inactives.
+   Il y a des Gbàtà ou des locks défaits ailleurs » (Yéman).
+
+   Le carnet ne voit que ce qui se passe au fauteuil. Celle qui défait chez
+   elle ou dans un autre salon, la Maison l'apprend de vive voix, et la main
+   pose la marque. Mais la règle lisait « une création au carnet, aucun
+   défaisage » comme « elle a ses locks » : la marque d'une tête créée chez
+   nous puis défaite ailleurs tombait à la passe suivante, et elle revenait
+   d'elle-même parmi les actives. UN BOUTON QUI S'ANNULE TOUT SEUL.
+
+   D'où le jour de la marque : la création qui rend les locks est celle qui
+   vient APRÈS, pas celle qui précède. */
+
+/** Ce que la main écrit pour dire « sans locks ». Elle relâche aussi le verrou
+    « Gardée dans la Maison » : la dernière décision de la main est celle-ci,
+    et une tête gardée resterait parmi les actives malgré la marque. */
+export const marqueSansLocks = (jour: string): Pick<Client, 'locksDefaits' | 'locksDefaitsLe' | 'locksDefaitsPar' | 'resteDeLaMaison'> => ({
+  locksDefaits: true, locksDefaitsLe: jour.slice(0, 10), locksDefaitsPar: undefined, resteDeLaMaison: undefined,
+});
+
+/** Ce qu'on écrit pour retirer la marque : le jour part avec elle, sinon une
+    marque reposée plus tard hériterait d'un jour ancien. */
+export const RELACHE_SANS_LOCKS: Pick<Client, 'locksDefaits' | 'locksDefaitsLe' | 'locksDefaitsPar'> = {
+  locksDefaits: undefined, locksDefaitsLe: undefined, locksDefaitsPar: undefined,
+};
 
 /** Ce que le carnet sait des locks d'une tête. Les dates sont ISO. */
 export type LectureDesLocks = {
@@ -985,9 +1021,17 @@ export type LectureDesLocks = {
 export function mouvementsSansLocks(
   clients: readonly TeteLocks[],
   lire: (id: string) => LectureDesLocks,
-): { sorties: Set<string>; rendues: Set<string> } {
+  /** Le jour de la passe : il date une marque posée sans jour. Absent, on ne
+      date rien. */
+  aujourdhui?: string,
+): { sorties: Set<string>; rendues: Set<string>; aDater: Map<string, string> } {
   const sorties = new Set<string>();
   const rendues = new Set<string>();
+  /* LES MARQUES À DATER — celles que le carnet pose (son jour : le
+     défaisage) et celles qu'une main a posées sans jour (le jour de la passe,
+     le premier où la Maison la voit). Une fois datée, une marque ne l'est
+     plus : la passe suivante n'écrit rien. */
+  const aDater = new Map<string, string>();
   for (const c of clients) {
     /* CE QUE LA MAIN A POSÉ, LA MACHINE N'Y TOUCHE PAS — ni pour sortir une
        tête ramenée, ni pour ramener une tête que la Maison a sortie. */
@@ -999,15 +1043,31 @@ export function mouvementsSansLocks(
     const carnetDitSansLocks = !!l.gbata
       && (!l.vekpe || l.vekpe < l.gbata)
       && !l.vekpeAVenir;
-    /* LE CARNET LA CONTREDIT : une création honorée après le dernier défaisage,
-       ou une création au carnet. Elle a ses locks, la marque tombe — y compris
-       celle qu'une main avait posée, car le fauteuil a parlé depuis. */
-    const carnetRendLesLocks = (!!l.vekpe && (!l.gbata || l.vekpe > l.gbata)) || !!l.vekpeAVenir;
 
-    if (carnetDitSansLocks && !c.locksDefaits) sorties.add(c.id);
-    else if (carnetRendLesLocks && c.locksDefaits) rendues.add(c.id);
+    if (!c.locksDefaits) {
+      if (carnetDitSansLocks) { sorties.add(c.id); aDater.set(c.id, l.gbata!); }
+      continue;
+    }
+
+    /* ELLE PORTE LA MARQUE. Depuis quand ? Le jour écrit avec la marque, ou
+       le défaisage du carnet s'il est plus tard. Sans jour écrit (les marques
+       d'avant le 20 novembre), le défaisage du carnet ; et sans défaisage au
+       carnet, on ne sait pas : défaite ailleurs, la marque ne tombe pas sur
+       une création dont on ignore si elle vient avant ou après. */
+    const le = c.locksDefaitsLe?.slice(0, 10);
+    const depuis = le && (!l.gbata || le > l.gbata) ? le : l.gbata;
+    /* LE CARNET LA CONTREDIT : une création honorée APRÈS la marque, ou une
+       création au carnet. Le fauteuil a parlé depuis, la marque tombe. Une
+       création d'AVANT ne dit rien : c'est celle qu'elle a défaite. */
+    const carnetRendLesLocks = !!l.vekpeAVenir || (!!l.vekpe && !!depuis && l.vekpe > depuis);
+
+    if (carnetRendLesLocks) rendues.add(c.id);
+    else if (!le) {
+      const jour = carnetDitSansLocks ? l.gbata : aujourdhui;
+      if (jour) aDater.set(c.id, jour);
+    }
   }
-  return { sorties, rendues };
+  return { sorties, rendues, aDater };
 }
 
 /* ---------- Les VISITEURS — un compte, aucune venue ----------

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useAppointments } from '../../../shared/agenda';
 import { useServices, defaitLaCouronne, fondeLaCouronne } from '../../../shared/catalog';
-import { clientsStore, mouvementsSansLocks, useClients, type LectureDesLocks } from '../../../shared/clients';
+import { clientsStore, mouvementsSansLocks, RELACHE_SANS_LOCKS, useClients, type LectureDesLocks } from '../../../shared/clients';
 import { useAuth } from '../../../shared/auth';
 /* Un automatisme qui réécrit les fiches en boucle se tait de lui-même
    (1er octobre 2026, voir shared/ecriture-automatique.ts). */
@@ -97,15 +97,21 @@ export function useSansLocksVivant(): void {
     /* La règle vit dans `mouvementsSansLocks` (shared/clients.ts), pure et
        éprouvée par le harnais : celles que le carnet sort, celles à qui il
        rend leurs locks. */
-    const { sorties, rendues } = mouvementsSansLocks(
-      clients, (id) => lectures.get(id) ?? {},
+    /* LE JOUR DE LA MARQUE (20 novembre 2026, « des locks défaits
+       ailleurs ») : la marque sort datée du défaisage, une marque posée sans
+       jour reçoit celui de la passe, et le jour part avec la marque. Seule une
+       création honorée APRÈS ce jour rend les locks. */
+    const { sorties, rendues, aDater } = mouvementsSansLocks(
+      clients, (id) => lectures.get(id) ?? {}, today,
     );
 
-    if (sorties.size === 0 && rendues.size === 0) return;
+    if (sorties.size === 0 && rendues.size === 0 && aDater.size === 0) return;
     gardeLEcriture('locks défaites', clientsStore).set((prev) =>
       prev.map((c) => {
-        if (sorties.has(c.id)) return { ...c, locksDefaits: true };
-        if (rendues.has(c.id)) return { ...c, locksDefaits: undefined };
+        if (rendues.has(c.id)) return { ...c, ...RELACHE_SANS_LOCKS };
+        const jour = aDater.get(c.id);
+        if (sorties.has(c.id)) return { ...c, locksDefaits: true, ...(jour ? { locksDefaitsLe: jour } : {}) };
+        if (jour) return { ...c, locksDefaitsLe: jour };
         return c;
       }),
     );

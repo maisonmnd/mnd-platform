@@ -11,7 +11,7 @@ import { CASE_DE_LA_FICHE, PHRASE_DE_LA_CASE, estUneFicheDEssai } from '../../..
 import { BadgeEssai } from './BadgeEssai';
 import { maisonNom, maisonRaison, maisonRaisonDuPdfAu, maisonVille } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
-import { aAccorde, aDefaitSesLocks, clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, sortiesDeLaMaison, MOIS_AVANT_SORTIE, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, depuisQuandALaMaison, joursDeLaTete, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
+import { aAccorde, aDefaitSesLocks, marqueSansLocks, RELACHE_SANS_LOCKS, clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, sortiesDeLaMaison, MOIS_AVANT_SORTIE, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, depuisQuandALaMaison, joursDeLaTete, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
 import { CANAUX_DE_CONNAISSANCE, CONNUE_PAR_DIT, QUESTION_DU_COMPTOIR, estConnuePar, type ConnuePar } from '../../../../shared/connue-par-pur';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf, statutFidelite } from '../../../../shared/accounts';
@@ -716,7 +716,7 @@ export default function Customers() {
      continueraient de la taire pendant que le registre la montre. */
   const ramenerDansLaMaison = (c: Client) => {
     clientsStore.set((prev) => prev.map((x) => (x.id === c.id
-      ? { ...x, resteDeLaMaison: true, locksDefaits: undefined }
+      ? { ...x, resteDeLaMaison: true, ...RELACHE_SANS_LOCKS }
       : x)));
   };
 
@@ -1043,6 +1043,34 @@ export default function Customers() {
       ? { ...c, dePassage: dePassage ? true : undefined, futDePassage: true }
       : c)));
     toast(`${ids.length} tête${ids.length > 1 ? 's' : ''} ${dePassage ? 'remise' : 'couronnée'}${ids.length > 1 ? 's' : ''}.`);
+    quitterSelection();
+  };
+
+  /* SANS LOCKS, EN LOT — 20 novembre 2026. « Les clientes qui ont défait leurs
+     locks, je veux les rendre inactives […] il y a des Gbàtà ou des locks
+     défaits ailleurs » (Yéman). Le carnet sort seul celles qui ont défait au
+     fauteuil ; celles qui ont défait ailleurs, la Maison le sait de vive voix,
+     et les cocher une à une dans leur fiche serait le même ménage que pour
+     « de passage ». La marque est datée du jour : seule une création honorée
+     après la ramène. */
+  const marquerSansLocksEnLot = async () => {
+    const ids = [...selection];
+    if (ids.length === 0) return;
+    const noms = clients.filter((c) => selection.has(c.id)).map((c) => c.name);
+    const apercu = noms.slice(0, 6).join(', ') + (noms.length > 6 ? `, et ${noms.length - 6} autre${noms.length - 6 > 1 ? 's' : ''}` : '');
+    const ok = await demande({
+      quoi: `Geste sur ${ids.length} tête${ids.length > 1 ? 's' : ''}`,
+      titre: `${ids.length} tête${ids.length > 1 ? 's' : ''} sans locks ?`,
+      dit: 'Elles ont défait leurs locks, ici ou ailleurs. Elles passent aux Inactives : hors des clientes actives, de la rétention et des relances. Leur argent et leur histoire restent comptés, et une nouvelle création les ramène toutes seules.',
+      suite: apercu,
+      accepter: `Passer les ${ids.length} aux Inactives`,
+      refuser: 'Ne rien changer',
+      dur: true,
+    });
+    if (!ok) return;
+    const marque = marqueSansLocks(todayISO());
+    clientsStore.set((prev) => prev.map((c) => (selection.has(c.id) ? { ...c, ...marque } : c)));
+    toast(`${ids.length} tête${ids.length > 1 ? 's' : ''} sans locks, aux Inactives.`);
     quitterSelection();
   };
 
@@ -1386,6 +1414,9 @@ export default function Customers() {
           <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Button variant="ghost" size="sm" disabled={selection.size === 0} onClick={() => marquerEnLot(false)}>
               Couronner
+            </Button>
+            <Button variant="ghost" size="sm" disabled={selection.size === 0} onClick={marquerSansLocksEnLot}>
+              Sans locks
             </Button>
             <Button variant="copper" size="sm" disabled={selection.size === 0} onClick={() => marquerEnLot(true)}>
               Marquer « de passage »
@@ -4647,8 +4678,8 @@ function Customer360({
                 <button
                   type="button"
                   className={`trc-chip ${client.locksDefaits ? 'is-active' : ''}`}
-                  title="Elle a défait ses locks : il n’y a plus rien à compter ni de courbe de pousse à ouvrir."
-                  onClick={() => patch({ locksDefaits: client.locksDefaits ? undefined : true })}
+                  title="Elle a défait ses locks, ici ou ailleurs : elle passe aux Inactives, et il n’y a plus rien à compter. Une nouvelle création la ramène toute seule."
+                  onClick={() => patch(client.locksDefaits ? RELACHE_SANS_LOCKS : marqueSansLocks(todayISO()))}
                 >
                   Sans locks
                 </button>
@@ -4674,6 +4705,9 @@ function Customer360({
                 <div className="trc-sub" style={{ marginTop: 8, lineHeight: 1.5 }}>
                   Hors du compte, de la cadence, de la mèche et de la longueur.
                   Elle garde l’e-mail et le bilan.
+                  {client.locksDefaits && !estDePassage(client) && (
+                    <> Sans locks{client.locksDefaitsLe ? ` depuis le ${new Date(`${client.locksDefaitsLe.slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}, elle est rangée aux Inactives ; une nouvelle création la ramène.</>
+                  )}
                 </div>
               )}
             </div>

@@ -12,7 +12,7 @@
 import { readFileSync } from 'node:fs';
 import {
   MOIS_AVANT_SORTIE, moisAvant, dortDepuisLongtemps, raisonDeLaSortie, estSortie,
-  mouvementsSansLocks, sortiesDeLaMaison, tetesRegulieres,
+  mouvementsSansLocks, sortiesDeLaMaison, tetesRegulieres, marqueSansLocks, RELACHE_SANS_LOCKS,
   type Client, type LectureDesLocks, type RituelPourSortie,
 } from '../src/shared/clients';
 import { CATEGORIE_GBATA, CATEGORIE_VEKPE, defaitLaCouronne, fondeLaCouronne } from '../src/shared/catalog';
@@ -177,6 +177,70 @@ dit('une tête sans carnet ne bouge pas',
     const r = mouvementsSansLocks([c({ id: 't1' })], lit({}));
     return { sorties: [...r.sorties], rendues: [...r.rendues] };
   })());
+
+/* ── ⑤ bis DÉFAITES AILLEURS — 20 novembre 2026 ────────────────────
+   « Il y a des Gbàtà ou des locks défaits ailleurs » (Yéman). La marque d'une
+   tête créée chez nous puis défaite ailleurs tombait à la passe suivante :
+   « une création, aucun défaisage » se lisait « elle a ses locks ». */
+const passe = (t: Parameters<typeof mouvementsSansLocks>[0][number], l: LectureDesLocks, auj?: string) => {
+  const m = mouvementsSansLocks([t], () => l, auj);
+  return { sorties: [...m.sorties], rendues: [...m.rendues], aDater: [...m.aDater.entries()] };
+};
+dit('défaite ailleurs : la création d’AVANT la marque ne la fait pas tomber',
+  { sorties: [], rendues: [], aDater: [] },
+  passe(c({ id: 't1', locksDefaits: true, locksDefaitsLe: '2026-09-01' }), { vekpe: '2025-06-01' }));
+dit('défaite ailleurs, marque d’avant le 20 novembre (sans jour) : elle tient, et reçoit le jour de la passe',
+  { sorties: [], rendues: [], aDater: [['t1', AUJ]] },
+  passe(c({ id: 't1', locksDefaits: true }), { vekpe: '2025-06-01' }, AUJ));
+dit('une création honorée APRÈS la marque rend les locks',
+  { sorties: [], rendues: ['t1'], aDater: [] },
+  passe(c({ id: 't1', locksDefaits: true, locksDefaitsLe: '2026-09-01' }), { vekpe: '2026-10-01' }));
+dit('une création le jour même de la marque ne la rend pas',
+  { sorties: [], rendues: [], aDater: [] },
+  passe(c({ id: 't1', locksDefaits: true, locksDefaitsLe: '2026-09-01T10:30:00.000Z' }), { vekpe: '2026-09-01' }));
+dit('une création au carnet la rend, marque datée ou non',
+  [['t1'], ['t1']],
+  [passe(c({ id: 't1', locksDefaits: true, locksDefaitsLe: '2026-09-01' }), { vekpeAVenir: true }).rendues,
+    passe(c({ id: 't1', locksDefaits: true }), { vekpeAVenir: true }).rendues]);
+dit('une marque posée après un défaisage puis une recréation au carnet tient',
+  { sorties: [], rendues: [], aDater: [] },
+  passe(c({ id: 't1', locksDefaits: true, locksDefaitsLe: '2026-09-05' }), { gbata: '2025-01-10', vekpe: '2025-01-10' }));
+dit('la sortie du carnet est datée du défaisage',
+  { sorties: ['t1'], rendues: [], aDater: [['t1', '2026-08-02']] },
+  passe(c({ id: 't1' }), { gbata: '2026-08-02' }, AUJ));
+dit('une marque du carnet sans jour reçoit le jour du défaisage, pas celui de la passe',
+  { sorties: [], rendues: [], aDater: [['t1', '2026-08-02']] },
+  passe(c({ id: 't1', locksDefaits: true }), { gbata: '2026-08-02' }, AUJ));
+dit('une marque datée ne se redate pas (la passe suivante n’écrit rien)',
+  { sorties: [], rendues: [], aDater: [] },
+  passe(c({ id: 't1', locksDefaits: true, locksDefaitsLe: '2026-08-02' }), { gbata: '2026-08-02' }, AUJ));
+dit('sans jour de passe, rien ne se date',
+  [],
+  passe(c({ id: 't1', locksDefaits: true }), { vekpe: '2025-06-01' }).aDater);
+/* LA MAIN DÉCIDE EN DERNIER : « Sans locks » relâche « Gardée dans la
+   Maison », sinon la tête marquée restait parmi les actives. */
+dit('la marque de la main est datée et relâche le verrou',
+  { locksDefaits: true, locksDefaitsLe: '2026-11-20' },
+  marqueSansLocks('2026-11-20T08:15:00'));
+dit('posée sur une tête gardée, elle la range aux Inactives', 'sans-locks',
+  raisonDeLaSortie({ ...c({ resteDeLaMaison: true }), ...marqueSansLocks('2026-11-20') }, { derniereVenue: '2026-09-01', aujourdhui: AUJ }));
+dit('la relâcher efface aussi son jour', { ...c({}) },
+  { ...c({ locksDefaits: true, locksDefaitsLe: '2026-09-01', locksDefaitsPar: 'Perle' }), ...RELACHE_SANS_LOCKS });
+
+/* LES PORTES QUI POSENT LA MARQUE LA DATENT TOUTES, et la passe du Trône
+   date les autres. Une porte oubliée poserait une marque sans jour. */
+const lisLe = (f: string) => readFileSync(f, 'utf8');
+const fiche = lisLe('src/apps/trone/routes/clients/Customers.tsx');
+const vivant = lisLe('src/apps/trone/shell/useSansLocksVivant.ts');
+dit('la fiche, le lot, À faire et Prédictions écrivent marqueSansLocks(todayISO())', [true, true, true, true],
+  [/patch\(client\.locksDefaits \? RELACHE_SANS_LOCKS : marqueSansLocks\(todayISO\(\)\)\)/.test(fiche),
+    /const marque = marqueSansLocks\(todayISO\(\)\);/.test(fiche) && /onClick=\{marquerSansLocksEnLot\}/.test(fiche),
+    /m\.pose\.locksDefaits \? marqueSansLocks\(todayISO\(\)\)/.test(lisLe('src/apps/trone/routes/pilotage/AFaire.tsx')),
+    /'locksDefaits' in m\.pose \? marqueSansLocks\(todayISO\(\)\)/.test(lisLe('src/apps/trone/routes/pilotage/Predictions.tsx'))]);
+dit('« La ramener » et la passe effacent le jour avec la marque', [true, true],
+  [/resteDeLaMaison: true, \.\.\.RELACHE_SANS_LOCKS/.test(fiche), /rendues\.has\(c\.id\)\) return \{ \.\.\.c, \.\.\.RELACHE_SANS_LOCKS \}/.test(vivant)]);
+dit('la passe du Trône donne son jour à la règle et écrit les dates', [true, true],
+  [/mouvementsSansLocks\(\s*clients, \(id\) => lectures\.get\(id\) \?\? \{\}, today,\s*\)/.test(vivant), /locksDefaitsLe: jour/.test(vivant)]);
 
 /* ── ⑥ LA CARTE, LUE PAR TROIS ÉCRANS ───────────────────────────────
    Le registre listait, le tableau de bord comptait, l'analytique divisait :

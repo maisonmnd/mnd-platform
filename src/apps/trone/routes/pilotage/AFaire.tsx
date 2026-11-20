@@ -9,7 +9,7 @@ import RappelDesRh from '../equipe/rh/RappelDesRh';
 import { PageHead, WaLien } from '../_ui';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { clientsStore, useClients, useFamilies, type Client } from '../../../../shared/clients';
+import { clientsStore, marqueSansLocks, useClients, useFamilies, type Client } from '../../../../shared/clients';
 import { contradictionsDeLAge, DIT, AGE_MINIMAL_AU_FAUTEUIL, LOCKS_AU_DELA_DUN_ENFANT } from '../../../../shared/ages';
 import { toast } from '../../../../ds/components';
 import { useBilans } from '../../../../shared/bilans';
@@ -545,7 +545,9 @@ export default function AFaire() {
                       className="trp-af-mbtn"
                       title={`${c?.name ?? 'Cette tête'} · ${m.dit} : hors du compte, de la cadence, de la mèche et de la longueur`}
                       onClick={() => {
-                        clientsStore.set((prev) => prev.map((x) => (x.id === tete.id ? { ...x, ...m.pose } : x)));
+                        /* « Sans locks » part datée du jour (20 novembre 2026). */
+                        const pose = m.pose.locksDefaits ? marqueSansLocks(todayISO()) : m.pose;
+                        clientsStore.set((prev) => prev.map((x) => (x.id === tete.id ? { ...x, ...pose } : x)));
                         toast(`${prenom || 'Elle'} · ${m.dit}. Elle sort du compte et de la cadence.`);
                       }}
                     >

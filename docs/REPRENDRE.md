@@ -2,6 +2,16 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## SANS LOCKS, DÉFAITES AILLEURS — 20 novembre 2026 (Trône seul ; aucun SQL ; aucune fonction)
+
+« Les clientes qui n'ont plus de locks, qui ont défait leurs locks, je veux les rendre inactives, qu'elles ne figurent plus dans la liste des clientes actives » ; « il y a des Gbàtà ou des locks défaits ailleurs » (Yéman).
+
+- **Ce qui existait** (11 septembre) : la marque `locksDefaits` range la tête aux Inactives (`raisonDeLaSortie` → « sans-locks » : hors de La Maison, du menu des rendez-vous, du classement, de la cadence, des prédictions). Le carnet la pose seul après un GBÀTÀ™ honoré (`cat-defaisage`) sans création après ; la main la pose depuis la fiche (« Ce qu'on ne lui réclame plus » › Sans locks), À faire et Prédictions. Le 20 novembre : 9 fiches marquées.
+- **Le défaut** : la marque posée à la main sur une tête CRÉÉE chez nous (VÈKPÈ™ honoré au carnet) puis défaite ailleurs tombait à la passe suivante de `useSansLocksVivant` : « une création, aucun défaisage » se lisait « elle a ses locks ». Elle revenait d'elle-même parmi les actives. Aucune n'en avait encore été victime (traces).
+- **Corrigé** : la marque porte son jour, `locksDefaitsLe` (déjà écrit par Perle depuis la réception WhatsApp). Seule une création honorée APRÈS ce jour, ou une création inscrite au carnet, rend les locks (`mouvementsSansLocks`). La passe date les marques sans jour (celle du carnet : le jour du défaisage ; celle de la main : le jour de la passe) et efface le jour avec la marque. `marqueSansLocks(jour)` / `RELACHE_SANS_LOCKS` pour toute porte qui écrit ; la marque de la main relâche « Gardée dans la Maison ».
+- **Nouveau geste** : Clientes › Sélectionner › cocher › **Sans locks** (confirmation, puis aux Inactives) ; la fiche dit « Sans locks depuis le …, elle est rangée aux Inactives ».
+- **Bancs** : `verifie-sortie` 66 (dont 16 « défaites ailleurs ») ; `verifie-afaire`, `verifie-cadence`, `verifie-gerard`, `verifie-revue-fiche-docs`, `verifie-le-classement`, `verifie-la-reception-wa` sans échec ; typecheck 0.
+
 ## LE CLASSEMENT DES CLIENTES — 20 novembre 2026, EN LIGNE (Trône build 20261120082030 @ bc1d3c33, 546/546 ; onglet Clientes › Le classement ; document `mnd_classement`, né à la première ouverture ; aucun SQL ; Ma Couronne inchangée)
 
 « Je veux définir ces critères qui permettent à chacun d'appartenir à un groupe… ensuite, on va faire le travail de classement » ; « Construis-moi Le classement des clientes dans le Trône » ; « rajoute les catégories avec leurs spécifications » ; « Rajoute des villes pré-remplies dans la rubrique de la ville dans le profil, auto-remplis ce que tu sais » (Yéman). Maquette : la page privée « Le classement des clientes » (artifact 7dMsfEcG…, noms des clientes, jamais commitée).
