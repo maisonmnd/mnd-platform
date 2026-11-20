@@ -21,7 +21,7 @@
    Sortie en ASCII (la console Windows est en cp1252). */
 import { readFileSync } from 'node:fs';
 import {
-  bloqueLaVenue, creneauxLibres, partagentLaPlace, PETIT_SERVICE_MIN, petitService,
+  bloqueLaVenue, creneauxLibres, partagentLaPlace, PETIT_SERVICE_MIN, petitService, placesPrises,
 } from '../src/shared/agenda-pur';
 import { agendaDepuisLesLignes, laPlaceTient, placesLibres } from '../src/shared/place-du-serveur';
 import { parleDUnRetard, RETARD_AU_PLUS_TOT_MIN, RETARD_SANS_DECALER_MIN, suiteDuRetard } from '../src/shared/opale-pur';
@@ -68,6 +68,15 @@ dit('... deux au plus chez Team, meme petits', false,
 dit('... Expert ne partage jamais', false, libre('Expert', [o('Expert', 16, 60)], '16:00', 60));
 dit('... un petit service ne prend pas la place en ligne d un autre maitre ; un soin d une heure et demie la prend', [true, false],
   [libre('Expert', [o('Team', 16, 150)], '16:00', 60), libre('Expert', [o('Team', 16, 150)], '16:00', 90)]);
+/* UNE PLACE PAR PAIRE (0242, le second passage) : un petit service partage UNE place avec un seul voisin. */
+dit('les places prises : chacun la sienne, une paire par petit service, chacun dans une paire au plus', [1, 1, 2, 2, 2, 3, 2], [
+  placesPrises(60, []), placesPrises(150, [{ dureeMin: 60 }]), placesPrises(60, [{ dureeMin: 90 }, { dureeMin: 90 }]),
+  placesPrises(60, [{ dureeMin: 60 }, { dureeMin: 60 }]), placesPrises(90, [{ dureeMin: 90 }]),
+  placesPrises(60, [{ dureeMin: 90 }, { dureeMin: 90 }, { dureeMin: 90 }]), placesPrises(undefined, [{ dureeMin: 90 }])]);
+const personne = (occupes: ReturnType<typeof o>[], duree: number) =>
+  creneauxLibres({ opening: JOUR, durationMin: duree, occupes, master: 'Personne', capSimultane: 2, maintenantMin: null }).includes('13:00');
+dit('deux fauteuils : un lavage de 30 min a cote de deux soins (la paire et le second), jamais a cote de trois', [true, false],
+  [personne([o('Team', 12.5, 90), o('Expert', 12.5, 90)], 30), personne([o('Team', 12.5, 90), o('Team', 12.5, 90), o('Expert', 12.5, 90)], 30)]);
 
 /* ══ B. LE JUGE DU SERVEUR ═══════════════════════════════════════════ */
 /* Mercredi 18 novembre 2026, 11 h a Cotonou ; le juge regarde vendredi 20. */
@@ -125,12 +134,12 @@ const DS = lis('supabase/functions/demande-submit/index.ts');
 dit('au-dela des fauteuils : jamais deux lourdes chez Team, sauf un petit service', true,
   WA.includes('if (m === MAITRE_QUI_PARTAGE && siens.some((a) => bloqueLaVenue(m, p.lourde, a, fin - debut))) continue;'));
 dit('la place de SA personne (deplacement, retard) : le petit service partage la place et Team', [true, true], [
-  WA.includes('&& !partagentLaPlace(duree, a.dureeMin)).length >= sieges) return { ok: false, erreur: \'creneau_pris\' };'),
+  WA.includes("if (sieges > 0 && placesPrises(duree, duJour.filter((a) => chevauche(a.debutMin, a.debutMin + a.dureeMin))) > sieges) return { ok: false, erreur: 'creneau_pris' };"),
   WA.includes('const occupe = chevauchent.some((a) => bloqueLaVenue(maitre, lourde, a, duree))')]);
 dit('le retard se juge AVANT de liberer sa place, chez sa personne, le jour meme', true,
   /const tient = laPlaceTientPourLeMaitreWa\(agenda\.agenda, maitre, \{ date, time: heure, dureeMin \}, \{ date, time: avant \}, ms, true\);[\s\S]{0,900}if \(!tient\.ok && auDela === null\) \{[\s\S]{0,400}const fait = await metsAReprogrammerWa\(sb, r, 'opale', aujourdhui\);/.test(WA));
 dit('les versions disent le petit service', [true, true],
-  [/^const VERSION = '2026-11-20-b · le petit service partage l heure/m.test(WA), /^const VERSION = '2026-11-20-a · le petit service partage l heure/m.test(DS)]);
+  [/^const VERSION = '2026-11-20-c · un petit service partage UNE place/m.test(WA), /^const VERSION = '2026-11-20-b · un petit service partage UNE place/m.test(DS)]);
 
 const SQL = lis('supabase/migrations/0240_le_petit_service_partage_l_heure.sql');
 const corps = (debut: string): string => {
@@ -161,6 +170,25 @@ dit('le garde : les places comptees sans les petits, Team qui partage, deux au p
   GARDE.includes("and not (maitre = 'Team' and chez_lui < 2 and not (public.tete_lourde(new.data) and not public.petit_service(duree) and lourde_chez_lui)) then")]);
 dit('... et rien d autre ne change : quatre fonctions, un seul begin, un seul commit', [4, 1, 1],
   [[POSE, DEPL, REPR, GARDE].filter((x) => x.length > 0).length, SQL.split('\nbegin;\n').length - 1, SQL.split('\ncommit;\n').length - 1]);
+
+/* 0242 : une place par paire, le compte des fauteuils seul change. */
+const SQL2 = lis('supabase/migrations/0242_un_petit_service_partage_une_place.sql');
+const corps2 = (debut: string): string => {
+  const i = SQL2.indexOf(debut);
+  if (i < 0) return '';
+  const k = SQL2.indexOf('$function$;', i);
+  return k < 0 ? '' : SQL2.slice(i, k);
+};
+const PRISES = `public.places_prises(duree, count(*)::int, (count(*) filter (where public.petit_service(public.duree_du_rdv(a.data))))::int)`;
+dit('0242 : places_prises est celle de l agenda, fermee aux clientes', [true, true], [
+  SQL2.includes('- least(greatest(0, coalesce(p_petits, 0)) + case when public.petit_service(p_duree) then 1 else 0 end,\n               (greatest(0, coalesce(p_voisins, 0)) + 1) / 2)'),
+  SQL2.includes('revoke all on function public.places_prises(int, int, int) from public, anon, authenticated;')]);
+dit('0242 : la pose, le deplacement, la reprise comptent leurs places par paires, et le garde aussi', [true, true, true, true, false], [
+  corps2('create or replace function public.pose_si_libre(').includes(PRISES) && /\) > sieges then\n    return jsonb_build_object\('ok', false, 'raison', 'creneau_pris', 'detail', 'fauteuils'\);/.test(corps2('create or replace function public.pose_si_libre(')),
+  corps2('create or replace function public.deplace_si_libre(').includes(PRISES),
+  corps2('create or replace function public.reprend_si_libre(').includes(PRISES),
+  corps2('create or replace function public.une_place_en_ligne(').includes('  if public.places_prises(duree, dessous, petits_dessous) > places then'),
+  SQL2.includes('and not public.petit_service(duree) and not public.petit_service(public.duree_du_rdv(a.data))')]);
 
 console.log(`\n${vus} epreuves, ${ko} en echec.`);
 process.exitCode = ko ? 1 : 0;

@@ -1,6 +1,6 @@
 import {
   bloqueLaVenue, creneauxLibres, DEUX_TETES_AU_PLUS, dureeDesPrestations, estUnSinsin, MAITRE_DES_SINSIN, minutesDeHhmm, occupesDuJour, ouvertureDuJour, plagesBloquees, PLACES_EN_LIGNE,
-  partagentLaPlace, PREMIER_RENDEZ_VOUS_MIN,
+  placesPrises, PREMIER_RENDEZ_VOUS_MIN,
   type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
 } from './agenda-pur';
 import { dansLaFenetreDeVenue, estUneConsultation, fenetreEnJours, masquePourLeSite, priceModeOf, racineOf, type FenetreApresVenue, type MasquesDuSite, type PriceMode } from './catalogue-pur';
@@ -418,10 +418,10 @@ function laPlaceTient(agenda: AgendaDuServeur, p: DemandeDePlace, ms: number, jo
   /* Le plafond de la Maison : ses rendez-vous du jour, tous maîtres confondus. */
   if (agenda.capMaison > 0 && duJour.length >= agenda.capMaison) return { ok: false, erreur: 'creneau_plafond' };
   /* LES FAUTEUILS : le maître peut être libre, la Maison pleine. Un petit
-     service et son voisin ne prennent qu'une place (20 novembre 2026). */
+     service et un seul voisin ne prennent qu'une place (20 novembre 2026). */
   const sieges = siegesDe(agenda, p.date);
   if (sieges > 0
-    && duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin && !partagentLaPlace(dureeMin, a.dureeMin)).length >= sieges) {
+    && placesPrises(dureeMin, duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin)) > sieges) {
     return { ok: false, erreur: 'creneau_pris' };
   }
 

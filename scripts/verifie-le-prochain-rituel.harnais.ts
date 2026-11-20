@@ -96,8 +96,12 @@ const ouverture = (iso: string) => {
   if (iso === '2026-12-09' || j === 0 || j === 1) return { closed: true, openMin: 0, closeMin: 0 };
   return j === 6 ? { closed: false, openMin: 9 * 60, closeMin: 20 * 60 } : { closed: false, openMin: 8 * 60, closeMin: 20 * 60 + 30 };
 };
+/* 13 h PLEINE le 24 : deux chez Team (son plafond) et Expert. Un lavage de
+   30 min est un petit service, qui partage l'heure chez Team depuis le
+   20 novembre 2026 (verifie-le-petit-service) : avec un seul rendez-vous
+   chez Team, 13 h lui resterait ouverte. */
 const OCCUPES: Record<string, Occupant[]> = {
-  '2026-11-24': [{ maitre: 'Team', debutMin: 12 * 60 + 30, dureeMin: 90 }, { maitre: 'Expert', debutMin: 12 * 60 + 30, dureeMin: 90 }],
+  '2026-11-24': [{ maitre: 'Team', debutMin: 12 * 60 + 30, dureeMin: 90 }, { maitre: 'Team', debutMin: 12 * 60 + 30, dureeMin: 90 }, { maitre: 'Expert', debutMin: 12 * 60 + 30, dureeMin: 90 }],
 };
 const MURS: Record<string, [number, number][]> = { '2026-11-21': [[12 * 60, 15 * 60]] };
 const placesDe = (dureeMin: number) => (iso: string) => {

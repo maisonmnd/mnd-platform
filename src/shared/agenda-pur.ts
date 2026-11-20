@@ -146,6 +146,18 @@ export const petitService = (dureeMin: unknown): boolean =>
 /** Deux rendez-vous qui se chevauchent tiennent-ils dans la même place en
     ligne ? Oui quand l'un des deux est un petit service. */
 export const partagentLaPlace = (dureeA: unknown, dureeB: unknown): boolean => petitService(dureeA) || petitService(dureeB);
+/** LES PLACES QUE PRENNENT ENSEMBLE une venue et les rendez-vous qui la
+    chevauchent (20 novembre 2026, second passage) : chacun la sienne, sauf
+    qu'un petit service en partage UNE avec un seul voisin. Une paire par
+    petit service, chacun dans une paire au plus. Avant, un petit service ne
+    comptait pour aucune place, et trois clientes passaient dans deux
+    fauteuils (le banc du prochain rituel l'a vu). La base tient le même
+    compte (`places_prises`, 0242). */
+export function placesPrises(venueDureeMin: unknown, voisins: readonly { dureeMin?: number }[]): number {
+  const n = voisins.length + 1;
+  const petits = voisins.filter((a) => petitService(a.dureeMin)).length + (petitService(venueDureeMin) ? 1 : 0);
+  return n - Math.min(petits, Math.floor(n / 2));
+}
 /** Ce rendez-vous déjà pris chez ce maître empêche-t-il une nouvelle venue à la
     même heure ? Toujours, sauf chez Team quand l'une des deux têtes est petite,
     ou que l'un des deux est un petit service (`nouvelleDureeMin` : la durée de
@@ -224,11 +236,10 @@ export function creneauxLibres(o: {
     if (overlaps) continue;
     if (duMaitre.filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length >= DEUX_TETES_AU_PLUS) continue;
     /* LES FAUTEUILS : le maître est libre, mais la Maison peut être pleine.
-       Un petit service et son voisin ne prennent qu'une place. */
+       Un petit service et un seul voisin ne prennent qu'une place. */
     if (cap > 0) {
-      const ensemble = o.occupes
-        .filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin && !partagentLaPlace(o.durationMin, a.dureeMin)).length;
-      if (ensemble >= cap) continue;
+      const voisins = o.occupes.filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin);
+      if (placesPrises(o.durationMin, voisins) > cap) continue;
     }
     out.push(hhmmDeMinutes(m));
   }

@@ -626,7 +626,7 @@ const migration = lf(readFileSync(MIGRATION, 'utf8'));
 type Panne = { nom: string; avant: string; apres: string };
 const PANNES_DU_JUGE: Panne[] = [
   /* Les places de chaque jour (18 novembre 2026, deux têtes chez Team) : `sieges` les lit (`siegesDe`). */
-  { nom: 'les fauteuils oublies par le juge', avant: 'if (sieges > 0\n    && duJour.filter', apres: 'if (false\n    && duJour.filter' },
+  { nom: 'les fauteuils oublies par le juge', avant: 'if (sieges > 0\n    && placesPrises(', apres: 'if (false\n    && placesPrises(' },
   { nom: 'le premier maitre, libre ou non', avant: 'return { ok: true, dureeMin, maitres: [...libres, ...partages] };', apres: 'return { ok: true, dureeMin, maitres: candidats };' },
   { nom: 'le jour compte sur l horloge UTC', avant: 'new Date(ms + 3_600_000)', apres: 'new Date(ms)' },
   { nom: 'la borne un mois plus loin', avant: 'Number(m[2]) - 1 + 4, 0)', apres: 'Number(m[2]) - 1 + 5, 0)' },

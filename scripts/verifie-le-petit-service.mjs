@@ -17,6 +17,7 @@ const JUGE = 'src/shared/place-du-serveur.ts';
 const OP = 'src/shared/opale-pur.ts';
 const WA = 'supabase/functions/whatsapp-automate/index.ts';
 const SQL = 'supabase/migrations/0240_le_petit_service_partage_l_heure.sql';
+const SQL2 = 'supabase/migrations/0242_un_petit_service_partage_une_place.sql';
 
 const PANNES = [
   { nom: 'un petit service jusqu a une heure et demie', fichier: PUR,
@@ -32,11 +33,15 @@ const PANNES = [
   { nom: 'creneauxLibres oublie la duree de la venue', fichier: PUR,
     r: [['.filter((a) => bloqueLaVenue(o.master, o.lourde, a, o.durationMin))', '.filter((a) => bloqueLaVenue(o.master, o.lourde, a))']] },
   { nom: 'le petit service prend une place en ligne (les heures)', fichier: PUR,
-    r: [['&& !partagentLaPlace(o.durationMin, a.dureeMin)).length;', ').length;']] },
+    r: [['if (placesPrises(o.durationMin, voisins) > cap) continue;', 'if (voisins.length + 1 > cap) continue;']] },
+  { nom: 'un petit service ne prend aucune place', fichier: PUR,
+    r: [['  return n - Math.min(petits, Math.floor(n / 2));', '  return petits > 0 ? 0 : n;']] },
+  { nom: 'un petit service partage avec tous ses voisins', fichier: PUR,
+    r: [['  return n - Math.min(petits, Math.floor(n / 2));', '  return petits > 0 ? 1 : n;']] },
   { nom: 'trois chez Team quand l un est petit', fichier: PUR,
     r: [['if (duMaitre.filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length >= DEUX_TETES_AU_PLUS) continue;', '']] },
   { nom: 'le petit service prend une place en ligne (le juge)', fichier: JUGE,
-    r: [['&& !partagentLaPlace(dureeMin, a.dureeMin)).length >= sieges) {', ').length >= sieges) {']] },
+    r: [['    && placesPrises(dureeMin, duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin)) > sieges) {', '    && duJour.filter((a) => debut < a.debutMin + a.dureeMin && fin > a.debutMin).length >= sieges) {']] },
   { nom: 'le juge oublie la duree de la venue', fichier: JUGE,
     r: [['const occupe = chevauchent.some((a) => bloqueLaVenue(m, p.lourde, a, dureeMin))', 'const occupe = chevauchent.some((a) => bloqueLaVenue(m, p.lourde, a))']] },
   { nom: 'vingt minutes de retard decalent la place', fichier: OP,
@@ -60,6 +65,12 @@ const PANNES = [
     r: [['not (public.tete_lourde(d) and not public.petit_service(duree) and lourde_chez_lui)', 'not (public.tete_lourde(d) and lourde_chez_lui)']] },
   { nom: 'la base : la reprise prend un petit service dans les fauteuils', fichier: SQL,
     r: [["           and not public.petit_service(duree) and not public.petit_service(public.duree_du_rdv(a.data))\n       ) >= sieges then", '       ) >= sieges then']] },
+  { nom: '0242 : la pose compte comme 0240', fichier: SQL2,
+    r: [['       select public.places_prises(duree, count(*)::int, (count(*) filter (where public.petit_service(public.duree_du_rdv(a.data))))::int) from public.appointments a\n        where a.data->>\'branchId\' = branche', '       select count(*) from public.appointments a\n        where a.data->>\'branchId\' = branche']] },
+  { nom: '0242 : le garde ne compte plus par paires', fichier: SQL2,
+    r: [['  if public.places_prises(duree, dessous, petits_dessous) > places then', '  if dessous >= places then']] },
+  { nom: '0242 : une paire de trop', fichier: SQL2,
+    r: [['               (greatest(0, coalesce(p_voisins, 0)) + 1) / 2)', '               greatest(0, coalesce(p_voisins, 0)) + 1)']] },
 ];
 
 const lisLF = (rel) => readFileSync(path.join(racine, rel), 'utf8').replace(/\r\n/g, '\n');
