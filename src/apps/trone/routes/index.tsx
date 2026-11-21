@@ -1,5 +1,5 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
-import { Smartphone, Coins, Compass, Bot, TrendingUp, UserRoundCheck, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardCheck, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, Mic, MonitorPlay, NotebookPen, Palette, PieChart, CalendarClock, PiggyBank, QrCode, Radio, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Star, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
+import { Sparkles, Smartphone, Coins, Compass, Bot, TrendingUp, UserRoundCheck, FolderKanban, ListTodo, Clapperboard, Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardCheck, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, Gift, GraduationCap, Hammer, HandCoins, Handshake, MessageCircle, Handshake as PoigneeDeMain, HeartPulse, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, Mic, MonitorPlay, NotebookPen, Palette, PieChart, CalendarClock, PiggyBank, QrCode, Radio, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Star, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
 /* Registre des routes du Trône, groupées par DÉPARTEMENT.
    Le module d'un écran (routes/<dossier>/) dit d'où il vient, pas où il se range :
@@ -40,6 +40,11 @@ const NAV_DES_ECRANS: TroneGroup[] = [
     group: 'Direction',
     items: [
       { path: '/', label: 'Tableau de bord', icon: LayoutDashboard, Component: lazy(() => import('./pilotage/Dashboard')) },
+      /* DEMANDER À PERLE (21 novembre 2026) — l'assistante à qui la direction
+         pose ses questions, et le fil « En direct ». Maquette 7XvdzJ99… ; son
+         entrée est en tête de la barre (Shell), pas dans un département ; la
+         direction seule (ROUTES_DIRECTION). */
+      { path: '/demander', horsMenu: true, label: 'Demander à Perle', icon: Sparkles, Component: lazy(() => import('./pilotage/DemanderAPerle')) },
       /* LE CENTRE DE COMMANDE (11 octobre 2026) — cahier « Maison MND AI
          Operating System », phase 1 : l'orchestrateur, la mémoire, les
          missions, la validation, les briefings. Réservé aux fondateurs. */
@@ -509,7 +514,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires', '/mtn', '/besoins', '/classement'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires', '/mtn', '/besoins', '/classement', '/demander'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>
@@ -554,7 +559,9 @@ export const ROUTES_SOUVERAIN = ['/salon-foyer', '/centre-de-commande', '/atelie
    lisible du souverain seul (0070). */
 /* LES POURBOIRES DE L'ÉQUIPE (5 novembre 2026) : « réservé à la direction »,
    le choix de Yéman ; chacun lit SA part en tête de Mon mois. */
-export const ROUTES_DIRECTION = ['/journal', '/pourboires', '/mtn'];
+/* DEMANDER À PERLE (21 novembre 2026) : « la direction seule », le choix de
+   Yéman ; la porte `ia-maison` le redit (chantier « question »). */
+export const ROUTES_DIRECTION = ['/journal', '/pourboires', '/mtn', '/demander'];
 
 export const peutVoir = (
   role: string | undefined,

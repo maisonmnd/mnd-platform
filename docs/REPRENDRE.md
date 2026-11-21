@@ -2,6 +2,19 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## DEMANDER À PERLE, LOT 1 : LES QUESTIONS ET « EN DIRECT » — 21 novembre 2026, À METTRE EN LIGNE (Trône seul ; aucun SQL ; aucune fonction : la porte `ia-maison` en ligne suffit)
+
+« J'aimerais créer une intelligence artificielle dans le Trône à qui je peux poser toutes les questions, répondre à des messages, me donner des infos en temps réel. Inspire-toi de Brain sur Bujeti » (Yéman). Maquette 7XvdzJ99bioQsv62r5cBrw ; « Construis, la direction seule, questions et En direct d'abord ».
+
+- **L'écran** `/demander` (« Demander à Perle », `pilotage/DemanderAPerle.tsx`) : sa propre entrée EN TÊTE de la barre (Shell, `tr-nav__perle`), hors des départements (`horsMenu`), Alt + P depuis tout écran. **La direction seule** : `ROUTES_DIRECTION`, la garde de l'écran, et la porte (`ia-maison`, chantier `question`, `DEPARTEMENTS_PAR_CHANTIER.question = []`).
+- **Elle lit et répond, elle ne fait rien** (lot 1) : aucun message, aucun rendez-vous, jamais d'argent. Ses boutons ouvrent des écrans.
+- **Deux appels au plus** (`shared/perle-pur.ts`) : le PLAN (la question + le fil « En direct » ; elle répond, ou demande au plus quatre LECTURES d'un catalogue fermé de dix : journee, rendez_vous, places_libres, cliente, impayes, mois, conversations, abonnements, prestations, depenses), puis la RÉPONSE avec les faits que le Trône a lus (`pilotage/perle-donnees.ts`, par les portes des écrans : registre des encaissements, Carnet et factures sans les essais, mêmes juges que l'alarme des conversations, classement).
+- **Ce qui part chez Claude** : prénom et initiale (`prenomDeLaFiche`), jamais un numéro (`pourClaude`, `sansCoordonnees`). La question et les tours d'avant partent anonymisés ; c'est le Trône qui retrouve la cliente sur le vrai texte (`clientesDeLaQuestion`). **Un montant de dix millions et plus se dit « 12 millions 500 000 F »** (`francsPourPerle`) : écrit en chiffres, `sansCoordonnees` (huit chiffres ou plus) l'effaçait en « [numéro] F » ; la même limite vaut pour tout autre chantier qui enverrait un tel montant.
+- **« En direct »** se calcule au Trône, sans IA, à l'heure de Cotonou (`momentDuSalon`) : encaissé du jour, à encaisser, au fauteuil, encore attendues, conversations sans réponse, places du jour, suggestions sans réponse. Sur petit écran il passe en premier.
+- **La conversation** reste sur le poste (`mnd_perle_fil`, par personne, jamais reliée au serveur).
+- **Bancs** : `verifie-demander-a-perle` (60 ; `--prouve` 25/25, à l'heure de Chine) ; `banc-demander-a-perle` (22, le vrai Trône dans Chrome, horloge figée, poste à l'heure de Chine, la direction, un maître, le gérant) ; `banc-trone-hors-ligne` 112 écrans ; barre réunie 49 ; typecheck 0. `verifie-gerard` garde ses 3 échecs d'avant.
+- **À suivre** (dit à Yéman, pas construit) : les questions sur internet (outil de recherche web de Claude, à activer dans `ia-maison` ; environ 1 ¢ la recherche ; jamais avec le nom d'une cliente) ; le lot 2, répondre aux messages et aux avis (elle prépare, il touche « Envoyer »). **Vu au passage** : `ia-maison` force son outil (`tool_choice` de type `tool`) et replie de Haiku 5.5 sur Sonnet 5.5, qui refuse un outil forcé : un repli sur Sonnet échouerait pour tout chantier à schéma. À vérifier avant de s'y fier.
+
 ## LES FRAIS MTN GARDÉS, UNE RUBRIQUE À PART — 21 novembre 2026, EN LIGNE (collecte-mtn v18 2026-11-21-a, le serveur le dit ; commit 5114fc1f ; aucun SQL ; le Trône n'a pas à être republié ; aucun essai réel) ; ET LES AFFICHES DU QR RÉIMPRIMÉES
 
 « Le reste environ 0,4 % chez MTN doivent s'inscrire quelque part dans le Trône. Crée une rubrique » (Yéman). Au sélecteur, il a choisi « une rubrique à part » plutôt qu'une recette dans le résultat ou un simple tableau de suivi.

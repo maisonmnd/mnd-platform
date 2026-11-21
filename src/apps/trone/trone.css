@@ -117,6 +117,36 @@ body[data-surface='trone'] {
   border-left: 3px solid transparent;
   transition: background var(--dur-fast) var(--ease-soft), color var(--dur-fast) var(--ease-soft);
 }
+/* DEMANDER À PERLE, en tête de la barre (21 novembre 2026) : la seule entrée
+   encadrée du menu, pour qu'elle se trouve au premier regard. */
+.tr-nav__perle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 14px;
+  padding: 9px 12px;
+  min-height: 40px;
+  font-size: 14px;
+  font-weight: var(--weight-medium);
+  color: var(--color-ivoire);
+  border: 1px solid var(--hairline-invert);
+  border-radius: var(--radius-md);
+  transition: background var(--dur-fast) var(--ease-soft), border-color var(--dur-fast) var(--ease-soft);
+}
+.tr-nav__perle > span { flex: 1; min-width: 0; }
+.tr-nav__perle > svg { color: var(--color-copper); flex: none; }
+.tr-nav__perle kbd {
+  font: inherit;
+  font-size: 11px;
+  font-weight: var(--weight-regular);
+  padding: 1px 5px;
+  color: var(--indigo-200);
+  border: 1px solid var(--hairline-invert);
+  border-radius: var(--radius-sm);
+}
+.tr-nav__perle:hover { background: rgba(246, 241, 231, 0.06); }
+.tr-nav__perle.active { background: var(--indigo-500); border-color: var(--color-copper); }
+@media (max-width: 900px) { .tr-nav__perle kbd { display: none; } }
 .tr-nav__item:hover { background: rgba(246, 241, 231, 0.05); color: var(--color-ivoire); }
 .tr-nav__item.active {
   background: var(--indigo-500);

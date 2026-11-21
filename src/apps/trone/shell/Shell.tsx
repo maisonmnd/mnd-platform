@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { ChevronDown, Gem, LogOut, Menu, X } from 'lucide-react';
+import { ChevronDown, Gem, LogOut, Menu, Sparkles, X } from 'lucide-react';
 import { NAV, peutVoir, accueilDe, premierEcranVisible, gestesRapides, cheminOuvert, reunionDe, type TroneRoute } from '../routes/index';
 import { staffAccessStore } from '../routes/equipe/data';
 import { createStore, useStore } from '../../../shared/store';
@@ -462,6 +462,17 @@ export default function Shell() {
   const navigate = useNavigate();
   const emplacement = useLocation();
   const [allClients] = useClients();
+  /* ALT + P OUVRE PERLE, depuis tout écran (21 novembre 2026), pour la
+     direction seule. `code` et non `key` : sur un Mac, Option + P écrit « π ». */
+  const ouvrePerle = peutVoir(staff?.role, '/demander', mesDomaines);
+  useEffect(() => {
+    if (!ouvrePerle) return undefined;
+    const h = (e: KeyboardEvent) => {
+      if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyP') { e.preventDefault(); navigate('/demander'); }
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [ouvrePerle, navigate]);
 
   /* CACHER UN LIEN NE SUFFIT PAS. Une adresse tapée à la main, un favori posé
      un jour où l'accès était ouvert, un lien reçu d'un collègue : la barre ne
@@ -894,6 +905,16 @@ export default function Shell() {
         </div>
 
         <nav className="tr-nav">
+          {/* DEMANDER À PERLE, EN TÊTE DE LA BARRE (21 novembre 2026, maquette
+              7XvdzJ99…) : une seule porte pour poser une question au Trône, au
+              premier regard. La direction seule (`peutVoir`, ROUTES_DIRECTION). */}
+          {peutVoir(role, '/demander', mesDomaines) && (
+            <NavLink to="/demander" className={({ isActive }) => `tr-nav__perle${isActive ? ' active' : ''}`} onClick={closeSide}>
+              <Sparkles size={15} aria-hidden="true" />
+              <span>Demander à Perle</span>
+              <kbd>Alt P</kbd>
+            </NavLink>
+          )}
           {/* CHAQUE ROLE NE VOIT QUE CE QU'IL OUVRE. Un groupe dont tous les
               ecrans sont fermes disparait avec eux : un titre seul ne dit rien
               d'autre que ce qu'on ne peut pas atteindre. */}
