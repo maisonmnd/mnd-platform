@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LES FRAIS MTN GARDÉS, UNE RUBRIQUE À PART — 21 novembre 2026 (collecte-mtn 2026-11-21-a ; aucun SQL ; le Trône n'a pas à être republié) ; ET LES AFFICHES DU QR RÉIMPRIMÉES
+## LES FRAIS MTN GARDÉS, UNE RUBRIQUE À PART — 21 novembre 2026, EN LIGNE (collecte-mtn v18 2026-11-21-a, le serveur le dit ; commit 5114fc1f ; aucun SQL ; le Trône n'a pas à être republié ; aucun essai réel) ; ET LES AFFICHES DU QR RÉIMPRIMÉES
 
 « Le reste environ 0,4 % chez MTN doivent s'inscrire quelque part dans le Trône. Crée une rubrique » (Yéman). Au sélecteur, il a choisi « une rubrique à part » plutôt qu'une recette dans le résultat ou un simple tableau de suivi.
 
@@ -10,6 +10,7 @@
 - **Où la lire** : le registre des encaissements (Finances › Encaissements, les entrées hors activité), le relevé du tiroir « MTN Collection » (son solde suit le compte MTN, aux pourboires près), et la Synthèse, sous le trait, motif par motif : à part du chiffre d'affaires des prestations, comme les autres entrées hors activité. Le motif est posé par le serveur, jamais à la main : il n'est pas dans la liste du formulaire (`MOTIFS_HORS_ACTIVITE`) ; seul le type `MouvementHorsActivite.motif` l'accepte.
 - **Ce qui ne change pas** : la pièce (le reste), le merci, la dépense « Frais MTN » (seulement ce que les 1,6 % ne couvrent pas, donc rien). Aucun règlement avec frais n'était arrivé avant : rien à rattraper.
 - **Bancs** : `verifie-collecte-mtn` 132 (les 122 F gardés au tiroir, une seule ligne même relue), `--prouve` 78 sur 78 (dont : les frais gardés oubliés, comptés en entier, au mauvais tiroir) ; caisse du soir, caisses des caissiers, règlement en ligne, relevé MTN, douze lunes, clé du cron ; typecheck 0.
+- **Mise en ligne, 21 novembre à 04 h 44 UTC**, depuis une copie propre détachée à 5114fc1f : `verifie-collecte-mtn` 132 rejoué dans la copie, `collecte-copie-serveur --verifie` « Les copies sont à jour ». La table relue avant : `entrees_hors_activite` (`id` text clé primaire, `branch_id` text, `data` jsonb non nulle, `updated_at` timestamptz `now()`), RLS active, 0 ligne. collecte-mtn v17 → v18, verify_jwt false, le serveur dit « 2026-11-21-a ». Aucun essai réel : une demande MTN ferait payer une vraie cliente. La première demande réelle en sera la preuve : une ligne `hors-mtn-<référence>` dans `entrees_hors_activite`.
 - **Les affiches du QR** : `node scripts/fabrique-le-qr-du-comptoir.mjs <dossier>`. Elles sont fabriquées le 21 novembre dans `Le Trone/affiches/qr-mtn-2026-11-21/` (A5.pdf indigo, A5-ivoire.pdf, aperçus PNG, adresse.txt). Le script a été corrigé au passage :
   - il ignorait le dossier donné et écrivait au dossier temporaire ;
   - la devise est désormais lue à sa seule source, `DEVISE_COMPLETE` ;
