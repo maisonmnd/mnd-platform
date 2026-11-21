@@ -18,7 +18,10 @@ const racine = path.resolve(import.meta.dirname, '..');
 const prouve = process.argv.includes('--prouve');
 
 async function lanceLeBanc() {
-  const dossier = path.join(racine, 'node_modules', '.cache', 'verifie-demander-a-perle');
+  /* UN DOSSIER PAR LANCEMENT (21 novembre 2026) : `node_modules` est une jonction
+     commune a toutes les copies du depot ; deux bancs lances en meme temps dans
+     deux copies ecrivaient le meme paquet, et l un executait la panne de l autre. */
+  const dossier = path.join(racine, 'node_modules', '.cache', `verifie-demander-a-perle-${process.pid}`);
   mkdirSync(dossier, { recursive: true });
   try {
     const sortie = path.join(dossier, 'harnais.mjs');
@@ -129,6 +132,20 @@ const PANNES = [
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');
 
+/* ECRIRE, EN INSISTANT - 21 novembre 2026. Le depot vit sous OneDrive : un
+   fichier peut etre tenu une fraction de seconde. Une preuve s est arretee sur
+   « UNKNOWN: unknown error, open », au moment de RENDRE le fichier, et la panne
+   est restee dans le code. On reessaie donc pendant cinq secondes ; si la
+   restauration echoue pour de bon, on le crie avec le remede. */
+const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const ecris = (f, contenu) => {
+  let derniere;
+  for (let i = 0; i < 25; i++) {
+    try { writeFileSync(path.join(racine, f), contenu); return; } catch (e) { derniere = e; pause(200); }
+  }
+  throw derniere;
+};
+
 if (!prouve) {
   const r = await lanceLeBanc();
   process.stdout.write(r.stdout || ''); process.stderr.write(r.stderr || '');
@@ -147,16 +164,18 @@ if (!prouve) {
       const texte = brut.replace(/\r\n/g, '\n');
       if (texte.split(a).length !== 2) { console.log(`INTROUVABLE ${nom}`); muettes++; continue; }
       const casse = texte.replace(a, () => b);
-      writeFileSync(path.join(racine, fichier), crlf ? casse.replace(/\n/g, '\r\n') : casse);
+      ecris(fichier, crlf ? casse.replace(/\n/g, '\r\n') : casse);
       try {
         const r = await lanceLeBanc();
         if (r.status === 0) { console.log(`MUETTE ${nom}`); muettes++; } else console.log(`CRIE  ${nom}`);
       } finally {
-        writeFileSync(path.join(racine, fichier), gardes[fichier]);
+        ecris(fichier, gardes[fichier]);
       }
     }
   } finally {
-    for (const f of fichiers) writeFileSync(path.join(racine, f), gardes[f]);
+    for (const f of fichiers) {
+      try { ecris(f, gardes[f]); } catch { console.log(`RESTAURATION RATEE de ${f} : la panne y est peut-etre restee. Remede : git checkout -- ${f}`); }
+    }
   }
   const intacts = fichiers.every((f) => md5(f) === avant[f]);
   console.log(`\n${PANNES.length - muettes}/${PANNES.length} pannes criees${intacts ? ', fichiers restaures a l identique' : ', FICHIERS ALTERES'}.`);
