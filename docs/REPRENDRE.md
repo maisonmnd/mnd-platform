@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LA CARTE PAR LE TPE KKIAPAY — 21 novembre 2026, au soir, À METTRE EN LIGNE (le Trône seul ; aucun SQL, aucune fonction)
+## LA CARTE PAR LE TPE KKIAPAY — 21 novembre 2026, au soir, EN LIGNE (Trône build 20261121194941 @ 4b48c428, 554/554 ; le Trône seul ; aucun SQL, aucune fonction). Essai réel, rien encaissé : pour un rituel de 10 000 F, la tuile propose « Carte, par KkiaPay · elle tape sa carte sur le TPE », « Au TPE KkiaPay : 10 000 F … elle paiera 10 230 F », caisse KkiaPay, le bouton reste à 10 000 F, plus aucun QR ni FedaPay dans la fenêtre
 
 « Quand on choisit carte, on va sur FedaPay, qui ne prend pas les cartes ; il n'y a que KkiaPay. Il faut écrire « carte par KkiaPay ». » Puis : « On a le TPE de KkiaPay, qui fait le tap to pay : elle tape sa carte et on collecte le paiement », « le TPE seul » au sélecteur, et « les frais de KkiaPay sont de 2,3 % au lieu de 4 % » (Yéman, avec le reçu KkiaPay de la carte d'une cliente).
 
