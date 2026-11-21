@@ -33,7 +33,7 @@ import { ditLesMissionsRetirees } from '../../../../shared/missions-prestataires
 import { Link } from 'react-router-dom';
 import { autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT, lienPaiementMomo, MOMO_QR_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
 import { AuComptoir, type Grand } from './AuComptoir';
-import { RAILS, autresMoyens, leChoixDuMoyen, type LeChoix, type Rail, type Voie } from '../../../../shared/choix-du-moyen-pur';
+import { FRAIS_KKIAPAY_CARTE_PCT, MOYEN_CARTE_KKIAPAY, RAILS, autresMoyens, fraisKkiapayDeCarteXof, leChoixDuMoyen, type LeChoix, type Rail, type Voie } from '../../../../shared/choix-du-moyen-pur';
 import { CAISSE_MTN_COLLECTION, estUnNumeroMtn, msisdnDe } from '../../../../shared/collecte-mtn-pur';
 import { signaleMtnFerme, signaleUnePanne, signaleUneReussite, useLaSanteDesMoyens } from './sante-des-moyens';
 import { ReglementEnDirect } from './ReglementEnDirect';
@@ -899,41 +899,43 @@ function EtapeEnc({ n, titre, resume, alerte, ouvert, onBascule, children }: {
     (`kkiapay`, 24 octobre 2026) est retiré le 12 novembre ; la tuile reste
     connue pour les écritures d'avant. Depuis le 12 novembre, ces tuiles ne
     se voient plus : elles vivent derrière « Mobile money » et « Carte ». */
-type TuileEnc = 'especes' | 'mtn' | 'momo' | 'momoPrive' | 'kkiapay' | 'carte' | 'cheque' | 'mndpay' | 'avoir' | 'autre';
+/* `carteKkiapay` (21 novembre 2026, au soir) : la carte passée au TPE KkiaPay,
+   moyen « Carte · KkiaPay », caisse KkiaPay ; `carte` reste le terminal de la banque. */
+type TuileEnc = 'especes' | 'mtn' | 'momo' | 'momoPrive' | 'kkiapay' | 'carte' | 'carteKkiapay' | 'cheque' | 'mndpay' | 'avoir' | 'autre';
 /* ══ LES TUILES QU'ON VOIT · LE CHOIX DU MOYEN, 12 novembre 2026 ═══════
    Maquette « Le choix du moyen » (DnRyTv95…), « construis » : six tuiles au
    lieu de neuf. « Mobile money » remplace Payer par MTN, MTN MoMoPay, KkiaPay
    (le QR Chap Chap, retiré) et FedaPay : le Trône propose le moyen
    (`leChoixDuMoyen`), la caissière peut changer d'un toucher. « Carte »
-   propose le QR de FedaPay, puis le terminal de la banque. Derrière, chaque
+   propose le TPE de KkiaPay (21 novembre 2026 : FedaPay ne prend pas les
+   cartes), puis le terminal de la banque. Derrière, chaque
    part garde sa tuile d'avant (`TuileEnc`) : caisses, traces et versements
    ne changent pas. */
 type TuileVue = 'especes' | 'mobile' | 'carte' | 'cheque' | 'avoir' | 'autre';
 const TUILES_VUES: { id: TuileVue; nom: string; sous: string }[] = [
   { id: 'especes', nom: 'Espèces', sous: 'au comptoir' },
   { id: 'mobile', nom: 'Mobile money', sous: 'le Trône choisit' },
-  { id: 'carte', nom: 'Carte', sous: 'QR ou terminal' },
+  { id: 'carte', nom: 'Carte', sous: 'TPE KkiaPay' },
   { id: 'cheque', nom: 'Chèque', sous: 'à déposer' },
   { id: 'avoir', nom: 'Avoir', sous: 'crédit du compte' },
   { id: 'autre', nom: 'Autres', sous: 'les autres moyens' },
 ];
 /** La tuile d'avant que porte un moyen de la règle. */
-const tuileDuRail = (r: Rail): TuileEnc => (r === 'mtn' ? 'mtn' : r === 'momopay' ? 'momo' : r === 'terminal' ? 'carte' : 'mndpay');
-/** Le moyen que le panneau FedaPay ouvre : la carte, Tap & Go, ou le
+const tuileDuRail = (r: Rail): TuileEnc => (r === 'mtn' ? 'mtn' : r === 'momopay' ? 'momo' : r === 'terminal' ? 'carte' : r === 'tpeKkiapay' ? 'carteKkiapay' : 'mndpay');
+/** Le moyen que le panneau FedaPay ouvre : Tap & Go, ou le
     réseau de son numéro (MTN quand l'API MTN est fermée, Moov sinon :
     Celtiis se touche dans le panneau). */
 const moyenFedaPayDuRail = (r: Rail, telephone?: string | null): MoyenMndPay | undefined => {
-  if (r === 'carteFedapay') return 'carte';
   if (r === 'tapgo') return 'tapgo';
   if (r !== 'fedapay') return undefined;
   const m = msisdnDe(telephone ?? '');
   return !m || estUnNumeroMtn(m) ? 'mtn' : 'moov';
 };
 const MOYENS_FEDAPAY_MOBILE: readonly MoyenMndPay[] = ['mtn', 'moov', 'celtiis', 'tapgo'];
-const MOYENS_FEDAPAY_CARTE: readonly MoyenMndPay[] = ['carte'];
 /** La tuile qu'on voit allumée pour une part. */
 const vueDeLaPart = (p: PartEnc): TuileVue => {
   if (p.voie) return p.voie;
+  if (p.tuile === 'carteKkiapay') return 'carte';
   if (p.tuile === 'mtn' || p.tuile === 'momo' || p.tuile === 'momoPrive' || p.tuile === 'kkiapay' || p.tuile === 'mndpay') return 'mobile';
   return p.tuile;
 };
@@ -957,6 +959,7 @@ function methodeDeLaTuile(t: TuileEnc, methods: readonly string[], autre?: strin
     case 'momoPrive': return methods.find((m) => familleDuMoyen(m) === 'momoPrive') ?? MOYEN_MOMO_PRIVE;
     case 'kkiapay': return methods.find((m) => familleDuMoyen(m) === 'kkiapay') ?? MOYEN_KKIAPAY;
     case 'carte': return methods.find(estCarte) ?? 'Carte';
+    case 'carteKkiapay': return MOYEN_CARTE_KKIAPAY;
     case 'cheque': return methods.find(estCheque) ?? 'Chèque';
     case 'avoir': return 'Avoir';
     case 'mndpay': return 'FedaPay';
@@ -965,7 +968,7 @@ function methodeDeLaTuile(t: TuileEnc, methods: readonly string[], autre?: strin
   }
 }
 const DIT_LA_TUILE: Record<TuileEnc, string> = {
-  especes: 'en espèces', mtn: 'par MTN', momo: 'en MTN MoMoPay', momoPrive: 'en MoMo Privé', kkiapay: 'par KkiaPay', carte: 'par carte', cheque: 'par chèque', mndpay: 'par FedaPay', avoir: 'sur l’avoir', autre: '',
+  especes: 'en espèces', mtn: 'par MTN', momo: 'en MTN MoMoPay', momoPrive: 'en MoMo Privé', kkiapay: 'par KkiaPay', carte: 'par carte', carteKkiapay: 'par carte, au TPE KkiaPay', cheque: 'par chèque', mndpay: 'par FedaPay', avoir: 'sur l’avoir', autre: '',
 };
 /** UNE PART DU RÈGLEMENT : sa tuile, son montant, et la caisse qu'une main
     de la direction a choisie à la place de celle qui se propose. `mnd` : la
@@ -3252,6 +3255,14 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                     </span>
                   </label>
                 )}
+                {/* LE TPE KKIAPAY (21 novembre 2026, au soir) : le Trône n'ajoute rien ;
+                    KkiaPay ajoute lui-même ses 2,3 % pour elle, et l'écran le dit. */}
+                {p.tuile === 'carteKkiapay' && x > 0 && !fxOn && (
+                  <div data-frais-kkiapay={fraisKkiapayDeCarteXof(x)} style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--ink-soft)' }}>
+                    Au TPE KkiaPay : <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{fmtMoney(x, currency)}</b>.
+                    KkiaPay ajoute ses {String(FRAIS_KKIAPAY_CARTE_PCT).replace('.', ',')}&nbsp;% pour elle : elle paiera <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{fmtMoney(x + fraisKkiapayDeCarteXof(x), currency)}</b>.
+                  </div>
+                )}
                 {/* OÙ VA L'ARGENT — la caisse se déduit de qui encaisse et du
                     moyen ; la direction seule la change (17 octobre 2026). */}
                 {p.tuile === 'avoir' ? (
@@ -3310,7 +3321,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                       currency={currency}
                       reglages={settings.mndPay}
                       moyenDeDepart={p.moyenFeda}
-                      moyensPermis={p.voie === 'carte' ? MOYENS_FEDAPAY_CARTE : p.voie === 'mobile' ? MOYENS_FEDAPAY_MOBILE : undefined}
+                      moyensPermis={p.voie === 'mobile' ? MOYENS_FEDAPAY_MOBILE : undefined}
                       onOccupe={(o) => { if (!!p.engage !== o) majPart(p.id, { engage: o }); }}
                       onPanne={() => signaleUnePanne('fedapay')}
                       onReussite={() => signaleUneReussite('fedapay')}

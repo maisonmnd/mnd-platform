@@ -26,7 +26,10 @@ const PANNES = [
   /* La règle */
   ['MoMoPay avant FedaPay', PUR, "  return ['mtn', 'fedapay', 'tapgo', 'momopay'];", "  return ['mtn', 'momopay', 'fedapay', 'tapgo'];"],
   ['un numero Moov commence par MTN', PUR, "  if (m && !estUnNumeroMtn(m)) return ['fedapay', 'tapgo', 'momopay'];", ''],
-  ['la carte commence par le terminal', PUR, "  if (voie === 'carte') return ['carteFedapay', 'terminal'];", "  if (voie === 'carte') return ['terminal', 'carteFedapay'];"],
+  ['la carte commence par le terminal', PUR, "  if (voie === 'carte') return ['tpeKkiapay', 'terminal'];", "  if (voie === 'carte') return ['terminal', 'tpeKkiapay'];"],
+  ['le TPE KkiaPay en devise', PUR, "  if (r === 'tpeKkiapay' && c.enDevise) return 'le TPE KkiaPay ne prend que des francs';\n", ''],
+  ['les frais KkiaPay au franc inferieur', PUR, '  return Math.ceil(Math.round(m * FRAIS_KKIAPAY_CARTE_PCT * 100) / 10000);', '  return Math.floor(Math.round(m * FRAIS_KKIAPAY_CARTE_PCT * 100) / 10000);'],
+  ['la carte KkiaPay ecrite Carte seule (caisse Carte)', PUR, "export const MOYEN_CARTE_KKIAPAY = 'Carte · KkiaPay';", "export const MOYEN_CARTE_KKIAPAY = 'Carte';"],
   ['le plafond MTN oublie', PUR, "    if (c.montantXof > PLAFOND_MTN_XOF) return 'au-delà de 2 000 000 F';", ''],
   ['MTN pris par plusieurs parts', PUR, "    if (c.plusieursParts) return 'MTN règle tout le reste en une seule fois';", ''],
   ['MTN en devise', PUR, "    if (c.enDevise) return 'MTN ne prend que des francs';", ''],

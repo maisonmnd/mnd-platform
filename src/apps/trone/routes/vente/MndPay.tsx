@@ -29,7 +29,8 @@ const MOYENS: { id: MoyenMndPay; nom: string; sous: string }[] = [
   { id: 'mtn', nom: 'MTN MoMo', sous: 'sur son téléphone' },
   { id: 'moov', nom: 'Moov', sous: 'sur son téléphone' },
   { id: 'celtiis', nom: 'Celtiis', sous: 'sur son téléphone' },
-  { id: 'carte', nom: 'Carte', sous: 'QR au comptoir' },
+  /* La carte n'est plus proposée ici (21 novembre 2026) : FedaPay ne prend pas
+     les cartes de la Maison ; la carte passe au TPE KkiaPay. */
   { id: 'tapgo', nom: 'Code USSD', sous: 'Tap & Go, elle compose' },
 ];
 

@@ -175,8 +175,10 @@ const caisseDeLaPart = () => evalue(`(() => { const s = [...document.querySelect
 const sansChoix = () => evalue(`!/caisse à choisir|Choisissez la caisse/.test(document.querySelector('.mnd-modal')?.innerText || '')`);
 dit('plus de tuile MoMo Privé (11 novembre 2026) ni KkiaPay (12 novembre 2026)', !tuiles.includes('MoMo Privé') && !tuiles.includes('KkiaPay'), JSON.stringify(tuiles));
 /* Hors ligne, ni MTN ni FedaPay ne peuvent demander : « Mobile money »
-   propose MoMoPay, en secours ; « Carte », le terminal de la banque. */
-const ATTENDUES = [['Espèces', 'Terrasse · Tiroir espèces'], ['Mobile money', 'MoMoPay Maison MND'], ['Carte', 'Carte'], ['Chèque', 'Chèque'], ['Autres', 'Autres']];
+   propose MoMoPay, en secours. « Carte » propose le TPE KkiaPay (21 novembre
+   2026 : FedaPay ne prend pas les cartes), que le réseau du Trône ne touche
+   pas : sa caisse est KkiaPay. */
+const ATTENDUES = [['Espèces', 'Terrasse · Tiroir espèces'], ['Mobile money', 'MoMoPay Maison MND'], ['Carte', 'KkiaPay'], ['Chèque', 'Chèque'], ['Autres', 'Autres']];
 const vues = [];
 let ligneDuMoyen = null;
 for (const [tuile] of ATTENDUES) {

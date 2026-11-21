@@ -5,9 +5,11 @@
    fenêtre Encaisser, les deux panneaux et la lecture de la santé en font.
    Numéros et montants inventés. Sortie ASCII : la console de Windows. */
 import {
-  PANNE_RETENUE_MS, PLAFOND_MTN_XOF, RAILS, RELECTURE_DE_LA_SANTE_MS, autresMoyens, echecSuivant, estUnePanne, etatDuPrestataire,
-  heureDite, leChoixDuMoyen, ordreDuComptoir, type ContexteDuChoix, type SanteDesMoyens,
+  FRAIS_KKIAPAY_CARTE_PCT, HORS_LIGNE, MOYEN_CARTE_KKIAPAY, PANNE_RETENUE_MS, PLAFOND_MTN_XOF, RAILS, RELECTURE_DE_LA_SANTE_MS, autresMoyens, echecSuivant, estUnePanne, etatDuPrestataire,
+  fraisKkiapayDeCarteXof, heureDite, leChoixDuMoyen, ordreDuComptoir, type ContexteDuChoix, type SanteDesMoyens,
 } from '../src/shared/choix-du-moyen-pur';
+import { familleDuMoyen } from '../src/shared/caisses-des-caissiers-pur';
+import { familleDeTrace } from '../src/shared/trace-du-moyen-pur';
 import { readFileSync } from 'node:fs';
 
 let ko = 0;
@@ -33,12 +35,13 @@ const FERME_MTN = { ouvert: false, repond: true, pourquoi: 'le règlement par MT
 const PANNE_FEDA = { ouvert: true, repond: false, pourquoi: 'FedaPay ne répond pas' };
 
 /* ── L'ordre ──────────────────────────────────────────────────────────── */
-dit('l ordre : un numero MTN (ou aucun) commence par MTN ; Moov ou Celtiis par FedaPay ; la carte par le QR FedaPay', [
-  ['mtn', 'fedapay', 'tapgo', 'momopay'], ['mtn', 'fedapay', 'tapgo', 'momopay'], ['fedapay', 'tapgo', 'momopay'], ['carteFedapay', 'terminal'],
+dit('l ordre : un numero MTN (ou aucun) commence par MTN ; Moov ou Celtiis par FedaPay ; la carte par le TPE KkiaPay (21 novembre 2026)', [
+  ['mtn', 'fedapay', 'tapgo', 'momopay'], ['mtn', 'fedapay', 'tapgo', 'momopay'], ['fedapay', 'tapgo', 'momopay'], ['tpeKkiapay', 'terminal'],
 ], [ordreDuComptoir('mobile', MTN), ordreDuComptoir('mobile', ''), ordreDuComptoir('mobile', MOOV), ordreDuComptoir('carte', MTN)]);
-dit('MoMoPay et le terminal sont des secours ; MTN, FedaPay, Tap & Go et le QR carte se confirment seuls', [
-  [true, true], [true, true, true, true],
-], [[!!RAILS.momopay.secours, !!RAILS.terminal.secours], [RAILS.mtn.seConfirmeSeul, RAILS.fedapay.seConfirmeSeul, RAILS.tapgo.seConfirmeSeul, RAILS.carteFedapay.seConfirmeSeul]]);
+dit('MoMoPay et le terminal sont des secours ; MTN, FedaPay et Tap & Go se confirment seuls ; le TPE KkiaPay se pointe (le Trone ne lui parle pas)', [
+  [true, true], [true, true, true, false],
+], [[!!RAILS.momopay.secours, !!RAILS.terminal.secours], [RAILS.mtn.seConfirmeSeul, RAILS.fedapay.seConfirmeSeul, RAILS.tapgo.seConfirmeSeul, RAILS.tpeKkiapay.seConfirmeSeul]]);
+dit('la carte par KkiaPay : son nom, et aucun prestataire a relire', ['Carte, par KkiaPay', undefined], [RAILS.tpeKkiapay.nom, RAILS.tpeKkiapay.prestataire]);
 
 /* ── Le choix ─────────────────────────────────────────────────────────── */
 const a = ch();
@@ -85,8 +88,17 @@ dit('un moyen touche a la main qui tombe en panne : la regle reprend la main', [
 dit('toucher le moyen deja propose n est pas « a la main »', false, ch({ aLaMain: 'mtn' }).aLaMain);
 const carte = leChoixDuMoyen({ voie: 'carte', montantXof: 25_000, sante: tous(), tapGoOuvert: true });
 const carteSans = leChoixDuMoyen({ voie: 'carte', montantXof: 25_000, sante: tous({ fedapay: { ouvert: false, repond: true, pourquoi: 'FedaPay n’est pas allumé (Paramètres › FedaPay)' } }), tapGoOuvert: true });
-dit('la carte : le QR FedaPay ; FedaPay eteint, le terminal de la banque, sans ligne de panne', ['carteFedapay', 'terminal', false, true],
-  [carte.rail, carteSans.rail, !!carteSans.panne, /FedaPay n’est pas allumé/.test(carteSans.pourquoi)]);
+const carteHorsLigne = leChoixDuMoyen({ voie: 'carte', montantXof: 25_000, sante: tous({ mtn: { ouvert: true, repond: false, pourquoi: HORS_LIGNE }, fedapay: { ouvert: true, repond: false, pourquoi: HORS_LIGNE } }), tapGoOuvert: true });
+const carteEnDevise = leChoixDuMoyen({ voie: 'carte', montantXof: 25_000, sante: tous(), tapGoOuvert: true, enDevise: true });
+dit('la carte : le TPE KkiaPay, que FedaPay eteint, le reseau coupe ni une panne ne touchent ; sans ligne de panne', ['tpeKkiapay', 'tpeKkiapay', 'tpeKkiapay', false, false],
+  [carte.rail, carteSans.rail, carteHorsLigne.rail, !!carteSans.panne, !!carteHorsLigne.panne]);
+dit('... en devise, le terminal de la banque (le TPE KkiaPay ne prend que des francs)', ['terminal', 'le TPE KkiaPay ne prend que des francs'],
+  [carteEnDevise.rail, carteEnDevise.ordre.find((l) => l.rail === 'tpeKkiapay')?.hors]);
+dit('... le terminal de la banque reste a un toucher', ['terminal'], autresMoyens(carte));
+dit('les frais de KkiaPay sur une carte : 2,3 % au franc superieur, comme sur son recu (64 480 F : 1 484 F)', [1484, 1426, 0, 2.3],
+  [fraisKkiapayDeCarteXof(64_480), fraisKkiapayDeCarteXof(62_000), fraisKkiapayDeCarteXof(0), FRAIS_KKIAPAY_CARTE_PCT]);
+dit('le moyen ecrit sur la piece : « Carte · KkiaPay », range chez KkiaPay (sa caisse), avec la trace d une carte', ['Carte · KkiaPay', 'kkiapay', 'carte'],
+  [MOYEN_CARTE_KKIAPAY, familleDuMoyen(MOYEN_CARTE_KKIAPAY), familleDeTrace(MOYEN_CARTE_KKIAPAY)]);
 dit('une panne de MTN ne se dit pas sur la tuile Carte (MTN n y est pas)', false,
   !!leChoixDuMoyen({ voie: 'carte', montantXof: 1000, sante: tous({ mtn: PANNE_MTN }), tapGoOuvert: true }).panne);
 
@@ -116,7 +128,7 @@ dit('une panne : 5xx ou injoignable ; pas un refus (4xx), pas une coupure du pos
 /* ── La fenêtre Encaisser ─────────────────────────────────────────────── */
 const enc = sansCommentaires('src/apps/trone/routes/clients/actions.tsx');
 dit('six tuiles : Especes, Mobile money, Carte, Cheque, Avoir, Autres ; plus de Payer par MTN, MoMoPay, KkiaPay ni FedaPay en tuile', [true, false, false, false, false],
-  [enc.includes("const TUILES_VUES: { id: TuileVue; nom: string; sous: string }[] = [ { id: 'especes', nom: 'Espèces', sous: 'au comptoir' }, { id: 'mobile', nom: 'Mobile money', sous: 'le Trône choisit' }, { id: 'carte', nom: 'Carte', sous: 'QR ou terminal' }, { id: 'cheque', nom: 'Chèque', sous: 'à déposer' }, { id: 'avoir', nom: 'Avoir', sous: 'crédit du compte' }, { id: 'autre', nom: 'Autres', sous: 'les autres moyens' }, ];"),
+  [enc.includes("const TUILES_VUES: { id: TuileVue; nom: string; sous: string }[] = [ { id: 'especes', nom: 'Espèces', sous: 'au comptoir' }, { id: 'mobile', nom: 'Mobile money', sous: 'le Trône choisit' }, { id: 'carte', nom: 'Carte', sous: 'TPE KkiaPay' }, { id: 'cheque', nom: 'Chèque', sous: 'à déposer' }, { id: 'avoir', nom: 'Avoir', sous: 'crédit du compte' }, { id: 'autre', nom: 'Autres', sous: 'les autres moyens' }, ];"),
     /nom: 'Payer par MTN'/.test(enc), /nom: 'MTN MoMoPay'/.test(enc), /nom: 'KkiaPay'/.test(enc), /nom: 'FedaPay'/.test(enc)]);
 dit('les tuiles se tirent de la regle, la sante relue fenetre ouverte', [true, true],
   [enc.includes('const sante = useLaSanteDesMoyens(true, mndOn);'), enc.includes('const ch = leChoixDuMoyen({ voie, telephone: telDuChoix,')]);
@@ -130,8 +142,12 @@ dit('la ligne du moyen : le moyen, pourquoi, la panne, les autres a un toucher, 
 dit('les deux panneaux disent au Trone : occupe, panne, reussite (et MTN ferme)', [true, true, true, true, true],
   [enc.includes("onPanne={() => signaleUnePanne('mtn')}"), enc.includes('onFerme={signaleMtnFerme}'), enc.includes("onPanne={() => signaleUnePanne('fedapay')}"),
     (enc.match(/onOccupe=\{\(o\) => \{ if \(!!p\.engage !== o\) majPart\(p\.id, \{ engage: o \}\); \}\}/g) ?? []).length === 2, enc.includes("onReussite={() => signaleUneReussite('mtn')}")]);
-dit('le panneau FedaPay s ouvre sur le moyen de la regle, ceux de sa tuile seulement', [true, true],
-  [enc.includes('moyenDeDepart={p.moyenFeda}'), enc.includes("moyensPermis={p.voie === 'carte' ? MOYENS_FEDAPAY_CARTE : p.voie === 'mobile' ? MOYENS_FEDAPAY_MOBILE : undefined}")]);
+dit('le panneau FedaPay s ouvre sur le moyen de la regle, ceux du mobile seulement ; plus de carte par FedaPay (21 novembre 2026)', [true, true, false, false],
+  [enc.includes('moyenDeDepart={p.moyenFeda}'), enc.includes("moyensPermis={p.voie === 'mobile' ? MOYENS_FEDAPAY_MOBILE : undefined}"),
+    enc.includes('MOYENS_FEDAPAY_CARTE'), sansCommentaires('src/apps/trone/routes/vente/MndPay.tsx').includes("{ id: 'carte', nom: 'Carte', sous: 'QR au comptoir' }")]);
+dit('la part Carte par KkiaPay : sa tuile, son moyen, et ce que KkiaPay ajoute, dit sans rien ajouter a la piece', [true, true, true, true],
+  [enc.includes("r === 'tpeKkiapay' ? 'carteKkiapay'"), enc.includes("case 'carteKkiapay': return MOYEN_CARTE_KKIAPAY;"),
+    enc.includes("{p.tuile === 'carteKkiapay' && x > 0 && !fxOn && ("), enc.includes("(pt.tuile === 'carte' && !pt.sansFrais && !fxOn ? fraisDeCarteXof(montantDe(pt)) : 0);")]);
 dit('une capture lue (argent deja arrive par MTN) : Mobile money, MoMoPay touche a la main', true,
   enc.includes("const mtn = l.moyen === 'mtn' ? { voie: 'mobile' as const, aLaMain: 'momopay' as const } : {};"));
 dit('en devise, pas de Mobile money', true, enc.includes("TUILES_VUES.filter((t) => (t.id !== 'mobile' || !fxOn)"));

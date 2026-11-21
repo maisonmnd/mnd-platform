@@ -2,6 +2,17 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA CARTE PAR LE TPE KKIAPAY — 21 novembre 2026, au soir, À METTRE EN LIGNE (le Trône seul ; aucun SQL, aucune fonction)
+
+« Quand on choisit carte, on va sur FedaPay, qui ne prend pas les cartes ; il n'y a que KkiaPay. Il faut écrire « carte par KkiaPay ». » Puis : « On a le TPE de KkiaPay, qui fait le tap to pay : elle tape sa carte et on collecte le paiement », « le TPE seul » au sélecteur, et « les frais de KkiaPay sont de 2,3 % au lieu de 4 % » (Yéman, avec le reçu KkiaPay de la carte d'une cliente).
+
+- **La tuile « Carte » propose « Carte, par KkiaPay · elle tape sa carte sur le TPE »** (rail `tpeKkiapay`, `choix-du-moyen-pur`), puis le terminal de la banque en secours, à un toucher. Le QR FedaPay de la carte est retiré, ici et dans le panneau FedaPay (Caisse) ; le lien FedaPay à distance ne promet plus la carte.
+- **Le Trône ne parle pas au TPE** (KkiaPay n'en publie pas l'API) : la caissière y passe le montant, elle pose sa carte, et la référence du reçu se note comme un n° d'autorisation (ou sa photo). Le moyen écrit sur la pièce : « Carte · KkiaPay » (`MOYEN_CARTE_KKIAPAY`) ; `familleDuMoyen` le range chez KkiaPay, la part va dans la caisse KkiaPay. Le Trône ne parle pas à KkiaPay : « à pointer le soir », sur le relevé KkiaPay.
+- **Les frais : le Trône n'ajoute rien.** Le reçu KkiaPay le montre : opération 64 480 F, « Frais de transaction 2,3 % » 1 484 F, total payé 65 964 F, « payment of 64480 XOF to Maison MND ». KkiaPay ajoute LUI-MÊME ses 2,3 % pour la cliente. L'écran le dit seulement (« Au TPE KkiaPay : 62 000 F. KkiaPay ajoute ses 2,3 % pour elle : elle paiera 63 426 F », `fraisKkiapayDeCarteXof`, au franc supérieur comme le reçu). Les 4 % de la Maison (`frais-de-carte-pur`) ne restent que sur le terminal de la banque.
+- **La carte d'une cliente, ce soir-là**, est passée avant ce changement par le terminal avec les 4 % : elle a payé 2 480 F de trop (les 4 % de la Maison) en plus des 2,3 % de KkiaPay. Dit à Yéman, rien de corrigé dans ses pièces.
+- **La note de la section suivante** (« les frais doivent suivre la part Carte par KkiaPay ») ne vaut plus : KkiaPay prend ses 2,3 % lui-même, la part au TPE ne porte aucun frais de la Maison.
+- **Bancs** : `verifie-le-choix-du-moyen` (`--prouve` 44 sur 44 : le TPE d'abord, le terminal en devise, les frais au franc supérieur, le moyen « Carte · KkiaPay » rangé chez KkiaPay avec la trace d'une carte), `banc-des-frais-de-carte` 32 dans Chrome (la scène E : la carte au TPE, la pièce au prix du rituel, un versement « Carte · KkiaPay » dans la caisse KkiaPay, la référence notée ; les 4 % éprouvés au terminal par « Autre moyen »), `banc-encaisser` 50 (la tuile Carte montre la caisse KkiaPay) ; typecheck 0.
+
 ## LES FRAIS DE LA CARTE — 21 novembre 2026, EN LIGNE (`cloture-du-jour` v40, règle 2026-11-21-a, un GET rend `regle` ; Trône build 20261121192334 @ f2c9cf90, 554/554 ; aucun SQL ; bundle relu : la ligne et la note des frais y sont)
 
 - **La preuve réelle reste à voir** : le premier encaissement par carte avec frais, puis la clôture de 15 h ou 19 h qui ne doit pas signaler sa pièce « prix différent ».

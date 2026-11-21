@@ -14,7 +14,13 @@
        1 120 F avec sa note) ; le rendez-vous, lui, a reçu 28 000 F ;
      - B. la case décochée : la pièce vaut 28 000 F, sans ligne de frais ;
      - C. en espèces : aucune case, aucun frais ;
-     - D. au téléphone, la case ne déborde pas.
+     - D. au téléphone, la case ne déborde pas ;
+     - E. LE TPE KKIAPAY (21 novembre 2026, au soir : « FedaPay ne prend pas les
+       cartes », « les frais de KkiaPay sont de 2,3 % ») : la tuile « Carte »
+       propose le TPE ; aucune case de frais de la Maison, la ligne dit ce que
+       KkiaPay ajoute pour elle (2,3 %) ; la pièce vaut le rituel, un seul
+       versement « Carte · KkiaPay » dans la caisse KkiaPay. Les scènes A, B et
+       D passent au terminal de la banque par « Autre moyen ».
 
    Il attend le Trône construit sans serveur (sous Bash) :
      VITE_APPS=trone VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= \
@@ -110,7 +116,7 @@ const AUJ = isoDe(new Date());
 const GESTES = ['sv-souffle', 'sv-reprise'];
 const tete = (cid, nom, phone) => ({ id: cid, branchId: 'maison', name: nom, phone, city: '', persona: '', since: '2026-01-10', segments: [], sansPapiersWa: true });
 const duJour = (cid, heure) => ({ id: `rdv-${cid}`, branchId: 'maison', clientId: cid, serviceIds: GESTES, date: AUJ, time: heure, status: 'confirmé', master: 'Expert' });
-const TETES = [['cl-ea', 'Elise A.', '09:00', '0100000071'], ['cl-fb', 'Flora B.', '11:00', '0100000072'], ['cl-gc', 'Gisèle C.', '14:00', '0100000073']];
+const TETES = [['cl-ea', 'Elise A.', '09:00', '0100000071'], ['cl-fb', 'Flora B.', '11:00', '0100000072'], ['cl-gc', 'Gisèle C.', '14:00', '0100000073'], ['cl-hd', 'Hortense D.', '16:00', '0100000074']];
 const SEMENCE = {
   'trone::mnd_branches': [{ id: 'maison', name: 'Maison du banc', city: 'Cotonou', country: 'Bénin', dial: '+229', currency: 'XOF', address: '', seats: 2, masters: ['Expert', 'Team'], masterParDefaut: 'Expert', status: 'active', flagship: true }],
   'trone::mnd_current_branch': 'maison',
@@ -147,6 +153,9 @@ const blocage = () => evalue(`(${modale}?.querySelector('[role="alert"]')?.textC
 /* Le ticket de la banque : le n° d'autorisation que la carte réclame. */
 const autorisation = () => remplis('input[placeholder^="N° d"]', 'AB12CD');
 const encaisse = async () => { const ok = await clique('button', 'Encaisser', modale); await attend(2500); return ok; };
+/* « Autre moyen : Terminal de la banque » : la carte propose d'abord le TPE KkiaPay (21 novembre 2026). */
+const auTerminal = async () => { const ok = await clique('.tre-link-btn', 'Terminal de la banque', modale); await attend(500); return ok; };
+const choixDuMoyen = () => evalue(`${modale}.querySelector('[data-choix-du-moyen]')?.dataset.choixDuMoyen || ''`);
 const pieceDe = async (rdvId) => ((await lis('trone::mnd_invoices')) ?? []).find((i) => i.apptId === rdvId);
 const rdvDe = async (rdvId) => ((await lis('trone::mnd_appointments')) ?? []).find((a) => a.id === rdvId);
 const net = (l) => Math.max(0, l.qty * l.unitXof * (1 - (l.discountPct || 0) / 100) - (l.discountXof || 0));
@@ -155,8 +164,8 @@ const totalDe = (p) => Math.max(0, (p?.lines ?? []).reduce((s, l) => s + net(l),
 /* ── A. LA CARTE AU TERMINAL, FRAIS COMPRIS ── */
 dit('le Carnet ouvre l encaissement d Elise A.', await ouvreLEncaissement('Elise', '09:00'));
 dit('la tuile Carte se touche', await tuile('Carte'));
-const choix = await evalue(`${modale}.querySelector('[data-choix-du-moyen]')?.dataset.choixDuMoyen || ''`);
-dit('la Carte propose le terminal de la banque', choix === 'terminal', choix);
+dit('la Carte propose le TPE KkiaPay', (await choixDuMoyen()) === 'tpeKkiapay', await choixDuMoyen());
+dit('« Autre moyen : Terminal de la banque » le prend', (await auTerminal()) && (await choixDuMoyen()) === 'terminal', await choixDuMoyen());
 const c1 = await caseFrais();
 dit('sous la part : la case des frais, cochee, + 1 120 F', !!c1 && c1.frais === 1120 && c1.coche, JSON.stringify(c1));
 dit('... et le montant a passer au terminal : 29 120 F', !!c1 && /au terminal : 29\s?120\s?F/u.test(c1.texte), c1?.texte);
@@ -187,6 +196,7 @@ dit('« C est regle » dit les frais sur le ticket', /Frais de paiement par cart
 await cdp('Page.navigate', { url: 'about:blank' });
 dit('le Carnet ouvre l encaissement de Flora B.', await ouvreLEncaissement('Flora', '11:00'));
 await tuile('Carte');
+await auTerminal();
 await evalue(`${modale}.querySelector('[data-frais-de-carte] input')?.click()`);
 await attend(300);
 const c2 = await caseFrais();
@@ -209,6 +219,7 @@ dit('... et le bouton dit 28 000 F', /^Encaisser 28\s?000\s?F$/u.test(b3), b3);
 
 /* ── D. AU TÉLÉPHONE ── */
 await tuile('Carte');
+await auTerminal();
 await cdp('Emulation.setDeviceMetricsOverride', { width: 360, height: 740, deviceScaleFactor: 2, mobile: true });
 await attend(700);
 const deborde = await evalue(`(() => { const l = ${modale}?.querySelector('[data-frais-de-carte]'); if (!l) return 'absente'; const r = l.getBoundingClientRect(); return r.right <= window.innerWidth + 1 && document.documentElement.scrollWidth <= window.innerWidth + 1 ? 'ok' : Math.round(r.right) + '/' + window.innerWidth; })()`);
@@ -217,6 +228,28 @@ if (captures) {
   const img = await cdp('Page.captureScreenshot', { format: 'png' });
   writeFileSync(path.join(captures, 'frais-carte-2-telephone.png'), Buffer.from(img.result.data, 'base64'));
 }
+
+/* ── E. LE TPE KKIAPAY : rien d'ajouté par la Maison, KkiaPay ajoute ses 2,3 % pour elle ── */
+await cdp('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+await cdp('Page.navigate', { url: 'about:blank' });
+dit('le Carnet ouvre l encaissement d Hortense D.', await ouvreLEncaissement('Hortense', '16:00'));
+await tuile('Carte');
+dit('la Carte propose le TPE KkiaPay, a pointer', (await choixDuMoyen()) === 'tpeKkiapay'
+  && /Carte, par KkiaPay/.test(await evalue(`${modale}.querySelector('[data-choix-du-moyen]')?.textContent || ''`)), await choixDuMoyen());
+dit('aucune case de frais de la Maison sous la part', (await caseFrais()) === null);
+const kkia = await evalue(`(() => { const l = ${modale}?.querySelector('[data-frais-kkiapay]'); return l ? { frais: Number(l.dataset.fraisKkiapay), texte: l.textContent.replace(/\\s+/g, ' ').trim() } : null; })()`);
+dit('la ligne dit le montant au TPE et ce que KkiaPay ajoute pour elle (2,3 % : 644 F)', !!kkia && kkia.frais === 644
+  && /Au TPE KkiaPay : 28\s?000\s?F/u.test(kkia.texte) && /2,3\s?% pour elle : elle paiera 28\s?644\s?F/u.test(kkia.texte), JSON.stringify(kkia));
+const b5 = await bouton();
+dit('le bouton dit le rituel seul', /^Encaisser 28\s?000\s?F$/u.test(b5), b5);
+await autorisation();
+dit('rien ne bloque une fois la reference du recu notee', (await blocage()) === '', await blocage());
+await encaisse();
+const pE = await pieceDe('rdv-cl-hd');
+const vE = (pE?.payments ?? []).map((v) => `${v.amountXof}|${v.method}|${v.cashbox ?? ''}`);
+dit('une piece de 28 000 F, sans ligne de frais, un versement « Carte · KkiaPay » dans la caisse KkiaPay', !!pE && totalDe(pE) === 28000 && !pE.lines.some((l) => l.frais)
+  && (pE.payments ?? []).length === 1 && pE.payments[0].method === 'Carte · KkiaPay' && pE.payments[0].cashbox === 'KkiaPay', JSON.stringify(vE));
+dit('... avec la reference du recu sur le versement', pE?.payments?.[0]?.trace?.autorisation === 'AB12CD', JSON.stringify(pE?.payments?.[0]?.trace ?? null));
 
 dit('aucune erreur dans la page', erreurs.length === 0, erreurs.slice(0, 3).join(' | '));
 console.log(ko === 0 ? `\n${n}/${n} epreuves : les frais de la carte, dans le vrai Trone.` : `\n${ko} echec(s) sur ${n}.`);

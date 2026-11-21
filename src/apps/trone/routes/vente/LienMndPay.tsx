@@ -97,7 +97,7 @@ ${motDuLienRegler(appel, fmtMoney(resteXof, currency), adresseDuLien(j))}`);
        2026, sa décision) : seul le PDF le porte. */
     const msg = signeLeMessage(
       `${maisonNom()}\n` +
-      `Bonjour ${appel}, pour régler ${fmtMoney(resteXof, currency)} par mobile money ou par carte, ouvrez cette page de paiement sécurisée${offre ? '' : ` : ${fmtMoney(c.totalXof, currency)}, frais de paiement compris`}.\n${r.url}`,
+      `Bonjour ${appel}, pour régler ${fmtMoney(resteXof, currency)} par mobile money, ouvrez cette page de paiement sécurisée${offre ? '' : ` : ${fmtMoney(c.totalXof, currency)}, frais de paiement compris`}.\n${r.url}`,
     );
     window.location.hash = `#${cheminDeLaConversation(telephone, msg) ?? '/conversations'}`;
   };
@@ -105,7 +105,7 @@ ${motDuLienRegler(appel, fmtMoney(resteXof, currency), adresseDuLien(j))}`);
   return (
     <div className="trv-doc-actions__row" style={{ display: 'grid', gap: 6 }}>
       <button type="button" className="trv-wa-btn" style={{ border: 'none', cursor: 'pointer' }} disabled={occupe} onClick={() => void envoie()}>
-        {occupe ? 'Création du lien…' : `Lien FedaPay · carte ou mobile money · ${fmtMoney(c.totalXof, currency)}`}
+        {occupe ? 'Création du lien…' : `Lien FedaPay · mobile money · ${fmtMoney(c.totalXof, currency)}`}
       </button>
       {peutOffrir && dus > 0 && (
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12 }}>
