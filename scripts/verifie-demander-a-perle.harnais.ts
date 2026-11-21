@@ -11,6 +11,8 @@ import {
   CHANTIER_DE_PERLE, LECTURES, LECTURES_MAX, NOMS_DES_LECTURES, SCHEMA_DU_PLAN, SIGNES_DE_FAITS_MAX,
   QUESTION_INTERNET_MAX, auFauteuil, clientesDeLaQuestion, clientesDuNom, demandeDInternet, demandeDeLaReponse, demandeDuPlan, dureeEnClair, ecransLus, enDirectEnTexte, encoreAttendues,
   sansLesClientes, sourcesPropres,
+  ETAT_DE_L_AVIS_DIT, avisDeLaDemande, avisLu, deQui, estUnAvisDifficile, etoilesDites, refusDeLAvis, type AvisDemande, type AvisVu,
+  reperesDeTemps,
   CONSIGNE_MAX, clientesDuMessage, consigneDeLaDirection, dernierMessageDElle, filDeLaDemande, messageLu, refusDuMessage, resteAPreparer, verdictDeLaPlace, type FilVu, type MessageDemande,
   faitsEnTexte, fenetreDesDepenses, fenetreDesRendezVous, francsPourPerle, lignesEnDirect, moisDAvant, dernierJourDuMois, momentDit, planLu, reponsePropre, toursDAvant,
   type FaitsEnDirect, type RdvDuJour,
@@ -33,7 +35,7 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
 
 /* ── 1. Le catalogue des lectures ── */
 {
-  dit('dix lectures, chacune dite a Claude et rattachee a un ecran', [10, true, true],
+  dit('onze lectures, chacune dite a Claude et rattachee a un ecran', [11, true, true],
     [NOMS_DES_LECTURES.length, NOMS_DES_LECTURES.every((n) => LECTURES[n].dit.startsWith(n)), NOMS_DES_LECTURES.every((n) => LECTURES[n].ecran.startsWith('/') && !!LECTURES[n].nomEcran)]);
   const items = (SCHEMA_DU_PLAN.properties as { lectures: { maxItems: number; items: { properties: { nom: { enum: string[] } } } } }).lectures;
   dit('le schema ne connait que ces lectures, quatre au plus', [[...NOMS_DES_LECTURES], LECTURES_MAX], [items.items.properties.nom.enum, items.maxItems]);
@@ -41,17 +43,17 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
 
 /* ── 2. Le plan, lu sans rien croire ── */
 {
-  dit('une reponse seule', { reponse: 'Deux rituels.', lectures: [], internet: '', message: null }, planLu({ reponse: ' Deux rituels. ', lectures: [] }));
-  dit('des lectures : la reponse d avance ne se garde pas', { reponse: '', lectures: [{ nom: 'journee', jour: '2026-11-20' }], internet: '', message: null },
+  dit('une reponse seule', { reponse: 'Deux rituels.', lectures: [], internet: '', message: null, avis: null }, planLu({ reponse: ' Deux rituels. ', lectures: [] }));
+  dit('des lectures : la reponse d avance ne se garde pas', { reponse: '', lectures: [{ nom: 'journee', jour: '2026-11-20' }], internet: '', message: null, avis: null },
     planLu({ reponse: 'Je pense que…', lectures: [{ nom: 'journee', jour: '2026-11-20' }] }));
-  dit('une lecture inconnue tombe', { reponse: '', lectures: [{ nom: 'impayes' }], internet: '', message: null }, planLu({ reponse: '', lectures: [{ nom: 'efface_tout' }, { nom: 'impayes' }] }));
+  dit('une lecture inconnue tombe', { reponse: '', lectures: [{ nom: 'impayes' }], internet: '', message: null, avis: null }, planLu({ reponse: '', lectures: [{ nom: 'efface_tout' }, { nom: 'impayes' }] }));
   dit('une date mal formee tombe, pas la lecture', [{ nom: 'rendez_vous', au: '2026-11-25' }],
     planLu({ reponse: '', lectures: [{ nom: 'rendez_vous', du: 'demain', au: '2026-11-25', jour: '2026-13-45' }] }).lectures);
   dit('un mois « AAAA-MM », un nom borne a 80 signes', [{ nom: 'mois', mois: '2026-10' }, 80],
     [planLu({ reponse: '', lectures: [{ nom: 'mois', mois: '2026-10' }] }).lectures[0], planLu({ reponse: '', lectures: [{ nom: 'cliente', cliente: 'a'.repeat(300) }] }).lectures[0].cliente?.length]);
   dit('quatre lectures au plus, sans doublon', ['journee', 'impayes', 'mois', 'depenses'],
     planLu({ reponse: '', lectures: [{ nom: 'journee' }, { nom: 'journee' }, { nom: 'impayes' }, { nom: 'mois' }, { nom: 'depenses' }, { nom: 'abonnements' }, { nom: 'conversations' }] }).lectures.map((l) => l.nom));
-  dit('n importe quoi ne rend rien', [{ reponse: '', lectures: [], internet: '', message: null }, { reponse: '', lectures: [], internet: '', message: null }, { reponse: '', lectures: [], internet: '', message: null }],
+  dit('n importe quoi ne rend rien', [{ reponse: '', lectures: [], internet: '', message: null, avis: null }, { reponse: '', lectures: [], internet: '', message: null, avis: null }, { reponse: '', lectures: [], internet: '', message: null, avis: null }],
     [planLu(null), planLu('bonjour'), planLu({ reponse: 12, lectures: 'journee' })]);
 }
 
@@ -157,9 +159,9 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
     [avec.systeme.includes('écris dans « internet » la question à chercher'), sans.systeme.includes('écris dans « internet »'),
       sans.systeme.includes('tu ne lis pour l’instant que le Trône'), avec.systeme.includes('Une question sur la Maison ne va jamais sur internet.')]);
   dit('... et il demande une question SANS nom de personne ni chiffre de la Maison', true, avec.systeme.includes('reformulée SANS aucun nom de personne ni chiffre de la Maison'));
-  dit('le plan lu : internet, quand il n y a ni lecture ; sa reponse d avance tombe', { reponse: '', lectures: [], internet: 'taux de TVA au Bénin en 2026', message: null },
+  dit('le plan lu : internet, quand il n y a ni lecture ; sa reponse d avance tombe', { reponse: '', lectures: [], internet: 'taux de TVA au Bénin en 2026', message: null, avis: null },
     planLu({ reponse: 'Je crois que…', lectures: [], internet: '  taux de TVA au Bénin en 2026 ' }));
-  dit('... le Trone d abord : avec une lecture, rien ne part sur internet', { reponse: '', lectures: [{ nom: 'mois' }], internet: '', message: null },
+  dit('... le Trone d abord : avec une lecture, rien ne part sur internet', { reponse: '', lectures: [{ nom: 'mois' }], internet: '', message: null, avis: null },
     planLu({ reponse: '', lectures: [{ nom: 'mois' }], internet: 'chiffre d affaires moyen d un salon' }));
   dit('... une question bornee a 400 signes ; autre chose qu un texte ne compte pas', [QUESTION_INTERNET_MAX, 400, ''],
     [QUESTION_INTERNET_MAX, planLu({ reponse: '', lectures: [], internet: 'x'.repeat(2000) }).internet.length, planLu({ reponse: 'ok', lectures: [], internet: { q: 1 } }).internet]);
@@ -261,7 +263,7 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
   /* Internet (21 novembre 2026). */
   dit('internet : la question reformulee part seule, par `pourInternet`, et seulement si la fonction sait chercher', [true, true, true, false],
     [ecran.includes('if (plan.internet && internet) {'), ecran.includes('demandeDInternet({ question: perle.pourInternet(plan.internet), jour: perle.jour, minutes: perle.minutes })'),
-      ecran.includes('const r1 = await demandeAClaude<unknown>(demandeDuPlan({ ...contexte, internet, messages: true }));'), /demandeDInternet\(\{[^}]*(avant|enDirect)/.test(ecran)]);
+      ecran.includes('const r1 = await demandeAClaude<unknown>(demandeDuPlan({ ...contexte, internet, messages: true, avis: true }));'), /demandeDInternet\(\{[^}]*(avant|enDirect)/.test(ecran)]);
   dit('... `pourInternet` retire les clientes apres l anonymisation ordinaire', true,
     donnees.includes('pourInternet: (texte: string) => sansLesClientes(pourElle(texte), clients.map((c) => prenomDeLaFiche(c.name))),'));
   dit('... les sources passent par `sourcesPropres` et s ouvrent a part, sans donner la main a la page ouverte', [true, true, true],
@@ -308,7 +310,7 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
       .map((m) => [m?.jour, m?.heure]));
   dit('la consigne est bornee', CONSIGNE_MAX, messageLu({ cliente: 'A', consigne: 'x'.repeat(3000) })?.consigne.length);
   dit('une reponse a preparer passe devant les lectures, internet et la reponse d avance',
-    { reponse: '', lectures: [], internet: '', message: { cliente: 'Awa K.', plusAncienne: false, consigne: '' } },
+    { reponse: '', lectures: [], internet: '', message: { cliente: 'Awa K.', plusAncienne: false, consigne: '' }, avis: null },
     planLu({ reponse: 'Je réponds…', lectures: [{ nom: 'conversations' }], internet: 'taux', message: { cliente: 'Awa K.' } }));
 
   /* La place citee, jugee au Carnet. */
@@ -345,7 +347,15 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
     [vers({ trouvees: [{ id: 'zz', etiquette: 'Zoé T.' }] }), vers({ trouvees: [{ id: 'a2', etiquette: 'Awa K.' }] }), vers({ demande: D('Inconnue Personne') })]);
   dit('un numero sans fiche se retrouve par le nom que WhatsApp annonce, pas le fil de l equipe', ['n3', { etat: 'aucune' }], [vers({ demande: D('Mireille Dossa') }), vers({ demande: D('Expert') })]);
   dit('« la conversation qui attend » : la plus ancienne des clientes, ni l equipe ni un fil prive ; puis la suivante ; puis plus rien', ['n1', 'n3', { etat: 'rien-n-attend' }],
-    [vers({ demande: D('', { plusAncienne: true }) }), vers({ demande: D('', { plusAncienne: true }), dejaPrepares: ['n1'] }), vers({ demande: D('', { plusAncienne: true }), dejaPrepares: ['n1', 'n3'] })]);
+    [vers({ demande: D('', { plusAncienne: true }) }), vers({ demande: D('', { plusAncienne: true }), dejaPrepares: ['n1'] }), vers({ demande: D('', { plusAncienne: true }), enAttente: [FILS[4], FILS[2]] })]);
+  dit('... toutes ont deja leur brouillon ici : Perle ne dit pas que rien n attend', [{ etat: 'deja-preparees' }, true],
+    [vers({ demande: D('', { plusAncienne: true }), dejaPrepares: ['n1', 'n3'] }), refusDuMessage({ etat: 'deja-preparees' }, '').includes('ont déjà leur brouillon')]);
+  const reperes = reperesDeTemps({ dernierLe: { jour: '2026-11-20', minutes: 18 * 60 }, maintenant: { jour: '2026-11-21', minutes: 9 * 60 + 45 } });
+  dit('les reperes de temps : quand elle a ecrit, l heure qu il est, et qu un moment passe ne s annonce pas comme a venir', [true, true, true],
+    [reperes.includes('son dernier message date du vendredi 20 novembre 2026 à 18 h 00 ; nous sommes le samedi 21 novembre 2026, 9 h 45 à Cotonou.'),
+      reperes.includes('ne s’annonce jamais comme à venir'), reperes.includes('ni « nous vous attendons » ni « est maintenu »')]);
+  dit('un brouillon ecarte ne compte plus : la conversation se prepare de nouveau', true,
+    lit('src/apps/trone/routes/pilotage/DemanderAPerle.tsx').includes("fil.flatMap((e) => (e.brouillon && e.brouillon.etat !== 'ecarte' ? [e.brouillon.numero] : []))"));
   dit('ce qui reste a preparer : les clientes qui attendent, moins celles deja preparees', [['n1', 'n3'], ['n3']], [resteAPreparer(ATTENTE, []).map((x) => x.numero), resteAPreparer(ATTENTE, ['n1']).map((x) => x.numero)]);
   dit('quand elle ne prepare rien, Perle dit pourquoi et ou agir', [true, true, true, true, true],
     [refusDuMessage({ etat: 'plusieurs', clientes: ['Awa K.', 'Chloé F.'] }, 'Awa').includes('Awa K., Chloé F.'), refusDuMessage({ etat: 'sans-fil', cliente: 'Zoé T.' }, 'Zoé').startsWith('Zoé T. n’a aucune conversation'),
@@ -359,11 +369,11 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
   const ecran = lit('src/apps/trone/routes/pilotage/DemanderAPerle.tsx');
   const donnees = lit('src/apps/trone/routes/pilotage/perle-donnees.ts');
   dit('l ecran demande le plan avec les messages, et prepare quand le plan le dit', [true, true],
-    [ecran.includes('demandeDuPlan({ ...contexte, internet, messages: true })'), ecran.includes('if (await prepare({ question: q, demande: plan.message, coutDAvant: r1.coutUsd })) setQuestion(\'\');')]);
+    [ecran.includes('demandeDuPlan({ ...contexte, internet, messages: true, avis: true })'), ecran.includes('if (await prepare({ question: q, demande: plan.message, coutDAvant: r1.coutUsd })) setQuestion(\'\');')]);
   dit('le brouillon s ecrit par la porte des reponses (reponse-wa, la voix de la Maison, son schema) et passe par son juge', [true, true, true],
     [ecran.includes("chantier: 'reponse-wa', usage: 'texte', systeme: consigneDeLaReponse(),"), ecran.includes('schema: SCHEMA_DE_LA_REPONSE,'), ecran.includes('const texteDuBrouillon = lectureDeLaReponse(r2.data);')]);
   dit('... le contexte est celui du bouton du composeur, au jour de Cotonou, la consigne de la direction a la suite, anonymisee', [true, true, true],
-    [ecran.includes('perle.contexteDuFil(f, { places, dejaProposee: ancien?.texte }) + consigneDeLaDirection(consigne)'), donnees.includes('contexteDuFil: (f, o = {}) => contexteDe(f, { ...o, aujourdhui: jour }),'),
+    [ecran.includes('content: perle.contexteDuFil(f, { places, dejaProposee: ancien?.texte })') && ecran.includes('+ reperesDeTemps({ dernierLe: momentDuSalon(Date.parse(dernier.quand)), maintenant: { jour: perle.jour, minutes: perle.minutes } })') && ecran.includes('+ consigneDeLaDirection(consigne),'), donnees.includes('contexteDuFil: (f, o = {}) => contexteDe(f, { ...o, aujourdhui: jour }),'),
       ecran.includes('const consigne = perle.pourClaude(o.demande.consigne);')]);
   dit('... la place ne part dans le contexte que si le Carnet la montre libre, a partir de demain', true,
     ecran.includes("const places = verdict?.etat === 'libre' && verdict.jour > perle.jour ? [{ iso: verdict.jour, heures: [{ heure: verdict.heure }] }] : undefined;"));
@@ -382,6 +392,78 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
   dit('la signature montree est celle que le code posera, jamais recopiee', [true, false], [ecran.includes("<p className=\"trp-perle__devise\">{signeLeMessage('')}</p>"), /mi ny|Maison MND ·/i.test(ecran)]);
   dit('la reponse proposee du composeur et Perle lisent le meme contexte', [true, true],
     [donnees.includes('const contexteDe = useContexteDeLaReponse();'), lit('src/apps/trone/routes/clients/ReponseProposee.tsx').includes('const contexteDe = useContexteDeLaReponse();')]);
+}
+
+/* ── 10. RÉPONDRE À UN AVIS GOOGLE (second lot, 21 novembre 2026) ────────
+   « Réponds à l'avis de Fatou. » Le plan dit quel avis ; le Trône le retrouve
+   et le brouillon se range dans Les avis Google, par le geste de leur écran.
+   Rien n'est publié depuis l'écran de Perle. */
+{
+  dit('la lecture « avis » : dite a Claude, rattachee a son ecran', [true, '/avis-google', 'Les avis Google'], [LECTURES.avis.dit.startsWith('avis() :'), LECTURES.avis.ecran, LECTURES.avis.nomEcran]);
+  const avec = demandeDuPlan({ question: 'Réponds à l’avis de Fatou', jour: '2026-11-21', minutes: 913, enDirect: '', avis: true });
+  const sans = demandeDuPlan({ question: 'x', jour: '2026-11-21', minutes: 913, enDirect: '' });
+  dit('le plan sait qu une reponse a un avis se prepare, sans refuser ni l ecrire lui-meme ; une question SUR les avis se lit', [true, true, true, false],
+    [avec.systeme.includes('tu n’écris pas la réponse ici et tu ne refuses pas : préparer un brouillon n’est pas publier'), avec.systeme.includes('rien n’est publié sans la direction'),
+      avec.systeme.includes('elle se lit, par la lecture « avis »'), sans.systeme.includes('RÉPONDRE À UN AVIS GOOGLE')]);
+  dit('le schema porte l avis : de qui, ou le plus recent', ['auteur', 'plusRecent'], Object.keys((SCHEMA_DU_PLAN.properties as { avis: { properties: Record<string, unknown> } }).avis.properties));
+  dit('l avis lu : un nom, ou « celui qui attend » ; un objet vide ne detourne rien ; un nom passe devant', [{ auteur: 'Fatou D.', plusRecent: false }, { auteur: '', plusRecent: true }, null, null, false, 80],
+    [avisLu({ auteur: ' Fatou D. ' }), avisLu({ plusRecent: true }), avisLu({}), avisLu({ auteur: '', plusRecent: false }), avisLu({ auteur: 'Fatou', plusRecent: true })?.plusRecent, avisLu({ auteur: 'x'.repeat(400) })?.auteur.length]);
+  dit('un avis a repondre passe devant les lectures et internet ; une reponse a une cliente passe devant lui',
+    [{ reponse: '', lectures: [], internet: '', message: null, avis: { auteur: 'Fatou', plusRecent: false } }, null],
+    [planLu({ reponse: 'x', lectures: [{ nom: 'avis' }], internet: 'y', avis: { auteur: 'Fatou' } }), planLu({ reponse: '', lectures: [], message: { cliente: 'Awa K.' }, avis: { auteur: 'Fatou' } }).avis]);
+
+  /* Quel avis : la liste est rangee du plus recent au plus ancien. */
+  const AVIS: AvisVu[] = [
+    { cle: 'g1', auteur: 'Fatou D', etat: 'publiee' }, { cle: 'g2', auteur: 'Fatou Dossou', etat: 'nouveau' }, { cle: 'g3', auteur: 'Marc', etat: 'prete' },
+    { cle: 'g4', auteur: 'Inès', etat: 'ecartee' }, { cle: 'g5', auteur: 'Marc', etat: 'nouveau' },
+  ];
+  const D = (auteur: string, plusRecent = false): AvisDemande => ({ auteur, plusRecent });
+  const quel = (o: Partial<Parameters<typeof avisDeLaDemande>[0]>) => { const r = avisDeLaDemande({ demande: D('Fatou'), trouves: [], avis: AVIS, ...o }); return r.etat === 'trouve' ? r.cle : r; };
+  dit('« l avis qui attend » : le plus recent sans reponse ou pret a relire, jamais un publie ni un ecarte ; puis le suivant ; puis plus rien', ['g2', 'g3', 'g5', { etat: 'rien-n-attend' }],
+    [quel({ demande: D('', true) }), quel({ demande: D('', true), dejaMontres: ['g2'] }), quel({ demande: D('', true), dejaMontres: ['g2', 'g3'] }), quel({ demande: D('', true), avis: [AVIS[0], AVIS[3]] })]);
+  dit('... tous deja montres ici : Perle ne dit pas que rien n attend', [{ etat: 'deja-montres' }, true],
+    [quel({ demande: D('', true), dejaMontres: ['g2', 'g3', 'g5'] }), refusDeLAvis({ etat: 'deja-montres' }, '').includes('ont déjà leur réponse préparée')]);
+  dit('par son nom : l avis qui attend passe devant celui qui a deja sa reponse', ['g2', 'g1', 'g4'], [quel({ trouves: ['g1', 'g2'] }), quel({ trouves: ['g1'] }), quel({ trouves: ['g4'] })]);
+  dit('deux avis de la meme personne attendent : Perle demande lequel ; personne de ce nom : aucun', [{ etat: 'plusieurs', n: 2 }, { etat: 'aucun' }], [quel({ trouves: ['g3', 'g5'] }), quel({ trouves: [] })]);
+  dit('quand elle ne prepare rien pour un avis, Perle dit pourquoi et ou agir', [true, true, true],
+    [refusDeLAvis({ etat: 'plusieurs', n: 2 }, 'Marc').startsWith('2 avis au nom de « Marc » attendent une réponse'), refusDeLAvis({ etat: 'rien-n-attend' }, '').startsWith('Aucun avis Google n’attend'), refusDeLAvis({ etat: 'aucun' }, 'Zoé').includes('« Zoé »')]);
+  dit('les etoiles et les etats se disent en clair ; un avis d une a trois etoiles est difficile', ['5 étoiles', '1 étoile', 'sans note', 'réponse prête à relire', [true, true, false, false]],
+    [etoilesDites(5), etoilesDites(1), etoilesDites(0), ETAT_DE_L_AVIS_DIT.prete, [estUnAvisDifficile(1), estUnAvisDifficile(3), estUnAvisDifficile(4), estUnAvisDifficile(0)]]);
+
+  dit('« de Fatou », « d’Inès », « d’Hervé » : l elision', ['de Fatou', 'd’Inès', 'd’Hervé', 'de Marc'], [deQui('Fatou'), deQui(' Inès '), deQui('Hervé'), deQui('Marc')]);
+
+  /* En direct. */
+  const base: FaitsEnDirect = { jour: '2026-11-21', minutes: 913, encaisseXof: 0, pourboiresXof: 0, aEncaisser: { n: 0, xof: 0 }, rdvs: [], sansReponse: { n: 0, plusAncienneMin: null }, ferme: true, placesLibres: [], aConfirmer: 0 };
+  const ligneAvis = (avis?: FaitsEnDirect['avis']) => { const l = lignesEnDirect({ ...base, avis }).find((x) => x.cle === 'avis'); return l ? [l.titre, l.detail, l.ecran, l.geste] : null; };
+  dit('En direct : d abord les reponses a relire, sinon les avis recents sans reponse ; rien a dire, pas de ligne',
+    [['3 réponses aux avis Google à relire', '2 avis des trente derniers jours attendent une réponse', '/avis-google', 'Relire les réponses'],
+      ['1 réponse aux avis Google à relire', '1 avis des trente derniers jours attend une réponse', '/avis-google', 'Relire les réponses'],
+      ['2 avis Google sans réponse', 'Arrivés dans les trente derniers jours', '/avis-google', 'Voir les avis'], null, null],
+    [ligneAvis({ recentsSansReponse: 2, aRelire: 3 }), ligneAvis({ recentsSansReponse: 1, aRelire: 1 }), ligneAvis({ recentsSansReponse: 2, aRelire: 0 }), ligneAvis({ recentsSansReponse: 0, aRelire: 0 }), ligneAvis(undefined)]);
+
+  /* L ecran et les donnees : un brouillon range, rien de publie. */
+  const ecran = lit('src/apps/trone/routes/pilotage/DemanderAPerle.tsx');
+  const donnees = lit('src/apps/trone/routes/pilotage/perle-donnees.ts');
+  dit('l ecran demande le plan avec les avis, et prepare quand le plan le dit', [true, true],
+    [ecran.includes('demandeDuPlan({ ...contexte, internet, messages: true, avis: true })'), ecran.includes('if (await prepareLAvis({ question: q, demande: plan.avis, coutDAvant: r1.coutUsd })) setQuestion(\'\');')]);
+  dit('le brouillon s ecrit par le geste de l ecran des avis, et se range dans son document', [true, true, true],
+    [ecran.includes('const p = await perle.proposeAuxAvis(a.cle);'), donnees.includes('return a ? proposeUneReponse(a) : {'), donnees.includes('const b = brouillonsDAvisStore.get()[cle];')]);
+  dit('RIEN N EST PUBLIE D ICI : ni publication, ni « collee », ni « ecarter », ni retouche du brouillon', [false, false],
+    [/publieSurGoogle|marqueCollee|marquePublieeParLeTrone|ecarteLeBrouillon|changeLeBrouillon|annuleCollee|reprendsLeBrouillon/.test(ecran),
+      /publieSurGoogle|marqueCollee|marquePublieeParLeTrone|ecarteLeBrouillon|changeLeBrouillon|annuleCollee|reprendsLeBrouillon|brouillonsDAvisStore\.set/.test(donnees)]);
+  const iPret = ecran.indexOf("    if (a.etat === 'nouveau' || ancien) {");
+  dit('un avis deja pret se montre sans rien depenser ; un avis publie, ecarte ou en cours ne se prepare pas', [true, true],
+    [iPret > 0 && iPret < ecran.indexOf('const p = await perle.proposeAuxAvis(a.cle);'),
+      ['publiee', 'ecartee', 'prepare'].every((e) => { const i = ecran.indexOf(`if (a.etat === '${e}') return dit(`); return i > 0 && i < iPret; })]);
+  dit('une reponse retouchee dans Les avis Google ne se remplace pas depuis Perle', [true, true],
+    [ecran.includes('const retouchee = !publiee && !!vif?.brouillon && vif.brouillon !== carte.reponse;'), ecran.includes('{!publiee && !retouchee && (')]);
+  dit('« Ouvrir dans les avis Google » mene a CET avis, ou il se relit et se publie', [true, true],
+    [ecran.includes('const cheminDeLAvis = (cleDeLAvis: string) => `/avis-google?avis=${encodeURIComponent(cleDeLAvis)}`;'), ecran.includes('onClick={() => navigate(cheminDeLAvis(carte.cle))}>Ouvrir dans les avis Google<')]);
+  dit('ce qui part chez Claude : le prenom de l auteur, le texte passe par `pourClaude` ; ce que Perle garde de l echange aussi', [true, true, false],
+    [donnees.includes("${prenomDeLAuteur(a.auteur) || 'sans nom'} : ${pourClaude(mots, pleinsNoms)}"), ecran.includes('pour l’avis ${deQui(prenom)} : elle se relit et se publie depuis Les avis Google.`;'), /pour l’avis \$\{deQui\(a\.auteur\)\}/.test(ecran)]);
+  dit('les avis se lisent par les portes de leur ecran', [true, true, true, true],
+    [donnees.includes('const releveDesAvis = useReleveDesAvis();'), donnees.includes('const avisDeGoogle = useAvisDeGoogle();'), donnees.includes('const [brouillonsDAvis] = useBrouillonsDAvis();'),
+      donnees.includes('avisDeLaRubrique(avisDeGoogle, releveDesAvis?.avis)')]);
 }
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ECHEC(S).`);

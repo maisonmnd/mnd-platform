@@ -37,7 +37,7 @@ const ISO_MOIS = /^\d{4}-\d{2}$/;
 /* ── LES LECTURES : ce que Perle peut demander au Trône ─────────────────── */
 
 export const NOMS_DES_LECTURES = [
-  'journee', 'rendez_vous', 'places_libres', 'cliente', 'impayes', 'mois', 'conversations', 'abonnements', 'prestations', 'depenses',
+  'journee', 'rendez_vous', 'places_libres', 'cliente', 'impayes', 'mois', 'conversations', 'abonnements', 'prestations', 'depenses', 'avis',
 ] as const;
 export type NomDeLecture = (typeof NOMS_DES_LECTURES)[number];
 
@@ -65,6 +65,7 @@ export const LECTURES: Record<NomDeLecture, { dit: string; ecran: string; nomEcr
   abonnements: { dit: 'abonnements() : les formules en cours, par cliente, avec leur fin.', ecran: '/abonnements', nomEcran: 'Abonnements' },
   prestations: { dit: 'prestations(terme) : le catalogue : nom, prix et durée des prestations dont le nom contient « terme ». Sans « terme » : tout le catalogue.', ecran: '/catalogue', nomEcran: 'Catalogue' },
   depenses: { dit: 'depenses(du, au) : les dépenses entre deux jours (libellé, montant, catégorie) et leur total. Sans dates : le mois en cours.', ecran: '/depenses', nomEcran: 'Dépenses' },
+  avis: { dit: 'avis() : les avis Google : la note de la fiche et celle des dix derniers, les avis des trente derniers jours et ceux qui attendent une réponse (la note, le prénom, le texte, où en est la réponse de la Maison).', ecran: '/avis-google', nomEcran: 'Les avis Google' },
 };
 
 /** Au plus quatre lectures par question : au-delà, la question est trop large. */
@@ -141,12 +142,20 @@ export const SCHEMA_DU_PLAN: Record<string, unknown> = {
         heure: { type: 'string', description: 'HH:MM, seulement si elle cite une heure de rendez-vous.' },
       },
     },
+    avis: {
+      type: 'object',
+      description: 'Seulement si la direction demande de répondre à un avis Google ; sinon ne le remplis pas.',
+      properties: {
+        auteur: { type: 'string', description: 'Le nom de la personne qui a laissé l’avis, tel que la direction l’a écrit ; vide si elle ne nomme personne.' },
+        plusRecent: { type: 'boolean', description: 'true si la direction ne nomme personne et parle de l’avis qui attend une réponse.' },
+      },
+    },
   },
   required: ['reponse', 'lectures'],
 };
 
 /** LE PLAN : la question, le moment, les faits en direct, le catalogue. */
-export function demandeDuPlan(o: { question: string; jour: string; minutes: number; enDirect: string; avant?: readonly MessageIa[]; internet?: boolean; messages?: boolean }): DemandeIa {
+export function demandeDuPlan(o: { question: string; jour: string; minutes: number; enDirect: string; avant?: readonly MessageIa[]; internet?: boolean; messages?: boolean; avis?: boolean }): DemandeIa {
   const catalogue = NOMS_DES_LECTURES.map((n) => `- ${LECTURES[n].dit}`).join('\n');
   const consignes = [
     o.internet
@@ -154,6 +163,7 @@ export function demandeDuPlan(o: { question: string; jour: string; minutes: numb
       : 'Une question qui ne porte pas sur la Maison (le monde, internet, un conseil général) n’a pas de lecture : réponds dans « reponse » que tu ne lis pour l’instant que le Trône.',
   ];
   if (o.messages) consignes.push(REGLE_DES_MESSAGES);
+  if (o.avis) consignes.push(REGLE_DES_AVIS);
   return {
     chantier: CHANTIER_DE_PERLE,
     usage: 'texte',
@@ -178,12 +188,15 @@ const texteCourt = (v: unknown, n: number): string | undefined => (typeof v === 
 /** LE PLAN, LU SANS RIEN CROIRE : une réponse, ou des lectures du catalogue,
     quatre au plus, sans doublon, leurs arguments au bon format. Une forme
     qu'on ne reconnaît pas ne rend ni réponse ni lecture. */
-export function planLu(data: unknown): { reponse: string; lectures: LectureDemandee[]; internet: string; message: MessageDemande | null } {
-  const d = (data && typeof data === 'object' ? data : {}) as { reponse?: unknown; lectures?: unknown; internet?: unknown; message?: unknown };
+export function planLu(data: unknown): { reponse: string; lectures: LectureDemandee[]; internet: string; message: MessageDemande | null; avis: AvisDemande | null } {
+  const d = (data && typeof data === 'object' ? data : {}) as { reponse?: unknown; lectures?: unknown; internet?: unknown; message?: unknown; avis?: unknown };
   /* UNE RÉPONSE À PRÉPARER PASSE DEVANT TOUT : la direction a demandé d'écrire,
      pas de lire. Le Trône lira lui-même le fil et vérifiera la place citée. */
   const message = messageLu(d.message);
-  if (message) return { reponse: '', lectures: [], internet: '', message };
+  if (message) return { reponse: '', lectures: [], internet: '', message, avis: null };
+  /* De même pour un avis Google : le Trône retrouve l'avis et range le brouillon. */
+  const avis = avisLu(d.avis);
+  if (avis) return { reponse: '', lectures: [], internet: '', message: null, avis };
   const lectures: LectureDemandee[] = [];
   const vues = new Set<string>();
   for (const brut of Array.isArray(d.lectures) ? d.lectures : []) {
@@ -205,9 +218,9 @@ export function planLu(data: unknown): { reponse: string; lectures: LectureDeman
   const reponse = typeof d.reponse === 'string' ? d.reponse.trim() : '';
   /* Des lectures demandées : la réponse attend les faits, on n'en garde aucune d'avance.
      Le Trône d'abord : une question qui a ses lectures ne part pas sur internet. */
-  if (lectures.length) return { reponse: '', lectures, internet: '', message: null };
+  if (lectures.length) return { reponse: '', lectures, internet: '', message: null, avis: null };
   const internet = texteCourt(d.internet, QUESTION_INTERNET_MAX) ?? '';
-  return internet ? { reponse: '', lectures: [], internet, message: null } : { reponse, lectures: [], internet: '', message: null };
+  return internet ? { reponse: '', lectures: [], internet, message: null, avis: null } : { reponse, lectures: [], internet: '', message: null, avis: null };
 }
 
 /* ── 1 ter. PRÉPARER UNE RÉPONSE (21 novembre 2026, « le second lot ») ────
@@ -283,6 +296,20 @@ export function consigneDeLaDirection(consigne: string): string {
   ].join('\n');
 }
 
+/** LES REPÈRES DE TEMPS d'une réponse préparée (21 novembre 2026, premier
+    essai en ligne : le brouillon tenait pour « maintenu » un rendez-vous de la
+    veille). Le fil que Claude lit ne porte pas ses dates : on lui dit quand
+    elle a écrit et l'heure qu'il est, à Cotonou, et qu'un moment passé ne
+    s'annonce jamais comme à venir. */
+export function reperesDeTemps(o: { dernierLe: { jour: string; minutes: number }; maintenant: { jour: string; minutes: number } }): string {
+  const ecrit = `${jourDeLaSemaine(o.dernierLe.jour)} ${dateDite(o.dernierLe.jour)} à ${heureEnClair(o.dernierLe.minutes)}`;
+  return [
+    '',
+    `REPÈRES DE TEMPS : son dernier message date du ${ecrit} ; nous sommes le ${momentDit(o.maintenant.jour, o.maintenant.minutes)}.`,
+    'Un rendez-vous dont le jour ou l’heure est déjà passé ne s’annonce jamais comme à venir : n’écris pour lui ni « nous vous attendons » ni « est maintenu ». Si son message parle d’un moment passé, réponds en tenant compte du temps écoulé.',
+  ].join('\n');
+}
+
 /** Un fil, vu de Perle : de quoi le retrouver et juger s'il peut partir chez Claude. */
 export type FilVu = { numero: string; clientId?: string; nom: string; sansFiche?: boolean; tiroir?: string; prive?: boolean; dernier: { quand: string } };
 
@@ -292,7 +319,8 @@ export type FilDeLaDemande<F> =
   | { etat: 'sans-fil'; cliente: string }
   | { etat: 'ferme' }
   | { etat: 'aucune' }
-  | { etat: 'rien-n-attend' };
+  | { etat: 'rien-n-attend' }
+  | { etat: 'deja-preparees' };
 
 /** À QUI RÉPONDRE. Les fiches reconnues par le Trône (sur le vrai texte de la
     question, et sur le nom rendu par le plan) désignent le fil ; à défaut, un
@@ -316,7 +344,9 @@ export function filDeLaDemande<F extends FilVu>(o: {
   if (!o.demande.cliente) {
     const faits = new Set(o.dejaPrepares ?? []);
     const suivante = o.enAttente.find((f) => ouvert(f) && !faits.has(f.numero));
-    return suivante ? { etat: 'trouve', fil: suivante } : { etat: 'rien-n-attend' };
+    if (suivante) return { etat: 'trouve', fil: suivante };
+    /* Elles attendent encore, mais leur brouillon est déjà plus haut : ne pas dire « rien n'attend ». */
+    return o.enAttente.some(ouvert) ? { etat: 'deja-preparees' } : { etat: 'rien-n-attend' };
   }
   const avecFil = o.trouvees.map((c) => ({ c, fils: o.fils.filter((f) => f.clientId === c.id) })).filter((x) => x.fils.length);
   if (avecFil.length > 1) return { etat: 'plusieurs', clientes: avecFil.map((x) => x.c.etiquette) };
@@ -359,9 +389,100 @@ export function refusDuMessage(r: Exclude<FilDeLaDemande<unknown>, { etat: 'trou
     case 'sans-fil': return `${r.cliente} n’a aucune conversation WhatsApp avec la Maison : il n’y a pas de message auquel répondre. Sa fiche permet de lui écrire par un modèle.`;
     case 'ferme': return 'Cette conversation est marquée privée, ou n’est pas celle d’une cliente : je ne la lis pas. Elle se répond dans Conversations.';
     case 'rien-n-attend': return 'Aucune conversation n’attend de réponse en ce moment.';
+    case 'deja-preparees': return 'Les conversations qui attendent ont déjà leur brouillon, plus haut dans cette conversation.';
     default: return `Je ne trouve aucune conversation au nom de « ${qui} ». Vérifiez le nom, ou ouvrez Conversations.`;
   }
 }
+
+/* ── 1 quater. RÉPONDRE À UN AVIS GOOGLE (21 novembre 2026, second lot) ────
+   « Réponds à l'avis de Fatou. » Comme pour un message, Perle ne rédige pas
+   dans son plan : elle dit QUEL avis, et le Trône fait le reste par le geste
+   qui existait (`proposeUneReponse` de `shared/ia-avis`, le chantier `avis`,
+   sa relecture). Le brouillon se range dans le document des brouillons, là où
+   l'écran « Les avis Google » le montre à relire : c'est LÀ que la direction
+   publie. RIEN N'EST PUBLIÉ D'ICI, et Perle n'écarte ni ne colle rien. */
+
+/** L'avis que la direction veut voir répondu : de qui, ou « celui qui attend ». */
+export type AvisDemande = { auteur: string; plusRecent: boolean };
+
+const REGLE_DES_AVIS = [
+  'RÉPONDRE À UN AVIS GOOGLE. Si la direction te demande de répondre à un avis Google (« réponds à l’avis de… », « prépare la réponse à l’avis… »), tu n’écris pas la réponse ici et tu ne refuses pas : préparer un brouillon n’est pas publier. Laisse « reponse » vide et « lectures » vide, et remplis « avis ».',
+  '« auteur » : le nom de la personne qui a laissé l’avis, tel que la direction l’a écrit. « plusRecent » : true si elle ne nomme personne et parle de l’avis qui attend une réponse.',
+  'Le Trône prépare alors le brouillon et le range dans Les avis Google : rien n’est publié sans la direction. Une question SUR les avis (« que disent les avis ? », « combien sans réponse ? ») n’est pas une demande d’écrire : elle se lit, par la lecture « avis ».',
+].join(' ');
+
+/** L'AVIS DEMANDÉ, LU SANS RIEN CROIRE : il n'existe que si la direction a
+    nommé quelqu'un ou désigné l'avis qui attend (un objet vide ne détourne rien). */
+export function avisLu(brut: unknown): AvisDemande | null {
+  const a = (brut && typeof brut === 'object' ? brut : null) as Record<string, unknown> | null;
+  if (!a) return null;
+  const auteur = texteCourt(a.auteur, 80) ?? '';
+  const plusRecent = a.plusRecent === true && !auteur;
+  return auteur || plusRecent ? { auteur, plusRecent } : null;
+}
+
+/** Où en est la réponse à un avis (`etatDeLAvis` de la rubrique des avis). */
+export type EtatDUnAvis = 'publiee' | 'ecartee' | 'prepare' | 'prete' | 'nouveau';
+/** Un avis, vu de Perle : sa clé, qui l'a écrit, où en est sa réponse. */
+export type AvisVu = { cle: string; auteur: string; etat: EtatDUnAvis };
+const ATTEND = (a: AvisVu): boolean => a.etat === 'nouveau' || a.etat === 'prete' || a.etat === 'prepare';
+
+export type AvisDeLaDemande =
+  | { etat: 'trouve'; cle: string }
+  | { etat: 'plusieurs'; n: number }
+  | { etat: 'aucun' }
+  | { etat: 'rien-n-attend' }
+  | { etat: 'deja-montres' };
+
+/** QUEL AVIS. Sans nom : le plus récent de ceux qui attendent une réponse et
+    que Perle n'a pas déjà montrés dans cette conversation. Avec un nom : les
+    avis de cette personne (`trouves`, reconnus par le Trône sur le vrai texte) ;
+    celui qui attend passe devant celui qui a déjà sa réponse ; deux qui
+    attendent, Perle demande lequel. `avis` est rangé du plus récent au plus
+    ancien, comme la rubrique. */
+export function avisDeLaDemande(o: { demande: AvisDemande; trouves: readonly string[]; avis: readonly AvisVu[]; dejaMontres?: readonly string[] }): AvisDeLaDemande {
+  if (!o.demande.auteur) {
+    const vus = new Set(o.dejaMontres ?? []);
+    const attend = (a: AvisVu): boolean => a.etat === 'nouveau' || a.etat === 'prete';
+    const suivant = o.avis.find((a) => attend(a) && !vus.has(a.cle));
+    if (suivant) return { etat: 'trouve', cle: suivant.cle };
+    return o.avis.some(attend) ? { etat: 'deja-montres' } : { etat: 'rien-n-attend' };
+  }
+  const siens = o.avis.filter((a) => o.trouves.includes(a.cle));
+  if (!siens.length) return { etat: 'aucun' };
+  const enAttente = siens.filter(ATTEND);
+  if (enAttente.length > 1) return { etat: 'plusieurs', n: enAttente.length };
+  return { etat: 'trouve', cle: (enAttente[0] ?? siens[0]).cle };
+}
+
+/** CE QUE PERLE DIT QUAND ELLE NE PRÉPARE RIEN POUR UN AVIS. */
+export function refusDeLAvis(r: Exclude<AvisDeLaDemande, { etat: 'trouve' }>, nomDit: string): string {
+  const qui = nomDit.trim() || 'cette personne';
+  switch (r.etat) {
+    case 'plusieurs': return `${r.n} avis au nom de « ${qui} » attendent une réponse : ouvrez Les avis Google pour choisir lequel.`;
+    case 'rien-n-attend': return 'Aucun avis Google n’attend de réponse en ce moment.';
+    case 'deja-montres': return 'Les avis qui attendent ont déjà leur réponse préparée, plus haut dans cette conversation : elles se relisent dans Les avis Google.';
+    default: return `Je ne trouve aucun avis Google au nom de « ${qui} ». Vérifiez le nom, ou ouvrez Les avis Google.`;
+  }
+}
+
+/** Où en est la réponse, dit en clair (la lecture « avis » et la carte). */
+export const ETAT_DE_L_AVIS_DIT: Record<EtatDUnAvis, string> = {
+  publiee: 'réponse publiée sur Google',
+  ecartee: 'sans réponse, par choix de la Maison',
+  prepare: 'réponse en cours de préparation',
+  prete: 'réponse prête à relire',
+  nouveau: 'sans réponse',
+};
+
+/** « de Fatou », « d’Inès » : l'élision devant une voyelle ou un h. */
+export const deQui = (nom: string): string => (/^[aeiouyhàâäéèêëîïôöùûü]/i.test(nom.trim()) ? `d’${nom.trim()}` : `de ${nom.trim()}`);
+
+/** « 5 étoiles », « 1 étoile », « sans note ». */
+export const etoilesDites = (note: number): string => (note >= 1 && note <= 5 ? `${Math.round(note)} étoile${Math.round(note) > 1 ? 's' : ''}` : 'sans note');
+
+/** Un avis d'une à trois étoiles : sa réponse reconnaît sans se justifier, et attend la lecture de la direction. */
+export const estUnAvisDifficile = (note: number): boolean => note >= 1 && note <= 3;
 
 /* ── 1 bis. INTERNET (21 novembre 2026, « oui internet ») ───────────────── */
 
@@ -623,6 +744,9 @@ export type FaitsEnDirect = {
   placesLibres: readonly string[];
   /** Les suggestions à venir sans réponse d'elle. */
   aConfirmer: number;
+  /** Les avis Google (second lot) : ceux des trente derniers jours qui attendent
+      une réponse, et les réponses préparées qui attendent d'être relues. */
+  avis?: { recentsSansReponse: number; aRelire: number };
 };
 
 export type LigneEnDirect = { cle: string; titre: string; detail: string; ecran?: string; geste?: string };
@@ -696,6 +820,23 @@ export function lignesEnDirect(f: FaitsEnDirect): LigneEnDirect[] {
       cle: 'a-confirmer', titre: `${f.aConfirmer} rendez-vous suggéré${f.aConfirmer > 1 ? 's' : ''} sans réponse`,
       detail: 'Proposés par la Maison, elle n’a pas encore dit oui',
       ecran: '/carnet', geste: 'Voir au Carnet',
+    });
+  }
+  /* LES AVIS GOOGLE : d'abord ce qui attend la direction (les réponses à
+     relire), sinon les avis récents encore sans réponse. */
+  const aRelire = f.avis?.aRelire ?? 0;
+  const recents = f.avis?.recentsSansReponse ?? 0;
+  if (aRelire > 0) {
+    lignes.push({
+      cle: 'avis', titre: `${aRelire} réponse${aRelire > 1 ? 's' : ''} aux avis Google à relire`,
+      detail: recents > 0 ? `${recents} avis des trente derniers jours ${recents > 1 ? 'attendent' : 'attend'} une réponse` : 'Préparées, elles attendent votre lecture avant de partir',
+      ecran: '/avis-google', geste: 'Relire les réponses',
+    });
+  } else if (recents > 0) {
+    lignes.push({
+      cle: 'avis', titre: `${recents} avis Google sans réponse`,
+      detail: 'Arrivés dans les trente derniers jours',
+      ecran: '/avis-google', geste: 'Voir les avis',
     });
   }
   return lignes;

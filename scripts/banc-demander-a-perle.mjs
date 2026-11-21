@@ -223,6 +223,23 @@ const BROUILLONS = [
   'Avec plaisir, Madame Awa. La Maison peut vous recevoir le jeudi 26 novembre 2026 à 10 h. Cette heure vous convient-elle ?',
 ];
 let rangDuBrouillon = 0;
+/* Les avis Google du banc (5 ter), tous inventés : deux sans réponse, dont un de deux étoiles, et un déjà répondu. */
+const ilYA = (jours) => new Date(INSTANT - jours * 86_400_000).toISOString();
+const AVIS_DE_MAKE = { avis: Object.fromEntries([
+  ['r-fatou', 'Fatou Dossou', 5, 'Un accueil parfait, mes locks n’ont jamais été aussi belles.', 2, ''],
+  ['r-marc', 'Marc Hounsou', 2, 'Une heure d’attente malgré mon rendez-vous.', 5, ''],
+  ['r-ines', 'Inès Akpo', 5, 'Merci à toute l’équipe.', 10, 'Merci, Inès, pour ces mots.'],
+].map(([id, auteur, note, texte, jours, reponse]) => {
+  const name = `accounts/1/locations/1/reviews/${id}`;
+  return [name, { name, auteur, note, texte, creeLe: ilYA(jours), recuLe: ilYA(0), ...(reponse ? { reponse, reponduLe: ilYA(jours - 1) } : {}) }];
+})) };
+const RELEVE_DES_AVIS = { note: 4.9, nombre: 312, fiche: 'https://www.google.com/maps/place/?q=place_id:banc', avis: [] };
+const REPONSES_AUX_AVIS = [
+  'Merci infiniment, Fatou, pour ces mots. Prendre soin de vos locks est une joie pour la Maison. À très bientôt.',
+  'Marc, nous regrettons cette attente, qui n’est pas à la hauteur de ce que la Maison vous doit. Nous serions heureux de vous recevoir de nouveau, à l’heure dite.',
+  'Merci, Fatou. Vos mots touchent toute la Maison, et nous avons hâte de vous retrouver.',
+];
+let rangDeLAvis = 0;
 const ENTETES = [{ name: 'Access-Control-Allow-Origin', value: '*' }, { name: 'Access-Control-Allow-Headers', value: '*' }, { name: 'Access-Control-Allow-Methods', value: 'GET, POST, OPTIONS' }, { name: 'Content-Type', value: 'application/json' }];
 const rend = (requestId, code, corps) => cdp('Fetch.fulfillRequest', { requestId, responseCode: code, responseHeaders: ENTETES, body: Buffer.from(JSON.stringify(corps)).toString('base64') });
 ws.addEventListener('message', (e) => {
@@ -240,16 +257,22 @@ ws.addEventListener('message', (e) => {
        serveur demeure injoignable, et les données restent celles de l'appareil. */
     if (/\/auth\/v1\/token/.test(request.url)) return rend(requestId, 200, { ...session(roleDuBanc)[CLE], access_token: 'faux-renouvele', refresh_token: 'faux-renouvele', expires_at: Math.floor(INSTANT / 1000) + 3600 });
     if (/\/auth\/v1\/user/.test(request.url)) return rend(requestId, 200, session(roleDuBanc)[CLE].user);
-    if (/\/rest\/v1\/staff/.test(request.url)) {
-      const ligne = { user_id: UID, name: 'Direction du banc', role: roleDuBanc, rubrics: [] };
-      const veut = Object.entries(request.headers ?? {}).find(([k]) => k.toLowerCase() === 'accept')?.[1] ?? '';
-      return rend(requestId, 200, /vnd\.pgrst\.object/.test(veut) ? ligne : [ligne]);
+    /* Une ligne seule (`maybeSingle`) : l'objet si le client le demande ainsi, sinon la liste d'une ligne. */
+    const uneLigne = (ligne) => rend(requestId, 200, /vnd\.pgrst\.object/.test(Object.entries(request.headers ?? {}).find(([k]) => k.toLowerCase() === 'accept')?.[1] ?? '') ? ligne : [ligne]);
+    if (/\/rest\/v1\/staff/.test(request.url)) return uneLigne({ user_id: UID, name: 'Direction du banc', role: roleDuBanc, rubrics: [] });
+    /* LES AVIS GOOGLE (5 ter) : le relevé de Places et les avis que Make apporte, deux documents. */
+    if (/\/rest\/v1\/documents/.test(request.url)) {
+      const cle = /key=eq\.([\w-]+)/.exec(request.url)?.[1];
+      if (request.method === 'GET' && cle === 'mnd_avis_google_tous') return uneLigne({ data: AVIS_DE_MAKE });
+      if (request.method === 'GET' && cle === 'mnd_avis_google') return uneLigne({ data: RELEVE_DES_AVIS, updated_at: new Date(INSTANT).toISOString() });
+      return cdp('Fetch.failRequest', { requestId, errorReason: 'ConnectionRefused' });
     }
     if (request.method !== 'POST') return rend(requestId, 405, { error: 'method', version: '2026-11-21-b' });
     let brut = request.postData;
     if (brut === undefined && networkId) brut = (await cdp('Network.getRequestPostData', { requestId: networkId })).result?.postData;
     let d = {}; try { d = JSON.parse(brut ?? '{}'); } catch { /* illisible : le banc le verra à ses appels */ }
     appels.push(d);
+    if (d.chantier === 'avis') return rend(requestId, 200, { ok: true, data: { langue: 'fr', reponse: REPONSES_AUX_AVIS[Math.min(rangDeLAvis++, REPONSES_AUX_AVIS.length - 1)] }, texte: '', modele: 'claude-haiku-5-5', coutUsd: 0.005, resteUsd: 100 });
     if (d.chantier === 'reponse-wa') return rend(requestId, 200, { ok: true, data: { reponse: BROUILLONS[Math.min(rangDuBrouillon++, BROUILLONS.length - 1)] }, texte: '', modele: 'claude-haiku-5-5', coutUsd: 0.004, resteUsd: 100 });
     return rend(requestId, 200, { ok: true, data: fauxPlan, texte: '', modele: 'claude-haiku-5-5', coutUsd: 0.003, resteUsd: 100 });
   })();
@@ -292,12 +315,14 @@ dit('... un seul appel, par la porte des reponses ; ni plan, ni envoi', appels.l
 dit('... le contexte : la cliente en prenom et initiale, son message, l agenda non consulte, aucune consigne',
   contexte(0).includes('La cliente : Awa K.') && contexte(0).includes('Elle : Bonjour, avez-vous une place jeudi matin ?') && contexte(0).includes('Agenda : non consulté') && !contexte(0).includes('LA DIRECTION'), contexte(0).slice(0, 160));
 dit('... ni son nom entier ni son numero ne partent', !NOMS_ENTIERS.test(JSON.stringify(appels[0])));
+dit('... les reperes de temps : quand elle a ecrit, l heure qu il est a Cotonou (un moment passe ne s annonce pas comme a venir)',
+  contexte(0).includes('REPÈRES DE TEMPS : son dernier message date du samedi 21 novembre 2026 à 14 h 53 ; nous sommes le samedi 21 novembre 2026, 15 h 13 à Cotonou.') && contexte(0).includes('ne s’annonce jamais comme à venir'), contexte(0).slice(-420));
 dit('la carte : son dernier message a l heure de Cotonou, le brouillon, la devise du code', plat(c.etiquette) === 'Awa Kossou · son dernier message · 14 h 53' && plat(c.cite) === '« Bonjour, avez-vous une place jeudi matin ? »' && c.texte === BROUILLONS[0] && c.devise.endsWith(DEVISE) && c.devise.includes('Maison MND') && DEVISE.length > 10,
   JSON.stringify([c.etiquette, c.cite, c.texte.slice(0, 40), c.devise]));
 dit('... sans place citee, rien a verifier ; trois gestes, aucun « Envoyer »', c.verif === '' && c.boutons.join('|') === 'Ouvrir dans la conversation|Une autre|Écarter', `${c.verif} · ${c.boutons.join('|')}`);
 dit('... ce que Perle garde de l echange nomme la cliente en prenom et initiale', c.question === 'Prépare la réponse à la conversation qui attend.' && c.dit === 'J’ai préparé une réponse pour Awa K. : elle se relit et s’envoie depuis sa conversation.', `${c.question} · ${c.dit}`);
 dit('« Écarter » : le brouillon s efface, rien n est parti', await clique('.trp-perle__brouillon button', 'Écarter') && (await attend(600), (await carte()).etat === null) && (await carte()).pied.includes('Brouillon écarté. Rien n’est parti.'), (await carte()).pied);
-dit('... et le fil En direct ne la repropose pas : elle a ete traitee ici', !(await evalue(`[...document.querySelectorAll('.trp-perle__ligne button')].some((b) => b.textContent.trim() === 'Préparer une réponse')`)));
+dit('... et le fil En direct la propose de nouveau : un brouillon ecarte ne retire pas la conversation', (await evalue(`[...document.querySelectorAll('.trp-perle__ligne button')].some((b) => b.textContent.trim() === 'Préparer une réponse')`)));
 
 /* b. La question dite : « Réponds à … que jeudi 10 h est libre ». */
 fauxPlan = { reponse: '', lectures: [], message: { cliente: 'Awa K.', consigne: 'jeudi 10 h est libre', jour: '2026-11-26', heure: '10:00' } };
@@ -342,6 +367,79 @@ await ouvre('#/demander');
 await attend(1500);
 c = await carte();
 dit('de retour chez Perle, la carte dit qu elle est ouverte dans la conversation', c.etat === 'ouvert' && c.boutons[0] === 'Rouvrir dans la conversation' && c.note.includes('Ouverte dans la conversation'), `${c.etat} · ${c.boutons.join('|')}`);
+
+/* ── 5 ter. LA RÉPONSE À UN AVIS GOOGLE (second lot) ────────────────────
+   Le banc sert maintenant les deux documents des avis. « En direct » dit
+   ceux qui attendent ; « Préparer une réponse » range un brouillon dans le
+   document des brouillons (le geste de l'écran des avis) ; la carte mène à
+   CET avis. Rien n'est publié, écarté ni collé depuis l'écran de Perle. */
+await cdp('Fetch.enable', { patterns: [{ urlPattern: '*/functions/v1/ia-maison*' }, { urlPattern: '*/auth/v1/token*' }, { urlPattern: '*/auth/v1/user*' }, { urlPattern: '*/rest/v1/staff*' }, { urlPattern: '*/rest/v1/documents*key=eq.mnd_avis_google*' }] });
+await evalue('location.reload()');
+await attend(9000);
+await ouvre('#/demander');
+await attend(4000);
+const ligneDesAvis = () => evalue(`(() => { const l = [...document.querySelectorAll('.trp-perle__ligne')].find((x) => /avis Google/.test(x.querySelector('b')?.textContent ?? '')); return l ? [l.querySelector('b').textContent, l.querySelector('span').textContent, ...[...l.querySelectorAll('button')].map((b) => b.textContent.trim())] : null; })()`);
+const carteDAvis = () => evalue(`(() => { const e = [...document.querySelectorAll('.trp-perle__echange')].pop(); const c = e?.querySelector('.trp-perle__brouillon[data-avis]'); const t = (s) => (c?.querySelector(s)?.textContent ?? '');
+  return { question: e?.querySelector('.trp-perle__moi')?.textContent ?? '', dit: e?.querySelector('.trp-perle__elle > p')?.textContent ?? '', etat: c?.getAttribute('data-avis') ?? null,
+    etiquettes: [...(c?.querySelectorAll('.trp-perle__etiquette') ?? [])].map((p) => p.textContent), cite: t('.trp-perle__cite'), alerte: t('.trp-perle__verif.is-alerte'), texte: t('.trp-perle__texte'), note: t('.trp-perle__source'),
+    boutons: [...(c?.querySelectorAll('button') ?? [])].map((b) => b.textContent.trim()), pied: [...(e?.querySelectorAll('.trp-perle__elle > .trp-perle__source') ?? [])].map((p) => p.textContent).join(' | ') }; })()`);
+const brouillonsRanges = () => evalue(`JSON.parse(localStorage.getItem('trone::mnd_ia_avis_brouillons') || '{}')`);
+const SIGNATURE = 'L’équipe de la Maison MND';
+let l = await ligneDesAvis();
+dit('En direct dit les avis recents sans reponse (l avis deja repondu n y compte pas), et propose de preparer', JSON.stringify(l) === JSON.stringify(['2 avis Google sans réponse', 'Arrivés dans les trente derniers jours', 'Voir les avis', 'Préparer une réponse']), JSON.stringify(l));
+const avant5ter = appels.length;
+dit('« Préparer une réponse », sur la ligne des avis', await evalue(`(() => { const l = [...document.querySelectorAll('.trp-perle__ligne')].find((x) => /avis Google/.test(x.querySelector('b')?.textContent ?? '')); const b = l?.querySelector('.trp-perle__preparer'); if (b) b.click(); return !!b; })()`));
+await attend(3500);
+let ca = await carteDAvis();
+dit('... un seul appel, par le chantier des avis ; le prenom seul part, pas le nom', appels.length === avant5ter + 1 && appels.at(-1).chantier === 'avis' && !/Dossou/.test(JSON.stringify(appels.at(-1))) && JSON.stringify(appels.at(-1)).includes('Fatou'),
+  `${JSON.stringify(appels.slice(avant5ter).map((a) => a.chantier))} · refus : ${await texte('.trp-perle__refus')} · ${String(appels.at(-1)?.messages?.[0]?.content ?? '').slice(0, 200)}`);
+dit('la carte : le plus recent des avis qui attendent, son texte, la reponse signee de la Maison', ca.etat === 'prete' && plat(ca.etiquettes[0]) === 'Avis de Fatou Dossou · 5 étoiles · 19 novembre 2026' && plat(ca.cite) === '« Un accueil parfait, mes locks n’ont jamais été aussi belles. »'
+  && ca.texte === `${REPONSES_AUX_AVIS[0]}\n\n${SIGNATURE}` && ca.alerte === '' && ca.etiquettes[1] === 'La réponse préparée', JSON.stringify([ca.etat, ca.etiquettes, ca.cite, ca.texte.slice(-60)]));
+dit('... rangee dans Les avis Google ; ses gestes : ouvrir, une autre, le suivant ; aucun « Publier »', ca.note.startsWith('Rangée dans Les avis Google') && ca.boutons.join('|') === 'Ouvrir dans les avis Google|Une autre|Le suivant (1 sans réponse)', `${ca.note} · ${ca.boutons.join('|')}`);
+dit('... ce que Perle garde de l echange : le prenom, l ecran, le cout', ca.question === 'Prépare la réponse à l’avis qui attend.' && ca.dit === 'J’ai préparé une réponse pour l’avis de Fatou : elle se relit et se publie depuis Les avis Google.' && plat(ca.pied) === 'Lu dans : Les avis Google. Cette réponse : 0,5 ¢.', `${ca.dit} · ${ca.pied}`);
+let rg = await brouillonsRanges();
+dit('le brouillon est range dans le document des brouillons, ni publie ni ecarte', rg['g-r-fatou']?.reponse === `${REPONSES_AUX_AVIS[0]}\n\n${SIGNATURE}` && !rg['g-r-fatou'].publieeLe && !rg['g-r-fatou'].ecarte && !rg['g-r-fatou'].enCours && Object.keys(rg).length === 1, JSON.stringify(rg).slice(0, 260));
+l = await ligneDesAvis();
+dit('En direct suit : une reponse a relire, deux avis attendent encore', JSON.stringify(l?.slice(0, 3)) === JSON.stringify(['1 réponse aux avis Google à relire', '2 avis des trente derniers jours attendent une réponse', 'Relire les réponses']), JSON.stringify(l));
+await photo('perle-avis', 1360, 900, false, `[...document.querySelectorAll('.trp-perle__brouillon')].pop()?.scrollIntoView({ block: 'center' }); true`);
+
+dit('« Le suivant » : l avis de deux etoiles', await clique('.trp-perle__brouillon[data-avis] button', 'Le suivant (1 sans réponse)'));
+await attend(3500);
+ca = await carteDAvis();
+dit('... sa carte dit de le relire de pres, et plus rien n attend derriere', plat(ca.etiquettes[0]) === 'Avis de Marc Hounsou · 2 étoiles · 16 novembre 2026' && ca.alerte.startsWith('Avis de 2 étoiles : la réponse reconnaît sans se justifier.')
+  && ca.texte === `${REPONSES_AUX_AVIS[1]}\n\n${SIGNATURE}` && ca.boutons.join('|') === 'Ouvrir dans les avis Google|Une autre', JSON.stringify([ca.etiquettes[0], ca.alerte, ca.boutons]));
+/* Dans le DERNIER échange : la carte de Fatou, plus haut, porte aussi « Une autre ». */
+const cliqueDansLeDernier = (libelle) => evalue(`(() => { const e = [...document.querySelectorAll('.trp-perle__echange')].pop(); const b = [...(e?.querySelectorAll('.trp-perle__brouillon button') ?? [])].find((x) => x.textContent.trim() === ${JSON.stringify(libelle)}); if (b) b.click(); return !!b; })()`);
+dit('« Une autre » remplace le brouillon de CET avis, dans la meme carte, sans toucher celui d a cote', await cliqueDansLeDernier('Une autre') && (await attend(3500), true)
+  && (ca = await carteDAvis()).texte === `${REPONSES_AUX_AVIS[2]}\n\n${SIGNATURE}` && plat(ca.pied).includes('Cette réponse : 1,0 ¢.') && (rg = await brouillonsRanges())['g-r-marc']?.reponse === `${REPONSES_AUX_AVIS[2]}\n\n${SIGNATURE}`
+  && rg['g-r-fatou']?.reponse === `${REPONSES_AUX_AVIS[0]}\n\n${SIGNATURE}`, `${ca.texte.slice(0, 50)} · ${ca.pied} · refus : ${await texte('.trp-perle__refus')}`);
+
+/* La question dite : un avis qui a déjà sa réponse ne se prépare pas. */
+fauxPlan = { reponse: '', lectures: [], avis: { auteur: 'Inès' } };
+const avantInes = appels.length;
+await ecris('Réponds à l’avis d’Inès');
+await attend(300);
+await evalue(`document.querySelector('.trp-perle__champ').requestSubmit(); true`);
+await attend(3000);
+ca = await carteDAvis();
+dit('un avis deja repondu : Perle le dit, n ecrit rien, et mene a l avis', appels.length === avantInes + 1 && appels.at(-1).chantier === 'question' && String(appels.at(-1).systeme).includes('RÉPONDRE À UN AVIS GOOGLE')
+  && ca.etat === null && ca.dit === 'L’avis d’Inès a déjà sa réponse sur Google.' && (await evalue(`[...document.querySelectorAll('.trp-perle__echange')].pop().querySelector('.trp-perle__gestes button')?.textContent`)) === 'Ouvrir cet avis', `${ca.dit} · ${appels.slice(avantInes).map((a) => a.chantier).join(',')}`);
+
+/* Une réponse retouchée dans Les avis Google ne se remplace pas d'ici. */
+await evalue(`(() => { const k = 'trone::mnd_ia_avis_brouillons'; const d = JSON.parse(localStorage.getItem(k)); d['g-r-fatou'].reponse = 'Merci Fatou, à bientôt.'; localStorage.setItem(k, JSON.stringify(d)); return true; })()`);
+await evalue('location.reload()');
+await attend(9000);
+await ouvre('#/demander');
+await attend(4000);
+const retouchee = await evalue(`(() => { const c = [...document.querySelectorAll('.trp-perle__brouillon[data-avis]')].find((x) => /Fatou/.test(x.textContent)); return c ? { etat: c.getAttribute('data-avis'), texte: c.querySelector('.trp-perle__texte').textContent, boutons: [...c.querySelectorAll('button')].map((b) => b.textContent.trim()) } : null; })()`);
+dit('une reponse retouchee dans Les avis Google se montre telle quelle, et « Une autre » disparait', retouchee?.etat === 'retouchee' && retouchee.texte === 'Merci Fatou, à bientôt.' && retouchee.boutons.join('|') === 'Ouvrir dans les avis Google', JSON.stringify(retouchee));
+
+dit('« Ouvrir dans les avis Google » mene a CET avis', await evalue(`(() => { const c = [...document.querySelectorAll('.trp-perle__brouillon[data-avis]')].find((x) => /Marc/.test(x.textContent)); const b = [...(c?.querySelectorAll('button') ?? [])].find((x) => x.textContent.trim() === 'Ouvrir dans les avis Google'); if (b) b.click(); return !!b; })()`)
+  && (await attend(3500), true) && /vue=avis/.test(String(await evalue('location.hash'))) && String(await evalue('location.hash')).includes('avis=g-r-marc'), await evalue('location.hash'));
+rg = await brouillonsRanges();
+dit('... et RIEN N EST PUBLIE : aucun brouillon marque publie, colle ou ecarte', Object.values(rg).every((b) => !b.publieeLe && !b.ecarte && !b.parLeTrone) && Object.keys(rg).sort().join(',') === 'g-r-fatou,g-r-marc', JSON.stringify(Object.keys(rg)));
+await ouvre('#/demander');
+await attend(1500);
 
 /* ── 6. LA PORTE ── */
 const pour = async (role) => {

@@ -9,9 +9,10 @@ import { createStore, uid, useStore } from '../../../../shared/store';
 import { demandeAClaude, versionDeIaMaison } from '../../../../shared/ia-maison';
 import { dollarsDits, saitInternet, saitLeTableauIntelligent, type MessageIa, type SourceInternet } from '../../../../shared/ia-maison-pur';
 import {
-  QUESTIONS_PROPOSEES, consigneDeLaDirection, demandeDInternet, demandeDeLaReponse, demandeDuPlan, dernierMessageDElle, ecransLus, momentDit, planLu, refusDuMessage, reponsePropre, resteAPreparer, sourcesPropres,
-  type FaitLu, type MessageDemande,
+  QUESTIONS_PROPOSEES, consigneDeLaDirection, deQui, demandeDInternet, demandeDeLaReponse, demandeDuPlan, dernierMessageDElle, ecransLus, estUnAvisDifficile, etoilesDites, momentDit, planLu, refusDeLAvis, refusDuMessage, reperesDeTemps, reponsePropre, resteAPreparer, sourcesPropres,
+  type AvisDemande, type FaitLu, type MessageDemande,
 } from '../../../../shared/perle-pur';
+import { prenomDeLAuteur } from '../../../../shared/ia-avis-pur';
 import { SCHEMA_DE_LA_REPONSE, consigneDeLaReponse, lectureDeLaReponse } from '../../../../shared/ia-reponse-wa-pur';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { signeLeMessage } from '../../../../shared/identite';
@@ -58,6 +59,8 @@ type Echange = {
   /** Cherchée sur internet (21 novembre 2026) : ses sources, et la réponse coupée si elle l'a été. */
   internet?: boolean; sources?: SourceInternet[]; coupee?: boolean;
   brouillon?: Brouillon;
+  /** Une réponse préparée à un avis Google : l'avis, et le brouillon tel que Perle l'a rangé dans Les avis Google. */
+  avis?: { cle: string; auteur: string; note: number; texte: string; quand?: string; reponse: string };
 };
 /** « 14 h 02 », ou « 20 novembre 2026, 18 h 40 » un autre jour : à l'heure de Cotonou. */
 const quandDit = (iso: string, aujourdhui: string): string => {
@@ -146,7 +149,8 @@ export default function DemanderAPerle() {
   /* ── PRÉPARER UNE RÉPONSE À UNE CLIENTE (second lot) ──────────────────
      Le fil se retrouve, la place citée se vérifie au Carnet, Claude écrit par
      la porte des réponses, et le brouillon se montre. RIEN NE PART D'ICI. */
-  const dejaPrepares = fil.flatMap((e) => (e.brouillon ? [e.brouillon.numero] : []));
+  /* Un brouillon écarté ne compte plus : la conversation attend toujours, elle se prépare de nouveau. */
+  const dejaPrepares = fil.flatMap((e) => (e.brouillon && e.brouillon.etat !== 'ecarte' ? [e.brouillon.numero] : []));
   const aPreparer = resteAPreparer(perle.enAttente, dejaPrepares);
   const prepare = async (o: { question: string; demande: MessageDemande; coutDAvant?: number; remplace?: Echange }): Promise<boolean> => {
     const quand = new Date().toISOString();
@@ -173,7 +177,12 @@ export default function DemanderAPerle() {
     setEnCours(`Perle écrit la réponse pour ${qui}`);
     const r2 = await demandeAClaude<{ reponse?: unknown }>({
       chantier: 'reponse-wa', usage: 'texte', systeme: consigneDeLaReponse(),
-      messages: [{ role: 'user', content: perle.contexteDuFil(f, { places, dejaProposee: ancien?.texte }) + consigneDeLaDirection(consigne) }],
+      messages: [{
+        role: 'user',
+        content: perle.contexteDuFil(f, { places, dejaProposee: ancien?.texte })
+          + reperesDeTemps({ dernierLe: momentDuSalon(Date.parse(dernier.quand)), maintenant: { jour: perle.jour, minutes: perle.minutes } })
+          + consigneDeLaDirection(consigne),
+      }],
       schema: SCHEMA_DE_LA_REPONSE,
       maxTokens: 300,
     });
@@ -209,6 +218,53 @@ export default function DemanderAPerle() {
     navigate(chemin);
   };
 
+  /* ── PRÉPARER LA RÉPONSE À UN AVIS GOOGLE (second lot) ────────────────
+     L'avis se retrouve, Claude écrit par le geste de l'écran des avis, et le
+     brouillon se range dans Les avis Google : c'est LÀ qu'il se relit et se
+     publie. RIEN N'EST PUBLIÉ D'ICI ; Perle n'écarte ni ne colle rien. */
+  const avisMontres = fil.flatMap((e) => (e.avis ? [e.avis.cle] : []));
+  const avisAPreparer = perle.avisAPreparer(avisMontres);
+  const cheminDeLAvis = (cleDeLAvis: string) => `/avis-google?avis=${encodeURIComponent(cleDeLAvis)}`;
+  const prepareLAvis = async (o: { question: string; demande: AvisDemande; coutDAvant?: number; remplace?: Echange }): Promise<boolean> => {
+    const quand = new Date().toISOString();
+    const dit = (reponse: string, ecrans: Echange['ecrans'] = [{ nom: 'Les avis Google', chemin: '/avis-google' }]) => {
+      garde({ id: uid(), question: o.question, reponse, ecrans, quand, coutUsd: o.coutDAvant });
+      return true;
+    };
+    const ancien = o.remplace?.avis;
+    const r = ancien ? { etat: 'trouve' as const, cle: ancien.cle } : perle.avisDe(o.demande, o.question, avisMontres);
+    if (r.etat !== 'trouve') return dit(refusDeLAvis(r, o.demande.auteur));
+    let a = perle.avisDeLaCle(r.cle);
+    if (!a) return dit(refusDeLAvis({ etat: 'aucun' }, o.demande.auteur));
+    const prenom = prenomDeLAuteur(a.auteur) || 'cette personne';
+    const sien = [{ nom: 'cet avis', chemin: cheminDeLAvis(a.cle) }];
+    if (a.etat === 'publiee') return dit(`L’avis ${deQui(prenom)} a déjà sa réponse sur Google.`, sien);
+    if (a.etat === 'ecartee') return dit(`La Maison a choisi de ne pas répondre à l’avis ${deQui(prenom)}. Ouvrez-le dans Les avis Google pour reprendre.`, sien);
+    if (a.etat === 'prepare') return dit(`Une réponse à l’avis ${deQui(prenom)} est en cours de préparation, sur ce poste ou un autre. Redemandez dans un instant.`, sien);
+    /* Déjà prête (l'écran des avis prépare seul les avis récents) : on la montre, sans rien dépenser. */
+    let cout = 0;
+    if (a.etat === 'nouveau' || ancien) {
+      setEnCours(`Perle écrit la réponse à l’avis ${deQui(prenom)}`);
+      const p = await perle.proposeAuxAvis(a.cle);
+      if (!p.ok) { setRefus(p.message); return false; }
+      cout = p.coutUsd ?? 0;
+      a = perle.avisDeLaCle(a.cle) ?? a;
+    }
+    if (!a.brouillon) { setRefus('Le brouillon n’est pas arrivé jusqu’ici : ouvrez Les avis Google.'); return false; }
+    const carte = { cle: a.cle, auteur: a.auteur, note: a.note, texte: a.texte, ...(a.jour ? { quand: a.jour } : {}), reponse: a.brouillon };
+    const reponse = `${cout > 0 ? 'J’ai préparé une réponse' : 'Une réponse est prête'} pour l’avis ${deQui(prenom)} : elle se relit et se publie depuis Les avis Google.`;
+    if (o.remplace) change(o.remplace.id, (e) => ({ ...e, reponse, avis: carte, coutUsd: (e.coutUsd ?? 0) + cout }));
+    else garde({ id: uid(), question: o.question, reponse, ecrans: [], quand, coutUsd: (o.coutDAvant ?? 0) + cout, avis: carte });
+    return true;
+  };
+  const lanceLAvis = async (o: Parameters<typeof prepareLAvis>[0]) => {
+    if (enCours) return;
+    reco.current?.stop();
+    setRefus('');
+    setEnCours('Perle lit l’avis…');
+    try { await prepareLAvis(o); } finally { setEnCours(''); }
+  };
+
   const demander = async (texte?: string) => {
     const q = (texte ?? question).trim().slice(0, SIGNES_MAX);
     if (!q || enCours) return;
@@ -223,12 +279,16 @@ export default function DemanderAPerle() {
       ]);
       const pourElle = perle.pourClaude(q);
       const contexte = { question: pourElle, jour: perle.jour, minutes: perle.minutes, enDirect: perle.enDirectTexte, avant };
-      const r1 = await demandeAClaude<unknown>(demandeDuPlan({ ...contexte, internet, messages: true }));
+      const r1 = await demandeAClaude<unknown>(demandeDuPlan({ ...contexte, internet, messages: true, avis: true }));
       if (!r1.ok) { setRefus(r1.message); return; }
       const plan = planLu(r1.data);
       /* UNE RÉPONSE À PRÉPARER : le plan dit à qui et quoi, le Trône fait le reste. */
       if (plan.message) {
         if (await prepare({ question: q, demande: plan.message, coutDAvant: r1.coutUsd })) setQuestion('');
+        return;
+      }
+      if (plan.avis) {
+        if (await prepareLAvis({ question: q, demande: plan.avis, coutDAvant: r1.coutUsd })) setQuestion('');
         return;
       }
       /* INTERNET : la question reformulée par Perle part SEULE, sans le fil ni
@@ -304,6 +364,7 @@ export default function DemanderAPerle() {
               <p>La caisse du jour, les rendez-vous, une cliente, les factures en attente, le mois, les dépenses, les conversations qui attendent : posez la question comme vous la diriez.</p>
               {internet && <p>Une question sur le monde hors de la Maison (un taux, une règle, un prix du marché) part sur internet, sans le nom d’aucune cliente, et revient avec ses sources.</p>}
               <p>Demandez-lui aussi de préparer une réponse : « Réponds à Awa que jeudi 10 h est libre ». Elle écrit le brouillon, vérifie la place au Carnet, et c’est vous qui l’envoyez, depuis la conversation.</p>
+              <p>De même pour un avis Google : « Réponds à l’avis de Fatou ». Le brouillon se range dans Les avis Google, où vous le relisez avant de publier.</p>
             </div>
           )}
           {fil.map((e, rang) => (
@@ -341,6 +402,38 @@ export default function DemanderAPerle() {
                     </div>
                   </div>
                 )}
+                {e.avis && (() => {
+                  /* L'avis et son brouillon, tels qu'ils sont MAINTENANT dans Les avis Google (retouché, publié). */
+                  const carte = e.avis;
+                  const vif = perle.avisDeLaCle(carte.cle);
+                  const publiee = vif?.etat === 'publiee';
+                  const retouchee = !publiee && !!vif?.brouillon && vif.brouillon !== carte.reponse;
+                  return (
+                    <div className="trp-perle__brouillon" data-avis={publiee ? 'publiee' : retouchee ? 'retouchee' : 'prete'}>
+                      <p className="trp-perle__etiquette">{`Avis ${carte.auteur ? deQui(carte.auteur) : 'sans nom'} · ${etoilesDites(carte.note)}${carte.quand ? ` · ${dateDite(carte.quand)}` : ''}`}</p>
+                      <p className="trp-perle__cite">{carte.texte ? `« ${carte.texte} »` : 'Une note, sans texte.'}</p>
+                      {estUnAvisDifficile(carte.note) && !publiee && (
+                        <p className="trp-perle__verif is-alerte">{`Avis de ${etoilesDites(carte.note)} : la réponse reconnaît sans se justifier. Relisez-la de près avant de publier.`}</p>
+                      )}
+                      <p className="trp-perle__etiquette">{publiee ? 'La réponse publiée sur Google' : retouchee ? 'La réponse, retouchée dans Les avis Google' : 'La réponse préparée'}</p>
+                      <p className="trp-perle__texte">{publiee ? (vif?.publiee || vif?.brouillon || carte.reponse) : (vif?.brouillon ?? carte.reponse)}</p>
+                      <p className="trp-perle__source">{publiee ? 'Publiée depuis Les avis Google.' : 'Rangée dans Les avis Google, où elle se relit, se corrige et se publie. Rien n’est publié d’ici.'}</p>
+                      <div className="trp-perle__gestes">
+                        <Button variant="copper" size="sm" disabled={!!enCours} onClick={() => navigate(cheminDeLAvis(carte.cle))}>Ouvrir dans les avis Google</Button>
+                        {/* Une réponse que la main a retouchée ne se remplace pas d'ici. */}
+                        {!publiee && !retouchee && (
+                          <Button variant="ghost" size="sm" disabled={!!enCours || eteinte} onClick={() => { void lanceLAvis({ question: e.question, demande: { auteur: '', plusRecent: false }, remplace: e }); }}>Une autre</Button>
+                        )}
+                        {rang === fil.length - 1 && avisAPreparer > 0 && (
+                          <Button
+                            variant="ghost" size="sm" disabled={!!enCours || eteinte}
+                            onClick={() => { void lanceLAvis({ question: 'Prépare la réponse à l’avis suivant.', demande: { auteur: '', plusRecent: true } }); }}
+                          >{`Le suivant (${avisAPreparer} sans réponse)`}</Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
                 {e.coupee && <p className="trp-perle__source">La réponse a été coupée avant sa fin : reposez la question, plus précise.</p>}
                 {e.internet && (e.sources?.length ?? 0) > 0 && (
                   <ul className="trp-perle__sources" aria-label="Les sources">
@@ -353,6 +446,7 @@ export default function DemanderAPerle() {
                   {e.internet
                     ? 'Cherché sur internet, pas dans le Trône : à confirmer à la source avant de décider.'
                     : e.brouillon ? 'Lu dans : sa conversation, sa fiche et le catalogue.'
+                    : e.avis ? 'Lu dans : Les avis Google.'
                       : e.ecrans.length ? `Lu dans : ${e.ecrans.map((x) => x.nom).join(', ')}.` : 'Lu dans : En direct.'}
                   {typeof e.coutUsd === 'number' && e.coutUsd > 0 ? ` Cette réponse : ${dollarsDits(e.coutUsd)}.` : ''}
                 </p>
@@ -420,6 +514,13 @@ export default function DemanderAPerle() {
                 <button
                   type="button" className="trp-perle__preparer" disabled={!!enCours}
                   onClick={() => { void lance({ question: 'Prépare la réponse à la conversation qui attend.', demande: { cliente: '', plusAncienne: true, consigne: '' } }); }}
+                >Préparer une réponse</button>
+              )}
+              {/* Les avis Google : le plus récent de ceux qui n'ont ni réponse ni brouillon ; le brouillon se range dans Les avis Google. */}
+              {l.cle === 'avis' && avisAPreparer > 0 && !eteinte && (
+                <button
+                  type="button" className="trp-perle__preparer" disabled={!!enCours}
+                  onClick={() => { void lanceLAvis({ question: 'Prépare la réponse à l’avis qui attend.', demande: { auteur: '', plusRecent: true } }); }}
                 >Préparer une réponse</button>
               )}
             </div>

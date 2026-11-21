@@ -40,7 +40,8 @@ function touche(id: string, champs: Partial<BrouillonDAvis>): void {
   });
 }
 
-export type ResultatDeProposition = { ok: true } | { ok: false; erreur: string; message: string };
+/** `coutUsd` : ce que la proposition a coûté (21 novembre 2026, pour « Demander à Perle », qui le dit à la direction). */
+export type ResultatDeProposition = { ok: true; coutUsd?: number } | { ok: false; erreur: string; message: string };
 
 /** DEMANDER UNE PROPOSITION À CLAUDE pour un avis, et la garder si elle
     tient la relecture. Le verrou se pose avant l'appel, tombe après. */
@@ -70,7 +71,7 @@ export async function proposeUneReponse(avis: AvisAvecReponse): Promise<Resultat
     return { ok: false, erreur: 'lecture', message: 'La proposition de Claude n’a pas tenu la relecture (un prix, « salon », ou trop longue) : demandez-en une autre.' };
   }
   touche(id, { reponse: lu.reponse, langue: lu.langue, le: maintenant(), modele: r.modele, enCours: undefined, echoueLe: undefined, ecarte: undefined });
-  return { ok: true };
+  return { ok: true, coutUsd: r.coutUsd };
 }
 
 /** Elle retouche le texte avant de le copier : c'est sa réponse. */

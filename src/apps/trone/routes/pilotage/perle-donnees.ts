@@ -24,9 +24,14 @@ import { useEngagements } from '../../../../shared/engagements';
 import { pourClaude, sansCoordonnees, type Personne } from '../../../../shared/ia-anonymise-pur';
 import { dateDite, heureDite, personnesDe, prenomDeLaFiche } from '../../../../shared/ia-fiche-du-jour-pur';
 import {
-  clientesDeLaQuestion, clientesDuMessage, clientesDuNom, dernierJourDuMois, dureeEnClair, enDirectEnTexte, fenetreDesDepenses, fenetreDesRendezVous, filDeLaDemande, francsPourPerle, lignesEnDirect, moisDAvant, sansLesClientes, verdictDeLaPlace,
-  type FaitLu, type FilDeLaDemande, type LectureDemandee, type LigneEnDirect, type MessageDemande, type RdvDuJour, type VerdictDeLaPlace,
+  ETAT_DE_L_AVIS_DIT, avisDeLaDemande, clientesDeLaQuestion, clientesDuMessage, clientesDuNom, dernierJourDuMois, dureeEnClair, enDirectEnTexte, etoilesDites, fenetreDesDepenses, fenetreDesRendezVous, filDeLaDemande, francsPourPerle, lignesEnDirect, moisDAvant, sansLesClientes, verdictDeLaPlace,
+  type AvisDeLaDemande, type AvisDemande, type EtatDUnAvis, type FaitLu, type FilDeLaDemande, type LectureDemandee, type LigneEnDirect, type MessageDemande, type RdvDuJour, type VerdictDeLaPlace,
 } from '../../../../shared/perle-pur';
+import { avisDeLaRubrique, estRecent, etatDeLAvis, noteDesDixDerniers, reponsesARelire } from '../../../../shared/avis-rubrique-pur';
+import { prenomDeLAuteur } from '../../../../shared/ia-avis-pur';
+import { brouillonsDAvisStore, proposeUneReponse, useBrouillonsDAvis, type ResultatDeProposition } from '../../../../shared/ia-avis';
+import { useAvisDeGoogle } from '../../../../shared/avis-google-pont';
+import { useReleveDesAvis } from '../clients/releve-des-avis';
 import type { JourDePlaces } from '../../../../shared/ia-reponse-wa-pur';
 import { useContexteDeLaReponse } from '../clients/contexte-de-la-reponse';
 import { useAutoConfig, useStaff as useEquipe } from '../equipe/data';
@@ -119,6 +124,25 @@ export type Perle = {
   placeAuCarnet: (jour?: string, heure?: string) => VerdictDeLaPlace | null;
   /** Le contexte d'une réponse à ce fil (la même source que le bouton du composeur), au jour de Cotonou. */
   contexteDuFil: (fil: Fil, o?: { dejaProposee?: string; places?: readonly JourDePlaces[] }) => string;
+
+  /* ── LES AVIS GOOGLE (second lot) : Perle range un brouillon, elle ne publie rien. ── */
+  /** Quel avis la direction veut voir répondu, ou pourquoi on ne prépare rien. */
+  avisDe: (demande: AvisDemande, question: string, dejaMontres?: readonly string[]) => AvisDeLaDemande;
+  /** Un avis par sa clé : ce que la carte en montre, et où en est sa réponse (le brouillon relu dans le magasin à l'instant). */
+  avisDeLaCle: (cle: string) => AvisPourPerle | undefined;
+  /** Le geste de l'écran des avis : Claude écrit, le brouillon se range dans le document des brouillons. */
+  proposeAuxAvis: (cle: string) => Promise<ResultatDeProposition>;
+  /** Les avis qui n'ont encore ni réponse ni brouillon, moins ceux déjà montrés ici. */
+  avisAPreparer: (dejaMontres: readonly string[]) => number;
+};
+
+/** Un avis, tel que la carte de Perle le montre à la direction (sur son poste). */
+export type AvisPourPerle = {
+  cle: string; auteur: string; note: number; texte: string; jour?: string; etat: EtatDUnAvis;
+  /** Le brouillon rangé dans Les avis Google, s'il y en a un. */
+  brouillon?: string;
+  /** La réponse que Google porte déjà. */
+  publiee?: string;
 };
 
 export function usePerle(): Perle {
@@ -147,6 +171,13 @@ export function usePerle(): Perle {
   const { tous: tousLesFils, enAttente } = useConversationsQuiAttendent(tick);
   /* Le fil, la fiche, le compte et le catalogue d'une réponse : la source du bouton du composeur. */
   const contexteDe = useContexteDeLaReponse();
+  /* LES AVIS GOOGLE, par les portes de leur écran : le relevé de Places, les
+     avis que Make apporte, et le document des brouillons (synchronisé). */
+  const releveDesAvis = useReleveDesAvis();
+  const avisDeGoogle = useAvisDeGoogle();
+  const [brouillonsDAvis] = useBrouillonsDAvis();
+  const lesAvis = useMemo(() => avisDeLaRubrique(avisDeGoogle, releveDesAvis?.avis), [avisDeGoogle, releveDesAvis]);
+  const etatDe = (a: (typeof lesAvis)[number]): EtatDUnAvis => etatDeLAvis(a, brouillonsDAvis[a.cle], tick);
   const sieges = Math.max(0, branch.seats ?? 0);
 
   const ficheParId = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
@@ -204,8 +235,13 @@ export function usePerle(): Perle {
       ferme: ouverture.closed,
       placesLibres: places,
       aConfirmer: rdvs.filter((a) => a.date >= jour && a.status === 'confirmé' && estSuggere(a)).length,
+      /* Les avis : ce que la liste dit quand elle est arrivée ; avant, le seul compte des brouillons à relire. */
+      avis: {
+        recentsSansReponse: lesAvis.filter((a) => estRecent(a, tick) && ['nouveau', 'prepare', 'prete'].includes(etatDeLAvis(a, brouillonsDAvis[a.cle], tick))).length,
+        aRelire: lesAvis.length ? lesAvis.filter((a) => etatDeLAvis(a, brouillonsDAvis[a.cle], tick) === 'prete').length : reponsesARelire(brouillonsDAvis),
+      },
     });
-  }, [rdvs, recettes, pieces, byId, blocages, enAttente, jour, minutes, tick, branch.id, sieges]);
+  }, [rdvs, recettes, pieces, byId, blocages, enAttente, jour, minutes, tick, branch.id, sieges, lesAvis, brouillonsDAvis]);
 
   /* ── LES LECTURES ── */
   const lis = (l: LectureDemandee, question: string): FaitLu[] => {
@@ -343,6 +379,25 @@ export function usePerle(): Perle {
         : `Aucune prestation du catalogue ne porte « ${l.terme ?? ''} » dans son nom.`)];
     }
 
+    if (l.nom === 'avis') {
+      if (!lesAvis.length) return [fait('Les avis Google', 'Les avis Google ne sont pas arrivés sur ce poste (le serveur n’a pas répondu). Ouvrez Les avis Google.')];
+      const dix = noteDesDixDerniers(lesAvis);
+      const attendent = lesAvis.filter((a) => ['nouveau', 'prepare', 'prete'].includes(etatDe(a)));
+      const aMontrer = lesAvis.filter((a) => estRecent(a, tick) || attendent.includes(a)).slice(0, 25);
+      const decimale = (n: number) => String(n).replace('.', ',');
+      const ligne = (a: (typeof lesAvis)[number]): string => {
+        const mots = a.texte ? `« ${borne(a.texte.replace(/\s+/g, ' ').trim(), 240)} »` : 'une note, sans texte';
+        return `- ${a.publieLe ? dateDite(a.publieLe) : (a.quand ?? 'date inconnue')}, ${etoilesDites(a.note)}, ${prenomDeLAuteur(a.auteur) || 'sans nom'} : ${pourClaude(mots, pleinsNoms)} (${ETAT_DE_L_AVIS_DIT[etatDe(a)]})`;
+      };
+      const texte = [
+        releveDesAvis ? `La fiche Google de la Maison : ${decimale(releveDesAvis.note)} sur 5, sur ${releveDesAvis.nombre} avis.` : '',
+        dix.note !== null ? `Les ${dix.n} derniers avis notés : ${decimale(dix.note)} sur 5.` : '',
+        `Avis connus du Trône : ${lesAvis.length}. ${attendent.length} attend${attendent.length > 1 ? 'ent' : ''} une réponse, dont ${attendent.filter((a) => etatDe(a) === 'prete').length} avec une réponse prête à relire.`,
+        aMontrer.length ? `Les avis des trente derniers jours et ceux qui attendent, du plus récent au plus ancien :\n${aMontrer.map(ligne).join('\n')}` : 'Aucun avis dans les trente derniers jours, et aucun n’attend de réponse.',
+      ].filter(Boolean).join('\n');
+      return [fait('Les avis Google', texte)];
+    }
+
     /* depenses */
     const f = fenetreDesDepenses(l, jour);
     const liste = depenses.filter((d) => d.date >= f.du && d.date <= f.au).sort((a, b) => b.date.localeCompare(a.date));
@@ -387,5 +442,33 @@ export function usePerle(): Perle {
       return verdictDeLaPlace({ jour: j, heure, aujourdhui: jour, maintenantMin: minutes, ferme, heuresLibres: heures });
     },
     contexteDuFil: (f, o = {}) => contexteDe(f, { ...o, aujourdhui: jour }),
+
+    /* LES AVIS GOOGLE (second lot). L'avis se retrouve par le nom que Google
+       affiche ; le brouillon s'écrit par le geste de l'écran des avis
+       (`proposeUneReponse`) et se range dans SON document : Perle ne publie,
+       n'écarte ni ne colle rien. */
+    avisDe: (demande, question, dejaMontres) => avisDeLaDemande({
+      demande,
+      trouves: clientesDuMessage(demande.auteur, question, lesAvis.filter((a) => a.auteur.trim()).map((a) => ({ id: a.cle, name: a.auteur }))).map((x) => x.id),
+      avis: lesAvis.map((a) => ({ cle: a.cle, auteur: a.auteur, etat: etatDe(a) })),
+      dejaMontres,
+    }),
+    avisDeLaCle: (cle) => {
+      const a = lesAvis.find((x) => x.cle === cle);
+      if (!a) return undefined;
+      /* Le brouillon se relit dans le magasin À L'INSTANT : il vient d'y être rangé. */
+      const b = brouillonsDAvisStore.get()[cle];
+      return {
+        cle, auteur: a.auteur.trim(), note: a.note, texte: borne(a.texte.replace(/\s+/g, ' ').trim(), 600), etat: etatDeLAvis(a, b, tick),
+        ...(a.publieLe ? { jour: a.publieLe.slice(0, 10) } : {}),
+        ...(b?.reponse ? { brouillon: b.reponse } : {}),
+        ...(typeof a.reponse === 'string' && a.reponse.trim() ? { publiee: a.reponse } : {}),
+      };
+    },
+    proposeAuxAvis: async (cle) => {
+      const a = lesAvis.find((x) => x.cle === cle);
+      return a ? proposeUneReponse(a) : { ok: false, erreur: 'introuvable', message: 'Cet avis n’est plus dans la liste : ouvrez Les avis Google.' };
+    },
+    avisAPreparer: (dejaMontres) => lesAvis.filter((a) => etatDe(a) === 'nouveau' && !dejaMontres.includes(a.cle)).length,
   };
 }
