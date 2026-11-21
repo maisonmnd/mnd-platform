@@ -120,6 +120,11 @@ export type InvoiceLine = {
 
       Absent = ligne de prestation, comme toutes celles d'avant. */
   produitId?: string;
+  /** LES FRAIS DE LA CARTE — 21 novembre 2026 (`shared/frais-de-carte-pur`).
+      La ligne des 4 % que la cliente paie au terminal de la banque. Elle
+      n'est ni une prestation ni un produit : la conformité au rituel la
+      garde telle quelle, et la clôture du jour ne la compte pas au rituel. */
+  frais?: 'carte';
   /** CE QUE LA LIGNE CONTIENT, SANS PRIX — 1er septembre 2026.
 
       « Pour les factures des abonnements, j'aimerais que ça montre les

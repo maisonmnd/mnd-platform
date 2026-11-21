@@ -75,7 +75,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
    dépôt). Le banc `verifie-la-cloture-du-jour` et celui des douze lunes (R8)
    comparent la copie à l'original, caractère pour caractère. ══ */
 /* ⟨cloture-du-jour⟩ */
-export const VERSION_DE_LA_CLOTURE = '2026-11-14-a';
+export const VERSION_DE_LA_CLOTURE = '2026-11-21-a';
 
 /** Cotonou vit à UTC + 1, toute l'année. */
 export const DECALAGE_DE_COTONOU_MIN = 60;
@@ -201,7 +201,7 @@ export const estEntierementRegle = (a: RdvLu): boolean =>
 
 /* ── LA PIÈCE ─────────────────────────────────────────────────────────── */
 
-export type LigneLue = { qty?: number; unitXof?: number; discountPct?: number; discountXof?: number; produitId?: string; label?: string };
+export type LigneLue = { qty?: number; unitXof?: number; discountPct?: number; discountXof?: number; produitId?: string; label?: string; frais?: string };
 
 export type PieceLue = {
   id: string; branchId?: string; kind?: string; number?: string; clientId?: string; forClientId?: string; clientName?: string;
@@ -222,11 +222,16 @@ export function totalDeLaPiece(p: Pick<PieceLue, 'lines' | 'globalDiscountPct' |
   return Math.max(0, Math.round(sous * (1 - (Number(p.globalDiscountPct) || 0) / 100)) - (Number(p.globalDiscountXof) || 0));
 }
 
-/** La part RITUEL d'une pièce : ses lignes de prestation, la Gamme ôtée. */
+/** Une ligne de pièce qui n'est pas le rituel : un produit de la Gamme, ou
+    les frais de la carte (21 novembre 2026, `shared/frais-de-carte-pur`). */
+const horsDuRituelSurLaPiece = (l: LigneLue): boolean =>
+  !!l.produitId || l.frais === 'carte' || (l.label ?? '').startsWith('Frais de paiement par carte');
+
+/** La part RITUEL d'une pièce : ses lignes de prestation, la Gamme et les frais de la carte ôtés. */
 export function rituelDeLaPiece(p: Pick<PieceLue, 'lines' | 'globalDiscountPct' | 'globalDiscountXof'>): number {
   const lignes = p.lines ?? [];
-  if (!lignes.some((l) => !!l.produitId)) return totalDeLaPiece(p);
-  return totalDeLaPiece({ ...p, lines: lignes.filter((l) => !l.produitId) });
+  if (!lignes.some(horsDuRituelSurLaPiece)) return totalDeLaPiece(p);
+  return totalDeLaPiece({ ...p, lines: lignes.filter((l) => !horsDuRituelSurLaPiece(l)) });
 }
 
 /** Les versements d'une pièce, la même lecture qu'`invoiceReglements` : une
@@ -238,9 +243,9 @@ export function versementsDeLaPiece(p: PieceLue): VersementLu[] {
 }
 
 /** L'argent d'une pièce pour son RITUEL : ni l'acompte reçu avant, ni la
-    Gamme (`argentHorsDuCarnet`, caisse-du-versement.ts). */
+    Gamme, ni les frais de la carte (`argentHorsDuCarnet`, caisse-du-versement.ts). */
 export const argentDuRituelSurLaPiece = (p: PieceLue): number =>
-  versementsDeLaPiece(p).filter((v) => v.method !== 'Acompte' && !/^Gamme\b/.test(v.note ?? '')).reduce((s, v) => s + (Number(v.amountXof) || 0), 0);
+  versementsDeLaPiece(p).filter((v) => v.method !== 'Acompte' && !/^Gamme\b/.test(v.note ?? '') && !/^Frais de carte\b/.test(v.note ?? '')).reduce((s, v) => s + (Number(v.amountXof) || 0), 0);
 
 /** Une pièce PAYÉE : de l'argent y est entré (ou elle se dit soldée). */
 export const pieceAPaye = (p: PieceLue): boolean =>

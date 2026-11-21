@@ -2,6 +2,16 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES FRAIS DE LA CARTE — 21 novembre 2026, À METTRE EN LIGNE (`cloture-du-jour` 2026-11-21-a D'ABORD, puis le Trône ; aucun SQL)
+
+« Cliente Eliane, qui est là présentement, veut payer par carte, mais je dois rajouter les frais sur sa transaction, les frais de 4 %. » (Yéman), puis « construis ».
+
+- **À l'encaissement d'un rendez-vous** (`PayAppointmentModal`, `clients/actions.tsx`) : une part sur la tuile « Carte » qui va au **terminal de la banque** porte d'office **4 %** de plus (`shared/frais-de-carte-pur.ts`, `FRAIS_DE_CARTE_PCT`, au franc supérieur). Sous la part : « Frais de carte 4 % : + 1 120 F · au terminal : 29 120 F », une case cochée qui les retire. La barre et le bouton disent « + frais de carte ». Ni FedaPay (son panneau dit déjà ses frais), ni l'argent en devise.
+- **Comme la Gamme** : une ligne « Frais de paiement par carte (4 %) » en dernier sur la pièce du rituel (marqueur `InvoiceLine.frais = 'carte'`), et un versement à part, même moyen, même caisse, même trace que la carte, note « Frais de carte, payés par la cliente ». Le rendez-vous (`paidXof`, le carnet) ne reçoit que le rituel ; le chiffre d'affaires (lu sur la pièce) compte les frais ; les commissions non (sur une pièce liée, seules les lignes produit comptent).
+- **Ce qui les reconnaît** : `argentHorsDuCarnet` / `versementsAInscrireAuCarnet` (`caisse-du-versement.ts`), la conformité (`alignerFacturesDuRituel` les met de côté et les repose : sinon une ligne « Ajustement », ou une pièce figée), la clôture du jour (`rituelDeLaPiece`, `argentDuRituelSurLaPiece`, recopiés dans `cloture-du-jour` 2026-11-21-a), une seconde part qui fait grandir la pièce (les frais d'avant restent).
+- **Pas couvert** : la Caisse du comptoir (`vente/Caisse.tsx`) et « Encaisser le solde » dans Factures n'ajoutent pas de frais. Là, une ligne libre à la main.
+- **Bancs** : `verifie-les-frais-de-carte` 31 (la conformité sans le garde : 4 cris) ; `banc-des-frais-de-carte` 23 dans Chrome (le Trône construit hors ligne : la case, le bouton qui passe à la ligne, la pièce de 29 120 F et ses deux versements, le rendez-vous à 28 000 F, la case décochée, les espèces, 360 px) ; `verifie-le-moment-en-trois` (le bouton du tiers : sans frais).
+
 ## LE POINT FINANCIER D'UNE CLIENTE — 21 novembre 2026, EN LIGNE (`relances-factures` v42 2026-11-21-a ; Trône build 20261121175429 @ 74bb75d1, 554/554 ; aucun SQL ; le modèle `rappel_du_point` déposé, APPROUVÉ par Meta (ID 1420586530122124, Utilitaire), secret `WA_TEMPLATE_RAPPEL_DU_POINT` posé, noté au Trône et dans le document des modèles)
 
 - **Au déploiement** : `relances.actives` à faux (inchangé), aucune facture ne portait de plan, la tournée n'a pas été appelée. **Le secret change une chose** : quand une relance part pour plusieurs factures d'un même payeur, elle part désormais en un seul `rappel_du_point` (dates différentes comprises).

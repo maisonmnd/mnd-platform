@@ -143,7 +143,7 @@ const PANNES = [
   { nom: 'La journee ne montre plus les pannes', fichier: LJ, avant: 'data-lj="pannes"', apres: 'data-lj="ailleurs"', disque: true },
   { nom: 'le Trone juge sans les pannes', fichier: PRISE, avant: '      pannes,\n    });', apres: '    });', disque: true },
   /* La copie, la fonction, la migration. */
-  { nom: 'un caractere change dans la copie de la fonction', fichier: FN, avant: "export const VERSION_DE_LA_CLOTURE = '2026-11-14-a';", apres: "export const VERSION_DE_LA_CLOTURE = '2026-11-14-b';", disque: true },
+  { nom: 'un caractere change dans la copie de la fonction', fichier: FN, avant: "export const VERSION_DE_LA_CLOTURE = '2026-11-21-a';", apres: "export const VERSION_DE_LA_CLOTURE = '2026-11-21-b';", disque: true },
   { nom: 'le maitre qui a pose un rendez-vous est prevenu', fichier: FN, avant: ".eq('table_name', 'invoices').eq('porte', 'trone')", apres: ".in('table_name', ['invoices', 'appointments']).eq('porte', 'trone')", disque: true },
   { nom: 'la porte de secours ouverte a toute l equipe', fichier: 'src/apps/trone/routes/finances/Caisses.tsx', avant: '{estDirection && (', apres: '{(true) && (', disque: true },
   { nom: 'la fonction ecrit sans relire', fichier: FN, avant: 'if (!gesteToujoursValable(', apres: 'if (false && !gesteToujoursValable(', disque: true },

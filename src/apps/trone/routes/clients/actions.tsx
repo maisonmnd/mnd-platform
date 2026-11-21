@@ -65,6 +65,7 @@ import { rdvsDuFoyerLeJour } from '../../../../shared/facture-du-foyer-pur';
 import { argentHorsDuCarnet, versementsAInscrireAuCarnet } from '../../../../shared/caisse-du-versement';
 import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 import { ChampsDeLaTrace } from '../vente/TraceDuMoyen';
+import { FRAIS_DE_CARTE_PCT, NOTE_FRAIS_DE_CARTE, estLigneDeFraisDeCarte, fraisDeCarteXof, ligneDesFraisDeCarte } from '../../../../shared/frais-de-carte-pur';
 import { caissesPourCorriger } from '../../../../shared/tri-des-caisses-pur';
 import {
   CAISSE_ANNEES_PASSEES, anneeDe, avecLesMoyensDeLaMaison, caisseProposee, caissesAuChoix, deviseDuMoyen, estAnneeAnterieure, MOYEN_MOMO_PRIVE, MOYEN_KKIAPAY,
@@ -980,6 +981,9 @@ type PartEnc = {
   engage?: boolean;
   /** Le moyen que le panneau FedaPay ouvre. */
   moyenFeda?: MoyenMndPay;
+  /** LES FRAIS DE LA CARTE DÉCOCHÉS (21 novembre 2026) : la part au terminal
+      ne porte pas ses 4 % cette fois. Absent = les frais s'ajoutent. */
+  sansFrais?: boolean;
 };
 const partNeuve = (tuile: TuileEnc, montant: number | ''): PartEnc =>
   ({ id: `pt-${uid()}`, tuile, montantStr: montant === '' ? '' : String(Math.max(0, Math.round(montant))) });
@@ -1670,6 +1674,16 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
      Caisse c'était le net de la facture ; ici la cliente tend les deux d'un bloc,
      et convertir le seul règlement lui ferait payer le pourboire en francs. */
   const tenderXof = amount + tip;
+  /* ── LES FRAIS DE LA CARTE — 21 novembre 2026 ─────────────────────────
+     « Je dois rajouter les frais sur sa transaction, les frais de 4 % »
+     (Yéman). La part passée au TERMINAL de la banque (la tuile « carte »)
+     porte d'office ses 4 %, qu'une case décoche. Ils ne soldent rien du
+     rituel : ils s'ajoutent à la pièce en une ligne, et se versent à part,
+     dans la caisse de la carte (`shared/frais-de-carte-pur`). FedaPay dit
+     ses propres frais ; l'argent en devise n'en porte pas. */
+  const fraisDeLaPart = (pt: PartEnc): number =>
+    (pt.tuile === 'carte' && !pt.sansFrais && !fxOn ? fraisDeCarteXof(montantDe(pt)) : 0);
+  const totalFrais = parts.reduce((n, pt) => n + fraisDeLaPart(pt), 0);
   const fxAmount = fxOn && fxRateNum > 0 ? Math.round((tenderXof / fxRateNum) * 100) / 100 : 0;
   /* Une caisse ne reçoit que sa devise : les euros vont au tiroir en euros, pas
      à celui de la maison. Sans caisse dans la devise reçue, on refuse plutôt que
@@ -1978,6 +1992,11 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
         .filter(([, q]) => q > 0)
         .map(([id, q]) => ligneProduit(id, nomProduit(id), prixProduit(id), q));
       const lignesPiece = lignesGamme.length > 0 ? [...lines, ...lignesGamme] : lines;
+      /* LES FRAIS DE LA CARTE, EN DERNIER (21 novembre 2026) : comme la Gamme,
+         après la remise globale, qui ne se mesure qu'au rituel. Une ligne pour
+         toutes les parts au terminal ; celles d'un règlement d'avant restent
+         sur la pièce (plus bas). */
+      const lignesFrais: InvoiceLine[] = totalFrais > 0 ? [ligneDesFraisDeCarte(totalFrais, `il-frais-${uid()}`)] : [];
 
       /* LES VERSEMENTS DE CE PASSAGE. Un par NATURE d'argent, car ils ne
          voyagent pas ensemble : le comptant entre en caisse, l'avoir est un
@@ -2016,6 +2035,20 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
              s'inscrivait sur une pièce existante : tiroir EUR vide, PDF muet. */
           ...(fxOn && fxAmount > 0 ? { fx: { code: fxCode, rate: fxRateNum, amount: fxAmount } } : {}),
         });
+        /* Les frais de cette part : leur propre versement, même moyen, même
+           caisse et même ticket que la carte. Fondus dans la part, ils
+           feraient croire à un rituel surpayé. */
+        const frais = fraisDeLaPart(pt);
+        if (frais > 0) {
+          versements.push({
+            id: `ip-${uid()}`, date: payDate, amountXof: frais,
+            method: c.methode, cashbox: c.caisse || undefined,
+            ...(trace ? { trace } : {}),
+            note: NOTE_FRAIS_DE_CARTE,
+            time: new Date().toTimeString().slice(0, 5),
+            ...(quiEncaisse() ? { encaissePar: quiEncaisse() } : {}),
+          });
+        }
       });
       if (avoirApplied > 0) {
         versements.push({
@@ -2065,7 +2098,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
         serie: 'F',
         clientId: payerId,
         date: invDate,
-        lines: lignesPiece,
+        lines: [...lignesPiece, ...lignesFrais],
         /* Remise VISIBLE : l'écart entre les prix pleins et le net encaissé —
            NOMMÉE quand c'est l'avantage du compte famille. */
         globalDiscountXof: detailRemise > 0 ? detailRemise : undefined,
@@ -2105,8 +2138,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
         inv = solder({
           ...pieceDuRituel,
           /* Les lignes se reconforment au rituel d'aujourd'hui — c'est la même
-             pièce qui grandit, pas une pièce neuve. */
-          lines: lignesPiece,
+             pièce qui grandit, pas une pièce neuve. Les frais de carte d'un
+             règlement d'avant restent : leur argent est sur la pièce. */
+          lines: [...lignesPiece, ...pieceDuRituel.lines.filter(estLigneDeFraisDeCarte), ...lignesFrais],
           globalDiscountPct: 0,
           globalDiscountXof: detailRemise > 0 ? detailRemise : undefined,
           discountLabel: detailRemise > 0 && appt.remiseFamille ? 'Remise famille' : undefined,
@@ -2359,11 +2393,12 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
       /* Le ticket réglé en bref : la pièce que ce geste vient d'écrire, les
          parts et leur caisse, le pourboire ; ce qui est fait. */
       const piece = idPieceEncaissee ? invoicesStore.get().find((i) => i.id === idPieceEncaissee) : undefined;
-      const sesParts = parts.map((pt, i) => ({ c: lesCaisses[i], x: montantDe(pt) })).filter((l) => l.x > 0);
+      /* Une part au terminal se dit frais compris : c'est ce que le ticket de la banque porte. */
+      const sesParts = parts.map((pt, i) => ({ c: lesCaisses[i], x: montantDe(pt) + fraisDeLaPart(pt) })).filter((l) => l.x > 0);
       setRegle({
         genre: 'regle',
         total: fullyPaid,
-        montantXof: settleTotal + totalGamme + (tipRecorded ? tip : 0),
+        montantXof: settleTotal + totalGamme + totalFrais + (tipRecorded ? tip : 0),
         resteXof: remainingAfter,
         sous: [quiNom ? `Encaissé par ${quiNom}` : 'Encaissé par ce poste', piece ? `facture ${piece.number}` : ''].filter(Boolean).join(' · '),
         lignes: [
@@ -2386,10 +2421,11 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
     }
     /* Alerte honnête : on ne prétend jamais avoir attribué un pourboire perdu. */
     const avoirMsg = avoirApplied > 0 ? ` (dont ${fmtMoney(avoirApplied, currency)} par avoir)` : '';
+    const fraisMsg = totalFrais > 0 ? ` + frais de carte ${fmtMoney(totalFrais, currency)}` : '';
     const payMsg = settleTotal > 0
       ? (fullyPaid
-          ? `Réglé en totalité · ${fmtMoney(settleTotal, currency)}${avoirMsg}.`
-          : `Paiement partiel enregistré · ${fmtMoney(settleTotal, currency)}${avoirMsg} · reste ${fmtMoney(remainingAfter, currency)}.`)
+          ? `Réglé en totalité · ${fmtMoney(settleTotal, currency)}${avoirMsg}${fraisMsg}.`
+          : `Paiement partiel enregistré · ${fmtMoney(settleTotal, currency)}${avoirMsg}${fraisMsg} · reste ${fmtMoney(remainingAfter, currency)}.`)
       : '';
     const tipMsg = tip <= 0 ? ''
       : tipRecorded ? ` · pourboire ${fmtMoney(tip, currency)} partagé en ${partsEcrites.length} parts`
@@ -3018,6 +3054,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
           <div style={{ fontSize: 12.5, lineHeight: 1.55, color: 'var(--ink)' }}>
             {lignesPayees.length > 0 ? lignesPayees.map(ditLaPart).join(' · ') : 'Rien d’encaissé pour l’instant.'}
             {totalGamme > 0 && ` · Gamme ${fmtMoney(totalGamme, currency)} → ${gammeBox || 'caisse à choisir'}`}
+            {totalFrais > 0 && ` · frais de carte ${fmtMoney(totalFrais, currency)}`}
             {tip > 0 && ` · pourboire ${fmtMoney(tip, currency)}`}
             {due > 0 && settleTotal > 0 && (
               <b style={{ display: 'block', fontWeight: 600, color: remainingAfter === 0 ? 'var(--color-indigo)' : 'var(--copper-700)' }}>
@@ -3041,6 +3078,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
           </label>
           <Button
             variant="copper"
+            /* Le libellé passe à la ligne : « + frais de carte » (21 novembre
+               2026) le faisait déborder de la colonne. */
+            style={LIBELLE_LONG}
             onClick={() => confirm()}
             disabled={(settleTotal <= 0 && totalGamme <= 0 && (tip <= 0 || partage.length === 0) && !depositJustConfirmed) || empecheTout}
           >
@@ -3056,9 +3096,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                     ? 'Confirmer l’acompte reçu'
                     /* LE TIERS DU JOUR, JAMAIS LE TOTAL (7 novembre 2026) : le Moment
                        en trois venues n'encaisse à chaque venue que son tiers. */
-                    : appt.momentEnTrois && totalGamme <= 0 && fullyPaid
+                    : appt.momentEnTrois && totalGamme <= 0 && totalFrais <= 0 && fullyPaid
                       ? phraseEncaisserLeTiers(appelDe(payerClient ?? client, appt.clientName), settleTotal, appt.momentEnTrois.tiers.length)
-                      : `Encaisser ${fmtMoney(settleTotal, currency)}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}${fullyPaid ? '' : ' (partiel)'}`}
+                      : `Encaisser ${fmtMoney(settleTotal, currency)}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}${totalFrais > 0 ? ` + frais de carte ${fmtMoney(totalFrais, currency)}` : ''}${fullyPaid ? '' : ' (partiel)'}`}
           </Button>
         </div>
         </aside>
@@ -3193,6 +3233,25 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                     Le reste
                   </button>
                 </div>
+                {/* LES FRAIS DE LA CARTE (21 novembre 2026) : cochés d'office,
+                    avec le montant à passer au terminal ; une case les retire. */}
+                {p.tuile === 'carte' && x > 0 && !fxOn && (
+                  <label data-frais-de-carte={fraisDeLaPart(p)} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12, lineHeight: 1.5, color: 'var(--ink-soft)', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={!p.sansFrais}
+                      onChange={(e) => majPart(p.id, { sansFrais: !e.target.checked })}
+                      style={{ accentColor: 'var(--color-copper)', marginTop: 3 }}
+                      aria-label={`Frais de carte ${FRAIS_DE_CARTE_PCT} % sur la part ${i + 1}`}
+                    />
+                    <span>
+                      Frais de carte {FRAIS_DE_CARTE_PCT}&nbsp;% : <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>+ {fmtMoney(fraisDeCarteXof(x), currency)}</b>
+                      {p.sansFrais
+                        ? ' · non demandés cette fois'
+                        : <> · au terminal : <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{fmtMoney(x + fraisDeCarteXof(x), currency)}</b></>}
+                    </span>
+                  </label>
+                )}
                 {/* OÙ VA L'ARGENT — la caisse se déduit de qui encaisse et du
                     moyen ; la direction seule la change (17 octobre 2026). */}
                 {p.tuile === 'avoir' ? (

@@ -58,6 +58,7 @@ import { sameName } from '../../../../shared/text';
 import { gammeNetteXof, gammeBruteXof, ligneNetteXof, ligneBruteXof, poseUnProduit, retireUnProduit, remiseDeLaLigne, ecartsDeTarif, manqueALEtagere, type LigneGamme } from '../../../../shared/gamme';
 import type { CommRates } from '../equipe/payroll';
 import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, quiEncaisse, type Invoice, type InvoiceLine, type Cashbox, totalProduitsXof } from '../../../../shared/finance';
+import { estLigneDeFraisDeCarte } from '../../../../shared/frais-de-carte-pur';
 import { releveDeLAbonnee, formuleProposeePourReserver, dansLaVie } from '../../../../shared/abonnee-pur';
 import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
 import { PALIER_DU_CODE_XOF } from '../vente/encaissement-pur';
@@ -1076,7 +1077,7 @@ export function alignerFacturesDuRituel(
   for (const s of byId.values()) nomsPrestations.add(s.name);
   const nomsProduits = new Set(produits.map((p) => p.name));
 
-  const conformer = (inv: Invoice): Invoice => {
+  const conformerLeRituel = (inv: Invoice): Invoice => {
     if (!liee(inv) || inv.kind !== 'facture') return inv;
     /* UNE PIÈCE PAS ENCORE PAYÉE SUIT LE RITUEL, TOTAL COMPRIS — 16 août 2026.
        Le garde ne laissait passer que les factures `payée` : une facture
@@ -1255,6 +1256,19 @@ export function alignerFacturesDuRituel(
         && (l.discountXof ?? 0) === (lines[i].discountXof ?? 0));
     if (deja) return inv;
     return { ...inv, lines, globalDiscountPct: 0, globalDiscountXof: remiseXof, discountLabel };
+  };
+
+  /* LES FRAIS DE LA CARTE RESTENT SUR LA PIÈCE — 21 novembre 2026. Ils ne
+     sont pas le rituel : la conformité les met de côté, conforme le reste,
+     puis les repose à la fin, intacts. Sans cela, sur une pièce payée, ils
+     devenaient une ligne « Ajustement » (le total ne bouge pas) et la
+     cliente ne lisait plus ce qu'elle avait payé. */
+  const conformer = (inv: Invoice): Invoice => {
+    const frais = (inv.lines ?? []).filter(estLigneDeFraisDeCarte);
+    if (frais.length === 0) return conformerLeRituel(inv);
+    const sansLesFrais: Invoice = { ...inv, lines: inv.lines.filter((l) => !estLigneDeFraisDeCarte(l)) };
+    const apres = conformerLeRituel(sansLesFrais);
+    return apres === sansLesFrais ? inv : { ...apres, lines: [...apres.lines, ...frais] };
   };
 
   /* `conformer` rend l'objet REÇU quand il n'a rien à corriger (garde

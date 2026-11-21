@@ -15,6 +15,7 @@
    remis à la cliente ne nomme pas les tiroirs de la Maison. */
 import { invoiceReglements, type Invoice, type InvoicePayment } from './finance';
 import type { Appointment } from './agenda';
+import { estVersementDeFraisDeCarte } from './frais-de-carte-pur';
 
 export type CorrectionDeVersement = Partial<Pick<InvoicePayment, 'method' | 'cashbox' | 'date'>>;
 
@@ -79,7 +80,9 @@ export const estLieALaPiece = (a: Appointment, inv: Invoice): boolean =>
    part), ni la Gamme (les produits ont leur propre versement), et le rendez-
    vous compte pour le plus grand de son journal et de son `paidXof` (les
    journaux d'avant le 17 août n'ont que la somme). */
-const horsDuRituel = (p: InvoicePayment): boolean => p.method === 'Acompte' || /^Gamme\b/.test(p.note ?? '');
+/* Les frais de la carte (21 novembre 2026) non plus : ils se paient avec le
+   rituel, mais ne sont pas le rituel (`shared/frais-de-carte-pur`). */
+const horsDuRituel = (p: InvoicePayment): boolean => p.method === 'Acompte' || /^Gamme\b/.test(p.note ?? '') || estVersementDeFraisDeCarte(p);
 
 export function argentHorsDuCarnet(appt: Appointment, piece: Invoice | undefined): number {
   if (!piece?.payments?.length) return 0;
