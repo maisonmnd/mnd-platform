@@ -24,7 +24,7 @@ import { useEngagements } from '../../../../shared/engagements';
 import { pourClaude, sansCoordonnees, type Personne } from '../../../../shared/ia-anonymise-pur';
 import { dateDite, heureDite, personnesDe, prenomDeLaFiche } from '../../../../shared/ia-fiche-du-jour-pur';
 import {
-  clientesDeLaQuestion, clientesDuNom, dernierJourDuMois, dureeEnClair, enDirectEnTexte, fenetreDesDepenses, fenetreDesRendezVous, francsPourPerle, lignesEnDirect, moisDAvant,
+  clientesDeLaQuestion, clientesDuNom, dernierJourDuMois, dureeEnClair, enDirectEnTexte, fenetreDesDepenses, fenetreDesRendezVous, francsPourPerle, lignesEnDirect, moisDAvant, sansLesClientes,
   type FaitLu, type LectureDemandee, type LigneEnDirect, type RdvDuJour,
 } from '../../../../shared/perle-pur';
 import { useAutoConfig, useStaff as useEquipe } from '../equipe/data';
@@ -98,6 +98,8 @@ export type Perle = {
   lis: (l: LectureDemandee, question: string) => FaitLu[];
   /** La question, telle qu'elle peut partir : les noms complets en prénom et initiale. */
   pourClaude: (texte: string) => string;
+  /** Ce qui part sur internet : sans numéro, et sans aucune cliente, même en prénom et initiale. */
+  pourInternet: (texte: string) => string;
 };
 
 export function usePerle(): Perle {
@@ -321,14 +323,19 @@ export function usePerle(): Perle {
       : 'Aucune dépense sur ces jours.')];
   };
 
+  const pourElle = (texte: string): string => {
+    /* Une cliente nommée par son seul nom de famille (« Mme Kossou ») : il devient son initiale. */
+    const nommees = clientesDeLaQuestion(texte, clients).flatMap((c) => personnesDe(c.name));
+    return pourClaude(texte, [...nommees, ...pleinsNoms]);
+  };
   return {
     jour, minutes, lignes,
     enDirectTexte: enDirectEnTexte(lignes),
     lis,
-    pourClaude: (texte: string) => {
-      /* Une cliente nommée par son seul nom de famille (« Mme Kossou ») : il devient son initiale. */
-      const nommees = clientesDeLaQuestion(texte, clients).flatMap((c) => personnesDe(c.name));
-      return pourClaude(texte, [...nommees, ...pleinsNoms]);
-    },
+    pourClaude: pourElle,
+    /* INTERNET (21 novembre 2026) : d'abord comme pour Claude (noms en prénom et
+       initiale, numéros retirés), puis chaque « Awa K. » de la Maison devient
+       « une cliente » : rien d'une cliente ne part vers un moteur de recherche. */
+    pourInternet: (texte: string) => sansLesClientes(pourElle(texte), clients.map((c) => prenomDeLaFiche(c.name))),
   };
 }

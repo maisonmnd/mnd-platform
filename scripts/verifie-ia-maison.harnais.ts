@@ -13,7 +13,8 @@ import { readFileSync, existsSync } from 'node:fs';
 import { transformSync } from 'esbuild';
 import {
   CLE_DU_COMPTEUR_DES_HUIT, MODELES_PAR_USAGE, OCTETS_MAX_PAR_IMAGE, PLAFOND_DES_HUIT_USD,
-  defautDeLaDemande, jetonsAccordes, peutDemander, saitIaMaison, type DemandeIa,
+  JETONS_D_INTERNET, MODELE_D_INTERNET, PRIX_DE_LA_RECHERCHE_USD, RECHERCHES_MAX_PAR_QUESTION,
+  defautDeLaDemande, jetonsAccordes, peutDemander, saitIaMaison, saitInternet, type DemandeIa,
 } from '../src/shared/ia-maison-pur';
 import { PRIX_PAR_MILLION, coutDeLAppel, moisACotonou } from '../src/shared/ia-budget-pur';
 import { sansCoordonnees } from '../src/shared/ia-anonymise-pur';
@@ -106,7 +107,7 @@ function serveur(o: Options = {}) {
   const fauxConsole = { log: (...a: unknown[]) => journal.push(a.map(String).join(' ')), error: (...a: unknown[]) => journal.push(a.map(String).join(' ')), warn: () => {} };
   // eslint-disable-next-line no-new-func
   const f = new Function('console', `${js}; return { traiteLaDemande, COFFRES_D_IMAGES };`)(fauxConsole) as { traiteLaDemande: Traite; COFFRES_D_IMAGES: readonly string[] };
-  const j = { appels: [] as Appel[], ecritures: [] as Record<string, unknown>[], telechargements: [] as [string, string, string][], journal };
+  const j = { appels: [] as Appel[], delais: [] as (number | undefined)[], ecritures: [] as Record<string, unknown>[], telechargements: [] as [string, string, string][], journal };
   let compteur: Record<string, unknown> = o.compteur ?? {};
   const file = Array.isArray(o.reponses) ? [...o.reponses] : null;
   const base = {
@@ -125,8 +126,9 @@ function serveur(o: Options = {}) {
   };
   const outils = {
     base,
-    appelleAnthropic: async (corps: Appel) => {
+    appelleAnthropic: async (corps: Appel, delaiMs?: number) => {
       j.appels.push(corps);
+      j.delais.push(delaiMs);
       if (o.panne) throw new Error(o.panne);
       if (typeof o.reponses === 'function') return o.reponses(corps);
       return file?.shift() ?? REPONSE_TEXTE;
@@ -319,6 +321,86 @@ const essais = async () => {
     const [st, r] = await s.demande(LETTRE);
     dit('sans schéma : pas d outil, le texte des blocs joints, data nulle', [200, undefined, undefined, 'Bonjour Awa D.,\nvotre lettre.', null],
       [st, s.j.appels[0].tools, s.j.appels[0].tool_choice, r.texte, r.data]);
+    dit('... et rien d internet : ni effort, ni délai en plus', [undefined, undefined], [s.j.appels[0].output_config, s.j.delais[0]]);
+  }
+
+  /* INTERNET — 21 novembre 2026, « oui internet » (Yéman, pour Perle). Le
+     seul chantier « question » (la direction), en texte, sans schéma ni
+     image ; l'outil de recherche d'Anthropic, trois recherches au plus, un
+     centime chacune en plus des jetons ; les sources rendues avec le texte. */
+  {
+    const QUESTION: DemandeIa = { chantier: 'question', usage: 'texte', systeme: 'Tu cherches sur internet.', messages: [{ role: 'user', content: 'Quel est le taux de TVA au Bénin ? Rappeler au 01 97 00 00 00.' }], web: true };
+    const TROUVEES = { type: 'web_search_tool_result', tool_use_id: 'st_1', content: [
+      { type: 'web_search_result', url: 'https://impots.exemple.bj/tva', title: 'La TVA' }, { type: 'web_search_result', url: 'https://presse.exemple/tva', title: 'TVA : le point' },
+      { type: 'web_search_result', url: 'javascript:alert(1)', title: 'Piège' }, { type: 'web_search_result', url: 'https://c.exemple/3', title: '' }, { type: 'web_search_result', url: 'https://d.exemple/4', title: 'Quatrième' },
+    ] };
+    const CHERCHE = { type: 'server_tool_use', id: 'st_1', name: 'web_search', input: { query: 'taux TVA Bénin' } };
+    const CHERCHEE: ReponseFausse = { status: 200, corps: { stop_reason: 'end_turn', usage: { input_tokens: 9000, output_tokens: 400, server_tool_use: { web_search_requests: 2 } }, content: [
+      CHERCHE, TROUVEES,
+      { type: 'text', text: 'Le taux normal est de ' },
+      { type: 'text', text: '18 %', citations: [{ type: 'web_search_result_location', url: 'https://impots.exemple.bj/tva', title: 'La TVA', cited_text: 'x' }, { type: 'web_search_result_location', url: 'https://impots.exemple.bj/tva', title: 'La TVA', cited_text: 'y' }] },
+      { type: 'text', text: ', selon la direction des impôts.' },
+    ] } };
+    {
+      const s = serveur({ reponses: [CHERCHEE] });
+      const [st, r] = await s.demande(QUESTION, 'jeton-de-la-fondatrice');
+      dit('internet : l outil de recherche, trois recherches au plus, le modèle du milieu seul, à petit effort, ses jetons et son délai',
+        [[{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }], undefined, 'claude-sonnet-5-5', { effort: 'low' }, 6000, 100_000, 1],
+        [s.j.appels[0].tools, s.j.appels[0].tool_choice, s.j.appels[0].model, s.j.appels[0].output_config, s.j.appels[0].max_tokens, s.j.delais[0], s.j.appels.length]);
+      dit('... les constantes du contrat sont celles que la fonction envoie', [3, 0.01, 'claude-sonnet-5-5', 6000], [RECHERCHES_MAX_PAR_QUESTION, PRIX_DE_LA_RECHERCHE_USD, MODELE_D_INTERNET, JETONS_D_INTERNET]);
+      dit('... le texte se recolle sans rien entre ses morceaux, et la source citée vient une fois', [200, 'Le taux normal est de 18 %, selon la direction des impôts.', { sources: [{ titre: 'La TVA', url: 'https://impots.exemple.bj/tva' }], recherches: 2 }],
+        [st, r.texte, r.data]);
+      /* Sonnet au prix du compteur (3 $ et 15 $ le million) : 0,027 + 0,006, plus deux recherches à un centime. */
+      dit('... le coût : les jetons et un centime par recherche, au compteur du mois et du chantier, en une écriture', [0.053, 1,
+        { '2026-10': { usd: 0.053, appels: 1, entree: 9000, sortie: 400 }, parChantier: { '2026-10': { question: { usd: 0.053, appels: 1 } } } }],
+        [r.coutUsd, s.j.ecritures.length, s.j.ecritures[0]]);
+      dit('... un numéro glissé dans la question ne part pas', 'Quel est le taux de TVA au Bénin ? Rappeler au [numéro].', (s.j.appels[0].messages as { content: string }[])[0].content);
+    }
+    {
+      const s = serveur({ acces: { 'dept-clientele': true, 'dept-finances': true, 'dept-vente-caisse': true } });
+      dit('internet : un maître, tous départements ouverts, reste dehors (le chantier est à la direction)', [[403, 'equipe'], 0], [code(await s.demande(QUESTION, 'jeton-du-maitre')), s.j.appels.length]);
+      const [st1, r1] = await s.demande({ ...LETTRE, web: true });
+      const [st2, r2] = await s.demande({ ...QUESTION, schema: SCHEMA });
+      const [st3, r3] = await s.demande({ ...QUESTION, web: 'oui' });
+      dit('internet : hors du chantier « question », avec un schéma, ou mal dit : format, avant tout appel',
+        [[400, 'La demande n’est pas recevable : la recherche sur internet n’est ouverte qu’aux questions de la direction.'],
+          [400, 'La demande n’est pas recevable : une recherche sur internet est un texte, sans image ni schéma.'],
+          [400, 'La demande n’est pas recevable : recherche sur internet mal formée.'], 0],
+        [[st1, r1.message], [st2, r2.message], [st3, r3.message], s.j.appels.length]);
+      dit('... et une question ordinaire de la direction n en prend rien', [200, undefined, 'claude-haiku-5-5'],
+        await (async () => { const t = serveur(); const [st] = await t.demande({ ...QUESTION, web: false }, 'jeton-de-la-gerante'); return [st, t.j.appels[0].tools, t.j.appels[0].model]; })());
+    }
+    {
+      /* LE TOUR EN PAUSE : ce qu'elle a rendu repart tel quel, et elle reprend. */
+      const PAUSE: ReponseFausse = { status: 200, corps: { stop_reason: 'pause_turn', usage: { input_tokens: 4000, output_tokens: 100, server_tool_use: { web_search_requests: 1 } }, content: [CHERCHE, TROUVEES] } };
+      const SUITE: ReponseFausse = { status: 200, corps: { stop_reason: 'end_turn', usage: { input_tokens: 6000, output_tokens: 100, server_tool_use: { web_search_requests: 1 } }, content: [{ type: 'text', text: 'Dix-huit pour cent.' }] } };
+      const s = serveur({ reponses: [PAUSE, SUITE] });
+      const [st, r] = await s.demande(QUESTION, 'jeton-de-la-gerante');
+      const second = s.j.appels[1].messages as { role: string; content: unknown }[];
+      dit('internet : un tour en pause reprend, ses blocs renvoyés tels quels, avec un délai plus court', [200, 2, ['user', 'assistant'], JSON.stringify([CHERCHE, TROUVEES]), [100_000, 45_000]],
+        [st, s.j.appels.length, second.map((m) => m.role), JSON.stringify(second[1].content), s.j.delais]);
+      dit('... la réponse est celle de la reprise ; sans citation, les trois premières vraies pages trouvées', ['Dix-huit pour cent.',
+        [{ titre: 'La TVA', url: 'https://impots.exemple.bj/tva' }, { titre: 'TVA : le point', url: 'https://presse.exemple/tva' }, { titre: 'https://c.exemple/3', url: 'https://c.exemple/3' }], 2],
+        [r.texte, (r.data as { sources: unknown }).sources, (r.data as { recherches: number }).recherches]);
+      dit('... et tout se compte ensemble, en une écriture : les jetons des deux appels, deux recherches', [0.053, 1, 10000, 200],
+        [r.coutUsd, s.j.ecritures.length, (s.j.ecritures[0]['2026-10'] as { entree: number }).entree, (s.j.ecritures[0]['2026-10'] as { sortie: number }).sortie]);
+    }
+    {
+      const PAUSE: ReponseFausse = { status: 200, corps: { stop_reason: 'pause_turn', usage: { input_tokens: 1000, output_tokens: 10, server_tool_use: { web_search_requests: 1 } }, content: [CHERCHE] } };
+      const s = serveur({ reponses: () => PAUSE });
+      const [st, r] = await s.demande(QUESTION, 'jeton-de-la-gerante');
+      dit('internet : une pause sans fin s arrête à deux reprises, ne rend rien d inventé, et ce qui est dépensé reste dû', [502, 'claude', 'La recherche sur internet n’a rien rendu : reformulez la question.', 3, 1, 0.0395],
+        [st, r.erreur, r.message, s.j.appels.length, s.j.ecritures.length, (s.j.ecritures[0]['2026-10'] as { usd: number }).usd]);
+    }
+    {
+      const ERREUR: ReponseFausse = { status: 200, corps: { stop_reason: 'max_tokens', usage: { input_tokens: 1000, output_tokens: 6000 }, content: [
+        CHERCHE, { type: 'web_search_tool_result', tool_use_id: 'st_1', content: { type: 'web_search_tool_result_error', error_code: 'max_uses_exceeded' } }, { type: 'text', text: 'Je n’ai pas pu chercher davantage' },
+      ] } };
+      const s = serveur({ reponses: [ERREUR] });
+      const [st, r] = await s.demande(QUESTION, 'jeton-de-la-gerante');
+      dit('internet : une recherche en erreur ne fait pas tomber la porte ; une réponse coupée se dit coupée', [200, 'Je n’ai pas pu chercher davantage', { sources: [], recherches: 0, coupee: true }], [st, r.texte, r.data]);
+    }
+    dit('le Trône ne propose internet qu à partir de la fonction qui le sait', [true, true, false, false], [saitInternet('2026-11-21-a'), saitInternet('2026-12-01-a'), saitInternet('2026-11-18-b'), saitInternet(undefined)]);
   }
 
   /* LE MODÈLE ET SON REMPLAÇANT. */
@@ -410,7 +492,7 @@ async function vraisOutils() {
 const structure = () => {
   const brut = lis(FONCTION);
   const f = sansCommentaires(brut);
-  dit('la fonction dit sa version et répond 405 à un GET avec elle', [true, true], [/const VERSION = '2026-11-18-b';/.test(f), /if \(req\.method !== 'POST'\) return json\(\{ error: 'method', version: VERSION \}, 405\);/.test(f)]);
+  dit('la fonction dit sa version et répond 405 à un GET avec elle', [true, true], [/const VERSION = '2026-11-21-a';/.test(f),/if \(req\.method !== 'POST'\) return json\(\{ error: 'method', version: VERSION \}, 405\);/.test(f)]);
   dit('l en-tête dit Verify JWT ALLUMÉ, et les secrets qui existent déjà', [true, true, true], [/Verify JWT ALLUMÉ/.test(brut), /ANTHROPIC_API_KEY et CLE_SERVICE/.test(brut), /aucun secret nouveau/.test(brut)]);
   dit('la porte lit la personne du jeton, puis sa ligne staff (rôle)', [true, true],
     [/await admin\.auth\.getUser\(jwt\)/.test(f), /from\('staff'\)\.select\('user_id, role'\)\.eq\('user_id', uid\)\.maybeSingle\(\)/.test(f)]);
@@ -420,8 +502,10 @@ const structure = () => {
   dit('le compteur s écrit par un upsert de la clé des huit', true, /upsert\(\{ key: CLE_DU_COMPTEUR_DES_HUIT, data: doc \}\)/.test(f));
   dit('aucun coffre ne se lit par le client de service ; chaque requête bâtit ses outils avec SA clé publique', [false, true, true],
     [/admin\s*\.\s*storage/.test(f), /base: baseDeLaRequete\(clePubliqueDe\(req\)\)/.test(f), /o\.base\.telecharge\(im\.coffre, im\.chemin, jwt\)/.test(f)]);
-  dit('Anthropic par fetch, la clé en en-tête, la version d API, soixante secondes au plus', [true, true, true, true],
-    [/fetch\('https:\/\/api\.anthropic\.com\/v1\/messages'/.test(f), /'x-api-key': ANTHROPIC_API_KEY/.test(f), /'anthropic-version': '2023-06-01'/.test(f), /setTimeout\(\(\) => arret\.abort\(\), 60_000\)/.test(f)]);
+  /* 21 novembre 2026 : le délai se passe à l'appel (une recherche sur internet en reçoit plus) ; sans lui, soixante secondes. */
+  dit('Anthropic par fetch, la clé en en-tête, la version d API, soixante secondes au plus sans autre délai', [true, true, true, true, true],
+    [/fetch\('https:\/\/api\.anthropic\.com\/v1\/messages'/.test(f), /'x-api-key': ANTHROPIC_API_KEY/.test(f), /'anthropic-version': '2023-06-01'/.test(f),
+      /async function appelleAnthropic\(corps: Record<string, unknown>, delaiMs = 60_000\)/.test(f), /setTimeout\(\(\) => arret\.abort\(\), delaiMs\)/.test(f)]);
   /* La clé ne vit que sur trois lignes : lue, exigée, mise en en-tête. Toute
      autre ligne (un console.log, un json) est une fuite. */
   dit('la clé n est jamais journalisée ni rendue : trois lignes seulement la portent', [

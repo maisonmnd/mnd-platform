@@ -7,9 +7,9 @@ import { useBranch } from '../../../../shared/branches';
 import { useStaff } from '../../../../shared/auth';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { demandeAClaude, versionDeIaMaison } from '../../../../shared/ia-maison';
-import { dollarsDits, saitLeTableauIntelligent, type MessageIa } from '../../../../shared/ia-maison-pur';
+import { dollarsDits, saitInternet, saitLeTableauIntelligent, type MessageIa, type SourceInternet } from '../../../../shared/ia-maison-pur';
 import {
-  QUESTIONS_PROPOSEES, demandeDeLaReponse, demandeDuPlan, ecransLus, momentDit, planLu, reponsePropre, type FaitLu,
+  QUESTIONS_PROPOSEES, demandeDInternet, demandeDeLaReponse, demandeDuPlan, ecransLus, momentDit, planLu, reponsePropre, sourcesPropres, type FaitLu,
 } from '../../../../shared/perle-pur';
 import { usePerle } from './perle-donnees';
 import './demander-a-perle.css';
@@ -27,7 +27,11 @@ import './demander-a-perle.css';
    La conversation reste sur ce poste, une liste par personne, jamais reliée
    au serveur (comme « Rechercher ») : la direction y écrit des noms. */
 
-type Echange = { id: string; question: string; reponse: string; ecrans: { nom: string; chemin: string }[]; quand: string; coutUsd?: number };
+type Echange = {
+  id: string; question: string; reponse: string; ecrans: { nom: string; chemin: string }[]; quand: string; coutUsd?: number;
+  /** Cherchée sur internet (21 novembre 2026) : ses sources, et la réponse coupée si elle l'a été. */
+  internet?: boolean; sources?: SourceInternet[]; coupee?: boolean;
+};
 const ECHANGES_GARDES = 30;
 const SIGNES_MAX = 1200;
 const filDePerleStore = createStore<Record<string, Echange[]>>('mnd_perle_fil', {});
@@ -78,6 +82,8 @@ export default function DemanderAPerle() {
   const [enCours, setEnCours] = useState('');
   const [refus, setRefus] = useState('');
   const [claude, setClaude] = useState<boolean | null>(null);
+  /* Internet ne se propose que si la fonction posée sait chercher. */
+  const [internet, setInternet] = useState(false);
   const [ecoute, setEcoute] = useState(false);
   const reco = useRef<Reconnaissance | null>(null);
   const bas = useRef<HTMLDivElement | null>(null);
@@ -87,7 +93,7 @@ export default function DemanderAPerle() {
     return !!(w.SpeechRecognition ?? w.webkitSpeechRecognition);
   });
 
-  useEffect(() => { let v = true; void versionDeIaMaison().then((x) => { if (v) setClaude(saitLeTableauIntelligent(x)); }); return () => { v = false; }; }, []);
+  useEffect(() => { let v = true; void versionDeIaMaison().then((x) => { if (v) { setClaude(saitLeTableauIntelligent(x)); setInternet(saitInternet(x)); } }); return () => { v = false; }; }, []);
   useEffect(() => () => { reco.current?.stop(); }, []);
   useEffect(() => { bas.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, [fil.length, enCours]);
 
@@ -116,9 +122,24 @@ export default function DemanderAPerle() {
       ]);
       const pourElle = perle.pourClaude(q);
       const contexte = { question: pourElle, jour: perle.jour, minutes: perle.minutes, enDirect: perle.enDirectTexte, avant };
-      const r1 = await demandeAClaude<unknown>(demandeDuPlan(contexte));
+      const r1 = await demandeAClaude<unknown>(demandeDuPlan({ ...contexte, internet }));
       if (!r1.ok) { setRefus(r1.message); return; }
       const plan = planLu(r1.data);
+      /* INTERNET : la question reformulée par Perle part SEULE, sans le fil ni
+         les tours d'avant, et sans aucune cliente (`pourInternet`). */
+      if (plan.internet && internet) {
+        setEnCours('Perle cherche sur internet…');
+        const r3 = await demandeAClaude<{ sources?: unknown; coupee?: unknown }>(demandeDInternet({ question: perle.pourInternet(plan.internet), jour: perle.jour, minutes: perle.minutes }));
+        if (!r3.ok) { setRefus(r3.message); return; }
+        const trouvee = reponsePropre(r3.texte);
+        if (!trouvee) { setRefus('Perle n’a rien trouvé de sûr sur internet. Reformulez la question.'); return; }
+        garde({
+          id: uid(), question: q, reponse: trouvee, quand: new Date().toISOString(), coutUsd: r1.coutUsd + r3.coutUsd, ecrans: [],
+          internet: true, sources: sourcesPropres(r3.data?.sources), ...(r3.data?.coupee === true ? { coupee: true } : {}),
+        });
+        setQuestion('');
+        return;
+      }
       let reponse = plan.reponse;
       let faits: FaitLu[] = [];
       let cout = r1.coutUsd;
@@ -175,6 +196,7 @@ export default function DemanderAPerle() {
             <div className="trp-perle__accueil">
               <h3>Que voulez-vous savoir ?</h3>
               <p>La caisse du jour, les rendez-vous, une cliente, les factures en attente, le mois, les dépenses, les conversations qui attendent : posez la question comme vous la diriez.</p>
+              {internet && <p>Une question sur le monde hors de la Maison (un taux, une règle, un prix du marché) part sur internet, sans le nom d’aucune cliente, et revient avec ses sources.</p>}
             </div>
           )}
           {fil.map((e) => (
@@ -182,8 +204,18 @@ export default function DemanderAPerle() {
               <p className="trp-perle__moi">{e.question}</p>
               <article className="trp-perle__elle">
                 <Reponse texte={e.reponse} />
+                {e.coupee && <p className="trp-perle__source">La réponse a été coupée avant sa fin : reposez la question, plus précise.</p>}
+                {e.internet && (e.sources?.length ?? 0) > 0 && (
+                  <ul className="trp-perle__sources" aria-label="Les sources">
+                    {(e.sources ?? []).map((s) => (
+                      <li key={s.url}><a href={s.url} target="_blank" rel="noopener noreferrer">{s.titre}</a></li>
+                    ))}
+                  </ul>
+                )}
                 <p className="trp-perle__source">
-                  {e.ecrans.length ? `Lu dans : ${e.ecrans.map((x) => x.nom).join(', ')}.` : 'Lu dans : En direct.'}
+                  {e.internet
+                    ? 'Cherché sur internet, pas dans le Trône : à confirmer à la source avant de décider.'
+                    : e.ecrans.length ? `Lu dans : ${e.ecrans.map((x) => x.nom).join(', ')}.` : 'Lu dans : En direct.'}
                   {typeof e.coutUsd === 'number' && e.coutUsd > 0 ? ` Cette réponse : ${dollarsDits(e.coutUsd)}.` : ''}
                 </p>
                 {e.ecrans.length > 0 && (

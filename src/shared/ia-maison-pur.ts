@@ -73,7 +73,24 @@ export type DemandeIa = {
   images?: ImageIa[];
   schema?: Record<string, unknown>;
   maxTokens?: number;
+  /** CHERCHER SUR INTERNET (21 novembre 2026, « oui internet ») : Claude
+      cherche sur le web avant de répondre. Le seul chantier `question` (la
+      direction), en texte, sans schéma ni image ; la fonction rend alors ses
+      sources dans `data.sources`. Rien de la Maison ne part dans cette
+      demande : le Trône n'y met que la question, sans aucun nom. */
+  web?: boolean;
 };
+
+/** INTERNET : trois recherches au plus par question, comptées un centime
+    chacune en plus des jetons ; le modèle du milieu (l'outil de recherche
+    récent ne tourne pas sur le rapide) ; et plus de jetons qu'un texte
+    ordinaire, parce que chercher puis répondre en demande. */
+export const RECHERCHES_MAX_PAR_QUESTION = 3;
+export const PRIX_DE_LA_RECHERCHE_USD = 0.01;
+export const MODELE_D_INTERNET = 'claude-sonnet-5-5';
+export const JETONS_D_INTERNET = 6000;
+/** Une source rendue avec la réponse : le titre de la page et son adresse. */
+export type SourceInternet = { titre: string; url: string };
 
 export type ReponseIa<T = unknown> =
   | { ok: true; data: T; texte: string; modele: string; coutUsd: number; resteUsd: number }
@@ -116,6 +133,11 @@ export function defautDeLaDemande(d: Partial<DemandeIa> | null | undefined): str
   }
   if (d.schema !== undefined && (typeof d.schema !== 'object' || d.schema === null || Array.isArray(d.schema))) return 'schéma mal formé';
   if (d.maxTokens !== undefined && (!Number.isFinite(d.maxTokens) || d.maxTokens < 50)) return 'maxTokens mal formé';
+  if (d.web !== undefined && typeof d.web !== 'boolean') return 'recherche sur internet mal formée';
+  if (d.web) {
+    if (d.chantier !== 'question') return 'la recherche sur internet n’est ouverte qu’aux questions de la direction';
+    if (d.usage !== 'texte' || images.length || d.schema !== undefined) return 'une recherche sur internet est un texte, sans image ni schéma';
+  }
   return null;
 }
 
@@ -170,6 +192,8 @@ export const saitLAchatParPhotos = (version: string | undefined): boolean => !!v
 export const saitLeDevisParDescription = (version: string | undefined): boolean => !!version && version >= '2026-11-13-a';
 /** La fonction qui connaît le chantier de l'agent des rendez-vous (18 novembre 2026). */
 export const saitLAgentDesRendezVous = (version: string | undefined): boolean => !!version && version >= '2026-11-18-a';
+/** La fonction qui sait chercher sur internet pour Perle (21 novembre 2026). */
+export const saitInternet = (version: string | undefined): boolean => !!version && version >= '2026-11-21-a';
 /* ⟨/ia-maison⟩ */
 
 /** « 12 $ », « 0,40 $ » : ce que coûte un appel, dit au Trône. */

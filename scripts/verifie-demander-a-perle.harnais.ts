@@ -9,7 +9,8 @@
 import { readFileSync } from 'node:fs';
 import {
   CHANTIER_DE_PERLE, LECTURES, LECTURES_MAX, NOMS_DES_LECTURES, SCHEMA_DU_PLAN, SIGNES_DE_FAITS_MAX,
-  auFauteuil, clientesDeLaQuestion, clientesDuNom, demandeDeLaReponse, demandeDuPlan, dureeEnClair, ecransLus, enDirectEnTexte, encoreAttendues,
+  QUESTION_INTERNET_MAX, auFauteuil, clientesDeLaQuestion, clientesDuNom, demandeDInternet, demandeDeLaReponse, demandeDuPlan, dureeEnClair, ecransLus, enDirectEnTexte, encoreAttendues,
+  sansLesClientes, sourcesPropres,
   faitsEnTexte, fenetreDesDepenses, fenetreDesRendezVous, francsPourPerle, lignesEnDirect, moisDAvant, dernierJourDuMois, momentDit, planLu, reponsePropre, toursDAvant,
   type FaitsEnDirect, type RdvDuJour,
 } from '../src/shared/perle-pur';
@@ -39,17 +40,17 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
 
 /* ── 2. Le plan, lu sans rien croire ── */
 {
-  dit('une reponse seule', { reponse: 'Deux rituels.', lectures: [] }, planLu({ reponse: ' Deux rituels. ', lectures: [] }));
-  dit('des lectures : la reponse d avance ne se garde pas', { reponse: '', lectures: [{ nom: 'journee', jour: '2026-11-20' }] },
+  dit('une reponse seule', { reponse: 'Deux rituels.', lectures: [], internet: '' }, planLu({ reponse: ' Deux rituels. ', lectures: [] }));
+  dit('des lectures : la reponse d avance ne se garde pas', { reponse: '', lectures: [{ nom: 'journee', jour: '2026-11-20' }], internet: '' },
     planLu({ reponse: 'Je pense que…', lectures: [{ nom: 'journee', jour: '2026-11-20' }] }));
-  dit('une lecture inconnue tombe', { reponse: '', lectures: [{ nom: 'impayes' }] }, planLu({ reponse: '', lectures: [{ nom: 'efface_tout' }, { nom: 'impayes' }] }));
+  dit('une lecture inconnue tombe', { reponse: '', lectures: [{ nom: 'impayes' }], internet: '' }, planLu({ reponse: '', lectures: [{ nom: 'efface_tout' }, { nom: 'impayes' }] }));
   dit('une date mal formee tombe, pas la lecture', [{ nom: 'rendez_vous', au: '2026-11-25' }],
     planLu({ reponse: '', lectures: [{ nom: 'rendez_vous', du: 'demain', au: '2026-11-25', jour: '2026-13-45' }] }).lectures);
   dit('un mois « AAAA-MM », un nom borne a 80 signes', [{ nom: 'mois', mois: '2026-10' }, 80],
     [planLu({ reponse: '', lectures: [{ nom: 'mois', mois: '2026-10' }] }).lectures[0], planLu({ reponse: '', lectures: [{ nom: 'cliente', cliente: 'a'.repeat(300) }] }).lectures[0].cliente?.length]);
   dit('quatre lectures au plus, sans doublon', ['journee', 'impayes', 'mois', 'depenses'],
     planLu({ reponse: '', lectures: [{ nom: 'journee' }, { nom: 'journee' }, { nom: 'impayes' }, { nom: 'mois' }, { nom: 'depenses' }, { nom: 'abonnements' }, { nom: 'conversations' }] }).lectures.map((l) => l.nom));
-  dit('n importe quoi ne rend rien', [{ reponse: '', lectures: [] }, { reponse: '', lectures: [] }, { reponse: '', lectures: [] }],
+  dit('n importe quoi ne rend rien', [{ reponse: '', lectures: [], internet: '' }, { reponse: '', lectures: [], internet: '' }, { reponse: '', lectures: [], internet: '' }],
     [planLu(null), planLu('bonjour'), planLu({ reponse: 12, lectures: 'journee' })]);
 }
 
@@ -146,6 +147,48 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
   dit('une cliente se dit « Awa K. » dans les faits', ['Awa K.', 'Éric'], [prenomDeLaFiche('Awa Kossou'), prenomDeLaFiche('Éric')]);
 }
 
+/* ── 6 bis. Internet (21 novembre 2026, « oui internet ») ── */
+{
+  const base = { question: 'Quel est le taux de TVA au Bénin ?', jour: '2026-11-21', minutes: 600, enDirect: '- rien' };
+  const avec = demandeDuPlan({ ...base, internet: true });
+  const sans = demandeDuPlan(base);
+  dit('le plan ne propose internet que si la fonction posee sait chercher', [true, false, true, true],
+    [avec.systeme.includes('écris dans « internet » la question à chercher'), sans.systeme.includes('écris dans « internet »'),
+      sans.systeme.includes('tu ne lis pour l’instant que le Trône'), avec.systeme.includes('Une question sur la Maison ne va jamais sur internet.')]);
+  dit('... et il demande une question SANS nom de personne ni chiffre de la Maison', true, avec.systeme.includes('reformulée SANS aucun nom de personne ni chiffre de la Maison'));
+  dit('le plan lu : internet, quand il n y a ni lecture ; sa reponse d avance tombe', { reponse: '', lectures: [], internet: 'taux de TVA au Bénin en 2026' },
+    planLu({ reponse: 'Je crois que…', lectures: [], internet: '  taux de TVA au Bénin en 2026 ' }));
+  dit('... le Trone d abord : avec une lecture, rien ne part sur internet', { reponse: '', lectures: [{ nom: 'mois' }], internet: '' },
+    planLu({ reponse: '', lectures: [{ nom: 'mois' }], internet: 'chiffre d affaires moyen d un salon' }));
+  dit('... une question bornee a 400 signes ; autre chose qu un texte ne compte pas', [QUESTION_INTERNET_MAX, 400, ''],
+    [QUESTION_INTERNET_MAX, planLu({ reponse: '', lectures: [], internet: 'x'.repeat(2000) }).internet.length, planLu({ reponse: 'ok', lectures: [], internet: { q: 1 } }).internet]);
+
+  const d = demandeDInternet({ question: '  taux de TVA au Bénin en 2026  ', jour: '2026-11-21', minutes: 15 * 60 + 13 });
+  dit('la recherche : le chantier de la direction, en texte, `web`, sans schema', ['question', 'texte', true, undefined, null], [d.chantier, d.usage, d.web, d.schema, defautDeLaDemande(d)]);
+  dit('... la question SEULE : ni le fil En direct, ni les tours d avant', [[{ role: 'user', content: 'taux de TVA au Bénin en 2026' }], false, false],
+    [d.messages, d.systeme.includes('FAITS'), d.systeme.includes('Encaissé')]);
+  dit('... ses regles : le Benin d abord, la source nommee, la date, pas un conseil, jamais une personne privee', [true, true, true, true, true, true],
+    [d.systeme.includes('cherche d’abord ce qui vaut au Bénin'), d.systeme.includes('Nomme le site'), d.systeme.includes('Donne la date de l’information'),
+      d.systeme.includes('c’est une information, pas un conseil'), d.systeme.includes('Ne cherche jamais le nom d’une personne privée'), d.systeme.includes('samedi 21 novembre 2026, 15 h 13 à Cotonou')]);
+  dit('la recherche est reservee au chantier « question » : ailleurs, la porte la refuse', 'la recherche sur internet n’est ouverte qu’aux questions de la direction',
+    defautDeLaDemande({ ...d, chantier: 'reponse-wa' }));
+
+  const etiquettes = ['Awa K.', 'Awa Marie K.', 'Chloé F.', 'Éric', 'Bénédicte D.'];
+  dit('ce qui part sur internet ne porte aucune cliente, meme en prenom et initiale', 'Que répondre à une cliente et à une cliente qui demandent un devis ?',
+    sansLesClientes('Que répondre à Awa Marie K. et à Chloé F. qui demandent un devis ?', etiquettes));
+  dit('... sans casse ni bord de mot manque ; un prenom seul reste un mot de tous les jours', ['une cliente veut un prix.', 'Éric cherche un taux', 'Le forfait Awa Kiné'],
+    [sansLesClientes('awa k. veut un prix.', etiquettes), sansLesClientes('Éric cherche un taux', etiquettes), sansLesClientes('Le forfait Awa Kiné', etiquettes)]);
+  dit('la chaine entiere : nom complet -> prenom et initiale -> « une cliente », et le numero tombe', 'Comment relancer une cliente au [numéro] ?',
+    sansLesClientes(pourClaude('Comment relancer Awa Kossou au 97 00 00 99 ?', [{ prenom: 'Awa', nom: 'Kossou' }]), ['Awa K.']));
+
+  dit('les sources : des adresses web seulement, sans doublon, six au plus ; sans titre, le nom du site',
+    [{ titre: 'La TVA', url: 'https://impots.exemple.bj/tva' }, { titre: 'presse.exemple', url: 'https://www.presse.exemple/a?b=1' }],
+    sourcesPropres([{ titre: 'La TVA', url: 'https://impots.exemple.bj/tva' }, { titre: 'Encore', url: 'https://impots.exemple.bj/tva' }, { titre: 'Piège', url: 'javascript:alert(1)' },
+      { titre: '', url: 'https://www.presse.exemple/a?b=1' }, { url: 'ftp://x.exemple' }, null, 'https://nu.exemple', { titre: 'Espace', url: 'https://x.exemple/a b' }]));
+  dit('... six au plus, et n importe quoi ne rend rien', [6, [], []],
+    [sourcesPropres(Array.from({ length: 9 }, (_, i) => ({ titre: `S${i}`, url: `https://s${i}.exemple/` }))).length, sourcesPropres(null), sourcesPropres({ url: 'https://x.exemple' })]);
+}
+
 /* ── 7. En direct ── */
 {
   const rdvs: RdvDuJour[] = [
@@ -214,6 +257,16 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
       ecran.includes('const contexte = { question: pourElle, jour: perle.jour, minutes: perle.minutes, enDirect: perle.enDirectTexte, avant };'),
       /demandeDuPlan\(\{[^}]*question: q\b/.test(ecran)]);
   dit('la lecture d une cliente se fait sur la vraie question, au Trone', true, ecran.includes('faits = plan.lectures.flatMap((l) => perle.lis(l, q));'));
+  /* Internet (21 novembre 2026). */
+  dit('internet : la question reformulee part seule, par `pourInternet`, et seulement si la fonction sait chercher', [true, true, true, false],
+    [ecran.includes('if (plan.internet && internet) {'), ecran.includes('demandeDInternet({ question: perle.pourInternet(plan.internet), jour: perle.jour, minutes: perle.minutes })'),
+      ecran.includes('const r1 = await demandeAClaude<unknown>(demandeDuPlan({ ...contexte, internet }));'), /demandeDInternet\(\{[^}]*(avant|enDirect)/.test(ecran)]);
+  dit('... `pourInternet` retire les clientes apres l anonymisation ordinaire', true,
+    donnees.includes('pourInternet: (texte: string) => sansLesClientes(pourElle(texte), clients.map((c) => prenomDeLaFiche(c.name))),'));
+  dit('... les sources passent par `sourcesPropres` et s ouvrent a part, sans donner la main a la page ouverte', [true, true, true],
+    [ecran.includes('sources: sourcesPropres(r3.data?.sources)'), ecran.includes('<a href={s.url} target="_blank" rel="noopener noreferrer">{s.titre}</a>'),
+      ecran.includes('Cherché sur internet, pas dans le Trône : à confirmer à la source avant de décider.')]);
+  dit('... et l ecran ne propose internet que sur la version qui le sait', true, ecran.includes('setInternet(saitInternet(x));'));
   dit('l ecran redit sa garde, et sa conversation reste sur le poste', [true, true, false],
     [ecran.includes("const direction = moi?.role === 'souverain' || moi?.role === 'gerant';"), ecran.includes("createStore<Record<string, Echange[]>>('mnd_perle_fil', {})"), /bindDocument|bindCollection/.test(ecran)]);
   const ECRITURES = /Store\.set\(|envoieSurWhatsApp|poseUnRendezVous|honorAppointment|remplaceLeRendezVous|\.upsert\(|\.insert\(|\.update\(/;

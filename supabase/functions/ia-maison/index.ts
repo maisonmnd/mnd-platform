@@ -42,6 +42,12 @@
         elle rend `texte` ;
      7. LE COÛT réel (les jetons rendus par l'API) s'ajoute au compteur, par
         mois et par chantier ; la réponse dit ce qu'il reste.
+   INTERNET (21 novembre 2026, `web: true`, le seul chantier « question », la
+   direction) : l'outil de recherche d'Anthropic, trois recherches au plus,
+   sur le modèle du milieu ; un tour en pause reprend deux fois au plus ; la
+   réponse porte ses sources (`data.sources`) ; chaque recherche compte un
+   centime de plus au compteur. La question qui arrive ne porte rien de la
+   Maison : c'est le Trône qui s'en charge, la porte ne retire que les numéros.
    Ce qu'elle rend est TOUJOURS une proposition : rien ne s'inscrit ni ne
    part d'ici. Un GET rend la version (405) : le Trône ne propose un chantier
    que si la fonction posée le sait (`saitIaMaison`).
@@ -72,8 +78,9 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 
 /** La version de ce fichier : `saitIaMaison` du Trône la compare.
     2026-11-18-a : l'agent des rendez-vous ; 2026-11-18-b : les clés de service
-    reconnues à temps constant (⟨cle-du-cron⟩). */
-const VERSION = '2026-11-18-b';
+    reconnues à temps constant (⟨cle-du-cron⟩) ; 2026-11-21-a : Perle cherche
+    sur internet (`web`, le seul chantier « question »). */
+const VERSION = '2026-11-21-a';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -135,7 +142,24 @@ export type DemandeIa = {
   images?: ImageIa[];
   schema?: Record<string, unknown>;
   maxTokens?: number;
+  /** CHERCHER SUR INTERNET (21 novembre 2026, « oui internet ») : Claude
+      cherche sur le web avant de répondre. Le seul chantier `question` (la
+      direction), en texte, sans schéma ni image ; la fonction rend alors ses
+      sources dans `data.sources`. Rien de la Maison ne part dans cette
+      demande : le Trône n'y met que la question, sans aucun nom. */
+  web?: boolean;
 };
+
+/** INTERNET : trois recherches au plus par question, comptées un centime
+    chacune en plus des jetons ; le modèle du milieu (l'outil de recherche
+    récent ne tourne pas sur le rapide) ; et plus de jetons qu'un texte
+    ordinaire, parce que chercher puis répondre en demande. */
+export const RECHERCHES_MAX_PAR_QUESTION = 3;
+export const PRIX_DE_LA_RECHERCHE_USD = 0.01;
+export const MODELE_D_INTERNET = 'claude-sonnet-5-5';
+export const JETONS_D_INTERNET = 6000;
+/** Une source rendue avec la réponse : le titre de la page et son adresse. */
+export type SourceInternet = { titre: string; url: string };
 
 export type ReponseIa<T = unknown> =
   | { ok: true; data: T; texte: string; modele: string; coutUsd: number; resteUsd: number }
@@ -178,6 +202,11 @@ export function defautDeLaDemande(d: Partial<DemandeIa> | null | undefined): str
   }
   if (d.schema !== undefined && (typeof d.schema !== 'object' || d.schema === null || Array.isArray(d.schema))) return 'schéma mal formé';
   if (d.maxTokens !== undefined && (!Number.isFinite(d.maxTokens) || d.maxTokens < 50)) return 'maxTokens mal formé';
+  if (d.web !== undefined && typeof d.web !== 'boolean') return 'recherche sur internet mal formée';
+  if (d.web) {
+    if (d.chantier !== 'question') return 'la recherche sur internet n’est ouverte qu’aux questions de la direction';
+    if (d.usage !== 'texte' || images.length || d.schema !== undefined) return 'une recherche sur internet est un texte, sans image ni schéma';
+  }
   return null;
 }
 
@@ -232,6 +261,8 @@ export const saitLAchatParPhotos = (version: string | undefined): boolean => !!v
 export const saitLeDevisParDescription = (version: string | undefined): boolean => !!version && version >= '2026-11-13-a';
 /** La fonction qui connaît le chantier de l'agent des rendez-vous (18 novembre 2026). */
 export const saitLAgentDesRendezVous = (version: string | undefined): boolean => !!version && version >= '2026-11-18-a';
+/** La fonction qui sait chercher sur internet pour Perle (21 novembre 2026). */
+export const saitInternet = (version: string | undefined): boolean => !!version && version >= '2026-11-21-a';
 /* ⟨/ia-maison⟩ */
 
 /* CE QUI SORT VERS CLAUDE ET LE PLAFOND, RECOPIÉS ENTIERS comme dans
@@ -433,8 +464,14 @@ type DetailParChantier = Record<string, Record<string, { usd: number; appels: nu
     ia-budget-pur, une clé par mois) et, à côté, sous `parChantier`, le détail. */
 type DocumentDuCompteur = Record<string, unknown>;
 type Fichier = { octets: Uint8Array; mime: string };
-type BlocAnthropic = { type: string; text?: string; name?: string; input?: unknown };
-type UsageAnthropic = { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number };
+/* Un bloc se renvoie TEL QUEL quand le tour reprend après une pause (`pause_turn`) :
+   on n'en lit que ces champs, on n'en retire aucun. */
+type BlocAnthropic = { type: string; text?: string; name?: string; input?: unknown; citations?: { url?: unknown; title?: unknown }[]; content?: unknown };
+type UsageAnthropic = {
+  input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number;
+  /** Les recherches sur internet faites pendant l'appel (comptées à part des jetons). */
+  server_tool_use?: { web_search_requests?: number };
+};
 type CorpsAnthropic = { content?: BlocAnthropic[]; usage?: UsageAnthropic; stop_reason?: string; error?: { type?: string; message?: string } };
 type BaseDeLaMaison = {
   /** L'identifiant de la personne derrière le jeton de session, ou null. */
@@ -453,8 +490,9 @@ type BaseDeLaMaison = {
 type OutilsDeLaMaison = {
   base: BaseDeLaMaison;
   /** L'appel brut à Anthropic : le statut HTTP et le corps. Lance si le
-      réseau ou le délai lâche. */
-  appelleAnthropic(corps: Record<string, unknown>): Promise<{ status: number; corps: CorpsAnthropic }>;
+      réseau ou le délai lâche. `delaiMs` : soixante secondes sans lui ; une
+      recherche sur internet en reçoit davantage. */
+  appelleAnthropic(corps: Record<string, unknown>, delaiMs?: number): Promise<{ status: number; corps: CorpsAnthropic }>;
   maintenant(): Date;
 };
 type Rendu = [number, Record<string, unknown>];
@@ -489,6 +527,50 @@ function documentApres(doc: DocumentDuCompteur, mois: string, chantier: string, 
       [mois]: { ...(detail[mois] ?? {}), [chantier]: { usd: Math.round((avant.usd + cout) * 10_000) / 10_000, appels: avant.appels + 1 } },
     },
   };
+}
+
+/* ── INTERNET (21 novembre 2026) ─────────────────────────────────────── */
+/** Une recherche prend son temps : près de deux minutes pour le premier
+    appel, moins pour une reprise ; et deux reprises au plus. */
+const DELAI_D_INTERNET_MS = 100_000;
+const DELAI_DE_LA_REPRISE_MS = 45_000;
+const REPRISES_D_INTERNET = 2;
+
+/** Le document après un appel qui a cherché : chaque recherche ajoute son
+    centime à la ligne du mois et au détail du chantier (`documentApres` ne
+    compte que les jetons). Sans recherche, rien ne bouge. */
+function avecLesRecherches(doc: DocumentDuCompteur, mois: string, chantier: string, recherches: number): DocumentDuCompteur {
+  const plus = Math.max(0, recherches) * PRIX_DE_LA_RECHERCHE_USD;
+  if (plus <= 0) return doc;
+  const ligne = (doc[mois] ?? { usd: 0, appels: 0, entree: 0, sortie: 0 }) as LigneDuCompteur;
+  const detail = (doc.parChantier ?? {}) as DetailParChantier;
+  const duChantier = detail[mois]?.[chantier] ?? { usd: 0, appels: 0 };
+  const arrondi = (x: number) => Math.round(x * 10_000) / 10_000;
+  return {
+    ...doc,
+    [mois]: { ...ligne, usd: arrondi(ligne.usd + plus) },
+    parChantier: { ...detail, [mois]: { ...(detail[mois] ?? {}), [chantier]: { ...duChantier, usd: arrondi(duChantier.usd + plus) } } },
+  };
+}
+
+/** LES SOURCES D'UNE RÉPONSE CHERCHÉE : les pages que le texte cite, dans
+    l'ordre, sans doublon, six au plus ; s'il n'en cite aucune, les trois
+    premières pages trouvées. Une adresse qui n'est pas une adresse web ne
+    se rend pas. */
+function sourcesDe(blocs: readonly BlocAnthropic[]): { titre: string; url: string }[] {
+  const vues = new Map<string, string>();
+  const ajoute = (url: unknown, titre: unknown, max: number) => {
+    if (typeof url !== 'string' || !/^https?:\/\//i.test(url) || vues.has(url) || vues.size >= max) return;
+    vues.set(url, typeof titre === 'string' && titre.trim() ? titre.trim().slice(0, 140) : url);
+  };
+  for (const b of blocs) if (b.type === 'text') for (const c of b.citations ?? []) ajoute(c?.url, c?.title, 6);
+  if (!vues.size) {
+    for (const b of blocs) {
+      if (b.type !== 'web_search_tool_result' || !Array.isArray(b.content)) continue;
+      for (const r of b.content as { url?: unknown; title?: unknown }[]) ajoute(r?.url, r?.title, 3);
+    }
+  }
+  return [...vues].map(([url, titre]) => ({ titre, url }));
 }
 
 /** Le modèle n'est pas ouvert à la clé : on passe au remplaçant (comme `discussion`). */
@@ -545,21 +627,31 @@ async function traiteLaDemande(o: OutilsDeLaMaison, body: unknown, jwt: string):
       ...(premier.content.trim() ? [{ type: 'text', text: premier.content }] : []),
     ]
     : premier.content;
-  const fil = [{ role: 'user', content: charge }, ...messages.slice(1)];
+  const fil: { role: string; content: unknown }[] = [{ role: 'user', content: charge }, ...messages.slice(1)];
   const schema = d.schema;
+  /* CHERCHER SUR INTERNET (21 novembre 2026) : l'outil de recherche d'Anthropic,
+     trois recherches au plus ; le modèle du milieu seul (l'outil récent ne
+     tourne pas sur le rapide), à petit effort ; plus de jetons, parce que
+     chercher puis répondre en demande. Le contrat l'a réservé au chantier
+     « question », sans schéma ni image. */
+  const web = d.web === true;
   const corpsCommun: Record<string, unknown> = {
-    max_tokens: jetonsAccordes(d.maxTokens),
+    max_tokens: web ? JETONS_D_INTERNET : jetonsAccordes(d.maxTokens),
     system: systeme,
     messages: fil,
     ...(schema
       ? { tools: [{ name: 'reponds', description: 'La réponse, dans la forme demandée.', input_schema: schema }], tool_choice: { type: 'tool', name: 'reponds' } }
       : {}),
+    ...(web
+      ? { tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: RECHERCHES_MAX_PAR_QUESTION }], output_config: { effort: 'low' } }
+      : {}),
   };
+  const depart = o.maintenant().getTime();
   let derniere = '';
-  for (const modele of MODELES_PAR_USAGE[d.usage]) {
+  for (const modele of (web ? [MODELE_D_INTERNET] : MODELES_PAR_USAGE[d.usage])) {
     let r: { status: number; corps: CorpsAnthropic };
     try {
-      r = await o.appelleAnthropic({ model: modele, ...corpsCommun });
+      r = await o.appelleAnthropic({ model: modele, ...corpsCommun }, web ? DELAI_D_INTERNET_MS : undefined);
     } catch (e) {
       return refus(502, 'claude', `Claude n’a pas répondu : ${String((e as Error)?.message ?? e).slice(0, 300)}`);
     }
@@ -578,17 +670,43 @@ async function traiteLaDemande(o: OutilsDeLaMaison, body: unknown, jwt: string):
        au même instant peuvent se marcher dessus d'un coût d'appel : le
        compteur est une estimation prudente, pas une facture (la vraie se lit
        chez Anthropic), et ce n'est pas grave. */
-    const u = r.corps.usage ?? {};
-    const entree = Math.max(0, Number(u.input_tokens) || 0) + Math.max(0, Number(u.cache_creation_input_tokens) || 0) + Math.max(0, Number(u.cache_read_input_tokens) || 0);
-    const sortie = Math.max(0, Number(u.output_tokens) || 0);
-    const cout = coutDeLAppel(modele, entree, sortie);
-    const frais = documentApres(await o.base.compteur(), mois, d.chantier, modele, entree, sortie);
+    /* LE TOUR EN PAUSE (`pause_turn`) : une recherche longue rend la main avant
+       d'avoir fini. On renvoie ce qu'elle a rendu, TEL QUEL, et elle reprend ;
+       deux reprises au plus, et jamais passé la minute et demie (la fonction
+       a un délai, mieux vaut une réponse courte qu'aucune). Ce qui est déjà
+       dépensé reste dû, reprise réussie ou non. */
+    const comptes = [r.corps.usage ?? {}];
+    let blocs: BlocAnthropic[] = r.corps.content ?? [];
+    let arret = r.corps.stop_reason;
+    for (let reprise = 0; web && arret === 'pause_turn' && reprise < REPRISES_D_INTERNET && o.maintenant().getTime() - depart < 90_000; reprise += 1) {
+      let suite: { status: number; corps: CorpsAnthropic };
+      try {
+        suite = await o.appelleAnthropic({ model: modele, ...corpsCommun, messages: [...fil, { role: 'assistant', content: blocs }] }, DELAI_DE_LA_REPRISE_MS);
+      } catch { break; }
+      if (suite.status < 200 || suite.status >= 300) break;
+      comptes.push(suite.corps.usage ?? {});
+      blocs = [...blocs, ...(suite.corps.content ?? [])];
+      arret = suite.corps.stop_reason;
+    }
+    const entree = comptes.reduce((s, u) => s + Math.max(0, Number(u.input_tokens) || 0) + Math.max(0, Number(u.cache_creation_input_tokens) || 0) + Math.max(0, Number(u.cache_read_input_tokens) || 0), 0);
+    const sortie = comptes.reduce((s, u) => s + Math.max(0, Number(u.output_tokens) || 0), 0);
+    /* Les recherches se paient à part des jetons : un centime chacune. */
+    const recherches = comptes.reduce((s, u) => s + Math.max(0, Math.floor(Number(u.server_tool_use?.web_search_requests) || 0)), 0);
+    const cout = Math.round((coutDeLAppel(modele, entree, sortie) + recherches * PRIX_DE_LA_RECHERCHE_USD) * 10_000) / 10_000;
+    const frais = avecLesRecherches(documentApres(await o.base.compteur(), mois, d.chantier, modele, entree, sortie), mois, d.chantier, recherches);
     await o.base.ecrisLeCompteur(frais);
     const reste = peutAppeler(lignesDuCompteur(frais), mois, PLAFOND_DES_HUIT_USD).reste;
     /* Le journal, sobre : jamais le contenu, jamais la clé. */
-    console.log(`ia-maison: ${d.chantier} ${modele} entrée=${entree} sortie=${sortie} coût=${cout} $ reste=${reste} $`);
+    console.log(`ia-maison: ${d.chantier} ${modele} entrée=${entree} sortie=${sortie}${web ? ` recherches=${recherches}` : ''} coût=${cout} $ reste=${reste} $`);
 
-    const blocs = r.corps.content ?? [];
+    if (web) {
+      /* Une réponse citée arrive en plusieurs morceaux de texte, coupés aux
+         citations, parfois au milieu d'une phrase : ils se recollent sans
+         rien entre eux. */
+      const texte = blocs.filter((b) => b.type === 'text').map((b) => b.text ?? '').join('').trim();
+      if (!texte) return refus(502, 'claude', 'La recherche sur internet n’a rien rendu : reformulez la question.', { resteUsd: reste });
+      return [200, { ok: true, data: { sources: sourcesDe(blocs), recherches, ...(arret === 'max_tokens' || arret === 'pause_turn' ? { coupee: true } : {}) }, texte, modele, coutUsd: cout, resteUsd: reste }];
+    }
     if (schema) {
       /* COUPÉE EN ROUTE (19 octobre 2026) : au bout de ses jetons, Claude
          rend un outil inachevé, une liste qui s'arrête au troisième article
@@ -694,10 +812,10 @@ function baseDeLaRequete(clePublique: string): BaseDeLaMaison {
 /** Anthropic, soixante secondes au plus (une lecture de quatre photos prend
     son temps). Rend le statut et le corps ; lance si le réseau ou le délai
     lâche. La clé ne figure que dans l'en-tête de la requête. */
-async function appelleAnthropic(corps: Record<string, unknown>): Promise<{ status: number; corps: CorpsAnthropic }> {
+async function appelleAnthropic(corps: Record<string, unknown>, delaiMs = 60_000): Promise<{ status: number; corps: CorpsAnthropic }> {
   if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY manque dans les secrets de la fonction.');
   const arret = new AbortController();
-  const minuterie = setTimeout(() => arret.abort(), 60_000);
+  const minuterie = setTimeout(() => arret.abort(), delaiMs);
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -710,7 +828,7 @@ async function appelleAnthropic(corps: Record<string, unknown>): Promise<{ statu
     try { lu = JSON.parse(texte) as CorpsAnthropic; } catch { lu = { error: { message: texte.slice(0, 200) } }; }
     return { status: r.status, corps: lu };
   } catch (e) {
-    throw new Error(arret.signal.aborted ? 'soixante secondes sans réponse' : String((e as Error)?.message ?? e));
+    throw new Error(arret.signal.aborted ? `${Math.round(delaiMs / 1000)} secondes sans réponse` : String((e as Error)?.message ?? e));
   } finally {
     clearTimeout(minuterie);
   }

@@ -128,12 +128,13 @@ export const SCHEMA_DU_PLAN: Record<string, unknown> = {
         required: ['nom'],
       },
     },
+    internet: { type: 'string', description: 'La question à chercher sur internet, reformulée sans aucun nom de personne ni chiffre de la Maison ; sinon une chaîne vide.' },
   },
   required: ['reponse', 'lectures'],
 };
 
 /** LE PLAN : la question, le moment, les faits en direct, le catalogue. */
-export function demandeDuPlan(o: { question: string; jour: string; minutes: number; enDirect: string; avant?: readonly MessageIa[] }): DemandeIa {
+export function demandeDuPlan(o: { question: string; jour: string; minutes: number; enDirect: string; avant?: readonly MessageIa[]; internet?: boolean }): DemandeIa {
   const catalogue = NOMS_DES_LECTURES.map((n) => `- ${LECTURES[n].dit}`).join('\n');
   return {
     chantier: CHANTIER_DE_PERLE,
@@ -145,7 +146,9 @@ export function demandeDuPlan(o: { question: string; jour: string; minutes: numb
       o.enDirect || '(aucun)',
       'Si ces faits suffisent à répondre, écris la réponse dans « reponse » et laisse « lectures » vide. Sinon laisse « reponse » vide et demande les lectures qu’il te faut, quatre au plus, parmi celles-ci :',
       catalogue,
-      'Une question qui ne porte pas sur la Maison (le monde, internet, un conseil général) n’a pas de lecture : réponds dans « reponse » que tu ne lis pour l’instant que le Trône.',
+      o.internet
+        ? 'Une question qui porte sur le monde hors de la Maison (un taux, une loi, un impôt, un prix du marché, une actualité, une idée à trouver) ne se lit pas dans le Trône : laisse « reponse » vide et « lectures » vide, et écris dans « internet » la question à chercher, en une phrase, reformulée SANS aucun nom de personne ni chiffre de la Maison. Une question sur la Maison ne va jamais sur internet.'
+        : 'Une question qui ne porte pas sur la Maison (le monde, internet, un conseil général) n’a pas de lecture : réponds dans « reponse » que tu ne lis pour l’instant que le Trône.',
     ].join('\n\n'),
     messages: [...toursDAvant(o.avant ?? []), { role: 'user', content: o.question.trim().slice(0, 1200) }],
     schema: SCHEMA_DU_PLAN,
@@ -159,8 +162,8 @@ const texteCourt = (v: unknown, n: number): string | undefined => (typeof v === 
 /** LE PLAN, LU SANS RIEN CROIRE : une réponse, ou des lectures du catalogue,
     quatre au plus, sans doublon, leurs arguments au bon format. Une forme
     qu'on ne reconnaît pas ne rend ni réponse ni lecture. */
-export function planLu(data: unknown): { reponse: string; lectures: LectureDemandee[] } {
-  const d = (data && typeof data === 'object' ? data : {}) as { reponse?: unknown; lectures?: unknown };
+export function planLu(data: unknown): { reponse: string; lectures: LectureDemandee[]; internet: string } {
+  const d = (data && typeof data === 'object' ? data : {}) as { reponse?: unknown; lectures?: unknown; internet?: unknown };
   const lectures: LectureDemandee[] = [];
   const vues = new Set<string>();
   for (const brut of Array.isArray(d.lectures) ? d.lectures : []) {
@@ -180,8 +183,70 @@ export function planLu(data: unknown): { reponse: string; lectures: LectureDeman
     if (lectures.length >= LECTURES_MAX) break;
   }
   const reponse = typeof d.reponse === 'string' ? d.reponse.trim() : '';
-  /* Des lectures demandées : la réponse attend les faits, on n'en garde aucune d'avance. */
-  return lectures.length ? { reponse: '', lectures } : { reponse, lectures: [] };
+  /* Des lectures demandées : la réponse attend les faits, on n'en garde aucune d'avance.
+     Le Trône d'abord : une question qui a ses lectures ne part pas sur internet. */
+  if (lectures.length) return { reponse: '', lectures, internet: '' };
+  const internet = texteCourt(d.internet, QUESTION_INTERNET_MAX) ?? '';
+  return internet ? { reponse: '', lectures: [], internet } : { reponse, lectures: [], internet: '' };
+}
+
+/* ── 1 bis. INTERNET (21 novembre 2026, « oui internet ») ───────────────── */
+
+/** La question cherchée sur internet, au plus (une phrase, pas un dossier). */
+export const QUESTION_INTERNET_MAX = 400;
+
+const REGLES_D_INTERNET = [
+  'Tu es Perle, l’assistante de Maison MND, une maison de soins des locks à Cotonou, au Bénin. Tu réponds à sa direction.',
+  'Tu cherches sur internet, puis tu réponds avec ce que tu y as trouvé. Quand la réponse dépend du pays, cherche d’abord ce qui vaut au Bénin (franc CFA, zone UEMOA).',
+  'Français simple, phrases courtes. Jamais de tiret cadratin : une virgule à la place. Pas d’emoji. Pas de mise en forme : ni astérisques, ni dièses, ni tableaux, ni adresse de page dans le texte (le Trône affiche les sources). Une liste s’écrit une ligne par élément, chacune commençant par un tiret et une espace.',
+  'Ne présente comme sûr que ce que les sources disent. Si elles se contredisent, si elles datent, ou si tu ne trouves pas, dis-le. Donne la date de l’information quand elle compte (un taux, un prix, une loi).',
+  'Nomme le site d’où vient un chiffre ou une règle, dans la phrase.',
+  'Pour le droit, l’impôt, la santé : c’est une information, pas un conseil. Termine par une phrase qui invite à le confirmer à la source officielle ou auprès d’un professionnel.',
+  'Ne cherche jamais le nom d’une personne privée (une cliente, quelqu’un de l’équipe). Si la question en porte un, réponds sans lui.',
+  'La réponse d’abord, puis ce qui l’explique. Huit phrases au plus.',
+].join('\n');
+
+/** UN TEXTE QUI PART SUR INTERNET NE PORTE AUCUNE CLIENTE. Chez Claude, une
+    cliente se dit « Awa K. » ; sur un moteur de recherche, même cela est de
+    trop. Chaque étiquette connue de la Maison (prénom et initiale) devient
+    « une cliente », les plus longues d'abord. Un prénom seul, lui, reste :
+    c'est un mot de tous les jours. */
+export function sansLesClientes(texte: string, etiquettes: readonly string[]): string {
+  let t = String(texte ?? '');
+  const connues = [...new Set(etiquettes.map((e) => e.trim()).filter((e) => /\s\S+\.$/.test(e)))].sort((a, b) => b.length - a.length);
+  for (const e of connues) {
+    const motif = e.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    t = t.replace(new RegExp(`(^|[^\\p{L}])${motif}(?=$|[^\\p{L}])`, 'giu'), (_m, avant: string) => `${avant}une cliente`);
+  }
+  return t;
+}
+
+/** LES SOURCES, LUES SANS RIEN CROIRE : des adresses web seulement (jamais
+    un `javascript:` qu'un lien ouvrirait), sans doublon, six au plus ; une
+    source sans titre porte le nom de son site. */
+export function sourcesPropres(brut: unknown): { titre: string; url: string }[] {
+  const vues = new Map<string, string>();
+  for (const s of Array.isArray(brut) ? brut : []) {
+    const url = s && typeof s === 'object' ? (s as { url?: unknown }).url : null;
+    if (typeof url !== 'string' || !/^https?:\/\/[^\s<>"']+$/i.test(url) || vues.has(url) || vues.size >= 6) continue;
+    const titre = (s as { titre?: unknown }).titre;
+    let site = url;
+    try { site = new URL(url).hostname.replace(/^www\./, ''); } catch { /* l'adresse reste telle quelle */ }
+    vues.set(url, typeof titre === 'string' && titre.trim() && titre.trim() !== url ? titre.trim().slice(0, 140) : site);
+  }
+  return [...vues].map(([url, titre]) => ({ titre, url }));
+}
+
+/** LA RECHERCHE : la question seule, sans rien de la Maison (ni le fil « En
+    direct », ni les tours d'avant, où une cliente a pu être nommée). */
+export function demandeDInternet(o: { question: string; jour: string; minutes: number }): DemandeIa {
+  return {
+    chantier: CHANTIER_DE_PERLE,
+    usage: 'texte',
+    web: true,
+    systeme: [REGLES_D_INTERNET, `Nous sommes le ${momentDit(o.jour, o.minutes)}.`].join('\n\n'),
+    messages: [{ role: 'user', content: o.question.trim().slice(0, QUESTION_INTERNET_MAX) }],
+  };
 }
 
 /* ── 2. LA RÉPONSE ──────────────────────────────────────────────────────── */
