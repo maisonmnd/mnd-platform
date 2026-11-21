@@ -30,7 +30,10 @@ const require = createRequire(DEPOT + '/package.json');
 const qrcode = require('qrcode-generator');
 const args = process.argv.slice(2);
 const iAdresse = args.indexOf('--adresse');
-const SORTIE = path.resolve(args.find((a, i) => !a.startsWith('--') && i !== iAdresse + 1) || path.join(tmpdir(), 'qr-du-comptoir'));
+/* Le dossier donné : le premier argument qui n'est ni une option ni la valeur
+   de `--adresse` (sans `--adresse`, le premier argument compte : avant le
+   21 novembre 2026, il était écarté et tout partait au dossier temporaire). */
+const SORTIE = path.resolve(args.find((a, i) => !a.startsWith('--') && (iAdresse < 0 || i !== iAdresse + 1)) || path.join(tmpdir(), 'qr-du-comptoir'));
 mkdirSync(SORTIE, { recursive: true });
 
 /* L'adresse de la page du comptoir : l'origine des sites, puis le Trône. */
@@ -47,7 +50,10 @@ const CHEMIN_DU_COMPTOIR = '/trone/regler.html?comptoir';
 const ADRESSE = iAdresse >= 0 ? args[iAdresse + 1] : `${origineDesPages()}${CHEMIN_DU_COMPTOIR}`;
 if (!/^https:\/\/[^/]+\/.+\?comptoir$/.test(ADRESSE)) throw new Error(`adresse du comptoir illisible : ${ADRESSE}`);
 const ADRESSE_DITE = ADRESSE.replace(/^https:\/\//, '');
-const DEVISE = 'mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là';
+/* LA DEVISE, LUE À SA SEULE SOURCE (`DEVISE_COMPLETE`, shared/identite.ts),
+   jamais recopiée à la main : chaque copie finissait par diverger. */
+const DEVISE = /export const DEVISE_COMPLETE = '([^']+)';/.exec(readFileSync(`${DEPOT}/src/shared/identite.ts`, 'utf8'))?.[1];
+if (!DEVISE) throw new Error('La devise introuvable dans src/shared/identite.ts.');
 
 /* Le QR, en modules carrés indigo, sans marge (la carte blanche fait la marge). */
 function qrSvg(donnee, couleur = '#15173A') {
@@ -105,7 +111,7 @@ body { width: 148mm; height: 210mm; }
   <p class="sur">Réglez votre rituel</p>
   <div class="carte">${qrSvg(ADRESSE)}</div>
   <h1 class="titre">Scannez, tapez votre numéro MTN,<br>validez sur votre téléphone.</h1>
-  <p class="note">Le montant de votre rendez-vous s’affiche tout seul, frais MTN de 1,6 % compris.</p>
+  <p class="note">Le montant de votre rendez-vous s’affiche tout seul,<br>frais MTN de 1,6&nbsp;% compris.</p>
   <p class="pied">${ADRESSE_DITE}<br>Moov, Celtiis, carte : à l’accueil, ou par votre lien « Régler ».</p>
   <p class="devise">${DEVISE}</p>
 </div></body></html>`;
