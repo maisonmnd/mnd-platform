@@ -86,8 +86,13 @@
    porte le reste, le merci et 1,6 % de frais au franc supérieur
    (`fraisAjoutesMtn`, colonne `frais_ajoutes_xof`, 0241) ; à la
    confirmation, la Maison n'écrit en dépense que la part des frais de MTN
-   que ces 1,6 % ne couvrent pas (`fraisALaChargeDeLaMaison`). */
-const VERSION = '2026-11-20-a';
+   que ces 1,6 % ne couvrent pas (`fraisALaChargeDeLaMaison`).
+
+   2026-11-21-a · LES FRAIS MTN GARDÉS (« Crée une rubrique », Yéman) : ce
+   que les 1,6 % laissent après les 1,2 % de MTN entre au tiroir « MTN
+   Collection », une entrée hors activité par règlement, motif « Frais MTN
+   gardés » (`entreeDesFraisGardes`, table entrees_hors_activite). */
+const VERSION = '2026-11-21-a';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -628,6 +633,34 @@ function depenseDesFraisMtn(o: { reference: string; branchId: string; fraisXof: 
   };
 }
 
+/** LES FRAIS MTN GARDÉS — 21 novembre 2026. « Le reste environ 0,4 % chez
+    MTN doivent s'inscrire quelque part dans le Trône. Crée une rubrique »
+    (Yéman ; au sélecteur : une rubrique à part, dans la caisse MTN
+    Collection). Ce que les 1,6 % de la cliente laissent après les frais que
+    MTN retient entre au tiroir « MTN Collection » : une entrée hors activité
+    par règlement, motif « Frais MTN gardés ». Le solde du tiroir suit ainsi
+    le compte MTN ; la Synthèse la lit sous le trait, à part du chiffre
+    d'affaires des prestations ; le registre des encaissements la montre. */
+const MOTIF_FRAIS_MTN_GARDES = 'Frais MTN gardés';
+/** Ce que la Maison garde des frais ajoutés : eux moins ceux de MTN, jamais négatif. */
+const fraisMtnGardes = (fraisMtnXof: number, fraisAjoutesXof: unknown): number =>
+  Math.max(0, Math.max(0, Math.round(Number(fraisAjoutesXof) || 0)) - Math.max(0, Math.round(Number(fraisMtnXof) || 0)));
+/** L'ENTRÉE DES FRAIS GARDÉS, une par règlement (son identifiant tient à la
+    référence : un rejeu écrit la même ligne), au tiroir « MTN Collection ». */
+function entreeDesFraisGardes(o: { reference: string; branchId: string; gardesXof: number; jour: string; qui?: string }) {
+  return {
+    id: `hors-mtn-${String(o.reference).toLowerCase()}`,
+    branchId: o.branchId,
+    date: o.jour,
+    sens: 'entree' as const,
+    motif: MOTIF_FRAIS_MTN_GARDES,
+    label: `${MOTIF_FRAIS_MTN_GARDES}${o.qui ? ` · ${o.qui}` : ''}`,
+    amountXof: Math.max(0, Math.round(o.gardesXof)),
+    cashbox: CAISSE_MTN_COLLECTION,
+    note: `Les 1,6 % payés par la cliente, moins les 1,2 % retenus par MTN · référence ${String(o.reference).toLowerCase()}`,
+  };
+}
+
 /** LA CAISSE « MTN Collection » de la branche, née au premier règlement. */
 const caisseMtnNeuve = (branchId: string) => ({
   id: `cb-mtn-collection-${branchId}`, branchId, name: CAISSE_MTN_COLLECTION, sub: 'Règlements par MTN, compte de collecte', glyph: '◈', openingXof: 0,
@@ -1022,6 +1055,13 @@ async function poser(c: CollecteMtn): Promise<{ pose: boolean; honore: boolean; 
     if (aSaCharge > 0 && branche) {
       const d = depenseDesFraisMtn({ reference: c.reference, branchId: branche, fraisXof: aSaCharge, jour: jourDeCotonou(quand), qui: prenomEtInitiale(null, s.nom) });
       await base('expenses', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: JSON.stringify({ id: d.id, branch_id: branche, data: d }) });
+    }
+    /* LES FRAIS MTN GARDÉS (21 novembre 2026) : ce que ses 1,6 % laissent
+       après les frais de MTN entre au tiroir, en rubrique à part. */
+    const gardes = fraisMtnGardes(frais, fraisAjoutes);
+    if (gardes > 0 && branche) {
+      const h = entreeDesFraisGardes({ reference: c.reference, branchId: branche, gardesXof: gardes, jour: jourDeCotonou(quand), qui: prenomEtInitiale(null, s.nom) });
+      await base('entrees_hors_activite', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: JSON.stringify({ id: h.id, branch_id: branche, data: h }) });
     }
     await ecrisLaCollecte(c.reference, { pose_le: new Date().toISOString(), frais_xof: frais });
     console.log('[collecte-mtn] posé', { reference: c.reference.slice(0, 8), versementXof: partage.versementXof, pourboireXof: partage.pourboireXof });

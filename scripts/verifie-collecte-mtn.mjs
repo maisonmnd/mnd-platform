@@ -72,6 +72,9 @@ const PANNES = [
   ['deux demandes a la fois', FONCTION, "  if (demandeEnCours((Array.isArray(vivantes.corps) ? vivantes.corps : []) as CollecteMtn[], rdv.id, Date.now())) return json({ erreur: 'en_cours' }, 409);", ''],
   ['la piece ecrite sans condition', FONCTION, "    const w = await base(`invoices?id=eq.${enc(piece.id)}${ligne.updated_at ? `&updated_at=eq.${enc(ligne.updated_at)}` : ''}`, {", '    const w = await base(`invoices?id=eq.${enc(piece.id)}`, {'],
   ['le rendez-vous ne suit plus sa piece', FONCTION, '    const s = await suisLeRdv(c.rdv_id, v, piece.id, resteDeLaPiece(neuve), quand.getTime());', "    const s = { honore: false, nom: '' };"],
+  ['les frais gardes oublies', FONCTION, "      await base('entrees_hors_activite', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: JSON.stringify({ id: h.id, branch_id: branche, data: h }) });", ''],
+  ['les frais gardes comptent tout', PUR, '  Math.max(0, Math.max(0, Math.round(Number(fraisAjoutesXof) || 0)) - Math.max(0, Math.round(Number(fraisMtnXof) || 0)));', '  Math.max(0, Math.round(Number(fraisAjoutesXof) || 0));'],
+  ['les frais gardes au mauvais tiroir', PUR, '    cashbox: CAISSE_MTN_COLLECTION,\n    note: `Les 1,6 %', "    cashbox: 'Espèces',\n    note: `Les 1,6 %"],
   ['les frais de la cliente ignores a la confirmation', FONCTION, '    const aSaCharge = fraisALaChargeDeLaMaison(frais, fraisAjoutes);', '    const aSaCharge = frais;'],
   ['pas de frais ajoutes', PUR, '  const fraisAjoutes = fraisAjoutesMtn(reste + pourboire);', '  const fraisAjoutes = 0;'],
   ['les frais sans le merci', PUR, '  const fraisAjoutes = fraisAjoutesMtn(reste + pourboire);', '  const fraisAjoutes = fraisAjoutesMtn(reste);'],
@@ -220,6 +223,14 @@ dit('les frais de MTN : 1,2 %, au franc pres (30 000 F : 360 F ; 32 000 F : 384 
 /* LES 1,6 % AJOUTÉS POUR LA CLIENTE (20 novembre 2026, 0241). */
 dit('les frais ajoutes pour la cliente : 1,6 %, au franc superieur (30 000 F : 480 F ; 32 000 F : 512 F ; 12 345 F : 198 F ; 1 F : 1 F)',
   egal([R.TAUX_AJOUTE_MTN_PCT, R.fraisAjoutesMtn(30000), R.fraisAjoutesMtn(32000), R.fraisAjoutesMtn(12345), R.fraisAjoutesMtn(1), R.fraisAjoutesMtn(0), R.fraisAjoutesMtn(-5)], [1.6, 480, 512, 198, 1, 0, 0]), '');
+dit('les frais gardes : les 1,6 % moins les 1,2 % de MTN, jamais negatifs (32 512 F : 512 - 390 = 122 F)',
+  egal([R.fraisMtnGardes(390, 512), R.fraisMtnGardes(390, 0), R.fraisMtnGardes(390, 100), R.fraisMtnGardes(390, null)], [122, 0, 0, 0]), '');
+{
+  const h = R.entreeDesFraisGardes({ reference: REF(4).toUpperCase(), branchId: 'br', gardesXof: 122, jour: '2026-11-21', qui: 'Paulette K.' });
+  dit('l entree des frais gardes : hors activite, motif « Frais MTN gardes », au tiroir MTN Collection, son identifiant tient a la reference',
+    egal([h.id, h.branchId, h.date, h.sens, h.motif, h.label, h.amountXof, h.cashbox, h.note.includes(REF(4))],
+      [`hors-mtn-${REF(4)}`, 'br', '2026-11-21', 'entree', 'Frais MTN gardés', 'Frais MTN gardés · Paulette K.', 122, 'MTN Collection', true]), JSON.stringify(h));
+}
 dit('la Maison ne paie que ce que les 1,6 % ne couvrent pas : rien a 1,6 %, tout pour une demande d avant',
   egal([R.fraisALaChargeDeLaMaison(390, 512), R.fraisALaChargeDeLaMaison(390, 0), R.fraisALaChargeDeLaMaison(390, 100), R.fraisALaChargeDeLaMaison(390, null)], [0, 390, 290, 390]), '');
 dit('le merci : un entier de 0 a 100 000 F, rien quand il n est pas permis, jamais negatif',
@@ -375,7 +386,7 @@ let aCourse = null;          // une pièce écrite par le comptoir entre la lect
 const remiseAZero = () => {
   journal = []; soldeMtn = 412_500; jetonRefuse = false; relaisMuet = false; rtp = new Map(); perduUneFois = new Set(); liberes = new Set();
   registreRefuse = false; aCourse = null;
-  T = { staff: [], collectes_mtn: [], collecte_mtn_reglage: [{ id: 1, ouverte: false, rappel: true }], appointments: [], invoices: [], clients: [], cashboxes: [], expenses: [], edge_rate_limits: [] };
+  T = { staff: [], collectes_mtn: [], collecte_mtn_reglage: [{ id: 1, ouverte: false, rappel: true }], appointments: [], invoices: [], clients: [], cashboxes: [], expenses: [], entrees_hors_activite: [], edge_rate_limits: [] };
 };
 remiseAZero();
 const estampe = () => new Date(Date.parse('2026-01-01T00:00:00Z') + (++horloge) * 1000).toISOString();
@@ -716,12 +727,16 @@ let refLien;
   const dep = T.expenses[0]?.data;
   dit('... les frais de MTN (1,2 % de 32 512 F : 390 F) couverts par ses 512 F : aucune depense de la Maison',
     T.expenses.length === 0, JSON.stringify(dep));
+  const garde = T.entrees_hors_activite[0];
+  dit('... les 122 F gardes entrent au tiroir MTN Collection, en rubrique « Frais MTN gardes », une seule ligne',
+    T.entrees_hors_activite.length === 1 && garde?.id === `hors-mtn-${refLien}` && garde?.data?.amountXof === 122 && garde?.data?.motif === 'Frais MTN gardés'
+    && garde?.data?.cashbox === 'MTN Collection' && garde?.data?.sens === 'entree' && garde?.branch_id === garde?.data?.branchId, JSON.stringify(T.entrees_hors_activite));
   dit('... le registre dit recu, la transaction de MTN, la pose et les frais', collecte(refLien).etat === 'recu' && !!collecte(refLien).transaction_mtn && !!collecte(refLien).pose_le && collecte(refLien).frais_xof === 390, JSON.stringify(collecte(refLien)));
   const s4 = await page({ action: 'statut', reference: refLien });
   await cron();
   collecte(refLien).relu_le = new Date(Date.now() - 600_000).toISOString();
   await cron();
-  dit('relu encore, et le passage : rien ne se pose deux fois, MTN n est plus lu', s4.o?.etat === 'recu' && pieceDe('p1').payments.length === 1 && rdvDe('r1').payments.length === 1 && T.expenses.length === 0
+  dit('relu encore, et le passage : rien ne se pose deux fois, MTN n est plus lu', s4.o?.etat === 'recu' && pieceDe('p1').payments.length === 1 && rdvDe('r1').payments.length === 1 && T.expenses.length === 0 && T.entrees_hors_activite.length === 1
     && versMtn().filter((j) => j.chemin.endsWith(refLien)).length === lus + 1, `${pieceDe('p1').payments.length} ${versMtn().filter((j) => j.chemin.endsWith(refLien)).length}`);
   dit('rien de ce que la page recoit ne montre une cle, un jeton ou le numero entier', [r, s1, s3].every((x) => sansSecret(x.t) && !x.t.includes('0197000001') && !x.t.includes('229019700')), r.t);
   const d2 = await page({ action: 'demander', jeton: JETON, msisdn: '0197000001' });

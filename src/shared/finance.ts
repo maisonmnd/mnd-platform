@@ -6,6 +6,7 @@ import type { TraceDuMoyen } from './trace-du-moyen-pur';
 import type { ReglementEnLigne } from './regler-la-seance-pur';
 import type { PiecePartie } from './une-piece-un-message-pur';
 import type { RemiseDuTiroir } from './remise-a-zero-pur';
+import type { MOTIF_FRAIS_MTN_GARDES } from './collecte-mtn-pur';
 
 /* Finances — factures/devis, dépenses, caisses. Montants stockés en XOF. */
 
@@ -1311,7 +1312,9 @@ export type MouvementHorsActivite = {
   date: string;
   /** ABSENT = entrée, pour que les lignes d'avant restent vraies. */
   sens?: SensHorsActivite;
-  motif: MotifHorsActivite | MotifSortieHorsActivite;
+  /* « Frais MTN gardés » (21 novembre 2026) : posé par le serveur au règlement
+     par MTN (`entreeDesFraisGardes`, collecte-mtn-pur), jamais à la main. */
+  motif: MotifHorsActivite | MotifSortieHorsActivite | typeof MOTIF_FRAIS_MTN_GARDES;
   /** De qui, et pourquoi — obligatoire, c'est la mémoire de l'entrée. */
   label: string;
   /** Toujours positif : une entrée n'a pas de sens négatif. */

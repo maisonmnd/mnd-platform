@@ -2,6 +2,19 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES FRAIS MTN GARDÉS, UNE RUBRIQUE À PART — 21 novembre 2026 (collecte-mtn 2026-11-21-a ; aucun SQL ; le Trône n'a pas à être republié) ; ET LES AFFICHES DU QR RÉIMPRIMÉES
+
+« Le reste environ 0,4 % chez MTN doivent s'inscrire quelque part dans le Trône. Crée une rubrique » (Yéman). Au sélecteur, il a choisi « une rubrique à part » plutôt qu'une recette dans le résultat ou un simple tableau de suivi.
+
+- **Ce qui s'écrit** : à chaque règlement par MTN confirmé, la part des 1,6 % de la cliente qui reste après les 1,2 % retenus par MTN (`fraisMtnGardes`, 512 F − 390 F = 122 F sur 32 512 F) entre au tiroir « MTN Collection ». C'est une entrée hors activité, motif « Frais MTN gardés », étiquette « Frais MTN gardés · Prénom I. », une ligne par règlement (`entreeDesFraisGardes`, identifiant `hors-mtn-<référence>`, table `entrees_hors_activite`, `ignore-duplicates`).
+- **Où la lire** : le registre des encaissements (Finances › Encaissements, les entrées hors activité), le relevé du tiroir « MTN Collection » (son solde suit le compte MTN, aux pourboires près), et la Synthèse, sous le trait, motif par motif : à part du chiffre d'affaires des prestations, comme les autres entrées hors activité. Le motif est posé par le serveur, jamais à la main : il n'est pas dans la liste du formulaire (`MOTIFS_HORS_ACTIVITE`) ; seul le type `MouvementHorsActivite.motif` l'accepte.
+- **Ce qui ne change pas** : la pièce (le reste), le merci, la dépense « Frais MTN » (seulement ce que les 1,6 % ne couvrent pas, donc rien). Aucun règlement avec frais n'était arrivé avant : rien à rattraper.
+- **Bancs** : `verifie-collecte-mtn` 132 (les 122 F gardés au tiroir, une seule ligne même relue), `--prouve` 78 sur 78 (dont : les frais gardés oubliés, comptés en entier, au mauvais tiroir) ; caisse du soir, caisses des caissiers, règlement en ligne, relevé MTN, douze lunes, clé du cron ; typecheck 0.
+- **Les affiches du QR** : `node scripts/fabrique-le-qr-du-comptoir.mjs <dossier>`. Elles sont fabriquées le 21 novembre dans `Le Trone/affiches/qr-mtn-2026-11-21/` (A5.pdf indigo, A5-ivoire.pdf, aperçus PNG, adresse.txt). Le script a été corrigé au passage :
+  - il ignorait le dossier donné et écrivait au dossier temporaire ;
+  - la devise est désormais lue à sa seule source, `DEVISE_COMPLETE` ;
+  - la note tient en deux lignes égales.
+
 ## LES FRAIS MTN AJOUTÉS POUR LA CLIENTE, 1,6 % — 20 novembre 2026, au soir, EN LIGNE (SQL 0241 passée, NE PAS RELANCER ; collecte-mtn v17 2026-11-20-a, le serveur le dit ; Trône build 20261120223558 @ d30e376d, 546/546, avec les pages « Régler » et la fenêtre Encaisser ; aucun essai réel)
 
 « Ajoute le pourcentage de 1.6% sur les paiements de MTN API » (Yéman). Le 11 novembre, la Maison gardait les frais de MTN (1,2 %) et la cliente payait le juste reste. Désormais, comme pour Tap & Go, elle paie 1,6 % de plus.

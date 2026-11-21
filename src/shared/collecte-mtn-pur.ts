@@ -368,6 +368,34 @@ function depenseDesFraisMtn(o: { reference: string; branchId: string; fraisXof: 
   };
 }
 
+/** LES FRAIS MTN GARDÉS — 21 novembre 2026. « Le reste environ 0,4 % chez
+    MTN doivent s'inscrire quelque part dans le Trône. Crée une rubrique »
+    (Yéman ; au sélecteur : une rubrique à part, dans la caisse MTN
+    Collection). Ce que les 1,6 % de la cliente laissent après les frais que
+    MTN retient entre au tiroir « MTN Collection » : une entrée hors activité
+    par règlement, motif « Frais MTN gardés ». Le solde du tiroir suit ainsi
+    le compte MTN ; la Synthèse la lit sous le trait, à part du chiffre
+    d'affaires des prestations ; le registre des encaissements la montre. */
+const MOTIF_FRAIS_MTN_GARDES = 'Frais MTN gardés';
+/** Ce que la Maison garde des frais ajoutés : eux moins ceux de MTN, jamais négatif. */
+const fraisMtnGardes = (fraisMtnXof: number, fraisAjoutesXof: unknown): number =>
+  Math.max(0, Math.max(0, Math.round(Number(fraisAjoutesXof) || 0)) - Math.max(0, Math.round(Number(fraisMtnXof) || 0)));
+/** L'ENTRÉE DES FRAIS GARDÉS, une par règlement (son identifiant tient à la
+    référence : un rejeu écrit la même ligne), au tiroir « MTN Collection ». */
+function entreeDesFraisGardes(o: { reference: string; branchId: string; gardesXof: number; jour: string; qui?: string }) {
+  return {
+    id: `hors-mtn-${String(o.reference).toLowerCase()}`,
+    branchId: o.branchId,
+    date: o.jour,
+    sens: 'entree' as const,
+    motif: MOTIF_FRAIS_MTN_GARDES,
+    label: `${MOTIF_FRAIS_MTN_GARDES}${o.qui ? ` · ${o.qui}` : ''}`,
+    amountXof: Math.max(0, Math.round(o.gardesXof)),
+    cashbox: CAISSE_MTN_COLLECTION,
+    note: `Les 1,6 % payés par la cliente, moins les 1,2 % retenus par MTN · référence ${String(o.reference).toLowerCase()}`,
+  };
+}
+
 /** LA CAISSE « MTN Collection » de la branche, née au premier règlement. */
 const caisseMtnNeuve = (branchId: string) => ({
   id: `cb-mtn-collection-${branchId}`, branchId, name: CAISSE_MTN_COLLECTION, sub: 'Règlements par MTN, compte de collecte', glyph: '◈', openingXof: 0,
@@ -501,7 +529,7 @@ export {
   POURBOIRE_MTN_MAX, MONTANT_MTN_MAX, DEMANDE_EN_COURS_MS, DEMANDE_EN_VOL_MS, RELECTURE_MIN_MS, MAX_TENTATIVES_MTN, RE_REFERENCE_MTN,
   ETATS_VIVANTS, estVivante, fraisDeMtn, pourboireLu, demandeDeReglement, demandeDEssai, issueDeLaDemande, issueDuStatut,
   aRelire, demandeEnCours, partageConfirme, idDuVersementMtn, versementMtn, traceMtn, pieceRegleeParMtn, rdvApresMtn,
-  depenseDesFraisMtn, caisseMtnNeuve, statutPourLaPage, raisonDiteALaCliente, ETAT_DE_LA_COLLECTE_DIT,
+  depenseDesFraisMtn, MOTIF_FRAIS_MTN_GARDES, fraisMtnGardes, entreeDesFraisGardes, caisseMtnNeuve, statutPourLaPage, raisonDiteALaCliente, ETAT_DE_LA_COLLECTE_DIT,
   cleDuNumeroMtn, prenomEtInitiale, rdvsDuNumero, pageDuComptoir, peutOuvrirLaCollecte, jourDeLaCollecte,
   reglementsMtnDuJour, estUneTraceMtn,
 };
