@@ -18,7 +18,9 @@ import {
   etatDesRelancesDeLaPiece, idDuRappelDuPoint, departDuPoint,
   rythmeDe, rythmeValide, jourDeLaRelance, estUnDimanche, horsDuDimanche, partiesDuCycle, destinataireDeLaRelance, foyersParNumero, formeDuRappel, relanceDeLaPiece, decalageDe,
   CADENCE_DES_FAMILLES,
-  type ReglagesRelances, type PieceDeRelance,
+  joursDuPlan, planLu, joursAVenirDuPlan, relanceProgrammeeDuJour, idDeLaRelanceProgrammee, sauteLaProchaine, decaleLaProchaine, arreteLePlan,
+  RELANCES_PROGRAMMEES_AU_PLUS, PAS_DES_RELANCES_PROGRAMMEES,
+  type ReglagesRelances, type PieceDeRelance, type RelanceProgrammee,
 } from '../src/shared/relances-pur';
 import { invoiceResteXof, type Invoice } from '../src/shared/finance';
 import { compteDeLaDemande } from '../src/shared/mnd-pay-pur';
@@ -29,7 +31,10 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
   if (a === o) console.log(`OK    ${nom}`);
   else { ko++; console.log(`ECHEC ${nom}\n       obtenu  ${o}\n       attendu ${a}`); }
 };
-const lis = (f: string) => readFileSync(f, 'utf8').split(String.fromCharCode(13)).join('');
+/* `--prouve` (verifie-les-relances.mjs) : une panne vit dans une COPIE hors du
+   dépôt ; RELANCES_PANNES dit, fichier par fichier, la copie à lire à sa place. */
+const PANNES_LUES = JSON.parse(process.env.RELANCES_PANNES || '{}') as Record<string, string>;
+const lis = (f: string) => readFileSync(PANNES_LUES[f] ?? f, 'utf8').split(String.fromCharCode(13)).join('');
 function extrais(f: string, nom: string): string {
   const src = lis(f);
   const debut = src.indexOf(`// ── DEBUT ${nom}`);
@@ -103,6 +108,53 @@ const SERVEUR = 'supabase/functions/relances-factures/index.ts';
       aAppeler(e4, { resteXof: 0, enPause: false, aujourdhui: '2026-11-05' }), aAppeler(e4, { resteXof: 2000, enPause: true, aujourdhui: '2026-11-05' })]);
 }
 
+/* ── 1 bis. LES RELANCES PROGRAMMÉES (21 novembre 2026, « Le point ») ──
+   La direction coche une ou plusieurs factures, choisit le premier jour et le
+   pas (une fois, tous les 7 ou 14 jours, quatre au plus) ; jamais un
+   dimanche ; sauter, décaler, arrêter. Lundi 23 novembre 2026 ; le 22 est un
+   dimanche. */
+{
+  dit('les pas : une fois, une semaine, deux semaines ; quatre relances au plus', [[0, 7, 14], 4], [[...PAS_DES_RELANCES_PROGRAMMEES], RELANCES_PROGRAMMEES_AU_PLUS]);
+  dit('les jours d un plan : une fois, un jour ; chaque semaine ou toutes les deux semaines, quatre jours ; un pas inconnu vaut une fois ; un jour qui n en est pas, rien', [
+    ['2026-11-23'], ['2026-11-23', '2026-11-30', '2026-12-07', '2026-12-14'], ['2026-11-23', '2026-12-07', '2026-12-21', '2027-01-04'], ['2026-11-23'], [],
+  ], [joursDuPlan('2026-11-23', 0), joursDuPlan('2026-11-23', 7), joursDuPlan('2026-11-23', 14), joursDuPlan('2026-11-23', 3), joursDuPlan('23/11/2026', 7)]);
+  dit('jamais le dimanche : un plan qui commence un dimanche part les lundis', [['2026-11-23', '2026-11-30', '2026-12-07', '2026-12-14'], false],
+    [joursDuPlan('2026-11-22', 7), joursDuPlan('2026-11-22', 7).some(estUnDimanche)]);
+  const le = '2026-11-21T10:00:00Z';
+  dit('un plan lu en base ne se croit pas sur parole : rien, une chaîne, sans plan, sans jour, des jours qui n en sont pas, sans date de programmation', [null, null, null, null, null, null], [
+    planLu(null), planLu('p1'), planLu({ plan: '  ', jours: ['2026-11-23'], le }), planLu({ plan: 'p1', jours: [], le }),
+    planLu({ plan: 'p1', jours: ['lundi', 23], le }), planLu({ plan: 'p1', jours: ['2026-11-23'] }),
+  ]);
+  dit('... bien formé : ses jours triés, sans double, le dimanche passé au lundi, quatre au plus ; les sautés qui sont des jours ; qui, et l arrêt gardés', {
+    plan: 'p1', jours: ['2026-11-23', '2026-11-30', '2026-12-07', '2026-12-14'], le, sautes: ['2026-11-30'], par: 'Yéman', arreteLe: '2026-11-24T08:00:00Z',
+  }, planLu({ plan: ' p1 ', jours: ['2026-12-14', '2026-11-22', '2026-11-23', '2026-11-30', '2026-12-07', '2026-12-21'], le, sautes: ['2026-11-30', 'x'], par: 'Yéman', arreteLe: '2026-11-24T08:00:00Z' }));
+  const P: RelanceProgrammee = { plan: 'p1', jours: ['2026-11-23', '2026-11-30', '2026-12-07'], le };
+  dit('le jour d une relance programmée : un jour du plan, pas un autre ; ni sauté, ni le plan arrêté, ni un dimanche ; sans plan, rien', [true, false, false, false, false, false], [
+    relanceProgrammeeDuJour(P, '2026-11-23'), relanceProgrammeeDuJour(P, '2026-11-24'), relanceProgrammeeDuJour({ ...P, sautes: ['2026-11-23'] }, '2026-11-23'),
+    relanceProgrammeeDuJour({ ...P, arreteLe: '2026-11-22T09:00:00Z' }, '2026-11-23'), relanceProgrammeeDuJour({ ...P, jours: ['2026-11-22'] }, '2026-11-22'), relanceProgrammeeDuJour(null, '2026-11-23'),
+  ]);
+  dit('son identifiant au journal : un par plan et par jour', 'rl-pg-p1-2026-11-23-whatsapp', idDeLaRelanceProgrammee('p1', '2026-11-23'));
+  dit('les jours à venir : après aujourd hui (ou aujourd hui compris), jamais un sauté, rien d un plan arrêté', [
+    ['2026-11-30', '2026-12-07'], ['2026-11-23', '2026-11-30', '2026-12-07'], ['2026-12-07'], [],
+  ], [joursAVenirDuPlan(P, '2026-11-23'), joursAVenirDuPlan(P, '2026-11-23', true), joursAVenirDuPlan({ ...P, sautes: ['2026-11-30'] }, '2026-11-23'),
+    joursAVenirDuPlan({ ...P, arreteLe: le }, '2026-11-21', true)]);
+  const s1 = sauteLaProchaine(P, '2026-11-21');
+  dit('sauter la prochaine : son jour rejoint les sautés, les suivantes gardent les leurs ; deux fois, les deux premières ; aujourd hui compris ; plus rien à venir, rien ne bouge', [
+    ['2026-11-23'], P.jours, false, ['2026-11-30', '2026-12-07'], ['2026-11-23', '2026-11-30'], ['2026-11-23'], P,
+  ], [s1.sautes, s1.jours, relanceProgrammeeDuJour(s1, '2026-11-23'), joursAVenirDuPlan(s1, '2026-11-21'), sauteLaProchaine(s1, '2026-11-21').sautes,
+    sauteLaProchaine(P, '2026-11-23').sautes, sauteLaProchaine(P, '2026-12-08')]);
+  dit('décaler la prochaine : son jour remplacé, les autres gardent les leurs ; au dimanche, le lundi ; jamais aujourd hui ni avant ; jamais sur un autre jour du plan ; une date qui n en est pas, rien ne bouge', [
+    ['2026-11-25', '2026-11-30', '2026-12-07'], ['2026-11-30'], P.jours, P.jours, P.jours, P.jours,
+  ], [
+    decaleLaProchaine(P, '2026-11-21', '2026-11-25').jours, decaleLaProchaine({ ...P, jours: ['2026-11-23'] }, '2026-11-21', '2026-11-29').jours,
+    decaleLaProchaine(P, '2026-11-21', '2026-11-21').jours, decaleLaProchaine(P, '2026-11-21', '2026-11-20').jours,
+    decaleLaProchaine(P, '2026-11-21', '2026-11-30').jours, decaleLaProchaine(P, '2026-11-21', 'mardi').jours,
+  ]);
+  const A = arreteLePlan(P, '2026-11-22T09:00:00Z');
+  dit('arrêter : le plan reste lisible (ses jours), plus rien ne part', [P.jours, '2026-11-22T09:00:00Z', false, []],
+    [A.jours, A.arreteLe, relanceProgrammeeDuJour(A, '2026-11-23'), joursAVenirDuPlan(A, '2026-11-21', true)]);
+}
+
 /* ── 2. LES COPIES DU SERVEUR ── */
 {
   dit('le bloc des règles : même texte au Trône et dans relances-factures', true,
@@ -114,9 +166,10 @@ const charge = (nom: string, rend: string) => {
   const js = transformSync(extrais(SERVEUR, nom).replace(/^export /gm, ''), { loader: 'ts' }).code;
   return new Function(`${js}; return ${rend};`)();
 };
-const serveur = charge('tournee', '{ tournee, resteDeLaFacture, fraisTapGo, dateDite, enFrancs }') as {
+const serveur = charge('tournee', '{ tournee, resteDeLaFacture, fraisTapGo, dateDite, enFrancs, cleDuMessage }') as {
   tournee: (sb: unknown, o: { maintenantMs: number; MODELE: string; MODELE_POINT?: string; WA_TOKEN: string; WA_PHONE_ID: string; envoie?: unknown }) => Promise<Record<string, unknown>>;
   resteDeLaFacture: (f: unknown) => number; fraisTapGo: (b: number, r: unknown) => number; dateDite: (iso: string) => string; enFrancs: (x: number) => string;
+  cleDuMessage: (l: Record<string, unknown>) => string;
 };
 {
   const ligne = (unitXof: number, discountPct = 0, discountXof?: number) => ({ id: 'l', label: 'x', qty: 1, unitXof, discountPct, ...(discountXof ? { discountXof } : {}) });
@@ -146,6 +199,13 @@ function base(tables: Record<string, Ligne[]>) {
   const val = (l: Ligne, c: string): string | null | undefined => {
     if (c === 'id') return l.id; if (c === 'key') return l.key;
     if (c.startsWith('data->>')) { const v = l.data?.[c.slice(7)]; return v == null ? null : String(v); }
+    /* Un chemin dans le JSON, comme PostgREST : `data->relanceProgrammee->>le`. */
+    if (c.startsWith('data->')) {
+      const [chemin, feuille] = c.slice(6).split('->>');
+      const o = chemin.split('->').reduce<unknown>((x, k) => (x && typeof x === 'object' ? (x as Record<string, unknown>)[k] : undefined), l.data);
+      const v = o && typeof o === 'object' ? (o as Record<string, unknown>)[feuille] : undefined;
+      return v == null ? null : String(v);
+    }
     return undefined;
   };
   const sb = {
@@ -199,7 +259,7 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
 
 {
   const A = await joue({ ...ordinaire(), documents: [reglages(undefined), facteur()] });
-  dit('éteintes : la tournée ne lit rien de plus et n écrit rien', ['eteintes', 0], [A.r.relances, A.ecrit.length]);
+  dit('éteintes, et rien de programmé aujourd hui : la tournée n écrit rien', ['eteintes', 0], [A.r.relances, A.ecrit.length]);
   const B = await joue({ ...ordinaire(), documents: [reglages(ALLUMEES, { actif: false }), facteur()] });
   const B2 = await joue({ ...ordinaire(), documents: [reglages(ALLUMEES, { actif: true, tapgo: { actif: false } }), facteur()] });
   dit('MND PAY ou Tap & Go éteint : le bouton « Régler » ne ferait pas payer, rien ne part', ['tapgo-eteint', 'tapgo-eteint', 0], [B.r.relances, B2.r.relances, B.ecrit.length + B2.ecrit.length]);
@@ -520,6 +580,137 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
   const Z1 = await joue({ ...ordinaire(), documents: [reglages(RYTHME), facteur()] });
   const Z2 = await joue({ ...ordinaire(), documents: [reglages(RYTHME), facteur(true, Date.parse('2026-10-20T09:00:00Z'))] }, { maintenantMs: Date.parse('2026-10-20T09:00:00Z') });
   dit('un rythme « 2, 5 » pour les clientes seules : rien à J+1, la 1re à J+2', [0, 1], [Z1.r.relances, Z2.r.relances]);
+}
+
+/* ── 3 quinquies. LES RELANCES PROGRAMMÉES, DANS LA VRAIE TOURNÉE (21 novembre 2026) ──
+   « Construis » sur la maquette GqBogAWn…, choix par défaut : seules partent
+   les relances programmées, la suite automatique reste éteinte. Lundi 23
+   novembre 2026, 10 h au salon ; le 22 est un dimanche. */
+{
+  const LUNDI = Date.parse('2026-11-23T09:00:00Z');
+  const LUNDI_30 = Date.parse('2026-11-30T09:00:00Z');
+  const DIMANCHE = Date.parse('2026-11-22T09:00:00Z');
+  const LE = '2026-11-21T10:00:00Z';
+  type L = Record<string, any>;
+  const plan = (id: string, jours: string[], extra: Record<string, unknown> = {}) => ({ plan: id, jours, le: LE, par: 'Yéman', ...extra });
+  const pg = (id: string, p: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
+    facture(id, { date: '2026-11-10', creeeLe: '2026-11-10T11:00:00Z', relanceProgrammee: p, ...extra });
+  const eteinte = (ms = LUNDI) => [reglages(undefined), facteur(true, ms)];
+  const seule = (p = plan('p1', ['2026-11-23', '2026-11-30']), ms = LUNDI, extra: Record<string, unknown> = {}) => ({
+    documents: eteinte(ms), invoices: [pg('pg-1', p, extra)], clients: [fiche('c1', '0197000012')],
+  });
+  const sautesDe = (r: Record<string, unknown>) => (r.sautes ?? {}) as Record<string, number>;
+  const textes = (l: L | undefined) => l?.colis?.composants?.[0]?.parameters?.map((p: { text: string }) => p.text);
+
+  const A = await joue(seule(), { maintenantMs: LUNDI });
+  const la = A.lignes('envois')[0]?.data as L | undefined;
+  const attA = A.lignes('mnd_pay')[0]?.data as L | undefined;
+  dit('la suite automatique éteinte, une facture programmée aujourd hui : sa relance est déposée en salle, et le bilan le dit',
+    [1, 1, false, 1, 'rl-pg-p1-2026-11-23-whatsapp', 'en-attente', 'relance-facture', 'pg-1', 'p1', 1, '2290197000012'],
+    [A.r.relances, A.r.programmees, A.r.automatique, A.lignes('envois').length, la?.id, la?.statut, la?.type, la?.invoiceId, la?.programmee, la?.rang, la?.numero]);
+  dit('... le modèle de la relance, l appel, le jour de la facture avec l année, le reste ; l attente Tap & Go au total du bouton',
+    ['rappel_de_reglement', ['Mme Awa', '10 novembre 2026', serveur.enFrancs(2000)], '51166-2032', 'pg-1', 2032],
+    [la?.colis?.modele, textes(la), la?.colis?.composants?.[1]?.parameters?.[0]?.text, attA?.pieceId, attA?.totalXof]);
+  const A2 = await joue({ ...seule(), envois: A.lignes('envois').map((x) => structuredClone(x)), mnd_pay: A.lignes('mnd_pay').map((x) => structuredClone(x)) }, { maintenantMs: LUNDI });
+  dit('une seconde tournée le même jour : rien de plus', [0, 0], [A2.r.relances, A2.ecrit.filter((x) => x.t === 'envois').length]);
+  const B = await joue({ ...seule(undefined, LUNDI_30), envois: A.lignes('envois').map((x) => structuredClone(x)), mnd_pay: A.lignes('mnd_pay').map((x) => structuredClone(x)) }, { maintenantMs: LUNDI_30 });
+  dit('le 30 novembre, le second jour du plan : rang 2, son identifiant, l attente du même total reprise', [1, 'rl-pg-p1-2026-11-30-whatsapp', 2, 0],
+    [B.r.programmees, B.ecrit.find((x) => x.t === 'envois')?.id, (B.lignes('envois').find((x) => x.id === 'rl-pg-p1-2026-11-30-whatsapp')?.data as L)?.rang,
+      B.ecrit.filter((x) => x.t === 'mnd_pay').length]);
+
+  const arrete = await joue(seule(plan('p1', ['2026-11-23'], { arreteLe: '2026-11-22T08:00:00Z' })), { maintenantMs: LUNDI });
+  const sautee = await joue(seule(plan('p1', ['2026-11-23', '2026-11-30'], { sautes: ['2026-11-23'] })), { maintenantMs: LUNDI });
+  const autreJour = await joue(seule(plan('p1', ['2026-11-24'])), { maintenantMs: LUNDI });
+  dit('plan arrêté, jour sauté, pas son jour : rien n est écrit', [['eteintes', 0], ['eteintes', 0], ['eteintes', 0]],
+    [[arrete.r.relances, arrete.ecrit.length], [sautee.r.relances, sautee.ecrit.length], [autreJour.r.relances, autreJour.ecrit.length]]);
+  const veto = await joue({ documents: eteinte(), clients: [fiche('c1', '0197000012')],
+    invoices: [pg('pg-1', plan('p3', ['2026-11-23'])), pg('pg-2', plan('p3', ['2026-11-23'], { arreteLe: '2026-11-22T08:00:00Z' }), { number: 'MND-2026-0161' })] }, { maintenantMs: LUNDI });
+  dit('arrêté sur l une de ses factures seulement : tout le plan est arrêté, comme au Trône', ['eteintes', 0], [veto.r.relances, veto.ecrit.length]);
+
+  const reglee = await joue(seule(undefined, LUNDI, { payments: [{ id: 'p', amountXof: 2000, date: '2026-11-20' }] }), { maintenantMs: LUNDI });
+  const parLien = await joue({ ...seule(), mnd_pay: [{ id: 'mp-1', data: { pieceId: 'pg-1', genre: 'lien', moyen: 'tapgo', statut: 'payee', montantXof: 2000, totalXof: 2032 } }] }, { maintenantMs: LUNDI });
+  const enPause = await joue(seule(undefined, LUNDI, { relancesPause: { le: '2026-11-22T10:00:00Z', par: 'Gérard' } }), { maintenantMs: LUNDI });
+  dit('réglée, payée par son lien sans être inscrite, en pause : rien ne part, et le bilan dit pourquoi', [[0, 1, 0], [0, 1, 0], [0, 1, 0]], [
+    [reglee.r.relances, sautesDe(reglee.r)['programmee-reglee'], reglee.lignes('envois').length],
+    [parLien.r.relances, sautesDe(parLien.r)['programmee-reglee'], parLien.lignes('envois').length],
+    [enPause.r.relances, sautesDe(enPause.r)['programmee-en-pause'], enPause.lignes('envois').length],
+  ]);
+  const msg = (quand: string) => ({ id: `m-${quand}`, data: { numero: '2290197000012', sens: 'entrant', quand, texte: 'Je passe samedi' } });
+  const repondu = await joue({ ...seule(), messages_wa: [msg('2026-11-21T15:00:00Z')] }, { maintenantMs: LUNDI });
+  const avant = await joue({ ...seule(), messages_wa: [msg('2026-11-21T08:00:00Z')] }, { maintenantMs: LUNDI });
+  dit('elle a écrit à la Maison après la programmation : rien ne part ; un message d avant ne l arrête pas', [0, 1, 0, 1],
+    [repondu.r.relances, sautesDe(repondu.r)['programmee-a-repondu'], repondu.lignes('envois').length, avant.r.programmees]);
+  const dim = await joue(seule(plan('p1', ['2026-11-22']), DIMANCHE), { maintenantMs: DIMANCHE });
+  const lundiApres = await joue(seule(plan('p1', ['2026-11-22'])), { maintenantMs: LUNDI });
+  dit('un jour du plan qui tombe un dimanche : rien le dimanche, la relance le lundi', ['dimanche', 0, 1, 'rl-pg-p1-2026-11-23-whatsapp'],
+    [dim.r.relances, dim.ecrit.length, lundiApres.r.programmees, lundiApres.lignes('envois')[0]?.id]);
+  const formule = await joue({ ...seule(), subscribers: [{ id: 'sub-1', data: { invoiceId: 'pg-1', clientId: 'c1', planId: 'pl-1' } }] }, { maintenantMs: LUNDI });
+  dit('la pièce d une formule ne prend jamais une relance programmée (son reste porte des échéances à venir)', [0, 1, 0],
+    [formule.r.relances, sautesDe(formule.r)['programmee-piece-de-formule'], formule.lignes('envois').length]);
+
+  /* Plusieurs factures d'un même plan. */
+  const P2 = plan('p2', ['2026-11-23']);
+  const deux = (b: Record<string, unknown> = {}) => ({ documents: eteinte(), invoices: [pg('pg-1', P2), pg('pg-2', P2, { number: 'MND-2026-0161', ...b })], clients: [fiche('c1', '0197000012')] });
+  const D = await joue(deux(), { maintenantMs: LUNDI });
+  const ld = D.lignes('envois')[0]?.data as L | undefined;
+  dit('deux factures du même plan et du même jour : UN message, le modèle de la relance au total, ses deux factures, aucune attente Tap & Go',
+    [1, 1, 'rl-pg-p2-2026-11-23-whatsapp', true, ['pg-1', 'pg-2'], '', 'p2', 'rappel_de_reglement', ['Mme Awa', '10 novembre 2026', serveur.enFrancs(4000)], 0],
+    [D.r.programmees, D.lignes('envois').length, ld?.id, ld?.point, ld?.invoiceIds, ld?.invoiceId, ld?.programmee, ld?.colis?.modele, textes(ld), D.ecrit.filter((x) => x.t === 'mnd_pay').length]);
+  const DP = await joue(deux(), { maintenantMs: LUNDI, point: 'rappel_du_point' });
+  dit('... avec le modèle du point : le rappel du point, ce qu il couvre avec l année', ['rappel_du_point', 'vos 2 factures, du 10 novembre 2026'],
+    [(DP.lignes('envois')[0]?.data as L)?.colis?.modele, textes(DP.lignes('envois')[0]?.data as L)?.[2]]);
+  const autreDate = { date: '2026-11-12', creeeLe: '2026-11-12T11:00:00Z' };
+  const DJ = await joue(deux(autreDate), { maintenantMs: LUNDI });
+  const DJP = await joue(deux(autreDate), { maintenantMs: LUNDI, point: 'rappel_du_point' });
+  dit('deux jours différents sans le modèle du point : rien ne part, la réponse le dit ; avec lui, un rappel du point « du 10 au 12 novembre 2026 »',
+    [0, 0, 1, 1, 1, 'vos 2 factures, du 10 au 12 novembre 2026'],
+    [DJ.r.relances, DJ.lignes('envois').length, sautesDe(DJ.r)['programmee-attend-le-modele'], DJP.r.programmees, DJP.lignes('envois').length, textes(DJP.lignes('envois')[0]?.data as L)?.[2]]);
+  const D1 = await joue(deux({ payments: [{ id: 'p', amountXof: 2000 }] }), { maintenantMs: LUNDI });
+  dit('l une réglée : l autre part seule, la relance d une facture', [1, 'rl-pg-p2-2026-11-23-whatsapp', 'pg-1', undefined],
+    [D1.r.programmees, D1.lignes('envois')[0]?.id, (D1.lignes('envois')[0]?.data as L)?.invoiceId, (D1.lignes('envois')[0]?.data as L)?.point]);
+  const DD = await joue({ documents: eteinte(), clients: [fiche('c1', '0197000012')],
+    invoices: [pg('pg-1', plan('pa', ['2026-11-23'])), pg('pg-2', plan('pb', ['2026-11-23']), { number: 'MND-2026-0161' })] }, { maintenantMs: LUNDI });
+  dit('deux plans au même numéro le même jour : jamais deux relances, une seule part', [1, 1, 1],
+    [DD.r.programmees, DD.lignes('envois').length, sautesDe(DD.r)['programmee-deja-relancee-aujourdhui']]);
+  const N = await joue({ documents: eteinte(), clients: [fiche('c1', '0197000012'), fiche('c2', '0197000034', { name: 'Eve Ahou' })],
+    invoices: [pg('pg-1', plan('p4', ['2026-11-23'])), pg('pg-2', plan('p4', ['2026-11-23']), { clientId: 'c2', number: 'MND-2026-0161' })] }, { maintenantMs: LUNDI });
+  dit('un plan qui écrit à deux numéros : deux messages, chacun son identifiant', [2, ['rl-pg-p4-c1-2026-11-23-whatsapp', 'rl-pg-p4-c2-2026-11-23-whatsapp']],
+    [N.r.programmees, N.lignes('envois').map((x) => x.id as string).sort()]);
+
+  /* Le journal, la porte d'avance, le facteur muet : le même chemin que la suite automatique. */
+  const posee = { id: 'rl-pg-p1-2026-11-23-whatsapp', data: { id: 'rl-pg-p1-2026-11-23-whatsapp', type: 'relance-facture', statut: 'envoyé', numero: '2290100000000', quand: '2026-11-23T08:00:00Z', programmee: 'p1' } };
+  const E = await joue({ ...seule(), envois: [posee] }, { maintenantMs: LUNDI });
+  const E2 = await joue({ ...seule(), envois: [{ ...posee, data: { ...posee.data, statut: 'échec', numero: '2290197000012' } }] }, { maintenantMs: LUNDI });
+  dit('une ligne du jour déjà posée ne s écrase pas ; un échec se retente', [0, 1, 'envoyé', '2290100000000', 1, 'en-attente'],
+    [E.r.relances, sautesDe(E.r)['programmee-deja-posee'], E.lignes('envois')[0]?.data?.statut, E.lignes('envois')[0]?.data?.numero, E2.r.programmees, E2.lignes('envois')[0]?.data?.statut]);
+  const cle = serveur.cleDuMessage({ type: 'relance-facture', id: 'rl-pg-p1-2026-11-23-whatsapp' });
+  const AR = await joue({ ...seule(), envois_arretes: [{ id: cle, data: { cle, arreteLe: '2026-11-22T18:00:00Z', arretePar: 'Yéman' } }] }, { maintenantMs: LUNDI });
+  dit('arrêtée d avance (ce qui va partir) : la ligne s écrit « écarté », rien ne part', [0, 1, 'écarté', 'Yéman'],
+    [AR.r.relances, sautesDe(AR.r)['arretee-d-avance'], AR.lignes('envois')[0]?.data?.statut, AR.lignes('envois')[0]?.data?.ecartePar]);
+  const appels: string[] = [];
+  const envoie = async (_u: string, init: { body: string }) => { appels.push(init.body); return { ok: true, json: async () => ({ messages: [{ id: 'wamid.pg' }] }) }; };
+  const M = await joue({ ...seule(), documents: [reglages(undefined), facteur(false, LUNDI)] }, { maintenantMs: LUNDI, WA: true, envoie });
+  const M2 = await joue({ ...seule(), documents: [reglages(undefined), facteur(false, LUNDI)] }, { maintenantMs: LUNDI });
+  const TG = await joue({ ...seule(), documents: [reglages(undefined, { actif: false }), facteur(true, LUNDI)] }, { maintenantMs: LUNDI });
+  dit('facteur muet : l envoi direct part (son modèle), « envoyé », le fil le garde ; sans clé, rien ; Tap & Go éteint, rien', [1, 1, 'rappel_de_reglement', 'envoyé', 1, 'sans-facteur', 'tapgo-eteint', 0],
+    [M.r.programmees, appels.length, JSON.parse(appels[0] ?? '{}').template?.name, M.lignes('envois')[0]?.data?.statut, M.lignes('messages_wa').length, M2.r.relances, TG.r.relances, TG.ecrit.length]);
+
+  /* La suite automatique allumée. */
+  const JEUDI = Date.parse('2026-10-22T09:00:00Z');
+  const auto = (p?: Record<string, unknown>, ms = MAINTENANT) => ({
+    documents: [reglages(ALLUMEES), facteur(true, ms)], invoices: [facture('inv-1', p ? { relanceProgrammee: p } : {})], clients: [fiche('c1', '0197000012')],
+  });
+  const P9 = { plan: 'p9', jours: ['2026-10-22'], le: '2026-10-18T12:00:00Z' };
+  const H1 = await joue(auto(P9));
+  const H2 = await joue(auto({ ...P9, arreteLe: '2026-10-18T13:00:00Z' }));
+  const H3 = await joue(auto(P9, JEUDI), { maintenantMs: JEUDI });
+  dit('la suite allumée : une facture d un plan vivant n y entre pas (rien à J+1) ; son plan arrêté, elle y revient (J+1) ; son jour venu, la programmée part',
+    [0, 0, 1, 'rl-inv-1-1-whatsapp', 1, 1, 'rl-pg-p9-2026-10-22-whatsapp', true],
+    [H1.r.relances, H1.lignes('envois').length, H2.r.relances, H2.lignes('envois')[0]?.id, H3.r.relances, H3.r.programmees, H3.lignes('envois')[0]?.id, H3.r.automatique]);
+  const H4 = await joue({ documents: [reglages(ALLUMEES), facteur(true, MAINTENANT)], clients: [fiche('c1', '0197000012')],
+    invoices: [facture('inv-1'), facture('inv-2', { number: 'MND-2026-0161', date: '2026-10-10', creeeLe: '2026-10-10T11:00:00Z', relanceProgrammee: { plan: 'p8', jours: ['2026-10-19'], le: '2026-10-18T12:00:00Z' } })] });
+  dit('au même numéro, une programmée et une automatique le même jour : la programmée passe d abord, jamais deux', [1, 1, 'rl-pg-p8-2026-10-19-whatsapp', 1],
+    [H4.r.relances, H4.r.programmees, H4.lignes('envois').map((x) => x.id).join(), sautesDe(H4.r)['deja-relancee-aujourdhui']]);
 }
 
 /* ── 4. LA FONCTION ET LES ÉCRANS ── */

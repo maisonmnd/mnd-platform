@@ -72,6 +72,17 @@
    (`partiesDuCycle`) : entrer dans un rappel groupé ou en sortir ne la
    recommence jamais.
 
+   LES RELANCES PROGRAMMÉES (21 novembre 2026, « Le point ») : la direction
+   coche une ou plusieurs factures et choisit leurs jours ; chacune porte le
+   même plan (`relanceProgrammee`). Elles partent MÊME LA SUITE AUTOMATIQUE
+   ÉTEINTE (le dimanche, Tap & Go et le facteur gardent leurs portes), avant
+   elle, par le même chemin (l'attente, la porte « ce qui va partir », la
+   salle ou l'envoi direct, le fil) : une facture, la relance d'une facture ;
+   plusieurs du même plan et du même numéro, un seul rappel. Rien ne part si
+   le plan est arrêté, le jour sauté, la facture réglée ou en pause, ou si
+   elle a écrit à la Maison depuis la programmation. Une facture d'un plan
+   vivant sort de la suite automatique.
+
    AUCUN SECRET ICI. Tout vient de l'environnement de la fonction.
    Déploiement : Supabase → Edge Functions → New function
    « relances-factures » → coller CE FICHIER ENTIER → Deploy. Puis le cron
@@ -85,7 +96,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const TZ = 'Africa/Porto-Novo'; // le fuseau du salon, pas celui du serveur
 
 /** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-11-11-a · ce qui va partir : une relance arrêtée d’avance, ou d’un modèle en pause, ne se dépose pas ; jamais une relance le dimanche, elle passe au lundi ; une séance manquée ne se perd pas : le prorata ne compte que les faites';
+const VERSION = '2026-11-21-a · les relances programmées partent aux jours que la direction a choisis, même la suite automatique éteinte ; ce qui va partir : une relance arrêtée d’avance, ou d’un modèle en pause, ne se dépose pas ; jamais une relance le dimanche, elle passe au lundi ; une séance manquée ne se perd pas : le prorata ne compte que les faites';
 
 /** Numéro béninois → format international sans « + » (copie de rappels-j1). */
 const numeroIntl = (brut: string | undefined): string | null => {
@@ -448,6 +459,89 @@ export const idDuRappelDuPoint = (payeurId: string, depart: string, n: number): 
 /** Le départ du rappel du point : celui de sa facture la plus récente. */
 export const departDuPoint = (departs: readonly (string | null)[]): string | null =>
   departs.filter((d): d is string => !!d).sort().pop() ?? null;
+
+/* ══ LES RELANCES PROGRAMMÉES — 21 novembre 2026 ═══════════════════════════
+   « Le point financier que nous pouvons ensuite suivre : l'état, payé ou
+   réglé ; envoyé par WhatsApp ; relance (skip next) ; programmer une relance
+   sur une ou plusieurs factures combinées » (Yéman), puis « construis » sur
+   la maquette GqBogAWn… (choix par défaut : seules partent les relances
+   programmées, la tournée automatique reste éteinte).
+
+   UN PLAN, PORTÉ PAR CHACUNE DE SES FACTURES. La direction coche une ou
+   plusieurs factures, choisit le premier jour et le pas (une fois, tous les
+   7 ou 14 jours, quatre au plus) : chaque facture reçoit le même
+   `relanceProgrammee`, même `plan`, mêmes `jours`. La tournée de 10 h les
+   réunit par plan : une facture seule part avec le modèle de la relance ;
+   plusieurs, en un seul rappel (le modèle du point, ou le modèle de la
+   relance quand toutes sont du même jour). Les factures d'un plan sortent de
+   la suite automatique : la direction a choisi leurs jours.
+
+   CE QUI L'ARRÊTE, sans qu'on y touche : le reste à zéro (réglée), un message
+   d'elle depuis la programmation (la conversation passe à l'équipe), le plan
+   arrêté. Sauter la prochaine la retire de la liste ; la décaler la remplace
+   par un autre jour. Jamais un dimanche : un jour qui tombe le dimanche part
+   le lundi, comme la tournée automatique. */
+export type RelanceProgrammee = {
+  /** L'identifiant du plan, commun aux factures relancées ensemble. */
+  plan: string;
+  /** Les jours prévus, AAAA-MM-JJ, triés, sans dimanche. */
+  jours: string[];
+  /** Les jours sautés (« Sauter la prochaine »). */
+  sautes?: string[];
+  /** Quand et par qui il a été programmé ; une réponse d'elle après `le` l'arrête. */
+  le: string;
+  par?: string;
+  /** « Arrêter les relances » : plus rien ne part. */
+  arreteLe?: string;
+};
+
+/** Au plus quatre relances programmées, la dernière au plus 90 jours après la première. */
+export const RELANCES_PROGRAMMEES_AU_PLUS = 4;
+/** Les pas qu'on peut choisir : une fois (0), une semaine, deux semaines. */
+export const PAS_DES_RELANCES_PROGRAMMEES: readonly number[] = [0, 7, 14];
+
+/** LES JOURS D'UN PLAN : le premier jour (hors dimanche), puis tous les `pas` jours, quatre au plus. */
+export function joursDuPlan(debut: string, pas: number): string[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(debut)) return [];
+  const p = PAS_DES_RELANCES_PROGRAMMEES.includes(pas) ? pas : 0;
+  const n = p > 0 ? RELANCES_PROGRAMMEES_AU_PLUS : 1;
+  const jours: string[] = [];
+  for (let k = 0; k < n; k += 1) {
+    const j = horsDuDimanche(jourPlusR(debut, k * p));
+    if (jourPlusR(debut, JOURS_AU_PLUS) < j) break;
+    if (!jours.includes(j)) jours.push(j);
+  }
+  return jours;
+}
+
+/** Un plan bien formé, ou null : un objet lu en base ne se croit pas sur parole. */
+export function planLu(brut: unknown): RelanceProgrammee | null {
+  const r = (brut && typeof brut === 'object' ? brut : null) as Record<string, unknown> | null;
+  if (!r || typeof r.plan !== 'string' || !r.plan.trim() || typeof r.le !== 'string') return null;
+  const jourOk = (x: unknown): x is string => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x);
+  const jours = Array.isArray(r.jours) ? [...new Set(r.jours.filter(jourOk).map(horsDuDimanche))].sort().slice(0, RELANCES_PROGRAMMEES_AU_PLUS) : [];
+  if (!jours.length) return null;
+  return {
+    plan: r.plan.trim().slice(0, 60), jours, le: r.le,
+    ...(Array.isArray(r.sautes) ? { sautes: r.sautes.filter(jourOk) } : {}),
+    ...(typeof r.par === 'string' ? { par: r.par } : {}),
+    ...(typeof r.arreteLe === 'string' ? { arreteLe: r.arreteLe } : {}),
+  };
+}
+
+/** Les jours qui partiront encore : après `aujourdhui` (ou aujourd'hui compris), ni sautés, plan vivant. */
+export function joursAVenirDuPlan(p: RelanceProgrammee | null | undefined, aujourdhui: string, aujourdhuiCompris = false): string[] {
+  if (!p || p.arreteLe) return [];
+  const sautes = new Set(p.sautes ?? []);
+  return p.jours.filter((j) => !sautes.has(j) && (aujourdhuiCompris ? j >= aujourdhui : j > aujourdhui));
+}
+
+/** LA RELANCE PROGRAMMÉE PART-ELLE AUJOURD'HUI ? Un jour du plan, pas sauté, plan vivant, jamais le dimanche. */
+export const relanceProgrammeeDuJour = (p: RelanceProgrammee | null | undefined, aujourdhui: string): boolean =>
+  !!p && !p.arreteLe && !estUnDimanche(aujourdhui) && p.jours.includes(aujourdhui) && !(p.sautes ?? []).includes(aujourdhui);
+
+/** L'identifiant d'une relance programmée au journal : une par plan et par jour. */
+export const idDeLaRelanceProgrammee = (plan: string, jour: string): string => `rl-pg-${plan}-${jour}-whatsapp`;
 // ── FIN relances
 
 // ── DEBUT point (copie de src/shared/point-du-compte-pur.ts, éprouvée par scripts/verifie-les-relances)
@@ -492,6 +586,8 @@ type FactureLue = {
   payments?: { id: string; amountXof: number; date: string }[];
   relancesPause?: { le: string; par?: string };
   relancesDecalage?: DecalageDesRelances;
+  /** Le plan des relances programmées (21 novembre 2026) : lu par `planLu`, jamais cru sur parole. */
+  relanceProgrammee?: unknown;
   creeeLe?: string;
   apptId?: string;
   note?: string;
@@ -1024,7 +1120,36 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; MODEL
     .in('key', ['mnd_settings', 'mnd_auto_config', 'mnd_facteur']);
   const reglages = (docs?.find((d) => d.key === 'mnd_settings')?.data ?? {}) as { relances?: ReglagesRelances; mndPay?: ReglagesTapGo };
   const r = reglages.relances;
-  if (!r?.actives || !r.depuis) return { version: VERSION, relances: 'eteintes' };
+  /* LA SUITE AUTOMATIQUE (Paramètres › Relances) : allumée, et son lancement dit. Éteinte, rien ne part seul. */
+  const automatique = !!r?.actives && !!r.depuis;
+
+  /* ①bis LES RELANCES PROGRAMMÉES — 21 novembre 2026, « Le point » : la
+     direction a choisi les jours d'une facture, ou de plusieurs ensemble (le
+     même `relanceProgrammee` sur chacune). Elles partent MÊME LA SUITE
+     AUTOMATIQUE ÉTEINTE ; le dimanche, Tap & Go et le facteur gardent leurs
+     portes. Toutes les factures qui portent un plan, quelle que soit leur
+     date, par pages. */
+  const programmees: FactureLue[] = [];
+  for (let de = 0; ; de += 1000) {
+    const { data, error } = await sb.from('invoices').select('id, data')
+      .eq('data->>kind', 'facture').gte('data->relanceProgrammee->>le', '0').range(de, de + 999);
+    if (error) return { version: VERSION, relances: 'lecture-refusee', motif: error.message.slice(0, 120) };
+    programmees.push(...(data ?? []).map((l) => ({ ...(l.data as FactureLue), id: l.id as string })));
+    if ((data ?? []).length < 1000) break;
+  }
+  /* Les factures d'un plan portent le même objet ; un geste resté sur l'une
+     seule (arrêter, sauter aujourd'hui) vaut pour tout le plan, comme au Trône. */
+  const planDe = (f: FactureLue): RelanceProgrammee | null => planLu(f.relanceProgrammee);
+  const lesPlans = programmees.map(planDe).filter((p): p is RelanceProgrammee => !!p);
+  const plansArretes = new Set(lesPlans.filter((p) => !!p.arreteLe).map((p) => p.plan));
+  const plansSautesAujourdhui = new Set(lesPlans.filter((p) => (p.sautes ?? []).includes(aujourdhui)).map((p) => p.plan));
+  /* Un plan vivant sort sa facture de la suite automatique : la direction a choisi ses jours. */
+  const planVivant = (f: FactureLue): boolean => { const p = planDe(f); return !!p && !p.arreteLe && !plansArretes.has(p.plan); };
+  const programmeesDuJour = programmees.filter((f) => {
+    const p = planDe(f);
+    return !!p && !plansArretes.has(p.plan) && !plansSautesAujourdhui.has(p.plan) && relanceProgrammeeDuJour(p, aujourdhui);
+  });
+  if (!automatique && programmeesDuJour.length === 0) return { version: VERSION, relances: 'eteintes', programmees: 0 };
   /* Le bouton « Régler » compose Tap & Go : sans lui, une relance ne fait pas payer. */
   if (reglages.mndPay?.actif !== true || reglages.mndPay?.tapgo?.actif === false) return { version: VERSION, relances: 'tapgo-eteint' };
   const regles = reglesDepuis(docs?.find((d) => d.key === 'mnd_auto_config')?.data as Record<string, unknown> | undefined);
@@ -1033,99 +1158,107 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; MODEL
   /* Ce qui va partir (5 novembre 2026) : les relances arrêtées d'avance et les modèles en pause. */
   const avanceDuDepot = await litLesArretsEtLesPauses(sb);
 
-  /* ② LES FACTURES. Une relance part au plus tard à J+14 : on lit les vingt
-     derniers jours (la marge d'un cron qui aurait manqué un matin), jamais
-     avant le lancement ; et, tant qu'il court, le rattrapage validé. */
-  const plancher = (() => { const p = jourPlusR(aujourdhui, -20); return p > r.depuis ? p : r.depuis; })();
-  const factures: FactureLue[] = [];
-  for (let de = 0; ; de += 1000) {
-    const { data, error } = await sb.from('invoices').select('id, data')
-      .eq('data->>kind', 'facture').gte('data->>date', plancher).range(de, de + 999);
-    if (error) return { version: VERSION, relances: 'lecture-refusee', motif: error.message.slice(0, 120) };
-    factures.push(...(data ?? []).map((l) => ({ ...(l.data as FactureLue), id: l.id as string })));
-    if ((data ?? []).length < 1000) break;
-  }
-  const rt = r.rattrapage;
-  if (rt?.ids?.length && /^\d{4}-\d{2}-\d{2}$/.test(rt.valideLe) && jourPlusR(rt.valideLe, 20) >= aujourdhui) {
-    const connues = new Set(factures.map((f) => f.id));
-    const manquent = rt.ids.filter((id) => !connues.has(id));
-    for (let i = 0; i < manquent.length; i += 200) {
-      const { data } = await sb.from('invoices').select('id, data').in('id', manquent.slice(i, i + 200));
-      factures.push(...(data ?? []).map((l) => ({ ...(l.data as FactureLue), id: l.id as string })));
-    }
-  }
-  /* ③bis LES FORMULES. Leur pièce porte le prix entier dès le premier
-     versement : elle ne se relance pas sur son reste, mais sur l'échéancier
-     de son contrat (le contrat fait foi, la pièce suit). */
-  const contrats: ContratEcrit[] = [];
-  for (let de = 0; ; de += 1000) {
-    const { data, error } = await sb.from('subscribers').select('id, data').range(de, de + 999);
-    if (error) return { version: VERSION, relances: 'lecture-refusee', motif: error.message.slice(0, 120) };
-    contrats.push(...(data ?? []).map((l) => ({ ...(l.data as ContratEcrit), id: l.id as string })));
-    if ((data ?? []).length < 1000) break;
-  }
-  const { data: lignesDesFormules } = await sb.from('plans').select('id, data');
-  const formules = ((lignesDesFormules ?? []) as { id: string; data: FormuleEcrite }[]).map((l) => ({ ...l.data, id: l.id }));
-  const piecesDesContrats = new Set(contrats.map((c) => c.invoiceId).filter((x): x is string => !!x));
-  const pieces = new Map(factures.map((f) => [f.id, f]));
-  const manquantes = [...piecesDesContrats].filter((id) => !pieces.has(id));
-  for (let i = 0; i < manquantes.length; i += 200) {
-    const { data } = await sb.from('invoices').select('id, data').in('id', manquantes.slice(i, i + 200));
-    for (const l of data ?? []) pieces.set(l.id as string, { ...(l.data as FactureLue), id: l.id as string });
-  }
-
   /* LES DOSSIERS DU JOUR : une facture ordinaire, sa suite à elle ; une
      échéance de formule en retard, la sienne. */
   type Dossier = { f: FactureLue; depart: string | null; resteXof: number; idDe: (n: number) => string; subId?: string; echeance?: number; resiliation?: true; tete?: string;
     /* Le rappel groupé : ses factures, sa fiche, son numéro, sa forme (`formeDuRappel`) et son rythme, déjà choisis. */
     membres?: Dossier[]; fiche?: FicheLue; tel?: string; forme?: 'point' | 'jour'; famille?: boolean };
+  const factures: FactureLue[] = [];
   const dossiers: Dossier[] = [];
-  for (const f of factures) {
-    if (estUnePieceDeFormule(f, piecesDesContrats)) continue;
-    /* En pause, elle reste lue (28 octobre 2026) : le rappel groupé qui la porterait se tait avec elle. */
-    if (!seRelance(f) || departDesRelances(f, r, jourDuSalon) === null || !(resteDeLaFacture(f) > 0)) continue;
-    dossiers.push({ f, depart: departDesRelances(f, r, jourDuSalon), resteXof: resteDeLaFacture(f), idDe: (n) => idDeLaRelance(f.id, n) });
-  }
-  for (const c of contrats) {
-    const f = c.invoiceId ? pieces.get(c.invoiceId) : undefined;
-    if (!f || !seRelance(f) || f.relancesPause) continue;
-    const e = echeanceARelancer(c, formules.find((p) => p.id === c.planId), f, aujourdhui, plancher);
-    if (!e) continue;
-    dossiers.push({ f, depart: e.depart, resteXof: e.resteXof, idDe: (n) => idDeLaRelanceDEcheance(f.id, e.numero, n), subId: c.id, echeance: e.numero, tete: c.clientId });
-  }
-  /* LE RESTE D'UNE RÉSILIATION : un paquet résilié dont le consommé dépasse
-     le réglé. Ses séances se lisent par pages, pour ses seules clientes. */
-  const resilies = contrats.filter((c) => estIso(c.resilieeLe) && c.resilieeLe <= aujourdhui && jourOuvre(c.resilieeLe) >= plancher
-    && estUnPaquet(formules.find((p) => p.id === c.planId)) && !!c.invoiceId && !!c.clientId);
-  if (resilies.length) {
-    const clientes = [...new Set(resilies.map((c) => c.clientId as string))];
-    const seances: SeanceEcrite[] = [];
-    for (let i = 0; i < clientes.length; i += 200) {
-      for (let de = 0; ; de += 1000) {
-        const { data, error } = await sb.from('appointments').select('id, data').in('data->>clientId', clientes.slice(i, i + 200)).range(de, de + 999);
-        if (error) return { version: VERSION, relances: 'lecture-refusee', motif: error.message.slice(0, 120) };
-        seances.push(...(data ?? []).map((l) => ({ ...(l.data as SeanceEcrite), id: l.id as string })));
-        if ((data ?? []).length < 1000) break;
+  /* LA SUITE AUTOMATIQUE, allumée seulement : éteinte, elle ne lit rien, et
+     rien ne part seul (ni une facture, ni une échéance de formule). */
+  if (automatique) {
+    /* ② LES FACTURES. Une relance part au plus tard à J+14 : on lit les vingt
+       derniers jours (la marge d'un cron qui aurait manqué un matin), jamais
+       avant le lancement ; et, tant qu'il court, le rattrapage validé. */
+    const depuis = r?.depuis ?? '';
+    const plancher = (() => { const p = jourPlusR(aujourdhui, -20); return p > depuis ? p : depuis; })();
+    for (let de = 0; ; de += 1000) {
+      const { data, error } = await sb.from('invoices').select('id, data')
+        .eq('data->>kind', 'facture').gte('data->>date', plancher).range(de, de + 999);
+      if (error) return { version: VERSION, relances: 'lecture-refusee', motif: error.message.slice(0, 120) };
+      factures.push(...(data ?? []).map((l) => ({ ...(l.data as FactureLue), id: l.id as string })));
+      if ((data ?? []).length < 1000) break;
+    }
+    const rt = r?.rattrapage;
+    if (rt?.ids?.length && /^\d{4}-\d{2}-\d{2}$/.test(rt.valideLe) && jourPlusR(rt.valideLe, 20) >= aujourdhui) {
+      const connues = new Set(factures.map((f) => f.id));
+      const manquent = rt.ids.filter((id) => !connues.has(id));
+      for (let i = 0; i < manquent.length; i += 200) {
+        const { data } = await sb.from('invoices').select('id, data').in('id', manquent.slice(i, i + 200));
+        factures.push(...(data ?? []).map((l) => ({ ...(l.data as FactureLue), id: l.id as string })));
       }
     }
-    for (const c of resilies) {
-      const f = pieces.get(c.invoiceId as string);
+    /* ③bis LES FORMULES. Leur pièce porte le prix entier dès le premier
+       versement : elle ne se relance pas sur son reste, mais sur l'échéancier
+       de son contrat (le contrat fait foi, la pièce suit). */
+    const contrats: ContratEcrit[] = [];
+    for (let de = 0; ; de += 1000) {
+      const { data, error } = await sb.from('subscribers').select('id, data').range(de, de + 999);
+      if (error) return { version: VERSION, relances: 'lecture-refusee', motif: error.message.slice(0, 120) };
+      contrats.push(...(data ?? []).map((l) => ({ ...(l.data as ContratEcrit), id: l.id as string })));
+      if ((data ?? []).length < 1000) break;
+    }
+    const { data: lignesDesFormules } = await sb.from('plans').select('id, data');
+    const formules = ((lignesDesFormules ?? []) as { id: string; data: FormuleEcrite }[]).map((l) => ({ ...l.data, id: l.id }));
+    const piecesDesContrats = new Set(contrats.map((c) => c.invoiceId).filter((x): x is string => !!x));
+    const pieces = new Map(factures.map((f) => [f.id, f]));
+    const manquantes = [...piecesDesContrats].filter((id) => !pieces.has(id));
+    for (let i = 0; i < manquantes.length; i += 200) {
+      const { data } = await sb.from('invoices').select('id, data').in('id', manquantes.slice(i, i + 200));
+      for (const l of data ?? []) pieces.set(l.id as string, { ...(l.data as FactureLue), id: l.id as string });
+    }
+
+    for (const f of factures) {
+      if (estUnePieceDeFormule(f, piecesDesContrats)) continue;
+      /* Elle porte un plan vivant : ses relances sont celles que la direction a programmées. */
+      if (planVivant(f)) continue;
+      /* En pause, elle reste lue (28 octobre 2026) : le rappel groupé qui la porterait se tait avec elle. */
+      if (!seRelance(f) || departDesRelances(f, r, jourDuSalon) === null || !(resteDeLaFacture(f) > 0)) continue;
+      dossiers.push({ f, depart: departDesRelances(f, r, jourDuSalon), resteXof: resteDeLaFacture(f), idDe: (n) => idDeLaRelance(f.id, n) });
+    }
+    for (const c of contrats) {
+      const f = c.invoiceId ? pieces.get(c.invoiceId) : undefined;
       if (!f || !seRelance(f) || f.relancesPause) continue;
-      const r = resteDeResiliationARelancer(c, formules.find((p) => p.id === c.planId), f,
-        contrats.filter((s) => s.clientId === c.clientId), formules, seances, aujourdhui, plancher);
-      if (!r) continue;
-      dossiers.push({ f, depart: r.depart, resteXof: r.resteXof, idDe: (n) => idDeLaRelanceDeResiliation(f.id, n), subId: c.id, resiliation: true, tete: c.clientId });
+      const e = echeanceARelancer(c, formules.find((p) => p.id === c.planId), f, aujourdhui, plancher);
+      if (!e) continue;
+      dossiers.push({ f, depart: e.depart, resteXof: e.resteXof, idDe: (n) => idDeLaRelanceDEcheance(f.id, e.numero, n), subId: c.id, echeance: e.numero, tete: c.clientId });
+    }
+    /* LE RESTE D'UNE RÉSILIATION : un paquet résilié dont le consommé dépasse
+       le réglé. Ses séances se lisent par pages, pour ses seules clientes. */
+    const resilies = contrats.filter((c) => estIso(c.resilieeLe) && c.resilieeLe <= aujourdhui && jourOuvre(c.resilieeLe) >= plancher
+      && estUnPaquet(formules.find((p) => p.id === c.planId)) && !!c.invoiceId && !!c.clientId);
+    if (resilies.length) {
+      const clientes = [...new Set(resilies.map((c) => c.clientId as string))];
+      const seances: SeanceEcrite[] = [];
+      for (let i = 0; i < clientes.length; i += 200) {
+        for (let de = 0; ; de += 1000) {
+          const { data, error } = await sb.from('appointments').select('id, data').in('data->>clientId', clientes.slice(i, i + 200)).range(de, de + 999);
+          if (error) return { version: VERSION, relances: 'lecture-refusee', motif: error.message.slice(0, 120) };
+          seances.push(...(data ?? []).map((l) => ({ ...(l.data as SeanceEcrite), id: l.id as string })));
+          if ((data ?? []).length < 1000) break;
+        }
+      }
+      for (const c of resilies) {
+        const f = pieces.get(c.invoiceId as string);
+        if (!f || !seRelance(f) || f.relancesPause) continue;
+        const r = resteDeResiliationARelancer(c, formules.find((p) => p.id === c.planId), f,
+          contrats.filter((s) => s.clientId === c.clientId), formules, seances, aujourdhui, plancher);
+        if (!r) continue;
+        dossiers.push({ f, depart: r.depart, resteXof: r.resteXof, idDe: (n) => idDeLaRelanceDeResiliation(f.id, n), subId: c.id, resiliation: true, tete: c.clientId });
+      }
     }
   }
-  if (dossiers.length === 0) return { version: VERSION, relances: 0, jour: aujourdhui, lues: factures.length };
+  if (dossiers.length === 0 && programmeesDuJour.length === 0) return { version: VERSION, relances: 0, programmees: 0, jour: aujourdhui, lues: factures.length };
 
   /* ④ LES LIENS DÉJÀ PAYÉS que personne n'a encore inscrits (aucun Trône
      ouvert) : ils comptent. Une cliente qui vient de payer n'est pas relancée. */
+  const lesPieces = new Map<string, FactureLue>([...dossiers.map((d) => [d.f.id, d.f] as const), ...programmeesDuJour.map((f) => [f.id, f] as const)]);
   const { data: payees } = await sb.from('mnd_pay').select('id, data')
-    .in('data->>pieceId', [...new Set(dossiers.map((d) => d.f.id))]).eq('data->>statut', 'payee');
+    .in('data->>pieceId', [...lesPieces.keys()]).eq('data->>statut', 'payee');
   const payeParPiece = new Map<string, number>();
   for (const l of (payees ?? []) as { id: string; data: { pieceId?: string; genre?: string; montantXof?: number } }[]) {
-    const f = dossiers.find((d) => d.f.id === l.data?.pieceId)?.f;
+    const f = lesPieces.get(l.data?.pieceId ?? '');
     if (!f || l.data?.genre !== 'lien' || (f.payments ?? []).some((p) => p.id === l.id)) continue;
     payeParPiece.set(f.id, (payeParPiece.get(f.id) ?? 0) + Math.round(Number(l.data?.montantXof) || 0));
   }
@@ -1136,7 +1269,8 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; MODEL
      famille de l'une de ses fiches s'il a un numéro, sinon où elle allait :
      la payeuse si elle a un numéro, sinon la cliente soignée ; une échéance
      de formule, sa tête portée (`destinataireDeLaRelance`). */
-  const idsFiches = [...new Set(dossiers.flatMap((d) => [d.f.clientId, d.f.forClientId, d.tete]).filter((x): x is string => !!x))];
+  const idsFiches = [...new Set([...dossiers.flatMap((d) => [d.f.clientId, d.f.forClientId, d.tete]), ...programmeesDuJour.flatMap((f) => [f.clientId, f.forClientId])]
+    .filter((x): x is string => !!x))];
   const fiches = new Map<string, FicheLue>();
   const litLesFiches = async (ids: string[]) => {
     for (let i = 0; i < ids.length; i += 200) {
@@ -1220,6 +1354,216 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; MODEL
   const relanceesAujourdhui = new Set(((duJour ?? []) as { data: { numero?: string; statut?: string } }[])
     .filter((l) => !SE_RETENTE.has(l.data?.statut ?? '')).map((l) => l.data?.numero ?? '').filter(Boolean));
 
+  /* UN RANG DÉJÀ POSÉ NE S'ÉCRASE JAMAIS (une ligne partie garde son
+     histoire) ; un échec, lui, se retente. */
+  const prise = (id: string) => { const l = journal.get(id); return !!l && !SE_RETENTE.has(l.statut ?? ''); };
+
+  /* LE CHEMIN D'UNE RELANCE, le même pour la suite automatique et pour les
+     relances programmées (21 novembre 2026) : l'attente Tap & Go du reste, le
+     message, la porte « ce qui va partir », le dépôt en salle ou l'envoi
+     direct quand le facteur se tait, le fil. Vrai quand elle part (déposée ou
+     envoyée) ; sinon la raison est comptée (`saute`). `marques` : ce que la
+     ligne du journal porte en plus (le point, le contrat, le plan). */
+  type Relance = {
+    idEnvoi: string; f: FactureLue; membres?: FactureLue[]; fiche: FicheLue; tel: string; reste: number; n: number;
+    forme: 'seule' | 'point' | 'jour'; dateFacture: string; subId?: string; marques: Record<string, unknown>;
+  };
+  const faisPartir = async (e: Relance): Promise<boolean> => {
+    const { idEnvoi, f, fiche, tel, reste, n } = e;
+    /* ⑤ L'ATTENTE TAP & GO DU RESTE, comme mnd-pay : la même facture au même
+       total, c'est la même attente ; un reste qui a changé la remplace ; une
+       attente trop vieille pour finir sa fenêtre se refait. */
+    const fraisXof = fraisTapGo(reste, reglages.mndPay);
+    const totalXof = reste + fraisXof;
+    /* UN POINT N'A PAS D'ATTENTE : elle se pose pièce par pièce ; payé par son bouton, l'argent
+       arrive à rapprocher au comptoir, et se pointe facture par facture. */
+    const { data: attentes } = e.membres
+      ? { data: [{ id: '', data: { totalXof, creeLe: new Date(maintenantMs).toISOString() } }] }
+      : await sb.from('mnd_pay').select('id, data')
+        .eq('data->>moyen', 'tapgo').eq('data->>statut', 'en_attente').eq('data->>pieceId', f.id).limit(20);
+    const meme = ((attentes ?? []) as { id: string; data: { totalXof?: number; creeLe?: string } }[])
+      .find((l) => Math.round(Number(l.data?.totalXof ?? 0)) === totalXof && maintenantMs - Date.parse(l.data?.creeLe ?? '') < ATTENTE_RAFRAICHIE_MS);
+    if (!meme) {
+      for (const l of (attentes ?? []) as { id: string; data: Record<string, unknown> }[]) {
+        await sb.from('mnd_pay').update({ data: { ...l.data, statut: 'annulee', raison: 'remplacée par la relance : reste changé ou attente trop vieille' } }).eq('id', l.id);
+      }
+      const idAttente = `mp-${crypto.randomUUID().replace(/-/g, '').slice(0, 20)}`;
+      const { error: errAttente } = await sb.from('mnd_pay').insert({
+        id: idAttente, branch_id: f.branchId ?? null,
+        data: {
+          id: idAttente, branchId: f.branchId, genre: 'lien', moyen: 'tapgo', montantXof: reste, fraisXof, totalXof,
+          pieceId: f.id, ...(f.number ? { pieceNumero: String(f.number).slice(0, 40) } : {}), ...(e.subId ? { subId: e.subId } : {}), clientId: fiche.id,
+          libelle: 'Maison MND · relance', statut: 'en_attente', creeLe: new Date(maintenantMs).toISOString(), creePar: 'la Maison, automatiquement',
+        },
+      });
+      if (errAttente) { saute('attente-refusee'); return false; }
+    }
+
+    /* ⑥ LE MESSAGE. */
+    const appel = appelDe(fiche, f.clientName);
+    const jour = dateDite(f.date);
+    const resteDit = enFrancs(reste);
+    const parametre = `${codeTapGo(reglages.mndPay)}-${totalXof}`;
+    /* LE RAPPEL DU POINT : {{1}} l'appel, {{2}} le total, {{3}} ce qu'il couvre (« vos 6 rituels, du
+       13 juin au 1er septembre 2026 », l'année dite) ; jamais un numéro de pièce. */
+    /* LES FACTURES D'UN MÊME JOUR, sans le modèle du point : l'ancien modèle,
+       leur jour, leur total (son choix au sélecteur, 28 octobre 2026). */
+    const auPoint = e.forme === 'point';
+    const pour = auPoint && e.membres ? `vos ${phraseDuPoint(e.membres.map((m) => ({ id: m.id, date: m.date, apptId: m.apptId })))}` : '';
+    const modele = auPoint ? MODELE_POINT : MODELE;
+    const composants = [
+      { type: 'body', parameters: auPoint
+        ? [{ type: 'text', text: appel }, { type: 'text', text: resteDit }, { type: 'text', text: pour }]
+        : [{ type: 'text', text: appel }, { type: 'text', text: jour }, { type: 'text', text: resteDit }] },
+      { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: parametre }] },
+    ];
+    const texteDuFil = auPoint
+      ? `Bonjour ${appel}, petit rappel de la Maison MND : ${resteDit} restent à régler pour ${pour}. Touchez « Régler » pour payer en une fois. Si c'est déjà fait, merci, et ne tenez pas compte de ce message. [Régler]`
+      : `Bonjour ${appel}, un petit rappel de la Maison MND : votre facture du ${jour} attend encore son règlement, reste ${resteDit}. Touchez « Régler » : votre téléphone compose le numéro de paiement, frais compris. Si c'est déjà fait, merci, et ne tenez pas compte de ce message. [Régler]`;
+    const maintenant = new Date(maintenantMs).toISOString();
+    const commun = {
+      id: idEnvoi, branchId: f.branchId, type: 'relance-facture', canal: 'whatsapp', apptId: '', dateRdv: '', invoiceId: e.membres ? '' : f.id, rang: n,
+      ...e.marques, clientId: fiche.id, numero: tel, dateFacture: e.dateFacture, quand: maintenant,
+    };
+    /* ARRÊTÉE D'AVANCE, OU SON MODÈLE EN PAUSE (5 novembre 2026, ce qui va
+       partir) : la ligne s'écrit telle qu'elle partirait, mais « écarté »
+       (par qui l'a arrêtée) ou « périmé » (retenue par Opale). Un arrêt ne
+       touche que ce rang : la suite garde ses jours. */
+    const aDeposer = {
+      ...commun, statut: 'en-attente',
+      ...depot(maintenantMs, regles, { genre: 'whatsapp', numero: tel, modele, parQui: 'la Maison, automatiquement', texteAuFil: texteDuFil, composants }, appel),
+    };
+    const dAvance = laPorteDAvance(aDeposer, avanceDuDepot);
+    if (dAvance && dAvance.verdict !== 'repli') {
+      await sb.from('envois').upsert({ id: idEnvoi, branch_id: f.branchId ?? null, data: { ...aDeposer, ...ligneRetenueDAvance(dAvance, maintenant) } }, { onConflict: 'id' });
+      saute(dAvance.verdict === 'arrete' ? 'arretee-d-avance' : 'modele-en-pause');
+      return false;
+    }
+    if (salleOuverte) {
+      await sb.from('envois').upsert({
+        id: idEnvoi, branch_id: f.branchId ?? null,
+        data: {
+          ...commun, statut: 'en-attente',
+          ...depot(maintenantMs, regles, { genre: 'whatsapp', numero: tel, modele, parQui: 'la Maison, automatiquement', texteAuFil: texteDuFil, composants }, appel),
+        },
+      }, { onConflict: 'id' });
+    } else if (dansLesHeuresCalmes(maintenantMs, regles)) {
+      /* Le facteur se tait : on envoie comme les rappels, hors des heures calmes seulement. */
+      saute('heures-calmes');
+      return false;
+    } else {
+      let statut = 'échec';
+      let detail: string | undefined;
+      let waId = '';
+      try {
+        const rep = await envoie(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
+          body: JSON.stringify({ messaging_product: 'whatsapp', to: tel, type: 'template', template: { name: modele, language: { code: 'fr' }, components: composants } }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        const corps = await rep.json().catch(() => ({}));
+        waId = String(corps?.messages?.[0]?.id ?? '');
+        if (rep.ok) { statut = 'envoyé'; if (!waId) detail = 'accepté sans identifiant Meta'; }
+        else detail = String(corps?.error?.message ?? `HTTP ${rep.status}`);
+      } catch (err) {
+        detail = String(err);
+      }
+      await sb.from('envois').upsert({
+        id: idEnvoi, branch_id: f.branchId ?? null,
+        data: { ...commun, statut, ...(detail ? { detail: detail.slice(0, 300) } : {}), ...(waId ? { waMessageId: waId } : {}) },
+      }, { onConflict: 'id' });
+      if (statut !== 'envoyé') { saute('refus-meta'); return false; }
+      if (waId) {
+        const idFil = `wa-${waId}`;
+        await sb.from('messages_wa').upsert({
+          id: idFil, branch_id: f.branchId ?? null,
+          data: {
+            id: idFil, waId, branchId: f.branchId, sens: 'sortant', numero: tel, clientId: fiche.id, texte: texteDuFil,
+            type: 'text', quand: maintenant, etat: 'en-route', modele, parQui: 'la Maison, automatiquement',
+          },
+        }, { onConflict: 'id' });
+      }
+    }
+    relanceesAujourdhui.add(tel);
+    parties++;
+    return true;
+  };
+
+  /* ⑤ter LES RELANCES PROGRAMMÉES DU JOUR, AVANT LA SUITE AUTOMATIQUE : le
+     jour que la direction a choisi passe d'abord, et un numéro ne reçoit
+     qu'une relance par jour. Chaque facture du plan qui reste à régler (net
+     de ce que ses liens ont payé), sans pause, rejoint les autres du même
+     plan et du même numéro : une facture, la relance d'une facture ;
+     plusieurs, un seul rappel (`formeDuRappel`). Jamais la pièce d'une
+     formule : son reste porte des échéances à venir, son contrat la relance. */
+  let programmeesParties = 0;
+  const piecesDeFormule = new Set<string>();
+  const idsProgrammes = [...new Set(programmeesDuJour.map((f) => f.id))];
+  for (let i = 0; i < idsProgrammes.length; i += 200) {
+    const { data, error } = await sb.from('subscribers').select('id, data').in('data->>invoiceId', idsProgrammes.slice(i, i + 200));
+    if (error) return { version: VERSION, relances: 'lecture-refusee', motif: error.message.slice(0, 120) };
+    for (const l of (data ?? []) as { data: { invoiceId?: string } }[]) if (l.data?.invoiceId) piecesDeFormule.add(l.data.invoiceId);
+  }
+  type Programme = { plan: RelanceProgrammee; fiche: FicheLue; tel: string; membres: { f: FactureLue; reste: number }[] };
+  const programmes = new Map<string, Programme>();
+  /* Les numéros d'un plan, toutes ses factures du jour comptées : un plan qui écrit à deux numéros fait deux messages. */
+  const numerosDuPlan = new Map<string, Set<string>>();
+  for (const f of [...programmeesDuJour].sort((a, b) => a.id.localeCompare(b.id))) {
+    const plan = planDe(f) as RelanceProgrammee;
+    const { fiche } = destinataireDeLaRelance([f.clientId, f.forClientId ?? f.clientId], fiches, payeurDuFoyer, parNumero) as { fiche?: FicheLue; famille: boolean };
+    const tel = numeroIntl(fiche?.phone);
+    if (tel) numerosDuPlan.set(plan.plan, new Set([...(numerosDuPlan.get(plan.plan) ?? []), tel]));
+    if (!seRelance(f)) { saute('programmee-brouillon'); continue; }
+    if (estUnePieceDeFormule(f, piecesDeFormule)) { saute('programmee-piece-de-formule'); continue; }
+    if (f.relancesPause) { saute('programmee-en-pause'); continue; }
+    const reste = Math.max(0, resteDeLaFacture(f) - (payeParPiece.get(f.id) ?? 0));
+    if (!(reste > 0)) { saute('programmee-reglee'); continue; }
+    if (!fiche || !tel) { saute('programmee-sans-numero'); continue; }
+    if (fiche.archived) { saute('programmee-archivee'); continue; }
+    const cle = `${plan.plan}|${tel}`;
+    const g = programmes.get(cle);
+    if (!g) { programmes.set(cle, { plan, fiche, tel, membres: [{ f, reste }] }); continue; }
+    g.membres.push({ f, reste });
+    /* La programmation la plus récente fait foi (sa date, son rang) ; la fiche est la même d'un passage à l'autre. */
+    if (plan.le > g.plan.le) g.plan = plan;
+    if (fiche.id < g.fiche.id) g.fiche = fiche;
+  }
+  /* L'IDENTIFIANT D'UN JOUR DU PLAN, déterministe : un par plan et par jour
+     (`idDeLaRelanceProgrammee`) ; un plan qui écrit à deux numéros nomme
+     aussi la fiche. Une ligne déjà posée (hors échec) ne s'écrase pas : on
+     les relit par leur identifiant. */
+  const idDuProgramme = (g: Programme): string =>
+    idDeLaRelanceProgrammee((numerosDuPlan.get(g.plan.plan)?.size ?? 1) > 1 ? `${g.plan.plan}-${g.fiche.id}` : g.plan.plan, aujourdhui);
+  const idsDuJour = [...programmes.values()].map(idDuProgramme);
+  for (let i = 0; i < idsDuJour.length; i += 200) {
+    const { data, error } = await sb.from('envois').select('id, data').in('id', idsDuJour.slice(i, i + 200));
+    if (error) return { version: VERSION, relances: 'lecture-refusee', motif: error.message.slice(0, 120) };
+    for (const l of (data ?? []) as { id: string; data: Omit<LigneDeRelance, 'id'> }[]) journal.set(l.id, { ...l.data, id: l.id });
+  }
+  for (const g of programmes.values()) {
+    if (parties >= BORNE_DES_RELANCES) { bornee = true; break; }
+    const { plan, fiche, tel, membres } = g;
+    if (relanceesAujourdhui.has(tel)) { saute('programmee-deja-relancee-aujourdhui'); continue; }
+    /* Elle a écrit à la Maison depuis la programmation : rien ne part, la conversation passe à l'équipe. */
+    const { data: msgs } = await sb.from('messages_wa').select('id, data')
+      .eq('data->>numero', tel).eq('data->>sens', 'entrant').gt('data->>quand', plan.le).limit(1);
+    if (aReponduDepuis(((msgs ?? []) as { data: { sens?: string; quand?: string } }[]).map((m) => m.data), plan.le)) { saute('programmee-a-repondu'); continue; }
+    const groupe = membres.length > 1;
+    const forme = groupe ? formeDuRappel(membres.map((m) => m.f.date), !!MODELE_POINT) : 'seule';
+    if (forme === 'attend') { saute('programmee-attend-le-modele'); continue; }
+    const idEnvoi = idDuProgramme(g);
+    if (prise(idEnvoi)) { saute('programmee-deja-posee'); continue; }
+    const partie = await faisPartir({
+      idEnvoi, f: membres[0].f, ...(groupe ? { membres: membres.map((m) => m.f) } : {}), fiche, tel,
+      reste: membres.reduce((s, m) => s + m.reste, 0), n: plan.jours.indexOf(aujourdhui) + 1, forme,
+      dateFacture: groupe ? [...membres.map((m) => m.f.date)].sort()[membres.length - 1] : membres[0].f.date,
+      marques: { ...(groupe ? { point: true, invoiceIds: membres.map((m) => m.f.id) } : {}), programmee: plan.plan },
+    });
+    if (partie) programmeesParties++;
+  }
+
+  /* ⑤quater LA SUITE AUTOMATIQUE (éteinte, rien n'est en lice). */
   for (const d of aTraiter) {
     if (parties >= BORNE_DES_RELANCES) { bornee = true; break; }
     const { f, depart } = d;
@@ -1264,11 +1608,9 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; MODEL
     });
     if (n === null) { saute(enPause ? 'en-pause' : aRepondu ? 'a-repondu' : reste <= 0 ? 'payee' : 'pas-aujourdhui'); continue; }
     if (relanceesAujourdhui.has(tel)) { saute('deja-relancee-aujourdhui'); continue; }
-    /* UN RANG DÉJÀ POSÉ NE S'ÉCRASE JAMAIS (une ligne partie garde son
-       histoire) ; un échec, lui, se retente. Celui d'une facture seule, parti
-       à un autre numéro (l'enfant, avant la règle du parent), cède la place à
-       une ligne au nom du payeur, qui porte la facture (`invoiceIds`). */
-    const prise = (id: string) => { const l = journal.get(id); return !!l && !SE_RETENTE.has(l.statut ?? ''); };
+    /* Le rang d'une facture seule, parti à un autre numéro (l'enfant, avant la
+       règle du parent), cède la place à une ligne au nom du payeur, qui porte
+       la facture (`invoiceIds`). */
     let idEnvoi = d.idDe(n);
     let auNomDuPayeur = false;
     if (prise(idEnvoi)) {
@@ -1276,130 +1618,22 @@ async function tournee(sb: any, o: { maintenantMs: number; MODELE: string; MODEL
       idEnvoi = idDuRappelDuPoint(fiche.id, depart, n);
       auNomDuPayeur = true;
     }
-
-    /* ⑤ L'ATTENTE TAP & GO DU RESTE, comme mnd-pay : la même facture au même
-       total, c'est la même attente ; un reste qui a changé la remplace ; une
-       attente trop vieille pour finir sa fenêtre se refait. */
-    const fraisXof = fraisTapGo(reste, reglages.mndPay);
-    const totalXof = reste + fraisXof;
-    /* UN POINT N'A PAS D'ATTENTE : elle se pose pièce par pièce ; payé par son bouton, l'argent
-       arrive à rapprocher au comptoir, et se pointe facture par facture. */
-    const { data: attentes } = d.membres
-      ? { data: [{ id: '', data: { totalXof, creeLe: new Date(maintenantMs).toISOString() } }] }
-      : await sb.from('mnd_pay').select('id, data')
-        .eq('data->>moyen', 'tapgo').eq('data->>statut', 'en_attente').eq('data->>pieceId', f.id).limit(20);
-    const meme = ((attentes ?? []) as { id: string; data: { totalXof?: number; creeLe?: string } }[])
-      .find((l) => Math.round(Number(l.data?.totalXof ?? 0)) === totalXof && maintenantMs - Date.parse(l.data?.creeLe ?? '') < ATTENTE_RAFRAICHIE_MS);
-    if (!meme) {
-      for (const l of (attentes ?? []) as { id: string; data: Record<string, unknown> }[]) {
-        await sb.from('mnd_pay').update({ data: { ...l.data, statut: 'annulee', raison: 'remplacée par la relance : reste changé ou attente trop vieille' } }).eq('id', l.id);
-      }
-      const idAttente = `mp-${crypto.randomUUID().replace(/-/g, '').slice(0, 20)}`;
-      const { error: errAttente } = await sb.from('mnd_pay').insert({
-        id: idAttente, branch_id: f.branchId ?? null,
-        data: {
-          id: idAttente, branchId: f.branchId, genre: 'lien', moyen: 'tapgo', montantXof: reste, fraisXof, totalXof,
-          pieceId: f.id, ...(f.number ? { pieceNumero: String(f.number).slice(0, 40) } : {}), ...(d.subId ? { subId: d.subId } : {}), clientId: fiche.id,
-          libelle: 'Maison MND · relance', statut: 'en_attente', creeLe: new Date(maintenantMs).toISOString(), creePar: 'la Maison, automatiquement',
-        },
-      });
-      if (errAttente) { saute('attente-refusee'); continue; }
-    }
-
-    /* ⑥ LE MESSAGE. */
-    const appel = appelDe(fiche, f.clientName);
-    const jour = dateDite(f.date);
-    const resteDit = enFrancs(reste);
-    const parametre = `${codeTapGo(reglages.mndPay)}-${totalXof}`;
-    /* LE RAPPEL DU POINT : {{1}} l'appel, {{2}} le total, {{3}} ce qu'il couvre (« vos 6 rituels, du
-       13 juin au 1er septembre 2026 », l'année dite) ; jamais un numéro de pièce. */
-    /* LES FACTURES D'UN MÊME JOUR, sans le modèle du point : l'ancien modèle,
-       leur jour, leur total (son choix au sélecteur, 28 octobre 2026). */
-    const auPoint = d.forme === 'point';
-    const pour = auPoint && d.membres ? `vos ${phraseDuPoint(d.membres.map((m) => ({ id: m.f.id, date: m.f.date, apptId: m.f.apptId })))}` : '';
-    const modele = auPoint ? MODELE_POINT : MODELE;
-    const composants = [
-      { type: 'body', parameters: auPoint
-        ? [{ type: 'text', text: appel }, { type: 'text', text: resteDit }, { type: 'text', text: pour }]
-        : [{ type: 'text', text: appel }, { type: 'text', text: jour }, { type: 'text', text: resteDit }] },
-      { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: parametre }] },
-    ];
-    const texteDuFil = auPoint
-      ? `Bonjour ${appel}, petit rappel de la Maison MND : ${resteDit} restent à régler pour ${pour}. Touchez « Régler » pour payer en une fois. Si c'est déjà fait, merci, et ne tenez pas compte de ce message. [Régler]`
-      : `Bonjour ${appel}, un petit rappel de la Maison MND : votre facture du ${jour} attend encore son règlement, reste ${resteDit}. Touchez « Régler » : votre téléphone compose le numéro de paiement, frais compris. Si c'est déjà fait, merci, et ne tenez pas compte de ce message. [Régler]`;
-    const maintenant = new Date(maintenantMs).toISOString();
-    const commun = {
-      id: idEnvoi, branchId: f.branchId, type: 'relance-facture', canal: 'whatsapp', apptId: '', dateRdv: '', invoiceId: d.membres ? '' : f.id, rang: n,
-      ...(d.membres ? { point: true, invoiceIds: d.membres.map((m) => m.f.id) } : auNomDuPayeur ? { invoiceIds: [f.id] } : {}),
-      ...(d.subId ? { subId: d.subId, ...(d.resiliation ? { resiliation: true } : { echeance: d.echeance }) } : {}),
-      clientId: fiche.id, numero: tel, dateFacture: d.membres ? (depart ?? f.date) : f.date, quand: maintenant,
-    };
-    /* ARRÊTÉE D'AVANCE, OU SON MODÈLE EN PAUSE (5 novembre 2026, ce qui va
-       partir) : la ligne s'écrit telle qu'elle partirait, mais « écarté »
-       (par qui l'a arrêtée) ou « périmé » (retenue par Opale). Un arrêt ne
-       touche que ce rang : la suite garde ses jours. */
-    const aDeposer = {
-      ...commun, statut: 'en-attente',
-      ...depot(maintenantMs, regles, { genre: 'whatsapp', numero: tel, modele, parQui: 'la Maison, automatiquement', texteAuFil: texteDuFil, composants }, appel),
-    };
-    const dAvance = laPorteDAvance(aDeposer, avanceDuDepot);
-    if (dAvance && dAvance.verdict !== 'repli') {
-      await sb.from('envois').upsert({ id: idEnvoi, branch_id: f.branchId ?? null, data: { ...aDeposer, ...ligneRetenueDAvance(dAvance, maintenant) } }, { onConflict: 'id' });
-      saute(dAvance.verdict === 'arrete' ? 'arretee-d-avance' : 'modele-en-pause');
-      continue;
-    }
-    if (salleOuverte) {
-      await sb.from('envois').upsert({
-        id: idEnvoi, branch_id: f.branchId ?? null,
-        data: {
-          ...commun, statut: 'en-attente',
-          ...depot(maintenantMs, regles, { genre: 'whatsapp', numero: tel, modele, parQui: 'la Maison, automatiquement', texteAuFil: texteDuFil, composants }, appel),
-        },
-      }, { onConflict: 'id' });
-      relanceesAujourdhui.add(tel);
-      parties++;
-      continue;
-    }
-    /* Le facteur se tait : on envoie comme les rappels, hors des heures calmes seulement. */
-    if (dansLesHeuresCalmes(maintenantMs, regles)) { saute('heures-calmes'); continue; }
-    let statut = 'échec';
-    let detail: string | undefined;
-    let waId = '';
-    try {
-      const rep = await envoie(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
-        body: JSON.stringify({ messaging_product: 'whatsapp', to: tel, type: 'template', template: { name: modele, language: { code: 'fr' }, components: composants } }),
-        signal: AbortSignal.timeout(10_000),
-      });
-      const corps = await rep.json().catch(() => ({}));
-      waId = String(corps?.messages?.[0]?.id ?? '');
-      if (rep.ok) { statut = 'envoyé'; if (!waId) detail = 'accepté sans identifiant Meta'; }
-      else detail = String(corps?.error?.message ?? `HTTP ${rep.status}`);
-    } catch (e) {
-      detail = String(e);
-    }
-    await sb.from('envois').upsert({
-      id: idEnvoi, branch_id: f.branchId ?? null,
-      data: { ...commun, statut, ...(detail ? { detail: detail.slice(0, 300) } : {}), ...(waId ? { waMessageId: waId } : {}) },
-    }, { onConflict: 'id' });
-    if (statut !== 'envoyé') { saute('refus-meta'); continue; }
-    relanceesAujourdhui.add(tel);
-    parties++;
-    if (waId) {
-      const idFil = `wa-${waId}`;
-      await sb.from('messages_wa').upsert({
-        id: idFil, branch_id: f.branchId ?? null,
-        data: {
-          id: idFil, waId, branchId: f.branchId, sens: 'sortant', numero: tel, clientId: fiche.id, texte: texteDuFil,
-          type: 'text', quand: maintenant, etat: 'en-route', modele, parQui: 'la Maison, automatiquement',
-        },
-      }, { onConflict: 'id' });
-    }
+    await faisPartir({
+      idEnvoi, f, ...(d.membres ? { membres: d.membres.map((m) => m.f) } : {}), fiche, tel, reste, n,
+      forme: d.membres ? d.forme ?? 'jour' : 'seule', dateFacture: d.membres ? (depart ?? f.date) : f.date,
+      ...(d.subId ? { subId: d.subId } : {}),
+      marques: {
+        ...(d.membres ? { point: true, invoiceIds: d.membres.map((m) => m.f.id) } : auNomDuPayeur ? { invoiceIds: [f.id] } : {}),
+        ...(d.subId ? { subId: d.subId, ...(d.resiliation ? { resiliation: true } : { echeance: d.echeance }) } : {}),
+      },
+    });
   }
 
+  /* LE BILAN : `relances`, toutes celles parties (déposées ou envoyées) ;
+     `programmees`, celles des plans de la direction parmi elles. */
   return {
-    version: VERSION, jour: aujourdhui, relances: parties, enLice: aTraiter.length, points: points.length, attendLeModele: attendLeModele.size, salle: salleOuverte, sautes,
+    version: VERSION, jour: aujourdhui, relances: parties, programmees: programmeesParties, automatique,
+    enLice: aTraiter.length, points: points.length, attendLeModele: attendLeModele.size, salle: salleOuverte, sautes,
     ...(bornee ? { borne: BORNE_DES_RELANCES } : {}),
   };
 }

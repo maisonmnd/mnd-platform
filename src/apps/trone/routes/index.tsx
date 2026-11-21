@@ -158,6 +158,10 @@ const NAV_DES_ECRANS: TroneGroup[] = [
       { path: '/cartes-cadeaux', label: 'Cartes cadeaux', icon: Gift, Component: lazy(() => import('./vente/CartesCadeaux')) },
       { path: '/encaissements', label: 'Encaissements', icon: BadgeCheck, Component: lazy(() => import('./finances/Encaissements')) },
       { path: '/comptes', label: 'Comptes & Avoirs', icon: HandCoins, Component: lazy(() => import('./finances/Comptes')) },
+      /* LE POINT FINANCIER D'UNE CLIENTE (21 novembre 2026, maquette GqBogAWn…) :
+         ouvert par « Le point » sur sa fiche (`/point?id=…`), hors du menu ; le
+         département Vente & Caisse l'ouvre à un maître, la direction le voit. */
+      { path: '/point', horsMenu: true, label: 'Le point d’une cliente', icon: HandCoins, Component: lazy(() => import('./clients/LePoint')) },
       { path: '/abonnements', label: 'Abonnements', icon: Repeat, Component: lazy(() => import('./equipe/Abonnements')) },
     ],
   },
@@ -514,7 +518,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires', '/mtn', '/besoins', '/classement', '/demander'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/point', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires', '/mtn', '/besoins', '/classement', '/demander'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>

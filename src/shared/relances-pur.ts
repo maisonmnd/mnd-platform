@@ -250,7 +250,110 @@ export const idDuRappelDuPoint = (payeurId: string, depart: string, n: number): 
 /** Le départ du rappel du point : celui de sa facture la plus récente. */
 export const departDuPoint = (departs: readonly (string | null)[]): string | null =>
   departs.filter((d): d is string => !!d).sort().pop() ?? null;
+
+/* ══ LES RELANCES PROGRAMMÉES — 21 novembre 2026 ═══════════════════════════
+   « Le point financier que nous pouvons ensuite suivre : l'état, payé ou
+   réglé ; envoyé par WhatsApp ; relance (skip next) ; programmer une relance
+   sur une ou plusieurs factures combinées » (Yéman), puis « construis » sur
+   la maquette GqBogAWn… (choix par défaut : seules partent les relances
+   programmées, la tournée automatique reste éteinte).
+
+   UN PLAN, PORTÉ PAR CHACUNE DE SES FACTURES. La direction coche une ou
+   plusieurs factures, choisit le premier jour et le pas (une fois, tous les
+   7 ou 14 jours, quatre au plus) : chaque facture reçoit le même
+   `relanceProgrammee`, même `plan`, mêmes `jours`. La tournée de 10 h les
+   réunit par plan : une facture seule part avec le modèle de la relance ;
+   plusieurs, en un seul rappel (le modèle du point, ou le modèle de la
+   relance quand toutes sont du même jour). Les factures d'un plan sortent de
+   la suite automatique : la direction a choisi leurs jours.
+
+   CE QUI L'ARRÊTE, sans qu'on y touche : le reste à zéro (réglée), un message
+   d'elle depuis la programmation (la conversation passe à l'équipe), le plan
+   arrêté. Sauter la prochaine la retire de la liste ; la décaler la remplace
+   par un autre jour. Jamais un dimanche : un jour qui tombe le dimanche part
+   le lundi, comme la tournée automatique. */
+export type RelanceProgrammee = {
+  /** L'identifiant du plan, commun aux factures relancées ensemble. */
+  plan: string;
+  /** Les jours prévus, AAAA-MM-JJ, triés, sans dimanche. */
+  jours: string[];
+  /** Les jours sautés (« Sauter la prochaine »). */
+  sautes?: string[];
+  /** Quand et par qui il a été programmé ; une réponse d'elle après `le` l'arrête. */
+  le: string;
+  par?: string;
+  /** « Arrêter les relances » : plus rien ne part. */
+  arreteLe?: string;
+};
+
+/** Au plus quatre relances programmées, la dernière au plus 90 jours après la première. */
+export const RELANCES_PROGRAMMEES_AU_PLUS = 4;
+/** Les pas qu'on peut choisir : une fois (0), une semaine, deux semaines. */
+export const PAS_DES_RELANCES_PROGRAMMEES: readonly number[] = [0, 7, 14];
+
+/** LES JOURS D'UN PLAN : le premier jour (hors dimanche), puis tous les `pas` jours, quatre au plus. */
+export function joursDuPlan(debut: string, pas: number): string[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(debut)) return [];
+  const p = PAS_DES_RELANCES_PROGRAMMEES.includes(pas) ? pas : 0;
+  const n = p > 0 ? RELANCES_PROGRAMMEES_AU_PLUS : 1;
+  const jours: string[] = [];
+  for (let k = 0; k < n; k += 1) {
+    const j = horsDuDimanche(jourPlusR(debut, k * p));
+    if (jourPlusR(debut, JOURS_AU_PLUS) < j) break;
+    if (!jours.includes(j)) jours.push(j);
+  }
+  return jours;
+}
+
+/** Un plan bien formé, ou null : un objet lu en base ne se croit pas sur parole. */
+export function planLu(brut: unknown): RelanceProgrammee | null {
+  const r = (brut && typeof brut === 'object' ? brut : null) as Record<string, unknown> | null;
+  if (!r || typeof r.plan !== 'string' || !r.plan.trim() || typeof r.le !== 'string') return null;
+  const jourOk = (x: unknown): x is string => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x);
+  const jours = Array.isArray(r.jours) ? [...new Set(r.jours.filter(jourOk).map(horsDuDimanche))].sort().slice(0, RELANCES_PROGRAMMEES_AU_PLUS) : [];
+  if (!jours.length) return null;
+  return {
+    plan: r.plan.trim().slice(0, 60), jours, le: r.le,
+    ...(Array.isArray(r.sautes) ? { sautes: r.sautes.filter(jourOk) } : {}),
+    ...(typeof r.par === 'string' ? { par: r.par } : {}),
+    ...(typeof r.arreteLe === 'string' ? { arreteLe: r.arreteLe } : {}),
+  };
+}
+
+/** Les jours qui partiront encore : après `aujourdhui` (ou aujourd'hui compris), ni sautés, plan vivant. */
+export function joursAVenirDuPlan(p: RelanceProgrammee | null | undefined, aujourdhui: string, aujourdhuiCompris = false): string[] {
+  if (!p || p.arreteLe) return [];
+  const sautes = new Set(p.sautes ?? []);
+  return p.jours.filter((j) => !sautes.has(j) && (aujourdhuiCompris ? j >= aujourdhui : j > aujourdhui));
+}
+
+/** LA RELANCE PROGRAMMÉE PART-ELLE AUJOURD'HUI ? Un jour du plan, pas sauté, plan vivant, jamais le dimanche. */
+export const relanceProgrammeeDuJour = (p: RelanceProgrammee | null | undefined, aujourdhui: string): boolean =>
+  !!p && !p.arreteLe && !estUnDimanche(aujourdhui) && p.jours.includes(aujourdhui) && !(p.sautes ?? []).includes(aujourdhui);
+
+/** L'identifiant d'une relance programmée au journal : une par plan et par jour. */
+export const idDeLaRelanceProgrammee = (plan: string, jour: string): string => `rl-pg-${plan}-${jour}-whatsapp`;
 // ── FIN relances
+
+/* ── LES GESTES SUR UN PLAN (le Trône seul ; la tournée ne fait que lire) ── */
+
+/** « Sauter la prochaine » : son jour rejoint les sautés ; les suivantes gardent les leurs. */
+export function sauteLaProchaine(p: RelanceProgrammee, aujourdhui: string): RelanceProgrammee {
+  const prochaine = joursAVenirDuPlan(p, aujourdhui, true)[0];
+  return prochaine ? { ...p, sautes: [...new Set([...(p.sautes ?? []), prochaine])].sort() } : p;
+}
+
+/** « Décaler la prochaine au… » : son jour est remplacé (hors dimanche), jamais avant demain, jamais sur un jour déjà prévu. */
+export function decaleLaProchaine(p: RelanceProgrammee, aujourdhui: string, au: string): RelanceProgrammee {
+  const prochaine = joursAVenirDuPlan(p, aujourdhui, true)[0];
+  if (!prochaine || !/^\d{4}-\d{2}-\d{2}$/.test(au)) return p;
+  const jour = horsDuDimanche(au);
+  if (jour <= aujourdhui || (p.jours.includes(jour) && jour !== prochaine)) return p;
+  return { ...p, jours: [...p.jours.filter((j) => j !== prochaine), jour].sort() };
+}
+
+/** « Arrêter les relances » : le plan reste lisible (son histoire), plus rien ne part. */
+export const arreteLePlan = (p: RelanceProgrammee, quand: string): RelanceProgrammee => ({ ...p, arreteLe: quand });
 
 /* ══ LES RELANCES D'UNE ÉCHÉANCE DE FORMULE — 20 octobre 2026 ══════════════
    La pièce d'une formule se relance ÉCHÉANCE PAR ÉCHÉANCE (la fonction

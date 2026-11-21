@@ -3280,6 +3280,10 @@ function Customer360({
             {/* LE POINT DU COMPTE — 28 octobre 2026 : dès deux factures à
                 régler sur son compte (famille ou elle seule), un PDF et un
                 lien, en un toucher, au payeur du compte. */}
+            {/* LE POINT FINANCIER (21 novembre 2026) : ses rendez-vous et ses
+                factures, les remises, le suivi WhatsApp et les relances
+                programmées, sur une page (`/point`). */}
+            <Button variant="ghost" size="sm" onClick={() => navigate(`/point?id=${encodeURIComponent(client.id)}`)}>Le point</Button>
             <BoutonDuPoint teteId={client.id} className="mnd-btn mnd-btn--copper mnd-btn--sm" libelle="Envoyer le point" court onOpen={setPointDe} />
             {due > 0 ? (
               <>

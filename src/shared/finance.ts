@@ -215,6 +215,10 @@ export type Invoice = {
       relance de rang `rang` part le jour `au`, les suivantes gardent leurs
       écarts (relances-pur.ts, `jourDeLaRelance`). */
   relancesDecalage?: { au: string; rang: number; le: string; par?: string };
+  /** LA RELANCE PROGRAMMÉE (21 novembre 2026, « Le point ») : le plan que la
+      direction a posé sur cette facture, seule ou avec d'autres. La tournée de
+      10 h le lit (`relances-pur`, `relanceProgrammeeDuJour`). */
+  relanceProgrammee?: { plan: string; jours: string[]; sautes?: string[]; le: string; par?: string; arreteLe?: string };
   /** UNE PRESTATION REMPLACÉE APRÈS COUP (26 octobre 2026) : les lignes d'avant
       chaque remplacement, pour le défaire (remplacer-une-prestation-pur.ts). */
   remplacements?: { le: string; de: string; vers: string; lines: InvoiceLine[]; globalDiscountXof?: number }[];
