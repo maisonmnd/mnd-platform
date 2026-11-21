@@ -202,7 +202,7 @@ dit('le webhook lit les deux boutons de la paie, du seul numero a qui le message
 dit('« Oui, bien reçu » ecrit bien-recu, « Pas encore » ecrit pas-encore', true,
   /reponse_employe: m\[1\]\.toUpperCase\(\) === 'RECU' \? 'bien-recu' : 'pas-encore',/.test(webhook));
 dit('une reponse de paie ne va ni a l automate ni aux sonneries', [true, true],
-  [/if \(estUnBoutonDeLaPaie\(e\.bouton\?\.id\)\) continue;/.test(webhook), /!estUnBoutonDePerle\(e\.bouton\?\.id\) && !estUnBoutonDeLaPaie\(e\.bouton\?\.id\)\)/.test(webhook)]);
+  [/if \(estUnBoutonDeLaPaie\(e\.bouton\?\.id\)\) continue;/.test(webhook), /!estUnBoutonDePerle\(e\.bouton\?\.id\) && !estUnBoutonDeLaPaie\(e\.bouton\?\.id\)(?: && !lisLeBoutonDeLEquipe\(e\.bouton\?\.id\))?\)/.test(webhook)]);
 dit('« Pas encore » previent la direction, une fois', [true, true],
   [/if new\.reponse_employe is distinct from 'pas-encore' or old\.reponse_employe is not distinct from 'pas-encore' then/.test(surWhatsapp), /'mode', 'direction',/.test(surWhatsapp)]);
 

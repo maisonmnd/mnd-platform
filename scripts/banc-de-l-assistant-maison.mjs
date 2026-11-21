@@ -132,6 +132,13 @@ try {
     'trone::mnd_appointments': rdvs,
     'trone::mnd_signalements': signalements,
     'trone::mnd_appels': appels,
+    /* L'EQUIPE DU MATIN (21 novembre 2026) : la question de ce matin, ouverte encore deux heures. */
+    'trone::mnd_equipe_du_matin': { propositions: [{
+      jour: new Date(Date.now() + 3_600_000).toISOString().slice(0, 10), branchId: 'maison', etat: 'proposee',
+      proposeeLe: new Date().toISOString(), limite: new Date(Date.now() + 2 * 3_600_000).toISOString(),
+      destinataires: [{ staffId: 'st-g', appel: 'Gérard', numero: '2290151000011' }, { staffId: 'st-n', appel: 'Nassim', numero: '2290151000012' }, { staffId: 'st-a', appel: 'Aimé', numero: '2290151000013' }],
+      numeroDuDecideur: '2290151000014',
+    }] },
   };
   await cdp('Page.navigate', { url: `${origine}/` });
   await attend(2500);
@@ -166,6 +173,13 @@ try {
   dit('Ensuite : 2 bilans a remettre (vers les seances), les civilites a poser ; aucun avis a relire', (suite ?? []).length === 2
     && suite[0][0] === '2' && suite[0][1] === 'Bilans à remettre' && suite[0][2] === 'Voir' && /#\/customers\?focus=bilans/.test(suite[0][3])
     && suite[1][1] === 'Civilités à poser' && suite[1][2] === 'Poser', JSON.stringify(suite));
+
+  /* 2 bis. L'EQUIPE DU MATIN (21 novembre 2026) : rien avant 11 h, la question de 9 h ou 10 h en tete,
+     pour la direction, avec ses deux boutons ; elle ne compte pas parmi les trois cartes. */
+  const equipe = await evalue(String.raw`(() => { const e = document.querySelector('.trc-auj__equipe'); return e ? { titre: e.querySelector('strong')?.textContent, dit: (e.querySelector('span')?.textContent || '').replace(/\s+/g, ' '), boutons: [...e.querySelectorAll('button')].map((b) => b.textContent.trim()), avantLesCartes: !!(e.compareDocumentPosition(document.querySelector('.trc-auj__cartes')) & Node.DOCUMENT_POSITION_FOLLOWING) } : null; })()`);
+  dit('l equipe du matin : « L equipe plus tard ? », pour Gerard, Nassim et Aime, « A 9 h » et « A 10 h », avant les cartes',
+    equipe?.titre === 'L’équipe plus tard ?' && /^Rien avant 11 h · Gérard, Nassim et Aimé · réponse avant \d{1,2} h/.test(equipe?.dit ?? '')
+    && JSON.stringify(equipe?.boutons) === JSON.stringify(['À 9 h', 'À 10 h']) && equipe?.avantLesCartes === true, JSON.stringify(equipe));
 
   /* 3. Ce que Perle ecrit : cinq lignes d'abord, le reste se deplie ; un seul panneau ouvert. */
   const titre = await evalue(String.raw`document.querySelector('.trc-auj__tete h3')?.textContent.replace(/\s+/g, ' ').trim() || ''`);
@@ -256,8 +270,24 @@ try {
     && (await evalue(String.raw`[...document.querySelectorAll('.trc-ger__modes button')].every((b) => b.offsetParent !== null)`)) === true
     && (await evalue(`document.querySelectorAll('.trc-ger__plafond input').length`)) === 2 && (await evalue(`document.querySelectorAll('.trc-ger__modeles li').length`)) >= 10);
   const replis = await evalue(String.raw`[...document.querySelectorAll('details.trc-am__repli')].map((d) => [d.querySelector('h3')?.textContent, d.open])`);
-  dit('... quatre replis fermes : Jours creux, Entre deux seances, Ses regles, Modeles WhatsApp',
-    JSON.stringify(replis) === JSON.stringify([['Jours creux', false], ['Entre deux séances', false], ['Ses règles', false], ['Modèles WhatsApp', false]]), JSON.stringify(replis));
+  dit('... cinq replis fermes : Jours creux, L equipe le matin, Entre deux seances, Ses regles, Modeles WhatsApp',
+    JSON.stringify(replis) === JSON.stringify([['Jours creux', false], ['L’équipe le matin', false], ['Entre deux séances', false], ['Ses règles', false], ['Modèles WhatsApp', false]]), JSON.stringify(replis));
+  /* L'equipe le matin (21 novembre 2026) : eteinte par defaut ; la direction l'allume d'une case. */
+  dit('... l equipe le matin : eteinte, puis allumee d une case, ecrit dans les reglages de la Maison', await evalue(String.raw`(() => {
+    const d = [...document.querySelectorAll('details.trc-am__repli')].find((x) => x.querySelector('h3')?.textContent === 'L’équipe le matin');
+    if (!d) return 'pas de repli';
+    const avant = d.querySelector('.trc-am__resume')?.textContent;
+    d.querySelector('summary').click();
+    return new Promise((r) => setTimeout(() => {
+      const c = d.querySelector('.trc-auj__reglage input[type=checkbox]');
+      if (!c) { r('pas de case'); return; }
+      c.click();
+      setTimeout(() => {
+        const ecrit = JSON.parse(localStorage.getItem('trone::mnd_settings') || '{}').equipeDuMatin;
+        r(avant === 'Éteint' && ecrit?.actif === true && ecrit?.limite === '07:30' ? true : JSON.stringify({ avant, ecrit }));
+      }, 400);
+    }, 250));
+  })()`) === true);
   dit('... un seul repli ouvert a la fois : Ses regles ouvert, puis Modeles WhatsApp ouvert referme Ses regles', await evalue(String.raw`(() => {
     const d = [...document.querySelectorAll('details.trc-am__repli')];
     const regles = d.find((x) => x.querySelector('h3')?.textContent.startsWith('Ses règles'));

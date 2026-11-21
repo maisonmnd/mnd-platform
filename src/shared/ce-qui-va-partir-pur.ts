@@ -199,6 +199,13 @@ export const GENRES_PREVUS: Record<string, GenrePrevu> = {
   'apres-seance': { dit: 'Après la séance · prochaine séance', modele: 'prochaine_seance', sorte: 'avis', raison: (l) => `${saSeance(l).replace(/\.$/, '')} ; sa prochaine séance proposée.` },
   /* « Programmer un WhatsApp » (13 novembre 2026) : écrit au Trône, à son heure exacte. */
   programme: { dit: 'Envoi programmé', sorte: 'autre', raison: () => 'Programmé au Trône, à son heure.' },
+  /* L'équipe du matin (21 novembre 2026) : trois genres, un type. */
+  'equipe-du-matin': {
+    dit: 'L’équipe du matin', sorte: 'autre',
+    raison: (l) => (String(l.genre ?? '') === 'accord' ? 'Rien avant 11 h : 9 h ou 10 h, à la direction.'
+      : String(l.genre ?? '') === 'arrivee' ? 'L’équipe vient plus tard : la direction l’a choisi.'
+        : 'Les rendez-vous du jour, à l’équipe, à 6 h.'),
+  },
 };
 /** Le genre d'une ligne : déclaré, ou dit par son nom technique. */
 export function genrePrevu(type: unknown): GenrePrevu {

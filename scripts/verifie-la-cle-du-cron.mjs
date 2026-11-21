@@ -87,6 +87,8 @@ const DIRECTES = {
   'kkiapay-webhook': 'refuse',
   /* La porte du site, pour la réponse du webhook (la consultation en affiches, 18 novembre 2026). */
   'demande-submit': 'refuse',
+  /* L'équipe du matin (21 novembre 2026) : le cron et le webhook par la clé service ; sans clé ni session, le refus noté. */
+  'equipe-du-matin': 'refuse',
   'cloture-du-jour': 'reconnait',
   'modeles-meta': 'reconnait',
   'push-notify': 'reconnait',
@@ -111,6 +113,7 @@ const SANTE = [
   { fichier: fonction('fete-de-couronne'), get: "req.method === 'GET'", raison: 'le contrôle de santé : secrets: { CLE_SERVICE, WA_TOKEN… } en longueurs' },
   { fichier: fonction('rappels-d-echeance'), get: "req.method === 'GET'", raison: 'le contrôle de santé : secrets: { … } en longueurs' },
   { fichier: fonction('relances-factures'), get: "req.method === 'GET'", raison: 'le contrôle de santé : secrets: { … } en longueurs' },
+  { fichier: fonction('equipe-du-matin'), get: "req.method === 'GET'", raison: 'le contrôle de santé : secrets: { WA_TEMPLATE_…, CLE_SERVICE, WA_TOKEN… } en longueurs' },
   { fichier: fonction('whatsapp-automate'), get: "req.method === 'GET'", raison: 'le contrôle de santé : lg(\'CLE_SERVICE\'), lg(\'WA_TOKEN\')…' },
   { fichier: fonction('whatsapp-webhook'), get: "req.method === 'GET' && !new URL(req.url).searchParams.get('hub.mode')",
     raison: 'le contrôle de santé, un GET SANS hub.mode (la poignée de main de Meta, elle, n\'y entre pas)' },

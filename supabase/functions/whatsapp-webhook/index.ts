@@ -643,6 +643,22 @@ const reponseALAutreDate = (appel: string): string =>
 const reponseALaPlacePrise = (appel: string): string =>
   `Cette place vient d’être prise, ${appel}. Dites-nous ici le jour qui vous va : la Maison MND vous propose une heure.`;
 /* ⟨/prochaine-seance⟩ */
+
+/* L'ÉQUIPE DU MATIN (21 novembre 2026) : « À 9 h » ou « À 10 h », le bouton de
+   la question que `equipe-du-matin` pose à la direction. Recopié de
+   src/shared/equipe-du-matin-pur.ts par scripts/terminer-copie-serveur.mjs. */
+/* ⟨bouton-de-l-equipe⟩ */
+/** LE BOUTON DE LA DIRECTION, « À 9 h » ou « À 10 h » : la réponse rapide du
+    modèle porte le jour et l'heure ; le webhook la lit et la rend à la
+    fonction `equipe-du-matin`, qui juge. */
+export const PREFIXE_DU_BOUTON_DE_L_EQUIPE = 'EQUIPE_TARD';
+export const RE_BOUTON_DE_L_EQUIPE = /^EQUIPE_TARD:(\d{4}-\d{2}-\d{2}):(9|10)$/;
+export const chargeDuBoutonDeLEquipe = (jour: string, heure: number): string => `${PREFIXE_DU_BOUTON_DE_L_EQUIPE}:${jour}:${heure}`;
+export function lisLeBoutonDeLEquipe(id: unknown): { jour: string; heure: number } | null {
+  const m = RE_BOUTON_DE_L_EQUIPE.exec(String(id ?? ''));
+  return m ? { jour: m[1], heure: Number(m[2]) } : null;
+}
+/* ⟨/bouton-de-l-equipe⟩ */
 /* LE RENDEZ-VOUS SUIVANT, RELU AU « OUI » (11 novembre 2026) : posé depuis le
    message (le comptoir, Ma Couronne), rien ne se pose une seconde fois. Bloc
    RECOPIÉ de `src/shared/messages-de-l-abonnee-pur.ts`, comme le précédent.
@@ -2574,6 +2590,8 @@ Deno.serve(async (req) => {
         if (estUnBoutonDePerle(e.bouton?.id)) continue;
         /* Les boutons de la paie (⑤ bis·1) : une réponse au registre, pas une conversation. */
         if (estUnBoutonDeLaPaie(e.bouton?.id)) continue;
+        /* Le bouton de l'équipe du matin (⑤ bis·1 bis) : une réponse à la fonction, pas une conversation. */
+        if (lisLeBoutonDeLEquipe(e.bouton?.id)) continue;
         /* Les boutons de la prochaine séance (⑤ bis·5, 8 novembre 2026) : une
            place posée ou la main passée, pas un tour de l'automate. */
         if (estUnBoutonDeLaProchaineSeance(e.bouton?.id)) continue;
@@ -2593,7 +2611,7 @@ Deno.serve(async (req) => {
       }
 
       const arrivees: Arrivee[] = entrants
-        .filter((e) => estNeuf(e) && !confies.has(e.numero) && !confirmesParEcrit.has(e.waId) && !estUnBoutonDeLaProchaineSeance(e.bouton?.id) && !estUnBoutonDePerle(e.bouton?.id) && !estUnBoutonDeLaPaie(e.bouton?.id))
+        .filter((e) => estNeuf(e) && !confies.has(e.numero) && !confirmesParEcrit.has(e.waId) && !estUnBoutonDeLaProchaineSeance(e.bouton?.id) && !estUnBoutonDePerle(e.bouton?.id) && !estUnBoutonDeLaPaie(e.bouton?.id) && !lisLeBoutonDeLEquipe(e.bouton?.id))
         .map((e) => ({
           numero: e.numero,
           tiroir: tiroirDe(e.numero),
@@ -2657,6 +2675,29 @@ Deno.serve(async (req) => {
     }).eq('reference', reference).eq('etat', 'recu');
     if (error) dis('bouton · paie, écriture refusée', { motif: error.message.slice(0, 120) });
     else dis('bouton · paie', { geste: m[1].toUpperCase() });
+  }
+
+  /* ── ⑤ bis·1 bis L'ÉQUIPE DU MATIN — 21 novembre 2026 ───────────────
+     « À 9 h » ou « À 10 h » (EQUIPE_TARD:<jour>:<heure>), sous la question
+     qu'`equipe-du-matin` pose à la direction quand rien n'est avant 11 h.
+     La fonction juge (la limite, un seul choix, seul le numéro questionné
+     répond), pose le mur du calendrier, prévient l'équipe, et répond
+     elle-même sur ce fil. */
+  for (const e of entrants) {
+    if (!estNeuf(e)) continue;
+    const b = lisLeBoutonDeLEquipe(e.bouton?.id);
+    if (!b) continue;
+    try {
+      const r = await fetch(`${urlBase}/functions/v1/equipe-du-matin`, {
+        method: 'POST', signal: AbortSignal.timeout(20_000),
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${service}` },
+        body: JSON.stringify({ geste: 'repondre', jour: b.jour, heure: b.heure, numero: e.numero }),
+      });
+      const rep = await r.json().catch(() => ({})) as { ok?: boolean; code?: string };
+      dis('bouton · équipe du matin', { ok: rep.ok === true, code: String(rep.code ?? '') });
+    } catch (err) {
+      dis('bouton · équipe du matin, échec', { motif: String(err).slice(0, 120) });
+    }
   }
 
   /* ── ⑤ bis·2 LA REPRISE, CONFIRMÉE D'UNE TOUCHE — 29 septembre 2026 ──

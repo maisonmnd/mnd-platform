@@ -620,7 +620,8 @@ const modeles = () => META.filter((m) => m.type === 'template');
   dit('le facteur porte la regle, caractere pour caractere, et le dit dans sa version', [true, true],
     [ep.includes('/* ⟨envois-programmes⟩ */') && ep.includes(lis('src/shared/envois-programmes-pur.ts').split('/* ⟨envois-programmes⟩ */')[1].split('/* ⟨/envois-programmes⟩ */')[0]),
       /* 2026-11-18-a : la visio relue avant de partir, le texte d'avant gardé. */
-      /const VERSION = '2026-11-1(?:3|8)-a [^']*les envois programmés/.test(ep)]);
+      /* 2026-11-21-a : l'équipe du matin traverse les heures calmes, le texte d'avant gardé. */
+      /const VERSION = '2026-11-(?:1(?:3|8)|21)-a [^']*les envois programmés/.test(ep)]);
   const doc = lis('docs/modeles-whatsapp-envois-programmes.md');
   dit('le document du modele d ouverture : son nom, son corps mot pour mot, le pied de la devise, son secret', [true, true, true, true],
     [doc.includes('`un_message_pour_vous`'), doc.includes(CORPS_D_OUVERTURE), doc.includes(DEVISE_COMPLETE), doc.includes('`WA_TEMPLATE_OUVERTURE = un_message_pour_vous`')]);

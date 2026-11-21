@@ -199,7 +199,8 @@ dit('le dépôt : le facteur vivant d’abord, la ligne insérée (jamais écras
     /code !== '23505'\) return \{ issue: 'panne', id \}/.test(depot), /void inscrisLesGestes\(\[gesteDuMaintenant\(ligne, identiteCourante\(\),/.test(depot)]);
 const facteur = readFileSync('supabase/functions/envois-partent/index.ts', 'utf8');
 dit('le facteur : une main qui a dit « maintenant » traverse les heures calmes, et la porte d’avance (arrêt de la direction, modèle en pause) la juge quand même', [true, true],
-  [/\(!calme \|\| l\.data\.parLaMain === true \|\| l\.data\.type === TYPE_PROGRAMME\)/.test(facteur), /const dAvance = laPorteDAvance\(devant, avance\);/.test(facteur)]);
+  /* 21 novembre 2026 : l'équipe du matin traverse aussi les heures calmes. */
+  [/\(!calme \|\| l\.data\.parLaMain === true \|\| l\.data\.type === TYPE_PROGRAMME(?: \|\| l\.data\.type === TYPE_DE_L_EQUIPE_DU_MATIN)?\)/.test(facteur), /const dAvance = laPorteDAvance\(devant, avance\);/.test(facteur)]);
 
 console.log(ko ? `\n${ko} ECHEC(S)` : '\nTout passe.');
 process.exitCode = ko ? 1 : 0;

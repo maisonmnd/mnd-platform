@@ -407,7 +407,7 @@ dit('une table encore absente (0197 pas passee) laisse porter comme avant', true
 /* La version du 11 novembre 2026 ou une suivante du même jour (2026-11-11-b : la prochaine séance de l'abonnée relue au départ). */
 /* 2026-11-13-a : les envois programmés, qui gardent le texte d'avant. */
 /* 2026-11-18-a : la visio relue avant de partir, le texte d'avant gardé. */
-dit('la version du facteur le dit', true, /const VERSION = '2026-11-1[138]-[a-z] [^']*ce qui va partir : arrêté d’avance, modèle en pause/.test(ep));
+dit('la version du facteur le dit', true, /const VERSION = '2026-11-(?:1[138]|21)-[a-z] [^']*ce qui va partir : arrêté d’avance, modèle en pause/.test(ep));
 
 /* ══ 11. CHAQUE FONCTION QUI DEPOSE : la copie, la lecture, le geste avant la salle ══ */
 const BLOC = '/* ⟨arret-d-avance⟩ */';

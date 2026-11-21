@@ -457,3 +457,30 @@
   .trc-auj__francs { min-width: 0; text-align: left; }
   .trc-auj__fin { min-width: 0; }
 }
+
+/* ── L'ÉQUIPE DU MATIN · 21 novembre 2026 ──────────────────────────────────
+   La question de 9 h ou 10 h, en tête de « À faire maintenant » (indigo, comme
+   une carte qui attend une réponse), puis l'heure choisie, calme. Dans les
+   Réglages de Perle : qui reçoit la journée, et comment Perle l'appelle. */
+.trc-auj__equipe {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+  padding: 16px 18px 16px 24px; border: 1px solid var(--color-indigo); border-radius: 4px;
+  background: var(--color-indigo);
+}
+.trc-auj__equipe > div { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.trc-auj__equipe strong { font-family: var(--font-serif); font-weight: 300; font-size: 26px; line-height: 1.1; color: var(--color-ivoire, #F6F1E7); }
+.trc-auj__equipe span { font-size: 13.5px; color: var(--indigo-100); overflow-wrap: anywhere; }
+.trc-auj__equipe > .trc-auj__btn { min-height: 44px; min-width: 96px; }
+.trc-auj__equipe--calme { background: var(--surface-card); border-color: var(--hairline); }
+.trc-auj__equipe--calme strong { color: var(--color-indigo); }
+.trc-auj__equipe--calme span { color: var(--ink-soft); }
+
+.trc-auj__matin .trc-auj__reglage {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 12px 0 0; font-size: 14px; color: var(--color-indigo);
+}
+.trc-auj__matin .trc-auj__reglage select,
+.trc-auj__matin .trc-auj__reglage input[type="time"] { min-height: 40px; padding: 0 10px; border: 1px solid var(--hairline); border-radius: 2px; background: var(--surface-card); font: inherit; color: inherit; }
+.trc-auj__qui-recoit { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.trc-auj__qui-recoit li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; min-height: 40px; }
+.trc-auj__qui-recoit label { display: flex; align-items: center; gap: 10px; flex: 1 1 200px; min-width: 0; font-size: 14.5px; color: var(--color-indigo); }
+.trc-auj__qui-recoit input[type="text"] { flex: 0 1 180px; min-width: 0; min-height: 40px; padding: 0 10px; border: 1px solid var(--hairline); border-radius: 2px; background: var(--surface-card); font: inherit; }

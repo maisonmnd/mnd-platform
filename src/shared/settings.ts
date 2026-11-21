@@ -5,6 +5,7 @@ import type { ReglagesRelances } from './relances-pur';
 import type { ReglagesDictee } from './dictee-pur';
 import type { ReglagesAssistants } from './assistants-pur';
 import type { ReglagesDuLivre } from './maison-intelligente-pur';
+import type { ReglagesDeLEquipeDuMatin } from './equipe-du-matin-pur';
 
 /* Paramètres de la Maison — persistés en localStorage (clé `mnd_settings`).
    Jours & heures d'ouverture, bascules de rituel/notifications, et les liens
@@ -163,6 +164,11 @@ export type Settings = {
       l'abonnement, et le seuil d'alerte. Lu par l'écran « Les assistants » et
       par Saphir (Conseil du matin) ; réglé par un souverain. */
   livreDesCredits?: ReglagesDuLivre;
+  /** L'ÉQUIPE DU MATIN — 21 novembre 2026 : qui reçoit la journée à 6 h,
+      comment Perle l'appelle, qui répond « À 9 h » ou « À 10 h », et
+      l'heure au-delà de laquelle la réponse ne vaut plus. Lu par la
+      fonction `equipe-du-matin` ; réglé dans les Réglages de Perle. */
+  equipeDuMatin?: ReglagesDeLEquipeDuMatin;
 };
 
 /** Créneaux d'ouverture proposés — repris du prototype. */

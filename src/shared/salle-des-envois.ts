@@ -137,8 +137,12 @@ export const attendEncore = (e: Pick<EnvoiEnSalle, 'statut'>): boolean =>
     module (`scripts/serveur/`) ne doivent pas changer pour autant ; le banc
     `verifie-la-salle-qui-repond` vérifie qu'il reste `TYPE_PROGRAMME`. */
 const TYPE_PROGRAMME_ICI = 'programme';
+/** L'ÉQUIPE DU MATIN (21 novembre 2026) : la journée à l'équipe part à 6 h,
+    l'heure demandée ; les heures calmes protègent les clientes, pas l'équipe.
+    Le même mot que `TYPE_DE_L_EQUIPE_DU_MATIN` (equipe-du-matin-pur). */
+const TYPE_DE_L_EQUIPE_ICI = 'equipe-du-matin';
 export const traverseLesHeuresCalmes = (e: { parLaMain?: boolean; type?: string }): boolean =>
-  e.parLaMain === true || e.type === TYPE_PROGRAMME_ICI;
+  e.parLaMain === true || e.type === TYPE_PROGRAMME_ICI || e.type === TYPE_DE_L_EQUIPE_ICI;
 
 /** LE FACTEUR PEUT-IL LE PORTER MAINTENANT ? Seul un message en attente, dont
     l'heure est venue, part ; et pendant les heures calmes, seulement si une

@@ -49,6 +49,13 @@ import { etatDuReportDit, rdvsAReprogrammer } from './a-reprogrammer';
 import { PageHead } from '../_ui';
 import { GerardEntreDeux } from './GerardEntreDeux';
 import { useConversationsSupprimees } from '../../../../shared/conversations-supprimees';
+import { settingsStore, useSettings } from '../../../../shared/settings';
+import { repondsAuMatin, useEquipeDuMatin } from '../../../../shared/equipe-du-matin';
+import {
+  HEURES_PLUS_TARD, INSTALLATION_MIN, RIEN_AVANT_MIN, estOuverte, heureDuMatin, jourDeCotonou, laPropositionDe, minuteDeCotonou,
+  appelDuDestinataire, nomsDits, reglagesDuMatin, type ReglagesDeLEquipeDuMatin,
+} from '../../../../shared/equipe-du-matin-pur';
+import { useStaff as useFichesDeLEquipe } from '../equipe/data';
 import LesConversations from './LesConversations';
 import LesAvis from './LesAvis';
 import OffresEtRemises from './OffresEtRemises';
@@ -119,7 +126,7 @@ const vueLue = (x: string | null): Vue => (VUES.some((v) => v.cle === x) ? (x as
 /** Le titre de la page, vue par vue (les vues en pleine page ont leur propre tête). */
 const TITRE_DE_LA_VUE: Partial<Record<Vue, string>> = { aujourdhui: 'Aujourd’hui.', rapporte: 'Résultats.', reglages: 'Réglages de Perle.' };
 /** Les replis des Réglages (Entre deux séances, Ses règles, Modèles WhatsApp) : un seul ouvert à la fois. */
-type Repli = 'entre-deux' | 'regles' | 'modeles';
+type Repli = 'entre-deux' | 'regles' | 'modeles' | 'matin';
 /** Les lignes montrées d'abord dans « Perle écrit aujourd'hui » ; le reste se déplie. */
 const LIGNES_VUES = 5;
 /** LE DÉPART D'UNE LIGNE, EN DEUX MOTS : la colonne de droite de la liste. La
@@ -399,6 +406,27 @@ export default function Gerard() {
      heures calmes (`shared/envoyer-maintenant-pur`). La clé déjà prise (le
      passage vient de la déposer), elle part par le geste de la salle. */
   const [enVol, setEnVol] = useState<string | null>(null);
+  /* L'ÉQUIPE DU MATIN : le document de la fonction, l'heure qui avance, la réponse d'un toucher, et ses réglages. */
+  const matin = useEquipeDuMatin();
+  const [maintenantMatin, setMaintenantMatin] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setMaintenantMatin(Date.now()), 60_000);
+    return () => window.clearInterval(t);
+  }, []);
+  const [reponseDuMatin, setReponseDuMatin] = useState(false);
+  const repondsLeMatin = async (heure: number) => {
+    setReponseDuMatin(true);
+    const r = await repondsAuMatin(heure, branch.id);
+    setReponseDuMatin(false);
+    toast(r.ok ? `C’est noté : l’équipe vient à ${heure} h.` : (r.motif ?? 'Rien n’a changé.'));
+  };
+  const [reglagesDeLaMaison] = useSettings();
+  const matinRegle = reglagesDuMatin(reglagesDeLaMaison.equipeDuMatin);
+  const [fichesDeLEquipe] = useFichesDeLEquipe();
+  const fichesDeLaBranche = fichesDeLEquipe.filter((f) => f.branchId === branch.id && !f.archiveeLe)
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  const changeLeMatin = (change: (r: ReturnType<typeof reglagesDuMatin>) => ReglagesDeLEquipeDuMatin) =>
+    settingsStore.set((s) => ({ ...s, equipeDuMatin: change(reglagesDuMatin(s.equipeDuMatin)) }));
   const envoieSansAttendre = async (s: Situation) => {
     const qui = moi?.name ?? 'La direction';
     setEnVol(s.clientId);
@@ -488,6 +516,12 @@ export default function Gerard() {
      choix, à l'équipe de la rappeler. */
   const liste = rdvsAReprogrammer(appts);
   const aLEquipe = liste.filter((a) => etatDuReport(a, Date.now()) === 'equipe').length;
+  /* L'ÉQUIPE DU MATIN (21 novembre 2026) : rien avant 11 h, la question de 9 h ou 10 h, posée à
+     6 h sur le WhatsApp de la direction et ici. Le premier toucher décide ; la fonction juge. */
+  const propositionDuMatin = laPropositionDe(matin, jourDeCotonou(maintenantMatin), branch.id);
+  const questionDuMatin = direction && estOuverte(propositionDuMatin, maintenantMatin) ? propositionDuMatin : null;
+  const arriveeChoisie = propositionDuMatin?.etat === 'choisie' && typeof propositionDuMatin.heure === 'number'
+    && minuteDeCotonou(maintenantMatin) < RIEN_AVANT_MIN ? propositionDuMatin : null;
   /* À ENVOYER : les WhatsApp qui attendent un toucher (un par cliente, tant que le modèle n'est pas approuvé chez Meta). */
   const aToucher = tuiles.oui.whatsapp;
   const lignesVues = toutVoir ? fusion.lignes : fusion.lignes.slice(0, LIGNES_VUES);
@@ -548,6 +582,26 @@ export default function Gerard() {
                 dans la vue « Réglages ». */}
             <section className="trc-auj__bloc" aria-label="À faire maintenant">
               <span className="trc-auj__sur">À faire maintenant</span>
+              {/* L'ÉQUIPE DU MATIN (21 novembre 2026) : la même question que sur son WhatsApp à 6 h. */}
+              {questionDuMatin && (
+                <div className="trc-auj__equipe">
+                  <div>
+                    <strong>L’équipe plus tard ?</strong>
+                    <span>Rien avant 11 h · {nomsDits(questionDuMatin.destinataires.map((d) => d.appel))} · réponse avant {heureDuMatin(minuteDeCotonou(Date.parse(questionDuMatin.limite)))}</span>
+                  </div>
+                  {HEURES_PLUS_TARD.map((h) => (
+                    <button key={h} type="button" className="trc-auj__btn trc-auj__btn--clair" disabled={reponseDuMatin} onClick={() => { void repondsLeMatin(h); }}>À {h} h</button>
+                  ))}
+                </div>
+              )}
+              {arriveeChoisie && (
+                <div className="trc-auj__equipe trc-auj__equipe--calme">
+                  <div>
+                    <strong>L’équipe vient à {arriveeChoisie.heure} h</strong>
+                    <span>{nomsDits(arriveeChoisie.destinataires.map((d) => d.appel))} · personne ne réserve avant {heureDuMatin((arriveeChoisie.heure ?? 0) * 60 + INSTALLATION_MIN)}</span>
+                  </div>
+                </div>
+              )}
               <div className="trc-auj__cartes">
                 <div className={`trc-auj__carte${humain.total > 0 ? ' trc-auj__carte--forte' : ''}`}>
                   <b>{humain.total}</b>
@@ -961,6 +1015,58 @@ export default function Gerard() {
                   </tbody>
                 </table>
               </div>
+            </details>
+
+            {/* L'ÉQUIPE LE MATIN (21 novembre 2026) : qui reçoit la journée à 6 h, comment Perle l'appelle,
+                qui répond « À 9 h » ou « À 10 h », et l'heure au-delà de laquelle l'équipe vient à 8 h. */}
+            <details className="trc-ger__carte trc-am__repli trc-auj__matin" open={repli === 'matin'} onToggle={surRepli('matin')}>
+              <summary>
+                <h3>L’équipe le matin</h3>
+                <span className="trc-am__resume">{matinRegle.actif ? <><b>{matinRegle.destinataires.length}</b> à 6 h</> : 'Éteint'}</span>
+              </summary>
+              <label className="trc-auj__reglage">
+                <input type="checkbox" checked={matinRegle.actif} disabled={!direction}
+                  onChange={(e) => { const oui = e.target.checked; changeLeMatin((r) => ({ ...r, actif: oui })); }} />
+                <span>Chaque matin à 6 h, la journée à l’équipe</span>
+              </label>
+              <ul className="trc-auj__qui-recoit">
+                {fichesDeLaBranche.filter((f) => f.auFauteuil).map((f) => {
+                  const d = matinRegle.destinataires.find((x) => x.staffId === f.id);
+                  return (
+                    <li key={f.id}>
+                      <label>
+                        <input type="checkbox" checked={!!d} disabled={!direction}
+                          onChange={(e) => {
+                            const oui = e.target.checked;
+                            changeLeMatin((r) => ({ ...r, destinataires: oui ? [...r.destinataires.filter((x) => x.staffId !== f.id), { staffId: f.id }] : r.destinataires.filter((x) => x.staffId !== f.id) }));
+                          }} />
+                        <span>{f.name}</span>
+                      </label>
+                      {d && (
+                        <input type="text" aria-label={`Comment Perle appelle ${f.name}`} placeholder={appelDuDestinataire({ staffId: f.id }, f.name)} defaultValue={d.appel ?? ''} disabled={!direction}
+                          onBlur={(e) => {
+                            const appel = e.target.value.replace(/\s+/g, ' ').trim();
+                            changeLeMatin((r) => ({ ...r, destinataires: r.destinataires.map((x) => (x.staffId === f.id ? (appel ? { staffId: f.id, appel } : { staffId: f.id }) : x)) }));
+                          }} />
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <label className="trc-auj__reglage">
+                <span>« À 9 h » ou « À 10 h » : la question va à</span>
+                <select value={matinRegle.decideur} disabled={!direction}
+                  onChange={(e) => { const decideur = e.target.value; changeLeMatin((r) => ({ ...r, decideur })); }}>
+                  <option value="">Personne</option>
+                  {fichesDeLaBranche.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+              </label>
+              <label className="trc-auj__reglage">
+                <span>Sans réponse à</span>
+                <input type="time" value={matinRegle.limite} min="06:00" max="09:00" disabled={!direction}
+                  onChange={(e) => { const limite = e.target.value; changeLeMatin((r) => ({ ...r, limite })); }} />
+                <span>l’équipe vient à 8 h</span>
+              </label>
             </details>
 
             <details className="trc-ger__carte trc-am__repli trc-am__repli--hote" open={repli === 'entre-deux'} onToggle={surRepli('entre-deux')}>

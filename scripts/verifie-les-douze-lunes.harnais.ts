@@ -692,6 +692,9 @@ const regles: Regle[] = [
         'ecoute-du-vocal': { fichier: 'src/shared/ecoute-du-vocal-pur.ts', extrait: (s) => entre(s, 'ecoute-du-vocal') },
         /* À reprogrammer (19 novembre 2026) : le report, la relance du lendemain, les boutons de places, « jamais sans rendez-vous », recopiés dans whatsapp-automate. */
         'a-reprogrammer': { fichier: 'src/shared/a-reprogrammer-pur.ts', extrait: (s) => entre(s, 'a-reprogrammer') },
+        /* L'équipe du matin (21 novembre 2026) : la journée à l'équipe à 6 h, la question de 9 h ou 10 h, recopiées dans equipe-du-matin ; son bouton aussi dans whatsapp-webhook. */
+        'equipe-du-matin': { fichier: 'src/shared/equipe-du-matin-pur.ts', extrait: (s) => entre(s, 'equipe-du-matin') },
+        'bouton-de-l-equipe': { fichier: 'src/shared/equipe-du-matin-pur.ts', extrait: (s) => entre(s, 'bouton-de-l-equipe') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

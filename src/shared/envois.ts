@@ -29,7 +29,11 @@ export type TypeDEnvoi = 'accuse' | 'confirmation' | 'rappel-j1' | 'avis-google'
   | 'programme'
   /* La proposition du rendez-vous suggéré, en fermant « C'est réglé »
      (15 novembre 2026, confirmation-rdv). */
-  | 'proposition';
+  | 'proposition'
+  /* L'équipe du matin (21 novembre 2026, `equipe-du-matin`) : la journée à
+     l'équipe à 6 h, la question de 9 h ou 10 h à la direction, l'heure
+     d'arrivée choisie. Son `genre` dit lequel (planning, accord, arrivee). */
+  | 'equipe-du-matin';
 
 /** Ce que le journal lit d'une ligne `envois`. Les champs viennent de
     fonctions différentes, écrites à des dates différentes : tous facultatifs
@@ -127,6 +131,8 @@ export const TYPE_DIT: Record<string, string> = {
   'apres-seance': 'Prochaine séance proposée',
   /* « Programmer un WhatsApp » (13 novembre 2026). */
   programme: 'Envoi programmé',
+  /* L'équipe du matin (21 novembre 2026). */
+  'equipe-du-matin': 'L’équipe du matin',
 };
 export const typeDit = (t: string): string => TYPE_DIT[t] ?? t;
 

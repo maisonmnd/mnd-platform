@@ -273,8 +273,10 @@ const appelsReseau = (src: string): string[] => {
 };
 const racine = process.cwd();
 /* 17 novembre 2026 : un appel de plus dans le webhook, la porte du site (rendsALaPorteDuSite), borne a douze secondes.
-   18 novembre 2026 : un autre, le message de la place tenue non remis (ditLAttenteNonRemise), borne a douze secondes. */
-for (const [n, f, combien] of [['n0', 'whatsapp-webhook', 11], ['n1', 'whatsapp-envoi', 6]] as const) {
+   18 novembre 2026 : un autre, le message de la place tenue non remis (ditLAttenteNonRemise), borne a douze secondes.
+   21 novembre 2026 : douze sur le tronc avant l'equipe du matin (un appel borne, pas compte ici), et un de plus, le bouton
+   « A 9 h » / « A 10 h » rendu a equipe-du-matin, borne a vingt secondes. */
+for (const [n, f, combien] of [['n0', 'whatsapp-webhook', 13], ['n1', 'whatsapp-envoi', 6]] as const) {
   const appels = appelsReseau(readFileSync(path.join(racine, `supabase/functions/${f}/index.ts`), 'utf8'));
   const nus = appels.filter((a) => !a.includes('signal: AbortSignal.timeout('));
   dit(`${n} chaque fetch de ${f} porte une borne de temps (${combien} appels)`, appels.length === combien && nus.length === 0,
@@ -379,7 +381,8 @@ reprise();
      6 novembre 2026 : une de plus, les boutons de la paie (« Oui, bien reçu », « Pas encore »).
      11 novembre 2026 : une de plus, les boutons de la prochaine séance (lot 4 de l'abonnement refait). */
   /* 17 novembre 2026 : une boucle de plus, le « Je confirme » ecrit rendu a la porte du site (des messages neufs seulement). */
-  dit('n4 chaque boucle de gestes ne joue que les messages neufs (13 boucles)', boucles.length === 13 && nues.length === 0, { boucles: boucles.length, nues });
+  /* 21 novembre 2026 : une boucle de plus, le bouton de l'equipe du matin (estNeuf d'abord). */
+  dit('n4 chaque boucle de gestes ne joue que les messages neufs (14 boucles)', boucles.length === 14 && nues.length === 0, { boucles: boucles.length, nues });
 }
 
 /* ── n79 · la cle d'unicite ────────────────────────────────────────── */

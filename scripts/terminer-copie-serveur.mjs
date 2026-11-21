@@ -37,6 +37,7 @@ export const COPIES = [
     'supabase/functions/envois-partent/index.ts', 'supabase/functions/rappels-j1/index.ts', 'supabase/functions/confirmation-rdv/index.ts',
     'supabase/functions/avis-google/index.ts', 'supabase/functions/relances-factures/index.ts', 'supabase/functions/rappels-d-echeance/index.ts',
     'supabase/functions/fete-de-couronne/index.ts',
+    'supabase/functions/equipe-du-matin/index.ts',
   ] },
   /* Les messages de l'abonnée (8 novembre 2026, lot 4 de l'abonnement refait) :
      la veille avec l'attention dans rappels-j1, les boutons de la prochaine
@@ -85,6 +86,7 @@ export const COPIES = [
     'supabase/functions/avis-google-releve/index.ts',
     'supabase/functions/avis-google-pont/index.ts',
     'supabase/functions/kkiapay-webhook/index.ts',
+    'supabase/functions/equipe-du-matin/index.ts',
   ] },
   /* Les modèles chez Meta, leurs deux formes ensemble (18 novembre 2026) : la
      liste relue chez Meta et les notes de la direction dans le même document ;
@@ -93,6 +95,14 @@ export const COPIES = [
     'supabase/functions/demande-submit/index.ts',
     'supabase/functions/modeles-meta/index.ts',
   ] },
+  /* L'équipe du matin (21 novembre 2026) : la journée à l'équipe à 6 h, la
+     question de 9 h ou 10 h à la direction ; le bouton de sa réponse est lu
+     par le webhook. */
+  { bloc: 'bouton-de-l-equipe', source: 'src/shared/equipe-du-matin-pur.ts', cibles: [
+    'supabase/functions/equipe-du-matin/index.ts',
+    'supabase/functions/whatsapp-webhook/index.ts',
+  ] },
+  { bloc: 'equipe-du-matin', source: 'src/shared/equipe-du-matin-pur.ts', cibles: ['supabase/functions/equipe-du-matin/index.ts'] },
 ];
 
 const lf = (s) => s.replace(/\r\n/g, '\n');

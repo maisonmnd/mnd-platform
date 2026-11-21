@@ -84,7 +84,7 @@ const FUSEAU = 'Africa/Porto-Novo';
     `rappels-j1`…) n'ont pas de garde de méthode : un GET pourrait lancer le
     travail, on ne les sonde jamais ; leur état est celui du facteur. */
 export const FONCTIONS_SONDABLES: readonly string[] = [
-  'avis-google', 'avis-google-pont', 'boutique', 'centre-de-commande', 'demande-submit', 'diagnostic-locks', 'discussion',
+  'avis-google', 'avis-google-pont', 'boutique', 'centre-de-commande', 'demande-submit', 'diagnostic-locks', 'discussion', 'equipe-du-matin',
   'fete-de-couronne', 'ia-maison', 'kkiapay-webhook', 'mnd-pay', 'mnd-pay-webhook', 'rappels-d-echeance', 'regler-la-seance',
   'relances-factures', 'whatsapp-automate', 'whatsapp-envoi', 'whatsapp-webhook',
 ];

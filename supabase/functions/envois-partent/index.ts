@@ -1309,7 +1309,12 @@ export function texteDeLaConsigne(o: { auteur: string; numero: string; prenom?: 
 }
 /* ⟨/envois-programmes⟩ */
 
-const VERSION = '2026-11-18-a · la visio relue avant de partir : annulée (par elle ou par la Maison), déplacée, disparue ou finie, son message ne part pas, et après un déplacement seul celui de la nouvelle heure part ; 2026-11-13-a · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi ; le papier d’une pièce déposé par Grenat : la pièce relue, sa clé réservée, sa marque posée ; ce qui va partir : arrêté d’avance, modèle en pause, cinq non remis de suite et Opale le met en pause ; la prochaine séance de l’abonnée (apres-seance) relue avant de partir : une suite posée pendant l’attente, ou une séance qui n’est plus marquée faite, et elle ne part pas ; les envois programmés (13 novembre 2026) : l’heure exacte, même la nuit, relus avant de partir, le texte et sa pièce dans la fenêtre, sinon le modèle d’ouverture puis le message à sa réponse, ou Opale par WhatsApp Web pour un message privé, me demander avant, par l’app, la fois suivante posée une fois';
+/** L'ÉQUIPE DU MATIN (21 novembre 2026, `equipe-du-matin`) : la journée à
+    l'équipe part à 6 h ; elle traverse les heures calmes comme un envoi
+    programmé. Les heures calmes protègent les clientes, pas l'équipe. */
+export const TYPE_DE_L_EQUIPE_DU_MATIN = 'equipe-du-matin';
+
+const VERSION = '2026-11-21-a · l’équipe du matin traverse les heures calmes : sa journée part à 6 h (TYPE_DE_L_EQUIPE_DU_MATIN) ; 2026-11-18-a · la visio relue avant de partir : annulée (par elle ou par la Maison), déplacée, disparue ou finie, son message ne part pas, et après un déplacement seul celui de la nouvelle heure part ; 2026-11-13-a · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi ; le papier d’une pièce déposé par Grenat : la pièce relue, sa clé réservée, sa marque posée ; ce qui va partir : arrêté d’avance, modèle en pause, cinq non remis de suite et Opale le met en pause ; la prochaine séance de l’abonnée (apres-seance) relue avant de partir : une suite posée pendant l’attente, ou une séance qui n’est plus marquée faite, et elle ne part pas ; les envois programmés (13 novembre 2026) : l’heure exacte, même la nuit, relus avant de partir, le texte et sa pièce dans la fenêtre, sinon le modèle d’ouverture puis le message à sa réponse, ou Opale par WhatsApp Web pour un message privé, me demander avant, par l’app, la fois suivante posée une fois';
 
 /* ── LE CALCUL DES HEURES, recopié de src/shared/salle-des-envois.ts ── */
 const DECALAGE_DU_SALON_H = 1;
@@ -2116,7 +2121,7 @@ Deno.serve(async (req) => {
   const aPorter = enSalle
     /* L'HEURE EXACTE, MÊME LA NUIT (13 novembre 2026) : un envoi programmé
        traverse les heures calmes, comme un « maintenant » d'une main. */
-    .filter((l) => Number.isFinite(partAde(l)) && partAde(l) <= maintenantMs && (!calme || l.data.parLaMain === true || l.data.type === TYPE_PROGRAMME))
+    .filter((l) => Number.isFinite(partAde(l)) && partAde(l) <= maintenantMs && (!calme || l.data.parLaMain === true || l.data.type === TYPE_PROGRAMME || l.data.type === TYPE_DE_L_EQUIPE_DU_MATIN))
     .sort((a, b) => partAde(a) - partAde(b))
     .slice(0, PAR_REVEIL);
 
