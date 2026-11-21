@@ -2,6 +2,19 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## CONVERSATIONS › AUJOURD'HUI, REFAIT — 21 novembre 2026, À METTRE EN LIGNE (Trône seul ; aucun SQL ; aucune fonction ; commit ce7bb556)
+
+« Refais-moi l'UI, l'UX de cette page. Je me perds et n'y comprends rien. Plus de si longs textes aussi » (Yéman). Maquette Jrj9rfdYAYPDPDS1aT4EFs, puis « construis ».
+
+- **Trois zones au lieu de sept pavés** (`Gerard.tsx`, classes `trc-auj__*` dans `assistant-maison.css`). « À faire maintenant » : trois cartes, À répondre (son tiroir s'ouvre sous les cartes, la Santé d'abord), À envoyer (« Envoyer la première »), À reprogrammer (la fenêtre d'un toucher s'il n'y en a qu'un). « Ensuite » : avis à relire, bilans à remettre, civilités à poser. Puis la liste de ce que Perle écrit : cinq lignes, « Voir les N autres », « Envoyer » sur la ligne même quand le message est à son toucher, « Pourquoi ce message » replié. « Déjà parti aujourd'hui » replié.
+- **En tête** : la pastille de Perle, « Perle est en pause » ou « Perle écrit seule », avec « Reprendre » / « Mettre en pause » pour la direction (`metEnPause`, le même geste qu'aux Réglages).
+- **Une sixième vue, « Réglages »** (`?vue=reglages`) : Pause ou Actif, le plafond, l'état du passage, jours creux, entre deux séances, ses règles, les modèles WhatsApp. Rien de tout cela n'est plus sur Aujourd'hui.
+- **Partis de la page** : les cinq chiffres du haut, les cinq tuiles, le pavé « Actif. », « Attend un oui », la liste « Attend un humain » permanente, le nom du modèle Meta dans le panneau. Les onglets sont courts (Conversations, Avis, Offres, Résultats) ; « Programmés » est dans la barre des vues.
+- **Ce qui ne change pas** : aucune règle d'envoi, aucun texte de message, aucun réglage en base. Les fonctions pures et leurs appels sont les mêmes (`planDuJour`, `porteDuMaintenant`, `rdvsAReprogrammer`, `tuilesDuJour`).
+- **Écart avec la maquette** : elle montrait « Tout envoyer ». Sur WhatsApp, chaque message à un toucher ouvre son fil : la carte dit « Envoyer la première », et chaque ligne porte son « Envoyer ». « Tout laisser partir » reste pour la salle d'attente.
+- **Bancs** : dans Chrome, `banc-de-l-assistant-maison` 69 (six vues), `banc-de-gerard` 40, `banc-des-civilites` 17, `banc-des-avis-google` 28 ; `verifie-assistant-aujourdhui`, `verifie-envoyer-maintenant`, `verifie-a-reprogrammer`, `verifie-a-traiter`, `verifie-le-rangement`, `verifie-la-voix-du-numero`, `verifie-essai`, `verifie-les-douze-lunes` verts ; typecheck 0. Trois attentes périmées des bancs corrigées au passage, constatées sur le tronc avant la refonte : la barre dit « Conversations », Noël passe devant l'envie du 15 novembre au 15 décembre, la liste des modèles de Perle se lit seule.
+- **Échecs antérieurs, inchangés** : `verifie-gerard` 3, `verifie-le-prenom-d-usage` 1, `verifie-les-messages-de-la-seance` 1.
+
 ## DEMANDER À PERLE, LOT 1 : LES QUESTIONS ET « EN DIRECT » — 21 novembre 2026, À METTRE EN LIGNE (Trône seul ; aucun SQL ; aucune fonction : la porte `ia-maison` en ligne suffit)
 
 « J'aimerais créer une intelligence artificielle dans le Trône à qui je peux poser toutes les questions, répondre à des messages, me donner des infos en temps réel. Inspire-toi de Brain sur Bujeti » (Yéman). Maquette 7XvdzJ99bioQsv62r5cBrw ; « Construis, la direction seule, questions et En direct d'abord ».
