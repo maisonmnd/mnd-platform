@@ -16,7 +16,18 @@
 - **Échecs antérieurs, inchangés** : `verifie-gerard` 3, `verifie-le-prenom-d-usage` 1, `verifie-les-messages-de-la-seance` 1.
 - **L'essai réel** (le Trône publié, en lecture seule, aucun bouton qui agit touché) : le titre « Aujourd'hui. », la pastille « Perle écrit seule » avec « Mettre en pause », les trois cartes et « Ensuite » avec leurs comptes, cinq lignes puis « Voir les 10 autres », « Déjà parti aujourd'hui » replié, l'onglet « Réglages » à droite et sa vue. Les 550 fichiers (546 la veille) viennent de « Demander à Perle », servi le matin même.
 
-## DEMANDER À PERLE, LOT 1 : LES QUESTIONS ET « EN DIRECT » — 21 novembre 2026, À METTRE EN LIGNE (Trône seul ; aucun SQL ; aucune fonction : la porte `ia-maison` en ligne suffit)
+## PERLE CHERCHE SUR INTERNET — 21 novembre 2026, À METTRE EN LIGNE (fonction `ia-maison` 2026-11-21-a, puis le Trône ; aucun SQL ; aucun secret)
+
+« Je peux lui poser des questions sur internet ? » puis « oui internet » (Yéman).
+
+- **La porte** (`ia-maison`, 2026-11-21-a) reçoit `web: true` : le seul chantier `question` (la direction), en texte, sans schéma ni image (`defautDeLaDemande`). L'outil de recherche d'Anthropic (`web_search_20260209`), trois recherches au plus, sur `claude-sonnet-5-5` à petit effort, 6000 jetons, 100 secondes ; un tour en pause (`pause_turn`) reprend deux fois au plus ; `data.sources` (les pages citées, sinon les trois premières trouvées) ; un centime par recherche au compteur du mois et du chantier (`avecLesRecherches`).
+- **Le Trône** : le plan de Perle porte un champ `internet` (proposé seulement si `saitInternet(version)`), et le Trône passe d'abord (une question qui a ses lectures ne part pas). La question reformulée part SEULE (`demandeDInternet` : ni le fil « En direct » ni les tours d'avant) et sans aucune cliente, même en prénom et initiale (`pourInternet` → `sansLesClientes`). L'écran montre les sources (`sourcesPropres` : des adresses web seulement, ouvertes à part) et « à confirmer à la source avant de décider ».
+- **Bancs** : `verifie-ia-maison` 84 (le vrai code rejoué : l'outil, le modèle, la pause, les sources, le coût) ; `verifie-demander-a-perle` 81, `--prouve` 38/38.
+- **Si la recherche est refusée par Anthropic** : l'outil de recherche se règle dans la console d'Anthropic (réglage de l'organisation) ; c'est à Yéman de l'allumer.
+
+## DEMANDER À PERLE, LOT 1 : LES QUESTIONS ET « EN DIRECT » — 21 novembre 2026, EN LIGNE (Trône build 20261121064405 @ 4870be42, puis 20261121070736 @ 9a0aa650, 550/550 ; Trône seul ; aucun SQL ; aucune fonction : la porte `ia-maison` en ligne suffit)
+
+**L'essai réel** (21 novembre, dans le Trône en ligne, par le Chrome de Yéman) : « La journée en trois phrases » répond avec le fil seul (0,3 ¢) ; « Comment va le mois ? » lit la Synthèse puis répond (0,9 ¢). **Un défaut trouvé à l'essai** : « attend depuis 13 h 52 » (une durée) est devenu « depuis 13 h 52 hier » dans la réponse ; une durée s'écrit depuis « 13 h 52 min » ou « 2 heures » (`dureeEnClair`, 9a0aa650).
 
 « J'aimerais créer une intelligence artificielle dans le Trône à qui je peux poser toutes les questions, répondre à des messages, me donner des infos en temps réel. Inspire-toi de Brain sur Bujeti » (Yéman). Maquette 7XvdzJ99bioQsv62r5cBrw ; « Construis, la direction seule, questions et En direct d'abord ».
 
