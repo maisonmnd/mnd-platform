@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## CONVERSATIONS › AUJOURD'HUI, REFAIT — 21 novembre 2026, À METTRE EN LIGNE (Trône seul ; aucun SQL ; aucune fonction ; commit ce7bb556)
+## CONVERSATIONS › AUJOURD'HUI, REFAIT — 21 novembre 2026, EN LIGNE (Trône build 20261121071758 @ 29f25f39, 550/550 ; Trône seul ; aucun SQL ; aucune fonction ; commit ce7bb556)
 
 « Refais-moi l'UI, l'UX de cette page. Je me perds et n'y comprends rien. Plus de si longs textes aussi » (Yéman). Maquette Jrj9rfdYAYPDPDS1aT4EFs, puis « construis ».
 
@@ -14,6 +14,7 @@
 - **Écart avec la maquette** : elle montrait « Tout envoyer ». Sur WhatsApp, chaque message à un toucher ouvre son fil : la carte dit « Envoyer la première », et chaque ligne porte son « Envoyer ». « Tout laisser partir » reste pour la salle d'attente.
 - **Bancs** : dans Chrome, `banc-de-l-assistant-maison` 69 (six vues), `banc-de-gerard` 40, `banc-des-civilites` 17, `banc-des-avis-google` 28 ; `verifie-assistant-aujourdhui`, `verifie-envoyer-maintenant`, `verifie-a-reprogrammer`, `verifie-a-traiter`, `verifie-le-rangement`, `verifie-la-voix-du-numero`, `verifie-essai`, `verifie-les-douze-lunes` verts ; typecheck 0. Trois attentes périmées des bancs corrigées au passage, constatées sur le tronc avant la refonte : la barre dit « Conversations », Noël passe devant l'envie du 15 novembre au 15 décembre, la liste des modèles de Perle se lit seule.
 - **Échecs antérieurs, inchangés** : `verifie-gerard` 3, `verifie-le-prenom-d-usage` 1, `verifie-les-messages-de-la-seance` 1.
+- **L'essai réel** (le Trône publié, en lecture seule, aucun bouton qui agit touché) : le titre « Aujourd'hui. », la pastille « Perle écrit seule » avec « Mettre en pause », les trois cartes et « Ensuite » avec leurs comptes, cinq lignes puis « Voir les 10 autres », « Déjà parti aujourd'hui » replié, l'onglet « Réglages » à droite et sa vue. Les 550 fichiers (546 la veille) viennent de « Demander à Perle », servi le matin même.
 
 ## DEMANDER À PERLE, LOT 1 : LES QUESTIONS ET « EN DIRECT » — 21 novembre 2026, À METTRE EN LIGNE (Trône seul ; aucun SQL ; aucune fonction : la porte `ia-maison` en ligne suffit)
 
