@@ -25,6 +25,18 @@
 .trp-perle__sources a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
 .trp-perle__gestes { display: flex; flex-wrap: wrap; gap: 8px; }
 
+/* LA RÉPONSE PRÉPARÉE (second lot) : son dernier message à elle, ce que le
+   Carnet dit de la place promise, le brouillon et la devise. Le cuivre reste
+   un filet ; l'alerte se dit par un filet plein et des mots, pas par du rouge. */
+.trp-perle__brouillon { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--hairline); border-radius: var(--radius-md); min-width: 0; }
+.trp-perle__etiquette { margin: 0; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.trp-perle__elle p.trp-perle__cite { padding-left: 10px; border-left: 2px solid var(--hairline); color: var(--ink-soft); }
+.trp-perle__elle p.trp-perle__verif { padding: 8px 10px; font-size: 13.5px; border: 1px solid var(--hairline); border-left: 2px solid #0A6B5F; border-radius: var(--radius-sm); color: var(--ink); }
+.trp-perle__elle p.trp-perle__verif.is-alerte { border-left-color: var(--color-copper); border-color: var(--copper-500); font-weight: var(--weight-medium, 500); }
+.trp-perle__elle p.trp-perle__texte { padding: 10px 12px; border: 1px solid var(--hairline); border-left: 2px solid var(--color-copper); border-radius: var(--radius-sm); white-space: pre-wrap; }
+.trp-perle__elle p.trp-perle__devise { font-family: var(--font-serif); font-weight: var(--weight-light, 300); font-size: 17px; color: var(--ink-soft); }
+.trp-perle__brouillon[data-brouillon="ouvert"] .trp-perle__texte { color: var(--ink-soft); }
+
 .trp-perle__attente { margin: 0; padding: 10px 14px; color: var(--ink-soft); border: 1px solid var(--hairline); border-radius: var(--radius-md); animation: trp-perle-souffle 1.6s ease-in-out infinite; }
 @keyframes trp-perle-souffle { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
 @media (prefers-reduced-motion: reduce) { .trp-perle__attente { animation: none; } }
@@ -61,4 +73,5 @@
 .trp-perle__ligne b { font-weight: var(--weight-medium, 500); font-variant-numeric: tabular-nums; }
 .trp-perle__ligne span { font-size: 13px; color: var(--ink-soft); }
 .trp-perle__ligne button { justify-self: start; margin-top: 4px; padding: 2px 0; font: inherit; font-size: 13.5px; color: var(--ink); background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.trp-perle__ligne button:disabled { opacity: .5; cursor: default; }
 .trp-perle__note { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-soft); }

@@ -11,6 +11,7 @@ import {
   CHANTIER_DE_PERLE, LECTURES, LECTURES_MAX, NOMS_DES_LECTURES, SCHEMA_DU_PLAN, SIGNES_DE_FAITS_MAX,
   QUESTION_INTERNET_MAX, auFauteuil, clientesDeLaQuestion, clientesDuNom, demandeDInternet, demandeDeLaReponse, demandeDuPlan, dureeEnClair, ecransLus, enDirectEnTexte, encoreAttendues,
   sansLesClientes, sourcesPropres,
+  CONSIGNE_MAX, clientesDuMessage, consigneDeLaDirection, dernierMessageDElle, filDeLaDemande, messageLu, refusDuMessage, resteAPreparer, verdictDeLaPlace, type FilVu, type MessageDemande,
   faitsEnTexte, fenetreDesDepenses, fenetreDesRendezVous, francsPourPerle, lignesEnDirect, moisDAvant, dernierJourDuMois, momentDit, planLu, reponsePropre, toursDAvant,
   type FaitsEnDirect, type RdvDuJour,
 } from '../src/shared/perle-pur';
@@ -40,17 +41,17 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
 
 /* ── 2. Le plan, lu sans rien croire ── */
 {
-  dit('une reponse seule', { reponse: 'Deux rituels.', lectures: [], internet: '' }, planLu({ reponse: ' Deux rituels. ', lectures: [] }));
-  dit('des lectures : la reponse d avance ne se garde pas', { reponse: '', lectures: [{ nom: 'journee', jour: '2026-11-20' }], internet: '' },
+  dit('une reponse seule', { reponse: 'Deux rituels.', lectures: [], internet: '', message: null }, planLu({ reponse: ' Deux rituels. ', lectures: [] }));
+  dit('des lectures : la reponse d avance ne se garde pas', { reponse: '', lectures: [{ nom: 'journee', jour: '2026-11-20' }], internet: '', message: null },
     planLu({ reponse: 'Je pense que…', lectures: [{ nom: 'journee', jour: '2026-11-20' }] }));
-  dit('une lecture inconnue tombe', { reponse: '', lectures: [{ nom: 'impayes' }], internet: '' }, planLu({ reponse: '', lectures: [{ nom: 'efface_tout' }, { nom: 'impayes' }] }));
+  dit('une lecture inconnue tombe', { reponse: '', lectures: [{ nom: 'impayes' }], internet: '', message: null }, planLu({ reponse: '', lectures: [{ nom: 'efface_tout' }, { nom: 'impayes' }] }));
   dit('une date mal formee tombe, pas la lecture', [{ nom: 'rendez_vous', au: '2026-11-25' }],
     planLu({ reponse: '', lectures: [{ nom: 'rendez_vous', du: 'demain', au: '2026-11-25', jour: '2026-13-45' }] }).lectures);
   dit('un mois « AAAA-MM », un nom borne a 80 signes', [{ nom: 'mois', mois: '2026-10' }, 80],
     [planLu({ reponse: '', lectures: [{ nom: 'mois', mois: '2026-10' }] }).lectures[0], planLu({ reponse: '', lectures: [{ nom: 'cliente', cliente: 'a'.repeat(300) }] }).lectures[0].cliente?.length]);
   dit('quatre lectures au plus, sans doublon', ['journee', 'impayes', 'mois', 'depenses'],
     planLu({ reponse: '', lectures: [{ nom: 'journee' }, { nom: 'journee' }, { nom: 'impayes' }, { nom: 'mois' }, { nom: 'depenses' }, { nom: 'abonnements' }, { nom: 'conversations' }] }).lectures.map((l) => l.nom));
-  dit('n importe quoi ne rend rien', [{ reponse: '', lectures: [], internet: '' }, { reponse: '', lectures: [], internet: '' }, { reponse: '', lectures: [], internet: '' }],
+  dit('n importe quoi ne rend rien', [{ reponse: '', lectures: [], internet: '', message: null }, { reponse: '', lectures: [], internet: '', message: null }, { reponse: '', lectures: [], internet: '', message: null }],
     [planLu(null), planLu('bonjour'), planLu({ reponse: 12, lectures: 'journee' })]);
 }
 
@@ -156,9 +157,9 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
     [avec.systeme.includes('écris dans « internet » la question à chercher'), sans.systeme.includes('écris dans « internet »'),
       sans.systeme.includes('tu ne lis pour l’instant que le Trône'), avec.systeme.includes('Une question sur la Maison ne va jamais sur internet.')]);
   dit('... et il demande une question SANS nom de personne ni chiffre de la Maison', true, avec.systeme.includes('reformulée SANS aucun nom de personne ni chiffre de la Maison'));
-  dit('le plan lu : internet, quand il n y a ni lecture ; sa reponse d avance tombe', { reponse: '', lectures: [], internet: 'taux de TVA au Bénin en 2026' },
+  dit('le plan lu : internet, quand il n y a ni lecture ; sa reponse d avance tombe', { reponse: '', lectures: [], internet: 'taux de TVA au Bénin en 2026', message: null },
     planLu({ reponse: 'Je crois que…', lectures: [], internet: '  taux de TVA au Bénin en 2026 ' }));
-  dit('... le Trone d abord : avec une lecture, rien ne part sur internet', { reponse: '', lectures: [{ nom: 'mois' }], internet: '' },
+  dit('... le Trone d abord : avec une lecture, rien ne part sur internet', { reponse: '', lectures: [{ nom: 'mois' }], internet: '', message: null },
     planLu({ reponse: '', lectures: [{ nom: 'mois' }], internet: 'chiffre d affaires moyen d un salon' }));
   dit('... une question bornee a 400 signes ; autre chose qu un texte ne compte pas', [QUESTION_INTERNET_MAX, 400, ''],
     [QUESTION_INTERNET_MAX, planLu({ reponse: '', lectures: [], internet: 'x'.repeat(2000) }).internet.length, planLu({ reponse: 'ok', lectures: [], internet: { q: 1 } }).internet]);
@@ -260,7 +261,7 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
   /* Internet (21 novembre 2026). */
   dit('internet : la question reformulee part seule, par `pourInternet`, et seulement si la fonction sait chercher', [true, true, true, false],
     [ecran.includes('if (plan.internet && internet) {'), ecran.includes('demandeDInternet({ question: perle.pourInternet(plan.internet), jour: perle.jour, minutes: perle.minutes })'),
-      ecran.includes('const r1 = await demandeAClaude<unknown>(demandeDuPlan({ ...contexte, internet }));'), /demandeDInternet\(\{[^}]*(avant|enDirect)/.test(ecran)]);
+      ecran.includes('const r1 = await demandeAClaude<unknown>(demandeDuPlan({ ...contexte, internet, messages: true }));'), /demandeDInternet\(\{[^}]*(avant|enDirect)/.test(ecran)]);
   dit('... `pourInternet` retire les clientes apres l anonymisation ordinaire', true,
     donnees.includes('pourInternet: (texte: string) => sansLesClientes(pourElle(texte), clients.map((c) => prenomDeLaFiche(c.name))),'));
   dit('... les sources passent par `sourcesPropres` et s ouvrent a part, sans donner la main a la page ouverte', [true, true, true],
@@ -270,15 +271,117 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
   dit('l ecran redit sa garde, et sa conversation reste sur le poste', [true, true, false],
     [ecran.includes("const direction = moi?.role === 'souverain' || moi?.role === 'gerant';"), ecran.includes("createStore<Record<string, Echange[]>>('mnd_perle_fil', {})"), /bindDocument|bindCollection/.test(ecran)]);
   const ECRITURES = /Store\.set\(|envoieSurWhatsApp|poseUnRendezVous|honorAppointment|remplaceLeRendezVous|\.upsert\(|\.insert\(|\.update\(/;
-  dit('Perle ne fait que lire : aucune ecriture dans ses donnees ; l ecran n ecrit que sa propre conversation', [false, ['setFils((tous) => ({ ...tous, [cle]: [...(tous[cle] ?? []), e].slice(-ECHANGES_GARDES) }))', 'setFils((tous) => ({ ...tous, [cle]: [] }))']],
+  dit('Perle ne fait que lire : aucune ecriture dans ses donnees ; l ecran n ecrit que sa propre conversation', [false, ['setFils((tous) => ({ ...tous, [cle]: [...(tous[cle] ?? []), e].slice(-ECHANGES_GARDES) }))', 'setFils((tous) => ({ ...tous, [cle]: (tous[cle] ?? []).map((e) => (e.id === id ? f(e) : e)) }))', 'setFils((tous) => ({ ...tous, [cle]: [] }))']],
     [ECRITURES.test(donnees), ecran.match(/setFils\(\(tous\) => \(\{[^\n]*?\}\)\)/g)]);
   dit('... et l ecran n appelle aucun magasin ni aucun envoi', false, /Store\.set\(|envoieSurWhatsApp|poseUnRendezVous|supabase/.test(ecran));
   dit('les donnees passent par les portes de la Maison : sans les essais, en prenom et initiale, sans coordonnees', [true, false, true, true, true, true],
     [donnees.includes('const [toutesLesFiches] = useClientsDeLaMaison();'), /\buseClients\(\)|\buseInvoices\(\)|\buseAppointments\(\)/.test(donnees),
       donnees.includes('usePiecesDeLaMaison()'), donnees.includes('useBranchAppointments()'), donnees.includes('prenomDeLaFiche(nom)'), donnees.includes('texte: sansCoordonnees(texte)')]);
   dit('les conversations : les memes juges que l alarme, sans sa sonnette', [true, true, false],
-    [donnees.includes('filsDeLaMaison(messages, tetes, prives, tick, branch.id, automates)'), donnees.includes('filsSansReponse(tous.filter((f) => !estArchive(f, supprimees)), archives, TIROIRS, retires)'), /sonne\(|armeLaSonnette|useLAlarmeWhatsApp/.test(donnees)]);
+    [donnees.includes('filsDeLaMaison(messages, tetes, prives, tick, branch.id, automates).filter((f) => !estArchive(f, supprimees))'), donnees.includes('filsSansReponse(tous, archives, TIROIRS, retires)'), /sonne\(|armeLaSonnette|useLAlarmeWhatsApp/.test(donnees)]);
   dit('le moment est celui du salon, pas du poste', [true, false], [donnees.includes('momentDuSalon(tick)'), /getHours\(\)|todayISO\(\)/.test(donnees)]);
+}
+
+/* ── 9. PRÉPARER UNE RÉPONSE (second lot, 21 novembre 2026) ──────────────
+   « Réponds à Awa que jeudi 10 h est libre. » Le plan dit à qui et quoi ; le
+   Trône retrouve le fil, juge la place au Carnet, et le brouillon s'ouvre
+   dans la conversation. Rien ne part de l'écran de Perle. */
+{
+  /* Le plan. */
+  const avec = demandeDuPlan({ question: 'Réponds à Awa K. que jeudi 10 h est libre', jour: '2026-11-21', minutes: 913, enDirect: '', messages: true });
+  const sans = demandeDuPlan({ question: 'x', jour: '2026-11-21', minutes: 913, enDirect: '' });
+  dit('le plan sait qu une reponse se prepare, sans refuser ni ecrire le message lui-meme', [true, true, true, false],
+    [avec.systeme.includes('tu n’écris pas le message ici et tu ne refuses pas : préparer un brouillon n’est pas envoyer'), avec.systeme.includes('rien ne part sans elle'),
+      avec.systeme.includes('Une question SUR une conversation'), sans.systeme.includes('RÉPONDRE À UNE CLIENTE')]);
+  const champs = (SCHEMA_DU_PLAN.properties as { message: { properties: Record<string, unknown> } }).message.properties;
+  dit('le schema porte le message : a qui, la plus ancienne, la consigne, le jour et l heure', ['cliente', 'plusAncienne', 'consigne', 'jour', 'heure'], Object.keys(champs));
+  dit('... et il reste facultatif : une question ordinaire ne le remplit pas', ['reponse', 'lectures'], SCHEMA_DU_PLAN.required);
+
+  /* Le message, lu sans rien croire. */
+  dit('le message lu : le nom, la consigne, la place entiere', { cliente: 'Awa K.', plusAncienne: false, consigne: 'jeudi 10 h est libre', jour: '2026-11-26', heure: '10:00' },
+    messageLu({ cliente: ' Awa K. ', consigne: ' jeudi 10 h est libre ', jour: '2026-11-26', heure: '10:00' }));
+  dit('un objet vide, rempli par politesse, ne detourne pas une question', [null, null, null, null], [messageLu({}), messageLu({ cliente: '', consigne: 'bonjour' }), messageLu(null), messageLu('Awa')]);
+  dit('« la conversation qui attend » : personne n est nomme', { cliente: '', plusAncienne: true, consigne: '' }, messageLu({ plusAncienne: true }));
+  dit('un nom passe devant « la plus ancienne »', false, messageLu({ cliente: 'Awa', plusAncienne: true })?.plusAncienne);
+  dit('l heure se range (« 9h30 »), une heure sans son jour tombe, une heure impossible aussi', [['2026-11-26', '09:30'], [undefined, undefined], [undefined, undefined], [undefined, undefined]],
+    [messageLu({ cliente: 'A', jour: '2026-11-26', heure: '9h30' }), messageLu({ cliente: 'A', heure: '10:00' }), messageLu({ cliente: 'A', jour: '2026-11-26', heure: '25:00' }), messageLu({ cliente: 'A', jour: 'jeudi', heure: '10:00' })]
+      .map((m) => [m?.jour, m?.heure]));
+  dit('la consigne est bornee', CONSIGNE_MAX, messageLu({ cliente: 'A', consigne: 'x'.repeat(3000) })?.consigne.length);
+  dit('une reponse a preparer passe devant les lectures, internet et la reponse d avance',
+    { reponse: '', lectures: [], internet: '', message: { cliente: 'Awa K.', plusAncienne: false, consigne: '' } },
+    planLu({ reponse: 'Je réponds…', lectures: [{ nom: 'conversations' }], internet: 'taux', message: { cliente: 'Awa K.' } }));
+
+  /* La place citee, jugee au Carnet. */
+  const place = (o: Partial<Parameters<typeof verdictDeLaPlace>[0]>) => verdictDeLaPlace({ jour: '2026-11-26', heure: '10:00', aujourdhui: '2026-11-21', maintenantMin: 913, ferme: false, heuresLibres: ['9:00', '10:00', '15:30'], ...o });
+  dit('une place libre au Carnet : verifiee', ['libre', 'Vérifié au Carnet : jeudi 26 novembre 2026, 10 h 00 est libre pour un rituel d’une heure.'], [place({})?.etat, place({})?.dit]);
+  dit('une place prise : l alerte, sans rien affirmer', ['prise', true], [place({ heure: '11:00' })?.etat, place({ heure: '11:00' })?.dit.startsWith('Attention : le Carnet ne montre pas jeudi 26 novembre 2026, 11 h 00 libre')]);
+  dit('un jour ferme, un jour passe, une heure deja passee aujourd hui', ['fermee', 'passee', 'passee', 'libre'],
+    [place({ ferme: true, heuresLibres: [] })?.etat, place({ jour: '2026-11-20' })?.etat, place({ jour: '2026-11-21', heure: '15:00', heuresLibres: ['15:00'] })?.etat, place({ jour: '2026-11-21', heure: '15:30' })?.etat]);
+  dit('sans jour ou sans heure : rien a verifier', [null, null], [place({ jour: undefined }), place({ heure: undefined })]);
+
+  /* La consigne de la direction. */
+  const c = consigneDeLaDirection('  jeudi 10 h\n est libre  ');
+  dit('la consigne de la direction : ses mots, et qu elle relit et envoie elle-meme', [true, true, true],
+    [c.includes('demande que la réponse dise ceci : « jeudi 10 h est libre ».'), c.includes('LA DIRECTION, qui relira ce message et l’enverra elle-même'), c.includes('est vrai : tu peux le dire à la cliente')]);
+  dit('sans consigne : rien ne s ajoute au contexte ; une consigne trop longue se coupe', ['', true], [consigneDeLaDirection('   '), consigneDeLaDirection('x'.repeat(5000)).length < CONSIGNE_MAX + 400]);
+
+  /* A qui repondre. */
+  const FICHES = [{ id: 'a1', name: 'Awa Kossou' }, { id: 'a2', name: 'Awa Kpadé' }, { id: 'c1', name: 'Chloé Fagbémi' }];
+  dit('« Awa K. » designe deux fiches ; le vrai texte de la question tranche, et une autre cliente citee dans la consigne ne devient pas destinataire', ['a1'],
+    clientesDuMessage('Awa K.', 'Réponds à Awa Kossou que Chloé Fagbémi vient jeudi', FICHES).map((x) => x.id));
+  dit('un prenom seul garde ses deux fiches (Perle demandera laquelle) ; sans nom dit, personne', [['a1', 'a2'], []],
+    [clientesDuMessage('Awa', 'Réponds à Awa', FICHES).map((x) => x.id), clientesDuMessage('', 'Réponds à Awa Kossou', FICHES).map((x) => x.id)]);
+  const f = (numero: string, clientId: string | undefined, nom: string, quand: string, plus: Partial<FilVu> = {}): FilVu => ({ numero, clientId, nom, dernier: { quand }, ...plus });
+  const FILS = [
+    f('n1', 'a1', 'Awa Kossou', '2026-11-21T13:00:00Z'), f('n1b', 'a1', 'Awa Kossou', '2026-11-21T14:00:00Z'), f('n2', 'a2', 'Awa Kpadé', '2026-11-20T10:00:00Z', { prive: true }),
+    f('n3', undefined, 'Mireille Dossa', '2026-11-21T12:00:00Z', { sansFiche: true }), f('n4', undefined, 'Expert', '2026-11-21T09:00:00Z', { tiroir: 'equipe' }), f('n5', 'c1', 'Chloé Fagbémi', '2026-11-21T08:00:00Z'),
+  ];
+  const D = (cliente: string, plus: Partial<MessageDemande> = {}): MessageDemande => ({ cliente, plusAncienne: false, consigne: '', ...plus });
+  const ATTENTE = [FILS[4], FILS[2], FILS[0], FILS[3]];
+  const vers = (o: Partial<Parameters<typeof filDeLaDemande<FilVu>>[0]>) => { const r = filDeLaDemande<FilVu>({ demande: D('Awa K.'), trouvees: [], fils: FILS, enAttente: ATTENTE, ...o }); return r.etat === 'trouve' ? r.fil.numero : r; };
+  dit('la cliente reconnue : son fil, le plus recent de ses deux numeros', 'n1b', vers({ trouvees: [{ id: 'a1', etiquette: 'Awa K.' }] }));
+  dit('deux clientes possibles : Perle demande laquelle, elle ne choisit pas', { etat: 'plusieurs', clientes: ['Awa K.', 'Chloé F.'] }, vers({ trouvees: [{ id: 'a1', etiquette: 'Awa K.' }, { id: 'c1', etiquette: 'Chloé F.' }] }));
+  dit('une fiche sans conversation ; un fil prive ; personne de ce nom', [{ etat: 'sans-fil', cliente: 'Zoé T.' }, { etat: 'ferme' }, { etat: 'aucune' }],
+    [vers({ trouvees: [{ id: 'zz', etiquette: 'Zoé T.' }] }), vers({ trouvees: [{ id: 'a2', etiquette: 'Awa K.' }] }), vers({ demande: D('Inconnue Personne') })]);
+  dit('un numero sans fiche se retrouve par le nom que WhatsApp annonce, pas le fil de l equipe', ['n3', { etat: 'aucune' }], [vers({ demande: D('Mireille Dossa') }), vers({ demande: D('Expert') })]);
+  dit('« la conversation qui attend » : la plus ancienne des clientes, ni l equipe ni un fil prive ; puis la suivante ; puis plus rien', ['n1', 'n3', { etat: 'rien-n-attend' }],
+    [vers({ demande: D('', { plusAncienne: true }) }), vers({ demande: D('', { plusAncienne: true }), dejaPrepares: ['n1'] }), vers({ demande: D('', { plusAncienne: true }), dejaPrepares: ['n1', 'n3'] })]);
+  dit('ce qui reste a preparer : les clientes qui attendent, moins celles deja preparees', [['n1', 'n3'], ['n3']], [resteAPreparer(ATTENTE, []).map((x) => x.numero), resteAPreparer(ATTENTE, ['n1']).map((x) => x.numero)]);
+  dit('quand elle ne prepare rien, Perle dit pourquoi et ou agir', [true, true, true, true, true],
+    [refusDuMessage({ etat: 'plusieurs', clientes: ['Awa K.', 'Chloé F.'] }, 'Awa').includes('Awa K., Chloé F.'), refusDuMessage({ etat: 'sans-fil', cliente: 'Zoé T.' }, 'Zoé').startsWith('Zoé T. n’a aucune conversation'),
+      refusDuMessage({ etat: 'ferme' }, 'x').includes('je ne la lis pas'), refusDuMessage({ etat: 'rien-n-attend' }, '').startsWith('Aucune conversation n’attend'), refusDuMessage({ etat: 'aucune' }, 'Awa K.').includes('« Awa K. »')]);
+  dit('son dernier message a elle : ses mots, ou sa nature ; rien si elle n a jamais ecrit', [{ texte: 'Avez-vous une place ?', quand: 'q2' }, '(une photo)', null, 320],
+    [dernierMessageDElle([{ sens: 'entrant', texte: 'Bonjour', quand: 'q1' }, { sens: 'entrant', texte: ' Avez-vous\nune place ? ', quand: 'q2' }, { sens: 'sortant', texte: 'Oui', quand: 'q3' }]),
+      dernierMessageDElle([{ sens: 'entrant', texte: '', type: 'image', quand: 'q' }])?.texte, dernierMessageDElle([{ sens: 'sortant', texte: 'Bonjour', quand: 'q' }]),
+      dernierMessageDElle([{ sens: 'entrant', texte: 'x'.repeat(900), quand: 'q' }])?.texte.length]);
+
+  /* L ecran : rien ne part d ici. */
+  const ecran = lit('src/apps/trone/routes/pilotage/DemanderAPerle.tsx');
+  const donnees = lit('src/apps/trone/routes/pilotage/perle-donnees.ts');
+  dit('l ecran demande le plan avec les messages, et prepare quand le plan le dit', [true, true],
+    [ecran.includes('demandeDuPlan({ ...contexte, internet, messages: true })'), ecran.includes('if (await prepare({ question: q, demande: plan.message, coutDAvant: r1.coutUsd })) setQuestion(\'\');')]);
+  dit('le brouillon s ecrit par la porte des reponses (reponse-wa, la voix de la Maison, son schema) et passe par son juge', [true, true, true],
+    [ecran.includes("chantier: 'reponse-wa', usage: 'texte', systeme: consigneDeLaReponse(),"), ecran.includes('schema: SCHEMA_DE_LA_REPONSE,'), ecran.includes('const texteDuBrouillon = lectureDeLaReponse(r2.data);')]);
+  dit('... le contexte est celui du bouton du composeur, au jour de Cotonou, la consigne de la direction a la suite, anonymisee', [true, true, true],
+    [ecran.includes('perle.contexteDuFil(f, { places, dejaProposee: ancien?.texte }) + consigneDeLaDirection(consigne)'), donnees.includes('contexteDuFil: (f, o = {}) => contexteDe(f, { ...o, aujourdhui: jour }),'),
+      ecran.includes('const consigne = perle.pourClaude(o.demande.consigne);')]);
+  dit('... la place ne part dans le contexte que si le Carnet la montre libre, a partir de demain', true,
+    ecran.includes("const places = verdict?.etat === 'libre' && verdict.jour > perle.jour ? [{ iso: verdict.jour, heures: [{ heure: verdict.heure }] }] : undefined;"));
+  const iFenetre = ecran.indexOf('    if (!f.fenetre.ouverte) return dit(');
+  dit('une fenetre fermee, ou une cliente qui n a rien ecrit : rien ne s ecrit, rien ne se depense', [true, true],
+    [iFenetre > 0 && iFenetre < ecran.indexOf('const r2 = await demandeAClaude<{ reponse?: unknown }>({'), ecran.indexOf('if (!dernier) return dit(') > 0 && ecran.indexOf('if (!dernier) return dit(') < iFenetre]);
+  dit('LE SEUL CHEMIN DU BROUILLON : la zone de saisie de la conversation, signe de la devise par le code', [true, true, 2],
+    [ecran.includes('const chemin = cheminDeLaConversation(e.brouillon.numero, signeLeMessage(e.brouillon.texte));'), ecran.includes('navigate(chemin);'), (ecran.match(/signeLeMessage\(/g) ?? []).length]);
+  dit('... aucun envoi nulle part : ni la fonction d envoi, ni un magasin de messages', [false, false],
+    [/envoieSurWhatsApp|whatsapp-envoi|functions\.invoke|messagesWaStore|poseLaMain/.test(ecran), /envoieSurWhatsApp|whatsapp-envoi|functions\.invoke|poseLaMain/.test(donnees)]);
+  dit('... ce que Perle garde de l echange (et redit a Claude au tour suivant) nomme la cliente en prenom et initiale', [true, false],
+    [ecran.includes('const reponse = `J’ai préparé une réponse pour ${qui} : elle se relit et s’envoie depuis sa conversation.`;'), /J’ai préparé une réponse pour \$\{f\.nom\}/.test(ecran)]);
+  dit('... « Une autre » redit la consigne et la place, sur le meme fil ; « La suivante » et le fil En direct visent celle qui attend', [true, true, true],
+    [ecran.includes("demande: { cliente: '', plusAncienne: false, consigne: e.brouillon?.consigne ?? '', jour: e.brouillon?.jour, heure: e.brouillon?.heure }, remplace: e })"),
+      (ecran.match(/demande: \{ cliente: '', plusAncienne: true, consigne: '' \}/g) ?? []).length === 2, ecran.includes("l.cle === 'sans-reponse' && aPreparer.length > 0 && !eteinte")]);
+  dit('la signature montree est celle que le code posera, jamais recopiee', [true, false], [ecran.includes("<p className=\"trp-perle__devise\">{signeLeMessage('')}</p>"), /mi ny|Maison MND ·/i.test(ecran)]);
+  dit('la reponse proposee du composeur et Perle lisent le meme contexte', [true, true],
+    [donnees.includes('const contexteDe = useContexteDeLaReponse();'), lit('src/apps/trone/routes/clients/ReponseProposee.tsx').includes('const contexteDe = useContexteDeLaReponse();')]);
 }
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ECHEC(S).`);

@@ -5,16 +5,10 @@ import { useStore } from '../../../../shared/store';
 import { staffAccessStore } from '../equipe/data';
 import { demandeAClaude, useSaitIaMaison } from '../../../../shared/ia-maison';
 import { peutDemander } from '../../../../shared/ia-maison-pur';
-import { useClients, useFamilies } from '../../../../shared/clients';
-import { useCategories, useServices } from '../../../../shared/catalog';
-import { personalPriceXof, pricingOf, useBandSets, useModelBands } from '../../../../shared/pricing';
-import { useInvoices } from '../../../../shared/finance';
-import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, tetesDuCompte } from '../../../../shared/compte';
 import type { Fil } from '../../../../shared/conversations';
-import { apptDueXof, apptNetXof, todayISO, useBranchAppointmentsAvecEssais, useServicesById } from './_shared';
+import { useContexteDeLaReponse } from './contexte-de-la-reponse';
 import {
-  SCHEMA_DE_LA_REPONSE, consigneDeLaReponse, contextePourClaude, derniereVenueDe, etatDeLaZone, filOuvertAClaude,
-  lectureDeLaReponse, lignesDuCataloguePourClaude, paliersDeLocks, prochainRdvDe, zoneAProteger,
+  SCHEMA_DE_LA_REPONSE, consigneDeLaReponse, etatDeLaZone, filOuvertAClaude, lectureDeLaReponse, zoneAProteger,
 } from '../../../../shared/ia-reponse-wa-pur';
 import './reponse-proposee.css';
 
@@ -37,7 +31,9 @@ import './reponse-proposee.css';
    REPRISE DU 19 OCTOBRE 2026, au soir :
      · le reste dû est celui de SA FICHE, du même juge (le rituel fait foi,
        `ecrituresDuCompte`, comme le panneau du compte) : les factures seules
-       oubliaient un rituel honoré sans pièce et comptaient un prépayé ;
+       oubliaient un rituel honoré sans pièce et comptaient un prépayé. Depuis
+       le 21 novembre 2026 ce contexte se compose dans
+       `contexte-de-la-reponse.ts`, que Perle lit aussi : une seule source ;
      · la zone porte mot pour mot la proposition : elle se teinte cuivre,
        « à vérifier » ; ce que la main a écrit ou retouché ne se remplace
        qu'après lui avoir demandé ;
@@ -57,15 +53,8 @@ export function ReponseProposee({ fil, texte, occupe, surProposition }: {
   const moi = useStaff();
   const [acces] = useStore(staffAccessStore);
   const sait = useSaitIaMaison();
-  const [clients] = useClients();
-  const [familles] = useFamilies();
-  const rendezVous = useBranchAppointmentsAvecEssais();
-  const byId = useServicesById();
-  const [services] = useServices();
-  const [categories] = useCategories();
-  const [factures] = useInvoices();
-  const [bandes] = useModelBands();
-  const [jeux] = useBandSets();
+  /* Le fil, sa fiche, son compte et le catalogue : la même source que Perle. */
+  const contexteDe = useContexteDeLaReponse();
   const [etat, setEtat] = useState<'' | 'cherche'>('');
   /** La dernière proposition posée dans la zone. */
   const [derniere, setDerniere] = useState<string | null>(null);
@@ -101,44 +90,8 @@ export function ReponseProposee({ fil, texte, occupe, surProposition }: {
     const auDepart = zoneVive.current;
     const aEcarter = zone === 'proposee' || zone === 'retouchee' ? derniere : ecartee;
     setEtat('cherche');
-    const fiche = fil.clientId ? clients.find((c) => c.id === fil.clientId) : undefined;
-    const aujourdhui = todayISO();
-    const nomDe = (id: string) => byId.get(id)?.name ?? '';
-    /* CE QUI LUI RESTE À RÉGLER, comme sa fiche le dit (« Ce qui reste dû ») :
-       ses lignes à elle dans le relevé de son compte. Le rituel fait foi, la
-       facture qui lui est liée ne se recompte pas, la facture libre entre. */
-    const resteDu = fiche
-      ? lignesImpayees(ecrituresDeLaTete(ecrituresDuCompte({
-        ids: tetesDuCompte(fiche, clients, familles), porteurs: [], appts: rendezVous, invoices: factures, credits: [],
-        aujourdhui, netDuRituel: (a) => apptNetXof(a, byId), dûDuRituel: (a) => apptDueXof(a, byId),
-      }), fiche.id)).reduce((s, l) => s + l.resteXof, 0)
-      : undefined;
-    const contexte = contextePourClaude({
-      fil: fil.messages,
-      fiche,
-      nomProfil: fil.sansFiche ? fil.nom : undefined,
-      prochainRdv: fiche ? prochainRdvDe(rendezVous, fiche.id, aujourdhui, nomDe) : null,
-      derniereVenue: fiche ? derniereVenueDe(rendezVous, fiche.id, aujourdhui, nomDe) : null,
-      resteDu,
-      /* Sans agenda : les places libres dépendent du geste voulu (sa durée,
-         le maître), et c'est le serveur qui les juge pour le site et pour
-         l'automate. Claude n'en promet donc aucune. */
-      /* LES PRIX PAR PALIER DE LOCKS (27 octobre 2026), comme la réservation du
-         site : le barème du Trône à chaque palier, et son prix à elle quand la
-         Maison a compté ses locks. Claude ne cote qu'une fois le nombre connu. */
-      catalogue: lignesDuCataloguePourClaude(services.map((sv) => {
-        if (sv.archived === true || sv.hidePrice === true) return sv;
-        const prixParPalier = paliersDeLocks(bandes).map((b) => ({
-          palier: b.palier,
-          prixXof: personalPriceXof(sv, pricingOf({ lockCount: b.locks, priceCoef: 1 }, bandes, jeux, categories), services),
-        }));
-        const pourElle = fiche?.lockCount && fiche.lockCount > 0 ? personalPriceXof(sv, pricingOf(fiche, bandes, jeux, categories), services) : 0;
-        return { ...sv, prixParPalier, ...(pourElle > 0 ? { prixPourElle: pourElle } : {}) };
-      }), categories),
-      locks: fiche ? { compte: fiche.lockCount, declare: fiche.lockCountDeclare } : undefined,
-      aujourdhui,
-      dejaProposee: aEcarter ?? undefined,
-    });
+    /* Sans agenda : le bouton du composeur ne passe aucune place, Claude n'en promet aucune. */
+    const contexte = contexteDe(fil, { dejaProposee: aEcarter ?? undefined });
     const r = await demandeAClaude<{ reponse?: unknown }>({
       chantier: 'reponse-wa', usage: 'texte', systeme: consigneDeLaReponse(),
       messages: [{ role: 'user', content: contexte }],

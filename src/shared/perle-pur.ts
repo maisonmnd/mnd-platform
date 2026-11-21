@@ -26,6 +26,7 @@
 import type { DemandeIa, MessageIa } from './ia-maison-pur';
 import { francsDits, heureEnClair } from './cloture-du-jour-pur';
 import { dateDite } from './ia-fiche-du-jour-pur';
+import { filOuvertAClaude } from './ia-reponse-wa-pur';
 
 /** La porte : le chantier « question » d'`ia-maison`, ouvert à la direction seule. */
 export const CHANTIER_DE_PERLE = 'question' as const;
@@ -129,13 +130,30 @@ export const SCHEMA_DU_PLAN: Record<string, unknown> = {
       },
     },
     internet: { type: 'string', description: 'La question à chercher sur internet, reformulée sans aucun nom de personne ni chiffre de la Maison ; sinon une chaîne vide.' },
+    message: {
+      type: 'object',
+      description: 'Seulement si la direction demande d’écrire ou de répondre à une cliente sur WhatsApp ; sinon ne le remplis pas.',
+      properties: {
+        cliente: { type: 'string', description: 'Le nom de la cliente, tel que la direction l’a écrit ; vide si elle ne nomme personne.' },
+        plusAncienne: { type: 'boolean', description: 'true si la direction ne nomme personne et parle de la conversation qui attend.' },
+        consigne: { type: 'string', description: 'Ce que la réponse doit dire, dans les mots de la direction ; vide si elle n’a rien précisé.' },
+        jour: { type: 'string', description: 'AAAA-MM-JJ, seulement si la direction cite un jour de rendez-vous à proposer.' },
+        heure: { type: 'string', description: 'HH:MM, seulement si elle cite une heure de rendez-vous.' },
+      },
+    },
   },
   required: ['reponse', 'lectures'],
 };
 
 /** LE PLAN : la question, le moment, les faits en direct, le catalogue. */
-export function demandeDuPlan(o: { question: string; jour: string; minutes: number; enDirect: string; avant?: readonly MessageIa[]; internet?: boolean }): DemandeIa {
+export function demandeDuPlan(o: { question: string; jour: string; minutes: number; enDirect: string; avant?: readonly MessageIa[]; internet?: boolean; messages?: boolean }): DemandeIa {
   const catalogue = NOMS_DES_LECTURES.map((n) => `- ${LECTURES[n].dit}`).join('\n');
+  const consignes = [
+    o.internet
+      ? 'Une question qui porte sur le monde hors de la Maison (un taux, une loi, un impôt, un prix du marché, une actualité, une idée à trouver) ne se lit pas dans le Trône : laisse « reponse » vide et « lectures » vide, et écris dans « internet » la question à chercher, en une phrase, reformulée SANS aucun nom de personne ni chiffre de la Maison. Une question sur la Maison ne va jamais sur internet.'
+      : 'Une question qui ne porte pas sur la Maison (le monde, internet, un conseil général) n’a pas de lecture : réponds dans « reponse » que tu ne lis pour l’instant que le Trône.',
+  ];
+  if (o.messages) consignes.push(REGLE_DES_MESSAGES);
   return {
     chantier: CHANTIER_DE_PERLE,
     usage: 'texte',
@@ -146,9 +164,7 @@ export function demandeDuPlan(o: { question: string; jour: string; minutes: numb
       o.enDirect || '(aucun)',
       'Si ces faits suffisent à répondre, écris la réponse dans « reponse » et laisse « lectures » vide. Sinon laisse « reponse » vide et demande les lectures qu’il te faut, quatre au plus, parmi celles-ci :',
       catalogue,
-      o.internet
-        ? 'Une question qui porte sur le monde hors de la Maison (un taux, une loi, un impôt, un prix du marché, une actualité, une idée à trouver) ne se lit pas dans le Trône : laisse « reponse » vide et « lectures » vide, et écris dans « internet » la question à chercher, en une phrase, reformulée SANS aucun nom de personne ni chiffre de la Maison. Une question sur la Maison ne va jamais sur internet.'
-        : 'Une question qui ne porte pas sur la Maison (le monde, internet, un conseil général) n’a pas de lecture : réponds dans « reponse » que tu ne lis pour l’instant que le Trône.',
+      ...consignes,
     ].join('\n\n'),
     messages: [...toursDAvant(o.avant ?? []), { role: 'user', content: o.question.trim().slice(0, 1200) }],
     schema: SCHEMA_DU_PLAN,
@@ -162,8 +178,12 @@ const texteCourt = (v: unknown, n: number): string | undefined => (typeof v === 
 /** LE PLAN, LU SANS RIEN CROIRE : une réponse, ou des lectures du catalogue,
     quatre au plus, sans doublon, leurs arguments au bon format. Une forme
     qu'on ne reconnaît pas ne rend ni réponse ni lecture. */
-export function planLu(data: unknown): { reponse: string; lectures: LectureDemandee[]; internet: string } {
-  const d = (data && typeof data === 'object' ? data : {}) as { reponse?: unknown; lectures?: unknown; internet?: unknown };
+export function planLu(data: unknown): { reponse: string; lectures: LectureDemandee[]; internet: string; message: MessageDemande | null } {
+  const d = (data && typeof data === 'object' ? data : {}) as { reponse?: unknown; lectures?: unknown; internet?: unknown; message?: unknown };
+  /* UNE RÉPONSE À PRÉPARER PASSE DEVANT TOUT : la direction a demandé d'écrire,
+     pas de lire. Le Trône lira lui-même le fil et vérifiera la place citée. */
+  const message = messageLu(d.message);
+  if (message) return { reponse: '', lectures: [], internet: '', message };
   const lectures: LectureDemandee[] = [];
   const vues = new Set<string>();
   for (const brut of Array.isArray(d.lectures) ? d.lectures : []) {
@@ -185,9 +205,162 @@ export function planLu(data: unknown): { reponse: string; lectures: LectureDeman
   const reponse = typeof d.reponse === 'string' ? d.reponse.trim() : '';
   /* Des lectures demandées : la réponse attend les faits, on n'en garde aucune d'avance.
      Le Trône d'abord : une question qui a ses lectures ne part pas sur internet. */
-  if (lectures.length) return { reponse: '', lectures, internet: '' };
+  if (lectures.length) return { reponse: '', lectures, internet: '', message: null };
   const internet = texteCourt(d.internet, QUESTION_INTERNET_MAX) ?? '';
-  return internet ? { reponse: '', lectures: [], internet } : { reponse, lectures: [], internet: '' };
+  return internet ? { reponse: '', lectures: [], internet, message: null } : { reponse, lectures: [], internet: '', message: null };
+}
+
+/* ── 1 ter. PRÉPARER UNE RÉPONSE (21 novembre 2026, « le second lot ») ────
+   « Réponds à Awa que jeudi 10 h est libre. » Perle n'écrit pas la réponse
+   dans son plan : elle dit À QUI et QUOI, et le Trône fait le reste par la
+   porte qui existait (le chantier `reponse-wa`, la voix de la Maison, le fil,
+   la fiche, le catalogue : `contexte-de-la-reponse`). Le brouillon s'ouvre
+   dans la conversation, où « Envoyer » est le seul bouton de départ : la
+   fenêtre de 24 heures, la pause d'Opale et la retenue y restent juges.
+   RIEN NE PART D'ICI. */
+
+/** Ce que la direction demande d'écrire : à qui, quoi, et la place qu'elle cite. */
+export type MessageDemande = { cliente: string; plusAncienne: boolean; consigne: string; jour?: string; heure?: string };
+/** La consigne de la direction, au plus (une phrase ou deux, pas le message). */
+export const CONSIGNE_MAX = 400;
+
+const REGLE_DES_MESSAGES = [
+  'RÉPONDRE À UNE CLIENTE. Si la direction te demande d’écrire ou de répondre à une cliente sur WhatsApp (« réponds à… », « écris à… », « prépare une réponse pour… »), tu n’écris pas le message ici et tu ne refuses pas : préparer un brouillon n’est pas envoyer. Laisse « reponse » vide et « lectures » vide, et remplis « message ».',
+  '« cliente » : son nom, tel que la direction l’a écrit. « plusAncienne » : true si elle ne nomme personne et parle de la conversation qui attend. « consigne » : ce que la réponse doit dire, dans les mots de la direction ; vide si elle n’a rien précisé. « jour » (AAAA-MM-JJ, compté depuis la date d’aujourd’hui) et « heure » (HH:MM) : seulement si elle cite une place de rendez-vous à proposer.',
+  'Le Trône prépare alors le brouillon, vérifie la place au Carnet, et le montre à la direction : rien ne part sans elle. Une question SUR une conversation (« qu’a écrit… », « qui attend ? ») n’est pas une demande d’écrire : elle se lit.',
+].join(' ');
+
+const HEURE = /^([01]?\d|2[0-3])[:hH]([0-5]\d)$/;
+
+/** LE MESSAGE DEMANDÉ, LU SANS RIEN CROIRE. Il n'existe que si la direction
+    a nommé quelqu'un ou désigné la conversation qui attend : un objet vide,
+    qu'un modèle remplit parfois par politesse, ne détourne pas une question. */
+export function messageLu(brut: unknown): MessageDemande | null {
+  const m = (brut && typeof brut === 'object' ? brut : null) as Record<string, unknown> | null;
+  if (!m) return null;
+  const cliente = texteCourt(m.cliente, 80) ?? '';
+  const plusAncienne = m.plusAncienne === true && !cliente;
+  if (!cliente && !plusAncienne) return null;
+  const propre: MessageDemande = { cliente, plusAncienne, consigne: texteCourt(m.consigne, CONSIGNE_MAX) ?? '' };
+  const jour = jourValide(m.jour);
+  const h = typeof m.heure === 'string' ? HEURE.exec(m.heure.trim()) : null;
+  /* Une heure sans son jour ne se vérifie pas : on ne garde la place qu'entière. */
+  if (jour && h) { propre.jour = jour; propre.heure = `${h[1].padStart(2, '0')}:${h[2]}`; }
+  return propre;
+}
+
+/** LA PLACE QUE LA DIRECTION CITE, JUGÉE AU CARNET avant que Claude n'écrive
+    (l'heure promise à tort, c'est le rendez-vous d'un autre). Le Trône donne
+    la fermeture et les heures libres du jour pour un rituel d'une heure ; le
+    verdict se montre à la direction sur le brouillon. Sans place citée : rien. */
+export type VerdictDeLaPlace = { etat: 'libre' | 'prise' | 'fermee' | 'passee'; jour: string; heure: string; dit: string };
+export function verdictDeLaPlace(o: { jour?: string; heure?: string; aujourdhui: string; maintenantMin: number; ferme: boolean; heuresLibres: readonly string[] }): VerdictDeLaPlace | null {
+  if (!o.jour || !o.heure) return null;
+  const [h, min] = o.heure.split(':').map(Number);
+  const quand = `${jourDeLaSemaine(o.jour)} ${dateDite(o.jour)}, ${heureEnClair(h * 60 + min)}`;
+  const base = { jour: o.jour, heure: o.heure };
+  if (o.jour < o.aujourdhui || (o.jour === o.aujourdhui && h * 60 + min <= o.maintenantMin)) {
+    return { ...base, etat: 'passee', dit: `Attention : ${quand} est déjà passé. Vérifiez la date avant d’envoyer.` };
+  }
+  if (o.ferme) return { ...base, etat: 'fermee', dit: `Attention : la Maison est fermée le ${jourDeLaSemaine(o.jour)} ${dateDite(o.jour)}. Vérifiez avant d’envoyer.` };
+  const libres = new Set(o.heuresLibres.map((x) => x.trim().padStart(5, '0')));
+  return libres.has(o.heure)
+    ? { ...base, etat: 'libre', dit: `Vérifié au Carnet : ${quand} est libre pour un rituel d’une heure.` }
+    : { ...base, etat: 'prise', dit: `Attention : le Carnet ne montre pas ${quand} libre pour un rituel d’une heure. Vérifiez avant d’envoyer.` };
+}
+
+/** CE QUE LA DIRECTION VEUT VOIR DIT, ajouté au contexte de la réponse. Elle
+    relira et enverra elle-même : ce qu'elle affirme (une place, un prix, une
+    décision) peut se dire, même si le reste du contexte ne le montre pas.
+    Sans consigne : rien, Claude répond au dernier message comme d'habitude. */
+export function consigneDeLaDirection(consigne: string): string {
+  const c = String(consigne ?? '').replace(/\s+/g, ' ').trim().slice(0, CONSIGNE_MAX);
+  if (!c) return '';
+  return [
+    '',
+    `LA DIRECTION, qui relira ce message et l’enverra elle-même, demande que la réponse dise ceci : « ${c} ».`,
+    'Écris-le dans la voix de la Maison, sans rien y ajouter. Ce qu’elle affirme là (une place, une heure, un prix, une décision) est vrai : tu peux le dire à la cliente, même si le reste du contexte ne le montre pas.',
+  ].join('\n');
+}
+
+/** Un fil, vu de Perle : de quoi le retrouver et juger s'il peut partir chez Claude. */
+export type FilVu = { numero: string; clientId?: string; nom: string; sansFiche?: boolean; tiroir?: string; prive?: boolean; dernier: { quand: string } };
+
+export type FilDeLaDemande<F> =
+  | { etat: 'trouve'; fil: F }
+  | { etat: 'plusieurs'; clientes: string[] }
+  | { etat: 'sans-fil'; cliente: string }
+  | { etat: 'ferme' }
+  | { etat: 'aucune' }
+  | { etat: 'rien-n-attend' };
+
+/** À QUI RÉPONDRE. Les fiches reconnues par le Trône (sur le vrai texte de la
+    question, et sur le nom rendu par le plan) désignent le fil ; à défaut, un
+    fil sans fiche dont le nom de profil porte tous les mots dits. Deux
+    clientes possibles : on demande laquelle, on ne choisit pas. Sans nom
+    (« la plus ancienne ») : la conversation qui attend depuis le plus
+    longtemps. Un fil privé, ou qui n'est pas celui d'une cliente, ne se
+    prépare pas : il ne part jamais chez Claude (`filOuvertAClaude`). */
+export function filDeLaDemande<F extends FilVu>(o: {
+  demande: MessageDemande;
+  /** Les fiches reconnues, la plus sûre d'abord ; `etiquette` : prénom et initiale. */
+  trouvees: readonly { id: string; etiquette: string }[];
+  fils: readonly F[];
+  /** Les fils qui attendent une réponse, le plus ancien d'abord. */
+  enAttente: readonly F[];
+  /** Les fils déjà préparés dans cette conversation avec Perle (« La suivante »). */
+  dejaPrepares?: readonly string[];
+}): FilDeLaDemande<F> {
+  const ouvert = (f: F): boolean => filOuvertAClaude(f);
+  const leDernier = (liste: readonly F[]): F => [...liste].sort((a, b) => b.dernier.quand.localeCompare(a.dernier.quand))[0];
+  if (!o.demande.cliente) {
+    const faits = new Set(o.dejaPrepares ?? []);
+    const suivante = o.enAttente.find((f) => ouvert(f) && !faits.has(f.numero));
+    return suivante ? { etat: 'trouve', fil: suivante } : { etat: 'rien-n-attend' };
+  }
+  const avecFil = o.trouvees.map((c) => ({ c, fils: o.fils.filter((f) => f.clientId === c.id) })).filter((x) => x.fils.length);
+  if (avecFil.length > 1) return { etat: 'plusieurs', clientes: avecFil.map((x) => x.c.etiquette) };
+  if (avecFil.length === 1) {
+    const siens = avecFil[0].fils;
+    const lisibles = siens.filter(ouvert);
+    return lisibles.length ? { etat: 'trouve', fil: leDernier(lisibles) } : { etat: 'ferme' };
+  }
+  if (o.trouvees.length) return { etat: 'sans-fil', cliente: o.trouvees[0].etiquette };
+  /* Aucune fiche : un numéro sans fiche, par le nom que WhatsApp annonce. */
+  const dits = motsDe(o.demande.cliente).filter((m) => m.length >= 3);
+  const parProfil = dits.length ? o.fils.filter((f) => f.sansFiche === true && dits.every((d) => motsDe(f.nom).includes(d))) : [];
+  if (parProfil.length > 1) return { etat: 'plusieurs', clientes: parProfil.map(() => 'un numéro sans fiche') };
+  if (parProfil.length === 1) return ouvert(parProfil[0]) ? { etat: 'trouve', fil: parProfil[0] } : { etat: 'ferme' };
+  return { etat: 'aucune' };
+}
+
+/** Les conversations qu'on peut encore préparer : celles qui attendent, lisibles
+    par Claude, pas déjà préparées dans cette conversation avec Perle. */
+export const resteAPreparer = <F extends FilVu>(enAttente: readonly F[], dejaPrepares: readonly string[]): F[] =>
+  enAttente.filter((f) => filOuvertAClaude(f) && !dejaPrepares.includes(f.numero));
+
+/** SON DERNIER MESSAGE, tel que la carte du brouillon le montre à la direction
+    (sur son poste : rien de ceci ne part chez Claude). Une photo, un vocal
+    sans légende se disent par leur nature. Aucun message d'elle : vide. */
+export function dernierMessageDElle(messages: readonly { sens: string; texte?: string; type?: string; quand: string }[]): { texte: string; quand: string } | null {
+  const m = [...messages].reverse().find((x) => x.sens === 'entrant');
+  if (!m) return null;
+  const NATURE: Record<string, string> = { image: 'une photo', video: 'une vidéo', audio: 'un message vocal', document: 'un document', sticker: 'un autocollant', location: 'sa position' };
+  const mots = String(m.texte ?? '').replace(/\s+/g, ' ').trim();
+  const texte = mots || (m.type && NATURE[m.type] ? `(${NATURE[m.type]})` : '(un message sans texte)');
+  return { texte: texte.length > 320 ? `${texte.slice(0, 319).trimEnd()}…` : texte, quand: m.quand };
+}
+
+/** CE QUE PERLE DIT QUAND ELLE NE PRÉPARE RIEN, et l'écran où la direction agit. */
+export function refusDuMessage(r: Exclude<FilDeLaDemande<unknown>, { etat: 'trouve' }>, nomDit: string): string {
+  const qui = nomDit.trim() || 'cette cliente';
+  switch (r.etat) {
+    case 'plusieurs': return `Plusieurs conversations répondent à « ${qui} » : ${r.clientes.join(', ')} ; redites-moi son nom en entier, et je prépare la réponse.`;
+    case 'sans-fil': return `${r.cliente} n’a aucune conversation WhatsApp avec la Maison : il n’y a pas de message auquel répondre. Sa fiche permet de lui écrire par un modèle.`;
+    case 'ferme': return 'Cette conversation est marquée privée, ou n’est pas celle d’une cliente : je ne la lis pas. Elle se répond dans Conversations.';
+    case 'rien-n-attend': return 'Aucune conversation n’attend de réponse en ce moment.';
+    default: return `Je ne trouve aucune conversation au nom de « ${qui} ». Vérifiez le nom, ou ouvrez Conversations.`;
+  }
 }
 
 /* ── 1 bis. INTERNET (21 novembre 2026, « oui internet ») ───────────────── */
@@ -402,6 +575,20 @@ export function clientesDeLaQuestion<C extends { id: string; name: string }>(tex
     notees.push({ c, note: vus * 2 + (mots.has(m[0]) ? 3 : 0) });
   }
   return notees.sort((a, b) => b.note - a.note || a.c.name.localeCompare(b.c.name, 'fr')).slice(0, max).map((x) => x.c);
+}
+
+/** À QUI LA DIRECTION VEUT ÉCRIRE. Le plan rend le nom comme Claude l'a lu
+    (« Awa K. ») : il désigne parfois plusieurs fiches. La question, sur son
+    vrai texte, porte le nom entier : les fiches que les DEUX reconnaissent
+    passent seules. À défaut celles du nom dit, à défaut celles de la question
+    (jamais les deux listes mêlées : une autre cliente citée dans la consigne
+    ne devient pas la destinataire). */
+export function clientesDuMessage<C extends { id: string; name: string }>(nomDit: string, question: string, fiches: readonly C[]): C[] {
+  if (!nomDit.trim()) return [];
+  const parLeNom = clientesDuNom(nomDit, fiches, 6);
+  const parLaQuestion = clientesDeLaQuestion(question, fiches, 6);
+  const communes = parLeNom.filter((c) => parLaQuestion.some((x) => x.id === c.id));
+  return communes.length ? communes : parLeNom.length ? parLeNom : parLaQuestion;
 }
 
 /* ── EN DIRECT : le fil que le Trône calcule seul, sans IA ──────────────── */

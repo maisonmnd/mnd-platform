@@ -39,6 +39,9 @@ const lis = (f: string) => readFileSync(f, 'utf8').split(String.fromCharCode(13)
 const sansCommentaires = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
 const PUR = 'src/shared/ia-reponse-wa-pur.ts';
 const COMPOSANT = 'src/apps/trone/routes/clients/ReponseProposee.tsx';
+/* Le contexte (fil, fiche, compte, catalogue) a quitté le composant pour un
+   crochet le 21 novembre 2026 : Perle le lit aussi, une seule source. */
+const CONTEXTE = 'src/apps/trone/routes/clients/contexte-de-la-reponse.ts';
 const CSS = 'src/apps/trone/routes/clients/reponse-proposee.css';
 /* Le composeur du fil a quitté Conversations.tsx pour ComposeurWhatsApp.tsx le
    27 octobre 2026 (lot 3, Assistant Maison) : la promesse suit, mêmes mots. */
@@ -325,23 +328,29 @@ dit('la direction demande ; un maître, s il a la Clientèle ; les Finances n y 
     [/const sait = useSaitIaMaison\(\);/.test(comp),
       /if \(sait !== true \|\| !filOuvertAClaude\(fil\) \|\| !peutDemander\(moi\?\.role, 'reponse-wa', acces\[moi\?\.user_id \?\? ''\]\)\) return null;/.test(comp)]);
   const crochets = [...comp.matchAll(/\buse[A-Z]\w*\(/g)].map((m) => m.index ?? 0);
-  dit('... tous ses crochets viennent avant son premier retour', true, crochets.length >= 12 && Math.max(...crochets) < comp.indexOf('return null;'));
+  /* Neuf crochets depuis que les magasins du contexte vivent dans leur crochet (ils étaient dix-sept). */
+  dit('... tous ses crochets viennent avant son premier retour', true, crochets.length >= 9 && Math.max(...crochets) < comp.indexOf('return null;'));
+  const ctx = sansCommentaires(lis(CONTEXTE));
   dit('... il demande à Claude par la porte commune : chantier reponse-wa, usage texte, la consigne, le schéma, et relit la réponse', [true, true, true, true],
     [/chantier: 'reponse-wa', usage: 'texte', systeme: consigneDeLaReponse\(\)/.test(comp), /schema: SCHEMA_DE_LA_REPONSE/.test(comp),
-      /const proposee = lectureDeLaReponse\(r\.data\);/.test(comp), /contextePourClaude\(\{/.test(comp)]);
+      /const proposee = lectureDeLaReponse\(r\.data\);/.test(comp), /const contexteDe = useContexteDeLaReponse\(\);/.test(comp) && /return contextePourClaude\(\{/.test(ctx)]);
+  dit('... le contexte se compose à UN endroit, sans rien envoyer ni écrire, et le bouton du composeur ne passe aucune place', [true, false, true],
+    [/const contexte = contexteDe\(fil, \{ dejaProposee: aEcarter \?\? undefined \}\);/.test(comp),
+      /demandeAClaude|functions\.invoke|whatsapp-envoi|\.insert\(|\.upsert\(|Store\.set\(/.test(ctx),
+      /\.\.\.\(o\.places \? \{ places: o\.places \} : \{\}\),/.test(ctx)]);
   dit('... la proposition va dans la zone (surProposition), jamais au départ : aucun envoi, aucune écriture', [true, false, false],
     [/surProposition\(proposee\);/.test(comp), /\benvoie\(|functions\.invoke|whatsapp-envoi|appelleOuGarde|\.insert\(|\.upsert\(|Store\.set\(|poseLaMain/.test(comp), /'Envoyer'|>Envoyer</.test(comp)]);
   dit('... ses boutons : « Proposer une réponse », « Une autre », « Écarter » (qui vide la zone)', [true, true, true, true],
     [comp.includes("'Proposer une réponse'"), comp.includes("'Une autre'"), comp.includes('onClick={ecarter}>Écarter<'), /const ecarter = \(\) => \{[^}]*surProposition\(''\);/.test(comp)]);
-  dit('... « Une autre » dit à Claude ce qu on a écarté', true, /const aEcarter = zone === 'proposee' \|\| zone === 'retouchee' \? derniere : ecartee;/.test(comp) && /dejaProposee: aEcarter \?\? undefined/.test(comp));
+  dit('... « Une autre » dit à Claude ce qu on a écarté', true, /const aEcarter = zone === 'proposee' \|\| zone === 'retouchee' \? derniere : ecartee;/.test(comp) && /dejaProposee: aEcarter \?\? undefined/.test(comp) && /dejaProposee: o\.dejaProposee,/.test(ctx));
   dit('... ce que la main a écrit ne se remplace qu après lui avoir demandé ; ce qu elle écrit pendant que Claude cherche reste', [true, true],
     [/if \(zoneAProteger\(texte, derniere\) && !await demande\(\{/.test(comp), /if \(zoneVive\.current !== auDepart && zoneAProteger\(zoneVive\.current, derniere\)\) \{[^}]*return;/.test(comp)]);
   const iVivant = comp.indexOf('if (!vivant.current) return;');
   dit('... une réponse arrivée après qu on a quitté le fil ne se pose pas dans la zone d un autre', true,
     iVivant > comp.indexOf('await demandeAClaude') && iVivant < comp.indexOf('surProposition(proposee);') && /return \(\) => \{ vivant\.current = false; \};/.test(comp));
   dit('... le reste dû est celui de sa fiche, du même juge que le compte (le rituel fait foi), jamais les factures seules', [true, false],
-    [/lignesImpayees\(ecrituresDeLaTete\(ecrituresDuCompte\(\{/.test(comp) && /netDuRituel: \(a\) => apptNetXof\(a, byId\), dûDuRituel: \(a\) => apptDueXof\(a, byId\)/.test(comp) && /\}\), fiche\.id\)\)\.reduce\(\(s, l\) => s \+ l\.resteXof, 0\)/.test(comp),
-      /invoiceResteXof/.test(comp)]);
+    [/lignesImpayees\(ecrituresDeLaTete\(ecrituresDuCompte\(\{/.test(ctx) && /netDuRituel: \(a\) => apptNetXof\(a, byId\), dûDuRituel: \(a\) => apptDueXof\(a, byId\)/.test(ctx) && /\}\), fiche\.id\)\)\.reduce\(\(s, l\) => s \+ l\.resteXof, 0\)/.test(ctx),
+      /invoiceResteXof/.test(comp) || /invoiceResteXof/.test(ctx)]);
   dit('... la zone qui porte la proposition se dit « à vérifier » et se teinte cuivre', [true, true, true],
     [/data-reponse-proposee=\{etat === 'cherche' \? 'cherche' : zone === 'proposee' \? 'a-verifier' : 'prete'\}/.test(comp),
       comp.includes("import './reponse-proposee.css';"),

@@ -145,7 +145,7 @@ dit('la liste des conversations porte le badge (ligne et tete)', 2, (convs.match
 /* ── La chaine d essai ne bouge pas : ce qui sert LA cliente lit tout ──── */
 const chaine = [
   'shell/useLaFinDuRituel.ts', 'shell/useReglementsEnLigne.ts', 'shell/useLaMainDeGrenat.ts', 'shell/useMndPayRattache.ts', 'routes/clients/actions.tsx',
-  'routes/clients/ReglementEnDirect.tsx', 'routes/clients/SalleDesEnvois.tsx', 'routes/clients/ReponseProposee.tsx', 'routes/clients/Customers.tsx',
+  'routes/clients/ReglementEnDirect.tsx', 'routes/clients/SalleDesEnvois.tsx', 'routes/clients/ReponseProposee.tsx', 'routes/clients/contexte-de-la-reponse.ts', 'routes/clients/Customers.tsx',
   'routes/clients/Gerard.tsx', 'routes/clients/gerard-donnees.ts', 'routes/clients/LesConversations.tsx',
 ];
 dit('la fin du rituel, le reglement en ligne, la main de Grenat, l encaissement, la salle des envois et les conversations lisent TOUT',

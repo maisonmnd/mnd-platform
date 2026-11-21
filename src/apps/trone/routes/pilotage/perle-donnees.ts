@@ -24,9 +24,11 @@ import { useEngagements } from '../../../../shared/engagements';
 import { pourClaude, sansCoordonnees, type Personne } from '../../../../shared/ia-anonymise-pur';
 import { dateDite, heureDite, personnesDe, prenomDeLaFiche } from '../../../../shared/ia-fiche-du-jour-pur';
 import {
-  clientesDeLaQuestion, clientesDuNom, dernierJourDuMois, dureeEnClair, enDirectEnTexte, fenetreDesDepenses, fenetreDesRendezVous, francsPourPerle, lignesEnDirect, moisDAvant, sansLesClientes,
-  type FaitLu, type LectureDemandee, type LigneEnDirect, type RdvDuJour,
+  clientesDeLaQuestion, clientesDuMessage, clientesDuNom, dernierJourDuMois, dureeEnClair, enDirectEnTexte, fenetreDesDepenses, fenetreDesRendezVous, filDeLaDemande, francsPourPerle, lignesEnDirect, moisDAvant, sansLesClientes, verdictDeLaPlace,
+  type FaitLu, type FilDeLaDemande, type LectureDemandee, type LigneEnDirect, type MessageDemande, type RdvDuJour, type VerdictDeLaPlace,
 } from '../../../../shared/perle-pur';
+import type { JourDePlaces } from '../../../../shared/ia-reponse-wa-pur';
+import { useContexteDeLaReponse } from '../clients/contexte-de-la-reponse';
 import { useAutoConfig, useStaff as useEquipe } from '../equipe/data';
 import { useRegistreEncaissements } from '../finances/_shared';
 import { apptDueXof, apptDurationMin, apptNetXof, timeToMin, useBranchAppointments, useServicesById } from '../clients/_shared';
@@ -62,7 +64,7 @@ const dureeDite = dureeEnClair;
 /** Les conversations qui attendent une réponse, fenêtre ouverte : les mêmes
     juges que l'alarme du tableau de bord (`filsDeLaMaison`, `filsSansReponse`),
     sans la sonnette, que l'alarme garde pour elle. */
-function useConversationsQuiAttendent(tick: number): Fil[] {
+function useConversationsQuiAttendent(tick: number): { tous: Fil[]; enAttente: Fil[] } {
   const { branch } = useBranch();
   const [clients] = useClientsDeLaMaison();
   const [familles] = useFamilies();
@@ -84,8 +86,11 @@ function useConversationsQuiAttendent(tick: number): Fil[] {
     [clients, familles, equipe, prestataires, fournisseurs, engagements],
   );
   return useMemo(() => {
-    const tous = filsDeLaMaison(messages, tetes, prives, tick, branch.id, automates);
-    return filsSansReponse(tous.filter((f) => !estArchive(f, supprimees)), archives, TIROIRS, retires);
+    const tous = filsDeLaMaison(messages, tetes, prives, tick, branch.id, automates).filter((f) => !estArchive(f, supprimees));
+    /* Celle qui attend depuis le plus longtemps d'abord : c'est à elle qu'on répond en premier. */
+    const depuis = (f: Fil): string => f.fenetre.depuis ?? f.dernierQuiCompte?.quand ?? '';
+    const enAttente = [...filsSansReponse(tous, archives, TIROIRS, retires)].sort((a, b) => depuis(a).localeCompare(depuis(b)));
+    return { tous, enAttente };
   }, [messages, tetes, prives, tick, branch.id, automates, supprimees, archives, retires]);
 }
 
@@ -100,6 +105,20 @@ export type Perle = {
   pourClaude: (texte: string) => string;
   /** Ce qui part sur internet : sans numéro, et sans aucune cliente, même en prénom et initiale. */
   pourInternet: (texte: string) => string;
+
+  /* ── PRÉPARER UNE RÉPONSE (second lot) : rien ici n'envoie ni n'écrit. ── */
+  /** Les conversations qui attendent une réponse, la plus ancienne d'abord. */
+  enAttente: Fil[];
+  /** À qui la direction veut répondre : son fil, ou pourquoi on ne prépare rien. */
+  filDe: (demande: MessageDemande, question: string, dejaPrepares?: readonly string[]) => FilDeLaDemande<Fil>;
+  /** Un fil par son numéro (le brouillon gardé le désigne ainsi), s'il existe encore. */
+  filDuNumero: (numero: string) => Fil | undefined;
+  /** La cliente d'un fil, comme elle part chez Claude : prénom et initiale. */
+  quiEst: (fil: Fil) => string;
+  /** La place citée par la direction, jugée au Carnet ; rien si elle n'en cite pas. */
+  placeAuCarnet: (jour?: string, heure?: string) => VerdictDeLaPlace | null;
+  /** Le contexte d'une réponse à ce fil (la même source que le bouton du composeur), au jour de Cotonou. */
+  contexteDuFil: (fil: Fil, o?: { dejaProposee?: string; places?: readonly JourDePlaces[] }) => string;
 };
 
 export function usePerle(): Perle {
@@ -125,7 +144,9 @@ export function usePerle(): Perle {
   const [formules] = usePlans();
   const [blocages] = useBlocages();
   const [classement] = useClassement();
-  const enAttente = useConversationsQuiAttendent(tick);
+  const { tous: tousLesFils, enAttente } = useConversationsQuiAttendent(tick);
+  /* Le fil, la fiche, le compte et le catalogue d'une réponse : la source du bouton du composeur. */
+  const contexteDe = useContexteDeLaReponse();
   const sieges = Math.max(0, branch.seats ?? 0);
 
   const ficheParId = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
@@ -139,6 +160,20 @@ export function usePerle(): Perle {
   };
   const gestesDe = (ids: readonly string[] | undefined): string =>
     (ids ?? []).map((id) => byId.get(id)?.name.split(' · ')[0]).filter(Boolean).join(' + ') || 'rituel';
+  /* LES HEURES LIBRES D'UN JOUR pour un rituel d'une heure, ou sa fermeture :
+     le même juge pour la lecture « places_libres » et pour la place qu'une
+     réponse préparée promet. */
+  const placesDu = (j: string): { ferme: boolean; heures: string[] } => {
+    const ouverture = openingForIso(j);
+    if (ouverture.closed) return { ferme: true, heures: [] };
+    const occupes: Occupant[] = rdvs
+      .filter((a) => a.date === j && a.status !== 'annulé' && /^\d{1,2}:\d{2}/.test(a.time ?? ''))
+      .map((a) => ({ maitre: a.master, debutMin: timeToMin(a.time), dureeMin: apptDurationMin(a, byId) }));
+    return { ferme: false, heures: placesDuJour({
+      iso: j, aujourdhui: jour, maintenantMin: minutes, ouverture, durationMin: 60,
+      occupes, bloques: plagesBloquees(blocages, branch.id, j, ''), sieges,
+    }).heures };
+  };
 
   /* ── EN DIRECT ── */
   const lignes = useMemo(() => {
@@ -211,15 +246,8 @@ export function usePerle(): Perle {
 
     if (l.nom === 'places_libres') {
       const j = l.jour ?? jour;
-      const ouverture = openingForIso(j);
-      if (ouverture.closed) return [fait(`Les places du ${jourEtDate(j)}`, `La Maison est fermée le ${jourEtDate(j)}.`)];
-      const occupes: Occupant[] = rdvs
-        .filter((a) => a.date === j && a.status !== 'annulé' && /^\d{1,2}:\d{2}/.test(a.time ?? ''))
-        .map((a) => ({ maitre: a.master, debutMin: timeToMin(a.time), dureeMin: apptDurationMin(a, byId) }));
-      const heures = placesDuJour({
-        iso: j, aujourdhui: jour, maintenantMin: minutes, ouverture, durationMin: 60,
-        occupes, bloques: plagesBloquees(blocages, branch.id, j, ''), sieges,
-      }).heures;
+      const { ferme, heures } = placesDu(j);
+      if (ferme) return [fait(`Les places du ${jourEtDate(j)}`, `La Maison est fermée le ${jourEtDate(j)}.`)];
       return [fait(`Les places du ${jourEtDate(j)}`, heures.length
         ? `Heures libres pour un rituel d’une heure : ${heures.map((h) => heureDite(h)).join(', ')}. Un rituel plus long a moins de places.`
         : (j < jour ? 'Ce jour est passé.' : 'Aucune heure libre pour un rituel d’une heure.'))];
@@ -337,5 +365,27 @@ export function usePerle(): Perle {
        initiale, numéros retirés), puis chaque « Awa K. » de la Maison devient
        « une cliente » : rien d'une cliente ne part vers un moteur de recherche. */
     pourInternet: (texte: string) => sansLesClientes(pourElle(texte), clients.map((c) => prenomDeLaFiche(c.name))),
+
+    /* PRÉPARER UNE RÉPONSE (second lot, 21 novembre 2026). Le Trône retrouve la
+       cliente sur le vrai texte de la question et sur le nom rendu par le plan
+       (`clientesDuMessage`), puis son fil ; un fil privé ou hors des clientes
+       ne se prépare pas (`filDeLaDemande`, la règle de `filOuvertAClaude`). */
+    enAttente,
+    filDe: (demande, question, dejaPrepares) => filDeLaDemande({
+      demande,
+      trouvees: clientesDuMessage(demande.cliente, question, clients).map((c) => ({ id: c.id, etiquette: prenomDeLaFiche(c.name) })),
+      fils: tousLesFils, enAttente, dejaPrepares,
+    }),
+    filDuNumero: (numero) => tousLesFils.find((f) => f.numero === numero),
+    quiEst: (f) => {
+      const c = f.clientId ? ficheParId.get(f.clientId) : undefined;
+      return c ? prenomDeLaFiche(c.name) : (/\d{6,}/.test(f.nom) ? 'un numéro sans fiche' : prenomDeLaFiche(f.nom));
+    },
+    placeAuCarnet: (j, heure) => {
+      if (!j || !heure) return null;
+      const { ferme, heures } = placesDu(j);
+      return verdictDeLaPlace({ jour: j, heure, aujourdhui: jour, maintenantMin: minutes, ferme, heuresLibres: heures });
+    },
+    contexteDuFil: (f, o = {}) => contexteDe(f, { ...o, aujourdhui: jour }),
   };
 }

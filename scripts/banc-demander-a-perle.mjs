@@ -29,13 +29,18 @@ import path from 'node:path';
 const racine = path.resolve(import.meta.dirname, '..');
 const captures = process.argv[2] || '';
 if (captures) mkdirSync(captures, { recursive: true });
-const construit = mkdtempSync(path.join(tmpdir(), 'banc-perle-'));
-console.log('Construction du Trone (serveur injoignable)...');
-execSync(`npx vite build --outDir "${construit}" --emptyOutDir --logLevel error`, {
-  cwd: racine, stdio: 'ignore',
-  env: { ...process.env, VITE_APPS: 'trone', VITE_SUPABASE_URL: 'http://127.0.0.1:9', VITE_SUPABASE_ANON_KEY: 'faux', VITE_ALLOW_OPEN: 'false', VITE_BUILD_ID: 'banc', VITE_BASE: '/' },
-});
-renameSync(path.join(construit, 'trone.html'), path.join(construit, 'index.html'));
+/* `BANC_CONSTRUIT=<dossier>` : rejoue le banc sur un Trone deja construit (pour
+   regler le banc lui-meme sans reconstruire a chaque essai) ; le dossier reste. */
+const dejaConstruit = process.env.BANC_CONSTRUIT || '';
+const construit = dejaConstruit || mkdtempSync(path.join(tmpdir(), 'banc-perle-'));
+if (!dejaConstruit || !existsSync(path.join(construit, 'index.html'))) {
+  console.log('Construction du Trone (serveur injoignable)...');
+  execSync(`npx vite build --outDir "${construit}" --emptyOutDir --logLevel error`, {
+    cwd: racine, stdio: 'ignore',
+    env: { ...process.env, VITE_APPS: 'trone', VITE_SUPABASE_URL: 'http://127.0.0.1:9', VITE_SUPABASE_ANON_KEY: 'faux', VITE_ALLOW_OPEN: 'false', VITE_BUILD_ID: 'banc', VITE_BASE: '/' },
+  });
+  renameSync(path.join(construit, 'trone.html'), path.join(construit, 'index.html'));
+}
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
 const serveur = createServer((req, res) => {
@@ -75,10 +80,12 @@ let ko = 0;
 /* La console Windows parle cp1252 : tout ce qui sort est ramené à l'ASCII. */
 const ascii = (s) => String(s).replace(/[^\x20-\x7e]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
 const dit = (nom, ok, detail) => { if (!ok) ko++; console.log(ascii(`${ok ? 'OK   ' : 'ECHEC'} ${nom}${detail !== undefined ? ' -> ' + detail : ''}`)); };
-const photo = async (nom, l = 1360, h = 900, mobile = false) => {
+const photo = async (nom, l = 1360, h = 900, mobile = false, avant = '') => {
   if (!captures) return;
   await cdp('Emulation.setDeviceMetricsOverride', { width: l, height: h, deviceScaleFactor: mobile ? 2 : 1, mobile });
   await attend(700);
+  /* `avant` : amener un morceau de l'écran sous l'objectif, une fois la taille posée. */
+  if (avant) { await evalue(avant); await attend(500); }
   const img = await cdp('Page.captureScreenshot', { format: 'png' });
   writeFileSync(path.join(captures, `${nom}.png`), Buffer.from(img.result.data, 'base64'));
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1360, height: 900, deviceScaleFactor: 1, mobile: false });
@@ -142,12 +149,14 @@ const JOURNEE = {
   /* Elle a écrit il y a vingt minutes, personne n'a répondu. */
   'trone::mnd_messages_wa': [{ id: 'wa-banc-1', branchId: 'maison', sens: 'entrant', numero: '2290100000061', clientId: 'cl-ak', texte: 'Bonjour, avez-vous une place jeudi matin ?', type: 'text', quand: new Date(INSTANT - 20 * 60_000).toISOString() }],
 };
-const seme = (role, avecLaJournee) => evalue(`(() => {
+/* Le rôle semé : la fausse session du banc (5 bis) rend la même ligne d'équipe. */
+let roleDuBanc = 'souverain';
+const seme = (role, avecLaJournee) => (roleDuBanc = role, evalue(`(() => {
   localStorage.setItem('mnd_reset_v5', '1');
   for (const [k, v] of Object.entries(${JSON.stringify(session(role))})) localStorage.setItem(k, JSON.stringify(v));
   ${avecLaJournee ? `for (const [k, v] of Object.entries(${JSON.stringify(JOURNEE)})) localStorage.setItem(k, JSON.stringify(v));` : ''}
   return true;
-})()`);
+})()`));
 const ouvre = async (hash) => { await evalue(`location.hash = ${JSON.stringify(hash)}; true`); await attend(1800); };
 const lignes = () => evalue(`[...document.querySelectorAll('.trp-perle__direct .trp-perle__ligne')].map((l) => [l.querySelector('b')?.textContent ?? '', l.querySelector('span')?.textContent ?? '', l.querySelector('button')?.textContent ?? ''])`);
 
@@ -197,6 +206,143 @@ dit('... et a rien d autre : aucun rendez-vous ni piece n a change', (await eval
 await ouvre('#/demander');
 await photo('perle-telephone', 390, 844, true);
 
+/* ── 5 bis. LA RÉPONSE PRÉPARÉE (second lot, 21 novembre 2026) ──────────
+   Le banc joue la fonction `ia-maison` (il intercepte ses appels : la version
+   au GET, le plan et le brouillon au POST) et regarde TOUTE la chaîne : le fil
+   « En direct » qui propose de préparer, la question dite, la place vérifiée
+   au Carnet, le brouillon, « Une autre », puis « Ouvrir dans la conversation »
+   qui pose le texte signé dans la zone de saisie. Rien ne part : aucun appel
+   à l'envoi, le fil des messages ne bouge pas. */
+const DEVISE = /export const DEVISE_COMPLETE = '([^']+)'/.exec(readFileSync(path.join(racine, 'src/shared/identite.ts'), 'utf8'))?.[1] ?? '';
+const appels = [];
+const requetes = [];
+let fauxPlan = { reponse: 'Rien à dire.', lectures: [] };
+const BROUILLONS = [
+  'Bonjour Madame Awa, la Maison a bien reçu votre message. Pourriez-vous nous dire quel soin vous souhaitez ?',
+  'Bonjour Madame Awa, oui : le jeudi 26 novembre 2026 à 10 h est libre. Souhaitez-vous que la Maison vous garde cette place ?',
+  'Avec plaisir, Madame Awa. La Maison peut vous recevoir le jeudi 26 novembre 2026 à 10 h. Cette heure vous convient-elle ?',
+];
+let rangDuBrouillon = 0;
+const ENTETES = [{ name: 'Access-Control-Allow-Origin', value: '*' }, { name: 'Access-Control-Allow-Headers', value: '*' }, { name: 'Access-Control-Allow-Methods', value: 'GET, POST, OPTIONS' }, { name: 'Content-Type', value: 'application/json' }];
+const rend = (requestId, code, corps) => cdp('Fetch.fulfillRequest', { requestId, responseCode: code, responseHeaders: ENTETES, body: Buffer.from(JSON.stringify(corps)).toString('base64') });
+ws.addEventListener('message', (e) => {
+  const m = JSON.parse(e.data);
+  if (m.method === 'Network.requestWillBeSent') requetes.push(`${m.params.request.method} ${m.params.request.url}`);
+  if (m.method !== 'Fetch.requestPaused') return;
+  void (async () => {
+    const { requestId, request, networkId } = m.params;
+    if (request.method === 'OPTIONS') return rend(requestId, 200, {});
+    /* LA SESSION, COMME UN SERVEUR LA RENDRAIT. Avant d'appeler une fonction,
+       le client Supabase renouvelle le jeton expiré de la session gardée ;
+       sans réponse il réessaie « trente secondes » (une minute sous l'horloge
+       figée du banc) et l'appel n'arrive jamais. Le banc répond donc au
+       renouvellement, à « qui suis-je » et à la ligne d'équipe : le reste du
+       serveur demeure injoignable, et les données restent celles de l'appareil. */
+    if (/\/auth\/v1\/token/.test(request.url)) return rend(requestId, 200, { ...session(roleDuBanc)[CLE], access_token: 'faux-renouvele', refresh_token: 'faux-renouvele', expires_at: Math.floor(INSTANT / 1000) + 3600 });
+    if (/\/auth\/v1\/user/.test(request.url)) return rend(requestId, 200, session(roleDuBanc)[CLE].user);
+    if (/\/rest\/v1\/staff/.test(request.url)) {
+      const ligne = { user_id: UID, name: 'Direction du banc', role: roleDuBanc, rubrics: [] };
+      const veut = Object.entries(request.headers ?? {}).find(([k]) => k.toLowerCase() === 'accept')?.[1] ?? '';
+      return rend(requestId, 200, /vnd\.pgrst\.object/.test(veut) ? ligne : [ligne]);
+    }
+    if (request.method !== 'POST') return rend(requestId, 405, { error: 'method', version: '2026-11-21-b' });
+    let brut = request.postData;
+    if (brut === undefined && networkId) brut = (await cdp('Network.getRequestPostData', { requestId: networkId })).result?.postData;
+    let d = {}; try { d = JSON.parse(brut ?? '{}'); } catch { /* illisible : le banc le verra à ses appels */ }
+    appels.push(d);
+    if (d.chantier === 'reponse-wa') return rend(requestId, 200, { ok: true, data: { reponse: BROUILLONS[Math.min(rangDuBrouillon++, BROUILLONS.length - 1)] }, texte: '', modele: 'claude-haiku-5-5', coutUsd: 0.004, resteUsd: 100 });
+    return rend(requestId, 200, { ok: true, data: fauxPlan, texte: '', modele: 'claude-haiku-5-5', coutUsd: 0.003, resteUsd: 100 });
+  })();
+});
+await cdp('Network.enable');
+await cdp('Fetch.enable', { patterns: [{ urlPattern: '*/functions/v1/ia-maison*' }, { urlPattern: '*/auth/v1/token*' }, { urlPattern: '*/auth/v1/user*' }, { urlPattern: '*/rest/v1/staff*' }] });
+await evalue('location.reload()');
+await attend(9000);
+await ouvre('#/demander');
+await attend(2500);
+const clique = (selecteur, libelle) => evalue(`(() => { const b = [...document.querySelectorAll(${JSON.stringify(selecteur)})].find((x) => x.textContent.trim() === ${JSON.stringify(libelle)}); if (b) b.click(); return !!b; })()`);
+const carte = () => evalue(`(() => { const e = [...document.querySelectorAll('.trp-perle__echange')].pop(); const c = e?.querySelector('.trp-perle__brouillon'); const t = (s) => (c?.querySelector(s)?.textContent ?? '');
+  return { question: e?.querySelector('.trp-perle__moi')?.textContent ?? '', dit: e?.querySelector('.trp-perle__elle > p')?.textContent ?? '', etat: c?.getAttribute('data-brouillon') ?? null,
+    etiquette: t('.trp-perle__etiquette'), note: t('.trp-perle__source'), cite: t('.trp-perle__cite'), verif: t('.trp-perle__verif'), alerte: !!c?.querySelector('.trp-perle__verif.is-alerte'), texte: t('.trp-perle__texte'), devise: t('.trp-perle__devise'),
+    boutons: [...(c?.querySelectorAll('button') ?? [])].map((b) => b.textContent.trim()), pied: [...(e?.querySelectorAll('.trp-perle__elle > .trp-perle__source') ?? [])].map((p) => p.textContent).join(' | ') }; })()`);
+const contexte = (n) => String(appels[n]?.messages?.[0]?.content ?? '');
+const NOMS_ENTIERS = /Kossou|0100000061|2290100000061/;
+dit('avec la fonction, le champ de Perle s ouvre', await evalue(`document.querySelector('#trp-perle-question')?.disabled === false`),
+  `${await evalue('location.hash')} · ${plat(await evalue(`JSON.stringify({ perle: !!document.querySelector('.trp-perle'), champ: document.querySelector('#trp-perle-question')?.disabled ?? null, refus: document.querySelector('.trp-perle__refus')?.textContent ?? '', corps: (document.querySelector('.trp-perle') ?? document.querySelector('main') ?? document.body).innerText.slice(0, 300) })`))} · ia-maison : ${requetes.filter((u) => /ia-maison|auth\/v1/.test(u)).map((u) => u.replace(/^(\w+) https?:\/\/[^/]+/, '$1 ')).join(', ')}`);
+
+/* Une lettre accentuée posée SANS touche (une dictée, un clavier de téléphone,
+   l'outil de Chrome à l'essai réel du 21 novembre) : le curseur reste à sa place. */
+await evalue(`document.querySelector('#trp-perle-question').focus(); true`);
+const touche = async (ch) => { await cdp('Input.dispatchKeyEvent', { type: 'keyDown', key: ch, text: ch, unmodifiedText: ch }); await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key: ch }); };
+for (const ch of 'abc d') await touche(ch);
+await cdp('Input.insertText', { text: 'é' });
+for (const ch of 'f ghi') await touche(ch);
+await attend(300);
+const tape = await evalue(`(() => { const i = document.querySelector('#trp-perle-question'); return { v: i.value, c: i.selectionStart }; })()`);
+dit('une lettre accentuee posee sans touche garde le curseur a sa place', tape?.v === 'abc déf ghi' && tape?.c === 11, JSON.stringify(tape));
+const ecris = (t) => evalue(`(() => { const i = document.querySelector('#trp-perle-question'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, ${JSON.stringify(t)}); i.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
+await ecris('');
+
+/* a. Depuis « En direct » : la conversation qui attend, sans consigne. */
+dit('le fil En direct propose de preparer la reponse a la conversation qui attend', await clique('.trp-perle__ligne button', 'Préparer une réponse'));
+await attend(3000);
+let c = await carte();
+dit('... un seul appel, par la porte des reponses ; ni plan, ni envoi', appels.length === 1 && appels[0].chantier === 'reponse-wa' && appels[0].usage === 'texte' && !!appels[0].schema,
+  `${JSON.stringify(appels.map((a) => a.chantier))} · refus : ${await texte('.trp-perle__refus')} · attente : ${await texte('.trp-perle__attente')} · ${JSON.stringify(c).slice(0, 300)}`);
+dit('... le contexte : la cliente en prenom et initiale, son message, l agenda non consulte, aucune consigne',
+  contexte(0).includes('La cliente : Awa K.') && contexte(0).includes('Elle : Bonjour, avez-vous une place jeudi matin ?') && contexte(0).includes('Agenda : non consulté') && !contexte(0).includes('LA DIRECTION'), contexte(0).slice(0, 160));
+dit('... ni son nom entier ni son numero ne partent', !NOMS_ENTIERS.test(JSON.stringify(appels[0])));
+dit('la carte : son dernier message a l heure de Cotonou, le brouillon, la devise du code', plat(c.etiquette) === 'Awa Kossou · son dernier message · 14 h 53' && plat(c.cite) === '« Bonjour, avez-vous une place jeudi matin ? »' && c.texte === BROUILLONS[0] && c.devise.endsWith(DEVISE) && c.devise.includes('Maison MND') && DEVISE.length > 10,
+  JSON.stringify([c.etiquette, c.cite, c.texte.slice(0, 40), c.devise]));
+dit('... sans place citee, rien a verifier ; trois gestes, aucun « Envoyer »', c.verif === '' && c.boutons.join('|') === 'Ouvrir dans la conversation|Une autre|Écarter', `${c.verif} · ${c.boutons.join('|')}`);
+dit('... ce que Perle garde de l echange nomme la cliente en prenom et initiale', c.question === 'Prépare la réponse à la conversation qui attend.' && c.dit === 'J’ai préparé une réponse pour Awa K. : elle se relit et s’envoie depuis sa conversation.', `${c.question} · ${c.dit}`);
+dit('« Écarter » : le brouillon s efface, rien n est parti', await clique('.trp-perle__brouillon button', 'Écarter') && (await attend(600), (await carte()).etat === null) && (await carte()).pied.includes('Brouillon écarté. Rien n’est parti.'), (await carte()).pied);
+dit('... et le fil En direct ne la repropose pas : elle a ete traitee ici', !(await evalue(`[...document.querySelectorAll('.trp-perle__ligne button')].some((b) => b.textContent.trim() === 'Préparer une réponse')`)));
+
+/* b. La question dite : « Réponds à … que jeudi 10 h est libre ». */
+fauxPlan = { reponse: '', lectures: [], message: { cliente: 'Awa K.', consigne: 'jeudi 10 h est libre', jour: '2026-11-26', heure: '10:00' } };
+await ecris('Réponds à Awa Kossou que jeudi 10 h est libre');
+await attend(300);
+await evalue(`document.querySelector('.trp-perle__champ').requestSubmit(); true`);
+await attend(3500);
+c = await carte();
+dit('la question part au plan anonymisee, avec la regle des messages et les tours d avant', appels.length === 3 && appels[1].chantier === 'question' && appels[1].messages.at(-1).content === 'Réponds à Awa K. que jeudi 10 h est libre'
+  && String(appels[1].systeme).includes('RÉPONDRE À UNE CLIENTE') && !!appels[1].schema?.properties?.message && appels[1].messages.length === 3 && !NOMS_ENTIERS.test(JSON.stringify(appels[1])),
+JSON.stringify(appels.map((a) => a.chantier)) + ' · ' + JSON.stringify(appels[1]?.messages?.map((m) => m.content.slice(0, 50))));
+dit('le brouillon : la place verifiee au Carnet part dans le contexte, la consigne de la direction a la suite', appels[2]?.chantier === 'reponse-wa'
+  && contexte(2).includes('Prochaines places libres (les seules que tu peux proposer) : jeudi 26 novembre 2026 à 10:00.')
+  && contexte(2).includes('LA DIRECTION, qui relira ce message et l’enverra elle-même, demande que la réponse dise ceci : « jeudi 10 h est libre ».') && !NOMS_ENTIERS.test(JSON.stringify(appels[2])), contexte(2).slice(-330));
+dit('la carte dit ce que le Carnet montre', plat(c.verif) === 'Vérifié au Carnet : jeudi 26 novembre 2026, 10 h 00 est libre pour un rituel d’une heure.' && !c.alerte && c.texte === BROUILLONS[1], `${c.verif} · ${c.texte.slice(0, 50)}`);
+dit('... et ce que les deux appels ont coute', plat(c.pied).includes('Cette réponse : 0,7 ¢.'), c.pied);
+dit('... et d ou elle vient : sa conversation, pas le fil En direct', plat(c.pied).includes('Lu dans : sa conversation, sa fiche et le catalogue.'), c.pied);
+const versLaCarte = `[...document.querySelectorAll('.trp-perle__brouillon')].pop()?.scrollIntoView({ block: 'center' }); true`;
+await photo('perle-brouillon', 1360, 900, false, versLaCarte);
+await photo('perle-brouillon-telephone', 390, 844, true, versLaCarte);
+
+/* c. « Une autre » : le même fil, la même consigne, la proposition d'avant dite à Claude. */
+dit('« Une autre » redemande', await clique('.trp-perle__brouillon button', 'Une autre'));
+await attend(3000);
+c = await carte();
+dit('... sur le meme fil, avec la consigne, la place, et la proposition ecartee', appels.length === 4 && appels[3].chantier === 'reponse-wa' && contexte(3).includes(`Une proposition a déjà été écartée, écris-en une autre, différente : « ${BROUILLONS[1]} ».`)
+  && contexte(3).includes('« jeudi 10 h est libre »') && contexte(3).includes('jeudi 26 novembre 2026 à 10:00') && c.texte === BROUILLONS[2] && plat(c.pied).includes('Cette réponse : 1,1 ¢.'), `${appels.length} · ${c.texte.slice(0, 40)} · ${c.pied}`);
+dit('... la carte reste une seule carte, dans le meme echange', (await evalue(`document.querySelectorAll('.trp-perle__brouillon').length`)) === 1 && (await evalue(`document.querySelectorAll('.trp-perle__echange').length`)) === 2);
+
+/* d. LE SEUL CHEMIN : la zone de saisie de la conversation, signée par le code. */
+dit('« Ouvrir dans la conversation »', await clique('.trp-perle__brouillon button', 'Ouvrir dans la conversation'));
+await attend(4000);
+const saisie = await evalue(`document.querySelector('.trc-saisie__texte')?.value ?? null`);
+/* « /conversations » mène à l'écran des conversations d'aujourd'hui (« /gerard?…&vue=conversations ») : le fil est celui de son numéro. */
+dit('... ouvre SA conversation, le brouillon dans la zone de saisie, signe par le code (la signature que la carte montrait)',
+  /^#\/(conversations|gerard)\?/.test(String(await evalue('location.hash'))) && String(await evalue('location.hash')).includes('n=2290100000061') && saisie === `${BROUILLONS[2]}\n\n${c.devise}` && String(saisie).endsWith(DEVISE),
+  `${await evalue('location.hash')} · ${JSON.stringify(saisie)?.slice(0, 200)}`);
+dit('... et RIEN N EST PARTI : aucun appel a l envoi, le fil garde son seul message', !requetes.some((u) => /whatsapp-envoi/.test(u)) && (await evalue(`JSON.parse(localStorage.getItem('trone::mnd_messages_wa')).length`)) === 1,
+  requetes.filter((u) => /functions\/v1/.test(u)).map((u) => u.split('/functions/v1/')[1]).join(', '));
+await photo('perle-conversation-ouverte');
+await ouvre('#/demander');
+await attend(1500);
+c = await carte();
+dit('de retour chez Perle, la carte dit qu elle est ouverte dans la conversation', c.etat === 'ouvert' && c.boutons[0] === 'Rouvrir dans la conversation' && c.note.includes('Ouverte dans la conversation'), `${c.etat} · ${c.boutons.join('|')}`);
+
 /* ── 6. LA PORTE ── */
 const pour = async (role) => {
   await seme(role, false);
@@ -221,5 +367,5 @@ chrome.kill();
 await new Promise((r) => serveur.close(r));
 await attend(500);
 try { rmSync(profil, { recursive: true, force: true }); } catch { /* Chrome tient encore un fichier */ }
-try { rmSync(construit, { recursive: true, force: true }); } catch { /* idem */ }
+if (!dejaConstruit) { try { rmSync(construit, { recursive: true, force: true }); } catch { /* idem */ } }
 process.exit(ko === 0 ? 0 : 1);

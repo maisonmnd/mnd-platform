@@ -9,8 +9,15 @@ import { createStore, uid, useStore } from '../../../../shared/store';
 import { demandeAClaude, versionDeIaMaison } from '../../../../shared/ia-maison';
 import { dollarsDits, saitInternet, saitLeTableauIntelligent, type MessageIa, type SourceInternet } from '../../../../shared/ia-maison-pur';
 import {
-  QUESTIONS_PROPOSEES, demandeDInternet, demandeDeLaReponse, demandeDuPlan, ecransLus, momentDit, planLu, reponsePropre, sourcesPropres, type FaitLu,
+  QUESTIONS_PROPOSEES, consigneDeLaDirection, demandeDInternet, demandeDeLaReponse, demandeDuPlan, dernierMessageDElle, ecransLus, momentDit, planLu, refusDuMessage, reponsePropre, resteAPreparer, sourcesPropres,
+  type FaitLu, type MessageDemande,
 } from '../../../../shared/perle-pur';
+import { SCHEMA_DE_LA_REPONSE, consigneDeLaReponse, lectureDeLaReponse } from '../../../../shared/ia-reponse-wa-pur';
+import { cheminDeLaConversation } from '../../../../shared/conversations';
+import { signeLeMessage } from '../../../../shared/identite';
+import { momentDuSalon } from '../../../../shared/calendrier';
+import { heureEnClair } from '../../../../shared/cloture-du-jour-pur';
+import { dateDite } from '../../../../shared/ia-fiche-du-jour-pur';
 import { usePerle } from './perle-donnees';
 import './demander-a-perle.css';
 
@@ -24,13 +31,40 @@ import './demander-a-perle.css';
    PREMIER LOT : ELLE LIT ET RÉPOND. Aucun bouton ici n'envoie un message, ne
    pose un rendez-vous ni ne touche à l'argent : ils ouvrent des écrans.
 
+   SECOND LOT (21 novembre 2026, « oui internet et le second lot ») : ELLE
+   PRÉPARE UNE RÉPONSE À UNE CLIENTE. « Réponds à Awa que jeudi 10 h est
+   libre » : le Trône retrouve le fil, vérifie la place au Carnet, et Claude
+   écrit par la porte des réponses qui existait (`reponse-wa`, la voix de la
+   Maison, le contexte de `contexte-de-la-reponse`). Le brouillon se montre
+   ici, avec son dernier message à elle. RIEN NE PART D'ICI : « Ouvrir dans la
+   conversation » le pose, signé de la devise par le code, dans la zone de
+   saisie du fil, où « Envoyer » reste le seul bouton de départ (la fenêtre
+   de 24 heures, la pause d'Opale et la retenue y restent juges).
+
    La conversation reste sur ce poste, une liste par personne, jamais reliée
    au serveur (comme « Rechercher ») : la direction y écrit des noms. */
 
+/** Une réponse préparée : le fil qu'elle vise, ce qu'elle a écrit en dernier,
+    le brouillon, et ce que le Carnet dit de la place promise. */
+type Brouillon = {
+  numero: string; nom: string; dernier: string; quandDernier: string; texte: string;
+  /** Ce que la direction a demandé de dire, et la place citée : « Une autre » les redit. */
+  consigne?: string; jour?: string; heure?: string;
+  verif?: { ok: boolean; dit: string };
+  etat?: 'ouvert' | 'ecarte';
+};
 type Echange = {
   id: string; question: string; reponse: string; ecrans: { nom: string; chemin: string }[]; quand: string; coutUsd?: number;
   /** Cherchée sur internet (21 novembre 2026) : ses sources, et la réponse coupée si elle l'a été. */
   internet?: boolean; sources?: SourceInternet[]; coupee?: boolean;
+  brouillon?: Brouillon;
+};
+/** « 14 h 02 », ou « 20 novembre 2026, 18 h 40 » un autre jour : à l'heure de Cotonou. */
+const quandDit = (iso: string, aujourdhui: string): string => {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return '';
+  const m = momentDuSalon(t);
+  return `${m.jour === aujourdhui ? '' : `${dateDite(m.jour)}, `}${heureEnClair(m.minutes)}`;
 };
 const ECHANGES_GARDES = 30;
 const SIGNES_MAX = 1200;
@@ -107,6 +141,73 @@ export default function DemanderAPerle() {
   }
 
   const garde = (e: Echange) => setFils((tous) => ({ ...tous, [cle]: [...(tous[cle] ?? []), e].slice(-ECHANGES_GARDES) }));
+  const change = (id: string, f: (e: Echange) => Echange) => setFils((tous) => ({ ...tous, [cle]: (tous[cle] ?? []).map((e) => (e.id === id ? f(e) : e)) }));
+
+  /* ── PRÉPARER UNE RÉPONSE À UNE CLIENTE (second lot) ──────────────────
+     Le fil se retrouve, la place citée se vérifie au Carnet, Claude écrit par
+     la porte des réponses, et le brouillon se montre. RIEN NE PART D'ICI. */
+  const dejaPrepares = fil.flatMap((e) => (e.brouillon ? [e.brouillon.numero] : []));
+  const aPreparer = resteAPreparer(perle.enAttente, dejaPrepares);
+  const prepare = async (o: { question: string; demande: MessageDemande; coutDAvant?: number; remplace?: Echange }): Promise<boolean> => {
+    const quand = new Date().toISOString();
+    const dit = (reponse: string, ecrans: Echange['ecrans']) => {
+      garde({ id: uid(), question: o.question, reponse, ecrans, quand, coutUsd: o.coutDAvant });
+      return true;
+    };
+    /* « Une autre » vise le même fil ; sinon c'est le Trône qui le retrouve. */
+    const ancien = o.remplace?.brouillon;
+    const duBrouillon = ancien ? perle.filDuNumero(ancien.numero) : undefined;
+    const r = ancien ? (duBrouillon ? { etat: 'trouve' as const, fil: duBrouillon } : { etat: 'aucune' as const }) : perle.filDe(o.demande, o.question, dejaPrepares);
+    if (r.etat !== 'trouve') return dit(refusDuMessage(r, o.demande.cliente), [{ nom: 'Conversations', chemin: '/conversations' }]);
+    const f = r.fil;
+    const qui = perle.quiEst(f);
+    const chemin = cheminDeLaConversation(f.numero) ?? '/conversations';
+    const dernier = dernierMessageDElle(f.messages);
+    if (!dernier) return dit(`${qui} n’a encore rien écrit à la Maison : il n’y a pas de message auquel répondre.`, [{ nom: 'sa conversation', chemin }]);
+    /* Fenêtre fermée : un texte libre ne partirait pas. On ne dépense rien à l'écrire. */
+    if (!f.fenetre.ouverte) return dit(`La fenêtre de 24 heures de ${qui} est fermée : un texte libre ne peut plus partir, seulement un modèle approuvé. Ouvrez sa conversation pour en choisir un.`, [{ nom: 'sa conversation', chemin }]);
+    const verdict = perle.placeAuCarnet(o.demande.jour, o.demande.heure);
+    /* La place ne part dans le contexte que si le Carnet la montre libre, et à partir de demain (comme le site). */
+    const places = verdict?.etat === 'libre' && verdict.jour > perle.jour ? [{ iso: verdict.jour, heures: [{ heure: verdict.heure }] }] : undefined;
+    const consigne = perle.pourClaude(o.demande.consigne);
+    setEnCours(`Perle écrit la réponse pour ${qui}`);
+    const r2 = await demandeAClaude<{ reponse?: unknown }>({
+      chantier: 'reponse-wa', usage: 'texte', systeme: consigneDeLaReponse(),
+      messages: [{ role: 'user', content: perle.contexteDuFil(f, { places, dejaProposee: ancien?.texte }) + consigneDeLaDirection(consigne) }],
+      schema: SCHEMA_DE_LA_REPONSE,
+      maxTokens: 300,
+    });
+    if (!r2.ok) { setRefus(r2.message); return false; }
+    const texteDuBrouillon = lectureDeLaReponse(r2.data);
+    if (!texteDuBrouillon) { setRefus('Perle n’a rien écrit d’envoyable (un numéro, un mot banni, ou rien du tout) : redemandez, ou écrivez dans la conversation.'); return false; }
+    const brouillon: Brouillon = {
+      numero: f.numero, nom: f.nom, dernier: dernier.texte, quandDernier: dernier.quand, texte: texteDuBrouillon,
+      ...(o.demande.consigne ? { consigne: o.demande.consigne } : {}),
+      ...(o.demande.jour && o.demande.heure ? { jour: o.demande.jour, heure: o.demande.heure } : {}),
+      ...(verdict ? { verif: { ok: verdict.etat === 'libre', dit: verdict.dit } } : {}),
+    };
+    const reponse = `J’ai préparé une réponse pour ${qui} : elle se relit et s’envoie depuis sa conversation.`;
+    if (o.remplace) change(o.remplace.id, (e) => ({ ...e, reponse, brouillon, coutUsd: (e.coutUsd ?? 0) + r2.coutUsd }));
+    else garde({ id: uid(), question: o.question, reponse, ecrans: [], quand, coutUsd: (o.coutDAvant ?? 0) + r2.coutUsd, brouillon });
+    return true;
+  };
+  /** Un geste qui prépare (« Une autre », « La suivante », le fil En direct) : un seul à la fois. */
+  const lance = async (o: Parameters<typeof prepare>[0]) => {
+    if (enCours) return;
+    reco.current?.stop();
+    setRefus('');
+    setEnCours('Perle lit la conversation…');
+    try { await prepare(o); } finally { setEnCours(''); }
+  };
+  /** LE SEUL CHEMIN DU BROUILLON : la zone de saisie de la conversation, signé
+      de la devise par le code. Ce bouton n'envoie rien : « Envoyer » est là-bas. */
+  const ouvreLeBrouillon = (e: Echange) => {
+    if (!e.brouillon) return;
+    const chemin = cheminDeLaConversation(e.brouillon.numero, signeLeMessage(e.brouillon.texte));
+    if (!chemin) return;
+    change(e.id, (x) => (x.brouillon ? { ...x, brouillon: { ...x.brouillon, etat: 'ouvert' } } : x));
+    navigate(chemin);
+  };
 
   const demander = async (texte?: string) => {
     const q = (texte ?? question).trim().slice(0, SIGNES_MAX);
@@ -122,9 +223,14 @@ export default function DemanderAPerle() {
       ]);
       const pourElle = perle.pourClaude(q);
       const contexte = { question: pourElle, jour: perle.jour, minutes: perle.minutes, enDirect: perle.enDirectTexte, avant };
-      const r1 = await demandeAClaude<unknown>(demandeDuPlan({ ...contexte, internet }));
+      const r1 = await demandeAClaude<unknown>(demandeDuPlan({ ...contexte, internet, messages: true }));
       if (!r1.ok) { setRefus(r1.message); return; }
       const plan = planLu(r1.data);
+      /* UNE RÉPONSE À PRÉPARER : le plan dit à qui et quoi, le Trône fait le reste. */
+      if (plan.message) {
+        if (await prepare({ question: q, demande: plan.message, coutDAvant: r1.coutUsd })) setQuestion('');
+        return;
+      }
       /* INTERNET : la question reformulée par Perle part SEULE, sans le fil ni
          les tours d'avant, et sans aucune cliente (`pourInternet`). */
       if (plan.internet && internet) {
@@ -186,7 +292,7 @@ export default function DemanderAPerle() {
       <PageHead
         eyebrow={`Le Trône · ${branch.city}`}
         title="Demander à Perle"
-        sub="Elle lit le Trône à l’instant où vous demandez, et répond avec ce qu’elle y trouve. Elle n’envoie aucun message, ne pose aucun rendez-vous et ne déplace jamais d’argent."
+        sub="Elle lit le Trône à l’instant où vous demandez, et répond avec ce qu’elle y trouve. Elle prépare une réponse à une cliente si vous le demandez, sans jamais l’envoyer : « Envoyer » reste dans la conversation. Elle ne pose aucun rendez-vous et ne déplace jamais d’argent."
       />
       <p className="trp-perle__moment"><span aria-hidden="true" />{`En direct · ${momentDit(perle.jour, perle.minutes)}`}</p>
 
@@ -197,13 +303,44 @@ export default function DemanderAPerle() {
               <h3>Que voulez-vous savoir ?</h3>
               <p>La caisse du jour, les rendez-vous, une cliente, les factures en attente, le mois, les dépenses, les conversations qui attendent : posez la question comme vous la diriez.</p>
               {internet && <p>Une question sur le monde hors de la Maison (un taux, une règle, un prix du marché) part sur internet, sans le nom d’aucune cliente, et revient avec ses sources.</p>}
+              <p>Demandez-lui aussi de préparer une réponse : « Réponds à Awa que jeudi 10 h est libre ». Elle écrit le brouillon, vérifie la place au Carnet, et c’est vous qui l’envoyez, depuis la conversation.</p>
             </div>
           )}
-          {fil.map((e) => (
+          {fil.map((e, rang) => (
             <div key={e.id} className="trp-perle__echange">
               <p className="trp-perle__moi">{e.question}</p>
               <article className="trp-perle__elle">
                 <Reponse texte={e.reponse} />
+                {e.brouillon && e.brouillon.etat === 'ecarte' && <p className="trp-perle__source">Brouillon écarté. Rien n’est parti.</p>}
+                {e.brouillon && e.brouillon.etat !== 'ecarte' && (
+                  <div className="trp-perle__brouillon" data-brouillon={e.brouillon.etat ?? 'pret'}>
+                    <p className="trp-perle__etiquette">{`${e.brouillon.nom} · son dernier message${quandDit(e.brouillon.quandDernier, perle.jour) ? ` · ${quandDit(e.brouillon.quandDernier, perle.jour)}` : ''}`}</p>
+                    <p className="trp-perle__cite">{`« ${e.brouillon.dernier} »`}</p>
+                    {e.brouillon.verif && <p className={`trp-perle__verif${e.brouillon.verif.ok ? '' : ' is-alerte'}`}>{e.brouillon.verif.dit}</p>}
+                    <p className="trp-perle__etiquette">La réponse préparée</p>
+                    <p className="trp-perle__texte">{e.brouillon.texte}</p>
+                    <p className="trp-perle__devise">{signeLeMessage('')}</p>
+                    <p className="trp-perle__source">
+                      {e.brouillon.etat === 'ouvert'
+                        ? 'Ouverte dans la conversation : c’est là qu’elle se relit, se corrige et s’envoie.'
+                        : 'La signature est posée par le Trône, jamais par l’IA. Rien ne part d’ici : « Envoyer » est dans la conversation, où vous relisez et corrigez.'}
+                    </p>
+                    <div className="trp-perle__gestes">
+                      <Button variant="copper" size="sm" disabled={!!enCours} onClick={() => ouvreLeBrouillon(e)}>{e.brouillon.etat === 'ouvert' ? 'Rouvrir dans la conversation' : 'Ouvrir dans la conversation'}</Button>
+                      <Button
+                        variant="ghost" size="sm" disabled={!!enCours || eteinte}
+                        onClick={() => { void lance({ question: e.question, demande: { cliente: '', plusAncienne: false, consigne: e.brouillon?.consigne ?? '', jour: e.brouillon?.jour, heure: e.brouillon?.heure }, remplace: e }); }}
+                      >Une autre</Button>
+                      <Button variant="ghost" size="sm" disabled={!!enCours} onClick={() => change(e.id, (x) => (x.brouillon ? { ...x, brouillon: { ...x.brouillon, etat: 'ecarte' } } : x))}>Écarter</Button>
+                      {rang === fil.length - 1 && aPreparer.length > 0 && (
+                        <Button
+                          variant="ghost" size="sm" disabled={!!enCours || eteinte}
+                          onClick={() => { void lance({ question: 'Prépare la réponse suivante.', demande: { cliente: '', plusAncienne: true, consigne: '' } }); }}
+                        >{`La suivante (${aPreparer.length} attend${aPreparer.length > 1 ? 'ent' : ''})`}</Button>
+                      )}
+                    </div>
+                  </div>
+                )}
                 {e.coupee && <p className="trp-perle__source">La réponse a été coupée avant sa fin : reposez la question, plus précise.</p>}
                 {e.internet && (e.sources?.length ?? 0) > 0 && (
                   <ul className="trp-perle__sources" aria-label="Les sources">
@@ -215,7 +352,8 @@ export default function DemanderAPerle() {
                 <p className="trp-perle__source">
                   {e.internet
                     ? 'Cherché sur internet, pas dans le Trône : à confirmer à la source avant de décider.'
-                    : e.ecrans.length ? `Lu dans : ${e.ecrans.map((x) => x.nom).join(', ')}.` : 'Lu dans : En direct.'}
+                    : e.brouillon ? 'Lu dans : sa conversation, sa fiche et le catalogue.'
+                      : e.ecrans.length ? `Lu dans : ${e.ecrans.map((x) => x.nom).join(', ')}.` : 'Lu dans : En direct.'}
                   {typeof e.coutUsd === 'number' && e.coutUsd > 0 ? ` Cette réponse : ${dollarsDits(e.coutUsd)}.` : ''}
                 </p>
                 {e.ecrans.length > 0 && (
@@ -277,6 +415,13 @@ export default function DemanderAPerle() {
               <b>{l.titre}</b>
               <span>{l.detail}</span>
               {l.ecran && l.geste && <button type="button" onClick={() => navigate(l.ecran as string)}>{l.geste}</button>}
+              {/* Second lot : Perle prépare la réponse à celle qui attend depuis le plus longtemps ; rien ne part. */}
+              {l.cle === 'sans-reponse' && aPreparer.length > 0 && !eteinte && (
+                <button
+                  type="button" className="trp-perle__preparer" disabled={!!enCours}
+                  onClick={() => { void lance({ question: 'Prépare la réponse à la conversation qui attend.', demande: { cliente: '', plusAncienne: true, consigne: '' } }); }}
+                >Préparer une réponse</button>
+              )}
             </div>
           ))}
           <p className="trp-perle__note">Calculé par le Trône, sans IA : il se met à jour seul.</p>
