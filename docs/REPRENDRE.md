@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## L'ÉQUIPE DU MATIN — 21 novembre 2026, EN LIGNE (SQL 0243 PASSÉE, NE PAS RELANCER ; `equipe-du-matin` v1 2026-11-21-a, `--jwt non` ; `envois-partent` v51 2026-11-21-a ; `whatsapp-webhook` v84 ; Trône build 20261121092320 @ 748155fa, 552/552 ; les trois modèles APPROUVÉS chez Meta, leurs secrets posés ; réglage posé par l'écran : actif, Gérard, Nassim, Aimé, la question à Yéman, 7 h 30). Premier vrai passage : mardi 24 novembre, 6 h. Aucun essai réel envoyé à l'équipe.
+## L'ÉQUIPE DU MATIN — 21 novembre 2026, EN LIGNE (SQL 0243 PASSÉE, NE PAS RELANCER ; `equipe-du-matin` v1 2026-11-21-a, `--jwt non` ; `envois-partent` v51 2026-11-21-a ; `whatsapp-webhook` v84 ; Trône build 20261121092320 @ 748155fa, 552/552 ; les trois modèles APPROUVÉS chez Meta, leurs secrets posés ; réglage posé par l'écran : actif, Gérard, Nassim, Aimé, la question à Yéman, 7 h 30). Puis, au commit 0646382c :  v5 (même version, la copie au fil suit le corps approuvé), Trône build 20261121095151, 552/552 ; dans Résultats, « Qui écrit seul » dit « L'équipe du matin » allumée, sa fonction 2026-11-21-a, trois secrets posés, 3 modèles approuvés sur 3. Premier vrai passage : mardi 24 novembre, 6 h. Aucun essai réel envoyé à l'équipe.
 
 « Je veux que Perle envoie automatiquement, chaque jour à 6 h, les rendez-vous du jour à l'équipe (Gérard, Nassim et Aimé). Quand il n'y a pas de rendez-vous, aucun message. Tu peux préparer des messages pour venir plus tard, à 9 h au lieu de 8 h, mais ils ne partent que quand je donne la permission, les jours sans rendez-vous avant 11 h » (Yéman, en anglais). Au sélecteur : « donne 2 choix, parfois 9 h ou 10 h », puis « WhatsApp + Trône ».
 
