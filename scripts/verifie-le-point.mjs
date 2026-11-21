@@ -78,6 +78,7 @@ const PANNES = [
   ['la page oublie d avertir pour le modele', PAGE, '{attend && <p className="trp-point__alerte">', '{false && <p className="trp-point__alerte">'],
   ['la piece d une formule se coche', DONNEES, ' && !piecesDesFormules.has(i.id) && ', ' && '],
   ['un plan a deux numeros se perd', PUR, " ?? parPlanEtJour.get(`${plan.plan}|${jour}`);", ';'],
+  ['le modele du point ne se lit plus qu au reglage', DONNEES, 'modelePoint: modeleVu ?? settings.relances?.modelePoint === true,', 'modelePoint: settings.relances?.modelePoint === true,'],
   ['le jour suit le poste', DONNEES, 'const aujourdhui = momentDuSalon().jour;', 'const aujourdhui = new Date().toISOString().slice(0, 10);'],
   ['les montants ne sont plus ceux du Carnet', DONNEES, 'const reste = annule ? 0 : apptDueXof(a, byId);', 'const reste = annule ? 0 : apptNetXof(a, byId);'],
   ['la page sort de Vente & Caisse', ROUTES, "      { path: '/point', horsMenu: true, label: 'Le point d’une cliente', icon: HandCoins, Component: lazy(() => import('./clients/LePoint')) },\n", ''],

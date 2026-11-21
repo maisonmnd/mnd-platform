@@ -184,7 +184,9 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
     page.includes('geste((pl) => arreteLePlan(pl, new Date().toISOString()))')]);
   dit('la page dit d avance ce qui ne partira pas : le modele du point, Tap & Go', [true, true], [
     page.includes('{attend && <p className="trp-point__alerte">'), page.includes('{!p.relancesPossibles && <p className="trp-point__alerte">')]);
-  dit('aucun envoi a la main dans la page : ni whatsapp-envoi, ni supabase', false, /whatsapp-envoi|functions\.invoke|from '\.\.\/\.\.\/\.\.\/\.\.\/shared\/supabase'/.test(page + donnees));
+  dit('aucun envoi a la main dans la page : ni whatsapp-envoi, et la seule fonction appelee est la lecture (GET) de relances-factures', [false, ["functions.invoke('relances-factures', { method: 'GET' })"]],
+    [/whatsapp-envoi/.test(page + donnees), (page + donnees).match(/functions\.invoke\([^)]*\)/g)]);
+  dit('le modele du point se demande a la fonction ; le reglage n est qu un repli', true, donnees.includes('modelePoint: modeleVu ?? settings.relances?.modelePoint === true,'));
   dit('le jour de la page est celui de Cotonou, pas celui du poste', [true, false], [donnees.includes('const aujourdhui = momentDuSalon().jour;'), /todayISO\(\)/.test(page + donnees)]);
 }
 

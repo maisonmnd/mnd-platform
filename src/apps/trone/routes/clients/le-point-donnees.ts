@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '../../../../shared/supabase';
 import { useBranch } from '../../../../shared/branches';
 import { useClients, useFamilies, type Client } from '../../../../shared/clients';
 import { useCategories, useProducts, useServices } from '../../../../shared/catalog';
@@ -160,13 +161,30 @@ export function useLePoint(clientId: string, portee: 'sienne' | 'foyer') {
     return pas.sort((a, b) => b.quand.localeCompare(a.quand)).slice(0, 30);
   }, [piecesDuCompte, journal, lignes]);
 
+  /* LE MODÈLE DU POINT, DEMANDÉ À LA FONCTION (comme « Vérifier » dans Paramètres › Relances) : le réglage
+     `relances.modelePoint` ne se pose que par ce bouton, et resterait faux après l'approbation chez Meta.
+     Une lecture (GET), rien d'écrit ; sans réponse, le réglage. */
+  const [modeleVu, setModeleVu] = useState<boolean | null>(null);
+  useEffect(() => {
+    let vivant = true;
+    if (!supabase) return;
+    void supabase.functions.invoke('relances-factures', { method: 'GET' })
+      .then(({ data, error }) => {
+        if (!vivant || error) return;
+        const n = (data as { secrets?: { WA_TEMPLATE_RAPPEL_DU_POINT?: number } } | null)?.secrets?.WA_TEMPLATE_RAPPEL_DU_POINT;
+        if (typeof n === 'number') setModeleVu(n > 0);
+      })
+      .catch(() => { /* hors ligne : le réglage */ });
+    return () => { vivant = false; };
+  }, []);
+
   const avoir = client ? creditBalanceOf(credits, holderOf(client, familles)) : 0;
   const comptes: Record<FiltreDuPoint, number> = comptesDesFiltres(lignes);
 
   return {
     branch, client, tetes, lignes, comptes, plans, historique, avoir, aujourdhui, piecesDuCompte,
     payeurId: client ? payeurDuCompte(client.id, clients, familles) : '',
-    modelePoint: settings.relances?.modelePoint === true,
+    modelePoint: modeleVu ?? settings.relances?.modelePoint === true,
     relancesPossibles: settings.mndPay?.actif === true && settings.mndPay?.tapgo?.actif !== false,
     ctxDe, byId, services, produits, nomDe,
     /** La fiche d'une tête : son tarif (calibre, Juste Prix, longueur) fait le prix de ses lignes. */
