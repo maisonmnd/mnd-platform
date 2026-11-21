@@ -2,7 +2,11 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LES FRAIS DE LA CARTE — 21 novembre 2026, À METTRE EN LIGNE (`cloture-du-jour` 2026-11-21-a D'ABORD, puis le Trône ; aucun SQL)
+## LES FRAIS DE LA CARTE — 21 novembre 2026, EN LIGNE (`cloture-du-jour` v40, règle 2026-11-21-a, un GET rend `regle` ; Trône build 20261121192334 @ f2c9cf90, 554/554 ; aucun SQL ; bundle relu : la ligne et la note des frais y sont)
+
+- **La preuve réelle reste à voir** : le premier encaissement par carte avec frais, puis la clôture de 15 h ou 19 h qui ne doit pas signaler sa pièce « prix différent ».
+- **La tuile Carte passe à KkiaPay** (session 7c, même jour) : les frais doivent suivre la part Carte par KkiaPay, pas seulement `pt.tuile === 'carte'` ; prévenue, à vérifier dans son commit.
+- **Piège de l'outil** : le contrôle de `mise-en-ligne.mjs` lit `VERSION` de `cloture-du-jour` (inchangée, 2026-11-17-a), pas la règle ; la nouvelle règle se lit dans le champ `regle` du GET.
 
 « Cliente Eliane, qui est là présentement, veut payer par carte, mais je dois rajouter les frais sur sa transaction, les frais de 4 %. » (Yéman), puis « construis ».
 
