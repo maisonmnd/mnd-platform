@@ -725,6 +725,11 @@ const ordinaire = () => ({ documents: [reglages(ALLUMEES), facteur()], invoices:
   dit('le contrôle de santé (GET) répond sans condition, avant la clé, sans toucher la base, et dit sa version', [true, true, true],
     [iGet > 0 && iGet < serve.indexOf('const cleRecue'), !/cleRecue|createClient|sb\.|tournee\(/.test(brancheGet),
       /return json\(\{\s*fonction: 'relances-factures', version: VERSION,/.test(brancheGet)]);
+  const iOptions = serve.indexOf("  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });");
+  dit('le navigateur peut lire le contrôle de santé : la pré-requête répond avant le GET et la clé, chaque réponse porte les en-têtes CORS', [true, true, true],
+    [iOptions > 0 && iOptions < iGet && iOptions < serve.indexOf('const cleRecue'),
+      /'Access-Control-Allow-Origin': '\*',/.test(src) && /'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',/.test(src),
+      /const json = \(corps: unknown, status = 200\) => new Response\(JSON\.stringify\(corps\), \{ status, headers: \{ \.\.\.CORS, 'content-type': 'application\/json' \} \}\);/.test(src)]);
   dit('seul le cron réveille la tournée, et rien ne part sans le modèle nommé', [true, true],
     [/if \(!service \|\| !memeCle\(cleRecue, service\)\)/.test(serve), /if \(!MODELE\) return json\(\{ version: VERSION, relances: 'sans-modele' \}\);/.test(serve)]);
   const fac = lis('src/apps/trone/routes/vente/Factures.tsx');

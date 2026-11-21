@@ -30,6 +30,8 @@ const desDeux = (avant, apres) => [[PUR, avant, apres], [SRV, avant, apres]];
 const PANNES = [
   /* La tournee (relances-factures seule) */
   { nom: 'la suite eteinte ne laisse partir aucune programmee', r: [[SRV, "  if (!automatique && programmeesDuJour.length === 0) return { version: VERSION, relances: 'eteintes', programmees: 0 };", "  if (!automatique) return { version: VERSION, relances: 'eteintes', programmees: 0 };"]] },
+  { nom: 'le navigateur ne passe plus la pre-requete', r: [[SRV, "  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });\n", '']] },
+  { nom: 'les reponses perdent leurs en-tetes CORS', r: [[SRV, "headers: { ...CORS, 'content-type': 'application/json' }", "headers: { 'content-type': 'application/json' }"]] },
   { nom: 'la tournee ne lit plus les plans', r: [[SRV, ".gte('data->relanceProgrammee->>le', '0')", ".gte('data->relanceProgrammee->>le', '9')"]] },
   { nom: 'arrete sur l une, l autre part', r: [[SRV, 'return !!p && !plansArretes.has(p.plan) && !plansSautesAujourdhui.has(p.plan) && relanceProgrammeeDuJour(p, aujourdhui);', 'return !!p && !plansSautesAujourdhui.has(p.plan) && relanceProgrammeeDuJour(p, aujourdhui);']] },
   { nom: 'la facture d un plan reste dans la suite automatique', r: [[SRV, '      if (planVivant(f)) continue;\n', '']] },

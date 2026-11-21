@@ -96,7 +96,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const TZ = 'Africa/Porto-Novo'; // le fuseau du salon, pas celui du serveur
 
 /** La version de ce fichier, rendue dans chaque réponse. */
-const VERSION = '2026-11-21-a · les relances programmées partent aux jours que la direction a choisis, même la suite automatique éteinte ; ce qui va partir : une relance arrêtée d’avance, ou d’un modèle en pause, ne se dépose pas ; jamais une relance le dimanche, elle passe au lundi ; une séance manquée ne se perd pas : le prorata ne compte que les faites';
+const VERSION = '2026-11-21-b · le Trône lit le contrôle de santé (en-têtes CORS, pré-requête OPTIONS) ; les relances programmées partent aux jours que la direction a choisis, même la suite automatique éteinte ; ce qui va partir : une relance arrêtée d’avance, ou d’un modèle en pause, ne se dépose pas ; jamais une relance le dimanche, elle passe au lundi ; une séance manquée ne se perd pas : le prorata ne compte que les faites';
 
 /** Numéro béninois → format international sans « + » (copie de rappels-j1). */
 const numeroIntl = (brut: string | undefined): string | null => {
@@ -1098,7 +1098,15 @@ const BORNE_DES_RELANCES = 40;
 /** Une attente plus vieille ne survivrait pas aux quarante-cinq jours : on la refait. */
 const ATTENTE_RAFRAICHIE_MS = 30 * 86_400_000;
 
-const json = (corps: unknown, status = 200) => new Response(JSON.stringify(corps), { status, headers: { 'content-type': 'application/json' } });
+/* LE NAVIGATEUR (21 novembre 2026) : « Vérifier » dans Paramètres › Relances et la page « Le point » lisent
+   le contrôle de santé (GET) depuis le Trône. Sans ces en-têtes, ni réponse à la pré-requête OPTIONS, le
+   navigateur bloquait la lecture : le réglage du modèle du point n'avait jamais pu se poser. */
+const CORS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+};
+const json = (corps: unknown, status = 200) => new Response(JSON.stringify(corps), { status, headers: { ...CORS, 'content-type': 'application/json' } });
 
 /** Le jour LOCAL d'un instant ISO. */
 const jourDuSalon = (iso: string): string => new Date(iso).toLocaleDateString('en-CA', { timeZone: TZ });
@@ -1670,6 +1678,9 @@ Deno.serve(async (req) => {
   const MODELE_POINT = (Deno.env.get('WA_TEMPLATE_RAPPEL_DU_POINT') ?? '').trim();
   const WA_TOKEN = Deno.env.get('WA_TOKEN') ?? '';
   const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID') ?? '';
+
+  /* La pré-requête du navigateur : rien n'est lu, rien n'est lancé. */
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   /* ⓪ LE CONTRÔLE DE SANTÉ — ouvrir l'adresse dans un navigateur ne lance
      RIEN : on dit la version et ce qui est posé, en longueurs seules. */
