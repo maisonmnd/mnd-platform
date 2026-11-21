@@ -245,6 +245,7 @@ export default function CeQueCaRapporte({ cerveau, reglages, moi }: PropsDUneVue
     automateWa: { mode: automate.mode },
     avisAuto: cfg.avisAuto === true,
     relancesActives: settings.relances?.actives === true,
+    equipeDuMatin: settings.equipeDuMatin?.actif === true,
     mndPayActif: settings.mndPay?.actif === true,
     /* Le chat : quelqu'un de permanence au Trône ; sinon la fonction `discussion`
        répond par Claude quand elle est posée (sa sonde le dit) et que la clé est
@@ -252,7 +253,7 @@ export default function CeQueCaRapporte({ cerveau, reglages, moi }: PropsDUneVue
     chat: { permanence: enPermanence(permanences, tick).length > 0, claude: sondes?.discussion ? saitIaMaison === true && (sondes.discussion.http === 405 || sondes.discussion.http === 200) : undefined },
     centreAutomatique: reglagesDuCentre.automatique !== false,
     modelesMeta: modelesNotes,
-  }), [tick, envoisIci, branch.id, sondes, facteur, reglages.mode, reglages.dernierPassage, automate.mode, cfg.avisAuto, settings.relances?.actives, settings.mndPay?.actif, permanences, saitIaMaison, reglagesDuCentre.automatique, modelesNotes]);
+  }), [tick, envoisIci, branch.id, sondes, facteur, reglages.mode, reglages.dernierPassage, automate.mode, cfg.avisAuto, settings.relances?.actives, settings.mndPay?.actif, settings.equipeDuMatin?.actif, permanences, saitIaMaison, reglagesDuCentre.automatique, modelesNotes]);
   const voix = useMemo(() => quiEcritSeul(AUTOMATISATIONS_REELLES, etatLu), [etatLu]);
   const salle = useMemo(() => resumeDeLaSalle(envoisIci, tick), [envoisIci, tick]);
   const trenteJours = useMemo(() => compteDuJournal(envoisDeLaPeriode(envoisIci, '30-jours', aujourdhui)), [envoisIci, aujourdhui]);
@@ -278,6 +279,7 @@ export default function CeQueCaRapporte({ cerveau, reglages, moi }: PropsDUneVue
       case 'automate': setCfg((prev) => ({ ...prev, automateWa: { ...automate, mode: automate.mode === 'ouvert' ? 'eteint' : 'ouvert' } })); return;
       case 'relances': setSettings((s) => ({ ...s, relances: { ...(s.relances ?? {}), ...(s.relances?.actives ? { actives: false } : { actives: true, depuis: s.relances?.depuis ?? aujourdhui }) } })); return;
       case 'avis': setCfg((prev) => ({ ...prev, avisAuto: prev.avisAuto !== true })); return;
+      case 'equipe-du-matin': setSettings((s) => ({ ...s, equipeDuMatin: { ...(s.equipeDuMatin ?? {}), actif: s.equipeDuMatin?.actif !== true } })); return;
       case 'centre': changeLesReglages({ automatique: reglagesDuCentre.automatique === false }, par); return;
       default:
     }
@@ -288,6 +290,7 @@ export default function CeQueCaRapporte({ cerveau, reglages, moi }: PropsDUneVue
       case 'automate': return automate.mode === 'ouvert' ? 'Éteindre' : 'Ouvrir';
       case 'relances': return settings.relances?.actives ? 'Éteindre' : 'Allumer';
       case 'avis': return cfg.avisAuto === true ? 'Éteindre' : 'Allumer';
+      case 'equipe-du-matin': return settings.equipeDuMatin?.actif === true ? 'Éteindre' : 'Allumer';
       case 'centre': return reglagesDuCentre.automatique === false ? 'Rallumer' : 'Couper';
       default: return null;
     }

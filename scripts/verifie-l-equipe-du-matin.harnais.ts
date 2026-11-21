@@ -93,7 +93,7 @@ dit('B11 la liste longue tient dans la variable, et dit le reste au Trone', [tru
 const vP = variablesDuPlanning({ appel: 'Gérard', nombre: 3, jour: J, liste: 'a\nb\tc     d' });
 dit('C1 les variables du planning, sans saut de ligne ni grands blancs', ['Gérard', '3 rendez-vous', 'lundi 23 novembre 2026', 'a b c d'], vP);
 dit('C2 le texte du planning, signe de la devise',
-  `Bonjour Gérard, la Maison a 3 rendez-vous aujourd’hui, lundi 23 novembre 2026 : a b c d. Belle journée à vous.\n${DEVISE_COMPLETE}`,
+  `Bonjour Gérard, votre planning à la Maison : 3 rendez-vous aujourd’hui, lundi 23 novembre 2026. Horaires : a b c d. Belle journée à vous.\n${DEVISE_COMPLETE}`,
   texteDuPlanning(vP, DEVISE_COMPLETE));
 const vA = variablesDeLAccord({ appel: 'Yéman', jour: J, noms: ['Gérard', 'Nassim', 'Aimé'] });
 dit('C3 la question a la direction', `Bonjour Yéman, aucun rendez-vous avant 11 h aujourd’hui, lundi 23 novembre 2026. Pour Gérard, Nassim et Aimé, l’arrivée peut passer à 9 h ou à 10 h au lieu de 8 h. Que choisissez-vous ?\n${DEVISE_COMPLETE}`,

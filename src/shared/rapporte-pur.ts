@@ -417,6 +417,8 @@ export type EtatLu = {
   automateWa?: { mode?: string } | null;
   /** `mnd_auto_config.avisAuto`. */
   avisAuto?: boolean | null;
+  /** `mnd_settings.equipeDuMatin.actif` (21 novembre 2026). */
+  equipeDuMatin?: boolean | null;
   /** `mnd_settings.relances.actives` et `mndPay.actif`. */
   relancesActives?: boolean | null;
   mndPayActif?: boolean | null;
@@ -428,7 +430,9 @@ export type EtatLu = {
   modelesMeta?: Partial<Record<string, EtatDuModeleMeta>> | null;
 };
 
-export type Interrupteur = 'assistant' | 'automate' | 'toujours' | 'relances' | 'avis' | 'avec-son-modele' | 'a-la-main' | 'chat' | 'centre' | 'trone-ouvert';
+export type Interrupteur = 'assistant' | 'automate' | 'toujours' | 'relances' | 'avis' | 'avec-son-modele' | 'a-la-main' | 'chat' | 'centre' | 'trone-ouvert'
+  /* L'équipe du matin (21 novembre 2026) : `mnd_settings.equipeDuMatin.actif`. */
+  | 'equipe-du-matin';
 export type Voix = {
   id: string;
   nom: string;
@@ -462,6 +466,8 @@ export const VOIX_DE_LA_MAISON: readonly Voix[] = [
   { id: 'reponse-aux-avis', nom: 'Réponse aux avis', automatisations: [], types: [], fonctions: ['avis-google-pont'], secrets: [], modeles: [], interrupteur: 'a-la-main', compteDit: 'publiées par le Trône' },
   { id: 'site', nom: 'Le site : accusé, marraine', automatisations: ['accuse', 'parrainage', 'merci-marraine'], types: [], fonctions: ['demande-submit'], secrets: [], modeles: [], interrupteur: 'avec-son-modele' },
   { id: 'chat', nom: 'Chat du site', automatisations: [], types: [], fonctions: ['discussion'], secrets: [], modeles: [], interrupteur: 'chat', compteDit: 'ses réponses vivent dans les conversations' },
+  /* L'équipe du matin (21 novembre 2026) : à l'équipe, pas aux clientes ; ses trois modèles nommés par leurs secrets. */
+  { id: 'equipe-du-matin', nom: 'L’équipe du matin', automatisations: ['equipe-du-matin'], types: [], fonctions: ['equipe-du-matin'], secrets: ['WA_TEMPLATE_PLANNING_DU_JOUR', 'WA_TEMPLATE_EQUIPE_PLUS_TARD', 'WA_TEMPLATE_VENIR_PLUS_TARD'], modeles: [], interrupteur: 'equipe-du-matin' },
   { id: 'centre', nom: 'Centre de commande', automatisations: [], types: [], fonctions: ['centre-de-commande'], secrets: [], modeles: [], interrupteur: 'centre', compteDit: 'ne parle pas aux clientes' },
 ];
 
@@ -548,6 +554,7 @@ function caseDeLAllumage(v: Voix, etat: EtatLu, secret: Case): Case {
       return c.etat === 'ok' && etat.mndPayActif === false ? { etat: 'doux', dit: 'oui, sans FedaPay' } : c;
     }
     case 'avis': return ouiNon(etat.avisAuto, 'oui', 'éteint');
+    case 'equipe-du-matin': return ouiNon(etat.equipeDuMatin, 'oui', 'éteint');
     case 'avec-son-modele':
       if (!v.secrets.length) return { etat: 'ok', dit: 'avec son modèle' };
       return secret.etat === 'ok' ? { etat: 'ok', dit: 'avec son modèle' } : secret.etat === 'alarme' ? { etat: 'alarme', dit: 'éteint : modèle absent' } : { etat: 'inconnu', dit: 'non lu' };

@@ -207,11 +207,13 @@ export function nomsDits(noms: readonly string[]): string {
 export const appelDuDestinataire = (d: DestinataireDuMatin, nom: unknown): string =>
   propreDuMatin(d.appel) || propreDuMatin(nom).split(' ')[0] || '';
 
-/** `planning_du_jour` (Utilitaire) : « Bonjour {{1}}, la Maison a {{2}} aujourd’hui, {{3}} : {{4}}. Belle journée à vous. » */
+/** `planning_du_jour` (Utilitaire), le corps APPROUVÉ chez Meta le 21 novembre 2026 (la première
+    tournure, « la Maison a {{2}} aujourd’hui, {{3}} : {{4}} », était annoncée Marketing et refusée) :
+    « Bonjour {{1}}, votre planning à la Maison : {{2}} aujourd’hui, {{3}}. Horaires : {{4}}. Belle journée à vous. » */
 export const variablesDuPlanning = (o: { appel: string; nombre: number; jour: string; liste: string }): string[] =>
   [o.appel, `${o.nombre} rendez-vous`, jourDitDuMatin(o.jour), o.liste].map(variableDuModele);
 export const texteDuPlanning = (v: readonly string[], pied: string): string =>
-  `Bonjour ${v[0]}, la Maison a ${v[1]} aujourd’hui, ${v[2]} : ${v[3]}. Belle journée à vous.\n${pied}`;
+  `Bonjour ${v[0]}, votre planning à la Maison : ${v[1]} aujourd’hui, ${v[2]}. Horaires : ${v[3]}. Belle journée à vous.\n${pied}`;
 
 /** `equipe_plus_tard` (Utilitaire), deux réponses rapides « À 9 h » et « À 10 h » :
     « Bonjour {{1}}, aucun rendez-vous avant 11 h aujourd’hui, {{2}}. Pour {{3}}, l’arrivée peut passer à 9 h ou à 10 h au lieu de 8 h. Que choisissez-vous ? » */

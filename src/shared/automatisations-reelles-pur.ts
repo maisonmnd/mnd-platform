@@ -54,6 +54,9 @@ export const AUTOMATISATIONS_REELLES: readonly AutomatisationReelle[] = [
   /* LE RENDEZ-VOUS SUGGÉRÉ (15 novembre 2026) : la proposition en fermant « C'est réglé », puis sa relance. */
   { id: 'proposition', groupe: 'avant', quand: 'En fermant « C’est réglé » sur une date suggérée', quoi: 'Le prochain rituel proposé, deux boutons', modeles: ['proposition_rituel'], types: ['proposition'], allumage: 'avec-son-modele' },
   { id: 'reprise-j3', groupe: 'avant', quand: '3 jours avant une suggestion sans réponse', quoi: 'La proposition relancée, deux boutons', modeles: ['reprise_proposee'], types: ['reprise-j3'], allumage: 'avec-son-modele' },
+  /* L'ÉQUIPE DU MATIN (21 novembre 2026, `equipe-du-matin`) : la journée à l'équipe à 6 h ; rien avant
+     11 h un jour qui ouvre à 8 h, « À 9 h » ou « À 10 h » à la direction, et l'heure d'arrivée à l'équipe. */
+  { id: 'equipe-du-matin', groupe: 'avant', quand: 'Chaque jour ouvert, à 6 h', quoi: 'La journée à l’équipe ; rien avant 11 h, « À 9 h » ou « À 10 h » à la direction', modeles: ['planning_du_jour', 'equipe_plus_tard', 'venir_plus_tard'], types: ['equipe-du-matin'], allumage: 'reglage', reglage: { vers: '/gerard?vue=reglages', dit: 'Conversations › Réglages › L’équipe le matin' } },
   { id: 'push-rappels', groupe: 'avant', quand: '22 h puis 2 h avant', quoi: 'Rappel sur Ma Couronne', modeles: [], types: [], allumage: 'toujours', pasCompte: 'compté par le serveur seulement' },
   { id: 'point-apres', groupe: 'entre', quand: '7 jours après une séance', quoi: 'Point d’étape, la tête répond d’un toucher', modeles: ['point_apres_seance'], types: ['point-apres'], allumage: 'avec-son-modele' },
   { id: 'point-avant', groupe: 'entre', quand: '7 jours avant la séance suivante', quoi: 'Point d’étape avant la séance', modeles: ['point_avant_seance'], types: ['point-avant'], allumage: 'avec-son-modele' },

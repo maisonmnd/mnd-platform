@@ -187,6 +187,8 @@ const etat: EtatLu = {
     'centre-de-commande': { http: 405, version: '2026-10-11-b' },
     'demande-submit': { http: 405, version: '2026-10-19-a · le message vocal du site' },
     'whatsapp-webhook': { http: 200, version: '2026-10-17-a · les points d etape entre' },
+    /* L'equipe du matin (21 novembre 2026) : posee, deux modeles nommes, le troisieme absent. */
+    'equipe-du-matin': { http: 200, version: '2026-11-21-a · la journee a l equipe', secrets: { WA_TEMPLATE_PLANNING_DU_JOUR: 16, WA_TEMPLATE_EQUIPE_PLUS_TARD: 16, WA_TEMPLATE_VENIR_PLUS_TARD: 0 } },
   },
   versionsAuDepot: { 'whatsapp-automate': '2026-10-24-b', 'avis-google-pont': '2026-10-26-a', 'demande-submit': '2026-10-24-b', 'whatsapp-webhook': '2026-10-17-a' },
   facteur: { vuLe: new Date(maintenantMs - 60_000).toISOString(), version: '2026-10-23-a' },
@@ -194,6 +196,7 @@ const etat: EtatLu = {
   automateWa: { mode: 'ouvert' },
   avisAuto: true,
   relancesActives: false,
+  equipeDuMatin: true,
   mndPayActif: true,
   chat: { permanence: false, claude: true },
   centreAutomatique: false,
@@ -201,11 +204,11 @@ const etat: EtatLu = {
 };
 const voix = quiEcritSeul(AUTOMATISATIONS_REELLES, etat);
 const etats = (l: (typeof voix)[number]) => [l.id, l.allume.etat, l.posee.etat, l.secret.etat, l.modeleMeta.etat, l.alarme];
-dit('qui écrit seul : onze voix, chacune avec l’état réel de ses quatre cases',
+dit('qui écrit seul : douze voix, chacune avec l’état réel de ses quatre cases (l équipe du matin : allumée, posée, un secret absent, l alarme)',
   [['assistant', 'ok', 'inconnu', 'doux', 'inconnu', false], ['automate', 'ok', 'alarme', 'doux', 'doux', true], ['confirmation', 'ok', 'ok', 'doux', 'inconnu', false],
     ['entre-deux', 'ok', 'ok', 'doux', 'inconnu', false], ['relances', 'doux', 'ok', 'alarme', 'inconnu', true], ['echeances', 'ok', 'alarme', 'doux', 'inconnu', true],
     ['avis', 'ok', 'doux', 'doux', 'inconnu', false], ['reponse-aux-avis', 'doux', 'alarme', 'doux', 'doux', true], ['site', 'ok', 'alarme', 'doux', 'inconnu', true],
-    ['chat', 'ok', 'ok', 'doux', 'doux', false], ['centre', 'doux', 'ok', 'doux', 'doux', false]],
+    ['chat', 'ok', 'ok', 'doux', 'doux', false], ['equipe-du-matin', 'ok', 'ok', 'alarme', 'inconnu', true], ['centre', 'doux', 'ok', 'doux', 'doux', false]],
   voix.map(etats));
 const par = Object.fromEntries(voix.map((l) => [l.id, l]));
 dit('... l’Assistant : Actif, sa fonction pas encore sondée, 10 modèles (sept plus un, et les deux cartes d’anniversaire) dont l’état n’est pas noté, 28 partis ce mois, dernier passage le 26 octobre 2026',
