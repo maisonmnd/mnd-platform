@@ -79,8 +79,9 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : `saitIaMaison` du Trône la compare.
     2026-11-18-a : l'agent des rendez-vous ; 2026-11-18-b : les clés de service
     reconnues à temps constant (⟨cle-du-cron⟩) ; 2026-11-21-a : Perle cherche
-    sur internet (`web`, le seul chantier « question »). */
-const VERSION = '2026-11-21-a';
+    sur internet (`web`, le seul chantier « question ») ; 2026-11-21-b : la
+    réponse d'une recherche ne porte plus les mots de travail du modèle. */
+const VERSION = '2026-11-21-b';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -573,6 +574,21 @@ function sourcesDe(blocs: readonly BlocAnthropic[]): { titre: string; url: strin
   return [...vues].map(([url, titre]) => ({ titre, url }));
 }
 
+/** LA RÉPONSE D'UNE RECHERCHE, SANS LES MOTS DE TRAVAIL (21 novembre 2026,
+    premier essai en ligne : « Le résultat est une chaîne ; je la décode. » en
+    tête de la réponse). Entre deux recherches le modèle se parle à lui-même ;
+    la réponse, elle, vient APRÈS son dernier outil. On ne rend donc que les
+    morceaux de texte qui suivent le dernier bloc qui n'est pas du texte
+    (recherche, résultat, tri du résultat). Ils se recollent sans rien entre
+    eux : une réponse citée arrive coupée aux citations, parfois au milieu
+    d'une phrase. Un tour arrêté en pleine recherche ne rend rien : des mots
+    de travail ne sont pas une réponse. */
+function reponseDeLaRecherche(blocs: readonly BlocAnthropic[]): string {
+  let dernierOutil = -1;
+  blocs.forEach((b, i) => { if (b.type !== 'text') dernierOutil = i; });
+  return blocs.slice(dernierOutil + 1).map((b) => b.text ?? '').join('').trim();
+}
+
 /** Le modèle n'est pas ouvert à la clé : on passe au remplaçant (comme `discussion`). */
 const modeleInconnu = (status: number, corps: CorpsAnthropic): boolean =>
   status === 404 || (status === 400 && /model/i.test(corps.error?.message ?? ''));
@@ -700,10 +716,8 @@ async function traiteLaDemande(o: OutilsDeLaMaison, body: unknown, jwt: string):
     console.log(`ia-maison: ${d.chantier} ${modele} entrée=${entree} sortie=${sortie}${web ? ` recherches=${recherches}` : ''} coût=${cout} $ reste=${reste} $`);
 
     if (web) {
-      /* Une réponse citée arrive en plusieurs morceaux de texte, coupés aux
-         citations, parfois au milieu d'une phrase : ils se recollent sans
-         rien entre eux. */
-      const texte = blocs.filter((b) => b.type === 'text').map((b) => b.text ?? '').join('').trim();
+      /* La réponse seule, sans ce que le modèle s'est dit entre deux recherches. */
+      const texte = reponseDeLaRecherche(blocs);
       if (!texte) return refus(502, 'claude', 'La recherche sur internet n’a rien rendu : reformulez la question.', { resteUsd: reste });
       return [200, { ok: true, data: { sources: sourcesDe(blocs), recherches, ...(arret === 'max_tokens' || arret === 'pause_turn' ? { coupee: true } : {}) }, texte, modele, coutUsd: cout, resteUsd: reste }];
     }

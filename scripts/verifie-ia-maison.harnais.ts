@@ -400,7 +400,30 @@ const essais = async () => {
       const [st, r] = await s.demande(QUESTION, 'jeton-de-la-gerante');
       dit('internet : une recherche en erreur ne fait pas tomber la porte ; une réponse coupée se dit coupée', [200, 'Je n’ai pas pu chercher davantage', { sources: [], recherches: 0, coupee: true }], [st, r.texte, r.data]);
     }
-    dit('le Trône ne propose internet qu à partir de la fonction qui le sait', [true, true, false, false], [saitInternet('2026-11-21-a'), saitInternet('2026-12-01-a'), saitInternet('2026-11-18-b'), saitInternet(undefined)]);
+    {
+      /* LES MOTS DE TRAVAIL NE SONT PAS LA RÉPONSE (21 novembre 2026, premier essai
+         en ligne : « Le résultat est une chaîne ; je la décode. » en tête). Ce que le
+         modèle se dit avant ou entre ses outils tombe ; la réponse suit le dernier. */
+      const TRI = { type: 'server_tool_use', id: 'st_2', name: 'code_execution', input: { code: 'x' } };
+      const TRIE = { type: 'code_execution_tool_result', tool_use_id: 'st_2', content: { type: 'code_execution_result', stdout: 'x' } };
+      const BAVARDE: ReponseFausse = { status: 200, corps: { stop_reason: 'end_turn', usage: { input_tokens: 9000, output_tokens: 400, server_tool_use: { web_search_requests: 1 } }, content: [
+        { type: 'text', text: 'Je cherche le taux.' }, CHERCHE, TROUVEES,
+        { type: 'text', text: 'Le résultat est une chaîne ; je la décode.' }, TRI, TRIE,
+        { type: 'text', text: 'Le taux est de ' },
+        { type: 'text', text: '18 %', citations: [{ type: 'web_search_result_location', url: 'https://impots.exemple.bj/tva', title: 'La TVA', cited_text: 'x' }] },
+        { type: 'text', text: '.' },
+      ] } };
+      const s = serveur({ reponses: [BAVARDE] });
+      const [st, r] = await s.demande(QUESTION, 'jeton-de-la-gerante');
+      dit('internet : ce que le modèle se dit avant et entre ses recherches ne part pas dans la réponse', [200, 'Le taux est de 18 %.', [{ titre: 'La TVA', url: 'https://impots.exemple.bj/tva' }]],
+        [st, r.texte, (r.data as { sources: unknown }).sources]);
+      const ARRETEE: ReponseFausse = { status: 200, corps: { stop_reason: 'max_tokens', usage: { input_tokens: 1000, output_tokens: 6000, server_tool_use: { web_search_requests: 1 } }, content: [{ type: 'text', text: 'Je cherche le taux.' }, CHERCHE] } };
+      const t = serveur({ reponses: [ARRETEE] });
+      const [st2, r2] = await t.demande(QUESTION, 'jeton-de-la-gerante');
+      dit('... et un tour arrêté en pleine recherche ne rend pas ses mots de travail pour une réponse', [502, 'La recherche sur internet n’a rien rendu : reformulez la question.', 1],
+        [st2, r2.message, t.j.ecritures.length]);
+    }
+    dit('le Trône ne propose internet qu à partir de la fonction qui le sait', [true, true, true, false, false], [saitInternet('2026-11-21-a'), saitInternet('2026-11-21-b'), saitInternet('2026-12-01-a'), saitInternet('2026-11-18-b'), saitInternet(undefined)]);
   }
 
   /* LE MODÈLE ET SON REMPLAÇANT. */
@@ -492,7 +515,7 @@ async function vraisOutils() {
 const structure = () => {
   const brut = lis(FONCTION);
   const f = sansCommentaires(brut);
-  dit('la fonction dit sa version et répond 405 à un GET avec elle', [true, true], [/const VERSION = '2026-11-21-a';/.test(f),/if \(req\.method !== 'POST'\) return json\(\{ error: 'method', version: VERSION \}, 405\);/.test(f)]);
+  dit('la fonction dit sa version et répond 405 à un GET avec elle', [true, true], [/const VERSION = '2026-11-21-b';/.test(f),/if \(req\.method !== 'POST'\) return json\(\{ error: 'method', version: VERSION \}, 405\);/.test(f)]);
   dit('l en-tête dit Verify JWT ALLUMÉ, et les secrets qui existent déjà', [true, true, true], [/Verify JWT ALLUMÉ/.test(brut), /ANTHROPIC_API_KEY et CLE_SERVICE/.test(brut), /aucun secret nouveau/.test(brut)]);
   dit('la porte lit la personne du jeton, puis sa ligne staff (rôle)', [true, true],
     [/await admin\.auth\.getUser\(jwt\)/.test(f), /from\('staff'\)\.select\('user_id, role'\)\.eq\('user_id', uid\)\.maybeSingle\(\)/.test(f)]);
