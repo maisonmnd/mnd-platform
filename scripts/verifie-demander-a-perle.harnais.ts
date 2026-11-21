@@ -9,7 +9,7 @@
 import { readFileSync } from 'node:fs';
 import {
   CHANTIER_DE_PERLE, LECTURES, LECTURES_MAX, NOMS_DES_LECTURES, SCHEMA_DU_PLAN, SIGNES_DE_FAITS_MAX,
-  auFauteuil, clientesDeLaQuestion, clientesDuNom, demandeDeLaReponse, demandeDuPlan, ecransLus, enDirectEnTexte, encoreAttendues,
+  auFauteuil, clientesDeLaQuestion, clientesDuNom, demandeDeLaReponse, demandeDuPlan, dureeEnClair, ecransLus, enDirectEnTexte, encoreAttendues,
   faitsEnTexte, fenetreDesDepenses, fenetreDesRendezVous, francsPourPerle, lignesEnDirect, moisDAvant, dernierJourDuMois, momentDit, planLu, reponsePropre, toursDAvant,
   type FaitsEnDirect, type RdvDuJour,
 } from '../src/shared/perle-pur';
@@ -96,6 +96,7 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
     [defautDeLaDemande(demandeDeLaReponse({ question: 'q', jour: '2026-11-21', minutes: 0, enDirect: 'x'.repeat(2000), faits: enormes })), SIGNES_DE_FAITS_MAX < SIGNES_MAX_PAR_DEMANDE - 8000]);
   dit('la coupe tombe en fin de ligne, jamais au milieu d un chiffre', true, faitsEnTexte(enormes).split('\n(la suite')[0].endsWith(' de la liste 1'));
   dit('la reponse perd le tiret cadratin et les marques', 'Deux rituels, 70 000 F à encaisser.\n\nÀ voir', reponsePropre(`**Deux rituels** ${String.fromCharCode(8212)} 70 000 F à encaisser.\n\n\n\n## À voir`));
+  dit('... et prend l apostrophe de la Maison', 'Aujourd’hui, l’argent n’est pas entré. « l’une »', reponsePropre("Aujourd'hui, l'argent n'est pas entré. « l'une »"));
   dit('« Lu dans » : un ecran par lecture, sans doublon ; la fiche pour une cliente',
     [{ nom: 'La journée', chemin: '/la-journee' }, { nom: 'Sa fiche', chemin: '/customers?id=c1' }, { nom: 'Le Carnet', chemin: '/carnet' }],
     ecransLus([...faits, { lecture: 'rendez_vous' }, { lecture: 'places_libres' }, { lecture: 'journee' }]));
@@ -170,7 +171,7 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
     'À encaisser : 70 000 F', '2 rituels commencés ou terminés, sans règlement',
     'Au fauteuil : 2', 'Team depuis 14 h · Expert depuis 14 h 30',
     'Encore attendues aujourd’hui : 2', '16 h, 17 h 30',
-    '3 conversations sans réponse', 'La plus ancienne attend depuis 1 h 10',
+    '3 conversations sans réponse', 'La plus ancienne attend depuis 1 h 10 min',
     'Places libres aujourd’hui', '16 h 30, 18 h, pour une heure',
     '2 rendez-vous suggérés sans réponse',
   ], [...lignes.slice(0, 6).flatMap((l) => [l.titre, l.detail]), lignes[6].titre]);
@@ -184,6 +185,12 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
       return [l.find((x) => x.cle === 'places')?.titre, l.find((x) => x.cle === 'sans-reponse')?.titre, l.find((x) => x.cle === 'a-encaisser')?.titre, l.find((x) => x.cle === 'a-encaisser')?.detail];
     })());
   dit('le fil dit a Perle : une ligne par fait', '- Encaissé aujourd’hui : 185 000 F (Pourboires à part : 5 000 F)', enDirectEnTexte(lignes).split('\n')[0]);
+  /* Premier essai en ligne, 21 novembre 2026 : « attend depuis 13 h 52 » (treize heures d'attente)
+     est devenu « depuis 13 h 52 hier » dans la réponse. Une durée porte ses minutes ou son mot. */
+  dit('une duree ne se lit jamais comme une heure', ['20 min', '1 heure', '2 heures', '13 h 52 min', '1 h 05 min', '0 min'],
+    [dureeEnClair(20), dureeEnClair(60), dureeEnClair(120), dureeEnClair(832), dureeEnClair(65), dureeEnClair(-4)]);
+  dit('... et le fil la dit ainsi', 'La plus ancienne attend depuis 13 h 52 min',
+    lignesEnDirect({ ...faits, sansReponse: { n: 1, plusAncienneMin: 832 } }).find((l) => l.cle === 'sans-reponse')?.detail);
 }
 
 /* ── 8. La porte, et l'écran qui ne fait que lire (lus dans leur source) ── */

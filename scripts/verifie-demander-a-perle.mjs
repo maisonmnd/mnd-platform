@@ -58,6 +58,8 @@ const PANNES = [
   ['les faits ne sont plus bornes', PUR, '    if (texte.length > part) {', '    if (false) {'],
   ['la coupe tombe au milieu d une ligne', PUR, "coupe.slice(0, Math.max(coupe.lastIndexOf('\\n'), 200))", 'coupe'],
   ['le tiret cadratin reste', PUR, ".replace(CADRATIN, ', ')", ''],
+  ['une duree se lit comme une heure', PUR, "return m % 60 ? `${h} h ${String(m % 60).padStart(2, '0')} min` : `${h} heure${h > 1 ? 's' : ''}`;", "return m % 60 ? `${h} h ${String(m % 60).padStart(2, '0')}` : `${h} h`;"],
+  ['l apostrophe droite reste', PUR, ".replace(/(\\p{L})'(?=\\p{L})/gu, '$1’')", ''],
   ['la fenetre des rendez-vous n est plus bornee', PUR, '  return { du, au: au > borne ? borne : au };\n}\n\n/** LA FENÊTRE DES DÉPENSES', '  return { du, au };\n}\n\n/** LA FENÊTRE DES DÉPENSES'],
   ['le prenom seul designe une cliente dans la question', PUR, '    if (!vus) continue;\n', ''],
   ['une initiale retrouve n importe quel mot', PUR, 'mots.some((m, i) => i > 0 && m.startsWith(d))', 'true'],

@@ -24,7 +24,7 @@ import { useEngagements } from '../../../../shared/engagements';
 import { pourClaude, sansCoordonnees, type Personne } from '../../../../shared/ia-anonymise-pur';
 import { dateDite, heureDite, personnesDe, prenomDeLaFiche } from '../../../../shared/ia-fiche-du-jour-pur';
 import {
-  clientesDeLaQuestion, clientesDuNom, dernierJourDuMois, enDirectEnTexte, fenetreDesDepenses, fenetreDesRendezVous, francsPourPerle, lignesEnDirect, moisDAvant,
+  clientesDeLaQuestion, clientesDuNom, dernierJourDuMois, dureeEnClair, enDirectEnTexte, fenetreDesDepenses, fenetreDesRendezVous, francsPourPerle, lignesEnDirect, moisDAvant,
   type FaitLu, type LectureDemandee, type LigneEnDirect, type RdvDuJour,
 } from '../../../../shared/perle-pur';
 import { useAutoConfig, useStaff as useEquipe } from '../equipe/data';
@@ -56,10 +56,8 @@ const parCle = <T,>(l: readonly T[], cle: (x: T) => string, montant: (x: T) => n
 const borne = (t: string, n: number): string => (t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t);
 const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 const jourEtDate = (iso: string): string => `${JOURS[new Date(`${iso}T12:00:00Z`).getUTCDay()] ?? ''} ${dateDite(iso)}`.trim();
-const dureeDite = (min: number): string => {
-  const m = Math.max(0, Math.round(min));
-  return m < 60 ? `${m} min` : m % 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}` : `${Math.floor(m / 60)} h`;
-};
+/* Une durée ne se lit jamais comme une heure : « 13 h 52 min », « 2 heures » (`dureeEnClair`). */
+const dureeDite = dureeEnClair;
 
 /** Les conversations qui attendent une réponse, fenêtre ouverte : les mêmes
     juges que l'alarme du tableau de bord (`filsDeLaMaison`, `filsSansReponse`),

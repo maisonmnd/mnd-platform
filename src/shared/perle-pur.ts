@@ -225,7 +225,7 @@ export function demandeDeLaReponse(o: { question: string; jour: string; minutes:
     virgule (règle de la Maison), les marques de mise en forme tombent. */
 const CADRATIN = new RegExp(`\\s*${String.fromCharCode(8212)}\\s*`, 'g');
 export const reponsePropre = (texte: string): string =>
-  String(texte ?? '').replace(CADRATIN, ', ').replace(/\*\*|__|^#{1,6}\s+/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+  String(texte ?? '').replace(CADRATIN, ', ').replace(/\*\*|__|^#{1,6}\s+/gm, '').replace(/(\p{L})'(?=\p{L})/gu, '$1’').replace(/\n{3,}/g, '\n\n').trim();
 
 /** « Lu dans : La journée, Le Carnet » : les écrans des lectures faites, sans doublon. */
 export function ecransLus(faits: readonly Pick<FaitLu, 'lecture' | 'lien'>[]): { nom: string; chemin: string }[] {
@@ -375,11 +375,15 @@ export type FaitsEnDirect = {
 
 export type LigneEnDirect = { cle: string; titre: string; detail: string; ecran?: string; geste?: string };
 
-const dureeDite = (min: number): string => {
+/** UNE DURÉE NE SE LIT JAMAIS COMME UNE HEURE (21 novembre 2026, premier essai
+    en ligne). Le fil disait « attend depuis 13 h 52 » pour treize heures
+    d'attente, et Perle a répondu « depuis 13 h 52 hier ». Une durée porte donc
+    ses minutes ou son mot : « 20 min », « 13 h 52 min », « 2 heures ». */
+export const dureeEnClair = (min: number): string => {
   const m = Math.max(0, Math.round(min));
   if (m < 60) return `${m} min`;
   const h = Math.floor(m / 60);
-  return m % 60 ? `${h} h ${String(m % 60).padStart(2, '0')}` : `${h} h`;
+  return m % 60 ? `${h} h ${String(m % 60).padStart(2, '0')} min` : `${h} heure${h > 1 ? 's' : ''}`;
 };
 const heureCourte = (hhmm: string): string => {
   const m = /^(\d{1,2}):(\d{2})/.exec(hhmm);
@@ -422,7 +426,7 @@ export function lignesEnDirect(f: FaitsEnDirect): LigneEnDirect[] {
   if (f.sansReponse.n > 0) {
     lignes.push({
       cle: 'sans-reponse', titre: `${f.sansReponse.n} conversation${f.sansReponse.n > 1 ? 's' : ''} sans réponse`,
-      detail: f.sansReponse.plusAncienneMin !== null ? `La plus ancienne attend depuis ${dureeDite(f.sansReponse.plusAncienneMin)}` : 'Elles attendent une réponse de la Maison',
+      detail: f.sansReponse.plusAncienneMin !== null ? `La plus ancienne attend depuis ${dureeEnClair(f.sansReponse.plusAncienneMin)}` : 'Elles attendent une réponse de la Maison',
       ecran: '/conversations', geste: 'Répondre',
     });
   }
