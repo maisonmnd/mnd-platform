@@ -102,18 +102,33 @@ const piedDeGerard = DEVISE_COMPLETE;
 const canalDuPlan = (c: Situation['canal']) => (c === 'couronne' ? 'Ma Couronne' : 'WhatsApp');
 const codeDit = (s: Situation) => (s.code ? `−${s.code.pct} % · ${s.code.mot === 'CREUX' ? 'jour creux' : 'anniversaire'}` : '');
 
-/* ── LES CINQ VUES ──────────────────────────────────────────────────────── */
-type Vue = 'aujourdhui' | 'conversations' | 'avis' | 'offres' | 'rapporte';
+/* ── LES SIX VUES ───────────────────────────────────────────────────────────
+   21 novembre 2026 (« je me perds et n'y comprends rien », Yéman) : des noms
+   courts, et une sixième vue, « Réglages », qui reprend tout ce qui se règle
+   (Pause ou Actif, le plafond, les jours creux, les règles, les modèles). */
+type Vue = 'aujourdhui' | 'conversations' | 'avis' | 'offres' | 'rapporte' | 'reglages';
 const VUES: readonly { cle: Vue; titre: string }[] = [
   { cle: 'aujourdhui', titre: 'Aujourd’hui' },
-  { cle: 'conversations', titre: 'Les conversations' },
-  { cle: 'avis', titre: 'Les avis' },
-  { cle: 'offres', titre: 'Offres et remises' },
-  { cle: 'rapporte', titre: 'Ce que ça rapporte' },
+  { cle: 'conversations', titre: 'Conversations' },
+  { cle: 'avis', titre: 'Avis' },
+  { cle: 'offres', titre: 'Offres' },
+  { cle: 'rapporte', titre: 'Résultats' },
+  { cle: 'reglages', titre: 'Réglages' },
 ];
 const vueLue = (x: string | null): Vue => (VUES.some((v) => v.cle === x) ? (x as Vue) : 'aujourdhui');
-/** Les replis du bas d'Aujourd'hui (Entre deux séances, Ses règles, Ses modèles) : un seul ouvert à la fois. */
+/** Le titre de la page, vue par vue (les vues en pleine page ont leur propre tête). */
+const TITRE_DE_LA_VUE: Partial<Record<Vue, string>> = { aujourdhui: 'Aujourd’hui.', rapporte: 'Résultats.', reglages: 'Réglages de Perle.' };
+/** Les replis des Réglages (Entre deux séances, Ses règles, Modèles WhatsApp) : un seul ouvert à la fois. */
 type Repli = 'entre-deux' | 'regles' | 'modeles';
+/** Les lignes montrées d'abord dans « Perle écrit aujourd'hui » ; le reste se déplie. */
+const LIGNES_VUES = 5;
+/** LE DÉPART D'UNE LIGNE, EN DEUX MOTS : la colonne de droite de la liste. La
+    phrase entière (`LigneDuJour.depart`) reste dans le panneau ouvert. */
+const DEPART_COURT: Partial<Record<LigneDuJour['etat'], string>> = { 'pas-encore': 'Part seul', 'en-pause': 'En pause', retenue: 'Retenue', 'a-son-toucher': 'À envoyer' };
+const departCourt = (l: LigneDuJour): string => {
+  const dit = DEPART_COURT[l.etat] ?? (l.depart === 'part seul au passage du matin' ? 'Part seul' : l.depart);
+  return dit ? dit[0].toUpperCase() + dit.slice(1) : '';
+};
 
 /** Ce que chaque vue reçoit : le cerveau (lourd, lu une fois), les réglages lus, la personne au clavier. */
 export type PropsDUneVue = { cerveau: CerveauDeGerard; reglages: ReglagesDeGerard; moi: Staff | null };
@@ -236,6 +251,11 @@ export default function Gerard() {
   /* Un verdict par ligne touchée (« Tout laisser partir » en rend plusieurs d'un coup). */
   const [verdicts, setVerdicts] = useState<Record<string, string>>({});
   const [repli, setRepli] = useState<Repli | null>(null);
+  /* AUJOURD'HUI, REFAIT (21 novembre 2026) : la liste de celles qui attendent une personne, et celle des
+     rendez-vous à reprogrammer, ne s'ouvrent qu'à la demande, sous leur carte ; la liste du jour montre
+     cinq lignes, le reste se déplie. */
+  const [tiroir, setTiroir] = useState<'repondre' | 'reprogrammer' | null>(null);
+  const [toutVoir, setToutVoir] = useState(false);
   /* LES CIVILITÉS (28 octobre 2026, « dire Mr ou Mme avant le prénom ») : les
      fiches qu'un message peut joindre et qui ne disent rien, et leur fenêtre. */
   const [civilites, setCivilites] = useState(false);
@@ -346,6 +366,8 @@ export default function Gerard() {
   const ouvreLaLigne = (id: string | null) => {
     setOuverte(id);
     if (!id) return;
+    /* Elle peut vivre au-delà des cinq premières : la liste se déplie. */
+    setToutVoir(true);
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
       document.getElementById(`am-ligne-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }));
@@ -455,22 +477,20 @@ export default function Gerard() {
   const copier = (cle: string, texte: string) => {
     void navigator.clipboard?.writeText(texte).then(() => setCopie(cle), () => setCopie(null));
   };
+  /* Deux pastilles seulement : celles qui attendent une personne, et les avis à relire. Le plan du
+     jour se compte dans sa liste, les remises de la semaine dans « Offres ». */
   const compteDeLaVue = (cle: Vue): { n: string; ton: string } | null => {
-    if (cle === 'aujourdhui') return fusion.resume.lignes ? { n: String(fusion.resume.lignes), ton: 'indigo' } : null;
     if (cle === 'conversations') return humain.total ? { n: String(humain.total), ton: 'terre' } : null;
     if (cle === 'avis') return aRelire ? { n: String(aRelire), ton: 'or' } : null;
-    if (cle === 'offres') return { n: `${plafond.faites} / ${plafond.remisesParSemaine}`, ton: 'cuivre' };
     return null;
   };
-  const ouiDit = (() => {
-    const o = tuiles.oui;
-    const parts: string[] = [];
-    if (o.whatsapp.n) parts.push(`${o.whatsapp.n} WhatsApp en un geste`);
-    if (o.bilans) parts.push(`${o.bilans} bilan${o.bilans > 1 ? 's' : ''} à remettre`);
-    if (o.avis) parts.push(`${o.avis} réponse${o.avis > 1 ? 's' : ''} à un avis`);
-    if (o.offresFlash) parts.push(`${o.offresFlash} offre flash`);
-    return parts.length ? `oui attendus · ${parts.join(', ')}` : 'oui attendus · rien à trancher';
-  })();
+  /* À REPROGRAMMER (19 novembre 2026) : tant qu'elle n'a pas choisi sa nouvelle date. Au 7e jour sans
+     choix, à l'équipe de la rappeler. */
+  const liste = rdvsAReprogrammer(appts);
+  const aLEquipe = liste.filter((a) => etatDuReport(a, Date.now()) === 'equipe').length;
+  /* À ENVOYER : les WhatsApp qui attendent un toucher (un par cliente, tant que le modèle n'est pas approuvé chez Meta). */
+  const aToucher = tuiles.oui.whatsapp;
+  const lignesVues = toutVoir ? fusion.lignes : fusion.lignes.slice(0, LIGNES_VUES);
   const propsDesVues: PropsDUneVue = { cerveau, reglages, moi };
   /* Les vues qui prennent toute la page (la barre du Trône se replie, Shell) : leur propre tête remplace celle de Perle ; « Les envois programmés » passe dans le menu ⋮ de la liste. */
   const pleinePage = vue === 'conversations' || vue === 'avis' || vue === 'offres';
@@ -478,16 +498,20 @@ export default function Gerard() {
   return (
     <div className={`trc-ger trc-am${vue === 'conversations' ? ' trc-am--conversations' : ''}${pleinePage ? ' trc-am--pleine' : ''}`}>
       {/* TOUTE LA PAGE (18 novembre 2026) : sur les vues qui la prennent, le titre et les cinq chiffres restent sur « Aujourd'hui ». */}
+      {/* LA TÊTE (21 novembre 2026) : le nom de la vue, et l'état de Perle d'un coup d'œil, avec son
+          interrupteur. Les cinq chiffres d'avant répétaient les tuiles : ils sont partis avec elles. */}
       {!pleinePage && <PageHead
-        eyebrow="Clientèle · avec Perle, l’assistant des clientes"
-        title="Conversations."
+        eyebrow="Conversations"
+        title={TITRE_DE_LA_VUE[vue] ?? 'Conversations.'}
         actions={(
-          <div className="trc-ger__chiffres">
-            <span className="trc-ger__chiffre"><b>{plan.length}</b><small>à écrire aujourd’hui</small></span>
-            <span className="trc-ger__chiffre"><b>{parti.compte.partis}</b><small>partis aujourd’hui</small></span>
-            <span className="trc-ger__chiffre"><b>{garder}</b><small>RDV à garder</small></span>
-            <span className="trc-ger__chiffre"><b>{plafond.faites} / {plafond.remisesParSemaine}</b><small>remises de la semaine</small></span>
-            <span className="trc-ger__chiffre"><b>{francsDits(plafond.francs)}</b><small>sur {francsDits(plafond.plafondFrancs)}</small></span>
+          <div className="trc-auj__perle" title={reglages.dernierPassage ? `Dernier passage : ${reglages.dernierPassage === ctx.aujourdhui ? 'aujourd’hui' : jourDit(reglages.dernierPassage)}` : undefined}>
+            <i className={actif ? 'est-actif' : ''} aria-hidden="true" />
+            <span>{actif ? 'Perle écrit seule' : 'Perle est en pause'}</span>
+            {direction && (
+              <button type="button" className="trc-auj__btn" onClick={() => metEnPause(actif, moi?.name ?? 'La direction')}>
+                {actif ? 'Mettre en pause' : 'Reprendre'}
+              </button>
+            )}
           </div>
         )}
       />}
@@ -499,22 +523,17 @@ export default function Gerard() {
           const compte = compteDeLaVue(v.cle);
           return (
             <button key={v.cle} type="button" role="tab" id={`am-ong-${v.cle}`} aria-selected={choisi} aria-controls={`am-vue-${v.cle}`}
-              tabIndex={choisi ? 0 : -1} className={choisi ? 'est-choisi' : ''} onClick={() => versLaVue(v.cle)}>
+              tabIndex={choisi ? 0 : -1} className={`${choisi ? 'est-choisi' : ''}${v.cle === 'reglages' ? ' est-a-droite' : ''}`} onClick={() => versLaVue(v.cle)}>
               {v.titre}
               {compte && <span className={`trc-am__n trc-am__n--${compte.ton}`}>{compte.n}</span>}
             </button>
           );
         })}
+        {/* LES ENVOIS PROGRAMMÉS (13 novembre 2026) : la file vivait seulement sous la barre WhatsApp ·
+            Le chat du site (#/appels), et Yéman ne la trouvait pas. Depuis le 21 novembre, dans la barre
+            même, à droite : après les onglets, pour que les flèches du clavier gardent leur compte. */}
+        <Link to="/appels" className="trc-am__vues-lien">Programmés</Link>
       </div>
-      {/* LES ENVOIS PROGRAMMÉS (13 novembre 2026) : « Conversations » de la barre
-          mène ici, et la file des envois programmés vivait seulement sous la
-          barre WhatsApp · Le chat du site (#/appels) : Yéman ne la trouvait pas
-          pour envoyer « par l'app ». Un lien, hors des onglets de Perle. */}
-      {!pleinePage && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '6px 0 0' }}>
-          <Link to="/appels" className="tre-link-btn" style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5 }}>Les envois programmés →</Link>
-        </div>
-      )}
 
       <div className="trc-am__vue" role="tabpanel" id={`am-vue-${vue}`} aria-labelledby={`am-ong-${vue}`}>
         {vue === 'conversations' && <LesConversations {...propsDesVues} />}
@@ -523,73 +542,143 @@ export default function Gerard() {
         {vue === 'rapporte' && <CeQueCaRapporte {...propsDesVues} />}
         {vue === 'aujourdhui' && (
           <>
-            {/* LES CINQ TUILES : prêts, oui attendus, humain, remises de la semaine, francs en jeu (calibre + fourchette). */}
-            <div className="trc-am__tuiles">
-              <div className="trc-am__tuile trc-am__tuile--indigo">
-                <b>{actif ? tuiles.prets.total : tuiles.prets.enPause}</b>
-                <span>{actif ? `partent aujourd’hui · Ma Couronne ${tuiles.prets.couronne}, WhatsApp ${tuiles.prets.whatsapp}` : `prêts, en pause · Ma Couronne ${fusion.resume.couronne}, WhatsApp ${fusion.resume.whatsapp}`}</span>
+            {/* AUJOURD'HUI, REFAIT (21 novembre 2026, « je me perds et n'y comprends rien… plus de si longs
+                textes », Yéman ; maquette Jrj9rfdYAYPDPDS1aT4EFs). Trois zones : ce qui l'attend, ce que
+                Perle écrit, ce qui est parti. Le réglage, les règles, les jours creux et les modèles vivent
+                dans la vue « Réglages ». */}
+            <section className="trc-auj__bloc" aria-label="À faire maintenant">
+              <span className="trc-auj__sur">À faire maintenant</span>
+              <div className="trc-auj__cartes">
+                <div className={`trc-auj__carte${humain.total > 0 ? ' trc-auj__carte--forte' : ''}`}>
+                  <b>{humain.total}</b>
+                  <strong>À répondre</strong>
+                  <span className={humain.sante > 0 ? 'est-alarme' : ''}>{humain.sante > 0 ? `dont ${humain.sante} santé` : humain.total > 0 ? 'Elles attendent une personne' : 'Personne n’attend'}</span>
+                  {humain.total > 0 && (
+                    <button type="button" className="trc-auj__btn trc-auj__btn--clair" aria-expanded={tiroir === 'repondre'}
+                      onClick={() => setTiroir(tiroir === 'repondre' ? null : 'repondre')}>
+                      {tiroir === 'repondre' ? 'Fermer' : 'Répondre'}
+                    </button>
+                  )}
+                </div>
+                <div className="trc-auj__carte">
+                  <b>{aToucher.n}</b>
+                  <strong>À envoyer</strong>
+                  <span>{aToucher.n > 0 ? 'Messages prêts sur WhatsApp' : actif ? 'Rien à envoyer' : 'Perle est en pause'}</span>
+                  {aToucher.n > 0 && (
+                    <button type="button" className="trc-auj__btn trc-auj__btn--cuivre" onClick={() => ouvreLaLigne(aToucher.clientIds[0] ?? null)}>Envoyer la première</button>
+                  )}
+                </div>
+                <div className="trc-auj__carte">
+                  <b>{liste.length}</b>
+                  <strong>À reprogrammer</strong>
+                  <span className={aLEquipe > 0 ? 'est-alarme' : ''}>
+                    {aLEquipe > 0 ? `${aLEquipe} à rappeler` : liste.length === 1 ? (nomDe(liste[0].clientId) || liste[0].clientName || 'Sans nouvelle date') : liste.length > 0 ? 'Sans nouvelle date' : 'Aucune'}
+                  </span>
+                  {liste.length > 0 && (
+                    <button type="button" className="trc-auj__btn"
+                      onClick={() => (liste.length === 1 ? setAReposer(liste[0]) : setTiroir(tiroir === 'reprogrammer' ? null : 'reprogrammer'))}>
+                      {liste.length > 1 && tiroir === 'reprogrammer' ? 'Fermer' : 'Reposer une date'}
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="trc-am__tuile trc-am__tuile--cuivre"><b>{tuiles.oui.total}</b><span>{ouiDit}</span></div>
-              <div className={`trc-am__tuile trc-am__tuile--terre${tuiles.humain.sante ? ' est-alarme' : ''}`}>
-                <b>{tuiles.humain.total}</b><span>attendent un humain · Santé {tuiles.humain.sante}</span>
-              </div>
-              <div className="trc-am__tuile trc-am__tuile--cuivre">
-                <b>{tuiles.remises.faites} <small>/ {tuiles.remises.sur}</small></b>
-                <span>remises cette semaine · {francsDits(tuiles.remises.francs)} sur {francsDits(tuiles.remises.plafondFrancs)}</span>
-                <div className="trc-am__barre" aria-hidden="true"><i style={{ width: `${tuiles.remises.pct}%` }} /></div>
-              </div>
-              <div className="trc-am__tuile trc-am__tuile--or">
-                <b>{tuiles.francs ? enFrancs(tuiles.francs.calibre) : '0 F'}</b>
-                <span>{tuiles.francs ? `en jeu aujourd’hui · ${fourchetteDite(tuiles.francs)}` : 'en jeu aujourd’hui · aucun chiffre sûr'}</span>
-              </div>
-            </div>
-
-            <div className="trc-ger__etat" role="note">
-              <b>{actif ? 'Actif' : 'Pause'}.</b>
-              {!actif
-                ? <span>Il prépare son plan, il n’écrit à personne.</span>
-                : <span>Chaque jour, quand la direction ouvre le Trône entre 8 h et 20 h, l’Assistant dépose les notifications Ma Couronne de son plan ; le facteur les porte, jamais entre 20 h et 8 h. WhatsApp : « Envoyer sur WhatsApp », un toucher par cliente, jusqu’à l’approbation de ses modèles chez Meta ; approuvé, le modèle part seul au passage du matin, et la carte d’anniversaire à 10 h.{reglages.dernierPassage ? ` Dernier passage : ${reglages.dernierPassage === ctx.aujourdhui ? 'aujourd’hui' : jourDit(reglages.dernierPassage)}.` : ''}</span>}
-              {/* QUI FAIT LE PASSAGE (lot 2) : la fonction serveur si elle a parlé depuis moins de 26 h, sinon le Trône.
-                  Rien tant que le document n'est pas lu : pas de fausse phrase le temps d'un chargement. */}
-              {etatServeur !== undefined && (
-                <span className="trc-am__portee">
-                  Passage du matin : {serveurVit ? 'la fonction serveur' : 'par le Trône (fonction pas encore collée)'}
-                  {etatServeur?.passageLe ? ` · dernier passage ${jourDit(etatServeur.passageLe)}` : ''}
-                </span>
-              )}
-              {anniversaires.length > 0 && (
-                <span className="trc-am__portee">
-                  Anniversaires du jour : <b>{anniversaires.length}</b> · {anniversaires.length - annivTus.length} carte{anniversaires.length - annivTus.length > 1 ? 's' : ''} au plan
-                  {annivTus.length > 0 ? ` · sans carte : ${annivTus.map((a) => `${nomDe(a.clientId) || 'une fiche'} (${ETAT_DE_L_ANNIVERSAIRE_DIT[a.etat]})`).join(', ')}` : ''}
-                </span>
-              )}
-              <span className="trc-am__portee">Portée du jour : <b>{portee.joignables}</b> cliente{portee.joignables > 1 ? 's' : ''} joignable{portee.joignables > 1 ? 's' : ''} · Ma Couronne {portee.couronne} · WhatsApp {portee.whatsapp}</span>
-              {muettes > 0 && (
-                <span className="trc-am__portee trc-civ__bandeau">
-                  Civilités : <b>{muettes}</b> fiche{muettes > 1 ? 's' : ''} avec un numéro sans civilité ; leurs messages disent le prénom seul.
-                  <button type="button" className="trc-ger__btn" onClick={() => setCivilites(true)}>Poser les civilités</button>
-                </span>
-              )}
-            </div>
-
-            {/* PART AUJOURD'HUI : le plan du jour, ligne par ligne, avec ce que la salle en sait. Un panneau ouvert à la fois. */}
-            <section className="trc-ger__carte">
-              <div className="trc-ger__haut">
-                <h3>Part aujourd’hui <span>le plan du jour, avec la salle d’attente</span></h3>
-                <span className="trc-am__resume">
-                  <b>{fusion.resume.lignes}</b> ligne{fusion.resume.lignes > 1 ? 's' : ''} · Ma Couronne {fusion.resume.couronne} · WhatsApp {fusion.resume.whatsapp}
-                  {' · '}{fusion.resume.remises} remise{fusion.resume.remises > 1 ? 's' : ''} ({plafond.faites} / {plafond.remisesParSemaine} cette semaine)
-                  {fusion.resume.francs ? ` · ${fourchetteDite(fusion.resume.francs)}` : ''}
-                </span>
-              </div>
-              {partantes.length > 0 && (
-                <div className="trc-am__gestes">
-                  <button type="button" className="trc-ger__btn trc-ger__btn--cuivre" onClick={() => { void toutLaisserPartir(); }}>Tout laisser partir ({partantes.length})</button>
+              {/* LE TIROIR : la liste ne s'ouvre qu'à la demande, sous les cartes. Santé d'abord, puis À voir. */}
+              {tiroir === 'repondre' && humain.total > 0 && (
+                <div className="trc-ger__carte trc-auj__tiroir">
+                  <div className="trc-ger__haut">
+                    <h3>À répondre</h3>
+                    <button type="button" className="trc-ger__btn" onClick={() => versLaVue('conversations')}>Toutes les conversations</button>
+                  </div>
+                {humain.lignes.length === 0
+                  ? <p className="trc-ger__doux">Personne n’attend : aucun souci ouvert, aucun fil sans réponse depuis 24 h, aucune demande ni appel à traiter.</p>
+                  : (
+                    <ul className="trc-ger__liste">
+                      {humain.lignes.map((l) => {
+                        const brutTel = l.numero ?? cerveau.clientDe(l.clientId ?? '')?.phone;
+                        const chemin = cheminDeLaConversation(brutTel);
+                        const tel = lienTel(brutTel);
+                        const ton = TON_DE_L_ATTENTE[l.genre] ?? 'indigo';
+                        return (
+                          <li key={l.cle} className={`trc-ger__rangee trc-am__attente${l.enRetard ? ' est-en-retard' : ''}`}>
+                            <span className={`trc-am__avatar trc-am__avatar--${ton}`} aria-hidden="true">{initiales(l.nom)}</span>
+                            <span className="trc-am__qui">
+                              <b>{l.nom || 'Sans nom'} <em className={`trc-am__puce trc-am__puce--${ton}`}>{GENRE_D_ATTENTE_DIT[l.genre]}</em></b>
+                              <span>{l.dit}{l.dit ? ' · ' : ''}{l.depuis}{l.enRetard ? ' · en retard' : ''}</span>
+                            </span>
+                            <span className="trc-am__gestes">
+                              {l.genre === 'sante' && tel && <a className="trc-ger__btn trc-ger__btn--alarme" href={tel}>Appeler</a>}
+                              {chemin && <Link className="trc-ger__btn" to={chemin}>Répondre</Link>}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                 </div>
               )}
-              {fusion.lignes.length === 0 && <p className="trc-ger__vide">Plus rien à écrire aujourd’hui : chaque cliente est entre deux messages.</p>}
-              <ul className="trc-ger__liste">
-                {fusion.lignes.map((l) => {
+              {tiroir === 'reprogrammer' && liste.length > 1 && (
+                <div className="trc-ger__carte trc-auj__tiroir">
+                  <h3>À reprogrammer</h3>
+                  <ul className="trc-ger__liste">
+                    {liste.map((a) => (
+                      <li key={a.id} className="trc-ger__rangee trc-am__attente">
+                        <span className="trc-am__qui">
+                          <b>{nomDe(a.clientId) || a.clientName || 'Cliente'}</b>
+                          <span>{apptLabel(a, byId) || 'Rituel'} · prévu le {frShort(a.date)} à {a.time} · {etatDuReportDit(a, Date.now())}</span>
+                        </span>
+                        <span className="trc-am__gestes">
+                          <button type="button" className="trc-ger__btn trc-ger__btn--cuivre" onClick={() => setAReposer(a)}>Reposer une date</button>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </section>
+
+            {(aRelire > 0 || bilansARemettre > 0 || muettes > 0) && (
+              <section className="trc-auj__bloc" aria-label="Ensuite">
+                <span className="trc-auj__sur">Ensuite</span>
+                <div className="trc-auj__suite">
+                  {aRelire > 0 && (
+                    <div className="trc-auj__petite">
+                      <b>{aRelire}</b><span>Avis à relire</span>
+                      <button type="button" className="trc-auj__btn" onClick={() => versLaVue('avis')}>Relire</button>
+                    </div>
+                  )}
+                  {bilansARemettre > 0 && (
+                    <div className="trc-auj__petite">
+                      <b>{bilansARemettre}</b><span>{bilansARemettre > 1 ? 'Bilans à remettre' : 'Bilan à remettre'}</span>
+                      <Link className="trc-auj__btn" to="/customers?focus=bilans">Voir</Link>
+                    </div>
+                  )}
+                  {muettes > 0 && (
+                    <div className="trc-auj__petite">
+                      <b>{muettes}</b><span>{muettes > 1 ? 'Civilités à poser' : 'Civilité à poser'}</span>
+                      <button type="button" className="trc-auj__btn" onClick={() => setCivilites(true)}>Poser</button>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* CE QUE PERLE ÉCRIT AUJOURD'HUI : le plan du jour, ligne par ligne, avec ce que la salle en sait.
+                Cinq lignes d'abord, le reste se déplie ; un panneau ouvert à la fois. */}
+            <section className="trc-auj__bloc" aria-label="Perle écrit aujourd’hui">
+              <div className="trc-auj__tete">
+                <h3>
+                  {!actif ? `En pause · ${fusion.lignes.length} message${fusion.lignes.length > 1 ? 's' : ''} prêt${fusion.lignes.length > 1 ? 's' : ''}`
+                    : fusion.lignes.length === 0 ? 'Perle n’écrit à personne aujourd’hui'
+                      : `Perle écrit à ${fusion.lignes.length} cliente${fusion.lignes.length > 1 ? 's' : ''}`}
+                </h3>
+                {tuiles.francs && <span className="trc-auj__enjeu">≈ {enFrancs(tuiles.francs.calibre)} en jeu</span>}
+                {partantes.length > 0 && (
+                  <button type="button" className="trc-ger__btn trc-ger__btn--cuivre" onClick={() => { void toutLaisserPartir(); }}>Tout laisser partir ({partantes.length})</button>
+                )}
+              </div>
+              {fusion.lignes.length > 0 && (
+                <ul className="trc-auj__liste">
+                  {lignesVues.map((l) => {
                   const s = l.situation;
                   const f = ficheDe.get(s.clientId);
                   const nom = nomDe(s.clientId);
@@ -605,21 +694,35 @@ export default function Gerard() {
                     nouvelles: cerveau.clientDe(s.clientId)?.nouvelles, telephone: cerveau.telDe(s), aujourdhui: ctx.aujourdhui,
                   });
                   const idWa = idDeLaLigne(ctx.aujourdhui, s.clientId, 'whatsapp');
-                  return (
-                    <li key={s.clientId} id={`am-ligne-${s.clientId}`} className={`trc-ger__rangee${ouvert ? ' est-ouverte' : ''}`}>
-                      <button type="button" className="trc-ger__ligne trc-am__ligne" aria-expanded={ouvert} onClick={() => setOuverte(ouvert ? null : s.clientId)}>
-                        <span className={`trc-am__avatar${s.canal === 'whatsapp' ? ' trc-am__avatar--cuivre' : ''}`} aria-hidden="true">{initiales(nom)}</span>
-                        {/* La remise se dit une fois sur la ligne, dans la colonne du canal (« −15 % · jour creux »). */}
-                        <span className="trc-ger__qui">{nom}</span>
-                        <span className={`trc-ger__genre trc-ger__genre--${s.genre}`}>{GENRE_DIT[s.genre]}{s.envie ? ` · ${ENVIE_DITE[s.envie]}` : ''}{rdv ? ` · ${jourDit(rdv.date)}, ${heureDite(rdv.time)}` : ''}{s.pourId ? ` · à ${nomDe(s.pourId) || 'son parent payeur'}` : ''}</span>
-                        <span className="trc-ger__canal">{canalDuPlan(s.canal)}{s.code ? ` · ${codeDit(s)}` : ''}</span>
-                        <span className="trc-am__droite">
-                          <b>{l.francs ? `≈ ${enFrancs(l.francs.calibre)}` : 'sans chiffre'}</b>
-                          <small className={l.etat === 'ecartee' || l.etat === 'perimee' || l.etat === 'echec' ? 'trc-am__alarme' : ''}>{l.depart}</small>
-                        </span>
-                      </button>
+                    /* À SON TOUCHER : le bouton « Envoyer » est sur la ligne même (la carte, ou WhatsApp déjà écrit). */
+                    const aSonToucher = l.etat === 'a-son-toucher' && s.canal === 'whatsapp' && servie(reglages, s.clientId) && !partSeule(s, reglages);
+                    const lienDuToucher = aSonToucher && modele.enTete !== 'image' ? lienWaMe(cerveau.telDe(s), `${s.texte}\n${DEVISE_COMPLETE}`) : null;
+                    const aUnBouton = aSonToucher && (modele.enTete === 'image' || !!lienDuToucher);
+                    return (
+                      <li key={s.clientId} id={`am-ligne-${s.clientId}`} className={`trc-auj__rangee${ouvert ? ' est-ouverte' : ''}`}>
+                        <div className="trc-auj__ligne">
+                          <button type="button" className="trc-auj__ouvre" aria-expanded={ouvert} onClick={() => setOuverte(ouvert ? null : s.clientId)}>
+                            <span className={`trc-am__avatar${s.canal === 'whatsapp' ? ' trc-am__avatar--cuivre' : ''}`} aria-hidden="true">{initiales(nom)}</span>
+                            <span className="trc-auj__qui">{nom}</span>
+                            <span className={`trc-auj__motif${s.code ? ' trc-auj__motif--cuivre' : ''}`}>
+                              {GENRE_DIT[s.genre]}{s.envie ? ` · ${ENVIE_DITE[s.envie]}` : ''}{rdv ? ` · ${jourDit(rdv.date)}, ${heureDite(rdv.time)}` : ''}{s.pourId ? ` · à ${nomDe(s.pourId) || 'son parent payeur'}` : ''}{s.code ? ` · −${s.code.pct} %` : ''}
+                            </span>
+                            <span className="trc-auj__francs">{l.francs ? `≈ ${enFrancs(l.francs.calibre)}` : ''}</span>
+                          </button>
+                          <span className="trc-auj__fin">
+                            {aSonToucher && modele.enTete === 'image' && (
+                              <button type="button" className="trc-auj__btn trc-auj__btn--cuivre" onClick={() => setCarteDe(s)}>Envoyer</button>
+                            )}
+                            {lienDuToucher && (
+                              <a className="trc-auj__btn trc-auj__btn--cuivre" href={lienDuToucher} target="_blank" rel="noreferrer" onClick={() => noteALaMain(s)}>Envoyer</a>
+                            )}
+                            {!aUnBouton && (
+                              <small className={l.etat === 'ecartee' || l.etat === 'perimee' || l.etat === 'echec' ? 'trc-am__alarme' : ''}>{departCourt(l)}</small>
+                            )}
+                          </span>
+                        </div>
                       {ouvert && f && (
-                        <div className="trc-ger__panneau">
+                        <div className="trc-ger__panneau trc-auj__panneau">
                           <div className="trc-ger__message">
                             {/* SA CIVILITÉ, tant que la fiche de celle qui reçoit n'en dit rien et que rien n'est encore
                                 en salle : un toucher la pose sur sa fiche, et le message dit aussitôt « M. Jean-Luc ». */}
@@ -639,10 +742,7 @@ export default function Gerard() {
                               {modele.boutons.length > 0 && <span className="trc-ger__boutons">{modele.boutons.map((b) => <i key={b}>{b}</i>)}</span>}
                               <span className="trc-ger__pied">{piedDeGerard}</span>
                             </div>
-                            <small className="trc-ger__doux">
-                              Modèle {modele.nom} · {modele.categorie === 'UTILITY' ? 'utilitaire' : 'marketing'} · {canalDuPlan(s.canal)} · {l.depart}
-                              {l.francs ? ` · ${fourchetteDite(l.francs)}` : ''}{l.codePromo ? ` · code ${l.codePromo}` : ''}
-                            </small>
+                            <small className="trc-ger__doux">{canalDuPlan(s.canal)} · {l.depart}{l.codePromo ? ` · code ${l.codePromo}` : ''}</small>
                             <div className="trc-am__gestes">
                               {/* LOT 2 : un modèle approuvé chez Meta part seul au passage du matin (`partSeule`) ; le
                                   bouton se tait, sinon le message partirait deux fois. Pas approuvé : un toucher par cliente. */}
@@ -700,126 +800,33 @@ export default function Gerard() {
                             {l.envoi && verdicts[l.envoi.id] && <small className="trc-ger__doux">{verdicts[l.envoi.id]}</small>}
                             {s.canal === 'couronne' && actif && l.etat === 'pas-encore' && <small className="trc-ger__doux">Notification Ma Couronne : elle part au passage du jour.</small>}
                           </div>
-                          <div className="trc-ger__pourquoi">
-                            <h4 className="trc-am__sous">Pourquoi il lui écrit <span>lu sur sa fiche</span></h4>
+                          <details className="trc-ger__pourquoi trc-auj__pourquoi">
+                            <summary>Pourquoi ce message</summary>
                             <ul className="trc-am__puces">
                               {s.pourquoi.map(([k, v]) => <li key={k}><span className="trc-am__cle">{k}</span> <span>{v}</span></li>)}
                             </ul>
                             <LeFil fiche={f} aujourdhui={ctx.aujourdhui} />
-                          </div>
+                          </details>
                         </div>
                       )}
-                    </li>
-                  );
-                })}
-              </ul>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {fusion.lignes.length > LIGNES_VUES && (
+                <button type="button" className="trc-auj__plus" aria-expanded={toutVoir} onClick={() => setToutVoir((v) => !v)}>
+                  {toutVoir ? 'Réduire la liste' : fusion.lignes.length - LIGNES_VUES === 1 ? 'Voir la dernière' : `Voir les ${fusion.lignes.length - LIGNES_VUES} autres`}
+                </button>
+              )}
             </section>
 
-            <div className="trc-ger__deux trc-am__deux">
-              {/* ATTEND UN OUI : des cartes, une par décision. Aucune carte factice : sans proposition, une phrase. */}
-              <section className="trc-ger__carte">
-                <h3>Attend un oui <span>{tuiles.oui.total} décision{tuiles.oui.total > 1 ? 's' : ''}</span></h3>
-                {tuiles.oui.total === 0 && (
-                  <p className="trc-ger__doux">Rien n’attend votre oui : {actif ? 'aucun WhatsApp à un toucher' : 'l’Assistant est en pause'}, aucune offre flash proposée, aucun bilan à remettre, aucune réponse à un avis à relire.</p>
-                )}
-                <div className="trc-am__cartes">
-                  {tuiles.oui.whatsapp.n > 0 && (
-                    <div className="trc-am__carte trc-am__carte--cuivre">
-                      <span className="trc-am__sur">{tuiles.oui.whatsapp.n} WhatsApp à un toucher</span>
-                      <b>{tuiles.oui.whatsapp.francs ? fourchetteDite(tuiles.oui.whatsapp.francs) : 'sans chiffre'}</b>
-                      <p>{tuiles.oui.whatsapp.clientIds.map(nomDe).filter(Boolean).join(', ')} : à un toucher tant que le modèle Meta n’est pas approuvé.</p>
-                      <div className="trc-am__gestes"><button type="button" className="trc-ger__btn trc-ger__btn--cuivre" onClick={() => ouvreLaLigne(tuiles.oui.whatsapp.clientIds[0] ?? null)}>Ouvrir la première</button></div>
-                    </div>
-                  )}
-                  {tuiles.oui.bilans > 0 && (
-                    <div className="trc-am__carte">
-                      <span className="trc-am__sur">Bilans à remettre</span>
-                      <b>{tuiles.oui.bilans}</b>
-                      <p>séance{tuiles.oui.bilans > 1 ? 's' : ''} honorée{tuiles.oui.bilans > 1 ? 's' : ''} sans bilan sur 30 jours.</p>
-                      <div className="trc-am__gestes"><Link className="trc-ger__btn" to="/customers?focus=bilans">Voir les séances</Link></div>
-                    </div>
-                  )}
-                  {tuiles.oui.avis > 0 && (
-                    <div className="trc-am__carte trc-am__carte--or">
-                      <span className="trc-am__sur">Réponses à un avis</span>
-                      <b>{tuiles.oui.avis}</b>
-                      <p>prête{tuiles.oui.avis > 1 ? 's' : ''} à relire avant publication.</p>
-                      <div className="trc-am__gestes"><button type="button" className="trc-ger__btn" onClick={() => versLaVue('avis')}>Relire</button></div>
-                    </div>
-                  )}
-                </div>
-                {tuiles.oui.total > 0 && <p className="trc-ger__doux">Offre flash : aucune proposition (la mécanique arrive au lot 5).</p>}
-              </section>
-
-              {/* ATTEND UN HUMAIN : Santé d'abord, puis À voir, la question franche, le reste. Chaque ligne ouvre Les conversations. */}
-              <section className="trc-ger__carte">
-                <div className="trc-ger__haut">
-                  <h3>Attend un humain <span>Santé sous 24 h · À voir sous 48 h</span></h3>
-                  <span className="trc-am__resume"><b>{humain.total}</b> · Santé {humain.sante}</span>
-                </div>
-                {humain.lignes.length === 0
-                  ? <p className="trc-ger__doux">Personne n’attend : aucun souci ouvert, aucun fil sans réponse depuis 24 h, aucune demande ni appel à traiter.</p>
-                  : (
-                    <ul className="trc-ger__liste">
-                      {humain.lignes.map((l) => {
-                        const brutTel = l.numero ?? cerveau.clientDe(l.clientId ?? '')?.phone;
-                        const chemin = cheminDeLaConversation(brutTel);
-                        const tel = lienTel(brutTel);
-                        const ton = TON_DE_L_ATTENTE[l.genre] ?? 'indigo';
-                        return (
-                          <li key={l.cle} className={`trc-ger__rangee trc-am__attente${l.enRetard ? ' est-en-retard' : ''}`}>
-                            <span className={`trc-am__avatar trc-am__avatar--${ton}`} aria-hidden="true">{initiales(l.nom)}</span>
-                            <span className="trc-am__qui">
-                              <b>{l.nom || 'Sans nom'} <em className={`trc-am__puce trc-am__puce--${ton}`}>{GENRE_D_ATTENTE_DIT[l.genre]}</em></b>
-                              <span>{l.dit}{l.dit ? ' · ' : ''}{l.depuis}{l.enRetard ? ' · en retard' : ''}</span>
-                            </span>
-                            <span className="trc-am__gestes">
-                              {l.genre === 'sante' && tel && <a className="trc-ger__btn trc-ger__btn--alarme" href={tel}>Appeler</a>}
-                              {chemin && <Link className="trc-ger__btn" to={chemin}>Répondre</Link>}
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-              </section>
-            </div>
-
-            {/* À REPROGRAMMER (19 novembre 2026) : tant qu'elle n'a pas choisi sa
-                nouvelle date. Au 7e jour sans choix, à l'équipe de la rappeler. */}
-            {(() => {
-              const liste = rdvsAReprogrammer(appts);
-              if (liste.length === 0) return null;
-              const aLEquipe = liste.filter((a) => etatDuReport(a, Date.now()) === 'equipe').length;
-              return (
-                <section className="trc-ger__carte">
-                  <div className="trc-ger__haut">
-                    <h3>À reprogrammer <span>Leur place est rendue, elles choisissent leur nouvelle date</span></h3>
-                    <span className="trc-am__resume"><b>{liste.length}</b>{aLEquipe ? ` · à l’équipe ${aLEquipe}` : ''}</span>
-                  </div>
-                  <ul className="trc-ger__liste">
-                    {liste.map((a) => (
-                      <li key={a.id} className="trc-ger__rangee trc-am__attente">
-                        <span className="trc-am__qui">
-                          <b>{nomDe(a.clientId) || a.clientName || 'Cliente'}</b>
-                          <span>{apptLabel(a, byId) || 'Rituel'} · prévu le {frShort(a.date)} à {a.time} · {etatDuReportDit(a, Date.now())}</span>
-                        </span>
-                        <span className="trc-am__gestes">
-                          <button type="button" className="trc-ger__btn trc-ger__btn--cuivre" onClick={() => setAReposer(a)}>Reposer une date</button>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              );
-            })()}
-
-            {/* CE QUI EST PARTI AUJOURD'HUI, tous types, à l'heure de Cotonou. Ouvert dès qu'une ligne est partie. */}
-            <details className="trc-ger__carte trc-am__repli" open={parti.lignes > 0}>
+            {/* CE QUI EST PARTI AUJOURD'HUI, tous types, à l'heure de Cotonou. Replié : son compte se lit fermé. */}
+            <details className="trc-ger__carte trc-am__repli">
               <summary>
-                <h3>Aujourd’hui <span>ce qui est parti</span></h3>
+                <h3>Déjà parti aujourd’hui</h3>
                 <span className="trc-am__resume">
-                  <b>{parti.lignes}</b> ligne{parti.lignes > 1 ? 's' : ''} · remis {parti.compte.remis} · lu {parti.compte.lus}
+                  <b>{parti.lignes}</b>
                   {parti.compte.aRegarder ? <i className="trc-am__alarme"> · à regarder {parti.compte.aRegarder}</i> : null}
                 </span>
               </summary>
@@ -886,37 +893,14 @@ export default function Gerard() {
                 </div>
               )}
             </details>
-
-            {/* LES JOURS CREUX, repliés : le manque sous l'ordinaire, les remises ouvertes, à qui une place est proposée. */}
-            <details className="trc-ger__carte trc-am__repli">
-              <summary>
-                <h3>Les jours creux <span>de 3 à 7 jours</span></h3>
-                <span className="trc-am__resume">
-                  <b>{ctx.creux.length}</b> jour{ctx.creux.length > 1 ? 's' : ''} · {sommeDesCreux.manque} place{sommeDesCreux.manque > 1 ? 's' : ''} manquante{sommeDesCreux.manque > 1 ? 's' : ''} · {sommeDesCreux.remises} remise{sommeDesCreux.remises > 1 ? 's' : ''} ouverte{sommeDesCreux.remises > 1 ? 's' : ''}
-                </span>
-              </summary>
-              <p className="trc-ger__doux">Un jour est creux quand ses RDV posés sont sous l’ordinaire de ce jour de la semaine (les Prévisions). L’Assistant y ouvre autant de remises de {REMISE_CREUX_PCT} % qu’il manque de RDV, dans le plafond de la semaine, d’abord aux clientes en retard.</p>
-              <div className="mnd-scroll-x">
-                <table>
-                  <thead><tr><th>Jour</th><th className="d">Posés</th><th className="d">Ordinaire</th><th className="d">Manque</th><th className="d">Remises</th><th>Une place proposée à</th></tr></thead>
-                  <tbody>
-                    {ctx.creux.length === 0 && <tr><td colSpan={6} className="trc-ger__doux">Aucun jour creux dans la semaine qui vient.</td></tr>}
-                    {ctx.creux.map((j) => {
-                      const aQui = plan.filter((s) => s.genre === 'creux' && s.code?.jour === j.iso).map((s) => nomDe(s.clientId)).filter(Boolean);
-                      return (
-                        <tr key={j.iso}>
-                          <td>{jourDit(j.iso)}</td><td className="d">{j.poses}</td><td className="d">{j.ordinaire}</td><td className="d">{j.manque}</td><td className="d">{j.remises}</td>
-                          <td className="trc-am__noms">{aQui.length ? aQui.join(', ') : 'personne aujourd’hui'}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </details>
-
+          </>
+        )}
+        {/* LES RÉGLAGES DE PERLE (21 novembre 2026) : tout ce qui se règle, et rien de ce qui se fait
+            aujourd'hui. Pause ou Actif reste déplié : le banc de Gérard touche ses boutons. */}
+        {vue === 'reglages' && (
+          <>
             <section className="trc-ger__carte">
-              <h3>Son réglage <span>Pause ou Actif</span></h3>
+              <h3>Pause ou Actif</h3>
               <div className="trc-ger__modes" role="radiogroup" aria-label="Pause ou Actif">
                 {MODES.map((m) => (
                   <button key={m.titre} type="button" role="radio" aria-checked={actif !== m.pause} disabled={!direction}
@@ -937,18 +921,51 @@ export default function Gerard() {
                     onChange={(e) => setFrancs(e.target.value)} onBlur={posePlafond} />
                 </label>
               </div>
-              <p className="trc-ger__doux">
-                Cette semaine : {plafond.faites} remise{plafond.faites > 1 ? 's' : ''} à son nom, {francsDits(plafond.francs)} engagés (jour creux, anniversaire, offre flash et remises de la direction comptent ensemble). À l’une des deux bornes, plus aucune remise : il écrit sans elle.
-              </p>
+              <p className="trc-ger__doux">Cette semaine : {plafond.faites} remise{plafond.faites > 1 ? 's' : ''}, {francsDits(plafond.francs)} engagés.</p>
+              <div className="trc-auj__etat">
+                {etatServeur !== undefined && (
+                  <span>Passage du matin : {serveurVit ? 'par le serveur' : 'par le Trône'}{etatServeur?.passageLe ? ` · dernier passage ${jourDit(etatServeur.passageLe)}` : ''}</span>
+                )}
+                <span>Joignables : <b>{portee.joignables}</b> · Ma Couronne {portee.couronne} · WhatsApp {portee.whatsapp}</span>
+                {anniversaires.length > 0 && (
+                  <span>
+                    Anniversaires du jour : <b>{anniversaires.length}</b>
+                    {annivTus.length > 0 ? ` · sans carte : ${annivTus.map((a) => `${nomDe(a.clientId) || 'une fiche'} (${ETAT_DE_L_ANNIVERSAIRE_DIT[a.etat]})`).join(', ')}` : ''}
+                  </span>
+                )}
+              </div>
             </section>
 
-            {/* ENTRE DEUX SÉANCES, SES RÈGLES, SES MODÈLES : repliés, un seul ouvert (relecture du
-                27 octobre 2026 : la vue d'entrée les dépliait tous, et « Ce que ça rapporte » les
-                porte déjà). Le réglage Pause / Actif reste déplié au-dessus : le banc de Gérard
-                touche ses boutons, qu'un repli fermé cacherait. */}
+            <details className="trc-ger__carte trc-am__repli">
+              <summary>
+                <h3>Jours creux</h3>
+                <span className="trc-am__resume">
+                  <b>{ctx.creux.length}</b> jour{ctx.creux.length > 1 ? 's' : ''} · {sommeDesCreux.manque} place{sommeDesCreux.manque > 1 ? 's' : ''} manquante{sommeDesCreux.manque > 1 ? 's' : ''} · {sommeDesCreux.remises} remise{sommeDesCreux.remises > 1 ? 's' : ''} ouverte{sommeDesCreux.remises > 1 ? 's' : ''}
+                </span>
+              </summary>
+              <p className="trc-ger__doux">Un jour creux a moins de rendez-vous que d’habitude : Perle y propose ses remises de {REMISE_CREUX_PCT} %.</p>
+              <div className="mnd-scroll-x">
+                <table>
+                  <thead><tr><th>Jour</th><th className="d">Posés</th><th className="d">Ordinaire</th><th className="d">Manque</th><th className="d">Remises</th><th>Une place proposée à</th></tr></thead>
+                  <tbody>
+                    {ctx.creux.length === 0 && <tr><td colSpan={6} className="trc-ger__doux">Aucun jour creux dans la semaine qui vient.</td></tr>}
+                    {ctx.creux.map((j) => {
+                      const aQui = plan.filter((s) => s.genre === 'creux' && s.code?.jour === j.iso).map((s) => nomDe(s.clientId)).filter(Boolean);
+                      return (
+                        <tr key={j.iso}>
+                          <td>{jourDit(j.iso)}</td><td className="d">{j.poses}</td><td className="d">{j.ordinaire}</td><td className="d">{j.manque}</td><td className="d">{j.remises}</td>
+                          <td className="trc-am__noms">{aQui.length ? aQui.join(', ') : 'personne aujourd’hui'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+
             <details className="trc-ger__carte trc-am__repli trc-am__repli--hote" open={repli === 'entre-deux'} onToggle={surRepli('entre-deux')}>
               <summary>
-                <h3>Entre deux séances <span>ce que l’Assistant en sait</span></h3>
+                <h3>Entre deux séances</h3>
                 <span className="trc-am__resume"><b>{soucisOuverts}</b> souci{soucisOuverts > 1 ? 's' : ''} ouvert{soucisOuverts > 1 ? 's' : ''}</span>
               </summary>
               <GerardEntreDeux />
@@ -956,7 +973,7 @@ export default function Gerard() {
 
             <details className="trc-ger__carte trc-am__repli" open={repli === 'regles'} onToggle={surRepli('regles')}>
               <summary>
-                <h3>Ses règles <span>vos choix du 26 octobre 2026</span></h3>
+                <h3>Ses règles</h3>
                 <span className="trc-am__resume"><b>{plafond.remisesParSemaine}</b> remises et {francsDits(plafond.plafondFrancs)} par semaine · jamais entre 20 h et 8 h</span>
               </summary>
               <div className="mnd-scroll-x">
@@ -979,7 +996,7 @@ export default function Gerard() {
 
             <details className="trc-ger__carte trc-am__repli" open={repli === 'modeles'} onToggle={surRepli('modeles')}>
               <summary>
-                <h3>Ses modèles chez Meta <span>à déposer maintenant : l’approbation prend du temps</span></h3>
+                <h3>Modèles WhatsApp</h3>
                 <span className="trc-am__resume"><b>{Object.keys(MODELES_DE_GERARD).length}</b> modèles · 7 + 1, et deux cartes</span>
               </summary>
               <p className="trc-ger__doux">Dans le gestionnaire WhatsApp de Meta, un modèle par ligne : le nom, la catégorie, le corps tel quel ({'{{1}}'}, {'{{2}}'}… sont les variables), le pied « {piedDeGerard} », et les boutons de réponse rapide.</p>

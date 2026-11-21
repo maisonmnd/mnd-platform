@@ -108,19 +108,21 @@ try {
     'trone::mnd_appointments': rdvs,
   };
   const ficheLue = (idc) => evalue(`JSON.parse(localStorage.getItem('trone::mnd_clients') || '[]').find((c) => c.id === ${JSON.stringify(idc)}) || null`);
-  const bandeau = () => evalue(String.raw`(document.querySelector('.trc-civ__bandeau')?.innerText || '').replace(/\s+/g, ' ')`);
+  /* AUJOURD'HUI, REFAIT (21 novembre 2026) : le bandeau est devenu une carte de « Ensuite » :
+     le compte, « Civilités à poser », et « Poser ». */
+  const bandeau = () => evalue(String.raw`(() => { const c = [...document.querySelectorAll('.trc-auj__petite')].find((x) => /Civilités? à poser/.test(x.textContent)); return c ? [c.querySelector('b')?.textContent, c.querySelector('span')?.textContent, (c.querySelector('button')?.textContent || '').trim()].join(' · ') : ''; })()`);
   await cdp('Page.navigate', { url: `${origine}/` });
   await attend(2500);
   await evalue(`(() => { for (const [k, v] of Object.entries(${JSON.stringify(semence)})) localStorage.setItem(k, JSON.stringify(v)); return true; })()`);
   await evalue(`location.hash = '#/gerard'; location.reload(); true`);
-  const vu = await jusqua(`document.querySelectorAll('.trc-ger__rangee').length > 0`, 40000);
+  const vu = await jusqua(`document.querySelectorAll('.trc-auj__rangee').length > 0`, 40000);
   dit('l Assistant Maison s ouvre', !!vu && !(await tombe()));
 
-  /* 1. Le bandeau : les fiches qu'un message peut joindre et qui ne disent rien. */
-  dit('le bandeau compte les muettes avec un numéro (Jean-Luc, Shadé ; ni Bio sans numéro, ni Awa dite Madame)', /Civilités : 2 fiches avec un numéro sans civilité/.test(await bandeau()), await bandeau());
+  /* 1. La carte de « Ensuite » : les fiches qu'un message peut joindre et qui ne disent rien. */
+  dit('« Ensuite » compte les muettes avec un numéro (Jean-Luc, Shadé ; ni Bio sans numéro, ni Awa dite Madame)', (await bandeau()) === '2 · Civilités à poser · Poser', await bandeau());
 
   /* 2. La ligne de Jean-Luc : ses boutons au-dessus du message, puis « M. Jean-Luc ». */
-  dit('la ligne de Jean-Luc s ouvre', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-ger__ligne')].find((x) => x.textContent.includes('Jean-Luc K.')); if (b) b.click(); return !!b; })()`));
+  dit('la ligne de Jean-Luc s ouvre', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-auj__ouvre')].find((x) => x.textContent.includes('Jean-Luc K.')); if (b) b.click(); return !!b; })()`));
   await attend(400);
   const lecture = () => evalue(String.raw`({ boutons: [...document.querySelectorAll('.trc-ger__panneau .trc-civ__surligne button')].map((b) => b.textContent.trim()), texte: document.querySelector('.trc-ger__panneau .trc-ger__texte')?.textContent || '' })`);
   const avant = await lecture();
@@ -132,10 +134,10 @@ try {
   dit('... la fiche porte Monsieur, et la marque des cartes', jl?.civilite === 'monsieur' && jl?.auMasculin === true, JSON.stringify({ civilite: jl?.civilite, auMasculin: jl?.auMasculin }));
   const apres = await lecture();
   dit('... le message dit aussitôt « Bonjour M. Jean-Luc » ; les boutons s effacent', (apres?.boutons ?? []).length === 0 && /^Bonjour M\. Jean-Luc,/.test(apres?.texte ?? ''), JSON.stringify(apres));
-  dit('... le bandeau n en compte plus qu une', /Civilités : 1 fiche avec un numéro sans civilité/.test(await bandeau()), await bandeau());
+  dit('... « Ensuite » n en compte plus qu une, au singulier', (await bandeau()) === '1 · Civilité à poser · Poser', await bandeau());
 
   /* 3. La fenêtre de tri. */
-  dit('« Poser les civilités » ouvre la fenêtre', await clique('.trc-civ__bandeau button', 'Poser les civilités'));
+  dit('« Poser » ouvre la fenêtre', await clique('.trc-auj__petite button', 'Poser'));
   await attend(600);
   const fenetre = () => evalue(String.raw`(() => { const m = document.querySelector('.mnd-modal'); return m ? { dit: (m.querySelector('.trc-civ__dit')?.innerText || '').replace(/\s+/g, ' '), noms: [...m.querySelectorAll('.trc-civ__qui b')].map((b) => b.textContent) } : null; })()`);
   const f1 = await fenetre();

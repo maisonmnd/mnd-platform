@@ -7,12 +7,16 @@
    une session gardee de la direction, seme six clientes (une par situation),
    un souci Sante et un appel a rappeler, et lit l'ecran :
 
-     - la barre des cinq vues (role=tablist), Aujourd'hui choisie par defaut,
+     - la barre des six vues (role=tablist), Aujourd'hui choisie par defaut,
        chaque `?vue=` ouvre la sienne et l'allume ;
-     - les cinq tuiles, dans l'ordre de la maquette ; la ligne resume de
-       « Part aujourd'hui » ; une seule ligne ouverte a la fois ;
-     - « Attend un humain » : la Sante d'abord, avec « Appeler » en tel:,
-       chaque ligne vers Les conversations ;
+     - AUJOURD'HUI, REFAIT (21 novembre 2026, maquette Jrj9rfdYAYPDPDS1aT4EFs) :
+       la pastille de Perle (Pause ou Actif d'un toucher), trois cartes « A
+       faire maintenant », « Ensuite », la liste de ce que Perle ecrit (cinq
+       lignes, le reste se deplie ; une seule ouverte a la fois), « Deja
+       parti » replie ; plus de chiffres en tete, de tuiles ni de pave d'etat ;
+     - « Repondre » ouvre le tiroir : la Sante d'abord, avec « Appeler » en
+       tel:, chaque ligne vers Les conversations ;
+     - les Reglages : Pause ou Actif, le plafond, quatre replis ;
      - les quatre autres vues vivent (27 octobre 2026, lots des vues) : chacune
        ouvre sur ses tuiles chiffrees et sa liste ou son selecteur ;
      - au telephone (390 px), rien ne deborde, sur chacune des cinq vues.
@@ -51,8 +55,8 @@ const chrome = spawn('C:/Program Files/Google/Chrome/Application/chrome.exe', ['
   `--user-data-dir=${profil}`, `--remote-debugging-port=${dbg}`, 'about:blank'], { stdio: 'ignore' });
 const attend = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const VUES = ['aujourdhui', 'conversations', 'avis', 'offres', 'rapporte'];
-const TITRES = ['Aujourd’hui', 'Les conversations', 'Les avis', 'Offres et remises', 'Ce que ça rapporte'];
+const VUES = ['aujourdhui', 'conversations', 'avis', 'offres', 'rapporte', 'reglages'];
+const TITRES = ['Aujourd’hui', 'Conversations', 'Avis', 'Offres', 'Résultats', 'Réglages'];
 
 let ko = 0;
 try {
@@ -133,43 +137,54 @@ try {
   await attend(2500);
   await evalue(`(() => { for (const [k, v] of Object.entries(${JSON.stringify(semence)})) localStorage.setItem(k, JSON.stringify(v)); return true; })()`);
   await evalue(`location.hash = '#/gerard'; location.reload(); true`);
-  const vu = await jusqua(`document.querySelectorAll('.trc-ger__rangee').length > 0`, 40000);
+  const vu = await jusqua(`document.querySelectorAll('.trc-auj__rangee').length > 0`, 40000);
 
-  /* 1. Le cadre : la barre des cinq vues. */
-  dit('l Assistant Maison s ouvre, comme la direction', !!vu && !(await tombe()));
+  /* 1. Le cadre : la tete, la pastille de Perle, la barre des six vues. */
+  dit('Conversations s ouvre sur Aujourd hui, comme la direction', !!vu && !(await tombe()));
   const barre = await evalue(String.raw`[...document.querySelectorAll('.tr-nav__item')].map((a) => a.textContent.replace(/\s+/g, ' ').trim())`);
   const iClientes = (barre ?? []).findIndex((t) => t.startsWith('Clientes'));
-  dit('la barre : « Assistant Maison » juste sous « Clientes », allume', iClientes >= 0 && String(barre[iClientes + 1]).startsWith('Assistant Maison'), JSON.stringify(barre?.slice(Math.max(0, iClientes), iClientes + 2)));
+  dit('la barre : « Conversations » juste sous « Clientes »', iClientes >= 0 && String(barre[iClientes + 1]).startsWith('Conversations'), JSON.stringify(barre?.slice(Math.max(0, iClientes), iClientes + 2)));
   /* L'eyebrow est en petites capitales par CSS : `innerText` la rendrait en capitales, `textContent` donne la lettre. */
   const tete = await evalue(String.raw`document.querySelector('.tr-page-head__head')?.textContent.replace(/\s+/g, ' ').trim() || ''`);
-  dit('l en-tete dit « Clientèle · Assistant Maison », plus « Gérard, l assistant »', /Clientèle · Assistant Maison/.test(tete) && /Assistant Maison\./.test(tete) && !/Gérard, l’assistant/.test(tete), tete);
+  dit('l en-tete dit « Conversations », puis « Aujourd hui. »', /^Conversations/.test(tete) && /Aujourd’hui\./.test(tete), tete);
+  const pastille = () => evalue(String.raw`(() => { const p = document.querySelector('.trc-auj__perle'); return p ? [p.querySelector('span')?.textContent, p.querySelector('button')?.textContent.trim() ?? null] : null; })()`);
+  dit('la pastille de Perle : « Perle est en pause », et « Reprendre » pour la direction', JSON.stringify(await pastille()) === JSON.stringify(['Perle est en pause', 'Reprendre']), JSON.stringify(await pastille()));
+  dit('les cinq chiffres du haut, les cinq tuiles et le pave d etat ne sont plus la', (await evalue(`document.querySelectorAll('.trc-ger__chiffre, .trc-am__tuile, .trc-ger__etat').length`)) === 0);
   const tabs = await onglets();
-  dit('la barre des vues : cinq onglets, dans l ordre de la maquette, Aujourd hui choisie', JSON.stringify((tabs ?? []).map((t) => t[0])) === JSON.stringify(TITRES) && tabs?.[0]?.[1] === true && tabs.filter((t) => t[1]).length === 1, JSON.stringify(tabs));
+  dit('la barre des vues : six onglets aux noms courts, Aujourd hui choisie', JSON.stringify((tabs ?? []).map((t) => t[0])) === JSON.stringify(TITRES) && tabs?.[0]?.[1] === true && tabs.filter((t) => t[1]).length === 1, JSON.stringify(tabs));
+  dit('... « Programmes » y mene aux envois programmes', (await evalue(String.raw`(() => { const a = document.querySelector('.trc-am__vues a.trc-am__vues-lien'); return a ? [a.textContent.trim(), a.getAttribute('href')] : null; })()`))?.join('|') === 'Programmés|#/appels');
   dit('... collante : role=tablist, position sticky', (await evalue(String.raw`getComputedStyle(document.querySelector('.trc-am__vues[role="tablist"]')).position`)) === 'sticky');
   dit('... et un panneau role=tabpanel relie a l onglet choisi', await evalue(String.raw`(() => { const p = document.querySelector('.trc-am__vue[role="tabpanel"]'); return !!p && p.getAttribute('aria-labelledby') === document.querySelector('.trc-am__vues [aria-selected="true"]')?.id; })()`));
 
-  /* 2. Les cinq tuiles. */
-  const tuiles = await evalue(String.raw`[...document.querySelectorAll('.trc-am__tuile')].map((t) => [t.querySelector('b')?.innerText.replace(/\s+/g, ' ').trim(), t.querySelector('span')?.innerText.replace(/\s+/g, ' ').trim()])`);
-  /* Deux seances honorees de moins de 30 jours sans bilan (P. O. a J-30 inclus, K. T. a J-3) : « 2 bilans a remettre » attendent un oui. */
-  dit('cinq tuiles : prets (en pause), oui attendus (2 bilans a remettre), humain dont Sante, remises n / 8, francs en jeu', (tuiles ?? []).length === 5
-    && tuiles[0][0] === '6' && /en pause/.test(tuiles[0][1]) && tuiles[1][0] === '2' && /2 bilans à remettre/.test(tuiles[1][1]) && tuiles[2][0] === '2' && /Santé 1/.test(tuiles[2][1])
-    && /^0 \/ 8$/.test(tuiles[3][0]) && /remises cette semaine/.test(tuiles[3][1]) && /F$/.test(tuiles[4][0]) && /en jeu aujourd’hui/.test(tuiles[4][1]), JSON.stringify(tuiles));
-  dit('... les francs en jeu : un calibre et une fourchette, jamais le compte exact (sans RDV prix, aucun chiffre sur)', /aucun chiffre sûr|de \d[\d ]* F à \d[\d ]* F/.test(tuiles?.[4]?.[1] ?? ''), tuiles?.[4]?.[1]);
-  dit('la ligne d etat dit la portee du jour : 7 clientes joignables', /Portée du jour : 7 clientes joignables/.test(await texte()));
+  /* 2. A faire maintenant : trois cartes ; Ensuite : les bilans et les civilites. */
+  const lesCartes = () => evalue(String.raw`[...document.querySelectorAll('.trc-auj__carte')].map((c) => [c.querySelector('b')?.textContent, c.querySelector('strong')?.textContent, c.querySelector('span')?.textContent.trim(), c.querySelector('button')?.textContent.trim() ?? null])`);
+  const cartes = await lesCartes();
+  dit('trois cartes : 2 a repondre (dont 1 sante), 0 a envoyer (Perle est en pause), 0 a reprogrammer',
+    JSON.stringify(cartes) === JSON.stringify([['2', 'À répondre', 'dont 1 santé', 'Répondre'], ['0', 'À envoyer', 'Perle est en pause', null], ['0', 'À reprogrammer', 'Aucune', null]]), JSON.stringify(cartes));
+  /* Deux seances honorees de moins de 30 jours sans bilan (P. O. a J-30 inclus, K. T. a J-3) ; aucun avis a relire. */
+  const suite = await evalue(String.raw`[...document.querySelectorAll('.trc-auj__petite')].map((c) => [c.querySelector('b')?.textContent, c.querySelector('span')?.textContent, (c.querySelector('a, button')?.textContent ?? '').trim(), c.querySelector('a')?.getAttribute('href') || ''])`);
+  dit('Ensuite : 2 bilans a remettre (vers les seances), les civilites a poser ; aucun avis a relire', (suite ?? []).length === 2
+    && suite[0][0] === '2' && suite[0][1] === 'Bilans à remettre' && suite[0][2] === 'Voir' && /#\/customers\?focus=bilans/.test(suite[0][3])
+    && suite[1][1] === 'Civilités à poser' && suite[1][2] === 'Poser', JSON.stringify(suite));
 
-  /* 3. « Part aujourd'hui » : la ligne resume, un seul panneau ouvert. */
-  const resume = await evalue(String.raw`document.querySelector('.trc-am__resume')?.innerText.replace(/\s+/g, ' ').trim() || ''`);
-  dit('la ligne resume : 6 lignes, Ma Couronne 0, WhatsApp 6, 1 remise (0 / 8 cette semaine)', /^6 lignes · Ma Couronne 0 · WhatsApp 6 · 1 remise \(0 \/ 8 cette semaine\)/.test(resume), resume);
-  const lignes = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__ligne')].map((b) => [b.querySelector('.trc-ger__qui')?.firstChild?.textContent, b.querySelector('.trc-am__avatar')?.textContent, b.querySelector('.trc-am__droite small')?.textContent])`);
-  dit('chaque ligne : l avatar a initiales, le depart « en pause »', (lignes ?? []).length === 6 && lignes.every((l) => /^[A-Z]{2}$/.test(l[1] ?? '') && l[2] === 'en pause')
+  /* 3. Ce que Perle ecrit : cinq lignes d'abord, le reste se deplie ; un seul panneau ouvert. */
+  const titre = await evalue(String.raw`document.querySelector('.trc-auj__tete h3')?.textContent.replace(/\s+/g, ' ').trim() || ''`);
+  dit('le titre de la liste : « En pause · 6 messages prets »', titre === 'En pause · 6 messages prêts', titre);
+  dit('cinq lignes d abord, et « Voir la derniere »', (await evalue(`document.querySelectorAll('.trc-auj__rangee').length`)) === 5
+    && (await evalue(String.raw`document.querySelector('.trc-auj__plus')?.textContent.trim()`)) === 'Voir la dernière');
+  const deplie = async () => { if (await evalue(String.raw`(() => { const p = document.querySelector('.trc-auj__plus[aria-expanded="false"]'); if (p) p.click(); return !!p; })()`)) await attend(300); };
+  await deplie();
+  const lignes = await evalue(String.raw`[...document.querySelectorAll('.trc-auj__ligne')].map((b) => [b.querySelector('.trc-auj__qui')?.textContent, b.querySelector('.trc-am__avatar')?.textContent, b.querySelector('.trc-auj__fin small')?.textContent])`);
+  dit('depliee : six lignes, l avatar a initiales, le depart « En pause »', (lignes ?? []).length === 6 && lignes.every((l) => /^[A-Z]{2}$/.test(l[1] ?? '') && l[2] === 'En pause')
     && lignes.find((l) => l[0] === 'M. D.')?.[1] === 'MD', JSON.stringify(lignes));
-  const ouvre = (nom) => evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-ger__ligne')].find((x) => x.querySelector('.trc-ger__qui')?.firstChild?.textContent === ${JSON.stringify(nom)}); if (b) b.click(); return !!b; })()`);
+  const ouvre = async (nom) => { await deplie(); return evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-auj__ouvre')].find((x) => x.querySelector('.trc-auj__qui')?.textContent === ${JSON.stringify(nom)}); if (b) b.click(); return !!b; })()`); };
   dit('la ligne de M. D. s ouvre', await ouvre('M. D.'));
   await attend(400);
-  dit('... un panneau ouvert : la bulle signee Maison MND, le pourquoi en puces, les gestes', (await evalue(`document.querySelectorAll('.trc-ger__panneau').length`)) === 1
+  dit('... un panneau ouvert : la bulle signee Maison MND, le pourquoi replie avec ses puces', (await evalue(`document.querySelectorAll('.trc-ger__panneau').length`)) === 1
     && /Maison MND/.test(await evalue(String.raw`document.querySelector('.trc-ger__panneau .trc-ger__bulle')?.innerText || ''`))
+    && (await evalue(`document.querySelector('.trc-ger__panneau details.trc-auj__pourquoi')?.open`)) === false
     && (await evalue(`document.querySelectorAll('.trc-ger__panneau .trc-am__puces li').length`)) >= 3
-    && /Dernière venue/.test(await evalue(String.raw`document.querySelector('.trc-ger__panneau .trc-am__puces')?.innerText || ''`)));
+    && /Dernière venue/.test(await evalue(String.raw`document.querySelector('.trc-ger__panneau .trc-am__puces')?.textContent || ''`)));
   /* En pause, « Pas maintenant » se tait (rien ne part de toute facon : il vit en Actif, voir plus bas) ; « Jamais pour elle »
      ecrit dans les reglages (`jamais[clientId]`, lot 2) et vit, pour la direction (27 octobre 2026). */
   const gestes = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__panneau .trc-am__gestes > *')].map((b) => [b.textContent.trim(), b.hasAttribute('disabled'), b.getAttribute('href') || ''])`);
@@ -180,53 +195,45 @@ try {
   dit('la ligne de N. B. s ouvre a son tour', await ouvre('N. B.'));
   await attend(400);
   dit('... et un seul panneau reste ouvert, le sien', (await evalue(`document.querySelectorAll('.trc-ger__panneau').length`)) === 1
-    && (await evalue(String.raw`document.querySelector('.trc-ger__rangee.est-ouverte .trc-ger__qui')?.firstChild?.textContent`)) === 'N. B.');
+    && (await evalue(String.raw`document.querySelector('.trc-auj__rangee.est-ouverte .trc-auj__qui')?.textContent`)) === 'N. B.');
   await photo('1-aujourdhui');
   /* « Jamais pour elle » sur N. B. (anniversaire) : ecrit `jamais['c-anniv'] = ['anniversaire']` dans mnd_gerard, et elle sort du plan. */
   dit('« Jamais pour elle » se touche', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-ger__panneau .trc-am__gestes button')].find((x) => x.textContent.trim() === 'Jamais pour elle'); if (b) b.click(); return !!b; })()`));
   await attend(500);
   const reglagesApres = await evalue(`JSON.parse(localStorage.getItem('trone::mnd_gerard') || 'null')`);
   dit('... ecrit dans ses reglages : jamais « anniversaire » pour c-anniv, signe de la direction', JSON.stringify(reglagesApres?.jamais?.['c-anniv']) === JSON.stringify(['anniversaire']) && typeof reglagesApres?.parQui === 'string', JSON.stringify(reglagesApres?.jamais));
-  dit('... et N. B. sort du plan du jour : cinq lignes', (await jusqua(String.raw`document.querySelectorAll('.trc-ger__ligne').length === 5 && ![...document.querySelectorAll('.trc-ger__qui')].some((q) => q.firstChild?.textContent === 'N. B.')`, 4000)) === true,
-    String(await evalue(`document.querySelectorAll('.trc-ger__ligne').length`)));
+  /* Son anniversaire ne s'ecrit plus ; hors saison elle sort du plan, pendant les fetes (du 15 novembre au 15 decembre) il lui
+     reste le message de Noel : dans les deux cas, plus aucune ligne « Anniversaire » a son nom. */
+  dit('... et l anniversaire de N. B. sort du plan du jour', (await jusqua(String.raw`![...document.querySelectorAll('.trc-auj__ligne')].some((l) => l.querySelector('.trc-auj__qui')?.textContent === 'N. B.' && /^Anniversaire/.test(l.querySelector('.trc-auj__motif')?.textContent.trim() ?? ''))`, 4000)) === true,
+    JSON.stringify(await evalue(String.raw`[...document.querySelectorAll('.trc-auj__ligne')].map((l) => [l.querySelector('.trc-auj__qui')?.textContent, l.querySelector('.trc-auj__motif')?.textContent.trim()])`)));
 
-
-  /* 4. Attend un humain : la Sante d'abord, Appeler, chaque ligne vers Les conversations. */
+  /* 4. « Repondre » ouvre le tiroir : la Sante d'abord, Appeler, chaque ligne vers Les conversations. */
+  dit('aucune liste d attente tant que la carte n est pas touchee', (await evalue(`document.querySelectorAll('.trc-am__attente').length`)) === 0);
+  dit('« Repondre » ouvre le tiroir sous les cartes', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-auj__carte button')].find((x) => x.textContent.trim() === 'Répondre'); if (b) b.click(); return !!b; })()`));
+  await attend(400);
   const humain = await evalue(String.raw`[...document.querySelectorAll('.trc-am__attente')].map((l) => [l.querySelector('.trc-am__qui b')?.firstChild?.textContent?.trim(), l.querySelector('.trc-am__puce')?.textContent, [...l.querySelectorAll('.trc-am__gestes a')].map((a) => [a.textContent, a.getAttribute('href')])])`);
-  dit('« Attend un humain » : K. T. en Sante d abord (Appeler en tel:, Repondre vers /conversations), puis l appel de B. N.', (humain ?? []).length === 2
+  dit('le tiroir : K. T. en Sante d abord (Appeler en tel:, Repondre vers /conversations), puis l appel de B. N.', (humain ?? []).length === 2
     && humain[0][0] === 'K. T.' && humain[0][1] === 'Santé' && humain[0][2].some(([t, h]) => t === 'Appeler' && /^tel:\+229/.test(h)) && humain[0][2].some(([t, h]) => t === 'Répondre' && /#\/conversations\?n=229/.test(h))
     && humain[1][0] === 'B. N.' && humain[1][1] === 'Appel', JSON.stringify(humain));
-  /* Une seule carte, celle des bilans, vers les seances ; jamais une carte factice d'offre flash (aucune mecanique ne la propose). */
-  const cartes = await evalue(String.raw`[...document.querySelectorAll('.trc-am__carte')].map((c) => [c.querySelector('.trc-am__sur')?.textContent, c.querySelector('b')?.textContent, c.querySelector('a')?.getAttribute('href') || ''])`);
-  dit('« Attend un oui » : une carte, les 2 bilans a remettre (vers les seances) ; aucune carte factice d offre flash', (cartes ?? []).length === 1
-    && cartes[0][0] === 'Bilans à remettre' && cartes[0][1] === '2' && /#\/customers\?focus=bilans/.test(cartes[0][2])
-    && /Offre flash : aucune proposition/.test(await texte()), JSON.stringify(cartes));
-  /* Cinq replis : ce qui est parti, les jours creux, Entre deux seances, Ses regles, Ses modeles ; rien de parti, aucun ouvert d'office. */
-  dit('« Aujourd hui, ce qui est parti », « Les jours creux », « Entre deux seances », « Ses regles », « Ses modeles » sont des replis, fermes', (await evalue(`document.querySelectorAll('details.trc-am__repli').length`)) === 5
+  dit('... et « Toutes les conversations » y mene', await evalue(String.raw`[...document.querySelectorAll('.trc-auj__tiroir button')].some((b) => b.textContent.trim() === 'Toutes les conversations')`));
+  /* Un seul repli sur Aujourd'hui : ce qui est parti, ferme ; rien de parti. */
+  dit('« Deja parti aujourd hui » est le seul repli, ferme', (await evalue(`document.querySelectorAll('details.trc-am__repli').length`)) === 1
     && (await evalue(`document.querySelectorAll('details.trc-am__repli[open]').length`)) === 0
-    && /Rien encore aujourd’hui|0 ligne/.test(await evalue(String.raw`[...document.querySelectorAll('details.trc-am__repli')].find((d) => d.querySelector('h3')?.textContent.startsWith('Aujourd’hui'))?.textContent || ''`)),
-  String(await evalue(`document.querySelectorAll('details.trc-am__repli').length`)));
-  dit('... un seul repli du bas ouvert a la fois : Ses regles ouvert, puis Ses modeles ouvert referme Ses regles', await evalue(String.raw`(() => {
-    const d = [...document.querySelectorAll('details.trc-am__repli')];
-    const regles = d.find((x) => x.querySelector('h3')?.textContent.startsWith('Ses règles'));
-    const modeles = d.find((x) => x.querySelector('h3')?.textContent.startsWith('Ses modèles'));
-    if (!regles || !modeles) return false;
-    regles.querySelector('summary').click();
-    return new Promise((r) => setTimeout(() => {
-      const a = regles.open && !modeles.open;
-      modeles.querySelector('summary').click();
-      setTimeout(() => r(a && modeles.open && !regles.open), 250);
-    }, 250));
-  })()`));
-  dit('les reglages restent sur Aujourd hui : Pause et Actif deplies, le plafond, les dix modeles (sept plus un, et les deux cartes d anniversaire)', JSON.stringify(await evalue(String.raw`[...document.querySelectorAll('.trc-ger__modes button b')].map((b) => b.textContent)`)) === JSON.stringify(['Pause', 'Actif'])
-    && (await evalue(String.raw`[...document.querySelectorAll('.trc-ger__modes button')].every((b) => b.offsetParent !== null)`)) === true
-    && (await evalue(`document.querySelectorAll('.trc-ger__plafond input').length`)) === 2 && (await evalue(`document.querySelectorAll('.trc-ger__modeles li').length`)) === 10);
+    && (await evalue(String.raw`document.querySelector('details.trc-am__repli h3')?.textContent`)) === 'Déjà parti aujourd’hui'
+    && /Rien encore aujourd’hui/.test(await evalue(String.raw`document.querySelector('details.trc-am__repli')?.textContent || ''`)));
 
-  /* « PAS MAINTENANT » (27 octobre 2026, restes du lot 3), apres les replis (sa ligne ecartee entre au journal du jour) : en Actif, sur M. D. (retard, WhatsApp a un toucher). La ligne
-     du jour nait ecartee, avec la reponse « non » (le lot 2 la compte dans les traces) ; M. D. sort du plan ; retour en Pause. */
-  const mode = (mot) => evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-ger__modes button')].find((x) => x.textContent.includes(${JSON.stringify(mot)})); if (b) b.click(); return !!b; })()`);
-  dit('« Pas maintenant » : passer en Actif', await mode('Actif'));
+  /* « PAS MAINTENANT » (27 octobre 2026, restes du lot 3) : en Actif, sur M. D. (retard, WhatsApp a un toucher). La ligne du jour
+     nait ecartee, avec la reponse « non » (le lot 2 la compte dans les traces) ; M. D. sort du plan ; retour en Pause. Depuis le
+     21 novembre 2026, Pause et Actif se touchent dans la pastille de la tete. */
+  const perleBouton = (mot) => evalue(String.raw`(() => { const b = document.querySelector('.trc-auj__perle button'); if (b && b.textContent.trim() === ${JSON.stringify(mot)}) { b.click(); return true; } return false; })()`);
+  dit('« Reprendre » : Perle passe en Actif', await perleBouton('Reprendre'));
   await attend(700);
+  dit('... la pastille dit « Perle ecrit seule », et offre « Mettre en pause »', JSON.stringify(await pastille()) === JSON.stringify(['Perle écrit seule', 'Mettre en pause']), JSON.stringify(await pastille()));
+  const actives = await lesCartes();
+  dit('... en Actif, « A envoyer » compte les WhatsApp a un toucher, avec « Envoyer la premiere »', Number(actives?.[1]?.[0]) >= 1 && actives[1][2] === 'Messages prêts sur WhatsApp' && actives[1][3] === 'Envoyer la première', JSON.stringify(actives?.[1]));
+  await deplie();
+  const envoyer = await evalue(String.raw`(() => { const l = [...document.querySelectorAll('.trc-auj__ligne')].find((x) => x.querySelector('.trc-auj__qui')?.textContent === 'M. D.'); const a = l?.querySelector('.trc-auj__fin a'); return a ? [a.textContent.trim(), a.getAttribute('href') || ''] : null; })()`);
+  dit('... la ligne de M. D. porte « Envoyer », vers WhatsApp, son message deja ecrit', envoyer?.[0] === 'Envoyer' && /wa\.me\/229\d+\?text=/.test(envoyer?.[1] ?? ''), JSON.stringify(envoyer));
   dit('... la ligne de M. D. s ouvre', await ouvre('M. D.'));
   await attend(400);
   const gestesActifs = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__panneau .trc-am__gestes > *')].map((b) => b.textContent.trim())`);
@@ -237,9 +244,34 @@ try {
   const ligneNon = (envoisApres ?? []).find((e) => /^gerard-\d{4}-\d{2}-\d{2}-c-retard-wa-main$/.test(e.id));
   dit('... ecrit la ligne du jour : ecartee, reponse « non », pas maintenant, son genre', !!ligneNon && ligneNon.statut === 'écarté' && ligneNon.reponse === 'non'
     && ligneNon.pasMaintenant === true && ligneNon.genre === 'retard' && ligneNon.type === 'gerard', JSON.stringify(ligneNon));
-  dit('... et M. D. sort du plan du jour', (await jusqua(String.raw`![...document.querySelectorAll('.trc-ger__qui')].some((q) => q.firstChild?.textContent === 'M. D.')`, 4000)) === true);
-  dit('... retour en Pause', await mode('Pause'));
+  dit('... et M. D. sort du plan du jour', (await jusqua(String.raw`![...document.querySelectorAll('.trc-auj__qui')].some((q) => q.textContent === 'M. D.')`, 4000)) === true);
+  dit('... retour en Pause', await perleBouton('Mettre en pause'));
   await attend(700);
+
+  /* 4 bis. Les Reglages de Perle (21 novembre 2026) : Pause ou Actif deplies, le plafond, quatre replis, un seul ouvert a la fois. */
+  await evalue(`location.hash = '#/gerard?vue=reglages'; true`);
+  await attend(700);
+  dit('?vue=reglages : « Reglages de Perle. », Pause et Actif deplies, le plafond, les modeles', /Réglages de Perle\./.test(await evalue(String.raw`document.querySelector('.tr-page-head__head')?.textContent || ''`))
+    && JSON.stringify(await evalue(String.raw`[...document.querySelectorAll('.trc-ger__modes button b')].map((b) => b.textContent)`)) === JSON.stringify(['Pause', 'Actif'])
+    && (await evalue(String.raw`[...document.querySelectorAll('.trc-ger__modes button')].every((b) => b.offsetParent !== null)`)) === true
+    && (await evalue(`document.querySelectorAll('.trc-ger__plafond input').length`)) === 2 && (await evalue(`document.querySelectorAll('.trc-ger__modeles li').length`)) >= 10);
+  const replis = await evalue(String.raw`[...document.querySelectorAll('details.trc-am__repli')].map((d) => [d.querySelector('h3')?.textContent, d.open])`);
+  dit('... quatre replis fermes : Jours creux, Entre deux seances, Ses regles, Modeles WhatsApp',
+    JSON.stringify(replis) === JSON.stringify([['Jours creux', false], ['Entre deux séances', false], ['Ses règles', false], ['Modèles WhatsApp', false]]), JSON.stringify(replis));
+  dit('... un seul repli ouvert a la fois : Ses regles ouvert, puis Modeles WhatsApp ouvert referme Ses regles', await evalue(String.raw`(() => {
+    const d = [...document.querySelectorAll('details.trc-am__repli')];
+    const regles = d.find((x) => x.querySelector('h3')?.textContent.startsWith('Ses règles'));
+    const modeles = d.find((x) => x.querySelector('h3')?.textContent.startsWith('Modèles WhatsApp'));
+    if (!regles || !modeles) return false;
+    regles.querySelector('summary').click();
+    return new Promise((r) => setTimeout(() => {
+      const a = regles.open && !modeles.open;
+      modeles.querySelector('summary').click();
+      setTimeout(() => r(a && modeles.open && !regles.open), 250);
+    }, 250));
+  })()`));
+  await evalue(`location.hash = '#/gerard'; true`);
+  await attend(600);
 
   /* 5. Chaque vue par son adresse ; la barre l'allume ; la vue vit (ses tuiles, sa liste ou son selecteur) ; au telephone rien ne deborde.
      `textContent`, pas `innerText` : les `h3 span` sont en petites capitales par CSS. */
@@ -284,6 +316,13 @@ try {
       const quiEcrit = [...v.querySelectorAll('h3')].some((h) => h.textContent.startsWith('Qui écrit seul'));
       return tuiles >= 4 && segs.length === 3 && /^Semaine/.test(segs[0]) && /^Mois/.test(segs[1]) && /^Depuis/.test(segs[2]) && quiEcrit ? true : JSON.stringify({ tuiles, segs, quiEcrit });
     })()`,
+    /* Les Reglages de Perle : Pause et Actif, le plafond. */
+    reglages: String.raw`(() => {
+      const v = document.querySelector('.trc-am__vue'); if (!v) return 'pas de vue';
+      const modes = v.querySelectorAll('.trc-ger__modes button').length;
+      const plafond = v.querySelectorAll('.trc-ger__plafond input').length;
+      return modes === 2 && plafond === 2 ? true : JSON.stringify({ modes, plafond });
+    })()`,
   };
   for (let i = 1; i < VUES.length; i++) {
     await evalue(`location.hash = '#/gerard?vue=${VUES[i]}'; true`);
@@ -295,7 +334,7 @@ try {
       && vivante === true && !(await tombe()), `${JSON.stringify(t)} ${vivante === true ? '' : String(await evalue(VIVANTE[VUES[i]]))}`);
   }
   dit('un clic sur l onglet Aujourd hui revient a la vue d entree, sans ?vue=', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-am__vues [role="tab"]')][0]; b.click(); return true; })()`)
-    && (await jusqua(String.raw`document.querySelectorAll('.trc-am__tuile').length === 5`, 4000)) === true && !/vue=/.test(await evalue('location.hash')), await evalue('location.hash'));
+    && (await jusqua(String.raw`document.querySelectorAll('.trc-auj__carte').length === 3`, 4000)) === true && !/vue=/.test(await evalue('location.hash')), await evalue('location.hash'));
 
   /* 6. La banque de scenarios (30 octobre 2026) : `?scenarios=1` l'ouvre sous la boite ; le menu la propose ;
      deux cas semes (des exemples), un a valider, un valide ; « C'est juste » le valide, la direction le peut. */
@@ -365,7 +404,7 @@ try {
   for (let i = 0; i < VUES.length; i++) {
     await evalue(`location.hash = '#/gerard${i ? `?vue=${VUES[i]}` : ''}'; true`);
     await attend(600);
-    if (i === 0) { await ouvre('M. D.'); await attend(300); }
+    if (i === 0) { await ouvre('G. A.'); await attend(300); }
     dit(`au telephone (390 px), « ${TITRES[i]} » ne deborde pas`, !(await deborde()), String(await evalue('document.documentElement.scrollWidth')));
     if (i === 0) await photo('2-telephone');
   }
@@ -378,5 +417,5 @@ try {
   chrome.kill(); serveur.close();
   setTimeout(() => { for (const d of [profil, construit]) { try { rmSync(d, { recursive: true, force: true }); } catch { /* libere apres */ } } }, 1500);
 }
-console.log(ko === 0 ? '\nL Assistant Maison tient ses cinq vues.' : `\n${ko} controle(s) en echec.`);
+console.log(ko === 0 ? '\nL Assistant Maison tient ses six vues.' : `\n${ko} controle(s) en echec.`);
 setTimeout(() => process.exit(ko === 0 ? 0 : 1), 1700);

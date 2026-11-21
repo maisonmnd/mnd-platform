@@ -12,7 +12,12 @@
        pourquoi ;
      - maquette v4 : Pause puis Actif (plus d'essai à cinq), le plafond de
        la semaine en nombre et en francs, sept plus un modèles Meta ;
-     - au téléphone, rien ne déborde.
+     - au téléphone, rien ne déborde ;
+     - AUJOURD'HUI, REFAIT (21 novembre 2026, maquette Jrj9rfdYAYPDPDS1aT4EFs) :
+       la pastille de Perle, trois cartes, la liste de ce qu'elle écrit
+       (cinq lignes, le reste se déplie), « Pourquoi ce message » replié,
+       « Déjà parti aujourd'hui » replié ; Pause ou Actif, le plafond et les
+       modèles se lisent dans la vue « Réglages ».
 
    Les fiches sont des exemples, signées d'initiales. */
 import { createServer } from 'node:http';
@@ -130,41 +135,64 @@ try {
   await attend(2500);
   await evalue(`(() => { for (const [k, v] of Object.entries(${JSON.stringify(semence)})) localStorage.setItem(k, JSON.stringify(v)); return true; })()`);
   await evalue(`location.hash = '#/gerard'; location.reload(); true`);
-  const vu = await jusqua(`document.querySelectorAll('.trc-ger__rangee').length > 0`, 40000);
+  const vu = await jusqua(`document.querySelectorAll('.trc-auj__rangee').length > 0`, 40000);
+  /* AUJOURD'HUI, REFAIT (21 novembre 2026) : cinq lignes d'abord, le reste se déplie ; une ligne
+     s'ouvre par son bouton, le nom dans `.trc-auj__qui`, la situation dans `.trc-auj__motif`. */
+  const deplie = async () => { if (await evalue(String.raw`(() => { const p = document.querySelector('.trc-auj__plus[aria-expanded="false"]'); if (p) p.click(); return !!p; })()`)) await attend(300); };
+  const ouvreLaLigneDe = (nom) => evalue(`(() => { const b = [...document.querySelectorAll('.trc-auj__ouvre')].find((x) => x.querySelector('.trc-auj__qui')?.textContent === ${JSON.stringify(nom)}); if (b && b.getAttribute('aria-expanded') !== 'true') b.click(); return !!b; })()`);
+  const lesLignes = () => evalue(String.raw`[...document.querySelectorAll('.trc-auj__rangee')].map((b) => [b.querySelector('.trc-auj__qui')?.textContent, (b.querySelector('.trc-auj__motif')?.textContent || '').trim(), (b.querySelector('.trc-auj__fin')?.textContent || '').trim()])`);
+  const lePanneau = () => evalue(String.raw`(document.querySelector('.trc-ger__panneau')?.innerText || '').replace(/\s+/g, ' ')`);
+  const pastille = () => evalue(String.raw`(() => { const p = document.querySelector('.trc-auj__perle'); return p ? [p.querySelector('span')?.textContent, (p.querySelector('button')?.textContent || '').trim()] : null; })()`);
+  const cartes = () => evalue(String.raw`[...document.querySelectorAll('.trc-auj__carte')].map((c) => [c.querySelector('b')?.textContent, c.querySelector('strong')?.textContent])`);
 
   /* 1. La rubrique. */
   dit('Gérard s ouvre, comme la direction', !!vu && !(await tombe()));
   const barre = await evalue(String.raw`[...document.querySelectorAll('.tr-nav__item')].map((a) => a.textContent.replace(/\s+/g, ' ').trim())`);
   const iClientes = (barre ?? []).findIndex((t) => t.startsWith('Clientes'));
-  dit('la barre : « Assistant Maison » juste sous « Clientes », allumé', iClientes >= 0 && String(barre[iClientes + 1]).startsWith('Assistant Maison')
-    && !!(await evalue(String.raw`[...document.querySelectorAll('.tr-nav__item.active')].some((a) => a.textContent.trim().startsWith('Assistant Maison'))`)), JSON.stringify(barre?.slice(Math.max(0, iClientes), iClientes + 2)));
-  dit('en pause, il le dit : il prépare son plan, il n écrit à personne', /Pause\.\s*Il prépare son plan, il n’écrit à personne/.test(await texte()));
+  dit('la barre : « Conversations » juste sous « Clientes », allumé', iClientes >= 0 && String(barre[iClientes + 1]).startsWith('Conversations')
+    && !!(await evalue(String.raw`[...document.querySelectorAll('.tr-nav__item.active')].some((a) => a.textContent.trim().startsWith('Conversations'))`)), JSON.stringify(barre?.slice(Math.max(0, iClientes), iClientes + 2)));
+  dit('en pause, la pastille le dit, avec « Reprendre » pour la direction', JSON.stringify(await pastille()) === JSON.stringify(['Perle est en pause', 'Reprendre']), JSON.stringify(await pastille()));
 
   /* 2. Le plan du jour. */
-  const lignes = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__ligne')].map((b) => [b.querySelector('.trc-ger__qui')?.firstChild?.textContent, b.querySelector('.trc-ger__genre')?.textContent, b.querySelector('.trc-ger__canal')?.textContent])`);
+  await deplie();
+  const lignes = await lesLignes();
   const genreDe = (nom) => (lignes ?? []).find((l) => l[0] === nom)?.[1] ?? '';
-  dit('le plan donne à chacune sa situation', /^Garder son RDV/.test(genreDe('G. A.')) && /^Anniversaire/.test(genreDe('N. B.')) && /^Une envie du fil/.test(genreDe('P. O.'))
+  /* Du 15 novembre au 15 décembre (`NOEL_DU`, `NOEL_AU` de gerard-pur), le mot de Noël passe devant l'envie du fil. */
+  const enFetes = date(0).slice(5) >= '11-15' && date(0).slice(5) <= '12-15';
+  dit('le plan donne à chacune sa situation', /^Garder son RDV/.test(genreDe('G. A.')) && /^Anniversaire/.test(genreDe('N. B.')) && (enFetes ? /^Noël/ : /^Une envie du fil/).test(genreDe('P. O.'))
     && /^En retard/.test(genreDe('M. D.')) && /^Une seule venue/.test(genreDe('C. U.')) && /^Endormie/.test(genreDe('F. S.')), JSON.stringify(lignes));
-  dit('... garder d abord, l anniversaire porte son code de 10 %', (lignes ?? [])[0]?.[0] === 'G. A.' && /−10 % · anniversaire/.test((lignes ?? []).find((l) => l[0] === 'N. B.')?.[2] ?? ''), JSON.stringify((lignes ?? []).slice(0, 2)));
-  const enTete = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__chiffre b')].map((b) => b.innerText.trim())`);
-  dit('l en-tête : sept à écrire (six et la carte de l enfant), rien de parti, un RDV à garder, 0 remise sur 8, 0 F', enTete?.[0] === '7' && enTete?.[1] === '0' && enTete?.[2] === '1'
-    && enTete?.[3] === '0 / 8' && /^0\sF$/.test(enTete?.[4] ?? ''), JSON.stringify(enTete));
+  dit('... garder d abord, l anniversaire porte son code de 10 %', (lignes ?? [])[0]?.[0] === 'G. A.' && /−10 %/.test(genreDe('N. B.')), JSON.stringify((lignes ?? []).slice(0, 2)));
+  const tete = await evalue(String.raw`(document.querySelector('.trc-auj__tete h3')?.textContent || '').trim()`);
+  dit('la tête de la liste : sept messages prêts (six et la carte de l enfant) ; trois cartes, rien à envoyer en pause', tete === 'En pause · 7 messages prêts'
+    && JSON.stringify(await cartes()) === JSON.stringify([['0', 'À répondre'], ['0', 'À envoyer'], ['0', 'À reprogrammer']]), JSON.stringify([tete, await cartes()]));
+  dit('plus de chiffres en tête, de tuiles ni de pavé d état', (await evalue(`document.querySelectorAll('.trc-ger__chiffre, .trc-am__tuile, .trc-ger__etat').length`)) === 0);
 
   /* 3. Une ligne ouverte. */
-  dit('la ligne de M. D. s ouvre', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-ger__ligne')].find((x) => x.textContent.includes('M. D.')); if (b) b.click(); return !!b; })()`));
+  dit('la ligne de M. D. s ouvre', await ouvreLaLigneDe('M. D.'));
   await attend(400);
-  const panneau = await evalue(String.raw`(document.querySelector('.trc-ger__panneau')?.innerText || '').replace(/\s+/g, ' ')`);
-  dit('... le modèle « place » : il est temps, deux places, la signature et la devise', /Bonjour M\., il est temps de votre .+ : nous avons de la place .+\. Je vous en garde une \? Maison MND/.test(panneau) && /mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là/.test(panneau) && /assistant_maison_place/.test(panneau), panneau.slice(0, 260));
-  dit('... et le pourquoi : sa dernière venue, sa date attendue avec l année, son retard', /Dernière venue/.test(panneau) && /Date attendue \S+ \d{1,2}(er)? \S+ \d{4}/.test(panneau) && /Retard \d+ jours/.test(panneau));
+  const panneau = await lePanneau();
+  dit('... le modèle « place » : il est temps, deux places, la signature et la devise, par WhatsApp', /Bonjour M\., il est temps de votre .+ : nous avons de la place .+\. Je vous en garde une \? Maison MND/.test(panneau) && /mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là/.test(panneau) && /WhatsApp · /.test(panneau), panneau.slice(0, 260));
+  dit('... « Pourquoi ce message » est replié', (await evalue(`document.querySelector('.trc-ger__panneau details.trc-auj__pourquoi')?.open`)) === false && !/Dernière venue/.test(panneau));
+  await evalue(String.raw`(() => { const s = document.querySelector('.trc-ger__panneau details.trc-auj__pourquoi summary'); if (s) s.click(); return !!s; })()`);
+  await attend(300);
+  const pourquoi = await lePanneau();
+  dit('... déplié : sa dernière venue, sa date attendue avec l année, son retard', /Dernière venue/.test(pourquoi) && /Date attendue \S+ \d{1,2}(er)? \S+ \d{4}/.test(pourquoi) && /Retard \d+ jours/.test(pourquoi), pourquoi.slice(-260));
   await photo('1-plan');
   dit('plus d essai à cinq : ni bouton, ni onglet', !(await evalue(String.raw`/essai/i.test(document.querySelector('.trc-ger')?.innerText || '')`)));
   dit('en pause, pas de bouton WhatsApp', !(await evalue(String.raw`[...document.querySelectorAll('a.trc-ger__btn')].some((a) => a.textContent.trim().startsWith('Envoyer sur WhatsApp'))`)));
+  dit('... ni de « Envoyer » sur les lignes', (await evalue(`document.querySelectorAll('.trc-auj__fin .trc-auj__btn').length`)) === 0);
+
+  /* 3 bis. LES RÉGLAGES (21 novembre 2026) : Pause ou Actif, le plafond, l'état, les modèles ont
+     quitté Aujourd'hui pour leur vue. */
+  dit('Aujourd hui ne porte plus ni les deux choix ni le plafond', (await evalue(`document.querySelectorAll('.trc-ger__modes, .trc-ger__plafond, .trc-ger__modeles').length`)) === 0);
+  await evalue(`location.hash = '#/gerard?vue=reglages'; true`);
+  dit('la vue « Réglages » s ouvre, à son adresse', !!(await jusqua(`document.querySelectorAll('.trc-ger__modes button').length === 2`, 8000)), await evalue('location.hash'));
   dit('deux choix seulement : Pause et Actif', JSON.stringify(await evalue(String.raw`[...document.querySelectorAll('.trc-ger__modes button b')].map((b) => b.textContent)`)) === JSON.stringify(['Pause', 'Actif']));
   dit('le passer en Actif', await clique('.trc-ger__modes button', 'Actif'));
   await attend(400);
   const apres = await evalue(`JSON.parse(localStorage.getItem('trone::mnd_gerard') || 'null')`);
   dit('... écrit « ouvert » dans les réglages, avec le plafond par défaut', apres?.mode === 'ouvert' && apres?.remisesParSemaine === 8 && apres?.plafondFrancs === 60000, JSON.stringify(apres));
-  dit('actif, l état dit le passage du jour et le bouton WhatsApp', /Actif\.\s*Chaque jour/.test(await texte()) && /l’Assistant dépose les notifications Ma Couronne/.test(await texte()));
+  dit('actif, la pastille le dit : « Perle écrit seule », et « Mettre en pause »', JSON.stringify(await pastille()) === JSON.stringify(['Perle écrit seule', 'Mettre en pause']), JSON.stringify(await pastille()));
   /* Le plafond en francs : tapé, puis posé à la sortie du champ. */
   await evalue(String.raw`(() => {
     const champ = [...document.querySelectorAll('.trc-ger__plafond input')][1];
@@ -177,57 +205,68 @@ try {
   await attend(500);
   const plafond = await evalue(`JSON.parse(localStorage.getItem('trone::mnd_gerard') || 'null')`);
   dit('le plafond en francs se règle : 45 000 F, le nombre de remises garde ses 8', plafond?.plafondFrancs === 45000 && plafond?.remisesParSemaine === 8, JSON.stringify(plafond));
-  dit('... et l en-tête le dit', /sur 45\s000\sF/.test(await texte()));
+  dit('... et « Ses règles » le disent', /remises et 45\s000\sF par semaine/.test(await texte()));
+  const etat = ((await evalue(`document.querySelector('.trc-auj__etat')?.innerText || ''`)) ?? '').replace(/\s+/g, ' ');
+  dit('... l état compte les anniversaires du jour, chacun avec sa carte', /Anniversaires du jour : 2/.test(etat) && !/sans carte/.test(etat), etat.slice(0, 200));
+
+  /* 4. Les modèles Meta. */
+  const modeles = await evalue(String.raw`[...(document.querySelector('.trc-ger__modeles')?.querySelectorAll('li b') ?? [])].map((b) => b.textContent)`);
+  dit('sept plus un modèles à déposer chez Meta, et les deux cartes d anniversaire (27 octobre 2026)', JSON.stringify(modeles) === JSON.stringify(['assistant_maison_garder', 'assistant_maison_avant', 'assistant_maison_envie', 'assistant_maison_place', 'assistant_maison_anniversaire', 'assistant_maison_carte_anniversaire', 'assistant_maison_carte_foyer', 'assistant_maison_fetes', 'assistant_maison_endormie', 'nouvelles_de_la_maison']), JSON.stringify(modeles));
+
+  /* Retour à Aujourd'hui, en Actif. */
+  await evalue(`location.hash = '#/gerard'; true`);
+  await jusqua(`document.querySelectorAll('.trc-auj__rangee').length > 0`, 20000);
+  await deplie();
+  const cartesActif = await cartes();
+  dit('actif : la carte « À envoyer » compte les messages WhatsApp à un toucher', Number(cartesActif?.[1]?.[0]) > 0 && cartesActif?.[1]?.[1] === 'À envoyer', JSON.stringify(cartesActif));
 
   /* Un toucher : le message part sur WhatsApp, noté au journal. */
-  await evalue(String.raw`(() => { if (!document.querySelector('.trc-ger__panneau')) { const b = [...document.querySelectorAll('.trc-ger__ligne')].find((x) => x.textContent.includes('M. D.')); if (b) b.click(); } return true; })()`);
+  await ouvreLaLigneDe('M. D.');
   await attend(300);
   const lien = await evalue(String.raw`[...document.querySelectorAll('a.trc-ger__btn')].find((a) => a.textContent.trim().startsWith('Envoyer sur WhatsApp'))?.href || ''`);
   dit('« Envoyer sur WhatsApp » ouvre le message déjà écrit, au bon numéro, signé et avec la devise', /^https:\/\/wa\.me\/229\d+\?text=/.test(lien)
     && /il est temps de votre/.test(decodeURIComponent(lien)) && /Maison MND\nmi nyɔ́ ɖɛkpɛ, votre beauté est déjà là$/.test(decodeURIComponent(lien.split('text=')[1] ?? '')), decodeURIComponent(lien).slice(0, 200));
+  const lienDeLaLigne = await evalue(String.raw`[...document.querySelectorAll('.trc-auj__rangee')].find((li) => li.querySelector('.trc-auj__qui')?.textContent === 'M. D.')?.querySelector('.trc-auj__fin a.trc-auj__btn')?.href || ''`);
+  dit('... et sa ligne porte le même « Envoyer », d un toucher', lien !== '' && lienDeLaLigne === lien, lienDeLaLigne.slice(0, 80));
   await evalue(String.raw`(() => { const a = [...document.querySelectorAll('a.trc-ger__btn')].find((x) => x.textContent.trim().startsWith('Envoyer sur WhatsApp')); if (a) { a.removeAttribute('target'); a.setAttribute('href', '#/gerard'); a.click(); } return !!a; })()`);
   await attend(600);
   const envoisGerard = await evalue(`JSON.parse(localStorage.getItem('trone::mnd_envois') || '[]').filter((e) => e.type === 'gerard')`);
   dit('... noté au journal des envois : à la main, sa cliente, sa raison', (envoisGerard ?? []).length === 1 && envoisGerard[0].statut === 'à-la-main' && envoisGerard[0].clientId === 'c-retard' && envoisGerard[0].genre === 'retard',
     JSON.stringify(envoisGerard));
   await attend(400);
-  const journal = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__carte')].find((c) => c.querySelector('h3')?.textContent.startsWith('Aujourd’hui'))?.innerText.replace(/\s+/g, ' ') || ''`);
-  dit('... « Aujourd hui » le montre, et M. D. sort du plan (deux semaines avant le prochain)', /M\. D\./.test(journal) && /WhatsApp, à un toucher/.test(journal)
-    && !(await evalue(String.raw`[...document.querySelectorAll('.trc-ger__qui')].some((q) => q.firstChild?.textContent === 'M. D.')`)), journal.slice(0, 200));
+  const journal = await evalue(String.raw`(() => { const d = [...document.querySelectorAll('details.trc-ger__carte')].find((c) => c.querySelector('h3')?.textContent.startsWith('Déjà parti aujourd’hui')); if (!d) return ''; d.open = true; return d.innerText.replace(/\s+/g, ' '); })()`);
+  dit('... « Déjà parti aujourd hui » le montre, et M. D. sort du plan (deux semaines avant le prochain)', /M\. D\./.test(journal) && /WhatsApp, à un toucher/.test(journal)
+    && !(await evalue(String.raw`[...document.querySelectorAll('.trc-auj__qui')].some((q) => q.textContent === 'M. D.')`)), journal.slice(0, 200));
 
-  /* « ATTEND UN OUI › OUVRIR LA PREMIÈRE » (27 octobre 2026, « ne s'ouvre pas ») : la ligne de la
-     première cliente s'ouvre ET vient à l'écran ; elle vit plus haut, dans « Part aujourd'hui ». */
-  dit('« Ouvrir la première » est là, sous « Attend un oui »', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-am__carte button')].find((x) => x.textContent.trim() === 'Ouvrir la première'); if (!b) return false; b.scrollIntoView({ block: 'center' }); return true; })()`));
-  await attend(500);
-  await clique('.trc-am__carte button', 'Ouvrir la première');
+  /* « À ENVOYER › ENVOYER LA PREMIÈRE » (27 octobre 2026, « ne s'ouvre pas » ; refait le 21 novembre) :
+     la ligne de la première cliente à un toucher s'ouvre ET vient à l'écran, la liste repliée ou non. */
+  const attendue = await evalue(String.raw`[...document.querySelectorAll('.trc-auj__rangee')].find((li) => li.querySelector('.trc-auj__fin .trc-auj__btn'))?.querySelector('.trc-auj__qui')?.textContent ?? ''`);
+  await evalue(String.raw`(() => { const o = document.querySelector('.trc-auj__ouvre[aria-expanded="true"]'); if (o) o.click(); const p = document.querySelector('.trc-auj__plus[aria-expanded="true"]'); if (p) p.click(); window.scrollTo(0, document.body.scrollHeight); return true; })()`);
+  await attend(400);
+  dit('« Envoyer la première » est là, sur la carte « À envoyer »', await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-auj__carte button')].find((x) => x.textContent.trim() === 'Envoyer la première'); if (!b) return false; b.click(); return true; })()`));
   await attend(1500);
   const premiere = await evalue(String.raw`(() => {
-    const li = document.querySelector('.trc-ger__rangee.est-ouverte');
-    const ligne = li?.querySelector('.trc-ger__ligne');
+    const li = document.querySelector('.trc-auj__rangee.est-ouverte');
+    const ligne = li?.querySelector('.trc-auj__ligne');
     if (!li || !ligne) return null;
     const r = ligne.getBoundingClientRect();
-    return { qui: li.querySelector('.trc-ger__qui')?.firstChild?.textContent ?? '', haut: Math.round(r.top), bas: Math.round(r.bottom), h: window.innerHeight,
-      premier: (document.querySelector('.trc-am__carte--cuivre p')?.textContent || '').split(',')[0].trim(), panneau: !!li.querySelector('.trc-ger__panneau') };
+    return { qui: li.querySelector('.trc-auj__qui')?.textContent ?? '', haut: Math.round(r.top), bas: Math.round(r.bottom), h: window.innerHeight, panneau: !!li.querySelector('.trc-ger__panneau') };
   })()`);
-  dit('... elle ouvre la ligne de la première cliente, et la ligne est à l écran', !!premiere && premiere.qui === premiere.premier && premiere.panneau
-    && premiere.haut >= 0 && premiere.bas <= premiere.h, JSON.stringify(premiere));
-
-  /* 4. Les modèles Meta. */
-  const modeles = await evalue(String.raw`[...document.querySelectorAll('.trc-ger__modeles li b')].map((b) => b.textContent)`);
-  dit('sept plus un modèles à déposer chez Meta, et les deux cartes d anniversaire (27 octobre 2026)', JSON.stringify(modeles) === JSON.stringify(['assistant_maison_garder', 'assistant_maison_avant', 'assistant_maison_envie', 'assistant_maison_place', 'assistant_maison_anniversaire', 'assistant_maison_carte_anniversaire', 'assistant_maison_carte_foyer', 'assistant_maison_fetes', 'assistant_maison_endormie', 'nouvelles_de_la_maison']), JSON.stringify(modeles));
+  dit('... elle ouvre la ligne de la première cliente à un toucher, et la ligne est à l écran', !!premiere && attendue !== '' && premiere.qui === attendue && premiere.panneau
+    && premiere.haut >= 0 && premiere.bas <= premiere.h, JSON.stringify({ attendue, premiere }));
 
   /* 4 bis. LA CARTE DE L'ENFANT AU PARENT PAYEUR (27 octobre 2026) : sa
      ligne dit à qui elle part, « Envoyer sa carte » ouvre la fenêtre de la
      carte au numéro du parent, et le geste se note à la main, avec la fiche
      qui reçoit. */
-  const ligneEnfant = (lignes ?? []).find((l) => l[0] === 'A. P.');
+  await deplie();
+  const ligneEnfant = ((await lesLignes()) ?? []).find((l) => l[0] === 'A. P.');
   dit('l enfant du foyer : son anniversaire est au plan, à son parent payeur', /^Anniversaire · à H\. P\./.test(ligneEnfant?.[1] ?? ''), JSON.stringify(ligneEnfant));
-  dit('... l état compte les anniversaires du jour', /Anniversaires du jour : 2 · 2 cartes au plan/.test(await texte()));
-  await evalue(String.raw`(() => { const b = [...document.querySelectorAll('.trc-ger__ligne')].find((x) => x.textContent.includes('A. P.')); if (b) b.click(); return !!b; })()`);
+  dit('... sa ligne porte « Envoyer » : la carte part d un toucher', ligneEnfant?.[2] === 'Envoyer', JSON.stringify(ligneEnfant));
+  await ouvreLaLigneDe('A. P.');
   await attend(400);
-  const panneauEnfant = await evalue(String.raw`(document.querySelector('.trc-ger__panneau')?.innerText || '').replace(/\s+/g, ' ')`);
-  dit('... le mot au parent, le prénom de l enfant, la carte en image', /Bonjour H\., joyeux anniversaire à A\. ! Toute la Maison lui souhaite une très belle journée/.test(panneauEnfant)
-    && /assistant_maison_carte_foyer/.test(panneauEnfant), panneauEnfant.slice(0, 220));
+  const panneauEnfant = await lePanneau();
+  dit('... le mot au parent, le prénom de l enfant', /Bonjour H\., joyeux anniversaire à A\. ! Toute la Maison lui souhaite une très belle journée/.test(panneauEnfant), panneauEnfant.slice(0, 220));
   dit('... « Envoyer sa carte » ouvre la fenêtre de la carte', await clique('.trc-ger__panneau button', 'Envoyer sa carte'));
   await attend(1500);
   const fenetre = await evalue(String.raw`(() => { const m = document.querySelector('.mnd-modal'); return m ? { canvas: !!m.querySelector('canvas'), texte: m.innerText.replace(/\s+/g, ' ') } : null; })()`);
@@ -241,7 +280,7 @@ try {
   dit('... et le fil WhatsApp ouvert est celui du parent', /conversations/.test(await evalue('location.hash')) && /2290151000018/.test(decodeURIComponent(await evalue('location.hash'))),
     decodeURIComponent(await evalue('location.hash')).slice(0, 120));
   await evalue(`location.hash = '#/gerard'; true`);
-  await jusqua(`document.querySelectorAll('.trc-ger__rangee').length > 0`, 20000);
+  await jusqua(`document.querySelectorAll('.trc-auj__rangee').length > 0`, 20000);
 
   /* 5. Au téléphone. */
   await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });

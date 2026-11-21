@@ -163,12 +163,12 @@ dit('#/avis-google mène à la vue « Les avis » de l Assistant Maison', !!vers
 const vu = await jusqua(`document.querySelectorAll('li.trc-am__avis').length > 0`, 40000);
 dit('Les avis, comme la direction : la liste s ouvre', !!vu);
 
-/* La barre : la rubrique n'y est plus ; « Assistant Maison », sous « Clientes », est allumée. */
+/* La barre : la rubrique n'y est plus ; « Conversations » (l'Assistant Maison, renommé), sous « Clientes », est allumée. */
 const barre = await evalue(String.raw`(() => { const l = [...document.querySelectorAll('.tr-nav__item')].map((a) => a.textContent.replace(/\s+/g, ' ').trim()); return l; })()`);
 const iClientes = (barre ?? []).findIndex((t) => t.startsWith('Clientes'));
-dit('la barre : « Assistant Maison » juste sous « Clientes », allumée ; « Les avis Google » n y est plus', iClientes >= 0 && String(barre[iClientes + 1]).startsWith('Assistant Maison')
+dit('la barre : « Conversations » juste sous « Clientes », allumée ; « Les avis Google » n y est plus', iClientes >= 0 && String(barre[iClientes + 1]).startsWith('Conversations')
   && !(barre ?? []).some((t) => t.startsWith('Les avis Google'))
-  && !!(await evalue(String.raw`[...document.querySelectorAll('.tr-nav__item.active')].some((a) => a.textContent.includes('Assistant Maison'))`)), JSON.stringify(barre?.slice(iClientes, iClientes + 2)));
+  && !!(await evalue(String.raw`[...document.querySelectorAll('.tr-nav__item.active')].some((a) => a.textContent.includes('Conversations'))`)), JSON.stringify(barre?.slice(iClientes, iClientes + 2)));
 dit('... l onglet « Les avis » de la barre des vues est choisi', await evalue(String.raw`document.querySelector('.trc-am__vues [aria-selected="true"]')?.id === 'am-ong-avis'`));
 
 /* Les tuiles et la liste. */
