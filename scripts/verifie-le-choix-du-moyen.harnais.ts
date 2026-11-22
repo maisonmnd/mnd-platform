@@ -29,14 +29,18 @@ const MTN = '01 97 00 00 12';
 const MOOV = '01 95 00 00 40';
 const OK = { ouvert: true, repond: true };
 const tous = (o: Partial<SanteDesMoyens> = {}): SanteDesMoyens => ({ mtn: OK, fedapay: OK, ...o });
-const ch = (o: Partial<ContexteDuChoix> = {}) => leChoixDuMoyen({ voie: 'mobile', telephone: MTN, montantXof: 25_000, sante: tous(), tapGoOuvert: true, ...o });
+/* KkiaPay FERMÉ par défaut (sa clé absente, comme l'écran le dit) : les épreuves d'avant
+   jouent MTN, FedaPay, Tap & Go et MoMoPay ; celles de KkiaPay l'ouvrent (`chK`). */
+const KKIA_FERME = { ouvert: false, pourquoi: 'la clé KkiaPay n’est pas posée au Trône' };
+const ch = (o: Partial<ContexteDuChoix> = {}) => leChoixDuMoyen({ voie: 'mobile', telephone: MTN, montantXof: 25_000, sante: tous(), tapGoOuvert: true, kkiapay: KKIA_FERME, ...o });
+const chK = (o: Partial<ContexteDuChoix> = {}) => ch({ kkiapay: { ouvert: true }, ...o });
 const PANNE_MTN = { ouvert: true, repond: false, pourquoi: 'MTN ne répond pas depuis 14 h 02', depuis: '14 h 02' };
 const FERME_MTN = { ouvert: false, repond: true, pourquoi: 'le règlement par MTN n’est pas encore ouvert (Finances › MTN MoMo)' };
 const PANNE_FEDA = { ouvert: true, repond: false, pourquoi: 'FedaPay ne répond pas' };
 
 /* ── L'ordre ──────────────────────────────────────────────────────────── */
 dit('l ordre : un numero MTN (ou aucun) commence par MTN ; Moov ou Celtiis par FedaPay ; la carte par le TPE KkiaPay (21 novembre 2026)', [
-  ['mtn', 'fedapay', 'tapgo', 'momopay'], ['mtn', 'fedapay', 'tapgo', 'momopay'], ['fedapay', 'tapgo', 'momopay'], ['tpeKkiapay', 'terminal'],
+  ['mtn', 'kkiapay', 'fedapay', 'tapgo', 'momopay'], ['mtn', 'kkiapay', 'fedapay', 'tapgo', 'momopay'], ['kkiapay', 'fedapay', 'tapgo', 'momopay'], ['tpeKkiapay', 'qrKkiapay', 'terminal'],
 ], [ordreDuComptoir('mobile', MTN), ordreDuComptoir('mobile', ''), ordreDuComptoir('mobile', MOOV), ordreDuComptoir('carte', MTN)]);
 dit('MoMoPay et le terminal sont des secours ; MTN, FedaPay et Tap & Go se confirment seuls ; le TPE KkiaPay se pointe (le Trone ne lui parle pas)', [
   [true, true], [true, true, true, false],
@@ -51,7 +55,8 @@ dit('les autres moyens a un toucher : FedaPay, Tap & Go, MoMoPay', ['fedapay', '
 const sansNumero = ch({ telephone: '' });
 dit('sans numero sur sa fiche : MTN, et on dit de le taper', ['mtn', true], [sansNumero.rail, /tapez-le/.test(sansNumero.pourquoi)]);
 const moov = ch({ telephone: MOOV });
-dit('un numero Moov : FedaPay, qui envoie la demande', ['fedapay', true], [moov.rail, /pas chez MTN/.test(moov.pourquoi)]);
+dit('un numero Moov, KkiaPay ferme : FedaPay, qui envoie la demande, et le pourquoi dit KkiaPay', ['fedapay', true], [moov.rail, /KkiaPay n’est pas proposé : la clé KkiaPay n’est pas posée au Trône\. FedaPay prend sa place\./.test(moov.pourquoi)]);
+dit('un numero Moov, KkiaPay ouvert : KkiaPay, et le pourquoi dit de taper son numero dans sa fenetre', ['kkiapay', true], [chK({ telephone: MOOV }).rail, /pas chez MTN : KkiaPay s’ouvre ici, tapez son numéro/.test(chK({ telephone: MOOV }).pourquoi)]);
 const ferme = ch({ sante: tous({ mtn: FERME_MTN }) });
 dit('le reglement par MTN est ferme : FedaPay prend sa place, et ce n est PAS une panne (aucune ligne rouge)', ['fedapay', false, true],
   [ferme.rail, !!ferme.panne, /^Payer par MTN n’est pas proposé : le règlement par MTN n’est pas encore ouvert/.test(ferme.pourquoi)]);
@@ -79,7 +84,7 @@ dit('... a 2 000 000 F pile, si', 'mtn', ch({ montantXof: PLAFOND_MTN_XOF }).rai
 dit('plusieurs parts : MTN regle tout le reste en une fois, il passe la main', ['fedapay', 'MTN règle tout le reste en une seule fois'],
   [ch({ plusieursParts: true }).rail, ch({ plusieursParts: true }).ordre[0].hors]);
 dit('FedaPay deja pris par une autre part : ni FedaPay ni Tap & Go, MoMoPay', 'momopay', ch({ plusieursParts: true, fedapayPris: true }).rail);
-dit('en devise : aucun moyen mobile (tous en francs)', [null, 4], [ch({ enDevise: true }).rail, ch({ enDevise: true }).ordre.filter((l) => l.hors).length]);
+dit('en devise : aucun moyen mobile (tous en francs)', [null, 5], [ch({ enDevise: true }).rail, ch({ enDevise: true }).ordre.filter((l) => l.hors).length]);
 const main = ch({ aLaMain: 'tapgo' });
 dit('la caissiere touche Tap & Go : il est pris, et on dit ce que le Trone proposait', ['tapgo', true, 'Choisi à la main. Le Trône proposait Payer par MTN.'],
   [main.rail, main.aLaMain, main.pourquoi]);
@@ -94,7 +99,24 @@ dit('la carte : le TPE KkiaPay, que FedaPay eteint, le reseau coupe ni une panne
   [carte.rail, carteSans.rail, carteHorsLigne.rail, !!carteSans.panne, !!carteHorsLigne.panne]);
 dit('... en devise, le terminal de la banque (le TPE KkiaPay ne prend que des francs)', ['terminal', 'le TPE KkiaPay ne prend que des francs'],
   [carteEnDevise.rail, carteEnDevise.ordre.find((l) => l.rail === 'tpeKkiapay')?.hors]);
-dit('... le terminal de la banque reste a un toucher', ['terminal'], autresMoyens(carte));
+dit('... le QR de son rendez-vous et le terminal de la banque restent a un toucher', ['qrKkiapay', 'terminal'], autresMoyens(carte));
+dit('... KkiaPay ferme (sa cle absente, hors ligne) : le QR ne se propose pas, le terminal reste',
+  [['terminal'], 'la clé KkiaPay n’est pas posée au Trône'],
+  [autresMoyens(leChoixDuMoyen({ voie: 'carte', montantXof: 25_000, sante: tous(), tapGoOuvert: true, kkiapay: KKIA_FERME })),
+    leChoixDuMoyen({ voie: 'carte', montantXof: 25_000, sante: tous(), tapGoOuvert: true, kkiapay: KKIA_FERME }).ordre.find((l) => l.rail === 'qrKkiapay')?.hors]);
+
+/* ── KkiaPay pour MTN, Moov et Celtiis (22 novembre 2026) ─────────────── */
+dit('KkiaPay ouvert : un numero MTN, Payer par MTN d abord ; Moov, KkiaPay d abord ; MTN ferme, KkiaPay prend sa place avant FedaPay',
+  ['mtn', 'kkiapay', 'kkiapay', false], [chK().rail, chK({ telephone: MOOV }).rail, chK({ sante: tous({ mtn: FERME_MTN }) }).rail, !!chK({ sante: tous({ mtn: FERME_MTN }) }).panne]);
+dit('... KkiaPay se confirme seul, comme le QR ; ni l un ni l autre n est un prestataire relu en base',
+  [true, true, undefined, undefined, 'mobile', 'carte'],
+  [RAILS.kkiapay.seConfirmeSeul, RAILS.qrKkiapay.seConfirmeSeul, RAILS.kkiapay.prestataire, RAILS.qrKkiapay.prestataire, RAILS.kkiapay.voie, RAILS.qrKkiapay.voie]);
+dit('... plusieurs parts, en devise, sa cle absente : KkiaPay ne se propose pas, FedaPay prend sa place et dit pourquoi',
+  [['fedapay', 'KkiaPay règle tout le reste en une seule fois'], 'KkiaPay ne prend que des francs', ['fedapay', 'la clé KkiaPay n’est pas posée au Trône']],
+  [[chK({ telephone: MOOV, plusieursParts: true }).rail, chK({ telephone: MOOV, plusieursParts: true }).ordre[0].hors],
+    chK({ telephone: MOOV, enDevise: true }).ordre[0].hors, [ch({ telephone: MOOV }).rail, ch({ telephone: MOOV }).ordre[0].hors]]);
+dit('... une panne vue sur KkiaPay se dit dans son pourquoi, et FedaPay prend la place', ['fedapay', 'KkiaPay ne répond pas depuis 14 h 02'],
+  ((x) => [x.rail, x.ordre[0].hors])(chK({ telephone: MOOV, kkiapay: { ouvert: false, pourquoi: 'KkiaPay ne répond pas depuis 14 h 02' } })));
 dit('les frais de KkiaPay sur une carte : 2,3 % au franc superieur, comme sur son recu (64 480 F : 1 484 F)', [1484, 1426, 0, 2.3],
   [fraisKkiapayDeCarteXof(64_480), fraisKkiapayDeCarteXof(62_000), fraisKkiapayDeCarteXof(0), FRAIS_KKIAPAY_CARTE_PCT]);
 dit('le moyen ecrit sur la piece : « Carte · KkiaPay », range chez KkiaPay (sa caisse), avec la trace d une carte', ['Carte · KkiaPay', 'kkiapay', 'carte'],
@@ -132,6 +154,20 @@ dit('six tuiles : Especes, Mobile money, Carte, Cheque, Avoir, Autres ; plus de 
     /nom: 'Payer par MTN'/.test(enc), /nom: 'MTN MoMoPay'/.test(enc), /nom: 'KkiaPay'/.test(enc), /nom: 'FedaPay'/.test(enc)]);
 dit('les tuiles se tirent de la regle, la sante relue fenetre ouverte', [true, true],
   [enc.includes('const sante = useLaSanteDesMoyens(true, mndOn);'), enc.includes('const ch = leChoixDuMoyen({ voie, telephone: telDuChoix,')]);
+const KK = sansCommentaires('src/apps/trone/routes/clients/KkiapayAuTrone.tsx');
+dit('la fenetre : KkiaPay sur le Trone (Mobile money) et le QR (Carte) ont leur tuile, la caisse KkiaPay, et ne s encaissent pas ici', [true, true, true, true, true],
+  [enc.includes(": r === 'kkiapay' ? 'kkiapayTrone' : r === 'qrKkiapay' ? 'kkiapayQr' : 'mndpay');"),
+    enc.includes("const partMtn = parts.some((pt) => pt.tuile === 'mtn' || pt.tuile === 'kkiapayTrone' || pt.tuile === 'kkiapayQr');"),
+    enc.includes("if (pt.tuile === 'kkiapayTrone' || pt.tuile === 'kkiapayQr') { return { methode: MOYEN_KKIAPAY, caisse: CAISSE_KKIAPAY_EN_LIGNE,"),
+    enc.includes('<PayerParKkiapayAuTrone') && enc.includes('<QrDuReglementEnLigne'), (enc.match(/kkiapay: etatKkiapay/g) ?? []).length === 2]);
+dit('... l etat de KkiaPay : sa cle, le serveur et le reseau, une panne retenue dix minutes', true,
+  enc.includes("const etatKkiapay = !kkiapayPeutSOuvrir() ? { ouvert: false, pourquoi: 'la clé KkiaPay n’est pas posée au Trône' } : !supabase || (typeof navigator !== 'undefined' && navigator.onLine === false) ? { ouvert: false, pourquoi: 'le Trône est hors ligne' } : kkiaPanneLe !== null && Date.now() - kkiaPanneLe < PANNE_RETENUE_MS"));
+dit('les panneaux KkiaPay passent par le lien Regler : le jeton pose, la page lue, le paiement rendu au serveur ; jamais d argent ecrit par le Trone', [true, true, true, false, false],
+  [KK.includes('const jeton = poseLeLienDeReglement(rdvId);'), KK.includes('const r = await lisLeLien(jeton);'),
+    KK.includes('const r = await regleLeLien(prep.jeton, transactionId);'), /invoicesStore|setInvoices|paymentsStore|\.payments\s*=/.test(KK), /appointmentsStore\.set/.test(KK)]);
+dit('... une fenetre KkiaPay remplacee ne touche plus l ecran ; le QR se voit regle sur la piece, ou relu au serveur', [true, true, true],
+  [KK.includes('const encore = () => vivant.current && tour.current === n;'), KK.includes("if (etat.k === 'qr' && lu.etat === 'reglee' && regleEnLigne === null) setRegleEnLigne(lu.recuXof);"),
+    KK.includes("if (vivant.current && r.page?.etat === 'reglee') setRegleEnLigne(r.page.recuXof);")]);
 dit('les parts se jugent dans l ordre : FedaPay pris par une part l est pour les suivantes', true,
   enc.includes("const fedapayPris = tuiles.some((t) => t === 'mndpay')"));
 dit('la bascule ne touche jamais une part qui a demande (ni une part payee)', true,

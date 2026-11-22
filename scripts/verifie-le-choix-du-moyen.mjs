@@ -24,9 +24,14 @@ const MTN = 'src/apps/trone/routes/clients/PayerParMtnAuTrone.tsx';
 const SANTE = 'src/apps/trone/routes/clients/sante-des-moyens.ts';
 const PANNES = [
   /* La règle */
-  ['MoMoPay avant FedaPay', PUR, "  return ['mtn', 'fedapay', 'tapgo', 'momopay'];", "  return ['mtn', 'momopay', 'fedapay', 'tapgo'];"],
-  ['un numero Moov commence par MTN', PUR, "  if (m && !estUnNumeroMtn(m)) return ['fedapay', 'tapgo', 'momopay'];", ''],
-  ['la carte commence par le terminal', PUR, "  if (voie === 'carte') return ['tpeKkiapay', 'terminal'];", "  if (voie === 'carte') return ['terminal', 'tpeKkiapay'];"],
+  ['MoMoPay avant FedaPay', PUR, "  return ['mtn', 'kkiapay', 'fedapay', 'tapgo', 'momopay'];", "  return ['mtn', 'kkiapay', 'momopay', 'fedapay', 'tapgo'];"],
+  ['KkiaPay avant Payer par MTN', PUR, "  return ['mtn', 'kkiapay', 'fedapay', 'tapgo', 'momopay'];", "  return ['kkiapay', 'mtn', 'fedapay', 'tapgo', 'momopay'];"],
+  ['KkiaPay apres FedaPay pour Moov', PUR, "  if (m && !estUnNumeroMtn(m)) return ['kkiapay', 'fedapay', 'tapgo', 'momopay'];", "  if (m && !estUnNumeroMtn(m)) return ['fedapay', 'kkiapay', 'tapgo', 'momopay'];"],
+  ['KkiaPay pris par plusieurs parts', PUR, "    if (c.plusieursParts) return 'KkiaPay règle tout le reste en une seule fois';\n", ''],
+  ['KkiaPay ferme reste propose', PUR, "    if (c.kkiapay && !c.kkiapay.ouvert) return c.kkiapay.pourquoi ?? 'KkiaPay ne répond pas';\n", ''],
+  ['la part KkiaPay s encaisse au Trone', ACTIONS, "const partMtn = parts.some((pt) => pt.tuile === 'mtn' || pt.tuile === 'kkiapayTrone' || pt.tuile === 'kkiapayQr');", "const partMtn = parts.some((pt) => pt.tuile === 'mtn');"],
+  ['un numero Moov commence par MTN', PUR, "  if (m && !estUnNumeroMtn(m)) return ['kkiapay', 'fedapay', 'tapgo', 'momopay'];", ''],
+  ['la carte commence par le terminal', PUR, "  if (voie === 'carte') return ['tpeKkiapay', 'qrKkiapay', 'terminal'];", "  if (voie === 'carte') return ['terminal', 'tpeKkiapay', 'qrKkiapay'];"],
   ['le TPE KkiaPay en devise', PUR, "  if (r === 'tpeKkiapay' && c.enDevise) return 'le TPE KkiaPay ne prend que des francs';\n", ''],
   ['les frais KkiaPay au franc inferieur', PUR, '  return Math.ceil(Math.round(m * FRAIS_KKIAPAY_CARTE_PCT * 100) / 10000);', '  return Math.floor(Math.round(m * FRAIS_KKIAPAY_CARTE_PCT * 100) / 10000);'],
   ['la carte KkiaPay ecrite Carte seule (caisse Carte)', PUR, "export const MOYEN_CARTE_KKIAPAY = 'Carte · KkiaPay';", "export const MOYEN_CARTE_KKIAPAY = 'Carte';"],

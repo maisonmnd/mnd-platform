@@ -49,7 +49,7 @@ function CodeTapGo({ code, montant }: { code: string; montant: string }) {
 }
 
 /** Un QR lisible : noir sur blanc, ses quatre modules de silence. */
-function QrDuPaiement({ valeur, taille = 168 }: { valeur: string; taille?: number }) {
+export function QrDuPaiement({ valeur, taille = 168 }: { valeur: string; taille?: number }) {
   const d = useMemo(() => {
     const qr = qrcode(0, 'M');
     qr.addData(valeur);

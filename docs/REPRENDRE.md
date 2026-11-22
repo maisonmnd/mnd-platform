@@ -2,6 +2,17 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## KKIAPAY POUR MTN, MOOV ET CELTIIS, ET LE QR DE SON RENDEZ-VOUS — 22 novembre 2026, À METTRE EN LIGNE (le Trône seul ; aucun SQL, aucune fonction : `regler-la-seance` en ligne fait le travail)
+
+« Il reste le QR code du TPE ou de la carte, et KkiaPay MTN, Moov et Celtiis en paiement API » (Yéman). Au sélecteur : « après Payer par MTN » et « le QR de son rendez-vous ».
+
+- **KkiaPay ne publie pas d'API qui demande l'argent depuis un serveur** (sa documentation : `verify` et `refund` seulement ; son application POS envoie l'USSD, sans API). Son chemin est sa fenêtre de paiement : elle s'ouvre SUR LE TRÔNE, la caissière tape son numéro (MTN, Moov ou Celtiis), la demande part sur son téléphone.
+- **Mobile money** (`choix-du-moyen-pur`, rail `kkiapay`) : un numéro MTN, Payer par MTN puis KkiaPay ; Moov ou Celtiis, KkiaPay d'abord ; FedaPay, Tap & Go et MoMoPay derrière. Il ne se propose pas en devise, pour plusieurs parts (il règle tout le reste), ni quand sa fenêtre ne peut pas s'ouvrir (`etatKkiapay` de l'écran : la clé publique au Trône, le serveur, le réseau, une panne vue depuis moins de dix minutes). Il n'est PAS un « prestataire » relu : ses pannes ne s'inscrivent pas en base (la table des pannes, 0204, n'admet que MTN et FedaPay).
+- **Carte** (rail `qrKkiapay`) : le TPE, puis le QR de son rendez-vous, puis le terminal de la banque. Elle scanne, la page « Régler » s'ouvre sur son téléphone, elle paie par KkiaPay (carte ou mobile money).
+- **Les deux passent par le lien « Régler » du rendez-vous** (`KkiapayAuTrone.tsx`) : la pièce émise si elle manque, le jeton posé (`poseLeLienDeReglement`), la page relue au serveur (`lisLeLien`) jusqu'à ce que la pièce y soit ; puis le numéro de transaction rendu à `regler-la-seance` (`regleLeLien`), qui redemande la vérité à KkiaPay et pose l'argent sur la pièce, caisse KkiaPay, le surplus en pourboire. Le Trône n'écrit jamais l'argent : la part ne s'encaisse pas dans la fenêtre (`partMtn`), comme Payer par MTN. Le QR voit le règlement sur la pièce (la synchro), ou à la relecture de la page toutes les cinq secondes. Une fenêtre KkiaPay remplacée ne touche plus l'écran (`tour`).
+- **Les frais** : KkiaPay ajoute les siens pour la cliente ; le Trône n'ajoute rien.
+- **Bancs** : `verifie-le-choix-du-moyen` 64 (`--prouve` 49 sur 49 : l'ordre, KkiaPay fermé, en devise, plusieurs parts, une panne, la part qui ne s'encaisse pas au Trône, les panneaux qui passent par le lien sans écrire d'argent) ; typecheck 0. Les panneaux eux-mêmes ne s'éprouvent pas hors ligne (la fenêtre KkiaPay vient de son CDN, le lien de la fonction) : l'essai réel les regarde sans les ouvrir.
+
 ## LA CARTE PAR LE TPE KKIAPAY — 21 novembre 2026, au soir, EN LIGNE (Trône build 20261121194941 @ 4b48c428, 554/554 ; le Trône seul ; aucun SQL, aucune fonction). Essai réel, rien encaissé : pour un rituel de 10 000 F, la tuile propose « Carte, par KkiaPay · elle tape sa carte sur le TPE », « Au TPE KkiaPay : 10 000 F … elle paiera 10 230 F », caisse KkiaPay, le bouton reste à 10 000 F, plus aucun QR ni FedaPay dans la fenêtre
 
 « Quand on choisit carte, on va sur FedaPay, qui ne prend pas les cartes ; il n'y a que KkiaPay. Il faut écrire « carte par KkiaPay ». » Puis : « On a le TPE de KkiaPay, qui fait le tap to pay : elle tape sa carte et on collecte le paiement », « le TPE seul » au sélecteur, et « les frais de KkiaPay sont de 2,3 % au lieu de 4 % » (Yéman, avec le reçu KkiaPay de la carte d'une cliente).

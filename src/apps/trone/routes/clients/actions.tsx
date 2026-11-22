@@ -33,7 +33,11 @@ import { ditLesMissionsRetirees } from '../../../../shared/missions-prestataires
 import { Link } from 'react-router-dom';
 import { autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT, lienPaiementMomo, MOMO_QR_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
 import { AuComptoir, type Grand } from './AuComptoir';
-import { FRAIS_KKIAPAY_CARTE_PCT, MOYEN_CARTE_KKIAPAY, RAILS, autresMoyens, fraisKkiapayDeCarteXof, leChoixDuMoyen, type LeChoix, type Rail, type Voie } from '../../../../shared/choix-du-moyen-pur';
+import { FRAIS_KKIAPAY_CARTE_PCT, MOYEN_CARTE_KKIAPAY, PANNE_RETENUE_MS, RAILS, autresMoyens, fraisKkiapayDeCarteXof, heureDite, leChoixDuMoyen, type LeChoix, type Rail, type Voie } from '../../../../shared/choix-du-moyen-pur';
+import { kkiapayPeutSOuvrir } from '../../../../shared/kkiapay-widget';
+import { supabase } from '../../../../shared/supabase';
+import { PayerParKkiapayAuTrone, QrDuReglementEnLigne } from './KkiapayAuTrone';
+import { CAISSE_EN_LIGNE as CAISSE_KKIAPAY_EN_LIGNE } from '../../../../shared/regler-la-seance-pur';
 import { CAISSE_MTN_COLLECTION, estUnNumeroMtn, msisdnDe } from '../../../../shared/collecte-mtn-pur';
 import { signaleMtnFerme, signaleUnePanne, signaleUneReussite, useLaSanteDesMoyens } from './sante-des-moyens';
 import { ReglementEnDirect } from './ReglementEnDirect';
@@ -901,7 +905,10 @@ function EtapeEnc({ n, titre, resume, alerte, ouvert, onBascule, children }: {
     se voient plus : elles vivent derrière « Mobile money » et « Carte ». */
 /* `carteKkiapay` (21 novembre 2026, au soir) : la carte passée au TPE KkiaPay,
    moyen « Carte · KkiaPay », caisse KkiaPay ; `carte` reste le terminal de la banque. */
-type TuileEnc = 'especes' | 'mtn' | 'momo' | 'momoPrive' | 'kkiapay' | 'carte' | 'carteKkiapay' | 'cheque' | 'mndpay' | 'avoir' | 'autre';
+/* `kkiapayTrone` et `kkiapayQr` (22 novembre 2026) : KkiaPay ouvert sur le Trône
+   (Mobile money), et le QR de son rendez-vous (Carte). Le serveur pose
+   l'argent lui-même sur la pièce, caisse KkiaPay, comme « Payer par MTN ». */
+type TuileEnc = 'especes' | 'mtn' | 'momo' | 'momoPrive' | 'kkiapay' | 'carte' | 'carteKkiapay' | 'kkiapayTrone' | 'kkiapayQr' | 'cheque' | 'mndpay' | 'avoir' | 'autre';
 /* ══ LES TUILES QU'ON VOIT · LE CHOIX DU MOYEN, 12 novembre 2026 ═══════
    Maquette « Le choix du moyen » (DnRyTv95…), « construis » : six tuiles au
    lieu de neuf. « Mobile money » remplace Payer par MTN, MTN MoMoPay, KkiaPay
@@ -921,7 +928,8 @@ const TUILES_VUES: { id: TuileVue; nom: string; sous: string }[] = [
   { id: 'autre', nom: 'Autres', sous: 'les autres moyens' },
 ];
 /** La tuile d'avant que porte un moyen de la règle. */
-const tuileDuRail = (r: Rail): TuileEnc => (r === 'mtn' ? 'mtn' : r === 'momopay' ? 'momo' : r === 'terminal' ? 'carte' : r === 'tpeKkiapay' ? 'carteKkiapay' : 'mndpay');
+const tuileDuRail = (r: Rail): TuileEnc => (r === 'mtn' ? 'mtn' : r === 'momopay' ? 'momo' : r === 'terminal' ? 'carte' : r === 'tpeKkiapay' ? 'carteKkiapay'
+  : r === 'kkiapay' ? 'kkiapayTrone' : r === 'qrKkiapay' ? 'kkiapayQr' : 'mndpay');
 /** Le moyen que le panneau FedaPay ouvre : Tap & Go, ou le
     réseau de son numéro (MTN quand l'API MTN est fermée, Moov sinon :
     Celtiis se touche dans le panneau). */
@@ -935,7 +943,8 @@ const MOYENS_FEDAPAY_MOBILE: readonly MoyenMndPay[] = ['mtn', 'moov', 'celtiis',
 /** La tuile qu'on voit allumée pour une part. */
 const vueDeLaPart = (p: PartEnc): TuileVue => {
   if (p.voie) return p.voie;
-  if (p.tuile === 'carteKkiapay') return 'carte';
+  if (p.tuile === 'carteKkiapay' || p.tuile === 'kkiapayQr') return 'carte';
+  if (p.tuile === 'kkiapayTrone') return 'mobile';
   if (p.tuile === 'mtn' || p.tuile === 'momo' || p.tuile === 'momoPrive' || p.tuile === 'kkiapay' || p.tuile === 'mndpay') return 'mobile';
   return p.tuile;
 };
@@ -960,6 +969,7 @@ function methodeDeLaTuile(t: TuileEnc, methods: readonly string[], autre?: strin
     case 'kkiapay': return methods.find((m) => familleDuMoyen(m) === 'kkiapay') ?? MOYEN_KKIAPAY;
     case 'carte': return methods.find(estCarte) ?? 'Carte';
     case 'carteKkiapay': return MOYEN_CARTE_KKIAPAY;
+    case 'kkiapayTrone': case 'kkiapayQr': return MOYEN_KKIAPAY;
     case 'cheque': return methods.find(estCheque) ?? 'Chèque';
     case 'avoir': return 'Avoir';
     case 'mndpay': return 'FedaPay';
@@ -968,7 +978,7 @@ function methodeDeLaTuile(t: TuileEnc, methods: readonly string[], autre?: strin
   }
 }
 const DIT_LA_TUILE: Record<TuileEnc, string> = {
-  especes: 'en espèces', mtn: 'par MTN', momo: 'en MTN MoMoPay', momoPrive: 'en MoMo Privé', kkiapay: 'par KkiaPay', carte: 'par carte', carteKkiapay: 'par carte, au TPE KkiaPay', cheque: 'par chèque', mndpay: 'par FedaPay', avoir: 'sur l’avoir', autre: '',
+  especes: 'en espèces', mtn: 'par MTN', momo: 'en MTN MoMoPay', momoPrive: 'en MoMo Privé', kkiapay: 'par KkiaPay', carte: 'par carte', carteKkiapay: 'par carte, au TPE KkiaPay', kkiapayTrone: 'par KkiaPay', kkiapayQr: 'par KkiaPay, sur son téléphone', cheque: 'par chèque', mndpay: 'par FedaPay', avoir: 'sur l’avoir', autre: '',
 };
 /** UNE PART DU RÈGLEMENT : sa tuile, son montant, et la caisse qu'une main
     de la direction a choisie à la place de celle qui se propose. `mnd` : la
@@ -1723,6 +1733,14 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
        Collection » à la réponse de MTN. La barre le disait « → MoMoPay
        Maison MND » (la caisse que le nom du moyen évoquait) : vu à l'essai
        réel du 12 novembre 2026, quand Mobile money a proposé MTN d'office. */
+    /* KKIAPAY SUR LE TRÔNE OU PAR LE QR (22 novembre 2026) : le serveur pose l'argent
+       lui-même sur la pièce, caisse KkiaPay, à la réponse de KkiaPay. */
+    if (pt.tuile === 'kkiapayTrone' || pt.tuile === 'kkiapayQr') {
+      return {
+        methode: MOYEN_KKIAPAY, caisse: CAISSE_KKIAPAY_EN_LIGNE,
+        proposee: { caisse: CAISSE_KKIAPAY_EN_LIGNE, pourquoi: 'KkiaPay pose l’argent lui-même, à sa réponse.' }, peutChanger: false,
+      };
+    }
     if (pt.tuile === 'mtn') {
       return {
         methode: 'MTN Collection', caisse: CAISSE_MTN_COLLECTION,
@@ -2487,6 +2505,16 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
   const sante = useLaSanteDesMoyens(true, mndOn);
   const tapGoServeur = useSaitTapGo(mndOn && tapGoOuvert(settings.mndPay));
   const telDuChoix = payerClient?.phone ?? client?.phone ?? null;
+  /* KKIAPAY (22 novembre 2026) : sa fenêtre s'ouvre-t-elle ici ? La clé publique au
+     Trône, le réseau, et pas de panne vue depuis dix minutes. */
+  const [kkiaPanneLe, setKkiaPanneLe] = useState<number | null>(null);
+  const etatKkiapay = !kkiapayPeutSOuvrir()
+    ? { ouvert: false, pourquoi: 'la clé KkiaPay n’est pas posée au Trône' }
+    : !supabase || (typeof navigator !== 'undefined' && navigator.onLine === false)
+      ? { ouvert: false, pourquoi: 'le Trône est hors ligne' }
+      : kkiaPanneLe !== null && Date.now() - kkiaPanneLe < PANNE_RETENUE_MS
+        ? { ouvert: false, pourquoi: `KkiaPay ne répond pas depuis ${heureDite(kkiaPanneLe)}` }
+        : { ouvert: true };
   const lesChoix: (LeChoix | null)[] = (() => {
     const tuiles: TuileEnc[] = [];
     return parts.map((p, i) => {
@@ -2497,7 +2525,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
       const ch = leChoixDuMoyen({
         voie, telephone: telDuChoix, montantXof: montantDe(p) || resteAPartager, sante,
         tapGoOuvert: mndOn && tapGoOuvert(settings.mndPay) && tapGoServeur,
-        fedapayPris, plusieursParts: parts.length > 1, enDevise: fxOn, aLaMain: p.aLaMain,
+        fedapayPris, plusieursParts: parts.length > 1, enDevise: fxOn, aLaMain: p.aLaMain, kkiapay: etatKkiapay,
       });
       tuiles.push(ch.rail && !p.engage && !p.mnd ? tuileDuRail(ch.rail) : p.tuile);
       return ch;
@@ -2585,7 +2613,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                 : '';
   /* UNE PART « PAYER PAR MTN » NE S'ENCAISSE PAS ICI : le serveur pose
      l'argent sur la pièce à la réponse de MTN (11 novembre 2026). */
-  const partMtn = parts.some((pt) => pt.tuile === 'mtn');
+  /* KkiaPay sur le Trône ou par le QR (22 novembre 2026) : pareil, le serveur pose l'argent. */
+  const partMtn = parts.some((pt) => pt.tuile === 'mtn' || pt.tuile === 'kkiapayTrone' || pt.tuile === 'kkiapayQr');
   const empecheTout = partMtn || horsCarnet > 0 || !!traceQuiManque || partsTropHautes || avoirTropHaut || mndEnAttente || (fxOn && fxAmount <= 0) || fxBlocked || ditLaCaisse;
   const lesAutres = autresMethodes(methods);
   /* « Remove MTN privé from there » (Yéman, 11 novembre 2026) : MoMo Privé ne
@@ -2611,7 +2640,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
       const ch = leChoixDuMoyen({
         voie: t, telephone: telDuChoix, montantXof: montantDe(p) || resteAPartager, sante,
         tapGoOuvert: mndOn && tapGoOuvert(settings.mndPay) && tapGoServeur,
-        fedapayPris: parts.some((q) => q.id !== p.id && q.tuile === 'mndpay'), plusieursParts: parts.length > 1, enDevise: fxOn,
+        fedapayPris: parts.some((q) => q.id !== p.id && q.tuile === 'mndpay'), plusieursParts: parts.length > 1, enDevise: fxOn, kkiapay: etatKkiapay,
       });
       const tuile = ch.rail ? tuileDuRail(ch.rail) : (t === 'carte' ? 'carte' : 'momo');
       majPart(p.id, { voie: t, aLaMain: undefined, tuile, moyenFeda: ch.rail ? moyenFedaPayDuRail(ch.rail, telDuChoix) : undefined, caisseChoisie: undefined, choixOuvert: false });
@@ -3269,7 +3298,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                   <div style={{ fontSize: 11.5, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
                     Disponible {fmtMoney(avoirBal, currency)}. Crédit prépayé du compte{account.type === 'family' ? ' famille' : ''}, déduit sans passer par la caisse.
                   </div>
-                ) : p.tuile !== 'mndpay' && p.tuile !== 'mtn' && (
+                ) : p.tuile !== 'mndpay' && p.tuile !== 'mtn' && p.tuile !== 'kkiapayTrone' && p.tuile !== 'kkiapayQr' && (
                   <div style={{ display: 'grid', gap: 6 }}>
                     <div style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--ink-soft)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
                       <span>
@@ -3356,6 +3385,28 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                     onReussite={() => signaleUneReussite('mtn')}
                   />
                 )}
+                {/* KKIAPAY SUR LE TRÔNE, ET LE QR DE SON RENDEZ-VOUS (22 novembre 2026) :
+                    le lien « Régler » du rendez-vous, le serveur pose l'argent. */}
+                {(p.tuile === 'kkiapayTrone' || p.tuile === 'kkiapayQr') && (() => {
+                  const emetLaPiece = () => {
+                    const t = tarifsDuRituel(appt, {
+                      client, bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsCatalogue,
+                    });
+                    const r = factureAEnvoyer(appt, byId, appt.branchId, t.prixPlein, t.gesteDe);
+                    return r.ok ? { ok: true } : { ok: false, erreur: r.erreur };
+                  };
+                  const onOccupe = (o: boolean) => { if (!!p.engage !== o) majPart(p.id, { engage: o }); };
+                  return p.tuile === 'kkiapayTrone' ? (
+                    <PayerParKkiapayAuTrone
+                      rdvId={appt.id} currency={currency} emetLaPiece={emetLaPiece} onRegle={onClose} onOccupe={onOccupe}
+                      telephone={payerClient?.phone ?? client?.phone} nom={payerClient?.name ?? client?.name}
+                      resteXof={due} pourboireXof={tip}
+                      onPanne={() => setKkiaPanneLe(Date.now())} onReussite={() => setKkiaPanneLe(null)}
+                    />
+                  ) : (
+                    <QrDuReglementEnLigne rdvId={appt.id} currency={currency} emetLaPiece={emetLaPiece} onRegle={onClose} onOccupe={onOccupe} resteXof={due} />
+                  );
+                })()}
               </div>
             );
           })}

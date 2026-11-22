@@ -31,6 +31,19 @@
    elle pose sa carte, et le ticket donne le n° d'autorisation. L'argent
    arrive chez KkiaPay : le moyen « Carte · KkiaPay », la caisse KkiaPay.
 
+   KKIAPAY POUR MTN, MOOV ET CELTIIS, ET LE QR DE SON RENDEZ-VOUS — 22 novembre
+   2026. « Il reste le QR code du TPE ou de la carte, et KkiaPay MTN, Moov et
+   Celtiis en paiement API » (Yéman), puis au sélecteur « après Payer par
+   MTN » et « le QR de son rendez-vous ». KkiaPay ne publie pas d'API qui
+   demande l'argent depuis un serveur : sa fenêtre de paiement s'ouvre sur
+   le Trône, la caissière y tape son numéro, la demande part sur son
+   téléphone. Les deux passent par le lien « Régler » de son rendez-vous
+   (`regler-la-seance`) : le serveur redemande la vérité à KkiaPay et pose
+   l'argent sur la pièce, caisse KkiaPay, comme « Payer par MTN ». Un
+   numéro MTN : Payer par MTN, puis KkiaPay ; Moov ou Celtiis : KkiaPay
+   d'abord ; FedaPay reste derrière. La carte : le TPE, puis le QR, puis le
+   terminal de la banque. KkiaPay ajoute ses frais pour elle.
+
    Tout se décide ici, sans magasin ni React : `scripts/verifie-le-choix-du-moyen`
    le rejoue. L'écran (`clients/actions.tsx`) et la lecture de la santé
    (`clients/sante-des-moyens.ts`) ne font qu'appliquer. */
@@ -39,7 +52,7 @@ import { estUnNumeroMtn, msisdnDe } from './collecte-mtn-pur';
 /** La tuile que la caissière touche. */
 export type Voie = 'mobile' | 'carte';
 /** Les moyens du comptoir, tels que la règle les range. */
-export type Rail = 'mtn' | 'fedapay' | 'tapgo' | 'momopay' | 'tpeKkiapay' | 'terminal';
+export type Rail = 'mtn' | 'kkiapay' | 'fedapay' | 'tapgo' | 'momopay' | 'tpeKkiapay' | 'qrKkiapay' | 'terminal';
 /** Les prestataires que le Trône relit. */
 export type Prestataire = 'mtn' | 'fedapay';
 
@@ -58,10 +71,12 @@ export type FicheDuRail = {
 
 export const RAILS: Record<Rail, FicheDuRail> = {
   mtn: { nom: 'Payer par MTN', sous: 'la demande part sur son téléphone', voie: 'mobile', seConfirmeSeul: true, prestataire: 'mtn', frais: 'frais MTN (1,6 %) ajoutés pour elle' },
+  kkiapay: { nom: 'KkiaPay', sous: 'la demande part sur son téléphone', voie: 'mobile', seConfirmeSeul: true, frais: 'KkiaPay ajoute ses frais pour elle' },
   fedapay: { nom: 'FedaPay', sous: 'la demande part sur son téléphone', voie: 'mobile', seConfirmeSeul: true, prestataire: 'fedapay', frais: 'frais FedaPay ajoutés pour elle' },
   tapgo: { nom: 'Tap & Go', sous: 'elle compose le code, tous réseaux, sans internet', voie: 'mobile', seConfirmeSeul: true, prestataire: 'fedapay', frais: 'frais Tap & Go ajoutés pour elle' },
   momopay: { nom: 'MTN MoMoPay', sous: 'code 909099', voie: 'mobile', seConfirmeSeul: false, frais: 'frais dans le code MoMo', secours: true },
   tpeKkiapay: { nom: 'Carte, par KkiaPay', sous: 'elle tape sa carte sur le TPE', voie: 'carte', seConfirmeSeul: false, frais: 'KkiaPay ajoute ses 2,3 % pour elle' },
+  qrKkiapay: { nom: 'QR, par KkiaPay', sous: 'elle paie sur son téléphone, carte ou mobile money', voie: 'carte', seConfirmeSeul: true, frais: 'KkiaPay ajoute ses frais pour elle' },
   terminal: { nom: 'Terminal de la banque', sous: 'la carte tendue au terminal', voie: 'carte', seConfirmeSeul: false, frais: 'commission de la banque', secours: true },
 };
 
@@ -89,10 +104,10 @@ export const PLAFOND_MTN_XOF = 2_000_000;
 /** L'ordre de la règle, voie par voie. Un numéro qui n'est pas chez MTN
     (Moov, Celtiis) passe d'abord par FedaPay. */
 export function ordreDuComptoir(voie: Voie, telephone?: string | null): Rail[] {
-  if (voie === 'carte') return ['tpeKkiapay', 'terminal'];
+  if (voie === 'carte') return ['tpeKkiapay', 'qrKkiapay', 'terminal'];
   const m = msisdnDe(telephone ?? '');
-  if (m && !estUnNumeroMtn(m)) return ['fedapay', 'tapgo', 'momopay'];
-  return ['mtn', 'fedapay', 'tapgo', 'momopay'];
+  if (m && !estUnNumeroMtn(m)) return ['kkiapay', 'fedapay', 'tapgo', 'momopay'];
+  return ['mtn', 'kkiapay', 'fedapay', 'tapgo', 'momopay'];
 }
 
 /** CE QUE LE TRÔNE SAIT D'UN PRESTATAIRE.
@@ -177,6 +192,11 @@ export type ContexteDuChoix = {
   enDevise?: boolean;
   /** Le moyen que la caissière a touché elle-même. */
   aLaMain?: Rail;
+  /** KKIAPAY (22 novembre 2026) : sa fenêtre peut-elle s'ouvrir sur ce poste
+      (la clé publique au Trône, le réseau, pas de panne vue depuis dix
+      minutes) ? Absent : oui. Il n'est pas un « prestataire » relu par une
+      fonction ; ses pannes ne s'inscrivent pas en base. */
+  kkiapay?: { ouvert: boolean; pourquoi?: string };
 };
 
 export type LigneDuChoix = { rail: Rail; hors?: string };
@@ -206,6 +226,11 @@ export function horsDuRail(r: Rail, c: ContexteDuChoix): string {
   }
   if (r === 'momopay' && c.enDevise) return 'MoMoPay ne prend que des francs';
   if (r === 'tpeKkiapay' && c.enDevise) return 'le TPE KkiaPay ne prend que des francs';
+  if (r === 'kkiapay' || r === 'qrKkiapay') {
+    if (c.enDevise) return 'KkiaPay ne prend que des francs';
+    if (c.plusieursParts) return 'KkiaPay règle tout le reste en une seule fois';
+    if (c.kkiapay && !c.kkiapay.ouvert) return c.kkiapay.pourquoi ?? 'KkiaPay ne répond pas';
+  }
   if (fiche.prestataire) {
     const s = c.sante[fiche.prestataire];
     if (!s.ouvert || !s.repond) return s.pourquoi ?? `${NOM_DU_PRESTATAIRE[fiche.prestataire]} ne répond pas`;
@@ -217,10 +242,12 @@ const RAISON_DU_PREMIER: Record<Rail, (c: ContexteDuChoix) => string> = {
   mtn: (c) => (msisdnDe(c.telephone ?? '')
     ? 'Son numéro est chez MTN : la demande part sur son téléphone (frais de 1,6 % ajoutés pour elle), et MTN confirme seul.'
     : 'Pas de numéro sur sa fiche : tapez-le. Par MTN, frais de 1,6 % ajoutés pour elle, et MTN confirme seul.'),
+  kkiapay: () => 'Son numéro n’est pas chez MTN : KkiaPay s’ouvre ici, tapez son numéro ; elle confirme sur son téléphone, et KkiaPay confirme seul. Ses frais s’ajoutent pour elle.',
   fedapay: () => 'Son numéro n’est pas chez MTN : FedaPay lui envoie la demande (Moov ou Celtiis) et confirme seul.',
   tapgo: () => 'Elle compose le code sur son téléphone, n’importe quel réseau ; le Trône reconnaît son paiement au montant.',
   momopay: () => 'MoMoPay, à pointer le soir sur le relevé.',
   tpeKkiapay: () => 'Passez au TPE KkiaPay le montant du rituel : KkiaPay ajoute lui-même ses 2,3 % pour elle. Elle pose sa carte (tap to pay) ; notez la référence du reçu.',
+  qrKkiapay: () => 'Elle scanne le QR : la page « Régler » de son rendez-vous s’ouvre sur son téléphone, elle paie par KkiaPay, et KkiaPay confirme seul.',
   terminal: () => 'Le terminal de la banque, à pointer sur le relevé.',
 };
 
