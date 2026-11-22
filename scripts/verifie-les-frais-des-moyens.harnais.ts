@@ -128,6 +128,13 @@ dit('un taux a un seul endroit : la carte FedaPay n ecrit plus ses taux, la cart
 const carte = sansCommentaires('src/apps/trone/routes/systeme/CarteDesFrais.tsx');
 dit('la direction seule ecrit un taux ; une saisie illisible ne s ecrit pas', [true, true], [
   carte.includes("if (!estDirection) { toast('Ce réglage appartient à la direction.');"), carte.includes("if (!reglagesApresSaisie(l.id, saisie, s)) { toast('Un taux de 0 à 10 %, par exemple 2,3.');")]);
+/* « LES CASES NE MARCHENT PAS » (Yéman, 22 novembre 2026) : le taux en vigueur
+   est une vraie valeur, sélectionnée au clic ; la case ne se fige que pour qui
+   n'est PAS la direction, jamais tant que le rôle se charge. */
+dit('la case porte le taux en vigueur, se selectionne au clic, et ne se fige que si l on sait', [true, true, true, true, false], [
+  carte.includes('value={brouillon ?? enVigueur}'), carte.includes('requestAnimationFrame(() => champ.select())'),
+  carte.includes('fige={pret && !estDirection}'), carte.includes("if (!estDirection && !pret) { toast('Le Trône vérifie encore votre rôle : réessayez dans un instant.'); return; }"),
+  carte.includes('defaultValue=')]);
 const pdf = sansCommentaires('src/apps/trone/routes/vente/pdf-de-la-piece.ts');
 dit('le code MoMoPay du foyer au taux regle, partout ou le papier se fait', [true, 2, true], [
   pdf.includes('montantMomopayFraisCompris(resteXof, o.momopayPct)'),

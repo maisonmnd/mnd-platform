@@ -51,6 +51,8 @@ const PANNES = [
   ['une phrase du choix sans les taux', ACTIONS, 'enDevise: fxOn, aLaMain: p.aLaMain, kkiapay: etatKkiapay, taux: tauxDesPhrases,', 'enDevise: fxOn, aLaMain: p.aLaMain, kkiapay: etatKkiapay,'],
   ['la page Regler compte a 1,6 %', PAGE, '  const frais = fraisAjoutesMtn(totalXof, tauxMtn);', '  const frais = fraisAjoutesMtn(totalXof);'],
   ['tout le personnel ecrit un taux', CARTE, "    if (!estDirection) { toast('Ce réglage appartient à la direction.');", "    if (false) { toast('Ce réglage appartient à la direction.');"],
+  ['la case se fige tant que le role se charge', CARTE, 'fige={pret && !estDirection}', 'fige={!estDirection}'],
+  ['le taux n est plus qu un filigrane', CARTE, 'value={brouillon ?? enVigueur}', "value={brouillon ?? ''}"],
   ['KkiaPay ouvert sans le numero tape', KK, '...(numeroLu ? { phone: numeroLu.slice(3) } : {})', '...(telephone ? { phone: telephone } : {})'],
   ['le code MoMoPay du foyer a 1,2 %', PDF, 'montantMomopayFraisCompris(resteXof, o.momopayPct)', 'montantMomopayFraisCompris(resteXof)'],
 ];
