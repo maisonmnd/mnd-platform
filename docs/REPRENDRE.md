@@ -1,4 +1,4 @@
-# Reprendre — état de la Maison
+﻿# Reprendre — état de la Maison
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
