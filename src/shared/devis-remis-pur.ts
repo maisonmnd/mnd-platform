@@ -54,6 +54,13 @@ export type DevisLuPourLaRemise = {
   remisHorsRegle?: string;
   /** Une commande de la Boutique : hors de la règle. */
   boutique?: unknown;
+  /** LA REMISE AU FAUTEUIL — 22 novembre 2026, le Devis en direct. Le maître
+      le dit lui-même, dans la fenêtre de son rendez-vous : elle est devant
+      lui, aujourd'hui. Ce n'est PAS la remise ordinaire (`remisLe`), qui
+      demande une preuve de venue déjà écrite ; c'est le cas où la venue est
+      en train de se faire. Un devis qui ne porte pas cette marque ne sort pas
+      par cette porte. */
+  auFauteuil?: { le: string; par?: string };
 };
 
 /** Ce que la règle lit d'une consultation, tel que `visio-salle` et la file B
@@ -88,7 +95,7 @@ export type ContexteDeLaRemise = {
 };
 
 export type Remise =
-  | { ok: true; par: 'hors-regle' | 'deja-remis' | 'visio' | 'privee' | 'rendez-vous' }
+  | { ok: true; par: 'hors-regle' | 'deja-remis' | 'visio' | 'privee' | 'rendez-vous' | 'fauteuil' }
   | { ok: false; raison: string };
 
 const ETATS_PARTIS = ['envoyée', 'acceptée', 'confirmé', 'payée'];
@@ -184,6 +191,35 @@ export function peutEtreRemis(d: DevisLuPourLaRemise, ctx: ContexteDeLaRemise): 
 }
 
 /* ── CE QUE LE TRÔNE AFFICHE ──────────────────────────────────────────── */
+
+/* ══ LA REMISE AU FAUTEUIL — 22 novembre 2026 ═══════════════════════════
+   Le devis en direct a un cas que `peutEtreRemis` ne connaît pas : elle est
+   DANS LE FAUTEUIL, la consultation se fait maintenant, et le devis s'écrit
+   devant elle. La règle ordinaire demande une preuve de venue DÉJÀ écrite
+   (visio tenue, privée faite, rendez-vous honoré) et refuse donc, à raison,
+   un rendez-vous qui n'a pas encore eu lieu — c'est le garde-fou de l'audit
+   du 17 novembre, il ne se lève pas.
+
+   CE QUI LÈVE ICI, ET SEULEMENT ICI : le maître le déclare dans la fenêtre
+   de SON rendez-vous (`auFauteuil`), et il y a bien, au Carnet, un
+   rendez-vous de cette cliente AUJOURD'HUI, ni annulé ni déplacé. Pas de
+   marque, pas de rendez-vous du jour : le devis attend son rendez-vous,
+   comme avant. La marque se pose une fois ; elle ne se réécrit pas.
+
+   Le rôle (le maître seul, ou l'accueil aussi) est une question posée à
+   Yéman : ici, la règle ne dit que le rendez-vous et la marque. */
+export function peutEtreRemisAuFauteuil(
+  d: Pick<DevisLuPourLaRemise, 'kind' | 'clientId' | 'forClientId' | 'boutique' | 'auFauteuil'>,
+  ctx: { rdvs: readonly RdvDeLaRemise[]; aujourdhui: string },
+): Remise {
+  if (horsRegle(d)) return { ok: true, par: 'hors-regle' };
+  if (!d.auFauteuil?.le) return { ok: false, raison: 'Ce devis n’est pas marqué au fauteuil : il se remet au rendez-vous.' };
+  const tetes = [d.clientId, d.forClientId].filter((x): x is string => !!x);
+  const duJour = ctx.rdvs.filter((a) => a.status !== 'annulé' && jourDeLInstant(a.date) === ctx.aujourdhui && tetes.includes(a.clientId));
+  if (duJour.length === 0) return { ok: false, raison: 'Elle n’a pas de rendez-vous aujourd’hui : le devis attend son rendez-vous.' };
+  return { ok: true, par: 'fauteuil' };
+}
+
 
 export type EtatDeLaRemise =
   | { etat: 'hors-regle' }
