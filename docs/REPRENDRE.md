@@ -2,7 +2,9 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE PAIEMENT AU TPE KKIAPAY, SANS TICKET — 22 novembre 2026, À METTRE EN LIGNE (fonction NEUVE `kkiapay-tpe` 2026-11-22-a, `--jwt oui`, puis le Trône ; aucun SQL)
+## LE PAIEMENT AU TPE KKIAPAY, SANS TICKET — 22 novembre 2026, EN LIGNE (fonction NEUVE `kkiapay-tpe` 2026-11-22-a, v1, `verify_jwt` oui, secrets KkiaPay lus ; Trône build 20261122064315 @ e52e4a60, 554/554 ; aucun SQL)
+
+**Essai réel (lecture seule)** : sous « Carte, par KkiaPay », plus de n° d'autorisation ni de 4 chiffres ; « Aucun paiement signalé par KkiaPay ces trois dernières heures » ; la référence d'un vrai paiement du widget, « Vérifier » → `kkiapay-tpe` 200 → « Cette référence est un paiement en ligne […] déjà compté ailleurs » (la fonction parle à KkiaPay avec la session du personnel) ; registre 11 lignes avant et après. Restent à prouver avec Yéman : un vrai paiement au TPE qui paraisse dans la liste (voie 1), et une référence du TPE que l'API status reconnaisse (voie 2).
 
 « Il faut un meilleur moyen pour valider un paiement sur la TPE de KkiaPay. On ne peut pas saisir un numéro de ticket et 4 derniers chiffres. Comment faciliter ? » puis « les deux voies » (Yéman, devant l'encaissement).
 
