@@ -38,6 +38,7 @@ import {
 } from '../../../../shared/pricing';
 import './systeme.css';
 import { CarteMndPay } from './CarteMndPay';
+import { HEURES_DES_ETOILES, heureDite, reglagesDesEtoiles } from '../../../../shared/etoiles-pur';
 import { CarteDesFrais } from './CarteDesFrais';
 import { CarteRelances } from './CarteRelances';
 import { CarteDiagnosticPhoto } from './CarteDiagnosticPhoto';
@@ -1498,6 +1499,8 @@ export default function Parametres() {
     momoUssd: autoCfgRaw.momoUssd || MOMO_USSD_DEFAUT,
     momoMarchand: autoCfgRaw.momoMarchand || MOMO_MARCHAND_DEFAUT,
   };
+  /* VOS ÉTOILES (22 novembre 2026) : les réglages lus comme la fonction les lit. */
+  const etoilesCfg = reglagesDesEtoiles(autoCfgRaw);
   const setAuto = (field: keyof AutoConfig, val: string) =>
     setAutoCfgRaw({ ...autoCfg, [field]: val });
 
@@ -2149,6 +2152,24 @@ export default function Parametres() {
                 <label className="mnd-field">
                   <span className="mnd-field__label">Lien Google Avis</span>
                   <Input value={autoCfg.reviewLink} onChange={(e) => setAuto('reviewLink', e.target.value)} />
+                </label>
+                {/* VOS ÉTOILES (22 novembre 2026) : le bon moment de la demande, et son unique rappel. */}
+                <label className="mnd-field">
+                  <span className="mnd-field__label">Vos étoiles · quand part la demande</span>
+                  <Select
+                    value={etoilesCfg.moment === 'aussitot' ? 'aussitot' : String(etoilesCfg.heure)}
+                    onChange={(e) => setAutoCfgRaw({ ...autoCfg, etoiles: e.target.value === 'aussitot' ? { ...etoilesCfg, moment: 'aussitot' } : { ...etoilesCfg, moment: 'soir', heure: Number(e.target.value) } })}
+                  >
+                    {HEURES_DES_ETOILES.map((h) => <option key={h} value={String(h)}>Le soir même à {heureDite(h)}</option>)}
+                    <option value="aussitot">Dès que sa facture est réglée</option>
+                  </Select>
+                </label>
+                <label className="mnd-field">
+                  <span className="mnd-field__label">Vos étoiles · le rappel</span>
+                  <Select value={etoilesCfg.rappel ? 'oui' : 'non'} onChange={(e) => setAutoCfgRaw({ ...autoCfg, etoiles: { ...etoilesCfg, rappel: e.target.value === 'oui' } })}>
+                    <option value="oui">Un seul, le lendemain, si elle n’a pas touché son bouton</option>
+                    <option value="non">Aucun rappel</option>
+                  </Select>
                 </label>
                 {/* L'AVIS SANS MAIN (19 août 2026) : son interrupteur a quitté cet
                     écran le 27 octobre 2026 (restes du lot 3 de l'Assistant Maison).

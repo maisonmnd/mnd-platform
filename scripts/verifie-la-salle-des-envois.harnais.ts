@@ -239,7 +239,7 @@ dit('le soir du 2, elles finissent le 3 a 8 h', iso(salon('2026-10-03', '08:00')
   const DEPOTS: Record<string, RegExp[]> = {
     'confirmation-rdv': [/consigne\('push', a, 'en-attente', undefined, undefined, undefined, depot\(/, /consigne\('whatsapp', a, 'en-attente', undefined, undefined, undefined, depot\(/],
     'rappels-j1': [/consigne\('whatsapp', a, 'en-attente', undefined, undefined, depot\(/, /consigne\('sms', a, 'en-attente', undefined, undefined, depot\(/, /statut: 'en-attente', quand: maintenant, \.\.\.depot\(/],
-    'avis-google': [/consigne\(p, 'en-attente', undefined, depot\(/],
+    'avis-google': [/consigne\(p, 'en-attente', undefined, \{ \.\.\.depot\(/],
     /* Les relances des factures (18 octobre 2026). */
     'relances-factures': [/\.\.\.commun, statut: 'en-attente', \.\.\.depot\(/],
     /* La veille d'une échéance et le prix revu (20 octobre 2026). */

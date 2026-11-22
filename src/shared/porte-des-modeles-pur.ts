@@ -145,9 +145,9 @@ export const REGISTRE_DES_MODELES: readonly EntreeDuRegistre[] = [
     appel: 1, rdv: true, rappel: true, unParTete: false, porte: 'toutes',
   },
   {
-    famille: 'avis-google', type: 'avis-google', modeles: ['avis_google'], secrets: ['WA_TEMPLATE_AVIS'], depose: 'avis-google',
-    pourQuoi: 'La demande d’avis après une première venue : {{1}} l’appel, {{2}} le lien.',
-    quand: 'Le jour où la première venue est soldée, une demande au plus par période.',
+    famille: 'avis-google', type: 'avis-google', modeles: ['avis_google', 'vos_etoiles', 'vos_etoiles_rappel'], secrets: ['WA_TEMPLATE_AVIS', 'WA_TEMPLATE_ETOILES', 'WA_TEMPLATE_ETOILES_RAPPEL'], depose: 'avis-google',
+    pourQuoi: 'Ses étoiles après la séance (22 novembre 2026). `vos_etoiles` : « Bonjour {{1}}, laissez-nous vos étoiles, beauté. Un toucher suffit, rien à écrire. », et un bouton à adresse qui porte son jeton. `vos_etoiles_rappel` : le même bouton, une seule fois, pour celle qui ne l’a pas touché. `avis_google` ({{1}} l’appel, {{2}} le lien) reste l’ancien modèle, et le repli.',
+    quand: 'Le soir même de la venue soldée, à l’heure des étoiles (19 h par défaut, Paramètres) ; le rappel le lendemain à la même heure, vingt heures au moins après. Une demande au plus par période, sauf pour celle qui n’a jamais touché son bouton.',
     appel: 1, rdv: false, rappel: false, unParTete: true, porte: 'toutes',
   },
   {

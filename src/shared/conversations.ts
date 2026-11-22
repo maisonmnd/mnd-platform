@@ -883,6 +883,8 @@ export const CATEGORIE_DES_MODELES: Readonly<Record<string, 'utilitaire' | 'mark
   reprise_proposee: 'marketing',
   proposition_rituel: 'utilitaire',
   avis_google: 'marketing',
+  vos_etoiles: 'marketing',
+  vos_etoiles_rappel: 'marketing',
   /* L'ÉQUIPE ET LES PRESTATAIRES — 15 septembre 2026, à faire approuver
      (docs/BRANCHER-ENVOIS.md, étape 6). Tous utilitaires : un bulletin, une
      décision, une annonce de versement ne vendent rien. */

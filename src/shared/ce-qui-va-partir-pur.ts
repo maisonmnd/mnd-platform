@@ -119,6 +119,8 @@ export const MODELES_CONNUS: Record<string, { dit: string; sert: string; sorte: 
   point_avant_seance: { dit: 'Point d’avant séance', sert: 'Une semaine avant la séance suivante', sorte: 'rdv' },
   point_apres_seance: { dit: 'Point d’après séance', sert: 'Une semaine après la séance', sorte: 'avis' },
   avis_google: { dit: 'Demande d’avis Google', sert: 'Demander un avis après la séance', sorte: 'avis' },
+  vos_etoiles: { dit: 'Vos étoiles', sert: 'Demander ses étoiles sur Google, d’un toucher', sorte: 'avis' },
+  vos_etoiles_rappel: { dit: 'Vos étoiles, le rappel', sert: 'Un seul rappel, si elle n’a pas touché son bouton', sorte: 'avis' },
   bilan_de_seance: { dit: 'Bilan de la séance', sert: 'Le bilan de la séance', sorte: 'avis' },
   recu_de_paiement: { dit: 'Reçu de paiement', sert: 'Le reçu après l’encaissement', sorte: 'argent' },
   facture_du_rituel: { dit: 'Facture du rituel', sert: 'La facture réglée', sorte: 'argent' },

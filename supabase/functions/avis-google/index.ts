@@ -223,8 +223,9 @@ const facteurVivant = (vuLe: string | undefined | null, maintenantMs: number): b
 
 /** Ce qu'une ligne déposée porte en plus de son identité : quand elle part,
     à qui (le prénom, pour l'écran de la salle) et de quoi l'envoyer. */
-const depot = (maintenantMs: number, r: ReglesDeLaSalle, colis: Record<string, unknown>, prenom?: string): Record<string, unknown> => {
-  const { partA, calme } = heureDeDepart(maintenantMs, r);
+const depot = (maintenantMs: number, r: ReglesDeLaSalle, colis: Record<string, unknown>, prenom?: string, partAChoisi?: number): Record<string, unknown> => {
+  /* `partAChoisi` (vos étoiles, 22 novembre 2026) : l'heure que la règle a déjà posée hors des heures calmes. */
+  const { partA, calme } = partAChoisi !== undefined ? { partA: partAChoisi, calme: false } : heureDeDepart(maintenantMs, r);
   return {
     deposeLe: new Date(maintenantMs).toISOString(), partA: new Date(partA).toISOString(),
     ...(calme ? { calme: true } : {}), ...(prenom ? { prenom } : {}), colis,
@@ -265,7 +266,17 @@ const numeroIntl = (brut: string | undefined): string | null => {
   return d;
 };
 
-const VERSION = '2026-11-11-a · ce qui va partir : une demande arrêtée d’avance, ou d’un modèle en pause, ne se dépose pas ; M. et Mme devant le prénom';
+/* 2026-11-22-a · VOS ÉTOILES (« easy, rapide et sans prise de tête. Laissez-nous
+   vos étoiles, beauté. Stratégique, ça vient au bon moment ! », Yéman). La
+   demande part à l'heure des étoiles (le soir même à 19 h par défaut,
+   `mnd_auto_config.etoiles`), avec le modèle `vos_etoiles` et son bouton dès
+   que Meta l'a approuvé (WA_TEMPLATE_ETOILES ; sinon l'ancien, à la nouvelle
+   heure). Le bouton porte un jeton : `{ action: 'etoiles', jeton }`, sans clé,
+   note le toucher et rend le lien de Google. Un seul rappel le lendemain
+   (WA_TEMPLATE_ETOILES_RAPPEL) pour celle qui n'a pas touché ; jamais touché,
+   la Maison redemande à sa prochaine venue, un mois plus tard au plus tôt.
+   La règle est dans src/shared/etoiles-pur.ts (bloc ⟨etoiles⟩). */
+const VERSION = '2026-11-22-a · vos étoiles : à leur heure, un bouton, un seul rappel si elle ne l’a pas touché';
 /* ══ ARRÊTÉ D'AVANCE, MODÈLE EN PAUSE — 5 novembre 2026 (ce qui va partir) ══
    « Ne pas envoyer » (la direction, depuis l'onglet « À venir ») et
    l'interrupteur « En service / En pause » d'un modèle. Recopié À
@@ -449,25 +460,126 @@ async function litLesArretsEtLesPauses(sb: BaseDAvance): Promise<{ arrets: Arret
 /* ⟨/arret-d-avance⟩ */
 
 
+/* ⟨etoiles⟩ */
+/** Quand part la demande : le soir même à `heure` (à Cotonou), ou aussitôt réglé. */
+type ReglagesDesEtoiles = { moment: 'soir' | 'aussitot'; heure: number; rappel: boolean };
+const ETOILES_PAR_DEFAUT: ReglagesDesEtoiles = { moment: 'soir', heure: 19, rappel: true };
+/** Ce qui ne peut plus partir avant les heures calmes part le lendemain à 12 h 30. */
+const HEURE_DU_LENDEMAIN_DES_ETOILES = 12.5;
+/** Le rappel ne part que vingt heures (et dix minutes) après la demande : la
+    porte des modèles retient le même événement pendant vingt heures. */
+const RAPPEL_DES_ETOILES_AU_PLUS_TOT_MS = 20 * 3_600_000 + 10 * 60_000;
+/** Le cron passe chaque heure : le rappel se dépose dans l'heure qui précède son départ. */
+const RAPPEL_DES_ETOILES_AVANCE_MS = 65 * 60_000;
+/** Six heures après son heure, le rappel ne part plus. */
+const RAPPEL_DES_ETOILES_TROP_TARD_MS = 6 * 3_600_000;
+const DECALAGE_DE_COTONOU_MS = 3_600_000;
+/** Le jeton du bouton : quatorze signes, sans voyelle trompeuse ni chiffre ambigu. */
+const ALPHABET_DES_ETOILES = '23456789abcdefghjkmnpqrstuvwxyz';
+const FORME_DU_JETON_DES_ETOILES = /^[23456789abcdefghjkmnpqrstuvwxyz]{14}$/;
+/** Ce que porte le bouton : « e-<jeton> », après la base écrite dans le modèle. */
+const PREFIXE_DES_ETOILES = 'e-';
+const MODELE_DES_ETOILES = 'vos_etoiles';
+const MODELE_DU_RAPPEL_DES_ETOILES = 'vos_etoiles_rappel';
+
+/** Les réglages de la Maison (`mnd_auto_config.etoiles`), ou ceux d'avant. */
+function reglagesDesEtoiles(cfg: unknown): ReglagesDesEtoiles {
+  const e = (cfg && typeof cfg === 'object' ? (cfg as { etoiles?: unknown }).etoiles : null) as
+    { moment?: unknown; heure?: unknown; rappel?: unknown } | null | undefined;
+  const h = Number(e?.heure);
+  return {
+    moment: e?.moment === 'aussitot' ? 'aussitot' : 'soir',
+    heure: e?.heure !== undefined && e?.heure !== null && Number.isFinite(h) && h >= 9 && h <= 19.5 ? Math.round(h * 2) / 2 : ETOILES_PAR_DEFAUT.heure,
+    rappel: e?.rappel !== false,
+  };
+}
+/** L'instant où il est `heure` à Cotonou, le jour (de Cotonou) de `ms`. */
+function ceJourALHeureDeCotonou(heure: number, ms: number): number {
+  const local = new Date(ms + DECALAGE_DE_COTONOU_MS);
+  return Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate(), 0, 0, 0) + Math.round(heure * 3_600_000) - DECALAGE_DE_COTONOU_MS;
+}
+/** Le premier instant, à partir de `apresMs`, où il est `heure` à Cotonou. */
+function prochaineHeureDeCotonou(heure: number, apresMs: number): number {
+  const ceJour = ceJourALHeureDeCotonou(heure, apresMs);
+  return ceJour >= apresMs ? ceJour : ceJour + 86_400_000;
+}
+/** Les heures calmes de la salle (20 h à 8 h par défaut) : rien n'y part. */
+function calmeDesEtoiles(ms: number, salle: { calmeDe: number; calmeA: number }): boolean {
+  if (salle.calmeDe === salle.calmeA) return false;
+  const d = new Date(ms + DECALAGE_DE_COTONOU_MS);
+  const h = d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600;
+  return salle.calmeDe < salle.calmeA ? (h >= salle.calmeDe && h < salle.calmeA) : (h >= salle.calmeDe || h < salle.calmeA);
+}
+/** QUAND PART LA DEMANDE. Le soir : à son heure si elle n'est pas passée,
+    sinon après la salle d'attente. Aussitôt : après la salle. Ce qui tomberait
+    dans les heures calmes part le lendemain à 12 h 30. */
+function departDesEtoiles(maintenantMs: number, r: ReglagesDesEtoiles, salle: { salleMin: number; calmeDe: number; calmeA: number }): number {
+  const apresLaSalle = maintenantMs + salle.salleMin * 60_000;
+  const ceSoir = ceJourALHeureDeCotonou(r.heure, maintenantMs);
+  const depart = r.moment === 'soir' && apresLaSalle <= ceSoir ? ceSoir : apresLaSalle;
+  return calmeDesEtoiles(depart, salle) ? prochaineHeureDeCotonou(HEURE_DU_LENDEMAIN_DES_ETOILES, depart) : depart;
+}
+/** QUAND PART LE RAPPEL : le lendemain de la demande, à l'heure des étoiles,
+    et jamais moins de vingt heures après elle. */
+function departDuRappelDesEtoiles(envoyeMs: number, r: ReglagesDesEtoiles): number {
+  return Math.max(ceJourALHeureDeCotonou(r.heure, envoyeMs + 86_400_000), envoyeMs + RAPPEL_DES_ETOILES_AU_PLUS_TOT_MS);
+}
+/** LE RAPPEL EST-IL À DÉPOSER MAINTENANT ? Son heure de départ, ou `null` :
+    éteint, déjà déposé, la demande pas partie, sans jeton (l'ancien modèle),
+    son bouton déjà touché, pas encore l'heure, ou l'heure passée depuis trop
+    longtemps. */
+function rappelDesEtoilesADeposer(o: {
+  statut?: unknown; envoyeLe?: unknown; toucheLe?: unknown; jeton?: unknown;
+  rappelDepose: boolean; maintenantMs: number; reglages: ReglagesDesEtoiles; salleMin: number;
+}): number | null {
+  if (!o.reglages.rappel || o.rappelDepose || o.statut !== 'envoyé' || o.toucheLe) return null;
+  if (!FORME_DU_JETON_DES_ETOILES.test(String(o.jeton ?? ''))) return null;
+  const envoye = Date.parse(String(o.envoyeLe ?? ''));
+  if (!Number.isFinite(envoye)) return null;
+  const t = departDuRappelDesEtoiles(envoye, o.reglages);
+  if (o.maintenantMs < t - RAPPEL_DES_ETOILES_AVANCE_MS || o.maintenantMs > t + RAPPEL_DES_ETOILES_TROP_TARD_MS) return null;
+  return Math.max(t, o.maintenantMs + o.salleMin * 60_000);
+}
+/** Un jeton tiré de quatorze octets du hasard. */
+function jetonDesEtoiles(octets: ArrayLike<number>): string {
+  let s = '';
+  for (let i = 0; i < 14; i++) s += ALPHABET_DES_ETOILES[(Number(octets[i]) || 0) % ALPHABET_DES_ETOILES.length];
+  return s;
+}
+/** Les composants du modèle : {{1}} l'appel, puis le bouton à adresse, qui porte le jeton. */
+function composantsDesEtoiles(appel: string, jeton: string): unknown[] {
+  return [
+    { type: 'body', parameters: [{ type: 'text', text: appel }] },
+    { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: `${PREFIXE_DES_ETOILES}${jeton}` }] },
+  ];
+}
+/** Ce que le fil de la Maison montre de la demande, et de son rappel. */
+const texteDesEtoiles = (appel: string): string => `Bonjour ${appel}, laissez-nous vos étoiles, beauté. Un toucher suffit, rien à écrire.`;
+const texteDuRappelDesEtoiles = (appel: string): string => `Bonjour ${appel}, il reste vos étoiles, beauté. Un toucher suffit, rien à écrire.`;
+/* ⟨/etoiles⟩ */
+
 /* ── QUAND REDEMANDER UN AVIS — copie de src/shared/avis-fiches-pur.ts ── */
 const JOURS_ENTRE_DEUX_DEMANDES = 182;
 const NOTE_A_RECONQUERIR = 3;
+const JOURS_SI_JAMAIS_TOUCHEE = 30;
 const jourDecaleDe = (jour: string, n: number): string => {
   const d = new Date(`${jour}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 };
-type DemandeDAvis = { permise: boolean; pourquoi: 'premiere' | 'reconquete' | 'six-mois' | 'trop-tot'; des?: string };
+type DemandeDAvis = { permise: boolean; pourquoi: 'premiere' | 'reconquete' | 'six-mois' | 'jamais-touchee' | 'trop-tot'; des?: string };
 function demandeDAvisPermise(o: {
   premiereVenue: boolean;
   derniereDemande?: string | null;
   dernierAvis?: { jour: string | null; note: number } | null;
+  jamaisTouchee?: boolean;
   aujourdhui: string;
 }): DemandeDAvis {
   if (o.dernierAvis && o.dernierAvis.note > 0 && o.dernierAvis.note <= NOTE_A_RECONQUERIR) return { permise: true, pourquoi: 'reconquete' };
   const jours = [o.derniereDemande, o.dernierAvis?.jour].filter((j): j is string => !!j).sort();
   const dernier = jours[jours.length - 1];
   if (!dernier) return { permise: true, pourquoi: o.premiereVenue ? 'premiere' : 'six-mois' };
+  if (o.jamaisTouchee && o.derniereDemande === dernier && jourDecaleDe(dernier, JOURS_SI_JAMAIS_TOUCHEE) <= o.aujourdhui) return { permise: true, pourquoi: 'jamais-touchee' };
   const des = jourDecaleDe(dernier, JOURS_ENTRE_DEUX_DEMANDES);
   return des <= o.aujourdhui ? { permise: true, pourquoi: 'six-mois' } : { permise: false, pourquoi: 'trop-tot', des };
 }
@@ -507,10 +619,63 @@ const noteLeRefus = (porte: string, attendue: string, recue: string): void => {
 };
 /* ⟨/cle-du-cron⟩ */
 
+/* ══ LE TOUCHER DE SON BOUTON — 22 novembre 2026 ═════════════════════════
+   Le bouton « Donner mes étoiles » ouvre la page de la Maison, qui pose ici
+   `{ action: 'etoiles', jeton }`, SANS clé (elle n'a pas de compte). La
+   fonction ne rend qu'UNE adresse, celle du lien d'avis de la Maison
+   (Paramètres) : ce n'est pas une redirection ouverte. Elle note le toucher
+   sur la demande, écarte le rappel qui attendrait encore, et se freine à
+   trente appels par dix minutes et par adresse. Un jeton faux, forgé ou
+   inconnu ne rend rien. */
+const ENTETES_DES_ETOILES: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'content-type': 'application/json',
+};
+async function leToucherDesEtoiles(req: Request, recu: unknown): Promise<Response> {
+  const rend = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: ENTETES_DES_ETOILES });
+  const jeton = String(recu ?? '');
+  if (!FORME_DU_JETON_DES_ETOILES.test(jeton)) return rend({ erreur: 'lien' }, 400);
+  const service = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
+  const urlBase = Deno.env.get('SUPABASE_URL') ?? '';
+  if (!service || !urlBase) return rend({ erreur: 'indisponible' }, 503);
+  const sb = createClient(urlBase, service);
+  const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown';
+  const depuis = new Date(Date.now() - 10 * 60_000).toISOString();
+  const { count, error: errFrein } = await sb.from('edge_rate_limits').select('*', { count: 'exact', head: true })
+    .eq('bucket', 'etoiles').eq('ip', ip).gte('at', depuis);
+  if (!errFrein && (count ?? 0) >= 30) return rend({ erreur: 'trop' }, 429);
+  if (!errFrein) await sb.from('edge_rate_limits').insert({ bucket: 'etoiles', ip });
+  const { data: lignes, error } = await sb.from('envois').select('id, data')
+    .eq('data->>jeton', jeton).eq('data->>type', 'avis-google').limit(4);
+  if (error) return rend({ erreur: 'indisponible' }, 503);
+  if (!lignes || lignes.length === 0) return rend({ erreur: 'lien' }, 404);
+  const { data: docs } = await sb.from('documents').select('data').eq('key', 'mnd_auto_config').limit(1);
+  const lien = String((docs?.[0]?.data as { reviewLink?: unknown } | undefined)?.reviewLink ?? '').trim() || REVIEW_LINK_DEFAUT;
+  const le = new Date().toISOString();
+  for (const l of lignes) {
+    const d = (l.data ?? {}) as Record<string, unknown>;
+    if (d.toucheLe) continue;
+    /* Un rappel encore en salle n'a plus lieu d'être. */
+    const suite = d.statut === 'en-attente' && d.rappelDe
+      ? { ...d, statut: 'écarté', ecartePar: 'la Maison, automatiquement', ecarteLe: le, detail: 'elle a touché son bouton avant le rappel' }
+      : { ...d, toucheLe: le };
+    await sb.from('envois').update({ data: suite }).eq('id', l.id);
+  }
+  console.log('[avis-google] étoiles touchées', { lignes: lignes.length });
+  return rend({ ok: true, lien });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'GET') {
     return new Response(JSON.stringify({ fonction: 'avis-google', version: VERSION }), { status: 405, headers: { 'content-type': 'application/json' } });
   }
+  /* VOS ÉTOILES : le toucher de son bouton passe avant la porte du cron (voir `leToucherDesEtoiles`). */
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: ENTETES_DES_ETOILES });
+  let demande: { action?: unknown; jeton?: unknown } = {};
+  try { demande = (await req.clone().json()) ?? {}; } catch { /* le cron n'envoie pas toujours un corps */ }
+  if (demande && typeof demande === 'object' && demande.action === 'etoiles') return await leToucherDesEtoiles(req, demande.jeton);
   /* ══ LA CLÉ SERVICE, NOUVELLE FAMILLE — 7 septembre 2026 ═══════════
      Depuis la rotation des clés (fuite du 2 août), le projet vit sur les
      clés « sb_… » : la legacy service_role (eyJ…) injectée par la
@@ -573,6 +738,68 @@ Deno.serve(async (req) => {
   }
   /* Ce qui va partir (5 novembre 2026) : les demandes arrêtées d'avance et les modèles en pause. */
   const avanceDuDepot = await litLesArretsEtLesPauses(sb);
+
+  /* ── VOS ÉTOILES : l'heure, le modèle neuf, et LE RAPPEL ───────────
+     Un seul rappel, le lendemain à l'heure des étoiles, pour la demande
+     partie (avec son jeton) dont le bouton n'a pas été touché. Il se dépose
+     dans l'heure qui précède son départ : le facteur ne relit pas le toucher,
+     c'est le toucher qui écarte le rappel encore en salle. Sans le modèle du
+     rappel approuvé (WA_TEMPLATE_ETOILES_RAPPEL), sans la salle, ou éteint
+     dans Paramètres : aucun rappel. */
+  const etoiles = reglagesDesEtoiles(cfg);
+  const WA_TEMPLATE_ETOILES = (Deno.env.get('WA_TEMPLATE_ETOILES') ?? '').trim();
+  const WA_TEMPLATE_RAPPEL = (Deno.env.get('WA_TEMPLATE_ETOILES_RAPPEL') ?? '').trim();
+  let nRappels = 0;
+  if (WA_TEMPLATE_RAPPEL && etoiles.rappel && salleOuverte) {
+    const depuis = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    const { data: parties } = await sb.from('envois').select('id, branch_id, data')
+      .eq('data->>type', 'avis-google').eq('data->>statut', 'envoyé').gte('updated_at', depuis).limit(500);
+    const demandes = (parties ?? []).filter((r) => String(r.id).endsWith('-wa-avis'));
+    const { data: dejaR } = demandes.length > 0
+      ? await sb.from('envois').select('id').in('id', demandes.map((r) => `${r.id}-2`))
+      : { data: [] as { id: string }[] };
+    const rappelDepose = new Set((dejaR ?? []).map((r) => r.id as string));
+    type DemandePartie = { statut?: string; quand?: string; toucheLe?: string; jeton?: string; clientId?: string; invoiceId?: string; branchId?: string; dateRdv?: string };
+    const aRappeler: { id: string; branche: string | null; d: DemandePartie; partA: number }[] = [];
+    for (const r of demandes) {
+      const d = (r.data ?? {}) as DemandePartie;
+      const partA = rappelDesEtoilesADeposer({
+        statut: d.statut, envoyeLe: d.quand, toucheLe: d.toucheLe, jeton: d.jeton,
+        rappelDepose: rappelDepose.has(`${r.id}-2`), maintenantMs: Date.now(), reglages: etoiles, salleMin: regles.salleMin,
+      });
+      if (partA !== null) aRappeler.push({ id: r.id as string, branche: (r.branch_id as string | null) ?? null, d, partA });
+    }
+    if (aRappeler.length > 0) {
+      const { data: fichesR } = await sb.from('clients').select('id, data')
+        .in('id', [...new Set(aRappeler.map((x) => String(x.d.clientId ?? '')).filter(Boolean))]);
+      const ficheDe = new Map<string, Fiche>((fichesR ?? []).map((f) => [f.id as string, { id: f.id, ...(f.data as object) } as Fiche]));
+      const lignesDuRappel: { id: string; branch_id: string | null; data: Record<string, unknown> }[] = [];
+      for (const x of aRappeler) {
+        const tete = String(x.d.clientId ?? '');
+        /* Un avis relié à sa fiche depuis cette venue : plus rien à rappeler. */
+        const laisse = dernierAvisDe.get(tete);
+        if (laisse && String(laisse.jour ?? '') >= String(x.d.dateRdv ?? '9999')) continue;
+        const fiche = ficheDe.get(tete);
+        const tel = numeroIntl(fiche?.phone);
+        if (!tel) continue;
+        const prenom = appelDe(fiche);
+        const id = `${x.id}-2`;
+        const colis = {
+          genre: 'whatsapp', numero: tel, modele: WA_TEMPLATE_RAPPEL, parQui: 'la Maison, automatiquement',
+          texteAuFil: texteDuRappelDesEtoiles(prenom), composants: composantsDesEtoiles(prenom, String(x.d.jeton)),
+        };
+        const ligne = {
+          id, branchId: x.d.branchId, type: 'avis-google', canal: 'whatsapp', apptId: '', invoiceId: x.d.invoiceId, clientId: x.d.clientId,
+          dateRdv: x.d.dateRdv, quand: new Date().toISOString(), rappelDe: x.id, jeton: x.d.jeton, ...depot(Date.now(), regles, colis, prenom, x.partA),
+        };
+        const dAvanceR = laPorteDAvance({ id, type: 'avis-google', invoiceId: x.d.invoiceId, colis }, avanceDuDepot);
+        const retenueR = dAvanceR && dAvanceR.verdict !== 'repli' ? (ligneRetenueDAvance(dAvanceR, new Date().toISOString()) ?? {}) : null;
+        lignesDuRappel.push({ id, branch_id: x.branche, data: retenueR ? { ...ligne, ...retenueR } : { ...ligne, statut: 'en-attente' } });
+        if (!retenueR) nRappels++;
+      }
+      if (lignesDuRappel.length > 0) await sb.from('envois').upsert(lignesDuRappel, { onConflict: 'id' });
+    }
+  }
 
   /* ── ② Les factures soldées des deux derniers jours ──────────────
      Deux jours, pas un : un rituel soldé après le dernier réveil du soir
@@ -642,11 +869,17 @@ Deno.serve(async (req) => {
   const { data: demandesRows } = await sb.from('envois').select('data')
     .eq('data->>type', 'avis-google').in('data->>clientId', ids);
   const derniereDemandeDe = new Map<string, string>();
+  /* VOS ÉTOILES : sa dernière demande portait-elle un bouton resté sans toucher ? */
+  const jamaisToucheeDe = new Map<string, boolean>();
   for (const r of demandesRows ?? []) {
-    const e = r.data as { clientId?: string; statut?: string; quand?: string };
+    const e = r.data as { clientId?: string; statut?: string; quand?: string; jeton?: string; toucheLe?: string };
     if (!e?.clientId || !(e.statut === 'envoyé' || e.statut === 'à-la-main')) continue;
     const j = new Date(String(e.quand ?? '')).toLocaleDateString('en-CA', { timeZone: TZ });
-    if (j && j !== 'Invalid Date' && (derniereDemandeDe.get(e.clientId) ?? '') < j) derniereDemandeDe.set(e.clientId, j);
+    if (!j || j === 'Invalid Date') continue;
+    const sansToucher = typeof e.jeton === 'string' && e.jeton !== '' && !e.toucheLe;
+    const avant = derniereDemandeDe.get(e.clientId) ?? '';
+    if (avant < j) { derniereDemandeDe.set(e.clientId, j); jamaisToucheeDe.set(e.clientId, sansToucher); }
+    else if (avant === j) jamaisToucheeDe.set(e.clientId, (jamaisToucheeDe.get(e.clientId) ?? true) && sansToucher);
   }
   const { data: cliRows } = await sb.from('clients').select('id, data').in('id', ids);
   const fiches = new Map<string, Fiche>(
@@ -689,6 +922,7 @@ Deno.serve(async (req) => {
       premiereVenue: estPremiere(p),
       derniereDemande: derniereDemandeDe.get(p.clientId!) ?? null,
       dernierAvis: dernierAvisDe.get(p.clientId!) ?? null,
+      jamaisTouchee: jamaisToucheeDe.get(p.clientId!) === true,
       aujourdhui,
     });
     if (!regle.permise) {
@@ -707,24 +941,30 @@ Deno.serve(async (req) => {
     const prenom = appelDe(fiche, p.clientName);
     /* ARRÊTÉE D'AVANCE, OU SON MODÈLE EN PAUSE (5 novembre 2026, ce qui va
        partir) : consignée telle qu'elle partirait, mais « écarté » ou « périmé ». */
-    const colisDeLAvis = {
-      genre: 'whatsapp', numero: tel, modele: WA_TEMPLATE, parQui: 'la Maison, automatiquement',
+    /* VOS ÉTOILES (22 novembre 2026) : le modèle neuf, son bouton et son jeton,
+       dès que Meta l'a approuvé (WA_TEMPLATE_ETOILES) ; sinon l'ancien, tel
+       quel. L'ancien reste le repli du neuf, si Meta le refusait au départ. */
+    const jeton = jetonDesEtoiles(crypto.getRandomValues(new Uint8Array(14)));
+    const ancienModele = {
+      modele: WA_TEMPLATE,
       texteAuFil: `Bonjour ${prenom}, merci de votre visite. Votre avis nous aide : ${lien}`,
-      composants: [{ type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: lien }] }],
+      composants: [{ type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: lien }] }] as unknown[],
     };
+    const colisDeLAvis: { genre: string; numero: string; modele: string; parQui: string; texteAuFil: string; composants: unknown[]; repli?: typeof ancienModele } = WA_TEMPLATE_ETOILES
+      ? { genre: 'whatsapp', numero: tel, modele: WA_TEMPLATE_ETOILES, parQui: 'la Maison, automatiquement', texteAuFil: texteDesEtoiles(prenom), composants: composantsDesEtoiles(prenom, jeton), repli: ancienModele }
+      : { genre: 'whatsapp', numero: tel, parQui: 'la Maison, automatiquement', ...ancienModele };
+    const plusDesEtoiles: Record<string, unknown> = WA_TEMPLATE_ETOILES ? { jeton } : {};
+    /* AU BON MOMENT : le soir même à l'heure des étoiles, ou aussitôt ; jamais dans les heures calmes. */
+    const partDesEtoiles = departDesEtoiles(Date.now(), etoiles, regles);
     const dAvance = laPorteDAvance({ id: `env-${p.id}-wa-avis`, type: 'avis-google', invoiceId: p.id, colis: colisDeLAvis }, avanceDuDepot);
     if (dAvance && dAvance.verdict !== 'repli') {
       const retenue = ligneRetenueDAvance(dAvance, new Date().toISOString()) ?? {};
-      consigne(p, String(retenue.statut), String(retenue.detail ?? ''), { ...depot(Date.now(), regles, colisDeLAvis, prenom), ...retenue });
+      consigne(p, String(retenue.statut), String(retenue.detail ?? ''), { ...depot(Date.now(), regles, colisDeLAvis, prenom, partDesEtoiles), ...plusDesEtoiles, ...retenue });
       continue;
     }
-    /* EN SALLE : le facteur portera, sauf si une main le retient. */
+    /* EN SALLE : le facteur portera, à son heure, sauf si une main le retient. */
     if (salleOuverte) {
-      consigne(p, 'en-attente', undefined, depot(Date.now(), regles, {
-        genre: 'whatsapp', numero: tel, modele: WA_TEMPLATE, parQui: 'la Maison, automatiquement',
-        texteAuFil: `Bonjour ${prenom}, merci de votre visite. Votre avis nous aide : ${lien}`,
-        composants: [{ type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: lien }] }],
-      }, prenom));
+      consigne(p, 'en-attente', undefined, { ...depot(Date.now(), regles, colisDeLAvis, prenom, partDesEtoiles), ...plusDesEtoiles });
       nDeposes++;
       continue;
     }
@@ -736,17 +976,10 @@ Deno.serve(async (req) => {
           messaging_product: 'whatsapp',
           to: tel,
           type: 'template',
-          template: {
-            name: WA_TEMPLATE,
-            language: { code: 'fr' },
-            components: [{
-              type: 'body',
-              parameters: [{ type: 'text', text: prenom }, { type: 'text', text: lien }],
-            }],
-          },
+          template: { name: colisDeLAvis.modele, language: { code: 'fr' }, components: colisDeLAvis.composants },
         }),
       });
-      if (r.ok) { consigne(p, 'envoyé'); nWa++; }
+      if (r.ok) { consigne(p, 'envoyé', undefined, plusDesEtoiles); nWa++; }
       else consigne(p, 'échec', await r.text());
     } catch (e) {
       consigne(p, 'échec', String(e));
@@ -760,7 +993,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ actif: true, version: VERSION, maison: nomMaison, jour: aujourdhui, premieres: aFaire.length, ecartes: nEcartes, tropTot: nTropTot, salle: salleOuverte, deposes: nDeposes, envoyes: nWa }),
+    JSON.stringify({ actif: true, version: VERSION, maison: nomMaison, jour: aujourdhui, premieres: aFaire.length, ecartes: nEcartes, tropTot: nTropTot, salle: salleOuverte, deposes: nDeposes, envoyes: nWa, rappels: nRappels, etoiles: { moment: etoiles.moment, heure: etoiles.heure, modele: !!WA_TEMPLATE_ETOILES } }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 });

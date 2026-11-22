@@ -224,7 +224,8 @@ const facteurMort = quiEcritSeul(AUTOMATISATIONS_REELLES, { ...etat, facteur: { 
 dit('... le facteur muet depuis dix minutes : la confirmation passe au rouge ; non lu : inconnu', ['alarme', 'inconnu'],
   [facteurMort.find((l) => l.id === 'confirmation')?.posee.etat, quiEcritSeul(AUTOMATISATIONS_REELLES, { ...etat, facteur: undefined }).find((l) => l.id === 'confirmation')?.posee.etat]);
 const avecRegistre = quiEcritSeul(AUTOMATISATIONS_REELLES, { ...etat, modelesMeta: { assistant_maison_garder: 'approuve', assistant_maison_envie: 'refuse', avis_google: 'approuve' } });
-dit('... un registre des modèles posé : 1 approuvé sur 10, 1 refusé ; la demande d’avis approuvée, service dit', ['1 approuvé sur 10, 1 refusé', 'alarme', '1 approuvé sur 1', 'ok'],
+/* 22 novembre 2026 (vos étoiles) : la demande d'avis a trois modèles, l'ancien et les deux neufs, qui attendent Meta. */
+dit('... un registre des modèles posé : 1 approuvé sur 10, 1 refusé ; la demande d’avis, l ancien modele seul approuve sur trois', ['1 approuvé sur 10, 1 refusé', 'alarme', '1 approuvé sur 3', 'alarme'],
   [avecRegistre.find((l) => l.id === 'assistant')?.modeleMeta.dit, avecRegistre.find((l) => l.id === 'assistant')?.modeleMeta.etat, avecRegistre.find((l) => l.id === 'avis')?.modeleMeta.dit, avecRegistre.find((l) => l.id === 'avis')?.modeleMeta.etat]);
 dit('... rien de lu : tout inconnu, aucune promesse', ['inconnu', 'inconnu', 'inconnu', 'inconnu'],
   quiEcritSeul(AUTOMATISATIONS_REELLES, { maintenantMs, mois: '2026-10', envois: [] }).filter((l) => ['assistant', 'automate', 'avis', 'chat'].includes(l.id)).map((l) => l.allume.etat));

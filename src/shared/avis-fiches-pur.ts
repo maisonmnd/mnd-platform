@@ -224,8 +224,12 @@ export const compteARelier = (avis: readonly AvisDuReleve[], liens: LiensDesAvis
 export const JOURS_ENTRE_DEUX_DEMANDES = 182;
 /** Jusqu'à trois étoiles, la Maison veut reconquérir : à chaque passage. */
 export const NOTE_A_RECONQUERIR = 3;
+/** VOS ÉTOILES (22 novembre 2026) : sa dernière demande portait un bouton
+    qu'elle n'a jamais touché ; la Maison redemande à sa prochaine venue, un
+    mois plus tard au plus tôt, sans attendre les six mois. */
+export const JOURS_SI_JAMAIS_TOUCHEE = 30;
 
-export type PourquoiDemander = 'premiere' | 'reconquete' | 'six-mois' | 'trop-tot';
+export type PourquoiDemander = 'premiere' | 'reconquete' | 'six-mois' | 'jamais-touchee' | 'trop-tot';
 export type DemandeDAvis = { permise: boolean; pourquoi: PourquoiDemander; des?: string };
 
 /** La demande d'avis est-elle permise aujourd'hui ?
@@ -238,12 +242,14 @@ export function demandeDAvisPermise(o: {
   premiereVenue: boolean;
   derniereDemande?: string | null;
   dernierAvis?: { jour: string | null; note: number } | null;
+  jamaisTouchee?: boolean;
   aujourdhui: string;
 }): DemandeDAvis {
   if (o.dernierAvis && o.dernierAvis.note > 0 && o.dernierAvis.note <= NOTE_A_RECONQUERIR) return { permise: true, pourquoi: 'reconquete' };
   const jours = [o.derniereDemande, o.dernierAvis?.jour].filter((j): j is string => !!j).sort();
   const dernier = jours[jours.length - 1];
   if (!dernier) return { permise: true, pourquoi: o.premiereVenue ? 'premiere' : 'six-mois' };
+  if (o.jamaisTouchee && o.derniereDemande === dernier && jourDecaleDe(dernier, JOURS_SI_JAMAIS_TOUCHEE) <= o.aujourdhui) return { permise: true, pourquoi: 'jamais-touchee' };
   const des = jourDecaleDe(dernier, JOURS_ENTRE_DEUX_DEMANDES);
   return des <= o.aujourdhui ? { permise: true, pourquoi: 'six-mois' } : { permise: false, pourquoi: 'trop-tot', des };
 }
@@ -268,6 +274,7 @@ export function dernierAvisDe(clientId: string, avis: readonly AvisDuReleve[], l
 /** Ce que la fiche et les Conversations disent de la règle, en une ligne. */
 export function ditLaDemandeDAvis(d: DemandeDAvis, jourDit: (jour: string) => string): string {
   if (d.pourquoi === 'reconquete') return 'Trois étoiles ou moins : la Maison lui redemande son avis à chaque passage.';
+  if (d.pourquoi === 'jamais-touchee') return 'Elle n’a jamais touché le bouton de ses étoiles : la Maison redemande à cette venue.';
   if (d.pourquoi === 'trop-tot' && d.des) return `Prochaine demande d’avis au plus tôt le ${jourDit(d.des)} : une fois tous les six mois.`;
   return 'Une demande d’avis peut partir : rien depuis six mois.';
 }

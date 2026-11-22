@@ -310,9 +310,9 @@ export const REGISTRE_DES_MODELES: readonly EntreeDuRegistre[] = [
     appel: 1, rdv: true, rappel: true, unParTete: false, porte: 'toutes',
   },
   {
-    famille: 'avis-google', type: 'avis-google', modeles: ['avis_google'], secrets: ['WA_TEMPLATE_AVIS'], depose: 'avis-google',
-    pourQuoi: 'La demande d’avis après une première venue : {{1}} l’appel, {{2}} le lien.',
-    quand: 'Le jour où la première venue est soldée, une demande au plus par période.',
+    famille: 'avis-google', type: 'avis-google', modeles: ['avis_google', 'vos_etoiles', 'vos_etoiles_rappel'], secrets: ['WA_TEMPLATE_AVIS', 'WA_TEMPLATE_ETOILES', 'WA_TEMPLATE_ETOILES_RAPPEL'], depose: 'avis-google',
+    pourQuoi: 'Ses étoiles après la séance (22 novembre 2026). `vos_etoiles` : « Bonjour {{1}}, laissez-nous vos étoiles, beauté. Un toucher suffit, rien à écrire. », et un bouton à adresse qui porte son jeton. `vos_etoiles_rappel` : le même bouton, une seule fois, pour celle qui ne l’a pas touché. `avis_google` ({{1}} l’appel, {{2}} le lien) reste l’ancien modèle, et le repli.',
+    quand: 'Le soir même de la venue soldée, à l’heure des étoiles (19 h par défaut, Paramètres) ; le rappel le lendemain à la même heure, vingt heures au moins après. Une demande au plus par période, sauf pour celle qui n’a jamais touché son bouton.',
     appel: 1, rdv: false, rappel: false, unParTete: true, porte: 'toutes',
   },
   {
@@ -1314,7 +1314,7 @@ export function texteDeLaConsigne(o: { auteur: string; numero: string; prenom?: 
     programmé. Les heures calmes protègent les clientes, pas l'équipe. */
 export const TYPE_DE_L_EQUIPE_DU_MATIN = 'equipe-du-matin';
 
-const VERSION = '2026-11-21-a · l’équipe du matin traverse les heures calmes : sa journée part à 6 h (TYPE_DE_L_EQUIPE_DU_MATIN) ; 2026-11-18-a · la visio relue avant de partir : annulée (par elle ou par la Maison), déplacée, disparue ou finie, son message ne part pas, et après un déplacement seul celui de la nouvelle heure part ; 2026-11-13-a · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi ; le papier d’une pièce déposé par Grenat : la pièce relue, sa clé réservée, sa marque posée ; ce qui va partir : arrêté d’avance, modèle en pause, cinq non remis de suite et Opale le met en pause ; la prochaine séance de l’abonnée (apres-seance) relue avant de partir : une suite posée pendant l’attente, ou une séance qui n’est plus marquée faite, et elle ne part pas ; les envois programmés (13 novembre 2026) : l’heure exacte, même la nuit, relus avant de partir, le texte et sa pièce dans la fenêtre, sinon le modèle d’ouverture puis le message à sa réponse, ou Opale par WhatsApp Web pour un message privé, me demander avant, par l’app, la fois suivante posée une fois';
+const VERSION = '2026-11-22-a · vos étoiles : les modèles vos_etoiles et vos_etoiles_rappel au registre de la porte ; 2026-11-21-a · l’équipe du matin traverse les heures calmes : sa journée part à 6 h (TYPE_DE_L_EQUIPE_DU_MATIN) ; 2026-11-18-a · la visio relue avant de partir : annulée (par elle ou par la Maison), déplacée, disparue ou finie, son message ne part pas, et après un déplacement seul celui de la nouvelle heure part ; 2026-11-13-a · la porte d’Opale : jamais deux fois, pas de rappel à qui vient de confirmer, civilité juste ; un message par foyer, chaque tête nommée couverte, le foyer relu avant l’envoi ; le papier d’une pièce déposé par Grenat : la pièce relue, sa clé réservée, sa marque posée ; ce qui va partir : arrêté d’avance, modèle en pause, cinq non remis de suite et Opale le met en pause ; la prochaine séance de l’abonnée (apres-seance) relue avant de partir : une suite posée pendant l’attente, ou une séance qui n’est plus marquée faite, et elle ne part pas ; les envois programmés (13 novembre 2026) : l’heure exacte, même la nuit, relus avant de partir, le texte et sa pièce dans la fenêtre, sinon le modèle d’ouverture puis le message à sa réponse, ou Opale par WhatsApp Web pour un message privé, me demander avant, par l’app, la fois suivante posée une fois';
 
 /* ── LE CALCUL DES HEURES, recopié de src/shared/salle-des-envois.ts ── */
 const DECALAGE_DU_SALON_H = 1;

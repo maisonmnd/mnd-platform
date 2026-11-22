@@ -12,6 +12,7 @@ import { moisACotonou } from '../../../../shared/ia-budget-pur';
 import { ENVOIS_POUR_MESURER, JOURS_DE_REPONSE } from '../../../../shared/previsions-pur';
 import { devenuDe, type EnvoiLu } from '../../../../shared/envois';
 import { useAutoConfig, useEnvois } from '../equipe/data';
+import { bilanDesEtoiles, ditLeMomentDesEtoiles, reglagesDesEtoiles, type DemandeDEtoilesLue } from '../../../../shared/etoiles-pur';
 import { DIT_DE_L_ETAT, ETOILES, PanneauDeLAvis, PiedDesAvisGoogle, useLesAvisGoogle } from './AvisGoogle';
 import type { PropsDUneVue } from './Gerard';
 import './les-conversations.css';
@@ -163,6 +164,8 @@ export default function LesAvis({ cerveau }: PropsDUneVue) {
     [ordonnes, q, puce, brouillons, maintenant],
   );
   const demandes = useMemo(() => demandesDAvisDuMois(envois, avis, liens, mois), [envois, avis, liens, mois]);
+  /* VOS ETOILES (22 novembre 2026) : les demandes a bouton du mois, et leurs touchers. */
+  const etoilesDuMois = useMemo(() => bilanDesEtoiles(envois as readonly DemandeDEtoilesLue[], `${mois}-01`), [envois, mois]);
   const publication = useMemo(() => faitsDeLaPublication(brouillons), [brouillons]);
 
   /* L'avis demandé d'un lien (la fiche cliente, l'alerte, l'ancienne adresse)
@@ -332,8 +335,15 @@ export default function LesAvis({ cerveau }: PropsDUneVue) {
                 </p>
                 <p className="trc-ger__doux">
                   Première venue soldée, puis une fois tous les {JOURS_ENTRE_DEUX_DEMANDES} jours. Jusqu’à {NOTE_A_RECONQUERIR} étoiles : redemandée à chaque passage, jusqu’au prochain 4 ou 5.
-                  {' '}{cfg.avisAuto ? 'La fonction l’envoie seule, à la première pièce soldée.' : 'Automate éteint : le comptoir ouvre WhatsApp à l’encaissement.'}
+                  {' '}{cfg.avisAuto ? `La fonction l’envoie seule. ${ditLeMomentDesEtoiles(reglagesDesEtoiles(cfg))}` : 'Automate éteint : le comptoir ouvre WhatsApp à l’encaissement.'}
                 </p>
+                {/* VOS ÉTOILES (22 novembre 2026) : les boutons touchés, ce mois-ci. */}
+                {etoilesDuMois.demandees > 0 && (
+                  <p data-etoiles-touchees={etoilesDuMois.touchees}>
+                    Vos étoiles : {etoilesDuMois.touchees} bouton{etoilesDuMois.touchees > 1 ? 's' : ''} touché{etoilesDuMois.touchees > 1 ? 's' : ''} sur {etoilesDuMois.demandees} demande{etoilesDuMois.demandees > 1 ? 's' : ''}
+                    {etoilesDuMois.rappels ? ` · ${etoilesDuMois.rappels} rappel${etoilesDuMois.rappels > 1 ? 's' : ''}` : ''}
+                  </p>
+                )}
               </div>
               <div className="trc-am__carte">
                 <span className="trc-am__sur">Qui publie</span>

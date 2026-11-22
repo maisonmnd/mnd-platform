@@ -310,6 +310,8 @@ const MODELE_DIT: Record<string, string> = {
   proposition_rituel: 'proposition du prochain rituel',
   demande_recue: 'accusé de demande',
   avis_google: 'demande d’avis',
+  vos_etoiles: 'demande d’étoiles',
+  vos_etoiles_rappel: 'rappel des étoiles',
   bulletin_du_mois: 'bulletin de paie',
   point_apres_seance: 'point d’après séance',
   point_avant_seance: 'point d’avant séance',

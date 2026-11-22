@@ -2,6 +2,21 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## VOS ÉTOILES : LA DEMANDE D'AVIS AU BON MOMENT, UN BOUTON, UN SEUL RAPPEL — 22 novembre 2026, À METTRE EN LIGNE (fonctions `avis-google` 2026-11-22-a et `envois-partent` (son registre) ; le Trône ; deux modèles à déposer chez Meta ; aucun SQL)
+
+« Parfois les clients sont pressés et n'ont pas le temps de laisser un commentaire. Construis la récupération d'avis Google intelligente », puis « easy, rapide et sans prise de tête. Laissez-nous vos étoiles, beauté. Stratégique, ça vient au bon moment ! » (Yéman). Constat lu en base : sur 31 demandes parties en deux mois, 15 lues, 14 jamais ouvertes ; la demande partait dans l'heure qui suit la facture réglée, avec « Votre avis nous aide » et le lien dans le texte.
+
+- **Des étoiles, un bouton.** Modèle neuf `vos_etoiles` (secret `WA_TEMPLATE_ETOILES`) : « Bonjour {{1}}, laissez-nous vos étoiles, beauté. Un toucher suffit, rien à écrire. », bouton à adresse « Donner mes étoiles » dont la base vit chez Meta (la page `payer.html?tg=`) et dont le suffixe est `e-<jeton>`. Tant que le secret n'est pas posé, l'ancien `avis_google` part, à la nouvelle heure, sans jeton ni rappel ; il reste le `repli` du neuf.
+- **Au bon moment.** `mnd_auto_config.etoiles` (`moment` : `soir` | `aussitot`, `heure`, `rappel`), réglé dans Paramètres › Ce qu'on envoie aux clientes : par défaut le soir même à 19 h. Réglée trop tard pour partir avant les heures calmes : le lendemain à 12 h 30. La fonction dépose avec ce `partA` ; le facteur porte à l'heure.
+- **Le toucher se sait.** `payer.html?tg=e-<jeton>` renvoie à `regler.html?e=<jeton>` (`regler/Etoiles.tsx`), qui pose `{ action: 'etoiles', jeton }` à `avis-google`, SANS clé : la fonction note `toucheLe` sur la demande, écarte le rappel encore en salle, et ne rend qu'une adresse, le lien d'avis de la Maison (pas une redirection ouverte ; frein de 30 appels par dix minutes et par adresse). La page ouvre Google, où une note sans texte suffit.
+- **Un rappel, un seul.** `vos_etoiles_rappel` (secret `WA_TEMPLATE_ETOILES_RAPPEL`), ligne `env-<facture>-wa-avis-2` (`rappelDe`, même jeton, même type `avis-google`), le lendemain à l'heure des étoiles, seulement si le bouton n'a pas été touché ; vingt heures au moins après la demande (la porte des modèles : jamais deux fois en vingt heures). Il se dépose dans l'heure qui précède son départ.
+- **Jamais touché : redemander.** `demandeDAvisPermise` reçoit `jamaisTouchee` : une demande à bouton restée sans toucher se redemande à sa prochaine venue, un mois plus tard au plus tôt (`JOURS_SI_JAMAIS_TOUCHEE`), au lieu de six mois. Copie tenue dans la fonction.
+- **Le Trône** : la rubrique des avis dit le moment et compte les boutons touchés du mois (`bilanDesEtoiles`, demandes à bouton seulement).
+
+La règle : `src/shared/etoiles-pur.ts`, bloc ⟨etoiles⟩ recopié dans `avis-google` (`terminer-copie-serveur.mjs`). Les deux modèles sont inscrits à la porte des modèles (famille `avis-google`), d'où `envois-partent` à redéposer. **Pas fait** : la demande sur l'écran « réglé » de la page Régler (téléphone en main) ; elle viendra avec Le Sceau. **À savoir** : « beauté » part aussi aux clients (un seul modèle chez Meta).
+
+Bancs : `verifie-les-etoiles` (39, `--prouve` 24/24). Typecheck 0.
+
 ## LES FRAIS DES MOYENS DE PAIEMENT, RÉGLABLES, ET KKIAPAY AU NUMÉRO TAPÉ — 22 novembre 2026, EN LIGNE (fonction `collecte-mtn` 2026-11-22-a v23, Trône build 20261122072156 @ b2f8c378 ; aucun SQL, aucun secret)
 
 **Essai réel (lecture seule, aucun taux tapé, rien encaissé)** : le GET de `collecte-mtn` rend `fraisAjoutesPct: 1.6`. La carte des frais montre ses 7 lignes et leurs exemples (FedaPay mobile 1,8, déjà posé en base ; les autres en gris). La carte FedaPay renvoie ici. Pour un numéro hors MTN, Encaisser › KkiaPay montre la case du numéro, « Demander à ce numéro », « Ouvrir KkiaPay sans numéro » et « KkiaPay ajoute ses 1,5 % pour elle ». Pas vus : la case de frais du terminal à 2,3 % (elle ne paraît qu'une fois le terminal choisi) et la fenêtre KkiaPay remplie, à voir au premier vrai paiement.

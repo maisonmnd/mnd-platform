@@ -50,6 +50,8 @@ export const COPIES = [
      modèle d'ouverture, et le facteur la règle des envois programmés (la
      voie, la fenêtre, la fois suivante, la consigne à Opale). */
   { bloc: 'porte-des-modeles', source: 'src/shared/porte-des-modeles-pur.ts', cibles: ['supabase/functions/envois-partent/index.ts'] },
+  /* Vos etoiles (22 novembre 2026) : l'heure de la demande, son bouton, son jeton et le rappel, dans avis-google. */
+  { bloc: 'etoiles', source: 'src/shared/etoiles-pur.ts', cibles: ['supabase/functions/avis-google/index.ts'] },
   { bloc: 'envois-programmes', source: 'src/shared/envois-programmes-pur.ts', cibles: ['supabase/functions/envois-partent/index.ts'] },
   /* Le caissier de la Maison (13 novembre 2026) : Grenat tient la caisse
      entre ses deux clôtures, dans la même fonction, après ⟨cloture-du-jour⟩. */

@@ -672,6 +672,8 @@ const regles: Regle[] = [
         'rendez-vous-en-attente': { fichier: 'src/shared/rendez-vous-en-attente-pur.ts', extrait: (s) => entre(s, 'rendez-vous-en-attente') },
         /* Ce qui va partir (5 novembre 2026) : la clé d'un message, l'arrêt d'avance, la pause d'un modèle et la veille d'Opale, recopiés dans envois-partent et chaque fonction qui dépose. */
         'arret-d-avance': { fichier: 'src/shared/arret-d-avance-pur.ts', extrait: (s) => entre(s, 'arret-d-avance') },
+        /* Vos étoiles (22 novembre 2026) : l'heure de la demande d'avis, son bouton, son jeton et son rappel, recopiés dans avis-google. */
+        'etoiles': { fichier: 'src/shared/etoiles-pur.ts', extrait: (s) => entre(s, 'etoiles') },
         /* Les messages de l'abonnée (8 novembre 2026, lot 4 de l'abonnement refait) : la veille avec l'attention, recopiée dans rappels-j1 ; les boutons de la prochaine séance, recopiés dans whatsapp-webhook ; le rendez-vous suivant, recopié dans whatsapp-webhook et envois-partent. */
         'veille-attention': { fichier: 'src/shared/messages-de-l-abonnee-pur.ts', extrait: (s) => entre(s, 'veille-attention') },
         'prochaine-seance': { fichier: 'src/shared/messages-de-l-abonnee-pur.ts', extrait: (s) => entre(s, 'prochaine-seance') },

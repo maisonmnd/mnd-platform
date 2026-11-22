@@ -563,6 +563,10 @@ export type AutoConfig = {
       cesse d'ouvrir WhatsApp à l'encaissement. À n'allumer que quand les clés
       Meta sont posées — sinon plus personne n'envoie rien. */
   avisAuto?: boolean;
+  /** VOS ÉTOILES (22 novembre 2026) : quand part la demande d'avis (le soir même
+      à `heure`, ou aussitôt réglé) et son unique rappel. La fonction avis-google
+      le lit ici ; la règle est dans shared/etoiles-pur.ts. */
+  etoiles?: { moment?: 'soir' | 'aussitot'; heure?: number; rappel?: boolean };
   wifi2Ssid?: string;
   wifi2Pass?: string;
   /** LA MAISON RÉPOND SUR WHATSAPP · 9 octobre 2026 : éteint, essai ou

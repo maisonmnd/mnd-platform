@@ -144,7 +144,7 @@ dit('le mot de la facture en ligne : la page, les reseaux, aucun numero de piece
 const payer = lis('public/payer.html');
 const reg = /\/\^r-\(\[([a-z0-9]+)\]\{(\d+)\}\)\$\//.exec(payer);
 dit('payer.html mene r-<jeton> a regler.html, avec le meme alphabet et la meme longueur', [ALPHABET_DU_JETON, String(LONGUEUR_DU_JETON), true], [reg?.[1], reg?.[2], /location\.replace\('regler\.html\?r=' \+ rj\[1\]\)/.test(payer)]);
-dit('... et un lien Tap & Go d avant compose toujours', true, /if \(p\.has\('tg'\) && !rj\)/.test(payer) && /\^\(\\d\{3,8\}\)-\(\\d\{1,9\}\)\$/.test(payer));
+dit('... et un lien Tap & Go d avant compose toujours', true, /if \(p\.has\('tg'\) && !rj && !ej\)/.test(payer) && /\^\(\\d\{3,8\}\)-\(\\d\{1,9\}\)\$/.test(payer));
 const envoi = sansCommentaires(lis('src/apps/trone/routes/vente/envoi-de-la-piece.ts'));
 /* 1er novembre 2026 (une piece, un seul WhatsApp) : entre la garde du jour et la preparation, la decision
    d envoi tranche (une piece deja partie ne repart pas) ; la preparation (Tap & Go, PDF) vient apres. */
