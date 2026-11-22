@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+﻿import { execSync } from 'node:child_process';
 import { renameSync, writeFileSync, readFileSync, rmSync, cpSync, existsSync, readdirSync, statSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { origineDuCompte } from './origine-des-pages.mjs';
@@ -81,7 +81,7 @@ const SITES = [
   {
     name: 'trone',
     base: '/trone/',
-    apps: 'trone,consultation,certificat,bilan,bulletin,carte,regler',
+    apps: 'trone,consultation,certificat,bilan,bulletin,carte,regler,devis',
     rename: { 'trone.html': 'index.html' },
     // Connexion obligatoire pour l'ERP (le personnel se connecte par e-mail) :
     // son verrou n'est pas posé ici, mais pour TOUS les sites, au lancement de
