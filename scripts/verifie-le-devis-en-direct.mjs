@@ -20,6 +20,7 @@ const prouve = process.argv.includes('--prouve');
 
 const PUR = 'src/shared/devis-en-direct-pur.ts';
 const REMISE = 'src/shared/devis-remis-pur.ts';
+const PIECE = 'src/shared/devis-en-direct.ts';
 const PANNES = [
   /* Les prix et les durées */
   ['le prix ignore le calibre', PUR, 'export const prixDuModele = (baseXof: number, coef: number): number => arrondiDuDevis((Number(baseXof) || 0) * (Number(coef) || 1));', 'export const prixDuModele = (baseXof: number): number => arrondiDuDevis(Number(baseXof) || 0);'],
@@ -41,8 +42,13 @@ const PANNES = [
   ['la marque du fauteuil ne sert plus', REMISE, "  if (!d.auFauteuil?.le) return { ok: false, raison: 'Ce devis n’est pas marqué au fauteuil : il se remet au rendez-vous.' };", "  if (!d.auFauteuil?.le) return { ok: true, par: 'fauteuil' };"],
   ['n importe quel rendez-vous ouvre la porte', REMISE, "  if (duJour.length === 0) return { ok: false, raison: 'Elle n’a pas de rendez-vous aujourd’hui : le devis attend son rendez-vous.' };", "  if (duJour.length === -1) return { ok: false, raison: 'Elle n’a pas de rendez-vous aujourd’hui : le devis attend son rendez-vous.' };"],
   ['un rendez-vous annule ouvre la porte', REMISE, "  const duJour = ctx.rdvs.filter((a) => a.status !== 'annulé' && jourDeLInstant(a.date) === ctx.aujourdhui && tetes.includes(a.clientId));", "  const duJour = ctx.rdvs.filter((a) => jourDeLInstant(a.date) === ctx.aujourdhui && tetes.includes(a.clientId));"],
+  /* La pièce et la page */
+  ['le modèle conseillé est ignoré', PIECE, '  const m = o.modeles.find((x) => x.id === c?.modele) ?? o.modeles.find((x) => x.id === o.modeleConseille) ?? o.modeles[0];', '  const m = o.modeles.find((x) => x.id === c?.modele) ?? o.modeles[0];'],
+  ['la consultation n est plus déduite', PIECE, '  const deduite = Math.min(Math.max(0, Math.round(brut)), Math.max(0, Math.round(Number(consultationRegleeXof) || 0)));', '  const deduite = 0;'],
+  ['l option incluse n est plus offerte', PIECE, "discountPct: x.etat === 'incluse' ? 100 : 0", 'discountPct: 0'],
+  ['la page donne le nom de famille', PIECE, "    prenom: String(o.prenom ?? '').trim().replace(/\\s+/g, ' ') || String(d.clientName ?? '').trim().split(/\\s+/)[0] || '',", "    prenom: String(d.clientName ?? ''),"],
+  ['l etat du devis oublie l acceptation', PIECE, "  if (l.accepteLe || d.status === 'acceptée') return 'accepte';", "  if (l.placeLe) return 'accepte';"],
 ];
-
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');
 
 if (prouve) {

@@ -17,6 +17,10 @@ import {
   etapeDeLaPiece, gesteAttendu, LES_TROIS_OUI, ligneDeLaConsultationDejaReglee, motDUneEtape, placeDite,
   prixDeLOption, prixDuModele, totalDuDevis,
 } from '../src/shared/devis-en-direct-pur';
+import {
+  choixValable, dureeDeLOffre, etatDuDevisEnDirect, jetonDuParametreDuDevis, lignesDuChoix, pageDuDevisEnDirect,
+  parametreDuDevis, totalDeLOffre,
+} from '../src/shared/devis-en-direct';
 import { peutEtreRemis, peutEtreRemisAuFauteuil } from '../src/shared/devis-remis-pur';
 
 let ko = 0;
@@ -128,6 +132,50 @@ const refus = peutEtreRemis(
   { consultations: [{ id: 'cons1', paidXof: 15_000, rdvId: 'rdv1' }], visios: [], rdvs: [{ id: 'rdv1', clientId: 'cl1', status: 'confirmé', date: AUJ }] },
 );
 dit('la règle ordinaire refuse toujours une consultation en cours', { ok: false, raison: 'La consultation privée n’est pas encore faite.' }, refus);
+
+/* ── LA PIÈCE ET LA PAGE (`devis-en-direct.ts`) ────────────────────────── */
+const offre = {
+  modeleConseille: 'm2',
+  modeles: [
+    { id: 'm1', nom: 'Reprise Essentielle', xof: 25_000, dureeMin: 150 },
+    { id: 'm2', nom: 'Reprise Longue Durée', xof: 35_000, dureeMin: 210, maison: 'SÍNSIN™ Élaboré' },
+  ],
+  options: [
+    { id: 'o1', nom: 'DÀNDÀN™ · Le Soin Hydratant', xof: 22_000, etat: 'proposee' as const, dureeMin: 70 },
+    { id: 'o2', nom: 'Styling · sortie soignée', xof: 2_000, etat: 'incluse' as const, dureeMin: 20 },
+  ],
+  locks: 120,
+  calibre: 'Medium · 81 à 150 locks',
+  deductionXof: 15_000,
+};
+dit('le paramètre du devis ne se confond pas avec celui du règlement', ['d-abcdefghjkmnpq', null, null],
+  [parametreDuDevis('abcdefghjkmnpq'), jetonDuParametreDuDevis('r-abcdefghjkmnpq'), jetonDuParametreDuDevis('d-abc')]);
+dit('le jeton du devis revient', 'abcdefghjkmnpq', jetonDuParametreDuDevis(parametreDuDevis('abcdefghjkmnpq')));
+dit('sans lien, la pièce est un brouillon', 'brouillon', etatDuDevisEnDirect({ id: 'p1' }));
+dit('envoyée, elle est un devis', 'devis', etatDuDevisEnDirect({ id: 'p1', status: 'envoyée', lienDuDevis: { jeton: 'abcdefghjkmnpq', creeLe: '2026-11-22T10:00:00Z' } }));
+dit('acceptée', 'accepte', etatDuDevisEnDirect({ id: 'p1', lienDuDevis: { jeton: 'abcdefghjkmnpq', creeLe: '2026-11-22T10:00:00Z', accepteLe: '2026-11-22T10:10:00Z' } }));
+dit('avec sa place', 'place', etatDuDevisEnDirect({ id: 'p1', lienDuDevis: { jeton: 'abcdefghjkmnpq', creeLe: '2026-11-22T10:00:00Z', accepteLe: '2026-11-22T10:10:00Z', place: { jour: '2026-12-01', heure: '10 h' } } }));
+dit('une pièce introuvable', 'introuvable', etatDuDevisEnDirect(null));
+dit('elle prend le modèle conseillé si elle n a rien choisi', 'm2', choixValable(offre, undefined)?.modele.id);
+dit('elle prend celui qu elle a choisi', 'm1', choixValable(offre, { modele: 'm1' })?.modele.id);
+dit('un modèle absent de l offre retombe sur le conseillé', 'm2', choixValable(offre, { modele: 'inconnu' })?.modele.id);
+dit('une offre sans modèle ne se choisit pas', null, choixValable({ modeles: [], options: [] }, undefined));
+dit('l option incluse est toujours dans son choix', ['o2'], choixValable(offre, { modele: 'm1', options: ['o1'] })?.options.filter((x) => x.etat === 'incluse').map((x) => x.id));
+dit('ses options cochées vont avec l incluse', ['o1', 'o2'], choixValable(offre, { modele: 'm1', options: ['o1'] })?.options.map((x) => x.id));
+const ecrit = lignesDuChoix(offre, { modele: 'm2', options: ['o1'] }, 15_000);
+dit('la pièce porte le modèle et ses options', ['Reprise Longue Durée · SÍNSIN™ Élaboré', 'DÀNDÀN™ · Le Soin Hydratant', 'Styling · sortie soignée'], ecrit.lignes.map((l) => l.label));
+dit('l option incluse est offerte sur sa ligne', [0, 0, 100], ecrit.lignes.map((l) => l.discountPct));
+dit('la consultation se déduit une fois, sur la pièce', 15_000, ecrit.deductionXof);
+dit('une consultation non payée ne se déduit pas', 0, lignesDuChoix(offre, { modele: 'm1' }, 0).deductionXof);
+dit('un choix impossible ne fait pas de lignes', { lignes: [], deductionXof: 0 }, lignesDuChoix({ modeles: [], options: [] }, undefined));
+dit('le total de l offre, déduction faite', 44_000, totalDeLOffre(offre, { modele: 'm2', options: ['o1'] }));
+dit('sans option cochée, l incluse compte quand même', 12_000, totalDeLOffre(offre, { modele: 'm1' }));
+dit('la durée suit le modèle et ses options', 300, dureeDeLOffre(offre, { modele: 'm2', options: ['o1'] }));
+const pageDevis = pageDuDevisEnDirect({ devis: { id: 'p1', status: 'envoyée', clientName: 'Awa Sossou', master: 'Team', devisDuFauteuil: offre, lienDuDevis: { jeton: 'abcdefghjkmnpq', creeLe: '2026-11-22T10:00:00Z' } }, maintenant: new Date('2026-11-22T10:00:00Z') });
+dit('la page ne donne que le prénom', 'Awa', pageDevis.prenom);
+dit('la page dit le conseillé', [false, true], pageDevis.modeles.map((m) => !!m.conseille));
+dit('la page ne porte ni nom de famille ni numéro', false, JSON.stringify(pageDevis).includes('Sossou') || JSON.stringify(pageDevis).includes('01'));
+dit('la page dit le maître tel quel', 'Team', pageDevis.maitre);
 
 console.log(`\n${n - ko}/${n} vérifications${ko ? `, ${ko} en échec` : ''}.`);
 process.exit(ko ? 1 : 0);
