@@ -38,6 +38,7 @@ import {
 } from '../../../../shared/pricing';
 import './systeme.css';
 import { CarteMndPay } from './CarteMndPay';
+import { CarteDesFrais } from './CarteDesFrais';
 import { CarteRelances } from './CarteRelances';
 import { CarteDiagnosticPhoto } from './CarteDiagnosticPhoto';
 import { CarteDictee } from './CarteDictee';
@@ -2115,6 +2116,8 @@ export default function Parametres() {
                 </div>
               </Card>
 
+              {/* LES FRAIS DES MOYENS DE PAIEMENT — 22 novembre 2026 : tous les taux, ici seulement. */}
+              <CarteDesFrais />
               {/* MND PAY — 16 octobre 2026 : la caisse qui demande le paiement. */}
               <CarteMndPay />
               {/* LES RELANCES DES FACTURES (18 octobre 2026) : leur interrupteur et le rattrapage. */}

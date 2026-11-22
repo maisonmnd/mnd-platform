@@ -47,7 +47,7 @@
    Tout se décide ici, sans magasin ni React : `scripts/verifie-le-choix-du-moyen`
    le rejoue. L'écran (`clients/actions.tsx`) et la lecture de la santé
    (`clients/sante-des-moyens.ts`) ne font qu'appliquer. */
-import { estUnNumeroMtn, msisdnDe } from './collecte-mtn-pur';
+import { TAUX_AJOUTE_MTN_PCT, estUnNumeroMtn, msisdnDe } from './collecte-mtn-pur';
 
 /** La tuile que la caissière touche. */
 export type Voie = 'mobile' | 'carte';
@@ -70,12 +70,12 @@ export type FicheDuRail = {
 };
 
 export const RAILS: Record<Rail, FicheDuRail> = {
-  mtn: { nom: 'Payer par MTN', sous: 'la demande part sur son téléphone', voie: 'mobile', seConfirmeSeul: true, prestataire: 'mtn', frais: 'frais MTN (1,6 %) ajoutés pour elle' },
+  mtn: { nom: 'Payer par MTN', sous: 'la demande part sur son téléphone', voie: 'mobile', seConfirmeSeul: true, prestataire: 'mtn', frais: 'frais MTN ajoutés pour elle' },
   kkiapay: { nom: 'KkiaPay', sous: 'la demande part sur son téléphone', voie: 'mobile', seConfirmeSeul: true, frais: 'KkiaPay ajoute ses frais pour elle' },
   fedapay: { nom: 'FedaPay', sous: 'la demande part sur son téléphone', voie: 'mobile', seConfirmeSeul: true, prestataire: 'fedapay', frais: 'frais FedaPay ajoutés pour elle' },
   tapgo: { nom: 'Tap & Go', sous: 'elle compose le code, tous réseaux, sans internet', voie: 'mobile', seConfirmeSeul: true, prestataire: 'fedapay', frais: 'frais Tap & Go ajoutés pour elle' },
   momopay: { nom: 'MTN MoMoPay', sous: 'code 909099', voie: 'mobile', seConfirmeSeul: false, frais: 'frais dans le code MoMo', secours: true },
-  tpeKkiapay: { nom: 'Carte, par KkiaPay', sous: 'elle tape sa carte sur le TPE', voie: 'carte', seConfirmeSeul: false, frais: 'KkiaPay ajoute ses 2,3 % pour elle' },
+  tpeKkiapay: { nom: 'Carte, par KkiaPay', sous: 'elle tape sa carte sur le TPE', voie: 'carte', seConfirmeSeul: false, frais: 'KkiaPay ajoute ses frais pour elle' },
   qrKkiapay: { nom: 'QR, par KkiaPay', sous: 'elle paie sur son téléphone, carte ou mobile money', voie: 'carte', seConfirmeSeul: true, frais: 'KkiaPay ajoute ses frais pour elle' },
   terminal: { nom: 'Terminal de la banque', sous: 'la carte tendue au terminal', voie: 'carte', seConfirmeSeul: false, frais: 'commission de la banque', secours: true },
 };
@@ -90,13 +90,25 @@ export const MOYEN_CARTE_KKIAPAY = 'Carte · KkiaPay';
     64 480 F, frais de transaction 2,3 % 1 484 F, total payé 65 964 F). Le
     Trône n'ajoute donc rien à la part : il dit seulement ce qu'elle paiera. */
 export const FRAIS_KKIAPAY_CARTE_PCT = 2.3;
-/** Ce que KkiaPay ajoute, au franc supérieur comme sur son reçu (1 483,04 → 1 484). */
-export function fraisKkiapayDeCarteXof(montantXof: number): number {
+/** LES FRAIS DE KKIAPAY SUR LE MOBILE MONEY, 1,5 % : la tarification du compte
+    de la Maison, lue chez KkiaPay le 22 novembre 2026 (MTN, Moov et Celtiis à
+    1,5 %, « payés par la cliente ») ; la page « Régler » disait 1,9 %. KkiaPay
+    les ajoute lui-même, lui aussi. */
+export const FRAIS_KKIAPAY_MOBILE_PCT = 1.5;
+/** Ce que KkiaPay ajoute à un taux donné, au franc supérieur comme sur son reçu
+    (1 483,04 → 1 484). Le taux se règle dans Paramètres › Paiements (22 novembre 2026). */
+export function fraisKkiapayXof(montantXof: number, pct: number): number {
   const m = Math.round(Number(montantXof) || 0);
-  if (m <= 0) return 0;
+  const p = Number(pct) || 0;
+  if (m <= 0 || p <= 0) return 0;
   /* Les centimes de l'arithmétique flottante ne font pas monter d'un franc. */
-  return Math.ceil(Math.round(m * FRAIS_KKIAPAY_CARTE_PCT * 100) / 10000);
+  return Math.ceil(Math.round(m * p * 100) / 10000);
 }
+/** Ce que KkiaPay ajoute à une carte : 2,3 % tant que la direction n'a rien posé. */
+export const fraisKkiapayDeCarteXof = (montantXof: number, pct: number = FRAIS_KKIAPAY_CARTE_PCT): number =>
+  fraisKkiapayXof(montantXof, pct);
+/** Un taux dit à la française : « 1,6 », jamais « 1.6 ». */
+const dit = (pct: number): string => String(pct).replace('.', ',');
 
 /** Au-delà, la demande MTN ne se propose pas (le plafond que `collecte-mtn` refuse). */
 export const PLAFOND_MTN_XOF = 2_000_000;
@@ -197,6 +209,9 @@ export type ContexteDuChoix = {
       minutes) ? Absent : oui. Il n'est pas un « prestataire » relu par une
       fonction ; ses pannes ne s'inscrivent pas en base. */
   kkiapay?: { ouvert: boolean; pourquoi?: string };
+  /** LES TAUX QUE LES PHRASES DISENT (22 novembre 2026, Paramètres ›
+      Paiements › Les frais des moyens de paiement). Absents : ceux d'avant. */
+  taux?: { mtnAjoutePct?: number; kkiapayCartePct?: number; kkiapayMobilePct?: number };
 };
 
 export type LigneDuChoix = { rail: Rail; hors?: string };
@@ -240,13 +255,13 @@ export function horsDuRail(r: Rail, c: ContexteDuChoix): string {
 
 const RAISON_DU_PREMIER: Record<Rail, (c: ContexteDuChoix) => string> = {
   mtn: (c) => (msisdnDe(c.telephone ?? '')
-    ? 'Son numéro est chez MTN : la demande part sur son téléphone (frais de 1,6 % ajoutés pour elle), et MTN confirme seul.'
-    : 'Pas de numéro sur sa fiche : tapez-le. Par MTN, frais de 1,6 % ajoutés pour elle, et MTN confirme seul.'),
-  kkiapay: () => 'Son numéro n’est pas chez MTN : KkiaPay s’ouvre ici, tapez son numéro ; elle confirme sur son téléphone, et KkiaPay confirme seul. Ses frais s’ajoutent pour elle.',
+    ? `Son numéro est chez MTN : la demande part sur son téléphone (frais de ${dit(c.taux?.mtnAjoutePct ?? TAUX_AJOUTE_MTN_PCT)} % ajoutés pour elle), et MTN confirme seul.`
+    : `Pas de numéro sur sa fiche : tapez-le. Par MTN, frais de ${dit(c.taux?.mtnAjoutePct ?? TAUX_AJOUTE_MTN_PCT)} % ajoutés pour elle, et MTN confirme seul.`),
+  kkiapay: (c) => `Son numéro n’est pas chez MTN : KkiaPay s’ouvre ici, tapez son numéro ; elle confirme sur son téléphone, et KkiaPay confirme seul. Ses frais (${dit(c.taux?.kkiapayMobilePct ?? FRAIS_KKIAPAY_MOBILE_PCT)} %) s’ajoutent pour elle.`,
   fedapay: () => 'Son numéro n’est pas chez MTN : FedaPay lui envoie la demande (Moov ou Celtiis) et confirme seul.',
   tapgo: () => 'Elle compose le code sur son téléphone, n’importe quel réseau ; le Trône reconnaît son paiement au montant.',
   momopay: () => 'MoMoPay, à pointer le soir sur le relevé.',
-  tpeKkiapay: () => 'Passez au TPE KkiaPay le montant du rituel : KkiaPay ajoute lui-même ses 2,3 % pour elle. Elle pose sa carte (tap to pay) ; notez la référence du reçu.',
+  tpeKkiapay: (c) => `Passez au TPE KkiaPay le montant du rituel : KkiaPay ajoute lui-même ses ${dit(c.taux?.kkiapayCartePct ?? FRAIS_KKIAPAY_CARTE_PCT)} % pour elle. Elle pose sa carte (tap to pay) ; notez la référence du reçu.`,
   qrKkiapay: () => 'Elle scanne le QR : la page « Régler » de son rendez-vous s’ouvre sur son téléphone, elle paie par KkiaPay, et KkiaPay confirme seul.',
   terminal: () => 'Le terminal de la banque, à pointer sur le relevé.',
 };

@@ -74,11 +74,11 @@ const PANNES = [
   ['le rendez-vous ne suit plus sa piece', FONCTION, '    const s = await suisLeRdv(c.rdv_id, v, piece.id, resteDeLaPiece(neuve), quand.getTime());', "    const s = { honore: false, nom: '' };"],
   ['les frais gardes oublies', FONCTION, "      await base('entrees_hors_activite', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: JSON.stringify({ id: h.id, branch_id: branche, data: h }) });", ''],
   ['les frais gardes comptent tout', PUR, '  Math.max(0, Math.max(0, Math.round(Number(fraisAjoutesXof) || 0)) - Math.max(0, Math.round(Number(fraisMtnXof) || 0)));', '  Math.max(0, Math.round(Number(fraisAjoutesXof) || 0));'],
-  ['les frais gardes au mauvais tiroir', PUR, '    cashbox: CAISSE_MTN_COLLECTION,\n    note: `Les 1,6 %', "    cashbox: 'Espèces',\n    note: `Les 1,6 %"],
+  ['les frais gardes au mauvais tiroir', PUR, '    cashbox: CAISSE_MTN_COLLECTION,\n    note: `Les ${dit(', "    cashbox: 'Espèces',\n    note: `Les ${dit("],
   ['les frais de la cliente ignores a la confirmation', FONCTION, '    const aSaCharge = fraisALaChargeDeLaMaison(frais, fraisAjoutes);', '    const aSaCharge = frais;'],
-  ['pas de frais ajoutes', PUR, '  const fraisAjoutes = fraisAjoutesMtn(reste + pourboire);', '  const fraisAjoutes = 0;'],
-  ['les frais sans le merci', PUR, '  const fraisAjoutes = fraisAjoutesMtn(reste + pourboire);', '  const fraisAjoutes = fraisAjoutesMtn(reste);'],
-  ['les frais arrondis vers le bas', PUR, '  return b > 0 ? Math.ceil((b * TAUX_AJOUTE_MTN_PCT) / 100 - 1e-9) : 0;', '  return b > 0 ? Math.floor((b * TAUX_AJOUTE_MTN_PCT) / 100) : 0;'],
+  ['pas de frais ajoutes', PUR, '  const fraisAjoutes = fraisAjoutesMtn(reste + pourboire, o.tauxAjoutePct);', '  const fraisAjoutes = 0;'],
+  ['les frais sans le merci', PUR, '  const fraisAjoutes = fraisAjoutesMtn(reste + pourboire, o.tauxAjoutePct);', '  const fraisAjoutes = fraisAjoutesMtn(reste, o.tauxAjoutePct);'],
+  ['les frais arrondis vers le bas', PUR, '  return b > 0 && p > 0 ? Math.ceil((b * p) / 100 - 1e-9) : 0;', '  return b > 0 && p > 0 ? Math.floor((b * p) / 100) : 0;'],
   ['le plafond oublie les frais', PUR, '  if (reste + pourboire + fraisAjoutes > MONTANT_MTN_MAX) return \'montant\';', '  if (reste + pourboire > MONTANT_MTN_MAX) return \'montant\';'],
   ['la page ne compte pas les frais', MTN_PAGE, '  const total = avantFrais + frais;', '  const total = avantFrais;'],
   ['la base refuse les frais ajoutes', SQL2, '    and reste_xof >= 1 and montant_xof = reste_xof + pourboire_xof + frais_ajoutes_xof)', '    and reste_xof >= 1 and montant_xof = reste_xof + pourboire_xof)'],
@@ -959,7 +959,9 @@ let refLien;
   const sql2 = lis(SQL2);
   dit('0241 : la colonne des frais ajoutes (0 par defaut), la regle du registre les compte, l essai n en porte jamais',
     /add column if not exists frais_ajoutes_xof integer not null default 0;/.test(sql2) && /montant_xof = reste_xof \+ pourboire_xof \+ frais_ajoutes_xof\)/.test(sql2) && /reste_xof = 0 and pourboire_xof = 0 and frais_ajoutes_xof = 0\)/.test(sql2) && /drop constraint if exists collectes_mtn_genre;/.test(sql2), '');
-  dit('la page MTN : « Validez sur votre telephone », *880#, les frais de 1,6 % dits et comptes, « reglé » seulement sur la reponse relue', /Validez sur votre téléphone/.test(mtnPage) && /\*880#/.test(mtnPage) && /Frais MTN, ajoutés \(1,6 %\)/.test(mtnPage) && /fraisAjoutesMtn\(avantFrais\)/.test(mtnPage) && !/Aucun frais/.test(mtnPage) && /const total = avantFrais \+ frais;/.test(mtnPage) && /francs\(totalXof \+ frais\)/.test(mtnPage) && /if \(s\.etat === 'recu'\)/.test(mtnPage), '');
+  dit('la page MTN : « Validez sur votre telephone », *880#, les frais de 1,6 % dits et comptes, « reglé » seulement sur la reponse relue', /Validez sur votre téléphone/.test(mtnPage) && /\*880#/.test(mtnPage) && /Frais MTN, ajoutés \(\{String\(tauxMtn\)\.replace\('\.', ','\)\} %\)/.test(mtnPage) && /fraisAjoutesMtn\(avantFrais, tauxMtn\)/.test(mtnPage)
+    /* 22 novembre 2026 : le taux vient du serveur (le GET de collecte-mtn), 1,6 % tant qu'il ne le dit pas. */
+    && /const \[tauxMtn, setTauxMtn\] = useState\(TAUX_AJOUTE_MTN_PCT\);/.test(mtnPage) && /if \(o\.fraisAjoutesPct !== undefined\) setTauxMtn\(o\.fraisAjoutesPct\);/.test(mtnPage) && !/Aucun frais/.test(mtnPage) && /const total = avantFrais \+ frais;/.test(mtnPage) && /francs\(totalXof \+ frais\)/.test(mtnPage) && /if \(s\.etat === 'recu'\)/.test(mtnPage), '');
   dit('le QR mene au comptoir : regler.html?comptoir, l adresse lue chez GitHub, jamais ecrite', /has\('comptoir'\)/.test(lis(MAIN)) && /const CHEMIN_DU_COMPTOIR = '\/trone\/regler\.html\?comptoir';/.test(lis(QR)) && /origineDuCompte/.test(lis(QR)) && !/\b[\w-]+\.(?:com|bj|net|org|io)\b/i.test(sansCommentaires(lis(QR)).replace(/www\.w3\.org/g, '')), '');
   const bandeau = lis(BANDEAU);
   const client = lis(CLIENT);

@@ -9,6 +9,7 @@ import { invoiceTotal, ligneNetXof, invoiceReglements, invoiceResteXof, type Inv
 import { detailPorte, donneesDuPdfDeLaPiece, fmtDateFr, ligneSousLeVerrou, motDuPapierParDefaut } from '../../../../shared/pdf-de-la-piece-pur';
 import { appelDe, prenomDUsage } from '../../../../shared/civilite';
 import { useSettings } from '../../../../shared/settings';
+import { tauxDe } from '../../../../shared/frais-des-moyens-pur';
 import { paiementTapGoDeLaPiece, type ReglagesMndPay } from '../../../../shared/mnd-pay-pur';
 import { montantMomopayFraisCompris, TAUX_MOMOPAY_PCT } from '../../../../shared/momopay-de-la-maison-pur';
 import type { InvoicePdfData } from '../../../../shared/pdf';
@@ -112,6 +113,8 @@ export function pdfDuFoyer(o: {
   contenuDe?: (p: Invoice, l: InvoiceLine) => string[];
   fmt: (n: number) => string;
   reglages: ReglagesMndPay | undefined;
+  /** Le taux que MTN retient sur MoMoPay (22 novembre 2026, Paramètres › Paiements). */
+  momopayPct?: number;
   note: string;
 }): InvoicePdfData {
   /* LA LIGNE DIT CE QUE VAUT LA FACTURE, LES TOTAUX DISENT L'ARGENT — 2 novembre
@@ -125,7 +128,7 @@ export function pdfDuFoyer(o: {
   /* PAR MOMOPAY, FRAIS COMPRIS (2 novembre 2026, au sélecteur) : le reste à
      régler ne bouge pas ; le code et le montant sous le QR portent les 1,2 %
      que MTN prend à la Maison. Payé en espèces, la cliente doit le reste. */
-  const parMomo = montantMomopayFraisCompris(resteXof);
+  const parMomo = montantMomopayFraisCompris(resteXof, o.momopayPct);
   const momopay = paiementMomoDeLaMaison(parMomo);
   return {
     kind: 'releve',
@@ -160,7 +163,7 @@ export function pdfDuFoyer(o: {
     note: o.note,
     /* LE CODE MOMO DE LA MAISON, celui que le mot cite (2 novembre 2026) : un seul
        code sur le papier, *880*41*909099*montant#, montant compris. */
-    ...(resteXof > 0 ? { momo: { qr: momopay.qr, code: momopay.code, codeDit: `${o.fmt(parMomo)}, frais MoMo ${String(TAUX_MOMOPAY_PCT).replace('.', ',')} % compris` } } : {}),
+    ...(resteXof > 0 ? { momo: { qr: momopay.qr, code: momopay.code, codeDit: `${o.fmt(parMomo)}, frais MoMo ${String(o.momopayPct ?? TAUX_MOMOPAY_PCT).replace('.', ',')} % compris` } } : {}),
     legal: maisonRaisonDuPdfAu(o.jourIso),
   };
 }
@@ -200,6 +203,8 @@ export function useLaPieceEnPdf() {
   const [clients] = useClients();
   const [settings] = useSettings();
   const reglagesMnd = settings.mndPay;
+  /* Le taux que MTN retient sur MoMoPay (22 novembre 2026), pour le code du foyer. */
+  const momopayPct = tauxDe(settings.frais, 'mtnRetenuPct');
   const [services] = useServices();
   /* ══ CE QUE PORTE UNE LIGNE D'ABONNEMENT — 1er septembre 2026 ══════
      Les pièces écrites À PARTIR D'AUJOURD'HUI portent leur contenu (`detail`).
@@ -277,6 +282,6 @@ export function useLaPieceEnPdf() {
 
   return {
     payeurDe, clientOf, clientNameOf, prenomOf, appelOf, payeurAutreQue, clientNameForPdf,
-    defaultNoteFor, contenuDeLaLigne, buildPdfData, reglagesMnd, sousLeVerrou,
+    defaultNoteFor, contenuDeLaLigne, buildPdfData, reglagesMnd, momopayPct, sousLeVerrou,
   };
 }

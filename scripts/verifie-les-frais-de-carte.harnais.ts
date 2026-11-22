@@ -112,9 +112,9 @@ dit('... l ajustement vaut 20 000 F (pas 21 200), le total ne bouge pas', [20000
 /* ── 5. LA FENÊTRE D'ENCAISSEMENT ────────────────────────────────────── */
 const enc = readFileSync('src/apps/trone/routes/clients/actions.tsx', 'utf8');
 dit('seule la part au terminal (tuile carte) porte les frais, ni FedaPay ni la devise', true,
-  /const fraisDeLaPart = \(pt: PartEnc\): number =>\s*\n\s*\(pt\.tuile === 'carte' && !pt\.sansFrais && !fxOn \? fraisDeCarteXof\(montantDe\(pt\)\) : 0\);/.test(enc));
+  /const fraisDeLaPart = \(pt: PartEnc\): number =>\s*\n\s*\(pt\.tuile === 'carte' && !pt\.sansFrais && !fxOn \? fraisDeCarteXof\(montantDe\(pt\), tauxCarte\) : 0\);/.test(enc));
 dit('la case est cochee d office et se decoche, le montant au terminal dit', [true, true, true],
-  [/checked=\{!p\.sansFrais\}/.test(enc), /onChange=\{\(e\) => majPart\(p\.id, \{ sansFrais: !e\.target\.checked \}\)\}/.test(enc), /au terminal : <b[^>]*>\{fmtMoney\(x \+ fraisDeCarteXof\(x\), currency\)\}/.test(enc)]);
+  [/checked=\{!p\.sansFrais\}/.test(enc), /onChange=\{\(e\) => majPart\(p\.id, \{ sansFrais: !e\.target\.checked \}\)\}/.test(enc), /au terminal : <b[^>]*>\{fmtMoney\(x \+ fraisDeCarteXof\(x, tauxCarte\), currency\)\}/.test(enc)]);
 dit('le versement des frais : sa note, la caisse et le moyen de la carte', true,
   /if \(frais > 0\) \{\s*\n\s*versements\.push\(\{\s*\n\s*id: `ip-\$\{uid\(\)\}`, date: payDate, amountXof: frais,\s*\n\s*method: c\.methode, cashbox: c\.caisse \|\| undefined,[\s\S]{0,80}note: NOTE_FRAIS_DE_CARTE,/.test(enc));
 dit('la piece neuve porte la ligne ; la piece qui grandit garde les frais d avant', [true, true],

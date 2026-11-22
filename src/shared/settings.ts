@@ -1,6 +1,7 @@
 import { createStore, useStore } from './store';
 import type { Plan } from './bascule-des-caisses-pur';
 import type { ReglagesMndPay } from './mnd-pay-pur';
+import type { FraisDesMoyens } from './frais-des-moyens-pur';
 import type { ReglagesRelances } from './relances-pur';
 import type { ReglagesDictee } from './dictee-pur';
 import type { ReglagesAssistants } from './assistants-pur';
@@ -131,6 +132,10 @@ export type Settings = {
       le paiement au téléphone de la cliente et le voit confirmé par FedaPay.
       Éteint tant que le compte FedaPay n'est pas ouvert et ses clés posées. */
   mndPay?: ReglagesMndPay;
+  /** LES FRAIS DES MOYENS DE PAIEMENT — 22 novembre 2026 : ce que la direction
+      a posé dans Paramètres › Paiements (voir frais-des-moyens-pur.ts). Le
+      serveur collecte-mtn lit `mtnAjoutePct` et `mtnRetenuPct` ici. */
+  frais?: FraisDesMoyens;
   /** LES RELANCES DES FACTURES — 18 octobre 2026 (maquette 4Hn8FWmp…) :
       allumées par la direction, le jour du lancement, et le rattrapage des
       trente jours d'avant validé une fois. La tournée du serveur les lit. */

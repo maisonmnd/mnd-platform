@@ -183,7 +183,7 @@ dit('le panneau FedaPay s ouvre sur le moyen de la regle, ceux du mobile seuleme
     enc.includes('MOYENS_FEDAPAY_CARTE'), sansCommentaires('src/apps/trone/routes/vente/MndPay.tsx').includes("{ id: 'carte', nom: 'Carte', sous: 'QR au comptoir' }")]);
 dit('la part Carte par KkiaPay : sa tuile, son moyen, et ce que KkiaPay ajoute, dit sans rien ajouter a la piece', [true, true, true, true],
   [enc.includes("r === 'tpeKkiapay' ? 'carteKkiapay'"), enc.includes("case 'carteKkiapay': return MOYEN_CARTE_KKIAPAY;"),
-    enc.includes("{p.tuile === 'carteKkiapay' && x > 0 && !fxOn && ("), enc.includes("(pt.tuile === 'carte' && !pt.sansFrais && !fxOn ? fraisDeCarteXof(montantDe(pt)) : 0);")]);
+    enc.includes("{p.tuile === 'carteKkiapay' && x > 0 && !fxOn && ("), enc.includes("(pt.tuile === 'carte' && !pt.sansFrais && !fxOn ? fraisDeCarteXof(montantDe(pt), tauxCarte) : 0);")]);
 dit('une capture lue (argent deja arrive par MTN) : Mobile money, MoMoPay touche a la main', true,
   enc.includes("const mtn = l.moyen === 'mtn' ? { voie: 'mobile' as const, aLaMain: 'momopay' as const } : {};"));
 dit('en devise, pas de Mobile money', true, enc.includes("TUILES_VUES.filter((t) => (t.id !== 'mobile' || !fxOn)"));

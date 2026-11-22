@@ -324,7 +324,7 @@ export default function App() {
                 <button type="button" className="rg-regler" disabled={ecran.k === 'paiement' || mtnOccupe} onClick={() => { void regle(p); }}>
                   {ecran.k === 'paiement' ? 'Paiement en cours…' : `Régler ${francs(total)}`}
                 </button>
-                <p className="rg-doux rg-petit rg-centre">MTN, Moov, Celtiis ou carte, par KkiaPay. Les frais de KkiaPay s’ajoutent au paiement (1,9 % Mobile Money, 4 % carte).</p>
+                <p className="rg-doux rg-petit rg-centre">MTN, Moov, Celtiis ou carte, par KkiaPay. Les frais de KkiaPay s’ajoutent au paiement.</p>
               </>
             )}
             {souci && <p className="rg-souci" role="alert">{souci}</p>}

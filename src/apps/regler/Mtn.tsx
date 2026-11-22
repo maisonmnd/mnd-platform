@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
 import { TexteFon } from '../../ds/fon';
-import { estUnNumeroMtn, fraisAjoutesMtn, msisdnDe } from '../../shared/collecte-mtn-pur';
+import { TAUX_AJOUTE_MTN_PCT, estUnNumeroMtn, fraisAjoutesMtn, msisdnDe } from '../../shared/collecte-mtn-pur';
 import {
-  ATTENTE_MTN_LECTURES, ATTENTE_MTN_MS, demandeAuComptoir, demandeParLeLien, laCollecteEstOuverte, retrouveAuComptoir, statutDeLaDemande,
+  ATTENTE_MTN_LECTURES, ATTENTE_MTN_MS, demandeAuComptoir, demandeParLeLien, laCollecteEtSesFrais, retrouveAuComptoir, statutDeLaDemande,
   type RdvAuComptoir, type ReponseCollecte,
 } from '../../shared/collecte-mtn-serveur';
 
@@ -16,7 +16,7 @@ import {
    La demande part de la Maison, au montant du serveur (le reste de sa
    pièce) ; elle valide sur son téléphone, avec son code secret ; la page
    relit MTN toutes les quatre secondes et ne dit « réglé » que sur la
-   réponse de MTN. Les frais MTN de 1,6 % s'ajoutent pour elle, comme pour
+   réponse de MTN. Les frais MTN (1,6 %, réglables) s'ajoutent pour elle, comme pour
    Tap & Go (20 novembre 2026 ; avant, la Maison gardait ceux de MTN).
    Tant que la Maison n'a pas ouvert le règlement par MTN, rien ne paraît
    sur la page du lien, et le comptoir dit de régler à l'accueil. */
@@ -119,7 +119,9 @@ export function PayerParMtn({ jeton, totalXof, pourboireXof, onOccupe, onRegle }
   const [ouverte, setOuverte] = useState(false);
   const [numero, setNumero] = useState('');
   const { d, lance, remet } = useDemandeMtn();
-  useEffect(() => { let v = true; void laCollecteEstOuverte().then((o) => { if (v) setOuverte(o); }); return () => { v = false; }; }, []);
+  /* LE TAUX DU SERVEUR (22 novembre 2026) : celui que la demande portera. */
+  const [tauxMtn, setTauxMtn] = useState(TAUX_AJOUTE_MTN_PCT);
+  useEffect(() => { let v = true; void laCollecteEtSesFrais().then((o) => { if (!v) return; setOuverte(o.ouverte); if (o.fraisAjoutesPct !== undefined) setTauxMtn(o.fraisAjoutesPct); }); return () => { v = false; }; }, []);
   const occupe = d.k === 'envoi' || d.k === 'attente';
   useEffect(() => { onOccupe(occupe); }, [occupe, onOccupe]);
   const dit = useRef(false);
@@ -133,11 +135,11 @@ export function PayerParMtn({ jeton, totalXof, pourboireXof, onOccupe, onRegle }
 
   if (d.k === 'attente') return <Attente montantXof={d.montantXof} />;
   /* LES 1,6 % DE MTN, AJOUTÉS (20 novembre 2026), comme le serveur les compte. */
-  const frais = fraisAjoutesMtn(totalXof);
+  const frais = fraisAjoutesMtn(totalXof, tauxMtn);
   return (
     <div className="rg-mtn">
       <p className="rg-mtn-titre">Payer par MTN</p>
-      <p className="rg-doux rg-petit">La demande arrive sur votre téléphone. Frais MTN ajoutés (1,6 %) : {francs(frais)}.</p>
+      <p className="rg-doux rg-petit">La demande arrive sur votre téléphone. Frais MTN ajoutés ({String(tauxMtn).replace('.', ',')} %) : {francs(frais)}.</p>
       <ChampDuNumero valeur={numero} onChange={setNumero} />
       <button type="button" className="rg-regler" disabled={!lu || !estUnNumeroMtn(lu) || d.k === 'envoi'}
         onClick={() => { void lance(() => demandeParLeLien(jeton, lu ?? '', pourboireXof)); }}>
@@ -167,7 +169,9 @@ export function Comptoir() {
   const [saisie, setSaisie] = useState('');
   const { d, lance, remet } = useDemandeMtn();
 
-  useEffect(() => { let v = true; void laCollecteEstOuverte().then((o) => { if (v) setOuverte(o); }); return () => { v = false; }; }, []);
+  /* LE TAUX DU SERVEUR (22 novembre 2026) : celui que la demande portera. */
+  const [tauxMtn, setTauxMtn] = useState(TAUX_AJOUTE_MTN_PCT);
+  useEffect(() => { let v = true; void laCollecteEtSesFrais().then((o) => { if (!v) return; setOuverte(o.ouverte); if (o.fraisAjoutesPct !== undefined) setTauxMtn(o.fraisAjoutesPct); }); return () => { v = false; }; }, []);
   const lu = msisdnDe(numero);
 
   const retrouve = async () => {
@@ -186,7 +190,7 @@ export function Comptoir() {
 
   const avantFrais = choisi ? choisi.resteXof + (choisi.pourboire ? merci : 0) : 0;
   /* LES 1,6 % DE MTN, AJOUTÉS (20 novembre 2026), comme le serveur les compte. */
-  const frais = fraisAjoutesMtn(avantFrais);
+  const frais = fraisAjoutesMtn(avantFrais, tauxMtn);
   const total = avantFrais + frais;
 
   return (
@@ -285,7 +289,7 @@ export function Comptoir() {
                 </div>
               )}
               <div className="rg-lignes">
-                <div className="rg-ligne rg-doux"><span>Frais MTN, ajoutés (1,6 %)</span><span>+ {francs(frais)}</span></div>
+                <div className="rg-ligne rg-doux"><span>Frais MTN, ajoutés ({String(tauxMtn).replace('.', ',')} %)</span><span>+ {francs(frais)}</span></div>
                 <div className="rg-ligne rg-fort"><span>Total demandé par MTN</span><span>{francs(total)}</span></div>
               </div>
               <button type="button" className="rg-regler" disabled={d.k === 'envoi' || !lu}

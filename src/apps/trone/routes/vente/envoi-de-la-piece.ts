@@ -2,6 +2,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { useSettings } from '../../../../shared/settings';
+import { tauxDe } from '../../../../shared/frais-des-moyens-pur';
 import { maisonNom } from '../../../../shared/identite';
 import { invoiceResteXof, invoicesStore, quiEncaisse } from '../../../../shared/finance';
 import { demandeLePaiement, mndPayOuvert, versionDeMndPay } from '../../../../shared/mnd-pay';
@@ -233,6 +234,7 @@ export function useEnvoiDeLaPiece() {
       nomDe,
       fmt: (n) => fmtMoney(n, currency),
       reglages: settings.mndPay,
+      momopayPct: tauxDe(settings.frais, 'mtnRetenuPct'),
       note: motDuFoyer([...new Set(ouvertes.map(prenomDe))]),
     });
     const r = await envoieLaFactureDuFoyer({
@@ -292,6 +294,7 @@ export function useEnvoiDeLaPiece() {
       contenuDe: contenuDeLaLigne,
       fmt: (n) => fmtMoney(n, currency),
       reglages: settings.mndPay,
+      momopayPct: tauxDe(settings.frais, 'mtnRetenuPct'),
       note: `${phrase}. Ce point ne réclame rien de plus que les factures qu’il résume.`,
     });
     const r = await envoieLePointDuCompte({

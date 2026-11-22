@@ -27,7 +27,7 @@ export type Tuile = { id: IdTuile; nom: string; mots: string };
 export const TUILES: readonly Tuile[] = [
   { id: 'heures', nom: 'Heures et jours', mots: 'heures horaires ouverture fermeture ouvert fermé jour journée exceptionnelle férié inventaire congé bloquer créneau pause midi absence clôture grenat caisse du jour' },
   { id: 'whatsapp', nom: 'WhatsApp', mots: 'whatsapp automate assistant phrases claude numéros essai places horizon main équipe pause réponse' },
-  { id: 'paiements', nom: 'Paiements', mots: 'paiement paiements modes espèces momo moov celtiis carte chèque virement mnd pay fedapay tap go zelle devise étrangère euro dollar relance relances facture factures rythme rattrapage' },
+  { id: 'paiements', nom: 'Paiements', mots: 'paiement paiements modes espèces momo moov celtiis carte chèque virement mnd pay fedapay tap go zelle devise étrangère euro dollar relance relances facture factures rythme rattrapage frais taux pourcentage pour cent kkiapay tpe terminal banque commission retenue momopay' },
   { id: 'envoyer', nom: 'Ce qu’on envoie aux clientes', mots: 'itinéraire chemin adresse plan google maps avis lien momo qr ussd marchand code 909099 messages automatiques' },
   { id: 'reservation', nom: 'Réservation et acompte', mots: 'réservation réserver acompte pourcentage prestations plafond maître jour paliers élévation souveraineté habilitée main ma couronne en ligne' },
   { id: 'places', nom: 'Places limitées', mots: 'places limitées remise 15 % quinze décompte jour vide mardi mercredi jeudi vendredi samedi shampoing shampoings lavage lavages soin soins offre du jour' },

@@ -30,10 +30,12 @@ export const TAUX_MOMOPAY_PCT = 1.2;
     2 novembre 2026, au sélecteur : « frais dans le code MoMo ». Les 1,2 % se
     prennent sur ce qui est payé : le montant se remonte (reste ÷ 0,988), puis
     s'arrondit aux 50 F du dessus. 20 000 F → 20 250 F. */
-export const montantMomopayFraisCompris = (resteXof: number): number => {
+export const montantMomopayFraisCompris = (resteXof: number, pct: number = TAUX_MOMOPAY_PCT): number => {
   const reste = Math.max(0, Math.round(Number.isFinite(resteXof) ? resteXof : 0));
   if (reste <= 0) return 0;
-  return Math.ceil(reste / (1 - TAUX_MOMOPAY_PCT / 100) / 50 - 1e-9) * 50;
+  /* Le taux de MTN, réglable depuis le 22 novembre 2026 (Paramètres › Paiements). */
+  const p = Number.isFinite(Number(pct)) && Number(pct) >= 0 && Number(pct) < 100 ? Number(pct) : TAUX_MOMOPAY_PCT;
+  return Math.ceil(reste / (1 - p / 100) / 50 - 1e-9) * 50;
 };
 /** Les noms que l'ancien compte portait au Trône ou sur l'affiche. */
 const ANCIENS_MARCHANDS = ['ets acia1', 'acia1', 'acia 1', 'yeman', ''];

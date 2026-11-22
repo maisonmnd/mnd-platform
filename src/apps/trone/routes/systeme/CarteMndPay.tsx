@@ -4,7 +4,8 @@ import { useEstDirection } from '../_vie';
 import { Toggle } from '../equipe/ui';
 import { supabase } from '../../../../shared/supabase';
 import { useSettings } from '../../../../shared/settings';
-import { CODE_TAPGO_DEFAUT, MODES_DEFAUT, TAUX_MOBILE_DEFAUT, TAUX_TAPGO_DEFAUT, codeUssdTapGo, type ReglagesMndPay } from '../../../../shared/mnd-pay-pur';
+import { CODE_TAPGO_DEFAUT, MODES_DEFAUT, codeUssdTapGo, type ReglagesMndPay } from '../../../../shared/mnd-pay-pur';
+import { tauxDit, tauxFedapayMobile, tauxTapGo } from '../../../../shared/frais-des-moyens-pur';
 
 /* ══ LES RÉGLAGES DE MND PAY — 16 octobre 2026 ═════════════════════════
    Maquette UigU1Rr5… : MND PAY s'allume ICI, une fois le compte FedaPay
@@ -41,11 +42,6 @@ export function CarteMndPay() {
       : `mnd-pay ${d.version ?? ''} répond, mais la clé FedaPay n’est pas posée.`);
   };
 
-  const nombre = (v: string): number | undefined => {
-    const n = Number(String(v).replace(',', '.'));
-    return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : undefined;
-  };
-
   return (
     <Card className="sys-section" style={{ marginTop: 18 }}>
       <div className="sys-section__title">FedaPay</div>
@@ -67,28 +63,12 @@ export function CarteMndPay() {
         </div>
         <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" onClick={() => void verifie()}>Vérifier</button>
       </div>
+      {/* SES FRAIS (22 novembre 2026) : le mobile money et Tap & Go se règlent dans
+          « Les frais des moyens de paiement », juste au-dessus, avec tous les autres. */}
       <div className="sys-row">
         <div>
-          <div className="sys-row__label">Frais du mobile money, ajoutés pour la cliente</div>
-          <div className="sys-row__sub">La grille de FedaPay pour MTN et Moov au Bénin : {TAUX_MOBILE_DEFAUT.toLocaleString('fr-FR')} % (16 octobre 2026).</div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <input className="sys-select" inputMode="decimal" defaultValue={String(r.tauxMobilePct ?? TAUX_MOBILE_DEFAUT).replace('.', ',')}
-            onBlur={(e) => pose({ tauxMobilePct: nombre(e.target.value) ?? TAUX_MOBILE_DEFAUT })}
-            style={{ width: 80, textAlign: 'right' }} aria-label="Taux des frais du mobile money, en pourcentage" />
-          <span className="sys-row__value">%</span>
-        </div>
-      </div>
-      <div className="sys-row">
-        <div>
-          <div className="sys-row__label">Frais de la carte, ajoutés pour la cliente</div>
-          <div className="sys-row__sub">À recopier de votre contrat FedaPay. Vide, la carte prend le taux du mobile money. Un lien envoyé prend le plus haut des deux : la cliente choisit son moyen après.</div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <input className="sys-select" inputMode="decimal" defaultValue={r.tauxCartePct !== undefined ? String(r.tauxCartePct).replace('.', ',') : ''}
-            placeholder="?" onBlur={(e) => pose({ tauxCartePct: e.target.value.trim() ? nombre(e.target.value) : undefined })}
-            style={{ width: 80, textAlign: 'right' }} aria-label="Taux des frais de la carte, en pourcentage" />
-          <span className="sys-row__value">%</span>
+          <div className="sys-row__label">Ses frais, ajoutés pour la cliente</div>
+          <div className="sys-row__sub">Mobile money {tauxDit(tauxFedapayMobile(r))} %, Tap & Go {tauxDit(tauxTapGo(r))} % : ils se règlent dans « Les frais des moyens de paiement », juste au-dessus.</div>
         </div>
       </div>
       <div className="sys-row">
@@ -96,7 +76,7 @@ export function CarteMndPay() {
           <div className="sys-row__label">Tap & Go, le code USSD</div>
           <div className="sys-row__sub">
             La cliente compose le code de la Maison sur son téléphone, n’importe quel réseau, même sans internet ; le paiement se reconnaît au montant exact et s’encaisse seul.
-            Aujourd’hui à 10 000 F : {codeUssdTapGo(10000 + Math.ceil(10000 * (r.tapgo?.tauxPct ?? TAUX_TAPGO_DEFAUT) / 100 - 1e-9), r)}
+            Aujourd’hui à 10 000 F : {codeUssdTapGo(10000 + Math.ceil(10000 * tauxTapGo(r) / 100 - 1e-9), r)}
           </div>
         </div>
         <Toggle on={r.tapgo?.actif !== false} onToggle={() => poseTapGo({ actif: r.tapgo?.actif === false })} />
@@ -111,18 +91,6 @@ export function CarteMndPay() {
             <input className="sys-select" inputMode="numeric" defaultValue={r.tapgo?.code ?? CODE_TAPGO_DEFAUT}
               onBlur={(e) => poseTapGo({ code: e.target.value.replace(/\D/g, '') || undefined })}
               style={{ width: 100, textAlign: 'right' }} aria-label="Code marchand Tap & Go" />
-          </div>
-          <div className="sys-row">
-            <div>
-              <div className="sys-row__label">Commission de Tap & Go, ajoutée pour la cliente</div>
-              <div className="sys-row__sub">{TAUX_TAPGO_DEFAUT.toLocaleString('fr-FR')} % sur le mobile money d’après FedaPay (17 octobre 2026).</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input className="sys-select" inputMode="decimal" defaultValue={String(r.tapgo?.tauxPct ?? TAUX_TAPGO_DEFAUT).replace('.', ',')}
-                onBlur={(e) => poseTapGo({ tauxPct: nombre(e.target.value) ?? TAUX_TAPGO_DEFAUT })}
-                style={{ width: 80, textAlign: 'right' }} aria-label="Commission de Tap & Go, en pourcentage" />
-              <span className="sys-row__value">%</span>
-            </div>
           </div>
         </>
       )}

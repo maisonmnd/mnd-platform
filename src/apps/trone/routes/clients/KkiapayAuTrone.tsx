@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, toast } from '../../../../ds/components';
+import { Button, Input, toast } from '../../../../ds/components';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments } from '../../../../shared/agenda';
 import { useInvoices } from '../../../../shared/finance';
@@ -7,6 +7,10 @@ import { adresseDuLien, poseLeLienDeReglement } from '../../../../shared/regler-
 import { lisLeLien, regleLeLien, type PageDuLien } from '../../../../shared/regler-la-seance-serveur';
 import { etatDuLien, laPieceDuRdv, type PieceLue } from '../../../../shared/regler-la-seance-pur';
 import { estUnePanneDeKkiapay, payWithKkiapay } from '../../../../shared/kkiapay-widget';
+import { estUnNumeroMtn, msisdnDe } from '../../../../shared/collecte-mtn-pur';
+import { fraisKkiapayXof } from '../../../../shared/choix-du-moyen-pur';
+import { tauxDe, tauxDit } from '../../../../shared/frais-des-moyens-pur';
+import { useSettings } from '../../../../shared/settings';
 import { QrDuPaiement } from '../vente/MndPay';
 
 /* ══ KKIAPAY DANS LA FENÊTRE ENCAISSER — 22 novembre 2026 ════════════════
@@ -21,7 +25,13 @@ import { QrDuPaiement } from '../vente/MndPay';
      · KKIAPAY (Mobile money) : la fenêtre de KkiaPay s'ouvre ICI, sur le
        Trône ; la caissière tape son numéro (MTN, Moov ou Celtiis), la
        demande part sur son téléphone. KkiaPay ne publie pas d'API qui
-       demande l'argent depuis un serveur : sa fenêtre est le chemin. Son
+       demande l'argent depuis un serveur : sa fenêtre est le chemin (sa
+       demande directe n'existe que par une voie interne, chiffrée et non
+       documentée, vue le 22 novembre 2026 : on n'y bâtit rien). LE NUMÉRO
+       SE TAPE ICI, quel que soit son réseau (« je veux voir la possibilité
+       de taper le numéro quel que soit le réseau du client, et aussi ouvrir
+       KkiaPay », Yéman, 22 novembre) : la fenêtre s'ouvre avec lui déjà
+       écrit ; « Ouvrir KkiaPay » l'ouvre vide. Son
        numéro de transaction part à la fonction, qui redemande la vérité à
        KkiaPay et pose l'argent sur la pièce, caisse KkiaPay ;
      · LE QR (Carte) : l'adresse du lien, à scanner ; la page « Régler »
@@ -65,6 +75,12 @@ async function prepareLeLien(rdvId: string, emetLaPiece: Commun['emetLaPiece'], 
   return { erreur: 'La facture n’est pas encore arrivée au serveur. Vérifiez « Synchronisé » en haut, puis réessayez.' };
 }
 
+/** Le numéro de sa fiche, tous réseaux, écrit comme on le lit : « 01 62 09 22 22 ». */
+const numeroDeDepart = (tel: string | undefined): string => {
+  const m = msisdnDe(tel ?? '');
+  return m ? m.slice(3).replace(/(\d{2})(?=\d)/g, '$1 ').trim() : '';
+};
+
 const BLOC = {
   background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderRadius: 'var(--radius-md)', padding: 12,
   fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, display: 'grid', gap: 8,
@@ -88,6 +104,11 @@ export function PayerParKkiapayAuTrone({ rdvId, currency, emetLaPiece, onRegle, 
   onReussite?: () => void;
 }) {
   const [etat, setEtat] = useState<EtatKkia>({ k: 'pret' });
+  const [numero, setNumero] = useState(() => numeroDeDepart(telephone));
+  const lu = msisdnDe(numero);
+  /* Les frais de KkiaPay, au taux de Paramètres › Paiements (1,5 % sur le compte de la Maison). */
+  const [reglages] = useSettings();
+  const tauxKkia = tauxDe(reglages.frais, 'kkiapayMobilePct');
   const vivant = useRef(true);
   /* Chaque ouverture a son numéro : la réponse d'une fenêtre remplacée ne touche plus l'écran. */
   const tour = useRef(0);
@@ -96,7 +117,7 @@ export function PayerParKkiapayAuTrone({ rdvId, currency, emetLaPiece, onRegle, 
   useEffect(() => { onOccupe?.(occupe); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [occupe]);
   const pourboire = Math.max(0, Math.round(pourboireXof) || 0);
 
-  const ouvre = async () => {
+  const ouvre = async (numeroLu: string | null) => {
     const n = ++tour.current;
     const encore = () => vivant.current && tour.current === n;
     setEtat({ k: 'prepare' });
@@ -109,7 +130,8 @@ export function PayerParKkiapayAuTrone({ rdvId, currency, emetLaPiece, onRegle, 
     try {
       transactionId = (await payWithKkiapay({
         amountXof: montant, partnerId: prep.page.reference, branchId: prep.page.branchId,
-        ...(telephone ? { phone: telephone } : {}), ...(nom ? { name: nom } : {}),
+        /* Le numéro tapé, sans l'indicatif : la fenêtre a déjà le Bénin. */
+        ...(numeroLu ? { phone: numeroLu.slice(3) } : {}), ...(nom ? { name: nom } : {}),
       })).transactionId;
     } catch (e) {
       if (!encore()) return;
@@ -142,14 +164,30 @@ export function PayerParKkiapayAuTrone({ rdvId, currency, emetLaPiece, onRegle, 
     );
   }
   const total = resteXof + pourboire;
+  const fraisKkia = fraisKkiapayXof(total, tauxKkia);
   return (
     <div style={BLOC} data-kkiapay-au-trone={etat.k}>
       <span>
-        KkiaPay s’ouvre ici : tapez son numéro (MTN, Moov ou Celtiis), la demande part sur son téléphone et elle confirme.
-        {' '}<b>{fmtMoney(total, currency)}</b>{pourboire > 0 ? `, dont ${fmtMoney(pourboire, currency)} de pourboire` : ''} ; KkiaPay ajoute ses frais pour elle.
+        La demande part sur son téléphone, MTN, Moov ou Celtiis : <b>{fmtMoney(total, currency)}</b>
+        {pourboire > 0 ? `, dont ${fmtMoney(pourboire, currency)} de pourboire` : ''}.
+        {' '}KkiaPay ajoute ses {tauxDit(tauxKkia)}&nbsp;% pour elle : elle paiera <b data-frais-kkiapay-mobile={fraisKkia}>{fmtMoney(total + fraisKkia, currency)}</b>.
       </span>
       {(etat.k === 'pret' || etat.k === 'erreur') && (
-        <Button variant="copper" onClick={() => { void ouvre(); }}>{etat.k === 'pret' ? `Ouvrir KkiaPay · ${fmtMoney(total, currency)}` : 'Rouvrir KkiaPay'}</Button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Input value={numero} onChange={(e) => setNumero(e.target.value)} inputMode="tel" placeholder="Son numéro, 01 …"
+            aria-label="Numéro mobile money de la cliente, MTN, Moov ou Celtiis" style={{ maxWidth: 200 }} />
+          <Button variant="copper" disabled={!lu} onClick={() => { void ouvre(lu); }}>
+            {etat.k === 'pret' ? `Demander à ce numéro · ${fmtMoney(total, currency)}` : 'Redemander à ce numéro'}
+          </Button>
+        </div>
+      )}
+      {(etat.k === 'pret' || etat.k === 'erreur') && (
+        <span style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' }}>
+          <span>{lu ? `${estUnNumeroMtn(lu) ? 'Numéro MTN' : 'Numéro Moov ou Celtiis'} : KkiaPay s’ouvre avec lui déjà tapé, validez-y et la demande part.` : 'Tapez son numéro, de n’importe quel réseau.'}</span>
+          <button type="button" className="tre-link-btn" style={{ color: 'var(--copper-200)' }} onClick={() => { void ouvre(null); }}>
+            Ouvrir KkiaPay sans numéro
+          </button>
+        </span>
       )}
       {etat.k === 'prepare' && <span aria-live="polite">La facture monte au serveur, KkiaPay s’ouvre dans un instant…</span>}
       {etat.k === 'fenetre' && (

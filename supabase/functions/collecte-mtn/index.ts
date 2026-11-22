@@ -91,8 +91,17 @@
    2026-11-21-a · LES FRAIS MTN GARDÉS (« Crée une rubrique », Yéman) : ce
    que les 1,6 % laissent après les 1,2 % de MTN entre au tiroir « MTN
    Collection », une entrée hors activité par règlement, motif « Frais MTN
-   gardés » (`entreeDesFraisGardes`, table entrees_hors_activite). */
-const VERSION = '2026-11-21-a';
+   gardés » (`entreeDesFraisGardes`, table entrees_hors_activite).
+
+   2026-11-22-a · LES TAUX DE LA DIRECTION (« Je veux un espace dans mes
+   paramètres où je corrige les frais », Yéman) : les frais ajoutés pour la
+   cliente et ce que MTN retient se lisent dans `mnd_settings` (sa clé
+   `frais`, Paramètres › Paiements › Les frais des moyens de paiement), à
+   chaque demande et à chaque pose ; illisibles ou absents, 1,6 % et 1,2 %.
+   Le GET les rend (`fraisAjoutesPct`) : la page « Régler » dit le même taux
+   que la demande. Les frais d'une demande partie restent les siens
+   (`frais_ajoutes_xof`, écrits avant l'appel). */
+const VERSION = '2026-11-22-a';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -388,11 +397,33 @@ const TAUX_DES_FRAIS_MTN = 0.012;
     reçoit au moins ce qu'elle demande). Le 11 novembre, la Maison gardait les
     frais ; plus maintenant. L'essai de 100 F n'en porte aucun. */
 const TAUX_AJOUTE_MTN_PCT = 1.6;
-/** Les frais ajoutés pour ce que la cliente règle (reste et merci). */
-const fraisAjoutesMtn = (baseXof: number): number => {
+/** Les frais ajoutés pour ce que la cliente règle (reste et merci), au taux
+    de la direction (22 novembre 2026), 1,6 % tant qu'elle n'en a posé aucun. */
+const fraisAjoutesMtn = (baseXof: number, pct: number = TAUX_AJOUTE_MTN_PCT): number => {
   const b = Math.max(0, Math.round(Number(baseXof) || 0));
-  return b > 0 ? Math.ceil((b * TAUX_AJOUTE_MTN_PCT) / 100 - 1e-9) : 0;
+  const p = Number.isFinite(Number(pct)) && Number(pct) >= 0 ? Number(pct) : TAUX_AJOUTE_MTN_PCT;
+  return b > 0 && p > 0 ? Math.ceil((b * p) / 100 - 1e-9) : 0;
 };
+/** LES TAUX DE LA DIRECTION — 22 novembre 2026 (« Je veux un espace dans mes
+    paramètres où je corrige les frais », Yéman) : Paramètres › Paiements ›
+    Les frais des moyens de paiement, lus au serveur dans `mnd_settings` (sa
+    clé `frais`). De 0 à 10 %, au centième ; vide, illisible ou absent : ceux
+    d'avant. `tauxLu` (frais-des-moyens-pur.ts) dit la même chose au Trône. */
+const TAUX_MAX_DES_FRAIS_PCT = 10;
+function tauxDesReglages(v: unknown, defaut: number): number {
+  if (v === null || v === undefined || (typeof v === 'string' && v.trim() === '')) return defaut;
+  const n = typeof v === 'number' ? v : Number(String(v).trim().replace(',', '.'));
+  return Number.isFinite(n) && n >= 0 && n <= TAUX_MAX_DES_FRAIS_PCT ? Math.round(n * 100) / 100 : defaut;
+}
+/** Les deux taux de MTN : ajoutés pour la cliente, retenus par MTN (en pour cent). */
+function tauxMtnDesReglages(doc: unknown): { ajoutePct: number; retenuPct: number } {
+  const f = doc && typeof doc === 'object' ? (doc as { frais?: unknown }).frais : undefined;
+  const r = (f && typeof f === 'object' ? f : {}) as Record<string, unknown>;
+  return {
+    ajoutePct: tauxDesReglages(r.mtnAjoutePct, TAUX_AJOUTE_MTN_PCT),
+    retenuPct: tauxDesReglages(r.mtnRetenuPct, Math.round(TAUX_DES_FRAIS_MTN * 10_000) / 100),
+  };
+}
 /** Ce que la Maison paie encore des frais de MTN : ce que les frais ajoutés
     ne couvrent pas (rien, à 1,6 % contre 1,2 %). */
 const fraisALaChargeDeLaMaison = (fraisMtnXof: number, fraisAjoutesXof: unknown): number =>
@@ -450,8 +481,12 @@ type CollecteMtn = {
 const ETATS_VIVANTS: readonly EtatDeLaCollecte[] = ['demande', 'attente', 'sans-reponse'];
 const estVivante = (e: unknown): boolean => ETATS_VIVANTS.includes(e as EtatDeLaCollecte);
 
-/** Les frais que MTN retient sur un encaissement : 1,2 %, au franc près. */
-const fraisDeMtn = (montantXof: number): number => Math.max(0, Math.round((Number(montantXof) || 0) * TAUX_DES_FRAIS_MTN));
+/** Les frais que MTN retient sur un encaissement : 1,2 % (ou le taux posé par
+    la direction, en pour cent), au franc près. */
+const fraisDeMtn = (montantXof: number, retenuPct?: number): number => {
+  const t = retenuPct === undefined || !Number.isFinite(Number(retenuPct)) || Number(retenuPct) < 0 ? TAUX_DES_FRAIS_MTN : Number(retenuPct) / 100;
+  return Math.max(0, Math.round((Number(montantXof) || 0) * t));
+};
 
 /** Le merci tapé : un entier de 0 à 100 000 F ; rien quand il n'est pas permis. */
 function pourboireLu(x: unknown, permis: boolean): number {
@@ -466,6 +501,8 @@ function pourboireLu(x: unknown, permis: boolean): number {
 function demandeDeReglement(o: {
   reference: string; origine: 'lien' | 'comptoir'; rdvId: string; pieceId: string; branchId: string | null;
   msisdn: unknown; resteXof: number; pourboireXof: number;
+  /** Le taux ajouté pour la cliente, lu au serveur (22 novembre 2026). */
+  tauxAjoutePct?: number;
 }): CollecteMtn | string {
   if (!RE_REFERENCE_MTN.test(o.reference)) return 'référence illisible';
   const msisdn = msisdnDe(o.msisdn);
@@ -473,7 +510,7 @@ function demandeDeReglement(o: {
   const reste = Math.round(Number(o.resteXof));
   if (!Number.isInteger(reste) || reste < 1) return 'deja_reglee';
   const pourboire = pourboireLu(o.pourboireXof, true);
-  const fraisAjoutes = fraisAjoutesMtn(reste + pourboire);
+  const fraisAjoutes = fraisAjoutesMtn(reste + pourboire, o.tauxAjoutePct);
   if (reste + pourboire + fraisAjoutes > MONTANT_MTN_MAX) return 'montant';
   if (!o.rdvId || !o.pieceId) return 'sans_piece';
   return {
@@ -647,7 +684,8 @@ const fraisMtnGardes = (fraisMtnXof: number, fraisAjoutesXof: unknown): number =
   Math.max(0, Math.max(0, Math.round(Number(fraisAjoutesXof) || 0)) - Math.max(0, Math.round(Number(fraisMtnXof) || 0)));
 /** L'ENTRÉE DES FRAIS GARDÉS, une par règlement (son identifiant tient à la
     référence : un rejeu écrit la même ligne), au tiroir « MTN Collection ». */
-function entreeDesFraisGardes(o: { reference: string; branchId: string; gardesXof: number; jour: string; qui?: string }) {
+function entreeDesFraisGardes(o: { reference: string; branchId: string; gardesXof: number; jour: string; qui?: string; ajoutePct?: number; retenuPct?: number }) {
+  const dit = (x: number): string => String(x).replace('.', ',');
   return {
     id: `hors-mtn-${String(o.reference).toLowerCase()}`,
     branchId: o.branchId,
@@ -657,7 +695,7 @@ function entreeDesFraisGardes(o: { reference: string; branchId: string; gardesXo
     label: `${MOTIF_FRAIS_MTN_GARDES}${o.qui ? ` · ${o.qui}` : ''}`,
     amountXof: Math.max(0, Math.round(o.gardesXof)),
     cashbox: CAISSE_MTN_COLLECTION,
-    note: `Les 1,6 % payés par la cliente, moins les 1,2 % retenus par MTN · référence ${String(o.reference).toLowerCase()}`,
+    note: `Les ${dit(o.ajoutePct ?? TAUX_AJOUTE_MTN_PCT)} % payés par la cliente, moins les ${dit(o.retenuPct ?? Math.round(TAUX_DES_FRAIS_MTN * 10_000) / 100)} % retenus par MTN · référence ${String(o.reference).toLowerCase()}`,
   };
 }
 
@@ -920,6 +958,15 @@ const estLePassage = (req: Request) => {
   return !!jwt && CLES_DE_SERVICE().some((cle) => memeCle(jwt, cle));
 };
 
+/* ── Les taux de la direction (2026-11-22-a) : illisibles ou absents, ceux d'avant ── */
+async function lesTaux(): Promise<{ ajoutePct: number; retenuPct: number }> {
+  try {
+    return tauxMtnDesReglages(premiere(await base('documents?key=eq.mnd_settings&select=data&limit=1'))?.data);
+  } catch {
+    return tauxMtnDesReglages(null);
+  }
+}
+
 /* ── L'interrupteur (0200) : illisible ou absent, il est FERMÉ ── */
 async function leReglage(): Promise<{ ouverte: boolean; rappel: boolean; lu: boolean }> {
   const l = premiere(await base('collecte_mtn_reglage?id=eq.1&select=ouverte,rappel&limit=1'));
@@ -1035,7 +1082,8 @@ async function poser(c: CollecteMtn): Promise<{ pose: boolean; honore: boolean; 
       await ecrisLaCollecte(c.reference, { a_rapprocher: partage.raison });
       return { pose: false, honore: false, raison: partage.raison };
     }
-    const frais = fraisDeMtn(c.montant_xof);
+    const taux = await lesTaux();
+    const frais = fraisDeMtn(c.montant_xof, taux.retenuPct);
     /* LES 1,6 % PAYÉS PAR LA CLIENTE (20 novembre 2026) : la Maison ne garde à
        sa charge que ce qu'ils ne couvrent pas. */
     const fraisAjoutes = Math.max(0, Math.round(Number(c.frais_ajoutes_xof) || 0));
@@ -1060,7 +1108,7 @@ async function poser(c: CollecteMtn): Promise<{ pose: boolean; honore: boolean; 
        après les frais de MTN entre au tiroir, en rubrique à part. */
     const gardes = fraisMtnGardes(frais, fraisAjoutes);
     if (gardes > 0 && branche) {
-      const h = entreeDesFraisGardes({ reference: c.reference, branchId: branche, gardesXof: gardes, jour: jourDeCotonou(quand), qui: prenomEtInitiale(null, s.nom) });
+      const h = entreeDesFraisGardes({ reference: c.reference, branchId: branche, gardesXof: gardes, jour: jourDeCotonou(quand), qui: prenomEtInitiale(null, s.nom), ajoutePct: taux.ajoutePct, retenuPct: taux.retenuPct });
       await base('entrees_hors_activite', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: JSON.stringify({ id: h.id, branch_id: branche, data: h }) });
     }
     await ecrisLaCollecte(c.reference, { pose_le: new Date().toISOString(), frais_xof: frais });
@@ -1084,7 +1132,7 @@ async function relis(c: CollecteMtn): Promise<CollecteMtn> {
   }
   if (issue.etat === 'recu') {
     const recue = await ecrisLaCollecte(c.reference, {
-      etat: 'recu', repondu_le: maintenant, relu_le: maintenant, frais_xof: fraisDeMtn(c.montant_xof),
+      etat: 'recu', repondu_le: maintenant, relu_le: maintenant, frais_xof: fraisDeMtn(c.montant_xof, (await lesTaux()).retenuPct),
       ...(issue.transaction ? { transaction_mtn: issue.transaction } : {}),
     }, c.etat);
     if (recue && recue.genre === 'reglement') await poser(recue);
@@ -1197,6 +1245,7 @@ async function demandePourLeRdv(rdv: Ligne, msisdn: unknown, origine: 'lien' | '
   const c = demandeDeReglement({
     reference: crypto.randomUUID(), origine, rdvId: rdv.id, pieceId: piece.id, branchId: rdv.branch_id ?? null,
     msisdn, resteXof: reste, pourboireXof: pourboireLu(corps.pourboireXof, !((Number(piece.tipXof) || 0) > 0)),
+    tauxAjoutePct: (await lesTaux()).ajoutePct,
   });
   if (typeof c === 'string') return json({ erreur: c }, 400);
   if (par) c.demande_par = `${par}, au Trône`.slice(0, 80);
@@ -1265,7 +1314,7 @@ const sante = () => {
 async function repond(req: Request): Promise<Response> {
   jetonDuPassage = null;
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (req.method === 'GET') return json({ ...sante(), ouverte: (await leReglage()).ouverte }); // la santé : sa version, ce qui est posé, l'interrupteur
+  if (req.method === 'GET') return json({ ...sante(), ouverte: (await leReglage()).ouverte, fraisAjoutesPct: (await lesTaux()).ajoutePct }); // la santé : sa version, ce qui est posé, l'interrupteur, le taux
   if (req.method !== 'POST') return json({ erreur: 'méthode' }, 405);
 
   const corps = await req.json().catch(() => ({})) as any;
@@ -1278,7 +1327,7 @@ async function repond(req: Request): Promise<Response> {
     return json({ passage: await passage(refs) });
   }
 
-  if (action === 'sante') return json({ ...sante(), ouverte: (await leReglage()).ouverte });
+  if (action === 'sante') return json({ ...sante(), ouverte: (await leReglage()).ouverte, fraisAjoutesPct: (await lesTaux()).ajoutePct });
   if (action === 'comptoir') return comptoir(req, corps);
   if (action === 'demander') return demander(req, corps);
   if (action === 'demander-trone') return demanderDuTrone(req, corps);

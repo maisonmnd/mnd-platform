@@ -33,7 +33,7 @@ import { ditLesMissionsRetirees } from '../../../../shared/missions-prestataires
 import { Link } from 'react-router-dom';
 import { autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT, lienPaiementMomo, MOMO_QR_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
 import { AuComptoir, type Grand } from './AuComptoir';
-import { FRAIS_KKIAPAY_CARTE_PCT, MOYEN_CARTE_KKIAPAY, PANNE_RETENUE_MS, RAILS, autresMoyens, fraisKkiapayDeCarteXof, heureDite, leChoixDuMoyen, type LeChoix, type Rail, type Voie } from '../../../../shared/choix-du-moyen-pur';
+import { MOYEN_CARTE_KKIAPAY, PANNE_RETENUE_MS, RAILS, autresMoyens, fraisKkiapayDeCarteXof, heureDite, leChoixDuMoyen, type LeChoix, type Rail, type Voie } from '../../../../shared/choix-du-moyen-pur';
 import { kkiapayPeutSOuvrir } from '../../../../shared/kkiapay-widget';
 import { supabase } from '../../../../shared/supabase';
 import { PayerParKkiapayAuTrone, QrDuReglementEnLigne } from './KkiapayAuTrone';
@@ -69,7 +69,8 @@ import { rdvsDuFoyerLeJour } from '../../../../shared/facture-du-foyer-pur';
 import { argentHorsDuCarnet, versementsAInscrireAuCarnet } from '../../../../shared/caisse-du-versement';
 import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 import { ChampsDeLaTrace } from '../vente/TraceDuMoyen';
-import { FRAIS_DE_CARTE_DIT, NOTE_FRAIS_DE_CARTE, estLigneDeFraisDeCarte, fraisDeCarteXof, ligneDesFraisDeCarte } from '../../../../shared/frais-de-carte-pur';
+import { NOTE_FRAIS_DE_CARTE, estLigneDeFraisDeCarte, fraisDeCarteXof, ligneDesFraisDeCarte, tauxDit } from '../../../../shared/frais-de-carte-pur';
+import { tauxDe, tauxDuChoix } from '../../../../shared/frais-des-moyens-pur';
 import { caissesPourCorriger } from '../../../../shared/tri-des-caisses-pur';
 import {
   CAISSE_ANNEES_PASSEES, anneeDe, avecLesMoyensDeLaMaison, caisseProposee, caissesAuChoix, deviseDuMoyen, estAnneeAnterieure, MOYEN_MOMO_PRIVE, MOYEN_KKIAPAY,
@@ -1668,6 +1669,11 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
 
   /* Devise étrangère — exceptionnel, ouvert depuis Paramètres (comme à la Caisse). */
   const [settings] = useSettings();
+  /* LES FRAIS DES MOYENS DE PAIEMENT (22 novembre 2026) : les taux de
+     Paramètres › Paiements, ceux d'avant tant que rien n'est posé. */
+  const tauxCarte = tauxDe(settings.frais, 'carteTerminalPct');
+  const tauxKkiaCarte = tauxDe(settings.frais, 'kkiapayCartePct');
+  const tauxDesPhrases = tauxDuChoix(settings.frais);
   /* La facture part seule chez elle (17 octobre 2026). */
   const envoiDeLaPiece = useEnvoiDeLaPiece();
   const [fxManuel, setFxManuel] = useState(false);
@@ -1695,7 +1701,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
      dans la caisse de la carte (`shared/frais-de-carte-pur`). FedaPay dit
      ses propres frais ; l'argent en devise n'en porte pas. */
   const fraisDeLaPart = (pt: PartEnc): number =>
-    (pt.tuile === 'carte' && !pt.sansFrais && !fxOn ? fraisDeCarteXof(montantDe(pt)) : 0);
+    (pt.tuile === 'carte' && !pt.sansFrais && !fxOn ? fraisDeCarteXof(montantDe(pt), tauxCarte) : 0);
   const totalFrais = parts.reduce((n, pt) => n + fraisDeLaPart(pt), 0);
   const fxAmount = fxOn && fxRateNum > 0 ? Math.round((tenderXof / fxRateNum) * 100) / 100 : 0;
   /* Une caisse ne reçoit que sa devise : les euros vont au tiroir en euros, pas
@@ -2018,7 +2024,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
          après la remise globale, qui ne se mesure qu'au rituel. Une ligne pour
          toutes les parts au terminal ; celles d'un règlement d'avant restent
          sur la pièce (plus bas). */
-      const lignesFrais: InvoiceLine[] = totalFrais > 0 ? [ligneDesFraisDeCarte(totalFrais, `il-frais-${uid()}`)] : [];
+      const lignesFrais: InvoiceLine[] = totalFrais > 0 ? [ligneDesFraisDeCarte(totalFrais, `il-frais-${uid()}`, tauxCarte)] : [];
 
       /* LES VERSEMENTS DE CE PASSAGE. Un par NATURE d'argent, car ils ne
          voyagent pas ensemble : le comptant entre en caisse, l'avoir est un
@@ -2526,7 +2532,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
       const ch = leChoixDuMoyen({
         voie, telephone: telDuChoix, montantXof: montantDe(p) || resteAPartager, sante,
         tapGoOuvert: mndOn && tapGoOuvert(settings.mndPay) && tapGoServeur,
-        fedapayPris, plusieursParts: parts.length > 1, enDevise: fxOn, aLaMain: p.aLaMain, kkiapay: etatKkiapay,
+        fedapayPris, plusieursParts: parts.length > 1, enDevise: fxOn, aLaMain: p.aLaMain, kkiapay: etatKkiapay, taux: tauxDesPhrases,
       });
       tuiles.push(ch.rail && !p.engage && !p.mnd ? tuileDuRail(ch.rail) : p.tuile);
       return ch;
@@ -2641,7 +2647,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
       const ch = leChoixDuMoyen({
         voie: t, telephone: telDuChoix, montantXof: montantDe(p) || resteAPartager, sante,
         tapGoOuvert: mndOn && tapGoOuvert(settings.mndPay) && tapGoServeur,
-        fedapayPris: parts.some((q) => q.id !== p.id && q.tuile === 'mndpay'), plusieursParts: parts.length > 1, enDevise: fxOn, kkiapay: etatKkiapay,
+        fedapayPris: parts.some((q) => q.id !== p.id && q.tuile === 'mndpay'), plusieursParts: parts.length > 1, enDevise: fxOn, kkiapay: etatKkiapay, taux: tauxDesPhrases,
       });
       const tuile = ch.rail ? tuileDuRail(ch.rail) : (t === 'carte' ? 'carte' : 'momo');
       majPart(p.id, { voie: t, aLaMain: undefined, tuile, moyenFeda: ch.rail ? moyenFedaPayDuRail(ch.rail, telDuChoix) : undefined, caisseChoisie: undefined, choixOuvert: false });
@@ -3275,22 +3281,22 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                       checked={!p.sansFrais}
                       onChange={(e) => majPart(p.id, { sansFrais: !e.target.checked })}
                       style={{ accentColor: 'var(--color-copper)', marginTop: 3 }}
-                      aria-label={`Frais de carte ${FRAIS_DE_CARTE_DIT} % sur la part ${i + 1}`}
+                      aria-label={`Frais de carte ${tauxDit(tauxCarte)} % sur la part ${i + 1}`}
                     />
                     <span>
-                      Frais de carte {FRAIS_DE_CARTE_DIT}&nbsp;% :<b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>+ {fmtMoney(fraisDeCarteXof(x), currency)}</b>
+                      Frais de carte {tauxDit(tauxCarte)}&nbsp;% :<b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>+ {fmtMoney(fraisDeCarteXof(x, tauxCarte), currency)}</b>
                       {p.sansFrais
                         ? ' · non demandés cette fois'
-                        : <> · au terminal : <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{fmtMoney(x + fraisDeCarteXof(x), currency)}</b></>}
+                        : <> · au terminal : <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{fmtMoney(x + fraisDeCarteXof(x, tauxCarte), currency)}</b></>}
                     </span>
                   </label>
                 )}
                 {/* LE TPE KKIAPAY (21 novembre 2026, au soir) : le Trône n'ajoute rien ;
                     KkiaPay ajoute lui-même ses 2,3 % pour elle, et l'écran le dit. */}
                 {p.tuile === 'carteKkiapay' && x > 0 && !fxOn && (
-                  <div data-frais-kkiapay={fraisKkiapayDeCarteXof(x)} style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--ink-soft)' }}>
+                  <div data-frais-kkiapay={fraisKkiapayDeCarteXof(x, tauxKkiaCarte)} style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--ink-soft)' }}>
                     Au TPE KkiaPay : <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{fmtMoney(x, currency)}</b>.
-                    KkiaPay ajoute ses {String(FRAIS_KKIAPAY_CARTE_PCT).replace('.', ',')}&nbsp;% pour elle : elle paiera <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{fmtMoney(x + fraisKkiapayDeCarteXof(x), currency)}</b>.
+                    KkiaPay ajoute ses {tauxDit(tauxKkiaCarte)}&nbsp;% pour elle : elle paiera <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{fmtMoney(x + fraisKkiapayDeCarteXof(x, tauxKkiaCarte), currency)}</b>.
                   </div>
                 )}
                 {/* OÙ VA L'ARGENT — la caisse se déduit de qui encaisse et du

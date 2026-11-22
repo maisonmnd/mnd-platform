@@ -35,7 +35,7 @@ export function ConfirmeParMtn({ appt }: { appt: Appointment }) {
             <span style={{ color: 'var(--indigo-200)' }}>
               Réglé par MTN {fmtMoney(t.montantXof + (t.pourboireXof ?? 0) + (t.fraisAjoutesXof ?? 0), currency)}
               {t.pourboireXof > 0 ? `, dont ${fmtMoney(t.pourboireXof, currency)} de merci pour l’équipe` : ''}
-              {(t.fraisAjoutesXof ?? 0) > 0 ? ` · ${fmtMoney(t.fraisAjoutesXof ?? 0, currency)} de frais payés par elle (1,6 %)` : ''}
+              {(t.fraisAjoutesXof ?? 0) > 0 ? ` · ${fmtMoney(t.fraisAjoutesXof ?? 0, currency)} de frais MTN payés par elle` : ''}
               {' · '}frais MTN {fmtMoney(t.fraisXof, currency)} · réf. {t.referenceMtn.slice(0, 8)}
             </span>
           </span>

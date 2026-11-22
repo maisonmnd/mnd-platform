@@ -13,6 +13,8 @@ export type ReponseCollecte = {
   ok?: boolean;
   erreur?: string;
   ouverte?: boolean;
+  /** Le taux ajouté pour la cliente, tel que le serveur le lit (2026-11-22-a). */
+  fraisAjoutesPct?: number;
   version?: string;
   rdvs?: RdvAuComptoir[];
   reference?: string;
@@ -37,18 +39,23 @@ async function appel(corps: Record<string, unknown>): Promise<ReponseCollecte> {
   }
 }
 
-/** Le règlement par MTN est-il ouvert aux clientes ? Non quand la fonction ne répond pas. */
-export async function laCollecteEstOuverte(): Promise<boolean> {
-  if (!URL_PROJET) return false;
+/** Le règlement par MTN est-il ouvert aux clientes, et à quel taux de frais ?
+    Fermé quand la fonction ne répond pas ; le taux manque devant un serveur
+    d'avant le 22 novembre 2026 (la page dit alors celui d'avant). */
+export async function laCollecteEtSesFrais(): Promise<{ ouverte: boolean; fraisAjoutesPct?: number }> {
+  if (!URL_PROJET) return { ouverte: false };
   try {
     const r = await fetch(`${URL_PROJET}/functions/v1/${FONCTION_DE_LA_COLLECTE}`, { headers: { apikey: CLE_ANON, Authorization: `Bearer ${CLE_ANON}` } });
-    if (!r.ok) return false;
-    const j = (await r.json().catch(() => ({}))) as { ouverte?: unknown };
-    return j.ouverte === true;
+    if (!r.ok) return { ouverte: false };
+    const j = (await r.json().catch(() => ({}))) as { ouverte?: unknown; fraisAjoutesPct?: unknown };
+    const t = Number(j.fraisAjoutesPct);
+    return { ouverte: j.ouverte === true, ...(j.fraisAjoutesPct !== undefined && Number.isFinite(t) && t >= 0 && t <= 10 ? { fraisAjoutesPct: t } : {}) };
   } catch {
-    return false;
+    return { ouverte: false };
   }
 }
+/** Le règlement par MTN est-il ouvert aux clientes ? */
+export const laCollecteEstOuverte = async (): Promise<boolean> => (await laCollecteEtSesFrais()).ouverte;
 
 export const retrouveAuComptoir = (numero: string) => appel({ action: 'comptoir', numero });
 export const demandeParLeLien = (jeton: string, msisdn: string, pourboireXof: number) => appel({ action: 'demander', jeton, msisdn, pourboireXof });
