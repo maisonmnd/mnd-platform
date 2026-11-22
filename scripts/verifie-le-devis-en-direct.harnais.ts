@@ -192,5 +192,17 @@ vrai('la fonction ecrit les lignes de son choix, jamais un montant recu', fn.inc
 vrai('la fonction ne parle pas a KkiaPay', !fn.includes('KKIAPAY') && !fn.includes('kkiapay.me'));
 vrai('la fonction se freine', fn.includes("permis(ipOf(req), 'devis-valider', 30)"));
 dit('la regle recopiee est la meme, mot pour mot', copieAttendue(process.cwd()), copieDuServeur(process.cwd()));
+/* ── LA PAGE CLIENTE ET SON PONT ──────────────────────────────────────── */
+const pageHtml = lis('devis.html');
+vrai('la page du devis existe et porte sa surface', pageHtml.includes('data-surface="devis"') && pageHtml.includes('/src/apps/devis/main.tsx'));
+vrai('la page est enregistree a la construction', lis('vite.config.ts').includes("devis: resolve(__dirname, 'devis.html')"));
+const pont = lis('public/payer.html');
+vrai('le bouton d- mene a la page du devis', pont.includes('devis.html?d=') && pont.includes('/^d-([23456789abcdefghjkmnpqrstuvwxyz]{14})$/'));
+vrai('le pont ne prend pas un devis pour un Tap & Go', pont.includes("if (p.has('tg') && !rj && !ej && !dj) {"));
+const pageApp = lis('src/apps/devis/App.tsx');
+vrai('les trois oui sont sur la page, a ses mots', pageApp.includes('Valider') && pageApp.includes('Oui, j’accepte le devis') && pageApp.includes('Oui, je confirme ma place'));
+vrai('la page ne fabrique aucun prix', pageApp.includes('valideLeDevis(jeton, modele, options)') && !/valideLeDevis\([^)]*xof/i.test(pageApp));
+vrai('la page ne propose que les places recues', pageApp.includes('page.places') || pageApp.includes('p?.places'));
+vrai('le dernier ecran dit Merci et signe la Maison', pageApp.includes('>Merci.</h2>') && pageApp.includes('>Maison MND</p>'));
 console.log(`\n${n - ko}/${n} vérifications${ko ? `, ${ko} en échec` : ''}.`);
 process.exit(ko ? 1 : 0);

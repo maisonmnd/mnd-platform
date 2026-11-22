@@ -1,4 +1,4 @@
-﻿import { build } from 'esbuild';
+import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -21,6 +21,8 @@ const prouve = process.argv.includes('--prouve');
 const PUR = 'src/shared/devis-en-direct-pur.ts';
 const REMISE = 'src/shared/devis-remis-pur.ts';
 const PIECE = 'src/shared/devis-en-direct.ts';
+const PONT = 'public/payer.html';
+const PAGE_DEVIS = 'src/apps/devis/App.tsx';
 const PANNES = [
   /* Les prix et les durées */
   ['le prix ignore le calibre', PUR, 'export const prixDuModele = (baseXof: number, coef: number): number => arrondiDuDevis((Number(baseXof) || 0) * (Number(coef) || 1));', 'export const prixDuModele = (baseXof: number): number => arrondiDuDevis(Number(baseXof) || 0);'],
@@ -48,6 +50,10 @@ const PANNES = [
   ['l option incluse n est plus offerte', PIECE, "discountPct: x.etat === 'incluse' ? 100 : 0", 'discountPct: 0'],
   ['la page donne le nom de famille', PIECE, "    prenom: String(o.prenom ?? '').trim().replace(/\\s+/g, ' ') || String(d.clientName ?? '').trim().split(/\\s+/)[0] || '',", "    prenom: String(d.clientName ?? ''),"],
   ['l etat du devis oublie l acceptation', PIECE, "  if (l.accepteLe || d.status === 'acceptée') return 'accepte';", "  if (l.placeLe) return 'accepte';"],
+  /* La page cliente et son pont */
+  ['le pont envoie le devis vers la page du reglement', PONT, "location.replace('devis.html?d=' + dj[1]);", "location.replace('regler.html?r=' + dj[1]);"],
+  ['le deuxieme oui change de mot', PAGE_DEVIS, '            Oui, j’accepte le devis', '            J’accepte'],
+  ['le dernier ecran ne signe plus la Maison', PAGE_DEVIS, '>Maison MND</p>', '>La Maison</p>'],
 ];
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');
 

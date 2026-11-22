@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv } from 'vite';
+﻿import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
 import { execSync } from 'node:child_process';
@@ -35,6 +35,9 @@ const ALL_INPUTS: Record<string, string> = {
   /* RÉGLER SA SÉANCE — 25 octobre 2026 : la page que la cliente ouvre depuis
      le bouton « Régler » de son message (payer.html?tg=r-… y mène). */
   regler: resolve(__dirname, 'regler.html'),
+  /* LE DEVIS EN DIRECT — 22 novembre 2026 : le devis de la consultation,
+     sur son téléphone (payer.html?tg=d-... y mène). */
+  devis: resolve(__dirname, 'devis.html'),
 };
 const apps = (process.env.VITE_APPS || '').split(',').map((s) => s.trim()).filter(Boolean);
 const choisies = apps.length

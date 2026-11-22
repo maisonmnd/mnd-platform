@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8" />
@@ -157,10 +157,14 @@
      « tg=e-<jeton> » : la page note le toucher, puis ouvre Google. */
   var ej = (p.get('tg') || '').match(/^e-([23456789abcdefghjkmnpqrstuvwxyz]{14})$/);
   if (ej) location.replace('regler.html?e=' + ej[1]);
+  /* LE DEVIS EN DIRECT — 22 novembre 2026. Le bouton du devis porte
+     « tg=d-<jeton> » : la page du devis, ses trois oui et sa place. */
+  var dj = (p.get('tg') || '').match(/^d-([23456789abcdefghjkmnpqrstuvwxyz]{14})$/);
+  if (dj) location.replace('devis.html?d=' + dj[1]);
   var e = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
   /* TAP & GO : « tg=CODE-TOTAL », chiffres seulement, sinon rien ne se compose. */
   var tg = (p.get('tg') || '').match(/^(\d{3,8})-(\d{1,9})$/);
-  if (p.has('tg') && !rj && !ej) {
+  if (p.has('tg') && !rj && !ej && !dj) {
     document.body.classList.add('tapgo');
     var tete = document.getElementById('tete');
     if (tete && tete.parentNode) tete.parentNode.removeChild(tete);

@@ -185,7 +185,7 @@ export type DevisLuEnDirect = {
 
 /* ── CE QUE LA PAGE PEUT LIRE ───────────────────────────────────────────── */
 
-export type EtatDuDevisEnDirect = 'introuvable' | 'brouillon' | 'devis' | 'accepte' | 'place' | 'payee';
+export type EtatDuDevisEnDirect = 'introuvable' | 'brouillon' | 'devis' | 'valide' | 'accepte' | 'place';
 
 /** L'état de la page, lu sur la marque du lien puis sur la pièce. */
 export function etatDuDevisEnDirect(d: DevisLuEnDirect | null): EtatDuDevisEnDirect {
@@ -195,7 +195,10 @@ export function etatDuDevisEnDirect(d: DevisLuEnDirect | null): EtatDuDevisEnDir
   if (d.status === 'payée' || d.status === 'confirmé') return 'place';
   if (l.place?.jour && l.accepteLe) return 'place';
   if (l.accepteLe || d.status === 'acceptée') return 'accepte';
-  if (l.valideLe || d.status === 'envoyée') return 'devis';
+  /* LES CHOIX ARRÊTÉS NE SE REMODÈLENT PAS (maquette, « valide ») : après son
+     « Valider », elle relit et accepte — elle ne choisit plus. */
+  if (l.valideLe) return 'valide';
+  if (d.status === 'envoyée') return 'devis';
   return 'brouillon';
 }
 
@@ -264,7 +267,7 @@ export function pageDuDevisEnDirect(o: {
 }) {
   const d = o.devis;
   const etat = etatDuDevisEnDirect(d);
-  if (!d || etat === 'introuvable') return { etat } as const;
+  if (!d || etat === 'introuvable') return { etat: 'introuvable' as const };
   const offre = d.devisDuFauteuil;
   const choix = d.choixDeLaCliente;
   const v = choixValable(offre, choix);
@@ -275,13 +278,17 @@ export function pageDuDevisEnDirect(o: {
     /* L'offre telle qu'elle se touche : ses modèles et leurs prix, ses
        options et leur état. Rien d'autre. */
     modeles: (offre?.modeles ?? []).map((m) => ({ id: m.id, nom: m.nom, xof: Math.round(m.xof), dureeMin: Math.round(Number(m.dureeMin) || 0), ...(m.maison ? { maison: m.maison } : {}), ...(offre?.modeleConseille === m.id ? { conseille: true } : {}) })),
-    options: (offre?.options ?? []).map((x) => ({ id: x.id, nom: x.nom, xof: Math.round(x.xof), etat: x.etat })),
+    options: (offre?.options ?? []).map((x) => ({ id: x.id, nom: x.nom, xof: Math.round(x.xof), etat: x.etat, dureeMin: Math.round(Number(x.dureeMin) || 0) })),
     ...(offre?.locks ? { locks: Math.round(offre.locks) } : {}),
     ...(offre?.calibre ? { calibre: offre.calibre } : {}),
     ...(offre?.longueur ? { longueur: offre.longueur } : {}),
     ...(offre?.mot ? { mot: offre.mot } : {}),
     ...(choix?.modele ? { choisi: choix.modele } : {}),
     ...(choix?.options ? { prises: choix.options } : {}),
+    /* CE QU'ELLE PEUT AJOUTER ELLE-MÊME POUR VOIR SON TOTAL BOUGER : les prix
+       reçus, et la déduction. Ce n'est pas un montant qu'elle décide — la
+       fonction recalcule tout au « Valider ». */
+    deductionXof: Math.max(0, Math.round(Number(offre?.deductionXof) || 0)),
     totalXof: totalDeLOffre(offre, choix),
     dureeMin: dureeDeLOffre(offre, choix),
     ...(v ? { modele: v.modele.id } : {}),
