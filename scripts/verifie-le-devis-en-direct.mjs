@@ -1,4 +1,4 @@
-import { build } from 'esbuild';
+﻿import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -23,6 +23,8 @@ const REMISE = 'src/shared/devis-remis-pur.ts';
 const PIECE = 'src/shared/devis-en-direct.ts';
 const PONT = 'public/payer.html';
 const PAGE_DEVIS = 'src/apps/devis/App.tsx';
+const COMPOSEUR = 'src/apps/trone/routes/clients/DevisEnDirect.tsx';
+const FENETRE = 'src/apps/trone/routes/clients/actions.tsx';
 const PANNES = [
   /* Les prix et les durées */
   ['le prix ignore le calibre', PUR, 'export const prixDuModele = (baseXof: number, coef: number): number => arrondiDuDevis((Number(baseXof) || 0) * (Number(coef) || 1));', 'export const prixDuModele = (baseXof: number): number => arrondiDuDevis(Number(baseXof) || 0);'],
@@ -54,6 +56,10 @@ const PANNES = [
   ['le pont envoie le devis vers la page du reglement', PONT, "location.replace('devis.html?d=' + dj[1]);", "location.replace('regler.html?r=' + dj[1]);"],
   ['le deuxieme oui change de mot', PAGE_DEVIS, '            Oui, j’accepte le devis', '            J’accepte'],
   ['le dernier ecran ne signe plus la Maison', PAGE_DEVIS, '>Maison MND</p>', '>La Maison</p>'],
+  /* Le composeur du Trône */
+  ['la piece du devis nait avec trois modeles en lignes', COMPOSEUR, 'lines: [], globalDiscountPct: 0', 'lines: modeles.map((m) => ({ id: m.id, label: m.nom, qty: 1, unitXof: m.xof, discountPct: 0 })), globalDiscountPct: 0'],
+  ['le devis n est plus marque au fauteuil', COMPOSEUR, 'auFauteuil: { le: quand },', ''],
+  ['le composeur sort de la fenetre du rendez-vous', FENETRE, '<DevisEnDirect appt={appt}', '<div appt={appt}'],
 ];
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');
 

@@ -41,6 +41,7 @@ import { CAISSE_EN_LIGNE as CAISSE_KKIAPAY_EN_LIGNE } from '../../../../shared/r
 import { CAISSE_MTN_COLLECTION, estUnNumeroMtn, msisdnDe } from '../../../../shared/collecte-mtn-pur';
 import { signaleMtnFerme, signaleUnePanne, signaleUneReussite, useLaSanteDesMoyens } from './sante-des-moyens';
 import { ReglementEnDirect } from './ReglementEnDirect';
+import { DevisEnDirect } from './DevisEnDirect';
 import { ConfirmeParMtn } from './ConfirmeParMtn';
 import { PayerParMtnAuTrone } from './PayerParMtnAuTrone';
 import { signeLeMessage } from '../../../../shared/identite';
@@ -3764,6 +3765,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
             );
           })()}
           {/* Le lien « Régler sa séance », suivi en direct (25 octobre 2026). */}
+          {/* LE DEVIS EN DIRECT (22 novembre 2026, maquette FCTFNSr…, lot 1) :
+              le maître le compose devant elle, elle le reçoit sur son téléphone. */}
+          <DevisEnDirect appt={appt} services={[...byId.values()]}
+            prixDuService={(sv) => tarifsDuRituel(appt, { client, bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsCatalogue }).prixPlein(sv)} />
           <ReglementEnDirect appt={appt} />
           {/* Confirmé par MTN (11 novembre 2026, « Régler par MTN, QR »). */}
           <ConfirmeParMtn appt={appt} />

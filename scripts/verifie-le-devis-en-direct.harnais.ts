@@ -204,5 +204,13 @@ vrai('les trois oui sont sur la page, a ses mots', pageApp.includes('Valider') &
 vrai('la page ne fabrique aucun prix', pageApp.includes('valideLeDevis(jeton, modele, options)') && !/valideLeDevis\([^)]*xof/i.test(pageApp));
 vrai('la page ne propose que les places recues', pageApp.includes('page.places') || pageApp.includes('p?.places'));
 vrai('le dernier ecran dit Merci et signe la Maison', pageApp.includes('>Merci.</h2>') && pageApp.includes('>Maison MND</p>'));
+/* ── LE COMPOSEUR DU TRÔNE ────────────────────────────────────────────── */
+const composeur = lis('src/apps/trone/routes/clients/DevisEnDirect.tsx');
+vrai('le Trône compose le devis devant elle', composeur.includes('Composer son devis') && composeur.includes('Envoyer le devis'));
+vrai('les prix du devis viennent du Trône', composeur.includes('prixDuService(sv)'));
+vrai('la piece nait sans lignes', composeur.includes('lines: [], globalDiscountPct: 0'));
+vrai('le lien du devis est pose sur la piece', composeur.includes('lienDuDevis: { jeton, creeLe: quand, envoyeLe: quand }'));
+vrai('le devis est marque au fauteuil', composeur.includes('auFauteuil: { le: quand }'));
+vrai('le composeur est dans la fenetre du rendez-vous', lis('src/apps/trone/routes/clients/actions.tsx').includes('<DevisEnDirect appt={appt}'));
 console.log(`\n${n - ko}/${n} vérifications${ko ? `, ${ko} en échec` : ''}.`);
 process.exit(ko ? 1 : 0);

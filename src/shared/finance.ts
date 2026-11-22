@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import { createStore, useStore, uid, type Store } from './store';
+import type { ChoixDeLaCliente, LienDuDevis, OffreDuDevis } from './devis-en-direct';
 import { sameName } from './text';
 import { identiteCourante } from './journal';
 import type { TraceDuMoyen } from './trace-du-moyen-pur';
@@ -160,7 +161,15 @@ export type Invoice = {
       l'avantage du compte famille. La pièce le stipule à la place du libellé
       générique ; le calcul, lui, ne change pas. */
   discountLabel?: string;
-  /** LE GESTE OFFERT AU FAUTEUIL — 22 novembre 2026 (`le-sceau-pur`,
+  /** LE DEVIS AU FAUTEUIL — 22 novembre 2026 (`devis-en-direct`, maquette
+      FCTFNSr748gq1ecEHxhDMj). L'offre que le maître compose dans la fenêtre
+      de son rendez-vous, le lien que la cliente ouvre sur son téléphone, ses
+      choix et sa place. `lines` reste vide jusqu'à son « Valider » : c'est
+      alors son choix, et lui seul, qui devient la pièce. */
+  lienDuDevis?: LienDuDevis;
+  devisDuFauteuil?: OffreDuDevis;
+  choixDeLaCliente?: ChoixDeLaCliente;
+  auFauteuil?: { le: string; par?: string };  /** LE GESTE OFFERT AU FAUTEUIL — 22 novembre 2026 (`le-sceau-pur`,
       « Offrir un geste »). Le maître tape lui-même un montant ou un
       pourcentage ; la note de la cliente baisse sur son téléphone dans la
       seconde. Le montant entre dans `globalDiscountXof` (la seule remise que
