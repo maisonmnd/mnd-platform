@@ -23,8 +23,17 @@
    reconnaissances (ligne et versement) ; `banc-des-frais-de-carte` vérifie
    que la copie dit la même chose. */
 
-/** Le taux, en pour cent, que la Maison ajoute à une part réglée au terminal. */
-export const FRAIS_DE_CARTE_PCT = 4;
+/** Le taux, en pour cent, que la Maison ajoute à une part réglée au terminal.
+    2,3 % depuis le 22 novembre 2026 : « frais de carte est de 2.3 % pas 4 % »
+    (Yéman, devant l'encaissement). Les pièces déjà faites gardent leur ligne
+    « (4 %) », reconnue par son libellé. */
+export const FRAIS_DE_CARTE_PCT = 2.3;
+
+/** Un taux dit à la française : « 2,3 », jamais « 2.3 ». */
+export const tauxDit = (pct: number): string => String(pct).replace('.', ',');
+
+/** Le taux de la Maison, tel que l'écran le dit. */
+export const FRAIS_DE_CARTE_DIT = tauxDit(FRAIS_DE_CARTE_PCT);
 
 /** Le libellé de la ligne, sans le taux. */
 export const LIBELLE_FRAIS_DE_CARTE = 'Frais de paiement par carte';
@@ -34,7 +43,7 @@ export const LIBELLE_FRAIS_DE_CARTE = 'Frais de paiement par carte';
     écartent de l'argent du rituel, comme la note « Gamme, … ». */
 export const NOTE_FRAIS_DE_CARTE = 'Frais de carte, payés par la cliente';
 
-/** Les frais d'une part : 4 % du montant, arrondis au franc SUPÉRIEUR (la
+/** Les frais d'une part : le taux du montant, arrondis au franc SUPÉRIEUR (la
     banque ne prélève jamais moins que son taux). Zéro pour une part vide. */
 export function fraisDeCarteXof(montantXof: number, pct: number = FRAIS_DE_CARTE_PCT): number {
   const m = Math.round(Number(montantXof) || 0);
@@ -47,7 +56,7 @@ export function fraisDeCarteXof(montantXof: number, pct: number = FRAIS_DE_CARTE
 
 /** « Frais de paiement par carte (4 %) », l'espace insécable avant « % ». */
 export const libelleDesFraisDeCarte = (pct: number = FRAIS_DE_CARTE_PCT): string =>
-  `${LIBELLE_FRAIS_DE_CARTE} (${pct} %)`;
+  `${LIBELLE_FRAIS_DE_CARTE} (${tauxDit(pct)} %)`;
 
 /** Une ligne de pièce qui porte les frais : par son marqueur, ou par son
     libellé (une pièce relue sans le marqueur, au serveur). */

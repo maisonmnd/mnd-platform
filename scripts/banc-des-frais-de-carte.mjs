@@ -7,11 +7,11 @@
    Carnet, et joue l'encaissement par carte au terminal :
 
      - A. la tuile « Carte » propose le terminal ; sous la part, la case des
-       frais est cochée, avec + 1 120 F et 29 120 F à passer au terminal ; le
-       bouton dit « Encaisser 28 000 F + frais de carte 1 120 F » ;
-     - encaisser écrit UNE pièce de 29 120 F, soldée : la ligne des frais en
+       frais est cochée, avec + 644 F et 28 644 F à passer au terminal ; le
+       bouton dit « Encaisser 28 000 F + frais de carte 644 F » ;
+     - encaisser écrit UNE pièce de 28 644 F, soldée : la ligne des frais en
        dernier, deux versements Carte dans la même caisse (28 000 F, puis
-       1 120 F avec sa note) ; le rendez-vous, lui, a reçu 28 000 F ;
+       644 F avec sa note) ; le rendez-vous, lui, a reçu 28 000 F ;
      - B. la case décochée : la pièce vaut 28 000 F, sans ligne de frais ;
      - C. en espèces : aucune case, aucun frais ;
      - D. au téléphone, la case ne déborde pas ;
@@ -112,7 +112,19 @@ const remplis = (selecteur, valeur) => evalue(`(() => {
 /* LA MAISON D'EXEMPLE — fictive : un fauteuil, un tiroir, deux gestes (28 000 F). */
 const pad = (x) => String(x).padStart(2, '0');
 const isoDe = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const AUJ = isoDe(new Date());
+/* L'HEURE FIGÉE (22 novembre 2026) : un samedi de salon, 18 h à Cotonou, tous
+   les rituels passés — le banc ne dépend plus du jour où il tourne. Piège du
+   même jour : sans argument, il prend le Trône construit dans $TEMP/banc-trone,
+   qu'une autre copie a pu laisser vieux (27 échecs, la règle intacte) ;
+   construire le sien et le passer en premier argument. */
+const INSTANT = Date.UTC(2026, 10, 21, 17, 0, 0);
+const AUJ = isoDe(new Date(INSTANT));
+await cdp('Emulation.setTimezoneOverride', { timezoneId: 'Africa/Lagos' });
+await cdp('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
+  const Vraie = Date; const fige = ${INSTANT};
+  class Figee extends Vraie { constructor(...a) { if (a.length === 0) super(fige); else super(...a); } static now() { return fige; } }
+  globalThis.Date = Figee;
+})();` });
 const GESTES = ['sv-souffle', 'sv-reprise'];
 const tete = (cid, nom, phone) => ({ id: cid, branchId: 'maison', name: nom, phone, city: '', persona: '', since: '2026-01-10', segments: [], sansPapiersWa: true });
 const duJour = (cid, heure) => ({ id: `rdv-${cid}`, branchId: 'maison', clientId: cid, serviceIds: GESTES, date: AUJ, time: heure, status: 'confirmé', master: 'Expert' });
@@ -167,11 +179,11 @@ dit('la tuile Carte se touche', await tuile('Carte'));
 dit('la Carte propose le TPE KkiaPay', (await choixDuMoyen()) === 'tpeKkiapay', await choixDuMoyen());
 dit('« Autre moyen : Terminal de la banque » le prend', (await auTerminal()) && (await choixDuMoyen()) === 'terminal', await choixDuMoyen());
 const c1 = await caseFrais();
-dit('sous la part : la case des frais, cochee, + 1 120 F', !!c1 && c1.frais === 1120 && c1.coche, JSON.stringify(c1));
-dit('... et le montant a passer au terminal : 29 120 F', !!c1 && /au terminal : 29\s?120\s?F/u.test(c1.texte), c1?.texte);
+dit('sous la part : la case des frais, cochee, + 644 F', !!c1 && c1.frais === 644 && c1.coche, JSON.stringify(c1));
+dit('... et le montant a passer au terminal : 28 644 F', !!c1 && /au terminal : 28\s?644\s?F/u.test(c1.texte), c1?.texte);
 await autorisation();
 const b1 = await bouton();
-dit('le bouton dit le rituel et les frais', /^Encaisser 28\s?000\s?F \+ frais de carte 1\s?120\s?F$/u.test(b1), b1);
+dit('le bouton dit le rituel et les frais', /^Encaisser 28\s?000\s?F \+ frais de carte 644\s?F$/u.test(b1), b1);
 await capture('frais-carte-1-la-case', 1280, 900, false);
 /* Le libellé long passe à la ligne : sans cela il sortait de la colonne et la fenêtre défilait de côté. */
 const tient = await evalue(`(() => { const b = [...${modale}.querySelectorAll('button')].find((x) => /^Encaisser /.test(x.textContent.trim())); const col = b?.parentElement; if (!b || !col) return 'absent'; const rb = b.getBoundingClientRect(), rc = col.getBoundingClientRect(); return rb.right <= rc.right + 1 && b.scrollWidth <= b.clientWidth + 1 ? 'ok' : Math.round(rb.right) + '/' + Math.round(rc.right) + ' ' + b.scrollWidth + '/' + b.clientWidth; })()`);
@@ -179,18 +191,18 @@ dit('le bouton tient dans sa colonne, le libelle passe a la ligne', tient === 'o
 dit('rien ne bloque', (await blocage()) === '', await blocage());
 dit('elle regle par carte', await encaisse());
 const pA = await pieceDe('rdv-cl-ea');
-dit('une piece de 29 120 F, soldee', !!pA && totalDe(pA) === 29120 && pA.status === 'payée', pA ? `${totalDe(pA)} ${pA.status}` : 'aucune');
+dit('une piece de 28 644 F, soldee', !!pA && totalDe(pA) === 28644 && pA.status === 'payée', pA ? `${totalDe(pA)} ${pA.status}` : 'aucune');
 const derniere = pA?.lines?.[pA.lines.length - 1];
-dit('la ligne des frais en dernier, marquee, 1 120 F', !!derniere && derniere.frais === 'carte' && derniere.unitXof === 1120 && /^Frais de paiement par carte \(4/.test(derniere.label), JSON.stringify(derniere));
+dit('la ligne des frais en dernier, marquee, 644 F', !!derniere && derniere.frais === 'carte' && derniere.unitXof === 644 && /^Frais de paiement par carte \(2,3/.test(derniere.label), JSON.stringify(derniere));
 const vers = (pA?.payments ?? []).map((v) => `${v.amountXof}|${v.method}|${v.cashbox ?? ''}|${v.note ?? ''}`);
 dit('deux versements Carte dans la meme caisse : le rituel, puis les frais avec leur note',
-  vers.length === 2 && pA.payments[0].amountXof === 28000 && pA.payments[1].amountXof === 1120 && pA.payments.every((v) => v.method === 'Carte')
+  vers.length === 2 && pA.payments[0].amountXof === 28000 && pA.payments[1].amountXof === 644 && pA.payments.every((v) => v.method === 'Carte')
     && pA.payments[0].cashbox === pA.payments[1].cashbox && /^Frais de carte/.test(pA.payments[1].note ?? ''), JSON.stringify(vers));
 const rA = await rdvDe('rdv-cl-ea');
 dit('le rendez-vous a recu 28 000 F, pas un franc de plus', rA?.paidXof === 28000 && (rA?.payments ?? []).reduce((s, v) => s + v.amountXof, 0) === 28000,
   `${rA?.paidXof} · ${JSON.stringify((rA?.payments ?? []).map((v) => v.amountXof))}`);
 const ticket = await evalue(`(${modale}?.innerText || '').replace(/\\s+/g, ' ')`);
-dit('« C est regle » dit les frais sur le ticket', /Frais de paiement par carte/.test(ticket) && /29\s?120\s?F/u.test(ticket), ticket.slice(0, 220));
+dit('« C est regle » dit les frais sur le ticket', /Frais de paiement par carte/.test(ticket) && /28\s?644\s?F/u.test(ticket), ticket.slice(0, 220));
 
 /* ── B. LA CASE DÉCOCHÉE ── */
 await cdp('Page.navigate', { url: 'about:blank' });

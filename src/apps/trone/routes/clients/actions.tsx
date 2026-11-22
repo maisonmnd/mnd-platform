@@ -69,7 +69,7 @@ import { rdvsDuFoyerLeJour } from '../../../../shared/facture-du-foyer-pur';
 import { argentHorsDuCarnet, versementsAInscrireAuCarnet } from '../../../../shared/caisse-du-versement';
 import { ditCeQuiManque, familleDeTrace, traceAEcrire, traceSuffit, type TraceDuMoyen } from '../../../../shared/trace-du-moyen-pur';
 import { ChampsDeLaTrace } from '../vente/TraceDuMoyen';
-import { FRAIS_DE_CARTE_PCT, NOTE_FRAIS_DE_CARTE, estLigneDeFraisDeCarte, fraisDeCarteXof, ligneDesFraisDeCarte } from '../../../../shared/frais-de-carte-pur';
+import { FRAIS_DE_CARTE_DIT, NOTE_FRAIS_DE_CARTE, estLigneDeFraisDeCarte, fraisDeCarteXof, ligneDesFraisDeCarte } from '../../../../shared/frais-de-carte-pur';
 import { caissesPourCorriger } from '../../../../shared/tri-des-caisses-pur';
 import {
   CAISSE_ANNEES_PASSEES, anneeDe, avecLesMoyensDeLaMaison, caisseProposee, caissesAuChoix, deviseDuMoyen, estAnneeAnterieure, MOYEN_MOMO_PRIVE, MOYEN_KKIAPAY,
@@ -995,7 +995,7 @@ type PartEnc = {
   /** Le moyen que le panneau FedaPay ouvre. */
   moyenFeda?: MoyenMndPay;
   /** LES FRAIS DE LA CARTE DÉCOCHÉS (21 novembre 2026) : la part au terminal
-      ne porte pas ses 4 % cette fois. Absent = les frais s'ajoutent. */
+      ne porte pas ses frais cette fois. Absent = les frais s'ajoutent. */
   sansFrais?: boolean;
 };
 const partNeuve = (tuile: TuileEnc, montant: number | ''): PartEnc =>
@@ -3274,10 +3274,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                       checked={!p.sansFrais}
                       onChange={(e) => majPart(p.id, { sansFrais: !e.target.checked })}
                       style={{ accentColor: 'var(--color-copper)', marginTop: 3 }}
-                      aria-label={`Frais de carte ${FRAIS_DE_CARTE_PCT} % sur la part ${i + 1}`}
+                      aria-label={`Frais de carte ${FRAIS_DE_CARTE_DIT} % sur la part ${i + 1}`}
                     />
                     <span>
-                      Frais de carte {FRAIS_DE_CARTE_PCT}&nbsp;% : <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>+ {fmtMoney(fraisDeCarteXof(x), currency)}</b>
+                      Frais de carte {FRAIS_DE_CARTE_DIT}&nbsp;% :<b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>+ {fmtMoney(fraisDeCarteXof(x), currency)}</b>
                       {p.sansFrais
                         ? ' · non demandés cette fois'
                         : <> · au terminal : <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{fmtMoney(x + fraisDeCarteXof(x), currency)}</b></>}

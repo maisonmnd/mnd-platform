@@ -35,11 +35,12 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
 };
 
 /* ── 1. LA RÈGLE ─────────────────────────────────────────────────────── */
-dit('le taux est de 4 %', 4, FRAIS_DE_CARTE_PCT);
-dit('45 000 F au terminal : 1 800 F de frais', 1800, fraisDeCarteXof(45000));
-dit('12 345 F : 493,8 F montent au franc superieur', 494, fraisDeCarteXof(12345));
+dit('le taux est de 2,3 % (22 novembre 2026, plus 4 %)', 2.3, FRAIS_DE_CARTE_PCT);
+dit('45 000 F au terminal : 1 035 F de frais', 1035, fraisDeCarteXof(45000));
+dit('12 345 F : 283,935 F montent au franc superieur', 284, fraisDeCarteXof(12345));
+dit('62 000 F : 1 426 F tout rond, le flottant ne fait pas monter d un franc', 1426, fraisDeCarteXof(62000));
 dit('une part vide, negative ou a 0 % : aucun frais', [0, 0, 0], [fraisDeCarteXof(0), fraisDeCarteXof(-500), fraisDeCarteXof(45000, 0)]);
-dit('le libelle dit le taux, espace insecable avant %', 'Frais de paiement par carte (4 %)', libelleDesFraisDeCarte());
+dit('le libelle dit le taux, espace insecable avant %', 'Frais de paiement par carte (2,3 %)', libelleDesFraisDeCarte());
 const ligne = ligneDesFraisDeCarte(1800, 'il-f');
 dit('la ligne porte son marqueur, son montant, aucune remise', [1800, 1, 0, 'carte'], [ligne.unitXof, ligne.qty, ligne.discountPct, ligne.frais]);
 dit('une ligne de frais se reconnait au marqueur, ou au libelle seul', [true, true, false],
