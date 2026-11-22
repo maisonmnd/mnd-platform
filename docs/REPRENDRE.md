@@ -2,7 +2,9 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## KKIAPAY POUR MTN, MOOV ET CELTIIS, ET LE QR DE SON RENDEZ-VOUS — 22 novembre 2026, À METTRE EN LIGNE (le Trône seul ; aucun SQL, aucune fonction : `regler-la-seance` en ligne fait le travail)
+## KKIAPAY POUR MTN, MOOV ET CELTIIS, ET LE QR DE SON RENDEZ-VOUS — 22 novembre 2026, EN LIGNE (le Trône seul, build 20261122022816 @ 50129555 ; aucun SQL, aucune fonction : `regler-la-seance` en ligne fait le travail)
+
+**Essai réel (lecture seule, neuf rendez-vous, rien validé) :** numéro MTN → « Payer par MTN », KkiaPay en tête d'« Autre moyen » ; numéro hors MTN → KkiaPay proposé d'abord ; Carte → TPE KkiaPay (10 000 F → 10 230 F, le bouton reste à 10 000 F), puis « QR, par KkiaPay » et le terminal. La clé publique KkiaPay est bien au build (jamais « la clé n'est pas posée »). Pas encore essayé : « Ouvrir KkiaPay » et « Montrer le QR » jusqu'au bout (ils émettent la pièce) — le premier vrai paiement le fera.
 
 « Il reste le QR code du TPE ou de la carte, et KkiaPay MTN, Moov et Celtiis en paiement API » (Yéman). Au sélecteur : « après Payer par MTN » et « le QR de son rendez-vous ».
 
