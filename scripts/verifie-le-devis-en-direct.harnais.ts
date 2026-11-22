@@ -22,6 +22,10 @@ import {
   parametreDuDevis, totalDeLOffre,
 } from '../src/shared/devis-en-direct';
 import { peutEtreRemis, peutEtreRemisAuFauteuil } from '../src/shared/devis-remis-pur';
+import { readFileSync } from 'node:fs';
+import { copieAttendue, copieDuServeur } from './devis-en-direct-copie-serveur.mjs';
+
+const lis = (f: string): string => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
 
 let ko = 0;
 let n = 0;
@@ -177,5 +181,16 @@ dit('la page dit le conseillé', [false, true], pageDevis.modeles.map((m) => !!m
 dit('la page ne porte ni nom de famille ni numéro', false, JSON.stringify(pageDevis).includes('Sossou') || JSON.stringify(pageDevis).includes('01'));
 dit('la page dit le maître tel quel', 'Team', pageDevis.maitre);
 
+/* ── LA FONCTION ───────────────────────────────────────────────────────── */
+const fn = lis('supabase/functions/devis-en-direct/index.ts');
+vrai('la fonction a ses quatre gestes', ["if (b.action === 'lire')", "if (b.action === 'valider')", "if (b.action === 'accepter')", "if (b.action === 'confirmer')"].every((x) => fn.includes(x)));
+vrai('la fonction refuse une place qui n est pas proposee', fn.includes("if (!proposees.some((x) => x.jour === jour && x.heure === heure)) return json({ error: 'place' }, 400);"));
+vrai('la fonction ne laisse pas remodeler un devis accepte', fn.includes("if (d.lienDuDevis.accepteLe) return json({ error: 'deja_accepte' }, 409);"));
+vrai('la fonction exige l acceptation avant la place', fn.includes("if (!d.lienDuDevis.accepteLe) return json({ error: 'pas_accepte' }, 409);"));
+vrai('la fonction garde la premiere place', fn.includes('if (d.lienDuDevis.place) return json({ ok: true, deja: true, page: page(d) });'));
+vrai('la fonction ecrit les lignes de son choix, jamais un montant recu', fn.includes('const { lignes, deductionXof } = lignesDuChoix(') && fn.includes("if (b.action === 'regler')") === false);
+vrai('la fonction ne parle pas a KkiaPay', !fn.includes('KKIAPAY') && !fn.includes('kkiapay.me'));
+vrai('la fonction se freine', fn.includes("permis(ipOf(req), 'devis-valider', 30)"));
+dit('la regle recopiee est la meme, mot pour mot', copieAttendue(process.cwd()), copieDuServeur(process.cwd()));
 console.log(`\n${n - ko}/${n} vérifications${ko ? `, ${ko} en échec` : ''}.`);
 process.exit(ko ? 1 : 0);

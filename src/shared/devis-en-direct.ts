@@ -1,4 +1,4 @@
-/* ══ LE DEVIS EN DIRECT, CÔTÉ PIÈCE — 22 novembre 2026 ═══════════════════
+﻿/* ══ LE DEVIS EN DIRECT, CÔTÉ PIÈCE — 22 novembre 2026 ═══════════════════
    Le devis que le maître compose au fauteuil, et que la cliente reçoit sur
    son téléphone. Les règles de calcul sont dans `devis-en-direct-pur.ts` ;
    ici, ce qui vit SUR LA PIÈCE et ce que la page a le droit de lire.
@@ -18,8 +18,32 @@
 
    Ce fichier est PUR : le banc `verifie-le-devis-en-direct.mjs` l'éprouve
    sans écran, et la fonction `devis-en-direct` en porte la copie. */
-import { jetonDe, type LigneLue } from './regler-la-seance-pur';
-import { LIBELLE_DE_LA_CONSULTATION_DEDUITE } from './devis-remis-pur';
+/* LE FICHIER N'IMPORTE RIEN, EXPRÈS : la fonction `devis-en-direct` en porte
+   la copie mot pour mot (scripts/devis-en-direct-copie-serveur.mjs), et une
+   copie qui emporterait des imports emporterait la moitié du dépôt. Les deux
+   constantes du jeton et le libellé de la consultation sont donc recopiés
+   ici — et le banc `verifie-le-devis-en-direct` vérifie qu'ils sont
+   IDENTIQUES à ceux de `regler-la-seance-pur` et de `devis-remis-pur`. */
+
+/** Les quatorze signes sans ambiguïté de la Maison (ni 0/o, ni 1/l/i). */
+const ALPHABET_DU_JETON = '23456789abcdefghjkmnpqrstuvwxyz';
+const LONGUEUR_DU_JETON = 14;
+const devoileUnJeton = (s: unknown): s is string =>
+  typeof s === 'string' && s.length === LONGUEUR_DU_JETON && [...s].every((c) => ALPHABET_DU_JETON.includes(c));
+
+/** Un jeton neuf, tiré de quatorze aléas (crypto.getRandomValues). */
+function jetonDe(aleas: ArrayLike<number>): string {
+  let t = '';
+  for (let i = 0; i < LONGUEUR_DU_JETON; i++) t += ALPHABET_DU_JETON[Math.abs(Math.floor(Number(aleas[i] ?? 0))) % ALPHABET_DU_JETON.length];
+  return t;
+}
+
+/** Une ligne lue sur une pièce (la même forme que `LigneLue` de
+    `regler-la-seance-pur`). */
+type LigneLue = { label?: string; qty?: number; unitXof?: number; discountPct?: number; discountXof?: number };
+
+/** Le libellé de la consultation déduite : celui de `devis-remis-pur`. */
+const LIBELLE_DE_LA_CONSULTATION_DEDUITE = 'Consultation privée, déduite';
 
 /** Un jeton de devis : les mêmes quatorze signes sans ambiguïté que le lien
     de règlement — un seul alphabet dans la Maison. */
@@ -32,7 +56,7 @@ export function jetonDuParametreDuDevis(tg: unknown): string | null {
   const s = String(tg ?? '');
   if (!s.startsWith(PREFIXE_DU_PARAMETRE_DU_DEVIS)) return null;
   const j = s.slice(PREFIXE_DU_PARAMETRE_DU_DEVIS.length);
-  return /^[23456789abcdefghjkmnpqrstuvwxyz]{14}$/.test(j) ? j : null;
+  return devoileUnJeton(j) ? j : null;
 }
 
 export const jetonDuDevis = (aleas: ArrayLike<number>): string => jetonDe(aleas);
@@ -65,6 +89,12 @@ export type OffreDuDevis = {
   longueur?: string;
   /** Le mot du maître, sous le devis. */
   mot?: string;
+  /** LES PLACES QUE LA MAISON PROPOSE (22 novembre 2026). Le Trône les lit
+      dans son agenda au moment d'envoyer le devis — jours ouverts, heures
+      libres, la durée du rituel — et les pose ici. Le téléphone ne choisit
+      que parmi elles : il n'invente ni un jour ni une heure. À la
+      confirmation, la fonction vérifie que le choix y est encore. */
+  places?: { jour: string; heure: string }[];
   /** La consultation déjà réglée, déduite de la pièce (un montant, une fois). */
   deductionXof?: number;
 };
@@ -185,6 +215,7 @@ export function pageDuDevisEnDirect(o: {
     totalXof: totalDeLOffre(offre, choix),
     dureeMin: dureeDeLOffre(offre, choix),
     ...(v ? { modele: v.modele.id } : {}),
+    places: (offre?.places ?? []).map((p) => ({ jour: p.jour, heure: p.heure })),
     ...(d.lienDuDevis?.place ? { place: d.lienDuDevis.place } : {}),
   };
 }
