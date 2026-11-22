@@ -2,19 +2,37 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
 import { estUnePanneDeKkiapay, kkiapayPeutSOuvrir, payWithKkiapay } from '../../shared/kkiapay-widget';
 import { TexteFon } from '../../ds/fon';
-import { lisLeLien, regleLeLien, type PageDuLien } from '../../shared/regler-la-seance-serveur';
+import { lisLeLien, poseLeSceau, regleLeLien, type PageDuLien } from '../../shared/regler-la-seance-serveur';
 import { attenteDeLaPiece, retourAMaCouronne } from '../../shared/terminer-et-regler-serveur';
 import { RE_DEMANDE_DU_LIEN } from '../../shared/regler-par-fedapay-pur';
 import { ATTENTE_FEDAPAY_LECTURES, ATTENTE_FEDAPAY_MS, statutFedaPay } from '../../shared/regler-par-fedapay-serveur';
+import { MOYENS_DU_SCEAU, type MoyenDuSceau } from '../../shared/le-sceau-pur';
+import { ecouteLeFilDuSceau } from '../../shared/le-fil-du-sceau';
 import { PayerParMtn } from './Mtn';
 import { PayerParFedaPay } from './FedaPay';
+import { Sceau, SceauPose } from './Sceau';
 
 /* ══ RÉGLER SA SÉANCE — la page de la cliente (25 octobre 2026) ══════════
    Ouverte depuis le bouton « Régler » de son message (payer.html?tg=r-…).
    Elle ne sait que son jeton : la fonction `regler-la-seance` dit le juste
    reste, et c'est elle seule qui pose l'argent sur la pièce. Le retour du
    widget KkiaPay ne prouve rien ; la page le dit à la fonction, qui
-   redemande à KkiaPay. Maquette : vue 10 du canvas du Tableau intelligent. */
+   redemande à KkiaPay. Maquette : vue 10 du canvas du Tableau intelligent.
+
+   ══ LE SCEAU (22 novembre 2026) ══════════════════════════════════════════
+   « Un système rapide de self checkout sur le Trône avec les téléphones qui
+   communiquent avec le Trône en direct » (Yéman). Cette page en est le lot 1
+   (passation mnd-passation-sceau-et-devis) :
+   · le geste : un doigt maintenu une seconde sur le sceau de la Maison
+     (`Sceau.tsx`), à la place du bouton « Régler » ;
+   · le moyen qu'elle choisit SUR SA NOTE — MTN, Moov, Celtiis, carte — et
+     les frais de chacun, dits ;
+   · le fil : la page écoute le jeton (`sceau-<jeton>`) et relit sa note à
+     chaque « relis » ; le Trône, lui, voit chaque étape du fauteuil ;
+   · le geste offert par la Maison apparaît en moins, sans qu'elle recharge ;
+   · le dernier écran dit « Merci. », signé « Maison MND », puis la devise.
+   Ce qui ne change pas : le montant vient du serveur, l'argent ne s'écrit
+   qu'à la confirmation de KkiaPay (ou de MTN), et le comptoir reste là. */
 
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 /** Toujours l'année sur une date que la cliente lit (règle de la Maison). */
@@ -104,6 +122,11 @@ export default function App() {
   const [partage, setPartage] = useState('');
   /* Une demande MTN attend sa validation : KkiaPay se tient à l'écart (11 novembre 2026). */
   const [mtnOccupe, setMtnOccupe] = useState(false);
+  /* LE SCEAU (22 novembre 2026) : le moyen qu'elle a choisi sur sa note, et
+     si la Maison a ouvert MTN pour cette séance. Le sceau prend le rail du
+     moyen ; si MTN n'est pas ouvert, il ouvre KkiaPay. */
+  const [moyen, setMoyen] = useState<MoyenDuSceau>('mtn');
+  const [mtnOuvert, setMtnOuvert] = useState(false);
   /* LE SECOURS FEDAPAY (12 novembre 2026, lot C) : KkiaPay ne peut pas
      s'ouvrir (sans clé, d'emblée ; script injoignable ou erreur technique,
      au toucher). Elle annule elle-même : rien ne change. */
@@ -166,6 +189,46 @@ export default function App() {
 
   useEffect(() => { void lis(); }, [lis]);
 
+  /* ══ LE FIL (22 novembre 2026, Le Sceau) ═══════════════════════════════
+     Le Trône souffle « relis » quand la pièce de ce rendez-vous change — un
+     soin ajouté, un geste offert. La page relit alors sa note au serveur :
+     elle voit le geste de la Maison SANS RIEN TOUCHER, et c'est la fonction
+     qui dit le montant, jamais le fil. Une relecture par quatre secondes au
+     plus : la fonction n'accorde que soixante lectures en dix minutes et par
+     adresse, et le Wi-Fi de la Maison est une seule adresse. */
+  const derniereRelecture = useRef(0);
+  const relisEnDirect = useCallback(async (): Promise<void> => {
+    if (!jeton) return;
+    const maintenant = Date.now();
+    if (maintenant - derniereRelecture.current < 4_000) return;
+    derniereRelecture.current = maintenant;
+    const r = await lisLeLien(jeton);
+    if (!r.ok || !r.page) return;
+    const p = r.page;
+    setEcran((e) => {
+      if (e.k !== 'page') return e;
+      if (p.etat === 'reglee') return { k: 'reglee', page: { ...p, resteXof: 0 } };
+      if (p.etat !== 'a-regler') return e;
+      return { k: 'page', page: p };
+    });
+  }, [jeton]);
+
+  useEffect(() => {
+    if (!jeton) return;
+    return ecouteLeFilDuSceau(jeton, () => { void relisEnDirect(); });
+  }, [jeton, relisEnDirect]);
+
+  /* LE FILET : sans le fil (pas de clé, pas de réseau), sa note se relit
+     quand même — toutes les quarante-cinq secondes, et au retour sur
+     l'onglet. Le direct accélère ; il ne porte rien. */
+  useEffect(() => {
+    if (!jeton) return;
+    const battement = window.setInterval(() => { if (!document.hidden) void relisEnDirect(); }, 45_000);
+    const auRetour = () => { if (document.hidden) return; derniereRelecture.current = 0; void relisEnDirect(); };
+    document.addEventListener('visibilitychange', auRetour);
+    return () => { window.clearInterval(battement); document.removeEventListener('visibilitychange', auRetour); };
+  }, [jeton, relisEnDirect]);
+
   /* AU RETOUR DE FEDAPAY : l'état de SA demande, relu toutes les quatre
      secondes, trois minutes au plus. Payée : « Réglé » ; refusée, expirée,
      remplacée : la page le dit et laisse recommencer ; rien encore : la page
@@ -221,6 +284,18 @@ export default function App() {
       : 'Votre paiement est enregistré chez KkiaPay, la Maison le vérifie. Inutile de payer une seconde fois.');
   };
 
+  /* LE GESTE : le sceau posé se dit au Trône, PAS l'argent. La fonction note
+     l'heure et le moyen sur le lien, et le Trône voit « Elle règle » à la
+     seconde. L'argent n'entre qu'ensuite, avec `regleLeLien`, et seulement
+     sur la réponse de KkiaPay : une page rejouée ne paie donc rien. */
+  const poserLeSceau = async (p: PageDuLien): Promise<void> => {
+    if (!p.tetes && !p.sansPiece) {
+      const rail: string = moyen === 'mtn' && !mtnOuvert ? 'kkiapay' : moyen;
+      void poseLeSceau(jeton, rail);
+    }
+    await regle(p);
+  };
+
   const partager = async () => {
     const adresse = adresseAPartager();
     const mot = ecran.k === 'page' && ecran.page.tetes ? 'Peux-tu régler nos séances à la Maison MND ? Le lien :' : 'Peux-tu régler ma séance à la Maison MND ? Le lien :';
@@ -265,9 +340,20 @@ export default function App() {
               {p.lignes.map((l, i) => (
                 <div className="rg-ligne" key={i}><span>{l.label}</span><span>{francs(l.montantXof)}</span></div>
               ))}
+              {/* LE GESTE OFFERT (22 novembre 2026) : la Maison l'a posé sur sa
+                  note, elle le voit sans rien toucher. Il est DÉJÀ dans le
+                  total (c'est la remise de la pièce) : on ne le retranche pas
+                  deux fois. */}
+              {(p.gesteXof ?? 0) > 0 && (
+                <>
+                  <div className="rg-ligne rg-geste"><span>Geste de la Maison <em>offert</em></span><span>− {francs(p.gesteXof ?? 0)}</span></div>
+                  <div className="rg-ligne rg-doux"><span>Total</span><span>{francs(p.totalXof)}</span></div>
+                </>
+              )}
               {p.recuXof > 0 && <div className="rg-ligne rg-doux"><span>Déjà reçu</span><span>− {francs(p.recuXof)}</span></div>}
               <div className="rg-ligne rg-fort"><span>Reste à régler</span><span>{francs(p.resteXof)}</span></div>
             </div>
+            <p className="rg-direct"><i aria-hidden="true" />En direct avec la Maison</p>
             {p.sansPiece === 'avance' && <p className="rg-doux rg-petit">Le rendez-vous reste confirmé. Si l’équipe ajoute un soin pendant la séance, il se règle en plus le jour même.</p>}
 
             {p.pourboire && (
@@ -306,6 +392,28 @@ export default function App() {
               </div>
             )}
 
+            {/* COMMENT RÉGLER (22 novembre 2026, Le Sceau) : MTN, Moov, Celtiis,
+                carte — son choix, jamais celui de la page. Les puces se
+                figent pendant qu'une demande MTN attend sa validation : deux
+                moyens en vol, c'est deux fois le même argent. */}
+            {!p.sansPiece && !p.tetes && (
+              <div className="rg-merci">
+                <span className="rg-doux">Comment régler</span>
+                <div className="rg-puces">
+                  {MOYENS_DU_SCEAU.map((m) => {
+                    const on = moyen === m.k;
+                    return (
+                      <button key={m.k} type="button" className={on ? 'rg-puce rg-puce--on' : 'rg-puce'} aria-pressed={on}
+                        disabled={mtnOccupe || ecran.k === 'paiement'} onClick={() => setMoyen(m.k)}>
+                        {m.nom}
+                      </button>
+                    );
+                  })}
+                </div>
+                <span className="rg-doux rg-petit">En espèces ? Au comptoir, comme toujours.</span>
+              </div>
+            )}
+
             {/* RÉGLER PAR MTN (11 novembre 2026, maquette AdAaYXGS…) : une
                 séance avec sa pièce, quand la Maison l'a ouvert ; le montant
                 vient de la fonction collecte-mtn, la page ne donne que le
@@ -313,18 +421,30 @@ export default function App() {
                 à KkiaPay. */}
             {!p.sansPiece && !p.tetes && (
               <PayerParMtn jeton={jeton} totalXof={total} pourboireXof={p.pourboire ? pourboire : 0} onOccupe={setMtnOccupe}
+                masque={moyen !== 'mtn'} onOuverte={setMtnOuvert}
+                onGeste={() => { void poseLeSceau(jeton, 'mtn'); }}
+                geste={(o) => <Sceau montantXof={o.montantXof} disabled={o.disabled} onTenue={o.onTenue}
+                  dit={o.disabled ? 'Votre numéro MTN d’abord' : 'Maintenez le sceau une seconde'} />}
                 onRegle={(paye, honore) => setEcran({ k: 'reglee', page: { ...p, resteXof: 0 }, paye, honore })} />
             )}
             {/* LE RETOUR DE FEDAPAY (12 novembre 2026, lot C) : tant que sa
                 demande se relit, aucun autre bouton ne fait payer une seconde fois. */}
             {retourFp === 'lecture' && <p className="rg-doux rg-centre" aria-live="polite">FedaPay confirme votre paiement. Un instant…</p>}
             {retourFp && retourFp !== 'lecture' && <p className="rg-souci" role="status">{RETOUR_FEDAPAY_DIT[retourFp]}</p>}
-            {kkiapayPeutSOuvrir() && retourFp !== 'lecture' && (
+            {/* LE SCEAU, PAR KKIAPAY (22 novembre 2026) : Moov, Celtiis, la
+                carte — et MTN quand la Maison ne l'a pas ouvert, ou sur une
+                séance qui n'a pas sa pièce (le foyer, le règlement d'avance).
+                Un doigt maintenu une seconde, et la fenêtre s'ouvre sur son
+                téléphone. */}
+            {kkiapayPeutSOuvrir() && retourFp !== 'lecture' && !(moyen === 'mtn' && mtnOuvert && !p.sansPiece && !p.tetes) && (
               <>
-                <button type="button" className="rg-regler" disabled={ecran.k === 'paiement' || mtnOccupe} onClick={() => { void regle(p); }}>
-                  {ecran.k === 'paiement' ? 'Paiement en cours…' : `Régler ${francs(total)}`}
-                </button>
-                <p className="rg-doux rg-petit rg-centre">MTN, Moov, Celtiis ou carte, par KkiaPay. Les frais de KkiaPay s’ajoutent au paiement.</p>
+                {moyen === 'mtn' && !mtnOuvert && !p.sansPiece && !p.tetes && (
+                  <p className="rg-doux rg-petit rg-centre">MTN n’est pas ouvert pour cette séance : le sceau ouvre KkiaPay, qui prend MTN, Moov, Celtiis et la carte.</p>
+                )}
+                <Sceau montantXof={total} disabled={ecran.k === 'paiement' || mtnOccupe}
+                  dit={ecran.k === 'paiement' ? 'Paiement en cours…' : 'Maintenez le sceau une seconde'}
+                  onTenue={() => { void poserLeSceau(p); }} />
+                <p className="rg-doux rg-petit rg-centre">KkiaPay s’ouvre sur votre téléphone. Ses frais s’ajoutent au paiement.</p>
               </>
             )}
             {souci && <p className="rg-souci" role="alert">{souci}</p>}
@@ -348,10 +468,16 @@ export default function App() {
       })()}
 
       {ecran.k === 'reglee' && (
-        <section className="rg-bloc" aria-label="Séance réglée">
-          <p className="rg-sur">{ecran.page.sansPiece ? SUR_LA_PAGE[ecran.page.sansPiece] : ecran.page.tetes ? 'Régler les séances' : 'Régler la séance'}</p>
+        <section className="rg-bloc rg-final" aria-label="Séance réglée">
+          {/* LE DERNIER ÉCRAN (maquette, version 9 ; Yéman : « Merci Maison
+              MND », confirmé par « oui ») : le sceau cuivre de la Maison en
+              grand, « Merci. », la signature, puis la devise — qui vient en
+              bas de page, une seule fois, pour tout l'écran. */}
+          <SceauPose />
+          <h2 className="rg-merci-titre">Merci.</h2>
+          <p className="rg-signe">Maison MND</p>
           <div className="rg-ok">
-            <strong>{ecran.paye ? `Réglé, ${francs(ecran.paye)}.` : 'Déjà réglée.'}{ecran.page.prenom ? ` Merci, ${ecran.page.prenom}.` : ' Merci.'}</strong>
+            <strong>{ecran.paye ? `Réglé, ${francs(ecran.paye)}.` : 'Déjà réglée.'}</strong>
             <span>{ecran.page.sansPiece
               ? (ecran.paye ? APRES_LE_REGLEMENT[ecran.page.sansPiece] : 'Il n’y a plus rien à régler pour cette séance.')
               : ecran.page.tetes

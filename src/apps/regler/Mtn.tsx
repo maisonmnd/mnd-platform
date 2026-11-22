@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { asset } from '../../shared/asset';
 import { TexteFon } from '../../ds/fon';
 import { TAUX_AJOUTE_MTN_PCT, estUnNumeroMtn, fraisAjoutesMtn, msisdnDe } from '../../shared/collecte-mtn-pur';
@@ -111,10 +111,18 @@ function ChampDuNumero({ valeur, onChange, autoFocus }: { valeur: string; onChan
 
 /** « PAYER PAR MTN » sur la page « Régler » d'un rendez-vous : seulement
     une séance avec sa pièce (ni le foyer, ni le règlement d'avance, qui
-    restent à KkiaPay), et seulement quand la Maison l'a ouvert. */
-export function PayerParMtn({ jeton, totalXof, pourboireXof, onOccupe, onRegle }: {
+    restent à KkiaPay), et seulement quand la Maison l'a ouvert.
+    Depuis Le Sceau (22 novembre 2026), son bouton est le SCEAU lui-même
+    (`geste`), et le geste se dit au Trône (`onGeste`) avant que la demande
+    ne part. `masque` cache le bloc quand elle a choisi un autre moyen, SANS
+    le démonter : une demande MTN en vol ne doit pas être oubliée en route. */
+export function PayerParMtn({ jeton, totalXof, pourboireXof, onOccupe, onRegle, masque, onOuverte, onGeste, geste }: {
   jeton: string; totalXof: number; pourboireXof: number;
   onOccupe: (occupe: boolean) => void; onRegle: (payeXof: number, honore: boolean) => void;
+  masque?: boolean; onOuverte?: (ouverte: boolean) => void;
+  onGeste?: () => void;
+  /** Le bouton du geste, quand la page veut le sceau. */
+  geste?: (o: { montantXof: number; disabled: boolean; onTenue: () => void }) => ReactNode;
 }) {
   const [ouverte, setOuverte] = useState(false);
   const [numero, setNumero] = useState('');
@@ -124,27 +132,33 @@ export function PayerParMtn({ jeton, totalXof, pourboireXof, onOccupe, onRegle }
   useEffect(() => { let v = true; void laCollecteEtSesFrais().then((o) => { if (!v) return; setOuverte(o.ouverte); if (o.fraisAjoutesPct !== undefined) setTauxMtn(o.fraisAjoutesPct); }); return () => { v = false; }; }, []);
   const occupe = d.k === 'envoi' || d.k === 'attente';
   useEffect(() => { onOccupe(occupe); }, [occupe, onOccupe]);
+  useEffect(() => { onOuverte?.(ouverte); }, [ouverte, onOuverte]);
   const dit = useRef(false);
   useEffect(() => {
     if (d.k !== 'recu' || dit.current) return;
     dit.current = true;
     onRegle(d.montantXof, d.honore);
   }, [d, onRegle]);
-  if (!ouverte) return null;
+  if (!ouverte || masque) return null;
   const lu = msisdnDe(numero);
 
   if (d.k === 'attente') return <Attente montantXof={d.montantXof} />;
   /* LES 1,6 % DE MTN, AJOUTÉS (20 novembre 2026), comme le serveur les compte. */
   const frais = fraisAjoutesMtn(totalXof, tauxMtn);
+  const demande = () => { void lance(() => demandeParLeLien(jeton, lu ?? '', pourboireXof)); };
   return (
     <div className="rg-mtn">
       <p className="rg-mtn-titre">Payer par MTN</p>
       <p className="rg-doux rg-petit">La demande arrive sur votre téléphone. Frais MTN ajoutés ({String(tauxMtn).replace('.', ',')} %) : {francs(frais)}.</p>
       <ChampDuNumero valeur={numero} onChange={setNumero} />
-      <button type="button" className="rg-regler" disabled={!lu || !estUnNumeroMtn(lu) || d.k === 'envoi'}
-        onClick={() => { void lance(() => demandeParLeLien(jeton, lu ?? '', pourboireXof)); }}>
-        {d.k === 'envoi' ? 'Demande en cours…' : `Recevoir la demande MTN · ${francs(totalXof + frais)}`}
-      </button>
+      {geste
+        ? geste({ montantXof: totalXof + frais, disabled: !lu || !estUnNumeroMtn(lu) || d.k === 'envoi', onTenue: () => { onGeste?.(); demande(); } })
+        : (
+          <button type="button" className="rg-regler" disabled={!lu || !estUnNumeroMtn(lu) || d.k === 'envoi'}
+            onClick={() => { onGeste?.(); demande(); }}>
+            {d.k === 'envoi' ? 'Demande en cours…' : `Recevoir la demande MTN · ${francs(totalXof + frais)}`}
+          </button>
+        )}
       {d.k === 'erreur' && <p className="rg-souci" role="alert">{d.dit}</p>}
       {d.k === 'refuse' && <p className="rg-souci" role="alert">MTN dit que la demande n’a pas abouti : {d.raison}. Vous pouvez recommencer, ou régler autrement.</p>}
       {d.k === 'delai' && (

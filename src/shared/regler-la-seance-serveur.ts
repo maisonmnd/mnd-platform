@@ -17,6 +17,8 @@ export type PageDuLien = {
   totalXof: number;
   recuXof: number;
   resteXof: number;
+  /** Le geste offert par la Maison, déjà retranché du total (22 novembre 2026). */
+  gesteXof?: number;
   pourboire: boolean;
   reference: string;
   branchId: string;
@@ -50,6 +52,11 @@ async function appel(corps: Record<string, unknown>): Promise<Reponse> {
 export const lisLeLien = (jeton: string) => appel({ action: 'lire', jeton });
 export const rattrapeLeLien = (jeton: string) => appel({ action: 'rattraper', jeton });
 export const regleLeLien = (jeton: string, transactionId: string) => appel({ action: 'regler', jeton, transactionId });
+/** LE SCEAU POSÉ — 22 novembre 2026. La page dit le moyen qu'elle a choisi ;
+    la fonction le note sur le lien, le Trône voit « Elle règle » à l'instant.
+    Ni montant, ni nom : l'argent ne s'écrit qu'à la confirmation de MTN ou de
+    KkiaPay (`regleLeLien`). */
+export const poseLeSceau = (jeton: string, moyen: string) => appel({ action: 'sceau', jeton, moyen });
 
 /** La version que la fonction dit (GET, sans clé de service), ou '' si elle
     n'est pas encore posée : le Trône n'envoie le lien que quand elle répond. */

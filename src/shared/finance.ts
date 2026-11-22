@@ -160,6 +160,14 @@ export type Invoice = {
       l'avantage du compte famille. La pièce le stipule à la place du libellé
       générique ; le calcul, lui, ne change pas. */
   discountLabel?: string;
+  /** LE GESTE OFFERT AU FAUTEUIL — 22 novembre 2026 (`le-sceau-pur`,
+      « Offrir un geste »). Le maître tape lui-même un montant ou un
+      pourcentage ; la note de la cliente baisse sur son téléphone dans la
+      seconde. Le montant entre dans `globalDiscountXof` (la seule remise que
+      `invoiceTotal` connaît) ; ce champ garde de quoi le RETIRER sans toucher
+      aux autres remises que la pièce porterait (famille, code, remise de la
+      main). Absent = aucun geste. */
+  gesteDeLaMaison?: { xof?: number; mode?: 'xof' | 'pct'; dit?: number; quand?: string; par?: string };
   /** Encaissé en devise étrangère. Trace de ce qui a été REÇU au comptoir ; le
       total de la facture reste en XOF, seule base de la maison.
       `rate` = 1 unité de `code` en XOF, au taux du jour saisi par le maître. */

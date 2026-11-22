@@ -1,4 +1,4 @@
-/* TERMINER ET RÉGLER, ÉPROUVÉ · 6 novembre 2026.
+﻿/* TERMINER ET RÉGLER, ÉPROUVÉ · 6 novembre 2026.
    `node scripts/verifie-terminer-et-regler.mjs` (et `--prouve`).
 
    La règle tranchée par Yéman le 6 novembre 2026 (maquette « Terminer et
@@ -1033,7 +1033,7 @@ dit('le Carnet porte la marque, jugee sur SA PIECE (son reste et ses versements)
     /const saPiece = \(rdvId: string\): PieceAuCarnet \| null => \{\s*const p = laPieceDuRdv\(pieces as unknown as PieceLue\[\], rdvId\);\s*return p \? \{ resteXof: resteDeLaPiece\(p\), versements: p\.payments \?\? \[\] \} : null;/.test(carnet)]);
 const panneau = sansCommentaires(lis('src/apps/trone/routes/clients/ReglementEnDirect.tsx'));
 dit('le panneau « Le reglement en direct » dit sa declaration et par ou, au lieu d un message parti', [true, true],
-  [/fin\s*\? \{ nom: 'A terminé', quand: heure\(fin\.le\), detail: PORTE_DITE\[fin\.par\] \?\? 'en ligne', fait: true \}\s*: \{ nom: 'Message parti'/.test(panneau),
+  [/rituel: fin \? heure\(fin\.le\) : ''/.test(panneau) && /rituel: fin \? \(PORTE_DITE\[fin\.par\] \?\? 'en ligne'\)/.test(panneau),
     /const marque = fin \? marqueDeLaFinAuCarnet\(rdv, piece \? \{ resteXof: e\.resteXof, versements: piece\.payments \?\? \[\] \} : null\) : null;/.test(panneau)]);
 const guetteur = sansCommentaires(lis('src/apps/trone/shell/useReglementsEnLigne.ts'));
 dit('l annonce existante dit « Depart sans caisse » quand elle avait termine elle-meme et que sa piece est soldee par un versement en ligne', [true, true],

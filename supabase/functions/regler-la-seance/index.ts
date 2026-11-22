@@ -87,6 +87,13 @@ export type LienDeReglement = {
   ouvertLe?: string;
   /** Le dernier règlement reçu par ce lien. */
   payeLe?: string;
+  /** LE SCEAU POSÉ — 22 novembre 2026. L'instant du geste, et le moyen
+      qu'elle a choisi sur sa note. Ce n'est PAS un paiement : la page le dit
+      à la fonction (`action: 'sceau'`), le Trône voit « Elle règle » à la
+      seconde, et l'argent ne s'écrit qu'à la confirmation de MTN ou de
+      KkiaPay. Ni nom, ni montant ici. */
+  sceauLe?: string;
+  moyen?: string;
   /** Tap & Go proposé à côté, tant que le reste n'a pas bougé. */
   tapgo?: { resteXof: number; parametre: string; totalXof: number };
 };
@@ -113,6 +120,12 @@ export type PieceLue = {
   lines?: LigneLue[]; globalDiscountPct?: number; globalDiscountXof?: number;
   payments?: VersementLu[]; payment?: string; cashbox?: string; time?: string;
   tipXof?: number; reglementsEnLigne?: ReglementEnLigne[];
+  /** LE GESTE DE LA MAISON — 22 novembre 2026 (« le geste offert : marquer le
+      montant ou le pourcentage soi-même », Yéman). Le Trône le pose sur la
+      pièce : le montant en francs entre dans `globalDiscountXof` (la seule
+      remise que le total connaît), et ce champ garde de quoi le RETIRER
+      sans toucher aux autres remises qu'elle porterait. */
+  gesteDeLaMaison?: { xof?: number; mode?: 'xof' | 'pct'; dit?: number; quand?: string; par?: string };
 };
 
 export type RdvLu = {
@@ -285,6 +298,10 @@ export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDe
     totalXof: e.totalXof,
     recuXof: e.recuXof,
     resteXof: e.resteXof,
+    /* LE GESTE OFFERT, à part de la ligne du rituel : la page le montre en
+       moins, pour que le total s'explique tout seul. Il est DÉJÀ dans le
+       total (c'est un `globalDiscountXof`) : la page ne le retranche pas. */
+    gesteXof: n((o.piece as PieceLue | null)?.gesteDeLaMaison?.xof),
     pourboire: !!o.piece && !(n(o.piece.tipXof) > 0),
     reference: o.rdv ? referenceDuRdv(o.rdv.id) : '',
     branchId: o.branchId ?? '',
@@ -1136,6 +1153,35 @@ async function regler(req: Request, b: any) {
   return json({ ok: true, deja: !!r.deja, versementXof: r.versementXof, pourboireXof: r.pourboireXof, moyen: moyenDit(tx.source), honore: !!r.honore });
 }
 
+/* ══ LE SCEAU POSÉ — 22 novembre 2026 ═══════════════════════════════════
+   La page cliente dit le moyen qu'elle a choisi sur sa note (`mtn`, `moov`,
+   `celtiis`, `carte`), la fonction le note sur le lien du rendez-vous : le
+   Trône voit « Elle règle » dans la seconde, et l'écran du fauteuil dit par
+   où elle paie. RIEN D'AUTRE N'EST ÉCRIT ICI : l'argent ne s'écrit qu'avec
+   `regler`, sur la confirmation de KkiaPay (ou par le webhook de MTN). Un
+   second sceau ne réécrit pas l'heure du premier. Les quatre moyens sont
+   ceux de `shared/le-sceau-pur.ts` (`MOYENS_DU_SCEAU`), plus `kkiapay` : par
+   la fenêtre KkiaPay, le réseau ne se sait qu'à la fin, avec l'argent. */
+const MOYENS_DU_SCEAU = ['mtn', 'moov', 'celtiis', 'carte', 'kkiapay'];
+
+async function sceau(req: Request, b: any) {
+  if (!(await permis(ipOf(req), 'regler-sceau', 30))) return json({ error: 'trop' }, 429);
+  const jeton = String(b.jeton ?? '').trim();
+  const moyen = String(b.moyen ?? '').trim().toLowerCase();
+  if (!estUnJeton(jeton) || !MOYENS_DU_SCEAU.includes(moyen)) return json({ error: 'bad_request' }, 400);
+  const rdv = await leRdvDuJeton(jeton);
+  if (!rdv) return json({ error: 'lien_introuvable' }, 404);
+  const d = rdv.data ?? {};
+  /* Le foyer a son propre lien : son sceau se pose sur chaque rendez-vous
+     (`lienDuFoyer`), pas ici — la page du foyer n'en pose pas encore. */
+  if (!d.lienDeReglement) return json({ error: 'lien_introuvable' }, 404);
+  if (d.lienDeReglement.sceauLe) return json({ ok: true, deja: true });
+  const lien = { ...d.lienDeReglement, sceauLe: new Date().toISOString(), moyen };
+  const { error } = await admin.from('appointments').update({ data: { ...d, lienDeReglement: lien } }).eq('id', rdv.id);
+  if (error) throw new Error(error.message);
+  return json({ ok: true });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method === 'GET') {
@@ -1152,6 +1198,7 @@ Deno.serve(async (req) => {
     if (b.action === 'lire') return await lire(req, b, true);
     if (b.action === 'rattraper') return await lire(req, b, false);
     if (b.action === 'regler') return await regler(req, b);
+    if (b.action === 'sceau') return await sceau(req, b);
     return json({ error: 'action' }, 400);
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);

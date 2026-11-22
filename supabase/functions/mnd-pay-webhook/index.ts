@@ -347,6 +347,13 @@ export type LienDeReglement = {
   ouvertLe?: string;
   /** Le dernier règlement reçu par ce lien. */
   payeLe?: string;
+  /** LE SCEAU POSÉ — 22 novembre 2026. L'instant du geste, et le moyen
+      qu'elle a choisi sur sa note. Ce n'est PAS un paiement : la page le dit
+      à la fonction (`action: 'sceau'`), le Trône voit « Elle règle » à la
+      seconde, et l'argent ne s'écrit qu'à la confirmation de MTN ou de
+      KkiaPay. Ni nom, ni montant ici. */
+  sceauLe?: string;
+  moyen?: string;
   /** Tap & Go proposé à côté, tant que le reste n'a pas bougé. */
   tapgo?: { resteXof: number; parametre: string; totalXof: number };
 };
@@ -373,6 +380,12 @@ export type PieceLue = {
   lines?: LigneLue[]; globalDiscountPct?: number; globalDiscountXof?: number;
   payments?: VersementLu[]; payment?: string; cashbox?: string; time?: string;
   tipXof?: number; reglementsEnLigne?: ReglementEnLigne[];
+  /** LE GESTE DE LA MAISON — 22 novembre 2026 (« le geste offert : marquer le
+      montant ou le pourcentage soi-même », Yéman). Le Trône le pose sur la
+      pièce : le montant en francs entre dans `globalDiscountXof` (la seule
+      remise que le total connaît), et ce champ garde de quoi le RETIRER
+      sans toucher aux autres remises qu'elle porterait. */
+  gesteDeLaMaison?: { xof?: number; mode?: 'xof' | 'pct'; dit?: number; quand?: string; par?: string };
 };
 
 export type RdvLu = {
