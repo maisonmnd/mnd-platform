@@ -2,7 +2,9 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LES FRAIS DES MOYENS DE PAIEMENT, RÉGLABLES, ET KKIAPAY AU NUMÉRO TAPÉ — 22 novembre 2026, À METTRE EN LIGNE (fonction `collecte-mtn` 2026-11-22-a, puis le Trône ; aucun SQL, aucun secret)
+## LES FRAIS DES MOYENS DE PAIEMENT, RÉGLABLES, ET KKIAPAY AU NUMÉRO TAPÉ — 22 novembre 2026, EN LIGNE (fonction `collecte-mtn` 2026-11-22-a v23, Trône build 20261122072156 @ b2f8c378 ; aucun SQL, aucun secret)
+
+**Essai réel (lecture seule, aucun taux tapé, rien encaissé)** : le GET de `collecte-mtn` rend `fraisAjoutesPct: 1.6`. La carte des frais montre ses 7 lignes et leurs exemples (FedaPay mobile 1,8, déjà posé en base ; les autres en gris). La carte FedaPay renvoie ici. Pour un numéro hors MTN, Encaisser › KkiaPay montre la case du numéro, « Demander à ce numéro », « Ouvrir KkiaPay sans numéro » et « KkiaPay ajoute ses 1,5 % pour elle ». Pas vus : la case de frais du terminal à 2,3 % (elle ne paraît qu'une fois le terminal choisi) et la fenêtre KkiaPay remplie, à voir au premier vrai paiement.
 
 « Je veux un espace dans mes paramètres où je corrige les frais de carte à 2,3 %, et tous les frais liés aux différents moyens de paiement MTN, KkiaPay, FedaPay » (Yéman). Puis, sur KkiaPay : « je veux voir la possibilité de taper le numéro quel que soit le réseau du client, et aussi ouvrir KkiaPay ».
 
