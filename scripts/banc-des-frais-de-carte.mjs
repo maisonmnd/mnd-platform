@@ -254,14 +254,25 @@ dit('la ligne dit le montant au TPE et ce que KkiaPay ajoute pour elle (2,3 % : 
   && /Au TPE KkiaPay : 28\s?000\s?F/u.test(kkia.texte) && /2,3\s?% pour elle : elle paiera 28\s?644\s?F/u.test(kkia.texte), JSON.stringify(kkia));
 const b5 = await bouton();
 dit('le bouton dit le rituel seul', /^Encaisser 28\s?000\s?F$/u.test(b5), b5);
-await autorisation();
-dit('rien ne bloque une fois la reference du recu notee', (await blocage()) === '', await blocage());
+/* LA TRACE DU TPE (22 novembre 2026, « on ne peut pas saisir un numéro de
+   ticket et 4 derniers chiffres ») : ni n° d'autorisation, ni 4 chiffres ; la
+   référence KkiaPay, vérifiée. Ici sans serveur : KkiaPay « ne répond pas »,
+   la référence est gardée et se pointe le soir. */
+const champsTpe = await evalue(`(() => { const m = ${modale}; return { tpe: !!m?.querySelector('[data-tpe-kkiapay]'), ref: !!m?.querySelector('input[placeholder="Référence KkiaPay du reçu"]'), autorisation: !!m?.querySelector('input[placeholder^="N° d"]'), quatre: !!m?.querySelector('input[placeholder="4 derniers chiffres"]') }; })()`);
+dit('la trace du TPE : la reference KkiaPay, ni n° d autorisation ni 4 chiffres', !!champsTpe && champsTpe.tpe && champsTpe.ref && !champsTpe.autorisation && !champsTpe.quatre, JSON.stringify(champsTpe));
+await remplis('input[placeholder="Référence KkiaPay du reçu"]', 'TxBanc12345');
+await attend(300);
+dit('une reference tapee mais pas verifiee retient l encaissement', /paiement reçu de KkiaPay/.test(await blocage()), await blocage());
+await clique('button', 'Vérifier', modale);
+await attend(800);
+dit('KkiaPay muet : la reference est gardee, a pointer, et rien ne bloque', (await blocage()) === ''
+  && /gardée, à pointer le soir/.test(await evalue(`${modale}.querySelector('[data-tpe-kkiapay]')?.textContent || ''`)), await blocage());
 await encaisse();
 const pE = await pieceDe('rdv-cl-hd');
 const vE = (pE?.payments ?? []).map((v) => `${v.amountXof}|${v.method}|${v.cashbox ?? ''}`);
 dit('une piece de 28 000 F, sans ligne de frais, un versement « Carte · KkiaPay » dans la caisse KkiaPay', !!pE && totalDe(pE) === 28000 && !pE.lines.some((l) => l.frais)
   && (pE.payments ?? []).length === 1 && pE.payments[0].method === 'Carte · KkiaPay' && pE.payments[0].cashbox === 'KkiaPay', JSON.stringify(vE));
-dit('... avec la reference du recu sur le versement', pE?.payments?.[0]?.trace?.autorisation === 'AB12CD', JSON.stringify(pE?.payments?.[0]?.trace ?? null));
+dit('... avec la reference KkiaPay sur le versement, a pointer', JSON.stringify(pE?.payments?.[0]?.trace ?? null) === JSON.stringify({ kkiapay: { ref: 'TxBanc12345', injoignable: true } }), JSON.stringify(pE?.payments?.[0]?.trace ?? null));
 
 dit('aucune erreur dans la page', erreurs.length === 0, erreurs.slice(0, 3).join(' | '));
 console.log(ko === 0 ? `\n${n}/${n} epreuves : les frais de la carte, dans le vrai Trone.` : `\n${ko} echec(s) sur ${n}.`);

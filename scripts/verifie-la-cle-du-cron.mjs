@@ -115,6 +115,7 @@ const SANTE = [
   { fichier: fonction('relances-factures'), get: "req.method === 'GET'", raison: 'le contrôle de santé : secrets: { … } en longueurs' },
   { fichier: fonction('equipe-du-matin'), get: "req.method === 'GET'", raison: 'le contrôle de santé : secrets: { WA_TEMPLATE_…, CLE_SERVICE, WA_TOKEN… } en longueurs' },
   { fichier: fonction('whatsapp-automate'), get: "req.method === 'GET'", raison: 'le contrôle de santé : lg(\'CLE_SERVICE\'), lg(\'WA_TOKEN\')…' },
+  { fichier: fonction('kkiapay-tpe'), get: "req.method === 'GET'", raison: 'le contrôle de santé (22 novembre 2026) : secrets: { KKIAPAY_…, CLE_SERVICE } en longueurs' },
   { fichier: fonction('whatsapp-webhook'), get: "req.method === 'GET' && !new URL(req.url).searchParams.get('hub.mode')",
     raison: 'le contrôle de santé, un GET SANS hub.mode (la poignée de main de Meta, elle, n\'y entre pas)' },
   { fichier: fonction('whatsapp-envoi'), get: "req.method === 'GET' && new URL(req.url).searchParams.has('sonde')",

@@ -2,6 +2,16 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE PAIEMENT AU TPE KKIAPAY, SANS TICKET — 22 novembre 2026, À METTRE EN LIGNE (fonction NEUVE `kkiapay-tpe` 2026-11-22-a, `--jwt oui`, puis le Trône ; aucun SQL)
+
+« Il faut un meilleur moyen pour valider un paiement sur la TPE de KkiaPay. On ne peut pas saisir un numéro de ticket et 4 derniers chiffres. Comment faciliter ? » puis « les deux voies » (Yéman, devant l'encaissement).
+
+- **« Carte · KkiaPay » a sa trace** (`familleDeTrace` → `'kkiapay'`, `trace.kkiapay` : `ref`, `montantXof`, `fraisXof`, `source`, `verifieeLe`, `injoignable`, `choisi`) : plus de n° d'autorisation ni de 4 chiffres. Le Terminal de la banque garde les siens.
+- **Voie 1, le paiement reçu** (`shared/tpe-kkiapay-pur.ts`, `tpe-kkiapay.ts`, `ChampsDuTpe` dans `vente/TraceDuMoyen.tsx`) : l'encaissement relit toutes les 6 s le registre `payments` (KkiaPay, sans cible, trois heures, pas déjà porté par une pièce, de la branche ou sans branche) ; le bon montant en tête, « C'est son paiement ». **NON PROUVÉE** : le paiement fait au TPE le 21 novembre n'est jamais arrivé au registre (11 lignes KkiaPay, toutes du widget, la dernière le 20). Soit KkiaPay n'appelle pas `kkiapay-webhook` pour le TPE (réglage du compte, ou une autre application KkiaPay), soit autre chose ; `kkiapay-webhook` l'inscrirait tel quel (sans cible, `branch_id` vide). À prouver par un vrai petit paiement au TPE.
+- **Voie 2, la référence vérifiée** : la référence du reçu, « Vérifier » → `kkiapay-tpe` (le personnel, `is_staff` ; `POST /api/v1/transactions/status` comme kkiapay-verify) rend le montant pour la Maison et les frais, et inscrit la transaction au registre sans cible (une fois). Refus : inconnue, non aboutie, déjà un paiement en ligne (`deja-en-ligne`), déjà portée par une pièce (au Trône). KkiaPay muet : la référence est gardée, « à pointer le soir », l'encaissement passe. Un montant reçu plus court que la part retient l'encaissement. **À prouver aussi** : que l'API status connaît une transaction du TPE (vérifié jusqu'ici sur le widget seulement).
+- La photo de l'écran du TPE reste le dernier recours. Caisse et « Marquer payée » ont la même trace (sans comparer au montant).
+- **Bancs** : `verifie-le-tpe-kkiapay` 30 (`--prouve` 16/16) ; `banc-des-frais-de-carte` 34 dans Chrome (scène E : la référence, ni autorisation ni 4 chiffres, KkiaPay muet → à pointer) ; `verifie-le-choix-du-moyen` 64 (la trace du TPE attendue `kkiapay`) ; `verifie-la-cle-du-cron` (le contrôle de santé de `kkiapay-tpe` dans SANTE) ; `verifie-la-trace-du-moyen`, typecheck 0.
+
 ## KKIAPAY POUR MTN, MOOV ET CELTIIS, ET LE QR DE SON RENDEZ-VOUS — 22 novembre 2026, EN LIGNE (le Trône seul, build 20261122022816 @ 50129555 ; aucun SQL, aucune fonction : `regler-la-seance` en ligne fait le travail)
 
 **Essai réel (lecture seule, neuf rendez-vous, rien validé) :** numéro MTN → « Payer par MTN », KkiaPay en tête d'« Autre moyen » ; numéro hors MTN → KkiaPay proposé d'abord ; Carte → TPE KkiaPay (10 000 F → 10 230 F, le bouton reste à 10 000 F), puis « QR, par KkiaPay » et le terminal. La clé publique KkiaPay est bien au build (jamais « la clé n'est pas posée »). Pas encore essayé : « Ouvrir KkiaPay » et « Montrer le QR » jusqu'au bout (ils émettent la pièce) — le premier vrai paiement le fera.

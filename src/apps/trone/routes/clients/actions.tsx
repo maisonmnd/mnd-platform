@@ -1763,7 +1763,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
      part qui n'a pas la sienne retient l'encaissement. */
   const traceQuiManque = parts.map((pt, i) => {
     const fam = familleDeTrace(lesCaisses[i]?.methode);
-    return fam && Math.max(0, Math.round(Number(pt.montantStr) || 0)) > 0 && !traceSuffit(fam, pt.trace) ? fam : null;
+    const m = Math.max(0, Math.round(Number(pt.montantStr) || 0));
+    return fam && m > 0 && !traceSuffit(fam, pt.trace, m) ? fam : null;
   }).find((f) => f !== null) ?? null;
   /* LA PART QUI SIGNE LA PIÈCE : la première qui apporte de l'argent hors
      avoir. Son moyen et sa caisse sont ceux que les écrans à un seul moyen
@@ -3327,6 +3328,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour, init
                     onChange={(t) => majPart(p.id, { trace: t })}
                     branchId={branch.id}
                     etiquette={parts.length > 1 ? `Part ${i + 1}` : undefined}
+                    montantXof={x}
                   />
                 )}
                 {/* MND PAY : la part se demande au téléphone de la cliente (ou

@@ -119,7 +119,7 @@ dit('... une panne vue sur KkiaPay se dit dans son pourquoi, et FedaPay prend la
   ((x) => [x.rail, x.ordre[0].hors])(chK({ telephone: MOOV, kkiapay: { ouvert: false, pourquoi: 'KkiaPay ne répond pas depuis 14 h 02' } })));
 dit('les frais de KkiaPay sur une carte : 2,3 % au franc superieur, comme sur son recu (64 480 F : 1 484 F)', [1484, 1426, 0, 2.3],
   [fraisKkiapayDeCarteXof(64_480), fraisKkiapayDeCarteXof(62_000), fraisKkiapayDeCarteXof(0), FRAIS_KKIAPAY_CARTE_PCT]);
-dit('le moyen ecrit sur la piece : « Carte · KkiaPay », range chez KkiaPay (sa caisse), avec la trace d une carte', ['Carte · KkiaPay', 'kkiapay', 'carte'],
+dit('le moyen ecrit sur la piece : « Carte · KkiaPay », range chez KkiaPay (sa caisse), avec la trace du TPE (sa reference KkiaPay, 22 novembre 2026)', ['Carte · KkiaPay', 'kkiapay', 'kkiapay'],
   [MOYEN_CARTE_KKIAPAY, familleDuMoyen(MOYEN_CARTE_KKIAPAY), familleDeTrace(MOYEN_CARTE_KKIAPAY)]);
 dit('une panne de MTN ne se dit pas sur la tuile Carte (MTN n y est pas)', false,
   !!leChoixDuMoyen({ voie: 'carte', montantXof: 1000, sante: tous({ mtn: PANNE_MTN }), tapGoOuvert: true }).panne);
