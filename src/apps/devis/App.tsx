@@ -3,7 +3,7 @@ import { asset } from '../../shared/asset';
 import { TexteFon } from '../../ds/fon';
 import { SCEAU_CUIVRE, MOYENS_DU_SCEAU, type MoyenDuSceau } from '../../shared/le-sceau-pur';
 import { Sceau } from '../../ds/sceau';
-import { payWithKkiapay } from '../../shared/kkiapay-widget';
+import { abandonneLePaiementKkiapay, estUneFenetreFermee, payWithKkiapay } from '../../shared/kkiapay-widget';
 import {
   accepteLeDevis, confirmeLaPlace, ditLeRefus, lisLeDevis, paieLAcompte, regleraALAccueil, valideLeDevis, type PageDuDevis,
 } from '../../shared/devis-en-direct-serveur';
@@ -55,6 +55,8 @@ export default function App() {
   const [heure, setHeure] = useState('');
   /* L'ACOMPTE (23 novembre 2026) : le moyen choisi et l'attente de KkiaPay. */
   const [moyen, setMoyen] = useState<MoyenDuSceau>('mtn');
+  /* Une fenêtre KkiaPay est ouverte : la page offre « Changer de moyen » (23 novembre 2026). */
+  const [enPaiement, setEnPaiement] = useState(false);
 
   const applique = useCallback((r: { ok?: boolean; page?: PageDuDevis; error?: string }) => {
     if (!r.ok || !r.page) { setErreur(ditLeRefus(r.error)); return false; }
@@ -82,13 +84,27 @@ export default function App() {
   const payerLAcompte = async (acompteXof: number, reference: string, branchId: string) => {
     if (occupe) return;
     setOccupe(true);
+    setEnPaiement(true);
     setErreur('');
     try {
-      const { transactionId } = await payWithKkiapay({ amountXof: acompteXof, partnerId: reference, branchId });
+      /* LE MOYEN CHOISI OUVRE SA FENÊTRE, ET LA REFERMER REND LA MAIN (23
+         novembre 2026). « Quand on choisit un mode de paiement, on ne peut
+         plus revenir en arrière et modifier. C'est toujours paiement en
+         cours » (Yéman, pendant l'essai) : la page attendait pour toujours
+         une fenêtre refermée. La carte ouvre la carte ; MTN, Moov et Celtiis
+         ouvrent le mobile money, qui demande son numéro. */
+      const { transactionId } = await payWithKkiapay({
+        amountXof: acompteXof, partnerId: reference, branchId,
+        rendLaMainALaFermeture: true,
+        moyens: moyen === 'carte' ? ['card'] : ['momo'],
+      });
+      setEnPaiement(false);
       applique(await paieLAcompte(jeton, transactionId));
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Le paiement n’a pas abouti.');
+      /* Elle a refermé la fenêtre, ou touché « Changer de moyen » : rien à dire en rouge. */
+      if (!estUneFenetreFermee(e)) setErreur(e instanceof Error ? e.message : 'Le paiement n’a pas abouti.');
     } finally {
+      setEnPaiement(false);
       setOccupe(false);
     }
   };
@@ -291,7 +307,15 @@ export default function App() {
               <Sceau montantXof={page.acompteXof} disabled={occupe}
                 dit={occupe ? 'Paiement en cours…' : 'Maintenez le sceau une seconde'}
                 onTenue={() => { void payerLAcompte(page.acompteXof, page.reference, page.branchId); }} />
-              <p className="dv-doux dv-petit dv-centre">KkiaPay s’ouvre sur votre téléphone : {MOYENS_DU_SCEAU.find((m) => m.k === moyen)?.nom ?? 'MTN'}, puis votre code secret, ou votre carte.</p>
+              {/* TOUJOURS UNE SORTIE (23 novembre 2026) : pendant le paiement,
+                  un lien rend la main, que la fenêtre se soit montrée ou non. */}
+              {enPaiement ? (
+                <p className="dv-centre"><button type="button" className="dv-lien" onClick={abandonneLePaiementKkiapay}>Changer de moyen</button></p>
+              ) : moyen === 'carte' ? (
+                <p className="dv-doux dv-petit dv-centre">KkiaPay s’ouvre pour votre carte.</p>
+              ) : (
+                <p className="dv-doux dv-petit dv-centre">KkiaPay s’ouvre sur votre téléphone : votre numéro {MOYENS_DU_SCEAU.find((m) => m.k === moyen)?.nom ?? 'MTN'}, puis votre code secret.</p>
+              )}
               <button type="button" className="dv-autre" disabled={occupe}
                 onClick={() => { void geste(() => regleraALAccueil(jeton)); }}>
                 Je règle à l’accueil

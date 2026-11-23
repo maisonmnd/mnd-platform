@@ -769,7 +769,7 @@ dit('aucun appel hors du monde simule (ni base reelle, ni FedaPay reel)', !journ
 {
   const app = sansCommentaires(lis(APP));
   dit('la page : KkiaPay comme avant quand il marche ; FedaPay seulement quand KkiaPay ne s ouvre pas (ou au retour de FedaPay) ; une panne de KkiaPay seulement, jamais son annulation',
-    /\{kkiapayPeutSOuvrir\(\) && retourFp !== 'lecture' && !\(moyen === 'mtn' && mtnOuvert && !p\.sansPiece && !p\.tetes\) && \(/.test(app) && /disabled=\{ecran\.k === 'paiement' \|\| mtnOccupe\}/.test(app)
+    /\{kkiapayPeutSOuvrir\(\) && retourFp !== 'lecture' && !\(moyen === 'mtn' && mtnOuvert && !p\.sansPiece && !p\.tetes\) && \(/.test(app) && /disabled=\{ecran\.k === 'paiement' \|\| mtnOccupe \|\| \(parMobile && !p\.sansPiece && !p\.tetes && !numeroLu\)\}/.test(app)
     && /\{\(kkiaEnPanne \|\| \(!!retourFp && retourFp !== 'lecture'\)\) && \(!p\.sansPiece && !p\.tetes/.test(app)
     && /if \(estUnePanneDeKkiapay\(e\)\) \{ setKkiaEnPanne\(true\);/.test(app) && /useState\(\(\) => !kkiapayPeutSOuvrir\(\)\)/.test(app), '');
   dit('la page : FedaPay se tient a l ecart pendant une demande MTN, un paiement qui part, un retour qui se confirme',

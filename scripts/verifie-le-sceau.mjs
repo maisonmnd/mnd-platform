@@ -38,7 +38,7 @@ const PANNES = [
   ['le sceau de la direction', PUR, "export const SCEAU_CUIVRE = 'assets/tampons/mnd-premium-cuivre.png';", "export const SCEAU_CUIVRE = 'assets/tampons/mnd-1-sceau.png';"],
   ['MTN par KkiaPay', PUR, "  { k: 'mtn', nom: 'MTN', rail: 'mtn', par: 'par MTN' },", "  { k: 'mtn', nom: 'MTN', rail: 'kkiapay', par: 'par MTN' },"],
   /* La page cliente */
-  ['le bouton « Régler X » remis', APP, '<Sceau montantXof={total} disabled={ecran.k === \'paiement\' || mtnOccupe}', '<button type="button" className="rg-regler" disabled={ecran.k === \'paiement\' || mtnOccupe}'],
+  ['le bouton « Régler X » remis', APP, '<Sceau montantXof={total} disabled={ecran.k === \'paiement\' || mtnOccupe', '<button type="button" className="rg-regler" disabled={ecran.k === \'paiement\' || mtnOccupe'],
   ['la page n écoute plus le fil', APP, 'return ecouteLeFilDuSceau(jeton, () => { void relisEnDirect(); });', 'return () => undefined;'],
   ['la page ne dit plus le moyen au Trône', APP, 'void poseLeSceau(jeton, rail);', 'void 0;'],
   ['le dernier écran perd « Merci. »', APP, '<h2 className="rg-merci-titre">Merci.</h2>', '<h2 className="rg-merci-titre">C’est réglé</h2>'],

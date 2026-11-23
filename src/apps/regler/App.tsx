@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
-import { estUnePanneDeKkiapay, kkiapayPeutSOuvrir, payWithKkiapay } from '../../shared/kkiapay-widget';
+import { abandonneLePaiementKkiapay, estUneFenetreFermee, estUnePanneDeKkiapay, kkiapayPeutSOuvrir, payWithKkiapay } from '../../shared/kkiapay-widget';
+import { msisdnDe } from '../../shared/collecte-mtn-pur';
 import { TexteFon } from '../../ds/fon';
 import { inviteAUnePart, laGamme, ajouteALaGamme, retireDeLaGamme, lisLeLien, poseLeSceau, regleLeLien, repondsAuProchainRituel, type PageDuLien } from '../../shared/regler-la-seance-serveur';
 import { attenteDeLaPiece, retourAMaCouronne } from '../../shared/terminer-et-regler-serveur';
@@ -133,6 +134,18 @@ export default function App() {
      moyen ; si MTN n'est pas ouvert, il ouvre KkiaPay. */
   const [moyen, setMoyen] = useState<MoyenDuSceau>('mtn');
   const [mtnOuvert, setMtnOuvert] = useState(false);
+  /* MOOV, CELTIIS : SON NUMÉRO D'ABORD (23 novembre 2026). « Quand on choisit
+     Moov et Celtiis rien ne se passe, ça ne demande pas de récupérer un numéro
+     de téléphone » (Yéman, pendant l'essai). La page le demande, comme pour
+     MTN, et la fenêtre KkiaPay s'ouvre avec ce numéro déjà écrit. KkiaPay
+     n'envoie aucune demande sans sa fenêtre : elle y confirme, puis tape son
+     code secret. */
+  const [numeroKkia, setNumeroKkia] = useState('');
+  const parMobile = moyen === 'moov' || moyen === 'celtiis';
+  const numeroLu = msisdnDe(numeroKkia);
+  const nomDuMoyen = MOYENS_DU_SCEAU.find((m) => m.k === moyen)?.nom ?? '';
+  /** Elle a refermé une fenêtre de paiement dans cette visite : la note se relit avant la suivante. */
+  const aRenonce = useRef(false);
   /* LE SECOURS FEDAPAY (12 novembre 2026, lot C) : KkiaPay ne peut pas
      s'ouvrir (sans clé, d'emblée ; script injoignable ou erreur technique,
      au toucher). Elle annule elle-même : rien ne change. */
@@ -263,15 +276,44 @@ export default function App() {
     return () => { vivant = false; };
   }, [jeton, demandeFp]);
 
+  /* SA NOTE SE RELIT PEU APRÈS UNE FENÊTRE REFERMÉE : si la demande partie
+     sur son téléphone aboutit malgré tout, la page le voit sans qu'elle
+     recharge (le filet de KkiaPay prévient la fonction). */
+  const relisBientot = () => {
+    for (const ms of [6_000, 25_000]) window.setTimeout(() => { derniereRelecture.current = 0; void relisEnDirect(); }, ms);
+  };
+
   const regle = async (p: PageDuLien) => {
     setSouci('');
     setEcran({ k: 'paiement', page: p });
+    /* ELLE A DÉJÀ RENONCÉ UNE FOIS : un paiement parti de son téléphone après
+       la fenêtre refermée a pu aboutir. Sa note se relit avant de rouvrir
+       quoi que ce soit : deux paiements, c'est deux fois le même argent. */
+    if (aRenonce.current) {
+      const r = await lisLeLien(jeton);
+      if (r.ok && r.page?.etat === 'reglee') { setEcran({ k: 'reglee', page: { ...r.page, resteXof: 0 } }); return; }
+    }
     const montant = p.resteXof + (p.pourboire ? pourboire : 0);
+    /* LE MOYEN QU'ELLE A CHOISI OUVRE SA FENÊTRE (23 novembre 2026) : la
+       carte ouvre la carte, Moov et Celtiis ouvrent le mobile money avec son
+       numéro déjà écrit. Le foyer et le règlement d'avance, qui ne choisissent
+       pas de moyen, gardent la fenêtre entière. */
+    const surSaNote = !p.sansPiece && !p.tetes;
+    const numero = surSaNote && parMobile ? msisdnDe(numeroKkia) : null;
     let transactionId = '';
     try {
-      transactionId = (await payWithKkiapay({ amountXof: montant, partnerId: p.reference, branchId: p.branchId })).transactionId;
+      transactionId = (await payWithKkiapay({
+        amountXof: montant, partnerId: p.reference, branchId: p.branchId,
+        rendLaMainALaFermeture: true,
+        ...(surSaNote && moyen === 'carte' ? { moyens: ['card'] as const } : surSaNote && parMobile ? { moyens: ['momo'] as const } : {}),
+        ...(numero ? { phone: numero.slice(3) } : {}),
+      })).transactionId;
     } catch (e) {
       setEcran({ k: 'page', page: p });
+      /* ELLE A REFERMÉ LA FENÊTRE, ou touché « Changer de moyen » : sa note
+         revient, ses moyens se libèrent, et rien ne s'écrit en rouge — elle
+         n'a rien raté, elle a changé d'avis. */
+      if (estUneFenetreFermee(e)) { aRenonce.current = true; relisBientot(); return; }
       /* KkiaPay en panne (pas elle, pas son opérateur) : FedaPay prend le relais. */
       if (estUnePanneDeKkiapay(e)) { setKkiaEnPanne(true); setSouci('KkiaPay ne répond pas pour l’instant.'); return; }
       setSouci(e instanceof Error ? e.message : 'Le paiement n’a pas abouti.');
@@ -561,10 +603,35 @@ export default function App() {
                 {moyen === 'mtn' && !mtnOuvert && !p.sansPiece && !p.tetes && (
                   <p className="rg-doux rg-petit rg-centre">MTN n’est pas ouvert pour cette séance : le sceau ouvre KkiaPay, qui prend MTN, Moov, Celtiis et la carte.</p>
                 )}
-                <Sceau montantXof={total} disabled={ecran.k === 'paiement' || mtnOccupe}
-                  dit={ecran.k === 'paiement' ? 'Paiement en cours…' : 'Maintenez le sceau une seconde'}
+                {/* MOOV, CELTIIS : SON NUMÉRO D'ABORD (23 novembre 2026). Le
+                    sceau attend un numéro qui se lit ; la fenêtre KkiaPay
+                    s'ouvre ensuite avec lui. */}
+                {parMobile && !p.sansPiece && !p.tetes && (
+                  <label className="rg-autre-montant">
+                    <span className="rg-doux">Votre numéro {nomDuMoyen}</span>
+                    <span className="rg-champ">
+                      <input id="rg-numero-kkiapay" inputMode="tel" autoComplete="tel" placeholder="01 …" value={numeroKkia} disabled={ecran.k === 'paiement'}
+                        onChange={(e) => setNumeroKkia(e.target.value.replace(/[^\d+ ]/g, '').slice(0, 20))} />
+                    </span>
+                    {numeroKkia.replace(/\D/g, '').length >= 10 && !numeroLu && <span className="rg-doux rg-petit">Ce numéro ne se lit pas : dix chiffres, commençant par 01.</span>}
+                  </label>
+                )}
+                <Sceau montantXof={total} disabled={ecran.k === 'paiement' || mtnOccupe || (parMobile && !p.sansPiece && !p.tetes && !numeroLu)}
+                  dit={ecran.k === 'paiement' ? 'Paiement en cours…' : parMobile && !p.sansPiece && !p.tetes && !numeroLu ? `Votre numéro ${nomDuMoyen} d’abord` : 'Maintenez le sceau une seconde'}
                   onTenue={() => { void poserLeSceau(p); }} />
-                <p className="rg-doux rg-petit rg-centre">KkiaPay s’ouvre sur votre téléphone. Ses frais s’ajoutent au paiement.</p>
+                {/* TOUJOURS UNE SORTIE (23 novembre 2026, « on ne peut plus
+                    revenir en arrière et modifier ») : pendant le paiement,
+                    un lien rend la main, que la fenêtre se soit montrée ou
+                    non. La refermer suffit aussi. */}
+                {ecran.k === 'paiement' ? (
+                  <p className="rg-centre"><button type="button" className="rg-lien" style={{ padding: '8px 6px' }} onClick={abandonneLePaiementKkiapay}>Changer de moyen</button></p>
+                ) : moyen === 'carte' && !p.sansPiece && !p.tetes ? (
+                  <p className="rg-doux rg-petit rg-centre">KkiaPay s’ouvre pour votre carte. Ses frais s’ajoutent au paiement.</p>
+                ) : parMobile && !p.sansPiece && !p.tetes ? (
+                  <p className="rg-doux rg-petit rg-centre">KkiaPay s’ouvre avec votre numéro : confirmez, puis tapez votre code secret. Ses frais s’ajoutent au paiement.</p>
+                ) : (
+                  <p className="rg-doux rg-petit rg-centre">KkiaPay s’ouvre sur votre téléphone. Ses frais s’ajoutent au paiement.</p>
+                )}
               </>
             )}
             {souci && <p className="rg-souci" role="alert">{souci}</p>}

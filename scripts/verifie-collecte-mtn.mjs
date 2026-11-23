@@ -130,7 +130,8 @@ const PANNES = [
   ['le bandeau quitte sa page MTN MoMo', PAGE_MTN, '<CompteDeCollecteMtn onOuvreLeRdv={setRdvAOuvrir} />', ''],
   ['« Confirme par MTN » quitte le rendez-vous', ACTIONS, '          <ConfirmeParMtn appt={appt} />\n', ''],
   ['MTN propose sur le foyer et l avance', PAGE, '            {!p.sansPiece && !p.tetes && (', '            {('],
-  ['KkiaPay ouvert pendant l attente MTN', PAGE, "disabled={ecran.k === 'paiement' || mtnOccupe}", "disabled={ecran.k === 'paiement'}"],
+  /* 23 novembre 2026 : le sceau attend aussi le numéro de Moov ou de Celtiis ; la retenue pendant l'attente MTN reste la même. */
+  ['KkiaPay ouvert pendant l attente MTN', PAGE, "disabled={ecran.k === 'paiement' || mtnOccupe || (parMobile", "disabled={ecran.k === 'paiement' || (parMobile"],
   ['la page envoie un montant', SERVEUR_PAGE, "appel({ action: 'demander', jeton, msisdn, pourboireXof })", "appel({ action: 'demander', jeton, msisdn, pourboireXof, montantXof: 1 })"],
   ['la caisse MTN se compte au tiroir le soir', CAISSES, '  CAISSE_MTN_COLLECTION,\n];', '];'],
   ['le MoMoPay de la Maison sort du comptage du soir', CAISSES, '  CAISSE_MTN_COLLECTION,\n];', '  CAISSE_MTN_COLLECTION, CAISSE_MTN,\n];'],
@@ -952,7 +953,7 @@ let refLien;
     /genre = 'reglement' and origine in \('lien', 'comptoir'\) and rdv_id is not null and piece_id is not null/.test(sql) && /montant_xof = reste_xof \+ pourboire_xof/.test(sql) && /montant_xof <= 500/.test(sql), '');
   const app = sansCommentaires(lis(PAGE));
   dit('la page « Regler » : MTN seulement pour une seance avec sa piece (ni foyer, ni avance), KkiaPay retenu pendant l attente, la page ne decide d aucun montant',
-    /\{!p\.sansPiece && !p\.tetes && \(/.test(app) && /disabled=\{ecran\.k === 'paiement' \|\| mtnOccupe\}/.test(app) && !/resteXof\s*=/.test(app) && /pourboireXof=\{p\.pourboire \? pourboire : 0\}/.test(app), '');
+    /\{!p\.sansPiece && !p\.tetes && \(/.test(app) && /disabled=\{ecran\.k === 'paiement' \|\| mtnOccupe \|\| \(parMobile && !p\.sansPiece && !p\.tetes && !numeroLu\)\}/.test(app) && !/resteXof\s*=/.test(app) && /pourboireXof=\{p\.pourboire \? pourboire : 0\}/.test(app), '');
   const serveur = lis(SERVEUR_PAGE);
   dit('les pages n envoient que le numero et le merci, jamais un montant', /appel\(\{ action: 'demander', jeton, msisdn, pourboireXof \}\)/.test(serveur) && /appel\(\{ action: 'demander', comptoir: \{ numero, n \}, pourboireXof \}\)/.test(serveur) && !/montantXof:/.test(serveur.replace(/montantXof\?: number;/, '')), '');
   const mtnPage = lis(MTN_PAGE);

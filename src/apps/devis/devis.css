@@ -171,3 +171,5 @@ body {
 .dv-direct { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; color: var(--dv-cuivre); }
 .dv-direct i { width: 6px; height: 6px; border-radius: 50%; background: var(--dv-cuivre-clair); }
 button:focus-visible, a:focus-visible { outline: 2px solid var(--dv-cuivre-clair); outline-offset: 2px; }
+/* « Changer de moyen » (23 novembre 2026) : un lien, sous le sceau, pendant le paiement. */
+.dv-lien { font: inherit; font-size: 14px; border: 0; padding: 8px 6px; background: none; color: var(--dv-cuivre); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }

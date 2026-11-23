@@ -29,11 +29,33 @@ export const estUnePanneDeKkiapay = (e: unknown): boolean =>
 /** KkiaPay peut-il seulement s'ouvrir ici ? (sa clé publique est posée au build) */
 export const kkiapayPeutSOuvrir = (): boolean => PUBLIC_KEY !== '';
 
+/* ══ LA FENÊTRE REFERMÉE SANS PAYER — 23 novembre 2026 ═══════════════════
+   « Quand on choisit un mode de paiement, exemple carte, on ne peut plus
+   revenir en arrière et modifier. C'est toujours paiement en cours » (Yéman,
+   pendant l'essai du Sceau). La promesse ne se résolvait QUE sur un paiement
+   abouti : refermer la fenêtre la laissait en attente pour toujours, et la
+   page « Régler », qui fige ses moyens pendant un paiement, restait figée.
+
+   KkiaPay DIT qu'on referme sa fenêtre (`addKkiapayCloseListener`). Une page
+   qui le demande (`rendLaMainALaFermeture`) voit alors sa promesse se
+   REJETER d'une `FenetreFermee` : ni une panne, ni un refus, elle a
+   seulement renoncé. Les autres pages gardent leur attente d'avant, avec
+   leur propre porte de sortie. */
+export class FenetreFermee extends Error {
+  readonly fermee = true as const;
+}
+/** A-t-elle seulement refermé la fenêtre (ou renoncé depuis la page) ? */
+export const estUneFenetreFermee = (e: unknown): boolean =>
+  e instanceof FenetreFermee || (!!e && typeof e === 'object' && (e as { fermee?: unknown }).fermee === true);
+const PAIEMENT_ANNULE = 'Paiement annulé.';
+
 type SuccessResponse = { transactionId?: string } | string;
 type KkiapayWindow = Window & {
   openKkiapayWidget?: (opts: Record<string, unknown>) => void;
+  closeKkiapayWidget?: () => void;
   addSuccessListener?: (cb: (r: SuccessResponse) => void) => void;
   addFailedListener?: (cb: (r: unknown) => void) => void;
+  addKkiapayCloseListener?: (cb: () => void) => void;
 };
 
 let scriptPromise: Promise<void> | null = null;
@@ -58,7 +80,7 @@ function loadWidget(): Promise<void> {
 /* Les écouteurs de KkiaPay sont GLOBAUX : en enregistrer un par paiement les
    empilerait et rejouerait les anciens. On en pose donc un seul, qui aiguille
    vers le paiement en cours. */
-let pending: { resolve: (r: { transactionId: string }) => void; reject: (e: Error) => void } | null = null;
+let pending: { resolve: (r: { transactionId: string }) => void; reject: (e: Error) => void; rendLaMain: boolean } | null = null;
 let wired = false;
 
 function wireListeners(): void {
@@ -79,7 +101,25 @@ function wireListeners(): void {
     /* Un échec que rien ne nomme (ni elle, ni son opérateur) est une panne de KkiaPay. */
     p?.reject(message === ECHEC_SANS_MOTIF ? new PanneDeKkiapay(message) : new Error(message));
   });
+  /* Elle referme la fenêtre : la page qui l'a demandé reprend la main. Après
+     un paiement abouti il n'y a plus rien en attente, et rien ne se passe. */
+  w.addKkiapayCloseListener?.(() => {
+    const p = pending;
+    if (!p || !p.rendLaMain) return;
+    pending = null;
+    p.reject(new FenetreFermee(PAIEMENT_ANNULE));
+  });
   wired = true;
+}
+
+/** ELLE RENONCE DEPUIS LA PAGE (« Changer de moyen ») : la fenêtre se ferme
+    si elle est là, et le paiement en attente rend la main, même si la
+    fenêtre ne s'est jamais montrée. */
+export function abandonneLePaiementKkiapay(): void {
+  const p = pending;
+  pending = null;
+  try { (window as KkiapayWindow).closeKkiapayWidget?.(); } catch { /* elle n'était pas ouverte */ }
+  p?.reject(new FenetreFermee(PAIEMENT_ANNULE));
 }
 
 /* Codes relevés sur le banc d'essai (le motif arrive dans `reason.message`) —
@@ -108,11 +148,21 @@ export type PayRequest = {
   phone?: string;
   name?: string;
   email?: string;
+  /** Les moyens que la fenêtre propose : `momo` (MTN, Moov, Celtiis) ou
+      `card`. Sans lui, tous — comme avant. (23 novembre 2026 : sur la page
+      « Régler », le moyen qu'elle a choisi ouvre SA fenêtre, pas le menu.) */
+  moyens?: readonly ('momo' | 'card')[];
+  /** La promesse se rejette (`FenetreFermee`) quand elle referme la fenêtre
+      sans payer, au lieu d'attendre pour toujours. */
+  rendLaMainALaFermeture?: boolean;
 };
 
 /** Ouvre le widget et attend la fin. La promesse ne se résout QUE sur un
     paiement abouti ; si la cliente ferme le widget, elle reste en attente —
-    l'écran garde donc toujours une porte de sortie (« j'enverrai moi-même »). */
+    l'écran garde donc toujours une porte de sortie (« j'enverrai moi-même »).
+    Depuis le 23 novembre 2026, une page peut demander la main à la fermeture
+    (`rendLaMainALaFermeture`) : la promesse se rejette alors d'une
+    `FenetreFermee`. */
 /** Le message dit à la cliente quand le réseau manque (4 octobre 2026). */
 export const KKIAPAY_HORS_LIGNE = 'Hors ligne : le paiement en ligne demande le réseau. Réessayez dès qu’il revient, ou réglez à la Maison.';
 
@@ -127,7 +177,7 @@ export function payWithKkiapay(req: PayRequest): Promise<{ transactionId: string
     const w = window as KkiapayWindow;
     if (!w.openKkiapayWidget) { reject(new PanneDeKkiapay('Le service de paiement est injoignable.')); return; }
     pending?.reject(new Error('Paiement remplacé.'));
-    pending = { resolve, reject };
+    pending = { resolve, reject, rendLaMain: req.rendLaMainALaFermeture === true };
     try {
       w.openKkiapayWidget({
         amount: Math.round(req.amountXof),
@@ -136,6 +186,7 @@ export function payWithKkiapay(req: PayRequest): Promise<{ transactionId: string
         position: 'center',
         theme: '#B97A4A', // cuivre de la Maison
         partnerId: req.partnerId,
+        ...(req.moyens?.length ? { paymentMethods: [...req.moyens] } : {}),
         ...(req.phone ? { phone: req.phone.replace(/\D/g, '') } : {}),
         ...(req.name ? { name: req.name } : {}),
         ...(req.email ? { email: req.email } : {}),
