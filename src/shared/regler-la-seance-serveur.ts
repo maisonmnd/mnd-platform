@@ -31,6 +31,10 @@ export type PageDuLien = {
   /** SA PROCHAINE PLACE (23 novembre 2026) : proposée par la Maison, à la
       sortie du sceau. */
   prochainRituel?: { jour: string; heure: string; autres?: { jour: string; heure: string }[]; reponse?: 'confirmee' | 'plus-tard'; retenue?: { jour: string; heure: string } };
+  /** LE JETON DE SES ÉTOILES (23 novembre 2026) : quand la Maison a déjà
+      déposé sa demande d'avis pour cette pièce, la page ouvre le vrai
+      bouton ; sinon elle dit « ce soir ». */
+  etoilesJeton?: string;
   /** L'invitée qu'elle a nommée, et quand (le Trône le voit aussi). */
   invitee?: { nom: string; le: string };
   /** Elle a terminé elle-même (6 novembre 2026) : sa pièce se prépare au Trône, la page attend. */

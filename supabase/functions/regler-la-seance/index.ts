@@ -1,4 +1,4 @@
-﻿// deno-lint-ignore-file no-explicit-any
+// deno-lint-ignore-file no-explicit-any
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* regler-la-seance — la cliente règle sa séance depuis son téléphone
@@ -304,7 +304,7 @@ export const maitreDit = (master: unknown): string => {
 export const lignesDites = (p: PieceLue): { label: string; montantXof: number }[] =>
   (p.lines ?? []).filter((l) => String(l.label ?? '').trim()).map((l) => ({ label: String(l.label).trim(), montantXof: Math.round(netDeLaLigne(l)) }));
 
-export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDeLaCliente?: string; prenom?: string; branchId?: string; maintenant: Date; parInvitee?: boolean }) {
+export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDeLaCliente?: string; prenom?: string; branchId?: string; maintenant: Date; parInvitee?: boolean; etoilesJeton?: string }) {
   const e = etatDuLien(o.rdv, o.piece);
   const lien = o.rdv?.lienDeReglement;
   const tapgo = lien?.tapgo && e.etat === 'a-regler' && Math.round(n(lien.tapgo.resteXof)) === e.resteXof
@@ -334,6 +334,10 @@ export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDe
     /* SA PROCHAINE PLACE (23 novembre 2026) : à la sortie, et seulement une
        fois scellée. */
     ...(e.etat === 'reglee' && o.rdv?.prochainRituel ? { prochainRituel: o.rdv.prochainRituel } : {}),
+    /* LE JETON DE SES ÉTOILES (23 novembre 2026) : celui que la Maison a
+       déjà déposé pour cette pièce, quand il existe. La page peut alors
+       ouvrir le vrai bouton ; sinon elle dit « ce soir ». */
+    ...(o.etoilesJeton ? { etoilesJeton: o.etoilesJeton } : {}),
     branchId: o.branchId ?? '',
     ...(tapgo ? { tapgo } : {}),
     /* Elle a terminé elle-même et sa pièce n'est pas encore écrite : le
@@ -406,6 +410,17 @@ export function pageDuFoyer(o: {
   };
 }
 // ── FIN copie de shared/regler-la-seance-pur.ts
+
+/** LE JETON DE SES ÉTOILES, quand la demande existe déjà — 23 novembre 2026.
+    `avis-google` dépose LA SIENNE, pour la pièce du jour, avec le jeton que
+    porte son bouton (la ligne `env-<facture>-wa-avis`, 0043). On le LIT ici :
+    on ne dépose rien, et on n'invente pas de lien quand il n'y en a pas — la
+    page dira alors « ce soir », ce qui est vrai. */
+async function leJetonDesEtoiles(pieceId: string): Promise<string | undefined> {
+  const { data } = await admin.from('envois').select('data').eq('id', `env-${pieceId}-wa-avis`).limit(1);
+  const j = (data?.[0]?.data as { jeton?: unknown } | undefined)?.jeton;
+  return typeof j === 'string' && j.length > 0 ? j : undefined;
+}
 
 /* ══ HONORÉ QUAND ELLE A RÉGLÉ — 6 novembre 2026 (« Terminer et régler ») ══
    La cliente a déclaré avoir terminé (`termineParElle`, posé par la fonction
@@ -1168,6 +1183,11 @@ async function lire(req: Request, b: any, noteLOuverture: boolean) {
   const pieceLigne = await laPiece(rdv.id);
   const piece: PieceLue | null = pieceLigne ? { ...(pieceLigne.data ?? {}), id: pieceLigne.id } : null;
   const prenom = await prenomDUsageDe(r.clientId, r.clientName);
+  /* SES ÉTOILES, S'IL Y A DÉJÀ UNE DEMANDE (23 novembre 2026) : `avis-google`
+     dépose la sienne pour la pièce du jour, avec un jeton que son bouton
+     porte. On le LIT — on ne dépose rien ici, et on n'invente pas de lien
+     quand il n'y en a pas : la page dira « ce soir ». */
+  const etoilesJeton = pieceLigne ? await leJetonDesEtoiles(pieceLigne.id) : undefined;
   /* RÉGLER AVANT ET APRÈS (7 novembre 2026) : sans pièce, un rendez-vous que
      Ma Couronne a ouvert se règle sur lui-même, au reste du serveur ; tout
      réglé, la page dit « réglée ». Sinon, la page d'avant (elle attend sa pièce). */
@@ -1177,7 +1197,7 @@ async function lire(req: Request, b: any, noteLOuverture: boolean) {
       return json({ ok: true, rattrapes, page: pageSansPiece({ rdv: r as any, porte: sp.porte, quand: sp.moment, prenom, reference: referenceDuRdv(rdv.id), branchId: rdv.branch_id }) });
     }
   }
-  return json({ ok: true, rattrapes, page: pageDuLien({ rdv: r, piece, prenom, branchId: rdv.branch_id, maintenant: new Date(), parInvitee }) });
+  return json({ ok: true, rattrapes, page: pageDuLien({ rdv: r, piece, prenom, branchId: rdv.branch_id, maintenant: new Date(), parInvitee, ...(etoilesJeton ? { etoilesJeton } : {}) }) });
 }
 
 async function regler(req: Request, b: any) {

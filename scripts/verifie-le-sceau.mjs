@@ -65,6 +65,8 @@ const PANNES = [
   ['les étoiles passent avant la place', APP, "        const etape = pr && !pr.reponse ? 'place' : (ecran.paye && !etoilesFaite ? 'etoiles' : 'merci');", "        const etape = ecran.paye && !etoilesFaite ? 'etoiles' : (pr && !pr.reponse ? 'place' : 'merci');"],
   /* Le QR */
   ['la page n offre plus le QR', APP, '          <QrSvg valeur={lienDeLInvitee}', '          <div valeur={lienDeLInvitee}'],
+  /* Les étoiles d'un toucher */
+  ['la fonction ne lit plus le jeton des étoiles', FN, "  const { data } = await admin.from('envois').select('data').eq('id', `env-${pieceId}-wa-avis`).limit(1);", '  const data: unknown[] = [];'],
   ['la fonction accepte n importe quel moyen', FN, "  if (!estUnJeton(jeton) || !MOYENS_DU_SCEAU.includes(moyen)) return json({ error: 'bad_request' }, 400);", '  if (!estUnJeton(jeton)) return json({ error: \'bad_request\' }, 400);'],
 ];
 

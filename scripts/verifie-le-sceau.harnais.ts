@@ -180,5 +180,10 @@ vrai('le QR est stable pour une meme adresse', qr1.path === qr2.path && qr1.n > 
 vrai('deux adresses font deux QR', qrMatrice('a').path !== qrMatrice('b').path);
 vrai('la page montre le QR de l invitée', lis('src/apps/regler/App.tsx').includes('<QrSvg valeur={lienDeLInvitee}'));
 vrai('le QR se dessine en un seul chemin', qr1.path.startsWith('M') && !qr1.path.includes('<'));
+/* ── SES ÉTOILES D'UN TOUCHER (23 novembre 2026) ─────────────────────── */
+vrai('la fonction lit le jeton des étoiles deja depose', fn2.includes('async function leJetonDesEtoiles') && fn2.includes('env-${pieceId}-wa-avis'));
+vrai('la fonction ne depose aucune demande d avis', !fn2.includes("from('envois').insert"));
+vrai('la page ouvre le vrai bouton quand le jeton existe', lis('src/apps/regler/App.tsx').includes('regler.html?e=') && lis('src/apps/regler/App.tsx').includes('Donner mes étoiles'));
+vrai('sans jeton, la page dit « ce soir »', lis('src/apps/regler/App.tsx').includes('La Maison vous écrit ce soir sur WhatsApp'));
 console.log(`\n${n - ko}/${n} vérifications${ko ? `, ${ko} en échec` : ''}.`);
 process.exit(ko ? 1 : 0);

@@ -1,4 +1,4 @@
-/* ══ RÉGLER SA SÉANCE — 25 octobre 2026 ═════════════════════════════════
+﻿/* ══ RÉGLER SA SÉANCE — 25 octobre 2026 ═════════════════════════════════
    « Donner la possibilité à chaque client de payer son RDV avant de venir à
    sa séance, ou quand je marque terminer la séance, le client reçoit un
    message avec le paiement de sa séance en direct sur son WhatsApp »
@@ -310,7 +310,7 @@ export const nomDInviteePropre = (nom: unknown): string =>
   String(nom ?? '').replace(/\s+/g, ' ').trim().slice(0, 18);
 
 /** CE QUE LA PAGE REÇOIT, et rien de plus : ni numéro, ni nom de famille. */
-export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDeLaCliente?: string; prenom?: string; branchId?: string; maintenant: Date; parInvitee?: boolean }) {
+export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDeLaCliente?: string; prenom?: string; branchId?: string; maintenant: Date; parInvitee?: boolean; etoilesJeton?: string }) {
   const e = etatDuLien(o.rdv, o.piece);
   const lien = o.rdv?.lienDeReglement;
   const tapgo = lien?.tapgo && e.etat === 'a-regler' && Math.round(n(lien.tapgo.resteXof)) === e.resteXof
@@ -340,6 +340,10 @@ export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDe
     /* SA PROCHAINE PLACE (23 novembre 2026) : à la sortie, et seulement une
        fois scellée. */
     ...(e.etat === 'reglee' && o.rdv?.prochainRituel ? { prochainRituel: o.rdv.prochainRituel } : {}),
+    /* LE JETON DE SES ÉTOILES (23 novembre 2026) : celui que la Maison a
+       déjà déposé pour cette pièce, quand il existe. La page peut alors
+       ouvrir le vrai bouton ; sinon elle dit « ce soir ». */
+    ...(o.etoilesJeton ? { etoilesJeton: o.etoilesJeton } : {}),
     branchId: o.branchId ?? '',
     ...(tapgo ? { tapgo } : {}),
     /* Elle a terminé elle-même et sa pièce n'est pas encore écrite : le

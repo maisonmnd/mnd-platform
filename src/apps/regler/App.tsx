@@ -612,12 +612,24 @@ export default function App() {
         }
 
         if (etape === 'etoiles') {
+          const jetonEtoiles = ecran.page.etoilesJeton;
           return (
             <section className="rg-bloc rg-final" aria-label="Vos étoiles">
               <p className="rg-sur">Vos étoiles</p>
               <p className="rg-titre" style={{ margin: 0 }}>Laissez-nous vos étoiles, beauté.</p>
-              <p className="rg-doux">La Maison vous écrit ce soir sur WhatsApp, avec son lien : un toucher suffit, rien à écrire.</p>
-              <button type="button" className="rg-regler" onClick={() => setEtoilesFaite(true)}>C’est noté</button>
+              {jetonEtoiles ? (
+                <>
+                  <p className="rg-doux">Un toucher suffit, rien à écrire.</p>
+                  <a className="rg-regler" style={{ textAlign: 'center', textDecoration: 'none', display: 'block' }}
+                    href={`regler.html?e=${jetonEtoiles}`}>Donner mes étoiles</a>
+                  <button type="button" className="rg-lien" onClick={() => setEtoilesFaite(true)}>Plus tard</button>
+                </>
+              ) : (
+                <>
+                  <p className="rg-doux">La Maison vous écrit ce soir sur WhatsApp, avec son lien : un toucher suffit, rien à écrire.</p>
+                  <button type="button" className="rg-regler" onClick={() => setEtoilesFaite(true)}>C’est noté</button>
+                </>
+              )}
             </section>
           );
         }
