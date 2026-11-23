@@ -20,6 +20,7 @@ const prouve = process.argv.includes('--prouve');
 
 const PUR = 'src/shared/le-sceau-pur.ts';
 const FN = 'supabase/functions/regler-la-seance/index.ts';
+const REGLER = 'src/shared/regler-la-seance-pur.ts';
 const APP = 'src/apps/regler/App.tsx';
 const SCEAU = 'src/ds/sceau.tsx';
 const FIL = 'src/shared/le-fil-du-sceau.ts';
@@ -53,6 +54,11 @@ const PANNES = [
   /* La fonction */
   ['le sceau n a plus de route', FN, "    if (b.action === 'sceau') return await sceau(req, b);\n", ''],
   ['le sceau ne se note plus sur le lien', FN, '  const lien = { ...d.lienDeReglement, sceauLe: new Date().toISOString(), moyen };', '  const lien = { ...d.lienDeReglement, moyen };'],
+  /* Régler à deux */
+  ['l invitée réutilise le jeton de la séance', FN, 'jetonDe(crypto.getRandomValues(new Uint8Array(LONGUEUR_DU_JETON)))', 'lien.jeton'],
+  ['une séance réglée invite encore', FN, "  if (lien.payeLe) return json({ error: 'deja_reglee' }, 409);", ''],
+  ['le prénom de l invitée n est plus borné', REGLER, "String(nom ?? '').replace(/\\s+/g, ' ').trim().slice(0, 18);", "String(nom ?? '');"],
+  ['la page propose régler à deux à l invitée', APP, '            {!p.parInvitee && (', '            {true && ('],
   ['la fonction accepte n importe quel moyen', FN, "  if (!estUnJeton(jeton) || !MOYENS_DU_SCEAU.includes(moyen)) return json({ error: 'bad_request' }, 400);", '  if (!estUnJeton(jeton)) return json({ error: \'bad_request\' }, 400);'],
 ];
 

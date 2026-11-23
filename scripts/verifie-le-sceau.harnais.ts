@@ -1,4 +1,4 @@
-﻿/* LE SCEAU, ÉPROUVÉ — `node scripts/verifie-le-sceau.mjs`.
+/* LE SCEAU, ÉPROUVÉ — `node scripts/verifie-le-sceau.mjs`.
 
    22 novembre 2026 : « I want to give to another session the build for the
    last two maquette that was made : devis en direct et le sceau de la
@@ -17,7 +17,7 @@ import {
   estUnFilDuSceau, etapeDuFauteuil, estFranchie, filDuSceau, gesteDemande, gesteDit, heureDit, leFauteuilDit,
   moyenDitDuSceau, signalDuSceau,
 } from '../src/shared/le-sceau-pur';
-import { pageDuLien } from '../src/shared/regler-la-seance-pur';
+import { nomDInviteePropre, pageDuLien } from '../src/shared/regler-la-seance-pur';
 import { copieAttendue, copieDuServeur } from './regler-copie-serveur.mjs';
 
 let ko = 0;
@@ -140,11 +140,27 @@ vrai('le fil du téléphone ne dit que « relis »', fil.includes("c.on('broadca
 vrai('le client temps réel arrive à la demande', fil.includes("await import('@supabase/supabase-js')"));
 
 const trone = lis('src/apps/trone/routes/clients/ReglementEnDirect.tsx');
+const fn2 = lis('supabase/functions/regler-la-seance/index.ts');
 vrai('le Trône voit les cinq étapes', trone.includes('ETAPES_DU_FAUTEUIL.map'));
 vrai('le Trône souffle sur le fil', trone.includes('souffleSurLeFilDuSceau(jeton)'));
 vrai('le Trône offre un geste', trone.includes('Offrir un geste'));
 vrai('le geste du Trône entre dans la remise', trone.includes('globalDiscountXof: avant + lu.xof'));
 vrai('le geste du Trône se retire', trone.includes('avant - Number(geste.xof)'));
 
+/* ── RÉGLER À DEUX (23 novembre 2026) ─────────────────────────────────── */
+dit('le prénom de l invitée se nettoie', ['Fatou', 'Awa N.', ''], [nomDInviteePropre('  Fatou '), nomDInviteePropre('Awa   N.'), nomDInviteePropre('   ')]);
+dit('dix-huit signes au plus, comme la maquette', 18, nomDInviteePropre('a'.repeat(30)).length);
+const pageInvitee = pageDuLien({
+  rdv: { id: 'rdv1', date: '2026-11-22', status: 'honoré', clientName: 'Awa Sossou', lienDeReglement: { jeton: 'abcdefghjkmnpq', creeLe: '2026-11-22T17:00:00Z', invitee: { nom: 'Fatou', le: '2026-11-22T17:41:00Z' } } },
+  piece: { id: 'inv1', kind: 'facture', status: 'émise', lines: [{ label: 'Lavage', qty: 1, unitXof: 28_000 }] },
+  prenom: 'Awa', branchId: 'b1', maintenant: new Date('2026-11-22T17:42:00Z'), parInvitee: true,
+});
+dit('la page de l invitée le dit', true, (pageInvitee as { parInvitee?: boolean }).parInvitee);
+dit('la page dit qui elle invite', { nom: 'Fatou', le: '2026-11-22T17:41:00Z' }, (pageInvitee as { invitee?: unknown }).invitee);
+vrai('la fonction tire un jeton neuf pour l invitée', fn2.includes('lienDInvitee') && fn2.includes('jetonDe(crypto.getRandomValues(new Uint8Array(LONGUEUR_DU_JETON)))'));
+vrai('la fonction cherche le rendez-vous par le lien de l invitée', fn2.includes("eq('data->lienDInvitee->>jeton', jeton)"));
+vrai('une séance réglée n invite plus', fn2.includes("if (lien.payeLe) return json({ error: 'deja_reglee' }, 409);"));
+vrai('la page ne propose pas de régler à deux à l invitée', lis('src/apps/regler/App.tsx').includes('{!p.parInvitee && (') && lis('src/apps/regler/App.tsx').includes('inviteAUnePart(jeton, nom)'));
+vrai('le Trône voit qui elle invite', lis('src/apps/trone/routes/clients/ReglementEnDirect.tsx').includes("Elle invite <b"));
 console.log(`\n${n - ko}/${n} vérifications${ko ? `, ${ko} en échec` : ''}.`);
 process.exit(ko ? 1 : 0);

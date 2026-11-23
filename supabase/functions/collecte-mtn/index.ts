@@ -140,6 +140,11 @@ export type LienDeReglement = {
   moyen?: string;
   /** Tap & Go proposé à côté, tant que le reste n'a pas bougé. */
   tapgo?: { resteXof: number; parametre: string; totalXof: number };
+  /** L'INVITÉE DU « RÉGLER À DEUX » — 23 novembre 2026 (Le Sceau, suite ;
+      maquette : « Qui règle avec vous ? », « un seul lien à la fois, l'ancien
+      s'éteint »). Le prénom qu'elle a tapé, et quand. L'argent, lui, se
+      partage comme avant : le reste d'abord, le pourboire au-delà. */
+  invitee?: { nom: string; le: string };
 };
 
 export type ReglementEnLigne = {

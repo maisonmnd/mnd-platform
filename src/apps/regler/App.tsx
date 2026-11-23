@@ -2,7 +2,7 @@
 import { asset } from '../../shared/asset';
 import { estUnePanneDeKkiapay, kkiapayPeutSOuvrir, payWithKkiapay } from '../../shared/kkiapay-widget';
 import { TexteFon } from '../../ds/fon';
-import { lisLeLien, poseLeSceau, regleLeLien, type PageDuLien } from '../../shared/regler-la-seance-serveur';
+import { inviteAUnePart, lisLeLien, poseLeSceau, regleLeLien, type PageDuLien } from '../../shared/regler-la-seance-serveur';
 import { attenteDeLaPiece, retourAMaCouronne } from '../../shared/terminer-et-regler-serveur';
 import { RE_DEMANDE_DU_LIEN } from '../../shared/regler-par-fedapay-pur';
 import { ATTENTE_FEDAPAY_LECTURES, ATTENTE_FEDAPAY_MS, statutFedaPay } from '../../shared/regler-par-fedapay-serveur';
@@ -296,6 +296,39 @@ export default function App() {
     await regle(p);
   };
 
+  /* ══ RÉGLER À DEUX — 23 novembre 2026 (Le Sceau, suite) ═══════════════
+     « Qui règle avec vous ? » (maquette LK7GvACWPzWgJ7WNZeZigp). Elle
+     nomme son invitée, la fonction tire un lien pour elle — un seul à la
+     fois, le précédent s'éteint —, et la page le lui envoie par WhatsApp
+     ou par copie. L'invitée ouvre la même page et paie le reste. */
+  const [invitee, setInvitee] = useState('');
+  const [invitationOuverte, setInvitationOuverte] = useState(false);
+  const [lienDeLInvitee, setLienDeLInvitee] = useState('');
+
+  const inviter = async () => {
+    const nom = invitee.replace(/\s+/g, ' ').trim().slice(0, 18);
+    if (!nom) return;
+    setSouci('');
+    const r = await inviteAUnePart(jeton, nom);
+    if (!r.ok || typeof r.jeton !== 'string') {
+      setSouci(r.error === 'deja_reglee' ? 'Cette séance est déjà réglée : il n’y a plus rien à partager.' : 'Le lien n’a pas pu partir. Réessayez dans un instant.');
+      return;
+    }
+    const adresse = `${window.location.origin}${window.location.pathname}?r=${r.jeton}`;
+    setLienDeLInvitee(adresse);
+    setInvitationOuverte(false);
+    const mot = `Peux-tu régler ma séance à la Maison MND ? C’est ${nom} qui reçois le lien :`;
+    try {
+      if (navigator.share) { await navigator.share({ title: 'Maison MND', text: mot, url: adresse }); return; }
+    } catch { /* fermé par elle */ }
+    try {
+      await navigator.clipboard.writeText(`${mot} ${adresse}`);
+      setPartage(`Lien de ${nom} copié : collez-le dans votre conversation.`);
+    } catch {
+      setPartage(adresse);
+    }
+  };
+
   const partager = async () => {
     const adresse = adresseAPartager();
     const mot = ecran.k === 'page' && ecran.page.tetes ? 'Peux-tu régler nos séances à la Maison MND ? Le lien :' : 'Peux-tu régler ma séance à la Maison MND ? Le lien :';
@@ -460,6 +493,37 @@ export default function App() {
                 vraiment pas nécessaire sur cette page ») : KkiaPay prend déjà
                 les trois réseaux et la carte ; deux boutons de paiement à deux
                 montants faisaient douter. Tap & Go reste au comptoir. */}
+            {/* RÉGLER À DEUX (23 novembre 2026) : elle nomme son invitée, un
+                seul lien à la fois. L'invitée, elle, ne voit pas ce bouton —
+                elle est déjà celle qui règle. */}
+            {!p.parInvitee && (
+              <div className="rg-merci">
+                {p.invitee ? (
+                  <>
+                    <span className="rg-doux">{p.invitee.nom} peut régler avec vous. Un seul lien à la fois : si vous changez d’invitée, l’ancien s’éteint.</span>
+                    <button type="button" className="rg-autre" onClick={() => { setInvitee(p.invitee?.nom ?? ''); setInvitationOuverte(true); }}>Changer d’invitée</button>
+                  </>
+                ) : (
+                  <button type="button" className="rg-autre" onClick={() => setInvitationOuverte(true)}>Régler à deux</button>
+                )}
+                {invitationOuverte && (
+                  <div className="rg-merci">
+                    <label className="rg-autre-montant">
+                      <span className="rg-doux">Qui règle avec vous ?</span>
+                      <span className="rg-champ">
+                        <input maxLength={18} autoComplete="off" placeholder="Son prénom" value={invitee} autoFocus
+                          onChange={(e) => setInvitee(e.target.value)} />
+                      </span>
+                    </label>
+                    <button type="button" className="rg-autre" disabled={!invitee.trim()} onClick={() => { void inviter(); }}>
+                      {invitee.trim() ? `Envoyer le lien à ${invitee.trim()}` : 'Son prénom d’abord'}
+                    </button>
+                    <span className="rg-doux rg-petit">Elle reçoit un lien : elle voit le montant, jamais votre numéro. Ce qu’elle règle s’enlève de votre note.</span>
+                  </div>
+                )}
+                {lienDeLInvitee && <span className="rg-doux rg-petit">Lien prêt pour {p.invitee?.nom ?? invitee}.</span>}
+              </div>
+            )}
             <button type="button" className="rg-autre" onClick={() => { void partager(); }}>Quelqu’un règle pour moi</button>
             <p className="rg-doux rg-petit rg-centre">Envoyez-lui ce lien : la personne voit {p.tetes ? 'les séances' : 'la séance'} et le montant, jamais votre numéro.</p>
             {partage && <p className="rg-doux rg-petit rg-centre">{partage}</p>}

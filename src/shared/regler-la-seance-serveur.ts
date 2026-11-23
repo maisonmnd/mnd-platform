@@ -1,4 +1,4 @@
-/* LA PAGE « RÉGLER SA SÉANCE » PARLE À SA FONCTION — 25 octobre 2026.
+﻿/* LA PAGE « RÉGLER SA SÉANCE » PARLE À SA FONCTION — 25 octobre 2026.
    La cliente n'a pas de compte : la fonction Edge `regler-la-seance` (Verify
    JWT éteint) lit le lien et pose le règlement. Le montant se décide au
    serveur, jamais ici. Voir regler-la-seance-pur.ts. */
@@ -25,6 +25,11 @@ export type PageDuLien = {
   tapgo?: { parametre: string; totalXof: number };
   /** Le foyer (28 octobre 2026) : chaque tête, son jour, ses lignes, son reste. */
   tetes?: { prenom: string; jour: string; lignes: { label: string; montantXof: number }[]; resteXof: number }[];
+  /** ON VIENT DU LIEN DE L'INVITÉE (23 novembre 2026) : la page ne propose
+      pas, à son tour, de « régler à deux ». */
+  parInvitee?: boolean;
+  /** L'invitée qu'elle a nommée, et quand (le Trône le voit aussi). */
+  invitee?: { nom: string; le: string };
   /** Elle a terminé elle-même (6 novembre 2026) : sa pièce se prépare au Trône, la page attend. */
   enPreparation?: boolean;
   /** Régler avant et après (7 novembre 2026) : un rendez-vous SANS PIÈCE que
@@ -57,6 +62,9 @@ export const regleLeLien = (jeton: string, transactionId: string) => appel({ act
     Ni montant, ni nom : l'argent ne s'écrit qu'à la confirmation de MTN ou de
     KkiaPay (`regleLeLien`). */
 export const poseLeSceau = (jeton: string, moyen: string) => appel({ action: 'sceau', jeton, moyen });
+/** RÉGLER À DEUX — 23 novembre 2026. Elle nomme son invitée ; la fonction
+    tire un nouveau jeton pour elle (le précédent s'éteint) et rend ce jeton. */
+export const inviteAUnePart = (jeton: string, nom: string) => appel({ action: 'inviter', jeton, nom });
 
 /** La version que la fonction dit (GET, sans clé de service), ou '' si elle
     n'est pas encore posée : le Trône n'envoie le lien que quand elle répond. */

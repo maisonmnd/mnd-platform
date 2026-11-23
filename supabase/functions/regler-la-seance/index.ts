@@ -1,4 +1,4 @@
-// deno-lint-ignore-file no-explicit-any
+﻿// deno-lint-ignore-file no-explicit-any
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* regler-la-seance — la cliente règle sa séance depuis son téléphone
@@ -96,6 +96,11 @@ export type LienDeReglement = {
   moyen?: string;
   /** Tap & Go proposé à côté, tant que le reste n'a pas bougé. */
   tapgo?: { resteXof: number; parametre: string; totalXof: number };
+  /** L'INVITÉE DU « RÉGLER À DEUX » — 23 novembre 2026 (Le Sceau, suite ;
+      maquette : « Qui règle avec vous ? », « un seul lien à la fois, l'ancien
+      s'éteint »). Le prénom qu'elle a tapé, et quand. L'argent, lui, se
+      partage comme avant : le reste d'abord, le pourboire au-delà. */
+  invitee?: { nom: string; le: string };
 };
 
 export type ReglementEnLigne = {
@@ -281,7 +286,7 @@ export const maitreDit = (master: unknown): string => {
 export const lignesDites = (p: PieceLue): { label: string; montantXof: number }[] =>
   (p.lines ?? []).filter((l) => String(l.label ?? '').trim()).map((l) => ({ label: String(l.label).trim(), montantXof: Math.round(netDeLaLigne(l)) }));
 
-export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDeLaCliente?: string; prenom?: string; branchId?: string; maintenant: Date }) {
+export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDeLaCliente?: string; prenom?: string; branchId?: string; maintenant: Date; parInvitee?: boolean }) {
   const e = etatDuLien(o.rdv, o.piece);
   const lien = o.rdv?.lienDeReglement;
   const tapgo = lien?.tapgo && e.etat === 'a-regler' && Math.round(n(lien.tapgo.resteXof)) === e.resteXof
@@ -304,6 +309,10 @@ export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDe
     gesteXof: n((o.piece as PieceLue | null)?.gesteDeLaMaison?.xof),
     pourboire: !!o.piece && !(n(o.piece.tipXof) > 0),
     reference: o.rdv ? referenceDuRdv(o.rdv.id) : '',
+    /* ON VIENT DU LIEN DE L'INVITÉE (23 novembre 2026) : la page le dit,
+       pour qu'elle ne propose pas à son tour de « régler à deux ». */
+    ...(o.parInvitee ? { parInvitee: true } : {}),
+    ...(o.rdv?.lienDeReglement?.invitee ? { invitee: o.rdv.lienDeReglement.invitee } : {}),
     branchId: o.branchId ?? '',
     ...(tapgo ? { tapgo } : {}),
     /* Elle a terminé elle-même et sa pièce n'est pas encore écrite : le
@@ -737,6 +746,19 @@ async function permis(ip: string, seau: string, plafond: number): Promise<boolea
 
 type Ligne = { id: string; branch_id: string; data: any };
 
+/** LE RENDEZ-VOUS DU JETON — celui de la cliente, OU celui de son invitée
+    (23 novembre 2026, « régler à deux »). Le second ne sert qu'à payer le
+    reste ; la fonction dit laquelle des deux portes on a poussée. */
+async function leRdvDuJetonOuDeLInvitee(jeton: string): Promise<{ rdv: Ligne; parInvitee: boolean } | null> {
+  const direct = await leRdvDuJeton(jeton);
+  if (direct) return { rdv: direct, parInvitee: false };
+  const { data, error } = await admin.from('appointments').select('id,branch_id,data')
+    .eq('data->lienDInvitee->>jeton', jeton).limit(2);
+  if (error) throw new Error(error.message);
+  const lues = (data ?? []) as Ligne[];
+  return lues.length === 1 ? { rdv: lues[0], parInvitee: true } : null;
+}
+
 /** Le rendez-vous du jeton : un seul, sinon personne. */
 async function leRdvDuJeton(jeton: string): Promise<Ligne | null> {
   const { data, error } = await admin.from('appointments').select('id,branch_id,data')
@@ -1107,7 +1129,9 @@ async function lire(req: Request, b: any, noteLOuverture: boolean) {
   if (!(await permis(ipOf(req), 'regler-lire', 60))) return json({ error: 'trop' }, 429);
   const jeton = String(b.jeton ?? '').trim();
   if (!estUnJeton(jeton)) return json({ error: 'lien' }, 400);
-  let rdv = await leRdvDuJeton(jeton);
+  const porte = await leRdvDuJetonOuDeLInvitee(jeton);
+  let rdv = porte?.rdv ?? null;
+  const parInvitee = porte?.parInvitee === true;
   if (!rdv) {
     const foyer = await lesRdvsDuFoyer(jeton);
     if (foyer.length > 0) return await lireLeFoyer(jeton, foyer, noteLOuverture);
@@ -1132,7 +1156,7 @@ async function lire(req: Request, b: any, noteLOuverture: boolean) {
       return json({ ok: true, rattrapes, page: pageSansPiece({ rdv: r as any, porte: sp.porte, quand: sp.moment, prenom, reference: referenceDuRdv(rdv.id), branchId: rdv.branch_id }) });
     }
   }
-  return json({ ok: true, rattrapes, page: pageDuLien({ rdv: r, piece, prenom, branchId: rdv.branch_id, maintenant: new Date() }) });
+  return json({ ok: true, rattrapes, page: pageDuLien({ rdv: r, piece, prenom, branchId: rdv.branch_id, maintenant: new Date(), parInvitee }) });
 }
 
 async function regler(req: Request, b: any) {
@@ -1140,7 +1164,7 @@ async function regler(req: Request, b: any) {
   const jeton = String(b.jeton ?? '').trim();
   const transactionId = String(b.transactionId ?? '').trim();
   if (!estUnJeton(jeton) || !transactionId) return json({ error: 'bad_request' }, 400);
-  const rdv = await leRdvDuJeton(jeton);
+  const rdv = (await leRdvDuJetonOuDeLInvitee(jeton))?.rdv ?? null;
   const foyer = rdv ? [] : await lesRdvsDuFoyer(jeton);
   if (!rdv && foyer.length === 0) return json({ error: 'lien_introuvable' }, 404);
   const tx = await transaction(transactionId);
@@ -1182,6 +1206,34 @@ async function sceau(req: Request, b: any) {
   return json({ ok: true });
 }
 
+/* ══ RÉGLER À DEUX — 23 novembre 2026 ══════════════════════════════════
+   « Qui règle avec vous ? », puis « un seul lien à la fois, l'ancien
+   s'éteint » (maquette LK7GvACWPzWgJ7WNZeZigp). La cliente nomme son
+   invitée ; la fonction tire un SECOND jeton (`lienDInvitee`) et l'écrit sur
+   le rendez-vous. Chaque invitation en tire un neuf : le précédent ne
+   retrouve plus rien, c'est ainsi que l'ancien lien s'éteint. L'invitée
+   ouvre la même page, paie le reste par KkiaPay, et l'argent se partage
+   comme toujours. Une séance déjà réglée n'invite plus personne. */
+async function inviter(req: Request, b: any) {
+  if (!(await permis(ipOf(req), 'regler-inviter', 20))) return json({ error: 'trop' }, 429);
+  const jeton = String(b.jeton ?? '').trim();
+  if (!estUnJeton(jeton)) return json({ error: 'lien' }, 400);
+  const nom = nomDInviteePropre(b.nom);
+  if (!nom) return json({ error: 'nom' }, 400);
+  const rdv = await leRdvDuJeton(jeton);
+  if (!rdv) return json({ error: 'lien_introuvable' }, 404);
+  const d = rdv.data ?? {};
+  const lien: LienDeReglement | undefined = d.lienDeReglement;
+  if (!lien) return json({ error: 'lien_introuvable' }, 404);
+  if (lien.payeLe) return json({ error: 'deja_reglee' }, 409);
+  const quand = new Date();
+  const neuf: LienDInvitee = { jeton: jetonDe(crypto.getRandomValues(new Uint8Array(LONGUEUR_DU_JETON))), creeLe: quand.toISOString(), nom };
+  const neuve = { ...d, lienDInvitee: neuf, lienDeReglement: { ...lien, invitee: { nom, le: quand.toISOString() } } };
+  const { error } = await admin.from('appointments').update({ data: neuve }).eq('id', rdv.id);
+  if (error) throw new Error(error.message);
+  return json({ ok: true, jeton: neuf.jeton, nom });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method === 'GET') {
@@ -1199,6 +1251,7 @@ Deno.serve(async (req) => {
     if (b.action === 'rattraper') return await lire(req, b, false);
     if (b.action === 'regler') return await regler(req, b);
     if (b.action === 'sceau') return await sceau(req, b);
+    if (b.action === 'inviter') return await inviter(req, b);
     return json({ error: 'action' }, 400);
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);

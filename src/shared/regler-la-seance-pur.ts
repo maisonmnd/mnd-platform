@@ -1,4 +1,4 @@
-/* ══ RÉGLER SA SÉANCE — 25 octobre 2026 ═════════════════════════════════
+﻿/* ══ RÉGLER SA SÉANCE — 25 octobre 2026 ═════════════════════════════════
    « Donner la possibilité à chaque client de payer son RDV avant de venir à
    sa séance, ou quand je marque terminer la séance, le client reçoit un
    message avec le paiement de sa séance en direct sur son WhatsApp »
@@ -55,6 +55,22 @@ export type LienDeReglement = {
   moyen?: string;
   /** Tap & Go proposé à côté, tant que le reste n'a pas bougé. */
   tapgo?: { resteXof: number; parametre: string; totalXof: number };
+  /** L'INVITÉE DU « RÉGLER À DEUX » — 23 novembre 2026 (Le Sceau, suite ;
+      maquette : « Qui règle avec vous ? », « un seul lien à la fois, l'ancien
+      s'éteint »). Le prénom qu'elle a tapé, et quand. L'argent, lui, se
+      partage comme avant : le reste d'abord, le pourboire au-delà. */
+  invitee?: { nom: string; le: string };
+};
+
+/** LE LIEN DE L'INVITÉE — 23 novembre 2026. Un SECOND jeton, tiré à chaque
+    invitation : c'est lui qui permet à « l'ancien lien de s'éteindre ». Il
+    ouvre la même page, sur le même rendez-vous, et la même fonction le lit
+    (`leRdvDuJeton`) ; il ne sert qu'à payer le reste, et il ne réécrit rien
+    d'autre. Renvoyer une invitation en tire un neuf : le précédent tombe. */
+export type LienDInvitee = {
+  jeton: string;
+  creeLe: string;
+  nom: string;
 };
 
 /** La trace d'un règlement en ligne, sur la pièce : le Trône s'en sert pour
@@ -269,8 +285,13 @@ export const maitreDit = (master: unknown): string => {
 export const lignesDites = (p: PieceLue): { label: string; montantXof: number }[] =>
   (p.lines ?? []).filter((l) => String(l.label ?? '').trim()).map((l) => ({ label: String(l.label).trim(), montantXof: Math.round(netDeLaLigne(l)) }));
 
+/** LE PRÉNOM DE L'INVITÉE, tel qu'il s'écrit : les espaces serrés, dix-huit
+    signes au plus (maquette), et jamais vide. */
+export const nomDInviteePropre = (nom: unknown): string =>
+  String(nom ?? '').replace(/\s+/g, ' ').trim().slice(0, 18);
+
 /** CE QUE LA PAGE REÇOIT, et rien de plus : ni numéro, ni nom de famille. */
-export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDeLaCliente?: string; prenom?: string; branchId?: string; maintenant: Date }) {
+export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDeLaCliente?: string; prenom?: string; branchId?: string; maintenant: Date; parInvitee?: boolean }) {
   const e = etatDuLien(o.rdv, o.piece);
   const lien = o.rdv?.lienDeReglement;
   const tapgo = lien?.tapgo && e.etat === 'a-regler' && Math.round(n(lien.tapgo.resteXof)) === e.resteXof
@@ -293,6 +314,10 @@ export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDe
     gesteXof: n((o.piece as PieceLue | null)?.gesteDeLaMaison?.xof),
     pourboire: !!o.piece && !(n(o.piece.tipXof) > 0),
     reference: o.rdv ? referenceDuRdv(o.rdv.id) : '',
+    /* ON VIENT DU LIEN DE L'INVITÉE (23 novembre 2026) : la page le dit,
+       pour qu'elle ne propose pas à son tour de « régler à deux ». */
+    ...(o.parInvitee ? { parInvitee: true } : {}),
+    ...(o.rdv?.lienDeReglement?.invitee ? { invitee: o.rdv.lienDeReglement.invitee } : {}),
     branchId: o.branchId ?? '',
     ...(tapgo ? { tapgo } : {}),
     /* Elle a terminé elle-même et sa pièce n'est pas encore écrite : le

@@ -176,6 +176,10 @@ export function ReglementEnDirect({ appt }: { appt: Appointment }) {
         })}
       </ol>
       {dernier?.recuLe && <p style={{ margin: 0, fontSize: 12 }} className="mnd-muted">Reçu parti à {heure(dernier.recuLe)}, la facture jointe.</p>}
+      {/* RÉGLER À DEUX (23 novembre 2026) : elle a nommé quelqu'un. */}
+      {lien.invitee && e.etat !== 'reglee' && (
+        <p style={{ margin: 0, fontSize: 13 }} className="mnd-muted">Elle invite <b style={{ fontWeight: 500 }}>{lien.invitee.nom}</b> à régler avec elle — un seul lien, l'ancien s'éteint.</p>
+      )}
 
       {/* LE GESTE OFFERT — 22 novembre 2026. */}
       <div style={{ borderTop: '1px solid var(--line, #EDE4D6)', paddingTop: 10, display: 'grid', gap: 8 }}>
