@@ -1,4 +1,4 @@
-# Reprendre — état de la Maison
+﻿# Reprendre — état de la Maison
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
@@ -8,7 +8,8 @@
 
 - **L'ordre de Yéman** (maquette, version 9) : sa prochaine place d'abord — « Confirmer cette place » ou « Modifier », **jamais** « Garder cette place » —, les étoiles ensuite **sur une page à elles seules**, puis « Merci. ». Une demande par page, rien ne s'empile.
 - **Le Trône propose, elle répond, le Trône pose** : une date et une heure dans la fenêtre du règlement (`prochainRituel` sur le rendez-vous) ; la fonction reçoit sa réponse (`action: 'prochain'`, places proposées seulement, une réponse ne se réécrit pas) ; la place se pose ensuite par `SonProchainRituel`, comme avant. **Le téléphone ne crée aucun rendez-vous.**
-- **Les étoiles disent la vérité** : leur page annonce que la Maison écrit le soir avec son lien. Le lien d'avis n'existe pas côté page — il vit dans le bouton du modèle chez Meta — donc on n'invente pas un bouton qui n'ouvrirait rien.
+- **Les étoiles disent la vérité** : leur page ouvre le **vrai bouton** quand la demande d'avis de cette pièce existe déjà (`env-<facture>-wa-avis`, lue par `leJetonDesEtoiles` — la fonction ne dépose rien, elle lit) ; sinon elle annonce que la Maison écrit le soir. C'est le cas réel d'une séance réglée le matin et terminée l'après-midi. Quand le jeton n'existe pas, on n'invente pas un lien : le lien d'avis vit dans le bouton du modèle chez Meta.
+- **Le QR de l'invitée** (« régler à deux », 23 novembre 2026) : quand le lien est prêt, la page le dessine (indigo sur ivoire, jamais le cuivre) — `qrMatrice` vit dans `shared/qr-pur.ts`, en un seul chemin SVG ; `Comptoir.tsx` garde sa copie, à fusionner le jour où quelqu'un touche à cet écran.
 - **Bancs** : `verifie-le-sceau` 93 (`--prouve` 32/32) ; `regler-la-seance` 84 ; `devis` 112. Typecheck 0, build vert. Commit `7b8f7771`.
 - **Pas fait** : les étoiles d'un toucher à la sortie (il faudrait que la fonction retrouve, pour cette facture, la demande d'avis déposée par `avis-google` et son jeton — c'est le morceau qui reste) ; le calendrier du mois pour « Modifier » (ce sont les places que le maître a proposées, pas un calendrier) ; la Gamme au fauteuil, qui attend le mot de Yéman.
 
