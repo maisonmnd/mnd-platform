@@ -1,4 +1,4 @@
-﻿/* ══ RÉGLER SA SÉANCE — 25 octobre 2026 ═════════════════════════════════
+/* ══ RÉGLER SA SÉANCE — 25 octobre 2026 ═════════════════════════════════
    « Donner la possibilité à chaque client de payer son RDV avant de venir à
    sa séance, ou quand je marque terminer la séance, le client reçoit un
    message avec le paiement de sa séance en direct sur son WhatsApp »
@@ -110,6 +110,10 @@ export type RdvLu = {
   /** Elle a déclaré avoir terminé (6 novembre 2026, terminer-et-regler-pur.ts) :
       sa pièce se prépare au Trône, la page l'attend au lieu de renoncer. */
   termineParElle?: { le?: string } | null;
+  /** SA PROCHAINE PLACE — 23 novembre 2026 (Le Sceau, la sortie). Le Trône
+      propose, à côté du règlement ; elle confirme ou choisit une autre des
+      places proposées, puis la Maison pose le rendez-vous. */
+  prochainRituel?: ProchainRituelPropose;
 };
 
 /* ══ LE RÈGLEMENT DU FOYER — 28 octobre 2026 ═════════════════════════════
@@ -285,6 +289,21 @@ export const maitreDit = (master: unknown): string => {
 export const lignesDites = (p: PieceLue): { label: string; montantXof: number }[] =>
   (p.lines ?? []).filter((l) => String(l.label ?? '').trim()).map((l) => ({ label: String(l.label).trim(), montantXof: Math.round(netDeLaLigne(l)) }));
 
+/** SA PROCHAINE PLACE, PROPOSÉE PAR LA MAISON — 23 novembre 2026. Trois
+    moments au plus (la maquette en montre trois), un proposé et deux autres
+    qu'elle peut choisir. `reponse` : ce qu'elle a répondu ; une réponse ne se
+    réécrit pas. La place se POSE au Trône (`SonProchainRituel`), jamais sur
+    son téléphone. */
+export type ProchainRituelPropose = {
+  jour: string;
+  heure: string;
+  autres?: { jour: string; heure: string }[];
+  reponse?: 'confirmee' | 'plus-tard';
+  le?: string;
+  /** La place qu'elle a retenue quand elle en a choisi une autre. */
+  retenue?: { jour: string; heure: string };
+};
+
 /** LE PRÉNOM DE L'INVITÉE, tel qu'il s'écrit : les espaces serrés, dix-huit
     signes au plus (maquette), et jamais vide. */
 export const nomDInviteePropre = (nom: unknown): string =>
@@ -318,6 +337,9 @@ export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDe
        pour qu'elle ne propose pas à son tour de « régler à deux ». */
     ...(o.parInvitee ? { parInvitee: true } : {}),
     ...(o.rdv?.lienDeReglement?.invitee ? { invitee: o.rdv.lienDeReglement.invitee } : {}),
+    /* SA PROCHAINE PLACE (23 novembre 2026) : à la sortie, et seulement une
+       fois scellée. */
+    ...(e.etat === 'reglee' && o.rdv?.prochainRituel ? { prochainRituel: o.rdv.prochainRituel } : {}),
     branchId: o.branchId ?? '',
     ...(tapgo ? { tapgo } : {}),
     /* Elle a terminé elle-même et sa pièce n'est pas encore écrite : le

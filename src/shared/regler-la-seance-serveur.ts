@@ -28,6 +28,9 @@ export type PageDuLien = {
   /** ON VIENT DU LIEN DE L'INVITÉE (23 novembre 2026) : la page ne propose
       pas, à son tour, de « régler à deux ». */
   parInvitee?: boolean;
+  /** SA PROCHAINE PLACE (23 novembre 2026) : proposée par la Maison, à la
+      sortie du sceau. */
+  prochainRituel?: { jour: string; heure: string; autres?: { jour: string; heure: string }[]; reponse?: 'confirmee' | 'plus-tard'; retenue?: { jour: string; heure: string } };
   /** L'invitée qu'elle a nommée, et quand (le Trône le voit aussi). */
   invitee?: { nom: string; le: string };
   /** Elle a terminé elle-même (6 novembre 2026) : sa pièce se prépare au Trône, la page attend. */
@@ -65,6 +68,11 @@ export const poseLeSceau = (jeton: string, moyen: string) => appel({ action: 'sc
 /** RÉGLER À DEUX — 23 novembre 2026. Elle nomme son invitée ; la fonction
     tire un nouveau jeton pour elle (le précédent s'éteint) et rend ce jeton. */
 export const inviteAUnePart = (jeton: string, nom: string) => appel({ action: 'inviter', jeton, nom });
+/** SA PROCHAINE PLACE — 23 novembre 2026. geste : « confirmer » la place
+    proposée, « choisir » une des autres (jour et heure donnés), ou
+    « plus-tard ». Une réponse ne se réécrit pas. */
+export const repondsAuProchainRituel = (jeton: string, geste: 'confirmer' | 'choisir' | 'plus-tard', place?: { jour: string; heure: string }) =>
+  appel({ action: 'prochain', jeton, geste, ...(place ? { jour: place.jour, heure: place.heure } : {}) });
 
 /** La version que la fonction dit (GET, sans clé de service), ou '' si elle
     n'est pas encore posée : le Trône n'envoie le lien que quand elle répond. */

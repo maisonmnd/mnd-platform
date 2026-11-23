@@ -1,8 +1,8 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
 import { estUnePanneDeKkiapay, kkiapayPeutSOuvrir, payWithKkiapay } from '../../shared/kkiapay-widget';
 import { TexteFon } from '../../ds/fon';
-import { inviteAUnePart, lisLeLien, poseLeSceau, regleLeLien, type PageDuLien } from '../../shared/regler-la-seance-serveur';
+import { inviteAUnePart, lisLeLien, poseLeSceau, regleLeLien, repondsAuProchainRituel, type PageDuLien } from '../../shared/regler-la-seance-serveur';
 import { attenteDeLaPiece, retourAMaCouronne } from '../../shared/terminer-et-regler-serveur';
 import { RE_DEMANDE_DU_LIEN } from '../../shared/regler-par-fedapay-pur';
 import { ATTENTE_FEDAPAY_LECTURES, ATTENTE_FEDAPAY_MS, statutFedaPay } from '../../shared/regler-par-fedapay-serveur';
@@ -111,6 +111,11 @@ const APRES_LE_REGLEMENT = {
   avance: 'C’est inscrit sur votre rendez-vous, qui reste confirmé. Si l’équipe ajoute un soin pendant la séance, il se règle en plus le jour même.',
   apres: 'C’est inscrit sur votre rendez-vous : la Maison est prévenue.',
 } as const;
+/** Ce que la page dit d'un refus de la prochaine place (23 novembre 2026). */
+const ditLeRefusProchain = (e?: string): string => e === 'place'
+  ? 'Cette place n’est plus proposée. Choisissez-en une autre.'
+  : e === 'pas_de_place' ? 'La Maison ne vous a pas encore proposé de place.'
+    : 'La réponse n’est pas passée. Réessayez dans un instant.';
 
 export default function App() {
   const jeton = jetonDeLAdresse();
@@ -304,6 +309,11 @@ export default function App() {
   const [invitee, setInvitee] = useState('');
   const [invitationOuverte, setInvitationOuverte] = useState(false);
   const [lienDeLInvitee, setLienDeLInvitee] = useState('');
+  /* LA SORTIE (23 novembre 2026) : sa prochaine place, puis les étoiles. */
+  const [modifie, setModifie] = useState(false);
+  const [placeChoisie, setPlaceChoisie] = useState<{ jour: string; heure: string } | null>(null);
+  const [etoilesFaite, setEtoilesFaite] = useState(false);
+  const [sortieOccupe, setSortieOccupe] = useState(false);
 
   const inviter = async () => {
     const nom = invitee.replace(/\s+/g, ' ').trim().slice(0, 18);
@@ -327,6 +337,19 @@ export default function App() {
     } catch {
       setPartage(adresse);
     }
+  };
+
+  /* SA PROCHAINE PLACE : elle répond, la fonction l'écrit, la page se relit. */
+  const repondreAuProchainRituel = async (geste: 'confirmer' | 'choisir' | 'plus-tard', place?: { jour: string; heure: string }) => {
+    if (sortieOccupe) return;
+    setSortieOccupe(true);
+    const r = await repondsAuProchainRituel(jeton, geste, place);
+    setSortieOccupe(false);
+    if (!r.ok) { setSouci(ditLeRefusProchain(r.error)); return; }
+    setPlaceChoisie(null);
+    setModifie(false);
+    const relu = await lisLeLien(jeton);
+    if (relu.ok && relu.page) setEcran((e) => (e.k === 'reglee' ? { ...e, page: relu.page! } : e));
   };
 
   const partager = async () => {
@@ -531,28 +554,89 @@ export default function App() {
         );
       })()}
 
-      {ecran.k === 'reglee' && (
-        <section className="rg-bloc rg-final" aria-label="Séance réglée">
-          {/* LE DERNIER ÉCRAN (maquette, version 9 ; Yéman : « Merci Maison
-              MND », confirmé par « oui ») : le sceau cuivre de la Maison en
-              grand, « Merci. », la signature, puis la devise — qui vient en
-              bas de page, une seule fois, pour tout l'écran. */}
-          <SceauPose />
-          <h2 className="rg-merci-titre">Merci.</h2>
-          <p className="rg-signe">Maison MND</p>
-          <div className="rg-ok">
-            <strong>{ecran.paye ? `Réglé, ${francs(ecran.paye)}.` : 'Déjà réglée.'}</strong>
-            <span>{ecran.page.sansPiece
-              ? (ecran.paye ? APRES_LE_REGLEMENT[ecran.page.sansPiece] : 'Il n’y a plus rien à régler pour cette séance.')
-              : ecran.page.tetes
-                ? (ecran.paye ? 'Vos reçus arrivent sur WhatsApp, chaque facture jointe.' : 'Il n’y a plus rien à régler pour ces séances.')
-                : (ecran.paye ? 'Votre reçu arrive sur WhatsApp, la facture jointe.' : 'Il n’y a plus rien à régler pour cette séance.')}</span>
-            {/* Elle avait terminé elle-même : réglé, le rendez-vous est honoré (6 novembre 2026). */}
-            {ecran.honore && <span>Vous pouvez partir : la Maison est prévenue.</span>}
-          </div>
-          {retourDemande() && <a className="rg-autre" href={retourAMaCouronne()}>Revenir à Ma Couronne</a>}
-        </section>
-      )}
+      {ecran.k === 'reglee' && (() => {
+        /* ══ LA SORTIE — 23 novembre 2026 (Le Sceau, la suite) ═══════════
+           Trois pages, une demande chacune, dans l'ordre que Yéman a tranché :
+           sa prochaine place d'abord (« Confirmer cette place » ou
+           « Modifier », jamais « Garder »), les étoiles ensuite — une page à
+           elles seules —, et « Merci. » à la fin. Rien ne s'empile. */
+        const pr = ecran.page.prochainRituel;
+        const etape = pr && !pr.reponse ? 'place' : (ecran.paye && !etoilesFaite ? 'etoiles' : 'merci');
+
+        if (etape === 'place' && pr) {
+          const retenue = placeChoisie;
+          return (
+            <section className="rg-bloc rg-final" aria-label="Votre prochain rituel">
+              <p className="rg-sur">Votre prochain rituel</p>
+              {retenue ? (
+                <>
+                  <p className="rg-titre" style={{ margin: 0 }}>{jourDit(retenue.jour)}, {retenue.heure}.</p>
+                  <button type="button" className="rg-regler" onClick={() => { void repondreAuProchainRituel('choisir', retenue); }}>
+                    Confirmer cette place
+                  </button>
+                  <button type="button" className="rg-autre" onClick={() => setPlaceChoisie(null)}>Retour</button>
+                </>
+              ) : (
+                <>
+                  <p className="rg-titre" style={{ margin: 0 }}>{jourDit(pr.jour)}, {pr.heure}.</p>
+                  <button type="button" className="rg-regler" onClick={() => { void repondreAuProchainRituel('confirmer'); }}>
+                    Confirmer cette place
+                  </button>
+                  {(pr.autres?.length ?? 0) > 0 && (
+                    <>
+                      <button type="button" className="rg-autre" onClick={() => setModifie(true)}>Modifier</button>
+                      {modifie && (
+                        <div className="rg-puces" style={{ justifyContent: 'center' }}>
+                          {pr.autres!.map((x) => (
+                            <button key={`${x.jour}-${x.heure}`} type="button" className="rg-puce"
+                              onClick={() => { setPlaceChoisie(x); setModifie(false); }}>
+                              {jourDit(x.jour)}, {x.heure}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <button type="button" className="rg-lien" onClick={() => { void repondreAuProchainRituel('plus-tard'); }}>Pas maintenant</button>
+                </>
+              )}
+            </section>
+          );
+        }
+
+        if (etape === 'etoiles') {
+          return (
+            <section className="rg-bloc rg-final" aria-label="Vos étoiles">
+              <p className="rg-sur">Vos étoiles</p>
+              <p className="rg-titre" style={{ margin: 0 }}>Laissez-nous vos étoiles, beauté.</p>
+              <p className="rg-doux">La Maison vous écrit ce soir sur WhatsApp, avec son lien : un toucher suffit, rien à écrire.</p>
+              <button type="button" className="rg-regler" onClick={() => setEtoilesFaite(true)}>C’est noté</button>
+            </section>
+          );
+        }
+
+        return (
+          <section className="rg-bloc rg-final" aria-label="Séance réglée">
+            <SceauPose />
+            <h2 className="rg-merci-titre">Merci.</h2>
+            <p className="rg-signe">Maison MND</p>
+            <div className="rg-ok">
+              <strong>{ecran.paye ? `Réglé, ${francs(ecran.paye)}.` : 'Déjà réglée.'}</strong>
+              <span>{ecran.page.sansPiece
+                ? (ecran.paye ? APRES_LE_REGLEMENT[ecran.page.sansPiece] : 'Il n’y a plus rien à régler pour cette séance.')
+                : ecran.page.tetes
+                  ? (ecran.paye ? 'Vos reçus arrivent sur WhatsApp, chaque facture jointe.' : 'Il n’y a plus rien à régler pour ces séances.')
+                  : (ecran.paye ? 'Votre reçu arrive sur WhatsApp, la facture jointe.' : 'Il n’y a plus rien à régler pour cette séance.')}</span>
+              {/* Elle avait terminé elle-même : réglé, le rendez-vous est honoré (6 novembre 2026). */}
+              {ecran.honore && <span>Vous pouvez partir : la Maison est prévenue.</span>}
+              {ecran.page.prochainRituel?.retenue && (
+                <span>Votre prochain rituel : {jourDit(ecran.page.prochainRituel.retenue.jour)}, {ecran.page.prochainRituel.retenue.heure}.</span>
+              )}
+            </div>
+            {retourDemande() && <a className="rg-autre" href={retourAMaCouronne()}>Revenir à Ma Couronne</a>}
+          </section>
+        );
+      })()}
 
       <p className="rg-devise"><TexteFon texte={DEVISE} penche /></p>
     </main>

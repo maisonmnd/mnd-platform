@@ -146,6 +146,10 @@ export type RdvLu = {
   /** Elle a déclaré avoir terminé (6 novembre 2026, terminer-et-regler-pur.ts) :
       sa pièce se prépare au Trône, la page l'attend au lieu de renoncer. */
   termineParElle?: { le?: string } | null;
+  /** SA PROCHAINE PLACE — 23 novembre 2026 (Le Sceau, la sortie). Le Trône
+      propose, à côté du règlement ; elle confirme ou choisit une autre des
+      places proposées, puis la Maison pose le rendez-vous. */
+  prochainRituel?: ProchainRituelPropose;
 };
 
 export type LienDuFoyer = {
@@ -327,6 +331,9 @@ export function pageDuLien(o: { rdv: RdvLu | null; piece: PieceLue | null; nomDe
        pour qu'elle ne propose pas à son tour de « régler à deux ». */
     ...(o.parInvitee ? { parInvitee: true } : {}),
     ...(o.rdv?.lienDeReglement?.invitee ? { invitee: o.rdv.lienDeReglement.invitee } : {}),
+    /* SA PROCHAINE PLACE (23 novembre 2026) : à la sortie, et seulement une
+       fois scellée. */
+    ...(e.etat === 'reglee' && o.rdv?.prochainRituel ? { prochainRituel: o.rdv.prochainRituel } : {}),
     branchId: o.branchId ?? '',
     ...(tapgo ? { tapgo } : {}),
     /* Elle a terminé elle-même et sa pièce n'est pas encore écrite : le
@@ -1248,6 +1255,42 @@ async function inviter(req: Request, b: any) {
   return json({ ok: true, jeton: neuf.jeton, nom });
 }
 
+/* ══ SA PROCHAINE PLACE — 23 novembre 2026 (Le Sceau, la sortie) ═══════
+   « Confirmer cette place » ou « Modifier », jamais « Garder cette place »
+   (Yéman). Le Trône propose la place et deux autres ; elle répond sur son
+   téléphone — et une réponse ne se réécrit pas. La place se POSE au Trône
+   (`SonProchainRituel`), pas ici : cette fonction ne crée aucun rendez-vous. */
+async function prochain(req: Request, b: any) {
+  if (!(await permis(ipOf(req), 'regler-prochain', 20))) return json({ error: 'trop' }, 429);
+  const jeton = String(b.jeton ?? '').trim();
+  if (!estUnJeton(jeton)) return json({ error: 'lien' }, 400);
+  const porte = await leRdvDuJetonOuDeLInvitee(jeton);
+  if (!porte) return json({ error: 'lien_introuvable' }, 404);
+  /* SEULE ELLE RÉPOND : le lien de l'invitée ne choisit pas sa prochaine place. */
+  if (porte.parInvitee) return json({ error: 'lien_introuvable' }, 404);
+  const d = porte.rdv.data ?? {};
+  const propose: ProchainRituelPropose | undefined = d.prochainRituel;
+  if (!propose) return json({ error: 'pas_de_place' }, 404);
+  if (propose.reponse) return json({ ok: true, deja: true });
+  const geste = String(b.geste ?? '').trim();
+  const quand = new Date().toISOString();
+  let reponse: ProchainRituelPropose;
+  if (geste === 'plus-tard') {
+    reponse = { ...propose, reponse: 'plus-tard', le: quand };
+  } else if (geste === 'confirmer' || geste === 'choisir') {
+    const jour = geste === 'confirmer' ? propose.jour : String(b.jour ?? '').trim();
+    const heure = geste === 'confirmer' ? propose.heure : String(b.heure ?? '').trim();
+    const permises = [{ jour: propose.jour, heure: propose.heure }, ...(propose.autres ?? [])];
+    if (!permises.some((x) => x.jour === jour && x.heure === heure)) return json({ error: 'place' }, 400);
+    reponse = { ...propose, reponse: 'confirmee', retenue: { jour, heure }, le: quand };
+  } else {
+    return json({ error: 'bad_request' }, 400);
+  }
+  const { error } = await admin.from('appointments').update({ data: { ...d, prochainRituel: reponse } }).eq('id', porte.rdv.id);
+  if (error) throw new Error(error.message);
+  return json({ ok: true, prochainRituel: reponse });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method === 'GET') {
@@ -1266,6 +1309,7 @@ Deno.serve(async (req) => {
     if (b.action === 'regler') return await regler(req, b);
     if (b.action === 'sceau') return await sceau(req, b);
     if (b.action === 'inviter') return await inviter(req, b);
+    if (b.action === 'prochain') return await prochain(req, b);
     return json({ error: 'action' }, 400);
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);

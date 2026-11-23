@@ -59,6 +59,10 @@ const PANNES = [
   ['une séance réglée invite encore', FN, "  if (lien.payeLe) return json({ error: 'deja_reglee' }, 409);", ''],
   ['le prénom de l invitée n est plus borné', REGLER, "String(nom ?? '').replace(/\\s+/g, ' ').trim().slice(0, 18);", "String(nom ?? '');"],
   ['la page propose régler à deux à l invitée', APP, '            {!p.parInvitee && (', '            {true && ('],
+  /* La sortie */
+  ['la fonction accepte une place qu on ne lui a pas proposée', FN, "    if (!permises.some((x) => x.jour === jour && x.heure === heure)) return json({ error: 'place' }, 400);", ''],
+  ['la page garde la place au lieu de la confirmer', APP, 'Confirmer cette place', 'Garder cette place'],
+  ['les étoiles passent avant la place', APP, "        const etape = pr && !pr.reponse ? 'place' : (ecran.paye && !etoilesFaite ? 'etoiles' : 'merci');", "        const etape = ecran.paye && !etoilesFaite ? 'etoiles' : (pr && !pr.reponse ? 'place' : 'merci');"],
   ['la fonction accepte n importe quel moyen', FN, "  if (!estUnJeton(jeton) || !MOYENS_DU_SCEAU.includes(moyen)) return json({ error: 'bad_request' }, 400);", '  if (!estUnJeton(jeton)) return json({ error: \'bad_request\' }, 400);'],
 ];
 

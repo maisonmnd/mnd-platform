@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -37,14 +37,28 @@ import { oublieLeFilDuSceau, souffleSurLeFilDuSceau } from '../../../../shared/l
 /* L'heure du salon, jamais celle du poste (20 novembre 2026 : un ordinateur
     à l'heure de Chine disait 22:13 d'un message parti à 15 h 13). */
 const heure = heureDuSalon;
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+/** « samedi 19 décembre 2026 » : toujours l'année, comme la Maison l'écrit. */
+function jourDit(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return iso;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const jour = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'][d.getDay()];
+  return `${jour} ${Number(m[3]) === 1 ? '1er' : Number(m[3])} ${MOIS[Number(m[2]) - 1]} ${m[1]}`;
+}
 
 const francs = (x: number): string => `${Math.round(x).toLocaleString('fr-FR').replace(/ | /g, ' ')} F`;
 
 export function ReglementEnDirect({ appt }: { appt: Appointment }) {
   const { currency } = useBranch();
-  const [rdvs] = useAppointments();
+  const [rdvs, setRdvs] = useAppointments();
   const [pieces, setPieces] = useInvoices();
   const [relit, setRelit] = useState(false);
+  /* SA PROCHAINE PLACE (23 novembre 2026) : le maître la propose ici, à côté
+     du règlement ; elle la confirme sur son téléphone, et la place se POSE
+     ensuite au Trône (`SonProchainRituel`), jamais sur son téléphone. */
+  const [proposeJour, setProposeJour] = useState(appt.date ?? '');
+  const [proposeHeure, setProposeHeure] = useState('10 h');
   /* Le tiroir du geste : ouvert, son mode, ce qu'il tape. */
   const [gesteOuvert, setGesteOuvert] = useState(false);
   const [mode, setMode] = useState<'xof' | 'pct'>('xof');
@@ -182,6 +196,33 @@ export function ReglementEnDirect({ appt }: { appt: Appointment }) {
       )}
 
       {/* LE GESTE OFFERT — 22 novembre 2026. */}
+      {/* SA PROCHAINE PLACE — 23 novembre 2026. Le maître propose, elle
+          confirme sur son téléphone ; la place se pose ici seulement après. */}
+      <div style={{ borderTop: '1px solid var(--line, #EDE4D6)', paddingTop: 10, display: 'grid', gap: 8 }}>
+        <span style={{ font: '500 11px Jost, system-ui, sans-serif', letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft, #8A847C)' }}>Sa prochaine place</span>
+        {rdv.prochainRituel ? (
+          <p style={{ margin: 0, fontSize: 13 }}>
+            {rdv.prochainRituel.reponse === 'confirmee'
+              ? <>Elle a confirmé <b>{jourDit(rdv.prochainRituel.retenue?.jour ?? rdv.prochainRituel.jour)}, {rdv.prochainRituel.retenue?.heure ?? rdv.prochainRituel.heure}</b> — la place se pose ici.</>
+              : rdv.prochainRituel.reponse === 'plus-tard'
+                ? 'Elle a dit « pas maintenant ».'
+                : <>Proposé : <b>{jourDit(rdv.prochainRituel.jour)}, {rdv.prochainRituel.heure}</b> — elle ne l’a pas encore ouvert.</>}
+          </p>
+        ) : null}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input type="date" value={proposeJour} onChange={(e) => setProposeJour(e.target.value)}
+            style={{ border: '1px solid var(--line, #E5D8C6)', borderRadius: 4, padding: '5px 8px', font: 'inherit', fontSize: 13 }} />
+          <input value={proposeHeure} onChange={(e) => setProposeHeure(e.target.value)} placeholder="10 h"
+            style={{ border: '1px solid var(--line, #E5D8C6)', borderRadius: 4, padding: '5px 8px', font: 'inherit', fontSize: 13, width: 64 }} />
+          <Button size="sm" variant="ghost" disabled={!proposeJour || !proposeHeure}
+            onClick={() => {
+              setRdvs((prev) => prev.map((x) => (x.id === rdv.id ? { ...x, prochainRituel: { jour: proposeJour, heure: proposeHeure } } : x)));
+              toast(`Prochain rituel proposé : ${jourDit(proposeJour)}, ${proposeHeure}.`);
+            }}>
+            Proposer cette place
+          </Button>
+        </div>
+      </div>
       <div style={{ borderTop: '1px solid var(--line, #EDE4D6)', paddingTop: 10, display: 'grid', gap: 8 }}>
         {geste?.xof ? (
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline', flexWrap: 'wrap', fontSize: 13 }}>

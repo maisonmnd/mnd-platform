@@ -490,6 +490,10 @@ export type RdvLu = {
   /** Elle a déclaré avoir terminé (6 novembre 2026, terminer-et-regler-pur.ts) :
       sa pièce se prépare au Trône, la page l'attend au lieu de renoncer. */
   termineParElle?: { le?: string } | null;
+  /** SA PROCHAINE PLACE — 23 novembre 2026 (Le Sceau, la sortie). Le Trône
+      propose, à côté du règlement ; elle confirme ou choisit une autre des
+      places proposées, puis la Maison pose le rendez-vous. */
+  prochainRituel?: ProchainRituelPropose;
 };
 
 export type LienDuFoyer = {

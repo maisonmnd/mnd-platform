@@ -1,4 +1,4 @@
-/* LE SCEAU, ÉPROUVÉ — `node scripts/verifie-le-sceau.mjs`.
+﻿/* LE SCEAU, ÉPROUVÉ — `node scripts/verifie-le-sceau.mjs`.
 
    22 novembre 2026 : « I want to give to another session the build for the
    last two maquette that was made : devis en direct et le sceau de la
@@ -162,5 +162,15 @@ vrai('la fonction cherche le rendez-vous par le lien de l invitée', fn2.include
 vrai('une séance réglée n invite plus', fn2.includes("if (lien.payeLe) return json({ error: 'deja_reglee' }, 409);"));
 vrai('la page ne propose pas de régler à deux à l invitée', lis('src/apps/regler/App.tsx').includes('{!p.parInvitee && (') && lis('src/apps/regler/App.tsx').includes('inviteAUnePart(jeton, nom)'));
 vrai('le Trône voit qui elle invite', lis('src/apps/trone/routes/clients/ReglementEnDirect.tsx').includes("Elle invite <b"));
+/* ── LA SORTIE : SA PROCHAINE PLACE, PUIS LES ÉTOILES (23 novembre 2026) ─ */
+vrai('la fonction reçoit sa réponse', fn2.includes("if (b.action === 'prochain') return await prochain(req, b);"));
+vrai('la fonction ne prend que les places proposées', fn2.includes("if (!permises.some((x) => x.jour === jour && x.heure === heure)) return json({ error: 'place' }, 400);"));
+vrai('une réponse ne se réécrit pas', fn2.includes('if (propose.reponse) return json({ ok: true, deja: true });'));
+vrai('le lien de l invitée ne choisit pas sa place', fn2.includes('if (porte.parInvitee) return json({ error: \'lien_introuvable\' }, 404);'));
+const reglerPage = lis('src/apps/regler/App.tsx');
+vrai('la page dit « Confirmer cette place », jamais « Garder »', reglerPage.includes('Confirmer cette place') && !reglerPage.includes('Garder cette place'));
+vrai('la page offre « Modifier » et « Pas maintenant »', reglerPage.includes('>Modifier</button>') && reglerPage.includes('Pas maintenant'));
+vrai('les étoiles ont leur page, après la place', reglerPage.includes('Laissez-nous vos étoiles') && reglerPage.includes("const etape = pr && !pr.reponse ? 'place' : (ecran.paye && !etoilesFaite ? 'etoiles' : 'merci');"));
+vrai('le Trône propose sa prochaine place', lis('src/apps/trone/routes/clients/ReglementEnDirect.tsx').includes('Proposer cette place'));
 console.log(`\n${n - ko}/${n} vérifications${ko ? `, ${ko} en échec` : ''}.`);
 process.exit(ko ? 1 : 0);

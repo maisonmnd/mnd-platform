@@ -29,6 +29,8 @@ export type ApptPayment = {
 };
 
 export type Appointment = {
+  /** SA PROCHAINE PLACE — 23 novembre 2026 (Le Sceau, la sortie). Le Trône propose, la cliente confirme sur son téléphone, et la place se pose ici (`SonProchainRituel`). Une réponse ne se réécrit pas. */
+  prochainRituel?: { jour: string; heure: string; autres?: { jour: string; heure: string }[]; reponse?: 'confirmee' | 'plus-tard'; le?: string; retenue?: { jour: string; heure: string } };
   id: string;
   branchId: string;
   clientId: string;
