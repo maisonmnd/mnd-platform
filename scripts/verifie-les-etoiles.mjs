@@ -53,7 +53,7 @@ const PANNES = [
   /* La page et les registres */
   ['la page ouvre n importe quelle adresse', CLIENT, "typeof j.lien === 'string' && j.lien.startsWith('https://') ? j.lien : '';", "typeof j.lien === 'string' ? j.lien : '';"],
   ['la page sans bouton de secours', PAGE, '<a className="rg-regler" href={etat.lien}', '<a className="rg-regler" data-sans-lien'],
-  ['le bouton des etoiles pris pour un Tap & Go', PAYER, "  if (p.has('tg') && !rj && !ej) {", "  if (p.has('tg') && !rj) {"],
+  ['le bouton des etoiles pris pour un Tap & Go', PAYER, "  if (p.has('tg') && !rj && !ej && !dj) {", "  if (p.has('tg') && !rj) {"],
   ['la porte ignore le modele neuf', PORTE, "modeles: ['avis_google', 'vos_etoiles', 'vos_etoiles_rappel']", "modeles: ['avis_google']"],
 ];
 

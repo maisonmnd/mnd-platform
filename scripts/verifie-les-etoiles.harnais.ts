@@ -145,7 +145,7 @@ dit('la version dit ce lot', true, f.includes("const VERSION = '2026-11-22-a · 
 const payer = lis('public/payer.html');
 dit('payer.html : « tg=e-<jeton> » mene a la page des etoiles, et ne passe pas pour un Tap & Go', [true, true], [
   payer.includes("var ej = (p.get('tg') || '').match(/^e-([23456789abcdefghjkmnpqrstuvwxyz]{14})$/);\n  if (ej) location.replace('regler.html?e=' + ej[1]);"),
-  payer.includes("if (p.has('tg') && !rj && !ej) {")]);
+  payer.includes("if (p.has('tg') && !rj && !ej && !dj) {")]); /* 23 novembre 2026 : le pont connaît aussi le devis (d-) */
 const page = sansCommentaires('src/apps/regler/Etoiles.tsx');
 const client = sansCommentaires('src/shared/etoiles-serveur.ts');
 dit('la page : le toucher part, Google s ouvre, le bouton reste si rien ne s ouvre ; un lien faux le dit', [true, true, true, true], [
