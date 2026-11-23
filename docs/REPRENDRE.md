@@ -1,8 +1,8 @@
-﻿# Reprendre — état de la Maison
+# Reprendre — état de la Maison
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE SCEAU, SUITE 2 : LA PLACE CONFIRMÉE À LA SORTIE, PUIS LES ÉTOILES — 23 novembre 2026, EN LIGNE (`regler-la-seance` v44, VERSION `2026-11-23-a`, `verify_jwt` non ; Trône build 20261123010329 @ 8b0144c7, 561/561 servis ; aucun SQL, aucun secret)
+## LE SCEAU, SUITE 2 : LA PLACE CONFIRMÉE À LA SORTIE, PUIS LES ÉTOILES — 23 novembre 2026, EN LIGNE (`regler-la-seance` **v45**, VERSION `2026-11-23-a`, `verify_jwt` non ; Trône build **20261123041312** @ `ceb56c11`, 561/561 servis, `regler.html` 200 ; aucun SQL, aucun secret). Avec le **QR de l'invitée** et **les étoiles d'un toucher**.
 
 **Essai réel (fait par l'agent de mise en ligne) :** le GET rend **`2026-11-23-a`** du premier coup, et `action: 'prochain'` avec un jeton bien formé mais inconnu rend **404 `lien_introuvable`** — jamais « action inconnue ». `regler.html?r=…` répond 200, `verifie-le-servi` 561/561, `version.json` dit `20261123010329`. **Reste à voir en vrai (c'est le dernier essai du chantier)** : un rendez-vous réglé en ligne, l'écran « Votre prochain rituel » avec la place proposée au Trône, « Confirmer cette place », puis la page des étoiles, puis « Merci. » avec la place retenue.
 
