@@ -1,4 +1,4 @@
-/* LA COPIE DES RÈGLES DANS LA FONCTION `regler-la-seance` — 25 octobre 2026.
+﻿/* LA COPIE DES RÈGLES DANS LA FONCTION `regler-la-seance` — 25 octobre 2026.
    Même montage que la Boutique (boutique-copie-serveur.mjs) : une fonction
    Edge se colle seule et n'importe rien de `src/`, elle porte donc une COPIE
    des règles de shared/regler-la-seance-pur.ts. `node scripts/regler-copie-serveur.mjs`
@@ -20,7 +20,7 @@ export const FIN = '// ── FIN copie de shared/regler-la-seance-pur.ts';
 export const NOMS = [
   'ALPHABET_DU_JETON', 'LONGUEUR_DU_JETON', 'PREFIXE_DU_PARAMETRE', 'PREFIXE_DE_LA_REFERENCE', 'PREFIXE_DU_VERSEMENT',
   'CAISSE_EN_LIGNE', 'DECALAGE_DE_COTONOU_MS', 'LienDeReglement', 'ReglementEnLigne', 'LigneLue', 'VersementLu', 'PieceLue',
-  'RdvLu', 'LienDuFoyer', 'jetonDe', 'estUnJeton', 'parametreDuLien', 'jetonDuParametre', 'referenceDuRdv', 'referenceDuFoyer', 'jourDeCotonou', 'heureDeCotonou',
+  'RdvLu', 'LienDuFoyer', 'LienDInvitee', 'nomDInviteePropre', 'jetonDe', 'estUnJeton', 'parametreDuLien', 'jetonDuParametre', 'referenceDuRdv', 'referenceDuFoyer', 'jourDeCotonou', 'heureDeCotonou',
   'n', 'netDeLaLigne', 'totalDeLaPiece', 'regleDeLaPiece', 'resteDeLaPiece', 'laPieceDuRdv', 'EtatDuLien', 'etatDuLien',
   'partageDuPaiement', 'moyenDit', 'versementEnLigne', 'dejaInscrit', 'pieceReglee', 'rdvRegle', 'prenomDe', 'maitreDit',
   'lignesDites', 'pageDuLien', 'repartitionDuFoyer', 'idDuVersementDuFoyer', 'jourCourtDit', 'TeteDuFoyer', 'pageDuFoyer',

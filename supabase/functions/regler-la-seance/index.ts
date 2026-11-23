@@ -46,7 +46,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  * KKIAPAY_API_BASE) et SERVICE_KEY, déjà posés sur le projet : rien à ajouter.
  */
 
-const VERSION = '2026-11-11-a';
+/* LA VERSION DIT LE CODE SERVI — 23 novembre 2026. Elle était restée à
+   2026-11-11-a à travers quatre lots (LE SCEAU, RÉGLER À DEUX) : le GET ne
+   pouvait donc pas prouver quel code répondait, et une mise en ligne qui
+   n'avait pas pris se lisait comme une mise en ligne réussie. Elle suit
+   désormais chaque changement de comportement. */
+const VERSION = '2026-11-23-a';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -152,6 +157,15 @@ export type LienDuFoyer = {
   ouvertLe?: string;
   payeLe?: string;
 };
+
+export type LienDInvitee = {
+  jeton: string;
+  creeLe: string;
+  nom: string;
+};
+
+export const nomDInviteePropre = (nom: unknown): string =>
+  String(nom ?? '').replace(/\s+/g, ' ').trim().slice(0, 18);
 
 export function jetonDe(aleas: ArrayLike<number>): string {
   let t = '';
