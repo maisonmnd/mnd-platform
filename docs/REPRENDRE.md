@@ -2,7 +2,9 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE DEVIS EN DIRECT, LOT 2 : L'ACOMPTE EN LIGNE ET LA PLACE CONFIRMÉE — 23 novembre 2026, bancs verts, mise en ligne confiée (`devis-en-direct` à passer en v2 ; le Trône et `devis.html` ; aucun SQL, aucun secret)
+## LE DEVIS EN DIRECT, LOT 2 : L'ACOMPTE EN LIGNE ET LA PLACE CONFIRMÉE — 23 novembre 2026, EN LIGNE (`devis-en-direct` v2, `verify_jwt` non ; Trône build 20261123001808 @ 835e35d9, 561/561 servis ; `devis.html` 200 avec les assets neufs ; aucun SQL, aucun secret)
+
+**Essai réel (fait par l'agent de mise en ligne) :** la fonction est passée v1 → v2 ; un POST `action: 'payer'` avec un jeton bidon rend **404 `lien_introuvable`** (et non « action » inconnue), donc la route neuve sert ; le GET répond 200 ; `verifie-le-servi` rend 561/561. **Reste à voir en vrai** : un acompte réel sur un devis d'essai (le sceau ouvre KkiaPay, la transaction se relit, le versement entre sur la pièce), et la place qui se libère au bout de vingt-quatre heures. **À savoir** : le GET de `devis-en-direct` ne teste que l'empreinte de service, pas les clés KkiaPay — elles existent sur le projet, vues par la liste des noms ; à ajouter au prochain passage si le diagnostic en a besoin.
 
 **Les réponses de Yéman, ce matin** (les questions de la passation, posées une à une) : une place choisie mais pas payée **se libère au bout de vingt-quatre heures** ; « Je règle à l'accueil » **reste une autre voie** ; **le maître et l'accueil** peuvent envoyer un devis.
 
