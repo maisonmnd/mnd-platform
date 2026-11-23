@@ -2,6 +2,17 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## EN DIRECT, D'UN TOUCHER : LE DEVIS ET LE RÈGLEMENT SANS PASSER PAR « ENCAISSER » — 23 novembre 2026, bancs verts, mise en ligne confiée (le Trône seul ; aucune fonction, aucun SQL, aucun secret)
+
+**Essai réel : en cours avec Yéman, sur un rendez-vous d'essai du jour posé sur sa propre fiche.** C'est pendant cet essai qu'elle l'a demandé : « facilite l'accès au règlement en direct et devis en direct, trop compliqué ». Les deux panneaux vivaient au fond de « Encaisser » : ouvrir Encaisser, déplier « Et ensuite », descendre.
+
+- **Une fenêtre à eux deux, rien de replié** (`clients/EnDirect.tsx`) : « En direct · <cliente> ». Ce sont les MÊMES panneaux (`DevisEnDirect`, `ReglementEnDirect`), pas une copie. Tant que la séance n'est pas terminée, le devis vient d'abord, déjà ouvert pour être composé (`ouvertDAbord`), et le règlement dit quand il s'ouvrira ; dès que la note existe, le règlement passe devant. La fenêtre n'encaisse rien et ne termine rien.
+- **Où elle s'ouvre** : au Tableau de bord de la direction, un lien « En direct » sur chaque ligne d'aujourd'hui (jamais sur un annulé, dessiné en lien pour ne pas se confondre avec « Terminer » ni « Encaisser ») ; au Carnet, en tête du menu de la ligne, le jour même seulement, et jamais pour qui ne voit pas les prix (`sansPrix`). « Encaisser » garde ses deux panneaux.
+- **Bancs** : `verifie-l-acces-en-direct` 16 (`--prouve` 16/16, les pannes se font en mémoire, rien n'est écrit sur le disque) ; typecheck 0 ; le site `trone` se construit ; vingt-sept bancs voisins relancés, verts.
+- **À savoir, pas de ce lot** : `verifie-terminer-et-regler` rend 282 sur 283 à `f52acc1e` déjà, sur une copie intacte (« avant-après : les deux fonctions disent leur version »). `verifie-gerard` garde ses trois échecs connus.
+- **Vu pendant l'essai, à décider avec elle** : « Terminer » sur la ligne du Tableau de bord termine la séance et fait partir la note d'un seul toucher, sans rien demander ; le tableau de l'équipe (qui ne voit pas les montants) n'offre pas « En direct », donc un maître qui ne voit pas les prix ne compose pas de devis ; des cinq étapes du fauteuil, « Scellé » reste seule sur sa ligne ; « Sa prochaine place » part de la date du jour.
+- **Pas fait** : l'accès depuis le Calendrier et depuis « Modifier le rendez-vous ».
+
 ## LE SCEAU, SUITE 3 : LA GAMME AU FAUTEUIL — 23 novembre 2026, bancs verts, mise en ligne confiée (`regler-la-seance` à passer en v46 ; le Trône ; aucun SQL, aucun secret)
 
 **Essai réel : à faire après la mise en ligne** — sur un rendez-vous d'essai : « La Gamme · prendre un soin », un produit, et la note qui grandit ; au Trône, « La Gamme · à lui remettre » et « Remis ».

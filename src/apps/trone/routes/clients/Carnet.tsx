@@ -42,6 +42,7 @@ import {
   tarifsDuRituel, PortesWhatsApp, DrillModal, type Drill,
 } from './_shared';
 import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honoreSansEncaisser, PayAppointmentModal, piecesDuFoyer, prenomsDuFoyer } from './actions';
+import { EnDirect } from './EnDirect';
 import { FenetreDuProchainRituel } from '../vente/SonProchainRituel';
 import { BadgeSuggere } from './BadgeSuggere';
 import { estSuggere } from '../../../../shared/rendez-vous-suggere-pur';
@@ -268,6 +269,8 @@ export default function Carnet() {
      la veille et le lendemain d'une flèche, n'importe quel jour au calendrier. */
   const [jourVu, setJourVu] = useState(() => todayISO());
   const [payAppt, setPayAppt] = useState<Appointment | null>(null); // encaissement (partiel / total / pourboire)
+  /* EN DIRECT (23 novembre 2026) : le rendez-vous dont on ouvre le devis et le règlement. */
+  const [directAppt, setDirectAppt] = useState<Appointment | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   /* LE POINT DU COMPTE (28 octobre 2026) : la tête dont on ouvre le point. */
   const [pointDe, setPointDe] = useState<string | null>(null);
@@ -1031,6 +1034,17 @@ export default function Carnet() {
             </button>
             {menuFor === a.id && menuAncre && (
               <MenuFlottant ancre={menuAncre} onClose={fermeLeMenu}>
+                {/* EN DIRECT, EN TÊTE DU MENU (23 novembre 2026, « facilite l'accès
+                    au règlement en direct et devis en direct, trop compliqué ») :
+                    son devis et son règlement s'ouvrent d'ici, sans passer par
+                    « Encaisser ». Le jour même seulement : c'est ce qui se fait
+                    devant elle. Mêmes yeux que l'encaissement (`sansPrix`). */}
+                {a.date === todayISO() && a.status !== 'annulé' && !sansPrix && (
+                  <>
+                    <button onClick={() => { setDirectAppt(a); setMenuFor(null); }}>En direct · son devis, son règlement</button>
+                    <div className="trc-menu__filet" role="separator" />
+                  </>
+                )}
                 <div className="trc-menu__titre">Statut</div>
                 {/* ELLE A DIT OUI (15 novembre 2026) : au téléphone ou au
                     comptoir, à une suggestion de la Maison. Elle devient
@@ -1527,6 +1541,7 @@ export default function Carnet() {
       {cahierOuvert && peutRattraperUnCahier && <RattraperUnCahier onClose={() => setCahierOuvert(false)} />}
 
       {prochainPour && <FenetreDuProchainRituel rituelId={prochainPour} onClose={() => setProchainPour(null)} />}
+      {directAppt && !sansPrix && <EnDirect appt={directAppt} onClose={() => setDirectAppt(null)} />}
       {payAppt && !sansPrix && (
         <PayAppointmentModal
           appt={payAppt}

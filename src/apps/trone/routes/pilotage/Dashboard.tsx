@@ -31,6 +31,7 @@ import { composeStore, compositionsRecuesStore } from '../../../../shared/bridge
 import { useEnfantsDeclares, nomPropose } from '../../../../shared/enfants';
 import { createStore, useStore } from '../../../../shared/store';
 import { PayAppointmentModal, honoreSansEncaisser } from '../clients/actions';
+import { EnDirect } from '../clients/EnDirect';
 import { FenetreDuProchainRituel } from '../vente/SonProchainRituel';
 import { laCarteSOuvreApresLHonneur } from '../../../../shared/carte-du-prochain-rituel';
 import { useModelBands, useBandSets } from '../../../../shared/pricing';
@@ -185,6 +186,8 @@ function TableauDeLaDirection() {
   const [produitsTarif] = useProducts();
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
+  /* EN DIRECT (23 novembre 2026) : le rendez-vous dont on ouvre le devis et le règlement. */
+  const [directAppt, setDirectAppt] = useState<Appointment | null>(null);
   /* Son prochain rituel après « honoré » (4 novembre 2026) : proposé, validé d'un toucher. */
   const [prochainPour, setProchainPour] = useState<string | null>(null);
 
@@ -909,6 +912,16 @@ function TableauDeLaDirection() {
                             côte (la paire dangereuse, maquette du 10 août). La ligne
                             touchée ouvre le rendez-vous et tous ses gestes. */}
                         <span className="tdb-gestes">
+                          {/* EN DIRECT, D'UN TOUCHER (23 novembre 2026, « facilite l'accès
+                              au règlement en direct et devis en direct, trop compliqué ») :
+                              son devis et son règlement, sans passer par « Encaisser ».
+                              Ce n'est ni l'état ni l'argent : il ouvre une fenêtre, et
+                              se dessine en lien pour ne pas se confondre avec eux. */}
+                          {a.status !== 'annulé' && (
+                            <button type="button" className="tdb-btn tdb-btn--direct" onClick={(e) => { e.stopPropagation(); setDirectAppt(a); }} title="Son devis et son règlement, en direct">
+                              En direct
+                            </button>
+                          )}
                           {a.status !== 'honoré' ? (
                             <button type="button" className="tdb-btn tdb-btn--etat" onClick={(e) => { e.stopPropagation(); advance(a); }}>
                               {/* « Terminer » le jour même : le reste part sur son WhatsApp (25 octobre 2026). */}
@@ -1297,6 +1310,7 @@ function TableauDeLaDirection() {
 
       {/* Encaissement d’un rendez-vous du carnet du jour */}
       {payAppt && <PayAppointmentModal appt={payAppt} onClose={() => setPayAppt(null)} />}
+      {directAppt && <EnDirect appt={directAppt} onClose={() => setDirectAppt(null)} />}
       {prochainPour && <FenetreDuProchainRituel rituelId={prochainPour} onClose={() => setProchainPour(null)} />}
 
       {/* Ce qu’il y a derrière un chiffre — chaque ligne ouvre sa facture */}

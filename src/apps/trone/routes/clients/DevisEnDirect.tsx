@@ -45,13 +45,16 @@ export const adresseDuDevis = (jeton: string): string => {
   return `${u.origin}${u.pathname.replace(/[^/]*$/, '')}payer.html?tg=d-${jeton}`;
 };
 
-export function DevisEnDirect({ appt, services, prixDuService }: {
+export function DevisEnDirect({ appt, services, prixDuService, ouvertDAbord }: {
   appt: Appointment;
   services: readonly Service[];
   prixDuService: (sv: Service) => number;
+  /* La fenêtre « En direct » (23 novembre 2026) l'ouvre déjà : on y vient pour
+     composer, un toucher de moins. Dans « Encaisser », il reste replié. */
+  ouvertDAbord?: boolean;
 }) {
   const [pieces, setPieces] = useInvoices();
-  const [ouvert, setOuvert] = useState(false);
+  const [ouvert, setOuvert] = useState(!!ouvertDAbord);
   const [cherche, setCherche] = useState('');
   const [modeles, setModeles] = useState<ModeleDuDevis[]>([]);
   const [options, setOptions] = useState<OptionDuDevis[]>([]);

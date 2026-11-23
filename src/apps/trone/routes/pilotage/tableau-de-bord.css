@@ -100,6 +100,10 @@ button.tdb-puce:focus-visible { outline: 2px solid var(--color-copper); outline-
 .tdb-btn:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
 .tdb-btn--etat { border-color: var(--tdb-encre); color: var(--tdb-encre); }
 .tdb-btn--etat:hover { background: var(--indigo-50, #EDEEF4); }
+/* « En direct » (23 novembre 2026) : un lien, pas un bouton plein. Il ouvre une
+   fenêtre ; il ne doit pas se confondre avec le geste d'état ni avec l'argent. */
+.tdb-btn--direct { border-color: transparent; color: var(--tdb-encre); padding-inline: 6px; margin-right: 4px; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--tdb-cuivre); }
+.tdb-btn--direct:hover { background: var(--indigo-50, #EDEEF4); }
 .tdb-tache.est-ko .tdb-btn { border-color: var(--tdb-rouge); color: var(--tdb-rouge); }
 .tdb-tache.est-ko .tdb-btn:hover { background: var(--tdb-rouge-pale); }
 .tdb-rien { padding: 14px 16px; font-size: 13.5px; color: var(--tdb-doux); }
