@@ -2,6 +2,16 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE SCEAU, SUITE 2 : LA PLACE CONFIRMÉE À LA SORTIE, PUIS LES ÉTOILES — 23 novembre 2026, bancs verts, mise en ligne confiée (`regler-la-seance` à passer en v44 ; le Trône ; aucun SQL, aucun secret)
+
+**Essai réel : à faire après la mise en ligne** — un rendez-vous réglé en ligne : l'écran « Votre prochain rituel » paraît avec la place que le maître a proposée (fenêtre du rendez-vous, « Proposer cette place »), « Confirmer cette place » l'écrit, « Modifier » propose les autres places, « Pas maintenant » passe. Puis la page des étoiles, puis « Merci. » avec la place retenue rappelée.
+
+- **L'ordre de Yéman** (maquette, version 9) : sa prochaine place d'abord — « Confirmer cette place » ou « Modifier », **jamais** « Garder cette place » —, les étoiles ensuite **sur une page à elles seules**, puis « Merci. ». Une demande par page, rien ne s'empile.
+- **Le Trône propose, elle répond, le Trône pose** : une date et une heure dans la fenêtre du règlement (`prochainRituel` sur le rendez-vous) ; la fonction reçoit sa réponse (`action: 'prochain'`, places proposées seulement, une réponse ne se réécrit pas) ; la place se pose ensuite par `SonProchainRituel`, comme avant. **Le téléphone ne crée aucun rendez-vous.**
+- **Les étoiles disent la vérité** : leur page annonce que la Maison écrit le soir avec son lien. Le lien d'avis n'existe pas côté page — il vit dans le bouton du modèle chez Meta — donc on n'invente pas un bouton qui n'ouvrirait rien.
+- **Bancs** : `verifie-le-sceau` 93 (`--prouve` 32/32) ; `regler-la-seance` 84 ; `devis` 112. Typecheck 0, build vert. Commit `7b8f7771`.
+- **Pas fait** : les étoiles d'un toucher à la sortie (il faudrait que la fonction retrouve, pour cette facture, la demande d'avis déposée par `avis-google` et son jeton — c'est le morceau qui reste) ; le calendrier du mois pour « Modifier » (ce sont les places que le maître a proposées, pas un calendrier) ; la Gamme au fauteuil, qui attend le mot de Yéman.
+
 ## LE SCEAU, SUITE 1 : RÉGLER À DEUX — 23 novembre 2026, EN LIGNE (`regler-la-seance` v43, VERSION `2026-11-23-a`, `verify_jwt` non ; Trône build 20261123003818 @ c7cdcbe4, 561/561 servis ; aucun SQL, aucun secret)
 
 **Essai réel (fait par l'agent de mise en ligne) :** le GET rend **`2026-11-23-a`** (le code neuf sert), et `action: 'inviter'` avec un jeton bien formé mais inconnu rend **404 `lien_introuvable`**, jamais « action inconnue » ; `regler.html?r=…` répond 200 (3 556 octets), `verifie-le-servi` 561/561. **Reste à voir en vrai** : deux téléphones, l'un qui invite, l'autre qui paie une part, et la note qui baisse. **Pièges de ce jour, tous les deux réels** : la copie serveur n'emportait pas `nomDInviteePropre`/`LienDInvitee` (l'action aurait levé) — réparé, et la **VERSION** de la fonction était figée depuis quatre lots, si bien qu'une mise en ligne ratée se lisait comme réussie : elle suit désormais chaque changement, et le banc l'exige. **Fausse alerte à retenir** : un POST « action inconnue » venait de PowerShell 5.1 qui retirait les guillemets d'un JSON passé en argument à `curl.exe` (le corps partait sans guillemets, `req.json()` tombait dans son catch) — envoyer le corps **par fichier** (`--data-binary @fichier`).
