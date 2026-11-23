@@ -1,6 +1,17 @@
-﻿# Reprendre — état de la Maison
+# Reprendre — état de la Maison
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
+
+## LE DEVIS EN DIRECT, LOT 2 : L'ACOMPTE EN LIGNE ET LA PLACE CONFIRMÉE — 23 novembre 2026, bancs verts, mise en ligne confiée (`devis-en-direct` à passer en v2 ; le Trône et `devis.html` ; aucun SQL, aucun secret)
+
+**Les réponses de Yéman, ce matin** (les questions de la passation, posées une à une) : une place choisie mais pas payée **se libère au bout de vingt-quatre heures** ; « Je règle à l'accueil » **reste une autre voie** ; **le maître et l'accueil** peuvent envoyer un devis.
+
+- **L'écran de l'acompte** (`apps/devis/`) : la place tenue (et jusqu'à quelle heure), le moyen, **le sceau** — le même geste que la page « Régler », désormais dans `src/ds/sceau.tsx` pour être partagé sans copie — et « Je règle à l'accueil ». Sans acompte demandé (taux zéro), la place se confirme d'un toucher.
+- **L'argent** : l'acompte est calculé **au serveur** sur la pièce (`acompteAttendu` : le taux réglé au Trône, 30 % par défaut, posé dans l'offre à l'envoi) ; la transaction se relit **chez KkiaPay** avant d'être écrite (`transaction`, comme `regler-la-seance`) ; le versement entre sur la pièce, et la place passe à **confirmée**. Déclaré à l'accueil, la place est confirmée sans argent et le Trône voit l'acompte à encaisser.
+- **La place tombée** s'efface **à la lecture, au serveur** (`libereLaPlaceSiTropTard`, une fois) : la page comme le Trône voient la même chose, et elle choisit à nouveau. Rien d'autre ne recule.
+- **La copie serveur** emporte maintenant les **deux** règles du devis (la règle pure et la pièce) d'un seul bloc.
+- **Bancs** : `verifie-le-devis-en-direct` 112 (`--prouve` 30/30) ; `verifie-le-sceau` 76 (`--prouve` 25/25, le sceau déplacé) ; typecheck 0, build vert.
+- **Pas fait** : aucun rendez-vous n'est encore créé à la confirmation (la place s'écrit sur la pièce ; le Trône la voit, et posera le rendez-vous) ; la relance de la cliente quand sa place tombe (aucun message ne part) ; le remboursement d'un acompte.
 
 ## LE DEVIS EN DIRECT, LOT 1 : LE DEVIS DE LA CONSULTATION, LES TROIS OUI, LA PLACE — 22 novembre 2026, bancs verts, mise en ligne confiée (fonction NEUVE `devis-en-direct` 2026-11-22-a, `verify_jwt` à éteindre ; `devis.html` et le Trône ; aucun SQL, aucun secret)
 
