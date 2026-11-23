@@ -2,9 +2,9 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## EN DIRECT, D'UN TOUCHER : LE DEVIS ET LE RÈGLEMENT SANS PASSER PAR « ENCAISSER » — 23 novembre 2026, bancs verts, mise en ligne confiée (le Trône seul ; aucune fonction, aucun SQL, aucun secret)
+## EN DIRECT, D'UN TOUCHER : LE DEVIS ET LE RÈGLEMENT SANS PASSER PAR « ENCAISSER » — 23 novembre 2026, EN LIGNE (Trône build 20261123052612 @ 11f1e54b, 561/561 servis ; aucune fonction, aucun SQL, aucun secret)
 
-**Essai réel : en cours avec Yéman, sur un rendez-vous d'essai du jour posé sur sa propre fiche.** C'est pendant cet essai qu'elle l'a demandé : « facilite l'accès au règlement en direct et devis en direct, trop compliqué ». Les deux panneaux vivaient au fond de « Encaisser » : ouvrir Encaisser, déplier « Et ensuite », descendre.
+**Essai réel (dans le Trône de Yéman, sur un rendez-vous d'essai du jour posé sur sa propre fiche) :** le lien « En direct » paraît sur la ligne, à gauche de « Encaisser » ; la fenêtre « En direct · … » s'ouvre avec le règlement devant (la note est déjà partie : les cinq étapes tiennent sur une ligne, sa prochaine place, « Offrir un geste », « Copier le lien ») et « Composer son devis » dessous. Rien n'a été encaissé. C'est pendant cet essai qu'elle l'a demandé : « facilite l'accès au règlement en direct et devis en direct, trop compliqué ». Les deux panneaux vivaient au fond de « Encaisser » : ouvrir Encaisser, déplier « Et ensuite », descendre.
 
 - **Une fenêtre à eux deux, rien de replié** (`clients/EnDirect.tsx`) : « En direct · <cliente> ». Ce sont les MÊMES panneaux (`DevisEnDirect`, `ReglementEnDirect`), pas une copie. Tant que la séance n'est pas terminée, le devis vient d'abord, déjà ouvert pour être composé (`ouvertDAbord`), et le règlement dit quand il s'ouvrira ; dès que la note existe, le règlement passe devant. La fenêtre n'encaisse rien et ne termine rien.
 - **Où elle s'ouvre** : au Tableau de bord de la direction, un lien « En direct » sur chaque ligne d'aujourd'hui (jamais sur un annulé, dessiné en lien pour ne pas se confondre avec « Terminer » ni « Encaisser ») ; au Carnet, en tête du menu de la ligne, le jour même seulement, et jamais pour qui ne voit pas les prix (`sansPrix`). « Encaisser » garde ses deux panneaux.
