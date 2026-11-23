@@ -283,12 +283,11 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          raccourci du téléphone. Maquette F7LksMC3… ; ouverte à toute l'équipe
          (ROUTES_MAITRE_FERMABLES), les réglages dans Paramètres › Dictée. */
       { path: '/dictee', label: 'Dictée MND', icon: Mic, horsMenu: true, Component: lazy(() => import('./equipe/Dictee')) },
-    ],
-  },
-  {
-    group: 'Académie',
-    items: [
-      { path: '/academie', label: 'Académie', icon: GraduationCap, Component: lazy(() => import('./equipe/Academie')) },
+      /* L'ACADÉMIE — 23 novembre 2026 : une rubrique seule ne fait pas un
+         département dans la barre. Elle se range chez l'Équipe (c'est la
+         Maison qui se forme) et garde SA clef : donner « Académie » ouvre
+         l'écran, et le donner ne donne rien d'autre. */
+      { path: '/academie', acces: 'dept-academie', label: 'Académie', icon: GraduationCap, Component: lazy(() => import('./equipe/Academie')) },
     ],
   },
   {

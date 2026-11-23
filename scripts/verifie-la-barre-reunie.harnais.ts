@@ -64,9 +64,18 @@ const dansLaBarre = items.filter((it) => !it.horsMenu);
    jour, les Tendances rentrent dans la Synthèse : l'hôte `/analytics` n'existe
    plus, ses deux onglets vivent dans la réunion de `/synthese`. */
 dit('la barre montre 33 rubriques', 33, dansLaBarre.length);
-dit('... par département : Direction 4, Clientèle 4, Atelier 2, Vente & Caisse 4, Finances 6, Marketing & Fidélité 2, Équipe 5, Académie 1, Système 5',
-  { Direction: 4, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 4, Finances: 6, 'Marketing & Fidélité': 2, 'Équipe': 5, 'Académie': 1, 'Système': 5 },
+dit('... par département : Direction 4, Clientèle 4, Atelier 2, Vente & Caisse 4, Finances 6, Marketing & Fidélité 2, Équipe 6, Système 5',
+  { Direction: 4, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 4, Finances: 6, 'Marketing & Fidélité': 2, 'Équipe': 6, 'Système': 5 },
   Object.fromEntries(NAV.map((g) => [g.group, g.items.filter((it) => !it.horsMenu).length])));
+/* L'ACADÉMIE N'EST PLUS UN DÉPARTEMENT DE LA BARRE — 23 novembre 2026 : une
+   rubrique seule fait un titre pour rien. Elle se range chez l'Équipe et garde
+   sa clef ; la matrice la donne toujours, puisque Accès & rôles lit les
+   départements et non la barre. */
+dit('l Académie se range chez Equipe, s ouvre par sa propre clef, et le rangement ne l ouvre à personne',
+  ['Équipe', 'dept-academie', true, false],
+  [item('/academie')?.groupe, domaineDe('/academie'),
+    peutVoir('maitre', '/academie', { 'dept-academie': true }),
+    peutVoir('maitre', '/academie', { 'dept-equipe': true })]);
 dit('... dont Les prévisions, en Direction', ['Direction', false], [item('/previsions')?.groupe, !!item('/previsions')?.horsMenu]);
 /* LA CLEF D'OUVERTURE N'EST PLUS CELLE DU RANGEMENT — 23 novembre 2026.
    Un écran se range par ce qu'il EST, s'ouvre par ce qu'il ENGAGE : les deux

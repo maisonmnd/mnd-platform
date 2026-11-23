@@ -5,7 +5,7 @@ import { supabase } from '../../../../shared/supabase';
 import { useAuth, useStaff, vientDeMaCouronne, type CompteEnAttente } from '../../../../shared/auth';
 import { staffAccessStore, useStaff as useEquipe } from '../equipe/data';
 import { adresseDArrivee, etatDeLArrivee, seRessemblent } from '../../../../shared/arrivee-pure';
-import { ANCIENS_DOMAINES, NAV, ROUTES_MAITRE, ROUTES_MAITRE_FERMABLES, ancienDomaineDe, domaineDe } from '../index';
+import { ANCIENS_DOMAINES, DEPARTEMENTS, NAV, ROUTES_MAITRE, ROUTES_MAITRE_FERMABLES, ancienDomaineDe, domaineDe } from '../index';
 import { useClients } from '../../../../shared/clients';
 import { LesClesDeLEquipe } from '../../auth/Empreinte';
 import { useStore } from '../../../../shared/store';
@@ -203,6 +203,18 @@ export default function Acces() {
   /* Générique : le groupe garde ses libellés, qu'on affiche sur chaque pastille. */
   const ecransDuGroupe = <T extends { path: string }>(items: T[]): T[] =>
     items.filter((it) => !ROUTES_MAITRE.includes(it.path));
+
+  /* LA MATRICE LIT LES DÉPARTEMENTS, PLUS LA BARRE — 23 novembre 2026.
+     Depuis qu'un écran peut se ranger ailleurs que là où il s'OUVRE, grouper
+     par la barre ferait disparaître un département dont plus aucune rubrique
+     ne porte le nom : on ne pourrait plus le donner ni le retirer. On groupe
+     donc par la clef qui ouvre (`domaineDe`), dans l'ordre de DEPARTEMENTS —
+     le même ordre qu'à l'écran, quelle que soit la façon dont la barre range. */
+  const ecransDuDomaine = (k: string) =>
+    ecransDuGroupe(NAV.flatMap((g) => g.items).filter((it) => domaineDe(it.path) === k));
+  const DOMAINES = DEPARTEMENTS
+    .map((d) => ({ ...d, ecrans: ecransDuDomaine(d.k) }))
+    .filter((d) => d.ecrans.length > 0);
 
   /* QUI ATTEINT CET ÉCRAN : la même question, prise par l'autre bout. On se
      la pose après avoir fermé la Caisse à quelqu'un, et y répondre demandait
@@ -576,14 +588,14 @@ export default function Acces() {
                       {toutOuvertPartout
                         ? <span className="sys-acc-dom est-total">Accès total</span>
                         : (() => {
-                          const jetons = NAV.map((g) => {
-                            const ecrans = ecransDuGroupe(g.items);
+                          const jetons = DOMAINES.map((d) => {
+                            const ecrans = d.ecrans;
                             if (!ecrans.length) return null;
                             const [n, t] = compteDuDomaine(m, ecrans);
                             if (!n) return null;
                             return (
-                              <span className={`sys-acc-dom ${n === t ? 'est-plein' : 'est-part'}`} key={g.group}>
-                                {g.group} {n === t ? 'tout' : `${n}/${t}`}
+                              <span className={`sys-acc-dom ${n === t ? 'est-plein' : 'est-part'}`} key={d.k}>
+                                {d.l} {n === t ? 'tout' : `${n}/${t}`}
                               </span>
                             );
                           }).filter(Boolean);
@@ -684,18 +696,18 @@ export default function Acces() {
                               </label>
                               {' '}Courrier, échéancier, contrats, démarches, contacts et archives. Le privé, les papiers et la bourse restent à la direction.
                             </div>
-                            {NAV.map((g) => {
-                              const ecrans = ecransDuGroupe(g.items);
+                            {DOMAINES.map((d) => {
+                              const ecrans = d.ecrans;
                               if (!ecrans.length) return null;
                               const toutOuvert = toutLeDomaine(m.user_id, ecrans);
                               const [n, t] = compteDuDomaine(m, ecrans);
-                              const clef = clefDom(m.user_id, g.group);
+                              const clef = clefDom(m.user_id, d.k);
                               const deplie = domOuverts.includes(clef);
                               return (
-                                <section className={`sys-acc-grp${deplie ? ' est-deplie' : ''}`} key={g.group}>
+                                <section className={`sys-acc-grp${deplie ? ' est-deplie' : ''}`} key={d.k}>
                                   <button type="button" className="sys-acc-grp__tete" aria-expanded={deplie} onClick={() => basculeGroupe(clef)}>
                                     <svg className="sys-acc-fleche" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
-                                    <span className="sys-acc-grp__nom">{g.group}</span>
+                                    <span className="sys-acc-grp__nom">{d.l}</span>
                                     <span className="sys-acc-grp__compte">{n === t ? 'tout' : `${n} sur ${t}`}</span>
                                     <span className="sys-acc-jauge" aria-hidden="true">
                                       <i className={n === t ? 'est-plein' : ''} style={{ width: `${Math.round((n / t) * 100)}%` }} />
@@ -764,16 +776,16 @@ export default function Acces() {
             {/* ── PAR ÉCRAN : la même question, prise par l'autre bout ──────
                 Qui voit le Coffre-fort ? Y répondre demandait d'ouvrir chaque
                 personne, l'une après l'autre, et de retenir. */}
-            {vue === 'ecrans' && NAV.map((g) => {
-              const ecrans = ecransDuGroupe(g.items);
+            {vue === 'ecrans' && DOMAINES.map((d) => {
+              const ecrans = d.ecrans;
               const vus = ecrans.filter((it) => !cherche
-                || it.label.toLowerCase().includes(cherche) || g.group.toLowerCase().includes(cherche));
+                || it.label.toLowerCase().includes(cherche) || d.l.toLowerCase().includes(cherche));
               if (!vus.length) return null;
               return vus.map((it) => {
                 const dedans = quiAtteint(it.path, ecrans);
                 return (
                   <div className="sys-acc-ecran" key={it.path}>
-                    <span className="sys-acc-ecran__grp">{g.group}</span>
+                    <span className="sys-acc-ecran__grp">{d.l}</span>
                     <span className="sys-acc-ecran__nom">{it.label}</span>
                     <span className="sys-acc-ecran__gens">
                       {dedans.length === 0
