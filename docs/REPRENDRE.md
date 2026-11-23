@@ -2,6 +2,17 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE SCEAU, SUITE 1 : RÉGLER À DEUX — 23 novembre 2026, bancs verts, mise en ligne confiée (`regler-la-seance` à passer en v41 ; le Trône ; aucun SQL, aucun secret)
+
+**Essai réel : à faire après la mise en ligne** — sur un rendez-vous d'essai : « Régler à deux », un prénom, « Envoyer le lien à Fatou ». Le lien part (WhatsApp ou copie), l'invitée l'ouvre, voit « La séance d'Awa » et son reste, paie par KkiaPay ; la note d'Awa baisse. Le Trône montre « Elle invite Fatou à régler avec elle ». Une seconde invitation éteint la première.
+
+- **Un second lien, un seul à la fois** (maquette LK7GvACWPzWgJ7WNZeZigp) : la cliente nomme son invitée (dix-huit signes au plus, `nomDInviteePropre`), et la fonction tire un **jeton neuf** (`lienDInvitee`) qu'elle écrit sur le rendez-vous avec le prénom et l'heure. **Chaque invitation en tire un neuf : l'ancien lien ne retrouve plus rien** — c'est ainsi que « l'ancien s'éteint », sans base nouvelle.
+- **La porte de l'invitée** : `leRdvDuJetonOuDeLInvitee` lit le rendez-vous par l'un ou l'autre jeton ; sa page ne lui propose pas, à son tour, de régler à deux (`parInvitee`). L'argent se partage comme avant : le reste d'abord, le pourboire au-delà.
+- **Une séance réglée n'invite plus** : la fonction refuse (`deja_reglee`).
+- **Le Trône** dit qui elle invite, à côté des cinq étapes du fauteuil.
+- **Bancs** : `verifie-le-sceau` 85 (`--prouve` 29/29) ; `verifie-regler-la-seance` 84 (le pont `payer.html` connaît maintenant `d-`), `collecte-mtn` 132, `fedapay` 82, `terminer-et-regler` 283. Copies serveur réécrites. Typecheck 0, build vert.
+- **Pas fait** : les **proches proposés** par la Maison (la maquette montre ses proches connus ; ici on tape un prénom), le **QR** de l'invitation (WhatsApp et copie seulement), et la **place confirmée + les étoiles à la sortie** — le morceau suivant de cette suite.
+
 ## LE DEVIS EN DIRECT, LOT 2 : L'ACOMPTE EN LIGNE ET LA PLACE CONFIRMÉE — 23 novembre 2026, EN LIGNE (`devis-en-direct` v2, `verify_jwt` non ; Trône build 20261123001808 @ 835e35d9, 561/561 servis ; `devis.html` 200 avec les assets neufs ; aucun SQL, aucun secret)
 
 **Essai réel (fait par l'agent de mise en ligne) :** la fonction est passée v1 → v2 ; un POST `action: 'payer'` avec un jeton bidon rend **404 `lien_introuvable`** (et non « action » inconnue), donc la route neuve sert ; le GET répond 200 ; `verifie-le-servi` rend 561/561. **Reste à voir en vrai** : un acompte réel sur un devis d'essai (le sceau ouvre KkiaPay, la transaction se relit, le versement entre sur la pièce), et la place qui se libère au bout de vingt-quatre heures. **À savoir** : le GET de `devis-en-direct` ne teste que l'empreinte de service, pas les clés KkiaPay — elles existent sur le projet, vues par la liste des noms ; à ajouter au prochain passage si le diagnostic en a besoin.
