@@ -1,4 +1,4 @@
-﻿/* LE DEVIS EN DIRECT, ÉPROUVÉ — `node scripts/verifie-le-devis-en-direct.mjs`.
+/* LE DEVIS EN DIRECT, ÉPROUVÉ — `node scripts/verifie-le-devis-en-direct.mjs`.
 
    22 novembre 2026 : « le même système de connexion automatique entre le
    Trône et les portables de nos clients pour faire les devis […] des devis
@@ -19,7 +19,7 @@ import {
 } from '../src/shared/devis-en-direct-pur';
 import {
   choixValable, dureeDeLOffre, etatDuDevisEnDirect, jetonDuParametreDuDevis, lignesDuChoix, pageDuDevisEnDirect,
-  parametreDuDevis, totalDeLOffre,
+  parametreDuDevis, totalDeLOffre, acompteAttendu, placeEncoreTenue, totalDeLaPieceDuDevis,
 } from '../src/shared/devis-en-direct';
 import { peutEtreRemis, peutEtreRemisAuFauteuil } from '../src/shared/devis-remis-pur';
 import { readFileSync } from 'node:fs';
@@ -158,7 +158,17 @@ dit('le jeton du devis revient', 'abcdefghjkmnpq', jetonDuParametreDuDevis(param
 dit('sans lien, la pièce est un brouillon', 'brouillon', etatDuDevisEnDirect({ id: 'p1' }));
 dit('envoyée, elle est un devis', 'devis', etatDuDevisEnDirect({ id: 'p1', status: 'envoyée', lienDuDevis: { jeton: 'abcdefghjkmnpq', creeLe: '2026-11-22T10:00:00Z' } }));
 dit('acceptée', 'accepte', etatDuDevisEnDirect({ id: 'p1', lienDuDevis: { jeton: 'abcdefghjkmnpq', creeLe: '2026-11-22T10:00:00Z', accepteLe: '2026-11-22T10:10:00Z' } }));
-dit('avec sa place', 'place', etatDuDevisEnDirect({ id: 'p1', lienDuDevis: { jeton: 'abcdefghjkmnpq', creeLe: '2026-11-22T10:00:00Z', accepteLe: '2026-11-22T10:10:00Z', place: { jour: '2026-12-01', heure: '10 h' } } }));
+const PLACE_LE = '2026-11-22T10:20:00Z';
+const avecPlace = { id: 'p1', lines: [{ qty: 1, unitXof: 32_000, discountPct: 0 }], lienDuDevis: { jeton: 'abcdefghjkmnpq', creeLe: '2026-11-22T10:00:00Z', accepteLe: '2026-11-22T10:10:00Z', placeLe: PLACE_LE, place: { jour: '2026-12-01', heure: '10 h' } } };
+dit('sa place est tenue, l acompte l attend', 'a-payer', etatDuDevisEnDirect(avecPlace, Date.parse('2026-11-22T12:00:00Z')));
+dit('l acompte regle confirme la place', 'place', etatDuDevisEnDirect({ ...avecPlace, lienDuDevis: { ...avecPlace.lienDuDevis, paiement: { le: '2026-11-22T11:00:00Z', montantXof: 9_600, moyen: 'en-ligne' } } }, Date.parse('2026-11-22T12:00:00Z')));
+dit('declare a l accueil, la place est confirmee aussi', 'place', etatDuDevisEnDirect({ ...avecPlace, lienDuDevis: { ...avecPlace.lienDuDevis, paiement: { le: '2026-11-22T11:00:00Z', montantXof: 9_600, moyen: 'accueil' } } }, Date.parse('2026-11-22T12:00:00Z')));
+dit('passe vingt-quatre heures, la place se libere', 'accepte', etatDuDevisEnDirect(avecPlace, Date.parse('2026-11-23T10:20:00Z')));
+dit('a la vingt-quatrieme heure, elle tient encore', 'a-payer', etatDuDevisEnDirect(avecPlace, Date.parse('2026-11-23T10:19:00Z')));
+dit('sans heure de place, on ne libere pas', true, placeEncoreTenue({ payee: false, maintenant: Date.now() }));
+dit('l acompte est le taux sur la piece', 9_600, acompteAttendu({ lignes: [{ qty: 1, unitXof: 32_000, discountPct: 0 }], pct: 30 }));
+dit('sans taux, aucun acompte', 0, acompteAttendu({ lignes: [{ qty: 1, unitXof: 32_000, discountPct: 0 }], pct: 0 }));
+dit('le total de la piece tient compte de ses remises', 22_000, totalDeLaPieceDuDevis([{ qty: 1, unitXof: 25_000, discountPct: 0 }, { qty: 1, unitXof: 12_000, discountPct: 0 }], 0, 15_000));
 dit('une pièce introuvable', 'introuvable', etatDuDevisEnDirect(null));
 dit('elle prend le modèle conseillé si elle n a rien choisi', 'm2', choixValable(offre, undefined)?.modele.id);
 dit('elle prend celui qu elle a choisi', 'm1', choixValable(offre, { modele: 'm1' })?.modele.id);
@@ -189,7 +199,10 @@ vrai('la fonction ne laisse pas remodeler un devis accepte', fn.includes("if (d.
 vrai('la fonction exige l acceptation avant la place', fn.includes("if (!d.lienDuDevis.accepteLe) return json({ error: 'pas_accepte' }, 409);"));
 vrai('la fonction garde la premiere place', fn.includes('if (d.lienDuDevis.place) return json({ ok: true, deja: true, page: page(d) });'));
 vrai('la fonction ecrit les lignes de son choix, jamais un montant recu', fn.includes('const { lignes, deductionXof } = lignesDuChoix(') && fn.includes("if (b.action === 'regler')") === false);
-vrai('la fonction ne parle pas a KkiaPay', !fn.includes('KKIAPAY') && !fn.includes('kkiapay.me'));
+vrai('la fonction relit la transaction chez KkiaPay', fn.includes('KKIA_VERIFY_PATH') && fn.includes('await transaction(transactionId)'));
+vrai('l acompte ne vient pas du telephone', fn.includes('acompteAttendu({') && fn.includes("if (attendu > 0 && paye + 1 < attendu) return json({ error: 'montant', attendu }, 402);"));
+vrai('la place tombe au bout de vingt-quatre heures, au serveur', fn.includes('libereLaPlaceSiTropTard(piece, d)') && fn.includes("status: 'acceptée', lienDuDevis: lien"));
+vrai('l accueil confirme la place sans argent', fn.includes("moyen: 'accueil'") && fn.includes('async function aLAccueil'));
 vrai('la fonction se freine', fn.includes("permis(ipOf(req), 'devis-valider', 30)"));
 dit('la regle recopiee est la meme, mot pour mot', copieAttendue(process.cwd()), copieDuServeur(process.cwd()));
 /* ── LA PAGE CLIENTE ET SON PONT ──────────────────────────────────────── */

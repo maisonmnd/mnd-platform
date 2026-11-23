@@ -25,6 +25,7 @@ const PONT = 'public/payer.html';
 const PAGE_DEVIS = 'src/apps/devis/App.tsx';
 const COMPOSEUR = 'src/apps/trone/routes/clients/DevisEnDirect.tsx';
 const FENETRE = 'src/apps/trone/routes/clients/actions.tsx';
+const FN_DEVIS = 'supabase/functions/devis-en-direct/index.ts';
 const PANNES = [
   /* Les prix et les durées */
   ['le prix ignore le calibre', PUR, 'export const prixDuModele = (baseXof: number, coef: number): number => arrondiDuDevis((Number(baseXof) || 0) * (Number(coef) || 1));', 'export const prixDuModele = (baseXof: number): number => arrondiDuDevis(Number(baseXof) || 0);'],
@@ -60,6 +61,10 @@ const PANNES = [
   ['la piece du devis nait avec trois modeles en lignes', COMPOSEUR, 'lines: [], globalDiscountPct: 0', 'lines: modeles.map((m) => ({ id: m.id, label: m.nom, qty: 1, unitXof: m.xof, discountPct: 0 })), globalDiscountPct: 0'],
   ['le devis n est plus marque au fauteuil', COMPOSEUR, 'auFauteuil: { le: quand },', ''],
   ['le composeur sort de la fenetre du rendez-vous', FENETRE, '<DevisEnDirect appt={appt}', '<div appt={appt}'],
+  /* L'acompte et la place */
+  ['la place ne tombe plus', PIECE, '  return o.maintenant - ms < DELAI_DE_LA_PLACE_MS;', '  return true;'],
+  ['l acompte ignore la pièce', PIECE, '  return Math.max(0, Math.round((total * pct) / 100));', '  return 0;'],
+  ['la fonction ecrit l acompte recu par elle', FN_DEVIS, "  if (attendu > 0 && paye + 1 < attendu) return json({ error: 'montant', attendu }, 402);", ''],
 ];
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');
 

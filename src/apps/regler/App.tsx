@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
 import { estUnePanneDeKkiapay, kkiapayPeutSOuvrir, payWithKkiapay } from '../../shared/kkiapay-widget';
 import { TexteFon } from '../../ds/fon';
@@ -10,7 +10,7 @@ import { MOYENS_DU_SCEAU, type MoyenDuSceau } from '../../shared/le-sceau-pur';
 import { ecouteLeFilDuSceau } from '../../shared/le-fil-du-sceau';
 import { PayerParMtn } from './Mtn';
 import { PayerParFedaPay } from './FedaPay';
-import { Sceau, SceauPose } from './Sceau';
+import { Sceau, SceauPose } from '../../ds/sceau';
 
 /* ══ RÉGLER SA SÉANCE — la page de la cliente (25 octobre 2026) ══════════
    Ouverte depuis le bouton « Régler » de son message (payer.html?tg=r-…).

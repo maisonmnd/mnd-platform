@@ -1,4 +1,4 @@
-import { build } from 'esbuild';
+﻿import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -21,7 +21,7 @@ const prouve = process.argv.includes('--prouve');
 const PUR = 'src/shared/le-sceau-pur.ts';
 const FN = 'supabase/functions/regler-la-seance/index.ts';
 const APP = 'src/apps/regler/App.tsx';
-const SCEAU = 'src/apps/regler/Sceau.tsx';
+const SCEAU = 'src/ds/sceau.tsx';
 const FIL = 'src/shared/le-fil-du-sceau.ts';
 const TRONE = 'src/apps/trone/routes/clients/ReglementEnDirect.tsx';
 const PANNES = [

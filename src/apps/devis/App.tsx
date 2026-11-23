@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { asset } from '../../shared/asset';
 import { TexteFon } from '../../ds/fon';
-import { SCEAU_CUIVRE } from '../../shared/le-sceau-pur';
+import { SCEAU_CUIVRE, MOYENS_DU_SCEAU, type MoyenDuSceau } from '../../shared/le-sceau-pur';
+import { Sceau } from '../../ds/sceau';
+import { payWithKkiapay } from '../../shared/kkiapay-widget';
 import {
-  accepteLeDevis, confirmeLaPlace, ditLeRefus, lisLeDevis, valideLeDevis, type PageDuDevis,
+  accepteLeDevis, confirmeLaPlace, ditLeRefus, lisLeDevis, paieLAcompte, regleraALAccueil, valideLeDevis, type PageDuDevis,
 } from '../../shared/devis-en-direct-serveur';
 
 /* ══ LE DEVIS EN DIRECT — la page de la cliente · 22 novembre 2026 ══════
@@ -51,6 +53,8 @@ export default function App() {
   const [options, setOptions] = useState<string[]>([]);
   const [jour, setJour] = useState('');
   const [heure, setHeure] = useState('');
+  /* L'ACOMPTE (23 novembre 2026) : le moyen choisi et l'attente de KkiaPay. */
+  const [moyen, setMoyen] = useState<MoyenDuSceau>('mtn');
 
   const applique = useCallback((r: { ok?: boolean; page?: PageDuDevis; error?: string }) => {
     if (!r.ok || !r.page) { setErreur(ditLeRefus(r.error)); return false; }
@@ -71,6 +75,23 @@ export default function App() {
     setModele((m) => m || page.choisi || page.modele || page.modeles.find((x) => x.conseille)?.id || page.modeles[0]?.id || '');
     setOptions((o) => (o.length ? o : (page.prises ?? [])));
   }, [page]);
+
+  /* L'ACOMPTE (23 novembre 2026) : le sceau ouvre KkiaPay, et la fonction
+     relit la transaction chez KkiaPay avant d'écrire quoi que ce soit. La
+     page ne dit qu'une chose — la transaction qu'elle vient de faire. */
+  const payerLAcompte = async (acompteXof: number, reference: string, branchId: string) => {
+    if (occupe) return;
+    setOccupe(true);
+    setErreur('');
+    try {
+      const { transactionId } = await payWithKkiapay({ amountXof: acompteXof, partnerId: reference, branchId });
+      applique(await paieLAcompte(jeton, transactionId));
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : 'Le paiement n’a pas abouti.');
+    } finally {
+      setOccupe(false);
+    }
+  };
 
   const geste = async (envoi: () => Promise<{ ok?: boolean; page?: PageDuDevis; error?: string }>) => {
     if (occupe) return;
@@ -240,6 +261,52 @@ export default function App() {
             onClick={() => { void geste(() => confirmeLaPlace(jeton, jour, heure)); }}>
             Oui, je confirme ma place
           </button>
+        </section>
+      )}
+
+      {page && page.etat === 'a-payer' && (
+        <section className="dv-bloc" aria-label="Votre acompte">
+          <p className="dv-sur">Votre acompte</p>
+          <h1 className="dv-titre">{page.place ? `${jourDit(page.place.jour)}, ${page.place.heure}.` : 'Votre place.'}</h1>
+          <p className="dv-doux">Votre place est tenue{page.placeTientJusqua ? ` jusqu’à ${page.placeTientJusqua}` : ''}. L’acompte la confirme.</p>
+
+          {page.acompteXof > 0 ? (
+            <>
+              <div className="dv-merci">
+                <span className="dv-doux">Comment régler</span>
+                <div className="dv-puces">
+                  {MOYENS_DU_SCEAU.map((m) => {
+                    const on = moyen === m.k;
+                    return (
+                      <button key={m.k} type="button" className={on ? 'dv-puce dv-puce--on' : 'dv-puce'} aria-pressed={on}
+                        disabled={occupe} onClick={() => setMoyen(m.k)}>{m.nom}</button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="dv-lignes">
+                <div className="dv-ligne"><span>Acompte ({page.acomptePct} %)</span><span>{francs(page.acompteXof)}</span></div>
+                <div className="dv-ligne dv-doux"><span>KkiaPay ajoute ses frais</span><span>au paiement</span></div>
+              </div>
+              <Sceau montantXof={page.acompteXof} disabled={occupe}
+                dit={occupe ? 'Paiement en cours…' : 'Maintenez le sceau une seconde'}
+                onTenue={() => { void payerLAcompte(page.acompteXof, page.reference, page.branchId); }} />
+              <p className="dv-doux dv-petit dv-centre">KkiaPay s’ouvre sur votre téléphone : {MOYENS_DU_SCEAU.find((m) => m.k === moyen)?.nom ?? 'MTN'}, puis votre code secret, ou votre carte.</p>
+              <button type="button" className="dv-autre" disabled={occupe}
+                onClick={() => { void geste(() => regleraALAccueil(jeton)); }}>
+                Je règle à l’accueil
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="dv-doux">La Maison ne demande pas d’acompte pour ce rituel : votre place se confirme d’un toucher.</p>
+              <button type="button" className="dv-oui" disabled={occupe}
+                onClick={() => { void geste(() => regleraALAccueil(jeton)); }}>
+                Confirmer ma place
+              </button>
+            </>
+          )}
+          {erreur && <p className="dv-souci" role="alert">{erreur}</p>}
         </section>
       )}
 

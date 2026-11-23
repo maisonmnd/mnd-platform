@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+﻿import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* devis-en-direct — le devis de la consultation, sur son téléphone
  * (22 novembre 2026).
@@ -68,6 +68,190 @@ async function permis(ip: string, seau: string, plafond: number): Promise<boolea
 }
 
 // ── DEBUT copie de shared/devis-en-direct.ts (verifie-le-devis-en-direct la compare, mot pour mot)
+/* ══ LE DEVIS EN DIRECT — 22 novembre 2026 ═══════════════════════════════
+   « Le même système de connexion automatique entre le Trône et les portables
+   de nos clients pour faire les devis ou les demandes de modèles de
+   coiffures […] des devis instantanés, avec « Valider », « Oui, j'accepte le
+   devis », « Oui, je confirme ma place », prendre son rendez-vous et faire
+   le paiement en ligne si possible » (Yéman). Maquette jouable
+   `FCTFNSr748gq1ecEHxhDMj` (version 2), lot 1 : le devis de la consultation
+   en direct, les trois oui, la place. La passation est
+   `mnd-passation-sceau-et-devis`.
+
+   CE QUI EST TRANCHÉ PAR ELLE, ET NE SE ROUVRE PAS :
+   · en consultation, elle reçoit son devis sur son téléphone : nombre de
+     locks, longueur, modèle à choisir, options, suppléments ;
+   · les options et les suppléments viennent du CATALOGUE du Trône, jamais
+     inventés ;
+   · les trois confirmations, à ces mots exacts : « Valider », « Oui,
+     j'accepte le devis », « Oui, je confirme ma place » ;
+   · elle prend elle-même son rendez-vous, et règle en ligne « si possible » ;
+   · une demande par page, jamais deux mêlées.
+
+   CE FICHIER EST PUR (aucun magasin, aucun React) : le banc
+   `scripts/verifie-le-devis-en-direct.mjs --prouve` l'éprouve sans écran.
+   Les calibres lui sont DONNÉS (ceux de `pricing.ts` à l'écran), jamais
+   recalculés ici : une seule table les porte, et elle se règle aux
+   Paramètres.
+
+   LE TÉLÉPHONE NE DÉCIDE D'AUCUN MONTANT. Ce module calcule ce que la
+   MAISON propose ; la page cliente reçoit des lignes déjà chiffrées, et la
+   fonction du devis les recalcule au serveur avant de les lui montrer. Un
+   prix qu'elle aurait pu forger ne sort jamais de la Maison. */
+
+/** Le type d'une longueur, celui du catalogue (`LongueurId`), sans importer
+    `catalog.ts` — qui porte des magasins. */
+export type LongueurDuDevis = 'court' | 'mi-long' | 'long';
+export const LONGUEURS_DU_DEVIS: readonly { id: LongueurDuDevis; nom: string; dit: string }[] = [
+  { id: 'court', nom: 'Courtes', dit: 'jusqu’aux épaules' },
+  { id: 'mi-long', nom: 'Mi-longues', dit: 'des épaules aux omoplates' },
+  { id: 'long', nom: 'Longues', dit: 'au-delà des omoplates' },
+];
+export const rangDeLaLongueur = (id: unknown): number => (id === 'long' ? 2 : id === 'mi-long' ? 1 : 0);
+
+/* ── LE CALIBRE, LU SUR LE NOMBRE DE LOCKS ──────────────────────────────
+   La Maison parle en calibres (Jumbo, Medium, Mini…), pas en tranches : le
+   maître tape le nombre de locks, le Trône lit le calibre, et le prix du
+   modèle suit son coefficient. Les bornes et les coefficients viennent des
+   Paramètres (`MODEL_BANDS_SEED` de `pricing.ts`). */
+export type BandeLue = { id?: string; name?: string; maxLocks: number | null; coef: number; durCoef: number };
+export type CalibreLu = { nom: string; min: number; max: number | null; coef: number; durCoef: number };
+
+export function calibreDuNombreDeLocks(nLocks: unknown, bands: readonly BandeLue[]): CalibreLu | null {
+  const locks = Math.floor(Number(nLocks));
+  if (!(locks >= 1) || !bands.length) return null;
+  for (let i = 0; i < bands.length; i++) {
+    const b = bands[i];
+    if (b.maxLocks === null || locks <= b.maxLocks) {
+      const min = i === 0 ? 1 : Number(bands[i - 1].maxLocks ?? 0) + 1;
+      return { nom: String(b.name ?? '').trim() || `Calibre ${i + 1}`, min, max: b.maxLocks, coef: Number(b.coef) || 1, durCoef: Number(b.durCoef) || 1 };
+    }
+  }
+  return null;
+}
+
+/** « Medium · 81 à 150 locks », « Galaxy · 551 locks et plus ». */
+export const calibreDit = (c: CalibreLu | null): string =>
+  !c ? '' : c.max === null ? `${c.nom} · ${c.min} locks et plus` : `${c.nom} · ${c.min} à ${c.max} locks`;
+
+/* ── LES PRIX ───────────────────────────────────────────────────────────── */
+/** Le prix d'un modèle se dit au demi-millier, jamais au franc près : la
+    Maison ne vend pas 26 437 F. */
+export const ARRONDI_DU_DEVIS_XOF = 500;
+export const arrondiDuDevis = (x: number): number => Math.round((Number(x) || 0) / ARRONDI_DU_DEVIS_XOF) * ARRONDI_DU_DEVIS_XOF;
+
+/** Le prix d'un modèle de consultation : sa base × le coefficient du calibre. */
+export const prixDuModele = (baseXof: number, coef: number): number => arrondiDuDevis((Number(baseXof) || 0) * (Number(coef) || 1));
+
+/** Sa durée : celle du catalogue, allongée par le calibre (au quart d'heure). */
+export const dureeDuModele = (minutes: number, durCoef: number): number =>
+  Math.max(0, Math.round(((Number(minutes) || 0) * (Number(durCoef) || 1)) / 15) * 15);
+
+/** La durée dite : « 3 h 30 », « 45 min ». */
+export function dureeDite(minutes: number): string {
+  const t = Math.max(0, Math.round(Number(minutes) || 0));
+  const h = Math.floor(t / 60); const m = t % 60;
+  if (!h) return m ? `${m} min` : '—';
+  return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`;
+}
+
+/** Le prix d'une option du catalogue, pour SA longueur. Une option qu'il ne
+    vend pas à cette longueur ne se propose pas. */
+export function prixDeLOption(prix: number | readonly number[] | undefined, longueur: LongueurDuDevis): number | null {
+  if (prix === undefined || prix === null) return null;
+  if (Array.isArray(prix)) {
+    const v = prix[rangDeLaLongueur(longueur)];
+    return v === undefined ? null : Math.round(Number(v) || 0);
+  }
+  return Math.round(Number(prix) || 0);
+}
+
+/* ── LES LIGNES ET LE TOTAL ─────────────────────────────────────────────── */
+export type LigneDuDevisEnDirect = {
+  /** Le libellé que la cliente lit, tel qu'il partira sur la pièce. */
+  label: string;
+  xof: number;
+  /** Une ligne de la Maison (le modèle), une option qu'elle a cochée, un
+      supplément qu'on lui inclut, la consultation déduite. */
+  genre: 'modele' | 'option' | 'supplement' | 'consultation';
+};
+
+/** La consultation déjà réglée se déduit UNE fois, et seulement si elle a
+    été payée. C'est une ligne négative, dite « déduite ». */
+export function ligneDeLaConsultationDejaReglee(paidXof: number, label: string): LigneDuDevisEnDirect | null {
+  const x = Math.round(Number(paidXof) || 0);
+  return x > 0 ? { label, xof: -x, genre: 'consultation' } : null;
+}
+
+/** Le total : jamais sous zéro. */
+export const totalDuDevis = (lignes: readonly LigneDuDevisEnDirect[]): number =>
+  Math.max(0, lignes.reduce((s, l) => s + (Math.round(Number(l.xof) || 0)), 0));
+
+/** L'acompte : le taux réglé au Trône (`depositPctFor`, 30 % par défaut). */
+export const acompteDuDevisEnDirect = (totalXof: number, pct: number): number =>
+  Math.max(0, Math.round((Math.max(0, Math.round(Number(totalXof) || 0)) * Math.max(0, Math.min(100, Number(pct) || 0))) / 100));
+
+/* ── LES TROIS OUI ────────────────────────────────────────────────────────
+   « Trois confirmations, à ces mots exacts » (Yéman). Un seul geste par
+   page : le devis, puis « Valider » ; la relecture, puis « Oui, j'accepte le
+   devis » ; le calendrier, puis « Oui, je confirme ma place ». */
+export type EtapeDuDevisEnDirect = 'devis' | 'valide' | 'accepte' | 'place' | 'scelle';
+export const ETAPES_DU_DEVIS_EN_DIRECT: readonly EtapeDuDevisEnDirect[] = ['devis', 'valide', 'accepte', 'place', 'scelle'];
+
+export type GesteDuDevisEnDirect = 'valider' | 'accepter' | 'confirmer';
+
+export const LES_TROIS_OUI: Record<GesteDuDevisEnDirect, string> = {
+  valider: 'Valider',
+  accepter: 'Oui, j’accepte le devis',
+  confirmer: 'Oui, je confirme ma place',
+};
+
+/** Ce que le geste fait à l'état, et ce qu'il exige. Le geste d'une étape
+    passée ne se rejoue pas : une page rouverte ne reclique pas deux fois. */
+export function apresLeGeste(etape: EtapeDuDevisEnDirect, geste: GesteDuDevisEnDirect): EtapeDuDevisEnDirect | null {
+  if (etape === 'devis' && geste === 'valider') return 'valide';
+  if (etape === 'valide' && geste === 'accepter') return 'accepte';
+  if (etape === 'accepte' && geste === 'confirmer') return 'place';
+  return null;
+}
+
+/** Le geste que la page attend, à cette étape — et rien après « place ». */
+export const gesteAttendu = (etape: EtapeDuDevisEnDirect): GesteDuDevisEnDirect | null =>
+  etape === 'devis' ? 'valider' : etape === 'valide' ? 'accepter' : etape === 'accepte' ? 'confirmer' : null;
+
+/** L'étape où il en est, à partir de l'état de la pièce au Trône. La pièce
+    (`Invoice`) garde ses états ; ce module ne les réécrit pas. */
+export function etapeDeLaPiece(status: string | undefined, aSaPlace: boolean, payee: boolean): EtapeDuDevisEnDirect {
+  if (payee) return 'scelle';
+  if (aSaPlace || status === 'confirmé') return 'place';
+  if (status === 'acceptée') return 'accepte';
+  if (status === 'envoyée') return 'valide';
+  return 'devis';
+}
+
+/* ── LA PLACE ───────────────────────────────────────────────────────────── */
+/** Une place est TENUE dès qu'elle est choisie, et CONFIRMÉE quand l'argent
+    est arrivé (ou qu'elle a dit qu'elle réglerait à l'accueil : le Trône le
+    pose). Sans acompte, elle se libère — au bout de combien de temps, c'est
+    une question posée à Yéman, pas une règle de ce fichier. */
+export type EtatDeLaPlace = 'tenue' | 'confirmee' | 'liberee';
+export const placeDite = (e: EtatDeLaPlace): string =>
+  e === 'confirmee' ? 'confirmée' : e === 'liberee' ? 'libérée' : 'tenue';
+
+/** Ce que la Maison dit d'un devis qui part : ses trois mots, et la phrase
+    qui les annonce. */
+export function motDUneEtape(etape: EtapeDuDevisEnDirect): string {
+  if (etape === 'devis') return 'Voici votre devis. Lisez-le, et validez ce qui vous plaît.';
+  if (etape === 'valide') return 'Vos choix sont arrêtés. Il reste à accepter le devis.';
+  if (etape === 'accepte') return 'Choisissez votre place : la Maison vous y attend.';
+  if (etape === 'place') return 'Votre place est tenue. L’acompte la confirme.';
+  return 'Merci.';
+}
+
+/** LES SALUTATIONS DU DERNIER ÉCRAN — « Merci. », signé « Maison MND ». */
+export const MERCI_DU_DEVIS = 'Merci.';
+export const SIGNATURE_DU_DEVIS = 'Maison MND';
+
 /* ══ LE DEVIS EN DIRECT, CÔTÉ PIÈCE — 22 novembre 2026 ═══════════════════
    Le devis que le maître compose au fauteuil, et que la cliente reçoit sur
    son téléphone. Les règles de calcul sont dans `devis-en-direct-pur.ts` ;
@@ -141,6 +325,10 @@ export type LienDuDevis = {
   accepteLe?: string;
   placeLe?: string;
   place?: { jour: string; heure: string };
+  /** L'ACOMPTE — 23 novembre 2026 (PaiementDuDevis). C'est lui qui
+      CONFIRME la place ; sans lui, elle se libère au bout de vingt-quatre
+      heures (placeEncoreTenue). */
+  paiement?: PaiementDuDevis;
 };
 
 /** UN MODÈLE PROPOSÉ : son nom, son prix pour SA tête, sa durée, et le
@@ -167,12 +355,23 @@ export type OffreDuDevis = {
   places?: { jour: string; heure: string }[];
   /** La consultation déjà réglée, déduite de la pièce (un montant, une fois). */
   deductionXof?: number;
+  /** L'ACOMPTE DE LA RÉSERVATION — 23 novembre 2026. Le taux réglé au Trône
+      (`depositPctFor`, 30 % par défaut) est posé ici quand le devis part :
+      la fonction le relit pour dire ce qu'elle doit, sans lire les réglages.
+      0 : aucun acompte, la place se confirme à l'accueil. */
+  acomptePct?: number;
 };
+
+/** L'ACOMPTE RÉGLÉ (ou déclaré à l'accueil). `accueil` : elle a dit qu'elle
+    paierait au comptoir ; la place est confirmée sans argent. */
+export type PaiementDuDevis = { le: string; montantXof: number; moyen: 'en-ligne' | 'accueil'; transactionId?: string };
 
 export type ChoixDeLaCliente = { modele?: string; options?: string[]; valideLe?: string };
 
 export type DevisLuEnDirect = {
   id: string; kind?: string; status?: string; date?: string;
+  /** La maison de la pièce : KkiaPay la reçoit avec le paiement. */
+  branchId?: string;
   clientId?: string; forClientId?: string; clientName?: string; apptId?: string;
   master?: string;
   lines?: LigneLue[]; globalDiscountPct?: number; globalDiscountXof?: number;
@@ -185,15 +384,22 @@ export type DevisLuEnDirect = {
 
 /* ── CE QUE LA PAGE PEUT LIRE ───────────────────────────────────────────── */
 
-export type EtatDuDevisEnDirect = 'introuvable' | 'brouillon' | 'devis' | 'valide' | 'accepte' | 'place';
+export type EtatDuDevisEnDirect = 'introuvable' | 'brouillon' | 'devis' | 'valide' | 'accepte' | 'a-payer' | 'place';
 
 /** L'état de la page, lu sur la marque du lien puis sur la pièce. */
-export function etatDuDevisEnDirect(d: DevisLuEnDirect | null): EtatDuDevisEnDirect {
+export function etatDuDevisEnDirect(d: DevisLuEnDirect | null, maintenant = Date.now()): EtatDuDevisEnDirect {
   if (!d) return 'introuvable';
   const l = d.lienDuDevis;
   if (!l) return 'brouillon';
-  if (d.status === 'payée' || d.status === 'confirmé') return 'place';
-  if (l.place?.jour && l.accepteLe) return 'place';
+  /* LA PLACE CHOISIE — 23 novembre 2026. Tenue, elle attend l'acompte
+     (« a-payer ») ; l'acompte réglé (en ligne ou à l'accueil) la confirme
+     (« place ») ; passées vingt-quatre heures sans l'un ni l'autre, elle
+     s'est libérée et elle choisit à nouveau (« accepte »). */
+  if (l.place?.jour) {
+    if (l.paiement?.le) return 'place';
+    return placeEncoreTenue({ placeLe: l.placeLe, payee: false, maintenant }) ? 'a-payer' : 'accepte';
+  }
+  if (d.status === 'payée') return 'place';
   if (l.accepteLe || d.status === 'acceptée') return 'accepte';
   /* LES CHOIX ARRÊTÉS NE SE REMODÈLENT PAS (maquette, « valide ») : après son
      « Valider », elle relit et accepte — elle ne choisit plus. */
@@ -258,6 +464,57 @@ export function dureeDeLOffre(o: OffreDuDevis | undefined, c: ChoixDeLaCliente |
   return Math.max(0, Math.round(Number(v.modele.dureeMin) || 0) + v.options.reduce((s, x) => s + (Number(x.dureeMin) || 0), 0));
 }
 
+/* ── LA PLACE TENUE, ET L'ACOMPTE — 23 novembre 2026 ──────────────────────
+   LA RÉPONSE DE YÉMAN, ce matin, à la question de la passation : « Une place
+   choisie mais pas payée se libère au bout de VINGT-QUATRE HEURES. » Et « Je
+   règle à l'accueil » reste une autre voie que l'acompte en ligne, tant que
+   le comptoir existe.
+
+   La place se choisit sur le téléphone, elle est TENUE à cet instant, et
+   elle se CONFIRME par l'argent — en ligne, ou déclaré à l'accueil. Passé
+   vingt-quatre heures sans l'un ni l'autre, la place se libère : la cliente
+   retrouve le calendrier, et quelqu'un d'autre peut la prendre. La fonction
+   le vérifie à chaque lecture, jamais une page ouverte dans un téléphone. */
+export const DELAI_DE_LA_PLACE_MS = 24 * 3_600_000;
+
+/** La place est-elle encore tenue ? `payee` couvre l'acompte en ligne ET le
+    « je règle à l'accueil » : une fois l'un ou l'autre, elle ne s'ouvre
+    plus. Sans heure connue, on ne libère pas (on ne prend pas une place à
+    une cliente pour une marque manquante). */
+export function placeEncoreTenue(o: { placeLe?: string; payee: boolean; maintenant: number }): boolean {
+  if (o.payee) return true;
+  const ms = Date.parse(String(o.placeLe ?? ''));
+  if (!Number.isFinite(ms)) return true;
+  return o.maintenant - ms < DELAI_DE_LA_PLACE_MS;
+}
+
+/** Le moment où elle se libérerait, en clair : « aujourd'hui à 16 h 40 »,
+    « demain à 9 h 05 ». Ce que la page dit quand il reste peu de temps. */
+export function quandLaPlaceSeLibere(placeLe: string | undefined): string {
+  const ms = Date.parse(String(placeLe ?? ''));
+  if (!Number.isFinite(ms)) return '';
+  const d = new Date(ms + DELAI_DE_LA_PLACE_MS + 3_600_000);
+  const h = `${d.getUTCHours()} h ${String(d.getUTCMinutes()).padStart(2, '0')}`;
+  return `${h}`;
+}
+
+/** LE TOTAL DE LA PIÈCE, la même lecture qu'`invoiceTotal` : les lignes
+    nettes, la remise de ligne, la remise de la pièce. C'est LUI qui fait foi
+    au moment de l'acompte — l'offre a servi à la composer, la pièce décide. */
+export function totalDeLaPieceDuDevis(lignes: readonly { qty?: number; unitXof?: number; discountPct?: number; discountXof?: number }[], remisePct = 0, remiseXof = 0): number {
+  const sous = (lignes ?? []).reduce((s, l) => s + Math.max(0, Math.round(Number(l.qty) || 0) * Math.round(Number(l.unitXof) || 0) * (1 - (Number(l.discountPct) || 0) / 100) - Math.max(0, Math.round(Number(l.discountXof) || 0))), 0);
+  return Math.max(0, Math.round(sous * (1 - (Number(remisePct) || 0) / 100)) - Math.max(0, Math.round(Number(remiseXof) || 0)));
+}
+
+/** L'ACOMPTE ATTENDU, calculé au serveur : le taux posé à l'envoi du devis,
+    borné, sur le total de la pièce. Zéro taux : aucun acompte, la place
+    s'achète à l'accueil. */
+export function acompteAttendu(o: { lignes: readonly { qty?: number; unitXof?: number; discountPct?: number; discountXof?: number }[]; remisePct?: number; remiseXof?: number; pct?: number }): number {
+  const total = totalDeLaPieceDuDevis(o.lignes, o.remisePct, o.remiseXof);
+  const pct = Math.max(0, Math.min(100, Number(o.pct) || 0));
+  return Math.max(0, Math.round((total * pct) / 100));
+}
+
 /** CE QUE LE TÉLÉPHONE REÇOIT, et rien de plus qu'elle : ni nom de famille,
     ni numéro, ni le prix des modèles qu'elle n'a pas choisis. */
 export function pageDuDevisEnDirect(o: {
@@ -293,6 +550,16 @@ export function pageDuDevisEnDirect(o: {
     dureeMin: dureeDeLOffre(offre, choix),
     ...(v ? { modele: v.modele.id } : {}),
     places: (offre?.places ?? []).map((p) => ({ jour: p.jour, heure: p.heure })),
+    /* L'ACOMPTE ET LA PLACE (23 novembre 2026) : ce qu'elle doit pour
+       confirmer sa place, et si elle l'a déjà fait. */
+    reference: `dev-${d.id}`,
+    /* La maison part avec le paiement : sans elle, un paiement dont le devis
+       n'existe pas encore au registre ignore sa maison. */
+    branchId: String(d.branchId ?? ''),
+    acompteXof: acompteAttendu({ lignes: d.lines ?? [], remisePct: d.globalDiscountPct, remiseXof: d.globalDiscountXof, pct: offre?.acomptePct ?? 0 }),
+    acomptePct: Math.max(0, Math.min(100, Number(offre?.acomptePct) || 0)),
+    ...(d.lienDuDevis?.paiement ? { paiement: d.lienDuDevis.paiement } : {}),
+    ...(d.lienDuDevis?.placeLe && !d.lienDuDevis.paiement ? { placeTientJusqua: quandLaPlaceSeLibere(d.lienDuDevis.placeLe) } : {}),
     ...(d.lienDuDevis?.place ? { place: d.lienDuDevis.place } : {}),
   };
 }
@@ -311,7 +578,7 @@ async function laPieceDuJeton(jeton: string): Promise<Ligne | null> {
   return lues.length === 1 ? lues[0] : null;
 }
 
-const devisDe = (p: Ligne): DevisLuEnDirect => ({ ...(p.data ?? {}), id: p.id } as unknown as DevisLuEnDirect);
+const devisDe = (p: Ligne): DevisLuEnDirect => ({ ...(p.data ?? {}), id: p.id, branchId: p.branch_id } as unknown as DevisLuEnDirect);
 
 async function ecris(p: Ligne, data: Record<string, unknown>): Promise<void> {
   const { error } = await admin.from('invoices').update({ data }).eq('id', p.id);
@@ -327,7 +594,10 @@ async function lire(req: Request, b: Record<string, unknown>, noterLOuverture: b
   if (!FORME_DU_JETON.test(jeton)) return json({ error: 'lien' }, 400);
   const piece = await laPieceDuJeton(jeton);
   if (!piece) return json({ ok: true, page: { etat: 'introuvable' } });
-  const d = devisDe(piece);
+  let d = devisDe(piece);
+  /* LA PLACE TOMBÉE SE DIT À LA LECTURE (23 novembre 2026) : vingt-quatre
+     heures sans acompte, elle s'efface — une fois, au serveur. */
+  d = await libereLaPlaceSiTropTard(piece, d);
   if (noterLOuverture && d.lienDuDevis && !d.lienDuDevis.ouvertLe) {
     const lien = { ...d.lienDuDevis, ouvertLe: new Date().toISOString() };
     await ecris(piece, { ...(piece.data ?? {}), lienDuDevis: lien });
@@ -420,6 +690,116 @@ async function confirmer(req: Request, b: Record<string, unknown>) {
   return json({ ok: true, page: page({ ...(neuve as unknown as DevisLuEnDirect), id: piece.id }) });
 }
 
+/* ══ LA PLACE LIBÉRÉE, L'ACOMPTE — 23 novembre 2026 ════════════════════
+   La réponse de Yéman : une place choisie mais pas payée SE LIBÈRE AU BOUT
+   DE VINGT-QUATRE HEURES, et « Je règle à l'accueil » reste une autre voie.
+   La fonction juge à chaque lecture ; une page laissée ouverte dans un
+   téléphone ne décide rien. */
+const KKIA_BASE = Deno.env.get('KKIAPAY_API_BASE') ?? 'https://api.kkiapay.me';
+const KKIA_VERIFY_PATH = '/api/v1/transactions/status';
+
+/** La transaction, relue chez KkiaPay : le retour du widget ne prouve rien. */
+async function transaction(transactionId: string): Promise<{ status?: string; amount?: number; failureMessage?: string }> {
+  const res = await fetch(`${KKIA_BASE}${KKIA_VERIFY_PATH}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': Deno.env.get('KKIAPAY_PUBLIC_KEY') ?? '',
+      'x-private-key': Deno.env.get('KKIAPAY_PRIVATE_KEY') ?? '',
+      'x-secret-key': Deno.env.get('KKIAPAY_SECRET_KEY') ?? '',
+    },
+    body: JSON.stringify({ transactionId }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(res.status === 404 ? 'transaction_introuvable' : `kkiapay_${res.status} ${detail.slice(0, 160)}`);
+  }
+  return (await res.json()) as { status?: string; amount?: number; failureMessage?: string };
+}
+
+const jourDeCotonou = (d: Date): string => new Date(d.getTime() + 3_600_000).toISOString().slice(0, 10);
+const heureDeCotonou = (d: Date): string => new Date(d.getTime() + 3_600_000).toISOString().slice(11, 16);
+
+/** LA PLACE TOMBÉE : vingt-quatre heures sans acompte, elle s'efface et le
+    devis attend qu'elle en choisisse une autre. Écrit une fois, à la
+    lecture — la page, comme le Trône, voit la même chose. */
+async function libereLaPlaceSiTropTard(piece: Ligne, d: DevisLuEnDirect): Promise<DevisLuEnDirect> {
+  const l = d.lienDuDevis;
+  if (!l?.place || l.paiement?.le) return d;
+  if (placeEncoreTenue({ placeLe: l.placeLe, payee: false, maintenant: Date.now() })) return d;
+  const { place: _place, placeLe: _placeLe, ...sans } = l;
+  const lien = { ...sans, libereLe: new Date().toISOString() };
+  const neuve = { ...(piece.data ?? {}), status: 'acceptée', lienDuDevis: lien };
+  await ecris(piece, neuve as Record<string, unknown>);
+  return { ...(neuve as unknown as DevisLuEnDirect), id: piece.id };
+}
+
+/** PAYER — l'acompte, en ligne. Le montant ne vient pas du téléphone : il se
+    calcule sur la pièce (le taux posé à l'envoi), et la transaction se relit
+    chez KkiaPay avant d'être écrite. */
+async function payer(req: Request, b: Record<string, unknown>) {
+  if (!(await permis(ipOf(req), 'devis-payer', 20))) return json({ error: 'trop' }, 429);
+  const jeton = String(b.jeton ?? '').trim();
+  const transactionId = String(b.transactionId ?? '').trim();
+  if (!FORME_DU_JETON.test(jeton) || !transactionId) return json({ error: 'lien' }, 400);
+  const piece = await laPieceDuJeton(jeton);
+  if (!piece) return json({ error: 'lien_introuvable' }, 404);
+  const d = await libereLaPlaceSiTropTard(piece, devisDe(piece));
+  const l = d.lienDuDevis;
+  if (!l) return json({ error: 'lien_introuvable' }, 404);
+  if (l.paiement?.le) return json({ ok: true, deja: true, page: page(d) });
+  if (!l.accepteLe) return json({ error: 'pas_accepte' }, 409);
+  if (!l.place) return json({ error: 'pas_place' }, 409);
+  const tx = await transaction(transactionId);
+  if (String(tx.status ?? '').toUpperCase() !== 'SUCCESS') return json({ error: 'echec', detail: tx.failureMessage ?? tx.status ?? '' }, 402);
+  const attendu = acompteAttendu({
+    lignes: d.lines ?? [], remisePct: d.globalDiscountPct, remiseXof: d.globalDiscountXof,
+    pct: d.devisDuFauteuil?.acomptePct ?? 0,
+  });
+  const paye = Math.round(Number(tx.amount) || 0);
+  if (attendu > 0 && paye + 1 < attendu) return json({ error: 'montant', attendu }, 402);
+  const quand = new Date();
+  const montant = attendu > 0 ? Math.min(paye, attendu) : paye;
+  const versement = {
+    id: `kkia-${transactionId}`, date: jourDeCotonou(quand), time: heureDeCotonou(quand),
+    amountXof: montant, method: 'KkiaPay', cashbox: 'KkiaPay', note: `Acompte du devis · transaction ${transactionId}`,
+  };
+  const neuve = {
+    ...(piece.data ?? {}),
+    status: 'confirmé',
+    payments: [...((piece.data?.payments as unknown[]) ?? []), versement],
+    lienDuDevis: { ...l, paiement: { le: quand.toISOString(), montantXof: montant, moyen: 'en-ligne', transactionId } },
+  };
+  await ecris(piece, neuve as Record<string, unknown>);
+  return json({ ok: true, paiementXof: montant, page: page({ ...(neuve as unknown as DevisLuEnDirect), id: piece.id }) });
+}
+
+/** JE RÈGLE À L'ACCUEIL — l'autre voie, tant que le comptoir existe. La place
+    est confirmée sans argent ; le Trône voit l'acompte à encaisser. */
+async function aLAccueil(req: Request, b: Record<string, unknown>) {
+  if (!(await permis(ipOf(req), 'devis-accueil', 20))) return json({ error: 'trop' }, 429);
+  const jeton = String(b.jeton ?? '').trim();
+  if (!FORME_DU_JETON.test(jeton)) return json({ error: 'lien' }, 400);
+  const piece = await laPieceDuJeton(jeton);
+  if (!piece) return json({ error: 'lien_introuvable' }, 404);
+  const d = await libereLaPlaceSiTropTard(piece, devisDe(piece));
+  const l = d.lienDuDevis;
+  if (!l) return json({ error: 'lien_introuvable' }, 404);
+  if (l.paiement?.le) return json({ ok: true, deja: true, page: page(d) });
+  if (!l.accepteLe) return json({ error: 'pas_accepte' }, 409);
+  if (!l.place) return json({ error: 'pas_place' }, 409);
+  const attendu = acompteAttendu({
+    lignes: d.lines ?? [], remisePct: d.globalDiscountPct, remiseXof: d.globalDiscountXof,
+    pct: d.devisDuFauteuil?.acomptePct ?? 0,
+  });
+  const neuve = {
+    ...(piece.data ?? {}),
+    lienDuDevis: { ...l, paiement: { le: new Date().toISOString(), montantXof: attendu, moyen: 'accueil' } },
+  };
+  await ecris(piece, neuve as Record<string, unknown>);
+  return json({ ok: true, attendu, page: page({ ...(neuve as unknown as DevisLuEnDirect), id: piece.id }) });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method === 'GET') return json({ fonction: 'devis-en-direct', ok: true, secrets: { service: !!SERVICE_KEY } });
@@ -429,6 +809,8 @@ Deno.serve(async (req) => {
     if (b.action === 'valider') return await valider(req, b);
     if (b.action === 'accepter') return await accepter(req, b);
     if (b.action === 'confirmer') return await confirmer(req, b);
+    if (b.action === 'payer') return await payer(req, b);
+    if (b.action === 'accueil') return await aLAccueil(req, b);
     return json({ error: 'action' }, 400);
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);

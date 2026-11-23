@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { asset } from '../../shared/asset';
-import { PICTOGRAMME_DU_SCEAU, SCEAU_CUIVRE, TENUE_DU_SCEAU_MS } from '../../shared/le-sceau-pur';
+﻿import { useEffect, useRef, useState } from 'react';
+import { asset } from '../shared/asset';
+import { PICTOGRAMME_DU_SCEAU, SCEAU_CUIVRE, TENUE_DU_SCEAU_MS } from '../shared/le-sceau-pur';
 
 /* ══ LE SCEAU — le geste de la page « Régler » · 22 novembre 2026 ════════
    « Un doigt maintenu une seconde » (Yéman, maquette LK7GvACWPzWgJ7WNZeZigp,
@@ -78,3 +78,4 @@ export function SceauPose({ petit }: { petit?: boolean }) {
     />
   );
 }
+

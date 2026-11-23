@@ -1,4 +1,4 @@
-/* LA COPIE DES RÈGLES DANS LA FONCTION `devis-en-direct` — 22 novembre 2026.
+﻿/* LA COPIE DES RÈGLES DANS LA FONCTION `devis-en-direct` — 22 novembre 2026.
    Même montage que le règlement (regler-copie-serveur.mjs) : une fonction
    Edge se colle seule et n'importe rien de `src/`, elle porte donc une COPIE
    des règles de shared/devis-en-direct.ts. `node scripts/devis-en-direct-copie-serveur.mjs`
@@ -15,6 +15,9 @@ import path from 'node:path';
 
 const racine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const source = (r = racine) => path.join(r, 'src', 'shared', 'devis-en-direct.ts');
+/** Les règles du devis, dans l'ordre : la règle pure, puis la pièce et la page.
+    Les deux n'importent rien, et la fonction les reçoit d'un seul bloc. */
+export const sourceRegle = (r = racine) => path.join(r, 'src', 'shared', 'devis-en-direct-pur.ts');
 export const serveur = (r = racine) => path.join(r, 'supabase', 'functions', 'devis-en-direct', 'index.ts');
 export const DEBUT = '// ── DEBUT copie de shared/devis-en-direct.ts (verifie-le-devis-en-direct la compare, mot pour mot)';
 export const FIN = '// ── FIN copie de shared/devis-en-direct.ts';
@@ -22,9 +25,11 @@ export const FIN = '// ── FIN copie de shared/devis-en-direct.ts';
 /** Le texte attendu entre les bornes : le fichier, sans sa première ligne de
     commentaire de tête (la fonction a la sienne). */
 export function copieAttendue(r = racine) {
-  const texte = readFileSync(source(r), 'utf8').replace(/\r\n/g, '\n');
-  if (/^import /m.test(texte)) throw new Error('shared/devis-en-direct.ts importe quelque chose : la copie ne peut plus être faite seule');
-  return texte.trim();
+  const morceaux = [sourceRegle(r), source(r)].map((f) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n'));
+  for (const texte of morceaux) {
+    if (/^import /m.test(texte)) throw new Error('une des règles du devis importe quelque chose : la copie ne peut plus être faite seule');
+  }
+  return morceaux.map((x) => x.trim()).join('\n\n');
 }
 
 export function copieDuServeur(r = racine) {

@@ -5,6 +5,7 @@ import { uid } from '../../../../shared/store';
 import type { Appointment } from '../../../../shared/agenda';
 import type { Service } from '../../../../shared/catalog';
 import { jetonDuDevis, type ModeleDuDevis, type OptionDuDevis } from '../../../../shared/devis-en-direct';
+import { settingsStore } from '../../../../shared/settings';
 
 /* ══ LE DEVIS EN DIRECT, AU TRÔNE — 22 novembre 2026 ════════════════════
    « Le même système de connexion automatique entre le Trône et les portables
@@ -107,6 +108,10 @@ export function DevisEnDirect({ appt, services, prixDuService }: {
       options,
       ...(mot.trim() ? { mot: mot.trim() } : {}),
       places,
+      /* L'ACOMPTE (23 novembre 2026) : le taux réglé au Trône, 30 % par
+         défaut. Il part avec l'offre ; la fonction le relit pour dire ce
+         qu'elle doit. */
+      acomptePct: Math.max(0, Math.min(100, Number(settingsStore.get().onlineDepositPct) || 0)),
       ...(Number(deduction.replace(/\D/g, '') || 0) > 0 ? { deductionXof: Number(deduction.replace(/\D/g, '')) } : {}),
     };
     const inv: Invoice = {

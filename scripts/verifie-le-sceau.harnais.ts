@@ -1,4 +1,4 @@
-/* LE SCEAU, ÉPROUVÉ — `node scripts/verifie-le-sceau.mjs`.
+﻿/* LE SCEAU, ÉPROUVÉ — `node scripts/verifie-le-sceau.mjs`.
 
    22 novembre 2026 : « I want to give to another session the build for the
    last two maquette that was made : devis en direct et le sceau de la
@@ -129,7 +129,7 @@ vrai('la page s’en remet au filet sans le fil', app.includes('45_000'));
 vrai('le dernier écran dit « Merci. »', app.includes('>Merci.</h2>'));
 vrai('le dernier écran signe la Maison', app.includes('>Maison MND</p>'));
 
-const sceau = lis('src/apps/regler/Sceau.tsx');
+const sceau = lis('src/ds/sceau.tsx');
 vrai('le sceau tient une seconde', sceau.includes('minuteur.current = window.setTimeout(() => { minuteur.current = null; setTient(false); onTenue(); }, TENUE_DU_SCEAU_MS);'));
 vrai('le sceau s’ouvre au clavier', sceau.includes('if (e.detail === 0) onTenue();'));
 vrai('le sceau ne part pas du bouton du Trône', sceau.includes('SCEAU_CUIVRE'));

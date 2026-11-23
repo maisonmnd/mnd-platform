@@ -1,4 +1,4 @@
-﻿/* ══ LE DEVIS EN DIRECT, CÔTÉ PIÈCE — 22 novembre 2026 ═══════════════════
+/* ══ LE DEVIS EN DIRECT, CÔTÉ PIÈCE — 22 novembre 2026 ═══════════════════
    Le devis que le maître compose au fauteuil, et que la cliente reçoit sur
    son téléphone. Les règles de calcul sont dans `devis-en-direct-pur.ts` ;
    ici, ce qui vit SUR LA PIÈCE et ce que la page a le droit de lire.
@@ -71,6 +71,10 @@ export type LienDuDevis = {
   accepteLe?: string;
   placeLe?: string;
   place?: { jour: string; heure: string };
+  /** L'ACOMPTE — 23 novembre 2026 (PaiementDuDevis). C'est lui qui
+      CONFIRME la place ; sans lui, elle se libère au bout de vingt-quatre
+      heures (placeEncoreTenue). */
+  paiement?: PaiementDuDevis;
 };
 
 /** UN MODÈLE PROPOSÉ : son nom, son prix pour SA tête, sa durée, et le
@@ -97,12 +101,23 @@ export type OffreDuDevis = {
   places?: { jour: string; heure: string }[];
   /** La consultation déjà réglée, déduite de la pièce (un montant, une fois). */
   deductionXof?: number;
+  /** L'ACOMPTE DE LA RÉSERVATION — 23 novembre 2026. Le taux réglé au Trône
+      (`depositPctFor`, 30 % par défaut) est posé ici quand le devis part :
+      la fonction le relit pour dire ce qu'elle doit, sans lire les réglages.
+      0 : aucun acompte, la place se confirme à l'accueil. */
+  acomptePct?: number;
 };
+
+/** L'ACOMPTE RÉGLÉ (ou déclaré à l'accueil). `accueil` : elle a dit qu'elle
+    paierait au comptoir ; la place est confirmée sans argent. */
+export type PaiementDuDevis = { le: string; montantXof: number; moyen: 'en-ligne' | 'accueil'; transactionId?: string };
 
 export type ChoixDeLaCliente = { modele?: string; options?: string[]; valideLe?: string };
 
 export type DevisLuEnDirect = {
   id: string; kind?: string; status?: string; date?: string;
+  /** La maison de la pièce : KkiaPay la reçoit avec le paiement. */
+  branchId?: string;
   clientId?: string; forClientId?: string; clientName?: string; apptId?: string;
   master?: string;
   lines?: LigneLue[]; globalDiscountPct?: number; globalDiscountXof?: number;
@@ -115,15 +130,22 @@ export type DevisLuEnDirect = {
 
 /* ── CE QUE LA PAGE PEUT LIRE ───────────────────────────────────────────── */
 
-export type EtatDuDevisEnDirect = 'introuvable' | 'brouillon' | 'devis' | 'valide' | 'accepte' | 'place';
+export type EtatDuDevisEnDirect = 'introuvable' | 'brouillon' | 'devis' | 'valide' | 'accepte' | 'a-payer' | 'place';
 
 /** L'état de la page, lu sur la marque du lien puis sur la pièce. */
-export function etatDuDevisEnDirect(d: DevisLuEnDirect | null): EtatDuDevisEnDirect {
+export function etatDuDevisEnDirect(d: DevisLuEnDirect | null, maintenant = Date.now()): EtatDuDevisEnDirect {
   if (!d) return 'introuvable';
   const l = d.lienDuDevis;
   if (!l) return 'brouillon';
-  if (d.status === 'payée' || d.status === 'confirmé') return 'place';
-  if (l.place?.jour && l.accepteLe) return 'place';
+  /* LA PLACE CHOISIE — 23 novembre 2026. Tenue, elle attend l'acompte
+     (« a-payer ») ; l'acompte réglé (en ligne ou à l'accueil) la confirme
+     (« place ») ; passées vingt-quatre heures sans l'un ni l'autre, elle
+     s'est libérée et elle choisit à nouveau (« accepte »). */
+  if (l.place?.jour) {
+    if (l.paiement?.le) return 'place';
+    return placeEncoreTenue({ placeLe: l.placeLe, payee: false, maintenant }) ? 'a-payer' : 'accepte';
+  }
+  if (d.status === 'payée') return 'place';
   if (l.accepteLe || d.status === 'acceptée') return 'accepte';
   /* LES CHOIX ARRÊTÉS NE SE REMODÈLENT PAS (maquette, « valide ») : après son
      « Valider », elle relit et accepte — elle ne choisit plus. */
@@ -188,6 +210,57 @@ export function dureeDeLOffre(o: OffreDuDevis | undefined, c: ChoixDeLaCliente |
   return Math.max(0, Math.round(Number(v.modele.dureeMin) || 0) + v.options.reduce((s, x) => s + (Number(x.dureeMin) || 0), 0));
 }
 
+/* ── LA PLACE TENUE, ET L'ACOMPTE — 23 novembre 2026 ──────────────────────
+   LA RÉPONSE DE YÉMAN, ce matin, à la question de la passation : « Une place
+   choisie mais pas payée se libère au bout de VINGT-QUATRE HEURES. » Et « Je
+   règle à l'accueil » reste une autre voie que l'acompte en ligne, tant que
+   le comptoir existe.
+
+   La place se choisit sur le téléphone, elle est TENUE à cet instant, et
+   elle se CONFIRME par l'argent — en ligne, ou déclaré à l'accueil. Passé
+   vingt-quatre heures sans l'un ni l'autre, la place se libère : la cliente
+   retrouve le calendrier, et quelqu'un d'autre peut la prendre. La fonction
+   le vérifie à chaque lecture, jamais une page ouverte dans un téléphone. */
+export const DELAI_DE_LA_PLACE_MS = 24 * 3_600_000;
+
+/** La place est-elle encore tenue ? `payee` couvre l'acompte en ligne ET le
+    « je règle à l'accueil » : une fois l'un ou l'autre, elle ne s'ouvre
+    plus. Sans heure connue, on ne libère pas (on ne prend pas une place à
+    une cliente pour une marque manquante). */
+export function placeEncoreTenue(o: { placeLe?: string; payee: boolean; maintenant: number }): boolean {
+  if (o.payee) return true;
+  const ms = Date.parse(String(o.placeLe ?? ''));
+  if (!Number.isFinite(ms)) return true;
+  return o.maintenant - ms < DELAI_DE_LA_PLACE_MS;
+}
+
+/** Le moment où elle se libérerait, en clair : « aujourd'hui à 16 h 40 »,
+    « demain à 9 h 05 ». Ce que la page dit quand il reste peu de temps. */
+export function quandLaPlaceSeLibere(placeLe: string | undefined): string {
+  const ms = Date.parse(String(placeLe ?? ''));
+  if (!Number.isFinite(ms)) return '';
+  const d = new Date(ms + DELAI_DE_LA_PLACE_MS + 3_600_000);
+  const h = `${d.getUTCHours()} h ${String(d.getUTCMinutes()).padStart(2, '0')}`;
+  return `${h}`;
+}
+
+/** LE TOTAL DE LA PIÈCE, la même lecture qu'`invoiceTotal` : les lignes
+    nettes, la remise de ligne, la remise de la pièce. C'est LUI qui fait foi
+    au moment de l'acompte — l'offre a servi à la composer, la pièce décide. */
+export function totalDeLaPieceDuDevis(lignes: readonly { qty?: number; unitXof?: number; discountPct?: number; discountXof?: number }[], remisePct = 0, remiseXof = 0): number {
+  const sous = (lignes ?? []).reduce((s, l) => s + Math.max(0, Math.round(Number(l.qty) || 0) * Math.round(Number(l.unitXof) || 0) * (1 - (Number(l.discountPct) || 0) / 100) - Math.max(0, Math.round(Number(l.discountXof) || 0))), 0);
+  return Math.max(0, Math.round(sous * (1 - (Number(remisePct) || 0) / 100)) - Math.max(0, Math.round(Number(remiseXof) || 0)));
+}
+
+/** L'ACOMPTE ATTENDU, calculé au serveur : le taux posé à l'envoi du devis,
+    borné, sur le total de la pièce. Zéro taux : aucun acompte, la place
+    s'achète à l'accueil. */
+export function acompteAttendu(o: { lignes: readonly { qty?: number; unitXof?: number; discountPct?: number; discountXof?: number }[]; remisePct?: number; remiseXof?: number; pct?: number }): number {
+  const total = totalDeLaPieceDuDevis(o.lignes, o.remisePct, o.remiseXof);
+  const pct = Math.max(0, Math.min(100, Number(o.pct) || 0));
+  return Math.max(0, Math.round((total * pct) / 100));
+}
+
 /** CE QUE LE TÉLÉPHONE REÇOIT, et rien de plus qu'elle : ni nom de famille,
     ni numéro, ni le prix des modèles qu'elle n'a pas choisis. */
 export function pageDuDevisEnDirect(o: {
@@ -223,6 +296,16 @@ export function pageDuDevisEnDirect(o: {
     dureeMin: dureeDeLOffre(offre, choix),
     ...(v ? { modele: v.modele.id } : {}),
     places: (offre?.places ?? []).map((p) => ({ jour: p.jour, heure: p.heure })),
+    /* L'ACOMPTE ET LA PLACE (23 novembre 2026) : ce qu'elle doit pour
+       confirmer sa place, et si elle l'a déjà fait. */
+    reference: `dev-${d.id}`,
+    /* La maison part avec le paiement : sans elle, un paiement dont le devis
+       n'existe pas encore au registre ignore sa maison. */
+    branchId: String(d.branchId ?? ''),
+    acompteXof: acompteAttendu({ lignes: d.lines ?? [], remisePct: d.globalDiscountPct, remiseXof: d.globalDiscountXof, pct: offre?.acomptePct ?? 0 }),
+    acomptePct: Math.max(0, Math.min(100, Number(offre?.acomptePct) || 0)),
+    ...(d.lienDuDevis?.paiement ? { paiement: d.lienDuDevis.paiement } : {}),
+    ...(d.lienDuDevis?.placeLe && !d.lienDuDevis.paiement ? { placeTientJusqua: quandLaPlaceSeLibere(d.lienDuDevis.placeLe) } : {}),
     ...(d.lienDuDevis?.place ? { place: d.lienDuDevis.place } : {}),
   };
 }

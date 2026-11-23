@@ -1,4 +1,4 @@
-/* ══ LE DEVIS EN DIRECT — 22 novembre 2026 ═══════════════════════════════
+﻿/* ══ LE DEVIS EN DIRECT — 22 novembre 2026 ═══════════════════════════════
    « Le même système de connexion automatique entre le Trône et les portables
    de nos clients pour faire les devis ou les demandes de modèles de
    coiffures […] des devis instantanés, avec « Valider », « Oui, j'accepte le
