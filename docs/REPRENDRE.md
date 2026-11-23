@@ -2,9 +2,10 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE SCEAU, SUITE 1 : RÉGLER À DEUX — 23 novembre 2026, bancs verts, mise en ligne confiée (`regler-la-seance` à passer en v41 ; le Trône ; aucun SQL, aucun secret)
+## LE SCEAU, SUITE 1 : RÉGLER À DEUX — 23 novembre 2026, EN LIGNE (`regler-la-seance` v43, VERSION `2026-11-23-a`, `verify_jwt` non ; Trône build 20261123003818 @ c7cdcbe4, 561/561 servis ; aucun SQL, aucun secret)
 
-**Essai réel : à faire après la mise en ligne** — sur un rendez-vous d'essai : « Régler à deux », un prénom, « Envoyer le lien à Fatou ». Le lien part (WhatsApp ou copie), l'invitée l'ouvre, voit « La séance d'Awa » et son reste, paie par KkiaPay ; la note d'Awa baisse. Le Trône montre « Elle invite Fatou à régler avec elle ». Une seconde invitation éteint la première.
+**Essai réel (fait par l'agent de mise en ligne) :** le GET rend **`2026-11-23-a`** (le code neuf sert), et `action: 'inviter'` avec un jeton bien formé mais inconnu rend **404 `lien_introuvable`**, jamais « action inconnue » ; `regler.html?r=…` répond 200 (3 556 octets), `verifie-le-servi` 561/561. **Reste à voir en vrai** : deux téléphones, l'un qui invite, l'autre qui paie une part, et la note qui baisse. **Pièges de ce jour, tous les deux réels** : la copie serveur n'emportait pas `nomDInviteePropre`/`LienDInvitee` (l'action aurait levé) — réparé, et la **VERSION** de la fonction était figée depuis quatre lots, si bien qu'une mise en ligne ratée se lisait comme réussie : elle suit désormais chaque changement, et le banc l'exige. **Fausse alerte à retenir** : un POST « action inconnue » venait de PowerShell 5.1 qui retirait les guillemets d'un JSON passé en argument à `curl.exe` (le corps partait sans guillemets, `req.json()` tombait dans son catch) — envoyer le corps **par fichier** (`--data-binary @fichier`).
+
 
 - **Un second lien, un seul à la fois** (maquette LK7GvACWPzWgJ7WNZeZigp) : la cliente nomme son invitée (dix-huit signes au plus, `nomDInviteePropre`), et la fonction tire un **jeton neuf** (`lienDInvitee`) qu'elle écrit sur le rendez-vous avec le prénom et l'heure. **Chaque invitation en tire un neuf : l'ancien lien ne retrouve plus rien** — c'est ainsi que « l'ancien s'éteint », sans base nouvelle.
 - **La porte de l'invitée** : `leRdvDuJetonOuDeLInvitee` lit le rendez-vous par l'un ou l'autre jeton ; sa page ne lui propose pas, à son tour, de régler à deux (`parInvitee`). L'argent se partage comme avant : le reste d'abord, le pourboire au-delà.
