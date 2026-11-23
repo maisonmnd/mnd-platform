@@ -185,5 +185,14 @@ vrai('la fonction lit le jeton des étoiles deja depose', fn2.includes('async fu
 vrai('la fonction ne depose aucune demande d avis', !fn2.includes("from('envois').insert"));
 vrai('la page ouvre le vrai bouton quand le jeton existe', lis('src/apps/regler/App.tsx').includes('regler.html?e=') && lis('src/apps/regler/App.tsx').includes('Donner mes étoiles'));
 vrai('sans jeton, la page dit « ce soir »', lis('src/apps/regler/App.tsx').includes('La Maison vous écrit ce soir sur WhatsApp'));
+/* ── LA GAMME AU FAUTEUIL (23 novembre 2026) ──────────────────────────── */
+vrai('la fonction rend la gamme de sa maison', fn2.includes('async function laGammeDeLaMaison') && fn2.includes("from('catalog_products')"));
+vrai('le prix vient du catalogue, jamais du telephone', fn2.includes('unitXof: produit.xof') && fn2.includes("if (!produit) return json({ error: 'produit' }, 400);"));
+vrai('un seul produit, une seule ligne', fn2.includes("if (lignes.some((l) => l.id === id)) return json({ ok: true, deja: true });"));
+vrai('une seance reglee n ajoute plus rien', fn2.includes("if (d.status === 'payée' || resteDeLaPiece({ ...d, id: piece.id }) <= 0) return json({ error: 'deja_reglee' }, 409);"));
+const pageRegler = lis('src/apps/regler/App.tsx');
+vrai('la page a son etagere et son retour', pageRegler.includes('La Gamme · prendre un soin') && pageRegler.includes('Visez l’étiquette.') && pageRegler.includes('Retour à ma note'));
+vrai('la ligne de la Gamme se retire', pageRegler.includes('retireLeProduit(l.produitId!)'));
+vrai('le Trone dit ce qu il faut lui remettre', lis('src/apps/trone/routes/clients/ReglementEnDirect.tsx').includes('La Gamme · à lui remettre'));
 console.log(`\n${n - ko}/${n} vérifications${ko ? `, ${ko} en échec` : ''}.`);
 process.exit(ko ? 1 : 0);

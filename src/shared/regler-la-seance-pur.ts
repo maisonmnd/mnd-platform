@@ -383,7 +383,7 @@ export function jourCourtDit(iso: string): string {
 }
 
 /** Une tête du foyer, telle que la page la montre : son prénom, son jour, ses lignes, son reste. */
-export type TeteDuFoyer = { prenom: string; jour: string; lignes: { label: string; montantXof: number }[]; resteXof: number };
+export type TeteDuFoyer = { prenom: string; jour: string; lignes: { label: string; montantXof: number; produitId?: string }[]; resteXof: number };
 
 /** CE QUE LA PAGE DU FOYER REÇOIT : les têtes dont la pièce existe, le tout
     en un montant, et la référence du foyer. Ni numéro, ni nom de famille. */

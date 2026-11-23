@@ -1,4 +1,4 @@
-﻿/* LA PAGE « RÉGLER SA SÉANCE » PARLE À SA FONCTION — 25 octobre 2026.
+/* LA PAGE « RÉGLER SA SÉANCE » PARLE À SA FONCTION — 25 octobre 2026.
    La cliente n'a pas de compte : la fonction Edge `regler-la-seance` (Verify
    JWT éteint) lit le lien et pose le règlement. Le montant se décide au
    serveur, jamais ici. Voir regler-la-seance-pur.ts. */
@@ -13,7 +13,7 @@ export type PageDuLien = {
   prenom: string;
   maitre: string;
   jour: string;
-  lignes: { label: string; montantXof: number }[];
+  lignes: { label: string; montantXof: number; produitId?: string }[];
   totalXof: number;
   recuXof: number;
   resteXof: number;
@@ -24,7 +24,7 @@ export type PageDuLien = {
   branchId: string;
   tapgo?: { parametre: string; totalXof: number };
   /** Le foyer (28 octobre 2026) : chaque tête, son jour, ses lignes, son reste. */
-  tetes?: { prenom: string; jour: string; lignes: { label: string; montantXof: number }[]; resteXof: number }[];
+  tetes?: { prenom: string; jour: string; lignes: { label: string; montantXof: number; produitId?: string }[]; resteXof: number }[];
   /** ON VIENT DU LIEN DE L'INVITÉE (23 novembre 2026) : la page ne propose
       pas, à son tour, de « régler à deux ». */
   parInvitee?: boolean;
@@ -62,6 +62,13 @@ async function appel(corps: Record<string, unknown>): Promise<Reponse> {
 }
 
 export const lisLeLien = (jeton: string) => appel({ action: 'lire', jeton });
+/** LA GAMME AU FAUTEUIL — 23 novembre 2026. Elle voit les produits de sa
+    maison (geste: 'lire'), en ajoute un ('ajouter'), le retire. Les prix
+    et les noms viennent du catalogue au serveur ; la page ne dit qu'un
+    identifiant. */
+export const laGamme = (jeton: string) => appel({ action: 'gamme', jeton, geste: 'lire' });
+export const ajouteALaGamme = (jeton: string, produitId: string) => appel({ action: 'gamme', jeton, geste: 'ajouter', produitId });
+export const retireDeLaGamme = (jeton: string, produitId: string) => appel({ action: 'gamme', jeton, geste: 'retirer', produitId });
 export const rattrapeLeLien = (jeton: string) => appel({ action: 'rattraper', jeton });
 export const regleLeLien = (jeton: string, transactionId: string) => appel({ action: 'regler', jeton, transactionId });
 /** LE SCEAU POSÉ — 22 novembre 2026. La page dit le moyen qu'elle a choisi ;

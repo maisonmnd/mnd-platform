@@ -1,4 +1,4 @@
-﻿import { useMemo } from 'react';
+import { useMemo } from 'react';
 import { createStore, useStore, uid, type Store } from './store';
 import type { ChoixDeLaCliente, LienDuDevis, OffreDuDevis } from './devis-en-direct';
 import { sameName } from './text';
@@ -144,6 +144,10 @@ export type InvoiceLine = {
 
       Absent sur toutes les pièces d'avant. */
   detail?: string[];
+  /** LE PRODUIT DE LA GAMME REMIS — 23 novembre 2026 (`le-sceau`, la Gamme au
+      fauteuil). La cliente a pris un produit sur l'étagère ; le Trône coche
+      ici le moment où il lui a été remis. Absent : pas encore remis. */
+  remisLe?: string;
 };
 
 export type Invoice = {

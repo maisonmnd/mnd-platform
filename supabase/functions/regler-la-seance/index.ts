@@ -1,4 +1,4 @@
-// deno-lint-ignore-file no-explicit-any
+﻿// deno-lint-ignore-file no-explicit-any
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /* regler-la-seance — la cliente règle sa séance depuis son téléphone
@@ -366,7 +366,7 @@ export function jourCourtDit(iso: string): string {
   return `${j === 1 ? '1er' : j} ${mois[m - 1]} ${iso.slice(0, 4)}`;
 }
 
-export type TeteDuFoyer = { prenom: string; jour: string; lignes: { label: string; montantXof: number }[]; resteXof: number };
+export type TeteDuFoyer = { prenom: string; jour: string; lignes: { label: string; montantXof: number; produitId?: string }[]; resteXof: number };
 
 export function pageDuFoyer(o: {
   tetes: readonly { rdv: RdvLu; piece: PieceLue | null; nom?: string; prenom?: string }[]; jeton: string; branchId?: string; maintenant: Date;
@@ -1311,6 +1311,66 @@ async function prochain(req: Request, b: any) {
   return json({ ok: true, prochainRituel: reponse });
 }
 
+/* ══ LA GAMME AU FAUTEUIL — 23 novembre 2026 ══════════════════════════
+   « Elle vise un soin sur l'étagère : il entre dans sa note. Le Trône dit
+   quoi lui remettre » (maquette LK7GvACWPzWgJ7WNZeZigp ; Yéman : « fais la
+   gamme »). Elle voit les produits de SA maison — ceux du catalogue, jamais
+   inventés —, en touche un, et sa note grandit à l'instant : le Trône le
+   voit, et le sceau aussi, qui relit le reste.
+
+   LE PRIX VIENT DU CATALOGUE, au serveur. La page ne dit qu'un identifiant ;
+   la fonction lit `catalog_products` (la branche du rendez-vous), prend le
+   prix et le nom, et pose la ligne avec son `produitId` — c'est lui qui fait
+   sortir le produit de la réserve à l'encaissement, comme au comptoir.
+   Une seule ligne par produit : deux touchers ne vendent pas deux huiles.
+   Une séance réglée n'ajoute plus rien. */
+async function laGammeDeLaMaison(branchId: string): Promise<{ id: string; nom: string; xof: number }[]> {
+  const { data, error } = await admin.from('catalog_products').select('id,data').eq('branch_id', branchId).limit(200);
+  if (error) return [];
+  return ((data ?? []) as Ligne[])
+    .map((l) => ({ id: l.id, nom: String(l.data?.name ?? '').trim(), xof: Math.round(Number(l.data?.priceXof) || 0), stock: Number(l.data?.stock) || 0, ordre: Number(l.data?.order) || 0 }))
+    .filter((p) => p.nom && p.xof > 0 && p.stock > 0)
+    .sort((a, b) => a.ordre - b.ordre || a.nom.localeCompare(b.nom))
+    .map(({ id, nom, xof }) => ({ id, nom, xof }));
+}
+
+const idDeLaLigneGamme = (produitId: string): string => `gam-${produitId}`;
+
+async function gamme(req: Request, b: any) {
+  const jeton = String(b.jeton ?? '').trim();
+  if (!estUnJeton(jeton)) return json({ error: 'lien' }, 400);
+  const geste = String(b.geste ?? 'lire').trim();
+  if (!(await permis(ipOf(req), `regler-gamme-${geste === 'ajouter' || geste === 'retirer' ? 'ecrire' : 'lire'}`, geste === 'lire' ? 60 : 30))) {
+    return json({ error: 'trop' }, 429);
+  }
+  const rdv = await leRdvDuJeton(jeton);
+  if (!rdv) return json({ error: 'lien_introuvable' }, 404);
+  const produits = await laGammeDeLaMaison(rdv.branch_id);
+  if (geste === 'lire') return json({ ok: true, produits });
+  const produit = produits.find((p) => p.id === String(b.produitId ?? ''));
+  if (!produit) return json({ error: 'produit' }, 400);
+  const piece = await laPiece(rdv.id);
+  if (!piece) return json({ error: 'sans_piece' }, 409);
+  const d = piece.data ?? {};
+  if (d.status === 'payée' || resteDeLaPiece({ ...d, id: piece.id }) <= 0) return json({ error: 'deja_reglee' }, 409);
+  const lignes: any[] = Array.isArray(d.lines) ? d.lines : [];
+  const id = idDeLaLigneGamme(produit.id);
+  if (geste === 'ajouter') {
+    if (lignes.some((l) => l.id === id)) return json({ ok: true, deja: true });
+    const ligne = { id, label: produit.nom, qty: 1, unitXof: produit.xof, discountPct: 0, produitId: produit.id };
+    const { error } = await admin.from('invoices').update({ data: { ...d, lines: [...lignes, ligne] } }).eq('id', piece.id);
+    if (error) throw new Error(error.message);
+    return json({ ok: true, produit: { id: produit.id, nom: produit.nom, xof: produit.xof } });
+  }
+  if (geste === 'retirer') {
+    if (!lignes.some((l) => l.id === id)) return json({ ok: true, deja: true });
+    const { error } = await admin.from('invoices').update({ data: { ...d, lines: lignes.filter((l) => l.id !== id) } }).eq('id', piece.id);
+    if (error) throw new Error(error.message);
+    return json({ ok: true });
+  }
+  return json({ error: 'bad_request' }, 400);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method === 'GET') {
@@ -1330,6 +1390,7 @@ Deno.serve(async (req) => {
     if (b.action === 'sceau') return await sceau(req, b);
     if (b.action === 'inviter') return await inviter(req, b);
     if (b.action === 'prochain') return await prochain(req, b);
+    if (b.action === 'gamme') return await gamme(req, b);
     return json({ error: 'action' }, 400);
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);

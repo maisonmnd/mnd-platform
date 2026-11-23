@@ -196,6 +196,32 @@ export function ReglementEnDirect({ appt }: { appt: Appointment }) {
       )}
 
       {/* LE GESTE OFFERT — 22 novembre 2026. */}
+      {/* LA GAMME AU FAUTEUIL — 23 novembre 2026 : ce qu'elle a pris sur
+          l'étagère, et ce que la Maison lui a remis. */}
+      {(facture?.lines ?? []).some((l) => l.produitId) && (
+        <div style={{ borderTop: '1px solid var(--line, #EDE4D6)', paddingTop: 10, display: 'grid', gap: 6 }}>
+          <span style={{ font: '500 11px Jost, system-ui, sans-serif', letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft, #8A847C)' }}>La Gamme · à lui remettre</span>
+          {(facture?.lines ?? []).filter((l) => l.produitId).map((l) => (
+            <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', fontSize: 13 }}>
+              <span>{l.label}</span>
+              {l.remisLe
+                ? <span className="mnd-muted" style={{ fontSize: 12 }}>remis</span>
+                : (
+                  <Button size="sm" variant="ghost"
+                    onClick={() => {
+                      const quand = new Date().toISOString();
+                      setPieces((prev) => prev.map((x) => (x.id === facture?.id
+                        ? { ...x, lines: x.lines.map((y) => (y.id === l.id ? { ...y, remisLe: quand } : y)) }
+                        : x)));
+                      toast(`${l.label} : remis.`);
+                    }}>
+                    Remis
+                  </Button>
+                )}
+            </div>
+          ))}
+        </div>
+      )}
       {/* SA PROCHAINE PLACE — 23 novembre 2026. Le maître propose, elle
           confirme sur son téléphone ; la place se pose ici seulement après. */}
       <div style={{ borderTop: '1px solid var(--line, #EDE4D6)', paddingTop: 10, display: 'grid', gap: 8 }}>

@@ -67,6 +67,10 @@ const PANNES = [
   ['la page n offre plus le QR', APP, '          <QrSvg valeur={lienDeLInvitee}', '          <div valeur={lienDeLInvitee}'],
   /* Les étoiles d'un toucher */
   ['la fonction ne lit plus le jeton des étoiles', FN, "  const { data } = await admin.from('envois').select('data').eq('id', `env-${pieceId}-wa-avis`).limit(1);", '  const data: unknown[] = [];'],
+  /* La Gamme */
+  ['la gamme prend le prix de la page', FN, '    const ligne = { id, label: produit.nom, qty: 1, unitXof: produit.xof, discountPct: 0, produitId: produit.id };', '    const ligne = { id, label: produit.nom, qty: 1, unitXof: Number(b.prix) || 0, discountPct: 0, produitId: produit.id };'],
+  ['la gamme vend deux fois le meme produit', FN, "    if (lignes.some((l) => l.id === id)) return json({ ok: true, deja: true });", ''],
+  ['la page n a plus son etagere', APP, 'La Gamme · prendre un soin', 'La Gamme'],
   ['la fonction accepte n importe quel moyen', FN, "  if (!estUnJeton(jeton) || !MOYENS_DU_SCEAU.includes(moyen)) return json({ error: 'bad_request' }, 400);", '  if (!estUnJeton(jeton)) return json({ error: \'bad_request\' }, 400);'],
 ];
 

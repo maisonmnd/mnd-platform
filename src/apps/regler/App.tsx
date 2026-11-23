@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
 import { estUnePanneDeKkiapay, kkiapayPeutSOuvrir, payWithKkiapay } from '../../shared/kkiapay-widget';
 import { TexteFon } from '../../ds/fon';
-import { inviteAUnePart, lisLeLien, poseLeSceau, regleLeLien, repondsAuProchainRituel, type PageDuLien } from '../../shared/regler-la-seance-serveur';
+import { inviteAUnePart, laGamme, ajouteALaGamme, retireDeLaGamme, lisLeLien, poseLeSceau, regleLeLien, repondsAuProchainRituel, type PageDuLien } from '../../shared/regler-la-seance-serveur';
 import { attenteDeLaPiece, retourAMaCouronne } from '../../shared/terminer-et-regler-serveur';
 import { RE_DEMANDE_DU_LIEN } from '../../shared/regler-par-fedapay-pur';
 import { ATTENTE_FEDAPAY_LECTURES, ATTENTE_FEDAPAY_MS, statutFedaPay } from '../../shared/regler-par-fedapay-serveur';
@@ -314,6 +314,10 @@ export default function App() {
   const [modifie, setModifie] = useState(false);
   const [placeChoisie, setPlaceChoisie] = useState<{ jour: string; heure: string } | null>(null);
   const [etoilesFaite, setEtoilesFaite] = useState(false);
+  /* LA GAMME AU FAUTEUIL (23 novembre 2026) : l'étagère, ouverte d'un
+     toucher ; les produits viennent du CATALOGUE, au serveur. */
+  const [gammeOuverte, setGammeOuverte] = useState(false);
+  const [produits, setProduits] = useState<{ id: string; nom: string; xof: number }[]>([]);
   const [sortieOccupe, setSortieOccupe] = useState(false);
 
   const inviter = async () => {
@@ -340,8 +344,7 @@ export default function App() {
     }
   };
 
-  /* SA PROCHAINE PLACE : elle répond, la fonction l'écrit, la page se relit. */
-  const repondreAuProchainRituel = async (geste: 'confirmer' | 'choisir' | 'plus-tard', place?: { jour: string; heure: string }) => {
+  /* SA PROCHAINE PLACE : elle répond, la fonction l'écrit, la page se relit. */  const repondreAuProchainRituel = async (geste: 'confirmer' | 'choisir' | 'plus-tard', place?: { jour: string; heure: string }) => {
     if (sortieOccupe) return;
     setSortieOccupe(true);
     const r = await repondsAuProchainRituel(jeton, geste, place);
@@ -351,6 +354,30 @@ export default function App() {
     setModifie(false);
     const relu = await lisLeLien(jeton);
     if (relu.ok && relu.page) setEcran((e) => (e.k === 'reglee' ? { ...e, page: relu.page! } : e));
+  };
+
+  /* LA GAMME AU FAUTEUIL (23 novembre 2026) : l'étagère. Les produits
+     viennent du catalogue, au serveur ; le prix avec eux. Elle en prend un,
+     sa note grandit, le Trône le voit. */
+  const ouvreLaGamme = async () => {
+    setGammeOuverte(true);
+    const r = await laGamme(jeton);
+    const p = Array.isArray(r.produits) ? (r.produits as { id: string; nom: string; xof: number }[]) : [];
+    setProduits(p);
+  };
+  const prendsALaGamme = async (produitId: string) => {
+    const r = await ajouteALaGamme(jeton, produitId);
+    if (!r.ok) { setSouci(r.error === 'deja_reglee' ? 'Cette séance est déjà réglée : rien ne s’y ajoute.' : 'Le produit n’a pas pu s’ajouter. Réessayez à l’accueil.'); return; }
+    setSouci('');
+    setGammeOuverte(false);
+    const relu = await lisLeLien(jeton);
+    if (relu.ok && relu.page) setEcran((e) => ('page' in e ? { ...e, page: relu.page! } : e));
+  };
+  const retireLeProduit = async (produitId: string) => {
+    const r = await retireDeLaGamme(jeton, produitId);
+    if (!r.ok) { setSouci('Le produit n’a pas pu se retirer. Demandez à l’accueil.'); return; }
+    const relu = await lisLeLien(jeton);
+    if (relu.ok && relu.page) setEcran((e) => ('page' in e ? { ...e, page: relu.page! } : e));
   };
 
   const partager = async () => {
@@ -385,6 +412,33 @@ export default function App() {
       {(ecran.k === 'page' || ecran.k === 'paiement') && (() => {
         const p = ecran.page;
         const total = p.resteXof + (p.pourboire ? pourboire : 0);
+        /* L'ÉTAGÈRE, UNE PAGE À ELLE (maquette : « Visez l'étiquette. ») —
+           23 novembre 2026. Les produits et leurs prix viennent du catalogue,
+           au serveur ; elle n'en invente aucun. */
+        if (gammeOuverte) {
+          return (
+            <section className="rg-bloc" aria-label="La Gamme">
+              <button type="button" className="rg-lien" style={{ justifySelf: 'start' }}
+                onClick={() => setGammeOuverte(false)}>Retour à ma note</button>
+              <p className="rg-sur">La Gamme</p>
+              <h1 className="rg-titre">Visez l’étiquette.</h1>
+              <p className="rg-doux">Ce que la Maison peut vous remettre avant de partir. Ce que vous prenez s’ajoute à votre note, et l’équipe le voit.</p>
+              {produits.length === 0 && <p className="rg-doux">Rien n’est proposé pour l’instant.</p>}
+              {produits.map((x) => {
+                const pris = p.lignes.some((l) => l.produitId === x.id);
+                return (
+                  <button key={x.id} type="button" className="rg-autre" disabled={pris}
+                    onClick={() => { void prendsALaGamme(x.id); }}
+                    style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                    <span>{x.nom}</span>
+                    <span style={{ whiteSpace: 'nowrap' }}>{pris ? 'dans votre note' : francs(x.xof)}</span>
+                  </button>
+                );
+              })}
+              {souci && <p className="rg-souci" role="alert">{souci}</p>}
+            </section>
+          );
+        }
         return (
           <section className="rg-bloc" aria-label={p.sansPiece ? SUR_LA_PAGE[p.sansPiece] : p.tetes ? 'Régler les séances' : 'Régler la séance'}>
             <p className="rg-sur">{p.sansPiece ? SUR_LA_PAGE[p.sansPiece] : p.tetes ? 'Régler les séances' : 'Régler la séance'}</p>
@@ -395,7 +449,16 @@ export default function App() {
 
             <div className="rg-lignes">
               {p.lignes.map((l, i) => (
-                <div className="rg-ligne" key={i}><span>{l.label}</span><span>{francs(l.montantXof)}</span></div>
+                <div className="rg-ligne" key={i}>
+                  <span>{l.label}{l.produitId ? <em> · La Gamme</em> : null}</span>
+                  <span>
+                    {francs(l.montantXof)}
+                    {l.produitId && (
+                      <button type="button" className="rg-lien" style={{ marginLeft: 8 }}
+                        onClick={() => { void retireLeProduit(l.produitId!); }}>Retirer</button>
+                    )}
+                  </span>
+                </div>
               ))}
               {/* LE GESTE OFFERT (22 novembre 2026) : la Maison l'a posé sur sa
                   note, elle le voit sans rien toucher. Il est DÉJÀ dans le
@@ -520,6 +583,11 @@ export default function App() {
             {/* RÉGLER À DEUX (23 novembre 2026) : elle nomme son invitée, un
                 seul lien à la fois. L'invitée, elle, ne voit pas ce bouton —
                 elle est déjà celle qui règle. */}
+            {/* LA GAMME AU FAUTEUIL — 23 novembre 2026 : deux tuiles, comme
+                la maquette — prendre un soin, ou régler à deux. */}
+            <div className="rg-puces">
+              <button type="button" className="rg-autre" style={{ flex: 1 }} onClick={() => { void ouvreLaGamme(); }}>La Gamme · prendre un soin</button>
+            </div>
             {!p.parInvitee && (
               <div className="rg-merci">
                 {p.invitee ? (
