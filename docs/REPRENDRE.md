@@ -2,9 +2,9 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE SCEAU, SUITE 2 : LA PLACE CONFIRMÉE À LA SORTIE, PUIS LES ÉTOILES — 23 novembre 2026, bancs verts, mise en ligne confiée (`regler-la-seance` à passer en v44 ; le Trône ; aucun SQL, aucun secret)
+## LE SCEAU, SUITE 2 : LA PLACE CONFIRMÉE À LA SORTIE, PUIS LES ÉTOILES — 23 novembre 2026, EN LIGNE (`regler-la-seance` v44, VERSION `2026-11-23-a`, `verify_jwt` non ; Trône build 20261123010329 @ 8b0144c7, 561/561 servis ; aucun SQL, aucun secret)
 
-**Essai réel : à faire après la mise en ligne** — un rendez-vous réglé en ligne : l'écran « Votre prochain rituel » paraît avec la place que le maître a proposée (fenêtre du rendez-vous, « Proposer cette place »), « Confirmer cette place » l'écrit, « Modifier » propose les autres places, « Pas maintenant » passe. Puis la page des étoiles, puis « Merci. » avec la place retenue rappelée.
+**Essai réel (fait par l'agent de mise en ligne) :** le GET rend **`2026-11-23-a`** du premier coup, et `action: 'prochain'` avec un jeton bien formé mais inconnu rend **404 `lien_introuvable`** — jamais « action inconnue ». `regler.html?r=…` répond 200, `verifie-le-servi` 561/561, `version.json` dit `20261123010329`. **Reste à voir en vrai (c'est le dernier essai du chantier)** : un rendez-vous réglé en ligne, l'écran « Votre prochain rituel » avec la place proposée au Trône, « Confirmer cette place », puis la page des étoiles, puis « Merci. » avec la place retenue.
 
 - **L'ordre de Yéman** (maquette, version 9) : sa prochaine place d'abord — « Confirmer cette place » ou « Modifier », **jamais** « Garder cette place » —, les étoiles ensuite **sur une page à elles seules**, puis « Merci. ». Une demande par page, rien ne s'empile.
 - **Le Trône propose, elle répond, le Trône pose** : une date et une heure dans la fenêtre du règlement (`prochainRituel` sur le rendez-vous) ; la fonction reçoit sa réponse (`action: 'prochain'`, places proposées seulement, une réponse ne se réécrit pas) ; la place se pose ensuite par `SonProchainRituel`, comme avant. **Le téléphone ne crée aucun rendez-vous.**
