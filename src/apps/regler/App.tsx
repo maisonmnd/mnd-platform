@@ -11,6 +11,7 @@ import { ecouteLeFilDuSceau } from '../../shared/le-fil-du-sceau';
 import { PayerParMtn } from './Mtn';
 import { PayerParFedaPay } from './FedaPay';
 import { Sceau, SceauPose } from '../../ds/sceau';
+import { QrSvg } from '../../ds/qr';
 
 /* ══ RÉGLER SA SÉANCE — la page de la cliente (25 octobre 2026) ══════════
    Ouverte depuis le bouton « Régler » de son message (payer.html?tg=r-…).
@@ -544,7 +545,13 @@ export default function App() {
                     <span className="rg-doux rg-petit">Elle reçoit un lien : elle voit le montant, jamais votre numéro. Ce qu’elle règle s’enlève de votre note.</span>
                   </div>
                 )}
-                {lienDeLInvitee && <span className="rg-doux rg-petit">Lien prêt pour {p.invitee?.nom ?? invitee}.</span>}
+                {lienDeLInvitee && (
+                  <div className="rg-merci" style={{ justifyItems: 'center' }}>
+                    <span className="rg-doux">Lien prêt pour {p.invitee?.nom ?? invitee}. Elle peut aussi le scanner :</span>
+                    <QrSvg valeur={lienDeLInvitee} style={{ width: 148, height: 148, display: 'block' }}
+                      dit={`Le QR du lien de ${p.invitee?.nom ?? invitee}`} />
+                  </div>
+                )}
               </div>
             )}
             <button type="button" className="rg-autre" onClick={() => { void partager(); }}>Quelqu’un règle pour moi</button>

@@ -63,6 +63,8 @@ const PANNES = [
   ['la fonction accepte une place qu on ne lui a pas proposée', FN, "    if (!permises.some((x) => x.jour === jour && x.heure === heure)) return json({ error: 'place' }, 400);", ''],
   ['la page garde la place au lieu de la confirmer', APP, 'Confirmer cette place', 'Garder cette place'],
   ['les étoiles passent avant la place', APP, "        const etape = pr && !pr.reponse ? 'place' : (ecran.paye && !etoilesFaite ? 'etoiles' : 'merci');", "        const etape = ecran.paye && !etoilesFaite ? 'etoiles' : (pr && !pr.reponse ? 'place' : 'merci');"],
+  /* Le QR */
+  ['la page n offre plus le QR', APP, '          <QrSvg valeur={lienDeLInvitee}', '          <div valeur={lienDeLInvitee}'],
   ['la fonction accepte n importe quel moyen', FN, "  if (!estUnJeton(jeton) || !MOYENS_DU_SCEAU.includes(moyen)) return json({ error: 'bad_request' }, 400);", '  if (!estUnJeton(jeton)) return json({ error: \'bad_request\' }, 400);'],
 ];
 

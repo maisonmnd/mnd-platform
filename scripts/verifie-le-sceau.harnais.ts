@@ -18,6 +18,7 @@ import {
   moyenDitDuSceau, signalDuSceau,
 } from '../src/shared/le-sceau-pur';
 import { nomDInviteePropre, pageDuLien } from '../src/shared/regler-la-seance-pur';
+import { qrMatrice } from '../src/shared/qr-pur';
 import { copieAttendue, copieDuServeur } from './regler-copie-serveur.mjs';
 
 let ko = 0;
@@ -172,5 +173,12 @@ vrai('la page dit « Confirmer cette place », jamais « Garder »', reglerPage.
 vrai('la page offre « Modifier » et « Pas maintenant »', reglerPage.includes('>Modifier</button>') && reglerPage.includes('Pas maintenant'));
 vrai('les étoiles ont leur page, après la place', reglerPage.includes('Laissez-nous vos étoiles') && reglerPage.includes("const etape = pr && !pr.reponse ? 'place' : (ecran.paye && !etoilesFaite ? 'etoiles' : 'merci');"));
 vrai('le Trône propose sa prochaine place', lis('src/apps/trone/routes/clients/ReglementEnDirect.tsx').includes('Proposer cette place'));
+/* ── LE QR DE L'INVITATION (23 novembre 2026) ─────────────────────────── */
+const qr1 = qrMatrice('https://maisonmnd.com/trone/regler.html?r=abcdefghjkmnpq');
+const qr2 = qrMatrice('https://maisonmnd.com/trone/regler.html?r=abcdefghjkmnpq');
+vrai('le QR est stable pour une meme adresse', qr1.path === qr2.path && qr1.n > 0);
+vrai('deux adresses font deux QR', qrMatrice('a').path !== qrMatrice('b').path);
+vrai('la page montre le QR de l invitée', lis('src/apps/regler/App.tsx').includes('<QrSvg valeur={lienDeLInvitee}'));
+vrai('le QR se dessine en un seul chemin', qr1.path.startsWith('M') && !qr1.path.includes('<'));
 console.log(`\n${n - ko}/${n} vérifications${ko ? `, ${ko} en échec` : ''}.`);
 process.exit(ko ? 1 : 0);
