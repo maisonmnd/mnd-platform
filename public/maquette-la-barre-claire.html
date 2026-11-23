@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La barre claire</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* LA BARRE CLAIRE — 23 novembre 2026.
+   Maquette d'une seule chose : ce que la barre du Trône montre, aujourd'hui et
+   demain. Rien d'autre n'est dessiné — ni écran, ni carte, ni chiffre.
+   Deux panneaux côte à côte, à la même échelle, pour que la différence se lise
+   d'un regard : quatorze entrées de Direction d'un côté, cinq de l'autre. */
+:root{
+  --fond:#F6F1E7; --fond-2:#EEE6D6; --encre:#1E2150; --encre-douce:#5C5F7E; --trait:#CDBBA9;
+  --accent:#B97A4A; --accent-texte:#7C4C2C; --accent-voile:#F1DDC9;
+  --nuit:#1E2150; --nuit-clair:#2C3470; --nuit-encre:#F6F1E7; --nuit-doux:#A7ACC9; --nuit-trait:rgba(246,241,231,.14);
+  --serif:"Cormorant Garamond","EB Garamond",Georgia,serif;
+  --sans:"Jost","Noto Sans",system-ui,sans-serif;
+  --r:3px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--encre);font-family:var(--sans);font-size:15px;line-height:1.5}
+.page{max-width:1120px;margin:0 auto;padding:34px 20px 64px;display:grid;gap:34px}
+h1,h2,h3,p,ul,ol,figure,figcaption{margin:0}
+ul,ol{padding:0;list-style:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.sur{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent-texte);font-weight:500}
+.tete{display:grid;gap:10px;max-width:44rem}
+.tete h1{font-family:var(--serif);font-weight:300;font-size:clamp(38px,6vw,62px);line-height:1;letter-spacing:-.01em}
+.chapo{font-size:16.5px;color:var(--encre-douce);max-width:40rem;text-wrap:pretty}
+
+/* ── Les deux panneaux ─────────────────────────────────────────────── */
+.duo{display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));align-items:start}
+.panneau{display:grid;gap:10px;min-width:0}
+.panneau figcaption{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:0 2px}
+.panneau figcaption strong{font-family:var(--serif);font-weight:400;font-size:22px}
+.panneau figcaption span{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-douce)}
+.panneau--apres figcaption span{color:var(--accent-texte)}
+
+/* ── La barre, dessinée comme dans le Trône ────────────────────────── */
+.barre{background:var(--nuit);color:var(--nuit-encre);border-radius:var(--r);padding:20px 0 22px;box-shadow:0 18px 40px -26px rgba(30,33,80,.55)}
+.marque{padding:0 18px 16px;display:grid;gap:2px}
+.marque b{font-family:var(--serif);font-weight:400;font-size:22px;letter-spacing:.01em;line-height:1.15}
+.marque span{font-size:9px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--nuit-doux)}
+
+.groupe{padding-top:14px}
+.groupe + .groupe{border-top:1px solid var(--nuit-trait);margin-top:12px}
+.groupe h3{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#D6A06F;padding:0 18px 7px}
+
+.entree{display:flex;align-items:center;gap:8px;padding:7px 18px;font-size:14px;font-weight:300;color:var(--nuit-encre);position:relative;min-height:32px}
+.entree .nom{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.entree--on{background:var(--nuit-clair);box-shadow:inset 2px 0 0 var(--accent)}
+.entree--on .nom{font-weight:400}
+.entree--sort{color:rgba(246,241,231,.34)}
+.entree--sort .nom{text-decoration:line-through;text-decoration-thickness:1px;text-decoration-color:rgba(217,160,111,.5)}
+.entree .note{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#D6A06F;white-space:nowrap}
+.entree--vient .note{color:#E4BE9C}
+.entree--plus{color:rgba(246,241,231,.42);font-size:12px;padding-top:3px;padding-bottom:3px;min-height:22px}
+.entree--plus .nom{font-style:italic}
+.entree .point{width:5px;height:5px;border-radius:50%;background:var(--accent);flex:none;opacity:0}
+.entree--vient .point{opacity:1}
+
+/* ── Où va ce qui sort ─────────────────────────────────────────────── */
+.section{display:grid;gap:14px;max-width:46rem}
+.section h2{font-family:var(--serif);font-weight:300;font-size:30px;line-height:1.1}
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+caption{text-align:left;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-douce);padding-bottom:8px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--trait);vertical-align:top}
+th{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-douce);font-weight:500}
+td b{font-weight:500}
+td .fl{color:var(--accent-texte);font-size:12px}
+
+.pied{display:grid;gap:6px;max-width:44rem;font-size:13.5px;color:var(--encre-douce)}
+.pied .devise{font-family:var(--serif);font-style:italic;font-size:15px;color:var(--accent-texte)}
+@media (max-width:620px){ .entree .note{display:none} }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <header class="tete">
+    <p class="sur">Maquette · 23 novembre 2026</p>
+    <h1>La barre claire</h1>
+    <p class="chapo">Neuf départements, et Direction en porte quatorze à lui seul. Voici la même Maison avec cinq entrées de Direction : ce qui sort ne disparaît pas, il rentre chez lui.</p>
+  </header>
+
+  <div class="duo">
+
+    <!-- AUJOURD'HUI -->
+    <figure class="panneau">
+      <figcaption><strong>Aujourd’hui</strong><span>Direction · 14 entrées</span></figcaption>
+      <div class="barre">
+        <div class="marque"><b>Maison MND</b><span>Le Trône</span></div>
+        <div class="groupe">
+          <h3>Direction</h3>
+          <div class="entree entree--on"><span class="point"></span><span class="nom">Tableau de bord</span></div>
+          <div class="entree"><span class="point"></span><span class="nom">Centre de commande</span></div>
+          <div class="entree"><span class="point"></span><span class="nom">Les prévisions</span></div>
+          <div class="entree"><span class="point"></span><span class="nom">Les projets</span></div>
+          <div class="entree entree--sort"><span class="point"></span><span class="nom">Les agents</span><span class="note">part</span></div>
+          <div class="entree entree--sort"><span class="point"></span><span class="nom">Les assistants</span><span class="note">part</span></div>
+          <div class="entree entree--sort"><span class="point"></span><span class="nom">Bilan mensuel</span><span class="note">part</span></div>
+          <div class="entree"><span class="point"></span><span class="nom">Synthèse &amp; résultat</span></div>
+          <div class="entree entree--sort"><span class="point"></span><span class="nom">Analytics</span><span class="note">part</span></div>
+          <div class="entree entree--sort"><span class="point"></span><span class="nom">La Cadence</span><span class="note">part</span></div>
+          <div class="entree entree--sort"><span class="point"></span><span class="nom">À faire</span><span class="note">part</span></div>
+          <div class="entree entree--sort"><span class="point"></span><span class="nom">Recommandations IA</span><span class="note">sort</span></div>
+          <div class="entree entree--sort"><span class="point"></span><span class="nom">Le Juste Prix</span><span class="note">part</span></div>
+          <div class="entree entree--sort"><span class="point"></span><span class="nom">Le secrétariat</span><span class="note">part</span></div>
+        </div>
+      </div>
+    </figure>
+
+    <!-- DEMAIN -->
+    <figure class="panneau panneau--apres">
+      <figcaption><strong>Demain</strong><span>Direction · 5 entrées</span></figcaption>
+      <div class="barre">
+        <div class="marque"><b>Maison MND</b><span>Le Trône</span></div>
+
+        <div class="groupe">
+          <h3>Direction</h3>
+          <div class="entree entree--on"><span class="point"></span><span class="nom">Tableau de bord</span></div>
+          <div class="entree"><span class="point"></span><span class="nom">Le Centre</span><span class="note">2 en 1</span></div>
+          <div class="entree"><span class="point"></span><span class="nom">Les prévisions</span></div>
+          <div class="entree"><span class="point"></span><span class="nom">Les projets</span></div>
+          <div class="entree"><span class="point"></span><span class="nom">Synthèse</span><span class="note">4 en 1</span></div>
+        </div>
+
+        <div class="groupe">
+          <h3>Équipe</h3>
+          <div class="entree entree--vient"><span class="point"></span><span class="nom">Les assistants</span><span class="note">de Direction</span></div>
+          <div class="entree"><span class="point"></span><span class="nom">Le Fil</span></div>
+          <div class="entree"><span class="point"></span><span class="nom">Mes tâches</span></div>
+          <div class="entree entree--vient"><span class="point"></span><span class="nom">À faire</span><span class="note">de Direction</span></div>
+          <div class="entree"><span class="point"></span><span class="nom">Ressources humaines</span></div>
+          <div class="entree"><span class="point"></span><span class="nom">Mon mois</span></div>
+          <div class="entree entree--plus"><span class="point"></span><span class="nom">… et trois autres</span></div>
+        </div>
+
+        <div class="groupe">
+          <h3>Vente &amp; Caisse</h3>
+          <div class="entree"><span class="point"></span><span class="nom">Caisse POS</span></div>
+          <div class="entree"><span class="point"></span><span class="nom">Factures &amp; devis</span></div>
+          <div class="entree entree--vient"><span class="point"></span><span class="nom">Le Juste Prix</span><span class="note">de Direction</span></div>
+          <div class="entree entree--plus"><span class="point"></span><span class="nom">… et quatre autres</span></div>
+        </div>
+
+        <div class="groupe">
+          <h3>Système</h3>
+          <div class="entree"><span class="point"></span><span class="nom">Paramètres</span></div>
+          <div class="entree entree--vient"><span class="point"></span><span class="nom">Le secrétariat</span><span class="note">de Direction</span></div>
+          <div class="entree"><span class="point"></span><span class="nom">Journal des gestes</span></div>
+          <div class="entree entree--plus"><span class="point"></span><span class="nom">… et quatre autres</span></div>
+        </div>
+      </div>
+    </figure>
+
+  </div>
+
+  <section class="section">
+    <h2>Où va ce qui sort</h2>
+    <table>
+      <caption>Neuf entrées de Direction rentrent chez elles ; une seule sort de la barre</caption>
+      <thead><tr><th>Ce qui quitte Direction</th><th>Où</th><th>Pourquoi</th></tr></thead>
+      <tbody>
+        <tr><td><b>Les agents</b></td><td>Le Centre <span class="fl">(réuni)</span></td><td>Ils se lisaient déjà dans le Centre de commande.</td></tr>
+        <tr><td><b>Bilan mensuel · Analytics · La Cadence</b></td><td>Synthèse <span class="fl">(réunie)</span></td><td>Quatre écrans qui répondent à la même question : le mois.</td></tr>
+        <tr><td><b>Les assistants</b></td><td>Équipe</td><td>Ce sont des personnes, avec un porteur.</td></tr>
+        <tr><td><b>À faire</b></td><td>Équipe · Le Fil</td><td>C’est déjà une liste de tâches.</td></tr>
+        <tr><td><b>Le Juste Prix</b></td><td>Vente &amp; Caisse</td><td>Il juge un prix, il ne décide pas de la Maison.</td></tr>
+        <tr><td><b>Le secrétariat</b></td><td>Système</td><td>Les papiers de la Maison, pas sa direction.</td></tr>
+        <tr><td><b>Recommandations IA</b></td><td>Sort de la barre</td><td>Vide depuis toujours. L’adresse reste.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div class="pied">
+    <p><b>Construit le 23 novembre 2026.</b> La clef d’ouverture ne suit plus le rangement : un écran peut se ranger dans un département et s’ouvrir par un autre. Direction passe à <b>quatre</b> rubriques — le tableau de bord, les prévisions, les projets, la synthèse (à cinq onglets : le résultat, le mois, les prestations, l’analyse, la cadence). Les assistants vivent chez Équipe. Le secrétariat se range en Système et le Juste Prix en Vente et Caisse : tous deux s’ouvrent toujours par la Direction, et le rangement ne les a ouverts à personne. Le Centre reste hors de la barre, comme l’audit du 27 octobre l’avait décidé ; son adresse marche.</p>
+    <p>La maquette comptait les quatorze lignes déclarées : dans la barre, on en voyait six. La coupe réelle est 6 → 4.</p>
+    <p class="devise">mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là</p>
+  </div>
+
+</main>
+</body>
+</html>

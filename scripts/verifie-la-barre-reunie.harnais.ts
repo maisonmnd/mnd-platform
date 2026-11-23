@@ -16,7 +16,7 @@
    Les promesses sont écrites ici à la main, jamais déduites de REUNIONS :
    le nombre de rubriques, qui voit quel onglet, ce que la barre montre. */
 import { readFileSync } from 'node:fs';
-import { DEPARTEMENTS, ECRANS_NES_APRES_LES_DEPARTEMENTS, NAV, REUNIONS, RETIRES_DE_LA_BARRE, cheminOuvert, ecranDAvant, peutVoir, premierEcranVisible, reunionDe } from '../src/apps/trone/routes/index';
+import { DEPARTEMENTS, ECRANS_NES_APRES_LES_DEPARTEMENTS, NAV, REUNIONS, RETIRES_DE_LA_BARRE, cheminOuvert, domaineDe, ecranDAvant, peutVoir, premierEcranVisible, reunionDe } from '../src/apps/trone/routes/index';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -57,11 +57,31 @@ const dansLaBarre = items.filter((it) => !it.horsMenu);
    les Ressources humaines. */
 /* 32 depuis le 11 novembre 2026 : Finances › MTN MoMo, la page à part de la collecte et du décaissement. */
 /* 33 depuis le 13 novembre 2026 : Système › Besoins et règles (la Consultation, lot 1). */
+/* LE 23 NOVEMBRE 2026, LES ASSISTANTS CHANGENT DE DÉPARTEMENT — « un peu
+   moins d'encombrement, un peu plus de clarté » (Yéman). Ils quittent
+   Direction pour Équipe : ce sont des personnes, avec un porteur. Le total ne
+   bouge pas (33), et leur ouverture non plus (`ROUTES_SOUVERAIN`). Le même
+   jour, les Tendances rentrent dans la Synthèse : l'hôte `/analytics` n'existe
+   plus, ses deux onglets vivent dans la réunion de `/synthese`. */
 dit('la barre montre 33 rubriques', 33, dansLaBarre.length);
-dit('... par département : Direction 6, Clientèle 4, Atelier 2, Vente & Caisse 4, Finances 6, Marketing & Fidélité 2, Équipe 4, Académie 1, Système 4',
-  { Direction: 6, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 4, Finances: 6, 'Marketing & Fidélité': 2, 'Équipe': 4, 'Académie': 1, 'Système': 4 },
+dit('... par département : Direction 4, Clientèle 4, Atelier 2, Vente & Caisse 4, Finances 6, Marketing & Fidélité 2, Équipe 5, Académie 1, Système 5',
+  { Direction: 4, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 4, Finances: 6, 'Marketing & Fidélité': 2, 'Équipe': 5, 'Académie': 1, 'Système': 5 },
   Object.fromEntries(NAV.map((g) => [g.group, g.items.filter((it) => !it.horsMenu).length])));
 dit('... dont Les prévisions, en Direction', ['Direction', false], [item('/previsions')?.groupe, !!item('/previsions')?.horsMenu]);
+/* LA CLEF D'OUVERTURE N'EST PLUS CELLE DU RANGEMENT — 23 novembre 2026.
+   Un écran se range par ce qu'il EST, s'ouvre par ce qu'il ENGAGE : les deux
+   se prouvent séparément, dans les deux sens. */
+dit('le secrétariat se range en Système, s ouvre par la Direction, et le rangement ne l ouvre à personne',
+  ['Système', 'dept-direction', true, true, false],
+  [item('/secretariat')?.groupe, domaineDe('/secretariat'),
+    peutVoir('maitre', '/secretariat', { 'dept-direction': true }),
+    peutVoir('souverain', '/secretariat', {}),
+    peutVoir('maitre', '/secretariat', { 'dept-systeme': true })]);
+dit('le Juste Prix se range en Vente & Caisse, s ouvre par la Direction, et le rangement ne l ouvre à personne',
+  ['Vente & Caisse', 'dept-direction', true, false],
+  [item('/juste-prix')?.groupe, domaineDe('/juste-prix'),
+    peutVoir('maitre', '/juste-prix', { 'dept-direction': true }),
+    peutVoir('maitre', '/juste-prix', { 'dept-vente-caisse': true })]);
 dit('... dont Conversations (ex-Perle, ex-Assistant Maison : l endroit unique des conversations), en Clientèle, juste sous Clientes', ['Clientèle', false, 'Conversations', true],
   [item('/gerard')?.groupe, !!item('/gerard')?.horsMenu, item('/gerard')?.label,
     dansLaBarre.findIndex((it) => it.path === '/gerard') === dansLaBarre.findIndex((it) => it.path === '/customers') + 1]);
@@ -88,12 +108,14 @@ const titres: Record<string, string> = {
 };
 dit('chaque rubrique reunie porte son titre et reste dans la barre', titres,
   Object.fromEntries(Object.keys(titres).map((p) => [p, item(p)?.horsMenu ? 'HORS BARRE' : item(p)?.label])));
-/* Cinq hôtes de réunion ont quitté la barre le 27 octobre 2026 : ils gardent
-   la réunion (la barre d'onglets) et leur titre, joignables par l'adresse. */
+/* Quatre hôtes de réunion ont quitté la barre le 27 octobre 2026 : ils gardent
+   la réunion (la barre d'onglets) et leur titre, joignables par l'adresse.
+   `/analytics` n'en est plus un depuis le 23 novembre 2026 : ses onglets sont
+   ceux de la Synthèse, et son adresse y mène. */
 const hotesRetires: Record<string, string> = {
-  '/centre-de-commande': 'HORS BARRE', '/analytics': 'HORS BARRE', '/conversations': 'HORS BARRE', '/demandes': 'HORS BARRE', '/marketing': 'HORS BARRE',
+  '/centre-de-commande': 'HORS BARRE', '/conversations': 'HORS BARRE', '/demandes': 'HORS BARRE', '/marketing': 'HORS BARRE',
 };
-dit('les cinq hotes retires sont hors barre, et gardent leur reunion et son titre', [hotesRetires, true],
+dit('les quatre hotes retires sont hors barre, et gardent leur reunion et son titre', [hotesRetires, true],
   [Object.fromEntries(Object.keys(hotesRetires).map((p) => [p, item(p)?.horsMenu ? 'HORS BARRE' : item(p)?.label])),
     Object.keys(hotesRetires).every((p) => reunionDe(p)?.hote === p && item(p)?.label === reunionDe(p)?.titre)]);
 dit('les vitrines et les QR codes restent separes (choix du 14 octobre), seuls visibles dans Marketing & Fidelite', [false, false, undefined, ['/vitrine', '/qr-codes']],
@@ -112,7 +134,7 @@ dit('un onglet n appartient qu a une reunion', true,
 /* Les trois réunions qui grandissent le 27 octobre 2026. */
 /* LE CLASSEMENT (20 novembre 2026) entre en onglet des Clientes, juste après le registre. */
 dit('Clientes : les clientes, le classement, l Audience, les Ambassadrices', ['/customers', '/classement', '/audience', '/parrainages'], REUNIONS.find((r) => r.hote === '/customers')?.onglets.map((o) => o.path));
-dit('Synthese & bilan : le resultat, le mois, les prestations', ['/synthese', '/bilan-mensuel', '/chiffre-des-prestations'], REUNIONS.find((r) => r.hote === '/synthese')?.onglets.map((o) => o.path));
+dit('Synthese & bilan : le resultat, le mois, les prestations, l analyse, la cadence', ['/synthese', '/bilan-mensuel', '/chiffre-des-prestations', '/analytics', '/cadence'], REUNIONS.find((r) => r.hote === '/synthese')?.onglets.map((o) => o.path));
 /* 5 novembre 2026 : « Les paiements » (maquette maquette-les-paiements.html,
    v5) entre aux Ressources humaines, en deuxième onglet. */
 dit('Ressources humaines : le personnel, les paiements, les prets au personnel, les prestataires', ['/personnel', '/paiements', '/prets-personnel', '/prestataires'], REUNIONS.find((r) => r.hote === '/personnel')?.onglets.map((o) => o.path));
@@ -128,8 +150,8 @@ const maitre = (acces: Record<string, boolean>) => ({ role: 'maitre', acces });
 const ouvre = (who: { role: string; acces: Record<string, boolean> }, p: string) => cheminOuvert(who.role, p, who.acces);
 dit('la direction ouvre chaque rubrique reunie visible sur son premier onglet', Object.keys(titres),
   Object.keys(titres).map((p) => ouvre({ role: 'gerant', acces: {} }, p)));
-dit('... et un hote retire mene encore a son premier onglet ouvert, par l adresse', ['/analytics', '/conversations', '/demandes', '/marketing', '/centre-de-commande'],
-  [ouvre({ role: 'gerant', acces: {} }, '/analytics'), ouvre({ role: 'gerant', acces: {} }, '/conversations'), ouvre({ role: 'gerant', acces: {} }, '/demandes'),
+dit('... et un hote retire mene encore a son premier onglet ouvert, par l adresse', ['/conversations', '/demandes', '/marketing', '/centre-de-commande'],
+  [ouvre({ role: 'gerant', acces: {} }, '/conversations'), ouvre({ role: 'gerant', acces: {} }, '/demandes'),
     ouvre({ role: 'gerant', acces: {} }, '/marketing'), ouvre({ role: 'souverain', acces: {} }, '/centre-de-commande')]);
 const consult = maitre({ '/consultations': true });
 dit('qui ne voyait que Consultations voit la reunion, ouverte sur les consultations (par l adresse : la rubrique est hors barre)', ['/consultations', false, true],

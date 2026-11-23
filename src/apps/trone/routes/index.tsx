@@ -9,6 +9,13 @@ export type TroneRoute = {
   path: string;
   /** Joignable, mais absent de la barre latérale. */
   horsMenu?: boolean;
+  /** LA CLEF QUI OUVRE L'ÉCRAN, quand ce n'est pas celle de son groupe —
+      23 novembre 2026. Un écran peut se RANGER dans un département sans
+      s'OUVRIR par lui : le secrétariat vit sous Système et reste à la
+      Direction ; le Juste Prix vit sous Vente et Caisse et reste à la
+      Direction. Sans `acces`, la clef est celle du groupe (le cas de tous les
+      autres écrans, et la règle d'avant). */
+  acces?: string;
   label: string;
   icon: LucideIcon;
   Component: LazyExoticComponent<ComponentType>;
@@ -62,10 +69,6 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          souverains seuls : À valider, les agents (encaissements, reprises),
          les processus et l'assistant qui les construit. Maquette VJ5PJEGU…. */
       { path: '/agents', label: 'Les agents', icon: Bot, Component: lazy(() => import('./pilotage/Agents')) },
-      /* LES ASSISTANTS RELIÉS (31 octobre 2026) — Opale et Onyx : qui veille,
-         les décisions en attente, les relais, le journal du jour, les jetons.
-         Maquette TtHPKpjCqovrn8nookJ7eu ; les souverains seuls. */
-      { path: '/assistants', label: 'Les assistants', icon: Radio, Component: lazy(() => import('./pilotage/Assistants')) },
       { path: '/bilan-mensuel', label: 'Bilan mensuel', icon: BarChart3, Component: lazy(() => import('./pilotage/BilanMensuel')) },
       { path: '/synthese', label: 'Synthèse & résultat', icon: PieChart, Component: lazy(() => import('./finances/Synthese')) },
       { path: '/analytics', label: 'Analytics', icon: LineChart, Component: lazy(() => import('./pilotage/Analytics')) },
@@ -78,11 +81,6 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          son temps, en nombres et en boutons, jamais en phrases. */
       { path: '/a-faire', label: 'À faire', icon: ListChecks, Component: lazy(() => import('./pilotage/AFaire')) },
       { path: '/recommandations', label: 'Recommandations IA', icon: Lightbulb, Component: lazy(() => import('./equipe/Recommandations')) },
-      { path: '/juste-prix', label: 'Le Juste Prix', icon: Scale, Component: lazy(() => import('./finances/JustePrix')) },
-      /* LE SECRÉTARIAT (6 octobre 2026) — lettres, attestations, notes et
-         contrats sur papier à en-tête, numérotés et signés. Maquette
-         StpDQGL3HE1nHyyjSRNU9r validée. */
-      { path: '/secretariat', label: 'Le secrétariat', icon: FileSignature, Component: lazy(() => import('./pilotage/Secretariat')) },
     ],
   },
   {
@@ -163,6 +161,10 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          département Vente & Caisse l'ouvre à un maître, la direction le voit. */
       { path: '/point', horsMenu: true, label: 'Le point d’une cliente', icon: HandCoins, Component: lazy(() => import('./clients/LePoint')) },
       { path: '/abonnements', label: 'Abonnements', icon: Repeat, Component: lazy(() => import('./equipe/Abonnements')) },
+      /* LE JUSTE PRIX se range ici depuis le 23 novembre 2026 : c'est un
+         jugement de prix, il vit avec la vente. Il s'OUVRE toujours par la
+         Direction (`acces`) : le ranger ailleurs ne l'a ouvert à personne. */
+      { path: '/juste-prix', acces: 'dept-direction', label: 'Le Juste Prix', icon: Scale, Component: lazy(() => import('./finances/JustePrix')) },
     ],
   },
   {
@@ -253,6 +255,15 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          facile à voir » (Yéman) : il prend une rubrique, à la direction
          seule (ROUTES_DIRECTION) ; la Caisse et Encaissements y mènent. */
       { path: '/pourboires', label: 'Les pourboires', icon: Coins, Component: lazy(() => import('./equipe/Pourboires')) },
+      /* LES ASSISTANTS RELIÉS (31 octobre 2026) — Opale et Onyx : qui veille,
+         les décisions en attente, les relais, le journal du jour, les jetons.
+         Maquette TtHPKpjCqovrn8nookJ7eu ; les souverains seuls.
+
+         CHEZ L'ÉQUIPE DEPUIS LE 23 NOVEMBRE 2026 : ce sont des personnes, avec
+         un porteur et un métier ; ils se lisaient sous Direction par accident
+         d'histoire. Le groupe ne change pas qui les ouvre — ils restent dans
+         `ROUTES_SOUVERAIN` — il change seulement où on les trouve. */
+      { path: '/assistants', label: 'Les assistants', icon: Radio, Component: lazy(() => import('./pilotage/Assistants')) },
       /* LES PRÊTS AU PERSONNEL — 14 octobre 2026, décision de la direction :
          les prêts consentis à l'équipe vivent aux Ressources humaines, à côté
          de la paie qui les rembourse ; le même écran des prêts, lu pour
@@ -303,6 +314,14 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          départements à des personnes, c'est-à-dire des rôles. */
       { path: '/acces', label: 'Accès & rôles', icon: ShieldCheck, Component: lazy(() => import('./systeme/Acces')) },
       { path: '/journal', label: 'Journal des gestes', icon: ScrollText, Component: lazy(() => import('./systeme/Journal')) },
+      /* LE SECRÉTARIAT (6 octobre 2026) — lettres, attestations, notes et
+         contrats sur papier à en-tête, numérotés et signés. Maquette
+         StpDQGL3HE1nHyyjSRNU9r validée.
+
+         RANGÉ ICI LE 23 NOVEMBRE 2026 : les papiers de la Maison ne sont pas
+         une décision de direction, ils sont un bureau. Il s'OUVRE toujours par
+         la Direction (`acces`) — le ranger ne l'a ouvert à personne. */
+      { path: '/secretariat', acces: 'dept-direction', label: 'Le secrétariat', icon: FileSignature, Component: lazy(() => import('./pilotage/Secretariat')) },
       { path: '/branches', label: 'Branches', icon: MapPin, Component: lazy(() => import('./systeme/Branches')) },
       { path: '/marque', label: 'Marque & thème', icon: Palette, Component: lazy(() => import('./systeme/Marque')) },
     ],
@@ -341,8 +360,12 @@ const NAV_DES_ECRANS: TroneGroup[] = [
 export type Reunion = { hote: string; titre: string; onglets: { path: string; label: string }[] };
 export const REUNIONS: readonly Reunion[] = [
   { hote: '/centre-de-commande', titre: 'Centre de commande', onglets: [{ path: '/centre-de-commande', label: 'Le centre' }, { path: '/agents', label: 'Les agents' }, { path: '/atelier-des-contenus', label: 'Les contenus' }] },
-  { hote: '/synthese', titre: 'Synthèse & bilan', onglets: [{ path: '/synthese', label: 'Le résultat' }, { path: '/bilan-mensuel', label: 'Le mois jour par jour' }, { path: '/chiffre-des-prestations', label: 'Les prestations' }] },
-  { hote: '/analytics', titre: 'Les tendances', onglets: [{ path: '/analytics', label: 'L’analyse' }, { path: '/cadence', label: 'La cadence' }] },
+  /* LA SYNTHÈSE À CINQ, 23 novembre 2026 — « un peu moins d'encombrement, un
+     peu plus de clarté » (Yéman). Les Tendances étaient une réunion à part,
+     retirée de la barre le 27 octobre : leurs deux onglets rejoignent la
+     Synthèse, qui répond déjà à la même question — le mois. Quatre entrées
+     déclarées, une seule dans la barre. */
+  { hote: '/synthese', titre: 'Synthèse & bilan', onglets: [{ path: '/synthese', label: 'Le résultat' }, { path: '/bilan-mensuel', label: 'Le mois jour par jour' }, { path: '/chiffre-des-prestations', label: 'Les prestations' }, { path: '/analytics', label: 'L’analyse' }, { path: '/cadence', label: 'La cadence' }] },
   /* LES CLIENTES (27 octobre 2026) : le registre, l'audience, les ambassadrices. */
   { hote: '/customers', titre: 'Clientes', onglets: [{ path: '/customers', label: 'Les clientes' }, { path: '/classement', label: 'Le classement' }, { path: '/audience', label: 'Audience' }, { path: '/parrainages', label: 'Ambassadrices' }] },
   /* LE CHAT DU SITE (19 octobre 2026) entre dans Conversations, sans rubrique de plus : tout ce que les clientes écrivent au même endroit. */
@@ -496,10 +519,15 @@ export const DEPARTEMENTS: { k: string; l: string }[] = [
 export const departementDuGroupe = (groupe: string): string | undefined =>
   DEPARTEMENTS.find((d) => d.l === groupe)?.k;
 
-/** Le département d'un écran. Gardé sous son ancien nom : c'est ce que lit
-    Accès & rôles, et le nom disait déjà la bonne chose. */
-export const domaineDe = (path: string): string | undefined =>
-  departementDuGroupe(NAV.find((g) => g.items.some((i) => i.path === path))?.group ?? '');
+/** Le département d'un écran — celui qui l'OUVRE. Gardé sous son ancien nom :
+    c'est ce que lit Accès & rôles, et le nom disait déjà la bonne chose.
+    Depuis le 23 novembre 2026, un écran peut porter sa propre clef (`acces`),
+    distincte du département où il se range. */
+export const domaineDe = (path: string): string | undefined => {
+  const g = NAV.find((x) => x.items.some((i) => i.path === path));
+  const it = g?.items.find((i) => i.path === path);
+  return it?.acces ?? departementDuGroupe(g?.group ?? '');
+};
 
 /* LES ANCIENS DOMAINES, TELS QU'ILS ÉTAIENT LE 21 SEPTEMBRE 2026. Une case
    cochée avant ce jour ouvre encore les mêmes écrans, et seulement ceux-là.
