@@ -28,7 +28,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
    Déploiement : `node scripts/mise-en-ligne.mjs fonction kkiapay-tpe
    --commit <sha> --jwt oui`. Vérifier : GET rend sa version. */
 
-const VERSION = '2026-11-22-a · la référence du TPE KkiaPay demandée à KkiaPay et inscrite au registre, pour le personnel';
+/* LA VERSION DIT LE CODE SERVI — 24 novembre 2026. Figée à 2026-11-22-a, elle
+   n'aurait pas prouvé que le correctif de la référence était en ligne : c'est
+   le piège payé sur egler-la-seance. Elle suit chaque changement. */
+const VERSION = '2026-11-24-a · la référence du TPE (et son n° de reçu) demandée à KkiaPay, une référence inconnue qui ne bloque plus la caisse';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -87,6 +90,10 @@ Deno.serve(async (req) => {
   if (req.method === 'GET') {
     return json({
       fonction: 'kkiapay-tpe', version: VERSION,
+      /* LA BASE INTERROGÉE, dite sans secret — 24 novembre 2026 : c'est la
+         première chose à regarder si une référence reste inconnue (une base
+         de bac à sable ne connaît aucun paiement réel). */
+      base: KKIA_BASE,
       secrets: {
         KKIAPAY_PUBLIC_KEY: (Deno.env.get('KKIAPAY_PUBLIC_KEY') ?? '').length,
         KKIAPAY_PRIVATE_KEY: (Deno.env.get('KKIAPAY_PRIVATE_KEY') ?? '').length,
