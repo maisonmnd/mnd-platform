@@ -1,0 +1,44 @@
+# ═══════════════════════════════════════════════════════════════════
+# Garder éveillés voxbubble et chemin-de-cana — 24 novembre 2026
+#
+# « Oui, mets la visite automatique » (Yéman). Un projet Supabase gratuit
+# se met en pause après sept jours sans activité. Tous les trois jours, une
+# vraie lecture sur chacun (scripts/garde-eveilles.mjs) ; rien n'est écrit.
+#
+# Secrets du dépôt (Settings › Secrets and variables › Actions) :
+#   VOXBUBBLE_URL, CHEMIN_URL                l'adresse de chaque projet
+#   VOXBUBBLE_ANON_KEY, CHEMIN_ANON_KEY      sa clé PUBLIQUE (anon / publishable)
+# ═══════════════════════════════════════════════════════════════════
+name: Garder éveillés les projets gratuits
+
+on:
+  schedule:
+    # Les 1er, 4, 7… de chaque mois, 6 h 17 UTC : jamais plus de trois jours d'écart.
+    - cron: '17 6 */3 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          sparse-checkout: scripts/garde-eveilles.mjs
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: La visite
+        run: node scripts/garde-eveilles.mjs
+        env:
+          VOXBUBBLE_URL: ${{ secrets.VOXBUBBLE_URL }}
+          VOXBUBBLE_ANON_KEY: ${{ secrets.VOXBUBBLE_ANON_KEY }}
+          CHEMIN_URL: ${{ secrets.CHEMIN_URL }}
+          CHEMIN_ANON_KEY: ${{ secrets.CHEMIN_ANON_KEY }}
