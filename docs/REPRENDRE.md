@@ -1,6 +1,17 @@
-﻿# Reprendre — état de la Maison
+# Reprendre — état de la Maison
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
+
+## LE TPE KKIAPAY : LA RÉFÉRENCE ET LE N° DE REÇU, ET UNE RÉFÉRENCE INCONNUE QUI NE BLOQUE PLUS — 24 novembre 2026, bancs verts, mise en ligne confiée (`kkiapay-tpe` à passer en v2 ; le Trône ; aucun SQL, aucun secret)
+
+**Le fait réel** : un paiement de **100 F au TPE**, le 24 novembre 2026 à 00:26 (reçu KkiaPay : « Référence `7757889838121264` », « N° Reçu `rcp_7757889838121264` », **frais 1,8 %** = 2 F, moyen CARD, « payment of 100 XOF to Maison MND »). La caissière a tapé la référence ; `kkiapay-tpe` a répondu **« KkiaPay ne connaît pas cette référence »** et l'encaissement est resté fermé.
+
+- **DEUX NUMÉROS SUR UN REÇU DE TPE** (`identifiantsPossibles`, `tpe-kkiapay-pur.ts`) : la référence et `rcp_<référence>`. La fonction essaie les deux (et l'inverse si on tape déjà `rcp_…`) ; le premier qui répond gagne. La Maison **garde la référence tapée** sur le versement (c'est elle qui se pointe le soir) et note `repondSous` quand KkiaPay a reconnu sous l'autre.
+- **UNE RÉFÉRENCE INCONNUE NE BLOQUE PLUS LA CAISSE** (`laReferenceSeGarde`) : muet ou inconnue de la route du TPE, la référence se garde et se pointe le soir, comme avant quand KkiaPay ne répondait pas. Ce qui reste refusé : une transaction **non aboutie**, ou **déjà comptée ailleurs** (paiement en ligne). Refuser de vendre une cliente qui a payé parce que KkiaPay ne voit pas son terminal, c'est lui faire payer une panne.
+- **L'IMMÉDIAT, SANS ATTENDRE LE CORRECTIF** : sous « Carte, par KkiaPay », **la photo de l'écran du TPE suffit toujours** — c'est ce qui a permis d'encaisser les 100 F ce soir-là.
+- **Banc** : `verifie-le-tpe-kkiapay` 35 (`--prouve` 17/17, fichiers restaurés à l'identique). Typecheck 0.
+- **À SAVOIR — DEUX TAUX DE FRAPPE VUS SUR LA CARTE** : le 21 novembre, un reçu KkiaPay de 64 480 F portait **2,3 %** ; celui du 24 novembre, 100 F, porte **1,8 %**. Les deux sont peut-être justes (paliers, ou produits différents : TPE contre en ligne). **Le Trône affiche encore 2,3 %** (`fraisKkiapayDeCarteXof`) : à trancher avec KkiaPay ou Yéman avant de changer un taux sur une seule observation.
+- **SI ÇA RESTE REFUSÉ sous les deux formes** : c'est que les paiements du TPE vivent sur un autre compte ou une autre route chez KkiaPay ; il faudra leur demander la route, pas bricoler ici.
 
 ## LA FENÊTRE DE PAIEMENT REFERMÉE REND LA MAIN ; MOOV ET CELTIIS DEMANDENT LE NUMÉRO — 23 novembre 2026, bancs verts, mise en ligne confiée (le site `trone` : `regler.html` et `devis.html` ; aucune fonction, aucun SQL, aucun secret)
 
