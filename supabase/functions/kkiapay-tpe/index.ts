@@ -64,6 +64,19 @@ async function demandeAKkiapay(transactionId: string): Promise<KkiaTransaction |
 const refPropre = (s: unknown): string => String(s ?? '').replace(/\s+/g, '').trim();
 const refPlausible = (s: string): boolean => /^[A-Za-z0-9_-]{6,64}$/.test(s);
 
+/** LES IDENTIFIANTS QU'ON ESSAIE POUR UNE MÊME TRANSACTION — 24 novembre 2026.
+    Le reçu du TPE porte DEUX numéros : « Référence 7757889838121264 » et
+    « N° Reçu rcp_7757889838121264 ». La cliente tape celui qu'elle lit ; la
+    route de statut de KkiaPay peut ne connaître que l'autre. On essaie donc
+    les deux, dans l'ordre, et on dit lequel a répondu (le montant, lui, vient
+    toujours de KkiaPay). */
+function lesIdentifiantsPossibles(ref: string): string[] {
+  const vus = [ref];
+  if (/^rcp_/i.test(ref)) vus.push(ref.replace(/^rcp_/i, ''));
+  else vus.push(`rcp_${ref}`);
+  return [...new Set(vus.filter((x) => x.length >= 6))];
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   const SUPABASE_URL = (Deno.env.get('SUPABASE_URL') ?? '').trim();
@@ -97,9 +110,16 @@ Deno.serve(async (req) => {
   const branchId = String(corps?.branchId ?? '').trim();
   if (!refPlausible(ref)) return json({ ok: false, raison: 'mal-formee', version: VERSION }, 400);
 
-  let tx: KkiaTransaction | null;
+  let tx: KkiaTransaction | null = null;
+  let idQuiRepond = ref;
   try {
-    tx = await demandeAKkiapay(ref);
+    /* LA RÉFÉRENCE, PUIS LE N° DE REÇU (24 novembre 2026) : le reçu du TPE
+       porte les deux, et la route de statut peut ne connaître que l'autre.
+       Le premier qui répond gagne ; le montant vient toujours de KkiaPay. */
+    for (const essai of lesIdentifiantsPossibles(ref)) {
+      tx = await demandeAKkiapay(essai);
+      if (tx) { idQuiRepond = essai; break; }
+    }
   } catch (e) {
     console.error('kkiapay-tpe : KkiaPay ne répond pas', e instanceof Error ? e.message : String(e));
     return json({ ok: false, raison: 'injoignable', version: VERSION });
@@ -131,5 +151,9 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ ok: true, ref, montantXof, fraisXof, ...(source ? { source } : {}), version: VERSION });
+  /* ef reste CE QUE LA MAISON GARDE : la référence du reçu, telle que la
+     caissière l'a tapée (c'est elle qui se pointe le soir). epondSous dit
+     sous quel identifiant KkiaPay a reconnu la transaction, quand ce n'est
+     pas celui-là. */
+  return json({ ok: true, ref, ...(idQuiRepond !== ref ? { repondSous: idQuiRepond } : {}), montantXof, fraisXof, ...(source ? { source } : {}), version: VERSION });
 });

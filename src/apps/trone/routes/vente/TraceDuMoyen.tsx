@@ -6,7 +6,7 @@ import {
   AUTRE_BANQUE, BANQUES_DU_BENIN, ditCeQuiManque, kkiapayCouvre, peutVoirLaPhoto, refKkiapayPlausible, refKkiapayPropre, traceSuffit,
   type FamilleDeTrace, type TraceDuMoyen,
 } from '../../../../shared/trace-du-moyen-pur';
-import { ditLeVerdict, heureDuRecu, recusAProposer, refsDejaPrises } from '../../../../shared/tpe-kkiapay-pur';
+import { ditLeVerdict, heureDuRecu, laReferenceSeGarde, recusAProposer, refsDejaPrises } from '../../../../shared/tpe-kkiapay-pur';
 import { useRecusDuTpe, verifieLaReference } from '../../../../shared/tpe-kkiapay';
 import { adresseDeLaPhoto, deposeLaPhoto, monCompte } from '../../../../shared/traces-coffre';
 import { cuivreSi, type ChequeLu } from '../../../../shared/ia-recu-pur';
@@ -155,7 +155,11 @@ function ChampsDuTpe({ t, pose, branchId, montantXof, id }: {
     setEnCours(false);
     if (v.ok) {
       pose({ kkiapay: { ref, montantXof: v.montantXof, fraisXof: v.fraisXof, ...(v.source ? { source: v.source } : {}), verifieeLe: new Date().toISOString() } });
-    } else if (v.raison === 'injoignable') {
+    } else if (laReferenceSeGarde(v)) {
+      /* MUET, OU INCONNUE DE SA ROUTE DE STATUT (24 novembre 2026) : la
+         caisse encaisse quand même, la référence se pointe le soir. Refuser
+         de vendre une cliente qui a payé, parce que KkiaPay ne voit pas son
+         TPE, n'est pas une règle : c'est une panne qu'on lui ferait payer. */
       pose({ kkiapay: { ref, injoignable: true } });
       setMessage(ditLeVerdict(v));
     } else {

@@ -1,4 +1,4 @@
-/* ══ LE TPE KKIAPAY : SON PAIEMENT, SANS RIEN TAPER — 22 novembre 2026 ═══
+﻿/* ══ LE TPE KKIAPAY : SON PAIEMENT, SANS RIEN TAPER — 22 novembre 2026 ═══
 
    « Il faut un meilleur moyen pour valider un paiement sur la TPE de KkiaPay.
    On ne peut pas saisir un numéro de ticket et 4 derniers chiffres. Comment
@@ -96,11 +96,37 @@ export type VerdictDeLaReference =
   | { ok: true; ref: string; montantXof: number; fraisXof: number; source?: string }
   | { ok: false; raison: 'introuvable' | 'pas-reussie' | 'deja-en-ligne' | 'injoignable' | 'refusee' | 'mal-formee'; statut?: string };
 
+/** LES DEUX NUMÉROS D'UN REÇU DE TPE — 24 novembre 2026. Le reçu porte
+    « Référence 7757889838121264 » ET « N° Reçu rcp_7757889838121264 » ; la
+    caissière tape l'un, la route de statut de KkiaPay peut ne connaître que
+    l'autre. On essaie les deux. Copie tenue dans `kkiapay-tpe` (la fonction
+    ne peut pas importer `src/`) : le banc lit les deux. */
+export function identifiantsPossibles(ref: string): string[] {
+  const r = String(ref ?? '').replace(/\s+/g, '').trim();
+  if (r.length < 6) return [];
+  const vus = [r];
+  vus.push(/^rcp_/i.test(r) ? r.replace(/^rcp_/i, '') : `rcp_${r}`);
+  return [...new Set(vus.filter((x) => x.length >= 6))];
+}
+
+/** LA RÉFÉRENCE SE GARDE-T-ELLE QUAND KKIAPAY NE LA RECONNAÎT PAS ? Oui :
+    muet, ou inconnue de sa route de statut — dans les deux cas la caisse
+    encaisse et la référence se pointe le soir. Une référence *refusée* (non
+    aboutie, déjà en ligne) ne se garde pas, elle. */
+export const laReferenceSeGarde = (v: VerdictDeLaReference): boolean =>
+  !v.ok && (v.raison === 'injoignable' || v.raison === 'introuvable');
+
 /** Ce que l'écran dit d'un verdict. */
 export function ditLeVerdict(v: VerdictDeLaReference): string {
   if (v.ok) return '';
   switch (v.raison) {
-    case 'introuvable': return 'KkiaPay ne connaît pas cette référence : vérifiez-la sur le reçu.';
+    /* LE TPE N'EST PAS LA ROUTE DU PAIEMENT EN LIGNE — 24 novembre 2026. La
+       référence d'un paiement fait au terminal n'est pas connue de la route
+       de statut (« KkiaPay ne connaît pas cette référence », un vrai paiement
+       de 100 F, ce soir-là). Ce n'est pas une référence fausse : c'est une
+       route qui ne la voit pas. L'encaissement ne s'arrête donc pas là — la
+       référence se garde et se pointe le soir, comme quand KkiaPay est muet. */
+    case 'introuvable': return 'KkiaPay ne reconnaît pas cette référence : le TPE ne passe pas par la même route que les paiements en ligne. Elle est gardée et se pointera le soir ; prenez l’écran du TPE en photo pour la caisse.';
     case 'pas-reussie': return `KkiaPay dit ce paiement non abouti${v.statut ? ` (${v.statut.toLowerCase()})` : ''} : rien n’est arrivé.`;
     case 'deja-en-ligne': return 'Cette référence est un paiement en ligne (un acompte, une carte cadeau…) : il est déjà compté ailleurs.';
     case 'injoignable': return 'KkiaPay ne répond pas : la référence est gardée et se pointera le soir.';

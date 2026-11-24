@@ -1,4 +1,4 @@
-/* LE TPE KKIAPAY, ÉPROUVÉ — `node scripts/verifie-le-tpe-kkiapay.mjs`.
+﻿/* LE TPE KKIAPAY, ÉPROUVÉ — `node scripts/verifie-le-tpe-kkiapay.mjs`.
 
    22 novembre 2026 : « Il faut un meilleur moyen pour valider un paiement sur
    la TPE de KkiaPay. On ne peut pas saisir un numéro de ticket et 4 derniers
@@ -14,7 +14,8 @@ import { readFileSync } from 'node:fs';
 import {
   familleDeTrace, traceSuffit, traceAEcrire, traceDite, ditCeQuiManque, kkiapayCouvre, refKkiapayPlausible,
 } from '../src/shared/trace-du-moyen-pur';
-import { recuDuRegistre, recusAProposer, refsDejaPrises, heureDuRecu, ditLeVerdict } from '../src/shared/tpe-kkiapay-pur';
+import { recuDuRegistre, recusAProposer, refsDejaPrises, heureDuRecu, ditLeVerdict, laReferenceSeGarde, identifiantsPossibles } from '../src/shared/tpe-kkiapay-pur';
+
 import { MOYEN_CARTE_KKIAPAY } from '../src/shared/choix-du-moyen-pur';
 
 let ko = 0;
@@ -81,8 +82,18 @@ dit('le bon montant est marqué', [true, false], props.map((r) => r.juste));
 dit('les références déjà portées par une pièce', ['TxPris0001'], [...pris]);
 dit('l heure se dit à Cotonou', ['7 h 05', '0 h 00'], [heureDuRecu('2026-11-22T06:05:00.000Z'), heureDuRecu('2026-11-21T23:00:00.000Z')]);
 dit('chaque refus de KkiaPay se dit', [true, true, true, true],
-  [/ne connaît pas/.test(ditLeVerdict({ ok: false, raison: 'introuvable' })), /non abouti/.test(ditLeVerdict({ ok: false, raison: 'pas-reussie', statut: 'FAILED' })),
+  [/ne reconnaît pas cette référence/.test(ditLeVerdict({ ok: false, raison: 'introuvable' })), /non abouti/.test(ditLeVerdict({ ok: false, raison: 'pas-reussie', statut: 'FAILED' })),
     /déjà compté/.test(ditLeVerdict({ ok: false, raison: 'deja-en-ligne' })), /pointera le soir/.test(ditLeVerdict({ ok: false, raison: 'injoignable' }))]);
+/* LE TPE INCONNU DE KKIAPAY NE BLOQUE PAS LA CAISSE — 24 novembre 2026 : un
+   vrai paiement de 100 F au terminal, refusé par la route de statut, a bloqué
+   un encaissement. Muet ou inconnue : la référence se garde et se pointe. */
+dit('muet ou inconnue, la référence se garde ; un refus, non', [true, true, true, false, false], [
+  laReferenceSeGarde({ ok: false, raison: 'injoignable' }),
+  laReferenceSeGarde({ ok: false, raison: 'introuvable' }),
+  traceSuffit('kkiapay', { kkiapay: { ref: '7757889838121264', injoignable: true } }, 100),
+  laReferenceSeGarde({ ok: false, raison: 'pas-reussie', statut: 'FAILED' }),
+  laReferenceSeGarde({ ok: false, raison: 'deja-en-ligne' }),
+]);
 
 /* ── 5. LA FONCTION kkiapay-tpe ─────────────────────────────────────────── */
 {
@@ -93,7 +104,7 @@ dit('chaque refus de KkiaPay se dit', [true, true, true, true],
     [/headers: \{ \.\.\.CORS, 'content-type': 'application\/json' \}/.test(src), i("if (req.method === 'OPTIONS')") > 0 && i("if (req.method === 'OPTIONS')") < i("if (req.method === 'GET')")]);
   dit('la porte : le personnel connecté (is_staff), avant de demander quoi que ce soit à KkiaPay', true,
     i("commeAppelant.rpc('is_staff')") > 0 && i("if (errStaff || estPersonnel !== true) return json({ ok: false, raison: 'refusee'") > i("commeAppelant.rpc('is_staff')")
-      && i('await demandeAKkiapay(ref)') > i("if (errStaff || estPersonnel !== true)"));
+      && i('await demandeAKkiapay(essai)') > i("if (errStaff || estPersonnel !== true)") && i('lesIdentifiantsPossibles(ref)') > i("if (errStaff || estPersonnel !== true)"));
   dit('le montant vient de KkiaPay, jamais du corps', [true, false],
     [/const montantXof = Math\.round\(Number\(tx\.amount \?\? 0\)\);/.test(src), /corps\?\.(montant|amount)/.test(src)]);
   dit('seul un SUCCESS est rendu comme un paiement', true, /if \(statut !== 'SUCCESS'\) return json\(\{ ok: false, raison: 'pas-reussie'/.test(src));
@@ -115,4 +126,9 @@ dit('chaque refus de KkiaPay se dit', [true, true, true, true],
     [/return fam && m > 0 && !traceSuffit\(fam, pt\.trace, m\) \? fam : null;/.test(enc), /etiquette=\{parts\.length > 1 \? `Part \$\{i \+ 1\}` : undefined\}\n\s*montantXof=\{x\}/.test(enc)]);
 }
 
+/* ── LES DEUX NUMÉROS DU REÇU (24 novembre 2026) ──────────────────────── */
+dit('le reçu du TPE porte deux numéros, on essaie les deux', ['7757889838121264', 'rcp_7757889838121264'], identifiantsPossibles('7757889838121264'));
+dit('et dans l’autre sens aussi', ['rcp_7757889838121264', '7757889838121264'], identifiantsPossibles('rcp_7757889838121264'));
+dit('le montant reste celui de KkiaPay, jamais celui du corps', true, /const montantXof = Math\.round\(Number\(tx\.amount \?\? 0\)\);/.test(lis('supabase/functions/kkiapay-tpe/index.ts')) && !/corps\?\.(montant|amount)/.test(lis('supabase/functions/kkiapay-tpe/index.ts')));
+dit('la Maison garde la référence du reçu, pas l’identifiant d’essai', true, /return json\(\{ ok: true, ref,/.test(lis('supabase/functions/kkiapay-tpe/index.ts')) && /repondSous/.test(lis('supabase/functions/kkiapay-tpe/index.ts')));
 console.log(`\n${ko ? `${ko} echec(s) sur ${n}` : `${n}/${n} epreuves : le TPE KkiaPay.`}`);

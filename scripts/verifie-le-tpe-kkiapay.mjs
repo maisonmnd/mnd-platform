@@ -1,4 +1,4 @@
-import { build } from 'esbuild';
+﻿import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -41,6 +41,7 @@ const PANNES = [
   ['une reference pas verifiee suffit', TRACE, '    if (!k.verifieeLe) return false;\n', ''],
   ['un montant trop court passe', TRACE, '    return kkiapayCouvre(k, montantXof) !== false;', '    return true;'],
   ['KkiaPay muet bloque l encaissement', TRACE, '    if (k.injoignable) return true;\n', ''],
+  ['une reference inconnue ne se garde plus', TPE, "export const laReferenceSeGarde = (v: VerdictDeLaReference): boolean =>\n  !v.ok && (v.raison === 'injoignable' || v.raison === 'introuvable');", "export const laReferenceSeGarde = (v: VerdictDeLaReference): boolean =>\n  !v.ok && v.raison === 'injoignable';"],
   ['la reference ne s ecrit plus sur le versement', TRACE, '        ref: refKkiapayPropre(k.ref),', "        ref: '',"],
   ['un paiement en ligne se propose au TPE', TPE, "  if (String(d.partnerId ?? '').trim()) return null;\n", ''],
   ['un paiement deja pris se propose encore', TPE, '      if (o.dejaPris.has(r.ref) || vus.has(r.ref)) return false;', '      if (vus.has(r.ref)) return false;'],
