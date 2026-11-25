@@ -82,7 +82,13 @@ button.tdb-puce:focus-visible { outline: 2px solid var(--color-copper); outline-
 .tdb-table tr.est-moi td { font-weight: 500; }
 .tdb-table td.tdb-vide { cursor: default; color: var(--tdb-doux); white-space: normal; }
 .tdb-cache { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.tdb-gestes { display: flex; gap: 6px; justify-content: flex-end; }
+/* LE LIEN SOUS LE GESTE (25 novembre 2026). Côte à côte, « En direct » et le
+   geste d'état prenaient à la colonne « Rituel » sa largeur : un rituel long
+   s'écrivait sur une ligne de plus. Empilés, la colonne des gestes ne fait
+   plus que la largeur d'un bouton. Mesuré sur une vraie ligne, écran de
+   1536 px : « Rituel » passe de 181 à 246 px, le rituel de trois lignes à
+   deux, la ligne de 83 à 74 px. */
+.tdb-gestes { display: flex; flex-direction: column; align-items: flex-end; gap: 0; }
 .tdb-resume { display: flex; gap: 6px 18px; flex-wrap: wrap; padding: 10px 16px; border-top: 1px solid var(--tdb-trait); background: var(--tdb-fond-doux); font-size: 13px; color: var(--tdb-doux); }
 .tdb-resume b { color: var(--tdb-encre); font-weight: 500; font-variant-numeric: lining-nums tabular-nums; }
 .tdb-resume button { padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
@@ -102,7 +108,7 @@ button.tdb-puce:focus-visible { outline: 2px solid var(--color-copper); outline-
 .tdb-btn--etat:hover { background: var(--indigo-50, #EDEEF4); }
 /* « En direct » (23 novembre 2026) : un lien, pas un bouton plein. Il ouvre une
    fenêtre ; il ne doit pas se confondre avec le geste d'état ni avec l'argent. */
-.tdb-btn--direct { border-color: transparent; color: var(--tdb-encre); padding-inline: 6px; margin-right: 4px; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--tdb-cuivre); }
+.tdb-btn--direct { border-color: transparent; color: var(--tdb-encre); padding: 2px; min-height: 24px; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--tdb-cuivre); }
 .tdb-btn--direct:hover { background: var(--indigo-50, #EDEEF4); }
 .tdb-tache.est-ko .tdb-btn { border-color: var(--tdb-rouge); color: var(--tdb-rouge); }
 .tdb-tache.est-ko .tdb-btn:hover { background: var(--tdb-rouge-pale); }

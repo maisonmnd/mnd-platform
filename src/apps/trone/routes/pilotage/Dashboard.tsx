@@ -916,12 +916,9 @@ function TableauDeLaDirection() {
                               au règlement en direct et devis en direct, trop compliqué ») :
                               son devis et son règlement, sans passer par « Encaisser ».
                               Ce n'est ni l'état ni l'argent : il ouvre une fenêtre, et
-                              se dessine en lien pour ne pas se confondre avec eux. */}
-                          {a.status !== 'annulé' && (
-                            <button type="button" className="tdb-btn tdb-btn--direct" onClick={(e) => { e.stopPropagation(); setDirectAppt(a); }} title="Son devis et son règlement, en direct">
-                              En direct
-                            </button>
-                          )}
+                              se dessine en lien pour ne pas se confondre avec eux.
+                              SOUS le geste, depuis le 25 novembre 2026 : à côté de lui,
+                              il serrait la colonne « Rituel ». */}
                           {a.status !== 'honoré' ? (
                             <button type="button" className="tdb-btn tdb-btn--etat" onClick={(e) => { e.stopPropagation(); advance(a); }}>
                               {/* « Terminer » le jour même : le reste part sur son WhatsApp (25 octobre 2026). */}
@@ -932,6 +929,11 @@ function TableauDeLaDirection() {
                               Encaisser
                             </button>
                           ) : null}
+                          {a.status !== 'annulé' && (
+                            <button type="button" className="tdb-btn tdb-btn--direct" onClick={(e) => { e.stopPropagation(); setDirectAppt(a); }} title="Son devis et son règlement, en direct">
+                              En direct
+                            </button>
+                          )}
                         </span>
                       </td>
                     </tr>
@@ -1293,7 +1295,7 @@ function TableauDeLaDirection() {
       )}
 
       {/* Modification d’un rendez-vous du carnet du jour */}
-      {editAppt && <RdvModal appt={editAppt} onClose={() => setEditAppt(null)} />}
+      {editAppt && <RdvModal appt={editAppt} onClose={() => setEditAppt(null)} onEnDirect={(a) => { setEditAppt(null); setDirectAppt(a); }} />}
 
       {/* « Créer le RDV » depuis un appel — le formulaire, pré-rempli de la cliente. */}
       {rdvPour && (

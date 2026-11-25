@@ -14,6 +14,7 @@ import {
   useBranchAppointmentsAvecEssais, useBranchClients, useServicesById, useClefDuTarif, type RdvInitial,
 } from './_shared';
 import { PayAppointmentModal } from './actions';
+import { EnDirect } from './EnDirect';
 import { deplaceAvecLeFoyer, quiSuit } from './foyer-gestes';
 import { useStaff as useMyStaff } from '../../../../shared/auth';
 import { useSettings } from '../../../../shared/settings';
@@ -133,6 +134,9 @@ export default function Calendrier() {
   const [createInit, setCreateInit] = useState<RdvInitial | null>(null);
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
+  /* EN DIRECT (25 novembre 2026) : le Calendrier est le seul écran où un
+     rendez-vous d'essai se voit ; sa fiche y ouvre son devis et son règlement. */
+  const [directAppt, setDirectAppt] = useState<Appointment | null>(null);
 
   /* — Déplacement direct (glisser-déposer natif) — */
   const [dragId, setDragId] = useState<string | null>(null); // rituel en cours de déplacement
@@ -979,8 +983,10 @@ export default function Calendrier() {
           appt={editAppt}
           sansPrix={estMaitre}
           onEncaisser={estMaitre ? undefined : (a) => { setEditAppt(null); setPayAppt(a); }}
+          onEnDirect={estMaitre ? undefined : (a) => { setEditAppt(null); setDirectAppt(a); }}
         />
       )}
+      {directAppt && !estMaitre && <EnDirect appt={directAppt} onClose={() => setDirectAppt(null)} />}
       {payAppt && !estMaitre && (
         <PayAppointmentModal
           appt={payAppt}

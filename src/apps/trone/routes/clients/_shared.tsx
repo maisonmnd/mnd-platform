@@ -1926,6 +1926,7 @@ type ProprietesDuRdv = {
   appt?: Appointment;
   title?: string;
   onEncaisser?: (a: Appointment) => void;
+  onEnDirect?: (a: Appointment) => void;
 };
 
 /* ══ APRÈS LA POSE — 28 octobre 2026 ══════════════════════════════════
@@ -1953,6 +1954,7 @@ function RdvModalCorps({
   appt,
   title,
   onEncaisser,
+  onEnDirect,
   sansPrix,
   onAutreRdv,
   onModifier,
@@ -1972,6 +1974,10 @@ function RdvModalCorps({
   title?: string;
   /** Encaisser depuis la modale — n'apparaît qu'en modification d'un RDV existant. */
   onEncaisser?: (a: Appointment) => void;
+  /** « En direct » depuis la modale (25 novembre 2026) : son devis et son
+      règlement. L'écran qui ouvre la modale ouvre aussi la fenêtre : elle ne
+      s'importe pas ici, `EnDirect` lit déjà ce fichier. */
+  onEnDirect?: (a: Appointment) => void;
 }) {
   const { branch, currency } = useBranch();
   const clients = useBranchClients();
@@ -3975,6 +3981,18 @@ function RdvModalCorps({
     if (!appt || !onEncaisser) return;
     if (!rienNaBouge && !save(status)) return;
     onEncaisser(appt);
+  };
+  /* EN DIRECT DEPUIS LE RENDEZ-VOUS — 25 novembre 2026. Un rendez-vous d'essai
+     est caché du Tableau de bord et du Carnet : il n'avait aucun accès court à
+     son devis et à son règlement en direct. Le jour même, ou dès que sa note
+     existe (elle peut régler le lendemain) ; jamais annulé. Comme pour les
+     règlements : ce qui a bougé s'enregistre d'abord. */
+  const enDirectSOffre = !!appt && !!onEnDirect && appt.status !== 'annulé'
+    && (appt.date === todayISO() || !!appt.lienDeReglement);
+  const ouvreEnDirect = () => {
+    if (!appt || !onEnDirect) return;
+    if (!rienNaBouge && !save(status)) return;
+    onEnDirect(appt);
   };
 
   const remove = async () => {
@@ -6403,6 +6421,11 @@ function RdvModalCorps({
           <div className="trc-rdv3__boutons">
             {appt ? (
               <>
+                {enDirectSOffre && (
+                  <button type="button" className="trc-rdv3__lien trc-rdv3__lien--clair" onClick={ouvreEnDirect} title="Son devis et son règlement, en direct">
+                    En direct
+                  </button>
+                )}
                 {/* UN RITUEL RÉGLÉ NE S'ENCAISSE PAS DEUX FOIS (11 août), mais
                     ce qui a été reçu se relit et se corrige (17 août). */}
                 {onEncaisser && (apptPayState(appt, byId) === 'payé' ? (
@@ -6443,7 +6466,7 @@ function RdvModalCorps({
       {/* L'AUTRE RENDEZ-VOUS, PAR-DESSUS : posé hors de cette fenêtre (portail),
           pour qu'il s'étende sur tout l'écran ; le fermer ramène ici. */}
       {autre && typeof document !== 'undefined' && createPortal(
-        <RdvModal appt={autre.appt} initial={autre.initial} sansPrix={sansPrix} onEncaisser={onEncaisser}
+        <RdvModal appt={autre.appt} initial={autre.initial} sansPrix={sansPrix} onEncaisser={onEncaisser} onEnDirect={onEnDirect}
           title={autre.appt ? `Son rendez-vous du ${frShortAn(autre.appt.date)}` : undefined}
           onClose={() => setAutre(null)} />,
         document.body,

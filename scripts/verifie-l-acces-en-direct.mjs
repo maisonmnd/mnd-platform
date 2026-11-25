@@ -21,6 +21,8 @@ const FICHIERS = {
   style: 'src/apps/trone/routes/pilotage/tableau-de-bord.css',
   carnet: 'src/apps/trone/routes/clients/Carnet.tsx',
   encaisser: 'src/apps/trone/routes/clients/actions.tsx',
+  rdv: 'src/apps/trone/routes/clients/_shared.tsx',
+  calendrier: 'src/apps/trone/routes/clients/Calendrier.tsx',
 };
 const sources = Object.fromEntries(Object.entries(FICHIERS).map(([k, f]) => [k, lis(f)]));
 
@@ -84,13 +86,20 @@ const controles = [
     casse: (s) => ({ ...s, bord: remplace(s.bord, 'e.stopPropagation(); setDirectAppt(a);', 'setDirectAppt(a);') }),
   },
   {
-    dit: 'Tableau de bord : jamais sur un rendez-vous annule, et avant le geste d etat',
+    dit: 'Tableau de bord : jamais sur un rendez-vous annule, et sous le geste d etat',
     ok: (s) => {
       const g = s.bord.slice(s.bord.indexOf('<span className="tdb-gestes">'));
       const direct = g.indexOf('tdb-btn--direct'), etat = g.indexOf('tdb-btn--etat');
-      return direct > 0 && etat > direct && /\{a\.status !== 'annulé' && \(\s*<button type="button" className="tdb-btn tdb-btn--direct"/.test(g);
+      return etat > 0 && direct > etat && /\{a\.status !== 'annulé' && \(\s*<button type="button" className="tdb-btn tdb-btn--direct"/.test(g);
     },
     casse: (s) => ({ ...s, bord: s.bord.replace(/\{a\.status !== 'annulé' && \((\s*<button type="button" className="tdb-btn tdb-btn--direct")/, '{($1') }),
+  },
+  {
+    /* 25 novembre 2026 : cote a cote, le lien et le geste serraient la colonne « Rituel ». */
+    dit: 'Tableau de bord : les gestes s empilent, la colonne « Rituel » garde sa largeur',
+    ok: (s) => /\.tdb-gestes \{[^}]*flex-direction: column;[^}]*align-items: flex-end;/.test(s.style)
+      && !/\.tdb-btn--direct \{[^}]*margin-right/.test(s.style),
+    casse: (s) => ({ ...s, style: remplace(s.style, 'flex-direction: column; align-items: flex-end; gap: 0;', 'gap: 6px; justify-content: flex-end;') }),
   },
   {
     dit: 'Tableau de bord : la fenetre s ouvre sur ce rendez-vous et se referme',
@@ -100,7 +109,7 @@ const controles = [
   {
     dit: 'le lien se dessine en lien, pas en bouton plein : ni l etat ni l argent',
     ok: (s) => /\.tdb-btn--direct \{[^}]*border-color: transparent;[^}]*text-decoration: underline;/.test(s.style),
-    casse: (s) => ({ ...s, style: remplace(s.style, 'border-color: transparent; color: var(--tdb-encre); padding-inline: 6px;', 'color: var(--tdb-encre); padding-inline: 6px;') }),
+    casse: (s) => ({ ...s, style: remplace(s.style, 'border-color: transparent; color: var(--tdb-encre); padding: 2px;', 'color: var(--tdb-encre); padding: 2px;') }),
   },
   {
     dit: 'le tableau de l equipe, qui ne voit pas les montants, ne l offre pas',
@@ -126,6 +135,37 @@ const controles = [
     dit: 'la fenetre « Encaisser » garde ses deux panneaux : rien n est retire',
     ok: (s) => /<DevisEnDirect appt=\{appt\} services=\{\[\.\.\.byId\.values\(\)\]\}/.test(s.encaisser) && /<ReglementEnDirect appt=\{appt\} \/>/.test(s.encaisser),
     casse: (s) => ({ ...s, encaisser: sans(s.encaisser, '<ReglementEnDirect appt={appt} />') }),
+  },
+  /* ── DEPUIS LA FICHE DU RENDEZ-VOUS (25 novembre 2026) ──────────────────
+     Un rendez-vous d essai est cache du Tableau de bord et du Carnet : il
+     n avait aucun acces court. La fiche « Modifier le rendez-vous » l offre. */
+  {
+    dit: 'la fiche du rendez-vous l offre le jour meme, ou des que sa note existe, jamais annule',
+    ok: (s) => /const enDirectSOffre = !!appt && !!onEnDirect && appt\.status !== 'annulé'\s*&& \(appt\.date === todayISO\(\) \|\| !!appt\.lienDeReglement\);/.test(s.rdv)
+      && /\{enDirectSOffre && \(\s*<button type="button" className="trc-rdv3__lien trc-rdv3__lien--clair" onClick=\{ouvreEnDirect\}[^>]*>\s*En direct\s*<\/button>/.test(s.rdv),
+    casse: (s) => ({ ...s, rdv: remplace(s.rdv, "!!onEnDirect && appt.status !== 'annulé'", '!!onEnDirect') }),
+  },
+  {
+    dit: 'la fiche enregistre ce qui a bouge avant d ouvrir la fenetre',
+    ok: (s) => /const ouvreEnDirect = \(\) => \{\s*if \(!appt \|\| !onEnDirect\) return;\s*if \(!rienNaBouge && !save\(status\)\) return;\s*onEnDirect\(appt\);\s*\};/.test(s.rdv),
+    casse: (s) => ({ ...s, rdv: s.rdv.replace(/(if \(!appt \|\| !onEnDirect\) return;\s*)if \(!rienNaBouge && !save\(status\)\) return;/, '$1') }),
+  },
+  {
+    dit: 'la fiche n importe pas la fenetre (elle lit deja ce fichier) : l ecran qui l ouvre la pose',
+    ok: (s) => !/from '\.\/EnDirect'/.test(s.rdv) && /onEnDirect\?: \(a: Appointment\) => void;/.test(s.rdv),
+    casse: (s) => ({ ...s, rdv: `import { EnDirect } from './EnDirect';\n${s.rdv}` }),
+  },
+  {
+    dit: 'Calendrier : la fiche ouvre la fenetre, jamais pour qui ne voit pas les prix',
+    ok: (s) => /onEnDirect=\{estMaitre \? undefined : \(a\) => \{ setEditAppt\(null\); setDirectAppt\(a\); \}\}/.test(s.calendrier)
+      && /\{directAppt && !estMaitre && <EnDirect appt=\{directAppt\} onClose=\{\(\) => setDirectAppt\(null\)\} \/>\}/.test(s.calendrier),
+    casse: (s) => ({ ...s, calendrier: remplace(s.calendrier, 'onEnDirect={estMaitre ? undefined : (a) =>', 'onEnDirect={(a) =>') }),
+  },
+  {
+    dit: 'Carnet et Tableau de bord : leur fiche l offre aussi',
+    ok: (s) => /onEnDirect=\{sansPrix \? undefined : \(a\) => \{ setModal\(null\); setDirectAppt\(a\); \}\}/.test(s.carnet)
+      && /<RdvModal appt=\{editAppt\} onClose=\{\(\) => setEditAppt\(null\)\} onEnDirect=\{\(a\) => \{ setEditAppt\(null\); setDirectAppt\(a\); \}\} \/>/.test(s.bord),
+    casse: (s) => ({ ...s, carnet: remplace(s.carnet, 'onEnDirect={sansPrix ? undefined : (a) =>', 'onEnDirect={(a) =>') }),
   },
 ];
 

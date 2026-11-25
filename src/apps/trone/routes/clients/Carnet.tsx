@@ -1518,6 +1518,7 @@ export default function Carnet() {
           title={modal.title}
           sansPrix={sansPrix}
           onEncaisser={sansPrix ? undefined : (a) => { setModal(null); setPayAppt(a); }}
+          onEnDirect={sansPrix ? undefined : (a) => { setModal(null); setDirectAppt(a); }}
         />
       )}
       {/* L'ENCAISSEMENT NE S'OUVRE PAS AU FAUTEUIL. Fermer le bouton ne
