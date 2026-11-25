@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE LIEN MTN NE PROMET PLUS « SANS FRAIS » — 25 novembre 2026 (Trône seul ; aucun SQL ; aucune fonction)
+## LE LIEN MTN NE PROMET PLUS « SANS FRAIS » — 25 novembre 2026, EN LIGNE (Trône build 20261125063511 @ 2af31e73 = e90c7f88 + 248b451f) (Trône seul ; aucun SQL ; aucune fonction)
 
 « Oui, corrige le message MTN du Trône » (Yéman). Le message du lien « Payer par MTN » (Créer › Lien de réservation, et la fiche cliente) disait « Validez ensuite sur votre téléphone, sans frais pour vous. ». C'est faux depuis le 20 novembre : les frais MTN s'ajoutent pour la cliente (`fraisAjoutesMtn`, et `regler.html` les affiche).
 
