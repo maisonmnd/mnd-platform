@@ -101,6 +101,7 @@ import {
 } from '../../../../shared/foyer-pur';
 import { lieLeFoyer, quiAnnuler } from './foyer-gestes';
 import { OptionsPrestations } from '../_ui';
+import { nomEtEnClair } from '../../../../shared/en-clair-pur';
 
 export { ChampDeDate };
 
@@ -1426,7 +1427,9 @@ export function apptReminder(
     /* UN RITUEL PAR LIGNE. Entre parenthèses au milieu de la phrase, trois
        noms à marque déposée poussaient l'heure hors de l'écran sur un
        téléphone : ce qui compte le plus se lisait en dernier. */
-    rituels: apptServices(a, byId).map((x) => x.name),
+    /* Avec ses mots en clair (25 novembre 2026) : « Rituel Sówà™
+       (traitement anti-poux) », elle sait ce qu'elle vient faire. */
+    rituels: apptServices(a, byId).map((x) => nomEtEnClair(x.name, x.enClair)),
     maison: maisonNom(),
     picto,
   });

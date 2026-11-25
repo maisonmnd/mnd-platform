@@ -9,6 +9,7 @@ import MomentEnTrois from './MomentEnTrois';
 import { francsDuTiers } from '../../shared/le-moment-en-trois-pur';
 import './abonnee.css';
 import { estAReprogrammer } from '../../shared/a-reprogrammer-pur';
+import { nomEtEnClair } from '../../shared/en-clair-pur';
 
 /* ══ L'ONGLET RENDEZ-VOUS — 20 octobre 2026 ══════════════════════════════
    Maquette L0 validée, écran 4 (décision 8 : la barre Accueil · Rendez-vous ·
@@ -52,7 +53,9 @@ export default function RendezVousTab({ releve, prenom, selecteur, onOpenRdv, on
   const filtre = (l: Appointment[]) => (seulementFormule ? l.filter((a) => !!seanceDuRelevé(releve, a.id)?.s.compte || a.coveredBySub) : l);
   const liste = filtre(vue === 'avenir' ? aVenir : passes);
 
-  const noms = (a: Appointment) => a.serviceIds.map((id) => services.find((s) => s.id === id)?.name).filter(Boolean).join(' + ') || t('Rituel de la maison');
+  /* Avec les mots en clair (25 novembre 2026) : « Rituel Sówà™ (traitement anti-poux) ». */
+  const noms = (a: Appointment) => a.serviceIds.map((id) => services.find((s) => s.id === id))
+    .map((s) => (s ? nomEtEnClair(s.name, s.enClair) : '')).filter(Boolean).join(' + ') || t('Rituel de la maison');
 
   /** L'étiquette d'argent : incluse (et son rang), ou ce qu'elle coûte. */
   const argent = (a: Appointment): { mot: string; cls: string } | null => {

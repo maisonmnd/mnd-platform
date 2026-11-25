@@ -32,6 +32,7 @@ import { scalesWithModel, suitLeModeleRegle, useModelBands, useBandSets, bandRan
 import { FILL_DESCRIPTIONS, REWRITE_DESCRIPTIONS, DESC_REV } from './serviceDescriptions';
 import { bougerStockGamme, corrigerStockGamme, litQuantite } from '../../../../shared/stock';
 import { prixApresRemisePct } from '../../../../shared/arrondi-des-remises-pur';
+import { nomEtEnClair } from '../../../../shared/en-clair-pur';
 import './vente.css';
 import { FicheTechniqueDuVolet, ficheAEcrire, ficheDuService, ficheRemplie, ficheVide, type FicheForm } from './FicheTechnique';
 
@@ -60,6 +61,8 @@ type SvcForm = {
   categoryId: string;
   name: string;
   description: string;
+  /** Les mots en clair pour la cliente (25 novembre 2026, shared/en-clair-pur). */
+  enClair: string;
   price: string;
   priceMode: PriceMode;
   palier: Service['palier'];
@@ -117,7 +120,7 @@ type SvcForm = {
 };
 
 const emptySvcForm = (categoryId: string, master: string, estForfait = false): SvcForm => ({
-  id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
+  id: null, categoryId, name: '', description: '', enClair: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
   code: '', rate: '', tarifMode: '', includes: [], forfaitRemise: '', estForfait, floors: {}, durationMax: '', priceTo: '',
   prixLong: {}, dureeLong: {}, tarifLong: {}, modele: 'fixe', bandIds: [], reserveFamilles: false, reserveEnfants: false, desVenue: '', gestes: [], privatise: false, maxTetes: '2',
   fiche: ficheVide(),
@@ -682,7 +685,7 @@ export default function Catalogue() {
 
   const openSvcEdit = (svc: Service) =>
     setSvcForm({
-      id: svc.id, categoryId: svc.categoryId, name: svc.name, description: svc.description ?? '',
+      id: svc.id, categoryId: svc.categoryId, name: svc.name, description: svc.description ?? '', enClair: svc.enClair ?? '',
       price: String(svc.priceXof), priceMode: priceModeOf(svc), palier: svc.palier, durationMin: String(svc.durationMin), sessions: svc.sessions, master: svc.master,
       code: svc.code ?? '', rate: svc.ratePerLock ? String(svc.ratePerLock) : '', tarifMode: svc.tarifMode ?? '', includes: svc.includes ?? [], estForfait: !!svc.includes?.length, forfaitRemise: svc.forfaitRemisePct !== undefined ? String(svc.forfaitRemisePct) : '',
       floors: Object.fromEntries(Object.entries(svc.priceFloors ?? {}).map(([k, v]) => [k, String(v)])),
@@ -1018,6 +1021,7 @@ export default function Catalogue() {
       const palierPose = avant?.palierPose || (!!avant && avant.palier !== svcForm.palier) || undefined;
       patchSvc(svcForm.id, {
         categoryId: svcForm.categoryId, name: svcForm.name.trim(), description: svcForm.description.trim() || undefined,
+        enClair: svcForm.enClair.replace(/\s+/g, ' ').trim() || undefined,
         priceXof: price, priceMode: svcForm.priceMode, hidePrice, palier: svcForm.palier, palierPose, durationMin: dur, sessions: svcForm.sessions, master: svcForm.master,
         ...v6,
       });
@@ -1027,6 +1031,7 @@ export default function Catalogue() {
         ...prev,
         {
           id: uid(), categoryId: svcForm.categoryId, name: svcForm.name.trim(), description: svcForm.description.trim() || undefined,
+          enClair: svcForm.enClair.replace(/\s+/g, ' ').trim() || undefined,
           palier: svcForm.palier, priceXof: price, priceMode: svcForm.priceMode, hidePrice, sessions: svcForm.sessions,
           master: svcForm.master, durationMin: dur, order: maxOrder + 1, temps: [1, 1, 1, 1],
           ...v6,
@@ -1652,6 +1657,7 @@ export default function Catalogue() {
                     </div>
                   )}
 
+                  {svc.enClair && <div className="trv-svc__desc" style={{ marginTop: 4, fontStyle: 'italic' }}>En clair : {svc.enClair}</div>}
                   {svc.description && <div className="trv-svc__desc" style={{ marginTop: 4 }}>{svc.description}</div>}
                   </div>
                   )}
@@ -2023,6 +2029,17 @@ export default function Catalogue() {
                   </Select>
                 </Field>
               </div>
+              <Field label="En clair · ce que la cliente lit à côté du nom">
+                <Input
+                  value={svcForm.enClair}
+                  maxLength={60}
+                  onChange={(e) => setSvcForm({ ...svcForm, enClair: e.target.value })}
+                  placeholder="lavage doux, traitement anti-poux… (vide si le nom le dit déjà)"
+                />
+                <div style={{ marginTop: 6, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>
+                  Sur ses rendez-vous, ses factures et ses messages : « {nomEtEnClair(svcForm.name || 'Le nom', svcForm.enClair)} »
+                </div>
+              </Field>
               <Field label="Description · la voix de la Maison">
                 <Textarea
                   value={svcForm.description}

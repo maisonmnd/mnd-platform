@@ -38,6 +38,7 @@ import { ETAT_SEANCE, appelleLaMaison, dateDansLaPhrase, leJour, seanceDuRelevé
 import { annulationParElle } from '../../shared/terminer-et-regler-pur';
 import { ReglerDAvance } from './ReglerAvantApres';
 import { t, prix } from './i18n';
+import { nomEtEnClair } from '../../shared/en-clair-pur';
 
 /* MES RENDEZ-VOUS — voir, déplacer, annuler.
    Le déplacement reprend le calendrier de la réservation (créneaux libres réels) ;
@@ -194,7 +195,11 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
   /* `pourLaMaison` : ce qui part au Trône (push du personnel) reste en
      français ; ce qu'elle lit suit sa langue. */
   const names = (a: Appointment, pourLaMaison = false) => {
-    const base = a.serviceIds.map((id) => services.find((s) => s.id === id)?.name).filter(Boolean).join(' + ') ||
+    /* Ce qu'elle lit porte les mots en clair (25 novembre 2026, « Rituel
+       Sówà™ (traitement anti-poux) ») ; ce qui part au Trône, le nom seul. */
+    const base = a.serviceIds.map((id) => services.find((s) => s.id === id))
+      .map((s) => (s ? (pourLaMaison ? s.name : nomEtEnClair(s.name, s.enClair)) : ''))
+      .filter(Boolean).join(' + ') ||
       (pourLaMaison ? 'Rituel de la maison' : t('Rituel de la maison'));
     /* Le rituel d'une tête portée se nomme : « — pour Keli ». */
     const tete = a.clientId !== clientId ? tetes.find((x) => x.id === a.clientId) : undefined;
@@ -630,7 +635,7 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
                     const s = services.find((x) => x.id === id);
                     return (
                       <div key={`${id}-${i}`} className="mc-recapcard__line">
-                        <span>{s?.name ?? t('Rituel de la maison')}</span>
+                        <span>{s ? nomEtEnClair(s.name, s.enClair) : t('Rituel de la maison')}</span>
                         <span>{s?.durationMin ? fmtDuration(s.durationMin) : ''}</span>
                       </div>
                     );

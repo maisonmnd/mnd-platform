@@ -156,6 +156,7 @@ const EXPRESS = -2;
 /* Les places se cherchent sur quatre semaines : au-delà, le calendrier. */
 const JOURS_DES_PLACES = 28;
 import { lesPartsDuGeste, leTitreEnClair } from './formule-pure';
+import { nomEtEnClair } from '../../shared/en-clair-pur';
 
 const cleDesGestes = (ids: readonly string[]) => [...new Set(ids)].sort().join('|');
 
@@ -1866,7 +1867,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                                 >
                                   <span className="mc-presta__box" aria-hidden="true" />
                                   <span className="mc-presta__body">
-                                    <span className="mc-presta__name">{s.name}</span>
+                                    <span className="mc-presta__name">{nomEtEnClair(s.name, s.enClair)}</span>
                                     {/* LA MAÎTRESSE NE SE DIT PAS ICI — décision du
                                         10 août : les mains sont l'affaire de la
                                         maison, la cliente choisit un rituel. La
@@ -1969,7 +1970,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                 return (
                   <div key={s.id} className="mc-recapcard__svcline">
                     <div>
-                      <div className="mc-recapcard__svcname">{s.name}</div>
+                      <div className="mc-recapcard__svcname">{nomEtEnClair(s.name, s.enClair)}</div>
                       <div className="mc-recapcard__svcsub">
                         {fmtDuration(s.durationMin)}
                         {enPlace ? ` · ${t('place limitée')}` : ''}

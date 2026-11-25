@@ -342,6 +342,14 @@ export type Service = {
   durationMin: number;
   order: number;
   description?: string;
+  /** LA PRESTATION EN CLAIR — 25 novembre 2026. « Quand les clients reçoivent
+      leurs rendez-vous ou leurs factures, ils ne savent pas que Rituel Sówà™
+      est le traitement anti-poux, ni que Le Souffle est un lavage » (Yéman).
+      Quelques mots simples, sans marque, dits à côté du nom partout où une
+      cliente le lit : « traitement anti-poux », « lavage doux ». Vide quand le
+      nom le dit déjà (« Pendant le rituel · pédicure »). Le juge est
+      `nomEtEnClair` (shared/en-clair-pur). */
+  enClair?: string;
   /** Marqueur de réécriture des descriptions signées (migration ponctuelle) —
       une fois posé, la migration ne retouche plus la prestation. */
   descRev?: number;

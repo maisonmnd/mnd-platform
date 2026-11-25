@@ -389,7 +389,9 @@ dit('le Trone passe par la regle pure, et ne garde plus de corps a lui', [true, 
   crochet.includes([
     '  const buildPdfData = (d: Invoice): InvoicePdfData => donneesDuPdfDeLaPiece(d, {', '    maison: branch.name,', '    sousLeVerrou,', '    devise: currency,',
     '    legal: maisonRaisonDuPdfAu(d.date),', '    nomPourLePdf: clientNameForPdf(d),', '    payeuse: payeurAutreQue(d),', '    telephone: clientOf(d)?.phone,',
-    '    appel: appelOf(d),', '    maitreDeRepli: branch.masters[0],', '    momoPour: () => paiementDeLaPiece(invoiceResteXof(d), reglagesMnd),', '    contenuDeLaLigne,', '  });',
+    '    appel: appelOf(d),', '    maitreDeRepli: branch.masters[0],', '    momoPour: () => paiementDeLaPiece(invoiceResteXof(d), reglagesMnd),', '    contenuDeLaLigne,',
+    /* La prestation en clair (25 novembre 2026) : le Trône seul la tend, le site non. */
+    '    enClairDeLaLigne,', '  });',
   ].join('\n')),
   /const gross = d\.lines/.test(crochet), /export const (remisesDuPapier|fmtDateFr|detailPorte) =/.test(crochet)]);
 dit('... la ligne sous le verrou et le mot par defaut viennent de la regle', [true, true],

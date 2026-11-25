@@ -40,7 +40,7 @@ export function FenetreDuPoint({ teteId, onClose }: { teteId: string; onClose: (
   const [clients] = useClients();
   const [families] = useFamilies();
   const { payeurId, pieces } = usePointDuCompte(teteId);
-  const { clientNameOf, contenuDeLaLigne, sousLeVerrou, reglagesMnd, momopayPct } = useLaPieceEnPdf();
+  const { clientNameOf, contenuDeLaLigne, enClairDeLaLigne, sousLeVerrou, reglagesMnd, momopayPct } = useLaPieceEnPdf();
   const envoi = useEnvoiDeLaPiece();
   const [decochees, setDecochees] = useState<string[]>([]);
   const [enCours, setEnCours] = useState(false);
@@ -61,7 +61,7 @@ export function FenetreDuPoint({ teteId, onClose }: { teteId: string; onClose: (
     await invoicePdf(pdfDuFoyer({
       titre: 'POINT DU COMPTE', nomDuFichier: 'Point-du-compte', pieces: prises, jourIso: jour,
       client: { name: famille?.name ?? payeur.name, phone: payeur.phone }, houseSub: sousLeVerrou,
-      nomDe: clientNameOf, contenuDe: contenuDeLaLigne, fmt: (n) => fmtMoney(n, currency), reglages: reglagesMnd, momopayPct,
+      nomDe: clientNameOf, contenuDe: contenuDeLaLigne, enClairDe: enClairDeLaLigne, fmt: (n) => fmtMoney(n, currency), reglages: reglagesMnd, momopayPct,
       note: `${phraseDuPoint(prises)}. Ce point ne réclame rien de plus que les factures qu’il résume.`,
     }));
     toast('Point du compte téléchargé.');

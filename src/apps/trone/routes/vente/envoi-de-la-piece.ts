@@ -40,7 +40,7 @@ export function useEnvoiDeLaPiece() {
   const [clients] = useClients();
   const [families] = useFamilies();
   const [settings] = useSettings();
-  const { buildPdfData, sousLeVerrou, contenuDeLaLigne } = useLaPieceEnPdf();
+  const { buildPdfData, sousLeVerrou, contenuDeLaLigne, enClairDeLaLigne } = useLaPieceEnPdf();
   /* Le jour LOCAL (celui du comptoir), jamais celui de Greenwich. */
   const aujourdhui = () => jourLocal(new Date().toISOString());
 
@@ -232,6 +232,7 @@ export function useEnvoiDeLaPiece() {
       client: { name: nomsDuFoyer(ouvertes.map(nomDe)), phone: destinataire.phone },
       houseSub: sousLeVerrou,
       nomDe,
+      enClairDe: enClairDeLaLigne,
       fmt: (n) => fmtMoney(n, currency),
       reglages: settings.mndPay,
       momopayPct: tauxDe(settings.frais, 'mtnRetenuPct'),
@@ -292,6 +293,7 @@ export function useEnvoiDeLaPiece() {
       houseSub: sousLeVerrou,
       nomDe: (p) => clients.find((c) => c.id === (p.forClientId ?? p.clientId))?.name ?? p.clientName ?? 'Une tête',
       contenuDe: contenuDeLaLigne,
+      enClairDe: enClairDeLaLigne,
       fmt: (n) => fmtMoney(n, currency),
       reglages: settings.mndPay,
       momopayPct: tauxDe(settings.frais, 'mtnRetenuPct'),

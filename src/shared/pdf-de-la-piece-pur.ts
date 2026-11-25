@@ -17,6 +17,7 @@ import { fmtMoney } from './currency';
 import { invoiceTotal, ligneNetXof, invoiceReglements, invoiceResteXof } from './finance-pur';
 import type { Invoice, InvoiceLine } from './finance';
 import type { InvoicePdfData } from './pdf';
+import { nomEtEnClair } from './en-clair-pur';
 
 /** LES REMISES DU PAPIER, CHACUNE À SA LIGNE — 23 octobre 2026. Le PDF
     additionnait en une seule « Remise » celles des lignes (la remise gamme
@@ -110,6 +111,11 @@ export type ContexteDuPdfDeLaPiece = {
   momoPour?: (resteXof: number) => InvoicePdfData['momo'];
   /** Ce que contient une ligne, sans prix (`contenuDUneLigne` au Trône). */
   contenuDeLaLigne: (d: Invoice, l: InvoiceLine) => string[];
+  /** LA PRESTATION EN CLAIR (25 novembre 2026) : les mots simples de la
+      prestation qui porte le nom de la ligne (« traitement anti-poux »), vide
+      sinon. La ligne garde son nom tel qu'il est écrit ; le papier les dit à
+      côté. Absent (le site), rien ne change. */
+  enClairDeLaLigne?: (l: InvoiceLine) => string;
 };
 
 /** LES DONNÉES DU VRAI PDF DE MARQUE, à partir d'une pièce. Le corps de
@@ -167,8 +173,11 @@ export function donneesDuPdfDeLaPiece(d: Invoice, ctx: ContexteDuPdfDeLaPiece): 
         (l.discountXof ?? 0) > 0 ? `−${fmtMoney(l.discountXof!, currency)}` : '',
       ].filter(Boolean).join(' puis ');
       const contenu = ctx.contenuDeLaLigne(d, l);
+      /* « Rituel Sówà™ (traitement anti-poux) » : le nom écrit sur la pièce,
+         puis ce qu'il veut dire (25 novembre 2026). */
+      const nom = nomEtEnClair(l.label, ctx.enClairDeLaLigne?.(l));
       return {
-        label: remise ? `${l.label} · remise ${remise}` : l.label,
+        label: remise ? `${nom} · remise ${remise}` : nom,
         qty: l.qty,
         unit: fmtMoney(l.unitXof, currency),
         total: fmtMoney(ligneNetXof(l), currency),

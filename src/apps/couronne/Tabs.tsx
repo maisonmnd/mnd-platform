@@ -81,6 +81,7 @@ import { useTheme } from './theme';
 import { t, locale, langue, useLangue, changeLaLangue, anglaisPropose, prix, motsDeDate } from './i18n';
 import { SonCollier } from './SonCollier';
 import { BoutiqueGamme, estCommandeBoutique } from './Boutique';
+import { nomEtEnClair } from '../../shared/en-clair-pur';
 
 /* Les cinq onglets de Ma Couronne + le panneau de notifications. */
 
@@ -392,10 +393,13 @@ function useNotifCount(): number {
     + bilans.filter((b) => !d.has(`bilan-${b.id}`)).length;
 }
 
-function serviceNames(a: Appointment, services: { id: string; name: string }[]): string {
+/* LA PRESTATION EN CLAIR (25 novembre 2026) : « Rituel Sówà™ (traitement
+   anti-poux) », pour qu'elle sache ce qu'elle a réservé. */
+function serviceNames(a: Appointment, services: { id: string; name: string; enClair?: string }[]): string {
   return a.serviceIds
-    .map((id) => services.find((s) => s.id === id)?.name)
-    .filter(Boolean)
+    .map((id) => services.find((s) => s.id === id))
+    .filter((s): s is { id: string; name: string; enClair?: string } => !!s)
+    .map((s) => nomEtEnClair(s.name, s.enClair))
     .join(' + ');
 }
 

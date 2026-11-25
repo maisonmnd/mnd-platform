@@ -13,6 +13,7 @@ import { tauxDe } from '../../../../shared/frais-des-moyens-pur';
 import { paiementTapGoDeLaPiece, type ReglagesMndPay } from '../../../../shared/mnd-pay-pur';
 import { montantMomopayFraisCompris, TAUX_MOMOPAY_PCT } from '../../../../shared/momopay-de-la-maison-pur';
 import type { InvoicePdfData } from '../../../../shared/pdf';
+import { enClairDuLibelle, nomEtEnClair } from '../../../../shared/en-clair-pur';
 import { paiementMomoDeLaMaison } from '../equipe/data';
 
 /* LES REMISES DU PAPIER, LA DATE DU PAPIER, CE QUE LA LIGNE PORTE : depuis
@@ -111,6 +112,8 @@ export function pdfDuFoyer(o: {
   /** Ce que contient une ligne de forfait (`contenuDeLaLigne`) : c'est ce
       papier-là que le parent lit avant de payer. */
   contenuDe?: (p: Invoice, l: InvoiceLine) => string[];
+  /** Les mots en clair d'une ligne (`enClairDeLaLigne`, 25 novembre 2026). */
+  enClairDe?: (l: InvoiceLine) => string;
   fmt: (n: number) => string;
   reglages: ReglagesMndPay | undefined;
   /** Le taux que MTN retient sur MoMoPay (22 novembre 2026, Paramètres › Paiements). */
@@ -142,10 +145,13 @@ export function pdfDuFoyer(o: {
     ...(new Set(o.pieces.map((p) => p.forClientId ?? p.clientId)).size > 1 ? { clientLabel: 'CLIENTES' } : {}),
     clientPhone: o.client.phone,
     lines: o.pieces.map((p) => {
-      const detail = p.lines.flatMap((l) => [
-        `${l.qty > 1 ? `${l.label} ×${l.qty}` : l.label} · ${o.fmt(Math.round(ligneNetXof(l)))}`,
+      const detail = p.lines.flatMap((l) => {
+        const nom = nomEtEnClair(l.label, o.enClairDe?.(l));
+        return [
+        `${l.qty > 1 ? `${nom} ×${l.qty}` : nom} · ${o.fmt(Math.round(ligneNetXof(l)))}`,
         ...(o.contenuDe ? o.contenuDe(p, l).map((t) => `dont ${t}`) : []),
-      ]);
+        ];
+      });
       const remise = Math.round(p.lines.reduce((s, l) => s + ligneNetXof(l), 0)) - invoiceTotal(p);
       if (remise > 0) detail.push(`Remise · − ${o.fmt(remise)}`);
       return {
@@ -220,6 +226,10 @@ export function useLaPieceEnPdf() {
      seulement les magasins qu'elle lit. */
   const contenuDeLaLigne = (piece: Invoice, l: InvoiceLine): string[] =>
     contenuDUneLigne(piece, l, { services, abonnes, formules, fmt: (x) => fmtMoney(x, currency), nomDuService });
+  /* LA PRESTATION EN CLAIR (25 novembre 2026) : la ligne ne porte que le nom
+     écrit le jour de la pièce ; ses mots simples se retrouvent par la
+     prestation du même nom au catalogue d'aujourd'hui. */
+  const enClairDeLaLigne = (l: InvoiceLine): string => enClairDuLibelle(l.label, services);
   /* ── LA TÊTE SOIGNÉE ET CELLE QUI RÈGLE — 28 août 2026 ─────────────
      « Comment garder le nom des enfants sur la facture mais dire que c'est
      Merine le parent qui paye ? Sinon cela sème la confusion : le parent
@@ -278,10 +288,11 @@ export function useLaPieceEnPdf() {
     maitreDeRepli: branch.masters[0],
     momoPour: () => paiementDeLaPiece(invoiceResteXof(d), reglagesMnd),
     contenuDeLaLigne,
+    enClairDeLaLigne,
   });
 
   return {
     payeurDe, clientOf, clientNameOf, prenomOf, appelOf, payeurAutreQue, clientNameForPdf,
-    defaultNoteFor, contenuDeLaLigne, buildPdfData, reglagesMnd, momopayPct, sousLeVerrou,
+    defaultNoteFor, contenuDeLaLigne, enClairDeLaLigne, buildPdfData, reglagesMnd, momopayPct, sousLeVerrou,
   };
 }
