@@ -38,6 +38,9 @@ const ALL_INPUTS: Record<string, string> = {
   /* LE DEVIS EN DIRECT — 22 novembre 2026 : le devis de la consultation,
      sur son téléphone (payer.html?tg=d-... y mène). */
   devis: resolve(__dirname, 'devis.html'),
+  /* LE TPE DE POCHE — 25 novembre 2026 : le téléphone d'une employée, activé
+     par la direction au Trône (tpe.html?a=<code>), encaisse les rendez-vous du jour. */
+  tpe: resolve(__dirname, 'tpe.html'),
 };
 const apps = (process.env.VITE_APPS || '').split(',').map((s) => s.trim()).filter(Boolean);
 const choisies = apps.length

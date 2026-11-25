@@ -63,11 +63,11 @@ const PANNES = [
   ['l invitée réutilise le jeton de la séance', FN, 'jetonDe(crypto.getRandomValues(new Uint8Array(LONGUEUR_DU_JETON)))', 'lien.jeton'],
   ['une séance réglée invite encore', FN, "  if (lien.payeLe) return json({ error: 'deja_reglee' }, 409);", ''],
   ['le prénom de l invitée n est plus borné', REGLER, "String(nom ?? '').replace(/\\s+/g, ' ').trim().slice(0, 18);", "String(nom ?? '');"],
-  ['la page propose régler à deux à l invitée', APP, '            {!p.parInvitee && (', '            {true && ('],
+  ['la page propose régler à deux à l invitée', APP, '            {!p.parInvitee && !auTpe() && (', '            {!auTpe() && ('],
   /* La sortie */
   ['la fonction accepte une place qu on ne lui a pas proposée', FN, "    if (!permises.some((x) => x.jour === jour && x.heure === heure)) return json({ error: 'place' }, 400);", ''],
   ['la page garde la place au lieu de la confirmer', APP, 'Confirmer cette place', 'Garder cette place'],
-  ['les étoiles passent avant la place', APP, "        const etape = pr && !pr.reponse ? 'place' : (ecran.paye && !etoilesFaite ? 'etoiles' : 'merci');", "        const etape = ecran.paye && !etoilesFaite ? 'etoiles' : (pr && !pr.reponse ? 'place' : 'merci');"],
+  ['les étoiles passent avant la place', APP, "        const etape = auTpe() ? 'merci' : pr && !pr.reponse ? 'place' : (ecran.paye && !etoilesFaite ? 'etoiles' : 'merci');", "        const etape = auTpe() ? 'merci' : ecran.paye && !etoilesFaite ? 'etoiles' : (pr && !pr.reponse ? 'place' : 'merci');"],
   /* Le QR */
   ['la page n offre plus le QR', APP, '          <QrSvg valeur={lienDeLInvitee}', '          <div valeur={lienDeLInvitee}'],
   /* Les étoiles d'un toucher */

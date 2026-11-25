@@ -64,10 +64,14 @@ const dansLaBarre = items.filter((it) => !it.horsMenu);
    jour, les Tendances rentrent dans la Synthèse : l'hôte `/analytics` n'existe
    plus, ses deux onglets vivent dans la réunion de `/synthese`.
    LE 25 NOVEMBRE 2026, LE POINT ENTRE AU MENU, dans Vente & Caisse (« oui
-   ajoute le point dans le menu », Yéman) : 34 rubriques. */
-dit('la barre montre 34 rubriques', 34, dansLaBarre.length);
-dit('... par département : Direction 4, Clientèle 4, Atelier 2, Vente & Caisse 5, Finances 6, Marketing & Fidélité 2, Équipe 6, Système 5',
-  { Direction: 4, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 5, Finances: 6, 'Marketing & Fidélité': 2, 'Équipe': 6, 'Système': 5 },
+   ajoute le point dans le menu », Yéman) : 34 rubriques.
+   LE 25 NOVEMBRE 2026 AUSSI, LE TPE DE POCHE, dans Vente & Caisse (« Create a
+   terminal of payment for the Trône… give the access to certain employees »,
+   Yéman ; lot 1 au sélecteur) : 35 rubriques. Réservé à la direction
+   (ROUTES_DIRECTION) : un maître ne le voit pas. */
+dit('la barre montre 35 rubriques', 35, dansLaBarre.length);
+dit('... par département : Direction 4, Clientèle 4, Atelier 2, Vente & Caisse 6, Finances 6, Marketing & Fidélité 2, Équipe 6, Système 5',
+  { Direction: 4, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 6, Finances: 6, 'Marketing & Fidélité': 2, 'Équipe': 6, 'Système': 5 },
   Object.fromEntries(NAV.map((g) => [g.group, g.items.filter((it) => !it.horsMenu).length])));
 /* L'ACADÉMIE N'EST PLUS UN DÉPARTEMENT DE LA BARRE — 23 novembre 2026 : une
    rubrique seule fait un titre pour rien. Elle se range chez l'Équipe et garde

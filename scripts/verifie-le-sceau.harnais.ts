@@ -182,7 +182,7 @@ dit('la page dit qui elle invite', { nom: 'Fatou', le: '2026-11-22T17:41:00Z' },
 vrai('la fonction tire un jeton neuf pour l invitée', fn2.includes('lienDInvitee') && fn2.includes('jetonDe(crypto.getRandomValues(new Uint8Array(LONGUEUR_DU_JETON)))'));
 vrai('la fonction cherche le rendez-vous par le lien de l invitée', fn2.includes("eq('data->lienDInvitee->>jeton', jeton)"));
 vrai('une séance réglée n invite plus', fn2.includes("if (lien.payeLe) return json({ error: 'deja_reglee' }, 409);"));
-vrai('la page ne propose pas de régler à deux à l invitée', lis('src/apps/regler/App.tsx').includes('{!p.parInvitee && (') && lis('src/apps/regler/App.tsx').includes('inviteAUnePart(jeton, nom)'));
+vrai('la page ne propose pas de régler à deux à l invitée', lis('src/apps/regler/App.tsx').includes('{!p.parInvitee && !auTpe() && (') && lis('src/apps/regler/App.tsx').includes('inviteAUnePart(jeton, nom)'));
 vrai('le Trône voit qui elle invite', lis('src/apps/trone/routes/clients/ReglementEnDirect.tsx').includes("Elle invite <b"));
 /* ── LA SORTIE : SA PROCHAINE PLACE, PUIS LES ÉTOILES (23 novembre 2026) ─ */
 vrai('la fonction reçoit sa réponse', fn2.includes("if (b.action === 'prochain') return await prochain(req, b);"));
@@ -192,7 +192,7 @@ vrai('le lien de l invitée ne choisit pas sa place', fn2.includes('if (porte.pa
 const reglerPage = lis('src/apps/regler/App.tsx');
 vrai('la page dit « Confirmer cette place », jamais « Garder »', reglerPage.includes('Confirmer cette place') && !reglerPage.includes('Garder cette place'));
 vrai('la page offre « Modifier » et « Pas maintenant »', reglerPage.includes('>Modifier</button>') && reglerPage.includes('Pas maintenant'));
-vrai('les étoiles ont leur page, après la place', reglerPage.includes('Laissez-nous vos étoiles') && reglerPage.includes("const etape = pr && !pr.reponse ? 'place' : (ecran.paye && !etoilesFaite ? 'etoiles' : 'merci');"));
+vrai('les étoiles ont leur page, après la place', reglerPage.includes('Laissez-nous vos étoiles') && reglerPage.includes("const etape = auTpe() ? 'merci' : pr && !pr.reponse ? 'place' : (ecran.paye && !etoilesFaite ? 'etoiles' : 'merci');"));
 vrai('le Trône propose sa prochaine place', lis('src/apps/trone/routes/clients/ReglementEnDirect.tsx').includes('Proposer cette place'));
 /* ── LE QR DE L'INVITATION (23 novembre 2026) ─────────────────────────── */
 const qr1 = qrMatrice('https://maisonmnd.com/trone/regler.html?r=abcdefghjkmnpq');

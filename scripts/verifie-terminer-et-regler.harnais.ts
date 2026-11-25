@@ -1520,7 +1520,8 @@ dit('avant-apres page « Regler » : d avance, son titre et la promesse du rende
   [/\{p\.sansPiece \? SUR_LA_PAGE\[p\.sansPiece\] : p\.tetes \? 'Régler les séances' : 'Régler la séance'\}/.test(pageReglerAa),
     /\{p\.sansPiece === 'avance' && <p className="rg-doux rg-petit">Le rendez-vous reste confirmé\./.test(pageReglerAa),
     /\{ecran\.page\.sansPiece\s*\? \(ecran\.paye \? APRES_LE_REGLEMENT\[ecran\.page\.sansPiece\] :/.test(pageReglerAa) && !/WhatsApp/.test(/const APRES_LE_REGLEMENT = \{[\s\S]*?\} as const;/.exec(pageReglerAa)?.[0] ?? 'WhatsApp'),
-    /\{p\.pourboire && \(/.test(pageReglerAa)]);
+    /* Le TPE de poche (25 novembre 2026) retire aussi le merci en mode TPE : la porte reste `p.pourboire`. */
+    /\{p\.pourboire && (?:!auTpe\(\) && )?\(/.test(pageReglerAa)]);
 const caissePure = sansCommentaires(lis('src/apps/trone/routes/vente/encaissement-pur.ts'));
 dit('avant-apres Trone : la Caisse reprend tout versement du rendez-vous (son versement d avance compris) en argent deja recu ; seul un versement qui NOMME une piece fait croire qu elle existe',
   [true, true], [/if \(a\.payments\?\.length\) \{\s*for \(const p of a\.payments\) \{\s*const m = f\(Number\(p\.amountXof\) \|\| 0\);\s*if \(m > 0\) out\.push\(/.test(caissePure), /\(a\.payments \?\? \[\]\)\.some\(\(p\) => p\.invoiceId === i\.id\)/.test(caissePure)]);

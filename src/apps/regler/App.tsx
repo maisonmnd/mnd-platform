@@ -101,6 +101,22 @@ const adresseAPartager = (): string => {
    (`retour=couronne`), elle y revient d'un toucher une fois le règlement fait. */
 const PAS_ENCORE_PRETE = 'Votre montant n’est pas encore prêt : l’équipe le prépare. Réessayez dans un instant, ou réglez au comptoir.';
 const retourDemande = (): boolean => new URLSearchParams(window.location.search).get('retour') === 'couronne';
+/* LE TPE DE POCHE (25 novembre 2026, maquette RsVNQvgB…) : le téléphone d'une
+   employée ouvre cette page en mode TPE (`tpe=1`). La note et l'encaissement
+   restent les mêmes ; ce qui ne se demande qu'à la cliente sur SON téléphone
+   (le merci, la Gamme, régler à deux, partager, la prochaine place, les
+   étoiles) se retire, et « Revenir au TPE » ramène à la liste du jour. Le mode
+   se garde pour l'onglet : le retour de FedaPay ne porte que `r` et `fp`. */
+const CLE_DU_MODE_TPE = 'mnd-regler-tpe';
+const auTpe = (): boolean => {
+  const dit = new URLSearchParams(window.location.search).get('tpe') === '1';
+  try {
+    if (dit) sessionStorage.setItem(CLE_DU_MODE_TPE, '1');
+    return dit || sessionStorage.getItem(CLE_DU_MODE_TPE) === '1';
+  } catch {
+    return dit;
+  }
+};
 /* RÉGLER AVANT ET APRÈS (7 novembre 2026, « pourquoi je ne peux pas faire un
    paiement d'un RDV sur ma couronne à n'importe quel moment ? ») : un
    rendez-vous sans pièce, ouvert depuis Ma Couronne, se règle d'avance ou
@@ -518,7 +534,7 @@ export default function App() {
             <p className="rg-direct"><i aria-hidden="true" />En direct avec la Maison</p>
             {p.sansPiece === 'avance' && <p className="rg-doux rg-petit">Le rendez-vous reste confirmé. Si l’équipe ajoute un soin pendant la séance, il se règle en plus le jour même.</p>}
 
-            {p.pourboire && (
+            {p.pourboire && !auTpe() && (
               <div className="rg-merci">
                 <span className="rg-doux">Un merci pour l’équipe ?</span>
                 <div className="rg-puces">
@@ -652,10 +668,12 @@ export default function App() {
                 elle est déjà celle qui règle. */}
             {/* LA GAMME AU FAUTEUIL — 23 novembre 2026 : deux tuiles, comme
                 la maquette — prendre un soin, ou régler à deux. */}
+            {!auTpe() && (
             <div className="rg-puces">
               <button type="button" className="rg-autre" style={{ flex: 1 }} onClick={() => { void ouvreLaGamme(); }}>La Gamme · prendre un soin</button>
             </div>
-            {!p.parInvitee && (
+            )}
+            {!p.parInvitee && !auTpe() && (
               <div className="rg-merci">
                 {p.invitee ? (
                   <>
@@ -689,9 +707,15 @@ export default function App() {
                 )}
               </div>
             )}
-            <button type="button" className="rg-autre" onClick={() => { void partager(); }}>Quelqu’un règle pour moi</button>
-            <p className="rg-doux rg-petit rg-centre">Envoyez-lui ce lien : la personne voit {p.tetes ? 'les séances' : 'la séance'} et le montant, jamais votre numéro.</p>
-            {partage && <p className="rg-doux rg-petit rg-centre">{partage}</p>}
+            {auTpe() ? (
+              <a className="rg-autre" href="tpe.html">Revenir au TPE</a>
+            ) : (
+              <>
+                <button type="button" className="rg-autre" onClick={() => { void partager(); }}>Quelqu’un règle pour moi</button>
+                <p className="rg-doux rg-petit rg-centre">Envoyez-lui ce lien : la personne voit {p.tetes ? 'les séances' : 'la séance'} et le montant, jamais votre numéro.</p>
+                {partage && <p className="rg-doux rg-petit rg-centre">{partage}</p>}
+              </>
+            )}
           </section>
         );
       })()}
@@ -703,7 +727,8 @@ export default function App() {
            « Modifier », jamais « Garder »), les étoiles ensuite — une page à
            elles seules —, et « Merci. » à la fin. Rien ne s'empile. */
         const pr = ecran.page.prochainRituel;
-        const etape = pr && !pr.reponse ? 'place' : (ecran.paye && !etoilesFaite ? 'etoiles' : 'merci');
+        /* Au TPE de poche, la place et les étoiles restent à SON téléphone : « Merci. » d'emblée. */
+        const etape = auTpe() ? 'merci' : pr && !pr.reponse ? 'place' : (ecran.paye && !etoilesFaite ? 'etoiles' : 'merci');
 
         if (etape === 'place' && pr) {
           const retenue = placeChoisie;
@@ -788,6 +813,7 @@ export default function App() {
               )}
             </div>
             {retourDemande() && <a className="rg-autre" href={retourAMaCouronne()}>Revenir à Ma Couronne</a>}
+            {auTpe() && <a className="rg-autre" href="tpe.html">Revenir au TPE</a>}
           </section>
         );
       })()}

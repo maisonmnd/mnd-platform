@@ -162,6 +162,11 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          le 25 novembre 2026 (« oui ajoute le point dans le menu », Yéman) :
          ouvert sans cliente, il la fait choisir (`ChoisirPourLePoint`). */
       { path: '/point', label: 'Le point', icon: HandCoins, Component: lazy(() => import('./clients/LePoint')) },
+      /* LE TPE DE POCHE (25 novembre 2026, « Create a terminal of payment for
+         the Trône… give the access to certain employees », Yéman) : qui peut
+         encaisser sur son téléphone, l'activation par QR, « Couper », et le
+         journal du jour. Réservé à la direction (ROUTES_DIRECTION). */
+      { path: '/tpe-de-poche', label: 'TPE de poche', icon: Smartphone, Component: lazy(() => import('./vente/TpeDePoche')) },
       { path: '/abonnements', label: 'Abonnements', icon: Repeat, Component: lazy(() => import('./equipe/Abonnements')) },
       /* LE JUSTE PRIX se range ici depuis le 23 novembre 2026 : c'est un
          jugement de prix, il vit avec la vente. Il s'OUVRE toujours par la
@@ -547,7 +552,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/point', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires', '/mtn', '/besoins', '/classement', '/demander'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/tpe-de-poche', '/compte-courant','/point', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires', '/mtn', '/besoins', '/classement', '/demander'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>
@@ -594,7 +599,9 @@ export const ROUTES_SOUVERAIN = ['/salon-foyer', '/centre-de-commande', '/atelie
    le choix de Yéman ; chacun lit SA part en tête de Mon mois. */
 /* DEMANDER À PERLE (21 novembre 2026) : « la direction seule », le choix de
    Yéman ; la porte `ia-maison` le redit (chantier « question »). */
-export const ROUTES_DIRECTION = ['/journal', '/pourboires', '/mtn', '/demander'];
+/* LE TPE DE POCHE (25 novembre 2026) : la direction donne et coupe les TPE ;
+   la table elle-même ne se lit que par elle (RLS `est_direction`, 0246). */
+export const ROUTES_DIRECTION = ['/journal', '/pourboires', '/mtn', '/demander', '/tpe-de-poche'];
 
 export const peutVoir = (
   role: string | undefined,

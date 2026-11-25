@@ -1,0 +1,146 @@
+/* LE TPE DE POCHE — le téléphone de l'employée, aux couleurs de la charte :
+   ivoire pour le fond, indigo pour l'encre et les surfaces sombres, cuivre
+   en accent (boutons, filets), Cormorant Garamond 300 + Jost, rayons 2 à
+   4 px, fondus sans rebond (25 novembre 2026). */
+@import '../../ds/tokens/fonts.css';
+:root {
+  --tp-ivoire: #F6F1E7;
+  --tp-carte: #FFFDF9;
+  --tp-indigo: #1E2150;
+  --tp-cuivre: #B97A4A;
+  --tp-cuivre-fonce: #9A6036;
+  --tp-cuivre-pale: #FAF1E9;
+  --tp-filet: #E7D7C2;
+  --tp-doux: #5E5750;
+  --tp-vert: #0A6B5F;
+  --tp-vert-pale: #E7F1EB;
+  --tp-alerte: #A3402B;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--tp-ivoire);
+  color: var(--tp-indigo);
+  font-family: 'Jost', 'Century Gothic', 'Futura', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+button, input { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--tp-cuivre); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+.tp {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: calc(22px + env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) calc(32px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
+}
+.tp-tete { display: grid; justify-items: center; }
+.tp-verrou { width: 120px; height: auto; display: block; }
+.tp-bloc {
+  width: min(100%, 440px);
+  background: var(--tp-carte);
+  border: 1px solid var(--tp-filet);
+  border-radius: 4px;
+  padding: 18px 16px;
+  display: grid;
+  gap: 14px;
+  animation: tp-fondu .35s ease-out;
+}
+@keyframes tp-fondu { from { opacity: 0; } to { opacity: 1; } }
+.tp-centre { text-align: center; justify-items: center; }
+.tp-bloc h1 { margin: 0; font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 300; font-size: 30px; line-height: 1.1; }
+.tp-sur { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--tp-doux); }
+.tp-doux { margin: 0; color: var(--tp-doux); font-size: 14px; line-height: 1.5; }
+.tp-petit { font-size: 12.5px; }
+.tp-alerte { margin: 0; color: var(--tp-alerte); font-size: 14px; line-height: 1.45; }
+.tp-pile { display: grid; gap: 10px; width: 100%; }
+
+.tp-btn {
+  width: 100%;
+  border: 1px solid rgba(30, 33, 80, .3);
+  background: var(--tp-carte);
+  color: var(--tp-indigo);
+  border-radius: 3px;
+  padding: 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.tp-btn--plein { background: var(--tp-cuivre); border-color: var(--tp-cuivre); color: #FFFFFF; }
+.tp-btn--plein:hover { background: var(--tp-cuivre-fonce); }
+.tp-btn[disabled] { opacity: .45; cursor: not-allowed; }
+.tp-lien { background: none; border: 0; padding: 4px; color: var(--tp-doux); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 13px; justify-self: center; }
+
+.tp-champ { display: grid; gap: 4px; text-align: left; }
+.tp-champ input {
+  width: 100%;
+  background: var(--tp-ivoire);
+  border: 1px solid rgba(30, 33, 80, .3);
+  border-radius: 3px;
+  padding: 11px 12px;
+  font-size: 18px;
+  letter-spacing: .08em;
+  text-align: center;
+}
+
+.tp-clavier { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 300px; }
+.tp-clavier button { background: var(--tp-carte); border: 1px solid var(--tp-filet); border-radius: 3px; padding: 13px 0; font-size: 20px; cursor: pointer; }
+.tp-clavier button:active { background: var(--tp-cuivre-pale); }
+.tp-points { display: flex; gap: 14px; justify-content: center; }
+.tp-points i { width: 12px; height: 12px; border-radius: 2px; border: 1px solid var(--tp-indigo); }
+.tp-points i.plein { background: var(--tp-indigo); }
+
+.tp-marque { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--tp-filet); }
+.tp-marque div { display: grid; }
+.tp-marque b { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 400; font-size: 22px; }
+.tp-marque span { font-size: 12.5px; color: var(--tp-doux); }
+
+.tp-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.tp-rdv {
+  width: 100%;
+  text-align: left;
+  background: var(--tp-carte);
+  border: 1px solid var(--tp-filet);
+  border-radius: 3px;
+  padding: 11px 12px;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  align-items: center;
+  transition: border-color .2s;
+}
+.tp-rdv:hover:not([disabled]) { border-color: var(--tp-cuivre); }
+.tp-rdv--repos { cursor: default; opacity: .7; }
+.tp-h { font-size: 13px; color: var(--tp-doux); }
+.tp-q { min-width: 0; display: grid; }
+.tp-q b { font-weight: 500; font-size: 15px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.tp-q span { font-size: 12px; color: var(--tp-doux); line-height: 1.35; }
+.tp-m { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 20px; white-space: nowrap; }
+.tp-puce { font-family: 'Jost', system-ui, sans-serif; font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; border: 1px solid rgba(30, 33, 80, .3); border-radius: 2px; padding: 2px 6px; color: var(--tp-doux); white-space: nowrap; }
+.tp-puce--bon { border-color: var(--tp-vert); color: var(--tp-vert); background: var(--tp-vert-pale); }
+
+.tp-qui { display: grid; gap: 2px; text-align: center; }
+.tp-qui b { font-weight: 500; font-size: 17px; display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.tp-qui span { font-size: 13px; color: var(--tp-doux); }
+.tp-montant { margin: 0; text-align: center; font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 300; font-size: 46px; line-height: 1; }
+.tp-moyen {
+  width: 100%;
+  text-align: left;
+  background: var(--tp-carte);
+  border: 1px solid rgba(30, 33, 80, .3);
+  border-radius: 3px;
+  padding: 13px 12px;
+  cursor: pointer;
+  display: grid;
+  gap: 3px;
+  transition: border-color .2s, background .2s;
+}
+.tp-moyen:hover { border-color: var(--tp-cuivre); background: var(--tp-cuivre-pale); }
+.tp-moyen b { font-weight: 500; font-size: 15px; }
+.tp-moyen span { font-size: 12.5px; color: var(--tp-doux); line-height: 1.4; }

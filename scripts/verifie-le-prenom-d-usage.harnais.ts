@@ -109,7 +109,7 @@ dit('civilite.ts porte le bloc, sans import ni export dedans (des bancs le rejou
 dit('... et en exporte les trois noms juste après', true, CIVILITE.includes('/* ⟨/prenom-d-usage⟩ */\nexport { PRENOMS_QUI_SE_COMPOSENT, prenomDevine, prenomDUsage };'));
 const AVEC_APPEL = ['avis-google', 'confirmation-rdv', 'demande-submit', 'discussion', 'fete-de-couronne', 'rappels-d-echeance', 'rappels-j1', 'relances-factures', 'whatsapp-automate', 'whatsapp-webhook'];
 /* La page du rendez-vous et la page « Régler » (11 novembre 2026). */
-const AVEC_BLOC = [...AVEC_APPEL, 'envois-partent', 'terminer-et-regler', 'regler-la-seance'];
+const AVEC_BLOC = [...AVEC_APPEL, 'envois-partent', 'terminer-et-regler', 'regler-la-seance', 'tpe-de-poche'];
 const sources = new Map(AVEC_BLOC.map((f) => [f, lis(`supabase/functions/${f}/index.ts`)]));
 dit('chaque fonction porte le bloc ⟨prenom-d-usage⟩, caractère pour caractère', [], AVEC_BLOC.filter((f) => bloc(sources.get(f)!) !== ORIGINAL));
 const copieDAppel = (t: string): string | null => {
