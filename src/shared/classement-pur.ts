@@ -40,19 +40,24 @@ export type CriteresDuClassement = {
   annuelle_rythme: number; annuelle_marge: number; reguliere_max: number;
   diaspora_remplace: boolean; numero_suffit: boolean; ville_inconnue: 'a-preciser' | 'cotonou';
   annule_nb: number; annule_mois: number; annule_absences: boolean;
+  fidele_depuis_jours: number; fidele_visites: number; fidele_absence_jours: number;
 };
 
 /** Les critères proposés le 20 novembre 2026 ; la Maison les règle au Trône.
-    `dormante_jours` : 80 depuis le 25 novembre 2026 (« la régulière, sa date
-    est de moins de 80 jours », Yéman) ; la limite elle-même est Dormante. */
+    `dormante_jours` : 90 depuis le 25 novembre 2026 au soir (« la régulière
+    vient toutes les 2 mois, 3 mois maximum », Yéman ; 80 l'après-midi, 120
+    avant) ; la limite elle-même est Dormante. La Fidèle (le même soir) :
+    cliente depuis un an, six visites, venue dans les six derniers mois ; ces
+    trois chiffres retrouvent exactement les quatre Fidèles qu'elle a nommées. */
 export const CRITERES_PROPOSES: CriteresDuClassement = {
   hors_stop: true, hors_locks: true, hors_passage_pose: true,
   annulee_jours: 60, annulee_absences: true,
   curieuse_jours: 180, premiere_jours: 60, de_passage: 'disparue',
-  rythme_maison: 49, marge: 10, dormante_jours: 80,
+  rythme_maison: 49, marge: 10, dormante_jours: 90,
   annuelle_rythme: 150, annuelle_marge: 45, reguliere_max: 60,
   diaspora_remplace: true, numero_suffit: true, ville_inconnue: 'a-preciser',
   annule_nb: 3, annule_mois: 12, annule_absences: true,
+  fidele_depuis_jours: 365, fidele_visites: 6, fidele_absence_jours: 180,
 };
 
 /** Les critères en vigueur : ceux posés par la Maison, les proposés à défaut,
@@ -80,9 +85,15 @@ export type Libelle = { cle: string; nom: string };
    dans les cinq. « Sans catégorie » n'est pas une sixième catégorie : c'est
    où restent une fiche sans visite, une fiche d'essai, et celle qui a dit
    STOP (jamais relancée). L'ordre est celui de la colonne ; l'ordre des
-   règles se lit dans `classeLaCliente`. */
+   règles se lit dans `classeLaCliente`.
+   LE SOIR MÊME, SEPT : « rajoute l'abonnée, et la fidèle n'est toujours pas
+   là […] la fidèle, c'est celle qui va à son rythme, mais qui est toujours
+   là, depuis plusieurs années […] elle ne paie pas trop mais est toujours
+   là » (Yéman). */
 export const ETAPES: readonly Libelle[] = [
   { cle: 'privilegiee', nom: 'La Privilégiée' },
+  { cle: 'fidele', nom: 'La Fidèle' },
+  { cle: 'abonnee', nom: 'L’Abonnée' },
   { cle: 'reguliere', nom: 'La Régulière' },
   { cle: 'annulee', nom: 'L’Annulée' },
   { cle: 'dormante', nom: 'La Dormante' },
@@ -349,11 +360,13 @@ export function classeLaCliente(f: FicheDuClassement, p: CriteresDuClassement, c
        1. Sans catégorie : fiche d'essai, STOP, locks défaits, « de passage »
           posé à la main, ou aucune visite encore ;
        2. les catégories d'étape de la Maison qui ont des critères ;
-       3. L'Annulée : une annulation récente, et rien depuis ;
-       4. La Diaspora : elle vit à l'étranger ;
-       5. La Dormante : trop longtemps sans venir (ou au-delà de son rythme
-          d'une ou deux fois par an) ;
-       6. La Régulière : toutes les autres, venues récemment. */
+       3. L'Abonnée : une formule active (rendue le soir même) ;
+       4. L'Annulée : une annulation récente, et rien depuis ;
+       5. La Diaspora : elle vit à l'étranger ;
+       6. La Fidèle : cliente depuis un an, six visites, venue dans les six
+          derniers mois, à son rythme ;
+       7. La Régulière : venue il y a moins de trois mois ;
+       8. La Dormante : toutes les autres. */
   let e: string | null = null; let raison = '';
   if (f.essai) { e = 'hors'; raison = 'fiche d’essai'; }
   else if (p.hors_stop && f.accord === 'stop') { e = 'hors'; raison = 'a dit STOP'; }
@@ -361,6 +374,7 @@ export function classeLaCliente(f: FicheDuClassement, p: CriteresDuClassement, c
   else if (p.hors_passage_pose && f.passagePose) { e = 'hors'; raison = '« de passage » posé à la main'; }
   else if (f.visites === 0) { e = 'hors'; raison = f.prochain ? `aucune visite encore, rendez-vous le ${jourDit(f.prochain)}` : 'aucune visite encore'; }
   if (!e) { const pr = [...categories].sort((a, b) => a.ordre - b.ordre).find((x) => x.type === 'etape' && tientTout(x, v)); if (pr) { e = pr.id; raison = 'ses critères'; } }
+  if (!e && abo) { e = 'abonnee'; raison = `formule active : ${abo.formule}${abo.fin ? `, jusqu’au ${jourDit(abo.fin)}` : ''}`; }
   if (!e) {
     const dates = [...f.annulations, ...(p.annulee_absences ? f.absences : [])].sort();
     const der = dates[dates.length - 1];
@@ -371,9 +385,9 @@ export function classeLaCliente(f: FicheDuClassement, p: CriteresDuClassement, c
   if (!e && p.diaspora_remplace && groupe === 'diaspora') { e = 'diaspora'; raison = `vit à l’étranger (${raisonLieu})`; }
   if (!e) {
     const d = depuis ?? 0;
-    if (rj != null && rj >= p.annuelle_rythme) {
-      if (d <= rj + p.annuelle_marge) { e = 'reguliere'; raison = `vient une ou deux fois par an (tous les ${rj} jours), dernière visite il y a ${d} jours`; }
-      else { e = 'dormante'; raison = `au-delà de son rythme d’une ou deux fois par an : ${d} jours sans venir`; }
+    const anciennete = f.premiere ? joursEntre(f.premiere, t) : 0;
+    if (anciennete >= p.fidele_depuis_jours && f.visites >= p.fidele_visites && d < p.fidele_absence_jours) {
+      e = 'fidele'; raison = `cliente depuis le ${jourDit(f.premiere)}, ${f.visites} visites, dernière il y a ${d} jours`;
     } else if (d < p.dormante_jours) { e = 'reguliere'; raison = `dernière visite il y a ${d} jours`; }
     else { e = 'dormante'; raison = `${d} jours sans venir`; }
   }
@@ -460,12 +474,14 @@ export function definitionDeLaVue(vue: string, p: CriteresDuClassement, categori
   if (!vue.startsWith('e:')) return null;
   switch (k) {
     case 'privilegiee': return `${LA_PRIVILEGIEE_DITE} Le Trône ne la devine pas : la Maison l’y range depuis son dossier, et ce choix passe avant tous les critères.`;
-    case 'reguliere': return `Elle est venue, et sa dernière visite date de moins de ${p.dormante_jours} jours. Celle qui vient une ou deux fois par an (un rythme de ${p.annuelle_rythme} jours ou plus) y reste tant qu’elle est dans son rythme, avec ${p.annuelle_marge} jours de marge.`;
-    case 'annulee': return `Une annulation${p.annulee_absences ? ' (ou un rendez-vous passé resté « confirmé »)' : ''} il y a ${p.annulee_jours} jours au plus, et ni visite ni rendez-vous depuis. Elle passe avant la Diaspora, la Dormante et la Régulière.`;
-    case 'dormante': return `Sa dernière visite date de ${p.dormante_jours} jours ou plus. Celle qui vient une ou deux fois par an n’y entre qu’au-delà de son rythme et de ${p.annuelle_marge} jours de marge.`;
+    case 'fidele': return `Elle va à son rythme, mais elle est toujours là : cliente depuis ${p.fidele_depuis_jours} jours ou plus (sa première visite), au moins ${p.fidele_visites} visites, et venue il y a moins de ${p.fidele_absence_jours} jours. Elle ne dépense pas forcément beaucoup. Elle passe avant la Régulière ; la Maison peut aussi l’y ranger depuis son dossier.`;
+    case 'abonnee': return 'Une formule active (Carnet, Lune, Année…) dont l’échéance n’est pas passée. Elle passe avant l’Annulée, la Diaspora, la Fidèle et la Régulière.';
+    case 'reguliere': return `Elle vient tous les deux mois, trois au plus : sa dernière visite date de moins de ${p.dormante_jours} jours.`;
+    case 'annulee': return `Une annulation${p.annulee_absences ? ' (ou un rendez-vous passé resté « confirmé »)' : ''} il y a ${p.annulee_jours} jours au plus, et ni visite ni rendez-vous depuis. Elle passe avant la Diaspora, la Fidèle, la Régulière et la Dormante.`;
+    case 'dormante': return `Sa dernière visite date de ${p.dormante_jours} jours ou plus, et elle n’est pas une Fidèle.`;
     case 'diaspora': return p.diaspora_remplace
-      ? `Elle vit à l’étranger : le lieu choisi dans son dossier, une ville de l’étranger sur sa fiche, la marque diaspora${p.numero_suffit ? ', ou un numéro étranger' : ' (un numéro étranger seul ne suffit pas)'}. Ses relances suivent ses séjours ; seule une annulation récente passe avant.`
-      : 'Désactivée : une cliente qui vit à l’étranger se range comme les autres, Régulière ou Dormante.';
+      ? `Elle vit à l’étranger : le lieu choisi dans son dossier, une ville de l’étranger sur sa fiche, la marque diaspora${p.numero_suffit ? ', ou un numéro étranger' : ' (un numéro étranger seul ne suffit pas)'}. Ses relances suivent ses séjours ; seules l’Abonnée et une annulation récente passent avant.`
+      : 'Désactivée : une cliente qui vit à l’étranger se range comme les autres, Fidèle, Régulière ou Dormante.';
     case 'hors': {
       const quand = [
         'elle n’est encore jamais venue (même avec un rendez-vous à venir)',

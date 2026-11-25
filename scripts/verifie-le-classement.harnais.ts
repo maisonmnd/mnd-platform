@@ -65,8 +65,8 @@ vaut('un critère d un autre type est ignoré', [60, 'disparue'], [criteresEnVig
 /* L'étape — CINQ CATÉGORIES (25 novembre 2026) : « Je veux garder la diaspora,
    la dormante, la régulière, l'annulée, la privilégiée […] supprime les autres
    et refaire le classement » (Yéman). */
-vaut('il ne reste que les cinq catégories, et Sans catégorie', ['privilegiee', 'reguliere', 'annulee', 'dormante', 'diaspora', 'hors'], ETAPES.map((e) => e.cle));
-vaut('une abonnée venue récemment est Régulière', 'reguliere', classe({ visites: 4, derniere: avant(40), rythme: 28, abonnements: [{ statut: 'active', formule: 'Chaque Lune', fin: apres(200) }] }).etape);
+vaut('sept catégories (la Fidèle et l Abonnée le soir même), et Sans catégorie', ['privilegiee', 'fidele', 'abonnee', 'reguliere', 'annulee', 'dormante', 'diaspora', 'hors'], ETAPES.map((e) => e.cle));
+vaut('une formule active : l Abonnée', 'abonnee', classe({ visites: 4, derniere: avant(40), rythme: 28, abonnements: [{ statut: 'active', formule: 'Chaque Lune', fin: apres(200) }] }).etape);
 vaut('une abonnée sans rendez-vous porte la marque', true, classe({ visites: 4, derniere: avant(40), rythme: 28, abonnements: [{ statut: 'active', formule: 'Chaque Lune', fin: apres(200) }] }).marques.includes('abonnee-sans-rdv'));
 vaut('une formule échue n est plus active', 'ancienne-abonnee', classe({ visites: 4, derniere: avant(20), rythme: 28, abonnements: [{ statut: 'active', formule: 'Chaque Lune', fin: avant(3) }] }).marques.find((m) => m === 'ancienne-abonnee'));
 vaut('une annulation récente sans date : l Annulée', 'annulee', classe({ visites: 2, derniere: avant(80), rythme: 40, annulations: [avant(10)] }).etape);
@@ -77,10 +77,17 @@ vaut('sauf si la case est décochée', 'reguliere', classe({ visites: 2, dernier
 vaut('jamais venue, même avec un rendez-vous ou une fiche ancienne : Sans catégorie', ['hors', 'hors', 'hors'], [classe({ prochain: apres(3) }).etape, classe({ ficheDepuis: avant(400) }).etape, classe({}).etape]);
 vaut('une seule visite il y a 30 jours : Régulière', 'reguliere', classe({ visites: 1, premiere: avant(30), derniere: avant(30) }).etape);
 vaut('une seule visite il y a 200 jours : Dormante', 'dormante', classe({ visites: 1, premiere: avant(200), derniere: avant(200) }).etape);
-vaut('la Régulière, moins de 80 jours (Yéman) : 79 jours Régulière, 80 jours Dormante', [80, 'reguliere', 'dormante'], [CRITERES_PROPOSES.dormante_jours, classe({ visites: 3, derniere: avant(79), rythme: 30 }).etape, classe({ visites: 3, derniere: avant(80), rythme: 30 }).etape]);
-vaut('un rythme annuel n est pas une dormante', 'reguliere', classe({ visites: 3, derniere: avant(320), rythme: 300 }).etape);
-vaut('au-delà de son rythme annuel : la Dormante', 'dormante', classe({ visites: 3, derniere: avant(400), rythme: 300 }).etape);
-vaut('« une fois par an » choisi, une visite il y a 200 jours : Régulière', 'reguliere', classe({ visites: 1, premiere: avant(200), derniere: avant(200), choix: { rythme: 'une-par-an' } }).etape);
+vaut('la Régulière, trois mois au plus (Yéman) : 89 jours Régulière, 90 jours Dormante', [90, 'reguliere', 'dormante'], [CRITERES_PROPOSES.dormante_jours, classe({ visites: 3, derniere: avant(89), rythme: 30 }).etape, classe({ visites: 3, derniere: avant(90), rythme: 30 }).etape]);
+vaut('un rythme d une fois par an ne retient plus : 320 jours sans venir, Dormante', ['dormante', 'dormante'], [classe({ visites: 3, derniere: avant(320), rythme: 300 }).etape, classe({ visites: 1, premiere: avant(200), derniere: avant(200), choix: { rythme: 'une-par-an' } }).etape]);
+/* La Fidèle (25 novembre 2026, le soir) : « celle qui va à son rythme, mais qui est toujours là, depuis plusieurs années ». */
+vaut('la Fidèle : depuis un an, six visites, venue dans les six mois', ['fidele', 'fidele', 'fidele'], [
+  classe({ visites: 9, premiere: avant(637), derniere: avant(103) }).etape, classe({ visites: 14, premiere: avant(657), derniere: avant(42) }).etape, classe({ visites: 6, premiere: avant(365), derniere: avant(179) }).etape]);
+vaut('pas encore Fidèle : moins d un an, ou cinq visites', ['reguliere', 'dormante'], [classe({ visites: 8, premiere: avant(364), derniere: avant(40) }).etape, classe({ visites: 5, premiere: avant(600), derniere: avant(103) }).etape]);
+vaut('une Fidèle partie depuis six mois devient Dormante', 'dormante', classe({ visites: 9, premiere: avant(637), derniere: avant(180) }).etape);
+vaut('l Abonnée passe avant l Annulée et la Fidèle ; l Annulée avant la Fidèle', ['abonnee', 'annulee'], [
+  classe({ visites: 9, premiere: avant(637), derniere: avant(80), annulations: [avant(10)], abonnements: [{ statut: 'active', formule: 'Chaque Lune', fin: apres(90) }] }).etape,
+  classe({ visites: 9, premiere: avant(637), derniere: avant(80), annulations: [avant(10)] }).etape]);
+vaut('une Fidèle de l étranger est la Diaspora', 'diaspora', classe({ regionNumero: 'France', visites: 9, premiere: avant(637), derniere: avant(40) }).etape);
 vaut('STOP, locks défaits, fiche d essai : Sans catégorie', ['hors', 'hors', 'hors'], [
   classe({ visites: 3, derniere: avant(20), rythme: 30, accord: 'stop' }).etape, classe({ visites: 3, derniere: avant(20), rythme: 30, locksDefaits: true }).etape,
   classe({ visites: 3, derniere: avant(20), rythme: 30, essai: true }).etape]);
@@ -153,8 +160,10 @@ vaut('les deux champs Ville proposent la liste', 2, (CU.match(/list=\{ID_DES_VIL
   vaut('ce qui n est plus une catégorie n a pas de définition', [null, null, null, null], ['tout', 'g:diaspora', 'r:annuelle', 'e:curieuse'].map((v) => definitionDeLaVue(v, P, [])));
   const regle: CriteresDuClassement = { ...P, annulee_jours: 30, dormante_jours: 200, annuelle_rythme: 160, annuelle_marge: 40 };
   vaut('la Régulière et la Dormante disent le même seuil, de part et d autre', [true, true], [def('e:reguliere', regle).includes('date de moins de 200 jours'), def('e:dormante', regle).includes('date de 200 jours ou plus')]);
-  vaut('l Annulée dit ses jours, la Régulière le rythme annuel et sa marge', [true, true], [
-    def('e:annulee', regle).includes('il y a 30 jours au plus'), def('e:reguliere', regle).includes('160 jours ou plus') && def('e:reguliere', regle).includes('40 jours de marge')]);
+  vaut('l Annulée dit ses jours, la Fidèle ses trois chiffres', [true, true], [
+    def('e:annulee', regle).includes('il y a 30 jours au plus'),
+    def('e:fidele', { ...regle, fidele_depuis_jours: 400, fidele_visites: 7, fidele_absence_jours: 150 }).includes('cliente depuis 400 jours ou plus (sa première visite), au moins 7 visites, et venue il y a moins de 150 jours')]);
+  vaut('l Abonnée dit sa formule', true, def('e:abonnee').startsWith('Une formule active'));
   vaut('la Privilégiée dit les mots de la Maison, et qu elle se choisit', [true, true], [def('e:privilegiee').startsWith('Elle ne négocie pas les prix'), def('e:privilegiee').includes('la Maison l’y range depuis son dossier')]);
   vaut('Sans catégorie dit qu elle n en est pas une', true, def('e:hors').startsWith('Ce n’est pas une catégorie'));
   vaut('la Diaspora dit si le numéro suffit', [true, true], [def('e:diaspora').includes('ou un numéro étranger'), def('e:diaspora', { ...P, numero_suffit: false }).includes('ne suffit pas')]);
@@ -170,10 +179,12 @@ vaut('les deux champs Ville proposent la liste', 2, (CU.match(/list=\{ID_DES_VIL
   vaut('« Modifier » vise la carte de chaque catégorie', ['def-e:reguliere', 'def-e:privilegiee', 'def-e:hors', 'def-cat:retour', null, null], [
     carteDeLaVue('e:reguliere', []), carteDeLaVue('e:privilegiee', []), carteDeLaVue('e:hors', []), carteDeLaVue('e:retour', [sans]), carteDeLaVue('g:diaspora', []), carteDeLaVue('tout', [])]);
   vaut('chaque catégorie a sa carte dans « Les critères », dans l ordre des règles', [true, true], [
-    CL.includes("const REGLES = ['privilegiee', 'hors', 'annulee', 'diaspora', 'dormante', 'reguliere'];"),
+    CL.includes("const REGLES = ['privilegiee', 'hors', 'abonnee', 'annulee', 'diaspora', 'fidele', 'reguliere', 'dormante'];"),
     CL.includes('{REGLES.map((cle, i) => carte(nomDans(ETAPES, cle), i + 1, phrases[cle], parEtape(cle), `def-e:${cle}`))}')]);
   vaut('« Les critères » dit la même limite que la définition', [true, true], [
-    CL.includes("Sa dernière visite date de {n('dormante_jours', 30, 720)} jours ou plus."), CL.includes('sa dernière visite date de moins de {p.dormante_jours} jours')]);
+    CL.includes("sa dernière visite date de moins de {n('dormante_jours', 30, 720)} jours."), CL.includes('sa dernière visite date de {p.dormante_jours} jours ou plus')]);
+  const fid = classeLaCliente(fiche({ visites: 6, premiere: avant(400), derniere: avant(100) }), regle, [], T).etape;
+  vaut('la règle tient la phrase de la Fidèle', 'fidele', fid);
   vaut('chaque catégorie a sa phrase dans « Les critères »', [], ETAPES.map((e) => e.cle).filter((cle) => !CL.includes(`\n    ${cle}: <`)));
   vaut('les cartes portent leur adresse, et celles de la Maison aussi', [true, true], [CL.includes('key={key} id={key}>'), CL.includes('id={`def-cat:${cat.id}`}')]);
   vaut('la liste dit qui y entre, et offre de modifier', [true, true, true, true], [

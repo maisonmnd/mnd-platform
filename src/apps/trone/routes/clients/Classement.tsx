@@ -154,7 +154,7 @@ export default function Classement() {
       <PageHead
         eyebrow={`Le Trône · ${branch.city}`}
         title="Le classement des clientes"
-        sub="Chaque cliente se range dans une catégorie : la Privilégiée, la Régulière, l’Annulée, la Dormante ou la Diaspora. Les critères se règlent ici ; un choix posé dans son dossier passe avant eux."
+        sub="Chaque cliente se range dans une catégorie : la Privilégiée, la Fidèle, l’Abonnée, la Régulière, l’Annulée, la Dormante ou la Diaspora. Les critères se règlent ici ; un choix posé dans son dossier passe avant eux."
       />
       <div className="trc-cl-grille">
         {nav}
@@ -204,11 +204,13 @@ function VueCriteres(o: {
     hors: <>Ce n’est pas une catégorie. Y restent les fiches jamais venues (même avec un rendez-vous à venir), la fiche d’essai, et celles où : <Coche coche={p.hors_stop} onChange={(b) => c('hors_stop', b)}>elle a dit STOP</Coche><Coche coche={p.hors_locks} onChange={(b) => c('hors_locks', b)}>elle a défait ses locks</Coche><Coche coche={p.hors_passage_pose} onChange={(b) => c('hors_passage_pose', b)}>la Maison l’a marquée « de passage » à la main</Coche></>,
     annulee: <>Une annulation il y a {n('annulee_jours', 1, 365)} jours au plus, et ni visite ni rendez-vous depuis. <Coche coche={p.annulee_absences} onChange={(b) => c('annulee_absences', b)}>un rendez-vous passé resté « confirmé » compte comme une absence</Coche></>,
     diaspora: <><Coche coche={p.diaspora_remplace} onChange={(b) => c('diaspora_remplace', b)}>Une cliente qui vit à l’étranger entre ici : ses relances suivent ses séjours.</Coche> On le sait par le lieu choisi dans son dossier, une ville de l’étranger sur sa fiche, la marque diaspora, ou <Coche coche={p.numero_suffit} onChange={(b) => c('numero_suffit', b)}>un numéro étranger</Coche></>,
-    dormante: <>Sa dernière visite date de {n('dormante_jours', 30, 720)} jours ou plus. Celle qui vient une ou deux fois par an (un rythme de {n('annuelle_rythme', 60, 400)} jours ou plus) n’y entre qu’au-delà de son rythme et de {n('annuelle_marge', 0, 180)} jours de marge.</>,
-    reguliere: <>Toutes les autres : elle est venue, et sa dernière visite date de moins de {p.dormante_jours} jours (le chiffre se règle dans « La Dormante »), ou elle reste dans son rythme d’une ou deux fois par an.</>,
+    abonnee: <>Une formule active (Carnet, Lune, Année…) dont l’échéance n’est pas passée. Elle passe avant l’Annulée, la Diaspora, la Fidèle et la Régulière.</>,
+    fidele: <>Elle va à son rythme, mais elle est toujours là : cliente depuis {n('fidele_depuis_jours', 90, 3650)} jours ou plus (sa première visite), au moins {n('fidele_visites', 2, 100)} visites, et venue il y a moins de {n('fidele_absence_jours', 30, 720)} jours. Elle ne dépense pas forcément beaucoup. La Maison peut aussi l’y ranger depuis son dossier.</>,
+    reguliere: <>Elle vient tous les deux mois, trois au plus : sa dernière visite date de moins de {n('dormante_jours', 30, 720)} jours.</>,
+    dormante: <>Toutes les autres : sa dernière visite date de {p.dormante_jours} jours ou plus (le chiffre se règle dans « La Régulière »), et elle n’est pas une Fidèle.</>,
   };
   /** L'ordre des règles : la première qui s'applique l'emporte. */
-  const REGLES = ['privilegiee', 'hors', 'annulee', 'diaspora', 'dormante', 'reguliere'];
+  const REGLES = ['privilegiee', 'hors', 'abonnee', 'annulee', 'diaspora', 'fidele', 'reguliere', 'dormante'];
   const carte = (titre: string, ordre: number | null, phrase: ReactNode, nb: number, key: string) => (
     <div className="trc-cl-critere" key={key} id={key}>
       <div className="trc-cl-critere__titre">{ordre != null && <span className="trc-cl-ordre">{ordre}</span>}{titre}</div>
@@ -227,13 +229,13 @@ function VueCriteres(o: {
       </div>
       <p className="trc-cl-intro">Ce qui fait entrer une cliente dans chaque catégorie. Changez un nombre : les comptes suivent aussitôt, sur les {o.total} fiches.</p>
       <section className="trc-cl-bloc">
-        <h3>Les cinq catégories</h3>
+        <h3>Les catégories</h3>
         <p>Une seule catégorie par cliente. Les règles se lisent dans cet ordre, la première qui s’applique l’emporte ; vos catégories passent juste après « Sans catégorie ».</p>
         {REGLES.map((cle, i) => carte(nomDans(ETAPES, cle), i + 1, phrases[cle], parEtape(cle), `def-e:${cle}`))}
       </section>
       <section className="trc-cl-bloc">
         <h3>Vos catégories</h3>
-        <p>Si les cinq ne suffisent pas : créez une catégorie, donnez-lui ses critères (tous doivent tenir), et dites si c’est une catégorie ou une marque. Sans critère, on y range une fiche depuis son dossier.</p>
+        <p>Si les sept ne suffisent pas : créez une catégorie, donnez-lui ses critères (tous doivent tenir), et dites si c’est une catégorie ou une marque. Sans critère, on y range une fiche depuis son dossier.</p>
         {o.categories.map((cat) => (
           <EditeurDeCategorie key={cat.id} cat={cat} modifiee={!!o.brouillonsCat[cat.id]} change={(fn) => o.changeCat(cat.id, fn)}
             enregistre={() => o.enregistreCat(cat.id)} supprime={() => o.supprimeCat(cat.id)}
