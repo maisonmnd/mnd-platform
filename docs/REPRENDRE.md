@@ -2,6 +2,10 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE CONTRÔLE SÓWÀ À J+7, POSÉ TOUT SEUL — 25 novembre 2026 (migration 0245 ; aucune fonction, aucun Trône)
+
+« Pour un rituel Sówà, il faut toujours prendre un rendez-vous automatique offert Sówà 7 jours plus tard avec la personne pour son suivi. Donc, pour [une cliente], le rendez-vous sera le mardi à 16 h » (Yéman). La tâche pg_cron `pose-les-controles-sowa` (toutes les dix minutes) pose le contrôle offert sept jours après chaque Rituel Sówà ferme, à la même heure, chez Team, quel que soit le chemin du rituel ; il suit son rituel tant que personne ne l'a touché. Détails : `docs/BACKEND.md` (0245). Au premier passage, un seul rituel concerné (celui du 24 novembre à 16 h) : son contrôle tombe le mardi 1er décembre à 16 h, ce que Yéman demandait. Le contrôle part comme tout rendez-vous : la confirmation WhatsApp (`confirmation-rdv`), puis la veille. Banc `verifie-le-controle-sowa` 16, --prouve 11/11.
+
 ## LES PRESTATIONS EN CLAIR — 25 novembre 2026, EN LIGNE (lot 1 : SQL passé, Trône et Ma Couronne build 20261125104601 @ 7da7b3a5 ; lot 2 : Trône et Ma Couronne build 20261125111016 @ 558d8718, demande-submit v83, confirmation-rdv v84, rappels-j1 v95, whatsapp-automate v92, regler-la-seance v48, toutes en 2026-11-25-a)
 
 « Quand les clients reçoivent leurs rendez-vous ou leurs factures, ils ne savent pas que Rituel Sówà™ est le traitement anti-poux, ni que Le Souffle est un lavage. Il faut la mini-description des noms des services » (Yéman).
