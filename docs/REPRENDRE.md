@@ -2,7 +2,9 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE TPE DE POCHE, LOT 1 — 25 novembre 2026, bancs verts, mise en ligne confiée (SQL 0246 ; fonction neuve `tpe-de-poche`, Verify JWT éteint ; le Trône, qui sert aussi `tpe.html` et `regler.html`)
+## LE TPE DE POCHE, LOT 1 — 25 novembre 2026, EN LIGNE (SQL 0246 passée ; `tpe-de-poche` v1, 2026-11-25-a, Verify JWT éteint ; Trône build 20261125230738 @ eea8d5275, 568/568 servis, /trone/tpe.html 200)
+
+- **Essai de la mise en ligne, vert** (26 nov. vers 0 h, clé secrète NEUVE : les clés anciennes en JWT sont refusées depuis le 16 juillet, « Legacy API keys are disabled ») : autoriser, preparer, activer, jour (0 ligne à minuit), `ouvrir` d'un rendez-vous inconnu → 404 « introuvable », couper, puis `jour` → 401 « coupe » ; un code présenté deux fois → « code » ; `autoriser` sans clé → 403. Membre fictif `br-40r6u6frno:essai-tpe` laissé en base (autorise false, ni appareil ni code ; l'écran ne le montre pas). **Reste l'essai avec Yéman** : un vrai membre activé, une vraie liste du jour, une séance terminée encaissée.
 
 « Create a terminal of payment for the Trône, a TPE, and I can give the access to certain employees to activate it on their phone and collect payment from customers » (Yéman). Maquette RsVNQvgB85ZvDVjaKuMrqP (`public/maquette-le-tpe-de-poche.html`, copie principale, non commitée), puis « Construire le lot 1 maintenant » au sélecteur. La carte passe par KkiaPay : sa fenêtre sur le téléphone, ou le QR payé sur le sien ; la carte POSÉE n'est pas faite (une page web ne lit pas le sans-contact ; KkiaPay POS ne dit pas s'il le fait).
 
