@@ -2,6 +2,14 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE LIEN MTN NE PROMET PLUS « SANS FRAIS » — 25 novembre 2026 (Trône seul ; aucun SQL ; aucune fonction)
+
+« Oui, corrige le message MTN du Trône » (Yéman). Le message du lien « Payer par MTN » (Créer › Lien de réservation, et la fiche cliente) disait « Validez ensuite sur votre téléphone, sans frais pour vous. ». C'est faux depuis le 20 novembre : les frais MTN s'ajoutent pour la cliente (`fraisAjoutesMtn`, et `regler.html` les affiche).
+
+- **Corrigé** (`shared/liens-a-envoyer-pur.ts`) : « Tapez votre numéro MTN : votre rendez-vous s'affiche, avec les frais MTN. Validez ensuite sur votre téléphone. » Le taux n'y est pas écrit : il se règle dans Paramètres › Paiements. C'est le même texte que les réponses rapides « /payermtn » posées le 25 novembre sur les WhatsApp Business de Yéman et de Brice.
+- **Banc** : `verifie-les-liens-a-envoyer` porte une épreuve de plus (le lien MTN annonce les frais, et n'en promet aucun absent), qui crie sur l'ancien texte ; `--prouve` 9/9 ; typecheck 0.
+- Restent seulement deux maquettes, `public/maquette-les-liens-a-envoyer.html` et `public/maquette-le-choix-du-moyen.html`, avec l'ancien texte. Ce sont des maquettes : on n'y touche pas.
+
 ## LE TPE KKIAPAY : LA RÉFÉRENCE ET LE N° DE REÇU, ET UNE RÉFÉRENCE INCONNUE QUI NE BLOQUE PLUS — 24 novembre 2026, bancs verts, mise en ligne confiée (`kkiapay-tpe` à passer en v2 ; le Trône ; aucun SQL, aucun secret)
 
 **Le fait réel** : un paiement de **100 F au TPE**, le 24 novembre 2026 à 00:26 (reçu KkiaPay : « Référence `7757889838121264` », « N° Reçu `rcp_7757889838121264` », **frais 1,8 %** = 2 F, moyen CARD, « payment of 100 XOF to Maison MND »). La caissière a tapé la référence ; `kkiapay-tpe` a répondu **« KkiaPay ne connaît pas cette référence »** et l'encaissement est resté fermé.

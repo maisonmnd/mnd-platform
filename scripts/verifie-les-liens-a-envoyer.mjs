@@ -107,6 +107,10 @@ function epreuves(m, source, parle) {
   dit('aucun émoji', [], tous.filter((t) => EMOJI.test(t)));
   dit('assez court pour Conversations, signature comprise (1000 signes)', [], tous.filter((t) => t.length + 80 > 1000));
   dit('les réservations disent que la confirmation arrive sur WhatsApp', [], L.filter((l) => l.cle !== 'venir' && !m.messageDuLienAEnvoyer(site, l.cle).includes('La confirmation arrive ensuite sur WhatsApp.')).map((l) => l.cle));
+  /* LES FRAIS MTN S'AJOUTENT POUR ELLE (20 novembre 2026) : le message ne
+     promet jamais « sans frais », il les annonce. Corrigé le 25 novembre. */
+  const mtn = m.messageDuLienDuQr('mtn', 'https://exemple.test/regler');
+  dit('le lien MTN annonce les frais MTN, sans en promettre aucun', [true, false], [/avec les frais MTN/.test(mtn), /sans frais|aucun frais/i.test(mtn)]);
   return echecs;
 }
 

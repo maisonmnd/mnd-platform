@@ -125,8 +125,12 @@ export const GROUPE_DES_QR_CODES = 'Les liens des QR codes';
 const REGLER = 'Saisissez le montant en francs, puis validez sur votre téléphone.';
 
 export const LIENS_DES_QR_CODES: readonly LienDuQr[] = [
+  /* « SANS FRAIS POUR VOUS » ÉTAIT FAUX depuis le 20 novembre 2026 : les frais
+     MTN s'ajoutent pour la cliente (`fraisAjoutesMtn`, et la page de règlement
+     les dit). Corrigé le 25 novembre, à la demande de Yéman. Le taux ne
+     s'écrit pas ici : il se règle dans Paramètres › Paiements. */
   { cle: 'mtn', nom: 'Payer par MTN', sous: 'son numéro MTN, son rendez-vous du jour',
-    objet: 'le lien pour régler par MTN', suite: 'Tapez votre numéro MTN : votre rendez-vous s’affiche. Validez ensuite sur votre téléphone, sans frais pour vous.' },
+    objet: 'le lien pour régler par MTN', suite: 'Tapez votre numéro MTN : votre rendez-vous s’affiche, avec les frais MTN. Validez ensuite sur votre téléphone.' },
   { cle: 'momo', nom: 'Payer par MoMoPay', sous: 'MTN seulement',
     objet: 'le lien pour régler par MoMo', suite: REGLER },
   { cle: 'site', nom: 'Le site de la Maison', sous: 'nos gestes, nos parcours, le rendez-vous',
