@@ -43,9 +43,12 @@ dit('une journee vide : zero partout', { nombre: 0, attenduXof: 0, rituelsXof: 0
 const tableau = sansCommentaires('src/apps/trone/routes/pilotage/Dashboard.tsx');
 /* 5 novembre 2026 (tableau de bord en quatre bandes) : au pied d'« Aujourd'hui »,
    « Attendu » s'ouvre sur les rendez-vous du jour. */
-dit('le tableau de bord le dit au pied d Aujourd hui, sur les rendez-vous du jour', [true, true, true], [
-  tableau.includes('const jourDuChiffre = chiffreAttenduDuJour(todayRows.map((a) => ({ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme, })), today);'),
-  tableau.includes('Attendu aujourd’hui'),
+/* 25 novembre 2026 : la carte se lit jour par jour (« permets-moi de retourner
+   à la journée d'hier »). Le pied compte le jour REGARDÉ, aujourd'hui par
+   défaut, et la fenêtre de l'attendu dit ce jour-là. */
+dit('le tableau de bord le dit au pied de la carte, sur les rendez-vous du jour regarde', [true, true, true], [
+  tableau.includes('const jourDuChiffre = chiffreAttenduDuJour(jourRows.map((a) => ({ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme, })), jourVu);'),
+  tableau.includes('title: `Attendu ${leJourDit(jourVu, today)}`,') && tableau.includes('const jourVu = jourChoisi ?? today;'),
   tableau.includes('Attendu <b>{fmt(jourDuChiffre.attenduXof)}</b>')]);
 const carnet = sansCommentaires('src/apps/trone/routes/clients/Carnet.tsx');
 /* 26 octobre 2026 : la tuile interroge le jour choisi (aujourd'hui par défaut), même calcul. */

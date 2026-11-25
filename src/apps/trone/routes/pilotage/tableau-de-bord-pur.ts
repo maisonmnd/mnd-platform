@@ -155,6 +155,75 @@ export function dateDuTitre(iso: string): string {
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
+/* ══ LES JOURS DE LA SEMAINE — 25 novembre 2026 ═════════════════════════
+   « Permets-moi de retourner à la journée d'hier, et les autres jours de la
+   semaine sur le tableau de bord » (Yéman). La carte « Aujourd'hui » se lit
+   désormais jour par jour : la semaine du jour regardé, du lundi au
+   dimanche, et une flèche de chaque côté pour la semaine d'avant ou d'après.
+   Tout se compte à midi UTC, comme `decaleJour` : aucun changement d'heure,
+   aucun poste réglé ailleurs ne fait glisser un jour. */
+
+/** La semaine d'un jour, du lundi au dimanche. */
+export function semaineDe(iso: string): string[] {
+  const j = jourDe(iso);
+  const depuisLundi = (new Date(`${j}T12:00:00Z`).getUTCDay() + 6) % 7;
+  return Array.from({ length: 7 }, (_, i) => decaleJour(j, i - depuisLundi));
+}
+
+const JOURS_COURTS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+
+/** Ce que porte la pastille d'un jour : « Mar » et « 24 ». */
+export function pastilleDuJour(iso: string): { nom: string; numero: string } {
+  const j = jourDe(iso);
+  const court = JOURS_COURTS[new Date(`${j}T12:00:00Z`).getUTCDay()].replace('.', '');
+  return { nom: court.charAt(0).toUpperCase() + court.slice(1), numero: String(Number(j.slice(8, 10))) };
+}
+
+/** Un jour dit par rapport à aujourd'hui, en toutes lettres : « aujourd’hui »,
+    « hier », « demain », sinon « mardi 24 novembre » (avec l'année si elle
+    n'est pas celle d'aujourd'hui). Sans majuscule : il suit un autre mot. */
+export function leJourDit(iso: string, aujourdhui: string): string {
+  const j = jourDe(iso);
+  const a = jourDe(aujourdhui);
+  if (j === a) return 'aujourd’hui';
+  if (j === decaleJour(a, -1)) return 'hier';
+  if (j === decaleJour(a, 1)) return 'demain';
+  const n = Number(j.slice(8, 10));
+  const annee = j.slice(0, 4) === a.slice(0, 4) ? '' : ` ${j.slice(0, 4)}`;
+  return `${JOURS_LONGS[new Date(`${j}T12:00:00Z`).getUTCDay()]} ${n === 1 ? '1er' : n} ${MOIS_LONGS[Number(j.slice(5, 7)) - 1]}${annee}`;
+}
+
+/** Le titre de la carte : le même, avec sa majuscule. */
+export function quandDit(iso: string, aujourdhui: string): string {
+  const t = leJourDit(iso, aujourdhui);
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+/** Le même, en court, pour l'étiquette d'un chiffre : « aujourd’hui », « hier »,
+    « demain », sinon « mar. 24 nov. ». */
+export function leJourCourt(iso: string, aujourdhui: string): string {
+  const j = jourDe(iso);
+  const a = jourDe(aujourdhui);
+  if (j === a || j === decaleJour(a, -1) || j === decaleJour(a, 1)) return leJourDit(j, a);
+  const n = Number(j.slice(8, 10));
+  const annee = j.slice(0, 4) === a.slice(0, 4) ? '' : ` ${j.slice(0, 4)}`;
+  return `${JOURS_COURTS[new Date(`${j}T12:00:00Z`).getUTCDay()]} ${n === 1 ? '1er' : n} ${MOIS_COURTS[Number(j.slice(5, 7)) - 1]}${annee}`;
+}
+
+/** LE GESTE D'ÉTAT D'UNE LIGNE, selon son jour. « Confirmer » tant qu'elle
+    attend ; « Terminer » le jour même (le reste part sur son WhatsApp) ;
+    « Honorer » pour un jour passé. RIEN sur un rendez-vous à venir déjà
+    confirmé : on n'honore pas demain. Rien non plus une fois honoré (c'est
+    alors l'argent qui se propose) ni annulé. */
+export function gesteDeLaLigne(statut: string, date: string, aujourdhui: string): 'Confirmer' | 'Terminer' | 'Honorer' | null {
+  if (statut === 'honoré' || statut === 'annulé') return null;
+  if (statut === 'en attente') return 'Confirmer';
+  const j = jourDe(date);
+  const a = jourDe(aujourdhui);
+  if (j > a) return null;
+  return j === a ? 'Terminer' : 'Honorer';
+}
+
 /** « novembre », « octobre » : le nom d'un mois (aaaa-mm). */
 export const nomDuMois = (mois: string): string => MOIS_LONGS[Number(mois.slice(5, 7)) - 1] ?? '';
 

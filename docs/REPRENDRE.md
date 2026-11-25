@@ -37,6 +37,19 @@
 - **SI ÇA RESTE REFUSÉ sous les deux formes** : c'est que les paiements du TPE vivent sur un autre compte ou une autre route chez KkiaPay ; il faudra leur demander la route, pas bricoler ici.
 - **DÉFAUT DE LA MACHINE, PAS DU CODE — à savoir pour toute construction du Trône (24 novembre 2026)** : esbuild écrit un fichier temporaire pour toute entrée de plus de 1 Mo, et Windows refuse ensuite de le supprimer (« remove … : Access is denied »), ce qui **fait échouer le build du morceau `trone`** (1,14 Mo). L'agent de mise en ligne l'a contourné **sans toucher au dépôt ni au `node_modules` partagé** (copie privée d'esbuild dans sa copie de travail, un seuil relevé, `--import`/loader Node) ; la sortie est identique à un build normal. Sur ce poste, `npm run build` peut donc échouer pour cette raison : ce n'est pas une régression, et la publication se fait depuis une copie détachée.
 
+## LE TABLEAU DE BORD JOUR PAR JOUR : HIER ET LES AUTRES JOURS DE LA SEMAINE — 25 novembre 2026, COMMITÉ, PAS ENCORE PUBLIÉ (Trône seul ; aucune fonction, aucun SQL, aucun secret)
+
+« Permets-moi de retourner à la journée d'hier, et les autres jours de la semaine sur le tableau de bord » (Yéman, avec une capture du Tableau de bord).
+
+- **CE QUI CHANGE** : la carte « Aujourd'hui » porte une rangée de sept pastilles, du lundi au dimanche (le jour, son numéro, son nombre de rendez-vous), et une flèche de chaque côté pour la semaine d'avant ou d'après, sur le même jour. Le jour regardé donne son nom à la carte (« Hier », « Demain », « Mardi 17 novembre ») ; « Revenir à aujourd'hui » paraît dès qu'on l'a quitté.
+- **CE QUI SUIT LE JOUR REGARDÉ** : les lignes de la carte, son pied (attendu, encaissé, fauteuils), la fenêtre « Attendu … », et le PREMIER chiffre du bandeau (« Encaissé hier », « Encaissé mar. 17 nov. » : l'argent du registre ce jour-là, il ouvre le pointage de ce jour-là).
+- **CE QUI NE VOYAGE PAS** : la date du titre, « À traiter », le mois, les impayés, les clientes actives, la journée de Grenat. Rien n'est retenu d'une visite à l'autre : le tableau s'ouvre toujours sur aujourd'hui.
+- **LES GESTES D'UNE LIGNE, SELON SON JOUR** (`gesteDeLaLigne`, `tableau-de-bord-pur.ts`) : « Confirmer » tant qu'elle attend ; « Terminer » le jour même ; « Honorer » un jour passé ; RIEN sur un rendez-vous à venir déjà confirmé (on n'honore pas demain). « Encaisser » dès qu'une ligne honorée garde un reste, quel que soit le jour. « En direct », un autre jour que le sien, seulement si sa note existe : la règle de la fiche du rendez-vous.
+- **LE TABLEAU DE L'ÉQUIPE** (`TableauDeLEquipe`) n'a pas les pastilles : rien n'a été demandé pour lui.
+- **BANCS** : `verifie-les-jours-du-tableau` (neuf) 27 contrôles, `--prouve` 27/27, pannes EN MÉMOIRE (la règle est recompilée depuis son texte, rien n'est écrit sur le disque). `verifie-l-acces-en-direct` 22 (une règle recalée) et `verifie-le-chiffre-du-jour` 12 (le pied compte le jour regardé). Typecheck 0.
+- **BANCS ROUGES SANS CE LOT, sur ce poste (vérifié par `git stash`)** : `verifie-gerard` (3 échecs), `banc-les-pourboires` (« le Tableau de bord porte le bloc sous la salutation »).
+- **PUBLICATION** : attend le « servi », puis l'essai à l'écran.
+
 ## LE TRÔNE SUIT LE MOYEN QU'ELLE CHANGE — 25 novembre 2026, EN LIGNE (`regler-la-seance` v47 @ 5201f0e6) (fonction `regler-la-seance` seule ; aucun SQL, aucun secret, le Trône ne change pas)
 
 Sa note offre « Changer de moyen » depuis le 23 novembre (5d41d6d6). Le Trône, lui, disait toujours le premier moyen : elle passait de la carte à Moov, il affichait « Elle règle · par carte » et envoyait le maître chercher une fenêtre qu'elle avait refermée.

@@ -65,6 +65,24 @@ button.tdb-puce:focus-visible { outline: 2px solid var(--color-copper); outline-
 .tdb-lien:hover { text-decoration: underline; }
 .tdb-lien:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
 
+/* ── 3a bis. Les jours de la semaine (25 novembre 2026) ──
+   « Permets-moi de retourner à la journée d'hier, et les autres jours de la
+   semaine. » Sept pastilles et deux flèches, sur une seule rangée qui tient à
+   400 px. Le jour regardé porte un filet de cuivre ; aujourd'hui garde son
+   nom en cuivre, où qu'on regarde. Le cuivre ponctue, il n'écrit pas. */
+.tdb-carte__liens { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 4px 14px; }
+.tdb-jours { display: grid; grid-template-columns: 30px repeat(7, minmax(0, 1fr)) 30px; border-bottom: 1px solid var(--tdb-trait); background: var(--tdb-fond-doux); }
+.tdb-jours__fleche { padding: 0; border: 0; background: transparent; color: var(--tdb-doux); font: 400 18px/1 var(--font-sans); cursor: pointer; }
+.tdb-jour { display: grid; justify-items: center; gap: 1px; min-width: 0; padding: 7px 2px 5px; border: 0; border-left: 1px solid var(--tdb-trait); border-bottom: 2px solid transparent; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.tdb-jours__fleche:last-child { border-left: 1px solid var(--tdb-trait); }
+.tdb-jour__nom { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--tdb-vieux); }
+.tdb-jour__num { font-family: var(--font-serif); font-weight: 500; font-size: 20px; line-height: 1.05; color: var(--tdb-encre); font-variant-numeric: lining-nums tabular-nums; }
+.tdb-jour__n { font-size: 11px; line-height: 1.2; color: var(--tdb-doux); font-variant-numeric: tabular-nums; }
+.tdb-jour:hover, .tdb-jours__fleche:hover { background: var(--hover-veil, rgba(20, 20, 27, .04)); }
+.tdb-jour.est-vu { background: var(--tdb-papier); border-bottom-color: var(--tdb-cuivre); }
+.tdb-jour.est-aujourdhui .tdb-jour__nom { color: var(--tdb-cuivre); }
+.tdb-jour:focus-visible, .tdb-jours__fleche:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+
 /* ── 3a. Aujourd'hui ── */
 /* Relative : le libellé caché des gestes (position absolue) reste dans la boîte qui glisse,
    sans élargir la page. */

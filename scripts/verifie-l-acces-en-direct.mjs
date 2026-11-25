@@ -86,13 +86,15 @@ const controles = [
     casse: (s) => ({ ...s, bord: remplace(s.bord, 'e.stopPropagation(); setDirectAppt(a);', 'setDirectAppt(a);') }),
   },
   {
-    dit: 'Tableau de bord : jamais sur un rendez-vous annule, et sous le geste d etat',
+    /* 25 novembre 2026 : la carte se lit jour par jour. Un autre jour que le
+       sien, le lien ne s offre que si sa note existe, comme sur la fiche. */
+    dit: 'Tableau de bord : jamais sur un rendez-vous annule, un autre jour seulement si sa note existe, et sous le geste d etat',
     ok: (s) => {
       const g = s.bord.slice(s.bord.indexOf('<span className="tdb-gestes">'));
       const direct = g.indexOf('tdb-btn--direct'), etat = g.indexOf('tdb-btn--etat');
-      return etat > 0 && direct > etat && /\{a\.status !== 'annulé' && \(\s*<button type="button" className="tdb-btn tdb-btn--direct"/.test(g);
+      return etat > 0 && direct > etat && /\{a\.status !== 'annulé' && \(a\.date === today \|\| !!a\.lienDeReglement\) && \(\s*<button type="button" className="tdb-btn tdb-btn--direct"/.test(g);
     },
-    casse: (s) => ({ ...s, bord: s.bord.replace(/\{a\.status !== 'annulé' && \((\s*<button type="button" className="tdb-btn tdb-btn--direct")/, '{($1') }),
+    casse: (s) => ({ ...s, bord: s.bord.replace(/\{a\.status !== 'annulé' && (\(a\.date === today \|\| !!a\.lienDeReglement\) && \(\s*<button type="button" className="tdb-btn tdb-btn--direct")/, '{$1') }),
   },
   {
     /* 25 novembre 2026 : cote a cote, le lien et le geste serraient la colonne « Rituel ». */

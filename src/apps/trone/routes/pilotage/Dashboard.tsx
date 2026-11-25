@@ -64,8 +64,8 @@ import {
   useEngagements, useDevisRecus, useVersementsEngagement, litLesDossiers, bilanDesEngagements, restesDits,
 } from '../../../../shared/engagements';
 import {
-  clientesActives, dateDuTitre, encaissePourLesMoisDAvant, honoresDuMois, joursDits, moisAvant, nombreDe, nomDuMois,
-  septJours, versementsDuMois,
+  clientesActives, dateDuTitre, decaleJour, encaissePourLesMoisDAvant, gesteDeLaLigne, honoresDuMois, joursDits, leJourCourt,
+  leJourDit, moisAvant, nombreDe, nomDuMois, pastilleDuJour, quandDit, semaineDe, septJours, versementsDuMois,
 } from './tableau-de-bord-pur';
 import {
   estFermeLe, useDepensesAValider, useEnvoisDeLaDemiHeure, useLaVeilleEnNombres, useMinute, usePlacesLimiteesOuvertes, usePourboiresDeLEquipe,
@@ -279,6 +279,36 @@ function TableauDeLaDirection() {
         .sort((a, b) => timeToMin(a.time) - timeToMin(b.time)),
     };
   }, [appts, byId, invoices, expenses, apprenants, abonnes, branch.id, today, thisMonth, prevMonth, cutPrev, registre, clefDuTarif]);
+
+  /* ══ LE JOUR REGARDÉ — 25 novembre 2026 ═══════════════════════════════
+     « Permets-moi de retourner à la journée d'hier, et les autres jours de
+     la semaine sur le tableau de bord » (Yéman). La carte « Aujourd'hui »
+     se lit jour par jour : ses lignes, son pied (attendu, encaissé,
+     fauteuils) et le premier chiffre du bandeau suivent le jour regardé.
+     TOUT LE RESTE RESTE À MAINTENANT : « À traiter », le mois, les impayés
+     ne voyagent pas. Rien n'est retenu d'une visite à l'autre : le tableau
+     s'ouvre toujours sur aujourd'hui (et, resté sur aujourd'hui, il suit
+     le jour quand minuit passe). */
+  const [jourChoisi, setJourChoisi] = useState<string | null>(null);
+  const jourVu = jourChoisi ?? today;
+  const regardeUnJour = (iso: string) => setJourChoisi(iso === today ? null : iso);
+  const jourRows = useMemo(
+    () => (jourVu === today ? todayRows : appts
+      .filter((a) => a.date === jourVu && a.status !== 'annulé')
+      .sort((a, b) => timeToMin(a.time) - timeToMin(b.time))),
+    [appts, jourVu, today, todayRows],
+  );
+  /* Les sept pastilles : la semaine du jour regardé, et ses rendez-vous. */
+  const semaineVue = useMemo(() => {
+    const parJour = new Map<string, number>();
+    for (const a of appts) if (a.status !== 'annulé') parJour.set(a.date, (parJour.get(a.date) ?? 0) + 1);
+    return semaineDe(jourVu).map((iso) => ({ iso, n: parJour.get(iso) ?? 0 }));
+  }, [appts, jourVu]);
+  /* L'argent reçu ce jour-là : le registre, comme la fenêtre qu'il ouvre. */
+  const encaisseDuJourVu = useMemo(
+    () => revenuDuJour(registre, jourVu).reduce((s, r) => s + r.amountXof, 0),
+    [registre, jourVu],
+  );
 
   /* — décomposition du revenu du mois : rituels par catégorie + encaissements par moyen — */
   const breakdown = useMemo(() => {
@@ -625,9 +655,9 @@ function TableauDeLaDirection() {
 
   /* LA JOURNÉE EN SOMMES (24 octobre 2026, `chiffre-du-jour-pur`) : l'attendu,
      l'encaissé, le reste, au pied d'« Aujourd'hui » ; le même calcul qu'au Carnet. */
-  const jourDuChiffre = chiffreAttenduDuJour(todayRows.map((a) => ({
+  const jourDuChiffre = chiffreAttenduDuJour(jourRows.map((a) => ({
     date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme,
-  })), today);
+  })), jourVu);
   /* LES RÉSUMÉS DES LIGNES REPLIÉES — 27 octobre 2026 : chaque ligne dit, en
      chiffres, ce que son panneau contient ; le panneau lit les mêmes. */
   const appelsEnRetard = appelsAFaire.filter((a) => a.suite === 'rappel' && !!a.quand && a.quand < today).length;
@@ -685,11 +715,11 @@ function TableauDeLaDirection() {
   /* LES FAUTEUILS DU JOUR : combien sont pris au plus fort de la journée,
      sur ceux de la Maison (les durées du calendrier). */
   const fauteuils = useMemo(() => {
-    const plages = todayRows.map((a) => { const d = timeToMin(a.time); return [d, d + Math.max(1, apptDurationMin(a, byId))] as const; });
+    const plages = jourRows.map((a) => { const d = timeToMin(a.time); return [d, d + Math.max(1, apptDurationMin(a, byId))] as const; });
     let pris = 0;
     for (const [d] of plages) pris = Math.max(pris, plages.filter(([x, y]) => x <= d && d < y).length);
     return { pris, sieges: Math.max(0, branch.seats ?? 0) };
-  }, [todayRows, byId, branch.seats]);
+  }, [jourRows, byId, branch.seats]);
 
   const fmt = (x: number) => fmtMoney(x, currency);
   const nomMois = nomDuMois(thisMonth);
@@ -719,9 +749,9 @@ function TableauDeLaDirection() {
 
   /* L'ATTENDU DU JOUR, rendez-vous par rendez-vous (24 octobre 2026). */
   const openAttendu = () => setDrill({
-    title: 'Attendu aujourd’hui',
+    title: `Attendu ${leJourDit(jourVu, today)}`,
     sub: `Encaissé ${fmt(jourDuChiffre.encaisseXof)} · reste ${fmt(jourDuChiffre.resteXof)}`,
-    rows: todayRows.map((a) => {
+    rows: jourRows.map((a) => {
       const u = chiffreAttenduDuJour([{ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme }], a.date);
       return {
         who: clientOf(a.clientId)?.name ?? a.clientName ?? 'Cliente de passage',
@@ -833,7 +863,8 @@ function TableauDeLaDirection() {
   const tonDeLaSynchro = synchro.ton === 'ok' ? ' est-ok' : synchro.ton === 'attente' ? ' est-attente' : synchro.ton === 'ko' ? ' est-ko' : '';
 
   const kpis = [
-    { k: 'jour', l: 'Encaissé aujourd’hui', v: fmt(encaisseAujourdhui), c: nombreDe(todayRows.length, 'rendez-vous', 'rendez-vous'), go: () => openDay(today) },
+    /* Le premier chiffre suit le jour regardé (25 novembre 2026) : « Encaissé hier », « Encaissé mar. 24 nov. ». */
+    { k: 'jour', l: `Encaissé ${leJourCourt(jourVu, today)}`, v: fmt(jourVu === today ? encaisseAujourdhui : encaisseDuJourVu), c: nombreDe(jourRows.length, 'rendez-vous', 'rendez-vous'), go: () => openDay(jourVu) },
     { k: 'mois', l: `Encaissé ${nomMois}`, v: fmt(revenue), c: `au ${jourDuMois} · ${nombreDe(chiffres.versements, 'versement')}`, go: () => setBreakOpen(true) },
     { k: 'impayes', l: 'Impayés', v: fmt(impayesXof), c: impayesDits, ko: impayesXof > 0, go: openImpayes },
     { k: 'rituels', l: `Rituels ${nomMois}`, v: String(chiffres.honores.nombre), c: `${prevMonthName} : ${chiffres.honoresAvant.nombre}`, go: () => navigate('/chiffre-des-prestations') },
@@ -885,20 +916,54 @@ function TableauDeLaDirection() {
       <div className="tdb-grille">
         <section className="tdb-carte" aria-labelledby="tdb-t-jour" data-tdb="aujourdhui">
           <div className="tdb-carte__t">
-            <h2 id="tdb-t-jour">Aujourd’hui</h2>
-            <button type="button" className="tdb-lien" onClick={() => navigate('/carnet')}>Le Carnet ›</button>
+            <h2 id="tdb-t-jour">{quandDit(jourVu, today)}</h2>
+            <span className="tdb-carte__liens">
+              {jourVu !== today && (
+                <button type="button" className="tdb-lien" onClick={() => setJourChoisi(null)}>Revenir à aujourd’hui</button>
+              )}
+              <button type="button" className="tdb-lien" onClick={() => navigate('/carnet')}>Le Carnet ›</button>
+            </span>
           </div>
+          {/* LES JOURS DE LA SEMAINE (25 novembre 2026) : hier et les autres jours,
+              d'un toucher. Sept pastilles du lundi au dimanche, le nombre de
+              rendez-vous sous chacune ; une flèche de chaque côté change de
+              semaine en gardant le même jour. */}
+          <nav className="tdb-jours" aria-label="Les jours de la semaine" data-tdb="jours">
+            <button type="button" className="tdb-jours__fleche" onClick={() => regardeUnJour(decaleJour(jourVu, -7))} aria-label="La semaine d’avant" title="La semaine d’avant">‹</button>
+            {semaineVue.map((j) => {
+              const p = pastilleDuJour(j.iso);
+              const dit = `${quandDit(j.iso, today)} · ${nombreDe(j.n, 'rendez-vous', 'rendez-vous')}`;
+              return (
+                <button
+                  type="button"
+                  key={j.iso}
+                  className={`tdb-jour${j.iso === jourVu ? ' est-vu' : ''}${j.iso === today ? ' est-aujourdhui' : ''}`}
+                  aria-pressed={j.iso === jourVu}
+                  aria-label={dit}
+                  title={dit}
+                  onClick={() => regardeUnJour(j.iso)}
+                >
+                  <span className="tdb-jour__nom">{p.nom}</span>
+                  <span className="tdb-jour__num">{p.numero}</span>
+                  <span className="tdb-jour__n">{j.n > 0 ? j.n : '·'}</span>
+                </button>
+              );
+            })}
+            <button type="button" className="tdb-jours__fleche" onClick={() => regardeUnJour(decaleJour(jourVu, 7))} aria-label="La semaine d’après" title="La semaine d’après">›</button>
+          </nav>
           <div className="tdb-defile">
             <table className="tdb-table">
               <thead>
                 <tr><th>Heure</th><th>Cliente</th><th>Rituel</th><th>État</th><th className="n">Montant</th><th><span className="tdb-cache">Gestes</span></th></tr>
               </thead>
               <tbody>
-                {todayRows.length === 0 && (
-                  <tr><td className="tdb-vide" colSpan={6}>Carnet libre</td></tr>
+                {jourRows.length === 0 && (
+                  <tr><td className="tdb-vide" colSpan={6}>{jourVu < today ? 'Aucun rendez-vous ce jour-là' : 'Carnet libre'}</td></tr>
                 )}
-                {todayRows.map((a) => {
+                {jourRows.map((a) => {
                   const u = chiffreAttenduDuJour([{ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme }], a.date);
+                  /* Le geste suit le jour de la ligne : rien à « honorer » sur un rendez-vous à venir. */
+                  const geste = gesteDeLaLigne(a.status, a.date, today);
                   return (
                     <tr key={a.id} onClick={() => setEditAppt(a)} title="Ouvrir ce rendez-vous">
                       <td className="tdb__num">{a.time}</td>
@@ -919,17 +984,18 @@ function TableauDeLaDirection() {
                               se dessine en lien pour ne pas se confondre avec eux.
                               SOUS le geste, depuis le 25 novembre 2026 : à côté de lui,
                               il serrait la colonne « Rituel ». */}
-                          {a.status !== 'honoré' ? (
+                          {geste ? (
                             <button type="button" className="tdb-btn tdb-btn--etat" onClick={(e) => { e.stopPropagation(); advance(a); }}>
                               {/* « Terminer » le jour même : le reste part sur son WhatsApp (25 octobre 2026). */}
-                              {a.status === 'en attente' ? 'Confirmer' : a.date === todayISO() ? 'Terminer' : 'Honorer'}
+                              {geste}
                             </button>
-                          ) : u.resteXof > 0 ? (
+                          ) : a.status === 'honoré' && u.resteXof > 0 ? (
                             <button type="button" className="tdb-btn" onClick={(e) => { e.stopPropagation(); setPayAppt(a); }} title="Encaisser, paiement partiel ou total">
                               Encaisser
                             </button>
                           ) : null}
-                          {a.status !== 'annulé' && (
+                          {/* Un autre jour que le sien : seulement si sa note existe, comme sur la fiche du rendez-vous. */}
+                          {a.status !== 'annulé' && (a.date === today || !!a.lienDeReglement) && (
                             <button type="button" className="tdb-btn tdb-btn--direct" onClick={(e) => { e.stopPropagation(); setDirectAppt(a); }} title="Son devis et son règlement, en direct">
                               En direct
                             </button>
@@ -943,7 +1009,7 @@ function TableauDeLaDirection() {
             </table>
           </div>
           <p className="tdb-resume">
-            <button type="button" onClick={openAttendu} title="Attendu aujourd’hui, rendez-vous par rendez-vous">Attendu <b>{fmt(jourDuChiffre.attenduXof)}</b></button>
+            <button type="button" onClick={openAttendu} title={`Attendu ${leJourDit(jourVu, today)}, rendez-vous par rendez-vous`}>Attendu <b>{fmt(jourDuChiffre.attenduXof)}</b></button>
             <span>Encaissé <b>{fmt(jourDuChiffre.encaisseXof)}</b></span>
             <span>Fauteuils <b>{fauteuils.sieges > 0 ? `${fauteuils.pris} / ${fauteuils.sieges}` : fauteuils.pris}</b></span>
           </p>
