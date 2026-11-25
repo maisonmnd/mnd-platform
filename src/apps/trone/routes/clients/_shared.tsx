@@ -62,6 +62,7 @@ import { estLigneDeFraisDeCarte } from '../../../../shared/frais-de-carte-pur';
 import { releveDeLAbonnee, formuleProposeePourReserver, dansLaVie } from '../../../../shared/abonnee-pur';
 import { jourDeCotonou } from '../../../../shared/ia-faits-pur';
 import { PALIER_DU_CODE_XOF } from '../vente/encaissement-pur';
+import { VoirLeProtocole } from '../vente/FicheDeProcedure';
 import { useOffers } from '../../../../shared/offers';
 import { arrondiDuNet, ceQueRetireLeMercredi, estAPlaces, estUnCodeDuJour, gesteSansRemise, poseLOffreDuJour } from '../../../../shared/offres-pur';
 import {
@@ -6358,6 +6359,11 @@ function RdvModalCorps({
               ))}
             </div>
           )}
+          {/* VOIR LE PROTOCOLE — 25 novembre 2026 : la fiche de procédure de
+              chaque soin du rendez-vous, par-dessus cette fenêtre. Le bouton ne
+              paraît que s'il y a une fiche à lire : validée pour l'équipe, ou
+              en brouillon pour la direction. Aussi sans les prix (un maître). */}
+          <VoirLeProtocole serviceIds={serviceIds} byId={byId} />
           {!sansPrix && chosen.length > 0 && prixDuRituelDit && (
             <div className="trc-rdv5__total"><span>Total</span><b>{prixDuRituelDit}</b></div>
           )}

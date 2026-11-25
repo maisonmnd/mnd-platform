@@ -15,6 +15,7 @@ import {
 } from '../../../../shared/catalogue-par-palier';
 import { useSettings } from '../../../../shared/settings';
 import { ProtocolesModal } from './Protocoles';
+import { FichesDeProcedureModal } from './FichesDeProcedure';
 import { fmtMoney } from '../../../../shared/currency';
 import { racineOf, sousArbreOf, LONGUEURS, suitLongueur, type LongueurId, type ServiceInclus, type TarifMode,
   useCategories, useServices, useProducts, catsDansLOrdre, mondeDeCat, mondeLabel, rangMonde, type Monde,
@@ -280,6 +281,9 @@ export default function Catalogue() {
   /* `?regime=` : les Systèmes de prix (Finances › Le Juste Prix) ouvrent le
      Catalogue directement filtré sur un système. */
   const [protosOuverts, setProtosOuverts] = useState(false);
+  /* LES FICHES DE PROCEDURE (25 novembre 2026) : comment se rend chaque soin,
+     une fiche par prestation, la meme en sept rubriques. */
+  const [fichesOuvertes, setFichesOuvertes] = useState(false);
   const [regimeFiltre, setRegimeFiltre] = useState<'tout' | 'jp' | 'modele' | 'lock' | 'calibre' | 'longueur' | 'hors'>(() => {
     const r = new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('regime');
     return r === 'jp' || r === 'modele' || r === 'lock' || r === 'calibre' || r === 'longueur' || r === 'hors' ? r : 'tout';
@@ -1101,6 +1105,7 @@ export default function Catalogue() {
   return (
     <div className="mnd-rise">
       {protosOuverts && <ProtocolesModal onClose={() => setProtosOuverts(false)} />}
+      {fichesOuvertes && <FichesDeProcedureModal onClose={() => setFichesOuvertes(false)} />}
       <PageHead
         eyebrow="Vente · L’offre"
         title="Le catalogue."
@@ -1111,6 +1116,10 @@ export default function Catalogue() {
                 est une suite de PRESTATIONS : quand on change l'étape d'une
                 étape, c'est le catalogue qu'on doit avoir sous les yeux. */}
             <Button variant="ghost" onClick={() => setProtosOuverts(true)}>Les protocoles</Button>
+            {/* UNE FICHE DE PROCEDURE N EST PAS UN PROTOCOLE : le protocole dit
+                quels soins se suivent dans le temps, la fiche dit comment se
+                rend un soin, au fauteuil. L equipe la lit depuis le rendez-vous. */}
+            <Button variant="ghost" onClick={() => setFichesOuvertes(true)}>Les fiches de procédure</Button>
             <Button variant="ghost" onClick={() => setCatForm({ id: null, fon: '', label: '', enabled: true, maison: '', code: '', parentId: '' })}>+ Catégorie</Button>
             <Button variant="ghost" onClick={() => setProdForm(emptyProdForm(dodoId))}>+ Produit</Button>
             <Button onClick={() => setSvcForm(emptySvcForm(cats[0]?.id ?? 'vekpe', masters[0] ?? ''))}>+ Prestation</Button>

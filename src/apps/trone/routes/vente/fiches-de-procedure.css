@@ -1,0 +1,134 @@
+/* ══ LES FICHES DE PROCÉDURE — 25 novembre 2026 ══════════════════════════
+   La fiche lue (au rendez-vous et au Catalogue), le bouton « Voir le
+   protocole », et l'atelier de la direction. Rayons de 2 à 4 px, cuivre en
+   filet et en bouton, jamais en texte courant ; le signal « à valider » est un
+   filet cuivre sur fond clair, son texte reste à l'encre. */
+
+/* ── Le bouton du rendez-vous ─────────────────────────────────────────── */
+.tfp-voir {
+  display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left;
+  margin-top: 10px; padding: 10px 12px; cursor: pointer;
+  background: var(--surface-card); color: var(--ink);
+  border: 1px solid var(--copper-300); border-left: 3px solid var(--color-copper); border-radius: 3px;
+  font-family: var(--font-sans);
+  transition: background var(--dur-base, .2s) var(--ease-soft, ease);
+}
+.tfp-voir:hover { background: var(--copper-50); }
+.tfp-voir:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.tfp-voir b { font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--color-indigo); }
+.tfp-voir small { font-size: 11.5px; color: var(--ink-soft); overflow-wrap: anywhere; }
+
+/* ── Les onglets, quand le rendez-vous porte plusieurs fiches ─────────── */
+.tfp-onglets { display: flex; gap: 18px; flex-wrap: wrap; border-bottom: 1px solid var(--hairline); margin-bottom: 14px; }
+.tfp-onglet {
+  background: none; border: 0; border-bottom: 2px solid transparent; padding: 7px 0; cursor: pointer;
+  font-family: var(--font-sans); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft);
+}
+.tfp-onglet.actif { color: var(--color-indigo); border-bottom-color: var(--color-copper); font-weight: 600; }
+.tfp-onglet:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+
+/* ── L'en-tête d'une fiche ────────────────────────────────────────────── */
+.tfp-entete { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.tfp-entete__titre { margin: 0; font-family: var(--font-serif); font-weight: 300; font-size: 27px; line-height: 1.15; color: var(--color-indigo); }
+.tfp-entete__champ { font-family: var(--font-serif); font-size: 22px; font-weight: 300; color: var(--color-indigo); }
+.tfp-entete__lien, .tfp-entete__version { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--ink-soft); overflow-wrap: anywhere; }
+.tfp-entete__version { color: var(--ink); }
+.tfp-entete__vues { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+.tfp-compte { font-size: 12px; color: var(--ink-soft); }
+
+.tfp-bandeau {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  font-size: 12.5px; line-height: 1.55; padding: 9px 12px; border-radius: 2px; color: var(--ink);
+  border: 1px solid var(--copper-300); border-left: 3px solid var(--color-copper); background: var(--copper-50);
+}
+.tfp-bandeau b { font-weight: 600; color: var(--color-indigo); }
+.tfp-bandeau--brouillon { border-color: var(--hairline); border-left-color: var(--color-indigo); background: var(--surface-card); }
+
+/* ── La fiche : sept rubriques ────────────────────────────────────────── */
+.tfp-fiche { display: flex; flex-direction: column; gap: 18px; }
+.tfp-rubrique { border-top: 1px solid var(--hairline); padding-top: 12px; }
+.tfp-rubrique__titre {
+  margin: 0 0 8px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  font-family: var(--font-sans); font-size: 10.5px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--color-indigo);
+}
+.tfp-rubrique__titre small { font-size: 11.5px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--ink-soft); }
+.tfp-rubrique__vide { margin: 0; font-size: 12.5px; color: var(--ink-soft); }
+
+.tfp-lignes { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.tfp-lignes--etapes { counter-reset: etape; }
+.tfp-ligne { font-size: 14px; line-height: 1.5; color: var(--ink); }
+.tfp-lignes--etapes .tfp-ligne { counter-increment: etape; position: relative; padding-left: 30px; }
+.tfp-lignes--etapes .tfp-ligne::before {
+  content: counter(etape); position: absolute; left: 0; top: -2px;
+  font-family: var(--font-serif); font-size: 21px; font-weight: 300; color: var(--color-indigo);
+}
+.tfp-ligne__tete { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.tfp-ligne__texte { flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; }
+.tfp-ligne__detail {
+  flex: none; max-width: 100%; font-size: 12.5px; color: var(--ink);
+  border: 1px solid var(--hairline); border-radius: 2px; padding: 3px 8px; background: var(--surface-card);
+}
+.tfp-ligne__detail small { display: block; font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+
+.tfp-avalider {
+  margin: 5px 0 0; padding: 7px 10px; font-size: 12.5px; line-height: 1.5; color: var(--ink);
+  border-left: 3px solid var(--color-copper); background: var(--copper-50); border-radius: 0 2px 2px 0;
+}
+.tfp-avalider b {
+  display: block; font-size: 9.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--color-indigo);
+}
+
+.tfp-pied { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+.tfp-pied--colle {
+  position: sticky; bottom: -1px; padding: 10px 0; background: var(--color-ivoire); border-top: 1px solid var(--hairline);
+}
+.tfp-pied--colle .tfp-compte { margin-right: auto; }
+
+/* ── L'atelier de la direction, au Catalogue ──────────────────────────── */
+.tfp-atelier { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 22px; align-items: start; }
+.tfp-liste { display: flex; flex-direction: column; gap: 10px; position: sticky; top: 0; }
+.tfp-filtres { display: flex; gap: 6px; flex-wrap: wrap; }
+.tfp-liste__corps { max-height: 62vh; overflow: auto; display: flex; flex-direction: column; gap: 12px; padding-right: 4px; }
+.tfp-groupe { display: flex; flex-direction: column; gap: 2px; }
+.tfp-groupe__nom { font-size: 9.5px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-soft); padding: 2px 0 4px; }
+.tfp-soin {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px; width: 100%; text-align: left;
+  background: none; border: 0; border-left: 2px solid transparent; padding: 6px 8px; cursor: pointer;
+  font-family: var(--font-sans); font-size: 13px; color: var(--ink);
+}
+.tfp-soin:hover { background: var(--copper-50); }
+.tfp-soin.actif { border-left-color: var(--color-copper); background: var(--surface-card); color: var(--color-indigo); font-weight: 500; }
+.tfp-soin:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.tfp-soin__nom { min-width: 0; overflow-wrap: anywhere; }
+.tfp-etat { flex: none; font-size: 10px; letter-spacing: .06em; color: var(--ink-soft); white-space: nowrap; }
+.tfp-etat--validee, .tfp-etat--validee-et-brouillon { color: #2F6B45; font-weight: 600; }
+.tfp-etat--brouillon { color: var(--color-indigo); font-weight: 600; }
+
+.tfp-page { min-width: 0; }
+.tfp-accueil { display: flex; flex-direction: column; gap: 10px; max-width: 620px; }
+.tfp-accueil p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--ink); }
+
+.tfp-saisie { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-top: 1px solid var(--hairline); }
+.tfp-saisie:first-of-type { border-top: 0; }
+.tfp-saisie.est-a-valider { border-left: 3px solid var(--color-copper); padding-left: 10px; }
+.tfp-saisie__rang { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.tfp-saisie__rang:has(.tfp-saisie__detail) { grid-template-columns: minmax(0, 1fr) 210px; }
+/* Une ligne tient en une ou deux lignes de texte : la zone suit ce qu on ecrit. */
+.tfp-saisie .mnd-textarea { min-height: 42px; field-sizing: content; resize: vertical; }
+.tfp-saisie__avalider { background: var(--copper-50); }
+.tfp-saisie__gestes { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.tfp-lien { background: none; border: 0; padding: 2px 0; cursor: pointer; font: inherit; font-size: 11.5px; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 3px; }
+.tfp-lien:hover { color: var(--color-indigo); }
+.tfp-ajoute {
+  margin-top: 8px; border: 1px dashed var(--copper-300); background: none; color: var(--color-indigo);
+  border-radius: 3px; font: inherit; font-size: 12px; padding: 7px 12px; cursor: pointer;
+}
+.tfp-ajoute:hover { background: var(--copper-50); }
+
+@media (max-width: 860px) {
+  .tfp-atelier { grid-template-columns: minmax(0, 1fr); }
+  .tfp-liste { position: static; }
+  .tfp-liste__corps { max-height: 34vh; }
+  .tfp-saisie__rang:has(.tfp-saisie__detail) { grid-template-columns: minmax(0, 1fr); }
+  .tfp-entete__titre { font-size: 23px; }
+}
