@@ -399,3 +399,129 @@ export function categoriesLues(brut: unknown): CategorieDeLaMaison[] {
       ordre: typeof x.ordre === 'number' ? x.ordre : i,
     }));
 }
+
+/* ══ LA DÉFINITION D'UNE CATÉGORIE, LUE — 25 novembre 2026 ══════════════
+   « Quand je prends la Curieuse, c'est quoi la Curieuse ? Quand je prends la
+   Disparue, c'est quoi la Disparue ? Où se trouvent les définitions ? »
+   (Yéman). Les définitions ne se lisaient que dans « Les critères » ; ouverte
+   depuis la colonne, une catégorie montrait ses fiches sans dire qui y entre.
+   Elle le dit désormais en tête de sa liste, avec les chiffres EN VIGUEUR
+   (ceux que `classeLaCliente` applique), et « Modifier la définition » mène à
+   sa carte des critères. Changer une règle de `classeLaCliente`, c'est
+   changer sa phrase ici : le banc les tient ensemble. */
+
+/** Les valeurs qu'un critère de la Maison peut prendre, et leur nom. */
+export function optionsDuChamp(ch: ChampDeCritere): [string, string][] {
+  if (ch === 'lieu') return [...GROUPES_DE_LIEU.map((g): [string, string] => [`grp:${g.cle}`, `Groupe : ${g.nom}`]), ...LIEUX.map((l): [string, string] => [l.cle, l.nom])];
+  if (ch === 'rythmeCat') return RYTHMES.map((r): [string, string] => [r.cle, r.nom]);
+  if (ch === 'accord') return [['oui', 'a dit oui'], ['non', 'a dit « Non merci »'], ['stop', 'STOP'], ['inconnu', 'jamais répondu']];
+  if (ch === 'persona') return [['p-initie', 'Initiée'], ['p-constante', 'Constante'], ['p-lointaine', 'Lointaine'], ['p-convalescente', 'Convalescente'], ['p-souveraine', 'Souveraine'], ['p-naissante', 'Naissante'], ['p-lumineuse', 'Lumineuse'], ['p-pressee', 'Pressée']];
+  if (CHAMPS[ch].type === 'bool') return [['oui', 'oui'], ['non', 'non']];
+  return [];
+}
+
+/** Un critère de la Maison, dit en mots : « Nombre de visites : au moins 2 ». */
+export function critereDit(c: CritereDeLaMaison): string {
+  const champ = CHAMPS[c.champ];
+  if (!champ) return '';
+  if (champ.type === 'num') return `${champ.nom} : ${c.op === '<=' ? 'au plus' : c.op === '=' ? 'exactement' : 'au moins'} ${Number(c.valeur) || 0}`;
+  const nom = optionsDuChamp(c.champ).find(([v]) => v === String(c.valeur))?.[1] ?? String(c.valeur);
+  return `${champ.nom} : ${c.op === '≠' ? 'n’est pas' : 'est'} ${nom}`;
+}
+
+const listeDite = (xs: string[]): string => (xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} ou ${xs[xs.length - 1]}`);
+
+/** Qui entre dans la catégorie d'une vue de la colonne (`e:curieuse`,
+    `g:diaspora`, `r:annuelle`, `m:annule-souvent`, `l:calavi`…), en mots et
+    avec les chiffres en vigueur ; `null` pour une vue qui n'est pas une
+    catégorie (« Toutes les fiches », « Toutes les annulations »…). */
+export function definitionDeLaVue(vue: string, p: CriteresDuClassement, categories: readonly CategorieDeLaMaison[]): string | null {
+  const k = vue.slice(2);
+  const cat = categories.find((x) => x.id === k);
+  if ((vue.startsWith('e:') || vue.startsWith('m:')) && cat) {
+    const regle = cat.regle.trim();
+    const criteres = cat.criteres.map(critereDit).filter(Boolean);
+    const quoi = cat.type === 'marque' ? 'Une marque de la Maison' : 'Une étape de la Maison, lue juste après « Hors parcours »';
+    const ou = criteres.length
+      ? `${quoi}. Elle y entre si tous ses critères tiennent : ${criteres.join(' ; ')}.`
+      : `${quoi}, sans critère : on y range une fiche à la main, depuis son dossier.`;
+    return regle ? `${regle} ${ou}` : ou;
+  }
+  if (vue.startsWith('e:')) {
+    switch (k) {
+      case 'hors': {
+        const quand = [
+          ...(p.hors_stop ? ['elle a dit STOP'] : []),
+          ...(p.hors_locks ? ['elle a défait ses locks'] : []),
+          ...(p.hors_passage_pose ? ['la Maison l’a marquée « de passage » à la main'] : []),
+          ...(p.de_passage === 'hors' ? [`elle est venue une seule fois, il y a plus de ${p.premiere_jours} jours, et le Trône l’a marquée « de passage »`] : []),
+          'c’est une fiche d’essai',
+        ];
+        return `Elle y entre si ${listeDite(quand)}. Seuls les rappels de rendez-vous lui partent.`;
+      }
+      case 'abonnee': return 'Une formule active (Carnet, Lune, Année…) dont l’échéance n’est pas passée. Ses relances suivent ses séances.';
+      case 'annulee': return `Une annulation${p.annulee_absences ? ' (ou un rendez-vous passé resté « confirmé »)' : ''} il y a ${p.annulee_jours} jours au plus, et ni visite ni rendez-vous depuis.`;
+      case 'reservee': return 'Aucune visite encore, et un rendez-vous à venir.';
+      case 'curieuse': return `Aucune visite, aucun rendez-vous, et sa fiche a été créée il y a ${p.curieuse_jours} jours au plus.`;
+      case 'ancien-contact': return `Aucune visite, aucun rendez-vous, et sa fiche a été créée il y a plus de ${p.curieuse_jours} jours : plus de relance, seulement les nouvelles si elle a dit oui.`;
+      case 'premiere': return `Une seule visite, il y a ${p.premiere_jours} jours au plus, et pas encore de rythme connu.`;
+      case 'disparue': return `Une seule visite, il y a plus de ${p.premiere_jours} jours, et pas de rythme connu. ${p.de_passage === 'disparue' ? 'Les fiches marquées « de passage » par le Trône y sont aussi, relancées de la même façon.' : 'Les fiches marquées « de passage » par le Trône n’y sont pas : elles restent hors parcours.'}`;
+      case 'couronne': return `Deux visites ou plus (ou un rythme connu), et la dernière il y a au plus son rythme plus ${p.marge} jours. Son rythme : celui choisi par la Maison, sinon celui déclaré sur sa fiche, sinon l’écart mesuré entre ses visites ; à défaut, ${p.rythme_maison} jours.`;
+      case 'annuelle': return `Son rythme est de ${p.annuelle_rythme} jours ou plus (ou la Maison a choisi « une » ou « deux fois par an »), et elle est dans ce rythme, avec ${p.annuelle_marge} jours de marge. Ce n’est pas une dormante.`;
+      case 'glisse': return `Elle a dépassé son rythme plus ${p.marge} jours de marge, mais elle est venue il y a ${p.dormante_jours} jours au plus.`;
+      case 'dormante': return `Plus de ${p.dormante_jours} jours sans venir, ou au-delà de son rythme annuel et de ${p.annuelle_marge} jours de marge.`;
+      case 'diaspora': return p.diaspora_remplace
+        ? 'Elle vit à l’étranger et, sans cela, elle glisserait, dormirait ou serait disparue : ses relances suivent ses séjours.'
+        : 'Désactivée : une cliente qui vit à l’étranger garde l’étape que disent les autres critères.';
+      default: return null;
+    }
+  }
+  if (vue.startsWith('g:') || vue.startsWith('l:')) {
+    const groupe = vue.startsWith('g:') ? k : LIEUX.find((l) => l.cle === k)?.groupe;
+    const sous = vue.startsWith('l:') ? `${LIEUX.find((l) => l.cle === k)?.nom ?? k}, dans « ${GROUPES_DE_LIEU.find((g) => g.cle === groupe)?.nom ?? ''} ». ` : '';
+    switch (groupe) {
+      case 'diaspora': return `${sous}Elle vit à l’étranger : le lieu choisi dans son dossier, une ville de l’étranger sur sa fiche, la marque diaspora${p.numero_suffit ? ', ou un numéro étranger' : ' (un numéro étranger seul ne suffit pas)'}.`;
+      case 'hors': return `${sous}Calavi, Porto-Novo, Bohicon ou une autre ville du Bénin, lue dans la ville de la fiche ou choisie par la Maison.`;
+      case 'benin': return p.ville_inconnue === 'a-preciser'
+        ? `${sous}Un numéro du Bénin, sans ville reconnue sur la fiche : la ville se choisit dans la liste de son profil.`
+        : `${sous}Vide : un numéro du Bénin sans ville est compté à Cotonou (réglage « Ville à préciser »).`;
+      case 'cotonou': return `${sous}La ville de la fiche (un quartier de Cotonou compte) ou le choix de la Maison${p.ville_inconnue === 'cotonou' ? ', et les numéros du Bénin sans ville' : ''}.`;
+      case 'inconnu': return `${sous}Ni ville sur la fiche, ni numéro.`;
+      default: return null;
+    }
+  }
+  if (vue.startsWith('r:')) {
+    switch (k) {
+      case 'reguliere': return `Une visite tous les ${p.reguliere_max} jours ou moins.`;
+      case 'espacee': return `Plus de ${p.reguliere_max} jours et moins de ${p.annuelle_rythme} jours entre deux visites.`;
+      case 'annuelle': return `Un rythme de ${p.annuelle_rythme} jours ou plus, ou « une » ou « deux fois par an » choisi par la Maison.`;
+      case 'inconnu': return 'Moins de deux visites, et aucun rythme choisi par la Maison ni déclaré sur la fiche.';
+      default: return null;
+    }
+  }
+  if (vue.startsWith('m:')) {
+    switch (k) {
+      case 'annule-souvent': return `Au moins ${p.annule_nb} annulations sur ${p.annule_mois} mois${p.annule_absences ? ', les rendez-vous restés « confirmés » compris' : ''}.`;
+      case 'abonnee-sans-rdv': return 'Une formule active et aucun rendez-vous à venir : elle a oublié de réserver.';
+      case 'absences': return 'Un rendez-vous passé jamais marqué « honoré » : une venue à marquer, ou une absence.';
+      case 'ancienne-abonnee': return 'Une formule terminée ou épuisée, et aucune autre active.';
+      case 'diaspora-a-confirmer': return 'Un numéro étranger, sans marque diaspora ni lieu choisi : à confirmer dans son dossier.';
+      case 'sans-numero': return 'Aucun numéro utilisable : aucune relance possible, à compléter dans son profil.';
+      case 'de-passage': return 'La marque du Trône pour une venue sans relation engagée ; elle se lève seule à la deuxième visite.';
+      default: return null;
+    }
+  }
+  return null;
+}
+
+/** La carte de « Les critères » où se règle la catégorie d'une vue ; une
+    ville mène à la carte de son groupe. `null` : rien à y régler. */
+export function carteDeLaVue(vue: string, categories: readonly CategorieDeLaMaison[]): string | null {
+  const k = vue.slice(2);
+  if ((vue.startsWith('e:') || vue.startsWith('m:')) && categories.some((x) => x.id === k)) return `def-cat:${k}`;
+  if (vue.startsWith('e:')) return ETAPES.some((x) => x.cle === k) ? `def-e:${k}` : null;
+  if (vue.startsWith('m:')) return MARQUES.some((x) => x.cle === k) ? `def-m:${k}` : null;
+  if (vue.startsWith('r:')) return RYTHMES.some((x) => x.cle === k) ? `def-r:${k}` : null;
+  const groupe = vue.startsWith('g:') ? k : vue.startsWith('l:') ? LIEUX.find((l) => l.cle === k)?.groupe : undefined;
+  return groupe && groupe !== 'inconnu' ? `def-g:${groupe}` : null;
+}

@@ -9,7 +9,7 @@ import { uid } from '../../../../shared/store';
 import { useClassement } from '../../../../shared/classement';
 import {
   CHAMPS, CRITERES_PROPOSES, ETAPES, GROUPES_DE_LIEU, LIEUX, MARQUES, RYTHMES,
-  abonnementActif, classeLaCliente, ficheDuClassement, jourDit, joursEntre, villeADeduire,
+  abonnementActif, carteDeLaVue, classeLaCliente, definitionDeLaVue, ficheDuClassement, jourDit, joursEntre, optionsDuChamp, villeADeduire,
   type CategorieDeLaMaison, type ChampDeCritere, type ChoixDuParcours, type CriteresDuClassement,
   type FicheDuClassement, type Libelle, type ResultatDuClassement,
 } from '../../../../shared/classement-pur';
@@ -81,6 +81,24 @@ export default function Classement() {
   const [cherche, setCherche] = useState('');
   const [ouvert, setOuvert] = useState<string | null>(null);
   const choisis = (v: Vue) => { setVue(v); setOuvert(null); };
+  /* « MODIFIER LA DÉFINITION » (25 novembre 2026) : depuis une catégorie, on
+     revient à « Les critères », à SA carte, qui s'éclaire un instant. */
+  const [cible, setCible] = useState<string | null>(null);
+  const modifieLaDefinition = (v: Vue) => { setCible(carteDeLaVue(v, categories)); choisis('criteres'); };
+  useEffect(() => {
+    if (vue !== 'criteres' || !cible) return;
+    const id = cible;
+    setCible(null);
+    let eteint: ReturnType<typeof setTimeout> | undefined;
+    const image = requestAnimationFrame(() => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('is-cible');
+      eteint = setTimeout(() => el.classList.remove('is-cible'), 2600);
+    });
+    return () => { cancelAnimationFrame(image); if (eteint) clearTimeout(eteint); };
+  }, [vue, cible]);
 
   /* ── Les écritures ── */
   const changeP = (k: keyof CriteresDuClassement, v: CriteresDuClassement[keyof CriteresDuClassement]) => setBrouillonP({ ...p, [k]: v });
@@ -155,7 +173,8 @@ export default function Classement() {
                 compte={compte} categories={categories} brouillonsCat={brouillonsCat} changeCat={changeCat} enregistreCat={enregistreCat}
                 supprimeCat={supprimeCat} creeCat={creeCat} fiches={fiches} total={fiches.length} />
             : <VueListe vue={vue} fiches={fiches} res={res} etapes={etapes} marques={marques} categories={categories} p={p} aujourdhui={aujourdhui}
-                cherche={cherche} setCherche={setCherche} ouvert={ouvert} setOuvert={setOuvert} estModifiee={estModifiee} poseLeChoix={poseLeChoix} />}
+                cherche={cherche} setCherche={setCherche} ouvert={ouvert} setOuvert={setOuvert} estModifiee={estModifiee} poseLeChoix={poseLeChoix}
+                modifieLaDefinition={modifieLaDefinition} />}
         </main>
       </div>
     </div>
@@ -204,7 +223,7 @@ function VueCriteres(o: {
     diaspora: <Coche coche={p.diaspora_remplace} onChange={(b) => c('diaspora_remplace', b)}>Une cliente qui vit à l’étranger et qui glisse, dort ou a disparu entre ici : ses relances suivent ses séjours.</Coche>,
   };
   const carte = (titre: string, ordre: number | null, phrase: ReactNode, nb: number, key: string) => (
-    <div className="trc-cl-critere" key={key}>
+    <div className="trc-cl-critere" key={key} id={key}>
       <div className="trc-cl-critere__titre">{ordre != null && <span className="trc-cl-ordre">{ordre}</span>}{titre}</div>
       <div className="trc-cl-critere__phrase">{phrase}</div>
       <div className="trc-cl-critere__compte">{nb}<small>fiches</small></div>
@@ -223,34 +242,34 @@ function VueCriteres(o: {
       <section className="trc-cl-bloc">
         <h3>L’étape : où elle en est avec la Maison</h3>
         <p>Une seule étape par cliente. Les règles se lisent dans cet ordre, la première qui s’applique l’emporte ; vos catégories d’étape passent juste après « Hors parcours ».</p>
-        {ETAPES.map((e, i) => carte(e.nom, i, phrases[e.cle], parEtape(e.cle), e.cle))}
+        {ETAPES.map((e, i) => carte(e.nom, i, phrases[e.cle], parEtape(e.cle), `def-e:${e.cle}`))}
       </section>
       <section className="trc-cl-bloc">
         <h3>Le lieu : où elle vit</h3>
         <p>Dans cet ordre : le lieu choisi dans son dossier ; la ville de sa fiche ; la marque diaspora ; l’indicatif du numéro (le +1 distingue le Canada des États-Unis par l’indicatif régional).</p>
-        {carte('La diaspora', null, <><Coche coche={p.numero_suffit} onChange={(b) => c('numero_suffit', b)}>un numéro étranger suffit</Coche> Sinon, il faut la marque diaspora, une ville à l’étranger, ou le choix de la Maison. Sous-catégories : France, Canada, États-Unis, Afrique, Europe, autre.</>, compte((r) => r.groupe === 'diaspora'), 'dia')}
-        {carte('Hors Cotonou', null, <>Calavi, Porto-Novo, Bohicon ou une autre ville du Bénin, lue dans la ville de la fiche ou choisie par la Maison. Moins disponibles qu’à Cotonou.</>, compte((r) => r.groupe === 'hors'), 'hors')}
-        {carte('Ville à préciser', null, <>Un numéro du Bénin sans ville sur la fiche : <select className="trc-cl-choix" value={p.ville_inconnue} onChange={(e) => c('ville_inconnue', e.target.value as CriteresDuClassement['ville_inconnue'])} aria-label="ville inconnue"><option value="a-preciser">à préciser</option><option value="cotonou">compté à Cotonou</option></select>. La ville se choisit dans la liste de son profil.</>, compte((r) => r.groupe === 'benin'), 'ben')}
-        {carte('Cotonou', null, <>La ville de la fiche (un quartier de Cotonou compte) ou le choix de la Maison.</>, compte((r) => r.groupe === 'cotonou'), 'cot')}
+        {carte('La diaspora', null, <><Coche coche={p.numero_suffit} onChange={(b) => c('numero_suffit', b)}>un numéro étranger suffit</Coche> Sinon, il faut la marque diaspora, une ville à l’étranger, ou le choix de la Maison. Sous-catégories : France, Canada, États-Unis, Afrique, Europe, autre.</>, compte((r) => r.groupe === 'diaspora'), 'def-g:diaspora')}
+        {carte('Hors Cotonou', null, <>Calavi, Porto-Novo, Bohicon ou une autre ville du Bénin, lue dans la ville de la fiche ou choisie par la Maison. Moins disponibles qu’à Cotonou.</>, compte((r) => r.groupe === 'hors'), 'def-g:hors')}
+        {carte('Ville à préciser', null, <>Un numéro du Bénin sans ville sur la fiche : <select className="trc-cl-choix" value={p.ville_inconnue} onChange={(e) => c('ville_inconnue', e.target.value as CriteresDuClassement['ville_inconnue'])} aria-label="ville inconnue"><option value="a-preciser">à préciser</option><option value="cotonou">compté à Cotonou</option></select>. La ville se choisit dans la liste de son profil.</>, compte((r) => r.groupe === 'benin'), 'def-g:benin')}
+        {carte('Cotonou', null, <>La ville de la fiche (un quartier de Cotonou compte) ou le choix de la Maison.</>, compte((r) => r.groupe === 'cotonou'), 'def-g:cotonou')}
       </section>
       <section className="trc-cl-bloc">
         <h3>Le rythme : à quelle cadence elle vient</h3>
         <p>Le rythme choisi dans son dossier (« une fois par an », « deux fois par an ») passe avant celui déclaré sur la fiche, qui passe avant l’écart habituel mesuré entre ses visites.</p>
-        {carte('Régulière', null, <>Une visite tous les {n('reguliere_max', 14, 150)} jours ou moins.</>, compte((r) => r.rythme === 'reguliere'), 'reg')}
-        {carte('Espacée', null, <>Entre les deux.</>, compte((r) => r.rythme === 'espacee'), 'esp')}
-        {carte('Annuelle', null, <>Une ou deux visites par an : un rythme de {p.annuelle_rythme} jours ou plus (réglé dans « L’Annuelle »), ou choisi par la Maison.</>, compte((r) => r.rythme === 'annuelle'), 'ann')}
-        {carte('Pas encore connu', null, <>Moins de deux visites, et aucun rythme choisi.</>, compte((r) => r.rythme === 'inconnu'), 'inc')}
+        {carte('Régulière', null, <>Une visite tous les {n('reguliere_max', 14, 150)} jours ou moins.</>, compte((r) => r.rythme === 'reguliere'), 'def-r:reguliere')}
+        {carte('Espacée', null, <>Entre les deux.</>, compte((r) => r.rythme === 'espacee'), 'def-r:espacee')}
+        {carte('Annuelle', null, <>Une ou deux visites par an : un rythme de {p.annuelle_rythme} jours ou plus (réglé dans « L’Annuelle »), ou choisi par la Maison.</>, compte((r) => r.rythme === 'annuelle'), 'def-r:annuelle')}
+        {carte('Pas encore connu', null, <>Moins de deux visites, et aucun rythme choisi.</>, compte((r) => r.rythme === 'inconnu'), 'def-r:inconnu')}
       </section>
       <section className="trc-cl-bloc">
         <h3>Les marques : ce qu’il faut savoir</h3>
         <p>Une cliente peut en porter plusieurs ; elles changent le ton d’un parcours, pas son étape.</p>
-        {carte('Annule souvent', null, <>Au moins {n('annule_nb', 1, 20)} annulations sur {n('annule_mois', 1, 36)} mois. <Coche coche={p.annule_absences} onChange={(b) => c('annule_absences', b)}>les rendez-vous restés « confirmés » comptent aussi</Coche></>, compte((r) => r.marques.includes('annule-souvent')), 'm1')}
-        {carte('Abonnée sans prochaine séance', null, <>Une formule active et aucun rendez-vous à venir : elle a oublié de réserver.</>, compte((r) => r.marques.includes('abonnee-sans-rdv')), 'm2')}
-        {carte('Rendez-vous restés « confirmés »', null, <>Un rendez-vous passé jamais marqué « honoré » : une venue à marquer, ou une absence. À ranger avant le départ des relances.</>, compte((r) => r.marques.includes('absences')), 'm3')}
-        {carte('Ancienne abonnée', null, <>Une formule terminée ou épuisée, et aucune autre active.</>, compte((r) => r.marques.includes('ancienne-abonnee')), 'm4')}
-        {carte('Diaspora à confirmer', null, <>Un numéro étranger sans marque diaspora ni lieu choisi : à confirmer dans son dossier.</>, compte((r) => r.marques.includes('diaspora-a-confirmer')), 'm5')}
-        {carte('Sans numéro', null, <>Aucun numéro utilisable : aucune relance possible, à compléter dans son profil.</>, compte((r) => r.marques.includes('sans-numero')), 'm6')}
-        {carte('Marquée « de passage »', null, <>La marque du Trône pour une venue sans relation engagée ; elle se lève seule à la deuxième visite.</>, compte((r) => r.marques.includes('de-passage')), 'm7')}
+        {carte('Annule souvent', null, <>Au moins {n('annule_nb', 1, 20)} annulations sur {n('annule_mois', 1, 36)} mois. <Coche coche={p.annule_absences} onChange={(b) => c('annule_absences', b)}>les rendez-vous restés « confirmés » comptent aussi</Coche></>, compte((r) => r.marques.includes('annule-souvent')), 'def-m:annule-souvent')}
+        {carte('Abonnée sans prochaine séance', null, <>Une formule active et aucun rendez-vous à venir : elle a oublié de réserver.</>, compte((r) => r.marques.includes('abonnee-sans-rdv')), 'def-m:abonnee-sans-rdv')}
+        {carte('Rendez-vous restés « confirmés »', null, <>Un rendez-vous passé jamais marqué « honoré » : une venue à marquer, ou une absence. À ranger avant le départ des relances.</>, compte((r) => r.marques.includes('absences')), 'def-m:absences')}
+        {carte('Ancienne abonnée', null, <>Une formule terminée ou épuisée, et aucune autre active.</>, compte((r) => r.marques.includes('ancienne-abonnee')), 'def-m:ancienne-abonnee')}
+        {carte('Diaspora à confirmer', null, <>Un numéro étranger sans marque diaspora ni lieu choisi : à confirmer dans son dossier.</>, compte((r) => r.marques.includes('diaspora-a-confirmer')), 'def-m:diaspora-a-confirmer')}
+        {carte('Sans numéro', null, <>Aucun numéro utilisable : aucune relance possible, à compléter dans son profil.</>, compte((r) => r.marques.includes('sans-numero')), 'def-m:sans-numero')}
+        {carte('Marquée « de passage »', null, <>La marque du Trône pour une venue sans relation engagée ; elle se lève seule à la deuxième visite.</>, compte((r) => r.marques.includes('de-passage')), 'def-m:de-passage')}
       </section>
       <section className="trc-cl-bloc">
         <h3>Vos catégories</h3>
@@ -270,22 +289,13 @@ function VueCriteres(o: {
   );
 }
 
-function optionsDuChamp(ch: ChampDeCritere): [string, string][] {
-  if (ch === 'lieu') return [...GROUPES_DE_LIEU.map((g): [string, string] => [`grp:${g.cle}`, `Groupe : ${g.nom}`]), ...LIEUX.map((l): [string, string] => [l.cle, l.nom])];
-  if (ch === 'rythmeCat') return RYTHMES.map((r): [string, string] => [r.cle, r.nom]);
-  if (ch === 'accord') return [['oui', 'a dit oui'], ['non', 'a dit « Non merci »'], ['stop', 'STOP'], ['inconnu', 'jamais répondu']];
-  if (ch === 'persona') return [['p-initie', 'Initiée'], ['p-constante', 'Constante'], ['p-lointaine', 'Lointaine'], ['p-convalescente', 'Convalescente'], ['p-souveraine', 'Souveraine'], ['p-naissante', 'Naissante'], ['p-lumineuse', 'Lumineuse'], ['p-pressee', 'Pressée']];
-  if (CHAMPS[ch].type === 'bool') return [['oui', 'oui'], ['non', 'non']];
-  return [];
-}
-
 function EditeurDeCategorie({ cat, modifiee, change, enregistre, supprime, dedans, aLaMain }: {
   cat: CategorieDeLaMaison; modifiee: boolean; change: (fn: (c: CategorieDeLaMaison) => CategorieDeLaMaison) => void;
   enregistre: () => void; supprime: () => void; dedans: number; aLaMain: number;
 }) {
   const [sur, setSur] = useState(false);
   return (
-    <div className="trc-cl-critere is-propre">
+    <div className="trc-cl-critere is-propre" id={`def-cat:${cat.id}`}>
       <div className="trc-cl-critere__titre"><Input value={cat.nom} onChange={(e) => change((c) => ({ ...c, nom: e.target.value }))} aria-label="Nom de la catégorie" maxLength={60} /></div>
       <div className="trc-cl-critere__phrase">
         <label className="trc-cl-ligne">C’est <Select value={cat.type} onChange={(e) => change((c) => ({ ...c, type: e.target.value === 'marque' ? 'marque' : 'etape' }))} aria-label="Type"><option value="etape">une étape (elle passe avant les étapes du code)</option><option value="marque">une marque (elle s’ajoute)</option></Select></label>
@@ -337,8 +347,11 @@ function VueListe(o: {
   categories: CategorieDeLaMaison[]; p: CriteresDuClassement; aujourdhui: string;
   cherche: string; setCherche: (s: string) => void; ouvert: string | null; setOuvert: (s: string | null) => void;
   estModifiee: (f: FicheDuClassement) => boolean; poseLeChoix: (id: string, ch: ChoixDuParcours) => void;
+  modifieLaDefinition: (v: Vue) => void;
 }) {
   const { vue, res, aujourdhui } = o;
+  const definition = definitionDeLaVue(vue, o.p, o.categories);
+  const carteDeLaDefinition = carteDeLaVue(vue, o.categories);
   const k = vue.slice(2);
   const [titre, regle] = ((): [string, string] => {
     if (vue === 'tout') return ['Toutes les fiches', 'La plus récemment venue d’abord. Touchez un nom pour ouvrir son dossier.'];
@@ -377,7 +390,12 @@ function VueListe(o: {
     <>
       <div className="trc-cl-tete">
         <h3>{titre} <span className="trc-cl-meta">{liste.length}</span></h3>
-        {regle && <p>{regle}</p>}
+        {definition ? (
+          <div className="trc-cl-definition">
+            <p><span className="trc-cl-definition__mot">Qui y entre</span>{definition}</p>
+            {carteDeLaDefinition && <Button variant="ghost" size="sm" onClick={() => o.modifieLaDefinition(vue)}>Modifier la définition</Button>}
+          </div>
+        ) : regle && <p>{regle}</p>}
       </div>
       <div className="trc-cl-outils"><Input type="search" value={o.cherche} onChange={(e) => o.setCherche(e.target.value)} placeholder="Chercher un nom" aria-label="Chercher un nom" /></div>
       <div className="trc-cl-liste">

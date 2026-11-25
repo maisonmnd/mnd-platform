@@ -63,3 +63,12 @@
 .trc-cl-form { display: grid; gap: 10px; }
 .trc-cl-form label { display: grid; gap: 4px; font-size: 13px; color: var(--ink-soft); }
 @media (prefers-reduced-motion: no-preference) { .trc-cl-dossier { animation: trc-cl-fondu .18s ease-out; } @keyframes trc-cl-fondu { from { opacity: 0 } to { opacity: 1 } } }
+
+/* QUI Y ENTRE — 25 novembre 2026 : la définition en tête de la liste d'une
+   catégorie, et sa carte des critères éclairée un instant quand on vient la
+   modifier. Le cuivre reste un filet. */
+.trc-cl-definition { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--surface-card); border: 1px solid var(--hairline); border-left: 2px solid var(--color-copper); border-radius: var(--radius-sm, 2px); }
+.trc-cl-tete .trc-cl-definition p { flex: 1 1 320px; color: var(--ink); line-height: 1.5; }
+.trc-cl-definition__mot { display: block; margin-bottom: 2px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-cl-critere { scroll-margin-top: 96px; transition: border-color .4s ease, box-shadow .4s ease; }
+.trc-cl-critere.is-cible { border-color: var(--color-copper); box-shadow: inset 3px 0 0 var(--color-copper); }

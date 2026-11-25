@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
-  CRITERES_PROPOSES, classeLaCliente, criteresEnVigueur, ficheDuClassement, lieuDeLaVille, regionDuNumero, villeADeduire,
+  CRITERES_PROPOSES, ETAPES, GROUPES_DE_LIEU, LIEUX, MARQUES, RYTHMES, carteDeLaVue, classeLaCliente, criteresEnVigueur, definitionDeLaVue,
+  ficheDuClassement, lieuDeLaVille, regionDuNumero, villeADeduire,
   type CategorieDeLaMaison, type CriteresDuClassement, type FicheDuClassement,
 } from '../src/shared/classement-pur';
 
@@ -131,6 +132,53 @@ const CL = lis('src/apps/trone/routes/clients/Classement.tsx');
 vaut('l écran remplit la ville et la date de la déduction', true, CL.includes('villeADeduire(c)') && CL.includes('villeDeduiteLe: aujourdhui'));
 const CU = lis('src/apps/trone/routes/clients/Customers.tsx');
 vaut('les deux champs Ville proposent la liste', 2, (CU.match(/list=\{ID_DES_VILLES\}/g) ?? []).length);
+
+/* QUI Y ENTRE (25 novembre 2026) : « Quand je prends la Curieuse, c'est quoi
+   la Curieuse ? » Chaque catégorie de la colonne dit sa définition, avec les
+   chiffres en vigueur, et « Modifier la définition » vise sa carte. */
+{
+  const P = CRITERES_PROPOSES;
+  const toutes = [
+    ...ETAPES.map((x) => `e:${x.cle}`), ...MARQUES.map((x) => `m:${x.cle}`), ...RYTHMES.map((x) => `r:${x.cle}`),
+    ...GROUPES_DE_LIEU.map((x) => `g:${x.cle}`), ...LIEUX.map((x) => `l:${x.cle}`),
+  ];
+  vaut('chaque catégorie de la colonne a sa définition', [], toutes.filter((v) => !definitionDeLaVue(v, P, [])));
+  vaut('les vues qui ne sont pas des catégories n en ont pas', [null, null, null], ['tout', 'annulations', 'modifiees'].map((v) => definitionDeLaVue(v, P, [])));
+  const regle: CriteresDuClassement = { ...P, curieuse_jours: 90, premiere_jours: 45, annulee_jours: 30, dormante_jours: 200, marge: 14, rythme_maison: 42, reguliere_max: 35, annule_nb: 4, annule_mois: 6 };
+  vaut('la Curieuse dit ses jours en vigueur', true, definitionDeLaVue('e:curieuse', regle, [])!.includes('il y a 90 jours au plus'));
+  vaut('le contact ancien dit le même seuil, au-delà', true, definitionDeLaVue('e:ancien-contact', regle, [])!.includes('il y a plus de 90 jours'));
+  vaut('la Première et la Disparue disent le même seuil de part et d autre', [true, true], [
+    definitionDeLaVue('e:premiere', regle, [])!.includes('il y a 45 jours au plus'), definitionDeLaVue('e:disparue', regle, [])!.includes('il y a plus de 45 jours')]);
+  vaut('l Annulée, Elle glisse, la Couronne, la Dormante disent leurs chiffres', [true, true, true, true], [
+    definitionDeLaVue('e:annulee', regle, [])!.includes('30 jours au plus'), definitionDeLaVue('e:glisse', regle, [])!.includes('14 jours de marge') && definitionDeLaVue('e:glisse', regle, [])!.includes('200 jours au plus'),
+    definitionDeLaVue('e:couronne', regle, [])!.includes('plus 14 jours') && definitionDeLaVue('e:couronne', regle, [])!.includes('à défaut, 42 jours'), definitionDeLaVue('e:dormante', regle, [])!.includes('Plus de 200 jours')]);
+  vaut('le rythme et la marque disent les leurs', [true, true, true], [
+    definitionDeLaVue('r:reguliere', regle, [])!.includes('tous les 35 jours'), definitionDeLaVue('r:espacee', regle, [])!.includes('Plus de 35 jours'),
+    definitionDeLaVue('m:annule-souvent', regle, [])!.includes('Au moins 4 annulations sur 6 mois')]);
+  /* La définition dit ce que fait la règle : une fiche de 89 jours est Curieuse, une de 91 est un contact ancien. */
+  const curieuse = (j: number) => classeLaCliente(fiche({ ficheDepuis: avant(j) }), regle, [], T).etape;
+  vaut('la règle tient la phrase : 89 jours Curieuse, 91 jours contact ancien', ['curieuse', 'ancien-contact'], [curieuse(89), curieuse(91)]);
+  const uneVisite = (j: number) => classeLaCliente(fiche({ visites: 1, premiere: avant(j), derniere: avant(j) }), regle, [], T).etape;
+  vaut('la règle tient la phrase : une visite à 44 jours Première, à 46 jours Disparue', ['premiere', 'disparue'], [uneVisite(44), uneVisite(46)]);
+  vaut('« de passage » se dit là où la règle le range', [true, true], [
+    definitionDeLaVue('e:disparue', { ...P, de_passage: 'disparue' }, [])!.includes('y sont aussi'), definitionDeLaVue('e:hors', { ...P, de_passage: 'hors' }, [])!.includes('le Trône l’a marquée « de passage »')]);
+  const sans: CategorieDeLaMaison = { id: 'retour', nom: 'Retour en Afro', regle: '', type: 'etape', criteres: [], ordre: 1 };
+  const avec: CategorieDeLaMaison = { id: 'fideles', nom: 'Les fidèles', regle: 'Les plus anciennes.', type: 'marque', criteres: [{ champ: 'visites', op: '>=', valeur: 10 }, { champ: 'lieu', op: '=', valeur: 'grp:diaspora' }], ordre: 2 };
+  vaut('une catégorie de la Maison sans critère le dit', true, definitionDeLaVue('e:retour', P, [sans])!.includes('sans critère : on y range une fiche à la main'));
+  vaut('une catégorie de la Maison dit sa phrase et ses critères', 'Les plus anciennes. Une marque de la Maison. Elle y entre si tous ses critères tiennent : Nombre de visites : au moins 10 ; Lieu : est Groupe : La diaspora.', definitionDeLaVue('m:fideles', P, [avec]));
+  vaut('« Modifier » vise la carte de chaque catégorie', ['def-e:curieuse', 'def-m:annule-souvent', 'def-r:annuelle', 'def-g:diaspora', 'def-g:hors', 'def-cat:retour', null, null], [
+    carteDeLaVue('e:curieuse', []), carteDeLaVue('m:annule-souvent', []), carteDeLaVue('r:annuelle', []), carteDeLaVue('g:diaspora', []), carteDeLaVue('l:calavi', []),
+    carteDeLaVue('e:retour', [sans]), carteDeLaVue('g:inconnu', []), carteDeLaVue('tout', [])]);
+  /* Chaque carte visée existe dans l'écran. */
+  const visees = [...new Set(toutes.map((v) => carteDeLaVue(v, [])).filter((x): x is string => !!x))];
+  const presente = (id: string) => (id.startsWith('def-e:') ? CL.includes('`def-e:${e.cle}`') : CL.includes(`'${id}')}`));
+  vaut('chaque carte visée porte son adresse dans « Les critères »', [], visees.filter((id) => !presente(id)));
+  vaut('les cartes portent leur adresse, et celles de la Maison aussi', [true, true], [CL.includes('key={key} id={key}>'), CL.includes('id={`def-cat:${cat.id}`}')]);
+  vaut('la liste dit qui y entre, et offre de modifier', [true, true, true, true], [
+    CL.includes('const definition = definitionDeLaVue(vue, o.p, o.categories);'), CL.includes('{definition ? (\n          <div className="trc-cl-definition">'),
+    CL.includes('<span className="trc-cl-definition__mot">Qui y entre</span>{definition}'),
+    CL.includes('onClick={() => o.modifieLaDefinition(vue)}>Modifier la définition</Button>')]);
+}
 
 console.log(echecs ? `\n${echecs} épreuve(s) en échec.` : '\nLe classement tient.');
 process.exit(echecs ? 1 : 0);

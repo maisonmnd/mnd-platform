@@ -36,6 +36,14 @@ const PANNES = [
   { nom: 'l écran ne date plus la ville déduite', fichier: ECRAN, r: [['villeDeduiteLe: aujourdhui', 'villeDeduiteLe: undefined']] },
   { nom: 'le classement n est plus un onglet des Clientes', fichier: INDEX, r: [["{ path: '/classement', label: 'Le classement' }, ", '']] },
   { nom: 'le profil sans la liste des villes', fichier: CLIENTES, r: [['list={ID_DES_VILLES} value={idCity}', 'value={idCity}']] },
+  /* Qui y entre (25 novembre 2026) */
+  { nom: 'la Curieuse dit un chiffre fige', fichier: PUR, r: [['il y a ${p.curieuse_jours} jours au plus.`', 'il y a 180 jours au plus.`']] },
+  { nom: 'la Disparue perd sa definition', fichier: PUR, r: [["case 'disparue': return", "case 'disparue-x': return"]] },
+  { nom: 'une categorie de la Maison tait ses criteres', fichier: PUR, r: [["Elle y entre si tous ses critères tiennent : ${criteres.join(' ; ')}.", 'Elle y entre si ses critères tiennent.']] },
+  { nom: 'une ville ne mene plus a son groupe', fichier: PUR, r: [["vue.startsWith('l:') ? LIEUX.find((l) => l.cle === k)?.groupe : undefined;\n  return", "undefined;\n  return"]] },
+  { nom: 'la liste ne dit plus qui y entre', fichier: ECRAN, r: [['{definition ? (', '{false ? (']] },
+  { nom: 'Modifier ne vise plus la carte', fichier: ECRAN, r: [['key={key} id={key}>', 'key={key}>']] },
+  { nom: 'une marque perd son adresse', fichier: ECRAN, r: [["'def-m:sans-numero')}", "'m6')}"]] },
 ];
 
 const lisLF = (rel) => readFileSync(path.join(racine, rel), 'utf8').replace(/\r\n/g, '\n');
