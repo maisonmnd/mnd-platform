@@ -139,3 +139,20 @@
   .trp-point__h { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .trp-point__editeur { padding: 14px 12px 16px; }
 }
+
+/* LE POINT, OUVERT DEPUIS LE MENU — 25 novembre 2026 : choisir la cliente.
+   Une ligne par cliente, le dû en brique à droite ; au téléphone, toute la
+   ligne reste un seul bouton. */
+.trp-point__choix { list-style: none; margin: 0; padding: 0; border: 1px solid var(--hairline); border-radius: var(--radius-md, 4px); overflow: hidden; }
+.trp-point__choix li + li { border-top: 1px solid var(--hairline); }
+.trp-point__choix button { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; min-height: 56px;
+  padding: 12px 16px; font: inherit; color: var(--ink); background: transparent; border: 0; text-align: left; cursor: pointer;
+  transition: background-color .18s ease; }
+.trp-point__choix button:hover { background: var(--copper-50, #FAF1E9); }
+.trp-point__choix button:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.trp-point__choix-nom { display: grid; gap: 2px; min-width: 0; }
+.trp-point__choix-nom b { font-weight: 500; font-size: 14.5px; overflow-wrap: anywhere; }
+.trp-point__choix-nom small { font-size: 12px; color: var(--ink-soft); }
+.trp-point__choix-nom small.is-du { color: var(--color-brique, #96412E); }
+.trp-point__choix-du { font-family: var(--font-serif); font-weight: 400; font-size: 20px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--color-brique, #96412E); }
+.trp-point__choix-vide { border: 1px dashed var(--hairline); border-radius: var(--radius-md, 4px); }

@@ -157,9 +157,11 @@ const NAV_DES_ECRANS: TroneGroup[] = [
       { path: '/encaissements', label: 'Encaissements', icon: BadgeCheck, Component: lazy(() => import('./finances/Encaissements')) },
       { path: '/comptes', label: 'Comptes & Avoirs', icon: HandCoins, Component: lazy(() => import('./finances/Comptes')) },
       /* LE POINT FINANCIER D'UNE CLIENTE (21 novembre 2026, maquette GqBogAWn…) :
-         ouvert par « Le point » sur sa fiche (`/point?id=…`), hors du menu ; le
-         département Vente & Caisse l'ouvre à un maître, la direction le voit. */
-      { path: '/point', horsMenu: true, label: 'Le point d’une cliente', icon: HandCoins, Component: lazy(() => import('./clients/LePoint')) },
+         ouvert par « Le point » sur sa fiche (`/point?id=…`) ; le département
+         Vente & Caisse l'ouvre à un maître, la direction le voit. AU MENU depuis
+         le 25 novembre 2026 (« oui ajoute le point dans le menu », Yéman) :
+         ouvert sans cliente, il la fait choisir (`ChoisirPourLePoint`). */
+      { path: '/point', label: 'Le point', icon: HandCoins, Component: lazy(() => import('./clients/LePoint')) },
       { path: '/abonnements', label: 'Abonnements', icon: Repeat, Component: lazy(() => import('./equipe/Abonnements')) },
       /* LE JUSTE PRIX se range ici depuis le 23 novembre 2026 : c'est un
          jugement de prix, il vit avec la vente. Il s'OUVRE toujours par la

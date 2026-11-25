@@ -45,6 +45,7 @@ const REL = 'src/shared/relances-pur.ts';
 const PAGE = 'src/apps/trone/routes/clients/LePoint.tsx';
 const DONNEES = 'src/apps/trone/routes/clients/le-point-donnees.ts';
 const ROUTES = 'src/apps/trone/routes/index.tsx';
+const CHOIX = 'src/apps/trone/routes/clients/ChoisirPourLePoint.tsx';
 const PANNES = [
   ['un versement partiel se dit regle', PUR, "  return o.verseXof > 0 ? 'partiel' : 'du';", "  return 'regle';"],
   ['une ligne a venir se coche', PUR, "export const seCoche = (l: { etat: EtatDuReglement }): boolean => l.etat === 'du' || l.etat === 'partiel';", 'export const seCoche = (l: { etat: EtatDuReglement }): boolean => l.etat !== \'annule\';'],
@@ -81,7 +82,11 @@ const PANNES = [
   ['le modele du point ne se lit plus qu au reglage', DONNEES, 'modelePoint: modeleVu ?? settings.relances?.modelePoint === true,', 'modelePoint: settings.relances?.modelePoint === true,'],
   ['le jour suit le poste', DONNEES, 'const aujourdhui = momentDuSalon().jour;', 'const aujourdhui = new Date().toISOString().slice(0, 10);'],
   ['les montants ne sont plus ceux du Carnet', DONNEES, 'const reste = annule ? 0 : apptDueXof(a, byId);', 'const reste = annule ? 0 : apptNetXof(a, byId);'],
-  ['la page sort de Vente & Caisse', ROUTES, "      { path: '/point', horsMenu: true, label: 'Le point d’une cliente', icon: HandCoins, Component: lazy(() => import('./clients/LePoint')) },\n", ''],
+  ['la page sort de Vente & Caisse', ROUTES, "      { path: '/point', label: 'Le point', icon: HandCoins, Component: lazy(() => import('./clients/LePoint')) },\n", ''],
+  ['le point quitte le menu', ROUTES, "{ path: '/point', label: 'Le point',", "{ path: '/point', horsMenu: true, label: 'Le point',"],
+  ['ouvert sans cliente, il la dit introuvable', PAGE, '  if (!clientId) return <ChoisirPourLePoint />;\n', ''],
+  ['le choix ne lit plus le du du Carnet', CHOIX, 'dûDuRituel: (a) => apptDueXof(a, byId)', 'dûDuRituel: (a) => a.priceXof ?? 0'],
+  ['la recherche range par nom seul', CHOIX, '(a.c ? 0 : 1) - (b.c ? 0 : 1) || ', ''],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

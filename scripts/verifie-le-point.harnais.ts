@@ -156,9 +156,18 @@ const lit = (f: string) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
   const donnees = lit('src/apps/trone/routes/clients/le-point-donnees.ts');
   const fiche = lit('src/apps/trone/routes/clients/Customers.tsx');
   const routes = lit('src/apps/trone/routes/index.tsx');
-  dit('la route /point vit dans Vente & Caisse, hors du menu, et la fiche y mene', [true, 'dept-vente-caisse', true, true], [
-    /\{ path: '\/point', horsMenu: true, label: 'Le point d’une cliente', icon: HandCoins, Component: lazy\(\(\) => import\('\.\/clients\/LePoint'\)\) \}/.test(routes),
+  const choix = lit('src/apps/trone/routes/clients/ChoisirPourLePoint.tsx');
+  dit('la route /point vit dans Vente & Caisse, AU MENU (25 nov.), et la fiche y mene', [true, 'dept-vente-caisse', true, true], [
+    /\{ path: '\/point', label: 'Le point', icon: HandCoins, Component: lazy\(\(\) => import\('\.\/clients\/LePoint'\)\) \}/.test(routes),
     domaineDe('/point'), ECRANS_NES_APRES_LES_DEPARTEMENTS.includes('/point'), fiche.includes("navigate(`/point?id=${encodeURIComponent(client.id)}`)}>Le point</Button>")]);
+  dit('ouvert par le menu, sans cliente : on la choisit ; une cliente introuvable renvoie au choix', [true, true, true], [
+    page.includes('  if (!clientId) return <ChoisirPourLePoint />;\n  if (!p.client) {'), page.includes('<Link to="/point">Choisir une autre cliente</Link>'),
+    page.includes("import ChoisirPourLePoint from './ChoisirPourLePoint';")]);
+  dit('le choix : celles qui doivent, par le juge des Creances (le du du Carnet), puis la fiche choisie', [true, true, true, true], [
+    choix.includes('creancesDeLaMaison({ appts, aujourdhui, dûDuRituel: (a) => apptDueXof(a, byId) })'), choix.includes('const appts = useBranchAppointments();'),
+    choix.includes('const aujourdhui = momentDuSalon().jour;'), choix.includes('navigate(`/point?id=${encodeURIComponent(id)}`)')]);
+  dit('la recherche : toutes les clientes de la branche, celles qui doivent devant', [true, true], [
+    choix.includes('const clients = useBranchClients();'), choix.includes('.sort((a, b) => (a.c ? 0 : 1) - (b.c ? 0 : 1) || ')]);
   dit('qui la voit : la direction ; un maitre seulement avec Vente & Caisse', [true, true, false, true, false], [
     peutVoir('souverain', '/point', {}), peutVoir('gerant', '/point', {}), peutVoir('maitre', '/point', {}), peutVoir('maitre', '/point', { 'dept-vente-caisse': true }), peutVoir('maitre', '/point', { 'dept-finances': true })]);
   dit('la piece d une formule ne se coche pas (ses echeances se relancent une a une) ; un rituel couvert non plus', [true, true, true], [

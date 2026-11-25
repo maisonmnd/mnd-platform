@@ -18,6 +18,7 @@ import {
   RdvModal, alignerFacturesDuRituel, apptDueXof, apptNetXof, arrondiDuCodeAuRdv, brutDuRituel, frShortAn, lignesAuTarif, tarifsDuRituel,
 } from './_shared';
 import { useLePoint, type LigneDuPoint, type PasDeLHistorique } from './le-point-donnees';
+import ChoisirPourLePoint from './ChoisirPourLePoint';
 import './le-point.css';
 
 /* ══ LE POINT FINANCIER D'UNE CLIENTE — 21 novembre 2026 ═════════════════
@@ -75,11 +76,13 @@ export default function LePoint() {
   /* Ce que l'éditeur ouvert ferait du dû, pour l'annoncer en tête avant d'enregistrer. */
   const [ecart, setEcart] = useState(0);
 
+  /* Ouvert par le menu, sans cliente : on la choisit (25 novembre 2026). */
+  if (!clientId) return <ChoisirPourLePoint />;
   if (!p.client) {
     return (
       <div className="trp-point">
         <PageHead eyebrow="Le Trône · Clientèle" title="Le point" sub="Cette cliente est introuvable dans la branche." />
-        <Link to="/customers">Retour aux clientes</Link>
+        <Link to="/point">Choisir une autre cliente</Link>
       </div>
     );
   }

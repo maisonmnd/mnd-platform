@@ -62,10 +62,12 @@ const dansLaBarre = items.filter((it) => !it.horsMenu);
    Direction pour Équipe : ce sont des personnes, avec un porteur. Le total ne
    bouge pas (33), et leur ouverture non plus (`ROUTES_SOUVERAIN`). Le même
    jour, les Tendances rentrent dans la Synthèse : l'hôte `/analytics` n'existe
-   plus, ses deux onglets vivent dans la réunion de `/synthese`. */
-dit('la barre montre 33 rubriques', 33, dansLaBarre.length);
-dit('... par département : Direction 4, Clientèle 4, Atelier 2, Vente & Caisse 4, Finances 6, Marketing & Fidélité 2, Équipe 6, Système 5',
-  { Direction: 4, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 4, Finances: 6, 'Marketing & Fidélité': 2, 'Équipe': 6, 'Système': 5 },
+   plus, ses deux onglets vivent dans la réunion de `/synthese`.
+   LE 25 NOVEMBRE 2026, LE POINT ENTRE AU MENU, dans Vente & Caisse (« oui
+   ajoute le point dans le menu », Yéman) : 34 rubriques. */
+dit('la barre montre 34 rubriques', 34, dansLaBarre.length);
+dit('... par département : Direction 4, Clientèle 4, Atelier 2, Vente & Caisse 5, Finances 6, Marketing & Fidélité 2, Équipe 6, Système 5',
+  { Direction: 4, 'Clientèle': 4, Atelier: 2, 'Vente & Caisse': 5, Finances: 6, 'Marketing & Fidélité': 2, 'Équipe': 6, 'Système': 5 },
   Object.fromEntries(NAV.map((g) => [g.group, g.items.filter((it) => !it.horsMenu).length])));
 /* L'ACADÉMIE N'EST PLUS UN DÉPARTEMENT DE LA BARRE — 23 novembre 2026 : une
    rubrique seule fait un titre pour rien. Elle se range chez l'Équipe et garde
