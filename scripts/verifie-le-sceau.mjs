@@ -55,6 +55,10 @@ const PANNES = [
   /* La fonction */
   ['le sceau n a plus de route', FN, "    if (b.action === 'sceau') return await sceau(req, b);\n", ''],
   ['le sceau ne se note plus sur le lien', FN, '  const lien = { ...d.lienDeReglement, sceauLe: new Date().toISOString(), moyen };', '  const lien = { ...d.lienDeReglement, moyen };'],
+  ['un second sceau ne dit plus le moyen neuf', FN, '    if (d.lienDeReglement.moyen === moyen || d.lienDeReglement.payeLe) return json({ ok: true, deja: true });', '    if (d.lienDeReglement.sceauLe) return json({ ok: true, deja: true });'],
+  ['une séance payée change encore de moyen', FN, '    if (d.lienDeReglement.moyen === moyen || d.lienDeReglement.payeLe) return json({ ok: true, deja: true });', '    if (d.lienDeReglement.moyen === moyen) return json({ ok: true, deja: true });'],
+  ['un second sceau réécrit l heure du premier', FN, '    const autre = { ...d.lienDeReglement, moyen };', '    const autre = { ...d.lienDeReglement, sceauLe: new Date().toISOString(), moyen };'],
+  ['le moyen neuf ne s écrit pas', FN, "    const { error: refus } = await admin.from('appointments').update({ data: { ...d, lienDeReglement: autre } }).eq('id', rdv.id);", '    const refus = null as { message: string } | null;'],
   /* Régler à deux */
   ['l invitée réutilise le jeton de la séance', FN, 'jetonDe(crypto.getRandomValues(new Uint8Array(LONGUEUR_DU_JETON)))', 'lien.jeton'],
   ['une séance réglée invite encore', FN, "  if (lien.payeLe) return json({ error: 'deja_reglee' }, 409);", ''],

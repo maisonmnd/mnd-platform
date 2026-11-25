@@ -37,6 +37,24 @@
 - **SI ÇA RESTE REFUSÉ sous les deux formes** : c'est que les paiements du TPE vivent sur un autre compte ou une autre route chez KkiaPay ; il faudra leur demander la route, pas bricoler ici.
 - **DÉFAUT DE LA MACHINE, PAS DU CODE — à savoir pour toute construction du Trône (24 novembre 2026)** : esbuild écrit un fichier temporaire pour toute entrée de plus de 1 Mo, et Windows refuse ensuite de le supprimer (« remove … : Access is denied »), ce qui **fait échouer le build du morceau `trone`** (1,14 Mo). L'agent de mise en ligne l'a contourné **sans toucher au dépôt ni au `node_modules` partagé** (copie privée d'esbuild dans sa copie de travail, un seuil relevé, `--import`/loader Node) ; la sortie est identique à un build normal. Sur ce poste, `npm run build` peut donc échouer pour cette raison : ce n'est pas une régression, et la publication se fait depuis une copie détachée.
 
+## LE TRÔNE SUIT LE MOYEN QU'ELLE CHANGE — 25 novembre 2026, COMMITÉ, PAS ENCORE DÉPLOYÉ (fonction `regler-la-seance` seule ; aucun SQL, aucun secret, le Trône ne change pas)
+
+Sa note offre « Changer de moyen » depuis le 23 novembre (5d41d6d6). Le Trône, lui, disait toujours le premier moyen : elle passait de la carte à Moov, il affichait « Elle règle · par carte » et envoyait le maître chercher une fenêtre qu'elle avait refermée.
+
+- **LA CAUSE** : `sceau()` rendait « déjà » à tout second sceau (`if (d.lienDeReglement.sceauLe) return …`). La règle datait d'avant « Changer de moyen ».
+- **LE REMÈDE** : un second sceau avec un AUTRE moyen écrit ce moyen sur `lienDeReglement` et rend `{ ok: true, change: true }`. L'heure du premier sceau ne se réécrit toujours pas. Rien si c'est le même moyen, rien une fois la séance payée (`payeLe`). La page et le Trône ne changent pas : la page redit déjà le moyen à chaque sceau (`poseLeSceau`), le Trône lit déjà `lien.moyen`.
+- **BANC** : `verifie-le-sceau` 119 contrôles ; l'épreuve « la fonction garde le premier sceau » devient « garde l'heure du premier » ; `--prouve` 42/42, quatre pannes neuves. `verifie-regler-la-seance` 84, `verifie-le-moment-en-trois` 166.
+- **DÉPLOIEMENT** : attend la preuve. Essai réel prévu sur le rendez-vous d'essai de Yéman : un second sceau d'un autre moyen, puis relire `lienDeReglement` (moyen neuf, `sceauLe` inchangé), et le remettre comme il était.
+- **BANCS ROUGES SANS CE LOT, sur ce poste, le 25 novembre (vérifié par `git stash`)** : `verifie-le-prenom-d-usage` (« whatsapp-automate : la fiche du numéro porte prenomUsage… »), `verifie-les-douze-lunes` (R12, le site), `verifie-terminer-et-regler` (« clé refusée »).
+
+## UN MORCEAU ANCIEN DISPARAÎT À LA PUBLICATION — vu le 25 novembre 2026, PAS CORRIGÉ (`scripts/publie.mjs`)
+
+Vu par l'agent de mise en ligne en publiant le build 20261125082316. La garde du 28 septembre (« la génération précédente reste servie ») ne garde que les fichiers hachés que le commit de la publication PRÉCÉDENTE a AJOUTÉS. Un morceau plus ancien, que la publication d'avant n'avait pas touché, n'est donc pas gardé le jour où un build le remplace : `assets/le-sceau-pur-ZsXKMtuY.js` a rendu 404 dès la publication, alors que l'ancien `index.html`, l'ancien `regler.html`, l'ancien `devis.html` et l'ancien `sw.js` l'appelaient encore.
+
+- **PORTÉE** : une page ouverte, ou gardée en cache par GitHub Pages, dans les dix minutes d'avant une publication, et qui va chercher ce morceau après. Le Trône l'a dans le cache de son service worker ; les pages Régler et Devis, elles, le chargent à l'ouverture : c'est une cliente qui ouvre sa note à ce moment-là qui le paierait.
+- **LE CAS REVIENT** chaque fois qu'un build change un morceau que la publication d'avant n'avait pas changé.
+- **PISTE** : garder ce que la génération d'avant APPELAIT (ce que nomment son `sw.js` et ses pages), pas ce que son commit a ajouté. Rien n'est écrit ; `publie.mjs` et son banc sont à reprendre avec soin (une erreur ici a déjà retiré le domaine, voir son en-tête).
+
 ## « SCELLÉ À … » DISAIT UNE HEURE DE RETARD — 25 novembre 2026, EN LIGNE (Trône build 20261125082316 @ fc8b1931, 562/562 servis) (Trône seul ; aucune fonction, aucun SQL, aucun secret)
 
 Vu en ouvrant « En direct » sur le rendez-vous d'essai, après la publication ci-dessous : la phrase du haut disait « Scellé à 5 h 38 » quand la ligne « Sur sa note » d'à côté disait 06:38.

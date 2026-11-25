@@ -124,7 +124,19 @@ dit('sans geste, la note entière', 28_000, sansGeste.resteXof);
 const fn = lis('supabase/functions/regler-la-seance/index.ts');
 vrai('la fonction accepte le sceau', fn.includes("if (b.action === 'sceau') return await sceau(req, b);"));
 vrai('la fonction note l’heure du sceau', fn.includes('sceauLe: new Date().toISOString(), moyen'));
-vrai('la fonction garde le premier sceau', fn.includes('if (d.lienDeReglement.sceauLe) return json({ ok: true, deja: true });'));
+/* ELLE CHANGE DE MOYEN (25 novembre 2026) : le premier sceau garde son
+   heure, le moyen neuf s'écrit, et plus rien une fois la séance payée.
+   Avant, tout second sceau rendait « déjà » : le Trône disait toujours le
+   premier moyen, alors que sa note offre « Changer de moyen ». */
+vrai('le même moyen, ou une séance payée : un second sceau n’écrit rien',
+  fn.includes('    if (d.lienDeReglement.moyen === moyen || d.lienDeReglement.payeLe) return json({ ok: true, deja: true });'));
+vrai('un autre moyen : le second sceau garde l’heure du premier', fn.includes('    const autre = { ...d.lienDeReglement, moyen };'));
+vrai('… et le moyen neuf s’écrit sur le rendez-vous',
+  fn.includes("    const { error: refus } = await admin.from('appointments').update({ data: { ...d, lienDeReglement: autre } }).eq('id', rdv.id);")
+  && fn.includes('    return json({ ok: true, change: true });'));
+vrai('l’ancien refus de tout second sceau n’y est plus', !fn.includes('if (d.lienDeReglement.sceauLe) return json({ ok: true, deja: true });'));
+vrai('la page redit le moyen à chaque sceau', lis('src/apps/regler/App.tsx').includes('      void poseLeSceau(jeton, rail);'));
+vrai('le Trône lit le moyen du lien', lis('src/apps/trone/routes/clients/ReglementEnDirect.tsx').includes("regle: lien?.sceauLe ? (moyenDitDuSceau(lien.moyen)?.par ?? 'le sceau est posé') : 'le sceau, une seconde',"));
 vrai('la fonction prend les quatre moyens et KkiaPay', fn.includes("const MOYENS_DU_SCEAU = ['mtn', 'moov', 'celtiis', 'carte', 'kkiapay'];"));
 vrai('la fonction refuse un moyen qu’elle ne connaît pas', fn.includes('!MOYENS_DU_SCEAU.includes(moyen)'));
 vrai('la fonction freine le sceau', fn.includes("if (!(await permis(ipOf(req), 'regler-sceau', 30))) return json({ error: 'trop' }, 429);"));

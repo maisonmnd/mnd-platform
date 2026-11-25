@@ -1240,7 +1240,19 @@ async function sceau(req: Request, b: any) {
   /* Le foyer a son propre lien : son sceau se pose sur chaque rendez-vous
      (`lienDuFoyer`), pas ici — la page du foyer n'en pose pas encore. */
   if (!d.lienDeReglement) return json({ error: 'lien_introuvable' }, 404);
-  if (d.lienDeReglement.sceauLe) return json({ ok: true, deja: true });
+  /* ELLE CHANGE DE MOYEN (25 novembre 2026). Depuis le lien « Changer de
+     moyen » de sa note, elle peut passer de la carte à Moov ; le Trône, lui,
+     disait toujours « Elle règle · par carte », et envoyait le maître
+     chercher une fenêtre qu'elle avait refermée. Un second sceau ne réécrit
+     toujours pas l'heure du premier : il ne dit que le moyen neuf. Rien si
+     c'est le même moyen, rien non plus une fois la séance payée. */
+  if (d.lienDeReglement.sceauLe) {
+    if (d.lienDeReglement.moyen === moyen || d.lienDeReglement.payeLe) return json({ ok: true, deja: true });
+    const autre = { ...d.lienDeReglement, moyen };
+    const { error: refus } = await admin.from('appointments').update({ data: { ...d, lienDeReglement: autre } }).eq('id', rdv.id);
+    if (refus) throw new Error(refus.message);
+    return json({ ok: true, change: true });
+  }
   const lien = { ...d.lienDeReglement, sceauLe: new Date().toISOString(), moyen };
   const { error } = await admin.from('appointments').update({ data: { ...d, lienDeReglement: lien } }).eq('id', rdv.id);
   if (error) throw new Error(error.message);
