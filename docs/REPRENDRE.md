@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE CONTRÔLE SÓWÀ À J+7, POSÉ TOUT SEUL — 25 novembre 2026 (migration 0245 ; aucune fonction, aucun Trône)
+## LE CONTRÔLE SÓWÀ À J+7, POSÉ TOUT SEUL — 25 novembre 2026, EN LIGNE (migration 0245 passée au commit 4283b4b0 ; `ctl-b5v51m88an` posé le 1er décembre à 16:00 ; sa confirmation WhatsApp déposée par `confirmation-rdv` à 17:40Z ; aucune fonction, aucun Trône). NB : dans la relecture de 0245, `controles_en_base` rend 0 (la sous-requête voit la base d'avant l'appel, même instruction) ; relue juste après : 1.
 
 « Pour un rituel Sówà, il faut toujours prendre un rendez-vous automatique offert Sówà 7 jours plus tard avec la personne pour son suivi. Donc, pour [une cliente], le rendez-vous sera le mardi à 16 h » (Yéman). La tâche pg_cron `pose-les-controles-sowa` (toutes les dix minutes) pose le contrôle offert sept jours après chaque Rituel Sówà ferme, à la même heure, chez Team, quel que soit le chemin du rituel ; il suit son rituel tant que personne ne l'a touché. Détails : `docs/BACKEND.md` (0245). Au premier passage, un seul rituel concerné (celui du 24 novembre à 16 h) : son contrôle tombe le mardi 1er décembre à 16 h, ce que Yéman demandait. Le contrôle part comme tout rendez-vous : la confirmation WhatsApp (`confirmation-rdv`), puis la veille. Banc `verifie-le-controle-sowa` 16, --prouve 11/11.
 
