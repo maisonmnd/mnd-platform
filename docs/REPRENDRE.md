@@ -22,7 +22,19 @@
 - **SI ÇA RESTE REFUSÉ sous les deux formes** : c'est que les paiements du TPE vivent sur un autre compte ou une autre route chez KkiaPay ; il faudra leur demander la route, pas bricoler ici.
 - **DÉFAUT DE LA MACHINE, PAS DU CODE — à savoir pour toute construction du Trône (24 novembre 2026)** : esbuild écrit un fichier temporaire pour toute entrée de plus de 1 Mo, et Windows refuse ensuite de le supprimer (« remove … : Access is denied »), ce qui **fait échouer le build du morceau `trone`** (1,14 Mo). L'agent de mise en ligne l'a contourné **sans toucher au dépôt ni au `node_modules` partagé** (copie privée d'esbuild dans sa copie de travail, un seuil relevé, `--import`/loader Node) ; la sortie est identique à un build normal. Sur ce poste, `npm run build` peut donc échouer pour cette raison : ce n'est pas une régression, et la publication se fait depuis une copie détachée.
 
+## « SCELLÉ À … » DISAIT UNE HEURE DE RETARD — 25 novembre 2026, COMMITÉ, PAS ENCORE PUBLIÉ (Trône seul ; aucune fonction, aucun SQL, aucun secret)
+
+Vu en ouvrant « En direct » sur le rendez-vous d'essai, après la publication ci-dessous : la phrase du haut disait « Scellé à 5 h 38 » quand la ligne « Sur sa note » d'à côté disait 06:38.
+
+- **LA CAUSE** : `heureDit` (`shared/le-sceau-pur.ts`) recopiait les chiffres écrits dans l'instant. Le serveur note le sceau en temps universel (`sceauLe: new Date().toISOString()`), et Cotonou a une heure de plus toute l'année. Le banc gardait le défaut : il attendait « 17 h 42 » d'un instant de 17 h 42 UTC.
+- **LE REMÈDE** : un instant qui porte son fuseau (« Z », « +01:00 ») se convertit à Cotonou (`DECALAGE_DU_SALON_MS`) ; un instant sans fuseau est déjà à l'heure du salon et se lit tel quel. Jamais l'heure du poste (celui du bureau est à l'heure de Chine). `heureDit` ne sert qu'à cette phrase du Trône : la page de la cliente et la fonction ne changent pas.
+- **BANC** : `verifie-le-sceau` 114 contrôles (huit de plus ou recalés), `--prouve` 38/38, une panne neuve (« l'heure du sceau reste en temps universel »). Typecheck 0.
+- **PUBLICATION** : attend le « servi ». Preuve à lire : `DECALAGE_DU_SALON_MS` n'existe pas dans le servi d'avant ; chercher `36e5` près de `getUTCHours` dans le morceau qui porte « Le fauteuil se libère ».
+- **VU AU MÊME ESSAI, PAS TOUCHÉ** : une note que le geste ramène à 0 F se lit « Scellé · réglé au comptoir » alors que rien n'a été réglé, et « Modifier le geste » s'y grise (`e.etat === 'reglee'`) : un geste trop large ne se reprend plus depuis cette fenêtre, il faut passer par la facture. À trancher avec Yéman.
+
 ## « EN DIRECT » SOUS LE GESTE, ET DEPUIS LA FICHE DU RENDEZ-VOUS — 25 novembre 2026, EN LIGNE (Trône build 20261125075757 @ 254ca0c0, 562/562 servis) (Trône seul ; aucune fonction, aucun SQL, aucun secret)
+
+**VU À L'ÉCRAN, sur le build servi** : au Tableau de bord la ligne d'aujourd'hui fait 74 px, « Rituel » 246 px, « En direct » sous « Terminer » ; au Calendrier (« Montrer les essais »), la fiche du rendez-vous d'essai offre « En direct » dans sa barre, et la fenêtre s'ouvre.
 
 Deux défauts vus pendant l'essai du Sceau avec Yéman, tous deux nés du lien « En direct » du 23 novembre.
 

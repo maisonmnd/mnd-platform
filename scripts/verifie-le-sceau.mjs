@@ -37,6 +37,7 @@ const PANNES = [
   ['la maintenue dure un dixième de seconde', PUR, 'export const TENUE_DU_SCEAU_MS = 1100;', 'export const TENUE_DU_SCEAU_MS = 110;'],
   ['le sceau de la direction', PUR, "export const SCEAU_CUIVRE = 'assets/tampons/mnd-premium-cuivre.png';", "export const SCEAU_CUIVRE = 'assets/tampons/mnd-1-sceau.png';"],
   ['MTN par KkiaPay', PUR, "  { k: 'mtn', nom: 'MTN', rail: 'mtn', par: 'par MTN' },", "  { k: 'mtn', nom: 'MTN', rail: 'kkiapay', par: 'par MTN' },"],
+  ['l heure du sceau reste en temps universel', PUR, '  const d = new Date(t + DECALAGE_DU_SALON_MS);', '  const d = new Date(t);'],
   /* La page cliente */
   ['le bouton « Régler X » remis', APP, '<Sceau montantXof={total} disabled={ecran.k === \'paiement\' || mtnOccupe', '<button type="button" className="rg-regler" disabled={ecran.k === \'paiement\' || mtnOccupe'],
   ['la page n écoute plus le fil', APP, 'return ecouteLeFilDuSceau(jeton, () => { void relisEnDirect(); });', 'return () => undefined;'],

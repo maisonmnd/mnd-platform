@@ -66,15 +66,24 @@ dit('l’argent reçu scelle, même sans sceau', 'scelle', etapeDuFauteuil({ lie
 dit('un lien nu ne scelle pas', 'rituel', etapeDuFauteuil({ lien: null, etat: 'sans-piece' }));
 vrai('une étape derrière est franchie', estFranchie('page', 'note'));
 vrai('l’étape où il en est ne l’est pas', !estFranchie('page', 'page'));
-dit('l’heure du sceau, à Cotonou', '17 h 42', heureDit('2026-11-22T17:42:03Z'));
+/* 25 novembre 2026 : le serveur note le sceau en temps universel. Cette
+   épreuve attendait « 17 h 42 » d'un instant de 17 h 42 UTC, et gardait donc
+   l'heure de retard que Yéman a lue à l'essai (« Scellé à 5 h 38 »). */
+dit('l’heure du sceau, à Cotonou : une heure de plus que le temps universel', '18 h 42', heureDit('2026-11-22T17:42:03Z'));
+dit('avec les millièmes du serveur', '6 h 38', heureDit('2026-11-23T05:38:09.412Z'));
+dit('23 h 30 en temps universel se dit 0 h 30, jamais 24 h 30', '0 h 30', heureDit('2026-11-22T23:30:00Z'));
+dit('un instant qui porte déjà le fuseau du salon ne bouge pas', '17 h 42', heureDit('2026-11-22T17:42:00+01:00'));
+dit('un instant d’un autre fuseau revient à Cotonou', '10 h 05', heureDit('2026-11-22T17:05:00+08:00'));
+dit('un instant sans fuseau est déjà à l’heure du salon', '17 h 42', heureDit('2026-11-22T17:42'));
 dit('l’heure d’un jour sans heure', '', heureDit(''));
+dit('le Trône le dit dans sa phrase', 'Scellé à 6 h 38. Le fauteuil se libère.', leFauteuilDit({ etape: 'scelle', sceauLe: '2026-11-23T05:38:09.412Z' }));
 dit('MTN : la demande est sur son téléphone', 'Le sceau est posé : la demande MTN est sur son téléphone, elle valide avec son code secret.',
   leFauteuilDit({ etape: 'regle', moyen: 'mtn' }));
 dit('la carte : la fenêtre KkiaPay', 'Le sceau est posé : elle règle par carte, dans la fenêtre KkiaPay de son téléphone.',
   leFauteuilDit({ etape: 'regle', moyen: 'carte' }));
 dit('KkiaPay sans réseau connu', 'Le sceau est posé : elle règle par KkiaPay, dans la fenêtre KkiaPay de son téléphone.',
   leFauteuilDit({ etape: 'regle', moyen: MOYEN_KKIAPAY }));
-dit('scellé, avec son heure', 'Scellé à 17 h 42. Le fauteuil se libère.', leFauteuilDit({ etape: 'scelle', sceauLe: '2026-11-22T17:42:03Z' }));
+dit('scellé, avec son heure de Cotonou', 'Scellé à 18 h 42. Le fauteuil se libère.', leFauteuilDit({ etape: 'scelle', sceauLe: '2026-11-22T17:42:03Z' }));
 dit('rien avant la note', 'Le rituel se termine. Le maître choisit : la note sur son WhatsApp, ou le médaillon du fauteuil.', leFauteuilDit({ etape: 'rituel' }));
 dit('quatre moyens, MTN d’abord', ['mtn', 'moov', 'celtiis', 'carte'], MOYENS_DU_SCEAU.map((x) => x.k));
 dit('MTN passe par la maison', 'mtn', MOYENS_DU_SCEAU[0].rail);

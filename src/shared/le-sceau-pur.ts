@@ -156,13 +156,28 @@ export const rangDeLEtape = (e: EtapeDuFauteuil): number => ETAPES_DU_FAUTEUIL.i
 /** L'étape `k` est-elle derrière celle où il en est ? */
 export const estFranchie = (e: EtapeDuFauteuil, k: EtapeDuFauteuil): boolean => rangDeLEtape(k) < rangDeLEtape(e);
 
+/* UNE HEURE DE RETARD (25 novembre 2026). Vu à l'essai du Sceau : le Trône
+   disait « Scellé à 5 h 38 » quand la ligne d'à côté, elle, disait 06:38.
+   La fonction recopiait les chiffres écrits dans l'instant ; or le serveur
+   note le sceau en temps universel (`toISOString`, « …Z »), et à Cotonou il
+   est une heure de plus, toute l'année (UTC+1, sans heure d'été). Un instant
+   qui porte son fuseau se convertit ; un instant sans fuseau est déjà à
+   l'heure du salon et se lit tel quel. Jamais l'heure du poste : celui du
+   bureau est réglé sur la Chine (voir `heureDuSalon`, shared/calendrier). */
+export const DECALAGE_DU_SALON_MS = 3_600_000;
+const PORTE_SON_FUSEAU = /(?:Z|[+-]\d{2}:?\d{2})$/;
+
 /** L'heure d'un instant ISO, à la montre de Cotonou : « 17 h 42 ». */
 export function heureDit(iso: string | undefined): string {
   if (!iso) return '';
-  const m = /T(\d{2}):(\d{2})/.exec(String(iso));
+  const brut = String(iso).trim();
+  const m = /T(\d{2}):(\d{2})/.exec(brut);
   if (!m) return '';
-  const h = String(Number(m[1]));
-  return `${h} h ${m[2]}`;
+  if (!PORTE_SON_FUSEAU.test(brut)) return `${Number(m[1])} h ${m[2]}`;
+  const t = Date.parse(brut);
+  if (!Number.isFinite(t)) return '';
+  const d = new Date(t + DECALAGE_DU_SALON_MS);
+  return `${d.getUTCHours()} h ${String(d.getUTCMinutes()).padStart(2, '0')}`;
 }
 
 /** Ce que le Trône dit du fauteuil, en une phrase — la maquette, mot pour mot
