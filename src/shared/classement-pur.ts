@@ -42,12 +42,14 @@ export type CriteresDuClassement = {
   annule_nb: number; annule_mois: number; annule_absences: boolean;
 };
 
-/** Les critères proposés le 20 novembre 2026 ; la Maison les règle au Trône. */
+/** Les critères proposés le 20 novembre 2026 ; la Maison les règle au Trône.
+    `dormante_jours` : 80 depuis le 25 novembre 2026 (« la régulière, sa date
+    est de moins de 80 jours », Yéman) ; la limite elle-même est Dormante. */
 export const CRITERES_PROPOSES: CriteresDuClassement = {
   hors_stop: true, hors_locks: true, hors_passage_pose: true,
   annulee_jours: 60, annulee_absences: true,
   curieuse_jours: 180, premiere_jours: 60, de_passage: 'disparue',
-  rythme_maison: 49, marge: 10, dormante_jours: 120,
+  rythme_maison: 49, marge: 10, dormante_jours: 80,
   annuelle_rythme: 150, annuelle_marge: 45, reguliere_max: 60,
   diaspora_remplace: true, numero_suffit: true, ville_inconnue: 'a-preciser',
   annule_nb: 3, annule_mois: 12, annule_absences: true,
@@ -372,7 +374,7 @@ export function classeLaCliente(f: FicheDuClassement, p: CriteresDuClassement, c
     if (rj != null && rj >= p.annuelle_rythme) {
       if (d <= rj + p.annuelle_marge) { e = 'reguliere'; raison = `vient une ou deux fois par an (tous les ${rj} jours), dernière visite il y a ${d} jours`; }
       else { e = 'dormante'; raison = `au-delà de son rythme d’une ou deux fois par an : ${d} jours sans venir`; }
-    } else if (d <= p.dormante_jours) { e = 'reguliere'; raison = `dernière visite il y a ${d} jours`; }
+    } else if (d < p.dormante_jours) { e = 'reguliere'; raison = `dernière visite il y a ${d} jours`; }
     else { e = 'dormante'; raison = `${d} jours sans venir`; }
   }
   const etapeAuto = e!;
@@ -458,9 +460,9 @@ export function definitionDeLaVue(vue: string, p: CriteresDuClassement, categori
   if (!vue.startsWith('e:')) return null;
   switch (k) {
     case 'privilegiee': return `${LA_PRIVILEGIEE_DITE} Le Trône ne la devine pas : la Maison l’y range depuis son dossier, et ce choix passe avant tous les critères.`;
-    case 'reguliere': return `Elle est venue, et sa dernière visite date de ${p.dormante_jours} jours au plus. Celle qui vient une ou deux fois par an (un rythme de ${p.annuelle_rythme} jours ou plus) y reste tant qu’elle est dans son rythme, avec ${p.annuelle_marge} jours de marge.`;
+    case 'reguliere': return `Elle est venue, et sa dernière visite date de moins de ${p.dormante_jours} jours. Celle qui vient une ou deux fois par an (un rythme de ${p.annuelle_rythme} jours ou plus) y reste tant qu’elle est dans son rythme, avec ${p.annuelle_marge} jours de marge.`;
     case 'annulee': return `Une annulation${p.annulee_absences ? ' (ou un rendez-vous passé resté « confirmé »)' : ''} il y a ${p.annulee_jours} jours au plus, et ni visite ni rendez-vous depuis. Elle passe avant la Diaspora, la Dormante et la Régulière.`;
-    case 'dormante': return `Sa dernière visite date de plus de ${p.dormante_jours} jours. Celle qui vient une ou deux fois par an n’y entre qu’au-delà de son rythme et de ${p.annuelle_marge} jours de marge.`;
+    case 'dormante': return `Sa dernière visite date de ${p.dormante_jours} jours ou plus. Celle qui vient une ou deux fois par an n’y entre qu’au-delà de son rythme et de ${p.annuelle_marge} jours de marge.`;
     case 'diaspora': return p.diaspora_remplace
       ? `Elle vit à l’étranger : le lieu choisi dans son dossier, une ville de l’étranger sur sa fiche, la marque diaspora${p.numero_suffit ? ', ou un numéro étranger' : ' (un numéro étranger seul ne suffit pas)'}. Ses relances suivent ses séjours ; seule une annulation récente passe avant.`
       : 'Désactivée : une cliente qui vit à l’étranger se range comme les autres, Régulière ou Dormante.';
