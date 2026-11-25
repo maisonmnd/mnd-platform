@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ecarts, gardeLaGenerationPrecedente, generationPrecedente } from './publie.mjs';
+import { appelesParLaGeneration, ecarts, gardeLaGenerationPrecedente, generationPrecedente } from './publie.mjs';
 
 /* LA GÉNÉRATION PRÉCÉDENTE RESTE SERVIE — 28 septembre 2026.
 
@@ -17,6 +17,15 @@ import { ecarts, gardeLaGenerationPrecedente, generationPrecedente } from './pub
    la comparaison ne compte pas ce qui est gardé « en trop ». On le prouve
    sur un vrai dépôt git, jetable, et l'on relit la lettre de publie.mjs :
    la génération se lit AVANT l'effacement, se garde APRÈS la copie.
+
+   UN MORCEAU ANCIEN DISPARAISSAIT — 25 novembre 2026. « Ajouté par le
+   dernier commit » ne dit pas tout : un morceau inchangé depuis plusieurs
+   publications n'a été ajouté par aucune des dernières, et la garde le
+   laissait partir le jour où une construction le remplaçait, alors que les
+   pages en cache l'appelaient encore (`le-sceau-pur-<hash>.js`, 404 à la
+   seconde de la publication). La génération précédente, c'est AUSSI ce que
+   ses pages appellent, de proche en proche. Épreuve (4), sur un dépôt qui
+   rejoue le cas.
 
    Lance : node scripts/verifie-la-generation-precedente.mjs */
 
@@ -102,6 +111,87 @@ dit('… la garde APRÈS la copie et AVANT la comparaison', true,
   src.includes(GARDE) && src.indexOf(EFFACE) < src.indexOf(GARDE) && src.indexOf(GARDE) < src.indexOf(COMPARE));
 dit('… et passe les fichiers gardés à la porte de la comparaison', true, /for \(const f of gardes\) repris\.add\(f\);/.test(src));
 dit('… et clone à profondeur 2, pour que HEAD ait un parent', true, src.includes("['clone', '--depth', '2', '--branch', branche, '-q', origine, clone]"));
+dit('… la génération précédente AJOUTE ce que ses pages appellent à ce que son commit a ajouté', true,
+  src.includes('return [...new Set([...ajoutes, ...appelesParLaGeneration(clone)])].sort();'));
+dit('… la lecture part de ce qui n’est pas haché : les pages, sw.js, les manifestes', true,
+  src.includes('const aLire = tous.filter((f) => !EST_HACHE.test(f) && SE_LIT.test(f));'));
+
+/* ── (4) LE MORCEAU ANCIEN, QUE LA DERNIÈRE PUBLICATION N'AVAIT PAS TOUCHÉ ──
+   Génération 1 : tout. Génération 2 (HEAD) : seul `main` change, et la
+   publication garde l'ancien `main-A`. Rien d'autre n'est « ajouté » : le
+   morceau du sceau, le commun, la feuille, la police et le script du
+   service worker datent de la génération 1, et la génération 2 les appelle
+   toujours. Génération 3 : la construction remplace le morceau du sceau. */
+const ancien = path.join(bac, 'ancien');
+mkdirSync(ancien);
+git(['init', '-q', '-b', 'main'], ancien);
+git(['config', 'user.name', 'banc'], ancien);
+git(['config', 'user.email', 'banc@exemple.test'], ancien);
+const SCEAU_1 = 'assets/le-sceau-pur-Zs-_MtuY.js';     // un hash peut porter « - » et « _ »
+const POLICE = 'assets/Cormorant Garamond-FFFFFFFF.woff2';   // un nom peut porter une espace
+ecrit(ancien, 'index.html', '<script type="module" crossorigin src="/trone/assets/main-AAAAAAAA.js"></script>');
+ecrit(ancien, 'regler.html', '<link rel="modulepreload" href="/trone/assets/regler-RRRRRRRR.js">');
+ecrit(ancien, 'sw.js', 'self.__precache=["assets/hors-HHHHHHHH.js","index.html"];');
+ecrit(ancien, 'assets/main-AAAAAAAA.js', 'import{a}from"./commun-OOOOOOOO.js";const d=["assets/page-PPPPPPPP.css"];');
+ecrit(ancien, 'assets/regler-RRRRRRRR.js', 'import{a}from"./le-sceau-pur-Zs-_MtuY.js";');
+ecrit(ancien, SCEAU_1, 'export const a=1;');
+ecrit(ancien, 'assets/commun-OOOOOOOO.js', 'export const a=1;');
+ecrit(ancien, 'assets/page-PPPPPPPP.css', '@font-face{src:url(./Cormorant%20Garamond-FFFFFFFF.woff2)}');
+ecrit(ancien, POLICE, 'police');
+ecrit(ancien, 'assets/hors-HHHHHHHH.js', 'export const h=1;');
+ecrit(ancien, 'assets/photos/site/photo.jpg', 'photo');
+git(['add', '-A'], ancien); git(['commit', '-qm', 'g1'], ancien);
+ecrit(ancien, 'index.html', '<script type="module" crossorigin src="/trone/assets/main-BBBBBBBB.js"></script>');
+ecrit(ancien, 'assets/main-BBBBBBBB.js', 'import{a}from"./commun-OOOOOOOO.js";const d=["assets/page-PPPPPPPP.css"];');
+git(['add', '-A'], ancien); git(['commit', '-qm', 'g2'], ancien);
+
+const ajoutesSeuls = git(['diff-tree', '--no-commit-id', '--name-only', '-r', '--root', '--diff-filter=A', 'HEAD'], ancien)
+  .split(/\r?\n/).map((f) => f.trim()).filter(Boolean);
+dit('le dernier commit n’a ajouté que le script neuf : l’ancienne lecture, seule, ne voyait que lui', ['assets/main-BBBBBBBB.js'], ajoutesSeuls);
+const TOUT_CE_QU_ELLE_APPELLE = [
+  POLICE, 'assets/commun-OOOOOOOO.js', 'assets/hors-HHHHHHHH.js', SCEAU_1,
+  'assets/main-BBBBBBBB.js', 'assets/page-PPPPPPPP.css', 'assets/regler-RRRRRRRR.js',
+];
+const precedents2 = generationPrecedente(ancien);
+dit('la génération précédente, c’est tout ce que ses pages appellent, de proche en proche', TOUT_CE_QU_ELLE_APPELLE, precedents2);
+dit('… le morceau ancien en est, par regler.html puis son script', true, precedents2.includes(SCEAU_1));
+dit('… la police en est, par le script, la feuille, puis son nom encodé', true, precedents2.includes(POLICE));
+dit('… le script que seul sw.js nomme en est', true, precedents2.includes('assets/hors-HHHHHHHH.js'));
+dit('… main-A, gardé de la génération 1, n’en est pas : plus aucune page ne l’appelle', false, precedents2.includes('assets/main-AAAAAAAA.js'));
+dit('… ni la photo', false, precedents2.includes('assets/photos/site/photo.jpg'));
+dit('la lecture des pages, seule, rend la même liste', TOUT_CE_QU_ELLE_APPELLE, appelesParLaGeneration(ancien));
+
+/* Comme la publication : sur un clone à profondeur 2. */
+const origine2 = path.join(bac, 'ancien.git');
+git(['clone', '-q', '--bare', ancien, origine2], bac);
+const peuProfond2 = path.join(bac, 'ancien-peu-profond');
+git(['clone', '-q', '--depth', '2', `file:///${origine2.replace(/\\/g, '/').replace(/^\//, '')}`, peuProfond2], bac);
+dit('sur un clone à profondeur 2, la même lecture', TOUT_CE_QU_ELLE_APPELLE, generationPrecedente(peuProfond2));
+
+/* Génération 3 : le morceau du sceau est remplacé, `main` et `regler` aussi. */
+const dist3 = path.join(bac, 'dist3');
+const SCEAU_2 = 'assets/le-sceau-pur-Dv-IZ_M2.js';
+ecrit(dist3, 'index.html', '<script type="module" crossorigin src="/trone/assets/main-CCCCCCCC.js"></script>');
+ecrit(dist3, 'regler.html', '<link rel="modulepreload" href="/trone/assets/regler-SSSSSSSS.js">');
+ecrit(dist3, 'sw.js', 'self.__precache=["assets/hors-HHHHHHHH.js","index.html"];');
+ecrit(dist3, 'assets/main-CCCCCCCC.js', 'import{a}from"./commun-OOOOOOOO.js";const d=["assets/page-PPPPPPPP.css"];');
+ecrit(dist3, 'assets/regler-SSSSSSSS.js', 'import{a}from"./le-sceau-pur-Dv-IZ_M2.js";');
+ecrit(dist3, SCEAU_2, 'export const a=2;');
+ecrit(dist3, 'assets/commun-OOOOOOOO.js', 'export const a=1;');
+ecrit(dist3, 'assets/page-PPPPPPPP.css', '@font-face{src:url(./Cormorant%20Garamond-FFFFFFFF.woff2)}');
+ecrit(dist3, POLICE, 'police');
+ecrit(dist3, 'assets/hors-HHHHHHHH.js', 'export const h=1;');
+git(['rm', '-rq', '.'], ancien);
+const DIST3 = ['index.html', 'regler.html', 'sw.js', 'assets/main-CCCCCCCC.js', 'assets/regler-SSSSSSSS.js', SCEAU_2,
+  'assets/commun-OOOOOOOO.js', 'assets/page-PPPPPPPP.css', POLICE, 'assets/hors-HHHHHHHH.js'];
+for (const f of DIST3) ecrit(ancien, f, readFileSync(path.join(dist3, f)));
+const gardes3 = gardeLaGenerationPrecedente(dist3, ancien, precedents2);
+dit('le morceau ancien, remplacé, reste servi : avec le script et la page qui l’appelaient', [SCEAU_1, 'assets/main-BBBBBBBB.js', 'assets/regler-RRRRRRRR.js'], gardes3);
+dit('… il est bien de retour dans le clone, à l’identique', 'export const a=1;', existsSync(path.join(ancien, SCEAU_1)) ? readFileSync(path.join(ancien, SCEAU_1), 'utf8') : null);
+dit('… ce que la construction écrit encore n’est pas « repris »', false, gardes3.some((f) => ['assets/commun-OOOOOOOO.js', 'assets/page-PPPPPPPP.css', POLICE, 'assets/hors-HHHHHHHH.js'].includes(f)));
+dit('… main-A, deux générations en arrière, ne revient pas', false, existsSync(path.join(ancien, 'assets/main-AAAAAAAA.js')));
+dit('… et la comparaison passe : rien d’absent, rien de différent, rien « en trop »', [], ecarts(dist3, ancien, new Set(gardes3)));
+dit('avec l’ancienne lecture, le morceau ancien partait', false, ajoutesSeuls.includes(SCEAU_1));
 
 rmSync(bac, { recursive: true, force: true });
 console.log(ko === 0 ? '\nLa génération précédente reste servie.' : `\n${ko} controle(s) en echec.`);

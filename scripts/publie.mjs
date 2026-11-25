@@ -231,11 +231,67 @@ export function domaineDuDepot(clone) {
    porte encore reste maîtresse. Le hash est celui de Vite, huit signes
    avant l'extension, sur les scripts, les feuilles et les polices. */
 const EST_HACHE = /^assets\/[^/]+-[A-Za-z0-9_-]{8}\.(?:js|css|woff2)$/;
+
+/* UN MORCEAU ANCIEN DISPARAISSAIT — 25 novembre 2026. « Ce que son commit a
+   AJOUTÉ » ne dit pas tout ce que la génération d'avant APPELLE. Un morceau
+   resté le même pendant dix publications n'a été « ajouté » par aucune des
+   neuf dernières ; le jour où une construction le remplace, la règle
+   ci-dessus ne le gardait donc pas, alors que les pages en cache l'appellent
+   encore. Vu ce jour-là : `assets/le-sceau-pur-ZsXKMtuY.js`, inchangé depuis
+   plusieurs publications, a rendu 404 à la seconde où son remplaçant est
+   parti, quand l'ancien `index.html`, l'ancien `regler.html`, l'ancien
+   `devis.html` et l'ancien `sw.js` le nommaient toujours. Une cliente qui
+   ouvre sa note à ce moment-là trouve une page morte.
+
+   LA RÈGLE, COMPLÉTÉE : la génération précédente, c'est AUSSI tout fichier
+   haché que ses pages appellent. On part de ce qui n'est pas haché (les
+   pages, `sw.js`, les manifestes : les portes d'entrée), on lit, et l'on
+   suit les noms de proche en proche, d'un script à ses morceaux, d'une
+   feuille à ses polices. Un fichier se reconnaît à sa fin, « -<hash>.<ext> »,
+   quelle que soit la façon dont son nom est écrit devant (chemin relatif,
+   chemin entier, nom encodé).
+
+   TOUJOURS UNE GÉNÉRATION, JAMAIS DEUX : ce que la publication d'avant avait
+   elle-même GARDÉ de plus vieux, plus aucune de ses pages ne l'appelle ; on
+   ne l'atteint donc pas, et il part comme prévu.
+
+   LES DEUX LECTURES S'AJOUTENT. Celle du commit reste le plancher : si la
+   lecture des pages manquait un jour une façon d'écrire un nom, on garderait
+   encore au moins ce qu'on gardait hier. Garder un fichier de trop ne casse
+   rien ; en perdre un casse une page. */
+const FIN_HACHEE = /-[A-Za-z0-9_-]{8}\.(?:js|css|woff2)/g;
+const SE_LIT = /\.(?:html?|js|mjs|css|json|webmanifest|xml|txt)$/i;
+export function appelesParLaGeneration(clone) {
+  const tous = fichiers(clone);
+  const parFin = new Map();
+  for (const f of tous) {
+    if (!EST_HACHE.test(f)) continue;
+    const fin = f.slice(f.lastIndexOf('.') - 9);
+    parFin.set(fin, [...(parFin.get(fin) ?? []), f]);
+  }
+  if (parFin.size === 0) return [];
+  const appeles = new Set();
+  const aLire = tous.filter((f) => !EST_HACHE.test(f) && SE_LIT.test(f));
+  while (aLire.length) {
+    const f = aLire.pop();
+    let texte = '';
+    try { texte = readFileSync(path.join(clone, f), 'utf8'); } catch { continue; }
+    for (const m of texte.matchAll(FIN_HACHEE)) {
+      for (const cible of parFin.get(m[0]) ?? []) {
+        if (appeles.has(cible)) continue;
+        appeles.add(cible);
+        if (SE_LIT.test(cible)) aLire.push(cible);
+      }
+    }
+  }
+  return [...appeles].sort();
+}
 export function generationPrecedente(clone) {
   /* `--root` : si HEAD n'a vraiment pas de parent (la toute première
      publication), tout son contenu compte comme ajouté, plutôt que rien. */
   const sortie = git(['diff-tree', '--no-commit-id', '--name-only', '-r', '--root', '--diff-filter=A', 'HEAD'], clone);
-  return sortie.split(/\r?\n/).map((f) => f.trim()).filter((f) => EST_HACHE.test(f));
+  const ajoutes = sortie.split(/\r?\n/).map((f) => f.trim()).filter((f) => EST_HACHE.test(f));
+  return [...new Set([...ajoutes, ...appelesParLaGeneration(clone)])].sort();
 }
 export function gardeLaGenerationPrecedente(dist, clone, precedents) {
   const gardes = [];
